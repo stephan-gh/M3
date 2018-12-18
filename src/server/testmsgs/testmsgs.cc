@@ -52,7 +52,7 @@ public:
 };
 
 int main() {
-    srv = new Server<TestRequestHandler>("test", new TestRequestHandler());
+    srv = new Server<TestRequestHandler>("testmsgs", new TestRequestHandler());
     env()->workloop()->run();
     return 0;
 }

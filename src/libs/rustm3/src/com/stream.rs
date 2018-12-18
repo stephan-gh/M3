@@ -121,6 +121,7 @@ impl Sink for VecSink {
     }
 }
 
+#[derive(Debug)]
 struct GateSource {
     msg: &'static dtu::Message,
     pos: usize,
@@ -224,6 +225,7 @@ impl GateOStream {
     }
 }
 
+#[derive(Debug)]
 pub struct GateIStream<'r> {
     source: GateSource,
     rgate: &'r RecvGate,
