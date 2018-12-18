@@ -1,3 +1,0 @@
-Import('hostenv')
-prog = hostenv.Program('sockets-server', hostenv.Glob('*.cc'))
-hostenv.Install(hostenv['BINARYDIR'], prog)

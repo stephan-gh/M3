@@ -1,3 +1,0 @@
-Import('hostenv')
-prog = hostenv.Program('c++11-lambda', hostenv.Glob('*.cc'))
-hostenv.Install(hostenv['BINARYDIR'], prog)
