@@ -92,7 +92,13 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     // check if we have enough credits
     if credits != !0 {
-        let needed = 1 << DTU::get_ep(ep, EpReg::MSGORDER);
+        let msg_order = DTU::get_ep(ep, EpReg::MSGORDER);
+        if msg_order == 0 {
+            log_dtu!("DTU-error: invalid EP {}", ep);
+            return Err(Error::new(Code::InvEP));
+        }
+
+        let needed = 1 << msg_order;
         if needed > credits {
             log_dtu!("DTU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
                 ep, credits, needed);
