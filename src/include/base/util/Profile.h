@@ -67,11 +67,11 @@ public:
         return os;
     }
 
-private:
     void push(cycles_t time) {
         _times[_runs++] = time;
     }
 
+private:
     size_t _runs;
     cycles_t *_times;
 };

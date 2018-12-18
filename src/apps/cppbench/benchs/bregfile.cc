@@ -61,7 +61,26 @@ NOINLINE static void write() {
     }, 0x31) << "\n";
 }
 
+NOINLINE static void copy() {
+    Profile pr(2, 1);
+
+    cout << "2 MiB file with 8K buf: " << pr.run_with_id([] {
+        FileRef in("/data/2048k.txt", FILE_R);
+        if(Errors::occurred())
+            PANIC("Unable to open file '/data/2048k.txt'");
+
+        FileRef out("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
+        if(Errors::occurred())
+            PANIC("Unable to open file '/newfile'");
+
+        ssize_t count;
+        while((count = in->read(buf, sizeof(buf))) > 0)
+            out->write(buf, static_cast<size_t>(count));
+    }, 0x31) << "\n";
+}
+
 void bregfile() {
     RUN_BENCH(read);
     RUN_BENCH(write);
+    RUN_BENCH(copy);
 }

@@ -32,3 +32,4 @@ void bregfile();
 void bmemgate();
 void bsyscall();
 void bpipe();
+void bvpe();
