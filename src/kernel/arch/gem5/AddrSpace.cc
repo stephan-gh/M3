@@ -269,6 +269,12 @@ goff_t AddrSpace::get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt
 void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pages, int perm) {
     bool running = vpe.pe == Platform::kernel_pe() || VPEManager::get().vpe(vpe.id).is_on_pe();
 
+    KLOG(MAPPINGS, "VPE" << _vpeid << ": mapping "
+        << m3::fmt(virt, "p") << ".." << m3::fmt(virt + pages * PAGE_SIZE - 1, "p")
+        << " to "
+        << m3::fmt(phys, "#0x", 16) << ".." << m3::fmt(phys + pages * PAGE_SIZE - 1, "#0x", 16)
+        << " with " << m3::fmt(perm, "#x"));
+
     VPEDesc rvpe(vpe);
     gaddr_t root = 0;
     if(!running) {
