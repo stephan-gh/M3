@@ -18,7 +18,7 @@
 
 #include <m3/stream/Standard.h>
 
-#include "../../disk.h"
+#include "../../backend.h"
 #include "../../partition.h"
 
 #include <sys/types.h>
@@ -32,7 +32,7 @@ static int disk_fd      = -1;
 static off_t disk_size  = 0;
 static sPartition parts[PARTITION_COUNT];
 
-void disk_init(bool, bool, const char *disk) {
+void backend_init(bool, bool, const char *disk) {
     // open image
     if((disk_fd = open(disk, O_RDWR)) == -1)
         exitmsg("Unable to open disk image '" << disk << "': " << strerror(errno));
@@ -58,14 +58,14 @@ void disk_init(bool, bool, const char *disk) {
     }
 }
 
-void disk_deinit() {
+void backend_deinit() {
 }
 
-bool disk_exists(size_t dev) {
+bool backend_exists(size_t dev) {
     return dev < PARTITION_COUNT && parts[dev].present == 1;
 }
 
-void disk_read(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t count) {
+void backend_read(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t count) {
     sPartition *part = parts + dev;
 
     if(offset + count > part->size * 512 || offset + count <= offset) {
@@ -89,7 +89,7 @@ void disk_read(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t co
     }
 }
 
-void disk_write(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t count) {
+void backend_write(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t count) {
     sPartition *part = parts + dev;
 
     if(offset + count > part->size * 512 || offset + count <= offset) {

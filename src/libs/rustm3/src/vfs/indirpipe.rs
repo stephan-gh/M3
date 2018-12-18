@@ -29,7 +29,7 @@ pub struct IndirectPipe {
 
 impl IndirectPipe {
     pub fn new(mem: &MemGate, mem_size: usize) -> Result<Self, Error> {
-        let pipe = Rc::new(Pipe::new("pipe", mem, mem_size)?);
+        let pipe = Rc::new(Pipe::new("pipes", mem, mem_size)?);
         Ok(IndirectPipe {
             rd_fd: VPE::cur().files().alloc(pipe.create_chan(true)?)?,
             wr_fd: VPE::cur().files().alloc(pipe.create_chan(false)?)?,

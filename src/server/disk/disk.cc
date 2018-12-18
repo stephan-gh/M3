@@ -31,8 +31,8 @@
 #include <m3/session/Disk.h>
 #include <m3/stream/Standard.h>
 
+#include "backend.h"
 #include "session.h"
-#include "disk.h"
 
 using namespace m3;
 
@@ -83,7 +83,7 @@ public:
     }
 
     virtual Errors::Code open(DiskSrvSession **sess, capsel_t srv_sel, word_t dev) override {
-        if(!disk_exists(dev))
+        if(!backend_exists(dev))
             return Errors::INV_ARGS;
 
         *sess = new DiskSrvSession(dev, srv_sel, &_rgate);
@@ -150,14 +150,14 @@ public:
             len *= blocksize;
 
             while(len >= MAX_DMA_SIZE) {
-                disk_read(sess->device(), m, off, start, MAX_DMA_SIZE);
+                backend_read(sess->device(), m, off, start, MAX_DMA_SIZE);
                 start += MAX_DMA_SIZE;
                 off += MAX_DMA_SIZE;
                 len -= MAX_DMA_SIZE;
             }
             // now read the rest
             if(len)
-                disk_read(sess->device(), m, off, start, len);
+                backend_read(sess->device(), m, off, start, len);
         }
         else
             res = Errors::NO_PERM;
@@ -196,14 +196,14 @@ public:
             len *= blocksize;
 
             while(len >= MAX_DMA_SIZE) {
-                disk_write(sess->device(), m, off, start, MAX_DMA_SIZE);
+                backend_write(sess->device(), m, off, start, MAX_DMA_SIZE);
                 start += MAX_DMA_SIZE;
                 off += MAX_DMA_SIZE;
                 len -= MAX_DMA_SIZE;
             }
             // now write the rest
             if(len)
-                disk_write(sess->device(), m, off, start, len);
+                backend_write(sess->device(), m, off, start, len);
         }
         else
             res = Errors::NO_PERM;
@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
     }
 
     /* detect and init all devices */
-    disk_init(useDma, useIRQ, disk);
+    backend_init(useDma, useIRQ, disk);
 
     srv = new Server<DiskRequestHandler>("disk", new DiskRequestHandler());
 
@@ -250,6 +250,6 @@ int main(int argc, char **argv) {
 
     delete srv;
 
-    disk_deinit();
+    backend_deinit();
     return 0;
 }

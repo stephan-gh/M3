@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
     if(sels != ObjCap::INVALID)
         srv = new Server<PipeServiceHandler>(sels, ep, new PipeServiceHandler());
     else
-        srv = new Server<PipeServiceHandler>("pipe", new PipeServiceHandler());
+        srv = new Server<PipeServiceHandler>("pipes", new PipeServiceHandler());
 
     env()->workloop()->multithreaded(16);
     env()->workloop()->run();

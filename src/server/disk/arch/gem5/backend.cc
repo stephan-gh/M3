@@ -19,8 +19,8 @@
 #include "controller.h"
 #include "device.h"
 
+#include "../../backend.h"
 #include "../../custom_types.h"
-#include "../../disk.h"
 #include "../../partition.h"
 
 using namespace m3;
@@ -41,7 +41,7 @@ struct ATAPartitionDevice {
 
 static const int RETRY_COUNT    = 3;
 
-void disk_init(bool useDma, bool useIRQ, const char *) {
+void backend_init(bool useDma, bool useIRQ, const char *) {
     ctrl_init(useDma, useIRQ);
 
     uint deviceIds[] = {DEVICE_PRIM_MASTER, DEVICE_PRIM_SLAVE, DEVICE_SEC_MASTER, DEVICE_SEC_SLAVE};
@@ -67,15 +67,15 @@ void disk_init(bool useDma, bool useIRQ, const char *) {
     }
 }
 
-void disk_deinit() {
+void backend_deinit() {
     ctrl_deinit();
 }
 
-bool disk_exists(size_t dev) {
+bool backend_exists(size_t dev) {
     return dev < ARRAY_SIZE(devs) && devs[dev] != nullptr;
 }
 
-void disk_read(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t count) {
+void backend_read(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t count) {
     ATAPartitionDevice *pdev = devs[dev];
     sATADevice *ataDev = ctrl_getDevice(pdev->id);
     sPartition *part = ataDev->partTable + pdev->partition;
@@ -110,7 +110,7 @@ void disk_read(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t co
     SLOG(IDE, "Giving up after " << i << " retries");
 }
 
-void disk_write(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t count) {
+void backend_write(size_t dev, MemGate &mem, size_t memoff, size_t offset, size_t count) {
     ATAPartitionDevice *pdev = devs[dev];
     sATADevice *ataDev = ctrl_getDevice(pdev->id);
     sPartition *part = ataDev->partTable + pdev->partition;

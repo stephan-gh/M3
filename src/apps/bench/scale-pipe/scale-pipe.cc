@@ -111,11 +111,11 @@ int main(int argc, char **argv) {
         }
 
         if(j == 0) {
-            srv_vpes[1] = new VPE("pipeserv", VPE::self().pe(), "pager", muxed ? VPE::MUXABLE : 0);
+            srv_vpes[1] = new VPE("pipes", VPE::self().pe(), "pager", muxed ? VPE::MUXABLE : 0);
             srvs[1] = new RemoteServer(*srv_vpes[1], "mypipe");
 
             String srv_arg = srvs[1]->sel_arg();
-            const char *args[] = {"/bin/pipeserv", "-s", srv_arg.c_str()};
+            const char *args[] = {"/bin/pipes", "-s", srv_arg.c_str()};
             Errors::Code res = srv_vpes[1]->exec(ARRAY_SIZE(args), args);
             if(res != Errors::NONE)
                 PANIC("Cannot execute " << args[0] << ": " << Errors::to_string(res));

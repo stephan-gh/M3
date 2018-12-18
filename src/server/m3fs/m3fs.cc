@@ -99,6 +99,8 @@ public:
             return Errors::NOT_SUP;
 
         if(sess->type() == M3FSSession::META) {
+            if(data.caps == 0)
+                return Errors::INV_ARGS;
             capsel_t sels = VPE::self().alloc_sels(data.caps);
             static_cast<M3FSMetaSession *>(sess)->set_eps(sels, data.caps);
             data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, data.caps).value();

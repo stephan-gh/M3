@@ -22,24 +22,24 @@
 /**
  * Initializes all disk devices
  */
-void disk_init(bool useDma, bool useIRQ, const char *disk);
+void backend_init(bool useDma, bool useIRQ, const char *disk);
 
 /**
  * Deinitializes all disk devices
  */
-void disk_deinit();
+void backend_deinit();
 
 /**
  * @return true if the given disk device exists
  */
-bool disk_exists(size_t dev);
+bool backend_exists(size_t dev);
 
 /**
  * Reads <count> bytes from disk at <offset> to <mem>+<memoff>.
  */
-void disk_read(size_t dev, m3::MemGate &mem, size_t memoff, size_t offset, size_t count);
+void backend_read(size_t dev, m3::MemGate &mem, size_t memoff, size_t offset, size_t count);
 
 /**
  * Writes <count> bytes from given device from <mem>+<memoff> to <offset> on disk.
  */
-void disk_write(size_t dev, m3::MemGate &mem, size_t memoff, size_t offset, size_t count);
+void backend_write(size_t dev, m3::MemGate &mem, size_t memoff, size_t offset, size_t count);

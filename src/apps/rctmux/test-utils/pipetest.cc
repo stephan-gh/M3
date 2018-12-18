@@ -102,7 +102,7 @@ int main(int argc, const char **argv) {
         const char **wargv = argv + 6;
         const char **rargv = argv + 6 + wargs;
         if(mode < 2) {
-            apps[0] = create("pipeserv", "pager", mode == 1);
+            apps[0] = create("pipes", "pager", mode == 1);
             apps[1] = nullptr;
             apps[3] = create(wargv[0], "mypager", mode == 1);
             apps[4] = create(rargv[0], "mypager", mode == 1);
@@ -110,7 +110,7 @@ int main(int argc, const char **argv) {
         else {
             apps[3] = create(wargv[0], "mypager", mode == 4);
             apps[4] = create(rargv[0], "mypager", mode == 4);
-            apps[0] = create("pipeserv", "pager", mode >= 3);
+            apps[0] = create("pipes", "pager", mode >= 3);
             apps[1] = create("m3fs", "pager", mode >= 3);
         }
 
@@ -123,7 +123,7 @@ int main(int argc, const char **argv) {
 
         // start services
         String pipearg = pipe_srv->sel_arg();
-        const char *pipe_args[] = {"/bin/pipeserv", "-s", pipearg.c_str()};
+        const char *pipe_args[] = {"/bin/pipes", "-s", pipearg.c_str()};
         Errors::Code res = apps[0]->vpe.exec(ARRAY_SIZE(pipe_args), pipe_args);
         if(res != Errors::NONE)
             PANIC("Cannot execute " << pipe_args[0] << ": " << Errors::to_string(res));

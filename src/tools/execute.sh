@@ -153,7 +153,7 @@ build_params_gem5() {
         done
     )`
 
-    if [[ $cmd == *diskdriver* ]]; then
+    if [[ $cmd == *disk* ]]; then
         ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
     fi
 
@@ -356,7 +356,7 @@ build_params_t2_chip() {
 if [ "$M3_TARGET" = "host" ]; then
     params=`build_params_host $script`
 
-    if [[ $params == *diskdriver* ]]; then
+    if [[ $params == *disk* ]]; then
         ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
     fi
 

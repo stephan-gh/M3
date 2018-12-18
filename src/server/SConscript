@@ -1,0 +1,2 @@
+Import('env', 'hostenv')
+env.SConscript(env.Glob('*/SConscript'), exports = ['env', 'hostenv'])
