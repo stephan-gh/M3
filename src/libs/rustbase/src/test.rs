@@ -62,4 +62,12 @@ macro_rules! assert_err {
             Err(_)                          => ()
         }
     });
+    ($res:expr, $err1:expr, $err2:expr) => ({
+        match $res {
+            Ok(r)                           => panic!("received okay: {:?}", r),
+            Err(ref e) if e.code() != $err1 &&
+                          e.code() != $err2 => panic!("received error {:?}, expected {:?} or {:?}", e, $err1, $err2),
+            Err(_)                          => ()
+        }
+    });
 }

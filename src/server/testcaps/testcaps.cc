@@ -55,7 +55,7 @@ private:
 int main() {
     for(int i = 0; i < 10; ++i) {
         MyHandler hdl;
-        srv = new Server<MyHandler>("srvtest-server", &hdl);
+        srv = new Server<MyHandler>("testcaps", &hdl);
         if(Errors::occurred())
             break;
         env()->workloop()->run();

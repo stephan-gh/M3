@@ -22,6 +22,7 @@ use m3::com::{RecvGate, SendGate};
 
 pub fn run(t: &mut test::Tester) {
     run_test!(t, testmsgs);
+    run_test!(t, testcaps);
 }
 
 pub fn testmsgs() {
@@ -48,4 +49,23 @@ pub fn testmsgs() {
 
         assert_err!(send_recv!(&mut sgate, RecvGate::def(), 0, "123456"), Code::InvEP);
     }
+}
+
+pub fn testcaps() {
+    for _ in 0..10 {
+        let sess = loop {
+            let sess_res = ClientSession::new("testcaps", 0);
+            if let Result::Ok(sess) = sess_res {
+                break sess;
+            }
+        };
+
+        for _ in 0..5 {
+            assert_err!(sess.obtain_obj(), Code::NotSup);
+        }
+
+        assert_err!(sess.obtain_obj(), Code::InvArgs, Code::RecvGone);
+    }
+
+    assert_err!(ClientSession::new("testcaps", 0), Code::InvArgs);
 }
