@@ -15,10 +15,12 @@
 */
 
 #include <base/stream/IStringStream.h>
+#include <base/CmdArgs.h>
 
 #include <m3/com/GateStream.h>
 #include <m3/server/SimpleRequestHandler.h>
 #include <m3/server/Server.h>
+#include <m3/stream/Standard.h>
 
 using namespace m3;
 
@@ -45,19 +47,34 @@ private:
     int _cnt;
 };
 
-int main(int argc, char **argv) {
-    Server<TestRequestHandler> *srv;
-    if(argc > 1) {
-        String input(argv[1]);
-        IStringStream is(input);
-        capsel_t sels;
-        epid_t ep;
-        is >> sels >> ep;
+static void usage(const char *name) {
+    cerr << "Usage: " << name << " [-s <rgate selector>]\n";
+    exit(1);
+}
 
-        srv = new Server<TestRequestHandler>(sels, ep, new TestRequestHandler());
+int main(int argc, char **argv) {
+    capsel_t sels = 0;
+    epid_t ep = EP_COUNT;
+
+    int opt;
+    while((opt = CmdArgs::get(argc, argv, "s:")) != -1) {
+        switch(opt) {
+            case 's': {
+                String input(CmdArgs::arg);
+                IStringStream is(input);
+                is >> sels >> ep;
+                break;
+            }
+            default:
+                usage(argv[0]);
+        }
     }
+
+    Server<TestRequestHandler> *srv;
+    if(ep != EP_COUNT)
+        srv = new Server<TestRequestHandler>(sels, ep, new TestRequestHandler());
     else
-        srv = new Server<TestRequestHandler>("test", new TestRequestHandler());
+        srv = new Server<TestRequestHandler>("srv1", new TestRequestHandler());
 
     env()->workloop()->run();
 

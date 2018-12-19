@@ -69,9 +69,9 @@ int main(int argc, char **argv) {
 
         String srv1arg = srv1.sel_arg();
         String srv2arg = srv2.sel_arg();
-        const char *args1[] = {"/bin/rctmux-util-client", argc > 1 ? argv[1] : "0"};
-        const char *args2[] = {"/bin/rctmux-util-service", srv1arg.c_str()};
-        const char *args3[] = {"/bin/rctmux-util-service", srv2arg.c_str()};
+        const char *args1[] = {"/bin/ctx-client", mode == 2 ? "2" : "1"};
+        const char *args2[] = {"/bin/ctx-service", "-s", srv1arg.c_str()};
+        const char *args3[] = {"/bin/ctx-service", "-s", srv2arg.c_str()};
         start(s1, ARRAY_SIZE(args2), args2);
         start(s2, ARRAY_SIZE(args3), args3);
         start(c1, ARRAY_SIZE(args1), args1);

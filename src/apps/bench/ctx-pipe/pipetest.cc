@@ -27,7 +27,7 @@
 
 using namespace m3;
 
-#define VERBOSE     0
+#define VERBOSE     1
 
 static const size_t PIPE_SHM_SIZE   = 512 * 1024;
 
@@ -83,13 +83,15 @@ int main(int argc, const char **argv) {
     MemGate pipemem = MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW);
 
     for(int j = 0; j < repeats; ++j) {
-        App *apps[5];
+        App *apps[5] = {nullptr};
+        RemoteServer *pagr_srv = nullptr;
 
         if(VERBOSE) cout << "Creating VPEs...\n";
 
+#if defined(__gem5__)
         // start pager
         apps[2] = create("pager", "pager", mode >= 3);
-        RemoteServer *pagr_srv = new RemoteServer(apps[2]->vpe, "mypager");
+        pagr_srv = new RemoteServer(apps[2]->vpe, "mypager");
 
         {
             String pgarg = pagr_srv->sel_arg();
@@ -98,6 +100,7 @@ int main(int argc, const char **argv) {
             if(res != Errors::NONE)
                 PANIC("Cannot execute " << pager_args[0] << ": " << Errors::to_string(res));
         }
+#endif
 
         const char **wargv = argv + 6;
         const char **rargv = argv + 6 + wargs;
@@ -115,7 +118,7 @@ int main(int argc, const char **argv) {
         }
 
         RemoteServer *m3fs_srv = nullptr;
-        RemoteServer *pipe_srv = new RemoteServer(apps[0]->vpe, "pipe");
+        RemoteServer *pipe_srv = new RemoteServer(apps[0]->vpe, "pipes");
         if(apps[1])
             m3fs_srv = new RemoteServer(apps[1]->vpe, "mym3fs");
 
@@ -204,7 +207,8 @@ int main(int argc, const char **argv) {
 
         // request shutdown
         pipe_srv->request_shutdown();
-        pagr_srv->request_shutdown();
+        if(pagr_srv)
+            pagr_srv->request_shutdown();
         if(m3fs_srv)
             m3fs_srv->request_shutdown();
 

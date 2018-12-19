@@ -34,7 +34,7 @@ using namespace m3;
 static const int REPEATS = 24;
 
 static void add(Aladdin &alad, goff_t *virt, size_t size, Aladdin::Array *a, int prot) {
-    size_t psize = Math::round_up(size, PAGE_SIZE);
+    size_t psize = Math::round_up(size, static_cast<size_t>(PAGE_SIZE));
 
     MemGate *mem = new MemGate(MemGate::create_global(psize, prot));
     alad._accel->pager()->map_mem(virt, *mem, psize, prot);

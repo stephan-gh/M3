@@ -18,6 +18,7 @@
 #include <base/util/Time.h>
 #include <base/Panic.h>
 
+#include <m3/server/RemoteServer.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
@@ -31,7 +32,7 @@ struct App {
     explicit App(int argc, const char *argv[], bool tmux)
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPE::self().pe(), "pager", tmux) {
+          vpe(argv[0], VPE::self().pe(), "pager", tmux ? VPE::MUXABLE : 0) {
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
     }
@@ -50,14 +51,20 @@ int main() {
 
     App *apps[3];
 
-    const char *args1[] = {"/bin/rctmux-util-service", "srv1"};
+    const char *args1[] = {"/bin/ctx-service", "-s", ""};
     apps[0] = new App(ARRAY_SIZE(args1), args1, true);
 
-    const char *args2[] = {"/bin/rctmux-util-client", "1", "srv1"};
+    const char *args2[] = {"/bin/ctx-client", "2"};
     apps[1] = new App(ARRAY_SIZE(args2), args2, true);
 
-    const char *args3[] = {"/bin/rctmux-util-client", "2", "srv1"};
+    const char *args3[] = {"/bin/ctx-client", "2"};
     apps[2] = new App(ARRAY_SIZE(args3), args3, true);
+
+    if(VERBOSE) cout << "Starting server...\n";
+
+    RemoteServer *srv = new RemoteServer(apps[0]->vpe, "srv1");
+    String srv_args = srv->sel_arg();
+    apps[0]->argv[2] = srv_args.c_str();
 
     if(VERBOSE) cout << "Starting VPEs...\n";
 
@@ -76,6 +83,11 @@ int main() {
         int res = apps[i]->vpe.wait();
         if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
     }
+
+    if(VERBOSE) cout << "Shutdown server...\n";
+
+    srv->request_shutdown();
+    apps[0]->vpe.wait();
 
     if(VERBOSE) cout << "Deleting VPEs...\n";
 
