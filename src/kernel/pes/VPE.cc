@@ -83,7 +83,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
     rem_ref();
 
     if(~_flags & F_IDLE)
-        init();
+        init_eps();
 
     KLOG(VPES, "Created VPE '" << _name << "' [id=" << id << ", pe=" << pe() << "]");
     for(auto &r : _requires)

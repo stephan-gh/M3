@@ -323,6 +323,12 @@ bool ContextSwitcher::can_switch() const {
 }
 
 bool ContextSwitcher::unblock_vpe(VPE *vpe, bool force) {
+#if defined(__host__)
+    // on host, just wait until the VPE did the init syscall
+    if(_cur == vpe && vpe->state() == VPE::SUSPENDED)
+        return false;
+#endif
+
     if(_cur == vpe)
         return true;
 
@@ -519,15 +525,17 @@ retry:
         }
 
         case S_RESTORE_DONE: {
-            // we have finished the init phase (if it was set)
 #if !defined(__host__)
+            // we have finished the init phase (if it was set)
             _cur->_flags &= ~static_cast<uint>(VPE::F_INIT);
-#endif
             // now that everything is complete, enable the communication
             _cur->_dtustate.enable_communication(_cur->desc());
             _cur->_state = VPE::RUNNING;
-
             _cur->notify_resume();
+#else
+            // on host, we will set it to running after the VPECTRL_INIT syscall
+            _cur->_state = VPE::SUSPENDED;
+#endif
 
             DTU::get().write_swflags(_cur->desc(), 0);
             _state = S_IDLE;

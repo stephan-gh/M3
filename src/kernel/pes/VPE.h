@@ -163,7 +163,7 @@ public:
     }
     void set_mem_base(goff_t addr) {
         _mem_base = addr;
-        init();
+        finish_start();
     }
 
     int exitcode() const {
@@ -262,7 +262,8 @@ public:
     }
 
 private:
-    void init();
+    void finish_start();
+    void init_eps();
     void init_memory();
     void load_app();
     void exit_app(int exitcode);

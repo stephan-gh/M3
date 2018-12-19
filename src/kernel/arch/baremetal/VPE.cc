@@ -21,7 +21,7 @@
 
 namespace kernel {
 
-void VPE::init() {
+void VPE::init_eps() {
     RGateObject rgate(SYSC_MSGSIZE_ORD, SYSC_MSGSIZE_ORD);
     rgate.vpe = VPEManager::MAX_VPES;
     rgate.addr = 1;  // has to be non-zero
@@ -51,6 +51,9 @@ void VPE::init() {
     config_rcv_ep(m3::DTU::DEF_REP, rgate);
 
     _rbufs_size = rgate.addr + (1UL << rgate.order) - Platform::def_recvbuf(pe());
+}
+
+void VPE::finish_start() {
 }
 
 }
