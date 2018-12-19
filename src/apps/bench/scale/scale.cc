@@ -74,6 +74,7 @@ int main(int argc, char **argv) {
     VPE *srvvpes[1 + servers];
     char srvnames[1 + servers][16];
 
+#if defined(__gem5__)
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
@@ -88,6 +89,7 @@ int main(int argc, char **argv) {
         if(res != Errors::NONE)
             PANIC("Cannot execute " << args[0] << ": " << Errors::to_string(res));
     }
+#endif
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
@@ -205,6 +207,8 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Shutting down servers...\n";
 
     for(size_t i = 0; i < servers + 1; ++i) {
+        if(!srv[i])
+            continue;
         srv[i]->request_shutdown();
         int res = srvvpes[i]->wait();
         if(VERBOSE) cout << srvnames[i] << " exited with " << res << "\n";
