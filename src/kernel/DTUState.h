@@ -62,6 +62,10 @@ public:
     void config_pf(gaddr_t rootpt, epid_t sep, epid_t rep);
     void reset(gaddr_t entry, bool flushInval);
 
+#if defined(__host__)
+    void update_recv(epid_t ep, goff_t base);
+#endif
+
 private:
     void move_rbufs(const VPEDesc &vpe, vpeid_t oldvpe, bool save);
 

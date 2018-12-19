@@ -15,6 +15,8 @@
  */
 
 use cell::StaticCell;
+use cfg;
+use core::ptr;
 use kif::PEDesc;
 
 pub struct EnvData {
@@ -36,6 +38,7 @@ impl EnvData {
 }
 
 static ENV_DATA: StaticCell<Option<EnvData>> = StaticCell::new(None);
+static MEM: StaticCell<Option<usize>> = StaticCell::new(None);
 
 pub fn get() -> &'static mut EnvData {
     ENV_DATA.get_mut().as_mut().unwrap()
@@ -43,4 +46,37 @@ pub fn get() -> &'static mut EnvData {
 
 pub fn set(data: EnvData) {
     ENV_DATA.set(Some(data));
+}
+
+pub fn eps_start() -> usize {
+    mem_start()
+}
+
+pub fn rbuf_start() -> usize {
+    mem_start() + cfg::EPMEM_SIZE
+}
+
+pub fn heap_start() -> usize {
+    mem_start() + cfg::EPMEM_SIZE + cfg::RECVBUF_SIZE
+}
+
+pub fn mem_start() -> usize {
+    match MEM.get() {
+        None => {
+            let addr = unsafe {
+                libc::mmap(
+                    ptr::null_mut(),
+                    cfg::MEM_SIZE,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                    libc::MAP_ANON | libc::MAP_PRIVATE,
+                    -1,
+                    0
+                )
+            };
+            assert!(addr != libc::MAP_FAILED);
+            MEM.set(Some(addr as usize));
+            addr as usize
+        },
+        Some(m) => *m,
+    }
 }

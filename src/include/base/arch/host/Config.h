@@ -26,6 +26,10 @@
 #define PAGE_SIZE           1   // shouldn't be 0 because of the alignment in reqmem
 #define PAGE_MASK           0
 
+#define MEM_SIZE            (512 * 1024 * 1024)
+#define EPMEM_SIZE          (1 * 1024 * 1024)
+#define HEAP_SIZE           (MEM_SIZE - RECVBUF_SIZE - EPMEM_SIZE)
+
 #define STACK_SIZE          0x1000
 
 #define RECVBUF_SPACE       1   // no limit here

@@ -14,35 +14,52 @@
  * General Public License version 2 for more details.
  */
 
-use arch::env;
-use col::Vec;
-use errors::Error;
+use base::envdata;
+use cfg;
+use errors::{Code, Error};
 use kif::PEDesc;
 
 #[derive(Debug)]
 pub struct RBufSpace {
-    bufs: Vec<Vec<u8>>,
+    pub cur: usize,
+    pub end: usize,
 }
 
 impl RBufSpace {
     pub fn new() -> Self {
+        Self::new_with(0, 0)
+    }
+
+    pub fn new_with(cur: usize, end: usize) -> Self {
         RBufSpace {
-            bufs: vec![],
+            cur: cur,
+            end: end,
         }
     }
 
-    pub fn get_std(&mut self, _off: usize, size: usize) -> usize {
-        self.alloc(&env::get().pe_desc(), size).unwrap()
+    pub fn get_std(&mut self, off: usize, _size: usize) -> usize {
+        envdata::rbuf_start() + off
     }
 
     pub fn alloc(&mut self, _pe: &PEDesc, size: usize) -> Result<usize, Error> {
-        let buf = vec![0u8; size];
-        let res = buf.as_ptr() as usize;
-        self.bufs.push(buf);
-        Ok(res)
+        if self.end == 0 {
+            self.cur = cfg::SYSC_RBUF_SIZE + cfg::UPCALL_RBUF_SIZE + cfg::DEF_RBUF_SIZE;
+            self.end = cfg::RECVBUF_SIZE;
+        }
+
+        // TODO atm, the kernel allocates the complete receive buffer space
+        let left = self.end - self.cur;
+        if size > left {
+            Err(Error::new(Code::NoSpace))
+        }
+        else {
+            let res = self.cur;
+            self.cur += size;
+            Ok(res)
+        }
     }
 
-    pub fn free(&mut self, addr: usize, _size: usize) {
-        self.bufs.retain(|ref b| b.as_ptr() as usize != addr);
+    pub fn free(&mut self, _addr: usize, _size: usize) {
+        // TODO implement me
     }
 }

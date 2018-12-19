@@ -26,9 +26,6 @@
 #include <limits>
 #include <assert.h>
 
-// bad place, but prevents circular dependencies of headers
-#define HEAP_SIZE           (64 * 1024 * 1024)
-
 // we have no alignment or size requirements here
 #define DTU_PKG_SIZE        (static_cast<size_t>(8))
 #define EP_COUNT            16
@@ -43,7 +40,7 @@ class DTU {
     friend class MsgBackend;
     friend class SocketBackend;
 
-    static constexpr size_t MAX_DATA_SIZE   = HEAP_SIZE;
+    static constexpr size_t MAX_DATA_SIZE   = 1 * 1024 * 1024;
 public:
     struct Header {
         size_t length;          // = mtype -> has to be non-zero
@@ -326,8 +323,7 @@ private:
 
     volatile bool _run;
     volatile word_t _cmdregs[CMDS_RCNT];
-    // have to be aligned by 8 because it shouldn't collide with MemGate::RWX bits
-    alignas(8) volatile word_t _epregs[EPS_RCNT * EP_COUNT];
+    volatile word_t *_epregs;
     DTUBackend *_backend;
     pthread_t _tid;
     static Buffer _buf;

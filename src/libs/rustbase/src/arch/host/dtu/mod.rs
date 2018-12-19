@@ -15,6 +15,8 @@
  */
 
 use arch;
+use cfg;
+use const_assert;
 use core::intrinsics;
 use core::ptr;
 use errors::Error;
@@ -153,7 +155,6 @@ pub const CMD_RCNT: usize = 8;
 pub const EPS_RCNT: usize = 14;
 
 static mut CMD_REGS: [Reg; CMD_RCNT] = [0; CMD_RCNT];
-static mut EP_REGS: [Reg; EPS_RCNT * EP_COUNT] = [0; EPS_RCNT * EP_COUNT];
 
 pub struct DTU {
 }
@@ -281,12 +282,19 @@ impl DTU {
 
     fn get_ep(ep: EpId, reg: EpReg) -> Reg {
         unsafe {
-            ptr::read_volatile(&EP_REGS[ep * EPS_RCNT + reg.val as usize])
+            ptr::read_volatile(Self::ep_addr(ep, reg.val as usize))
         }
     }
     fn set_ep(ep: EpId, reg: EpReg, val: Reg) {
         unsafe {
-            ptr::write_volatile(&mut EP_REGS[ep * EPS_RCNT + reg.val as usize], val)
+            ptr::write_volatile(Self::ep_addr(ep, reg.val as usize), val)
+        }
+    }
+
+    fn ep_addr(ep: EpId, reg: usize) -> &'static mut Reg {
+        let off = (ep * EPS_RCNT + reg as usize) * util::size_of::<Reg>();
+        unsafe {
+            intrinsics::transmute(arch::envdata::eps_start() + off)
         }
     }
 }
@@ -296,19 +304,16 @@ impl DTU {
     pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
         for i in 0..EPS_RCNT {
             unsafe {
-                ptr::write_volatile(&mut EP_REGS[ep * EPS_RCNT + i], regs[i])
+                ptr::write_volatile(Self::ep_addr(ep, i), regs[i])
             }
         }
     }
 }
 
-pub fn ep_regs_addr() -> usize {
-    unsafe {
-        EP_REGS.as_ptr() as usize
-    }
-}
-
 pub fn init() {
+    const EP_SIZE: usize = (EP_COUNT * EPS_RCNT) * util::size_of::<Reg>();
+    const_assert!(EP_SIZE <= cfg::EPMEM_SIZE);
+
     thread::init();
 }
 

@@ -38,8 +38,11 @@ INIT_PRIO_DTU DTU::Buffer DTU::_buf;
 DTU::DTU()
     : _run(true),
       _cmdregs(),
-      _epregs(),
+      _epregs(reinterpret_cast<word_t*>(Env::eps_start())),
       _tid() {
+    const size_t epsize = EPS_RCNT * EP_COUNT * sizeof(word_t);
+    static_assert(epsize <= EPMEM_SIZE, "Not enough space for endpoints");
+    memset(const_cast<word_t*>(_epregs), 0, epsize);
 }
 
 void DTU::start() {
@@ -63,7 +66,7 @@ void DTU::reset() {
     // not work, because the cmpxchg fails.
     for(epid_t i = 0; i < EP_COUNT; ++i) {
         if(get_ep(i, EP_BUF_ADDR) == 0)
-            memset(ep_regs() + i * EPS_RCNT, 0, EPS_RCNT * sizeof(word_t));
+            memset(const_cast<word_t*>(_epregs) + i * EPS_RCNT, 0, EPS_RCNT * sizeof(word_t));
     }
 
     delete _backend;

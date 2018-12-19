@@ -49,16 +49,16 @@ int main(int argc, char **argv) {
     if(argc > 2)
         memPerVPE = IStringStream::read_from<size_t>(argv[2]);
 
-    const size_t MEM_SIZE    = vpes * memPerVPE;
-    const size_t SUBMEM_SIZE = MEM_SIZE / vpes;
+    const size_t AREA_SIZE    = vpes * memPerVPE;
+    const size_t SUBAREA_SIZE = AREA_SIZE / vpes;
 
     RecvGate rgate = RecvGate::create(getnextlog2(vpes * 64), nextlog2<64>::val);
-    MemGate mem = MemGate::create_global(MEM_SIZE, MemGate::RW);
+    MemGate mem = MemGate::create_global(AREA_SIZE, MemGate::RW);
 
     // create worker
     Worker **worker = new Worker*[vpes];
     for(size_t i = 0; i < vpes; ++i) {
-        worker[i] = new Worker(rgate, mem, static_cast<size_t>(i) * SUBMEM_SIZE, SUBMEM_SIZE);
+        worker[i] = new Worker(rgate, mem, static_cast<size_t>(i) * SUBAREA_SIZE, SUBAREA_SIZE);
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create worker");
     }
@@ -66,9 +66,9 @@ int main(int argc, char **argv) {
     // write data into memory
     for(size_t i = 0; i < vpes; ++i) {
         MemGate &vpemem = worker[i]->submem;
-        worker[i]->vpe.run([&vpemem, SUBMEM_SIZE] {
+        worker[i]->vpe.run([&vpemem, SUBAREA_SIZE] {
             uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
-            size_t rem = SUBMEM_SIZE;
+            size_t rem = SUBAREA_SIZE;
             size_t offset = 0;
             while(rem > 0) {
                 for(size_t i = 0; i < BUF_SIZE / sizeof(uint); ++i)
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
                 offset += BUF_SIZE;
                 rem -= BUF_SIZE;
             }
-            cout << "Memory initialization of " << SUBMEM_SIZE << " bytes finished\n";
+            cout << "Memory initialization of " << SUBAREA_SIZE << " bytes finished\n";
             return 0;
         });
     }
@@ -91,11 +91,11 @@ int main(int argc, char **argv) {
         worker[i]->vpe.delegate_obj(worker[i]->sgate.sel());
         MemGate &vpemem = worker[i]->submem;
         SendGate &vpegate = worker[i]->sgate;
-        worker[i]->vpe.run([&vpemem, &vpegate, SUBMEM_SIZE] {
+        worker[i]->vpe.run([&vpemem, &vpegate, SUBAREA_SIZE] {
             uint *buffer = new uint[BUF_SIZE / sizeof(uint)];
 
             uint checksum = 0;
-            size_t rem = SUBMEM_SIZE;
+            size_t rem = SUBAREA_SIZE;
             size_t offset = 0;
             while(rem > 0) {
                 vpemem.read(buffer, BUF_SIZE, offset);

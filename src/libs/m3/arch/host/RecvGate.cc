@@ -14,16 +14,34 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/Panic.h>
+
 #include <m3/com/RecvGate.h>
+#include <m3/VPE.h>
 
 namespace m3 {
 
-void *RecvGate::allocate(VPE &, epid_t, size_t size) {
-    return new uint8_t[size];
+void *RecvGate::allocate(VPE &vpe, epid_t, size_t size) {
+    uint64_t *cur = &vpe._rbufcur;
+    uint64_t *end = &vpe._rbufend;
+
+    if(*end == 0) {
+        *cur = SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
+        *end = RECVBUF_SIZE;
+    }
+
+    // TODO atm, the kernel allocates the complete receive buffer space
+    size_t left = *end - *cur;
+    if(size > left)
+        PANIC("Not enough receive buffer space for " << size << "b (" << left << "b left)");
+
+    uint8_t *res = reinterpret_cast<uint8_t*>(*cur);
+    *cur += size;
+    return res;
 }
 
-void RecvGate::free(void *ptr) {
-    delete[] static_cast<uint8_t*>(ptr);
+void RecvGate::free(void *) {
+    // TODO implement me
 }
 
 }

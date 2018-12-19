@@ -104,20 +104,11 @@ fn init_heap() {
 
 #[cfg(target_os = "linux")]
 fn init_heap() {
-    use core::ptr;
+    use arch::envdata;
 
     unsafe {
-        let addr = libc::mmap(
-            ptr::null_mut(),
-            cfg::APP_HEAP_SIZE,
-            libc::PROT_READ | libc::PROT_WRITE,
-            libc::MAP_ANON | libc::MAP_PRIVATE,
-            -1,
-            0
-        );
-        assert!(addr != libc::MAP_FAILED);
-        heap_begin = addr as *mut HeapArea;
-        heap_end = ((addr as usize + cfg::APP_HEAP_SIZE) as *mut HeapArea).offset(-1);
+        heap_begin = envdata::heap_start() as *mut HeapArea;
+        heap_end = ((envdata::heap_start() + cfg::APP_HEAP_SIZE) as *mut HeapArea).offset(-1);
     }
 }
 

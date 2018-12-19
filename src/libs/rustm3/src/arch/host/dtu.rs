@@ -15,6 +15,7 @@
  */
 
 use arch::env;
+use base::envdata;
 use cfg;
 use com::RecvGate;
 use dtu;
@@ -39,8 +40,8 @@ pub fn init() {
 
     dtu::init();
 
-    let eps = dtu::ep_regs_addr();
-    syscalls::vpe_ctrl(vpe::VPE::cur().sel(), kif::syscalls::VPEOp::INIT, eps as u64).unwrap();
+    let addr = envdata::mem_start();
+    syscalls::vpe_ctrl(vpe::VPE::cur().sel(), kif::syscalls::VPEOp::INIT, addr as u64).unwrap();
 }
 
 pub fn deinit() {

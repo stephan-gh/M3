@@ -638,7 +638,7 @@ void SyscallHandler::vpectrl(VPE *vpe, const m3::DTU::Message *msg) {
 
     switch(op) {
         case m3::KIF::Syscall::VCTRL_INIT:
-            vpecap->obj->set_ep_addr(arg);
+            vpecap->obj->set_mem_base(arg);
             break;
 
         case m3::KIF::Syscall::VCTRL_START:

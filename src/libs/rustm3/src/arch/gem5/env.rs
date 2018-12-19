@@ -82,13 +82,6 @@ impl EnvData {
         }
     }
 
-    pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
-        arch::rbufs::RBufSpace::new_with(
-            self.base.rbuf_cur as usize,
-            self.base.rbuf_end as usize
-        )
-    }
-
     pub fn load_pager(&self) -> Option<Pager> {
         match self.base.pager_sess {
             0 => None,
@@ -96,11 +89,15 @@ impl EnvData {
         }
     }
 
-    pub fn load_caps_eps(&self) -> (Selector, u64) {
+    pub fn load_other(&self) -> (Selector, u64, arch::rbufs::RBufSpace) {
         (
             // it's initially 0. make sure it's at least the first usable selector
             util::max(2 + (EP_COUNT - FIRST_FREE_EP) as Selector, self.base.caps as Selector),
-            self.base.eps
+            self.base.eps,
+            arch::rbufs::RBufSpace::new_with(
+                self.base.rbuf_cur as usize,
+                self.base.rbuf_end as usize
+            )
         )
     }
 

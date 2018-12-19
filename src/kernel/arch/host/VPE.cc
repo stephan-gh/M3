@@ -41,6 +41,12 @@ static void write_env_file(epid_t ep, pid_t pid, peid_t pe, label_t label) {
 }
 
 void VPE::init() {
+    // update all EPs (e.g., to allow parents to activate EPs for their childs)
+    for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
+        // set base for all receive EPs (for do it for all, but it's just unused for the other types)
+        _dtustate.update_recv(ep, rbuf_base());
+        update_ep(ep);
+    }
 }
 
 void VPE::load_app() {

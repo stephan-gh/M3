@@ -152,11 +152,17 @@ public:
         return _rbufcpy;
     }
 
-    goff_t ep_addr() const {
-        return _epaddr;
+    goff_t mem_base() const {
+        return _mem_base;
     }
-    void set_ep_addr(goff_t addr) {
-        _epaddr = addr;
+    goff_t eps_base() const {
+        return mem_base();
+    }
+    goff_t rbuf_base() const {
+        return mem_base() + EPMEM_SIZE;
+    }
+    void set_mem_base(goff_t addr) {
+        _mem_base = addr;
         init();
     }
 
@@ -290,7 +296,7 @@ private:
     m3::SList<ServName> _requires;
     size_t _argc;
     const char *const *_argv;
-    goff_t _epaddr;
+    goff_t _mem_base;
 };
 
 }

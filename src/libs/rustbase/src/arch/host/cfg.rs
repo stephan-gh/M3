@@ -23,11 +23,14 @@ pub const MAX_RB_SIZE: usize        = usize::max_value();
 pub const MEM_CAP_END: usize        = 0xFFFF_FFFF_FFFF_FFFF;
 
 pub const PE_COUNT: usize           = 18;
-pub const MEM_SIZE: usize           = 512 * 1024 * 1024;
-pub const FS_MAX_SIZE: usize        = 256 * 1024 * 1024;
 
+pub const FS_MAX_SIZE: usize        = 256 * 1024 * 1024;
 pub const STACK_SIZE: usize         = 0x8000;
-pub const APP_HEAP_SIZE: usize      = 64 * 1024 * 1024;
+pub const RECVBUF_SIZE: usize       = 16 * 1024;
+
+pub const MEM_SIZE: usize           = 512 * 1024 * 1024;
+pub const EPMEM_SIZE: usize         = 1 * 1024 * 1024;
+pub const APP_HEAP_SIZE: usize      = MEM_SIZE - RECVBUF_SIZE - EPMEM_SIZE;
 
 pub const SYSC_RBUF_ORD: i32        = 9;
 pub const UPCALL_RBUF_ORD: i32      = 9;

@@ -26,6 +26,7 @@
 #include <m3/UserWorkLoop.h>
 #include <m3/VPE.h>
 
+#include <sys/mman.h>
 #include <fstream>
 #include <unistd.h>
 #include <fcntl.h>
@@ -36,6 +37,7 @@ volatile int wait_for_debugger = 1;
 
 namespace m3 {
 
+void *Env::_mem = nullptr;
 Env *Env::_inst = nullptr;
 INIT_PRIO_ENV Env::Init Env::_init;
 INIT_PRIO_ENV_POST Env::PostInit Env::_postInit;
@@ -49,7 +51,7 @@ static void stop_dtu() {
 }
 
 static void init_syscall() {
-    word_t arg = reinterpret_cast<word_t>(DTU::get().ep_regs());
+    word_t arg = Env::eps_start();
     Syscalls::get().vpectrl(VPE::self().sel(), KIF::Syscall::VCTRL_INIT, arg);
 }
 
@@ -175,6 +177,15 @@ void Env::init_dtu() {
     DTU::get().configure(DTU::SYSC_SEP, _sysc_label, 0, _sysc_epid, _sysc_credits, SYSC_RBUF_ORDER);
 
     DTU::get().start();
+}
+
+void *Env::mem() {
+    if(_mem == nullptr) {
+        _mem = mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        if(_mem == MAP_FAILED)
+            PANIC("Unable to map heap");
+    }
+    return _mem;
 }
 
 void Env::print() const {

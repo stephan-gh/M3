@@ -75,7 +75,7 @@ void VPE::init_state() {
     unsigned char *buf = new unsigned char[len];
     if(read_from("other", buf, len)) {
         Unmarshaller um(buf, len);
-        um >> _next_sel >> _eps;
+        um >> _next_sel >> _eps >> _rbufcur >> _rbufend;
     }
 }
 
@@ -138,7 +138,7 @@ Errors::Code VPE::run(void *lambda) {
         unsigned char *buf = new unsigned char[len];
 
         Marshaller m(buf, len);
-        m << _next_sel << _eps;
+        m << _next_sel << _eps << _rbufcur << _rbufend;
         write_file(pid, "other", buf, m.total());
 
         len = _ms->serialize(buf, len);
@@ -219,7 +219,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
         unsigned char *buf = new unsigned char[len];
 
         Marshaller m(buf, len);
-        m << _next_sel << _eps;
+        m << _next_sel << _eps << _rbufcur << _rbufend;
         write_file(pid, "other", buf, m.total());
 
         len = _ms->serialize(buf, STATE_BUF_SIZE);

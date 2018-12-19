@@ -19,7 +19,6 @@
 #include <base/Heap.h>
 #include <base/Panic.h>
 
-#include <sys/mman.h>
 #include <malloc.h>
 
 static void ensure_inited() {
@@ -51,11 +50,7 @@ USED void free(void *p) {
 namespace m3 {
 
 void Heap::init_arch() {
-    heap_begin = reinterpret_cast<HeapArea*>(mmap(0, HEAP_SIZE, PROT_READ | PROT_WRITE,
-                                                  MAP_ANONYMOUS | MAP_PRIVATE, -1, 0));
-    if(heap_begin == MAP_FAILED)
-        PANIC("Unable to map heap");
-
+    heap_begin = reinterpret_cast<HeapArea*>(Env::heap_start());
     heap_end = heap_begin + (HEAP_SIZE / sizeof(HeapArea)) - sizeof(HeapArea);
     heap_end->next = 0;
     heap_end->prev = static_cast<size_t>(heap_end - heap_begin) * sizeof(HeapArea);

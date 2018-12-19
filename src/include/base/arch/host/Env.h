@@ -57,6 +57,16 @@ public:
         return *_inst;
     }
 
+    static uintptr_t eps_start() {
+        return reinterpret_cast<uintptr_t>(mem());
+    }
+    static uintptr_t rbuf_start() {
+        return reinterpret_cast<uintptr_t>(mem()) + EPMEM_SIZE;
+    }
+    static uintptr_t heap_start() {
+        return reinterpret_cast<uintptr_t>(mem()) + EPMEM_SIZE + RECVBUF_SIZE;
+    }
+
     static const char *executable_path() {
         if(*_exec == '\0')
             init_executable();
@@ -113,6 +123,7 @@ public:
     }
 
 private:
+    static void *mem();
     static peid_t set_inst(Env *e) {
         _inst = e;
         // pe id
@@ -133,6 +144,7 @@ private:
     word_t _sysc_credits;
     pthread_mutex_t _log_mutex;
 
+    static void *_mem;
     static const char *_exec_short_ptr;
     static char _exec[];
     static char _exec_short[];

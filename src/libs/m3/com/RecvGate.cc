@@ -35,7 +35,7 @@ static void *get_rgate_buf(UNUSED size_t off) {
     else
         return reinterpret_cast<void*>((desc.mem_size() - RECVBUF_SIZE_SPM) + off);
 #else
-    return nullptr;
+    return reinterpret_cast<void*>(Env::rbuf_start() + off);
 #endif
 }
 

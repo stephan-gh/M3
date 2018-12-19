@@ -60,7 +60,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
       _requires(),
       _argc(),
       _argv(),
-      _epaddr() {
+      _mem_base() {
     if(_sysc_ep == EP_COUNT)
         PANIC("Too few slots in syscall receive buffers");
     if(group)
@@ -342,7 +342,7 @@ m3::Errors::Code VPE::config_rcv_ep(epid_t ep, RGateObject &obj) {
         << ", msgorder=" << obj.msgorder
         << ", header=" << obj.header << "]");
 
-    _dtustate.config_recv(ep, obj.addr, obj.order, obj.msgorder, obj.header);
+    _dtustate.config_recv(ep, rbuf_base() + obj.addr, obj.order, obj.msgorder, obj.header);
     update_ep(ep);
 
     // TODO really manage the header space and zero the headers first in case they are reused

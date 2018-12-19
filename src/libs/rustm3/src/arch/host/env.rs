@@ -69,21 +69,27 @@ impl EnvData {
         self.vpe = vpe as *const vpe::VPE as usize;
     }
 
-    pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
-        arch::rbufs::RBufSpace::new()
-    }
-
     pub fn load_pager(&self) -> Option<Pager> {
         None
     }
 
-    pub fn load_caps_eps(&self) -> (Selector, u64) {
+    pub fn load_other(&self) -> (Selector, u64, arch::rbufs::RBufSpace) {
         match arch::loader::read_env_file("other") {
             Some(other) => {
                 let mut ss = SliceSource::new(&other);
-                (ss.pop(), ss.pop())
+                (
+                    ss.pop(),
+                    ss.pop(),
+                    arch::rbufs::RBufSpace::new_with(ss.pop(), ss.pop())
+                )
             },
-            None        => (2 + (EP_COUNT - FIRST_FREE_EP) as Selector, 0),
+            None        => {
+                (
+                    2 + (EP_COUNT - FIRST_FREE_EP) as Selector,
+                    0,
+                    arch::rbufs::RBufSpace::new()
+                )
+            },
         }
     }
 
