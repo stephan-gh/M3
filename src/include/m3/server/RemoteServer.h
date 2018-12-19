@@ -26,7 +26,7 @@ struct RemoteServer {
     explicit RemoteServer(VPE &vpe, const String &name)
         : srv(ObjCap::SERVICE, VPE::self().alloc_sels(2)),
           rgate(RecvGate::create_for(vpe, srv.sel() + 1, nextlog2<256>::val,
-                                                             nextlog2<256>::val)) {
+                                                         nextlog2<256>::val)) {
         rgate.activate();
         Syscalls::get().createsrv(srv.sel(), vpe.sel(), rgate.sel(), name);
         vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, srv.sel(), 2));
