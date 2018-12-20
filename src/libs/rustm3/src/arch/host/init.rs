@@ -23,13 +23,6 @@ use syscalls;
 use vfs;
 use vpe;
 
-fn rust_exit(code: i32) {
-    io::deinit();
-    vfs::deinit();
-    syscalls::exit(code);
-    arch::dtu::deinit();
-}
-
 #[no_mangle]
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
     extern "C" {
@@ -51,5 +44,8 @@ pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
 
 #[no_mangle]
 pub extern "C" fn rust_deinit(status: i32, _arg: *const libc::c_void) {
-    rust_exit(status);
+    io::deinit();
+    vfs::deinit();
+    syscalls::exit(status);
+    arch::dtu::deinit();
 }
