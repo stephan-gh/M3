@@ -167,11 +167,11 @@ public:
                 Machine::write(buf, nbytes);
                 len = 0;
             }
-            reply_vmsg(is, Errors::NONE, BUF_SIZE);
+            reply_vmsg(is, Errors::NONE);
         }
         else {
             pos += nbytes;
-            reply_vmsg(is, Errors::NONE, len);
+            reply_vmsg(is, Errors::NONE);
         }
     }
 

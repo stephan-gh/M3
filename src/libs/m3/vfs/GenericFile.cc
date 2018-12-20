@@ -258,10 +258,6 @@ Errors::Code GenericFile::submit() {
             return Errors::last;
 
         // if we append, the file was truncated
-        size_t filesize;
-        reply >> filesize;
-        if(_goff + _len > filesize)
-            _len = filesize - _goff;
         _goff += _pos;
         _pos = _len = 0;
     }

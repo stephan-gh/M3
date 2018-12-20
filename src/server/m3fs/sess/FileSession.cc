@@ -292,7 +292,7 @@ void M3FSFileSession::commit(GateIStream &is) {
     }
     _lastbytes = 0;
 
-    reply_vmsg(is, res, inode->size);
+    reply_vmsg(is, res);
 }
 
 void M3FSFileSession::seek(GateIStream &is) {

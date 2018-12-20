@@ -75,15 +75,10 @@ impl GenericFile {
 
     fn submit(&mut self, force: bool) -> Result<(), Error> {
         if self.pos > 0 && (self.writing || force) {
-            let mut reply = send_recv_res!(
+            send_recv_res!(
                 &self.sgate, RecvGate::def(),
                 Operation::COMMIT, self.pos
             )?;
-            // if we append, the file was truncated
-            let filesize = reply.pop();
-            if self.goff + self.len > filesize {
-                self.len = filesize - self.goff;
-            }
             self.goff += self.pos;
             self.pos = 0;
             self.len = 0;
