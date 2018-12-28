@@ -25,11 +25,13 @@ using namespace m3;
 class MyHandler;
 
 static Server<MyHandler> *srv;
+static bool kern_shutdown_req = false;
 
 class MyHandler : public Handler<ServerSession> {
 public:
     MyHandler()
         : Handler<ServerSession>(),
+          _selfstop(),
           _count() {
     }
 
@@ -38,8 +40,11 @@ public:
         return Errors::NONE;
     }
     virtual Errors::Code obtain(ServerSession *, KIF::Service::ExchangeData &) override {
-        if(++_count == 5)
+        if(++_count == 5) {
+            _selfstop = true;
             srv->shutdown();
+            _selfstop = false;
+        }
         return Errors::NOT_SUP;
     }
     virtual Errors::Code close(ServerSession *sess) override {
@@ -47,13 +52,18 @@ public:
         delete sess;
         return Errors::NONE;
     }
+    virtual void shutdown() override {
+        if(!_selfstop)
+            kern_shutdown_req = true;
+    }
 
 private:
+    bool _selfstop;
     int _count;
 };
 
 int main() {
-    for(int i = 0; i < 10; ++i) {
+    for(int i = 0; !kern_shutdown_req && i < 10; ++i) {
         MyHandler hdl;
         srv = new Server<MyHandler>("testcaps", &hdl);
         if(Errors::occurred())
