@@ -35,6 +35,8 @@ public:
     explicit DTUBackend();
     ~DTUBackend();
 
+    void shutdown();
+
     bool has_command();
     epid_t has_msg();
 

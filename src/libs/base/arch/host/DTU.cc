@@ -446,10 +446,10 @@ found:
     _backend->notify(DTUBackend::Event::MSG);
 }
 
-void DTU::handle_receive(epid_t ep) {
+bool DTU::handle_receive(epid_t ep) {
     ssize_t res = _backend->recv(ep, &_buf);
     if(res < 0)
-        return;
+        return false;
 
     const int op = _buf.opcode;
     switch(op) {
@@ -486,6 +486,7 @@ void DTU::handle_receive(epid_t ep) {
            << " ep=" << ep
            << " (cnt=#" << fmt(get_ep(ep, EP_BUF_MSGCNT), "x") << ","
            << "crd=#" << fmt(get_ep(ep, EP_CREDITS), "x") << ")");
+    return true;
 }
 
 Errors::Code DTU::exec_command() {
@@ -521,6 +522,18 @@ void *DTU::thread(void *arg) {
             if(ep != EP_COUNT)
                 dma->handle_receive(ep);
         }
+    }
+
+    // deny further receives
+    dma->_backend->shutdown();
+
+    // handle all outstanding messages
+    while(1) {
+        bool received = false;
+        for(epid_t ep = 0; ep < EP_COUNT; ++ep)
+            received |= dma->handle_receive(ep);
+        if(!received)
+            break;
     }
 
     delete dma->_backend;

@@ -516,7 +516,7 @@ fn handle_command(backend: &backend::SocketBackend) {
     };
 }
 
-fn handle_receive(backend: &backend::SocketBackend, ep: EpId) {
+fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
     let buf = buffer();
     if let Some(size) = backend.receive(ep, buf) {
         match Command::from(buf.header.opcode) {
@@ -552,6 +552,10 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) {
             DTU::get_ep(ep, EpReg::BUF_MSG_CNT),
             DTU::get_ep(ep, EpReg::CREDITS),
         );
+        true
+    }
+    else {
+        false
     }
 }
 
@@ -569,6 +573,22 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
 
         for ep in 0..EP_COUNT {
             handle_receive(&backend, ep);
+        }
+
+        DTU::try_sleep(false, 0).unwrap();
+    }
+
+    // deny further receives
+    backend.shutdown();
+
+    // handle all outstanding messages
+    loop {
+        let mut received = false;
+        for ep in 0..EP_COUNT {
+            received |= handle_receive(&backend, ep);
+        }
+        if !received {
+            break;
         }
 
         DTU::try_sleep(false, 0).unwrap();

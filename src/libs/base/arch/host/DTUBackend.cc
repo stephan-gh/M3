@@ -76,6 +76,11 @@ DTUBackend::DTUBackend()
     }
 }
 
+void DTUBackend::shutdown() {
+    for(epid_t ep = 0; ep < ARRAY_SIZE(_localsocks); ++ep)
+        ::shutdown(_localsocks[ep], SHUT_RD);
+}
+
 DTUBackend::~DTUBackend() {
     for(epid_t ep = 0; ep < ARRAY_SIZE(_localsocks); ++ep)
         close(_localsocks[ep]);

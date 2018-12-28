@@ -106,6 +106,12 @@ impl SocketBackend {
             }
         }
     }
+
+    pub fn shutdown(&self) {
+        for ep in 0..EP_COUNT {
+            unsafe { libc::shutdown(self.localsock[ep], libc::SHUT_RD) };
+        }
+    }
 }
 
 impl Drop for SocketBackend {

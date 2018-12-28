@@ -314,7 +314,7 @@ private:
     void handle_resp_cmd();
     void handle_command(peid_t pe);
     void handle_msg(size_t len, epid_t ep);
-    void handle_receive(epid_t ep);
+    bool handle_receive(epid_t ep);
 
     static word_t check_cmd(epid_t ep, int op, word_t addr, word_t credits, size_t offset, size_t length);
     static void *thread(void *arg);
