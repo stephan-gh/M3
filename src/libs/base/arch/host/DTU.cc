@@ -134,6 +134,13 @@ word_t DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
         return CTRL_ERROR;
     }
 
+    // ack message
+    word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
+    assert(is_occupied(occupied, idx));
+    set_occupied(occupied, idx, false);
+    set_ep(ep, EP_BUF_OCCUPIED, occupied);
+    LLOG(DTU, "EP" << ep << ": acked message at index " << idx);
+
     dstpe = buf->pe;
     dstep = buf->rpl_ep;
     _buf.label = buf->replylabel;

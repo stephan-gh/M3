@@ -191,9 +191,7 @@ public:
     }
     Errors::Code reply(epid_t ep, const void *msg, size_t size, size_t msgidx) {
         setup_command(ep, REPLY, msg, size, msgidx, 0, label_t(), 0);
-        Errors::Code res = exec_command();
-        mark_read(ep, msgidx);
-        return res;
+        return exec_command();
     }
     Errors::Code read(epid_t ep, void *msg, size_t size, size_t off, uint) {
         setup_command(ep, READ, msg, size, off, size, label_t(), 0);

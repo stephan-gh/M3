@@ -141,6 +141,13 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
         return Err(Error::new(Code::InvArgs));
     }
 
+    // ack message
+    let mut occupied = DTU::get_ep(ep, EpReg::BUF_OCCUPIED);
+    assert!(is_bit_set(occupied, idx as u64));
+    occupied = set_bit(occupied, idx as u64, false);
+    DTU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
+    log_dtu!("EP{}: acked message at index {}", ep, idx);
+
     let buf = buffer();
     buf.header.label = reply_header.reply_label;
     buf.header.credits = 1;

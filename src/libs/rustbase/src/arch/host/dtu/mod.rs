@@ -166,9 +166,7 @@ impl DTU {
 
     pub fn reply(ep: EpId, reply: *const u8, size: usize, msg: &'static Message) -> Result<(), Error> {
         let msg_addr = msg as *const Message as *const u8 as usize;
-        Self::fire(ep, Command::REPLY, reply, size, msg_addr, 0, 0, 0)?;
-        Self::mark_read(ep, msg);
-        Ok(())
+        Self::fire(ep, Command::REPLY, reply, size, msg_addr, 0, 0, 0)
     }
 
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff, _flags: CmdFlags) -> Result<(), Error> {
