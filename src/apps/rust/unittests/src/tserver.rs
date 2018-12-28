@@ -47,7 +47,7 @@ pub fn testmsgs() {
         let resp: String = reply.pop();
         assert_eq!(resp, "654321");
 
-        assert_err!(send_recv!(&mut sgate, RecvGate::def(), 0, "123456"), Code::InvEP);
+        assert_err!(send_recv!(&mut sgate, RecvGate::def(), 0, "123456"), Code::InvEP, Code::RecvGone);
     }
 }
 
