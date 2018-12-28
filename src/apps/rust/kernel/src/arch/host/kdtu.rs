@@ -24,14 +24,12 @@ use base::util;
 use pes::{VPEId, VPEDesc};
 
 pub struct State {
-    cmd: [Reg; CMD_RCNT],
     eps: [Reg; EPS_RCNT * EP_COUNT],
 }
 
 impl State {
     pub fn new() -> State {
         State {
-            cmd: [0; CMD_RCNT],
             eps: [0; EPS_RCNT * EP_COUNT],
         }
     }
