@@ -307,6 +307,8 @@ void DTU::handle_command(peid_t pe) {
             break;
         case WRITE:
             newctrl |= prepare_write(ep, dstpe, dstep);
+            if(~newctrl & CTRL_ERROR)
+                newctrl |= (ctrl & ~CTRL_START);
             break;
         case FETCHMSG:
             newctrl |= prepare_fetchmsg(ep);
@@ -332,20 +334,21 @@ void DTU::handle_command(peid_t pe) {
     else
         _buf.has_replycap = 0;
 
-    send_msg(ep, dstpe, dstep, op == REPLY);
+    if(!send_msg(ep, dstpe, dstep, op == REPLY))
+        newctrl = CTRL_ERROR;
 
 error:
     set_cmd(CMD_CTRL, newctrl);
 }
 
-void DTU::send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply) {
+bool DTU::send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply) {
     LLOG(DTU, (isreply ? ">> " : "-> ") << fmt(_buf.length, 3) << "b"
             << " lbl=" << fmt(_buf.label, "#0x", sizeof(label_t) * 2)
             << " over " << ep << " to pe:ep=" << dstpe << ":" << dstep
             << " (crd=#" << fmt(get_ep(dstep, EP_CREDITS), "x")
             << " rep=" << _buf.rpl_ep << ")");
 
-    _backend->send(dstpe, dstep, &_buf);
+    return _backend->send(dstpe, dstep, &_buf);
 }
 
 void DTU::handle_read_cmd(epid_t ep) {
@@ -371,25 +374,36 @@ void DTU::handle_read_cmd(epid_t ep) {
     send_msg(ep, dstpe, dstep, true);
 }
 
-void DTU::handle_write_cmd(epid_t) {
+void DTU::handle_write_cmd(epid_t ep) {
     word_t base = _buf.label & ~static_cast<word_t>(KIF::Perm::RWX);
     word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
     word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
     LLOG(DTU, "(write) " << length << " bytes to #" << fmt(base, "x")
             << "+#" << fmt(offset - base, "x"));
     assert(length <= sizeof(_buf.data));
+    peid_t dstpe = _buf.pe;
+    epid_t dstep = _buf.rpl_ep;
     memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 2, length);
+
+    _buf.opcode = RESP;
+    _buf.credits = 0;
+    _buf.label = 0;
+    _buf.length = 0;
+    send_msg(ep, dstpe, dstep, true);
 }
 
 void DTU::handle_resp_cmd() {
     word_t base = _buf.label & ~static_cast<word_t>(KIF::Perm::RWX);
-    word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
-    word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
-    word_t resp = reinterpret_cast<word_t*>(_buf.data)[2];
-    LLOG(DTU, "(resp) " << length << " bytes to #" << fmt(base, "x")
-            << "+#" << fmt(offset - base, "x") << " -> " << resp);
-    assert(length <= sizeof(_buf.data));
-    memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 3, length);
+    word_t resp = 0;
+    if(_buf.length > 0) {
+        word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
+        word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
+        resp = reinterpret_cast<word_t*>(_buf.data)[2];
+        LLOG(DTU, "(resp) " << length << " bytes to #" << fmt(base, "x")
+                << "+#" << fmt(offset - base, "x") << " -> " << resp);
+        assert(length <= sizeof(_buf.data));
+        memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 3, length);
+    }
     /* provide feedback to SW */
     set_cmd(CMD_CTRL, resp);
     _backend->notify(DTUBackend::Event::RESP);

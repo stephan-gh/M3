@@ -308,7 +308,7 @@ private:
     word_t prepare_fetchmsg(epid_t ep);
     word_t prepare_ackmsg(epid_t ep);
 
-    void send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply);
+    bool send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply);
     void handle_read_cmd(epid_t ep);
     void handle_write_cmd(epid_t ep);
     void handle_resp_cmd();

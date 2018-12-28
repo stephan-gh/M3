@@ -354,23 +354,36 @@ fn handle_msg(ep: EpId, len: usize) {
     log_dtu!("DTU-error: EP{}: dropping msg because no slot is free", ep);
 }
 
-fn handle_write_cmd() {
+fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
     let buf = buffer();
-    let data = buf.as_words();
     let base = buf.header.label & !(kif::Perm::RWX.bits() as Label);
-    let offset = base + data[0];
-    let length = data[1];
 
-    log_dtu!("(write) {} bytes to {:#x}+{:#x}", length, base, offset - base);
-    assert!(length as usize <= MAX_MSG_SIZE - 2 * util::size_of::<u64>());
+    {
+        let data = buf.as_words();
+        let offset = base + data[0];
+        let length = data[1];
 
-    unsafe {
-        libc::memcpy(
-            offset as *mut libc::c_void,
-            data[2..].as_ptr() as *const libc::c_void,
-            length as usize
-        );
+        log_dtu!("(write) {} bytes to {:#x}+{:#x}", length, base, offset - base);
+        assert!(length as usize <= MAX_MSG_SIZE - 2 * util::size_of::<u64>());
+
+        unsafe {
+            libc::memcpy(
+                offset as *mut libc::c_void,
+                data[2..].as_ptr() as *const libc::c_void,
+                length as usize
+            );
+        }
     }
+
+    let dst_pe = buf.header.pe as PEId;
+    let dst_ep = buf.header.rpl_ep as EpId;
+
+    buf.header.opcode = Command::RESP.val as u8;
+    buf.header.credits = 0;
+    buf.header.label = 0;
+    buf.header.length = 0;
+
+    send_msg(backend, ep, dst_pe, dst_ep)
 }
 
 fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
@@ -413,20 +426,26 @@ fn handle_resp_cmd() {
     let buf = buffer();
     let data = buf.as_words();
     let base = buf.header.label & !(kif::Perm::RWX.bits() as Label);
-    let offset = base + data[0];
-    let length = data[1];
-    let resp = data[2];
+    let resp = if buf.header.length > 0 {
+        let offset = base + data[0];
+        let length = data[1];
+        let resp = data[2];
 
-    log_dtu!("(resp) {} bytes to {:#x}+{:#x} -> {:#x}", length, base, offset - base, resp);
-    assert!(length as usize <= MAX_MSG_SIZE - 3 * util::size_of::<usize>());
+        log_dtu!("(resp) {} bytes to {:#x}+{:#x} -> {:#x}", length, base, offset - base, resp);
+        assert!(length as usize <= MAX_MSG_SIZE - 3 * util::size_of::<usize>());
 
-    unsafe {
-        libc::memcpy(
-            offset as *mut libc::c_void,
-            data[3..].as_ptr() as *const libc::c_void,
-            length as usize
-        );
+        unsafe {
+            libc::memcpy(
+                offset as *mut libc::c_void,
+                data[3..].as_ptr() as *const libc::c_void,
+                length as usize
+            );
+        }
+        resp
     }
+    else {
+        0
+    };
 
     // provide feedback to SW
     DTU::set_cmd(CmdReg::CTRL, resp << 16);
@@ -495,7 +514,7 @@ fn handle_command(backend: &backend::SocketBackend) {
                 match send_msg(backend, ep, dst_pe, dst_ep) {
                     Err(e) => Err(e),
                     Ok(_)  => {
-                        if op == Command::READ {
+                        if op == Command::READ || op == Command::WRITE {
                             // wait for the response
                             Ok(op.val << 3)
                         }
@@ -522,7 +541,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
         match Command::from(buf.header.opcode) {
             Command::SEND | Command::REPLY  => handle_msg(ep, size),
             Command::READ                   => handle_read_cmd(backend, ep).unwrap(),
-            Command::WRITE                  => handle_write_cmd(),
+            Command::WRITE                  => handle_write_cmd(backend, ep).unwrap(),
             Command::RESP                   => handle_resp_cmd(),
             _                               => panic!("Not supported!"),
         }

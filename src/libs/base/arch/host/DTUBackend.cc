@@ -156,11 +156,14 @@ bool DTUBackend::wait(Event ev) {
     return true;
 }
 
-void DTUBackend::send(peid_t pe, epid_t ep, const DTU::Buffer *buf) {
+bool DTUBackend::send(peid_t pe, epid_t ep, const DTU::Buffer *buf) {
     int res = sendto(_sock, buf, buf->length + DTU::HEADER_SIZE, 0,
                      (struct sockaddr*)(_endpoints + pe * (EP_COUNT + 3) + ep), sizeof(sockaddr_un));
-    if(res == -1)
+    if(res == -1) {
         LLOG(DTUERR, "Sending message to EP " << pe << ":" << ep << " failed: " << strerror(errno));
+        return false;
+    }
+    return true;
 }
 
 ssize_t DTUBackend::recv(epid_t ep, DTU::Buffer *buf) {

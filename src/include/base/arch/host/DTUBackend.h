@@ -42,7 +42,7 @@ public:
 
     void notify(Event ev);
     bool wait(Event ev);
-    void send(peid_t pe, epid_t ep, const DTU::Buffer *buf);
+    bool send(peid_t pe, epid_t ep, const DTU::Buffer *buf);
     ssize_t recv(epid_t ep, DTU::Buffer *buf);
 
 private:
