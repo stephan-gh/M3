@@ -71,7 +71,7 @@ DTUBackend::DTUBackend()
 
     for(size_t i = 0; i < ARRAY_SIZE(_fds); ++i) {
         _fds[i].fd = _localsocks[i];
-        _fds[i].events = POLLIN | POLLERR;
+        _fds[i].events = POLLIN | POLLERR | POLLHUP | POLLRDHUP;
         _fds[i].revents = 0;
     }
 }
@@ -133,7 +133,7 @@ void DTUBackend::notify(Event ev) {
 bool DTUBackend::wait(Event ev) {
     struct pollfd fds;
     fds.fd = _localsocks[EP_COUNT + static_cast<size_t>(ev)];
-    fds.events = POLLIN;
+    fds.events = POLLIN | POLLERR | POLLHUP | POLLRDHUP;
     if(::ppoll(&fds, 1, nullptr, nullptr) == -1) {
         if(errno != EINTR) {
             LLOG(DTUERR, "Polling for notification from " << ev_names[static_cast<size_t>(ev)]
