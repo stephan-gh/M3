@@ -28,8 +28,12 @@
 #![default_lib_allocator]
 #![no_std]
 
+#[cfg(target_os = "none")]
+extern crate alloc;
+#[cfg(target_os = "linux")]
 #[macro_use]
 extern crate alloc;
+
 #[macro_use]
 extern crate bitflags;
 // for int_enum!
