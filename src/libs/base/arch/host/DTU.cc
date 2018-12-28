@@ -47,8 +47,6 @@ DTU::DTU()
 
 void DTU::start() {
     _backend = new DTUBackend();
-    if(env()->is_kernel())
-        _backend->create();
 
     int res = pthread_create(&_tid, nullptr, thread, this);
     if(res != 0)
@@ -525,8 +523,6 @@ void *DTU::thread(void *arg) {
         }
     }
 
-    if(env()->is_kernel())
-        dma->_backend->destroy();
     delete dma->_backend;
     return 0;
 }

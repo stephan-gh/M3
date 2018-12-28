@@ -35,11 +35,6 @@ public:
     explicit DTUBackend();
     ~DTUBackend();
 
-    void create() {
-    }
-    void destroy() {
-    }
-
     bool has_command();
     epid_t has_msg();
 
