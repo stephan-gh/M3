@@ -14,14 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::{recv_msg, RecvGate, RGateArgs, SendGate, SGateArgs};
-use m3::boxed::Box;
+use m3::com::{RecvGate, RGateArgs};
 use m3::errors::Code;
 use m3::test;
-use m3::vpe::{Activity, VPE};
 
 pub fn run(t: &mut test::Tester) {
     run_test!(t, create);
+    #[cfg(target_os = "none")]
     run_test!(t, destroy);
 }
 
@@ -30,7 +29,13 @@ fn create() {
     assert_err!(RecvGate::new_with(RGateArgs::new().sel(1)), Code::InvArgs);
 }
 
+// doesn't work on host yet
+#[cfg(target_os = "none")]
 fn destroy() {
+    use m3::com::{recv_msg, SendGate, SGateArgs};
+    use m3::boxed::Box;
+    use m3::vpe::{Activity, VPE};
+
     let mut child = assert_ok!(VPE::new("test"));
 
     let act = {
