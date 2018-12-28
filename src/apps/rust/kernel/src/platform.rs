@@ -17,7 +17,6 @@
 use arch;
 use base::cell::StaticCell;
 use base::dtu::PEId;
-use base::GlobAddr;
 use base::goff;
 use base::kif::PEDesc;
 use core::iter;
@@ -62,18 +61,20 @@ fn get() -> &'static mut KEnv {
     KENV.get_mut().as_mut().unwrap()
 }
 
+#[cfg(target_os = "none")]
 pub struct ModIterator {
     idx: usize,
 }
 
+#[cfg(target_os = "none")]
 impl iter::Iterator for ModIterator {
-    type Item = GlobAddr;
+    type Item = base::GlobAddr;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.idx += 1;
         match {get().mods}[self.idx - 1] {
             0 => None,
-            a => Some(GlobAddr::new(a)),
+            a => Some(base::GlobAddr::new(a)),
         }
     }
 }
@@ -108,6 +109,7 @@ pub fn rcvbufs_size(pe: PEId) -> usize {
     arch::platform::rcvbufs_size(pe)
 }
 
+#[cfg(target_os = "none")]
 pub fn mods() -> ModIterator {
     ModIterator {
         idx: 0,

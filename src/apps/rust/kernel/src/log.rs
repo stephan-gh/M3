@@ -22,6 +22,7 @@ pub static KENV: bool   = false;
 pub static MEM: bool    = false;
 pub static SERV: bool   = false;
 pub static SQUEUE: bool = false;
+#[cfg(target_os = "none")]
 pub static PTES: bool   = false;
 pub static VPES: bool   = false;
 

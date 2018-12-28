@@ -14,11 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use base::goff;
-
-pub const ENTRY_ADDR: goff = 0x1000;
-pub const YIELD_ADDR: goff = 0x5FF0;
-pub const FLAGS_ADDR: goff = 0x5FF8;
+#[cfg(target_os = "none")]
+pub const ENTRY_ADDR: base::goff = 0x1000;
+#[cfg(target_os = "none")]
+pub const YIELD_ADDR: base::goff = 0x5FF0;
+#[cfg(target_os = "none")]
+pub const FLAGS_ADDR: base::goff = 0x5FF8;
 
 bitflags! {
     pub struct Flags : u64 {
