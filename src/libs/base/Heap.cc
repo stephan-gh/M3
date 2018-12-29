@@ -23,9 +23,13 @@
 
 namespace m3 {
 
+bool Heap::inited = false;
 bool Heap::panic = true;
 
 void Heap::init() {
+    if(inited)
+        return;
+
     if(m3::LibLog::level & m3::LibLog::HEAP) {
         heap_set_free_callback(free_callback);
         heap_set_alloc_callback(alloc_callback);
@@ -33,6 +37,8 @@ void Heap::init() {
     heap_set_oom_callback(oom_callback);
     heap_set_dblfree_callback(dblfree_callback);
     init_arch();
+
+    inited = true;
 }
 
 void Heap::print(OStream &os) {

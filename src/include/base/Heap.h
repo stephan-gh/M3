@@ -170,6 +170,7 @@ private:
     static bool oom_callback(size_t size);
     static void dblfree_callback(void *p);
 
+    static bool inited;
     static bool panic;
 };
 
