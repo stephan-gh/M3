@@ -161,20 +161,20 @@ pub struct DTU {
 
 impl DTU {
     pub fn send(ep: EpId, msg: *const u8, size: usize, reply_lbl: Label, reply_ep: EpId) -> Result<(), Error> {
-        Self::fire(ep, Command::SEND, msg, size, 0, 0, reply_lbl, reply_ep)
+        Self::exec_command(ep, Command::SEND, msg, size, 0, 0, reply_lbl, reply_ep)
     }
 
     pub fn reply(ep: EpId, reply: *const u8, size: usize, msg: &'static Message) -> Result<(), Error> {
         let msg_addr = msg as *const Message as *const u8 as usize;
-        Self::fire(ep, Command::REPLY, reply, size, msg_addr, 0, 0, 0)
+        Self::exec_command(ep, Command::REPLY, reply, size, msg_addr, 0, 0, 0)
     }
 
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff, _flags: CmdFlags) -> Result<(), Error> {
-        Self::fire(ep, Command::READ, data, size, off as usize, size, 0, 0)
+        Self::exec_command(ep, Command::READ, data, size, off as usize, size, 0, 0)
     }
 
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff, _flags: CmdFlags) -> Result<(), Error> {
-        Self::fire(ep, Command::WRITE, data, size, off as usize, size, 0, 0)
+        Self::exec_command(ep, Command::WRITE, data, size, off as usize, size, 0, 0)
     }
 
     pub fn fetch_msg(ep: EpId) -> Option<&'static Message> {
@@ -184,7 +184,7 @@ impl DTU {
 
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::CTRL, (Command::FETCH_MSG.val << 3) | Control::START.bits);
-        if Self::wait_until_ready().is_err() {
+        if thread::exec_command().is_err() {
             return None;
         }
 
@@ -210,11 +210,19 @@ impl DTU {
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::OFFSET, msg_addr as Reg);
         Self::set_cmd(CmdReg::CTRL, (Command::ACK_MSG.val << 3) | Control::START.bits);
-        Self::wait_until_ready().unwrap();
+        thread::exec_command().unwrap();
     }
 
     pub fn try_sleep(_yield: bool, _cycles: u64) -> Result<(), Error> {
-        unsafe { libc::usleep(1) };
+        // check if there are unread messages. if there are, we don't want to wait but need to
+        // handle the messages first
+        for i in 0..EP_COUNT {
+            if Self::get_ep(i, EpReg::BUF_MSG_CNT) > 0 {
+                return Ok(());
+            }
+        }
+
+        thread::wait_msg();
         Ok(())
     }
 
@@ -236,7 +244,7 @@ impl DTU {
         Self::set_ep(ep, EpReg::BUF_OCCUPIED, 0);
     }
 
-    fn fire(ep: EpId, cmd: Command, msg: *const u8, size: usize, off: usize, len: usize,
+    fn exec_command(ep: EpId, cmd: Command, msg: *const u8, size: usize, off: usize, len: usize,
             reply_lbl: Label, reply_ep: EpId) -> Result<(), Error> {
         Self::set_cmd(CmdReg::ADDR, msg as Reg);
         Self::set_cmd(CmdReg::SIZE, size as Reg);
@@ -251,19 +259,16 @@ impl DTU {
         else {
             Self::set_cmd(CmdReg::CTRL, (cmd.val << 3) | (Control::START | Control::REPLY_CAP).bits);
         }
-        Self::wait_until_ready()
+        thread::exec_command()
     }
 
-    fn wait_until_ready() -> Result<(), Error> {
-        loop {
-            let cmd = Self::get_cmd(CmdReg::CTRL);
-            if (cmd & 0xFFFF) == 0 {
-                let err = cmd >> 16;
-                if err != 0 {
-                    return Err(Error::from(err as u32))
-                }
-                return Ok(())
-            }
+    fn is_ready() -> bool {
+        (Self::get_cmd(CmdReg::CTRL) >> 3) & 0x1FFF == 0
+    }
+    fn get_result() -> Result<(), Error> {
+        match Self::get_cmd(CmdReg::CTRL) >> 16 {
+            0 => Ok(()),
+            e => Err(Error::from(e as u32)),
         }
     }
 

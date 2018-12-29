@@ -22,8 +22,19 @@ use util;
 
 pub(crate) struct SocketBackend {
     sock: i32,
+    pending: i32,
     localsock: Vec<i32>,
+    fds: Vec<libc::pollfd>,
     eps: Vec<libc::sockaddr_un>,
+}
+
+int_enum! {
+    /// The system calls
+    pub struct Event : u64 {
+        const REQ     = 0;
+        const RESP    = 1;
+        const MSG     = 2;
+    }
 }
 
 impl SocketBackend {
@@ -33,7 +44,7 @@ impl SocketBackend {
 
         let mut eps = vec![];
         for pe in 0..PE_COUNT {
-            for ep in 0..EP_COUNT {
+            for ep in 0..EP_COUNT + 3 {
                 let addr = format!("\0m3_ep_{}.{}\0", pe, ep);
                 let mut sockaddr = libc::sockaddr_un {
                     sun_family: libc::AF_UNIX as libc::sa_family_t,
@@ -48,7 +59,7 @@ impl SocketBackend {
 
         let pe = arch::envdata::get().pe_id;
         let mut localsock = vec![];
-        for ep in 0..EP_COUNT {
+        for ep in 0..EP_COUNT + 3 {
             unsafe {
                 let epsock = libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0);
                 assert!(epsock != -1);
@@ -58,7 +69,7 @@ impl SocketBackend {
 
                 assert!(libc::bind(
                     epsock,
-                    intrinsics::transmute(&eps[pe as usize * EP_COUNT + ep]),
+                    intrinsics::transmute(&eps[pe as usize * (EP_COUNT + 3) + ep]),
                     util::size_of::<libc::sockaddr_un>() as u32
                 ) == 0);
 
@@ -66,16 +77,135 @@ impl SocketBackend {
             }
         }
 
+        let mut fds = vec![];
+        for i in 0..EP_COUNT + 1 {
+            let fd = libc::pollfd {
+                fd: localsock[i],
+                events: libc::POLLIN | libc::POLLERR,
+                revents: 0,
+            };
+            fds.push(fd);
+        }
+
         SocketBackend {
             sock: sock,
+            pending: 0,
             localsock: localsock,
+            fds: fds,
             eps: eps,
         }
     }
 
+    fn poll(&mut self) {
+        self.pending = unsafe {
+            libc::ppoll(
+                self.fds[0..EP_COUNT + 1].as_mut_ptr(),
+                self.fds.len() as u64,
+                ptr::null_mut(),
+                ptr::null_mut()
+            )
+        };
+        // assert!(self.pending >= 0 || libc::errno == libc::EINTR);
+    }
+
+    pub fn has_command(&mut self) -> Option<()> {
+        if self.pending <= 0 {
+            self.poll();
+        }
+
+        let fdidx = EP_COUNT + Event::REQ.val as usize;
+        if self.fds[fdidx].revents != 0 {
+            unsafe {
+                let mut dummy: u8 = 0;
+                let res = libc::recvfrom(
+                    self.fds[fdidx].fd,
+                    &mut dummy as *mut u8 as *mut libc::c_void,
+                    1,
+                    0,
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                );
+                assert!(res != -1);
+            }
+
+            self.fds[fdidx].revents = 0;
+            self.pending -= 1;
+            Some(())
+        }
+        else {
+            None
+        }
+    }
+
+    pub fn has_msg(&mut self) -> Option<EpId> {
+        if self.pending <= 0 {
+            self.poll();
+        }
+
+        for ep in 0..EP_COUNT {
+            if self.fds[ep].revents != 0 {
+                self.fds[ep].revents = 0;
+                self.pending -= 1;
+                return Some(ep);
+            }
+        }
+
+        None
+    }
+
+    pub fn notify(&self, ev: Event) {
+        let pe = arch::envdata::get().pe_id as usize;
+        let dummy: u8 = 0;
+
+        unsafe {
+            let sock = &self.eps[pe * (EP_COUNT + 3) + EP_COUNT + ev.val as usize];
+            let res = libc::sendto(
+                self.sock,
+                &dummy as *const u8 as *const libc::c_void,
+                1,
+                0,
+                sock as *const libc::sockaddr_un as *const libc::sockaddr,
+                util::size_of::<libc::sockaddr_un>() as u32
+            );
+            assert!(res != -1);
+        }
+    }
+
+    pub fn wait(&self, ev: Event) -> bool {
+        let mut fds = libc::pollfd {
+            fd: self.localsock[EP_COUNT + ev.val as usize],
+            events: libc::POLLIN | libc::POLLERR | libc::POLLHUP,
+            revents: 0,
+        };
+        let res = unsafe {
+            libc::ppoll(
+                &mut fds as *mut libc::pollfd,
+                1,
+                ptr::null_mut(),
+                ptr::null_mut()
+            )
+        };
+        if res == -1 {
+            return false
+        }
+
+        let res = unsafe {
+            let mut dummy: u8 = 0;
+            libc::recvfrom(
+                fds.fd,
+                &mut dummy as *mut u8 as *mut libc::c_void,
+                1,
+                0,
+                ptr::null_mut(),
+                ptr::null_mut(),
+            )
+        };
+        res != -1
+    }
+
     pub fn send(&self, pe: PEId, ep: EpId, buf: &thread::Buffer) -> bool {
         unsafe {
-            let sock = &self.eps[pe * EP_COUNT + ep];
+            let sock = &self.eps[pe * (EP_COUNT + 3) + ep];
             let res = libc::sendto(
                 self.sock,
                 buf as *const thread::Buffer as *const libc::c_void,
