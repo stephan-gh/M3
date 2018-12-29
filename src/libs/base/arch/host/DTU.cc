@@ -385,6 +385,13 @@ void DTU::handle_write_cmd(epid_t ep) {
     epid_t dstep = _buf.rpl_ep;
     memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 2, length);
 
+    // wakeup software in case EPs were written
+    constexpr size_t EP_SIZE = (EP_COUNT * EPS_RCNT) * sizeof(word_t);
+    if(offset >= Env::eps_start() && offset + length <= Env::eps_start() + EP_SIZE) {
+        LLOG(DTU, "EPs changed; waking up software");
+        _backend->notify(DTUBackend::Event::MSG);
+    }
+
     _buf.opcode = RESP;
     _buf.credits = 0;
     _buf.label = 0;

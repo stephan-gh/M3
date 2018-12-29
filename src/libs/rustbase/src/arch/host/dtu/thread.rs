@@ -15,6 +15,7 @@
  */
 
 use arch::dtu::*;
+use arch::envdata;
 use cell::StaticCell;
 use core::sync::atomic;
 use errors::{Code, Error};
@@ -374,6 +375,14 @@ fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Er
                 data[2..].as_ptr() as *const libc::c_void,
                 length as usize
             );
+        }
+
+        // wakeup software in case EPs were written
+        const EP_SIZE: usize = (EP_COUNT * EPS_RCNT) * util::size_of::<Reg>();
+        if offset >= envdata::eps_start() as u64 &&
+           offset + length <= envdata::eps_start() as u64 + EP_SIZE as u64 {
+            log_dtu!("EPs changed; waking up software");
+            backend.notify(backend::Event::MSG);
         }
     }
 

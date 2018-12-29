@@ -88,23 +88,25 @@ public:
     // register starts and counts (cont.)
     static constexpr size_t CMDS_RCNT           = 1 + CMD_LENGTH;
 
+    static constexpr size_t EP_VALID            = 0;
+
     // receive buffer registers
-    static constexpr size_t EP_BUF_ADDR         = 0;
-    static constexpr size_t EP_BUF_ORDER        = 1;
-    static constexpr size_t EP_BUF_MSGORDER     = 2;
-    static constexpr size_t EP_BUF_ROFF         = 3;
-    static constexpr size_t EP_BUF_WOFF         = 4;
-    static constexpr size_t EP_BUF_MSGCNT       = 5;
-    static constexpr size_t EP_BUF_MSGQID       = 6;
-    static constexpr size_t EP_BUF_UNREAD       = 7;
-    static constexpr size_t EP_BUF_OCCUPIED     = 8;
+    static constexpr size_t EP_BUF_ADDR         = 1;
+    static constexpr size_t EP_BUF_ORDER        = 2;
+    static constexpr size_t EP_BUF_MSGORDER     = 3;
+    static constexpr size_t EP_BUF_ROFF         = 4;
+    static constexpr size_t EP_BUF_WOFF         = 5;
+    static constexpr size_t EP_BUF_MSGCNT       = 6;
+    static constexpr size_t EP_BUF_MSGQID       = 7;
+    static constexpr size_t EP_BUF_UNREAD       = 8;
+    static constexpr size_t EP_BUF_OCCUPIED     = 9;
 
     // for sending message and accessing memory
-    static constexpr size_t EP_PEID             = 9;
-    static constexpr size_t EP_EPID             = 10;
-    static constexpr size_t EP_LABEL            = 11;
-    static constexpr size_t EP_CREDITS          = 12;
-    static constexpr size_t EP_MSGORDER         = 13;
+    static constexpr size_t EP_PEID             = 10;
+    static constexpr size_t EP_EPID             = 11;
+    static constexpr size_t EP_LABEL            = 12;
+    static constexpr size_t EP_CREDITS          = 13;
+    static constexpr size_t EP_MSGORDER         = 14;
 
     // bits in ctrl register
     static constexpr word_t CTRL_START          = 0x1;
@@ -176,6 +178,7 @@ public:
         configure(const_cast<word_t*>(_epregs), ep, label, pe, dstep, credits, msgorder);
     }
     static void configure(word_t *eps, epid_t ep, label_t label, peid_t pe, epid_t dstep, word_t credits, uint msgorder) {
+        eps[ep * EPS_RCNT + EP_VALID] = 1;
         eps[ep * EPS_RCNT + EP_LABEL] = label;
         eps[ep * EPS_RCNT + EP_PEID] = pe;
         eps[ep * EPS_RCNT + EP_EPID] = dstep;
@@ -202,9 +205,8 @@ public:
         return exec_command();
     }
 
-    bool is_valid(epid_t) const {
-        // TODO not supported
-        return true;
+    bool is_valid(epid_t ep) const {
+        return get_ep(ep, EP_VALID) == 1;
     }
     bool has_missing_credits(epid_t) const {
         // TODO not supported
@@ -237,7 +239,7 @@ public:
     }
 
     void setup_command(epid_t ep, int op, const void *msg, size_t size, size_t offset,
-                               size_t len, label_t replylbl, epid_t replyep) {
+                       size_t len, label_t replylbl, epid_t replyep) {
         set_cmd(CMD_ADDR, reinterpret_cast<word_t>(msg));
         set_cmd(CMD_SIZE, size);
         set_cmd(CMD_EPID, ep);

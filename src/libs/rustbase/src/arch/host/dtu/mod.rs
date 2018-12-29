@@ -60,23 +60,25 @@ int_enum! {
 
 int_enum! {
     pub struct EpReg : Reg {
+        const VALID         = 0;
+
         // receive buffer registers
-        const BUF_ADDR      = 0;
-        const BUF_ORDER     = 1;
-        const BUF_MSGORDER  = 2;
-        const BUF_ROFF      = 3;
-        const BUF_WOFF      = 4;
-        const BUF_MSG_CNT   = 5;
-        const BUF_MSG_ID    = 6;
-        const BUF_UNREAD    = 7;
-        const BUF_OCCUPIED  = 8;
+        const BUF_ADDR      = 1;
+        const BUF_ORDER     = 2;
+        const BUF_MSGORDER  = 3;
+        const BUF_ROFF      = 4;
+        const BUF_WOFF      = 5;
+        const BUF_MSG_CNT   = 6;
+        const BUF_MSG_ID    = 7;
+        const BUF_UNREAD    = 8;
+        const BUF_OCCUPIED  = 9;
 
         // for sending message and accessing memory
-        const PE_ID         = 9;
-        const EP_ID         = 10;
-        const LABEL         = 11;
-        const CREDITS       = 12;
-        const MSGORDER      = 13;
+        const PE_ID         = 10;
+        const EP_ID         = 11;
+        const LABEL         = 12;
+        const CREDITS       = 13;
+        const MSGORDER      = 14;
     }
 }
 
@@ -152,7 +154,7 @@ pub struct Message {
 }
 
 pub const CMD_RCNT: usize = 8;
-pub const EPS_RCNT: usize = 14;
+pub const EPS_RCNT: usize = 15;
 
 static mut CMD_REGS: [Reg; CMD_RCNT] = [0; CMD_RCNT];
 
@@ -201,8 +203,8 @@ impl DTU {
         }
     }
 
-    pub fn is_valid(_ep: EpId) -> bool {
-        true
+    pub fn is_valid(ep: EpId) -> bool {
+        Self::get_ep(ep, EpReg::VALID) == 1
     }
 
     pub fn mark_read(ep: EpId, msg: &Message) {
@@ -227,6 +229,7 @@ impl DTU {
     }
 
     pub fn configure(ep: EpId, lbl: Label, pe: PEId, dst_ep: EpId, crd: u64, msg_order: i32) {
+        Self::set_ep(ep, EpReg::VALID, 1);
         Self::set_ep(ep, EpReg::LABEL, lbl);
         Self::set_ep(ep, EpReg::PE_ID, pe as Reg);
         Self::set_ep(ep, EpReg::EP_ID, dst_ep as Reg);
@@ -234,6 +237,7 @@ impl DTU {
         Self::set_ep(ep, EpReg::MSGORDER, msg_order as Reg);
     }
     pub fn configure_recv(ep: EpId, buf: usize, order: i32, msg_order: i32) {
+        Self::set_ep(ep, EpReg::VALID, 1);
         Self::set_ep(ep, EpReg::BUF_ADDR, buf as Reg);
         Self::set_ep(ep, EpReg::BUF_ORDER, order as Reg);
         Self::set_ep(ep, EpReg::BUF_MSGORDER, msg_order as Reg);
