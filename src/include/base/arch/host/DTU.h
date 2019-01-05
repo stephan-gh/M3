@@ -20,11 +20,13 @@
 #include <base/util/String.h>
 #include <base/util/Util.h>
 #include <base/Errors.h>
-#include <pthread.h>
-#include <ostream>
+
+#include <assert.h>
 #include <iomanip>
 #include <limits>
-#include <assert.h>
+#include <ostream>
+#include <pthread.h>
+#include <unistd.h>
 
 // we have no alignment or size requirements here
 #define DTU_PKG_SIZE        (static_cast<size_t>(8))
@@ -260,7 +262,9 @@ public:
     pthread_t tid() const {
         return _tid;
     }
-    void try_sleep(bool report = true, uint64_t cycles = 0) const;
+    void try_sleep(bool = true, uint64_t = 0) const {
+        usleep(1);
+    }
 
     void drop_msgs(epid_t ep, label_t label) {
         // we assume that the one that used the label can no longer send messages. thus, if there are

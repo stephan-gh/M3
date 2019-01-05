@@ -26,34 +26,18 @@ namespace m3 {
 
 class DTUBackend {
 public:
-    enum class Event {
-        REQ     = 0,
-        RESP    = 1,
-        MSG     = 2,
-    };
-
     explicit DTUBackend();
     ~DTUBackend();
 
     void shutdown();
 
-    bool has_command();
-    epid_t has_msg();
-
-    void notify(Event ev);
-    bool wait(Event ev);
     bool send(peid_t pe, epid_t ep, const DTU::Buffer *buf);
     ssize_t recv(epid_t ep, DTU::Buffer *buf);
 
 private:
-    void poll();
-
     int _sock;
-    int _pending;
-    // the last three are used for DTU-CU notifications
-    int _localsocks[EP_COUNT + 3];
-    struct pollfd _fds[EP_COUNT + 1];
-    sockaddr_un _endpoints[PE_COUNT * (EP_COUNT + 3)];
+    int _localsocks[EP_COUNT];
+    sockaddr_un _endpoints[PE_COUNT * EP_COUNT];
 };
 
 }

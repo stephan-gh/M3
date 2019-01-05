@@ -55,7 +55,6 @@ void DTU::start() {
 
 void DTU::stop() {
     _run = false;
-    pthread_kill(_tid, SIGUSR1);
 }
 
 void DTU::reset() {
@@ -68,17 +67,6 @@ void DTU::reset() {
     }
 
     delete _backend;
-}
-
-void DTU::try_sleep(bool, uint64_t) const {
-    // check if there are unread messages. if there are, we don't want to wait but need to
-    // handle the messages first
-    for(epid_t i = 0; i < EP_COUNT; ++i) {
-        if(get_ep(i, EP_BUF_MSGCNT) > 0)
-            return;
-    }
-
-    _backend->wait(DTUBackend::Event::MSG);
 }
 
 void DTU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
@@ -385,13 +373,6 @@ void DTU::handle_write_cmd(epid_t ep) {
     epid_t dstep = _buf.rpl_ep;
     memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 2, length);
 
-    // wakeup software in case EPs were written
-    constexpr size_t EP_SIZE = (EP_COUNT * EPS_RCNT) * sizeof(word_t);
-    if(offset >= Env::eps_start() && offset + length <= Env::eps_start() + EP_SIZE) {
-        LLOG(DTU, "EPs changed; waking up software");
-        _backend->notify(DTUBackend::Event::MSG);
-    }
-
     _buf.opcode = RESP;
     _buf.credits = 0;
     _buf.label = 0;
@@ -413,7 +394,6 @@ void DTU::handle_resp_cmd() {
     }
     /* provide feedback to SW */
     set_cmd(CMD_CTRL, resp);
-    _backend->notify(DTUBackend::Event::RESP);
 }
 
 void DTU::handle_msg(size_t len, epid_t ep) {
@@ -463,8 +443,6 @@ found:
 
     size_t addr = get_ep(ep, EP_BUF_ADDR);
     memcpy(reinterpret_cast<void*>(addr + i * (1UL << msgord)), &_buf, len);
-
-    _backend->notify(DTUBackend::Event::MSG);
 }
 
 bool DTU::handle_receive(epid_t ep) {
@@ -511,38 +489,26 @@ bool DTU::handle_receive(epid_t ep) {
 }
 
 Errors::Code DTU::exec_command() {
-    _backend->notify(DTUBackend::Event::REQ);
-    // ignore signals here
-    while(!_backend->wait(DTUBackend::Event::RESP))
-        ;
+    while(!is_ready())
+        try_sleep();
     // TODO report errors here
     return Errors::NONE;
-}
-
-static void sigstop(int) {
 }
 
 void *DTU::thread(void *arg) {
     DTU *dma = static_cast<DTU*>(arg);
     peid_t pe = env()->pe;
 
-    signal(SIGUSR1, sigstop);
-
     while(dma->_run) {
         // should we send something?
-        if(dma->_backend->has_command()) {
+        if(dma->get_cmd(CMD_CTRL) & CTRL_START)
             dma->handle_command(pe);
-            if(dma->is_ready())
-                dma->_backend->notify(DTUBackend::Event::RESP);
-        }
 
-        // check _run again. TODO we might still miss the signal
-        if(dma->_run) {
-            // have we received a message?
-            epid_t ep = dma->_backend->has_msg();
-            if(ep != EP_COUNT)
-                dma->handle_receive(ep);
-        }
+        // have we received a message?
+        for(epid_t ep = 0; ep < EP_COUNT; ++ep)
+            dma->handle_receive(ep);
+
+        dma->try_sleep();
     }
 
     // deny further receives

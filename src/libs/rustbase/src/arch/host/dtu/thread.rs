@@ -15,7 +15,6 @@
  */
 
 use arch::dtu::*;
-use arch::envdata;
 use cell::StaticCell;
 use core::sync::atomic;
 use errors::{Code, Error};
@@ -299,7 +298,7 @@ fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
     unreachable!();
 }
 
-fn handle_msg(backend: &backend::SocketBackend, ep: EpId, len: usize) {
+fn handle_msg(ep: EpId, len: usize) {
     let msg_ord = DTU::get_ep(ep, EpReg::BUF_MSGORDER);
     let msg_size = 1 << msg_ord;
     if len > msg_size {
@@ -337,8 +336,6 @@ fn handle_msg(backend: &backend::SocketBackend, ep: EpId, len: usize) {
         unsafe {
             util::slice_for_mut(dst, len).copy_from_slice(util::slice_for(src, len));
         }
-
-        backend.notify(backend::Event::MSG);
     };
 
     for i in woff..size {
@@ -375,14 +372,6 @@ fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Er
                 data[2..].as_ptr() as *const libc::c_void,
                 length as usize
             );
-        }
-
-        // wakeup software in case EPs were written
-        const EP_SIZE: usize = (EP_COUNT * EPS_RCNT) * util::size_of::<Reg>();
-        if offset >= envdata::eps_start() as u64 &&
-           offset + length <= envdata::eps_start() as u64 + EP_SIZE as u64 {
-            log_dtu!("EPs changed; waking up software");
-            backend.notify(backend::Event::MSG);
         }
     }
 
@@ -433,7 +422,7 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
     send_msg(backend, ep, dst_pe, dst_ep)
 }
 
-fn handle_resp_cmd(backend: &backend::SocketBackend) {
+fn handle_resp_cmd() {
     let buf = buffer();
     let data = buf.as_words();
     let base = buf.header.label & !(kif::Perm::RWX.bits() as Label);
@@ -460,7 +449,6 @@ fn handle_resp_cmd(backend: &backend::SocketBackend) {
 
     // provide feedback to SW
     DTU::set_cmd(CmdReg::CTRL, resp << 16);
-    backend.notify(backend::Event::RESP);
 }
 
 fn send_msg(backend: &backend::SocketBackend, ep: EpId, dst_pe: PEId, dst_ep: EpId) -> Result<(), Error> {
@@ -551,10 +539,10 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
     let buf = buffer();
     if let Some(size) = backend.receive(ep, buf) {
         match Command::from(buf.header.opcode) {
-            Command::SEND | Command::REPLY  => handle_msg(backend, ep, size),
+            Command::SEND | Command::REPLY  => handle_msg(ep, size),
             Command::READ                   => handle_read_cmd(backend, ep).unwrap(),
             Command::WRITE                  => handle_write_cmd(backend, ep).unwrap(),
-            Command::RESP                   => handle_resp_cmd(backend),
+            Command::RESP                   => handle_resp_cmd(),
             _                               => panic!("Not supported!"),
         }
 
@@ -594,30 +582,19 @@ static BACKEND: StaticCell<Option<backend::SocketBackend>> = StaticCell::new(Non
 static RUN: atomic::AtomicUsize = atomic::AtomicUsize::new(1);
 static mut TID: libc::pthread_t = 0;
 
-extern "C" fn sigstop(_arg: i32) {
-}
-
 extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
     let backend = BACKEND.get_mut().as_mut().unwrap();
 
-    unsafe {
-        libc::signal(libc::SIGUSR1, sigstop as *const() as usize);
-    }
-
     while RUN.load(atomic::Ordering::Relaxed) == 1 {
-        if let Some(_) = backend.has_command() {
+        if (DTU::get_cmd(CmdReg::CTRL) & Control::START.bits()) != 0 {
             handle_command(&backend);
-            if DTU::is_ready() {
-                backend.notify(backend::Event::RESP);
-            }
         }
 
-        // check _run again. TODO we might still miss the signal
-        if RUN.load(atomic::Ordering::Relaxed) == 1 {
-            if let Some(ep) = backend.has_msg() {
-                handle_receive(&backend, ep);
-            }
+        for ep in 0..EP_COUNT {
+            handle_receive(&backend, ep);
         }
+
+        DTU::try_sleep(false, 0).unwrap();
     }
 
     // deny further receives
@@ -639,25 +616,6 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
     ptr::null_mut()
 }
 
-pub fn exec_command() -> Result<(), Error> {
-    let backend = BACKEND.get_mut().as_mut().unwrap();
-
-    backend.notify(backend::Event::REQ);
-    // ignore signals here
-    loop {
-        if backend.wait(backend::Event::RESP) {
-            break;
-        }
-    }
-
-    DTU::get_result()
-}
-
-pub fn wait_msg() {
-    let backend = BACKEND.get_mut().as_mut().unwrap();
-    backend.wait(backend::Event::MSG);
-}
-
 pub fn init() {
     LOG.set(Some(io::log::Log::new()));
     log().init();
@@ -674,7 +632,7 @@ pub fn deinit() {
     RUN.store(0, atomic::Ordering::Relaxed);
 
     unsafe {
-        libc::pthread_kill(TID, libc::SIGUSR1);
+        // libc::pthread_kill(TID, libc::SIGUSR1);
         assert!(libc::pthread_join(TID, ptr::null_mut()) == 0);
     }
 

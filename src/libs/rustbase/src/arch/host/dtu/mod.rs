@@ -186,7 +186,7 @@ impl DTU {
 
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::CTRL, (Command::FETCH_MSG.val << 3) | Control::START.bits);
-        if thread::exec_command().is_err() {
+        if Self::get_command_result().is_err() {
             return None;
         }
 
@@ -212,19 +212,11 @@ impl DTU {
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::OFFSET, msg_addr as Reg);
         Self::set_cmd(CmdReg::CTRL, (Command::ACK_MSG.val << 3) | Control::START.bits);
-        thread::exec_command().unwrap();
+        Self::get_command_result().unwrap();
     }
 
     pub fn try_sleep(_yield: bool, _cycles: u64) -> Result<(), Error> {
-        // check if there are unread messages. if there are, we don't want to wait but need to
-        // handle the messages first
-        for i in 0..EP_COUNT {
-            if Self::get_ep(i, EpReg::BUF_MSG_CNT) > 0 {
-                return Ok(());
-            }
-        }
-
-        thread::wait_msg();
+        unsafe { libc::usleep(1) };
         Ok(())
     }
 
@@ -263,7 +255,15 @@ impl DTU {
         else {
             Self::set_cmd(CmdReg::CTRL, (cmd.val << 3) | (Control::START | Control::REPLY_CAP).bits);
         }
-        thread::exec_command()
+        Self::get_command_result()
+    }
+
+    fn get_command_result() -> Result<(), Error> {
+        while !Self::is_ready() {
+            Self::try_sleep(false, 0).unwrap();
+        }
+
+        Self::get_result()
     }
 
     fn is_ready() -> bool {
