@@ -21,8 +21,9 @@ namespace m3 {
 void thread_init(Thread::thread_func func, void *arg, Regs *regs, word_t *stack) {
     // put argument in rdi and function to return to on the stack
     regs->rdi = reinterpret_cast<word_t>(arg);
-    stack[T_STACK_WORDS - 1] = reinterpret_cast<word_t>(func);
-    regs->rsp = reinterpret_cast<word_t>(stack + T_STACK_WORDS - 1);
+    // the stack pointer needs to be 16-byte aligned (SSE)
+    stack[T_STACK_WORDS - 2] = reinterpret_cast<word_t>(func);
+    regs->rsp = reinterpret_cast<word_t>(stack + T_STACK_WORDS - 2);
     regs->rbp = regs->rsp;
     regs->rflags = 0x200;  // enable interrupts
 }
