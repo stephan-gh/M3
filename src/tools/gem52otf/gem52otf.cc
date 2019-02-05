@@ -25,7 +25,7 @@
 #define TRACE_FUNCS_TO_STRING
 #include <base/tracing/Event.h>
 
-#include <vampirtrace/open-trace-format/otf.h>
+#include <open-trace-format/otf.h>
 
 #include <iostream>
 #include <queue>
