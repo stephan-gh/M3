@@ -32,6 +32,10 @@ public:
           _disk(new m3::Disk("disk", dev)),
           _metabuf() {
     }
+    ~DiskBackend() {
+        delete _metabuf;
+        delete _disk;
+    }
 
     void load_meta(void *dst, size_t dst_off, m3::blockno_t bno, event_t unlock) override {
         size_t off = dst_off * (_blocksize + MetaBuffer::PRDT_SIZE);

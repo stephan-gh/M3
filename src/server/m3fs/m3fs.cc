@@ -262,6 +262,7 @@ int main(int argc, char *argv[]) {
     env()->workloop()->multithreaded(16);
     env()->workloop()->run();
 
+    delete backend;
     delete srv;
     return 0;
 }

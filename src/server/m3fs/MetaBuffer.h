@@ -49,6 +49,7 @@ public:
     static constexpr size_t META_BUFFER_SIZE    = 512;
 
     explicit MetaBuffer(size_t blocksize, Backend *backend);
+    ~MetaBuffer();
 
     void *get_block(Request &r, m3::blockno_t bno, bool dirty = false);
     void quit(MetaBufferHead *b);

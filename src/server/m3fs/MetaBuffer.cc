@@ -35,6 +35,14 @@ MetaBuffer::MetaBuffer(size_t blocksize, Backend *backend)
         lru.append(new MetaBufferHead(0, 1, i, _blocks + i * _blocksize));
 }
 
+MetaBuffer::~MetaBuffer() {
+    for(auto it = lru.begin(); it != lru.end(); ) {
+        auto old = static_cast<MetaBufferHead*>(&*it++);
+        delete old;
+    }
+    delete[] _blocks;
+}
+
 void *MetaBuffer::get_block(Request &r, blockno_t bno, bool dirty) {
     MetaBufferHead *b;
     while(true) {
