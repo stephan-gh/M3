@@ -196,7 +196,6 @@ inline ChannelSession *ChannelSession::clone(RecvGate &rgate) {
 
 class VTermHandler : public base_class {
 public:
-
     explicit VTermHandler()
         : base_class(),
           _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
