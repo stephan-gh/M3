@@ -57,7 +57,7 @@ EXTERN_C int yylex() {
                 if(i > 0)
                     break;
             }
-            else
+            else if(i + 1 < sizeof(buf))
                 buf[i++] = c;
         }
     }
@@ -138,6 +138,7 @@ void ast_redirs_set(RedirList *list, int fd, const char *file) {
 void ast_redirs_destroy(RedirList *list) {
     free(const_cast<char*>(list->fds[STDIN_FD]));
     free(const_cast<char*>(list->fds[STDOUT_FD]));
+    delete list;
 }
 
 ArgList *ast_args_create() {
@@ -181,6 +182,7 @@ void ast_vars_destroy(VarList *list) {
         free(const_cast<char*>(list->vars[i].name));
         ast_expr_destroy(list->vars[i].value);
     }
+    delete list;
 }
 
 CmdList *get_command(IStream *stream) {

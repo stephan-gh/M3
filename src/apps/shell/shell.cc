@@ -324,6 +324,7 @@ int main(int argc, char **argv) {
         cycles_t start = Time::start(0x1234);
         execute(list, muxed);
         cycles_t end = Time::stop(0x1234);
+        ast_cmds_destroy(list);
 
         cerr << "Execution took " << (end - start) << " cycles\n";
         return 0;
@@ -342,10 +343,10 @@ int main(int argc, char **argv) {
         if(!list)
             continue;
 
-        if(!execute(list, muxed))
-            break;
-
+        bool cont = execute(list, muxed);
         ast_cmds_destroy(list);
+        if(!cont)
+            break;
     }
     return 0;
 }
