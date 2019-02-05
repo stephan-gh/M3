@@ -49,7 +49,7 @@ void PipeData::WorkItem::work() {
     pipe->handle_pending_read();
 }
 
-PipeData::PipeData(capsel_t srv_sel, m3::RecvGate *rgate, size_t _memsize)
+PipeData::PipeData(capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize)
     : PipeSession(srv_sel),
       nextid(),
       flags(),
@@ -78,6 +78,7 @@ PipeData::~PipeData() {
     }
 
     m3::env()->workloop()->remove(&workitem);
+    delete memory;
 }
 
 PipeChannel *PipeData::attach(capsel_t _sel, bool read) {
@@ -115,7 +116,7 @@ PipeChannel::PipeChannel(PipeData *_pipe, capsel_t _sel)
       id(_pipe->nextid++),
       epcap(ObjCap::INVALID),
       lastamount(),
-      sgate(m3::SendGate::create(_pipe->rgate, reinterpret_cast<label_t>(this), 64, nullptr, sel() + 1)),
+      sgate(m3::SendGate::create(&_pipe->rgate, reinterpret_cast<label_t>(this), 64, nullptr, sel() + 1)),
       memory(),
       pipe(_pipe) {
 }
@@ -230,14 +231,14 @@ void PipeData::handle_pending_read() {
             last_reader = req->chan;
             req->chan->lastamount = ramount;
             PRINTCHAN(this, req->chan->id, "late-read: " << ramount << " @" << rpos);
-            reply_vmsg_late(*rgate, req->lastmsg, Errors::NONE, rpos, ramount);
+            reply_vmsg_late(rgate, req->lastmsg, Errors::NONE, rpos, ramount);
             delete req;
             break;
         }
         else if(flags & PipeChannel::WRITE_EOF) {
             pending_reads.remove_first();
             PRINTCHAN(this, req->chan->id, "late-read: EOF");
-            reply_vmsg_late(*rgate, req->lastmsg, Errors::NONE, (size_t)0, (size_t)0);
+            reply_vmsg_late(rgate, req->lastmsg, Errors::NONE, (size_t)0, (size_t)0);
             delete req;
         }
         else
@@ -330,7 +331,7 @@ void PipeData::handle_pending_write() {
         while(pending_writes.length() > 0) {
             PipeData::RdWrRequest<PipeWriteChannel> *req = pending_writes.remove_first();
             PRINTCHAN(this, req->chan->id, "late-write: EOF");
-            reply_vmsg_late(*rgate, req->lastmsg, Errors::END_OF_FILE);
+            reply_vmsg_late(rgate, req->lastmsg, Errors::END_OF_FILE);
             delete req;
         }
     }
@@ -344,7 +345,7 @@ void PipeData::handle_pending_write() {
             last_writer = req->chan;
             req->chan->lastamount = amount;
             PRINTCHAN(this, req->chan->id, "late-write: " << amount << " @" << wpos);
-            reply_vmsg_late(*rgate, req->lastmsg, Errors::NONE, wpos, amount);
+            reply_vmsg_late(rgate, req->lastmsg, Errors::NONE, wpos, amount);
             delete req;
         }
     }

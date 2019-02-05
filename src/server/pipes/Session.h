@@ -151,7 +151,7 @@ public:
         const m3::DTU::Message *lastmsg;
     };
 
-    explicit PipeData(capsel_t srv_sel, m3::RecvGate *rgate, size_t _memsize);
+    explicit PipeData(capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize);
     virtual ~PipeData();
 
     virtual Type type() const override {
@@ -167,7 +167,7 @@ public:
     int nextid;
     uint flags;
     m3::MemGate *memory;
-    m3::RecvGate *rgate;
+    m3::RecvGate &rgate;
     VarRingBuf rbuf;
     WorkItem workitem;
     m3::SList<PipeReadChannel> reader;
