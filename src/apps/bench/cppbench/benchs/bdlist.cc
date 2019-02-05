@@ -44,6 +44,7 @@ NOINLINE static void append() {
                 auto old = it++;
                 delete &*old;
             }
+            list.clear();
         }
 
         DList<MyDItem> list;
@@ -66,6 +67,7 @@ NOINLINE static void clear() {
                 auto old = it++;
                 delete &*old;
             }
+            list.clear();
         }
 
         DList<MyDItem> list;

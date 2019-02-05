@@ -54,6 +54,15 @@ public:
     }
 
     /**
+     * Removes all items from the list
+     */
+    void clear() {
+        _head = nullptr;
+        _tail = nullptr;
+        _len = 0;
+    }
+
+    /**
      * @return the number of items in the list
      */
     size_t length() const {
@@ -190,14 +199,6 @@ public:
         if(!e->next())
             _tail = p;
         _len--;
-    }
-    /**
-     * Removes all items from the list
-     */
-    void remove_all() {
-        _head = nullptr;
-        _tail = nullptr;
-        _len = 0;
     }
 
 private:
