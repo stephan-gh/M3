@@ -77,6 +77,7 @@ void VPE::init_state() {
         Unmarshaller um(buf, len);
         um >> _next_sel >> _eps >> _rbufcur >> _rbufend;
     }
+    delete[] buf;
 }
 
 void VPE::init_fs() {
