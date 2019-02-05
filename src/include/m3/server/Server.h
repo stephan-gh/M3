@@ -51,6 +51,10 @@ public:
         init();
     }
 
+    ~Server() {
+        delete _handler;
+    }
+
     void shutdown() {
         _handler->shutdown();
         _rgate.stop();

@@ -64,8 +64,7 @@ private:
 
 int main() {
     for(int i = 0; !kern_shutdown_req && i < 10; ++i) {
-        MyHandler hdl;
-        srv = new Server<MyHandler>("testcaps", &hdl);
+        srv = new Server<MyHandler>("testcaps", new MyHandler());
         if(Errors::occurred())
             break;
         env()->workloop()->run();
