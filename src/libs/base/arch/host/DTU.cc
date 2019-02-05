@@ -280,6 +280,9 @@ void DTU::handle_command(peid_t pe) {
 
     newctrl |= check_cmd(ep, op, get_ep(ep, EP_LABEL), get_ep(ep, EP_CREDITS),
         get_cmd(CMD_OFFSET), get_cmd(CMD_LENGTH));
+    if(newctrl & CTRL_ERROR)
+        goto error;
+
     switch(op) {
         case REPLY:
             newctrl |= prepare_reply(ep, dstpe, dstep);
