@@ -18,6 +18,8 @@
 
 #include <base/Common.h>
 
+#include <stdlib.h>
+
 #define HEAP_USED_BITS   (0x5UL << (sizeof(word_t) * 8 - 3))
 
 typedef void (*heap_alloc_func)(void *p, size_t size);

@@ -31,7 +31,7 @@ Thread::Thread(thread_func func, void *arg)
       _event(0) {
     // TODO
     // better leave one page before and behind each stack free to detect stack-under-/overflows
-    void* addr = m3::Heap::alloc(T_STACK_SZ);
+    void* addr = malloc(T_STACK_SZ);
 
     _stack = reinterpret_cast<word_t*>(reinterpret_cast<uintptr_t>(addr));
     thread_init(func, arg, &_regs, _stack);
@@ -41,7 +41,7 @@ Thread::Thread(thread_func func, void *arg)
 Thread::~Thread() {
     ThreadManager::get().remove(this);
     if(_stack)
-        m3::Heap::free(_stack);
+        free(_stack);
 }
 
 }

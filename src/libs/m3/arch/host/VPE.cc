@@ -59,7 +59,7 @@ static void *read_from(const char *suffix, void *dst, size_t &size) {
             if(fstat(fd, &st) == -1)
                 return nullptr;
             size = static_cast<size_t>(st.st_size);
-            dst = Heap::alloc(size);
+            dst = malloc(size);
         }
 
         read(fd, dst, size);

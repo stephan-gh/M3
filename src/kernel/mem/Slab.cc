@@ -26,11 +26,11 @@ m3::SList<Slab> Slab::_slabs;
 Slab::Pool::Pool(size_t objsize, size_t count)
     : total(count),
       free(count),
-      mem(m3::Heap::alloc(objsize * count)) {
+      mem(malloc(objsize * count)) {
 }
 
 Slab::Pool::~Pool() {
-    m3::Heap::free(mem);
+    ::free(mem);
 }
 
 Slab *Slab::get(size_t objsize) {

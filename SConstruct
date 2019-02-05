@@ -172,9 +172,13 @@ env.Replace(F90 = cross + 'gfortran')
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD', 'release')
 if btype == 'debug':
-    if target == 'host' or target == 'gem5':
+    if target == 'gem5':
         env.Append(CXXFLAGS = ' -O0 -g')
         env.Append(CFLAGS = ' -O0 -g')
+    elif target == 'host':
+        env.Append(CXXFLAGS = ' -O0 -g -fsanitize=address -fsanitize=undefined')
+        env.Append(CFLAGS = ' -O0 -g -fsanitize=address -fsanitize=undefined')
+        env.Append(LINKFLAGS = ' -fsanitize=address -fsanitize=undefined -lasan -lubsan')
     else:
         # use -Os here because otherwise the binaries tend to get larger than 32k
         env.Append(CXXFLAGS = ' -Os -g')

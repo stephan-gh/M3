@@ -93,7 +93,7 @@ void Args::glob(ArgList *list, size_t i) {
                 else
                     ast_expr_destroy(list->args[i]);
 
-                char *new_arg = static_cast<char*>(Heap::alloc(patlen + strlen(e.name) + 1));
+                char *new_arg = static_cast<char*>(malloc(patlen + strlen(e.name) + 1));
                 strcpy(new_arg, pat);
                 strcpy(new_arg + patlen, e.name);
                 list->args[i] = ast_expr_create(new_arg, false);
@@ -124,7 +124,7 @@ void Args::prefix_path(ArgList *args) {
     const char *first = expr_value(args->args[0]);
     if(first[0] != '/') {
         size_t len = strlen(first);
-        char *newstr = static_cast<char*>(Heap::alloc(len + 5 + 1));
+        char *newstr = static_cast<char*>(malloc(len + 5 + 1));
         strcpy(newstr, "/bin/");
         strcpy(newstr + 5, first);
         ast_expr_destroy(args->args[0]);

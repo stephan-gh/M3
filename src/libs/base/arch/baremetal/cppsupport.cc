@@ -56,19 +56,19 @@ void __throw_bad_function_call() {
 }
 
 void *operator new(size_t size) throw() {
-    return Heap::alloc(size);
+    return malloc(size);
 }
 
 void *operator new[](size_t size) throw() {
-    return Heap::alloc(size);
+    return malloc(size);
 }
 
 void operator delete(void *ptr) throw() {
-    Heap::free(ptr);
+    free(ptr);
 }
 
 void operator delete[](void *ptr) throw() {
-    Heap::free(ptr);
+    free(ptr);
 }
 
 EXTERN_C void exit(int code) {

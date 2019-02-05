@@ -64,7 +64,7 @@ EXTERN_C int yylex() {
 
     if(i > 0) {
         buf[i] = '\0';
-        yylval.str = static_cast<char*>(Heap::alloc(i + 1));
+        yylval.str = static_cast<char*>(malloc(i + 1));
         strcpy(const_cast<char*>(yylval.str), buf);
         return T_STRING;
     }
@@ -79,7 +79,7 @@ Expr *ast_expr_create(const char *name, int is_var) {
 }
 
 void ast_expr_destroy(Expr *e) {
-    Heap::free(const_cast<char*>(e->name_val));
+    free(const_cast<char*>(e->name_val));
     delete e;
 }
 
@@ -131,13 +131,13 @@ RedirList *ast_redirs_create(void) {
 void ast_redirs_set(RedirList *list, int fd, const char *file) {
     assert(fd == STDIN_FD || fd == STDOUT_FD);
     if(list->fds[fd])
-        Heap::free(const_cast<char*>(list->fds[fd]));
+        free(const_cast<char*>(list->fds[fd]));
     list->fds[fd] = file;
 }
 
 void ast_redirs_destroy(RedirList *list) {
-    Heap::free(const_cast<char*>(list->fds[STDIN_FD]));
-    Heap::free(const_cast<char*>(list->fds[STDOUT_FD]));
+    free(const_cast<char*>(list->fds[STDIN_FD]));
+    free(const_cast<char*>(list->fds[STDOUT_FD]));
 }
 
 ArgList *ast_args_create() {
@@ -178,7 +178,7 @@ void ast_vars_set(VarList *list, const char *name, Expr *value) {
 
 void ast_vars_destroy(VarList *list) {
     for(size_t i = 0; i < list->count; ++i) {
-        Heap::free(const_cast<char*>(list->vars[i].name));
+        free(const_cast<char*>(list->vars[i].name));
         ast_expr_destroy(list->vars[i].value);
     }
 }

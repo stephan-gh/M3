@@ -91,7 +91,7 @@ ssize_t InetSocket::send(const void *buffer, size_t count, bool blocking) {
 ssize_t InetSocket::sendto(const void *buffer, size_t count, IpAddr addr, uint16_t port, bool blocking) {
     // The write of header and data needs to be an "atomic" action
     size_t size = MessageHeader::serialize_length() + count;
-    uint8_t *buf = static_cast<uint8_t*>(Heap::alloc(size));
+    uint8_t *buf = static_cast<uint8_t*>(malloc(size));
     Marshaller m(buf, MessageHeader::serialize_length());
     MessageHeader hdr(addr, port, count);
     hdr.serialize(m);
@@ -99,7 +99,7 @@ ssize_t InetSocket::sendto(const void *buffer, size_t count, IpAddr addr, uint16
     assert(m.total() == MessageHeader::serialize_length());
     memcpy(buf + MessageHeader::serialize_length(), buffer, count);
     ssize_t write_size = _send_pipe->writer()->write(buf, size, blocking);
-    Heap::free(buf);
+    free(buf);
     assert((!blocking && write_size == -1) || write_size == static_cast<ssize_t>(size));
     return write_size != -1 ? write_size - static_cast<ssize_t>(MessageHeader::serialize_length()) : -1;
 }

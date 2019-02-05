@@ -44,7 +44,7 @@ int printf_adapter(const char *fmt, ...) {
             // It fit fine the first time, we're done.
             m3::Serial::get() << buf;
             if(dynamicbuf)
-                m3::Heap::free(dynamicbuf);
+                free(dynamicbuf);
             return needed;
         }
 
@@ -52,7 +52,7 @@ int printf_adapter(const char *fmt, ...) {
         // than we allotted.  So try again using a dynamic buffer.  This
         // doesn't happen very often if we chose our initial size well.
         size = size * 2;
-        dynamicbuf = static_cast<char*>(m3::Heap::realloc(dynamicbuf, size));
+        dynamicbuf = static_cast<char*>(realloc(dynamicbuf, size));
         buf = dynamicbuf;
     }
 }

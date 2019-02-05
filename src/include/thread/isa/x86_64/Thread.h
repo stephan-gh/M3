@@ -37,7 +37,11 @@ struct Regs {
 };
 
 enum {
+#if defined(__SANITIZE_ADDRESS__)
+    T_STACK_WORDS = 2048
+#else
     T_STACK_WORDS = 1024
+#endif
 };
 
 void thread_init(_thread_func func, void *arg, Regs *regs, word_t *stack);

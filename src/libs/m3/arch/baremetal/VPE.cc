@@ -95,11 +95,11 @@ Errors::Code VPE::run(void *lambda) {
     _mem.write(&senv, sizeof(senv), RT_START);
 
     /* write args */
-    char *buffer = static_cast<char*>(Heap::alloc(BUF_SIZE));
+    char *buffer = static_cast<char*>(malloc(BUF_SIZE));
     size_t size = store_arguments(buffer, static_cast<int>(env()->argc),
         reinterpret_cast<const char**>(env()->argv));
     _mem.write(buffer, size, RT_SPACE_START);
-    Heap::free(buffer);
+    free(buffer);
 
     /* go! */
     return start();
@@ -107,7 +107,7 @@ Errors::Code VPE::run(void *lambda) {
 
 Errors::Code VPE::exec(int argc, const char **argv) {
     alignas(DTU_PKG_SIZE) Env senv;
-    char *buffer = static_cast<char*>(Heap::alloc(BUF_SIZE));
+    char *buffer = static_cast<char*>(malloc(BUF_SIZE));
 
     if(_exec)
         delete _exec;
@@ -122,7 +122,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
     size_t size;
     Errors::Code err = load(argc, argv, &entry, buffer, &size);
     if(err != Errors::NONE) {
-        Heap::free(buffer);
+        free(buffer);
         return err;
     }
 
@@ -153,7 +153,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
     /* write entire runtime stuff */
     _mem.write(buffer, offset, RT_SPACE_START);
 
-    Heap::free(buffer);
+    free(buffer);
 
     senv.eps = _eps;
     senv.caps = _next_sel;

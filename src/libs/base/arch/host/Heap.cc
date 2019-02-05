@@ -21,6 +21,7 @@
 
 #include <malloc.h>
 
+#if !defined(__SANITIZE_ADDRESS__)
 static void ensure_inited() {
     static bool done = false;
     if(!done) {
@@ -46,6 +47,7 @@ USED void free(void *p) {
     ensure_inited();
     return heap_free(p);
 }
+#endif
 
 namespace m3 {
 

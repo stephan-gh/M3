@@ -35,7 +35,7 @@ public:
     explicit OStringStream()
         : OStream(),
           _dynamic(true),
-          _dst(static_cast<char*>(Heap::alloc(DEFAULT_SIZE))),
+          _dst(static_cast<char*>(malloc(DEFAULT_SIZE))),
           _max(_dst ? DEFAULT_SIZE : 0),
           _pos() {
     }
@@ -59,7 +59,7 @@ public:
      */
     virtual ~OStringStream() {
         if(_dynamic)
-            Heap::free(_dst);
+            free(_dst);
     }
 
     /**
@@ -79,7 +79,7 @@ public:
         // increase the buffer, if necessary
         if(_pos + 1 >= _max && _dynamic) {
             _max *= 2;
-            _dst = static_cast<char*>(Heap::realloc(_dst, _max));
+            _dst = static_cast<char*>(realloc(_dst, _max));
         }
         // write into the buffer if there is still enough room
         if(_pos + 1 < _max) {

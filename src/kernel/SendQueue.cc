@@ -53,7 +53,7 @@ event_t SendQueue::send(SendGate *sgate, const void *msg, size_t size, bool onhe
 
     // if it's not already on the heap, put it there
     if(!onheap) {
-        void *nmsg = m3::Heap::alloc(size);
+        void *nmsg = malloc(size);
         memcpy(nmsg, msg, size);
         msg = nmsg;
     }
@@ -120,7 +120,7 @@ event_t SendQueue::do_send(SendGate *sgate, uint64_t id, const void *msg, size_t
 
     sgate->send(msg, size, SyscallHandler::srvep(), reinterpret_cast<label_t>(this));
     if(onheap)
-        m3::Heap::free(const_cast<void*>(msg));
+        free(const_cast<void*>(msg));
     return _cur_event;
 }
 

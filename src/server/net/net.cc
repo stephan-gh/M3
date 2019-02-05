@@ -474,7 +474,7 @@ private:
         size_t size = p->tot_len + MessageHeader::serialize_length();
         SLOG(NET, "udp_recv_cb: size " << size);
         SLOG(NET, "udp_recv_cb: offset " << MessageHeader::serialize_length());
-        u8_t *buf = static_cast<u8_t*>(Heap::alloc(size));
+        u8_t *buf = static_cast<u8_t*>(malloc(size));
         Marshaller m(buf, MessageHeader::serialize_length());
         MessageHeader hdr(IpAddr(lwip_ntohl(addr->addr)), port, p->tot_len);
         hdr.serialize(m);
@@ -482,7 +482,7 @@ private:
         SLOG(NET, "udp_recv_cb: forwarding data to user (" << p->tot_len << ")");
         if(socket->recv_pipe->writer()->write(buf, size, false) == -1)
             SLOG(NET, "udp_recv_cb: recv_pipe is full, dropping datagram");
-        Heap::free(buf);
+        free(buf);
         pbuf_free(p);
     }
 
