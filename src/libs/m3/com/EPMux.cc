@@ -123,7 +123,7 @@ void EPMux::activate(epid_t ep, capsel_t newcap) {
     if(Syscalls::get().activate(VPE::self().ep_to_sel(ep), newcap, 0) != Errors::NONE) {
         // if we wanted to deactivate a cap, we can ignore the failure
         if(newcap != ObjCap::INVALID)
-            PANIC("Unable to arm SEP " << ep << ": " << Errors::last);
+            PANIC("Unable to configure EP " << ep << ": " << Errors::to_string(Errors::last));
     }
 }
 
