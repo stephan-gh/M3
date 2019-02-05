@@ -36,6 +36,9 @@ public:
         : _runs(0),
           _times(new cycles_t[runs]) {
     }
+    ~Results() {
+        delete[] _times;
+    }
 
     size_t runs() const {
         return _runs;
