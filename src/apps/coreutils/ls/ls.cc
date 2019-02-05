@@ -149,5 +149,7 @@ int main(int argc, char **argv) {
         }
         cout << '\n';
     }
+
+    delete[] files;
     return 0;
 }
