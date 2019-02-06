@@ -94,7 +94,6 @@ private:
     }
     void detach() {
         unref();
-        _obj = nullptr;
     }
 
     T *_obj;
