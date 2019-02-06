@@ -42,6 +42,8 @@ public:
     virtual ~HostEnvBackend();
 };
 
+EXTERN_C void init_env();
+
 class Env {
     struct Init {
         Init();
@@ -50,6 +52,8 @@ class Env {
     struct PostInit {
         PostInit();
     };
+
+    friend void init_env();
 
 public:
     static Env &get() {
@@ -123,6 +127,7 @@ public:
     }
 
 private:
+    static void on_exit_func(int status, void *);
     static void *mem();
     static peid_t set_inst(Env *e) {
         _inst = e;

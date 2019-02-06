@@ -55,9 +55,12 @@ static void init_syscall() {
     Syscalls::get().vpectrl(VPE::self().sel(), KIF::Syscall::VCTRL_INIT, arg);
 }
 
-static void on_exit_func(int status, void *) {
+void Env::on_exit_func(int status, void *) {
     Syscalls::get().exit(status);
     stop_dtu();
+    // destroy the enviromment here, because on_exit functions are called last
+    delete _inst;
+    _inst = nullptr;
 }
 
 static void load_params(Env *e) {
@@ -84,7 +87,7 @@ EXTERN_C WEAK void init_env() {
     load_params(env());
 
     // use on_exit to get the return-value of main and pass it to the m3 kernel
-    on_exit(on_exit_func, nullptr);
+    on_exit(Env::on_exit_func, nullptr);
 }
 
 HostEnvBackend::HostEnvBackend() {
@@ -116,7 +119,6 @@ Env::Init::Init() {
 }
 
 Env::Init::~Init() {
-    delete _inst;
 }
 
 Env::PostInit::PostInit() {
