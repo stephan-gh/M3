@@ -15,6 +15,7 @@
  */
 
 #include <base/Common.h>
+#include <base/util/Reference.h>
 
 #include <m3/vfs/File.h>
 
@@ -25,6 +26,9 @@ enum Mode {
     DIR_MULTI   = 3,
 };
 
-void chain_direct(m3::File *in, m3::File *out, size_t num, cycles_t comptime, Mode mode);
-void chain_direct_multi(m3::File *in, m3::File *out, size_t num, cycles_t comptime, Mode mode);
-void chain_indirect(m3::File *in, m3::File *out, size_t num, cycles_t comptime);
+void chain_direct(m3::Reference<m3::File> in, m3::Reference<m3::File> out,
+                  size_t num, cycles_t comptime, Mode mode);
+void chain_direct_multi(m3::Reference<m3::File> in, m3::Reference<m3::File> out,
+                        size_t num, cycles_t comptime, Mode mode);
+void chain_indirect(m3::Reference<m3::File> in, m3::Reference<m3::File> out,
+                    size_t num, cycles_t comptime);

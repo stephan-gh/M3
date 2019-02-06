@@ -84,7 +84,7 @@ public:
         return Errors::NONE;
     }
 
-    virtual File *open(const char *path, int perms) override;
+    virtual Reference<File> open(const char *path, int perms) override;
     virtual Errors::Code stat(const char *path, FileInfo &info) override;
     virtual Errors::Code mkdir(const char *path, mode_t mode) override;
     virtual Errors::Code rmdir(const char *path) override;

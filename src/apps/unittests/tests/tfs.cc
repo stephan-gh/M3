@@ -246,8 +246,8 @@ static void pipe_mux() {
 
     MemGate *mems[NUM];
     IndirectPipe *pipes[NUM];
-    File *reader[NUM];
-    File *writer[NUM];
+    Reference<File> reader[NUM];
+    Reference<File> writer[NUM];
     for(size_t i = 0; i < NUM; ++i) {
         mems[i] = new MemGate(MemGate::create_global(PIPE_SIZE, MemGate::RW));
         pipes[i] = new IndirectPipe(*mems[i], PIPE_SIZE);

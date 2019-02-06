@@ -32,11 +32,11 @@ IndirectPipe::~IndirectPipe() {
 }
 
 void IndirectPipe::close_reader() {
-    delete VPE::self().fds()->free(_rdfd);
+    VPE::self().fds()->free(_rdfd);
 }
 
 void IndirectPipe::close_writer() {
-    delete VPE::self().fds()->free(_wrfd);
+    VPE::self().fds()->free(_wrfd);
 }
 
 }

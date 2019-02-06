@@ -29,12 +29,12 @@ public:
         delegate_obj(memory.sel());
     }
 
-    GenericFile *create_channel(bool read, int flags = 0) {
+    Reference<File> create_channel(bool read, int flags = 0) {
         KIF::ExchangeArgs args;
         args.count = 1;
         args.vals[0] = read;
         KIF::CapRngDesc desc = obtain(2, &args);
-        return new GenericFile(flags | (read ? FILE_R : FILE_W), desc.start());
+        return Reference<File>(new GenericFile(flags | (read ? FILE_R : FILE_W), desc.start()));
     }
 };
 

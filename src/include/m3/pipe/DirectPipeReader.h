@@ -71,8 +71,8 @@ public:
         return 0;
     }
 
-    virtual File *clone() const override {
-        return nullptr;
+    virtual Reference<File> clone() const override {
+        return Reference<File>();
     }
 
     virtual char type() const override {

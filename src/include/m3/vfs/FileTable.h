@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/util/Reference.h>
 #include <base/Errors.h>
 #include <base/DTU.h>
 
@@ -79,28 +80,28 @@ public:
      * @param file the file
      * @return the file descriptor or MAX_FDS if all fds are in use
      */
-    fd_t alloc(File *file);
+    fd_t alloc(Reference<File> file);
 
     /**
      * Free's the given file descriptor
      *
      * @param fd the file descriptor
      */
-    File *free(fd_t fd);
+    Reference<File> free(fd_t fd);
 
     /**
      * @param fd the file descriptor
      * @return true if the given file descriptor exists
      */
     bool exists(fd_t fd) const {
-        return _fds[fd] != nullptr;
+        return _fds[fd].valid();
     }
 
     /**
      * @param fd the file descriptor
      * @return the file for given fd
      */
-    File *get(fd_t fd) const {
+    Reference<File> get(fd_t fd) const {
         return _fds[fd];
     }
 
@@ -110,10 +111,15 @@ public:
      * @param fd the file descriptor
      * @param file the file
      */
-    void set(fd_t fd, File *file) {
-        assert(file != nullptr);
+    void set(fd_t fd, Reference<File> file) {
+        assert(file.valid());
         _fds[fd] = file;
     }
+
+    /**
+     * Remove all files
+     */
+    void remove_all();
 
     /**
      * Delegates all files to <vpe>.
@@ -147,7 +153,7 @@ private:
     size_t _file_ep_count;
     size_t _file_ep_victim;
     FileEp _file_eps[MAX_EPS];
-    File *_fds[MAX_FDS];
+    Reference<File> _fds[MAX_FDS];
 };
 
 }

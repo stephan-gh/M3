@@ -203,25 +203,25 @@ static bool execute_pipeline(CmdList *list, bool muxed) {
 
     // connect input/output of accelerators
     {
-        File *clones[vpe_count * 2];
+        Reference<File> clones[vpe_count * 2];
         size_t c = 0;
         for(size_t i = 0; i < vpe_count; ++i) {
             if(accels[i]) {
-                File *in = vpes[i]->fds()->get(STDIN_FD);
-                if(in) {
-                    File *ain = in == VPE::self().fds()->get(STDIN_FD) ? in->clone() : in;
-                    accels[i]->connect_input(static_cast<GenericFile*>(ain));
-                    if(ain != in)
+                auto in = vpes[i]->fds()->get(STDIN_FD);
+                if(in.valid()) {
+                    auto ain = in.get() == VPE::self().fds()->get(STDIN_FD).get() ? in->clone() : in;
+                    accels[i]->connect_input(static_cast<GenericFile*>(ain.get()));
+                    if(ain.get() != in.get())
                         clones[c++] = ain;
                 }
                 else if(accels[i - 1])
                     accels[i]->connect_input(accels[i - 1]);
 
-                File *out = vpes[i]->fds()->get(STDOUT_FD);
-                if(out) {
-                    File *aout = out == VPE::self().fds()->get(STDOUT_FD) ? out->clone() : out;
-                    accels[i]->connect_output(static_cast<GenericFile*>(aout));
-                    if(aout != out)
+                auto out = vpes[i]->fds()->get(STDOUT_FD);
+                if(out.valid()) {
+                    auto aout = out.get() == VPE::self().fds()->get(STDOUT_FD).get() ? out->clone() : out;
+                    accels[i]->connect_output(static_cast<GenericFile*>(aout.get()));
+                    if(aout.get() != out.get())
                         clones[c++] = aout;
                 }
                 else if(accels[i + 1])
@@ -266,9 +266,6 @@ static bool execute_pipeline(CmdList *list, bool muxed) {
                 }
             }
         }
-
-        for(size_t i = 0; i < c; ++i)
-            delete clones[i];
     }
 
 error:

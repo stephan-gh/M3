@@ -61,11 +61,11 @@ VPE::VPE()
 
     // create stdin, stdout and stderr, if not existing
     if(!_fds->exists(STDIN_FD))
-        _fds->set(STDIN_FD, new SerialFile());
+        _fds->set(STDIN_FD, Reference<File>(new SerialFile()));
     if(!_fds->exists(STDOUT_FD))
-        _fds->set(STDOUT_FD, new SerialFile());
+        _fds->set(STDOUT_FD, Reference<File>(new SerialFile()));
     if(!_fds->exists(STDERR_FD))
-        _fds->set(STDERR_FD, new SerialFile());
+        _fds->set(STDERR_FD, Reference<File>(new SerialFile()));
 }
 
 VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags, const VPEGroup *group)

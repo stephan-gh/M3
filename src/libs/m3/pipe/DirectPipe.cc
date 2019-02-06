@@ -33,10 +33,10 @@ DirectPipe::DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size)
     assert(Math::is_aligned(size, DTU_PKG_SIZE));
 
     DirectPipeReader::State *rstate = &rd == &VPE::self() ? new DirectPipeReader::State(caps()) : nullptr;
-    _rdfd = VPE::self().fds()->alloc(new DirectPipeReader(caps(), rstate));
+    _rdfd = VPE::self().fds()->alloc(Reference<File>(new DirectPipeReader(caps(), rstate)));
 
     DirectPipeWriter::State *wstate = &wr == &VPE::self() ? new DirectPipeWriter::State(caps() + 1, _size) : nullptr;
-    _wrfd = VPE::self().fds()->alloc(new DirectPipeWriter(caps() + 1, _size, wstate));
+    _wrfd = VPE::self().fds()->alloc(Reference<File>(new DirectPipeWriter(caps() + 1, _size, wstate)));
 }
 
 DirectPipe::~DirectPipe() {
@@ -45,7 +45,8 @@ DirectPipe::~DirectPipe() {
 }
 
 void DirectPipe::close_reader() {
-    DirectPipeReader *rd = static_cast<DirectPipeReader*>(VPE::self().fds()->free(_rdfd));
+    Reference<File> frd = VPE::self().fds()->free(_rdfd);
+    DirectPipeReader *rd = static_cast<DirectPipeReader*>(frd.get());
     if(rd) {
         // don't send EOF, if we are not reading
         if(&_rd != &VPE::self())
@@ -55,7 +56,8 @@ void DirectPipe::close_reader() {
 }
 
 void DirectPipe::close_writer() {
-    DirectPipeWriter *wr = static_cast<DirectPipeWriter*>(VPE::self().fds()->free(_wrfd));
+    Reference<File> fwr = VPE::self().fds()->free(_wrfd);
+    DirectPipeWriter *wr = static_cast<DirectPipeWriter*>(fwr.get());
     if(wr) {
         // don't send EOF, if we are not writing
         if(&_wr != &VPE::self())

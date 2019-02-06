@@ -62,7 +62,7 @@ int main() {
         writer.obtain_fds();
 
         writer.run([] {
-            File *out = VPE::self().fds()->get(STDOUT_FD);
+            auto out = VPE::self().fds()->get(STDOUT_FD);
             for(int i = 0; i < 5; ++i) {
                 OStringStream os(buffer, sizeof(buffer));
                 os << "Hello World from sibling " << i << "!\n";
@@ -74,7 +74,7 @@ int main() {
 
         pipe.close_reader();
 
-        File *out = VPE::self().fds()->get(pipe.writer_fd());
+        auto out = VPE::self().fds()->get(pipe.writer_fd());
         for(int i = 0; i < 10; ++i) {
             OStringStream os(buffer, sizeof(buffer));
             os << "Hello World from child " << i << "!\n";
@@ -108,7 +108,7 @@ int main() {
 
         pipe.close_reader();
 
-        File *out = VPE::self().fds()->get(pipe.writer_fd());
+        auto out = VPE::self().fds()->get(pipe.writer_fd());
         for(int i = 0; i < 10; ++i) {
             OStringStream os(buffer, sizeof(buffer));
             os << "Hello World from child " << i << "!\n";
@@ -132,7 +132,7 @@ int main() {
         reader.obtain_fds();
 
         reader.run([] {
-            File *in = VPE::self().fds()->get(STDIN_FD);
+            auto in = VPE::self().fds()->get(STDIN_FD);
             while(in->read(buffer, sizeof(buffer)) > 0)
                 ;
             return 0;
@@ -140,7 +140,7 @@ int main() {
 
         pipe.close_reader();
 
-        File *out = VPE::self().fds()->get(pipe.writer_fd());
+        auto out = VPE::self().fds()->get(pipe.writer_fd());
         for(int i = 0; i < 10; ++i) {
             if(out->write(buffer, sizeof(buffer)) < 0)
                 break;
@@ -161,7 +161,7 @@ int main() {
         writer.obtain_fds();
 
         writer.run([] {
-            File *out = VPE::self().fds()->get(STDOUT_FD);
+            auto out = VPE::self().fds()->get(STDOUT_FD);
             for(int i = 0; i < 10; ++i) {
                 OStringStream os(buffer, sizeof(buffer));
                 os << "Hello World from child " << i << "!\n";
@@ -205,7 +205,7 @@ int main() {
         writer.obtain_fds();
 
         writer.run([] {
-            File *out = VPE::self().fds()->get(STDOUT_FD);
+            auto out = VPE::self().fds()->get(STDOUT_FD);
             for(int i = 0; i < 10; ++i) {
                 OStringStream os(buffer, sizeof(buffer));
                 os << "Hello World from sibling " << i << "!\n";
@@ -234,7 +234,7 @@ int main() {
         t1.obtain_fds();
 
         t1.run([] {
-            File *out = VPE::self().fds()->get(STDOUT_FD);
+            auto out = VPE::self().fds()->get(STDOUT_FD);
             for(int i = 0; i < 10; ++i) {
                 OStringStream os(buffer, sizeof(buffer));
                 os << "Hello World from child " << i << "!\n";
@@ -252,8 +252,8 @@ int main() {
         t2.obtain_fds();
 
         t2.run([] {
-            File *in = VPE::self().fds()->get(STDIN_FD);
-            File *out = VPE::self().fds()->get(STDOUT_FD);
+            auto in = VPE::self().fds()->get(STDIN_FD);
+            auto out = VPE::self().fds()->get(STDOUT_FD);
             ssize_t res;
             while((res = in->read(buffer, sizeof(buffer))) > 0) {
                 out->write(buffer, static_cast<size_t>(res));

@@ -101,7 +101,7 @@ static void add(Aladdin &alad, size_t size, Aladdin::Array *a, int prot) {
         fd_t fd = VFS::open(filename.c_str(), perms);
         if(fd == FileTable::INVALID)
             exitmsg("Unable to open '" << filename << "'");
-        const GenericFile *file = static_cast<const GenericFile*>(VPE::self().fds()->get(fd));
+        const GenericFile *file = static_cast<const GenericFile*>(VPE::self().fds()->get(fd).get());
         int flags = (prot & MemGate::W) ? Pager::MAP_SHARED : Pager::MAP_PRIVATE;
         alad._accel->pager()->map_ds(&virt, psize, prot, flags, file->sess(), off);
         fds[next_fd++] = fd;

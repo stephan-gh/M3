@@ -40,7 +40,7 @@ class DirectChain {
 public:
     static const size_t ACCEL_COUNT     = 3;
 
-    explicit DirectChain(size_t id, File *in, File *out, Mode _mode)
+    explicit DirectChain(size_t id, Reference<File> in, Reference<File> out, Mode _mode)
         : mode(_mode),
           group(),
           vpes(),
@@ -72,21 +72,21 @@ public:
         if(VERBOSE) Serial::get() << "Connecting input and output...\n";
 
         // connect input/output
-        accels[0]->connect_input(static_cast<GenericFile*>(in));
-        accels[ACCEL_COUNT - 1]->connect_output(static_cast<GenericFile*>(out));
+        accels[0]->connect_input(static_cast<GenericFile*>(in.get()));
+        accels[ACCEL_COUNT - 1]->connect_output(static_cast<GenericFile*>(out.get()));
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    File *rd = VPE::self().fds()->get(pipes[i - 1]->reader_fd());
-                    accels[i]->connect_input(static_cast<GenericFile*>(rd));
+                    auto rd = VPE::self().fds()->get(pipes[i - 1]->reader_fd());
+                    accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
                 }
                 else
                     accels[i]->connect_input(accels[i - 1]);
             }
             if(i + 1 < ACCEL_COUNT) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    File *wr = VPE::self().fds()->get(pipes[i]->writer_fd());
-                    accels[i]->connect_output(static_cast<GenericFile*>(wr));
+                    auto wr = VPE::self().fds()->get(pipes[i]->writer_fd());
+                    accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
                 }
                 else
                     accels[i]->connect_output(accels[i + 1]);

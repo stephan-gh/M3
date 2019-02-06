@@ -36,7 +36,7 @@ static const size_t REPLY_SIZE      = 64;
 static constexpr size_t ACCEL_COUNT = 3;
 
 struct IndirChain {
-    explicit IndirChain(size_t _id, RecvGate &_reply_gate, File *_in, File *_out)
+    explicit IndirChain(size_t _id, RecvGate &_reply_gate, Reference<File> _in, Reference<File> _out)
         : id(_id),
           in(_in),
           out(_out),
@@ -138,8 +138,8 @@ struct IndirChain {
     }
 
     size_t id;
-    File *in;
-    File *out;
+    Reference<File> in;
+    Reference<File> out;
     size_t total;
     size_t seen;
     RecvGate &reply_gate;

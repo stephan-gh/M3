@@ -90,8 +90,9 @@ size_t FStream::read(void *dst, size_t count) {
 
     size_t total = 0;
     char *buf = reinterpret_cast<char*>(dst);
+    Reference<File> f = file();
     while(count > 0) {
-        ssize_t res = _rbuf->read(file(), buf + total, count);
+        ssize_t res = _rbuf->read(f.get(), buf + total, count);
         if(res <= 0) {
             set_error(res);
             return total;
@@ -104,8 +105,9 @@ size_t FStream::read(void *dst, size_t count) {
 }
 
 void FStream::flush() {
-    if(_wbuf && file()) {
-        if(_wbuf->flush(file()) != Errors::NONE)
+    Reference<File> f = file();
+    if(_wbuf && f.valid()) {
+        if(_wbuf->flush(f.get()) != Errors::NONE)
             _state |= FL_ERROR;
         file()->flush();
     }
@@ -151,8 +153,9 @@ size_t FStream::write(const void *src, size_t count) {
 
     const char *buf = reinterpret_cast<const char*>(src);
     size_t total = 0;
+    Reference<File> f = file();
     while(count > 0) {
-        ssize_t res = _wbuf->write(file(), buf + total, count);
+        ssize_t res = _wbuf->write(f.get(), buf + total, count);
         if(res <= 0) {
             set_error(res);
             return 0;
@@ -164,7 +167,7 @@ size_t FStream::write(const void *src, size_t count) {
         if(((_flags & FL_LINE_BUF) && buf[total - 1] == '\n'))
             flush();
         else if(count) {
-            if(_wbuf->flush(file()) != Errors::NONE)
+            if(_wbuf->flush(f.get()) != Errors::NONE)
                 _state |= FL_ERROR;
         }
     }

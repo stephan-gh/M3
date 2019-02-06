@@ -31,8 +31,8 @@ namespace m3 {
 INIT_PRIO_VFS VFS::Cleanup VFS::_cleanup;
 
 VFS::Cleanup::~Cleanup() {
-    for(fd_t i = 0; i < FileTable::MAX_FDS; ++i)
-        delete VPE::self().fds()->free(i);
+    VPE::self().fds()->remove_all();
+    VPE::self().mounts()->remove_all();
 }
 
 MountTable *VFS::ms() {
@@ -67,13 +67,11 @@ fd_t VFS::open(const char *path, int perms) {
         Errors::last = Errors::NO_SUCH_FILE;
         return FileTable::INVALID;
     }
-    File *file = fs->open(path + pos, perms);
-    if(file) {
+    Reference<File> file = fs->open(path + pos, perms);
+    if(file.valid()) {
         fd_t fd = VPE::self().fds()->alloc(file);
-        if(fd == FileTable::INVALID) {
-            delete file;
+        if(fd == FileTable::INVALID)
             Errors::last = Errors::NO_SPACE;
-        }
         LLOG(FS, "GenFile[" << fd << "]::open(" << path << ", " << perms << ")");
         if(perms & FILE_APPEND)
             file->seek(0, M3FS_SEEK_END);
@@ -83,8 +81,7 @@ fd_t VFS::open(const char *path, int perms) {
 }
 
 void VFS::close(fd_t fd) {
-    File *file = VPE::self().fds()->free(fd);
-    delete file;
+    VPE::self().fds()->free(fd);
 }
 
 Errors::Code VFS::stat(const char *path, FileInfo &info) {

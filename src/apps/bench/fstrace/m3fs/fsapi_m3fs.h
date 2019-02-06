@@ -133,7 +133,7 @@ public:
 
     virtual ssize_t read(int fd, void *buffer, size_t size) override {
         checkFd(fd);
-        m3::File *file = m3::VPE::self().fds()->get(_fdMap[fd]);
+        auto file = m3::VPE::self().fds()->get(_fdMap[fd]);
         char *buf = reinterpret_cast<char*>(buffer);
         while(size > 0) {
             ssize_t res = file->read(buf, size);
@@ -149,11 +149,11 @@ public:
 
     virtual ssize_t write(int fd, const void *buffer, size_t size) override {
         checkFd(fd);
-        m3::File *file = m3::VPE::self().fds()->get(_fdMap[fd]);
+        auto file = m3::VPE::self().fds()->get(_fdMap[fd]);
         return write_file(file, buffer, size);
     }
 
-    ssize_t write_file(m3::File *file, const void *buffer, size_t size) {
+    ssize_t write_file(m3::Reference<m3::File> file, const void *buffer, size_t size) {
         m3::Errors::Code res = file->write_all(buffer, size);
         if(res != m3::Errors::NONE)
             return -static_cast<ssize_t>(res);
@@ -249,8 +249,8 @@ public:
 
         checkFd(args->in_fd);
         checkFd(args->out_fd);
-        m3::File *in = m3::VPE::self().fds()->get(_fdMap[args->in_fd]);
-        m3::File *out = m3::VPE::self().fds()->get(_fdMap[args->out_fd]);
+        auto in = m3::VPE::self().fds()->get(_fdMap[args->in_fd]);
+        auto out = m3::VPE::self().fds()->get(_fdMap[args->out_fd]);
         char *rbuf = buf.readBuffer(Buffer::MaxBufferSize);
         size_t rem = args->count;
         while(rem > 0) {
@@ -318,7 +318,7 @@ public:
             THROW1(IllegalArgumentException, -ENOTSUP, 0, lineNo);
 
         checkFd(args->in_fd);
-        m3::File *in = m3::VPE::self().fds()->get(_fdMap[args->in_fd]);
+        auto in = m3::VPE::self().fds()->get(_fdMap[args->in_fd]);
 
         char *rbuf = buf.readBuffer(Buffer::MaxBufferSize);
         size_t rem = args->count;

@@ -20,16 +20,16 @@
 
 namespace m3 {
 
-File *M3FS::open(const char *path, int perms) {
+Reference<File> M3FS::open(const char *path, int perms) {
     capsel_t ep;
     if((perms & FILE_NOSESS) && (ep = alloc_ep()) != ObjCap::INVALID) {
         GateIStream reply = send_receive_vmsg(_gate, OPEN_PRIV, path, perms, ep - _eps);
         reply >> Errors::last;
         if(Errors::last != Errors::NONE)
-            return nullptr;
+            return Reference<File>();
         size_t id;
         reply >> id;
-        return new GenericFile(perms, sel(), id, VPE::self().sel_to_ep(ep), this);
+        return Reference<File>(new GenericFile(perms, sel(), id, VPE::self().sel_to_ep(ep), this));
     }
     else {
         perms &= ~FILE_NOSESS;
@@ -39,8 +39,8 @@ File *M3FS::open(const char *path, int perms) {
         strncpy(args.str, path, sizeof(args.str));
         KIF::CapRngDesc crd = obtain(2, &args);
         if(Errors::last != Errors::NONE)
-            return nullptr;
-        return new GenericFile(perms, crd.start());
+            return Reference<File>();
+        return Reference<File>(new GenericFile(perms, crd.start()));
     }
 }
 

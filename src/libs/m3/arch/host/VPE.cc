@@ -81,8 +81,14 @@ void VPE::init_state() {
 }
 
 void VPE::init_fs() {
-    delete _ms;
-    delete _fds;
+    if(_fds) {
+        _fds->remove_all();
+        delete _fds;
+    }
+    if(_ms) {
+        _ms->remove_all();
+        delete _ms;
+    }
 
     size_t len = STATE_BUF_SIZE;
     char *buf = new char[len];

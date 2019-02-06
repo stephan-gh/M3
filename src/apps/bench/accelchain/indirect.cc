@@ -32,7 +32,7 @@ using namespace m3;
 static const size_t BUF_SIZE    = 4096;
 static const size_t REPLY_SIZE  = 64;
 
-void chain_indirect(File *in, File *out, size_t num, cycles_t comptime) {
+void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime) {
     uint8_t *buffer = new uint8_t[BUF_SIZE];
 
     VPE *vpes[num];

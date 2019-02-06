@@ -109,6 +109,11 @@ public:
     void remove(const char *path);
 
     /**
+     * Removes all mountpoints.
+     */
+    void remove_all();
+
+    /**
      * Delegates the mount points to <vpe>.
      *
      * @param vpe the VPE to delegate the caps to
@@ -142,7 +147,7 @@ public:
     void print(OStream &os) const;
 
 private:
-    void remove(size_t i);
+    void do_remove(size_t i);
 
     size_t _count;
     MountPoint *_mounts[MAX_MOUNTS];

@@ -79,7 +79,7 @@ public:
     /**
      * @return the File instance
      */
-    File *file() const {
+    Reference<File> file() const {
         return VPE::self().fds()->get(_fd);
     }
 
@@ -90,8 +90,9 @@ public:
      * @return 0 on success
      */
     int stat(FileInfo &info) const {
-        if(file())
-            return file()->stat(info);
+        Reference<File> f = file();
+        if(f.valid())
+            return f->stat(info);
         return -1;
     }
 

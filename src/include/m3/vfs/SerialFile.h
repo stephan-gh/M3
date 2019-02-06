@@ -48,8 +48,8 @@ public:
         return res < 0 ? res : static_cast<ssize_t>(count);
     }
 
-    virtual File *clone() const override {
-        return new SerialFile();
+    virtual Reference<File> clone() const override {
+        return Reference<File>(new SerialFile());
     }
 
     virtual char type() const override {

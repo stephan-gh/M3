@@ -29,9 +29,14 @@
 
 namespace m3 {
 
-fd_t FileTable::alloc(File *file) {
+void FileTable::remove_all() {
+    for(fd_t i = 0; i < FileTable::MAX_FDS; ++i)
+        VPE::self().fds()->free(i);
+}
+
+fd_t FileTable::alloc(Reference<File> file) {
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i] == nullptr) {
+        if(!_fds[i].valid()) {
             file->set_fd(i);
             _fds[i] = file;
             return i;
@@ -40,14 +45,14 @@ fd_t FileTable::alloc(File *file) {
     return MAX_FDS;
 }
 
-File *FileTable::free(fd_t fd) {
-    File *file = _fds[fd];
+Reference<File> FileTable::free(fd_t fd) {
+    Reference<File> file = _fds[fd];
 
     // remove from multiplexing table
-    if(file) {
-        _fds[fd] = nullptr;
+    if(file.valid()) {
+        _fds[fd].unref();
         for(size_t i = 0; i < MAX_EPS; ++i) {
-            if(_file_eps[i].file == file) {
+            if(_file_eps[i].file == file.get()) {
                 LLOG(FILES, "FileEPs[" << i << "] = --");
                 _file_eps[i].file = nullptr;
                 _file_ep_count--;
@@ -94,7 +99,7 @@ epid_t FileTable::request_ep(GenericFile *file) {
 Errors::Code FileTable::delegate(VPE &vpe) const {
     Errors::Code res = Errors::NONE;
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i]) {
+        if(_fds[i].valid()) {
             res = _fds[i]->delegate(vpe);
             if(res != Errors::NONE)
                 return res;
@@ -108,13 +113,13 @@ size_t FileTable::serialize(void *buffer, size_t size) const {
 
     size_t count = 0;
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i])
+        if(_fds[i].valid())
             count++;
     }
 
     m << count;
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i]) {
+        if(_fds[i].valid()) {
             m << i << _fds[i]->type();
             _fds[i]->serialize(m);
         }
@@ -133,18 +138,18 @@ FileTable *FileTable::unserialize(const void *buffer, size_t size) {
         um >> fd >> type;
         switch(type) {
             case 'F':
-                obj->_fds[fd] = GenericFile::unserialize(um);
+                obj->_fds[fd] = Reference<File>(GenericFile::unserialize(um));
                 break;
             case 'S':
-                obj->_fds[fd] = SerialFile::unserialize(um);
+                obj->_fds[fd] = Reference<File>(SerialFile::unserialize(um));
                 break;
 // TODO currently, m3fs gets too large when enabling that
 #if !defined(__t2__)
             case 'P':
-                obj->_fds[fd] = DirectPipeWriter::unserialize(um);
+                obj->_fds[fd] = Reference<File>(DirectPipeWriter::unserialize(um));
                 break;
             case 'Q':
-                obj->_fds[fd] = DirectPipeReader::unserialize(um);
+                obj->_fds[fd] = Reference<File>(DirectPipeReader::unserialize(um));
                 break;
 #endif
 

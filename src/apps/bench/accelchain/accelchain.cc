@@ -50,8 +50,8 @@ int main(int argc, char **argv) {
         if(outfd == FileTable::INVALID)
             exitmsg("Unable to open " << out);
 
-        File *fin = VPE::self().fds()->get(infd);
-        File *fout = VPE::self().fds()->get(outfd);
+        auto fin = VPE::self().fds()->get(infd);
+        auto fout = VPE::self().fds()->get(outfd);
 
         if(mode == Mode::INDIR)
             chain_indirect(fin, fout, num, comptime);

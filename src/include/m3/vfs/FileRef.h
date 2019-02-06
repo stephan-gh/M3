@@ -48,7 +48,7 @@ public:
     }
 
     File *get() {
-        return VPE::self().fds()->get(_fd);
+        return VPE::self().fds()->get(_fd).get();
     }
 
     File *operator->() {

@@ -30,13 +30,13 @@ public:
     explicit VTerm(const String &name) : ClientSession(name) {
     }
 
-    GenericFile *create_channel(bool read) {
+    Reference<File> create_channel(bool read) {
         capsel_t sels = VPE::self().alloc_sels(2);
         KIF::ExchangeArgs args;
         args.count = 1;
         args.vals[0] = read ? 0 : 1;
         obtain_for(VPE::self(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
-        return new GenericFile(read ? FILE_R : FILE_W, sels);
+        return Reference<File>(new GenericFile(read ? FILE_R : FILE_W, sels));
     }
 };
 

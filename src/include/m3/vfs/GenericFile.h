@@ -94,11 +94,11 @@ public:
         return 'F';
     }
 
-    virtual File *clone() const override {
+    virtual Reference<File> clone() const override {
         if(flags() & FILE_NOSESS)
-            return nullptr;
+            return Reference<File>();
         KIF::CapRngDesc crd = _sess.obtain(2);
-        return new GenericFile(flags(), crd.start());
+        return Reference<File>(new GenericFile(flags(), crd.start()));
     }
 
     virtual Errors::Code delegate(VPE &vpe) override {

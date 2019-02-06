@@ -34,7 +34,7 @@ class Chain {
     static const size_t MAX_NUM     = 8;
 
 public:
-    explicit Chain(File *in, File *out, size_t _num, cycles_t comptime, Mode _mode)
+    explicit Chain(Reference<File> in, Reference<File> out, size_t _num, cycles_t comptime, Mode _mode)
         : num(_num),
           mode(_mode),
           group(),
@@ -67,21 +67,21 @@ public:
         if(VERBOSE) Serial::get() << "Connecting input and output...\n";
 
         // connect input/output
-        accels[0]->connect_input(static_cast<GenericFile*>(in));
-        accels[num - 1]->connect_output(static_cast<GenericFile*>(out));
+        accels[0]->connect_input(static_cast<GenericFile*>(in.get()));
+        accels[num - 1]->connect_output(static_cast<GenericFile*>(out.get()));
         for(size_t i = 0; i < num; ++i) {
             if(i > 0) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    File *rd = VPE::self().fds()->get(pipes[i - 1]->reader_fd());
-                    accels[i]->connect_input(static_cast<GenericFile*>(rd));
+                    Reference<File> rd = VPE::self().fds()->get(pipes[i - 1]->reader_fd());
+                    accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
                 }
                 else
                     accels[i]->connect_input(accels[i - 1]);
             }
             if(i + 1 < num) {
                 if(mode == Mode::DIR_SIMPLE) {
-                    File *wr = VPE::self().fds()->get(pipes[i]->writer_fd());
-                    accels[i]->connect_output(static_cast<GenericFile*>(wr));
+                    Reference<File> wr = VPE::self().fds()->get(pipes[i]->writer_fd());
+                    accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
                 }
                 else
                     accels[i]->connect_output(accels[i + 1]);
@@ -144,7 +144,7 @@ private:
     bool running[MAX_NUM];
 };
 
-void chain_direct(File *in, File *out, size_t num, cycles_t comptime, Mode mode) {
+void chain_direct(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime, Mode mode) {
     Chain ch(in, out, num, comptime, mode);
 
     if(VERBOSE) Serial::get() << "Starting chain...\n";
@@ -171,13 +171,13 @@ void chain_direct(File *in, File *out, size_t num, cycles_t comptime, Mode mode)
     Serial::get() << "Total time: " << (end - start) << " cycles\n";
 }
 
-void chain_direct_multi(File *in, File *out, size_t num, cycles_t comptime, Mode mode) {
+void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime, Mode mode) {
     Chain ch1(in, out, num, comptime, mode);
 
     fd_t outfd = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE);
     if(outfd == FileTable::INVALID)
-        exitmsg("Unable to open " << out);
-    File *in2 = in->clone();
+        exitmsg("Unable to open /tmp/out2.txt");
+    auto in2 = in->clone();
     Chain ch2(in2, VPE::self().fds()->get(outfd), num, comptime, mode);
 
     if(VERBOSE) Serial::get() << "Starting chains...\n";
@@ -207,6 +207,5 @@ void chain_direct_multi(File *in, File *out, size_t num, cycles_t comptime, Mode
     cycles_t end = Time::stop(0);
     Serial::get() << "Total time: " << (end - start) << " cycles\n";
 
-    delete in2;
     VFS::close(outfd);
 }

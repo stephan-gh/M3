@@ -25,6 +25,7 @@
 namespace m3 {
 
 class File;
+class Marshaller;
 
 /**
  * The base-class of all filesystems
@@ -48,7 +49,7 @@ public:
      * @param perms the permissions (FILE_*)
      * @return the File-instance or nullptr
      */
-    virtual File *open(const char *path, int perms) = 0;
+    virtual Reference<File> open(const char *path, int perms) = 0;
 
     /**
      * Retrieves the file information for the given path.

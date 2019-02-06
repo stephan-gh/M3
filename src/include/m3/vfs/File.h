@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/util/Reference.h>
 
 #include <m3/com/Marshalling.h>
 
@@ -31,7 +32,7 @@ class FileTable;
 /**
  * The base-class of all files. Can't be instantiated.
  */
-class File {
+class File : public RefCounted {
     friend class FStream;
     friend class FileTable;
 
@@ -208,7 +209,7 @@ public:
      *
      * @return the new file
      */
-    virtual File *clone() const = 0;
+    virtual Reference<File> clone() const = 0;
 
     /**
      * Delegates this file to the given VPE.

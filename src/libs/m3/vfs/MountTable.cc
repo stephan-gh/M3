@@ -106,17 +106,21 @@ Reference<FileSystem> MountTable::resolve(const char *path, size_t *pos) {
 void MountTable::remove(const char *path) {
     for(size_t i = 0; i < _count; ++i) {
         if(strcmp(_mounts[i]->path().c_str(), path) == 0) {
-            MountPoint *mp = _mounts[i];
-            remove(i);
-            delete mp;
+            do_remove(i);
             break;
         }
     }
 }
 
-void MountTable::remove(size_t i) {
-    assert(_mounts[i]);
+void MountTable::remove_all() {
+    while(_count > 0)
+        do_remove(0);
+}
+
+void MountTable::do_remove(size_t i) {
+    assert(_mounts[i] != nullptr);
     assert(_count > 0);
+    delete _mounts[i];
     _mounts[i] = nullptr;
     // move following items backwards
     for(; i < _count - 1; ++i)
