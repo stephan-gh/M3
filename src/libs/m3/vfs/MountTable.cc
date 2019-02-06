@@ -128,22 +128,6 @@ void MountTable::do_remove(size_t i) {
     _count--;
 }
 
-size_t MountTable::get_mount_id(FileSystem *fs) const {
-    for(size_t i = 0; i < _count; ++i) {
-        if(&*_mounts[i]->fs() == fs)
-            return i;
-    }
-    return MAX_MOUNTS;
-}
-
-FileSystem *MountTable::get_mount(size_t id) const {
-    for(size_t i = 0; i < _count; ++i) {
-        if(id-- == 0)
-            return const_cast<FileSystem*>(&*_mounts[i]->fs());
-    }
-    return nullptr;
-}
-
 size_t MountTable::serialize(void *buffer, size_t size) const {
     Marshaller m(static_cast<unsigned char*>(buffer), size);
 

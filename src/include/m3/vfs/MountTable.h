@@ -72,18 +72,6 @@ public:
     MountTable &operator=(const MountTable &ms);
 
     /**
-     * @param fs the filesystem instance
-     * @return the mountpoint id of the given filesystem instance
-     */
-    size_t get_mount_id(FileSystem *fs) const;
-
-    /**
-     * @param id the mountpoint id
-     * @return the filesystem instance for the mountpoint with given id
-     */
-    FileSystem *get_mount(size_t id) const;
-
-    /**
      * Adds the given mountpoint
      *
      * @param path the path
