@@ -24,6 +24,7 @@ pub const MEM_CAP_END: usize        = 0xFFFF_FFFF_FFFF_FFFF;
 
 pub const PE_COUNT: usize           = 18;
 
+pub const TOTAL_MEM_SIZE: usize     = 1024 * 1024 * 1024;
 pub const FS_MAX_SIZE: usize        = 512 * 1024 * 1024;
 pub const STACK_SIZE: usize         = 0x8000;
 pub const RECVBUF_SIZE: usize       = 16 * 1024;

@@ -36,15 +36,13 @@ Platform::KEnv::KEnv() {
     for(int i = 0; i < PE_COUNT; ++i)
         pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
 
-    const size_t TOTAL_MEM   = 512 * 1024 * 1024;
-
     // create memory
     uintptr_t base = reinterpret_cast<uintptr_t>(
-        mmap(0, TOTAL_MEM, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
+        mmap(0, TOTAL_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
 
     MainMemory &mem = MainMemory::get();
     mem.add(new MemoryModule(false, 0, base, FS_MAX_SIZE));
-    mem.add(new MemoryModule(true, 0, base + FS_MAX_SIZE, TOTAL_MEM - FS_MAX_SIZE));
+    mem.add(new MemoryModule(true, 0, base + FS_MAX_SIZE, TOTAL_MEM_SIZE - FS_MAX_SIZE));
 }
 
 peid_t Platform::kernel_pe() {

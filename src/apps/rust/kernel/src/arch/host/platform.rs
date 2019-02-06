@@ -41,7 +41,7 @@ pub fn init() -> platform::KEnv {
     let base = unsafe {
         libc::mmap(
             ptr::null_mut(),
-            cfg::MEM_SIZE,
+            cfg::TOTAL_MEM_SIZE,
             libc::PROT_READ | libc::PROT_WRITE,
             libc::MAP_ANON | libc::MAP_PRIVATE,
             -1,
@@ -50,7 +50,7 @@ pub fn init() -> platform::KEnv {
     };
     assert!(base != libc::MAP_FAILED);
 
-    let mut m = mem::MemMod::new(kernel_pe(), base as goff, cfg::MEM_SIZE);
+    let mut m = mem::MemMod::new(kernel_pe(), base as goff, cfg::TOTAL_MEM_SIZE);
     // allocate FS image
     m.allocate(cfg::FS_MAX_SIZE, 1).expect("Not enough space for FS image");
     mem::get().add(m);
