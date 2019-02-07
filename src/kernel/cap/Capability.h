@@ -235,6 +235,7 @@ public:
           srv(_srv) {
     }
 
+    void drop_msgs();
     void close();
 
     bool invalid;

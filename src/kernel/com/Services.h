@@ -50,8 +50,11 @@ public:
 
     int pending() const;
 
-    void send(const void *msg, size_t size, bool free);
-    const m3::DTU::Message *send_receive(const void *msg, size_t size, bool free);
+    void send(label_t ident, const void *msg, size_t size, bool free);
+    const m3::DTU::Message *send_receive(label_t ident, const void *msg, size_t size, bool free);
+    void drop_msgs(label_t ident) {
+        _squeue.drop_msgs(ident);
+    }
     void abort() {
         _squeue.abort();
     }
@@ -101,8 +104,8 @@ public:
         return nullptr;
     }
 
-    void send(m3::Reference<Service> serv, const void *msg, size_t size, bool free) {
-        serv->send(msg, size, free);
+    void send(m3::Reference<Service> serv, label_t ident, const void *msg, size_t size, bool free) {
+        serv->send(ident, msg, size, free);
     }
 
 private:

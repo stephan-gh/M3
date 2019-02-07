@@ -44,18 +44,18 @@ int Service::pending() const {
     return _squeue.inflight() + _squeue.pending();
 }
 
-void Service::send(const void *msg, size_t size, bool free) {
+void Service::send(label_t ident, const void *msg, size_t size, bool free) {
     if(!_rgate->activated())
         return;
 
-    _squeue.send(&_sgate, msg, size, free);
+    _squeue.send(&_sgate, ident, msg, size, free);
 }
 
-const m3::DTU::Message *Service::send_receive(const void *msg, size_t size, bool free) {
+const m3::DTU::Message *Service::send_receive(label_t ident, const void *msg, size_t size, bool free) {
     if(!_rgate->activated())
         return nullptr;
 
-    event_t event = _squeue.send(&_sgate, msg, size, free);
+    event_t event = _squeue.send(&_sgate, ident, msg, size, free);
 
     m3::ThreadManager::get().wait_for(event);
 

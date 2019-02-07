@@ -28,16 +28,18 @@ struct Timeout;
 
 class SendQueue {
     struct Entry : public m3::SListItem {
-        explicit Entry(uint64_t _id, SendGate *_sgate, const void *_msg, size_t _size)
+        explicit Entry(uint64_t _id, SendGate *_sgate, label_t _ident, const void *_msg, size_t _size)
             : SListItem(),
               id(_id),
               sgate(_sgate),
+              ident(_ident),
               msg(_msg),
               size(_size) {
         }
 
         uint64_t id;
         SendGate *sgate;
+        label_t ident;
         const void *msg;
         size_t size;
     };
@@ -62,8 +64,9 @@ public:
         return static_cast<int>(_queue.length());
     }
 
-    event_t send(SendGate *sgate, const void *msg, size_t size, bool onheap);
+    event_t send(SendGate *sgate, label_t ident,const void *msg, size_t size, bool onheap);
     void received_reply(epid_t ep, const m3::DTU::Message *msg);
+    void drop_msgs(label_t ident);
     void abort();
 
 private:

@@ -38,7 +38,7 @@ event_t SendQueue::get_event(uint64_t id) {
     return static_cast<event_t>(1) << (sizeof(event_t) * 8 - 1) | id;
 }
 
-event_t SendQueue::send(SendGate *sgate, const void *msg, size_t size, bool onheap) {
+event_t SendQueue::send(SendGate *sgate, label_t ident, const void *msg, size_t size, bool onheap) {
     KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: trying to send message");
 
     if(_inflight == -1)
@@ -60,7 +60,7 @@ event_t SendQueue::send(SendGate *sgate, const void *msg, size_t size, bool onhe
 
     KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: queuing message");
 
-    Entry *e = new Entry(_next_id++, sgate, msg, size);
+    Entry *e = new Entry(_next_id++, sgate, ident, msg, size);
     _queue.append(e);
     return get_event(e->id);
 }
@@ -122,6 +122,24 @@ event_t SendQueue::do_send(SendGate *sgate, uint64_t id, const void *msg, size_t
     if(onheap)
         free(const_cast<void*>(msg));
     return _cur_event;
+}
+
+void SendQueue::drop_msgs(label_t ident) {
+    size_t n = 0;
+    Entry *prev = nullptr;
+    for(auto it = _queue.begin(); it != _queue.end(); ) {
+        auto old = it++;
+        if(old->ident == ident) {
+            _queue.remove(prev, &*old);
+            free(const_cast<void*>(old->msg));
+            delete &*old;
+            n++;
+        }
+        else
+            prev = &*old;
+    }
+
+    KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: dropped " << n << " msgs for " << m3::fmt(ident, "p"));
 }
 
 void SendQueue::abort() {

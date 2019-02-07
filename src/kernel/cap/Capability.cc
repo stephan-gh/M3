@@ -50,6 +50,10 @@ MGateObject::~MGateObject() {
         MainMemory::get().free(pe, addr, size);
 }
 
+void SessObject::drop_msgs() {
+    srv->drop_msgs(ident);
+}
+
 void SessObject::close() {
     // only send the close message, if the service has not exited yet
     if(srv->vpe().has_app()) {
@@ -59,7 +63,7 @@ void SessObject::close() {
         m3::KIF::Service::Close msg;
         msg.opcode = m3::KIF::Service::CLOSE;
         msg.sess = ident;
-        ServiceList::get().send(srv, &msg, sizeof(msg), false);
+        ServiceList::get().send(srv, ident, &msg, sizeof(msg), false);
     }
 }
 
@@ -91,8 +95,11 @@ void MapCapability::revoke() {
 void SessCapability::revoke() {
     // the server's session cap is directly derived from the service. if the server revokes it,
     // disable further close-messages to the server
-    if(parent()->type == SERV)
+    if(parent()->type == SERV) {
         obj->invalid = true;
+        // drop the queued messages for this session, because the server is not interested anymore
+        obj->drop_msgs();
+    }
     else if(!obj->invalid && obj->refcount() == 2)
         obj->close();
 }

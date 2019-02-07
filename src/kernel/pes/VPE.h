@@ -199,7 +199,7 @@ public:
     }
 
     void upcall(const void *msg, size_t size, bool onheap) {
-        _upcqueue.send(&_upcsgate, msg, size, onheap);
+        _upcqueue.send(&_upcsgate, 0, msg, size, onheap);
     }
     void upcall_notify(m3::Errors::Code res, word_t event);
 

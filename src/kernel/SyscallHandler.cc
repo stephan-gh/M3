@@ -608,7 +608,7 @@ void SyscallHandler::srvctrl(VPE *vpe, const m3::DTU::Message *msg) {
 
             m3::KIF::Service::Shutdown smsg;
             smsg.opcode = m3::KIF::Service::SHUTDOWN;
-            ServiceList::get().send(srvcap->obj, &smsg, sizeof(smsg), false);
+            ServiceList::get().send(srvcap->obj, 0, &smsg, sizeof(smsg), false);
             break;
         }
     }
@@ -775,7 +775,7 @@ void SyscallHandler::opensess(VPE *vpe, const m3::DTU::Message *msg) {
     smsg.opcode = m3::KIF::Service::OPEN;
     smsg.arg = arg;
 
-    const m3::DTU::Message *srvreply = s->send_receive(&smsg, sizeof(smsg), false);
+    const m3::DTU::Message *srvreply = s->send_receive(0, &smsg, sizeof(smsg), false);
     vpe->stop_wait();
 
     if(srvreply == nullptr)
@@ -926,7 +926,7 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     smsg.data.caps = crd.count();
     memcpy(&smsg.data.args, &req->args, sizeof(req->args));
 
-    const m3::DTU::Message *srvreply = rsrv->send_receive(&smsg, sizeof(smsg), false);
+    const m3::DTU::Message *srvreply = rsrv->send_receive(smsg.sess, &smsg, sizeof(smsg), false);
     vpe->stop_wait();
 
     if(srvreply == nullptr)
