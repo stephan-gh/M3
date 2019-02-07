@@ -65,8 +65,10 @@ private:
 int main() {
     for(int i = 0; !kern_shutdown_req && i < 10; ++i) {
         srv = new Server<MyHandler>("testcaps", new MyHandler());
-        if(Errors::occurred())
+        if(Errors::occurred()) {
+            delete srv;
             break;
+        }
         env()->workloop()->run();
         delete srv;
     }
