@@ -71,10 +71,12 @@ PipeData::~PipeData() {
     for(auto it = reader.begin(); it != reader.end(); ) {
         auto old = it++;
         delete &*old;
+        rgate.drop_msgs_with(reinterpret_cast<label_t>(&*old));
     }
     for(auto it = writer.begin(); it != writer.end(); ) {
         auto old = it++;
         delete &*old;
+        rgate.drop_msgs_with(reinterpret_cast<label_t>(&*old));
     }
 
     m3::env()->workloop()->remove(&workitem);
