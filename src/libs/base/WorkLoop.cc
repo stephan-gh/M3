@@ -25,12 +25,16 @@ void WorkLoop::thread_startup(void *) {
     WorkLoop *wl = env()->workloop();
     wl->run();
 
+    wl->thread_shutdown();
+}
+
+void WorkLoop::thread_shutdown() {
     // first wait until we have no threads left that wait for some event
     ThreadManager &tm = ThreadManager::get();
     while(tm.get().blocked_count() > 0) {
         DTU::get().try_sleep();
 
-        wl->tick();
+        tick();
 
         tm.yield();
     }

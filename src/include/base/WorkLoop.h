@@ -58,10 +58,11 @@ public:
 
 protected:
     static void thread_startup(void *);
+    virtual void thread_shutdown();
 
 private:
     bool _changed;
-    uint _permanents;
+    size_t _permanents;
     size_t _count;
     WorkItem *_items[MAX_ITEMS];
 };

@@ -25,6 +25,10 @@ public:
     virtual void multithreaded(uint count) override;
 
     virtual void run() override;
+
+    virtual void thread_shutdown() override {
+        // do nothing here
+    }
 };
 
 }
