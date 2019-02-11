@@ -228,10 +228,6 @@ impl RecvGate {
         assert!(self.ep().is_some());
 
         let rep = self.ep().unwrap();
-        let idle = match sgate {
-            Some(sg) => sg.ep().unwrap() != dtu::SYSC_SEP,
-            None     => true,
-        };
 
         loop {
             let msg = dtu::DTU::fetch_msg(rep);
@@ -245,7 +241,7 @@ impl RecvGate {
                 }
             }
 
-            dtu::DTU::try_sleep(idle, 0)?;
+            dtu::DTU::try_sleep(true, 0)?;
         }
     }
 }
