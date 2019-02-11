@@ -282,10 +282,6 @@ public:
         CPU::memory_barrier();
     }
 
-    uint msgcnt() {
-        return read_reg(DtuRegs::MSG_CNT);
-    }
-
     cycles_t tsc() const {
         return read_reg(DtuRegs::CUR_TIME);
     }
