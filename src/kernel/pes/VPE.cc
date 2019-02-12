@@ -188,8 +188,10 @@ void VPE::exit_app(int exitcode) {
 
         if(epcap->obj->gate->type == Capability::SGATE)
             static_cast<SGateObject*>(epcap->obj->gate)->activated = false;
-        else if(epcap->obj->gate->type == Capability::RGATE)
+        else if(epcap->obj->gate->type == Capability::RGATE) {
             static_cast<RGateObject*>(epcap->obj->gate)->addr = 0;
+            static_cast<RGateObject*>(epcap->obj->gate)->valid = false;
+        }
 
         // forget the connection
         epcap->obj->gate->remove_ep(&*epcap->obj);
@@ -283,20 +285,14 @@ void VPE::upcall_notify(m3::Errors::Code res, word_t event) {
     upcall(&msg, sizeof(msg), false);
 }
 
-bool VPE::invalidate_ep(epid_t ep, bool cmd) {
+bool VPE::invalidate_ep(epid_t ep, bool force) {
     KLOG(EPS, "VPE" << id() << ":EP" << ep << " = invalid");
 
     bool res = true;
-    if(cmd) {
-        if(is_on_pe())
-            res = DTU::get().inval_ep_remote(desc(), ep) == m3::Errors::NONE;
-        else
-            res = _dtustate.invalidate(ep, true);
-    }
-    else {
-        _dtustate.invalidate(ep, false);
-        update_ep(ep);
-    }
+    if(is_on_pe())
+        res = DTU::get().inval_ep_remote(desc(), ep, force) == m3::Errors::NONE;
+    else
+        res = _dtustate.invalidate(ep, force);
     return res;
 }
 

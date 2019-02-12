@@ -237,7 +237,7 @@ public:
     bool resume(bool need_app = true, bool unblock = true);
     void wakeup();
 
-    bool invalidate_ep(epid_t ep, bool cmd = false);
+    bool invalidate_ep(epid_t ep, bool force = false);
 
     bool can_forward_msg(epid_t ep);
     void forward_msg(epid_t ep, peid_t pe, vpeid_t vpe);

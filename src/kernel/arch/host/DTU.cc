@@ -63,7 +63,7 @@ void DTU::inject_irq(const VPEDesc &) {
     // unsupported
 }
 
-m3::Errors::Code DTU::inval_ep_remote(const VPEDesc &vpe, epid_t ep) {
+m3::Errors::Code DTU::inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool) {
     word_t regs[m3::DTU::EPS_RCNT];
     memset(regs, 0, sizeof(regs));
     // TODO detect if credits are outstanding

@@ -71,7 +71,7 @@ private:
         VPE_ID              = 3,
         CUR_TIME            = 4,
         IDLE_TIME           = 5,
-        MSG_CNT             = 6,
+        EVENTS              = 6,
         EXT_CMD             = 7,
         CLEAR_IRQ           = 8,
         CLOCK               = 9,
@@ -111,6 +111,18 @@ private:
         MEMORY
     };
 
+    enum class EventType {
+        MSG_RECV,
+        CRD_RECV,
+        EP_INVAL,
+    };
+
+    enum EventMask : reg_t {
+        MSG_RECV    = 1 << static_cast<reg_t>(EventType::MSG_RECV),
+        CRD_RECV    = 1 << static_cast<reg_t>(EventType::CRD_RECV),
+        EP_INVAL    = 1 << static_cast<reg_t>(EventType::EP_INVAL),
+    };
+
     enum class CmdOpCode {
         IDLE                = 0,
         SEND                = 1,
@@ -119,8 +131,9 @@ private:
         WRITE               = 4,
         FETCH_MSG           = 5,
         ACK_MSG             = 6,
-        SLEEP               = 7,
-        PRINT               = 8,
+        ACK_EVENTS          = 7,
+        SLEEP               = 8,
+        PRINT               = 9,
     };
 
     enum class ExtCmdOpCode {
@@ -268,6 +281,14 @@ public:
         write_reg(CmdRegs::COMMAND, buildCommand(ep, CmdOpCode::FETCH_MSG));
         CPU::memory_barrier();
         return reinterpret_cast<Message*>(read_reg(CmdRegs::OFFSET));
+    }
+
+    reg_t fetch_events() const {
+        reg_t old = read_reg(DtuRegs::EVENTS);
+        if(old != 0)
+            write_reg(CmdRegs::COMMAND, buildCommand(0, CmdOpCode::ACK_EVENTS, 0, old));
+        CPU::memory_barrier();
+        return old;
     }
 
     size_t get_msgoff(epid_t, const Message *msg) const {

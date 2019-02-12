@@ -75,7 +75,7 @@ int_enum! {
         const VPE_ID      = 3;
         const CUR_TIME    = 4;
         const IDLE_TIME   = 5;
-        const MSG_CNT     = 6;
+        const EVENTS      = 6;
         const EXT_CMD     = 7;
         const CLEAR_IRQ   = 8;
         const CLOCK       = 9;
@@ -144,10 +144,28 @@ int_enum! {
         const FETCH_MSG   = 0x5;
         /// Acknowledges a message
         const ACK_MSG     = 0x6;
+        /// Acknowledges events
+        const ACK_EVENTS  = 0x7;
         /// Puts the CU to sleep
-        const SLEEP       = 0x7;
+        const SLEEP       = 0x8;
         /// Prints a message
-        const PRINT       = 0x8;
+        const PRINT       = 0x9;
+    }
+}
+
+int_enum! {
+    struct EventType : u64 {
+        const MSG_RECV    = 0x0;
+        const CRD_RECV    = 0x1;
+        const EP_INVAL    = 0x2;
+    }
+}
+
+bitflags! {
+    struct EventMask : u64 {
+        const MSG_RECV    = 1 << EventType::MSG_RECV.val;
+        const CRD_RECV    = 1 << EventType::CRD_RECV.val;
+        const EP_INVAL    = 1 << EventType::EP_INVAL.val;
     }
 }
 
@@ -384,6 +402,15 @@ impl DTU {
         }
     }
 
+    #[inline(always)]
+    pub fn fetch_events() -> Reg {
+        let old = Self::read_dtu_reg(DtuReg::EVENTS);
+        if old != 0 {
+            Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(0, CmdOpCode::ACK_EVENTS, 0, old));
+        }
+        old
+    }
+
     /// Returns true if the given endpoint is valid, i.e., a SEND, RECEIVE, or MEMORY endpoint
     #[inline(always)]
     pub fn is_valid(ep: EpId) -> bool {
@@ -421,7 +448,7 @@ impl DTU {
     pub fn try_sleep(_yield: bool, cycles: u64) -> Result<(), Error> {
         let num = if PEDesc::new_from(arch::envdata::get().pe_desc).has_mmu() { 2 } else { 100 };
         for _ in 0..num {
-            if Self::read_dtu_reg(DtuReg::MSG_CNT) > 0 {
+            if (Self::read_dtu_reg(DtuReg::EVENTS) & EventMask::MSG_RECV.bits) != 0 {
                 return Ok(())
             }
         }

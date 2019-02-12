@@ -225,6 +225,10 @@ public:
         return reinterpret_cast<Message*>(get_cmd(CMD_OFFSET));
     }
 
+    word_t fetch_events() const {
+        return 0;
+    }
+
     size_t get_msgoff(epid_t, const Message *msg) const {
         return reinterpret_cast<size_t>(msg);
     }

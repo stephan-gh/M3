@@ -43,7 +43,7 @@ public:
     void restore(const VPEDesc &vpe, size_t headers, vpeid_t vpeid);
     void enable_communication(const VPEDesc &vpe);
 
-    bool invalidate(epid_t ep, bool check);
+    bool invalidate(epid_t ep, bool force);
     void invalidate_eps(epid_t first);
 
     bool can_forward_msg(epid_t ep);

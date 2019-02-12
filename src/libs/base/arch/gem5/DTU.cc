@@ -28,7 +28,7 @@ void DTU::try_sleep(bool yield, uint64_t cycles) {
     // check for messages a few times
     const int num = m3::env()->pedesc.has_mmu() ? 2 : 100;
     for(int i = 0; i < num; ++i) {
-        if(read_reg(DtuRegs::MSG_CNT) > 0)
+        if(read_reg(DtuRegs::EVENTS) & EventMask::MSG_RECV)
             return;
     }
 

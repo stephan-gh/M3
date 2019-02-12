@@ -100,9 +100,10 @@ void DTU::invlpg_remote(const VPEDesc &vpe, goff_t virt) {
     do_ext_cmd(vpe, static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_PAGE) | (virt << 3));
 }
 
-m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep) {
+m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force) {
     alignas(DTU_PKG_SIZE) m3::DTU::reg_t reg =
-        static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 3);
+        static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 3) |
+        (static_cast<m3::DTU::reg_t>(force) << 11);
     m3::CPU::compiler_barrier();
     goff_t addr = m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EXT_CMD);
     return try_write_mem(vpe, addr, &reg, sizeof(reg));

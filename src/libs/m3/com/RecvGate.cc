@@ -210,6 +210,11 @@ Errors::Code RecvGate::wait(SendGate *sgate, const DTU::Message **msg) {
         if(*msg)
             return Errors::NONE;
 
+        // fetch the events first
+        DTU::get().fetch_events();
+        // now check whether the endpoint is still valid. if the EP has been invalidated before the
+        // line above, we'll notice that with this check. if the EP is invalidated between the line
+        // above and the sleep command, the DTU will refuse to suspend the core.
         if(sgate && !DTU::get().is_valid(sgate->ep()))
             return Errors::EP_INVALID;
 

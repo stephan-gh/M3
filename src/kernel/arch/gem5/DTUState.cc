@@ -27,7 +27,7 @@
 namespace kernel {
 
 bool DTUState::was_idling() const {
-    return _regs.get(m3::DTU::DtuRegs::MSG_CNT) == 0 &&
+    return !(_regs.get(m3::DTU::DtuRegs::EVENTS) & m3::DTU::EventMask::MSG_RECV) &&
         (_regs.get(m3::DTU::DtuRegs::FEATURES) & m3::DTU::IRQ_WAKEUP);
 }
 
@@ -113,8 +113,8 @@ void DTUState::enable_communication(const VPEDesc &vpe) {
     DTU::get().write_mem(vpe, m3::DTU::BASE_ADDR, this, sizeof(m3::DTU::reg_t));
 }
 
-bool DTUState::invalidate(epid_t ep, bool check) {
-    if(check) {
+bool DTUState::invalidate(epid_t ep, bool force) {
+    if(!force) {
         m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
         if(static_cast<m3::DTU::EpType>(r[0] >> 61) == m3::DTU::EpType::SEND) {
             if(((r[1] >> 16) & 0xFFFF) != (r[1] & 0xFFFF))

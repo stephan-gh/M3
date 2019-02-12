@@ -163,6 +163,7 @@ public:
     explicit RGateObject(int _order, int _msgorder)
         : GateObject(Capability::RGATE),
           RefCounted(),
+          valid(true),
           vpe(),
           ep(),
           addr(),
@@ -179,6 +180,7 @@ public:
         return 1UL << order;
     }
 
+    bool valid;
     vpeid_t vpe;
     epid_t ep;
     goff_t addr;
@@ -265,6 +267,10 @@ public:
           obj(new RGateObject(order, msgorder)) {
     }
 
+    virtual void revoke() override {
+        // mark it as invalid to force-invalidate its send gates
+        obj->valid = false;
+    }
     virtual GateObject *as_gate() override {
         return &*obj;
     }

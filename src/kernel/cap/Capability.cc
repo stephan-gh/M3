@@ -32,10 +32,10 @@ GateObject::~GateObject() {
     for(auto user = epuser.begin(); user != epuser.end(); ) {
         auto old = user++;
         VPE &vpe = VPEManager::get().vpe(old->ep->vpe);
-        vpe.invalidate_ep(old->ep->ep);
+        // we want to force-invalidate the send EP if the receive gate is already invalid
+        bool force = type == Capability::SGATE && !static_cast<SGateObject*>(this)->rgate->valid;
+        vpe.invalidate_ep(old->ep->ep, force);
         old->ep->gate = nullptr;
-        // wakeup the pe to give him the chance to notice that the endpoint was invalidated
-        vpe.wakeup();
         delete &*old;
     }
 }

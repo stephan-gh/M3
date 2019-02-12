@@ -25,6 +25,9 @@ use errors::Error;
 
 pub fn server_loop<F : FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
     loop {
+        // we are not interested in the events here; just fetch them before the sleep
+        DTU::fetch_events();
+
         DTU::try_sleep(true, 0).ok();
 
         func()?;
