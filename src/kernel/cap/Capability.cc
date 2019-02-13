@@ -33,7 +33,7 @@ GateObject::~GateObject() {
         auto old = user++;
         VPE &vpe = VPEManager::get().vpe(old->ep->vpe);
         // we want to force-invalidate the send EP if the receive gate is already invalid
-        bool force = type == Capability::SGATE && !static_cast<SGateObject*>(this)->rgate->valid;
+        bool force = type == Capability::SGATE && !static_cast<SGateObject*>(this)->rgate_valid();
         vpe.invalidate_ep(old->ep->ep, force);
         old->ep->gate = nullptr;
         delete &*old;

@@ -200,6 +200,10 @@ public:
           activated() {
     }
 
+    bool rgate_valid() const {
+        return rgate.valid() && rgate->valid;
+    }
+
     m3::Reference<RGateObject> rgate;
     label_t label;
     word_t credits;
