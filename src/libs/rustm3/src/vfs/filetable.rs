@@ -142,7 +142,7 @@ impl FileTable {
         Err(Error::new(Code::NoSpace))
     }
 
-    pub fn collect_caps(&self, vpe: Selector,
+    pub(crate) fn collect_caps(&self, vpe: Selector,
                                dels: &mut Vec<Selector>,
                                max_sel: &mut Selector) -> Result<(), Error> {
         for fd in 0..MAX_FILES {
@@ -153,7 +153,7 @@ impl FileTable {
         Ok(())
     }
 
-    pub fn serialize(&self, s: &mut VecSink) {
+    pub(crate) fn serialize(&self, s: &mut VecSink) {
         let count = self.files.iter().filter(|&f| f.is_some()).count();
         s.push(&count);
 
@@ -167,7 +167,7 @@ impl FileTable {
         }
     }
 
-    pub fn unserialize(s: &mut SliceSource) -> FileTable {
+    pub(crate) fn unserialize(s: &mut SliceSource) -> FileTable {
         let mut ft = FileTable::default();
 
         let count = s.pop();
