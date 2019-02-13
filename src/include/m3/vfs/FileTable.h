@@ -83,11 +83,11 @@ public:
     fd_t alloc(Reference<File> file);
 
     /**
-     * Free's the given file descriptor
+     * Removes and closes the given file descriptor
      *
      * @param fd the file descriptor
      */
-    Reference<File> free(fd_t fd);
+    void remove(fd_t fd);
 
     /**
      * @param fd the file descriptor

@@ -83,7 +83,7 @@ public:
     static File *unserialize(Unmarshaller &um);
 
 private:
-    void send_eof();
+    virtual void close() override;
 
     bool _noeof;
     capsel_t _caps;

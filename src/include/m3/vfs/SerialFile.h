@@ -65,6 +65,9 @@ public:
     static SerialFile *unserialize(Unmarshaller &) {
         return new SerialFile();
     }
+
+    virtual void close() override {
+    }
 };
 
 }

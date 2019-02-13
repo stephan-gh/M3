@@ -43,6 +43,11 @@ GenericFile::GenericFile(int flags, capsel_t caps, size_t id, epid_t mep, M3FS *
 }
 
 GenericFile::~GenericFile() {
+    if(!(flags() & FILE_NOSESS))
+        delete _sg;
+}
+
+void GenericFile::close() {
     if(_writing)
         submit();
 
@@ -59,8 +64,11 @@ GenericFile::~GenericFile() {
             VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel), true);
             VPE::self().free_ep(_mg.ep());
         }
-        delete _sg;
     }
+
+    // revoke the session manually to actually close the file at the server side
+    VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sess.sel()));
+    _sess.flags(ObjCap::KEEP_CAP);
 }
 
 Errors::Code GenericFile::stat(FileInfo &info) const {

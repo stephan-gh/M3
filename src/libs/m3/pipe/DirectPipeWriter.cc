@@ -74,13 +74,10 @@ DirectPipeWriter::DirectPipeWriter(capsel_t caps, size_t size, State *state)
 }
 
 DirectPipeWriter::~DirectPipeWriter() {
-    send_eof();
-    if(_state)
-        _state->read_replies();
     delete _state;
 }
 
-void DirectPipeWriter::send_eof() {
+void DirectPipeWriter::close() {
     if(_noeof)
         return;
 
@@ -90,6 +87,8 @@ void DirectPipeWriter::send_eof() {
         write(nullptr, 0);
         _state->_eof |= DirectPipe::WRITE_EOF;
     }
+    if(_state)
+        _state->read_replies();
 }
 
 ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking) {

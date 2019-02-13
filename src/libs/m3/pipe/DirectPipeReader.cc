@@ -39,11 +39,10 @@ DirectPipeReader::DirectPipeReader(capsel_t caps, State *state)
 }
 
 DirectPipeReader::~DirectPipeReader() {
-    send_eof();
     delete _state;
 }
 
-void DirectPipeReader::send_eof() {
+void DirectPipeReader::close() {
     if(_noeof)
         return;
 

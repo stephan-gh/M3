@@ -227,6 +227,8 @@ public:
     virtual void serialize(Marshaller &m) = 0;
 
 private:
+    virtual void close() = 0;
+
     void set_fd(fd_t fd) {
         _fd = fd;
     }

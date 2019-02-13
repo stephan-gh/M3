@@ -121,6 +121,8 @@ public:
     }
 
 private:
+    virtual void close() override;
+
     bool have_sess() const {
         return !(flags() & FILE_NOSESS);
     }

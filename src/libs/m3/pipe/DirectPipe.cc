@@ -45,25 +45,25 @@ DirectPipe::~DirectPipe() {
 }
 
 void DirectPipe::close_reader() {
-    Reference<File> frd = VPE::self().fds()->free(_rdfd);
+    Reference<File> frd = VPE::self().fds()->get(_rdfd);
     DirectPipeReader *rd = static_cast<DirectPipeReader*>(frd.get());
     if(rd) {
         // don't send EOF, if we are not reading
         if(&_rd != &VPE::self())
             rd->_noeof = true;
-        delete rd;
     }
+    VPE::self().fds()->remove(_rdfd);
 }
 
 void DirectPipe::close_writer() {
-    Reference<File> fwr = VPE::self().fds()->free(_wrfd);
+    Reference<File> fwr = VPE::self().fds()->get(_wrfd);
     DirectPipeWriter *wr = static_cast<DirectPipeWriter*>(fwr.get());
     if(wr) {
         // don't send EOF, if we are not writing
         if(&_wr != &VPE::self())
             wr->_noeof = true;
-        delete wr;
     }
+    VPE::self().fds()->remove(_wrfd);
 }
 
 }

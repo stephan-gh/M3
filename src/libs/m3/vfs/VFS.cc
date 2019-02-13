@@ -81,7 +81,7 @@ fd_t VFS::open(const char *path, int perms) {
 }
 
 void VFS::close(fd_t fd) {
-    VPE::self().fds()->free(fd);
+    VPE::self().fds()->remove(fd);
 }
 
 Errors::Code VFS::stat(const char *path, FileInfo &info) {

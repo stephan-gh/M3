@@ -31,7 +31,7 @@ namespace m3 {
 
 void FileTable::remove_all() {
     for(fd_t i = 0; i < FileTable::MAX_FDS; ++i)
-        VPE::self().fds()->free(i);
+        VPE::self().fds()->remove(i);
 }
 
 fd_t FileTable::alloc(Reference<File> file) {
@@ -45,12 +45,17 @@ fd_t FileTable::alloc(Reference<File> file) {
     return MAX_FDS;
 }
 
-Reference<File> FileTable::free(fd_t fd) {
+void FileTable::remove(fd_t fd) {
     Reference<File> file = _fds[fd];
 
-    // remove from multiplexing table
     if(file.valid()) {
+        // close the file (important for, e.g., pipes)
+        file->close();
+
+        // remove from file table
         _fds[fd].unref();
+
+        // remove from multiplexing table
         for(size_t i = 0; i < MAX_EPS; ++i) {
             if(_file_eps[i].file == file.get()) {
                 LLOG(FILES, "FileEPs[" << i << "] = --");
@@ -60,8 +65,6 @@ Reference<File> FileTable::free(fd_t fd) {
             }
         }
     }
-
-    return file;
 }
 
 epid_t FileTable::request_ep(GenericFile *file) {

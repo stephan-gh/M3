@@ -81,10 +81,8 @@ void VPE::init_state() {
 }
 
 void VPE::init_fs() {
-    if(_fds) {
-        _fds->remove_all();
+    if(_fds)
         delete _fds;
-    }
     if(_ms) {
         _ms->remove_all();
         delete _ms;
