@@ -56,7 +56,7 @@ pub struct GenericFile {
 impl GenericFile {
     pub fn new(sel: Selector) -> Self {
         GenericFile {
-            fd: 0,
+            fd: vfs::filetable::MAX_FILES,
             sess: ClientSession::new_bind(sel),
             sgate: SendGate::new_bind(sel + 1),
             mgate: MemGate::new_bind(INVALID_SEL),

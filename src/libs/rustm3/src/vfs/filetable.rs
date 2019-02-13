@@ -70,7 +70,9 @@ impl FileTable {
     }
 
     pub fn set(&mut self, fd: Fd, file: FileHandle) {
-        file.borrow_mut().set_fd(fd);
+        if file.borrow().fd() == MAX_FILES {
+            file.borrow_mut().set_fd(fd);
+        }
         self.files[fd] = Some(file);
     }
 
