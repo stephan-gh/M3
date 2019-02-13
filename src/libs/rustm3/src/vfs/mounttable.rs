@@ -98,7 +98,7 @@ impl MountTable {
         }
     }
 
-    pub fn collect_caps(&self, vpe: Selector,
+    pub(crate) fn collect_caps(&self, vpe: Selector,
                                dels: &mut Vec<Selector>,
                                max_sel: &mut Selector) -> Result<(), Error> {
         for m in &self.mounts {
@@ -107,7 +107,7 @@ impl MountTable {
         Ok(())
     }
 
-    pub fn serialize(&self, s: &mut VecSink) {
+    pub(crate) fn serialize(&self, s: &mut VecSink) {
         let count = self.mounts.len();
         s.push(&count);
 
@@ -120,7 +120,7 @@ impl MountTable {
         }
     }
 
-    pub fn unserialize(s: &mut SliceSource) -> MountTable {
+    pub(crate) fn unserialize(s: &mut SliceSource) -> MountTable {
         let mut mt = MountTable::default();
 
         let count = s.pop();
