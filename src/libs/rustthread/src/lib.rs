@@ -71,23 +71,23 @@ pub struct Regs {
 
 #[cfg(target_arch = "x86_64")]
 fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
-    // put argument in rdi and function to return to on the stack
-    thread.regs.rdi = arg as u64;
     let top_idx = thread.stack.len() - 2;
-    thread.regs.rsp = &thread.stack[top_idx] as *const usize as u64;
-    thread.stack[top_idx] = func_addr;
-    thread.regs.rbp = thread.regs.rsp;
-    thread.regs.rflags = 0x200;    // enable interrupts
+    // put argument in rdi and function to return to on the stack
+    thread.regs.rdi         = arg as u64;
+    thread.regs.rsp         = &thread.stack[top_idx] as *const usize as u64;
+    thread.stack[top_idx]   = func_addr;
+    thread.regs.rbp         = thread.regs.rsp;
+    thread.regs.rflags      = 0x200;    // enable interrupts
 }
 
 #[cfg(target_arch = "arm")]
 fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
-    thread.regs.r0      = arg as u32;                                       // arg
     let top_idx = thread.stack.len() - 2;
-    thread.regs.r13     = &thread.stack[top_idx] as *const usize as u32;    // sp
-    thread.regs.r11     = 0;                                                // fp
-    thread.regs.r14     = func_addr as u32;                                 // lr
-    thread.regs.cpsr    = 0x13;                                             // supervisor mode
+    thread.regs.r0          = arg as u32;                                       // arg
+    thread.regs.r13         = &thread.stack[top_idx] as *const usize as u32;    // sp
+    thread.regs.r11         = 0;                                                // fp
+    thread.regs.r14         = func_addr as u32;                                 // lr
+    thread.regs.cpsr        = 0x13;                                             // supervisor mode
 }
 
 fn alloc_id() -> u32 {
