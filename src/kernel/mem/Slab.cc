@@ -69,11 +69,13 @@ void *Slab::alloc() {
     void **ptr = _freelist;
     reinterpret_cast<Pool*>(ptr[0])->free--;
     _freelist = reinterpret_cast<void**>(_freelist[1]);
+    KLOG(SLAB, "Allocating " << _objsize << "B object @ " << (ptr + 1));
     return ptr + 1;
 }
 
 void Slab::free(void *addr) {
     void **ptr = reinterpret_cast<void**>(addr) - 1;
+    KLOG(SLAB, "Freeing " << _objsize << "B object @ " << addr);
 
     Pool *p = reinterpret_cast<Pool*>(ptr[0]);
     p->free++;
