@@ -99,7 +99,7 @@ USED void *heap_alloc(size_t size) {
         HeapArea *n = forward(a, size);
         n->next = a->next - size;
         n->prev = static_cast<word_t>(n - a) * sizeof(HeapArea);
-        // adjust prev of next area, if there is any
+        // adjust prev of next area (there is always at least the empty end-area)
         HeapArea *nn = forward(n, n->next);
         nn->prev = static_cast<word_t>(nn - n) * sizeof(HeapArea);
         a->next = size;
