@@ -219,6 +219,16 @@ impl DTU {
         Self::get_command_result().unwrap();
     }
 
+    pub fn sleep(cycles: u64) -> Result<(), Error> {
+        let time = libc::timespec {
+            // just a rough estimate, based on a 3GHz CPU
+            tv_nsec: (cycles / 3) as i64,
+            tv_sec: (cycles / 3000000000) as i64,
+        };
+        unsafe { libc::nanosleep(&time, ptr::null_mut()); }
+        Ok(())
+    }
+
     pub fn try_sleep(_yield: bool, _cycles: u64) -> Result<(), Error> {
         unsafe { libc::usleep(1) };
         Ok(())

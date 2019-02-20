@@ -26,6 +26,7 @@
 #include <limits>
 #include <ostream>
 #include <pthread.h>
+#include <time.h>
 #include <unistd.h>
 
 // we have no alignment or size requirements here
@@ -265,6 +266,13 @@ public:
     void stop();
     pthread_t tid() const {
         return _tid;
+    }
+    void sleep(uint64_t cycles = 0) const {
+        struct timespec time;
+        // just a rough estimate, based on a 3GHz CPU
+        time.tv_nsec = static_cast<long>(cycles / 3);
+        time.tv_sec = static_cast<time_t>(cycles / 3000000000);
+        nanosleep(&time, nullptr);
     }
     void try_sleep(bool = true, uint64_t = 0) const {
         usleep(1);
