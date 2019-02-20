@@ -52,6 +52,18 @@ macro_rules! assert_ok {
     });
 }
 
+/// Convenience macro that tests whether the argument is `Some`, returns the inner value if so, and
+/// panics otherwise
+#[macro_export]
+macro_rules! assert_some {
+    ($res:expr) => ({
+        match $res {
+            Some(r) => r,
+            None    => panic!("received None")
+        }
+    });
+}
+
 /// Convenience macro that tests whether the argument is `Err` with the given error code
 #[macro_export]
 macro_rules! assert_err {
