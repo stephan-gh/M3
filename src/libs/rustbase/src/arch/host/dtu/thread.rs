@@ -244,8 +244,14 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
     }
 
     let mut occupied = DTU::get_ep(ep, EpReg::BUF_OCCUPIED);
+    let unread = DTU::get_ep(ep, EpReg::BUF_UNREAD);
     assert!(is_bit_set(occupied, idx));
     occupied = set_bit(occupied, idx, false);
+    if is_bit_set(unread, idx) {
+        let unread = set_bit(unread, idx, false);
+        DTU::set_ep(ep, EpReg::BUF_UNREAD, unread);
+        DTU::set_ep(ep, EpReg::BUF_MSG_CNT, DTU::get_ep(ep, EpReg::BUF_MSG_CNT) - 1);
+    }
     DTU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
 
     log_dtu!("EP{}: acked message at index {}", ep, idx);

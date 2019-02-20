@@ -122,8 +122,8 @@ word_t DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
 
     // ack message
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
-    assert(is_occupied(occupied, idx));
-    set_occupied(occupied, idx, false);
+    assert(bit_set(occupied, idx));
+    set_bit(occupied, idx, false);
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
     LLOG(DTU, "EP" << ep << ": acked message at index " << idx);
 
@@ -207,8 +207,14 @@ word_t DTU::prepare_ackmsg(epid_t ep) {
     }
 
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
-    assert(is_occupied(occupied, idx));
-    set_occupied(occupied, idx, false);
+    word_t unread = get_ep(ep, EP_BUF_UNREAD);
+    assert(bit_set(occupied, idx));
+    set_bit(occupied, idx, false);
+    if(bit_set(unread, idx)) {
+        set_bit(unread, idx, false);
+        set_ep(ep, EP_BUF_UNREAD, unread);
+        set_ep(ep, EP_BUF_MSGCNT, get_ep(ep, EP_BUF_MSGCNT) - 1);
+    }
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
 
     LLOG(DTU, "EP" << ep << ": acked message at index " << idx);
@@ -228,11 +234,11 @@ word_t DTU::prepare_fetchmsg(epid_t ep) {
 
     size_t i;
     for(i = roff; i < size; ++i) {
-        if(is_unread(unread, i))
+        if(bit_set(unread, i))
             goto found;
     }
     for(i = 0; i < roff; ++i) {
-        if(is_unread(unread, i))
+        if(bit_set(unread, i))
             goto found;
     }
 
@@ -240,9 +246,9 @@ word_t DTU::prepare_fetchmsg(epid_t ep) {
     assert(false);
 
 found:
-    assert(is_occupied(get_ep(ep, EP_BUF_OCCUPIED), i));
+    assert(bit_set(get_ep(ep, EP_BUF_OCCUPIED), i));
 
-    set_unread(unread, i, false);
+    set_bit(unread, i, false);
     msgs--;
     roff = i + 1;
     assert(Math::bits_set(unread) == msgs);
@@ -418,12 +424,12 @@ void DTU::handle_msg(size_t len, epid_t ep) {
     size_t i;
     for (i = woff; i < size; ++i)
     {
-        if (!is_occupied(occupied, i))
+        if (!bit_set(occupied, i))
             goto found;
     }
     for (i = 0; i < woff; ++i)
     {
-        if (!is_occupied(occupied, i))
+        if (!bit_set(occupied, i))
             goto found;
     }
 
@@ -431,8 +437,8 @@ void DTU::handle_msg(size_t len, epid_t ep) {
     return;
 
 found:
-    set_occupied(occupied, i, true);
-    set_unread(unread, i, true);
+    set_bit(occupied, i, true);
+    set_bit(unread, i, true);
     msgs++;
     woff = i + 1;
     assert(Math::bits_set(unread) == msgs);

@@ -291,24 +291,14 @@ public:
     }
 
 private:
-    bool is_unread(word_t unread, size_t idx) const {
-        return unread & (static_cast<word_t>(1) << idx);
+    bool bit_set(word_t mask, size_t idx) const {
+        return mask & (static_cast<word_t>(1) << idx);
     }
-    void set_unread(word_t &unread, size_t idx, bool unr) {
-        if(unr)
-            unread |= static_cast<word_t>(1) << idx;
+    void set_bit(word_t &mask, size_t idx, bool set) {
+        if(set)
+            mask |= static_cast<word_t>(1) << idx;
         else
-            unread &= ~(static_cast<word_t>(1) << idx);
-    }
-
-    bool is_occupied(word_t occupied, size_t idx) const {
-        return occupied & (static_cast<word_t>(1) << idx);
-    }
-    void set_occupied(word_t &occupied, size_t idx, bool occ) {
-        if(occ)
-            occupied |= static_cast<word_t>(1) << idx;
-        else
-            occupied &= ~(static_cast<word_t>(1) << idx);
+            mask &= ~(static_cast<word_t>(1) << idx);
     }
 
     word_t prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep);
