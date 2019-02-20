@@ -14,20 +14,69 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::{SendGate, SGateArgs, RecvGate};
+use m3::com::recv_msg;
+use m3::com::{SendGate, SGateArgs, RecvGate, RGateArgs};
+use m3::dtu::DTU;
 use m3::boxed::Box;
 use m3::env;
+use m3::io::Write;
 use m3::test;
 use m3::util;
 use m3::vpe::{Activity, VPE, VPEArgs};
+use m3::vfs::{VFS, OpenFlags};
 
 pub fn run(t: &mut test::Tester) {
+    run_test!(t, run_stop);
     run_test!(t, run_arguments);
     run_test!(t, run_send_receive);
     #[cfg(target_os = "none")]
     run_test!(t, exec_fail);
     run_test!(t, exec_hello);
     run_test!(t, exec_rust_hello);
+}
+
+fn run_stop() {
+    let mut rg = assert_ok!(RecvGate::new_with(RGateArgs::new().order(6).msg_order(6)));
+    assert_ok!(rg.activate());
+
+    let mut wait_time = 10000;
+    for _ in 1..100 {
+        let mut vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
+
+        // pass sendgate to child
+        let sg = assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64)));
+        assert_ok!(vpe.delegate_obj(sg.sel()));
+
+        // pass root fs to child
+        let rootmnt = assert_some!(VPE::cur().mounts().get_by_path("/"));
+        assert_ok!(vpe.mounts().add("/", rootmnt));
+        assert_ok!(vpe.obtain_mounts());
+
+        let act = assert_ok!(vpe.run(Box::new(move || {
+            // open file
+            let flags = OpenFlags::CREATE | OpenFlags::TRUNC | OpenFlags::RW;
+            let mut file = assert_ok!(VFS::open("/newfile", flags));
+            // notify parent that we're running
+            assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
+            let mut n = 0;
+            loop {
+                n += 1;
+                // write something to a file; just to execute more interesting instructions than
+                // arithmetic or jumps
+                assert_ok!(write!(file, "n is {}\n", n));
+            }
+        })));
+
+        // wait for child
+        assert_ok!(recv_msg(&rg));
+
+        // wait a bit and stop VPE
+        assert_ok!(DTU::sleep(wait_time));
+        assert_ok!(act.stop());
+
+        // increase by one cycle to attempt interrupts at many points in the instruction stream
+        wait_time += 1;
+    }
 }
 
 fn run_arguments() {
