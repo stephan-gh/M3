@@ -245,7 +245,7 @@ void ContextSwitcher::stop_vpe(VPE *vpe, bool force, bool migrate) {
         // interrupt the accelerator at arbitrary points in time (this might screw up his FSM)
         if(force || Platform::pe(_pe).is_programmable()) {
             // the VPE id is expected to be invalid in S_SWITCH
-            DTU::get().unset_vpeid(_cur->desc());
+            DTU::get().kill_vpe(_cur->desc());
             vpe->_state = VPE::SUSPENDED;
             _cur = nullptr;
         }

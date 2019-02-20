@@ -63,11 +63,7 @@ cycles_t DTU::get_time() {
     return m3::DTU::get().tsc();
 }
 
-void DTU::set_vpeid(const VPEDesc &vpe) {
-    do_set_vpeid(VPEDesc(vpe.pe, VPE::INVALID_ID), vpe.id);
-}
-
-void DTU::unset_vpeid(const VPEDesc &vpe) {
+void DTU::kill_vpe(const VPEDesc &vpe) {
     do_set_vpeid(vpe, VPE::INVALID_ID);
 }
 

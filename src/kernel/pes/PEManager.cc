@@ -128,7 +128,7 @@ void PEManager::stop_vpe(VPE *vpe) {
         update_yield(global, ctx->global_ready());
     }
     else {
-        DTU::get().unset_vpeid(vpe->desc());
+        DTU::get().kill_vpe(vpe->desc());
         vpe->_state = VPE::SUSPENDED;
     }
 }

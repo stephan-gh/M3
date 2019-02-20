@@ -20,6 +20,8 @@
 #include "pes/VPEManager.h"
 #include "DTU.h"
 
+#include <signal.h>
+
 namespace kernel {
 
 void DTU::init() {
@@ -34,12 +36,9 @@ void DTU::deprivilege(peid_t) {
     // unsupported
 }
 
-void DTU::set_vpeid(const VPEDesc &) {
-    // unsupported
-}
-
-void DTU::unset_vpeid(const VPEDesc &) {
-    // unsupported
+void DTU::kill_vpe(const VPEDesc &vpe) {
+    pid_t pid = VPEManager::get().vpe(vpe.id).pid();
+    kill(pid, SIGKILL);
 }
 
 cycles_t DTU::get_time() {
