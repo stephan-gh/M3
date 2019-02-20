@@ -20,6 +20,7 @@
 .extern init
 .extern sleep
 .global idle_stack
+.global rctmux_stack
 
 .text
 
