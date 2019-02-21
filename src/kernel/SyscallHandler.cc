@@ -764,7 +764,9 @@ void SyscallHandler::opensess(VPE *vpe, const m3::DTU::Message *msg) {
     if(!s)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Unknown service");
 
+    // see exchange_over_sess
     m3::Reference<Service> rsrv(s);
+    m3::Reference<VPE> rvpe(vpe);
 
     vpe->start_wait();
     while(s->vpe().state() != VPE::RUNNING) {
@@ -781,6 +783,12 @@ void SyscallHandler::opensess(VPE *vpe, const m3::DTU::Message *msg) {
 
     const m3::DTU::Message *srvreply = s->send_receive(0, &smsg, sizeof(smsg), false);
     vpe->stop_wait();
+    // see exchange_over_sess
+    if(!vpe->has_app()) {
+        m3::DTU::get().mark_read(vpe->syscall_ep(), reinterpret_cast<uintptr_t>(msg));
+        LOG_ERROR(vpe, m3::Errors::VPE_GONE, "Client died during open session request");
+        return;
+    }
 
     if(srvreply == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::RECV_GONE, "Service unreachable");
@@ -912,8 +920,9 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     if(sesscap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid session cap");
 
-    // we can't be sure that the session will still exist when we receive the reply
+    // we can't be sure that the session and the VPE still exist when we receive the reply
     m3::Reference<Service> rsrv(sesscap->obj->srv);
+    m3::Reference<VPE> rvpe(vpe);
 
     vpe->start_wait();
     while(rsrv->vpe().state() != VPE::RUNNING) {
@@ -932,6 +941,13 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
 
     const m3::DTU::Message *srvreply = rsrv->send_receive(smsg.sess, &smsg, sizeof(smsg), false);
     vpe->stop_wait();
+    // if the VPE exited, we don't even want to reply
+    if(!vpe->has_app()) {
+        // due to the missing reply, we need to ack the msg explicitly
+        m3::DTU::get().mark_read(vpe->syscall_ep(), reinterpret_cast<uintptr_t>(msg));
+        LOG_ERROR(vpe, m3::Errors::VPE_GONE, "Client died during cap exchange");
+        return;
+    }
 
     if(srvreply == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::RECV_GONE, "Service unreachable");
