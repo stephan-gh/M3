@@ -24,7 +24,7 @@ use vfs;
 use vpe;
 
 #[no_mangle]
-pub extern "C" fn exit(code: i32) {
+pub extern "C" fn exit(code: i32) -> ! {
     io::deinit();
     vfs::deinit();
     syscalls::exit(code);

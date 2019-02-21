@@ -61,7 +61,7 @@ pub fn get_bp() -> usize {
     val
 }
 
-pub fn jmp_to(addr: usize) {
+pub fn jmp_to(addr: usize) -> ! {
     unsafe {
         asm!(
             "mov pc, $0;"
@@ -69,6 +69,7 @@ pub fn jmp_to(addr: usize) {
             : : "volatile"
         );
     }
+    unreachable!();
 }
 
 pub fn gem5_debug(msg: usize) -> time::Time {

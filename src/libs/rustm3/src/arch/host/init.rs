@@ -23,6 +23,12 @@ use syscalls;
 use vfs;
 use vpe;
 
+pub fn exit(code: i32) -> ! {
+    unsafe {
+       libc::exit(code);
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
     extern "C" {
