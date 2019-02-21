@@ -62,5 +62,9 @@ int main(int argc, char *argv[]) {
 
     VPEManager::destroy();
 
+    size_t blocked = m3::ThreadManager::get().blocked_count();
+    if(blocked > 0)
+        KLOG(ERR, "\e[37;41m" << blocked << " blocked threads left\e[0m");
+
     m3::Machine::shutdown();
 }

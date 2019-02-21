@@ -146,5 +146,10 @@ int main(int argc, char *argv[]) {
         delete &*old;
     }
     delete_dir("/tmp/m3");
+
+    size_t blocked = m3::ThreadManager::get().blocked_count();
+    if(blocked > 0)
+        KLOG(ERR, "\e[37;41m" << blocked << " blocked threads left\e[0m");
+
     return EXIT_SUCCESS;
 }
