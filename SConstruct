@@ -391,7 +391,10 @@ def RustProgram(env, target, libs = []):
         libs    = ['c', 'heap', 'gcc', target] + libs
     else:
         sources = []
-        libs    = ['c', 'heap', 'gcc', 'host', 'pthread', target] + libs
+        # leave the host lib in here as well to let scons know about the dependency
+        libs    = ['c', 'heap', 'host', 'gcc', 'pthread', target] + libs
+        # ensure that the host library gets linked in
+        myenv.Append(LINKFLAGS = ' -Wl,--whole-archive -lhost -Wl,--no-whole-archive')
 
     prog = myenv.M3Program(
         myenv,
