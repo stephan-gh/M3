@@ -68,6 +68,10 @@ void WorkLoop::multithreaded(uint count) {
         new m3::Thread(thread_startup, nullptr);
 }
 
+void WorkLoop::thread_shutdown() {
+    m3::ThreadManager::get().stop();
+}
+
 void WorkLoop::run() {
 #if defined(__host__)
     if(!initialized) {

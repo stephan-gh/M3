@@ -26,9 +26,7 @@ public:
 
     virtual void run() override;
 
-    virtual void thread_shutdown() override {
-        // do nothing here
-    }
+    virtual void thread_shutdown() override;
 };
 
 }
