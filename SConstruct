@@ -64,6 +64,7 @@ baseenv = Environment(
     }
 )
 
+# check for tools and compiler parameters
 def CheckCompilerParam(context, param):
     context.Message('Checking for parameter "' + param + '"...')
     result = context.TryAction(cross + 'gcc ' + param + ' -c -xc++ /dev/null -o /dev/null')[0]
