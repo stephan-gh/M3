@@ -15,28 +15,28 @@
  */
 
 #include <base/Common.h>
-#include <base/col/DList.h>
+#include <base/col/SList.h>
 #include <base/util/Profile.h>
 #include <base/Panic.h>
 
 #include <m3/stream/Standard.h>
 
-#include "../cppbench.h"
+#include "../cppbenchs.h"
 
 using namespace m3;
 
-struct MyDItem : public DListItem {
-    explicit MyDItem(uint32_t _val) : val(_val) {
+struct MySItem : public SListItem {
+    explicit MySItem(uint32_t _val) : val(_val) {
     }
 
     uint32_t val;
 };
 
 NOINLINE static void append() {
-    struct DListAppendRunner : public Runner {
+    struct SListAppendRunner : public Runner {
         void run() override {
             for(uint32_t i = 0; i < 100; ++i) {
-                list.append(new MyDItem(i));
+                list.append(new MySItem(i));
             }
         }
         void post() override {
@@ -47,19 +47,19 @@ NOINLINE static void append() {
             list.clear();
         }
 
-        DList<MyDItem> list;
+        SList<MySItem> list;
     };
 
     Profile pr(30);
-    DListAppendRunner runner;
-    cout << "100-elements: " << pr.runner_with_id(runner, 0x20) << "\n";
+    SListAppendRunner runner;
+    cout << "100-elements: " << pr.runner_with_id(runner, 0x10) << "\n";
 }
 
 NOINLINE static void clear() {
-    struct DListClearRunner : public Runner {
+    struct SListClearRunner : public Runner {
         void pre() override {
             for(uint32_t i = 0; i < 100; ++i) {
-                list.append(new MyDItem(i));
+                list.append(new MySItem(i));
             }
         }
         void run() override {
@@ -70,15 +70,15 @@ NOINLINE static void clear() {
             list.clear();
         }
 
-        DList<MyDItem> list;
+        SList<MySItem> list;
     };
 
     Profile pr(30);
-    DListClearRunner runner;
-    cout << "100-elements: " << pr.runner_with_id(runner, 0x21) << "\n";
+    SListClearRunner runner;
+    cout << "100-elements: " << pr.runner_with_id(runner, 0x11) << "\n";
 }
 
-void bdlist() {
+void bslist() {
     RUN_BENCH(append);
     RUN_BENCH(clear);
 }

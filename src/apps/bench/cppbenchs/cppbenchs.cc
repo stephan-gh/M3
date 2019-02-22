@@ -16,7 +16,7 @@
 
 #include <m3/stream/Standard.h>
 
-#include "cppbench.h"
+#include "cppbenchs.h"
 
 int main() {
     RUN_SUITE(bdlist);

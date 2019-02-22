@@ -23,7 +23,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
 
-#include "../cppbench.h"
+#include "../cppbenchs.h"
 
 using namespace m3;
 

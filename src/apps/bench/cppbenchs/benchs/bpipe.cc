@@ -24,7 +24,7 @@
 #include <m3/pipe/IndirectPipe.h>
 #include <m3/Syscalls.h>
 
-#include "../cppbench.h"
+#include "../cppbenchs.h"
 
 using namespace m3;
 

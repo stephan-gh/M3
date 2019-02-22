@@ -22,7 +22,7 @@
 
 #include <m3/vfs/FileRef.h>
 
-#include "../cppbench.h"
+#include "../cppbenchs.h"
 
 using namespace m3;
 

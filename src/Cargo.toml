@@ -1,12 +1,12 @@
 [workspace]
 members = [
-    "apps/rust/benchs",
+    "apps/bench/rustbenchs",
+    "apps/rusthello",
+    "apps/rustunittests",
     "apps/rust/clisrv/client",
     "apps/rust/clisrv/server",
-    "apps/rust/hello",
     "apps/rust/kernel",
     "apps/rust/test",
-    "apps/rust/unittests",
     "libs/rustbase",
     "libs/rustm3",
     "libs/rustthread",

@@ -70,9 +70,19 @@ def CheckCompilerParam(context, param):
     context.Result(result)
     return result
 
-conf = Configure(baseenv, custom_tests={'CheckCompilerParam': CheckCompilerParam})
+def CheckRust(context):
+    context.Message('Checking for xargo...')
+    result = context.TryAction('xargo')[0]
+    context.Result(result)
+    return result
+
+conf = Configure(baseenv, custom_tests={
+    'CheckCompilerParam': CheckCompilerParam,
+    'CheckRust': CheckRust,
+})
 if conf.CheckCompilerParam('-fdiagnostics-color=always'):
     baseenv.Append(CXXFLAGS = ' -fdiagnostics-color=always')
+baseenv['HAS_RUST'] = conf.CheckRust()
 conf.Finish()
 
 # print executed commands?
