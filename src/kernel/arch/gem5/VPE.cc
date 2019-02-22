@@ -25,28 +25,15 @@
 
 namespace kernel {
 
-struct BootModule {
-    char name[256];
-    uint64_t addr;
-    uint64_t size;
-} PACKED;
-
 static size_t count = 0;
-static BootModule mods[Platform::MAX_MODS];
 static uint64_t loaded = 0;
 
-static const BootModule *get_mod(size_t argc, const char *const *argv, bool *first) {
-    static_assert(sizeof(loaded) * 8 >= Platform::MAX_MODS, "Too few bits for modules");
-
+static const Platform::BootModule *get_mod(size_t argc, const char *const *argv, bool *first) {
     if(count == 0) {
-        for(size_t i = 0; i < Platform::MAX_MODS && Platform::mod(i); ++i) {
-            goff_t addr = m3::DTU::gaddr_to_virt(Platform::mod(i));
-            peid_t pe = m3::DTU::gaddr_to_pe(Platform::mod(i));
-            DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, &mods[i], sizeof(mods[i]));
-
-            KLOG(KENV, "Module '" << mods[i].name << "':");
-            KLOG(KENV, "  addr: " << m3::fmt(mods[i].addr, "p"));
-            KLOG(KENV, "  size: " << m3::fmt(mods[i].size, "p"));
+        for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod) {
+            KLOG(KENV, "Module '" << mod->name << "':");
+            KLOG(KENV, "  addr: " << m3::fmt(mod->addr, "p"));
+            KLOG(KENV, "  size: " << m3::fmt(mod->size, "p"));
 
             count++;
         }
@@ -72,11 +59,12 @@ static const BootModule *get_mod(size_t argc, const char *const *argv, bool *fir
             os << ' ';
     }
 
-    for(size_t i = 0; i < count; ++i) {
-        if(strcmp(mods[i].name, os.str()) == 0) {
+    size_t i = 0;
+    for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod, ++i) {
+        if(strcmp(mod->name, os.str()) == 0) {
             *first = (loaded & (static_cast<uint64_t>(1) << i)) == 0;
             loaded |= static_cast<uint64_t>(1) << i;
-            return mods + i;
+            return &*mod;
         }
     }
     return nullptr;
@@ -89,7 +77,7 @@ static gaddr_t alloc_mem(size_t size) {
     return m3::DTU::build_gaddr(alloc.pe(), alloc.addr);
 }
 
-static void read_from_mod(const BootModule *mod, void *data, size_t size, size_t offset) {
+static void read_from_mod(const Platform::BootModule *mod, void *data, size_t size, size_t offset) {
     if(offset + size < offset || offset + size > mod->size)
         PANIC("Invalid ELF file: offset invalid");
 
@@ -112,7 +100,7 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int pe
     }
 }
 
-static goff_t load_mod(VPE &vpe, const BootModule *mod, bool copy, bool needs_heap, bool to_mem) {
+static goff_t load_mod(VPE &vpe, const Platform::BootModule *mod, bool copy, bool needs_heap, bool to_mem) {
     // load and check ELF header
     m3::ElfEh header;
     read_from_mod(mod, &header, sizeof(header), 0);
@@ -191,7 +179,7 @@ static goff_t load_mod(VPE &vpe, const BootModule *mod, bool copy, bool needs_he
 static goff_t map_idle(VPE &vpe) {
     bool first;
     const char *args[] = {"rctmux"};
-    const BootModule *idle = get_mod(1, args, &first);
+    const Platform::BootModule *idle = get_mod(1, args, &first);
     if(!idle)
         PANIC("Unable to find boot module 'rctmux'");
 
@@ -220,7 +208,7 @@ void VPE::load_app() {
     assert(_argc > 0 && _argv);
 
     bool appFirst;
-    const BootModule *mod = get_mod(_argc, _argv, &appFirst);
+    const Platform::BootModule *mod = get_mod(_argc, _argv, &appFirst);
     if(!mod)
         PANIC("Unable to find boot module '" << _argv[0] << "'");
 

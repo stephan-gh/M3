@@ -26,15 +26,19 @@
 namespace kernel {
 
 INIT_PRIO_USER(2) Platform::KEnv Platform::_kenv;
+m3::PEDesc *Platform::_pes;
+Platform::BootModule *Platform::_mods;
 
 Platform::KEnv::KEnv() {
     // no modules
-    mods[0] = 0;
+    mod_count = 0;
+    mod_size = 0;
 
     // init PEs
     pe_count = PE_COUNT;
+    Platform::_pes = new m3::PEDesc[pe_count];
     for(int i = 0; i < PE_COUNT; ++i)
-        pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
+        Platform::_pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
 
     // create memory
     uintptr_t base = reinterpret_cast<uintptr_t>(

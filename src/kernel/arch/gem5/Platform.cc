@@ -25,6 +25,8 @@
 namespace kernel {
 
 INIT_PRIO_USER(2) Platform::KEnv Platform::_kenv;
+m3::PEDesc *Platform::_pes;
+Platform::BootModule *Platform::_mods;
 
 // note that we currently assume here, that compute PEs and memory PEs are not mixed
 static peid_t last_pe_id;
@@ -34,20 +36,32 @@ Platform::KEnv::KEnv() {
     peid_t pe = m3::DTU::gaddr_to_pe(m3::env()->kenv);
     goff_t addr = m3::DTU::gaddr_to_virt(m3::env()->kenv);
     DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, this, sizeof(*this));
+    addr += sizeof(*this);
+
+    // read boot modules
+    Platform::_mods = reinterpret_cast<BootModule*>(m3::Heap::alloc(mod_size + sizeof(BootModule)));
+    DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_mods, mod_size);
+    addr += mod_size;
+
+    // read PE descriptions
+    size_t pe_size = sizeof(m3::PEDesc) * pe_count;
+    Platform::_pes = new m3::PEDesc[pe_count];
+    DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_pes, pe_size);
 
     // register memory modules
     int count = 0;
     const goff_t USABLE_MEM  = (static_cast<goff_t>(2048) + 512) * 1024 * 1024;
     MainMemory &mem = MainMemory::get();
     for(size_t i = 0; i < pe_count; ++i) {
-        if(pes[i].type() == m3::PEType::MEM) {
+        m3::PEDesc pedesc = Platform::_pes[i];
+        if(pedesc.type() == m3::PEType::MEM) {
             // the first memory module hosts the FS image and other stuff
             if(count == 0) {
                 mem.add(new MemoryModule(false, i, 0, USABLE_MEM));
-                mem.add(new MemoryModule(true, i, USABLE_MEM, pes[i].mem_size() - USABLE_MEM));
+                mem.add(new MemoryModule(true, i, USABLE_MEM, pedesc.mem_size() - USABLE_MEM));
             }
             else
-                mem.add(new MemoryModule(true, i, 0, pes[i].mem_size()));
+                mem.add(new MemoryModule(true, i, 0, pedesc.mem_size()));
             count++;
         }
         else
