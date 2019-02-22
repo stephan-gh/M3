@@ -9,46 +9,39 @@ import install
 
 target = os.environ.get('M3_TARGET')
 if target == 't2' or target == 't3':
-    toolversion = 'RE-2014.5-linux' if target == 't3' else 'RD-2011.2-linux'
+    toolversion = 'RE-2014.5-linux'  if target == 't3' else 'RD-2011.2-linux'
+    core        = 'Pe_4MB_128k_4irq' if target == 't3' else 'oi_lx4_PE_6'
+    runtime     = 'sim'              if target == 't3' else 'min-rt'
+    isa         = 'xtensa'
+    cross       = 'xtensa-buildroot-linux-uclibc-'
+    crossver    = '5.3.0'
 
     # config (prefix it with [root] to make it usable from bash and python)
     ini_str = '[root]\n' + open('hw/th/config.ini', 'r').read()
     config = configparser.RawConfigParser()
     config.readfp(StringIO.StringIO(ini_str))
 
-    if target == 't3':
-        core = 'Pe_4MB_128k_4irq'
-    else:
-        core = 'oi_lx4_PE_6'
-    isa = 'xtensa'
-    cross = 'xtensa-buildroot-linux-uclibc-'
-    crossdir = Dir(config.get('root', 'buildroot')).abspath + '/host/usr/'
-    crossver = '5.3.0'
-    runtime = 'sim' if target == 't3' else 'min-rt'
-    configpath = Dir(config.get('root', 'cfgpath'))
-    xtroot = Dir(config.get('root', 'xtroot'))
-    tooldir = Dir(xtroot.abspath + '/XtDevTools/install/tools/' + toolversion + '/XtensaTools/bin')
-    crtdir = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
+    crossdir    = Dir(config.get('root', 'buildroot')).abspath + '/host/usr/'
+    configpath  = Dir(config.get('root', 'cfgpath'))
+    xtroot      = Dir(config.get('root', 'xtroot'))
+    tooldir     = Dir(xtroot.abspath + '/XtDevTools/install/tools/' + toolversion + '/XtensaTools/bin')
+    crtdir      = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
 elif target == 'gem5':
-    isa = os.environ.get('M3_ISA')
-    if isa is None:
-        isa = 'x86_64'
-    if isa == 'arm':
-        rustabi = 'gnueabihf'
-        cross = 'arm-none-eabi-'
-    else:
-        rustabi = 'gnu'
-        cross = ''
-    configpath = Dir('.')
+    isa = os.environ.get('M3_ISA', 'x86_64')
+
+    rustabi     = 'gnueabihf'       if isa == 'arm' else 'gnu'
+    cross       = 'arm-none-eabi-'  if isa == 'arm' else ''
+    configpath  = Dir('.')
 else:
     # build for host by default
     isa = os.popen("uname -m").read().strip()
     if isa == 'armv7l':
         isa = 'arm'
-    target = 'host'
-    cross = ''
-    rustabi = 'gnu'
-    configpath = Dir('.')
+
+    target      = 'host'
+    rustabi     = 'gnu'
+    cross       = ''
+    configpath  = Dir('.')
 
 # build basic environment
 baseenv = Environment(
