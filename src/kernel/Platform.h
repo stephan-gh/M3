@@ -16,73 +16,31 @@
 
 #pragma once
 
+#include <base/BootInfo.h>
 #include <base/PEDesc.h>
 
 namespace kernel {
 
 class Platform {
-public:
-    struct BootModule {
-        uint64_t addr;
-        uint64_t size;
-        uint64_t namelen;
-        char name[];
-    } PACKED;
-
-    class BootModuleIterator {
-    public:
-        explicit BootModuleIterator(BootModule *mod = nullptr) : _mod(mod) {
-        }
-
-        BootModule & operator*() const {
-            return *this->_mod;
-        }
-        BootModule *operator->() const {
-            return &operator*();
-        }
-        BootModuleIterator& operator++() {
-            uintptr_t next = reinterpret_cast<uintptr_t>(_mod) + sizeof(BootModule) + _mod->namelen;
-            _mod = reinterpret_cast<BootModule*>(next);
-            return *this;
-        }
-        BootModuleIterator operator++(int) {
-            BootModuleIterator tmp(*this);
-            operator++();
-            return tmp;
-        }
-        bool operator==(const BootModuleIterator& rhs) const {
-            return _mod == rhs._mod;
-        }
-        bool operator!=(const BootModuleIterator& rhs) const {
-            return _mod != rhs._mod;
-        }
-
-    private:
-        BootModule *_mod;
+    struct Init {
+        Init();
     };
 
-    struct KEnv {
-        explicit KEnv();
-
-        uint64_t mod_count;
-        uint64_t mod_size;
-        uint64_t pe_count;
-    } PACKED;
-
+public:
     static peid_t kernel_pe();
     static peid_t first_pe();
     static peid_t last_pe();
 
-    static BootModuleIterator mods_begin() {
-        return BootModuleIterator(_mods);
+    static m3::BootInfo::ModIterator mods_begin() {
+        return m3::BootInfo::ModIterator(_mods);
     }
-    static BootModuleIterator mods_end() {
-        uintptr_t last = reinterpret_cast<uintptr_t>(_mods) + _kenv.mod_size;
-        return BootModuleIterator(reinterpret_cast<BootModule*>(last));
+    static m3::BootInfo::ModIterator mods_end() {
+        uintptr_t last = reinterpret_cast<uintptr_t>(_mods) + _info.mod_size;
+        return m3::BootInfo::ModIterator(reinterpret_cast<m3::BootInfo::Mod*>(last));
     }
 
     static size_t pe_count() {
-        return _kenv.pe_count;
+        return _info.pe_count;
     }
     static m3::PEDesc pe(peid_t no) {
         return _pes[no];
@@ -92,8 +50,9 @@ public:
 
 private:
     static m3::PEDesc *_pes;
-    static BootModule *_mods;
-    static KEnv _kenv;
+    static m3::BootInfo::Mod *_mods;
+    static m3::BootInfo _info;
+    static Init _init;
 };
 
 }
