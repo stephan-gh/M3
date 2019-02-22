@@ -1,16 +1,7 @@
 Import('hostenv')
 
-# check for tud-otfconfig
-def CheckOTFConfig(context):
-    context.Message('Checking for tud-otfconfig...')
-    result = context.TryAction('tud-otfconfig')[0]
-    context.Result(result)
-    return result
-
-traceenv = hostenv.Clone()
-conf = Configure(traceenv, custom_tests={'CheckOTFConfig': CheckOTFConfig})
-
-if conf.CheckOTFConfig():
+if hostenv['HAS_OTF']:
+    traceenv = hostenv.Clone()
     traceenv.ParseConfig('tud-otfconfig --includes --libs')
     traceenv.Program(
         target = 'gem52otf',
@@ -18,5 +9,3 @@ if conf.CheckOTFConfig():
     )
 else:
     print('Cannot execute tud-otfconfig, skipping gem52otf...')
-
-conf.Finish()

@@ -70,6 +70,12 @@ def CheckCompilerParam(context, param):
     context.Result(result)
     return result
 
+def CheckOTFConfig(context):
+    context.Message('Checking for tud-otfconfig...')
+    result = context.TryAction('tud-otfconfig')[0]
+    context.Result(result)
+    return result
+
 def CheckRust(context):
     context.Message('Checking for xargo...')
     result = context.TryAction('xargo')[0]
@@ -78,11 +84,13 @@ def CheckRust(context):
 
 conf = Configure(baseenv, custom_tests={
     'CheckCompilerParam': CheckCompilerParam,
+    'CheckOTFConfig': CheckOTFConfig,
     'CheckRust': CheckRust,
 })
 if conf.CheckCompilerParam('-fdiagnostics-color=always'):
     baseenv.Append(CXXFLAGS = ' -fdiagnostics-color=always')
 baseenv['HAS_RUST'] = conf.CheckRust()
+baseenv['HAS_OTF']  = conf.CheckOTFConfig()
 conf.Finish()
 
 # print executed commands?
