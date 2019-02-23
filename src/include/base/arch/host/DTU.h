@@ -145,14 +145,14 @@ public:
         return inst;
     }
 
-    static peid_t gaddr_to_pe(gaddr_t) {
-        return 0;
+    static peid_t gaddr_to_pe(gaddr_t addr) {
+        return addr >> 48;
     }
-    static uintptr_t gaddr_to_virt(gaddr_t) {
-        return 0;
+    static uintptr_t gaddr_to_virt(gaddr_t addr) {
+        return addr & 0xFFFFFFFFFFFF;
     }
-    static gaddr_t build_gaddr(peid_t, uintptr_t) {
-        return 0;
+    static gaddr_t build_gaddr(peid_t pe, uintptr_t addr) {
+        return (static_cast<gaddr_t>(pe) << 48) | addr;
     }
 
     explicit DTU();

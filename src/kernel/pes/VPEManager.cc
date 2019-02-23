@@ -15,6 +15,7 @@
  */
 
 #include <base/log/Kernel.h>
+#include <base/util/Math.h>
 #include <base/Panic.h>
 
 #include "pes/PEManager.h"
@@ -93,11 +94,37 @@ void VPEManager::init(int argc, char **argv) {
         // remember arguments
         _vpes[id]->set_args(static_cast<size_t>(end - i), argv + i);
 
+        // TODO temporary
+        if(id == 0 && strstr(argv[i], "root")) {
+            capsel_t sel = 1000;
+            {
+                peid_t pe = m3::DTU::gaddr_to_pe(Platform::info_addr());
+                goff_t addr = m3::DTU::gaddr_to_virt(Platform::info_addr());
+                auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, pe, VPE::INVALID_ID,
+                                                  addr, Platform::info_size(), m3::KIF::Perm::R);
+                _vpes[id]->objcaps().set(sel, memcap);
+                sel++;
+            }
+
+            for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod, ++sel) {
+                peid_t pe = m3::DTU::gaddr_to_pe(mod->addr);
+                goff_t addr = m3::DTU::gaddr_to_virt(mod->addr);
+                size_t size = m3::Math::round_up(static_cast<size_t>(mod->size),
+                                                 static_cast<size_t>(PAGE_SIZE));
+                auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, pe, VPE::INVALID_ID,
+                                                  addr, size, m3::KIF::Perm::R | m3::KIF::Perm::X);
+                _vpes[id]->objcaps().set(sel, memcap);
+            }
+        }
+
         // register pending item if necessary
         if(strcmp(argv[i], "idle") != 0 && _vpes[id]->requirements().length() > 0)
             _pending.append(new Pending(_vpes[id]));
         else
             _vpes[id]->start_app(_vpes[id]->pid());
+
+        if(strstr(argv[i], "root"))
+            break;
 
         i = j;
     }

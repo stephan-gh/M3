@@ -27,6 +27,8 @@ class Platform {
     };
 
 public:
+    static void add_modules(int argc, char **argv);
+
     static peid_t kernel_pe();
     static peid_t first_pe();
     static peid_t last_pe();
@@ -39,6 +41,10 @@ public:
         return m3::BootInfo::ModIterator(reinterpret_cast<m3::BootInfo::Mod*>(last));
     }
 
+    static gaddr_t info_addr();
+    static size_t info_size() {
+        return sizeof(_info) + _info.mod_size + _info.pe_count * sizeof(m3::PEDesc);
+    }
     static size_t pe_count() {
         return _info.pe_count;
     }

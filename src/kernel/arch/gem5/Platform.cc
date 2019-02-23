@@ -72,6 +72,14 @@ Platform::Init::Init() {
     }
 }
 
+void Platform::add_modules(int, char **) {
+    // unused
+}
+
+gaddr_t Platform::info_addr() {
+    return m3::env()->kenv;
+}
+
 peid_t Platform::kernel_pe() {
     // gem5 initializes the peid for us
     return m3::env()->pe;

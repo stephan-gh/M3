@@ -24,13 +24,15 @@ use core::fmt;
 use dtu::{EP_COUNT, FIRST_FREE_EP, EpId};
 use env;
 use errors::{Code, Error};
+use goff;
 use kif::{CapType, CapRngDesc, INVALID_SEL, PEDesc};
 use kif;
 use session::Pager;
 use syscalls;
 use util;
-use vfs::{BufReader, FileRef, OpenFlags, VFS};
-use vfs::{FileTable, MountTable};
+use io::Read;
+use vfs::{BufReader, FileRef, OpenFlags, Seek, SeekMode, VFS};
+use vfs::{FileTable, Map, MountTable};
 
 pub struct VPEGroup {
     cap: Capability,
@@ -69,6 +71,94 @@ pub struct VPEArgs<'n, 'p> {
     pe: PEDesc,
     muxable: bool,
     group: Option<VPEGroup>,
+}
+
+pub trait Mapper {
+    fn map_file<'l>(&mut self, pager: Option<&'l Pager>, file: &mut BufReader<FileRef>, foff: usize,
+                    virt: goff, len: usize, perm: kif::Perm) -> Result<bool, Error>;
+    fn map_anon<'l>(&mut self, pager: Option<&'l Pager>,
+                    virt: goff, len: usize, perm: kif::Perm) -> Result<bool, Error>;
+
+    fn init_mem(&self, buf: &mut [u8], mem: &MemGate,
+                file: &mut BufReader<FileRef>, foff: usize, fsize: usize,
+                virt: goff, memsize: usize) -> Result<(), Error> {
+        file.seek(foff, SeekMode::SET)?;
+
+        let mut count = fsize;
+        let mut segoff = virt as usize;
+        while count > 0 {
+            let amount = util::min(count, buf.len());
+            let amount = file.read(&mut buf[0..amount])?;
+
+            mem.write(&buf[0..amount], segoff as goff)?;
+
+            count -= amount;
+            segoff += amount;
+        }
+
+        self.clear_mem(buf, mem, (memsize - fsize) as usize, segoff)
+    }
+
+    fn clear_mem(&self, buf: &mut [u8], mem: &MemGate,
+                 mut count: usize, mut dst: usize) -> Result<(), Error> {
+        if count == 0 {
+            return Ok(())
+        }
+
+        for i in 0..buf.len() {
+            buf[i] = 0;
+        }
+
+        while count > 0 {
+            let amount = util::min(count, buf.len());
+            mem.write(&buf[0..amount], dst as goff)?;
+            count -= amount;
+            dst += amount;
+        }
+
+        Ok(())
+    }
+}
+
+pub struct DefaultMapper {
+    has_virtmem: bool,
+}
+
+impl DefaultMapper {
+    pub fn new(has_virtmem: bool) -> Self {
+        DefaultMapper {
+            has_virtmem: has_virtmem,
+        }
+    }
+}
+
+impl Mapper for DefaultMapper {
+    fn map_file<'l>(&mut self, pager: Option<&'l Pager>, file: &mut BufReader<FileRef>, foff: usize,
+                    virt: goff, len: usize, perm: kif::Perm) -> Result<bool, Error> {
+        if let Some(pg) = pager {
+            file.get_ref().map(pg, virt, foff, len, perm).map(|_| false)
+        }
+        else if self.has_virtmem {
+            // TODO handle that case
+            unimplemented!();
+        }
+        else {
+            Ok(true)
+        }
+    }
+    fn map_anon<'l>(&mut self, pager: Option<&'l Pager>,
+                    virt: goff, len: usize, perm: kif::Perm) -> Result<bool, Error> {
+        if let Some(pg) = pager {
+            pg.map_anon(virt, len, perm).map(|_| false)
+        }
+        else if self.has_virtmem {
+            // TODO handle that case
+            unimplemented!();
+        }
+        else {
+            Ok(true)
+        }
+    }
 }
 
 pub trait Activity {
@@ -431,10 +521,9 @@ impl VPE {
         let mut senv = arch::env::EnvData::default();
 
         let closure = {
+            let mut mapper = DefaultMapper::new(self.pe.has_virtmem());
             let mut loader = arch::loader::Loader::new(
-                self.pager.as_ref(),
-                Self::cur().pager().is_some(),
-                &self.mem
+                self.pager.as_ref(), Self::cur().pager().is_some(), &mut mapper, &self.mem
             );
 
             // copy all regions to child
@@ -511,14 +600,21 @@ impl VPE {
         }
     }
 
-    #[cfg(target_os = "none")]
     pub fn exec<S: AsRef<str>>(&mut self, args: &[S]) -> Result<ExecActivity, Error> {
+        let file = VFS::open(args[0].as_ref(), OpenFlags::RX)?;
+        let mut mapper = DefaultMapper::new(self.pe.has_virtmem());
+        self.exec_file(&mut mapper, file, args)
+    }
+
+    #[cfg(target_os = "none")]
+    #[allow(unused_mut)]
+    pub fn exec_file<S: AsRef<str>>(&mut self, mapper: &mut Mapper,
+                                    mut file: FileRef, args: &[S]) -> Result<ExecActivity, Error> {
         use cfg;
         use goff;
         use serialize::Sink;
         use com::VecSink;
 
-        let file = VFS::open(args[0].as_ref(), OpenFlags::RX)?;
         let mut file = BufReader::new(file);
 
         let first_ep_sel = self.ep_sel(FIRST_FREE_EP);
@@ -529,10 +625,8 @@ impl VPE {
         let mut senv = arch::env::EnvData::default();
 
         {
-            let loader = arch::loader::Loader::new(
-                self.pager.as_ref(),
-                Self::cur().pager().is_some(),
-                &self.mem
+            let mut loader = arch::loader::Loader::new(
+                self.pager.as_ref(), Self::cur().pager().is_some(), mapper, &self.mem
             );
 
             // load program segments
@@ -581,12 +675,12 @@ impl VPE {
     }
 
     #[cfg(target_os = "linux")]
-    pub fn exec<S: AsRef<str>>(&mut self, args: &[S]) -> Result<ExecActivity, Error> {
+    pub fn exec_file<S: AsRef<str>>(&mut self, _mapper: &Mapper,
+                                    mut file: FileRef, args: &[S]) -> Result<ExecActivity, Error> {
         use com::VecSink;
         use libc;
         use serialize::Sink;
 
-        let mut file = VFS::open(args[0].as_ref(), OpenFlags::RX)?;
         let path = arch::loader::copy_file(&mut file)?;
 
         let mut chan = arch::loader::Channel::new()?;

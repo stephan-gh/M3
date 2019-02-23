@@ -49,7 +49,7 @@ bitflags! {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C, packed)]
 pub struct FileInfo {
     pub devno: DevId,

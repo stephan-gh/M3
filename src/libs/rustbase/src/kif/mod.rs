@@ -20,6 +20,7 @@ mod cap;
 mod perm;
 mod pedesc;
 
+pub mod boot;
 pub mod service;
 pub mod syscalls;
 

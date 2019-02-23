@@ -124,6 +124,7 @@ int main(int argc, char *argv[]) {
     // create some worker threads
     m3::env()->workloop()->multithreaded(8);
 
+    Platform::add_modules(argc - argstart - 1, argv + argstart + 1);
     if(fsimg)
         copyfromfs(MainMemory::get(), fsimg);
     SyscallHandler::init();

@@ -10,6 +10,7 @@ members = [
     "libs/rustbase",
     "libs/rustm3",
     "libs/rustthread",
+    "server/root",
 ]
 
 [profile.release]

@@ -22,23 +22,27 @@ use elf;
 use errors::{Code, Error};
 use goff;
 use heap;
-use io::{Read, read_object};
+use io::read_object;
 use kif;
 use session::Pager;
 use util;
-use vfs::{BufReader, FileRef, Map, Seek, SeekMode};
+use vfs::{BufReader, FileRef, Seek, SeekMode};
+use vpe::Mapper;
 
 pub struct Loader<'l> {
     pager: Option<&'l Pager>,
     pager_inherited: bool,
+    mapper: &'l mut Mapper,
     mem: &'l MemGate,
 }
 
 impl<'l> Loader<'l> {
-    pub fn new(pager: Option<&'l Pager>, pager_inherited: bool, mem: &'l MemGate) -> Loader<'l> {
+    pub fn new(pager: Option<&'l Pager>, pager_inherited: bool,
+               mapper: &'l mut Mapper, mem: &'l MemGate) -> Loader<'l> {
         Loader {
             pager: pager,
             pager_inherited: pager_inherited,
+            mapper: mapper,
             mem: mem,
         }
     }
@@ -86,59 +90,30 @@ impl<'l> Loader<'l> {
         }
     }
 
-    pub fn clear_mem(&self, buf: &mut [u8], mut count: usize, mut dst: usize) -> Result<(), Error> {
-        if count == 0 {
-            return Ok(())
-        }
-
-        for i in 0..buf.len() {
-            buf[i] = 0;
-        }
-
-        while count > 0 {
-            let amount = util::min(count, buf.len());
-            self.mem.write(&buf[0..amount], dst as goff)?;
-            count -= amount;
-            dst += amount;
-        }
-
-        Ok(())
-    }
-
-    pub fn load_segment(&self, file: &mut BufReader<FileRef>,
-                        phdr: &elf::Phdr, buf: &mut [u8]) -> Result<(), Error> {
-        file.seek(phdr.offset as usize, SeekMode::SET)?;
-
-        let mut count = phdr.filesz as usize;
-        let mut segoff = phdr.vaddr;
-        while count > 0 {
-            let amount = util::min(count, buf.len());
-            let amount = file.read(&mut buf[0..amount])?;
-
-            self.mem.write(&buf[0..amount], segoff as goff)?;
-
-            count -= amount;
-            segoff += amount;
-        }
-
-        self.clear_mem(buf, (phdr.memsz - phdr.filesz) as usize, segoff)
-    }
-
-    pub fn map_segment(&self, file: &mut BufReader<FileRef>, pager: &Pager,
-                       phdr: &elf::Phdr) -> Result<(), Error> {
+    fn load_segment(&mut self, file: &mut BufReader<FileRef>,
+                    phdr: &elf::Phdr, buf: &mut [u8]) -> Result<(), Error> {
         let prot = kif::Perm::from(elf::PF::from_bits_truncate(phdr.flags));
-
         let size = util::round_up(phdr.memsz as usize, cfg::PAGE_SIZE);
-        if phdr.memsz == phdr.filesz {
-            file.get_ref().map(pager, phdr.vaddr as goff, phdr.offset as usize, size, prot)
+
+        let needs_init = if phdr.memsz == phdr.filesz {
+            self.mapper.map_file(self.pager, file, phdr.offset as usize,
+                                 phdr.vaddr as goff, size, prot)
         }
         else {
             assert!(phdr.filesz == 0);
-            pager.map_anon(phdr.vaddr as goff, size, prot).map(|_| ())
+            self.mapper.map_anon(self.pager, phdr.vaddr as goff, size, prot)
+        }?;
+
+        if needs_init {
+            self.mapper.init_mem(buf, &self.mem, file, phdr.offset as usize, phdr.filesz as usize,
+                                 phdr.vaddr as goff, phdr.memsz as usize)
+        }
+        else {
+            Ok(())
         }
     }
 
-    pub fn load_program(&self, file: &mut BufReader<FileRef>) -> Result<usize, Error> {
+    pub fn load_program(&mut self, file: &mut BufReader<FileRef>) -> Result<usize, Error> {
         let mut buf = vec![0u8; 4096];
         let hdr: elf::Ehdr = read_object(file)?;
 
@@ -163,27 +138,22 @@ impl<'l> Loader<'l> {
                 continue;
             }
 
-            if let Some(ref pg) = self.pager {
-                self.map_segment(file, pg, &phdr)?;
-            }
-            else {
-                self.load_segment(file, &phdr, &mut *buf)?;
-            }
+            self.load_segment(file, &phdr, &mut *buf)?;
 
             end = phdr.vaddr + phdr.memsz as usize;
         }
 
-        if let Some(ref pg) = self.pager {
-            // create area for boot/runtime stuff
-            pg.map_anon(cfg::RT_START as goff, cfg::RT_SIZE, kif::Perm::RW)?;
+        // create area for boot/runtime stuff
+        self.mapper.map_anon(self.pager, cfg::RT_START as goff, cfg::RT_SIZE, kif::Perm::RW)?;
 
-            // create area for stack
-            pg.map_anon(cfg::STACK_BOTTOM as goff, cfg::STACK_SIZE, kif::Perm::RW)?;
+        // create area for stack
+        self.mapper.map_anon(self.pager, cfg::STACK_BOTTOM as goff, cfg::STACK_SIZE, kif::Perm::RW)?;
 
-            // create heap
-            let heap_begin = util::round_up(end, cfg::PAGE_SIZE);
-            pg.map_anon(heap_begin as goff, cfg::APP_HEAP_SIZE, kif::Perm::RW)?;
-        }
+        // create heap
+        // TODO align heap to 2M to use huge pages
+        let heap_begin = util::round_up(end, cfg::PAGE_SIZE);
+        let heap_size = if self.pager.is_some() { cfg::APP_HEAP_SIZE } else { cfg::MOD_HEAP_SIZE };
+        self.mapper.map_anon(self.pager, heap_begin as goff, heap_size, kif::Perm::RW)?;
 
         Ok(hdr.entry)
     }
