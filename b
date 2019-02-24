@@ -199,6 +199,28 @@ kill_m3_procs() {
     lsof -a -U -u $USER | grep '@m3_ep_' | awk '{ print $2 }' | sort | uniq | xargs kill || true
 }
 
+childpids() {
+    n=0
+    for pid in $(ps h -o pid --ppid $1); do
+        if [ $n -gt 0 ]; then
+            echo -n ","
+        fi
+        echo -n $pid
+        list=$(childpids $pid)
+        if [ "$list" != "" ]; then
+            echo -n ","$list
+        fi
+        n=$(($n + 1))
+    done
+}
+
+findprog() {
+    pids=$(childpids $1)
+    if [ "$pids" != "" ]; then
+        ps hww -o pid,cmd -p $pids | grep "^[[:digit:]]* [^ ]*$2\b"
+    fi
+}
+
 # run the specified command, if any
 case "$cmd" in
     clean)
@@ -270,12 +292,12 @@ case "$cmd" in
                 pid=`pgrep -x $M3_KERNEL`
             done
             if [ "$prog" != "$M3_KERNEL" ]; then
-                line=`ps w --ppid $pid | grep "$prog\b"`
+                line=$(findprog $pid $prog)
                 while [ "$line" = "" ]; do
                     sleep 1
-                    line=`ps w --ppid $pid | grep "$prog\b"`
+                    line=$(findprog $pid $prog)
                 done
-                pid=`ps w --ppid $pid | grep "$prog\b" | xargs | cut -d ' ' -f 1`
+                pid=$(findprog $pid $prog | xargs | cut -d ' ' -f 1)
             fi
 
             tmp=`mktemp`
