@@ -102,10 +102,10 @@ Env::Init::Init() {
 #ifndef NDEBUG
     char *val = getenv("M3_WAIT");
     if(val) {
-        size_t len = strlen(val);
-        size_t execlen = strlen(Env::executable());
-        if(strcmp(Env::executable() + execlen - len, val) == 0 &&
-                Env::executable()[execlen - len - 1] == '/') {
+        const char *exec = Env::executable();
+        size_t vlen = strlen(val);
+        size_t elen = strlen(exec);
+        if(strcmp(exec + elen - vlen, val) == 0 && (elen <= vlen || exec[elen - vlen - 1] == '/')) {
             while(wait_for_debugger)
                 usleep(20000);
         }
