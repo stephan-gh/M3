@@ -447,7 +447,7 @@ void SyscallHandler::createmap(VPE *vpe, const m3::DTU::Message *msg) {
         << ", first=" << first << ", pages=" << pages << ", perms=" << perms << ")");
 
     auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
-    if(vpecap == nullptr)
+    if(vpecap == nullptr || !Platform::pe(vpecap->obj->pe()).has_virtmem())
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE capability is invalid");
     auto mgatecap = static_cast<MGateCapability*>(vpe->objcaps().get(mgate, Capability::MGATE));
     if(mgatecap == nullptr)
