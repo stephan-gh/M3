@@ -304,9 +304,6 @@ case "$cmd" in
             echo "display/i \$pc" >> $tmp
             echo "b main" >> $tmp
             echo "set var wait_for_debugger = 0" >> $tmp
-            if [ "$prog" != "$M3_KERNEL" ]; then
-                echo "set follow-fork-mode child" >> $tmp
-            fi
             if hash rust-gdb 2>/dev/null; then
                 rust-gdb --tui $build/bin/$prog $pid --command=$tmp
             else
