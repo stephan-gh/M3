@@ -73,23 +73,21 @@ impl EnvData {
         None
     }
 
-    pub fn load_other(&self) -> (Selector, u64, arch::rbufs::RBufSpace) {
-        match arch::loader::read_env_file("other") {
-            Some(other) => {
-                let mut ss = SliceSource::new(&other);
-                (
-                    ss.pop(),
-                    ss.pop(),
-                    arch::rbufs::RBufSpace::new_with(ss.pop(), ss.pop())
-                )
+    pub fn load_eps(&self) -> u64 {
+        Self::load_word("eps", 0)
+    }
+
+    pub fn load_nextsel(&self) -> Selector {
+        Self::load_word("nextsel", vpe::FIRST_FREE_SEL as u64) as Selector
+    }
+
+    pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
+        match arch::loader::read_env_file("rbufs") {
+            Some(rbuf)  => {
+                let mut ss = SliceSource::new(&rbuf);
+                arch::rbufs::RBufSpace::new_with(ss.pop(), ss.pop())
             },
-            None        => {
-                (
-                    vpe::FIRST_FREE_SEL,
-                    0,
-                    arch::rbufs::RBufSpace::new()
-                )
-            },
+            None        => arch::rbufs::RBufSpace::new(),
         }
     }
 
@@ -102,8 +100,15 @@ impl EnvData {
 
     pub fn load_fds(&self) -> FileTable {
         match arch::loader::read_env_file("fds") {
-            Some(fds)    => FileTable::unserialize(&mut SliceSource::new(&fds)),
+            Some(fds)   => FileTable::unserialize(&mut SliceSource::new(&fds)),
             None        => FileTable::default(),
+        }
+    }
+
+    fn load_word(name: &str, default: u64) -> u64 {
+        match arch::loader::read_env_file(name) {
+            Some(buf)       => SliceSource::new(&buf).pop(),
+            None            => default,
         }
     }
 

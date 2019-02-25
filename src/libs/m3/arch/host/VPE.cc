@@ -49,6 +49,13 @@ static void write_file(pid_t pid, const char *suffix, const void *data, size_t s
     }
 }
 
+static void write_file(pid_t pid, const char *suffix, uint64_t value) {
+    uint8_t buf[sizeof(uint64_t)];
+    Marshaller m(buf, sizeof(buf));
+    m << value;
+    write_file(pid, suffix, buf, m.total());
+}
+
 static void *read_from(const char *suffix, void *dst, size_t &size) {
     char path[64];
     snprintf(path, sizeof(path), "/tmp/m3/%d-%s", getpid(), suffix);
@@ -70,14 +77,50 @@ static void *read_from(const char *suffix, void *dst, size_t &size) {
     return nullptr;
 }
 
-void VPE::init_state() {
-    size_t len = 32;
-    unsigned char *buf = new unsigned char[len];
-    if(read_from("other", buf, len)) {
+template<typename T>
+static bool read_from(const char *suffix, T *val) {
+    uint8_t buf[sizeof(uint64_t)];
+    size_t len = sizeof(buf);
+    if(read_from(suffix, buf, len)) {
         Unmarshaller um(buf, len);
-        um >> _next_sel >> _eps >> _rbufcur >> _rbufend;
+        um >> *val;
+        return true;
     }
+    return false;
+}
+
+static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps,
+                        uint64_t rbufcur, uint64_t rbufend,
+                        FileTable &files, MountTable &mounts) {
+    size_t len = STATE_BUF_SIZE;
+    unsigned char *buf = new unsigned char[len];
+
+    write_file(pid, "nextsel", nextsel);
+    write_file(pid, "eps", eps);
+
+    Marshaller m(buf, len);
+    m << rbufcur << rbufend;
+    write_file(pid, "rbufs", buf, m.total());
+
+    len = mounts.serialize(buf, STATE_BUF_SIZE);
+    write_file(pid, "ms", buf, len);
+
+    len = files.serialize(buf, STATE_BUF_SIZE);
+    write_file(pid, "fds", buf, len);
+
     delete[] buf;
+}
+
+void VPE::init_state() {
+    read_from("nextsel", &_next_sel);
+    read_from("eps", &_eps);
+
+    size_t len = sizeof(uint64_t) * 2;
+    uint8_t buf[len];
+    if(read_from("rbufs", buf, len)) {
+        Unmarshaller um(buf, len);
+        um >> _rbufcur >> _rbufend;
+    }
 }
 
 void VPE::init_fs() {
@@ -139,20 +182,7 @@ Errors::Code VPE::run(void *lambda) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::get().vpectrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        size_t len = STATE_BUF_SIZE;
-        unsigned char *buf = new unsigned char[len];
-
-        Marshaller m(buf, len);
-        m << _next_sel << _eps << _rbufcur << _rbufend;
-        write_file(pid, "other", buf, m.total());
-
-        len = _ms->serialize(buf, len);
-        write_file(pid, "ms", buf, len);
-
-        len = _fds->serialize(buf, STATE_BUF_SIZE);
-        write_file(pid, "fds", buf, len);
-
-        delete[] buf;
+        write_state(pid, _next_sel, _eps, _rbufcur, _rbufend, *_fds, *_ms);
 
         // notify child; it can start now
         write(fd[1], &byte, 1);
@@ -220,20 +250,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::get().vpectrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        size_t len = STATE_BUF_SIZE;
-        unsigned char *buf = new unsigned char[len];
-
-        Marshaller m(buf, len);
-        m << _next_sel << _eps << _rbufcur << _rbufend;
-        write_file(pid, "other", buf, m.total());
-
-        len = _ms->serialize(buf, STATE_BUF_SIZE);
-        write_file(pid, "ms", buf, len);
-
-        len = _fds->serialize(buf, STATE_BUF_SIZE);
-        write_file(pid, "fds", buf, len);
-
-        delete[] buf;
+        write_state(pid, _next_sel, _eps, _rbufcur, _rbufend, *_fds, *_ms);
 
         // notify child; it can start now
         write(fd[1], &byte, 1);

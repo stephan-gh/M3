@@ -88,15 +88,19 @@ impl EnvData {
         }
     }
 
-    pub fn load_other(&self) -> (Selector, u64, arch::rbufs::RBufSpace) {
-        (
-            // it's initially 0. make sure it's at least the first usable selector
-            util::max(vpe::FIRST_FREE_SEL, self.base.caps as Selector),
-            self.base.eps,
-            arch::rbufs::RBufSpace::new_with(
-                self.base.rbuf_cur as usize,
-                self.base.rbuf_end as usize
-            )
+    pub fn load_eps(&self) -> u64 {
+        self.base.eps
+    }
+
+    pub fn load_nextsel(&self) -> Selector {
+        // it's initially 0. make sure it's at least the first usable selector
+        util::max(vpe::FIRST_FREE_SEL, self.base.caps as Selector)
+    }
+
+    pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
+        arch::rbufs::RBufSpace::new_with(
+            self.base.rbuf_cur as usize,
+            self.base.rbuf_end as usize
         )
     }
 

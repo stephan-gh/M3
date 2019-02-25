@@ -303,10 +303,9 @@ impl VPE {
     fn init(&mut self) {
         let env = arch::env::get();
         self.pe = env.pe_desc();
-        let (caps, eps, rbufs) = env.load_other();
-        self.next_sel = caps;
-        self.eps = eps;
-        self.rbufs = rbufs;
+        self.next_sel = env.load_nextsel();
+        self.eps = env.load_eps();
+        self.rbufs = env.load_rbufs();
         self.pager = env.load_pager();
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
@@ -704,13 +703,15 @@ impl VPE {
 
                 let pid = unsafe { libc::getpid() };
 
-                // write sels and EPs
-                let mut other = VecSink::new();
-                other.push(&self.next_sel);
-                other.push(&self.eps);
-                other.push(&self.rbufs.cur);
-                other.push(&self.rbufs.end);
-                arch::loader::write_env_file(pid, "other", other.words(), other.size());
+                // write nextsel, eps, and rmng
+                arch::loader::write_env_value(pid, "nextsel", self.next_sel as u64);
+                arch::loader::write_env_value(pid, "eps", self.eps);
+
+                // write rbufs
+                let mut rbufs = VecSink::new();
+                rbufs.push(&self.rbufs.cur);
+                rbufs.push(&self.rbufs.end);
+                arch::loader::write_env_file(pid, "rbufs", rbufs.words(), rbufs.size());
 
                 // write file table
                 let mut fds = VecSink::new();
