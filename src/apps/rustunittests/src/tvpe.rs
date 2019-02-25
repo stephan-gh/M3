@@ -80,7 +80,7 @@ fn run_stop() {
 }
 
 fn run_arguments() {
-    let mut vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
+    let vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
 
     let act = assert_ok!(vpe.run(Box::new(|| {
         assert_eq!(env::args().count(), 1);
@@ -116,30 +116,30 @@ fn run_send_receive() {
 fn exec_fail() {
     use m3::errors::Code;
 
-    let mut vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
-
     // file too small
     {
+        let vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
         let act = vpe.exec(&["/testfile.txt"]);
         assert!(act.is_err() && act.err().unwrap().code() == Code::EndOfFile);
     }
 
     // not an ELF file
     {
+        let vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
         let act = vpe.exec(&["/pat.bin"]);
         assert!(act.is_err() && act.err().unwrap().code() == Code::InvalidElf);
     }
 }
 
 fn exec_hello() {
-    let mut vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
+    let vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
 
     let act = assert_ok!(vpe.exec(&["/bin/hello"]));
     assert_eq!(act.wait(), Ok(0));
 }
 
 fn exec_rust_hello() {
-    let mut vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
+    let vpe = assert_ok!(VPE::new_with(VPEArgs::new("test")));
 
     let act = assert_ok!(vpe.exec(&["/bin/rusthello"]));
     assert_eq!(act.wait(), Ok(0));

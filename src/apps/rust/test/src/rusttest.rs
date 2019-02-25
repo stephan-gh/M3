@@ -35,43 +35,45 @@ pub fn main() -> i32 {
         let mut vpe = VPE::new_with(VPEArgs::new("test")).expect("Unable to create VPE");
         println!("VPE runs on {:?}", vpe.pe());
 
-        let file = VFS::open("/test.txt", OpenFlags::RW)
-            .expect("open of /test.txt failed");
+        vpe.mounts().add("/", VPE::cur().mounts().get_by_path("/").unwrap()).unwrap();
+        vpe.obtain_mounts().unwrap();
+
+        let act = vpe.exec(&["/bin/ls", "-l", "/"]).expect("Exec failed");
+
+        println!("foo: {}", act.vpe().sel());
+
+        let res = act.wait().expect("Unable to wait for VPE");
+        println!("VPE exited with {}", res);
+    }
+
+    {
+        let mut vpe = VPE::new_with(VPEArgs::new("test")).expect("Unable to create VPE");
+        println!("VPE runs on {:?}", vpe.pe());
 
         vpe.mounts().add("/", VPE::cur().mounts().get_by_path("/").unwrap()).unwrap();
         vpe.obtain_mounts().unwrap();
 
-        // TODO fd inheritance is still not compatible between C++ and rust
-
-        {
-            let act = vpe.exec(&["/bin/ls", "-l", "/"]).expect("Exec failed");
-
-            println!("foo: {}", act.vpe().sel());
-
-            let res = act.wait().expect("Unable to wait for VPE");
-            println!("VPE exited with {}", res);
-        }
+        let file = VFS::open("/test.txt", OpenFlags::RW)
+            .expect("open of /test.txt failed");
 
         vpe.files().set(0, VPE::cur().files().get(file.fd()).unwrap());
         vpe.obtain_fds().unwrap();
 
-        {
-            let mut val = 42;
-            let act = vpe.run(Box::new(move || {
-                let f = VPE::cur().files().get(0).unwrap();
-                let mut s = String::new();
-                f.borrow_mut().read_to_string(&mut s).unwrap();
-                println!("Read '{}'", s);
+        let mut val = 42;
+        let act = vpe.run(Box::new(move || {
+            let f = VPE::cur().files().get(0).unwrap();
+            let mut s = String::new();
+            f.borrow_mut().read_to_string(&mut s).unwrap();
+            println!("Read '{}'", s);
 
-                println!("I'm a closure on PE {}", VPE::cur().pe_id());
-                val += 1;
-                println!("val = {}", val);
-                val
-            })).expect("Unable to run VPE");
+            println!("I'm a closure on PE {}", VPE::cur().pe_id());
+            val += 1;
+            println!("val = {}", val);
+            val
+        })).expect("Unable to run VPE");
 
-            let res = act.wait().expect("Unable to wait for VPE");
-            println!("VPE exited with {}", res);
-        }
+        let res = act.wait().expect("Unable to wait for VPE");
+        println!("VPE exited with {}", res);
     }
 
     {

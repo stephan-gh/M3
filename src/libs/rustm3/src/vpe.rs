@@ -163,6 +163,7 @@ impl Mapper for DefaultMapper {
 
 pub trait Activity {
     fn vpe(&self) -> &VPE;
+    fn vpe_mut(&mut self) -> &mut VPE;
 
     fn start(&self) -> Result<(), Error> {
         syscalls::vpe_ctrl(self.vpe().sel(), kif::syscalls::VPEOp::START, 0).map(|_| ())
@@ -177,13 +178,13 @@ pub trait Activity {
     }
 }
 
-pub struct ClosureActivity<'v> {
-    vpe: &'v mut VPE,
+pub struct ClosureActivity {
+    vpe: VPE,
     _closure: env::Closure,
 }
 
-impl<'v> ClosureActivity<'v> {
-    pub fn new<'vo : 'v>(vpe: &'vo mut VPE, closure: env::Closure) -> ClosureActivity<'v> {
+impl ClosureActivity {
+    pub fn new(vpe: VPE, closure: env::Closure) -> ClosureActivity {
         ClosureActivity {
             vpe: vpe,
             _closure: closure,
@@ -191,13 +192,16 @@ impl<'v> ClosureActivity<'v> {
     }
 }
 
-impl<'v> Activity for ClosureActivity<'v> {
+impl Activity for ClosureActivity {
     fn vpe(&self) -> &VPE {
-        self.vpe
+        &self.vpe
+    }
+    fn vpe_mut(&mut self) -> &mut VPE {
+        &mut self.vpe
     }
 }
 
-impl<'v> Drop for ClosureActivity<'v> {
+impl Drop for ClosureActivity {
     fn drop(&mut self) {
         self.stop().ok();
         if let Some(ref mut pg) = self.vpe.pager {
@@ -206,13 +210,13 @@ impl<'v> Drop for ClosureActivity<'v> {
     }
 }
 
-pub struct ExecActivity<'v> {
-    vpe: &'v mut VPE,
+pub struct ExecActivity {
+    vpe: VPE,
     _file: BufReader<FileRef>,
 }
 
-impl<'v> ExecActivity<'v> {
-    pub fn new<'vo : 'v>(vpe: &'vo mut VPE, file: BufReader<FileRef>) -> ExecActivity<'v> {
+impl ExecActivity {
+    pub fn new(vpe: VPE, file: BufReader<FileRef>) -> ExecActivity {
         ExecActivity {
             vpe: vpe,
             _file: file,
@@ -220,13 +224,16 @@ impl<'v> ExecActivity<'v> {
     }
 }
 
-impl<'v> Activity for ExecActivity<'v> {
+impl Activity for ExecActivity {
     fn vpe(&self) -> &VPE {
-        self.vpe
+        &self.vpe
+    }
+    fn vpe_mut(&mut self) -> &mut VPE {
+        &mut self.vpe
     }
 }
 
-impl<'v> Drop for ExecActivity<'v> {
+impl Drop for ExecActivity {
     fn drop(&mut self) {
         self.stop().ok();
         if let Some(ref mut pg) = self.vpe.pager {
@@ -506,7 +513,7 @@ impl VPE {
     }
 
     #[cfg(target_os = "none")]
-    pub fn run<F>(&mut self, func: Box<F>) -> Result<ClosureActivity, Error>
+    pub fn run<F>(mut self, func: Box<F>) -> Result<ClosureActivity, Error>
                   where F: FnBox() -> i32, F: Send + 'static {
         use cfg;
         use cpu;
@@ -534,7 +541,7 @@ impl VPE {
             senv.set_lambda(true);
 
             // store VPE address to reuse it in the child
-            senv.set_vpe(self);
+            senv.set_vpe(&self);
 
             // env goes first
             let mut off = cfg::RT_START + util::size_of_val(&senv);
@@ -562,7 +569,7 @@ impl VPE {
     }
 
     #[cfg(target_os = "linux")]
-    pub fn run<F>(&mut self, func: Box<F>) -> Result<ClosureActivity, Error>
+    pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
                   where F: FnBox() -> i32, F: Send + 'static {
         use libc;
 
@@ -579,7 +586,7 @@ impl VPE {
                 chan.wait();
 
                 arch::env::reinit();
-                arch::env::get().set_vpe(self);
+                arch::env::get().set_vpe(&self);
                 ::io::reinit();
                 self::reinit();
                 ::com::reinit();
@@ -600,7 +607,7 @@ impl VPE {
         }
     }
 
-    pub fn exec<S: AsRef<str>>(&mut self, args: &[S]) -> Result<ExecActivity, Error> {
+    pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<ExecActivity, Error> {
         let file = VFS::open(args[0].as_ref(), OpenFlags::RX)?;
         let mut mapper = DefaultMapper::new(self.pe.has_virtmem());
         self.exec_file(&mut mapper, file, args)
@@ -608,7 +615,7 @@ impl VPE {
 
     #[cfg(target_os = "none")]
     #[allow(unused_mut)]
-    pub fn exec_file<S: AsRef<str>>(&mut self, mapper: &mut Mapper,
+    pub fn exec_file<S: AsRef<str>>(mut self, mapper: &mut Mapper,
                                     mut file: FileRef, args: &[S]) -> Result<ExecActivity, Error> {
         use cfg;
         use goff;
@@ -675,7 +682,7 @@ impl VPE {
     }
 
     #[cfg(target_os = "linux")]
-    pub fn exec_file<S: AsRef<str>>(&mut self, _mapper: &Mapper,
+    pub fn exec_file<S: AsRef<str>>(self, _mapper: &Mapper,
                                     mut file: FileRef, args: &[S]) -> Result<ExecActivity, Error> {
         use com::VecSink;
         use libc;

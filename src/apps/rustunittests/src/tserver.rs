@@ -81,7 +81,7 @@ fn server_main() -> i32 {
 }
 
 pub fn testnoresp() {
-    let mut client = assert_ok!(VPE::new_with(VPEArgs::new("client")));
+    let client = assert_ok!(VPE::new_with(VPEArgs::new("client")));
 
     let cact = {
         let mut serv = assert_ok!(VPE::new_with(VPEArgs::new("server")));
@@ -110,7 +110,7 @@ pub fn testnoresp() {
 
 pub fn testcliexit() {
     let mut client = assert_ok!(VPE::new_with(VPEArgs::new("client")));
-    let mut serv = assert_ok!(VPE::new_with(VPEArgs::new("server")));
+    let serv = assert_ok!(VPE::new_with(VPEArgs::new("server")));
 
     let sact = assert_ok!(serv.run(Box::new(&server_main)));
 
