@@ -73,9 +73,13 @@ impl iter::Iterator for ModIterator {
         }
         else {
             unsafe {
+                // build a slice to be able to get a pointer to Mod (it has a flexible member)
                 let m: *const Mod = intrinsics::transmute([self.addr as usize, 0usize]);
+                // now build a slice for the module with the actual length by reading <namelen>
                 let slice: [usize; 2] = [self.addr, (*m).namelen as usize];
+                // move forward
                 self.addr += util::size_of::<u64>() * 3 + (*m).namelen as usize;
+                // return reference
                 Some(intrinsics::transmute(slice))
             }
         }
