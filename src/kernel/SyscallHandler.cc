@@ -691,7 +691,7 @@ void SyscallHandler::vpewait(VPE *vpe, const m3::DTU::Message *msg) {
     while(true) {
         for(size_t i = 0; i < count; ++i) {
             auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(sels[i], Capability::VIRTPE));
-            if(&*vpecap->obj == vpe || vpecap == nullptr)
+            if(vpecap == nullptr || &*vpecap->obj == vpe)
                 SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid VPE cap: " << sels[i]);
 
             if(!vpecap->obj->has_app()) {
