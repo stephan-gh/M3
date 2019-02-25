@@ -217,7 +217,7 @@ childpids() {
 findprog() {
     pids=$(childpids $1)
     if [ "$pids" != "" ]; then
-        ps hww -o pid,cmd -p $pids | grep "^[[:digit:]]* [^ ]*$2\b"
+        ps hww -o pid,cmd -p $pids | grep "^\s*[[:digit:]]* [^ ]*$2\b"
     fi
 }
 
