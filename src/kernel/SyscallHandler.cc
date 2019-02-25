@@ -377,7 +377,7 @@ void SyscallHandler::createvpe(VPE *vpe, const m3::DTU::Message *msg) {
         << ", sep=" << sep << ", rep=" << rep << ", flags=" << flags
         << ", group=" << group << ")");
 
-    capsel_t capnum = 2 + EP_COUNT - m3::DTU::FIRST_FREE_EP;
+    capsel_t capnum = m3::KIF::FIRST_FREE_SEL;
     if(dst.count() != capnum || !vpe->objcaps().range_unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid destination CRD");
     if(name.length() == 0)

@@ -364,7 +364,7 @@ fn create_vpe(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), 
         dst_crd, sgate_sel, name, pedesc, sep, rep, muxable
     );
 
-    let cap_count = (2 + dtu::EP_COUNT - dtu::FIRST_FREE_EP) as CapSel;
+    let cap_count = kif::FIRST_FREE_SEL;
     if dst_crd.count() != cap_count || !vpe.borrow().obj_caps().range_unused(&dst_crd) {
         sysc_err!(Code::InvArgs, "Selectors {} already in use", dst_crd);
     }

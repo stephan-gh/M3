@@ -19,7 +19,6 @@ use base;
 use cap::Selector;
 use com::SliceSource;
 use core::intrinsics;
-use dtu::{EP_COUNT, FIRST_FREE_EP};
 use env;
 use kif::{INVALID_SEL, PEDesc};
 use session::Pager;
@@ -92,7 +91,7 @@ impl EnvData {
     pub fn load_other(&self) -> (Selector, u64, arch::rbufs::RBufSpace) {
         (
             // it's initially 0. make sure it's at least the first usable selector
-            util::max(2 + (EP_COUNT - FIRST_FREE_EP) as Selector, self.base.caps as Selector),
+            util::max(vpe::FIRST_FREE_SEL, self.base.caps as Selector),
             self.base.eps,
             arch::rbufs::RBufSpace::new_with(
                 self.base.rbuf_cur as usize,

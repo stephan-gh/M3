@@ -69,7 +69,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
     _objcaps.set(0, new VPECapability(&_objcaps, 0, this));
     _objcaps.set(1, new MGateCapability(&_objcaps, 1, pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX));
     for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
-        capsel_t sel = 2 + ep - m3::DTU::FIRST_FREE_EP;
+        capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
         _objcaps.set(sel, new EPCapability(&_objcaps, sel, id, ep));
     }
 
@@ -181,7 +181,7 @@ void VPE::exit_app(int exitcode) {
     _dtustate.invalidate_eps(m3::DTU::FIRST_FREE_EP);
 
     // "deactivate" send and receive gates
-    for(capsel_t sel = 2; sel < 2 + EP_COUNT - m3::DTU::FIRST_FREE_EP; ++sel) {
+    for(capsel_t sel = m3::KIF::FIRST_EP_SEL; sel < m3::KIF::FIRST_FREE_SEL; ++sel) {
         auto epcap = static_cast<EPCapability*>(_objcaps.get(sel, Capability::EP));
         if(epcap == nullptr || epcap->obj->gate == nullptr)
             continue;

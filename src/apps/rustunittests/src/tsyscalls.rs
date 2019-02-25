@@ -14,11 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cap::Selector;
 use m3::cfg::PAGE_SIZE;
-use m3::dtu::{EP_COUNT, FIRST_FREE_EP};
+use m3::dtu::EP_COUNT;
 use m3::errors::Code;
-use m3::kif::{CapRngDesc, CapType, INVALID_SEL, Perm};
+use m3::kif::{CapRngDesc, CapType, FIRST_FREE_SEL, INVALID_SEL, Perm};
 use m3::kif::syscalls::{ExchangeArgs, SrvOp, VPEOp};
 use m3::com::{MemGate, RecvGate, SendGate};
 use m3::session::M3FS;
@@ -158,7 +157,7 @@ fn create_vpe_group() {
 }
 
 fn create_vpe() {
-    let cap_count = 2 + (EP_COUNT - FIRST_FREE_EP) as Selector;
+    let cap_count = FIRST_FREE_SEL;
     let sels      = VPE::cur().alloc_sels(cap_count);
     let crd       = CapRngDesc::new(CapType::OBJECT, sels, cap_count);
     let rgate     = assert_ok!(RecvGate::new(10, 10));

@@ -33,7 +33,7 @@ void VPE::init_state() {
     _eps = env()->eps;
 
     // it's initially 0. make sure it's at least the first usable selector
-    _next_sel = Math::max<uint64_t>(SEL_START, env()->caps);
+    _next_sel = Math::max<uint64_t>(FIRST_FREE_SEL, env()->caps);
     _rbufcur = env()->rbufcur;
     _rbufend = env()->rbufend;
 }

@@ -69,7 +69,8 @@ public:
     /**
      * The first available selector
      */
-    static constexpr uint SEL_START     = 2 + (EP_COUNT - DTU::FIRST_FREE_EP);
+    static constexpr uint FIRST_EP_SEL      = 2;
+    static constexpr uint FIRST_FREE_SEL    = FIRST_EP_SEL + (EP_COUNT - DTU::FIRST_FREE_EP);
 
     enum Flags {
         MUXABLE     = KIF::VPEFlags::MUXABLE,
@@ -107,10 +108,10 @@ public:
     }
 
     epid_t sel_to_ep(capsel_t sel) {
-        return (sel - 2) + DTU::FIRST_FREE_EP;
+        return (sel - FIRST_EP_SEL) + DTU::FIRST_FREE_EP;
     }
     capsel_t ep_to_sel(epid_t ep) {
-        return sel() + 2 + ep - DTU::FIRST_FREE_EP;
+        return sel() + FIRST_EP_SEL + ep - DTU::FIRST_FREE_EP;
     }
 
     /**

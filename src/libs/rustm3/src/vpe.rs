@@ -276,6 +276,10 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
 
 const VMA_RBUF_SIZE: usize  = 64;
 
+// 0 and 1 are reserved for VPE cap and mem cap; the rest are used for EP caps
+pub(crate) const FIRST_EP_SEL: Selector    = 2;
+pub(crate) const FIRST_FREE_SEL: Selector  = FIRST_EP_SEL + (EP_COUNT - FIRST_FREE_EP) as Selector;
+
 static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
 
 impl VPE {
@@ -287,8 +291,7 @@ impl VPE {
             cap: Capability::new(0, CapFlags::KEEP_CAP),
             pe: PEDesc::new_from(0),
             mem: MemGate::new_bind(1),
-            // 0 and 1 are reserved for VPE cap and mem cap; the rest are used for EP caps
-            next_sel: 2 + (EP_COUNT - FIRST_FREE_EP) as Selector,
+            next_sel: FIRST_FREE_SEL,
             eps: 0,
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
@@ -324,14 +327,13 @@ impl VPE {
     }
 
     pub fn new_with(args: VPEArgs) -> Result<Self, Error> {
-        let cap_count = 2 + (EP_COUNT - FIRST_FREE_EP) as Selector;
-        let sels = VPE::cur().alloc_sels(cap_count);
+        let sels = VPE::cur().alloc_sels(FIRST_FREE_SEL);
 
         let mut vpe = VPE {
             cap: Capability::new(sels + 0, CapFlags::empty()),
             pe: args.pe,
             mem: MemGate::new_bind(sels + 1),
-            next_sel: cap_count,
+            next_sel: FIRST_FREE_SEL,
             eps: 0,
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
@@ -361,7 +363,7 @@ impl VPE {
             None
         };
 
-        let crd = CapRngDesc::new(CapType::OBJECT, vpe.sel(), cap_count);
+        let crd = CapRngDesc::new(CapType::OBJECT, vpe.sel(), FIRST_FREE_SEL);
         vpe.pager = if let Some(mut pg) = pager {
             let sgate_sel = pg.child_sgate().sel();
 
@@ -409,7 +411,7 @@ impl VPE {
         &self.mem
     }
     pub fn ep_sel(&self, ep: EpId) -> Selector {
-        self.sel() + 2 + (ep - FIRST_FREE_EP) as Selector
+        self.sel() + FIRST_EP_SEL + (ep - FIRST_FREE_EP) as Selector
     }
 
     pub(crate) fn rbufs(&mut self) -> &mut arch::rbufs::RBufSpace {

@@ -21,7 +21,7 @@ use base::dtu::{EpId, PEId, HEADER_COUNT, EP_COUNT, FIRST_FREE_EP};
 use base::errors::{Code, Error};
 use base::GlobAddr;
 use base::goff;
-use base::kif::{CapRngDesc, CapSel, CapType, PEDesc, Perm};
+use base::kif::{CapRngDesc, CapSel, CapType, FIRST_EP_SEL, PEDesc, Perm};
 use base::rc::Rc;
 use core::fmt;
 use core::mem;
@@ -164,7 +164,7 @@ impl VPE {
             );
             // ep caps
             for ep in FIRST_FREE_EP..EP_COUNT {
-                let sel = 2 + (ep - FIRST_FREE_EP) as CapSel;
+                let sel = FIRST_EP_SEL + (ep - FIRST_FREE_EP) as CapSel;
                 vpe_mut.obj_caps_mut().insert(
                     Capability::new(sel, KObject::EP(EPObject::new(id, ep)))
                 );

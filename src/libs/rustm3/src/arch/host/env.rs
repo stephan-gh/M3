@@ -21,7 +21,7 @@ use cell::StaticCell;
 use col::{String, Vec};
 use com::SliceSource;
 use core::intrinsics;
-use dtu::{EpId, EP_COUNT, FIRST_FREE_EP, Label};
+use dtu::{EpId, Label};
 use kif::{PEDesc, PEType, PEISA};
 use libc;
 use session::Pager;
@@ -85,7 +85,7 @@ impl EnvData {
             },
             None        => {
                 (
-                    2 + (EP_COUNT - FIRST_FREE_EP) as Selector,
+                    vpe::FIRST_FREE_SEL,
                     0,
                     arch::rbufs::RBufSpace::new()
                 )
