@@ -28,7 +28,6 @@ use m3::kif::{boot, PEDesc};
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::util;
-use m3::vfs::FileRef;
 use m3::vpe::{Activity, ExecActivity, VPE, VPEArgs};
 
 mod loader;
@@ -136,7 +135,7 @@ pub fn main() -> i32 {
 
         let mut bfile = loader::BootFile::new(bsel, m.size as usize);
         let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
-        let bfileref = FileRef::new(Rc::new(RefCell::new(bfile)), 0);
+        let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile))).expect("Unable to add file");
         let act = vpe.exec_file(&mut bmapper, bfileref, &args).expect("Unable to exec boot module");
 
         childs.push(Child::new(name, args, reqs, daemon, act, bmapper));
