@@ -174,7 +174,11 @@ pub trait Activity {
     }
 
     fn wait(&self) -> Result<i32, Error> {
-        syscalls::vpe_wait(&[self.vpe().sel()]).map(|r| r.1)
+        syscalls::vpe_wait(&[self.vpe().sel()], 0).map(|r| r.1)
+    }
+
+    fn wait_async(&self, event: u64) -> Result<i32, Error> {
+        syscalls::vpe_wait(&[self.vpe().sel()], event).map(|r| r.1)
     }
 }
 

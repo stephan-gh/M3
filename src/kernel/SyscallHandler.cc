@@ -120,7 +120,7 @@ void SyscallHandler::reply_msg(VPE *vpe, const m3::DTU::Message *msg, const void
 
 void SyscallHandler::reply_result(VPE *vpe, const m3::DTU::Message *msg, m3::Errors::Code code) {
     m3::KIF::DefaultReply reply;
-    reply.error = code;
+    reply.error = static_cast<xfer_t>(code);
     return reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
@@ -678,6 +678,8 @@ void SyscallHandler::vpectrl(VPE *vpe, const m3::DTU::Message *msg) {
 void SyscallHandler::vpewait(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::VPEWait>(msg);
     size_t count = req->vpe_count;
+    event_t event = req->event;
+    xfer_t sels_cpy[ARRAY_SIZE(req->sels)];
     const xfer_t *sels = req->sels;
 
     if(count == 0 || count > ARRAY_SIZE(req->sels))
@@ -688,11 +690,18 @@ void SyscallHandler::vpewait(VPE *vpe, const m3::DTU::Message *msg) {
 
     LOG_SYS(vpe, ": syscall::vpewait", "(vpes=" << count << ")");
 
+    // copy it from the message if we reply via upcall, because the message may be overwritten
+    if(event) {
+        memcpy(sels_cpy, sels, sizeof(sels_cpy));
+        sels = sels_cpy;
+        reply_result(vpe, msg, m3::Errors::NONE);
+    }
+
     while(true) {
         for(size_t i = 0; i < count; ++i) {
             auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(sels[i], Capability::VIRTPE));
             if(vpecap == nullptr || &*vpecap->obj == vpe)
-                SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid VPE cap: " << sels[i]);
+                continue;
 
             if(!vpecap->obj->has_app()) {
                 reply.vpe_sel = sels[i];
@@ -710,7 +719,10 @@ done:
     LOG_SYS(vpe, ": syscall::vpewait-cont",
         "(vpe=" << reply.vpe_sel << ", exitcode=" << reply.exitcode << ")");
 
-    reply_msg(vpe, msg, &reply, sizeof(reply));
+    if(event)
+        vpe->upcall_vpewait(event, reply);
+    else
+        reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
 void SyscallHandler::derivemem(VPE *vpe, const m3::DTU::Message *msg) {
@@ -966,7 +978,7 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     }
 
     m3::KIF::Syscall::ExchangeSessReply kreply;
-    kreply.error = res;
+    kreply.error = static_cast<xfer_t>(res);
     kreply.args.count = 0;
     if(res == m3::Errors::NONE)
         memcpy(&kreply.args, &reply->data.args, sizeof(reply->data.args));
@@ -1060,7 +1072,7 @@ void SyscallHandler::forwardmsg(VPE *vpe, const m3::DTU::Message *msg) {
         LOG_ERROR(vpe, res, "forwardmsg failed");
 
     if(async)
-        vpe->upcall_notify(res, event);
+        vpe->upcall_forward(event, res);
     else
         reply_result(vpe, msg, res);
 #endif
@@ -1113,7 +1125,7 @@ void SyscallHandler::forwardmem(VPE *vpe, const m3::DTU::Message *msg) {
     m3::Errors::Code res = wait_for(": syscall::forwardmem", tvpe, vpe, false);
 
     m3::KIF::Syscall::ForwardMemReply reply;
-    reply.error = res;
+    reply.error = static_cast<xfer_t>(res);
 
     if(res == m3::Errors::NONE) {
         if(flags & m3::KIF::Syscall::ForwardMem::WRITE)
@@ -1134,7 +1146,7 @@ void SyscallHandler::forwardmem(VPE *vpe, const m3::DTU::Message *msg) {
     }
     else {
         if(async)
-            vpe->upcall_notify(res, event);
+            vpe->upcall_forward(event, res);
         else
             reply_result(vpe, msg, res);
     }
@@ -1211,7 +1223,7 @@ void SyscallHandler::forwardreply(VPE *vpe, const m3::DTU::Message *msg) {
     }
 
     if(async)
-        vpe->upcall_notify(res, event);
+        vpe->upcall_forward(event, res);
     else
         reply_result(vpe, msg, res);
 #endif

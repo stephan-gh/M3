@@ -260,7 +260,7 @@ fn vpe_ctrl() {
 }
 
 fn vpe_wait() {
-    assert_err!(syscalls::vpe_wait(&[]), Code::InvArgs);
+    assert_err!(syscalls::vpe_wait(&[], 0), Code::InvArgs);
 }
 
 fn open_sess() {

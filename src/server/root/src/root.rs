@@ -147,7 +147,7 @@ pub fn main() -> i32 {
             sels.push(c.activity.vpe().sel());
         }
 
-        let (sel, code) = syscalls::vpe_wait(&sels).expect("Unable to wait for VPEs");
+        let (sel, code) = syscalls::vpe_wait(&sels, 0).expect("Unable to wait for VPEs");
         let child = assert_some!(remove_by_sel(&mut childs, sel));
         println!("Child '{}' exited with exitcode {}", child.name, code);
     }

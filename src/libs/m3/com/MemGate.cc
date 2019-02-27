@@ -61,7 +61,7 @@ Errors::Code MemGate::forward(void *&data, size_t &len, goff_t &offset, uint fla
     // if this has been done, go to sleep and wait until the kernel sends us the upcall
     if(res == Errors::UPCALL_REPLY) {
         ThreadManager::get().wait_for(event);
-        auto *msg = reinterpret_cast<const KIF::Upcall::Notify*>(
+        auto *msg = reinterpret_cast<const KIF::Upcall::Forward*>(
             ThreadManager::get().get_current_msg());
         res = static_cast<Errors::Code>(msg->error);
     }

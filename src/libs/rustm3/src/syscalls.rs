@@ -273,15 +273,16 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
     send_receive_result(&req)
 }
 
-pub fn vpe_wait(vpes: &[Selector]) -> Result<(Selector, i32), Error> {
+pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
     log!(
         SYSC,
-        "syscalls::vpe_wait(vpes={})",
-        vpes.len()
+        "syscalls::vpe_wait(vpes={}, event={})",
+        vpes.len(), event
     );
 
     let mut req = syscalls::VPEWait {
         opcode: syscalls::Operation::VPE_WAIT.val,
+        event: event,
         vpe_count: vpes.len() as u64,
         sels: unsafe { intrinsics::uninit() },
     };
@@ -291,8 +292,9 @@ pub fn vpe_wait(vpes: &[Selector]) -> Result<(Selector, i32), Error> {
 
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&req)?;
     match reply.data.error {
-        0 => Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32)),
-        e => Err(Error::from(e as u32))
+        0 if event != 0 => Ok((0, 0)),
+        0               => Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32)),
+        e               => Err(Error::from(e as u32))
     }
 }
 

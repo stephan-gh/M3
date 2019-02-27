@@ -262,6 +262,7 @@ struct KIF {
 
         struct VPEWait : public DefaultRequest {
             xfer_t vpe_count;
+            xfer_t event;
             xfer_t sels[48];
         } PACKED;
 
@@ -395,12 +396,22 @@ struct KIF {
      */
     struct Upcall {
         enum Operation {
-            NOTIFY,
+            FORWARD,
+            VPEWAIT,
         };
 
-        struct Notify : public DefaultRequest {
-            xfer_t error;
+        struct DefaultUpcall : public DefaultRequest {
             xfer_t event;
+        } PACKED;
+
+        struct Forward : public DefaultUpcall {
+            xfer_t error;
+        } PACKED;
+
+        struct VPEWait : public DefaultUpcall {
+            xfer_t error;
+            xfer_t vpe_sel;
+            xfer_t exitcode;
         } PACKED;
     };
 };

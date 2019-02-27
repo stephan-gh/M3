@@ -161,7 +161,7 @@ void chain_direct(Reference<File> in, Reference<File> out, size_t num, cycles_t 
 
         capsel_t vpe;
         int exitcode;
-        if(Syscalls::get().vpewait(sels, rem, &vpe, &exitcode) != Errors::NONE)
+        if(Syscalls::get().vpewait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
             errmsg("Unable to wait for VPEs");
         else
             ch.terminated(vpe, exitcode);
@@ -196,7 +196,7 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num, cyc
 
         capsel_t vpe;
         int exitcode;
-        if(Syscalls::get().vpewait(sels, rem, &vpe, &exitcode) != Errors::NONE)
+        if(Syscalls::get().vpewait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
             errmsg("Unable to wait for VPEs");
         else {
             ch1.terminated(vpe, exitcode);

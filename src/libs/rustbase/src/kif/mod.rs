@@ -23,6 +23,7 @@ mod pedesc;
 pub mod boot;
 pub mod service;
 pub mod syscalls;
+pub mod upcalls;
 
 pub use self::perm::*;
 pub use self::pedesc::*;

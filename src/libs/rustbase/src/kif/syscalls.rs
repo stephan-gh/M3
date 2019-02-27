@@ -249,6 +249,7 @@ pub struct VPECtrl {
 pub struct VPEWait {
     pub opcode: u64,
     pub vpe_count: u64,
+    pub event: u64,
     pub sels: [u64; 8],
 }
 

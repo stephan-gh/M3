@@ -244,7 +244,7 @@ static bool execute_pipeline(CmdList *list, bool muxed) {
 
             capsel_t vpe;
             int exitcode;
-            if(Syscalls::get().vpewait(sels, rem, &vpe, &exitcode) != Errors::NONE)
+            if(Syscalls::get().vpewait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
                 errmsg("Unable to wait for VPEs");
             else {
                 for(size_t i = 0; i < vpe_count; ++i) {

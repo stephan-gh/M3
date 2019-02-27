@@ -292,6 +292,15 @@ public:
     int wait();
 
     /**
+     * Starts to wait until the currently executing program on this VPE is finished, but tells to
+     * kernel to notify us asynchronously via upcall.
+     *
+     * @param event the event for the upcall
+     * @return 0 on success
+     */
+    int wait_async(event_t event);
+
+    /**
      * Executes the given program on this VPE.
      *
      * @param argc the number of arguments to pass to the program

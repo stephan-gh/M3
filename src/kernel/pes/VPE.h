@@ -201,7 +201,8 @@ public:
     void upcall(const void *msg, size_t size, bool onheap) {
         _upcqueue.send(&_upcsgate, 0, msg, size, onheap);
     }
-    void upcall_notify(m3::Errors::Code res, word_t event);
+    void upcall_forward(word_t event, m3::Errors::Code res);
+    void upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply);
 
     void add_forward() {
         _pending_fwds++;

@@ -26,8 +26,7 @@ namespace m3 {
 
 void UserWorkLoop::multithreaded(uint count) {
     RecvGate::upcall().start([](GateIStream &is) {
-        auto &msg = reinterpret_cast<const KIF::Upcall::Notify&>(is.message().data);
-        assert(msg.opcode == KIF::Upcall::NOTIFY);
+        auto &msg = reinterpret_cast<const KIF::Upcall::DefaultUpcall&>(is.message().data);
 
         ThreadManager::get().notify(msg.event, &msg, sizeof(msg));
 

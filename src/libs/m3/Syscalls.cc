@@ -205,12 +205,14 @@ Errors::Code Syscalls::vpectrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg)
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::vpewait(const capsel_t *vpes, size_t count, capsel_t *vpe, int *exitcode) {
-    LLOG(SYSC, "vpewait(vpes=" << vpes << ")");
+Errors::Code Syscalls::vpewait(const capsel_t *vpes, size_t count, event_t event,
+                               capsel_t *vpe, int *exitcode) {
+    LLOG(SYSC, "vpewait(vpes=" << vpes << ", event=" << event << ")");
 
     KIF::Syscall::VPEWait req;
     req.opcode = KIF::Syscall::VPE_WAIT;
     req.vpe_count = count;
+    req.event = event;
     for(size_t i = 0; i < count; ++i)
         req.sels[i] = vpes[i];
 
@@ -218,7 +220,7 @@ Errors::Code Syscalls::vpewait(const capsel_t *vpes, size_t count, capsel_t *vpe
     auto *reply = reinterpret_cast<KIF::Syscall::VPEWaitReply*>(msg->data);
 
     Errors::last = static_cast<Errors::Code>(reply->error);
-    if(Errors::last == Errors::NONE) {
+    if(Errors::last == Errors::NONE && event == 0) {
         *vpe = reply->vpe_sel;
         *exitcode = reply->exitcode;
     }

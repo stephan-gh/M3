@@ -275,13 +275,25 @@ void VPE::free_reqs() {
     }
 }
 
-void VPE::upcall_notify(m3::Errors::Code res, word_t event) {
-    m3::KIF::Upcall::Notify msg;
-    msg.opcode = m3::KIF::Upcall::NOTIFY;
-    msg.error = res;
+void VPE::upcall_forward(word_t event, m3::Errors::Code res) {
+    m3::KIF::Upcall::Forward msg;
+    msg.opcode = m3::KIF::Upcall::FORWARD;
     msg.event = event;
-    KLOG(UPCALLS, "Sending upcall NOTIFY (error=" << res << ", event="
+    msg.error = static_cast<xfer_t>(res);
+    KLOG(UPCALLS, "Sending upcall FORWARD (error=" << res << ", event="
         << (void*)event << ") to VPE " << id());
+    upcall(&msg, sizeof(msg), false);
+}
+
+void VPE::upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply) {
+    m3::KIF::Upcall::VPEWait msg;
+    msg.opcode = m3::KIF::Upcall::VPEWAIT;
+    msg.event = event;
+    msg.error = reply.error;
+    msg.vpe_sel = reply.vpe_sel;
+    msg.exitcode = reply.exitcode;
+    KLOG(UPCALLS, "Sending upcall VPEWAIT (error=" << reply.error << ", event="
+        << (void*)event << ", sel=" << reply.vpe_sel << ", exitcode=" << reply.exitcode << ") to VPE " << id());
     upcall(&msg, sizeof(msg), false);
 }
 

@@ -182,12 +182,16 @@ Errors::Code VPE::stop() {
     return Syscalls::get().vpectrl(sel(), KIF::Syscall::VCTRL_STOP, 0);
 }
 
-int VPE::wait() {
+int VPE::wait_async(event_t event) {
     capsel_t _sel;
     int exitcode;
     const capsel_t sels[] = {sel()};
-    Syscalls::get().vpewait(sels, 1, &_sel, &exitcode);
+    Syscalls::get().vpewait(sels, 1, event, &_sel, &exitcode);
     return exitcode;
+}
+
+int VPE::wait() {
+    return wait_async(0);
 }
 
 }
