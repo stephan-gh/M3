@@ -18,6 +18,7 @@
 #include <base/Env.h>
 #include <base/Panic.h>
 
+#include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
 #include <m3/vfs/FileRef.h>
 #include <m3/vfs/FileTable.h>
@@ -89,7 +90,7 @@ static bool read_from(const char *suffix, T *val) {
     return false;
 }
 
-static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps,
+static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps, capsel_t rmng,
                         uint64_t rbufcur, uint64_t rbufend,
                         FileTable &files, MountTable &mounts) {
     size_t len = STATE_BUF_SIZE;
@@ -97,6 +98,7 @@ static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps,
 
     write_file(pid, "nextsel", nextsel);
     write_file(pid, "eps", eps);
+    write_file(pid, "rmng", rmng);
 
     Marshaller m(buf, len);
     m << rbufcur << rbufend;
@@ -114,6 +116,14 @@ static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps,
 void VPE::init_state() {
     read_from("nextsel", &_next_sel);
     read_from("eps", &_eps);
+
+    capsel_t rmng_sel;
+    if(read_from("rmng", &rmng_sel)) {
+        delete _resmng;
+        _resmng = new ResMng(rmng_sel);
+    }
+    else if(_resmng == nullptr)
+        _resmng = new ResMng(ObjCap::INVALID);
 
     size_t len = sizeof(uint64_t) * 2;
     uint8_t buf[len];
@@ -182,7 +192,7 @@ Errors::Code VPE::run(void *lambda) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::get().vpectrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _eps, _rbufcur, _rbufend, *_fds, *_ms);
+        write_state(pid, _next_sel, _eps, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
 
         // notify child; it can start now
         write(fd[1], &byte, 1);
@@ -250,7 +260,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::get().vpectrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _eps, _rbufcur, _rbufend, *_fds, *_ms);
+        write_state(pid, _next_sel, _eps, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
 
         // notify child; it can start now
         write(fd[1], &byte, 1);

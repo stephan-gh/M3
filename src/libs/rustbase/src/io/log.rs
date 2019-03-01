@@ -40,6 +40,9 @@ pub const THREAD: bool  = false;
 /// Logs file multiplexing
 pub const FILES: bool   = false;
 
+/// Logs operations of root
+pub const ROOT: bool    = false;
+
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";
 
@@ -104,7 +107,7 @@ impl Log {
         self.pos = 0;
         let pe_id = arch::envdata::get().pe_id;
         self.write_fmt(format_args!(
-            "\x1B[0;{}m[{:.8}@{:x}] ",
+            "\x1B[0;{}m[{:<8}@{:x}] ",
             colors[(pe_id as usize) % colors.len()],
             &name[begin..],
             pe_id

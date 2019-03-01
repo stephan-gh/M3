@@ -19,6 +19,7 @@
 #include <base/Panic.h>
 
 #include <m3/session/Pager.h>
+#include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
 #include <m3/vfs/MountTable.h>
 #include <m3/vfs/GenericFile.h>
@@ -31,6 +32,9 @@ namespace m3 {
 
 void VPE::init_state() {
     _eps = env()->eps;
+
+    delete _resmng;
+    _resmng = new ResMng(env()->rmng_sel);
 
     // it's initially 0. make sure it's at least the first usable selector
     _next_sel = Math::max<uint64_t>(FIRST_FREE_SEL, env()->caps);
@@ -81,6 +85,7 @@ Errors::Code VPE::run(void *lambda) {
     senv.fds = reinterpret_cast<uintptr_t>(_fds);
     senv.rbufcur = _rbufcur;
     senv.rbufend = _rbufend;
+    senv.rmng_sel = _resmng->sel();
     senv.caps = _next_sel;
     senv.eps = _eps;
     senv.pager_rgate = 0;
@@ -159,6 +164,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
     senv.caps = _next_sel;
     senv.rbufcur = _rbufcur;
     senv.rbufend = _rbufend;
+    senv.rmng_sel = _resmng->sel();
 
     /* set pager info */
     senv.pager_sess = _pager ? _pager->sel() : 0;

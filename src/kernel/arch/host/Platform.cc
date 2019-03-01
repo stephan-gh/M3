@@ -72,6 +72,9 @@ void Platform::add_modules(int argc, char **argv) {
         for(; j < argc; ++j) {
             if(strcmp(argv[j], "--") == 0)
                 break;
+            // ignore the pager
+            if(strcmp(argv[j], "requires=pager") == 0)
+                continue;
             args << " " << argv[j];
         }
 

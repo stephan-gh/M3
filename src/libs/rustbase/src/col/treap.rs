@@ -81,7 +81,7 @@ pub struct Treap<K : Copy + KeyOrd, V> {
 
 impl<K : Copy + KeyOrd, V> Treap<K, V> {
     /// Creates an empty treap
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Treap {
             root: None,
             prio: Wrapping(314159265),

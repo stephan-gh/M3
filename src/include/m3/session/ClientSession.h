@@ -43,7 +43,7 @@ public:
      * @param sel the desired selector
      */
     explicit ClientSession(const String &name, xfer_t arg = 0, capsel_t sel = ObjCap::INVALID)
-        : ObjCap(SESSION) {
+        : ObjCap(SESSION), _close(true) {
         connect(name, arg, sel);
     }
 
@@ -54,8 +54,10 @@ public:
      * @param flags whether capabilitly/selector should be kept on destruction or not
      */
     explicit ClientSession(capsel_t sel, uint flags = ObjCap::KEEP_CAP)
-        : ObjCap(SESSION, sel, flags) {
+        : ObjCap(SESSION, sel, flags), _close(false) {
     }
+
+    ~ClientSession();
 
     /**
      * @return whether this session is connected
@@ -139,6 +141,8 @@ public:
 
 private:
     void connect(const String &name, xfer_t arg, capsel_t sel);
+
+    bool _close;
 };
 
 }

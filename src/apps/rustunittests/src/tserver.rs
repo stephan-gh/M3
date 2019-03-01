@@ -42,7 +42,7 @@ struct MyHandler {
 }
 
 impl Handler for MyHandler {
-    fn open(&mut self, srv_sel: Selector, _: u64) -> Result<Selector, Error> {
+    fn open(&mut self, srv_sel: Selector, _: u64) -> Result<(Selector, u64), Error> {
         let sess = ServerSession::new(srv_sel, 0)?;
 
         let sel = sess.sel();
@@ -50,7 +50,7 @@ impl Handler for MyHandler {
         self.sessions.add(MySession {
             _sess: sess,
         });
-        Ok(sel)
+        Ok((sel, 0))
     }
 
     fn obtain(&mut self, _: SessId, _: &mut kif::service::ExchangeData) -> Result<(), Error> {

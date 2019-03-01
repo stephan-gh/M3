@@ -367,6 +367,7 @@ struct KIF {
 
         struct OpenReply : public DefaultReply {
             xfer_t sess;
+            xfer_t ident;
         } PACKED;
 
         struct ExchangeData {

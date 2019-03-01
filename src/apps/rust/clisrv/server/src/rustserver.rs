@@ -21,7 +21,7 @@ extern crate m3;
 
 use m3::errors::{Code, Error};
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+// use m3::cell::StaticCell;
 use m3::col::String;
 use m3::com::*;
 use m3::kif;
@@ -48,11 +48,12 @@ int_enum! {
 }
 
 impl Handler for MyHandler {
-    fn open(&mut self, srv_sel: Selector, arg: u64) -> Result<Selector, Error> {
+    fn open(&mut self, srv_sel: Selector, arg: u64) -> Result<(Selector, u64), Error> {
         let sid = self.sessions.next_id();
         let sess = ServerSession::new(srv_sel, sid)?;
+        let ident = self.sessions.next_id();
         let sgate = SendGate::new_with(
-            SGateArgs::new(&self.rgate).label(self.sessions.next_id()).credits(256)
+            SGateArgs::new(&self.rgate).label(ident).credits(256)
         )?;
 
         let sel = sess.sel();
@@ -61,7 +62,7 @@ impl Handler for MyHandler {
             sess: sess,
             sgate: sgate,
         });
-        Ok(sel)
+        Ok((sel, ident))
     }
 
     fn obtain(&mut self, sid: SessId, data: &mut kif::service::ExchangeData) -> Result<(), Error> {
@@ -113,11 +114,11 @@ impl MyHandler {
         reply_vmsg!(is, res)?;
 
         // pretend that we're crashing after a few requests
-        static COUNT: StaticCell<i32> = StaticCell::new(0);
-        if *COUNT >= 5 {
-            return Err(Error::new(Code::EndOfFile));
-        }
-        COUNT.set(*COUNT + 1);
+        // static COUNT: StaticCell<i32> = StaticCell::new(0);
+        // if *COUNT >= 5 {
+        //     return Err(Error::new(Code::EndOfFile));
+        // }
+        // COUNT.set(*COUNT + 1);
 
         Ok(())
     }
@@ -129,12 +130,11 @@ pub fn main() -> i32 {
 
     let mut hdl = MyHandler::new().expect("Unable to create handler");
 
-    let res = server_loop(|| {
+    server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
         hdl.handle()
-    });
-    println!("Exited with {:?}", res);
+    }).ok();
 
     0
 }

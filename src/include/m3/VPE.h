@@ -25,6 +25,7 @@
 #include <base/PEDesc.h>
 
 #include <m3/com/MemGate.h>
+#include <m3/com/SendGate.h>
 #include <m3/ObjCap.h>
 
 #include <functional>
@@ -35,6 +36,7 @@ class VFS;
 class FileTable;
 class MountTable;
 class Pager;
+class ResMng;
 class FStream;
 class EnvUserBackend;
 class RecvGate;
@@ -95,9 +97,11 @@ public:
      * @param pager the pager (optional)
      * @param flags see Flags
      * @param group the VPEGroup, if any
+     * @param rmng the resource manager (if it shouldn't be the same as the current VPE's rmng)
      */
     explicit VPE(const String &name, const PEDesc &pe = VPE::self().pe(),
-                 const char *pager = nullptr, uint flags = 0, const VPEGroup *group = nullptr);
+                 const char *pager = nullptr, uint flags = 0, const VPEGroup *group = nullptr,
+                 ResMng *rmng = nullptr);
     virtual ~VPE();
 
     /**
@@ -119,6 +123,13 @@ public:
      */
     Pager *pager() {
         return _pager;
+    }
+
+    /**
+     * @return the resource manager
+     */
+    ResMng &resmng() {
+        return *_resmng;
     }
 
     /**
@@ -341,6 +352,7 @@ private:
 
     PEDesc _pe;
     MemGate _mem;
+    ResMng *_resmng;
     capsel_t _next_sel;
     uint64_t _eps;
     Pager *_pager;

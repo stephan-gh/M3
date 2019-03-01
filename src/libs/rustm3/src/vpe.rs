@@ -19,7 +19,7 @@ use boxed::{Box, FnBox};
 use cap::{CapFlags, Capability, Selector};
 use cell::StaticCell;
 use col::Vec;
-use com::{EpMux, MemGate};
+use com::{EpMux, MemGate, SendGate};
 use core::fmt;
 use dtu::{EP_COUNT, FIRST_FREE_EP, EpId};
 use env;
@@ -27,7 +27,7 @@ use errors::{Code, Error};
 use goff;
 use kif::{CapType, CapRngDesc, INVALID_SEL, PEDesc};
 use kif;
-use session::Pager;
+use session::{ResMng, Pager};
 use syscalls;
 use util;
 use io::Read;
@@ -57,6 +57,7 @@ pub struct VPE {
     cap: Capability,
     pe: PEDesc,
     mem: MemGate,
+    rmng: ResMng,
     next_sel: Selector,
     eps: u64,
     rbufs: arch::rbufs::RBufSpace,
@@ -71,6 +72,7 @@ pub struct VPEArgs<'n, 'p> {
     pe: PEDesc,
     muxable: bool,
     group: Option<VPEGroup>,
+    rmng: Option<ResMng>,
 }
 
 pub trait Mapper {
@@ -254,7 +256,13 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
             pe: VPE::cur().pe(),
             muxable: false,
             group: None,
+            rmng: None,
         }
+    }
+
+    pub fn resmng(mut self, rmng: ResMng) -> Self {
+        self.rmng = Some(rmng);
+        self
     }
 
     pub fn pe(mut self, pe: PEDesc) -> Self {
@@ -295,6 +303,7 @@ impl VPE {
             cap: Capability::new(0, CapFlags::KEEP_CAP),
             pe: PEDesc::new_from(0),
             mem: MemGate::new_bind(1),
+            rmng: ResMng::new(SendGate::new_bind(0)),    // invalid
             next_sel: FIRST_FREE_SEL,
             eps: 0,
             rbufs: arch::rbufs::RBufSpace::new(),
@@ -308,6 +317,7 @@ impl VPE {
         let env = arch::env::get();
         self.pe = env.pe_desc();
         self.next_sel = env.load_nextsel();
+        self.rmng = env.load_rmng();
         self.eps = env.load_eps();
         self.rbufs = env.load_rbufs();
         self.pager = env.load_pager();
@@ -336,6 +346,7 @@ impl VPE {
             cap: Capability::new(sels + 0, CapFlags::empty()),
             pe: args.pe,
             mem: MemGate::new_bind(sels + 1),
+            rmng: if let Some(rmng) = args.rmng { rmng } else { VPE::cur().resmng().clone() },
             next_sel: FIRST_FREE_SEL,
             eps: 0,
             rbufs: arch::rbufs::RBufSpace::new(),
@@ -398,6 +409,11 @@ impl VPE {
             None
         };
 
+        if vpe.rmng.valid() {
+            let rmng_sel = vpe.rmng.sel();
+            vpe.delegate_obj(rmng_sel)?;
+        }
+
         Ok(vpe)
     }
 
@@ -428,6 +444,9 @@ impl VPE {
         &mut self.mounts
     }
 
+    pub fn resmng(&self) -> &ResMng {
+        &self.rmng
+    }
     pub fn pager(&self) -> Option<&Pager> {
         self.pager.as_ref()
     }
@@ -484,10 +503,13 @@ impl VPE {
         Ok(())
     }
 
-    pub fn obtain(&mut self, crd: CapRngDesc) -> Result<(), Error> {
+    pub fn obtain_obj(&mut self, sel: Selector) -> Result<Selector, Error> {
+        self.obtain(CapRngDesc::new(CapType::OBJECT, sel, 1))
+    }
+    pub fn obtain(&mut self, crd: CapRngDesc) -> Result<Selector, Error> {
         let count = crd.count();
-        let start = self.alloc_sels(count);
-        self.obtain_to(crd, start)
+        let start = VPE::cur().alloc_sels(count);
+        self.obtain_to(crd, start).map(|_| start)
     }
 
     pub fn obtain_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
@@ -667,6 +689,7 @@ impl VPE {
                 senv.set_mounts(off, mounts.size());
             }
 
+            senv.set_rmng(self.rmng.sel());
             senv.set_rbufs(&self.rbufs);
             senv.set_next_sel(self.next_sel);
             senv.set_eps(self.eps);
@@ -675,6 +698,9 @@ impl VPE {
             if let Some(ref pg) = self.pager {
                 senv.set_pager(pg);
                 senv.set_heap_size(cfg::APP_HEAP_SIZE);
+            }
+            else {
+                senv.set_heap_size(cfg::MOD_HEAP_SIZE);
             }
 
             // write start env to PE
@@ -710,6 +736,7 @@ impl VPE {
                 // write nextsel, eps, and rmng
                 arch::loader::write_env_value(pid, "nextsel", self.next_sel as u64);
                 arch::loader::write_env_value(pid, "eps", self.eps);
+                arch::loader::write_env_value(pid, "rmng", self.rmng.sel() as u64);
 
                 // write rbufs
                 let mut rbufs = VecSink::new();

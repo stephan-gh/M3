@@ -29,7 +29,7 @@ pub struct Server {
 }
 
 pub trait Handler {
-    fn open(&mut self, srv_sel: Selector, arg: u64) -> Result<Selector, Error>;
+    fn open(&mut self, srv_sel: Selector, arg: u64) -> Result<(Selector, u64), Error>;
 
     fn obtain(&mut self, _sid: SessId, _data: &mut service::ExchangeData) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
@@ -46,10 +46,15 @@ pub trait Handler {
 impl Server {
     pub fn new(name: &str) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
-        let mut rgate = RecvGate::new(util::next_log2(256), util::next_log2(256))?;
+        let mut rgate = RecvGate::new(util::next_log2(512), util::next_log2(256))?;
         rgate.activate()?;
 
-        syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), name)?;
+        if VPE::cur().resmng().valid() {
+            VPE::cur().resmng().register_service(sel, rgate.sel(), name)?;
+        }
+        else {
+            syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), name)?;
+        }
 
         Ok(Server {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
@@ -86,12 +91,12 @@ impl Server {
         log!(SERV, "server::open({}) -> {:?}", arg, res);
 
         match res {
-            Ok(sel) => {
-                let reply = service::OpenReply { res: 0, sess: sel as u64, };
+            Ok((sel, ident)) => {
+                let reply = service::OpenReply { res: 0, sess: sel as u64, ident: ident, };
                 is.reply(&[reply])?
             },
             Err(e) => {
-                let reply = service::OpenReply { res: e.code() as u64, sess: 0, };
+                let reply = service::OpenReply { res: e.code() as u64, sess: 0, ident: 0, };
                 is.reply(&[reply])?
             },
         };

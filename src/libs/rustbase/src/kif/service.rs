@@ -44,6 +44,7 @@ pub struct Open {
 pub struct OpenReply {
     pub res: u64,
     pub sess: u64,
+    pub ident: u64,
 }
 
 /// The data part of the delegate/obtain request messages

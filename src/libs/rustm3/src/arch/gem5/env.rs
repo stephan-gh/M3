@@ -17,11 +17,11 @@
 use arch;
 use base;
 use cap::Selector;
-use com::SliceSource;
+use com::{SendGate, SliceSource};
 use core::intrinsics;
 use env;
 use kif::{INVALID_SEL, PEDesc};
-use session::Pager;
+use session::{ResMng, Pager};
 use util;
 use vfs::{FileTable, MountTable};
 use vpe;
@@ -88,6 +88,10 @@ impl EnvData {
         }
     }
 
+    pub fn load_rmng(&self) -> ResMng {
+        ResMng::new(SendGate::new_bind(self.base.rmng_sel as Selector))
+    }
+
     pub fn load_eps(&self) -> u64 {
         self.base.eps
     }
@@ -152,6 +156,9 @@ impl EnvData {
         self.base.eps = eps;
     }
 
+    pub fn set_rmng(&mut self, sel: Selector) {
+        self.base.rmng_sel = sel as u64;
+    }
     pub fn set_rbufs(&mut self, rbufs: &arch::rbufs::RBufSpace) {
         self.base.rbuf_cur = rbufs.cur as u64;
         self.base.rbuf_end = rbufs.end as u64;

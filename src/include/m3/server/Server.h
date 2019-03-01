@@ -22,6 +22,7 @@
 
 #include <m3/com/RecvGate.h>
 #include <m3/server/Handler.h>
+#include <m3/session/ResMng.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
@@ -36,18 +37,21 @@ public:
         : ObjCap(SERVICE, VPE::self().alloc_sel()),
           _handler(handler),
           _ctrl_handler(),
-          _rgate(RecvGate::create(nextlog2<256>::val, nextlog2<256>::val)) {
+          _rgate(RecvGate::create(nextlog2<512>::val, nextlog2<256>::val)) {
         init();
 
         LLOG(SERV, "create(" << name << ")");
-        Syscalls::get().createsrv(sel(), VPE::self().sel(), _rgate.sel(), name);
+        if(VPE::self().resmng().valid())
+            VPE::self().resmng().register_service(sel(), _rgate.sel(), name);
+        else
+            Syscalls::get().createsrv(sel(), VPE::self().sel(), _rgate.sel(), name);
     }
 
     explicit Server(capsel_t caps, epid_t ep, HDL *handler)
         : ObjCap(SERVICE, caps + 0),
           _handler(handler),
           _ctrl_handler(),
-          _rgate(RecvGate::bind(caps + 1, nextlog2<256>::val, ep)) {
+          _rgate(RecvGate::bind(caps + 1, nextlog2<512>::val, ep)) {
         init();
     }
 
@@ -100,6 +104,7 @@ private:
             LLOG(SERV, fmt((word_t)sess, "#x") << ": open()");
 
         reply.sess = sess->sel();
+        reply.ident = reinterpret_cast<uintptr_t>(sess);
         is.reply(&reply, sizeof(reply));
     }
 

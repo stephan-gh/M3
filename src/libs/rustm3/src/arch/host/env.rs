@@ -19,12 +19,12 @@ use base;
 use cap::Selector;
 use cell::StaticCell;
 use col::{String, Vec};
-use com::SliceSource;
+use com::{SendGate, SliceSource};
 use core::intrinsics;
 use dtu::{EpId, Label};
 use kif::{PEDesc, PEType, PEISA};
 use libc;
-use session::Pager;
+use session::{ResMng, Pager};
 use vfs::{FileTable, MountTable};
 use vpe;
 
@@ -71,6 +71,10 @@ impl EnvData {
 
     pub fn load_pager(&self) -> Option<Pager> {
         None
+    }
+
+    pub fn load_rmng(&self) -> ResMng {
+        ResMng::new(SendGate::new_bind(Self::load_word("rmng", 0) as Selector))
     }
 
     pub fn load_eps(&self) -> u64 {

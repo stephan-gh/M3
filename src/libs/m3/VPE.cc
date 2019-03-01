@@ -18,6 +18,7 @@
 #include <base/Panic.h>
 
 #include <m3/session/Pager.h>
+#include <m3/session/ResMng.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/MountTable.h>
@@ -42,6 +43,7 @@ VPE::VPE()
     : ObjCap(VIRTPE, 0, KEEP_CAP),
       _pe(env()->pedesc),
       _mem(MemGate::bind(1)),
+      _resmng(nullptr),
       _next_sel(FIRST_FREE_SEL),
       _eps(),
       _pager(),
@@ -68,10 +70,12 @@ VPE::VPE()
         _fds->set(STDERR_FD, Reference<File>(new SerialFile()));
 }
 
-VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags, const VPEGroup *group)
+VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags,
+         const VPEGroup *group, ResMng *rmng)
     : ObjCap(VIRTPE, VPE::self().alloc_sels(FIRST_FREE_SEL)),
       _pe(pe),
       _mem(MemGate::bind(sel() + 1, 0)),
+      _resmng(rmng),
       _next_sel(FIRST_FREE_SEL),
       _eps(),
       _pager(),
@@ -90,6 +94,10 @@ VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags, co
             return;
     }
 
+    // TODO clone sendgate at our rmng
+    if(_resmng == nullptr)
+        _resmng = VPE::self().resmng().clone();
+
     capsel_t group_sel = group ? group->sel() : ObjCap::INVALID;
     KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, sel(), FIRST_FREE_SEL);
     if(_pager) {
@@ -105,6 +113,9 @@ VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags, co
     }
     else
         Syscalls::get().createvpe(dst, ObjCap::INVALID, name, _pe, 0, 0, flags, group_sel);
+
+    if(_resmng->valid())
+        delegate_obj(_resmng->sel());
 }
 
 VPE::~VPE() {

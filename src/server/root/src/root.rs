@@ -16,74 +16,104 @@
 
 #![no_std]
 
+#![feature(const_vec_new)]
+#![feature(core_intrinsics)]
+
 #[macro_use]
 extern crate m3;
 
-use m3::cap::Selector;
-use m3::cell::RefCell;
-use m3::col::{String, ToString, Vec};
-use m3::com::MemGate;
-use m3::goff;
-use m3::kif::{boot, PEDesc};
-use m3::rc::Rc;
-use m3::syscalls;
-use m3::util;
-use m3::vpe::{Activity, ExecActivity, VPE, VPEArgs};
-
+mod childs;
 mod loader;
+mod services;
 
-pub struct Child {
-    name: String,
-    args: Vec<String>,
-    reqs: Vec<String>,
-    daemon: bool,
-    activity: ExecActivity,
-    mapper: loader::BootMapper,
+use core::intrinsics;
+use m3::cap::Selector;
+use m3::col::{String, ToString, Vec};
+use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs};
+use m3::dtu;
+use m3::errors::{Code, Error};
+use m3::goff;
+use m3::kif::{boot, PEDesc, syscalls, upcalls};
+use m3::server::server_loop;
+use m3::session::{ResMngOperation};
+use m3::util;
+
+use childs::{Child, Id};
+
+// TODO put that elsewhere
+const BOOT_MOD_SELS: Selector = 1000;
+
+fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
+    match res {
+        Err(e) => reply_vmsg!(is, e.code() as u64),
+        Ok(_)  => reply_vmsg!(is, 0 as u64),
+    }.expect("Unable to reply");
 }
 
-impl Child {
-    pub fn new(name: String, args: Vec<String>, reqs: Vec<String>, daemon: bool,
-               activity: ExecActivity, mapper: loader::BootMapper) -> Self {
-        Child {
-            name: name,
-            args: args,
-            reqs: reqs,
-            daemon: daemon,
-            activity: activity,
-            mapper: mapper,
+fn register_service(is: &mut GateIStream, child: &mut Child) {
+    let dst_sel: Selector = is.pop();
+    let rgate_sel: Selector = is.pop();
+    let name: String = is.pop();
+
+    let res = services::get().register(child, dst_sel, rgate_sel, name);
+    reply_result(is, res);
+}
+
+fn open_session(is: &mut GateIStream, child: &mut Child) {
+    let dst_sel: Selector = is.pop();
+    let name: String = is.pop();
+    let arg: u64 = is.pop();
+
+    let res = services::get().open_session(child, dst_sel, name, arg);
+    reply_result(is, res);
+}
+
+fn close_session(is: &mut GateIStream, child: &mut Child) {
+    let sel: Selector = is.pop();
+
+    let res = services::get().close_session(child, sel);
+    reply_result(is, res);
+}
+
+fn start_delayed(delayed: &mut Vec<Child>, mods: (usize, usize), rgate: &RecvGate) {
+    let mut idx = 0;
+    while idx < delayed.len() {
+        if delayed[idx].has_unmet_reqs() {
+            idx += 1;
+            continue;
         }
-    }
-}
 
-fn remove_by_sel(vpes: &mut Vec<Child>, sel: Selector) -> Option<Child> {
-    let idx = vpes.iter().position(|c| c.activity.vpe().sel() == sel);
-    if let Some(i) = idx {
-        let child = vpes.remove(i);
-        return Some(child);
+        let mut c = delayed.remove(idx);
+        let mut moditer = boot::ModIterator::new(mods.0, mods.1);
+        let m = moditer.nth(c.id as usize).unwrap();
+        let sel = BOOT_MOD_SELS + 1 + c.id;
+        c.start(rgate, sel, &m).expect("Unable to start boot module");
+        childs::get().add(c);
     }
-    else {
-        None
+
+    if delayed.len() == 0 {
+        childs::get().start_waiting(1);
     }
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
-    // TODO don't use hardcoded selector
-    let mgate = MemGate::new_bind(1000);
+    let mgate = MemGate::new_bind(BOOT_MOD_SELS);
     let mut off: goff = 0;
 
     let info: boot::Info = mgate.read_obj(0).expect("Unable to read boot info");
     off += util::size_of::<boot::Info>() as goff;
 
-    println!("Found info={:?}", info);
+    log!(ROOT, "BootInfo = {:?}", info);
 
     let mut mods = vec![0u8; info.mod_size as usize];
     mgate.read(&mut mods, off).expect("Unable to read mods");
     off += info.mod_size;
 
+    log!(ROOT, "Boot modules:");
     let moditer = boot::ModIterator::new(mods.as_slice().as_ptr() as usize, info.mod_size as usize);
     for m in moditer {
-        println!("{:?}", m);
+        log!(ROOT, "  {:?}", m);
     }
 
     let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
@@ -91,20 +121,25 @@ pub fn main() -> i32 {
     mgate.read(&mut pes, off).expect("Unable to read PEs");
 
     let mut i = 0;
+    log!(ROOT, "Available PEs:");
     for pe in pes {
-        println!(
-            "PE{:02}: {} {} {} KiB memory",
+        log!(
+            ROOT,
+            "  PE{:02}: {} {} {} KiB memory",
             i, pe.pe_type(), pe.isa(), pe.mem_size() / 1024
         );
         i += 1;
     }
 
-    let mut childs = Vec::<Child>::new();
+    let mut rgate = RecvGate::new_with(
+        RGateArgs::new().order(12).msg_order(8)
+    ).expect("Unable to create RecvGate");
+    rgate.activate().expect("Unable to activate RecvGate");
 
-    let mut bsel = mgate.sel();
+    let mut delayed = Vec::new();
+
     let moditer = boot::ModIterator::new(mods.as_slice().as_ptr() as usize, info.mod_size as usize);
-    for m in moditer {
-        bsel += 1;
+    for (id, m) in moditer.enumerate() {
         if m.name() == "rctmux" || m.name() == "root" {
             continue;
         }
@@ -116,10 +151,11 @@ pub fn main() -> i32 {
         for (idx, a) in m.name().split_whitespace().enumerate() {
             if idx == 0 {
                 name = a.to_string();
+                args.push(a.to_string());
             }
             else {
                 if a.starts_with("requires=") {
-                    reqs.push(a.to_string());
+                    reqs.push(a[9..].to_string());
                 }
                 else if a == "daemon" {
                     daemon = true;
@@ -130,27 +166,73 @@ pub fn main() -> i32 {
             }
         }
 
-        let mut vpe = VPE::new_with(VPEArgs::new(&name)).expect("Unable to create VPE");
-        println!("Boot module '{}' runs on {:?}", name, vpe.pe());
-
-        let mut bfile = loader::BootFile::new(bsel, m.size as usize);
-        let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
-        let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile))).expect("Unable to add file");
-        let act = vpe.exec_file(&mut bmapper, bfileref, &args).expect("Unable to exec boot module");
-
-        childs.push(Child::new(name, args, reqs, daemon, act, bmapper));
+        let mut child = Child::new(id as Id, name, args, reqs, daemon);
+        if child.reqs.len() > 0 {
+            delayed.push(child);
+        }
+        else {
+            child.start(&rgate, BOOT_MOD_SELS + 1 + id as Id, &m).expect("Unable to start boot module");
+            childs::get().add(child);
+        }
     }
 
-    while childs.len() > 0 {
-        let mut sels = Vec::new();
-        for c in &childs {
-            sels.push(c.activity.vpe().sel());
+    if delayed.len() == 0 {
+        childs::get().start_waiting(1);
+    }
+
+    let mut shutdown_inprogress = false;
+
+    server_loop(|| {
+        let is = rgate.fetch();
+        if let Some(mut is) = is {
+            let op: ResMngOperation = is.pop();
+            let mut child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
+
+            match op {
+                ResMngOperation::CLONE       => reply_result(&mut is, Err(Error::new(Code::NotSup))),
+                ResMngOperation::REG_SERV    => {
+                    register_service(&mut is, &mut child);
+                    if delayed.len() > 0 {
+                        let mod_info = (mods.as_slice().as_ptr() as usize, info.mod_size as usize);
+                        start_delayed(&mut delayed, mod_info, &rgate);
+                    }
+                },
+                ResMngOperation::OPEN_SESS   => open_session(&mut is, &mut child),
+                ResMngOperation::CLOSE_SESS  => close_session(&mut is, &mut child),
+                _                            => unreachable!(),
+            }
         }
 
-        let (sel, code) = syscalls::vpe_wait(&sels, 0).expect("Unable to wait for VPEs");
-        let child = assert_some!(remove_by_sel(&mut childs, sel));
-        println!("Child '{}' exited with exitcode {}", child.name, code);
-    }
+        let msg = dtu::DTU::fetch_msg(RecvGate::upcall().ep().unwrap());
+        if let Some(msg) = msg {
+            let slice: &[upcalls::VPEWait] = unsafe { intrinsics::transmute(&msg.data) };
+            let upcall = &slice[0];
+
+            childs::get().kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
+
+            let reply = syscalls::DefaultReply {
+                error: 0u64,
+            };
+            RecvGate::upcall().reply(&[reply], msg).expect("Upcall reply failed");
+
+            // wait for the next
+            if delayed.len() == 0 {
+                if !shutdown_inprogress && childs::get().len() == childs::get().daemons() {
+                    services::get().shutdown();
+                    shutdown_inprogress = true;
+                }
+                if childs::get().len() > 0 {
+                    childs::get().start_waiting(1);
+                }
+            }
+        }
+
+        if childs::get().len() == 0 {
+            return Err(Error::new(Code::VPEGone));
+        }
+
+        Ok(())
+    }).ok();
 
     0
 }
