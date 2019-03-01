@@ -16,6 +16,7 @@
 
 #![no_std]
 
+#![feature(const_fn)]
 #![feature(const_vec_new)]
 #![feature(core_intrinsics)]
 
@@ -27,6 +28,7 @@ mod loader;
 mod services;
 
 use core::intrinsics;
+use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs};
@@ -38,14 +40,17 @@ use m3::server::server_loop;
 use m3::session::{ResMngOperation};
 use m3::util;
 
-use childs::{Child, Id};
+use childs::{BootChild, Child, Id};
 
 // TODO put that elsewhere
 const BOOT_MOD_SELS: Selector = 1000;
 
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
-        Err(e) => reply_vmsg!(is, e.code() as u64),
+        Err(e) => {
+            log!(ROOT, "request failed: {}", e);
+            reply_vmsg!(is, e.code() as u64)
+        },
         Ok(_)  => reply_vmsg!(is, 0 as u64),
     }.expect("Unable to reply");
 }
@@ -75,7 +80,23 @@ fn close_session(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn start_delayed(delayed: &mut Vec<Child>, mods: (usize, usize), rgate: &RecvGate) {
+fn add_child(is: &mut GateIStream, rgate: &RecvGate, child: &mut Child) {
+    let vpe_sel: Selector = is.pop();
+    let sgate_sel: Selector = is.pop();
+    let name: String = is.pop();
+
+    let res = child.add_child(vpe_sel, rgate, sgate_sel, name);
+    reply_result(is, res);
+}
+
+fn rem_child(is: &mut GateIStream, child: &mut Child) {
+    let vpe_sel: Selector = is.pop();
+
+    let res = child.rem_child(vpe_sel);
+    reply_result(is, res);
+}
+
+fn start_delayed(delayed: &mut Vec<BootChild>, mods: (usize, usize), rgate: &RecvGate) {
     let mut idx = 0;
     while idx < delayed.len() {
         if delayed[idx].has_unmet_reqs() {
@@ -85,10 +106,10 @@ fn start_delayed(delayed: &mut Vec<Child>, mods: (usize, usize), rgate: &RecvGat
 
         let mut c = delayed.remove(idx);
         let mut moditer = boot::ModIterator::new(mods.0, mods.1);
-        let m = moditer.nth(c.id as usize).unwrap();
-        let sel = BOOT_MOD_SELS + 1 + c.id;
+        let m = moditer.nth(c.id() as usize).unwrap();
+        let sel = BOOT_MOD_SELS + 1 + c.id();
         c.start(rgate, sel, &m).expect("Unable to start boot module");
-        childs::get().add(c);
+        childs::get().add(Box::new(c));
     }
 
     if delayed.len() == 0 {
@@ -166,13 +187,13 @@ pub fn main() -> i32 {
             }
         }
 
-        let mut child = Child::new(id as Id, name, args, reqs, daemon);
+        let mut child = BootChild::new(id as Id, name, args, reqs, daemon);
         if child.reqs.len() > 0 {
             delayed.push(child);
         }
         else {
             child.start(&rgate, BOOT_MOD_SELS + 1 + id as Id, &m).expect("Unable to start boot module");
-            childs::get().add(child);
+            childs::get().add(Box::new(child));
         }
     }
 
@@ -189,16 +210,17 @@ pub fn main() -> i32 {
             let mut child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
 
             match op {
-                ResMngOperation::CLONE       => reply_result(&mut is, Err(Error::new(Code::NotSup))),
                 ResMngOperation::REG_SERV    => {
-                    register_service(&mut is, &mut child);
+                    register_service(&mut is, child);
                     if delayed.len() > 0 {
                         let mod_info = (mods.as_slice().as_ptr() as usize, info.mod_size as usize);
                         start_delayed(&mut delayed, mod_info, &rgate);
                     }
                 },
-                ResMngOperation::OPEN_SESS   => open_session(&mut is, &mut child),
-                ResMngOperation::CLOSE_SESS  => close_session(&mut is, &mut child),
+                ResMngOperation::OPEN_SESS   => open_session(&mut is, child),
+                ResMngOperation::CLOSE_SESS  => close_session(&mut is, child),
+                ResMngOperation::ADD_CHILD   => add_child(&mut is, &rgate, child),
+                ResMngOperation::REM_CHILD   => rem_child(&mut is, child),
                 _                            => unreachable!(),
             }
         }
@@ -217,7 +239,8 @@ pub fn main() -> i32 {
 
             // wait for the next
             if delayed.len() == 0 {
-                if !shutdown_inprogress && childs::get().len() == childs::get().daemons() {
+                let no_wait_childs = childs::get().daemons() + childs::get().foreigns();
+                if !shutdown_inprogress && childs::get().len() == no_wait_childs {
                     services::get().shutdown();
                     shutdown_inprogress = true;
                 }

@@ -94,10 +94,6 @@ VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags,
             return;
     }
 
-    // TODO clone sendgate at our rmng
-    if(_resmng == nullptr)
-        _resmng = VPE::self().resmng().clone();
-
     capsel_t group_sel = group ? group->sel() : ObjCap::INVALID;
     KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, sel(), FIRST_FREE_SEL);
     if(_pager) {
@@ -114,12 +110,19 @@ VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags,
     else
         Syscalls::get().createvpe(dst, ObjCap::INVALID, name, _pe, 0, 0, flags, group_sel);
 
-    if(_resmng->valid())
+    if(_resmng == nullptr) {
+        if(VPE::self().resmng().valid())
+          _resmng = VPE::self().resmng().clone(*this, name);
+        else
+          _resmng = new ResMng(ObjCap::INVALID);
+    }
+    else if(_resmng->valid())
         delegate_obj(_resmng->sel());
 }
 
 VPE::~VPE() {
     if(this != &_self) {
+        delete _resmng;
         stop();
         delete _pager;
         // unarm it first. we can't do that after revoke (which would be triggered by the Gate destructor)

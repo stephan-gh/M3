@@ -346,7 +346,7 @@ impl VPE {
             cap: Capability::new(sels + 0, CapFlags::empty()),
             pe: args.pe,
             mem: MemGate::new_bind(sels + 1),
-            rmng: if let Some(rmng) = args.rmng { rmng } else { VPE::cur().resmng().clone() },
+            rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
             next_sel: FIRST_FREE_SEL,
             eps: 0,
             rbufs: arch::rbufs::RBufSpace::new(),
@@ -409,10 +409,22 @@ impl VPE {
             None
         };
 
-        if vpe.rmng.valid() {
-            let rmng_sel = vpe.rmng.sel();
-            vpe.delegate_obj(rmng_sel)?;
+        // determine resource manager
+        let resmng = if let Some(rmng) = args.rmng {
+            if rmng.valid() {
+                vpe.delegate_obj(rmng.sel())?;
+            }
+            rmng
         }
+        else {
+            if VPE::cur().resmng().valid() {
+                VPE::cur().resmng().clone(&mut vpe, &args.name)?
+            }
+            else {
+                ResMng::new(SendGate::new_bind(INVALID_SEL))
+            }
+        };
+        vpe.rmng = resmng;
 
         Ok(vpe)
     }

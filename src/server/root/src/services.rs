@@ -20,7 +20,6 @@ use m3::col::{String, Vec};
 use m3::com::{RecvGate, recv_res, SendGate, SGateArgs};
 use m3::errors::{Code, Error};
 use m3::kif;
-use m3::kif::{CapRngDesc, CapType};
 use m3::syscalls;
 use m3::util;
 use m3::vpe::VPE;
@@ -40,19 +39,17 @@ impl Service {
     pub fn new(child: &mut Child, dst_sel: Selector,
                rgate_sel: Selector, name: String) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
-        let rgate = RecvGate::new_bind(child.vpe_mut().obtain_obj(rgate_sel)?, util::next_log2(512));
+        let rgate = RecvGate::new_bind(child.obtain(rgate_sel)?, util::next_log2(512));
         let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256))?;
-        syscalls::create_srv(sel, child.vpe().sel(), rgate.sel(), &name)?;
-
-        let crd = CapRngDesc::new(CapType::OBJECT, sel, 1);
-        child.vpe_mut().delegate_to(crd, dst_sel)?;
+        syscalls::create_srv(sel, child.vpe_sel(), rgate.sel(), &name)?;
+        child.delegate(sel, dst_sel)?;
 
         Ok(Service {
             _cap: Capability::new(sel, CapFlags::empty()),
             sgate: sgate,
             _rgate: rgate,
             name: name,
-            child: child.id,
+            child: child.id(),
         })
     }
 
@@ -85,7 +82,7 @@ impl ServiceManager {
     pub fn register(&mut self, child: &mut Child, dst_sel: Selector,
                     rgate_sel: Selector, name: String) -> Result<(), Error> {
         log!(ROOT, "{}: reg_serv(dst_sel={}, rgate_sel={}, name={})",
-             child.name, dst_sel, rgate_sel, name);
+             child.name(), dst_sel, rgate_sel, name);
 
         let serv = Service::new(child, dst_sel, rgate_sel, name)?;
         self.servs.push(serv);
@@ -95,7 +92,7 @@ impl ServiceManager {
     pub fn open_session(&mut self, child: &mut Child, dst_sel: Selector,
                         name: String, arg: u64) -> Result<(), Error> {
         log!(ROOT, "{}: open_sess(dst_sel={}, name={}, arg={})",
-             child.name, dst_sel, name, arg);
+             child.name(), dst_sel, name, arg);
 
         if child.get_session(dst_sel).is_some() {
             return Err(Error::new(Code::InvArgs));
@@ -114,14 +111,14 @@ impl ServiceManager {
         let srv_sel: Selector = sis.pop();
         let ident: u64 = sis.pop();
 
-        let our_sel = serv.child().vpe_mut().obtain_obj(srv_sel)?;
-        child.vpe_mut().delegate_to(CapRngDesc::new(CapType::OBJECT, our_sel, 1), dst_sel)?;
+        let our_sel = serv.child().obtain(srv_sel)?;
+        child.delegate(our_sel, dst_sel)?;
         child.add_session(dst_sel, ident, name);
         Ok(())
     }
 
     pub fn close_session(&mut self, child: &mut Child, sel: Selector) -> Result<(), Error> {
-        log!(ROOT, "{}: close_sess(sel={})", child.name, sel);
+        log!(ROOT, "{}: close_sess(sel={})", child.name(), sel);
 
         {
             let sess = child.get_session(sel).ok_or(Error::new(Code::InvArgs))?;

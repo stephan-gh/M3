@@ -20,20 +20,30 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
+#include <m3/VPE.h>
 
 namespace m3 {
 
 class ResMng {
+    explicit ResMng(capsel_t resmng, capsel_t vpe)
+        : _sgate(SendGate::bind(resmng)), _vpe(vpe) {
+    }
+
 public:
     enum Operation {
-        CLONE,
         REG_SERV,
         OPEN_SESS,
         CLOSE_SESS,
+        ADD_CHILD,
+        REM_CHILD,
     };
 
     explicit ResMng(capsel_t resmng)
-        : _sgate(SendGate::bind(resmng)) {
+        : _sgate(SendGate::bind(resmng)), _vpe(ObjCap::INVALID) {
+    }
+    ~ResMng() {
+        if(_vpe != ObjCap::INVALID)
+            send_receive_vmsg(VPE::self().resmng()._sgate, REM_CHILD, _vpe);
     }
 
     capsel_t sel() const {
@@ -43,9 +53,12 @@ public:
         return _sgate.sel() != ObjCap::INVALID;
     }
 
-    ResMng *clone() const {
-        // TODO clone the send gate to the current rmng
-        return new ResMng(ObjCap::INVALID);
+    ResMng *clone(VPE &vpe, const String &name) {
+        capsel_t sgate_sel = vpe.alloc_sel();
+        Errors::Code res = clone(vpe.sel(), sgate_sel, name);
+        if(res != Errors::NONE)
+            return nullptr;
+        return new ResMng(sgate_sel, vpe.sel());
     }
 
     Errors::Code register_service(capsel_t dst, capsel_t rgate, const String &name) {
@@ -70,7 +83,15 @@ public:
     }
 
 private:
+    Errors::Code clone(capsel_t vpe_sel, capsel_t sgate_sel, const String &name) {
+        GateIStream reply = send_receive_vmsg(_sgate, ADD_CHILD, vpe_sel, sgate_sel, name);
+        Errors::Code res;
+        reply >> res;
+        return res;
+    }
+
     SendGate _sgate;
+    capsel_t _vpe;
 };
 
 }

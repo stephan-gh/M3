@@ -18,25 +18,29 @@ use cap::Selector;
 use com::{RecvGate, SendGate};
 use errors::Error;
 use kif;
+use vpe::VPE;
 
 int_enum! {
     /// The resource manager calls
     pub struct ResMngOperation : u64 {
-        const CLONE         = 0x0;
-        const REG_SERV      = 0x1;
-        const OPEN_SESS     = 0x2;
-        const CLOSE_SESS    = 0x3;
+        const REG_SERV      = 0x0;
+        const OPEN_SESS     = 0x1;
+        const CLOSE_SESS    = 0x2;
+        const ADD_CHILD     = 0x3;
+        const REM_CHILD     = 0x4;
     }
 }
 
 pub struct ResMng {
     sgate: SendGate,
+    vpe_sel: Selector,
 }
 
 impl ResMng {
     pub fn new(sgate: SendGate) -> Self {
         ResMng {
             sgate: sgate,
+            vpe_sel: kif::INVALID_SEL,
         }
     }
 
@@ -49,9 +53,17 @@ impl ResMng {
         self.sgate.sel() != kif::INVALID_SEL
     }
 
-    pub fn clone(&self) -> Self {
-        // TODO clone the send gate to the current rmng
-        ResMng::new(SendGate::new_bind(kif::INVALID_SEL))
+    pub fn clone(&self, vpe: &mut VPE, name: &str) -> Result<Self, Error> {
+        let sgate_sel = vpe.alloc_sel();
+        send_recv_res!(
+            &self.sgate, RecvGate::def(),
+            ResMngOperation::ADD_CHILD, vpe.sel(), sgate_sel, name
+        )?;
+
+        Ok(ResMng {
+            sgate: SendGate::new_bind(sgate_sel),
+            vpe_sel: vpe.sel()
+        })
     }
 
     pub fn register_service(&self, dst: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
@@ -73,5 +85,16 @@ impl ResMng {
             &self.sgate, RecvGate::def(),
             ResMngOperation::CLOSE_SESS, sel
         ).map(|_| ())
+    }
+}
+
+impl Drop for ResMng {
+    fn drop(&mut self) {
+        if self.vpe_sel != kif::INVALID_SEL {
+            send_recv_res!(
+                &VPE::cur().resmng().sgate, RecvGate::def(),
+                ResMngOperation::REM_CHILD, self.vpe_sel
+            ).ok();
+        }
     }
 }
