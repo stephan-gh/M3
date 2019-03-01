@@ -25,7 +25,7 @@ extern "C" void rust_deinit(int status, void *arg);
 
 extern "C" __attribute__((constructor)) void host_init(int argc, char **argv) {
     char *wait;
-    if((wait = getenv("M3_WAIT")) != 0 && strstr(argv[0], wait)) {
+    if((wait = getenv("M3_WAIT")) != 0 && argv[0] && strstr(argv[0], wait)) {
         while(wait_for_debugger != 0) {
         }
     }
