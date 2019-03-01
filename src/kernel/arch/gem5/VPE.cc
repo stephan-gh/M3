@@ -28,7 +28,7 @@ namespace kernel {
 static size_t count = 0;
 static uint64_t loaded = 0;
 
-static const m3::BootInfo::Mod *get_mod(size_t argc, const char *const *argv, bool *first) {
+static const m3::BootInfo::Mod *get_mod(const char *name, bool *first) {
     if(count == 0) {
         for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod) {
             KLOG(KENV, "Module '" << mod->name << "':");
@@ -51,17 +51,11 @@ static const m3::BootInfo::Mod *get_mod(size_t argc, const char *const *argv, bo
         }
     }
 
-    char buf[256];
-    m3::OStringStream os(buf, sizeof(buf));
-    for(size_t i = 0; i < argc; ++i) {
-        os << argv[i];
-        if(i + 1 < argc)
-            os << ' ';
-    }
-
     size_t i = 0;
+    size_t namelen = strlen(name);
     for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod, ++i) {
-        if(strcmp(mod->name, os.str()) == 0) {
+        if(strncmp(mod->name, name, namelen) == 0 &&
+           (mod->name[namelen] == '\0' || mod->name[namelen] == ' ')) {
             *first = (loaded & (static_cast<uint64_t>(1) << i)) == 0;
             loaded |= static_cast<uint64_t>(1) << i;
             return &*mod;
@@ -178,8 +172,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool n
 
 static goff_t map_idle(VPE &vpe) {
     bool first;
-    const char *args[] = {"rctmux"};
-    const m3::BootInfo::Mod *idle = get_mod(1, args, &first);
+    const m3::BootInfo::Mod *idle = get_mod("rctmux", &first);
     if(!idle)
         PANIC("Unable to find boot module 'rctmux'");
 
@@ -203,12 +196,20 @@ static goff_t map_idle(VPE &vpe) {
     return res;
 }
 
+static bool is_kernel_arg(const char *arg) {
+    if(strncmp(arg, "daemon", 6) == 0)
+        return true;
+    if(strncmp(arg, "requires=", 9) == 0)
+        return true;
+    return false;
+}
+
 void VPE::load_app() {
     assert(_flags & F_BOOTMOD);
     assert(_argc > 0 && _argv);
 
     bool appFirst;
-    const m3::BootInfo::Mod *mod = get_mod(_argc, _argv, &appFirst);
+    const m3::BootInfo::Mod *mod = get_mod(_argv[0], &appFirst);
     if(!mod)
         PANIC("Unable to find boot module '" << _argv[0] << "'");
 
@@ -225,33 +226,39 @@ void VPE::load_app() {
     goff_t entry = load_mod(*this, mod, !appFirst, true, false);
 
     // count arguments
-    size_t argc = 1;
-    for(size_t i = 0; mod->name[i]; ++i) {
-        if(mod->name[i] == ' ')
-            argc++;
+    size_t argc = 0;
+    static const char *uargv[16];
+    {
+        const char *begin = mod->name;
+        for(size_t i = 0; ; ++i) {
+            if(mod->name[i] == '\0' || mod->name[i] == ' ') {
+                if(is_kernel_arg(begin) || argc >= ARRAY_SIZE(uargv))
+                    break;
+                uargv[argc++] = begin;
+                if(mod->name[i] == '\0')
+                    break;
+                begin = mod->name + i + 1;
+            }
+        }
     }
 
     // copy arguments and arg pointers to buffer
     char buffer[512];
     uint64_t *argptr = reinterpret_cast<uint64_t*>(buffer);
     char *args = buffer + argc * sizeof(uint64_t);
-    char c;
-    size_t i, off = static_cast<size_t>(args - buffer);
-    *argptr++ = RT_SPACE_START + off;
-    for(i = 0; i < sizeof(buffer) && (c = mod->name[i]); ++i) {
-        if(c == ' ') {
-            args[i] = '\0';
-            *argptr++ = RT_SPACE_START + off + i + 1;
-        }
-        else
-            args[i] = c;
+    size_t j = 0, off = static_cast<size_t>(args - buffer);
+    for(size_t i = 0; i < argc; ++i) {
+        const char *s = uargv[i];
+        *argptr++ = RT_SPACE_START + off + j;
+        while(*s && *s != ' ' && j < sizeof(buffer))
+            args[j++] = *s++;
+        if(j + 1 >= sizeof(buffer))
+            PANIC("Not enough space for arguments");
+        args[j++] = '\0';
     }
-    if(i + 1 >= sizeof(buffer))
-        PANIC("Not enough space for arguments");
-    args[i++] = '\0';
 
     // write buffer to the target PE
-    size_t argssize = m3::Math::round_up(off + i, DTU_PKG_SIZE);
+    size_t argssize = m3::Math::round_up(off + j, DTU_PKG_SIZE);
     DTU::get().write_mem(desc(), RT_SPACE_START, buffer, argssize);
 
     // write env to targetPE
