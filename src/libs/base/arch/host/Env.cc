@@ -105,7 +105,8 @@ Env::Init::Init() {
         const char *exec = Env::executable();
         size_t vlen = strlen(val);
         size_t elen = strlen(exec);
-        if(strcmp(exec + elen - vlen, val) == 0 && (elen <= vlen || exec[elen - vlen - 1] == '/')) {
+        if(elen >= vlen && strcmp(exec + elen - vlen, val) == 0 &&
+            (elen == vlen || exec[elen - vlen - 1] == '/')) {
             while(wait_for_debugger)
                 usleep(20000);
         }
