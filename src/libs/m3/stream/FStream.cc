@@ -109,7 +109,7 @@ void FStream::flush() {
     if(_wbuf && f.valid()) {
         if(_wbuf->flush(f.get()) != Errors::NONE)
             _state |= FL_ERROR;
-        file()->flush();
+        f->flush();
     }
 }
 
