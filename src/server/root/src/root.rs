@@ -55,12 +55,17 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     }.expect("Unable to reply");
 }
 
-fn register_service(is: &mut GateIStream, child: &mut Child) {
+fn register_service(is: &mut GateIStream, child: &mut Child,
+                    delayed: &mut Vec<BootChild>, rgate: &RecvGate,
+                    mods: (usize, usize)) {
     let dst_sel: Selector = is.pop();
     let rgate_sel: Selector = is.pop();
     let name: String = is.pop();
 
     let res = services::get().register(child, dst_sel, rgate_sel, name);
+    if res.is_ok() && delayed.len() > 0 {
+        start_delayed(delayed, mods, &rgate);
+    }
     reply_result(is, res);
 }
 
@@ -127,12 +132,13 @@ pub fn main() -> i32 {
 
     log!(ROOT, "BootInfo = {:?}", info);
 
-    let mut mods = vec![0u8; info.mod_size as usize];
-    mgate.read(&mut mods, off).expect("Unable to read mods");
+    let mut mods_list = vec![0u8; info.mod_size as usize];
+    mgate.read(&mut mods_list, off).expect("Unable to read mods");
     off += info.mod_size;
 
     log!(ROOT, "Boot modules:");
-    let moditer = boot::ModIterator::new(mods.as_slice().as_ptr() as usize, info.mod_size as usize);
+    let mods = (mods_list.as_slice().as_ptr() as usize, info.mod_size as usize);
+    let moditer = boot::ModIterator::new(mods.0, mods.1);
     for m in moditer {
         log!(ROOT, "  {:?}", m);
     }
@@ -159,7 +165,7 @@ pub fn main() -> i32 {
 
     let mut delayed = Vec::new();
 
-    let moditer = boot::ModIterator::new(mods.as_slice().as_ptr() as usize, info.mod_size as usize);
+    let moditer = boot::ModIterator::new(mods.0, mods.1);
     for (id, m) in moditer.enumerate() {
         if m.name() == "rctmux" || m.name() == "root" {
             continue;
@@ -210,17 +216,15 @@ pub fn main() -> i32 {
             let mut child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
 
             match op {
-                ResMngOperation::REG_SERV    => {
-                    register_service(&mut is, child);
-                    if delayed.len() > 0 {
-                        let mod_info = (mods.as_slice().as_ptr() as usize, info.mod_size as usize);
-                        start_delayed(&mut delayed, mod_info, &rgate);
-                    }
-                },
+                ResMngOperation::REG_SERV    => register_service(&mut is, child, &mut delayed,
+                                                                 &rgate, mods),
+
                 ResMngOperation::OPEN_SESS   => open_session(&mut is, child),
                 ResMngOperation::CLOSE_SESS  => close_session(&mut is, child),
+
                 ResMngOperation::ADD_CHILD   => add_child(&mut is, &rgate, child),
                 ResMngOperation::REM_CHILD   => rem_child(&mut is, child),
+
                 _                            => unreachable!(),
             }
         }
