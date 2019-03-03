@@ -17,22 +17,25 @@
 use cell::StaticCell;
 use cfg;
 use core::ptr;
-use kif::PEDesc;
+use kif::{PEDesc, CapSel};
 
 pub struct EnvData {
     pub pe_id: u64,
     pub pe_desc: u32,
     pub argc: u32,
     pub argv: u64,
+    pub first_sel: u32,
 }
 
 impl EnvData {
-    pub fn new(pe_id: u64, pe_desc: PEDesc, argc: i32, argv: *const *const i8) -> Self {
+    pub fn new(pe_id: u64, pe_desc: PEDesc, argc: i32, argv: *const *const i8,
+               first_sel: CapSel) -> Self {
         EnvData {
             pe_id: pe_id,
             pe_desc: pe_desc.value(),
             argc: argc as u32,
             argv: argv as u64,
+            first_sel: first_sel as u32,
         }
     }
 }

@@ -114,7 +114,10 @@ static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps, capsel_t rmng
 }
 
 void VPE::init_state() {
-    read_from("nextsel", &_next_sel);
+    if(env()->first_sel() != 0)
+        _next_sel = env()->first_sel();
+    else
+        read_from("nextsel", &_next_sel);
     read_from("eps", &_eps);
 
     capsel_t rmng_sel;

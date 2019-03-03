@@ -48,6 +48,9 @@ public:
     static size_t pe_count() {
         return _info.pe_count;
     }
+    static size_t mod_count() {
+        return _info.mod_count;
+    }
     static m3::PEDesc pe(peid_t no) {
         return _pes[no];
     }

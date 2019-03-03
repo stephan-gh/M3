@@ -22,7 +22,7 @@ use col::{String, Vec};
 use com::{SendGate, SliceSource};
 use core::intrinsics;
 use dtu::{EpId, Label};
-use kif::{PEDesc, PEType, PEISA};
+use kif::{self, PEDesc, PEType, PEISA};
 use libc;
 use session::{ResMng, Pager};
 use vfs::{FileTable, MountTable};
@@ -82,7 +82,12 @@ impl EnvData {
     }
 
     pub fn load_nextsel(&self) -> Selector {
-        Self::load_word("nextsel", vpe::FIRST_FREE_SEL as u64) as Selector
+        if self.base().first_sel != 0 {
+            self.base().first_sel as Selector
+        }
+        else {
+            Self::load_word("nextsel", kif::FIRST_FREE_SEL as u64) as Selector
+        }
     }
 
     pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
@@ -157,7 +162,8 @@ pub fn init(argc: i32, argv: *const *const i8) {
         read_line(fd).parse::<u64>().unwrap(),
         PEDesc::new(PEType::COMP_IMEM, PEISA::X86, 1024 * 1024),
         argc,
-        argv
+        argv,
+        read_line(fd).parse::<Selector>().unwrap(),
     );
     base::envdata::set(base);
 

@@ -44,7 +44,7 @@ VPE::VPE()
       _pe(env()->pedesc),
       _mem(MemGate::bind(1)),
       _resmng(nullptr),
-      _next_sel(FIRST_FREE_SEL),
+      _next_sel(KIF::FIRST_FREE_SEL),
       _eps(),
       _pager(),
       _rbufcur(),
@@ -72,11 +72,11 @@ VPE::VPE()
 
 VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags,
          const VPEGroup *group, ResMng *rmng)
-    : ObjCap(VIRTPE, VPE::self().alloc_sels(FIRST_FREE_SEL)),
+    : ObjCap(VIRTPE, VPE::self().alloc_sels(KIF::FIRST_FREE_SEL)),
       _pe(pe),
       _mem(MemGate::bind(sel() + 1, 0)),
       _resmng(rmng),
-      _next_sel(FIRST_FREE_SEL),
+      _next_sel(KIF::FIRST_FREE_SEL),
       _eps(),
       _pager(),
       _rbufcur(),
@@ -95,7 +95,7 @@ VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags,
     }
 
     capsel_t group_sel = group ? group->sel() : ObjCap::INVALID;
-    KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, sel(), FIRST_FREE_SEL);
+    KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, sel(), KIF::FIRST_FREE_SEL);
     if(_pager) {
         // now create VPE, which implicitly obtains the gate cap from us
         Syscalls::get().createvpe(dst, _pager->child_sgate().sel(), name, _pe,

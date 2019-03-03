@@ -41,7 +41,8 @@ pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
         0,
         kif::PEDesc::new(kif::PEType::COMP_IMEM, kif::PEISA::X86, 1024 * 1024),
         argc,
-        argv
+        argv,
+        0
     ));
     heap::init();
     io::init();

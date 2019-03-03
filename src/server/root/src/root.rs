@@ -35,15 +35,14 @@ use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs};
 use m3::dtu;
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::kif::{boot, PEDesc, syscalls, upcalls};
+use m3::kif::{self, boot, PEDesc, syscalls, upcalls};
 use m3::server::server_loop;
 use m3::session::{ResMngOperation};
 use m3::util;
 
 use childs::{BootChild, Child, Id};
 
-// TODO put that elsewhere
-const BOOT_MOD_SELS: Selector = 1000;
+const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
 
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {

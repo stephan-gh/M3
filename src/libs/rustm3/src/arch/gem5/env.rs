@@ -20,7 +20,7 @@ use cap::Selector;
 use com::{SendGate, SliceSource};
 use core::intrinsics;
 use env;
-use kif::{INVALID_SEL, PEDesc};
+use kif::{self, PEDesc};
 use session::{ResMng, Pager};
 use util;
 use vfs::{FileTable, MountTable};
@@ -98,7 +98,7 @@ impl EnvData {
 
     pub fn load_nextsel(&self) -> Selector {
         // it's initially 0. make sure it's at least the first usable selector
-        util::max(vpe::FIRST_FREE_SEL, self.base.caps as Selector)
+        util::max(kif::FIRST_FREE_SEL, self.base.caps as Selector)
     }
 
     pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
@@ -177,7 +177,7 @@ impl EnvData {
         self.base.pager_sess = pager.sel();
         self.base.pager_rgate = match pager.rgate() {
             Some(rg) => rg.sel(),
-            None     => INVALID_SEL,
+            None     => kif::INVALID_SEL,
         };
     }
 }

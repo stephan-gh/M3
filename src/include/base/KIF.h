@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 #include <base/stream/OStream.h>
+#include <base/DTU.h>
 #include <base/Errors.h>
 
 namespace m3 {
@@ -42,6 +43,16 @@ struct KIF {
      * The maximum message length that can be used
      */
     static const size_t MAX_MSG_SIZE    = 440;
+
+    /**
+     * The first selector for the endpoint capabilities
+     */
+    static const uint FIRST_EP_SEL      = 2;
+
+    /**
+     * The first free selector
+     */
+    static const uint FIRST_FREE_SEL    = FIRST_EP_SEL + (EP_COUNT - DTU::FIRST_FREE_EP);
 
     /**
      * The permissions for MemGate

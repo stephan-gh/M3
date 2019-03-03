@@ -272,6 +272,10 @@ void VPE::load_app() {
     senv.pedesc = Platform::pe(pe());
     senv.heapsize = MOD_HEAP_SIZE;
     senv.rmng_sel = m3::KIF::INV_SEL;
+    if(strcmp(uargv[0], "root") == 0)
+        senv.caps = m3::KIF::FIRST_FREE_SEL + Platform::mod_count() + 1;
+    else
+        senv.caps = m3::KIF::FIRST_FREE_SEL;
 
     DTU::get().write_mem(desc(), RT_START, &senv, sizeof(senv));
 }

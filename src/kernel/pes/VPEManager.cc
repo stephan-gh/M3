@@ -96,7 +96,7 @@ void VPEManager::init(int argc, char **argv) {
 
         // TODO temporary
         if(id == 0 && strstr(argv[i], "root")) {
-            capsel_t sel = 1000;
+            capsel_t sel = m3::KIF::FIRST_FREE_SEL;
             {
                 peid_t pe = m3::DTU::gaddr_to_pe(Platform::info_addr());
                 goff_t addr = m3::DTU::gaddr_to_virt(Platform::info_addr());

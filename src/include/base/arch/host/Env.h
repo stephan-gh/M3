@@ -106,6 +106,9 @@ public:
     void log_unlock() {
         pthread_mutex_unlock(&_log_mutex);
     }
+    capsel_t first_sel() const {
+        return _first_sel;
+    }
     const String &shm_prefix() const {
         return _shm_prefix;
     }
@@ -113,13 +116,14 @@ public:
 
     void init_dtu();
     void set_params(peid_t _pe, const std::string &shmprefix, label_t sysc_label,
-                    epid_t sysc_ep, word_t sysc_credits) {
+                    epid_t sysc_ep, word_t sysc_credits, capsel_t first_sel) {
         pe = _pe;
         pedesc = PEDesc(PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
         _shm_prefix = shmprefix.c_str();
         _sysc_label = sysc_label;
         _sysc_epid = sysc_ep;
         _sysc_credits = sysc_credits;
+        _first_sel = first_sel;
     }
 
     void exit(int code) NORETURN {
@@ -148,6 +152,7 @@ private:
     epid_t _sysc_epid;
     word_t _sysc_credits;
     pthread_mutex_t _log_mutex;
+    capsel_t _first_sel;
 
     static void *_mem;
     static const char *_exec_short_ptr;
