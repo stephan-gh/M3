@@ -20,6 +20,7 @@
 
 #define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
 
+extern trace_op_t trace_ops_empty[];
 extern trace_op_t trace_ops_find[];
 extern trace_op_t trace_ops_leveldb[];
 extern trace_op_t trace_ops_nginx[];
@@ -38,6 +39,7 @@ extern trace_op_t trace_ops_grep_wc_grep[];
 extern trace_op_t trace_ops_grep_wc_wc[];
 
 Trace Traces::traces[] = {
+    {"empty",           trace_ops_empty},
     {"find",            trace_ops_find},
     {"leveldb",         trace_ops_leveldb},
     {"nginx",           trace_ops_nginx},
