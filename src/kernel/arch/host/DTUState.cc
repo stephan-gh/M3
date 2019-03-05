@@ -96,7 +96,7 @@ void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint)
 
 void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, vpeid_t, epid_t dstep, size_t msgsize, word_t credits) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
-    regs[m3::DTU::EP_VALID]          = 1;
+    regs[m3::DTU::EP_VALID]         = 1;
     regs[m3::DTU::EP_LABEL]         = lbl;
     regs[m3::DTU::EP_PEID]          = pe;
     regs[m3::DTU::EP_EPID]          = dstep;
@@ -107,7 +107,7 @@ void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, vpeid_t, epid_t ds
 void DTUState::config_mem(epid_t ep, peid_t pe, vpeid_t, goff_t addr, size_t size, int perms) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
     assert((addr & static_cast<goff_t>(perms)) == 0);
-    regs[m3::DTU::EP_VALID]          = 1;
+    regs[m3::DTU::EP_VALID]         = 1;
     regs[m3::DTU::EP_LABEL]         = addr | static_cast<uint>(perms);
     regs[m3::DTU::EP_PEID]          = pe;
     regs[m3::DTU::EP_EPID]          = 0;
