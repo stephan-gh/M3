@@ -20,7 +20,7 @@
 
 #include <m3/com/SendGate.h>
 #include <m3/com/GateStream.h>
-#include <m3/session/arch/host/Interrupts.h>
+#include <m3/session/arch/host/Timer.h>
 #include <m3/session/arch/host/Keyboard.h>
 #include <m3/session/arch/host/VGA.h>
 #include <m3/stream/FStream.h>
@@ -118,8 +118,8 @@ int main(int argc, char **argv) {
     if(!*movie)
         exitmsg("Opening " << moviefile << " failed");
 
-    Interrupts timerirqs("interrupts", HWInterrupts::TIMER);
-    timerirqs.rgate().start(timer_event);
+    Timer timer("timer");
+    timer.rgate().start(timer_event);
 
     Keyboard kb("keyb");
     kb.rgate().start(kb_event);

@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/host/HWInterrupts.h>
 #include <base/arch/host/DTUBackend.h>
 #include <base/log/Lib.h>
 #include <base/util/Math.h>

@@ -267,6 +267,13 @@ public:
     pthread_t tid() const {
         return _tid;
     }
+
+    cycles_t tsc() const {
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        return static_cast<cycles_t>(ts.tv_sec) * 1000000000 + static_cast<cycles_t>(ts.tv_nsec);
+    }
+
     void sleep(uint64_t cycles = 0) const {
         struct timespec time;
         // just a rough estimate, based on a 3GHz CPU

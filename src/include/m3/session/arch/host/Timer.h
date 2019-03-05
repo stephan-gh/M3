@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <base/arch/host/HWInterrupts.h>
-
 #include <m3/com/Gate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/session/ClientSession.h>
@@ -25,12 +23,11 @@
 
 namespace m3 {
 
-class Interrupts : public ClientSession {
+class Timer : public ClientSession {
 public:
-    explicit Interrupts(const String &service, HWInterrupts::IRQ irq,
-                        int buford = nextlog2<256>::val,
-                        int msgord = nextlog2<64>::val)
-        : ClientSession(service, irq),
+    explicit Timer(const String &service, int buford = nextlog2<256>::val,
+                                          int msgord = nextlog2<64>::val)
+        : ClientSession(service),
           _rgate(RecvGate::create(buford, msgord)),
           _sgate(SendGate::create(&_rgate, 0, SendGate::UNLIMITED)) {
         if(!Errors::occurred())

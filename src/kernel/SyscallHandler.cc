@@ -30,10 +30,6 @@
 #include "SyscallHandler.h"
 #include "WorkLoop.h"
 
-#if defined(__host__)
-extern int int_target;
-#endif
-
 namespace kernel {
 
 ulong SyscallHandler::_vpes_per_ep[SyscallHandler::SYSC_REP_COUNT];
@@ -218,12 +214,6 @@ void SyscallHandler::createsrv(VPE *vpe, const m3::DTU::Message *msg) {
 
     Service *s = ServiceList::get().add(*vpecap->obj, dst, name, rgatecap->obj);
     vpe->objcaps().set(dst, new ServCapability(&vpe->objcaps(), dst, s));
-
-#if defined(__host__)
-    // TODO ugly hack
-    if(name == "interrupts")
-        int_target = vpe->pid();
-#endif
 
     // maybe there are VPEs that now have all requirements fullfilled
     VPEManager::get().start_pending(ServiceList::get());

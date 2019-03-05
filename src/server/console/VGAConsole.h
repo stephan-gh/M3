@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2015-2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,17 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-#include "TimerDevice.h"
+#pragma once
 
-#include <unistd.h>
+#include <base/Common.h>
 
-namespace kernel {
+void *vgacons_init();
+void vgacons_destroy();
 
-void TimerDevice::run() {
-    while(should_run()) {
-        usleep(20000);
-        trigger_irq(m3::HWInterrupts::TIMER);
-    }
-}
-
-}
+bool vgacons_check_keyb(uint8_t *sc);

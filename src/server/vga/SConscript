@@ -1,3 +1,0 @@
-Import('env')
-if env['ARCH'] == 'host':
-    env.M3Program(env, 'vga', env.Glob('*.cc'), libs = ['rt'])

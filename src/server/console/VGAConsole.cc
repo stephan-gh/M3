@@ -244,9 +244,6 @@ static unsigned char kbdBuf[KBD_BUF_MAX];
 static int kbdBufWritePtr;
 static int kbdBufReadPtr;
 
-static unsigned *kbdmem;
-static unsigned kbdCtrl;
-
 /**************************************************************/
 /**************************************************************/
 
@@ -683,53 +680,30 @@ static void keyboardInit(void) {
         vgaInit();
     }
     kbdBufInit();
-    kbdmem[KEYBOARD_CTRL] = kbdCtrl = 0;
-    kbdmem[KEYBOARD_DATA] = 0;
 }
 
 
 /**************************************************************/
 
-namespace kernel {
-
-VGAConsoleDevice::VGAConsoleDevice()
-    : Device(),
-      _vgamem("vga", TEXT_SIZE_X * TEXT_SIZE_Y * 2, m3::SharedMemory::CREATE),
-      _kbdmem("kbd", sizeof(unsigned) * 2, m3::SharedMemory::CREATE) {
-    kbdmem = reinterpret_cast<unsigned*>(_kbdmem.addr());
-    text = reinterpret_cast<unsigned short*>(_vgamem.addr());
+void *vgacons_init() {
+    text = reinterpret_cast<unsigned short*>(calloc(TEXT_SIZE_X * TEXT_SIZE_Y, 2));
     displayInit();
     keyboardInit();
-    start();
+    return text;
 }
 
-VGAConsoleDevice::~VGAConsoleDevice() {
+void vgacons_destroy() {
     displayExit();
 }
 
-void VGAConsoleDevice::run() {
-    while(should_run()) {
-        usleep(50);
-        check();
-    }
-}
-
-void VGAConsoleDevice::check() {
+bool vgacons_check_keyb(uint8_t *sc) {
     if(kbdBufWritePtr == kbdBufReadPtr) {
         /* no character ready */
-        return;
+        return false;
     }
-    kbdCtrl = kbdmem[KEYBOARD_CTRL];
-    if(kbdCtrl & KEYBOARD_RDY) {
-        /* last character not read yet */
-        return;
-    }
-    /* any character typed */
-    kbdmem[KEYBOARD_DATA] = kbdBuf[kbdBufReadPtr];
-    kbdBufReadPtr = KBD_BUF_NEXT(kbdBufReadPtr);
-    kbdCtrl |= KEYBOARD_RDY;
-    kbdmem[KEYBOARD_CTRL] = kbdCtrl;
-    trigger_irq(m3::HWInterrupts::KEYB);
-}
 
+    /* any character typed */
+    *sc = kbdBuf[kbdBufReadPtr];
+    kbdBufReadPtr = KBD_BUF_NEXT(kbdBufReadPtr);
+    return true;
 }

@@ -1,0 +1,3 @@
+Import('env')
+if env['ARCH'] == 'host':
+    env.M3Program(env, 'console', env.Glob('*.cc'), libs = ['X11', 'rt'])

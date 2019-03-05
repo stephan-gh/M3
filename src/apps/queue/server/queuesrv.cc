@@ -19,7 +19,7 @@
 #include <m3/server/Server.h>
 #include <m3/server/EventHandler.h>
 #include <m3/session/arch/host/Keyboard.h>
-#include <m3/session/arch/host/Interrupts.h>
+#include <m3/session/arch/host/Timer.h>
 #include <m3/session/ClientSession.h>
 
 using namespace m3;
@@ -46,8 +46,8 @@ static void timer_irq(GateIStream &) {
 }
 
 int main() {
-    Interrupts timerirqs("interrupts", HWInterrupts::TIMER);
-    timerirqs.rgate().start(timer_irq);
+    Timer timer("timer");
+    timer.rgate().start(timer_irq);
 
     // now, register service
     server = new Server<EventHandler<>>("queuetest", new EventHandler<>());

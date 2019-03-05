@@ -33,13 +33,10 @@
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
-#include "dev/TimerDevice.h"
-#include "dev/VGAConsole.h"
 #include "SyscallHandler.h"
 
 using namespace kernel;
 
-static m3::SList<Device> devices;
 static size_t fssize = 0;
 
 static void sigint(int) {
@@ -103,11 +100,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, sigint);
 
     for(int i = 1; i < argc; ++i) {
-        if(strcmp(argv[i], "-c") == 0)
-            devices.append(new VGAConsoleDevice());
-        else if(strcmp(argv[i], "-t") == 0)
-            devices.append(new TimerDevice());
-        else if(strncmp(argv[i], "fs=", 3) == 0)
+        if(strncmp(argv[i], "fs=", 3) == 0)
             fsimg = argv[i] + 3;
     }
 
@@ -141,11 +134,6 @@ int main(int argc, char *argv[]) {
     if(fsimg)
         copytofs(MainMemory::get(), fsimg);
     VPEManager::destroy();
-    for(auto it = devices.begin(); it != devices.end(); ) {
-        auto old = it++;
-        old->stop();
-        delete &*old;
-    }
     delete_dir("/tmp/m3");
 
     size_t blocked = m3::ThreadManager::get().blocked_count();

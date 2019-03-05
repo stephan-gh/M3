@@ -15,14 +15,13 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/host/HWInterrupts.h>
 #include <base/util/Time.h>
 
 #include <m3/com/GateStream.h>
 #include <m3/server/Server.h>
 #include <m3/server/SimpleRequestHandler.h>
 #include <m3/session/arch/host/Plasma.h>
-#include <m3/session/arch/host/Interrupts.h>
+#include <m3/session/arch/host/Timer.h>
 #include <m3/session/arch/host/VGA.h>
 #include <m3/session/ClientSession.h>
 #include <m3/Syscalls.h>
@@ -411,8 +410,8 @@ int main() {
 
     VGA vga("vga");
 
-    Interrupts timerirqs("interrupts", HWInterrupts::TIMER);
-    timerirqs.rgate().start(std::bind(refresh_screen, &vga, std::placeholders::_1));
+    Timer timer("timer");
+    timer.rgate().start(std::bind(refresh_screen, &vga, std::placeholders::_1));
 
     Server<PlasmaRequestHandler> srv("plasma", new PlasmaRequestHandler());
 

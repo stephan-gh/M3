@@ -14,13 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/host/SharedMemory.h>
+#include <base/log/Services.h>
 
 #include <m3/server/Server.h>
+#include <m3/server/EventHandler.h>
 #include <m3/session/arch/host/VGA.h>
+#include <m3/session/arch/host/Keyboard.h>
 #include <m3/session/ServerSession.h>
 #include <m3/stream/Standard.h>
 #include <m3/VPE.h>
+
+#include "Scancodes.h"
+#include "VGAConsole.h"
 
 using namespace m3;
 
@@ -50,15 +55,40 @@ private:
     MemGate *_vgamem;
 };
 
-int main() {
-    SharedMemory vgamem("vga", VGA::SIZE, SharedMemory::JOIN);
-    MemGate memgate = VPE::self().mem().derive(
-        reinterpret_cast<uintptr_t>(vgamem.addr()), VGA::SIZE, MemGate::RW);
+static Server<EventHandler<>> *kbserver;
 
-    Server<VGAHandler> srv("vga", new VGAHandler(&memgate));
+struct ConsoleWorkItem : public WorkItem {
+    void work() override {
+        uint8_t sc;
+        if(vgacons_check_keyb(&sc)) {
+            Keyboard::Event ev;
+            ev.scancode = sc;
+            if(Scancodes::get_keycode(ev.isbreak, ev.keycode, ev.scancode)) {
+                SLOG(KEYB, "Got " << (unsigned)ev.keycode << ":" << (unsigned)ev.isbreak);
+                static_cast<EventHandler<>&>(kbserver->handler()).broadcast(ev);
+            }
+        }
+    }
+};
+
+int main() {
+    void *vgamem = vgacons_init();
+
+    MemGate memgate = VPE::self().mem().derive(
+        reinterpret_cast<uintptr_t>(vgamem), VGA::SIZE, MemGate::RW);
+    Server<VGAHandler> vgasrv("vga", new VGAHandler(&memgate));
     if(Errors::occurred())
         exitmsg("Unable to register service 'vga'");
 
+    kbserver = new Server<EventHandler<>>("keyb", new EventHandler<>());
+    if(Errors::occurred())
+        exitmsg("Unable to register service 'keyb'");
+
+    ConsoleWorkItem wi;
+
+    env()->workloop()->add(&wi, true);
     env()->workloop()->run();
+
+    vgacons_destroy();
     return 0;
 }
