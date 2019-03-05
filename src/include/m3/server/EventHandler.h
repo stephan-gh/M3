@@ -62,8 +62,10 @@ public:
     template<typename... Args>
     void broadcast(const Args &... args) {
         auto msg = create_vmsg(args...);
-        for(auto &h : _sessions)
-            send_msg(*static_cast<SendGate*>(h.gate()), msg.bytes(), msg.total());
+        for(auto &h : _sessions) {
+            if(h.gate())
+                send_msg(*static_cast<SendGate*>(h.gate()), msg.bytes(), msg.total());
+        }
     }
 
     SList<SESS> &sessions() {
