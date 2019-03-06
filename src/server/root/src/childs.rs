@@ -90,8 +90,8 @@ pub trait Child {
         let child_name = format!("{}.{}", self.name(), name);
         let id = get().next_id();
 
-        log!(ROOT, "{}: add_child(vpe={}, name={}) -> child(id={}, name={})",
-             self.name(), vpe_sel, name, id, child_name);
+        log!(ROOT, "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
+             self.name(), vpe_sel, name, sgate_sel, id, child_name);
 
         if self.res().childs.iter().find(|c| c.1 == vpe_sel).is_some() {
             return Err(Error::new(Code::Exists));
