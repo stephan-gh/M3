@@ -421,6 +421,9 @@ impl VPE {
             }
         };
         vpe.rmng = resmng;
+        // ensure that the child's cap space is not further ahead than ours
+        // TODO improve that
+        VPE::cur().next_sel = util::max(vpe.next_sel, VPE::cur().next_sel);
 
         Ok(vpe)
     }

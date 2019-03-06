@@ -32,8 +32,11 @@ class ResMng {
 public:
     enum Operation {
         REG_SERV,
+        UNREG_SERV,
+
         OPEN_SESS,
         CLOSE_SESS,
+
         ADD_CHILD,
         REM_CHILD,
     };
@@ -61,8 +64,15 @@ public:
         return new ResMng(sgate_sel, vpe.sel());
     }
 
-    Errors::Code register_service(capsel_t dst, capsel_t rgate, const String &name) {
-        GateIStream reply = send_receive_vmsg(_sgate, REG_SERV, dst, rgate, name);
+    Errors::Code reg_service(capsel_t child, capsel_t dst, capsel_t rgate, const String &name) {
+        GateIStream reply = send_receive_vmsg(_sgate, REG_SERV, child, dst, rgate, name);
+        Errors::Code res;
+        reply >> res;
+        return res;
+    }
+
+    Errors::Code unreg_service(capsel_t sel, bool notify) {
+        GateIStream reply = send_receive_vmsg(_sgate, UNREG_SERV, sel, notify);
         Errors::Code res;
         reply >> res;
         return res;

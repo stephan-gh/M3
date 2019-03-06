@@ -54,17 +54,26 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     }.expect("Unable to reply");
 }
 
-fn register_service(is: &mut GateIStream, child: &mut Child,
-                    delayed: &mut Vec<BootChild>, rgate: &RecvGate,
-                    mods: (usize, usize)) {
+fn reg_serv(is: &mut GateIStream, child: &mut Child,
+            delayed: &mut Vec<BootChild>, rgate: &RecvGate,
+            mods: (usize, usize)) {
+    let child_sel: Selector = is.pop();
     let dst_sel: Selector = is.pop();
     let rgate_sel: Selector = is.pop();
     let name: String = is.pop();
 
-    let res = services::get().register(child, dst_sel, rgate_sel, name);
+    let res = services::get().reg_serv(child, child_sel, dst_sel, rgate_sel, name);
     if res.is_ok() && delayed.len() > 0 {
         start_delayed(delayed, mods, &rgate);
     }
+    reply_result(is, res);
+}
+
+fn unreg_serv(is: &mut GateIStream, child: &mut Child) {
+    let sel: Selector = is.pop();
+    let notify: bool = is.pop();
+
+    let res = services::get().unreg_serv(child, sel, notify);
     reply_result(is, res);
 }
 
@@ -215,8 +224,9 @@ pub fn main() -> i32 {
             let mut child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
 
             match op {
-                ResMngOperation::REG_SERV    => register_service(&mut is, child, &mut delayed,
-                                                                 &rgate, mods),
+                ResMngOperation::REG_SERV    => reg_serv(&mut is, child, &mut delayed,
+                                                         &rgate, mods),
+                ResMngOperation::UNREG_SERV  => unreg_serv(&mut is, child),
 
                 ResMngOperation::OPEN_SESS   => open_session(&mut is, child),
                 ResMngOperation::CLOSE_SESS  => close_session(&mut is, child),

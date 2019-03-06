@@ -48,6 +48,22 @@ impl Session {
     }
 }
 
+pub struct Resources {
+    pub childs: Vec<(Id, Selector)>,
+    pub services: Vec<(Id, Selector)>,
+    pub sessions: Vec<Session>,
+}
+
+impl Resources {
+    pub fn new() -> Self {
+        Resources {
+            childs: Vec::new(),
+            services: Vec::new(),
+            sessions: Vec::new(),
+        }
+    }
+}
+
 pub trait Child {
     fn id(&self) -> Id;
     fn name(&self) -> &String;
@@ -56,11 +72,17 @@ pub trait Child {
 
     fn vpe_sel(&self) -> Selector;
 
-    fn childs(&self) -> &Vec<(Id, Selector)>;
-    fn childs_mut(&mut self) -> &mut Vec<(Id, Selector)>;
+    fn res(&self) -> &Resources;
+    fn res_mut(&mut self) -> &mut Resources;
 
-    fn sessions(&self) -> &Vec<Session>;
-    fn sessions_mut(&mut self) -> &mut Vec<Session>;
+    fn child_mut(&mut self, vpe_sel: Selector) -> Option<&mut (Child + 'static)> {
+        if let Some((id, _)) = self.res_mut().childs.iter().find(|c| c.1 == vpe_sel) {
+            get().child_by_id_mut(*id)
+        }
+        else {
+            None
+        }
+    }
 
     fn add_child(&mut self, vpe_sel: Selector, rgate: &RecvGate,
                  sgate_sel: Selector, name: String) -> Result<(), Error> {
@@ -71,7 +93,7 @@ pub trait Child {
         log!(ROOT, "{}: add_child(vpe={}, name={}) -> child(id={}, name={})",
              self.name(), vpe_sel, name, id, child_name);
 
-        if self.childs().iter().find(|c| c.1 == vpe_sel).is_some() {
+        if self.res().childs.iter().find(|c| c.1 == vpe_sel).is_some() {
             return Err(Error::new(Code::Exists));
         }
 
@@ -79,7 +101,7 @@ pub trait Child {
         let our_sg_sel = sgate.sel();
         let child = Box::new(ForeignChild::new(id, child_name, our_sel, sgate));
         child.delegate(our_sg_sel, sgate_sel)?;
-        self.childs_mut().push((id, vpe_sel));
+        self.res_mut().childs.push((id, vpe_sel));
         get().add(child);
         Ok(())
     }
@@ -87,9 +109,9 @@ pub trait Child {
     fn rem_child(&mut self, vpe_sel: Selector) -> Result<(), Error> {
         log!(ROOT, "{}: rem_child(vpe={})", self.name(), vpe_sel);
 
-        let idx = self.childs().iter().position(|c| c.1 == vpe_sel).ok_or(Error::new(Code::InvArgs))?;
-        get().remove_rec(self.childs()[idx].0);
-        self.childs_mut().remove(idx);
+        let idx = self.res().childs.iter().position(|c| c.1 == vpe_sel).ok_or(Error::new(Code::InvArgs))?;
+        get().remove_rec(self.res().childs[idx].0);
+        self.res_mut().childs.remove(idx);
         Ok(())
     }
 
@@ -104,24 +126,35 @@ pub trait Child {
         Ok(dst)
     }
 
+    fn add_service(&mut self, id: Id, sel: Selector) {
+        self.res_mut().services.push((id, sel));
+    }
+    fn has_service(&self, sel: Selector) -> bool {
+        self.res().services.iter().find(|t| t.1 == sel).is_some()
+    }
+    fn remove_service(&mut self, sel: Selector) -> Result<Id, Error> {
+        let serv = &mut self.res_mut().services;
+        let idx = serv.iter().position(|t| t.1 == sel).ok_or(Error::new(Code::InvArgs))?;
+        Ok(serv.remove(idx).0)
+    }
+
     fn add_session(&mut self, sel: Selector, ident: u64, serv: String) {
-        self.sessions_mut().push(Session::new(sel, ident, serv));
+        self.res_mut().sessions.push(Session::new(sel, ident, serv));
     }
     fn get_session(&self, sel: Selector) -> Option<&Session> {
-        self.sessions().iter().find(|s| s.sel == sel)
+        self.res().sessions.iter().find(|s| s.sel == sel)
     }
     fn remove_session(&mut self, sel: Selector) {
-        self.sessions_mut().retain(|s| s.sel != sel);
+        self.res_mut().sessions.retain(|s| s.sel != sel);
     }
 }
 
 pub struct BootChild {
     id: Id,
     name: String,
-    childs: Vec<(Id, Selector)>,
     args: Vec<String>,
     pub reqs: Vec<String>,
-    sessions: Vec<Session>,
+    res: Resources,
     daemon: bool,
     activity: Option<ExecActivity>,
     mapper: Option<loader::BootMapper>,
@@ -132,10 +165,9 @@ impl BootChild {
         BootChild {
             id: id,
             name: name,
-            childs: Vec::new(),
             args: args,
             reqs: reqs,
-            sessions: Vec::new(),
+            res: Resources::new(),
             daemon: daemon,
             activity: None,
             mapper: None,
@@ -182,29 +214,22 @@ impl Child for BootChild {
         false
     }
 
-    fn childs(&self) -> &Vec<(Id, Selector)> {
-        &self.childs
-    }
-    fn childs_mut(&mut self) -> &mut Vec<(Id, Selector)> {
-        &mut self.childs
-    }
-
     fn vpe_sel(&self) -> Selector {
         self.activity.as_ref().unwrap().vpe().sel()
     }
 
-    fn sessions(&self) -> &Vec<Session> {
-        &self.sessions
+    fn res(&self) -> &Resources {
+        &self.res
     }
-    fn sessions_mut(&mut self) -> &mut Vec<Session> {
-        &mut self.sessions
+    fn res_mut(&mut self) -> &mut Resources {
+        &mut self.res
     }
 }
 
 impl Drop for BootChild {
     fn drop(&mut self) {
-        while self.sessions.len() > 0 {
-            let sess = self.sessions.remove(0);
+        while self.res.sessions.len() > 0 {
+            let sess = self.res.sessions.remove(0);
             services::get().close_session(self, sess.sel).ok();
         }
     }
@@ -213,8 +238,7 @@ impl Drop for BootChild {
 pub struct ForeignChild {
     id: Id,
     name: String,
-    childs: Vec<(Id, Selector)>,
-    sessions: Vec<Session>,
+    res: Resources,
     vpe: Selector,
     _sgate: SendGate,
 }
@@ -224,8 +248,7 @@ impl ForeignChild {
         ForeignChild {
             id: id,
             name: name,
-            childs: Vec::new(),
-            sessions: Vec::new(),
+            res: Resources::new(),
             vpe: vpe,
             _sgate: sgate,
         }
@@ -246,22 +269,15 @@ impl Child for ForeignChild {
         true
     }
 
-    fn childs(&self) -> &Vec<(Id, Selector)> {
-        &self.childs
-    }
-    fn childs_mut(&mut self) -> &mut Vec<(Id, Selector)> {
-        &mut self.childs
-    }
-
     fn vpe_sel(&self) -> Selector {
         self.vpe
     }
 
-    fn sessions(&self) -> &Vec<Session> {
-        &self.sessions
+    fn res(&self) -> &Resources {
+        &self.res
     }
-    fn sessions_mut(&mut self) -> &mut Vec<Session> {
-        &mut self.sessions
+    fn res_mut(&mut self) -> &mut Resources {
+        &mut self.res
     }
 }
 
@@ -352,7 +368,7 @@ impl ChildManager {
 
         log!(ROOT, "Removed child '{}'", child.name());
 
-        for csel in child.childs() {
+        for csel in &child.res().childs {
             self.remove_rec(csel.0);
         }
         child

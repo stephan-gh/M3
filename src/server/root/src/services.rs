@@ -28,6 +28,7 @@ use childs;
 use childs::{Child, Id};
 
 pub struct Service {
+    id: Id,
     _cap: Capability,
     sgate: SendGate,
     _rgate: RecvGate,
@@ -36,7 +37,7 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(child: &mut Child, dst_sel: Selector,
+    pub fn new(id: Id, child: &mut Child, dst_sel: Selector,
                rgate_sel: Selector, name: String) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         let rgate = RecvGate::new_bind(child.obtain(rgate_sel)?, util::next_log2(512));
@@ -45,6 +46,7 @@ impl Service {
         child.delegate(sel, dst_sel)?;
 
         Ok(Service {
+            id: id,
             _cap: Capability::new(sel, CapFlags::empty()),
             sgate: sgate,
             _rgate: rgate,
@@ -60,6 +62,7 @@ impl Service {
 
 pub struct ServiceManager {
     servs: Vec<Service>,
+    next_id: Id,
 }
 
 static MNG: StaticCell<ServiceManager> = StaticCell::new(ServiceManager::new());
@@ -72,20 +75,49 @@ impl ServiceManager {
     pub const fn new() -> Self {
         ServiceManager {
             servs: Vec::new(),
+            next_id: 0,
         }
     }
 
     pub fn get(&mut self, name: &String) -> Result<&mut Service, Error> {
         self.servs.iter_mut().find(|s| s.name == *name).ok_or(Error::new(Code::InvArgs))
     }
+    pub fn get_by_id(&mut self, id: Id) -> Result<&mut Service, Error> {
+        self.servs.iter_mut().find(|s| s.id == id).ok_or(Error::new(Code::InvArgs))
+    }
 
-    pub fn register(&mut self, child: &mut Child, dst_sel: Selector,
+    pub fn reg_serv(&mut self, child: &mut Child, child_sel: Selector, dst_sel: Selector,
                     rgate_sel: Selector, name: String) -> Result<(), Error> {
-        log!(ROOT, "{}: reg_serv(dst_sel={}, rgate_sel={}, name={})",
-             child.name(), dst_sel, rgate_sel, name);
+        log!(ROOT, "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
+             child.name(), child_sel, dst_sel, rgate_sel, name);
 
-        let serv = Service::new(child, dst_sel, rgate_sel, name)?;
+        if child.has_service(dst_sel) {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        let serv = if child_sel == 0 {
+            Service::new(self.next_id, child, dst_sel, rgate_sel, name)
+        }
+        else {
+            let server = child.child_mut(child_sel).ok_or(Error::new(Code::InvArgs))?;
+            Service::new(self.next_id, server, dst_sel, rgate_sel, name)
+        }?;
+
+        child.add_service(serv.id, dst_sel);
         self.servs.push(serv);
+        self.next_id += 1;
+        Ok(())
+    }
+
+    pub fn unreg_serv(&mut self, child: &mut Child, sel: Selector, notify: bool) -> Result<(), Error> {
+        log!(ROOT, "{}: unreg_serv(sel={})", child.name(), sel);
+
+        let id = child.remove_service(sel)?;
+        if notify {
+            let serv = self.get_by_id(id).unwrap();
+            Self::do_shutdown(serv);
+        }
+        self.servs.retain(|s| s.id != id);
         Ok(())
     }
 
@@ -140,15 +172,19 @@ impl ServiceManager {
 
     pub fn shutdown(&mut self) {
         for s in &self.servs {
-            log!(ROOT, "Sending SHUTDOWN to service {}", s.name);
-
-            // TODO do that asynchronously
-            let smsg = kif::service::Shutdown {
-                opcode: kif::service::Operation::SHUTDOWN.val as u64,
-            };
-
-            s.sgate.send(&[smsg], RecvGate::def()).ok();
-            recv_res(RecvGate::def()).ok();
+            Self::do_shutdown(s);
         }
+    }
+
+    fn do_shutdown(serv: &Service) {
+        log!(ROOT, "Sending SHUTDOWN to service {}", serv.name);
+
+        // TODO do that asynchronously
+        let smsg = kif::service::Shutdown {
+            opcode: kif::service::Operation::SHUTDOWN.val as u64,
+        };
+
+        serv.sgate.send(&[smsg], RecvGate::def()).ok();
+        recv_res(RecvGate::def()).ok();
     }
 }

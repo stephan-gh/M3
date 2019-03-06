@@ -50,7 +50,7 @@ impl Server {
         rgate.activate()?;
 
         if VPE::cur().resmng().valid() {
-            VPE::cur().resmng().register_service(sel, rgate.sel(), name)?;
+            VPE::cur().resmng().reg_service(0, sel, rgate.sel(), name)?;
         }
         else {
             syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), name)?;
@@ -154,5 +154,13 @@ impl Server {
 
         reply_vmsg!(is, 0)?;
         Err(Error::new(Code::EndOfFile))
+    }
+}
+
+impl Drop for Server {
+    fn drop(&mut self) {
+        if VPE::cur().resmng().valid() {
+            VPE::cur().resmng().unreg_service(self.sel(), false).ok();
+        }
     }
 }

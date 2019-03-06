@@ -24,10 +24,13 @@ int_enum! {
     /// The resource manager calls
     pub struct ResMngOperation : u64 {
         const REG_SERV      = 0x0;
-        const OPEN_SESS     = 0x1;
-        const CLOSE_SESS    = 0x2;
-        const ADD_CHILD     = 0x3;
-        const REM_CHILD     = 0x4;
+        const UNREG_SERV    = 0x1;
+
+        const OPEN_SESS     = 0x2;
+        const CLOSE_SESS    = 0x3;
+
+        const ADD_CHILD     = 0x4;
+        const REM_CHILD     = 0x5;
     }
 }
 
@@ -66,10 +69,18 @@ impl ResMng {
         })
     }
 
-    pub fn register_service(&self, dst: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
+    pub fn reg_service(&self, child: Selector, dst: Selector,
+                       rgate: Selector, name: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
-            ResMngOperation::REG_SERV, dst, rgate, name
+            ResMngOperation::REG_SERV, child, dst, rgate, name
+        ).map(|_| ())
+    }
+
+    pub fn unreg_service(&self, sel: Selector, notify: bool) -> Result<(), Error> {
+        send_recv_res!(
+            &self.sgate, RecvGate::def(),
+            ResMngOperation::UNREG_SERV, sel, notify
         ).map(|_| ())
     }
 
