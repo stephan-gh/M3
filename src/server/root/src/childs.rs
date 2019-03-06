@@ -319,6 +319,9 @@ impl ChildManager {
     pub fn next_id(&self) -> Id {
         self.next_id
     }
+    pub fn set_next_id(&mut self, id: Id) {
+        self.next_id = id;
+    }
 
     pub fn add(&mut self, child: Box<Child>) {
         if child.daemon() {
@@ -326,8 +329,8 @@ impl ChildManager {
         }
         if child.foreign() {
             self.foreigns += 1;
+            self.next_id += 1;
         }
-        self.next_id = child.id() + 1;
         self.ids.push(child.id());
         self.childs.insert(child.id(), child);
     }

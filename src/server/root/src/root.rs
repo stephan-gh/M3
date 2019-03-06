@@ -211,6 +211,9 @@ pub fn main() -> i32 {
         }
     }
 
+    // ensure that there is no id overlap
+    childs::get().set_next_id(info.mod_count as Id + 1);
+
     if delayed.len() == 0 {
         childs::get().start_waiting(1);
     }
