@@ -145,7 +145,7 @@ impl ServiceManager {
 
         let our_sel = serv.child().obtain(srv_sel)?;
         child.delegate(our_sel, dst_sel)?;
-        child.add_session(dst_sel, ident, name);
+        child.add_session(dst_sel, ident, serv.id);
         Ok(())
     }
 
@@ -154,7 +154,7 @@ impl ServiceManager {
 
         {
             let sess = child.get_session(sel).ok_or(Error::new(Code::InvArgs))?;
-            let serv = self.get(&sess.serv)?;
+            let serv = self.get_by_id(sess.serv)?;
 
             // TODO do that asynchronously
             let smsg = kif::service::Close {

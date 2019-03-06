@@ -35,11 +35,11 @@ pub type Id = u32;
 pub struct Session {
     pub sel: Selector,
     pub ident: u64,
-    pub serv: String,
+    pub serv: Id,
 }
 
 impl Session {
-    pub fn new(sel: Selector, ident: u64, serv: String) -> Self {
+    pub fn new(sel: Selector, ident: u64, serv: Id) -> Self {
         Session {
             sel: sel,
             ident: ident,
@@ -138,7 +138,7 @@ pub trait Child {
         Ok(serv.remove(idx).0)
     }
 
-    fn add_session(&mut self, sel: Selector, ident: u64, serv: String) {
+    fn add_session(&mut self, sel: Selector, ident: u64, serv: Id) {
         self.res_mut().sessions.push(Session::new(sel, ident, serv));
     }
     fn get_session(&self, sel: Selector) -> Option<&Session> {
