@@ -54,19 +54,6 @@ void SessObject::drop_msgs() {
     srv->drop_msgs(ident);
 }
 
-void SessObject::close() {
-    // only send the close message, if the service has not exited yet
-    if(srv->vpe().has_app()) {
-        KLOG(SERV, "Sending CLOSE message for ident " << m3::fmt(ident, "#x", 8)
-            << " to " << srv->name());
-
-        m3::KIF::Service::Close msg;
-        msg.opcode = m3::KIF::Service::CLOSE;
-        msg.sess = ident;
-        ServiceList::get().send(srv, ident, &msg, sizeof(msg), false);
-    }
-}
-
 EPObject::~EPObject() {
     if(gate != nullptr)
         gate->remove_ep(this);
@@ -93,15 +80,9 @@ void MapCapability::revoke() {
 }
 
 void SessCapability::revoke() {
-    // the server's session cap is directly derived from the service. if the server revokes it,
-    // disable further close-messages to the server
-    if(parent()->type == SERV) {
-        obj->invalid = true;
-        // drop the queued messages for this session, because the server is not interested anymore
+    // drop the queued messages for this session, because the server is not interested anymore
+    if(parent()->type == SERV)
         obj->drop_msgs();
-    }
-    else if(!obj->invalid && obj->refcount() == 2)
-        obj->close();
 }
 
 void ServCapability::revoke() {
@@ -165,8 +146,7 @@ void ServCapability::printInfo(m3::OStream &os) const {
 void SessCapability::printInfo(m3::OStream &os) const {
     os << ": sess [refs=" << obj->refcount()
         << ", serv=" << obj->srv->name()
-        << ", ident=#" << m3::fmt(obj->ident, "x")
-        << ", invalid=" << obj->invalid << "]";
+        << ", ident=#" << m3::fmt(obj->ident, "x") << "]";
 }
 
 void EPCapability::printInfo(m3::OStream &os) const {

@@ -89,11 +89,9 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::createvpe);
     add_operation(m3::KIF::Syscall::CREATE_MAP,     &SyscallHandler::createmap);
     add_operation(m3::KIF::Syscall::ACTIVATE,       &SyscallHandler::activate);
-    add_operation(m3::KIF::Syscall::SRV_CTRL,       &SyscallHandler::srvctrl);
     add_operation(m3::KIF::Syscall::VPE_CTRL,       &SyscallHandler::vpectrl);
     add_operation(m3::KIF::Syscall::VPE_WAIT,       &SyscallHandler::vpewait);
     add_operation(m3::KIF::Syscall::DERIVE_MEM,     &SyscallHandler::derivemem);
-    add_operation(m3::KIF::Syscall::OPEN_SESS,      &SyscallHandler::opensess);
     add_operation(m3::KIF::Syscall::EXCHANGE,       &SyscallHandler::exchange);
     add_operation(m3::KIF::Syscall::DELEGATE,       &SyscallHandler::delegate);
     add_operation(m3::KIF::Syscall::OBTAIN,         &SyscallHandler::obtain);
@@ -209,14 +207,9 @@ void SyscallHandler::createsrv(VPE *vpe, const m3::DTU::Message *msg) {
 
     if(name.length() == 0)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid server name");
-    if(ServiceList::get().find(name) != nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::EXISTS, "Service does already exist");
 
     Service *s = ServiceList::get().add(*vpecap->obj, dst, name, rgatecap->obj);
     vpe->objcaps().set(dst, new ServCapability(&vpe->objcaps(), dst, s));
-
-    // maybe there are VPEs that now have all requirements fullfilled
-    VPEManager::get().start_pending(ServiceList::get());
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }
@@ -403,10 +396,6 @@ void SyscallHandler::createvpe(VPE *vpe, const m3::DTU::Message *msg) {
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");
 
-    // childs of daemons are daemons
-    if(vpe->is_daemon())
-        nvpe->make_daemon();
-
     // inherit VPE, mem, and EP caps to the parent
     for(capsel_t i = 0; i < capnum; ++i)
         vpe->objcaps().obtain(dst.start() + i, nvpe->objcaps().get(i));
@@ -580,36 +569,6 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::srvctrl(VPE *vpe, const m3::DTU::Message *msg) {
-    auto req = get_message<m3::KIF::Syscall::SrvCtrl>(msg);
-    capsel_t srv_sel = req->srv_sel;
-    m3::KIF::Syscall::SrvOp op = static_cast<m3::KIF::Syscall::SrvOp>(req->op);
-
-    static const char *opnames[] = {
-        "SHUTDOWN"
-    };
-
-    LOG_SYS(vpe, ": syscall::srvctrl", "(srv=" << srv_sel
-        << ", op=" << (static_cast<size_t>(op) < ARRAY_SIZE(opnames) ? opnames[op] : "??") << ")");
-
-    auto srvcap = static_cast<ServCapability*>(vpe->objcaps().get(srv_sel, Capability::SERV));
-    if(srvcap == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid service cap");
-
-    switch(op) {
-        case m3::KIF::Syscall::SCTRL_SHUTDOWN: {
-            KLOG(SERV, "Sending SHUTDOWN message to " << srvcap->obj->name());
-
-            m3::KIF::Service::Shutdown smsg;
-            smsg.opcode = m3::KIF::Service::SHUTDOWN;
-            ServiceList::get().send(srvcap->obj, 0, &smsg, sizeof(smsg), false);
-            break;
-        }
-    }
-
-    reply_result(vpe, msg, m3::Errors::NONE);
-}
-
 void SyscallHandler::vpectrl(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_vpectrl();
 
@@ -747,72 +706,6 @@ void SyscallHandler::derivemem(VPE *vpe, const m3::DTU::Message *msg) {
     dercap->obj->derived = true;
 
     reply_result(vpe, msg, m3::Errors::NONE);
-}
-
-void SyscallHandler::opensess(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_createsess();
-
-    auto req = get_message<m3::KIF::Syscall::OpenSess>(msg);
-    capsel_t dst = req->dst_sel;
-    word_t arg = req->arg;
-    m3::String name(req->name, m3::Math::min(static_cast<size_t>(req->namelen), sizeof(req->name)));
-
-    LOG_SYS(vpe, ": syscall::opensess", "(dst=" << dst << ", name=" << name << ", arg=" << arg << ")");
-
-    if(!vpe->objcaps().unused(dst))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
-
-    Service *s = ServiceList::get().find(name);
-    if(!s)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Unknown service");
-
-    // see exchange_over_sess
-    m3::Reference<Service> rsrv(s);
-    m3::Reference<VPE> rvpe(vpe);
-
-    vpe->start_wait();
-    while(s->vpe().state() != VPE::RUNNING) {
-        s->vpe().migrate_for(vpe);
-        if(!s->vpe().resume()) {
-            vpe->stop_wait();
-            SYS_ERROR(vpe, msg, m3::Errors::VPE_GONE, "VPE does no longer exist");
-        }
-    }
-
-    m3::KIF::Service::Open smsg;
-    smsg.opcode = m3::KIF::Service::OPEN;
-    smsg.arg = arg;
-
-    const m3::DTU::Message *srvreply = s->send_receive(0, &smsg, sizeof(smsg), false);
-    vpe->stop_wait();
-    // see exchange_over_sess
-    if(!vpe->has_app()) {
-        m3::DTU::get().mark_read(vpe->syscall_ep(), reinterpret_cast<uintptr_t>(msg));
-        LOG_ERROR(vpe, m3::Errors::VPE_GONE, "Client died during open session request");
-        return;
-    }
-
-    if(srvreply == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::RECV_GONE, "Service unreachable");
-
-    auto reply = reinterpret_cast<const m3::KIF::Service::OpenReply*>(srvreply->data);
-
-    m3::Errors::Code res = static_cast<m3::Errors::Code>(reply->error);
-
-    LOG_SYS(vpe, ": syscall::opensess-cont", "(res=" << res << ")");
-
-    if(res != m3::Errors::NONE)
-        LOG_ERROR(vpe, res, "Server denied session open session request");
-    else {
-        // inherit the session-cap from the service-cap. this way, it will be automatically
-        // revoked if the service-cap is revoked
-        Capability *sesscap = rsrv->vpe().objcaps().get(reply->sess, Capability::SESS);
-        if(sesscap == nullptr)
-            LOG_ERROR(vpe, res, "Server specified invalid session cap");
-        vpe->objcaps().obtain(dst, sesscap);
-    }
-
-    reply_result(vpe, msg, res);
 }
 
 void SyscallHandler::delegate(VPE *vpe, const m3::DTU::Message *msg) {

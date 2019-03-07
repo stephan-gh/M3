@@ -204,6 +204,7 @@ public:
         add_operation(GenericFile::NEXT_IN, &VTermHandler::next_in);
         add_operation(GenericFile::NEXT_OUT, &VTermHandler::next_out);
         add_operation(GenericFile::COMMIT, &VTermHandler::commit);
+        add_operation(GenericFile::CLOSE, &VTermHandler::close_chan);
 
         using std::placeholders::_1;
         _rgate.start(std::bind(&VTermHandler::handle_message, this, _1));
@@ -273,6 +274,12 @@ public:
         is >> nbytes;
 
         sess->commit(is, nbytes);
+    }
+
+    void close_chan(m3::GateIStream &is) {
+        VTermSession *sess = is.label<VTermSession*>();
+        close(sess);
+        reply_error(is, Errors::NONE);
     }
 
 private:

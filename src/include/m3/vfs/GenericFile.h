@@ -38,6 +38,7 @@ public:
         NEXT_IN,
         NEXT_OUT,
         COMMIT,
+        CLOSE,
         COUNT,
     };
 

@@ -184,16 +184,6 @@ Errors::Code Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::srvctrl(capsel_t srv, KIF::Syscall::SrvOp op) {
-    LLOG(SYSC, "srvctrl(srv=" << srv << ", op=" << op << ")");
-
-    KIF::Syscall::SrvCtrl req;
-    req.opcode = KIF::Syscall::SRV_CTRL;
-    req.srv_sel = srv;
-    req.op = static_cast<xfer_t>(op);
-    return send_receive_result(&req, sizeof(req));
-}
-
 Errors::Code Syscalls::vpectrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg) {
     LLOG(SYSC, "vpectrl(vpe=" << vpe << ", op=" << op << ", arg=" << arg << ")");
 
@@ -241,19 +231,6 @@ Errors::Code Syscalls::derivemem(capsel_t dst, capsel_t src, goff_t offset, size
     req.size = size;
     req.perms = static_cast<xfer_t>(perms);
     return send_receive_result(&req, sizeof(req));
-}
-
-Errors::Code Syscalls::opensess(capsel_t dst, const String &name, xfer_t arg) {
-    LLOG(SYSC, "opensess(dst=" << dst << ", name=" << name << ", arg=" << arg << ")");
-
-    KIF::Syscall::OpenSess req;
-    req.opcode = KIF::Syscall::OPEN_SESS;
-    req.dst_sel = dst;
-    req.arg = arg;
-    req.namelen = Math::min(name.length(), sizeof(req.name));
-    memcpy(req.name, name.c_str(), req.namelen);
-    size_t msgsize = sizeof(req) - sizeof(req.name) + req.namelen;
-    return send_receive_result(&req, Math::round_up(msgsize, DTU_PKG_SIZE));
 }
 
 Errors::Code Syscalls::exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other, bool obtain) {

@@ -38,6 +38,7 @@ int_enum! {
         const NEXT_IN   = 2;
         const NEXT_OUT  = 3;
         const COMMIT    = 4;
+        const CLOSE     = 5;
     }
 }
 
@@ -125,9 +126,8 @@ impl vfs::File for GenericFile {
             VPE::cur().free_ep(ep);
         }
 
-        // do that manually here, because the File object is not destructed if we've received this
-        // file from our parent.
-        VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 1), false).ok();
+        // file sessions are not known to our resource manager; thus close them manually
+        send_recv_res!(&self.sgate, RecvGate::def(), Operation::CLOSE).ok();
     }
 
     fn stat(&self) -> Result<vfs::FileInfo, Error> {

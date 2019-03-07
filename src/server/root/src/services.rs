@@ -150,6 +150,9 @@ impl ServiceManager {
         if child.has_service(dst_sel) {
             return Err(Error::new(Code::InvArgs));
         }
+        if self.get(&name).is_ok() {
+            return Err(Error::new(Code::Exists));
+        }
 
         let serv = if child_sel == 0 {
             Service::new(self.next_id, child, dst_sel, rgate_sel, name)

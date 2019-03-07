@@ -43,7 +43,6 @@ public:
     static VPEManager &get() {
         return *_inst;
     }
-    static void shutdown();
     static void destroy() {
         if(_inst) {
             delete _inst;
@@ -61,13 +60,8 @@ public:
     VPE *create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epid_t rep,
                 capsel_t sgate, uint flags = 0, VPEGroup *group = nullptr);
 
-    void start_pending(const ServiceList &serv);
-
     size_t used() const {
         return _count;
-    }
-    size_t daemons() const {
-        return _daemons;
     }
 
     bool exists(vpeid_t id) {
@@ -96,9 +90,6 @@ private:
     vpeid_t _next_id;
     VPE **_vpes;
     size_t _count;
-    size_t _daemons;
-    m3::SList<Pending> _pending;
-    static bool _shutdown;
     static VPEManager *_inst;
 };
 

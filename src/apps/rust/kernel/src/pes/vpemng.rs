@@ -15,7 +15,7 @@
  */
 
 use base::cell::{StaticCell, RefCell};
-use base::col::{DList, String, ToString, Vec};
+use base::col::Vec;
 use base::dtu::PEId;
 use base::env;
 use base::errors::{Code, Error};
@@ -24,7 +24,6 @@ use base::rc::Rc;
 
 use arch::kdtu::KDTU;
 use arch::vm;
-use com::ServiceList;
 use pes::{VPE, VPEId, VPEFlags};
 use pes::pemng;
 use platform;
@@ -34,9 +33,7 @@ pub const KERNEL_VPE: usize = MAX_VPES;
 
 pub struct VPEMng {
     vpes: Vec<Option<Rc<RefCell<VPE>>>>,
-    pending: DList<VPEId>,
     count: usize,
-    daemons: usize,
     next_id: usize,
 }
 
@@ -49,9 +46,7 @@ pub fn get() -> &'static mut VPEMng {
 pub fn init() {
     INST.set(Some(VPEMng {
         vpes: vec![None; MAX_VPES],
-        pending: DList::new(),
         count: 0,
-        daemons: 0,
         next_id: 0,
     }));
 }
@@ -63,9 +58,6 @@ pub fn deinit() {
 impl VPEMng {
     pub fn count(&self) -> usize {
         self.count
-    }
-    pub fn daemons(&self) -> usize {
-        self.daemons
     }
 
     pub fn vpe(&self, id: VPEId) -> Option<Rc<RefCell<VPE>>> {
@@ -113,7 +105,7 @@ impl VPEMng {
         Ok(res)
     }
 
-    pub fn start(&mut self, args: env::Args) -> Result<(), Error> {
+    pub fn start(&mut self, mut args: env::Args) -> Result<(), Error> {
         // TODO temporary
         let isa = platform::pe_desc(platform::kernel_pe()).isa();
         let pe_imem = kif::PEDesc::new(kif::PEType::COMP_IMEM, isa, 0);
@@ -125,97 +117,29 @@ impl VPEMng {
             pemng::get().alloc_pe(&pe_imem, None, false).ok_or(Error::new(Code::NoFreePE))
         };
 
-        let mut argv = Vec::new();
-        for arg in args {
-            argv.push(arg.to_string());
+        let name: &str = args.next().unwrap();
+
+        let id: VPEId = self.get_id()?;
+        let pe_id: PEId = find_pe()?;
+
+        let addr_space = if platform::pe_desc(pe_id).has_virtmem() {
+            Some(vm::AddrSpace::new(&platform::pe_desc(pe_id))?)
         }
+        else {
+            None
+        };
 
-        let mut i = 0;
-        while i < argv.len() {
-            let arg: &String = &argv[i];
-            if arg == "--" {
-                i += 1;
-                continue;
-            }
+        let vpe: Rc<RefCell<VPE>> = VPE::new(
+            Self::path_to_name(&name), id, pe_id, VPEFlags::BOOTMOD, addr_space
+        );
+        klog!(VPES, "Created VPE {} [id={}, pe={}]", &name, id, pe_id);
 
-            let id: VPEId = self.get_id()?;
-            let pe_id: PEId = find_pe()?;
+        vpe.borrow_mut().start(0)?;
 
-            let addr_space = if platform::pe_desc(pe_id).has_virtmem() {
-                Some(vm::AddrSpace::new(&platform::pe_desc(pe_id))?)
-            }
-            else {
-                None
-            };
-
-            let vpe: Rc<RefCell<VPE>> = VPE::new(
-                Self::path_to_name(&arg), id, pe_id, VPEFlags::BOOTMOD, addr_space
-            );
-            klog!(VPES, "Created VPE {} [id={}, pe={}]", &arg, id, pe_id);
-
-            // find end of arguments
-            let mut karg = false;
-            vpe.borrow_mut().add_arg(&argv[i]);
-            for j in i + 1..argv.len() {
-                if argv[j] == "daemon" {
-                    vpe.borrow_mut().make_daemon();
-                    self.daemons += 1;
-                    karg = true;
-                }
-                else if argv[j].starts_with("requires=") {
-                    let req = &argv[j]["requires=".len()..];
-                    if cfg!(target_os = "none") || req != "pager" {
-                        vpe.borrow_mut().add_requirement(req);
-                        karg = true;
-                    }
-                }
-                else if argv[j] == "--" {
-                    break;
-                }
-                else if karg {
-                    panic!("Kernel argument before program argument");
-                }
-                else {
-                    vpe.borrow_mut().add_arg(&argv[j]);
-                }
-
-                i += 1;
-            }
-
-            if vpe.borrow().requirements().len() > 0 {
-                self.pending.push_back(id);
-            }
-            else {
-                vpe.borrow_mut().start(0)?;
-            }
-
-            self.vpes[id] = Some(vpe);
-            self.count += 1;
-
-            i += 1;
-        }
+        self.vpes[id] = Some(vpe);
+        self.count += 1;
 
         Ok(())
-    }
-
-    pub fn start_pending(&mut self) {
-        let mut it = self.pending.iter_mut();
-        while let Some(id) = it.next() {
-            let vpe: &Rc<RefCell<VPE>> = self.vpes[*id as usize].as_ref().unwrap();
-            let mut fullfilled = true;
-            for r in vpe.borrow().requirements() {
-                if ServiceList::get().find(r).is_none() {
-                    fullfilled = false;
-                    break;
-                }
-            }
-
-            if fullfilled {
-                vpe.borrow_mut().start(0).unwrap();
-
-                it.remove();
-            }
-        }
     }
 
     pub fn remove(&mut self, id: VPEId) {
@@ -277,7 +201,5 @@ impl Drop for VPEMng {
                 }
             }
         }
-        // TODO workaround for compiler bug (?); without that, heap_free(0x40) gets called!??
-        self.pending.push_back(1);
     }
 }

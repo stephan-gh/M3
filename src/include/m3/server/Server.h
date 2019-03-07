@@ -41,10 +41,7 @@ public:
         init();
 
         LLOG(SERV, "create(" << name << ")");
-        if(VPE::self().resmng().valid())
-            VPE::self().resmng().reg_service(0, sel(), _rgate.sel(), name);
-        else
-            Syscalls::get().createsrv(sel(), VPE::self().sel(), _rgate.sel(), name);
+        VPE::self().resmng().reg_service(0, sel(), _rgate.sel(), name);
     }
 
     explicit Server(capsel_t caps, epid_t ep, HDL *handler)
@@ -56,7 +53,7 @@ public:
     }
 
     ~Server() {
-        if(!(flags() & KEEP_CAP) && VPE::self().resmng().valid())
+        if(!(flags() & KEEP_CAP))
             VPE::self().resmng().unreg_service(sel(), false);
         delete _handler;
     }

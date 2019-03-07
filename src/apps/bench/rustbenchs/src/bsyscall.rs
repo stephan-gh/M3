@@ -35,7 +35,6 @@ pub fn run(t: &mut test::Tester) {
     run_test!(t, create_mgate);
     run_test!(t, create_map);
     run_test!(t, create_srv);
-    run_test!(t, open_sess);
     run_test!(t, derive_mem);
     run_test!(t, exchange);
     run_test!(t, revoke);
@@ -168,27 +167,6 @@ fn create_srv() {
     }
 
     println!("{}", prof.runner_with_id(&mut Tester::default(), 0x15));
-}
-
-fn open_sess() {
-    let mut prof = profile::Profiler::new().repeats(100).warmup(10);
-
-    #[derive(Default)]
-    struct Tester();
-
-    impl profile::Runner for Tester {
-        fn run(&mut self) {
-            assert_ok!(syscalls::open_sess(*SEL, "m3fs", 0));
-        }
-        fn post(&mut self) {
-            assert_ok!(syscalls::revoke(0, kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1), true));
-            // ensure that the kernel is ready; it needs to receive the response to the CLOSE
-            // message from the service
-            assert_ok!(syscalls::noop());
-        }
-    }
-
-    println!("{}", prof.runner_with_id(&mut Tester::default(), 0x16));
 }
 
 fn derive_mem() {

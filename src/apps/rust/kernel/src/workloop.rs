@@ -27,7 +27,7 @@ pub fn workloop() {
     let thmng = thread::ThreadManager::get();
     let vpemng = pes::vpemng::get();
 
-    while vpemng.count() > vpemng.daemons() {
+    while vpemng.count() > 0 {
         dtu::DTU::try_sleep(false, 0).unwrap();
 
         if let Some(msg) = dtu::DTU::fetch_msg(kdtu::KSYS_EP) {

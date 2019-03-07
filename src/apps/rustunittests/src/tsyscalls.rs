@@ -18,7 +18,7 @@ use m3::cfg::PAGE_SIZE;
 use m3::dtu::EP_COUNT;
 use m3::errors::Code;
 use m3::kif::{CapRngDesc, CapType, FIRST_FREE_SEL, INVALID_SEL, Perm};
-use m3::kif::syscalls::{ExchangeArgs, SrvOp, VPEOp};
+use m3::kif::syscalls::{ExchangeArgs, VPEOp};
 use m3::com::{MemGate, RecvGate, SendGate};
 use m3::session::M3FS;
 use m3::syscalls;
@@ -37,10 +37,8 @@ pub fn run(t: &mut test::Tester) {
 
     run_test!(t, activate);
     run_test!(t, derive_mem);
-    run_test!(t, srv_ctrl);
     run_test!(t, vpe_ctrl);
     run_test!(t, vpe_wait);
-    run_test!(t, open_sess);
 
     run_test!(t, exchange);
     run_test!(t, delegate);
@@ -66,12 +64,6 @@ fn create_srv() {
 
     // invalid name
     assert_err!(syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), ""), Code::InvArgs);
-
-    // existing name
-    assert_ok!(syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), "test"));
-    let sel2 = VPE::cur().alloc_sel();
-    assert_err!(syscalls::create_srv(sel2, VPE::cur().sel(), rgate.sel(), "test"), Code::Exists);
-    assert_ok!(syscalls::revoke(VPE::cur().sel(), CapRngDesc::new(CapType::OBJECT, sel, 1), true));
 }
 
 fn create_sgate() {
@@ -243,11 +235,6 @@ fn derive_mem() {
     // perms are arbitrary; will be ANDed
 }
 
-fn srv_ctrl() {
-    assert_err!(syscalls::srv_ctrl(0, SrvOp::SHUTDOWN), Code::InvArgs);
-    assert_err!(syscalls::srv_ctrl(INVALID_SEL, SrvOp::SHUTDOWN), Code::InvArgs);
-}
-
 fn vpe_ctrl() {
     let child = assert_ok!(VPE::new("test"));
 
@@ -261,13 +248,6 @@ fn vpe_ctrl() {
 
 fn vpe_wait() {
     assert_err!(syscalls::vpe_wait(&[], 0), Code::InvArgs);
-}
-
-fn open_sess() {
-    let sel = VPE::cur().alloc_sel();
-
-    assert_err!(syscalls::open_sess(0, "m3fs", 0), Code::InvArgs);
-    assert_err!(syscalls::open_sess(sel, "", 0), Code::InvArgs);
 }
 
 fn exchange() {

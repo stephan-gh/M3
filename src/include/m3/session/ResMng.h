@@ -52,9 +52,6 @@ public:
     capsel_t sel() const {
         return _sgate.sel();
     }
-    bool valid() const {
-        return _sgate.sel() != ObjCap::INVALID;
-    }
 
     ResMng *clone(VPE &vpe, const String &name) {
         capsel_t sgate_sel = vpe.alloc_sel();

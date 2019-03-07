@@ -23,23 +23,16 @@ namespace m3 {
 
 ClientSession::~ClientSession() {
     if(_close && sel() != INVALID) {
-        if(VPE::self().resmng().valid()) {
-            VPE::self().resmng().close_sess(sel());
-            flags(0);
-        }
+        VPE::self().resmng().close_sess(sel());
+        flags(0);
     }
 }
 
 void ClientSession::connect(const String &service, xfer_t arg, capsel_t selector) {
     if(selector == INVALID)
         selector = VPE::self().alloc_sel();
-    Errors::Code res;
 
-    if(VPE::self().resmng().valid())
-        res = VPE::self().resmng().open_sess(selector, service, arg);
-    else
-        res = Syscalls::get().opensess(selector, service, arg);
-    if(res == Errors::NONE)
+    if(VPE::self().resmng().open_sess(selector, service, arg) == Errors::NONE)
         sel(selector);
 }
 

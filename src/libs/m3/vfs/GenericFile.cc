@@ -64,11 +64,11 @@ void GenericFile::close() {
             VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel), true);
             VPE::self().free_ep(_mg.ep());
         }
-    }
 
-    // revoke the session manually to actually close the file at the server side
-    VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sess.sel()));
-    _sess.flags(ObjCap::KEEP_CAP);
+        // file sessions are not known to our resource manager; thus close them manually
+        LLOG(FS, "GenFile[" << fd() << "]::close()");
+        send_receive_vmsg(*_sg, M3FS::CLOSE);
+    }
 }
 
 Errors::Code GenericFile::stat(FileInfo &info) const {

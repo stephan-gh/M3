@@ -19,7 +19,6 @@ use com::{GateIStream, RecvGate};
 use errors::{Code, Error};
 use kif::service;
 use server::SessId;
-use syscalls;
 use util;
 use vpe::VPE;
 
@@ -49,12 +48,7 @@ impl Server {
         let mut rgate = RecvGate::new(util::next_log2(512), util::next_log2(256))?;
         rgate.activate()?;
 
-        if VPE::cur().resmng().valid() {
-            VPE::cur().resmng().reg_service(0, sel, rgate.sel(), name)?;
-        }
-        else {
-            syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), name)?;
-        }
+        VPE::cur().resmng().reg_service(0, sel, rgate.sel(), name)?;
 
         Ok(Server {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
@@ -159,8 +153,6 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        if VPE::cur().resmng().valid() {
-            VPE::cur().resmng().unreg_service(self.sel(), false).ok();
-        }
+        VPE::cur().resmng().unreg_service(self.sel(), false).ok();
     }
 }

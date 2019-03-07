@@ -50,7 +50,6 @@ public:
 
     int pending() const;
 
-    void send(label_t ident, const void *msg, size_t size, bool free);
     const m3::DTU::Message *send_receive(label_t ident, const void *msg, size_t size, bool free);
     void drop_msgs(label_t ident) {
         _squeue.drop_msgs(ident);
@@ -74,17 +73,8 @@ class ServiceList {
 public:
     friend class Service;
 
-    using iterator = m3::SList<Service>::iterator;
-
     static ServiceList &get() {
         return _inst;
-    }
-
-    iterator begin() {
-        return _list.begin();
-    }
-    iterator end() {
-        return _list.end();
     }
 
     Service *add(VPE &vpe, capsel_t sel, const m3::String &name, const m3::Reference<RGateObject> &rgate) {
@@ -92,20 +82,6 @@ public:
         // prepend to the list to shutdown services in the opposite order
         _list.insert(nullptr, inst);
         return inst;
-    }
-    bool contains(const m3::String &name) const {
-        return const_cast<ServiceList*>(this)->find(name) != nullptr;
-    }
-    Service *find(const m3::String &name) {
-        for(auto &s : _list) {
-            if(s.name() == name)
-                return &s;
-        }
-        return nullptr;
-    }
-
-    void send(m3::Reference<Service> serv, label_t ident, const void *msg, size_t size, bool free) {
-        serv->send(ident, msg, size, free);
     }
 
 private:

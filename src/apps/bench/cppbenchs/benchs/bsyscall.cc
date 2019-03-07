@@ -158,26 +158,6 @@ NOINLINE static void create_srv() {
     cout << pr.runner_with_id(runner, 0x56) << "\n";
 }
 
-NOINLINE static void open_sess() {
-    struct SyscallSessRunner : public Runner {
-        void run() override {
-            Syscalls::get().opensess(selector, "m3fs", 0);
-            if(Errors::occurred())
-                PANIC("syscall failed");
-        }
-        void post() override {
-            Syscalls::get().revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
-            // ensure that the kernel is ready; it needs to receive the response to the CLOSE
-            // message from the service
-            Syscalls::get().noop();
-        }
-    };
-
-    Profile pr;
-    SyscallSessRunner runner;
-    cout << pr.runner_with_id(runner, 0x57) << "\n";
-}
-
 NOINLINE static void derive_mem() {
     struct SyscallDeriveRunner : public Runner {
         explicit SyscallDeriveRunner() : mgate(MemGate::create_global(0x1000, MemGate::RW)) {
@@ -253,7 +233,6 @@ void bsyscall() {
     RUN_BENCH(create_mgate);
     RUN_BENCH(create_map);
     RUN_BENCH(create_srv);
-    RUN_BENCH(open_sess);
     RUN_BENCH(derive_mem);
     RUN_BENCH(exchange);
     RUN_BENCH(revoke);

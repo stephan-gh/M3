@@ -153,11 +153,9 @@ struct KIF {
 
             // capability operations
             ACTIVATE,
-            SRV_CTRL,
             VPE_CTRL,
             VPE_WAIT,
             DERIVE_MEM,
-            OPEN_SESS,
 
             // capability exchange
             DELEGATE,
@@ -181,9 +179,6 @@ struct KIF {
             VCTRL_START,
             VCTRL_YIELD,
             VCTRL_STOP,
-        };
-        enum SrvOp {
-            SCTRL_SHUTDOWN,
         };
 
         struct Pagefault : public DefaultRequest {
@@ -260,11 +255,6 @@ struct KIF {
             xfer_t addr;
         } PACKED;
 
-        struct SrvCtrl : public DefaultRequest {
-            xfer_t srv_sel;
-            xfer_t op;
-        } PACKED;
-
         struct VPECtrl : public DefaultRequest {
             xfer_t vpe_sel;
             xfer_t op;
@@ -288,13 +278,6 @@ struct KIF {
             xfer_t offset;
             xfer_t size;
             xfer_t perms;
-        } PACKED;
-
-        struct OpenSess : public DefaultRequest {
-            xfer_t dst_sel;
-            xfer_t arg;
-            xfer_t namelen;
-            char name[32];
         } PACKED;
 
         struct Exchange : public DefaultRequest {

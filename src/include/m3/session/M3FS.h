@@ -40,6 +40,7 @@ public:
         NEXT_IN = GenericFile::NEXT_IN,
         NEXT_OUT = GenericFile::NEXT_OUT,
         COMMIT = GenericFile::COMMIT,
+        CLOSE = GenericFile::CLOSE,
         STAT,
         MKDIR,
         RMDIR,

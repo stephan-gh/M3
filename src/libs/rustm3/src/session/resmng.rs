@@ -51,11 +51,6 @@ impl ResMng {
         self.sgate.sel()
     }
 
-    // TODO temporary
-    pub fn valid(&self) -> bool {
-        self.sgate.sel() != kif::INVALID_SEL
-    }
-
     pub fn clone(&self, vpe: &mut VPE, name: &str) -> Result<Self, Error> {
         let sgate_sel = vpe.alloc_sel();
         send_recv_res!(

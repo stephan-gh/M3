@@ -38,12 +38,12 @@ pub struct M3FS {
 }
 
 int_enum! {
-    struct Operation : u32 {
-        const STAT      = 0x5;
-        const MKDIR     = 0x6;
-        const RMDIR     = 0x7;
-        const LINK      = 0x8;
-        const UNLINK    = 0x9;
+    struct Operation : u64 {
+        const STAT      = 0x6;
+        const MKDIR     = 0x7;
+        const RMDIR     = 0x8;
+        const LINK      = 0x9;
+        const UNLINK    = 0xA;
     }
 }
 

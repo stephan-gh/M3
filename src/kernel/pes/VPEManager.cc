@@ -25,15 +25,12 @@
 
 namespace kernel {
 
-bool VPEManager::_shutdown = false;
 VPEManager *VPEManager::_inst;
 
 VPEManager::VPEManager()
     : _next_id(0),
       _vpes(new VPE*[MAX_VPES]()),
-      _count(),
-      _daemons(),
-      _pending() {
+      _count() {
 }
 
 void VPEManager::init(int argc, char **argv) {
@@ -42,129 +39,50 @@ void VPEManager::init(int argc, char **argv) {
     m3::PEDesc pedesc_emem(m3::PEType::COMP_EMEM, pedesc.isa(), pedesc.mem_size());
     m3::PEDesc pedesc_imem(m3::PEType::COMP_IMEM, pedesc.isa(), pedesc.mem_size());
 
-    for(int i = 0; i < argc; ++i) {
-        if(strcmp(argv[i], "--") == 0)
-            continue;
+    vpeid_t id = get_id();
+    assert(id != MAX_VPES);
 
-        vpeid_t id = get_id();
-        assert(id != MAX_VPES);
-
-        // for idle, don't create a VPE
-        if(strcmp(argv[i], "idle")) {
-            // try to find a PE with the required ISA and external memory first
-            peid_t peid = PEManager::get().find_pe(pedesc_emem, 0, 0, nullptr);
-            if(peid == 0) {
-                // if that failed, try to find a SPM PE
-                peid = PEManager::get().find_pe(pedesc_imem, 0, 0, nullptr);
-                if(peid == 0)
-                    PANIC("Unable to find a free PE for boot module " << argv[i]);
-            }
-
-            // strip the path from the name
-            const char *slash = strrchr(argv[i], '/');
-            const char *name = slash ? slash + 1 : argv[i];
-            _vpes[id] = new VPE(m3::String(name), peid, id, VPE::F_BOOTMOD);
-        }
-
-        // find end of arguments
-        bool karg = false;
-        int j = i + 1, end = i + 1;
-        for(; j < argc; ++j) {
-            if(strcmp(argv[j], "daemon") == 0) {
-                _vpes[id]->make_daemon();
-                karg = true;
-            }
-            else if(strncmp(argv[j], "requires=", sizeof("requires=") - 1) == 0) {
-                const char *req = argv[j] + sizeof("requires=") - 1;
-                karg = true;
-#if !defined(__gem5__)
-                if(strcmp(req, "pager") == 0)
-                    continue;
-#endif
-                _vpes[id]->add_requirement(req);
-            }
-            else if(strcmp(argv[j], "--") == 0)
-                break;
-            else if(karg)
-                PANIC("Kernel argument before program argument");
-            else
-                end++;
-        }
-
-        // remember arguments
-        _vpes[id]->set_args(static_cast<size_t>(end - i), argv + i);
-
-        // TODO temporary
-        if(id == 0 && strstr(argv[i], "root")) {
-            capsel_t sel = m3::KIF::FIRST_FREE_SEL;
-            {
-                peid_t pe = m3::DTU::gaddr_to_pe(Platform::info_addr());
-                goff_t addr = m3::DTU::gaddr_to_virt(Platform::info_addr());
-                auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, pe, VPE::INVALID_ID,
-                                                  addr, Platform::info_size(), m3::KIF::Perm::R);
-                _vpes[id]->objcaps().set(sel, memcap);
-                sel++;
-            }
-
-            for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod, ++sel) {
-                peid_t pe = m3::DTU::gaddr_to_pe(mod->addr);
-                goff_t addr = m3::DTU::gaddr_to_virt(mod->addr);
-                size_t size = m3::Math::round_up(static_cast<size_t>(mod->size),
-                                                 static_cast<size_t>(PAGE_SIZE));
-                auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, pe, VPE::INVALID_ID,
-                                                  addr, size, m3::KIF::Perm::R | m3::KIF::Perm::X);
-                _vpes[id]->objcaps().set(sel, memcap);
-            }
-        }
-
-        // register pending item if necessary
-        if(strcmp(argv[i], "idle") != 0 && _vpes[id]->requirements().length() > 0)
-            _pending.append(new Pending(_vpes[id]));
-        else
-            _vpes[id]->start_app(_vpes[id]->pid());
-
-        if(strstr(argv[i], "root"))
-            break;
-
-        i = j;
+    // try to find a PE with the required ISA and external memory first
+    peid_t peid = PEManager::get().find_pe(pedesc_emem, 0, 0, nullptr);
+    if(peid == 0) {
+        // if that failed, try to find a SPM PE
+        peid = PEManager::get().find_pe(pedesc_imem, 0, 0, nullptr);
+        if(peid == 0)
+            PANIC("Unable to find a free PE for root task");
     }
-}
 
-void VPEManager::start_pending(const ServiceList &serv) {
-    for(auto it = _pending.begin(); it != _pending.end(); ) {
-        bool fullfilled = true;
-        for(auto &r : it->vpe->requirements()) {
-            if(!serv.contains(r.name)) {
-                fullfilled = false;
-                break;
-            }
-        }
+    // strip the path from the name
+    const char *slash = strrchr(argv[0], '/');
+    const char *name = slash ? slash + 1 : argv[0];
+    _vpes[id] = new VPE(m3::String(name), peid, id, VPE::F_BOOTMOD);
 
-        if(fullfilled) {
-            auto old = it++;
-            old->vpe->start_app(old->vpe->pid());
-            _pending.remove(&*old);
-            delete &*old;
-        }
-        else
-            it++;
+    // remember arguments
+    _vpes[id]->set_args(static_cast<size_t>(argc), argv);
+
+    // boot info
+    capsel_t sel = m3::KIF::FIRST_FREE_SEL;
+    {
+        peid_t pe = m3::DTU::gaddr_to_pe(Platform::info_addr());
+        goff_t addr = m3::DTU::gaddr_to_virt(Platform::info_addr());
+        auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, pe, VPE::INVALID_ID,
+                                          addr, Platform::info_size(), m3::KIF::Perm::R);
+        _vpes[id]->objcaps().set(sel, memcap);
+        sel++;
     }
-}
 
-void VPEManager::shutdown() {
-    if(_shutdown)
-        return;
-
-    _shutdown = true;
-    ServiceList &serv = ServiceList::get();
-    for(auto &s : serv) {
-        m3::Reference<Service> ref(&s);
-        KLOG(SERV, "Sending SHUTDOWN message to " << ref->name());
-
-        m3::KIF::Service::Shutdown msg;
-        msg.opcode = m3::KIF::Service::SHUTDOWN;
-        ref->send_receive(0, &msg, sizeof(msg), false);
+    // boot modules
+    for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod, ++sel) {
+        peid_t pe = m3::DTU::gaddr_to_pe(mod->addr);
+        goff_t addr = m3::DTU::gaddr_to_virt(mod->addr);
+        size_t size = m3::Math::round_up(static_cast<size_t>(mod->size),
+                                         static_cast<size_t>(PAGE_SIZE));
+        auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, pe, VPE::INVALID_ID,
+                                          addr, size, m3::KIF::Perm::R | m3::KIF::Perm::X);
+        _vpes[id]->objcaps().set(sel, memcap);
     }
+
+    // go!
+    _vpes[id]->start_app(_vpes[id]->pid());
 }
 
 vpeid_t VPEManager::get_id() {
@@ -228,20 +146,12 @@ void VPEManager::remove(VPE *vpe) {
     if(vpe->_flags & VPE::F_IDLE)
         return;
 
-    if(vpe->_flags & VPE::F_DAEMON) {
-        assert(_daemons > 0);
-        _daemons--;
-    }
-
     assert(_count > 0);
     _count--;
 
     // if there are no VPEs left, we can stop everything
-    if(used() == 0)
+    if(_count == 0)
         m3::env()->workloop()->stop();
-    // if there are only daemons left, start the shutdown-procedure
-    else if(used() == daemons())
-        shutdown();
 }
 
 }

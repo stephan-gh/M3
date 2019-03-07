@@ -46,6 +46,7 @@ public:
         add_operation(GenericFile::NEXT_IN, &PipeServiceHandler::next_in);
         add_operation(GenericFile::NEXT_OUT, &PipeServiceHandler::next_out);
         add_operation(GenericFile::COMMIT, &PipeServiceHandler::commit);
+        add_operation(GenericFile::CLOSE, &PipeServiceHandler::close_chan);
 
         using std::placeholders::_1;
         _rgate.start(std::bind(&PipeServiceHandler::handle_message, this, _1));
@@ -120,6 +121,13 @@ public:
     void commit(m3::GateIStream &is) {
         PipeSession *sess = is.label<PipeSession*>();
         sess->commit(is);
+    }
+
+    void close_chan(m3::GateIStream &is) {
+        PipeSession *sess = is.label<PipeSession*>();
+        // reply first to prevent that we drop this message
+        reply_error(is, Errors::NONE);
+        close(sess);
     }
 
 private:

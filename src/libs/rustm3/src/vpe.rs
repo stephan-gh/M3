@@ -407,18 +407,11 @@ impl VPE {
 
         // determine resource manager
         let resmng = if let Some(rmng) = args.rmng {
-            if rmng.valid() {
-                vpe.delegate_obj(rmng.sel())?;
-            }
+            vpe.delegate_obj(rmng.sel())?;
             rmng
         }
         else {
-            if VPE::cur().resmng().valid() {
-                VPE::cur().resmng().clone(&mut vpe, &args.name)?
-            }
-            else {
-                ResMng::new(SendGate::new_bind(INVALID_SEL))
-            }
+            VPE::cur().resmng().clone(&mut vpe, &args.name)?
         };
         vpe.rmng = resmng;
         // ensure that the child's cap space is not further ahead than ours

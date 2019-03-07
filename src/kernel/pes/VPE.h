@@ -75,18 +75,17 @@ public:
 
     enum Flags {
         F_BOOTMOD     = 1 << 0,
-        F_DAEMON      = 1 << 1,
-        F_IDLE        = 1 << 2,
-        F_INIT        = 1 << 3,
-        F_HASAPP      = 1 << 4,
-        F_MUXABLE     = 1 << 5, // TODO temporary
-        F_READY       = 1 << 6,
-        F_WAITING     = 1 << 7,
-        F_NEEDS_INVAL = 1 << 8,
-        F_FLUSHED     = 1 << 9,
-        F_NOBLOCK     = 1 << 10,
-        F_PINNED      = 1 << 11,
-        F_YIELDED     = 1 << 12,
+        F_IDLE        = 1 << 1,
+        F_INIT        = 1 << 2,
+        F_HASAPP      = 1 << 3,
+        F_MUXABLE     = 1 << 4, // TODO temporary
+        F_READY       = 1 << 5,
+        F_WAITING     = 1 << 6,
+        F_NEEDS_INVAL = 1 << 7,
+        F_FLUSHED     = 1 << 8,
+        F_NOBLOCK     = 1 << 9,
+        F_PINNED      = 1 << 10,
+        F_YIELDED     = 1 << 11,
     };
 
     explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep = INVALID_EP,
@@ -125,9 +124,6 @@ public:
 
     bool has_yielded() const {
         return _flags & F_YIELDED;
-    }
-    bool is_daemon() const {
-        return _flags & F_DAEMON;
     }
     bool is_idle() const {
         return _flags & F_IDLE;
@@ -248,15 +244,6 @@ public:
     m3::Errors::Code config_snd_ep(epid_t ep, SGateObject &obj);
     m3::Errors::Code config_mem_ep(epid_t ep, const MGateObject &obj, goff_t off = 0);
 
-    void make_daemon();
-
-    const m3::SList<ServName> &requirements() const {
-        return _requires;
-    }
-    void add_requirement(const m3::String &name) {
-        _requires.append(new ServName(name));
-    }
-
     void set_args(size_t argc, const char *const *argv) {
         _argc = argc;
         _argv = argv;
@@ -272,8 +259,6 @@ private:
     void update_ep(epid_t ep);
 
     void notify_resume();
-
-    void free_reqs();
 
     VPEDesc _desc;
     uint _flags;
@@ -295,7 +280,6 @@ private:
     AddrSpace *_as;
     size_t _headers;
     MainMemory::Allocation _rbufcpy;
-    m3::SList<ServName> _requires;
     size_t _argc;
     const char *const *_argv;
     goff_t _mem_base;

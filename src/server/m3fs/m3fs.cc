@@ -62,6 +62,7 @@ public:
         add_operation(M3FS::NEXT_IN, &M3FSRequestHandler::next_in);
         add_operation(M3FS::NEXT_OUT, &M3FSRequestHandler::next_out);
         add_operation(M3FS::COMMIT, &M3FSRequestHandler::commit);
+        add_operation(M3FS::CLOSE, &M3FSRequestHandler::close_sess);
         add_operation(M3FS::FSTAT, &M3FSRequestHandler::fstat);
         add_operation(M3FS::SEEK, &M3FSRequestHandler::seek);
         add_operation(M3FS::STAT, &M3FSRequestHandler::stat);
@@ -186,6 +187,13 @@ public:
     void unlink(GateIStream &is) {
         M3FSSession *sess = is.label<M3FSSession *>();
         sess->unlink(is);
+    }
+
+    void close_sess(GateIStream &is) {
+        M3FSSession *sess = is.label<M3FSSession*>();
+        // reply first to prevent that we drop this message
+        reply_vmsg(is, Errors::NONE);
+        close(sess);
     }
 
 private:

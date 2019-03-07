@@ -242,21 +242,6 @@ pub fn derive_mem(dst: Selector, src: Selector, offset: goff, size: usize, perms
     send_receive_result(&req)
 }
 
-pub fn srv_ctrl(srv: Selector, op: syscalls::SrvOp) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::srv_ctrl(srv={}, op={:?})",
-        srv, op
-    );
-
-    let req = syscalls::SrvCtrl {
-        opcode: syscalls::Operation::SRV_CTRL.val,
-        srv_sel: srv as u64,
-        op: op.val,
-    };
-    send_receive_result(&req)
-}
-
 pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Error> {
     log!(
         SYSC,
@@ -296,29 +281,6 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
         0               => Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32)),
         e               => Err(Error::from(e as u32))
     }
-}
-
-pub fn open_sess(dst: Selector, name: &str, arg: u64) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::open_sess(dst={}, name={}, arg={:#x})",
-        dst, name, arg
-    );
-
-    let mut req = syscalls::OpenSess {
-        opcode: syscalls::Operation::OPEN_SESS.val,
-        dst_sel: dst as u64,
-        namelen: name.len() as u64,
-        name: unsafe { intrinsics::uninit() },
-        arg: arg,
-    };
-
-    // copy name
-    for (a, c) in req.name.iter_mut().zip(name.bytes()) {
-        *a = c as u8;
-    }
-
-    send_receive_result(&req)
 }
 
 pub fn exchange(vpe: Selector, own: CapRngDesc, other: Selector, obtain: bool) -> Result<(), Error> {

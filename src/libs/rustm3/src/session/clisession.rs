@@ -31,12 +31,7 @@ impl ClientSession {
         Self::new_with_sel(name, arg, vpe::VPE::cur().alloc_sel())
     }
     pub fn new_with_sel(name: &str, arg: u64, sel: Selector) -> Result<Self, Error> {
-        if vpe::VPE::cur().resmng().valid() {
-            vpe::VPE::cur().resmng().open_sess(sel, name, arg)?;
-        }
-        else {
-            syscalls::open_sess(sel, name, arg)?;
-        }
+        vpe::VPE::cur().resmng().open_sess(sel, name, arg)?;
 
         Ok(ClientSession {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
@@ -107,13 +102,7 @@ impl ClientSession {
 impl Drop for ClientSession {
     fn drop(&mut self) {
         if self.close {
-            if vpe::VPE::cur().resmng().valid() {
-                vpe::VPE::cur().resmng().close_sess(self.sel()).ok();
-            }
-            else {
-                self.cap.set_flags(CapFlags::empty());
-                self.cap.rebind(kif::INVALID_SEL);
-            }
+            vpe::VPE::cur().resmng().close_sess(self.sel()).ok();
         }
     }
 }

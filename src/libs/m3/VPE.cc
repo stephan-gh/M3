@@ -111,16 +111,12 @@ VPE::VPE(const String &name, const PEDesc &pe, const char *pager, uint flags,
         Syscalls::get().createvpe(dst, ObjCap::INVALID, name, _pe, 0, 0, flags, group_sel);
 
     if(_resmng == nullptr) {
-        if(VPE::self().resmng().valid()) {
-            _resmng = VPE::self().resmng().clone(*this, name);
-            // ensure that the child's cap space is not further ahead than ours
-            // TODO improve that
-            VPE::self()._next_sel = Math::max(_next_sel, VPE::self()._next_sel);
-        }
-        else
-            _resmng = new ResMng(ObjCap::INVALID);
+        _resmng = VPE::self().resmng().clone(*this, name);
+        // ensure that the child's cap space is not further ahead than ours
+        // TODO improve that
+        VPE::self()._next_sel = Math::max(_next_sel, VPE::self()._next_sel);
     }
-    else if(_resmng->valid())
+    else
         delegate_obj(_resmng->sel());
 }
 

@@ -45,25 +45,23 @@ int_enum! {
 
         // capability operations
         const ACTIVATE          = 9;
-        const SRV_CTRL          = 10;
-        const VPE_CTRL          = 11;
-        const VPE_WAIT          = 12;
-        const DERIVE_MEM        = 13;
-        const OPEN_SESS         = 14;
+        const VPE_CTRL          = 10;
+        const VPE_WAIT          = 11;
+        const DERIVE_MEM        = 12;
 
         // capability exchange
-        const DELEGATE          = 15;
-        const OBTAIN            = 16;
-        const EXCHANGE          = 17;
-        const REVOKE            = 18;
+        const DELEGATE          = 13;
+        const OBTAIN            = 14;
+        const EXCHANGE          = 15;
+        const REVOKE            = 16;
 
         // forwarding
-        const FORWARD_MSG       = 19;
-        const FORWARD_MEM       = 20;
-        const FORWARD_REPLY     = 21;
+        const FORWARD_MSG       = 17;
+        const FORWARD_MEM       = 18;
+        const FORWARD_REPLY     = 19;
 
         // misc
-        const NOOP              = 22;
+        const NOOP              = 20;
     }
 }
 
@@ -211,21 +209,6 @@ pub struct Activate {
 }
 
 int_enum! {
-    /// The operations for the `srv_ctrl` system call
-    pub struct SrvOp : u64 {
-        const SHUTDOWN = 0x0;
-    }
-}
-
-/// The service control request message
-#[repr(C, packed)]
-pub struct SrvCtrl {
-    pub opcode: u64,
-    pub srv_sel: u64,
-    pub op: u64,
-}
-
-int_enum! {
     /// The operations for the `vpe_ctrl` system call
     pub struct VPEOp : u64 {
         const INIT  = 0x0;
@@ -270,16 +253,6 @@ pub struct DeriveMem {
     pub offset: u64,
     pub size: u64,
     pub perms: u64,
-}
-
-/// The open session request message
-#[repr(C, packed)]
-pub struct OpenSess {
-    pub opcode: u64,
-    pub dst_sel: u64,
-    pub arg: u64,
-    pub namelen: u64,
-    pub name: [u8; MAX_STR_SIZE],
 }
 
 /// The exchange request message

@@ -31,7 +31,7 @@ use arch::kdtu;
 use arch::vm;
 use cap::{Capability, KObject, MapFlags, SelRange};
 use cap::{EPObject, MGateObject, MapObject, RGateObject, SGateObject, ServObject, SessObject};
-use com::{Service, ServiceList};
+use com::ServiceList;
 use mem;
 use pes::{INVALID_VPE, vpemng};
 use pes::VPE;
@@ -125,11 +125,9 @@ pub fn handle(msg: &'static dtu::Message) {
         kif::syscalls::Operation::CREATE_VPE        => create_vpe(&vpe, msg),
         kif::syscalls::Operation::CREATE_MAP        => create_map(&vpe, msg),
         kif::syscalls::Operation::DERIVE_MEM        => derive_mem(&vpe, msg),
-        kif::syscalls::Operation::OPEN_SESS         => open_sess(&vpe, msg),
         kif::syscalls::Operation::EXCHANGE          => exchange(&vpe, msg),
         kif::syscalls::Operation::DELEGATE          => exchange_over_sess(&vpe, msg, false),
         kif::syscalls::Operation::OBTAIN            => exchange_over_sess(&vpe, msg, true),
-        kif::syscalls::Operation::SRV_CTRL          => srv_ctrl(&vpe, msg),
         kif::syscalls::Operation::VPE_CTRL          => vpe_ctrl(&vpe, msg),
         kif::syscalls::Operation::VPE_WAIT          => vpe_wait(&vpe, msg),
         kif::syscalls::Operation::REVOKE            => revoke(&vpe, msg),
@@ -291,9 +289,6 @@ fn create_srv(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), 
     if !vpe.borrow().obj_caps().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
-    if ServiceList::get().find(&name).is_some() {
-        sysc_err!(Code::Exists, "Service {} does already exist", name);
-    }
     if name.len() == 0 {
         sysc_err!(Code::InvArgs, "Invalid server name");
     }
@@ -309,7 +304,6 @@ fn create_srv(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), 
     );
 
     ServiceList::get().add(name.to_string(), &dst_vpe, dst_sel);
-    vpemng::get().start_pending();
 
     reply_success(msg);
     Ok(())
@@ -552,72 +546,6 @@ fn derive_mem(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), 
     Ok(())
 }
 
-#[inline(never)]
-fn open_sess(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::OpenSess = get_message(msg);
-    let dst_sel = req.dst_sel as CapSel;
-    let arg = req.arg;
-    let name: &str = unsafe { intrinsics::transmute(&req.name[0..req.namelen as usize]) };
-
-    sysc_log!(
-        vpe, "open_sess(dst={}, arg={:#x}, name={})",
-        dst_sel, arg, name
-    );
-
-    if !vpe.borrow().obj_caps().unused(dst_sel) {
-        sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
-    }
-
-    let sentry: Option<&Service> = ServiceList::get().find(name);
-    if sentry.is_none() {
-        sysc_err!(Code::InvArgs, "Service {} does not exist", name);
-    }
-
-    let smsg = kif::service::Open {
-        opcode: kif::service::Operation::OPEN.val as u64,
-        arg: arg,
-    };
-
-    let serv: Rc<RefCell<ServObject>> = sentry.unwrap().get_kobj();
-    klog!(SERV, "Sending OPEN(arg={}) to service {}", arg, serv.borrow().name);
-    let res = ServObject::send_receive(&serv, util::object_to_bytes(&smsg));
-
-    match res {
-        Err(e)      => sysc_err!(e.code(), "Service {} unreachable", name),
-
-        Ok(rmsg)    => {
-            let reply: &kif::service::OpenReply = get_message(rmsg);
-
-            sysc_log!(vpe, "create_sess continue with res={}", {reply.res});
-
-            if reply.res != 0 {
-                sysc_err!(Code::from(reply.res as u32), "Server denied session creation");
-            }
-            else {
-                sentry.map(|se| {
-                    let mut serv_vpe = se.vpe().borrow_mut();
-                    let src_opt = serv_vpe.obj_caps_mut().get_mut(reply.sess as CapSel);
-                    if let Some(src_cap) = src_opt {
-                        if let &KObject::Sess(_) = src_cap.get() {
-                            vpe.borrow_mut().obj_caps_mut().obtain(dst_sel, src_cap, true);
-                            Ok(())
-                        }
-                        else {
-                            Err(Error::new(Code::InvArgs))
-                        }
-                    }
-                    else {
-                        Err(Error::new(Code::InvArgs))
-                    }
-                });
-            }
-        }
-    }
-
-    reply_success(msg);
-    Ok(())
-}
-
 fn do_exchange(vpe1: &Rc<RefCell<VPE>>, vpe2: &Rc<RefCell<VPE>>,
                c1: &kif::CapRngDesc, c2: &kif::CapRngDesc, obtain: bool) -> Result<(), Error> {
     let src = if obtain { vpe2 } else { vpe1 };
@@ -824,36 +752,6 @@ fn activate(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), Sy
     else {
         vpe_ref.borrow_mut().invalidate_ep(epid, false)?;
         vpe_ref.borrow_mut().set_ep_sel(epid, None);
-    }
-
-    reply_success(msg);
-    Ok(())
-}
-
-#[inline(never)]
-fn srv_ctrl(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::SrvCtrl = get_message(msg);
-    let srv_sel = req.srv_sel as CapSel;
-    let op = kif::syscalls::SrvOp::from(req.op);
-
-    sysc_log!(
-        vpe, "srv_ctrl(srv={:?}, op={:?})",
-        srv_sel, op
-    );
-
-    let srv: Rc<RefCell<ServObject>> = get_kobj!(vpe, srv_sel, Serv);
-
-    match op {
-        kif::syscalls::SrvOp::SHUTDOWN => {
-            klog!(SERV, "Sending SHUTDOWN message to {}", srv.borrow().name);
-
-            let smsg = kif::service::Shutdown {
-                opcode: kif::service::Operation::SHUTDOWN.val as u64,
-            };
-            srv.borrow_mut().send(util::object_to_bytes(&smsg)).ok();
-        },
-
-        _                           => panic!("SrvOp unsupported: {:?}", op),
     }
 
     reply_success(msg);

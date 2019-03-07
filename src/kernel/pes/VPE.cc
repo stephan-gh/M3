@@ -57,7 +57,6 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
       _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id, sep, rep, sgate) : nullptr),
       _headers(),
       _rbufcpy(),
-      _requires(),
       _argc(),
       _argv(),
       _mem_base() {
@@ -86,8 +85,6 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
         init_eps();
 
     KLOG(VPES, "Created VPE '" << _name << "' [id=" << id << ", pe=" << pe() << "]");
-    for(auto &r : _requires)
-        KLOG(VPES, "  requires: '" << r.name << "'");
 }
 
 VPE::~VPE() {
@@ -97,8 +94,6 @@ VPE::~VPE() {
 
     if(_group)
         _group->remove(this);
-
-    free_reqs();
 
     _objcaps.revoke_all();
     _mapcaps.revoke_all();
@@ -125,11 +120,6 @@ void VPE::flush_cache() {
     assert(cur != nullptr);
     DTU::get().flush_cache(cur->desc());
     _flags |= F_FLUSHED;
-}
-
-void VPE::make_daemon() {
-    _flags |= F_DAEMON;
-    VPEManager::get()._daemons++;
 }
 
 void VPE::start_app(int pid) {
@@ -266,13 +256,6 @@ void VPE::wakeup() {
 
 void VPE::notify_resume() {
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(this));
-}
-
-void VPE::free_reqs() {
-    for(auto it = _requires.begin(); it != _requires.end(); ) {
-        auto old = it++;
-        delete &*old;
-    }
 }
 
 void VPE::upcall_forward(word_t event, m3::Errors::Code res) {

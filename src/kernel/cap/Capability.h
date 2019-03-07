@@ -236,15 +236,12 @@ class SessObject : public SlabObject<SessObject>, public m3::RefCounted {
 public:
     explicit SessObject(Service *_srv, word_t _ident)
         : RefCounted(),
-          invalid(),
           ident(_ident),
           srv(_srv) {
     }
 
     void drop_msgs();
-    void close();
 
-    bool invalid;
     word_t ident;
     m3::Reference<Service> srv;
 };

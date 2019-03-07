@@ -112,7 +112,6 @@ pub struct VPE {
     map_caps: CapTable,
     eps_addr: usize,
     args: Vec<String>,
-    req: Vec<String>,
     ep_caps: Vec<Option<CapSel>>,
     exit_code: Option<i32>,
     dtu_state: kdtu::State,
@@ -135,7 +134,6 @@ impl VPE {
             map_caps: CapTable::new(),
             eps_addr: 0,
             args: Vec::new(),
-            req: Vec::new(),
             ep_caps: vec![None; EP_COUNT - FIRST_FREE_EP],
             exit_code: None,
             dtu_state: kdtu::State::new(),
@@ -258,9 +256,6 @@ impl VPE {
     pub fn args(&self) -> &Vec<String> {
         &self.args
     }
-    pub fn requirements(&self) -> &Vec<String> {
-        &self.req
-    }
 
     pub fn addr_space(&self) -> Option<&vm::AddrSpace> {
         self.addr_space.as_ref()
@@ -305,9 +300,6 @@ impl VPE {
     }
     pub fn add_arg(&mut self, arg: &str) {
         self.args.push(arg.to_string());
-    }
-    pub fn add_requirement(&mut self, req: &str) {
-        self.req.push(req.to_string());
     }
 
     pub fn eps_addr(&self) -> usize {
