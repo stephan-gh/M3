@@ -354,34 +354,36 @@ impl ChildManager {
     }
 
     pub fn kill_child(&mut self, sel: Selector, exitcode: i32) {
-        let id = self.sel_to_id(sel);
-        let child = self.remove_rec(id);
+        if let Some(id) = self.sel_to_id(sel) {
+            let child = self.remove_rec(id).unwrap();
 
-        log!(ROOT, "Child '{}' exited with exitcode {}", child.name(), exitcode);
+            log!(ROOT, "Child '{}' exited with exitcode {}", child.name(), exitcode);
+        }
     }
 
-    fn remove_rec(&mut self, id: Id) -> Box<Child> {
-        let child = self.childs.remove(&id).unwrap();
-        self.ids.retain(|&i| i != id);
-        if child.daemon() {
-            self.daemons -= 1;
-        }
-        if child.foreign() {
-            self.foreigns -= 1;
-        }
+    fn remove_rec(&mut self, id: Id) -> Option<Box<Child>> {
+        self.childs.remove(&id).map(|child| {
+            self.ids.retain(|&i| i != id);
+            if child.daemon() {
+                self.daemons -= 1;
+            }
+            if child.foreign() {
+                self.foreigns -= 1;
+            }
 
-        log!(ROOT, "Removed child '{}'", child.name());
+            log!(ROOT, "Removed child '{}'", child.name());
 
-        for csel in &child.res().childs {
-            self.remove_rec(csel.0);
-        }
-        child
+            for csel in &child.res().childs {
+                self.remove_rec(csel.0);
+            }
+            child
+        })
     }
 
-    fn sel_to_id(&self, sel: Selector) -> Id {
-        *self.ids.iter().find(|&&id| {
+    fn sel_to_id(&self, sel: Selector) -> Option<Id> {
+        self.ids.iter().find(|&&id| {
             let child = self.child_by_id(id).unwrap();
             child.vpe_sel() == sel
-        }).unwrap()
+        }).map(|&c| c)
     }
 }
