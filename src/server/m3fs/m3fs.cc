@@ -190,7 +190,6 @@ public:
 
 private:
     RecvGate _rgate;
-    //MemGate _mem;
     FSHandle _handle;
 };
 
