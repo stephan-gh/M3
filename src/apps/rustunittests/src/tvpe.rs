@@ -19,11 +19,10 @@ use m3::com::{SendGate, SGateArgs, RecvGate, RGateArgs};
 use m3::dtu::DTU;
 use m3::boxed::Box;
 use m3::env;
-use m3::io::Write;
 use m3::test;
 use m3::util;
+use m3::vfs;
 use m3::vpe::{Activity, VPE, VPEArgs};
-use m3::vfs::{VFS, OpenFlags};
 
 pub fn run(t: &mut test::Tester) {
     run_test!(t, run_stop);
@@ -53,17 +52,13 @@ fn run_stop() {
         assert_ok!(vpe.obtain_mounts());
 
         let act = assert_ok!(vpe.run(Box::new(move || {
-            // open file
-            let flags = OpenFlags::CREATE | OpenFlags::TRUNC | OpenFlags::RW;
-            let mut file = assert_ok!(VFS::open("/newfile", flags));
             // notify parent that we're running
             assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
-            let mut n = 0;
+            let mut _n = 0;
             loop {
-                n += 1;
-                // write something to a file; just to execute more interesting instructions than
-                // arithmetic or jumps
-                assert_ok!(write!(file, "n is {}\n", n));
+                _n += 1;
+                // just to execute more interesting instructions than arithmetic or jumps
+                vfs::VFS::stat("/").ok();
             }
         })));
 
