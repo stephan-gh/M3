@@ -51,16 +51,26 @@ impl Gate {
         self.ep.get()
     }
     pub fn set_ep(&self, ep: EpId) {
-        self.ep.set(Some(ep))
+        self.ep.set(Some(ep));
+        EpMux::get().set_owned(ep, self.sel());
     }
     pub fn unset_ep(&self) {
-        self.ep.set(None)
+        if let Some(ep) = self.ep() {
+            EpMux::get().unset_owned(ep);
+        }
+        self.ep.set(None);
     }
 
     pub fn activate(&self) -> Result<EpId, Error> {
+        // the invariants here are:
+        // 1. if ep is Some, ep_owned_by determines whether we currently own that EP.
+        //    (it might have been reused for something else behind our back)
+        // 2. if ep is None, we don't have an EP yet and need to get one via switch_to
+        // the first implies that if we configure EPs otherwise for a gate (for example, in
+        // genericfile), we have to mark it owned in EpMux. That's why we set/unset it owned above.
         match self.ep() {
-            Some(ep) => Ok(ep),
-            None     => EpMux::get().switch_to(self),
+            Some(ep) if EpMux::get().ep_owned_by(ep, self.sel()) => Ok(ep),
+            _                                                    => EpMux::get().switch_to(self),
         }
     }
 

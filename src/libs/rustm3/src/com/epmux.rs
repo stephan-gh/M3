@@ -24,7 +24,7 @@ use syscalls;
 use vpe;
 
 pub struct EpMux {
-    gates: [Option<*const Gate>; dtu::EP_COUNT],
+    gates: [Option<Selector>; dtu::EP_COUNT],
     next_victim: usize,
 }
 
@@ -44,32 +44,40 @@ impl EpMux {
 
     pub fn reserve(&mut self, ep: EpId) {
         // take care that some non-fixed gate could already use that endpoint
-        if let Some(g) = self.gate_at_ep(ep) {
-            self.activate(g.ep().unwrap(), INVALID_SEL).ok();
-            g.unset_ep();
+        if let Some(_) = self.gates[ep] {
+            self.activate(ep, INVALID_SEL).ok();
         }
         self.gates[ep] = None;
     }
 
-    pub fn switch_to(&mut self, g: &Gate) -> Result<EpId, Error> {
-        match g.ep() {
-            Some(idx) => Ok(idx),
-            None      => {
-                let idx = self.select_victim()?;
-                self.activate(idx, g.sel())?;
-                self.gates[idx] = Some(g);
-                g.set_ep(idx);
-                Ok(idx)
-            }
+    pub(crate) fn set_owned(&mut self, ep: EpId, sel: Selector) {
+        self.gates[ep] = Some(sel);
+    }
+    pub(crate) fn unset_owned(&mut self, ep: EpId) {
+        self.gates[ep] = None;
+    }
+
+    pub fn ep_owned_by(&self, ep: EpId, sel: Selector) -> bool {
+        match self.gates[ep] {
+            Some(s) => s == sel,
+            None    => false
         }
+    }
+
+    pub fn switch_to(&mut self, g: &Gate) -> Result<EpId, Error> {
+        let idx = self.select_victim()?;
+        self.activate(idx, g.sel())?;
+        g.set_ep(idx);
+        Ok(idx)
     }
 
     pub fn switch_cap(&mut self, g: &Gate, sel: Selector) -> Result<(), Error> {
         if let Some(ep) = g.ep() {
-            self.activate(ep, sel)?;
-            if sel == INVALID_SEL {
-                self.gates[ep] = None;
-                g.unset_ep();
+            if self.ep_owned_by(ep, g.sel()) {
+                self.activate(ep, sel)?;
+                if sel == INVALID_SEL {
+                    self.gates[ep] = None;
+                }
             }
         }
         Ok(())
@@ -77,20 +85,18 @@ impl EpMux {
 
     pub fn remove(&mut self, g: &Gate) {
         if let Some(ep) = g.ep() {
-            self.gates[ep] = None;
-            // only necessary if we won't revoke the gate anyway
-            if !(g.flags() & CapFlags::KEEP_CAP).is_empty() {
-                self.activate(ep, INVALID_SEL).ok();
+            if self.ep_owned_by(ep, g.sel()) {
+                self.gates[ep] = None;
+                // only necessary if we won't revoke the gate anyway
+                if !(g.flags() & CapFlags::KEEP_CAP).is_empty() {
+                    self.activate(ep, INVALID_SEL).ok();
+                }
             }
-            g.unset_ep();
         }
     }
 
     pub fn reset(&mut self) {
         for ep in 0..dtu::EP_COUNT {
-            if let Some(g) = self.gate_at_ep(ep) {
-                g.unset_ep();
-            }
             self.gates[ep] = None;
         }
     }
@@ -109,20 +115,8 @@ impl EpMux {
             Err(Error::new(Code::NoSpace))
         }
         else {
-            if let Some(g) = self.gate_at_ep(victim) {
-                g.unset_ep();
-            }
             self.next_victim = (victim + 1) % dtu::EP_COUNT;
             Ok(victim)
-        }
-    }
-
-    fn gate_at_ep(&self, ep: EpId) -> Option<&Gate> {
-        if let Some(g) = self.gates[ep] {
-            Some(unsafe { &*g })
-        }
-        else {
-            None
         }
     }
 
