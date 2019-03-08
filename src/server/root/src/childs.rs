@@ -28,25 +28,9 @@ use m3::vpe::{Activity, ExecActivity, VPE, VPEArgs};
 
 use boot;
 use loader;
-use services;
+use services::{self, Session};
 
 pub type Id = u32;
-
-pub struct Session {
-    pub sel: Selector,
-    pub ident: u64,
-    pub serv: Id,
-}
-
-impl Session {
-    pub fn new(sel: Selector, ident: u64, serv: Id) -> Self {
-        Session {
-            sel: sel,
-            ident: ident,
-            serv: serv,
-        }
-    }
-}
 
 pub struct Resources {
     pub childs: Vec<(Id, Selector)>,
@@ -138,14 +122,28 @@ pub trait Child {
         Ok(serv.remove(idx).0)
     }
 
-    fn add_session(&mut self, sel: Selector, ident: u64, serv: Id) {
-        self.res_mut().sessions.push(Session::new(sel, ident, serv));
+    fn add_session(&mut self, sess: Session) {
+        self.res_mut().sessions.push(sess);
     }
     fn get_session(&self, sel: Selector) -> Option<&Session> {
         self.res().sessions.iter().find(|s| s.sel == sel)
     }
-    fn remove_session(&mut self, sel: Selector) {
-        self.res_mut().sessions.retain(|s| s.sel != sel);
+    fn remove_session(&mut self, sel: Selector) -> Result<Session, Error> {
+        let sessions = &mut self.res_mut().sessions;
+        let idx = sessions.iter().position(|s| s.sel == sel).ok_or(Error::new(Code::InvArgs))?;
+        Ok(sessions.remove(idx))
+    }
+
+    fn remove_resources(&mut self) where Self: Sized {
+        while self.res().sessions.len() > 0 {
+            let sess = self.res_mut().sessions.remove(0);
+            sess.close().ok();
+        }
+
+        while self.res().services.len() > 0 {
+            let (id, _) = self.res_mut().services.remove(0);
+            services::get().remove_service(id);
+        }
     }
 }
 
@@ -228,10 +226,7 @@ impl Child for BootChild {
 
 impl Drop for BootChild {
     fn drop(&mut self) {
-        while self.res.sessions.len() > 0 {
-            let sess = self.res.sessions.remove(0);
-            services::get().close_session(self, sess.sel).ok();
-        }
+        self.remove_resources();
     }
 }
 
@@ -278,6 +273,12 @@ impl Child for ForeignChild {
     }
     fn res_mut(&mut self) -> &mut Resources {
         &mut self.res
+    }
+}
+
+impl Drop for ForeignChild {
+    fn drop(&mut self) {
+        self.remove_resources();
     }
 }
 

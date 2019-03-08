@@ -58,6 +58,59 @@ impl Service {
     fn child(&mut self) -> &mut Child {
         childs::get().child_by_id_mut(self.child).unwrap()
     }
+
+    fn shutdown(&self) {
+        log!(ROOT, "Sending SHUTDOWN to service {}", self.name);
+
+        // TODO do that asynchronously
+        let smsg = kif::service::Shutdown {
+            opcode: kif::service::Operation::SHUTDOWN.val as u64,
+        };
+
+        self.sgate.send(&[smsg], RecvGate::def()).ok();
+        recv_res(RecvGate::def()).ok();
+    }
+}
+
+pub struct Session {
+    pub sel: Selector,
+    pub ident: u64,
+    pub serv: Id,
+}
+
+impl Session {
+    pub fn new(sel: Selector, serv: &Service, arg: u64) -> Result<(Selector, Self), Error> {
+        // TODO do that asynchronously
+        let smsg = kif::service::Open {
+            opcode: kif::service::Operation::OPEN.val as u64,
+            arg: arg,
+        };
+
+        serv.sgate.send(&[smsg], RecvGate::def())?;
+        let mut sis = recv_res(RecvGate::def())?;
+        let srv_sel: Selector = sis.pop();
+        let ident: u64 = sis.pop();
+
+        Ok((srv_sel,
+            Session {
+            sel: sel,
+            ident: ident,
+            serv: serv.id,
+        }))
+    }
+
+    pub fn close(&self) -> Result<(), Error> {
+        let serv = get().get_by_id(self.serv)?;
+
+        // TODO do that asynchronously
+        let smsg = kif::service::Close {
+            opcode: kif::service::Operation::CLOSE.val as u64,
+            sess: self.ident,
+        };
+
+        serv.sgate.send(&[smsg], RecvGate::def())?;
+        recv_res(RecvGate::def()).map(|_| ())
+    }
 }
 
 pub struct ServiceManager {
@@ -84,6 +137,9 @@ impl ServiceManager {
     }
     pub fn get_by_id(&mut self, id: Id) -> Result<&mut Service, Error> {
         self.servs.iter_mut().find(|s| s.id == id).ok_or(Error::new(Code::InvArgs))
+    }
+    pub fn remove_service(&mut self, id: Id) {
+        self.servs.retain(|s| s.id != id);
     }
 
     pub fn reg_serv(&mut self, child: &mut Child, child_sel: Selector, dst_sel: Selector,
@@ -115,9 +171,9 @@ impl ServiceManager {
         let id = child.remove_service(sel)?;
         if notify {
             let serv = self.get_by_id(id).unwrap();
-            Self::do_shutdown(serv);
+            serv.shutdown();
         }
-        self.servs.retain(|s| s.id != id);
+        self.remove_service(id);
         Ok(())
     }
 
@@ -131,60 +187,24 @@ impl ServiceManager {
         }
 
         let serv = self.get(&name)?;
-
-        // TODO do that asynchronously
-        let smsg = kif::service::Open {
-            opcode: kif::service::Operation::OPEN.val as u64,
-            arg: arg,
-        };
-
-        serv.sgate.send(&[smsg], RecvGate::def())?;
-        let mut sis = recv_res(RecvGate::def())?;
-        let srv_sel: Selector = sis.pop();
-        let ident: u64 = sis.pop();
+        let (srv_sel, sess) = Session::new(dst_sel, serv, arg)?;
 
         let our_sel = serv.child().obtain(srv_sel)?;
         child.delegate(our_sel, dst_sel)?;
-        child.add_session(dst_sel, ident, serv.id);
+        child.add_session(sess);
         Ok(())
     }
 
     pub fn close_session(&mut self, child: &mut Child, sel: Selector) -> Result<(), Error> {
         log!(ROOT, "{}: close_sess(sel={})", child.name(), sel);
 
-        {
-            let sess = child.get_session(sel).ok_or(Error::new(Code::InvArgs))?;
-            let serv = self.get_by_id(sess.serv)?;
-
-            // TODO do that asynchronously
-            let smsg = kif::service::Close {
-                opcode: kif::service::Operation::CLOSE.val as u64,
-                sess: sess.ident,
-            };
-
-            serv.sgate.send(&[smsg], RecvGate::def())?;
-            recv_res(RecvGate::def())?;
-        }
-
-        child.remove_session(sel);
-        Ok(())
+        let sess = child.remove_session(sel)?;
+        sess.close()
     }
 
     pub fn shutdown(&mut self) {
         for s in &self.servs {
-            Self::do_shutdown(s);
+            s.shutdown();
         }
-    }
-
-    fn do_shutdown(serv: &Service) {
-        log!(ROOT, "Sending SHUTDOWN to service {}", serv.name);
-
-        // TODO do that asynchronously
-        let smsg = kif::service::Shutdown {
-            opcode: kif::service::Operation::SHUTDOWN.val as u64,
-        };
-
-        serv.sgate.send(&[smsg], RecvGate::def()).ok();
-        recv_res(RecvGate::def()).ok();
     }
 }
