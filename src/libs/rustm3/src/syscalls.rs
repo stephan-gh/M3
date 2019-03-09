@@ -67,12 +67,6 @@ fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
 }
 
 pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::create_srv(dst={}, vpe={}, rgate={}, name={})",
-        dst, vpe, rgate, name
-    );
-
     let mut req = syscalls::CreateSrv {
         opcode: syscalls::Operation::CREATE_SRV.val,
         dst_sel: dst as u64,
@@ -91,12 +85,6 @@ pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> 
 }
 
 pub fn create_sgate(dst: Selector, rgate: Selector, label: dtu::Label, credits: u64) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::create_sgate(dst={}, rgate={}, lbl={:#x}, credits={})",
-        dst, rgate, label, credits
-    );
-
     let req = syscalls::CreateSGate {
         opcode: syscalls::Operation::CREATE_SGATE.val,
         dst_sel: dst as u64,
@@ -108,12 +96,6 @@ pub fn create_sgate(dst: Selector, rgate: Selector, label: dtu::Label, credits: 
 }
 
 pub fn create_mgate(dst: Selector, addr: goff, size: usize, perms: Perm) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::create_mgate(dst={}, addr={:#x}, size={:#x}, perms={:?})",
-        dst, addr, size, perms
-    );
-
     let req = syscalls::CreateMGate {
         opcode: syscalls::Operation::CREATE_MGATE.val,
         dst_sel: dst as u64,
@@ -125,12 +107,6 @@ pub fn create_mgate(dst: Selector, addr: goff, size: usize, perms: Perm) -> Resu
 }
 
 pub fn create_rgate(dst: Selector, order: i32, msgorder: i32) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::create_rgate(dst={}, order={}, msgorder={})",
-        dst, order, msgorder
-    );
-
     let req = syscalls::CreateRGate {
         opcode: syscalls::Operation::CREATE_RGATE.val,
         dst_sel: dst as u64,
@@ -141,12 +117,6 @@ pub fn create_rgate(dst: Selector, order: i32, msgorder: i32) -> Result<(), Erro
 }
 
 pub fn create_sess(dst: Selector, srv: Selector, ident: u64) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::create_sess(dst={}, srv={}, ident={:#x})",
-        dst, srv, ident
-    );
-
     let req = syscalls::CreateSess {
         opcode: syscalls::Operation::CREATE_SESS.val,
         dst_sel: dst as u64,
@@ -158,12 +128,6 @@ pub fn create_sess(dst: Selector, srv: Selector, ident: u64) -> Result<(), Error
 
 pub fn create_map(dst: Selector, vpe: Selector, mgate: Selector, first: Selector,
                   pages: u32, perms: Perm) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::create_map(dst={}, vpe={}, mgate={}, first={}, pages={}, perms={:?})",
-        dst, vpe, mgate, first, pages, perms
-    );
-
     let req = syscalls::CreateMap {
         opcode: syscalls::Operation::CREATE_MAP.val,
         dst_sel: dst as u64,
@@ -177,12 +141,6 @@ pub fn create_map(dst: Selector, vpe: Selector, mgate: Selector, first: Selector
 }
 
 pub fn create_vpe_group(dst: Selector) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::create_vpe_group(dst={})",
-        dst
-    );
-
     let req = syscalls::CreateVPEGrp {
         opcode: syscalls::Operation::CREATE_VPEGRP.val,
         dst_sel: dst as u64
@@ -193,12 +151,6 @@ pub fn create_vpe_group(dst: Selector) -> Result<(), Error> {
 pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
                   sep: dtu::EpId, rep: dtu::EpId, tmuxable: bool,
                   group: Selector) -> Result<PEDesc, Error> {
-    log!(
-        SYSC,
-        "syscalls::create_vpe(dst={}, sgate={}, name={}, pe={:?}, sep={}, rep={}, tmuxable={}, group={})",
-        dst, sgate, name, pe, sep, rep, tmuxable, group
-    );
-
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
         dst_crd: dst.value() as u64,
@@ -225,12 +177,6 @@ pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
 }
 
 pub fn derive_mem(dst: Selector, src: Selector, offset: goff, size: usize, perms: Perm) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::derive_mem(dst={}, src={}, off={:#x}, size={:#x}, perms={:?})",
-        dst, src, offset, size, perms
-    );
-
     let req = syscalls::DeriveMem {
         opcode: syscalls::Operation::DERIVE_MEM.val,
         dst_sel: dst as u64,
@@ -243,12 +189,6 @@ pub fn derive_mem(dst: Selector, src: Selector, offset: goff, size: usize, perms
 }
 
 pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::vpe_ctrl(vpe={}, op={:?}, arg={})",
-        vpe, op, arg
-    );
-
     let req = syscalls::VPECtrl {
         opcode: syscalls::Operation::VPE_CTRL.val,
         vpe_sel: vpe as u64,
@@ -259,12 +199,6 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
 }
 
 pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
-    log!(
-        SYSC,
-        "syscalls::vpe_wait(vpes={}, event={})",
-        vpes.len(), event
-    );
-
     let mut req = syscalls::VPEWait {
         opcode: syscalls::Operation::VPE_WAIT.val,
         event: event,
@@ -284,12 +218,6 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
 }
 
 pub fn exchange(vpe: Selector, own: CapRngDesc, other: Selector, obtain: bool) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::exchange(vpe={}, own={}, other={}, obtain={})",
-        vpe, own, other, obtain
-    );
-
     let req = syscalls::Exchange {
         opcode: syscalls::Operation::EXCHANGE.val,
         vpe_sel: vpe as u64,
@@ -302,15 +230,11 @@ pub fn exchange(vpe: Selector, own: CapRngDesc, other: Selector, obtain: bool) -
 
 pub fn delegate(vpe: Selector, sess: Selector, crd: CapRngDesc,
                 args: &mut syscalls::ExchangeArgs) -> Result<(), Error> {
-    log!(SYSC, "syscalls::delegate(vpe={}, sess={}, crd={})", vpe, sess, crd);
-
     exchange_sess(vpe, syscalls::Operation::DELEGATE, sess, crd, args)
 }
 
 pub fn obtain(vpe: Selector, sess: Selector, crd: CapRngDesc,
               args: &mut syscalls::ExchangeArgs) -> Result<(), Error> {
-    log!(SYSC, "syscalls::obtain(vpe={}, sess={}, crd={})", vpe, sess, crd);
-
     exchange_sess(vpe, syscalls::Operation::OBTAIN, sess, crd, args)
 }
 
@@ -336,12 +260,6 @@ fn exchange_sess(vpe: Selector, op: syscalls::Operation, sess: Selector, crd: Ca
 }
 
 pub fn activate(ep: Selector, gate: Selector, addr: goff) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::activate(ep={}, gate={}, addr={})",
-        ep, gate, addr
-    );
-
     let req = syscalls::Activate {
         opcode: syscalls::Operation::ACTIVATE.val,
         ep_sel: ep as u64,
@@ -352,12 +270,6 @@ pub fn activate(ep: Selector, gate: Selector, addr: goff) -> Result<(), Error> {
 }
 
 pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::revoke(vpe={}, crd={}, own={})",
-        vpe, crd, own
-    );
-
     let req = syscalls::Revoke {
         opcode: syscalls::Operation::REVOKE.val,
         vpe_sel: vpe as u64,
@@ -369,12 +281,6 @@ pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
 
 pub fn forward_write(mgate: Selector, data: &[u8], off: goff,
                      flags: syscalls::ForwardMemFlags, event: u64) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::forward_write(mgate={}, count={}, off={}, flags={}, event={})",
-        mgate, data.len(), off, flags.bits(), event
-    );
-
     let mut req = syscalls::ForwardMem {
         opcode: syscalls::Operation::FORWARD_MEM.val,
         mgate_sel: mgate as u64,
@@ -391,12 +297,6 @@ pub fn forward_write(mgate: Selector, data: &[u8], off: goff,
 
 pub fn forward_read(mgate: Selector, data: &mut [u8], off: goff,
                     flags: syscalls::ForwardMemFlags, event: u64) -> Result<(), Error> {
-    log!(
-        SYSC,
-        "syscalls::forward_read(mgate={}, count={}, off={}, flags={}, event={})",
-        mgate, data.len(), off, flags.bits(), event
-    );
-
     let req = syscalls::ForwardMem {
         opcode: syscalls::Operation::FORWARD_MEM.val,
         mgate_sel: mgate as u64,
@@ -427,12 +327,6 @@ pub fn noop() -> Result<(), Error> {
 }
 
 pub fn exit(code: i32) {
-    log!(
-        SYSC,
-        "syscalls::exit(code={})",
-        code
-    );
-
     let req = syscalls::VPECtrl {
         opcode: syscalls::Operation::VPE_CTRL.val,
         vpe_sel: 0,

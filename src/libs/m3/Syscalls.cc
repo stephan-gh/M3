@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
 #include <base/tracing/Tracing.h>
 #include <base/Errors.h>
 #include <base/Init.h>
@@ -54,9 +53,6 @@ Errors::Code Syscalls::send_receive_result(const void *msg, size_t size) {
 }
 
 Errors::Code Syscalls::createsrv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name) {
-    LLOG(SYSC, "createsrv(dst=" << dst << ", vpe=" << vpe
-        << ", rgate=" << rgate << ", name=" << name << ")");
-
     KIF::Syscall::CreateSrv req;
     req.opcode = KIF::Syscall::CREATE_SRV;
     req.dst_sel = dst;
@@ -69,8 +65,6 @@ Errors::Code Syscalls::createsrv(capsel_t dst, capsel_t vpe, capsel_t rgate, con
 }
 
 Errors::Code Syscalls::createsess(capsel_t dst, capsel_t srv, word_t ident) {
-    LLOG(SYSC, "createsessat(dst=" << dst << ", srv=" << srv << ", ident=" << fmt(ident, "0x") << ")");
-
     KIF::Syscall::CreateSess req;
     req.opcode = KIF::Syscall::CREATE_SESS;
     req.dst_sel = dst;
@@ -80,9 +74,6 @@ Errors::Code Syscalls::createsess(capsel_t dst, capsel_t srv, word_t ident) {
 }
 
 Errors::Code Syscalls::creatergate(capsel_t dst, int order, int msgorder) {
-    LLOG(SYSC, "creatergate(dst=" << dst << ", size=" << fmt(1UL << order, "x")
-        << ", msgsize=" << fmt(1UL << msgorder, "x") << ")");
-
     KIF::Syscall::CreateRGate req;
     req.opcode = KIF::Syscall::CREATE_RGATE;
     req.dst_sel = dst;
@@ -92,9 +83,6 @@ Errors::Code Syscalls::creatergate(capsel_t dst, int order, int msgorder) {
 }
 
 Errors::Code Syscalls::createsgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits) {
-    LLOG(SYSC, "createsgate(dst=" << dst << ", rgate=" << rgate << ", label=" << fmt(label, "#x")
-        << ", credits=" << credits << ")");
-
     KIF::Syscall::CreateSGate req;
     req.opcode = KIF::Syscall::CREATE_SGATE;
     req.dst_sel = dst;
@@ -105,9 +93,6 @@ Errors::Code Syscalls::createsgate(capsel_t dst, capsel_t rgate, label_t label, 
 }
 
 Errors::Code Syscalls::createmgate(capsel_t dst, goff_t addr, size_t size, int perms) {
-    LLOG(SYSC, "createmgate(dst=" << dst << ", addr=" << addr << ", size=" << size
-        << ", perms=" << perms << ")");
-
     KIF::Syscall::CreateMGate req;
     req.opcode = KIF::Syscall::CREATE_MGATE;
     req.dst_sel = dst;
@@ -119,9 +104,6 @@ Errors::Code Syscalls::createmgate(capsel_t dst, goff_t addr, size_t size, int p
 
 Errors::Code Syscalls::createmap(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                                  capsel_t pages, int perms) {
-    LLOG(SYSC, "createmap(dst=" << dst << ", vpe=" << vpe << ", mgate=" << mgate
-        << ", first=" << first << ", pages=" << pages << ", perms=" << perms << ")");
-
     KIF::Syscall::CreateMap req;
     req.opcode = KIF::Syscall::CREATE_MAP;
     req.dst_sel = dst;
@@ -134,8 +116,6 @@ Errors::Code Syscalls::createmap(capsel_t dst, capsel_t vpe, capsel_t mgate, cap
 }
 
 Errors::Code Syscalls::createvpegrp(capsel_t dst) {
-    LLOG(SYSC, "createvpegrp(dst=" << dst << ")");
-
     KIF::Syscall::CreateVPEGrp req;
     req.opcode = KIF::Syscall::CREATE_VPEGRP;
     req.dst_sel = dst;
@@ -144,11 +124,6 @@ Errors::Code Syscalls::createvpegrp(capsel_t dst) {
 
 Errors::Code Syscalls::createvpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name,
                                  PEDesc &pe, epid_t sep, epid_t rep, uint flags, capsel_t group) {
-    LLOG(SYSC, "createvpe(dst=" << dst << ", sgate=" << sgate
-        << ", name=" << name << ", type=" << static_cast<int>(pe.type())
-        << ", sep=" << sep << ", rep=" << rep << ", flags=" << flags
-        << ", group=" << group << ")");
-
     KIF::Syscall::CreateVPE req;
     req.opcode = KIF::Syscall::CREATE_VPE;
     req.dst_crd = dst.value();
@@ -174,8 +149,6 @@ Errors::Code Syscalls::createvpe(const KIF::CapRngDesc &dst, capsel_t sgate, con
 }
 
 Errors::Code Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {
-    LLOG(SYSC, "activate(ep=" << ep << ", gate=" << gate << ")");
-
     KIF::Syscall::Activate req;
     req.opcode = KIF::Syscall::ACTIVATE;
     req.ep_sel = ep;
@@ -185,8 +158,6 @@ Errors::Code Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {
 }
 
 Errors::Code Syscalls::vpectrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg) {
-    LLOG(SYSC, "vpectrl(vpe=" << vpe << ", op=" << op << ", arg=" << arg << ")");
-
     KIF::Syscall::VPECtrl req;
     req.opcode = KIF::Syscall::VPE_CTRL;
     req.vpe_sel = vpe;
@@ -197,8 +168,6 @@ Errors::Code Syscalls::vpectrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg)
 
 Errors::Code Syscalls::vpewait(const capsel_t *vpes, size_t count, event_t event,
                                capsel_t *vpe, int *exitcode) {
-    LLOG(SYSC, "vpewait(vpes=" << vpes << ", event=" << event << ")");
-
     KIF::Syscall::VPEWait req;
     req.opcode = KIF::Syscall::VPE_WAIT;
     req.vpe_count = count;
@@ -220,9 +189,6 @@ Errors::Code Syscalls::vpewait(const capsel_t *vpes, size_t count, event_t event
 }
 
 Errors::Code Syscalls::derivemem(capsel_t dst, capsel_t src, goff_t offset, size_t size, int perms) {
-    LLOG(SYSC, "derivemem(dst=" << dst << ", src=" << src << ", off=" << offset
-            << ", size=" << size << ", perms=" << perms << ")");
-
     KIF::Syscall::DeriveMem req;
     req.opcode = KIF::Syscall::DERIVE_MEM;
     req.dst_sel = dst;
@@ -234,9 +200,6 @@ Errors::Code Syscalls::derivemem(capsel_t dst, capsel_t src, goff_t offset, size
 }
 
 Errors::Code Syscalls::exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other, bool obtain) {
-    LLOG(SYSC, "exchange(vpe=" << vpe << ", own=" << own << ", other=" << other
-        << ", obtain=" << obtain << ")");
-
     KIF::Syscall::Exchange req;
     req.opcode = KIF::Syscall::EXCHANGE;
     req.vpe_sel = vpe;
@@ -271,19 +234,15 @@ Errors::Code Syscalls::exchangesess(capsel_t vpe, capsel_t sess, const KIF::CapR
 
 Errors::Code Syscalls::delegate(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                                 KIF::ExchangeArgs *args) {
-    LLOG(SYSC, "delegate(vpe=" << vpe << ", sess=" << sess << ", crd=" << crd << ")");
     return exchangesess(vpe, sess, crd, args, false);
 }
 
 Errors::Code Syscalls::obtain(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                               KIF::ExchangeArgs *args) {
-    LLOG(SYSC, "obtain(vpe=" << vpe << ", sess=" << sess << ", crd=" << crd << ")");
     return exchangesess(vpe, sess, crd, args, true);
 }
 
 Errors::Code Syscalls::revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own) {
-    LLOG(SYSC, "revoke(vpe=" << vpe << ", crd=" << crd << ", own=" << own << ")");
-
     KIF::Syscall::Revoke req;
     req.opcode = KIF::Syscall::REVOKE;
     req.vpe_sel = vpe;
@@ -294,9 +253,6 @@ Errors::Code Syscalls::revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own
 
 Errors::Code Syscalls::forwardmsg(capsel_t sgate, capsel_t rgate, const void *msg, size_t len,
                                   label_t rlabel, event_t event) {
-    LLOG(SYSC, "forwardmsg(sgate=" << sgate << ", rgate=" << rgate << ", msg=" << msg
-        << ", len=" << len << ", rlabel=" << fmt(rlabel, "0x") << ", event=" << fmt(event, "0x") << ")");
-
     KIF::Syscall::ForwardMsg req;
     req.opcode = KIF::Syscall::FORWARD_MSG;
     req.sgate_sel = sgate;
@@ -311,9 +267,6 @@ Errors::Code Syscalls::forwardmsg(capsel_t sgate, capsel_t rgate, const void *ms
 
 Errors::Code Syscalls::forwardmem(capsel_t mgate, void *data, size_t len, goff_t offset,
                                   uint flags, event_t event) {
-    LLOG(SYSC, "forwardmem(mgate=" << mgate << ", data=" << data << ", len=" << len
-        << ", offset=" << offset << ", flags=" << fmt(flags, "0x") << ", event=" << fmt(event, "0x") << ")");
-
     KIF::Syscall::ForwardMem req;
     req.opcode = KIF::Syscall::FORWARD_MEM;
     req.mgate_sel = mgate;
@@ -337,9 +290,6 @@ Errors::Code Syscalls::forwardmem(capsel_t mgate, void *data, size_t len, goff_t
 
 Errors::Code Syscalls::forwardreply(capsel_t rgate, const void *msg, size_t len,
                                     goff_t msgaddr, event_t event) {
-    LLOG(SYSC, "forwardreply(rgate=" << rgate << ", msg=" << msg << ", len=" << len
-        << ", msgaddr=" << (void*)msgaddr << ", event=" << fmt(event, "0x") << ")");
-
     KIF::Syscall::ForwardReply req;
     req.opcode = KIF::Syscall::FORWARD_REPLY;
     req.rgate_sel = rgate;
@@ -359,8 +309,6 @@ Errors::Code Syscalls::noop() {
 
 // the USED seems to be necessary, because the libc calls it and LTO removes it otherwise
 USED void Syscalls::exit(int exitcode) {
-    LLOG(SYSC, "exit(code=" << exitcode << ")");
-
     EVENT_TRACE_FLUSH();
 
     KIF::Syscall::VPECtrl req;

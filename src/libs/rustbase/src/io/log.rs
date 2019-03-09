@@ -25,8 +25,6 @@ use io::{Serial, Write};
 
 /// Default log message type
 pub const DEF: bool     = true;
-/// Logs system calls
-pub const SYSC: bool    = false;
 /// Logs heap operations
 pub const HEAP: bool    = false;
 /// Logs file system operations

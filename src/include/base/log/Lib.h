@@ -27,19 +27,18 @@ class LibLog {
 
 public:
     enum Level {
-        SYSC        = 1 << 0,
-        DTU         = 1 << 1,
-        DTUERR      = 1 << 2,
-        IPC         = 1 << 3,
-        TRACE       = 1 << 4,
-        IRQS        = 1 << 5,
-        SHM         = 1 << 6,
-        HEAP        = 1 << 7,
-        FS          = 1 << 8,
-        SERV        = 1 << 9,
-        THREAD      = 1 << 10,
-        ACCEL       = 1 << 11,
-        FILES       = 1 << 12,
+        DTU         = 1 << 0,
+        DTUERR      = 1 << 1,
+        IPC         = 1 << 2,
+        TRACE       = 1 << 3,
+        IRQS        = 1 << 4,
+        SHM         = 1 << 5,
+        HEAP        = 1 << 6,
+        FS          = 1 << 7,
+        SERV        = 1 << 8,
+        THREAD      = 1 << 9,
+        ACCEL       = 1 << 10,
+        FILES       = 1 << 11,
     };
 
     static const int level = DTUERR;
