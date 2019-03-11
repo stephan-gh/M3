@@ -228,21 +228,9 @@ size_t OStream::printfloat(float d, size_t precision) {
 }
 
 size_t OStream::printptr(uintptr_t u, int flags) {
-    size_t count = 0;
-    size_t size = sizeof(uintptr_t);
-    flags |= FormatParams::PADZEROS;
-    // 2 hex-digits per byte and a ':' every 2 bytes
-    while(size > 0) {
-        count += printupad((u >> (size * 8 - 16)) & 0xFFFF, 16, 4, flags);
-        size -= 2;
-        if(size > 0) {
-            write(':');
-            // don't print the base again
-            flags &= ~FormatParams::PRINTBASE;
-            count++;
-        }
-    }
-    return count;
+    write('0');
+    write('x');
+    return 2 + printupad(u, 16, sizeof(u) * 2, flags | FormatParams::PADZEROS);
 }
 
 USED size_t OStream::puts(const char *str, size_t prec) {

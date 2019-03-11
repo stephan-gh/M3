@@ -136,9 +136,9 @@ static void ostream() {
     OStringStream os(str, sizeof(str));
     os << fmt(0xdeadbeef, "p") << ", " << fmt(0x12345678, "x");
     if(sizeof(uintptr_t) == 4)
-        assert_str(str, "dead:beef, 12345678");
+        assert_str(str, "0xdeadbeef, 12345678");
     else if(sizeof(uintptr_t) == 8)
-        assert_str(str, "0000:0000:dead:beef, 12345678");
+        assert_str(str, "0x00000000deadbeef, 12345678");
     else
         assert_false(true);
 
