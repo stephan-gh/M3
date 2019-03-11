@@ -35,5 +35,4 @@ mod mem;
 mod pes;
 mod platform;
 mod syscalls;
-mod tests;
 mod workloop;

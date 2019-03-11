@@ -14,37 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-use base::col::Vec;
-use base::errors::Code;
-use base::goff;
-use base::profile;
-use base::test;
-
-use mem::MemMap;
+use m3::col::Vec;
+use m3::mem::MemMap;
+use m3::test;
+use m3::profile;
 
 pub fn run(t: &mut test::Tester) {
-    run_test!(t, basics);
     run_test!(t, perf_alloc);
     run_test!(t, perf_free);
-}
-
-fn basics() {
-    let mut m = MemMap::new(0, 0x1000);
-
-    assert_eq!(m.allocate(0x100, 0x10), Ok(0x0));
-    assert_eq!(m.allocate(0x100, 0x10), Ok(0x100));
-    assert_eq!(m.allocate(0x100, 0x10), Ok(0x200));
-
-    m.free(0x100, 0x100);
-    m.free(0x0, 0x100);
-
-    assert_err!(m.allocate(0x1000, 0x10), Code::OutOfMem);
-    assert_eq!(m.allocate(0x200, 0x10), Ok(0x0));
-
-    m.free(0x200, 0x100);
-    m.free(0x0, 0x200);
-
-    assert_eq!(m.size(), (0x1000, 1));
 }
 
 fn perf_alloc() {
@@ -69,7 +46,7 @@ fn perf_alloc() {
         map: MemMap::new(0, 0x100000),
     };
 
-    klog!(DEF, "Allocating 100 areas: {}", prof.runner_with_id(&mut tester, 0x10));
+    println!("Allocating 100 areas: {}", prof.runner_with_id(&mut tester, 0x10));
 }
 
 fn perf_free() {
@@ -77,7 +54,7 @@ fn perf_free() {
 
     struct MemMapTester {
         map: MemMap,
-        addrs: Vec<goff>,
+        addrs: Vec<u64>,
         forward: bool,
     }
 
@@ -103,8 +80,8 @@ fn perf_free() {
         addrs: Vec::new(),
         forward: true,
     };
-    klog!(DEF, "Freeing 100 areas forward  : {}", prof.runner_with_id(&mut tester, 0x11));
+    println!("Freeing 100 areas forward  : {}", prof.runner_with_id(&mut tester, 0x11));
 
     tester.forward = false;
-    klog!(DEF, "Freeing 100 areas backwards: {}", prof.runner_with_id(&mut tester, 0x12));
+    println!("Freeing 100 areas backwards: {}", prof.runner_with_id(&mut tester, 0x12));
 }

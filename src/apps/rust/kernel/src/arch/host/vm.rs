@@ -18,7 +18,7 @@ use base::dtu::EpId;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{CapSel, PEDesc};
-use base::GlobAddr;
+use base::mem::GlobAddr;
 
 use cap::MapFlags;
 use pes::VPEDesc;

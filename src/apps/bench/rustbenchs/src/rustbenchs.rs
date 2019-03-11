@@ -21,6 +21,7 @@ extern crate m3;
 
 mod bboxlist;
 mod bdlist;
+mod bmemmap;
 mod bmgate;
 mod bpipe;
 mod bregfile;
@@ -29,6 +30,7 @@ mod bsyscall;
 mod btreap;
 mod btreemap;
 
+use m3::mem::heap;
 use m3::test::Tester;
 
 struct MyTester {
@@ -43,9 +45,9 @@ impl Tester for MyTester {
 
     fn run_test(&mut self, name: &str, f: &Fn()) {
         println!("-- Running benchmark {} ...", name);
-        let free_mem = m3::heap::free_memory();
+        let free_mem = heap::free_memory();
         f();
-        assert_eq!(m3::heap::free_memory(), free_mem);
+        assert_eq!(heap::free_memory(), free_mem);
         println!("-- Done");
     }
 }
@@ -55,6 +57,7 @@ pub fn main() -> i32 {
     let mut tester = MyTester {};
     run_suite!(tester, bboxlist::run);
     run_suite!(tester, bdlist::run);
+    run_suite!(tester, bmemmap::run);
     run_suite!(tester, bmgate::run);
     run_suite!(tester, bpipe::run);
     run_suite!(tester, bregfile::run);

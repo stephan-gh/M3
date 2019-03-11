@@ -16,8 +16,8 @@
 
 use base::env;
 use base::goff;
-use base::heap;
 use base::io;
+use base::mem::heap;
 use thread;
 
 use arch::kdtu;
@@ -27,7 +27,6 @@ use com;
 use mem;
 use pes;
 use platform;
-use tests;
 use workloop::workloop;
 
 extern {
@@ -47,12 +46,6 @@ pub extern "C" fn env_run() {
     vm::init();
     io::init();
     mem::init();
-
-    if let Some(a) = env::args().nth(1) {
-        if a == "test" {
-            tests::run();
-        }
-    }
 
     com::init();
     kdtu::KDTU::init();

@@ -17,10 +17,9 @@
 use base::cfg;
 use base::dtu::{self, EpId};
 use base::errors::Error;
-use base::GlobAddr;
 use base::goff;
-use base::heap;
 use base::kif::{CapSel, PEDesc};
+use base::mem::{GlobAddr, heap};
 use base::util;
 use core::intrinsics;
 

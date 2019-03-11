@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use base::GlobAddr;
 use base::cell::StaticCell;
 use base::cfg;
 use base::col::Vec;
@@ -23,6 +22,7 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif::Perm;
 use base::libc;
+use base::mem::GlobAddr;
 use base::util;
 use core::intrinsics;
 

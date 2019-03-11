@@ -14,17 +14,17 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::{Cell, StaticCell};
 use base::cfg::{MOD_HEAP_SIZE, RT_START, STACK_TOP, PAGE_BITS, PAGE_MASK, PAGE_SIZE};
 use base::cfg::{RECVBUF_SPACE, RECVBUF_SIZE};
-use base::cell::{Cell, StaticCell};
 use base::col::{String, ToString, Vec};
 use base::dtu;
 use base::elf;
 use base::envdata;
 use base::errors::{Code, Error};
-use base::GlobAddr;
 use base::goff;
 use base::kif;
+use base::mem::GlobAddr;
 use base::util;
 
 use arch::kdtu::KDTU;

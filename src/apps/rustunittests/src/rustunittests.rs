@@ -19,6 +19,7 @@
 #[macro_use]
 extern crate m3;
 
+use m3::mem::heap;
 use m3::test::Tester;
 use m3::vfs::VFS;
 
@@ -29,6 +30,7 @@ mod tdlist;
 mod tfilemux;
 mod tgenfile;
 mod tm3fs;
+mod tmemmap;
 mod tmgate;
 mod tpipe;
 mod trgate;
@@ -50,9 +52,9 @@ impl Tester for MyTester {
 
     fn run_test(&mut self, name: &str, f: &Fn()) {
         println!("-- Running test {} ...", name);
-        let free_mem = m3::heap::free_memory();
+        let free_mem = heap::free_memory();
         f();
-        assert_eq!(m3::heap::free_memory(), free_mem);
+        assert_eq!(heap::free_memory(), free_mem);
         println!("-- Done");
     }
 }
@@ -72,6 +74,7 @@ pub fn main() -> i32 {
     run_suite!(tester, tfilemux::run);
     run_suite!(tester, tgenfile::run);
     run_suite!(tester, tm3fs::run);
+    run_suite!(tester, tmemmap::run);
     run_suite!(tester, tmgate::run);
     run_suite!(tester, tpipe::run);
     run_suite!(tester, trgate::run);

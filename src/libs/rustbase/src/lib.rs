@@ -84,16 +84,14 @@ pub mod cell;
 pub mod elf;
 pub mod env;
 pub mod errors;
-pub mod heap;
+pub mod mem;
 pub mod kif;
 pub mod profile;
 pub mod serialize;
 pub mod time;
 
 mod arch;
-mod globaddr;
 
-pub use globaddr::GlobAddr;
 #[allow(non_camel_case_types)]
 pub type goff = u64;
 

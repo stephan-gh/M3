@@ -17,9 +17,10 @@
 use base::cell::StaticCell;
 use base::col::Vec;
 use base::errors::{Code, Error};
-use base::GlobAddr;
 use base::goff;
+use base::mem::GlobAddr;
 use core::fmt;
+
 use mem::MemMod;
 
 pub struct MainMemory {

@@ -16,11 +16,11 @@
 
 use base::cell::StaticCell;
 use base::cfg;
+use base::dtu::PEId;
 use base::envdata;
-use base::GlobAddr;
 use base::goff;
 use base::kif::{PEDesc, PEType};
-use base::dtu::PEId;
+use base::mem::GlobAddr;
 
 use arch::kdtu::KDTU;
 use mem;

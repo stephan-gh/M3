@@ -19,7 +19,7 @@ use base::cfg;
 use base::col::{String, ToString};
 use base::dtu;
 use base::errors::{Error, Code};
-use base::GlobAddr;
+use base::mem::GlobAddr;
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType};
 use base::rc::Rc;

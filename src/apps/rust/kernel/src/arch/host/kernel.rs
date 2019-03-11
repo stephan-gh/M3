@@ -19,7 +19,7 @@ use base::col::ToString;
 use base::dtu;
 use base::env;
 use base::envdata;
-use base::heap;
+use base::mem::heap;
 use base::io;
 use base::kif;
 use base::libc;
@@ -32,7 +32,6 @@ use com;
 use mem;
 use pes;
 use platform;
-use tests;
 use workloop::workloop;
 
 #[no_mangle]
@@ -109,9 +108,6 @@ pub fn main() -> i32 {
     let mut fs_image: Option<&str> = None;
 
     for arg in env::args() {
-        if arg == "test" {
-            tests::run();
-        }
         if arg.len() > 3 && &arg[0..3] == "fs=" {
             fs_image = Some(&arg[3..]);
         }

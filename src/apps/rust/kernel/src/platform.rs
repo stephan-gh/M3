@@ -68,13 +68,13 @@ pub struct ModIterator {
 
 #[cfg(target_os = "none")]
 impl iter::Iterator for ModIterator {
-    type Item = base::GlobAddr;
+    type Item = base::mem::GlobAddr;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.idx += 1;
         match {get().mods}[self.idx - 1] {
             0 => None,
-            a => Some(base::GlobAddr::new(a)),
+            a => Some(base::mem::GlobAddr::new(a)),
         }
     }
 }

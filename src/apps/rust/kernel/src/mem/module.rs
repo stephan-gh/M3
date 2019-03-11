@@ -16,10 +16,9 @@
 
 use base::dtu::PEId;
 use base::errors::Error;
-use base::GlobAddr;
+use base::mem::{GlobAddr, MemMap};
 use base::goff;
 use core::fmt;
-use mem::map::MemMap;
 
 pub struct MemMod {
     gaddr: GlobAddr,

@@ -16,7 +16,7 @@
 
 use arch;
 use com;
-use heap;
+use mem;
 use io;
 use libc;
 use syscalls;
@@ -31,7 +31,7 @@ pub fn exit(code: i32) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
-    heap::init();
+    mem::heap::init();
     arch::env::init(argc, argv);
     vpe::init();
     com::init();

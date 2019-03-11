@@ -14,41 +14,29 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
-use com;
-use cpu;
-use mem;
-use io;
-use syscalls;
-use vfs;
-use vpe;
+use m3::errors::Code;
+use m3::mem::MemMap;
+use m3::test;
 
-#[no_mangle]
-pub extern "C" fn exit(code: i32) -> ! {
-    io::deinit();
-    vfs::deinit();
-    syscalls::exit(code);
-    cpu::jmp_to(arch::env::get().exit_addr());
+pub fn run(t: &mut test::Tester) {
+    run_test!(t, basics);
 }
 
-extern "C" {
-    fn main() -> i32;
-}
+fn basics() {
+    let mut m = MemMap::new(0, 0x1000);
 
-#[no_mangle]
-pub extern "C" fn env_run() {
-    let res = if arch::env::get().has_lambda() {
-        io::reinit();
-        com::reinit();
-        vpe::reinit();
-        arch::env::closure().call()
-    }
-    else {
-        mem::heap::init();
-        vpe::init();
-        io::init();
-        com::init();
-        unsafe { main() }
-    };
-    exit(res)
+    assert_eq!(m.allocate(0x100, 0x10), Ok(0x0));
+    assert_eq!(m.allocate(0x100, 0x10), Ok(0x100));
+    assert_eq!(m.allocate(0x100, 0x10), Ok(0x200));
+
+    m.free(0x100, 0x100);
+    m.free(0x0, 0x100);
+
+    assert_err!(m.allocate(0x1000, 0x10), Code::OutOfMem);
+    assert_eq!(m.allocate(0x200, 0x10), Ok(0x0));
+
+    m.free(0x200, 0x100);
+    m.free(0x0, 0x200);
+
+    assert_eq!(m.size(), (0x1000, 1));
 }
