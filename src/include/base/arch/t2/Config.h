@@ -24,7 +24,6 @@
 
 #define SLOT_NO             4
 #define EP_COUNT            8
-#define CAP_TOTAL           128
 #define FS_IMG_OFFSET       0x1000000
 #define CODE_BASE_ADDR      0x60010000
 

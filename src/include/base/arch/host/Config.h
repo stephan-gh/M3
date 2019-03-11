@@ -17,7 +17,6 @@
 #pragma once
 
 #define PE_COUNT             18
-#define CAP_TOTAL           128
 
 #define TOTAL_MEM_SIZE      (1024 * 1024 * 1024)
 #define FS_MAX_SIZE         (512 * 1024 * 1024)

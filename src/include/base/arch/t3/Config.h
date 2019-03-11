@@ -23,7 +23,6 @@
 #define MAX_CORES           18
 
 #define EP_COUNT            7
-#define CAP_TOTAL           256
 #define FS_IMG_OFFSET       0x1000000
 #define CODE_BASE_ADDR      0x60800000
 

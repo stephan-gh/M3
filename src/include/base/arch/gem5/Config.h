@@ -16,7 +16,6 @@
 
 #pragma once
 
-#define CAP_TOTAL           512
 #define FS_IMG_OFFSET       0x0
 
 #define PAGE_BITS           12
