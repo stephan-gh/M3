@@ -216,22 +216,23 @@ fn activate() {
 }
 
 fn derive_mem() {
+    let vpe = VPE::cur().sel();
     let sel = VPE::cur().alloc_sel();
     let mem = assert_ok!(MemGate::new(0x4000, Perm::RW));
 
     // invalid dest selector
-    assert_err!(syscalls::derive_mem(0, mem.sel(), 0, 0x1000, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, 0, mem.sel(), 0, 0x1000, Perm::RW), Code::InvArgs);
     // invalid mem
-    assert_err!(syscalls::derive_mem(sel, 0, 0, 0x1000, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, sel, 0, 0, 0x1000, Perm::RW), Code::InvArgs);
     // invalid offset
-    assert_err!(syscalls::derive_mem(sel, mem.sel(), 0x4000, 0x1000, Perm::RW), Code::InvArgs);
-    assert_err!(syscalls::derive_mem(sel, mem.sel(), !0, 0x1000, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, sel, mem.sel(), 0x4000, 0x1000, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, sel, mem.sel(), !0, 0x1000, Perm::RW), Code::InvArgs);
     // invalid size
-    assert_err!(syscalls::derive_mem(sel, mem.sel(), 0, 0x4001, Perm::RW), Code::InvArgs);
-    assert_err!(syscalls::derive_mem(sel, mem.sel(), 0x2000, 0x2001, Perm::RW), Code::InvArgs);
-    assert_err!(syscalls::derive_mem(sel, mem.sel(), 0x2000, 0, Perm::RW), Code::InvArgs);
-    assert_err!(syscalls::derive_mem(sel, mem.sel(), 0x4000, 0, Perm::RW), Code::InvArgs);
-    assert_err!(syscalls::derive_mem(sel, mem.sel(), !0, !0, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, sel, mem.sel(), 0, 0x4001, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, sel, mem.sel(), 0x2000, 0x2001, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, sel, mem.sel(), 0x2000, 0, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, sel, mem.sel(), 0x4000, 0, Perm::RW), Code::InvArgs);
+    assert_err!(syscalls::derive_mem(vpe, sel, mem.sel(), !0, !0, Perm::RW), Code::InvArgs);
     // perms are arbitrary; will be ANDed
 }
 

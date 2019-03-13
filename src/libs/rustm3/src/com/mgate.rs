@@ -102,12 +102,12 @@ impl MemGate {
 
     pub fn derive(&self, offset: goff, size: usize, perm: Perm) -> Result<Self, Error> {
         let sel = vpe::VPE::cur().alloc_sel();
-        self.derive_with_sel(offset, size, perm, sel)
+        self.derive_for(vpe::VPE::cur().sel(), sel, offset, size, perm)
     }
 
-    pub fn derive_with_sel(&self, offset: goff, size: usize,
-                           perm: Perm, sel: Selector) -> Result<Self, Error> {
-        syscalls::derive_mem(sel, self.sel(), offset, size, perm)?;
+    pub fn derive_for(&self, vpe: Selector, sel: Selector, offset: goff,
+                      size: usize, perm: Perm) -> Result<Self, Error> {
+        syscalls::derive_mem(vpe, sel, self.sel(), offset, size, perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty())
         })

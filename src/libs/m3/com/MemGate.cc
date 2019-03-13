@@ -37,12 +37,12 @@ MemGate MemGate::create_global_for(goff_t addr, size_t size, int perms, capsel_t
 
 MemGate MemGate::derive(goff_t offset, size_t size, int perms) const {
     capsel_t nsel = VPE::self().alloc_sel();
-    Syscalls::get().derivemem(nsel, sel(), offset, size, perms);
+    Syscalls::get().derivemem(VPE::self().sel(), nsel, sel(), offset, size, perms);
     return MemGate(0, nsel);
 }
 
-MemGate MemGate::derive_with_sel(capsel_t cap, goff_t offset, size_t size, int perms) const {
-    Syscalls::get().derivemem(cap, sel(), offset, size, perms);
+MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t size, int perms) const {
+    Syscalls::get().derivemem(vpe, cap, sel(), offset, size, perms);
     return MemGate(0, cap);
 }
 

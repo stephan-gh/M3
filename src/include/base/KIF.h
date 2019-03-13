@@ -273,6 +273,7 @@ struct KIF {
         } PACKED;
 
         struct DeriveMem : public DefaultRequest {
+            xfer_t vpe_sel;
             xfer_t dst_sel;
             xfer_t src_sel;
             xfer_t offset;

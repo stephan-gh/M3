@@ -182,7 +182,8 @@ fn derive_mem() {
             }
         }
         fn run(&mut self) {
-            assert_ok!(syscalls::derive_mem(*SEL, self.0.as_ref().unwrap().sel(), 0, 0x1000, Perm::RW));
+            assert_ok!(syscalls::derive_mem(VPE::cur().sel(), *SEL,
+                                            self.0.as_ref().unwrap().sel(), 0, 0x1000, Perm::RW));
         }
         fn post(&mut self) {
             assert_ok!(syscalls::revoke(0, kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1), true));

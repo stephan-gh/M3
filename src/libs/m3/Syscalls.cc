@@ -188,9 +188,11 @@ Errors::Code Syscalls::vpewait(const capsel_t *vpes, size_t count, event_t event
     return Errors::last;
 }
 
-Errors::Code Syscalls::derivemem(capsel_t dst, capsel_t src, goff_t offset, size_t size, int perms) {
+Errors::Code Syscalls::derivemem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
+                                 size_t size, int perms) {
     KIF::Syscall::DeriveMem req;
     req.opcode = KIF::Syscall::DERIVE_MEM;
+    req.vpe_sel = vpe;
     req.dst_sel = dst;
     req.src_sel = src;
     req.offset = offset;

@@ -121,16 +121,17 @@ public:
     MemGate derive(goff_t offset, size_t size, int perms = RWX) const;
 
     /**
-     * Derives memory from this memory gate and uses <sel> for it. That is, it creates a new memory
-     * capability that is bound to a subset of this memory (in space or permissions).
+     * Derives memory from this memory gate for <vpe> and uses <sel> for it. That is, it creates
+     * a new memory capability that is bound to a subset of this memory (in space or permissions).
      *
+     * @param vpe the VPE to delegate the derived cap to
      * @param sel the capability selector to use
      * @param offset the offset inside this memory capability
      * @param size the size of the memory area
      * @param perms the permissions (you can only downgrade)
      * @return the new memory gate
      */
-    MemGate derive_with_sel(capsel_t sel, goff_t offset, size_t size, int perms = RWX) const;
+    MemGate derive_for(capsel_t vpe, capsel_t sel, goff_t offset, size_t size, int perms = RWX) const;
 
     /**
      * Writes the <len> bytes at <data> to <offset>.

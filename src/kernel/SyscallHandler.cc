@@ -678,24 +678,29 @@ void SyscallHandler::derivemem(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_derivemem();
 
     auto req = get_message<m3::KIF::Syscall::DeriveMem>(msg);
+    capsel_t tvpe = req->vpe_sel;
     capsel_t dst = req->dst_sel;
     capsel_t src = req->src_sel;
     goff_t offset = req->offset;
     size_t size = req->size;
     int perms = req->perms;
 
-    LOG_SYS(vpe, ": syscall::derivemem", "(src=" << src << ", dst=" << dst
+    LOG_SYS(vpe, ": syscall::derivemem", "(vpe=" << tvpe << ", src=" << src << ", dst=" << dst
         << ", size=" << size << ", off=" << offset << ", perms=" << perms << ")");
 
+    auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
+    if(vpecap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid VPE cap");
+
     auto srccap = static_cast<MGateCapability*>(vpe->objcaps().get(src, Capability::MGATE));
-    if(srccap == nullptr || !vpe->objcaps().unused(dst))
+    if(srccap == nullptr || !vpecap->obj->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap(s)");
 
     if(offset + size < offset || offset + size > srccap->obj->size || size == 0 ||
             (perms & ~(m3::KIF::Perm::RWX)))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid args");
 
-    auto dercap = static_cast<MGateCapability*>(vpe->objcaps().obtain(dst, srccap));
+    auto dercap = static_cast<MGateCapability*>(vpecap->obj->objcaps().obtain(dst, srccap));
     dercap->obj = m3::Reference<MGateObject>(new MGateObject(
         srccap->obj->pe,
         srccap->obj->vpe,

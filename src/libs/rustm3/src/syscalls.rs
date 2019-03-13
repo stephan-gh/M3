@@ -176,9 +176,11 @@ pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
     }
 }
 
-pub fn derive_mem(dst: Selector, src: Selector, offset: goff, size: usize, perms: Perm) -> Result<(), Error> {
+pub fn derive_mem(vpe: Selector, dst: Selector, src: Selector, offset: goff,
+                  size: usize, perms: Perm) -> Result<(), Error> {
     let req = syscalls::DeriveMem {
         opcode: syscalls::Operation::DERIVE_MEM.val,
+        vpe_sel: vpe as u64,
         dst_sel: dst as u64,
         src_sel: src as u64,
         offset: offset as u64,

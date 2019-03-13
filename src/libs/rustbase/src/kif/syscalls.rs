@@ -248,6 +248,7 @@ pub struct VPEWaitReply {
 #[repr(C, packed)]
 pub struct DeriveMem {
     pub opcode: u64,
+    pub vpe_sel: u64,
     pub dst_sel: u64,
     pub src_sel: u64,
     pub offset: u64,

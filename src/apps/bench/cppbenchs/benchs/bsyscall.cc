@@ -164,7 +164,7 @@ NOINLINE static void derive_mem() {
         }
 
         void run() override {
-            Syscalls::get().derivemem(selector, mgate.sel(), 0, 0x1000, MemGate::RW);
+            Syscalls::get().derivemem(VPE::self().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }

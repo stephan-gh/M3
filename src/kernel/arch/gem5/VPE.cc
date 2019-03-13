@@ -196,14 +196,6 @@ static goff_t map_idle(VPE &vpe) {
     return res;
 }
 
-static bool is_kernel_arg(const char *arg) {
-    if(strncmp(arg, "daemon", 6) == 0)
-        return true;
-    if(strncmp(arg, "requires=", 9) == 0)
-        return true;
-    return false;
-}
-
 void VPE::load_app() {
     assert(_flags & F_BOOTMOD);
     assert(_argc > 0 && _argv);

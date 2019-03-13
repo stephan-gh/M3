@@ -67,19 +67,7 @@ void VPE::load_app() {
             PANIC("fork");
         if(_pid == 0) {
             write_env_file(_argv[0], syscall_ep(), getpid(), pe(), reinterpret_cast<label_t>(this));
-            char **childargs = new char*[_argc + 1];
-            size_t i = 0, j = 0;
-            for(; i < _argc; ++i) {
-                if(strncmp(_argv[i], "pe=", 5) == 0)
-                    continue;
-                else if(strcmp(_argv[i], "daemon") == 0)
-                    continue;
-                else if(strncmp(_argv[i], "requires=", sizeof("requires=") - 1) == 0)
-                    continue;
-
-                childargs[j++] = const_cast<char*>(_argv[i]);
-            }
-            childargs[j] = nullptr;
+            const char *childargs[] = {_argv[0]};
             execv(childargs[0], childargs);
             KLOG(VPES, "VPE creation failed: " << strerror(errno));
             // special error code to let the WorkLoop delete the VPE
