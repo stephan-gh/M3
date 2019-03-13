@@ -10,6 +10,10 @@ crate-type = ["rlib", "staticlib"]
 bitflags = "*"
 static_assertions = "0.3.1"
 
+[dependencies.num-traits]
+version = "0.2"
+default-features = false
+
 [target.x86_64-unknown-host-gnu.dependencies]
 libc = { version = "0.2", default-features = false }
 

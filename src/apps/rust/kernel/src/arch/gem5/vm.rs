@@ -234,7 +234,7 @@ impl AddrSpace {
         let npte = phys.raw() | flags.bits() | dtu::PTEFlags::I.bits();
 
         let end_pte = util::min(pte_addr + *pages as goff * 8,
-                                util::round_up64(pte_addr + 8, cfg::PAGE_SIZE as goff));
+                                util::round_up(pte_addr + 8, cfg::PAGE_SIZE as goff));
         let count = (end_pte - pte_addr) as usize / 8;
         assert!(count > 0);
         *pages -= count;

@@ -59,7 +59,7 @@ impl MemMap {
             match it.next() {
                 None    => break None,
                 Some(a) => {
-                    let diff = util::round_up64(a.addr, align as u64) - a.addr;
+                    let diff = util::round_up(a.addr, align as u64) - a.addr;
                     if a.size > diff as usize && a.size - diff as usize >= size {
                         break Some(a)
                     }
@@ -71,7 +71,7 @@ impl MemMap {
             None    => Err(Error::new(Code::OutOfMem)),
             Some(a) => {
                 // if we need to do some alignment, create a new area in front of a
-                let diff = util::round_up64(a.addr, align as u64) - a.addr;
+                let diff = util::round_up(a.addr, align as u64) - a.addr;
                 if diff != 0 {
                     it.insert_before(Area::new(a.addr, diff as usize));
                     a.addr += diff;
