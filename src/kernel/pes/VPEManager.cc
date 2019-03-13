@@ -82,6 +82,7 @@ void VPEManager::init(int argc, char **argv) {
     }
 
     // go!
+    _vpes[id]->set_first_sel(sel);
     _vpes[id]->start_app(_vpes[id]->pid());
 }
 

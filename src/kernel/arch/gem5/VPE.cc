@@ -217,57 +217,31 @@ void VPE::load_app() {
     // load app
     goff_t entry = load_mod(*this, mod, !appFirst, true, false);
 
-    // count arguments
-    size_t argc = 0;
-    static const char *uargv[16];
-    {
-        const char *begin = mod->name;
-        for(size_t i = 0; ; ++i) {
-            if(mod->name[i] == '\0' || mod->name[i] == ' ') {
-                if(is_kernel_arg(begin) || argc >= ARRAY_SIZE(uargv))
-                    break;
-                uargv[argc++] = begin;
-                if(mod->name[i] == '\0')
-                    break;
-                begin = mod->name + i + 1;
-            }
-        }
-    }
-
     // copy arguments and arg pointers to buffer
-    char buffer[512];
+    static const char *uargv[] = {"root"};
+    char buffer[64];
     uint64_t *argptr = reinterpret_cast<uint64_t*>(buffer);
-    char *args = buffer + argc * sizeof(uint64_t);
-    size_t j = 0, off = static_cast<size_t>(args - buffer);
-    for(size_t i = 0; i < argc; ++i) {
-        const char *s = uargv[i];
-        *argptr++ = RT_SPACE_START + off + j;
-        while(*s && *s != ' ' && j < sizeof(buffer))
-            args[j++] = *s++;
-        if(j + 1 >= sizeof(buffer))
-            PANIC("Not enough space for arguments");
-        args[j++] = '\0';
-    }
+    char *args = buffer + 1 * sizeof(uint64_t);
+    size_t off = static_cast<size_t>(args - buffer);
+    *argptr++ = RT_SPACE_START + off;
+    strcpy(args, uargv[0]);
 
     // write buffer to the target PE
-    size_t argssize = m3::Math::round_up(off + j, DTU_PKG_SIZE);
+    size_t argssize = off + sizeof("root");
     DTU::get().write_mem(desc(), RT_SPACE_START, buffer, argssize);
 
     // write env to targetPE
     m3::Env senv;
     memset(&senv, 0, sizeof(senv));
 
-    senv.argc = argc;
+    senv.argc = 1;
     senv.argv = RT_SPACE_START;
     senv.sp = STACK_TOP - sizeof(word_t);
     senv.entry = entry;
     senv.pedesc = Platform::pe(pe());
     senv.heapsize = MOD_HEAP_SIZE;
     senv.rmng_sel = m3::KIF::INV_SEL;
-    if(strcmp(uargv[0], "root") == 0)
-        senv.caps = m3::KIF::FIRST_FREE_SEL + Platform::mod_count() + 1;
-    else
-        senv.caps = m3::KIF::FIRST_FREE_SEL;
+    senv.caps = _first_sel;
 
     DTU::get().write_mem(desc(), RT_START, &senv, sizeof(senv));
 }

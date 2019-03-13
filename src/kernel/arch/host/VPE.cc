@@ -29,16 +29,13 @@
 
 namespace kernel {
 
-static void write_env_file(const char *name, epid_t ep, pid_t pid, peid_t pe, label_t label) {
+static void write_env_file(capsel_t first_sel, epid_t ep, pid_t pid, peid_t pe, label_t label) {
     char tmpfile[64];
     snprintf(tmpfile, sizeof(tmpfile), "/tmp/m3/%d", pid);
     std::ofstream of(tmpfile);
     of << m3::env()->shm_prefix().c_str() << "\n";
     of << pe << "\n";
-    if(name && strstr(name, "root"))
-        of << (m3::KIF::FIRST_FREE_SEL + Platform::mod_count() + 1) << "\n";
-    else
-        of << 0 << "\n";
+    of << first_sel << "\n";
     of << label << "\n";
     of << ep << "\n";
     of << (1 << VPE::SYSC_CREDIT_ORD) << "\n";
@@ -66,18 +63,16 @@ void VPE::load_app() {
         if(_pid < 0)
             PANIC("fork");
         if(_pid == 0) {
-            write_env_file(_argv[0], syscall_ep(), getpid(), pe(), reinterpret_cast<label_t>(this));
-            const char *childargs[] = {_argv[0]};
+            write_env_file(_first_sel, syscall_ep(), getpid(), pe(), reinterpret_cast<label_t>(this));
+            char *const childargs[] = {const_cast<char*>(_argv[0]), nullptr};
             execv(childargs[0], childargs);
             KLOG(VPES, "VPE creation failed: " << strerror(errno));
             // special error code to let the WorkLoop delete the VPE
             exit(255);
         }
     }
-    else {
-        const char *name = _argv ? _argv[0] : nullptr;
-        write_env_file(name, syscall_ep(), _pid, pe(), reinterpret_cast<label_t>(this));
-    }
+    else
+        write_env_file(0, syscall_ep(), _pid, pe(), reinterpret_cast<label_t>(this));
 
     KLOG(VPES, "Started VPE '" << _name << "' [pid=" << _pid << "]");
 }

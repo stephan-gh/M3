@@ -57,6 +57,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
       _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id, sep, rep, sgate) : nullptr),
       _headers(),
       _rbufcpy(),
+      _first_sel(m3::KIF::FIRST_FREE_SEL),
       _argc(),
       _argv(),
       _mem_base() {
