@@ -42,6 +42,7 @@ impl MemMod {
         self.map.size().0
     }
 
+    #[cfg(target_os = "linux")]
     pub fn addr(&self) -> GlobAddr {
         self.gaddr
     }

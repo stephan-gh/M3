@@ -60,15 +60,6 @@ MainMemory::Allocation MainMemory::allocate(size_t size, size_t align) {
     return Allocation();
 }
 
-MainMemory::Allocation MainMemory::allocate_at(goff_t offset, size_t size) {
-    // TODO this is not final
-    for(size_t i = 0; i < _count; ++i) {
-        if(_mods[i]->type() == MemoryModule::OCCUPIED)
-            return Allocation(i, _mods[i]->addr() + offset, size);
-    }
-    return Allocation();
-}
-
 void MainMemory::free(peid_t pe, goff_t addr, size_t size) {
     for(size_t i = 0; i < _count; ++i) {
         if(_mods[i]->pe() == pe) {

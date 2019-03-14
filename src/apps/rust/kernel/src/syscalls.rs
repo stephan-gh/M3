@@ -116,7 +116,6 @@ pub fn handle(msg: &'static dtu::Message) {
     let res = match kif::syscalls::Operation::from(*opcode) {
         kif::syscalls::Operation::PAGEFAULT         => pagefault(&vpe, msg),
         kif::syscalls::Operation::ACTIVATE          => activate(&vpe, msg),
-        kif::syscalls::Operation::CREATE_MGATE      => create_mgate(&vpe, msg),
         kif::syscalls::Operation::CREATE_RGATE      => create_rgate(&vpe, msg),
         kif::syscalls::Operation::CREATE_SGATE      => create_sgate(&vpe, msg),
         kif::syscalls::Operation::CREATE_SRV        => create_srv(&vpe, msg),
@@ -171,43 +170,6 @@ fn pagefault(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), S
     // TODO this might also indicates that the pf handler is not available (ctx switch, migrate, ...)
 
     sysc_err!(Code::InvArgs, "Unexpected pagefault");
-}
-
-#[inline(never)]
-fn create_mgate(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateMGate = get_message(msg);
-    let dst_sel = req.dst_sel as CapSel;
-    let addr = req.addr as goff;
-    let size = req.size as usize;
-    let perms = kif::Perm::from_bits_truncate(req.perms as u8);
-
-    sysc_log!(
-        vpe, "create_mgate(dst={}, addr={:#x}, size={:#x}, perms={:?})",
-        dst_sel, addr, size, perms
-    );
-
-    if !vpe.borrow().obj_caps().unused(dst_sel) {
-        sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
-    }
-    if size == 0 || (size & kif::Perm::RWX.bits() as usize) != 0 || perms.is_empty() {
-        sysc_err!(Code::InvArgs, "Invalid size or permissions");
-    }
-
-    let alloc: mem::Allocation = if addr == !0 {
-        mem::get().allocate(size, cfg::PAGE_SIZE)
-    }
-    else {
-        mem::get().allocate_at(addr, size)
-    }?;
-
-    vpe.borrow_mut().obj_caps_mut().insert(
-        Capability::new(dst_sel, KObject::MGate(MGateObject::new(
-            INVALID_VPE, alloc, perms, false
-        )))
-    );
-
-    reply_success(msg);
-    Ok(())
 }
 
 #[inline(never)]

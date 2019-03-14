@@ -219,17 +219,14 @@ public:
           vpe(_vpe),
           addr(_addr),
           size(_size),
-          perms(_perms),
-          derived(false) {
+          perms(_perms) {
     }
-    ~MGateObject();
 
     peid_t pe;
     vpeid_t vpe;
     goff_t addr;
     size_t size;
     int perms;
-    bool derived;
 };
 
 class SessObject : public SlabObject<SessObject>, public m3::RefCounted {

@@ -44,12 +44,6 @@ RGateObject::~RGateObject() {
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(this));
 }
 
-MGateObject::~MGateObject() {
-    // if it's not derived, it's always memory from mem-PEs
-    if(!derived)
-        MainMemory::get().free(pe, addr, size);
-}
-
 void SessObject::drop_msgs() {
     srv->drop_msgs(ident);
 }

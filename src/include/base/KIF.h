@@ -146,7 +146,6 @@ struct KIF {
             CREATE_SESS,
             CREATE_RGATE,
             CREATE_SGATE,
-            CREATE_MGATE,
             CREATE_MAP,
             CREATE_VPEGRP,
             CREATE_VPE,
@@ -211,13 +210,6 @@ struct KIF {
             xfer_t rgate_sel;
             xfer_t label;
             xfer_t credits;
-        } PACKED;
-
-        struct CreateMGate : public DefaultRequest {
-            xfer_t dst_sel;
-            xfer_t addr;
-            xfer_t size;
-            xfer_t perms;
         } PACKED;
 
         struct CreateMap : public DefaultRequest {

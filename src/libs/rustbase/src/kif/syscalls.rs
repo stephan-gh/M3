@@ -38,30 +38,29 @@ int_enum! {
         const CREATE_SESS       = 2;
         const CREATE_RGATE      = 3;
         const CREATE_SGATE      = 4;
-        const CREATE_MGATE      = 5;
-        const CREATE_MAP        = 6;
-        const CREATE_VPEGRP     = 7;
-        const CREATE_VPE        = 8;
+        const CREATE_MAP        = 5;
+        const CREATE_VPEGRP     = 6;
+        const CREATE_VPE        = 7;
 
         // capability operations
-        const ACTIVATE          = 9;
-        const VPE_CTRL          = 10;
-        const VPE_WAIT          = 11;
-        const DERIVE_MEM        = 12;
+        const ACTIVATE          = 8;
+        const VPE_CTRL          = 9;
+        const VPE_WAIT          = 10;
+        const DERIVE_MEM        = 11;
 
         // capability exchange
-        const DELEGATE          = 13;
-        const OBTAIN            = 14;
-        const EXCHANGE          = 15;
-        const REVOKE            = 16;
+        const DELEGATE          = 12;
+        const OBTAIN            = 13;
+        const EXCHANGE          = 14;
+        const REVOKE            = 15;
 
         // forwarding
-        const FORWARD_MSG       = 17;
-        const FORWARD_MEM       = 18;
-        const FORWARD_REPLY     = 19;
+        const FORWARD_MSG       = 16;
+        const FORWARD_MEM       = 17;
+        const FORWARD_REPLY     = 18;
 
         // misc
-        const NOOP              = 20;
+        const NOOP              = 19;
     }
 }
 
@@ -146,16 +145,6 @@ pub struct CreateSGate {
     pub rgate_sel: u64,
     pub label: u64,
     pub credits: u64,
-}
-
-/// The create memory gate request message
-#[repr(C, packed)]
-pub struct CreateMGate {
-    pub opcode: u64,
-    pub dst_sel: u64,
-    pub addr: u64,
-    pub size: u64,
-    pub perms: u64,
 }
 
 /// The create mapping request message

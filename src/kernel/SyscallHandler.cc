@@ -84,7 +84,6 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::CREATE_SESS,    &SyscallHandler::createsess);
     add_operation(m3::KIF::Syscall::CREATE_RGATE,   &SyscallHandler::creatergate);
     add_operation(m3::KIF::Syscall::CREATE_SGATE,   &SyscallHandler::createsgate);
-    add_operation(m3::KIF::Syscall::CREATE_MGATE,   &SyscallHandler::createmgate);
     add_operation(m3::KIF::Syscall::CREATE_VPEGRP,  &SyscallHandler::createvpegrp);
     add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::createvpe);
     add_operation(m3::KIF::Syscall::CREATE_MAP,     &SyscallHandler::createmap);
@@ -288,42 +287,6 @@ void SyscallHandler::createsgate(VPE *vpe, const m3::DTU::Message *msg) {
     auto sgcap = new SGateCapability(&vpe->objcaps(), dst, &*rgatecap->obj, label, credits);
     vpe->objcaps().inherit(rgatecap, sgcap);
     vpe->objcaps().set(dst, sgcap);
-
-    reply_result(vpe, msg, m3::Errors::NONE);
-}
-
-void SyscallHandler::createmgate(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_createmgate();
-
-    auto req = get_message<m3::KIF::Syscall::CreateMGate>(msg);
-    capsel_t dst = req->dst_sel;
-    goff_t addr = req->addr;
-    size_t size = req->size;
-    int perms = req->perms;
-
-    LOG_SYS(vpe, ": syscall::createmgate", "(dst=" << dst
-        << ", addr=#" << m3::fmt(addr, "x") << ", size=#" << m3::fmt(size, "x")
-        << ", perms=" << perms << ")");
-
-    if(!vpe->objcaps().unused(dst))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
-    if(size == 0 || (size & m3::KIF::Perm::RWX) || perms == 0 || (perms & ~(m3::KIF::Perm::RWX)))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Size or permissions invalid");
-
-    MainMemory &mem = MainMemory::get();
-    size_t align = PAGE_SIZE;
-#if defined(__gem5__)
-    if(size >= m3::DTU::LPAGE_SIZE)
-        align = m3::DTU::LPAGE_SIZE;
-#endif
-    MainMemory::Allocation alloc = addr == static_cast<goff_t>(-1) ? mem.allocate(size, align)
-                                                                   : mem.allocate_at(addr, size);
-    if(!alloc)
-        SYS_ERROR(vpe, msg, m3::Errors::OUT_OF_MEM, "Not enough memory");
-
-    // TODO if addr was 0, we don't want to free it on revoke
-    vpe->objcaps().set(dst, new MGateCapability(&vpe->objcaps(), dst,
-        alloc.pe(), VPE::INVALID_ID, alloc.addr, alloc.size, perms));
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }
@@ -708,7 +671,6 @@ void SyscallHandler::derivemem(VPE *vpe, const m3::DTU::Message *msg) {
         size,
         perms & srccap->obj->perms
     ));
-    dercap->obj->derived = true;
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }

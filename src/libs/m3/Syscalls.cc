@@ -92,16 +92,6 @@ Errors::Code Syscalls::createsgate(capsel_t dst, capsel_t rgate, label_t label, 
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::createmgate(capsel_t dst, goff_t addr, size_t size, int perms) {
-    KIF::Syscall::CreateMGate req;
-    req.opcode = KIF::Syscall::CREATE_MGATE;
-    req.dst_sel = dst;
-    req.addr = addr;
-    req.size = size;
-    req.perms = static_cast<xfer_t>(perms);
-    return send_receive_result(&req, sizeof(req));
-}
-
 Errors::Code Syscalls::createmap(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                                  capsel_t pages, int perms) {
     KIF::Syscall::CreateMap req;

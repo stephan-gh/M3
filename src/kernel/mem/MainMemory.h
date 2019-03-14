@@ -69,7 +69,6 @@ public:
     Allocation build_allocation(gaddr_t addr, size_t size) const;
 
     Allocation allocate(size_t size, size_t align);
-    Allocation allocate_at(goff_t offset, size_t size);
 
     void free(peid_t pe, goff_t addr, size_t size);
     void free(const Allocation &alloc);

@@ -47,7 +47,6 @@ public:
     Errors::Code createsess(capsel_t dst, capsel_t srv, word_t ident);
     Errors::Code creatergate(capsel_t dst, int order, int msgorder);
     Errors::Code createsgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits);
-    Errors::Code createmgate(capsel_t dst, goff_t addr, size_t size, int perms);
     Errors::Code createvpegrp(capsel_t dst);
     Errors::Code createvpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name, PEDesc &pe,
                            epid_t sep, epid_t rep, uint flags, capsel_t group);

@@ -62,15 +62,8 @@ fn copy_from_fs(path: &str) -> usize {
         assert!(libc::fstat(fd, &mut info) != -1);
         assert!(info.st_size as usize <= cfg::FS_MAX_SIZE);
 
-        let mut alloc = mem::get().allocate_at(0, cfg::FS_MAX_SIZE)
-            .expect("Unable to alloc space for FS image");
-
-        let res = libc::read(
-            fd,
-            alloc.global().offset() as *mut libc::c_void,
-            info.st_size as usize
-        );
-        alloc.claim();
+        let addr = mem::get().module(0).addr().offset();
+        let res = libc::read(fd, addr as *mut libc::c_void, info.st_size as usize);
         assert!(res == info.st_size as isize);
 
         libc::close(fd);
@@ -92,11 +85,8 @@ fn copy_to_fs(path: &str, fs_size: usize) {
         );
         assert!(fd != -1);
 
-        let mut alloc = mem::get().allocate_at(0, cfg::FS_MAX_SIZE)
-            .expect("Unable to alloc space for FS image");
-
-        libc::write(fd, alloc.global().offset() as *const libc::c_void, fs_size);
-        alloc.claim();
+        let addr = mem::get().module(0).addr().offset();
+        libc::write(fd, addr as *const libc::c_void, fs_size);
         libc::close(fd);
     }
 

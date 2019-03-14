@@ -89,23 +89,6 @@ NOINLINE static void create_sgate() {
     cout << pr.runner_with_id(runner, 0x53) << "\n";
 }
 
-NOINLINE static void create_mgate() {
-    struct SyscallMGateRunner : public Runner {
-        void run() override {
-            Syscalls::get().createmgate(selector, static_cast<uintptr_t>(~0), 0x1000, MemGate::RW);
-            if(Errors::occurred())
-                PANIC("syscall failed");
-        }
-        void post() override {
-            Syscalls::get().revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
-        }
-    };
-
-    Profile pr;
-    SyscallMGateRunner runner;
-    cout << pr.runner_with_id(runner, 0x54) << "\n";
-}
-
 NOINLINE static void create_map() {
     if(!VPE::self().pe().has_virtmem()) {
         cout << "PE has no virtual memory support; skipping\n";
@@ -230,7 +213,6 @@ void bsyscall() {
     RUN_BENCH(activate);
     RUN_BENCH(create_rgate);
     RUN_BENCH(create_sgate);
-    RUN_BENCH(create_mgate);
     RUN_BENCH(create_map);
     RUN_BENCH(create_srv);
     RUN_BENCH(derive_mem);

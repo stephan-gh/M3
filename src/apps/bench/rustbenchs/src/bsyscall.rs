@@ -32,7 +32,6 @@ pub fn run(t: &mut test::Tester) {
     run_test!(t, activate);
     run_test!(t, create_rgate);
     run_test!(t, create_sgate);
-    run_test!(t, create_mgate);
     run_test!(t, create_map);
     run_test!(t, create_srv);
     run_test!(t, derive_mem);
@@ -100,24 +99,6 @@ fn create_sgate() {
     }
 
     println!("{}", prof.runner_with_id(&mut Tester::default(), 0x13));
-}
-
-fn create_mgate() {
-    let mut prof = profile::Profiler::new().repeats(100).warmup(10);
-
-    #[derive(Default)]
-    struct Tester();
-
-    impl profile::Runner for Tester {
-        fn run(&mut self) {
-            assert_ok!(syscalls::create_mgate(*SEL, !0, 0x1000, Perm::RW));
-        }
-        fn post(&mut self) {
-            assert_ok!(syscalls::revoke(0, kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1), true));
-        }
-    }
-
-    println!("{}", prof.runner_with_id(&mut Tester::default(), 0x14));
 }
 
 fn create_map() {

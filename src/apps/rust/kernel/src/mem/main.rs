@@ -16,8 +16,6 @@
 
 use base::cell::StaticCell;
 use base::col::Vec;
-use base::errors::{Code, Error};
-use base::goff;
 use base::mem::GlobAddr;
 use core::fmt;
 
@@ -76,8 +74,15 @@ impl MainMemory {
     pub fn add(&mut self, m: MemMod) {
         self.mods.push(m)
     }
+    #[cfg(target_os = "linux")]
+    pub fn module(&mut self, idx: usize) -> &MemMod {
+        &self.mods[idx]
+    }
 
-    pub fn allocate(&mut self, size: usize, align: usize) -> Result<Allocation, Error> {
+    #[cfg(target_os = "none")]
+    pub fn allocate(&mut self, size: usize, align: usize) -> Result<Allocation, base::errors::Error> {
+        use base::errors::{Code, Error};
+
         for m in &mut self.mods {
             if let Ok(gaddr) = m.allocate(size, align) {
                 klog!(MEM, "Allocated {:#x} bytes at {:?}", size, gaddr);
@@ -85,10 +90,6 @@ impl MainMemory {
             }
         }
         Err(Error::new(Code::OutOfMem))
-    }
-    pub fn allocate_at(&mut self, offset: goff, size: usize) -> Result<Allocation, Error> {
-        // TODO check if that's actually ok
-        Ok(Allocation::new(self.mods[0].addr() + offset, size))
     }
 
     pub fn free(&mut self, alloc: &Allocation) {

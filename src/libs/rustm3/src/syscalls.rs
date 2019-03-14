@@ -95,17 +95,6 @@ pub fn create_sgate(dst: Selector, rgate: Selector, label: dtu::Label, credits: 
     send_receive_result(&req)
 }
 
-pub fn create_mgate(dst: Selector, addr: goff, size: usize, perms: Perm) -> Result<(), Error> {
-    let req = syscalls::CreateMGate {
-        opcode: syscalls::Operation::CREATE_MGATE.val,
-        dst_sel: dst as u64,
-        addr: addr as u64,
-        size: size as u64,
-        perms: perms.bits() as u64,
-    };
-    send_receive_result(&req)
-}
-
 pub fn create_rgate(dst: Selector, order: i32, msgorder: i32) -> Result<(), Error> {
     let req = syscalls::CreateRGate {
         opcode: syscalls::Operation::CREATE_RGATE.val,

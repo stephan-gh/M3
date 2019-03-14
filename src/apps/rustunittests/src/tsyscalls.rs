@@ -29,7 +29,6 @@ pub fn run(t: &mut test::Tester) {
     run_test!(t, create_srv);
     run_test!(t, create_sgate);
     run_test!(t, create_rgate);
-    run_test!(t, create_mgate);
     run_test!(t, create_sess);
     run_test!(t, create_map);
     run_test!(t, create_vpe_group);
@@ -89,17 +88,6 @@ fn create_rgate() {
     assert_err!(syscalls::create_rgate(sel, 10, -1), Code::InvArgs);
     // invalid order and msg order
     assert_err!(syscalls::create_rgate(sel, -1, -1), Code::InvArgs);
-}
-
-fn create_mgate() {
-    let sel = VPE::cur().alloc_sel();
-
-    // invalid dest selector
-    assert_err!(syscalls::create_mgate(0, !0, 0x1000, Perm::RW), Code::InvArgs);
-    // invalid size
-    assert_err!(syscalls::create_mgate(sel, !0, 0, Perm::RW), Code::InvArgs);
-    assert_err!(syscalls::create_mgate(sel, !0, Perm::R.bits() as usize, Perm::RW), Code::InvArgs);
-    assert_err!(syscalls::create_mgate(sel, !0, 0x40000000, Perm::RW), Code::OutOfMem);
 }
 
 fn create_sess() {
