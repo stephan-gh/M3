@@ -14,23 +14,26 @@
  * General Public License version 2 for more details.
  */
 
+use core::intrinsics;
 use m3::cap::{Capability, CapFlags, Selector};
 use m3::cell::StaticCell;
 use m3::col::{String, Vec};
-use m3::com::{RecvGate, recv_res, SendGate, SGateArgs};
+use m3::com::{RecvGate, SendGate, SGateArgs};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::syscalls;
 use m3::util;
 use m3::vpe::VPE;
+use thread;
 
 use childs;
 use childs::{Child, Id};
+use sendqueue::SendQueue;
 
 pub struct Service {
     id: Id,
     _cap: Capability,
-    sgate: SendGate,
+    queue: SendQueue,
     _rgate: RecvGate,
     name: String,
     child: Id,
@@ -48,27 +51,35 @@ impl Service {
         Ok(Service {
             id: id,
             _cap: Capability::new(sel, CapFlags::empty()),
-            sgate: sgate,
+            queue: SendQueue::new(id, sgate),
             _rgate: rgate,
             name: name,
             child: child.id(),
         })
     }
 
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+    pub fn queue(&mut self) -> &mut SendQueue {
+        &mut self.queue
+    }
+
     fn child(&mut self) -> &mut Child {
         childs::get().child_by_id_mut(self.child).unwrap()
     }
 
-    fn shutdown(&self) {
+    fn shutdown(&mut self) {
         log!(ROOT, "Sending SHUTDOWN to service {}", self.name);
 
-        // TODO do that asynchronously
         let smsg = kif::service::Shutdown {
             opcode: kif::service::Operation::SHUTDOWN.val as u64,
         };
+        let event = self.queue.send(util::object_to_bytes(&smsg));
 
-        self.sgate.send(&[smsg], RecvGate::def()).ok();
-        recv_res(RecvGate::def()).ok();
+        if let Ok(ev) = event {
+            thread::ThreadManager::get().wait_for(ev);
+        }
     }
 }
 
@@ -79,37 +90,45 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(sel: Selector, serv: &Service, arg: u64) -> Result<(Selector, Self), Error> {
-        // TODO do that asynchronously
+    pub fn new(sel: Selector, serv: &mut Service, arg: u64) -> Result<(Selector, Self), Error> {
         let smsg = kif::service::Open {
             opcode: kif::service::Operation::OPEN.val as u64,
             arg: arg,
         };
+        let event = serv.queue.send(util::object_to_bytes(&smsg));
 
-        serv.sgate.send(&[smsg], RecvGate::def())?;
-        let mut sis = recv_res(RecvGate::def())?;
-        let srv_sel: Selector = sis.pop();
-        let ident: u64 = sis.pop();
+        event.and_then(|event| {
+            thread::ThreadManager::get().wait_for(event);
 
-        Ok((srv_sel,
-            Session {
-            sel: sel,
-            ident: ident,
-            serv: serv.id,
-        }))
+            let reply = thread::ThreadManager::get().fetch_msg().ok_or(Error::new(Code::RecvGone))?;
+            let reply: &[kif::service::OpenReply] = unsafe { intrinsics::transmute(&reply.data) };
+            let reply = &reply[0];
+
+            if reply.res != 0 {
+                return Err(Error::from(reply.res as u32));
+            }
+
+            Ok((reply.sess as Selector,
+                Session {
+                sel: sel,
+                ident: reply.ident,
+                serv: serv.id,
+            }))
+        })
     }
 
     pub fn close(&self) -> Result<(), Error> {
         let serv = get().get_by_id(self.serv)?;
 
-        // TODO do that asynchronously
         let smsg = kif::service::Close {
             opcode: kif::service::Operation::CLOSE.val as u64,
             sess: self.ident,
         };
+        let event = serv.queue.send(util::object_to_bytes(&smsg));
 
-        serv.sgate.send(&[smsg], RecvGate::def())?;
-        recv_res(RecvGate::def()).map(|_| ())
+        event.map(|ev| {
+            thread::ThreadManager::get().wait_for(ev)
+        })
     }
 }
 
@@ -128,7 +147,8 @@ impl ServiceManager {
     pub const fn new() -> Self {
         ServiceManager {
             servs: Vec::new(),
-            next_id: 0,
+            // start with 1, because we use that as a label in sendqueue and label 0 is special
+            next_id: 1,
         }
     }
 
@@ -139,7 +159,9 @@ impl ServiceManager {
         self.servs.iter_mut().find(|s| s.id == id).ok_or(Error::new(Code::InvArgs))
     }
     pub fn remove_service(&mut self, id: Id) {
-        self.servs.retain(|s| s.id != id);
+        let idx = self.servs.iter().position(|s| s.id == id).unwrap();
+        self.servs[idx].queue.abort();
+        self.servs.remove(idx);
     }
 
     pub fn reg_serv(&mut self, child: &mut Child, child_sel: Selector, dst_sel: Selector,
@@ -206,8 +228,19 @@ impl ServiceManager {
     }
 
     pub fn shutdown(&mut self) {
+        // first collect the ids
+        let mut ids = Vec::new();
         for s in &self.servs {
-            s.shutdown();
+            ids.push(s.id);
+        }
+
+        // now send a shutdown request to all that still exist.
+        // this is required, because shutdown switches the thread, so that the service list can
+        // change in the meantime.
+        for id in ids {
+            if let Ok(serv) = self.get_by_id(id) {
+                serv.shutdown();
+            }
         }
     }
 }

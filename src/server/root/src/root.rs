@@ -22,27 +22,38 @@
 
 #[macro_use]
 extern crate m3;
+extern crate thread;
 
 mod childs;
 mod loader;
+mod sendqueue;
 mod services;
 
 use core::intrinsics;
 use m3::boxed::Box;
 use m3::cap::Selector;
+use m3::cell::StaticCell;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs};
 use m3::dtu;
-use m3::errors::{Code, Error};
+use m3::errors::Error;
 use m3::goff;
 use m3::kif::{self, boot, PEDesc, syscalls, upcalls};
-use m3::server::server_loop;
 use m3::session::{ResMngOperation};
 use m3::util;
 
 use childs::{BootChild, Child, Id};
 
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
+
+static DELAYED: StaticCell<Vec<BootChild>>  = StaticCell::new(Vec::new());
+static MODS: StaticCell<(usize, usize)>     = StaticCell::new((0, 0));
+static SHUTDOWN: StaticCell<bool>           = StaticCell::new(false);
+static RGATE: StaticCell<Option<RecvGate>>  = StaticCell::new(None);
+
+fn req_rgate() -> &'static RecvGate {
+    RGATE.get().as_ref().unwrap()
+}
 
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
@@ -54,17 +65,15 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     }.expect("Unable to reply");
 }
 
-fn reg_serv(is: &mut GateIStream, child: &mut Child,
-            delayed: &mut Vec<BootChild>, rgate: &RecvGate,
-            mods: (usize, usize)) {
+fn reg_serv(is: &mut GateIStream, child: &mut Child) {
     let child_sel: Selector = is.pop();
     let dst_sel: Selector = is.pop();
     let rgate_sel: Selector = is.pop();
     let name: String = is.pop();
 
     let res = services::get().reg_serv(child, child_sel, dst_sel, rgate_sel, name);
-    if res.is_ok() && delayed.len() > 0 {
-        start_delayed(delayed, mods, &rgate);
+    if res.is_ok() && DELAYED.get().len() > 0 {
+        start_delayed();
     }
     reply_result(is, res);
 }
@@ -93,12 +102,12 @@ fn close_session(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn add_child(is: &mut GateIStream, rgate: &RecvGate, child: &mut Child) {
+fn add_child(is: &mut GateIStream, child: &mut Child) {
     let vpe_sel: Selector = is.pop();
     let sgate_sel: Selector = is.pop();
     let name: String = is.pop();
 
-    let res = child.add_child(vpe_sel, rgate, sgate_sel, name);
+    let res = child.add_child(vpe_sel, req_rgate(), sgate_sel, name);
     reply_result(is, res);
 }
 
@@ -109,8 +118,9 @@ fn rem_child(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn start_delayed(delayed: &mut Vec<BootChild>, mods: (usize, usize), rgate: &RecvGate) {
+fn start_delayed() {
     let mut idx = 0;
+    let delayed = DELAYED.get_mut();
     while idx < delayed.len() {
         if delayed[idx].has_unmet_reqs() {
             idx += 1;
@@ -118,15 +128,90 @@ fn start_delayed(delayed: &mut Vec<BootChild>, mods: (usize, usize), rgate: &Rec
         }
 
         let mut c = delayed.remove(idx);
+        let mods = MODS.get();
         let mut moditer = boot::ModIterator::new(mods.0, mods.1);
         let m = moditer.nth(c.id() as usize).unwrap();
         let sel = BOOT_MOD_SELS + 1 + c.id();
-        c.start(rgate, sel, &m).expect("Unable to start boot module");
+        c.start(req_rgate(), sel, &m).expect("Unable to start boot module");
         childs::get().add(Box::new(c));
     }
 
     if delayed.len() == 0 {
         childs::get().start_waiting(1);
+    }
+}
+
+fn handle_request(mut is: GateIStream) {
+    let op: ResMngOperation = is.pop();
+    let child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
+
+    match op {
+        ResMngOperation::REG_SERV    => reg_serv(&mut is, child),
+        ResMngOperation::UNREG_SERV  => unreg_serv(&mut is, child),
+
+        ResMngOperation::OPEN_SESS   => open_session(&mut is, child),
+        ResMngOperation::CLOSE_SESS  => close_session(&mut is, child),
+
+        ResMngOperation::ADD_CHILD   => add_child(&mut is, child),
+        ResMngOperation::REM_CHILD   => rem_child(&mut is, child),
+
+        _                            => unreachable!(),
+    }
+}
+
+fn handle_upcall(msg: &'static dtu::Message) {
+    let slice: &[upcalls::VPEWait] = unsafe { intrinsics::transmute(&msg.data) };
+    let upcall = &slice[0];
+
+    childs::get().kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
+
+    let reply = syscalls::DefaultReply {
+        error: 0u64,
+    };
+    RecvGate::upcall().reply(&[reply], msg).expect("Upcall reply failed");
+
+    // wait for the next
+    if DELAYED.get().len() == 0 {
+        let no_wait_childs = childs::get().daemons() + childs::get().foreigns();
+        if !SHUTDOWN.get() && childs::get().len() == no_wait_childs {
+            SHUTDOWN.set(true);
+            services::get().shutdown();
+        }
+        if childs::get().len() > 0 {
+            childs::get().start_waiting(1);
+        }
+    }
+}
+
+fn workloop() {
+    let thmng = thread::ThreadManager::get();
+    let rgate = req_rgate();
+    let upcall_ep = RecvGate::upcall().ep().unwrap();
+
+    loop {
+        // we are not interested in the events here; just fetch them before the sleep
+        dtu::DTU::fetch_events();
+        dtu::DTU::try_sleep(true, 0).ok();
+
+        let is = rgate.fetch();
+        if let Some(is) = is {
+            handle_request(is);
+        }
+
+        let msg = dtu::DTU::fetch_msg(upcall_ep);
+        if let Some(msg) = msg {
+            handle_upcall(msg);
+        }
+
+        sendqueue::check_replies();
+
+        if thmng.ready_count() > 0 {
+            thmng.try_yield();
+        }
+
+        if childs::get().len() == 0 {
+            break;
+        }
     }
 }
 
@@ -145,8 +230,8 @@ pub fn main() -> i32 {
     off += info.mod_size;
 
     log!(ROOT, "Boot modules:");
-    let mods = (mods_list.as_slice().as_ptr() as usize, info.mod_size as usize);
-    let moditer = boot::ModIterator::new(mods.0, mods.1);
+    MODS.set((mods_list.as_slice().as_ptr() as usize, info.mod_size as usize));
+    let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for m in moditer {
         log!(ROOT, "  {:?}", m);
     }
@@ -170,10 +255,16 @@ pub fn main() -> i32 {
         RGateArgs::new().order(12).msg_order(8)
     ).expect("Unable to create RecvGate");
     rgate.activate().expect("Unable to activate RecvGate");
+    RGATE.set(Some(rgate));
 
-    let mut delayed = Vec::new();
+    sendqueue::init();
+    thread::init();
+    // TODO calculate the number of threads we need (one per child?)
+    for _ in 0..8 {
+        thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
+    }
 
-    let moditer = boot::ModIterator::new(mods.0, mods.1);
+    let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
         if m.name() == "rctmux" || m.name() == "root" {
             continue;
@@ -203,10 +294,11 @@ pub fn main() -> i32 {
 
         let mut child = BootChild::new(id as Id, name, args, reqs, daemon);
         if child.reqs.len() > 0 {
-            delayed.push(child);
+            DELAYED.get_mut().push(child);
         }
         else {
-            child.start(&rgate, BOOT_MOD_SELS + 1 + id as Id, &m).expect("Unable to start boot module");
+            child.start(req_rgate(), BOOT_MOD_SELS + 1 + id as Id, &m)
+                .expect("Unable to start boot module");
             childs::get().add(Box::new(child));
         }
     }
@@ -214,64 +306,11 @@ pub fn main() -> i32 {
     // ensure that there is no id overlap
     childs::get().set_next_id(info.mod_count as Id + 1);
 
-    if delayed.len() == 0 {
+    if DELAYED.get().len() == 0 {
         childs::get().start_waiting(1);
     }
 
-    let mut shutdown_inprogress = false;
-
-    server_loop(|| {
-        let is = rgate.fetch();
-        if let Some(mut is) = is {
-            let op: ResMngOperation = is.pop();
-            let mut child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
-
-            match op {
-                ResMngOperation::REG_SERV    => reg_serv(&mut is, child, &mut delayed,
-                                                         &rgate, mods),
-                ResMngOperation::UNREG_SERV  => unreg_serv(&mut is, child),
-
-                ResMngOperation::OPEN_SESS   => open_session(&mut is, child),
-                ResMngOperation::CLOSE_SESS  => close_session(&mut is, child),
-
-                ResMngOperation::ADD_CHILD   => add_child(&mut is, &rgate, child),
-                ResMngOperation::REM_CHILD   => rem_child(&mut is, child),
-
-                _                            => unreachable!(),
-            }
-        }
-
-        let msg = dtu::DTU::fetch_msg(RecvGate::upcall().ep().unwrap());
-        if let Some(msg) = msg {
-            let slice: &[upcalls::VPEWait] = unsafe { intrinsics::transmute(&msg.data) };
-            let upcall = &slice[0];
-
-            childs::get().kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
-
-            let reply = syscalls::DefaultReply {
-                error: 0u64,
-            };
-            RecvGate::upcall().reply(&[reply], msg).expect("Upcall reply failed");
-
-            // wait for the next
-            if delayed.len() == 0 {
-                let no_wait_childs = childs::get().daemons() + childs::get().foreigns();
-                if !shutdown_inprogress && childs::get().len() == no_wait_childs {
-                    services::get().shutdown();
-                    shutdown_inprogress = true;
-                }
-                if childs::get().len() > 0 {
-                    childs::get().start_waiting(1);
-                }
-            }
-        }
-
-        if childs::get().len() == 0 {
-            return Err(Error::new(Code::VPEGone));
-        }
-
-        Ok(())
-    }).ok();
+    workloop();
 
     0
 }

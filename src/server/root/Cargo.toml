@@ -8,3 +8,4 @@ crate-type = ["staticlib"]
 
 [dependencies]
 m3 = { path = "../../libs/rustm3" }
+thread = { path = "../../libs/rustthread" }

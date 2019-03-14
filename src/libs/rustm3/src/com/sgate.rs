@@ -107,12 +107,17 @@ impl SendGate {
 
     #[inline(always)]
     pub fn send<T>(&self, msg: &[T], reply_gate: &RecvGate) -> Result<(), Error> {
-        self.send_bytes(msg.as_ptr() as *const u8, msg.len() * util::size_of::<T>(), reply_gate)
+        self.send_bytes(msg.as_ptr() as *const u8, msg.len() * util::size_of::<T>(), reply_gate, 0)
+    }
+    pub fn send_with_rlabel<T>(&self, msg: &[T], reply_gate: &RecvGate,
+                               rlabel: dtu::Label) -> Result<(), Error> {
+        self.send_bytes(msg.as_ptr() as *const u8, msg.len() * util::size_of::<T>(), reply_gate, rlabel)
     }
     #[inline(always)]
-    pub fn send_bytes(&self, msg: *const u8, size: usize, reply_gate: &RecvGate) -> Result<(), Error> {
+    pub fn send_bytes(&self, msg: *const u8, size: usize, reply_gate: &RecvGate,
+                      rlabel: dtu::Label) -> Result<(), Error> {
         let ep = self.gate.activate()?;
-        dtu::DTU::send(ep, msg, size, 0, reply_gate.ep().unwrap())
+        dtu::DTU::send(ep, msg, size, rlabel, reply_gate.ep().unwrap())
     }
 }
 
