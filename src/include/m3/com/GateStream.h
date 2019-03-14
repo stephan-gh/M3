@@ -150,7 +150,7 @@ public:
      */
     explicit GateIStream(RecvGate &rgate, const DTU::Message *msg, Errors::Code err = Errors::NONE)
         : _err(err),
-          _ack(true),
+          _ack(err == Errors::NONE),
           _pos(0),
           _rgate(&rgate),
           _msg(msg) {
