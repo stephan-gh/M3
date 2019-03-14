@@ -16,12 +16,8 @@
 
 //! Contains the error handling types
 
-use backtrace;
-use boxed::Box;
 use core::intrinsics;
 use core::fmt;
-
-const MAX_BT_LEN: usize = 16;
 
 /// The error codes
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -59,20 +55,34 @@ pub enum Code {
     InvalidFs,
 }
 
+// we only use this implementation in debug mode, because it adds a bit of some overhead, errors
+// are sometimes used for non-exceptional situations and the backtraces are typically only useful
+// in debug mode anyway.
+
+#[cfg(debug_assertions)]
+use boxed::Box;
+
+#[cfg(debug_assertions)]
+const MAX_BT_LEN: usize = 16;
+
 /// The struct that stores information about an occurred error
 #[derive(Clone, Copy)]
+#[cfg(debug_assertions)]
 pub struct ErrorInfo {
     code: Code,
     bt_len: usize,
     bt: [usize; MAX_BT_LEN],
 }
 
+#[cfg(debug_assertions)]
 impl ErrorInfo {
     /// Creates a new object for given error code
     ///
     /// Note that this gathers and stores the backtrace
     #[inline(never)]
     pub fn new(code: Code) -> Self {
+        use backtrace;
+
         let mut bt = [0usize; MAX_BT_LEN];
         let count = backtrace::collect(bt.as_mut());
 
@@ -86,10 +96,12 @@ impl ErrorInfo {
 
 /// The error struct that is passed around
 #[derive(Clone)]
+#[cfg(debug_assertions)]
 pub struct Error {
     info: Box<ErrorInfo>,
 }
 
+#[cfg(debug_assertions)]
 impl Error {
     /// Creates a new object for given error code
     ///
@@ -115,6 +127,35 @@ impl Error {
             write!(f, "  {:#x}\n", self.info.bt[i as usize])?;
         }
         Ok(())
+    }
+}
+
+
+// simple and fast implementation for release mode
+
+#[cfg(not(debug_assertions))]
+pub struct Error {
+    code: Code,
+}
+
+#[cfg(not(debug_assertions))]
+impl Error {
+    /// Creates a new object for given error code
+    ///
+    /// Note that this gathers and stores the backtrace
+    pub fn new(code: Code) -> Self {
+        Error {
+            code: code,
+        }
+    }
+
+    /// Returns the error code
+    pub fn code(&self) -> Code {
+        self.code
+    }
+
+    fn debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self.code())
     }
 }
 
