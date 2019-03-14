@@ -98,7 +98,7 @@ impl AddrSpace {
         let off = self.root.offset();
         let pte = self.to_mmu_pte(self.root.raw() | dtu::PTEFlags::RWX.bits());
         KDTU::get().write_slice(
-            &VPEDesc::new_mem(self.root.pe()), off + (dtu::PTE_REC_IDX * 8) as goff, &[pte]
+            &VPEDesc::new_mem(self.root.pe()), off + (cfg::PTE_REC_IDX * 8) as goff, &[pte]
         );
 
         // invalidate TLB, because we have changed the root PT
@@ -114,7 +114,7 @@ impl AddrSpace {
         let rvpe = if !running { &mem_vpe } else { vpe };
 
         while pages > 0 {
-            for lvl in (0..dtu::LEVEL_CNT).rev() {
+            for lvl in (0..cfg::LEVEL_CNT).rev() {
                 let pte_addr = if !running {
                     self.get_pte_addr_mem(rvpe, self.root, virt, lvl)
                 }
@@ -149,32 +149,32 @@ impl AddrSpace {
 
     fn get_pte_addr(mut virt: goff, lvl: usize) -> goff {
         const REC_MASK: goff =
-            (dtu::PTE_REC_IDX as goff) << (cfg::PAGE_BITS + dtu::LEVEL_BITS * 3) |
-            (dtu::PTE_REC_IDX as goff) << (cfg::PAGE_BITS + dtu::LEVEL_BITS * 2) |
-            (dtu::PTE_REC_IDX as goff) << (cfg::PAGE_BITS + dtu::LEVEL_BITS * 1) |
-            (dtu::PTE_REC_IDX as goff) << (cfg::PAGE_BITS + dtu::LEVEL_BITS * 0);
+            (cfg::PTE_REC_IDX as goff) << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 3) |
+            (cfg::PTE_REC_IDX as goff) << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 2) |
+            (cfg::PTE_REC_IDX as goff) << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 1) |
+            (cfg::PTE_REC_IDX as goff) << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 0);
 
         // at first, just shift it accordingly.
-        virt >>= cfg::PAGE_BITS + lvl * dtu::LEVEL_BITS;
-        virt <<= dtu::PTE_BITS;
+        virt >>= cfg::PAGE_BITS + lvl * cfg::LEVEL_BITS;
+        virt <<= cfg::PTE_BITS;
 
         // now put in one PTE_REC_IDX's for each loop that we need to take
         let shift = lvl + 1;
-        let rem_mask = (1 << (cfg::PAGE_BITS + dtu::LEVEL_BITS * (dtu::LEVEL_CNT - shift))) - 1;
+        let rem_mask = (1 << (cfg::PAGE_BITS + cfg::LEVEL_BITS * (cfg::LEVEL_CNT - shift))) - 1;
         virt |= REC_MASK & !rem_mask;
 
         // finally, make sure that we stay within the bounds for virtual addresses
         // this is because of recMask, that might actually have too many of those.
-        virt &= (1 << (dtu::LEVEL_CNT * dtu::LEVEL_BITS + cfg::PAGE_BITS)) - 1;
+        virt &= (1 << (cfg::LEVEL_CNT * cfg::LEVEL_BITS + cfg::PAGE_BITS)) - 1;
         virt
     }
 
     fn get_pte_addr_mem(&self, vpe: &VPEDesc, root: GlobAddr, virt: goff, lvl: usize) -> goff {
         let mut pt = root.offset();
 
-        for l in (0..dtu::LEVEL_CNT).rev() {
-            let idx = (virt >> (cfg::PAGE_BITS + dtu::LEVEL_BITS * l)) & (dtu::LEVEL_MASK as goff);
-            pt += idx * dtu::PTE_SIZE as goff;
+        for l in (0..cfg::LEVEL_CNT).rev() {
+            let idx = (virt >> (cfg::PAGE_BITS + cfg::LEVEL_BITS * l)) & (cfg::LEVEL_MASK as goff);
+            pt += idx * cfg::PTE_SIZE as goff;
 
             if lvl == l {
                 return pt;
@@ -212,7 +212,7 @@ impl AddrSpace {
             // insert PTE
             npte |= dtu::PTEFlags::IRWX.bits();
             npte = self.to_mmu_pte(npte);
-            let pt_size = ((1 as goff) << (dtu::LEVEL_BITS * lvl)) * cfg::PAGE_SIZE as goff;
+            let pt_size = ((1 as goff) << (cfg::LEVEL_BITS * lvl)) * cfg::PAGE_SIZE as goff;
             klog!(PTES, "VPE{}: lvl {} PTE for {:#x}: {:#x}",
                 vpe_id, lvl, virt & !(pt_size - 1), npte);
             KDTU::get().try_write_slice(vpe, pte_addr, &[npte]).unwrap();
@@ -291,9 +291,9 @@ impl AddrSpace {
         #[cfg(target_arch = "x86_64")]
         {
             // the current implementation is based on some equal properties of MMU and DTU paging
-            const_assert!(dtu::LEVEL_CNT == 4);
+            const_assert!(cfg::LEVEL_CNT == 4);
             const_assert!(cfg::PAGE_SIZE == 4096);
-            const_assert!(dtu::LEVEL_BITS == 9);
+            const_assert!(cfg::LEVEL_BITS == 9);
 
             let dtu_pte = dtu::PTEFlags::from_bits_truncate(pte);
             let addr = pte & !cfg::PAGE_MASK as dtu::PTE;

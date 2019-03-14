@@ -120,12 +120,14 @@ impl MainMemory {
     }
 
     pub fn allocate(&mut self, size: usize) -> Result<Allocation, Error> {
+        let align = if size >= cfg::LPAGE_SIZE { cfg::LPAGE_SIZE } else { cfg::PAGE_SIZE };
+
         for (id, m) in &mut self.mods.iter_mut().enumerate() {
             if m.reserved {
                 continue;
             }
 
-            if let Ok(addr) = m.map.allocate(size, cfg::PAGE_SIZE) {
+            if let Ok(addr) = m.map.allocate(size, align) {
                 let alloc = Allocation::new(id, addr, size, 0);
                 log!(ROOT, "Allocated {:?}", alloc);
                 return Ok(alloc);

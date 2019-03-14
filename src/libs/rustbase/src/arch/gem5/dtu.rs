@@ -221,18 +221,6 @@ int_enum! {
     }
 }
 
-pub const PTE_BITS: usize   = 3;
-pub const PTE_SIZE: usize   = 1 << PTE_BITS;
-pub const PTE_REC_IDX: usize= 0x10;
-
-pub const LEVEL_CNT: usize  = 4;
-pub const LEVEL_BITS: usize = cfg::PAGE_BITS - PTE_BITS;
-pub const LEVEL_MASK: usize = (1 << LEVEL_BITS) - 1;
-
-pub const LPAGE_BITS: usize = cfg::PAGE_BITS + LEVEL_BITS;
-pub const LPAGE_SIZE: usize = 1 << LPAGE_BITS;
-pub const LPAGE_MASK: usize = LPAGE_SIZE - 1;
-
 pub type PTE = u64;
 
 bitflags! {
