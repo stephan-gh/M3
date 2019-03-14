@@ -51,7 +51,7 @@ MainMemory::Allocation MainMemory::build_allocation(gaddr_t addr, size_t size) c
 
 MainMemory::Allocation MainMemory::allocate(size_t size, size_t align) {
     for(size_t i = 0; i < _count; ++i) {
-        if(!_mods[i]->available())
+        if(_mods[i]->type() == MemoryModule::OCCUPIED)
             continue;
         goff_t res = _mods[i]->map().allocate(size, align);
         if(res != static_cast<goff_t>(-1))
@@ -63,7 +63,7 @@ MainMemory::Allocation MainMemory::allocate(size_t size, size_t align) {
 MainMemory::Allocation MainMemory::allocate_at(goff_t offset, size_t size) {
     // TODO this is not final
     for(size_t i = 0; i < _count; ++i) {
-        if(!_mods[i]->available())
+        if(_mods[i]->type() == MemoryModule::OCCUPIED)
             return Allocation(i, _mods[i]->addr() + offset, size);
     }
     return Allocation();
@@ -86,7 +86,7 @@ void MainMemory::free(const Allocation &alloc) {
 size_t MainMemory::size() const {
     size_t total = 0;
     for(size_t i = 0; i < _count; ++i) {
-        if(_mods[i]->available())
+        if(_mods[i]->type() != MemoryModule::OCCUPIED)
             total += _mods[i]->size();
     }
     return total;
@@ -95,7 +95,7 @@ size_t MainMemory::size() const {
 size_t MainMemory::available() const {
     size_t total = 0;
     for(size_t i = 0; i < _count; ++i) {
-        if(_mods[i]->available())
+        if(_mods[i]->type() != MemoryModule::OCCUPIED)
             total += _mods[i]->map().get_size();
     }
     return total;
@@ -105,7 +105,7 @@ m3::OStream &operator<<(m3::OStream &os, const MainMemory &mem) {
     os << "Main Memory[total=" << (mem.size() / 1024) << " KiB,"
        << " free=" << (mem.available() / 1024) << " KiB]:\n";
     for(size_t i = 0; i < mem._count; ++i) {
-        os << "  " << (mem._mods[i]->available() ? "free" : "used");
+        os << " type=" << mem._mods[i]->type();
         os << " pe=" << mem._mods[i]->pe() << " addr=" << m3::fmt(mem._mods[i]->addr(), "p");
         os << " size=" << m3::fmt(mem._mods[i]->size(), "p") << "\n";
     }

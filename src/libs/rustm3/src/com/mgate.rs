@@ -30,6 +30,7 @@ pub use kif::Perm;
 
 pub struct MemGate {
     gate: Gate,
+    revoke: bool,
 }
 
 pub struct MGateArgs {
@@ -75,15 +76,17 @@ impl MemGate {
             args.sel
         };
 
-        syscalls::create_mgate(sel, args.addr, args.size, args.perm)?;
+        vpe::VPE::cur().resmng().alloc_mem(sel, args.addr, args.size, args.perm)?;
         Ok(MemGate {
-            gate: Gate::new(sel, args.flags)
+            gate: Gate::new(sel, args.flags),
+            revoke: false,
         })
     }
 
     pub fn new_bind(sel: Selector) -> Self {
         MemGate {
-            gate: Gate::new(sel, CapFlags::KEEP_CAP)
+            gate: Gate::new(sel, CapFlags::KEEP_CAP),
+            revoke: true,
         }
     }
 
@@ -109,7 +112,8 @@ impl MemGate {
                       size: usize, perm: Perm) -> Result<Self, Error> {
         syscalls::derive_mem(vpe, sel, self.sel(), offset, size, perm)?;
         Ok(MemGate {
-            gate: Gate::new(sel, CapFlags::empty())
+            gate: Gate::new(sel, CapFlags::empty()),
+            revoke: true,
         })
     }
 
@@ -191,6 +195,15 @@ impl MemGate {
         *off += amount as goff;
         *size -= amount;
         Ok(())
+    }
+}
+
+impl Drop for MemGate {
+    fn drop(&mut self) {
+        if !self.gate.flags().contains(CapFlags::KEEP_CAP) && !self.revoke {
+            vpe::VPE::cur().resmng().free_mem(self.sel()).ok();
+            self.gate.set_flags(CapFlags::KEEP_CAP);
+        }
     }
 }
 

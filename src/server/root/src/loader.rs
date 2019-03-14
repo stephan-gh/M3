@@ -29,6 +29,8 @@ use m3::util;
 use m3::vfs;
 use m3::vpe::Mapper;
 
+use memory;
+
 pub struct BootFile {
     mgate: MemGate,
     size: usize,
@@ -134,7 +136,7 @@ pub struct BootMapper {
     vpe_sel: Selector,
     mem_sel: Selector,
     has_virtmem: bool,
-    memcon: Vec<MemGate>,
+    allocs: Vec<memory::Allocation>,
 }
 
 impl BootMapper {
@@ -143,8 +145,12 @@ impl BootMapper {
             vpe_sel: vpe_sel,
             mem_sel: mem_sel,
             has_virtmem: has_virtmem,
-            memcon: Vec::new(),
+            allocs: Vec::new(),
         }
+    }
+
+    pub fn fetch_allocs(self) -> Vec<memory::Allocation> {
+        self.allocs
     }
 }
 
@@ -169,12 +175,13 @@ impl Mapper for BootMapper {
     fn map_anon<'l>(&mut self, _pager: Option<&'l Pager>,
                     virt: goff, len: usize, perm: Perm) -> Result<bool, Error> {
         if self.has_virtmem {
-            let mem = MemGate::new(len, perm)?;
+            let alloc = memory::get().allocate(len)?;
+            let msel = memory::get().mem_cap(alloc.mod_id);
 
-            syscalls::create_map((virt >> PAGE_BITS) as Selector, self.vpe_sel,
-                                 mem.sel(), 0, (len >> PAGE_BITS) as Selector, perm)?;
-            // collect the mgates in a container to make sure that they are not destroyed
-            self.memcon.push(mem);
+            syscalls::create_map((virt >> PAGE_BITS) as Selector, self.vpe_sel, msel,
+                                 (alloc.addr >> PAGE_BITS) as Selector,
+                                 (len >> PAGE_BITS) as Selector, perm)?;
+            self.allocs.push(alloc);
             Ok(true)
         }
         else {

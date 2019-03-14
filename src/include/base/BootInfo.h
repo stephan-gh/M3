@@ -18,15 +18,40 @@
 
 #include <base/Common.h>
 
+#include <assert.h>
+
 namespace m3 {
 
 class BootInfo {
 public:
+    static const size_t MAX_MEMS = 4;
+
     struct Mod {
         uint64_t addr;
         uint64_t size;
         uint64_t namelen;
         char name[];
+    } PACKED;
+
+    class Mem {
+    public:
+        explicit Mem()
+            : _size(0) {
+        }
+        explicit Mem(size_t size, bool reserved)
+            : _size(size | (reserved ? 1 : 0)) {
+            assert((size & 1) == 0);
+        }
+
+        size_t size() const {
+            return _size & ~static_cast<uint64_t>(1);
+        }
+        bool reserved() const {
+            return (_size & 1) == 1;
+        }
+
+    private:
+        uint64_t _size;
     } PACKED;
 
     class ModIterator {
@@ -64,6 +89,7 @@ public:
     uint64_t mod_count;
     uint64_t mod_size;
     uint64_t pe_count;
+    Mem mems[MAX_MEMS];
 } PACKED;
 
 }

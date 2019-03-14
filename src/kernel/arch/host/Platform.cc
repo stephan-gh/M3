@@ -32,8 +32,8 @@ namespace kernel {
 
 m3::PEDesc *Platform::_pes;
 m3::BootInfo::Mod *Platform::_mods;
-m3::BootInfo Platform::_info;
-INIT_PRIO_USER(2) Platform::Init Platform::_init;
+INIT_PRIO_USER(2) m3::BootInfo Platform::_info;
+INIT_PRIO_USER(3) Platform::Init Platform::_init;
 
 static MainMemory::Allocation binfomem;
 
@@ -43,18 +43,28 @@ Platform::Init::Init() {
     Platform::_info.mod_size = 0;
 
     // init PEs
-    Platform::_info.pe_count = PE_COUNT;
-    Platform::_pes = new m3::PEDesc[PE_COUNT];
+    Platform::_info.pe_count = PE_COUNT + 1;
+    Platform::_pes = new m3::PEDesc[PE_COUNT + 1];
     for(int i = 0; i < PE_COUNT; ++i)
         Platform::_pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
+    Platform::_pes[PE_COUNT] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
 
     // create memory
     uintptr_t base = reinterpret_cast<uintptr_t>(
         mmap(0, TOTAL_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
 
+    if(TOTAL_MEM_SIZE <= FS_MAX_SIZE + KERNEL_MEM)
+        PANIC("Not enough DRAM");
+
     MainMemory &mem = MainMemory::get();
-    mem.add(new MemoryModule(false, 0, base, FS_MAX_SIZE));
-    mem.add(new MemoryModule(true, 0, base + FS_MAX_SIZE, TOTAL_MEM_SIZE - FS_MAX_SIZE));
+    mem.add(new MemoryModule(MemoryModule::OCCUPIED, 0, base, FS_MAX_SIZE));
+    mem.add(new MemoryModule(MemoryModule::KERNEL, 0, base + FS_MAX_SIZE, KERNEL_MEM));
+    size_t usize = TOTAL_MEM_SIZE - (FS_MAX_SIZE + KERNEL_MEM);
+    mem.add(new MemoryModule(MemoryModule::USER, 0, base + FS_MAX_SIZE + KERNEL_MEM, usize));
+
+    // set memories
+    _info.mems[0] = m3::BootInfo::Mem(FS_MAX_SIZE, true);
+    _info.mems[1] = m3::BootInfo::Mem(usize, false);
 }
 
 void Platform::add_modules(int argc, char **argv) {
@@ -141,7 +151,7 @@ void Platform::add_modules(int argc, char **argv) {
     }
 
     // add PEs to info
-    for(int i = 0; i < PE_COUNT; ++i) {
+    for(uint64_t i = 0; i < _info.pe_count; ++i) {
         memcpy(reinterpret_cast<void*>(mod_addr), Platform::_pes + i, sizeof(m3::PEDesc));
         mod_addr += sizeof(m3::PEDesc);
     }

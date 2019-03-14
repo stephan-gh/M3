@@ -39,6 +39,9 @@ public:
 
         ADD_CHILD,
         REM_CHILD,
+
+        ALLOC_MEM,
+        FREE_MEM,
     };
 
     explicit ResMng(capsel_t resmng)
@@ -84,6 +87,20 @@ public:
 
     Errors::Code close_sess(capsel_t sel) {
         GateIStream reply = send_receive_vmsg(_sgate, CLOSE_SESS, sel);
+        Errors::Code res;
+        reply >> res;
+        return res;
+    }
+
+    Errors::Code alloc_mem(capsel_t sel, goff_t addr, size_t size, int perm) {
+        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_MEM, sel, addr, size, perm);
+        Errors::Code res;
+        reply >> res;
+        return res;
+    }
+
+    Errors::Code free_mem(capsel_t sel) {
+        GateIStream reply = send_receive_vmsg(_sgate, FREE_MEM, sel);
         Errors::Code res;
         reply >> res;
         return res;

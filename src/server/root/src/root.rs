@@ -26,6 +26,7 @@ extern crate thread;
 
 mod childs;
 mod loader;
+mod memory;
 mod sendqueue;
 mod services;
 
@@ -44,6 +45,13 @@ use m3::util;
 
 use childs::{BootChild, Child, Id};
 
+//
+// The kernel initializes our cap space as follows:
+// +-----------+-------+-----+-----------+-------+-----------+
+// | boot info | mod_0 | ... | mod_{n-1} | mem_0 | mem_{n-1} |
+// +-----------+-------+-----+-----------+-------+-----------+
+// ^-- FIRST_FREE_SEL
+//
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
 
 static DELAYED: StaticCell<Vec<BootChild>>  = StaticCell::new(Vec::new());
@@ -118,6 +126,29 @@ fn rem_child(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
+fn alloc_mem(is: &mut GateIStream, child: &mut Child) {
+    let dst_sel: Selector = is.pop();
+    let addr: goff = is.pop();
+    let size: usize = is.pop();
+    let perms = kif::Perm::from_bits_truncate(is.pop::<u8>());
+
+    let res = if addr == !0 {
+        memory::get().allocate_for(child, dst_sel, size, perms)
+    }
+    else {
+        memory::get().allocate_at(child, dst_sel, addr, size)
+    };
+
+    reply_result(is, res);
+}
+
+fn free_mem(is: &mut GateIStream, child: &mut Child) {
+    let sel: Selector = is.pop();
+
+    let res = child.remove_mem(sel);
+    reply_result(is, res);
+}
+
 fn start_delayed() {
     let mut idx = 0;
     let delayed = DELAYED.get_mut();
@@ -154,6 +185,9 @@ fn handle_request(mut is: GateIStream) {
 
         ResMngOperation::ADD_CHILD   => add_child(&mut is, child),
         ResMngOperation::REM_CHILD   => rem_child(&mut is, child),
+
+        ResMngOperation::ALLOC_MEM   => alloc_mem(&mut is, child),
+        ResMngOperation::FREE_MEM    => free_mem(&mut is, child),
 
         _                            => unreachable!(),
     }
@@ -223,8 +257,6 @@ pub fn main() -> i32 {
     let info: boot::Info = mgate.read_obj(0).expect("Unable to read boot info");
     off += util::size_of::<boot::Info>() as goff;
 
-    log!(ROOT, "BootInfo = {:?}", info);
-
     let mut mods_list = vec![0u8; info.mod_size as usize];
     mgate.read(&mut mods_list, off).expect("Unable to read mods");
     off += info.mod_size;
@@ -250,6 +282,18 @@ pub fn main() -> i32 {
         );
         i += 1;
     }
+
+    let mut mem_sel = BOOT_MOD_SELS + 1 + info.mod_count as Selector;
+    for i in 0..info.mems.len() {
+        let mem = &info.mems[i];
+        if mem.size() == 0 {
+            continue;
+        }
+
+        memory::get().add(memory::MemMod::new(mem_sel, mem.size(), mem.reserved()));
+        mem_sel += 1;
+    }
+    log!(ROOT, "Memory: {:?}", memory::get());
 
     let mut rgate = RecvGate::new_with(
         RGateArgs::new().order(12).msg_order(8)

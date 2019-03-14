@@ -26,8 +26,8 @@ namespace kernel {
 
 m3::PEDesc *Platform::_pes;
 m3::BootInfo::Mod *Platform::_mods;
-m3::BootInfo Platform::_info;
-INIT_PRIO_USER(2) Platform::Init Platform::_init;
+INIT_PRIO_USER(2) m3::BootInfo Platform::_info;
+INIT_PRIO_USER(3) Platform::Init Platform::_init;
 
 // note that we currently assume here, that compute PEs and memory PEs are not mixed
 static peid_t last_pe_id;
@@ -53,23 +53,41 @@ Platform::Init::Init() {
 
     // register memory modules
     int count = 0;
-    const goff_t USABLE_MEM  = (static_cast<goff_t>(2048) + 512) * 1024 * 1024;
+    size_t memidx = 0;
+    const goff_t USABLE_MEM = (static_cast<goff_t>(2048) + 512) * 1024 * 1024;
     MainMemory &mem = MainMemory::get();
     for(size_t i = 0; i < info->pe_count; ++i) {
         m3::PEDesc pedesc = Platform::_pes[i];
         if(pedesc.type() == m3::PEType::MEM) {
+            if(memidx >= ARRAY_SIZE(info->mems))
+                PANIC("Not enough memory slots in boot info");
+
             // the first memory module hosts the FS image and other stuff
             if(count == 0) {
-                mem.add(new MemoryModule(false, i, 0, USABLE_MEM));
-                mem.add(new MemoryModule(true, i, USABLE_MEM, pedesc.mem_size() - USABLE_MEM));
+                if(pedesc.mem_size() <= USABLE_MEM + KERNEL_MEM)
+                    PANIC("Not enough DRAM");
+                mem.add(new MemoryModule(MemoryModule::OCCUPIED, i, 0, USABLE_MEM));
+                info->mems[memidx++] = m3::BootInfo::Mem(USABLE_MEM, true);
+
+                mem.add(new MemoryModule(MemoryModule::KERNEL, i, USABLE_MEM, KERNEL_MEM));
+
+                size_t usize = pedesc.mem_size() - (USABLE_MEM + KERNEL_MEM);
+                mem.add(new MemoryModule(MemoryModule::USER, i, USABLE_MEM + KERNEL_MEM, usize));
+                info->mems[memidx++] = m3::BootInfo::Mem(usize, false);
             }
-            else
-                mem.add(new MemoryModule(true, i, 0, pedesc.mem_size()));
+            else {
+                mem.add(new MemoryModule(MemoryModule::USER, i, 0, pedesc.mem_size()));
+                info->mems[memidx++] = m3::BootInfo::Mem(pedesc.mem_size(), false);
+            }
             count++;
         }
         else
             last_pe_id = i;
     }
+
+    // write-back boot info (changes to mems)
+    addr = m3::DTU::gaddr_to_virt(m3::env()->kenv);
+    DTU::get().write_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
 }
 
 void Platform::add_modules(int, char **) {

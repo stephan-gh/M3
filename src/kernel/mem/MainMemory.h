@@ -62,6 +62,9 @@ public:
 
     void add(MemoryModule *mod);
 
+    size_t mod_count() const {
+        return _count;
+    }
     const MemoryModule &module(size_t id) const;
     Allocation build_allocation(gaddr_t addr, size_t size) const;
 

@@ -20,7 +20,7 @@ use m3::cell::{RefCell, StaticCell};
 use m3::com::{RecvGate, SendGate, SGateArgs};
 use m3::col::{String, Treap, Vec};
 use m3::errors::{Code, Error};
-use m3::kif::{CapRngDesc, CapType};
+use m3::kif::{CapRngDesc, CapType, Perm};
 use m3::rc::Rc;
 use m3::session::ResMng;
 use m3::syscalls;
@@ -28,6 +28,7 @@ use m3::vpe::{Activity, ExecActivity, VPE, VPEArgs};
 
 use boot;
 use loader;
+use memory::Allocation;
 use services::{self, Session};
 
 pub type Id = u32;
@@ -36,6 +37,7 @@ pub struct Resources {
     pub childs: Vec<(Id, Selector)>,
     pub services: Vec<(Id, Selector)>,
     pub sessions: Vec<Session>,
+    pub mem: Vec<Allocation>,
 }
 
 impl Resources {
@@ -44,6 +46,7 @@ impl Resources {
             childs: Vec::new(),
             services: Vec::new(),
             sessions: Vec::new(),
+            mem: Vec::new(),
         }
     }
 }
@@ -134,6 +137,34 @@ pub trait Child {
         Ok(sessions.remove(idx))
     }
 
+    fn add_mem(&mut self, alloc: Allocation, mem_sel: Selector, perm: Perm) -> Result<(), Error> {
+        log!(ROOT, "{}: added allocation (mod={}, addr={:#x}, size={:#x}, sel={})",
+             self.name(), alloc.mod_id, alloc.addr, alloc.size, alloc.sel);
+
+        if mem_sel != 0 {
+            assert!(alloc.sel != 0);
+            syscalls::derive_mem(self.vpe_sel(), alloc.sel, mem_sel, alloc.addr, alloc.size, perm)?;
+        }
+        self.res_mut().mem.push(alloc);
+        Ok(())
+    }
+    fn remove_mem(&mut self, sel: Selector) -> Result<(), Error> {
+        let idx = self.res_mut().mem.iter()
+            .position(|s| s.sel == sel).ok_or(Error::new(Code::InvArgs))?;
+        self.remove_mem_by_idx(idx);
+        Ok(())
+    }
+    fn remove_mem_by_idx(&mut self, idx: usize) {
+        let alloc = self.res_mut().mem.remove(idx);
+        if alloc.sel != 0 {
+            let crd = CapRngDesc::new(CapType::OBJECT, alloc.sel, 1);
+            syscalls::revoke(self.vpe_sel(), crd, true).unwrap();
+        }
+
+        log!(ROOT, "{}: removed allocation (mod={}, addr={:#x}, size={:#x}, sel={})",
+            self.name(), alloc.mod_id, alloc.addr, alloc.size, alloc.sel);
+    }
+
     fn remove_resources(&mut self) where Self: Sized {
         while self.res().sessions.len() > 0 {
             let sess = self.res_mut().sessions.remove(0);
@@ -143,6 +174,10 @@ pub trait Child {
         while self.res().services.len() > 0 {
             let (id, _) = self.res_mut().services.remove(0);
             services::get().remove_service(id);
+        }
+
+        while self.res().mem.len() > 0 {
+            self.remove_mem_by_idx(0);
         }
     }
 }
@@ -155,7 +190,6 @@ pub struct BootChild {
     res: Resources,
     daemon: bool,
     activity: Option<ExecActivity>,
-    mapper: Option<loader::BootMapper>,
 }
 
 impl BootChild {
@@ -168,7 +202,6 @@ impl BootChild {
             res: Resources::new(),
             daemon: daemon,
             activity: None,
-            mapper: None,
         }
     }
 
@@ -183,7 +216,10 @@ impl BootChild {
         let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
         let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
         self.activity = Some(vpe.exec_file(&mut bmapper, bfileref, &self.args)?);
-        self.mapper = Some(bmapper);
+
+        for a in bmapper.fetch_allocs() {
+            self.add_mem(a, 0, Perm::RWX).unwrap();
+        }
 
         Ok(())
     }

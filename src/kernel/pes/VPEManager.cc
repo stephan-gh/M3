@@ -81,6 +81,18 @@ void VPEManager::init(int argc, char **argv) {
         _vpes[id]->objcaps().set(sel, memcap);
     }
 
+    // memory
+    for(size_t i = 0; i < MainMemory::get().mod_count(); ++i) {
+        const MemoryModule &mod = MainMemory::get().module(i);
+        if(mod.type() != MemoryModule::KERNEL) {
+            auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, mod.pe(),
+                                              VPE::INVALID_ID, mod.addr(), mod.size(),
+                                              m3::KIF::Perm::RWX);
+            _vpes[id]->objcaps().set(sel, memcap);
+            sel++;
+        }
+    }
+
     // go!
     _vpes[id]->set_first_sel(sel);
     _vpes[id]->start_app(_vpes[id]->pid());

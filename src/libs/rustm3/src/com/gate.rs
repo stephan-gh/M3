@@ -46,6 +46,9 @@ impl Gate {
     pub fn flags(&self) -> CapFlags {
         self.cap.flags()
     }
+    pub(crate) fn set_flags(&mut self, flags: CapFlags) {
+        self.cap.set_flags(flags);
+    }
 
     pub fn ep(&self) -> Option<EpId> {
         self.ep.get()

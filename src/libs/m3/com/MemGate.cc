@@ -18,6 +18,7 @@
 #include <base/Errors.h>
 
 #include <m3/com/MemGate.h>
+#include <m3/session/ResMng.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
@@ -27,23 +28,29 @@
 
 namespace m3 {
 
+MemGate::~MemGate() {
+    if(!(flags() & KEEP_CAP) && !_revoke) {
+        VPE::self().resmng().free_mem(sel());
+        flags(KEEP_CAP);
+    }
+}
+
 MemGate MemGate::create_global_for(goff_t addr, size_t size, int perms, capsel_t sel) {
-    uint flags = 0;
     if(sel == INVALID)
         sel = VPE::self().alloc_sel();
-    Syscalls::get().createmgate(sel, addr, size, perms);
-    return MemGate(flags, sel);
+    VPE::self().resmng().alloc_mem(sel, addr, size, perms);
+    return MemGate(0, sel, false);
 }
 
 MemGate MemGate::derive(goff_t offset, size_t size, int perms) const {
     capsel_t nsel = VPE::self().alloc_sel();
     Syscalls::get().derivemem(VPE::self().sel(), nsel, sel(), offset, size, perms);
-    return MemGate(0, nsel);
+    return MemGate(0, nsel, true);
 }
 
 MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t size, int perms) const {
     Syscalls::get().derivemem(vpe, cap, sel(), offset, size, perms);
-    return MemGate(0, cap);
+    return MemGate(0, cap, true);
 }
 
 Errors::Code MemGate::activate_for(VPE &vpe, epid_t ep, goff_t offset) {

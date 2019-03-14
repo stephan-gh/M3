@@ -19,12 +19,36 @@ use core::intrinsics;
 use core::iter;
 use util;
 
+const MAX_MEMS: usize = 4;
+
+#[repr(C, packed)]
+#[derive(Default, Copy, Clone, Debug)]
+pub struct Mem {
+    size: u64,
+}
+
+impl Mem {
+    pub fn new(size: usize, reserved: bool) -> Self {
+        Mem {
+            size: size as u64 | (reserved as u64),
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        self.size as usize & !1
+    }
+    pub fn reserved(&self) -> bool {
+        (self.size & 1) == 1
+    }
+}
+
 #[repr(C, packed)]
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Info {
     pub mod_count: u64,
     pub mod_size: u64,
     pub pe_count: u64,
+    pub mems: [Mem; MAX_MEMS],
 }
 
 #[repr(C, packed)]

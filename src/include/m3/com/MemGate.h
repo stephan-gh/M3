@@ -30,8 +30,9 @@ class VPE;
  * by requesting PE-external memory from the kernel or bind a MemGate to an existing capability.
  */
 class MemGate : public Gate {
-    explicit MemGate(uint flags, capsel_t cap)
+    explicit MemGate(uint flags, capsel_t cap, bool revoke)
         : Gate(MEM_GATE, cap, flags),
+          _revoke(revoke),
           _cmdflags() {
     }
 
@@ -82,8 +83,16 @@ public:
      * @param flags the flags to control whether cap/selector are kept (default: both)
      */
     static MemGate bind(capsel_t sel, uint flags = ObjCap::KEEP_CAP) {
-        return MemGate(flags, sel);
+        return MemGate(flags, sel, true);
     }
+
+    MemGate(MemGate &&m)
+        : Gate(Util::move(m)),
+          _revoke(m._revoke),
+          _cmdflags(m._cmdflags) {
+    }
+
+    ~MemGate();
 
     /**
      * Activates this gate for <vpe> at EP <ep> with the given offset. That is, the EP <ep> will be
@@ -156,6 +165,7 @@ public:
 private:
     Errors::Code forward(void *&data, size_t &len, goff_t &offset, uint flags);
 
+    bool _revoke;
     uint _cmdflags;
 };
 

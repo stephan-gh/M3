@@ -17,6 +17,7 @@
 use cap::Selector;
 use com::{RecvGate, SendGate};
 use errors::Error;
+use goff;
 use kif;
 use vpe::VPE;
 
@@ -31,6 +32,9 @@ int_enum! {
 
         const ADD_CHILD     = 0x4;
         const REM_CHILD     = 0x5;
+
+        const ALLOC_MEM     = 0x6;
+        const FREE_MEM      = 0x7;
     }
 }
 
@@ -90,6 +94,21 @@ impl ResMng {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
             ResMngOperation::CLOSE_SESS, sel
+        ).map(|_| ())
+    }
+
+    pub fn alloc_mem(&self, dst: Selector, addr: goff,
+                     size: usize, perms: kif::Perm) -> Result<(), Error> {
+        send_recv_res!(
+            &self.sgate, RecvGate::def(),
+            ResMngOperation::ALLOC_MEM, dst, addr, size, perms.bits()
+        ).map(|_| ())
+    }
+
+    pub fn free_mem(&self, sel: Selector) -> Result<(), Error> {
+        send_recv_res!(
+            &self.sgate, RecvGate::def(),
+            ResMngOperation::FREE_MEM, sel
         ).map(|_| ())
     }
 }

@@ -23,16 +23,22 @@ namespace kernel {
 
 class MemoryModule {
 public:
-    explicit MemoryModule(bool avail, peid_t pe, goff_t addr, size_t size)
-        : _avail(avail),
+    enum Type {
+        KERNEL,
+        USER,
+        OCCUPIED,
+    };
+
+    explicit MemoryModule(Type type, peid_t pe, goff_t addr, size_t size)
+        : _type(type),
            _pe(pe),
            _addr(addr),
            _size(size),
            _map(addr, size) {
     }
 
-    bool available() const {
-        return _avail;
+    Type type() const {
+        return _type;
     }
     peid_t pe() const {
         return _pe;
@@ -48,7 +54,7 @@ public:
     }
 
 private:
-    bool _avail;
+    Type _type;
     peid_t _pe;
     goff_t _addr;
     size_t _size;
