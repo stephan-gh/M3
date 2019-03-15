@@ -58,8 +58,6 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
       _headers(),
       _rbufcpy(),
       _first_sel(m3::KIF::FIRST_FREE_SEL),
-      _argc(),
-      _argv(),
       _mem_base() {
     if(_sysc_ep == EP_COUNT)
         PANIC("Too few slots in syscall receive buffers");

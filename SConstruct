@@ -210,6 +210,8 @@ else:
         env.Append(LINKFLAGS = ' -O2 -flto')
 builddir = 'build/' + target + '-' + isa + '-' + btype
 
+env.Append(CPPFLAGS = ' -DBUILD_DIR=' + builddir)
+
 if target == 't2' or target == 't3':
     archtype = 'th'
 else:

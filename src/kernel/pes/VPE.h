@@ -247,10 +247,6 @@ public:
     void set_first_sel(capsel_t sel) {
         _first_sel = sel;
     }
-    void set_args(size_t argc, const char *const *argv) {
-        _argc = argc;
-        _argv = argv;
-    }
 
 private:
     void finish_start();
@@ -284,8 +280,6 @@ private:
     size_t _headers;
     MainMemory::Allocation _rbufcpy;
     capsel_t _first_sel;
-    size_t _argc;
-    const char *const *_argv;
     goff_t _mem_base;
 };
 

@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
     SyscallHandler::init();
     PEManager::create();
     VPEManager::create();
-    VPEManager::get().init(argc - argstart - 1, argv + argstart + 1);
+    VPEManager::get().start_root();
     PEManager::get().init();
 
     KLOG(INFO, "Kernel is ready");

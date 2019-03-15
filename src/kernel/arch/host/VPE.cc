@@ -64,7 +64,8 @@ void VPE::load_app() {
             PANIC("fork");
         if(_pid == 0) {
             write_env_file(_first_sel, syscall_ep(), getpid(), pe(), reinterpret_cast<label_t>(this));
-            char *const childargs[] = {const_cast<char*>(_argv[0]), nullptr};
+            static char root_path[] = STRINGIZE(BUILD_DIR) "/bin/root";
+            char *const childargs[] = {root_path, nullptr};
             execv(childargs[0], childargs);
             KLOG(VPES, "VPE creation failed: " << strerror(errno));
             // special error code to let the WorkLoop delete the VPE

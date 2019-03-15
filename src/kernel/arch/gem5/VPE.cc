@@ -198,12 +198,11 @@ static goff_t map_idle(VPE &vpe) {
 
 void VPE::load_app() {
     assert(_flags & F_BOOTMOD);
-    assert(_argc > 0 && _argv);
 
     bool appFirst;
-    const m3::BootInfo::Mod *mod = get_mod(_argv[0], &appFirst);
+    const m3::BootInfo::Mod *mod = get_mod("root", &appFirst);
     if(!mod)
-        PANIC("Unable to find boot module '" << _argv[0] << "'");
+        PANIC("Unable to find boot module 'root'");
 
     KLOG(KENV, "Loading mod '" << mod->name << "':");
 

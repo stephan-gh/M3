@@ -33,7 +33,7 @@ VPEManager::VPEManager()
       _count() {
 }
 
-void VPEManager::init(int argc, char **argv) {
+void VPEManager::start_root() {
     // TODO the required PE depends on the boot module, not the kernel PE
     m3::PEDesc pedesc = Platform::pe(Platform::kernel_pe());
     m3::PEDesc pedesc_emem(m3::PEType::COMP_EMEM, pedesc.isa(), pedesc.mem_size());
@@ -51,13 +51,7 @@ void VPEManager::init(int argc, char **argv) {
             PANIC("Unable to find a free PE for root task");
     }
 
-    // strip the path from the name
-    const char *slash = strrchr(argv[0], '/');
-    const char *name = slash ? slash + 1 : argv[0];
-    _vpes[id] = new VPE(m3::String(name), peid, id, VPE::F_BOOTMOD);
-
-    // remember arguments
-    _vpes[id]->set_args(static_cast<size_t>(argc), argv);
+    _vpes[id] = new VPE("root", peid, id, VPE::F_BOOTMOD);
 
     // boot info
     capsel_t sel = m3::KIF::FIRST_FREE_SEL;

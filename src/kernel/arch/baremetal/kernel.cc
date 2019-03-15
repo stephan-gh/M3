@@ -32,6 +32,9 @@ int main(int argc, char *argv[]) {
         m3::Machine::shutdown();
     }
 
+    if(strncmp(argv[1], "-t=", 3) == 0)
+        VPE::set_timeslice(m3::IStringStream::read_from<cycles_t>(argv[1] + 3));
+
     EVENT_TRACE_INIT_KERNEL();
 
     KLOG(MEM, MainMemory::get());
@@ -39,16 +42,10 @@ int main(int argc, char *argv[]) {
     // create some worker threads
     m3::env()->workloop()->multithreaded(48);
 
-    if(strncmp(argv[1], "-t=", 3) == 0) {
-        VPE::set_timeslice(m3::IStringStream::read_from<cycles_t>(argv[1] + 3));
-        argc -= 1;
-        argv += 1;
-    }
-
     SyscallHandler::init();
     PEManager::create();
     VPEManager::create();
-    VPEManager::get().init(argc - 2, argv + 2);
+    VPEManager::get().start_root();
 
     PEManager::get().init();
 

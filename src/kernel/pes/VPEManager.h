@@ -55,7 +55,7 @@ private:
     ~VPEManager();
 
 public:
-    void init(int argc, char **argv);
+    void start_root();
 
     VPE *create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epid_t rep,
                 capsel_t sgate, uint flags = 0, VPEGroup *group = nullptr);
