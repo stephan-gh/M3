@@ -15,6 +15,7 @@
  */
 
 #include <base/log/Services.h>
+#include <base/util/BitField.h>
 
 #include <m3/com/MemGate.h>
 #include <m3/server/Server.h>
@@ -24,8 +25,9 @@
 
 using namespace m3;
 
-static constexpr size_t MSG_SIZE = 64;
-static constexpr size_t BUF_SIZE = 256;
+static constexpr size_t MSG_SIZE    = 64;
+static constexpr size_t BUF_SIZE    = 256;
+static constexpr size_t MAX_CLIENTS = 32;
 
 struct VTermSession;
 class ChannelSession;
@@ -68,7 +70,7 @@ public:
         : VTermSession(srv_sel, caps) {
     }
 
-    ChannelSession *create_chan(RecvGate &rgate, bool write);
+    ChannelSession *create_chan(bool write);
 
     virtual Type type() const {
         return META;
@@ -77,25 +79,28 @@ public:
 
 class ChannelSession : public VTermSession {
 public:
-    explicit ChannelSession(RecvGate &rgate, capsel_t srv_sel, capsel_t caps, bool _writing)
+    explicit ChannelSession(uint id, RecvGate &rgate, MemGate &mem,
+                            capsel_t srv_sel, capsel_t caps, bool _writing)
         : VTermSession(srv_sel, caps),
+          id(id),
           active(false),
           writing(_writing),
           ep(ObjCap::INVALID),
           sgate(SendGate::create(&rgate, reinterpret_cast<label_t>(this), MSG_SIZE, nullptr, caps + 1)),
-          mem(MemGate::create_global(BUF_SIZE, MemGate::RW)),
+          mem(mem.derive(id * BUF_SIZE, BUF_SIZE, MemGate::RW)),
           pos(),
           len() {
     }
+    ~ChannelSession();
 
-    ChannelSession *clone(RecvGate &rgate);
+    ChannelSession *clone();
 
     virtual Type type() const override {
         return CHAN;
     }
 
     virtual void next_in(m3::GateIStream &is) override {
-        SLOG(VTERM, fmt((word_t)this, "p") << " vterm::next_in()");
+        SLOG(VTERM, "[" << id << "] vterm::next_in()");
 
         if(writing) {
             reply_error(is, Errors::NO_PERM);
@@ -124,7 +129,7 @@ public:
     }
 
     virtual void next_out(m3::GateIStream &is) override {
-        SLOG(VTERM, fmt((word_t)this, "p") << " vterm::next_out()");
+        SLOG(VTERM, "[" << id << "] vterm::next_out()");
 
         if(!writing) {
             reply_error(is, Errors::NO_PERM);
@@ -153,7 +158,7 @@ public:
     }
 
     virtual void commit(m3::GateIStream &is, size_t nbytes) override {
-        SLOG(VTERM, fmt((word_t)this, "p") << " vterm::commit(nbytes=" << nbytes << ")");
+        SLOG(VTERM, "[" << id << "] vterm::commit(nbytes=" << nbytes << ")");
 
         if(nbytes > len - pos) {
             reply_error(is, Errors::INV_ARGS);
@@ -175,6 +180,7 @@ public:
         }
     }
 
+    uint id;
     bool active;
     bool writing;
     capsel_t ep;
@@ -184,21 +190,13 @@ public:
     size_t len;
 };
 
-inline ChannelSession *MetaSession::create_chan(RecvGate &rgate, bool write) {
-    capsel_t caps = VPE::self().alloc_sels(2);
-    return new ChannelSession(rgate, srv->sel(), caps, write);
-}
-
-inline ChannelSession *ChannelSession::clone(RecvGate &rgate) {
-    capsel_t caps = VPE::self().alloc_sels(2);
-    return new ChannelSession(rgate, srv->sel(), caps, writing);
-}
-
 class VTermHandler : public base_class {
 public:
     explicit VTermHandler()
         : base_class(),
-          _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
+          _slots(),
+          _mem(MemGate::create_global(MAX_CLIENTS * BUF_SIZE, MemGate::RW)),
+          _rgate(RecvGate::create(nextlog2<MAX_CLIENTS * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         add_operation(GenericFile::SEEK, &VTermHandler::invalid_op);
         add_operation(GenericFile::STAT, &VTermHandler::invalid_op);
         add_operation(GenericFile::NEXT_IN, &VTermHandler::next_in);
@@ -223,13 +221,15 @@ public:
         if(sess->type() == VTermSession::META) {
             if(data.args.count != 1)
                 return Errors::INV_ARGS;
-            nsess = static_cast<MetaSession*>(sess)->create_chan(_rgate, data.args.vals[0] == 1);
+            nsess = static_cast<MetaSession*>(sess)->create_chan(data.args.vals[0] == 1);
         }
         else {
             if(data.args.count != 0)
                 return Errors::INV_ARGS;
-            nsess = static_cast<ChannelSession*>(sess)->clone(_rgate);
+            nsess = static_cast<ChannelSession*>(sess)->clone();
         }
+        if(nsess == nullptr)
+            return Errors::NO_SPACE;
 
         data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, nsess->sel(), 2).value();
         return Errors::NONE;
@@ -282,9 +282,32 @@ public:
         reply_error(is, Errors::NONE);
     }
 
-private:
+    ChannelSession *new_chan(bool write) {
+        // find and allocate free slot
+        uint id = _slots.first_clear();
+        if(id == MAX_CLIENTS)
+            return nullptr;
+        _slots.set(id, true);
+
+        capsel_t caps = VPE::self().alloc_sels(2);
+        return new ChannelSession(id, _rgate, _mem, srv->sel(), caps, write);
+    }
+
+    BitField<MAX_CLIENTS> _slots;
+    MemGate _mem;
     RecvGate _rgate;
 };
+
+inline ChannelSession *MetaSession::create_chan(bool write) {
+    return srv->handler().new_chan(write);
+}
+
+inline ChannelSession::~ChannelSession() {
+    srv->handler()._slots.set(id, false);
+}
+inline ChannelSession *ChannelSession::clone() {
+    return srv->handler().new_chan(writing);
+}
 
 int main() {
     srv = new Server<VTermHandler>("vterm", new VTermHandler());
