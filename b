@@ -81,6 +81,7 @@ help() {
     echo "    run <script>:            run the specified <script>. See directory boot."
     echo "    runq <script>:           run the specified <script> quietly."
     echo "    runvalgrind <script>:    run the specified script in valgrind."
+    echo "    doc:                     generate rust documentation."
     echo "    dbg=<prog> <script>:     run <script> and debug <prog> in gdb"
     echo "    dis=<prog>:              run objdump -SC <prog> (the cross-compiler version)"
     echo "    disp=<prog>:             run objdump -SC <prog> and use pimpdisasm.awk"
