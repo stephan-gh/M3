@@ -66,49 +66,43 @@ public:
 
     Errors::Code reg_service(capsel_t child, capsel_t dst, capsel_t rgate, const String &name) {
         GateIStream reply = send_receive_vmsg(_sgate, REG_SERV, child, dst, rgate, name);
-        Errors::Code res;
-        reply >> res;
-        return res;
+        return retrieve_result(reply);
     }
 
     Errors::Code unreg_service(capsel_t sel, bool notify) {
         GateIStream reply = send_receive_vmsg(_sgate, UNREG_SERV, sel, notify);
-        Errors::Code res;
-        reply >> res;
-        return res;
+        return retrieve_result(reply);
     }
 
     Errors::Code open_sess(capsel_t dst, const String &name, uint64_t arg = 0) {
         GateIStream reply = send_receive_vmsg(_sgate, OPEN_SESS, dst, name, arg);
-        Errors::Code res;
-        reply >> res;
-        return res;
+        return retrieve_result(reply);
     }
 
     Errors::Code close_sess(capsel_t sel) {
         GateIStream reply = send_receive_vmsg(_sgate, CLOSE_SESS, sel);
-        Errors::Code res;
-        reply >> res;
-        return res;
+        return retrieve_result(reply);
     }
 
     Errors::Code alloc_mem(capsel_t sel, goff_t addr, size_t size, int perm) {
         GateIStream reply = send_receive_vmsg(_sgate, ALLOC_MEM, sel, addr, size, perm);
-        Errors::Code res;
-        reply >> res;
-        return res;
+        return retrieve_result(reply);
     }
 
     Errors::Code free_mem(capsel_t sel) {
         GateIStream reply = send_receive_vmsg(_sgate, FREE_MEM, sel);
-        Errors::Code res;
-        reply >> res;
-        return res;
+        return retrieve_result(reply);
     }
 
 private:
     Errors::Code clone(capsel_t vpe_sel, capsel_t sgate_sel, const String &name) {
         GateIStream reply = send_receive_vmsg(_sgate, ADD_CHILD, vpe_sel, sgate_sel, name);
+        return retrieve_result(reply);
+    }
+
+    Errors::Code retrieve_result(GateIStream &reply) {
+        if(reply.error() != Errors::NONE)
+            return reply.error();
         Errors::Code res;
         reply >> res;
         return res;
