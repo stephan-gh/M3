@@ -103,13 +103,18 @@ Reference<FileSystem> MountTable::resolve(const char *path, size_t *pos) {
     return Reference<FileSystem>();
 }
 
-void MountTable::remove(const char *path) {
+size_t MountTable::indexof_mount(const char *path) {
     for(size_t i = 0; i < _count; ++i) {
-        if(strcmp(_mounts[i]->path().c_str(), path) == 0) {
-            do_remove(i);
-            break;
-        }
+        if(strcmp(_mounts[i]->path().c_str(), path) == 0)
+            return i;
     }
+    return MAX_MOUNTS;
+}
+
+void MountTable::remove(const char *path) {
+    size_t idx = indexof_mount(path);
+    if(idx != MAX_MOUNTS)
+        do_remove(idx);
 }
 
 void MountTable::remove_all() {

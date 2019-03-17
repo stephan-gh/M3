@@ -40,6 +40,9 @@ MountTable *VFS::ms() {
 }
 
 Errors::Code VFS::mount(const char *path, const char *fs, const char *options) {
+    if(ms()->indexof_mount(path) != MountTable::MAX_MOUNTS)
+        return Errors::last = Errors::EXISTS;
+
     FileSystem *fsobj;
     if(strcmp(fs, "m3fs") == 0)
         fsobj = new M3FS(options ? options : fs);

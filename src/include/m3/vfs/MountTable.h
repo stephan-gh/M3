@@ -38,8 +38,6 @@ class VPE;
  * and transferred to the child VPE.
  */
 class MountTable {
-    static const size_t MAX_MOUNTS  = 4;
-
     class MountPoint {
     public:
         explicit MountPoint(const char *path, FileSystem *fs)
@@ -60,6 +58,8 @@ class MountTable {
     };
 
 public:
+    static const size_t MAX_MOUNTS  = 4;
+
     /**
      * Constructor
      */
@@ -88,6 +88,12 @@ public:
      * @return the filesystem or an invalid reference
      */
     Reference<FileSystem> resolve(const char *path, size_t *pos);
+
+    /**
+     * @param path the path
+     * @return the index of the mountpoint at given path
+     */
+    size_t indexof_mount(const char *path);
 
     /**
      * Removes the mountpoint at given path.
