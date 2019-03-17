@@ -23,13 +23,37 @@ use rc::Rc;
 use session::ClientSession;
 use vfs::{FileHandle, GenericFile};
 
+pub struct Pipes {
+    sess: ClientSession,
+}
+
+impl Pipes {
+    pub fn new(name: &str) -> Result<Self, Error> {
+        let sess = ClientSession::new(name, 0)?;
+        Ok(Pipes {
+            sess: sess,
+        })
+    }
+
+    pub fn create_pipe(&self, mem: &MemGate, mem_size: usize) -> Result<Pipe, Error> {
+        let mut args = kif::syscalls::ExchangeArgs {
+            count: 1,
+            vals: kif::syscalls::ExchangeUnion {
+                i: [mem_size as u64, 0, 0, 0, 0, 0, 0, 0]
+            },
+        };
+        let crd = self.sess.obtain(2, &mut args)?;
+        Pipe::new(mem, crd.start())
+    }
+}
+
 pub struct Pipe {
     sess: ClientSession,
 }
 
 impl Pipe {
-    pub fn new(name: &str, mem: &MemGate, mem_size: usize) -> Result<Self, Error> {
-        let sess = ClientSession::new(name, mem_size as u64)?;
+    pub fn new(mem: &MemGate, sel: Selector) -> Result<Self, Error> {
+        let sess = ClientSession::new_bind(sel);
         sess.delegate_obj(mem.sel())?;
         Ok(Pipe {
             sess: sess,

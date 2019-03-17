@@ -108,7 +108,7 @@ static void execute_assignment(CmdList *list) {
     }
 }
 
-static bool execute_pipeline(CmdList *list, bool muxed) {
+static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
     VPE *vpes[MAX_CMDS] = {nullptr};
     IndirectPipe *pipes[MAX_CMDS] = {nullptr};
     MemGate *mems[MAX_CMDS] = {nullptr};
@@ -170,7 +170,7 @@ static bool execute_pipeline(CmdList *list, bool muxed) {
         }
         else if(descs[i].is_programmable() || descs[i + 1].is_programmable()) {
             mems[i] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-            pipes[i] = new IndirectPipe(*mems[i], PIPE_SHM_SIZE);
+            pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE);
             vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(pipes[i]->writer_fd()));
         }
 
@@ -285,7 +285,7 @@ error:
     return true;
 }
 
-static bool execute(CmdList *list, bool muxed) {
+static bool execute(Pipes &pipesrv, CmdList *list, bool muxed) {
     for(size_t i = 0; i < list->count; ++i) {
         Args::prefix_path(list->cmds[i]->args);
         Args::expand(list->cmds[i]->args);
@@ -295,7 +295,7 @@ static bool execute(CmdList *list, bool muxed) {
     if(list->count == 1 && list->cmds[0]->args->count == 0)
         execute_assignment(list);
     else
-        res = execute_pipeline(list, muxed);
+        res = execute_pipeline(pipesrv, list, muxed);
     return res;
 }
 
@@ -304,6 +304,8 @@ int main(int argc, char **argv) {
         if(Errors::last != Errors::EXISTS)
             exitmsg("Unable to mount filesystem\n");
     }
+
+    Pipes pipesrv("pipes");
 
     bool muxed = argc > 1 && strcmp(argv[1], "1") == 0;
 
@@ -319,7 +321,7 @@ int main(int argc, char **argv) {
             exitmsg("Unable to parse command '" << input << "'");
 
         cycles_t start = Time::start(0x1234);
-        execute(list, muxed);
+        execute(pipesrv, list, muxed);
         cycles_t end = Time::stop(0x1234);
         ast_cmds_destroy(list);
 
@@ -340,7 +342,7 @@ int main(int argc, char **argv) {
         if(!list)
             continue;
 
-        bool cont = execute(list, muxed);
+        bool cont = execute(pipesrv, list, muxed);
         ast_cmds_destroy(list);
         if(!cont)
             break;

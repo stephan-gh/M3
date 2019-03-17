@@ -20,7 +20,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/server/RequestHandler.h>
 #include <m3/server/Server.h>
-#include <m3/session/Pipe.h>
+#include <m3/session/Pipes.h>
 #include <m3/session/ServerSession.h>
 #include <m3/vfs/GenericFile.h>
 
@@ -32,6 +32,7 @@ class PipeSession : public m3::ServerSession {
 public:
     enum Type {
         META,
+        DATA,
         RCHAN,
         WCHAN,
     };
@@ -56,6 +57,24 @@ public:
     virtual m3::Errors::Code close() {
         return m3::Errors::NOT_SUP;
     }
+};
+
+class PipeMeta : public PipeSession {
+    static constexpr size_t MAX_PIPES = 8;
+
+public:
+    explicit PipeMeta(capsel_t srv_sel);
+    virtual ~PipeMeta();
+
+    virtual Type type() const override {
+        return Type::META;
+    }
+
+    PipeData *create(capsel_t srv_sel, m3::RecvGate &rgate, size_t memsize);
+    void remove(PipeData *pipe);
+
+private:
+    PipeData *_pipes[MAX_PIPES];
 };
 
 class PipeChannel : public PipeSession, public m3::SListItem {
@@ -151,11 +170,11 @@ public:
         const m3::DTU::Message *lastmsg;
     };
 
-    explicit PipeData(capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize);
+    explicit PipeData(PipeMeta *meta, capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize);
     virtual ~PipeData();
 
     virtual Type type() const override {
-        return META;
+        return DATA;
     }
     size_t get_read_size() const;
     size_t get_write_size() const;
@@ -164,6 +183,7 @@ public:
     void handle_pending_read();
     void handle_pending_write();
 
+    PipeMeta *meta;
     int nextid;
     uint flags;
     m3::MemGate *memory;

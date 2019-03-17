@@ -17,6 +17,7 @@
 use m3::com::MemGate;
 use m3::io::Read;
 use m3::kif;
+use m3::session::Pipes;
 use m3::test;
 use m3::util;
 use m3::vfs::{BufReader, FileHandle, IndirectPipe, OpenFlags, VFS};
@@ -66,10 +67,11 @@ fn pipe_mux() {
         writer: FileHandle,
     };
 
+    let pipeserv = assert_ok!(Pipes::new("pipes"));
     let mut pipes = vec![];
     for _ in 0..NUM {
         let mgate = assert_ok!(MemGate::new(PIPE_SIZE, kif::Perm::RW));
-        let pipe = assert_ok!(IndirectPipe::new(&mgate, PIPE_SIZE));
+        let pipe = assert_ok!(IndirectPipe::new(&pipeserv, &mgate, PIPE_SIZE));
         pipes.push(Pipe {
             reader: VPE::cur().files().get(pipe.reader_fd()).unwrap(),
             writer: VPE::cur().files().get(pipe.writer_fd()).unwrap(),

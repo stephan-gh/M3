@@ -29,7 +29,8 @@ alignas(DTU_PKG_SIZE) static char buffer[0x100];
 int main() {
     {
         MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
-        IndirectPipe pipe(mem, 0x1000);
+        Pipes pipes("pipes");
+        IndirectPipe pipe(pipes, mem, 0x1000);
         VPE reader("reader");
         VPE reader2("reader2");
         VPE writer("writer");
@@ -91,7 +92,8 @@ int main() {
 
     {
         MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
-        IndirectPipe pipe(mem, 0x1000);
+        Pipes pipes("pipes");
+        IndirectPipe pipe(pipes, mem, 0x1000);
         VPE reader("reader");
 
         reader.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe.reader_fd()));
@@ -123,7 +125,8 @@ int main() {
 
     {
         MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
-        IndirectPipe pipe(mem, 0x1000);
+        Pipes pipes("pipes");
+        IndirectPipe pipe(pipes, mem, 0x1000);
         VPE reader("reader");
 
         reader.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe.reader_fd()));

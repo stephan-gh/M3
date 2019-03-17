@@ -37,8 +37,9 @@ NOINLINE void child_to_parent() {
     Profile pr(2, 1);
 
     auto res = pr.run_with_id([] {
+        Pipes pipes("pipes");
         MemGate mgate = MemGate::create_global(0x10000, MemGate::RW);
-        IndirectPipe pipe(mgate, 0x10000);
+        IndirectPipe pipe(pipes, mgate, 0x10000);
 
         VPE vpe("writer");
         vpe.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipe.writer_fd()));
@@ -73,8 +74,9 @@ NOINLINE void parent_to_child() {
     Profile pr(2, 1);
 
     auto res = pr.run_with_id([] {
+        Pipes pipes("pipes");
         MemGate mgate = MemGate::create_global(0x10000, MemGate::RW);
-        IndirectPipe pipe(mgate, 0x10000);
+        IndirectPipe pipe(pipes, mgate, 0x10000);
 
         VPE vpe("writer");
         vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe.reader_fd()));

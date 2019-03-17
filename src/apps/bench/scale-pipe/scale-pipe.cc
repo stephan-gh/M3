@@ -125,6 +125,7 @@ int main(int argc, char **argv) {
 
         cycles_t overall_start = Time::start(0x1235);
 
+        Pipes pipesrv("mypipe");
         constexpr size_t PIPE_SHM_SIZE   = 512 * 1024;
         MemGate *mems[instances];
         IndirectPipe *pipes[instances];
@@ -156,7 +157,7 @@ int main(int argc, char **argv) {
 
             if(i % 2 == 0) {
                 mems[i / 2] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-                pipes[i / 2] = new IndirectPipe(*mems[i / 2], PIPE_SHM_SIZE, "mypipe", data ? 0 : FILE_NODATA);
+                pipes[i / 2] = new IndirectPipe(pipesrv, *mems[i / 2], PIPE_SHM_SIZE, data ? 0 : FILE_NODATA);
                 apps[i]->vpe.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipes[i / 2]->writer_fd()));
             }
             else

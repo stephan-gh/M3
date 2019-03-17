@@ -19,6 +19,7 @@ use m3::com::MemGate;
 use m3::io;
 use m3::kif;
 use m3::profile;
+use m3::session::Pipes;
 use m3::test;
 use m3::vfs::IndirectPipe;
 use m3::vpe::{Activity, VPE, VPEArgs};
@@ -32,12 +33,13 @@ pub fn run(t: &mut test::Tester) {
 }
 
 fn child_to_parent() {
+    let pipeserv = assert_ok!(Pipes::new("pipes"));
     let mut prof = profile::Profiler::new().repeats(2).warmup(1);
 
     println!("c->p: {} KiB transfer with {} KiB buf: {}", DATA_SIZE / 1024, BUF_SIZE / 1024,
         prof.run_with_id(|| {
             let pipe_mem = assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
-            let pipe = assert_ok!(IndirectPipe::new(&pipe_mem, 0x10000));
+            let pipe = assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
             let mut vpe = assert_ok!(VPE::new_with(VPEArgs::new("writer")));
             vpe.files().set(io::STDOUT_FILENO, VPE::cur().files().get(pipe.writer_fd()).unwrap());
@@ -67,12 +69,13 @@ fn child_to_parent() {
 }
 
 fn parent_to_child() {
+    let pipeserv = assert_ok!(Pipes::new("pipes"));
     let mut prof = profile::Profiler::new().repeats(2).warmup(1);
 
     println!("p->c: {} KiB transfer with {} KiB buf: {}", DATA_SIZE / 1024, BUF_SIZE / 1024,
         prof.run_with_id(|| {
             let pipe_mem = assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
-            let pipe = assert_ok!(IndirectPipe::new(&pipe_mem, 0x10000));
+            let pipe = assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
             let mut vpe = assert_ok!(VPE::new_with(VPEArgs::new("reader")));
             vpe.files().set(io::STDIN_FILENO, VPE::cur().files().get(pipe.reader_fd()).unwrap());

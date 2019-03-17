@@ -17,14 +17,14 @@
 #pragma once
 
 #include <m3/com/MemGate.h>
-#include <m3/session/Pipe.h>
+#include <m3/session/Pipes.h>
 #include <m3/vfs/File.h>
 
 namespace m3 {
 
 class IndirectPipe {
 public:
-    explicit IndirectPipe(MemGate &mem, size_t memsize, const char *service = "pipes", int flags = 0);
+    explicit IndirectPipe(Pipes &pipes, MemGate &mem, size_t memsize, int flags = 0);
     ~IndirectPipe();
 
     /**
@@ -50,7 +50,7 @@ public:
     void close_writer();
 
 private:
-    Pipe _pipe;
+    Pipes::Pipe _pipe;
     fd_t _rdfd;
     fd_t _wrfd;
 };

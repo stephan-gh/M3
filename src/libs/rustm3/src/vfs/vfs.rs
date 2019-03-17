@@ -20,9 +20,9 @@ use session::M3FS;
 use vfs::{FileInfo, FileMode, FileRef, FSHandle, OpenFlags};
 use vpe::VPE;
 
-pub fn mount(path: &str, fs: &str) -> Result<(), Error> {
+pub fn mount(path: &str, fs: &str, sess: &str) -> Result<(), Error> {
     let fsobj = match fs {
-        "m3fs" => M3FS::new(fs)?,
+        "m3fs" => M3FS::new(sess)?,
         _      => return Err(Error::new(Code::InvArgs)),
     };
     VPE::cur().mounts().add(path, fsobj)

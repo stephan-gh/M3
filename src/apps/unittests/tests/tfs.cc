@@ -244,13 +244,14 @@ static void pipe_mux() {
     const size_t DATA_SIZE = 1024;
     const size_t PIPE_SIZE = 256;
 
+    Pipes pipesrv("pipes");
     MemGate *mems[NUM];
     IndirectPipe *pipes[NUM];
     Reference<File> reader[NUM];
     Reference<File> writer[NUM];
     for(size_t i = 0; i < NUM; ++i) {
         mems[i] = new MemGate(MemGate::create_global(PIPE_SIZE, MemGate::RW));
-        pipes[i] = new IndirectPipe(*mems[i], PIPE_SIZE);
+        pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SIZE);
         reader[i] = VPE::self().fds()->get(pipes[i]->reader_fd());
         writer[i] = VPE::self().fds()->get(pipes[i]->writer_fd());
     }

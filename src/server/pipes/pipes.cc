@@ -21,7 +21,7 @@
 #include <m3/com/MemGate.h>
 #include <m3/server/Server.h>
 #include <m3/server/RequestHandler.h>
-#include <m3/session/Pipe.h>
+#include <m3/session/Pipes.h>
 
 #include "Session.h"
 
@@ -52,8 +52,8 @@ public:
         _rgate.start(std::bind(&PipeServiceHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(PipeSession **sess, capsel_t srv_sel, word_t arg) override {
-        *sess = new PipeData(srv_sel, _rgate, arg);
+    virtual Errors::Code open(PipeSession **sess, capsel_t srv_sel, word_t) override {
+        *sess = new PipeMeta(srv_sel);
         return Errors::NONE;
     }
 
@@ -61,20 +61,27 @@ public:
         if(data.caps != 2)
             return Errors::INV_ARGS;
 
-        PipeChannel *nchan;
         if(sess->type() == PipeSession::META) {
             if(data.args.count != 1)
                 return Errors::INV_ARGS;
-            nchan = static_cast<PipeData*>(sess)->attach(srv->sel(), data.args.vals[0]);
+            auto npipe = static_cast<PipeMeta*>(sess)->create(srv->sel(), _rgate, data.args.vals[0]);
+            data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, npipe->sel(), 1).value();
         }
-        else
-            nchan = static_cast<PipeChannel*>(sess)->clone(srv->sel());
-        data.caps = nchan->crd().value();
+        else if(sess->type() == PipeSession::DATA) {
+            if(data.args.count != 1)
+                return Errors::INV_ARGS;
+            auto nchan = static_cast<PipeData*>(sess)->attach(srv->sel(), data.args.vals[0]);
+            data.caps = nchan->crd().value();
+        }
+        else {
+            auto nchan = static_cast<PipeChannel*>(sess)->clone(srv->sel());
+            data.caps = nchan->crd().value();
+        }
         return Errors::NONE;
     }
 
     virtual Errors::Code delegate(PipeSession *sess, KIF::Service::ExchangeData &data) override {
-        if(sess->type() == PipeSession::META) {
+        if(sess->type() == PipeSession::DATA) {
             if(data.caps != 1 || data.args.count != 0 || static_cast<PipeData*>(sess)->memory)
                 return Errors::INV_ARGS;
 
@@ -82,7 +89,7 @@ public:
             static_cast<PipeData*>(sess)->memory = new MemGate(MemGate::bind(sel));
             data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, data.caps).value();
         }
-        else {
+        else if(sess->type() != PipeSession::META) {
             if(data.caps != 1 || data.args.count != 0)
                 return Errors::INV_ARGS;
 
@@ -90,6 +97,8 @@ public:
             static_cast<PipeChannel*>(sess)->set_ep(sel);
             data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, data.caps).value();
         }
+        else
+            return Errors::INV_ARGS;
         return Errors::NONE;
     }
 

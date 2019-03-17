@@ -49,8 +49,38 @@ void PipeData::WorkItem::work() {
     pipe->handle_pending_read();
 }
 
-PipeData::PipeData(capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize)
+PipeMeta::PipeMeta(capsel_t srv_sel)
     : PipeSession(srv_sel),
+      _pipes() {
+}
+
+PipeMeta::~PipeMeta() {
+    for(size_t i = 0; i < MAX_PIPES; ++i)
+        delete _pipes[i];
+}
+
+PipeData *PipeMeta::create(capsel_t srv_sel, m3::RecvGate &rgate, size_t memsize) {
+    for(size_t i = 0; i < MAX_PIPES; ++i) {
+        if(_pipes[i] == nullptr) {
+            _pipes[i] = new PipeData(this, srv_sel, rgate, memsize);
+            return _pipes[i];
+        }
+    }
+    return nullptr;
+}
+
+void PipeMeta::remove(PipeData *pipe) {
+    for(size_t i = 0; i < MAX_PIPES; ++i) {
+        if(_pipes[i] == pipe) {
+            _pipes[i] = nullptr;
+            break;
+        }
+    }
+}
+
+PipeData::PipeData(PipeMeta *meta, capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize)
+    : PipeSession(srv_sel),
+      meta(meta),
       nextid(),
       flags(),
       memory(),
@@ -81,6 +111,8 @@ PipeData::~PipeData() {
 
     m3::env()->workloop()->remove(&workitem);
     delete memory;
+
+    meta->remove(this);
 }
 
 PipeChannel *PipeData::attach(capsel_t _sel, bool read) {

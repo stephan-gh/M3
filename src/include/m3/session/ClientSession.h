@@ -57,6 +57,11 @@ public:
         : ObjCap(SESSION, sel, flags), _close(false) {
     }
 
+    ClientSession(ClientSession &&s)
+        : ObjCap(Util::move(s)),
+          _close(s._close) {
+    }
+
     ~ClientSession();
 
     /**

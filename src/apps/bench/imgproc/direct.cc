@@ -40,7 +40,7 @@ class DirectChain {
 public:
     static const size_t ACCEL_COUNT     = 3;
 
-    explicit DirectChain(size_t id, Reference<File> in, Reference<File> out, Mode _mode)
+    explicit DirectChain(Pipes &pipesrv, size_t id, Reference<File> in, Reference<File> out, Mode _mode)
         : mode(_mode),
           group(),
           vpes(),
@@ -65,7 +65,7 @@ public:
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < ACCEL_COUNT) {
                 mems[i] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-                pipes[i] = new IndirectPipe(*mems[i], PIPE_SHM_SIZE);
+                pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE);
             }
         }
 
@@ -167,6 +167,7 @@ static void wait_for(DirectChain **chains, size_t num) {
 }
 
 void chain_direct(const char *in, size_t num, Mode mode) {
+    Pipes pipes("pipes");
     DirectChain *chains[num];
     fd_t infds[num];
     fd_t outfds[num];
@@ -183,7 +184,8 @@ void chain_direct(const char *in, size_t num, Mode mode) {
         if(outfds[i] == FileTable::INVALID)
             exitmsg("Unable to open " << outpath.str());
 
-        chains[i] = new DirectChain(i,
+        chains[i] = new DirectChain(pipes,
+                                    i,
                                     VPE::self().fds()->get(infds[i]),
                                     VPE::self().fds()->get(outfds[i]),
                                     mode);

@@ -80,6 +80,7 @@ int main(int argc, const char **argv) {
     if(argc != 6 + wargs + rargs)
         usage(argv[0]);
 
+    Pipes pipes("pipes");
     MemGate pipemem = MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW);
 
     for(int j = 0; j < repeats; ++j) {
@@ -144,11 +145,11 @@ int main(int argc, const char **argv) {
         VPE *memvpe = nullptr;
         IndirectPipe *pipe;
         if(mem == 0)
-            pipe = new IndirectPipe(pipemem, PIPE_SHM_SIZE);
+            pipe = new IndirectPipe(pipes, pipemem, PIPE_SHM_SIZE);
         else {
             memvpe = new VPE("mem");
             vpemem = new MemGate(memvpe->mem().derive(0x10000, PIPE_SHM_SIZE, MemGate::RW));
-            pipe = new IndirectPipe(*vpemem, PIPE_SHM_SIZE);
+            pipe = new IndirectPipe(pipes, *vpemem, PIPE_SHM_SIZE);
             // let the kernel schedule the VPE; this cannot be done by the reader/writer, because
             // the pipe service just configures their EP, but doesn't delegate the memory capability
             // to them

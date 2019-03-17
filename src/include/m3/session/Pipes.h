@@ -22,19 +22,37 @@
 
 namespace m3 {
 
-class Pipe : public ClientSession {
+class Pipes : public ClientSession {
 public:
-    explicit Pipe(const String &service, MemGate &memory, size_t memsize)
-        : ClientSession(service, memsize) {
-        delegate_obj(memory.sel());
+    class Pipe : public ClientSession {
+    public:
+        explicit Pipe(capsel_t sel, MemGate &memory)
+            : ClientSession(sel) {
+            delegate_obj(memory.sel());
+        }
+        Pipe(Pipe &&p)
+            : ClientSession(Util::move(p)) {
+        }
+
+        Reference<File> create_channel(bool read, int flags = 0) {
+            KIF::ExchangeArgs args;
+            args.count = 1;
+            args.vals[0] = read;
+            KIF::CapRngDesc desc = obtain(2, &args);
+            return Reference<File>(new GenericFile(flags | (read ? FILE_R : FILE_W), desc.start()));
+        }
+    };
+
+    explicit Pipes(const String &service)
+        : ClientSession(service) {
     }
 
-    Reference<File> create_channel(bool read, int flags = 0) {
+    Pipe create_pipe(MemGate &memory, size_t memsize) {
         KIF::ExchangeArgs args;
         args.count = 1;
-        args.vals[0] = read;
+        args.vals[0] = memsize;
         KIF::CapRngDesc desc = obtain(2, &args);
-        return Reference<File>(new GenericFile(flags | (read ? FILE_R : FILE_W), desc.start()));
+        return Pipe(desc.start(), memory);
     }
 };
 

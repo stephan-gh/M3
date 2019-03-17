@@ -34,7 +34,8 @@ class Chain {
     static const size_t MAX_NUM     = 8;
 
 public:
-    explicit Chain(Reference<File> in, Reference<File> out, size_t _num, cycles_t comptime, Mode _mode)
+    explicit Chain(Pipes &pipesrv, Reference<File> in, Reference<File> out, size_t _num,
+                   cycles_t comptime, Mode _mode)
         : num(_num),
           mode(_mode),
           group(),
@@ -60,7 +61,7 @@ public:
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < num) {
                 mems[i] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-                pipes[i] = new IndirectPipe(*mems[i], PIPE_SHM_SIZE);
+                pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE);
             }
         }
 
@@ -145,7 +146,8 @@ private:
 };
 
 void chain_direct(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime, Mode mode) {
-    Chain ch(in, out, num, comptime, mode);
+    Pipes pipes("pipes");
+    Chain ch(pipes, in, out, num, comptime, mode);
 
     if(VERBOSE) Serial::get() << "Starting chain...\n";
 
@@ -172,13 +174,14 @@ void chain_direct(Reference<File> in, Reference<File> out, size_t num, cycles_t 
 }
 
 void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime, Mode mode) {
-    Chain ch1(in, out, num, comptime, mode);
+    Pipes pipes("pipes");
+    Chain ch1(pipes, in, out, num, comptime, mode);
 
     fd_t outfd = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE);
     if(outfd == FileTable::INVALID)
         exitmsg("Unable to open /tmp/out2.txt");
     auto in2 = in->clone();
-    Chain ch2(in2, VPE::self().fds()->get(outfd), num, comptime, mode);
+    Chain ch2(pipes, in2, VPE::self().fds()->get(outfd), num, comptime, mode);
 
     if(VERBOSE) Serial::get() << "Starting chains...\n";
 

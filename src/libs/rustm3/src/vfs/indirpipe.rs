@@ -17,7 +17,7 @@
 use com::MemGate;
 use errors::Error;
 use rc::Rc;
-use session::Pipe;
+use session::{Pipes, Pipe};
 use vfs::Fd;
 use vpe::VPE;
 
@@ -28,8 +28,8 @@ pub struct IndirectPipe {
 }
 
 impl IndirectPipe {
-    pub fn new(mem: &MemGate, mem_size: usize) -> Result<Self, Error> {
-        let pipe = Rc::new(Pipe::new("pipes", mem, mem_size)?);
+    pub fn new(pipes: &Pipes, mem: &MemGate, mem_size: usize) -> Result<Self, Error> {
+        let pipe = Rc::new(pipes.create_pipe(mem, mem_size)?);
         Ok(IndirectPipe {
             rd_fd: VPE::cur().files().alloc(pipe.create_chan(true)?)?,
             wr_fd: VPE::cur().files().alloc(pipe.create_chan(false)?)?,
