@@ -82,6 +82,7 @@ help() {
     echo "    runq <script>:           run the specified <script> quietly."
     echo "    runvalgrind <script>:    run the specified script in valgrind."
     echo "    doc:                     generate rust documentation."
+    echo "    macros=<path>:           expand rust macros for app in <path>."
     echo "    dbg=<prog> <script>:     run <script> and debug <prog> in gdb"
     echo "    dis=<prog>:              run objdump -SC <prog> (the cross-compiler version)"
     echo "    disp=<prog>:             run objdump -SC <prog> and use pimpdisasm.awk"
@@ -268,6 +269,12 @@ case "$cmd" in
         export RUST_TARGET_PATH=`readlink -f src/toolchain/rust`
         ( cd src/libs/rustm3 && xargo doc --target x86_64-unknown-$M3_TARGET-gnu )
         ( cd src/libs/rustthread && xargo doc --target x86_64-unknown-$M3_TARGET-gnu )
+        ;;
+
+    macros=*)
+        export RUST_TARGET_PATH=`readlink -f src/toolchain/rust`
+        ( cd ${cmd#macros=} && \
+            xargo rustc --profile=check -- -Zunstable-options --pretty=expanded | less )
         ;;
 
     dbg=*)
