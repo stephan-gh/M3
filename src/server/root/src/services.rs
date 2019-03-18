@@ -233,6 +233,8 @@ impl ServiceManager {
         for s in &self.servs {
             ids.push(s.id);
         }
+        // reverse sort to shutdown the services in reverse order
+        ids.sort_by(|a,b| b.cmp(a));
 
         // now send a shutdown request to all that still exist.
         // this is required, because shutdown switches the thread, so that the service list can
