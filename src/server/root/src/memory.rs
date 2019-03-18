@@ -85,7 +85,7 @@ impl Allocation {
 
 impl Drop for Allocation {
     fn drop(&mut self) {
-        log!(ROOT, "Freeing {:?}", self);
+        log!(ROOT_MEM, "Freeing {:?}", self);
         get().mods[self.mod_id].map.free(self.addr, self.size);
     }
 }
@@ -129,7 +129,7 @@ impl MainMemory {
 
             if let Ok(addr) = m.map.allocate(size, align) {
                 let alloc = Allocation::new(id, addr, size, 0);
-                log!(ROOT, "Allocated {:?}", alloc);
+                log!(ROOT_MEM, "Allocated {:?}", alloc);
                 return Ok(alloc);
             }
         }
@@ -138,7 +138,7 @@ impl MainMemory {
 
     pub fn allocate_for(&mut self, child: &mut Child, dst_sel: Selector,
                         size: usize, perm: Perm) -> Result<(), Error> {
-        log!(ROOT, "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
+        log!(ROOT_MEM, "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
              child.name(), dst_sel, size, perm);
 
         let mut alloc = self.allocate(size)?;
@@ -149,7 +149,7 @@ impl MainMemory {
 
     pub fn allocate_at(&mut self, child: &mut Child, dst_sel: Selector,
                        offset: goff, size: usize) -> Result<(), Error> {
-        log!(ROOT, "{}: allocate_at(dst_sel={}, offset={:#x}, size={:#x})",
+        log!(ROOT_MEM, "{}: allocate_at(dst_sel={}, offset={:#x}, size={:#x})",
              child.name(), dst_sel, offset, size);
 
         // TODO check if that's actually ok

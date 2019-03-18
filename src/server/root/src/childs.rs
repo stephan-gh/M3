@@ -138,8 +138,7 @@ pub trait Child {
     }
 
     fn add_mem(&mut self, alloc: Allocation, mem_sel: Selector, perm: Perm) -> Result<(), Error> {
-        log!(ROOT, "{}: added allocation (mod={}, addr={:#x}, size={:#x}, sel={})",
-             self.name(), alloc.mod_id, alloc.addr, alloc.size, alloc.sel);
+        log!(ROOT_MEM, "{}: added {:?}", self.name(), alloc);
 
         if mem_sel != 0 {
             assert!(alloc.sel != 0);
@@ -161,8 +160,7 @@ pub trait Child {
             syscalls::revoke(self.vpe_sel(), crd, true).unwrap();
         }
 
-        log!(ROOT, "{}: removed allocation (mod={}, addr={:#x}, size={:#x}, sel={})",
-            self.name(), alloc.mod_id, alloc.addr, alloc.size, alloc.sel);
+        log!(ROOT_MEM, "{}: removed {:?}", self.name(), alloc);
     }
 
     fn remove_resources(&mut self) where Self: Sized {

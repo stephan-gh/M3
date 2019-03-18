@@ -98,7 +98,7 @@ impl SendQueue {
     }
 
     pub fn abort(&mut self) {
-        log!(ROOT, "{}:squeue: aborting", self.serv_name());
+        log!(ROOT_SQUEUE, "{}:squeue: aborting", self.serv_name());
 
         if self.state == QState::Waiting {
             thread::ThreadManager::get().notify(self.cur_event, None);
@@ -110,13 +110,13 @@ impl SendQueue {
     }
 
     pub fn send(&mut self, msg: &[u8]) -> Result<thread::Event, Error> {
-        log!(ROOT, "{}:squeue: trying to send msg", self.serv_name());
+        log!(ROOT_SQUEUE, "{}:squeue: trying to send msg", self.serv_name());
 
         if self.state == QState::Idle {
             return self.do_send(alloc_qid(), msg);
         }
 
-        log!(ROOT, "{}:squeue: queuing msg", self.serv_name());
+        log!(ROOT_SQUEUE, "{}:squeue: queuing msg", self.serv_name());
 
         let qid = alloc_qid();
 
@@ -131,7 +131,7 @@ impl SendQueue {
     }
 
     fn received_reply(&mut self, rep: dtu::EpId, msg: &'static dtu::Message) {
-        log!(ROOT, "{}:squeue: received reply", self.serv_name());
+        log!(ROOT_SQUEUE, "{}:squeue: received reply", self.serv_name());
 
         assert!(self.state == QState::Waiting);
         self.state = QState::Idle;
@@ -150,7 +150,7 @@ impl SendQueue {
                 None    => return,
 
                 Some(e) => {
-                    log!(ROOT, "{}:squeue: found pending message", self.serv_name());
+                    log!(ROOT_SQUEUE, "{}:squeue: found pending message", self.serv_name());
 
                     if self.do_send(e.id, &e.msg).is_ok() {
                         break;
@@ -161,7 +161,7 @@ impl SendQueue {
     }
 
     fn do_send(&mut self, id: u64, msg: &[u8]) -> Result<thread::Event, Error> {
-        log!(ROOT, "{}:squeue: sending msg", self.serv_name());
+        log!(ROOT_SQUEUE, "{}:squeue: sending msg", self.serv_name());
 
         self.cur_event = get_event(id);
         self.state = QState::Waiting;

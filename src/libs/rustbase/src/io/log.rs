@@ -40,6 +40,10 @@ pub const FILES: bool   = false;
 
 /// Logs operations of root
 pub const ROOT: bool    = false;
+/// Logs memory operations of root
+pub const ROOT_MEM: bool    = false;
+/// Logs sendqueue operations of root
+pub const ROOT_SQUEUE: bool = false;
 
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";
