@@ -59,7 +59,7 @@ public:
     }
 };
 
-class PipeMeta : public PipeSession {
+class PipeMeta : public PipeSession, public m3::SListItem {
     static constexpr size_t MAX_PIPES = 8;
 
 public:

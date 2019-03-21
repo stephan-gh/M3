@@ -51,6 +51,7 @@ void PipeData::WorkItem::work() {
 
 PipeMeta::PipeMeta(capsel_t srv_sel)
     : PipeSession(srv_sel),
+      SListItem(),
       _pipes() {
 }
 

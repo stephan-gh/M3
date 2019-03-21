@@ -40,6 +40,7 @@ public:
 
     explicit PipeServiceHandler()
         : base_class(),
+          _meta_sessions(),
           _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         add_operation(GenericFile::SEEK, &PipeServiceHandler::invalid_op);
         add_operation(GenericFile::STAT, &PipeServiceHandler::invalid_op);
@@ -53,7 +54,9 @@ public:
     }
 
     virtual Errors::Code open(PipeSession **sess, capsel_t srv_sel, word_t) override {
-        *sess = new PipeMeta(srv_sel);
+        auto meta = new PipeMeta(srv_sel);
+        _meta_sessions.append(meta);
+        *sess = meta;
         return Errors::NONE;
     }
 
@@ -103,6 +106,8 @@ public:
     }
 
     virtual Errors::Code close(PipeSession *sess) override {
+        if(sess->type() == PipeSession::META)
+            _meta_sessions.remove(static_cast<PipeMeta*>(sess));
         sess->close();
         delete sess;
         _rgate.drop_msgs_with(reinterpret_cast<label_t>(sess));
@@ -110,6 +115,12 @@ public:
     }
 
     virtual void shutdown() override {
+        // delete meta sessions, which will delete the child sessions as well
+        for(auto it = _meta_sessions.begin(); it != _meta_sessions.end(); ) {
+            auto old = it++;
+            delete &*old;
+        }
+
         _rgate.stop();
     }
 
@@ -140,6 +151,7 @@ public:
     }
 
 private:
+    SList<PipeMeta> _meta_sessions;
     RecvGate _rgate;
 };
 
