@@ -29,10 +29,10 @@
 using namespace m3;
 
 struct App {
-    explicit App(int argc, const char *argv[], bool tmux)
+    explicit App(const char *name, int argc, const char *argv[], bool tmux)
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPE::self().pe(), "pager", tmux ? VPE::MUXABLE : 0) {
+          vpe(name, VPE::self().pe(), nullptr, tmux ? VPE::MUXABLE : 0) {
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
     }
@@ -43,22 +43,18 @@ struct App {
 };
 
 int main() {
-    if(VERBOSE) cout << "Mounting filesystem...\n";
-    if(VFS::mount("/", "m3fs") != Errors::NONE)
-        PANIC("Cannot mount root fs");
-
     if(VERBOSE) cout << "Creating VPEs...\n";
 
     App *apps[3];
 
     const char *args1[] = {"/bin/ctx-service", "-s", ""};
-    apps[0] = new App(ARRAY_SIZE(args1), args1, true);
+    apps[0] = new App("service", ARRAY_SIZE(args1), args1, true);
 
     const char *args2[] = {"/bin/ctx-client", "2"};
-    apps[1] = new App(ARRAY_SIZE(args2), args2, true);
+    apps[1] = new App("client1", ARRAY_SIZE(args2), args2, true);
 
     const char *args3[] = {"/bin/ctx-client", "2"};
-    apps[2] = new App(ARRAY_SIZE(args3), args3, true);
+    apps[2] = new App("client2", ARRAY_SIZE(args3), args3, true);
 
     if(VERBOSE) cout << "Starting server...\n";
 

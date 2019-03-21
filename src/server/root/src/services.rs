@@ -70,7 +70,7 @@ impl Service {
     }
 
     fn shutdown(&mut self) {
-        log!(ROOT, "Sending SHUTDOWN to service {}", self.name);
+        log!(ROOT, "Sending SHUTDOWN to service '{}'", self.name);
 
         let smsg = kif::service::Shutdown {
             opcode: kif::service::Operation::SHUTDOWN.val as u64,
@@ -84,9 +84,9 @@ impl Service {
 }
 
 pub struct Session {
-    pub sel: Selector,
-    pub ident: u64,
-    pub serv: Id,
+    sel: Selector,
+    ident: u64,
+    serv: Id,
 }
 
 impl Session {
@@ -115,6 +115,10 @@ impl Session {
                 serv: serv.id,
             }))
         })
+    }
+
+    pub fn sel(&self) -> Selector {
+        self.sel
     }
 
     pub fn close(&self) -> Result<(), Error> {
@@ -158,10 +162,17 @@ impl ServiceManager {
     pub fn get_by_id(&mut self, id: Id) -> Result<&mut Service, Error> {
         self.servs.iter_mut().find(|s| s.id == id).ok_or(Error::new(Code::InvArgs))
     }
-    pub fn remove_service(&mut self, id: Id) {
+
+    fn add_service(&mut self, serv: Service) {
+        log!(ROOT, "Adding service '{}'", serv.name());
+        self.servs.push(serv);
+    }
+
+    pub fn remove_service(&mut self, id: Id) -> Service {
         let idx = self.servs.iter().position(|s| s.id == id).unwrap();
-        self.servs[idx].queue.abort();
-        self.servs.remove(idx);
+        let serv = self.servs.remove(idx);
+        log!(ROOT, "Removing service '{}'", serv.name());
+        serv
     }
 
     pub fn reg_serv(&mut self, child: &mut Child, child_sel: Selector, dst_sel: Selector,
@@ -169,10 +180,9 @@ impl ServiceManager {
         log!(ROOT, "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
              child.name(), child_sel, dst_sel, rgate_sel, name);
 
-        if child.has_service(dst_sel) {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if self.get(&name).is_ok() {
+        let cfg = child.cfg();
+        let sdesc = cfg.get_service(&name).ok_or(Error::new(Code::InvArgs))?;
+        if sdesc.is_used() {
             return Err(Error::new(Code::Exists));
         }
 
@@ -183,10 +193,12 @@ impl ServiceManager {
             let server = child.child_mut(child_sel).ok_or(Error::new(Code::InvArgs))?;
             Service::new(self.next_id, server, dst_sel, rgate_sel, name)
         }?;
-
-        child.add_service(serv.id, dst_sel);
-        self.servs.push(serv);
         self.next_id += 1;
+
+        sdesc.mark_used();
+        child.add_service(serv.id, dst_sel);
+        self.add_service(serv);
+
         Ok(())
     }
 
@@ -195,10 +207,13 @@ impl ServiceManager {
 
         let id = child.remove_service(sel)?;
         if notify {
+            // we need to do that before we remove the service
             let serv = self.get_by_id(id).unwrap();
             serv.shutdown();
         }
-        self.remove_service(id);
+        let serv = self.remove_service(id);
+        child.cfg().unreg_service(serv.name());
+
         Ok(())
     }
 
@@ -207,16 +222,20 @@ impl ServiceManager {
         log!(ROOT, "{}: open_sess(dst_sel={}, name={}, arg={})",
              child.name(), dst_sel, name, arg);
 
-        if child.get_session(dst_sel).is_some() {
-            return Err(Error::new(Code::InvArgs));
+        let cfg = child.cfg();
+        let sdesc = cfg.get_session(&name).ok_or(Error::new(Code::InvArgs))?;
+        if sdesc.is_used() {
+            return Err(Error::new(Code::Exists));
         }
 
-        let serv = self.get(&name)?;
+        let serv = self.get(sdesc.serv_name())?;
         let (srv_sel, sess) = Session::new(dst_sel, serv, arg)?;
 
         let our_sel = serv.child().obtain(srv_sel)?;
         child.delegate(our_sel, dst_sel)?;
+        sdesc.mark_used(dst_sel);
         child.add_session(sess);
+
         Ok(())
     }
 
@@ -224,6 +243,7 @@ impl ServiceManager {
         log!(ROOT, "{}: close_sess(sel={})", child.name(), sel);
 
         let sess = child.remove_session(sel)?;
+        child.cfg().close_session(sel);
         sess.close()
     }
 

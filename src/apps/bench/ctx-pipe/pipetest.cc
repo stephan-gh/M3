@@ -80,7 +80,6 @@ int main(int argc, const char **argv) {
     if(argc != 6 + wargs + rargs)
         usage(argv[0]);
 
-    Pipes pipes("pipes");
     MemGate pipemem = MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW);
 
     for(int j = 0; j < repeats; ++j) {
@@ -91,8 +90,8 @@ int main(int argc, const char **argv) {
 
 #if defined(__gem5__)
         // start pager
-        apps[2] = create("pager", "pager", mode >= 3);
-        pagr_srv = new RemoteServer(apps[2]->vpe, "mypager");
+        apps[2] = create("mypg", "pg-mypg", mode >= 3);
+        pagr_srv = new RemoteServer(apps[2]->vpe, "mypg");
 
         {
             String pgarg = pagr_srv->sel_arg();
@@ -106,20 +105,20 @@ int main(int argc, const char **argv) {
         const char **wargv = argv + 6;
         const char **rargv = argv + 6 + wargs;
         if(mode < 2) {
-            apps[0] = create("pipes", "pager", mode == 1);
+            apps[0] = create("pipes", "pg-pipes", mode == 1);
             apps[1] = nullptr;
-            apps[3] = create(wargv[0], "mypager", mode == 1);
-            apps[4] = create(rargv[0], "mypager", mode == 1);
+            apps[3] = create(wargv[0], "mypg-wr", mode == 1);
+            apps[4] = create(rargv[0], "mypg-rd", mode == 1);
         }
         else {
-            apps[3] = create(wargv[0], "mypager", mode == 4);
-            apps[4] = create(rargv[0], "mypager", mode == 4);
-            apps[0] = create("pipes", "pager", mode >= 3);
-            apps[1] = create("m3fs", "pager", mode >= 3);
+            apps[3] = create(wargv[0], "mypg-wr", mode == 4);
+            apps[4] = create(rargv[0], "mypg-rd", mode == 4);
+            apps[0] = create("pipes", "pg-pipes", mode >= 3);
+            apps[1] = create("m3fs", "pg-m3fs", mode >= 3);
         }
 
         RemoteServer *m3fs_srv = nullptr;
-        RemoteServer *pipe_srv = new RemoteServer(apps[0]->vpe, "pipes");
+        RemoteServer *pipe_srv = new RemoteServer(apps[0]->vpe, "mypipes");
         if(apps[1])
             m3fs_srv = new RemoteServer(apps[1]->vpe, "mym3fs");
 
@@ -139,6 +138,8 @@ int main(int argc, const char **argv) {
             if(res != Errors::NONE)
                 PANIC("Cannot execute " << m3fs_args[0] << ": " << Errors::to_string(res));
         }
+
+        Pipes pipes("mypipes");
 
         // create pipe
         MemGate *vpemem = nullptr;

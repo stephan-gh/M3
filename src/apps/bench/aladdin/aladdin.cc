@@ -38,7 +38,10 @@ static bool use_files = false;
 static bool map_eager = false;
 
 struct AccelWorkload {
-    explicit AccelWorkload(PEISA isa) : alad(isa), msg(), iterations() {
+    explicit AccelWorkload(PEISA isa, const char *name, const char *pager)
+        : alad(isa, name, pager),
+          msg(),
+          iterations() {
     }
 
     void init();
@@ -126,7 +129,7 @@ static void add(Aladdin &alad, size_t size, Aladdin::Array *a, int prot) {
     virt += psize;
 }
 
-static AccelWorkload *create_workload(const char *bench) {
+static AccelWorkload *create_workload(const char *bench, const char *name, const char *pager) {
     PEISA isa;
     if(strcmp(bench, "stencil") == 0)
         isa = PEISA::ACCEL_STE;
@@ -136,7 +139,7 @@ static AccelWorkload *create_workload(const char *bench) {
         isa = PEISA::ACCEL_SPMV;
     else
         isa = PEISA::ACCEL_AFFT;
-    return new AccelWorkload(isa);
+    return new AccelWorkload(isa, name, pager);
 }
 
 void AccelWorkload::init() {
@@ -245,14 +248,14 @@ int main(int argc, char **argv) {
         cycles_t start = Time::start(0x1234);
 
         if(mode == MODE_DEFAULT) {
-            AccelWorkload *wl = create_workload(bench);
+            AccelWorkload *wl = create_workload(bench, "accel1", "pg-accel1");
             wl->init();
             wl->run();
             delete wl;
         }
         else if(mode == MODE_SEQUENCE) {
-            AccelWorkload *wl1 = create_workload(bench);
-            AccelWorkload *wl2 = create_workload(bench);
+            AccelWorkload *wl1 = create_workload(bench, "accel1", "pg-accel1");
+            AccelWorkload *wl2 = create_workload(bench, "accel2", "pg-accel2");
             wl1->init();
             wl2->init();
             wl1->msg.repeats = wl1->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;
@@ -263,8 +266,8 @@ int main(int argc, char **argv) {
             delete wl1;
         }
         else {
-            AccelWorkload *wl1 = create_workload(bench);
-            AccelWorkload *wl2 = create_workload(bench);
+            AccelWorkload *wl1 = create_workload(bench, "accel1", "pg-accel1");
+            AccelWorkload *wl2 = create_workload(bench, "accel2", "pg-accel2");
             wl1->init();
             wl2->init();
             wl1->msg.repeats = wl1->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;

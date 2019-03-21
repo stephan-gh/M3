@@ -28,16 +28,17 @@ use m3::vpe::{Activity, ExecActivity, VPE, VPEArgs};
 
 use boot;
 use loader;
+use config::Config;
 use memory::Allocation;
 use services::{self, Session};
 
 pub type Id = u32;
 
 pub struct Resources {
-    pub childs: Vec<(Id, Selector)>,
-    pub services: Vec<(Id, Selector)>,
-    pub sessions: Vec<Session>,
-    pub mem: Vec<Allocation>,
+    childs: Vec<(Id, Selector)>,
+    services: Vec<(Id, Selector)>,
+    sessions: Vec<Session>,
+    mem: Vec<Allocation>,
 }
 
 impl Resources {
@@ -59,6 +60,7 @@ pub trait Child {
 
     fn vpe_sel(&self) -> Selector;
 
+    fn cfg(&self) -> Rc<Config>;
     fn res(&self) -> &Resources;
     fn res_mut(&mut self) -> &mut Resources;
 
@@ -80,14 +82,30 @@ pub trait Child {
         log!(ROOT, "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
              self.name(), vpe_sel, name, sgate_sel, id, child_name);
 
+        let cfg = self.cfg();
+        let cdesc = cfg.get_child(&name);
+        let child_cfg = if let Some(cd) = cdesc {
+            if cd.is_used() {
+                return Err(Error::new(Code::Exists));
+            }
+            cd.config()
+        }
+        else {
+            cfg.clone()
+        };
+
         if self.res().childs.iter().find(|c| c.1 == vpe_sel).is_some() {
             return Err(Error::new(Code::Exists));
         }
 
         let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256).label(id as u64))?;
         let our_sg_sel = sgate.sel();
-        let child = Box::new(ForeignChild::new(id, child_name, our_sel, sgate));
+        let child = Box::new(ForeignChild::new(id, child_name, our_sel, sgate, child_cfg));
         child.delegate(our_sg_sel, sgate_sel)?;
+
+        if let Some(cd) = cdesc {
+            cd.mark_used(vpe_sel);
+        }
         self.res_mut().childs.push((id, vpe_sel));
         get().add(child);
         Ok(())
@@ -98,6 +116,7 @@ pub trait Child {
 
         let idx = self.res().childs.iter().position(|c| c.1 == vpe_sel).ok_or(Error::new(Code::InvArgs))?;
         get().remove_rec(self.res().childs[idx].0);
+        self.cfg().remove_child(vpe_sel);
         self.res_mut().childs.remove(idx);
         Ok(())
     }
@@ -129,11 +148,11 @@ pub trait Child {
         self.res_mut().sessions.push(sess);
     }
     fn get_session(&self, sel: Selector) -> Option<&Session> {
-        self.res().sessions.iter().find(|s| s.sel == sel)
+        self.res().sessions.iter().find(|s| s.sel() == sel)
     }
     fn remove_session(&mut self, sel: Selector) -> Result<Session, Error> {
         let sessions = &mut self.res_mut().sessions;
-        let idx = sessions.iter().position(|s| s.sel == sel).ok_or(Error::new(Code::InvArgs))?;
+        let idx = sessions.iter().position(|s| s.sel() == sel).ok_or(Error::new(Code::InvArgs))?;
         Ok(sessions.remove(idx))
     }
 
@@ -166,12 +185,14 @@ pub trait Child {
     fn remove_resources(&mut self) where Self: Sized {
         while self.res().sessions.len() > 0 {
             let sess = self.res_mut().sessions.remove(0);
+            self.cfg().close_session(sess.sel());
             sess.close().ok();
         }
 
         while self.res().services.len() > 0 {
             let (id, _) = self.res_mut().services.remove(0);
-            services::get().remove_service(id);
+            let serv = services::get().remove_service(id);
+            self.cfg().unreg_service(serv.name());
         }
 
         while self.res().mem.len() > 0 {
@@ -184,19 +205,19 @@ pub struct BootChild {
     id: Id,
     name: String,
     args: Vec<String>,
-    pub reqs: Vec<String>,
+    cfg: Rc<Config>,
     res: Resources,
     daemon: bool,
     activity: Option<ExecActivity>,
 }
 
 impl BootChild {
-    pub fn new(id: Id, name: String, args: Vec<String>, reqs: Vec<String>, daemon: bool) -> Self {
+    pub fn new(id: Id, args: Vec<String>, daemon: bool, cfg: Rc<Config>) -> Self {
         BootChild {
             id: id,
-            name: name,
+            name: cfg.name().clone(),
             args: args,
-            reqs: reqs,
+            cfg: cfg,
             res: Resources::new(),
             daemon: daemon,
             activity: None,
@@ -206,9 +227,9 @@ impl BootChild {
     pub fn start(&mut self, rgate: &RecvGate, bsel: Selector,
                  m: &'static boot::Mod) -> Result<(), Error> {
         let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256).label(self.id as u64))?;
-        let vpe = VPE::new_with(VPEArgs::new(&self.name).resmng(ResMng::new(sgate)))?;
+        let vpe = VPE::new_with(VPEArgs::new(self.name()).resmng(ResMng::new(sgate)))?;
 
-        log!(ROOT, "Starting boot module '{}' with arguments {:?}", self.name, &self.args[1..]);
+        log!(ROOT, "Starting boot module '{}' with arguments {:?}", self.name(), &self.args[1..]);
 
         let bfile = loader::BootFile::new(bsel, m.size as usize);
         let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
@@ -223,8 +244,8 @@ impl BootChild {
     }
 
     pub fn has_unmet_reqs(&self) -> bool {
-        for req in &self.reqs {
-            if services::get().get(req).is_err() {
+        for sess in self.cfg().sessions() {
+            if sess.wait() && services::get().get(sess.serv_name()).is_err() {
                 return true;
             }
         }
@@ -250,6 +271,9 @@ impl Child for BootChild {
         self.activity.as_ref().unwrap().vpe().sel()
     }
 
+    fn cfg(&self) -> Rc<Config> {
+        self.cfg.clone()
+    }
     fn res(&self) -> &Resources {
         &self.res
     }
@@ -267,16 +291,18 @@ impl Drop for BootChild {
 pub struct ForeignChild {
     id: Id,
     name: String,
+    cfg: Rc<Config>,
     res: Resources,
     vpe: Selector,
     _sgate: SendGate,
 }
 
 impl ForeignChild {
-    pub fn new(id: Id, name: String, vpe: Selector, sgate: SendGate) -> Self {
+    pub fn new(id: Id, name: String, vpe: Selector, sgate: SendGate, cfg: Rc<Config>) -> Self {
         ForeignChild {
             id: id,
             name: name,
+            cfg: cfg,
             res: Resources::new(),
             vpe: vpe,
             _sgate: sgate,
@@ -302,6 +328,9 @@ impl Child for ForeignChild {
         self.vpe
     }
 
+    fn cfg(&self) -> Rc<Config> {
+        self.cfg.clone()
+    }
     fn res(&self) -> &Resources {
         &self.res
     }

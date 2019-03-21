@@ -35,7 +35,7 @@ pub fn meta_ops() {
     }
 
     {
-        assert_ok!(VFS::mount("/fs/", "m3fs"));
+        assert_ok!(VFS::mount("/fs/", "m3fs", "m3fs-clone"));
         assert_err!(VFS::link("/example/myfile", "/fs/foo"), Code::XfsLink);
         assert_ok!(VFS::unmount("/fs/"));
     }

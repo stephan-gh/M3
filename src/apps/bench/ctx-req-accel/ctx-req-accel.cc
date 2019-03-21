@@ -53,8 +53,8 @@ static void add(Aladdin &alad, goff_t *virt, size_t size, Aladdin::Array *a, int
 }
 
 int main() {
-    Aladdin alad1(PEISA::ACCEL_STE);
-    Aladdin alad2(PEISA::ACCEL_STE);
+    Aladdin alad1(PEISA::ACCEL_STE, "accel1", "pg-accel1");
+    Aladdin alad2(PEISA::ACCEL_STE, "accel2", "pg-accel2");
 
     const size_t HEIGHT = 32;
     const size_t COLS = 32;

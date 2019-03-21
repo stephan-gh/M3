@@ -40,23 +40,18 @@ static void start(VPE &v, int argc, const char **argv) {
 int main(int argc, char **argv) {
     int mode = argc > 1 ? IStringStream::read_from<int>(argv[1]) : 0;
 
-    if(VERBOSE) cout << "Mounting filesystem...\n";
-
-    if(VFS::mount("/", "m3fs") != Errors::NONE)
-        PANIC("Cannot mount root fs");
-
     {
         if(VERBOSE) cout << "Creating VPEs...\n";
 
-        VPE c1("client", VPE::self().pe(), "pager", mode == 2);
+        VPE c1("client", VPE::self().pe(), nullptr, mode == 2);
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 
-        VPE s1("service1", VPE::self().pe(), "pager", mode >= 1);
+        VPE s1("service1", VPE::self().pe(), nullptr, mode >= 1);
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 
-        VPE s2("service2", VPE::self().pe(), "pager", mode >= 1);
+        VPE s2("service2", VPE::self().pe(), nullptr, mode >= 1);
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 

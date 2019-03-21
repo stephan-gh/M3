@@ -39,7 +39,9 @@ pub const THREAD: bool  = false;
 pub const FILES: bool   = false;
 
 /// Logs operations of root
-pub const ROOT: bool    = false;
+pub const ROOT: bool        = false;
+/// Logs parsed configs in root
+pub const ROOT_CFG: bool    = false;
 /// Logs memory operations of root
 pub const ROOT_MEM: bool    = false;
 /// Logs sendqueue operations of root

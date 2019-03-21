@@ -25,6 +25,7 @@ extern crate m3;
 extern crate thread;
 
 mod childs;
+mod config;
 mod loader;
 mod memory;
 mod sendqueue;
@@ -34,7 +35,7 @@ use core::intrinsics;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
-use m3::col::{String, ToString, Vec};
+use m3::col::{String, Vec};
 use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs};
 use m3::dtu;
 use m3::errors::Error;
@@ -308,36 +309,29 @@ pub fn main() -> i32 {
         thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
     }
 
+    let mut cfgs = Vec::new();
+    let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
+    for m in moditer {
+        if m.name() == "rctmux" || m.name() == "root" {
+            continue;
+        }
+
+        let (args, daemon, cfg) = config::Config::new(m.name()).expect("Unable to parse config");
+        log!(ROOT_CFG, "Parsed config {:?}", cfg);
+        cfgs.push((args, daemon, cfg));
+    }
+
+    config::check(&cfgs);
+
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
         if m.name() == "rctmux" || m.name() == "root" {
             continue;
         }
 
-        let mut args = Vec::<String>::new();
-        let mut reqs = Vec::<String>::new();
-        let mut name: String = String::new();
-        let mut daemon = false;
-        for (idx, a) in m.name().split_whitespace().enumerate() {
-            if idx == 0 {
-                name = a.to_string();
-                args.push(a.to_string());
-            }
-            else {
-                if a.starts_with("requires=") {
-                    reqs.push(a[9..].to_string());
-                }
-                else if a == "daemon" {
-                    daemon = true;
-                }
-                else {
-                    args.push(a.to_string());
-                }
-            }
-        }
-
-        let mut child = BootChild::new(id as Id, name, args, reqs, daemon);
-        if child.reqs.len() > 0 {
+        let (args, daemon, cfg) = cfgs.remove(0);
+        let mut child = BootChild::new(id as Id, args, daemon, cfg);
+        if child.has_unmet_reqs() {
             DELAYED.get_mut().push(child);
         }
         else {

@@ -97,18 +97,6 @@ impl SendQueue {
         }
     }
 
-    pub fn abort(&mut self) {
-        log!(ROOT_SQUEUE, "{}:squeue: aborting", self.serv_name());
-
-        if self.state == QState::Waiting {
-            thread::ThreadManager::get().notify(self.cur_event, None);
-        }
-
-        while self.queue.len() > 0 {
-            self.queue.pop_front();
-        }
-    }
-
     pub fn send(&mut self, msg: &[u8]) -> Result<thread::Event, Error> {
         log!(ROOT_SQUEUE, "{}:squeue: trying to send msg", self.serv_name());
 
@@ -170,5 +158,17 @@ impl SendQueue {
         self.sgate.send_with_rlabel(msg, rgate, self.sid as dtu::Label)?;
 
         Ok(self.cur_event)
+    }
+}
+
+impl Drop for SendQueue {
+    fn drop(&mut self) {
+        if self.state == QState::Waiting {
+            thread::ThreadManager::get().notify(self.cur_event, None);
+        }
+
+        while self.queue.len() > 0 {
+            self.queue.pop_front();
+        }
     }
 }

@@ -63,7 +63,7 @@ impl Tester for MyTester {
 pub fn main() -> i32 {
     // do a mount here to ensure that we don't need to realloc the mount-table later, which screws
     // up our simple memory-leak detection above
-    assert_ok!(VFS::mount("/fs/", "m3fs"));
+    assert_ok!(VFS::mount("/fs/", "m3fs", "m3fs-clone"));
     assert_ok!(VFS::unmount("/fs/"));
 
     let mut tester = MyTester {};

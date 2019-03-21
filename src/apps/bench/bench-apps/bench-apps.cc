@@ -36,7 +36,7 @@ struct App {
     explicit App(int argc, const char *argv[], bool muxed)
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPE::self().pe(), "pager", muxed) {
+          vpe(argv[0], VPE::self().pe(), nullptr, muxed) {
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
     }
@@ -51,11 +51,6 @@ int main(int argc, char **argv) {
         cerr << "Usage: " << argv[0] << " 1|0 <repeats> <argcount> <prog1>...\n";
         return 1;
     }
-
-    if(VERBOSE) cout << "Mounting filesystem...\n";
-
-    if(VFS::mount("/", "m3fs") != Errors::NONE)
-        PANIC("Cannot mount root fs");
 
     bool muxed = strcmp(argv[1], "1") == 0;
     int repeats = IStringStream::read_from<int>(argv[2]);

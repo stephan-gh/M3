@@ -76,7 +76,7 @@ static void meta_operations() {
     }
 
     {
-        assert_int(VFS::mount("/fs/", "m3fs"), Errors::NONE);
+        assert_int(VFS::mount("/fs/", "m3fs", "m3fs-clone"), Errors::NONE);
         assert_int(VFS::link("/example/myfile", "/fs/foo"), Errors::XFS_LINK);
         VFS::unmount("/fs");
     }
