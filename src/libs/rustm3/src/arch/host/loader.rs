@@ -21,6 +21,7 @@ use errors::{Code, Error};
 use io::Read;
 use libc;
 use serialize::Sink;
+use util;
 use vfs::FileRef;
 
 pub struct Channel {
@@ -134,10 +135,10 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
 pub fn write_env_value(pid: i32, suffix: &str, data: u64) {
     let mut buf = VecSink::new();
     buf.push(&data);
-    write_env_file(pid, suffix, buf.words(), buf.size());
+    write_env_file(pid, suffix, buf.words());
 }
 
-pub fn write_env_file(pid: i32, suffix: &str, data: &[u64], size: usize) {
+pub fn write_env_file(pid: i32, suffix: &str, data: &[u64]) {
     let path = format!("/tmp/m3/{}-{}\0", pid, suffix);
     unsafe {
         let fd = libc::open(
@@ -146,7 +147,7 @@ pub fn write_env_file(pid: i32, suffix: &str, data: &[u64], size: usize) {
             0o600
         );
         assert!(fd != -1);
-        libc::write(fd, data.as_ptr() as *const libc::c_void, size);
+        libc::write(fd, data.as_ptr() as *const libc::c_void, data.len() * util::size_of::<u64>());
         libc::close(fd);
     }
 }

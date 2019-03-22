@@ -757,17 +757,17 @@ impl VPE {
                 let mut rbufs = VecSink::new();
                 rbufs.push(&self.rbufs.cur);
                 rbufs.push(&self.rbufs.end);
-                arch::loader::write_env_file(pid, "rbufs", rbufs.words(), rbufs.size());
+                arch::loader::write_env_file(pid, "rbufs", rbufs.words());
 
                 // write file table
                 let mut fds = VecSink::new();
                 self.files.serialize(&mut fds);
-                arch::loader::write_env_file(pid, "fds", fds.words(), fds.size());
+                arch::loader::write_env_file(pid, "fds", fds.words());
 
                 // write mounts table
                 let mut mounts = VecSink::new();
                 self.mounts.serialize(&mut mounts);
-                arch::loader::write_env_file(pid, "ms", mounts.words(), mounts.size());
+                arch::loader::write_env_file(pid, "ms", mounts.words());
 
                 arch::loader::exec(args, &path);
             },
