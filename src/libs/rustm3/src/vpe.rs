@@ -606,7 +606,8 @@ impl VPE {
 
         let mut closure = env::Closure::new(func);
 
-        let mut chan = arch::loader::Channel::new()?;
+        let mut p2c = arch::loader::Channel::new()?;
+        let mut c2p = arch::loader::Channel::new()?;
 
         match unsafe { libc::fork() } {
             -1  => {
@@ -614,7 +615,8 @@ impl VPE {
             },
 
             0   => {
-                chan.wait();
+                // wait until the env file has been written by the kernel
+                p2c.wait();
 
                 arch::env::reinit();
                 arch::env::get().set_vpe(&self);
@@ -622,6 +624,8 @@ impl VPE {
                 self::reinit();
                 ::com::reinit();
                 arch::dtu::init();
+
+                c2p.signal();
 
                 let res = closure.call();
                 unsafe { libc::exit(res) };
@@ -631,7 +635,9 @@ impl VPE {
                 // let the kernel create the config-file etc. for the given pid
                 syscalls::vpe_ctrl(self.sel(), kif::syscalls::VPEOp::START, pid as u64).unwrap();
 
-                chan.signal();
+                p2c.signal();
+                // wait until the DTU sockets have been binded
+                c2p.wait();
 
                 Ok(ClosureActivity::new(self, closure))
             },
@@ -725,7 +731,8 @@ impl VPE {
 
         let path = arch::loader::copy_file(&mut file)?;
 
-        let mut chan = arch::loader::Channel::new()?;
+        let mut p2c = arch::loader::Channel::new()?;
+        let mut c2p = arch::loader::Channel::new()?;
 
         match unsafe { libc::fork() } {
             -1  => {
@@ -733,9 +740,13 @@ impl VPE {
             },
 
             0   => {
-                chan.wait();
+                // wait until the env file has been written by the kernel
+                p2c.wait();
 
                 let pid = unsafe { libc::getpid() };
+
+                // tell child about fd to notify parent if DTU is ready
+                arch::loader::write_env_value(pid, "dturdy", c2p.fds()[1] as u64);
 
                 // write nextsel, eps, and rmng
                 arch::loader::write_env_value(pid, "nextsel", self.next_sel as u64);
@@ -765,7 +776,9 @@ impl VPE {
                 // let the kernel create the config-file etc. for the given pid
                 syscalls::vpe_ctrl(self.sel(), kif::syscalls::VPEOp::START, pid as u64).unwrap();
 
-                chan.signal();
+                p2c.signal();
+                // wait until the DTU sockets have been binded
+                c2p.wait();
 
                 Ok(ExecActivity::new(self, BufReader::new(file)))
             },

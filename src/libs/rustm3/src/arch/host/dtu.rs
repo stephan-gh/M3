@@ -14,12 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use arch::env;
+use arch::{env, loader};
 use base::envdata;
 use cfg;
 use com::RecvGate;
 use dtu;
 use kif;
+use libc;
 use syscalls;
 use vpe;
 
@@ -42,6 +43,15 @@ pub fn init() {
 
     let addr = envdata::mem_start();
     syscalls::vpe_ctrl(vpe::VPE::cur().sel(), kif::syscalls::VPEOp::INIT, addr as u64).unwrap();
+
+    if let Some(vec) = loader::read_env_file("dturdy") {
+        let fd = vec[0] as i32;
+        unsafe {
+            // notify parent; we are ready for communication now
+            libc::write(fd, [0u8; 1].as_ptr() as *const libc::c_void, 1);
+            libc::close(fd);
+        }
+    }
 }
 
 pub fn deinit() {

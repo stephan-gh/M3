@@ -33,6 +33,44 @@
 
 namespace m3 {
 
+class Chan {
+public:
+    explicit Chan() : fds() {
+        if(::pipe(fds) == -1)
+            Errors::last = Errors::OUT_OF_MEM;
+    }
+    ~Chan() {
+        if(fds[0] != -1)
+            close(fds[0]);
+        if(fds[1] != -1)
+            close(fds[1]);
+    }
+
+    void wait() {
+        close(fds[1]);
+        fds[1] = -1;
+
+        // wait until parent notifies us
+        uint8_t dummy;
+        read(fds[0], &dummy, sizeof(dummy));
+        close(fds[0]);
+        fds[0] = -1;
+    }
+
+    void signal() {
+        close(fds[0]);
+        fds[0] = -1;
+
+        // notify child; it can start now
+        uint8_t dummy = 0;
+        write(fds[1], &dummy, sizeof(dummy));
+        close(fds[1]);
+        fds[1] = -1;
+    }
+
+    int fds[2];
+};
+
 // this should be enough for now
 static const size_t STATE_BUF_SIZE    = 4096;
 
@@ -156,50 +194,48 @@ void VPE::init_fs() {
     if(read_from("fds", buf, len))
         _fds = FileTable::unserialize(buf, len);
 
+    // DTU is ready now; notify parent
+    int pipefd;
+    if(read_from("dturdy", &pipefd)) {
+        uint8_t dummy = 0;
+        write(pipefd, &dummy, sizeof(dummy));
+        close(pipefd);
+    }
+
     delete[] buf;
 }
 
 Errors::Code VPE::run(void *lambda) {
-    char byte = 1;
-    int fd[2];
-    if(pipe(fd) == -1)
-        return Errors::OUT_OF_MEM;
+    Chan p2c, c2p;
+    if(Errors::last != Errors::NONE)
+        return Errors::Errors::last;
 
     int pid = fork();
-    if(pid == -1) {
-        close(fd[1]);
-        close(fd[0]);
+    if(pid == -1)
         return Errors::OUT_OF_MEM;
-    }
     else if(pid == 0) {
-        // child
-        close(fd[1]);
-
-        // wait until parent notifies us
-        read(fd[0], &byte, 1);
-        close(fd[0]);
+        p2c.wait();
 
         env()->reset();
         VPE::self().init_state();
         VPE::self().init_fs();
+
+        c2p.signal();
 
         std::function<int()> *func = reinterpret_cast<std::function<int()>*>(lambda);
         (*func)();
         exit(0);
     }
     else {
-        // parent
-        close(fd[0]);
-
         // let the kernel create the config-file etc. for the given pid
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::get().vpectrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
         write_state(pid, _next_sel, _eps, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
 
-        // notify child; it can start now
-        write(fd[1], &byte, 1);
-        close(fd[1]);
+        p2c.signal();
+        // wait until the DTU sockets have been binded
+        c2p.wait();
     }
     return Errors::NONE;
 }
@@ -207,33 +243,35 @@ Errors::Code VPE::run(void *lambda) {
 Errors::Code VPE::exec(int argc, const char **argv) {
     static char buffer[1024];
     char templ[] = "/tmp/m3-XXXXXX";
-    int tmp, pid, fd[2];
+    int tmp, pid;
     ssize_t res;
-    char byte = 1;
-    if(pipe(fd) == -1)
-        return Errors::OUT_OF_MEM;
+    Chan p2c, c2p;
+    if(Errors::last != Errors::NONE)
+        return Errors::Errors::last;
 
     FileRef bin(argv[0], FILE_R);
     if(Errors::occurred())
-        goto errorTemp;
+        return Errors::OUT_OF_MEM;
     tmp = mkstemp(templ);
     if(tmp < 0)
-        goto errorTemp;
+        return Errors::OUT_OF_MEM;
 
     // copy executable from M3-fs to a temp file
     while((res = bin->read(buffer, sizeof(buffer))) > 0)
         write(tmp, buffer, static_cast<size_t>(res));
 
     pid = fork();
-    if(pid == -1)
-        goto errorExec;
+    if(pid == -1) {
+        close(tmp);
+        return Errors::OUT_OF_MEM;
+    }
     else if(pid == 0) {
-        // child
-        close(fd[1]);
+        // wait until the env file has been written by the kernel
+        p2c.wait();
 
-        // wait until parent notifies us
-        read(fd[0], &byte, 1);
-        close(fd[0]);
+        // tell child about fd to notify parent if DTU is ready
+        write_file(getpid(), "dturdy", static_cast<uint64_t>(c2p.fds[1]));
+        close(c2p.fds[0]);
 
         // copy args to null-terminate them
         char **args = new char*[argc + 1];
@@ -256,7 +294,6 @@ Errors::Code VPE::exec(int argc, const char **argv) {
     }
     else {
         // parent
-        close(fd[0]);
         close(tmp);
 
         // let the kernel create the config-file etc. for the given pid
@@ -265,18 +302,11 @@ Errors::Code VPE::exec(int argc, const char **argv) {
 
         write_state(pid, _next_sel, _eps, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
 
-        // notify child; it can start now
-        write(fd[1], &byte, 1);
-        close(fd[1]);
+        p2c.signal();
+        // wait until the DTU sockets have been binded
+        c2p.wait();
     }
     return Errors::NONE;
-
-errorExec:
-    close(tmp);
-errorTemp:
-    close(fd[0]);
-    close(fd[1]);
-    return Errors::OUT_OF_MEM;
 
 }
 

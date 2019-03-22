@@ -36,6 +36,10 @@ impl Channel {
         }
     }
 
+    pub fn fds(&self) -> &[i32] {
+        &self.fds
+    }
+
     pub fn wait(&mut self) {
         unsafe {
             libc::close(self.fds[1]);
