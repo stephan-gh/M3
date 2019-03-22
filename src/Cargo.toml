@@ -9,8 +9,10 @@ members = [
     "apps/rust/test",
     "libs/rustbase",
     "libs/rustm3",
+    "libs/rustresmng",
     "libs/rustthread",
     "server/root",
+    "server/subsys",
 ]
 
 [profile.release]

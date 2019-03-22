@@ -1,9 +1,9 @@
 [package]
-name = "root"
+name = "subsys"
 version = "0.1.0"
 
 [lib]
-path = "src/root.rs"
+path = "src/subsys.rs"
 crate-type = ["staticlib"]
 
 [dependencies]

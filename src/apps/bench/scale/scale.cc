@@ -56,11 +56,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if(VERBOSE) cout << "Mounting filesystem...\n";
-
-    if(VFS::mount("/", "m3fs") != Errors::NONE)
-        PANIC("Cannot mount root fs");
-
     const char *name = argv[1];
     bool muxed = strcmp(argv[2], "1") == 0;
     bool loadgen = strcmp(argv[3], "1") == 0;
@@ -78,7 +73,7 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
-        srvvpes[0] = new VPE("pager", VPE::self().pe(), "pager", muxed ? VPE::MUXABLE : 0);
+        srvvpes[0] = new VPE("pager", VPE::self().pe(), nullptr, muxed ? VPE::MUXABLE : 0);
         srv[0] = new RemoteServer(*srvvpes[0], "mypager");
         OStringStream pager_name(srvnames[0], sizeof(srvnames[0]));
         pager_name << "pager";
@@ -107,7 +102,7 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Creating servers...\n";
 
     for(size_t i = 0; i < servers; ++i) {
-        srvvpes[i + 1] = new VPE("m3fs", VPE::self().pe(), "pager", muxed ? VPE::MUXABLE : 0);
+        srvvpes[i + 1] = new VPE("m3fs", VPE::self().pe(), nullptr, muxed ? VPE::MUXABLE : 0);
         OStringStream m3fs_name(srvnames[i + 1], sizeof(srvnames[i + 1]));
         m3fs_name << "m3fs" << i;
         srv[i + 1] = new RemoteServer(*srvvpes[i + 1], m3fs_name.str());

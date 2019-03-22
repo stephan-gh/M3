@@ -147,6 +147,9 @@ impl Thread {
         thread
     }
 
+    pub fn is_main(&self) -> bool {
+        self.stack.len() == 0
+    }
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -239,6 +242,9 @@ impl ThreadManager {
     }
     pub fn ready_count(&self) -> usize {
         self.ready.len()
+    }
+    pub fn blocked_count(&self) -> usize {
+        self.block.len()
     }
     pub fn sleeping_count(&self) -> usize {
         self.sleep.len()

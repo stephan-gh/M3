@@ -70,7 +70,7 @@ impl Service {
     }
 
     fn shutdown(&mut self) {
-        log!(ROOT, "Sending SHUTDOWN to service '{}'", self.name);
+        log!(RESMNG, "Sending SHUTDOWN to service '{}'", self.name);
 
         let smsg = kif::service::Shutdown {
             opcode: kif::service::Operation::SHUTDOWN.val as u64,
@@ -164,27 +164,36 @@ impl ServiceManager {
     }
 
     fn add_service(&mut self, serv: Service) {
-        log!(ROOT, "Adding service '{}'", serv.name());
+        log!(RESMNG, "Adding service '{}'", serv.name());
         self.servs.push(serv);
     }
 
     pub fn remove_service(&mut self, id: Id) -> Service {
         let idx = self.servs.iter().position(|s| s.id == id).unwrap();
         let serv = self.servs.remove(idx);
-        log!(ROOT, "Removing service '{}'", serv.name());
+        log!(RESMNG, "Removing service '{}'", serv.name());
         serv
     }
 
     pub fn reg_serv(&mut self, child: &mut Child, child_sel: Selector, dst_sel: Selector,
                     rgate_sel: Selector, name: String) -> Result<(), Error> {
-        log!(ROOT, "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
+        log!(RESMNG, "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
              child.name(), child_sel, dst_sel, rgate_sel, name);
 
         let cfg = child.cfg();
-        let sdesc = cfg.get_service(&name).ok_or(Error::new(Code::InvArgs))?;
-        if sdesc.is_used() {
-            return Err(Error::new(Code::Exists));
+        let sdesc = if cfg.restrict() {
+            let sdesc = cfg.get_service(&name).ok_or(Error::new(Code::InvArgs))?;
+            if sdesc.is_used() {
+                return Err(Error::new(Code::Exists));
+            }
+            Some(sdesc)
         }
+        else {
+            if self.get(&name).is_ok() {
+                return Err(Error::new(Code::Exists));
+            }
+            None
+        };
 
         let serv = if child_sel == 0 {
             Service::new(self.next_id, child, dst_sel, rgate_sel, name)
@@ -195,7 +204,9 @@ impl ServiceManager {
         }?;
         self.next_id += 1;
 
-        sdesc.mark_used();
+        if let Some(sd) = sdesc {
+            sd.mark_used();
+        }
         child.add_service(serv.id, dst_sel);
         self.add_service(serv);
 
@@ -203,7 +214,7 @@ impl ServiceManager {
     }
 
     pub fn unreg_serv(&mut self, child: &mut Child, sel: Selector, notify: bool) -> Result<(), Error> {
-        log!(ROOT, "{}: unreg_serv(sel={})", child.name(), sel);
+        log!(RESMNG, "{}: unreg_serv(sel={})", child.name(), sel);
 
         let id = child.remove_service(sel)?;
         if notify {
@@ -218,29 +229,37 @@ impl ServiceManager {
     }
 
     pub fn open_session(&mut self, child: &mut Child, dst_sel: Selector,
-                        name: String, arg: u64) -> Result<(), Error> {
-        log!(ROOT, "{}: open_sess(dst_sel={}, name={}, arg={})",
+                        name: &String, arg: u64) -> Result<(), Error> {
+        log!(RESMNG, "{}: open_sess(dst_sel={}, name={}, arg={})",
              child.name(), dst_sel, name, arg);
 
         let cfg = child.cfg();
-        let sdesc = cfg.get_session(&name).ok_or(Error::new(Code::InvArgs))?;
-        if sdesc.is_used() {
-            return Err(Error::new(Code::Exists));
+        let (sdesc, sname) = if cfg.restrict() {
+            let sdesc = cfg.get_session(&name).ok_or(Error::new(Code::InvArgs))?;
+            if sdesc.is_used() {
+                return Err(Error::new(Code::Exists));
+            }
+            (Some(sdesc), sdesc.serv_name())
         }
+        else {
+            (None, name)
+        };
 
-        let serv = self.get(sdesc.serv_name())?;
+        let serv = self.get(sname)?;
         let (srv_sel, sess) = Session::new(dst_sel, serv, arg)?;
 
         let our_sel = serv.child().obtain(srv_sel)?;
         child.delegate(our_sel, dst_sel)?;
-        sdesc.mark_used(dst_sel);
+        if let Some(sd) = sdesc {
+            sd.mark_used(dst_sel);
+        }
         child.add_session(sess);
 
         Ok(())
     }
 
     pub fn close_session(&mut self, child: &mut Child, sel: Selector) -> Result<(), Error> {
-        log!(ROOT, "{}: close_sess(sel={})", child.name(), sel);
+        log!(RESMNG, "{}: close_sess(sel={})", child.name(), sel);
 
         let sess = child.remove_session(sel)?;
         child.cfg().close_session(sel);

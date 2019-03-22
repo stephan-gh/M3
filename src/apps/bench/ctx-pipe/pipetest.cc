@@ -66,11 +66,6 @@ int main(int argc, const char **argv) {
     if(argc < 6)
         usage(argv[0]);
 
-    if(VERBOSE) cout << "Mounting filesystem...\n";
-
-    if(VFS::mount("/", "m3fs") != Errors::NONE)
-        PANIC("Cannot mount root fs");
-
     int mode = IStringStream::read_from<int>(argv[1]);
     int mem = IStringStream::read_from<int>(argv[2]);
     int repeats = IStringStream::read_from<int>(argv[3]);
@@ -90,7 +85,7 @@ int main(int argc, const char **argv) {
 
 #if defined(__gem5__)
         // start pager
-        apps[2] = create("mypg", "pg-mypg", mode >= 3);
+        apps[2] = create("mypg", nullptr, mode >= 3);
         pagr_srv = new RemoteServer(apps[2]->vpe, "mypg");
 
         {
@@ -105,16 +100,16 @@ int main(int argc, const char **argv) {
         const char **wargv = argv + 6;
         const char **rargv = argv + 6 + wargs;
         if(mode < 2) {
-            apps[0] = create("pipes", "pg-pipes", mode == 1);
+            apps[0] = create("pipes", nullptr, mode == 1);
             apps[1] = nullptr;
-            apps[3] = create(wargv[0], "mypg-wr", mode == 1);
-            apps[4] = create(rargv[0], "mypg-rd", mode == 1);
+            apps[3] = create(wargv[0], "mypg", mode == 1);
+            apps[4] = create(rargv[0], "mypg", mode == 1);
         }
         else {
-            apps[3] = create(wargv[0], "mypg-wr", mode == 4);
-            apps[4] = create(rargv[0], "mypg-rd", mode == 4);
-            apps[0] = create("pipes", "pg-pipes", mode >= 3);
-            apps[1] = create("m3fs", "pg-m3fs", mode >= 3);
+            apps[3] = create(wargv[0], "mypg", mode == 4);
+            apps[4] = create(rargv[0], "mypg", mode == 4);
+            apps[0] = create("pipes", nullptr, mode >= 3);
+            apps[1] = create("m3fs", nullptr, mode >= 3);
         }
 
         RemoteServer *m3fs_srv = nullptr;

@@ -14,20 +14,20 @@
  * General Public License version 2 for more details.
  */
 
+use core::intrinsics;
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{RefCell, StaticCell};
+use m3::cell::StaticCell;
 use m3::com::{RecvGate, SendGate, SGateArgs};
 use m3::col::{String, Treap, Vec};
+use m3::dtu;
 use m3::errors::{Code, Error};
-use m3::kif::{CapRngDesc, CapType, Perm};
+use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::rc::Rc;
-use m3::session::ResMng;
 use m3::syscalls;
-use m3::vpe::{Activity, ExecActivity, VPE, VPEArgs};
+use m3::vfs::FileRef;
+use m3::vpe::{Activity, ExecActivity, Mapper, VPE};
 
-use boot;
-use loader;
 use config::Config;
 use memory::Allocation;
 use services::{self, Session};
@@ -79,7 +79,7 @@ pub trait Child {
         let child_name = format!("{}.{}", self.name(), name);
         let id = get().next_id();
 
-        log!(ROOT, "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
+        log!(RESMNG, "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
              self.name(), vpe_sel, name, sgate_sel, id, child_name);
 
         let cfg = self.cfg();
@@ -112,7 +112,7 @@ pub trait Child {
     }
 
     fn rem_child(&mut self, vpe_sel: Selector) -> Result<(), Error> {
-        log!(ROOT, "{}: rem_child(vpe={})", self.name(), vpe_sel);
+        log!(RESMNG, "{}: rem_child(vpe={})", self.name(), vpe_sel);
 
         let idx = self.res().childs.iter().position(|c| c.1 == vpe_sel).ok_or(Error::new(Code::InvArgs))?;
         get().remove_rec(self.res().childs[idx].0);
@@ -157,7 +157,7 @@ pub trait Child {
     }
 
     fn add_mem(&mut self, alloc: Allocation, mem_sel: Selector, perm: Perm) -> Result<(), Error> {
-        log!(ROOT_MEM, "{}: added {:?}", self.name(), alloc);
+        log!(RESMNG_MEM, "{}: added {:?}", self.name(), alloc);
 
         if mem_sel != 0 {
             assert!(alloc.sel != 0);
@@ -179,7 +179,7 @@ pub trait Child {
             syscalls::revoke(self.vpe_sel(), crd, true).unwrap();
         }
 
-        log!(ROOT_MEM, "{}: removed {:?}", self.name(), alloc);
+        log!(RESMNG_MEM, "{}: removed {:?}", self.name(), alloc);
     }
 
     fn remove_resources(&mut self) where Self: Sized {
@@ -224,28 +224,17 @@ impl BootChild {
         }
     }
 
-    pub fn start(&mut self, rgate: &RecvGate, bsel: Selector,
-                 m: &'static boot::Mod) -> Result<(), Error> {
-        let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256).label(self.id as u64))?;
-        let vpe = VPE::new_with(VPEArgs::new(self.name()).resmng(ResMng::new(sgate)))?;
+    pub fn start(&mut self, vpe: VPE, mapper: &mut Mapper, file: FileRef) -> Result<(), Error> {
+        log!(RESMNG, "Starting boot module '{}' with arguments {:?}", self.name(), &self.args[1..]);
 
-        log!(ROOT, "Starting boot module '{}' with arguments {:?}", self.name(), &self.args[1..]);
-
-        let bfile = loader::BootFile::new(bsel, m.size as usize);
-        let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
-        let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
-        self.activity = Some(vpe.exec_file(&mut bmapper, bfileref, &self.args)?);
-
-        for a in bmapper.fetch_allocs() {
-            self.add_mem(a, 0, Perm::RWX).unwrap();
-        }
+        self.activity = Some(vpe.exec_file(mapper, file, &self.args)?);
 
         Ok(())
     }
 
     pub fn has_unmet_reqs(&self) -> bool {
         for sess in self.cfg().sessions() {
-            if sess.wait() && services::get().get(sess.serv_name()).is_err() {
+            if services::get().get(sess.serv_name()).is_err() {
                 return true;
             }
         }
@@ -351,6 +340,7 @@ pub struct ChildManager {
     next_id: Id,
     daemons: usize,
     foreigns: usize,
+    shutdown: bool,
 }
 
 static MNG: StaticCell<ChildManager> = StaticCell::new(ChildManager::new());
@@ -367,6 +357,7 @@ impl ChildManager {
             next_id: 0,
             daemons: 0,
             foreigns: 0,
+            shutdown: false,
         }
     }
 
@@ -416,11 +407,33 @@ impl ChildManager {
         syscalls::vpe_wait(&sels, event).unwrap();
     }
 
+    pub fn handle_upcall(&mut self, msg: &'static dtu::Message) {
+        let slice: &[kif::upcalls::VPEWait] = unsafe { intrinsics::transmute(&msg.data) };
+        let upcall = &slice[0];
+
+        self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
+
+        let reply = kif::syscalls::DefaultReply {
+            error: 0u64,
+        };
+        RecvGate::upcall().reply(&[reply], msg).expect("Upcall reply failed");
+
+        // wait for the next
+        let no_wait_childs = self.daemons() + self.foreigns();
+        if !self.shutdown && self.len() == no_wait_childs {
+            self.shutdown = true;
+            services::get().shutdown();
+        }
+        if self.len() > 0 {
+            self.start_waiting(1);
+        }
+    }
+
     pub fn kill_child(&mut self, sel: Selector, exitcode: i32) {
         if let Some(id) = self.sel_to_id(sel) {
             let child = self.remove_rec(id).unwrap();
 
-            log!(ROOT, "Child '{}' exited with exitcode {}", child.name(), exitcode);
+            log!(RESMNG, "Child '{}' exited with exitcode {}", child.name(), exitcode);
         }
     }
 
@@ -434,7 +447,7 @@ impl ChildManager {
                 self.foreigns -= 1;
             }
 
-            log!(ROOT, "Removed child '{}'", child.name());
+            log!(RESMNG, "Removed child '{}'", child.name());
 
             for csel in &child.res().childs {
                 self.remove_rec(csel.0);

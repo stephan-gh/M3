@@ -38,14 +38,14 @@ pub const THREAD: bool  = false;
 /// Logs file multiplexing
 pub const FILES: bool   = false;
 
-/// Logs operations of root
-pub const ROOT: bool        = false;
-/// Logs parsed configs in root
-pub const ROOT_CFG: bool    = false;
-/// Logs memory operations of root
-pub const ROOT_MEM: bool    = false;
-/// Logs sendqueue operations of root
-pub const ROOT_SQUEUE: bool = false;
+/// Logs general operations of the resource manager
+pub const RESMNG: bool        = false;
+/// Logs parsed configs
+pub const RESMNG_CFG: bool    = false;
+/// Logs memory operations
+pub const RESMNG_MEM: bool    = false;
+/// Logs sendqueue operations
+pub const RESMNG_SQUEUE: bool = false;
 
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";

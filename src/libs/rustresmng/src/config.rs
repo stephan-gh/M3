@@ -64,21 +64,11 @@ pub struct SessionDesc {
     local_name: String,
     serv: String,
     arg: String,
-    wait: bool,
     usage: RefCell<Option<Selector>>,
 }
 
 impl SessionDesc {
-    pub fn new(mut line: &str) -> Result<Self, Error> {
-        // TODO temporary hack
-        let wait = if line.starts_with("-") {
-            line = &line[1..];
-            false
-        }
-        else {
-            true
-        };
-
+    pub fn new(line: &str) -> Result<Self, Error> {
         let parts = line.split(":").collect::<Vec<&str>>();
         let (lname, serv, arg) = if parts.len() == 1 {
             (parts[0].to_string(), parts[0].to_string(), String::new())
@@ -97,13 +87,8 @@ impl SessionDesc {
             local_name: lname,
             serv: serv,
             arg: arg,
-            wait: wait,
             usage: RefCell::new(None),
         })
-    }
-
-    pub fn wait(&self) -> bool {
-        self.wait
     }
 
     pub fn serv_name(&self) -> &String {
@@ -185,19 +170,22 @@ pub fn check(cfgs: &Vec<(Vec<String>, bool, Rc<Config>)>) {
 
 pub struct Config {
     name: String,
+    restrict: bool,
     services: Vec<ServiceDesc>,
     sessions: Vec<SessionDesc>,
     childs: Vec<ChildDesc>,
 }
 
 impl Config {
-    pub fn new(cmdline: &str) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
-        Self::parse(cmdline, ' ')
+    pub fn new(cmdline: &str, restrict: bool) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
+        Self::parse(cmdline, ' ', restrict)
     }
 
-    fn parse(cmdline: &str, split: char) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
+    fn parse(cmdline: &str, split: char,
+             restrict: bool) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
         let mut res = Config {
             name: String::new(),
+            restrict: restrict,
             services: Vec::new(),
             sessions: Vec::new(),
             childs: Vec::new(),
@@ -224,7 +212,7 @@ impl Config {
                     }
                 }
                 else if a.starts_with("child=") {
-                    let (_, _, cfg) = Self::parse(&a[6..], ';')?;
+                    let (_, _, cfg) = Self::parse(&a[6..], ';', restrict)?;
                     res.childs.push(ChildDesc::new(cfg));
                 }
                 else if a == "daemon" {
@@ -237,6 +225,10 @@ impl Config {
         }
 
         Ok((args, daemon, Rc::new(res)))
+    }
+
+    pub fn restrict(&self) -> bool {
+        self.restrict
     }
 
     pub fn name(&self) -> &String {
@@ -256,6 +248,10 @@ impl Config {
         self.services.iter().find(|s| s.local_name == *lname)
     }
     pub fn unreg_service(&self, gname: &String) {
+        if !self.restrict {
+            return;
+        }
+
         let serv = self.services.iter().find(|s| s.global_name == *gname).unwrap();
         serv.used.replace(false);
     }
@@ -264,6 +260,10 @@ impl Config {
         self.sessions.iter().find(|s| s.local_name == *lname)
     }
     pub fn close_session(&self, sel: Selector) {
+        if !self.restrict {
+            return;
+        }
+
         let sess = self.sessions.iter().find(|s| {
             if let Some(s) = *s.usage.borrow() {
                 s == sel
@@ -279,6 +279,10 @@ impl Config {
         self.childs.iter().find(|c| c.local_name() == lname)
     }
     pub fn remove_child(&self, sel: Selector) {
+        if !self.restrict {
+            return;
+        }
+
         self.childs.iter().find(|c| {
             if let Some(ref child) = *c.usage.borrow() {
                 *child == sel

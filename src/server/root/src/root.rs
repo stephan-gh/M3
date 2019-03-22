@@ -16,35 +16,32 @@
 
 #![no_std]
 
-#![feature(const_fn)]
 #![feature(const_vec_new)]
 #![feature(core_intrinsics)]
 
 #[macro_use]
 extern crate m3;
 extern crate thread;
+extern crate resmng;
 
-mod childs;
-mod config;
 mod loader;
-mod memory;
-mod sendqueue;
-mod services;
 
-use core::intrinsics;
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::{RefCell, StaticCell};
 use m3::col::{String, Vec};
-use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs};
+use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs, SendGate, SGateArgs};
 use m3::dtu;
 use m3::errors::Error;
 use m3::goff;
-use m3::kif::{self, boot, PEDesc, syscalls, upcalls};
-use m3::session::{ResMngOperation};
+use m3::kif::{self, boot, PEDesc};
+use m3::rc::Rc;
+use m3::session::{ResMng, ResMngOperation};
 use m3::util;
+use m3::vpe::{VPE, VPEArgs};
 
-use childs::{BootChild, Child, Id};
+use resmng::childs::{self, BootChild, Child, Id};
+use resmng::{config, memory, sendqueue, services};
 
 //
 // The kernel initializes our cap space as follows:
@@ -57,7 +54,6 @@ const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
 
 static DELAYED: StaticCell<Vec<BootChild>>  = StaticCell::new(Vec::new());
 static MODS: StaticCell<(usize, usize)>     = StaticCell::new((0, 0));
-static SHUTDOWN: StaticCell<bool>           = StaticCell::new(false);
 static RGATE: StaticCell<Option<RecvGate>>  = StaticCell::new(None);
 
 fn req_rgate() -> &'static RecvGate {
@@ -67,7 +63,7 @@ fn req_rgate() -> &'static RecvGate {
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
         Err(e) => {
-            log!(ROOT, "request failed: {}", e);
+            log!(RESMNG, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(_)  => reply_vmsg!(is, 0 as u64),
@@ -100,7 +96,7 @@ fn open_session(is: &mut GateIStream, child: &mut Child) {
     let name: String = is.pop();
     let arg: u64 = is.pop();
 
-    let res = services::get().open_session(child, dst_sel, name, arg);
+    let res = services::get().open_session(child, dst_sel, &name, arg);
     reply_result(is, res);
 }
 
@@ -150,6 +146,25 @@ fn free_mem(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
+fn start_child(child: &mut BootChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
+    let sgate = SendGate::new_with(
+        SGateArgs::new(req_rgate()).credits(256).label(child.id() as u64)
+    )?;
+    let vpe = VPE::new_with(VPEArgs::new(child.name()).resmng(ResMng::new(sgate)))?;
+
+    let bfile = loader::BootFile::new(bsel, m.size as usize);
+    let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
+    let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
+
+    child.start(vpe, &mut bmapper, bfileref)?;
+
+    for a in bmapper.fetch_allocs() {
+        child.add_mem(a, 0, kif::Perm::RWX).unwrap();
+    }
+
+    Ok(())
+}
+
 fn start_delayed() {
     let mut idx = 0;
     let delayed = DELAYED.get_mut();
@@ -164,7 +179,7 @@ fn start_delayed() {
         let mut moditer = boot::ModIterator::new(mods.0, mods.1);
         let m = moditer.nth(c.id() as usize).unwrap();
         let sel = BOOT_MOD_SELS + 1 + c.id();
-        c.start(req_rgate(), sel, &m).expect("Unable to start boot module");
+        start_child(&mut c, sel, &m).expect("Unable to start boot module");
         childs::get().add(Box::new(c));
     }
 
@@ -194,30 +209,6 @@ fn handle_request(mut is: GateIStream) {
     }
 }
 
-fn handle_upcall(msg: &'static dtu::Message) {
-    let slice: &[upcalls::VPEWait] = unsafe { intrinsics::transmute(&msg.data) };
-    let upcall = &slice[0];
-
-    childs::get().kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
-
-    let reply = syscalls::DefaultReply {
-        error: 0u64,
-    };
-    RecvGate::upcall().reply(&[reply], msg).expect("Upcall reply failed");
-
-    // wait for the next
-    if DELAYED.get().len() == 0 {
-        let no_wait_childs = childs::get().daemons() + childs::get().foreigns();
-        if !SHUTDOWN.get() && childs::get().len() == no_wait_childs {
-            SHUTDOWN.set(true);
-            services::get().shutdown();
-        }
-        if childs::get().len() > 0 {
-            childs::get().start_waiting(1);
-        }
-    }
-}
-
 fn workloop() {
     let thmng = thread::ThreadManager::get();
     let rgate = req_rgate();
@@ -235,7 +226,7 @@ fn workloop() {
 
         let msg = dtu::DTU::fetch_msg(upcall_ep);
         if let Some(msg) = msg {
-            handle_upcall(msg);
+            childs::get().handle_upcall(msg);
         }
 
         sendqueue::check_replies();
@@ -247,6 +238,10 @@ fn workloop() {
         if childs::get().len() == 0 {
             break;
         }
+    }
+
+    if !thmng.cur().is_main() {
+        thmng.stop();
     }
 }
 
@@ -262,11 +257,11 @@ pub fn main() -> i32 {
     mgate.read(&mut mods_list, off).expect("Unable to read mods");
     off += info.mod_size;
 
-    log!(ROOT, "Boot modules:");
+    log!(RESMNG, "Boot modules:");
     MODS.set((mods_list.as_slice().as_ptr() as usize, info.mod_size as usize));
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for m in moditer {
-        log!(ROOT, "  {:?}", m);
+        log!(RESMNG, "  {:?}", m);
     }
 
     let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
@@ -274,10 +269,10 @@ pub fn main() -> i32 {
     mgate.read(&mut pes, off).expect("Unable to read PEs");
 
     let mut i = 0;
-    log!(ROOT, "Available PEs:");
+    log!(RESMNG, "Available PEs:");
     for pe in pes {
         log!(
-            ROOT,
+            RESMNG,
             "  PE{:02}: {} {} {} KiB memory",
             i, pe.pe_type(), pe.isa(), pe.mem_size() / 1024
         );
@@ -294,7 +289,7 @@ pub fn main() -> i32 {
         memory::get().add(memory::MemMod::new(mem_sel, mem.size(), mem.reserved()));
         mem_sel += 1;
     }
-    log!(ROOT, "Memory: {:?}", memory::get());
+    log!(RESMNG, "Memory: {:?}", memory::get());
 
     let mut rgate = RecvGate::new_with(
         RGateArgs::new().order(12).msg_order(8)
@@ -316,8 +311,9 @@ pub fn main() -> i32 {
             continue;
         }
 
-        let (args, daemon, cfg) = config::Config::new(m.name()).expect("Unable to parse config");
-        log!(ROOT_CFG, "Parsed config {:?}", cfg);
+        let (args, daemon, cfg) = config::Config::new(m.name(), true)
+            .expect("Unable to parse config");
+        log!(RESMNG_CFG, "Parsed config {:?}", cfg);
         cfgs.push((args, daemon, cfg));
     }
 
@@ -335,7 +331,7 @@ pub fn main() -> i32 {
             DELAYED.get_mut().push(child);
         }
         else {
-            child.start(req_rgate(), BOOT_MOD_SELS + 1 + id as Id, &m)
+            start_child(&mut child, BOOT_MOD_SELS + 1 + id as Id, &m)
                 .expect("Unable to start boot module");
             childs::get().add(Box::new(child));
         }
