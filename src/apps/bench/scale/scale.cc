@@ -89,6 +89,9 @@ int main(int argc, char **argv) {
         if(res != Errors::NONE)
             PANIC("Cannot execute " << args[0] << ": " << Errors::to_string(res));
     }
+#else
+    srvvpes[0] = nullptr;
+    srv[0] = nullptr;
 #endif
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
@@ -214,8 +217,8 @@ int main(int argc, char **argv) {
         if(VERBOSE) cout << srvnames[i] << " exited with " << res << "\n";
     }
     for(size_t i = 0; i < servers + 1; ++i) {
-        delete srvvpes[i];
         delete srv[i];
+        delete srvvpes[i];
     }
 
     if(VERBOSE) cout << "Done\n";

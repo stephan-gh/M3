@@ -207,6 +207,9 @@ int main(int argc, const char **argv) {
         delete vpemem;
         delete memvpe;
 
+        if(apps[1])
+            VFS::unmount("/foo");
+
         // request shutdown
         pipe_srv->request_shutdown();
         if(pagr_srv)
@@ -224,14 +227,15 @@ int main(int argc, const char **argv) {
 
         if(VERBOSE) cout << "Deleting VPEs...\n";
 
-        if(apps[1])
-            VFS::unmount("/foo");
-
-        for(size_t i = 0; i < ARRAY_SIZE(apps); ++i)
+        for(size_t i = 3; i < ARRAY_SIZE(apps); ++i)
             delete apps[i];
+
         delete m3fs_srv;
         delete pipe_srv;
         delete pagr_srv;
+
+        for(size_t i = 0; i < 3; ++i)
+            delete apps[i];
 
         if(VERBOSE) cout << "Done\n";
     }
