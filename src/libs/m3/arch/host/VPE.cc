@@ -241,7 +241,7 @@ Errors::Code VPE::run(void *lambda) {
 }
 
 Errors::Code VPE::exec(int argc, const char **argv) {
-    static char buffer[1024];
+    static char buffer[8192];
     char templ[] = "/tmp/m3-XXXXXX";
     int tmp, pid;
     ssize_t res;

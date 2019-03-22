@@ -80,7 +80,7 @@ impl Drop for Channel {
 }
 
 pub fn copy_file(file: &mut FileRef) -> Result<String, Error> {
-    let mut buf = vec![0u8; 4096];
+    let mut buf = vec![0u8; 8192];
 
     let mut path = "/tmp/m3-XXXXXX\0".to_string();
 
