@@ -121,7 +121,7 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
         let size = info.st_size as usize;
         assert!(size & 7 == 0);
 
-        let mut res: Vec<u64> = Vec::with_capacity(size);
+        let mut res: Vec<u64> = Vec::with_capacity(size / 8);
         res.set_len(size / 8);
         libc::read(fd, res.as_mut_ptr() as *mut libc::c_void, size);
 
