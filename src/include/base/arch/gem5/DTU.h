@@ -111,18 +111,6 @@ private:
         MEMORY
     };
 
-    enum class EventType {
-        MSG_RECV,
-        CRD_RECV,
-        EP_INVAL,
-    };
-
-    enum EventMask : reg_t {
-        MSG_RECV    = 1 << static_cast<reg_t>(EventType::MSG_RECV),
-        CRD_RECV    = 1 << static_cast<reg_t>(EventType::CRD_RECV),
-        EP_INVAL    = 1 << static_cast<reg_t>(EventType::EP_INVAL),
-    };
-
     enum class CmdOpCode {
         IDLE                = 0,
         SEND                = 1,
@@ -148,6 +136,18 @@ private:
     };
 
 public:
+    enum class EventType {
+        MSG_RECV,
+        CRD_RECV,
+        EP_INVAL,
+    };
+
+    enum EventMask : reg_t {
+        MSG_RECV    = 1 << static_cast<reg_t>(EventType::MSG_RECV),
+        CRD_RECV    = 1 << static_cast<reg_t>(EventType::CRD_RECV),
+        EP_INVAL    = 1 << static_cast<reg_t>(EventType::EP_INVAL),
+    };
+
     typedef uint64_t pte_t;
 
     enum CmdFlags {
@@ -272,6 +272,13 @@ public:
         uint16_t max = (r1 >> 16) & 0xFFFF;
         return cur < max;
     }
+
+    bool has_credits(epid_t ep) const {
+        reg_t r1 = read_reg(ep, 1);
+        uint16_t cur = r1 & 0xFFFF;
+        return cur > 0;
+    }
+
     bool is_valid(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
         return static_cast<EpType>(r0 >> 61) != EpType::INVALID;
@@ -311,7 +318,7 @@ public:
         return read_reg(DtuRegs::CLOCK);
     }
 
-    void try_sleep(bool yield = true, uint64_t cycles = 0);
+    void try_sleep(bool yield = true, uint64_t cycles = 0, reg_t evmask = EventMask::MSG_RECV);
     void sleep(uint64_t cycles = 0) {
         write_reg(CmdRegs::COMMAND, buildCommand(0, CmdOpCode::SLEEP, 0, cycles));
         get_error();

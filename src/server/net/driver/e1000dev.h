@@ -92,6 +92,8 @@ class E1000 {
 
         REG_RAL             = 0x5400,        /* filtering: receive address low */
         REG_RAH             = 0x5404,        /* filtering: receive address high */
+
+        REG_RXCSUM          = 0x5000,        /* receive checksum control */
     };
 
     enum {
@@ -147,6 +149,13 @@ class E1000 {
     };
 
     enum {
+        RXCSUM_PCSS_MASK   = 0xff,           /* Packet Checksum Start */
+        RXCSUM_IPOFLD      = 1 << 8,         /* IP Checksum Off-load Enable */
+        RXCSUM_TUOFLD      = 1 << 9,         /* TCP/UDP Checksum Off-load Enable */
+        RXCSUM_IPV6OFL     = 1 << 10,        /* IPv6 Checksum Offload Enable */
+    };
+
+    enum {
         EEPROM_OFS_MAC      = 0x0,           /* offset of the MAC in EEPROM */
     };
     enum {
@@ -163,8 +172,25 @@ class E1000 {
     };
 
     enum {
-        RDS_DONE            = 1 << 0,        /* receive descriptor status; indicates that the HW has
-                                              * finished the descriptor */
+        RXDS_PIF   = 1 << 7, /* Passed in-exact filter */
+        RXDS_IPCS  = 1 << 6, /* IP Checksum Calculated on Packet */
+        RXDS_TCPCS = 1 << 5, /* TCP Checksum Calculated on Packet */
+        // Only in gem5 i8254xGBE?!
+        RXDS_UDPCS = 1 << 4, /* TCP Checksum Calculated on Packet */
+        RXDS_VP    = 1 << 3, /* Packet is 802.1Q (matched VET) */
+        RXDS_IXSM  = 1 << 2, /* Ignore Checksum Indication */
+        RXDS_EOP   = 1 << 1, /* End of Packet */
+        RXDS_DD    = 1 << 0, /* receive descriptor status; indicates that the HW has
+                              * finished the descriptor */
+    };
+
+    enum {
+        RXDE_RXE  = 1 << 7, /* RX Data Error */
+        RXDE_IPE  = 1 << 6, /* IP Checksum Error */
+        RXDE_TCPE = 1 << 5, /* TCP/UDP Checksum Error */
+        RXDE_SEQ  = 1 << 2, /* Sequence Error */
+        RXDE_SE   = 1 << 1, /* Symbol Error */
+        RXDE_CE   = 1 << 0, /* CRC Error or Alignment Error */
     };
 
     static const cycles_t RESET_SLEEP_TIME              = 20 * 1000;
@@ -186,6 +212,37 @@ class E1000 {
         uint16_t : 16;
     } PACKED ALIGNED(4);
 
+    // TODO: Allocation details of bit fields are implementation-defined...
+    struct TxContextDesc {
+        uint64_t IPCSS  : 8,
+                 IPCSO  : 8,
+                 IPCSE  : 16,
+                 TUCSS  : 8,
+                 TUCSO  : 8,
+                 TUCSE  : 16;
+        uint64_t PAYLEN : 20,
+                 DTYP   : 4, // 0000b
+                 TUCMD  : 8,
+                 STA    : 4,
+                 RSV    : 4,
+                 HDRLEN : 8,
+                 MSS    : 16;
+
+    } PACKED ALIGNED(4);
+    static_assert(sizeof(TxContextDesc) == sizeof(TxDesc));
+
+    struct TxDataDesc {
+        uint64_t buffer;
+        uint64_t length  : 20,
+                 DTYP    : 4, // 0001b
+                 DCMD    : 8,
+                 STA     : 4,
+                 RSV     : 4,
+                 POPTS   : 8,
+                 Special : 16;
+    } PACKED ALIGNED(4);
+    static_assert(sizeof(TxDataDesc) == sizeof(TxDesc));
+
      struct RxDesc {
         uint64_t buffer;
         uint16_t length;
@@ -202,8 +259,19 @@ class E1000 {
         uint8_t txBuf[TX_BUF_COUNT * TX_BUF_SIZE];
     };
 
+    enum TxoProto {
+        TxoProto_Unsupported = 1 << 1, // Protocol with no checksum offload support (never requires context descriptor update)
+        TxoProto_IP =          1 << 2 | TxoProto_Unsupported,
+        TxoProto_UDP =         1 << 3 | TxoProto_IP,
+        TxoProto_TCP =         1 << 4 | TxoProto_IP,
+    };
+
 public:
-    explicit E1000(pci::ProxiedPciDevice & nic);
+    typedef bool(&alloc_cb_func)(void *&pkt, void *&buf, size_t &bufSize, size_t size);
+    typedef void(&next_buf_cb_func)(void *&pkt, void *&buf, size_t &bufSize);
+    typedef void(&recv_cb_func)(void *pkt);
+
+    explicit E1000(pci::ProxiedPciDevice & nic, alloc_cb_func allocCallback, next_buf_cb_func nextBufCallback, recv_cb_func recvCallback);
 
     ulong mtu() const {
         return TX_BUF_SIZE;
@@ -214,7 +282,6 @@ public:
     void receive(size_t maxReceiveCount);
 
     void receiveInterrupt();
-    void setReceiveCallback(std::function<void(uint8_t *pkt, size_t size)> callback);
     m3::net::MAC readMAC();
 
     bool linkStateChanged();
@@ -227,16 +294,18 @@ private:
     uint32_t readReg(uint16_t reg);
     void readEEPROM(uintptr_t address, uint8_t *dest, size_t len);
 
-    uint32_t incTail(uint32_t tail, uint32_t descriptorCount);
-
     pci::ProxiedPciDevice & _nic;
     EEPROM _eeprom;
     m3::net::MAC _mac;
     uint32_t _curRxBuf;
+    uint32_t _curTxDesc;
     uint32_t _curTxBuf;
     m3::MemGate _bufs;
-    std::function<void(uint8_t *pkt, size_t size)> _recvCallback;
+    alloc_cb_func _allocCallback;
+    next_buf_cb_func _nextBufCallback;
+    recv_cb_func _recvCallback;
     bool _linkStateChanged;
+    TxoProto _txdContextProto;
 };
 
 }

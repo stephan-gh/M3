@@ -25,6 +25,8 @@ extern "C" {
 
 int printf_adapter(const char *fmt, ...);
 
+void lwip_cc_panic();
+
 #ifdef __cplusplus
 }
 #endif
@@ -32,6 +34,6 @@ int printf_adapter(const char *fmt, ...);
 #define LWIP_PLATFORM_DIAG(x) do {printf_adapter x;} while(0)
 
 #define LWIP_PLATFORM_ASSERT(x) do {printf_adapter("Assertion \"%s\" failed at line %d in %s\n", \
-                                     x, __LINE__, __FILE__); exit(1);} while(0)
+                                     x, __LINE__, __FILE__); lwip_cc_panic();} while(0)
 
 #endif /* LWIP_ARCH_CC_H */

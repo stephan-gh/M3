@@ -16,61 +16,14 @@
 
 #pragma once
 
+#include <base/col/Treap.h>
+
 #include <m3/session/ClientSession.h>
-#include <m3/com/MemGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/pipe/DirectPipeReader.h>
-#include <m3/pipe/DirectPipeWriter.h>
+#include <m3/net/Socket.h>
+#include <m3/vfs/GenericFile.h>
 
 namespace m3 {
-
-class IpAddr {
-public:
-    IpAddr()
-        : _addr(0) {
-    }
-
-    explicit IpAddr(uint32_t addr)
-        : _addr(addr) {
-    }
-    IpAddr(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
-        : _addr(static_cast<uint32_t>(a << 24 | b << 16 | c << 8 | d)) {
-    }
-
-    uint32_t addr() {
-        return _addr;
-    }
-    void addr(uint32_t addr) {
-        _addr = addr;
-    }
-private:
-    uint32_t _addr;
-};
-
-class NetDirectPipe {
-public:
-    static const size_t BUFFER_SIZE         = 2 * 1024 * 1024;
-
-    static const size_t MSG_SIZE            = 64;
-    static const size_t MSG_BUF_SIZE        = MSG_SIZE * 16;
-    static const size_t CREDITS             = MSG_BUF_SIZE;
-
-    NetDirectPipe(capsel_t caps, size_t size, bool create);
-    ~NetDirectPipe();
-
-    DirectPipeReader *reader();
-    DirectPipeWriter *writer();
-
-private:
-    bool _keep_caps;
-    capsel_t _caps;
-    size_t _size;
-    RecvGate _rgate;
-    MemGate _mem;
-    SendGate _sgate;
-    DirectPipeReader * _reader;
-    DirectPipeWriter * _writer;
-};
 
 struct MessageHeader {
     explicit MessageHeader()
@@ -99,74 +52,58 @@ struct MessageHeader {
     size_t size;
 };
 
-class NetworkManager;
-
-class InetSocket {
-public:
-    explicit InetSocket(int sd, NetworkManager &nm);
-    ~InetSocket();
-
-    int sd() {
-        return _sd;
-    }
-
-    Errors::Code bind(IpAddr addr, uint16_t port);
-    Errors::Code listen();
-    Errors::Code connect(IpAddr addr, uint16_t port);
-
-    // blocks when send buffer of the socket is full
-    ssize_t send(const void *buffer, size_t count, bool blocking = true);
-    ssize_t sendto(const void *buffer, size_t count, IpAddr addr, uint16_t port, bool blocking = true);
-
-    // blocks when receive buffer of the socket is empty
-    ssize_t recv(void *buffer, size_t count, bool blocking = true);
-    ssize_t recvmsg(void *buffer, size_t count, IpAddr *addr, uint16_t *port, bool blocking = true);
-
-    Errors::Code close();
-
-private:
-    friend NetworkManager;
-    int _sd;
-    NetworkManager &_nm;
-    NetDirectPipe *_recv_pipe;
-    NetDirectPipe *_send_pipe;
-};
-
+class TcpSocket;
 // Maybe RawSocket or something...
 class NetworkManager : public ClientSession {
+friend Socket;
+friend TcpSocket;
 public:
     enum Operation {
-        CREATE, BIND, LISTEN, CONNECT, ACCEPT, CLOSE,
+        STAT = GenericFile::STAT,
+        SEEK = GenericFile::SEEK,
+        NEXT_IN = GenericFile::NEXT_IN,
+        NEXT_OUT = GenericFile::NEXT_OUT,
+        COMMIT = GenericFile::COMMIT,
+        CLOSE = GenericFile::CLOSE,
+        CREATE,
+        BIND,
+        LISTEN,
+        CONNECT,
+        ACCEPT,
         // SEND, // provided by pipes
         // RECV, // provided by pipes
         COUNT
     };
 
-    enum SocketType {
-        SOCK_STREAM, // TCP
-        SOCK_DGRAM,  // UDP
-        SOCK_RAW     // IP
-    };
-
-    explicit NetworkManager(const String &service)
-        : ClientSession(service), _metagate(SendGate::bind(obtain(1).start())) {
-    }
-    explicit NetworkManager(capsel_t session, capsel_t metagate)
-        : ClientSession(session), _metagate(SendGate::bind(metagate)) {
-    }
+    explicit NetworkManager(const String &service);
+    explicit NetworkManager(capsel_t session, capsel_t metagate);
+    ~NetworkManager();
 
     const SendGate &meta_gate() const {
         return _metagate;
     }
 
-    InetSocket *create(SocketType type, uint8_t protocol = 0);
+    Socket *create(Socket::SocketType type, uint8_t protocol = 0);
     Errors::Code bind(int sd, IpAddr addr, uint16_t port);
     Errors::Code listen(int sd);
     Errors::Code connect(int sd, IpAddr addr, uint16_t port);
     Errors::Code close(int sd);
+    Errors::Code as_file(int sd, int mode, MemGate &mem, size_t memsize, fd_t &fd);
 
 private:
+    Errors::Code ensure_channel_established();
+
+    void listen_channel(NetEventChannel & _channel);
+    void wait_for_credit(NetEventChannel& _channel);
+
+    Socket * process_event(NetEventChannel::Event & event);
+    void process_credit(event_t wait_event, size_t waiting);
+    void process_sleep();
+
     SendGate _metagate;
+    m3::Treap<Socket> _sockets;
+    size_t _waiting_credit;
+    Reference<NetEventChannel> _channel;
 };
 
 }

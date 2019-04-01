@@ -59,6 +59,11 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
         m3::nextlog2<DEF_RBUF_SIZE>::val, DEF_RBUF_ORDER, 0
 );
 
+
+INIT_PRIO_RECVBUF RecvGate RecvGate::_invalid (
+    VPE::self(), ObjCap::INVALID, UNBOUND, nullptr, 0, 0, 0
+);
+
 void RecvGate::RecvGateWorkItem::work() {
     DTU::Message *msg = DTU::get().fetch_msg(_buf->ep());
     if(msg) {
@@ -98,8 +103,8 @@ RecvGate RecvGate::create_for(VPE &vpe, int order, int msgorder) {
     return RecvGate(vpe, VPE::self().alloc_sel(), UNBOUND, nullptr, order, msgorder, 0);
 }
 
-RecvGate RecvGate::create_for(VPE &vpe, capsel_t cap, int order, int msgorder) {
-    return RecvGate(vpe, cap, UNBOUND, nullptr, order, msgorder, 0);
+RecvGate RecvGate::create_for(VPE &vpe, capsel_t cap, int order, int msgorder, uint flags) {
+    return RecvGate(vpe, cap, UNBOUND, nullptr, order, msgorder, flags);
 }
 
 RecvGate RecvGate::bind(capsel_t cap, int order, epid_t ep) {

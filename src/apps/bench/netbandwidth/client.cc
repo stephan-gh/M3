@@ -15,6 +15,7 @@
  */
 
 #include <base/DTU.h>
+#include <base/Env.h>
 #include <base/util/Time.h>
 
 #include <m3/session/NetworkManager.h>
@@ -23,14 +24,18 @@
 using namespace m3;
 
 int main() {
+    env()->workloop()->multithreaded(4);
+
     NetworkManager net("net0");
 
-    InetSocket *socket = net.create(NetworkManager::SOCK_DGRAM);
+    Socket *socket = net.create(Socket::SOCK_DGRAM);
     if(!socket)
         exitmsg("Socket creation failed.");
 
-    if(socket->connect(IpAddr(192, 168, 112, 1), 1337) != Errors::NONE)
-        exitmsg("Socket connect failed:" << Errors::to_string(Errors::last));
+    socket->blocking(true);
+    Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
+    if(err != Errors::NONE)
+        exitmsg("Socket connect failed:" << Errors::to_string(err));
 
     constexpr size_t packet_size = 1024;
     union {
@@ -44,10 +49,8 @@ int main() {
     } response;
 
     size_t warmup = 5;
-    // size_t packets_to_send = 105;
-    // size_t packets_to_receive = 100;
-    size_t packets_to_send = 15;
-    size_t packets_to_receive = 10;
+    size_t packets_to_send = 105;
+    size_t packets_to_receive = 100;
     size_t burst_size = 2;
 
     size_t packet_sent_count = 0;
@@ -61,36 +64,46 @@ int main() {
     }
     cout << "Warmup done.\n";
 
+    socket->blocking(false);
     cout << "Benchmark...\n";
     cycles_t start = Time::start(0);
     cycles_t last_received = start;
+    size_t failures = 0;
     while(true) {
+        // Wait for wakeup (message or credits received)
+        if(failures >= 10) {
+            failures = 0;
+            DTU::get().try_sleep(false);
+        }
+
         size_t send_count = burst_size;
-        while(send_count-- && packet_sent_count < packets_to_send &&
-              (packet_sent_count - packet_received_count) < 100) {
-            if(socket->send(request.raw, packet_size, false) != -1)
+        while(send_count-- && packet_sent_count < packets_to_send) {
+            if(socket->send(request.raw, packet_size) > 0) {
                 packet_sent_count++;
-            else
+                failures = 0;
+            } else {
+                failures++;
                 break;
+            }
+
         }
 
         size_t receive_count = burst_size;
         while(receive_count--) {
-            ssize_t recv_len = socket->recv(response.raw, packet_size, false);
-            if(recv_len != -1) {
-                assert(static_cast<size_t>(recv_len) == packet_size);
+            ssize_t recv_len = socket->recv(response.raw, packet_size);
+            if(recv_len > 0) {
                 received_bytes += static_cast<size_t>(recv_len);
                 packet_received_count++;
                 last_received = Time::start(0);
-            }
-            else
-                break;
+                failures = 0;
+            } else {
+               failures++;
+               break;
+           }
         }
 
         if(packet_received_count >= packets_to_receive)
             break;
-
-        // m3::DTU::get().try_sleep(false, 0);
     }
     cout << "Benchmark done.\n";
 
@@ -102,7 +115,6 @@ int main() {
     cout << "Rate: " << static_cast<float>(received_bytes) / duration << " bytes / cycle\n";
     cout << "Rate: " << static_cast<float>(received_bytes) / (duration / 3e9f) << " bytes / s\n";
 
-    socket->close();
     delete socket;
 
     return 0;

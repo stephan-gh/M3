@@ -16,6 +16,7 @@
 
 #include <base/Common.h>
 #include <base/col/SList.h>
+#include <base/util/VarRingBuf.h>
 
 #include <m3/com/GateStream.h>
 #include <m3/server/RequestHandler.h>
@@ -24,7 +25,6 @@
 #include <m3/session/ServerSession.h>
 #include <m3/vfs/GenericFile.h>
 
-#include "VarRingBuf.h"
 
 class PipeData;
 
@@ -104,6 +104,7 @@ public:
     capsel_t epcap;
     size_t lastamount;
     m3::SendGate sgate;
+    // Pipe memory buffer provided by the client
     m3::MemGate *memory;
     PipeData *pipe;
 };

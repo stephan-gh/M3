@@ -19,6 +19,8 @@
 #include <base/col/SList.h>
 #include <base/DTU.h>
 
+#include <functional>
+
 namespace m3 {
 
 class WorkLoop;
@@ -36,7 +38,7 @@ class WorkLoop {
     static const size_t MAX_ITEMS   = 32;
 
 public:
-    explicit WorkLoop() : _changed(false), _permanents(0), _count(), _items() {
+    explicit WorkLoop() : _changed(false), _permanents(0), _count(), _items(), _sleep_handler(nullptr) {
     }
     virtual ~WorkLoop() {
     }
@@ -56,6 +58,10 @@ public:
         _permanents = _count;
     }
 
+    // TODO: Allow multiple sleep handlers?
+    using sleep_handler_t = std::function<void()>;
+    void set_sleep_handler(sleep_handler_t sleep_handler);
+
 protected:
     static void thread_startup(void *);
     virtual void thread_shutdown();
@@ -65,6 +71,7 @@ private:
     size_t _permanents;
     size_t _count;
     WorkItem *_items[MAX_ITEMS];
+    sleep_handler_t _sleep_handler;
 };
 
 }

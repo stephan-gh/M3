@@ -54,8 +54,20 @@ struct Errors {
         MSGS_WAITING,
         UPCALL_REPLY,
         COMMIT_FAILED,
+        // Socket
         IN_USE,
         INV_STATE,
+        WOULD_BLOCK,
+        IN_PROGRESS,
+        ALREADY_IN_PROGRESS,
+        NOT_CONNECTED,
+        IS_CONNECTED,
+        CONN_ABORT,
+        CONN_RESET,
+        CONN_CLOSED,
+        TIMEOUT,
+        NET_UNREACHABLE,
+        SOCKET_CLOSED,
     };
 
     /**

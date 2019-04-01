@@ -14,28 +14,39 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/Env.h>
+
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
 using namespace m3;
 
 int main() {
+    env()->workloop()->multithreaded(4);
     NetworkManager net("net1");
     String status;
 
-    InetSocket *socket = net.create(NetworkManager::SOCK_DGRAM);
+    Socket *socket = net.create(Socket::SOCK_DGRAM);
     if(!socket)
         exitmsg("Socket creation failed.");
+    socket->blocking(true);
 
-    if(socket->bind(IpAddr(192, 168, 112, 1), 1337) != Errors::NONE)
-        exitmsg("Socket bind failed:" << Errors::to_string(Errors::last));
+    Errors::Code err = socket->bind(IpAddr(192, 168, 112, 1), 1337);
+    if(err != Errors::NONE)
+        exitmsg("Socket bind failed:" << Errors::to_string(err));
 
     char request[1024];
     while(true) {
         IpAddr addr;
         uint16_t port;
         ssize_t len = socket->recvmsg(request, sizeof(request), &addr, &port);
+        if(len <= 0) {
+            exitmsg("Received invalid data: " << len);
+        }
 
-        len = socket->sendto(request, static_cast<size_t>(len), addr, port);
+        while(socket->sendto(request, static_cast<size_t>(len), addr, port) <= 0) {
+        }
     }
+
+    delete socket;
 }

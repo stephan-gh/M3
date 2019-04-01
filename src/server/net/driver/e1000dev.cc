@@ -15,6 +15,7 @@
  */
 
 #include "e1000dev.h"
+#include "proto_def.h"
 
 #include <assert.h>
 #include <base/DTU.h>
@@ -31,13 +32,24 @@ namespace net {
 
 static uint8_t ZEROS[4096];
 
-E1000::E1000(pci::ProxiedPciDevice & nic)
+static inline uint32_t incRb(uint32_t index, uint32_t size)
+{
+    return (index + 1) % size;
+}
+
+E1000::E1000(pci::ProxiedPciDevice &nic, alloc_cb_func allocCallback, next_buf_cb_func nextBufCallback,
+             recv_cb_func recvCallback)
     : _nic(nic),
       _eeprom(*this),
-      _curRxBuf(),
-      _curTxBuf(),
+      _curRxBuf(0),
+      _curTxDesc(0),
+      _curTxBuf(0),
       _bufs(MemGate::create_global(sizeof(Buffers), MemGate::RW)),
-      _linkStateChanged(true) {
+      _allocCallback(allocCallback),
+      _nextBufCallback(nextBufCallback),
+      _recvCallback(recvCallback),
+      _linkStateChanged(true),
+      _txdContextProto(TxoProto_Unsupported) {
 
     if(!_eeprom.init()) {
         SLOG(NIC, "Unable to init EEPROM.");
@@ -86,6 +98,9 @@ void E1000::reset() {
         writeReg(REG_CTRL, ctrl);
         sleep(RESET_SLEEP_TIME);
     }
+
+    // enable ip/udp/tcp receive checksum offloading
+    writeReg(REG_RXCSUM, RXCSUM_IPOFLD | RXCSUM_TUOFLD);
 
     // setup rx descriptors
     for(size_t i = 0; i < RX_BUF_COUNT; i++) {
@@ -161,10 +176,6 @@ void E1000::readEEPROM(uintptr_t address, uint8_t *dest, size_t len) {
     }
 }
 
-uint32_t E1000::incTail(uint32_t tail, uint32_t descriptorCount) {
-    return (tail + 1) % descriptorCount;
-}
-
 void E1000::sleep(cycles_t usec) {
     auto cycles_to_seep = usec * DTU::get().clock() / 1000000;
     SLOG(NIC, "sleep: " << usec << " usec -> " << cycles_to_seep << " cycles");
@@ -179,33 +190,89 @@ void E1000::sleep(cycles_t usec) {
 bool E1000::send(const void* packet, size_t size) {
     assert(size <= mtu());
 
-    // to next tx descriptor
-    uint32_t cur = _curTxBuf;
-    _curTxBuf = (_curTxBuf + 1) % TX_BUF_COUNT;
-
-    // is there enough space?
+    uint32_t nextTxDesc = incRb(_curTxDesc, TX_BUF_COUNT);
     uint32_t head = readReg(REG_TDH);
-    if(_curTxBuf == head) {
-        // TODO handle that case
-        SLOG(NIC, "No free buffers");
+    // TODO: Is the condition correct or off by one?
+    if(nextTxDesc == head) {
+        SLOG(NIC, "No free descriptors.");
         return false;
     }
 
-    // copy to buffer
-    auto offset = offsetof(Buffers, txBuf) + cur * TX_BUF_SIZE;
+    bool isIp = sizeof(eth_hdr) < size && static_cast<const eth_hdr *>(packet)->type == ETHTYPE_IP;
+    TxoProto txoProto = isIp ? TxoProto_IP : TxoProto_Unsupported;
+    if(txoProto == TxoProto_IP && sizeof(eth_hdr) + sizeof(ip_hdr) < size) {
+        const ip_hdr * iphdr = reinterpret_cast<const ip_hdr *>(static_cast<const uint8_t *>(packet) + sizeof(eth_hdr));
+        uint8_t proto =  iphdr->proto;
+        if(proto == IP_PROTO_TCP) {
+            txoProto = TxoProto_TCP;
+        }
+        else if(proto == IP_PROTO_UDP) {
+            txoProto = TxoProto_UDP;
+        }
+
+        // lwIP uses no IP options, unless IGMP is enabled.
+        assert((iphdr->v_hl & 0xf) == 5); // 5 in big endian
+    };
+
+    bool isTcp = txoProto == TxoProto_TCP;
+    bool isUdp = txoProto == TxoProto_UDP;
+
+    bool txdContextUpdateRequired = (_txdContextProto & txoProto) != txoProto;
+    if(txdContextUpdateRequired && (nextTxDesc = incRb(nextTxDesc, TX_BUF_COUNT)) == head) {
+        SLOG(NIC, "Not enough free descriptors to update context and transmit data.");
+        return false;
+    }
+
+    uint32_t curTxDesc = _curTxDesc;
+    _curTxDesc = nextTxDesc;
+
+    uint32_t curTxBuf = _curTxBuf;
+    _curTxBuf = incRb(_curTxBuf, TX_BUF_COUNT);
+
+    // Update context descriptor if necessary (different protocol)
+    if(txdContextUpdateRequired) {
+        SLOG(NIC, "Writing context descriptor.");
+
+        TxContextDesc desc = {};
+        desc.TUCSE = 0;
+        desc.TUCSO = sizeof(eth_hdr) + sizeof(ip_hdr) + (isTcp ? TCP_CHECKSUM_OFFSET : UDP_CHECKSUM_OFFSET);
+        desc.TUCSS = 0;
+        desc.IPCSE = 0;
+        desc.IPCSO = sizeof(eth_hdr) + offsetof(ip_hdr, chksum);
+        desc.IPCSS = 0;
+        desc.MSS = 0;
+        desc.HDRLEN = 0;
+        desc.STA = 0;
+        desc.TUCMD = 1 << 5 | static_cast<uint8_t>(isIp << 1 | isTcp << 0); // DEXT | IP | TCP
+        desc.DTYP = 0x0000;
+        desc.PAYLEN = 0;
+
+        _bufs.write(&desc, sizeof(TxDesc), offsetof(Buffers, txDescs) + curTxDesc * sizeof(TxDesc));
+        curTxDesc = incRb(curTxDesc, TX_BUF_COUNT);
+
+        _txdContextProto = txoProto;
+    }
+
+    // Send packet
+    auto offset = offsetof(Buffers, txBuf) + curTxBuf * TX_BUF_SIZE;
     _bufs.write(packet, size, offset);
-    SLOG(NIC, "TX " << cur << ": " << offset << ".." << (offset + size));
+
+    SLOG(NIC, "TX " << curTxDesc << ": " << offset << ".." << (offset + size) << ", " << (isUdp ? "UDP" : (isTcp ? "TCP" : (isIp ? "IP" : "Unknown ethertype"))));
 
     // setup descriptor
-    TxDesc desc = {};
-    desc.cmd = TX_CMD_EOP | TX_CMD_IFCS;
-    desc.length = size;
+    TxDataDesc desc = {};
     desc.buffer = offset;
-    desc.status = 0;
-    _bufs.write(&desc, sizeof(TxDesc), offsetof(Buffers, txDescs) + cur * sizeof(TxDesc));
+    desc.length = size;
+    desc.DTYP = 0x0001;
+    desc.DCMD = 1 << 5 | TX_CMD_EOP | TX_CMD_IFCS; // DEXT | TX_CMD_EOP | TX_CMD_IFCS
+    desc.STA = 0;
+    desc.RSV = 0;
+    desc.POPTS = static_cast<uint8_t>((isTcp | isUdp) << 1 | isIp << 0); // TXSM | IXSM
+    desc.Special = 0;
 
-    writeReg(REG_TDT, _curTxBuf);
+    _bufs.write(&desc, sizeof(TxDesc), offsetof(Buffers, txDescs) + curTxDesc * sizeof(TxDesc));
 
+    writeReg(REG_TDT, _curTxDesc);
     SLOG(NIC, "Status" << fmt(readReg(REG_STATUS), "x", 4));
 
     return true;
@@ -217,32 +284,79 @@ void E1000::receive(size_t maxReceiveCount) {
     //   rather than by I/O reads. Any descriptor with a non-zero status byte has been processed by the
     //   hardware, and is ready to be handled by the software."
 
-    uint32_t tail = incTail(readReg(REG_RDT), RX_BUF_COUNT);
+    uint32_t tail = incRb(readReg(REG_RDT), RX_BUF_COUNT);
     RxDesc desc;
     _bufs.read(&desc, sizeof(RxDesc), offsetof(Buffers, rxDescs) + tail * sizeof(RxDesc));
     // TODO: Ensure that packets that are not processed because the maxReceiveCount has been exceeded,
     // to be processed later, independently of an interrupt.
-    while((desc.status & RDS_DONE) && maxReceiveCount-- > 0) {
+    while((desc.status & RXDS_DD) && maxReceiveCount-- > 0) {
         SLOG(NIC, "RX " << tail
                 << ": " << fmt(desc.buffer, "#0x", 8)
                 << ".." << fmt(desc.buffer + desc.length, "#0x", 8)
                 << " st=" << fmt(desc.status, "#0x", 2)
                 << " er=" << fmt(desc.error, "#0x", 2));
 
-        // read data into packet
-        size_t size = desc.length;
-        uint8_t *pkt = (uint8_t *)malloc(size);
-        if(!pkt) {
-            SLOG(NIC, "Not enough memory to read packet");
-            break;
+        bool validChecksum;
+        // Ignore Checksum Indication not set
+        if(!(desc.status & RXDS_IXSM))
+        {
+            if(desc.status & RXDS_IPCS)
+            {
+                validChecksum = !(desc.error & RXDE_IPE);
+                if(!validChecksum)
+                {
+                    // TODO: Increase lwIP ip drop/chksum counters
+                    SLOG(NIC, "Dropped packet with IP checksum error.");
+                }
+                else if(desc.status & (RXDS_TCPCS | RXDS_UDPCS))
+                {
+                    validChecksum = !(desc.error & RXDE_TCPE);
+                    if(!validChecksum)
+                    {
+                        // TODO: Increase lwIP tcp/udp drop/chksum counters
+                        SLOG(NIC, "Dropped packet with TCP/UDP checksum error.");
+                    }
+                }
+                else
+                {
+                    // TODO: Maybe ensure that it is really not TCP/UDP?
+                }
+            }
+            else
+            {
+                // TODO: Maybe ensure that it is really not IP?
+                validChecksum = true;
+            }
         }
-        _bufs.read(pkt, size, desc.buffer);
 
-        // Call receive callback
-        if(_recvCallback)
-            _recvCallback(pkt, size);
+        if(validChecksum)
+        {
+            // read data into packet
+           size_t size = desc.length;
+           void * pkt = 0;
+           void * buf = 0;
+           size_t bufSize = 0;
+           if(!_allocCallback(pkt, buf, bufSize, size)) {
+               SLOG(NIC, "Failed to allocate buffer to read packet.");
+               break;
+           }
 
-        free(pkt);
+           void * pkt_head = pkt;
+           size_t readCount = 0;
+           do {
+               size_t readSize = std::min(bufSize, size - readCount);
+               SLOG(NIC, "_bufs.read: " << buf  << " "  << readSize << " "  << readCount);
+               _bufs.read(buf, readSize, desc.buffer + readCount);
+               readCount += readSize;
+               if(readCount == size)
+                   break;
+               _nextBufCallback(pkt, buf, bufSize);
+           } while(true);
+
+
+           _recvCallback(pkt_head);
+        }
+
 
         desc.length = 0;
         desc.checksum = 0;
@@ -250,16 +364,9 @@ void E1000::receive(size_t maxReceiveCount) {
         desc.error = 0;
         _bufs.write(&desc, sizeof(RxDesc), offsetof(Buffers, rxDescs) + tail * sizeof(RxDesc));
 
-        //pkt->length = size;
-        //memcpy(pkt->data,_bufs->rxBuf + _curRxBuf * RX_BUF_SIZE,size);
-
-        // insert into list
-        //insert(pkt);
-        //(*_handler)();
-
         // to next packet
         writeReg(REG_RDT, tail);
-        tail = incTail(tail, RX_BUF_COUNT);
+        tail = incRb(tail, RX_BUF_COUNT);
         _bufs.read(&desc, sizeof(RxDesc), offsetof(Buffers, rxDescs) + tail * sizeof(RxDesc));
     }
 }
@@ -274,10 +381,6 @@ void E1000::receiveInterrupt() {
     }
 
     receive(MAX_RECEIVE_COUNT_PER_INTERRUPT);
-}
-
-void E1000::setReceiveCallback(std::function<void(uint8_t* pkt, size_t size)> callback) {
-    _recvCallback = callback;
 }
 
 m3::net::MAC E1000::readMAC() {

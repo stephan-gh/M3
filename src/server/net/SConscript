@@ -14,7 +14,9 @@ if env['ARCH'] == 'gem5':
             Glob('lwip/core/ipv6/*.c'),
             Glob('lwip/netif/*.c'),
             Glob('lwip/port/*.c'),
-            Glob('lwip/port/*.cc')
+            Glob('lwip/port/*.cc'),
+            Glob('sess/*.cc'),
+            Glob('sess/socket/*.cc'),
         ],
         libs = ['pci']
     )

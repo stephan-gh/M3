@@ -62,6 +62,7 @@ public:
     void init(uint threads);
 
     void wait_for(event_t event) {
+        // TODO: Maybe a bug, there could be threads in _ready.
         if(_sleep.length() == 0)
             PANIC("Not enough threads");
         _current->subscribe(event);

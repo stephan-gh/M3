@@ -54,6 +54,21 @@ static const char *errmsgs[] = {
     "Messages are waiting to be handled",
     "Reply will be sent via upcall",
     "Commit failed",
+
+    /* Socket */
+    "In use",
+    "Invalid state",
+    "Would block",
+    "In progress",
+    "Already in progress",
+    "Socket is not connected",
+    "Socket is connected",
+    "Connection aborted",
+    "Connection reset/refused by peer",
+    "Connection closed gracefully",
+    "Timeout",
+    "Network is unreachable",
+    "Socket closed"
 };
 
 const char *Errors::to_string(Code code) {

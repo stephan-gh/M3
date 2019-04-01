@@ -23,7 +23,7 @@ int main() {
     NetworkManager net("net1");
     String status;
 
-    InetSocket *socket = net.create(NetworkManager::SOCK_DGRAM);
+    Socket *socket = net.create(Socket::SOCK_DGRAM);
     if(!socket)
         exitmsg("Socket creation failed.");
     cout << "Socket created.\n";

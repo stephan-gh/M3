@@ -24,8 +24,7 @@
 
 namespace m3 {
 
-SendGate SendGate::create(RecvGate *rgate, label_t label, word_t credits, RecvGate *replygate, capsel_t sel) {
-    uint flags = 0;
+SendGate SendGate::create(RecvGate *rgate, label_t label, word_t credits, RecvGate *replygate, capsel_t sel, uint flags) {
     replygate = replygate == nullptr ? &RecvGate::def() : replygate;
     if(sel == INVALID)
         sel = VPE::self().alloc_sel();

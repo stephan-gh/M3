@@ -17,6 +17,7 @@
 #include "arch/cc.h"
 
 #include <base/Heap.h>
+#include <base/Panic.h>
 #include <base/stream/Serial.h>
 
 #include <cstdarg>
@@ -57,3 +58,6 @@ int printf_adapter(const char *fmt, ...) {
     }
 }
 
+void lwip_cc_panic() {
+    PANIC("");
+}

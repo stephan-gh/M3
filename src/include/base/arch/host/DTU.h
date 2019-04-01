@@ -216,6 +216,11 @@ public:
         return false;
     }
 
+    bool has_credits(epid_t) const {
+        // TODO not supported
+        return true;
+    }
+
     Message *fetch_msg(epid_t ep) {
         if(get_ep(ep, EP_BUF_MSGCNT) == 0)
             return nullptr;

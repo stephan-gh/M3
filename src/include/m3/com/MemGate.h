@@ -60,8 +60,8 @@ public:
      * @param sel the selector to use (if != INVALID, the selector is NOT freed on destruction)
      * @return the memory gate
      */
-    static MemGate create_global(size_t size, int perms, capsel_t sel = INVALID) {
-        return create_global_for(static_cast<goff_t>(-1), size, perms, sel);
+    static MemGate create_global(size_t size, int perms, capsel_t sel = INVALID, uint flags = 0) {
+        return create_global_for(static_cast<goff_t>(-1), size, perms, sel, flags);
     }
 
     /**
@@ -73,7 +73,7 @@ public:
      * @param sel the selector to use (if != INVALID, the selector is NOT freed on destruction)
      * @return the memory gate
      */
-    static MemGate create_global_for(goff_t addr, size_t size, int perms, capsel_t sel = INVALID);
+    static MemGate create_global_for(goff_t addr, size_t size, int perms, capsel_t sel = INVALID, uint flags = 0);
 
     /**
      * Binds this gate for read/write/cmpxchg to the given memory capability. That is, the
@@ -138,9 +138,10 @@ public:
      * @param offset the offset inside this memory capability
      * @param size the size of the memory area
      * @param perms the permissions (you can only downgrade)
+     * @param flags the capability flags
      * @return the new memory gate
      */
-    MemGate derive_for(capsel_t vpe, capsel_t sel, goff_t offset, size_t size, int perms = RWX) const;
+    MemGate derive_for(capsel_t vpe, capsel_t sel, goff_t offset, size_t size, int perms = RWX, uint flags = 0) const;
 
     /**
      * Writes the <len> bytes at <data> to <offset>.

@@ -41,6 +41,8 @@
  *
  */
 
+#include <stdint.h>
+
 #include "mini_printf.h"
 
 static unsigned int
@@ -52,8 +54,8 @@ mini_strlen(const char *s)
 }
 
 static unsigned int
-mini_itoa(int value, unsigned int radix, unsigned int uppercase, unsigned int unsig,
-     char *buffer, unsigned int zero_pad)
+mini_itoa(int64_t value, unsigned int radix, unsigned int uppercase, unsigned int unsig,
+     char *buffer, char pad_char, unsigned int pad_len)
 {
     char    *pbuffer = buffer;
     int    negative = 0;
@@ -75,8 +77,8 @@ mini_itoa(int value, unsigned int radix, unsigned int uppercase, unsigned int un
         value /= radix;
     } while (value > 0);
 
-    for (i = (pbuffer - buffer); i < zero_pad; i++)
-        *(pbuffer++) = '0';
+    for (i = (pbuffer - buffer); i < pad_len; i++)
+        *(pbuffer++) = pad_char;
 
     if (negative)
         *(pbuffer++) = '-';
@@ -110,7 +112,7 @@ _putc(int ch, struct mini_buff *b)
     return 1;
 }
 
-static int
+static unsigned int
 _puts(char *s, unsigned int len, struct mini_buff *b)
 {
     unsigned int i;
@@ -143,7 +145,8 @@ mini_vsnprintf(char *buffer, unsigned int buffer_len, const char *fmt, va_list v
         if (ch!='%')
             _putc(ch, &b);
         else {
-            char zero_pad = 0;
+            char pad_char = ' ';
+            char pad_len = 0;
             char *ptr;
             unsigned int len;
 
@@ -154,8 +157,15 @@ mini_vsnprintf(char *buffer, unsigned int buffer_len, const char *fmt, va_list v
                 ch=*(fmt++);
                 if (ch == '\0')
                     goto end;
-                if (ch >= '0' && ch <= '9')
-                    zero_pad = ch - '0';
+                if (ch >= '0' && ch <= '9') {
+                    pad_char = '0';
+                    pad_len = ch - '0';
+                }
+                ch=*(fmt++);
+            /* Space padding requested */
+            } else if (ch >= '1' && ch <= '9') {
+                pad_char = ' ';
+                pad_len = ch - '0';
                 ch=*(fmt++);
             }
 
@@ -165,13 +175,14 @@ mini_vsnprintf(char *buffer, unsigned int buffer_len, const char *fmt, va_list v
 
                 case 'u':
                 case 'd':
-                    len = mini_itoa(va_arg(va, unsigned int), 10, 0, (ch=='u'), bf, zero_pad);
+                    len = mini_itoa(va_arg(va, int64_t), 10, 0, (ch=='u'), bf, pad_char, (unsigned int)pad_len);
                     _puts(bf, len, &b);
                     break;
 
+                case 'p':
                 case 'x':
                 case 'X':
-                    len = mini_itoa(va_arg(va, unsigned int), 16, (ch=='X'), 1, bf, zero_pad);
+                    len = mini_itoa(va_arg(va, int64_t), 16, (ch=='X'), 1, bf, pad_char, (unsigned int)pad_len);
                     _puts(bf, len, &b);
                     break;
 

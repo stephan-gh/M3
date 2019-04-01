@@ -15,6 +15,7 @@
  */
 
 #include <base/util/Time.h>
+#include <base/Env.h>
 
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
@@ -22,14 +23,18 @@
 using namespace m3;
 
 int main() {
+    env()->workloop()->multithreaded(4);
+
     NetworkManager net("net0");
 
-    InetSocket *socket = net.create(NetworkManager::SOCK_DGRAM);
+    Socket *socket = net.create(Socket::SOCK_DGRAM);
     if(!socket)
         exitmsg("Socket creation failed.");
+    socket->blocking(true);
 
-    if(socket->connect(IpAddr(192, 168, 112, 1), 1337) != Errors::NONE)
-        exitmsg("Socket connect failed:" << Errors::to_string(Errors::last));
+    Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
+    if(err != Errors::NONE)
+        exitmsg("Socket connect failed:" << Errors::to_string(err));
 
     union {
         uint8_t raw[1024];

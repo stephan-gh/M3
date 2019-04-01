@@ -73,16 +73,23 @@ void WorkLoop::tick() {
 
 void WorkLoop::run() {
     while(has_items()) {
-        // we are not interested in the events here; just fetch them before the sleep
-        DTU::get().fetch_events();
+        if(_sleep_handler == nullptr) {
+            // we are not interested in the events here; just fetch them before the sleep
+            DTU::get().fetch_events();
 
-        // wait first to ensure that we check for loop termination *before* going to sleep
-        DTU::get().try_sleep();
+            // wait first to ensure that we check for loop termination *before* going to sleep
+            DTU::get().try_sleep();
+        } else
+            _sleep_handler();
 
         tick();
 
         m3::ThreadManager::get().yield();
     }
+}
+
+void WorkLoop::set_sleep_handler(sleep_handler_t sleep_handler) {
+    _sleep_handler = sleep_handler;
 }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2015, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -42,6 +42,12 @@ public:
         return _size;
     }
 
+    /**
+     * Determines the current write position.
+     *
+     * @param size the amount of bytes to write
+     * @return the write position of the buffer, or -1 if the buffer does not has <size> bytes of consecutive free memory
+     */
     ssize_t get_write_pos(size_t size) {
         if(SINGLE_ITEM_BUF || (_wrpos % DTU_PKG_SIZE)) {
             if(!empty())
@@ -61,6 +67,12 @@ public:
         return -1;
     }
 
+    /**
+     * Determines the read position and the amount of bytes available to read.
+     *
+     * @param size the amount of bytes to read (*<size> = min(*<size>, available bytes))
+     * @return the read position of the buffer, or -1 if the buffer is empty
+     */
     ssize_t get_read_pos(size_t *size) {
         if(_wrpos == _rdpos)
             return -1;
@@ -75,6 +87,14 @@ public:
         return static_cast<ssize_t>(rpos);
     }
 
+    /**
+     * Advances the write position by <size>.
+     *
+     * @param req_size the number of bytes passed to get_write_pos
+     *    Used to detect a potential wrap around to zero done by get_write_pos,
+     *    even if <size> would not require one.
+     * @param size the number of bytes to advance the write position by
+     */
     void push(size_t req_size, size_t size) {
         assert((_wrpos % DTU_PKG_SIZE) == 0);
 
@@ -90,6 +110,11 @@ public:
             _wrpos += size;
     }
 
+    /**
+     * Advances the read position by <size>.
+     *
+     * @param size the number of bytes to advance the read position by
+     */
     void pull(size_t size) {
         assert(!empty());
         if(_rdpos == _last) {

@@ -92,6 +92,14 @@ public:
     }
 
     /**
+     * @return an invalid receive, which can be passed as reply gate to a send gate
+     *  that is not interested in actual replies, but only wants to get its credits back.
+     */
+    static RecvGate &invalid() {
+        return _invalid;
+    }
+
+    /**
      * Creates a new receive gate with given size.
      *
      * @param order the size of the buffer (2^<order> bytes)
@@ -127,7 +135,7 @@ public:
      * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
      * @return the receive gate
      */
-    static RecvGate create_for(VPE &vpe, capsel_t sel, int order, int msgorder);
+    static RecvGate create_for(VPE &vpe, capsel_t sel, int order, int msgorder, uint flags = 0);
 
     /**
      * Binds the receive gate at selector <sel>.
@@ -244,6 +252,7 @@ private:
     static RecvGate _syscall;
     static RecvGate _upcall;
     static RecvGate _default;
+    static RecvGate _invalid;
 };
 
 }

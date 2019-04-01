@@ -84,4 +84,14 @@ pes.append(ether1)
 
 linkEtherPEs(ether0, ether1)
 
+
+rpe = createAccelPE(noc=root.noc,
+                    options=options,
+                    no=num_pes + num_mem + num_sto + 2,
+                    accel='rot13',
+                    memPE=mem_pe,
+                    spmsize='64kB')
+                    #l1size='32kB')
+pes.append(rpe)
+
 runSimulation(root, options, pes)

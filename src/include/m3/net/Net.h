@@ -15,9 +15,42 @@
  * General Public License version 2 for more details.
  */
 
+#pragma once
+
 #include <base/Common.h>
 
 namespace m3 {
+
+class IpAddr {
+public:
+    IpAddr()
+        : _addr(0) {
+    }
+
+    explicit IpAddr(uint32_t addr)
+        : _addr(addr) {
+    }
+    IpAddr(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+        : _addr(static_cast<uint32_t>(a << 24 | b << 16 | c << 8 | d)) {
+    }
+
+    uint32_t addr() const {
+        return _addr;
+    }
+    void addr(uint32_t addr) {
+        _addr = addr;
+    }
+private:
+    uint32_t _addr;
+};
+
+static inline bool operator==(const IpAddr &a,const IpAddr &b) {
+    return a.addr() == b.addr();
+}
+static inline bool operator!=(const IpAddr &a,const IpAddr &b) {
+    return !operator==(a,b);
+}
+
 namespace net {
 
 /**
