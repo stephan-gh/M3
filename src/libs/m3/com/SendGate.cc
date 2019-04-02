@@ -39,9 +39,11 @@ Errors::Code SendGate::activate_for(VPE &vpe, epid_t ep) {
 }
 
 Errors::Code SendGate::send(const void *data, size_t len, label_t reply_label) {
-    ensure_activated();
+    Errors::Code res = ensure_activated();
+    if(res != Errors::NONE)
+        return res;
 
-    Errors::Code res = DTU::get().send(ep(), data, len, reply_label, _replygate->ep());
+    res = DTU::get().send(ep(), data, len, reply_label, _replygate->ep());
     if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
         event_t event = ThreadManager::get().get_wait_event();
         res = Syscalls::get().forwardmsg(sel(), _replygate->sel(), data, len, reply_label, event);

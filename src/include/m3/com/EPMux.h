@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 #include <base/Config.h>
+#include <base/Errors.h>
 
 #include <assert.h>
 
@@ -55,8 +56,9 @@ public:
      * from an endpoint.
      *
      * @param gate the gate
+     * @return the error code
      */
-    void switch_to(Gate *gate);
+    Errors::Code switch_to(Gate *gate);
 
     /**
      * If <gate> is already configured on some endpoint, it exchanges the configuration to use the
@@ -84,7 +86,7 @@ public:
 private:
     bool is_in_use(epid_t ep) const;
     epid_t select_victim();
-    void activate(epid_t ep, capsel_t newcap);
+    Errors::Code activate(epid_t ep, capsel_t newcap);
 
     epid_t _next_victim;
     Gate *_gates[EP_COUNT];

@@ -90,9 +90,10 @@ public:
     }
 
 protected:
-    void ensure_activated() {
+    Errors::Code ensure_activated() {
         if(_ep == UNBOUND && sel() != ObjCap::INVALID)
-            EPMux::get().switch_to(this);
+            return EPMux::get().switch_to(this);
+        return Errors::NONE;
     }
 
 private:

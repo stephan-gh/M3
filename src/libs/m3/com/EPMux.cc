@@ -48,11 +48,14 @@ bool EPMux::reserve(epid_t ep) {
     return true;
 }
 
-void EPMux::switch_to(Gate *gate) {
+Errors::Code EPMux::switch_to(Gate *gate) {
     epid_t victim = select_victim();
-    activate(victim, gate->sel());
+    Errors::Code res = activate(victim, gate->sel());
+    if(res != Errors::NONE)
+        return res;
     _gates[victim] = gate;
     gate->_ep = victim;
+    return Errors::NONE;
 }
 
 void EPMux::switch_cap(Gate *gate, capsel_t newcap) {
@@ -119,12 +122,8 @@ done:
     return victim;
 }
 
-void EPMux::activate(epid_t ep, capsel_t newcap) {
-    if(Syscalls::get().activate(VPE::self().ep_to_sel(ep), newcap, 0) != Errors::NONE) {
-        // if we wanted to deactivate a cap, we can ignore the failure
-        if(newcap != ObjCap::INVALID)
-            PANIC("Unable to configure EP " << ep << ": " << Errors::to_string(Errors::last));
-    }
+Errors::Code EPMux::activate(epid_t ep, capsel_t newcap) {
+    return Syscalls::get().activate(VPE::self().ep_to_sel(ep), newcap, 0);
 }
 
 }

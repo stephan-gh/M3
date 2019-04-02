@@ -83,10 +83,12 @@ Errors::Code MemGate::forward(void *&data, size_t &len, goff_t &offset, uint fla
 
 Errors::Code MemGate::read(void *data, size_t len, goff_t offset) {
     EVENT_TRACER_read();
-    ensure_activated();
+    Errors::Code res = ensure_activated();
+    if(res != Errors::NONE)
+        return res;
 
 retry:
-    Errors::Code res = DTU::get().read(ep(), data, len, offset, _cmdflags);
+    res = DTU::get().read(ep(), data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
         res = forward(data, len, offset, _cmdflags);
         if(len > 0 || res != m3::Errors::NONE)
@@ -98,10 +100,12 @@ retry:
 
 Errors::Code MemGate::write(const void *data, size_t len, goff_t offset) {
     EVENT_TRACER_write();
-    ensure_activated();
+    Errors::Code res = ensure_activated();
+    if(res != Errors::NONE)
+        return res;
 
 retry:
-    Errors::Code res = DTU::get().write(ep(), data, len, offset, _cmdflags);
+    res = DTU::get().write(ep(), data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
         res = forward(const_cast<void*&>(data), len, offset,
             _cmdflags | KIF::Syscall::ForwardMem::WRITE);
