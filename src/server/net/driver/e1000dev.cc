@@ -73,6 +73,10 @@ E1000::E1000(pci::ProxiedPciDevice &nic, alloc_cb_func allocCallback, next_buf_c
     writeReg(REG_IMS, ICR_LSC | ICR_RXO | ICR_RXT0);
 }
 
+void E1000::stop() {
+    _nic.stopListing();
+}
+
 void E1000::reset() {
     // always reset MAC.  Required to reset the TX and RX rings.
     uint32_t ctrl = readReg(REG_CTRL);

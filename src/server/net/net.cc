@@ -59,8 +59,9 @@ static Server<NMRequestHandler> *srv;
 
 class NMRequestHandler: public net_reqh_base_t {
 public:
-    explicit NMRequestHandler()
+    explicit NMRequestHandler(E1000 *e1000)
         : net_reqh_base_t(),
+          _e1000(e1000),
           _rgate(RecvGate::create(nextlog2<32 * NMSession::MSG_SIZE>::val, nextlog2<NMSession::MSG_SIZE>::val)) {
         add_operation(NetworkManager::CREATE, &NMRequestHandler::create);
         add_operation(NetworkManager::BIND, &NMRequestHandler::bind);
@@ -79,6 +80,7 @@ public:
 
     virtual Errors::Code open(NMSession **sess, capsel_t srv_sel, word_t) override {
         *sess = new SocketSession(srv_sel, _rgate);
+        _sessions.append(*sess);
         return Errors::NONE;
     }
 
@@ -91,11 +93,21 @@ public:
     }
 
     virtual Errors::Code close(NMSession *sess) override {
+        if(sess->type() == NMSession::SOCKET)
+            _sessions.remove(sess);
         delete sess;
+        _rgate.drop_msgs_with(reinterpret_cast<label_t>(sess));
         return Errors::NONE;
     }
 
     virtual void shutdown() override {
+        // delete sessions to remove items from workloop etc.
+        for(auto it = _sessions.begin(); it != _sessions.end(); ) {
+            auto old = it++;
+            delete &*old;
+        }
+
+        _e1000->stop();
         _rgate.stop();
     }
 
@@ -153,7 +165,9 @@ public:
     }
 
 private:
+    E1000 *_e1000;
     RecvGate _rgate;
+    SList<NMSession> _sessions;
 };
 
 static std::queue<struct pbuf*> recvQueue;
@@ -284,9 +298,9 @@ int main(int argc, char **argv) {
 
     /* Start DHCP */
     // dhcp_start(&netif );
-    srv = new Server<NMRequestHandler>(argv[1], new NMRequestHandler());
+    srv = new Server<NMRequestHandler>(argv[1], new NMRequestHandler(&e1000));
 
-    while(1) {
+    while(env()->workloop()->has_items()) {
         /* Check link state, e.g. via MDIO communication with PHY */
         if(link_state_changed(&netif)) {
             if(link_is_up(&netif))

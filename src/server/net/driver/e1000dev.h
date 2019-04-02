@@ -277,6 +277,7 @@ public:
         return TX_BUF_SIZE;
     }
 
+    void stop();
     void reset();
     bool send(const void *packet, size_t size);
     void receive(size_t maxReceiveCount);

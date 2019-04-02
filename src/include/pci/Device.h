@@ -61,6 +61,7 @@ public:
     void setDmaEp(m3::MemGate &memgate);
 
     void listenForIRQs(std::function<void()> callback);
+    void stopListing();
 
     void waitForIRQ() {
         const m3::DTU::Message *msg;
