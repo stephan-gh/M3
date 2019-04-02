@@ -42,7 +42,7 @@ Platform::Init::Init() {
 
     // read boot modules
     size_t total_mod_size = info->mod_size + sizeof(m3::BootInfo::Mod);
-    Platform::_mods = reinterpret_cast<m3::BootInfo::Mod*>(m3::Heap::alloc(total_mod_size));
+    Platform::_mods = reinterpret_cast<m3::BootInfo::Mod*>(malloc(total_mod_size));
     DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_mods, info->mod_size);
     addr += info->mod_size;
 
