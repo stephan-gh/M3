@@ -35,7 +35,8 @@ class FileSession : public NMSession {
         FileSession & _session;
     };
 public:
-    explicit FileSession(capsel_t srv_sel, LwipSocket * socket, int mode, size_t rmemsize, size_t smemsize);
+    explicit FileSession(capsel_t srv_sel, LwipSocket * socket, int mode,
+                         size_t rmemsize, size_t smemsize);
 
     ~FileSession();
 
@@ -78,7 +79,7 @@ private:
 private:
     WorkItem _work_item;
 
-    m3::SendGate *_sgate;
+    m3::SendGate _sgate;
     LwipSocket * _socket;
     // Shared memory provided by client
     m3::MemGate *_memory;

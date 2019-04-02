@@ -30,11 +30,12 @@ static void reply_vmsg_late(RecvGate &rgate, const DTU::Message *msg, const Args
     rgate.reply(reply.bytes(), reply.total(), idx);
 }
 
-FileSession::FileSession(capsel_t srv_sel, LwipSocket* socket, int mode, size_t rmemsize, size_t smemsize)
+FileSession::FileSession(capsel_t srv_sel, LwipSocket* socket, int mode,
+                         size_t rmemsize, size_t smemsize)
     : NMSession(srv_sel, VPE::self().alloc_sels(2)),
       _work_item(*this),
-      _sgate(new SendGate(SendGate::create(&socket->session()->rgate(), reinterpret_cast<label_t>(this),
-                                           MSG_SIZE, nullptr, sel() + 1))),
+      _sgate(SendGate::create(&socket->session()->rgate(), reinterpret_cast<label_t>(this),
+                              MSG_SIZE, nullptr, sel() + 1)),
       _socket(socket),
       _memory(nullptr),
       _mode(mode),
@@ -49,7 +50,7 @@ FileSession::FileSession(capsel_t srv_sel, LwipSocket* socket, int mode, size_t 
     m3::env()->workloop()->add(&_work_item, false);
 }
 
-FileSession::~FileSession()  {
+FileSession::~FileSession() {
     m3::env()->workloop()->remove(&_work_item);
 
     if(_pending && _pending_gate) {
@@ -57,7 +58,6 @@ FileSession::~FileSession()  {
         reply_vmsg_late(*_pending_gate, _pending, Errors::NONE, (size_t)0, (size_t)0);
     }
 
-    delete _sgate;
     delete _client_memgate;
     delete _memory;
 }
