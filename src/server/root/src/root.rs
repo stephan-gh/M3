@@ -40,7 +40,7 @@ use m3::session::{ResMng, ResMngOperation};
 use m3::util;
 use m3::vpe::{VPE, VPEArgs};
 
-use resmng::childs::{self, BootChild, Child, Id};
+use resmng::childs::{self, OwnChild, Child, Id};
 use resmng::{config, memory, sendqueue, services};
 
 //
@@ -52,7 +52,7 @@ use resmng::{config, memory, sendqueue, services};
 //
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
 
-static DELAYED: StaticCell<Vec<BootChild>>  = StaticCell::new(Vec::new());
+static DELAYED: StaticCell<Vec<OwnChild>>  = StaticCell::new(Vec::new());
 static MODS: StaticCell<(usize, usize)>     = StaticCell::new((0, 0));
 static RGATE: StaticCell<Option<RecvGate>>  = StaticCell::new(None);
 
@@ -146,7 +146,7 @@ fn free_mem(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn start_child(child: &mut BootChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
+fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
     let sgate = SendGate::new_with(
         SGateArgs::new(req_rgate()).credits(256).label(child.id() as u64)
     )?;
@@ -328,7 +328,7 @@ pub fn main() -> i32 {
         }
 
         let (args, daemon, cfg) = cfgs.remove(0);
-        let mut child = BootChild::new(id as Id, args, daemon, cfg);
+        let mut child = OwnChild::new(id as Id, args, daemon, cfg);
         if child.has_unmet_reqs() {
             DELAYED.get_mut().push(child);
         }

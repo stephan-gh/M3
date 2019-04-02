@@ -244,7 +244,7 @@ pub fn main() -> i32 {
 
     let (_, _, cfg) = config::Config::new(&args[0], false)
         .expect("Unable to parse config");
-    let mut child = childs::BootChild::new(0, args, false, cfg);
+    let mut child = childs::OwnChild::new(0, args, false, cfg);
     childs::get().set_next_id(1);
 
     vpe.mounts().add("/", VPE::cur().mounts().get_by_path("/").unwrap()).unwrap();

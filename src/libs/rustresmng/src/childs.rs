@@ -201,7 +201,7 @@ pub trait Child {
     }
 }
 
-pub struct BootChild {
+pub struct OwnChild {
     id: Id,
     name: String,
     args: Vec<String>,
@@ -211,9 +211,9 @@ pub struct BootChild {
     activity: Option<ExecActivity>,
 }
 
-impl BootChild {
+impl OwnChild {
     pub fn new(id: Id, args: Vec<String>, daemon: bool, cfg: Rc<Config>) -> Self {
-        BootChild {
+        OwnChild {
             id: id,
             name: cfg.name().clone(),
             args: args,
@@ -242,7 +242,7 @@ impl BootChild {
     }
 }
 
-impl Child for BootChild {
+impl Child for OwnChild {
     fn id(&self) -> Id {
         self.id
     }
@@ -271,7 +271,7 @@ impl Child for BootChild {
     }
 }
 
-impl Drop for BootChild {
+impl Drop for OwnChild {
     fn drop(&mut self) {
         self.remove_resources();
     }
