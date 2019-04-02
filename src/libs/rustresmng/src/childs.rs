@@ -422,6 +422,7 @@ impl ChildManager {
         let no_wait_childs = self.daemons() + self.foreigns();
         if !self.shutdown && self.len() == no_wait_childs {
             self.shutdown = true;
+            self.kill_daemons();
             services::get().shutdown();
         }
         if self.len() > 0 {
@@ -434,6 +435,27 @@ impl ChildManager {
             let child = self.remove_rec(id).unwrap();
 
             log!(RESMNG, "Child '{}' exited with exitcode {}", child.name(), exitcode);
+        }
+    }
+
+    fn kill_daemons(&mut self) {
+        let ids = self.ids.clone();
+        for id in ids {
+            // kill all daemons that didn't register a service
+            let can_kill = {
+                let child = self.child_by_id(id).unwrap();
+                if child.daemon() && child.res().services.len() == 0 {
+                    log!(RESMNG, "Killing child '{}'", child.name());
+                    true
+                }
+                else {
+                    false
+                }
+            };
+
+            if can_kill {
+                self.remove_rec(id).unwrap();
+            }
         }
     }
 
