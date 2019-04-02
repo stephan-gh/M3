@@ -25,32 +25,9 @@
 
 namespace kernel {
 
-static size_t count = 0;
 static uint64_t loaded = 0;
 
 static const m3::BootInfo::Mod *get_mod(const char *name, bool *first) {
-    if(count == 0) {
-        for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod) {
-            KLOG(KENV, "Module '" << mod->name << "':");
-            KLOG(KENV, "  addr: " << m3::fmt(mod->addr, "p"));
-            KLOG(KENV, "  size: " << m3::fmt(mod->size, "p"));
-
-            count++;
-        }
-
-        static const char *types[] = {"imem", "emem", " mem"};
-        static const char *isas[] = {
-            "none ", "x86  ", "arm  ", "xtens", "indir", "fft  ", "rot13",
-            "stenc", "md   ", "spmv ", "afft ", "ide  ", "nic  ",
-        };
-        for(size_t i = 0; i < Platform::pe_count(); ++i) {
-            KLOG(KENV, "PE" << m3::fmt(i, 2) << ": "
-                << types[static_cast<size_t>(Platform::pe(i).type())] << " "
-                << isas[static_cast<size_t>(Platform::pe(i).isa())] << " "
-                << (Platform::pe(i).mem_size() / 1024) << " KiB memory");
-        }
-    }
-
     size_t i = 0;
     size_t namelen = strlen(name);
     for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod, ++i) {
@@ -203,8 +180,6 @@ void VPE::load_app() {
     const m3::BootInfo::Mod *mod = get_mod("root", &appFirst);
     if(!mod)
         PANIC("Unable to find boot module 'root'");
-
-    KLOG(KENV, "Loading mod '" << mod->name << "':");
 
     if(Platform::pe(pe()).has_virtmem()) {
         // map runtime space

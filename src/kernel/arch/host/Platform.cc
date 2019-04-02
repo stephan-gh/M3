@@ -122,9 +122,6 @@ void Platform::add_modules(int argc, char **argv) {
             mod->size = alloc.size;
         }
 
-        KLOG(KENV, "Module '" << mod->name << "'");
-        KLOG(KENV, "  addr: " << m3::fmt(mod->addr, "p"));
-        KLOG(KENV, "  size: " << m3::fmt(mod->size, "p"));
         mods.push_back(mod);
         i = j;
     }
