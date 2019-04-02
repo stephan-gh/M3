@@ -45,9 +45,9 @@ use resmng::{config, memory, sendqueue, services};
 
 //
 // The kernel initializes our cap space as follows:
-// +-----------+-------+-----+-----------+-------+-----------+
-// | boot info | mod_0 | ... | mod_{n-1} | mem_0 | mem_{n-1} |
-// +-----------+-------+-----+-----------+-------+-----------+
+// +-----------+-------+-----+-----------+-------+-----+-----------+
+// | boot info | mod_0 | ... | mod_{n-1} | mem_0 | ... | mem_{n-1} |
+// +-----------+-------+-----+-----------+-------+-----+-----------+
 // ^-- FIRST_FREE_SEL
 //
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
