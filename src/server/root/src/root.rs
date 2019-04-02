@@ -242,6 +242,8 @@ fn workloop() {
 
     if !thmng.cur().is_main() {
         thmng.stop();
+        // just in case there is no ready thread
+        m3::exit(0);
     }
 }
 

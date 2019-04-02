@@ -324,13 +324,14 @@ impl ThreadManager {
     }
 
     pub fn stop(&mut self) {
-        let next = self.get_next();
-        let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
-        log!(THREAD, "Stopping thread {}, switching to {}", cur.id, self.cur().id);
+        if let Some(t) = self.ready.pop_front() {
+            let mut cur = mem::replace(&mut self.current, Some(t)).unwrap();
+            log!(THREAD, "Stopping thread {}, switching to {}", cur.id, self.cur().id);
 
-        unsafe {
-            if !cur.save() {
-                self.cur_mut().resume();
+            unsafe {
+                if !cur.save() {
+                    self.cur_mut().resume();
+                }
             }
         }
     }
