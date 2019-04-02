@@ -52,7 +52,7 @@ use resmng::{config, memory, sendqueue, services};
 //
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
 
-static DELAYED: StaticCell<Vec<OwnChild>>  = StaticCell::new(Vec::new());
+static DELAYED: StaticCell<Vec<OwnChild>>   = StaticCell::new(Vec::new());
 static MODS: StaticCell<(usize, usize)>     = StaticCell::new((0, 0));
 static RGATE: StaticCell<Option<RecvGate>>  = StaticCell::new(None);
 
