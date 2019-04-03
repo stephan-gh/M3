@@ -330,7 +330,8 @@ m3::Errors::Code VPE::config_rcv_ep(epid_t ep, RGateObject &obj) {
         "RGate[addr=#" << m3::fmt(obj.addr, "x")
         << ", order=" << obj.order
         << ", msgorder=" << obj.msgorder
-        << ", header=" << obj.header << "]");
+        << ", header=" << obj.header
+        << "]");
 
     _dtustate.config_recv(ep, rbuf_base() + obj.addr, obj.order, obj.msgorder, obj.header);
     update_ep(ep);
@@ -353,7 +354,9 @@ m3::Errors::Code VPE::config_snd_ep(epid_t ep, SGateObject &obj) {
         << ", pe=" << pe
         << ", ep=" << obj.rgate->ep
         << ", label=#" << m3::fmt(obj.label, "x")
-        << ", msgsize=" << obj.rgate->msgorder << ", crd=" << obj.credits << "]");
+        << ", msgsize=" << obj.rgate->msgorder
+        << ", crd=#" << m3::fmt(obj.credits, "x")
+        << "]");
 
     obj.activated = true;
     _dtustate.config_send(ep, obj.label, pe, obj.rgate->vpe,
@@ -371,7 +374,8 @@ m3::Errors::Code VPE::config_mem_ep(epid_t ep, const MGateObject &obj, goff_t of
         << ", pe=" << obj.pe
         << ", addr=#" << m3::fmt(obj.addr + off, "x")
         << ", size=#" << m3::fmt(obj.size - off, "x")
-        << ", perms=#" << m3::fmt(obj.perms, "x") << "]");
+        << ", perms=#" << m3::fmt(obj.perms, "x")
+        << "]");
 
     // TODO
     _dtustate.config_mem(ep, obj.pe, obj.vpe, obj.addr + off, obj.size - off, obj.perms);
