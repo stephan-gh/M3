@@ -143,7 +143,7 @@ word_t DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const word_t credits = get_ep(ep, EP_CREDITS);
     const word_t msg_order = get_ep(ep, EP_MSGORDER);
     // check if we have enough credits
-    if(credits != static_cast<word_t>(-1)) {
+    if(credits != KIF::UNLIM_CREDITS) {
         const size_t size = 1UL << msg_order;
         if(size > credits) {
             LLOG(DTUERR, "DMA-error: insufficient credits on ep " << ep
@@ -481,7 +481,7 @@ bool DTU::handle_receive(epid_t ep) {
     else {
         word_t credits = get_ep(_buf.crd_ep, EP_CREDITS);
         word_t msg_order = get_ep(_buf.crd_ep, EP_MSGORDER);
-        if(_buf.credits && credits != static_cast<word_t>(-1)) {
+        if(_buf.credits && credits != KIF::UNLIM_CREDITS) {
             LLOG(DTU, "Refilling credits of ep " << _buf.crd_ep
                 << " from #" << fmt(credits, "x") << " to #" << fmt(credits + (1UL << msg_order), "x"));
             set_ep(_buf.crd_ep, EP_CREDITS, credits + (1UL << msg_order));
