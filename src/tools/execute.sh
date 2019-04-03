@@ -53,18 +53,12 @@ error() {
 }
 
 generate_lines() {
-    if [[ "`head -n 1 $1`" == \#!* ]]; then
-        # workaround for bash: it executes the while-loop in a subprocess
-        $1 | (
-            while read line || [ -n "$line" ]; do
-                echo $line
-            done
-        )
-    else
+    # workaround for bash: it executes the while-loop in a subprocess
+    $1 | (
         while read line || [ -n "$line" ]; do
             echo $line
-        done <$1
-    fi
+        done
+    )
 }
 
 generate_kargs() {
