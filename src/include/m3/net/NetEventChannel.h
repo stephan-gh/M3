@@ -29,15 +29,15 @@ namespace m3 {
 
 class NetEventChannel : public RefCounted {
 public:
-    static const size_t BUFFER_SIZE         = 2 * 1024 * 1024;
+    static const size_t BUFFER_SIZE             = 2 * 1024 * 1024;
 
-    static const size_t MSG_SIZE            = 2048;
-    static const size_t MSG_BUF_SIZE        = MSG_SIZE * 4;
-    static const size_t MSG_CREDITS         = MSG_BUF_SIZE;
+    static const size_t MSG_SIZE                = 2048;
+    static const size_t MSG_BUF_SIZE            = MSG_SIZE * 4;
+    static const size_t MSG_CREDITS             = MSG_BUF_SIZE;
 
-    static const size_t INBAND_DATA_SIZE     = 2048;
-    static const size_t INBAND_DATA_BUF_SIZE = INBAND_DATA_SIZE * 4;
-    static const size_t INBAND_DATA_CREDITS  = INBAND_DATA_BUF_SIZE;
+    static const size_t INBAND_DATA_SIZE        = 2048;
+    static const size_t INBAND_DATA_BUF_SIZE    = INBAND_DATA_SIZE * 4;
+    static const size_t INBAND_DATA_CREDITS     = INBAND_DATA_BUF_SIZE;
 
     enum ControlMessageType {
         DataTransfer,

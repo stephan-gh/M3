@@ -54,9 +54,11 @@ struct MessageHeader {
 
 class TcpSocket;
 // Maybe RawSocket or something...
+
 class NetworkManager : public ClientSession {
-friend Socket;
-friend TcpSocket;
+    friend Socket;
+    friend TcpSocket;
+
 public:
     enum Operation {
         STAT = GenericFile::STAT,

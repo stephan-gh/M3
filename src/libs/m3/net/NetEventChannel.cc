@@ -114,8 +114,7 @@ Errors::Code NetEventChannel::send_message(const void* msg, size_t size) {
     return _sgate.send(msg, size);
 }
 
-void NetEventChannel::start(evhandler_t evhandler, crdhandler_t crdhandler)
-{
+void NetEventChannel::start(evhandler_t evhandler, crdhandler_t crdhandler) {
     if(!_workitem) {
         _evhandler = evhandler;
         _crdhandler = crdhandler;
@@ -124,8 +123,7 @@ void NetEventChannel::start(evhandler_t evhandler, crdhandler_t crdhandler)
     }
 }
 
-void NetEventChannel::stop()
-{
+void NetEventChannel::stop() {
     if(_workitem) {
         env()->workloop()->remove(_workitem);
         delete _workitem;
@@ -156,8 +154,7 @@ void NetEventChannel::wait_for_credit() {
 NetEventChannel::Event::Event()
     : _msg(nullptr),
        _channel(nullptr),
-       _ack(false)
-{
+       _ack(false) {
 }
 
 NetEventChannel::Event::~Event() {
@@ -167,8 +164,7 @@ NetEventChannel::Event::~Event() {
 NetEventChannel::Event::Event(NetEventChannel::Event&& e)
     : _msg(e._msg),
       _channel(e._channel),
-      _ack(e._ack)
-{
+      _ack(e._ack) {
     e._ack = false;
 }
 
@@ -213,8 +209,7 @@ const NetEventChannel::ControlMessage* NetEventChannel::Event::get_message() {
 NetEventChannel::Event::Event(const DTU::Message *msg, NetEventChannel *channel)
     : _msg(msg),
       _channel(channel),
-      _ack(true)
-{
+      _ack(true) {
 }
 
 void NetEventChannel::EventWorkItem::work() {

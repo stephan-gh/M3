@@ -29,7 +29,8 @@ class NetworkManager;
 class DataQueue;
 
 class Socket : public m3::TreapNode<Socket, int>, public SListItem {
-friend NetworkManager;
+    friend NetworkManager;
+
 public:
     static const int EVENT_FETCH_BATCH_SIZE = 4;
 

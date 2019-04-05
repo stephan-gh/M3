@@ -145,10 +145,9 @@ Errors::Code Socket::inv_state() {
 }
 
 Errors::Code Socket::or_closed(Errors::Code err) {
-    if(_state == Closed) {
+    if(_state == Closed)
         return _close_cause != Errors::NONE ? _close_cause : Errors::SOCKET_CLOSED;
-    } else
-        return err;
+    return err;
 }
 
 Errors::Code Socket::handle_data_transfer(NetEventChannel::DataTransferMessage const &) {
@@ -187,8 +186,7 @@ Errors::Code Socket::get_next_data(const uchar *&data, size_t &size) {
         if(!_blocking) {
             if(_state == Closed)
                 return inv_state();
-            else
-                return Errors::WOULD_BLOCK;
+            return Errors::WOULD_BLOCK;
         }
 
         do {
@@ -196,7 +194,8 @@ Errors::Code Socket::get_next_data(const uchar *&data, size_t &size) {
                 return inv_state();;
 
             wait_for_event();
-        } while(!_recv_queue.get_next_data(data, size));
+        }
+        while(!_recv_queue.get_next_data(data, size));
     }
     return Errors::NONE;
 }
