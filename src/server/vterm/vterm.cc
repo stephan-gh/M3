@@ -192,7 +192,7 @@ public:
 
 class VTermHandler : public base_class {
 public:
-    explicit VTermHandler()
+    explicit VTermHandler(WorkLoop *wl)
         : base_class(),
           _slots(),
           _mem(MemGate::create_global(MAX_CLIENTS * BUF_SIZE, MemGate::RW)),
@@ -205,7 +205,7 @@ public:
         add_operation(GenericFile::CLOSE, &VTermHandler::close_chan);
 
         using std::placeholders::_1;
-        _rgate.start(std::bind(&VTermHandler::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&VTermHandler::handle_message, this, _1));
     }
 
     virtual Errors::Code open(VTermSession **sess, capsel_t srv_sel, word_t) override {
@@ -310,8 +310,11 @@ inline ChannelSession *ChannelSession::clone() {
 }
 
 int main() {
-    srv = new Server<VTermHandler>("vterm", new VTermHandler());
-    env()->workloop()->run();
+    WorkLoop wl;
+
+    srv = new Server<VTermHandler>("vterm", &wl, new VTermHandler(&wl));
+    wl.run();
     delete srv;
+
     return 0;
 }

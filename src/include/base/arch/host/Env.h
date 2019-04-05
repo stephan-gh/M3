@@ -87,9 +87,6 @@ public:
 
     void reset();
 
-    WorkLoop *workloop() {
-        return _backend->_workloop;
-    }
     EnvBackend *backend() {
         return _backend;
     }

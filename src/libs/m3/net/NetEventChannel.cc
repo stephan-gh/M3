@@ -114,18 +114,17 @@ Errors::Code NetEventChannel::send_message(const void* msg, size_t size) {
     return _sgate.send(msg, size);
 }
 
-void NetEventChannel::start(evhandler_t evhandler, crdhandler_t crdhandler) {
+void NetEventChannel::start(WorkLoop *wl, evhandler_t evhandler, crdhandler_t crdhandler) {
     if(!_workitem) {
         _evhandler = evhandler;
         _crdhandler = crdhandler;
         _workitem = new EventWorkItem(this);
-        env()->workloop()->add(_workitem, false);
+        wl->add(_workitem, false);
     }
 }
 
 void NetEventChannel::stop() {
     if(_workitem) {
-        env()->workloop()->remove(_workitem);
         delete _workitem;
         _workitem = nullptr;
     }

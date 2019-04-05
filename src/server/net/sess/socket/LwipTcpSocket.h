@@ -29,7 +29,7 @@ class LwipTcpSocket : public LwipSocket {
 public:
     static constexpr size_t MAX_SOCKET_BACKLOG = 10;
 
-    explicit LwipTcpSocket(SocketSession *session);
+    explicit LwipTcpSocket(m3::WorkLoop *wl, SocketSession *session);
     virtual ~LwipTcpSocket();
 
     virtual m3::Socket::SocketType type() const override {
@@ -58,6 +58,7 @@ private:
     static err_t tcp_sent_cb(void *arg, struct tcp_pcb *tpcb, u16_t len);
 
 private:
+    m3::WorkLoop *_wl;
     struct tcp_pcb * _pcb;
     m3::DataQueue _send_queue;
     WorkItem _work_item;

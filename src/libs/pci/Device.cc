@@ -40,8 +40,8 @@ ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
     _vpe.start();
 }
 
-void ProxiedPciDevice::listenForIRQs(std::function<void()> callback) {
-    _intgate.start(std::bind(receiveInterrupt, this, std::placeholders::_1));
+void ProxiedPciDevice::listenForIRQs(WorkLoop *wl, std::function<void()> callback) {
+    _intgate.start(wl, std::bind(receiveInterrupt, this, std::placeholders::_1));
     _callback = callback;
 }
 

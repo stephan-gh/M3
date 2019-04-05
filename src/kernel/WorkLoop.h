@@ -16,17 +16,32 @@
 
 #pragma once
 
-#include <base/WorkLoop.h>
+#include <base/Common.h>
 
 namespace kernel {
 
-class WorkLoop : public m3::WorkLoop {
+class WorkLoop {
 public:
-    virtual void multithreaded(uint count) override;
+    static WorkLoop &get() {
+        return _wl;
+    }
 
-    virtual void run() override;
+    explicit WorkLoop() : _run(true) {
+    }
 
-    virtual void thread_shutdown() override;
+    void multithreaded(uint count);
+
+    void run();
+    void stop() {
+        _run = false;
+    }
+
+private:
+    static void thread_startup(void *arg);
+    void thread_shutdown();
+
+    bool _run;
+    static WorkLoop _wl;
 };
 
 }

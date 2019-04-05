@@ -85,6 +85,8 @@ public:
         return _metagate;
     }
 
+    void multithreaded(WorkLoop *wl);
+
     Socket *create(Socket::SocketType type, uint8_t protocol = 0);
     Errors::Code bind(int sd, IpAddr addr, uint16_t port);
     Errors::Code listen(int sd);
@@ -101,8 +103,8 @@ private:
 
     Socket * process_event(NetEventChannel::Event & event);
     void process_credit(event_t wait_event, size_t waiting);
-    void process_sleep();
 
+    WorkLoop *_wloop;
     SendGate _metagate;
     m3::Treap<Socket> _sockets;
     size_t _waiting_credit;

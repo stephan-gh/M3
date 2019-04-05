@@ -74,21 +74,24 @@ struct ConsoleWorkItem : public WorkItem {
 int main() {
     void *vgamem = vgacons_init();
 
+    WorkLoop wl;
+
     MemGate memgate = VPE::self().mem().derive(
         reinterpret_cast<uintptr_t>(vgamem), VGA::SIZE, MemGate::RW);
-    Server<VGAHandler> vgasrv("vga", new VGAHandler(&memgate));
+    Server<VGAHandler> vgasrv("vga", &wl, new VGAHandler(&memgate));
     if(Errors::occurred())
         exitmsg("Unable to register service 'vga'");
 
-    kbserver = new Server<EventHandler<>>("keyb", new EventHandler<>());
+    kbserver = new Server<EventHandler<>>("keyb", &wl, new EventHandler<>());
     if(Errors::occurred())
         exitmsg("Unable to register service 'keyb'");
 
     ConsoleWorkItem wi;
+    wl.add(&wi, true);
 
-    env()->workloop()->add(&wi, true);
-    env()->workloop()->run();
+    wl.run();
 
+    delete kbserver;
     vgacons_destroy();
     return 0;
 }

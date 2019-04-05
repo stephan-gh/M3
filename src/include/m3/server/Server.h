@@ -33,23 +33,23 @@ class Server : public ObjCap {
     using handler_func = void (Server::*)(GateIStream &is);
 
 public:
-    explicit Server(const String &name, HDL *handler)
+    explicit Server(const String &name, WorkLoop *wl, HDL *handler)
         : ObjCap(SERVICE, VPE::self().alloc_sel()),
           _handler(handler),
           _ctrl_handler(),
           _rgate(RecvGate::create(nextlog2<512>::val, nextlog2<256>::val)) {
-        init();
+        init(wl);
 
         LLOG(SERV, "create(" << name << ")");
         VPE::self().resmng().reg_service(0, sel(), _rgate.sel(), name);
     }
 
-    explicit Server(capsel_t caps, epid_t ep, HDL *handler)
+    explicit Server(capsel_t caps, epid_t ep, WorkLoop *wl, HDL *handler)
         : ObjCap(SERVICE, caps + 0, KEEP_CAP),
           _handler(handler),
           _ctrl_handler(),
           _rgate(RecvGate::bind(caps + 1, nextlog2<512>::val, ep)) {
-        init();
+        init(wl);
     }
 
     ~Server() {
@@ -68,9 +68,9 @@ public:
     }
 
 private:
-    void init() {
+    void init(WorkLoop *wl) {
         using std::placeholders::_1;
-        _rgate.start(std::bind(&Server::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&Server::handle_message, this, _1));
 
         _ctrl_handler[KIF::Service::OPEN] = &Server::handle_open;
         _ctrl_handler[KIF::Service::OBTAIN] = &Server::handle_obtain;

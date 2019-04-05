@@ -43,7 +43,7 @@ class MemReqHandler : public base_class_t {
 public:
     static constexpr size_t MSG_SIZE = 64;
 
-    explicit MemReqHandler()
+    explicit MemReqHandler(WorkLoop *wl)
         : base_class_t(),
           _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         add_operation(Pager::PAGEFAULT, &MemReqHandler::pf);
@@ -52,7 +52,7 @@ public:
         add_operation(Pager::UNMAP, &MemReqHandler::unmap);
 
         using std::placeholders::_1;
-        _rgate.start(std::bind(&MemReqHandler::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&MemReqHandler::handle_message, this, _1));
     }
 
     virtual Errors::Code open(AddrSpace **sess, capsel_t srv_sel, word_t) override {
@@ -349,12 +349,16 @@ int main(int argc, char **argv) {
         }
     }
 
-    if(sels != ObjCap::INVALID)
-        srv = new Server<MemReqHandler>(sels, ep, new MemReqHandler());
-    else
-        srv = new Server<MemReqHandler>("pager", new MemReqHandler());
+    WorkLoop wl;
 
-    env()->workloop()->multithreaded(4);
-    env()->workloop()->run();
+    if(sels != ObjCap::INVALID)
+        srv = new Server<MemReqHandler>(sels, ep, &wl, new MemReqHandler(&wl));
+    else
+        srv = new Server<MemReqHandler>("pager", &wl, new MemReqHandler(&wl));
+
+    wl.multithreaded(4);
+    wl.run();
+
+    delete srv;
     return 0;
 }

@@ -23,7 +23,7 @@
 
 #include <m3/com/RecvGate.h>
 #include <m3/Syscalls.h>
-#include <m3/UserWorkLoop.h>
+#include <m3/WorkLoop.h>
 #include <m3/VPE.h>
 
 #include <sys/mman.h>
@@ -92,11 +92,9 @@ EXTERN_C WEAK void init_env() {
 }
 
 HostEnvBackend::HostEnvBackend() {
-    _workloop = new UserWorkLoop();
 }
 
 HostEnvBackend::~HostEnvBackend() {
-    delete _workloop;
 }
 
 Env::Init::Init() {

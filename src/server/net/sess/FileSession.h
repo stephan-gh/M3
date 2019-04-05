@@ -35,7 +35,7 @@ class FileSession : public NMSession {
         FileSession & _session;
     };
 public:
-    explicit FileSession(capsel_t srv_sel, LwipSocket * socket, int mode,
+    explicit FileSession(m3::WorkLoop *wl, capsel_t srv_sel, LwipSocket * socket, int mode,
                          size_t rmemsize, size_t smemsize);
 
     ~FileSession();

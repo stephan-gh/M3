@@ -63,13 +63,14 @@ private:
 };
 
 int main() {
+    WorkLoop wl;
     for(int i = 0; !kern_shutdown_req && i < 10; ++i) {
-        srv = new Server<MyHandler>("testcaps", new MyHandler());
+        srv = new Server<MyHandler>("testcaps", &wl, new MyHandler());
         if(Errors::occurred()) {
             delete srv;
             break;
         }
-        env()->workloop()->run();
+        wl.run();
         delete srv;
     }
     return 0;

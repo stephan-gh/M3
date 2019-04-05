@@ -64,7 +64,7 @@ static constexpr size_t MAX_DMA_SIZE = Math::min(255 * 512, 0x10000);
 
 class DiskRequestHandler : public base_class {
 public:
-    explicit DiskRequestHandler()
+    explicit DiskRequestHandler(WorkLoop *wl)
         : base_class(),
           _rgate(RecvGate::create(nextlog2<32 * Disk::MSG_SIZE>::val,
                                   nextlog2<Disk::MSG_SIZE>::val)) {
@@ -72,7 +72,7 @@ public:
         add_operation(Disk::WRITE, &DiskRequestHandler::write);
 
         using std::placeholders::_1;
-        _rgate.start(std::bind(&DiskRequestHandler::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&DiskRequestHandler::handle_message, this, _1));
     }
 
     virtual Errors::Code obtain(DiskSrvSession *sess, KIF::Service::ExchangeData &data) override {
@@ -243,10 +243,12 @@ int main(int argc, char **argv) {
     /* detect and init all devices */
     backend_init(useDma, useIRQ, disk);
 
-    srv = new Server<DiskRequestHandler>("disk", new DiskRequestHandler());
+    WorkLoop wl;
 
-    // env()->workloop()->multithreaded(8);
-    env()->workloop()->run();
+    srv = new Server<DiskRequestHandler>("disk", &wl, new DiskRequestHandler(&wl));
+
+    // wl.multithreaded(8);
+    wl.run();
 
     delete srv;
 

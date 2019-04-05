@@ -73,10 +73,6 @@ public:
         return reinterpret_cast<BaremetalEnvBackend*>(_backend);
     }
 
-    WorkLoop *workloop() {
-        return backend()->_workloop;
-    }
-
     static void run() asm("env_run");
 
     void exit(int code) NORETURN;

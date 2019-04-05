@@ -38,11 +38,11 @@ struct SimpleSession : public ServerSession {
 template<typename CLS, typename OP, size_t OPCNT, size_t MSG_SIZE = 128>
 class SimpleRequestHandler : public RequestHandler<CLS, OP, OPCNT, SimpleSession> {
 public:
-    explicit SimpleRequestHandler()
+    explicit SimpleRequestHandler(WorkLoop *wl)
         : RequestHandler<CLS, OP, OPCNT, SimpleSession>(),
           _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         using std::placeholders::_1;
-        _rgate.start(std::bind(&SimpleRequestHandler::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&SimpleRequestHandler::handle_message, this, _1));
     }
 
     virtual Errors::Code open(SimpleSession **sess, capsel_t srv_sel, word_t) override {

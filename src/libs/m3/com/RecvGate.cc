@@ -168,7 +168,7 @@ void RecvGate::deactivate() {
     stop();
 }
 
-void RecvGate::start(msghandler_t handler) {
+void RecvGate::start(WorkLoop *wl, msghandler_t handler) {
     activate();
 
     assert(&_vpe == &VPE::self());
@@ -177,12 +177,11 @@ void RecvGate::start(msghandler_t handler) {
 
     bool permanent = ep() < DTU::FIRST_FREE_EP;
     _workitem = new RecvGateWorkItem(this);
-    env()->workloop()->add(_workitem, permanent);
+    wl->add(_workitem, permanent);
 }
 
 void RecvGate::stop() {
     if(_workitem) {
-        env()->workloop()->remove(_workitem);
         delete _workitem;
         _workitem = nullptr;
     }

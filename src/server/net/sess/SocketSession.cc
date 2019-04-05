@@ -62,8 +62,9 @@ void NetEventChannelWorkItem::work() {
     }
 }
 
-SocketSession::SocketSession(capsel_t srv_sel, m3::RecvGate& rgate)
+SocketSession::SocketSession(m3::WorkLoop *wl, capsel_t srv_sel, m3::RecvGate& rgate)
     : NMSession(srv_sel),
+      _wl(wl),
       _sgate(nullptr),
       _rgate(rgate),
       _channel_caps(ObjCap::INVALID),
@@ -76,10 +77,8 @@ SocketSession::~SocketSession() {
     for(size_t i = 0; i < MAX_SOCKETS; i++)
         release_sd(static_cast<int>(i));
 
-    if(_channelWorkItem) {
-        env()->workloop()->remove(_channelWorkItem);
+    if(_channelWorkItem)
         delete _channelWorkItem;
-    }
 
     delete _sgate;
     delete _channel;
@@ -126,7 +125,7 @@ m3::Errors::Code SocketSession::establish_channel(m3::KIF::Service::ExchangeData
         _channel = new NetEventChannel(_channel_caps, true);
 
         _channelWorkItem = new NetEventChannelWorkItem(*_channel, *this);
-        env()->workloop()->add(_channelWorkItem, false);
+        _wl->add(_channelWorkItem, false);
 
         // TODO: pass size as argument
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _channel_caps + 3, 3);
@@ -158,7 +157,7 @@ m3::Errors::Code SocketSession::open_file(capsel_t srv_sel, m3::KIF::Service::Ex
 
         size_t rmemsize = data.args.vals[2];
         size_t smemsize = data.args.vals[3];
-        FileSession *file = new FileSession(srv_sel, socket, mode, rmemsize, smemsize);
+        FileSession *file = new FileSession(_wl, srv_sel, socket, mode, rmemsize, smemsize);
         if(file->is_recv())
             socket->_rfile = file;
         if(file->is_send())
@@ -188,7 +187,7 @@ void SocketSession::create(m3::GateIStream& is) {
     LwipSocket *socket;
     switch(type) {
         case Socket::SOCK_STREAM:
-            socket = new LwipTcpSocket(this);
+            socket = new LwipTcpSocket(_wl, this);
             break;
         case Socket::SOCK_DGRAM:
             socket = new LwipUdpSocket(this);

@@ -60,10 +60,10 @@ PipeMeta::~PipeMeta() {
         delete _pipes[i];
 }
 
-PipeData *PipeMeta::create(capsel_t srv_sel, m3::RecvGate &rgate, size_t memsize) {
+PipeData *PipeMeta::create(WorkLoop *wl, capsel_t srv_sel, m3::RecvGate &rgate, size_t memsize) {
     for(size_t i = 0; i < MAX_PIPES; ++i) {
         if(_pipes[i] == nullptr) {
-            _pipes[i] = new PipeData(this, srv_sel, rgate, memsize);
+            _pipes[i] = new PipeData(wl, this, srv_sel, rgate, memsize);
             return _pipes[i];
         }
     }
@@ -79,7 +79,7 @@ void PipeMeta::remove(PipeData *pipe) {
     }
 }
 
-PipeData::PipeData(PipeMeta *meta, capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize)
+PipeData::PipeData(WorkLoop *wl, PipeMeta *meta, capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize)
     : PipeSession(srv_sel),
       meta(meta),
       nextid(),
@@ -95,7 +95,7 @@ PipeData::PipeData(PipeMeta *meta, capsel_t srv_sel, m3::RecvGate &rgate, size_t
       pending_reads(),
       pending_writes() {
     workitem.pipe = this;
-    m3::env()->workloop()->add(&workitem, false);
+    wl->add(&workitem, false);
 }
 
 PipeData::~PipeData() {
@@ -110,7 +110,6 @@ PipeData::~PipeData() {
         rgate.drop_msgs_with(reinterpret_cast<label_t>(&*old));
     }
 
-    m3::env()->workloop()->remove(&workitem);
     delete memory;
 
     meta->remove(this);

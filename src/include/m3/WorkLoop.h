@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <base/col/SList.h>
 #include <base/DTU.h>
 
 #include <functional>
@@ -25,23 +24,24 @@ namespace m3 {
 
 class WorkLoop;
 
-class WorkItem : public SListItem {
+class WorkItem {
     friend class WorkLoop;
 public:
-    virtual ~WorkItem() {
-    }
+    virtual ~WorkItem();
 
     virtual void work() = 0;
+
+private:
+    WorkLoop *_wl;
 };
 
 class WorkLoop {
     static const size_t MAX_ITEMS   = 32;
 
 public:
-    explicit WorkLoop() : _changed(false), _permanents(0), _count(), _items(), _sleep_handler(nullptr) {
+    explicit WorkLoop() : _permanents(0), _count(), _items() {
     }
-    virtual ~WorkLoop() {
-    }
+    ~WorkLoop();
 
     bool has_items() const {
         return _count > _permanents;
@@ -50,28 +50,22 @@ public:
     void add(WorkItem *item, bool permanent);
     void remove(WorkItem *item);
 
-    virtual void multithreaded(uint count) = 0;
+    void multithreaded(uint count);
 
     void tick();
-    virtual void run();
+    void run();
+
     void stop() {
         _permanents = _count;
     }
 
-    // TODO: Allow multiple sleep handlers?
-    using sleep_handler_t = std::function<void()>;
-    void set_sleep_handler(sleep_handler_t sleep_handler);
-
-protected:
-    static void thread_startup(void *);
-    virtual void thread_shutdown();
-
 private:
-    bool _changed;
+    static void thread_startup(void *);
+    void thread_shutdown();
+
     size_t _permanents;
     size_t _count;
     WorkItem *_items[MAX_ITEMS];
-    sleep_handler_t _sleep_handler;
 };
 
 }

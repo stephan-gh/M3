@@ -42,7 +42,7 @@ public:
     static constexpr size_t MAX_SEND_RECEIVE_BATCH_SIZE = 5;
     static constexpr size_t MAX_SOCKETS                 = 16;
 
-    explicit SocketSession(capsel_t srv_sel, m3::RecvGate &rgate);
+    explicit SocketSession(m3::WorkLoop *wl, capsel_t srv_sel, m3::RecvGate &rgate);
     ~SocketSession();
 
     virtual Type type() const override {
@@ -69,6 +69,7 @@ public:
     void release_sd(int sd);
 
 private:
+    m3::WorkLoop *_wl;
     m3::SendGate *_sgate;
     m3::RecvGate &_rgate;
     capsel_t _channel_caps;

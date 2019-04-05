@@ -37,8 +37,8 @@ static inline uint32_t incRb(uint32_t index, uint32_t size)
     return (index + 1) % size;
 }
 
-E1000::E1000(pci::ProxiedPciDevice &nic, alloc_cb_func allocCallback, next_buf_cb_func nextBufCallback,
-             recv_cb_func recvCallback)
+E1000::E1000(WorkLoop *wl, pci::ProxiedPciDevice &nic, alloc_cb_func allocCallback,
+             next_buf_cb_func nextBufCallback, recv_cb_func recvCallback)
     : _nic(nic),
       _eeprom(*this),
       _curRxBuf(0),
@@ -59,7 +59,7 @@ E1000::E1000(pci::ProxiedPciDevice &nic, alloc_cb_func allocCallback, next_buf_c
     _nic.setDmaEp(_bufs);
 
     // register interrupt callback
-    _nic.listenForIRQs(std::bind(&E1000::receiveInterrupt, this));
+    _nic.listenForIRQs(wl, std::bind(&E1000::receiveInterrupt, this));
 
     // clear descriptors
     for(size_t i = 0; i < sizeof(Buffers); i += sizeof(ZEROS))

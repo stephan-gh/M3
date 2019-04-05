@@ -51,7 +51,7 @@ static Server<M3FSRequestHandler> *srv;
 
 class M3FSRequestHandler : public base_class {
 public:
-    explicit M3FSRequestHandler(Backend *backend, size_t extend, bool clear,
+    explicit M3FSRequestHandler(WorkLoop *wl, Backend *backend, size_t extend, bool clear,
                                 bool revoke_first, size_t max_load)
         : base_class(),
           _rgate(RecvGate::create(nextlog2<32 * M3FSSession::MSG_SIZE>::val,
@@ -72,7 +72,7 @@ public:
         add_operation(M3FS::UNLINK, &M3FSRequestHandler::unlink);
 
         using std::placeholders::_1;
-        _rgate.start(std::bind(&M3FSRequestHandler::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&M3FSRequestHandler::handle_message, this, _1));
     }
 
     virtual Errors::Code open(M3FSSession **sess, capsel_t srv_sel, word_t) override {
@@ -246,12 +246,14 @@ int main(int argc, char *argv[]) {
     if(CmdArgs::ind + 1 >= argc)
         usage(argv[0]);
 
+    WorkLoop wl;
+
     // create backend
     Backend *backend;
     const char *backend_type = argv[CmdArgs::ind];
     if(strcmp(backend_type, "disk") == 0) {
         size_t dev = IStringStream::read_from<size_t>(argv[CmdArgs::ind + 1]);
-        backend = new DiskBackend(dev);
+        backend = new DiskBackend(&wl, dev);
     }
     else if(strcmp(backend_type, "mem") == 0) {
         size_t fs_size = IStringStream::read_from<size_t>(argv[CmdArgs::ind + 1]);
@@ -260,14 +262,14 @@ int main(int argc, char *argv[]) {
     else
         usage(argv[0]);
 
-    auto hdl    = new M3FSRequestHandler(backend, extend, clear, revoke_first, max_load);
+    auto hdl    = new M3FSRequestHandler(&wl, backend, extend, clear, revoke_first, max_load);
     if(sels != ObjCap::INVALID)
-        srv = new Server<M3FSRequestHandler>(sels, ep, hdl);
+        srv = new Server<M3FSRequestHandler>(sels, ep, &wl, hdl);
     else
-        srv = new Server<M3FSRequestHandler>(name, hdl);
+        srv = new Server<M3FSRequestHandler>(name, &wl, hdl);
 
-    env()->workloop()->multithreaded(16);
-    env()->workloop()->run();
+    wl.multithreaded(16);
+    wl.run();
 
     delete backend;
     delete srv;

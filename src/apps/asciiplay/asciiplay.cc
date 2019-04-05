@@ -118,12 +118,14 @@ int main(int argc, char **argv) {
     if(!*movie)
         exitmsg("Opening " << moviefile << " failed");
 
+    WorkLoop wl;
+
     Timer timer("timer");
-    timer.rgate().start(timer_event);
+    timer.rgate().start(&wl, timer_event);
 
     Keyboard kb("keyb");
-    kb.rgate().start(kb_event);
+    kb.rgate().start(&wl, kb_event);
 
-    env()->workloop()->run();
+    wl.run();
     return 0;
 }

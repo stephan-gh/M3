@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <base/col/List.h>
+#include <base/col/SList.h>
 
 #include <m3/net/NetEventChannel.h>
 

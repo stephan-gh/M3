@@ -30,7 +30,7 @@ static void reply_vmsg_late(RecvGate &rgate, const DTU::Message *msg, const Args
     rgate.reply(reply.bytes(), reply.total(), idx);
 }
 
-FileSession::FileSession(capsel_t srv_sel, LwipSocket* socket, int mode,
+FileSession::FileSession(WorkLoop *wl, capsel_t srv_sel, LwipSocket* socket, int mode,
                          size_t rmemsize, size_t smemsize)
     : NMSession(srv_sel, VPE::self().alloc_sels(2)),
       _work_item(*this),
@@ -47,12 +47,10 @@ FileSession::FileSession(capsel_t srv_sel, LwipSocket* socket, int mode,
       _pending_gate(nullptr),
       _client_memep(ObjCap::INVALID),
       _client_memgate(nullptr) {
-    m3::env()->workloop()->add(&_work_item, false);
+    wl->add(&_work_item, false);
 }
 
 FileSession::~FileSession() {
-    m3::env()->workloop()->remove(&_work_item);
-
     if(_pending && _pending_gate) {
         // send eof
         reply_vmsg_late(*_pending_gate, _pending, Errors::NONE, (size_t)0, (size_t)0);

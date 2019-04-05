@@ -19,9 +19,9 @@
 #if defined(__host__)
 
 #include <base/col/SList.h>
-#include <base/WorkLoop.h>
 
 #include <m3/com/SendGate.h>
+#include <m3/WorkLoop.h>
 
 namespace m3 {
 

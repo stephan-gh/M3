@@ -46,13 +46,17 @@ static void timer_irq(GateIStream &) {
 }
 
 int main() {
+    WorkLoop wl;
+
     Timer timer("timer");
-    timer.rgate().start(timer_irq);
+    timer.rgate().start(&wl, timer_irq);
 
     // now, register service
-    server = new Server<EventHandler<>>("queuetest", new EventHandler<>());
+    server = new Server<EventHandler<>>("queuetest", &wl, new EventHandler<>());
 
-    env()->workloop()->add(&SendQueue::get(), true);
-    env()->workloop()->run();
+    wl.add(&SendQueue::get(), true);
+    wl.run();
+
+    delete server;
     return 0;
 }

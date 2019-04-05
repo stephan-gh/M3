@@ -31,7 +31,6 @@ namespace kernel {
 class BaremetalKEnvBackend : public m3::BaremetalEnvBackend {
 public:
     explicit BaremetalKEnvBackend() {
-        _workloop = new WorkLoop();
     }
 
     virtual void init() override {

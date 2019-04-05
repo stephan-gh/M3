@@ -158,7 +158,7 @@ void VPEManager::remove(VPE *vpe) {
 
     // if there are no VPEs left, we can stop everything
     if(_count == 0)
-        m3::env()->workloop()->stop();
+        WorkLoop::get().stop();
 }
 
 }

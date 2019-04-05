@@ -144,12 +144,13 @@ public:
     using crdhandler_t = std::function<void(event_t wait_event, size_t waiting)>;
 
     /**
-     * Starts to listen for received events and credits, i.e., creates a WorkLoop item.
+     * Starts to listen for received events and credits, i.e., adds an item to the given WorkLoop.
      *
+     * @param wl the workloop
      * @param evhandler the handler to call for received events
      * @param crdhandler the handler to call when received credits
      */
-    void start(evhandler_t evhandler, crdhandler_t crdhandler);
+    void start(WorkLoop *wl, evhandler_t evhandler, crdhandler_t crdhandler);
 
     /**
      * Stops to listen for received events

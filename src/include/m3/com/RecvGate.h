@@ -18,10 +18,10 @@
 
 #include <base/Common.h>
 #include <base/util/Util.h>
-#include <base/WorkLoop.h>
 #include <base/DTU.h>
 
 #include <m3/com/Gate.h>
+#include <m3/WorkLoop.h>
 
 #include <functional>
 
@@ -189,11 +189,12 @@ public:
     void deactivate();
 
     /**
-     * Starts to listen for received messages, i.e., creates a WorkLoop item.
+     * Starts to listen for received messages, i.e., adds an item to the given workloop.
      *
+     * @param wl the workloop
      * @param handler the handler to call for received messages
      */
-    void start(msghandler_t handler);
+    void start(WorkLoop *wl, msghandler_t handler);
 
     /**
      * Stops to listen for received messages

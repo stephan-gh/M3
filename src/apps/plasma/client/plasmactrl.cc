@@ -45,11 +45,13 @@ static void kb_event(Plasma *plasma, GateIStream &is) {
 }
 
 int main() {
+    WorkLoop wl;
+
     // create event gate
     Keyboard kb("keyb");
     Plasma plasma("plasma");
-    kb.rgate().start(std::bind(kb_event, &plasma, std::placeholders::_1));
+    kb.rgate().start(&wl, std::bind(kb_event, &plasma, std::placeholders::_1));
 
-    env()->workloop()->run();
+    wl.run();
     return 0;
 }

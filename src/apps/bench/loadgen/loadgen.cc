@@ -70,14 +70,14 @@ class ReqHandler : public base_class_t {
 public:
     static constexpr size_t MSG_SIZE = 64;
 
-    explicit ReqHandler()
+    explicit ReqHandler(WorkLoop *wl)
         : base_class_t(),
           _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         add_operation(LoadGen::START, &ReqHandler::start);
         add_operation(LoadGen::RESPONSE, &ReqHandler::response);
 
         using std::placeholders::_1;
-        _rgate.start(std::bind(&ReqHandler::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&ReqHandler::handle_message, this, _1));
     }
 
     virtual Errors::Code open(LoadGenSession **sess, capsel_t srv_sel, word_t) override {
@@ -146,8 +146,11 @@ private:
 };
 
 int main(int argc, char **argv) {
+    WorkLoop wl;
+
     const char *name = argc > 1 ? argv[1] : "loadgen";
-    Server<ReqHandler> srv(name, new ReqHandler());
-    env()->workloop()->run();
+    Server<ReqHandler> srv(name, &wl, new ReqHandler(&wl));
+
+    wl.run();
     return 0;
 }

@@ -367,7 +367,7 @@ using plasma_reqh_base_t = SimpleRequestHandler<PlasmaRequestHandler, Plasma::Op
 
 class PlasmaRequestHandler : public plasma_reqh_base_t {
 public:
-    explicit PlasmaRequestHandler() : plasma_reqh_base_t() {
+    explicit PlasmaRequestHandler(WorkLoop *wl) : plasma_reqh_base_t(wl) {
         add_operation(Plasma::LEFT, &PlasmaRequestHandler::left);
         add_operation(Plasma::RIGHT, &PlasmaRequestHandler::right);
         add_operation(Plasma::COLUP, &PlasmaRequestHandler::colup);
@@ -410,11 +410,13 @@ int main() {
 
     VGA vga("vga");
 
+    WorkLoop wl;
+
     Timer timer("timer");
-    timer.rgate().start(std::bind(refresh_screen, &vga, std::placeholders::_1));
+    timer.rgate().start(&wl, std::bind(refresh_screen, &vga, std::placeholders::_1));
 
-    Server<PlasmaRequestHandler> srv("plasma", new PlasmaRequestHandler());
+    Server<PlasmaRequestHandler> srv("plasma", &wl, new PlasmaRequestHandler(&wl));
 
-    env()->workloop()->run();
+    wl.run();
     return 0;
 }

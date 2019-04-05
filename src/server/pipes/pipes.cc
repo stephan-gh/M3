@@ -38,8 +38,9 @@ class PipeServiceHandler : public base_class {
 public:
     static constexpr size_t MSG_SIZE = 64;
 
-    explicit PipeServiceHandler()
+    explicit PipeServiceHandler(WorkLoop *wl)
         : base_class(),
+          _wl(wl),
           _meta_sessions(),
           _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         add_operation(GenericFile::SEEK, &PipeServiceHandler::invalid_op);
@@ -50,7 +51,7 @@ public:
         add_operation(GenericFile::CLOSE, &PipeServiceHandler::close_chan);
 
         using std::placeholders::_1;
-        _rgate.start(std::bind(&PipeServiceHandler::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&PipeServiceHandler::handle_message, this, _1));
     }
 
     virtual Errors::Code open(PipeSession **sess, capsel_t srv_sel, word_t) override {
@@ -67,7 +68,7 @@ public:
         if(sess->type() == PipeSession::META) {
             if(data.args.count != 1)
                 return Errors::INV_ARGS;
-            auto npipe = static_cast<PipeMeta*>(sess)->create(srv->sel(), _rgate, data.args.vals[0]);
+            auto npipe = static_cast<PipeMeta*>(sess)->create(_wl, srv->sel(), _rgate, data.args.vals[0]);
             data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, npipe->sel(), 1).value();
         }
         else if(sess->type() == PipeSession::DATA) {
@@ -151,6 +152,7 @@ public:
     }
 
 private:
+    WorkLoop *_wl;
     SList<PipeMeta> _meta_sessions;
     RecvGate _rgate;
 };
@@ -179,13 +181,16 @@ int main(int argc, char **argv) {
         }
     }
 
-    if(sels != ObjCap::INVALID)
-        srv = new Server<PipeServiceHandler>(sels, ep, new PipeServiceHandler());
-    else
-        srv = new Server<PipeServiceHandler>("pipes", new PipeServiceHandler());
+    WorkLoop wl;
 
-    env()->workloop()->multithreaded(16);
-    env()->workloop()->run();
+    if(sels != ObjCap::INVALID)
+        srv = new Server<PipeServiceHandler>(sels, ep, &wl, new PipeServiceHandler(&wl));
+    else
+        srv = new Server<PipeServiceHandler>("pipes", &wl, new PipeServiceHandler(&wl));
+
+    wl.multithreaded(16);
+    wl.run();
+
     delete srv;
     return 0;
 }

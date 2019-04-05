@@ -70,7 +70,7 @@ public:
         return Type::META;
     }
 
-    PipeData *create(capsel_t srv_sel, m3::RecvGate &rgate, size_t memsize);
+    PipeData *create(m3::WorkLoop *wl, capsel_t srv_sel, m3::RecvGate &rgate, size_t memsize);
     void remove(PipeData *pipe);
 
 private:
@@ -171,7 +171,7 @@ public:
         const m3::DTU::Message *lastmsg;
     };
 
-    explicit PipeData(PipeMeta *meta, capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize);
+    explicit PipeData(m3::WorkLoop *wl, PipeMeta *meta, capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize);
     virtual ~PipeData();
 
     virtual Type type() const override {

@@ -17,10 +17,12 @@
 #pragma once
 
 #include <base/PEDesc.h>
-#include <m3/VPE.h>
+
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/com/MemGate.h>
+#include <m3/VPE.h>
+#include <m3/WorkLoop.h>
 
 namespace pci {
 
@@ -60,7 +62,7 @@ public:
 
     void setDmaEp(m3::MemGate &memgate);
 
-    void listenForIRQs(std::function<void()> callback);
+    void listenForIRQs(m3::WorkLoop *wl, std::function<void()> callback);
     void stopListing();
 
     void waitForIRQ() {

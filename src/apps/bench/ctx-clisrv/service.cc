@@ -33,8 +33,8 @@ using base_class = SimpleRequestHandler<TestRequestHandler, TestOp, 1>;
 
 class TestRequestHandler : public base_class {
 public:
-    explicit TestRequestHandler()
-        : base_class(),
+    explicit TestRequestHandler(WorkLoop *wl)
+        : base_class(wl),
           _cnt() {
         add_operation(TEST, &TestRequestHandler::test);
     }
@@ -70,13 +70,15 @@ int main(int argc, char **argv) {
         }
     }
 
+    WorkLoop wl;
+
     Server<TestRequestHandler> *srv;
     if(ep != EP_COUNT)
-        srv = new Server<TestRequestHandler>(sels, ep, new TestRequestHandler());
+        srv = new Server<TestRequestHandler>(sels, ep, &wl, new TestRequestHandler(&wl));
     else
-        srv = new Server<TestRequestHandler>("srv1", new TestRequestHandler());
+        srv = new Server<TestRequestHandler>("srv1", &wl, new TestRequestHandler(&wl));
 
-    env()->workloop()->run();
+    wl.run();
 
     delete srv;
     return 0;

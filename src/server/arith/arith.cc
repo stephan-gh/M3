@@ -32,7 +32,7 @@ using base_class = SimpleRequestHandler<ArithRequestHandler, ArithOp, 1>;
 
 class ArithRequestHandler : public base_class {
 public:
-    explicit ArithRequestHandler() : base_class() {
+    explicit ArithRequestHandler(WorkLoop *wl) : base_class(wl) {
         add_operation(CALC, &ArithRequestHandler::calc);
     }
 
@@ -66,10 +66,12 @@ public:
 };
 
 int main() {
-    Server<ArithRequestHandler> srv("arith", new ArithRequestHandler());
+    WorkLoop wl;
+
+    Server<ArithRequestHandler> srv("arith", &wl, new ArithRequestHandler(&wl));
     if(Errors::occurred())
         exitmsg("Unable to register service 'arith'");
 
-    env()->workloop()->run();
+    wl.run();
     return 0;
 }

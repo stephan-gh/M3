@@ -59,8 +59,9 @@ static Server<NMRequestHandler> *srv;
 
 class NMRequestHandler: public net_reqh_base_t {
 public:
-    explicit NMRequestHandler(E1000 *e1000)
+    explicit NMRequestHandler(WorkLoop *wl, E1000 *e1000)
         : net_reqh_base_t(),
+          _wl(wl),
           _e1000(e1000),
           _rgate(RecvGate::create(nextlog2<32 * NMSession::MSG_SIZE>::val, nextlog2<NMSession::MSG_SIZE>::val)) {
         add_operation(NetworkManager::CREATE, &NMRequestHandler::create);
@@ -75,11 +76,11 @@ public:
         add_operation(NetworkManager::COMMIT, &NMRequestHandler::commit);
 
         using std::placeholders::_1;
-        _rgate.start(std::bind(&NMRequestHandler::handle_message, this, _1));
+        _rgate.start(wl, std::bind(&NMRequestHandler::handle_message, this, _1));
     }
 
     virtual Errors::Code open(NMSession **sess, capsel_t srv_sel, word_t) override {
-        *sess = new SocketSession(srv_sel, _rgate);
+        *sess = new SocketSession(_wl, srv_sel, _rgate);
         _sessions.append(*sess);
         return Errors::NONE;
     }
@@ -165,6 +166,7 @@ public:
     }
 
 private:
+    WorkLoop *_wl;
     E1000 *_e1000;
     RecvGate _rgate;
     SList<NMSession> _sessions;
@@ -282,8 +284,10 @@ int main(int argc, char **argv) {
 
     struct netif netif;
 
+    WorkLoop wl;
+
     pci::ProxiedPciDevice nic("nic", m3::PEISA::NIC);
-    E1000 e1000(nic, eth_alloc_callback, eth_next_buf_callback, eth_recv_callback);
+    E1000 e1000(&wl, nic, eth_alloc_callback, eth_next_buf_callback, eth_recv_callback);
 
     lwip_init();
 
@@ -298,9 +302,9 @@ int main(int argc, char **argv) {
 
     /* Start DHCP */
     // dhcp_start(&netif );
-    srv = new Server<NMRequestHandler>(argv[1], new NMRequestHandler(&e1000));
+    srv = new Server<NMRequestHandler>(argv[1], &wl, new NMRequestHandler(&wl, &e1000));
 
-    while(env()->workloop()->has_items()) {
+    while(wl.has_items()) {
         /* Check link state, e.g. via MDIO communication with PHY */
         if(link_state_changed(&netif)) {
             if(link_is_up(&netif))
@@ -328,7 +332,7 @@ int main(int argc, char **argv) {
 
         // Hack: run the workloop manually
         // - interrupt receive gate
-        env()->workloop()->tick();
+        wl.tick();
 
         // TODO: Consider FileSession::handle_..., More?
         // Sleep according to sys_timeouts_sleeptime() if there is nothing to do.

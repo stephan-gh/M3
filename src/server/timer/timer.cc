@@ -37,20 +37,21 @@ struct TickWorkItem : public WorkItem {
 };
 
 int main() {
-    server = new Server<EventHandler<>>("timer", new EventHandler<>());
+    WorkLoop wl;
+
+    server = new Server<EventHandler<>>("timer", &wl, new EventHandler<>());
 
     TickWorkItem wi;
     wi.work();
 
-    WorkLoop *wl = env()->workloop();
-    wl->add(&wi, true);
+    wl.add(&wi, true);
 
-    while(wl->has_items()) {
+    while(wl.has_items()) {
         DTU::get().fetch_events();
 
         DTU::get().try_sleep(true, next_tick - DTU::get().tsc());
 
-        wl->tick();
+        wl.tick();
     }
 
     delete server;

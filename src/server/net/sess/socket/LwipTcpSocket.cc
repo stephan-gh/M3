@@ -33,17 +33,16 @@ void LwipTcpSocket::WorkItem::work() {
     _socket.flush_data();
 }
 
-LwipTcpSocket::LwipTcpSocket(SocketSession *session)
+LwipTcpSocket::LwipTcpSocket(WorkLoop *wl, SocketSession *session)
     : LwipSocket(session),
+     _wl(wl),
      _pcb(nullptr),
      _work_item(*this) {
     // TODO: Evaluate if the work item is really needed
-    m3::env()->workloop()->add(&_work_item, false);
+    wl->add(&_work_item, false);
 }
 
 LwipTcpSocket::~LwipTcpSocket() {
-    m3::env()->workloop()->remove(&_work_item);
-
     if(_pcb != nullptr) {
         if(close() != Errors::NONE && _pcb != nullptr) {
             LOG_SOCKET(this, "Abort connection, because gracefully closing the socket failed.");
@@ -180,7 +179,7 @@ err_t LwipTcpSocket::tcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err)
         return ERR_OK;
     }
 
-    LwipTcpSocket * new_socket = new LwipTcpSocket(socket->_session);
+    LwipTcpSocket * new_socket = new LwipTcpSocket(socket->_wl, socket->_session);
     new_socket->_pcb = newpcb;
     new_socket->_channel = socket->_channel;
     tcp_arg(newpcb, new_socket);

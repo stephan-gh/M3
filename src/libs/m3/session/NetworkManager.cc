@@ -25,15 +25,17 @@
 namespace m3 {
 
 NetworkManager::NetworkManager(const String &service)
-    : ClientSession(service), _metagate(SendGate::bind(obtain(1).start())),
+    : ClientSession(service),
+      _wloop(),
+      _metagate(SendGate::bind(obtain(1).start())),
       _waiting_credit(0) {
-    env()->workloop()->set_sleep_handler(std::bind(&NetworkManager::process_sleep, this));
 }
 
 NetworkManager::NetworkManager(capsel_t session, capsel_t metagate)
-    : ClientSession(session), _metagate(SendGate::bind(metagate)),
+    : ClientSession(session),
+      _wloop(),
+      _metagate(SendGate::bind(metagate)),
       _waiting_credit(0) {
-    env()->workloop()->set_sleep_handler(std::bind(&NetworkManager::process_sleep, this));
 }
 
 m3::NetworkManager::~NetworkManager() {
@@ -41,7 +43,10 @@ m3::NetworkManager::~NetworkManager() {
     while((socket = _sockets.remove_root()) != nullptr) {
         delete socket;
     }
-    env()->workloop()->set_sleep_handler(nullptr);
+}
+
+void NetworkManager::multithreaded(WorkLoop *wl) {
+    _wloop = wl;
 }
 
 Socket* NetworkManager::create(Socket::SocketType type, uint8_t protocol) {
@@ -132,8 +137,9 @@ Errors::Code NetworkManager::ensure_channel_established() {
 }
 
 void NetworkManager::listen_channel(NetEventChannel& _channel) {
+    assert(_wloop);
     using namespace std::placeholders;
-    _channel.start(std::bind(&NetworkManager::process_event, this, _1),
+    _channel.start(_wloop, std::bind(&NetworkManager::process_event, this, _1),
             std::bind(&NetworkManager::process_credit, this, _1, _2));
 }
 
@@ -151,7 +157,12 @@ void NetworkManager::wait_sync() {
     NetEventChannel::crdhandler_t crd;
 
     while(1) {
-        process_sleep();
+        if(DTU::get().fetch_events() == 0) {
+            LLOG(NET, "NetworkManager::process_sleep: Trying to sleep!");
+            // This would be the place to implement timeouts.
+            DTU::get().try_sleep(true, 0);
+        }
+
         if(_channel->has_events(ev, crd))
             break;
     }
@@ -181,20 +192,6 @@ void NetworkManager::process_credit(event_t wait_event, size_t waiting) {
     LLOG(NET, "NetworkManager::process_credit: wait_event=" << wait_event << ", waiting=" << waiting);
     _waiting_credit -= waiting;
     ThreadManager::get().notify(wait_event);
-}
-
-void NetworkManager::process_sleep() {
-#if defined(__gem5__)
-    DTU::reg_t event_mask = DTU::EventMask::MSG_RECV;
-    if(_waiting_credit > 0)
-        event_mask |= DTU::EventMask::CRD_RECV;
-
-    if(!(DTU::get().fetch_events() & event_mask)) {
-        LLOG(NET, "NetworkManager::process_sleep: Trying to sleep!");
-        // This would be the place to implement timeouts.
-        DTU::get().try_sleep(true, 0, event_mask);
-    }
-#endif
 }
 
 }  // namespace m3

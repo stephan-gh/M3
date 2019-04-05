@@ -39,8 +39,10 @@ int main(int argc, char *argv[]) {
 
     KLOG(MEM, MainMemory::get());
 
+    WorkLoop &wl = WorkLoop::get();
+
     // create some worker threads
-    m3::env()->workloop()->multithreaded(48);
+    wl.multithreaded(48);
 
     SyscallHandler::init();
     PEManager::create();
@@ -51,7 +53,7 @@ int main(int argc, char *argv[]) {
 
     KLOG(INFO, "Kernel is ready");
 
-    m3::env()->workloop()->run();
+    wl.run();
 
     EVENT_TRACE_FLUSH();
 

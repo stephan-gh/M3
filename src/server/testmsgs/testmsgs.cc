@@ -31,7 +31,7 @@ static Server<TestRequestHandler> *srv;
 
 class TestRequestHandler : public base_class {
 public:
-    explicit TestRequestHandler() : base_class() {
+    explicit TestRequestHandler(WorkLoop *wl) : base_class(wl) {
         add_operation(TEST, &TestRequestHandler::test);
     }
 
@@ -52,7 +52,12 @@ public:
 };
 
 int main() {
-    srv = new Server<TestRequestHandler>("testmsgs", new TestRequestHandler());
-    env()->workloop()->run();
+    WorkLoop wl;
+
+    srv = new Server<TestRequestHandler>("testmsgs", &wl, new TestRequestHandler(&wl));
+
+    wl.run();
+
+    delete srv;
     return 0;
 }

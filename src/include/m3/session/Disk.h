@@ -43,12 +43,12 @@ public:
         COUNT
     };
 
-    explicit Disk(const char *name, size_t dev)
+    explicit Disk(WorkLoop *wl, const char *name, size_t dev)
         : ClientSession(name, dev, VPE::self().alloc_sels(2)),
           _rgate(RecvGate::create(nextlog2<MSG_SIZE * 8>::val, nextlog2<MSG_SIZE>::val)),
           _sgate(obtain_sgate()) {
         _rgate.activate();
-        _rgate.start([](GateIStream &is) {
+        _rgate.start(wl, [](GateIStream &is) {
             ThreadManager::get().notify(is.label<event_t>() & (std::numeric_limits<event_t>::max() >> 1));
         });
     };

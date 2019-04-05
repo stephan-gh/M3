@@ -34,13 +34,14 @@
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
 #include "SyscallHandler.h"
+#include "WorkLoop.h"
 
 using namespace kernel;
 
 static size_t fssize = 0;
 
 static void sigint(int) {
-    m3::env()->workloop()->stop();
+    WorkLoop::get().stop();
 }
 
 static void delete_dir(const char *dir) {
@@ -69,7 +70,6 @@ static void copyfromfs(MainMemory &mem, const char *file) {
         PANIC("Filesystem image (" << file << ") too large"
          " (max=" << FS_MAX_SIZE << ", size=" << info.st_size << ")");
     }
-
 
     goff_t fs_addr = mem.module(0).addr() + FS_IMG_OFFSET;
     ssize_t res = read(fd, reinterpret_cast<void*>(fs_addr), FS_MAX_SIZE);
@@ -115,8 +115,10 @@ int main(int argc, char *argv[]) {
 
     KLOG(MEM, MainMemory::get());
 
+    WorkLoop &wl = WorkLoop::get();
+
     // create some worker threads
-    m3::env()->workloop()->multithreaded(8);
+    wl.multithreaded(8);
 
     Platform::add_modules(argc - argstart - 1, argv + argstart + 1);
     if(fsimg)
@@ -129,7 +131,7 @@ int main(int argc, char *argv[]) {
 
     KLOG(INFO, "Kernel is ready");
 
-    m3::env()->workloop()->run();
+    wl.run();
 
     KLOG(INFO, "Shutting down");
     if(fsimg)

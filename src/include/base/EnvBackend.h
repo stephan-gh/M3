@@ -21,7 +21,6 @@
 namespace m3 {
 
 class Env;
-class WorkLoop;
 
 class EnvBackend {
     friend class Env;
@@ -37,9 +36,6 @@ public:
     }
     virtual void yield() {}
     virtual void exit(int code) = 0;
-
-protected:
-    WorkLoop *_workloop;
 };
 
 }

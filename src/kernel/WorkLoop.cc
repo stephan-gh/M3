@@ -63,13 +63,23 @@ static void check_childs() {
 
 namespace kernel {
 
+WorkLoop WorkLoop::_wl;
+
 void WorkLoop::multithreaded(uint count) {
     for(uint i = 0; i < count; ++i)
         new m3::Thread(thread_startup, nullptr);
 }
 
+void WorkLoop::thread_startup(void *) {
+    WorkLoop &wl = WorkLoop::get();
+    wl.run();
+
+    wl.thread_shutdown();
+}
+
 void WorkLoop::thread_shutdown() {
     m3::ThreadManager::get().stop();
+    ::exit(0);
 }
 
 void WorkLoop::run() {
@@ -86,7 +96,7 @@ void WorkLoop::run() {
     epid_t sysep1 = SyscallHandler::ep(1);
     epid_t srvep = SyscallHandler::srvep();
     const m3::DTU::Message *msg;
-    while(has_items()) {
+    while(_run) {
         cycles_t sleep = Timeouts::get().sleep_time();
         if(sleep != static_cast<cycles_t>(-1))
             m3::DTU::get().try_sleep(false, sleep);

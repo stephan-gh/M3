@@ -75,10 +75,6 @@ void SyscallHandler::init() {
         buford, m3::nextlog2<256>::val);
 #endif
 
-    // add a dummy item to workloop; we handle everything manually anyway
-    // but one item is needed to not stop immediately
-    m3::env()->workloop()->add(nullptr, false);
-
     add_operation(m3::KIF::Syscall::PAGEFAULT,      &SyscallHandler::pagefault);
     add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::createsrv);
     add_operation(m3::KIF::Syscall::CREATE_SESS,    &SyscallHandler::createsess);

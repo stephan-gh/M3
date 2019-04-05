@@ -271,7 +271,8 @@ public:
     typedef void(&next_buf_cb_func)(void *&pkt, void *&buf, size_t &bufSize);
     typedef void(&recv_cb_func)(void *pkt);
 
-    explicit E1000(pci::ProxiedPciDevice & nic, alloc_cb_func allocCallback, next_buf_cb_func nextBufCallback, recv_cb_func recvCallback);
+    explicit E1000(m3::WorkLoop *wl, pci::ProxiedPciDevice & nic, alloc_cb_func allocCallback,
+                   next_buf_cb_func nextBufCallback, recv_cb_func recvCallback);
 
     ulong mtu() const {
         return TX_BUF_SIZE;
