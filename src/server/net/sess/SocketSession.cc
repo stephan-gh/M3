@@ -144,7 +144,7 @@ m3::Errors::Code SocketSession::open_file(capsel_t srv_sel, m3::KIF::Service::Ex
     int sd = data.args.vals[0];
     LwipSocket *socket = get_socket(sd);
     if(socket) {
-        size_t mode = data.args.vals[1];
+        int mode = data.args.vals[1];
         if(!(mode & FILE_RW)) {
             LOG_SESSION(this, "open_file failed: invalid mode");
             return Errors::INV_ARGS;
