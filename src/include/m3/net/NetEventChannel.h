@@ -158,6 +158,8 @@ public:
 
     Event recv_message();
 
+    bool has_events(evhandler_t &evhandler, crdhandler_t &crdhandler);
+
     bool has_credits();
     void set_credit_event(event_t event);
     event_t get_credit_event();

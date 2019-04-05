@@ -145,6 +145,18 @@ void NetworkManager::wait_for_credit(NetEventChannel& _channel) {
     _channel.wait_for_credit();
 }
 
+void NetworkManager::wait_sync() {
+    using namespace std::placeholders;
+    NetEventChannel::evhandler_t ev = std::bind(&NetworkManager::process_event, this, _1);
+    NetEventChannel::crdhandler_t crd;
+
+    while(1) {
+        process_sleep();
+        if(_channel->has_events(ev, crd))
+            break;
+    }
+}
+
 Socket * NetworkManager::process_event(NetEventChannel::Event &event) {
     if(!event.is_present())
         return nullptr;

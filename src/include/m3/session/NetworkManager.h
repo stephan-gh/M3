@@ -97,6 +97,7 @@ private:
 
     void listen_channel(NetEventChannel & _channel);
     void wait_for_credit(NetEventChannel& _channel);
+    void wait_sync();
 
     Socket * process_event(NetEventChannel::Event & event);
     void process_credit(event_t wait_event, size_t waiting);

@@ -24,8 +24,6 @@
 using namespace m3;
 
 int main() {
-    env()->workloop()->multithreaded(4);
-
     NetworkManager net("net0");
 
     Socket *socket = net.create(Socket::SOCK_STREAM);

@@ -50,7 +50,7 @@ Socket::Socket(int sd, NetworkManager &nm)
       _nm(nm),
       _channel(nullptr),
       _blocking(false),
-      _wait_event(0),
+      _wait_event(INVALID_EVENT),
       _waiting(0) {
 }
 
@@ -216,23 +216,33 @@ void Socket::fetch_events() {
 }
 
 void Socket::wait_for_event() {
-    _nm.listen_channel(*_channel);
-    _waiting++;
-    LLOG(NET, "Socket " << _sd << " is waiting for event " << get_wait_event() << ".");
-    ThreadManager::get().wait_for(get_wait_event());
+    event_t ev = get_wait_event();
+    if(ev == 0)
+        _nm.wait_sync();
+    else {
+        _nm.listen_channel(*_channel);
+        _waiting++;
+        LLOG(NET, "Socket " << _sd << " is waiting for event " << ev << ".");
+        ThreadManager::get().wait_for(ev);
+    }
 }
 
 event_t Socket::get_wait_event() {
-    if(_wait_event == 0)
+    if(_wait_event == INVALID_EVENT)
         _wait_event = ThreadManager::get().get_wait_event();
     return _wait_event;
 }
 
 void Socket::wait_for_credit() {
-    _nm.listen_channel(*_channel);
-    _nm.wait_for_credit(*_channel);
-    LLOG(NET, "Socket " << _sd << " is waiting for credits " << _channel->get_credit_event() << ".");
-    ThreadManager::get().wait_for(_channel->get_credit_event());
+    event_t ev = _channel->get_credit_event();
+    if(ev == 0)
+        _nm.wait_sync();
+    else {
+        _nm.listen_channel(*_channel);
+        _nm.wait_for_credit(*_channel);
+        LLOG(NET, "Socket " << _sd << " is waiting for credits " << _channel->get_credit_event() << ".");
+        ThreadManager::get().wait_for(_channel->get_credit_event());
+    }
 }
 
 } // namespace m3

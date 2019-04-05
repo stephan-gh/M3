@@ -151,6 +151,25 @@ void NetEventChannel::wait_for_credit() {
     _waiting_credit++;
 }
 
+bool NetEventChannel::has_events(evhandler_t &evhandler, crdhandler_t &crdhandler) {
+    bool res = false;
+    Event event = recv_message();
+    if(event.is_present()) {
+        evhandler(event);
+        res = true;
+    }
+
+    if(has_credits()) {
+        if(crdhandler) {
+            auto waiting_credit = _waiting_credit;
+            _waiting_credit = 0;
+            crdhandler(_credit_event, waiting_credit);
+        }
+        res = true;
+    }
+    return res;
+}
+
 NetEventChannel::Event::Event()
     : _msg(nullptr),
        _channel(nullptr),
@@ -213,16 +232,7 @@ NetEventChannel::Event::Event(const DTU::Message *msg, NetEventChannel *channel)
 }
 
 void NetEventChannel::EventWorkItem::work() {
-    Event event = _channel->recv_message();
-    if(event.is_present())
-        _channel->_evhandler(event);
-
-    if(_channel->_waiting_credit && _channel->has_credits())
-    {
-        auto waiting_credit = _channel->_waiting_credit;
-        _channel->_waiting_credit = 0;
-        _channel->_crdhandler(_channel->_credit_event, waiting_credit);
-    }
+    _channel->has_events(_channel->_evhandler, _channel->_crdhandler);
 }
 
 }

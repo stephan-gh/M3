@@ -34,6 +34,8 @@ class Socket : public m3::TreapNode<Socket, int>, public SListItem {
 public:
     static const int EVENT_FETCH_BATCH_SIZE = 4;
 
+    static const event_t INVALID_EVENT      = static_cast<event_t>(-1);
+
     enum SocketType {
         SOCK_STREAM, // TCP
         SOCK_DGRAM,  // UDP
