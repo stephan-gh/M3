@@ -114,8 +114,11 @@ m3::Errors::Code LwipTcpSocket::connect(ip4_addr addr, uint16_t port) {
 
 m3::Errors::Code LwipTcpSocket::close() {
     err_t err = tcp_close(_pcb);
-    if(err == ERR_OK)
+    if(err == ERR_OK) {
+        // to be safe: don't call the callback with this anymore
+        tcp_arg(_pcb, nullptr);
         _pcb = nullptr;
+    }
     else
         LOG_SOCKET(this, "close failed: " << errToStr(err));
     return mapError(err);
@@ -169,6 +172,9 @@ void LwipTcpSocket::flush_data() {
 
 void LwipTcpSocket::tcp_err_cb(void* arg, err_t err) {
     LwipTcpSocket * socket = static_cast<LwipTcpSocket *>(arg);
+    if(socket == nullptr)
+        return;
+
     LOG_SOCKET(socket, "tcp_err_cb: " << errToStr(err));
 
     // ERR_ABRT: aborted through tcp_abort or by a TCP timer
@@ -180,6 +186,9 @@ void LwipTcpSocket::tcp_err_cb(void* arg, err_t err) {
 
 err_t LwipTcpSocket::tcp_accept_cb(void *arg, struct tcp_pcb *newpcb, err_t err) {
     LwipTcpSocket * socket = static_cast<LwipTcpSocket *>(arg);
+    if(socket == nullptr)
+        return ERR_ABRT;
+
     LOG_SOCKET(socket, "tcp_accept_cb");
 
     if(err != ERR_OK) {
@@ -214,6 +223,9 @@ err_t LwipTcpSocket::tcp_connected_cb(void* arg, struct tcp_pcb* tpcb, err_t err
     LWIP_UNUSED_ARG(err); // error code is always ERR_OK
 
     LwipTcpSocket * socket = static_cast<LwipTcpSocket *>(arg);
+    if(socket == nullptr)
+        return ERR_ABRT;
+
     LOG_SOCKET(socket, "tcp_connected_cb: " << errToStr(err));
 
     // TODO: Handle failure
@@ -227,6 +239,8 @@ err_t LwipTcpSocket::tcp_recv_cb(void* arg, struct tcp_pcb* tpcb, struct pbuf* p
     LWIP_UNUSED_ARG(err); // error code is always ERR_OK
 
     LwipTcpSocket * socket = static_cast<LwipTcpSocket *>(arg);
+    if(socket == nullptr)
+        return ERR_ABRT;
 
     // The connection has been closed!
     if(p == NULL) {
@@ -269,6 +283,9 @@ err_t LwipTcpSocket::tcp_sent_cb(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     LWIP_UNUSED_ARG(tpcb);
 
     LwipTcpSocket * socket = static_cast<LwipTcpSocket *>(arg);
+    if(socket == nullptr)
+        return ERR_ABRT;
+
     LOG_SOCKET(socket, "tcp_sent_cb: " << len);
 
     socket->flush_data();
