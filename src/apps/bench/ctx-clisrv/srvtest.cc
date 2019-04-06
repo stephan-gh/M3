@@ -17,6 +17,7 @@
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
+#include <base/CmdArgs.h>
 #include <base/Panic.h>
 
 #include <m3/server/RemoteServer.h>
@@ -29,6 +30,12 @@ using namespace m3;
 
 #define VERBOSE     0
 
+enum Mode {
+    DEDICATED,
+    SERV_MUXED,
+    ALL_MUXED,
+};
+
 static void start(VPE &v, int argc, const char **argv) {
     v.mounts(*VPE::self().mounts());
     v.obtain_mounts();
@@ -37,21 +44,49 @@ static void start(VPE &v, int argc, const char **argv) {
         PANIC("Cannot execute " << argv[0] << ": " << Errors::to_string(res));
 }
 
+static void usage(const char *name) {
+    cerr << "Usage: " << name << " [-m <mode>]\n";
+    cerr << "  <mode> can be:\n";
+    cerr << "    'ded':      all use dedicated PEs\n";
+    cerr << "    'serv-mux': services share a PE\n";
+    cerr << "    'all-mux':  all share the PEs\n";
+    exit(1);
+}
+
 int main(int argc, char **argv) {
-    int mode = argc > 1 ? IStringStream::read_from<int>(argv[1]) : 0;
+    Mode mode = DEDICATED;
+
+    int opt;
+    while((opt = CmdArgs::get(argc, argv, "m:")) != -1) {
+        switch(opt) {
+            case 'm': {
+                if(strcmp(CmdArgs::arg, "ded") == 0)
+                    mode = Mode::DEDICATED;
+                else if(strcmp(CmdArgs::arg, "serv-mux") == 0)
+                    mode = Mode::SERV_MUXED;
+                else if(strcmp(CmdArgs::arg, "all-mux") == 0)
+                    mode = Mode::ALL_MUXED;
+                else
+                    usage(argv[0]);
+                break;
+            }
+            default:
+                usage(argv[0]);
+        }
+    }
 
     {
         if(VERBOSE) cout << "Creating VPEs...\n";
 
-        VPE c1("client", VPEArgs().flags(mode == 2 ? VPE::MUXABLE : 0));
+        VPE c1("client", VPEArgs().flags(mode == ALL_MUXED ? VPE::MUXABLE : 0));
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 
-        VPE s1("service1", VPEArgs().flags(mode >= 1 ? VPE::MUXABLE : 0));
+        VPE s1("service1", VPEArgs().flags(mode == SERV_MUXED || mode == ALL_MUXED ? VPE::MUXABLE : 0));
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 
-        VPE s2("service2", VPEArgs().flags(mode >= 1 ? VPE::MUXABLE : 0));
+        VPE s2("service2", VPEArgs().flags(mode == SERV_MUXED || mode == ALL_MUXED ? VPE::MUXABLE : 0));
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 
@@ -64,7 +99,7 @@ int main(int argc, char **argv) {
 
         String srv1arg = srv1.sel_arg();
         String srv2arg = srv2.sel_arg();
-        const char *args1[] = {"/bin/ctx-client", mode == 2 ? "2" : "1"};
+        const char *args1[] = {"/bin/ctx-client", mode == ALL_MUXED ? "2" : "1"};
         const char *args2[] = {"/bin/ctx-service", "-s", srv1arg.c_str()};
         const char *args3[] = {"/bin/ctx-service", "-s", srv2arg.c_str()};
         start(s1, ARRAY_SIZE(args2), args2);

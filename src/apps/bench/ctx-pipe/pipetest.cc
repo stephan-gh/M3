@@ -17,6 +17,7 @@
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
+#include <base/CmdArgs.h>
 #include <base/Panic.h>
 
 #include <m3/server/RemoteServer.h>
@@ -30,6 +31,17 @@ using namespace m3;
 #define VERBOSE     1
 
 static const size_t PIPE_SHM_SIZE   = 512 * 1024;
+
+enum Mode {
+    DEDICATED,
+    SERV_MUXED,
+    ALL_MUXED,
+};
+
+enum Memory {
+    DRAM,
+    SPM,
+};
 
 struct App {
     explicit App(const char *name, const char *pager, bool muxed)
@@ -49,30 +61,58 @@ static App *create(const char *name, const char *pager, bool muxable) {
 }
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " <mode> <mem> <repeats> <wargs> <rargs> ...\n";
-    cerr << " <mode> can be:\n";
-    cerr << " 0: not muxable\n";
-    cerr << " 1: all muxable\n";
-    cerr << " 2: m3fs with pipe\n";
-    cerr << " 3: mux m3fs with pipe\n";
-    cerr << " 4: mux m3fs with pipe and apps\n";
-    cerr << " <mem> can be:\n";
-    cerr << " 0: DRAM\n";
-    cerr << " 1: SPM\n";
+    cerr << "Usage: " << name << " [-m <mode>] [-p <pipe-mem>] [-r <repeats>] <wargs> <rargs> ...\n";
+    cerr << "  <mode> can be:\n";
+    cerr << "    'ded':      all use dedicated PEs\n";
+    cerr << "    'serv-mux': services share a PE\n";
+    cerr << "    'all-mux':  all share the PEs\n";
+    cerr << "  <pipe-mem> can be:\n";
+    cerr << "    'dram':     put pipe's shared memory in DRAM\n";
+    cerr << "    'spm':      put pipe's shared memory in neighboring SPM\n";
+    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
     exit(1);
 }
 
-int main(int argc, const char **argv) {
-    if(argc < 6)
+int main(int argc, char **argv) {
+    Mode mode = DEDICATED;
+    Memory pmem = DRAM;
+    int repeats = 1;
+
+    int opt;
+    while((opt = CmdArgs::get(argc, argv, "m:p:r:")) != -1) {
+        switch(opt) {
+            case 'm': {
+                if(strcmp(CmdArgs::arg, "ded") == 0)
+                    mode = Mode::DEDICATED;
+                else if(strcmp(CmdArgs::arg, "serv-mux") == 0)
+                    mode = Mode::SERV_MUXED;
+                else if(strcmp(CmdArgs::arg, "all-mux") == 0)
+                    mode = Mode::ALL_MUXED;
+                else
+                    usage(argv[0]);
+                break;
+            }
+            case 'p': {
+                if(strcmp(CmdArgs::arg, "dram") == 0)
+                    pmem = Memory::DRAM;
+                else if(strcmp(CmdArgs::arg, "spm") == 0)
+                    pmem = Memory::SPM;
+                else
+                    usage(argv[0]);
+                break;
+            }
+            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            default:
+                usage(argv[0]);
+        }
+    }
+    if(CmdArgs::ind + 1 >= argc)
         usage(argv[0]);
 
-    int mode = IStringStream::read_from<int>(argv[1]);
-    int mem = IStringStream::read_from<int>(argv[2]);
-    int repeats = IStringStream::read_from<int>(argv[3]);
-    int wargs = IStringStream::read_from<int>(argv[4]);
-    int rargs = IStringStream::read_from<int>(argv[5]);
+    int wargs = IStringStream::read_from<int>(argv[CmdArgs::ind + 0]);
+    int rargs = IStringStream::read_from<int>(argv[CmdArgs::ind + 1]);
 
-    if(argc != 6 + wargs + rargs)
+    if(argc != CmdArgs::ind + 2 + wargs + rargs)
         usage(argv[0]);
 
     MemGate pipemem = MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW);
@@ -85,7 +125,7 @@ int main(int argc, const char **argv) {
 
 #if defined(__gem5__)
         // start pager
-        apps[2] = create("mypg", nullptr, mode >= 3);
+        apps[2] = create("mypg", nullptr, mode == SERV_MUXED || mode == ALL_MUXED);
         pagr_srv = new RemoteServer(apps[2]->vpe, "mypg");
 
         {
@@ -97,20 +137,12 @@ int main(int argc, const char **argv) {
         }
 #endif
 
-        const char **wargv = argv + 6;
-        const char **rargv = argv + 6 + wargs;
-        if(mode < 2) {
-            apps[0] = create("pipes", nullptr, mode == 1);
-            apps[1] = nullptr;
-            apps[3] = create(wargv[0], "mypg", mode == 1);
-            apps[4] = create(rargv[0], "mypg", mode == 1);
-        }
-        else {
-            apps[3] = create(wargv[0], "mypg", mode == 4);
-            apps[4] = create(rargv[0], "mypg", mode == 4);
-            apps[0] = create("pipes", nullptr, mode >= 3);
-            apps[1] = create("m3fs", nullptr, mode >= 3);
-        }
+        char **wargv = argv + CmdArgs::ind + 2;
+        char **rargv = argv + CmdArgs::ind + 2 + wargs;
+        apps[3] = create(wargv[0], "mypg", mode == ALL_MUXED);
+        apps[4] = create(rargv[0], "mypg", mode == ALL_MUXED);
+        apps[0] = create("pipes", nullptr, mode == SERV_MUXED || mode == ALL_MUXED);
+        apps[1] = create("m3fs", nullptr, mode == SERV_MUXED || mode == ALL_MUXED);
 
         RemoteServer *m3fs_srv = nullptr;
         RemoteServer *pipe_srv = new RemoteServer(apps[0]->vpe, "mypipes");
@@ -140,7 +172,7 @@ int main(int argc, const char **argv) {
         MemGate *vpemem = nullptr;
         VPE *memvpe = nullptr;
         IndirectPipe *pipe;
-        if(mem == 0)
+        if(pmem == DRAM)
             pipe = new IndirectPipe(pipes, pipemem, PIPE_SHM_SIZE);
         else {
             memvpe = new VPE("mem");
@@ -166,7 +198,7 @@ int main(int argc, const char **argv) {
         apps[3]->vpe.obtain_fds();
         apps[3]->vpe.mounts(*VPE::self().mounts());
         apps[3]->vpe.obtain_mounts();
-        res = apps[3]->vpe.exec(wargs, wargv);
+        res = apps[3]->vpe.exec(wargs, const_cast<const char**>(wargv));
         if(res != Errors::NONE)
             PANIC("Cannot execute " << wargv[0] << ": " << Errors::to_string(res));
 
@@ -175,7 +207,7 @@ int main(int argc, const char **argv) {
         apps[4]->vpe.obtain_fds();
         apps[4]->vpe.mounts(*VPE::self().mounts());
         apps[4]->vpe.obtain_mounts();
-        res = apps[4]->vpe.exec(rargs, rargv);
+        res = apps[4]->vpe.exec(rargs, const_cast<const char**>(rargv));
         if(res != Errors::NONE)
             PANIC("Cannot execute " << rargv[0] << ": " << Errors::to_string(res));
 

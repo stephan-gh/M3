@@ -18,6 +18,7 @@
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
+#include <base/CmdArgs.h>
 #include <base/Panic.h>
 
 #include <m3/stream/Standard.h>
@@ -46,22 +47,37 @@ struct App {
     VPE vpe;
 };
 
-int main(int argc, char **argv) {
-    if(argc < 5) {
-        cerr << "Usage: " << argv[0] << " 1|0 <repeats> <argcount> <prog1>...\n";
-        return 1;
-    }
+static void usage(const char *name) {
+    cerr << "Usage: " << name << " [-m <muxed>] [-r <repeats>] <argcount> <prog1>...\n";
+    cerr << "  <muxed> specifies whether the PEs are multiplexed\n";
+    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
+    exit(1);
+}
 
-    bool muxed = strcmp(argv[1], "1") == 0;
-    int repeats = IStringStream::read_from<int>(argv[2]);
-    int argcount = IStringStream::read_from<int>(argv[3]);
-    App *apps[static_cast<size_t>(argc - 4) / static_cast<size_t>(argcount)];
+int main(int argc, char **argv) {
+    bool muxed = false;
+    int repeats = 1;
+
+    int opt;
+    while((opt = CmdArgs::get(argc, argv, "m:r:")) != -1) {
+        switch(opt) {
+            case 'm': muxed = IStringStream::read_from<int>(CmdArgs::arg) == 1; break;
+            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            default:
+                usage(argv[0]);
+        }
+    }
+    if(CmdArgs::ind >= argc)
+        usage(argv[0]);
+
+    int argcount = IStringStream::read_from<int>(argv[CmdArgs::ind]);
+    App *apps[static_cast<size_t>(argc - (CmdArgs::ind + 1)) / static_cast<size_t>(argcount)];
 
     for(int j = 0; j < repeats; ++j) {
         if(VERBOSE) cout << "Creating VPEs...\n";
 
         size_t idx = 0;
-        for(int i = 4; i < argc; i += argcount) {
+        for(int i = CmdArgs::ind + 1; i < argc; i += argcount) {
             const char **args = new const char*[argcount];
             for(int x = 0; x < argcount; ++x)
                 args[x] = argv[i + x];

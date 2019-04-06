@@ -21,8 +21,7 @@
 enum Mode {
     INDIR       = 0,
     DIR         = 1,
-    DIR_MULTI   = 2,
-    DIR_SIMPLE  = 3,
+    DIR_SIMPLE  = 2,
 };
 
 extern const cycles_t ACCEL_TIMES[];

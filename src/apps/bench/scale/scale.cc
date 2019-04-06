@@ -17,6 +17,7 @@
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
+#include <base/CmdArgs.h>
 #include <base/Panic.h>
 
 #include <m3/server/RemoteServer.h>
@@ -50,21 +51,44 @@ struct App {
     SendGate sgate;
 };
 
+static void usage(const char *name) {
+    cerr << "Usage: " << name << " [-m] [-l] [-i <instances>] [-s <servers>] [-r <repeats>] <name> <fssize>\n";
+    cerr << "  -m enables PE sharing\n";
+    cerr << "  -l enables the load generator\n";
+    cerr << "  <instances> specifies the number of application (<name>) instances\n";
+    cerr << "  <servers> specifies the number of m3fs instances\n";
+    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
+    cerr << "  <name> specifies the name of the application trace\n";
+    cerr << "  <fssize> specifies the size of the file system\n";
+    exit(1);
+}
+
 int main(int argc, char **argv) {
-    if(argc != 8) {
-        cerr << "Usage: " << argv[0] << " <name> <muxed> <loadgen> <repeats> <instances> <servers> <fssize>\n";
-        return 1;
+    bool muxed = false;
+    bool loadgen = false;
+    size_t instances = 1;
+    size_t servers = 1;
+    int repeats = 1;
+
+    int opt;
+    while((opt = CmdArgs::get(argc, argv, "mli:s:r:")) != -1) {
+        switch(opt) {
+            case 'm': muxed = true; break;
+            case 'l': loadgen = true; break;
+            case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
+            case 's': servers = IStringStream::read_from<size_t>(CmdArgs::arg); break;
+            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            default:
+                usage(argv[0]);
+        }
     }
+    if(CmdArgs::ind + 1 >= argc)
+        usage(argv[0]);
 
-    const char *name = argv[1];
-    bool muxed = strcmp(argv[2], "1") == 0;
-    bool loadgen = strcmp(argv[3], "1") == 0;
-    int repeats = IStringStream::read_from<int>(argv[4]);
-    size_t instances = IStringStream::read_from<size_t>(argv[5]);
-    size_t servers = IStringStream::read_from<size_t>(argv[6]);
-    size_t fssize = IStringStream::read_from<size_t>(argv[7]);
+    const char *name = argv[CmdArgs::ind + 0];
+    size_t fssize = IStringStream::read_from<size_t>(argv[CmdArgs::ind + 1]);
+
     App *apps[instances];
-
     RemoteServer *srv[1 + servers];
     VPE *srvvpes[1 + servers];
     char srvnames[1 + servers][16];

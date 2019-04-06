@@ -17,6 +17,7 @@
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
+#include <base/CmdArgs.h>
 
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
@@ -25,21 +26,53 @@
 
 using namespace m3;
 
+static void usage(const char *name) {
+    cerr << "Usage: " << name << " [-m <mode>] [-c <comptime>] [-n <num>] [-r <repeats>] <in> <out>\n";
+    cerr << "  <mode> can be:\n";
+    cerr << "    'indir'      for a single chain, assisted\n";
+    cerr << "    'dir'        for a single chain, connected directly\n";
+    cerr << "    'dir-simple' for a single chain, connected via pipes\n";
+    cerr << "    'dir-multi'  for two chains, connected directly\n";
+    cerr << "  <comptime> specifies the computation time for each accelerator for 1 KiB\n";
+    cerr << "  <num> specifies the number of accelerators in each chain\n";
+    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
+    exit(1);
+}
+
 int main(int argc, char **argv) {
-    if(argc < 7)
-        exitmsg("Usage: " << argv[0] << " <in> <out> <mode> <comptime> <num> <repeats>");
+    Mode mode = Mode::INDIR;
+    cycles_t comptime = 1000;
+    size_t num = 1;
+    int repeats = 1;
 
-    if(VFS::mount("/", "m3fs") != Errors::NONE) {
-        if(Errors::last != Errors::EXISTS)
-            exitmsg("Unable to mount filesystem\n");
+    int opt;
+    while((opt = CmdArgs::get(argc, argv, "m:c:n:r:")) != -1) {
+        switch(opt) {
+            case 'm': {
+                if(strcmp(CmdArgs::arg, "indir") == 0)
+                    mode = Mode::INDIR;
+                else if(strcmp(CmdArgs::arg, "dir") == 0)
+                    mode = Mode::DIR;
+                else if(strcmp(CmdArgs::arg, "dir-simple") == 0)
+                    mode = Mode::DIR_SIMPLE;
+                else if(strcmp(CmdArgs::arg, "dir-multi") == 0)
+                    mode = Mode::DIR_MULTI;
+                else
+                    usage(argv[0]);
+                break;
+            }
+            case 'c': comptime = IStringStream::read_from<cycles_t>(CmdArgs::arg); break;
+            case 'n': num = IStringStream::read_from<size_t>(CmdArgs::arg); break;
+            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            default:
+                usage(argv[0]);
+        }
     }
+    if(CmdArgs::ind + 1 >= argc)
+        usage(argv[0]);
 
-    const char *in = argv[1];
-    const char *out = argv[2];
-    Mode mode = static_cast<Mode>(IStringStream::read_from<int>(argv[3]));
-    cycles_t comptime = IStringStream::read_from<cycles_t>(argv[4]);
-    size_t num = IStringStream::read_from<size_t>(argv[5]);
-    int repeats = IStringStream::read_from<int>(argv[6]);
+    const char *in = argv[CmdArgs::ind + 0];
+    const char *out = argv[CmdArgs::ind + 1];
 
     for(int i = 0; i < repeats; ++i) {
         // open files
