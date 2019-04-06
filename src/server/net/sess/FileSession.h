@@ -61,6 +61,7 @@ public:
     virtual void commit(m3::GateIStream &is) override;
     virtual void close(m3::GateIStream &is) override;
 
+    void handle_eof();
     m3::Errors::Code handle_recv(struct pbuf* p);
 
 private:

@@ -48,6 +48,7 @@ public:
     void flush_data();
 
 private:
+    void eof();
     ssize_t send_data_internal(const void * data, size_t size);
 
 private:

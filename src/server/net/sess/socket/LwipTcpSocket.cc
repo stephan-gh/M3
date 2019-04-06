@@ -52,6 +52,13 @@ LwipTcpSocket::~LwipTcpSocket() {
     }
 }
 
+void LwipTcpSocket::eof() {
+    if(rfile())
+        rfile()->handle_eof();
+    if(sfile())
+        sfile()->handle_eof();
+}
+
 m3::Errors::Code LwipTcpSocket::create(uint8_t protocol) {
     if(protocol != 0 && protocol != IP_PROTO_TCP) {
         LOG_SOCKET(this, "create failed: invalid protocol");
@@ -167,6 +174,7 @@ void LwipTcpSocket::tcp_err_cb(void* arg, err_t err) {
     // ERR_ABRT: aborted through tcp_abort or by a TCP timer
     // ERR_RST: the connection was reset by the remote host
     // TODO: Handle failure
+    socket->eof();
     socket->_channel->socket_closed(socket->_sd, mapError(err));
 }
 
@@ -224,6 +232,7 @@ err_t LwipTcpSocket::tcp_recv_cb(void* arg, struct tcp_pcb* tpcb, struct pbuf* p
     if(p == NULL) {
         LOG_SOCKET(socket, "tcp_recv_cb: connection has been closed");
         // TODO: Handle failure
+        socket->eof();
         socket->_channel->socket_closed(socket->_sd, Errors::CONN_CLOSED);
         return ERR_OK;
     }

@@ -51,10 +51,7 @@ FileSession::FileSession(WorkLoop *wl, capsel_t srv_sel, LwipSocket* socket, int
 }
 
 FileSession::~FileSession() {
-    if(_pending && _pending_gate) {
-        // send eof
-        reply_vmsg_late(*_pending_gate, _pending, Errors::NONE, (size_t)0, (size_t)0);
-    }
+    handle_eof();
 
     delete _client_memgate;
     delete _memory;
@@ -286,6 +283,16 @@ void FileSession::WorkItem::work() {
     _session.handle_send_buffer();
     _session.handle_pending_recv();
     _session.handle_pending_send();
+}
+
+void FileSession::handle_eof() {
+    if(_pending && _pending_gate) {
+        // send eof
+        LOG_SESSION(this, "Closing: sending EOF");
+        reply_vmsg_late(*_pending_gate, _pending, Errors::NONE, (size_t)0, (size_t)0);
+        _pending = nullptr;
+        _pending_gate = nullptr;
+    }
 }
 
 void FileSession::handle_send_buffer() {
