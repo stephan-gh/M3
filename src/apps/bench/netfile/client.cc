@@ -47,23 +47,27 @@ int main() {
     cout << "Accessing socket as file: " << fd << " (" << file.get() <<")...\n";
 
     char buffer[1024];
-    strcpy(buffer, "ABCD");
-    ssize_t size = file->write(buffer, 1024);
+    ssize_t size = 0;
+    for(size_t i = 0; i < 2; ++i) {
+        strcpy(buffer, "ABCD");
+        ssize_t amount = file->write(buffer, 1024);
+        file->flush();
+
+        cout << "Client Written " << amount << "bytes!\n";
+        cout << "Client Bytes:" << buffer << "\n";
+        size += amount;
+    }
+
+    // for EOF
+    file->write(buffer, 1);
     file->flush();
 
-    cout << "Client Written " << size << "bytes!\n";
-    cout << "Client Bytes:" << buffer << "\n";
-
-    file->write(buffer, 1024);
-    file->flush();
-
-    file->write(buffer, 1024);
-    file->flush();
-
-    char buffer2[1024];
-    while((size = file->read(buffer2, sizeof(buffer2))) >= 0) {
+    ssize_t rem = size;
+    while(rem > 0) {
+        size = file->read(buffer, sizeof(buffer));
         cout << "Client Received " << size << "bytes!\n";
-        cout << "Client Bytes: " << buffer2 << "\n";
+        cout << "Client Bytes: " << buffer << "\n";
+        rem -= size;
     }
 
     socket->close();

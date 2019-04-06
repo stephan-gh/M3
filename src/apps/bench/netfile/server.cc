@@ -66,16 +66,13 @@ int main() {
     if(Errors::last != Errors::NONE)
         exitmsg("Unable to create accel VPE.\n");
 
-    StreamAccel * accel = new StreamAccel(vpe, 1000);
+    StreamAccel *accel = new StreamAccel(vpe, 1000);
 
-    accel->connect_input(static_cast<GenericFile *>(rfile.get()));
-    accel->connect_output(static_cast<GenericFile *>(sfile.get()));
+    accel->connect_input(static_cast<GenericFile*>(rfile.get()));
+    accel->connect_output(static_cast<GenericFile*>(sfile.get()));
 
     vpe->start();
-
-    // Wait
-    socket->accept(accepted_socket);
-
+    vpe->wait();
 
     accepted_socket->close();
     socket->close();
