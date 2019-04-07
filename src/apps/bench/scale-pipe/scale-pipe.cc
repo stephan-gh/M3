@@ -17,6 +17,7 @@
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
+#include <base/CmdArgs.h>
 #include <base/Panic.h>
 
 #include <m3/server/RemoteServer.h>
@@ -51,23 +52,39 @@ struct App {
     SendGate sgate;
 };
 
+static void usage(const char *name) {
+    cerr << "Usage: " << name << " [-m] [-d] [-i <instances>] [-r <repeats>] <wr_name> <rd_name>\n";
+    cerr << "  -m enables PE sharing\n";
+    cerr << "  -d enables data transfers (otherwise the same time is spent locally)\n";
+    cerr << "  <instances> specifies the number of application (<name>) instances\n";
+    cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
+    cerr << "  <wr_name> specifies the name of the application trace for the writer\n";
+    cerr << "  <rd_name> specifies the name of the application trace for the reader\n";
+    exit(1);
+}
+
 int main(int argc, char **argv) {
-    if(argc != 7) {
-        cerr << "Usage: " << argv[0] << " <wrname> <rdname> <repeats> <data> <muxed> <instances>\n";
-        return 1;
+    bool muxed = false;
+    bool data = false;
+    size_t instances = 1;
+    int repeats = 1;
+
+    int opt;
+    while((opt = CmdArgs::get(argc, argv, "mdi:r:")) != -1) {
+        switch(opt) {
+            case 'm': muxed = true; break;
+            case 'd': data = true; break;
+            case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
+            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            default:
+                usage(argv[0]);
+        }
     }
+    if(CmdArgs::ind + 1 >= argc)
+        usage(argv[0]);
 
-    if(VERBOSE) cout << "Mounting filesystem...\n";
-
-    if(VFS::mount("/", "m3fs") != Errors::NONE)
-        PANIC("Cannot mount root fs");
-
-    const char *wr_name = argv[1];
-    const char *rd_name = argv[2];
-    int repeats = IStringStream::read_from<int>(argv[3]);
-    bool data = strcmp(argv[4], "1") == 0;
-    bool muxed = strcmp(argv[5], "1") == 0;
-    size_t instances = IStringStream::read_from<size_t>(argv[6]);
+    const char *wr_name = argv[CmdArgs::ind + 0];
+    const char *rd_name = argv[CmdArgs::ind + 1];
 
     App *apps[instances * 2];
     RemoteServer *srvs[3];
@@ -76,7 +93,7 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
-        srv_vpes[2] = new VPE("pager", VPEArgs().pager("pager").flags(muxed ? VPE::MUXABLE : 0));
+        srv_vpes[2] = new VPE("pager", VPEArgs().flags(muxed ? VPE::MUXABLE : 0));
         srvs[2] = new RemoteServer(*srv_vpes[2], "mypager");
 
         String srv_arg = srvs[2]->sel_arg();
@@ -100,7 +117,7 @@ int main(int argc, char **argv) {
         if(j == 0 && VERBOSE) cout << "Creating servers...\n";
 
         if(j == 0) {
-            srv_vpes[0] = new VPE("m3fs", VPEArgs().pager("pager").flags(muxed ? VPE::MUXABLE : 0));
+            srv_vpes[0] = new VPE("m3fs", VPEArgs().flags(muxed ? VPE::MUXABLE : 0));
             srvs[0] = new RemoteServer(*srv_vpes[0], "mym3fs");
 
             String srv_arg = srvs[0]->sel_arg();
@@ -111,7 +128,7 @@ int main(int argc, char **argv) {
         }
 
         if(j == 0) {
-            srv_vpes[1] = new VPE("pipes", VPEArgs().pager("pager").flags(muxed ? VPE::MUXABLE : 0));
+            srv_vpes[1] = new VPE("pipes", VPEArgs().flags(muxed ? VPE::MUXABLE : 0));
             srvs[1] = new RemoteServer(*srv_vpes[1], "mypipe");
 
             String srv_arg = srvs[1]->sel_arg();
