@@ -90,6 +90,7 @@ int main(int argc, char **argv) {
     RemoteServer *srvs[3];
     VPE *srv_vpes[3];
 
+#if defined(__gem5__)
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
@@ -102,6 +103,10 @@ int main(int argc, char **argv) {
         if(res != Errors::NONE)
             PANIC("Cannot execute " << args[0] << ": " << Errors::to_string(res));
     }
+#else
+    srv_vpes[2] = nullptr;
+    srvs[2] = nullptr;
+#endif
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
@@ -225,10 +230,15 @@ int main(int argc, char **argv) {
 
     if(VERBOSE) cout << "Shutting down servers...\n";
 
-    for(size_t i = 0; i < ARRAY_SIZE(srvs); ++i)
-        srvs[i]->request_shutdown();
+    for(size_t i = 0; i < ARRAY_SIZE(srvs); ++i) {
+        if(srvs[i])
+            srvs[i]->request_shutdown();
+    }
 
     for(size_t i = 0; i < ARRAY_SIZE(srvs); ++i) {
+        if(!srv_vpes[i])
+            continue;
+
         int res = srv_vpes[i]->wait();
         if(VERBOSE) cout << "server " << i << " exited with " << res << "\n";
         delete srv_vpes[i];
