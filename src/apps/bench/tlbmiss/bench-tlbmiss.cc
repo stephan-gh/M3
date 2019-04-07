@@ -27,6 +27,9 @@ static const size_t COUNT       = 9;
 static const size_t PAGES       = 16;
 
 int main() {
+    if(!VPE::self().pe().has_virtmem())
+        exitmsg("PE has no virtual memory support");
+
     const uintptr_t virt = 0x30000000;
 
     MemGate mgate = MemGate::create_global(PAGES * PAGE_SIZE, MemGate::RW);
