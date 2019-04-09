@@ -76,16 +76,16 @@ static void cmds_read() {
             rcvep, datasize, 0);
 
         dmacmd(nullptr, 0, sndep, 0, datasize, DTU::WRITE);
-        assert_true(dtu.get_cmd(DTU::CMD_CTRL) & DTU::CTRL_ERROR);
+        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
 
         dmacmd(nullptr, 0, sndep, 0, datasize + 1, DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_CTRL) & DTU::CTRL_ERROR);
+        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
 
         dmacmd(nullptr, 0, sndep, datasize, 0, DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_CTRL) & DTU::CTRL_ERROR);
+        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
 
         dmacmd(nullptr, 0, sndep, sizeof(word_t), datasize, DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_CTRL) & DTU::CTRL_ERROR);
+        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
     }
 
     cout << "-- Test reading --\n";
@@ -96,7 +96,7 @@ static void cmds_read() {
         word_t buf[datasize / sizeof(word_t)];
 
         dmacmd(buf, datasize, sndep, 0, datasize, DTU::READ);
-        assert_false(dtu.get_cmd(DTU::CMD_CTRL) & DTU::CTRL_ERROR);
+        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::NONE);
         for(size_t i = 0; i < 4; ++i)
             assert_word(buf[i], data[i]);
     }
@@ -123,7 +123,7 @@ static void cmds_write() {
             rcvep, sizeof(data), 0);
 
         dmacmd(nullptr, 0, sndep, 0, sizeof(data), DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_CTRL) & DTU::CTRL_ERROR);
+        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
     }
 
     cout << "-- Test writing --\n";
@@ -133,7 +133,7 @@ static void cmds_write() {
             rcvep, sizeof(data), 0);
 
         dmacmd(data, sizeof(data), sndep, 0, sizeof(data), DTU::WRITE);
-        assert_false(dtu.get_cmd(DTU::CMD_CTRL) & DTU::CTRL_ERROR);
+        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::NONE);
         volatile const word_t *words = reinterpret_cast<const word_t*>(addr);
         // TODO we do current not know when this is finished
         while(words[0] == 0)
@@ -200,7 +200,7 @@ static void mem_derive() {
         assert_xfer(test[0], 5);
 
         write_vmsg(sub, 0, 8);
-        assert_true(DTU::get().get_cmd(DTU::CMD_CTRL) & DTU::CTRL_ERROR);
+        assert_true(DTU::get().get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
     }
 }
 

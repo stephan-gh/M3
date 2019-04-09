@@ -80,24 +80,24 @@ void DTU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     assert((1UL << (order - msgorder)) <= sizeof(word_t) * 8);
 }
 
-word_t DTU::check_cmd(epid_t ep, int op, word_t label, word_t credits, size_t offset, size_t length) {
+Errors::Code DTU::check_cmd(epid_t ep, int op, word_t label, word_t credits, size_t offset, size_t length) {
     if(op == READ || op == WRITE) {
         uint perms = label & KIF::Perm::RWX;
         if(!(perms & (1U << (op - 1)))) {
             LLOG(DTUERR, "DMA-error: operation not permitted on ep " << ep << " (perms="
                     << perms << ", op=" << op << ")");
-            return CTRL_ERROR;
+            return Errors::INV_ARGS;
         }
         if(offset >= credits || offset + length < offset || offset + length > credits) {
             LLOG(DTUERR, "DMA-error: invalid parameters (credits=" << credits
                     << ", offset=" << offset << ", datalen=" << length << ")");
-            return CTRL_ERROR;
+            return Errors::INV_ARGS;
         }
     }
-    return 0;
+    return Errors::NONE;
 }
 
-word_t DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
     const size_t reply = get_cmd(CMD_OFFSET);
@@ -108,7 +108,7 @@ word_t DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     size_t idx = (reply - bufaddr) >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
         LLOG(DTUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)reply);
-        return CTRL_ERROR;
+        return Errors::INV_ARGS;
     }
 
     Buffer *buf = reinterpret_cast<Buffer*>(reply);
@@ -116,7 +116,7 @@ word_t DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
 
     if(!buf->has_replycap) {
         LLOG(DTUERR, "DMA-error: EP" << ep << ": double-reply for msg " << (void*)reply);
-        return CTRL_ERROR;
+        return Errors::INV_ARGS;
     }
 
     // ack message
@@ -135,10 +135,10 @@ word_t DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     memcpy(_buf.data, src, size);
     // invalidate message for replying
     buf->has_replycap = false;
-    return 0;
+    return Errors::NONE;
 }
 
-word_t DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const word_t credits = get_ep(ep, EP_CREDITS);
     const word_t msg_order = get_ep(ep, EP_MSGORDER);
@@ -149,7 +149,7 @@ word_t DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
             LLOG(DTUERR, "DMA-error: insufficient credits on ep " << ep
                     << " (have #" << fmt(credits, "x") << ", need #" << fmt(size, "x")
                     << ")." << " Ignoring send-command");
-            return CTRL_ERROR;
+            return Errors::MISS_CREDITS;
         }
         set_ep(ep, EP_CREDITS, credits - size);
     }
@@ -161,10 +161,10 @@ word_t DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
 
     _buf.length = get_cmd(CMD_SIZE);
     memcpy(_buf.data, src, _buf.length);
-    return 0;
+    return Errors::NONE;
 }
 
-word_t DTU::prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code DTU::prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     dstpe = get_ep(ep, EP_PEID);
     dstep = get_ep(ep, EP_EPID);
 
@@ -174,10 +174,10 @@ word_t DTU::prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     reinterpret_cast<word_t*>(_buf.data)[0] = get_cmd(CMD_OFFSET);
     reinterpret_cast<word_t*>(_buf.data)[1] = get_cmd(CMD_LENGTH);
     reinterpret_cast<word_t*>(_buf.data)[2] = get_cmd(CMD_ADDR);
-    return 0;
+    return Errors::NONE;
 }
 
-word_t DTU::prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code DTU::prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
     dstpe = get_ep(ep, EP_PEID);
@@ -190,10 +190,10 @@ word_t DTU::prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     reinterpret_cast<word_t*>(_buf.data)[1] = get_cmd(CMD_LENGTH);
     memcpy(_buf.data + _buf.length, src, size);
     _buf.length += size;
-    return 0;
+    return Errors::NONE;
 }
 
-word_t DTU::prepare_ackmsg(epid_t ep) {
+Errors::Code DTU::prepare_ackmsg(epid_t ep) {
     const word_t addr = get_cmd(CMD_OFFSET);
     size_t bufaddr = get_ep(ep, EP_BUF_ADDR);
     size_t msgord = get_ep(ep, EP_BUF_MSGORDER);
@@ -202,7 +202,7 @@ word_t DTU::prepare_ackmsg(epid_t ep) {
     size_t idx = static_cast<size_t>(addr - bufaddr) >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
         LLOG(DTUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)addr);
-        return CTRL_ERROR;
+        return Errors::INV_ARGS;
     }
 
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
@@ -217,13 +217,13 @@ word_t DTU::prepare_ackmsg(epid_t ep) {
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
 
     LLOG(DTU, "EP" << ep << ": acked message at index " << idx);
-    return 0;
+    return Errors::NONE;
 }
 
-word_t DTU::prepare_fetchmsg(epid_t ep) {
+Errors::Code DTU::prepare_fetchmsg(epid_t ep) {
     word_t msgs = get_ep(ep, EP_BUF_MSGCNT);
     if(msgs == 0)
-        return CTRL_ERROR;
+        return Errors::NONE;
 
     size_t roff = get_ep(ep, EP_BUF_ROFF);
     word_t unread = get_ep(ep, EP_BUF_UNREAD);
@@ -261,16 +261,14 @@ found:
     size_t addr = get_ep(ep, EP_BUF_ADDR);
     set_cmd(CMD_OFFSET, addr + i * (1UL << msgord));
 
-    return 0;
+    return Errors::NONE;
 }
 
 void DTU::handle_command(peid_t pe) {
+    Errors::Code res = Errors::NONE;
     word_t newctrl = 0;
     peid_t dstpe;
     epid_t dstep;
-
-    // clear error
-    set_cmd(CMD_CTRL, get_cmd(CMD_CTRL) & ~CTRL_ERROR);
 
     // get regs
     const epid_t ep = get_cmd(CMD_EPID);
@@ -279,44 +277,42 @@ void DTU::handle_command(peid_t pe) {
     int op = (ctrl >> OPCODE_SHIFT) & 0xF;
     if(ep >= EP_COUNT) {
         LLOG(DTUERR, "DMA-error: invalid ep-id (" << ep << ")");
-        newctrl |= CTRL_ERROR;
-        goto error;
+        res = Errors::INV_ARGS;
+        goto done;
     }
 
-    newctrl |= check_cmd(ep, op, get_ep(ep, EP_LABEL), get_ep(ep, EP_CREDITS),
-        get_cmd(CMD_OFFSET), get_cmd(CMD_LENGTH));
-    if(newctrl & CTRL_ERROR)
-        goto error;
+    res = check_cmd(ep, op, get_ep(ep, EP_LABEL), get_ep(ep, EP_CREDITS),
+                    get_cmd(CMD_OFFSET), get_cmd(CMD_LENGTH));
+    if(res != Errors::NONE)
+        goto done;
 
     switch(op) {
         case REPLY:
-            newctrl |= prepare_reply(ep, dstpe, dstep);
+            res = prepare_reply(ep, dstpe, dstep);
             break;
         case SEND:
-            newctrl |= prepare_send(ep, dstpe, dstep);
+            res = prepare_send(ep, dstpe, dstep);
             break;
         case READ:
-            newctrl |= prepare_read(ep, dstpe, dstep);
+            res = prepare_read(ep, dstpe, dstep);
             // we report the completion of the read later
-            if(~newctrl & CTRL_ERROR)
-                newctrl |= (ctrl & ~CTRL_START);
+            if(res == Errors::NONE)
+                newctrl = (ctrl & ~CTRL_START);
             break;
         case WRITE:
-            newctrl |= prepare_write(ep, dstpe, dstep);
-            if(~newctrl & CTRL_ERROR)
-                newctrl |= (ctrl & ~CTRL_START);
+            res = prepare_write(ep, dstpe, dstep);
+            if(res == Errors::NONE)
+                newctrl = (ctrl & ~CTRL_START);
             break;
         case FETCHMSG:
-            newctrl |= prepare_fetchmsg(ep);
-            set_cmd(CMD_CTRL, newctrl);
-            return;
+            res = prepare_fetchmsg(ep);
+            goto done;
         case ACKMSG:
-            newctrl |= prepare_ackmsg(ep);
-            set_cmd(CMD_CTRL, newctrl);
-            return;
+            res = prepare_ackmsg(ep);
+            goto done;
     }
-    if(newctrl & CTRL_ERROR)
-        goto error;
+    if(res != Errors::NONE)
+        goto done;
 
     // prepare message (add length and label)
     _buf.opcode = op;
@@ -330,10 +326,14 @@ void DTU::handle_command(peid_t pe) {
     else
         _buf.has_replycap = 0;
 
-    if(!send_msg(ep, dstpe, dstep, op == REPLY))
-        newctrl = CTRL_ERROR;
+    if(!send_msg(ep, dstpe, dstep, op == REPLY)) {
+        // in case we are doing READ/WRITE, mark the command as finished
+        newctrl = 0;
+        res = Errors::INV_EP;
+    }
 
-error:
+done:
+    set_cmd(CMD_ERROR, static_cast<word_t>(res));
     set_cmd(CMD_CTRL, newctrl);
 }
 
@@ -499,8 +499,7 @@ bool DTU::handle_receive(epid_t ep) {
 Errors::Code DTU::exec_command() {
     while(!is_ready())
         try_sleep();
-    // TODO report errors here
-    return Errors::NONE;
+    return static_cast<Errors::Code>(get_cmd(CMD_ERROR));
 }
 
 void *DTU::thread(void *arg) {

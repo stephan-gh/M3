@@ -87,9 +87,10 @@ public:
     static constexpr size_t CMD_REPLYLBL        = 5;
     static constexpr size_t CMD_REPLY_EPID      = 6;
     static constexpr size_t CMD_LENGTH          = 7;
+    static constexpr size_t CMD_ERROR           = 8;
 
     // register starts and counts (cont.)
-    static constexpr size_t CMDS_RCNT           = 1 + CMD_LENGTH;
+    static constexpr size_t CMDS_RCNT           = 1 + CMD_ERROR;
 
     static constexpr size_t EP_VALID            = 0;
 
@@ -114,7 +115,6 @@ public:
     // bits in ctrl register
     static constexpr word_t CTRL_START          = 0x1;
     static constexpr word_t CTRL_DEL_REPLY_CAP  = 0x2;
-    static constexpr word_t CTRL_ERROR          = 0x4;
 
     static constexpr size_t OPCODE_SHIFT        = 3;
 
@@ -259,6 +259,7 @@ public:
         set_cmd(CMD_LENGTH, len);
         set_cmd(CMD_REPLYLBL, replylbl);
         set_cmd(CMD_REPLY_EPID, replyep);
+        set_cmd(CMD_ERROR, 0);
         if(op == REPLY)
             set_cmd(CMD_CTRL, static_cast<word_t>(op << OPCODE_SHIFT) | CTRL_START);
         else
@@ -321,12 +322,12 @@ private:
             mask &= ~(static_cast<word_t>(1) << idx);
     }
 
-    word_t prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep);
-    word_t prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep);
-    word_t prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep);
-    word_t prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep);
-    word_t prepare_fetchmsg(epid_t ep);
-    word_t prepare_ackmsg(epid_t ep);
+    Errors::Code prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep);
+    Errors::Code prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep);
+    Errors::Code prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep);
+    Errors::Code prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep);
+    Errors::Code prepare_fetchmsg(epid_t ep);
+    Errors::Code prepare_ackmsg(epid_t ep);
 
     bool send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply);
     void handle_read_cmd(epid_t ep);
@@ -336,7 +337,8 @@ private:
     void handle_msg(size_t len, epid_t ep);
     bool handle_receive(epid_t ep);
 
-    static word_t check_cmd(epid_t ep, int op, word_t addr, word_t credits, size_t offset, size_t length);
+    static Errors::Code check_cmd(epid_t ep, int op, word_t addr, word_t credits,
+                                  size_t offset, size_t length);
     static void *thread(void *arg);
 
     volatile bool _run;
