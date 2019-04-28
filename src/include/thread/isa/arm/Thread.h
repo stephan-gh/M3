@@ -21,8 +21,6 @@
 
 namespace m3 {
 
-typedef void (*_thread_func)(void*);
-
 struct Regs {
     word_t r0;
     word_t r4;
@@ -41,10 +39,6 @@ struct Regs {
 enum {
     T_STACK_WORDS = 1024
 };
-
-void thread_init(_thread_func func, void *arg, Regs *regs, word_t *stack);
-extern "C"  bool thread_save(Regs *regs);
-extern "C" bool thread_resume(Regs *regs);
 
 }
 

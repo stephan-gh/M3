@@ -18,7 +18,7 @@
 
 namespace m3 {
 
-void thread_init(Thread::thread_func func, void *arg, Regs *regs, word_t *stack) {
+void thread_init(thread_func func, void *arg, Regs *regs, word_t *stack) {
     regs->r0 = reinterpret_cast<word_t>(arg);                             // arg
     regs->r13 = reinterpret_cast<word_t>(stack + T_STACK_WORDS - 2);      // sp
     regs->r11 = 0;                                                        // fp

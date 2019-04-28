@@ -30,6 +30,12 @@
 
 namespace m3 {
 
+typedef void (*thread_func)(void*);
+
+void thread_init(thread_func func, void *arg, Regs *regs, word_t *stack);
+extern "C"  bool thread_save(Regs *regs);
+extern "C" bool thread_resume(Regs *regs);
+
 class ThreadManager;
 
 class Thread : public SListItem {
@@ -40,8 +46,6 @@ class Thread : public SListItem {
     static constexpr size_t MAX_MSG_SIZE    = 1024;
 
 public:
-    typedef _thread_func thread_func;
-
     explicit Thread(thread_func func, void *arg);
     ~Thread();
 
