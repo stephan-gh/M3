@@ -43,8 +43,8 @@ int_enum! {
         const ACCEL_INDIR   = 0x4;
         /// Dummy ISA to represent the FFT fixed-function accelerator
         const ACCEL_FFT     = 0x5;
-        /// Dummy ISA to represent the toupper fixed-function accelerator
-        const ACCEL_TOUP    = 0x6;
+        /// Dummy ISA to represent the ROT-13 fixed-function accelerator
+        const ACCEL_ROT13   = 0x6;
         /// Dummy ISA to represent the ALADDIN-based stencil accelerator
         const ACCEL_STE     = 0x7;
         /// Dummy ISA to represent the ALADDIN-based md accelerator
@@ -55,6 +55,8 @@ int_enum! {
         const ACCEL_AFFT    = 0xA;
         /// Dummy ISA to represent the IDE controller
         const IDE_DEV       = 0xB;
+        /// Dummy ISA to represent the NIC
+        const NIC_DEV       = 0xC;
     }
 }
 
@@ -129,8 +131,8 @@ impl PEDesc {
     /// Returns whether the PE contains a fixed-function accelerator
     pub fn is_ffaccel(&self) -> bool {
         match self.isa() {
-            PEISA::ACCEL_INDIR | PEISA::ACCEL_FFT | PEISA::ACCEL_TOUP => true,
-            _                                                         => false
+            PEISA::ACCEL_INDIR | PEISA::ACCEL_FFT | PEISA::ACCEL_ROT13 => true,
+            _                                                          => false
         }
     }
 
