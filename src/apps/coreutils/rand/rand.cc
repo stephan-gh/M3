@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
         CPU::compute(amount * 8);
         // generate(buffer, amount);
         Time::stop(0x5555);
-        cout.write(buffer, amount * sizeof(rand_type));
+        cout.write_all(buffer, amount * sizeof(rand_type));
 
         count -= amount;
     }

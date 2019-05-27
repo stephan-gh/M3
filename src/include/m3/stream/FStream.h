@@ -116,7 +116,7 @@ public:
     size_t read(void *dst, size_t count);
 
     /**
-     * Writes <count> bytes from <src> into the file. If both is aligned by DTU_PKG_SIZE and
+     * Writes at most <count> bytes from <src> into the file. If both is aligned by DTU_PKG_SIZE and
      * the buffer is empty, the buffer is not used but it the File instance is used directly.
 
      * @param src the data to write
@@ -124,6 +124,23 @@ public:
      * @return the number of written bytes
      */
     size_t write(const void *src, size_t count);
+
+    /**
+     * Writes all <count> bytes from <src> into the file.
+     *
+     * @param src the data to write
+     * @param count the number of bytes to write
+     * @return true if all bytes were written
+     */
+    bool write_all(const void *src, size_t count) {
+        const uint8_t *s = static_cast<const uint8_t*>(src);
+        while(!bad() && count) {
+            size_t amount = write(s, count);
+            count -= amount;
+            s += amount;
+        }
+        return count == 0;
+    }
 
     /**
      * Flushes the internal write buffer

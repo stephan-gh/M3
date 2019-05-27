@@ -25,7 +25,7 @@ alignas(64) static char buffer[8192];
 static void copy(FStream &in, FStream &out) {
     size_t res;
     while((res = in.read(buffer, sizeof(buffer))) > 0)
-        out.write(buffer, res);
+        out.write_all(buffer, res);
 }
 
 int main(int argc, char **argv) {

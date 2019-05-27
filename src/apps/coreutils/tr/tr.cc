@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     size_t res;
     while((res = cin.read(buffer, sizeof(buffer))) > 0) {
         replace(buffer, res, c1, c2);
-        cout.write(buffer, res);
+        cout.write_all(buffer, res);
     }
     return 0;
 }

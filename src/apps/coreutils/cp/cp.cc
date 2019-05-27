@@ -37,7 +37,7 @@ static void copy(const char *src, const char *dst) {
 
     size_t res;
     while((res = in.read(buffer, sizeof(buffer))) > 0)
-        out.write(buffer, res);
+        out.write_all(buffer, res);
 }
 
 static void add_filename(OStringStream &os, const char *path) {
