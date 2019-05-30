@@ -22,7 +22,7 @@ namespace kernel {
 VPEGroup::~VPEGroup() {
     for(auto it = vpes.begin(); it != vpes.end(); ) {
         auto old = it++;
-        old->vpe->_group = nullptr;
+        old->vpe->_group.forget();
         delete &*old;
     }
 }

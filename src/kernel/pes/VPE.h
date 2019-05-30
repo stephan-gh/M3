@@ -95,7 +95,7 @@ public:
     const m3::String &name() const {
         return _name;
     }
-    const VPEGroup *group() const {
+    const m3::Reference<VPEGroup> &group() const {
         return _group;
     }
 
@@ -260,7 +260,7 @@ private:
     State _state;
     int _exitcode;
     epid_t _sysc_ep;
-    VPEGroup *_group;
+    m3::Reference<VPEGroup> _group;
     uint _services;
     uint _pending_fwds;
     m3::String _name;

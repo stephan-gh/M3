@@ -833,7 +833,7 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
 
 m3::Errors::Code SyscallHandler::wait_for(const char *name, VPE &tvpe, VPE *cur, bool need_app) {
     m3::Errors::Code res = m3::Errors::NONE;
-    bool same_group = cur->group() && cur->group() == tvpe.group();
+    bool same_group = cur->group() && cur->group().get() == tvpe.group().get();
     while(res == m3::Errors::NONE && tvpe.state() != VPE::RUNNING) {
         if(!same_group)
             cur->start_wait();
