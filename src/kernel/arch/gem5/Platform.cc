@@ -19,6 +19,7 @@
 #include "mem/MainMemory.h"
 #include "mem/MemoryModule.h"
 #include "pes/VPE.h"
+#include "Args.h"
 #include "DTU.h"
 #include "Platform.h"
 
@@ -64,15 +65,15 @@ Platform::Init::Init() {
 
             // the first memory module hosts the FS image and other stuff
             if(count == 0) {
-                if(pedesc.mem_size() <= USABLE_MEM + KERNEL_MEM)
+                if(pedesc.mem_size() <= USABLE_MEM + Args::kmem)
                     PANIC("Not enough DRAM");
                 mem.add(new MemoryModule(MemoryModule::OCCUPIED, i, 0, USABLE_MEM));
                 info->mems[memidx++] = m3::BootInfo::Mem(USABLE_MEM, true);
 
-                mem.add(new MemoryModule(MemoryModule::KERNEL, i, USABLE_MEM, KERNEL_MEM));
+                mem.add(new MemoryModule(MemoryModule::KERNEL, i, USABLE_MEM, Args::kmem));
 
-                size_t usize = pedesc.mem_size() - (USABLE_MEM + KERNEL_MEM);
-                mem.add(new MemoryModule(MemoryModule::USER, i, USABLE_MEM + KERNEL_MEM, usize));
+                size_t usize = pedesc.mem_size() - (USABLE_MEM + Args::kmem);
+                mem.add(new MemoryModule(MemoryModule::USER, i, USABLE_MEM + Args::kmem, usize));
                 info->mems[memidx++] = m3::BootInfo::Mem(usize, false);
             }
             else {

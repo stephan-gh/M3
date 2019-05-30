@@ -33,6 +33,7 @@
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
+#include "Args.h"
 #include "SyscallHandler.h"
 #include "WorkLoop.h"
 
@@ -96,22 +97,10 @@ static void copytofs(MainMemory &mem, const char *file) {
 }
 
 int main(int argc, char *argv[]) {
-    const char *fsimg = nullptr;
+    int argstart = Args::parse(argc, argv);
+
     mkdir("/tmp/m3", 0755);
     signal(SIGINT, sigint);
-
-    for(int i = 1; i < argc; ++i) {
-        if(strncmp(argv[i], "fs=", 3) == 0)
-            fsimg = argv[i] + 3;
-    }
-
-    int argstart = 0;
-    for(int i = 1; i < argc; ++i) {
-        if(strcmp(argv[i], "--") == 0) {
-            argstart = i;
-            break;
-        }
-    }
 
     KLOG(MEM, MainMemory::get());
 
@@ -121,8 +110,8 @@ int main(int argc, char *argv[]) {
     wl.multithreaded(8);
 
     Platform::add_modules(argc - argstart - 1, argv + argstart + 1);
-    if(fsimg)
-        copyfromfs(MainMemory::get(), fsimg);
+    if(Args::fsimg)
+        copyfromfs(MainMemory::get(), Args::fsimg);
     SyscallHandler::init();
     PEManager::create();
     VPEManager::create();
@@ -134,8 +123,8 @@ int main(int argc, char *argv[]) {
     wl.run();
 
     KLOG(INFO, "Shutting down");
-    if(fsimg)
-        copytofs(MainMemory::get(), fsimg);
+    if(Args::fsimg)
+        copytofs(MainMemory::get(), Args::fsimg);
     VPEManager::destroy();
     delete_dir("/tmp/m3");
 

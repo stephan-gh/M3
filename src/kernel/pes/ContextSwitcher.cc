@@ -23,6 +23,7 @@
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
+#include "Args.h"
 #include "DTU.h"
 #include "Platform.h"
 
@@ -316,7 +317,7 @@ bool ContextSwitcher::can_switch() const {
         uint64_t now = DTU::get().get_time();
         uint64_t exectime = now - _cur->_lastsched;
         // if there is some time left in the timeslice, program a timeout
-        if(exectime >= VPE::TIME_SLICE)
+        if(exectime >= Args::timeslice)
             return true;
     }
     return false;
@@ -341,9 +342,9 @@ bool ContextSwitcher::unblock_vpe(VPE *vpe, bool force) {
         uint64_t now = DTU::get().get_time();
         uint64_t exectime = now - _cur->_lastsched;
         // if there is some time left in the timeslice, program a timeout
-        if(exectime < VPE::TIME_SLICE) {
+        if(exectime < Args::timeslice) {
             auto &&callback = std::bind(&ContextSwitcher::start_switch, this, true);
-            _timeout = Timeouts::get().wait_for(VPE::TIME_SLICE - exectime, m3::Util::move(callback));
+            _timeout = Timeouts::get().wait_for(Args::timeslice - exectime, m3::Util::move(callback));
         }
         // otherwise, switch now
         else
@@ -543,7 +544,7 @@ retry:
             // if we are starting a VPE, we might already have a timeout for it
             if(_ready.length() > 0 && !_timeout) {
                 auto &&callback = std::bind(&ContextSwitcher::start_switch, this, true);
-                _timeout = Timeouts::get().wait_for(VPE::TIME_SLICE, m3::Util::move(callback));
+                _timeout = Timeouts::get().wait_for(Args::timeslice, m3::Util::move(callback));
             }
             break;
         }

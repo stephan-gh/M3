@@ -27,7 +27,6 @@
 #define PAGE_MASK           (PAGE_SIZE - 1)
 
 #define MEM_SIZE            (512 * 1024 * 1024)
-#define KERNEL_MEM          (32 * 1024 * 1024)
 #define EPMEM_SIZE          (1 * 1024 * 1024)
 #define HEAP_SIZE           (MEM_SIZE - RECVBUF_SIZE - EPMEM_SIZE)
 

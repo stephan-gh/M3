@@ -21,19 +21,14 @@
 #include "mem/MainMemory.h"
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
+#include "Args.h"
 #include "SyscallHandler.h"
 #include "WorkLoop.h"
 
 using namespace kernel;
 
 int main(int argc, char *argv[]) {
-    if(argc < 3) {
-        m3::Serial::get() << "Usage: " << argv[0] << " [-t=<timeslice>] -- <program>...\n";
-        m3::Machine::shutdown();
-    }
-
-    if(strncmp(argv[1], "-t=", 3) == 0)
-        VPE::set_timeslice(m3::IStringStream::read_from<cycles_t>(argv[1] + 3));
+    Args::parse(argc, argv);
 
     EVENT_TRACE_INIT_KERNEL();
 

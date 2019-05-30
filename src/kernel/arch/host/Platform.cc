@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "mem/MainMemory.h"
+#include "Args.h"
 #include "DTU.h"
 #include "Platform.h"
 
@@ -53,14 +54,14 @@ Platform::Init::Init() {
     uintptr_t base = reinterpret_cast<uintptr_t>(
         mmap(0, TOTAL_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0));
 
-    if(TOTAL_MEM_SIZE <= FS_MAX_SIZE + KERNEL_MEM)
+    if(TOTAL_MEM_SIZE <= FS_MAX_SIZE + Args::kmem)
         PANIC("Not enough DRAM");
 
     MainMemory &mem = MainMemory::get();
     mem.add(new MemoryModule(MemoryModule::OCCUPIED, 0, base, FS_MAX_SIZE));
-    mem.add(new MemoryModule(MemoryModule::KERNEL, 0, base + FS_MAX_SIZE, KERNEL_MEM));
-    size_t usize = TOTAL_MEM_SIZE - (FS_MAX_SIZE + KERNEL_MEM);
-    mem.add(new MemoryModule(MemoryModule::USER, 0, base + FS_MAX_SIZE + KERNEL_MEM, usize));
+    mem.add(new MemoryModule(MemoryModule::KERNEL, 0, base + FS_MAX_SIZE, Args::kmem));
+    size_t usize = TOTAL_MEM_SIZE - (FS_MAX_SIZE + Args::kmem);
+    mem.add(new MemoryModule(MemoryModule::USER, 0, base + FS_MAX_SIZE + Args::kmem, usize));
 
     // set memories
     _info.mems[0] = m3::BootInfo::Mem(FS_MAX_SIZE, true);
