@@ -19,6 +19,10 @@
 
 namespace kernel {
 
+VPE &CapTable::vpe() const {
+    return VPEManager::get().vpe(_id - 1);
+}
+
 void CapTable::revoke_all() {
     Capability *c;
     // TODO it might be better to do that in a different order, because it is more expensive to

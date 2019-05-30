@@ -41,6 +41,8 @@ public:
         revoke_all();
     }
 
+    VPE &vpe() const;
+
     uint id() const {
         return _id;
     }

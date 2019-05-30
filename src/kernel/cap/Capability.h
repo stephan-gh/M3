@@ -258,6 +258,18 @@ public:
     GateObject *gate;
 };
 
+class MapObject : public SlabObject<MapObject>, public m3::RefCounted {
+public:
+    explicit MapObject(gaddr_t _phys, int _attr)
+        : RefCounted(),
+          phys(_phys),
+          attr(_attr) {
+    }
+
+    gaddr_t phys;
+    int attr;
+};
+
 class RGateCapability : public SlabObject<RGateCapability>, public Capability {
 public:
     explicit RGateCapability(CapTable *tbl, capsel_t sel, int order, int msgorder)
@@ -345,13 +357,13 @@ public:
 
 private:
     virtual void revoke() override;
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        return new MapCapability(tbl, sel, phys, length, attr);
+    virtual Capability *clone(CapTable *, capsel_t) override {
+        // not clonable
+        return nullptr;
     }
 
 public:
-    gaddr_t phys;
-    int attr;
+    m3::Reference<MapObject> obj;
 };
 
 class ServCapability : public SlabObject<ServCapability>, public Capability {

@@ -55,21 +55,20 @@ EPObject::~EPObject() {
 
 MapCapability::MapCapability(CapTable *tbl, capsel_t sel, gaddr_t _phys, uint _pages, int _attr)
     : Capability(tbl, sel, MAP, _pages),
-      phys(_phys),
-      attr(_attr) {
-    VPE &vpe = VPEManager::get().vpe(tbl->id() - 1);
-    vpe.address_space()->map_pages(vpe.desc(), sel << PAGE_BITS, phys, length, attr);
+      obj(new MapObject(_phys, _attr)) {
+    VPE &vpe = tbl->vpe();
+    vpe.address_space()->map_pages(vpe.desc(), sel << PAGE_BITS, obj->phys, length, obj->attr);
 }
 
 void MapCapability::remap(gaddr_t _phys, int _attr) {
-    phys = _phys;
-    attr = _attr;
-    VPE &vpe = VPEManager::get().vpe(table()->id() - 1);
-    vpe.address_space()->map_pages(vpe.desc(), sel() << PAGE_BITS, phys, length, attr);
+    obj->phys = _phys;
+    obj->attr = _attr;
+    VPE &vpe = table()->vpe();
+    vpe.address_space()->map_pages(vpe.desc(), sel() << PAGE_BITS, _phys, length, _attr);
 }
 
 void MapCapability::revoke() {
-    VPE &vpe = VPEManager::get().vpe(table()->id() - 1);
+    VPE &vpe = table()->vpe();
     vpe.address_space()->unmap_pages(vpe.desc(), sel() << PAGE_BITS, length);
 }
 
@@ -128,9 +127,9 @@ void MGateCapability::printInfo(m3::OStream &os) const {
 
 void MapCapability::printInfo(m3::OStream &os) const {
     os << ": map  [virt=#" << m3::fmt(sel() << PAGE_BITS, "x")
-       << ", phys=#" << m3::fmt(phys, "x")
+       << ", phys=#" << m3::fmt(obj->phys, "x")
        << ", pages=" << length
-       << ", attr=#" << m3::fmt(attr, "x") << "]";
+       << ", attr=#" << m3::fmt(obj->attr, "x") << "]";
 }
 
 void ServCapability::printInfo(m3::OStream &os) const {
