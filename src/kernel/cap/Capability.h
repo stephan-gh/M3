@@ -110,6 +110,14 @@ public:
         return nullptr;
     }
 
+protected:
+    template<class T>
+    static T *do_clone(T *cap, CapTable *tbl, capsel_t sel) {
+        auto clone = new T(*cap);
+        clone->put(tbl, sel);
+        return clone;
+    }
+
 private:
     virtual void revoke() {
     }
@@ -289,9 +297,7 @@ public:
 
 protected:
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        RGateCapability *c = new RGateCapability(*this);
-        c->put(tbl, sel);
-        return c;
+        return do_clone(this, tbl, sel);
     }
 
 public:
@@ -313,9 +319,7 @@ public:
 
 protected:
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        SGateCapability *c = new SGateCapability(*this);
-        c->put(tbl, sel);
-        return c;
+        return do_clone(this, tbl, sel);
     }
 
 public:
@@ -338,9 +342,7 @@ public:
 
 private:
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        MGateCapability *c = new MGateCapability(*this);
-        c->put(tbl, sel);
-        return c;
+        return do_clone(this, tbl, sel);
     }
 
 public:
@@ -378,9 +380,7 @@ public:
 private:
     virtual void revoke() override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        ServCapability *s = new ServCapability(*this);
-        s->put(tbl, sel);
-        return s;
+        return do_clone(this, tbl, sel);
     }
 
 public:
@@ -399,9 +399,7 @@ public:
 private:
     virtual void revoke() override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        SessCapability *s = new SessCapability(*this);
-        s->put(tbl, sel);
-        return s;
+        return do_clone(this, tbl, sel);
     }
 
 public:
@@ -419,9 +417,7 @@ public:
 
 private:
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        EPCapability *e = new EPCapability(*this);
-        e->put(tbl, sel);
-        return e;
+        return do_clone(this, tbl, sel);
     }
 
 public:
@@ -439,9 +435,7 @@ public:
 
 private:
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        VPEGroupCapability *v = new VPEGroupCapability(*this);
-        v->put(tbl, sel);
-        return v;
+        return do_clone(this, tbl, sel);
     }
 
 public:
@@ -459,9 +453,7 @@ public:
 
 private:
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
-        VPECapability *v = new VPECapability(*this);
-        v->put(tbl, sel);
-        return v;
+        return do_clone(this, tbl, sel);
     }
 
 public:
