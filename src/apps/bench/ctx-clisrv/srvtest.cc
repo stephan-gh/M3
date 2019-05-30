@@ -43,15 +43,15 @@ int main(int argc, char **argv) {
     {
         if(VERBOSE) cout << "Creating VPEs...\n";
 
-        VPE c1("client", VPE::self().pe(), nullptr, mode == 2);
+        VPE c1("client", VPEArgs().flags(mode == 2 ? VPE::MUXABLE : 0));
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 
-        VPE s1("service1", VPE::self().pe(), nullptr, mode >= 1);
+        VPE s1("service1", VPEArgs().flags(mode >= 1 ? VPE::MUXABLE : 0));
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 
-        VPE s2("service2", VPE::self().pe(), nullptr, mode >= 1);
+        VPE s2("service2", VPEArgs().flags(mode >= 1 ? VPE::MUXABLE : 0));
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
 

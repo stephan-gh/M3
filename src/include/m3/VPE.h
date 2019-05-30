@@ -32,6 +32,7 @@
 
 namespace m3 {
 
+class VPE;
 class VFS;
 class FileTable;
 class MountTable;
@@ -48,6 +49,41 @@ class ClientSession;
 class VPEGroup : public ObjCap {
 public:
     explicit VPEGroup();
+};
+
+class VPEArgs {
+    friend class VPE;
+
+public:
+    explicit VPEArgs();
+
+    VPEArgs &flags(uint flags) {
+        _flags = flags;
+        return *this;
+    }
+    VPEArgs &pedesc(const PEDesc &desc) {
+        _pedesc = desc;
+        return *this;
+    }
+    VPEArgs &pager(const char *pager) {
+        _pager = pager;
+        return *this;
+    }
+    VPEArgs &resmng(ResMng *resmng) {
+        _rmng = resmng;
+        return *this;
+    }
+    VPEArgs &group(const VPEGroup *group) {
+        _group = group;
+        return *this;
+    }
+
+private:
+    uint _flags;
+    PEDesc _pedesc;
+    const char *_pager;
+    ResMng *_rmng;
+    const VPEGroup *_group;
 };
 
 /**
@@ -83,19 +119,7 @@ public:
         return _self;
     }
 
-    /**
-     * Creates a new VPE and assigns the given name to it.
-     *
-     * @param name the VPE name
-     * @param pe the desired PE type (default: same as the current PE)
-     * @param pager the pager (optional)
-     * @param flags see Flags
-     * @param group the VPEGroup, if any
-     * @param rmng the resource manager (if it shouldn't be the same as the current VPE's rmng)
-     */
-    explicit VPE(const String &name, const PEDesc &pe = VPE::self().pe(),
-                 const char *pager = nullptr, uint flags = 0, const VPEGroup *group = nullptr,
-                 ResMng *rmng = nullptr);
+    explicit VPE(const String &name, const VPEArgs &args = VPEArgs());
     virtual ~VPE();
 
     /**

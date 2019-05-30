@@ -32,7 +32,7 @@ struct App {
     explicit App(const char *name, int argc, const char *argv[], bool tmux)
         : argc(argc),
           argv(argv),
-          vpe(name, VPE::self().pe(), nullptr, tmux ? VPE::MUXABLE : 0) {
+          vpe(name, VPEArgs().flags(tmux ? VPE::MUXABLE : 0)) {
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
     }

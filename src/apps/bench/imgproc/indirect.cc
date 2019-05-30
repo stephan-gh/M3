@@ -51,7 +51,8 @@ struct IndirChain {
             OStringStream name;
             name << "chain" << id << "-" << i;
 
-            vpes[i] = new VPE(name.str(), PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR));
+            vpes[i] = new VPE(name.str(),
+                              VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR)));
             if(Errors::last != Errors::NONE) {
                 exitmsg("Unable to create VPE for " << name.str());
                 break;

@@ -131,7 +131,8 @@ static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        vpes[i] = new VPE(expr_value(cmd->args->args[0]), descs[i], nullptr, muxed ? VPE::MUXABLE : 0);
+        vpes[i] = new VPE(expr_value(cmd->args->args[0]), VPEArgs().pedesc(descs[i])
+                                                                   .flags(muxed ? VPE::MUXABLE : 0));
         vpe_count++;
         if(Errors::last != Errors::NONE) {
             errmsg("Unable to create VPE for " << expr_value(cmd->args->args[0]));

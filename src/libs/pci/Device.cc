@@ -26,7 +26,7 @@ using namespace m3;
 namespace pci {
 
 ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
-    : _vpe(name, PEDesc(PEType::COMP_IMEM, isa)),
+    : _vpe(name, VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, isa))),
       // TODO: validate that a suitable pe has been found
       _intgate(RecvGate::create(nextlog2<256>::val, nextlog2<32>::val)),
       // TODO: Specify receive gate, grant it to nic dtu, send replies to give credits back

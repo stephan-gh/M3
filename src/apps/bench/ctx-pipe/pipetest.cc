@@ -34,7 +34,7 @@ static const size_t PIPE_SHM_SIZE   = 512 * 1024;
 struct App {
     explicit App(const char *name, const char *pager, bool muxed)
         : name(name),
-          vpe(name, VPE::self().pe(), pager, muxed) {
+          vpe(name, VPEArgs().pager(pager).flags(muxed ? VPE::MUXABLE : 0)) {
         if(Errors::last != Errors::NONE)
             exitmsg("Unable to create VPE");
     }

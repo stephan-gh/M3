@@ -32,7 +32,7 @@ int main(int argc, const char **argv) {
             exitmsg("Mounting root-fs failed");
     }
 
-    VPE sh(argv[1], VPE::self().pe(), "pager");
+    VPE sh(argv[1], VPEArgs().pager("pager"));
     if(Errors::last != Errors::NONE)
         exitmsg("Unable to create VPE");
 

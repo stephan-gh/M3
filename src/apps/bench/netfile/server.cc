@@ -62,7 +62,8 @@ int main() {
 
     // Creating processor
     cout << "Creating accel VPE\n";
-    VPE *vpe = new VPE("AccelVPE", PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_ROT13), nullptr, VPE::MUXABLE);
+    VPE *vpe = new VPE("AccelVPE", VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_ROT13))
+                                            .flags(VPE::MUXABLE));
     if(Errors::last != Errors::NONE)
         exitmsg("Unable to create accel VPE.\n");
 

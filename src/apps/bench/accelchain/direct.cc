@@ -50,8 +50,9 @@ public:
 
             if(VERBOSE) Serial::get() << "Creating VPE " << name.str() << "\n";
 
-            vpes[i] = new VPE(name.str(), PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT),
-                              nullptr, VPE::MUXABLE, &group);
+            vpes[i] = new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
+                                                   .flags(VPE::MUXABLE)
+                                                   .group(&group));
             if(Errors::last != Errors::NONE) {
                 exitmsg("Unable to create VPE for " << name.str());
                 break;

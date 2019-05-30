@@ -35,7 +35,7 @@ struct App {
     explicit App(int argc, const char **argv, const char *pager, uint flags)
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPE::self().pe(), pager, flags),
+          vpe(argv[0], VPEArgs().pager(pager).flags(flags)),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
         if(Errors::last != Errors::NONE)
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
-        srv_vpes[2] = new VPE("pager", VPE::self().pe(), "pager", muxed ? VPE::MUXABLE : 0);
+        srv_vpes[2] = new VPE("pager", VPEArgs().pager("pager").flags(muxed ? VPE::MUXABLE : 0));
         srvs[2] = new RemoteServer(*srv_vpes[2], "mypager");
 
         String srv_arg = srvs[2]->sel_arg();
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
         if(j == 0 && VERBOSE) cout << "Creating servers...\n";
 
         if(j == 0) {
-            srv_vpes[0] = new VPE("m3fs", VPE::self().pe(), "pager", muxed ? VPE::MUXABLE : 0);
+            srv_vpes[0] = new VPE("m3fs", VPEArgs().pager("pager").flags(muxed ? VPE::MUXABLE : 0));
             srvs[0] = new RemoteServer(*srv_vpes[0], "mym3fs");
 
             String srv_arg = srvs[0]->sel_arg();
@@ -111,7 +111,7 @@ int main(int argc, char **argv) {
         }
 
         if(j == 0) {
-            srv_vpes[1] = new VPE("pipes", VPE::self().pe(), "pager", muxed ? VPE::MUXABLE : 0);
+            srv_vpes[1] = new VPE("pipes", VPEArgs().pager("pager").flags(muxed ? VPE::MUXABLE : 0));
             srvs[1] = new RemoteServer(*srv_vpes[1], "mypipe");
 
             String srv_arg = srvs[1]->sel_arg();
