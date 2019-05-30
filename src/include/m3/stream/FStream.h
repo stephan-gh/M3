@@ -91,7 +91,7 @@ public:
      */
     int stat(FileInfo &info) const {
         Reference<File> f = file();
-        if(f.valid())
+        if(f)
             return f->stat(info);
         return -1;
     }

@@ -122,7 +122,7 @@ Errors::Code m3::NetworkManager::as_file(int sd, int mode, MemGate& mem, size_t 
 
 Errors::Code NetworkManager::ensure_channel_established() {
     // Channel already established
-    if(_channel.valid())
+    if(_channel)
         return Errors::NONE;
 
     // Obtain channel

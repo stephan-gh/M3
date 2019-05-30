@@ -106,7 +106,7 @@ size_t FStream::read(void *dst, size_t count) {
 
 void FStream::flush() {
     Reference<File> f = file();
-    if(_wbuf && f.valid()) {
+    if(_wbuf && f) {
         if(_wbuf->flush(f.get()) != Errors::NONE)
             _state |= FL_ERROR;
         f->flush();

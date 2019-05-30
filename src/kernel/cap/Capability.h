@@ -201,7 +201,7 @@ public:
     }
 
     bool rgate_valid() const {
-        return rgate.valid() && rgate->valid;
+        return rgate && rgate->valid;
     }
 
     m3::Reference<RGateObject> rgate;

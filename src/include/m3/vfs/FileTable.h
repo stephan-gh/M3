@@ -94,7 +94,7 @@ public:
      * @return true if the given file descriptor exists
      */
     bool exists(fd_t fd) const {
-        return _fds[fd].valid();
+        return _fds[fd];
     }
 
     /**
@@ -112,7 +112,7 @@ public:
      * @param file the file
      */
     void set(fd_t fd, Reference<File> file) {
-        assert(file.valid());
+        assert(file);
         _fds[fd] = file;
     }
 

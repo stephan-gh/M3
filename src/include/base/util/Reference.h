@@ -65,7 +65,7 @@ public:
         detach();
     }
 
-    bool valid() const {
+    operator bool() const {
         return _obj != nullptr;
     }
     T *operator->() const {

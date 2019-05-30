@@ -58,7 +58,7 @@ void VFS::unmount(const char *path) {
 Errors::Code VFS::delegate_eps(const char *path, capsel_t first, uint count) {
     size_t pos;
     Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs.valid())
+    if(!fs)
         return Errors::last = Errors::NO_SUCH_FILE;
     return fs->delegate_eps(first, count);
 }
@@ -66,12 +66,12 @@ Errors::Code VFS::delegate_eps(const char *path, capsel_t first, uint count) {
 fd_t VFS::open(const char *path, int perms) {
     size_t pos;
     Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs.valid()) {
+    if(!fs) {
         Errors::last = Errors::NO_SUCH_FILE;
         return FileTable::INVALID;
     }
     Reference<File> file = fs->open(path + pos, perms);
-    if(file.valid()) {
+    if(file) {
         fd_t fd = VPE::self().fds()->alloc(file);
         if(fd == FileTable::INVALID)
             Errors::last = Errors::NO_SPACE;
@@ -90,7 +90,7 @@ void VFS::close(fd_t fd) {
 Errors::Code VFS::stat(const char *path, FileInfo &info) {
     size_t pos;
     Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs.valid())
+    if(!fs)
         return Errors::last = Errors::NO_SUCH_FILE;
     return fs->stat(path + pos, info);
 }
@@ -98,7 +98,7 @@ Errors::Code VFS::stat(const char *path, FileInfo &info) {
 Errors::Code VFS::mkdir(const char *path, mode_t mode) {
     size_t pos;
     Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs.valid())
+    if(!fs)
         return Errors::last = Errors::NO_SUCH_FILE;
     return fs->mkdir(path + pos, mode);
 }
@@ -106,7 +106,7 @@ Errors::Code VFS::mkdir(const char *path, mode_t mode) {
 Errors::Code VFS::rmdir(const char *path) {
     size_t pos;
     Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs.valid())
+    if(!fs)
         return Errors::last = Errors::NO_SUCH_FILE;
     return fs->rmdir(path + pos);
 }
@@ -114,10 +114,10 @@ Errors::Code VFS::rmdir(const char *path) {
 Errors::Code VFS::link(const char *oldpath, const char *newpath) {
     size_t pos1, pos2;
     Reference<FileSystem> fs1 = ms()->resolve(oldpath, &pos1);
-    if(!fs1.valid())
+    if(!fs1)
         return Errors::last = Errors::NO_SUCH_FILE;
     Reference<FileSystem> fs2 = ms()->resolve(newpath, &pos2);
-    if(!fs2.valid())
+    if(!fs2)
         return Errors::last = Errors::NO_SUCH_FILE;
     if(fs1.get() != fs2.get())
         return Errors::last = Errors::XFS_LINK;
@@ -127,7 +127,7 @@ Errors::Code VFS::link(const char *oldpath, const char *newpath) {
 Errors::Code VFS::unlink(const char *path) {
     size_t pos;
     Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs.valid())
+    if(!fs)
         return Errors::last = Errors::NO_SUCH_FILE;
     return fs->unlink(path + pos);
 }

@@ -73,7 +73,7 @@ public:
         return _mapped;
     }
     bool has_mem() const {
-        return _mem.valid();
+        return _mem;
     }
     PhysMem *mem() {
         return has_mem() ? &*_mem : nullptr;

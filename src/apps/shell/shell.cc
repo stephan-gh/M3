@@ -208,7 +208,7 @@ static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
         for(size_t i = 0; i < vpe_count; ++i) {
             if(accels[i]) {
                 auto in = vpes[i]->fds()->get(STDIN_FD);
-                if(in.valid()) {
+                if(in) {
                     auto ain = in.get() == VPE::self().fds()->get(STDIN_FD).get() ? in->clone() : in;
                     accels[i]->connect_input(static_cast<GenericFile*>(ain.get()));
                     if(ain.get() != in.get())
@@ -218,7 +218,7 @@ static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
                     accels[i]->connect_input(accels[i - 1]);
 
                 auto out = vpes[i]->fds()->get(STDOUT_FD);
-                if(out.valid()) {
+                if(out) {
                     auto aout = out.get() == VPE::self().fds()->get(STDOUT_FD).get() ? out->clone() : out;
                     accels[i]->connect_output(static_cast<GenericFile*>(aout.get()));
                     if(aout.get() != out.get())

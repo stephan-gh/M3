@@ -36,7 +36,7 @@ void FileTable::remove_all() {
 
 fd_t FileTable::alloc(Reference<File> file) {
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(!_fds[i].valid()) {
+        if(!_fds[i]) {
             file->set_fd(i);
             _fds[i] = file;
             return i;
@@ -48,7 +48,7 @@ fd_t FileTable::alloc(Reference<File> file) {
 void FileTable::remove(fd_t fd) {
     Reference<File> file = _fds[fd];
 
-    if(file.valid()) {
+    if(file) {
         // close the file (important for, e.g., pipes)
         file->close();
 
@@ -102,7 +102,7 @@ epid_t FileTable::request_ep(GenericFile *file) {
 Errors::Code FileTable::delegate(VPE &vpe) const {
     Errors::Code res = Errors::NONE;
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i].valid()) {
+        if(_fds[i]) {
             res = _fds[i]->delegate(vpe);
             if(res != Errors::NONE)
                 return res;
@@ -116,13 +116,13 @@ size_t FileTable::serialize(void *buffer, size_t size) const {
 
     size_t count = 0;
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i].valid())
+        if(_fds[i])
             count++;
     }
 
     m << count;
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i].valid()) {
+        if(_fds[i]) {
             m << i << _fds[i]->type();
             _fds[i]->serialize(m);
         }
