@@ -61,6 +61,8 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int pe
     if(Platform::pe(vpe.pe()).has_virtmem() || (perms & MapCapability::EXCL)) {
         capsel_t dst = virt >> PAGE_BITS;
         size_t pages = m3::Math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
+        // these mappings cannot be changed or revoked by applications
+        perms |= MapCapability::KERNEL;
         MapCapability *mapcap = new MapCapability(&vpe.mapcaps(), dst, phys, pages, perms);
         vpe.mapcaps().set(dst, mapcap);
     }

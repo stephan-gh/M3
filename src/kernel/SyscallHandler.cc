@@ -410,6 +410,8 @@ void SyscallHandler::createmap(VPE *vpe, const m3::DTU::Message *msg) {
         mcaps.set(dst, mapcap);
     }
     else {
+        if(mapcap->obj->attr & MapCapability::KERNEL)
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Map capability refers to a kernel mapping");
         if(mapcap->length != pages) {
             SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS,
                 "Map capability exists with different number of pages ("

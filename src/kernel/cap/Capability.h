@@ -119,6 +119,9 @@ protected:
     }
 
 private:
+    virtual bool can_revoke() {
+        return true;
+    }
     virtual void revoke() {
     }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) = 0;
@@ -353,6 +356,7 @@ class MapCapability : public SlabObject<MapCapability>, public Capability {
 public:
     enum {
         EXCL    = 0x08000,
+        KERNEL  = 0x10000,
     };
 
     explicit MapCapability(CapTable *tbl, capsel_t sel, gaddr_t _phys, uint pages, int _attr);
@@ -362,6 +366,9 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
+    virtual bool can_revoke() override {
+        return (obj->attr & KERNEL) == 0;
+    }
     virtual void revoke() override;
     virtual Capability *clone(CapTable *, capsel_t) override {
         // not clonable

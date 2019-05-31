@@ -75,25 +75,25 @@ void CapTable::revoke_rec(Capability *c, bool revnext) {
 }
 
 void CapTable::revoke(Capability *c, bool revnext) {
-    if(c) {
-        if(c->_next)
-            c->_next->_prev = c->_prev;
-        if(c->_prev)
-            c->_prev->_next = c->_next;
-        if(c->_parent && c->_parent->_child == c)
-            c->_parent->_child = revnext ? nullptr : c->_next;
-        revoke_rec(c, revnext);
-    }
+    if(c->_next)
+        c->_next->_prev = c->_prev;
+    if(c->_prev)
+        c->_prev->_next = c->_next;
+    if(c->_parent && c->_parent->_child == c)
+        c->_parent->_child = revnext ? nullptr : c->_next;
+    revoke_rec(c, revnext);
 }
 
 void CapTable::revoke(const m3::KIF::CapRngDesc &crd, bool own) {
     for(capsel_t i = crd.start(), end = crd.start() + crd.count(); i < end; ) {
         Capability *c = get(i);
         i = c ? c->sel() + c->length : i + 1;
-        if(own)
-            revoke(c, false);
-        else if(c)
-            revoke(c->_child, true);
+        if(c && c->can_revoke()) {
+            if(own)
+                revoke(c, false);
+            else
+                revoke(c->_child, true);
+        }
     }
 }
 
