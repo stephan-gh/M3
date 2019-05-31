@@ -58,13 +58,14 @@ static void read_from_mod(const m3::BootInfo::Mod *mod, void *data, size_t size,
 }
 
 static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int perms) {
-    if(Platform::pe(vpe.pe()).has_virtmem()) {
+    if(Platform::pe(vpe.pe()).has_virtmem() || (perms & MapCapability::EXCL)) {
         capsel_t dst = virt >> PAGE_BITS;
         size_t pages = m3::Math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
         MapCapability *mapcap = new MapCapability(&vpe.mapcaps(), dst, phys, pages, perms);
         vpe.mapcaps().set(dst, mapcap);
     }
-    else {
+
+    if(!Platform::pe(vpe.pe()).has_virtmem()) {
         DTU::get().copy_clear(vpe.desc(), virt,
             VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID), m3::DTU::gaddr_to_virt(phys),
             size, false);
@@ -110,7 +111,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool n
             gaddr_t phys = alloc_mem(size);
 
             // map it
-            map_segment(vpe, phys, virt, size, perms);
+            map_segment(vpe, phys, virt, size, perms | MapCapability::EXCL);
             end = virt + size;
 
             // workaround for ARM: if we push remotely into the cache, it gets loaded to the L1d
@@ -141,7 +142,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool n
         // create initial heap
         gaddr_t phys = alloc_mem(MOD_HEAP_SIZE);
         goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
-        map_segment(vpe, phys, virt, MOD_HEAP_SIZE, m3::DTU::PTE_RW);
+        map_segment(vpe, phys, virt, MOD_HEAP_SIZE, m3::DTU::PTE_RW | MapCapability::EXCL);
     }
 
     return header.e_entry;
@@ -185,7 +186,7 @@ void VPE::load_app() {
         // map runtime space
         goff_t virt = RT_START;
         gaddr_t phys = alloc_mem(STACK_TOP - virt);
-        map_segment(*this, phys, virt, STACK_TOP - virt, m3::DTU::PTE_RW);
+        map_segment(*this, phys, virt, STACK_TOP - virt, m3::DTU::PTE_RW | MapCapability::EXCL);
     }
 
     // load app
@@ -234,7 +235,8 @@ void VPE::init_memory() {
     // PEs with virtual memory still need the rctmux flags
     else if(vm) {
         gaddr_t phys = alloc_mem(PAGE_SIZE);
-        map_segment(*this, phys, RCTMUX_FLAGS & ~PAGE_MASK, PAGE_SIZE, m3::DTU::PTE_RW);
+        map_segment(*this, phys, RCTMUX_FLAGS & ~PAGE_MASK, PAGE_SIZE,
+                    m3::DTU::PTE_RW | MapCapability::EXCL);
     }
 
     // rctmux is ready; let it initialize itself
@@ -246,7 +248,8 @@ void VPE::init_memory() {
     if(vm) {
         // map receive buffer
         gaddr_t phys = alloc_mem(RECVBUF_SIZE);
-        map_segment(*this, phys, RECVBUF_SPACE, RECVBUF_SIZE, m3::DTU::PTE_RW);
+        map_segment(*this, phys, RECVBUF_SPACE, RECVBUF_SIZE,
+                    m3::DTU::PTE_RW | MapCapability::EXCL);
     }
 
     // boot modules are started implicitly

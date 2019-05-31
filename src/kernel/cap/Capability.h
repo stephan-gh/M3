@@ -351,6 +351,10 @@ public:
 
 class MapCapability : public SlabObject<MapCapability>, public Capability {
 public:
+    enum {
+        EXCL    = 0x08000,
+    };
+
     explicit MapCapability(CapTable *tbl, capsel_t sel, gaddr_t _phys, uint pages, int _attr);
 
     void remap(gaddr_t _phys, int _attr);

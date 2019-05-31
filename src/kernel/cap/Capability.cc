@@ -57,19 +57,23 @@ MapCapability::MapCapability(CapTable *tbl, capsel_t sel, gaddr_t _phys, uint _p
     : Capability(tbl, sel, MAP, _pages),
       obj(new MapObject(_phys, _attr)) {
     VPE &vpe = tbl->vpe();
-    vpe.address_space()->map_pages(vpe.desc(), sel << PAGE_BITS, obj->phys, length, obj->attr);
+    vpe.address_space()->map_pages(vpe.desc(), sel << PAGE_BITS, obj->phys, length,
+                                   (obj->attr & ~EXCL));
 }
 
 void MapCapability::remap(gaddr_t _phys, int _attr) {
     obj->phys = _phys;
     obj->attr = _attr;
     VPE &vpe = table()->vpe();
-    vpe.address_space()->map_pages(vpe.desc(), sel() << PAGE_BITS, _phys, length, _attr);
+    vpe.address_space()->map_pages(vpe.desc(), sel() << PAGE_BITS, _phys, length,
+                                   (_attr & ~EXCL));
 }
 
 void MapCapability::revoke() {
     VPE &vpe = table()->vpe();
     vpe.address_space()->unmap_pages(vpe.desc(), sel() << PAGE_BITS, length);
+    if(obj->attr & EXCL)
+        MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length * PAGE_SIZE));
 }
 
 void SessCapability::revoke() {

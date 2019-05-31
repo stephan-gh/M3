@@ -126,8 +126,8 @@ void AddrSpace::clear_pt(gaddr_t pt) {
     }
 }
 
-bool AddrSpace::create_pt(const VPEDesc &vpe, goff_t &virt, goff_t pteAddr, m3::DTU::pte_t pte,
-                          gaddr_t &phys, uint &pages, int perm, int level) {
+bool AddrSpace::create_pt(const VPEDesc &vpe, VPE *vpeobj, goff_t &virt, goff_t pteAddr,
+                          m3::DTU::pte_t pte, gaddr_t &phys, uint &pages, int perm, int level) {
     // use a large page, if possible
     if(level == 1 && m3::Math::is_aligned(virt, m3::DTU::LPAGE_SIZE) &&
                      m3::Math::is_aligned(phys, m3::DTU::LPAGE_SIZE) &&
@@ -267,7 +267,10 @@ goff_t AddrSpace::get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt
 }
 
 void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pages, int perm) {
-    bool running = vpe.pe == Platform::kernel_pe() || VPEManager::get().vpe(vpe.id).is_on_pe();
+    VPE *vpeobj = vpe.pe != Platform::kernel_pe() ? &VPEManager::get().vpe(vpe.id) : nullptr;
+    bool running = !vpeobj || vpeobj->is_on_pe();
+    if(vpeobj && !Platform::pe(vpeobj->pe()).has_virtmem())
+        return;
 
     KLOG(MAPPINGS, "VPE" << _vpeid << ": mapping "
         << m3::fmt(virt, "p") << ".." << m3::fmt(virt + pages * PAGE_SIZE - 1, "p")
@@ -278,15 +281,14 @@ void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pa
     VPEDesc rvpe(vpe);
     gaddr_t root = 0;
     if(!running) {
-        VPE &v = VPEManager::get().vpe(vpe.id);
         // first, flush the cache to ensure that all PTEs are in memory
-        v.flush_cache();
+        vpeobj->flush_cache();
         // update the cache from memory when resuming the VPE
-        v.needs_invalidate();
+        vpeobj->needs_invalidate();
 
         // TODO we currently assume that all PTEs are in the same mem PE as the root PT
-        peid_t pe = m3::DTU::gaddr_to_pe(v.address_space()->root_pt());
-        root = v.address_space()->root_pt();
+        peid_t pe = m3::DTU::gaddr_to_pe(vpeobj->address_space()->root_pt());
+        root = vpeobj->address_space()->root_pt();
         rvpe = VPEDesc(pe, VPE::INVALID_ID);
     }
 
@@ -303,7 +305,7 @@ void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pa
             pte = to_dtu_pte(pte);
 
             if(level > 0) {
-                if(create_pt(rvpe, virt, pteAddr, pte, phys, pages, perm, level))
+                if(create_pt(rvpe, vpeobj, virt, pteAddr, pte, phys, pages, perm, level))
                     break;
             }
             else {
@@ -322,7 +324,7 @@ void AddrSpace::unmap_pages(const VPEDesc &vpe, goff_t virt, uint pages) {
     map_pages(vpe, virt, 0, pages, 0);
 }
 
-void AddrSpace::remove_pts_rec(const VPEDesc &vpe, gaddr_t pt, goff_t virt, int level) {
+void AddrSpace::remove_pts_rec(VPE &vpe, gaddr_t pt, goff_t virt, int level) {
     static_assert(sizeof(buffer) >= PAGE_SIZE, "Buffer smaller than a page");
 
     // load entire page table
@@ -335,14 +337,9 @@ void AddrSpace::remove_pts_rec(const VPEDesc &vpe, gaddr_t pt, goff_t virt, int 
     m3::DTU::pte_t *ptes = reinterpret_cast<m3::DTU::pte_t*>(buffer);
     for(size_t i = 0; i < 1 << m3::DTU::LEVEL_BITS; ++i) {
         if(ptes[i]) {
-            /* skip recursive entry */
-            if(level == m3::DTU::LEVEL_CNT - 1 && i == m3::DTU::PTE_REC_IDX) {
-                virt += ptsize;
-                continue;
-            }
-
             gaddr_t gaddr = to_dtu_pte(ptes[i]) & ~static_cast<gaddr_t>(PAGE_MASK);
-            if(level > 1) {
+            // not for the recursive entry
+            if(level > 1 && !(level == m3::DTU::LEVEL_CNT - 1 && i == m3::DTU::PTE_REC_IDX)) {
                 remove_pts_rec(vpe, gaddr, virt, level - 1);
 
                 // reload the rest of the buffer
@@ -350,7 +347,7 @@ void AddrSpace::remove_pts_rec(const VPEDesc &vpe, gaddr_t pt, goff_t virt, int 
                 DTU::get().read_mem(memvpe, m3::DTU::gaddr_to_virt(pt + off), buffer + off, PAGE_SIZE - off);
             }
             // free page table
-            KLOG(PTES, "VPE" << vpe.id << ": lvl " << level << " PTE for " << m3::fmt(virt, "p") << " removed");
+            KLOG(PTES, "VPE" << vpe.id() << ": lvl " << level << " PTE for " << m3::fmt(virt, "p") << " removed");
             MainMemory::get().free(MainMemory::get().build_allocation(gaddr, PAGE_SIZE));
         }
 
@@ -365,7 +362,7 @@ void AddrSpace::remove_pts(vpeid_t vpe) {
     // don't destroy page tables of idle VPEs. we need them to execute something on the other PEs
     if(!v.is_idle()) {
         gaddr_t root = v.address_space()->root_pt();
-        remove_pts_rec(v.desc(), root, 0, m3::DTU::LEVEL_CNT - 1);
+        remove_pts_rec(v, root, 0, m3::DTU::LEVEL_CNT - 1);
     }
 }
 
