@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
     // create some worker threads
     wl.multithreaded(8);
 
-    Platform::add_modules(argc - argstart - 1, argv + argstart + 1);
+    Platform::add_modules(argc - argstart, argv + argstart);
     if(Args::fsimg)
         copyfromfs(MainMemory::get(), Args::fsimg);
     SyscallHandler::init();

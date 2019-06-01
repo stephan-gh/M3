@@ -107,7 +107,7 @@ build_params_host() {
     c=0
     generate_lines $1 | while read line; do
         if [ $c -eq 0 ]; then
-            echo -n "$bindir/$KPREFIX$line -- "
+            echo -n "$bindir/$KPREFIX$line "
         else
             echo -n "$bindir/$line -- "
         fi
