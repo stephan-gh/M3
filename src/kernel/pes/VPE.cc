@@ -87,6 +87,9 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
 VPE::~VPE() {
     KLOG(VPES, "Deleting VPE '" << _name << "' [id=" << id() << "]");
 
+    // ensure that the VPE is stopped
+    PEManager::get().stop_vpe(this);
+
     _state = DEAD;
 
     if(_group)
