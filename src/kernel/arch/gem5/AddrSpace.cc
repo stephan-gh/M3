@@ -287,8 +287,8 @@ void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pa
         vpeobj->needs_invalidate();
 
         // TODO we currently assume that all PTEs are in the same mem PE as the root PT
-        peid_t pe = m3::DTU::gaddr_to_pe(vpeobj->address_space()->root_pt());
-        root = vpeobj->address_space()->root_pt();
+        peid_t pe = m3::DTU::gaddr_to_pe(_root);
+        root = _root;
         rvpe = VPEDesc(pe, VPE::INVALID_ID);
     }
 
@@ -360,10 +360,8 @@ void AddrSpace::remove_pts(vpeid_t vpe) {
     assert(v.state() == VPE::DEAD);
 
     // don't destroy page tables of idle VPEs. we need them to execute something on the other PEs
-    if(!v.is_idle()) {
-        gaddr_t root = v.address_space()->root_pt();
-        remove_pts_rec(v, root, 0, m3::DTU::LEVEL_CNT - 1);
-    }
+    if(!v.is_idle())
+        remove_pts_rec(v, _root, 0, m3::DTU::LEVEL_CNT - 1);
 }
 
 }
