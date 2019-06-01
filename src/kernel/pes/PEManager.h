@@ -23,6 +23,7 @@
 namespace kernel {
 
 class VPEGroup;
+class KMemObject;
 
 class PEManager {
 public:
@@ -37,7 +38,7 @@ private:
     explicit PEManager();
 
 public:
-    void init();
+    void init(KMemObject *kmem);
 
     peid_t find_pe(const m3::PEDesc &pe, peid_t except, uint flags, const VPEGroup *group);
 

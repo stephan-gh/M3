@@ -40,8 +40,20 @@ void CapTable::revoke_all() {
 }
 
 Capability *CapTable::obtain(capsel_t dst, Capability *c) {
+    static_assert(sizeof(SGateCapability) == sizeof(RGateCapability) &&
+                  sizeof(SGateCapability) == sizeof(MGateCapability) &&
+                  sizeof(SGateCapability) == sizeof(MapCapability) &&
+                  sizeof(SGateCapability) == sizeof(ServCapability) &&
+                  sizeof(SGateCapability) == sizeof(EPCapability) &&
+                  sizeof(SGateCapability) == sizeof(VPEGroupCapability) &&
+                  sizeof(SGateCapability) == sizeof(VPECapability) &&
+                  sizeof(SGateCapability) == sizeof(KMemCapability), "Cap sizes not equal");
+
     Capability *nc = c;
     if(c) {
+        if(!vpe().kmem()->alloc(vpe(), sizeof(SGateCapability)))
+            return nullptr;
+
         nc = c->clone(this, dst);
         if(nc)
             inherit(c, nc);
@@ -65,6 +77,11 @@ void CapTable::revoke_rec(Capability *c, bool revnext) {
     Capability *next = c->next();
 
     c->revoke();
+
+    auto &vpe = c->table()->vpe();
+    vpe.kmem()->free(vpe, sizeof(SGateCapability));
+    if(c->is_root())
+        vpe.kmem()->free(vpe, c->obj_size());
     c->table()->unset(c->sel());
 
     if(child)
@@ -87,7 +104,7 @@ void CapTable::revoke(Capability *c, bool revnext) {
 void CapTable::revoke(const m3::KIF::CapRngDesc &crd, bool own) {
     for(capsel_t i = crd.start(), end = crd.start() + crd.count(); i < end; ) {
         Capability *c = get(i);
-        i = c ? c->sel() + c->length : i + 1;
+        i = c ? c->sel() + c->length() : i + 1;
         if(c && c->can_revoke()) {
             if(own)
                 revoke(c, false);

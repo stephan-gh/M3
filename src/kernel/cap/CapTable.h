@@ -83,7 +83,7 @@ public:
     }
     Capability *get(capsel_t i, unsigned types) {
         Capability *c = get(i);
-        if(c == nullptr || !(c->type & types))
+        if(c == nullptr || !(c->type() & types))
             return nullptr;
         return c;
     }

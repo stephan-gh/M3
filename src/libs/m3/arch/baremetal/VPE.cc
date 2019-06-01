@@ -36,6 +36,9 @@ void VPE::init_state() {
     delete _resmng;
     _resmng = new ResMng(env()->rmng_sel);
 
+    if(!_kmem)
+        _kmem = Reference<KMem>(new KMem(env()->kmem_sel));
+
     // it's initially 0. make sure it's at least the first usable selector
     _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->caps);
     _rbufcur = env()->rbufcur;
@@ -86,6 +89,7 @@ Errors::Code VPE::run(void *lambda) {
     senv.rbufcur = _rbufcur;
     senv.rbufend = _rbufend;
     senv.rmng_sel = _resmng->sel();
+    senv.kmem_sel = _kmem->sel();
     senv.caps = _next_sel;
     senv.eps = _eps;
     senv.pager_rgate = 0;
@@ -165,6 +169,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
     senv.rbufcur = _rbufcur;
     senv.rbufend = _rbufend;
     senv.rmng_sel = _resmng->sel();
+    senv.kmem_sel = _kmem->sel();
 
     /* set pager info */
     senv.pager_sess = _pager ? _pager->sel() : 0;

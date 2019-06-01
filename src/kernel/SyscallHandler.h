@@ -69,6 +69,8 @@ private:
     static void vpectrl(VPE *vpe, const m3::DTU::Message *msg);
     static void vpewait(VPE *vpe, const m3::DTU::Message *msg);
     static void derivemem(VPE *vpe, const m3::DTU::Message *msg);
+    static void derivekmem(VPE *vpe, const m3::DTU::Message *msg);
+    static void kmemquota(VPE *vpe, const m3::DTU::Message *msg);
     static void exchange(VPE *vpe, const m3::DTU::Message *msg);
     static void delegate(VPE *vpe, const m3::DTU::Message *msg);
     static void obtain(VPE *vpe, const m3::DTU::Message *msg);

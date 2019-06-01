@@ -24,6 +24,7 @@ use core::intrinsics;
 use dtu::{EpId, Label};
 use kif::{self, PEDesc, PEType, PEISA};
 use libc;
+use rc::Rc;
 use session::{ResMng, Pager};
 use vfs::{FileTable, MountTable};
 use vpe;
@@ -100,6 +101,11 @@ impl EnvData {
         }
     }
 
+    pub fn load_kmem(&self) -> Rc<vpe::KMem> {
+        let sel = Self::load_word("kmem", self.base().kmem_sel as u64) as Selector;
+        Rc::new(vpe::KMem::new(sel))
+    }
+
     pub fn load_mounts(&self) -> MountTable {
         match arch::loader::read_env_file("ms") {
             Some(ms)    => MountTable::unserialize(&mut SliceSource::new(&ms)),
@@ -163,6 +169,7 @@ pub fn init(argc: i32, argv: *const *const i8) {
         PEDesc::new(PEType::COMP_IMEM, PEISA::X86, 1024 * 1024),
         argc,
         argv,
+        read_line(fd).parse::<Selector>().unwrap(),
         read_line(fd).parse::<Selector>().unwrap(),
     );
     base::envdata::set(base);

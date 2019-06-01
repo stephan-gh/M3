@@ -139,12 +139,12 @@ void ContextSwitcher::schedule() {
         _cur = _idle;
 }
 
-void ContextSwitcher::init() {
+void ContextSwitcher::init(UNUSED KMemObject *kmem) {
     assert(_idle == nullptr);
 
 #if !defined(__host__)
     _idle = new VPE(m3::String("rctmux"), _pe, VPEManager::get().get_id(),
-        VPE::F_IDLE | VPE::F_INIT, VPE::INVALID_EP, m3::KIF::INV_SEL);
+        VPE::F_IDLE | VPE::F_INIT, kmem, VPE::INVALID_EP, m3::KIF::INV_SEL);
 
     KLOG(CTXSW, "CtxSw[" << _pe << "] initialized (idle="
         << _idle->id() << ", muxable=" << _muxable << ")");

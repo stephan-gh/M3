@@ -39,10 +39,10 @@ PEManager::PEManager()
     deprivilege_pes();
 }
 
-void PEManager::init() {
+void PEManager::init(KMemObject *kmem) {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
         if(_ctxswitcher[i])
-            _ctxswitcher[i]->init();
+            _ctxswitcher[i]->init(kmem);
     }
 }
 

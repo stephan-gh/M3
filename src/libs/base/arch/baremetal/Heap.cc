@@ -35,7 +35,7 @@ void Heap::init_arch() {
             end = env()->pedesc.mem_size() - RECVBUF_SIZE_SPM;
         // this does only exist so that we can still run scenarios on cache-PEs without pager
         else
-            end = Math::round_up(begin, PAGE_SIZE) + MOD_HEAP_SIZE;
+            end = Math::round_up(begin, PAGE_SIZE) + ROOT_HEAP_SIZE;
 #else
         end = Math::round_dn<size_t>(RT_START, sizeof(HeapArea));
 #endif

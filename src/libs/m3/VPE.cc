@@ -38,12 +38,25 @@ VPEGroup::VPEGroup() : ObjCap(ObjCap::VPEGRP) {
     sel(dst);
 }
 
+size_t KMem::quota() const {
+    size_t amount = 0;
+    Syscalls::get().kmemquota(sel(), amount);
+    return amount;
+}
+
+Reference<KMem> KMem::derive(const KMem &base, size_t quota) {
+    capsel_t sel = VPE::self().alloc_sel();
+    Syscalls::get().derivekmem(base.sel(), sel, quota);
+    return Reference<KMem>(new KMem(sel, 0));
+}
+
 VPEArgs::VPEArgs()
     : _flags(0),
       _pedesc(VPE::self().pe()),
       _pager(nullptr),
       _rmng(nullptr),
-      _group(nullptr) {
+      _group(nullptr),
+      _kmem() {
 }
 
 // don't revoke these. they kernel does so on exit
@@ -55,6 +68,7 @@ VPE::VPE()
       _next_sel(KIF::FIRST_FREE_SEL),
       _eps(),
       _pager(),
+      _kmem(),
       _rbufcur(),
       _rbufend(),
       _ms(),
@@ -86,6 +100,7 @@ VPE::VPE(const String &name, const VPEArgs &args)
       _next_sel(KIF::FIRST_FREE_SEL),
       _eps(),
       _pager(),
+      _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
       _rbufcur(),
       _rbufend(),
       _ms(new MountTable()),
@@ -106,7 +121,7 @@ VPE::VPE(const String &name, const VPEArgs &args)
     if(_pager) {
         // now create VPE, which implicitly obtains the gate cap from us
         Syscalls::get().createvpe(dst, _pager->child_sgate().sel(), name, _pe,
-            _pager->sep(), _pager->rep(), args._flags, group_sel);
+            _pager->sep(), _pager->rep(), args._flags, _kmem->sel(), group_sel);
         // mark the send gate cap allocated
         _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
         // now delegate our VPE cap and memory cap to the pager
@@ -116,8 +131,9 @@ VPE::VPE(const String &name, const VPEArgs &args)
     }
     else {
         Syscalls::get().createvpe(dst, ObjCap::INVALID, name, _pe,
-            0, 0, args._flags, group_sel);
+            0, 0, args._flags, _kmem->sel(), group_sel);
     }
+    _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
     if(_resmng == nullptr) {
         _resmng = VPE::self().resmng().clone(*this, name);

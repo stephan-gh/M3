@@ -27,6 +27,7 @@ use errors::{Code, Error};
 use goff;
 use kif::{CapType, CapRngDesc, INVALID_SEL, PEDesc};
 use kif;
+use rc::Rc;
 use session::{ResMng, Pager};
 use syscalls;
 use util;
@@ -53,6 +54,35 @@ impl VPEGroup {
     }
 }
 
+pub struct KMem {
+    cap: Capability,
+}
+
+impl KMem {
+    pub fn new(sel: Selector) -> Self {
+        KMem {
+            cap: Capability::new(sel, CapFlags::KEEP_CAP),
+        }
+    }
+
+    pub fn sel(&self) -> Selector {
+        self.cap.sel()
+    }
+
+    pub fn quota(&self) -> Result<usize, Error> {
+        syscalls::kmem_quota(self.sel())
+    }
+
+    pub fn derive(&self, quota: usize) -> Result<Rc<Self>, Error> {
+        let sel = VPE::cur().alloc_sel();
+
+        syscalls::derive_kmem(self.sel(), sel, quota)?;
+        Ok(Rc::new(KMem {
+            cap: Capability::new(sel, CapFlags::empty()),
+        }))
+    }
+}
+
 pub struct VPE {
     cap: Capability,
     pe: PEDesc,
@@ -62,6 +92,7 @@ pub struct VPE {
     eps: u64,
     rbufs: arch::rbufs::RBufSpace,
     pager: Option<Pager>,
+    kmem: Rc<KMem>,
     files: FileTable,
     mounts: MountTable,
 }
@@ -72,6 +103,7 @@ pub struct VPEArgs<'n, 'p> {
     pe: PEDesc,
     muxable: bool,
     group: Option<VPEGroup>,
+    kmem: Option<Rc<KMem>>,
     rmng: Option<ResMng>,
 }
 
@@ -256,6 +288,7 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
             pe: VPE::cur().pe(),
             muxable: false,
             group: None,
+            kmem: None,
             rmng: None,
         }
     }
@@ -284,6 +317,11 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
         self.group = Some(group);
         self
     }
+
+    pub fn kmem(mut self, kmem: Rc<KMem>) -> Self {
+        self.kmem = Some(kmem);
+        self
+    }
 }
 
 const VMA_RBUF_SIZE: usize  = 64;
@@ -304,6 +342,7 @@ impl VPE {
             eps: 0,
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
+            kmem: Rc::new(KMem::new(kif::INVALID_SEL)),
             files: FileTable::default(),
             mounts: MountTable::default(),
         }
@@ -317,6 +356,7 @@ impl VPE {
         self.eps = env.load_eps();
         self.rbufs = env.load_rbufs();
         self.pager = env.load_pager();
+        self.kmem = env.load_kmem();
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
         self.files = env.load_fds();
@@ -347,6 +387,7 @@ impl VPE {
             eps: 0,
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
+            kmem: args.kmem.unwrap_or(VPE::cur().kmem.clone()),
             files: FileTable::default(),
             mounts: MountTable::default(),
         };
@@ -381,6 +422,7 @@ impl VPE {
             vpe.pe = syscalls::create_vpe(
                 crd, sgate_sel, args.name,
                 args.pe, pg.sep(), pg.rep(), args.muxable,
+                vpe.kmem.sel(),
                 args.group.map_or(INVALID_SEL, |g| g.sel())
             )?;
 
@@ -400,10 +442,12 @@ impl VPE {
             vpe.pe = syscalls::create_vpe(
                 crd, INVALID_SEL, args.name,
                 args.pe, 0, 0, args.muxable,
+                vpe.kmem.sel(),
                 args.group.map_or(INVALID_SEL, |g| g.sel())
             )?;
             None
         };
+        vpe.next_sel = util::max(vpe.kmem.sel() + 1, vpe.next_sel);
 
         // determine resource manager
         let resmng = if let Some(rmng) = args.rmng {
@@ -448,6 +492,9 @@ impl VPE {
         &mut self.mounts
     }
 
+    pub fn kmem(&self) -> &Rc<KMem> {
+        &self.kmem
+    }
     pub fn resmng(&self) -> &ResMng {
         &self.rmng
     }
@@ -699,6 +746,7 @@ impl VPE {
                 senv.set_mounts(off, mounts.size());
             }
 
+            senv.set_kmem(self.kmem.sel());
             senv.set_rmng(self.rmng.sel());
             senv.set_rbufs(&self.rbufs);
             senv.set_next_sel(self.next_sel);
@@ -748,10 +796,11 @@ impl VPE {
                 // tell child about fd to notify parent if DTU is ready
                 arch::loader::write_env_value(pid, "dturdy", c2p.fds()[1] as u64);
 
-                // write nextsel, eps, and rmng
+                // write nextsel, eps, rmng, and kmem
                 arch::loader::write_env_value(pid, "nextsel", self.next_sel as u64);
                 arch::loader::write_env_value(pid, "eps", self.eps);
                 arch::loader::write_env_value(pid, "rmng", self.rmng.sel() as u64);
+                arch::loader::write_env_value(pid, "kmem", self.kmem.sel() as u64);
 
                 // write rbufs
                 let mut rbufs = VecSink::new();

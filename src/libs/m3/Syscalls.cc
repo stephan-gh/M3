@@ -113,7 +113,8 @@ Errors::Code Syscalls::createvpegrp(capsel_t dst) {
 }
 
 Errors::Code Syscalls::createvpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name,
-                                 PEDesc &pe, epid_t sep, epid_t rep, uint flags, capsel_t group) {
+                                 PEDesc &pe, epid_t sep, epid_t rep, uint flags,
+                                 capsel_t kmem, capsel_t group) {
     KIF::Syscall::CreateVPE req;
     req.opcode = KIF::Syscall::CREATE_VPE;
     req.dst_crd = dst.value();
@@ -123,6 +124,7 @@ Errors::Code Syscalls::createvpe(const KIF::CapRngDesc &dst, capsel_t sgate, con
     req.rep = rep;
     req.flags = static_cast<xfer_t>(flags);
     req.group_sel = group;
+    req.kmem_sel = kmem;
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
 
@@ -189,6 +191,31 @@ Errors::Code Syscalls::derivemem(capsel_t vpe, capsel_t dst, capsel_t src, goff_
     req.size = size;
     req.perms = static_cast<xfer_t>(perms);
     return send_receive_result(&req, sizeof(req));
+}
+
+Errors::Code Syscalls::derivekmem(capsel_t kmem, capsel_t dst, size_t quota) {
+    KIF::Syscall::DeriveKMem req;
+    req.opcode = KIF::Syscall::DERIVE_KMEM;
+    req.kmem_sel = kmem;
+    req.dst_sel = dst;
+    req.quota = quota;
+    return send_receive_result(&req, sizeof(req));
+}
+
+Errors::Code Syscalls::kmemquota(capsel_t kmem, size_t &amount) {
+    KIF::Syscall::KMemQuota req;
+    req.opcode = KIF::Syscall::KMEM_QUOTA;
+    req.kmem_sel = kmem;
+
+    DTU::Message *msg = send_receive(&req, sizeof(req));
+    auto *reply = reinterpret_cast<KIF::Syscall::KMemQuotaReply*>(msg->data);
+
+    Errors::last = static_cast<Errors::Code>(reply->error);
+    if(Errors::last == Errors::NONE)
+        amount = reply->amount;
+
+    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<size_t>(reply));
+    return Errors::last;
 }
 
 Errors::Code Syscalls::exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other, bool obtain) {

@@ -51,6 +51,7 @@ public:
         VPEGRP,
         VIRTPE,
         EPMASK,
+        KMEM,
     };
 
     /**

@@ -14,28 +14,16 @@
  * General Public License version 2 for more details.
  */
 
-#include "mem/AddrSpace.h"
+#include <m3/com/RecvGate.h>
+#include <m3/Syscalls.h>
 
-namespace kernel {
+using namespace m3;
 
-void AddrSpace::setup(const VPEDesc &) {
-    // not supported
-}
+int main() {
+    capsel_t sel = 1000;
 
-size_t AddrSpace::max_kmem_for(size_t) const {
+    RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
+    while(1)
+        m3::Syscalls::get().createsgate(sel++, rgate.sel(), 0, SendGate::UNLIMITED);
     return 0;
-}
-
-void AddrSpace::map_pages(const VPEDesc &, goff_t, gaddr_t, uint, int) {
-    // not supported
-}
-
-void AddrSpace::unmap_pages(const VPEDesc &, goff_t, uint) {
-    // not supported
-}
-
-void AddrSpace::remove_pts(vpeid_t) {
-    // not supported
-}
-
 }

@@ -74,11 +74,12 @@ static void load_params(Env *e) {
     epid_t ep;
     word_t credits;
     capsel_t first_sel;
+    capsel_t kmem_sel;
     label_t lbl;
     std::string shm_prefix;
-    in >> shm_prefix >> pe >> first_sel >> lbl >> ep >> credits;
+    in >> shm_prefix >> pe >> first_sel >> kmem_sel >> lbl >> ep >> credits;
 
-    e->set_params(pe, shm_prefix, lbl, ep, credits, first_sel);
+    e->set_params(pe, shm_prefix, lbl, ep, credits, first_sel, kmem_sel);
 }
 
 EXTERN_C WEAK void init_env() {

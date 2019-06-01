@@ -50,7 +50,7 @@ EXTERN_C void init_env() {
     int logfd = open("run/log.txt", O_CREAT | O_TRUNC | O_WRONLY | O_APPEND, 0644);
 
     new m3::Env(new HostKEnvBackend(), logfd);
-    m3::env()->set_params(0, gen_prefix(), 0, 0, 0, 0);
+    m3::env()->set_params(0, gen_prefix(), 0, 0, 0, 0, 0);
 }
 
 }

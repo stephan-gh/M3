@@ -61,9 +61,12 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int pe
     if(Platform::pe(vpe.pe()).has_virtmem() || (perms & MapCapability::EXCL)) {
         capsel_t dst = virt >> PAGE_BITS;
         size_t pages = m3::Math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
+        vpe.kmem()->alloc(vpe, sizeof(MapObject) + sizeof(MapCapability));
+        if(perms & MapCapability::EXCL)
+            vpe.kmem()->alloc(vpe, pages * PAGE_SIZE);
         // these mappings cannot be changed or revoked by applications
         perms |= MapCapability::KERNEL;
-        MapCapability *mapcap = new MapCapability(&vpe.mapcaps(), dst, phys, pages, perms);
+        auto mapcap = new MapCapability(&vpe.mapcaps(), dst, pages, new MapObject(phys, perms));
         vpe.mapcaps().set(dst, mapcap);
     }
 
@@ -142,9 +145,9 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool n
 
     if(needs_heap) {
         // create initial heap
-        gaddr_t phys = alloc_mem(MOD_HEAP_SIZE);
+        gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE);
         goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
-        map_segment(vpe, phys, virt, MOD_HEAP_SIZE, m3::DTU::PTE_RW | MapCapability::EXCL);
+        map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, m3::DTU::PTE_RW | MapCapability::EXCL);
     }
 
     return header.e_entry;
@@ -216,8 +219,9 @@ void VPE::load_app() {
     senv.sp = STACK_TOP - sizeof(word_t);
     senv.entry = entry;
     senv.pedesc = Platform::pe(pe());
-    senv.heapsize = MOD_HEAP_SIZE;
+    senv.heapsize = ROOT_HEAP_SIZE;
     senv.rmng_sel = m3::KIF::INV_SEL;
+    senv.kmem_sel = m3::KIF::FIRST_FREE_SEL;
     senv.caps = _first_sel;
 
     DTU::get().write_mem(desc(), RT_START, &senv, sizeof(senv));

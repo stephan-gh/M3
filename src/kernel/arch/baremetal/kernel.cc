@@ -42,9 +42,8 @@ int main(int argc, char *argv[]) {
     SyscallHandler::init();
     PEManager::create();
     VPEManager::create();
-    VPEManager::get().start_root();
-
-    PEManager::get().init();
+    auto kmem = VPEManager::get().start_root();
+    PEManager::get().init(kmem);
 
     KLOG(INFO, "Kernel is ready");
 

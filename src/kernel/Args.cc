@@ -42,7 +42,11 @@ int Args::parse(int argc, char **argv) {
         switch(opt) {
             case 'f': fsimg = m3::CmdArgs::arg; break;
             case 't': timeslice = m3::IStringStream::read_from<cycles_t>(m3::CmdArgs::arg); break;
-            case 'm': kmem = m3::CmdArgs::to_size(m3::CmdArgs::arg); break;
+            case 'm':
+                kmem = m3::CmdArgs::to_size(m3::CmdArgs::arg);
+                if(kmem <= FIXED_KMEM)
+                    usage(argv[0]);
+                break;
             default: usage(argv[0]);
         }
     }

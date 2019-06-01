@@ -42,6 +42,8 @@ public:
         SQUEUE          = 1 << 12,
         UPCALLS         = 1 << 13,
         MAPPINGS        = 1 << 14,
+        KMEM            = 1 << 15,
+        KMEM_ALLOCS     = 1 << 16,
     };
 
     static const int level = INFO | ERR;

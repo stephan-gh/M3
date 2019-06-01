@@ -28,6 +28,37 @@ m3::OStream &operator<<(m3::OStream &os, const Capability &cc) {
     return os;
 }
 
+KMemObject::KMemObject(size_t _quota)
+    : RefCounted(),
+      quota(_quota),
+      left(_quota) {
+    KLOG(KMEM, "KMem[" << m3::fmt((void*)this, "p") << "]: created with " << quota << "");
+}
+
+KMemObject::~KMemObject() {
+    KLOG(KMEM, "KMem[" << m3::fmt((void*)this, "p") << "]: deleted with " << left << "/" << quota << "");
+    assert(left == quota);
+}
+
+bool KMemObject::alloc(VPE &vpe, size_t size) {
+    KLOG(KMEM_ALLOCS, "KMem[" << m3::fmt((void*)this, "p") << "]: " << vpe.id() << ":" << vpe.name()
+      << " allocates " << size << "b (" << left << "/" << quota << " left)");
+
+    if(has_quota(size)) {
+        left -= size;
+        return true;
+    }
+    return false;
+}
+
+void KMemObject::free(VPE &vpe, size_t size) {
+    assert(left + size <= quota);
+    left += size;
+
+    KLOG(KMEM_ALLOCS, "KMem[" << m3::fmt((void*)this, "p") << "]: " << vpe.id() << ":" << vpe.name()
+      << " freed " << size << "b (" << left << "/" << quota << " left)");
+}
+
 GateObject::~GateObject() {
     for(auto user = epuser.begin(); user != epuser.end(); ) {
         auto old = user++;
@@ -53,32 +84,42 @@ EPObject::~EPObject() {
         gate->remove_ep(this);
 }
 
-MapCapability::MapCapability(CapTable *tbl, capsel_t sel, gaddr_t _phys, uint _pages, int _attr)
+void KMemCapability::revoke() {
+    // grant the kernel memory back to our parent, if there is any
+    if(is_root() && parent()) {
+        assert(obj->left == obj->quota);
+        static_cast<KMemCapability*>(parent())->obj->free(table()->vpe(), obj->left);
+    }
+}
+
+MapCapability::MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj)
     : Capability(tbl, sel, MAP, _pages),
-      obj(new MapObject(_phys, _attr)) {
+      obj(_obj) {
     VPE &vpe = tbl->vpe();
-    vpe.address_space()->map_pages(vpe.desc(), sel << PAGE_BITS, obj->phys, length,
-                                   (obj->attr & ~EXCL));
+    vpe.address_space()->map_pages(vpe.desc(), sel << PAGE_BITS, obj->phys, length(),
+                                   (obj->attr & ~(EXCL | KERNEL)));
 }
 
 void MapCapability::remap(gaddr_t _phys, int _attr) {
     obj->phys = _phys;
     obj->attr = _attr;
     VPE &vpe = table()->vpe();
-    vpe.address_space()->map_pages(vpe.desc(), sel() << PAGE_BITS, _phys, length,
-                                   (_attr & ~EXCL));
+    vpe.address_space()->map_pages(vpe.desc(), sel() << PAGE_BITS, _phys, length(),
+                                   (obj->attr & ~(EXCL | KERNEL)));
 }
 
 void MapCapability::revoke() {
     VPE &vpe = table()->vpe();
-    vpe.address_space()->unmap_pages(vpe.desc(), sel() << PAGE_BITS, length);
-    if(obj->attr & EXCL)
-        MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length * PAGE_SIZE));
+    vpe.address_space()->unmap_pages(vpe.desc(), sel() << PAGE_BITS, length());
+    if(obj->attr & EXCL) {
+        MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length() * PAGE_SIZE));
+        vpe.kmem()->free(vpe, length() * PAGE_SIZE);
+    }
 }
 
 void SessCapability::revoke() {
     // drop the queued messages for this session, because the server is not interested anymore
-    if(parent()->type == SERV)
+    if(parent()->type() == SERV)
         obj->drop_msgs();
 }
 
@@ -88,6 +129,14 @@ void ServCapability::revoke() {
         obj->vpe().config_rcv_ep(obj->rgate()->ep, *obj->rgate());
     // now, abort everything in the sendqueue
     obj->abort();
+}
+
+size_t VPEGroupCapability::obj_size() const {
+    return sizeof(VPEGroup);
+}
+
+size_t VPECapability::obj_size() const {
+    return sizeof(VPE) + sizeof(AddrSpace);
 }
 
 void Capability::print(m3::OStream &os) const {
@@ -132,7 +181,7 @@ void MGateCapability::printInfo(m3::OStream &os) const {
 void MapCapability::printInfo(m3::OStream &os) const {
     os << ": map  [virt=#" << m3::fmt(sel() << PAGE_BITS, "x")
        << ", phys=#" << m3::fmt(obj->phys, "x")
-       << ", pages=" << length
+       << ", pages=" << length()
        << ", attr=#" << m3::fmt(obj->attr, "x") << "]";
 }
 
@@ -159,6 +208,12 @@ void VPEGroupCapability::printInfo(m3::OStream &os) const {
 void VPECapability::printInfo(m3::OStream &os) const {
     os << ": vpe  [refs=" << obj->refcount()
        << ", name=" << obj->name() << "]";
+}
+
+void KMemCapability::printInfo(m3::OStream &os) const {
+    os << ": kmem [refs=" << obj->refcount()
+       << ", quota=" << obj->quota
+       << ", left=" << obj->left << "]";
 }
 
 void Capability::printChilds(m3::OStream &os, size_t layer) const {

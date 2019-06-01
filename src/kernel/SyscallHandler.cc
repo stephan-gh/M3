@@ -53,6 +53,13 @@ SyscallHandler::handler_func SyscallHandler::_callbacks[m3::KIF::Syscall::COUNT]
         return;                                                                             \
     }
 
+#define SYS_CREATE_CAP(vpe, msg, CAP, KOBJ, tbl, sel, ...) ({                               \
+        auto cap = CREATE_CAP(CAP, KOBJ, tbl, sel, ##__VA_ARGS__);                          \
+        if(cap == nullptr)                                                                  \
+            SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");               \
+        cap;                                                                                \
+    })
+
 template<typename T>
 static const T *get_message(const m3::DTU::Message *msg) {
     return reinterpret_cast<const T*>(msg->data);
@@ -87,6 +94,8 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::VPE_CTRL,       &SyscallHandler::vpectrl);
     add_operation(m3::KIF::Syscall::VPE_WAIT,       &SyscallHandler::vpewait);
     add_operation(m3::KIF::Syscall::DERIVE_MEM,     &SyscallHandler::derivemem);
+    add_operation(m3::KIF::Syscall::DERIVE_KMEM,    &SyscallHandler::derivekmem);
+    add_operation(m3::KIF::Syscall::KMEM_QUOTA,     &SyscallHandler::kmemquota);
     add_operation(m3::KIF::Syscall::EXCHANGE,       &SyscallHandler::exchange);
     add_operation(m3::KIF::Syscall::DELEGATE,       &SyscallHandler::delegate);
     add_operation(m3::KIF::Syscall::OBTAIN,         &SyscallHandler::obtain);
@@ -203,8 +212,10 @@ void SyscallHandler::createsrv(VPE *vpe, const m3::DTU::Message *msg) {
     if(name.length() == 0)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid server name");
 
-    Service *s = ServiceList::get().add(*vpecap->obj, dst, name, rgatecap->obj);
-    vpe->objcaps().set(dst, new ServCapability(&vpe->objcaps(), dst, s));
+    auto servcap = SYS_CREATE_CAP(vpe, msg, ServCapability, Service,
+        &vpe->objcaps(), dst, *vpecap->obj, dst, name, rgatecap->obj);
+    ServiceList::get().add(&*servcap->obj);
+    vpe->objcaps().set(dst, servcap);
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }
@@ -227,7 +238,8 @@ void SyscallHandler::createsess(VPE *vpe, const m3::DTU::Message *msg) {
     if(srvcap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Service capability is invalid");
 
-    auto sesscap = new SessCapability(&vpe->objcaps(), dst, const_cast<Service*>(&*srvcap->obj), ident);
+    auto sesscap = SYS_CREATE_CAP(vpe, msg, SessCapability, SessObject,
+        &vpe->objcaps(), dst, const_cast<Service*>(&*srvcap->obj), ident);
     vpe->objcaps().inherit(srvcap, sesscap);
     vpe->objcaps().set(dst, sesscap);
 
@@ -254,7 +266,8 @@ void SyscallHandler::creatergate(VPE *vpe, const m3::DTU::Message *msg) {
     if((1UL << (order - msgorder)) > MAX_RB_SIZE)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Too many receive buffer slots");
 
-    auto rgatecap = new RGateCapability(&vpe->objcaps(), dst, order, msgorder);
+    auto rgatecap = SYS_CREATE_CAP(vpe, msg, RGateCapability, RGateObject,
+        &vpe->objcaps(), dst, order, msgorder);
     vpe->objcaps().set(dst, rgatecap);
 
     reply_result(vpe, msg, m3::Errors::NONE);
@@ -280,7 +293,8 @@ void SyscallHandler::createsgate(VPE *vpe, const m3::DTU::Message *msg) {
     if(!vpe->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
-    auto sgcap = new SGateCapability(&vpe->objcaps(), dst, &*rgatecap->obj, label, credits);
+    auto sgcap = SYS_CREATE_CAP(vpe, msg, SGateCapability, SGateObject,
+        &vpe->objcaps(), dst, &*rgatecap->obj, label, credits);
     vpe->objcaps().inherit(rgatecap, sgcap);
     vpe->objcaps().set(dst, sgcap);
 
@@ -296,7 +310,8 @@ void SyscallHandler::createvpegrp(VPE *vpe, const m3::DTU::Message *msg) {
     if(!vpe->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
-    vpe->objcaps().set(dst, new VPEGroupCapability(&vpe->objcaps(), dst, new VPEGroup()));
+    auto vpegcap = SYS_CREATE_CAP(vpe, msg, VPEGroupCapability, VPEGroup, &vpe->objcaps(), dst);
+    vpe->objcaps().set(dst, vpegcap);
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }
@@ -312,12 +327,13 @@ void SyscallHandler::createvpe(VPE *vpe, const m3::DTU::Message *msg) {
     epid_t rep = req->rep;
     uint flags = req->flags;
     capsel_t group = req->group_sel;
+    capsel_t kmem = req->kmem_sel;
     m3::String name(req->name, m3::Math::min(static_cast<size_t>(req->namelen), sizeof(req->name)));
 
     LOG_SYS(vpe, ": syscall::createvpe", "(dst=" << dst << ", sgate=" << sgate << ", name=" << name
         << ", pe=" << static_cast<int>(m3::PEDesc(pe).type())
         << ", sep=" << sep << ", rep=" << rep << ", flags=" << flags
-        << ", group=" << group << ")");
+        << ", group=" << group << ", kmem=" << kmem << ")");
 
     capsel_t capnum = m3::KIF::FIRST_FREE_SEL;
     if(dst.count() != capnum || !vpe->objcaps().range_unused(dst))
@@ -349,9 +365,20 @@ void SyscallHandler::createvpe(VPE *vpe, const m3::DTU::Message *msg) {
         vpegrp = &*vpegrpcap->obj;
     }
 
+    auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
+    if(kmemcap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid KMem cap");
+
+    // the parent gets all caps from the child
+    if(!vpe->kmem()->has_quota(capnum * sizeof(SGateCapability)))
+        SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
+    // the child quota needs to be sufficient
+    if(!kmemcap->obj->has_quota(VPE::base_kmem() + VPE::extra_kmem(m3::PEDesc(pe))))
+        SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
+
     // create VPE
     VPE *nvpe = VPEManager::get().create(m3::Util::move(name), m3::PEDesc(pe),
-        sep, rep, sgate, flags, vpegrp);
+        sep, rep, sgate, &*kmemcap->obj, flags, vpegrp);
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");
 
@@ -362,6 +389,7 @@ void SyscallHandler::createvpe(VPE *vpe, const m3::DTU::Message *msg) {
     // delegate pf gate to the new VPE
     if(sgate != m3::KIF::INV_SEL)
         nvpe->objcaps().obtain(sgate, sgatecap);
+    nvpe->objcaps().obtain(kmem, kmemcap);
 
     m3::KIF::Syscall::CreateVPEReply reply;
     reply.error = m3::Errors::NONE;
@@ -403,19 +431,28 @@ void SyscallHandler::createmap(VPE *vpe, const m3::DTU::Message *msg) {
     gaddr_t phys = m3::DTU::build_gaddr(mgatecap->obj->pe, mgatecap->obj->addr + PAGE_SIZE * first);
     CapTable &mcaps = vpecap->obj->mapcaps();
 
+    // check for the max. amount of memory we need for PTs to avoid failures during the mapping
+    VPE &vpeobj = *vpecap->obj;
+    size_t ptmem = vpeobj.address_space()->max_kmem_for(pages * PAGE_SIZE);
+    if(!vpeobj.kmem()->has_quota(ptmem))
+        SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
+
     auto mapcap = static_cast<MapCapability*>(mcaps.get(dst, Capability::MAP));
     if(mapcap == nullptr) {
-        MapCapability *mapcap = new MapCapability(&mcaps, dst, phys, pages, perms);
+        if(!vpeobj.kmem()->alloc(vpeobj, sizeof(MapObject) + sizeof(MapCapability)))
+            SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
+
+        auto mapcap = new MapCapability(&mcaps, dst, pages, new MapObject(phys, perms));
         mcaps.inherit(mgatecap, mapcap);
         mcaps.set(dst, mapcap);
     }
     else {
         if(mapcap->obj->attr & MapCapability::KERNEL)
             SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Map capability refers to a kernel mapping");
-        if(mapcap->length != pages) {
+        if(mapcap->length() != pages) {
             SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS,
                 "Map capability exists with different number of pages ("
-                    << mapcap->length << " vs. " << pages << ")");
+                    << mapcap->length() << " vs. " << pages << ")");
         }
         mapcap->remap(phys, perms);
     }
@@ -661,16 +698,60 @@ void SyscallHandler::derivemem(VPE *vpe, const m3::DTU::Message *msg) {
             (perms & ~(m3::KIF::Perm::RWX)))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid args");
 
-    auto dercap = static_cast<MGateCapability*>(vpecap->obj->objcaps().obtain(dst, srccap));
-    dercap->obj = m3::Reference<MGateObject>(new MGateObject(
+    auto dercap = SYS_CREATE_CAP(vpe, msg, MGateCapability, MGateObject,
+        &vpecap->obj->objcaps(), dst,
         srccap->obj->pe,
         srccap->obj->vpe,
         srccap->obj->addr + offset,
         size,
         perms & srccap->obj->perms
-    ));
+    );
+    vpecap->obj->objcaps().inherit(srccap, dercap);
+    vpecap->obj->objcaps().set(dst, dercap);
 
     reply_result(vpe, msg, m3::Errors::NONE);
+}
+
+void SyscallHandler::derivekmem(VPE *vpe, const m3::DTU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::DeriveKMem>(msg);
+    capsel_t kmem = req->kmem_sel;
+    capsel_t dst = req->dst_sel;
+    size_t quota = req->quota;
+
+    LOG_SYS(vpe, ": syscall::derivekmem", "(kmem=" << kmem << ", dst=" << dst
+        << ", quota=" << quota << ")");
+
+    auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
+    if(kmemcap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid KMem cap");
+
+    if(!kmemcap->obj->alloc(*vpe, quota))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Insufficient quota");
+
+    auto dercap = SYS_CREATE_CAP(vpe, msg, KMemCapability, KMemObject,
+        &vpe->objcaps(), dst,
+        quota
+    );
+    vpe->objcaps().inherit(kmemcap, dercap);
+    vpe->objcaps().set(dst, dercap);
+
+    reply_result(vpe, msg, m3::Errors::NONE);
+}
+
+void SyscallHandler::kmemquota(VPE *vpe, const m3::DTU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::KMemQuota>(msg);
+    capsel_t kmem = req->kmem_sel;
+
+    LOG_SYS(vpe, ": syscall::kmemquota", "(kmem=" << kmem << ")");
+
+    auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
+    if(kmemcap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid KMem cap");
+
+    m3::KIF::Syscall::KMemQuotaReply reply;
+    reply.error = m3::Errors::NONE;
+    reply.amount = kmemcap->obj->left;
+    reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
 void SyscallHandler::delegate(VPE *vpe, const m3::DTU::Message *msg) {

@@ -77,11 +77,9 @@ public:
         return _inst;
     }
 
-    Service *add(VPE &vpe, capsel_t sel, const m3::String &name, const m3::Reference<RGateObject> &rgate) {
-        Service *inst = new Service(vpe, sel, name, rgate);
+    void add(Service *serv) {
         // prepend to the list to shutdown services in the opposite order
-        _list.insert(nullptr, inst);
-        return inst;
+        _list.insert(nullptr, serv);
     }
 
 private:

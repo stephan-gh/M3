@@ -54,6 +54,7 @@ struct Errors {
         MSGS_WAITING,
         UPCALL_REPLY,
         COMMIT_FAILED,
+        NO_KMEM,
         // Socket
         IN_USE,
         INV_STATE,

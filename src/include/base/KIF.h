@@ -155,6 +155,8 @@ struct KIF {
             VPE_CTRL,
             VPE_WAIT,
             DERIVE_MEM,
+            DERIVE_KMEM,
+            KMEM_QUOTA,
 
             // capability exchange
             DELEGATE,
@@ -233,6 +235,7 @@ struct KIF {
             xfer_t rep;
             xfer_t flags;
             xfer_t group_sel;
+            xfer_t kmem_sel;
             xfer_t namelen;
             char name[32];
         } PACKED;
@@ -271,6 +274,20 @@ struct KIF {
             xfer_t offset;
             xfer_t size;
             xfer_t perms;
+        } PACKED;
+
+        struct DeriveKMem : public DefaultRequest {
+            xfer_t kmem_sel;
+            xfer_t dst_sel;
+            xfer_t quota;
+        } PACKED;
+
+        struct KMemQuota : public DefaultRequest {
+            xfer_t kmem_sel;
+        } PACKED;
+
+        struct KMemQuotaReply : public DefaultReply {
+            xfer_t amount;
         } PACKED;
 
         struct Exchange : public DefaultRequest {

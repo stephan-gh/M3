@@ -36,6 +36,7 @@ static void write_env_file(capsel_t first_sel, epid_t ep, pid_t pid, peid_t pe, 
     of << m3::env()->shm_prefix().c_str() << "\n";
     of << pe << "\n";
     of << first_sel << "\n";
+    of << m3::KIF::FIRST_FREE_SEL << "\n";
     of << label << "\n";
     of << ep << "\n";
     of << (1 << VPE::SYSC_CREDIT_ORD) << "\n";

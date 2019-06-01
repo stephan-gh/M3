@@ -22,6 +22,7 @@
 namespace kernel {
 
 struct Timeout;
+class KMemObject;
 class VPE;
 
 class ContextSwitcher {
@@ -52,7 +53,7 @@ class ContextSwitcher {
 public:
     explicit ContextSwitcher(peid_t pe);
 
-    void init();
+    void init(KMemObject *kmem);
 
     peid_t pe() const {
         return _pe;

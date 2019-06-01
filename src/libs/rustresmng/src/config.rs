@@ -134,6 +134,21 @@ impl ChildDesc {
     }
 }
 
+fn parse_size(s: &str) -> Result<usize, Error> {
+    let mul = match s.chars().last() {
+        Some(c) if c >= '0' && c <= '9' => 1,
+        Some('k') | Some('K')           => 1024,
+        Some('m') | Some('M')           => 1024 * 1024,
+        Some('g') | Some('G')           => 1024 * 1024 * 1024,
+        _                               => return Err(Error::new(Code::InvArgs)),
+    };
+    let num = match mul {
+        1 => s.parse::<usize>(),
+        _ => s[0 .. s.len() - 1].parse::<usize>(),
+    }.map_err(|_| Error::new(Code::InvArgs))?;
+    Ok(num * mul)
+}
+
 fn collect_services(set: &mut BTreeSet<String>, cfg: &Config) {
     for serv in cfg.services() {
         if set.contains(serv.global_name()) {
@@ -170,6 +185,7 @@ pub fn check(cfgs: &Vec<(Vec<String>, bool, Rc<Config>)>) {
 
 pub struct Config {
     name: String,
+    kmem: usize,
     restrict: bool,
     services: Vec<ServiceDesc>,
     sessions: Vec<SessionDesc>,
@@ -185,6 +201,7 @@ impl Config {
              restrict: bool) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
         let mut res = Config {
             name: String::new(),
+            kmem: 0,
             restrict: restrict,
             services: Vec::new(),
             sessions: Vec::new(),
@@ -202,6 +219,9 @@ impl Config {
             else {
                 if a.starts_with("serv=") {
                     res.services.push(ServiceDesc::new(&a[5..])?);
+                }
+                else if a.starts_with("kmem=") {
+                    res.kmem = parse_size(&a[5..])?;
                 }
                 else if a.starts_with("sess=") {
                     let sess = SessionDesc::new(&a[5..])?;
@@ -229,6 +249,9 @@ impl Config {
 
     pub fn restrict(&self) -> bool {
         self.restrict
+    }
+    pub fn kmem(&self) -> usize {
+        self.kmem
     }
 
     pub fn name(&self) -> &String {
@@ -295,6 +318,9 @@ impl Config {
 
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
         write!(f, "{} [\n", self.name)?;
+        if self.kmem != 0 {
+            write!(f, "  kmem={}\n", self.kmem)?;
+        }
         for s in &self.services {
             write!(f, "{:0w$}Service[lname={}, gname={}]\n",
                 "", s.local_name, s.global_name, w = layer + 2)?;

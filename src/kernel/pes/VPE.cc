@@ -30,8 +30,8 @@
 
 namespace kernel {
 
-VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epid_t rep,
-         capsel_t sgate, VPEGroup *group)
+VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem,
+         epid_t sep, epid_t rep, capsel_t sgate, VPEGroup *group)
     : SListItem(),
       SlabObject<VPE>(),
       RefCounted(),
@@ -42,6 +42,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
       _exitcode(),
       _sysc_ep((flags & F_IDLE) ? SyscallHandler::ep(0) : SyscallHandler::alloc_ep()),
       _group(group),
+      _kmem(kmem),
       _services(),
       _pending_fwds(),
       _name(m3::Util::move(prog)),
@@ -62,15 +63,24 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep, epi
     if(group)
         _group->add(this);
 
+    _kmem->alloc(*this, base_kmem());
+
     _objcaps.set(0, new VPECapability(&_objcaps, 0, this));
-    _objcaps.set(1, new MGateCapability(&_objcaps, 1, pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX));
+    _objcaps.set(1, new MGateCapability(
+        &_objcaps, 1, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
     for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
         capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
-        _objcaps.set(sel, new EPCapability(&_objcaps, sel, id, ep));
+        _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(id, ep)));
     }
 
-    if(!Platform::pe(pe()).has_virtmem())
+    if(!Platform::pe(pe()).has_virtmem()) {
         _rbufcpy = MainMemory::get().allocate(RECVBUF_SIZE_SPM, PAGE_SIZE);
+        _kmem->alloc(*this, _rbufcpy.size);
+        assert(_rbufcpy);
+    }
+    // for the root PT; but not for idle because we can't free them
+    else if(!is_idle())
+        _kmem->alloc(*this, PAGE_SIZE);
 
     // let the VPEManager know about us before we continue with initialization
     VPEManager::get().add(this);
@@ -102,8 +112,10 @@ VPE::~VPE() {
     m3::DTU::get().drop_msgs(syscall_ep(), reinterpret_cast<label_t>(this));
     SyscallHandler::free_ep(syscall_ep());
 
-    if(_rbufcpy)
+    if(_rbufcpy) {
         MainMemory::get().free(_rbufcpy);
+        _kmem->free(*this, _rbufcpy.size);
+    }
 
     delete _as;
 

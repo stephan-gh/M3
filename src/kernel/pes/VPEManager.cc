@@ -20,6 +20,7 @@
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
+#include "Args.h"
 #include "Platform.h"
 #include "WorkLoop.h"
 
@@ -33,7 +34,7 @@ VPEManager::VPEManager()
       _count() {
 }
 
-void VPEManager::start_root() {
+KMemObject *VPEManager::start_root() {
     // TODO the required PE depends on the boot module, not the kernel PE
     m3::PEDesc pedesc = Platform::pe(Platform::kernel_pe());
     m3::PEDesc pedesc_emem(m3::PEType::COMP_EMEM, pedesc.isa(), pedesc.mem_size());
@@ -51,15 +52,25 @@ void VPEManager::start_root() {
             PANIC("Unable to find a free PE for root task");
     }
 
-    _vpes[id] = new VPE("root", peid, id, VPE::F_BOOTMOD);
+    auto kmem = new KMemObject(Args::kmem - FIXED_KMEM);
+    _vpes[id] = new VPE("root", peid, id, VPE::F_BOOTMOD, kmem);
+
+    capsel_t sel = m3::KIF::FIRST_FREE_SEL;
+
+    // kernel memory
+    auto kmemcap = new KMemCapability(&_vpes[id]->objcaps(), sel, kmem);
+    _vpes[id]->objcaps().set(sel, kmemcap);
+    kmem->alloc(*_vpes[id], sizeof(KMemCapability) + sizeof(KMemObject));
+    sel++;
 
     // boot info
-    capsel_t sel = m3::KIF::FIRST_FREE_SEL;
     {
         peid_t pe = m3::DTU::gaddr_to_pe(Platform::info_addr());
         goff_t addr = m3::DTU::gaddr_to_virt(Platform::info_addr());
-        auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, pe, VPE::INVALID_ID,
-                                          addr, Platform::info_size(), m3::KIF::Perm::R);
+        auto memcap = CREATE_CAP(MGateCapability, MGateObject,
+            &_vpes[id]->objcaps(), sel,
+            pe, VPE::INVALID_ID, addr, Platform::info_size(), m3::KIF::Perm::R
+        );
         _vpes[id]->objcaps().set(sel, memcap);
         sel++;
     }
@@ -70,8 +81,10 @@ void VPEManager::start_root() {
         goff_t addr = m3::DTU::gaddr_to_virt(mod->addr);
         size_t size = m3::Math::round_up(static_cast<size_t>(mod->size),
                                          static_cast<size_t>(PAGE_SIZE));
-        auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, pe, VPE::INVALID_ID,
-                                          addr, size, m3::KIF::Perm::R | m3::KIF::Perm::X);
+        auto memcap = CREATE_CAP(MGateCapability, MGateObject,
+            &_vpes[id]->objcaps(), sel,
+            pe, VPE::INVALID_ID, addr, size, m3::KIF::Perm::R | m3::KIF::Perm::X
+        );
         _vpes[id]->objcaps().set(sel, memcap);
     }
 
@@ -79,9 +92,10 @@ void VPEManager::start_root() {
     for(size_t i = 0; i < MainMemory::get().mod_count(); ++i) {
         const MemoryModule &mod = MainMemory::get().module(i);
         if(mod.type() != MemoryModule::KERNEL) {
-            auto memcap = new MGateCapability(&_vpes[id]->objcaps(), sel, mod.pe(),
-                                              VPE::INVALID_ID, mod.addr(), mod.size(),
-                                              m3::KIF::Perm::RWX);
+            auto memcap = CREATE_CAP(MGateCapability, MGateObject,
+                &_vpes[id]->objcaps(), sel,
+                mod.pe(), VPE::INVALID_ID, mod.addr(), mod.size(), m3::KIF::Perm::RWX
+            );
             _vpes[id]->objcaps().set(sel, memcap);
             sel++;
         }
@@ -90,6 +104,8 @@ void VPEManager::start_root() {
     // go!
     _vpes[id]->set_first_sel(sel);
     _vpes[id]->start_app(_vpes[id]->pid());
+
+    return kmem;
 }
 
 vpeid_t VPEManager::get_id() {
@@ -107,7 +123,7 @@ vpeid_t VPEManager::get_id() {
 }
 
 VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epid_t rep,
-                        capsel_t sgate, uint flags, VPEGroup *group) {
+                        capsel_t sgate, KMemObject *kmem, uint flags, VPEGroup *group) {
     uint vflags = 0;
     if(flags & m3::KIF::VPEFlags::MUXABLE)
         vflags |= VPE::F_MUXABLE;
@@ -129,7 +145,7 @@ VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epi
     // groups are implicitly pinned
     if(group)
         vflags |= VPE::F_PINNED;
-    VPE *vpe = new VPE(m3::Util::move(name), i, id, vflags, sep, rep, sgate, group);
+    VPE *vpe = new VPE(m3::Util::move(name), i, id, vflags, kmem, sep, rep, sgate, group);
     assert(vpe == _vpes[id]);
 
     return vpe;

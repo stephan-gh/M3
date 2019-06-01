@@ -47,20 +47,22 @@ int_enum! {
         const VPE_CTRL          = 9;
         const VPE_WAIT          = 10;
         const DERIVE_MEM        = 11;
+        const DERIVE_KMEM       = 12;
+        const KMEM_QUOTA        = 13;
 
         // capability exchange
-        const DELEGATE          = 12;
-        const OBTAIN            = 13;
-        const EXCHANGE          = 14;
-        const REVOKE            = 15;
+        const DELEGATE          = 14;
+        const OBTAIN            = 15;
+        const EXCHANGE          = 16;
+        const REVOKE            = 17;
 
         // forwarding
-        const FORWARD_MSG       = 16;
-        const FORWARD_MEM       = 17;
-        const FORWARD_REPLY     = 18;
+        const FORWARD_MSG       = 18;
+        const FORWARD_MEM       = 19;
+        const FORWARD_REPLY     = 20;
 
         // misc
-        const NOOP              = 19;
+        const NOOP              = 21;
     }
 }
 
@@ -177,6 +179,7 @@ pub struct CreateVPE {
     pub rep: u64,
     pub muxable: u64,
     pub group_sel: u64,
+    pub kmem_sel: u64,
     pub namelen: u64,
     pub name: [u8; MAX_STR_SIZE],
 }
@@ -243,6 +246,29 @@ pub struct DeriveMem {
     pub offset: u64,
     pub size: u64,
     pub perms: u64,
+}
+
+/// The derive kernel memory request message
+#[repr(C, packed)]
+pub struct DeriveKMem {
+    pub opcode: u64,
+    pub kmem_sel: u64,
+    pub dst_sel: u64,
+    pub quota: u64,
+}
+
+/// The kernel memory quota request message
+#[repr(C, packed)]
+pub struct KMemQuota {
+    pub opcode: u64,
+    pub kmem_sel: u64,
+}
+
+/// The kernel memory quota reply message
+#[repr(C, packed)]
+pub struct KMemQuotaReply {
+    pub error: u64,
+    pub amount: u64,
 }
 
 /// The exchange request message

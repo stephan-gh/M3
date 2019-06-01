@@ -58,6 +58,8 @@ public:
 
     void setup(const VPEDesc &vpe);
 
+    size_t max_kmem_for(size_t bytes) const;
+
     void map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pages, int perm);
     void unmap_pages(const VPEDesc &vpe, goff_t virt, uint pages);
     void remove_pts(vpeid_t vpe);

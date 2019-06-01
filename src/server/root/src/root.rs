@@ -45,9 +45,9 @@ use resmng::{config, memory, sendqueue, services};
 
 //
 // The kernel initializes our cap space as follows:
-// +-----------+-------+-----+-----------+-------+-----+-----------+
-// | boot info | mod_0 | ... | mod_{n-1} | mem_0 | ... | mem_{n-1} |
-// +-----------+-------+-----+-----------+-------+-----+-----------+
+// +------+-----------+-------+-----+-----------+-------+-----+-----------+
+// | kmem | boot info | mod_0 | ... | mod_{n-1} | mem_0 | ... | mem_{n-1} |
+// +------+-----------+-------+-----+-----------+-------+-----+-----------+
 // ^-- FIRST_FREE_SEL
 //
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
@@ -150,7 +150,8 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
     let sgate = SendGate::new_with(
         SGateArgs::new(req_rgate()).credits(256).label(child.id() as u64)
     )?;
-    let vpe = VPE::new_with(VPEArgs::new(child.name()).resmng(ResMng::new(sgate)))?;
+    let vpe = VPE::new_with(VPEArgs::new(child.name()).resmng(ResMng::new(sgate))
+                                                      .kmem(child.kmem().clone()))?;
 
     let bfile = loader::BootFile::new(bsel, m.size as usize);
     let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
@@ -178,7 +179,7 @@ fn start_delayed() {
         let mods = MODS.get();
         let mut moditer = boot::ModIterator::new(mods.0, mods.1);
         let m = moditer.nth(c.id() as usize).unwrap();
-        let sel = BOOT_MOD_SELS + 1 + c.id();
+        let sel = BOOT_MOD_SELS + 2 + c.id();
         start_child(&mut c, sel, &m).expect("Unable to start boot module");
         childs::get().add(Box::new(c));
     }
@@ -249,7 +250,7 @@ fn workloop() {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let mgate = MemGate::new_bind(BOOT_MOD_SELS);
+    let mgate = MemGate::new_bind(BOOT_MOD_SELS + 1);
     let mut off: goff = 0;
 
     let info: boot::Info = mgate.read_obj(0).expect("Unable to read boot info");
@@ -281,7 +282,7 @@ pub fn main() -> i32 {
         i += 1;
     }
 
-    let mut mem_sel = BOOT_MOD_SELS + 1 + info.mod_count as Selector;
+    let mut mem_sel = BOOT_MOD_SELS + 2 + info.mod_count as Selector;
     for i in 0..info.mems.len() {
         let mem = &info.mems[i];
         if mem.size() == 0 {
@@ -306,10 +307,21 @@ pub fn main() -> i32 {
         thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
     }
 
+    let mut same_kmem = false;
+
     let mut cfgs = Vec::new();
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for m in moditer {
-        if m.name() == "rctmux" || m.name() == "root" {
+        if m.name() == "rctmux" {
+            continue;
+        }
+        // parse arguments for root
+        if m.name().starts_with("root") {
+            for arg in m.name().split_whitespace() {
+                if arg == "samekmem" {
+                    same_kmem = true;
+                }
+            }
             continue;
         }
 
@@ -321,19 +333,41 @@ pub fn main() -> i32 {
 
     config::check(&cfgs);
 
+    // determine default kmem per child
+    let mut total_kmem = VPE::cur().kmem().quota()
+        .expect("Unable to determine own quota");
+    let mut total_parties = cfgs.len() + 1;
+    for (_, _, c) in &cfgs {
+        if c.kmem() != 0 {
+            total_kmem -= c.kmem();
+            total_parties -= 1;
+        }
+    }
+    let def_kmem = total_kmem / total_parties;
+
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
-        if m.name() == "rctmux" || m.name() == "root" {
+        if m.name() == "rctmux" || m.name().starts_with("root") {
             continue;
         }
 
         let (args, daemon, cfg) = cfgs.remove(0);
-        let mut child = OwnChild::new(id as Id, args, daemon, cfg);
+
+        // kernel memory for child
+        let kmem = if cfg.kmem() == 0 && same_kmem {
+            VPE::cur().kmem().clone()
+        }
+        else {
+            VPE::cur().kmem().derive(if cfg.kmem() != 0 { cfg.kmem() } else { def_kmem })
+                .expect("Unable to derive new kernel memory")
+        };
+
+        let mut child = OwnChild::new(id as Id, args, daemon, kmem, cfg);
         if child.has_unmet_reqs() {
             DELAYED.get_mut().push(child);
         }
         else {
-            start_child(&mut child, BOOT_MOD_SELS + 1 + id as Id, &m)
+            start_child(&mut child, BOOT_MOD_SELS + 2 + id as Id, &m)
                 .expect("Unable to start boot module");
             childs::get().add(Box::new(child));
         }

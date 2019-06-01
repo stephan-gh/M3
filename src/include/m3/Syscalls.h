@@ -49,7 +49,7 @@ public:
     Errors::Code createsgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits);
     Errors::Code createvpegrp(capsel_t dst);
     Errors::Code createvpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name, PEDesc &pe,
-                           epid_t sep, epid_t rep, uint flags, capsel_t group);
+                           epid_t sep, epid_t rep, uint flags, capsel_t kmem, capsel_t group);
     Errors::Code createmap(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                            capsel_t pages, int perms);
 
@@ -59,6 +59,8 @@ public:
                          capsel_t *vpe, int *exitcode);
     Errors::Code derivemem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
                            size_t size, int perms);
+    Errors::Code derivekmem(capsel_t kmem, capsel_t dst, size_t quota);
+    Errors::Code kmemquota(capsel_t kmem, size_t &amount);
 
     Errors::Code delegate(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                           KIF::ExchangeArgs *args = nullptr);

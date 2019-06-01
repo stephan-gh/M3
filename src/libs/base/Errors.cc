@@ -54,6 +54,7 @@ static const char *errmsgs[] = {
     "Messages are waiting to be handled",
     "Reply will be sent via upcall",
     "Commit failed",
+    "Out of kernel memory",
 
     /* Socket */
     "In use",

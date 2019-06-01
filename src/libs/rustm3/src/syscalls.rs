@@ -139,7 +139,7 @@ pub fn create_vpe_group(dst: Selector) -> Result<(), Error> {
 
 pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
                   sep: dtu::EpId, rep: dtu::EpId, tmuxable: bool,
-                  group: Selector) -> Result<PEDesc, Error> {
+                  kmem: Selector, group: Selector) -> Result<PEDesc, Error> {
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
         dst_crd: dst.value() as u64,
@@ -149,6 +149,7 @@ pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
         rep: rep as u64,
         muxable: tmuxable as u64,
         group_sel: group as u64,
+        kmem_sel: kmem as u64,
         namelen: name.len() as u64,
         name: unsafe { intrinsics::uninit() },
     };
@@ -177,6 +178,29 @@ pub fn derive_mem(vpe: Selector, dst: Selector, src: Selector, offset: goff,
         perms: perms.bits() as u64,
     };
     send_receive_result(&req)
+}
+
+pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Error> {
+    let req = syscalls::DeriveKMem {
+        opcode: syscalls::Operation::DERIVE_KMEM.val,
+        kmem_sel: kmem as u64,
+        dst_sel: dst as u64,
+        quota: quota as u64,
+    };
+    send_receive_result(&req)
+}
+
+pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
+    let req = syscalls::KMemQuota {
+        opcode: syscalls::Operation::KMEM_QUOTA.val,
+        kmem_sel: kmem as u64,
+    };
+
+    let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&req)?;
+    match reply.data.error {
+        0 => Ok(reply.data.amount as usize),
+        e => Err(Error::from(e as u32))
+    }
 }
 
 pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Error> {

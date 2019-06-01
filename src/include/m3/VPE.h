@@ -18,6 +18,7 @@
 
 #include <base/util/BitField.h>
 #include <base/util/Math.h>
+#include <base/util/Reference.h>
 #include <base/util/String.h>
 #include <base/ELF.h>
 #include <base/Errors.h>
@@ -51,6 +52,26 @@ public:
     explicit VPEGroup();
 };
 
+class KMem : public ObjCap, public RefCounted {
+    friend class VPE;
+
+    explicit KMem(capsel_t sel, uint flags)
+        : ObjCap(KMEM, sel, flags) {
+    }
+
+    void set_flags(uint fl) {
+        flags(fl);
+    }
+
+public:
+    explicit KMem(capsel_t sel) : KMem(sel, KEEP_CAP) {
+    }
+
+    size_t quota() const;
+
+    Reference<KMem> derive(const KMem &base, size_t quota);
+};
+
 class VPEArgs {
     friend class VPE;
 
@@ -77,6 +98,10 @@ public:
         _group = group;
         return *this;
     }
+    VPEArgs &kmem(Reference<KMem> kmem) {
+        _kmem = kmem;
+        return *this;
+    }
 
 private:
     uint _flags;
@@ -84,6 +109,7 @@ private:
     const char *_pager;
     ResMng *_rmng;
     const VPEGroup *_group;
+    Reference<KMem> _kmem;
 };
 
 /**
@@ -155,6 +181,13 @@ public:
      */
     MountTable *mounts() {
         return _ms;
+    }
+
+    /**
+     * @return the kernel memory quota
+     */
+    const Reference<KMem> &kmem() const {
+        return _kmem;
     }
 
     /**
@@ -374,6 +407,7 @@ private:
     capsel_t _next_sel;
     uint64_t _eps;
     Pager *_pager;
+    Reference<KMem> _kmem;
     uint64_t _rbufcur;
     uint64_t _rbufend;
     MountTable *_ms;

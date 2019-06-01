@@ -21,6 +21,7 @@ use com::{SendGate, SliceSource};
 use core::intrinsics;
 use env;
 use kif::{self, PEDesc};
+use rc::Rc;
 use session::{ResMng, Pager};
 use util;
 use vfs::{FileTable, MountTable};
@@ -108,6 +109,10 @@ impl EnvData {
         )
     }
 
+    pub fn load_kmem(&self) -> Rc<vpe::KMem> {
+        Rc::new(vpe::KMem::new(self.base.kmem_sel as Selector))
+    }
+
     pub fn load_mounts(&self) -> MountTable {
         if self.base.mounts_len != 0 {
             let slice = unsafe {
@@ -156,6 +161,9 @@ impl EnvData {
         self.base.eps = eps;
     }
 
+    pub fn set_kmem(&mut self, sel: Selector) {
+        self.base.kmem_sel = sel as u64;
+    }
     pub fn set_rmng(&mut self, sel: Selector) {
         self.base.rmng_sel = sel as u64;
     }

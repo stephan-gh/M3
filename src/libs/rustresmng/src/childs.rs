@@ -26,7 +26,7 @@ use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::vfs::FileRef;
-use m3::vpe::{Activity, ExecActivity, Mapper, VPE};
+use m3::vpe::{Activity, ExecActivity, KMem, Mapper, VPE};
 
 use config::Config;
 use memory::Allocation;
@@ -209,10 +209,11 @@ pub struct OwnChild {
     res: Resources,
     daemon: bool,
     activity: Option<ExecActivity>,
+    kmem: Rc<KMem>,
 }
 
 impl OwnChild {
-    pub fn new(id: Id, args: Vec<String>, daemon: bool, cfg: Rc<Config>) -> Self {
+    pub fn new(id: Id, args: Vec<String>, daemon: bool, kmem: Rc<KMem>, cfg: Rc<Config>) -> Self {
         OwnChild {
             id: id,
             name: cfg.name().clone(),
@@ -221,7 +222,12 @@ impl OwnChild {
             res: Resources::new(),
             daemon: daemon,
             activity: None,
+            kmem: kmem,
         }
+    }
+
+    pub fn kmem(&self) -> &Rc<KMem> {
+        &self.kmem
     }
 
     pub fn start(&mut self, vpe: VPE, mapper: &mut Mapper, file: FileRef) -> Result<(), Error> {

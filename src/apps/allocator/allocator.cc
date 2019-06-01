@@ -14,28 +14,20 @@
  * General Public License version 2 for more details.
  */
 
-#include "mem/AddrSpace.h"
+#include <m3/stream/Standard.h>
+#include <m3/com/MemGate.h>
 
-namespace kernel {
+using namespace m3;
 
-void AddrSpace::setup(const VPEDesc &) {
-    // not supported
-}
-
-size_t AddrSpace::max_kmem_for(size_t) const {
+int main() {
+    for(size_t i = 0; ; ++i) {
+        MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
+        if(Errors::last == Errors::NONE) {
+            mem.write(&i, sizeof(i), 0);
+            cout << "Allocation " << i << " succeeded\n";
+        }
+        else
+            cout << "Allocation " << i << " failed: " << Errors::to_string(Errors::last) << "\n";
+    }
     return 0;
-}
-
-void AddrSpace::map_pages(const VPEDesc &, goff_t, gaddr_t, uint, int) {
-    // not supported
-}
-
-void AddrSpace::unmap_pages(const VPEDesc &, goff_t, uint) {
-    // not supported
-}
-
-void AddrSpace::remove_pts(vpeid_t) {
-    // not supported
-}
-
 }

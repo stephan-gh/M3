@@ -26,6 +26,9 @@
 #define PAGE_SIZE           4096
 #define PAGE_MASK           (PAGE_SIZE - 1)
 
+#define FIXED_KMEM          (2 * 1024 * 1024)
+#define VPE_EXTRA_MEM       0
+
 #define MEM_SIZE            (512 * 1024 * 1024)
 #define EPMEM_SIZE          (1 * 1024 * 1024)
 #define HEAP_SIZE           (MEM_SIZE - RECVBUF_SIZE - EPMEM_SIZE)

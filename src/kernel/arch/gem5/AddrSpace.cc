@@ -115,6 +115,16 @@ void AddrSpace::setup(const VPEDesc &vpe) {
     DTU::get().invtlb_remote(vpe);
 }
 
+size_t AddrSpace::max_kmem_for(size_t bytes) const {
+    size_t pts = 0;
+    // the root PT does always exist
+    for(int i = 1; i < m3::DTU::LEVEL_CNT - 1; ++i) {
+        const size_t ptsize = (1UL << (m3::DTU::LEVEL_BITS * i)) * PAGE_SIZE;
+        pts += 2 + bytes / ptsize;
+    }
+    return pts * PAGE_SIZE;
+}
+
 void AddrSpace::clear_pt(gaddr_t pt) {
     // clear the pagetable
     memset(buffer, 0, sizeof(buffer));
@@ -148,7 +158,12 @@ bool AddrSpace::create_pt(const VPEDesc &vpe, VPE *vpeobj, goff_t &virt, goff_t 
         if(perm == 0)
             return true;
 
-        // TODO this is prelimilary
+        // don't let idle pay for the memory, because we can't give it back (see below)
+        if(vpeobj && !vpeobj->is_idle()) {
+            UNUSED bool res = vpeobj->kmem()->alloc(*vpeobj, PAGE_SIZE);
+            assert(res);
+        }
+
         MainMemory::Allocation alloc = MainMemory::get().allocate(PAGE_SIZE, PAGE_SIZE);
         assert(alloc);
 
@@ -346,6 +361,10 @@ void AddrSpace::remove_pts_rec(VPE &vpe, gaddr_t pt, goff_t virt, int level) {
                 size_t off = i * sizeof(*ptes);
                 DTU::get().read_mem(memvpe, m3::DTU::gaddr_to_virt(pt + off), buffer + off, PAGE_SIZE - off);
             }
+
+            // free kmem
+            vpe.kmem()->free(vpe, PAGE_SIZE);
+
             // free page table
             KLOG(PTES, "VPE" << vpe.id() << ": lvl " << level << " PTE for " << m3::fmt(virt, "p") << " removed");
             MainMemory::get().free(MainMemory::get().build_allocation(gaddr, PAGE_SIZE));

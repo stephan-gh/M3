@@ -37,6 +37,11 @@ class VPECapability;
 class VPEGroup;
 class VPEManager;
 
+#define CREATE_CAP(CAP, KOBJ, tbl, sel, ...)                               \
+    (tbl)->vpe().kmem()->alloc((tbl)->vpe(), sizeof(CAP) + sizeof(KOBJ)) ? \
+        new CAP(tbl, sel, new KOBJ(__VA_ARGS__))                         : \
+        nullptr
+
 class VPE : public m3::SListItem, public SlabObject<VPE>, public m3::RefCounted {
     friend class ContextSwitcher;
     friend class PEManager;
@@ -61,6 +66,20 @@ public:
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
     static const int NOTIFY_MSGSIZE_ORD = m3::nextlog2<64>::val;
 
+    static size_t base_kmem() {
+        // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
+        return sizeof(VPE) + sizeof(AddrSpace) +
+               // VPE cap and memory cap
+               sizeof(VPECapability) + sizeof(MGateCapability) + sizeof(MGateObject) +
+               // EP caps
+               (EP_COUNT - m3::DTU::FIRST_FREE_EP) * (sizeof(EPCapability) + sizeof(EPObject));
+    }
+    static size_t extra_kmem(const m3::PEDesc &pe) {
+        // we either need the root PT or space for the receive buffer copy
+        // additionally, we need space for RCTMux, its page tables etc.
+        return (pe.has_virtmem() ? PAGE_SIZE : RECVBUF_SIZE_SPM) + VPE_EXTRA_MEM;
+    }
+
     enum State {
         RUNNING,
         SUSPENDED,
@@ -83,8 +102,9 @@ public:
         F_YIELDED     = 1 << 11,
     };
 
-    explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, epid_t sep = INVALID_EP,
-                 epid_t rep = INVALID_EP, capsel_t sgate = m3::KIF::INV_SEL, VPEGroup *group = nullptr);
+    explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem,
+                 epid_t sep = INVALID_EP, epid_t rep = INVALID_EP, capsel_t sgate = m3::KIF::INV_SEL,
+                 VPEGroup *group = nullptr);
     VPE(const VPE &) = delete;
     VPE &operator=(const VPE &) = delete;
     ~VPE();
@@ -97,6 +117,9 @@ public:
     }
     const m3::Reference<VPEGroup> &group() const {
         return _group;
+    }
+    const m3::Reference<KMemObject> &kmem() {
+        return _kmem;
     }
 
     const VPEDesc &desc() const {
@@ -261,6 +284,7 @@ private:
     int _exitcode;
     epid_t _sysc_ep;
     m3::Reference<VPEGroup> _group;
+    m3::Reference<KMemObject> _kmem;
     uint _services;
     uint _pending_fwds;
     m3::String _name;

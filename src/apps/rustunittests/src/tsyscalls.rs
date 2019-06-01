@@ -143,45 +143,52 @@ fn create_vpe() {
     let rgate     = assert_ok!(RecvGate::new(10, 10));
     let sgate     = assert_ok!(SendGate::new(&rgate));
     let pedesc    = VPE::cur().pe();
+    let kmem      = VPE::cur().kmem().sel();
 
     // invalid dest caps
     assert_err!(syscalls::create_vpe(CapRngDesc::new(CapType::OBJECT, 0, cap_count),
                                      INVALID_SEL, "test", pedesc,
-                                     0, 0, false, INVALID_SEL), Code::InvArgs);
+                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
     assert_err!(syscalls::create_vpe(CapRngDesc::new(CapType::OBJECT, sels, 0),
                                      INVALID_SEL, "test", pedesc,
-                                     0, 0, false, INVALID_SEL), Code::InvArgs);
+                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
     assert_err!(syscalls::create_vpe(CapRngDesc::new(CapType::OBJECT, sels, cap_count - 1),
                                      INVALID_SEL, "test", pedesc,
-                                     0, 0, false, INVALID_SEL), Code::InvArgs);
+                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
     assert_err!(syscalls::create_vpe(CapRngDesc::new(CapType::OBJECT, sels, !0),
                                      INVALID_SEL, "test", pedesc,
-                                     0, 0, false, INVALID_SEL), Code::InvArgs);
+                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
 
     // invalid sgate
     assert_err!(syscalls::create_vpe(crd, 0, "test", pedesc,
-                                     0, 0, false, INVALID_SEL), Code::InvArgs);
+                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
 
     // invalid name
     assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "", pedesc,
-                                     0, 0, false, INVALID_SEL), Code::InvArgs);
+                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
 
     // invalid SEP
     assert_err!(syscalls::create_vpe(crd, sgate.sel(), "test", pedesc,
-                                     0, 0, false, INVALID_SEL), Code::InvArgs);
+                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
     assert_err!(syscalls::create_vpe(crd, sgate.sel(), "test", pedesc,
-                                     EP_COUNT, 0, false, INVALID_SEL), Code::InvArgs);
+                                     EP_COUNT, 0, false, kmem, INVALID_SEL), Code::InvArgs);
     assert_err!(syscalls::create_vpe(crd, sgate.sel(), "test", pedesc,
-                                     !0, 0, false, INVALID_SEL), Code::InvArgs);
+                                     !0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
     // invalid REP
     assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
-                                     0, EP_COUNT, false, INVALID_SEL), Code::InvArgs);
+                                     0, EP_COUNT, false, kmem, INVALID_SEL), Code::InvArgs);
     assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
-                                     0, !0, false, INVALID_SEL), Code::InvArgs);
+                                     0, !0, false, kmem, INVALID_SEL), Code::InvArgs);
 
     // invalid vpe group
     assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
-                                     0, 0, false, 0), Code::InvArgs);
+                                     0, 0, false, kmem, 0), Code::InvArgs);
+
+    // invalid kmem
+    assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
+                                     0, 0, false, INVALID_SEL, 0), Code::InvArgs);
+    assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
+                                     0, 0, false, 1, 0), Code::InvArgs);
 }
 
 fn activate() {

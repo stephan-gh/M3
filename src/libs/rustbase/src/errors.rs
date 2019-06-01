@@ -50,6 +50,7 @@ pub enum Code {
     MsgsWaiting,
     UpcallReply,
     CommitFailed,
+    NoKernMem,
     ReadFailed,
     WriteFailed,
     InvalidFs,
