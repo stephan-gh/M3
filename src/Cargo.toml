@@ -5,7 +5,6 @@ members = [
     "apps/rustunittests",
     "apps/rust/clisrv/client",
     "apps/rust/clisrv/server",
-    "apps/rust/kernel",
     "apps/rust/test",
     "libs/rustbase",
     "libs/rustm3",

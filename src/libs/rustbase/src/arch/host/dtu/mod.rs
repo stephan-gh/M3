@@ -320,17 +320,6 @@ impl DTU {
     }
 }
 
-#[cfg(feature = "kernel")]
-impl DTU {
-    pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
-        for i in 0..EPS_RCNT {
-            unsafe {
-                ptr::write_volatile(Self::ep_addr(ep, i), regs[i])
-            }
-        }
-    }
-}
-
 pub fn init() {
     const EP_SIZE: usize = (EP_COUNT * EPS_RCNT) * util::size_of::<Reg>();
     const_assert!(EP_SIZE <= cfg::EPMEM_SIZE);

@@ -36,13 +36,7 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
 pub fn init() {
     unsafe {
         LOG_FD = libc::open(
-            "run/log.txt\0".as_ptr() as *const libc::c_char,
-            if cfg!(feature = "kernel") {
-                libc::O_WRONLY | libc::O_APPEND | libc::O_CREAT | libc::O_TRUNC
-            }
-            else {
-                libc::O_WRONLY | libc::O_APPEND
-            }
+            "run/log.txt\0".as_ptr() as *const libc::c_char, libc::O_WRONLY | libc::O_APPEND
         );
         assert!(LOG_FD != -1);
     }
