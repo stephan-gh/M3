@@ -69,7 +69,7 @@ public:
     }
 
     void yield() override {
-        Syscalls::get().vpectrl(0, KIF::Syscall::VCTRL_YIELD, 0);
+        Syscalls::get().vpe_ctrl(0, KIF::Syscall::VCTRL_YIELD, 0);
     }
 
     void exit(int code) override {

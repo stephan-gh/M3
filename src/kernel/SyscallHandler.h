@@ -57,27 +57,27 @@ public:
     static void handle_message(VPE *vpe, const m3::DTU::Message *msg);
 
 private:
-    static void pagefault(VPE *vpe, const m3::DTU::Message *msg);
-    static void createsrv(VPE *vpe, const m3::DTU::Message *msg);
-    static void createsess(VPE *vpe, const m3::DTU::Message *msg);
-    static void creatergate(VPE *vpe, const m3::DTU::Message *msg);
-    static void createsgate(VPE *vpe, const m3::DTU::Message *msg);
-    static void createvpegrp(VPE *vpe, const m3::DTU::Message *msg);
-    static void createvpe(VPE *vpe, const m3::DTU::Message *msg);
-    static void createmap(VPE *vpe, const m3::DTU::Message *msg);
+    static void page_fault(VPE *vpe, const m3::DTU::Message *msg);
+    static void create_srv(VPE *vpe, const m3::DTU::Message *msg);
+    static void create_sess(VPE *vpe, const m3::DTU::Message *msg);
+    static void create_rgate(VPE *vpe, const m3::DTU::Message *msg);
+    static void create_sgate(VPE *vpe, const m3::DTU::Message *msg);
+    static void create_vgroup(VPE *vpe, const m3::DTU::Message *msg);
+    static void create_vpe(VPE *vpe, const m3::DTU::Message *msg);
+    static void create_map(VPE *vpe, const m3::DTU::Message *msg);
     static void activate(VPE *vpe, const m3::DTU::Message *msg);
-    static void vpectrl(VPE *vpe, const m3::DTU::Message *msg);
-    static void vpewait(VPE *vpe, const m3::DTU::Message *msg);
-    static void derivemem(VPE *vpe, const m3::DTU::Message *msg);
-    static void derivekmem(VPE *vpe, const m3::DTU::Message *msg);
-    static void kmemquota(VPE *vpe, const m3::DTU::Message *msg);
+    static void vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg);
+    static void vpe_wait(VPE *vpe, const m3::DTU::Message *msg);
+    static void derive_mem(VPE *vpe, const m3::DTU::Message *msg);
+    static void derive_kmem(VPE *vpe, const m3::DTU::Message *msg);
+    static void kmem_quota(VPE *vpe, const m3::DTU::Message *msg);
     static void exchange(VPE *vpe, const m3::DTU::Message *msg);
     static void delegate(VPE *vpe, const m3::DTU::Message *msg);
     static void obtain(VPE *vpe, const m3::DTU::Message *msg);
     static void revoke(VPE *vpe, const m3::DTU::Message *msg);
-    static void forwardmsg(VPE *vpe, const m3::DTU::Message *msg);
-    static void forwardmem(VPE *vpe, const m3::DTU::Message *msg);
-    static void forwardreply(VPE *vpe, const m3::DTU::Message *msg);
+    static void forward_msg(VPE *vpe, const m3::DTU::Message *msg);
+    static void forward_mem(VPE *vpe, const m3::DTU::Message *msg);
+    static void forward_reply(VPE *vpe, const m3::DTU::Message *msg);
     static void noop(VPE *vpe, const m3::DTU::Message *msg);
 
     static void add_operation(m3::KIF::Syscall::Operation op, handler_func func) {

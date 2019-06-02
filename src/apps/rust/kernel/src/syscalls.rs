@@ -120,7 +120,7 @@ pub fn handle(msg: &'static dtu::Message) {
         kif::syscalls::Operation::CREATE_SGATE      => create_sgate(&vpe, msg),
         kif::syscalls::Operation::CREATE_SRV        => create_srv(&vpe, msg),
         kif::syscalls::Operation::CREATE_SESS       => create_sess(&vpe, msg),
-        kif::syscalls::Operation::CREATE_VPEGRP     => create_vpegrp(&vpe, msg),
+        kif::syscalls::Operation::CREATE_VPEGRP     => create_vgroup(&vpe, msg),
         kif::syscalls::Operation::CREATE_VPE        => create_vpe(&vpe, msg),
         kif::syscalls::Operation::CREATE_MAP        => create_map(&vpe, msg),
         kif::syscalls::Operation::DERIVE_MEM        => derive_mem(&vpe, msg),
@@ -299,7 +299,7 @@ fn create_sess(vpe: &Rc<RefCell<VPE>>, msg: &'static dtu::Message) -> Result<(),
 }
 
 #[inline(never)]
-fn create_vpegrp(_vpe: &Rc<RefCell<VPE>>, _msg: &'static dtu::Message) -> Result<(), SyscError> {
+fn create_vgroup(_vpe: &Rc<RefCell<VPE>>, _msg: &'static dtu::Message) -> Result<(), SyscError> {
     // TODO this just exists for unittests
     sysc_err!(Code::InvArgs, "Not supported");
 }

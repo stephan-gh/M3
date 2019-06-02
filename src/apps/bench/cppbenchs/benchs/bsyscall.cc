@@ -54,7 +54,7 @@ NOINLINE static void activate() {
 NOINLINE static void create_rgate() {
     struct SyscallRGateRunner : public Runner {
         void run() override {
-            Syscalls::get().creatergate(selector, 10, 10);
+            Syscalls::get().create_rgate(selector, 10, 10);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
@@ -73,7 +73,7 @@ NOINLINE static void create_sgate() {
         explicit SyscallSGateRunner() : rgate(RecvGate::create(10, 10)) {
         }
         void run() override {
-            Syscalls::get().createsgate(selector, rgate.sel(), 0x1234, 1024);
+            Syscalls::get().create_sgate(selector, rgate.sel(), 0x1234, 1024);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
@@ -102,7 +102,7 @@ NOINLINE static void create_map() {
         }
 
         void run() override {
-            Syscalls::get().createmap(DEST, 0, mgate.sel(), 0, 1, MemGate::RW);
+            Syscalls::get().create_map(DEST, 0, mgate.sel(), 0, 1, MemGate::RW);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
@@ -125,7 +125,7 @@ NOINLINE static void create_srv() {
         }
 
         void run() override {
-            Syscalls::get().createsrv(selector, VPE::self().sel(), rgate.sel(), "test");
+            Syscalls::get().create_srv(selector, VPE::self().sel(), rgate.sel(), "test");
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
@@ -147,7 +147,7 @@ NOINLINE static void derive_mem() {
         }
 
         void run() override {
-            Syscalls::get().derivemem(VPE::self().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
+            Syscalls::get().derive_mem(VPE::self().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }

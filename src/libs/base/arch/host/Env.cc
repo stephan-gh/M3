@@ -52,7 +52,7 @@ static void stop_dtu() {
 
 static void init_syscall() {
     word_t arg = Env::eps_start();
-    Syscalls::get().vpectrl(VPE::self().sel(), KIF::Syscall::VCTRL_INIT, arg);
+    Syscalls::get().vpe_ctrl(VPE::self().sel(), KIF::Syscall::VCTRL_INIT, arg);
 }
 
 void Env::on_exit_func(int status, void *) {

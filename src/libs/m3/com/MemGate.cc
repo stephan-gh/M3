@@ -44,12 +44,12 @@ MemGate MemGate::create_global_for(goff_t addr, size_t size, int perms, capsel_t
 
 MemGate MemGate::derive(goff_t offset, size_t size, int perms) const {
     capsel_t nsel = VPE::self().alloc_sel();
-    Syscalls::get().derivemem(VPE::self().sel(), nsel, sel(), offset, size, perms);
+    Syscalls::get().derive_mem(VPE::self().sel(), nsel, sel(), offset, size, perms);
     return MemGate(0, nsel, true);
 }
 
 MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t size, int perms, uint flags) const {
-    Syscalls::get().derivemem(vpe, cap, sel(), offset, size, perms);
+    Syscalls::get().derive_mem(vpe, cap, sel(), offset, size, perms);
     return MemGate(flags, cap, true);
 }
 
@@ -63,7 +63,7 @@ Errors::Code MemGate::activate_for(VPE &vpe, epid_t ep, goff_t offset) {
 Errors::Code MemGate::forward(void *&data, size_t &len, goff_t &offset, uint flags) {
     event_t event = ThreadManager::get().get_wait_event();
     size_t amount = Math::min(static_cast<size_t>(KIF::MAX_MSG_SIZE), len);
-    Errors::Code res = Syscalls::get().forwardmem(sel(), data, amount, offset, flags, event);
+    Errors::Code res = Syscalls::get().forward_mem(sel(), data, amount, offset, flags, event);
 
     // if this has been done, go to sleep and wait until the kernel sends us the upcall
     if(res == Errors::UPCALL_REPLY) {

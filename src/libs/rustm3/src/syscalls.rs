@@ -129,7 +129,7 @@ pub fn create_map(dst: Selector, vpe: Selector, mgate: Selector, first: Selector
     send_receive_result(&req)
 }
 
-pub fn create_vpe_group(dst: Selector) -> Result<(), Error> {
+pub fn create_vgroup(dst: Selector) -> Result<(), Error> {
     let req = syscalls::CreateVPEGrp {
         opcode: syscalls::Operation::CREATE_VPEGRP.val,
         dst_sel: dst as u64

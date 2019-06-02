@@ -43,24 +43,24 @@ private:
     }
 
 public:
-    Errors::Code createsrv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name);
-    Errors::Code createsess(capsel_t dst, capsel_t srv, word_t ident);
-    Errors::Code creatergate(capsel_t dst, int order, int msgorder);
-    Errors::Code createsgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits);
-    Errors::Code createvpegrp(capsel_t dst);
-    Errors::Code createvpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name, PEDesc &pe,
-                           epid_t sep, epid_t rep, uint flags, capsel_t kmem, capsel_t group);
-    Errors::Code createmap(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
-                           capsel_t pages, int perms);
+    Errors::Code create_srv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name);
+    Errors::Code create_sess(capsel_t dst, capsel_t srv, word_t ident);
+    Errors::Code create_rgate(capsel_t dst, int order, int msgorder);
+    Errors::Code create_sgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits);
+    Errors::Code create_vgroup(capsel_t dst);
+    Errors::Code create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name, PEDesc &pe,
+                            epid_t sep, epid_t rep, uint flags, capsel_t kmem, capsel_t group);
+    Errors::Code create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
+                            capsel_t pages, int perms);
 
     Errors::Code activate(capsel_t ep, capsel_t gate, goff_t addr);
-    Errors::Code vpectrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg);
-    Errors::Code vpewait(const capsel_t *vpes, size_t count, event_t event,
-                         capsel_t *vpe, int *exitcode);
-    Errors::Code derivemem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
-                           size_t size, int perms);
-    Errors::Code derivekmem(capsel_t kmem, capsel_t dst, size_t quota);
-    Errors::Code kmemquota(capsel_t kmem, size_t &amount);
+    Errors::Code vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg);
+    Errors::Code vpe_wait(const capsel_t *vpes, size_t count, event_t event,
+                          capsel_t *vpe, int *exitcode);
+    Errors::Code derive_mem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
+                            size_t size, int perms);
+    Errors::Code derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);
+    Errors::Code kmem_quota(capsel_t kmem, size_t &amount);
 
     Errors::Code delegate(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                           KIF::ExchangeArgs *args = nullptr);
@@ -69,12 +69,12 @@ public:
     Errors::Code exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other, bool obtain);
     Errors::Code revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own = true);
 
-    Errors::Code forwardmsg(capsel_t sgate, capsel_t rgate, const void *msg, size_t len,
-                            label_t rlabel, event_t event);
-    Errors::Code forwardmem(capsel_t mgate, void *data, size_t len, goff_t offset, uint flags,
-                            event_t event);
-    Errors::Code forwardreply(capsel_t rgate, const void *msg, size_t len, goff_t msgaddr,
-                              event_t event);
+    Errors::Code forward_msg(capsel_t sgate, capsel_t rgate, const void *msg, size_t len,
+                             label_t rlabel, event_t event);
+    Errors::Code forward_mem(capsel_t mgate, void *data, size_t len, goff_t offset, uint flags,
+                             event_t event);
+    Errors::Code forward_reply(capsel_t rgate, const void *msg, size_t len, goff_t msgaddr,
+                               event_t event);
 
     Errors::Code noop();
 
@@ -83,8 +83,8 @@ public:
 private:
     DTU::Message *send_receive(const void *msg, size_t size);
     Errors::Code send_receive_result(const void *msg, size_t size);
-    Errors::Code exchangesess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
-                              KIF::ExchangeArgs *args, bool obtain);
+    Errors::Code exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
+                               KIF::ExchangeArgs *args, bool obtain);
 
     SendGate _gate;
     static Syscalls _inst;

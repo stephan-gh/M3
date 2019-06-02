@@ -24,6 +24,6 @@ int main() {
 
     RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
     while(1)
-        m3::Syscalls::get().createsgate(sel++, rgate.sel(), 0, SendGate::UNLIMITED);
+        m3::Syscalls::get().create_sgate(sel++, rgate.sel(), 0, SendGate::UNLIMITED);
     return 0;
 }

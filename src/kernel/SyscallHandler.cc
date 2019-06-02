@@ -82,27 +82,27 @@ void SyscallHandler::init() {
         buford, m3::nextlog2<256>::val);
 #endif
 
-    add_operation(m3::KIF::Syscall::PAGEFAULT,      &SyscallHandler::pagefault);
-    add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::createsrv);
-    add_operation(m3::KIF::Syscall::CREATE_SESS,    &SyscallHandler::createsess);
-    add_operation(m3::KIF::Syscall::CREATE_RGATE,   &SyscallHandler::creatergate);
-    add_operation(m3::KIF::Syscall::CREATE_SGATE,   &SyscallHandler::createsgate);
-    add_operation(m3::KIF::Syscall::CREATE_VPEGRP,  &SyscallHandler::createvpegrp);
-    add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::createvpe);
-    add_operation(m3::KIF::Syscall::CREATE_MAP,     &SyscallHandler::createmap);
+    add_operation(m3::KIF::Syscall::PAGEFAULT,      &SyscallHandler::page_fault);
+    add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::create_srv);
+    add_operation(m3::KIF::Syscall::CREATE_SESS,    &SyscallHandler::create_sess);
+    add_operation(m3::KIF::Syscall::CREATE_RGATE,   &SyscallHandler::create_rgate);
+    add_operation(m3::KIF::Syscall::CREATE_SGATE,   &SyscallHandler::create_sgate);
+    add_operation(m3::KIF::Syscall::CREATE_VPEGRP,  &SyscallHandler::create_vgroup);
+    add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::create_vpe);
+    add_operation(m3::KIF::Syscall::CREATE_MAP,     &SyscallHandler::create_map);
     add_operation(m3::KIF::Syscall::ACTIVATE,       &SyscallHandler::activate);
-    add_operation(m3::KIF::Syscall::VPE_CTRL,       &SyscallHandler::vpectrl);
-    add_operation(m3::KIF::Syscall::VPE_WAIT,       &SyscallHandler::vpewait);
-    add_operation(m3::KIF::Syscall::DERIVE_MEM,     &SyscallHandler::derivemem);
-    add_operation(m3::KIF::Syscall::DERIVE_KMEM,    &SyscallHandler::derivekmem);
-    add_operation(m3::KIF::Syscall::KMEM_QUOTA,     &SyscallHandler::kmemquota);
+    add_operation(m3::KIF::Syscall::VPE_CTRL,       &SyscallHandler::vpe_ctrl);
+    add_operation(m3::KIF::Syscall::VPE_WAIT,       &SyscallHandler::vpe_wait);
+    add_operation(m3::KIF::Syscall::DERIVE_MEM,     &SyscallHandler::derive_mem);
+    add_operation(m3::KIF::Syscall::DERIVE_KMEM,    &SyscallHandler::derive_kmem);
+    add_operation(m3::KIF::Syscall::KMEM_QUOTA,     &SyscallHandler::kmem_quota);
     add_operation(m3::KIF::Syscall::EXCHANGE,       &SyscallHandler::exchange);
     add_operation(m3::KIF::Syscall::DELEGATE,       &SyscallHandler::delegate);
     add_operation(m3::KIF::Syscall::OBTAIN,         &SyscallHandler::obtain);
     add_operation(m3::KIF::Syscall::REVOKE,         &SyscallHandler::revoke);
-    add_operation(m3::KIF::Syscall::FORWARD_MSG,    &SyscallHandler::forwardmsg);
-    add_operation(m3::KIF::Syscall::FORWARD_MEM,    &SyscallHandler::forwardmem);
-    add_operation(m3::KIF::Syscall::FORWARD_REPLY,  &SyscallHandler::forwardreply);
+    add_operation(m3::KIF::Syscall::FORWARD_MSG,    &SyscallHandler::forward_msg);
+    add_operation(m3::KIF::Syscall::FORWARD_MEM,    &SyscallHandler::forward_mem);
+    add_operation(m3::KIF::Syscall::FORWARD_REPLY,  &SyscallHandler::forward_reply);
     add_operation(m3::KIF::Syscall::NOOP,           &SyscallHandler::noop);
 }
 
@@ -132,7 +132,7 @@ void SyscallHandler::handle_message(VPE *vpe, const m3::DTU::Message *msg) {
         reply_result(vpe, msg, m3::Errors::INV_ARGS);
 }
 
-void SyscallHandler::pagefault(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::page_fault(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_pagefault();
 
     m3::Errors::Code res = m3::Errors::NOT_SUP;
@@ -141,7 +141,7 @@ void SyscallHandler::pagefault(VPE *vpe, const m3::DTU::Message *msg) {
     uint64_t virt = req->virt;
     uint access = req->access;
 
-    LOG_SYS(vpe, ": syscall::pagefault", "(virt=" << m3::fmt(virt, "p")
+    LOG_SYS(vpe, ": syscall::page_fault", "(virt=" << m3::fmt(virt, "p")
         << ", access " << m3::fmt(access, "#x") << ")");
 
     AddrSpace *as = vpe->address_space();
@@ -162,7 +162,7 @@ void SyscallHandler::pagefault(VPE *vpe, const m3::DTU::Message *msg) {
 
     // wait for pager
     VPE &tvpe = VPEManager::get().vpe(sgatecap->obj->rgate->vpe);
-    res = wait_for(": syscall::pagefault", tvpe, vpe, true);
+    res = wait_for(": syscall::page_fault", tvpe, vpe, true);
 
     if(res == m3::Errors::NONE) {
         // re-enable the EP first, because the reply to the sent message below might otherwise
@@ -180,13 +180,13 @@ void SyscallHandler::pagefault(VPE *vpe, const m3::DTU::Message *msg) {
                                  &pfmsg, sizeof(pfmsg), 0, rep, sender);
     }
     if(res != m3::Errors::NONE)
-        LOG_ERROR(vpe, res, "pagefault failed");
+        LOG_ERROR(vpe, res, "page_fault failed");
 #else
     reply_result(vpe, msg, res);
 #endif
 }
 
-void SyscallHandler::createsrv(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_srv(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_createsrv();
 
     auto req = get_message<m3::KIF::Syscall::CreateSrv>(msg);
@@ -195,7 +195,7 @@ void SyscallHandler::createsrv(VPE *vpe, const m3::DTU::Message *msg) {
     capsel_t rgate = req->rgate_sel;
     m3::String name(req->name, m3::Math::min(static_cast<size_t>(req->namelen), sizeof(req->name)));
 
-    LOG_SYS(vpe, ": syscall::createsrv", "(dst=" << dst << ", vpe=" << tvpe
+    LOG_SYS(vpe, ": syscall::create_srv", "(dst=" << dst << ", vpe=" << tvpe
         << ", rgate=" << rgate << ", name=" << name << ")");
 
     if(!vpe->objcaps().unused(dst))
@@ -220,7 +220,7 @@ void SyscallHandler::createsrv(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::createsess(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_sess(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_createsessat();
 
     auto req = get_message<m3::KIF::Syscall::CreateSess>(msg);
@@ -228,7 +228,7 @@ void SyscallHandler::createsess(VPE *vpe, const m3::DTU::Message *msg) {
     capsel_t srv = req->srv_sel;
     word_t ident = req->ident;
 
-    LOG_SYS(vpe, ": syscall::createsess",
+    LOG_SYS(vpe, ": syscall::create_sess",
         "(dst=" << dst << ", srv=" << srv << ", ident=#" << m3::fmt(ident, "0x") << ")");
 
     if(!vpe->objcaps().unused(dst))
@@ -246,7 +246,7 @@ void SyscallHandler::createsess(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::creatergate(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_rgate(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_creatergate();
 
     auto req = get_message<m3::KIF::Syscall::CreateRGate>(msg);
@@ -254,7 +254,7 @@ void SyscallHandler::creatergate(VPE *vpe, const m3::DTU::Message *msg) {
     int order = req->order;
     int msgorder = req->msgorder;
 
-    LOG_SYS(vpe, ": syscall::creatergate", "(dst=" << dst
+    LOG_SYS(vpe, ": syscall::create_rgate", "(dst=" << dst
         << ", size=" << m3::fmt(1UL << order, "#x")
         << ", msgsize=" << m3::fmt(1UL << msgorder, "#x") << ")");
 
@@ -273,7 +273,7 @@ void SyscallHandler::creatergate(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::createsgate(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_sgate(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_createsgate();
 
     auto req = get_message<m3::KIF::Syscall::CreateSGate>(msg);
@@ -282,7 +282,7 @@ void SyscallHandler::createsgate(VPE *vpe, const m3::DTU::Message *msg) {
     label_t label = req->label;
     word_t credits = req->credits;
 
-    LOG_SYS(vpe, ": syscall::createsgate", "(dst=" << dst << ", rgate=" << rgate
+    LOG_SYS(vpe, ": syscall::create_sgate", "(dst=" << dst << ", rgate=" << rgate
         << ", label=" << m3::fmt(label, "#0x", sizeof(label_t) * 2)
         << ", crd=#" << m3::fmt(credits, "0x") << ")");
 
@@ -301,11 +301,11 @@ void SyscallHandler::createsgate(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::createvpegrp(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_vgroup(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateVPEGrp>(msg);
     capsel_t dst = req->dst_sel;
 
-    LOG_SYS(vpe, ": syscall::createvpegrp", "(dst=" << dst << ")");
+    LOG_SYS(vpe, ": syscall::create_vgroup", "(dst=" << dst << ")");
 
     if(!vpe->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
@@ -316,7 +316,7 @@ void SyscallHandler::createvpegrp(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::createvpe(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_createvpe();
 
     auto req = get_message<m3::KIF::Syscall::CreateVPE>(msg);
@@ -330,7 +330,7 @@ void SyscallHandler::createvpe(VPE *vpe, const m3::DTU::Message *msg) {
     capsel_t kmem = req->kmem_sel;
     m3::String name(req->name, m3::Math::min(static_cast<size_t>(req->namelen), sizeof(req->name)));
 
-    LOG_SYS(vpe, ": syscall::createvpe", "(dst=" << dst << ", sgate=" << sgate << ", name=" << name
+    LOG_SYS(vpe, ": syscall::create_vpe", "(dst=" << dst << ", sgate=" << sgate << ", name=" << name
         << ", pe=" << static_cast<int>(m3::PEDesc(pe).type())
         << ", sep=" << sep << ", rep=" << rep << ", flags=" << flags
         << ", group=" << group << ", kmem=" << kmem << ")");
@@ -397,7 +397,7 @@ void SyscallHandler::createvpe(VPE *vpe, const m3::DTU::Message *msg) {
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
-void SyscallHandler::createmap(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_createmap();
 
 #if defined(__gem5__)
@@ -409,7 +409,7 @@ void SyscallHandler::createmap(VPE *vpe, const m3::DTU::Message *msg) {
     capsel_t pages = req->pages;
     int perms = req->perms;
 
-    LOG_SYS(vpe, ": syscall::createmap", "(dst=" << dst << ", tvpe=" << tvpe << ", mgate=" << mgate
+    LOG_SYS(vpe, ": syscall::create_map", "(dst=" << dst << ", tvpe=" << tvpe << ", mgate=" << mgate
         << ", first=" << first << ", pages=" << pages << ", perms=" << perms << ")");
 
     auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
@@ -567,7 +567,7 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::vpectrl(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_vpectrl();
 
     auto req = get_message<m3::KIF::Syscall::VPECtrl>(msg);
@@ -579,7 +579,7 @@ void SyscallHandler::vpectrl(VPE *vpe, const m3::DTU::Message *msg) {
         "INIT", "START", "YIELD", "STOP"
     };
 
-    LOG_SYS(vpe, ": syscall::vpectrl", "(vpe=" << tvpe
+    LOG_SYS(vpe, ": syscall::vpe_ctrl", "(vpe=" << tvpe
         << ", op=" << (static_cast<size_t>(op) < ARRAY_SIZE(opnames) ? opnames[op] : "??")
         << ", arg=" << m3::fmt(arg, "#x") << ")");
 
@@ -622,7 +622,7 @@ void SyscallHandler::vpectrl(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::vpewait(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::vpe_wait(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::VPEWait>(msg);
     size_t count = req->vpe_count;
     event_t event = req->event;
@@ -635,7 +635,7 @@ void SyscallHandler::vpewait(VPE *vpe, const m3::DTU::Message *msg) {
     m3::KIF::Syscall::VPEWaitReply reply;
     reply.error = m3::Errors::NONE;
 
-    LOG_SYS(vpe, ": syscall::vpewait", "(vpes=" << count << ")");
+    LOG_SYS(vpe, ": syscall::vpe_wait", "(vpes=" << count << ")");
 
     // copy it from the message if we reply via upcall, because the message may be overwritten
     if(event) {
@@ -663,7 +663,7 @@ void SyscallHandler::vpewait(VPE *vpe, const m3::DTU::Message *msg) {
     }
 
 done:
-    LOG_SYS(vpe, ": syscall::vpewait-cont",
+    LOG_SYS(vpe, ": syscall::vpe_wait-cont",
         "(vpe=" << reply.vpe_sel << ", exitcode=" << reply.exitcode << ")");
 
     if(event)
@@ -672,7 +672,7 @@ done:
         reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
-void SyscallHandler::derivemem(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::derive_mem(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_derivemem();
 
     auto req = get_message<m3::KIF::Syscall::DeriveMem>(msg);
@@ -683,7 +683,7 @@ void SyscallHandler::derivemem(VPE *vpe, const m3::DTU::Message *msg) {
     size_t size = req->size;
     int perms = req->perms;
 
-    LOG_SYS(vpe, ": syscall::derivemem", "(vpe=" << tvpe << ", src=" << src << ", dst=" << dst
+    LOG_SYS(vpe, ": syscall::derive_mem", "(vpe=" << tvpe << ", src=" << src << ", dst=" << dst
         << ", size=" << size << ", off=" << offset << ", perms=" << perms << ")");
 
     auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
@@ -712,13 +712,13 @@ void SyscallHandler::derivemem(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::derivekmem(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::derive_kmem(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::DeriveKMem>(msg);
     capsel_t kmem = req->kmem_sel;
     capsel_t dst = req->dst_sel;
     size_t quota = req->quota;
 
-    LOG_SYS(vpe, ": syscall::derivekmem", "(kmem=" << kmem << ", dst=" << dst
+    LOG_SYS(vpe, ": syscall::derive_kmem", "(kmem=" << kmem << ", dst=" << dst
         << ", quota=" << quota << ")");
 
     auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
@@ -738,11 +738,11 @@ void SyscallHandler::derivekmem(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::kmemquota(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::kmem_quota(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::KMemQuota>(msg);
     capsel_t kmem = req->kmem_sel;
 
-    LOG_SYS(vpe, ": syscall::kmemquota", "(kmem=" << kmem << ")");
+    LOG_SYS(vpe, ": syscall::kmem_quota", "(kmem=" << kmem << ")");
 
     auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
     if(kmemcap == nullptr)
@@ -938,7 +938,7 @@ m3::Errors::Code SyscallHandler::wait_for(const char *name, VPE &tvpe, VPE *cur,
     return res;
 }
 
-void SyscallHandler::forwardmsg(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::forward_msg(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_forwardmsg();
 
 #if !defined(__gem5__)
@@ -953,7 +953,7 @@ void SyscallHandler::forwardmsg(VPE *vpe, const m3::DTU::Message *msg) {
     char msg_cpy[m3::KIF::MAX_MSG_SIZE];
     const char *msg_ptr = req->msg;
 
-    LOG_SYS(vpe, ": syscall::forwardmsg", "(sgate=" << sgate << ", rgate=" << rgate
+    LOG_SYS(vpe, ": syscall::forward_msg", "(sgate=" << sgate << ", rgate=" << rgate
         << ", len=" << len << ", rlabel=" << m3::fmt(rlabel, "0x")
         << ", event=" << m3::fmt(event, "0x") << ")");
 
@@ -986,7 +986,7 @@ void SyscallHandler::forwardmsg(VPE *vpe, const m3::DTU::Message *msg) {
         reply_result(vpe, msg, m3::Errors::UPCALL_REPLY);
     }
 
-    m3::Errors::Code res = wait_for(": syscall::forwardmsg", tvpe, vpe, true);
+    m3::Errors::Code res = wait_for(": syscall::forward_msg", tvpe, vpe, true);
 
     if(res == m3::Errors::NONE) {
         // re-enable the EP first, because the reply to the sent message below might otherwise
@@ -998,7 +998,7 @@ void SyscallHandler::forwardmsg(VPE *vpe, const m3::DTU::Message *msg) {
                                  msg_ptr, len, rlabel, rep, sender);
     }
     if(res != m3::Errors::NONE)
-        LOG_ERROR(vpe, res, "forwardmsg failed");
+        LOG_ERROR(vpe, res, "forward_msg failed");
 
     if(async)
         vpe->upcall_forward(event, res);
@@ -1007,7 +1007,7 @@ void SyscallHandler::forwardmsg(VPE *vpe, const m3::DTU::Message *msg) {
 #endif
 }
 
-void SyscallHandler::forwardmem(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::forward_mem(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_forwardmem();
 
 #if !defined(__gem5__)
@@ -1022,7 +1022,7 @@ void SyscallHandler::forwardmem(VPE *vpe, const m3::DTU::Message *msg) {
     char msg_cpy[m3::KIF::MAX_MSG_SIZE];
     const char *msg_ptr = req->data;
 
-    LOG_SYS(vpe, ": syscall::forwardmem", "(mgate=" << mgate << ", len=" << len
+    LOG_SYS(vpe, ": syscall::forward_mem", "(mgate=" << mgate << ", len=" << len
         << ", offset=" << offset << ", flags=" << m3::fmt(flags, "0x")
         << ", event=" << m3::fmt(event, "0x") << ")");
 
@@ -1051,7 +1051,7 @@ void SyscallHandler::forwardmem(VPE *vpe, const m3::DTU::Message *msg) {
         reply_result(vpe, msg, m3::Errors::UPCALL_REPLY);
     }
 
-    m3::Errors::Code res = wait_for(": syscall::forwardmem", tvpe, vpe, false);
+    m3::Errors::Code res = wait_for(": syscall::forward_mem", tvpe, vpe, false);
 
     m3::KIF::Syscall::ForwardMemReply reply;
     reply.error = static_cast<xfer_t>(res);
@@ -1065,7 +1065,7 @@ void SyscallHandler::forwardmem(VPE *vpe, const m3::DTU::Message *msg) {
         vpe->forward_mem(ep, tvpe.pe());
     }
     if(res != m3::Errors::NONE && res != m3::Errors::PAGEFAULT)
-        LOG_ERROR(vpe, res, "forwardmem failed");
+        LOG_ERROR(vpe, res, "forward_mem failed");
 
     if(~flags & m3::KIF::Syscall::ForwardMem::WRITE) {
         if(async)
@@ -1082,7 +1082,7 @@ void SyscallHandler::forwardmem(VPE *vpe, const m3::DTU::Message *msg) {
 #endif
 }
 
-void SyscallHandler::forwardreply(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::forward_reply(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_forwardreply();
 
 #if !defined(__gem5__)
@@ -1096,7 +1096,7 @@ void SyscallHandler::forwardreply(VPE *vpe, const m3::DTU::Message *msg) {
     char msg_cpy[m3::KIF::MAX_MSG_SIZE];
     const char *msg_ptr = req->msg;
 
-    LOG_SYS(vpe, ": syscall::forwardreply", "(rgate=" << rgate << ", len=" << len
+    LOG_SYS(vpe, ": syscall::forward_reply", "(rgate=" << rgate << ", len=" << len
         << ", msgaddr=" << (void*)msgaddr << ", event=" << m3::fmt(event, "0x") << ")");
 
     auto rgatecap = static_cast<RGateCapability*>(vpe->objcaps().get(rgate, Capability::RGATE));
@@ -1139,7 +1139,7 @@ void SyscallHandler::forwardreply(VPE *vpe, const m3::DTU::Message *msg) {
     // be running yet. otherwise, the app needs to be running
     // TODO this is just a stop-gap solution
     bool need_app = !Platform::pe(tvpe.pe()).has_mmu();
-    res = wait_for(": syscall::forwardreply", tvpe, vpe, need_app);
+    res = wait_for(": syscall::forward_reply", tvpe, vpe, need_app);
     if(res == m3::Errors::NONE) {
         uint64_t sender = vpe->pe() | (vpe->id() << 8) |
                         (static_cast<uint64_t>(head.senderEp) << 32) |
@@ -1147,7 +1147,7 @@ void SyscallHandler::forwardreply(VPE *vpe, const m3::DTU::Message *msg) {
         res = DTU::get().reply_to(tvpe.desc(), head.replyEp, head.replylabel, msg_ptr, len, sender);
     }
     if(res != m3::Errors::NONE) {
-        LOG_ERROR(vpe, res, "forwardreply to "
+        LOG_ERROR(vpe, res, "forward_reply to "
             << tvpe.id() << ":" << tvpe.name() << "@" << tvpe.pe() << " failed");
     }
 

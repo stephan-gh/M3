@@ -31,7 +31,7 @@ pub fn run(t: &mut test::Tester) {
     run_test!(t, create_rgate);
     run_test!(t, create_sess);
     run_test!(t, create_map);
-    run_test!(t, create_vpe_group);
+    run_test!(t, create_vgroup);
     run_test!(t, create_vpe);
 
     run_test!(t, activate);
@@ -132,8 +132,8 @@ fn create_map() {
     assert_err!(syscalls::create_map(0, VPE::cur().sel(), mem.sel(), 0, 4, Perm::RWX), Code::InvArgs);
 }
 
-fn create_vpe_group() {
-    assert_err!(syscalls::create_vpe_group(0), Code::InvArgs);
+fn create_vgroup() {
+    assert_err!(syscalls::create_vgroup(0), Code::InvArgs);
 }
 
 fn create_vpe() {

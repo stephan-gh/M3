@@ -43,7 +43,7 @@ impl VPEGroup {
     pub fn new() -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
 
-        syscalls::create_vpe_group(sel)?;
+        syscalls::create_vgroup(sel)?;
         Ok(VPEGroup {
             cap: Capability::new(sel, CapFlags::empty()),
         })

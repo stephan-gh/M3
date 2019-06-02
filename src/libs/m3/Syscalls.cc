@@ -52,7 +52,7 @@ Errors::Code Syscalls::send_receive_result(const void *msg, size_t size) {
     return Errors::last;
 }
 
-Errors::Code Syscalls::createsrv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name) {
+Errors::Code Syscalls::create_srv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name) {
     KIF::Syscall::CreateSrv req;
     req.opcode = KIF::Syscall::CREATE_SRV;
     req.dst_sel = dst;
@@ -64,7 +64,7 @@ Errors::Code Syscalls::createsrv(capsel_t dst, capsel_t vpe, capsel_t rgate, con
     return send_receive_result(&req, Math::round_up(msgsize, DTU_PKG_SIZE));
 }
 
-Errors::Code Syscalls::createsess(capsel_t dst, capsel_t srv, word_t ident) {
+Errors::Code Syscalls::create_sess(capsel_t dst, capsel_t srv, word_t ident) {
     KIF::Syscall::CreateSess req;
     req.opcode = KIF::Syscall::CREATE_SESS;
     req.dst_sel = dst;
@@ -73,7 +73,7 @@ Errors::Code Syscalls::createsess(capsel_t dst, capsel_t srv, word_t ident) {
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::creatergate(capsel_t dst, int order, int msgorder) {
+Errors::Code Syscalls::create_rgate(capsel_t dst, int order, int msgorder) {
     KIF::Syscall::CreateRGate req;
     req.opcode = KIF::Syscall::CREATE_RGATE;
     req.dst_sel = dst;
@@ -82,7 +82,7 @@ Errors::Code Syscalls::creatergate(capsel_t dst, int order, int msgorder) {
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::createsgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits) {
+Errors::Code Syscalls::create_sgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits) {
     KIF::Syscall::CreateSGate req;
     req.opcode = KIF::Syscall::CREATE_SGATE;
     req.dst_sel = dst;
@@ -92,8 +92,8 @@ Errors::Code Syscalls::createsgate(capsel_t dst, capsel_t rgate, label_t label, 
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::createmap(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
-                                 capsel_t pages, int perms) {
+Errors::Code Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
+                                  capsel_t pages, int perms) {
     KIF::Syscall::CreateMap req;
     req.opcode = KIF::Syscall::CREATE_MAP;
     req.dst_sel = dst;
@@ -105,16 +105,16 @@ Errors::Code Syscalls::createmap(capsel_t dst, capsel_t vpe, capsel_t mgate, cap
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::createvpegrp(capsel_t dst) {
+Errors::Code Syscalls::create_vgroup(capsel_t dst) {
     KIF::Syscall::CreateVPEGrp req;
     req.opcode = KIF::Syscall::CREATE_VPEGRP;
     req.dst_sel = dst;
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::createvpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name,
-                                 PEDesc &pe, epid_t sep, epid_t rep, uint flags,
-                                 capsel_t kmem, capsel_t group) {
+Errors::Code Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name,
+                                  PEDesc &pe, epid_t sep, epid_t rep, uint flags,
+                                  capsel_t kmem, capsel_t group) {
     KIF::Syscall::CreateVPE req;
     req.opcode = KIF::Syscall::CREATE_VPE;
     req.dst_crd = dst.value();
@@ -149,7 +149,7 @@ Errors::Code Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::vpectrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg) {
+Errors::Code Syscalls::vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg) {
     KIF::Syscall::VPECtrl req;
     req.opcode = KIF::Syscall::VPE_CTRL;
     req.vpe_sel = vpe;
@@ -158,8 +158,8 @@ Errors::Code Syscalls::vpectrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg)
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::vpewait(const capsel_t *vpes, size_t count, event_t event,
-                               capsel_t *vpe, int *exitcode) {
+Errors::Code Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event,
+                                capsel_t *vpe, int *exitcode) {
     KIF::Syscall::VPEWait req;
     req.opcode = KIF::Syscall::VPE_WAIT;
     req.vpe_count = count;
@@ -180,8 +180,8 @@ Errors::Code Syscalls::vpewait(const capsel_t *vpes, size_t count, event_t event
     return Errors::last;
 }
 
-Errors::Code Syscalls::derivemem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
-                                 size_t size, int perms) {
+Errors::Code Syscalls::derive_mem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
+                                  size_t size, int perms) {
     KIF::Syscall::DeriveMem req;
     req.opcode = KIF::Syscall::DERIVE_MEM;
     req.vpe_sel = vpe;
@@ -193,7 +193,7 @@ Errors::Code Syscalls::derivemem(capsel_t vpe, capsel_t dst, capsel_t src, goff_
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::derivekmem(capsel_t kmem, capsel_t dst, size_t quota) {
+Errors::Code Syscalls::derive_kmem(capsel_t kmem, capsel_t dst, size_t quota) {
     KIF::Syscall::DeriveKMem req;
     req.opcode = KIF::Syscall::DERIVE_KMEM;
     req.kmem_sel = kmem;
@@ -202,7 +202,7 @@ Errors::Code Syscalls::derivekmem(capsel_t kmem, capsel_t dst, size_t quota) {
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::kmemquota(capsel_t kmem, size_t &amount) {
+Errors::Code Syscalls::kmem_quota(capsel_t kmem, size_t &amount) {
     KIF::Syscall::KMemQuota req;
     req.opcode = KIF::Syscall::KMEM_QUOTA;
     req.kmem_sel = kmem;
@@ -228,8 +228,8 @@ Errors::Code Syscalls::exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::exchangesess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
-                                    KIF::ExchangeArgs *args, bool obtain) {
+Errors::Code Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
+                                     KIF::ExchangeArgs *args, bool obtain) {
     KIF::Syscall::ExchangeSess req;
     req.opcode = obtain ? KIF::Syscall::OBTAIN : KIF::Syscall::DELEGATE;
     req.vpe_sel = vpe;
@@ -253,12 +253,12 @@ Errors::Code Syscalls::exchangesess(capsel_t vpe, capsel_t sess, const KIF::CapR
 
 Errors::Code Syscalls::delegate(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                                 KIF::ExchangeArgs *args) {
-    return exchangesess(vpe, sess, crd, args, false);
+    return exchange_sess(vpe, sess, crd, args, false);
 }
 
 Errors::Code Syscalls::obtain(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                               KIF::ExchangeArgs *args) {
-    return exchangesess(vpe, sess, crd, args, true);
+    return exchange_sess(vpe, sess, crd, args, true);
 }
 
 Errors::Code Syscalls::revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own) {
@@ -270,8 +270,8 @@ Errors::Code Syscalls::revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own
     return send_receive_result(&req, sizeof(req));
 }
 
-Errors::Code Syscalls::forwardmsg(capsel_t sgate, capsel_t rgate, const void *msg, size_t len,
-                                  label_t rlabel, event_t event) {
+Errors::Code Syscalls::forward_msg(capsel_t sgate, capsel_t rgate, const void *msg, size_t len,
+                                   label_t rlabel, event_t event) {
     KIF::Syscall::ForwardMsg req;
     req.opcode = KIF::Syscall::FORWARD_MSG;
     req.sgate_sel = sgate;
@@ -284,8 +284,8 @@ Errors::Code Syscalls::forwardmsg(capsel_t sgate, capsel_t rgate, const void *ms
     return send_receive_result(&req, Math::round_up(msgsize, DTU_PKG_SIZE));
 }
 
-Errors::Code Syscalls::forwardmem(capsel_t mgate, void *data, size_t len, goff_t offset,
-                                  uint flags, event_t event) {
+Errors::Code Syscalls::forward_mem(capsel_t mgate, void *data, size_t len, goff_t offset,
+                                   uint flags, event_t event) {
     KIF::Syscall::ForwardMem req;
     req.opcode = KIF::Syscall::FORWARD_MEM;
     req.mgate_sel = mgate;
@@ -307,8 +307,8 @@ Errors::Code Syscalls::forwardmem(capsel_t mgate, void *data, size_t len, goff_t
     return Errors::last;
 }
 
-Errors::Code Syscalls::forwardreply(capsel_t rgate, const void *msg, size_t len,
-                                    goff_t msgaddr, event_t event) {
+Errors::Code Syscalls::forward_reply(capsel_t rgate, const void *msg, size_t len,
+                                     goff_t msgaddr, event_t event) {
     KIF::Syscall::ForwardReply req;
     req.opcode = KIF::Syscall::FORWARD_REPLY;
     req.rgate_sel = rgate;

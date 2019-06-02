@@ -36,7 +36,7 @@ int main() {
 
     cycles_t xfer = 0;
     for(size_t i = 0; i < COUNT; ++i) {
-        Syscalls::get().createmap(
+        Syscalls::get().create_map(
             virt / PAGE_SIZE, VPE::self().sel(), mgate.sel(), 0, PAGES, MemGate::RW
         );
 
