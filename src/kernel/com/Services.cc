@@ -23,11 +23,10 @@ namespace kernel {
 
 ServiceList ServiceList::_inst;
 
-Service::Service(VPE &vpe, capsel_t sel, const m3::String &name, const m3::Reference<RGateObject> &rgate)
+Service::Service(VPE &vpe, const m3::String &name, const m3::Reference<RGateObject> &rgate)
     : m3::SListItem(),
       RefCounted(),
       _squeue(vpe),
-      _sel(sel),
       _name(name),
       _sgate(vpe, rgate->ep, 0),
       _rgate(rgate) {

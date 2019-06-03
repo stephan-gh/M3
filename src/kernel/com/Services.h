@@ -32,14 +32,11 @@ class RGateObject;
 
 class Service : public SlabObject<Service>, public m3::SListItem, public m3::RefCounted {
 public:
-    explicit Service(VPE &vpe, capsel_t sel, const m3::String &name, const m3::Reference<RGateObject> &rgate);
+    explicit Service(VPE &vpe, const m3::String &name, const m3::Reference<RGateObject> &rgate);
     ~Service();
 
     VPE &vpe() const {
         return _squeue.vpe();
-    }
-    capsel_t selector() const {
-        return _sel;
     }
     const m3::String &name() const {
         return _name;
@@ -60,7 +57,6 @@ public:
 
 private:
     SendQueue _squeue;
-    capsel_t _sel;
     m3::String _name;
     SendGate _sgate;
     m3::Reference<RGateObject> _rgate;
