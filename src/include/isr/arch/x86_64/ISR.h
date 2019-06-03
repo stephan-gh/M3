@@ -20,10 +20,10 @@
 #include <base/Config.h>
 #include <base/Exceptions.h>
 
-namespace RCTMux {
+namespace m3 {
 
-class Exceptions {
-    Exceptions() = delete;
+class ISRBase {
+    ISRBase() = delete;
 
 public:
     /* the descriptor table */
@@ -125,22 +125,12 @@ public:
 
     typedef void (*entry_func)();
 
-    static const size_t IDT_COUNT       = 66;
+    static const size_t ISR_COUNT       = 66;
 
     /* we need 5 entries: null-entry, code+data for kernel/user, 2 for TSS (on x86_64) */
     static const size_t GDT_ENTRY_COUNT = 7;
 
-public:
-    static void init();
-
-    static m3::Exceptions::isr_func *get_table() {
-        return isrs;
-    }
-
-private:
-    static void *handler(m3::Exceptions::State *state) asm("interrupt_handler");
-    static void *null_handler(m3::Exceptions::State *state);
-
+protected:
     static void loadIDT(DescTable *tbl) {
         asm volatile ("lidt %0" : : "m"(*tbl));
     }
@@ -162,9 +152,8 @@ private:
     static void setIDT(size_t number,entry_func handler,uint8_t dpl);
     static void setTSS(Desc *gdt,TSS *tss,uintptr_t kstack);
 
-    static m3::Exceptions::isr_func isrs[IDT_COUNT];
     static Desc gdt[GDT_ENTRY_COUNT];
-    static Desc64 idt[IDT_COUNT];
+    static Desc64 idt[ISR_COUNT];
     static TSS tss;
     static Desc64 *idt_p;
 };

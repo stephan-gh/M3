@@ -18,9 +18,9 @@
 #include <base/stream/Serial.h>
 #include <base/Backtrace.h>
 
-#include "Exceptions.h"
+#include <isr/ISR.h>
 
-EXTERN_C void *rctmux_stack;
+EXTERN_C void *isr_stack;
 
 // Our ISRs
 EXTERN_C void isr_0();
@@ -45,22 +45,19 @@ EXTERN_C void isr_64();
 // the handler for a other interrupts
 EXTERN_C void isr_null();
 
-namespace RCTMux {
+namespace m3 {
 
-m3::Exceptions::isr_func Exceptions::isrs[IDT_COUNT];
-Exceptions::Desc Exceptions::gdt[GDT_ENTRY_COUNT];
-Exceptions::Desc64 Exceptions::idt[IDT_COUNT];
-Exceptions::TSS Exceptions::tss ALIGNED(PAGE_SIZE);
+Exceptions::isr_func ISR::isrs[ISR_COUNT];
 
-void *Exceptions::handler(m3::Exceptions::State *state) {
+ISR::Desc ISRBase::gdt[GDT_ENTRY_COUNT];
+ISR::Desc64 ISRBase::idt[ISR_COUNT];
+ISR::TSS ISRBase::tss ALIGNED(PAGE_SIZE);
+
+void *ISR::handler(m3::Exceptions::State *state) {
     return isrs[state->intrptNo](state);
 }
 
-void *Exceptions::null_handler(m3::Exceptions::State *state) {
-    return state;
-}
-
-void Exceptions::init() {
+void ISR::init() {
     // setup GDT
     DescTable gdtTable;
     gdtTable.offset = reinterpret_cast<uintptr_t>(gdt);
@@ -71,7 +68,7 @@ void Exceptions::init() {
     setDesc(gdt + SEG_KDATA, 0, ~0UL >> PAGE_BITS, Desc::GRANU_PAGES, Desc::DATA_RW, Desc::DPL_KERNEL);
     setDesc(gdt + SEG_UCODE, 0, ~0UL >> PAGE_BITS, Desc::GRANU_PAGES, Desc::CODE_XR, Desc::DPL_USER);
     setDesc(gdt + SEG_UDATA, 0, ~0UL >> PAGE_BITS, Desc::GRANU_PAGES, Desc::DATA_RW, Desc::DPL_USER);
-    setTSS(gdt, &tss, reinterpret_cast<uintptr_t>(&rctmux_stack));
+    setTSS(gdt, &tss, reinterpret_cast<uintptr_t>(&isr_stack));
 
     // now load GDT and TSS
     loadGDT(&gdtTable);
@@ -108,14 +105,14 @@ void Exceptions::init() {
     // DTU interrupts
     setIDT(64, isr_64, Desc::DPL_KERNEL);
 
-    for(size_t i = 0; i < IDT_COUNT; ++i)
-        isrs[i] = null_handler;
+    for(size_t i = 0; i < ISR_COUNT; ++i)
+        reg(i, null_handler);
 
     // now we can use our idt
     loadIDT(&tbl);
 }
 
-void Exceptions::setDesc(Desc *d, uintptr_t address, size_t limit, uint8_t granu,
+void ISRBase::setDesc(Desc *d, uintptr_t address, size_t limit, uint8_t granu,
                          uint8_t type, uint8_t dpl) {
     d->addrLow = address & 0xFFFF;
     d->addrMiddle = (address >> 16) & 0xFF;
@@ -127,14 +124,14 @@ void Exceptions::setDesc(Desc *d, uintptr_t address, size_t limit, uint8_t granu
     d->type = type;
 }
 
-void Exceptions::setDesc64(Desc *d, uintptr_t address, size_t limit, uint8_t granu,
+void ISRBase::setDesc64(Desc *d, uintptr_t address, size_t limit, uint8_t granu,
                            uint8_t type, uint8_t dpl) {
     Desc64 *d64 = reinterpret_cast<Desc64*>(d);
     setDesc(d64,address,limit,granu,type,dpl);
     d64->addrUpper = address >> 32;
 }
 
-void Exceptions::setIDT(size_t number, entry_func handler, uint8_t dpl) {
+void ISRBase::setIDT(size_t number, entry_func handler, uint8_t dpl) {
     Desc64 *e = idt + number;
     e->type = Desc::SYS_INTR_GATE;
     e->dpl = dpl;
@@ -145,7 +142,7 @@ void Exceptions::setIDT(size_t number, entry_func handler, uint8_t dpl) {
     e->addrUpper = reinterpret_cast<uintptr_t>(handler) >> 32;
 }
 
-void Exceptions::setTSS(Desc *gdt, TSS *tss, uintptr_t kstack) {
+void ISRBase::setTSS(Desc *gdt, TSS *tss, uintptr_t kstack) {
     /* an invalid offset for the io-bitmap => not loaded yet */
     tss->ioMapOffset = 104 + 16;
     tss->rsp0 = kstack;

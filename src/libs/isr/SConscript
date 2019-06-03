@@ -1,0 +1,9 @@
+Import('env')
+lib = env.StaticLibrary(
+    target = 'libisr',
+    source = [
+        env.Glob('arch/$ISA/*.cc'),
+        env.Glob('arch/$ISA/*.S'),
+    ],
+)
+env.Install(env['LIBDIR'], lib)

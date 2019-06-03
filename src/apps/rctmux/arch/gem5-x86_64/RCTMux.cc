@@ -20,17 +20,18 @@
 #include <base/KIF.h>
 #include <base/RCTMux.h>
 
+#include <isr/ISR.h>
+
 #include "../../RCTMux.h"
-#include "Exceptions.h"
 #include "VMA.h"
 
 namespace RCTMux {
 namespace Arch {
 
 void init() {
-    Exceptions::init();
-    Exceptions::get_table()[14] = VMA::mmu_pf;
-    Exceptions::get_table()[64] = VMA::dtu_irq;
+    m3::ISR::init();
+    m3::ISR::reg(14, VMA::mmu_pf);
+    m3::ISR::reg(64, VMA::dtu_irq);
 }
 
 void wait_for_reset() {
@@ -41,7 +42,7 @@ void wait_for_reset() {
 
 void *init_state(m3::Exceptions::State *state) {
     m3::Env *senv = m3::env();
-    senv->isrs = reinterpret_cast<uintptr_t>(Exceptions::get_table());
+    senv->isrs = reinterpret_cast<uintptr_t>(m3::ISR::table());
 
     // init State
     state->rax = 0xDEADBEEF;    // tell crt0 that we've set the SP
@@ -59,8 +60,8 @@ void *init_state(m3::Exceptions::State *state) {
     state->r14 = 0;
     state->r15 = 0;
 
-    state->cs  = (Exceptions::SEG_UCODE << 3) | 3;
-    state->ss  = (Exceptions::SEG_UDATA << 3) | 3;
+    state->cs  = (m3::ISR::SEG_UCODE << 3) | 3;
+    state->ss  = (m3::ISR::SEG_UDATA << 3) | 3;
     state->rip = senv->entry;
     state->rsp = senv->sp;
     state->rbp = 0;

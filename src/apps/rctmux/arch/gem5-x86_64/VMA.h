@@ -17,8 +17,7 @@
 #pragma once
 
 #include <base/DTU.h>
-
-#include "Exceptions.h"
+#include <base/Exceptions.h>
 
 namespace RCTMux {
 

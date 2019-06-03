@@ -20,9 +20,10 @@
 #include <base/KIF.h>
 #include <base/RCTMux.h>
 
+#include <isr/ISR.h>
+
 #include "../../RCTMux.h"
 #include "../../Print.h"
-#include "Exceptions.h"
 #include "VMA.h"
 
 namespace RCTMux {
@@ -386,7 +387,7 @@ void *VMA::mmu_pf(m3::Exceptions::State *state) {
     asm volatile ("mov %%cr2, %0" : "=r"(cr2));
 
     // rctmux isn't causing PFs
-    panic_if(state->cs != ((Exceptions::SEG_UCODE << 3) | 3),
+    panic_if(state->cs != ((m3::ISR::SEG_UCODE << 3) | 3),
         "RCTMux: pagefault from ourself for 0x%x @ 0x%x; stopping\n", cr2, state->rip);
 
     // if we don't use the MMU, we shouldn't get here

@@ -19,12 +19,12 @@
 #include <base/RCTMux.h>
 #include <base/Exceptions.h>
 
+#include <isr/ISR.h>
+
 #include "../../RCTMux.h"
 #include "../../Print.h"
 
 namespace RCTMux {
-
-static m3::Exceptions::isr_func isrs[8];
 
 class VMA {
 public:
@@ -52,25 +52,13 @@ static void *isr_irq(m3::Exceptions::State *state) {
     return state;
 }
 
-static void *isr_null(m3::Exceptions::State *state) {
-    return state;
-}
-
 };
-
-EXTERN_C void exc_handler(m3::Exceptions::State *state) {
-    // repeat last instruction, except for SWIs
-    if(state->vector != 2)
-        state->pc -= 4;
-    isrs[state->vector](state);
-}
 
 namespace Arch {
 
 void init() {
-    for(size_t i = 0; i < ARRAY_SIZE(isrs); ++i)
-        isrs[i] = VMA::isr_null;
-    isrs[6] = VMA::isr_irq;
+    m3::ISR::init();
+    m3::ISR::reg(6, RCTMux::VMA::isr_irq);
 }
 
 void wait_for_reset() {
@@ -87,7 +75,7 @@ void wait_for_reset() {
 
 void *init_state(m3::Exceptions::State *) {
     m3::Env *senv = m3::env();
-    senv->isrs = reinterpret_cast<uintptr_t>(isrs);
+    senv->isrs = reinterpret_cast<uintptr_t>(m3::ISR::table());
 
     auto state = reinterpret_cast<m3::Exceptions::State*>(senv->sp) - 1;
     for(size_t i = 0; i < ARRAY_SIZE(state->r); ++i)

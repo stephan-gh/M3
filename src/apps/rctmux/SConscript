@@ -40,5 +40,5 @@ elif env['ARCH'] == 'gem5':
         NoSup = True,
         varAddr = False,
         ldscript = myenv.File('#src/apps/rctmux/arch/gem5/ld-${ISA}.conf'),
-        libs = ['gcc', 'c']
+        libs = ['gcc', 'c', 'isr']
     )

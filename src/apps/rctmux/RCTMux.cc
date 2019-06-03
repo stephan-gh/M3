@@ -26,7 +26,7 @@
 #include "RCTMux.h"
 #include "Print.h"
 
-EXTERN_C void *rctmux_stack;
+EXTERN_C void *isr_stack;
 EXTERN_C void _start();
 
 namespace RCTMux {
@@ -157,7 +157,7 @@ static void *restore() {
     senv->pe = flags >> 32;
 
     void *res;
-    auto *stacktop = reinterpret_cast<m3::Exceptions::State*>(&rctmux_stack) - 1;
+    auto *stacktop = reinterpret_cast<m3::Exceptions::State*>(&isr_stack) - 1;
     if(!(status & STARTED)) {
         // if we get here, there is an application to jump to
 
