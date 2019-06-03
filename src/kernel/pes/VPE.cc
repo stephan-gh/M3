@@ -51,7 +51,6 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _lastsched(),
       _rbufs_size(),
       _dtustate(),
-      _upcsgate(*this, m3::DTU::UPCALL_REP, 0),
       _upcqueue(*this),
       _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id, sep, rep, sgate) : nullptr),
       _headers(),

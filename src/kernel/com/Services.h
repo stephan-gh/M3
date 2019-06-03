@@ -23,7 +23,6 @@
 
 #include "mem/SlabCache.h"
 #include "SendQueue.h"
-#include "Gate.h"
 
 namespace kernel {
 
@@ -58,7 +57,6 @@ public:
 private:
     SendQueue _squeue;
     m3::String _name;
-    SendGate _sgate;
     m3::Reference<RGateObject> _rgate;
 };
 

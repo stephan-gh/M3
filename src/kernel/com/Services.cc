@@ -28,13 +28,12 @@ Service::Service(VPE &vpe, const m3::String &name, const m3::Reference<RGateObje
       RefCounted(),
       _squeue(vpe),
       _name(name),
-      _sgate(vpe, rgate->ep, 0),
       _rgate(rgate) {
     vpe.add_service();
 }
 
 Service::~Service() {
-    _sgate.vpe().rem_service();
+    vpe().rem_service();
     // we have allocated the selector and stored it in our cap-table on creation; undo that
     ServiceList::get().remove(this);
 }
@@ -47,7 +46,7 @@ const m3::DTU::Message *Service::send_receive(label_t ident, const void *msg, si
     if(!_rgate->activated())
         return nullptr;
 
-    event_t event = _squeue.send(&_sgate, ident, msg, size, free);
+    event_t event = _squeue.send(_rgate->ep, ident, msg, size, free);
 
     m3::ThreadManager::get().wait_for(event);
 

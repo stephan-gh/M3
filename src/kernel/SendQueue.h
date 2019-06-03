@@ -20,25 +20,24 @@
 #include <base/col/SList.h>
 #include <base/DTU.h>
 
-#include "Gate.h"
-
 namespace kernel {
 
 struct Timeout;
+class VPE;
 
 class SendQueue {
     struct Entry : public m3::SListItem {
-        explicit Entry(uint64_t _id, SendGate *_sgate, label_t _ident, const void *_msg, size_t _size)
+        explicit Entry(uint64_t _id, epid_t _dst_ep, label_t _ident, const void *_msg, size_t _size)
             : SListItem(),
               id(_id),
-              sgate(_sgate),
+              dst_ep(_dst_ep),
               ident(_ident),
               msg(_msg),
               size(_size) {
         }
 
         uint64_t id;
-        SendGate *sgate;
+        epid_t dst_ep;
         label_t ident;
         const void *msg;
         size_t size;
@@ -64,7 +63,7 @@ public:
         return static_cast<int>(_queue.length());
     }
 
-    event_t send(SendGate *sgate, label_t ident,const void *msg, size_t size, bool onheap);
+    event_t send(epid_t dst_ep, label_t ident,const void *msg, size_t size, bool onheap);
     void received_reply(epid_t ep, const m3::DTU::Message *msg);
     void drop_msgs(label_t ident);
     void abort();
@@ -72,7 +71,7 @@ public:
 private:
     void send_pending();
     event_t get_event(uint64_t id);
-    event_t do_send(SendGate *sgate, uint64_t id, const void *msg, size_t size, bool onheap);
+    event_t do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t size, bool onheap);
 
     VPE &_vpe;
     m3::SList<Entry> _queue;

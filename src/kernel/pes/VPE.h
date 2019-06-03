@@ -204,16 +204,12 @@ public:
         return _mapcaps;
     }
 
-    SendGate &upcall_sgate() {
-        return _upcsgate;
-    }
-
     SendQueue &upcall_queue() {
         return _upcqueue;
     }
 
     void upcall(const void *msg, size_t size, bool onheap) {
-        _upcqueue.send(&_upcsgate, 0, msg, size, onheap);
+        _upcqueue.send(m3::DTU::UPCALL_REP, 0, msg, size, onheap);
     }
     void upcall_forward(word_t event, m3::Errors::Code res);
     void upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply);
@@ -293,7 +289,6 @@ private:
     uint64_t _lastsched;
     size_t _rbufs_size;
     alignas(DTU_PKG_SIZE) DTUState _dtustate;
-    SendGate _upcsgate;
     SendQueue _upcqueue;
     AddrSpace *_as;
     size_t _headers;

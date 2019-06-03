@@ -38,14 +38,14 @@ event_t SendQueue::get_event(uint64_t id) {
     return static_cast<event_t>(1) << (sizeof(event_t) * 8 - 1) | id;
 }
 
-event_t SendQueue::send(SendGate *sgate, label_t ident, const void *msg, size_t size, bool onheap) {
+event_t SendQueue::send(epid_t dst_ep, label_t ident, const void *msg, size_t size, bool onheap) {
     KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: trying to send message");
 
     if(_inflight == -1)
         return 0;
 
     if(_vpe.state() == VPE::RUNNING && _inflight == 0)
-        return do_send(sgate, _next_id++, msg, size, onheap);
+        return do_send(dst_ep, _next_id++, msg, size, onheap);
 
     // call this again from the workloop to be sure that we can switch the thread
     if(_vpe.state() != VPE::RUNNING && _inflight == 0)
@@ -60,7 +60,7 @@ event_t SendQueue::send(SendGate *sgate, label_t ident, const void *msg, size_t 
 
     KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: queuing message");
 
-    Entry *e = new Entry(_next_id++, sgate, ident, msg, size);
+    Entry *e = new Entry(_next_id++, dst_ep, ident, msg, size);
     _queue.append(e);
     return get_event(e->id);
 }
@@ -92,7 +92,7 @@ void SendQueue::send_pending() {
     }
 
     // pending messages have always been copied to the heap
-    do_send(e->sgate, e->id, e->msg, e->size, true);
+    do_send(e->dst_ep, e->id, e->msg, e->size, true);
     delete e;
 }
 
@@ -112,13 +112,17 @@ void SendQueue::received_reply(epid_t ep, const m3::DTU::Message *msg) {
     }
 }
 
-event_t SendQueue::do_send(SendGate *sgate, uint64_t id, const void *msg, size_t size, bool onheap) {
+event_t SendQueue::do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t size, bool onheap) {
     KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: sending message");
 
     _cur_event = get_event(id);
     _inflight++;
 
-    sgate->send(msg, size, SyscallHandler::srvep(), reinterpret_cast<label_t>(this));
+    if(DTU::get().send_to(_vpe.desc(), dst_ep, 0, msg, size, reinterpret_cast<label_t>(this),
+                          SyscallHandler::srvep()) != m3::Errors::NONE) {
+        PANIC("send failed");
+    }
+
     if(onheap)
         free(const_cast<void*>(msg));
     return _cur_event;
