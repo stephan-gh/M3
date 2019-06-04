@@ -119,7 +119,7 @@ hostenv.Append(
 env = baseenv.Clone()
 env.Append(
     CXXFLAGS = ' -ffreestanding -fno-strict-aliasing -fno-exceptions -fno-rtti -gdwarf-2' \
-        ' -fno-threadsafe-statics -fno-stack-protector',
+        ' -fno-threadsafe-statics -fno-stack-protector -Wno-address-of-packed-member',
     CPPFLAGS = ' -U_FORTIFY_SOURCE',
     CFLAGS = ' -gdwarf-2 -fno-stack-protector',
     ASFLAGS = ' -Wl,-W -Wall -Wextra',
