@@ -13,10 +13,11 @@ sources = [
 ]
 if env['ARCH'] != 'host':
     sources += [env.Glob('arch/baremetal/*.cc')]
+    myenv.Append(LINKFLAGS = ' -Wl,--whole-archive -lisr -Wl,--no-whole-archive')
 
 myenv.M3Program(
     myenv,
     target = 'kernel',
     source = sources,
-    libs = ['X11', 'rt'] if myenv['ARCH'] == 'host' else []
+    libs = ['X11', 'rt'] if myenv['ARCH'] == 'host' else ['isr']
 )

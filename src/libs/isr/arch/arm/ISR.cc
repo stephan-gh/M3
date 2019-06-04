@@ -30,6 +30,10 @@ void *ISR::handler(m3::Exceptions::State *state) {
     return isrs[state->vector](state);
 }
 
+void ISR::enable_irqs() {
+    // not yet supported
+}
+
 void ISR::init() {
     for(size_t i = 0; i < ISR_COUNT; ++i)
         reg(i, null_handler);

@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 #include <base/DTU.h>
+#include <base/Exceptions.h>
 
 #include "mem/MainMemory.h"
 #include "pes/VPEDesc.h"
@@ -25,7 +26,11 @@
 
 namespace kernel {
 
+struct ISR;
+
 class AddrSpace {
+    friend struct ISR;
+
 public:
     typedef uint64_t mmu_pte_t;
 
@@ -76,10 +81,13 @@ private:
 
     goff_t get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt, int level);
 
-    mmu_pte_t to_mmu_pte(m3::DTU::pte_t pte);
-    m3::DTU::pte_t to_dtu_pte(mmu_pte_t pte);
+    static mmu_pte_t to_mmu_pte(const m3::PEDesc &pe, m3::DTU::pte_t pte);
+    static m3::DTU::pte_t to_dtu_pte(const m3::PEDesc &pe, mmu_pte_t pte);
 
     void mmu_cmd_remote(const VPEDesc &vpe, m3::DTU::reg_t arg);
+
+    static void handle_xlate(m3::DTU::reg_t xlate_req);
+    static void *dtu_handler(m3::Exceptions::State *state);
 #endif
 
     m3::PEDesc _pe;

@@ -42,6 +42,7 @@ public:
     static void reg(size_t idx, Exceptions::isr_func func) {
         isrs[idx] = func;
     }
+    static void enable_irqs();
 
 private:
     static void *handler(m3::Exceptions::State *state) asm("irq_handler");

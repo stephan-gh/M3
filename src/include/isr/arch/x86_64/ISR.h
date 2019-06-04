@@ -143,9 +143,6 @@ protected:
     static void load_gdt(DescTable *gdt) {
         asm volatile ("lgdt (%0)" : : "r"(gdt));
     }
-    static void enableIRQs() {
-        asm volatile ("sti");
-    }
 
     static void set_desc(Desc *d,uintptr_t address,size_t limit,uint8_t granu,uint8_t type,uint8_t dpl);
     static void set_desc64(Desc *d,uintptr_t address,size_t limit,uint8_t granu,uint8_t type,uint8_t dpl);

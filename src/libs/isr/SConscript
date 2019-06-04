@@ -1,9 +1,12 @@
 Import('env')
-lib = env.StaticLibrary(
+
+myenv = env.Clone()
+myenv['CXXFLAGS'] = str(myenv['CXXFLAGS']).replace('-flto', '')
+lib = myenv.StaticLibrary(
     target = 'libisr',
     source = [
-        env.Glob('arch/$ISA/*.cc'),
-        env.Glob('arch/$ISA/*.S'),
+        myenv.Glob('arch/$ISA/*.cc'),
+        myenv.Glob('arch/$ISA/*.S'),
     ],
 )
-env.Install(env['LIBDIR'], lib)
+myenv.Install(myenv['LIBDIR'], lib)

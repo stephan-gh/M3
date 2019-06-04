@@ -49,9 +49,6 @@ public:
     virtual bool extend_heap(size_t size) override {
         if(!Platform::pe(Platform::kernel_pe()).has_virtmem())
             return false;
-        // TODO currently not supported
-        if(Platform::pe(Platform::kernel_pe()).has_mmu())
-            return false;
 
         uint pages = m3::Math::max((size_t)8,
             m3::Math::round_up<size_t>(size, PAGE_SIZE) >> PAGE_BITS);
@@ -75,6 +72,7 @@ public:
     }
 
     virtual void exit(int) override {
+        m3::Machine::shutdown();
     }
 };
 

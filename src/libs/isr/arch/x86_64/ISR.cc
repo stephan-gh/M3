@@ -57,6 +57,10 @@ void *ISR::handler(m3::Exceptions::State *state) {
     return isrs[state->intrptNo](state);
 }
 
+void ISR::enable_irqs() {
+    asm volatile ("sti");
+}
+
 void ISR::init() {
     // setup GDT
     DescTable gdtTable;

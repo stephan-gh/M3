@@ -285,8 +285,13 @@ def M3CPP(env, target, source):
         )
     )
 
-def_ldscript = env.File('$BUILDDIR/ld-final.conf')
+def_ldscript = env.File('$BUILDDIR/ld-default.conf')
 M3CPP(env, def_ldscript, '#src/toolchain/gem5/ld.conf')
+
+isr_ldscript = env.File('$BUILDDIR/ld-isr.conf')
+myenv = env.Clone()
+myenv.Append(CPPFLAGS = ' -D__isr__=1')
+M3CPP(myenv, isr_ldscript, '#src/toolchain/gem5/ld.conf')
 
 link_addr = 0x200000
 
@@ -341,7 +346,7 @@ def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False, tgtc
             source = [myenv['LIBDIR'].abspath + '/crt0.o'] + [source]
 
         if ldscript is None:
-            ldscript = def_ldscript
+            ldscript = isr_ldscript if 'isr' in libs else def_ldscript
         myenv.Append(LINKFLAGS = ' -Wl,-T,' + ldscript.abspath)
 
         if varAddr:
