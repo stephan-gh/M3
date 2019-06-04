@@ -131,26 +131,26 @@ public:
     static const size_t GDT_ENTRY_COUNT = 7;
 
 protected:
-    static void loadIDT(DescTable *tbl) {
+    static void load_idt(DescTable *tbl) {
         asm volatile ("lidt %0" : : "m"(*tbl));
     }
-    static void getIDT(DescTable *tbl) {
+    static void get_idt(DescTable *tbl) {
         asm volatile ("sidt %0" : : "m"(*tbl));
     }
-    static void loadTSS(size_t gdtOffset) {
+    static void load_tss(size_t gdtOffset) {
         asm volatile ("ltr %0" : : "m"(gdtOffset));
     }
-    static void loadGDT(DescTable *gdt) {
+    static void load_gdt(DescTable *gdt) {
         asm volatile ("lgdt (%0)" : : "r"(gdt));
     }
     static void enableIRQs() {
         asm volatile ("sti");
     }
 
-    static void setDesc(Desc *d,uintptr_t address,size_t limit,uint8_t granu,uint8_t type,uint8_t dpl);
-    static void setDesc64(Desc *d,uintptr_t address,size_t limit,uint8_t granu,uint8_t type,uint8_t dpl);
-    static void setIDT(size_t number,entry_func handler,uint8_t dpl);
-    static void setTSS(Desc *gdt,TSS *tss,uintptr_t kstack);
+    static void set_desc(Desc *d,uintptr_t address,size_t limit,uint8_t granu,uint8_t type,uint8_t dpl);
+    static void set_desc64(Desc *d,uintptr_t address,size_t limit,uint8_t granu,uint8_t type,uint8_t dpl);
+    static void set_idt(size_t number,entry_func handler,uint8_t dpl);
+    static void set_tss(Desc *gdt,TSS *tss,uintptr_t kstack);
 
     static Desc gdt[GDT_ENTRY_COUNT];
     static Desc64 idt[ISR_COUNT];
