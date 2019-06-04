@@ -41,4 +41,7 @@ private:
     static void *handler(State *state);
 };
 
+class OStream;
+OStream &operator<<(OStream &os, const Exceptions::State &state);
+
 }

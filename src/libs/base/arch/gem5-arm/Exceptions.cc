@@ -32,6 +32,25 @@ static const char *exNames[] = {
     /* 0x07 */ "FIQ",
 };
 
+OStream &operator<<(OStream &os, const Exceptions::State &state) {
+    os << "Interruption @ " << fmt(state.pc, "p") << "\n";
+    os << "  vector: ";
+    if(state.vector < ARRAY_SIZE(exNames))
+        os << exNames[state.vector];
+    else
+        os << "<unknown> (" << state.vector << ")";
+    os << "\n";
+
+    Backtrace::print(os);
+
+    os << "Registers:\n";
+    for(size_t i = 0; i < ARRAY_SIZE(state.r); ++i)
+        os << "   r" << fmt(i, "0", 2) << ": " << fmt(state.r[i], "#0x", 8) << "\n";
+    os << "  cpsr: " << fmt(state.cpsr, "#0x", 8) << "\n";
+    os << "    lr: " << fmt(state.lr, "#0x", 8) << "\n";
+    return os;
+}
+
 void Exceptions::init() {
     if(env()->isrs) {
         auto funcs = reinterpret_cast<Exceptions::isr_func*>(env()->isrs);
@@ -43,22 +62,7 @@ void Exceptions::init() {
 }
 
 void *Exceptions::handler(State *state) {
-    auto &ser = Serial::get();
-    ser << "Interruption @ " << fmt(state->pc, "p") << "\n";
-    ser << "  vector: ";
-    if(state->vector < ARRAY_SIZE(exNames))
-        ser << exNames[state->vector];
-    else
-        ser << "<unknown> (" << state->vector << ")";
-    ser << "\n";
-
-    Backtrace::print(ser);
-
-    ser << "Registers:\n";
-    for(size_t i = 0; i < ARRAY_SIZE(state->r); ++i)
-        ser << "   r" << fmt(i, "0", 2) << ": " << fmt(state->r[i], "#0x", 8) << "\n";
-    ser << "  cpsr: " << fmt(state->cpsr, "#0x", 8) << "\n";
-    ser << "    lr: " << fmt(state->lr, "#0x", 8) << "\n";
+    Serial::get() << *state;
 
     env()->exit(1);
     return state;
