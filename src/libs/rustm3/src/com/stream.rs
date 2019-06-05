@@ -148,7 +148,7 @@ impl GateSource {
 fn copy_str_from(s: &[u64], len: usize) -> String {
     unsafe {
         let bytes: *mut libc::c_void = intrinsics::transmute((s).as_ptr());
-        let copy = heap::heap_alloc(len + 1);
+        let copy = heap::alloc(len + 1);
         libc::memcpy(copy, bytes, len);
         String::from_raw_parts(copy as *mut u8, len, len)
     }

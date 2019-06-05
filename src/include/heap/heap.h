@@ -41,6 +41,7 @@ EXTERN_C void heap_set_free_callback(heap_free_func callback);
 EXTERN_C void heap_set_oom_callback(heap_oom_func callback);
 EXTERN_C void heap_set_dblfree_callback(heap_dblfree_func callback);
 
+EXTERN_C void heap_init(uintptr_t begin, uintptr_t end);
 EXTERN_C void *heap_alloc(size_t size);
 EXTERN_C void *heap_calloc(size_t n, size_t size);
 EXTERN_C void *heap_realloc(void *p, size_t size);

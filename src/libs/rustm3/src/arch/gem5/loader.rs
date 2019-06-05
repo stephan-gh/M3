@@ -53,7 +53,6 @@ impl<'l> Loader<'l> {
             static _text_end: u8;
             static _data_start: u8;
             static _bss_end: u8;
-            static heap_end: usize;
         }
 
         let addr = |sym: &u8| {
@@ -81,7 +80,7 @@ impl<'l> Loader<'l> {
 
             // copy end-area of heap
             let heap_area_size = util::size_of::<heap::HeapArea>();
-            self.mem.write_bytes(heap_end as *const u8, heap_area_size, heap_end as goff)?;
+            self.mem.write_bytes(heap::end() as *const u8, heap_area_size, heap::end() as goff)?;
 
             // copy stack
             self.mem.write_bytes(sp as *const u8, cfg::STACK_TOP - sp, sp as goff)?;

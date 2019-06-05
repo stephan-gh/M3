@@ -25,8 +25,8 @@ extern void *_bss_end;
 namespace m3 {
 
 void Heap::init_arch() {
-    uintptr_t begin = reinterpret_cast<uintptr_t>(&_bss_end);
-    heap_begin = reinterpret_cast<HeapArea*>(Math::round_up<size_t>(begin, sizeof(HeapArea)));
+    uintptr_t begin = Math::round_up<uintptr_t>(reinterpret_cast<uintptr_t>(&_bss_end),
+                                                sizeof(HeapArea));
 
     uintptr_t end;
     if(env()->heapsize == 0) {
@@ -42,13 +42,8 @@ void Heap::init_arch() {
     }
     else
         end = Math::round_up<size_t>(begin, PAGE_SIZE) + env()->heapsize;
-    heap_end = reinterpret_cast<HeapArea*>(end) - 1;
 
-    heap_end->next = 0;
-    heap_end->prev = static_cast<size_t>(heap_end - heap_begin) * sizeof(HeapArea);
-    HeapArea *a = heap_begin;
-    a->next = static_cast<size_t>(heap_end - heap_begin) * sizeof(HeapArea);
-    a->prev = 0;
+    heap_init(begin, end);
 }
 
 }

@@ -52,13 +52,7 @@ USED void free(void *p) {
 namespace m3 {
 
 void Heap::init_arch() {
-    heap_begin = reinterpret_cast<HeapArea*>(Env::heap_start());
-    heap_end = heap_begin + (HEAP_SIZE / sizeof(HeapArea)) - sizeof(HeapArea);
-    heap_end->next = 0;
-    heap_end->prev = static_cast<size_t>(heap_end - heap_begin) * sizeof(HeapArea);
-    HeapArea *a = heap_begin;
-    a->next = static_cast<size_t>(heap_end - heap_begin) * sizeof(HeapArea);
-    a->prev = 0;
+    heap_init(Env::heap_start(), Env::heap_start() + HEAP_SIZE);
 }
 
 }

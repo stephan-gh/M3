@@ -35,13 +35,13 @@ impl HeapArea {
     fn is_used(&self) -> bool {
         (self.next & HEAP_USED_BITS) != 0
     }
-    unsafe fn forward(&mut self, size: usize) -> *mut HeapArea {
-        let next = (self as *mut _ as usize) + size;
-        next as *mut HeapArea
+    unsafe fn forward(&self, size: usize) -> *const HeapArea {
+        let next = (self as *const _ as usize) + size;
+        next as *const HeapArea
     }
-    unsafe fn backwards(&mut self, size: usize) -> *mut HeapArea {
-        let prev = (self as *mut _ as usize) - size;
-        prev as *mut HeapArea
+    unsafe fn backwards(&self, size: usize) -> *const HeapArea {
+        let prev = (self as *const _ as usize) - size;
+        prev as *const HeapArea
     }
 }
 
@@ -51,20 +51,23 @@ extern {
     fn heap_set_oom_callback(cb: extern fn(size: usize) -> bool);
     fn heap_set_dblfree_callback(cb: extern fn(p: *const u8));
 
+    /// Initializes the heap
+    fn heap_init(begin: usize, end: usize);
+
     /// Allocates `size` bytes on the heap
-    pub fn heap_alloc(size: usize) -> *mut libc::c_void;
+    fn heap_alloc(size: usize) -> *mut libc::c_void;
 
     /// Allocates `n * size` on the heap and initializes it to 0
-    pub fn heap_calloc(n: usize, size: usize) -> *mut libc::c_void;
+    fn heap_calloc(n: usize, size: usize) -> *mut libc::c_void;
 
     /// Reallocates `n` to be `size` bytes large
     ///
     /// This implementation might increase the size of the area or shink it. It might also free the
     /// current area and allocate a new area of `size` bytes.
-    pub fn heap_realloc(p: *mut libc::c_void, size: usize) -> *mut libc::c_void;
+    fn heap_realloc(p: *mut libc::c_void, size: usize) -> *mut libc::c_void;
 
     /// Frees the area at `p`
-    pub fn heap_free(p: *mut libc::c_void);
+    fn heap_free(p: *mut libc::c_void);
 
     fn heap_append(pages: usize);
 
@@ -74,18 +77,17 @@ extern {
 
 extern {
     static _bss_end: u8;
-    static mut heap_begin: *mut HeapArea;
-    static mut heap_end: *mut HeapArea;
+    static mut heap_begin: *const HeapArea;
+    static mut heap_end: *const HeapArea;
 }
 
 #[cfg(target_os = "none")]
-fn init_heap() {
+fn heap_bounds() -> (usize, usize) {
     use arch;
     use kif::PEDesc;
 
     unsafe {
-        let begin = &_bss_end as *const u8;
-        heap_begin = util::round_up(begin as usize, util::size_of::<HeapArea>()) as *mut HeapArea;
+        let begin = util::round_up(&_bss_end as *const u8 as usize, util::size_of::<HeapArea>());
 
         let env = arch::envdata::get();
         let end = if env.heap_size == 0 {
@@ -98,34 +100,28 @@ fn init_heap() {
             util::round_up(begin as usize, cfg::PAGE_SIZE) + env.heap_size as usize
         };
 
-        heap_end = (end as *mut HeapArea).offset(-1);
+        (begin, end)
     }
 }
 
 #[cfg(target_os = "linux")]
-fn init_heap() {
+fn heap_bounds() -> (usize, usize) {
     use arch::envdata;
 
+    (envdata::heap_start(), envdata::heap_start() + cfg::APP_HEAP_SIZE)
+}
+
+pub fn alloc(size: usize) -> *mut libc::c_void {
     unsafe {
-        heap_begin = envdata::heap_start() as *mut HeapArea;
-        heap_end = ((envdata::heap_start() + cfg::APP_HEAP_SIZE) as *mut HeapArea).offset(-1);
+        heap_alloc(size)
     }
 }
 
 pub fn init() {
-    init_heap();
+    let (begin, end) = heap_bounds();
 
     unsafe {
-        let num_areas = heap_end.offset_from(heap_begin) as isize;
-        let space = num_areas * util::size_of::<HeapArea>() as isize;
-
-        log!(HEAP, "Heap has {} bytes", space);
-
-        (*heap_end).next = 0;
-        (*heap_end).prev = space as usize;
-
-        (*heap_begin).next = space as usize;
-        (*heap_begin).prev = 0;
+        heap_init(begin, end);
 
         if io::log::HEAP {
             heap_set_alloc_callback(heap_alloc_callback);
@@ -150,6 +146,13 @@ pub fn free_memory() -> usize {
 }
 
 /// Returns the end of used part of the heap
+pub fn end() -> usize {
+    unsafe {
+        heap_end as usize
+    }
+}
+
+/// Returns the end of used part of the heap
 pub fn used_end() -> usize {
     unsafe {
         heap_used_end()
@@ -158,7 +161,7 @@ pub fn used_end() -> usize {
 
 pub fn print() {
     unsafe {
-        let print_area = |a: *mut HeapArea| {
+        let print_area = |a: *const HeapArea| {
             log!(DEF, "  Area[addr={:#x}, prev={:#x}, size={:#x}, used={}]",
                  a as usize + util::size_of::<HeapArea>(),
                  (*a).backwards((*a).prev as usize) as usize + util::size_of::<HeapArea>(),
@@ -195,7 +198,7 @@ extern fn heap_oom_callback(size: usize) -> bool {
 pub unsafe extern fn __rdl_alloc(size: usize,
                                  _align: usize,
                                  _err: *mut u8) -> *mut libc::c_void {
-    heap_alloc(size)
+    alloc(size)
 }
 
 #[no_mangle]
@@ -240,7 +243,7 @@ pub unsafe extern fn __rdl_alloc_excess(size: usize,
                                         _excess: *mut usize,
                                         _err: *mut u8) -> *mut libc::c_void {
     // TODO is that correct?
-    heap_alloc(size)
+    alloc(size)
 }
 
 #[no_mangle]

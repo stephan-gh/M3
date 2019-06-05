@@ -64,6 +64,16 @@ USED void heap_set_dblfree_callback(heap_dblfree_func callback) {
     dblfree_callback = callback;
 }
 
+void heap_init(uintptr_t begin, uintptr_t end) {
+    heap_begin = reinterpret_cast<HeapArea*>(begin);
+    heap_end = reinterpret_cast<HeapArea*>(end - sizeof(HeapArea));
+    heap_end->next = 0;
+    heap_end->prev = static_cast<size_t>(heap_end - heap_begin) * sizeof(HeapArea);
+    HeapArea *a = heap_begin;
+    a->next = static_cast<size_t>(heap_end - heap_begin) * sizeof(HeapArea);
+    a->prev = 0;
+}
+
 USED void *heap_alloc(size_t size) {
     static_assert(ALIGN >= DTU_PKG_SIZE, "ALIGN is wrong");
     // assert(size < HEAP_USED_BITS);
