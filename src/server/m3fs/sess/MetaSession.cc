@@ -60,11 +60,15 @@ void M3FSMetaSession::open_private_file(m3::GateIStream &is) {
 void M3FSMetaSession::close_private_file(m3::GateIStream &is) {
     size_t id;
     is >> id;
-    if(_files[id] != nullptr) {
-        delete _files[id];
-        _files[id] = nullptr;
+    if(id >= _max_files)
+        reply_error(is, Errors::INV_ARGS);
+    else {
+        if(_files[id] != nullptr) {
+            delete _files[id];
+            _files[id] = nullptr;
+        }
+        reply_error(is, Errors::NONE);
     }
-    reply_error(is, Errors::NONE);
 }
 
 Errors::Code M3FSMetaSession::open_file(capsel_t srv, KIF::Service::ExchangeData &data) {
@@ -139,7 +143,7 @@ Errors::Code M3FSMetaSession::do_open(capsel_t srv, const char *path, int flags,
 void M3FSMetaSession::next_in(GateIStream &is) {
     size_t id;
     is >> id;
-    if(_files[id] != nullptr)
+    if(id < _max_files && _files[id] != nullptr)
         _files[id]->next_in(is);
     else
         reply_error(is, Errors::INV_ARGS);
@@ -148,7 +152,7 @@ void M3FSMetaSession::next_in(GateIStream &is) {
 void M3FSMetaSession::next_out(GateIStream &is) {
     size_t id;
     is >> id;
-    if(_files[id] != nullptr)
+    if(id < _max_files && _files[id] != nullptr)
         _files[id]->next_out(is);
     else
         reply_error(is, Errors::INV_ARGS);
@@ -157,7 +161,7 @@ void M3FSMetaSession::next_out(GateIStream &is) {
 void M3FSMetaSession::commit(GateIStream &is) {
     size_t id;
     is >> id;
-    if(_files[id] != nullptr)
+    if(id < _max_files && _files[id] != nullptr)
         _files[id]->commit(is);
     else
         reply_error(is, Errors::INV_ARGS);
@@ -166,7 +170,7 @@ void M3FSMetaSession::commit(GateIStream &is) {
 void M3FSMetaSession::seek(GateIStream &is) {
     size_t id;
     is >> id;
-    if(_files[id] != nullptr)
+    if(id < _max_files && _files[id] != nullptr)
         _files[id]->seek(is);
     else
         reply_error(is, Errors::INV_ARGS);
@@ -175,7 +179,7 @@ void M3FSMetaSession::seek(GateIStream &is) {
 void M3FSMetaSession::fstat(GateIStream &is) {
     size_t id;
     is >> id;
-    if(_files[id] != nullptr)
+    if(id < _max_files && _files[id] != nullptr)
         _files[id]->fstat(is);
     else
         reply_error(is, Errors::INV_ARGS);
