@@ -36,15 +36,14 @@ namespace m3 {
 class ClientSession : public ObjCap {
 public:
     /**
-     * Opens a session at service <name>, sending him <arg> as argument to the OPEN event.
+     * Opens a session at service <name>.
      *
      * @param name the service name
-     * @param arg the argument
      * @param sel the desired selector
      */
-    explicit ClientSession(const String &name, xfer_t arg = 0, capsel_t sel = ObjCap::INVALID)
+    explicit ClientSession(const String &name, capsel_t sel = ObjCap::INVALID)
         : ObjCap(SESSION), _close(true) {
-        connect(name, arg, sel);
+        connect(name, sel);
     }
 
     /**
@@ -145,7 +144,7 @@ public:
     Errors::Code obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args = nullptr);
 
 private:
-    void connect(const String &name, xfer_t arg, capsel_t sel);
+    void connect(const String &name, capsel_t sel);
 
     bool _close;
 };

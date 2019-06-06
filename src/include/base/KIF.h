@@ -366,7 +366,8 @@ struct KIF {
         };
 
         struct Open : public DefaultRequest {
-            xfer_t arg;
+            xfer_t arglen;
+            char arg[MAX_MSG_SIZE];
         } PACKED;
 
         struct OpenReply : public DefaultReply {

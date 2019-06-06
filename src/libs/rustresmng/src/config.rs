@@ -94,6 +94,9 @@ impl SessionDesc {
     pub fn serv_name(&self) -> &String {
         &self.serv
     }
+    pub fn arg(&self) -> &String {
+        &self.arg
+    }
 
     pub fn is_used(&self) -> bool {
         self.usage.borrow().is_some()

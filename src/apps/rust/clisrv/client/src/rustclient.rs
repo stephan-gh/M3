@@ -26,7 +26,7 @@ use m3::session::ClientSession;
 #[no_mangle]
 pub fn main() -> i32 {
     for _ in 0..3 {
-        let sess = ClientSession::new("test", 0).expect("Unable to connect to 'test'");
+        let sess = ClientSession::new("test").expect("Unable to connect to 'test'");
         let rgate = RecvGate::def();
         let mut sgate = SendGate::new_bind(sess.obtain_obj().expect("Unable to obtain SGate cap"));
 

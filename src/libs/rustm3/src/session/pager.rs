@@ -52,7 +52,7 @@ int_enum! {
 
 impl Pager {
     pub fn new(vpe: &mut VPE, rbuf: usize, pager: &str) -> Result<Self, Error> {
-        let sess = ClientSession::new(pager, 0)?;
+        let sess = ClientSession::new(pager)?;
         Self::create(vpe, rbuf, sess)
     }
 

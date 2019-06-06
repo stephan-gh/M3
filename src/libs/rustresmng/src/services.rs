@@ -90,11 +90,17 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(sel: Selector, serv: &mut Service, arg: u64) -> Result<(Selector, Self), Error> {
-        let smsg = kif::service::Open {
+    pub fn new(sel: Selector, serv: &mut Service, arg: &String) -> Result<(Selector, Self), Error> {
+        let mut smsg = kif::service::Open {
             opcode: kif::service::Operation::OPEN.val as u64,
-            arg: arg,
+            arglen: arg.len() as u64,
+            arg: unsafe { intrinsics::uninit() },
         };
+        // copy arg
+        for (a, c) in smsg.arg.iter_mut().zip(arg.bytes()) {
+            *a = c as u8;
+        }
+
         let event = serv.queue.send(util::object_to_bytes(&smsg));
 
         event.and_then(|event| {
@@ -228,21 +234,23 @@ impl ServiceManager {
         Ok(())
     }
 
-    pub fn open_session(&mut self, child: &mut Child, dst_sel: Selector,
-                        name: &String, arg: u64) -> Result<(), Error> {
-        log!(RESMNG, "{}: open_sess(dst_sel={}, name={}, arg={})",
-             child.name(), dst_sel, name, arg);
+    pub fn open_session(&mut self, child: &mut Child,
+                        dst_sel: Selector, name: &String) -> Result<(), Error> {
+        log!(RESMNG, "{}: open_sess(dst_sel={}, name={})",
+             child.name(), dst_sel, name);
 
         let cfg = child.cfg();
-        let (sdesc, sname) = if cfg.restrict() {
+        let empty_arg = String::new();
+        // TODO "restrict=0" shouldn't prevent us from passing arguments on session creation
+        let (sdesc, sname, arg) = if cfg.restrict() {
             let sdesc = cfg.get_session(&name).ok_or(Error::new(Code::InvArgs))?;
             if sdesc.is_used() {
                 return Err(Error::new(Code::Exists));
             }
-            (Some(sdesc), sdesc.serv_name())
+            (Some(sdesc), sdesc.serv_name(), sdesc.arg())
         }
         else {
-            (None, name)
+            (None, name, &empty_arg)
         };
 
         let serv = self.get(sname)?;

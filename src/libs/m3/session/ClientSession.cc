@@ -28,11 +28,11 @@ ClientSession::~ClientSession() {
     }
 }
 
-void ClientSession::connect(const String &service, xfer_t arg, capsel_t selector) {
+void ClientSession::connect(const String &service, capsel_t selector) {
     if(selector == INVALID)
         selector = VPE::self().alloc_sel();
 
-    if(VPE::self().resmng().open_sess(selector, service, arg) == Errors::NONE)
+    if(VPE::self().resmng().open_sess(selector, service) == Errors::NONE)
         sel(selector);
 }
 

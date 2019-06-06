@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <base/util/String.h>
 #include <base/Errors.h>
 #include <base/KIF.h>
 
@@ -29,7 +30,7 @@ public:
     virtual ~Handler() {
     }
 
-    virtual Errors::Code open(SESS **sess, capsel_t, word_t) = 0;
+    virtual Errors::Code open(SESS **sess, capsel_t, const String &) = 0;
     virtual Errors::Code obtain(SESS *, KIF::Service::ExchangeData &) {
         return Errors::NOT_SUP;
     }

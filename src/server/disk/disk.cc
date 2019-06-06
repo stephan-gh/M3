@@ -22,6 +22,7 @@
  */
 
 #include <base/col/Treap.h>
+#include <base/stream/IStringStream.h>
 #include <base/util/Math.h>
 #include <base/CmdArgs.h>
 
@@ -82,7 +83,8 @@ public:
         return sess->get_sgate(data);
     }
 
-    virtual Errors::Code open(DiskSrvSession **sess, capsel_t srv_sel, word_t dev) override {
+    virtual Errors::Code open(DiskSrvSession **sess, capsel_t srv_sel, const String &arg) override {
+        size_t dev = IStringStream::read_from<size_t>(arg);
         if(!backend_exists(dev))
             return Errors::INV_ARGS;
 

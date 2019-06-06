@@ -21,6 +21,9 @@ use core::fmt;
 use core::intrinsics;
 use kif::syscalls;
 
+/// The maximum size of strings in service calls
+pub const MAX_STR_SIZE: usize = 32;
+
 int_enum! {
     /// The service calls
     pub struct Operation : u64 {
@@ -36,7 +39,8 @@ int_enum! {
 #[repr(C, packed)]
 pub struct Open {
     pub opcode: u64,
-    pub arg: u64,
+    pub arglen: u64,
+    pub arg: [u8; MAX_STR_SIZE],
 }
 
 /// The open reply message

@@ -94,9 +94,8 @@ fn unreg_serv(is: &mut GateIStream, child: &mut Child) {
 fn open_session(is: &mut GateIStream, child: &mut Child) {
     let dst_sel: Selector = is.pop();
     let name: String = is.pop();
-    let arg: u64 = is.pop();
 
-    let res = services::get().open_session(child, dst_sel, &name, arg);
+    let res = services::get().open_session(child, dst_sel, &name);
     reply_result(is, res);
 }
 

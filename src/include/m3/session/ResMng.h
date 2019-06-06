@@ -74,8 +74,8 @@ public:
         return retrieve_result(reply);
     }
 
-    Errors::Code open_sess(capsel_t dst, const String &name, uint64_t arg = 0) {
-        GateIStream reply = send_receive_vmsg(_sgate, OPEN_SESS, dst, name, arg);
+    Errors::Code open_sess(capsel_t dst, const String &name) {
+        GateIStream reply = send_receive_vmsg(_sgate, OPEN_SESS, dst, name);
         return retrieve_result(reply);
     }
 

@@ -87,16 +87,15 @@ fn unreg_serv(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
 fn open_session(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop();
     let name: String = is.pop();
-    let arg: u64 = is.pop();
 
     // first check our service list
-    let res = services::get().open_session(child, dst_sel, &name, arg);
+    let res = services::get().open_session(child, dst_sel, &name);
     match res {
         Ok(_)   => Ok(()),
         Err(_)  => {
             // if that failed, ask our resource manager
             let our_sel = xlate_sel(dst_sel)?;
-            VPE::cur().resmng().open_sess(our_sel, &name, arg)?;
+            VPE::cur().resmng().open_sess(our_sel, &name)?;
             child.delegate(our_sel, dst_sel)
         },
     }

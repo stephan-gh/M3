@@ -80,7 +80,7 @@ public:
         _rgate.start(wl, std::bind(&ReqHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(LoadGenSession **sess, capsel_t srv_sel, word_t) override {
+    virtual Errors::Code open(LoadGenSession **sess, capsel_t srv_sel, const String &) override {
         *sess = new LoadGenSession(&_rgate, srv_sel);
         return Errors::NONE;
     }

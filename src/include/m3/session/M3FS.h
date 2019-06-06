@@ -52,7 +52,7 @@ public:
     };
 
     explicit M3FS(const String &service)
-        : ClientSession(service, 0, VPE::self().alloc_sels(2)),
+        : ClientSession(service, VPE::self().alloc_sels(2)),
           FileSystem(),
           _gate(obtain_sgate()),
           _eps(),

@@ -67,7 +67,7 @@ impl M3FS {
 
     pub fn new(name: &str) -> Result<FSHandle, Error> {
         let sels = VPE::cur().alloc_sels(2);
-        let sess = ClientSession::new_with_sel(name, 0, sels + 1)?;
+        let sess = ClientSession::new_with_sel(name, sels + 1)?;
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 0, 1);
         let mut args = kif::syscalls::ExchangeArgs::default();

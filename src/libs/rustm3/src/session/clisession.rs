@@ -27,11 +27,11 @@ pub struct ClientSession {
 }
 
 impl ClientSession {
-    pub fn new(name: &str, arg: u64) -> Result<Self, Error> {
-        Self::new_with_sel(name, arg, vpe::VPE::cur().alloc_sel())
+    pub fn new(name: &str) -> Result<Self, Error> {
+        Self::new_with_sel(name, vpe::VPE::cur().alloc_sel())
     }
-    pub fn new_with_sel(name: &str, arg: u64, sel: Selector) -> Result<Self, Error> {
-        vpe::VPE::cur().resmng().open_sess(sel, name, arg)?;
+    pub fn new_with_sel(name: &str, sel: Selector) -> Result<Self, Error> {
+        vpe::VPE::cur().resmng().open_sess(sel, name)?;
 
         Ok(ClientSession {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),

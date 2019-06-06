@@ -35,7 +35,7 @@ public:
           _count() {
     }
 
-    virtual Errors::Code open(ServerSession **sess, capsel_t srv_sel, word_t) override {
+    virtual Errors::Code open(ServerSession **sess, capsel_t srv_sel, const String &) override {
         *sess = new ServerSession(srv_sel);
         return Errors::NONE;
     }

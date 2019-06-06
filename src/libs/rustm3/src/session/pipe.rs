@@ -29,7 +29,7 @@ pub struct Pipes {
 
 impl Pipes {
     pub fn new(name: &str) -> Result<Self, Error> {
-        let sess = ClientSession::new(name, 0)?;
+        let sess = ClientSession::new(name)?;
         Ok(Pipes {
             sess: sess,
         })

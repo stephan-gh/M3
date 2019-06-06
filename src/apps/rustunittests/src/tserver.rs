@@ -90,7 +90,7 @@ pub fn testnoresp() {
 
         let cact = assert_ok!(client.run(Box::new(|| {
             let sess = loop {
-                if let Ok(s) = ClientSession::new("test", 0) {
+                if let Ok(s) = ClientSession::new("test") {
                     break s;
                 }
             };
@@ -122,7 +122,7 @@ pub fn testcliexit() {
 
     let cact = assert_ok!(client.run(Box::new(move || {
         let sess = loop {
-            if let Ok(s) = ClientSession::new("test", 0) {
+            if let Ok(s) = ClientSession::new("test") {
                 break s;
             }
         };
@@ -159,7 +159,7 @@ pub fn testcliexit() {
 
 pub fn testmsgs() {
     {
-        let sess = assert_ok!(ClientSession::new("testmsgs", 0));
+        let sess = assert_ok!(ClientSession::new("testmsgs"));
         let sel = assert_ok!(sess.obtain_obj());
         let mut sgate = SendGate::new_bind(sel);
 
@@ -171,7 +171,7 @@ pub fn testmsgs() {
     }
 
     {
-        let sess = assert_ok!(ClientSession::new("testmsgs", 0));
+        let sess = assert_ok!(ClientSession::new("testmsgs"));
         let sel = assert_ok!(sess.obtain_obj());
         let mut sgate = SendGate::new_bind(sel);
 
@@ -186,7 +186,7 @@ pub fn testmsgs() {
 pub fn testcaps() {
     for _ in 0..10 {
         let sess = loop {
-            let sess_res = ClientSession::new("testcaps", 0);
+            let sess_res = ClientSession::new("testcaps");
             if let Result::Ok(sess) = sess_res {
                 break sess;
             }
@@ -199,5 +199,5 @@ pub fn testcaps() {
         assert_err!(sess.obtain_obj(), Code::InvArgs, Code::RecvGone);
     }
 
-    assert_err!(ClientSession::new("testcaps", 0), Code::InvArgs);
+    assert_err!(ClientSession::new("testcaps"), Code::InvArgs);
 }

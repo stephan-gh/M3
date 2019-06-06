@@ -54,7 +54,7 @@ public:
         _rgate.start(wl, std::bind(&PipeServiceHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(PipeSession **sess, capsel_t srv_sel, word_t) override {
+    virtual Errors::Code open(PipeSession **sess, capsel_t srv_sel, const String &) override {
         auto meta = new PipeMeta(srv_sel);
         _meta_sessions.append(meta);
         *sess = meta;

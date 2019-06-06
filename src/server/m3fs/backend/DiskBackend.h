@@ -27,9 +27,9 @@
 
 class DiskBackend : public Backend {
 public:
-    explicit DiskBackend(m3::WorkLoop *wl, size_t dev)
+    explicit DiskBackend(m3::WorkLoop *wl)
         : _blocksize(),
-          _disk(new m3::Disk(wl, "disk", dev)),
+          _disk(new m3::Disk(wl, "disk")),
           _metabuf() {
     }
     ~DiskBackend() {

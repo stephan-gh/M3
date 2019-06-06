@@ -83,10 +83,10 @@ impl ResMng {
         ).map(|_| ())
     }
 
-    pub fn open_sess(&self, dst: Selector, name: &str, arg: u64) -> Result<(), Error> {
+    pub fn open_sess(&self, dst: Selector, name: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
-            ResMngOperation::OPEN_SESS, dst, name, arg
+            ResMngOperation::OPEN_SESS, dst, name
         ).map(|_| ())
     }
 

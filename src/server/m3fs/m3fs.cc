@@ -75,7 +75,7 @@ public:
         _rgate.start(wl, std::bind(&M3FSRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(M3FSSession **sess, capsel_t srv_sel, word_t) override {
+    virtual Errors::Code open(M3FSSession **sess, capsel_t srv_sel, const String &) override {
         *sess = new M3FSMetaSession(_handle, srv_sel, _rgate);
         return Errors::NONE;
     }
@@ -204,7 +204,7 @@ private:
 NORETURN static void usage(const char *name) {
     cerr << "Usage: " << name
          << " [-n <name>] [-s <sel>] [-e <blocks>] [-c] [-r] [-b <blocks>]\n"
-         << " [-o <offset>] (disk <dev>|mem <fssize>)\n";
+         << " [-o <offset>] (disk|mem <fssize>)\n";
     cerr << "  -n: the name of the service (m3fs by default)\n";
     cerr << "  -s: don't create service, use selectors <sel>..<sel+1>\n";
     cerr << "  -e: the number of blocks to extend files when appending\n";
@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
             default: usage(argv[0]);
         }
     }
-    if(CmdArgs::ind + 1 >= argc)
+    if(CmdArgs::ind >= argc)
         usage(argv[0]);
 
     WorkLoop wl;
@@ -251,11 +251,11 @@ int main(int argc, char *argv[]) {
     // create backend
     Backend *backend;
     const char *backend_type = argv[CmdArgs::ind];
-    if(strcmp(backend_type, "disk") == 0) {
-        size_t dev = IStringStream::read_from<size_t>(argv[CmdArgs::ind + 1]);
-        backend = new DiskBackend(&wl, dev);
-    }
+    if(strcmp(backend_type, "disk") == 0)
+        backend = new DiskBackend(&wl);
     else if(strcmp(backend_type, "mem") == 0) {
+        if(CmdArgs::ind + 1 >= argc)
+            usage(argv[0]);
         size_t fs_size = IStringStream::read_from<size_t>(argv[CmdArgs::ind + 1]);
         backend = new MemBackend(fs_offset, fs_size);
     }
