@@ -121,7 +121,8 @@ VPE::VPE(const String &name, const VPEArgs &args)
     if(_pager) {
         // now create VPE, which implicitly obtains the gate cap from us
         Syscalls::create_vpe(dst, _pager->child_sgate().sel(), name, _pe,
-            _pager->sep(), _pager->rep(), args._flags, _kmem->sel(), group_sel);
+                             _pager->sep(), _pager->rep(), args._flags,
+                             _kmem->sel(), group_sel);
         // mark the send gate cap allocated
         _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
         // now delegate our VPE cap and memory cap to the pager
@@ -131,7 +132,8 @@ VPE::VPE(const String &name, const VPEArgs &args)
     }
     else {
         Syscalls::create_vpe(dst, ObjCap::INVALID, name, _pe,
-            0, 0, args._flags, _kmem->sel(), group_sel);
+                             0, 0, args._flags,
+                             _kmem->sel(), group_sel);
     }
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
