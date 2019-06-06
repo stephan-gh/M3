@@ -31,6 +31,8 @@ public:
         : _blocksize(),
           _disk(new m3::Disk(wl, "disk")),
           _metabuf() {
+        if(!_disk->is_connected())
+            m3::Errors::last = m3::Errors::INV_ARGS;
     }
     ~DiskBackend() {
         delete _metabuf;
