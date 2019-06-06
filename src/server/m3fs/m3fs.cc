@@ -75,8 +75,13 @@ public:
         _rgate.start(wl, std::bind(&M3FSRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(M3FSSession **sess, capsel_t srv_sel, const String &) override {
-        *sess = new M3FSMetaSession(_handle, srv_sel, _rgate);
+    virtual Errors::Code open(M3FSSession **sess, capsel_t srv_sel, const String &args) override {
+        size_t max_files = 64;
+        if(args.length() > 0) {
+            if(strncmp(args.c_str(), "files=", 6) == 0)
+                max_files = IStringStream::read_from<size_t>(args.c_str() + 6);
+        }
+        *sess = new M3FSMetaSession(_handle, srv_sel, _rgate, max_files);
         return Errors::NONE;
     }
 

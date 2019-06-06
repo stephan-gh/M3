@@ -267,7 +267,7 @@ void M3FSMetaSession::unlink(GateIStream &is) {
 }
 
 void M3FSMetaSession::remove_file(M3FSFileSession *file) {
-    for(size_t i = 0; i < MAX_FILES; ++i) {
+    for(size_t i = 0; i < _max_files; ++i) {
         if(_files[i] == file) {
             _files[i] = nullptr;
             break;
@@ -277,7 +277,7 @@ void M3FSMetaSession::remove_file(M3FSFileSession *file) {
 
 ssize_t M3FSMetaSession::alloc_file(capsel_t srv, const char *path, int flags, inodeno_t ino) {
     assert(flags != 0);
-    for(size_t i = 0; i < MAX_FILES; ++i) {
+    for(size_t i = 0; i < _max_files; ++i) {
         if(_files[i] == NULL) {
             _files[i] = new M3FSFileSession(hdl(), srv, this, path, flags, ino);
             return static_cast<ssize_t>(i);

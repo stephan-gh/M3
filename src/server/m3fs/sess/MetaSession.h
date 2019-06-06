@@ -28,18 +28,17 @@ class M3FSMetaSession : public M3FSSession {
     };
 
 public:
-    static constexpr size_t MAX_FILES   = 64;
-
-    explicit M3FSMetaSession(FSHandle &handle, capsel_t srv_sel, m3::RecvGate &rgate)
+    explicit M3FSMetaSession(FSHandle &handle, capsel_t srv_sel, m3::RecvGate &rgate, size_t max_files)
         : M3FSSession(handle, srv_sel),
           _sgates(),
           _rgate(rgate),
           _ep_start(),
           _ep_count(),
-          _files() {
+          _max_files(max_files),
+          _files(new M3FSFileSession*[max_files]()) {
     }
     virtual ~M3FSMetaSession() {
-        for(size_t i = 0; i < MAX_FILES; ++i)
+        for(size_t i = 0; i < _max_files; ++i)
             delete _files[i];
         for(auto it = _sgates.begin(); it != _sgates.end();) {
             auto old = it++;
@@ -87,6 +86,6 @@ private:
     m3::RecvGate &_rgate;
     capsel_t _ep_start;
     capsel_t _ep_count;
-    // TODO change that to a list?
-    M3FSFileSession *_files[MAX_FILES];
+    size_t _max_files;
+    M3FSFileSession **_files;
 };
