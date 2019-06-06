@@ -45,6 +45,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _kmem(kmem),
       _services(),
       _pending_fwds(),
+      _waits(),
       _name(m3::Util::move(prog)),
       _objcaps(id + 1),
       _mapcaps(id + 1),
@@ -52,6 +53,8 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _rbufs_size(),
       _dtustate(),
       _upcqueue(*this),
+      _vpe_wait_sels(),
+      _vpe_wait_count(),
       _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id, sep, rep, sgate) : nullptr),
       _headers(),
       _rbufcpy(),
@@ -206,6 +209,42 @@ void VPE::exit_app(int exitcode) {
     PEManager::get().stop_vpe(this);
 
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&exit_event));
+}
+
+bool VPE::check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply) {
+    for(size_t i = 0; i < count; ++i) {
+        auto vpecap = static_cast<VPECapability*>(_objcaps.get(sels[i], Capability::VIRTPE));
+        if(vpecap == nullptr || &*vpecap->obj == this)
+            continue;
+
+        if(!vpecap->obj->has_app()) {
+            reply.vpe_sel = sels[i];
+            reply.exitcode = static_cast<xfer_t>(vpecap->obj->exitcode());
+            return true;
+        }
+    }
+
+    start_wait();
+    VPE::wait_for_exit();
+    stop_wait();
+    return false;
+}
+
+void VPE::wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply) {
+    _vpe_wait_count = count;
+    // remember the location for later modification
+    if(!_vpe_wait_sels)
+        _vpe_wait_sels = sels;
+    else {
+        // update the selectors and return
+        memcpy(const_cast<xfer_t*>(_vpe_wait_sels), sels, count * sizeof(xfer_t));
+        return;
+    }
+
+    while(!check_exits(const_cast<const xfer_t*>(_vpe_wait_sels), _vpe_wait_count, reply))
+        ;
+
+    _vpe_wait_sels = nullptr;
 }
 
 void VPE::yield() {

@@ -94,12 +94,11 @@ public:
         F_HASAPP      = 1 << 3,
         F_MUXABLE     = 1 << 4, // TODO temporary
         F_READY       = 1 << 5,
-        F_WAITING     = 1 << 6,
-        F_NEEDS_INVAL = 1 << 7,
-        F_FLUSHED     = 1 << 8,
-        F_NOBLOCK     = 1 << 9,
-        F_PINNED      = 1 << 10,
-        F_YIELDED     = 1 << 11,
+        F_NEEDS_INVAL = 1 << 6,
+        F_FLUSHED     = 1 << 7,
+        F_NOBLOCK     = 1 << 8,
+        F_PINNED      = 1 << 9,
+        F_YIELDED     = 1 << 10,
     };
 
     explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem,
@@ -186,15 +185,14 @@ public:
     static void wait_for_exit();
 
     bool is_waiting() const {
-        return _flags & F_WAITING;
+        return _waits > 0;
     }
     void start_wait() {
-        assert(!(_flags & F_WAITING));
-        _flags |= F_WAITING;
+        _waits++;
     }
     void stop_wait() {
-        assert(_flags & F_WAITING);
-        _flags ^= F_WAITING;
+        assert(_waits > 0);
+        _waits--;
     }
 
     CapTable &objcaps() {
@@ -241,6 +239,9 @@ public:
     void start_app(int pid);
     void stop_app(int exitcode, bool self);
 
+    bool check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
+    void wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
+
     void yield();
 
     bool migrate(bool fast);
@@ -283,6 +284,7 @@ private:
     m3::Reference<KMemObject> _kmem;
     uint _services;
     uint _pending_fwds;
+    uint _waits;
     m3::String _name;
     CapTable _objcaps;
     CapTable _mapcaps;
@@ -290,6 +292,8 @@ private:
     size_t _rbufs_size;
     alignas(DTU_PKG_SIZE) DTUState _dtustate;
     SendQueue _upcqueue;
+    volatile xfer_t *_vpe_wait_sels;
+    volatile size_t _vpe_wait_count;
     AddrSpace *_as;
     size_t _headers;
     MainMemory::Allocation _rbufcpy;

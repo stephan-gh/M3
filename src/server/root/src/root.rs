@@ -166,6 +166,7 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
 }
 
 fn start_delayed() {
+    let mut new_wait = false;
     let mut idx = 0;
     let delayed = DELAYED.get_mut();
     while idx < delayed.len() {
@@ -181,9 +182,10 @@ fn start_delayed() {
         let sel = BOOT_MOD_SELS + 2 + c.id();
         start_child(&mut c, sel, &m).expect("Unable to start boot module");
         childs::get().add(Box::new(c));
+        new_wait = true;
     }
 
-    if delayed.len() == 0 {
+    if new_wait {
         childs::get().start_waiting(1);
     }
 }
@@ -375,9 +377,7 @@ pub fn main() -> i32 {
     // ensure that there is no id overlap
     childs::get().set_next_id(info.mod_count as Id + 1);
 
-    if DELAYED.get().len() == 0 {
-        childs::get().start_waiting(1);
-    }
+    childs::get().start_waiting(1);
 
     workloop();
 

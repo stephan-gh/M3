@@ -626,50 +626,39 @@ void SyscallHandler::vpe_wait(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::VPEWait>(msg);
     size_t count = req->vpe_count;
     event_t event = req->event;
-    xfer_t sels_cpy[ARRAY_SIZE(req->sels)];
-    const xfer_t *sels = req->sels;
 
     if(count == 0 || count > ARRAY_SIZE(req->sels))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE count is invalid");
 
     m3::KIF::Syscall::VPEWaitReply reply;
     reply.error = m3::Errors::NONE;
+    reply.vpe_sel = m3::KIF::INV_SEL;
 
     LOG_SYS(vpe, ": syscall::vpe_wait", "(vpes=" << count << ")");
 
-    // copy it from the message if we reply via upcall, because the message may be overwritten
     if(event) {
-        memcpy(sels_cpy, sels, sizeof(sels_cpy));
-        sels = sels_cpy;
+        // first copy the selectors from the message to the stack
+        xfer_t sels_cpy[ARRAY_SIZE(m3::KIF::Syscall::VPEWait::sels)];
+        memcpy(sels_cpy, req->sels, count * sizeof(xfer_t));
+        // now early-reply to the application; we'll notify it later via upcall
         reply_result(vpe, msg, m3::Errors::NONE);
+
+        vpe->wait_exit_async(sels_cpy, count, reply);
+    }
+    else {
+        while(!vpe->check_exits(req->sels, count, reply))
+            ;
     }
 
-    while(true) {
-        for(size_t i = 0; i < count; ++i) {
-            auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(sels[i], Capability::VIRTPE));
-            if(vpecap == nullptr || &*vpecap->obj == vpe)
-                continue;
+    if(reply.vpe_sel != m3::KIF::INV_SEL) {
+        LOG_SYS(vpe, ": syscall::vpe_wait-cont",
+            "(vpe=" << reply.vpe_sel << ", exitcode=" << reply.exitcode << ")");
 
-            if(!vpecap->obj->has_app()) {
-                reply.vpe_sel = sels[i];
-                reply.exitcode = static_cast<xfer_t>(vpecap->obj->exitcode());
-                goto done;
-            }
-        }
-
-        vpe->start_wait();
-        VPE::wait_for_exit();
-        vpe->stop_wait();
+        if(event)
+            vpe->upcall_vpewait(event, reply);
+        else
+            reply_msg(vpe, msg, &reply, sizeof(reply));
     }
-
-done:
-    LOG_SYS(vpe, ": syscall::vpe_wait-cont",
-        "(vpe=" << reply.vpe_sel << ", exitcode=" << reply.exitcode << ")");
-
-    if(event)
-        vpe->upcall_vpewait(event, reply);
-    else
-        reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
 void SyscallHandler::derive_mem(VPE *vpe, const m3::DTU::Message *msg) {
