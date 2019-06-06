@@ -103,7 +103,7 @@ private:
         if(sess)
             LLOG(SERV, fmt((word_t)sess, "#x") << ": open()");
 
-        reply.sess = sess->sel();
+        reply.sess = sess ? sess->sel() : KIF::INV_SEL;
         reply.ident = reinterpret_cast<uintptr_t>(sess);
         is.reply(&reply, sizeof(reply));
     }
