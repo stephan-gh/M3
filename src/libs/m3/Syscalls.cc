@@ -23,10 +23,8 @@
 
 namespace m3 {
 
-INIT_PRIO_SYSC Syscalls Syscalls::_inst;
-
 DTU::Message *Syscalls::send_receive(const void *msg, size_t size) {
-    DTU::get().send(_gate.ep(), msg, size, 0, m3::DTU::SYSC_REP);
+    DTU::get().send(DTU::SYSC_SEP, msg, size, 0, m3::DTU::SYSC_REP);
 
     DTU::Message *reply;
     do {
@@ -335,7 +333,7 @@ USED void Syscalls::exit(int exitcode) {
     req.vpe_sel = 0;
     req.op = KIF::Syscall::VCTRL_STOP;
     req.arg = static_cast<xfer_t>(exitcode);
-    DTU::get().send(_gate.ep(), &req, sizeof(req), 0, m3::DTU::SYSC_REP);
+    DTU::get().send(DTU::SYSC_SEP, &req, sizeof(req), 0, m3::DTU::SYSC_REP);
 }
 
 }

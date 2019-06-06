@@ -33,7 +33,7 @@ static capsel_t selector = ObjCap::INVALID;
 NOINLINE static void noop() {
     Profile pr;
     cout << pr.run_with_id([] {
-        Syscalls::get().noop();
+        Syscalls::noop();
         if(Errors::occurred())
             PANIC("syscall failed");
     }, 0x50) << "\n";
@@ -45,7 +45,7 @@ NOINLINE static void activate() {
 
     Profile pr;
     cout << pr.run_with_id([&mgate] {
-        Syscalls::get().activate(VPE::self().ep_to_sel(mgate.ep()), mgate.sel(), 0);
+        Syscalls::activate(VPE::self().ep_to_sel(mgate.ep()), mgate.sel(), 0);
         if(Errors::occurred())
             PANIC("syscall failed");
     }, 0x51) << "\n";
@@ -54,12 +54,12 @@ NOINLINE static void activate() {
 NOINLINE static void create_rgate() {
     struct SyscallRGateRunner : public Runner {
         void run() override {
-            Syscalls::get().create_rgate(selector, 10, 10);
+            Syscalls::create_rgate(selector, 10, 10);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
         void post() override {
-            Syscalls::get().revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
     };
 
@@ -73,12 +73,12 @@ NOINLINE static void create_sgate() {
         explicit SyscallSGateRunner() : rgate(RecvGate::create(10, 10)) {
         }
         void run() override {
-            Syscalls::get().create_sgate(selector, rgate.sel(), 0x1234, 1024);
+            Syscalls::create_sgate(selector, rgate.sel(), 0x1234, 1024);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
         void post() override {
-            Syscalls::get().revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         RecvGate rgate;
@@ -102,12 +102,12 @@ NOINLINE static void create_map() {
         }
 
         void run() override {
-            Syscalls::get().create_map(DEST, 0, mgate.sel(), 0, 1, MemGate::RW);
+            Syscalls::create_map(DEST, 0, mgate.sel(), 0, 1, MemGate::RW);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
         void post() override {
-            Syscalls::get().revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 1), true);
+            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 1), true);
         }
 
         MemGate mgate;
@@ -125,12 +125,12 @@ NOINLINE static void create_srv() {
         }
 
         void run() override {
-            Syscalls::get().create_srv(selector, VPE::self().sel(), rgate.sel(), "test");
+            Syscalls::create_srv(selector, VPE::self().sel(), rgate.sel(), "test");
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
         void post() override {
-            Syscalls::get().revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         RecvGate rgate;
@@ -147,12 +147,12 @@ NOINLINE static void derive_mem() {
         }
 
         void run() override {
-            Syscalls::get().derive_mem(VPE::self().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
+            Syscalls::derive_mem(VPE::self().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
         void post() override {
-            Syscalls::get().revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         MemGate mgate;
@@ -169,13 +169,13 @@ NOINLINE static void exchange() {
         }
 
         void run() override {
-            Syscalls::get().exchange(vpe.sel(),
+            Syscalls::exchange(vpe.sel(),
                 KIF::CapRngDesc(KIF::CapRngDesc::OBJ, 1, 1), selector, false);
             if(Errors::occurred())
                 PANIC("syscall failed");
         }
         void post() override {
-            Syscalls::get().revoke(vpe.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(vpe.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         VPE vpe;

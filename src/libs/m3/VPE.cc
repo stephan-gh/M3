@@ -34,19 +34,19 @@ INIT_PRIO_VPE VPE VPE::_self;
 
 VPEGroup::VPEGroup() : ObjCap(ObjCap::VPEGRP) {
     capsel_t dst = VPE::self().alloc_sel();
-    Syscalls::get().create_vgroup(dst);
+    Syscalls::create_vgroup(dst);
     sel(dst);
 }
 
 size_t KMem::quota() const {
     size_t amount = 0;
-    Syscalls::get().kmem_quota(sel(), amount);
+    Syscalls::kmem_quota(sel(), amount);
     return amount;
 }
 
 Reference<KMem> KMem::derive(const KMem &base, size_t quota) {
     capsel_t sel = VPE::self().alloc_sel();
-    Syscalls::get().derive_kmem(base.sel(), sel, quota);
+    Syscalls::derive_kmem(base.sel(), sel, quota);
     return Reference<KMem>(new KMem(sel, 0));
 }
 
@@ -120,7 +120,7 @@ VPE::VPE(const String &name, const VPEArgs &args)
     KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, sel(), KIF::FIRST_FREE_SEL);
     if(_pager) {
         // now create VPE, which implicitly obtains the gate cap from us
-        Syscalls::get().create_vpe(dst, _pager->child_sgate().sel(), name, _pe,
+        Syscalls::create_vpe(dst, _pager->child_sgate().sel(), name, _pe,
             _pager->sep(), _pager->rep(), args._flags, _kmem->sel(), group_sel);
         // mark the send gate cap allocated
         _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
@@ -130,7 +130,7 @@ VPE::VPE(const String &name, const VPEArgs &args)
         delegate_obj(_pager->sel());
     }
     else {
-        Syscalls::get().create_vpe(dst, ObjCap::INVALID, name, _pe,
+        Syscalls::create_vpe(dst, ObjCap::INVALID, name, _pe,
             0, 0, args._flags, _kmem->sel(), group_sel);
     }
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
@@ -194,7 +194,7 @@ Errors::Code VPE::obtain_fds() {
 }
 
 Errors::Code VPE::delegate(const KIF::CapRngDesc &crd, capsel_t dest) {
-    Errors::Code res = Syscalls::get().exchange(sel(), crd, dest, false);
+    Errors::Code res = Syscalls::exchange(sel(), crd, dest, false);
     if(res == Errors::NONE)
         _next_sel = Math::max(_next_sel, dest + crd.count());
     return res;
@@ -206,26 +206,26 @@ Errors::Code VPE::obtain(const KIF::CapRngDesc &crd) {
 
 Errors::Code VPE::obtain(const KIF::CapRngDesc &crd, capsel_t dest) {
     KIF::CapRngDesc own(crd.type(), dest, crd.count());
-    return Syscalls::get().exchange(sel(), own, crd.start(), true);
+    return Syscalls::exchange(sel(), own, crd.start(), true);
 }
 
 Errors::Code VPE::revoke(const KIF::CapRngDesc &crd, bool delonly) {
-    return Syscalls::get().revoke(sel(), crd, !delonly);
+    return Syscalls::revoke(sel(), crd, !delonly);
 }
 
 Errors::Code VPE::start() {
-    return Syscalls::get().vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, 0);
+    return Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, 0);
 }
 
 Errors::Code VPE::stop() {
-    return Syscalls::get().vpe_ctrl(sel(), KIF::Syscall::VCTRL_STOP, 0);
+    return Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_STOP, 0);
 }
 
 int VPE::wait_async(event_t event) {
     capsel_t _sel;
     int exitcode;
     const capsel_t sels[] = {sel()};
-    Syscalls::get().vpe_wait(sels, 1, event, &_sel, &exitcode);
+    Syscalls::vpe_wait(sels, 1, event, &_sel, &exitcode);
     return exitcode;
 }
 

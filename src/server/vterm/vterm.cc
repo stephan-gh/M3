@@ -118,7 +118,7 @@ public:
         }
 
         if(!active) {
-            Syscalls::get().activate(ep, mem.sel(), 0);
+            Syscalls::activate(ep, mem.sel(), 0);
             active = true;
         }
 
@@ -144,7 +144,7 @@ public:
         }
 
         if(!active) {
-            Syscalls::get().activate(ep, mem.sel(), 0);
+            Syscalls::activate(ep, mem.sel(), 0);
             active = true;
         }
 

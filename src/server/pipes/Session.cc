@@ -166,7 +166,7 @@ Errors::Code PipeChannel::activate() {
             memory = new MemGate(pipe->memory->derive(0, pipe->rbuf.size(), perms));
         }
 
-        if(Syscalls::get().activate(epcap, memory->sel(), 0) != Errors::NONE)
+        if(Syscalls::activate(epcap, memory->sel(), 0) != Errors::NONE)
             return Errors::last;
         epcap = ObjCap::INVALID;
     }

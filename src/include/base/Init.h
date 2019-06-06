@@ -24,16 +24,15 @@
 
 #define INIT_PRIO_RECVBUF       INIT_PRIO(104)
 #define INIT_PRIO_RECVGATE      INIT_PRIO(105)
-#define INIT_PRIO_SYSC          INIT_PRIO(106)
 
 #if defined(__host__)
 #   define INIT_PRIO_ENV        INIT_PRIO(103)
 // this needs to run as soon as syscalls work
-#   define INIT_PRIO_ENV_POST   INIT_PRIO(107)
+#   define INIT_PRIO_ENV_POST   INIT_PRIO(106)
 #endif
 
-#define INIT_PRIO_VPE           INIT_PRIO(108)
-#define INIT_PRIO_VFS           INIT_PRIO(109)
-#define INIT_PRIO_STREAM        INIT_PRIO(110)
+#define INIT_PRIO_VPE           INIT_PRIO(107)
+#define INIT_PRIO_VFS           INIT_PRIO(108)
+#define INIT_PRIO_STREAM        INIT_PRIO(109)
 
 #define INIT_PRIO_USER(X)       INIT_PRIO(200 + (X))

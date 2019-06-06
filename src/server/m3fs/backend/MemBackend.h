@@ -52,9 +52,9 @@ public:
                         bool, bool, size_t) override {
         size_t first_block = extoff / _blocksize;
         size_t bytes = (ext->length - first_block) * _blocksize;
-        if(m3::Syscalls::get().derive_mem(m3::VPE::self().sel(), sel, _mem.sel(),
-                                         (ext->start + first_block) * _blocksize,
-                                         bytes, perms) != m3::Errors::NONE) {
+        if(m3::Syscalls::derive_mem(m3::VPE::self().sel(), sel, _mem.sel(),
+                                    (ext->start + first_block) * _blocksize,
+                                    bytes, perms) != m3::Errors::NONE) {
             return 0;
         }
         return bytes;

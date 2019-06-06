@@ -52,11 +52,11 @@ static void stop_dtu() {
 
 static void init_syscall() {
     word_t arg = Env::eps_start();
-    Syscalls::get().vpe_ctrl(VPE::self().sel(), KIF::Syscall::VCTRL_INIT, arg);
+    Syscalls::vpe_ctrl(VPE::self().sel(), KIF::Syscall::VCTRL_INIT, arg);
 }
 
 void Env::on_exit_func(int status, void *) {
-    Syscalls::get().exit(status);
+    Syscalls::exit(status);
     stop_dtu();
     // destroy the enviromment here, because on_exit functions are called last
     delete _inst;

@@ -37,12 +37,12 @@ void ClientSession::connect(const String &service, xfer_t arg, capsel_t selector
 }
 
 Errors::Code ClientSession::delegate_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
-    return Syscalls::get().delegate(vpe.sel(), sel(), crd, args);
+    return Syscalls::delegate(vpe.sel(), sel(), crd, args);
 }
 
 Errors::Code ClientSession::obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
     vpe.mark_caps_allocated(crd.start(), crd.count());
-    return Syscalls::get().obtain(vpe.sel(), sel(), crd, args);
+    return Syscalls::obtain(vpe.sel(), sel(), crd, args);
 }
 
 }

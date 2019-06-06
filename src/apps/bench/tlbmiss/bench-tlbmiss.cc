@@ -36,7 +36,7 @@ int main() {
 
     cycles_t xfer = 0;
     for(size_t i = 0; i < COUNT; ++i) {
-        Syscalls::get().create_map(
+        Syscalls::create_map(
             virt / PAGE_SIZE, VPE::self().sel(), mgate.sel(), 0, PAGES, MemGate::RW
         );
 
@@ -48,7 +48,7 @@ int main() {
             xfer += end - start;
         }
 
-        Syscalls::get().revoke(
+        Syscalls::revoke(
             VPE::self().sel(), KIF::CapRngDesc(KIF::CapRngDesc::MAP, virt / PAGE_SIZE, PAGES), true
         );
     }

@@ -82,7 +82,7 @@ RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, int order, int 
       _handler(),
       _workitem() {
     if(sel() != ObjCap::INVALID) {
-        Errors::Code res = Syscalls::get().create_rgate(sel(), order, msgorder);
+        Errors::Code res = Syscalls::create_rgate(sel(), order, msgorder);
         if(res != Errors::NONE)
             PANIC("Creating RecvGate failed: " << Errors::to_string(res));
     }
@@ -152,7 +152,7 @@ void RecvGate::activate(epid_t _ep, uintptr_t addr) {
 #endif
 
     if(sel() != ObjCap::INVALID) {
-        Errors::Code res = Syscalls::get().activate(_vpe.ep_to_sel(ep()), sel(), addr);
+        Errors::Code res = Syscalls::activate(_vpe.ep_to_sel(ep()), sel(), addr);
         if(res != Errors::NONE)
             PANIC("Attaching RecvGate to " << ep() << " failed: " << Errors::to_string(res));
     }
@@ -192,7 +192,7 @@ Errors::Code RecvGate::reply(const void *data, size_t len, size_t msgidx) {
 
     if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
         event_t event = ThreadManager::get().get_wait_event();
-        res = Syscalls::get().forward_reply(sel(), data, len, msgidx, event);
+        res = Syscalls::forward_reply(sel(), data, len, msgidx, event);
 
         // if this has been done, go to sleep and wait until the kernel sends us the upcall
         if(res == Errors::UPCALL_REPLY) {

@@ -123,7 +123,7 @@ done:
 }
 
 Errors::Code EPMux::activate(epid_t ep, capsel_t newcap) {
-    return Syscalls::get().activate(VPE::self().ep_to_sel(ep), newcap, 0);
+    return Syscalls::activate(VPE::self().ep_to_sel(ep), newcap, 0);
 }
 
 }

@@ -238,7 +238,7 @@ Errors::Code VPE::run(void *lambda) {
     else {
         // let the kernel create the config-file etc. for the given pid
         xfer_t arg = static_cast<xfer_t>(pid);
-        Syscalls::get().vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
+        Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
         write_state(pid, _next_sel, _eps, _resmng->sel(), _kmem->sel(),
             _rbufcur, _rbufend, *_fds, *_ms);
@@ -308,7 +308,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
 
         // let the kernel create the config-file etc. for the given pid
         xfer_t arg = static_cast<xfer_t>(pid);
-        Syscalls::get().vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
+        Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
         write_state(pid, _next_sel, _eps, _resmng->sel(), _kmem->sel(),
             _rbufcur, _rbufend, *_fds, *_ms);

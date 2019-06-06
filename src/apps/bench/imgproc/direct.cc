@@ -158,7 +158,7 @@ static void wait_for(DirectChain **chains, size_t num) {
 
         capsel_t vpe;
         int exitcode;
-        if(Syscalls::get().vpe_wait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
+        if(Syscalls::vpe_wait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
             errmsg("Unable to wait for VPEs");
         else {
             for(size_t i = 0; i < num; ++i)

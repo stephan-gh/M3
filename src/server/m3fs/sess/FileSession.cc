@@ -211,7 +211,7 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
     _lastbytes = len - capoff;
     if(len > 0) {
         // activate mem cap for client
-        if(Syscalls::get().activate(_epcap, sel, 0) != Errors::NONE) {
+        if(Syscalls::activate(_epcap, sel, 0) != Errors::NONE) {
             PRINT(this, "activate failed: " << Errors::to_string(Errors::last));
             reply_error(is, Errors::last);
             return;

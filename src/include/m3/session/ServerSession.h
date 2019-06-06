@@ -42,7 +42,7 @@ public:
         if(srv_sel != ObjCap::INVALID) {
             if(_sel == ObjCap::INVALID)
                 _sel = VPE::self().alloc_sel();
-            Syscalls::get().create_sess(_sel, srv_sel, reinterpret_cast<word_t>(this));
+            Syscalls::create_sess(_sel, srv_sel, reinterpret_cast<word_t>(this));
             sel(_sel);
         }
     }
