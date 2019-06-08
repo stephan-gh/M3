@@ -32,13 +32,13 @@ use vpe::Mapper;
 pub struct Loader<'l> {
     pager: Option<&'l Pager>,
     pager_inherited: bool,
-    mapper: &'l mut Mapper,
+    mapper: &'l mut dyn Mapper,
     mem: &'l MemGate,
 }
 
 impl<'l> Loader<'l> {
     pub fn new(pager: Option<&'l Pager>, pager_inherited: bool,
-               mapper: &'l mut Mapper, mem: &'l MemGate) -> Loader<'l> {
+               mapper: &'l mut dyn Mapper, mem: &'l MemGate) -> Loader<'l> {
         Loader {
             pager: pager,
             pager_inherited: pager_inherited,

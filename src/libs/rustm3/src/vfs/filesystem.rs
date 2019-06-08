@@ -23,7 +23,7 @@ use errors::Error;
 use vfs::{OpenFlags, FileHandle, FileInfo, FileMode};
 
 pub trait FileSystem : fmt::Debug {
-    fn as_any(&self) -> &Any;
+    fn as_any(&self) -> &dyn Any;
 
     fn open(&self, path: &str, perms: OpenFlags) -> Result<FileHandle, Error>;
 

@@ -19,9 +19,9 @@
 /// Runs the tests
 pub trait Tester {
     /// Runs the given test suite
-    fn run_suite(&mut self, name: &str, f: &Fn(&mut Tester));
+    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn Tester));
     /// Runs the given test
-    fn run_test(&mut self, name: &str, f: &Fn());
+    fn run_test(&mut self, name: &str, f: &dyn Fn());
 }
 
 /// Convenience macro that calls `Tester::run_suite` and uses the function name as suite name

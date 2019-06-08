@@ -64,7 +64,7 @@ pub trait Child {
     fn res(&self) -> &Resources;
     fn res_mut(&mut self) -> &mut Resources;
 
-    fn child_mut(&mut self, vpe_sel: Selector) -> Option<&mut (Child + 'static)> {
+    fn child_mut(&mut self, vpe_sel: Selector) -> Option<&mut (dyn Child + 'static)> {
         if let Some((id, _)) = self.res_mut().childs.iter().find(|c| c.1 == vpe_sel) {
             get().child_by_id_mut(*id)
         }
@@ -230,7 +230,7 @@ impl OwnChild {
         &self.kmem
     }
 
-    pub fn start(&mut self, vpe: VPE, mapper: &mut Mapper, file: FileRef) -> Result<(), Error> {
+    pub fn start(&mut self, vpe: VPE, mapper: &mut dyn Mapper, file: FileRef) -> Result<(), Error> {
         log!(RESMNG, "Starting boot module '{}' with arguments {:?}", self.name(), &self.args[1..]);
 
         self.activity = Some(vpe.exec_file(mapper, file, &self.args)?);
@@ -341,7 +341,7 @@ impl Drop for ForeignChild {
 }
 
 pub struct ChildManager {
-    childs: Treap<Id, Box<Child>>,
+    childs: Treap<Id, Box<dyn Child>>,
     ids: Vec<Id>,
     next_id: Id,
     daemons: usize,
@@ -384,7 +384,7 @@ impl ChildManager {
         self.next_id = id;
     }
 
-    pub fn add(&mut self, child: Box<Child>) {
+    pub fn add(&mut self, child: Box<dyn Child>) {
         if child.daemon() {
             self.daemons += 1;
         }
@@ -396,10 +396,10 @@ impl ChildManager {
         self.childs.insert(child.id(), child);
     }
 
-    pub fn child_by_id(&self, id: Id) -> Option<&Child> {
+    pub fn child_by_id(&self, id: Id) -> Option<&dyn Child> {
         self.childs.get(&id).map(|c| c.as_ref())
     }
-    pub fn child_by_id_mut(&mut self, id: Id) -> Option<&mut (Child + 'static)> {
+    pub fn child_by_id_mut(&mut self, id: Id) -> Option<&mut (dyn Child + 'static)> {
         self.childs.get_mut(&id).map(|c| c.as_mut())
     }
 
@@ -465,7 +465,7 @@ impl ChildManager {
         }
     }
 
-    fn remove_rec(&mut self, id: Id) -> Option<Box<Child>> {
+    fn remove_rec(&mut self, id: Id) -> Option<Box<dyn Child>> {
         self.childs.remove(&id).map(|child| {
             self.ids.retain(|&i| i != id);
             if child.daemon() {

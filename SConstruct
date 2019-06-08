@@ -49,13 +49,17 @@ baseenv = Environment(
     CXXFLAGS = ' -std=c++11 -Wall -Wextra -Wsign-conversion',
     CFLAGS = ' -std=c99 -Wall -Wextra -Wsign-conversion',
     CPPPATH = ['#src/include'],
-    ENV = {
-        'PATH' : os.environ['PATH'],
-        # required for colored outputs
-        'HOME' : os.environ['HOME'],
-        'TERM' : os.environ['TERM'],
-    }
 )
+
+vars = [
+    'PATH',
+    # required for colored outputs
+    'HOME', 'TERM',
+    # rust env vars (set in b)
+    'RUST_TARGET_PATH', 'CARGO_TARGET_DIR', 'XBUILD_SYSROOT_PATH'
+]
+for v in vars:
+    baseenv.Append(ENV = {v : os.environ[v]})
 
 # check for tools and compiler parameters
 def CheckCompilerParam(context, param):
@@ -71,8 +75,8 @@ def CheckOTFConfig(context):
     return result
 
 def CheckRust(context):
-    context.Message('Checking for xargo...')
-    result = context.TryAction('xargo')[0]
+    context.Message('Checking for cargo-xbuild...')
+    result = context.TryAction('cargo xbuild -h')[0]
     context.Result(result)
     return result
 
@@ -127,10 +131,6 @@ env.Append(
         ' -fno-stack-protector',
     CRGFLAGS = ' --target ' + isa + '-unknown-' + target + '-' + rustabi,
 )
-
-env.Append(ENV = {
-    'RUST_TARGET_PATH' : Dir('src/toolchain/rust').abspath
-})
 
 if int(verbose) != 0:
     env.Append(CRGFLAGS = ' -v')
@@ -229,7 +229,6 @@ env.Append(
     LIBDIR = Dir(builddir + '/bin'),
     MEMDIR = Dir(builddir + '/mem'),
     FSDIR = Dir(builddir + '/fsdata'),
-    RUSTDIR = Dir('build/rust'),
 )
 hostenv.Append(
     BINARYDIR = env['BINARYDIR']
@@ -377,7 +376,7 @@ def Cargo(env, target, source):
     return env.Command(
         target, source,
         Action(
-            'cd ${SOURCE.dir.dir} && xargo build $CRGFLAGS',
+            'cd ${SOURCE.dir.dir} && cargo xbuild $CRGFLAGS',
             '$CRGCOMSTR'
         )
     )
@@ -385,13 +384,14 @@ def Cargo(env, target, source):
 def RustProgram(env, target, libs = []):
     myenv = env.Clone()
     myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs')
+    rustdir = myenv['ENV']['CARGO_TARGET_DIR']
     stlib = myenv.Cargo(
-        target = '$RUSTDIR/$ISA-unknown-$ARCH-' + rustabi + '/$BUILD/lib' + target + '.a',
+        target = rustdir + '/$ISA-unknown-$ARCH-' + rustabi + '/$BUILD/lib' + target + '.a',
         source = 'src/' + target + '.rs'
     )
     myenv.Install(myenv['LIBDIR'], stlib)
     myenv.Depends(stlib, myenv.File('Cargo.toml'))
-    myenv.Depends(stlib, [myenv.File('#src/Cargo.toml'), myenv.File('#src/Xargo.toml')])
+    myenv.Depends(stlib, myenv.File('#src/Cargo.toml'))
     myenv.Depends(stlib, myenv.File('#src/toolchain/rust/$ISA-unknown-$ARCH-' + rustabi + '.json'))
     myenv.Depends(stlib, [
         myenv.Glob('#src/libs/rust*/src/*.rs'),

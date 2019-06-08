@@ -26,7 +26,7 @@ use m3::session::{ClientSession, ServerSession};
 use m3::test;
 use m3::vpe::{Activity, VPE, VPEArgs};
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, testnoresp);
     run_test!(t, testcliexit);
     run_test!(t, testmsgs);
@@ -84,7 +84,7 @@ pub fn testnoresp() {
     let client = assert_ok!(VPE::new_with(VPEArgs::new("client")));
 
     let cact = {
-        let mut serv = assert_ok!(VPE::new_with(VPEArgs::new("server")));
+        let serv = assert_ok!(VPE::new_with(VPEArgs::new("server")));
 
         let sact = assert_ok!(serv.run(Box::new(&server_main)));
 

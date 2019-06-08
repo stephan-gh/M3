@@ -19,7 +19,7 @@ use m3::mem::MemMap;
 use m3::test;
 use m3::profile;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, perf_alloc);
     run_test!(t, perf_free);
 }

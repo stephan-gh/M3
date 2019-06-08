@@ -54,7 +54,7 @@ impl Sink for GateSink {
     }
 
     #[inline(always)]
-    fn push(&mut self, item: &Marshallable) {
+    fn push(&mut self, item: &dyn Marshallable) {
         item.marshall(self);
     }
     #[inline(always)]
@@ -98,7 +98,7 @@ impl Sink for VecSink {
         &self.vec
     }
 
-    fn push(&mut self, item: &Marshallable) {
+    fn push(&mut self, item: &dyn Marshallable) {
         item.marshall(self);
     }
     fn push_word(&mut self, word: u64) {

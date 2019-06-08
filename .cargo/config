@@ -1,3 +1,2 @@
 [build]
 target = "x86_64-unknown-host-gnu"
-target-dir = "build/rust"

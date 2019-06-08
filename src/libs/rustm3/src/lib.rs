@@ -17,8 +17,6 @@
 #![feature(asm)]
 #![feature(const_fn)]
 #![feature(core_intrinsics)]
-#![feature(fnbox)]
-#![feature(rustc_private)]
 #![feature(trace_macros)]
 
 #![no_std]

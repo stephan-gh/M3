@@ -15,12 +15,13 @@
  */
 
 use arch;
-use boxed::{Box, FnBox};
+use boxed::Box;
 use cap::{CapFlags, Capability, Selector};
 use cell::StaticCell;
 use col::Vec;
 use com::{EpMux, MemGate, SendGate};
 use core::fmt;
+use core::ops::FnOnce;
 use dtu::{EP_COUNT, FIRST_FREE_EP, EpId};
 use env;
 use errors::{Code, Error};
@@ -592,10 +593,9 @@ impl VPE {
 
     #[cfg(target_os = "none")]
     pub fn run<F>(mut self, func: Box<F>) -> Result<ClosureActivity, Error>
-                  where F: FnBox() -> i32, F: Send + 'static {
+                  where F: FnOnce() -> i32, F: Send + 'static {
         use cfg;
         use cpu;
-        use goff;
 
         let first_ep_sel = self.ep_sel(FIRST_FREE_EP);
         if let Some(ref mut pg) = self.pager {
@@ -648,7 +648,7 @@ impl VPE {
 
     #[cfg(target_os = "linux")]
     pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
-                  where F: FnBox() -> i32, F: Send + 'static {
+                  where F: FnOnce() -> i32, F: Send + 'static {
         use libc;
 
         let mut closure = env::Closure::new(func);
@@ -699,10 +699,9 @@ impl VPE {
 
     #[cfg(target_os = "none")]
     #[allow(unused_mut)]
-    pub fn exec_file<S: AsRef<str>>(mut self, mapper: &mut Mapper,
+    pub fn exec_file<S: AsRef<str>>(mut self, mapper: &mut dyn Mapper,
                                     mut file: FileRef, args: &[S]) -> Result<ExecActivity, Error> {
         use cfg;
-        use goff;
         use serialize::Sink;
         use com::VecSink;
 
@@ -771,7 +770,7 @@ impl VPE {
     }
 
     #[cfg(target_os = "linux")]
-    pub fn exec_file<S: AsRef<str>>(self, _mapper: &Mapper,
+    pub fn exec_file<S: AsRef<str>>(self, _mapper: &dyn Mapper,
                                     mut file: FileRef, args: &[S]) -> Result<ExecActivity, Error> {
         use com::VecSink;
         use libc;

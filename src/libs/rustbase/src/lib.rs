@@ -14,16 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(alloc, alloc_error_handler, allocator_internals)]
+#![feature(alloc_error_handler, allocator_internals)]
 #![feature(asm)]
 #![feature(box_into_raw_non_null)]
-#![feature(compiler_builtins_lib)]
 #![feature(const_fn)]
 #![feature(core_intrinsics)]
-#![feature(fnbox)]
 #![feature(lang_items)]
 #![feature(panic_info_message)]
-#![feature(ptr_offset_from)]
 
 #![default_lib_allocator]
 #![no_std]
@@ -60,7 +57,7 @@ pub mod libc {
 
 /// Pointer types for heap allocation
 pub mod boxed {
-    pub use alloc::boxed::{Box, FnBox};
+    pub use alloc::boxed::Box;
 }
 
 /// Single-threaded reference-counting pointers

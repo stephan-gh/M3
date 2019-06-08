@@ -18,7 +18,7 @@ use m3::col::Treap;
 use m3::profile;
 use m3::test;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, insert);
     run_test!(t, find);
     run_test!(t, clear);

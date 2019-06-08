@@ -50,7 +50,7 @@ impl TestItem {
     }
 }
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, create);
     run_test!(t, basics);
     run_test!(t, iter);

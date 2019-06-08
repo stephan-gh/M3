@@ -136,7 +136,7 @@ impl MainMemory {
         Err(Error::new(Code::OutOfMem))
     }
 
-    pub fn allocate_for(&mut self, child: &mut Child, dst_sel: Selector,
+    pub fn allocate_for(&mut self, child: &mut dyn Child, dst_sel: Selector,
                         size: usize, perm: Perm) -> Result<(), Error> {
         log!(RESMNG_MEM, "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
              child.name(), dst_sel, size, perm);
@@ -147,7 +147,7 @@ impl MainMemory {
         child.add_mem(alloc, self.mods[mod_id].gate.sel(), perm)
     }
 
-    pub fn allocate_at(&mut self, child: &mut Child, dst_sel: Selector,
+    pub fn allocate_at(&mut self, child: &mut dyn Child, dst_sel: Selector,
                        offset: goff, size: usize) -> Result<(), Error> {
         log!(RESMNG_MEM, "{}: allocate_at(dst_sel={}, offset={:#x}, size={:#x})",
              child.name(), dst_sel, offset, size);

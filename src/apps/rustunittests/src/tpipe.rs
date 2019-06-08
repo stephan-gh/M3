@@ -24,7 +24,7 @@ use m3::test;
 use m3::vfs::IndirectPipe;
 use m3::vpe::{Activity, VPE, VPEArgs};
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, child_to_parent);
     run_test!(t, parent_to_child);
     run_test!(t, child_to_child);

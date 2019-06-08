@@ -20,7 +20,7 @@ use m3::test;
 use m3::io::{Read, Write};
 use m3::vfs::{FileRef, OpenFlags, Seek, SeekMode, VFS};
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, permissions);
     run_test!(t, read_string);
     run_test!(t, read_exact);

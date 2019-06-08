@@ -19,7 +19,7 @@ use m3::test;
 use m3::io::{Read, Write};
 use m3::vfs::{BufReader, BufWriter, OpenFlags, VFS};
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, read_write);
 }
 

@@ -103,7 +103,7 @@ impl fmt::Debug for ExchangeData {
 }
 
 impl Unmarshallable for ExchangeData {
-    fn unmarshall(s: &mut Source) -> Self {
+    fn unmarshall(s: &mut dyn Source) -> Self {
         let mut res = ExchangeData {
             caps: s.pop_word(),
             args: unsafe { intrinsics::uninit() },

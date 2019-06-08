@@ -32,7 +32,7 @@ pub type Fd = usize;
 const MAX_EPS: usize        = 4;
 pub const MAX_FILES: usize  = 32;
 
-pub type FileHandle = Rc<RefCell<File>>;
+pub type FileHandle = Rc<RefCell<dyn File>>;
 
 struct FileEP {
     fd: Fd,

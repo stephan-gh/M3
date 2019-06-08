@@ -18,7 +18,7 @@ use m3::col::DList;
 use m3::profile;
 use m3::test;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, push_back);
     run_test!(t, push_front);
     run_test!(t, clear);

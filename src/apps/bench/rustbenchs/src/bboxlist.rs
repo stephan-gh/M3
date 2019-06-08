@@ -40,7 +40,7 @@ impl TestItem {
     }
 }
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, push_back);
     run_test!(t, push_front);
     run_test!(t, push_pop);

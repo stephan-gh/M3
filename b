@@ -61,6 +61,11 @@ else
     export XTENSA_SYSTEM=$cfgpath/$XTENSA_CORE/config
 fi
 
+# rust env vars
+export RUST_TARGET_PATH=`readlink -f src/toolchain/rust`
+export CARGO_TARGET_DIR=`readlink -f build/rust`
+export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
+
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/
 
@@ -265,15 +270,18 @@ case "$cmd" in
         ;;
 
     doc)
-        export RUST_TARGET_PATH=`readlink -f src/toolchain/rust`
-        ( cd src/libs/rustm3 && xargo doc --target x86_64-unknown-$M3_TARGET-gnu )
-        ( cd src/libs/rustthread && xargo doc --target x86_64-unknown-$M3_TARGET-gnu )
+        export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
+        export RUSTDOCFLAGS=$RUSTFLAGS
+        for lib in rustm3 rustthread rustresmng; do
+            ( cd src/libs/$lib && cargo doc --target $M3_ISA-unknown-$M3_TARGET-gnu )
+        done
         ;;
 
     macros=*)
-        export RUST_TARGET_PATH=`readlink -f src/toolchain/rust`
+        export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
         ( cd ${cmd#macros=} && \
-            xargo rustc --profile=check -- -Zunstable-options --pretty=expanded | less )
+            cargo rustc --target $M3_ISA-unknown-$M3_TARGET-gnu --profile=check \
+                -- -Zunstable-options --pretty=expanded | less )
         ;;
 
     dbg=*)

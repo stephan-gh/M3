@@ -225,7 +225,7 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
     }
 
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&req)?;
-    match reply.data.error {
+    match {reply.data.error} {
         0 if event != 0 => Ok((0, 0)),
         0               => Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32)),
         e               => Err(Error::from(e as u32))

@@ -65,7 +65,7 @@ pub struct FileInfo {
 }
 
 impl Marshallable for FileInfo {
-    fn marshall(&self, s: &mut Sink) {
+    fn marshall(&self, s: &mut dyn Sink) {
         s.push(&self.devno);
         s.push(&{self.inode});
         s.push(&{self.mode});
@@ -79,7 +79,7 @@ impl Marshallable for FileInfo {
 }
 
 impl Unmarshallable for FileInfo {
-    fn unmarshall(s: &mut Source) -> Self {
+    fn unmarshall(s: &mut dyn Source) -> Self {
         FileInfo {
             devno:      s.pop_word() as DevId,
             inode:      s.pop_word() as INodeId,

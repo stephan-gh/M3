@@ -27,7 +27,7 @@ use m3::vpe::{Activity, VPE, VPEArgs};
 const DATA_SIZE: usize  = 2 * 1024 * 1024;
 const BUF_SIZE: usize   = 8 * 1024;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, child_to_parent);
     run_test!(t, parent_to_child);
 }

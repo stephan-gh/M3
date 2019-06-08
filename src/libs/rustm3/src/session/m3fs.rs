@@ -86,7 +86,7 @@ impl M3FS {
 }
 
 impl FileSystem for M3FS {
-    fn as_any(&self) -> &Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 

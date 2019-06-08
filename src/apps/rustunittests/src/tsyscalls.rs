@@ -25,7 +25,7 @@ use m3::syscalls;
 use m3::test;
 use m3::vpe::VPE;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, create_srv);
     run_test!(t, create_sgate);
     run_test!(t, create_rgate);

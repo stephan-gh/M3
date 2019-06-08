@@ -40,7 +40,7 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(id: Id, child: &mut Child, dst_sel: Selector,
+    pub fn new(id: Id, child: &mut dyn Child, dst_sel: Selector,
                rgate_sel: Selector, name: String) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         let rgate = RecvGate::new_bind(child.obtain(rgate_sel)?, util::next_log2(512));
@@ -65,7 +65,7 @@ impl Service {
         &mut self.queue
     }
 
-    fn child(&mut self) -> &mut Child {
+    fn child(&mut self) -> &mut dyn Child {
         childs::get().child_by_id_mut(self.child).unwrap()
     }
 
@@ -181,7 +181,7 @@ impl ServiceManager {
         serv
     }
 
-    pub fn reg_serv(&mut self, child: &mut Child, child_sel: Selector, dst_sel: Selector,
+    pub fn reg_serv(&mut self, child: &mut dyn Child, child_sel: Selector, dst_sel: Selector,
                     rgate_sel: Selector, name: String) -> Result<(), Error> {
         log!(RESMNG, "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
              child.name(), child_sel, dst_sel, rgate_sel, name);
@@ -219,7 +219,7 @@ impl ServiceManager {
         Ok(())
     }
 
-    pub fn unreg_serv(&mut self, child: &mut Child, sel: Selector, notify: bool) -> Result<(), Error> {
+    pub fn unreg_serv(&mut self, child: &mut dyn Child, sel: Selector, notify: bool) -> Result<(), Error> {
         log!(RESMNG, "{}: unreg_serv(sel={})", child.name(), sel);
 
         let id = child.remove_service(sel)?;
@@ -234,7 +234,7 @@ impl ServiceManager {
         Ok(())
     }
 
-    pub fn open_session(&mut self, child: &mut Child,
+    pub fn open_session(&mut self, child: &mut dyn Child,
                         dst_sel: Selector, name: &String) -> Result<(), Error> {
         log!(RESMNG, "{}: open_sess(dst_sel={}, name={})",
              child.name(), dst_sel, name);
@@ -266,7 +266,7 @@ impl ServiceManager {
         Ok(())
     }
 
-    pub fn close_session(&mut self, child: &mut Child, sel: Selector) -> Result<(), Error> {
+    pub fn close_session(&mut self, child: &mut dyn Child, sel: Selector) -> Result<(), Error> {
         log!(RESMNG, "{}: close_sess(sel={})", child.name(), sel);
 
         let sess = child.remove_session(sel)?;

@@ -44,13 +44,13 @@ struct MyTester {
 }
 
 impl Tester for MyTester {
-    fn run_suite(&mut self, name: &str, f: &Fn(&mut Tester)) {
+    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn Tester)) {
         println!("Running test suite {} ...", name);
         f(self);
         println!("Done\n");
     }
 
-    fn run_test(&mut self, name: &str, f: &Fn()) {
+    fn run_test(&mut self, name: &str, f: &dyn Fn()) {
         println!("-- Running test {} ...", name);
         let free_mem = heap::free_memory();
         f();

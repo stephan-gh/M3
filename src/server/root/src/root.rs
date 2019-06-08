@@ -17,7 +17,6 @@
 #![no_std]
 
 #![feature(const_vec_new)]
-#![feature(core_intrinsics)]
 
 #[macro_use]
 extern crate m3;
@@ -70,7 +69,7 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     }.expect("Unable to reply");
 }
 
-fn reg_serv(is: &mut GateIStream, child: &mut Child) {
+fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) {
     let child_sel: Selector = is.pop();
     let dst_sel: Selector = is.pop();
     let rgate_sel: Selector = is.pop();
@@ -83,7 +82,7 @@ fn reg_serv(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn unreg_serv(is: &mut GateIStream, child: &mut Child) {
+fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) {
     let sel: Selector = is.pop();
     let notify: bool = is.pop();
 
@@ -91,7 +90,7 @@ fn unreg_serv(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn open_session(is: &mut GateIStream, child: &mut Child) {
+fn open_session(is: &mut GateIStream, child: &mut dyn Child) {
     let dst_sel: Selector = is.pop();
     let name: String = is.pop();
 
@@ -99,14 +98,14 @@ fn open_session(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn close_session(is: &mut GateIStream, child: &mut Child) {
+fn close_session(is: &mut GateIStream, child: &mut dyn Child) {
     let sel: Selector = is.pop();
 
     let res = services::get().close_session(child, sel);
     reply_result(is, res);
 }
 
-fn add_child(is: &mut GateIStream, child: &mut Child) {
+fn add_child(is: &mut GateIStream, child: &mut dyn Child) {
     let vpe_sel: Selector = is.pop();
     let sgate_sel: Selector = is.pop();
     let name: String = is.pop();
@@ -115,14 +114,14 @@ fn add_child(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn rem_child(is: &mut GateIStream, child: &mut Child) {
+fn rem_child(is: &mut GateIStream, child: &mut dyn Child) {
     let vpe_sel: Selector = is.pop();
 
     let res = child.rem_child(vpe_sel);
     reply_result(is, res);
 }
 
-fn alloc_mem(is: &mut GateIStream, child: &mut Child) {
+fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) {
     let dst_sel: Selector = is.pop();
     let addr: goff = is.pop();
     let size: usize = is.pop();
@@ -138,7 +137,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut Child) {
     reply_result(is, res);
 }
 
-fn free_mem(is: &mut GateIStream, child: &mut Child) {
+fn free_mem(is: &mut GateIStream, child: &mut dyn Child) {
     let sel: Selector = is.pop();
 
     let res = child.remove_mem(sel);

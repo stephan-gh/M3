@@ -25,7 +25,7 @@ use serialize::Sink;
 use session::M3FS;
 use vfs::FileSystem;
 
-pub type FSHandle = Rc<RefCell<FileSystem>>;
+pub type FSHandle = Rc<RefCell<dyn FileSystem>>;
 
 pub struct MountPoint {
     path: String,

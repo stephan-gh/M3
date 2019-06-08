@@ -19,7 +19,7 @@ use m3::profile;
 use m3::test;
 use m3::vfs::{OpenFlags, VFS};
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, read);
     run_test!(t, write);
 }

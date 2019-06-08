@@ -17,20 +17,21 @@
 //! Provides access to the program environment
 
 use arch;
-use boxed::{Box, FnBox};
+use boxed::Box;
+use core::ops::FnOnce;
 use core::iter;
 use core::mem;
 use util;
 
 /// The closure used by `VPE::run`
 pub struct Closure {
-    func: Option<Box<FnBox() -> i32 + Send>>,
+    func: Option<Box<dyn FnOnce() -> i32 + Send>>,
 }
 
 impl Closure {
     /// Creates a new object for given closure
     pub fn new<F>(func: Box<F>) -> Self
-                  where F: FnBox() -> i32, F: Send + 'static {
+                  where F: FnOnce() -> i32, F: Send + 'static {
         Closure {
             func: Some(func),
         }
@@ -39,7 +40,7 @@ impl Closure {
     /// Calls the closure (can only be done once) and returns its exit code
     pub fn call(&mut self) -> i32 {
         match mem::replace(&mut self.func, None) {
-            Some(c) => c.call_box(()),
+            Some(c) => c(),
             None    => 1
         }
     }

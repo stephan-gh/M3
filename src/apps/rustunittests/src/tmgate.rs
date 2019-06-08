@@ -18,7 +18,7 @@ use m3::com::{MemGate, MGateArgs, Perm};
 use m3::errors::Code;
 use m3::test;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, create);
     run_test!(t, create_readonly);
     run_test!(t, create_writeonly);

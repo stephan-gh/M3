@@ -25,7 +25,7 @@ use m3::vpe::{VPE, VPEArgs};
 
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     SEL.set(VPE::cur().alloc_sel());
 
     run_test!(t, noop);

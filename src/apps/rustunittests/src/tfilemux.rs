@@ -23,7 +23,7 @@ use m3::util;
 use m3::vfs::{BufReader, FileHandle, IndirectPipe, OpenFlags, VFS};
 use m3::vpe::VPE;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, genfile_mux);
     run_test!(t, pipe_mux);
 }

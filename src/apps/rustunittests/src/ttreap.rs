@@ -17,7 +17,7 @@
 use m3::col::{Treap, Vec};
 use m3::test;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, test_in_order);
     run_test!(t, test_rev_order);
     run_test!(t, test_rand_order);

@@ -19,7 +19,7 @@ use m3::col::{Vec,ToString};
 use m3::test;
 use m3::vfs::read_dir;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, list_dir);
 }
 

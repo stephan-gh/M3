@@ -60,7 +60,7 @@ impl Server {
         self.cap.sel()
     }
 
-    pub fn handle_ctrl_chan(&self, hdl: &mut Handler) -> Result<(), Error> {
+    pub fn handle_ctrl_chan(&self, hdl: &mut dyn Handler) -> Result<(), Error> {
         let is = self.rgate.fetch();
         if let Some(mut is) = is {
             let op: service::Operation = is.pop();
@@ -78,7 +78,7 @@ impl Server {
         }
     }
 
-    fn handle_open(hdl: &mut Handler, sel: Selector, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_open(hdl: &mut dyn Handler, sel: Selector, mut is: GateIStream) -> Result<(), Error> {
         let arg: u64 = is.pop();
         let res = hdl.open(sel, arg);
 
@@ -97,7 +97,7 @@ impl Server {
         Ok(())
     }
 
-    fn handle_obtain(hdl: &mut Handler, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_obtain(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
         let sid: u64 = is.pop();
         let mut data: service::ExchangeData = is.pop();
         let res = hdl.obtain(sid, &mut data);
@@ -114,7 +114,7 @@ impl Server {
         is.reply(&[reply])
     }
 
-    fn handle_delegate(hdl: &mut Handler, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_delegate(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
         let sid: u64 = is.pop();
         let mut data: service::ExchangeData = is.pop();
         let res = hdl.delegate(sid, &mut data);
@@ -131,7 +131,7 @@ impl Server {
         is.reply(&[reply])
     }
 
-    fn handle_close(hdl: &mut Handler, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_close(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
         let sid: u64 = is.pop();
 
         log!(SERV, "server::close({})", sid);
@@ -141,7 +141,7 @@ impl Server {
         reply_vmsg!(is, 0)
     }
 
-    fn handle_shutdown(hdl: &mut Handler, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_shutdown(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
         log!(SERV, "server::shutdown()");
 
         hdl.shutdown();

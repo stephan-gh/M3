@@ -24,7 +24,7 @@ use m3::util;
 use m3::vfs;
 use m3::vpe::{Activity, VPE, VPEArgs};
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, run_stop);
     run_test!(t, run_arguments);
     run_test!(t, run_send_receive);

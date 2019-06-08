@@ -20,7 +20,7 @@ use m3::errors::Code;
 use m3::test;
 use m3::util;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, create);
     run_test!(t, send_recv);
     run_test!(t, send_reply);

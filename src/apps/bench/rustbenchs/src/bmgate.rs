@@ -21,7 +21,7 @@ use m3::test;
 
 const SIZE: usize = 2 * 1024 * 1024;
 
-pub fn run(t: &mut test::Tester) {
+pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, read);
     run_test!(t, write);
 }

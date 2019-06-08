@@ -16,8 +16,6 @@
 
 #![no_std]
 
-#![feature(core_intrinsics)]
-
 #[macro_use]
 extern crate m3;
 
@@ -68,7 +66,7 @@ fn xlate_sel(sel: Selector) -> Result<Selector, Error> {
     }
 }
 
-fn reg_serv(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
+fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let child_sel: Selector = is.pop();
     let dst_sel: Selector = is.pop();
     let rgate_sel: Selector = is.pop();
@@ -77,14 +75,14 @@ fn reg_serv(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
     services::get().reg_serv(child, child_sel, dst_sel, rgate_sel, name)
 }
 
-fn unreg_serv(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
+fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
     let notify: bool = is.pop();
 
     services::get().unreg_serv(child, sel, notify)
 }
 
-fn open_session(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
+fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop();
     let name: String = is.pop();
 
@@ -101,7 +99,7 @@ fn open_session(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
     }
 }
 
-fn close_session(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
+fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
 
     let res = services::get().close_session(child, sel);
@@ -114,7 +112,7 @@ fn close_session(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
     }
 }
 
-fn add_child(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
+fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let vpe_sel: Selector = is.pop();
     let sgate_sel: Selector = is.pop();
     let name: String = is.pop();
@@ -122,13 +120,13 @@ fn add_child(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
     child.add_child(vpe_sel, req_rgate(), sgate_sel, name)
 }
 
-fn rem_child(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
+fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let vpe_sel: Selector = is.pop();
 
     child.rem_child(vpe_sel)
 }
 
-fn alloc_mem(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
+fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop();
     let addr: goff = is.pop();
     let size: usize = is.pop();
@@ -145,7 +143,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
     child.delegate(our_sel, dst_sel)
 }
 
-fn free_mem(is: &mut GateIStream, child: &mut Child) -> Result<(), Error> {
+fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
 
     log!(RESMNG_MEM, "{}: free(sel={})", child.name(), sel);
