@@ -60,6 +60,18 @@ The submodule in `hw/gem5` needs to be pulled in and built:
     $ cd hw/gem5
     $ scons build/X86/gem5.opt build/X86/gem5.debug
 
+#### Rust
+
+M³ is partially written in Rust and therefore you need to install Rust before building M³. Since M³
+still uses some nightly features of Rust, you need the nightly version. Additionally,
+``cargo-xbuild`` is required to build ``core``, ``alloc``, and other base libraries of Rust for a
+non-standard platforms like M³. You can install these with ``rustup`` and ``cargo``:
+
+    $ rustup install nightly
+    $ rustup default nightly
+    $ rustup component add rust-src
+    $ cargo install cargo-xbuild
+
 ### Building:
 
 Before you build M³, you should choose your target platform and the build-mode by exporting the
