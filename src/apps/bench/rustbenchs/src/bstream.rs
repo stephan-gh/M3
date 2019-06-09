@@ -18,20 +18,22 @@ use m3::col::{String, ToString};
 use m3::com::*;
 use m3::profile;
 use m3::test;
-use m3::util;
+
+const MSG_ORD: i32      = 7;
+const MSG_SIZE: usize   = 1usize << MSG_ORD;
 
 pub fn run(t: &mut dyn test::Tester) {
-    run_test!(t, pingpong);
+    run_test!(t, pingpong_1u64);
+    run_test!(t, pingpong_2u64);
+    run_test!(t, pingpong_4u64);
+    run_test!(t, pingpong_str);
 }
 
-fn pingpong() {
-    let msg_size = 128;
-    let msg_ord  = util::next_log2(msg_size);
-
+fn pingpong_1u64() {
     let reply_gate = RecvGate::def();
-    let mut rgate = assert_ok!(RecvGate::new(msg_ord, msg_ord));
+    let mut rgate = assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     assert_ok!(rgate.activate());
-    let sgate = assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(msg_size as u64)));
+    let sgate = assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
 
     let mut prof = profile::Profiler::new();
 
@@ -45,6 +47,15 @@ fn pingpong() {
         let mut reply = assert_ok!(recv_msg(reply_gate));
         assert_eq!(reply.pop::<u64>(), 0);
     }, 0x0));
+}
+
+fn pingpong_2u64() {
+    let reply_gate = RecvGate::def();
+    let mut rgate = assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    assert_ok!(rgate.activate());
+    let sgate = assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
+
+    let mut prof = profile::Profiler::new();
 
     println!("pingpong with (2 * u64) msgs : {}", prof.run_with_id(|| {
         assert_ok!(send_vmsg!(&sgate, reply_gate, 23u64, 42u64));
@@ -58,6 +69,15 @@ fn pingpong() {
         assert_eq!(reply.pop::<u64>(), 5);
         assert_eq!(reply.pop::<u64>(), 6);
     }, 0x1));
+}
+
+fn pingpong_4u64() {
+    let reply_gate = RecvGate::def();
+    let mut rgate = assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    assert_ok!(rgate.activate());
+    let sgate = assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
+
+    let mut prof = profile::Profiler::new();
 
     println!("pingpong with (4 * u64) msgs : {}", prof.run_with_id(|| {
         assert_ok!(send_vmsg!(&sgate, reply_gate, 23u64, 42u64, 10u64, 12u64));
@@ -75,6 +95,15 @@ fn pingpong() {
         assert_eq!(reply.pop::<u64>(), 7);
         assert_eq!(reply.pop::<u64>(), 8);
     }, 0x2));
+}
+
+fn pingpong_str() {
+    let reply_gate = RecvGate::def();
+    let mut rgate = assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    assert_ok!(rgate.activate());
+    let sgate = assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
+
+    let mut prof = profile::Profiler::new();
 
     println!("pingpong with (String) msgs  : {}", prof.run_with_id(|| {
         assert_ok!(send_vmsg!(&sgate, reply_gate, "test"));
