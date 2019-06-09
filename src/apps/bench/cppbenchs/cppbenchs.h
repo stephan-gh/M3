@@ -30,6 +30,7 @@ void btreap();
 void bfsmeta();
 void bregfile();
 void bmemgate();
+void bstream();
 void bsyscall();
 void bpipe();
 void bvpe();

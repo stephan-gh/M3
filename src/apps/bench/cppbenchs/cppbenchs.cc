@@ -24,6 +24,7 @@ int main() {
     RUN_SUITE(btreap);
     RUN_SUITE(bregfile);
     RUN_SUITE(bmemgate);
+    RUN_SUITE(bstream);
     RUN_SUITE(bsyscall);
     RUN_SUITE(bpipe);
     RUN_SUITE(bfsmeta);
