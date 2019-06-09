@@ -40,37 +40,37 @@ void tbitfield();
 void theap();
 void tstream();
 
-#define assert_int(actual, expected) \
+#define assert_int(actual, expected)                                \
     check_equal<int>((expected), (actual), __FILE__, __LINE__)
-#define assert_long(actual, expected) \
+#define assert_long(actual, expected)                               \
     check_equal<long>((expected), (actual), __FILE__, __LINE__)
-#define assert_uint(actual, expected) \
+#define assert_uint(actual, expected)                               \
     check_equal<unsigned int>((expected), (actual), __FILE__, __LINE__)
-#define assert_ulong(actual, expected) \
+#define assert_ulong(actual, expected)                              \
     check_equal<unsigned long>((expected), (actual), __FILE__, __LINE__)
-#define assert_size(actual, expected) \
+#define assert_size(actual, expected)                               \
     check_equal<size_t>((expected), (actual), __FILE__, __LINE__)
-#define assert_ssize(actual, expected) \
+#define assert_ssize(actual, expected)                              \
     check_equal<ssize_t>((expected), (actual), __FILE__, __LINE__)
-#define assert_word(actual, expected) \
+#define assert_word(actual, expected)                               \
     check_equal<word_t>((expected), (actual), __FILE__, __LINE__)
-#define assert_xfer(actual, expected) \
+#define assert_xfer(actual, expected)                               \
     check_equal<xfer_t>((expected), (actual), __FILE__, __LINE__)
-#define assert_str(actual, expected) \
+#define assert_str(actual, expected)                                \
     check_equal<m3::String>((expected), (actual), __FILE__, __LINE__)
-#define assert_true(expected) \
+#define assert_true(expected)                                       \
     check_equal<bool>((expected), true, __FILE__, __LINE__)
-#define assert_false(expected) \
+#define assert_false(expected)                                      \
     check_equal<bool>((expected), false, __FILE__, __LINE__)
-#define assert_float(actual, expected) \
+#define assert_float(actual, expected)                              \
     check_equal<float>((expected), (actual), __FILE__, __LINE__)
 
 #define RUN_SUITE(name)                                             \
-    m3::cout << "Running testsuite " << #name << " ...\n";    \
+    m3::cout << "Running testsuite " << #name << " ...\n";          \
     name();                                                         \
     m3::cout << "Done\n\n";
 
-#define RUN_TEST(name)                                             \
-    m3::cout << "-- Running testcase " << #name << " ...\n";          \
+#define RUN_TEST(name)                                              \
+    m3::cout << "-- Running testcase " << #name << " ...\n";        \
     name();                                                         \
     m3::cout << "-- Done\n";
