@@ -87,7 +87,8 @@ conf = Configure(baseenv, custom_tests={
 })
 if conf.CheckCompilerParam('-fdiagnostics-color=always'):
     baseenv.Append(CXXFLAGS = ' -fdiagnostics-color=always')
-baseenv['HAS_RUST'] = conf.CheckRust()
+if not conf.CheckRust():
+    exit('\033[1mYou need Rust including cargo-xbuild to build M³. See README.md.\033[0m')
 baseenv['HAS_OTF']  = conf.CheckOTFConfig()
 conf.Finish()
 

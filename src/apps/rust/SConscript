@@ -1,4 +1,2 @@
 Import('env')
-if env['HAS_RUST']:
-    env.SConscript(env.Glob('*/SConscript'), 'env')
-
+env.SConscript(env.Glob('*/SConscript'), 'env')

@@ -1,3 +1,2 @@
 Import('env')
-if env['HAS_RUST']:
-    env.RustProgram(env, target = 'root', libs = ['thread'])
+env.RustProgram(env, target = 'root', libs = ['thread'])
