@@ -19,7 +19,7 @@
 
 namespace m3 {
 
-OStream &operator<<(OStream &os, const String &str) {
+OStream &operator<<(OStream &os, const StringRef &str) {
     return os << str.c_str();
 }
 

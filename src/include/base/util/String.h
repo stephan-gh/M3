@@ -23,48 +23,30 @@ namespace m3 {
 
 class OStream;
 
-class String {
+class StringRef {
 public:
     static const size_t DEFAULT_MAX_LEN = 64;
 
     /**
      * Constructor. Creates an empty string (without allocation on the heap)
      */
-    explicit String()
+    explicit StringRef()
         : _str(0),
           _len() {
     }
     /**
-     * Constructor. Copies the given string onto the heap.
+     * Constructor
      *
      * @param str the string
-     * @param len the length of the string (-1 by default, which means: use strlen())
+     * @param len the length of the string
      */
-    String(const char *str, size_t len = static_cast<size_t>(-1))
-        : _str(),
-          _len() {
-        if(str)
-            init(str, len);
+    StringRef(const char *str)
+        : _str(str),
+          _len(strlen(str)) {
     }
-
-    explicit String(const String& s)
-        : _str(),
-          _len() {
-        init(s._str, s._len);
-    }
-    String(String &&s)
-        : _str(s._str),
-          _len(s._len) {
-        s._str = nullptr;
-    }
-    String & operator=(const String& s) {
-        if(&s != this)
-            reset(s._str, s._len);
-        return *this;
-    }
-
-    ~String() {
-        delete[] _str;
+    StringRef(const char *str, size_t len)
+        : _str(str),
+          _len(len) {
     }
 
     /**
@@ -72,16 +54,6 @@ public:
      * @return the <i>th character of the string.
      */
     char operator[](size_t i) const {
-        return _str[i];
-    }
-    /**
-     * Gives you access to a character. But keep in mind: there are no checks and the string
-     * length can NOT be changed in this way!
-     *
-     * @param i the index
-     * @return a reference to the <i>th character of the string.
-     */
-    char &operator[](size_t i) {
         return _str[i];
     }
 
@@ -100,10 +72,51 @@ public:
     /**
      * @return true if <this> contains <str>
      */
-    bool contains(const String &str) const {
+    bool contains(const StringRef &str) const {
         if(!_str || !str._str)
             return false;
         return strstr(_str, str._str) != nullptr;
+    }
+
+protected:
+    const char *_str;
+    size_t _len;
+};
+
+class String : public StringRef {
+public:
+    /**
+     * Constructor. Creates an empty string (without allocation on the heap)
+     */
+    explicit String() : StringRef() {
+    }
+    /**
+     * Constructor. Copies the given string onto the heap.
+     *
+     * @param str the string
+     * @param len the length of the string (-1 by default, which means: use strlen())
+     */
+    String(const char *str, size_t len = static_cast<size_t>(-1)) {
+        if(str)
+            init(str, len);
+    }
+
+    explicit String(const String& s)
+        : StringRef() {
+        init(s._str, s._len);
+    }
+    String(String &&s)
+        : StringRef(s._str, s._len) {
+        s._str = nullptr;
+    }
+    String & operator=(const String& s) {
+        if(&s != this)
+            reset(s._str, s._len);
+        return *this;
+    }
+
+    ~String() {
+        delete[] _str;
     }
 
     /**
@@ -122,28 +135,26 @@ private:
     void init(const char *str, size_t len) {
         _len = len == static_cast<size_t>(-1) ? strlen(str) : len;
         if(_len > 0) {
-            _str = new char[_len + 1];
-            memcpy(_str, str, _len);
-            _str[_len] = '\0';
+            char *nstr = new char[_len + 1];
+            memcpy(nstr, str, _len);
+            nstr[_len] = '\0';
+            _str = nstr;
         }
         else
             _str = nullptr;
     }
-
-    char *_str;
-    size_t _len;
 };
 
 /**
  * @return true if s1 and s2 are equal
  */
-static inline bool operator==(const String &s1, const String &s2) {
+static inline bool operator==(const StringRef &s1, const StringRef &s2) {
     return s1.length() == s2.length() && strcmp(s1.c_str(), s2.c_str()) == 0;
 }
 /**
  * @return true if s1 and s2 are not equal
  */
-static inline bool operator!=(const String &s1, const String &s2) {
+static inline bool operator!=(const StringRef &s1, const StringRef &s2) {
     return !operator==(s1, s2);
 }
 
@@ -154,6 +165,6 @@ static inline bool operator!=(const String &s1, const String &s2) {
  * @param str the string
  * @return the stream
  */
-OStream &operator<<(OStream &os, const String &str);
+OStream &operator<<(OStream &os, const StringRef &str);
 
 }

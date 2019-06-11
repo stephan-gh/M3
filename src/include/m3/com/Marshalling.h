@@ -80,6 +80,9 @@ public:
     Marshaller & operator<<(const char *value) {
         return put_str(value, strlen(value));
     }
+    Marshaller & operator<<(const StringRef& value) {
+        return put_str(value.c_str(), value.length());
+    }
     Marshaller & operator<<(const String& value) {
         return put_str(value.c_str(), value.length());
     }
@@ -234,12 +237,20 @@ struct OStreamSize {
     static const size_t value = Math::round_up(sizeof(T), sizeof(xfer_t));
 };
 template<>
+struct OStreamSize<StringRef> {
+    static const size_t value = sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN;
+};
+template<>
 struct OStreamSize<String> {
-    static const size_t value = String::DEFAULT_MAX_LEN;
+    static const size_t value = sizeof(xfer_t) + String::DEFAULT_MAX_LEN;
 };
 template<>
 struct OStreamSize<const char*> {
-    static const size_t value = String::DEFAULT_MAX_LEN;
+    static const size_t value = sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN;
+};
+template<size_t N>
+struct OStreamSize<char[N]> {
+    static const size_t value = sizeof(xfer_t) + N;
 };
 
 template<typename T>
@@ -274,7 +285,13 @@ constexpr size_t vostreamsize(T1 len, Args... lens) {
 
 static_assert(ostreamsize<int, float, int>() ==
     Math::round_up(sizeof(xfer_t) * 3, DTU_PKG_SIZE), "failed");
+static_assert(ostreamsize<short, StringRef>() ==
+    Math::round_up(sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN, DTU_PKG_SIZE), "failed");
 static_assert(ostreamsize<short, String>() ==
-    Math::round_up(sizeof(xfer_t) + String::DEFAULT_MAX_LEN, DTU_PKG_SIZE), "failed");
+    Math::round_up(sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN, DTU_PKG_SIZE), "failed");
+static_assert(ostreamsize<short, const char*>() ==
+    Math::round_up(sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN, DTU_PKG_SIZE), "failed");
+static_assert(ostreamsize<short, char[5]>() ==
+    Math::round_up(sizeof(xfer_t) + sizeof(xfer_t) + 5, DTU_PKG_SIZE), "failed");
 
 }
