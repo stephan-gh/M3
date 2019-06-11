@@ -27,19 +27,19 @@ int main() {
 
     Socket *socket = net.create(Socket::SOCK_STREAM);
     if(!socket)
-        exitmsg("Socket creation failed.");
+        exitmsg("Socket creation failed");
     socket->blocking(true);
 
     Errors::Code err = socket->bind(IpAddr(192, 168, 112, 1), 1337);
     if(err != Errors::NONE)
-        exitmsg("Socket bind failed:" << Errors::to_string(err));
+        exitmsg("Socket bind failed: " << Errors::to_string(err));
 
     socket->listen();
 
     Socket * accepted_socket = 0;
     err = socket->accept(accepted_socket);
     if(err != Errors::NONE)
-        exitmsg("Socket accept failed:" << Errors::to_string(err));
+        exitmsg("Socket accept failed: " << Errors::to_string(err));
     accepted_socket->blocking(true);
 
     char request[1024];
@@ -47,7 +47,7 @@ int main() {
         ssize_t len = accepted_socket->recv(request, sizeof(request));
         if(len <= 0) {
             if(len == -Errors::INV_STATE)
-                exitmsg("Client disconnected.");
+                exitmsg("Client disconnected");
             else
                 exitmsg("Received invalid data: " << len);
         }

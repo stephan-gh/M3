@@ -83,7 +83,6 @@ int main() {
                 failures++;
                 break;
             }
-
         }
 
         size_t receive_count = burst_size;

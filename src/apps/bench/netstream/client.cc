@@ -28,12 +28,12 @@ int main() {
 
     Socket *socket = net.create(Socket::SOCK_STREAM);
     if(!socket)
-        exitmsg("Socket creation failed.");
+        exitmsg("Socket creation failed");
 
     socket->blocking(true);
     Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
     if(err != Errors::NONE)
-        exitmsg("Socket connect failed:" << Errors::to_string(err));
+        exitmsg("Socket connect failed: " << Errors::to_string(err));
 
     constexpr size_t packet_size = 1024;
     union {

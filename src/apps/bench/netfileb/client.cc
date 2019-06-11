@@ -27,12 +27,12 @@ int main() {
 
     Socket *socket = net.create(Socket::SOCK_STREAM);
     if(!socket)
-        exitmsg("Socket creation failed.");
+        exitmsg("Socket creation failed");
 
     socket->blocking(true);
     Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
     if(err != Errors::NONE)
-        exitmsg("Socket connect failed:" << Errors::to_string(err));
+        exitmsg("Socket connect failed: " << Errors::to_string(err));
 
     cout << "Socket connected!\n";
     cout << "Sending...\n";
@@ -40,7 +40,7 @@ int main() {
     fd_t fd;
     err = net.as_file(socket->sd(), FILE_RW, mem, 4096, fd);
     if(err != Errors::NONE)
-        exitmsg("as_file failed:" << Errors::to_string(err));
+        exitmsg("as_file failed: " << Errors::to_string(err));
 
     Reference<File> file = VPE::self().fds()->get(fd);
 
