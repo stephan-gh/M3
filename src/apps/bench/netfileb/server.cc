@@ -18,12 +18,15 @@
 #include <base/Env.h>
 
 #include <m3/accel/StreamAccel.h>
+#include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
 using namespace m3;
 
 int main() {
+    auto sem = Semaphore::attach("net");
+
     NetworkManager net("net1");
     String status;
 
@@ -37,6 +40,9 @@ int main() {
         exitmsg("Socket bind failed: " << Errors::to_string(err));
 
     socket->listen();
+
+    // notify client
+    sem.up();
 
     Socket * accepted_socket = 0;
     err = socket->accept(accepted_socket);
@@ -90,6 +96,8 @@ int main() {
 
     delete accepted_socket;
     delete socket;
+
+    sem.up();
 
     return 0;
 }

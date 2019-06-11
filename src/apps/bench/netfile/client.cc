@@ -17,6 +17,7 @@
 #include <base/Env.h>
 #include <base/util/Time.h>
 
+#include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
@@ -28,6 +29,9 @@ int main() {
     Socket *socket = net.create(Socket::SOCK_STREAM);
     if(!socket)
         exitmsg("Socket creation failed");
+
+    // wait for server
+    Semaphore::attach("net").down();
 
     socket->blocking(true);
     Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);

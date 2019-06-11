@@ -16,6 +16,7 @@
 
 #include <base/Env.h>
 
+#include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
@@ -33,6 +34,9 @@ int main() {
     Errors::Code err = socket->bind(IpAddr(192, 168, 112, 1), 1337);
     if(err != Errors::NONE)
         exitmsg("Socket bind failed:" << Errors::to_string(err));
+
+    // notify client
+    Semaphore::attach("net").up();
 
     char request[1024];
     while(true) {

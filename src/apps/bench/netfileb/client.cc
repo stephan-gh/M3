@@ -17,17 +17,23 @@
 #include <base/util/Time.h>
 #include <base/Env.h>
 
+#include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
 using namespace m3;
 
 int main() {
+    auto sem = Semaphore::attach("net");
+
     NetworkManager net("net0");
 
     Socket *socket = net.create(Socket::SOCK_STREAM);
     if(!socket)
         exitmsg("Socket creation failed");
+
+    // wait for server
+    sem.down();
 
     socket->blocking(true);
     Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
@@ -65,6 +71,8 @@ int main() {
     file->flush();
 
     cout << "Sent packets: " << packet_sent_count << "\n";
+
+    sem.down();
 
     delete socket;
 

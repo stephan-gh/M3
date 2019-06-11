@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+#include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
@@ -30,6 +31,9 @@ int main(int argc, char **argv) {
     if(!socket)
         exitmsg("Socket creation failed.");
     cout << "Socket created.\n";
+
+    // wait for server
+    Semaphore::attach("net").down();
 
     if(socket->connect(IpAddr(192, 168, 112, 1), 1337) != Errors::NONE)
         exitmsg("Socket connect failed:" << Errors::to_string(Errors::last));

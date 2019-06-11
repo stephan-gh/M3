@@ -16,6 +16,7 @@
 
 #include <base/Env.h>
 
+#include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
@@ -35,6 +36,9 @@ int main() {
         exitmsg("Socket bind failed: " << Errors::to_string(err));
 
     socket->listen();
+
+    // notify client
+    Semaphore::attach("net").up();
 
     Socket * accepted_socket = 0;
     err = socket->accept(accepted_socket);

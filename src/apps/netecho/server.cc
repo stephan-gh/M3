@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+#include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 
@@ -30,6 +31,9 @@ int main() {
 
     if(socket->bind(IpAddr(192, 168, 112, 1), 1337) != Errors::NONE)
         exitmsg("Socket bind failed:" << Errors::to_string(Errors::last));
+
+    // notify client
+    Semaphore::attach("net").up();
 
     while(true) {
         cout << "Waiting for request...\n";
