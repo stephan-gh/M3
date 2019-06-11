@@ -236,9 +236,11 @@ Errors::Code FileSession::commit(size_t amount) {
     if(_sending) {
         // Advance write pointer
         _sbuf.push(_lastamount, amount);
+        LOG_SESSION(this, "push-send: " << amount << " -> " << _sbuf);
     } else {
         // Advance read pointer
         _rbuf.pull(amount != 0 ? amount : _lastamount);
+        LOG_SESSION(this, "pull-recv: " << amount << " -> " << _rbuf);
     }
 
     _lastamount = 0;
@@ -264,6 +266,7 @@ m3::Errors::Code FileSession::handle_recv(struct pbuf* p) {
         // Verify that p is a continuous chunk of memory!
         if(!p->next) {
             _memory->write(p->payload, amount, static_cast<goff_t>(pos));
+            LOG_SESSION(this, "push-recv: " << amount << " -> " << _rbuf);
             _rbuf.push(amount, amount);
             return Errors::NONE;
         } else {
@@ -311,8 +314,10 @@ void FileSession::handle_send_buffer() {
     if(pos != -1) {
         LOG_SESSION(this, "handle_send_buffer: amount=" << amount << ", pos=" << pos);
         ssize_t res = _socket->send_data(*_memory, _rbuf.size() + static_cast<size_t>(pos), amount);
-        if(res > 0)
+        if(res > 0) {
             _sbuf.pull(static_cast<size_t>(res));
+            LOG_SESSION(this, "pull-send: " << res << " -> " << _sbuf);
+        }
     }
 }
 
