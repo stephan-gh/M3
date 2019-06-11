@@ -27,6 +27,8 @@
 class LwipSocket;
 
 class FileSession : public NMSession {
+    friend class LwipSocket;
+
     class WorkItem : public m3::WorkItem {
     public:
         WorkItem(FileSession & session);

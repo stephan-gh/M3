@@ -31,12 +31,14 @@ class FileSession;
 
 class LwipSocket {
     friend class SocketSession;
+    friend class FileSession;
 
 public:
     explicit LwipSocket(SocketSession *session)
         : _sd(-1),
           _session(session),
           _channel(nullptr),
+          _rgate(nullptr),
           _rfile(nullptr),
           _sfile(nullptr){
     }
@@ -98,6 +100,7 @@ protected:
     int _sd;
     SocketSession * _session;
     m3::NetEventChannel * _channel;
+    m3::RecvGate *_rgate;
     FileSession * _rfile;
     FileSession * _sfile;
 private:

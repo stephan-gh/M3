@@ -162,6 +162,7 @@ m3::Errors::Code SocketSession::open_file(capsel_t srv_sel, m3::KIF::Service::Ex
             socket->_rfile = file;
         if(file->is_send())
             socket->_sfile = file;
+        socket->_rgate = &_rgate;
         data.args.count = 0;
         data.caps = file->caps().value();
         LOG_SESSION(this, "open_file: " << sd << "@" << (file->is_recv() ? "r" : "") << (file->is_send() ? "s" : ""));

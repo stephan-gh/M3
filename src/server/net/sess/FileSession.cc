@@ -51,6 +51,12 @@ FileSession::FileSession(WorkLoop *wl, capsel_t srv_sel, LwipSocket* socket, int
 }
 
 FileSession::~FileSession() {
+    if(_socket) {
+        if(_socket->_rfile == this)
+            _socket->_rfile = nullptr;
+        if(_socket->_sfile == this)
+            _socket->_sfile = nullptr;
+    }
     handle_eof();
 
     delete _client_memgate;
@@ -296,6 +302,9 @@ void FileSession::handle_eof() {
 }
 
 void FileSession::handle_send_buffer() {
+    if(!_socket)
+        return;
+
     // Process multiple chunks per invocation?
     size_t amount = get_send_size();
     ssize_t pos = _sbuf.get_read_pos(&amount);

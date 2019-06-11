@@ -22,10 +22,20 @@
 using namespace m3;
 
 LwipSocket::~LwipSocket() {
-   // Revoke file session
-   delete _rfile;
-   if(_sfile != _rfile)
-       delete _sfile;
+    if(_rfile)
+       _rfile->_socket = nullptr;
+    if(_sfile)
+       _sfile->_socket = nullptr;
+
+    // Revoke file session
+    if(_rfile) {
+        delete _rfile;
+        _rgate->drop_msgs_with(reinterpret_cast<label_t>(_rfile));
+    }
+    if(_sfile && _sfile != _rfile) {
+        delete _sfile;
+        _rgate->drop_msgs_with(reinterpret_cast<label_t>(_sfile));
+    }
 }
 
 ssize_t LwipSocket::send_data(m3::MemGate &mem, goff_t offset, size_t size) {
