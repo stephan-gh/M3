@@ -184,7 +184,8 @@ static bool eth_alloc_callback(void *&pkt, void *&buf, size_t &buf_size, size_t 
         buf = p->payload;
         buf_size = p->len;
         return true;
-    } else
+    }
+    else
         return false;
 }
 
@@ -226,7 +227,8 @@ static err_t netif_output(struct netif *netif, struct pbuf *p) {
         }
 
         free(pkt);
-    } else {
+    }
+    else {
         NetDriver *driver = static_cast<NetDriver*>(netif->state);
         if(!driver->send(p->payload, p->tot_len)) {
             SLOG(NET, "netif_output failed!");
@@ -281,7 +283,8 @@ int main(int argc, char **argv) {
     ip_addr_t netmask;
     if(!ipaddr_aton(argv[3], &netmask))
         exitmsg(argv[3] << " is not a well formed netmask.");
-    else SLOG(NET, "netmask: " << ipaddr_ntoa(&netmask));
+    else
+        SLOG(NET, "netmask: " << ipaddr_ntoa(&netmask));
 
     struct netif netif;
 
