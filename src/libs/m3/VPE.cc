@@ -112,6 +112,9 @@ VPE::VPE(const String &name, const VPEArgs &args)
             _pager = new Pager(*this, args._pager);
         else if(VPE::self().pager())
             _pager = VPE::self().pager()->create_clone(*this);
+        // we need a pager on VM PEs
+        else
+            Errors::last = Errors::NOT_SUP;
         if(Errors::last != Errors::NONE)
             return;
     }
