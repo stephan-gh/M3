@@ -184,12 +184,9 @@ void VPE::init_state() {
 }
 
 void VPE::init_fs() {
-    if(_fds)
-        delete _fds;
-    if(_ms) {
-        _ms->remove_all();
-        delete _ms;
-    }
+    // don't free them; we don't want to revoke caps
+    _fds = nullptr;
+    _ms = nullptr;
 
     size_t len = STATE_BUF_SIZE;
     char *buf = new char[len];
