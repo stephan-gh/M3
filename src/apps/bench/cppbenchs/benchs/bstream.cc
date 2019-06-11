@@ -48,7 +48,6 @@ NOINLINE static void pingpong_1u64() {
         reply >> res;
         if(res != 0)
             PANIC("test failed");
-
     }, 0x90) << "\n";
 }
 
@@ -72,7 +71,6 @@ NOINLINE static void pingpong_2u64() {
         reply >> res1 >> res2;
         if(res1 != 5 || res2 != 6)
             PANIC("test failed");
-
     }, 0x91) << "\n";
 }
 
@@ -96,7 +94,6 @@ NOINLINE static void pingpong_4u64() {
         reply >> res1 >> res2 >> res3 >> res4;
         if(res1 != 5 || res2 != 6 || res3 != 7 || res4 != 8)
             PANIC("test failed");
-
     }, 0x92) << "\n";
 }
 
@@ -120,7 +117,6 @@ NOINLINE static void pingpong_str() {
         reply >> res;
         if(res != "foobar")
             PANIC("test failed");
-
     }, 0x93) << "\n";
 }
 
