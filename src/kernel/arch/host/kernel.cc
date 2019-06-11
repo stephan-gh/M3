@@ -23,11 +23,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 #include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
 #include <dirent.h>
+#include <pthread.h>
 #include <unistd.h>
 
 #include "pes/PEManager.h"
@@ -96,11 +99,91 @@ static void copytofs(MainMemory &mem, const char *file) {
     KLOG(MEM, "Copied fs-image from memory back to '" << name << "'");
 }
 
+static sockaddr_un get_sock(const char *name) {
+    sockaddr_un addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    // we can't put that in the format string
+    addr.sun_path[0] = '\0';
+    snprintf(addr.sun_path + 1, sizeof(addr.sun_path) - 1, "m3_net_%s", name);
+    return addr;
+}
+
+class Bridge {
+public:
+    explicit Bridge(const std::string &from, const std::string &to)
+        : _name(from + " -> " + to),
+          _src_fd(),
+          _dst_fd(),
+          _dst_sock() {
+        _src_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+        if(_src_fd == -1)
+            PANIC("Unable to create socket for " << from.c_str() << ": " << strerror(errno));
+        _dst_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
+        if(_dst_fd == -1)
+            PANIC("Unable to create socket for " << to.c_str() << ": " << strerror(errno));
+
+        _dst_sock = get_sock(to.c_str());
+
+        sockaddr_un src_sock = get_sock(from.c_str());
+        if(bind(_src_fd, (struct sockaddr*)&src_sock, sizeof(src_sock)) == -1)
+            PANIC("Binding socket for " << from.c_str() << "-in failed: " << strerror(errno));
+    }
+    ~Bridge() {
+        close(_dst_fd);
+        close(_src_fd);
+    }
+
+    void check() {
+        char buffer[2048];
+        ssize_t res = recvfrom(_src_fd, buffer, sizeof(buffer), MSG_DONTWAIT, nullptr, nullptr);
+        if(res <= 0)
+            return;
+
+        if(sendto(_dst_fd, buffer, static_cast<size_t>(res), 0,
+                  (struct sockaddr*)&_dst_sock, sizeof(_dst_sock)) == -1)
+            KLOG(ERR, "Unable to forward packet: " << strerror(errno));
+    }
+
+private:
+    std::string _name;
+    int _src_fd;
+    int _dst_fd;
+    sockaddr_un _dst_sock;
+};
+
+static void *bridge_thread(void *arg) {
+    std::string *bridge = reinterpret_cast<std::string*>(arg);
+
+    size_t split = bridge->find("-");
+    std::string src_name = bridge->substr(0, split);
+    std::string dst_name = bridge->substr(split + 1);
+
+    Bridge b1(src_name + "_out", dst_name + "_in");
+    Bridge b2(dst_name + "_out", src_name + "_in");
+
+    while(1) {
+        b1.check();
+        b2.check();
+    }
+    return nullptr;
+}
+
+static void create_bridge(const char *bridge) {
+    pthread_t tid;
+    int res = pthread_create(&tid, nullptr, bridge_thread, new std::string(bridge));
+    if(res == -1)
+        PANIC("Unable to create bridge thread");
+}
+
 int main(int argc, char *argv[]) {
     int argstart = Args::parse(argc, argv);
 
     mkdir("/tmp/m3", 0755);
     signal(SIGINT, sigint);
+
+    if(Args::bridge)
+        create_bridge(Args::bridge);
 
     KLOG(MEM, MainMemory::get());
 

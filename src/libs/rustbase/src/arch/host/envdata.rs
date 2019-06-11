@@ -71,7 +71,7 @@ pub fn mem_start() -> usize {
             let addr = unsafe {
                 libc::mmap(
                     ptr::null_mut(),
-                    cfg::MEM_SIZE,
+                    cfg::LOCAL_MEM_SIZE,
                     libc::PROT_READ | libc::PROT_WRITE,
                     libc::MAP_ANON | libc::MAP_PRIVATE,
                     -1,

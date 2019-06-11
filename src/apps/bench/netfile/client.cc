@@ -69,6 +69,8 @@ int main() {
     ssize_t rem = size;
     while(rem > 0) {
         size = file->read(buffer, sizeof(buffer));
+        if(size == 0)
+            break;
         cout << "Client Received " << size << "bytes!\n";
         cout << "Client Bytes: " << buffer << "\n";
         rem -= size;

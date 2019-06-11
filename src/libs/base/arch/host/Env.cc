@@ -185,7 +185,7 @@ void Env::init_dtu() {
 
 void *Env::mem() {
     if(_mem == nullptr) {
-        _mem = mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        _mem = mmap(0, LOCAL_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
         if(_mem == MAP_FAILED)
             PANIC("Unable to map heap");
     }

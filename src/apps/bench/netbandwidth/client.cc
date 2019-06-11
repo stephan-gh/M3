@@ -54,6 +54,7 @@ int main() {
     size_t packets_to_send = 105;
     size_t packets_to_receive = 100;
     size_t burst_size = 2;
+    cycles_t timeout = 100000000;
 
     size_t packet_sent_count = 0;
     size_t packet_received_count = 0;
@@ -100,10 +101,12 @@ int main() {
             } else {
                failures++;
                break;
-           }
+            }
         }
 
         if(packet_received_count >= packets_to_receive)
+            break;
+        if(packet_sent_count == packets_to_send && Time::start(0) - last_received > timeout)
             break;
     }
     cout << "Benchmark done.\n";

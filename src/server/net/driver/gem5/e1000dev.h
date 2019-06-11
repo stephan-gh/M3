@@ -17,8 +17,12 @@
 #pragma once
 
 #include <base/Common.h>
+
 #include <m3/net/Net.h>
+
 #include <pci/Device.h>
+
+#include "../driver.h"
 
 #define DEBUG_E1000  0
 #if DEBUG_E1000
@@ -50,7 +54,7 @@ private:
     uint32_t _doneBit;
 };
 
-class E1000 {
+class E1000 : public NetDriver {
     friend class EEPROM;
 
     enum {
@@ -267,27 +271,23 @@ class E1000 {
     };
 
 public:
-    typedef bool(&alloc_cb_func)(void *&pkt, void *&buf, size_t &bufSize, size_t size);
-    typedef void(&next_buf_cb_func)(void *&pkt, void *&buf, size_t &bufSize);
-    typedef void(&recv_cb_func)(void *pkt);
-
-    explicit E1000(m3::WorkLoop *wl, pci::ProxiedPciDevice & nic, alloc_cb_func allocCallback,
+    explicit E1000(m3::WorkLoop *wl, alloc_cb_func allocCallback,
                    next_buf_cb_func nextBufCallback, recv_cb_func recvCallback);
 
     ulong mtu() const {
         return TX_BUF_SIZE;
     }
 
-    void stop();
+    void stop() override;
     void reset();
-    bool send(const void *packet, size_t size);
+    bool send(const void *packet, size_t size) override;
     void receive(size_t maxReceiveCount);
 
     void receiveInterrupt();
-    m3::net::MAC readMAC();
+    m3::net::MAC readMAC() override;
 
-    bool linkStateChanged();
-    bool linkIsUp();
+    bool linkStateChanged() override;
+    bool linkIsUp() override;
 
 private:
     void sleep(cycles_t usec);
@@ -296,7 +296,7 @@ private:
     uint32_t readReg(uint16_t reg);
     void readEEPROM(uintptr_t address, uint8_t *dest, size_t len);
 
-    pci::ProxiedPciDevice & _nic;
+    pci::ProxiedPciDevice _nic;
     EEPROM _eeprom;
     m3::net::MAC _mac;
     uint32_t _curRxBuf;

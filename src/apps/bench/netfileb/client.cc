@@ -42,9 +42,9 @@ int main() {
 
     cout << "Socket connected!\n";
     cout << "Sending...\n";
-    MemGate mem(MemGate::create_global(8192, MemGate::RW));
+    MemGate mem(MemGate::create_global(64 * 1024, MemGate::RW));
     fd_t fd;
-    err = net.as_file(socket->sd(), FILE_RW, mem, 4096, fd);
+    err = net.as_file(socket->sd(), FILE_RW, mem, 32 * 1024, fd);
     if(err != Errors::NONE)
         exitmsg("as_file failed: " << Errors::to_string(err));
 

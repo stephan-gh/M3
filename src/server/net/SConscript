@@ -1,22 +1,21 @@
 Import('env')
-if env['ARCH'] == 'gem5':
-    myenv = env.Clone()
-    myenv.Append(CPPPATH = ['lwip/include', 'lwip/port/include'])
-    myenv.M3Program(
-        myenv,
-        target = 'net',
-        source = [
-            Glob('*.cc'),
-            Glob('driver/*.cc'),
-            Glob('lwip/api/*.c'),
-            Glob('lwip/core/*.c'),
-            Glob('lwip/core/ipv4/*.c'),
-            Glob('lwip/core/ipv6/*.c'),
-            Glob('lwip/netif/*.c'),
-            Glob('lwip/port/*.c'),
-            Glob('lwip/port/*.cc'),
-            Glob('sess/*.cc'),
-            Glob('sess/socket/*.cc'),
-        ],
-        libs = ['pci']
-    )
+myenv = env.Clone()
+myenv.Append(CPPPATH = ['lwip/include', 'lwip/port/include'])
+myenv.M3Program(
+    myenv,
+    target = 'net',
+    source = [
+        Glob('*.cc'),
+        myenv.Glob('driver/$ARCH/*.cc'),
+        Glob('lwip/api/*.c'),
+        Glob('lwip/core/*.c'),
+        Glob('lwip/core/ipv4/*.c'),
+        Glob('lwip/core/ipv6/*.c'),
+        Glob('lwip/netif/*.c'),
+        Glob('lwip/port/*.c'),
+        Glob('lwip/port/*.cc'),
+        Glob('sess/*.cc'),
+        Glob('sess/socket/*.cc'),
+    ],
+    libs = ['pci']
+)

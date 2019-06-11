@@ -29,9 +29,9 @@
 #define FIXED_KMEM          (2 * 1024 * 1024)
 #define VPE_EXTRA_MEM       0
 
-#define MEM_SIZE            (512 * 1024 * 1024)
+#define LOCAL_MEM_SIZE      (512 * 1024 * 1024)
 #define EPMEM_SIZE          (1 * 1024 * 1024)
-#define HEAP_SIZE           (MEM_SIZE - RECVBUF_SIZE - EPMEM_SIZE)
+#define HEAP_SIZE           (LOCAL_MEM_SIZE - RECVBUF_SIZE - EPMEM_SIZE)
 
 #define STACK_SIZE          0x1000
 

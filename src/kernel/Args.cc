@@ -26,22 +26,25 @@ namespace kernel {
 
 size_t Args::kmem          = 32 * 1024 * 1024;
 cycles_t Args::timeslice   = 6000000;
+const char *Args::bridge   = nullptr;
 const char *Args::fsimg    = nullptr;
 
 void Args::usage(const char *name) {
-    m3::Serial::get() << "Usage: " << name << " [-t=<timeslice>] [-f=<fsimg>] [-m=<kmem>] ...\n";
+    m3::Serial::get() << "Usage: " << name << " [-t=<timeslice>] [-f=<fsimg>] [-b=<bridge>] [-m=<kmem>] ...\n";
     m3::Serial::get() << "  -t: the timeslices for all VPEs\n";
     m3::Serial::get() << "  -f: the file system image (only used on host)\n";
+    m3::Serial::get() << "  -b: the network bridge to create (only used on host)\n";
     m3::Serial::get() << "  -m: the kernel memory size (> FIXED_KMEM)\n";
     m3::Machine::shutdown();
 }
 
 int Args::parse(int argc, char **argv) {
     int opt;
-    while((opt = m3::CmdArgs::get(argc, argv, "f:t:m:")) != -1) {
+    while((opt = m3::CmdArgs::get(argc, argv, "f:t:b:m:")) != -1) {
         switch(opt) {
             case 'f': fsimg = m3::CmdArgs::arg; break;
             case 't': timeslice = m3::IStringStream::read_from<cycles_t>(m3::CmdArgs::arg); break;
+            case 'b': bridge = m3::CmdArgs::arg; break;
             case 'm':
                 kmem = m3::CmdArgs::to_size(m3::CmdArgs::arg);
                 if(kmem <= FIXED_KMEM)

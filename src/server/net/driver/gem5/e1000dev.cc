@@ -14,8 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+#include "../proto_def.h"
 #include "e1000dev.h"
-#include "proto_def.h"
 
 #include <assert.h>
 #include <base/DTU.h>
@@ -37,9 +37,14 @@ static inline uint32_t incRb(uint32_t index, uint32_t size)
     return (index + 1) % size;
 }
 
-E1000::E1000(WorkLoop *wl, pci::ProxiedPciDevice &nic, alloc_cb_func allocCallback,
-             next_buf_cb_func nextBufCallback, recv_cb_func recvCallback)
-    : _nic(nic),
+NetDriver *NetDriver::create(const char *, m3::WorkLoop *wl, alloc_cb_func allocCallback,
+                             next_buf_cb_func nextBufCallback, recv_cb_func recvCallback) {
+    return new E1000(wl, allocCallback, nextBufCallback, recvCallback);
+}
+
+E1000::E1000(WorkLoop *wl, alloc_cb_func allocCallback, next_buf_cb_func nextBufCallback,
+             recv_cb_func recvCallback)
+    : _nic("nic", m3::PEISA::NIC),
       _eeprom(*this),
       _curRxBuf(0),
       _curTxDesc(0),

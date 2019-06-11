@@ -29,6 +29,7 @@ int main() {
         exitmsg("Socket creation failed.");
     cout << "Socket created.\n";
 
+    socket->blocking(true);
     if(socket->bind(IpAddr(192, 168, 112, 1), 1337) != Errors::NONE)
         exitmsg("Socket bind failed:" << Errors::to_string(Errors::last));
 

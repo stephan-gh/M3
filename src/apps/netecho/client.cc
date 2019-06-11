@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
     // wait for server
     Semaphore::attach("net").down();
 
+    socket->blocking(true);
     if(socket->connect(IpAddr(192, 168, 112, 1), 1337) != Errors::NONE)
         exitmsg("Socket connect failed:" << Errors::to_string(Errors::last));
 

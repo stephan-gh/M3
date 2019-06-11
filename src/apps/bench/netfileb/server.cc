@@ -51,9 +51,10 @@ int main() {
 
     cout << "Socket accepted!\n";
 
-    MemGate mem(MemGate::create_global(8192, MemGate::RW));
+    // TODO somehow we need to choose a large size to prevent that we get stuck (on host)
+    MemGate mem(MemGate::create_global(64 * 1024, MemGate::RW));
     fd_t fd;
-    err = net.as_file(accepted_socket->sd(), FILE_RW, mem, 4096, fd);
+    err = net.as_file(accepted_socket->sd(), FILE_RW, mem, 32 * 1024, fd);
     if(err != Errors::NONE)
         exitmsg("as_file failed: " << Errors::to_string(err));
     Reference<File> file = VPE::self().fds()->get(fd);
@@ -75,8 +76,10 @@ int main() {
     cycles_t last_received = 0;
     while(received_bytes < bytes_to_receive) {
         ssize_t recv_len = file->read(response.raw, packet_size);
-        if(recv_len <= 0)
-            exitmsg("Reading has failed: " << recv_len);
+        if(recv_len <= 0) {
+            errmsg("Reading has failed: " << recv_len);
+            break;
+        }
         received_bytes += static_cast<size_t>(recv_len);
 
         if(packet_received_count == 0)

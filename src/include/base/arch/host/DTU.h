@@ -216,9 +216,8 @@ public:
         return false;
     }
 
-    bool has_credits(epid_t) const {
-        // TODO not supported
-        return true;
+    bool has_credits(epid_t ep) const {
+        return get_ep(ep, EP_CREDITS) > 0;
     }
 
     Message *fetch_msg(epid_t ep) {
@@ -280,11 +279,16 @@ public:
         return static_cast<cycles_t>(ts.tv_sec) * 1000000000 + static_cast<cycles_t>(ts.tv_nsec);
     }
 
+    cycles_t clock() const {
+        return 1000000000;
+    }
+
     void sleep(uint64_t cycles = 0) const {
         struct timespec time;
-        // just a rough estimate, based on a 3GHz CPU
-        time.tv_nsec = static_cast<long>(cycles / 3);
-        time.tv_sec = static_cast<time_t>(cycles / 3000000000);
+        // we treat cycles as nanoseconds here
+        uint64_t secs = cycles / 1000000000;
+        time.tv_nsec = static_cast<long>(cycles - secs * 1000000000);
+        time.tv_sec = static_cast<time_t>(secs);
         nanosleep(&time, nullptr);
     }
     void try_sleep(bool = true, uint64_t = 0) const {

@@ -19,6 +19,7 @@
 #include <base/util/Profile.h>
 #include <base/Panic.h>
 
+#include <m3/net/Net.h>
 #include <m3/server/RequestHandler.h>
 #include <m3/server/Server.h>
 #include <m3/stream/Standard.h>
@@ -26,7 +27,7 @@
 #include <pci/Device.h>
 #include <thread/ThreadManager.h>
 
-#include "driver/e1000dev.h"
+#include "driver/driver.h"
 
 #include "lwipopts.h"
 #include "lwip/sys.h"
@@ -59,10 +60,10 @@ static Server<NMRequestHandler> *srv;
 
 class NMRequestHandler: public net_reqh_base_t {
 public:
-    explicit NMRequestHandler(WorkLoop *wl, E1000 *e1000)
+    explicit NMRequestHandler(WorkLoop *wl, NetDriver *driver)
         : net_reqh_base_t(),
           _wl(wl),
-          _e1000(e1000),
+          _driver(driver),
           _rgate(RecvGate::create(nextlog2<32 * NMSession::MSG_SIZE>::val, nextlog2<NMSession::MSG_SIZE>::val)) {
         add_operation(NetworkManager::CREATE, &NMRequestHandler::create);
         add_operation(NetworkManager::BIND, &NMRequestHandler::bind);
@@ -108,7 +109,7 @@ public:
             delete &*old;
         }
 
-        _e1000->stop();
+        _driver->stop();
         _rgate.stop();
     }
 
@@ -167,7 +168,7 @@ public:
 
 private:
     WorkLoop *_wl;
-    E1000 *_e1000;
+    NetDriver *_driver;
     RecvGate _rgate;
     SList<NMSession> _sessions;
 };
@@ -217,8 +218,8 @@ static err_t netif_output(struct netif *netif, struct pbuf *p) {
         }
 
         pbuf_copy_partial(p, pkt, p->tot_len, 0);
-        E1000 *e1000 = static_cast<E1000*>(netif->state);
-        if(!e1000->send(pkt, p->tot_len)) {
+        NetDriver *driver = static_cast<NetDriver*>(netif->state);
+        if(!driver->send(pkt, p->tot_len)) {
             free(pkt);
             SLOG(NET, "netif_output failed!");
             return ERR_IF;
@@ -226,8 +227,8 @@ static err_t netif_output(struct netif *netif, struct pbuf *p) {
 
         free(pkt);
     } else {
-        E1000 *e1000 = static_cast<E1000*>(netif->state);
-        if(!e1000->send(p->payload, p->tot_len)) {
+        NetDriver *driver = static_cast<NetDriver*>(netif->state);
+        if(!driver->send(p->payload, p->tot_len)) {
             SLOG(NET, "netif_output failed!");
             return ERR_IF;
         }
@@ -242,7 +243,7 @@ static void netif_status_callback(struct netif *netif) {
 }
 
 static err_t netif_init(struct netif *netif) {
-    E1000 *e1000 = static_cast<E1000*>(netif->state);
+    NetDriver *driver = static_cast<NetDriver*>(netif->state);
 
     netif->linkoutput = netif_output;
     netif->output = etharp_output;
@@ -251,7 +252,7 @@ static err_t netif_init(struct netif *netif) {
     netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET |
                    NETIF_FLAG_IGMP | NETIF_FLAG_MLD6;
 
-    m3::net::MAC mac = e1000->readMAC();
+    m3::net::MAC mac = driver->readMAC();
     static_assert(m3::net::MAC::LEN == sizeof(netif->hwaddr), "mac address size mismatch");
     SMEMCPY(netif->hwaddr, mac.bytes(), m3::net::MAC::LEN);
     netif->hwaddr_len = sizeof(netif->hwaddr);
@@ -260,11 +261,11 @@ static err_t netif_init(struct netif *netif) {
 }
 
 static bool link_state_changed(struct netif *netif) {
-    return static_cast<E1000 *>(netif->state)->linkStateChanged();
+    return static_cast<NetDriver *>(netif->state)->linkStateChanged();
 }
 
 static bool link_is_up(struct netif *netif) {
-    return static_cast<E1000 *>(netif->state)->linkIsUp();
+    return static_cast<NetDriver *>(netif->state)->linkIsUp();
 }
 
 int main(int argc, char **argv) {
@@ -286,12 +287,12 @@ int main(int argc, char **argv) {
 
     WorkLoop wl;
 
-    pci::ProxiedPciDevice nic("nic", m3::PEISA::NIC);
-    E1000 e1000(&wl, nic, eth_alloc_callback, eth_next_buf_callback, eth_recv_callback);
+    NetDriver *driver = NetDriver::create(argv[1], &wl, eth_alloc_callback, eth_next_buf_callback,
+                                          eth_recv_callback);
 
     lwip_init();
 
-    netif_add(&netif, &ip, &netmask, IP4_ADDR_ANY, &e1000, netif_init, netif_input);
+    netif_add(&netif, &ip, &netmask, IP4_ADDR_ANY, driver, netif_init, netif_input);
     netif.name[0] = 'e';
     netif.name[1] = '0';
     // netif_create_ip6_linklocal_address(&netif, 1);
@@ -302,7 +303,7 @@ int main(int argc, char **argv) {
 
     /* Start DHCP */
     // dhcp_start(&netif );
-    srv = new Server<NMRequestHandler>(argv[1], &wl, new NMRequestHandler(&wl, &e1000));
+    srv = new Server<NMRequestHandler>(argv[1], &wl, new NMRequestHandler(&wl, driver));
 
     while(wl.has_items()) {
         /* Check link state, e.g. via MDIO communication with PHY */
@@ -353,6 +354,7 @@ int main(int argc, char **argv) {
     }
 
     delete srv;
+    delete driver;
 
     return 0;
 }
