@@ -138,6 +138,14 @@ Errors::Code Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, co
     return Errors::last;
 }
 
+Errors::Code Syscalls::create_sem(capsel_t dst, uint value) {
+    KIF::Syscall::CreateSem req;
+    req.opcode = KIF::Syscall::CREATE_SEM;
+    req.dst_sel = dst;
+    req.value = value;
+    return send_receive_result(&req, sizeof(req));
+}
+
 Errors::Code Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {
     KIF::Syscall::Activate req;
     req.opcode = KIF::Syscall::ACTIVATE;
@@ -214,6 +222,14 @@ Errors::Code Syscalls::kmem_quota(capsel_t kmem, size_t &amount) {
 
     DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<size_t>(reply));
     return Errors::last;
+}
+
+Errors::Code Syscalls::sem_ctrl(capsel_t sel, KIF::Syscall::SemOp op) {
+    KIF::Syscall::SemCtrl req;
+    req.opcode = KIF::Syscall::SEM_CTRL;
+    req.sem_sel = sel;
+    req.op = op;
+    return send_receive_result(&req, sizeof(req));
 }
 
 Errors::Code Syscalls::exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other, bool obtain) {

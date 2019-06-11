@@ -34,6 +34,7 @@ mod tmemmap;
 mod tmgate;
 mod tpipe;
 mod trgate;
+mod tsems;
 mod tserver;
 mod tsgate;
 mod tsyscalls;
@@ -79,6 +80,7 @@ pub fn main() -> i32 {
     run_suite!(tester, tpipe::run);
     run_suite!(tester, trgate::run);
     run_suite!(tester, tsgate::run);
+    run_suite!(tester, tsems::run);
     run_suite!(tester, tserver::run);
     run_suite!(tester, tsyscalls::run);
     run_suite!(tester, ttreap::run);

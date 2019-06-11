@@ -22,11 +22,13 @@ mod gate;
 mod mgate;
 mod rgate;
 mod sgate;
+mod sem;
 
 pub use self::epmux::EpMux;
 pub use self::mgate::{MemGate, MGateArgs, Perm};
 pub use self::rgate::{RecvGate, RGateArgs};
 pub use self::sgate::{SendGate, SGateArgs};
+pub use self::sem::Semaphore;
 pub use self::stream::*;
 
 pub fn init() {

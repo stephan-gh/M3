@@ -149,6 +149,7 @@ struct KIF {
             CREATE_MAP,
             CREATE_VPEGRP,
             CREATE_VPE,
+            CREATE_SEM,
 
             // capability operations
             ACTIVATE,
@@ -157,6 +158,7 @@ struct KIF {
             DERIVE_MEM,
             DERIVE_KMEM,
             KMEM_QUOTA,
+            SEM_CTRL,
 
             // capability exchange
             DELEGATE,
@@ -180,6 +182,11 @@ struct KIF {
             VCTRL_START,
             VCTRL_YIELD,
             VCTRL_STOP,
+        };
+
+        enum SemOp {
+            SCTRL_UP,
+            SCTRL_DOWN,
         };
 
         struct Pagefault : public DefaultRequest {
@@ -244,6 +251,11 @@ struct KIF {
             xfer_t pe;
         } PACKED;
 
+        struct CreateSem : public DefaultRequest {
+            xfer_t dst_sel;
+            xfer_t value;
+        } PACKED;
+
         struct Activate : public DefaultRequest {
             xfer_t ep_sel;
             xfer_t gate_sel;
@@ -288,6 +300,11 @@ struct KIF {
 
         struct KMemQuotaReply : public DefaultReply {
             xfer_t amount;
+        } PACKED;
+
+        struct SemCtrl : public DefaultRequest {
+            xfer_t sem_sel;
+            xfer_t op;
         } PACKED;
 
         struct Exchange : public DefaultRequest {

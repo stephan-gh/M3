@@ -33,6 +33,7 @@ int main() {
             exitmsg("Unable to mount m3fs as root-fs");
     }
 
+    RUN_SUITE(tsems);
 #if defined(__host__)
     RUN_SUITE(tdtu);
 #endif

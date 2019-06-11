@@ -28,7 +28,7 @@ mod loader;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
-use m3::col::{String, Vec};
+use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs, SendGate, SGateArgs};
 use m3::dtu;
 use m3::errors::Error;
@@ -40,7 +40,7 @@ use m3::util;
 use m3::vpe::{VPE, VPEArgs};
 
 use resmng::childs::{self, OwnChild, Child, Id};
-use resmng::{config, memory, sendqueue, services};
+use resmng::{config, memory, sems, sendqueue, services};
 
 //
 // The kernel initializes our cap space as follows:
@@ -164,6 +164,14 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
     Ok(())
 }
 
+fn use_sem(is: &mut GateIStream, child: &mut dyn Child) {
+    let sel: Selector = is.pop();
+    let name: String = is.pop();
+
+    let res = child.use_sem(&name, sel);
+    reply_result(is, res);
+}
+
 fn start_delayed() {
     let mut new_wait = false;
     let mut idx = 0;
@@ -205,6 +213,8 @@ fn handle_request(mut is: GateIStream) {
 
         ResMngOperation::ALLOC_MEM   => alloc_mem(&mut is, child),
         ResMngOperation::FREE_MEM    => free_mem(&mut is, child),
+
+        ResMngOperation::USE_SEM     => use_sem(&mut is, child),
 
         _                            => unreachable!(),
     }
@@ -320,6 +330,10 @@ pub fn main() -> i32 {
             for arg in m.name().split_whitespace() {
                 if arg == "samekmem" {
                     same_kmem = true;
+                }
+                if arg.starts_with("sem=") {
+                    sems::get().add_sem(arg[4..].to_string())
+                        .expect("Unable to add semaphore");
                 }
             }
             continue;

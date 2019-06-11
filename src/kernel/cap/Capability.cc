@@ -16,6 +16,8 @@
 
 #include <base/log/Kernel.h>
 
+#include <thread/ThreadManager.h>
+
 #include "pes/VPEManager.h"
 #include "cap/Capability.h"
 #include "cap/CapTable.h"
@@ -82,6 +84,31 @@ void SessObject::drop_msgs() {
 EPObject::~EPObject() {
     if(gate != nullptr)
         gate->remove_ep(this);
+}
+
+m3::Errors::Code SemObject::down() {
+    while(*const_cast<volatile uint*>(&counter) == 0) {
+        waiters++;
+        // TODO prevent starvation
+        m3::ThreadManager::get().wait_for(reinterpret_cast<event_t>(this));
+        if(*const_cast<volatile int*>(&waiters) == -1)
+            return m3::Errors::RECV_GONE;
+        waiters--;
+    }
+    counter--;
+    return m3::Errors::NONE;
+}
+
+void SemObject::up() {
+    if(waiters > 0)
+        m3::ThreadManager::get().notify(reinterpret_cast<event_t>(this));
+    counter++;
+}
+
+void SemCapability::revoke() {
+    if(obj->waiters > 0)
+        m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&*obj));
+    obj->waiters = -1;
 }
 
 void KMemCapability::revoke() {
@@ -214,6 +241,12 @@ void KMemCapability::printInfo(m3::OStream &os) const {
     os << ": kmem [refs=" << obj->refcount()
        << ", quota=" << obj->quota
        << ", left=" << obj->left << "]";
+}
+
+void SemCapability::printInfo(m3::OStream &os) const {
+    os << ": sem [refs=" << obj->refcount()
+       << ", counter=" << obj->counter
+       << ", waiters=" << obj->waiters << "]";
 }
 
 void Capability::printChilds(m3::OStream &os, size_t layer) const {

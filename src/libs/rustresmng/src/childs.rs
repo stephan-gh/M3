@@ -30,6 +30,7 @@ use m3::vpe::{Activity, ExecActivity, KMem, Mapper, VPE};
 
 use config::Config;
 use memory::Allocation;
+use sems;
 use services::{self, Session};
 
 pub type Id = u32;
@@ -180,6 +181,16 @@ pub trait Child {
         }
 
         log!(RESMNG_MEM, "{}: removed {:?}", self.name(), alloc);
+    }
+
+    fn use_sem(&mut self, name: &String, sel: Selector) -> Result<(), Error> {
+        log!(RESMNG, "{}: use_sem(name={}, sel={})", self.name(), name, sel);
+
+        let cfg = self.cfg();
+        let sdesc = cfg.get_sem(&name).ok_or(Error::new(Code::InvArgs))?;
+
+        let our_sel = sems::get().get(sdesc.global_name()).unwrap();
+        self.delegate(our_sel, sel)
     }
 
     fn remove_resources(&mut self) where Self: Sized {

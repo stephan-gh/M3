@@ -42,6 +42,8 @@ public:
 
         ALLOC_MEM,
         FREE_MEM,
+
+        USE_SEM,
     };
 
     explicit ResMng(capsel_t resmng)
@@ -91,6 +93,11 @@ public:
 
     Errors::Code free_mem(capsel_t sel) {
         GateIStream reply = send_receive_vmsg(_sgate, FREE_MEM, sel);
+        return retrieve_result(reply);
+    }
+
+    Errors::Code use_sem(capsel_t sel, const char *name) {
+        GateIStream reply = send_receive_vmsg(_sgate, USE_SEM, sel, name);
         return retrieve_result(reply);
     }
 

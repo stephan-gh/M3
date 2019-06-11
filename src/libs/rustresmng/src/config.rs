@@ -29,17 +29,7 @@ pub struct ServiceDesc {
 
 impl ServiceDesc {
     pub fn new(line: &str) -> Result<Self, Error> {
-        let parts = line.split(":").collect::<Vec<&str>>();
-        let (lname, gname) = if parts.len() == 1 {
-            (parts[0].to_string(), parts[0].to_string())
-        }
-        else if parts.len() == 2 {
-            (parts[0].to_string(), parts[1].to_string())
-        }
-        else {
-            return Err(Error::new(Code::InvArgs));
-        };
-
+        let (lname, gname) = parse_names(line)?;
         Ok(ServiceDesc {
             local_name: lname,
             global_name: gname,
@@ -137,6 +127,38 @@ impl ChildDesc {
     }
 }
 
+pub struct SemDesc {
+    local_name: String,
+    global_name: String,
+}
+
+impl SemDesc {
+    pub fn new(line: &str) -> Result<Self, Error> {
+        let (lname, gname) = parse_names(line)?;
+        Ok(SemDesc {
+            local_name: lname,
+            global_name: gname,
+        })
+    }
+
+    pub fn global_name(&self) -> &String {
+        &self.global_name
+    }
+}
+
+fn parse_names(line: &str) -> Result<(String, String), Error> {
+    let parts = line.split(":").collect::<Vec<&str>>();
+    if parts.len() == 1 {
+        Ok((parts[0].to_string(), parts[0].to_string()))
+    }
+    else if parts.len() == 2 {
+        Ok((parts[0].to_string(), parts[1].to_string()))
+    }
+    else {
+        return Err(Error::new(Code::InvArgs));
+    }
+}
+
 fn parse_size(s: &str) -> Result<usize, Error> {
     let mul = match s.chars().last() {
         Some(c) if c >= '0' && c <= '9' => 1,
@@ -193,6 +215,7 @@ pub struct Config {
     services: Vec<ServiceDesc>,
     sessions: Vec<SessionDesc>,
     childs: Vec<ChildDesc>,
+    sems: Vec<SemDesc>,
 }
 
 impl Config {
@@ -209,6 +232,7 @@ impl Config {
             services: Vec::new(),
             sessions: Vec::new(),
             childs: Vec::new(),
+            sems: Vec::new(),
         };
 
         let mut args = Vec::new();
@@ -237,6 +261,9 @@ impl Config {
                 else if a.starts_with("child=") {
                     let (_, _, cfg) = Self::parse(&a[6..], ';', restrict)?;
                     res.childs.push(ChildDesc::new(cfg));
+                }
+                else if a.starts_with("sem=") {
+                    res.sems.push(SemDesc::new(&a[4..])?);
                 }
                 else if a == "daemon" {
                     daemon = true;
@@ -268,6 +295,10 @@ impl Config {
     }
     pub fn childs(&self) -> &Vec<ChildDesc> {
         &self.childs
+    }
+
+    pub fn get_sem(&self, lname: &String) -> Option<&SemDesc> {
+        self.sems.iter().find(|s| s.local_name == *lname)
     }
 
     pub fn get_service(&self, lname: &String) -> Option<&ServiceDesc> {

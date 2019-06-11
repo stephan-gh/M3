@@ -35,6 +35,8 @@ int_enum! {
 
         const ALLOC_MEM     = 0x6;
         const FREE_MEM      = 0x7;
+
+        const USE_SEM       = 0x8;
     }
 }
 
@@ -109,6 +111,13 @@ impl ResMng {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
             ResMngOperation::FREE_MEM, sel
+        ).map(|_| ())
+    }
+
+    pub fn use_sem(&self, sel: Selector, name: &str) -> Result<(), Error> {
+        send_recv_res!(
+            &self.sgate, RecvGate::def(),
+            ResMngOperation::USE_SEM, sel, name
         ).map(|_| ())
     }
 }

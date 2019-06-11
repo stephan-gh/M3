@@ -90,12 +90,14 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::CREATE_VPEGRP,  &SyscallHandler::create_vgroup);
     add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::create_vpe);
     add_operation(m3::KIF::Syscall::CREATE_MAP,     &SyscallHandler::create_map);
+    add_operation(m3::KIF::Syscall::CREATE_SEM,     &SyscallHandler::create_sem);
     add_operation(m3::KIF::Syscall::ACTIVATE,       &SyscallHandler::activate);
     add_operation(m3::KIF::Syscall::VPE_CTRL,       &SyscallHandler::vpe_ctrl);
     add_operation(m3::KIF::Syscall::VPE_WAIT,       &SyscallHandler::vpe_wait);
     add_operation(m3::KIF::Syscall::DERIVE_MEM,     &SyscallHandler::derive_mem);
     add_operation(m3::KIF::Syscall::DERIVE_KMEM,    &SyscallHandler::derive_kmem);
     add_operation(m3::KIF::Syscall::KMEM_QUOTA,     &SyscallHandler::kmem_quota);
+    add_operation(m3::KIF::Syscall::SEM_CTRL,       &SyscallHandler::sem_ctrl);
     add_operation(m3::KIF::Syscall::EXCHANGE,       &SyscallHandler::exchange);
     add_operation(m3::KIF::Syscall::DELEGATE,       &SyscallHandler::delegate);
     add_operation(m3::KIF::Syscall::OBTAIN,         &SyscallHandler::obtain);
@@ -461,6 +463,23 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
+void SyscallHandler::create_sem(VPE *vpe, const m3::DTU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::CreateSem>(msg);
+    capsel_t dst = req->dst_sel;
+    uint value = req->value;
+
+    LOG_SYS(vpe, ": syscall::create_sem", "(dst=" << dst << ", value=" << value << ")");
+
+    if(!vpe->objcaps().unused(dst))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
+
+    auto semcap = SYS_CREATE_CAP(vpe, msg, SemCapability, SemObject,
+        &vpe->objcaps(), dst, value);
+    vpe->objcaps().set(dst, semcap);
+
+    reply_result(vpe, msg, m3::Errors::NONE);
+}
+
 void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
     EVENT_TRACER_Syscall_activate();
 
@@ -741,6 +760,36 @@ void SyscallHandler::kmem_quota(VPE *vpe, const m3::DTU::Message *msg) {
     reply.error = m3::Errors::NONE;
     reply.amount = kmemcap->obj->left;
     reply_msg(vpe, msg, &reply, sizeof(reply));
+}
+
+void SyscallHandler::sem_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::SemCtrl>(msg);
+    capsel_t sem = req->sem_sel;
+    auto op = static_cast<m3::KIF::Syscall::SemOp>(req->op);
+
+    static const char *ops[] = {"UP", "DOWN", "?"};
+
+    LOG_SYS(vpe, ": syscall::sem_ctrl", "(sem=" << sem
+        << ", op=" << ops[op < ARRAY_SIZE(ops) ? op : 2] << ")");
+
+    auto semcap = static_cast<SemCapability*>(vpe->objcaps().get(sem, Capability::SEM));
+    if(semcap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid sem cap");
+
+    m3::Errors::Code res = m3::Errors::NONE;
+    switch(op) {
+        case m3::KIF::Syscall::SCTRL_UP:
+            semcap->obj->up();
+            break;
+
+        case m3::KIF::Syscall::SCTRL_DOWN: {
+            res = semcap->obj->down();
+            LOG_SYS(vpe, ": syscall::sem_ctrl-cont", "(res=" << res << ")");
+            break;
+        }
+    }
+
+    reply_result(vpe, msg, res);
 }
 
 void SyscallHandler::delegate(VPE *vpe, const m3::DTU::Message *msg) {

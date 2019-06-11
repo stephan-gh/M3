@@ -57,6 +57,7 @@ public:
         VIRTPE  = 0x80,
         EP      = 0x100,
         KMEM    = 0x200,
+        SEM     = 0x400,
     };
 
     explicit Capability(CapTable *tbl, capsel_t sel, unsigned type, uint len = 1)
@@ -313,6 +314,22 @@ public:
     size_t left;
 };
 
+class SemObject : public SlabObject<SemObject>, public m3::RefCounted {
+public:
+    explicit SemObject(uint _counter)
+        : SlabObject<SemObject>(),
+          m3::RefCounted(),
+          counter(_counter),
+          waiters(0) {
+    }
+
+    m3::Errors::Code down();
+    void up();
+
+    uint counter;
+    int waiters;
+};
+
 class RGateCapability : public SlabObject<RGateCapability>, public Capability {
 public:
     explicit RGateCapability(CapTable *tbl, capsel_t sel, RGateObject *_obj)
@@ -557,6 +574,29 @@ private:
 
 public:
     m3::Reference<KMemObject> obj;
+};
+
+class SemCapability : public SlabObject<SemCapability>, public Capability {
+public:
+    explicit SemCapability(CapTable *tbl, capsel_t sel, SemObject *_obj)
+        : Capability(tbl, sel, SEM),
+          obj(_obj) {
+    }
+
+    virtual size_t obj_size() const override {
+        return sizeof(SemObject);
+    }
+
+    void printInfo(m3::OStream &os) const override;
+
+private:
+    virtual void revoke() override;
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+        return do_clone(this, tbl, sel);
+    }
+
+public:
+    m3::Reference<SemObject> obj;
 };
 
 inline EPObject *GateObject::ep_of_vpe(vpeid_t vpe) {

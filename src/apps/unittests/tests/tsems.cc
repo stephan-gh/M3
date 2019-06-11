@@ -1,0 +1,83 @@
+/*
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
+#include <base/stream/IStringStream.h>
+
+#include <m3/stream/FStream.h>
+#include <m3/com/Semaphore.h>
+#include <m3/vfs/FileRef.h>
+
+#include "../unittests.h"
+
+using namespace m3;
+
+static int get_counter(const char *filename) {
+    char buffer[8];
+    FileRef file(filename, FILE_R);
+    file->read(buffer, sizeof(buffer));
+    return IStringStream::read_from<int>(buffer);
+}
+
+static void set_counter(const char *filename, int value) {
+    char buffer[8];
+    OStringStream os(buffer, sizeof(buffer));
+    os << value;
+
+    FileRef file(filename, FILE_W | FILE_TRUNC | FILE_CREATE);
+    file->write(os.str(), os.length());
+}
+
+static void taking_turns() {
+    Semaphore sem0 = Semaphore::create(1);
+    Semaphore sem1 = Semaphore::create(0);
+
+    VPE child("child");
+    assert_true(Errors::last == Errors::NONE);
+
+    child.delegate_obj(sem0.sel());
+    child.delegate_obj(sem1.sel());
+
+    child.fds(*VPE::self().fds());
+    child.obtain_fds();
+    child.mounts(*VPE::self().mounts());
+    child.obtain_mounts();
+
+    set_counter("/sem0", 0);
+    set_counter("/sem1", 0);
+
+    child.run([&sem0, &sem1] {
+        for(int i = 0; i < 10; ++i) {
+            sem0.down();
+            assert_int(get_counter("/sem0"), i);
+            set_counter("/sem1", i);
+            sem1.up();
+        }
+        return 0;
+    });
+
+    for(int i = 0; i < 10; ++i) {
+        sem1.down();
+        assert_int(get_counter("/sem1"), i);
+        set_counter("/sem0", i + 1);
+        sem0.up();
+    }
+
+    assert_int(child.wait(), 0);
+}
+
+void tsems() {
+    RUN_TEST(taking_turns);
+}

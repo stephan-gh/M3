@@ -45,6 +45,7 @@ public:
                                    capsel_t group);
     static Errors::Code create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                                    capsel_t pages, int perms);
+    static Errors::Code create_sem(capsel_t dst, uint value);
 
     static Errors::Code activate(capsel_t ep, capsel_t gate, goff_t addr);
     static Errors::Code vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg);
@@ -54,6 +55,7 @@ public:
                                    size_t size, int perms);
     static Errors::Code derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);
     static Errors::Code kmem_quota(capsel_t kmem, size_t &amount);
+    static Errors::Code sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);
 
     static Errors::Code delegate(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                                  KIF::ExchangeArgs *args = nullptr);

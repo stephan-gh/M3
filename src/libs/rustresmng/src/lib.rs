@@ -28,5 +28,6 @@ extern crate thread;
 pub mod childs;
 pub mod config;
 pub mod memory;
+pub mod sems;
 pub mod sendqueue;
 pub mod services;

@@ -166,6 +166,15 @@ pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
     }
 }
 
+pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
+    let req = syscalls::CreateSem {
+        opcode: syscalls::Operation::CREATE_SEM.val,
+        dst_sel: dst as u64,
+        value: value as u64
+    };
+    send_receive_result(&req)
+}
+
 pub fn derive_mem(vpe: Selector, dst: Selector, src: Selector, offset: goff,
                   size: usize, perms: Perm) -> Result<(), Error> {
     let req = syscalls::DeriveMem {
@@ -230,6 +239,15 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
         0               => Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32)),
         e               => Err(Error::from(e as u32))
     }
+}
+
+pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
+    let req = syscalls::SemCtrl {
+        opcode: syscalls::Operation::SEM_CTRL.val,
+        sem_sel: sem as u64,
+        op: op.val as u64
+    };
+    send_receive_result(&req)
 }
 
 pub fn exchange(vpe: Selector, own: CapRngDesc, other: Selector, obtain: bool) -> Result<(), Error> {

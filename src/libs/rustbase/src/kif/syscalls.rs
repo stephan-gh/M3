@@ -41,28 +41,30 @@ int_enum! {
         const CREATE_MAP        = 5;
         const CREATE_VPEGRP     = 6;
         const CREATE_VPE        = 7;
+        const CREATE_SEM        = 8;
 
         // capability operations
-        const ACTIVATE          = 8;
-        const VPE_CTRL          = 9;
-        const VPE_WAIT          = 10;
-        const DERIVE_MEM        = 11;
-        const DERIVE_KMEM       = 12;
-        const KMEM_QUOTA        = 13;
+        const ACTIVATE          = 9;
+        const VPE_CTRL          = 10;
+        const VPE_WAIT          = 11;
+        const DERIVE_MEM        = 12;
+        const DERIVE_KMEM       = 13;
+        const KMEM_QUOTA        = 14;
+        const SEM_CTRL          = 15;
 
         // capability exchange
-        const DELEGATE          = 14;
-        const OBTAIN            = 15;
-        const EXCHANGE          = 16;
-        const REVOKE            = 17;
+        const DELEGATE          = 16;
+        const OBTAIN            = 17;
+        const EXCHANGE          = 18;
+        const REVOKE            = 19;
 
         // forwarding
-        const FORWARD_MSG       = 18;
-        const FORWARD_MEM       = 19;
-        const FORWARD_REPLY     = 20;
+        const FORWARD_MSG       = 20;
+        const FORWARD_MEM       = 21;
+        const FORWARD_REPLY     = 22;
 
         // misc
-        const NOOP              = 21;
+        const NOOP              = 23;
     }
 }
 
@@ -191,6 +193,14 @@ pub struct CreateVPEReply {
     pub pe: u64,
 }
 
+/// The create semaphore request message
+#[repr(C, packed)]
+pub struct CreateSem {
+    pub opcode: u64,
+    pub dst_sel: u64,
+    pub value: u64,
+}
+
 /// The activate request message
 #[repr(C, packed)]
 pub struct Activate {
@@ -269,6 +279,22 @@ pub struct KMemQuota {
 pub struct KMemQuotaReply {
     pub error: u64,
     pub amount: u64,
+}
+
+int_enum! {
+    /// The operations for the `sem_ctrl` system call
+    pub struct SemOp : u64 {
+        const UP   = 0x0;
+        const DOWN = 0x1;
+    }
+}
+
+/// The semaphore control request message
+#[repr(C, packed)]
+pub struct SemCtrl {
+    pub opcode: u64,
+    pub sem_sel: u64,
+    pub op: u64,
 }
 
 /// The exchange request message

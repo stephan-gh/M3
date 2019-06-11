@@ -38,6 +38,7 @@ void tfsmeta();
 void tfs();
 void tbitfield();
 void theap();
+void tsems();
 void tstream();
 
 #define assert_int(actual, expected)                                \

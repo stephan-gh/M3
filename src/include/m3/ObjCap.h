@@ -52,6 +52,7 @@ public:
         VIRTPE,
         EPMASK,
         KMEM,
+        SEM,
     };
 
     /**
