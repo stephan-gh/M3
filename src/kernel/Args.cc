@@ -30,7 +30,7 @@ const char *Args::bridge   = nullptr;
 const char *Args::fsimg    = nullptr;
 
 void Args::usage(const char *name) {
-    m3::Serial::get() << "Usage: " << name << " [-t=<timeslice>] [-f=<fsimg>] [-b=<bridge>] [-m=<kmem>] ...\n";
+    m3::Serial::get() << "Usage: " << name << " [-t <timeslice>] [-f <fsimg>] [-b <bridge>] [-m <kmem>] ...\n";
     m3::Serial::get() << "  -t: the timeslices for all VPEs\n";
     m3::Serial::get() << "  -f: the file system image (only used on host)\n";
     m3::Serial::get() << "  -b: the network bridge to create (only used on host)\n";
