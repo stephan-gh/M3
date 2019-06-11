@@ -160,6 +160,9 @@ build_params_gem5() {
     if [ "$M3_PAUSE_PE" != "" ]; then
         echo -n " --listener-mode=on" >> $params
     fi
+    if [ "$M3_GEM5_DBGSTART" != "" ]; then
+        echo -n " --debug-start=$M3_GEM5_DBGSTART" >> $params
+    fi
     echo -n " $M3_GEM5_CFG --cpu-type $M3_GEM5_CPU --isa $M3_ISA --cmd \"$cmd\"" >> $params
     echo -n " --cpu-clock=$M3_GEM5_CPUFREQ --sys-clock=$M3_GEM5_MEMFREQ" >> $params
     if [ "$M3_PAUSE_PE" != "" ]; then
