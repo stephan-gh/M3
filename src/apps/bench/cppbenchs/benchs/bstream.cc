@@ -109,13 +109,13 @@ NOINLINE static void pingpong_str() {
         String res;
         auto msg = receive_msg(rgate);
         msg >> res;
-        if(res != "test")
+        if(res.length() != 4)
             PANIC("test failed");
         reply_vmsg(msg, "foobar");
 
         auto reply = receive_msg(*sgate.reply_gate());
         reply >> res;
-        if(res != "foobar")
+        if(res.length() != 6)
             PANIC("test failed");
     }, 0x93) << "\n";
 }

@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::col::{String, ToString};
+use m3::col::String;
 use m3::com::*;
 use m3::profile;
 use m3::test;
@@ -109,10 +109,10 @@ fn pingpong_str() {
         assert_ok!(send_vmsg!(&sgate, reply_gate, "test"));
 
         let mut msg = assert_ok!(recv_msg(&rgate));
-        assert_eq!(msg.pop::<String>(), "test".to_string());
+        assert_eq!(msg.pop::<String>().len(), 4);
         assert_ok!(reply_vmsg!(msg, "foobar"));
 
         let mut reply = assert_ok!(recv_msg(reply_gate));
-        assert_eq!(reply.pop::<String>(), "foobar".to_string());
+        assert_eq!(reply.pop::<String>().len(), 6);
     }, 0x3));
 }
