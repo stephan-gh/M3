@@ -38,7 +38,8 @@ public:
         LOADGEN     = 1 << 8,
         NIC         = 1 << 9,
         NET         = 1 << 10,
-        TIMER       = 1 << 11,
+        NET_ALL     = 1 << 11,
+        TIMER       = 1 << 12,
     };
 
     static const int level = 0;

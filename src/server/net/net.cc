@@ -340,10 +340,14 @@ int main(int argc, char **argv) {
             if(auto sleep_ms = sys_timeouts_sleeptime()) {
                 cycles_t sleep_time = sleep_ms * (m3::DTU::get().clock() / 1000);
                 cycles_t start = m3::DTU::get().tsc();
-                SLOG(NET, "@" << start << " try_sleep: " << sleep_time << " cycles (" << sleep_ms << " ms)");
+                SLOG(NET_ALL, "@" << start << " try_sleep: " << sleep_time << " cycles"
+                    << " (" << sleep_ms << " ms)");
+
                 DTU::get().try_sleep(false, sleep_time);
+
                 cycles_t stop = m3::DTU::get().tsc();
-                SLOG(NET, "@" << stop << " wakeup: " << stop - start << " cycles (" << ((stop - start) * 1000 / m3::DTU::get().clock()) << " ms)");
+                SLOG(NET_ALL, "@" << stop << " wakeup: " << stop - start << " cycles"
+                    << " (" << ((stop - start) * 1000 / m3::DTU::get().clock()) << " ms)");
             }
         }
     }
