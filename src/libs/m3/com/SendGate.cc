@@ -24,12 +24,11 @@
 
 namespace m3 {
 
-SendGate SendGate::create(RecvGate *rgate, label_t label, word_t credits, RecvGate *replygate, capsel_t sel, uint flags) {
-    replygate = replygate == nullptr ? &RecvGate::def() : replygate;
-    if(sel == INVALID)
-        sel = VPE::self().alloc_sel();
-    SendGate gate(sel, flags, replygate);
-    Syscalls::create_sgate(gate.sel(), rgate->sel(), label, credits);
+SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
+    auto replygate = args._replygate == nullptr ? &RecvGate::def() : args._replygate;
+    auto sel = args._sel == INVALID ? VPE::self().alloc_sel() : args._sel;
+    SendGate gate(sel, args._flags, replygate);
+    Syscalls::create_sgate(gate.sel(), rgate->sel(), args._label, args._credits);
     return gate;
 }
 

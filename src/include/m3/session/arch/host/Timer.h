@@ -29,7 +29,7 @@ public:
                                           int msgord = nextlog2<64>::val)
         : ClientSession(service),
           _rgate(RecvGate::create(buford, msgord)),
-          _sgate(SendGate::create(&_rgate, 0, SendGate::UNLIMITED)) {
+          _sgate(SendGate::create(&_rgate)) {
         if(!Errors::occurred())
             delegate_obj(_sgate.sel());
     }

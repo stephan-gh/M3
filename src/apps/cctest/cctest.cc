@@ -32,7 +32,7 @@ int main() {
     cc.obtain_fds();
 
     RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
-    SendGate sg = SendGate::create(&rgate, 0, 64);
+    SendGate sg = SendGate::create(&rgate, SendGateArgs().credits(64));
 
     cc.delegate_obj(rgate.sel());
     cc.run([&rgate, virt] {

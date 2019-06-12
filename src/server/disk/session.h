@@ -53,7 +53,9 @@ public:
             return m3::Errors::INV_ARGS;
 
         label_t label       = reinterpret_cast<label_t>(this);
-        DiskSrvSGate *sgate = new DiskSrvSGate(m3::SendGate::create(_rgate, label, MSG_SIZE));
+        DiskSrvSGate *sgate = new DiskSrvSGate(m3::SendGate::create(
+            _rgate, m3::SendGateArgs().label(label).credits(MSG_SIZE))
+        );
         _sgates.append(sgate);
 
         data.caps = m3::KIF::CapRngDesc(m3::KIF::CapRngDesc::OBJ, sgate->sgate.sel()).value();

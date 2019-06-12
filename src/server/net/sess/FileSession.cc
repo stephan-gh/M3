@@ -34,8 +34,11 @@ FileSession::FileSession(WorkLoop *wl, capsel_t srv_sel, LwipSocket* socket, int
                          size_t rmemsize, size_t smemsize)
     : NMSession(srv_sel, VPE::self().alloc_sels(2)),
       _work_item(*this),
-      _sgate(SendGate::create(&socket->session()->rgate(), reinterpret_cast<label_t>(this),
-                              MSG_SIZE, nullptr, sel() + 1)),
+      _sgate(SendGate::create(
+        &socket->session()->rgate(), SendGateArgs().label(reinterpret_cast<label_t>(this))
+                                                   .credits(MSG_SIZE)
+                                                   .sel(sel() + 1))
+      ),
       _socket(socket),
       _memory(nullptr),
       _mode(mode),

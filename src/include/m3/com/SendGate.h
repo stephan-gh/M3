@@ -23,9 +23,63 @@
 
 namespace m3 {
 
-class Syscalls;
 class EnvUserBackend;
+class SendGate;
+class Syscalls;
 class VPE;
+
+/**
+ * The optional arguments for SendGate::create()
+ */
+class SendGateArgs {
+    friend class SendGate;
+
+public:
+    explicit SendGateArgs();
+
+    /**
+     * The flags for the capability (default = 0)
+     */
+    SendGateArgs &flags(uint flags) {
+        _flags = flags;
+        return *this;
+    }
+    /**
+     * The receive gate to use for replies (default = RecvGate::def())
+     */
+    SendGateArgs &reply_gate(RecvGate *reply_gate) {
+        _replygate = reply_gate;
+        return *this;
+    }
+    /**
+     * The label for the SendGate (default = 0)
+     */
+    SendGateArgs &label(label_t label) {
+        _label = label;
+        return *this;
+    }
+    /**
+     * The number of credits in bytes (default = UNLIMITED)
+     */
+    SendGateArgs &credits(word_t credits) {
+        _credits = credits;
+        return *this;
+    }
+    /**
+     * The selector to use (default = auto select)
+     */
+    SendGateArgs &sel(capsel_t sel) {
+        _sel = sel;
+        return *this;
+    }
+
+private:
+    uint _flags;
+    RecvGate *_replygate;
+    label_t _label;
+    word_t _credits;
+    capsel_t _sel;
+};
 
 /**
  * A SendGate is used to send messages to a RecvGate. To receive replies for the sent messages,
@@ -49,23 +103,18 @@ public:
      * Creates a new send gate for the given receive gate.
      *
      * @param rgate the destination receive gate
-     * @param label the label
-     * @param credits the credits to assign to this gate
-     * @param replygate the receive gate to which the replies should be sent
-     * @param sel the selector to use (if != INVALID, the selector is NOT freed on destruction)
+     * @param args additional arguments
      */
-    static SendGate create(RecvGate *rgate, label_t label = 0, word_t credits = UNLIMITED,
-                           RecvGate *replygate = nullptr, capsel_t sel = INVALID, uint flags = 0);
+    static SendGate create(RecvGate *rgate, const SendGateArgs &args = SendGateArgs());
 
     /**
      * Binds this send gate to the given capability. Typically, received from somebody else.
      *
      * @param sel the capability selector
      * @param replygate the receive gate to which the replies should be sent
-     * @param flags the flags to control whether cap/selector are kept (default: both)
      */
-    static SendGate bind(capsel_t sel, RecvGate *replygate = nullptr, uint flags = ObjCap::KEEP_CAP) {
-        return SendGate(sel, flags, replygate);
+    static SendGate bind(capsel_t sel, RecvGate *replygate = nullptr) {
+        return SendGate(sel, ObjCap::KEEP_CAP, replygate);
     }
 
     SendGate(SendGate &&g)
@@ -110,5 +159,13 @@ public:
 private:
     RecvGate *_replygate;
 };
+
+inline SendGateArgs::SendGateArgs()
+    : _flags(),
+      _replygate(),
+      _label(),
+      _credits(SendGate::UNLIMITED),
+      _sel(ObjCap::INVALID) {
+}
 
 }

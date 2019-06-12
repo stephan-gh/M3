@@ -32,7 +32,8 @@ struct Worker {
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
         : submem(mem.derive(offset, size)),
-          sgate(SendGate::create(&rgate, 0, DTU_PKG_SIZE + DTU::HEADER_SIZE)), vpe("worker") {
+          sgate(SendGate::create(&rgate, SendGateArgs().credits(DTU_PKG_SIZE + DTU::HEADER_SIZE))),
+          vpe("worker") {
         vpe.delegate_obj(submem.sel());
         vpe.fds(*VPE::self().fds());
         vpe.obtain_fds();

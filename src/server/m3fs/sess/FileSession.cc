@@ -44,10 +44,16 @@ M3FSFileSession::M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSes
       _append_ext(),
       _last(ObjCap::INVALID),
       _epcap(ObjCap::INVALID),
-      _sgate(srv_sel == ObjCap::INVALID
+      _sgate(
+        srv_sel == ObjCap::INVALID
         ? nullptr
-        : new m3::SendGate(m3::SendGate::create(&meta->rgate(), reinterpret_cast<label_t>(this),
-                                                MSG_SIZE, nullptr, sel() + 1))),
+        : new m3::SendGate(m3::SendGate::create(
+            &meta->rgate(),
+            SendGateArgs().label(reinterpret_cast<label_t>(this))
+                          .credits(MSG_SIZE)
+                          .sel(sel() + 1)
+          ))
+      ),
       _oflags(flags),
       _filename(filename),
       _ino(ino),

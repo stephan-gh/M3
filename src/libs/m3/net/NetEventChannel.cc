@@ -25,8 +25,13 @@ void NetEventChannel::prepare_caps(capsel_t caps, size_t size) {
             nextlog2<MSG_SIZE>::val, RecvGate::KEEP_CAP));
     RecvGate rgate_cli(RecvGate::create_for(VPE::self(), caps + 3, nextlog2<MSG_BUF_SIZE>::val,
                 nextlog2<MSG_SIZE>::val, RecvGate::KEEP_CAP));
-    SendGate sgate_srv(SendGate::create(&rgate_cli, 0, SendGate::UNLIMITED, &rgate_srv, caps + 1, MemGate::KEEP_CAP));
-    SendGate sgate_cli(SendGate::create(&rgate_srv, 0, MSG_CREDITS, &rgate_cli, caps + 4, MemGate::KEEP_CAP));
+    SendGate sgate_srv(SendGate::create(&rgate_cli, SendGateArgs().reply_gate(&rgate_srv)
+                                                                  .sel(caps + 1)
+                                                                  .flags(MemGate::KEEP_CAP)));
+    SendGate sgate_cli(SendGate::create(&rgate_srv, SendGateArgs().reply_gate(&rgate_cli)
+                                                                  .sel(caps + 4)
+                                                                  .flags(MemGate::KEEP_CAP)
+                                                                  .credits(MSG_CREDITS)));
     MemGate mem_srv(MemGate::create_global(2 * size, MemGate::RW, caps + 2, MemGate::KEEP_CAP));
     MemGate mem_cli(mem_srv.derive_for(VPE::self().sel(), caps + 5, 0, 2 * size, mem_srv.RW, MemGate::KEEP_CAP));
 }

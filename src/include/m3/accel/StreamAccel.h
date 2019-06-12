@@ -96,7 +96,8 @@ public:
         connect_file(file, EP_IN_SEND, EP_IN_MEM, CAP_IN);
     }
     void connect_input(StreamAccel *prev) {
-        _sgate = new SendGate(SendGate::create(&prev->_rgate, LBL_IN_REQ, MSG_SIZE));
+        _sgate = new SendGate(SendGate::create(&prev->_rgate, SendGateArgs().label(LBL_IN_REQ)
+                                                                            .credits(MSG_SIZE)));
         _sgate->activate_for(*_vpe, EP_IN_SEND);
         _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate->sel()), CAP_IN);
     }
@@ -105,7 +106,8 @@ public:
         connect_file(file, EP_OUT_SEND, EP_OUT_MEM, CAP_OUT);
     }
     void connect_output(StreamAccel *next) {
-        _sgate = new SendGate(SendGate::create(&next->_rgate, LBL_OUT_REQ, MSG_SIZE));
+        _sgate = new SendGate(SendGate::create(&next->_rgate, SendGateArgs().label(LBL_OUT_REQ)
+                                                                            .credits(MSG_SIZE)));
         _sgate->activate_for(*_vpe, EP_OUT_SEND);
         _mgate = new MemGate(next->_vpe->mem().derive(BUF_ADDR, BUF_SIZE));
         _mgate->activate_for(*_vpe, EP_OUT_MEM);

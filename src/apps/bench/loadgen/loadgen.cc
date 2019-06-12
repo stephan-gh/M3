@@ -39,7 +39,8 @@ public:
     explicit LoadGenSession(RecvGate *rgate, capsel_t srv_sel)
        : m3::ServerSession(srv_sel),
          rem_req(),
-         clisgate(SendGate::create(rgate, reinterpret_cast<label_t>(this), 64)),
+         clisgate(SendGate::create(rgate, SendGateArgs().label(reinterpret_cast<label_t>(this))
+                                                        .credits(64))),
          sgate(),
          mgate() {
     }

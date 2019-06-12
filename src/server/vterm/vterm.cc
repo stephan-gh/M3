@@ -86,7 +86,9 @@ public:
           active(false),
           writing(_writing),
           ep(ObjCap::INVALID),
-          sgate(SendGate::create(&rgate, reinterpret_cast<label_t>(this), MSG_SIZE, nullptr, caps + 1)),
+          sgate(SendGate::create(&rgate, SendGateArgs().label(reinterpret_cast<label_t>(this))
+                                                       .credits(MSG_SIZE)
+                                                       .sel(caps + 1))),
           mem(mem.derive(id * BUF_SIZE, BUF_SIZE, MemGate::RW)),
           pos(),
           len() {

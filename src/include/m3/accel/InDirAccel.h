@@ -50,7 +50,8 @@ public:
     explicit InDirAccel(VPE *vpe, RecvGate &reply_gate)
         : _mgate(),
           _rgate(RecvGate::create_for(*vpe, getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE))),
-          _sgate(SendGate::create(&_rgate, 0, MSG_SIZE, &reply_gate)),
+          _sgate(SendGate::create(&_rgate, SendGateArgs().credits(MSG_SIZE)
+                                                         .reply_gate(&reply_gate))),
           _vpe(vpe) {
         // activate EP
         _rgate.activate(EP_RECV, vpe->pe().mem_size() - MSG_SIZE);

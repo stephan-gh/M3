@@ -54,10 +54,12 @@ int main() {
         rgates[i] = new RecvGate(RecvGate::create(nextlog2<64 * 2>::val, nextlog2<64>::val));
         rgates[i]->activate();
 
-        ins[i] = new SendGate(SendGate::create(rgates[i], StreamAccel::LBL_IN_REQ, 64));
+        ins[i] = new SendGate(SendGate::create(rgates[i], SendGateArgs().label(StreamAccel::LBL_IN_REQ)
+                                                                        .credits(64)));
         ins[i]->activate_for(*vpes[i], StreamAccel::EP_IN_SEND);
 
-        outs[i] = new SendGate(SendGate::create(rgates[i], StreamAccel::LBL_OUT_REQ, 64));
+        outs[i] = new SendGate(SendGate::create(rgates[i], SendGateArgs().label(StreamAccel::LBL_OUT_REQ)
+                                                                         .credits(64)));
         outs[i]->activate_for(*vpes[i], StreamAccel::EP_OUT_SEND);
     }
 

@@ -90,7 +90,9 @@ public:
             SLOG(PAGER, fmt((word_t)sess, "#x") << ": mem::get_sgate()");
 
             label_t label = reinterpret_cast<label_t>(sess);
-            auto sgate = new AddrSpace::SGateItem(SendGate::create(&_rgate, label, MSG_SIZE));
+            auto sgate = new AddrSpace::SGateItem(
+                SendGate::create(&_rgate, SendGateArgs().label(label).credits(MSG_SIZE))
+            );
             sess->sgates.append(sgate);
 
             data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sgate->sgate.sel()).value();

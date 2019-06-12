@@ -30,7 +30,7 @@ ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
       // TODO: validate that a suitable pe has been found
       _intgate(RecvGate::create(nextlog2<256>::val, nextlog2<32>::val)),
       // TODO: Specify receive gate, grant it to nic dtu, send replies to give credits back
-      _sintgate(SendGate::create(&_intgate, 0, SendGate::UNLIMITED)) {
+      _sintgate(SendGate::create(&_intgate)) {
     _intgate.activate();
 
     _vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sintgate.sel(), 1));

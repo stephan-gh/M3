@@ -31,7 +31,7 @@ static const int msg_ord     = nextlog2<msg_size>::val;
 NOINLINE static void pingpong_1u64() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, 0, msg_size);
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
     cout << pr.run_with_id([&sgate, &rgate] {
@@ -54,7 +54,7 @@ NOINLINE static void pingpong_1u64() {
 NOINLINE static void pingpong_2u64() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, 0, msg_size);
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
     cout << pr.run_with_id([&sgate, &rgate] {
@@ -77,7 +77,7 @@ NOINLINE static void pingpong_2u64() {
 NOINLINE static void pingpong_4u64() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, 0, msg_size);
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
     cout << pr.run_with_id([&sgate, &rgate] {
@@ -100,7 +100,7 @@ NOINLINE static void pingpong_4u64() {
 NOINLINE static void pingpong_str() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, 0, msg_size);
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
     cout << pr.run_with_id([&sgate, &rgate] {

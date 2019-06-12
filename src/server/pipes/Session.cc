@@ -60,7 +60,7 @@ PipeMeta::~PipeMeta() {
         delete _pipes[i];
 }
 
-PipeData *PipeMeta::create(WorkLoop *wl, capsel_t srv_sel, m3::RecvGate &rgate, size_t memsize) {
+PipeData *PipeMeta::create(WorkLoop *wl, capsel_t srv_sel, RecvGate &rgate, size_t memsize) {
     for(size_t i = 0; i < MAX_PIPES; ++i) {
         if(_pipes[i] == nullptr) {
             _pipes[i] = new PipeData(wl, this, srv_sel, rgate, memsize);
@@ -79,7 +79,7 @@ void PipeMeta::remove(PipeData *pipe) {
     }
 }
 
-PipeData::PipeData(WorkLoop *wl, PipeMeta *meta, capsel_t srv_sel, m3::RecvGate &rgate, size_t _memsize)
+PipeData::PipeData(WorkLoop *wl, PipeMeta *meta, capsel_t srv_sel, RecvGate &rgate, size_t _memsize)
     : PipeSession(srv_sel),
       meta(meta),
       nextid(),
@@ -146,11 +146,13 @@ PipeChannel *PipeChannel::clone(capsel_t _sel) const {
 
 PipeChannel::PipeChannel(PipeData *_pipe, capsel_t _sel)
     : PipeSession(_sel, VPE::self().alloc_sels(2)),
-      m3::SListItem(),
+      SListItem(),
       id(_pipe->nextid++),
       epcap(ObjCap::INVALID),
       lastamount(),
-      sgate(m3::SendGate::create(&_pipe->rgate, reinterpret_cast<label_t>(this), 64, nullptr, sel() + 1)),
+      sgate(SendGate::create(&_pipe->rgate, SendGateArgs().label(reinterpret_cast<label_t>(this))
+                                                          .credits(64)
+                                                          .sel(sel() + 1))),
       memory(),
       pipe(_pipe) {
 }
