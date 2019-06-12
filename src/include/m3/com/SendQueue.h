@@ -16,8 +16,6 @@
 
 #pragma once
 
-#if defined(__host__)
-
 #include <base/col/SList.h>
 
 #include <m3/com/SendGate.h>
@@ -86,5 +84,3 @@ private:
 };
 
 }
-
-#endif

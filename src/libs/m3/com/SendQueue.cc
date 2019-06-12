@@ -14,8 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#if defined(__host__)
-
 #include <base/log/Lib.h>
 #include <base/Init.h>
 #include <base/DTU.h>
@@ -28,15 +26,13 @@ INIT_PRIO_SENDQUEUE SendQueue SendQueue::_inst;
 
 void SendQueue::work() {
     if(_queue.length() > 0) {
-        if(DTU::get().is_ready()) {
-            SendItem *it = _queue.remove_first();
-            LLOG(IPC, "Removing " << it << " from queue");
-            delete it;
-            if(_queue.length() > 0) {
-                SendItem &first = *_queue.begin();
-                first.gate.send(first.data, first.len);
-                LLOG(IPC, "Sending " << &first << " from queue");
-            }
+        SendItem *it = _queue.remove_first();
+        LLOG(IPC, "Removing " << it << " from queue");
+        delete it;
+        if(_queue.length() > 0) {
+            SendItem &first = *_queue.begin();
+            first.gate.send(first.data, first.len);
+            LLOG(IPC, "Sending " << &first << " from queue");
         }
     }
 }
@@ -47,5 +43,3 @@ void SendQueue::send_async(SendItem &it) {
 }
 
 }
-
-#endif

@@ -14,13 +14,15 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/util/Random.h>
+
 #include <m3/com/GateStream.h>
 #include <m3/com/SendQueue.h>
 #include <m3/server/Server.h>
 #include <m3/server/EventHandler.h>
 #include <m3/session/arch/host/Keyboard.h>
-#include <m3/session/arch/host/Timer.h>
 #include <m3/session/ClientSession.h>
+#include <m3/session/Timer.h>
 
 using namespace m3;
 
@@ -31,7 +33,7 @@ static constexpr size_t DATA_SIZE   = 256;
 static char *gendata() {
     char *data = new char[DATA_SIZE];
     for(size_t i = 0; i < DATA_SIZE; ++i)
-        data[i] = rand() % 256;
+        data[i] = Random::get() % 256;
     return data;
 }
 
@@ -47,6 +49,8 @@ static void timer_irq(GateIStream &) {
 
 int main() {
     WorkLoop wl;
+
+    Random::init(0xDEADBEEF);
 
     Timer timer("timer");
     timer.rgate().start(&wl, timer_irq);

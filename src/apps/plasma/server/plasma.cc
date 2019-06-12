@@ -21,9 +21,9 @@
 #include <m3/server/Server.h>
 #include <m3/server/SimpleRequestHandler.h>
 #include <m3/session/arch/host/Plasma.h>
-#include <m3/session/arch/host/Timer.h>
 #include <m3/session/arch/host/VGA.h>
 #include <m3/session/ClientSession.h>
+#include <m3/session/Timer.h>
 #include <m3/Syscalls.h>
 
 #include <math.h>

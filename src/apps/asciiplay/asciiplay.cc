@@ -20,9 +20,9 @@
 
 #include <m3/com/SendGate.h>
 #include <m3/com/GateStream.h>
-#include <m3/session/arch/host/Timer.h>
 #include <m3/session/arch/host/Keyboard.h>
 #include <m3/session/arch/host/VGA.h>
+#include <m3/session/Timer.h>
 #include <m3/stream/FStream.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
