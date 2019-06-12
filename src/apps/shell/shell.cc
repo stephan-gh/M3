@@ -20,8 +20,6 @@
 
 #include <m3/accel/StreamAccel.h>
 #include <m3/stream/Standard.h>
-#include <m3/pipe/AccelPipeReader.h>
-#include <m3/pipe/AccelPipeWriter.h>
 #include <m3/pipe/IndirectPipe.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>

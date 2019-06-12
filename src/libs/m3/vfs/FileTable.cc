@@ -18,8 +18,6 @@
 #include <base/Panic.h>
 
 #include <m3/com/Marshalling.h>
-#include <m3/pipe/AccelPipeReader.h>
-#include <m3/pipe/AccelPipeWriter.h>
 #include <m3/pipe/DirectPipeReader.h>
 #include <m3/pipe/DirectPipeWriter.h>
 #include <m3/vfs/FileTable.h>
@@ -155,14 +153,6 @@ FileTable *FileTable::unserialize(const void *buffer, size_t size) {
                 obj->_fds[fd] = Reference<File>(DirectPipeReader::unserialize(um));
                 break;
 #endif
-
-            // TODO
-            // case 'A':
-            //     obj->_fds[fd] = AccelPipeReader::unserialize(um);
-            //     break;
-            // case 'B':
-            //     obj->_fds[fd] = AccelPipeWriter::unserialize(um);
-            //     break;
         }
     }
     return obj;
