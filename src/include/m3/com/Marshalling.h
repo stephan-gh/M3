@@ -78,13 +78,13 @@ public:
         return *this;
     }
     Marshaller & operator<<(const char *value) {
-        return put_str(value, strlen(value));
+        return put_str(value, strlen(value) + 1);
     }
     Marshaller & operator<<(const StringRef& value) {
-        return put_str(value.c_str(), value.length());
+        return put_str(value.c_str(), value.length() + 1);
     }
     Marshaller & operator<<(const String& value) {
-        return put_str(value.c_str(), value.length());
+        return put_str(value.c_str(), value.length() + 1);
     }
 
     /**
@@ -201,7 +201,7 @@ public:
         size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += sizeof(xfer_t);
         assert(_pos + len <= length());
-        value.reset(reinterpret_cast<const char*>(_data + _pos), len);
+        value.reset(reinterpret_cast<const char*>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }

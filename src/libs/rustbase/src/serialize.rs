@@ -50,6 +50,8 @@ pub trait Source {
     fn pop_word(&mut self) -> u64;
     /// Pops a string from this source
     fn pop_str(&mut self) -> String;
+    /// Pops a string slice from this source
+    fn pop_str_slice(&mut self) -> &'static str;
 }
 
 macro_rules! impl_xfer_prim {
@@ -92,6 +94,11 @@ impl Unmarshallable for bool {
 impl<'a> Marshallable for &'a str {
     fn marshall(&self, s: &mut dyn Sink) {
         s.push_str(self);
+    }
+}
+impl Unmarshallable for &'static str {
+    fn unmarshall(s: &mut dyn Source) -> Self {
+        s.pop_str_slice()
     }
 }
 

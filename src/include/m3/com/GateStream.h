@@ -303,12 +303,21 @@ public:
         _pos += Math::round_up(sizeof(T), sizeof(xfer_t));
         return *this;
     }
+    GateIStream & operator>>(StringRef &value) {
+        assert(_pos + sizeof(xfer_t) <= length());
+        size_t len = *reinterpret_cast<const xfer_t*>(_msg->data + _pos);
+        _pos += sizeof(xfer_t);
+        assert(_pos + len <= length());
+        value = StringRef(reinterpret_cast<const char*>(_msg->data + _pos), len - 1);
+        _pos += Math::round_up(len, sizeof(xfer_t));
+        return *this;
+    }
     GateIStream & operator>>(String &value) {
         assert(_pos + sizeof(xfer_t) <= length());
         size_t len = *reinterpret_cast<const xfer_t*>(_msg->data + _pos);
         _pos += sizeof(xfer_t);
         assert(_pos + len <= length());
-        value.reset(reinterpret_cast<const char*>(_msg->data + _pos), len);
+        value.reset(reinterpret_cast<const char*>(_msg->data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }

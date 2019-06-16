@@ -63,17 +63,11 @@ impl Sink for GateSink {
         self.pos += 1;
     }
     fn push_str(&mut self, b: &str) {
-        self.push_word(b.len() as u64);
+        let len = b.len() + 1;
+        self.push_word(len as u64);
 
-        unsafe {
-            libc::memcpy(
-                (&mut self.arr[self.pos..]).as_mut_ptr() as *mut libc::c_void,
-                b.as_bytes().as_ptr() as *const libc::c_void,
-                b.len(),
-            );
-        }
-
-        self.pos += (b.len() + 7) / 8;
+        copy_from_str(&mut self.arr[self.pos..], b);
+        self.pos += (len + 7) / 8;
     }
 }
 
@@ -105,19 +99,16 @@ impl Sink for VecSink {
         self.vec.push(word);
     }
     fn push_str(&mut self, b: &str) {
-        self.push_word(b.len() as u64);
+        let len = b.len() + 1;
+        self.push_word(len as u64);
 
-        let elems = (b.len() + 7) / 8;
+        let elems = (len + 7) / 8;
         let cur = self.vec.len();
         self.vec.reserve_exact(elems);
 
         unsafe {
             self.vec.set_len(cur + elems);
-            libc::memcpy(
-                (&mut self.vec.as_mut_slice()[cur..cur + elems]).as_mut_ptr() as *mut libc::c_void,
-                b.as_bytes().as_ptr() as *const libc::c_void,
-                b.len(),
-            );
+            copy_from_str(&mut self.vec.as_mut_slice()[cur..cur + elems], b);
         }
     }
 }
@@ -145,12 +136,33 @@ impl GateSource {
     }
 }
 
+fn copy_from_str(words: &mut [u64], s: &str) {
+    unsafe {
+        let addr = words.as_mut_ptr() as usize;
+        libc::memcpy(
+            addr as *mut libc::c_void,
+            s.as_bytes().as_ptr() as *const libc::c_void,
+            s.len(),
+        );
+        // null termination
+        let end: &mut u8 = intrinsics::transmute(addr + s.len());
+        *end = 0u8;
+    }
+}
+
 fn copy_str_from(s: &[u64], len: usize) -> String {
     unsafe {
         let bytes: *mut libc::c_void = intrinsics::transmute((s).as_ptr());
         let copy = heap::alloc(len + 1);
         libc::memcpy(copy, bytes, len);
         String::from_raw_parts(copy as *mut u8, len, len)
+    }
+}
+
+fn str_slice_from(s: &[u64], len: usize) -> &'static str {
+    unsafe {
+        core::str::from_utf8_unchecked(
+            core::slice::from_raw_parts(s.as_ptr() as *const u8, len))
     }
 }
 
@@ -162,9 +174,15 @@ impl Source for GateSource {
     }
     fn pop_str(&mut self) -> String {
         let len = self.pop_word() as usize;
-        let res = copy_str_from(&self.data()[self.pos..], len);
+        let res = copy_str_from(&self.data()[self.pos..], len - 1);
         self.pos += (len + 7) / 8;
         res
+    }
+    fn pop_str_slice(&mut self) -> &'static str {
+        let len = self.pop_word() as usize;
+        let str = str_slice_from(&self.data()[self.pos..], len - 1);
+        self.pos += (len + 7) / 8;
+        str
     }
 }
 
@@ -193,9 +211,15 @@ impl<'s> Source for SliceSource<'s> {
     }
     fn pop_str(&mut self) -> String {
         let len = self.pop_word() as usize;
-        let res = copy_str_from(&self.slice[self.pos..], len);
+        let res = copy_str_from(&self.slice[self.pos..], len - 1);
         self.pos += (len + 7) / 8;
         res
+    }
+    fn pop_str_slice(&mut self) -> &'static str {
+        let len = self.pop_word() as usize;
+        let str = str_slice_from(&self.slice[self.pos..], len - 1);
+        self.pos += (len + 7) / 8;
+        str
     }
 }
 
