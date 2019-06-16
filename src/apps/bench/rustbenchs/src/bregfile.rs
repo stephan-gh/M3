@@ -26,6 +26,7 @@ pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, link_unlink);
     run_test!(t, read);
     run_test!(t, write);
+    run_test!(t, copy);
 }
 
 fn open_close() {
@@ -97,4 +98,23 @@ fn write() {
             total += amount;
         }
     }, 0x25));
+}
+
+fn copy() {
+    let mut buf = vec![0u8; 8192];
+    let mut prof = profile::Profiler::new().repeats(2).warmup(1);
+
+    println!("2 MiB file with 8K buf: {}", prof.run_with_id(|| {
+        let mut fin  = assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+        let mut fout = assert_ok!(VFS::open("/newfile",
+            OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC));
+
+        loop {
+            let amount = assert_ok!(fin.read(&mut buf));
+            if amount == 0 {
+                break;
+            }
+            assert_ok!(fout.write_all(&buf[0..amount]));
+        }
+    }, 0x26));
 }
