@@ -79,8 +79,8 @@ public:
     void remove_file(M3FSFileSession *file);
 
 private:
-    m3::Errors::Code do_open(capsel_t srv, const char *path, int flags, size_t *id);
-    ssize_t alloc_file(capsel_t srv, const char *path, int flags, m3::inodeno_t ino);
+    m3::Errors::Code do_open(capsel_t srv, m3::String &&path, int flags, size_t *id);
+    ssize_t alloc_file(capsel_t srv, m3::String &&path, int flags, m3::inodeno_t ino);
 
     m3::SList<MetaSGate> _sgates;
     m3::RecvGate &_rgate;

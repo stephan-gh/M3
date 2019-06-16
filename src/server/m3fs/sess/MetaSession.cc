@@ -39,8 +39,7 @@ Errors::Code M3FSMetaSession::get_sgate(KIF::Service::ExchangeData &data) {
 void M3FSMetaSession::open_private_file(m3::GateIStream &is) {
     int flags;
     uint ep;
-    char buffer[64];
-    String path(buffer, sizeof(buffer));
+    String path;
     is >> path >> flags >> ep;
     if(ep >= _ep_count) {
         reply_error(is, Errors::INV_ARGS);
@@ -48,7 +47,7 @@ void M3FSMetaSession::open_private_file(m3::GateIStream &is) {
     }
 
     size_t id;
-    Errors::Code res = do_open(ObjCap::INVALID, path.c_str(), flags, &id);
+    Errors::Code res = do_open(ObjCap::INVALID, Util::move(path), flags, &id);
     if(res != Errors::NONE) {
         reply_error(is, res);
         return;
@@ -104,12 +103,12 @@ static const char *decode_flags(int flags) {
     return buf;
 }
 
-Errors::Code M3FSMetaSession::do_open(capsel_t srv, const char *path, int flags, size_t *id) {
+Errors::Code M3FSMetaSession::do_open(capsel_t srv, String &&path, int flags, size_t *id) {
     PRINT(this, "fs::open(path=" << path << ", flags=" << decode_flags(flags) << ")");
 
     Request r(hdl());
 
-    inodeno_t ino = Dirs::search(r, path, flags & FILE_CREATE);
+    inodeno_t ino = Dirs::search(r, path.c_str(), flags & FILE_CREATE);
     if(ino == INVALID_INO) {
         PRINT(this, "open failed: " << Errors::to_string(Errors::last));
         return Errors::last;
@@ -131,7 +130,7 @@ Errors::Code M3FSMetaSession::do_open(capsel_t srv, const char *path, int flags,
     // for directories: ensure that we don't have a changed version in the cache
     if(M3FS_ISDIR(inode->mode))
         INodes::sync_metadata(r, inode);
-    ssize_t res = alloc_file(srv, path, flags, inode->inode);
+    ssize_t res = alloc_file(srv, Util::move(path), flags, inode->inode);
     if(res < 0)
         return static_cast<Errors::Code>(-res);
 
@@ -280,11 +279,11 @@ void M3FSMetaSession::remove_file(M3FSFileSession *file) {
     }
 }
 
-ssize_t M3FSMetaSession::alloc_file(capsel_t srv, const char *path, int flags, inodeno_t ino) {
+ssize_t M3FSMetaSession::alloc_file(capsel_t srv, String &&path, int flags, inodeno_t ino) {
     assert(flags != 0);
     for(size_t i = 0; i < _max_files; ++i) {
         if(_files[i] == NULL) {
-            _files[i] = new M3FSFileSession(hdl(), srv, this, path, flags, ino);
+            _files[i] = new M3FSFileSession(hdl(), srv, this, Util::move(path), flags, ino);
             return static_cast<ssize_t>(i);
         }
     }

@@ -29,7 +29,7 @@
 using namespace m3;
 
 M3FSFileSession::M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSession *meta,
-                                 const m3::String &filename, int flags, m3::inodeno_t ino)
+                                 m3::String &&filename, int flags, m3::inodeno_t ino)
     : M3FSSession(handle, srv_sel, srv_sel == ObjCap::INVALID ? srv_sel : m3::VPE::self().alloc_sels(2)),
       m3::SListItem(),
       _extent(),
@@ -55,7 +55,7 @@ M3FSFileSession::M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSes
           ))
       ),
       _oflags(flags),
-      _filename(filename),
+      _filename(Util::move(filename)),
       _ino(ino),
       _capscon(),
       _meta(meta) {
@@ -84,7 +84,7 @@ M3FSFileSession::~M3FSFileSession() {
 Errors::Code M3FSFileSession::clone(capsel_t srv, KIF::Service::ExchangeData &data) {
     PRINT(this, "file::clone(path=" << _filename << ")");
 
-    auto nfile =  new M3FSFileSession(hdl(), srv, _meta, _filename, _oflags, _ino);
+    auto nfile =  new M3FSFileSession(hdl(), srv, _meta, String(_filename), _oflags, _ino);
 
     data.args.count = 0;
     data.caps = nfile->caps().value();

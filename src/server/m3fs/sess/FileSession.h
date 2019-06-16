@@ -59,7 +59,7 @@ struct CapContainer {
 class M3FSFileSession : public M3FSSession, public m3::SListItem {
 public:
     explicit M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSession *meta,
-                             const m3::String &filename, int flags, m3::inodeno_t ino);
+                             m3::String &&filename, int flags, m3::inodeno_t ino);
     virtual ~M3FSFileSession();
 
     virtual Type type() const override {
