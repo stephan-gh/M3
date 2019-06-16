@@ -25,7 +25,7 @@
 
 using namespace m3;
 
-static const size_t msg_size = 128;
+static const size_t msg_size = 256;
 static const int msg_ord     = nextlog2<msg_size>::val;
 
 NOINLINE static void pingpong_1u64() {
@@ -120,9 +120,33 @@ NOINLINE static void pingpong_str() {
     }, 0x93) << "\n";
 }
 
+NOINLINE static void pingpong_strref() {
+    auto rgate = RecvGate::create(msg_ord, msg_ord);
+    rgate.activate();
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
+
+    Profile pr;
+    cout << pr.run_with_id([&sgate, &rgate] {
+        send_vmsg(sgate, "test");
+
+        StringRef res;
+        auto msg = receive_msg(rgate);
+        msg >> res;
+        if(res.length() != 4)
+            PANIC("test failed");
+        reply_vmsg(msg, "foobar");
+
+        auto reply = receive_msg(*sgate.reply_gate());
+        reply >> res;
+        if(res.length() != 6)
+            PANIC("test failed");
+    }, 0x94) << "\n";
+}
+
 void bstream() {
     RUN_BENCH(pingpong_1u64);
     RUN_BENCH(pingpong_2u64);
     RUN_BENCH(pingpong_4u64);
     RUN_BENCH(pingpong_str);
+    RUN_BENCH(pingpong_strref);
 }

@@ -19,7 +19,7 @@ use m3::com::*;
 use m3::profile;
 use m3::test;
 
-const MSG_ORD: i32      = 7;
+const MSG_ORD: i32      = 8;
 const MSG_SIZE: usize   = 1usize << MSG_ORD;
 
 pub fn run(t: &mut dyn test::Tester) {
@@ -27,6 +27,7 @@ pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, pingpong_2u64);
     run_test!(t, pingpong_4u64);
     run_test!(t, pingpong_str);
+    run_test!(t, pingpong_strslice);
 }
 
 fn pingpong_1u64() {
@@ -115,4 +116,24 @@ fn pingpong_str() {
         let mut reply = assert_ok!(recv_msg(reply_gate));
         assert_eq!(reply.pop::<String>().len(), 6);
     }, 0x3));
+}
+
+fn pingpong_strslice() {
+    let reply_gate = RecvGate::def();
+    let mut rgate = assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
+    assert_ok!(rgate.activate());
+    let sgate = assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
+
+    let mut prof = profile::Profiler::new();
+
+    println!("pingpong with (&str) msgs    : {}", prof.run_with_id(|| {
+        assert_ok!(send_vmsg!(&sgate, reply_gate, "test"));
+
+        let mut msg = assert_ok!(recv_msg(&rgate));
+        assert_eq!(msg.pop::<&str>().len(), 4);
+        assert_ok!(reply_vmsg!(msg, "foobar"));
+
+        let mut reply = assert_ok!(recv_msg(reply_gate));
+        assert_eq!(reply.pop::<&str>().len(), 6);
+    }, 0x4));
 }
