@@ -135,12 +135,8 @@ public:
 /**
  * The gate stream to unmarshall values from a message. Thus, it "inputs" values from a message
  * into variables.
- *
- * Note: unfortunately, we can't reuse the functionality of Unmarshaller here. It seems to be a
- * compiler-bug when building for Xtensa. The compiler generates wrong code when we initialize the
- * _length field to _msg->length.
  */
-class GateIStream {
+class GateIStream : public Unmarshaller {
 public:
     /**
      * Creates an object for the given message from <rgate>.
@@ -149,26 +145,26 @@ public:
      * @param err the error code
      */
     explicit GateIStream(RecvGate &rgate, const DTU::Message *msg, Errors::Code err = Errors::NONE)
-        : _err(err),
+        : Unmarshaller(msg ? msg->data : nullptr, msg ? msg->length : 0),
+          _err(err),
           _ack(err == Errors::NONE),
-          _pos(0),
           _rgate(&rgate),
           _msg(msg) {
     }
 
     // don't do the ack twice. thus, copies never ack.
     GateIStream(const GateIStream &is)
-        : _err(is._err),
+        : Unmarshaller(is),
+          _err(is._err),
           _ack(),
-          _pos(is._pos),
           _rgate(is._rgate),
           _msg(is._msg) {
     }
     GateIStream &operator=(const GateIStream &is) {
         if(this != &is) {
+            Unmarshaller::operator=(is);
             _err = is._err;
             _ack = false;
-            _pos = is._pos;
             _rgate = is._rgate;
             _msg = is._msg;
         }
@@ -176,9 +172,9 @@ public:
     }
     GateIStream &operator=(GateIStream &&is) {
         if(this != &is) {
+            Unmarshaller::operator=(is);
             _err = is._err;
             _ack = is._ack;
-            _pos = is._pos;
             _rgate = is._rgate;
             _msg = is._msg;
             is._ack = 0;
@@ -186,9 +182,9 @@ public:
         return *this;
     }
     GateIStream(GateIStream &&is)
-        : _err(is._err),
+        : Unmarshaller(Util::move(is)),
+          _err(is._err),
           _ack(is._ack),
-          _pos(is._pos),
           _rgate(is._rgate),
           _msg(is._msg) {
         is._ack = 0;
@@ -222,34 +218,6 @@ public:
     T label() const {
         return (T)_msg->label;
     }
-    /**
-     * @return the current position, i.e. the offset of the unread data
-     */
-    size_t pos() const {
-        return _pos;
-    }
-    /**
-     * @return the length of the message in bytes
-     */
-    size_t length() const {
-#if defined(__t3__)
-        return _msg->length * DTU_PKG_SIZE;
-#else
-        return _msg->length;
-#endif
-    }
-    /**
-     * @return the remaining bytes to read
-     */
-    size_t remaining() const {
-        return length() - _pos;
-    }
-    /**
-     * @return the message payload
-     */
-    const unsigned char *buffer() const {
-        return _msg->data;
-    }
 
     /**
      * Replies the message constructed by <os> to this message
@@ -274,54 +242,6 @@ public:
         return res;
     }
 
-    void ignore(size_t bytes) {
-        _pos += bytes;
-    }
-
-    /**
-     * Pulls the given values out of this stream
-     *
-     * @param val the value to write to
-     * @param args the other values to write to
-     */
-    template<typename T, typename... Args>
-    void vpull(T &val, Args &... args) {
-        *this >> val;
-        vpull(args...);
-    }
-
-    /**
-     * Pulls a value into <value>.
-     *
-     * @param value the value to write to
-     * @return *this
-     */
-    template<typename T>
-    GateIStream & operator>>(T &value) {
-        assert(_pos + sizeof(T) <= length());
-        value = (T)*reinterpret_cast<const xfer_t*>(_msg->data + _pos);
-        _pos += Math::round_up(sizeof(T), sizeof(xfer_t));
-        return *this;
-    }
-    GateIStream & operator>>(StringRef &value) {
-        assert(_pos + sizeof(xfer_t) <= length());
-        size_t len = *reinterpret_cast<const xfer_t*>(_msg->data + _pos);
-        _pos += sizeof(xfer_t);
-        assert(_pos + len <= length());
-        value = StringRef(reinterpret_cast<const char*>(_msg->data + _pos), len - 1);
-        _pos += Math::round_up(len, sizeof(xfer_t));
-        return *this;
-    }
-    GateIStream & operator>>(String &value) {
-        assert(_pos + sizeof(xfer_t) <= length());
-        size_t len = *reinterpret_cast<const xfer_t*>(_msg->data + _pos);
-        _pos += sizeof(xfer_t);
-        assert(_pos + len <= length());
-        value.reset(reinterpret_cast<const char*>(_msg->data + _pos), len - 1);
-        _pos += Math::round_up(len, sizeof(xfer_t));
-        return *this;
-    }
-
     /**
      * Disables acknowledgement of the message. That is, it will be marked as read, but you have
      * to ack the message on your own via DTU::get().mark_acked(<ep>).
@@ -342,13 +262,8 @@ public:
     }
 
 private:
-    // needed as recursion-end
-    void vpull() {
-    }
-
     Errors::Code _err;
     bool _ack;
-    size_t _pos;
     RecvGate *_rgate;
     const DTU::Message *_msg;
 };

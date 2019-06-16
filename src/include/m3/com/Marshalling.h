@@ -128,10 +128,6 @@ protected:
  * The unmarshaller reads values from a buffer, used e.g. in GateIStream.
  */
 class Unmarshaller {
-protected:
-    explicit Unmarshaller() {
-    }
-
 public:
     /**
      * Creates an object to read values from the given marshalled data.
@@ -171,6 +167,10 @@ public:
         return _data;
     }
 
+    void ignore(size_t bytes) {
+        _pos += bytes;
+    }
+
     /**
      * Pulls the given values out of this stream
      *
@@ -205,8 +205,17 @@ public:
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }
+    Unmarshaller & operator>>(StringRef &value) {
+        assert(_pos + sizeof(xfer_t) <= length());
+        size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
+        _pos += sizeof(xfer_t);
+        assert(_pos + len <= length());
+        value = StringRef(reinterpret_cast<const char*>(_data + _pos), len - 1);
+        _pos += Math::round_up(len, sizeof(xfer_t));
+        return *this;
+    }
 
-protected:
+private:
     // needed as recursion-end
     void vpull() {
     }
