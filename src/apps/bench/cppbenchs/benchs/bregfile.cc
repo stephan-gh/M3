@@ -28,6 +28,61 @@ using namespace m3;
 
 alignas(64) static char buf[8192];
 
+NOINLINE static void open_close() {
+    Profile pr(20, 5);
+
+    cout << "w/  file session: " << pr.run_with_id([] {
+        FileRef file("/data/2048k.txt", FILE_R);
+        if(Errors::occurred())
+            PANIC("Unable to open file '/data/2048k.txt'");
+    }, 0x30) << "\n";
+
+    // pass one EP caps to m3fs (required for FILE_NOSESS)
+    epid_t ep = VPE::self().alloc_ep();
+    if(ep == EP_COUNT)
+        PANIC("Unable to allocate EP for meta session");
+    if(VFS::delegate_eps("/", VPE::self().ep_to_sel(ep), 1) != Errors::NONE)
+        PANIC("Unable to delegate EPs to meta session");
+
+    cout << "w/o file session: " << pr.run_with_id([] {
+        FileRef file("/data/2048k.txt", FILE_R | m3::FILE_NOSESS);
+        if(Errors::occurred())
+            PANIC("Unable to open file '/data/2048k.txt'");
+    }, 0x31) << "\n";
+}
+
+NOINLINE static void stat() {
+    Profile pr(20, 5);
+
+    cout << pr.run_with_id([] {
+        FileInfo info;
+        if(VFS::stat("/data/2048k.txt", info) != Errors::NONE)
+            PANIC("Unable to stat file '/data/2048k.txt'");
+    }, 0x32) << "\n";
+}
+
+NOINLINE static void mkdir_rmdir() {
+    Profile pr(20, 5);
+
+    cout << pr.run_with_id([] {
+        if(VFS::mkdir("/newdir", 0755) != Errors::NONE)
+            PANIC("Unable to mkdir '/newdir'");
+        if(VFS::rmdir("/newdir") != Errors::NONE)
+            PANIC("Unable to rmdir '/newdir'");
+    }, 0x33) << "\n";
+}
+
+NOINLINE static void link_unlink() {
+    Profile pr(20, 5);
+
+    cout << pr.run_with_id([] {
+        if(VFS::link("/large.txt", "/newlarge.txt") != Errors::NONE)
+            PANIC("Unable to link '/newlarge.txt' to '/large.txt'");
+        if(VFS::unlink("/newlarge.txt") != Errors::NONE)
+            PANIC("Unable to unlink '/newlarge.txt'");
+    }, 0x34) << "\n";
+}
+
 NOINLINE static void read() {
     Profile pr(2, 1);
 
@@ -39,7 +94,7 @@ NOINLINE static void read() {
         ssize_t amount;
         while((amount = file->read(buf, sizeof(buf))) > 0)
             ;
-    }, 0x30) << "\n";
+    }, 0x35) << "\n";
 }
 
 NOINLINE static void write() {
@@ -58,7 +113,7 @@ NOINLINE static void write() {
                 PANIC("Unable to write to file");
             total += static_cast<size_t>(amount);
         }
-    }, 0x31) << "\n";
+    }, 0x36) << "\n";
 }
 
 NOINLINE static void copy() {
@@ -76,10 +131,14 @@ NOINLINE static void copy() {
         ssize_t count;
         while((count = in->read(buf, sizeof(buf))) > 0)
             out->write(buf, static_cast<size_t>(count));
-    }, 0x31) << "\n";
+    }, 0x37) << "\n";
 }
 
 void bregfile() {
+    RUN_BENCH(open_close);
+    RUN_BENCH(stat);
+    RUN_BENCH(mkdir_rmdir);
+    RUN_BENCH(link_unlink);
     RUN_BENCH(read);
     RUN_BENCH(write);
     RUN_BENCH(copy);
