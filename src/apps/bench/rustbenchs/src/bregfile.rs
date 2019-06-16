@@ -20,8 +20,46 @@ use m3::test;
 use m3::vfs::{OpenFlags, VFS};
 
 pub fn run(t: &mut dyn test::Tester) {
+    run_test!(t, open_close);
+    run_test!(t, stat);
+    run_test!(t, mkdir_rmdir);
+    run_test!(t, link_unlink);
     run_test!(t, read);
     run_test!(t, write);
+}
+
+fn open_close() {
+    let mut prof = profile::Profiler::new().repeats(20).warmup(5);
+
+    println!("w/  file session: {}", prof.run_with_id(|| {
+        assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+    }, 0x20));
+}
+
+fn stat() {
+    let mut prof = profile::Profiler::new().repeats(20).warmup(5);
+
+    println!("{}", prof.run_with_id(|| {
+        assert_ok!(VFS::stat("/data/2048k.txt"));
+    }, 0x21));
+}
+
+fn mkdir_rmdir() {
+    let mut prof = profile::Profiler::new().repeats(20).warmup(5);
+
+    println!("{}", prof.run_with_id(|| {
+        assert_ok!(VFS::mkdir("/newdir", 0755));
+        assert_ok!(VFS::rmdir("/newdir"));
+    }, 0x22));
+}
+
+fn link_unlink() {
+    let mut prof = profile::Profiler::new().repeats(20).warmup(5);
+
+    println!("{}", prof.run_with_id(|| {
+        assert_ok!(VFS::link("/large.txt", "/newlarge.txt"));
+        assert_ok!(VFS::unlink("/newlarge.txt"));
+    }, 0x23));
 }
 
 fn read() {
@@ -37,7 +75,7 @@ fn read() {
                 break;
             }
         }
-    }, 0x20));
+    }, 0x24));
 }
 
 fn write() {
@@ -58,5 +96,5 @@ fn write() {
             }
             total += amount;
         }
-    }, 0x21));
+    }, 0x25));
 }
