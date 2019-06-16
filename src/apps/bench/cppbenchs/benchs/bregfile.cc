@@ -130,7 +130,7 @@ NOINLINE static void copy() {
 
         ssize_t count;
         while((count = in->read(buf, sizeof(buf))) > 0)
-            out->write(buf, static_cast<size_t>(count));
+            out->write_all(buf, static_cast<size_t>(count));
     }, 0x37) << "\n";
 }
 
