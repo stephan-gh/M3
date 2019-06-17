@@ -17,5 +17,5 @@ myenv.M3Program(
         Glob('sess/*.cc'),
         Glob('sess/socket/*.cc'),
     ],
-    libs = ['pci']
+    libs = ['pci'] if myenv['ARCH'] == 'gem5' else []
 )
