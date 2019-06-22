@@ -21,7 +21,7 @@ use errors::Error;
 use kif;
 use rc::Rc;
 use session::ClientSession;
-use vfs::{FileHandle, GenericFile};
+use vfs::{FileHandle, GenericFile, OpenFlags};
 
 pub struct Pipes {
     sess: ClientSession,
@@ -72,6 +72,7 @@ impl Pipe {
             },
         };
         let crd = self.sess.obtain(2, &mut args)?;
-        Ok(Rc::new(RefCell::new(GenericFile::new(crd.start()))))
+        let flags = if read { OpenFlags::R } else { OpenFlags::W };
+        Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
     }
 }

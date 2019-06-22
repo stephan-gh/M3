@@ -22,10 +22,22 @@ use core::fmt;
 use errors::Error;
 use vfs::{OpenFlags, FileHandle, FileInfo, FileMode};
 
+int_enum! {
+    pub struct FSOperation : u64 {
+        const STAT          = 0x6;
+        const MKDIR         = 0x7;
+        const RMDIR         = 0x8;
+        const LINK          = 0x9;
+        const UNLINK        = 0xA;
+        const OPEN_PRIV     = 0xB;
+        const CLOSE_PRIV    = 0xC;
+    }
+}
+
 pub trait FileSystem : fmt::Debug {
     fn as_any(&self) -> &dyn Any;
 
-    fn open(&self, path: &str, perms: OpenFlags) -> Result<FileHandle, Error>;
+    fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error>;
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error>;
 
@@ -40,4 +52,6 @@ pub trait FileSystem : fmt::Debug {
                             dels: &mut Vec<Selector>,
                             max_sel: &mut Selector) -> Result<(), Error>;
     fn serialize(&self, s: &mut VecSink);
+
+    fn delegate_eps(&self, first: Selector, count: u32) -> Result<(), Error>;
 }

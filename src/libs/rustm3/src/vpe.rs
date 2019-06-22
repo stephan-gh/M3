@@ -481,6 +481,9 @@ impl VPE {
     pub fn ep_sel(&self, ep: EpId) -> Selector {
         self.sel() + kif::FIRST_EP_SEL + (ep - FIRST_FREE_EP) as Selector
     }
+    pub fn sel_ep(&self, sel: Selector) -> EpId {
+        (sel - kif::FIRST_EP_SEL) as EpId + FIRST_FREE_EP
+    }
 
     pub(crate) fn rbufs(&mut self) -> &mut arch::rbufs::RBufSpace {
         &mut self.rbufs

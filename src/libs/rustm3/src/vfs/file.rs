@@ -36,12 +36,14 @@ int_enum! {
 
 bitflags! {
     pub struct OpenFlags : u32 {
-        const R         = 0b000001;
-        const W         = 0b000010;
-        const X         = 0b000100;
-        const TRUNC     = 0b001000;
-        const APPEND    = 0b010000;
-        const CREATE    = 0b100000;
+        const R         = 0b00000001;
+        const W         = 0b00000010;
+        const X         = 0b00000100;
+        const TRUNC     = 0b00001000;
+        const APPEND    = 0b00010000;
+        const CREATE    = 0b00100000;
+        const NODATA    = 0b01000000;
+        const NOSESS    = 0b10000000;
 
         const RW        = Self::R.bits | Self::W.bits;
         const RX        = Self::R.bits | Self::X.bits;

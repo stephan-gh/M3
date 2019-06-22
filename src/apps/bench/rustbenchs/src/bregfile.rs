@@ -35,6 +35,10 @@ fn open_close() {
     println!("w/  file session: {}", prof.run_with_id(|| {
         assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
     }, 0x20));
+
+    println!("w/o file session: {}", prof.run_with_id(|| {
+        assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R | OpenFlags::NOSESS));
+    }, 0x21));
 }
 
 fn stat() {
@@ -42,7 +46,7 @@ fn stat() {
 
     println!("{}", prof.run_with_id(|| {
         assert_ok!(VFS::stat("/data/2048k.txt"));
-    }, 0x21));
+    }, 0x22));
 }
 
 fn mkdir_rmdir() {
@@ -51,7 +55,7 @@ fn mkdir_rmdir() {
     println!("{}", prof.run_with_id(|| {
         assert_ok!(VFS::mkdir("/newdir", 0755));
         assert_ok!(VFS::rmdir("/newdir"));
-    }, 0x22));
+    }, 0x23));
 }
 
 fn link_unlink() {
@@ -60,7 +64,7 @@ fn link_unlink() {
     println!("{}", prof.run_with_id(|| {
         assert_ok!(VFS::link("/large.txt", "/newlarge.txt"));
         assert_ok!(VFS::unlink("/newlarge.txt"));
-    }, 0x23));
+    }, 0x24));
 }
 
 fn read() {
@@ -76,7 +80,7 @@ fn read() {
                 break;
             }
         }
-    }, 0x24));
+    }, 0x25));
 }
 
 fn write() {
@@ -97,7 +101,7 @@ fn write() {
             }
             total += amount;
         }
-    }, 0x25));
+    }, 0x26));
 }
 
 fn copy() {
@@ -116,5 +120,5 @@ fn copy() {
             }
             assert_ok!(fout.write_all(&buf[0..amount]));
         }
-    }, 0x26));
+    }, 0x27));
 }

@@ -26,7 +26,9 @@ use rc::{Rc, Weak};
 use serialize::Sink;
 use session::ClientSession;
 use util;
-use vfs::{FileHandle, FileInfo, FileMode, FileSystem, FSHandle, GenericFile, OpenFlags};
+use vfs::{
+    VFS, FileHandle, FileInfo, FileMode, FileSystem, FSHandle, FSOperation, GenericFile, OpenFlags
+};
 use vpe::VPE;
 
 pub type ExtId = u16;
@@ -34,17 +36,7 @@ pub type ExtId = u16;
 pub struct M3FS {
     self_weak: Weak<RefCell<M3FS>>,
     sess: ClientSession,
-    sgate: SendGate,
-}
-
-int_enum! {
-    struct Operation : u64 {
-        const STAT      = 0x6;
-        const MKDIR     = 0x7;
-        const RMDIR     = 0x8;
-        const LINK      = 0x9;
-        const UNLINK    = 0xA;
-    }
+    sgate: Rc<SendGate>,
 }
 
 bitflags! {
@@ -59,7 +51,7 @@ impl M3FS {
         let inst = Rc::new(RefCell::new(M3FS {
             self_weak: Weak::new(),
             sess: sess,
-            sgate: sgate,
+            sgate: Rc::new(sgate),
         }));
         inst.borrow_mut().self_weak = Rc::downgrade(&inst);
         inst
@@ -90,7 +82,21 @@ impl FileSystem for M3FS {
         self
     }
 
-    fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error> {
+    fn open(&self, path: &str, mut flags: OpenFlags) -> Result<FileHandle, Error> {
+        if flags.contains(OpenFlags::NOSESS) {
+            if let Ok((idx, ep)) = VFS::alloc_ep(self.self_weak.upgrade().unwrap()) {
+                let mut reply = send_recv_res!(
+                    &self.sgate, RecvGate::def(), FSOperation::OPEN_PRIV, path, flags.bits(), idx
+                )?;
+                let id = reply.pop();
+                return Ok(Rc::new(RefCell::new(GenericFile::new_without_sess(
+                    flags, id, self.sess.sel(), Some(VPE::cur().sel_ep(ep)), self.sgate.clone()
+                ))));
+            }
+        }
+
+        flags.remove(OpenFlags::NOSESS);
+
         let mut args = kif::syscalls::ExchangeArgs {
             count: 1,
             vals: kif::syscalls::ExchangeUnion {
@@ -110,13 +116,13 @@ impl FileSystem for M3FS {
         }
 
         let crd = self.sess.obtain(2, &mut args)?;
-        Ok(Rc::new(RefCell::new(GenericFile::new(crd.start()))))
+        Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
     }
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {
         let mut reply = send_recv_res!(
             &self.sgate, RecvGate::def(),
-            Operation::STAT, path
+            FSOperation::STAT, path
         )?;
         Ok(reply.pop())
     }
@@ -124,26 +130,26 @@ impl FileSystem for M3FS {
     fn mkdir(&self, path: &str, mode: FileMode) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
-            Operation::MKDIR, path, mode
+            FSOperation::MKDIR, path, mode
         ).map(|_| ())
     }
     fn rmdir(&self, path: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
-            Operation::RMDIR, path
+            FSOperation::RMDIR, path
         ).map(|_| ())
     }
 
     fn link(&self, old_path: &str, new_path: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
-            Operation::LINK, old_path, new_path
+            FSOperation::LINK, old_path, new_path
         ).map(|_| ())
     }
     fn unlink(&self, path: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
-            Operation::UNLINK, path
+            FSOperation::UNLINK, path
         ).map(|_| ())
     }
 
@@ -164,6 +170,11 @@ impl FileSystem for M3FS {
     fn serialize(&self, s: &mut VecSink) {
         s.push(&self.sess.sel());
         s.push(&self.sgate.sel());
+    }
+
+    fn delegate_eps(&self, first: Selector, count: u32) -> Result<(), Error> {
+        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, first, count);
+        self.sess.delegate_crd(crd)
     }
 }
 

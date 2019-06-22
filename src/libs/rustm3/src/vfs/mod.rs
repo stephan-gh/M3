@@ -34,7 +34,7 @@ pub use self::bufio::{BufReader, BufWriter};
 pub use self::dir::{DirEntry, ReadDir, read_dir};
 pub use self::file::{File, FileInfo, Map, OpenFlags, SeekMode, Seek};
 pub use self::fileref::FileRef;
-pub use self::filesystem::FileSystem;
+pub use self::filesystem::{FileSystem, FSOperation};
 pub use self::filetable::{Fd, FileHandle, FileTable};
 pub use self::genericfile::GenericFile;
 pub use self::indirpipe::IndirectPipe;
