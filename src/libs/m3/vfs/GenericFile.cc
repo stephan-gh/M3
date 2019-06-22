@@ -21,16 +21,16 @@
 #include <m3/session/M3FS.h>
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/GenericFile.h>
+#include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
 
 namespace m3 {
 
-GenericFile::GenericFile(int flags, capsel_t caps, size_t id, epid_t mep, M3FS *sess_obj, size_t memoff)
+GenericFile::GenericFile(int flags, capsel_t caps, size_t id, epid_t mep, SendGate *sg, size_t memoff)
     : File(flags),
       _id(id),
-      _sess_obj(sess_obj),
-      _sess(caps + 0, sess_obj ? ObjCap::KEEP_CAP : 0),
-      _sg(sess_obj ? &sess_obj->_gate : new SendGate(SendGate::bind(caps + 1))),
+      _sess(caps + 0, sg ? ObjCap::KEEP_CAP : 0),
+      _sg(sg ? sg : new SendGate(SendGate::bind(caps + 1))),
       _mg(MemGate::bind(ObjCap::INVALID)),
       _memoff(memoff),
       _goff(),
@@ -54,8 +54,7 @@ void GenericFile::close() {
     if(flags() & FILE_NOSESS) {
         LLOG(FS, "GenFile[" << fd() << "," << _id << "]::close()");
         send_receive_vmsg(*_sg, M3FS::CLOSE_PRIV, _id);
-        assert(_sess_obj);
-        _sess_obj->free_ep(VPE::self().ep_to_sel(_mg.ep()));
+        VFS::free_ep(VPE::self().ep_to_sel(_mg.ep()));
     }
     else {
         if(_mg.ep() != MemGate::UNBOUND) {

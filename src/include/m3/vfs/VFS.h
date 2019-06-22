@@ -31,10 +31,53 @@ namespace m3 {
  * filesystem operations like open, mkdir, ... to the corresponding filesystem.
  */
 class VFS {
+    static const size_t MAX_RES_EPS = 2;
+
     struct Cleanup {
         Cleanup() {
         }
         ~Cleanup();
+    };
+
+    class ReservedEPs {
+        friend class VFS;
+
+    public:
+        explicit ReservedEPs()
+            : _fs(),
+              _eps(),
+              _eps_count(),
+              _eps_used() {
+        }
+        explicit ReservedEPs(Reference<FileSystem> fs, capsel_t first, uint count)
+            : _fs(fs),
+              _eps(first),
+              _eps_count(count),
+              _eps_used() {
+        }
+
+        bool has_ep(capsel_t ep) const {
+            return ep >= _eps && ep < _eps + _eps_count;
+        }
+        capsel_t alloc_ep() {
+            for(uint i = 0; i < _eps_count; ++i) {
+                if((_eps_used & (1u << i)) == 0) {
+                    _eps_used |= 1u << i;
+                    return _eps + i;
+                }
+            }
+            return ObjCap::INVALID;
+        }
+
+        void free_ep(capsel_t ep) {
+            _eps_used &= ~(1u << (ep - _eps));
+        }
+
+    private:
+        Reference<FileSystem> _fs;
+        capsel_t _eps;
+        uint _eps_count;
+        uint _eps_used;
     };
 
 public:
@@ -63,6 +106,23 @@ public:
      * @return the error, if any
      */
     static Errors::Code delegate_eps(const char *path, capsel_t first, uint count);
+
+    /**
+     * Allocates an EP for the given file system. Does only succeed if delegate_eps() was called
+     * before for this file system.
+     *
+     * @param fs the file system
+     * @param idx will be set to the index of the ep
+     * @return the ep capability or ObjCap::INVALID
+     */
+    static capsel_t alloc_ep(const Reference<FileSystem> &fs, size_t *idx);
+
+    /**
+     * Free's the EP that has previously been allocated via alloc_ep().
+     *
+     * @param ep the ep capability
+     */
+    static void free_ep(capsel_t ep);
 
     /**
      * Opens the file at <path> using the given permissions.
@@ -132,7 +192,9 @@ public:
 
 private:
     static MountTable *ms();
+
     static Cleanup _cleanup;
+    static ReservedEPs _reseps[MAX_RES_EPS];
 };
 
 }

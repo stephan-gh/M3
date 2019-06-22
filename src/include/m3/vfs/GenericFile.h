@@ -43,7 +43,7 @@ public:
     };
 
     explicit GenericFile(int flags, capsel_t caps, size_t id = 0, epid_t mep = EP_COUNT,
-                         M3FS *sess_obj = nullptr, size_t memoff = 0);
+                         SendGate *sg = nullptr, size_t memoff = 0);
     virtual ~GenericFile();
 
     SendGate &sgate() {
@@ -115,7 +115,6 @@ private:
     Errors::Code delegate_ep();
 
     size_t _id;
-    M3FS *_sess_obj;
     mutable ClientSession _sess;
     mutable SendGate *_sg;
     MemGate _mg;

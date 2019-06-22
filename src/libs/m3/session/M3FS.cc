@@ -17,19 +17,22 @@
 #include <m3/com/GateStream.h>
 #include <m3/session/M3FS.h>
 #include <m3/vfs/GenericFile.h>
+#include <m3/vfs/VFS.h>
 
 namespace m3 {
 
 Reference<File> M3FS::open(const char *path, int perms) {
     capsel_t ep;
-    if((perms & FILE_NOSESS) && (ep = alloc_ep()) != ObjCap::INVALID) {
-        GateIStream reply = send_receive_vmsg(_gate, OPEN_PRIV, path, perms, ep - _eps);
+    size_t epidx;
+    if((perms & FILE_NOSESS) &&
+       (ep = VFS::alloc_ep(Reference<FileSystem>(this), &epidx)) != ObjCap::INVALID) {
+        GateIStream reply = send_receive_vmsg(_gate, OPEN_PRIV, path, perms, epidx);
         reply >> Errors::last;
         if(Errors::last != Errors::NONE)
             return Reference<File>();
         size_t id;
         reply >> id;
-        return Reference<File>(new GenericFile(perms, sel(), id, VPE::self().sel_to_ep(ep), this));
+        return Reference<File>(new GenericFile(perms, sel(), id, VPE::self().sel_to_ep(ep), &_gate));
     }
     else {
         perms &= ~FILE_NOSESS;

@@ -54,18 +54,12 @@ public:
     explicit M3FS(const String &service)
         : ClientSession(service, VPE::self().alloc_sels(2)),
           FileSystem(),
-          _gate(obtain_sgate()),
-          _eps(),
-          _eps_count(),
-          _eps_used() {
+          _gate(obtain_sgate()) {
     }
     explicit M3FS(capsel_t caps)
         : ClientSession(caps + 0),
           FileSystem(),
-          _gate(SendGate::bind(caps + 1)),
-          _eps(),
-          _eps_count(),
-          _eps_used() {
+          _gate(SendGate::bind(caps + 1)) {
     }
 
     const SendGate &gate() const {
@@ -76,13 +70,7 @@ public:
     }
 
     virtual Errors::Code delegate_eps(capsel_t first, uint count) override {
-        Errors::Code res = ClientSession::delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, first, count));
-        if(res != Errors::NONE)
-            return res;
-        _eps = first;
-        _eps_count = count;
-        _eps_used = 0;
-        return Errors::NONE;
+        return ClientSession::delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, first, count));
     }
 
     virtual Reference<File> open(const char *path, int perms) override;
@@ -111,18 +99,6 @@ public:
     }
 
 private:
-    capsel_t alloc_ep() {
-        for(uint i = 0; i < _eps_count; ++i) {
-            if((_eps_used & (1u << i)) == 0) {
-                _eps_used |= 1u << i;
-                return _eps + i;
-            }
-        }
-        return ObjCap::INVALID;
-    }
-    void free_ep(capsel_t ep) {
-        _eps_used &= ~(1u << (ep - _eps));
-    }
     SendGate obtain_sgate() {
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sel() + 1);
         obtain_for(VPE::self(), crd);
@@ -130,9 +106,6 @@ private:
     }
 
     SendGate _gate;
-    capsel_t _eps;
-    uint _eps_count;
-    uint _eps_used;
 };
 
 template<>
