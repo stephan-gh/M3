@@ -134,8 +134,7 @@ ssize_t GenericFile::read(void *buffer, size_t count) {
 
     if(_pos == _len) {
         Time::start(0xbbbb);
-        GateIStream reply = !have_sess() ? send_receive_vmsg(*_sg, NEXT_IN, _id)
-                                         : send_receive_vmsg(*_sg, NEXT_IN);
+        GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
         reply >> Errors::last;
         Time::stop(0xbbbb);
         if(Errors::last != Errors::NONE)
@@ -170,8 +169,7 @@ ssize_t GenericFile::write(const void *buffer, size_t count) {
 
     if(_pos == _len) {
         Time::start(0xbbbb);
-        GateIStream reply = !have_sess() ? send_receive_vmsg(*_sg, NEXT_OUT, _id)
-                                         : send_receive_vmsg(*_sg, NEXT_OUT);
+        GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
         reply >> Errors::last;
         Time::stop(0xbbbb);
         if(Errors::last != Errors::NONE)
