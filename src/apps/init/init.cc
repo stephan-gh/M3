@@ -38,9 +38,11 @@ int main(int argc, const char **argv) {
 
     VTerm vterm("vterm");
     if(vterm.is_connected()) {
-        sh.fds()->set(STDIN_FD, vterm.create_channel(true));
-        sh.fds()->set(STDOUT_FD, vterm.create_channel(false));
-        sh.fds()->set(STDERR_FD, vterm.create_channel(false));
+        const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
+        for(fd_t fd : fds) {
+            VPE::self().fds()->set(fd, vterm.create_channel(fd == STDIN_FD));
+            sh.fds()->set(fd, VPE::self().fds()->get(fd));
+        }
         sh.obtain_fds();
     }
 
