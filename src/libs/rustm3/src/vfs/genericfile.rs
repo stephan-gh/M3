@@ -35,7 +35,7 @@ use vfs::{
 use vpe::VPE;
 
 int_enum! {
-    pub struct Operation : u64 {
+    pub struct GenFileOp : u64 {
         const STAT      = 0;
         const SEEK      = 1;
         const NEXT_IN   = 2;
@@ -94,10 +94,10 @@ impl GenericFile {
     fn submit(&mut self, force: bool) -> Result<(), Error> {
         if self.pos > 0 && (self.writing || force) {
             if self.flags.contains(OpenFlags::NOSESS) {
-                send_recv_res!(&self.sgate, RecvGate::def(), Operation::COMMIT, self.id, self.pos)?;
+                send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::COMMIT, self.id, self.pos)?;
             }
             else {
-                send_recv_res!(&self.sgate, RecvGate::def(), Operation::COMMIT, self.pos)?;
+                send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::COMMIT, self.pos)?;
             }
 
             self.goff += self.pos;
@@ -155,14 +155,14 @@ impl File for GenericFile {
             }
 
             // file sessions are not known to our resource manager; thus close them manually
-            send_recv_res!(&self.sgate, RecvGate::def(), Operation::CLOSE).ok();
+            send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::CLOSE).ok();
         }
     }
 
     fn stat(&self) -> Result<FileInfo, Error> {
         let mut reply = send_recv_res!(
             &self.sgate, RecvGate::def(),
-            Operation::STAT
+            GenFileOp::STAT
         )?;
         Ok(reply.pop())
     }
@@ -209,9 +209,9 @@ impl Seek for GenericFile {
         }
 
         let mut reply = if self.flags.contains(OpenFlags::NOSESS) {
-            send_recv_res!(&self.sgate, RecvGate::def(), Operation::SEEK, self.id, off, whence)?
+            send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::SEEK, self.id, off, whence)?
         } else {
-            send_recv_res!(&self.sgate, RecvGate::def(), Operation::SEEK, off, whence)?
+            send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::SEEK, off, whence)?
         };
 
         self.goff = reply.pop();
@@ -231,7 +231,7 @@ impl Read for GenericFile {
             time::start(0xbbbb);
             let mut reply = send_recv_res!(
                 &self.sgate, RecvGate::def(),
-                Operation::NEXT_IN, self.id
+                GenFileOp::NEXT_IN, self.id
             )?;
             time::stop(0xbbbb);
             self.goff += self.len;
@@ -264,7 +264,7 @@ impl Write for GenericFile {
             time::start(0xbbbb);
             let mut reply = send_recv_res!(
                 &self.sgate, RecvGate::def(),
-                Operation::NEXT_OUT, self.id
+                GenFileOp::NEXT_OUT, self.id
             )?;
             time::stop(0xbbbb);
             self.goff += self.len;
