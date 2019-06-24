@@ -51,7 +51,7 @@ MainMemory::Allocation MainMemory::build_allocation(gaddr_t addr, size_t size) c
 
 MainMemory::Allocation MainMemory::allocate(size_t size, size_t align) {
     for(size_t i = 0; i < _count; ++i) {
-        if(_mods[i]->type() == MemoryModule::OCCUPIED)
+        if(_mods[i]->type() != MemoryModule::KERNEL)
             continue;
         goff_t res = _mods[i]->map().allocate(size, align);
         if(res != static_cast<goff_t>(-1))
