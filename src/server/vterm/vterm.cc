@@ -213,7 +213,7 @@ public:
     }
 
     virtual Errors::Code obtain(VTermSession *sess, KIF::Service::ExchangeData &data) override {
-        if(data.caps != 1 && data.caps != 2)
+        if(data.caps != 2)
             return Errors::INV_ARGS;
 
         ChannelSession *nsess;
