@@ -23,7 +23,6 @@
 #include "partition.h"
 
 #include <base/Compiler.h>
-#include <base/stream/IStringStream.h>
 
 #include <m3/stream/Standard.h>
 

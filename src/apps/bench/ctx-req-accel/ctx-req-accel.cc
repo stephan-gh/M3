@@ -16,7 +16,6 @@
 
 #include <base/Common.h>
 #include <base/stream/Serial.h>
-#include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
 #include <base/CmdArgs.h>
 

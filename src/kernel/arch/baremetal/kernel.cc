@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/stream/IStringStream.h>
 #include <base/tracing/Tracing.h>
 #include <base/log/Kernel.h>
 

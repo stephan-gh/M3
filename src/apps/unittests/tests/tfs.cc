@@ -15,8 +15,6 @@
  */
 
 #include <base/Common.h>
-#include <base/stream/OStringStream.h>
-#include <base/stream/IStringStream.h>
 
 #include <m3/stream/FStream.h>
 #include <m3/stream/Standard.h>

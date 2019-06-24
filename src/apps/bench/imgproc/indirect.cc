@@ -15,7 +15,6 @@
  */
 
 #include <base/Common.h>
-#include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
 #include <base/PEDesc.h>
 
