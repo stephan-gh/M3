@@ -73,7 +73,7 @@ public:
     }
 
 protected:
-    virtual Errors::Code open(SESS **sess, capsel_t srv_sel, const String &) override {
+    virtual Errors::Code open(SESS **sess, capsel_t srv_sel, const StringRef &) override {
         *sess = new SESS(srv_sel);
         _sessions.append(*sess);
         return Errors::NONE;

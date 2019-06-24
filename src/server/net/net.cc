@@ -80,7 +80,7 @@ public:
         _rgate.start(wl, std::bind(&NMRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(NMSession **sess, capsel_t srv_sel, const String &) override {
+    virtual Errors::Code open(NMSession **sess, capsel_t srv_sel, const StringRef &) override {
         *sess = new SocketSession(_wl, srv_sel, _rgate);
         _sessions.append(*sess);
         return Errors::NONE;

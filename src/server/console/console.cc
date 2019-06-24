@@ -34,7 +34,7 @@ public:
     explicit VGAHandler(MemGate *vgamem) : _vgamem(vgamem) {
     }
 
-    virtual Errors::Code open(ServerSession **sess, capsel_t srv_sel, const String &) override {
+    virtual Errors::Code open(ServerSession **sess, capsel_t srv_sel, const StringRef &) override {
         *sess = new ServerSession(srv_sel);
         return Errors::NONE;
     }

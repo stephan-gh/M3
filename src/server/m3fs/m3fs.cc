@@ -75,7 +75,7 @@ public:
         _rgate.start(wl, std::bind(&M3FSRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(M3FSSession **sess, capsel_t srv_sel, const String &args) override {
+    virtual Errors::Code open(M3FSSession **sess, capsel_t srv_sel, const StringRef &args) override {
         size_t max_files = 64;
         if(args.length() > 0) {
             if(strncmp(args.c_str(), "files=", 6) == 0)

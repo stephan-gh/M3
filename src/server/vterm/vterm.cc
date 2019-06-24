@@ -207,7 +207,7 @@ public:
         _rgate.start(wl, std::bind(&VTermHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(VTermSession **sess, capsel_t srv_sel, const String &) override {
+    virtual Errors::Code open(VTermSession **sess, capsel_t srv_sel, const StringRef &) override {
         *sess = new MetaSession(srv_sel);
         return Errors::NONE;
     }

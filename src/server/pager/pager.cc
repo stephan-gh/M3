@@ -55,7 +55,7 @@ public:
         _rgate.start(wl, std::bind(&MemReqHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(AddrSpace **sess, capsel_t srv_sel, const String &) override {
+    virtual Errors::Code open(AddrSpace **sess, capsel_t srv_sel, const StringRef &) override {
         *sess = new AddrSpace(srv_sel, nullptr);
         return Errors::NONE;
     }

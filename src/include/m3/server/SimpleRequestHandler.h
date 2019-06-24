@@ -45,7 +45,7 @@ public:
         _rgate.start(wl, std::bind(&SimpleRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(SimpleSession **sess, capsel_t srv_sel, const String &) override {
+    virtual Errors::Code open(SimpleSession **sess, capsel_t srv_sel, const StringRef&) override {
         *sess = new SimpleSession(srv_sel);
         return Errors::NONE;
     }

@@ -30,7 +30,7 @@ public:
     virtual ~Handler() {
     }
 
-    virtual Errors::Code open(SESS **sess, capsel_t, const String &) = 0;
+    virtual Errors::Code open(SESS **sess, capsel_t, const StringRef &) = 0;
     virtual Errors::Code obtain(SESS *, KIF::Service::ExchangeData &) {
         return Errors::NOT_SUP;
     }
