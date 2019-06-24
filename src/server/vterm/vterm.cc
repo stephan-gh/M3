@@ -246,6 +246,7 @@ public:
 
     virtual Errors::Code close(VTermSession *sess) override {
         delete sess;
+        _rgate.drop_msgs_with(reinterpret_cast<label_t>(sess));
         return Errors::NONE;
     }
 
@@ -277,8 +278,9 @@ public:
 
     void close_chan(m3::GateIStream &is) {
         VTermSession *sess = is.label<VTermSession*>();
-        close(sess);
+        // reply first to prevent that we drop the message
         reply_error(is, Errors::NONE);
+        close(sess);
     }
 
     ChannelSession *new_chan(bool write) {
