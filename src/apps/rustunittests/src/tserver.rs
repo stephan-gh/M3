@@ -42,7 +42,7 @@ struct MyHandler {
 }
 
 impl Handler for MyHandler {
-    fn open(&mut self, srv_sel: Selector, _: u64) -> Result<(Selector, u64), Error> {
+    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, u64), Error> {
         let sess = ServerSession::new(srv_sel, 0)?;
 
         let sel = sess.sel();

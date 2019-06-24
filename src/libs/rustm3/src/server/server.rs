@@ -28,7 +28,7 @@ pub struct Server {
 }
 
 pub trait Handler {
-    fn open(&mut self, srv_sel: Selector, arg: u64) -> Result<(Selector, u64), Error>;
+    fn open(&mut self, srv_sel: Selector, arg: &str) -> Result<(Selector, u64), Error>;
 
     fn obtain(&mut self, _sid: SessId, _data: &mut service::ExchangeData) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
@@ -79,7 +79,7 @@ impl Server {
     }
 
     fn handle_open(hdl: &mut dyn Handler, sel: Selector, mut is: GateIStream) -> Result<(), Error> {
-        let arg: u64 = is.pop();
+        let arg: &str = is.pop();
         let res = hdl.open(sel, arg);
 
         log!(SERV, "server::open({}) -> {:?}", arg, res);

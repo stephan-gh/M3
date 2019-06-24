@@ -31,7 +31,6 @@ use m3::util;
 
 #[derive(Debug)]
 struct MySession {
-    arg: u64,
     sess: ServerSession,
     sgate: SendGate,
 }
@@ -48,7 +47,7 @@ int_enum! {
 }
 
 impl Handler for MyHandler {
-    fn open(&mut self, srv_sel: Selector, arg: u64) -> Result<(Selector, u64), Error> {
+    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, u64), Error> {
         let sid = self.sessions.next_id();
         let sess = ServerSession::new(srv_sel, sid)?;
         let ident = self.sessions.next_id();
@@ -58,7 +57,6 @@ impl Handler for MyHandler {
 
         let sel = sess.sel();
         self.sessions.add(MySession {
-            arg: arg,
             sess: sess,
             sgate: sgate,
         });
