@@ -60,8 +60,7 @@ int main(int argc, char **argv) {
     while((opt = CmdArgs::get(argc, argv, "s:")) != -1) {
         switch(opt) {
             case 's': {
-                String input(CmdArgs::arg);
-                IStringStream is(input);
+                IStringStream is(CmdArgs::arg);
                 is >> sels >> ep;
                 break;
             }

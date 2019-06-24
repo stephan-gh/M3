@@ -341,8 +341,7 @@ int main(int argc, char **argv) {
             case 'a': maxAnonPages = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'f': maxExternPages = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 's': {
-                String input(CmdArgs::arg);
-                IStringStream is(input);
+                IStringStream is(CmdArgs::arg);
                 is >> sels >> ep;
                 break;
             }

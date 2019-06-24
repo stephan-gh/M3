@@ -34,8 +34,8 @@ public:
      * @return the read value
      */
     template<typename T>
-    static T read_from(const String &str) {
-        IStringStream is(const_cast<String&>(str));
+    static T read_from(const StringRef &str) {
+        IStringStream is(str);
         T t;
         is >> t;
         return t;
@@ -44,10 +44,9 @@ public:
     /**
      * Constructor
      *
-     * @param str the string (not copied and not changed, but non-const to prevent that someone
-     *  accidently passes in a temporary)
+     * @param str the string
      */
-    explicit IStringStream(String &str)
+    explicit IStringStream(const StringRef &str)
         : IStream(),
           _str(str),
           _pos() {
@@ -67,7 +66,7 @@ public:
     }
 
 private:
-    const String &_str;
+    const StringRef _str;
     size_t _pos;
 };
 

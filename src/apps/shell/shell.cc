@@ -313,11 +313,10 @@ int main(int argc, char **argv) {
         for(int i = 2; i < argc; ++i)
             os << argv[i] << " ";
 
-        String input(os.str(), os.length());
-        IStringStream is(input);
+        IStringStream is(StringRef(os.str(), os.length()));
         CmdList *list = get_command(&is);
         if(!list)
-            exitmsg("Unable to parse command '" << input << "'");
+            exitmsg("Unable to parse command '" << os.str() << "'");
 
         cycles_t start = Time::start(0x1234);
         execute(pipesrv, list, muxed);

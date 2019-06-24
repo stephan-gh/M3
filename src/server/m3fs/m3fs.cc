@@ -235,8 +235,7 @@ int main(int argc, char *argv[]) {
         switch(opt) {
             case 'n': name = CmdArgs::arg; break;
             case 's': {
-                String input(CmdArgs::arg);
-                IStringStream is(input);
+                IStringStream is(CmdArgs::arg);
                 is >> sels >> ep;
                 break;
             }

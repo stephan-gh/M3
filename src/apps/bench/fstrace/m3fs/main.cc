@@ -112,8 +112,7 @@ int main(int argc, char **argv) {
             case 'i': stdio = true; break;
             case 'd': data = true; break;
             case 'g': {
-                String input(CmdArgs::arg);
-                IStringStream is(input);
+                IStringStream is(CmdArgs::arg);
                 is >> rgate >> rgate_ep;
                 break;
             }

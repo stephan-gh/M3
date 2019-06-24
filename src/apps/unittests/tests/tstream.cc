@@ -30,8 +30,7 @@ static void istream() {
     float f;
 
     {
-        String in("1 2 0xAfd2");
-        IStringStream is(in);
+        IStringStream is("1 2 0xAfd2");
         is >> a >> b >> d;
         assert_int(a, 1);
         assert_int(b, 2);
@@ -39,8 +38,7 @@ static void istream() {
     }
 
     {
-        String in("  -1\t+2\n\n0XA");
-        IStringStream is(in);
+        IStringStream is("  -1\t+2\n\n0XA");
         is >> a >> b >> d;
         assert_int(a, -1);
         assert_int(b, 2);
@@ -49,8 +47,7 @@ static void istream() {
 
     {
         String str;
-        String in("  1\tabc\n\n12.4");
-        IStringStream is(in);
+        IStringStream is("  1\tabc\n\n12.4");
         is >> d >> str >> f;
         assert_uint(d, 1);
         assert_str(str.c_str(), "abc");
@@ -60,8 +57,7 @@ static void istream() {
     {
         char buf[16];
         size_t res;
-        String in(" 1234 55 test\n\nfoo\n012345678901234567");
-        IStringStream is(in);
+        IStringStream is(" 1234 55 test\n\nfoo\n012345678901234567");
         assert_true(is.good());
 
         res = is.getline(buf, sizeof(buf));
@@ -99,8 +95,7 @@ static void istream() {
         {"-12.35E5",     -12.35E5f},
     };
     for(size_t i = 0; i < ARRAY_SIZE(tests); i++) {
-        String in(tests[i].str);
-        IStringStream is(in);
+        IStringStream is(tests[i].str);
         is >> f;
         assert_float(f, tests[i].res);
     }
