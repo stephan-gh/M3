@@ -188,7 +188,7 @@ public:
         RCTMUX              = 1,
     };
 
-    struct ReplyHeader {
+    struct alignas(8) ReplyHeader {
         enum {
             FL_REPLY            = 1 << 0,
             FL_GRANT_CREDITS    = 1 << 1,
