@@ -48,19 +48,18 @@ int_enum! {
 
 impl Handler for MyHandler {
     fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, u64), Error> {
-        let sid = self.sessions.next_id();
-        let sess = ServerSession::new(srv_sel, sid)?;
-        let ident = self.sessions.next_id();
+        let sid = self.sessions.next_id()?;
+        let sess = ServerSession::new(srv_sel, sid as u64)?;
         let sgate = SendGate::new_with(
-            SGateArgs::new(&self.rgate).label(ident).credits(256)
+            SGateArgs::new(&self.rgate).label(sid as u64).credits(256)
         )?;
 
         let sel = sess.sel();
-        self.sessions.add(MySession {
+        self.sessions.add(sid, MySession {
             sess: sess,
             sgate: sgate,
         });
-        Ok((sel, ident))
+        Ok((sel, sid as u64))
     }
 
     fn obtain(&mut self, sid: SessId, data: &mut kif::service::ExchangeData) -> Result<(), Error> {
@@ -84,7 +83,7 @@ impl MyHandler {
         let mut rgate = RecvGate::new(util::next_log2(256), util::next_log2(256))?;
         rgate.activate()?;
         Ok(MyHandler {
-            sessions: SessionContainer::new(),
+            sessions: SessionContainer::new(32),
             rgate: rgate,
         })
     }

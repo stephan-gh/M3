@@ -14,38 +14,54 @@
  * General Public License version 2 for more details.
  */
 
-use col::BTreeMap;
+use col::Vec;
+use errors::{Code, Error};
 
-pub type SessId = u64;
+pub type SessId = usize;
 
 pub struct SessionContainer<S> {
-    con: BTreeMap<SessId, S>,
-    next_id: SessId,
+    con: Vec<Option<S>>,
+    used: u64,
 }
 
 impl<S> SessionContainer<S> {
-    pub fn new() -> Self {
+    pub fn new(max: usize) -> Self {
+        let mut con = Vec::with_capacity(max);
+        for _ in 0..max {
+            con.push(None);
+        }
+
         SessionContainer {
-            con: BTreeMap::new(),
-            next_id: 0,
+            con: con,
+            used: 0,
         }
     }
 
-    pub fn next_id(&self) -> SessId {
-        self.next_id
+    pub fn next_id(&self) -> Result<SessId, Error> {
+        for i in 0..self.con.capacity() {
+            if self.used & (1 << i) == 0 {
+                return Ok(i);
+            }
+        }
+        Err(Error::new(Code::NoSpace))
     }
 
     pub fn get(&self, sid: SessId) -> Option<&S> {
-        self.con.get(&sid)
+        self.con[sid].as_ref()
+    }
+    pub fn get_mut(&mut self, sid: SessId) -> Option<&mut S> {
+        self.con[sid].as_mut()
     }
 
-    pub fn add(&mut self, sess: S) -> SessId {
-        self.con.insert(self.next_id, sess);
-        self.next_id += 1;
-        self.next_id - 1
+    pub fn add(&mut self, sid: SessId, sess: S) {
+        assert!(self.used & (1 << sid) == 0);
+        self.con[sid] = Some(sess);
+        self.used |= 1 << sid;
     }
 
     pub fn remove(&mut self, sid: SessId) {
-        self.con.remove(&sid);
+        assert!(self.used & (1 << sid) != 0);
+        self.con[sid] = None;
+        self.used &= !(1 << sid);
     }
 }

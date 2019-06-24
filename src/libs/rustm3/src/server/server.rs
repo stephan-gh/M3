@@ -100,7 +100,7 @@ impl Server {
     fn handle_obtain(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
         let sid: u64 = is.pop();
         let mut data: service::ExchangeData = is.pop();
-        let res = hdl.obtain(sid, &mut data);
+        let res = hdl.obtain(sid as SessId, &mut data);
 
         log!(SERV, "server::obtain({}, {:?}) -> {:?}", sid, data, res);
 
@@ -117,7 +117,7 @@ impl Server {
     fn handle_delegate(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
         let sid: u64 = is.pop();
         let mut data: service::ExchangeData = is.pop();
-        let res = hdl.delegate(sid, &mut data);
+        let res = hdl.delegate(sid as SessId, &mut data);
 
         log!(SERV, "server::delegate({}, {:?}) -> {:?}", sid, data, res);
 
@@ -136,7 +136,7 @@ impl Server {
 
         log!(SERV, "server::close({})", sid);
 
-        hdl.close(sid);
+        hdl.close(sid as SessId);
 
         reply_vmsg!(is, 0)
     }

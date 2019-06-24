@@ -47,7 +47,7 @@ impl Handler for MyHandler {
 
         let sel = sess.sel();
         // keep the session to ensure that it's not destroyed
-        self.sessions.add(MySession {
+        self.sessions.add(0, MySession {
             _sess: sess,
         });
         Ok((sel, 0))
@@ -65,7 +65,7 @@ impl Handler for MyHandler {
 impl MyHandler {
     pub fn new() -> Self {
         MyHandler {
-            sessions: SessionContainer::new(),
+            sessions: SessionContainer::new(1),
         }
     }
 }
