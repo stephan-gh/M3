@@ -24,7 +24,7 @@
 
 namespace kernel {
 
-size_t Args::kmem          = 32 * 1024 * 1024;
+size_t Args::kmem          = 64 * 1024 * 1024;
 cycles_t Args::timeslice   = 6000000;
 const char *Args::bridge   = nullptr;
 const char *Args::fsimg    = nullptr;
