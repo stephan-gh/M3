@@ -1,0 +1,10 @@
+[package]
+name = "vterm"
+version = "0.1.0"
+
+[lib]
+path = "src/vterm.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+m3 = { path = "../../libs/rustm3" }

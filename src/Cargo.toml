@@ -11,6 +11,7 @@ members = [
     "libs/rustresmng",
     "libs/rustthread",
     "server/root",
+    "server/vterm",
     "server/subsys",
 ]
 

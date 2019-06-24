@@ -37,15 +37,17 @@ pub const DTU: bool     = false;
 pub const THREAD: bool  = false;
 /// Logs file multiplexing
 pub const FILES: bool   = false;
+/// Logs vterm operations
+pub const VTERM: bool   = false;
 
 /// Logs general operations of the resource manager
-pub const RESMNG: bool        = false;
+pub const RESMNG: bool        = true;
 /// Logs parsed configs
-pub const RESMNG_CFG: bool    = false;
+pub const RESMNG_CFG: bool    = true;
 /// Logs memory operations
 pub const RESMNG_MEM: bool    = false;
 /// Logs sendqueue operations
-pub const RESMNG_SQUEUE: bool = false;
+pub const RESMNG_SQUEUE: bool = true;
 
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";

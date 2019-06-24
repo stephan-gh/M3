@@ -20,7 +20,7 @@ use core::intrinsics;
 use core::ops;
 use core::slice;
 use dtu;
-use errors::Error;
+use errors::{Code, Error};
 use mem::heap;
 use libc;
 use serialize::{Sink, Source, Marshallable, Unmarshallable};
@@ -322,6 +322,13 @@ macro_rules! reply_vmsg {
         $( os.push(&$args); )*
         $is.reply_os(&os)
     });
+}
+
+impl<'r> GateIStream<'r> {
+    #[inline(always)]
+    pub fn reply_error(&mut self, err: Code) -> Result<(), Error> {
+        reply_vmsg!(self, err as u64)
+    }
 }
 
 #[inline(always)]

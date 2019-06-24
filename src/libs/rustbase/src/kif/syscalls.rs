@@ -95,6 +95,18 @@ pub struct ExchangeArgs {
     pub vals: ExchangeUnion,
 }
 
+impl ExchangeArgs {
+    pub fn ival(&self, idx: usize) -> u64 {
+        unsafe { self.vals.i[idx] }
+    }
+    pub fn sval(&self, idx: usize) -> u64 {
+        unsafe { self.vals.s.i[idx] }
+    }
+    pub fn str(&self) -> &[u8] {
+        unsafe { &self.vals.s.s }
+    }
+}
+
 impl Default for ExchangeArgs {
     fn default() -> Self {
         ExchangeArgs {

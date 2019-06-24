@@ -27,6 +27,10 @@ pub struct ServerSession {
 impl ServerSession {
     pub fn new(srv: Selector, ident: u64) -> Result<Self, Error> {
         let sel = vpe::VPE::cur().alloc_sel();
+        Self::new_with_sel(srv, sel, ident)
+    }
+
+    pub fn new_with_sel(srv: Selector, sel: Selector, ident: u64) -> Result<Self, Error> {
         syscalls::create_sess(sel, srv, ident)?;
         Ok(ServerSession {
             cap: Capability::new(sel, CapFlags::empty()),
