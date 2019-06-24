@@ -209,6 +209,7 @@ public:
 
     virtual Errors::Code open(VTermSession **sess, capsel_t srv_sel, const StringRef &) override {
         *sess = new MetaSession(srv_sel);
+        SLOG(VTERM, "[?] vterm::new_meta()");
         return Errors::NONE;
     }
 
@@ -230,6 +231,7 @@ public:
         if(nsess == nullptr)
             return Errors::NO_SPACE;
 
+        SLOG(VTERM, "[" << nsess->id << "] vterm::new_chan()");
         data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, nsess->sel(), 2).value();
         return Errors::NONE;
     }
@@ -304,6 +306,7 @@ inline ChannelSession *MetaSession::create_chan(bool write) {
 }
 
 inline ChannelSession::~ChannelSession() {
+    SLOG(VTERM, "[" << id << "] vterm::close_chan()");
     srv->handler()._slots.set(id, false);
 }
 inline ChannelSession *ChannelSession::clone() {
