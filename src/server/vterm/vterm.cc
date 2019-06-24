@@ -138,12 +138,7 @@ public:
             return;
         }
 
-        if(len > 0) {
-            char buf[BUF_SIZE];
-            mem.read(buf, len, 0);
-            Machine::write(buf, len);
-            len = 0;
-        }
+        flush(len);
 
         if(!active) {
             Syscalls::activate(ep, mem.sel(), 0);
@@ -167,19 +162,21 @@ public:
             return;
         }
 
-        if(writing) {
-            if(len > 0) {
-                char buf[BUF_SIZE];
-                mem.read(buf, nbytes, 0);
-                Machine::write(buf, nbytes);
-                len = 0;
-            }
-            reply_vmsg(is, Errors::NONE);
-        }
-        else {
+        if(writing)
+            flush(nbytes);
+        else
             pos += nbytes;
-            reply_vmsg(is, Errors::NONE);
+
+        reply_vmsg(is, Errors::NONE);
+    }
+
+    void flush(size_t nbytes) {
+        if(nbytes > 0) {
+            char buf[BUF_SIZE];
+            mem.read(buf, nbytes, 0);
+            Machine::write(buf, nbytes);
         }
+        len = 0;
     }
 
     uint id;
