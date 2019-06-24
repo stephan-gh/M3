@@ -93,13 +93,14 @@ impl Session {
     pub fn new(sel: Selector, serv: &mut Service, arg: &String) -> Result<(Selector, Self), Error> {
         let mut smsg = kif::service::Open {
             opcode: kif::service::Operation::OPEN.val as u64,
-            arglen: arg.len() as u64,
+            arglen: (arg.len() + 1) as u64,
             arg: unsafe { intrinsics::uninit() },
         };
         // copy arg
         for (a, c) in smsg.arg.iter_mut().zip(arg.bytes()) {
             *a = c as u8;
         }
+        smsg.arg[arg.len()] = 0u8;
 
         let event = serv.queue.send(util::object_to_bytes(&smsg));
 

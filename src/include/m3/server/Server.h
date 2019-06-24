@@ -98,7 +98,7 @@ private:
         KIF::Service::OpenReply reply;
 
         typename HDL::session_type *sess = nullptr;
-        StringRef arg(req->arg, Math::min(static_cast<size_t>(req->arglen), sizeof(req->arg)));
+        StringRef arg(req->arg, Math::min(static_cast<size_t>(req->arglen - 1), sizeof(req->arg)));
         reply.error = _handler->open(&sess, sel(), arg);
         if(sess)
             LLOG(SERV, fmt((word_t)sess, "#x") << ": open()");
