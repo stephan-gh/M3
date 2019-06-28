@@ -2,9 +2,5 @@ import os
 
 Import('env', 'hostenv')
 
-dirs = ['strace2cpp', 'm3fs']
-if env['ISA'] == os.popen("uname -m").read().strip():
-    dirs += ['linux']
-
-for d in dirs:
+for d in ['strace2cpp', 'm3fs']:
     hostenv.SConscript(d + '/SConscript', exports = ['env', 'hostenv'])

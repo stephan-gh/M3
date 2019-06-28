@@ -23,10 +23,8 @@
 #include "traceplayer.h"
 #include "exceptions.h"
 
-#ifndef __LINUX__
-#   include <base/stream/Serial.h>
-#   include <base/util/Time.h>
-#endif
+#include <base/stream/Serial.h>
+#include <base/util/Time.h>
 
 __attribute__((unused)) static const char *op_names[] = {
     "INVALID",
@@ -100,21 +98,17 @@ int TracePlayer::play(Trace *trace, bool wait, bool data, bool stdio, bool keep_
     FSAPI *fs = Platform::fsapi(wait, data, stdio, pathPrefix);
 
     fs->start();
-#ifndef __LINUX__
     m3::Time::start(0xBBBB);
-#endif
 
     // let's play
     op = trace->trace_ops;
     while (op && op->opcode != INVALID_OP) {
-#ifndef __LINUX__
         m3::Time::start(static_cast<uint>(lineNo));
 
         if(op->opcode != WAITUNTIL_OP)
             m3::Time::stop(0xBBBB);
 
         // m3::Serial::get() << "line " << lineNo << ": opcode=" << op_names[op->opcode] << "\n";
-#endif
 
         switch (op->opcode) {
             case WAITUNTIL_OP:
@@ -258,24 +252,18 @@ int TracePlayer::play(Trace *trace, bool wait, bool data, bool stdio, bool keep_
                 return -ENOSYS;
         }
 
-#ifndef __LINUX__
         if(op->opcode != WAITUNTIL_OP)
             m3::Time::start(0xBBBB);
-#endif
 
         if (op->opcode != WAITUNTIL_OP)
             numReplayed++;
         op++;
 
-#ifndef __LINUX__
         m3::Time::stop(static_cast<uint>(lineNo));
-#endif
         lineNo++;
     }
 
-#ifndef __LINUX__
     m3::Time::stop(0xBBBB);
-#endif
     fs->stop();
     return 0;
 }
