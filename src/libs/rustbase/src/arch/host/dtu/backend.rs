@@ -22,27 +22,44 @@ use util;
 
 pub(crate) struct SocketBackend {
     sock: i32,
+    knotify_sock: i32,
+    knotify_addr: libc::sockaddr_un,
     localsock: Vec<i32>,
     eps: Vec<libc::sockaddr_un>,
 }
 
+#[repr(C, packed)]
+struct KNotifyData {
+    pid: libc::pid_t,
+    status: i32,
+}
+
 impl SocketBackend {
+    fn get_sock_addr(addr: &str) -> libc::sockaddr_un {
+        let mut sockaddr = libc::sockaddr_un {
+            sun_family: libc::AF_UNIX as libc::sa_family_t,
+            sun_path: [0; 108],
+        };
+        sockaddr.sun_path[0..addr.len()].clone_from_slice(
+            unsafe { intrinsics::transmute(addr.as_bytes()) }
+        );
+        sockaddr
+    }
+
     pub fn new() -> SocketBackend {
         let sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0) };
         assert!(sock != -1);
+
+        let knotify_sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0) };
+        assert!(knotify_sock != -1);
+        unsafe { assert!(libc::fcntl(knotify_sock, libc::F_SETFD, libc::FD_CLOEXEC) == 0); }
+        let knotify_addr = Self::get_sock_addr("\0m3_knotify\0");
 
         let mut eps = vec![];
         for pe in 0..PE_COUNT {
             for ep in 0..EP_COUNT {
                 let addr = format!("\0m3_ep_{}.{}\0", pe, ep);
-                let mut sockaddr = libc::sockaddr_un {
-                    sun_family: libc::AF_UNIX as libc::sa_family_t,
-                    sun_path: [0; 108],
-                };
-                sockaddr.sun_path[0..addr.len()].clone_from_slice(
-                    unsafe { intrinsics::transmute(addr.as_bytes()) }
-                );
-                eps.push(sockaddr);
+                eps.push(Self::get_sock_addr(&addr));
             }
         }
 
@@ -67,6 +84,8 @@ impl SocketBackend {
 
         SocketBackend {
             sock: sock,
+            knotify_sock: knotify_sock,
+            knotify_addr: knotify_addr,
             localsock: localsock,
             eps: eps,
         }
@@ -103,6 +122,21 @@ impl SocketBackend {
         }
         else {
             Some(res as usize)
+        }
+    }
+
+    pub fn notify_kernel(&self, pid: libc::pid_t, status: i32) {
+        let data = KNotifyData { pid: pid, status: status };
+        unsafe {
+            let res = libc::sendto(
+                self.knotify_sock,
+                &data as *const KNotifyData as *const libc::c_void,
+                util::size_of::<KNotifyData>(),
+                0,
+                &self.knotify_addr as *const libc::sockaddr_un as *const libc::sockaddr,
+                util::size_of::<libc::sockaddr_un>() as u32
+            );
+            assert!(res != -1);
         }
     }
 

@@ -39,24 +39,33 @@ static void sigchild(int) {
     signal(SIGCHLD, sigchild);
 }
 
-static void check_childs() {
-    for(; sigchilds > 0; sigchilds--) {
-        int status;
-        pid_t pid = wait(&status);
-        if(WIFEXITED(status)) {
-            KLOG(VPES, "Child " << pid << " exited with status " << WEXITSTATUS(status));
-        }
-        else if(WIFSIGNALED(status)) {
-            KLOG(VPES, "Child " << pid << " was killed by signal " << WTERMSIG(status));
-            if(WCOREDUMP(status))
-                KLOG(VPES, "Child " << pid << " core dumped");
-        }
+static void kill_vpe(int pid, int status) {
+    if(WIFEXITED(status)) {
+        KLOG(VPES, "Child " << pid << " exited with status " << WEXITSTATUS(status));
+    }
+    else if(WIFSIGNALED(status)) {
+        KLOG(VPES, "Child " << pid << " was killed by signal " << WTERMSIG(status));
+        if(WCOREDUMP(status))
+            KLOG(VPES, "Child " << pid << " core dumped");
+    }
 
-        if(WIFSIGNALED(status) || WEXITSTATUS(status) == 255) {
-            kernel::VPE *vpe = kernel::VPEManager::get().vpe_by_pid(pid);
-            if(vpe)
-                vpe->stop_app(0, false);
-        }
+    if(WIFSIGNALED(status) || WEXITSTATUS(status) == 255) {
+        kernel::VPE *vpe = kernel::VPEManager::get().vpe_by_pid(pid);
+        if(vpe)
+            vpe->stop_app(0, false);
+    }
+}
+
+static void check_childs() {
+    int status;
+    pid_t pid;
+    if(m3::DTU::get().receive_knotify(&pid, &status))
+        kill_vpe(pid, status);
+
+    for(; sigchilds > 0; sigchilds--) {
+        pid = wait(&status);
+        if(pid != -1)
+            kill_vpe(pid, status);
     }
 }
 #endif

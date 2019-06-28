@@ -23,6 +23,8 @@
 #include <base/KIF.h>
 #include <base/Panic.h>
 
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <cstdio>
 #include <cstring>
 #include <sstream>
@@ -506,11 +508,36 @@ Errors::Code DTU::exec_command() {
     return static_cast<Errors::Code>(get_cmd(CMD_ERROR));
 }
 
+bool DTU::receive_knotify(int *pid, int *status) {
+    return _backend->receive_knotify(pid, status);
+}
+
+static volatile int childs = 0;
+
+static void sigchild(int) {
+    childs++;
+    signal(SIGCLD, sigchild);
+}
+
 void *DTU::thread(void *arg) {
     DTU *dma = static_cast<DTU*>(arg);
     peid_t pe = env()->pe;
 
+    if(pe != 0)
+        signal(SIGCLD, sigchild);
+    else
+        dma->_backend->bind_knotify();
+
     while(dma->_run) {
+        // notify kernel about exited childs
+        while(childs > 0) {
+            int status;
+            int pid = ::wait(&status);
+            if(pid != -1)
+                dma->_backend->notify_kernel(pid, status);
+            childs--;
+        }
+
         // should we send something?
         if(dma->get_cmd(CMD_CTRL) & CTRL_START)
             dma->handle_command(pe);

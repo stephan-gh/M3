@@ -26,6 +26,11 @@ namespace m3 {
 
 class DTUBackend {
 public:
+    struct KNotifyData {
+        pid_t pid;
+        int status;
+    } PACKED;
+
     explicit DTUBackend();
     ~DTUBackend();
 
@@ -34,8 +39,14 @@ public:
     bool send(peid_t pe, epid_t ep, const DTU::Buffer *buf);
     ssize_t recv(epid_t ep, DTU::Buffer *buf);
 
+    void bind_knotify();
+    void notify_kernel(pid_t pid, int status);
+    bool receive_knotify(pid_t *pid, int *status);
+
 private:
     int _sock;
+    int _knotify_sock;
+    sockaddr_un _knotify_addr;
     int _localsocks[EP_COUNT];
     sockaddr_un _endpoints[PE_COUNT * EP_COUNT];
 };

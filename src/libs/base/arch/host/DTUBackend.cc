@@ -33,10 +33,19 @@ namespace m3 {
 
 DTUBackend::DTUBackend()
     : _sock(socket(AF_UNIX, SOCK_DGRAM, 0)),
+      _knotify_sock(socket(AF_UNIX, SOCK_DGRAM, 0)),
+      _knotify_addr(),
       _localsocks(),
       _endpoints() {
-    if(_sock == -1)
+    if(_sock == -1 || _knotify_sock == -1)
         PANIC("Unable to open socket: " << strerror(errno));
+
+    if(fcntl(_knotify_sock, F_SETFD, FD_CLOEXEC) == -1)
+        PANIC("Setting FD_CLOEXEC failed: " << strerror(errno));
+
+    _knotify_addr.sun_family = AF_UNIX;
+    _knotify_addr.sun_path[0] = '\0';
+    strcpy(_knotify_addr.sun_path + 1, "m3_knotify");
 
     // build socket names for all endpoints on all PEs
     for(peid_t pe = 0; pe < PE_COUNT; ++pe) {
@@ -73,6 +82,29 @@ void DTUBackend::shutdown() {
 DTUBackend::~DTUBackend() {
     for(epid_t ep = 0; ep < ARRAY_SIZE(_localsocks); ++ep)
         close(_localsocks[ep]);
+}
+
+void DTUBackend::bind_knotify() {
+    if(bind(_knotify_sock, (struct sockaddr*)&_knotify_addr, sizeof(_knotify_addr)) == -1)
+        PANIC("Binding socket for kernel notifications failed: " << strerror(errno));
+}
+
+void DTUBackend::notify_kernel(pid_t pid, int status) {
+    KNotifyData data = {.pid = pid, .status = status};
+    int res = sendto(_knotify_sock, &data, sizeof(data), 0,
+                     (struct sockaddr*)(&_knotify_addr), sizeof(_knotify_addr));
+    if(res == -1)
+        LLOG(DTUERR, "Notifying kernel failed: " << strerror(errno));
+}
+
+bool DTUBackend::receive_knotify(pid_t *pid, int *status) {
+    KNotifyData data;
+    ssize_t res = recvfrom(_knotify_sock, &data, sizeof(data), MSG_DONTWAIT, nullptr, nullptr);
+    if(res <= 0)
+        return false;
+    *pid = data.pid;
+    *status = data.status;
+    return true;
 }
 
 bool DTUBackend::send(peid_t pe, epid_t ep, const DTU::Buffer *buf) {

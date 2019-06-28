@@ -267,6 +267,8 @@ public:
 
     Errors::Code exec_command();
 
+    bool receive_knotify(pid_t *pid, int *status);
+
     void start();
     void stop();
     pthread_t tid() const {
