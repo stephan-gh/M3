@@ -10,16 +10,20 @@ def CheckBYACC(context):
 myenv = env.Clone()
 conf = Configure(myenv, custom_tests={'CheckBYACC': CheckBYACC})
 
+# silence warnings
+parseenv = myenv.Clone()
+parseenv.Append(CFLAGS = ' -Wno-unused-parameter')
+parserobj = parseenv.Object(source = 'parser.tab.c')
+
 if conf.CheckBYACC():
     def GenParser(env, target, source):
         return env.Command(target, source, Action('byacc -B -d -o $TARGET $SOURCE'))
 
     parserc = GenParser(myenv, target = '#src/apps/shell/parser.tab.c', source = 'cmds.y')
-    parserobj = myenv.Object(source = 'parser.tab.c')
     myenv.Depends(parserobj, parserc)
-    myenv.M3Program(myenv, target = 'shell', source = [myenv.Glob('*.cc'), parserobj])
 else:
     print('Cannot execute byacc, skipping regeneration of parser.tab.{c,h}...')
-    myenv.M3Program(myenv, target = 'shell', source = [myenv.Glob('*.cc'), myenv.Glob('*.c')])
+
+myenv.M3Program(myenv, target = 'shell', source = [myenv.Glob('*.cc'), parserobj])
 
 conf.Finish()
