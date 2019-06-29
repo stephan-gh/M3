@@ -49,7 +49,7 @@ else:
 # build basic environment
 baseenv = Environment(
     CPPFLAGS = '-D__' + target + '__',
-    CXXFLAGS = ' -std=c++11 -Wall -Wextra -Wsign-conversion',
+    CXXFLAGS = ' -std=c++11 -Wall -Wextra -Wsign-conversion -fdiagnostics-color=always',
     CFLAGS   = ' -std=c99 -Wall -Wextra -Wsign-conversion',
     CPPPATH  = ['#src/include'],
 )
@@ -64,13 +64,7 @@ vars = [
 for v in vars:
     baseenv.Append(ENV = {v : os.environ[v]})
 
-# check for tools and compiler parameters
-def CheckCompilerParam(context, param):
-    context.Message('Checking for parameter "' + param + '"...')
-    result = context.TryAction(cross + 'gcc ' + param + ' -c -xc++ /dev/null -o /dev/null')[0]
-    context.Result(result)
-    return result
-
+# check for tools
 def CheckOTFConfig(context):
     context.Message('Checking for tud-otfconfig...')
     result = context.TryAction('tud-otfconfig')[0]
@@ -84,12 +78,9 @@ def CheckRust(context):
     return result
 
 conf = Configure(baseenv, custom_tests={
-    'CheckCompilerParam': CheckCompilerParam,
     'CheckOTFConfig': CheckOTFConfig,
     'CheckRust': CheckRust,
 })
-if conf.CheckCompilerParam('-fdiagnostics-color=always'):
-    baseenv.Append(CXXFLAGS = ' -fdiagnostics-color=always')
 if not conf.CheckRust():
     exit('\033[1mYou need Rust including cargo-xbuild to build M³. See README.md.\033[0m')
 baseenv['HAS_OTF']  = conf.CheckOTFConfig()
@@ -109,7 +100,6 @@ if int(verbose) == 0:
     baseenv['SHLINKCOMSTR'] = "[SHLD   ] $TARGET"
     baseenv['ARCOMSTR']     = "[AR     ] $TARGET"
     baseenv['RANLIBCOMSTR'] = "[RANLIB ] $TARGET"
-    baseenv['F90COMSTR']    = "[FC     ] $TARGET"
     baseenv['MDUMPCOMSTR']  = "[MDUMP  ] $TARGET"
     baseenv['STRIPCOMSTR']  = "[STRIP  ] $TARGET"
     baseenv['DUMPCOMSTR']   = "[DUMP   ] $TARGET"
@@ -137,12 +127,6 @@ env.Append(
 
 if int(verbose) != 0:
     env.Append(CRGFLAGS = ' -v')
-
-# allow to add preprocessor flags via env variable
-cppdefines = []
-for flag in os.environ.get('M3_CFLAGS', '').split():
-   cppdefines.append(flag)
-env.Append(CPPDEFINES = cppdefines)
 
 # add target-dependent stuff to env
 if target == 't2' or target == 't3':
@@ -190,8 +174,6 @@ env.Replace(CC = cross + 'gcc')
 env.Replace(LD = cross + 'ld')
 env.Replace(AR = cross + 'gcc-ar')
 env.Replace(RANLIB = cross + 'gcc-ranlib')
-env.Replace(FORTRAN = cross + 'gfortran')
-env.Replace(F90 = cross + 'gfortran')
 
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD', 'release')
