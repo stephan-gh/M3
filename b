@@ -98,6 +98,7 @@ help() {
     echo "    nms=<prog>:              run nm -SC --size-sort <prog> (the cc version)"
     echo "    nma=<prog>:              run nm -SCn <prog> (the cc version)"
     echo "    straddr=<prog> <string>  search for <string> in <prog>"
+    echo "    ctors=<prog>:            show the constructors of <prog>"
     echo "    mkfs=<fsimg> <dir> ...:  create m3-fs in <fsimg> with content of <dir>"
     echo "    shfs=<fsimg> ...:        show m3-fs in <fsimg>"
     echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>"
@@ -427,6 +428,30 @@ case "$cmd" in
         ${crossprefix}readelf -p $section $binary | grep $str | \
             sed 's/^ *\[ *\([[:xdigit:]]*\)\] *\(.*\)$/0x\1 \2/' | \
             awk '{ printf("0x%x: %s %s %s %s %s %s\n",0x'$base' + strtonum($1),$2,$3,$4,$5,$6,$7) }'
+        ;;
+
+    ctors=*)
+        file=$bindir/${cmd#ctors=}
+        rdelf=${crossprefix}readelf
+        pat=".ctors\|.init_array"
+        if [ "$M3_ISA" = "x86_64" ]; then
+            off=0x`$rdelf -S "$file" | grep $pat | sed -e 's/\[.*\]//g' | xargs | cut -d ' ' -f 4`
+            len=0x`$rdelf -S "$file" | grep $pat -A1 | grep '^       ' | xargs | cut -d ' ' -f 1`
+            bytes=8
+        else
+            section=`$rdelf -S "$file" | grep $pat | sed -e 's/\[.*\]//g' | xargs`
+            echo $section
+            off=0x`echo "$section" | cut -d ' ' -f 4`
+            len=0x`echo "$section" | cut -d ' ' -f 5`
+            bytes=4
+        fi
+        echo "Constructors in $file ($off : $len):"
+        if [ "$off" != "0x" ]; then
+            od -t x$bytes "$file" -j $off -N $len -v -w$bytes | grep ' ' | while read line; do
+                addr=${line#* }
+                ${crossprefix}nm -C -l "$file" | grep -m 1 $addr
+            done
+        fi
         ;;
 
     mkfs=*)
