@@ -2,6 +2,7 @@ Import('hostenv')
 
 myenv = hostenv.Clone()
 myenv.Append(
+    CPPFLAGS = ' -D__LINUX__=1',
     CPPPATH = ['../common']
 )
 myenv.Program(

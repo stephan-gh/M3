@@ -15,13 +15,9 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
-#if defined(__gem5__) and defined(__x86_64__)
-const char *strstr(const char *str1, const char *str2) {
-#else
 char *strstr(const char *str1, const char *str2) {
-#endif
     char *res = nullptr;
     const char *sub;
     /* handle special case to prevent looping the string */

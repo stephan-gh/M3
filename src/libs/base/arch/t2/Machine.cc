@@ -18,7 +18,7 @@
 #include <base/util/Math.h>
 #include <base/DTU.h>
 #include <base/Machine.h>
-#include <cstring>
+#include <string.h>
 
 namespace m3 {
 

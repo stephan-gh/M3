@@ -31,6 +31,13 @@ The submodule in `hw/gem5` needs to be pulled in and built:
     $ cd hw/gem5
     $ scons build/X86/gem5.opt build/X86/gem5.debug
 
+Additionally, you need to build a cross compiler for the desired ISA:
+
+    $ cd cross
+    $ ./build.sh (x86_64|arm)
+
+The cross compiler will be installed to ``/opt/m3-cross-<ISA>``.
+
 #### Rust
 
 M³ is partially written in Rust and therefore you need to install Rust before building M³. Since M³ still uses some nightly features of Rust, you need the nightly version. Additionally, ``cargo-xbuild`` is required to build ``core``, ``alloc``, and other base libraries of Rust for a non-standard platforms like M³. You can install these with ``rustup`` and ``cargo``:

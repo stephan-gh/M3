@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 char *strcpy(char *dst, const char *src) {
     char *res = dst;

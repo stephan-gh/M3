@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 char *strncpy(char *to, const char *from, size_t count) {
     char *res = to;

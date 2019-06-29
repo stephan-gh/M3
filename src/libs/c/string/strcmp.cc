@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 int strcmp(const char *str1, const char *str2) {
     char c1 = *str1, c2 = *str2;

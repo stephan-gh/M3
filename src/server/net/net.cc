@@ -45,7 +45,7 @@
 #include <m3/session/NetworkManager.h>
 #include <m3/session/ServerSession.h>
 #include <queue>
-#include <cstring>
+#include <string.h>
 #include <memory>
 
 using namespace net;

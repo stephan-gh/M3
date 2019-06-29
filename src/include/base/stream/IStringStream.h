@@ -18,7 +18,7 @@
 
 #include <base/stream/IStream.h>
 #include <base/util/String.h>
-#include <cstring>
+#include <string.h>
 
 namespace m3 {
 

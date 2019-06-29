@@ -62,6 +62,10 @@ public:
      */
     void flush();
 
+    virtual char read() override;
+    virtual bool putback(char c) override;
+    virtual void write(char c) override;
+
 private:
     explicit Serial()
         : IStream(),
@@ -70,10 +74,6 @@ private:
           _inpos(0),
           _inlen(0) {
     }
-
-    virtual char read() override;
-    virtual bool putback(char c) override;
-    virtual void write(char c) override;
 
     size_t _start;
     size_t _outpos;

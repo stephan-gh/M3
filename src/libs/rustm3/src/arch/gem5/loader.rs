@@ -49,6 +49,7 @@ impl<'l> Loader<'l> {
 
     pub fn copy_regions(&mut self, sp: usize) -> Result<usize, Error> {
         extern {
+            static _start: u8;
             static _text_start: u8;
             static _text_end: u8;
             static _data_start: u8;
@@ -62,7 +63,7 @@ impl<'l> Loader<'l> {
         // use COW if both have a pager
         if let Some(pg) = self.pager {
             if self.pager_inherited {
-                return pg.clone().map(|_| unsafe { addr(&_text_start) })
+                return pg.clone().map(|_| unsafe { addr(&_start) })
             }
             // TODO handle that case
             unimplemented!();
@@ -85,7 +86,7 @@ impl<'l> Loader<'l> {
             // copy stack
             self.mem.write_bytes(sp as *const u8, cfg::STACK_TOP - sp, sp as goff)?;
 
-            Ok(text_start)
+            Ok(addr(&_start))
         }
     }
 

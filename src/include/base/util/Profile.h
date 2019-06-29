@@ -22,8 +22,6 @@
 
 #include <base/stream/OStream.h>
 
-#include <functional>
-
 namespace m3 {
 
 class Profile;

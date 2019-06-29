@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <fstream>
 #include <cstdio>
-#include <cstring>
+#include <string.h>
 #include <cerrno>
 
 #include "pes/VPEManager.h"

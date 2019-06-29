@@ -17,7 +17,7 @@
 #pragma once
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 namespace m3 {
 

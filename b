@@ -37,10 +37,13 @@ export M3_BUILD M3_TARGET M3_ISA
 
 if [ "$M3_TARGET" = "host" ] || [ "$M3_TARGET" = "gem5" ]; then
     export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
-    if [ "$M3_ISA" = "arm" ]; then
-        crossprefix='arm-none-eabi-'
-    else
-        crossprefix=''
+    crossprefix=''
+    if [ "$M3_TARGET" = "gem5" ]; then
+        if [ "$M3_ISA" = "arm" ]; then
+            crossprefix='/opt/m3-cross-arm/bin/arm-none-eabi-'
+        else
+            crossprefix='/opt/m3-cross-x86_64/bin/x86_64-elf-m3-'
+        fi
     fi
 else
     . hw/th/config.ini

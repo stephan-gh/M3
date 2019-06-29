@@ -26,6 +26,10 @@ elif env['ARCH'] == 'gem5':
 
     # -O0 makes the code too large. Better use -Og here.
     myenv['CXXFLAGS'] = str(myenv['CXXFLAGS']).replace('-O0', '-Og')
+    myenv.Append(
+        CXXFLAGS = ' -fno-exceptions -fno-rtti',
+        LINKFLAGS = ' -fno-exceptions -fno-rtti -nostartfiles',
+    )
 
     myenv.M3Program(
         myenv,

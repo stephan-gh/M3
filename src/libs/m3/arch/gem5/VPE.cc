@@ -24,13 +24,14 @@
 
 namespace m3 {
 
+extern "C" void *_start;
 extern "C" void *_text_start;
 extern "C" void *_text_end;
 extern "C" void *_data_start;
 extern "C" void *_bss_end;
 
 uintptr_t VPE::get_entry() {
-    return reinterpret_cast<uintptr_t>(&_text_start);
+    return reinterpret_cast<uintptr_t>(&_start);
 }
 
 Errors::Code VPE::copy_sections() {

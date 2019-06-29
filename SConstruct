@@ -30,7 +30,10 @@ elif target == 'gem5':
     isa = os.environ.get('M3_ISA', 'x86_64')
 
     rustabi     = 'gnueabihf'       if isa == 'arm' else 'gnu'
-    cross       = 'arm-none-eabi-'  if isa == 'arm' else ''
+    cross       = 'arm-none-eabi-'  if isa == 'arm' else 'x86_64-elf-m3-'
+    crt1        = 'crti.o'          if isa == 'arm' else 'crt1.o'
+    crossdir    = '/opt/m3-cross-' + isa
+    crossver    = '9.1.0'
     configpath  = Dir('.')
 else:
     # build for host by default
@@ -47,8 +50,8 @@ else:
 baseenv = Environment(
     CPPFLAGS = '-D__' + target + '__',
     CXXFLAGS = ' -std=c++11 -Wall -Wextra -Wsign-conversion',
-    CFLAGS = ' -std=c99 -Wall -Wextra -Wsign-conversion',
-    CPPPATH = ['#src/include'],
+    CFLAGS   = ' -std=c99 -Wall -Wextra -Wsign-conversion',
+    CPPPATH  = ['#src/include'],
 )
 
 vars = [
@@ -117,19 +120,18 @@ if int(verbose) == 0:
 # for host compilation
 hostenv = baseenv.Clone()
 hostenv.Append(
-    CPPFLAGS = ' -D__tools__'
+    CPPFLAGS = ' -D__tools__',
 )
 
 # for target compilation
 env = baseenv.Clone()
 env.Append(
-    CXXFLAGS = ' -ffreestanding -fno-strict-aliasing -fno-exceptions -fno-rtti -gdwarf-2' \
+    CXXFLAGS = ' -ffreestanding -fno-strict-aliasing -gdwarf-2' \
         ' -fno-threadsafe-statics -fno-stack-protector -Wno-address-of-packed-member',
     CPPFLAGS = ' -U_FORTIFY_SOURCE',
     CFLAGS = ' -gdwarf-2 -fno-stack-protector',
     ASFLAGS = ' -Wl,-W -Wall -Wextra',
-    LINKFLAGS = ' -fno-exceptions -fno-rtti -Wl,--no-gc-sections -Wno-lto-type-mismatch' \
-        ' -fno-stack-protector',
+    LINKFLAGS = ' -Wl,--no-gc-sections -Wno-lto-type-mismatch -fno-stack-protector',
     CRGFLAGS = ' --target ' + isa + '-unknown-' + target + '-' + rustabi,
 )
 
@@ -168,10 +170,19 @@ else:
             env.Append(CXXFLAGS = ' -march=armv7-a')
             env.Append(LINKFLAGS = ' -march=armv7-a')
             env.Append(ASFLAGS = ' -march=armv7-a')
+        env.Append(CPPPATH = [
+            '#src/include/c',
+            crossdir + '/include/c++/' + crossver,
+            crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
+        ])
+        # we install the crt* files to that directory
+        env.Append(SYSGCCLIBPATH = Dir(crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver))
         # no build-id because it confuses gem5
-        env.Append(LINKFLAGS = ' -static -Wl,--build-id=none -nostdlib')
+        env.Append(LINKFLAGS = ' -static -Wl,--build-id=none')
         # binaries get very large otherwise
         env.Append(LINKFLAGS = ' -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096')
+        # add cross-compiler binary dir to PATH
+        env['ENV']['PATH'] = crossdir + '/bin:' + env['ENV']['PATH']
 
 env.Replace(CXX = cross + 'g++')
 env.Replace(AS = cross + 'gcc')
@@ -342,8 +353,10 @@ def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False, tgtc
         myenv.Depends(prog, myenv['LIBDIR'].abspath + '/libm3.a')
     elif myenv['ARCH'] == 'gem5':
         if not NoSup:
-            libs = ['gcc', 'c', 'heap'] + m3libs + libs
-            source = [myenv['LIBDIR'].abspath + '/crt0.o'] + [source]
+            baselibs = ['gcc', 'c', 'm', 'stdc++', 'supc++', 'heap']
+            if env['ISA'] == 'x86_64':
+                baselibs += ['gcc_eh']
+            libs = baselibs + m3libs + libs
 
         if ldscript is None:
             ldscript = isr_ldscript if 'isr' in libs else def_ldscript
@@ -357,8 +370,11 @@ def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False, tgtc
         prog = myenv.Program(
             target, source,
             LIBS = libs,
-            LIBPATH = [myenv['LIBDIR']] + libpaths
+            LIBPATH = [crossdir + '/lib', myenv['LIBDIR']] + libpaths
         )
+        myenv.Depends(prog, myenv['SYSGCCLIBPATH'].abspath + '/crt0.o')
+        myenv.Depends(prog, myenv['SYSGCCLIBPATH'].abspath + '/' + crt1)
+        myenv.Depends(prog, myenv['SYSGCCLIBPATH'].abspath + '/crtn.o')
         myenv.Depends(prog, ldscript)
     else:
         if not NoSup:
@@ -407,8 +423,8 @@ def RustProgram(env, target, libs = []):
     ])
 
     if myenv['ARCH'] == 'gem5':
-        sources = [myenv['LIBDIR'].abspath + '/crt0.o']
-        libs    = ['c', 'heap', 'gcc', target] + libs
+        sources = [myenv['SYSGCCLIBPATH'].abspath + '/crt0.o']
+        libs    = ['c', 'm', 'heap', 'gcc', target] + libs
     else:
         sources = []
         # leave the host lib in here as well to let scons know about the dependency

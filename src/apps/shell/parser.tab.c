@@ -22,6 +22,7 @@
 
 #line 2 "src/apps/shell/cmds.y"
     #include <stdlib.h>
+    #include <stdint.h>
 
     #include "Parser.h"
 
@@ -35,7 +36,7 @@
 #endif
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
-#line 12 "src/apps/shell/cmds.y"
+#line 13 "src/apps/shell/cmds.y"
 typedef union {
     Expr *expr;
     ArgList *arglist;
@@ -46,7 +47,7 @@ typedef union {
     const char *str;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-#line 50 "src/apps/shell/parser.tab.c"
+#line 51 "src/apps/shell/parser.tab.c"
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -396,45 +397,45 @@ YYDESTRUCT_DECL()
     switch (psymb)
     {
 	case 257:
-#line 34 "src/apps/shell/cmds.y"
+#line 35 "src/apps/shell/cmds.y"
 	{ free((void*)(*val).str); }
 	break;
-#line 403 "src/apps/shell/parser.tab.c"
+#line 404 "src/apps/shell/parser.tab.c"
 	case 259:
-#line 35 "src/apps/shell/cmds.y"
+#line 36 "src/apps/shell/cmds.y"
 	{ ast_cmds_destroy((*val).cmdlist); }
 	break;
-#line 408 "src/apps/shell/parser.tab.c"
+#line 409 "src/apps/shell/parser.tab.c"
 	case 260:
-#line 40 "src/apps/shell/cmds.y"
+#line 41 "src/apps/shell/cmds.y"
 	{ ast_expr_destroy((*val).expr); }
 	break;
-#line 413 "src/apps/shell/parser.tab.c"
+#line 414 "src/apps/shell/parser.tab.c"
 	case 261:
-#line 40 "src/apps/shell/cmds.y"
+#line 41 "src/apps/shell/cmds.y"
 	{ ast_expr_destroy((*val).expr); }
 	break;
-#line 418 "src/apps/shell/parser.tab.c"
+#line 419 "src/apps/shell/parser.tab.c"
 	case 262:
-#line 36 "src/apps/shell/cmds.y"
+#line 37 "src/apps/shell/cmds.y"
 	{ ast_args_destroy((*val).arglist); }
 	break;
-#line 423 "src/apps/shell/parser.tab.c"
+#line 424 "src/apps/shell/parser.tab.c"
 	case 264:
-#line 39 "src/apps/shell/cmds.y"
+#line 40 "src/apps/shell/cmds.y"
 	{ ast_cmd_destroy((*val).cmd); }
 	break;
-#line 428 "src/apps/shell/parser.tab.c"
+#line 429 "src/apps/shell/parser.tab.c"
 	case 265:
-#line 35 "src/apps/shell/cmds.y"
+#line 36 "src/apps/shell/cmds.y"
 	{ ast_cmds_destroy((*val).cmdlist); }
 	break;
-#line 433 "src/apps/shell/parser.tab.c"
+#line 434 "src/apps/shell/parser.tab.c"
 	case 266:
-#line 38 "src/apps/shell/cmds.y"
+#line 39 "src/apps/shell/cmds.y"
 	{ ast_redirs_destroy((*val).redirlist); }
 	break;
-#line 438 "src/apps/shell/parser.tab.c"
+#line 439 "src/apps/shell/parser.tab.c"
     }
 }
 #define YYDESTRUCT_IS_DECLARED 1
@@ -1110,7 +1111,7 @@ yyreduce:
     {
 case 1:
   if (!yytrial)
-#line 45 "src/apps/shell/cmds.y"
+#line 46 "src/apps/shell/cmds.y"
 	{
                                                         curcmd = yystack.l_mark[0].cmdlist;
                                                         yyval.cmdlist = NULL;
@@ -1118,7 +1119,7 @@ case 1:
 break;
 case 2:
   if (!yytrial)
-#line 50 "src/apps/shell/cmds.y"
+#line 51 "src/apps/shell/cmds.y"
 	{
                                                         yyval.cmdlist = ast_cmds_create();
                                                         ast_cmds_append(yyval.cmdlist, yystack.l_mark[0].cmd);
@@ -1126,7 +1127,7 @@ case 2:
 break;
 case 3:
   if (!yytrial)
-#line 54 "src/apps/shell/cmds.y"
+#line 55 "src/apps/shell/cmds.y"
 	{
                                                         yyval.cmdlist = yystack.l_mark[-2].cmdlist;
                                                         ast_cmds_append(yyval.cmdlist, yystack.l_mark[0].cmd);
@@ -1134,42 +1135,42 @@ case 3:
 break;
 case 4:
   if (!yytrial)
-#line 60 "src/apps/shell/cmds.y"
+#line 61 "src/apps/shell/cmds.y"
 	{ yyval.cmd = ast_cmd_create(yystack.l_mark[-2].varlist, yystack.l_mark[-1].arglist, yystack.l_mark[0].redirlist); }
 break;
 case 5:
   if (!yytrial)
-#line 64 "src/apps/shell/cmds.y"
+#line 65 "src/apps/shell/cmds.y"
 	{ yyval.varlist = ast_vars_create(); }
 break;
 case 6:
   if (!yytrial)
-#line 65 "src/apps/shell/cmds.y"
+#line 66 "src/apps/shell/cmds.y"
 	{ yyval.varlist = yystack.l_mark[-3].varlist; ast_vars_set(yystack.l_mark[-3].varlist, yystack.l_mark[-2].str, yystack.l_mark[0].expr); }
 break;
 case 7:
   if (!yytrial)
-#line 69 "src/apps/shell/cmds.y"
+#line 70 "src/apps/shell/cmds.y"
 	{ yyval.redirlist = ast_redirs_create(); }
 break;
 case 8:
   if (!yytrial)
-#line 70 "src/apps/shell/cmds.y"
+#line 71 "src/apps/shell/cmds.y"
 	{ yyval.redirlist = yystack.l_mark[-2].redirlist; ast_redirs_set(yystack.l_mark[-2].redirlist, 0, yystack.l_mark[0].str); }
 break;
 case 9:
   if (!yytrial)
-#line 71 "src/apps/shell/cmds.y"
+#line 72 "src/apps/shell/cmds.y"
 	{ yyval.redirlist = yystack.l_mark[-2].redirlist; ast_redirs_set(yystack.l_mark[-2].redirlist, 1, yystack.l_mark[0].str); }
 break;
 case 10:
   if (!yytrial)
-#line 74 "src/apps/shell/cmds.y"
+#line 75 "src/apps/shell/cmds.y"
 	{ yyval.arglist = ast_args_create(); }
 break;
 case 11:
   if (!yytrial)
-#line 75 "src/apps/shell/cmds.y"
+#line 76 "src/apps/shell/cmds.y"
 	{
                                                         yyval.arglist = ast_args_create();
                                                         ast_args_append(yyval.arglist, yystack.l_mark[0].expr);
@@ -1177,7 +1178,7 @@ case 11:
 break;
 case 12:
   if (!yytrial)
-#line 79 "src/apps/shell/cmds.y"
+#line 80 "src/apps/shell/cmds.y"
 	{
                                                         yyval.arglist = yystack.l_mark[-1].arglist;
                                                         ast_args_append(yystack.l_mark[-1].arglist, yystack.l_mark[0].expr);
@@ -1185,20 +1186,20 @@ case 12:
 break;
 case 13:
   if (!yytrial)
-#line 84 "src/apps/shell/cmds.y"
+#line 85 "src/apps/shell/cmds.y"
 	{ yyval.expr = yystack.l_mark[0].expr; }
 break;
 case 14:
   if (!yytrial)
-#line 87 "src/apps/shell/cmds.y"
+#line 88 "src/apps/shell/cmds.y"
 	{ yyval.expr = ast_expr_create(yystack.l_mark[0].str, 0); }
 break;
 case 15:
   if (!yytrial)
-#line 88 "src/apps/shell/cmds.y"
+#line 89 "src/apps/shell/cmds.y"
 	{ yyval.expr = ast_expr_create(yystack.l_mark[0].str, 1); }
 break;
-#line 1202 "src/apps/shell/parser.tab.c"
+#line 1203 "src/apps/shell/parser.tab.c"
     default:
         break;
     }

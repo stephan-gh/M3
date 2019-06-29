@@ -11,19 +11,21 @@
 #define __TRACE_BENCH_EXCEPTIONS_H
 
 #include <string>
-#include <sstream>
 
 #include "platform_common.h"
 
 #if defined(__LINUX__)
+#   include <sstream>
 #   define THROW(ex)                    throw ex()
 #   define THROW1(ex, arg1, ...)        throw ex(arg1, ## __VA_ARGS__)
+#   define sstream                      std::ostringstream
 #else
 #   include <m3/stream/Standard.h>
 #   define THROW(...)                   exitmsg("Exception raised at " << __FILE__ << ":" << __LINE__)
 #   define THROW1(ex, err, exp, line)   exitmsg("Exception raised for " << line \
                                             << " at " << __FILE__ << ":" << __LINE__ \
                                             << "; got " << err << ", expected " << exp)
+#   define sstream                      m3::OStringStream
 #endif
 
 /*
@@ -87,7 +89,7 @@ class ReturnValueException: public LogableException {
   public:
     ReturnValueException(int got, int expected, int lineNo = -1) {
 
-        std::stringstream s;
+        sstream s;
         s << "Unexpected return value " << got << " instead of " << expected;
         if (lineNo >= 0)
             s << " in line #" << lineNo;
@@ -101,13 +103,13 @@ class ParseException: public LogableException {
   public:
     ParseException(const std::string &line, int lineNo = -1, int colNo = -1) {
 
-        std::stringstream s;
+        sstream s;
         s << "Parse error";
         if (lineNo >= 0)
             s << " in line " << lineNo;
         if (colNo >= 0)
             s << " at col " << colNo;
-        s << ": " << line;
+        s << ": " << line.c_str();
         text = s.str();
     }
 };
@@ -118,12 +120,12 @@ class IoException: public LogableException {
   public:
     IoException(const std::string &msg, const std::string &name = "", int errorNo = 0) {
 
-        std::stringstream s;
+        sstream s;
         s << "I/O error ";
         if (errorNo != 0)
            s << errorNo;
         if ( !name.empty())
-            s << " for file " << name << ": " << msg;
+            s << " for file " << name.c_str() << ": " << msg.c_str();
         text = s.str();
     }
 };

@@ -2,7 +2,11 @@ Import('env')
 
 myenv = env.Clone()
 
-myenv.Append(CPPPATH = '.')
+myenv.Append(
+    CPPPATH = '.',
+    CXXFLAGS = ' -fno-exceptions -fno-rtti',
+    LINKFLAGS = ' -fno-exceptions -fno-rtti',
+)
 
 sources = [
     myenv.Glob('*.cc'),

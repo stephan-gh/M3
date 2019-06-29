@@ -20,9 +20,6 @@
 #include <m3/stream/Standard.h>
 #include <m3/VPE.h>
 
-#include <unistd.h>
-#include <fcntl.h>
-
 using namespace m3;
 
 static void received_data(GateIStream &is) {

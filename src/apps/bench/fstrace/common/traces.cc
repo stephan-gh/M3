@@ -18,8 +18,6 @@
 
 #include <string.h>
 
-#define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
-
 extern trace_op_t trace_ops_empty[];
 extern trace_op_t trace_ops_find[];
 extern trace_op_t trace_ops_leveldb[];
@@ -59,7 +57,7 @@ Trace Traces::traces[] = {
 };
 
 Trace *Traces::get(const char *name) {
-    for(size_t i = 0; i < ARRAY_SIZE(traces); ++i) {
+    for(size_t i = 0; i < sizeof(traces) / sizeof(traces[0]); ++i) {
         if(strcmp(traces[i].name, name) == 0)
             return traces + i;
     }

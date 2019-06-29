@@ -8,13 +8,9 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
-#include <cerrno>
-#include <cstdio>
-#include <cstring>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
 #include <assert.h>
 
 #include "buffer.h"

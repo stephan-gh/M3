@@ -15,6 +15,8 @@
 #include "opdescr.h"
 #include "exceptions.h"
 
+#include <sstream>
+
 using namespace std;
 
 /*

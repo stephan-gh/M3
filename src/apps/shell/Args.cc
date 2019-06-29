@@ -15,7 +15,7 @@
  */
 
 #include <m3/vfs/Dir.h>
-#include <cstring>
+#include <string.h>
 
 #include "Args.h"
 #include "Vars.h"

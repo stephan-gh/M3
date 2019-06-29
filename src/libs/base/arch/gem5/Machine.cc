@@ -17,9 +17,6 @@
 #include <base/Machine.h>
 #include <base/DTU.h>
 
-#include <stdlib.h>
-#include <unistd.h>
-
 EXTERN_C void gem5_shutdown(uint64_t delay);
 EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uint64_t file);
 EXTERN_C ssize_t gem5_readfile(char *dst, uint64_t max, uint64_t offset);

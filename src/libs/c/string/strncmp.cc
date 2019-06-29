@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 int strncmp(const char *str1, const char *str2, size_t count) {
     ssize_t rem = static_cast<ssize_t>(count);

@@ -26,7 +26,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <cstdio>
-#include <cstring>
+#include <string.h>
 #include <sstream>
 #include <signal.h>
 #include <unistd.h>

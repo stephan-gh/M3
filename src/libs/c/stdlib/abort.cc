@@ -15,8 +15,8 @@
  */
 
 #include <base/Common.h>
-#include <cstdlib>
+#include <stdlib.h>
 
-EXTERN_C void abort() {
+void abort() {
     exit(1);
 }

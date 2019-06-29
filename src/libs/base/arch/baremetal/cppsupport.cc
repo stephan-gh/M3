@@ -55,30 +55,6 @@ void __throw_bad_function_call() {
 }
 }
 
-void *operator new(size_t size) throw() {
-    return malloc(size);
-}
-
-void *operator new[](size_t size) throw() {
-    return malloc(size);
-}
-
-void operator delete(void *ptr) throw() {
-    free(ptr);
-}
-
-void operator delete[](void *ptr) throw() {
-    free(ptr);
-}
-
-EXTERN_C void exit(int code) {
-    m3::env()->exit(code);
-}
-
-EXTERN_C void __cxa_pure_virtual() {
-    PANIC("pure virtual function call");
-}
-
 EXTERN_C int __cxa_atexit(void (*f)(void *),void *p,void *d) {
     if(exit_count >= MAX_EXIT_FUNCS)
         return -1;
@@ -95,12 +71,6 @@ EXTERN_C void __cxa_finalize(void *) {
         exit_funcs[i].f(exit_funcs[i].p);
 }
 
-#if defined(__arm__)
-EXTERN_C int __aeabi_atexit(void *object, void (*dtor)(void *), void *handle) {
-    return __cxa_atexit(dtor, object, handle);
-}
-#endif
-
 #ifndef NDEBUG
 void __assert_failed(const char *expr, const char *file, const char *func, int line) {
     m3::Serial::get() << "assertion \"" << expr << "\" failed in " << func << " in "
@@ -109,6 +79,25 @@ void __assert_failed(const char *expr, const char *file, const char *func, int l
     /* NOTREACHED */
 }
 #endif
+
+// for __verbose_terminate_handler from libsupc++
+void *stderr;
+EXTERN_C int fputs(const char *str, void *) {
+    m3::Serial::get() << str;
+    return 0;
+}
+EXTERN_C int fputc(int c, void *) {
+    m3::Serial::get().write(c);
+    return -1;
+}
+EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *) {
+    assert(size == 1);
+    const char *s = reinterpret_cast<const char*>(str);
+    auto &ser = m3::Serial::get();
+    while(nmemb-- > 0)
+        ser.write(*s++);
+    return 0;
+}
 
 /* Fortran support */
 EXTERN_C void outbyte(char byte) {

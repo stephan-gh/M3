@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 /* this is necessary to prevent that gcc transforms a loop into library-calls
  * (which might lead to recursion here) */

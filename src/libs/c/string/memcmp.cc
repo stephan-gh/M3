@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 int memcmp(const void *mem1, const void *mem2, size_t count) {
     const uint8_t *bmem1 = static_cast<const uint8_t*>(mem1);

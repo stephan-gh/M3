@@ -21,8 +21,6 @@
 
 #include <m3/com/MemGate.h>
 
-#include <string.h>
-
 namespace m3 {
 
 #define M3FS_IFMT              0160000
@@ -242,6 +240,7 @@ private:
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <err.h>

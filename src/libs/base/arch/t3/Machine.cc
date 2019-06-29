@@ -17,7 +17,7 @@
 #include <base/stream/Serial.h>
 #include <base/DTU.h>
 #include <base/Machine.h>
-#include <cstring>
+#include <string.h>
 
 namespace m3 {
 

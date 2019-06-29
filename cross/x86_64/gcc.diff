@@ -1,0 +1,237 @@
+diff -rcN src/gcc-org/config.sub src/gcc/config.sub
+*** src/gcc-org/config.sub	2019-06-29 08:01:12.055422448 +0200
+--- src/gcc/config.sub	2019-06-29 08:02:16.089045782 +0200
+***************
+*** 1341,1347 ****
+  	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
+  	     | sym* | kopensolaris* | plan9* \
+  	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
+! 	     | aos* | aros* | cloudabi* | sortix* \
+  	     | nindy* | vxsim* | vxworks* | ebmon* | hms* | mvs* \
+  	     | clix* | riscos* | uniplus* | iris* | isc* | rtu* | xenix* \
+  	     | knetbsd* | mirbsd* | netbsd* \
+--- 1341,1347 ----
+  	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
+  	     | sym* | kopensolaris* | plan9* \
+  	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
+! 	     | aos* | aros* | cloudabi* | sortix* | m3* \
+  	     | nindy* | vxsim* | vxworks* | ebmon* | hms* | mvs* \
+  	     | clix* | riscos* | uniplus* | iris* | isc* | rtu* | xenix* \
+  	     | knetbsd* | mirbsd* | netbsd* \
+diff -rcN src/gcc-org/gcc/config/m3.h src/gcc/gcc/config/m3.h
+*** src/gcc-org/gcc/config/m3.h 1970-01-01 01:00:00.000000000 +0100
+--- src/gcc/gcc/config/m3.h 2017-07-20 16:21:17.092729277 +0200
+***************
+*** 0 ****
+--- 1,29 ----
++ #undef   STARTFILE_SPEC
++ #define STARTFILE_SPEC "%{shared|pie:crt0S.o%s;:crt0.o%s} %{shared:crt1S.o%s;:crt1.o%s} %{shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
++ 
++ #undef   ENDFILE_SPEC
++ #define ENDFILE_SPEC "%{shared|pie:crtendS.o%s;:crtend.o%s} %{shared:crtnS.o%s;:crtn.o%s}"
++ 
++ #undef TARGET_OS_CPP_BUILTINS
++ #define TARGET_OS_CPP_BUILTINS()      \
++   do {                                \
++     /* to force a strcmp for typeinfo-compares */ \
++     builtin_define ("__GXX_MERGED_TYPEINFO_NAMES=0"); \
++     builtin_define ("__GXX_TYPEINFO_EQUALITY_INLINE=0"); \
++     builtin_define_std ("m3");      \
++     builtin_define_std ("unix");      \
++     builtin_assert ("system=m3");   \
++     builtin_assert ("system=unix");   \
++   } while(0);
++ 
++ #undef LINK_GCC_C_SEQUENCE_SPEC
++ #define LINK_GCC_C_SEQUENCE_SPEC \
++   "%{static:--start-group} %G %L %{static:--end-group}%{!static:%G}"
++ 
++ /* Use --as-needed -lgcc_s for eh support.  */
++ #ifdef HAVE_LD_AS_NEEDED
++ #define USE_LD_AS_NEEDED 1
++ #endif
++ 
++ #define USE_TM_CLONE_REGISTRY 0
++ 
+diff -rcN src/gcc-org/gcc/config.gcc src/gcc/gcc/config.gcc
+*** src/gcc-org/gcc/config.gcc	2019-06-29 08:00:58.512025283 +0200
+--- src/gcc/gcc/config.gcc	2019-06-29 08:04:09.859518504 +0200
+***************
+*** 675,680 ****
+--- 675,685 ----
+  
+  # Common parts for widely ported systems.
+  case ${target} in
++ *-*-m3*)
++   gas=yes
++   gnu_ld=yes
++   default_use_cxa_atexit=yes
++   ;;
+  *-*-darwin*)
+    tmake_file="t-darwin ${cpu_type}/t-darwin"
+    tm_file="${tm_file} darwin.h"
+***************
+*** 978,983 ****
+--- 983,993 ----
+  esac
+  
+  case ${target} in
++ x86_64-*-m3*)
++ 	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h i386/i386elf.h i386/x86-64.h m3.h"
++ 	tmake_file="${tmake_file} t-svr4"
++ 	use_fixproto=yes
++ 	;;
+  aarch64*-*-elf | aarch64*-*-fuchsia* | aarch64*-*-rtems*)
+  	tm_file="${tm_file} dbxelf.h elfos.h newlib-stdint.h"
+  	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-elf-raw.h"
+diff -rcN src/gcc-org/libgcc/config/t-m3 src/gcc/libgcc/config/t-m3
+*** src/gcc-org/libgcc/config/t-m3  1970-01-01 01:00:00.000000000 +0100
+--- src/gcc/libgcc/config/t-m3  2017-07-20 16:23:43.521924579 +0200
+***************
+*** 0 ****
+--- 1,5 ----
++ LIBGCC2_CFLAGS += -Wl,-z,max-page-size=0x1000
++ 
++ # for some reason we need -Wl,-shared as well, i.e. -shared is not enough
++ SHLIB_LDFLAGS = -Wl,-shared -Wl,-soname,$(SHLIB_SONAME)
++ 
+diff -rcN src/gcc-org/libgcc/config.host src/gcc/libgcc/config.host
+*** src/gcc-org/libgcc/config.host	2019-06-29 08:00:51.488658484 +0200
+--- src/gcc/libgcc/config.host	2019-06-29 08:05:06.913071313 +0200
+***************
+*** 343,348 ****
+--- 343,352 ----
+  esac
+  
+  case ${host} in
++ x86_64-*-m3*)
++     extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
++     tmake_file="${tmake_file} t-m3 i386/t-crtstuff t-slibgcc t-libgcc-pic t-crtstuff-pic"
++     ;;
+  aarch64*-*-elf | aarch64*-*-rtems*)
+  	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o"
+  	extra_parts="$extra_parts crtfastmath.o"
+diff -rcN src/gcc-org/libstdc++-v3/configure src/gcc/libstdc++-v3/configure
+*** src/gcc-org/libstdc++-v3/configure	2019-06-29 08:00:52.915331969 +0200
+--- src/gcc/libstdc++-v3/configure	2019-06-29 08:07:30.823582389 +0200
+***************
+*** 11389,11394 ****
+--- 11389,11402 ----
+    shlibpath_var=LD_LIBRARY_PATH
+    ;;
+  
++ m3*)
++   library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${shared_ext}$versuffix'
++   need_lib_prefix=no
++   need_version=no
++   dynamic_linker='/bin/dynlink'
++   hardcode_into_libs=yes
++   ;;
++ 
+  *)
+    dynamic_linker=no
+    ;;
+***************
+*** 13501,13506 ****
+--- 13509,13518 ----
+  	esac
+        ;;
+  
++       m3*)
++         ld_shlibs_CXX=yes
++         ;;
++ 
+        tandem*)
+          case $cc_basename in
+            NCC*)
+***************
+*** 14889,14894 ****
+--- 14901,14914 ----
+    dynamic_linker='GNU/Linux ld.so'
+    ;;
+  
++ m3*)
++   library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${shared_ext}$versuffix'
++   need_lib_prefix=no
++   need_version=no
++   dynamic_linker='/bin/dynlink'
++   hardcode_into_libs=yes
++   ;;
++ 
+  netbsd*)
+    version_type=sunos
+    need_lib_prefix=no
+diff -rcN src/gcc-org/libstdc++-v3/libsupc++/eh_term_handler.cc src/gcc/libstdc++-v3/libsupc++/eh_term_handler.cc
+*** src/gcc-org/libstdc++-v3/libsupc++/eh_term_handler.cc	2019-06-29 08:00:53.005332399 +0200
+--- src/gcc/libstdc++-v3/libsupc++/eh_term_handler.cc	2019-06-29 08:07:55.143663570 +0200
+***************
+*** 32,38 ****
+     --disable-libstdcxx-verbose and rebuilding the library.
+     In a freestanding environment, we default to this latter approach.  */
+  
+! #if _GLIBCXX_HOSTED && _GLIBCXX_VERBOSE && __cpp_exceptions
+  /* The current installed user handler.  */
+  std::terminate_handler __cxxabiv1::__terminate_handler =
+  	__gnu_cxx::__verbose_terminate_handler;
+--- 32,38 ----
+     --disable-libstdcxx-verbose and rebuilding the library.
+     In a freestanding environment, we default to this latter approach.  */
+  
+! #if 1 // _GLIBCXX_HOSTED && _GLIBCXX_VERBOSE && __cpp_exceptions
+  /* The current installed user handler.  */
+  std::terminate_handler __cxxabiv1::__terminate_handler =
+  	__gnu_cxx::__verbose_terminate_handler;
+diff -rcN src/gcc-org/libstdc++-v3/libsupc++/vterminate.cc src/gcc/libstdc++-v3/libsupc++/vterminate.cc
+*** src/gcc-org/libstdc++-v3/libsupc++/vterminate.cc	2019-06-29 08:00:53.005332399 +0200
+--- src/gcc/libstdc++-v3/libsupc++/vterminate.cc	2019-06-29 08:08:49.983841863 +0200
+***************
+*** 24,35 ****
+  
+  #include <bits/c++config.h>
+  
+! #if _GLIBCXX_HOSTED
+  #include <cstdlib>
+  #include <exception>
+  #include <bits/exception_defines.h>
+  #include <cxxabi.h>
+! # include <cstdio>
+  
+  using namespace std;
+  using namespace abi;
+--- 24,40 ----
+  
+  #include <bits/c++config.h>
+  
+! #if 1 // _GLIBCXX_HOSTED
+  #include <cstdlib>
+  #include <exception>
+  #include <bits/exception_defines.h>
+  #include <cxxabi.h>
+! // don't include cstdio here because thats too much trouble
+! //# include <cstdio>
+! extern "C" void abort(void);
+! extern "C" int fputs(const char*,void*);
+! extern "C" void *free(void*);
+! extern void *stderr;
+  
+  using namespace std;
+  using namespace abi;
+***************
+*** 61,68 ****
+  	{
+  	  int status = -1;
+  	  char *dem = 0;
+! 	  
+! 	  dem = __cxa_demangle(name, 0, 0, &status);
+  
+  	  fputs("terminate called after throwing an instance of '", stderr);
+  	  if (status == 0)
+--- 66,73 ----
+  	{
+  	  int status = -1;
+  	  char *dem = 0;
+! 
+! 	  // dem = __cxa_demangle(name, 0, 0, &status);
+  
+  	  fputs("terminate called after throwing an instance of '", stderr);
+  	  if (status == 0)

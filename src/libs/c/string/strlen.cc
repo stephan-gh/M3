@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 size_t strlen(const char *s) {
     const char *begin = s;

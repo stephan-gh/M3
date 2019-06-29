@@ -18,30 +18,30 @@
 
 #include <stdint.h>
 
-using uchar     = unsigned char;
-using ushort    = unsigned short;
-using uint      = unsigned int;
-using ulong     = unsigned long;
-using llong     = long long;
-using ullong    = unsigned long long;
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
+typedef unsigned long ulong;
+typedef long long llong;
+typedef unsigned long long ullong;
 
 #if defined(__arm__)
-using size_t    = unsigned int;
-using ssize_t   = int;
+typedef unsigned int size_t;
+typedef int ssize_t;
 #else
-using size_t    = unsigned long;
-using ssize_t   = long;
+typedef unsigned long size_t;
+typedef long ssize_t;
 #endif
 
-using word_t    = unsigned long;
-using label_t   = word_t;
-using capsel_t  = unsigned;
-using fd_t      = int;
-using cycles_t  = uint64_t;
+typedef unsigned long word_t;
+typedef word_t label_t;
+typedef unsigned capsel_t;
+typedef int fd_t;
+typedef uint64_t cycles_t;
 
-using epid_t    = ulong;
-using peid_t    = ulong;
-using gaddr_t   = uint64_t;
-using goff_t    = uint64_t;
-using event_t   = uint64_t;
-using xfer_t    = uint64_t;
+typedef ulong epid_t;
+typedef ulong peid_t;
+typedef uint64_t gaddr_t;
+typedef uint64_t goff_t;
+typedef uint64_t event_t;
+typedef uint64_t xfer_t;

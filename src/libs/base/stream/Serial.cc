@@ -16,7 +16,7 @@
 
 #include <base/stream/Serial.h>
 #include <c/div.h>
-#include <cstring>
+#include <string.h>
 
 namespace m3 {
 

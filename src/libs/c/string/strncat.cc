@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
 char *strncat(char *str1, const char *str2, size_t count) {
     char *res = str1;

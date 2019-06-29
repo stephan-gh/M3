@@ -15,13 +15,9 @@
  */
 
 #include <base/Common.h>
-#include <cstring>
+#include <string.h>
 
-#if defined(__gem5__) and defined(__x86_64__)
-const char *strchr(const char *str, int ch) {
-#else
 char *strchr(const char *str, int ch) {
-#endif
     while(*str) {
         if(*str++ == ch)
             return const_cast<char*>(str - 1);
