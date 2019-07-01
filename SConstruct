@@ -54,6 +54,13 @@ baseenv = Environment(
     CPPPATH  = ['#src/include'],
 )
 
+if not "RUST_TARGET_PATH" in os.environ:
+    os.environ["RUST_TARGET_PATH"] = Dir('src/toolchain/rust').abspath
+if not "CARGO_TARGET_DIR" in os.environ:
+    os.environ["CARGO_TARGET_DIR"] = Dir('build/rust').abspath
+if not "XBUILD_SYSROOT_PATH" in os.environ:
+    os.environ["XBUILD_SYSROOT_PATH"] = os.environ['CARGO_TARGET_DIR'] + '/sysroot'
+
 vars = [
     'PATH',
     # required for colored outputs
