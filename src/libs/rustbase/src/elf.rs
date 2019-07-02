@@ -88,8 +88,10 @@ pub struct Phdr64 {
     pub align: u64,
 }
 
+/// Program header (64-bit)
 #[cfg(target_pointer_width = "64")]
 pub type Phdr = Phdr64;
+/// Program header (32-bit)
 #[cfg(target_pointer_width = "32")]
 pub type Phdr = Phdr32;
 
