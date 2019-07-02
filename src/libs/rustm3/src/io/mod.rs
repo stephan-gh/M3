@@ -14,14 +14,17 @@
  * General Public License version 2 for more details.
  */
 
+//! Input/output abstractions.
+
 mod serial;
 mod std;
 
-pub use base::io::*;
+pub use base::io::{Read, Write, read_object, Serial};
 pub use self::serial::*;
 pub use self::std::{stdin, stdout, stderr};
 pub use self::std::{STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO};
 
+/// Uses stdout to print `$fmt` with given arguments.
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ({
@@ -31,22 +34,23 @@ macro_rules! print {
     });
 }
 
+/// Uses stdout to print `$fmt` with given arguments and a newline.
 #[macro_export]
 macro_rules! println {
     ($fmt:expr)              => (print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }
 
-pub fn init() {
+pub(crate) fn init() {
     ::base::io::init();
     std::init();
 }
 
-pub fn reinit() {
+pub(crate) fn reinit() {
     ::base::io::reinit();
     std::reinit();
 }
 
-pub fn deinit() {
+pub(crate) fn deinit() {
     std::deinit();
 }

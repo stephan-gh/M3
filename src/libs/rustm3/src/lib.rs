@@ -38,7 +38,21 @@ pub mod io;
 #[macro_use]
 pub mod com;
 
-pub use base::*;
+pub use base::{
+    // macros
+    vec, format,
+    log, log_impl,
+    impl_boxitem,
+    int_enum, __int_enum_impl,
+    run_test, run_suite, assert_ok, assert_err, assert_some,
+
+    // modules
+    libc, boxed, rc, sync, util, test, backtrace, col, cell, elf, env, errors, mem, kif, profile,
+    serialize, time, cfg, cpu, dtu, envdata,
+
+    // types
+    goff,
+};
 
 pub mod cap;
 pub mod server;
