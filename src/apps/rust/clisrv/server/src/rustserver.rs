@@ -47,7 +47,7 @@ int_enum! {
 }
 
 impl Handler for MyHandler {
-    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, u64), Error> {
+    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
         let sid = self.sessions.next_id()?;
         let sess = ServerSession::new(srv_sel, sid as u64)?;
         let sgate = SendGate::new_with(
@@ -59,7 +59,7 @@ impl Handler for MyHandler {
             sess: sess,
             sgate: sgate,
         });
-        Ok((sel, sid as u64))
+        Ok((sel, sid))
     }
 
     fn obtain(&mut self, sid: SessId, data: &mut kif::service::ExchangeData) -> Result<(), Error> {

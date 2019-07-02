@@ -22,27 +22,39 @@ use server::SessId;
 use util;
 use vpe::VPE;
 
+/// Represents a server that provides a service for clients.
 pub struct Server {
     cap: Capability,
     rgate: RecvGate,
 }
 
+/// The handler for a server that implements the service calls (session creations, cap exchange,
+/// ...).
 pub trait Handler {
-    fn open(&mut self, srv_sel: Selector, arg: &str) -> Result<(Selector, u64), Error>;
+    /// Creates a new session with `arg` as an argument for the service with selector `srv_sel`.
+    /// Returns the session selector and the session identifier.
+    fn open(&mut self, srv_sel: Selector, arg: &str) -> Result<(Selector, SessId), Error>;
 
+    /// Let's the client obtain a capability from the server
     fn obtain(&mut self, _sid: SessId, _data: &mut service::ExchangeData) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
+    /// Let's the client delegate a capability to the server
     fn delegate(&mut self, _sid: SessId, _data: &mut service::ExchangeData) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
+
+    /// Closes the given session
     fn close(&mut self, _sid: SessId) {
     }
+
+    /// Performs cleanup actions before shutdown
     fn shutdown(&mut self) {
     }
 }
 
 impl Server {
+    /// Creates a new server with given service name.
     pub fn new(name: &str) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         let mut rgate = RecvGate::new(util::next_log2(512), util::next_log2(256))?;
@@ -56,10 +68,12 @@ impl Server {
         })
     }
 
+    /// Returns the capability selector of the service
     pub fn sel(&self) -> Selector {
         self.cap.sel()
     }
 
+    /// Fetches a message from the control channel and handles it if so.
     pub fn handle_ctrl_chan(&self, hdl: &mut dyn Handler) -> Result<(), Error> {
         let is = self.rgate.fetch();
         if let Some(mut is) = is {
@@ -86,7 +100,7 @@ impl Server {
 
         match res {
             Ok((sel, ident)) => {
-                let reply = service::OpenReply { res: 0, sess: sel as u64, ident: ident, };
+                let reply = service::OpenReply { res: 0, sess: sel as u64, ident: ident as u64, };
                 is.reply(&[reply])?
             },
             Err(e) => {

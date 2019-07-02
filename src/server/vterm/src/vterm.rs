@@ -191,13 +191,13 @@ impl VTermHandler {
 }
 
 impl Handler for VTermHandler {
-    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, u64), Error> {
+    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
         let sid = self.sessions.borrow().next_id()?;
         let sel = VPE::cur().alloc_sel();
         let sess = self.new_sess(sid, srv_sel, sel, SessionData::Meta)?;
         self.sessions.borrow_mut().add(sid, sess);
         log!(VTERM, "[{}] vterm::new_meta()", sid);
-        Ok((sel, sid as u64))
+        Ok((sel, sid))
     }
 
     fn obtain(&mut self, sid: SessId, data: &mut kif::service::ExchangeData) -> Result<(), Error> {

@@ -17,14 +17,17 @@
 use col::Vec;
 use errors::{Code, Error};
 
+/// Used as session identifier
 pub type SessId = usize;
 
+/// A container for sessions.
 pub struct SessionContainer<S> {
     con: Vec<Option<S>>,
     used: u64,
 }
 
 impl<S> SessionContainer<S> {
+    /// Creates a new `SessionContainer` with a at most `max` sessions.
     pub fn new(max: usize) -> Self {
         let mut con = Vec::with_capacity(max);
         for _ in 0..max {
@@ -37,6 +40,7 @@ impl<S> SessionContainer<S> {
         }
     }
 
+    /// Returns the id that will be used for the next session
     pub fn next_id(&self) -> Result<SessId, Error> {
         for i in 0..self.con.capacity() {
             if self.used & (1 << i) == 0 {
@@ -46,19 +50,23 @@ impl<S> SessionContainer<S> {
         Err(Error::new(Code::NoSpace))
     }
 
+    /// Returns a reference to the session with given id
     pub fn get(&self, sid: SessId) -> Option<&S> {
         self.con[sid].as_ref()
     }
+    /// Returns a mutable reference to the session with given id
     pub fn get_mut(&mut self, sid: SessId) -> Option<&mut S> {
         self.con[sid].as_mut()
     }
 
+    /// Adds a new session with given id, assuming that the id is not in use.
     pub fn add(&mut self, sid: SessId, sess: S) {
         assert!(self.used & (1 << sid) == 0);
         self.con[sid] = Some(sess);
         self.used |= 1 << sid;
     }
 
+    /// Removes the session with given id, assuming that the session exists.
     pub fn remove(&mut self, sid: SessId) {
         assert!(self.used & (1 << sid) != 0);
         self.con[sid] = None;
