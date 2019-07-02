@@ -48,7 +48,7 @@ pub use base::{
 
     // modules
     libc, boxed, rc, sync, util, test, backtrace, col, cell, elf, env, errors, mem, kif, profile,
-    serialize, time, cfg, cpu, dtu, envdata,
+    serialize, time, cfg, cpu, dtu,
 
     // types
     goff,
