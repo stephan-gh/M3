@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+//! The boot information that the kernel passes to root
+
 use core::fmt;
 use core::intrinsics;
 use core::iter;
@@ -21,6 +23,7 @@ use util;
 
 const MAX_MEMS: usize = 4;
 
+/// A memory region
 #[repr(C, packed)]
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Mem {
@@ -28,38 +31,50 @@ pub struct Mem {
 }
 
 impl Mem {
+    /// Creates a new memory region of given size.
     pub fn new(size: usize, reserved: bool) -> Self {
         Mem {
             size: size as u64 | (reserved as u64),
         }
     }
 
+    /// Returns the size of the memory region
     pub fn size(&self) -> usize {
         self.size as usize & !1
     }
+    /// Returns true if the region is reserved, that is, not usable by applications
     pub fn reserved(&self) -> bool {
         (self.size & 1) == 1
     }
 }
 
+/// The boot information
 #[repr(C, packed)]
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Info {
+    /// The number of boot modules
     pub mod_count: u64,
+    /// The size of all boot modules
     pub mod_size: u64,
+    /// The number of PEs
     pub pe_count: u64,
+    /// The memory regions
     pub mems: [Mem; MAX_MEMS],
 }
 
+/// A boot module
 #[repr(C, packed)]
 pub struct Mod {
+    /// The address of the module
     pub addr: u64,
+    /// The size of the module
     pub size: u64,
     namelen: u64,
     name: [i8],
 }
 
 impl Mod {
+    /// Returns the name and arguments of the module
     pub fn name(&self) -> &'static str {
         unsafe {
             util::cstr_to_str(self.name.as_ptr())
@@ -74,12 +89,14 @@ impl fmt::Debug for Mod {
     }
 }
 
+/// An iterator for the boot modules
 pub struct ModIterator {
     addr: usize,
     end: usize,
 }
 
 impl ModIterator {
+    /// Creates a new iterator for the boot modules at `addr`..`addr`+`len`.
     pub fn new(addr: usize, len: usize) -> Self {
         ModIterator {
             addr: addr,

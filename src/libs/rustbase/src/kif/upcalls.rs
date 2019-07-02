@@ -19,14 +19,15 @@
 int_enum! {
     /// The upcalls
     pub struct Operation : u64 {
-        // forwarding of sends, replies, and data transfers
+        /// forwarding of sends, replies, and data transfers
         const FORWARD           = 0;
 
-        // waits for VPE exits
+        /// waits for VPE exits
         const VPEWAIT           = 1;
     }
 }
 
+/// The default upcall, containing the opcode and event
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct DefaultUpcall {
@@ -34,6 +35,7 @@ pub struct DefaultUpcall {
     pub event: u64,
 }
 
+/// The forward upcall that is sent upon finished forwardings
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct Forward {
@@ -41,6 +43,7 @@ pub struct Forward {
     pub error: u64,
 }
 
+/// The VPE-wait upcall that is sent upon a VPE-exit
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct VPEWait {
