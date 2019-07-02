@@ -111,6 +111,7 @@ fn heap_bounds() -> (usize, usize) {
     (envdata::heap_start(), envdata::heap_start() + cfg::APP_HEAP_SIZE)
 }
 
+/// Allocates `size` bytes from the heap.
 pub fn alloc(size: usize) -> *mut libc::c_void {
     unsafe {
         heap_alloc(size)
@@ -132,33 +133,35 @@ pub fn init() {
     }
 }
 
+/// Appends the given number of pages as free memory to the heap.
 pub fn append(pages: usize) {
     unsafe {
         heap_append(pages);
     }
 }
 
-/// Returns the number of free bytes on the heap
+/// Returns the number of free bytes on the heap.
 pub fn free_memory() -> usize {
     unsafe {
         heap_free_memory()
     }
 }
 
-/// Returns the end of used part of the heap
+/// Returns the end of used part of the heap.
 pub fn end() -> usize {
     unsafe {
         heap_end as usize
     }
 }
 
-/// Returns the end of used part of the heap
+/// Returns the end of used part of the heap.
 pub fn used_end() -> usize {
     unsafe {
         heap_used_end()
     }
 }
 
+/// Prints the heap.
 pub fn print() {
     unsafe {
         let print_area = |a: *const HeapArea| {

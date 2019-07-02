@@ -40,11 +40,13 @@ impl fmt::Debug for Area {
     }
 }
 
+/// The memory map, allowing allocs and frees of memory areas
 pub struct MemMap {
     areas: DList<Area>,
 }
 
 impl MemMap {
+    /// Creates a new memory map from `addr` to `addr`+`size`.
     pub fn new(addr: goff, size: usize) -> Self {
         let mut areas = DList::new();
         areas.push_back(Area::new(addr, size));
@@ -53,6 +55,7 @@ impl MemMap {
         }
     }
 
+    /// Allocates a region of `size` bytes, aligned by `align`.
     pub fn allocate(&mut self, size: usize, align: usize) -> Result<goff, Error> {
         // find an area with sufficient space
         let mut it = self.areas.iter_mut();
@@ -94,6 +97,7 @@ impl MemMap {
         }
     }
 
+    /// Free's the given memory region defined by `addr` and `size`.
     pub fn free(&mut self, addr: goff, size: usize) {
         // find the area behind ours
         let mut it = self.areas.iter_mut();
@@ -139,6 +143,7 @@ impl MemMap {
         }
     }
 
+    /// Returns a pair of the remaining space and the number of areas.
     pub fn size(&self) -> (usize, usize) {
         let mut total = 0;
         for a in self.areas.iter() {

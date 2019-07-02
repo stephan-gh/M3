@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains memory management abstractions
+
 pub mod heap;
 mod map;
 mod globaddr;
