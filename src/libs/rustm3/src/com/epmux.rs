@@ -23,8 +23,11 @@ use kif::INVALID_SEL;
 use syscalls;
 use vpe;
 
+/// The endpoint multiplexer (`EpMux`) multiplexes all non-reserved endpoints among the gates.
 pub struct EpMux {
+    // remembers the mapping from gate to endpoint
     gates: [Option<Selector>; dtu::EP_COUNT],
+    // the next index in the gate array we use as a victim on multiplexing
     next_victim: usize,
 }
 
@@ -38,10 +41,14 @@ impl EpMux {
         }
     }
 
+    /// Returns the `EpMux` instance
     pub fn get() -> &'static mut EpMux {
         EP_MUX.get_mut()
     }
 
+    /// Reserves the given endpoint, so that it is no longer considered during multiplexing. If it
+    /// is currently in use by a gate, the gate will be deactivated and will request a new endpoint
+    /// at the next usage.
     pub fn reserve(&mut self, ep: EpId) {
         // take care that some non-fixed gate could already use that endpoint
         if let Some(_) = self.gates[ep] {
@@ -57,6 +64,13 @@ impl EpMux {
         self.gates[ep] = None;
     }
 
+    pub(crate) fn reset(&mut self) {
+        for ep in 0..dtu::EP_COUNT {
+            self.gates[ep] = None;
+        }
+    }
+
+    /// Returns true if the endpoint `ep` is owned by the gate with selector `sel`.
     pub fn ep_owned_by(&self, ep: EpId, sel: Selector) -> bool {
         match self.gates[ep] {
             Some(s) => s == sel,
@@ -64,6 +78,8 @@ impl EpMux {
         }
     }
 
+    /// Activates the given gate. If there is no free endpoint available, another gate will be
+    /// deactivated. Returns the chosen endpoint number.
     pub fn switch_to(&mut self, g: &Gate) -> Result<EpId, Error> {
         let idx = self.select_victim()?;
         self.activate(idx, g.sel())?;
@@ -71,6 +87,8 @@ impl EpMux {
         Ok(idx)
     }
 
+    /// Switches the underlying capability selector of the given gate to `sel`. If the gate is
+    /// currently activated, it will be reactivated with the given capability selector.
     pub fn switch_cap(&mut self, g: &Gate, sel: Selector) -> Result<(), Error> {
         if let Some(ep) = g.ep() {
             if self.ep_owned_by(ep, g.sel()) {
@@ -83,6 +101,7 @@ impl EpMux {
         Ok(())
     }
 
+    /// Removes the given gate from `EpMux`.
     pub fn remove(&mut self, g: &Gate) {
         if let Some(ep) = g.ep() {
             if self.ep_owned_by(ep, g.sel()) {
@@ -92,12 +111,6 @@ impl EpMux {
                     self.activate(ep, INVALID_SEL).ok();
                 }
             }
-        }
-    }
-
-    pub fn reset(&mut self) {
-        for ep in 0..dtu::EP_COUNT {
-            self.gates[ep] = None;
         }
     }
 

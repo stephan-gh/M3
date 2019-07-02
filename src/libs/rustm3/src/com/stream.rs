@@ -28,21 +28,23 @@ use util;
 
 const MAX_MSG_SIZE: usize = 512;
 
-struct GateSink {
+/// A sink for marshalling that uses a static array internally.
+pub struct ArraySink {
     arr: [u64; MAX_MSG_SIZE / 8],
     pos: usize,
 }
 
-impl GateSink {
+impl ArraySink {
+    /// Creates a new `ArraySink`.
     pub fn new() -> Self {
-        GateSink {
+        ArraySink {
             arr: unsafe { intrinsics::uninit() },
             pos: 0,
         }
     }
 }
 
-impl Sink for GateSink {
+impl Sink for ArraySink {
     #[inline(always)]
     fn size(&self) -> usize {
         self.pos * util::size_of::<u64>()
@@ -71,11 +73,13 @@ impl Sink for GateSink {
     }
 }
 
+/// A sink for marshalling that uses a [`Vec`] internally.
 pub struct VecSink {
     vec: Vec<u64>,
 }
 
 impl VecSink {
+    /// Creates a new `VecSink`.
     pub fn new() -> Self {
         VecSink {
             vec: Vec::new(),
@@ -113,20 +117,23 @@ impl Sink for VecSink {
     }
 }
 
+/// A source for unmarshalling that uses a DTU message internally
 #[derive(Debug)]
-struct GateSource {
+pub struct MsgSource {
     msg: &'static dtu::Message,
     pos: usize,
 }
 
-impl GateSource {
+impl MsgSource {
+    /// Creates a new `MsgSource` for given DTU message.
     pub fn new(msg: &'static dtu::Message) -> Self {
-        GateSource {
+        MsgSource {
             msg: msg,
             pos: 0,
         }
     }
 
+    /// Returns a slice to the message data.
     #[inline(always)]
     pub fn data(&self) -> &'static [u64] {
         unsafe {
@@ -166,7 +173,7 @@ fn str_slice_from(s: &[u64], len: usize) -> &'static str {
     }
 }
 
-impl Source for GateSource {
+impl Source for MsgSource {
     #[inline(always)]
     fn pop_word(&mut self) -> u64 {
         self.pos += 1;
@@ -186,12 +193,14 @@ impl Source for GateSource {
     }
 }
 
+/// A source for unmarshalling that uses a slice internally.
 pub struct SliceSource<'s> {
     slice: &'s [u64],
     pos: usize,
 }
 
 impl<'s> SliceSource<'s> {
+    /// Creates a new `SliceSource` for given slice.
     pub fn new(s: &'s [u64]) -> SliceSource<'s> {
         SliceSource {
             slice: s,
@@ -199,6 +208,7 @@ impl<'s> SliceSource<'s> {
         }
     }
 
+    /// Pops an object of type `T` from the source.
     pub fn pop<T : Unmarshallable>(&mut self) -> T {
         T::unmarshall(self)
     }
@@ -223,64 +233,75 @@ impl<'s> Source for SliceSource<'s> {
     }
 }
 
+/// An output stream for marshalling a DTU message and sending it via a [`SendGate`].
 pub struct GateOStream {
-    buf: GateSink,
+    buf: ArraySink,
 }
 
 impl GateOStream {
+    /// Creates a new `GateOStream`.
     pub fn new() -> Self {
         GateOStream {
-            buf: GateSink::new(),
+            buf: ArraySink::new(),
         }
     }
 
+    /// Returns the size of the marshalled message
     #[inline(always)]
     pub fn size(&self) -> usize {
         self.buf.size()
     }
 
+    /// Pushes the given object into the stream.
     #[inline(always)]
     pub fn push<T : Marshallable>(&mut self, item: &T) {
         item.marshall(&mut self.buf);
     }
 
+    /// Sends the marshalled message via `gate`, using `reply_gate` for the reply.
     #[inline(always)]
     pub fn send(&self, gate: &SendGate, reply_gate: &RecvGate) -> Result<(), Error> {
         gate.send(self.buf.words(), reply_gate)
     }
 }
 
+/// An input stream for unmarshalling a DTU message that has been received over a [`RecvGate`].
 #[derive(Debug)]
 pub struct GateIStream<'r> {
-    source: GateSource,
+    source: MsgSource,
     rgate: &'r RecvGate,
     ack: bool,
 }
 
 impl<'r> GateIStream<'r> {
+    /// Creates a new `GateIStream` for `msg` that has been received over `rgate`.
     pub fn new(msg: &'static dtu::Message, rgate: &'r RecvGate) -> Self {
         GateIStream {
-            source: GateSource::new(msg),
+            source: MsgSource::new(msg),
             rgate: rgate,
             ack: true,
         }
     }
 
+    /// Returns the label of the message
     #[inline(always)]
     pub fn label(&self) -> u64 {
         self.source.msg.header.label
     }
 
+    /// Returns the size of the message
     #[inline(always)]
     pub fn size(&self) -> usize {
         self.source.data().len() * util::size_of::<u64>()
     }
 
+    /// Pops an object of type `T` from the message.
     #[inline(always)]
     pub fn pop<T : Unmarshallable>(&mut self) -> T {
         T::unmarshall(&mut self.source)
     }
 
+    /// Sends `reply` as a reply to the received message.
     #[inline(always)]
     pub fn reply<T>(&mut self, reply: &[T]) -> Result<(), Error> {
         match self.rgate.reply(reply, self.source.msg) {
@@ -292,6 +313,7 @@ impl<'r> GateIStream<'r> {
         }
     }
 
+    /// Sends the message marshalled by the given `GateOStream` as a reply on the received message.
     #[inline(always)]
     pub fn reply_os(&mut self, os: &GateOStream) -> Result<(), Error> {
         self.reply(os.buf.words())
@@ -306,6 +328,7 @@ impl<'r> ops::Drop for GateIStream<'r> {
     }
 }
 
+/// Marshalls a message from `$args` and sends it via `$sg`, using `$rg` to receive the reply.
 #[macro_export]
 macro_rules! send_vmsg {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
@@ -315,6 +338,7 @@ macro_rules! send_vmsg {
     });
 }
 
+/// Marshalls a message from `$args` and sends it as a reply to the given `GateIStream`.
 #[macro_export]
 macro_rules! reply_vmsg {
     ( $is:expr, $( $args:expr ),* ) => ({
@@ -325,22 +349,27 @@ macro_rules! reply_vmsg {
 }
 
 impl<'r> GateIStream<'r> {
+    /// Sends the given error code as a reply.
     #[inline(always)]
     pub fn reply_error(&mut self, err: Code) -> Result<(), Error> {
         reply_vmsg!(self, err as u64)
     }
 }
 
+/// Receives a message from `rgate` and returns a [`GateIStream`] for the message.
 #[inline(always)]
 pub fn recv_msg<'r>(rgate: &'r RecvGate) -> Result<GateIStream<'r>, Error> {
-    recv_msg_from(rgate, None)
+    rgate.wait(None)
 }
 
+/// Receives a message from `rgate` as a reply to the message that has been sent over `sgate` and
+/// returns a [`GateIStream`] for the message.
 #[inline(always)]
-pub fn recv_msg_from<'r>(rgate: &'r RecvGate, sgate: Option<&SendGate>) -> Result<GateIStream<'r>, Error> {
+pub fn recv_reply<'r>(rgate: &'r RecvGate, sgate: Option<&SendGate>) -> Result<GateIStream<'r>, Error> {
     rgate.wait(sgate)
 }
 
+/// Receives a message from `$rg` and unmarshalls the message into the given arguments.
 #[macro_export]
 macro_rules! recv_vmsg {
     ( $rg:expr, $x:ty ) => ({
@@ -358,14 +387,12 @@ macro_rules! recv_vmsg {
     });
 }
 
+/// Receives a message from `rgate` as a reply to the message that has been sent over `sgate` and
+/// unmarshalls the result (error code). If the result is an error, it returns the error and
+/// otherwise the [`GateIStream`] for the message.
 #[inline(always)]
-pub fn recv_res<'r>(rgate: &'r RecvGate) -> Result<GateIStream<'r>, Error> {
-    recv_res_from(rgate, None)
-}
-
-#[inline(always)]
-pub fn recv_res_from<'r>(rgate: &'r RecvGate, sgate: Option<&SendGate>) -> Result<GateIStream<'r>, Error> {
-    let mut reply = recv_msg_from(rgate, sgate)?;
+pub fn recv_result<'r>(rgate: &'r RecvGate, sgate: Option<&SendGate>) -> Result<GateIStream<'r>, Error> {
+    let mut reply = recv_reply(rgate, sgate)?;
     let res: u32 = reply.pop();
     match res {
         0 => Ok(reply),
@@ -373,21 +400,26 @@ pub fn recv_res_from<'r>(rgate: &'r RecvGate, sgate: Option<&SendGate>) -> Resul
     }
 }
 
+/// Marshalls a message from `$args` and sends it via `$sg`, using `$rg` to receive the reply.
+/// Afterwards, it waits for the reply and returns the `GateIStream` for the reply.
 #[macro_export]
 macro_rules! send_recv {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
         match send_vmsg!($sg, $rg, $( $args ),* ) {
-            Ok(_)   => $crate::com::recv_msg_from($rg, Some($sg)),
+            Ok(_)   => $crate::com::recv_reply($rg, Some($sg)),
             Err(e)  => Err(e),
         }
     });
 }
 
+/// Marshalls a message from `$args` and sends it via `$sg`, using `$rg` to receive the reply.
+/// Afterwards, it waits for the reply and unmarshalls the result (error code). If the result is an
+/// error, it returns the error and otherwise the `GateIStream` for the reply.
 #[macro_export]
 macro_rules! send_recv_res {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
         match send_vmsg!($sg, $rg, $( $args ),* ) {
-            Ok(_)   => $crate::com::recv_res_from($rg, Some($sg)),
+            Ok(_)   => $crate::com::recv_result($rg, Some($sg)),
             Err(e)  => Err(e),
         }
     });

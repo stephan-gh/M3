@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains communication abstractions.
+
 #[macro_use]
 mod stream;
 
@@ -31,10 +33,10 @@ pub use self::sgate::{SendGate, SGateArgs};
 pub use self::sem::Semaphore;
 pub use self::stream::*;
 
-pub fn init() {
+pub(crate) fn init() {
     rgate::init();
 }
 
-pub fn reinit() {
+pub(crate) fn reinit() {
     epmux::EpMux::get().reset();
 }

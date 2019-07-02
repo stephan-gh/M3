@@ -42,6 +42,8 @@ bitflags! {
     }
 }
 
+/// A receive gate (`RecvGate`) can receive messages via DTU from connected [`SendGate`]s and can
+/// reply on the received messages.
 pub struct RecvGate {
     gate: Gate,
     buf: usize,
@@ -56,6 +58,7 @@ impl fmt::Debug for RecvGate {
     }
 }
 
+/// The arguments for `RecvGate` creations
 pub struct RGateArgs {
     order: i32,
     msg_order: i32,
@@ -64,6 +67,7 @@ pub struct RGateArgs {
 }
 
 impl RGateArgs {
+    /// Creates a new `RGateArgs` object with default settings
     pub fn new() -> Self {
         RGateArgs {
             order: DEF_MSG_ORD,
@@ -73,16 +77,22 @@ impl RGateArgs {
         }
     }
 
+    /// Sets the size of the receive buffer as a power of two. That is, the size in bytes is
+    /// `2^order`. This overwrites the default size of 64 bytes.
     pub fn order(mut self, order: i32) -> Self {
         self.order = order;
         self
     }
 
+    /// Sets the size of message slots in the receive buffer as a power of two. That is, the size in
+    /// bytes is `2^order`. This overwrites the default size of 64 bytes.
     pub fn msg_order(mut self, msg_order: i32) -> Self {
         self.msg_order = msg_order;
         self
     }
 
+    /// Sets the capability selector to use for the `RecvGate`. Otherwise and by default,
+    /// [`vpe::VPE::alloc_sel`] will be used.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
@@ -90,12 +100,15 @@ impl RGateArgs {
 }
 
 impl RecvGate {
+    /// Returns the receive gate to receive system call replies
     pub fn syscall() -> &'static mut RecvGate {
         SYS_RGATE.get_mut()
     }
+    /// Returns the receive gate to receive upcalls from the kernel
     pub fn upcall() -> &'static mut RecvGate {
         UPC_RGATE.get_mut()
     }
+    /// Returns the default receive gate
     pub fn def() -> &'static mut RecvGate {
         DEF_RGATE.get_mut()
     }
@@ -109,10 +122,13 @@ impl RecvGate {
         }
     }
 
+    /// Creates a new `RecvGate` with a `2^order` bytes receive buffer and `2^msg_order` bytes
+    /// message slots.
     pub fn new(order: i32, msg_order: i32) -> Result<Self, Error> {
         Self::new_with(RGateArgs::new().order(order).msg_order(msg_order))
     }
 
+    /// Creates a new `RecvGate` with given arguments.
     pub fn new_with(args: RGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
             vpe::VPE::cur().alloc_sel()
@@ -130,6 +146,8 @@ impl RecvGate {
         })
     }
 
+    /// Binds a new `RecvGate` to the given selector. The `order` argument denotes the size of the
+    /// receive buffer (`2^order`).
     pub fn new_bind(sel: Selector, order: i32) -> Self {
         RecvGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
@@ -139,19 +157,25 @@ impl RecvGate {
         }
     }
 
+    /// Returns the selector of the gate
     pub fn sel(&self) -> Selector {
         self.gate.sel()
     }
+    /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub fn ep(&self) -> Option<dtu::EpId> {
         self.gate.ep()
     }
+    /// Returns the address of the receive buffer
     pub fn buffer(&self) -> usize {
         self.buf
     }
+    /// Returns the size of the receive buffer in bytes
     pub fn size(&self) -> usize {
         1 << self.order
     }
 
+    /// Activates this receive gate. Activation is required before [`SendGate`]s connected to this
+    /// `RecvGate` can be activated.
     pub fn activate(&mut self) -> Result<(), Error> {
         if self.ep().is_none() {
             let vpe = vpe::VPE::cur();
@@ -162,6 +186,8 @@ impl RecvGate {
         Ok(())
     }
 
+    /// Activates this receive gate on the given endpoint. Activation is required before
+    /// [`SendGate`]s connected to this `RecvGate` can be activated.
     pub fn activate_ep(&mut self, ep: dtu::EpId) -> Result<(), Error> {
         if self.ep().is_none() {
             let vpe = vpe::VPE::cur();
@@ -183,7 +209,7 @@ impl RecvGate {
         Ok(())
     }
 
-    pub fn activate_for(&mut self, first_ep: Selector, ep: dtu::EpId, addr: goff) -> Result<(), Error> {
+    pub(crate) fn activate_for(&mut self, first_ep: Selector, ep: dtu::EpId, addr: goff) -> Result<(), Error> {
         if self.ep().is_none() {
             self.gate.set_ep(ep);
 
@@ -195,6 +221,7 @@ impl RecvGate {
         Ok(())
     }
 
+    /// Deactivates this gate.
     pub fn deactivate(&mut self) {
         if !(self.free & FreeFlags::FREE_EP).is_empty() {
             let ep = self.ep().unwrap();
@@ -203,6 +230,8 @@ impl RecvGate {
         self.gate.unset_ep();
     }
 
+    /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
+    /// a [`GateIStream`] for the message. Otherwise it returns None.
     pub fn fetch(&self) -> Option<GateIStream> {
         let rep = self.ep().unwrap();
         let msg = dtu::DTU::fetch_msg(rep);
@@ -214,15 +243,22 @@ impl RecvGate {
         }
     }
 
+    /// Sends `reply` as a reply to the message `msg`.
     #[inline(always)]
     pub fn reply<T>(&self, reply: &[T], msg: &'static dtu::Message) -> Result<(), Error> {
         self.reply_bytes(reply.as_ptr() as *const u8, reply.len() * util::size_of::<T>(), msg)
     }
+    /// Sends `reply` with `size` bytes as a reply to the message `msg`.
     #[inline(always)]
     pub fn reply_bytes(&self, reply: *const u8, size: usize, msg: &'static dtu::Message) -> Result<(), Error> {
         dtu::DTU::reply(self.ep().unwrap(), reply, size, msg)
     }
 
+    /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,
+    /// the argument `sgate` denotes the [`SendGate`] that was used to send the request to the
+    /// communication for which this method should receive the reply now. If the endpoint associated
+    /// with `sgate` becomes invalid, the method stops waiting for a reply assuming that the
+    /// communication partner is no longer interested in the communication.
     #[inline(always)]
     pub fn wait(&self, sgate: Option<&SendGate>) -> Result<GateIStream, Error> {
         assert!(self.ep().is_some());
@@ -251,7 +287,7 @@ impl RecvGate {
     }
 }
 
-pub fn init() {
+pub(crate) fn init() {
     let rbufs = vpe::VPE::cur().rbufs();
 
     let mut off = 0;

@@ -20,12 +20,14 @@ use kif;
 use syscalls;
 use vpe::VPE;
 
+/// A syscall-based semaphore.
 #[derive(Debug)]
 pub struct Semaphore {
     cap: Capability,
 }
 
 impl Semaphore {
+    /// Creates a new object that is attached to the global semaphore `name`.
     pub fn attach(name: &str) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         VPE::cur().resmng().use_sem(sel, name)?;
@@ -35,6 +37,7 @@ impl Semaphore {
         })
     }
 
+    /// Creates a new semaphore with the initial value `value`.
     pub fn create(value: u32) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         syscalls::create_sem(sel, value)?;
@@ -44,20 +47,24 @@ impl Semaphore {
         })
     }
 
+    /// Binds a semaphore to the given selector.
     pub fn bind(sel: Selector) -> Self {
         Semaphore {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
         }
     }
 
+    /// Returns the capability selector
     pub fn sel(&self) -> Selector {
         self.cap.sel()
     }
 
+    /// Performs the `up` operation on the semaphore
     pub fn up(&self) -> Result<(), Error> {
         syscalls::sem_ctrl(self.sel(), kif::syscalls::SemOp::UP)
     }
 
+    /// Performs the `down` operation on the semaphore
     pub fn down(&self) -> Result<(), Error> {
         syscalls::sem_ctrl(self.sel(), kif::syscalls::SemOp::DOWN)
     }

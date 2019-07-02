@@ -21,6 +21,8 @@ use core::ops;
 use dtu::EpId;
 use errors::Error;
 
+/// A gate is one side of a DTU-based communication channel and exists in the variants [`MemGate`],
+/// [`SendGate`], and [`RecvGate`].
 #[derive(Debug)]
 pub struct Gate {
     cap: Capability,
@@ -28,10 +30,12 @@ pub struct Gate {
 }
 
 impl Gate {
+    /// Creates a new gate with given capability selector and flags
     pub fn new(sel: Selector, flags: CapFlags) -> Self {
         Self::new_with_ep(sel, flags, None)
     }
 
+    /// Creates a new gate with given capability selector, flags, and endpoint
     pub const fn new_with_ep(sel: Selector, flags: CapFlags, ep: Option<EpId>) -> Self {
         Gate {
             cap: Capability::new(sel, flags),
@@ -39,10 +43,12 @@ impl Gate {
         }
     }
 
+    /// Returns the capability selector
     pub fn sel(&self) -> Selector {
         self.cap.sel()
     }
 
+    /// Returns the flags that determine whether the capability will be revoked on destruction
     pub fn flags(&self) -> CapFlags {
         self.cap.flags()
     }
@@ -50,20 +56,24 @@ impl Gate {
         self.cap.set_flags(flags);
     }
 
+    /// Returns the endpoint. If the gate is not activated, it returns `None`.
     pub fn ep(&self) -> Option<EpId> {
         self.ep.get()
     }
-    pub fn set_ep(&self, ep: EpId) {
+
+    pub(crate) fn set_ep(&self, ep: EpId) {
         self.ep.set(Some(ep));
         EpMux::get().set_owned(ep, self.sel());
     }
-    pub fn unset_ep(&self) {
+    pub(crate) fn unset_ep(&self) {
         if let Some(ep) = self.ep() {
             EpMux::get().unset_owned(ep);
         }
         self.ep.set(None);
     }
 
+    /// Activates the gate, if not already done, potentially involving endpoint multiplexing.
+    /// Returns the chosen endpoint number.
     pub fn activate(&self) -> Result<EpId, Error> {
         // the invariants here are:
         // 1. if ep is Some, ep_owned_by determines whether we currently own that EP.
@@ -77,6 +87,8 @@ impl Gate {
         }
     }
 
+    /// Switches the underlying capability selector to `sel`. If the gate is currently activated,
+    /// it will be reactivated with the given capability selector.
     pub fn rebind(&mut self, sel: Selector) -> Result<(), Error> {
         EpMux::get().switch_cap(self, sel)?;
         self.cap.rebind(sel);

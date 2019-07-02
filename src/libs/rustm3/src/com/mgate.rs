@@ -28,11 +28,14 @@ use vpe;
 
 pub use kif::Perm;
 
+/// A memory gate (`MemGate`) has access to a contiguous memory region and allows RDMA-like memory
+/// accesses via DTU.
 pub struct MemGate {
     gate: Gate,
     revoke: bool,
 }
 
+/// The arguments for `MemGate` creations.
 pub struct MGateArgs {
     size: usize,
     addr: goff,
@@ -42,6 +45,7 @@ pub struct MGateArgs {
 }
 
 impl MGateArgs {
+    /// Creates a new `MGateArgs` object with default settings
     pub fn new(size: usize, perm: Perm) -> MGateArgs {
         MGateArgs {
             size: size,
@@ -52,11 +56,15 @@ impl MGateArgs {
         }
     }
 
+    /// Sets the address to `addr` to request a specific memory region. Otherwise and by default,
+    /// any free memory region of the requested size will be used.
     pub fn addr(mut self, addr: goff) -> Self {
         self.addr = addr;
         self
     }
 
+    /// Sets the capability selector that should be used for this `MemGate`. Otherwise and by default,
+    /// [`vpe::VPE::alloc_sel`] will be used to choose a free selector.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
@@ -64,10 +72,12 @@ impl MGateArgs {
 }
 
 impl MemGate {
+    /// Creates a new `MemGate` that has access to a region of `size` bytes with permissions `perm`.
     pub fn new(size: usize, perm: Perm) -> Result<Self, Error> {
         Self::new_with(MGateArgs::new(size, perm))
     }
 
+    /// Creates a new `MemGate` with given arguments.
     pub fn new_with(args: MGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
             vpe::VPE::cur().alloc_sel()
@@ -83,6 +93,7 @@ impl MemGate {
         })
     }
 
+    /// Binds a new `MemGate` to the given selector.
     pub fn new_bind(sel: Selector) -> Self {
         MemGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
@@ -90,24 +101,35 @@ impl MemGate {
         }
     }
 
-    pub fn ep(&self) -> Option<dtu::EpId> {
-        self.gate.ep()
-    }
-    pub fn set_ep(&mut self, ep: dtu::EpId) {
-        self.gate.set_ep(ep);
-    }
-    pub fn unset_ep(&mut self) {
-        self.gate.unset_ep();
-    }
+    /// Returns the selector of this gate
     pub fn sel(&self) -> Selector {
         self.gate.sel()
     }
+    /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
+    pub fn ep(&self) -> Option<dtu::EpId> {
+        self.gate.ep()
+    }
 
+    pub(crate) fn set_ep(&mut self, ep: dtu::EpId) {
+        self.gate.set_ep(ep);
+    }
+    pub(crate) fn unset_ep(&mut self) {
+        self.gate.unset_ep();
+    }
+
+    /// Derives a new `MemGate` from `self` that has access to a subset of `self`'s the memory
+    /// region and has a subset of `self`'s permissions. The subset of the memory region is defined
+    /// by `offset` and `size` and the permissions by `perm`.
+    ///
+    /// Note that kernel makes sure that only owned permissions can be passed on to the derived
+    /// `MemGate`.
     pub fn derive(&self, offset: goff, size: usize, perm: Perm) -> Result<Self, Error> {
         let sel = vpe::VPE::cur().alloc_sel();
         self.derive_for(vpe::VPE::cur().sel(), sel, offset, size, perm)
     }
 
+    /// Like [`MemGate::derive`], but assigns the new `MemGate` to the given VPE and uses given
+    /// selector.
     pub fn derive_for(&self, vpe: Selector, sel: Selector, offset: goff,
                       size: usize, perm: Perm) -> Result<Self, Error> {
         syscalls::derive_mem(vpe, sel, self.sel(), offset, size, perm)?;
@@ -117,20 +139,27 @@ impl MemGate {
         })
     }
 
+    /// Rebinds this gate to capability selector `sel`
     pub fn rebind(&mut self, sel: Selector) -> Result<(), Error> {
         self.gate.rebind(sel)
     }
 
+    /// Uses the DTU read command to read from the memory region at offset `off` and stores the read
+    /// data into the slice `data`. The number of bytes to read is defined by `data`.
     pub fn read<T>(&self, data: &mut [T], off: goff) -> Result<(), Error> {
         self.read_bytes(data.as_mut_ptr() as *mut u8, data.len() * util::size_of::<T>(), off)
     }
 
+    /// Reads `util::size_of::<T>()` bytes via the DTU read command from the memory region at offset
+    /// `off` and returns the data as an object of `T`.
     pub fn read_obj<T>(&self, off: goff) -> Result<T, Error> {
         let mut obj: T = unsafe { intrinsics::uninit() };
         self.read_bytes(&mut obj as *mut T as *mut u8, util::size_of::<T>(), off)?;
         Ok(obj)
     }
 
+    /// Reads `size` bytes via the DTU read command from the memory region at offset `off` and
+    /// stores the read data into `data`.
     pub fn read_bytes(&self, mut data: *mut u8, mut size: usize, mut off: goff) -> Result<(), Error> {
         let ep = self.gate.activate()?;
 
@@ -148,14 +177,18 @@ impl MemGate {
         }
     }
 
+    /// Writes `data` with the DTU write command to the memory region at offset `off`.
     pub fn write<T>(&self, data: &[T], off: goff) -> Result<(), Error> {
         self.write_bytes(data.as_ptr() as *const u8, data.len() * util::size_of::<T>(), off)
     }
 
-    pub fn write_obj<T>(&self, obj: *const T, off: goff) -> Result<(), Error> {
-        self.write_bytes(obj as *const u8, util::size_of::<T>(), off)
+    /// Writes `obj` via the DTU write command to the memory region at offset `off`.
+    pub fn write_obj<T>(&self, obj: &T, off: goff) -> Result<(), Error> {
+        self.write_bytes(obj as *const T as *const u8, util::size_of::<T>(), off)
     }
 
+    /// Writes the `size` bytes at `data` via the DTU write command to the memory region at offset
+    /// `off`.
     pub fn write_bytes(&self, mut data: *const u8, mut size: usize, mut off: goff) -> Result<(), Error> {
         let ep = self.gate.activate()?;
 
