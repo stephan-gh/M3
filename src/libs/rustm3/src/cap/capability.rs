@@ -18,9 +18,11 @@ use core::ops;
 use kif;
 use syscalls;
 
+/// A capability selector
 pub type Selector = kif::CapSel;
 
 bitflags! {
+    /// Flags for [`Capability`]
     pub struct CapFlags : u32 {
         const KEEP_CAP   = 0x1;
     }
@@ -28,6 +30,7 @@ bitflags! {
 
 // TODO isn't there a better way?
 impl CapFlags {
+    /// Creates a new `CapFlags` object.
     pub const fn const_empty() -> Self {
         CapFlags {
             bits: 0
@@ -35,6 +38,7 @@ impl CapFlags {
     }
 }
 
+/// Represents a capability
 #[derive(Debug)]
 pub struct Capability {
     sel: Selector,
@@ -42,6 +46,7 @@ pub struct Capability {
 }
 
 impl Capability {
+    /// Creates a new `Capability` with given selector and flags.
     pub const fn new(sel: Selector, flags: CapFlags) -> Self {
         Capability {
             sel: sel,
@@ -49,16 +54,20 @@ impl Capability {
         }
     }
 
+    /// Returns the selector.
     pub fn sel(&self) -> Selector {
         self.sel
     }
+    /// Returns the flags.
     pub fn flags(&self) -> CapFlags {
         self.flags
     }
+    /// Sets the flags to `flags`.
     pub fn set_flags(&mut self, flags: CapFlags) {
         self.flags = flags;
     }
 
+    /// Rebinds the selector to `sel`.
     pub fn rebind(&mut self, sel: Selector) {
         self.release();
         self.sel = sel;

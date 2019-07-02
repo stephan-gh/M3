@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains the capability abstractions
+
 mod capability;
 
 pub use self::capability::{CapFlags, Selector, Capability};
