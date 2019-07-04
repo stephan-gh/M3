@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains VPE-related abstractions
+
 use arch;
 use boxed::Box;
 use cap::{CapFlags, Capability, Selector};
@@ -36,11 +38,13 @@ use io::Read;
 use vfs::{BufReader, FileRef, OpenFlags, Seek, SeekMode, VFS};
 use vfs::{FileTable, Map, MountTable};
 
+/// Represents a [`VPE`] group that is used by the kernel for gang scheduling.
 pub struct VPEGroup {
     cap: Capability,
 }
 
 impl VPEGroup {
+    /// Creates a new VPE group.
     pub fn new() -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
 
@@ -50,30 +54,35 @@ impl VPEGroup {
         })
     }
 
+    /// Returns the Capability selector of the VPE group.
     pub fn sel(&self) -> Selector {
         self.cap.sel()
     }
 }
 
+/// Represents kernel memory
 pub struct KMem {
     cap: Capability,
 }
 
 impl KMem {
-    pub fn new(sel: Selector) -> Self {
+    pub(crate) fn new(sel: Selector) -> Self {
         KMem {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
         }
     }
 
+    /// Returns the capability selector.
     pub fn sel(&self) -> Selector {
         self.cap.sel()
     }
 
+    /// Returns the remaining quota of the kernel memory.
     pub fn quota(&self) -> Result<usize, Error> {
         syscalls::kmem_quota(self.sel())
     }
 
+    /// Creates a new kernel memory object and transfers `quota` to the new object.
     pub fn derive(&self, quota: usize) -> Result<Rc<Self>, Error> {
         let sel = VPE::cur().alloc_sel();
 
@@ -84,6 +93,7 @@ impl KMem {
     }
 }
 
+/// A virtual processing element is used to run an activity on a PE.
 pub struct VPE {
     cap: Capability,
     pe: PEDesc,
@@ -98,6 +108,7 @@ pub struct VPE {
     mounts: MountTable,
 }
 
+/// The arguments for [`VPE`] creations.
 pub struct VPEArgs<'n, 'p> {
     name: &'n str,
     pager: Option<&'p str>,
@@ -108,12 +119,20 @@ pub struct VPEArgs<'n, 'p> {
     rmng: Option<ResMng>,
 }
 
+/// The mapper trait is used to map the memory of an activity before running it.
 pub trait Mapper {
+    /// Maps the given file to `virt`..`virt`+`len` with given permissions.
     fn map_file<'l>(&mut self, pager: Option<&'l Pager>, file: &mut BufReader<FileRef>, foff: usize,
                     virt: goff, len: usize, perm: kif::Perm) -> Result<bool, Error>;
+
+    /// Maps anonymous memory to `virt`..`virt`+`len` with given permissions.
     fn map_anon<'l>(&mut self, pager: Option<&'l Pager>,
                     virt: goff, len: usize, perm: kif::Perm) -> Result<bool, Error>;
 
+    /// Initializes the memory at `virt`..`memsize` by loading `fsize` bytes from the given file at
+    /// `foff` and zero'ing the remaining space.
+    ///
+    /// The argument `buf` can be used as a buffer and `mem` refers to the address space of the VPE.
     fn init_mem(&self, buf: &mut [u8], mem: &MemGate,
                 file: &mut BufReader<FileRef>, foff: usize, fsize: usize,
                 virt: goff, memsize: usize) -> Result<(), Error> {
@@ -131,12 +150,15 @@ pub trait Mapper {
             segoff += amount;
         }
 
-        self.clear_mem(buf, mem, (memsize - fsize) as usize, segoff)
+        self.clear_mem(buf, mem, segoff, (memsize - fsize) as usize)
     }
 
+    /// Overwrites `virt`..`virt`+`len` with zeros in the address space given by `mem`.
+    ///
+    /// The argument `buf` can be used as a buffer.
     fn clear_mem(&self, buf: &mut [u8], mem: &MemGate,
-                 mut count: usize, mut dst: usize) -> Result<(), Error> {
-        if count == 0 {
+                 mut virt: usize, mut len: usize) -> Result<(), Error> {
+        if len == 0 {
             return Ok(())
         }
 
@@ -144,22 +166,24 @@ pub trait Mapper {
             buf[i] = 0;
         }
 
-        while count > 0 {
-            let amount = util::min(count, buf.len());
-            mem.write(&buf[0..amount], dst as goff)?;
-            count -= amount;
-            dst += amount;
+        while len > 0 {
+            let amount = util::min(len, buf.len());
+            mem.write(&buf[0..amount], virt as goff)?;
+            len -= amount;
+            virt += amount;
         }
 
         Ok(())
     }
 }
 
+/// The default implementation of the [`Mapper`] trait.
 pub struct DefaultMapper {
     has_virtmem: bool,
 }
 
 impl DefaultMapper {
+    /// Creates a new `DefaultMapper`.
     pub fn new(has_virtmem: bool) -> Self {
         DefaultMapper {
             has_virtmem: has_virtmem,
@@ -196,33 +220,42 @@ impl Mapper for DefaultMapper {
     }
 }
 
+/// Represents an activity that is run on a [`VPE`].
 pub trait Activity {
+    /// Returns a reference to the VPE.
     fn vpe(&self) -> &VPE;
+    /// Returns a mutable reference to the VPE.
     fn vpe_mut(&mut self) -> &mut VPE;
 
+    /// Starts the activity.
     fn start(&self) -> Result<(), Error> {
         syscalls::vpe_ctrl(self.vpe().sel(), kif::syscalls::VPEOp::START, 0).map(|_| ())
     }
 
+    /// Stops the activity.
     fn stop(&self) -> Result<(), Error> {
         syscalls::vpe_ctrl(self.vpe().sel(), kif::syscalls::VPEOp::STOP, 0).map(|_| ())
     }
 
+    /// Waits until the activity exits and returns the error code.
     fn wait(&self) -> Result<i32, Error> {
         syscalls::vpe_wait(&[self.vpe().sel()], 0).map(|r| r.1)
     }
 
+    /// Starts an asynchronous wait for the activity, using the given event for the upcall.
     fn wait_async(&self, event: u64) -> Result<i32, Error> {
         syscalls::vpe_wait(&[self.vpe().sel()], event).map(|r| r.1)
     }
 }
 
+/// The activity for [`VPE::run`].
 pub struct ClosureActivity {
     vpe: VPE,
     _closure: env::Closure,
 }
 
 impl ClosureActivity {
+    /// Creates a new `ClosureActivity` for the given VPE and closure.
     pub fn new(vpe: VPE, closure: env::Closure) -> ClosureActivity {
         ClosureActivity {
             vpe: vpe,
@@ -249,12 +282,14 @@ impl Drop for ClosureActivity {
     }
 }
 
+/// The activity for [`VPE::exec`].
 pub struct ExecActivity {
     vpe: VPE,
     _file: BufReader<FileRef>,
 }
 
 impl ExecActivity {
+    /// Creates a new `ExecActivity` for the given VPE and executable.
     pub fn new(vpe: VPE, file: BufReader<FileRef>) -> ExecActivity {
         ExecActivity {
             vpe: vpe,
@@ -282,6 +317,7 @@ impl Drop for ExecActivity {
 }
 
 impl<'n, 'p> VPEArgs<'n, 'p> {
+    /// Creates a new instance of `VPEArgs` using default settings.
     pub fn new(name: &'n str) -> VPEArgs<'n, 'p> {
         VPEArgs {
             name: name,
@@ -294,31 +330,40 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
         }
     }
 
+    /// Sets the resource manager to `rmng`. Otherwise and by default, the resource manager of the
+    /// current VPE will be cloned.
     pub fn resmng(mut self, rmng: ResMng) -> Self {
         self.rmng = Some(rmng);
         self
     }
 
+    /// Sets the description of the PE the VPE should be assigned to. By default, the description
+    /// of current VPE's PE will be used.
     pub fn pe(mut self, pe: PEDesc) -> Self {
         self.pe = pe;
         self
     }
 
+    /// Sets the name of the pager service. By default, the current pager will be cloned.
     pub fn pager(mut self, pager: &'p str) -> Self {
         self.pager = Some(pager);
         self
     }
 
+    /// Sets whether the assigned PE for the VPE can be shared with other VPEs.
     pub fn muxable(mut self, muxable: bool) -> Self {
         self.muxable = muxable;
         self
     }
 
+    /// Sets the VPE group. By default, the VPE has no group.
     pub fn group(mut self, group: VPEGroup) -> Self {
         self.group = Some(group);
         self
     }
 
+    /// Sets the kernel memory to use for the VPE. By default, the kernel memory of the current VPE
+    /// will be used.
     pub fn kmem(mut self, kmem: Rc<KMem>) -> Self {
         self.kmem = Some(kmem);
         self
@@ -363,6 +408,7 @@ impl VPE {
         self.files = env.load_fds();
     }
 
+    /// Returns the currently running `VPE`.
     pub fn cur() -> &'static mut VPE {
         if arch::env::get().has_vpe() {
             arch::env::get().vpe()
@@ -372,10 +418,14 @@ impl VPE {
         }
     }
 
+    /// Creates a new `VPE` with given name and default settings. The VPE provides access to the
+    /// assigned PE and allows to run an activity on the PE.
     pub fn new(name: &str) -> Result<Self, Error> {
         Self::new_with(VPEArgs::new(name))
     }
 
+    /// Creates a new `VPE` with given arguments. The VPE provides access to the assigned PE and
+    /// allows to run an activity on the PE.
     pub fn new_with(args: VPEArgs) -> Result<Self, Error> {
         let sels = VPE::cur().alloc_sels(kif::FIRST_FREE_SEL);
 
@@ -466,21 +516,28 @@ impl VPE {
         Ok(vpe)
     }
 
+    /// Returns the capability selector.
     pub fn sel(&self) -> Selector {
         self.cap.sel()
     }
+    /// Returns the description of the PE the VPE has been assigned to.
     pub fn pe(&self) -> PEDesc {
         self.pe
     }
+    /// Returns the id of the PE the VPE has been assigned to.
     pub fn pe_id(&self) -> u64 {
         arch::env::get().pe_id()
     }
+    /// Returns the `MemGate` that refers to the VPE's address space.
     pub fn mem(&self) -> &MemGate {
         &self.mem
     }
+
+    /// Returns the capability selector for the endpoint with id `ep`.
     pub fn ep_sel(&self, ep: EpId) -> Selector {
         self.sel() + kif::FIRST_EP_SEL + (ep - FIRST_FREE_EP) as Selector
     }
+    /// Returns the endpoint id for the given capability selector.
     pub fn sel_ep(&self, sel: Selector) -> EpId {
         (sel - kif::FIRST_EP_SEL) as EpId + FIRST_FREE_EP
     }
@@ -489,31 +546,40 @@ impl VPE {
         &mut self.rbufs
     }
 
+    /// Returns a mutable reference to the file table of this VPE.
     pub fn files(&mut self) -> &mut FileTable {
         &mut self.files
     }
+    /// Returns a mutable reference to the mount table of this VPE.
     pub fn mounts(&mut self) -> &mut MountTable {
         &mut self.mounts
     }
 
+    /// Returns a reference to the VPE's kernel memory.
     pub fn kmem(&self) -> &Rc<KMem> {
         &self.kmem
     }
+    /// Returns a reference to the VPE's resource manager.
     pub fn resmng(&self) -> &ResMng {
         &self.rmng
     }
+    /// Returns a reference to the VPE's pager.
     pub fn pager(&self) -> Option<&Pager> {
         self.pager.as_ref()
     }
 
+    /// Allocates a new capability selector and returns it.
     pub fn alloc_sel(&mut self) -> Selector {
         self.alloc_sels(1)
     }
+    /// Allocates `count` new and contiguous capability selectors and returns the first one.
     pub fn alloc_sels(&mut self, count: u32) -> Selector {
         self.next_sel += count;
         self.next_sel - count
     }
 
+    /// Allocates and reserves an endpoint, so that it will be no longer considered by the [`EpMux`]
+    /// for endpoint multiplexing.
     pub fn alloc_ep(&mut self) -> Result<EpId, Error> {
         for ep in FIRST_FREE_EP..EP_COUNT {
             if self.is_ep_free(ep) {
@@ -530,52 +596,71 @@ impl VPE {
         Err(Error::new(Code::NoSpace))
     }
 
+    /// Returns true if the given endpoint is still free, that is, not reserved.
     pub fn is_ep_free(&self, ep: EpId) -> bool {
         ep >= FIRST_FREE_EP && (self.eps & (1 << ep)) == 0
     }
 
+    /// Free's the given endpoint, assuming that it has been allocated via [`VPE::alloc_ep`].
     pub fn free_ep(&mut self, ep: EpId) {
         self.eps &= !(1 << ep);
     }
 
+    /// Allocates `size` bytes from the VPE's receive buffer space and returns the address.
     pub fn alloc_rbuf(&mut self, size: usize) -> Result<usize, Error> {
         self.rbufs.alloc(&self.pe, size)
     }
+    /// Free's the area at `addr` of `size` bytes that had been allocated via [`VPE::alloc_rbuf`].
     pub fn free_rbuf(&mut self, addr: usize, size: usize) {
         self.rbufs.free(addr, size)
     }
 
+    /// Delegates the object capability with selector `sel` of [`VPE::cur`] to `self`.
     pub fn delegate_obj(&mut self, sel: Selector) -> Result<(), Error> {
         self.delegate(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
+    /// Delegates the given capability range of [`VPE::cur`] to `self`.
     pub fn delegate(&mut self, crd: CapRngDesc) -> Result<(), Error> {
         let start = crd.start();
         self.delegate_to(crd, start)
     }
+    /// Delegates the given capability range of [`VPE::cur`] to `self` using selectors
+    /// `dst`..`dst`+`crd.count()`.
     pub fn delegate_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         syscalls::exchange(self.sel(), crd, dst, false)?;
         self.next_sel = util::max(self.next_sel, dst + crd.count());
         Ok(())
     }
 
+    /// Obtains the object capability with selector `sel` from `self` to [`VPE::cur`].
     pub fn obtain_obj(&mut self, sel: Selector) -> Result<Selector, Error> {
         self.obtain(CapRngDesc::new(CapType::OBJECT, sel, 1))
     }
+    /// Obtains the given capability range of `self` to [`VPE::cur`].
     pub fn obtain(&mut self, crd: CapRngDesc) -> Result<Selector, Error> {
         let count = crd.count();
         let start = VPE::cur().alloc_sels(count);
         self.obtain_to(crd, start).map(|_| start)
     }
-
+    /// Obtains the given capability range of `self` to [`VPE::cur`] using selectors
+    /// `dst`..`dst`+`crd.count()`.
     pub fn obtain_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         let own = CapRngDesc::new(crd.cap_type(), dst, crd.count());
         syscalls::exchange(self.sel(), own, crd.start(), true)
     }
 
+    /// Revokes the given capability range from `self`.
+    ///
+    /// If `del_only` is true, only the delegations are revoked, that is, the capability is not
+    /// revoked from `self`.
     pub fn revoke(&mut self, crd: CapRngDesc, del_only: bool) -> Result<(), Error> {
         syscalls::revoke(self.sel(), crd, !del_only)
     }
 
+    /// Performs the required capability exchanges to pass the files set for `self` to the VPE.
+    ///
+    /// Before calling this method, you should adjust the file table of `self` via [`VPE::files`]
+    /// by copying files from [`VPE::cur`].
     pub fn obtain_fds(&mut self) -> Result<(), Error> {
         // TODO that's really bad. but how to improve that? :/
         let mut dels = Vec::new();
@@ -585,6 +670,10 @@ impl VPE {
         }
         Ok(())
     }
+    /// Performs the required capability exchanges to pass the mounts set for `self` to the VPE.
+    ///
+    /// Before calling this method, you should adjust the mount table of `self` via [`VPE::mounts`]
+    /// by copying mounts from [`VPE::cur`].
     pub fn obtain_mounts(&mut self) -> Result<(), Error> {
         let mut dels = Vec::new();
         self.mounts.collect_caps(self.sel(), &mut dels, &mut self.next_sel)?;
@@ -594,6 +683,11 @@ impl VPE {
         Ok(())
     }
 
+    /// Clones the program running on [`VPE::cur`] to `self` and lets `self` execute the given
+    /// function.
+    ///
+    /// The method returns the `ClosureActivity` on success that can be used to wait for the
+    /// functions completeness or to stop it.
     #[cfg(target_os = "none")]
     pub fn run<F>(mut self, func: Box<F>) -> Result<ClosureActivity, Error>
                   where F: FnOnce() -> i32, F: Send + 'static {
@@ -649,6 +743,11 @@ impl VPE {
         act.start().map(|_| act)
     }
 
+    /// Clones the program running on [`VPE::cur`] to `self` and lets `self` execute the given
+    /// function.
+    ///
+    /// The method returns the `ClosureActivity` on success that can be used to wait for the
+    /// functions completeness or to stop it.
     #[cfg(target_os = "linux")]
     pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
                   where F: FnOnce() -> i32, F: Send + 'static {
@@ -694,12 +793,21 @@ impl VPE {
         }
     }
 
+    /// Executes the given program and arguments on `self`.
+    ///
+    /// The method returns the `ExecActivity` on success that can be used to wait for the
+    /// program completeness or to stop it.
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<ExecActivity, Error> {
         let file = VFS::open(args[0].as_ref(), OpenFlags::RX)?;
         let mut mapper = DefaultMapper::new(self.pe.has_virtmem());
         self.exec_file(&mut mapper, file, args)
     }
 
+    /// Executes the program given as a [`FileRef`] on `self`, using `mapper` to initiate the
+    /// address space and `args` as the arguments.
+    ///
+    /// The method returns the `ExecActivity` on success that can be used to wait for the
+    /// program completeness or to stop it.
     #[cfg(target_os = "none")]
     #[allow(unused_mut)]
     pub fn exec_file<S: AsRef<str>>(mut self, mapper: &mut dyn Mapper,
@@ -772,6 +880,11 @@ impl VPE {
         act.start().map(|_| act)
     }
 
+    /// Executes the program given as a [`FileRef`] on `self`, using `mapper` to initiate the
+    /// address space and `args` as the arguments.
+    ///
+    /// The method returns the `ExecActivity` on success that can be used to wait for the
+    /// program completeness or to stop it.
     #[cfg(target_os = "linux")]
     pub fn exec_file<S: AsRef<str>>(self, _mapper: &dyn Mapper,
                                     mut file: FileRef, args: &[S]) -> Result<ExecActivity, Error> {
@@ -843,12 +956,12 @@ impl fmt::Debug for VPE {
     }
 }
 
-pub fn init() {
+pub(crate) fn init() {
     CUR.set(Some(VPE::new_cur()));
     VPE::cur().init();
 }
 
-pub fn reinit() {
+pub(crate) fn reinit() {
     VPE::cur().cap.set_flags(CapFlags::KEEP_CAP);
     VPE::cur().cap = Capability::new(0, CapFlags::KEEP_CAP);
     VPE::cur().mem = MemGate::new_bind(1);
