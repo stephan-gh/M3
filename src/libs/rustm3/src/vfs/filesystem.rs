@@ -23,6 +23,7 @@ use errors::Error;
 use vfs::{OpenFlags, FileHandle, FileInfo, FileMode};
 
 int_enum! {
+    /// The file system operations.
     pub struct FSOperation : u64 {
         const STAT          = 0x6;
         const MKDIR         = 0x7;
@@ -34,24 +35,39 @@ int_enum! {
     }
 }
 
+/// Trait for file systems.
 pub trait FileSystem : fmt::Debug {
+    /// Returns an [`Any`] reference to downcast to the actual implementation of `FileSystem`.
     fn as_any(&self) -> &dyn Any;
 
+    /// Opens the file at `path` with given flags.
     fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error>;
 
+    /// Retrieves the file information for the file at `path`.
     fn stat(&self, path: &str) -> Result<FileInfo, Error>;
 
+    /// Creates a new directory with given permissions at `path`.
     fn mkdir(&self, path: &str, mode: FileMode) -> Result<(), Error>;
+    /// Removes the directory at `path`, if it is empty.
     fn rmdir(&self, path: &str) -> Result<(), Error>;
 
+    /// Links `new_path` to `old_path`.
     fn link(&self, old_path: &str, new_path: &str) -> Result<(), Error>;
+    /// Removes the file at `path`.
     fn unlink(&self, path: &str) -> Result<(), Error>;
 
+    /// Returns the type of the file system implementation used for serialization.
     fn fs_type(&self) -> u8;
+    /// Exchanges the capabilities to provide `vpe` access to the file system.
     fn exchange_caps(&self, vpe: Selector,
                             dels: &mut Vec<Selector>,
                             max_sel: &mut Selector) -> Result<(), Error>;
+    /// Serializes this file system into `s`.
     fn serialize(&self, s: &mut VecSink);
 
+    /// Delegates the given endpoint capabilities to this file system.
+    ///
+    /// These endpoints will afterwards be used for files that are opened with [`OpenFlags::NOSESS`],
+    /// which are less expensive to open/close.
     fn delegate_eps(&self, first: Selector, count: u32) -> Result<(), Error>;
 }

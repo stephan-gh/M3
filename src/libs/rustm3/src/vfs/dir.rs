@@ -21,6 +21,7 @@ use io::{read_object, Read};
 use util;
 use vfs::{BufReader, FileRef, INodeId, OpenFlags, Seek, SeekMode, VFS};
 
+/// Represents a directory entry.
 #[derive(Debug)]
 pub struct DirEntry {
     inode: INodeId,
@@ -28,6 +29,7 @@ pub struct DirEntry {
 }
 
 impl DirEntry {
+    /// Creates a new directory entry with given inode number and name.
     pub fn new(inode: INodeId, name: String) -> Self {
         DirEntry {
             inode: inode,
@@ -35,15 +37,18 @@ impl DirEntry {
         }
     }
 
+    /// Returns the inode number
     pub fn inode(&self) -> INodeId {
         self.inode
     }
 
+    /// Returns the file name.
     pub fn file_name(&self) -> &str {
         &self.name
     }
 }
 
+/// An iterator to walk over a directory.
 pub struct ReadDir {
     reader: BufReader<FileRef>,
 }
@@ -86,6 +91,7 @@ impl iter::Iterator for ReadDir {
     }
 }
 
+/// Returns an iterator for entries in the directory at `path`.
 pub fn read_dir(path: &str) -> Result<ReadDir, Error> {
     let dir = VFS::open(path, OpenFlags::R)?;
     Ok(ReadDir {

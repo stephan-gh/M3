@@ -27,6 +27,7 @@ use session::Pager;
 use vfs::{BlockId, DevId, Fd, INodeId, FileMode};
 
 int_enum! {
+    /// The different seek modes.
     pub struct SeekMode : u32 {
         const SET       = 0x0;
         const CUR       = 0x1;
@@ -35,22 +36,38 @@ int_enum! {
 }
 
 bitflags! {
+    /// The flags to open files.
     pub struct OpenFlags : u32 {
+        /// Opens the file for reading.
         const R         = 0b00000001;
+        /// Opens the file for writing.
         const W         = 0b00000010;
+        /// Opens the file for code execution.
         const X         = 0b00000100;
+        /// Truncates the file on open.
         const TRUNC     = 0b00001000;
+        /// Appends to the file.
         const APPEND    = 0b00010000;
+        /// Creates the file if it doesn't exist.
         const CREATE    = 0b00100000;
+        /// For benchmarking: only pretend to access the file's data.
         const NODATA    = 0b01000000;
+        /// Do not create a file session, but store the file in the metadata session.
+        ///
+        /// Setting this flag improves the performance of [`VFS::open`] and [`VFS::close`], but
+        /// does not allow to delegate the "file capability" to another VPE.
         const NOSESS    = 0b10000000;
 
+        /// Opens the file for reading and writing.
         const RW        = Self::R.bits | Self::W.bits;
+        /// Opens the file for reading and code execution.
         const RX        = Self::R.bits | Self::X.bits;
+        /// Opens the file for reading, writing, and code execution.
         const RWX       = Self::R.bits | Self::W.bits | Self::X.bits;
     }
 }
 
+/// The file information that can be retrieved via `VFS::stat`.
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C, packed)]
 pub struct FileInfo {
@@ -96,28 +113,50 @@ impl Unmarshallable for FileInfo {
     }
 }
 
+/// Trait for files.
+///
+/// All files can be read, written, seeked and mapped into memory.
 pub trait File : Read + Write + Seek + Map + Debug {
+    /// Returns the file descriptor.
     fn fd(&self) -> Fd;
+    /// Sets the file descriptor.
     fn set_fd(&mut self, fd: Fd);
 
+    /// Evicts the file to be able to use it's memory endpoint for a different file.
+    ///
+    /// This is only used for file multiplexing.
     fn evict(&mut self);
 
+    /// Closes the file.
     fn close(&mut self);
 
+    /// Retrieves the file information.
     fn stat(&self) -> Result<FileInfo, Error>;
 
+    /// Returns the type of the file implementation used for serialization.
     fn file_type(&self) -> u8;
+    /// Exchanges the capabilities to provide `vpe` access to the file.
     fn exchange_caps(&self, vpe: Selector,
                             dels: &mut Vec<Selector>,
                             max_sel: &mut Selector) -> Result<(), Error>;
+    /// Serializes this file into `s`.
     fn serialize(&self, s: &mut VecSink);
 }
 
+/// Trait for resources that are seekable.
 pub trait Seek {
+    /// Seeks to position `off`, using the given seek mode.
+    ///
+    /// If `whence` == SeekMode::SET, the position is set to `off`.
+    /// If `whence` == SeekMode::CUR, the position is increased by `off`.
+    /// If `whence` == SeekMode::END, the position is set to the end of the file.
     fn seek(&mut self, off: usize, whence: SeekMode) -> Result<usize, Error>;
 }
 
+/// Trait for resources that can be mapped into the virtual address space.
 pub trait Map {
+    /// Maps the region `off`..`off`+`len` of this file at address `virt` using the given pager and
+    /// permissions.
     fn map(&self, pager: &Pager, virt: goff,
            off: usize, len: usize, prot: kif::Perm) -> Result<(), Error>;
 }

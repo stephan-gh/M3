@@ -21,6 +21,7 @@ use io::{Read, Write};
 use util;
 use vfs::{SeekMode, Seek};
 
+/// A reader implementation with an internal buffer.
 pub struct BufReader<R : Read> {
     reader: R,
     buf: Vec<u8>,
@@ -29,10 +30,12 @@ pub struct BufReader<R : Read> {
 }
 
 impl<R : Read> BufReader<R> {
+    /// Creates a new `BufReader` with the given reader.
     pub fn new(reader: R) -> Self {
         Self::with_capacity(reader, 512)
     }
 
+    /// Creates a new `BufReader` with the given reader, using a buffer with `cap` bytes.
     pub fn with_capacity(reader: R, cap: usize) -> Self {
         let mut br = BufReader {
             reader: reader,
@@ -44,14 +47,16 @@ impl<R : Read> BufReader<R> {
         br
     }
 
+    /// Returns a reference to the internal reader.
     pub fn get_ref(&self) -> &R {
         &self.reader
     }
-
+    /// Returns a mutable reference to the internal reader.
     pub fn get_mut(&mut self) -> &mut R {
         &mut self.reader
     }
 
+    /// Reads a line from the reader, appends it to `s`, and returns the number of read bytes.
     pub fn read_line(&mut self, s: &mut String) -> Result<usize, Error> {
         let mut total = 0;
         loop {
@@ -108,6 +113,7 @@ impl<R: Read + fmt::Debug> fmt::Debug for BufReader<R> {
     }
 }
 
+/// A writer implementation with an internal buffer.
 pub struct BufWriter<W : Write> {
     writer: W,
     buf: Vec<u8>,
@@ -115,10 +121,12 @@ pub struct BufWriter<W : Write> {
 }
 
 impl<W : Write> BufWriter<W> {
+    /// Creates a new `BufWriter` with the given writer.
     pub fn new(writer: W) -> Self {
         Self::with_capacity(writer, 512)
     }
 
+    /// Creates a new `BufWriter` with the given writer and a buffer with `cap` bytes.
     pub fn with_capacity(writer: W, cap: usize) -> Self {
         let mut br = BufWriter {
             writer: writer,
@@ -129,10 +137,11 @@ impl<W : Write> BufWriter<W> {
         br
     }
 
+    /// Returns a reference to the internal writer.
     pub fn get_ref(&self) -> &W {
         &self.writer
     }
-
+    /// Returns a mutable reference to the internal writer.
     pub fn get_mut(&mut self) -> &mut W {
         &mut self.writer
     }

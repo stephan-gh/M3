@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+//! The virtual file system.
+
 mod bufio;
 mod dir;
 mod file;
@@ -25,9 +27,13 @@ mod indirpipe;
 mod mounttable;
 mod vfs;
 
+/// File permissions.
 pub type FileMode = u16;
+/// A device ID
 pub type DevId = u8;
+/// An inode ID
 pub type INodeId = u32;
+/// A block ID
 pub type BlockId = u32;
 
 pub use self::bufio::{BufReader, BufWriter};
@@ -45,6 +51,6 @@ pub mod VFS {
     pub use vfs::vfs::*;
 }
 
-pub fn deinit() {
+pub(crate) fn deinit() {
     filetable::deinit();
 }

@@ -27,11 +27,15 @@ use serialize::Sink;
 use vfs::{File, FileRef, GenericFile};
 use vpe::VPE;
 
+/// A file descriptor
 pub type Fd = usize;
 
-const MAX_EPS: usize        = 4;
+/// The maximum number of endpoints that can be dedicated to files.
+pub const MAX_EPS: usize    = 4;
+/// The maximum number of files per [`FileTable`].
 pub const MAX_FILES: usize  = 32;
 
+/// A reference to a file.
 pub type FileHandle = Rc<RefCell<dyn File>>;
 
 struct FileEP {
@@ -39,6 +43,7 @@ struct FileEP {
     ep: EpId,
 }
 
+/// The table of open files.
 #[derive(Default)]
 pub struct FileTable {
     file_ep_victim: usize,
@@ -48,10 +53,12 @@ pub struct FileTable {
 }
 
 impl FileTable {
+    /// Adds the given file to this file table by allocating a new slot in the table.
     pub fn add(&mut self, file: FileHandle) -> Result<FileRef, Error> {
         self.alloc(file.clone()).map(|fd| FileRef::new(file, fd))
     }
 
+    /// Allocates a new slot in the file table and returns its file descriptor.
     pub fn alloc(&mut self, file: FileHandle) -> Result<Fd, Error> {
         for fd in 0..MAX_FILES {
             if self.files[fd].is_none() {
@@ -62,6 +69,7 @@ impl FileTable {
         Err(Error::new(Code::NoSpace))
     }
 
+    /// Returns the file with given file descriptor.
     pub fn get(&self, fd: Fd) -> Option<FileHandle> {
         match self.files[fd] {
             Some(ref f) => Some(f.clone()),
@@ -69,13 +77,17 @@ impl FileTable {
         }
     }
 
+    /// Adds the given file to the table using the file descriptor `fd`, assuming that the file
+    /// descriptor is not yet in use.
     pub fn set(&mut self, fd: Fd, file: FileHandle) {
+        assert!(self.files[fd].is_none());
         if file.borrow().fd() == MAX_FILES {
             file.borrow_mut().set_fd(fd);
         }
         self.files[fd] = Some(file);
     }
 
+    /// Removes the file with given file descriptor from the table.
     pub fn remove(&mut self, fd: Fd) {
         let find_file_ep = |files: &[Option<FileEP>], fd| -> Option<usize> {
             for i in 0..MAX_EPS {
@@ -199,7 +211,7 @@ impl fmt::Debug for FileTable {
     }
 }
 
-pub fn deinit() {
+pub(crate) fn deinit() {
     let ft = VPE::cur().files();
     for fd in 0..MAX_FILES {
         ft.remove(fd);

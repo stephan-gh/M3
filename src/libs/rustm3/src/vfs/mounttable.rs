@@ -25,14 +25,17 @@ use serialize::Sink;
 use session::M3FS;
 use vfs::FileSystem;
 
+/// A reference to a file system.
 pub type FSHandle = Rc<RefCell<dyn FileSystem>>;
 
+/// Represents a mount point
 pub struct MountPoint {
     path: String,
     fs: FSHandle,
 }
 
 impl MountPoint {
+    /// Creates a new mount point for given path and file system.
     pub fn new(path: &str, fs: FSHandle) -> MountPoint {
         MountPoint {
             path: path.to_string(),
@@ -41,12 +44,14 @@ impl MountPoint {
     }
 }
 
+/// The table of mount points.
 #[derive(Default)]
 pub struct MountTable {
     mounts: Vec<MountPoint>,
 }
 
 impl MountTable {
+    /// Adds a new mount point at given path and given file system to the table.
     pub fn add(&mut self, path: &str, fs: FSHandle) -> Result<(), Error> {
         if self.path_to_idx(path).is_some() {
             return Err(Error::new(Code::Exists))
@@ -57,12 +62,14 @@ impl MountTable {
         Ok(())
     }
 
+    /// Returns the file system mounted exactly at the given path.
     pub fn get_by_path(&self, path: &str) -> Option<FSHandle> {
         match self.path_to_idx(path) {
             Some(i) => Some(self.mounts[i].fs.clone()),
             None    => None,
         }
     }
+    /// Returns the mount point with index `mid`.
     pub fn get_by_index(&self, mid: usize) -> Option<FSHandle> {
         match self.mounts.get(mid) {
             Some(mp) => Some(mp.fs.clone()),
@@ -70,6 +77,7 @@ impl MountTable {
         }
     }
 
+    /// Returns the index of the mount point with given file system.
     pub fn index_of(&self, fs: &FSHandle) -> Option<usize> {
         for (i, m) in self.mounts.iter().enumerate() {
             if Rc::ptr_eq(&m.fs, fs) {
@@ -79,6 +87,8 @@ impl MountTable {
         None
     }
 
+    /// Resolves the given path to the file system image and the offset of the mount point within
+    /// the path.
     pub fn resolve(&self, path: &str) -> Result<(FSHandle, usize), Error> {
         for m in &self.mounts {
             if path.starts_with(m.path.as_str()) {
@@ -88,6 +98,7 @@ impl MountTable {
         Err(Error::new(Code::NoSuchFile))
     }
 
+    /// Removes the mount point at `path` from the table.
     pub fn remove(&mut self, path: &str) -> Result<(), Error> {
         match self.path_to_idx(path) {
             Some(i) => {

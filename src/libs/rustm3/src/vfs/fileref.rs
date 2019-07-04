@@ -25,6 +25,7 @@ use vfs::filetable::Fd;
 use vfs::{FileHandle, Map, Seek, SeekMode};
 use vpe::VPE;
 
+/// A reference to an open file that is closed on drop.
 #[derive(Clone)]
 pub struct FileRef {
     file: FileHandle,
@@ -32,6 +33,7 @@ pub struct FileRef {
 }
 
 impl FileRef {
+    /// Creates new file reference for given file and file descriptor.
     pub fn new(file: FileHandle, fd: Fd) -> Self {
         FileRef {
             file: file,
@@ -39,9 +41,11 @@ impl FileRef {
         }
     }
 
+    /// Returns the file descriptor.
     pub fn fd(&self) -> Fd {
         self.fd
     }
+    /// Returns the file.
     pub fn handle(&self) -> FileHandle {
         self.file.clone()
     }

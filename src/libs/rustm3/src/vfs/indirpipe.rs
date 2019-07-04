@@ -21,6 +21,7 @@ use session::{Pipes, Pipe};
 use vfs::Fd;
 use vpe::VPE;
 
+/// A uni-directional channel between potentially multiple readers and writers.
 pub struct IndirectPipe {
     _pipe: Rc<Pipe>,
     rd_fd: Fd,
@@ -28,6 +29,8 @@ pub struct IndirectPipe {
 }
 
 impl IndirectPipe {
+    /// Creates a new pipe at pipe service `pipes` using `mem` as the shared memory of `mem_size`
+    /// bytes.
     pub fn new(pipes: &Pipes, mem: &MemGate, mem_size: usize) -> Result<Self, Error> {
         let pipe = Rc::new(pipes.create_pipe(mem, mem_size)?);
         Ok(IndirectPipe {
@@ -37,18 +40,22 @@ impl IndirectPipe {
         })
     }
 
+    /// Returns the file descriptor of the reading side.
     pub fn reader_fd(&self) -> Fd {
         self.rd_fd
     }
 
+    /// Closes the reading side.
     pub fn close_reader(&self) {
         VPE::cur().files().remove(self.rd_fd);
     }
 
+    /// Returns the file descriptor of the writing side.
     pub fn writer_fd(&self) -> Fd {
         self.wr_fd
     }
 
+    /// Closes the writing side.
     pub fn close_writer(&self) {
         VPE::cur().files().remove(self.wr_fd);
     }

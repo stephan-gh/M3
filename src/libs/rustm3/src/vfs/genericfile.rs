@@ -35,6 +35,7 @@ use vfs::{
 use vpe::VPE;
 
 int_enum! {
+    /// The operations for [`GenericFile`].
     pub struct GenFileOp : u64 {
         const STAT      = 0;
         const SEEK      = 1;
@@ -45,6 +46,10 @@ int_enum! {
     }
 }
 
+/// A file implementation for all file-like objects.
+///
+/// `GenericFile` implements the file protocol and can therefore be used for m3fs files, pipes,
+/// virtual terminals, and whatever else provides file-like objects in the future.
 pub struct GenericFile {
     id: usize,
     fd: Fd,
