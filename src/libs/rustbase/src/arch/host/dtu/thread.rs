@@ -57,19 +57,17 @@ fn buffer() -> &'static mut Buffer {
     BUFFER.get_mut()
 }
 
-macro_rules! log_impl {
-    ($($args:tt)*) => ({
+macro_rules! log_dtu {
+    ($fmt:expr)              => (log_dtu!(@log_impl concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (log_dtu!(@log_impl concat!($fmt, "\n"), $($arg)*));
+
+    (@log_impl $($args:tt)*) => ({
         if $crate::io::log::DTU {
             #[allow(unused_imports)]
             use $crate::io::Write;
             $crate::arch::dtu::thread::log().write_fmt(format_args!($($args)*)).unwrap();
         }
-    })
-}
-
-macro_rules! log_dtu {
-    ($fmt:expr)              => (log_impl!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (log_impl!(concat!($fmt, "\n"), $($arg)*));
+    });
 }
 
 fn is_bit_set(mask: Reg, idx: u64) -> bool {

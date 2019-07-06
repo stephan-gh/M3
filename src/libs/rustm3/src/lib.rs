@@ -41,9 +41,7 @@ pub mod com;
 pub use base::{
     // macros
     vec, format,
-    log, log_impl,
-    impl_boxitem,
-    int_enum, __int_enum_impl,
+    log, impl_boxitem, int_enum,
     run_test, run_suite, assert_ok, assert_err, assert_some,
 
     // modules
