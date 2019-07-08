@@ -74,7 +74,8 @@ void WorkLoop::thread_shutdown() {
 
     tm.stop();
 
-    PANIC("Should not get here");
+    // just in case there is no ready thread
+    exit(1);
 }
 
 void WorkLoop::add(WorkItem *item, bool permanent) {

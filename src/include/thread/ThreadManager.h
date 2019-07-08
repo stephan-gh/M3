@@ -97,12 +97,9 @@ public:
     }
 
     void stop() {
-        assert(_sleep.length() > 0 || _ready.length() > 0);
         LLOG(THREAD, "Stopping thread " << _current->id());
         if(_ready.length())
             switch_to(_ready.remove_first());
-        else
-            switch_to(_sleep.remove_first());
     }
 
 private:
