@@ -53,11 +53,11 @@ public:
         });
     };
 
-    const RecvGate &rgate() const {
+    const RecvGate &rgate() const noexcept {
         return _rgate;
     }
 
-    SendGate &sgate() {
+    SendGate &sgate() noexcept {
         return _sgate;
     }
 
@@ -83,7 +83,8 @@ private:
         // just assume there won't be 2^31 previous wait events
         event_t label = bno | (1U << 31);
 
-        Errors::Code e = gate.send(msg.bytes(), msg.total(), label);
+        Errors::Code e = Errors::NONE;
+        gate.send(msg.bytes(), msg.total(), label);
         if(ThreadManager::get().sleeping_count()) {
             ThreadManager::get().wait_for(label);
         }

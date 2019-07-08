@@ -69,8 +69,6 @@ int main() {
     WorkLoop wl;
 
     Server<ArithRequestHandler> srv("arith", &wl, new ArithRequestHandler(&wl));
-    if(Errors::occurred())
-        exitmsg("Unable to register service 'arith'");
 
     wl.run();
     return 0;

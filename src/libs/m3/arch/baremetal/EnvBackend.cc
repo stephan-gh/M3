@@ -79,6 +79,7 @@ public:
 
 EXTERN_C void init_env(Env *e) {
     m3::Heap::init();
+    std::set_terminate(Exception::terminate_handler);
     e->_backend = reinterpret_cast<uint64_t>(new EnvUserBackend());
 }
 

@@ -56,9 +56,8 @@ public:
      * from an endpoint.
      *
      * @param gate the gate
-     * @return the error code
      */
-    Errors::Code switch_to(Gate *gate);
+    void switch_to(Gate *gate);
 
     /**
      * If <gate> is already configured on some endpoint, it exchanges the configuration to use the
@@ -76,17 +75,17 @@ public:
      * @param gate the gate
      * @param invalidate whether to invalidate it, too
      */
-    void remove(Gate *gate, bool invalidate);
+    void remove(Gate *gate, bool invalidate) noexcept;
 
     /**
      * Resets the state of the EP switcher.
      */
-    void reset();
+    void reset() noexcept;
 
 private:
     bool is_in_use(epid_t ep) const;
     epid_t select_victim();
-    Errors::Code activate(epid_t ep, capsel_t newcap);
+    void activate(epid_t ep, capsel_t newcap);
 
     epid_t _next_victim;
     Gate *_gates[EP_COUNT];

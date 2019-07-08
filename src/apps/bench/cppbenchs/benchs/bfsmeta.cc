@@ -31,14 +31,12 @@ NOINLINE static void stat() {
 
     cout << "Stat in root dir: " << pr.run_with_id([] {
         FileInfo info;
-        if(VFS::stat("/large.txt", info) != Errors::NONE)
-            PANIC("stat for /large.txt failed");
+        VFS::stat("/large.txt", info);
     }, 0x80) << "\n";
 
     cout << "Stat in sub dir: " << pr.run_with_id([] {
         FileInfo info;
-        if(VFS::stat("/finddata/dir/dir-1/32.txt", info) != Errors::NONE)
-            PANIC("stat for /finddata/dir/dir-1/32.txt failed");
+        VFS::stat("/finddata/dir/dir-1/32.txt", info);
     }, 0x81) << "\n";
 }
 

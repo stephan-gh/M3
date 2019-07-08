@@ -25,18 +25,20 @@
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
 
-using namespace m3;
+#include <memory>
 
 #include "accelchain.h"
+
+using namespace m3;
 
 static const size_t BUF_SIZE    = 4096;
 static const size_t REPLY_SIZE  = 64;
 
 void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime) {
-    uint8_t *buffer = new uint8_t[BUF_SIZE];
+    std::unique_ptr<uint8_t> buffer(new uint8_t[BUF_SIZE]);
 
-    VPE *vpes[num];
-    InDirAccel *accels[num];
+    std::unique_ptr<VPE> vpes[num];
+    std::unique_ptr<InDirAccel> accels[num];
     InDirAccel::Operation ops[num];
 
     RecvGate reply_gate = RecvGate::create(getnextlog2(REPLY_SIZE * num), nextlog2<REPLY_SIZE>::val);
@@ -47,18 +49,15 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
         OStringStream name;
         name << "chain" << i;
 
-        vpes[i] = new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR)));
-        if(Errors::last != Errors::NONE) {
-            exitmsg("Unable to create VPE for " << name.str());
-            break;
-        }
+        auto args = VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR));
+        vpes[i] = std::unique_ptr<VPE>(new VPE(name.str(), args));
 
-        accels[i] = new InDirAccel(vpes[i], reply_gate);
+        accels[i] = std::unique_ptr<InDirAccel>(new InDirAccel(vpes[i], reply_gate));
     }
 
     // connect outputs
     for(size_t i = 0; i < num - 1; ++i)
-        accels[i]->connect_output(accels[i + 1]);
+        accels[i]->connect_output(accels[i + 1].get());
 
     cycles_t end = 0, start = Time::start(0);
 
@@ -67,17 +66,15 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
         vpes[i]->start();
 
     size_t total = 0, seen = 0;
-    ssize_t count = in->read(buffer, BUF_SIZE);
-    if(count < 0)
-        goto error;
+    size_t count = in->read(buffer.get(), BUF_SIZE);
 
     // label 0 is special; use 1..n
-    accels[0]->write(buffer, static_cast<size_t>(count));
+    accels[0]->write(buffer.get(), count);
     accels[0]->start(InDirAccel::Operation::COMPUTE, static_cast<size_t>(count), comptime, 1);
     ops[0] = InDirAccel::Operation::COMPUTE;
     total += static_cast<size_t>(count);
 
-    count = in->read(buffer, BUF_SIZE);
+    count = in->read(buffer.get(), BUF_SIZE);
 
     while(seen < total) {
         label_t label;
@@ -99,9 +96,9 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
         }
 
         if(label == num - 1) {
-            accels[num - 1]->read(buffer, written);
+            accels[num - 1]->read(buffer.get(), written);
             // cout << "write " << written << " bytes\n";
-            out->write(buffer, written);
+            out->write(buffer.get(), written);
             seen += written;
         }
 
@@ -113,14 +110,12 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
 
             total += static_cast<size_t>(count);
             if(count > 0) {
-                accels[0]->write(buffer, static_cast<size_t>(count));
+                accels[0]->write(buffer.get(), static_cast<size_t>(count));
                 accels[0]->start(InDirAccel::Operation::COMPUTE, static_cast<size_t>(count), comptime, 1);
                 ops[0] = InDirAccel::Operation::COMPUTE;
 
-                count = in->read(buffer, BUF_SIZE);
+                count = in->read(buffer.get(), BUF_SIZE);
                 // cout << "read " << count << " bytes\n";
-                if(count < 0)
-                    goto error;
             }
         }
         else if(label != num - 1) {
@@ -133,11 +128,4 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
 
     end = Time::stop(0);
     cout << "Total time: " << (end - start) << " cycles\n";
-
-error:
-    for(size_t i = 0; i < num; ++i) {
-        delete accels[i];
-        delete vpes[i];
-    }
-    delete[] buffer;
 }

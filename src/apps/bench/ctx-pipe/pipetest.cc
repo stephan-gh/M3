@@ -47,8 +47,6 @@ struct App {
     explicit App(const char *name, const char *pager, bool muxed)
         : name(name),
           vpe(name, VPEArgs().pager(pager).flags(muxed ? VPE::MUXABLE : 0)) {
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create VPE");
     }
 
     const char *name;
@@ -131,9 +129,7 @@ int main(int argc, char **argv) {
         {
             String pgarg = pagr_srv->sel_arg();
             const char *pager_args[] = {"/bin/pager", "-a", "16", "-f", "16", "-s", pgarg.c_str()};
-            Errors::Code res = apps[2]->vpe.exec(ARRAY_SIZE(pager_args), pager_args);
-            if(res != Errors::NONE)
-                PANIC("Cannot execute " << pager_args[0] << ": " << Errors::to_string(res));
+            apps[2]->vpe.exec(ARRAY_SIZE(pager_args), pager_args);
         }
 #endif
 
@@ -154,16 +150,12 @@ int main(int argc, char **argv) {
         // start services
         String pipearg = pipe_srv->sel_arg();
         const char *pipe_args[] = {"/bin/pipes", "-s", pipearg.c_str()};
-        Errors::Code res = apps[0]->vpe.exec(ARRAY_SIZE(pipe_args), pipe_args);
-        if(res != Errors::NONE)
-            PANIC("Cannot execute " << pipe_args[0] << ": " << Errors::to_string(res));
+        apps[0]->vpe.exec(ARRAY_SIZE(pipe_args), pipe_args);
 
         if(apps[1]) {
             String m3fsarg = m3fs_srv->sel_arg();
             const char *m3fs_args[] = {"/bin/m3fs", "-s", m3fsarg.c_str(), "mem", "268435456"};
-            res = apps[1]->vpe.exec(ARRAY_SIZE(m3fs_args), m3fs_args);
-            if(res != Errors::NONE)
-                PANIC("Cannot execute " << m3fs_args[0] << ": " << Errors::to_string(res));
+            apps[1]->vpe.exec(ARRAY_SIZE(m3fs_args), m3fs_args);
         }
 
         Pipes pipes("mypipes");
@@ -186,10 +178,8 @@ int main(int argc, char **argv) {
 
         if(VERBOSE) cout << "Starting reader and writer...\n";
 
-        if(apps[1]) {
-            if(VFS::mount("/foo", "m3fs", "mym3fs") != Errors::NONE)
-                PANIC("Cannot mount root fs");
-        }
+        if(apps[1])
+            VFS::mount("/foo", "m3fs", "mym3fs");
 
         cycles_t start = Time::start(0x1234);
 
@@ -198,18 +188,14 @@ int main(int argc, char **argv) {
         apps[3]->vpe.obtain_fds();
         apps[3]->vpe.mounts(*VPE::self().mounts());
         apps[3]->vpe.obtain_mounts();
-        res = apps[3]->vpe.exec(wargs, const_cast<const char**>(wargv));
-        if(res != Errors::NONE)
-            PANIC("Cannot execute " << wargv[0] << ": " << Errors::to_string(res));
+        apps[3]->vpe.exec(wargs, const_cast<const char**>(wargv));
 
         // start reader
         apps[4]->vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe->reader_fd()));
         apps[4]->vpe.obtain_fds();
         apps[4]->vpe.mounts(*VPE::self().mounts());
         apps[4]->vpe.obtain_mounts();
-        res = apps[4]->vpe.exec(rargs, const_cast<const char**>(rargv));
-        if(res != Errors::NONE)
-            PANIC("Cannot execute " << rargv[0] << ": " << Errors::to_string(res));
+        apps[4]->vpe.exec(rargs, const_cast<const char**>(rargv));
 
         pipe->close_writer();
         pipe->close_reader();

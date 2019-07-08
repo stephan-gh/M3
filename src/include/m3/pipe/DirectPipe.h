@@ -119,20 +119,20 @@ public:
     /**
      * @return the capabilities (rgate, memory and sgate)
      */
-    capsel_t caps() const {
+    capsel_t caps() const noexcept {
         return _rgate.sel();
     }
     /**
      * @return the size of the shared memory area
      */
-    size_t size() const {
+    size_t size() const noexcept {
         return _size;
     }
 
     /**
      * @return the file descriptor for the reader
      */
-    fd_t reader_fd() const {
+    fd_t reader_fd() const noexcept {
         return _rdfd;
     }
     /**
@@ -143,7 +143,7 @@ public:
     /**
      * @return the file descriptor for the writer
      */
-    fd_t writer_fd() const {
+    fd_t writer_fd() const noexcept {
         return _wrfd;
     }
     /**

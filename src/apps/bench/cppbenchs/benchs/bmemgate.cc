@@ -38,8 +38,6 @@ NOINLINE static void read() {
         size_t total = 0;
         while(total < SIZE) {
             mgate.read(buf, sizeof(buf), 0);
-            if(Errors::occurred())
-                PANIC("read failed");
             total += sizeof(buf);
         }
     }, 0x40) << "\n";
@@ -53,8 +51,6 @@ NOINLINE static void write() {
         size_t total = 0;
         while(total < SIZE) {
             mgate.write(buf, sizeof(buf), 0);
-            if(Errors::occurred())
-                PANIC("write failed");
             total += sizeof(buf);
         }
     }, 0x41) << "\n";

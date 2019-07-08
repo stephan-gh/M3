@@ -27,16 +27,10 @@ int main() {
     NetworkManager net("net1");
     String status;
 
-    Socket * socket = net.create(Socket::SOCK_DGRAM);
-    if(!socket)
-        exitmsg("Socket creation failed");
+    Socket *socket = net.create(Socket::SOCK_DGRAM);
     socket->blocking(true);
 
-    Errors::Code err = socket->bind(IpAddr(192, 168, 112, 1), 1337);
-    if(err != Errors::NONE)
-        exitmsg("Socket bind failed: " << Errors::to_string(err));
-
-    socket->listen();
+    socket->bind(IpAddr(192, 168, 112, 1), 1337);
 
     // notify client
     Semaphore::attach("net").up();

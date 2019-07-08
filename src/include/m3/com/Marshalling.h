@@ -30,7 +30,7 @@ class Unmarshaller;
  */
 class Marshaller {
 public:
-    explicit Marshaller(unsigned char *bytes, size_t total)
+    explicit Marshaller(unsigned char *bytes, size_t total) noexcept
         : _bytecount(0),
           _bytes(bytes),
           _total(total) {
@@ -42,13 +42,13 @@ public:
     /**
      * @return the total number of bytes of the data
      */
-    size_t total() const {
+    size_t total() const noexcept {
         return Math::round_up(_bytecount, DTU_PKG_SIZE);
     }
     /**
      * @return the bytes of the data
      */
-    const unsigned char *bytes() const {
+    const unsigned char *bytes() const noexcept {
         return _bytes;
     }
 
@@ -59,7 +59,7 @@ public:
      * @param args the other values
      */
     template<typename T, typename... Args>
-    void vput(const T &val, const Args &... args) {
+    void vput(const T &val, const Args &... args) noexcept {
         *this << val;
         vput(args...);
     }
@@ -71,19 +71,19 @@ public:
      * @return *this
      */
     template<typename T>
-    Marshaller & operator<<(const T& value) {
+    Marshaller & operator<<(const T& value) noexcept {
         assert(fits(_bytecount, sizeof(T)));
         *reinterpret_cast<xfer_t*>(_bytes + _bytecount) = (xfer_t)value;
         _bytecount += Math::round_up(sizeof(T), sizeof(xfer_t));
         return *this;
     }
-    Marshaller & operator<<(const char *value) {
+    Marshaller & operator<<(const char *value) noexcept {
         return put_str(value, strlen(value) + 1);
     }
-    Marshaller & operator<<(const StringRef& value) {
+    Marshaller & operator<<(const StringRef& value) noexcept {
         return put_str(value.c_str(), value.length() + 1);
     }
-    Marshaller & operator<<(const String& value) {
+    Marshaller & operator<<(const String& value) noexcept {
         return put_str(value.c_str(), value.length() + 1);
     }
 
@@ -93,17 +93,17 @@ public:
      * @param is the GateIStream
      * @return *this
      */
-    void put(const Unmarshaller &is);
+    void put(const Unmarshaller &is) noexcept;
     /**
      * Puts all items of <os> into this Marshaller.
      *
      * @param os the Marshaller
      * @return *this
      */
-    void put(const Marshaller &os);
+    void put(const Marshaller &os) noexcept;
 
 protected:
-    Marshaller & put_str(const char *value, size_t len) {
+    Marshaller & put_str(const char *value, size_t len) noexcept {
         assert(fits(_bytecount, len + sizeof(xfer_t)));
         unsigned char *start = const_cast<unsigned char*>(bytes());
         *reinterpret_cast<xfer_t*>(start + _bytecount) = len;
@@ -113,9 +113,9 @@ protected:
     }
 
     // needed as recursion-end
-    void vput() {
+    void vput() noexcept {
     }
-    bool fits(size_t current, size_t bytes) {
+    bool fits(size_t current, size_t bytes) noexcept {
         return current + bytes <= _total;
     }
 
@@ -135,7 +135,7 @@ public:
      * @param data the data to unmarshall
      * @param length the length of the data
      */
-    explicit Unmarshaller(const unsigned char *data, size_t length)
+    explicit Unmarshaller(const unsigned char *data, size_t length) noexcept
         : _pos(0), _length(length), _data(data) {
     }
 
@@ -145,29 +145,29 @@ public:
     /**
      * @return the current position, i.e. the offset of the unread data
      */
-    size_t pos() const {
+    size_t pos() const noexcept {
         return _pos;
     }
     /**
      * @return the length of the data in bytes
      */
-    size_t length() const {
+    size_t length() const noexcept {
         return _length;
     }
     /**
      * @return the remaining bytes to read
      */
-    size_t remaining() const {
+    size_t remaining() const noexcept {
         return length() - _pos;
     }
     /**
      * @return the data
      */
-    const unsigned char *buffer() const {
+    const unsigned char *buffer() const noexcept {
         return _data;
     }
 
-    void ignore(size_t bytes) {
+    void ignore(size_t bytes) noexcept {
         _pos += bytes;
     }
 
@@ -178,7 +178,7 @@ public:
      * @param args the other values to write to
      */
     template<typename T, typename... Args>
-    void vpull(T &val, Args &... args) {
+    void vpull(T &val, Args &... args) noexcept {
         *this >> val;
         vpull(args...);
     }
@@ -190,13 +190,13 @@ public:
      * @return *this
      */
     template<typename T>
-    Unmarshaller & operator>>(T &value) {
+    Unmarshaller & operator>>(T &value) noexcept {
         assert(_pos + sizeof(T) <= length());
         value = (T)*reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += Math::round_up(sizeof(T), sizeof(xfer_t));
         return *this;
     }
-    Unmarshaller & operator>>(String &value) {
+    Unmarshaller & operator>>(String &value) noexcept {
         assert(_pos + sizeof(xfer_t) <= length());
         size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += sizeof(xfer_t);
@@ -205,7 +205,7 @@ public:
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }
-    Unmarshaller & operator>>(StringRef &value) {
+    Unmarshaller & operator>>(StringRef &value) noexcept {
         assert(_pos + sizeof(xfer_t) <= length());
         size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += sizeof(xfer_t);
@@ -217,7 +217,7 @@ public:
 
 private:
     // needed as recursion-end
-    void vpull() {
+    void vpull() noexcept {
     }
 
     size_t _pos;
@@ -225,12 +225,12 @@ private:
     const unsigned char *_data;
 };
 
-inline void Marshaller::put(const Unmarshaller &is) {
+inline void Marshaller::put(const Unmarshaller &is) noexcept {
     assert(fits(_bytecount, is.remaining()));
     memcpy(const_cast<unsigned char*>(bytes()) + _bytecount, is.buffer() + is.pos(), is.remaining());
     _bytecount += is.remaining();
 }
-inline void Marshaller::put(const Marshaller &os) {
+inline void Marshaller::put(const Marshaller &os) noexcept {
     assert(fits(_bytecount, os.total()));
     memcpy(const_cast<unsigned char*>(bytes()) + _bytecount, os.bytes(), os.total());
     _bytecount += os.total();

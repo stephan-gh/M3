@@ -30,7 +30,7 @@ public:
             : ClientSession(sel) {
             delegate_obj(memory.sel());
         }
-        Pipe(Pipe &&p)
+        Pipe(Pipe &&p) noexcept
             : ClientSession(Util::move(p)) {
         }
 

@@ -27,17 +27,12 @@ int main(int argc, const char **argv) {
     if(argc < 2)
         exitmsg("Usage: " << argv[0] << " <program> [<arg>...]");
 
-    if(VFS::mount("/", "m3fs") != Errors::NONE) {
-        if(Errors::last != Errors::EXISTS)
-            exitmsg("Mounting root-fs failed");
-    }
+    VFS::mount("/", "m3fs");
 
     VPE sh(argv[1], VPEArgs().pager("pager"));
-    if(Errors::last != Errors::NONE)
-        exitmsg("Unable to create VPE");
 
-    VTerm vterm("vterm");
-    if(vterm.is_connected()) {
+    try {
+        VTerm vterm("vterm");
         const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
         for(fd_t fd : fds) {
             VPE::self().fds()->set(fd, vterm.create_channel(fd == STDIN_FD));
@@ -45,12 +40,14 @@ int main(int argc, const char **argv) {
         }
         sh.obtain_fds();
     }
+    catch(const Exception &e) {
+        errmsg("Unable to open vterm: " << e.what());
+    }
 
     sh.mounts(*VPE::self().mounts());
     sh.obtain_mounts();
 
-    if(sh.exec(argc - 1, argv + 1) != Errors::NONE)
-        exitmsg("Unable to exec " << argv[1]);
+    sh.exec(argc - 1, argv + 1);
 
     sh.wait();
     return 0;

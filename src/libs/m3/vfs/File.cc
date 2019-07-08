@@ -26,39 +26,38 @@ bool File::Buffer::putback(char c) {
     return false;
 }
 
-ssize_t File::Buffer::read(File *file, void *dst, size_t amount) {
+size_t File::Buffer::read(File *file, void *dst, size_t amount) {
     if(pos < cur) {
         size_t count = Math::min(amount, cur - pos);
-        memcpy(dst, buffer + pos, count);
+        memcpy(dst, buffer.get() + pos, count);
         pos += count;
-        return static_cast<ssize_t>(count);
+        return count;
     }
 
-    ssize_t res = file->read(buffer, size);
-    if(res <= 0)
-        return res;
-    cur = static_cast<size_t>(res);
+    size_t res = file->read(buffer.get(), size);
+    if(res == 0)
+        return 0;
+    cur = res;
 
     size_t copyamnt = Math::min(static_cast<size_t>(res), amount);
-    memcpy(dst, buffer, copyamnt);
+    memcpy(dst, buffer.get(), copyamnt);
     pos = copyamnt;
-    return static_cast<ssize_t>(copyamnt);
+    return copyamnt;
 }
 
-ssize_t File::Buffer::write(File *file, const void *src, size_t amount) {
+size_t File::Buffer::write(File *file, const void *src, size_t amount) {
     if(cur == size)
         flush(file);
 
     size_t count = Math::min(size - cur, amount);
-    memcpy(buffer + cur, src, count);
+    memcpy(buffer.get() + cur, src, count);
     cur += count;
-    return static_cast<ssize_t>(count);
+    return count;
 }
 
-Errors::Code File::Buffer::flush(File *file) {
-    Errors::Code res = file->write_all(buffer, cur);
+void File::Buffer::flush(File *file) {
+    file->write_all(buffer.get(), cur);
     cur = 0;
-    return res;
 }
 
 }

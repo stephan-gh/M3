@@ -18,6 +18,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/session/M3FS.h>
 #include <m3/vfs/MountTable.h>
+#include <m3/Exception.h>
 
 namespace m3 {
 
@@ -52,11 +53,11 @@ static size_t is_in_mount(const String &mount, const char *in) {
     return static_cast<size_t>(p2 - in);
 }
 
-MountTable::MountTable(const MountTable &ms) : _count(ms._count) {
+MountTable::MountTable(const MountTable &ms) noexcept : _count(ms._count) {
     memcpy(_mounts, ms._mounts, sizeof(_mounts));
 }
 
-MountTable &MountTable::operator=(const MountTable &ms) {
+MountTable &MountTable::operator=(const MountTable &ms) noexcept {
     if(&ms != this) {
         _count = ms._count;
         memcpy(_mounts, ms._mounts, sizeof(_mounts));
@@ -64,9 +65,9 @@ MountTable &MountTable::operator=(const MountTable &ms) {
     return *this;
 }
 
-Errors::Code MountTable::add(const char *path, FileSystem *fs) {
+void MountTable::add(const char *path, FileSystem *fs) {
     if(_count == MAX_MOUNTS)
-        return Errors::NO_SPACE;
+        throw MessageException("No free slot in mount table", Errors::NO_SPACE);
 
     size_t compcount = charcount(path, '/');
     size_t i = 0;
@@ -75,7 +76,7 @@ Errors::Code MountTable::add(const char *path, FileSystem *fs) {
         assert(_mounts[i]);
 
         if(strcmp(_mounts[i]->path().c_str(), path) == 0)
-            return Errors::last = Errors::EXISTS;
+            VTHROW(Errors::EXISTS, "Mountpoint " << path << " already exists");
 
         // sort them by the number of slashes
         size_t cnt = charcount(_mounts[i]->path().c_str(), '/');
@@ -91,7 +92,6 @@ Errors::Code MountTable::add(const char *path, FileSystem *fs) {
     }
     _mounts[i] = new MountPoint(path, fs);
     _count++;
-    return Errors::NONE;
 }
 
 Reference<FileSystem> MountTable::resolve(const char *path, size_t *pos) {
@@ -100,7 +100,8 @@ Reference<FileSystem> MountTable::resolve(const char *path, size_t *pos) {
         if(*pos != 0)
             return _mounts[i]->fs();
     }
-    return Reference<FileSystem>();
+
+    VTHROW(Errors::NO_SUCH_FILE, "Unable to resolve path '" << path << "'");
 }
 
 size_t MountTable::indexof_mount(const char *path) {
@@ -117,7 +118,7 @@ void MountTable::remove(const char *path) {
         do_remove(idx);
 }
 
-void MountTable::remove_all() {
+void MountTable::remove_all() noexcept {
     while(_count > 0)
         do_remove(0);
 }
@@ -149,19 +150,15 @@ size_t MountTable::serialize(void *buffer, size_t size) const {
     return m.total();
 }
 
-Errors::Code MountTable::delegate(VPE &vpe) const {
-    Errors::Code res = Errors::NONE;
+void MountTable::delegate(VPE &vpe) const {
     for(size_t i = 0; i < _count; ++i) {
         char type = _mounts[i]->fs()->type();
         switch(type) {
             case 'M':
-                res = _mounts[i]->fs()->delegate(vpe);
-                if(res != Errors::NONE)
-                    return res;
+                _mounts[i]->fs()->delegate(vpe);
                 break;
         }
     }
-    return res;
 }
 
 MountTable *MountTable::unserialize(const void *buffer, size_t size) {
@@ -182,7 +179,7 @@ MountTable *MountTable::unserialize(const void *buffer, size_t size) {
     return ms;
 }
 
-void MountTable::print(OStream &os) const {
+void MountTable::print(OStream &os) const noexcept {
     os << "Mounts:\n";
     for(size_t i = 0; i < _count; ++i)
         os << "  " << _mounts[i]->path() << ": " << _mounts[i]->fs()->type() << "\n";

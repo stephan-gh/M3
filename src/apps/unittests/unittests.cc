@@ -28,11 +28,6 @@ int succeeded;
 int failed;
 
 int main() {
-    if(VFS::mount("/", "m3fs") != Errors::NONE) {
-        if(Errors::last != Errors::EXISTS)
-            exitmsg("Unable to mount m3fs as root-fs");
-    }
-
     RUN_SUITE(tsems);
 #if defined(__host__)
     RUN_SUITE(tdtu);

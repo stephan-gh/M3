@@ -32,16 +32,31 @@ DirectPipe::DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size)
       _wrfd() {
     assert(Math::is_aligned(size, DTU_PKG_SIZE));
 
-    DirectPipeReader::State *rstate = &rd == &VPE::self() ? new DirectPipeReader::State(caps()) : nullptr;
-    _rdfd = VPE::self().fds()->alloc(Reference<File>(new DirectPipeReader(caps(), rstate)));
+    std::unique_ptr<DirectPipeReader::State> rstate(
+        &rd == &VPE::self() ? new DirectPipeReader::State(caps()) : nullptr);
+    _rdfd = VPE::self().fds()->alloc(Reference<File>(
+        new DirectPipeReader(caps(), Util::move(rstate))));
 
-    DirectPipeWriter::State *wstate = &wr == &VPE::self() ? new DirectPipeWriter::State(caps() + 1, _size) : nullptr;
-    _wrfd = VPE::self().fds()->alloc(Reference<File>(new DirectPipeWriter(caps() + 1, _size, wstate)));
+    std::unique_ptr<DirectPipeWriter::State> wstate(
+        &wr == &VPE::self() ? new DirectPipeWriter::State(caps() + 1, _size) : nullptr);
+    _wrfd = VPE::self().fds()->alloc(Reference<File>(
+        new DirectPipeWriter(caps() + 1, _size, Util::move(wstate))));
 }
 
 DirectPipe::~DirectPipe() {
-    close_writer();
-    close_reader();
+    try {
+        close_writer();
+    }
+    catch(...) {
+        // ignore
+    }
+
+    try {
+        close_reader();
+    }
+    catch(...) {
+        // ignore
+    }
 }
 
 void DirectPipe::close_reader() {

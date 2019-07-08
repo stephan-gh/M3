@@ -16,6 +16,7 @@
 
 #include <m3/net/RawSocket.h>
 #include <m3/session/NetworkManager.h>
+#include <m3/Exception.h>
 
 namespace m3 {
 
@@ -27,22 +28,20 @@ RawSocket::RawSocket(int sd, NetworkManager& nm)
 RawSocket::~RawSocket() {
 }
 
-Socket::SocketType RawSocket::type() {
+Socket::SocketType RawSocket::type() noexcept {
     return SOCK_RAW;
 }
 
-Errors::Code RawSocket::bind(IpAddr , uint16_t) {
-    return Errors::NOT_SUP;
+void RawSocket::bind(IpAddr , uint16_t) {
+    throw Exception(Errors::NOT_SUP);
 }
 
 ssize_t RawSocket::sendto(const void *, size_t, IpAddr, uint16_t) {
-    Errors::last = Errors::NOT_SUP;
-    return -1;
+    throw Exception(Errors::NOT_SUP);
 }
 
 ssize_t RawSocket::recvmsg(void *, size_t, IpAddr *, uint16_t *) {
-    Errors::last = Errors::NOT_SUP;
-    return -1;
+    throw Exception(Errors::NOT_SUP);
 }
 
 }

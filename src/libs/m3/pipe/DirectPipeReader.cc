@@ -21,7 +21,7 @@
 
 namespace m3 {
 
-DirectPipeReader::State::State(capsel_t caps)
+DirectPipeReader::State::State(capsel_t caps) noexcept
     : _mgate(MemGate::bind(caps + 1)),
       _rgate(RecvGate::bind(caps + 0, nextlog2<DirectPipe::MSG_BUF_SIZE>::val)),
       _pos(),
@@ -31,36 +31,37 @@ DirectPipeReader::State::State(capsel_t caps)
       _is(_rgate, nullptr) {
 }
 
-DirectPipeReader::DirectPipeReader(capsel_t caps, State *state)
+DirectPipeReader::DirectPipeReader(capsel_t caps, std::unique_ptr<State> &&state) noexcept
     : File(FILE_R),
       _noeof(),
       _caps(caps),
-      _state(state) {
+      _state(Util::move(state)) {
 }
 
-DirectPipeReader::~DirectPipeReader() {
-    delete _state;
-}
-
-void DirectPipeReader::close() {
+void DirectPipeReader::close() noexcept {
     if(_noeof)
         return;
 
     if(!_state)
-        _state = new State(_caps);
+        _state = std::unique_ptr<State>(new State(_caps));
     if(~_state->_eof & DirectPipe::READ_EOF) {
-        // if we have not fetched a message yet, do so now
-        if(_state->_pkglen == static_cast<size_t>(-1))
-            _state->_is = receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen);
-        DBG_PIPE("[read] replying len=0\n");
-        reply_vmsg(_state->_is, static_cast<size_t>(0));
+        try {
+            // if we have not fetched a message yet, do so now
+            if(_state->_pkglen == static_cast<size_t>(-1))
+                _state->_is = receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen);
+            DBG_PIPE("[read] replying len=0\n");
+            reply_vmsg(_state->_is, static_cast<size_t>(0));
+        }
+        catch(...) {
+            // ignore
+        }
         _state->_eof |= DirectPipe::READ_EOF;
     }
 }
 
 ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
     if(!_state)
-        _state = new State(_caps);
+        _state = std::unique_ptr<State>(new State(_caps));
     if(_state->_eof)
         return 0;
 
@@ -106,8 +107,8 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
     return static_cast<ssize_t>(amount);
 }
 
-Errors::Code DirectPipeReader::delegate(VPE &vpe) {
-    return vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
+void DirectPipeReader::delegate(VPE &vpe) {
+    vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
 }
 
 void DirectPipeReader::serialize(Marshaller &m) {

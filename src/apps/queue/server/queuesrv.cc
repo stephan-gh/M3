@@ -40,10 +40,8 @@ static char *gendata() {
 static void timer_irq(GateIStream &) {
     for(auto &h : server->handler().sessions()) {
         // skip clients that have a session but no gate yet
-        if(h.gate()) {
-            SendQueue::get().send(*static_cast<SendGate*>(h.gate()), gendata(),
-                DATA_SIZE, SendQueue::array_deleter<char>);
-        }
+        if(h.gate())
+            SendQueue::get().send(*h.gate(), gendata(), DATA_SIZE, SendQueue::array_deleter<char>);
     }
 }
 

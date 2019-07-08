@@ -29,7 +29,7 @@ public:
 
 private:
     struct SendItem : public SListItem {
-        explicit SendItem(SendGate &gate, void *data, size_t len, del_func deleter)
+        explicit SendItem(SendGate &gate, void *data, size_t len, del_func deleter) noexcept
             : SListItem(),
               gate(gate),
               data(data),
@@ -46,11 +46,11 @@ private:
         del_func deleter;
     };
 
-    explicit SendQueue() : _queue() {
+    explicit SendQueue() noexcept : _queue() {
     }
 
 public:
-    static SendQueue &get() {
+    static SendQueue &get() noexcept {
         return _inst;
     }
 
@@ -70,7 +70,7 @@ public:
         if(_queue.length() == 1)
             send_async(*it);
     }
-    size_t length() const {
+    size_t length() const noexcept {
         return _queue.length();
     }
 

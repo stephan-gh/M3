@@ -24,15 +24,15 @@ namespace m3 {
 
 class DataQueue {
 public:
-    class Item : public SListItem
-    {
+    class Item : public SListItem {
     public:
-        Item(NetEventChannel::InbandDataTransferMessage const *msg, NetEventChannel::Event &&event);
+        Item(NetEventChannel::InbandDataTransferMessage const *msg,
+             NetEventChannel::Event &&event) noexcept;
 
-        const uchar * get_data();
-        size_t get_size();
-        size_t get_pos();
-        void set_pos(size_t pos);
+        const uchar *get_data() noexcept;
+        size_t get_size() noexcept;
+        size_t get_pos() noexcept;
+        void set_pos(size_t pos) noexcept;
 
     private:
         NetEventChannel::InbandDataTransferMessage const *_msg;
@@ -42,11 +42,12 @@ public:
 
 public:
     ~DataQueue();
-    void append(Item *item);
-    bool has_data();
-    bool get_next_data(const uchar *&data, size_t &size);
-    void ack_data(size_t size);
-    void clear();
+
+    void append(Item *item) noexcept;
+    bool has_data() noexcept;
+    bool get_next_data(const uchar *&data, size_t &size) noexcept;
+    void ack_data(size_t size) noexcept;
+    void clear() noexcept;
 
 private:
     SList<Item> _recv_queue;

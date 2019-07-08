@@ -19,25 +19,19 @@
 
 namespace m3 {
 
-Errors::Code Pager::pagefault(goff_t addr, uint access) {
+void Pager::pagefault(goff_t addr, uint access) {
     GateIStream reply = send_receive_vmsg(_own_sgate, PAGEFAULT, addr, access);
-    Errors::Code res;
-    reply >> res;
-    return res;
+    receive_result(reply);
 }
 
-Errors::Code Pager::map_anon(goff_t *virt, size_t len, int prot, int flags) {
+void Pager::map_anon(goff_t *virt, size_t len, int prot, int flags) {
     GateIStream reply = send_receive_vmsg(_own_sgate, MAP_ANON, *virt, len, prot, flags);
-    Errors::Code res;
-    reply >> res;
-    if(res != Errors::NONE)
-        return res;
+    receive_result(reply);
     reply >> *virt;
-    return Errors::NONE;
 }
 
-Errors::Code Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSession &sess,
-                           size_t offset) {
+void Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSession &sess,
+                   size_t offset) {
     KIF::ExchangeArgs args;
     args.count = 5;
     args.vals[0] = DelOp::DATASPACE;
@@ -46,13 +40,10 @@ Errors::Code Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const 
     args.vals[3] = static_cast<xfer_t>(prot | flags);
     args.vals[4] = offset;
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess.sel()), &args);
-    if(Errors::last != Errors::NONE)
-        return Errors::last;
     *virt = args.vals[0];
-    return Errors::NONE;
 }
 
-Errors::Code Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
+void Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
     KIF::ExchangeArgs args;
     args.count = 4;
     args.vals[0] = DelOp::MEMGATE;
@@ -60,17 +51,12 @@ Errors::Code Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
     args.vals[2] = len;
     args.vals[3] = static_cast<xfer_t>(prot);
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, mem.sel()), &args);
-    if(Errors::last != Errors::NONE)
-        return Errors::last;
     *virt = args.vals[0];
-    return Errors::NONE;
 }
 
-Errors::Code Pager::unmap(goff_t virt) {
+void Pager::unmap(goff_t virt) {
     GateIStream reply = send_receive_vmsg(_own_sgate, UNMAP, virt);
-    Errors::Code res;
-    reply >> res;
-    return res;
+    receive_result(reply);
 }
 
 Pager *Pager::create_clone(VPE &vpe) {
@@ -81,17 +67,13 @@ Pager *Pager::create_clone(VPE &vpe) {
         args.count = 1;
         args.vals[0] = 0;
         caps = obtain(1, &args);
-        if(Errors::last != Errors::NONE)
-            return nullptr;
     }
     return new Pager(vpe, caps.start());
 }
 
-Errors::Code Pager::clone() {
+void Pager::clone() {
     GateIStream reply = send_receive_vmsg(_own_sgate, CLONE);
-    Errors::Code res;
-    reply >> res;
-    return res;
+    receive_result(reply);
 }
 
 }

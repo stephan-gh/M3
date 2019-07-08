@@ -27,43 +27,53 @@ FStream::FStream(int fd, int perms, size_t bufsize, uint flags)
       _rbuf(new File::Buffer((perms & FILE_R) ? bufsize : 0)),
       _wbuf(new File::Buffer((perms & FILE_W) ? bufsize : 0)),
       _flags(FL_DEL_BUF | flags) {
+    if(!file())
+        _state = FL_ERROR;
 }
 
 FStream::FStream(const char *filename, int perms, size_t bufsize)
     : FStream(filename, bufsize, bufsize, perms) {
-    if(_fd == FileTable::INVALID)
-        _state |= FL_ERROR;
 }
 
 FStream::FStream(const char *filename, size_t rsize, size_t wsize, int perms)
     : IStream(),
       OStream(),
       _fd(VFS::open(filename, get_perms(perms))),
-      _rbuf(_fd != FileTable::INVALID ? new File::Buffer((perms & FILE_R) ? rsize : 0) : nullptr),
-      _wbuf(_fd != FileTable::INVALID ? new File::Buffer((perms & FILE_W) ? wsize : 0) : nullptr),
+      _rbuf(new File::Buffer((perms & FILE_R) ? rsize : 0)),
+      _wbuf(new File::Buffer((perms & FILE_W) ? wsize : 0)),
       _flags(FL_DEL_BUF | FL_DEL_FILE) {
-    if(_fd == FileTable::INVALID)
-        _state |= FL_ERROR;
 }
 
 FStream::~FStream() {
-    flush();
+    try {
+        flush();
+    }
+    catch(...) {
+        // ignore
+    }
+
     if(!(_flags & FL_DEL_BUF)) {
         if(_rbuf)
             _rbuf->buffer = nullptr;
         if(_wbuf)
             _wbuf->buffer = nullptr;
     }
-    if((_flags & FL_DEL_FILE) && _fd != FileTable::INVALID)
-        VFS::close(_fd);
+
+    if((_flags & FL_DEL_FILE)) {
+        try {
+            VFS::close(_fd);
+        }
+        catch(...) {
+            // ignore
+        }
+    }
+
     delete _rbuf;
     delete _wbuf;
 }
 
-void FStream::set_error(ssize_t res) {
-    if(res < 0)
-        _state |= FL_ERROR;
-    else if(res == 0)
+void FStream::set_error(size_t res) {
+    if(res == 0)
         _state |= FL_EOF;
 }
 
@@ -77,10 +87,9 @@ size_t FStream::read(void *dst, size_t count) {
 
     // use the unbuffered read, if the buffer is smaller
     if(_rbuf->empty() && count > _rbuf->size) {
-        ssize_t res = file()->read(dst, count);
-        if(res <= 0)
-            set_error(res);
-        return res < 0 ? 0 : static_cast<size_t>(res);
+        size_t res = file()->read(dst, count);
+        set_error(res);
+        return res;
     }
 
     if(!_rbuf->buffer) {
@@ -92,13 +101,13 @@ size_t FStream::read(void *dst, size_t count) {
     char *buf = reinterpret_cast<char*>(dst);
     Reference<File> f = file();
     while(count > 0) {
-        ssize_t res = _rbuf->read(f.get(), buf + total, count);
-        if(res <= 0) {
+        size_t res = _rbuf->read(f.get(), buf + total, count);
+        if(res == 0) {
             set_error(res);
             return total;
         }
-        total += static_cast<size_t>(res);
-        count -= static_cast<size_t>(res);
+        total += res;
+        count -= res;
     }
 
     return total;
@@ -107,8 +116,7 @@ size_t FStream::read(void *dst, size_t count) {
 void FStream::flush() {
     Reference<File> f = file();
     if(_wbuf && f) {
-        if(_wbuf->flush(f.get()) != Errors::NONE)
-            _state |= FL_ERROR;
+        _wbuf->flush(f.get());
         f->flush();
     }
 }
@@ -126,13 +134,9 @@ size_t FStream::seek(size_t offset, int whence) {
     if(whence == M3FS_SEEK_CUR)
         offset -= _rbuf->cur - _rbuf->pos;
 
-    ssize_t res = file()->seek(offset, whence);
-    if(res < 0) {
-        _state |= FL_ERROR;
-        return 0;
-    }
+    size_t res = file()->seek(offset, whence);
     _rbuf->invalidate();
-    return static_cast<size_t>(res);
+    return res;
 }
 
 size_t FStream::write(const void *src, size_t count) {
@@ -141,9 +145,9 @@ size_t FStream::write(const void *src, size_t count) {
 
     // use the unbuffered write, if the buffer is smaller
     if(_wbuf->empty() && count > _wbuf->size) {
-        ssize_t res = file()->write(src, count);
+        size_t res = file()->write(src, count);
         set_error(res);
-        return res < 0 ? 0 : static_cast<size_t>(res);
+        return res;
     }
 
     if(!_wbuf->buffer) {
@@ -155,21 +159,19 @@ size_t FStream::write(const void *src, size_t count) {
     size_t total = 0;
     Reference<File> f = file();
     while(count > 0) {
-        ssize_t res = _wbuf->write(f.get(), buf + total, count);
-        if(res <= 0) {
+        size_t res = _wbuf->write(f.get(), buf + total, count);
+        if(res == 0) {
             set_error(res);
             return 0;
         }
 
-        total += static_cast<size_t>(res);
-        count -= static_cast<size_t>(res);
+        total += res;
+        count -= res;
 
         if(((_flags & FL_LINE_BUF) && buf[total - 1] == '\n'))
             flush();
-        else if(count) {
-            if(_wbuf->flush(f.get()) != Errors::NONE)
-                _state |= FL_ERROR;
-        }
+        else if(count)
+            _wbuf->flush(f.get());
     }
 
     return total;

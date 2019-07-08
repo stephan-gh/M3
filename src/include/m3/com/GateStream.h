@@ -20,6 +20,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
+#include <m3/Exception.h>
 
 #include <alloca.h>
 
@@ -44,7 +45,7 @@ namespace m3 {
  */
 class GateOStream : public Marshaller {
 public:
-    explicit GateOStream(unsigned char *bytes, size_t total) : Marshaller(bytes, total) {
+    explicit GateOStream(unsigned char *bytes, size_t total) noexcept : Marshaller(bytes, total) {
     }
     GateOStream(const GateOStream &) = default;
     GateOStream &operator=(const GateOStream &) = default;
@@ -57,7 +58,7 @@ public:
      * @param is the GateIStream
      * @return *this
      */
-    void put(const GateIStream &is);
+    void put(const GateIStream &is) noexcept;
 };
 
 /**
@@ -71,15 +72,15 @@ public:
 template<size_t SIZE>
 class StaticGateOStream : public GateOStream {
 public:
-    explicit StaticGateOStream() : GateOStream(_bytes, SIZE) {
+    explicit StaticGateOStream() noexcept : GateOStream(_bytes, SIZE) {
     }
     template<size_t SRCSIZE>
-    StaticGateOStream(const StaticGateOStream<SRCSIZE> &os) : GateOStream(os) {
+    StaticGateOStream(const StaticGateOStream<SRCSIZE> &os) noexcept : GateOStream(os) {
         static_assert(SIZE >= SRCSIZE, "Incompatible sizes");
         memcpy(_bytes, os._bytes, sizeof(os._bytes));
     }
     template<size_t SRCSIZE>
-    StaticGateOStream &operator=(const StaticGateOStream<SRCSIZE> &os) {
+    StaticGateOStream &operator=(const StaticGateOStream<SRCSIZE> &os) noexcept {
         static_assert(SIZE >= SRCSIZE, "Incompatible sizes");
         GateOStream::operator=(os);
         if(&os != this)
@@ -99,7 +100,7 @@ public:
 #if defined(__t2__) or defined(__t3__)
     // TODO alloca() uses movsp which causes an exception to be handled appropriately. since this
     // isn't that trivial to implement, we're using malloc instead.
-    explicit AutoGateOStream(size_t size)
+    explicit AutoGateOStream(size_t size) noexcept
         : GateOStream(static_cast<unsigned char*>(malloc(Math::round_up(size, DTU_PKG_SIZE))),
                       Math::round_up(size, DTU_PKG_SIZE)) {
     }
@@ -107,16 +108,16 @@ public:
         free(this->_bytes);
     }
 #else
-    ALWAYS_INLINE explicit AutoGateOStream(size_t size)
+    ALWAYS_INLINE explicit AutoGateOStream(size_t size) noexcept
         : GateOStream(static_cast<unsigned char*>(alloca(Math::round_up(size, DTU_PKG_SIZE))),
                       Math::round_up(size, DTU_PKG_SIZE)) {
     }
 #endif
 
-    AutoGateOStream(AutoGateOStream &&os) : GateOStream(os) {
+    AutoGateOStream(AutoGateOStream &&os) noexcept : GateOStream(os) {
     }
 
-    bool is_on_heap() const {
+    bool is_on_heap() const noexcept {
 #if defined(__t2__) or defined(__t3__)
         return true;
 #else
@@ -127,7 +128,7 @@ public:
     /**
      * Claim the ownership of the data from this class. Thus, it will not free it.
      */
-    void claim() {
+    void claim() noexcept {
         this->_bytes = nullptr;
     }
 };
@@ -142,38 +143,33 @@ public:
      * Creates an object for the given message from <rgate>.
      *
      * @param rgate the receive gate
-     * @param err the error code
      */
-    explicit GateIStream(RecvGate &rgate, const DTU::Message *msg, Errors::Code err = Errors::NONE)
-        : Unmarshaller(msg ? msg->data : nullptr, msg ? msg->length : 0),
-          _err(err),
-          _ack(err == Errors::NONE),
+    explicit GateIStream(RecvGate &rgate, const DTU::Message *msg) noexcept
+        : Unmarshaller(msg->data, msg->length),
+          _ack(true),
           _rgate(&rgate),
           _msg(msg) {
     }
 
     // don't do the ack twice. thus, copies never ack.
-    GateIStream(const GateIStream &is)
+    GateIStream(const GateIStream &is) noexcept
         : Unmarshaller(is),
-          _err(is._err),
           _ack(),
           _rgate(is._rgate),
           _msg(is._msg) {
     }
-    GateIStream &operator=(const GateIStream &is) {
+    GateIStream &operator=(const GateIStream &is) noexcept {
         if(this != &is) {
             Unmarshaller::operator=(is);
-            _err = is._err;
             _ack = false;
             _rgate = is._rgate;
             _msg = is._msg;
         }
         return *this;
     }
-    GateIStream &operator=(GateIStream &&is) {
+    GateIStream &operator=(GateIStream &&is) noexcept {
         if(this != &is) {
             Unmarshaller::operator=(is);
-            _err = is._err;
             _ack = is._ack;
             _rgate = is._rgate;
             _msg = is._msg;
@@ -181,9 +177,8 @@ public:
         }
         return *this;
     }
-    GateIStream(GateIStream &&is)
+    GateIStream(GateIStream &&is) noexcept
         : Unmarshaller(Util::move(is)),
-          _err(is._err),
           _ack(is._ack),
           _rgate(is._rgate),
           _msg(is._msg) {
@@ -194,28 +189,22 @@ public:
     }
 
     /**
-     * @return the error that occurred (or Errors::NONE)
-     */
-    Errors::Code error() const {
-        return _err;
-    }
-    /**
      * @return the receive gate
      */
-    RecvGate &rgate() {
+    RecvGate &rgate() noexcept {
         return *_rgate;
     }
     /**
      * @return the message (header + payload)
      */
-    const DTU::Message &message() const {
+    const DTU::Message &message() const noexcept {
         return *_msg;
     }
     /**
      * @return the label of the message
      */
     template<typename T>
-    T label() const {
+    T label() const noexcept {
         return (T)_msg->label;
     }
 
@@ -223,30 +212,27 @@ public:
      * Replies the message constructed by <os> to this message
      *
      * @param os the GateOStream hosting the message to reply
-     * @return the error code or Errors::NONE
      */
-    Errors::Code reply(const GateOStream &os) {
-        return reply(os.bytes(), os.total());
+    void reply(const GateOStream &os) {
+        reply(os.bytes(), os.total());
     }
     /**
      * Replies the given message to this one
      *
      * @param data the message data
      * @param len the length of the message
-     * @return the error code or Errors::NONE
      */
-    Errors::Code reply(const void *data, size_t len) {
-        Errors::Code res = _rgate->reply(data, len, DTU::get().get_msgoff(_rgate->ep(), _msg));
+    void reply(const void *data, size_t len) {
+        _rgate->reply(data, len, DTU::get().get_msgoff(_rgate->ep(), _msg));
         // it's already acked
         _ack = false;
-        return res;
     }
 
     /**
      * Disables acknowledgement of the message. That is, it will be marked as read, but you have
      * to ack the message on your own via DTU::get().mark_acked(<ep>).
      */
-    void claim() {
+    void claim() noexcept {
         _ack = false;
     }
 
@@ -254,7 +240,7 @@ public:
      * Finishes this message, i.e. moves the read-position in the ringbuffer forward. If
      * acknowledgement has not been disabled (see claim), it will be acked.
      */
-    void finish() {
+    void finish() noexcept {
         if(_ack) {
             DTU::get().mark_read(_rgate->ep(), DTU::get().get_msgoff(_rgate->ep(), _msg));
             _ack = false;
@@ -262,22 +248,21 @@ public:
     }
 
 private:
-    Errors::Code _err;
     bool _ack;
     RecvGate *_rgate;
     const DTU::Message *_msg;
 };
 
-inline void GateOStream::put(const GateIStream &is) {
+inline void GateOStream::put(const GateIStream &is) noexcept {
     assert(fits(_bytecount, is.remaining()));
     memcpy(const_cast<unsigned char*>(bytes()) + _bytecount, is.buffer() + is.pos(), is.remaining());
     _bytecount += is.remaining();
 }
 
-static inline Errors::Code reply_error(GateIStream &is, m3::Errors::Code error) {
+static inline void reply_error(GateIStream &is, m3::Errors::Code error) {
     KIF::DefaultReply reply;
-    reply.error = error;
-    return is.reply(&reply, sizeof(reply));
+    reply.error = static_cast<xfer_t>(error);
+    is.reply(&reply, sizeof(reply));
 }
 
 /**
@@ -287,15 +272,14 @@ static inline Errors::Code reply_error(GateIStream &is, m3::Errors::Code error) 
  * @param gate the gate to send to
  * @param data the message data
  * @param len the message length
- * @return the error code or Errors::NONE
  */
-static inline Errors::Code send_msg(SendGate &gate, const void *data, size_t len) {
+static inline void send_msg(SendGate &gate, const void *data, size_t len) {
     EVENT_TRACER_send_msg();
-    return gate.send(data, len);
+    gate.send(data, len);
 }
-static inline Errors::Code reply_msg(GateIStream &is, const void *data, size_t len) {
+static inline void reply_msg(GateIStream &is, const void *data, size_t len) {
     EVENT_TRACER_reply_msg();
-    return is.reply(data, len);
+    is.reply(data, len);
 }
 
 /**
@@ -304,7 +288,7 @@ static inline Errors::Code reply_msg(GateIStream &is, const void *data, size_t l
  * @return the stream
  */
 template<typename ... Args>
-static inline auto create_vmsg(const Args& ... args) -> StaticGateOStream<ostreamsize<Args...>()> {
+static inline auto create_vmsg(const Args& ... args) noexcept -> StaticGateOStream<ostreamsize<Args...>()> {
     StaticGateOStream<ostreamsize<Args...>()> os;
     os.vput(args...);
     return os;
@@ -317,18 +301,17 @@ static inline auto create_vmsg(const Args& ... args) -> StaticGateOStream<ostrea
  *
  * @param gate the gate to send to
  * @param args the arguments to put into the message
- * @return the error code or Errors::NONE
  */
 template<typename... Args>
-static inline Errors::Code send_vmsg(SendGate &gate, const Args &... args) {
+static inline void send_vmsg(SendGate &gate, const Args &... args) {
     EVENT_TRACER_send_vmsg();
     auto msg = create_vmsg(args...);
-    return gate.send(msg.bytes(), msg.total());
+    gate.send(msg.bytes(), msg.total());
 }
 template<typename... Args>
-static inline Errors::Code reply_vmsg(GateIStream &is, const Args &... args) {
+static inline void reply_vmsg(GateIStream &is, const Args &... args) {
     EVENT_TRACER_reply_vmsg();
-    return is.reply(create_vmsg(args...));
+    is.reply(create_vmsg(args...));
 }
 
 /**
@@ -338,13 +321,12 @@ static inline Errors::Code reply_vmsg(GateIStream &is, const Args &... args) {
  * @param gate the memory gate
  * @param offset the offset to write to
  * @param args the arguments to marshall
- * @return the error code or Errors::NONE
  */
 template<typename... Args>
-static inline Errors::Code write_vmsg(MemGate &gate, size_t offset, const Args &... args) {
+static inline void write_vmsg(MemGate &gate, size_t offset, const Args &... args) {
     EVENT_TRACER_write_vmsg();
     auto os = create_vmsg(args...);
-    return gate.write(os.bytes(), os.total(), offset);
+    gate.write(os.bytes(), os.total(), offset);
 }
 
 /**
@@ -356,9 +338,8 @@ static inline Errors::Code write_vmsg(MemGate &gate, size_t offset, const Args &
  */
 static inline GateIStream receive_msg(RecvGate &rgate) {
     EVENT_TRACER_receive_msg();
-    const DTU::Message *msg;
-    Errors::Code err = rgate.wait(nullptr, &msg);
-    return GateIStream(rgate, msg, err);
+    const DTU::Message *msg = rgate.wait(nullptr);
+    return GateIStream(rgate, msg);
 }
 /**
  * Receives a message from <gate> and unmarshalls the message into <args>. Note that
@@ -371,9 +352,8 @@ static inline GateIStream receive_msg(RecvGate &rgate) {
 template<typename... Args>
 static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
     EVENT_TRACER_receive_vmsg();
-    const DTU::Message *msg;
-    Errors::Code err = rgate.wait(nullptr, &msg);
-    GateIStream is(rgate, msg, err);
+    const DTU::Message *msg = rgate.wait(nullptr);
+    GateIStream is(rgate, msg);
     is.vpull(args...);
     return is;
 }
@@ -388,9 +368,21 @@ static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
  */
 static inline GateIStream receive_reply(SendGate &gate) {
     EVENT_TRACER_receive_msg();
-    const DTU::Message *msg;
-    Errors::Code err = gate.reply_gate()->wait(&gate, &msg);
-    return GateIStream(*gate.reply_gate(), msg, err);
+    const DTU::Message *msg = gate.reply_gate()->wait(&gate);
+    return GateIStream(*gate.reply_gate(), msg);
+}
+
+/**
+ * Receives an error code from the given GateIStream and throws an exception if it is not
+ * Errors::NONE
+ *
+ * @param is the GateIStream
+ */
+static inline void receive_result(GateIStream &is) {
+    Errors::Code res;
+    is >> res;
+    if(res != Errors::NONE)
+        throw Exception(res);
 }
 
 /**

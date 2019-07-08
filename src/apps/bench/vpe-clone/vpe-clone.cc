@@ -49,12 +49,10 @@ int main(int argc, char **) {
         cycles_t start2 = Time::start(1);
 
         VPE vpe("hello");
-        Errors::Code res = vpe.run([start2]() {
+        vpe.run([start2]() {
             cycles_t end = Time::stop(1);
             return end - start2;
         });
-        if(res != Errors::NONE)
-            exitmsg("VPE::run failed");
 
         int time = vpe.wait();
         exec_time += static_cast<cycles_t>(time);

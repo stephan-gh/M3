@@ -66,10 +66,6 @@ int main() {
     WorkLoop wl;
     for(int i = 0; !kern_shutdown_req && i < 10; ++i) {
         srv = new Server<MyHandler>("testcaps", &wl, new MyHandler());
-        if(Errors::occurred()) {
-            delete srv;
-            break;
-        }
         wl.run();
         delete srv;
     }

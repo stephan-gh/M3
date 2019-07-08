@@ -76,18 +76,6 @@ struct Errors {
      * @return the statically allocated error message for <code>
      */
     static const char *to_string(Code code);
-
-    /**
-     * @return true if an error occurred
-     */
-    static bool occurred() {
-        return last != NONE;
-    }
-
-    /**
-     * @return the last error code
-     */
-    static Code last;
 };
 
 }

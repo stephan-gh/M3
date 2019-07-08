@@ -48,10 +48,9 @@ public:
      * Retrieves the file information about this directory
      *
      * @param info where to store the information
-     * @return 0 on success
      */
-    int stat(FileInfo &info) const {
-        return _f.file()->stat(info);
+    void stat(FileInfo &info) const {
+        _f.file()->stat(info);
     }
 
     /**

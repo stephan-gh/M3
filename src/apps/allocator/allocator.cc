@@ -16,18 +16,20 @@
 
 #include <m3/stream/Standard.h>
 #include <m3/com/MemGate.h>
+#include <m3/Exception.h>
 
 using namespace m3;
 
 int main() {
     for(size_t i = 0; ; ++i) {
-        MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
-        if(Errors::last == Errors::NONE) {
+        try {
+            MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
+            cout << "Got memory gate :)\n";
             mem.write(&i, sizeof(i), 0);
-            cout << "Allocation " << i << " succeeded\n";
         }
-        else
-            cout << "Allocation " << i << " failed: " << Errors::to_string(Errors::last) << "\n";
+        catch(const Exception &e) {
+            cerr << "Allocation " << i << " failed: " << e.what() << "\n";
+        }
     }
     return 0;
 }

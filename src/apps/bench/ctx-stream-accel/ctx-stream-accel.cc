@@ -28,38 +28,40 @@ static constexpr int REPEATS            = 24;
 static constexpr cycles_t COMP_TIME     = 1024;
 
 int main() {
-    VPE *vpes[2];
-    StreamAccel *accels[2];
-    SendGate *ins[2];
-    SendGate *outs[2];
-    RecvGate *rgates[2];
+    std::unique_ptr<RecvGate> rgates[2];
+    std::unique_ptr<SendGate> outs[2];
+    std::unique_ptr<SendGate> ins[2];
+    std::unique_ptr<StreamAccel> accels[2];
+    std::unique_ptr<VPE> vpes[2];
 
     // create VPEs
     for(size_t i = 0; i < 2; ++i) {
         OStringStream name;
         name << "chain" << i;
 
-        vpes[i] = new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
-                                               .flags(VPE::MUXABLE));
-        if(Errors::last != Errors::NONE) {
-            exitmsg("Unable to create VPE for " << name.str());
-            break;
-        }
-
-        accels[i] = new StreamAccel(vpes[i], COMP_TIME);
+        vpes[i] = std::unique_ptr<VPE>(
+            new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
+                                         .flags(VPE::MUXABLE))
+        );
+        accels[i] = std::unique_ptr<StreamAccel>(new StreamAccel(vpes[i], COMP_TIME));
     }
 
     // create and activate gates
     for(size_t i = 0; i < 2; ++i) {
-        rgates[i] = new RecvGate(RecvGate::create(nextlog2<64 * 2>::val, nextlog2<64>::val));
+        rgates[i] = std::unique_ptr<RecvGate>(
+            new RecvGate(RecvGate::create(nextlog2<64 * 2>::val, nextlog2<64>::val)));
         rgates[i]->activate();
 
-        ins[i] = new SendGate(SendGate::create(rgates[i], SendGateArgs().label(StreamAccel::LBL_IN_REQ)
-                                                                        .credits(64)));
+        ins[i] = std::unique_ptr<SendGate>(
+            new SendGate(SendGate::create(rgates[i].get(), SendGateArgs().label(StreamAccel::LBL_IN_REQ)
+                                                                         .credits(64)))
+        );
         ins[i]->activate_for(*vpes[i], StreamAccel::EP_IN_SEND);
 
-        outs[i] = new SendGate(SendGate::create(rgates[i], SendGateArgs().label(StreamAccel::LBL_OUT_REQ)
-                                                                         .credits(64)));
+        outs[i] = std::unique_ptr<SendGate>(
+            new SendGate(SendGate::create(rgates[i].get(), SendGateArgs().label(StreamAccel::LBL_OUT_REQ)
+                                                                         .credits(64)))
+        );
         outs[i]->activate_for(*vpes[i], StreamAccel::EP_OUT_SEND);
     }
 
@@ -98,14 +100,5 @@ int main() {
     vpes[1]->wait();
 
     cout << "Time: " << (total / REPEATS) << " cycles\n";
-
-    for(size_t i = 0; i < 2; ++i) {
-        delete vpes[i];
-        delete accels[i];
-        delete ins[i];
-        delete outs[i];
-        delete rgates[i];
-    }
-
     return 0;
 }

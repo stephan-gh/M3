@@ -48,7 +48,7 @@ public:
             _off = 0;
         }
 
-        size_t pull(void *, size_t size) {
+        size_t pull(void *, size_t size) noexcept {
             size_t amount = Math::min(size, _rem);
             if(amount == 0) {
                 _off = 0;
@@ -62,7 +62,7 @@ public:
             return amount;
         }
 
-        void push(const void *, size_t size) {
+        void push(const void *, size_t size) noexcept {
             // TODO allow larger replies than our mgate
             if(size > 4)
                 CPU::compute(size / 4);
@@ -100,11 +100,10 @@ public:
 
     Channel *create_channel(size_t memsize) {
         capsel_t sels = VPE::self().alloc_sels(2);
-        Channel *chan = new Channel(sels, memsize);
         KIF::ExchangeArgs args;
         args.count = 0;
         delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
-        return chan;
+        return new Channel(sels, memsize);
     }
 
 private:

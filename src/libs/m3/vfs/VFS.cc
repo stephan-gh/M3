@@ -40,42 +40,37 @@ MountTable *VFS::ms() {
     return VPE::self().mounts();
 }
 
-Errors::Code VFS::mount(const char *path, const char *fs, const char *options) {
+void VFS::mount(const char *path, const char *fs, const char *options) {
     if(ms()->indexof_mount(path) != MountTable::MAX_MOUNTS)
-        return Errors::last = Errors::EXISTS;
+        throw Exception(Errors::EXISTS);
 
     FileSystem *fsobj;
     if(strcmp(fs, "m3fs") == 0)
         fsobj = new M3FS(options ? options : fs);
     else
-        return Errors::INV_ARGS;
-    return ms()->add(path, fsobj);
+        VTHROW(Errors::INV_ARGS, "Unknown filesystem '" << fs << "'");
+    ms()->add(path, fsobj);
 }
 
 void VFS::unmount(const char *path) {
     ms()->remove(path);
 }
 
-Errors::Code VFS::delegate_eps(const char *path, capsel_t first, uint count) {
+void VFS::delegate_eps(const char *path, capsel_t first, uint count) {
     size_t pos;
     Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs)
-        return Errors::last = Errors::NO_SUCH_FILE;
-    Errors::Code res = fs->delegate_eps(first, count);
-    if(res == Errors::NONE) {
-        for(size_t i = 0; i < MAX_RES_EPS; ++i) {
-            if(!_reseps[i]._fs) {
-                _reseps[i] = ReservedEPs(fs, first, count);
-                return Errors::NONE;
-            }
+    fs->delegate_eps(first, count);
+    for(size_t i = 0; i < MAX_RES_EPS; ++i) {
+        if(!_reseps[i]._fs) {
+            _reseps[i] = ReservedEPs(fs, first, count);
+            return;
         }
-        res = Errors::NO_SPACE;
     }
     // TODO revoke caps
-    return res;
+    throw Exception(Errors::NO_SPACE);
 }
 
-capsel_t VFS::alloc_ep(const Reference<FileSystem> &fs, size_t *idx) {
+capsel_t VFS::try_alloc_ep(const Reference<FileSystem> &fs, size_t *idx) noexcept {
     for(uint i = 0; i < MAX_RES_EPS; ++i) {
         if(_reseps[i]._fs == fs) {
             capsel_t ep = _reseps[i].alloc_ep();
@@ -86,7 +81,7 @@ capsel_t VFS::alloc_ep(const Reference<FileSystem> &fs, size_t *idx) {
     return ObjCap::INVALID;
 }
 
-void VFS::free_ep(capsel_t ep) {
+void VFS::free_ep(capsel_t ep) noexcept {
     for(uint i = 0; i < MAX_RES_EPS; ++i) {
         if(_reseps[i].has_ep(ep)) {
             _reseps[i].free_ep(ep);
@@ -95,76 +90,85 @@ void VFS::free_ep(capsel_t ep) {
     }
 }
 
-fd_t VFS::open(const char *path, int perms) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs) {
-        Errors::last = Errors::NO_SUCH_FILE;
-        return FileTable::INVALID;
-    }
-    Reference<File> file = fs->open(path + pos, perms);
-    if(file) {
+fd_t VFS::open(const char *path, int flags) {
+    try {
+        size_t pos;
+        Reference<FileSystem> fs = ms()->resolve(path, &pos);
+        Reference<File> file = fs->open(path + pos, flags);
         fd_t fd = VPE::self().fds()->alloc(file);
-        if(fd == FileTable::INVALID)
-            Errors::last = Errors::NO_SPACE;
-        LLOG(FS, "GenFile[" << fd << "]::open(" << path << ", " << perms << ")");
-        if(perms & FILE_APPEND)
+        LLOG(FS, "GenFile[" << fd << "]::open(" << path << ", " << flags << ")");
+        if(flags & FILE_APPEND)
             file->seek(0, M3FS_SEEK_END);
         return fd;
     }
-    return FileTable::INVALID;
+    catch(const Exception &e) {
+        VTHROW(e.code(), "Unable to open '" << path << "' with flags=" << flags);
+    }
 }
 
-void VFS::close(fd_t fd) {
+void VFS::close(fd_t fd) noexcept {
     VPE::self().fds()->remove(fd);
 }
 
-Errors::Code VFS::stat(const char *path, FileInfo &info) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs)
-        return Errors::last = Errors::NO_SUCH_FILE;
-    return fs->stat(path + pos, info);
+void VFS::stat(const char *path, FileInfo &info) {
+    try {
+        size_t pos;
+        Reference<FileSystem> fs = ms()->resolve(path, &pos);
+        return fs->stat(path + pos, info);
+    }
+    catch(const Exception &e) {
+        VTHROW(e.code(), "stat '" << path << "' failed");
+    }
 }
 
-Errors::Code VFS::mkdir(const char *path, mode_t mode) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs)
-        return Errors::last = Errors::NO_SUCH_FILE;
-    return fs->mkdir(path + pos, mode);
+void VFS::mkdir(const char *path, mode_t mode) {
+    try {
+        size_t pos;
+        Reference<FileSystem> fs = ms()->resolve(path, &pos);
+        return fs->mkdir(path + pos, mode);
+    }
+    catch(const Exception &e) {
+        VTHROW(e.code(), "mkdir '" << path << "' failed");
+    }
 }
 
-Errors::Code VFS::rmdir(const char *path) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs)
-        return Errors::last = Errors::NO_SUCH_FILE;
-    return fs->rmdir(path + pos);
+void VFS::rmdir(const char *path) {
+    try {
+        size_t pos;
+        Reference<FileSystem> fs = ms()->resolve(path, &pos);
+        return fs->rmdir(path + pos);
+    }
+    catch(const Exception &e) {
+        VTHROW(e.code(), "rmdir '" << path << "' failed");
+    }
 }
 
-Errors::Code VFS::link(const char *oldpath, const char *newpath) {
-    size_t pos1, pos2;
-    Reference<FileSystem> fs1 = ms()->resolve(oldpath, &pos1);
-    if(!fs1)
-        return Errors::last = Errors::NO_SUCH_FILE;
-    Reference<FileSystem> fs2 = ms()->resolve(newpath, &pos2);
-    if(!fs2)
-        return Errors::last = Errors::NO_SUCH_FILE;
-    if(fs1.get() != fs2.get())
-        return Errors::last = Errors::XFS_LINK;
-    return fs1->link(oldpath + pos1, newpath + pos2);
+void VFS::link(const char *oldpath, const char *newpath) {
+    try {
+        size_t pos1, pos2;
+        Reference<FileSystem> fs1 = ms()->resolve(oldpath, &pos1);
+        Reference<FileSystem> fs2 = ms()->resolve(newpath, &pos2);
+        if(fs1.get() != fs2.get())
+            throw Exception(Errors::XFS_LINK);
+        return fs1->link(oldpath + pos1, newpath + pos2);
+    }
+    catch(const Exception &e) {
+        VTHROW(e.code(), "link '" << oldpath << "' to '" << newpath << "' failed");
+    }
 }
 
-Errors::Code VFS::unlink(const char *path) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    if(!fs)
-        return Errors::last = Errors::NO_SUCH_FILE;
-    return fs->unlink(path + pos);
+void VFS::unlink(const char *path) {
+    try {
+        size_t pos;
+        Reference<FileSystem> fs = ms()->resolve(path, &pos);
+        return fs->unlink(path + pos);
+    }
+    catch(const Exception &e) {
+        VTHROW(e.code(), "unlink '" << path << "' failed");
+    }
 }
 
-void VFS::print(OStream &os) {
+void VFS::print(OStream &os) noexcept {
     VPE::self().mounts()->print(os);
 }
 

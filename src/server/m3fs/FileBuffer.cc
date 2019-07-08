@@ -51,13 +51,11 @@ size_t FileBuffer::get_extent(blockno_t bno, size_t size, capsel_t sel, int perm
                 SLOG(FS, "FileFuffer: Found cached blocks <"
                     << b->key() << "," << b->_size << ">, for block " << bno);
                 size_t len       = Math::min(size, static_cast<size_t>(b->_size - (bno - b->key())));
-                Errors::Code res = m3::Syscalls::derive_mem(
+                m3::Syscalls::derive_mem(
                     VPE::self().sel(), sel, b->_data.sel(),
                     (bno - b->key()) * _blocksize, len * _blocksize, perms
                 );
 
-                if(res != Errors::NONE)
-                    return 0;
                 b->dirty |= dirty;
                 return len * _blocksize;
             }
@@ -109,10 +107,7 @@ size_t FileBuffer::get_extent(blockno_t bno, size_t size, capsel_t sel, int perm
 
     b->locked = false;
 
-    Errors::Code res = Syscalls::derive_mem(VPE::self().sel(), sel, b->_data.sel(), 0,
-                                            load_size * _blocksize, perms);
-    if(res != Errors::NONE)
-        return 0;
+    Syscalls::derive_mem(VPE::self().sel(), sel, b->_data.sel(), 0, load_size * _blocksize, perms);
     b->dirty = dirty;
     return load_size * _blocksize;
 }

@@ -27,16 +27,12 @@ int main() {
     NetworkManager net("net0");
 
     Socket *socket = net.create(Socket::SOCK_DGRAM);
-    if(!socket)
-        exitmsg("Socket creation failed");
     socket->blocking(true);
 
     // wait for server
     Semaphore::attach("net").down();
 
-    Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
-    if(err != Errors::NONE)
-        exitmsg("Socket connect failed: " << Errors::to_string(err));
+    socket->connect(IpAddr(192, 168, 112, 1), 1337);
 
     union {
         uint8_t raw[1024];
@@ -71,10 +67,10 @@ int main() {
         cycles_t stop = Time::stop(0);
 
         if(static_cast<size_t>(send_len) != packet_size)
-            exitmsg("Send failed.");
+            exitmsg("Send failed, expected " << packet_size << ", got " << send_len);
 
         if(static_cast<size_t>(recv_len) != packet_size || start != response.time)
-            exitmsg("Receive failed.");
+            exitmsg("Receive failed, expected " << packet_size << ", got " << recv_len);
 
         cout << "RTT (" << packet_size << "b): " << stop - start << " cycles / " << (stop - start) / 3e6f << " ms (@3GHz) \n";
 

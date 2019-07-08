@@ -82,7 +82,7 @@ void LwipUdpSocket::udp_recv_cb(void *arg, struct udp_pcb*, struct pbuf *p, cons
     size_t size = p->tot_len + MessageHeader::serialize_length();
     LOG_SOCKET(socket, "udp_recv_cb: size " << size);
     LOG_SOCKET(socket, "udp_recv_cb: offset " << MessageHeader::serialize_length());
-    Errors::Code err = socket->_channel->inband_data_transfer(socket->_sd, size, [&](uchar * buf) {
+    bool success = socket->_channel->inband_data_transfer(socket->_sd, size, [&](uchar * buf) {
         Marshaller m(buf, MessageHeader::serialize_length());
         MessageHeader hdr(IpAddr(lwip_ntohl(addr->addr)), port, p->tot_len);
         hdr.serialize(m);
@@ -90,8 +90,8 @@ void LwipUdpSocket::udp_recv_cb(void *arg, struct udp_pcb*, struct pbuf *p, cons
         LOG_SOCKET(socket, "udp_recv_cb: forwarding data to user (" << p->tot_len << ")");
     });
 
-    if(err != Errors::NONE)
-        LOG_SOCKET(socket, "udp_recv_cb: recv_pipe is full, dropping datagram: " << err);
+    if(!success)
+        LOG_SOCKET(socket, "udp_recv_cb: recv_pipe is full, dropping datagram");
 
     pbuf_free(p);
 }

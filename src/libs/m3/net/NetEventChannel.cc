@@ -36,38 +36,34 @@ void NetEventChannel::prepare_caps(capsel_t caps, size_t size) {
     MemGate mem_cli(mem_srv.derive_for(VPE::self().sel(), caps + 5, 0, 2 * size, mem_srv.RW, MemGate::KEEP_CAP));
 }
 
-NetEventChannel::NetEventChannel(capsel_t caps, bool ret_credits)
+NetEventChannel::NetEventChannel(capsel_t caps, bool ret_credits) noexcept
     : _ret_credits(ret_credits),
       _rgate(RecvGate::bind(caps + 0, nextlog2<MSG_BUF_SIZE>::val)),
       _sgate(SendGate::bind(caps + 1, &RecvGate::invalid())),
       _workitem(nullptr),_credit_event(0), _waiting_credit(0) {
 }
 
-NetEventChannel::~NetEventChannel() {
-    stop();
-}
-
-Errors::Code NetEventChannel::data_transfer(int sd, size_t pos, size_t size) {
+void NetEventChannel::data_transfer(int sd, size_t pos, size_t size) {
     LLOG(NET, "NetEventChannel::data_transfer(sd=" << sd << ", pos=" << pos << ", size=" << size << ")");
     NetEventChannel::DataTransferMessage msg;
     msg.type = DataTransfer;
     msg.sd = sd;
     msg.pos = pos;
     msg.size = size;
-    return send_message(&msg, sizeof(msg));
+    send_message(&msg, sizeof(msg));
 }
 
-Errors::Code NetEventChannel::ack_data_transfer(int sd, size_t pos, size_t size) {
+void NetEventChannel::ack_data_transfer(int sd, size_t pos, size_t size) {
     LLOG(NET, "NetEventChannel::ack_data_transfer(sd=" << sd << ", pos=" << pos << ", size=" << size << ")");
     NetEventChannel::AckDataTransferMessage msg;
     msg.type = AckDataTransfer;
     msg.sd = sd;
     msg.pos = pos;
     msg.size = size;
-    return send_message(&msg, sizeof(msg));
+    send_message(&msg, sizeof(msg));
 }
 
-Errors::Code NetEventChannel::inband_data_transfer(int sd, size_t size, std::function<void(uchar *)> cb_data) {
+bool NetEventChannel::inband_data_transfer(int sd, size_t size, std::function<void(uchar *)> cb_data) {
     LLOG(NET, "NetEventChannel::inband_data_transfer(sd=" << sd << ", size=" << size << ")");
     // TODO: Avoid allocation and copy
     void * msg_data = malloc(size + sizeof(InbandDataTransferMessage));
@@ -78,15 +74,13 @@ Errors::Code NetEventChannel::inband_data_transfer(int sd, size_t size, std::fun
     cb_data(msg->data);
 
     // TODO: Send via seperate send/receive gate?
-    Errors::Code result = send_message(msg_data, size + sizeof(InbandDataTransferMessage));
-    if(result != Errors::NONE)
-        LLOG(NET, "NetEventChannel::inband_data_transfer() failed: " << Errors::to_string(result));
+    Errors::Code res = _sgate.try_send(msg_data, size + sizeof(InbandDataTransferMessage));
 
     free(msg_data);
-    return result;
+    return res == Errors::NONE;
 }
 
-Errors::Code NetEventChannel::socket_accept(int sd, int new_sd, IpAddr remote_addr, uint16_t remote_port) {
+void NetEventChannel::socket_accept(int sd, int new_sd, IpAddr remote_addr, uint16_t remote_port) {
     LLOG(NET, "NetEventChannel::socket_accept(sd=" << sd << ", new_sd=" << new_sd << ")");
     NetEventChannel::SocketAcceptMessage msg;
     msg.type = SocketAccept;
@@ -94,64 +88,61 @@ Errors::Code NetEventChannel::socket_accept(int sd, int new_sd, IpAddr remote_ad
     msg.new_sd = new_sd;
     msg.remote_addr = remote_addr;
     msg.remote_port = remote_port;
-    return send_message(&msg, sizeof(msg));
+    send_message(&msg, sizeof(msg));
 }
 
 
-Errors::Code NetEventChannel::socket_connected(int sd) {
+void NetEventChannel::socket_connected(int sd) {
     LLOG(NET, "NetEventChannel::socket_connected(sd=" << sd << ")");
     NetEventChannel::SocketConnectedMessage msg;
     msg.type = SocketConnected;
     msg.sd = sd;
-    return send_message(&msg, sizeof(msg));
+    send_message(&msg, sizeof(msg));
 }
 
-Errors::Code NetEventChannel::socket_closed(int sd, Errors::Code cause) {
+void NetEventChannel::socket_closed(int sd, Errors::Code cause) {
     LLOG(NET, "NetEventChannel::socket_closed(sd=" << sd << ")");
     NetEventChannel::SocketClosedMessage msg;
     msg.type = SocketClosed;
     msg.sd = sd;
     msg.cause = cause;
-    return send_message(&msg, sizeof(msg));
+    send_message(&msg, sizeof(msg));
 }
 
-Errors::Code NetEventChannel::send_message(const void* msg, size_t size) {
-    return _sgate.send(msg, size);
+void NetEventChannel::send_message(const void* msg, size_t size) {
+    _sgate.send(msg, size);
 }
 
 void NetEventChannel::start(WorkLoop *wl, evhandler_t evhandler, crdhandler_t crdhandler) {
     if(!_workitem) {
         _evhandler = evhandler;
         _crdhandler = crdhandler;
-        _workitem = new EventWorkItem(this);
-        wl->add(_workitem, false);
+        _workitem = std::unique_ptr<EventWorkItem>(new EventWorkItem(this));
+        wl->add(_workitem.get(), false);
     }
 }
 
 void NetEventChannel::stop() {
-    if(_workitem) {
-        delete _workitem;
-        _workitem = nullptr;
-    }
+    _workitem.reset();
 }
 
 NetEventChannel::Event NetEventChannel::recv_message() {
     return Event(_rgate.fetch(), this);
 }
 
-bool NetEventChannel::has_credits() {
+bool NetEventChannel::has_credits() noexcept {
     return _sgate.ep() == SendGate::UNBOUND || DTU::get().has_credits(_sgate.ep());
 }
 
-void NetEventChannel::set_credit_event(event_t event) {
+void NetEventChannel::set_credit_event(event_t event) noexcept {
     _credit_event = event;
 }
 
-event_t NetEventChannel::get_credit_event() {
+event_t NetEventChannel::get_credit_event() noexcept {
     return _credit_event;
 }
 
-void NetEventChannel::wait_for_credit() {
+void NetEventChannel::wait_for_credit() noexcept {
     _waiting_credit++;
 }
 
@@ -174,24 +165,29 @@ bool NetEventChannel::has_events(evhandler_t &evhandler, crdhandler_t &crdhandle
     return res;
 }
 
-NetEventChannel::Event::Event()
+NetEventChannel::Event::Event() noexcept
     : _msg(nullptr),
        _channel(nullptr),
        _ack(false) {
 }
 
 NetEventChannel::Event::~Event() {
-    finish();
+    try {
+        finish();
+    }
+    catch(...) {
+        // ignore
+    }
 }
 
-NetEventChannel::Event::Event(NetEventChannel::Event&& e)
+NetEventChannel::Event::Event(NetEventChannel::Event&& e) noexcept
     : _msg(e._msg),
       _channel(e._channel),
       _ack(e._ack) {
     e._ack = false;
 }
 
-NetEventChannel::Event& NetEventChannel::Event::operator =(NetEventChannel::Event&& e) {
+NetEventChannel::Event& NetEventChannel::Event::operator =(NetEventChannel::Event&& e) noexcept {
     _msg = e._msg;
     _channel = e._channel;
     _ack = e._ack;
@@ -199,7 +195,7 @@ NetEventChannel::Event& NetEventChannel::Event::operator =(NetEventChannel::Even
     return *this;
 }
 
-bool NetEventChannel::Event::is_present() {
+bool NetEventChannel::Event::is_present() noexcept {
     return _msg;
 }
 
@@ -208,8 +204,7 @@ void NetEventChannel::Event::finish() {
         auto msgoff = DTU::get().get_msgoff(_channel->_rgate.ep(), _msg);
         if(_channel->_ret_credits) {
             auto data = 0;
-            if(_channel->_rgate.reply(&data, sizeof(data), msgoff) != Errors::NONE)
-                LLOG(NET, "Unable to give credits back: " << Errors::last);
+            _channel->_rgate.reply(&data, sizeof(data), msgoff);
         } else {
             // Only acknowledge message
             DTU::get().mark_read(_channel->_rgate.ep(), msgoff);
@@ -218,18 +213,18 @@ void NetEventChannel::Event::finish() {
     }
 }
 
-GateIStream NetEventChannel::Event::to_stream() {
+GateIStream NetEventChannel::Event::to_stream() noexcept {
     GateIStream stream(_channel->_rgate, _msg);
     stream.claim();
     return stream;
 }
 
 
-const NetEventChannel::ControlMessage* NetEventChannel::Event::get_message() {
+const NetEventChannel::ControlMessage* NetEventChannel::Event::get_message() noexcept {
     return reinterpret_cast<const NetEventChannel::ControlMessage *>(_msg->data);
 }
 
-NetEventChannel::Event::Event(const DTU::Message *msg, NetEventChannel *channel)
+NetEventChannel::Event::Event(const DTU::Message *msg, NetEventChannel *channel) noexcept
     : _msg(msg),
       _channel(channel),
       _ack(true) {

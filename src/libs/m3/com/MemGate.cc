@@ -19,6 +19,7 @@
 
 #include <m3/com/MemGate.h>
 #include <m3/session/ResMng.h>
+#include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
@@ -30,7 +31,12 @@ namespace m3 {
 
 MemGate::~MemGate() {
     if(!(flags() & KEEP_CAP) && !_revoke) {
-        VPE::self().resmng().free_mem(sel());
+        try {
+            VPE::self().resmng().free_mem(sel());
+        }
+        catch(...) {
+            // ignore
+        }
         flags(KEEP_CAP);
     }
 }
@@ -53,11 +59,10 @@ MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t si
     return MemGate(flags, cap, true);
 }
 
-Errors::Code MemGate::activate_for(VPE &vpe, epid_t ep, goff_t offset) {
-    Errors::Code res = Syscalls::activate(vpe.ep_to_sel(ep), sel(), offset);
-    if(res == Errors::NONE && &vpe == &VPE::self())
+void MemGate::activate_for(VPE &vpe, epid_t ep, goff_t offset) {
+    Syscalls::activate(vpe.ep_to_sel(ep), sel(), offset);
+    if(&vpe == &VPE::self())
         Gate::ep(ep);
-    return res;
 }
 
 Errors::Code MemGate::forward(void *&data, size_t &len, goff_t &offset, uint flags) {
@@ -70,7 +75,9 @@ Errors::Code MemGate::forward(void *&data, size_t &len, goff_t &offset, uint fla
         ThreadManager::get().wait_for(event);
         auto *msg = reinterpret_cast<const KIF::Upcall::Forward*>(
             ThreadManager::get().get_current_msg());
-        res = static_cast<Errors::Code>(msg->error);
+        Errors::Code res = static_cast<Errors::Code>(msg->error);
+        if(res != Errors::NONE && res != Errors::PAGEFAULT)
+            throw SyscallException(res, KIF::Syscall::FORWARD_MEM);
     }
 
     if(res == Errors::NONE) {
@@ -81,39 +88,35 @@ Errors::Code MemGate::forward(void *&data, size_t &len, goff_t &offset, uint fla
     return res;
 }
 
-Errors::Code MemGate::read(void *data, size_t len, goff_t offset) {
+void MemGate::read(void *data, size_t len, goff_t offset) {
     EVENT_TRACER_read();
-    Errors::Code res = ensure_activated();
-    if(res != Errors::NONE)
-        return res;
+    ensure_activated();
 
 retry:
-    res = DTU::get().read(ep(), data, len, offset, _cmdflags);
+    Errors::Code res = DTU::get().read(ep(), data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
         res = forward(data, len, offset, _cmdflags);
-        if(len > 0 || res != m3::Errors::NONE)
+        if(len > 0 || res == Errors::PAGEFAULT)
             goto retry;
     }
-
-    return res;
+    if(EXPECT_FALSE(res != Errors::NONE))
+        throw DTUException(res);
 }
 
-Errors::Code MemGate::write(const void *data, size_t len, goff_t offset) {
+void MemGate::write(const void *data, size_t len, goff_t offset) {
     EVENT_TRACER_write();
-    Errors::Code res = ensure_activated();
-    if(res != Errors::NONE)
-        return res;
+    ensure_activated();
 
 retry:
-    res = DTU::get().write(ep(), data, len, offset, _cmdflags);
+    Errors::Code res = DTU::get().write(ep(), data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
         res = forward(const_cast<void*&>(data), len, offset,
             _cmdflags | KIF::Syscall::ForwardMem::WRITE);
-        if(len > 0 || res != m3::Errors::NONE)
+        if(len > 0 || res == Errors::PAGEFAULT)
             goto retry;
     }
-
-    return res;
+    if(EXPECT_FALSE(res != Errors::NONE))
+        throw DTUException(res);
 }
 
 }

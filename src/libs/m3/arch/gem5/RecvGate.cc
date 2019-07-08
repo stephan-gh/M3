@@ -46,7 +46,7 @@ void *RecvGate::allocate(VPE &vpe, epid_t, size_t size) {
     // TODO atm, the kernel allocates the complete receive buffer space
     size_t left = *end - *cur;
     if(size > left)
-        PANIC("Not enough receive buffer space for " << size << "b (" << left << "b left)");
+        VTHROW(Errors::NO_SPACE, "Insufficient rbuf space for " << size << "b (" << left << "b left)");
 
     uint8_t *res = reinterpret_cast<uint8_t*>(*cur);
     *cur += size;

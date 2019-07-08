@@ -19,8 +19,6 @@
 
 namespace m3 {
 
-Errors::Code Errors::last;
-
 static const char *errmsgs[] = {
     /* 0 */
     "No error",
@@ -38,7 +36,7 @@ static const char *errmsgs[] = {
     "No such file or directory",
     "No permissions",
     "Not supported",
-    "No free PE",
+    "No free/suitable PE",
     "Invalid ELF file",
     "No space left",
     "Object does already exist",

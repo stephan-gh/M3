@@ -37,7 +37,7 @@ class Chan {
 public:
     explicit Chan() : fds() {
         if(::pipe(fds) == -1)
-            Errors::last = Errors::OUT_OF_MEM;
+            throw Exception(Errors::OUT_OF_MEM);
     }
     ~Chan() {
         if(fds[0] != -1)
@@ -211,14 +211,12 @@ void VPE::init_fs() {
     delete[] buf;
 }
 
-Errors::Code VPE::run(void *lambda) {
+void VPE::run(void *lambda) {
     Chan p2c, c2p;
-    if(Errors::last != Errors::NONE)
-        return Errors::Errors::last;
 
     int pid = fork();
     if(pid == -1)
-        return Errors::OUT_OF_MEM;
+        throw Exception(Errors::OUT_OF_MEM);
     else if(pid == 0) {
         p2c.wait();
 
@@ -244,24 +242,19 @@ Errors::Code VPE::run(void *lambda) {
         // wait until the DTU sockets have been binded
         c2p.wait();
     }
-    return Errors::NONE;
 }
 
-Errors::Code VPE::exec(int argc, const char **argv) {
+void VPE::exec(int argc, const char **argv) {
     static char buffer[8192];
     char templ[] = "/tmp/m3-XXXXXX";
     int tmp, pid;
-    ssize_t res;
+    size_t res;
     Chan p2c, c2p;
-    if(Errors::last != Errors::NONE)
-        return Errors::Errors::last;
 
     FileRef bin(argv[0], FILE_R);
-    if(Errors::occurred())
-        return Errors::OUT_OF_MEM;
     tmp = mkstemp(templ);
     if(tmp < 0)
-        return Errors::OUT_OF_MEM;
+        throw Exception(Errors::OUT_OF_MEM);
 
     // copy executable from M3-fs to a temp file
     while((res = bin->read(buffer, sizeof(buffer))) > 0)
@@ -270,7 +263,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
     pid = fork();
     if(pid == -1) {
         close(tmp);
-        return Errors::OUT_OF_MEM;
+        throw Exception(Errors::OUT_OF_MEM);
     }
     else if(pid == 0) {
         // wait until the env file has been written by the kernel
@@ -314,7 +307,6 @@ Errors::Code VPE::exec(int argc, const char **argv) {
         // wait until the DTU sockets have been binded
         c2p.wait();
     }
-    return Errors::NONE;
 
 }
 

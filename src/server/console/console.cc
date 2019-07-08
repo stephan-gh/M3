@@ -79,12 +79,8 @@ int main() {
     MemGate memgate = VPE::self().mem().derive(
         reinterpret_cast<uintptr_t>(vgamem), VGA::SIZE, MemGate::RW);
     Server<VGAHandler> vgasrv("vga", &wl, new VGAHandler(&memgate));
-    if(Errors::occurred())
-        exitmsg("Unable to register service 'vga'");
 
     kbserver = new Server<EventHandler<>>("keyb", &wl, new EventHandler<>());
-    if(Errors::occurred())
-        exitmsg("Unable to register service 'keyb'");
 
     ConsoleWorkItem wi;
     wl.add(&wi, true);

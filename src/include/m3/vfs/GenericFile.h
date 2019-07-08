@@ -22,6 +22,7 @@
 #include <m3/com/MemGate.h>
 #include <m3/session/ClientSession.h>
 #include <m3/vfs/File.h>
+#include <m3/Exception.h>
 #include <m3/VPE.h>
 
 namespace m3 {
@@ -46,35 +47,36 @@ public:
                          SendGate *sg = nullptr, size_t memoff = 0);
     virtual ~GenericFile();
 
-    SendGate &sgate() {
+    SendGate &sgate() noexcept {
         return *_sg;
     }
-    ClientSession &sess() {
+    ClientSession &sess() noexcept {
         return _sess;
     }
-    const ClientSession &sess() const {
+    const ClientSession &sess() const noexcept {
         return _sess;
     }
 
     /**
      * @return true if there is still data to read or write without contacting the server
      */
-    bool has_data() const {
+    bool has_data() const noexcept {
         return _pos < _len;
     }
 
-    virtual Errors::Code stat(FileInfo &info) const override;
+    virtual void stat(FileInfo &info) const override;
 
-    virtual ssize_t seek(size_t offset, int whence) override;
+    virtual size_t seek(size_t offset, int whence) override;
 
-    virtual ssize_t read(void *buffer, size_t count) override;
-    virtual ssize_t write(const void *buffer, size_t count) override;
+    virtual size_t read(void *buffer, size_t count) override;
+    virtual size_t write(const void *buffer, size_t count) override;
 
-    virtual Errors::Code flush() override {
-        return _writing ? submit() : Errors::NONE;
+    virtual void flush() override {
+        if(_writing)
+            submit();
     }
 
-    virtual char type() const override {
+    virtual char type() const noexcept override {
         return 'F';
     }
 
@@ -85,11 +87,11 @@ public:
         return Reference<File>(new GenericFile(flags(), crd.start()));
     }
 
-    virtual Errors::Code delegate(VPE &vpe) override {
+    virtual void delegate(VPE &vpe) override {
         if(flags() & FILE_NOSESS)
-            return Errors::NOT_SUP;
+            throw Exception(Errors::NOT_SUP);
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _sess.sel(), 2);
-        return _sess.obtain_for(vpe, crd);
+        _sess.obtain_for(vpe, crd);
     }
 
     virtual void serialize(Marshaller &m) override {
@@ -105,14 +107,14 @@ public:
     }
 
 private:
-    virtual void close() override;
+    virtual void close() noexcept override;
 
-    bool have_sess() const {
+    bool have_sess() const noexcept {
         return !(flags() & FILE_NOSESS);
     }
     void evict();
-    Errors::Code submit();
-    Errors::Code delegate_ep();
+    void submit();
+    void delegate_ep();
 
     size_t _id;
     mutable ClientSession _sess;

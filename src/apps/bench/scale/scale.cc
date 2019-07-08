@@ -38,8 +38,6 @@ struct App {
           vpe(argv[0], VPEArgs().pager(pager).flags(flags)),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create VPE");
         rgate.activate();
         vpe.delegate_obj(rgate.sel());
     }
@@ -104,9 +102,7 @@ int main(int argc, char **argv) {
 
         String srv_arg = srv[0]->sel_arg();
         const char *args[] = {"/bin/pager", "-a", "16", "-f", "16", "-s", srv_arg.c_str()};
-        Errors::Code res = srvvpes[0]->exec(ARRAY_SIZE(args), args);
-        if(res != Errors::NONE)
-            PANIC("Cannot execute " << args[0] << ": " << Errors::to_string(res));
+        srvvpes[0]->exec(ARRAY_SIZE(args), args);
     }
 #else
     srvvpes[0] = nullptr;
@@ -151,9 +147,7 @@ int main(int argc, char **argv) {
                 cout << m3fs_args[x] << " ";
             cout << "\n";
         }
-        Errors::Code res = srvvpes[i + 1]->exec(ARRAY_SIZE(m3fs_args), m3fs_args);
-        if(res != Errors::NONE)
-            PANIC("Cannot execute " << m3fs_args[0] << ": " << Errors::to_string(res));
+        srvvpes[i + 1]->exec(ARRAY_SIZE(m3fs_args), m3fs_args);
     }
 
     if(VERBOSE) cout << "Starting VPEs...\n";
@@ -197,9 +191,10 @@ int main(int argc, char **argv) {
             cout << "\n";
         }
 
-        Errors::Code res = apps[i]->vpe.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
-        if(res != Errors::NONE)
-            PANIC("Cannot execute " << apps[i]->argv[0] << ": " << Errors::to_string(res));
+        apps[i]->vpe.mounts(*VPE::self().mounts());
+        apps[i]->vpe.obtain_mounts();
+
+        apps[i]->vpe.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);
     }
 
     if(VERBOSE) cout << "Signaling VPEs...\n";

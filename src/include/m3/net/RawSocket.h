@@ -25,9 +25,9 @@ public:
     explicit RawSocket(int sd, NetworkManager &nm);
     virtual ~RawSocket();
 
-    virtual SocketType type() override;
+    virtual SocketType type() noexcept override;
 
-    virtual Errors::Code bind(IpAddr addr, uint16_t port);
+    virtual void bind(IpAddr addr, uint16_t port) override;
 
     virtual ssize_t sendto(const void *src, size_t amount, IpAddr addr, uint16_t port) override;
     virtual ssize_t recvmsg(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) override;

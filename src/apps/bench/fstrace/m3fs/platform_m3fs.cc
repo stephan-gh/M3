@@ -32,10 +32,13 @@ static m3::LoadGen::Channel *chan;
 void Platform::init(int /*argc*/, const char * const * /*argv*/, const char *loadgen) {
     if(*loadgen) {
         // connect to load generator
-        m3::LoadGen *lg = new m3::LoadGen(loadgen);
-        if(lg->is_connected()) {
+        try {
+            m3::LoadGen *lg = new m3::LoadGen(loadgen);
             chan = lg->create_channel(2 * 1024 * 1024);
             lg->start(3 * 11);
+        }
+        catch(...) {
+            // ignore
         }
     }
 }

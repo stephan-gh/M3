@@ -38,11 +38,6 @@ void Env::pre_init() {
 void Env::post_init() {
     m3::Exceptions::init();
 
-    std::set_terminate([] {
-        m3::Serial::get() << "Unhandled exception. Terminating.\n";
-        abort();
-    });
-
     // call constructors
     _init();
     for(constr_func *func = &CTORS_BEGIN; func < &CTORS_END; ++func)

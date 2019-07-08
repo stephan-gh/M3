@@ -19,6 +19,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/Exception.h>
 
 #include <thread/ThreadManager.h>
 
@@ -40,61 +41,47 @@ NetworkManager::NetworkManager(capsel_t session, capsel_t metagate)
 
 m3::NetworkManager::~NetworkManager() {
     Socket *socket;
-    while((socket = _sockets.remove_root()) != nullptr) {
+    while((socket = _sockets.remove_root()) != nullptr)
         delete socket;
-    }
-}
-
-void NetworkManager::multithreaded(WorkLoop *wl) {
-    _wloop = wl;
 }
 
 Socket* NetworkManager::create(Socket::SocketType type, uint8_t protocol) {
-    Errors::last = ensure_channel_established();
-    if(Errors::last != Errors::NONE)
-        return nullptr;
+    ensure_channel_established();
 
     GateIStream reply = send_receive_vmsg(_metagate, CREATE, type, protocol);
-    reply >> Errors::last;
-    if(Errors::last == Errors::NONE) {
-        int sd;
-        reply >> sd;
+    receive_result(reply);
 
-        Socket *socket = Socket::new_socket(type, sd, *this);
-        socket->_channel = _channel;
+    int sd;
+    reply >> sd;
 
-        _sockets.insert(socket);
+    Socket *socket = Socket::new_socket(type, sd, *this);
+    socket->_channel = _channel;
+    _sockets.insert(socket);
 
-        return socket;
-    }
-    return nullptr;
+    return socket;
 }
 
-Errors::Code NetworkManager::bind(int sd, IpAddr addr, uint16_t port) {
+void NetworkManager::bind(int sd, IpAddr addr, uint16_t port) {
     GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, addr.addr(), port);
-    reply >> Errors::last;
-    return Errors::last;
+    receive_result(reply);
 }
 
-Errors::Code NetworkManager::listen(int sd) {
+void NetworkManager::listen(int sd) {
     GateIStream reply = send_receive_vmsg(_metagate, LISTEN, sd);
-    reply >> Errors::last;
-    return Errors::last;
+    receive_result(reply);
 }
 
-Errors::Code NetworkManager::connect(int sd, IpAddr addr, uint16_t port) {
+void NetworkManager::connect(int sd, IpAddr addr, uint16_t port) {
     GateIStream reply = send_receive_vmsg(_metagate, CONNECT, sd, addr.addr(), port);
-    reply >> Errors::last;
-    return Errors::last;
+    receive_result(reply);
 }
 
-Errors::Code NetworkManager::close(int sd) {
+void NetworkManager::close(int sd) {
     GateIStream reply = send_receive_vmsg(_metagate, CLOSE, sd);
-    reply >> Errors::last;
-    return Errors::last;
+    receive_result(reply);
 }
 
-Errors::Code m3::NetworkManager::as_file(int sd, int mode, MemGate& mem, size_t memsize, fd_t& fd) {
+void m3::NetworkManager::as_file(int sd, int mode, MemGate& mem, size_t memsize, fd_t& fd) {
     // Create file session for socket
     KIF::ExchangeArgs fs_args;
     fs_args.count = 4;
@@ -103,8 +90,6 @@ Errors::Code m3::NetworkManager::as_file(int sd, int mode, MemGate& mem, size_t 
     fs_args.vals[2] = mode & FILE_R ? memsize : 0;
     fs_args.vals[3] = mode & FILE_W ? memsize : 0;
     KIF::CapRngDesc desc = obtain(2, &fs_args);
-    if(Errors::last != Errors::NONE)
-        return Errors::last;
 
     // Delegate shared memory to file session
     ClientSession fs(desc.start());
@@ -112,28 +97,23 @@ Errors::Code m3::NetworkManager::as_file(int sd, int mode, MemGate& mem, size_t 
     KIF::ExchangeArgs shm_args;
     shm_args.count = 1;
     shm_args.vals[0] = static_cast<xfer_t>(sd);
-    if(fs.delegate(shm_crd, &shm_args) != Errors::NONE)
-        return Errors::last;
+    fs.delegate(shm_crd, &shm_args);
 
     fd = VPE::self().fds()->alloc(Reference<File>(new GenericFile(mode, desc.start())));
-    return Errors::NONE;
 }
 
 
-Errors::Code NetworkManager::ensure_channel_established() {
+void NetworkManager::ensure_channel_established() {
     // Channel already established
     if(_channel)
-        return Errors::NONE;
+        return;
 
     // Obtain channel
     KIF::ExchangeArgs args;
     args.count = 0;
     KIF::CapRngDesc caps = obtain(3, &args);
-    if(Errors::last != Errors::NONE)
-        return Errors::last;
 
     _channel = Reference<NetEventChannel>(new NetEventChannel(caps.start(), false));
-    return Errors::NONE;
 }
 
 void NetworkManager::listen_channel(NetEventChannel& _channel) {
@@ -168,7 +148,7 @@ void NetworkManager::wait_sync() {
     }
 }
 
-Socket * NetworkManager::process_event(NetEventChannel::Event &event) {
+Socket *NetworkManager::process_event(NetEventChannel::Event &event) {
     if(!event.is_present())
         return nullptr;
 
@@ -181,10 +161,8 @@ Socket * NetworkManager::process_event(NetEventChannel::Event &event) {
         return nullptr;
     }
 
-    auto result = socket->process_message(*message, event);
-    if(result != Errors::NONE) {
-        LLOG(NET, "Processing of message " << message->type << " by socket " << message->sd << " failed.");
-    }
+    // TODO socket leaks if this throws
+    socket->process_message(*message, event);
     return socket;
 }
 

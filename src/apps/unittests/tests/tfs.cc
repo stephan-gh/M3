@@ -37,20 +37,17 @@ static const char *pat_file = "/pat.bin";
 
 static void check_content(const char *filename, size_t size) {
     FileRef file(filename, FILE_R);
-    if(Errors::occurred())
-        exitmsg("open of " << filename << " failed");
 
     size_t pos = 0;
-    ssize_t count;
+    size_t count;
     while((count = file->read(largebuf, sizeof(largebuf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i)
+        for(size_t i = 0; i < count; ++i)
             assert_int(largebuf[i], static_cast<uint8_t>(pos++ % 100));
     }
     assert_size(pos, size);
 
     FileInfo info;
-    if(file->stat(info) != 0)
-        exitmsg("stat of '" << filename << "' failed");
+    file->stat(info);
     assert_size(info.size, size);
 }
 
@@ -59,42 +56,33 @@ static void append_bug() {
 
     {
         FileRef file("/myfile1", FILE_W | FILE_CREATE | FILE_TRUNC);
-        if(Errors::occurred())
-            exitmsg("open of /myfile1 failed");
-
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
         // create first extent
-        assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
-        assert_int(file->flush(), Errors::NONE);
+        file->write_all(largebuf, sizeof(largebuf));
+        file->flush();
         total += sizeof(largebuf);
 
         // use the following blocks for something else to force a new extent for the following write
         {
             FileRef nfile("/myfile2", FILE_W | FILE_CREATE | FILE_TRUNC);
-            if(Errors::occurred())
-                exitmsg("open of /myfile2 failed");
-
-            assert_int(nfile->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
+            nfile->write_all(largebuf, sizeof(largebuf));
         }
 
         // write more two blocks; this gives us a new extent and we don't stay within the first block
         // of the new extent
         for(size_t i = 0; i <= 4096 * 2; i += sizeof(largebuf)) {
-            assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
+            file->write_all(largebuf, sizeof(largebuf));
             total += sizeof(largebuf);
         }
     }
 
     {
         FileRef file("/myfile1", FILE_W);
-        if(Errors::occurred())
-            exitmsg("open of /myfile1 failed");
-
         file->seek(0, M3FS_SEEK_END);
 
-        assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
+        file->write_all(largebuf, sizeof(largebuf));
         total += sizeof(largebuf);
     }
 
@@ -104,14 +92,11 @@ static void append_bug() {
 static void extending_small_file() {
     {
         FileRef file(small_file, FILE_W);
-        if(Errors::occurred())
-            exitmsg("open of " << small_file << " failed");
-
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
         for(int i = 0; i < 129; ++i)
-            assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
+            file->write_all(largebuf, sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 129);
@@ -120,16 +105,13 @@ static void extending_small_file() {
 static void creating_in_steps() {
     {
         FileRef file("/steps.txt", FILE_W | FILE_CREATE);
-        if(Errors::occurred())
-            exitmsg("open of " << "/steps.txt" << " failed");
-
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
         for(int j = 0; j < 8; ++j) {
             for(int i = 0; i < 4; ++i)
-                assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
-            assert_int(file->flush(), Errors::NONE);
+                file->write_all(largebuf, sizeof(largebuf));
+            file->flush();
         }
     }
 
@@ -139,14 +121,11 @@ static void creating_in_steps() {
 static void small_write_at_begin() {
     {
         FileRef file(small_file, FILE_W);
-        if(Errors::occurred())
-            exitmsg("open of " << small_file << " failed");
-
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
         for(int i = 0; i < 3; ++i)
-            assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
+            file->write_all(largebuf, sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 129);
@@ -155,14 +134,11 @@ static void small_write_at_begin() {
 static void truncate() {
     {
         FileRef file(small_file, FILE_W | FILE_TRUNC);
-        if(Errors::occurred())
-            exitmsg("open of " << small_file << " failed");
-
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
         for(int i = 0; i < 2; ++i)
-            assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
+            file->write_all(largebuf, sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 2);
@@ -171,14 +147,11 @@ static void truncate() {
 static void append() {
     {
         FileRef file(small_file, FILE_W | FILE_APPEND);
-        if(Errors::occurred())
-            exitmsg("open of " << small_file << " failed");
-
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
         for(int i = 0; i < 2; ++i)
-            assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
+            file->write_all(largebuf, sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 4);
@@ -187,22 +160,19 @@ static void append() {
 static void append_with_read() {
     {
         FileRef file(small_file, FILE_RW | FILE_TRUNC | FILE_CREATE);
-        if(Errors::occurred())
-            exitmsg("open of " << small_file << " failed");
-
         for(size_t i = 0; i < sizeof(largebuf); ++i)
             largebuf[i] = i % 100;
 
         for(int i = 0; i < 2; ++i)
-            assert_int(file->write_all(largebuf, sizeof(largebuf)), Errors::NONE);
+            file->write_all(largebuf, sizeof(largebuf));
 
         // there is nothing to read now
-        assert_ssize(file->read(largebuf, sizeof(largebuf)), 0);
+        assert_size(file->read(largebuf, sizeof(largebuf)), 0);
 
         // seek back
-        assert_ssize(file->seek(sizeof(largebuf) * 1, M3FS_SEEK_SET), sizeof(largebuf) * 1);
+        assert_size(file->seek(sizeof(largebuf) * 1, M3FS_SEEK_SET), sizeof(largebuf) * 1);
         // now reading should work
-        assert_ssize(file->read(largebuf, sizeof(largebuf)), sizeof(largebuf));
+        assert_size(file->read(largebuf, sizeof(largebuf)), sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 2);
@@ -214,11 +184,8 @@ static void file_mux() {
     const size_t FILE_SIZE = 12 * 1024;
 
     FStream *files[NUM];
-    for(size_t i = 0; i < NUM; ++i) {
+    for(size_t i = 0; i < NUM; ++i)
         files[i] = new FStream(pat_file, FILE_R);
-        if(Errors::occurred())
-            exitmsg("Unable to open '" << pat_file << "' for reading");
-    }
 
     for(size_t pos = 0; pos < FILE_SIZE; pos += STEP_SIZE) {
         for(size_t i = 0; i < NUM; ++i) {
@@ -287,18 +254,16 @@ static void file_errors() {
     alignas(DTU_PKG_SIZE) char buf[DTU_PKG_SIZE];
     {
         FileRef file(filename, FILE_R);
-        if(Errors::occurred())
-            exitmsg("open of " << filename << " failed");
-        assert_long(file->write(buf, sizeof(buf)), -1);
-        assert_true(Errors::last == Errors::NO_PERM);
+        assert_err(Errors::NO_PERM, [&file, &buf] {
+            file->write(buf, sizeof(buf));
+        });
     }
 
     {
         FileRef file(filename, FILE_W);
-        if(Errors::occurred())
-            exitmsg("open of " << filename << " failed");
-        assert_long(file->read(buf, sizeof(buf)), -1);
-        assert_true(Errors::last == Errors::NO_PERM);
+        assert_err(Errors::NO_PERM, [&file, &buf] {
+            file->read(buf, sizeof(buf));
+        });
     }
 }
 
@@ -309,9 +274,6 @@ static void read_file_at_once() {
     static_assert(((sizeof(content) - 1) % DTU_PKG_SIZE) == 0, "Wrong size");
 
     FileRef file(filename, FILE_R);
-    if(Errors::occurred())
-        exitmsg("open of " << filename << " failed");
-
     alignas(DTU_PKG_SIZE) char buf[sizeof(content)];
     assert_ssize(file->read(buf, sizeof(buf) - 1), sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
@@ -321,26 +283,22 @@ static void read_file_at_once() {
 
 static void read_file_in_64b_steps() {
     FileRef file(pat_file, FILE_R);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
     alignas(DTU_PKG_SIZE) uint8_t buf[64];
-    ssize_t count, pos = 0;
+    size_t count, pos = 0;
     while((count = file->read(buf, sizeof(buf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i)
+        for(size_t i = 0; i < count; ++i)
             assert_int(buf[i], pos++ & 0xFF);
     }
 }
 
 static void read_file_in_large_steps() {
     FileRef file(pat_file, FILE_R);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
     alignas(DTU_PKG_SIZE) static uint8_t buf[1024 * 3];
-    ssize_t count, pos = 0;
+    size_t count, pos = 0;
     while((count = file->read(buf, sizeof(buf))) > 0) {
-        for(ssize_t i = 0; i < count; ++i)
+        for(size_t i = 0; i < count; ++i)
             assert_int(buf[i], pos++ & 0xFF);
     }
 }
@@ -350,17 +308,15 @@ static void write_file_and_read_again() {
     const size_t contentsz = (strlen(content) + DTU_PKG_SIZE - 1) & ~(DTU_PKG_SIZE - 1);
 
     FileRef file(pat_file, FILE_RW);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
-    assert_int(file->write_all(content, contentsz), Errors::NONE);
+    file->write_all(content, contentsz);
 
-    assert_ssize(file->seek(0, M3FS_SEEK_CUR), static_cast<ssize_t>(contentsz));
-    assert_ssize(file->seek(0, M3FS_SEEK_SET), 0);
+    assert_size(file->seek(0, M3FS_SEEK_CUR), contentsz);
+    assert_size(file->seek(0, M3FS_SEEK_SET), 0);
 
     alignas(DTU_PKG_SIZE) char buf[contentsz];
-    ssize_t count = file->read(buf, sizeof(buf));
-    assert_size(static_cast<size_t>(count), sizeof(buf));
+    size_t count = file->read(buf, sizeof(buf));
+    assert_size(count, sizeof(buf));
     assert_str(buf, content);
 
     // undo the write
@@ -379,53 +335,46 @@ static void transactions() {
     {
         FileInfo info;
         FileRef file1(tmp_file, FILE_W | FILE_CREATE);
-        if(Errors::occurred())
-            exitmsg("open of " << tmp_file << " failed");
-
-        assert_int(file1->write_all(content1, sizeof(content1) - 1), Errors::NONE);
+        file1->write_all(content1, sizeof(content1) - 1);
 
         {
             FileRef file2(tmp_file, FILE_W | FILE_CREATE);
-            if(Errors::occurred())
-                exitmsg("open of " << tmp_file << " failed");
 
-            assert_int(file2->write_all(content2, sizeof(content2) - 1), Errors::EXISTS);
+            assert_err(Errors::EXISTS, [&file2, &content2] {
+                file2->write_all(content2, sizeof(content2) - 1);
+            });
 
-            assert_int(file2->stat(info), Errors::NONE);
+            file2->stat(info);
             assert_size(info.size, 0);
 
-            assert_int(file1->stat(info), Errors::NONE);
+            file1->stat(info);
             assert_size(info.size, 0);
 
-            assert_ssize(file1->flush(), Errors::NONE);
+            file1->flush();
 
-            assert_int(file2->stat(info), Errors::NONE);
+            file2->stat(info);
             assert_size(info.size, sizeof(content1) - 1);
 
-            assert_int(file1->stat(info), Errors::NONE);
+            file1->stat(info);
             assert_size(info.size, sizeof(content1) - 1);
 
-            assert_ssize(file2->seek(0, M3FS_SEEK_END), sizeof(content1) - 1);
-            assert_int(file2->write_all(content2, sizeof(content2) - 1), Errors::NONE);
+            assert_size(file2->seek(0, M3FS_SEEK_END), sizeof(content1) - 1);
+            file2->write_all(content2, sizeof(content2) - 1);
         }
     }
 
     {
         FileRef file(tmp_file, FILE_R);
-        if(Errors::occurred())
-            exitmsg("open of " << tmp_file << " failed");
 
         char buf[sizeof(content3)] = {0};
-        assert_ssize(file->read(buf, sizeof(buf)), static_cast<ssize_t>(sizeof(content3) - 1));
+        assert_size(file->read(buf, sizeof(buf)), static_cast<ssize_t>(sizeof(content3) - 1));
         assert_str(buf, content3);
-        assert_ssize(file->read(buf, sizeof(buf)), 0);
+        assert_size(file->read(buf, sizeof(buf)), 0);
     }
 }
 
 static void buffered_read_until_end() {
     FStream file(pat_file, FILE_R, 256);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
     uint8_t buf[16];
     size_t count, pos = 0;
@@ -438,8 +387,6 @@ static void buffered_read_until_end() {
 
 static void buffered_read_with_seek() {
     FStream file(pat_file, FILE_R, 200);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
     uint8_t buf[32];
     size_t count, pos = 0;
@@ -471,8 +418,6 @@ static void buffered_read_with_seek() {
 
 static void buffered_read_with_large_buf() {
     FStream file(pat_file, FILE_R, 256);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
     size_t count, pos = 0;
     while((count = file.read(largebuf, sizeof(largebuf))) > 0) {
@@ -484,8 +429,6 @@ static void buffered_read_with_large_buf() {
 
 static void buffered_read_and_write() {
     FStream file(pat_file, 600, 256, FILE_RW);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
     size_t size = file.seek(0, M3FS_SEEK_END);
     file.seek(0, M3FS_SEEK_SET);
@@ -514,8 +457,6 @@ static void buffered_read_and_write() {
 
 static void buffered_write_only() {
     FStream file(pat_file, 600, 256, FILE_W);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
     // require a read by performing an unaligned write
     file.seek(DTU_PKG_SIZE * 10, M3FS_SEEK_SET);
@@ -528,8 +469,6 @@ static void buffered_write_only() {
 static void buffered_write_with_seek() {
     static_assert(DTU_PKG_SIZE == 8, "Unexpected DTU_PKG_SIZE");
     FStream file(pat_file, 600, 256, FILE_RW);
-    if(Errors::occurred())
-        exitmsg("open of " << pat_file << " failed");
 
     file.seek(2, M3FS_SEEK_SET);
     file.write("test", 4);

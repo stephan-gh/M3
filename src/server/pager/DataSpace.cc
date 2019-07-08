@@ -103,7 +103,8 @@ m3::Errors::Code AnonDataSpace::handle_pf(goff_t vaddr) {
         return m3::Errors::NONE;
     }
 
-    return reg->map(map_flags());
+    reg->map(map_flags());
+    return m3::Errors::NONE;
 }
 
 m3::Errors::Code ExternalDataSpace::handle_pf(goff_t vaddr) {
@@ -163,6 +164,7 @@ m3::Errors::Code ExternalDataSpace::handle_pf(goff_t vaddr) {
         return m3::Errors::NONE;
     }
 
-    return reg->map(map_flags());
+    reg->map(map_flags());
+    return m3::Errors::NONE;
 }
 

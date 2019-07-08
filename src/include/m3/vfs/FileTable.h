@@ -50,23 +50,22 @@ class FileTable {
 public:
     static const fd_t MAX_EPS       = EP_COUNT / 4;
     static const fd_t MAX_FDS       = 64;
-    static const fd_t INVALID       = MAX_FDS;
 
     /**
      * Constructor
      */
-    explicit FileTable()
+    explicit FileTable() noexcept
         : _file_ep_count(),
           _file_ep_victim(),
           _file_eps(),
           _fds() {
     }
 
-    explicit FileTable(const FileTable &f) {
+    explicit FileTable(const FileTable &f) noexcept {
         for(fd_t i = 0; i < MAX_FDS; ++i)
             _fds[i] = f._fds[i];
     }
-    FileTable &operator=(const FileTable &f) {
+    FileTable &operator=(const FileTable &f) noexcept {
         if(&f != this) {
             for(fd_t i = 0; i < MAX_FDS; ++i)
                 _fds[i] = f._fds[i];
@@ -78,7 +77,7 @@ public:
      * Allocates a new file descriptor for given file.
      *
      * @param file the file
-     * @return the file descriptor or MAX_FDS if all fds are in use
+     * @return the file descriptor
      */
     fd_t alloc(Reference<File> file);
 
@@ -87,13 +86,13 @@ public:
      *
      * @param fd the file descriptor
      */
-    void remove(fd_t fd);
+    void remove(fd_t fd) noexcept;
 
     /**
      * @param fd the file descriptor
      * @return true if the given file descriptor exists
      */
-    bool exists(fd_t fd) const {
+    bool exists(fd_t fd) const noexcept {
         return _fds[fd];
     }
 
@@ -102,6 +101,7 @@ public:
      * @return the file for given fd
      */
     Reference<File> get(fd_t fd) const {
+        // TODO throw if not existing?
         return _fds[fd];
     }
 
@@ -112,6 +112,7 @@ public:
      * @param file the file
      */
     void set(fd_t fd, Reference<File> file) {
+        // TODO throw if existing?
         assert(file);
         _fds[fd] = file;
     }
@@ -119,15 +120,14 @@ public:
     /**
      * Remove all files
      */
-    void remove_all();
+    void remove_all() noexcept;
 
     /**
      * Delegates all files to <vpe>.
      *
      * @param vpe the VPE to delegate the files to
-     * @return the error, if any
      */
-    Errors::Code delegate(VPE &vpe) const;
+    void delegate(VPE &vpe) const;
 
     /**
      * Serializes the current files into the given buffer

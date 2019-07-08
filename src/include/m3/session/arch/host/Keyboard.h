@@ -141,15 +141,15 @@ public:
         VK_PIPE
     };
 
-    explicit Keyboard(const String &service, int buford = nextlog2<256>::val, int msgord = nextlog2<64>::val)
+    explicit Keyboard(const String &service, int buford = nextlog2<256>::val,
+                      int msgord = nextlog2<64>::val)
         : ClientSession(service),
           _rgate(RecvGate::create(buford, msgord)),
           _sgate(SendGate::create(&_rgate)) {
-        if(!Errors::occurred())
-            delegate_obj(_sgate.sel());
+        delegate_obj(_sgate.sel());
     }
 
-    RecvGate &rgate() {
+    RecvGate &rgate() noexcept {
         return _rgate;
     }
 
@@ -163,17 +163,17 @@ struct OStreamSize<Keyboard::Event> {
     static const size_t value = OStreamSize<unsigned char>::value * 2 + OStreamSize<bool>::value;
 };
 
-static inline Unmarshaller &operator>>(Unmarshaller &u, Keyboard::Event &ev) {
+static inline Unmarshaller &operator>>(Unmarshaller &u, Keyboard::Event &ev) noexcept {
     u >> ev.scancode >> ev.keycode >> ev.isbreak;
     return u;
 }
 
-static inline GateIStream &operator>>(GateIStream &is, Keyboard::Event &ev) {
+static inline GateIStream &operator>>(GateIStream &is, Keyboard::Event &ev) noexcept {
     is >> ev.scancode >> ev.keycode >> ev.isbreak;
     return is;
 }
 
-static inline Marshaller &operator<<(Marshaller &m, const Keyboard::Event &ev) {
+static inline Marshaller &operator<<(Marshaller &m, const Keyboard::Event &ev) noexcept {
     m << ev.scancode << ev.keycode << ev.isbreak;
     return m;
 }

@@ -84,7 +84,7 @@ inodeno_t Dirs::search(Request &r, const char *path, bool create) {
     if(create) {
         // if there are more path components, we can't create the file
         if(*end) {
-            Errors::last = Errors::NO_SUCH_FILE;
+            r.set_error(Errors::NO_SUCH_FILE);
             return INVALID_INO;
         }
 
@@ -101,7 +101,7 @@ inodeno_t Dirs::search(Request &r, const char *path, bool create) {
         return ninode->inode;
     }
 
-    Errors::last = Errors::NO_SUCH_FILE;
+    r.set_error(Errors::NO_SUCH_FILE);
     return INVALID_INO;
 }
 

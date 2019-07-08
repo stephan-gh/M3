@@ -33,13 +33,13 @@ int main(int argc, char **argv) {
         copy(cin, cout);
     else {
         for(int i = 1; i < argc; ++i) {
-            FStream input(argv[i], FILE_R);
-            if(Errors::occurred()) {
-                errmsg("Open of " << argv[i] << " failed");
-                continue;
+            try {
+                FStream input(argv[i], FILE_R);
+                copy(input, cout);
             }
-
-            copy(input, cout);
+            catch(const Exception &e) {
+                errmsg("cat of " << argv[i] << " failed: " << e.what());
+            }
         }
     }
     return 0;

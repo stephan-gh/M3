@@ -27,34 +27,28 @@ int main() {
     NetworkManager net("net0");
 
     Socket *socket = net.create(Socket::SOCK_STREAM);
-    if(!socket)
-        exitmsg("Socket creation failed");
 
     // wait for server
     Semaphore::attach("net").down();
 
     socket->blocking(true);
-    Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
-    if(err != Errors::NONE)
-        exitmsg("Socket connect failed: " << Errors::to_string(err));
+    socket->connect(IpAddr(192, 168, 112, 1), 1337);
 
     cout << "Socket connected!\n";
     cout << "Sending...\n";
     MemGate mem(MemGate::create_global(8192, MemGate::RW));
     fd_t fd;
-    err = net.as_file(socket->sd(), FILE_RW, mem, 4096, fd);
-    if(err != Errors::NONE)
-        exitmsg("as_file failed: " << Errors::to_string(err));
+    net.as_file(socket->sd(), FILE_RW, mem, 4096, fd);
 
     Reference<File> file = VPE::self().fds()->get(fd);
 
     cout << "Accessing socket as file: " << fd << " (" << file.get() <<")...\n";
 
     char buffer[1024];
-    ssize_t size = 0;
+    size_t size = 0;
     for(size_t i = 0; i < 2; ++i) {
         strcpy(buffer, "ABCD");
-        ssize_t amount = file->write(buffer, 1024);
+        size_t amount = file->write(buffer, 1024);
         file->flush();
 
         cout << "Client Written " << amount << "bytes!\n";
@@ -66,7 +60,7 @@ int main() {
     file->write(buffer, 1);
     file->flush();
 
-    ssize_t rem = size;
+    size_t rem = size;
     while(rem > 0) {
         size = file->read(buffer, sizeof(buffer));
         if(size == 0)

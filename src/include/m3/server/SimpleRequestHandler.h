@@ -21,18 +21,17 @@
 #include <m3/session/ServerSession.h>
 #include <m3/server/RequestHandler.h>
 
+#include <memory>
+
 namespace m3 {
 
 struct SimpleSession : public ServerSession {
-    explicit SimpleSession(capsel_t srv_sel)
+    explicit SimpleSession(capsel_t srv_sel) noexcept
         : ServerSession(srv_sel),
           sgate() {
     }
-    ~SimpleSession() {
-        delete sgate;
-    }
 
-    SendGate *sgate;
+    std::unique_ptr<SendGate> sgate;
 };
 
 template<typename CLS, typename OP, size_t OPCNT, size_t MSG_SIZE = 128>
@@ -55,8 +54,10 @@ public:
             return Errors::INV_ARGS;
 
         label_t label = reinterpret_cast<label_t>(sess);
-        sess->sgate = new SendGate(SendGate::create(&_rgate, SendGateArgs().label(label)
-                                                                           .credits(MSG_SIZE)));
+        sess->sgate = std::unique_ptr<SendGate>(
+            new SendGate(SendGate::create(&_rgate, SendGateArgs().label(label)
+                                                                 .credits(MSG_SIZE)))
+        );
 
         data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->sgate->sel()).value();
         return Errors::NONE;

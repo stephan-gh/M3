@@ -22,6 +22,8 @@
 #include <m3/com/SendGate.h>
 #include <m3/VPE.h>
 
+#include <memory>
+
 namespace m3 {
 
 class InDirAccel {
@@ -47,7 +49,7 @@ public:
         uint64_t compTime;
     } PACKED;
 
-    explicit InDirAccel(VPE *vpe, RecvGate &reply_gate)
+    explicit InDirAccel(std::unique_ptr<VPE> &vpe, RecvGate &reply_gate)
         : _mgate(),
           _rgate(RecvGate::create_for(*vpe, getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE))),
           _sgate(SendGate::create(&_rgate, SendGateArgs().credits(MSG_SIZE)
@@ -58,12 +60,10 @@ public:
         // delegate cap
         vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _rgate.sel(), 1), CAP_RECV);
     }
-    ~InDirAccel() {
-        delete _mgate;
-    }
 
     void connect_output(InDirAccel *accel) {
-        _mgate = new MemGate(accel->_vpe->mem().derive(BUF_ADDR, MAX_BUF_SIZE));
+        _mgate = std::unique_ptr<MemGate>(
+            new MemGate(accel->_vpe->mem().derive(BUF_ADDR, MAX_BUF_SIZE)));
         _mgate->activate_for(*_vpe, EP_OUT);
     }
 
@@ -86,10 +86,10 @@ public:
     }
 
 private:
-    MemGate *_mgate;
+    std::unique_ptr<MemGate> _mgate;
     RecvGate _rgate;
     SendGate _sgate;
-    VPE *_vpe;
+    std::unique_ptr<VPE> &_vpe;
 };
 
 }

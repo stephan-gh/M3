@@ -29,24 +29,18 @@ int main() {
     NetworkManager net("net0");
 
     Socket *socket = net.create(Socket::SOCK_STREAM);
-    if(!socket)
-        exitmsg("Socket creation failed");
 
     // wait for server
     sem.down();
 
     socket->blocking(true);
-    Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
-    if(err != Errors::NONE)
-        exitmsg("Socket connect failed: " << Errors::to_string(err));
+    socket->connect(IpAddr(192, 168, 112, 1), 1337);
 
     cout << "Socket connected!\n";
     cout << "Sending...\n";
     MemGate mem(MemGate::create_global(64 * 1024, MemGate::RW));
     fd_t fd;
-    err = net.as_file(socket->sd(), FILE_RW, mem, 32 * 1024, fd);
-    if(err != Errors::NONE)
-        exitmsg("as_file failed: " << Errors::to_string(err));
+    net.as_file(socket->sd(), FILE_RW, mem, 32 * 1024, fd);
 
     Reference<File> file = VPE::self().fds()->get(fd);
 
@@ -63,9 +57,9 @@ int main() {
 
     cout << "Benchmark...\n";
     while(packet_sent_count < packets_to_send) {
-        ssize_t result = file->write(request.raw, packet_size);
-        if(static_cast<ssize_t>(packet_size) != result)
-            exitmsg("Writing has failed: " << result);
+        size_t result = file->write(request.raw, packet_size);
+        if(packet_size != result)
+            exitmsg("Writing has failed, expected " << packet_size << ", got " << result);
         packet_sent_count++;
     }
     file->flush();

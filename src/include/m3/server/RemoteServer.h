@@ -25,7 +25,7 @@ namespace m3 {
 
 struct RemoteServer {
     explicit RemoteServer(VPE &vpe, const String &name)
-        : srv(ObjCap::SERVICE, vpe.alloc_sels(2)),
+        : srv(ObjCap::SERVICE, vpe.alloc_sels(2), ObjCap::KEEP_CAP),
           rgate(RecvGate::create_for(vpe, nextlog2<256>::val, nextlog2<256>::val)) {
         rgate.activate();
 

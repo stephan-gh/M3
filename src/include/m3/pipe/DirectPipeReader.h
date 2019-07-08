@@ -20,6 +20,9 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/vfs/File.h>
+#include <m3/Exception.h>
+
+#include <memory>
 
 namespace m3 {
 
@@ -33,7 +36,7 @@ class DirectPipeReader : public File {
 
 public:
     struct State {
-        explicit State(capsel_t caps);
+        explicit State(capsel_t caps) noexcept;
 
         MemGate _mgate;
         RecvGate _rgate;
@@ -44,50 +47,44 @@ public:
         GateIStream _is;
     };
 
-    explicit DirectPipeReader(capsel_t caps, State *state);
+    explicit DirectPipeReader(capsel_t caps, std::unique_ptr<State> &&state) noexcept;
 
 public:
-    /**
-     * Sends EOF
-     */
-    ~DirectPipeReader();
-
-    virtual Errors::Code stat(FileInfo &) const override {
-        // not supported
-        return Errors::NOT_SUP;
+    virtual void stat(FileInfo &) const override {
+        throw Exception(Errors::NOT_SUP);
     }
-    virtual ssize_t seek(size_t, int) override {
-        // not supported
-        return Errors::NOT_SUP;
+    virtual size_t seek(size_t, int) override {
+        throw Exception(Errors::NOT_SUP);
     }
 
-    virtual ssize_t read(void *buffer, size_t count) override {
-        return read(buffer, count, true);
+    virtual size_t read(void *buffer, size_t count) override {
+        return static_cast<size_t>(read(buffer, count, true));
     }
+
     // returns -1 when in non blocking mode and there is no data to read
     ssize_t read(void *, size_t, bool blocking);
-    virtual ssize_t write(const void *, size_t) override {
-        // not supported
-        return 0;
+
+    virtual size_t write(const void *, size_t) override {
+        throw Exception(Errors::NOT_SUP);
     }
 
     virtual Reference<File> clone() const override {
         return Reference<File>();
     }
 
-    virtual char type() const override {
+    virtual char type() const noexcept override {
         return 'Q';
     }
-    virtual Errors::Code delegate(VPE &vpe) override;
+    virtual void delegate(VPE &vpe) override;
     virtual void serialize(Marshaller &m) override;
     static File *unserialize(Unmarshaller &um);
 
 private:
-    virtual void close() override;
+    virtual void close() noexcept override;
 
     bool _noeof;
     capsel_t _caps;
-    State *_state;
+    std::unique_ptr<State> _state;
 };
 
 }

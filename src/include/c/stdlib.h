@@ -24,5 +24,5 @@ EXTERN_C void *calloc(size_t n, size_t size);
 EXTERN_C void *realloc(void *p, size_t size);
 EXTERN_C void free(void *p);
 
-EXTERN_C void abort();
-EXTERN_C void exit(int code);
+EXTERN_C NORETURN void abort();
+EXTERN_C NORETURN void exit(int code);

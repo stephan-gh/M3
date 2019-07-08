@@ -23,6 +23,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/server/Handler.h>
 #include <m3/session/ResMng.h>
+#include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
@@ -53,8 +54,14 @@ public:
     }
 
     ~Server() {
-        if(!(flags() & KEEP_CAP))
-            VPE::self().resmng().unreg_service(sel(), false);
+        if(!(flags() & KEEP_CAP)) {
+            try {
+                VPE::self().resmng().unreg_service(sel(), false);
+            }
+            catch(...) {
+                // ignore
+            }
+        }
         delete _handler;
     }
 
@@ -84,7 +91,13 @@ private:
         KIF::Service::Operation op = static_cast<KIF::Service::Operation>(req->opcode);
 
         if(static_cast<size_t>(op) < ARRAY_SIZE(_ctrl_handler)) {
-            (this->*_ctrl_handler[op])(is);
+            try {
+                (this->*_ctrl_handler[op])(is);
+            }
+            catch(const Exception &e) {
+                cerr << "exception during service request: " << e.what() << "\n";
+                reply_error(is, e.code());
+            }
             return;
         }
         reply_error(is, Errors::INV_ARGS);

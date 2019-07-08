@@ -22,28 +22,25 @@
 namespace m3 {
 
 UdpSocket::UdpSocket(int sd, NetworkManager& nm)
-    : Socket(sd, nm)
-{
+    : Socket(sd, nm) {
 }
 
 UdpSocket::~UdpSocket() {
 }
 
-Socket::SocketType UdpSocket::type() {
+Socket::SocketType UdpSocket::type() noexcept {
     return SOCK_DGRAM;
 }
 
-Errors::Code UdpSocket::connect(IpAddr addr, uint16_t port) {
+void UdpSocket::connect(IpAddr addr, uint16_t port) {
     // TODO: Allow UdpSocket to be reconnected to a different remote socket?
     if(_state != None && _state != Connected)
-        return inv_state();
+        inv_state();
 
-    auto result = _nm.connect(sd(), addr, port);
-    if(result == Errors::NONE) {
-        _remote_addr = addr;
-        _remote_port = port;
-    }
-    return update_status(result, Connected);
+    _nm.connect(sd(), addr, port);
+    _remote_addr = addr;
+    _remote_port = port;
+    _state = Connected;
 }
 
 ssize_t UdpSocket::sendto(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
@@ -51,34 +48,29 @@ ssize_t UdpSocket::sendto(const void *src, size_t amount, IpAddr dst_addr, uint1
     size_t size = MessageHeader::serialize_length() + amount;
 
     while(_state != Closed) {
-        auto err = _channel->inband_data_transfer(_sd, size, [&](uchar * buf) {
+        auto success = _channel->inband_data_transfer(_sd, size, [&](uchar * buf) {
             Marshaller m(buf, MessageHeader::serialize_length());
             MessageHeader hdr(dst_addr, dst_port, amount);
             hdr.serialize(m);
             memcpy(buf + MessageHeader::serialize_length(), src, amount);
         });
 
-        if(err == Errors::NONE)
+        if(success)
             return static_cast<ssize_t>(amount);
-
-        if(err != Errors::MISS_CREDITS || !_blocking) {
-            Errors::last = err;
+        if(!_blocking)
             return -1;
-        }
 
         // Block until channel regains credits.
         wait_for_credit();
     };
 
-    Errors::last = inv_state();
-    return -1;
+    inv_state();
 }
 
 ssize_t UdpSocket::recvmsg(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
     const uchar * pkt_data = nullptr;
     size_t pkt_size = 0;
-    Errors::last = get_next_data(pkt_data, pkt_size);
-    if(Errors::last != Errors::NONE)
+    if(!get_next_data(pkt_data, pkt_size))
         return -1;
 
     MessageHeader hdr;

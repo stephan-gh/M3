@@ -38,8 +38,6 @@ struct App {
         : argc(argc),
           argv(argv),
           vpe(argv[0], VPEArgs().flags(muxed ? VPE::MUXABLE : 0)) {
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create VPE");
     }
 
     int argc;
@@ -97,9 +95,7 @@ int main(int argc, char **argv) {
         for(size_t i = 0; i < ARRAY_SIZE(apps); ++i) {
             apps[i]->vpe.mounts(*VPE::self().mounts());
             apps[i]->vpe.obtain_mounts();
-            Errors::Code res = apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
-            if(res != Errors::NONE)
-                PANIC("Cannot execute " << apps[i]->argv[0] << ": " << Errors::to_string(res));
+            apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
 
             if(!muxed) {
                 if(VERBOSE) cout << "Waiting for VPE " << apps[i]->argv[0] << " ...\n";
@@ -133,32 +129,35 @@ int main(int argc, char **argv) {
             OStringStream os(path, sizeof(path));
             os << "/tmp/" << i;
 
-            Dir dir(os.str());
-            if(Errors::occurred())
-                continue;
+            try {
+                Dir dir(os.str());
 
-            size_t x = 0;
-            String *entries[MAX_TMP_FILES];
+                size_t x = 0;
+                String *entries[MAX_TMP_FILES];
 
-            if(VERBOSE) cout << "Collecting files in " << os.str() << "\n";
+                if(VERBOSE) cout << "Collecting files in " << os.str() << "\n";
 
-            // remove all entries; we assume here that they are files
-            Dir::Entry e;
-            while(dir.readdir(e)) {
-                if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
-                    continue;
+                // remove all entries; we assume here that they are files
+                Dir::Entry e;
+                while(dir.readdir(e)) {
+                    if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
+                        continue;
 
-                OStringStream file(path, sizeof(path));
-                file << "/tmp/" << i << "/" << e.name;
-                if(x > ARRAY_SIZE(entries))
-                    PANIC("Too few entries");
-                entries[x++] = new String(file.str());
+                    OStringStream file(path, sizeof(path));
+                    file << "/tmp/" << i << "/" << e.name;
+                    if(x > ARRAY_SIZE(entries))
+                        PANIC("Too few entries");
+                    entries[x++] = new String(file.str());
+                }
+
+                for(; x > 0; --x) {
+                    if(VERBOSE) cout << "Unlinking " << *(entries[x - 1]) << "\n";
+                    VFS::unlink(entries[x - 1]->c_str());
+                    delete entries[x - 1];
+                }
             }
-
-            for(; x > 0; --x) {
-                if(VERBOSE) cout << "Unlinking " << *(entries[x - 1]) << "\n";
-                VFS::unlink(entries[x - 1]->c_str());
-                delete entries[x - 1];
+            catch(...) {
+                // ignore
             }
         }
     }

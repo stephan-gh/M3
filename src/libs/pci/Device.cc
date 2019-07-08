@@ -34,8 +34,7 @@ ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
     _intgate.activate();
 
     _vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sintgate.sel(), 1));
-    if(_sintgate.activate_for(_vpe, EP_INT) != Errors::NONE)
-        PANIC("Unable to activate interrupt EP for proxied pci device: " << Errors::last);
+    _sintgate.activate_for(_vpe, EP_INT);
 
     _vpe.start();
 }
@@ -50,8 +49,7 @@ void ProxiedPciDevice::stopListing() {
 }
 
 void ProxiedPciDevice::setDmaEp(m3::MemGate &memgate) {
-    if(memgate.activate_for(_vpe, EP_DMA) != Errors::NONE)
-        PANIC("Unable to activate DMA EP for proxied pci device: " << Errors::last);
+    memgate.activate_for(_vpe, EP_DMA);
 }
 
 void ProxiedPciDevice::receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &) {

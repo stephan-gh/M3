@@ -30,7 +30,7 @@ class VPE;
  * by requesting PE-external memory from the kernel or bind a MemGate to an existing capability.
  */
 class MemGate : public Gate {
-    explicit MemGate(uint flags, capsel_t cap, bool revoke)
+    explicit MemGate(uint flags, capsel_t cap, bool revoke) noexcept
         : Gate(MEM_GATE, cap, flags),
           _revoke(revoke),
           _cmdflags() {
@@ -82,11 +82,11 @@ public:
      * @param sel the capability selector
      * @param flags the flags to control whether cap/selector are kept (default: both)
      */
-    static MemGate bind(capsel_t sel, uint flags = ObjCap::KEEP_CAP) {
+    static MemGate bind(capsel_t sel, uint flags = ObjCap::KEEP_CAP) noexcept {
         return MemGate(flags, sel, true);
     }
 
-    MemGate(MemGate &&m)
+    MemGate(MemGate &&m) noexcept
         : Gate(Util::move(m)),
           _revoke(m._revoke),
           _cmdflags(m._cmdflags) {
@@ -101,20 +101,19 @@ public:
      * @param vpe the VPE to activate it for
      * @param ep the ep id
      * @param offset the offset within this memory region
-     * @return the result
      */
-    Errors::Code activate_for(VPE &vpe, epid_t ep, goff_t offset = 0);
+    void activate_for(VPE &vpe, epid_t ep, goff_t offset = 0);
 
     /**
      * @return the command flags
      */
-    uint cmdflags() const {
+    uint cmdflags() const noexcept {
         return _cmdflags;
     }
     /**
      * Sets the given command flags
      */
-    void cmdflags(uint flags) {
+    void cmdflags(uint flags) noexcept {
         _cmdflags = flags;
     }
 
@@ -149,9 +148,8 @@ public:
      * @param data the data to write
      * @param len the number of bytes to write
      * @param offset the start-offset
-     * @return the error code or Errors::NONE
      */
-    Errors::Code write(const void *data, size_t len, goff_t offset);
+    void write(const void *data, size_t len, goff_t offset);
 
     /**
      * Reads <len> bytes from <offset> into <data>.
@@ -159,9 +157,8 @@ public:
      * @param data the buffer to write into
      * @param len the number of bytes to read
      * @param offset the start-offset
-     * @return the error code or Errors::NONE
      */
-    Errors::Code read(void *data, size_t len, goff_t offset);
+    void read(void *data, size_t len, goff_t offset);
 
 private:
     Errors::Code forward(void *&data, size_t &len, goff_t &offset, uint flags);

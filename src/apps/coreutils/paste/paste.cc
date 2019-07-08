@@ -25,11 +25,12 @@ int main(int argc, char **argv) {
     size_t count = 0;
 
     for(int i = 1; i < argc; ++i) {
-        files[i - 1] = new FStream(argv[i], FILE_R);
-        if(Errors::occurred()) {
-            delete files[i - 1];
+        try {
+            files[i - 1] = new FStream(argv[i], FILE_R);
+        }
+        catch(const Exception &e) {
             files[i - 1] = nullptr;
-            errmsg("Open of " << argv[i] << " failed");
+            errmsg("Open failed: " << e.what());
             continue;
         }
 

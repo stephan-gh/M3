@@ -33,8 +33,6 @@ struct App {
         : argc(argc),
           argv(argv),
           vpe(name, VPEArgs().flags(tmux ? VPE::MUXABLE : 0)) {
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create VPE");
     }
 
     int argc;
@@ -67,9 +65,7 @@ int main() {
     for(size_t i = 0; i < ARRAY_SIZE(apps); ++i) {
         apps[i]->vpe.mounts(*VPE::self().mounts());
         apps[i]->vpe.obtain_mounts();
-        Errors::Code res = apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
-        if(res != Errors::NONE)
-            PANIC("Cannot execute " << apps[i]->argv[0] << ": " << Errors::to_string(res));
+        apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
     }
 
     if(VERBOSE) cout << "Waiting for VPEs...\n";

@@ -116,14 +116,13 @@ Errors::Code M3FSFileSession::get_mem(KIF::Service::ExchangeData &data) {
     }
 
     capsel_t sel = VPE::self().alloc_sel();
-    Errors::last = Errors::NONE;
     size_t extlen = 0;
     size_t len = INodes::get_extent_mem(r, inode, offset, ext_off, &extlen,
                                         _oflags & MemGate::RWX, sel, true, _accessed);
-    if(Errors::occurred()) {
-        PRINT(this, "getting extent memory failed: " << Errors::to_string(Errors::last));
+    if(r.has_error()) {
+        PRINT(this, "getting extent memory failed: " << Errors::to_string(r.error()));
 
-        return Errors::last;
+        return r.error();
     }
 
     data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1).value();
@@ -164,7 +163,6 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
     if(_accessed < 31)
         _accessed++;
 
-    Errors::last = Errors::NONE;
     capsel_t sel = VPE::self().alloc_sel();
     size_t len;
     size_t extlen = 0;
@@ -188,9 +186,9 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
         Extent e = {0, 0};
         len = INodes::req_append(r, inode, _extent, _extoff, &extlen, sel,
                                  _oflags & MemGate::RWX, &e, _accessed);
-        if(Errors::occurred()) {
-            PRINT(this, "append failed: " << Errors::to_string(Errors::last));
-            reply_error(is, Errors::last);
+        if(r.has_error()) {
+            PRINT(this, "append failed: " << Errors::to_string(r.error()));
+            reply_error(is, r.error());
             return;
         }
 
@@ -202,9 +200,9 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
         // get next mem cap
         len = INodes::get_extent_mem(r, inode, _extent, _extoff, &extlen,
                                      _oflags & MemGate::RWX, sel, out, _accessed);
-        if(Errors::occurred()) {
-            PRINT(this, "getting extent memory failed: " << Errors::to_string(Errors::last));
-            reply_error(is, Errors::last);
+        if(r.has_error()) {
+            PRINT(this, "getting extent memory failed: " << Errors::to_string(r.error()));
+            reply_error(is, r.error());
             return;
         }
     }
@@ -217,9 +215,12 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
     _lastbytes = len - capoff;
     if(len > 0) {
         // activate mem cap for client
-        if(Syscalls::activate(_epcap, sel, 0) != Errors::NONE) {
-            PRINT(this, "activate failed: " << Errors::to_string(Errors::last));
-            reply_error(is, Errors::last);
+        try {
+            Syscalls::activate(_epcap, sel, 0);
+        }
+        catch(const Exception &e) {
+            PRINT(this, "activate failed: " << e.what());
+            reply_error(is, e.code());
             return;
         }
 

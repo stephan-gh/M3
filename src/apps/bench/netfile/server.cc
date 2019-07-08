@@ -29,49 +29,39 @@ int main() {
     String status;
 
     Socket * socket = net.create(Socket::SOCK_STREAM);
-    if(!socket)
-        exitmsg("Socket creation failed");
 
     socket->blocking(true);
-    Errors::Code err = socket->bind(IpAddr(192, 168, 112, 1), 1337);
-    if(err != Errors::NONE)
-        exitmsg("Socket bind failed: " << Errors::to_string(err));
+    socket->bind(IpAddr(192, 168, 112, 1), 1337);
 
     socket->listen();
 
     // notify client
     Semaphore::attach("net").up();
 
-    Socket * accepted_socket = 0;
-    err = socket->accept(accepted_socket);
-    if(err != Errors::NONE)
-        exitmsg("Socket accept failed: " << Errors::to_string(err));
+    Socket *accepted_socket = 0;
+    socket->accept(accepted_socket);
 
     cout << "Socket accepted!\n";
 
     cout << "Serving...\n";
     MemGate rmem(MemGate::create_global(4096, MemGate::RW));
     fd_t rfd;
-    err = net.as_file(accepted_socket->sd(), FILE_R, rmem, 4096, rfd);
-    if(err != Errors::NONE)
-        exitmsg("as_rfile failed: " << Errors::to_string(err));
+    net.as_file(accepted_socket->sd(), FILE_R, rmem, 4096, rfd);
     Reference<File> rfile = VPE::self().fds()->get(rfd);
 
     MemGate smem(MemGate::create_global(4096, MemGate::RW));
     fd_t sfd;
-    err = net.as_file(accepted_socket->sd(), FILE_W, smem, 4096, sfd);
-    if(err != Errors::NONE)
-        exitmsg("as_sfile failed: " << Errors::to_string(err));
+    net.as_file(accepted_socket->sd(), FILE_W, smem, 4096, sfd);
     Reference<File> sfile = VPE::self().fds()->get(sfd);
 
     // Creating processor
     cout << "Creating accel VPE\n";
-    VPE *vpe = new VPE("AccelVPE", VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_ROT13))
-                                            .flags(VPE::MUXABLE));
-    if(Errors::last != Errors::NONE)
-        exitmsg("Unable to create accel VPE");
+    std::unique_ptr<VPE> vpe(
+        new VPE("AccelVPE", VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_ROT13))
+                                     .flags(VPE::MUXABLE))
+    );
 
-    StreamAccel *accel = new StreamAccel(vpe, 1000);
+    std::unique_ptr<StreamAccel> accel(new StreamAccel(vpe, 1000));
 
     accel->connect_input(static_cast<GenericFile*>(rfile.get()));
     accel->connect_output(static_cast<GenericFile*>(sfile.get()));

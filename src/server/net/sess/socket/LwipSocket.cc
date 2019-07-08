@@ -44,10 +44,8 @@ ssize_t LwipSocket::send_data(m3::MemGate &mem, goff_t offset, size_t size) {
     void * data = malloc(size);
     ssize_t result = -1;
 
-    if(mem.read(data, size, offset) == Errors::NONE)
-        result = send_data(data, size);
-    else
-        LOG_SOCKET(this, "send_data failed");
+    mem.read(data, size, offset);
+    result = send_data(data, size);
 
     free(data);
     return result;

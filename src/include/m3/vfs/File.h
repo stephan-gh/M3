@@ -23,6 +23,8 @@
 
 #include <fs/internal.h>
 
+#include <memory>
+
 namespace m3 {
 
 class VFS;
@@ -56,20 +58,17 @@ public:
               cur(),
               pos() {
         }
-        ~Buffer() {
-            delete[] buffer;
-        }
 
         /**
          * @return true if the buffer is empty
          */
-        bool empty() {
+        bool empty() noexcept {
             return cur == 0;
         }
         /**
          * Invalidates the buffer, i.e. makes it empty
          */
-        void invalidate() {
+        void invalidate() noexcept {
             cur = 0;
         }
 
@@ -87,9 +86,9 @@ public:
          * @param file the file backend
          * @param dst the destination buffer
          * @param amount the number of bytes to read
-         * @return the number of read bytes (0 = EOF, <0 = error)
+         * @return the number of read bytes (0 = EOF)
          */
-        ssize_t read(File *file, void *dst, size_t amount);
+        size_t read(File *file, void *dst, size_t amount);
 
         /**
          * Writes <amount> bytes from <src> into the buffer.
@@ -97,25 +96,26 @@ public:
          * @param file the file backend
          * @param src the data to write
          * @param amount the number of bytes to write
-         * @return the number of written bytes (0 = EOF, <0 =  error)
+         * @return the number of written bytes (0 = EOF)
          */
-        ssize_t write(File *file, const void *src, size_t amount);
+        size_t write(File *file, const void *src, size_t amount);
 
         /**
          * Flushes the buffer.
          *
          * @param file the file backend
-         * @return the error code, if any
          */
-        Errors::Code flush(File *file);
+        void flush(File *file);
 
-        char *buffer;
+        std::unique_ptr<char[]> buffer;
         size_t size;
         size_t cur;
         size_t pos;
     };
 
-    explicit File(int flags) : _flags(flags), _fd() {
+    explicit File(int flags) noexcept
+        : _flags(flags),
+          _fd() {
     }
     File(const File &) = delete;
     File &operator=(const File &) = delete;
@@ -125,14 +125,14 @@ public:
     /**
      * @return the open flags
      */
-    int flags() const {
+    int flags() const noexcept {
         return _flags;
     }
 
     /**
      * @return the file descriptor
      */
-    fd_t fd() const {
+    fd_t fd() const noexcept {
         return _fd;
     }
 
@@ -140,9 +140,8 @@ public:
      * Retrieves information about this file
      *
      * @param info the struct to fill
-     * @return the error code if any
      */
-    virtual Errors::Code stat(FileInfo &info) const = 0;
+    virtual void stat(FileInfo &info) const = 0;
 
     /**
      * Changes the file-position to <offset>, using <whence>.
@@ -151,7 +150,7 @@ public:
      * @param whence the seek-type (M3FS_SEEK_{SET,CUR,END}).
      * @return the new file-position
      */
-    virtual ssize_t seek(size_t offset, int whence) = 0;
+    virtual size_t seek(size_t offset, int whence) = 0;
 
     /**
      * Reads at most <count> bytes into <buffer>.
@@ -160,7 +159,7 @@ public:
      * @param count the number of bytes to read
      * @return the number of read bytes
      */
-    virtual ssize_t read(void *buffer, size_t count) = 0;
+    virtual size_t read(void *buffer, size_t count) = 0;
 
     /**
      * Writes at most <count> bytes from <buffer> into the file.
@@ -169,40 +168,33 @@ public:
      * @param count the number of bytes to write
      * @return the number of written bytes
      */
-    virtual ssize_t write(const void *buffer, size_t count) = 0;
+    virtual size_t write(const void *buffer, size_t count) = 0;
 
     /**
      * Writes <count> bytes from <buffer> into the file, if possible.
      *
      * @param buffer the data to write
      * @param count the number of bytes to write
-     * @return the error code, if any
      */
-    Errors::Code write_all(const void *buffer, size_t count) {
+    void write_all(const void *buffer, size_t count) {
         const char *buf = reinterpret_cast<const char*>(buffer);
         while(count > 0) {
-            ssize_t res = write(buf, count);
-            if(res < 0)
-                return Errors::last;
+            size_t res = write(buf, count);
             count -= static_cast<size_t>(res);
             buf += static_cast<size_t>(res);
         }
-        return Errors::NONE;
     }
 
     /**
      * Performs a flush of the so far written data
-     *
-     * @return the error, if any
      */
-    virtual Errors::Code flush() {
-        return Errors::NONE;
+    virtual void flush() {
     }
 
     /**
      * @return the unique character for serialization
      */
-    virtual char type() const = 0;
+    virtual char type() const noexcept = 0;
 
     /**
      * Obtains a new file session from the server
@@ -215,9 +207,8 @@ public:
      * Delegates this file to the given VPE.
      *
      * @param vpe the VPE
-     * @return the error, if any
      */
-    virtual Errors::Code delegate(VPE &vpe) = 0;
+    virtual void delegate(VPE &vpe) = 0;
 
     /**
      * Serializes this object to the given marshaller.
@@ -227,9 +218,9 @@ public:
     virtual void serialize(Marshaller &m) = 0;
 
 private:
-    virtual void close() = 0;
+    virtual void close() noexcept = 0;
 
-    void set_fd(fd_t fd) {
+    void set_fd(fd_t fd) noexcept {
         _fd = fd;
     }
 

@@ -45,13 +45,13 @@ public:
     static const epid_t UNBOUND     = EP_COUNT;
 
 protected:
-    explicit Gate(uint type, capsel_t cap, unsigned capflags, epid_t ep = UNBOUND)
+    explicit Gate(uint type, capsel_t cap, unsigned capflags, epid_t ep = UNBOUND) noexcept
         : ObjCap(type, cap, capflags),
           _ep(ep) {
     }
 
 public:
-    Gate(Gate &&g)
+    Gate(Gate &&g) noexcept
         : ObjCap(Util::move(g)),
           _ep(g._ep) {
         g._ep = NODESTROY;
@@ -63,7 +63,7 @@ public:
     /**
      * @return the endpoint to which this gate is currently bound (might be UNBOUND)
      */
-    epid_t ep() const {
+    epid_t ep() const noexcept {
         return _ep;
     }
     /**
@@ -71,7 +71,7 @@ public:
      *
      * @param ep the endpoint id
      */
-    void ep(epid_t ep) {
+    void ep(epid_t ep) noexcept {
         _ep = ep;
     }
 
@@ -90,10 +90,9 @@ public:
     }
 
 protected:
-    Errors::Code ensure_activated() {
+    void ensure_activated() {
         if(_ep == UNBOUND && sel() != ObjCap::INVALID)
-            return EPMux::get().switch_to(this);
-        return Errors::NONE;
+            EPMux::get().switch_to(this);
     }
 
 private:

@@ -27,7 +27,7 @@ using namespace m3;
 INode *INodes::create(Request &r, mode_t mode) {
     inodeno_t ino = r.hdl().inodes().alloc(r);
     if(ino == 0) {
-        Errors::last = Errors::NO_SPACE;
+        r.set_error(Errors::NO_SPACE);
         return nullptr;
     }
     INode *inode = get(r, ino);
@@ -121,7 +121,7 @@ size_t INodes::req_append(Request &r, INode *inode, size_t i, size_t extoff, siz
         // this is a new extent we dont have to load it
         if(!r.hdl().clear_blocks())
             load = false;
-        if(Errors::occurred())
+        if(r.has_error())
             return 0;
         extoff = 0;
     }
@@ -279,7 +279,7 @@ void INodes::fill_extent(Request &r, INode *inode, Extent *ext, uint32_t blocks,
     size_t count = blocks;
     ext->start = r.hdl().blocks().alloc(r, &count);
     if(count == 0) {
-        Errors::last = Errors::NO_SPACE;
+        r.set_error(Errors::NO_SPACE);
         ext->length = 0;
         return;
     }

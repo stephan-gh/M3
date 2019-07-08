@@ -23,6 +23,8 @@
 #include <m3/com/GateStream.h>
 #include <m3/VPE.h>
 
+#include <memory>
+
 namespace m3 {
 
 template<class SESS>
@@ -33,21 +35,18 @@ class EventSessionData : public ServerSession, public SListItem {
     friend class EventHandler;
 
 public:
-    explicit EventSessionData(capsel_t srv_sel)
+    explicit EventSessionData(capsel_t srv_sel) noexcept
         : ServerSession(srv_sel),
           SListItem(),
           _sgate() {
     }
-    ~EventSessionData() {
-        delete _sgate;
-    }
 
-    SendGate *gate() {
+    std::unique_ptr<SendGate> &gate() noexcept {
         return _sgate;
     }
 
 protected:
-    SendGate *_sgate;
+    std::unique_ptr<SendGate> _sgate;
 };
 
 template<class SESS = EventSessionData>
@@ -56,7 +55,9 @@ class EventHandler : public Handler<SESS> {
     friend class Server;
 
 public:
-    explicit EventHandler() : Handler<SESS>(), _sessions() {
+    explicit EventHandler() noexcept
+        : Handler<SESS>(),
+          _sessions() {
     }
 
     template<typename... Args>
@@ -64,11 +65,11 @@ public:
         auto msg = create_vmsg(args...);
         for(auto &h : _sessions) {
             if(h.gate())
-                send_msg(*static_cast<SendGate*>(h.gate()), msg.bytes(), msg.total());
+                send_msg(*h.gate(), msg.bytes(), msg.total());
         }
     }
 
-    SList<SESS> &sessions() {
+    SList<SESS> &sessions() noexcept {
         return _sessions;
     }
 
@@ -83,7 +84,8 @@ protected:
         if(sess->gate() || data.args.count != 0 || data.caps != 1)
             return Errors::INV_ARGS;
 
-        sess->_sgate = new SendGate(SendGate::bind(VPE::self().alloc_sel(), 0));
+        sess->_sgate = std::unique_ptr<SendGate>(
+            new SendGate(SendGate::bind(VPE::self().alloc_sel(), 0)));
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sess->gate()->sel());
         data.caps = crd.value();
         return Errors::NONE;

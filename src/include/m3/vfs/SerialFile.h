@@ -19,6 +19,7 @@
 #include <base/Machine.h>
 
 #include <m3/vfs/File.h>
+#include <m3/Exception.h>
 #include <m3/VPE.h>
 
 namespace m3 {
@@ -28,36 +29,38 @@ namespace m3 {
  */
 class SerialFile : public File {
 public:
-    explicit SerialFile() : File(FILE_RW) {
+    explicit SerialFile() noexcept : File(FILE_RW) {
     }
 
-    virtual Errors::Code stat(FileInfo &) const override {
-        // not supported
-        return Errors::NOT_SUP;
+    virtual void stat(FileInfo &) const override {
+        throw Exception(Errors::NOT_SUP);
     }
-    virtual ssize_t seek(size_t, int) override {
-        // not supported
-        return Errors::NOT_SUP;
+    virtual size_t seek(size_t, int) override {
+        throw Exception(Errors::NOT_SUP);
     }
 
-    virtual ssize_t read(void *buffer, size_t count) override {
-        return Machine::read(reinterpret_cast<char*>(buffer), count);
+    virtual size_t read(void *buffer, size_t count) override {
+        ssize_t res = Machine::read(reinterpret_cast<char*>(buffer), count);
+        if(res < 0)
+            throw Exception(static_cast<Errors::Code>(-res));
+        return static_cast<size_t>(res);
     }
-    virtual ssize_t write(const void *buffer, size_t count) override {
+    virtual size_t write(const void *buffer, size_t count) override {
         int res = Machine::write(reinterpret_cast<const char*>(buffer), count);
-        return res < 0 ? res : static_cast<ssize_t>(count);
+        if(res < 0)
+            throw Exception(static_cast<Errors::Code>(-res));
+        return count;
     }
 
     virtual Reference<File> clone() const override {
         return Reference<File>(new SerialFile());
     }
 
-    virtual char type() const override {
+    virtual char type() const noexcept override {
         return 'S';
     }
-    virtual Errors::Code delegate(VPE &) override {
+    virtual void delegate(VPE &) override {
         // nothing to do
-        return Errors::NONE;
     }
     virtual void serialize(Marshaller &) override {
         // nothing to do
@@ -66,7 +69,7 @@ public:
         return new SerialFile();
     }
 
-    virtual void close() override {
+    virtual void close() noexcept override {
     }
 };
 

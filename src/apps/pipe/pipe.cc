@@ -255,7 +255,7 @@ int main() {
         t2.run([] {
             auto in = VPE::self().fds()->get(STDIN_FD);
             auto out = VPE::self().fds()->get(STDOUT_FD);
-            ssize_t res;
+            size_t res;
             while((res = in->read(buffer, sizeof(buffer))) > 0) {
                 out->write(buffer, static_cast<size_t>(res));
             }

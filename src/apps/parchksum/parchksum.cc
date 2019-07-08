@@ -32,7 +32,7 @@ struct Worker {
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
         : submem(mem.derive(offset, size)),
-          sgate(SendGate::create(&rgate, SendGateArgs().credits(DTU_PKG_SIZE + DTU::HEADER_SIZE))),
+          sgate(SendGate::create(&rgate, SendGateArgs().credits(64))),
           vpe("worker") {
         vpe.delegate_obj(submem.sel());
         vpe.fds(*VPE::self().fds());
@@ -58,11 +58,8 @@ int main(int argc, char **argv) {
 
     // create worker
     Worker **worker = new Worker*[vpes];
-    for(size_t i = 0; i < vpes; ++i) {
+    for(size_t i = 0; i < vpes; ++i)
         worker[i] = new Worker(rgate, mem, static_cast<size_t>(i) * SUBAREA_SIZE, SUBAREA_SIZE);
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create worker");
-    }
 
     // write data into memory
     for(size_t i = 0; i < vpes; ++i) {

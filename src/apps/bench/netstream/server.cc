@@ -27,39 +27,36 @@ int main() {
     String status;
 
     Socket *socket = net.create(Socket::SOCK_STREAM);
-    if(!socket)
-        exitmsg("Socket creation failed");
     socket->blocking(true);
 
-    Errors::Code err = socket->bind(IpAddr(192, 168, 112, 1), 1337);
-    if(err != Errors::NONE)
-        exitmsg("Socket bind failed: " << Errors::to_string(err));
+    socket->bind(IpAddr(192, 168, 112, 1), 1337);
 
     socket->listen();
 
     // notify client
     Semaphore::attach("net").up();
 
-    Socket * accepted_socket = 0;
-    err = socket->accept(accepted_socket);
-    if(err != Errors::NONE)
-        exitmsg("Socket accept failed: " << Errors::to_string(err));
+    Socket *accepted_socket = 0;
+    socket->accept(accepted_socket);
     accepted_socket->blocking(true);
 
     char request[1024];
     while(true) {
-        ssize_t len = accepted_socket->recv(request, sizeof(request));
-        if(len <= 0) {
-            if(len == -Errors::INV_STATE)
-                exitmsg("Client disconnected");
-            else
+        try {
+            ssize_t len = accepted_socket->recv(request, sizeof(request));
+            if(len <= 0)
                 exitmsg("Received invalid data: " << len);
-        }
 
-        while(accepted_socket->send(request, static_cast<size_t>(len)) <= 0) {
+            while(accepted_socket->send(request, static_cast<size_t>(len)) <= 0) {
+            }
+        }
+        catch(const Exception &e) {
+            cerr << "Got exception: " << e.what() << "\n";
+            break;
         }
     }
 
     delete accepted_socket;
     delete socket;
+    return 0;
 }

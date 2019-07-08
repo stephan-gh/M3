@@ -26,9 +26,20 @@ class Request {
 public:
     explicit Request(FSHandle &handle)
         : _handle(handle),
+          _last_error(m3::Errors::NONE),
           _used(0) {
     }
     ~Request();
+
+    bool has_error() const {
+        return _last_error != m3::Errors::NONE;
+    }
+    m3::Errors::Code error() const {
+        return _last_error;
+    }
+    void set_error(m3::Errors::Code err) {
+        _last_error = err;
+    }
 
     FSHandle &hdl() {
         return _handle;
@@ -43,6 +54,7 @@ public:
 
 private:
     FSHandle &_handle;
+    m3::Errors::Code _last_error;
     size_t _used;
     MetaBufferHead *_blocks[MAX_USED_BLOCKS];
 };

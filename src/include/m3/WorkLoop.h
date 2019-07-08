@@ -39,11 +39,11 @@ class WorkLoop {
     static const size_t MAX_ITEMS   = 32;
 
 public:
-    explicit WorkLoop() : _permanents(0), _count(), _items() {
+    explicit WorkLoop() noexcept : _permanents(0), _count(), _items() {
     }
     ~WorkLoop();
 
-    bool has_items() const {
+    bool has_items() const noexcept {
         return _count > _permanents;
     }
 
@@ -55,7 +55,7 @@ public:
     void tick();
     void run();
 
-    void stop() {
+    void stop() noexcept {
         _permanents = _count;
     }
 

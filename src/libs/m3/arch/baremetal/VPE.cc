@@ -27,6 +27,7 @@
 #include <m3/VPE.h>
 
 #include <stdlib.h>
+#include <memory>
 
 namespace m3 {
 
@@ -65,13 +66,11 @@ void VPE::init_fs() {
         _fds = reinterpret_cast<FileTable*>(env()->fds);
 }
 
-Errors::Code VPE::run(void *lambda) {
+void VPE::run(void *lambda) {
     if(_pager)
         _pager->activate_gates(*this);
 
-    Errors::Code err = copy_sections();
-    if(err != Errors::NONE)
-        return err;
+    copy_sections();
 
     alignas(DTU_PKG_SIZE) Env senv;
     senv.pe = 0;
@@ -104,36 +103,27 @@ Errors::Code VPE::run(void *lambda) {
     _mem.write(&senv, sizeof(senv), RT_START);
 
     /* write args */
-    char *buffer = static_cast<char*>(malloc(BUF_SIZE));
-    size_t size = store_arguments(buffer, static_cast<int>(env()->argc),
+    std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
+    size_t size = store_arguments(buffer.get(), static_cast<int>(env()->argc),
         reinterpret_cast<const char**>(env()->argv));
-    _mem.write(buffer, size, RT_SPACE_START);
-    free(buffer);
+    _mem.write(buffer.get(), size, RT_SPACE_START);
 
     /* go! */
-    return start();
+    start();
 }
 
-Errors::Code VPE::exec(int argc, const char **argv) {
+void VPE::exec(int argc, const char **argv) {
     alignas(DTU_PKG_SIZE) Env senv;
-    char *buffer = static_cast<char*>(malloc(BUF_SIZE));
+    std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
-    if(_exec)
-        delete _exec;
-    _exec = new FStream(argv[0], FILE_RWX);
-    if(!*_exec)
-        return Errors::last;
+    _exec = std::unique_ptr<FStream>(new FStream(argv[0], FILE_RWX));
 
     if(_pager)
         _pager->activate_gates(*this);
 
     uintptr_t entry;
     size_t size;
-    Errors::Code err = load(argc, argv, &entry, buffer, &size);
-    if(err != Errors::NONE) {
-        free(buffer);
-        return err;
-    }
+    load(argc, argv, &entry, buffer.get(), &size);
 
     senv.argc = static_cast<uint32_t>(argc);
     senv.argv = RT_SPACE_START;
@@ -147,11 +137,11 @@ Errors::Code VPE::exec(int argc, const char **argv) {
     size_t offset = Math::round_up(size, sizeof(word_t));
 
     senv.mounts = RT_SPACE_START + offset;
-    senv.mounts_len = _ms->serialize(buffer + offset, RT_SPACE_SIZE - offset);
+    senv.mounts_len = _ms->serialize(buffer.get() + offset, RT_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.mounts_len), sizeof(word_t));
 
     senv.fds = RT_SPACE_START + offset;
-    senv.fds_len = _fds->serialize(buffer + offset, RT_SPACE_SIZE - offset);
+    senv.fds_len = _fds->serialize(buffer.get() + offset, RT_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
     // map the memory first in case the VPE is not running and the kernel needs to forward the mem
@@ -160,9 +150,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
         _pager->pagefault(RT_SPACE_START, MemGate::W);
 
     /* write entire runtime stuff */
-    _mem.write(buffer, offset, RT_SPACE_START);
-
-    free(buffer);
+    _mem.write(buffer.get(), offset, RT_SPACE_START);
 
     senv.eps = _eps;
     senv.caps = _next_sel;
@@ -184,7 +172,7 @@ Errors::Code VPE::exec(int argc, const char **argv) {
     _mem.write(&senv, sizeof(senv), RT_START);
 
     /* go! */
-    return start();
+    start();
 }
 
 void VPE::clear_mem(char *buffer, size_t count, uintptr_t dest) {
@@ -197,7 +185,7 @@ void VPE::clear_mem(char *buffer, size_t count, uintptr_t dest) {
     }
 }
 
-Errors::Code VPE::load_segment(ElfPh &pheader, char *buffer) {
+void VPE::load_segment(ElfPh &pheader, char *buffer) {
     if(_pager) {
         int prot = 0;
         if(pheader.p_flags & PF_R)
@@ -211,24 +199,26 @@ Errors::Code VPE::load_segment(ElfPh &pheader, char *buffer) {
         size_t sz = Math::round_up(pheader.p_memsz, static_cast<size_t>(PAGE_SIZE));
         if(pheader.p_memsz == pheader.p_filesz) {
             const GenericFile *rfile = static_cast<const GenericFile*>(_exec->file().get());
-            return _pager->map_ds(&virt, sz, prot, 0, rfile->sess(), pheader.p_offset);
+            _pager->map_ds(&virt, sz, prot, 0, rfile->sess(), pheader.p_offset);
+            return;
         }
 
         assert(pheader.p_filesz == 0);
-        return _pager->map_anon(&virt, sz, prot, 0);
+        _pager->map_anon(&virt, sz, prot, 0);
+        return;
     }
 
     /* seek to that offset and copy it to destination PE */
     size_t off = pheader.p_offset;
     if(_exec->seek(off, M3FS_SEEK_SET) != off)
-        return Errors::INVALID_ELF;
+        throw Exception(Errors::INVALID_ELF);
 
     size_t count = pheader.p_filesz;
     size_t segoff = pheader.p_vaddr;
     while(count > 0) {
         size_t amount = std::min(count, BUF_SIZE);
         if(_exec->read(buffer, amount) != amount)
-            return Errors::last;
+            throw Exception(Errors::INVALID_ELF);
 
         _mem.write(buffer, Math::round_up(amount, DTU_PKG_SIZE), segoff);
         count -= amount;
@@ -237,18 +227,17 @@ Errors::Code VPE::load_segment(ElfPh &pheader, char *buffer) {
 
     /* zero the rest */
     clear_mem(buffer, pheader.p_memsz - pheader.p_filesz, segoff);
-    return Errors::NONE;
 }
 
-Errors::Code VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size) {
+void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size) {
     /* load and check ELF header */
     ElfEh header;
     if(_exec->read(&header, sizeof(header)) != sizeof(header))
-        return Errors::INVALID_ELF;
+        throw Exception(Errors::INVALID_ELF);
 
     if(header.e_ident[0] != '\x7F' || header.e_ident[1] != 'E' || header.e_ident[2] != 'L' ||
         header.e_ident[3] != 'F')
-        return Errors::INVALID_ELF;
+        throw Exception(Errors::INVALID_ELF);
 
     /* copy load segments to destination PE */
     goff_t end = 0;
@@ -257,9 +246,9 @@ Errors::Code VPE::load(int argc, const char **argv, uintptr_t *entry, char *buff
         /* load program header */
         ElfPh pheader;
         if(_exec->seek(off, M3FS_SEEK_SET) != off)
-            return Errors::INVALID_ELF;
+            throw Exception(Errors::INVALID_ELF);
         if(_exec->read(&pheader, sizeof(pheader)) != sizeof(pheader))
-            return Errors::last;
+            throw Exception(Errors::INVALID_ELF);
 
         /* we're only interested in non-empty load segments */
         if(pheader.p_type != PT_LOAD || pheader.p_memsz == 0 || skip_section(&pheader))
@@ -272,27 +261,20 @@ Errors::Code VPE::load(int argc, const char **argv, uintptr_t *entry, char *buff
     if(_pager) {
         // create area for boot/runtime stuff
         goff_t virt = RT_START;
-        Errors::Code err = _pager->map_anon(&virt, RT_END - virt, Pager::READ | Pager::WRITE, 0);
-        if(err != Errors::NONE)
-            return err;
+        _pager->map_anon(&virt, RT_END - virt, Pager::READ | Pager::WRITE, 0);
 
         // create area for stack
         virt = STACK_BOTTOM;
-        err = _pager->map_anon(&virt, STACK_TOP - virt, Pager::READ | Pager::WRITE, 0);
-        if(err != Errors::NONE)
-            return err;
+        _pager->map_anon(&virt, STACK_TOP - virt, Pager::READ | Pager::WRITE, 0);
 
         // create heap
         virt = Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
-        err = _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE, 0);
-        if(err != Errors::NONE)
-            return err;
+        _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE, 0);
     }
 
     *size = store_arguments(buffer, argc, argv);
 
     *entry = header.e_entry;
-    return Errors::NONE;
 }
 
 size_t VPE::store_arguments(char *buffer, int argc, const char **argv) {
@@ -302,7 +284,7 @@ size_t VPE::store_arguments(char *buffer, int argc, const char **argv) {
     for(int i = 0; i < argc; ++i) {
         size_t len = strlen(argv[i]);
         if(args + len >= buffer + BUF_SIZE)
-            return Errors::INV_ARGS;
+            throw Exception(Errors::INV_ARGS);
         strcpy(args, argv[i]);
         *argptr++ = RT_SPACE_START + static_cast<size_t>(args - buffer);
         args += len + 1;

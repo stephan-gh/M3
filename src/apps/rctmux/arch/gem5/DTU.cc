@@ -18,8 +18,6 @@
 #include <base/CPU.h>
 #include <base/DTU.h>
 
-#include <m3/com/MemGate.h>
-
 // this is mostly taken from libm3 (arch/gem5/DTU.cc)
 
 namespace m3 {

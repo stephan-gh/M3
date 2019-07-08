@@ -199,8 +199,7 @@ static void mem_derive() {
         sub.read(test, sizeof(xfer_t), 0);
         assert_xfer(test[0], 5);
 
-        write_vmsg(sub, 0, 8);
-        assert_true(DTU::get().get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
+        assert_err(Errors::INV_ARGS, [&sub] { write_vmsg(sub, 0, 8); });
     }
 }
 

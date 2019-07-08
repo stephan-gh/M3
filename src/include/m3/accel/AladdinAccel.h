@@ -22,6 +22,8 @@
 #include <m3/session/Pager.h>
 #include <m3/VPE.h>
 
+#include <memory>
+
 namespace m3 {
 
 class Aladdin {
@@ -71,13 +73,11 @@ public:
         _srgate.activate(RECV_EP, RBUF_ADDR);
         _accel->start();
     }
-    ~Aladdin() {
-        delete _accel;
-    }
 
-    PEISA isa() const {
+    PEISA isa() const noexcept {
         return _accel->pe().isa();
     }
+
     void start(const InvokeMessage &msg) {
         send_msg(_sgate, &msg, sizeof(msg));
     }
@@ -92,7 +92,7 @@ public:
         return wait();
     }
 
-    VPE *_accel;
+    std::unique_ptr<VPE> _accel;
     capsel_t _lastmem;
     m3::RecvGate _rgate;
     m3::RecvGate _srgate;

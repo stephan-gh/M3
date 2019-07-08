@@ -52,23 +52,23 @@ public:
     };
 
 public:
-    static Socket * new_socket(SocketType type, int sd, NetworkManager &nm);
+    static Socket *new_socket(SocketType type, int sd, NetworkManager &nm);
 
 public:
     explicit Socket(int sd, NetworkManager &nm);
     virtual ~Socket();
 
-    virtual SocketType type() = 0;
+    virtual SocketType type() noexcept = 0;
 
-    int sd() {
+    int sd() noexcept {
         return _sd;
     }
 
-    SocketState state() {
+    SocketState state() noexcept {
         return _state;
     }
 
-    bool blocking() {
+    bool blocking() noexcept {
         return _blocking;
     }
 
@@ -85,7 +85,7 @@ public:
      * @param blocking whether socket operates in blocking or
      *        non-blocking mode (default = non-blocking)
      */
-    void blocking(bool blocking) {
+    void blocking(bool blocking) noexcept {
         _blocking = blocking;
     }
 
@@ -96,25 +96,21 @@ public:
      *
      * @param addr the local address to bind to
      * @param port the local port to bind to
-     * @return the error code, if any
      */
-    virtual Errors::Code bind(IpAddr addr, uint16_t port);
+    virtual void bind(IpAddr addr, uint16_t port);
 
     /**
      * Set socket into listen mode.
-     *
-     * @return the error code, if any
      */
-    virtual Errors::Code listen();
+    virtual void listen();
 
     /**
      * Connect the socket to the socket at <addr>:<port>.
      *
      * @param addr address of the socket to connect to
      * @param port port of the socket to connect to
-     * @return the error code, if any
      */
-    virtual Errors::Code connect(IpAddr addr, uint16_t port);
+    virtual void connect(IpAddr addr, uint16_t port);
 
     /**
      * Accepts the first connection request from queue of pending connections,
@@ -124,9 +120,9 @@ public:
      * and is listening for connection requests after Socket::listen.
      *
      * @param socket the accepted socket if no error is indicated
-     * @return the error code, if any
+     * @return false if it would block
      */
-    virtual Errors::Code accept(Socket *& socket);
+    virtual bool accept(Socket *& socket);
 
     // TODO: Allow controlled "shutdown" of socket. It must be guarenteed
     //       that all sent data has been transmitted.
@@ -135,10 +131,8 @@ public:
      * Closes and frees the resources associated with the socket.
      *
      * Automatically invoked inside the destructor, if not called manually.
-     *
-     * @return the error code, if any
      */
-    virtual Errors::Code close();
+    virtual void close();
 
     /**
      * @see Socket::sendto
@@ -157,7 +151,7 @@ public:
      * @param amount the number of bytes to send
      * @param dst_addr destination socket address
      * @param dst_port destination socket port
-     * @return the number of sent bytes (<0 = error)
+     * @return the number of sent bytes (-1 if it would block and the socket is non-blocking)
      */
     virtual ssize_t sendto(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) = 0;
 
@@ -173,26 +167,28 @@ public:
      * @param amount the number of bytes to receive
      * @param src_addr if not null, the source address is filled in
      * @param src_port if not null, the source port is filled in
-     * @return the number of received bytes (<0 = error)
+     * @return the number of received bytes (-1 if it would block and the socket is non-blocking)
      */
     virtual ssize_t recvmsg(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) = 0;
 
 protected:
     void fetch_events();
-    Errors::Code process_message(NetEventChannel::SocketControlMessage const & message, NetEventChannel::Event &event);
-    Errors::Code update_status(Errors::Code err, SocketState state);
-    Errors::Code inv_state();
-    Errors::Code or_closed(Errors::Code err);
+    void process_message(NetEventChannel::SocketControlMessage const & message, NetEventChannel::Event &event);
+    NORETURN void inv_state();
+    NORETURN void or_closed(Errors::Code err);
 
-    Errors::Code get_next_data(const uchar *&data, size_t &size);
+    /**
+     * @return false if it would block
+     */
+    bool get_next_data(const uchar *&data, size_t &size);
     void ack_data(size_t size);
 
-    virtual Errors::Code handle_data_transfer(NetEventChannel::DataTransferMessage const & msg);
-    virtual Errors::Code handle_ack_data_transfer(NetEventChannel::AckDataTransferMessage const & msg);
-    virtual Errors::Code handle_inband_data_transfer(NetEventChannel::InbandDataTransferMessage const & msg, NetEventChannel::Event &event);
-    virtual Errors::Code handle_socket_accept(NetEventChannel::SocketAcceptMessage const & msg);
-    virtual Errors::Code handle_socket_connected(NetEventChannel::SocketConnectedMessage const & msg);
-    virtual Errors::Code handle_socket_closed(NetEventChannel::SocketClosedMessage const & msg);
+    virtual void handle_data_transfer(NetEventChannel::DataTransferMessage const & msg);
+    virtual void handle_ack_data_transfer(NetEventChannel::AckDataTransferMessage const & msg);
+    virtual void handle_inband_data_transfer(NetEventChannel::InbandDataTransferMessage const & msg, NetEventChannel::Event &event);
+    virtual void handle_socket_accept(NetEventChannel::SocketAcceptMessage const & msg);
+    virtual void handle_socket_connected(NetEventChannel::SocketConnectedMessage const & msg);
+    virtual void handle_socket_closed(NetEventChannel::SocketClosedMessage const & msg);
 
     void wait_for_event();
     event_t get_wait_event();

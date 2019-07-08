@@ -25,8 +25,7 @@ int main(int argc, char **argv) {
 
     for(int i = 1; i < argc; ++i) {
         FileInfo info;
-        if(VFS::stat(argv[i], info) != Errors::NONE)
-            exitmsg("stat of " << argv[i] << " failed");
+        VFS::stat(argv[i], info);
         cout << "File   : " << argv[i] << "\n";
         cout << "devno  : " << info.devno << "\n";
         cout << "inode  : " << info.inode << "\n";

@@ -25,11 +25,9 @@ Reference<File> M3FS::open(const char *path, int perms) {
     capsel_t ep;
     size_t epidx;
     if((perms & FILE_NOSESS) &&
-       (ep = VFS::alloc_ep(Reference<FileSystem>(this), &epidx)) != ObjCap::INVALID) {
+       (ep = VFS::try_alloc_ep(Reference<FileSystem>(this), &epidx)) != ObjCap::INVALID) {
         GateIStream reply = send_receive_vmsg(_gate, OPEN_PRIV, path, perms, epidx);
-        reply >> Errors::last;
-        if(Errors::last != Errors::NONE)
-            return Reference<File>();
+        receive_result(reply);
         size_t id;
         reply >> id;
         return Reference<File>(new GenericFile(perms, sel(), id, VPE::self().sel_to_ep(ep), &_gate));
@@ -41,50 +39,40 @@ Reference<File> M3FS::open(const char *path, int perms) {
         args.svals[0] = static_cast<xfer_t>(perms);
         strncpy(args.str, path, sizeof(args.str));
         KIF::CapRngDesc crd = obtain(2, &args);
-        if(Errors::last != Errors::NONE)
-            return Reference<File>();
         return Reference<File>(new GenericFile(perms, crd.start()));
     }
 }
 
-Errors::Code M3FS::stat(const char *path, FileInfo &info) {
+void M3FS::stat(const char *path, FileInfo &info) {
     GateIStream reply = send_receive_vmsg(_gate, STAT, path);
-    reply >> Errors::last;
-    if(Errors::last != Errors::NONE)
-        return Errors::last;
+    receive_result(reply);
     reply >> info;
-    return Errors::NONE;
 }
 
-Errors::Code M3FS::mkdir(const char *path, mode_t mode) {
+void M3FS::mkdir(const char *path, mode_t mode) {
     GateIStream reply = send_receive_vmsg(_gate, MKDIR, path, mode);
-    reply >> Errors::last;
-    return Errors::last;
+    receive_result(reply);
 }
 
-Errors::Code M3FS::rmdir(const char *path) {
+void M3FS::rmdir(const char *path) {
     GateIStream reply = send_receive_vmsg(_gate, RMDIR, path);
-    reply >> Errors::last;
-    return Errors::last;
+    receive_result(reply);
 }
 
-Errors::Code M3FS::link(const char *oldpath, const char *newpath) {
+void M3FS::link(const char *oldpath, const char *newpath) {
     GateIStream reply = send_receive_vmsg(_gate, LINK, oldpath, newpath);
-    reply >> Errors::last;
-    return Errors::last;
+    receive_result(reply);
 }
 
-Errors::Code M3FS::unlink(const char *path) {
+void M3FS::unlink(const char *path) {
     GateIStream reply = send_receive_vmsg(_gate, UNLINK, path);
-    reply >> Errors::last;
-    return Errors::last;
+    receive_result(reply);
 }
 
-Errors::Code M3FS::delegate(VPE &vpe) {
-    if(vpe.delegate_obj(sel()) != Errors::NONE)
-        return Errors::last;
+void M3FS::delegate(VPE &vpe) {
+    vpe.delegate_obj(sel());
     // TODO what if it fails?
-    return obtain_for(vpe, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1));
+    obtain_for(vpe, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel() + 1, 1));
 }
 
 void M3FS::serialize(Marshaller &m) {

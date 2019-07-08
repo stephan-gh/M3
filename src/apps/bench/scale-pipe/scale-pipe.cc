@@ -39,8 +39,6 @@ struct App {
           vpe(argv[0], VPEArgs().pager(pager).flags(flags)),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create VPE");
         rgate.activate();
         vpe.delegate_obj(rgate.sel());
     }
@@ -99,9 +97,7 @@ int main(int argc, char **argv) {
 
         String srv_arg = srvs[2]->sel_arg();
         const char *args[] = {"/bin/pager", "-a", "16", "-f", "16", "-s", srv_arg.c_str()};
-        Errors::Code res = srv_vpes[2]->exec(ARRAY_SIZE(args), args);
-        if(res != Errors::NONE)
-            PANIC("Cannot execute " << args[0] << ": " << Errors::to_string(res));
+        srv_vpes[2]->exec(ARRAY_SIZE(args), args);
     }
 #else
     srv_vpes[2] = nullptr;
@@ -127,9 +123,7 @@ int main(int argc, char **argv) {
 
             String srv_arg = srvs[0]->sel_arg();
             const char *args[] = {"/bin/m3fs", "-s", srv_arg.c_str(), "mem", "268435456"};
-            Errors::Code res = srv_vpes[0]->exec(ARRAY_SIZE(args), args);
-            if(res != Errors::NONE)
-                PANIC("Cannot execute " << args[0] << ": " << Errors::to_string(res));
+            srv_vpes[0]->exec(ARRAY_SIZE(args), args);
         }
 
         if(j == 0) {
@@ -138,9 +132,7 @@ int main(int argc, char **argv) {
 
             String srv_arg = srvs[1]->sel_arg();
             const char *args[] = {"/bin/pipes", "-s", srv_arg.c_str()};
-            Errors::Code res = srv_vpes[1]->exec(ARRAY_SIZE(args), args);
-            if(res != Errors::NONE)
-                PANIC("Cannot execute " << args[0] << ": " << Errors::to_string(res));
+            srv_vpes[1]->exec(ARRAY_SIZE(args), args);
         }
 
         if(VERBOSE) cout << "Starting VPEs...\n";
@@ -186,9 +178,10 @@ int main(int argc, char **argv) {
                 apps[i]->vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipes[i / 2]->reader_fd()));
             apps[i]->vpe.obtain_fds();
 
-            Errors::Code res = apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
-            if(res != Errors::NONE)
-                PANIC("Cannot execute " << apps[i]->argv[0] << ": " << Errors::to_string(res));
+            apps[i]->vpe.mounts(*VPE::self().mounts());
+            apps[i]->vpe.obtain_mounts();
+
+            apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
 
             if(i % 2 == 1) {
                 pipes[i / 2]->close_writer();

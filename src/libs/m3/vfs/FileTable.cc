@@ -27,7 +27,7 @@
 
 namespace m3 {
 
-void FileTable::remove_all() {
+void FileTable::remove_all() noexcept {
     for(fd_t i = 0; i < FileTable::MAX_FDS; ++i)
         VPE::self().fds()->remove(i);
 }
@@ -40,10 +40,11 @@ fd_t FileTable::alloc(Reference<File> file) {
             return i;
         }
     }
-    return MAX_FDS;
+
+    throw MessageException("No free file descriptor", Errors::NO_SPACE);
 }
 
-void FileTable::remove(fd_t fd) {
+void FileTable::remove(fd_t fd) noexcept {
     Reference<File> file = _fds[fd];
 
     if(file) {
@@ -94,19 +95,15 @@ epid_t FileTable::request_ep(GenericFile *file) {
             return _file_eps[i].epid;
         }
     }
-    PANIC("Unable to find victim");
+
+    throw MessageException("Unable to find victim for FileEP multiplexing", Errors::NO_SPACE);
 }
 
-Errors::Code FileTable::delegate(VPE &vpe) const {
-    Errors::Code res = Errors::NONE;
+void FileTable::delegate(VPE &vpe) const {
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i]) {
-            res = _fds[i]->delegate(vpe);
-            if(res != Errors::NONE)
-                return res;
-        }
+        if(_fds[i])
+            _fds[i]->delegate(vpe);
     }
-    return res;
 }
 
 size_t FileTable::serialize(void *buffer, size_t size) const {

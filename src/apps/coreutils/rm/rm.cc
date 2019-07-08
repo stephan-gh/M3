@@ -24,8 +24,12 @@ int main(int argc, char **argv) {
         exitmsg("Usage: " << argv[0] << " <file>...");
 
     for(int i = 1; i < argc; ++i) {
-        if(VFS::unlink(argv[1]) != Errors::NONE)
-            errmsg("Unlink of " << argv[1] << " failed");
+        try {
+            VFS::unlink(argv[1]);
+        }
+        catch(const Exception &e) {
+            errmsg("Unlink failed: " << e.what());
+        }
     }
     return 0;
 }

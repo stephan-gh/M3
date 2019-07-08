@@ -16,6 +16,7 @@
 
 #include <m3/net/TcpSocket.h>
 #include <m3/session/NetworkManager.h>
+#include <m3/Exception.h>
 
 namespace m3 {
 
@@ -27,107 +28,100 @@ TcpSocket::TcpSocket(int sd, NetworkManager& nm)
 TcpSocket::~TcpSocket() {
 }
 
-Socket::SocketType TcpSocket::type() {
+Socket::SocketType TcpSocket::type() noexcept {
     return SOCK_STREAM;
 }
 
-Errors::Code TcpSocket::listen() {
+void TcpSocket::listen() {
     if(_state != Bound)
-        return inv_state();
+        inv_state();
 
-    return update_status(_nm.listen(sd()), Listening);
+    _nm.listen(sd());
+    _state = Listening;
 }
 
-Errors::Code TcpSocket::connect(IpAddr addr, uint16_t port) {
+void TcpSocket::connect(IpAddr addr, uint16_t port) {
     fetch_events();
-    if(_state == Connected)
-        return _remote_addr == addr && _remote_port == port ? Errors::NONE : Errors::IS_CONNECTED;
+    if(_state == Connected) {
+        if(!(_remote_addr == addr && _remote_port == port))
+            throw Exception(Errors::IS_CONNECTED);
+        return;
+    }
 
     if(_state == Connecting)
-        return Errors::ALREADY_IN_PROGRESS;
+        throw Exception(Errors::ALREADY_IN_PROGRESS);
 
     if(_state != None)
-        return inv_state();
+        inv_state();
 
-    auto result = _nm.connect(sd(), addr, port);
-    if(result == Errors::NONE) {
-        _remote_addr = addr;
-        _remote_port = port;
-        _state = Connecting;
+    _nm.connect(sd(), addr, port);
+    _remote_addr = addr;
+    _remote_port = port;
+    _state = Connecting;
 
-        if(!_blocking)
-            return Errors::IN_PROGRESS;
+    if(!_blocking)
+        throw Exception(Errors::IN_PROGRESS);
 
-        // Wait until socket is connected.
-        while(_state == Connecting) {
-            wait_for_event();
-        }
-        return _state == Connected ? Errors::NONE : inv_state();
-    } else
-        return result;
+    // Wait until socket is connected.
+    while(_state == Connecting)
+        wait_for_event();
+
+    if(_state != Connected)
+        inv_state();
 }
 
-Errors::Code TcpSocket::accept(Socket*& socket) {
+bool TcpSocket::accept(Socket*& socket) {
     if(_state != Listening)
-        return inv_state();
+        inv_state();
 
     fetch_events();
     if(!_accept_queue.length()) {
         if(!_blocking)
-            return Errors::WOULD_BLOCK;
+            return false;
 
         // Block until a new socket was accepted
         while(!_accept_queue.length()) {
             wait_for_event();
 
             if(_state != Listening)
-                return inv_state();
+                inv_state();
         }
     }
 
     socket = _accept_queue.remove_first();
-    return Errors::NONE;
+    return true;
 }
 
 ssize_t TcpSocket::sendto(const void *src, size_t amount, IpAddr, uint16_t) {
-    if(_state != Connected) {
-        Errors::last = or_closed(Errors::NOT_CONNECTED);
-        return -1;
-    }
+    if(_state != Connected)
+        or_closed(Errors::NOT_CONNECTED);
 
     do {
-        auto err = _channel->inband_data_transfer(_sd, amount, [&](uchar * buf) {
+        bool success = _channel->inband_data_transfer(_sd, amount, [&](uchar * buf) {
             memcpy(buf, src, amount);
         });
 
-        if(err == Errors::NONE)
+        if(success)
             return static_cast<ssize_t>(amount);
-
-        if(err != Errors::MISS_CREDITS || !_blocking)
-        {
-            Errors::last = err;
+        if(!_blocking)
             return -1;
-        }
 
         // Block until channel regains credits.
         wait_for_credit();
     } while(_state == Connected);
 
-    Errors::last = inv_state();
+    inv_state();
     return -1;
 }
 
 ssize_t TcpSocket::recvmsg(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
     // Allow receiving that arrived before the socket/connection was closed.
-    if(_state != Connected && _state != Closed) {
-        Errors::last = Errors::NOT_CONNECTED;
-        return -1;
-    }
+    if(_state != Connected && _state != Closed)
+        throw Exception(Errors::NOT_CONNECTED);
 
     const uchar * data = nullptr;
     size_t size = 0;
-    Errors::last = get_next_data(data, size);
-    if(Errors::last != Errors::NONE)
+    if(!get_next_data(data, size))
         return -1;
 
     if(src_addr)
@@ -143,7 +137,7 @@ ssize_t TcpSocket::recvmsg(void *dst, size_t amount, IpAddr *src_addr, uint16_t 
     return static_cast<ssize_t>(recv_size);
 }
 
-Errors::Code TcpSocket::handle_socket_accept(NetEventChannel::SocketAcceptMessage const & msg) {
+void TcpSocket::handle_socket_accept(NetEventChannel::SocketAcceptMessage const & msg) {
     TcpSocket * new_socket = new TcpSocket(msg.new_sd, _nm);
     new_socket->_state = Connected;
     new_socket->_remote_addr = msg.remote_addr;
@@ -151,7 +145,6 @@ Errors::Code TcpSocket::handle_socket_accept(NetEventChannel::SocketAcceptMessag
     new_socket->_channel = _channel;
     _nm._sockets.insert(new_socket);
     _accept_queue.append(new_socket);
-    return Errors::NONE;
 }
 
 }

@@ -48,8 +48,6 @@ int main(int argc, char **argv) {
         count(cin);
     else {
         FStream in(argv[1], FILE_R);
-        if(in.error())
-            exitmsg("open of " << argv[1] << " failed");
         count(in);
     }
     return 0;

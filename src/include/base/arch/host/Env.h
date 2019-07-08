@@ -18,10 +18,9 @@
 
 #include <base/util/String.h>
 #include <base/util/BitField.h>
+#include <base/Config.h>
 #include <base/EnvBackend.h>
 #include <base/PEDesc.h>
-
-#include <m3/com/RecvGate.h>
 
 #include <pthread.h>
 #include <assert.h>
@@ -48,9 +47,6 @@ class Env {
     struct Init {
         Init();
         ~Init();
-    };
-    struct PostInit {
-        PostInit();
     };
 
     friend void init_env();
@@ -162,7 +158,6 @@ private:
     static char _exec_short[];
     static Env *_inst;
     static Init _init;
-    static PostInit _postInit;
 };
 
 static inline Env *env() {

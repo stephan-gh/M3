@@ -21,8 +21,9 @@
 #include <m3/com/EPMux.h>
 #include <m3/com/Gate.h>
 #include <m3/com/RecvGate.h>
-#include <m3/VPE.h>
+#include <m3/Exception.h>
 #include <m3/Syscalls.h>
+#include <m3/VPE.h>
 
 #include <c/div.h>
 
@@ -48,14 +49,11 @@ bool EPMux::reserve(epid_t ep) {
     return true;
 }
 
-Errors::Code EPMux::switch_to(Gate *gate) {
+void EPMux::switch_to(Gate *gate) {
     epid_t victim = select_victim();
-    Errors::Code res = activate(victim, gate->sel());
-    if(res != Errors::NONE)
-        return res;
+    activate(victim, gate->sel());
     _gates[victim] = gate;
     gate->_ep = victim;
-    return Errors::NONE;
 }
 
 void EPMux::switch_cap(Gate *gate, capsel_t newcap) {
@@ -68,23 +66,28 @@ void EPMux::switch_cap(Gate *gate, capsel_t newcap) {
     }
 }
 
-void EPMux::remove(Gate *gate, bool invalidate) {
+void EPMux::remove(Gate *gate, bool invalidate) noexcept {
     if(gate->_ep != Gate::NODESTROY && gate->_ep != Gate::UNBOUND && gate->sel() != ObjCap::INVALID) {
         assert(_gates[gate->_ep] == nullptr || _gates[gate->_ep] == gate);
         if(invalidate) {
-            // we have to invalidate our endpoint, i.e. set the registers to zero. otherwise the cmpxchg
-            // will fail when we program the next gate on this endpoint.
-            // note that the kernel has to validate that it is 0 for "unused endpoints" because otherwise
-            // we could just specify that our endpoint is unused and the kernel won't check it and thereby
-            // trick the whole system.
-            activate(gate->_ep, ObjCap::INVALID);
+            try {
+                // we have to invalidate our endpoint, i.e. set the registers to zero. otherwise the cmpxchg
+                // will fail when we program the next gate on this endpoint.
+                // note that the kernel has to validate that it is 0 for "unused endpoints" because otherwise
+                // we could just specify that our endpoint is unused and the kernel won't check it and thereby
+                // trick the whole system.
+                activate(gate->_ep, ObjCap::INVALID);
+            }
+            catch(...) {
+                // ignore errors here
+            }
         }
         _gates[gate->_ep] = nullptr;
         gate->_ep = Gate::UNBOUND;
     }
 }
 
-void EPMux::reset() {
+void EPMux::reset() noexcept {
     for(int i = 0; i < EP_COUNT; ++i) {
         if(_gates[i])
             _gates[i]->_ep = Gate::UNBOUND;
@@ -109,7 +112,7 @@ epid_t EPMux::select_victim() {
         else
             goto done;
     }
-    PANIC("No free endpoints for multiplexing");
+    throw MessageException("No free endpoints for multiplexing");
 
 done:
     if(_gates[victim] != nullptr)
@@ -122,8 +125,8 @@ done:
     return victim;
 }
 
-Errors::Code EPMux::activate(epid_t ep, capsel_t newcap) {
-    return Syscalls::activate(VPE::self().ep_to_sel(ep), newcap, 0);
+void EPMux::activate(epid_t ep, capsel_t newcap) {
+    Syscalls::activate(VPE::self().ep_to_sel(ep), newcap, 0);
 }
 
 }

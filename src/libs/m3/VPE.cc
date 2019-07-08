@@ -24,6 +24,7 @@
 #include <m3/vfs/MountTable.h>
 #include <m3/vfs/SerialFile.h>
 #include <m3/vfs/VFS.h>
+#include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
@@ -39,9 +40,7 @@ VPEGroup::VPEGroup() : ObjCap(ObjCap::VPEGRP) {
 }
 
 size_t KMem::quota() const {
-    size_t amount = 0;
-    Syscalls::kmem_quota(sel(), amount);
-    return amount;
+    return Syscalls::kmem_quota(sel());
 }
 
 Reference<KMem> KMem::derive(const KMem &base, size_t quota) {
@@ -50,7 +49,7 @@ Reference<KMem> KMem::derive(const KMem &base, size_t quota) {
     return Reference<KMem>(new KMem(sel, 0));
 }
 
-VPEArgs::VPEArgs()
+VPEArgs::VPEArgs() noexcept
     : _flags(0),
       _pedesc(VPE::self().pe()),
       _pager(nullptr),
@@ -114,9 +113,7 @@ VPE::VPE(const String &name, const VPEArgs &args)
             _pager = VPE::self().pager()->create_clone(*this);
         // we need a pager on VM PEs
         else
-            Errors::last = Errors::NOT_SUP;
-        if(Errors::last != Errors::NONE)
-            return;
+            throw Exception(Errors::NOT_SUP);
     }
 
     capsel_t group_sel = args._group ? args._group->sel() : ObjCap::INVALID;
@@ -153,7 +150,12 @@ VPE::VPE(const String &name, const VPEArgs &args)
 VPE::~VPE() {
     if(this != &_self) {
         delete _resmng;
-        stop();
+        try {
+            stop();
+        }
+        catch(...) {
+            // ignore
+        }
         delete _pager;
         // unarm it first. we can't do that after revoke (which would be triggered by the Gate destructor)
         EPMux::get().remove(&_mem, true);
@@ -161,7 +163,6 @@ VPE::~VPE() {
         // be stored not on the heap but somewhere else
         delete _fds;
         delete _ms;
-        delete _exec;
     }
 }
 
@@ -177,61 +178,57 @@ epid_t VPE::alloc_ep() {
         }
     }
 
-    return 0;
+    throw MessageException("Unable to allocate endpoint", Errors::NO_SPACE);
 }
 
-void VPE::mounts(const MountTable &ms) {
+void VPE::mounts(const MountTable &ms) noexcept {
     delete _ms;
     _ms = new MountTable(ms);
 }
 
-Errors::Code VPE::obtain_mounts() {
-    return _ms->delegate(*this);
+void VPE::obtain_mounts() {
+    _ms->delegate(*this);
 }
 
-void VPE::fds(const FileTable &fds) {
+void VPE::fds(const FileTable &fds) noexcept {
     delete _fds;
     _fds = new FileTable(fds);
 }
 
-Errors::Code VPE::obtain_fds() {
-    return _fds->delegate(*this);
+void VPE::obtain_fds() {
+    _fds->delegate(*this);
 }
 
-Errors::Code VPE::delegate(const KIF::CapRngDesc &crd, capsel_t dest) {
-    Errors::Code res = Syscalls::exchange(sel(), crd, dest, false);
-    if(res == Errors::NONE)
-        _next_sel = Math::max(_next_sel, dest + crd.count());
-    return res;
+void VPE::delegate(const KIF::CapRngDesc &crd, capsel_t dest) {
+    Syscalls::exchange(sel(), crd, dest, false);
+      _next_sel = Math::max(_next_sel, dest + crd.count());
 }
 
-Errors::Code VPE::obtain(const KIF::CapRngDesc &crd) {
-    return obtain(crd, VPE::self().alloc_sels(crd.count()));
+void VPE::obtain(const KIF::CapRngDesc &crd) {
+    obtain(crd, VPE::self().alloc_sels(crd.count()));
 }
 
-Errors::Code VPE::obtain(const KIF::CapRngDesc &crd, capsel_t dest) {
+void VPE::obtain(const KIF::CapRngDesc &crd, capsel_t dest) {
     KIF::CapRngDesc own(crd.type(), dest, crd.count());
-    return Syscalls::exchange(sel(), own, crd.start(), true);
+    Syscalls::exchange(sel(), own, crd.start(), true);
 }
 
-Errors::Code VPE::revoke(const KIF::CapRngDesc &crd, bool delonly) {
-    return Syscalls::revoke(sel(), crd, !delonly);
+void VPE::revoke(const KIF::CapRngDesc &crd, bool delonly) {
+    Syscalls::revoke(sel(), crd, !delonly);
 }
 
-Errors::Code VPE::start() {
-    return Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, 0);
+void VPE::start() {
+    Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, 0);
 }
 
-Errors::Code VPE::stop() {
-    return Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_STOP, 0);
+void VPE::stop() {
+    Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_STOP, 0);
 }
 
 int VPE::wait_async(event_t event) {
     capsel_t _sel;
-    int exitcode;
     const capsel_t sels[] = {sel()};
-    Syscalls::vpe_wait(sels, 1, event, &_sel, &exitcode);
-    return exitcode;
+    return Syscalls::vpe_wait(sels, 1, event, &_sel);
 }
 
 int VPE::wait() {

@@ -66,8 +66,7 @@ public:
     void stopListing();
 
     void waitForIRQ() {
-        const m3::DTU::Message *msg;
-        _intgate.wait(nullptr, &msg);
+        const m3::DTU::Message *msg = _intgate.wait(nullptr);
         m3::DTU::get().mark_read(_intgate.ep(), m3::DTU::get().get_msgoff(_intgate.ep(), msg));
     }
 

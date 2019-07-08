@@ -43,23 +43,23 @@ class VFS {
         friend class VFS;
 
     public:
-        explicit ReservedEPs()
+        explicit ReservedEPs() noexcept
             : _fs(),
               _eps(),
               _eps_count(),
               _eps_used() {
         }
-        explicit ReservedEPs(Reference<FileSystem> fs, capsel_t first, uint count)
+        explicit ReservedEPs(Reference<FileSystem> fs, capsel_t first, uint count) noexcept
             : _fs(fs),
               _eps(first),
               _eps_count(count),
               _eps_used() {
         }
 
-        bool has_ep(capsel_t ep) const {
+        bool has_ep(capsel_t ep) const noexcept {
             return ep >= _eps && ep < _eps + _eps_count;
         }
-        capsel_t alloc_ep() {
+        capsel_t alloc_ep() noexcept {
             for(uint i = 0; i < _eps_count; ++i) {
                 if((_eps_used & (1u << i)) == 0) {
                     _eps_used |= 1u << i;
@@ -69,7 +69,7 @@ class VFS {
             return ObjCap::INVALID;
         }
 
-        void free_ep(capsel_t ep) {
+        void free_ep(capsel_t ep) noexcept {
             _eps_used &= ~(1u << (ep - _eps));
         }
 
@@ -87,9 +87,8 @@ public:
      * @param path the path
      * @param fs the filesystem name
      * @param options options to pass to the filesystem
-     * @return Errors::NONE on success
      */
-    static Errors::Code mount(const char *path, const char *fs, const char *options = nullptr);
+    static void mount(const char *path, const char *fs, const char *options = nullptr);
 
     /**
      * Unmounts the filesystem at <path>.
@@ -103,9 +102,8 @@ public:
      *
      * @param first the first EP cap
      * @param count the number of caps
-     * @return the error, if any
      */
-    static Errors::Code delegate_eps(const char *path, capsel_t first, uint count);
+    static void delegate_eps(const char *path, capsel_t first, uint count);
 
     /**
      * Allocates an EP for the given file system. Does only succeed if delegate_eps() was called
@@ -113,23 +111,23 @@ public:
      *
      * @param fs the file system
      * @param idx will be set to the index of the ep
-     * @return the ep capability or ObjCap::INVALID
+     * @return the ep capability or ObjCap::INVALID on failure
      */
-    static capsel_t alloc_ep(const Reference<FileSystem> &fs, size_t *idx);
+    static capsel_t try_alloc_ep(const Reference<FileSystem> &fs, size_t *idx) noexcept;
 
     /**
      * Free's the EP that has previously been allocated via alloc_ep().
      *
      * @param ep the ep capability
      */
-    static void free_ep(capsel_t ep);
+    static void free_ep(capsel_t ep) noexcept;
 
     /**
      * Opens the file at <path> using the given permissions.
      *
      * @param path the path to the file to open
      * @param perms the permissions (FILE_*)
-     * @return the file descriptor or FileTable::INVALID if it failed
+     * @return the file descriptor
      */
     static fd_t open(const char *path, int perms);
 
@@ -138,57 +136,52 @@ public:
      *
      * @param fd the file descriptor
      */
-    static void close(fd_t fd);
+    static void close(fd_t fd) noexcept;
 
     /**
      * Retrieves the file information for the given path.
      *
      * @param path the path
      * @param info where to write to
-     * @return the error, if any happened
      */
-    static Errors::Code stat(const char *path, FileInfo &info);
+    static void stat(const char *path, FileInfo &info);
 
     /**
      * Creates the given directory. Expects that all path-components except the last already exists.
      *
      * @param path the path
      * @param mode the permissions to assign
-     * @return the error, if any happened
      */
-    static Errors::Code mkdir(const char *path, mode_t mode);
+    static void mkdir(const char *path, mode_t mode);
 
     /**
      * Removes the given directory. It needs to be empty.
      *
      * @param path the path
-     * @return the error, if any happened
      */
-    static Errors::Code rmdir(const char *path);
+    static void rmdir(const char *path);
 
     /**
      * Creates a link at <newpath> to <oldpath>.
      *
      * @param oldpath the existing path
      * @param newpath tne link to create
-     * @return the error, if any happened
      */
-    static Errors::Code link(const char *oldpath, const char *newpath);
+    static void link(const char *oldpath, const char *newpath);
 
     /**
      * Removes the given path.
      *
      * @param path the path
-     * @return the error, if any happened
      */
-    static Errors::Code unlink(const char *path);
+    static void unlink(const char *path);
 
     /**
      * Prints the current mounts to <os>.
      *
      * @param os the stream to write to
      */
-    static void print(OStream &os);
+    static void print(OStream &os) noexcept;
 
 private:
     static MountTable *ms();

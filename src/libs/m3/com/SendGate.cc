@@ -15,6 +15,7 @@
  */
 
 #include <m3/com/SendGate.h>
+#include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
@@ -27,27 +28,32 @@ namespace m3 {
 SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
     auto replygate = args._replygate == nullptr ? &RecvGate::def() : args._replygate;
     auto sel = args._sel == INVALID ? VPE::self().alloc_sel() : args._sel;
-    SendGate gate(sel, args._flags, replygate);
-    Syscalls::create_sgate(gate.sel(), rgate->sel(), args._label, args._credits);
-    return gate;
+    Syscalls::create_sgate(sel, rgate->sel(), args._label, args._credits);
+    return SendGate(sel, args._flags, replygate);
 }
 
-Errors::Code SendGate::activate_for(VPE &vpe, epid_t ep) {
-    return Syscalls::activate(vpe.ep_to_sel(ep), sel(), 0);
+void SendGate::activate_for(VPE &vpe, epid_t ep) {
+    Syscalls::activate(vpe.ep_to_sel(ep), sel(), 0);
 }
 
-Errors::Code SendGate::send(const void *data, size_t len, label_t reply_label) {
-    Errors::Code res = ensure_activated();
+void SendGate::send(const void *data, size_t len, label_t reply_label) {
+    Errors::Code res = try_send(data, len, reply_label);
     if(res != Errors::NONE)
-        return res;
+        throw DTUException(res);
+}
 
-    res = DTU::get().send(ep(), data, len, reply_label, _replygate->ep());
+Errors::Code SendGate::try_send(const void *data, size_t len, label_t reply_label) {
+    ensure_activated();
+
+    Errors::Code res = DTU::get().send(ep(), data, len, reply_label, _replygate->ep());
     if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
+        res = Errors::NONE;
+
         event_t event = ThreadManager::get().get_wait_event();
-        res = Syscalls::forward_msg(sel(), _replygate->sel(), data, len, reply_label, event);
+        bool upcall = Syscalls::forward_msg(sel(), _replygate->sel(), data, len, reply_label, event);
 
         // if this has been done, go to sleep and wait until the kernel sends us the upcall
-        if(res == Errors::UPCALL_REPLY) {
+        if(upcall) {
             ThreadManager::get().wait_for(event);
             auto *msg = reinterpret_cast<const KIF::Upcall::Forward*>(
                 ThreadManager::get().get_current_msg());

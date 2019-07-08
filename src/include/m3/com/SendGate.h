@@ -35,40 +35,40 @@ class SendGateArgs {
     friend class SendGate;
 
 public:
-    explicit SendGateArgs();
+    explicit SendGateArgs() noexcept;
 
     /**
      * The flags for the capability (default = 0)
      */
-    SendGateArgs &flags(uint flags) {
+    SendGateArgs &flags(uint flags) noexcept {
         _flags = flags;
         return *this;
     }
     /**
      * The receive gate to use for replies (default = RecvGate::def())
      */
-    SendGateArgs &reply_gate(RecvGate *reply_gate) {
+    SendGateArgs &reply_gate(RecvGate *reply_gate) noexcept {
         _replygate = reply_gate;
         return *this;
     }
     /**
      * The label for the SendGate (default = 0)
      */
-    SendGateArgs &label(label_t label) {
+    SendGateArgs &label(label_t label) noexcept {
         _label = label;
         return *this;
     }
     /**
      * The number of credits in bytes (default = UNLIMITED)
      */
-    SendGateArgs &credits(word_t credits) {
+    SendGateArgs &credits(word_t credits) noexcept {
         _credits = credits;
         return *this;
     }
     /**
      * The selector to use (default = auto select)
      */
-    SendGateArgs &sel(capsel_t sel) {
+    SendGateArgs &sel(capsel_t sel) noexcept {
         _sel = sel;
         return *this;
     }
@@ -91,7 +91,7 @@ class SendGate : public Gate {
     friend class Syscalls;
     friend class EnvUserBackend;
 
-    explicit SendGate(capsel_t cap, uint capflags, RecvGate *replygate, epid_t ep = UNBOUND)
+    explicit SendGate(capsel_t cap, uint capflags, RecvGate *replygate, epid_t ep = UNBOUND) noexcept
         : Gate(SEND_GATE, cap, capflags, ep),
           _replygate(replygate == nullptr ? &RecvGate::def() : replygate) {
     }
@@ -113,11 +113,11 @@ public:
      * @param sel the capability selector
      * @param replygate the receive gate to which the replies should be sent
      */
-    static SendGate bind(capsel_t sel, RecvGate *replygate = nullptr) {
+    static SendGate bind(capsel_t sel, RecvGate *replygate = nullptr) noexcept {
         return SendGate(sel, ObjCap::KEEP_CAP, replygate);
     }
 
-    SendGate(SendGate &&g)
+    SendGate(SendGate &&g) noexcept
         : Gate(Util::move(g)),
           _replygate(g._replygate) {
     }
@@ -125,7 +125,7 @@ public:
     /**
      * @return the gate to receive the replies from when sending a message over this gate
      */
-    RecvGate *reply_gate() {
+    RecvGate *reply_gate() noexcept {
         return _replygate;
     }
     /**
@@ -133,7 +133,7 @@ public:
      *
      * @param rgate the new receive gate
      */
-    void reply_gate(RecvGate *rgate) {
+    void reply_gate(RecvGate *rgate) noexcept {
         _replygate = rgate;
     }
 
@@ -142,9 +142,8 @@ public:
      *
      * @param vpe the VPE to activate it for
      * @param ep the ep id
-     * @return the result
      */
-    Errors::Code activate_for(VPE &vpe, epid_t ep);
+    void activate_for(VPE &vpe, epid_t ep);
 
     /**
      * Sends <data> of length <len> to the associated RecvGate.
@@ -152,15 +151,25 @@ public:
      * @param data the data to send
      * @param len the length of the data
      * @param reply_label the reply label to set
-     * @return the error code or Errors::NONE
      */
-    Errors::Code send(const void *data, size_t len, label_t reply_label = 0);
+    void send(const void *data, size_t len, label_t reply_label = 0);
+
+    /**
+     * Tries to send <data> of length <len> to the associated RecvGate and returns the error code
+     * on failure.
+     *
+     * @param data the data to send
+     * @param len the length of the data
+     * @param reply_label the reply label to set
+     * @return the error code if failed
+     */
+    Errors::Code try_send(const void *data, size_t len, label_t reply_label = 0);
 
 private:
     RecvGate *_replygate;
 };
 
-inline SendGateArgs::SendGateArgs()
+inline SendGateArgs::SendGateArgs() noexcept
     : _flags(),
       _replygate(),
       _label(),

@@ -30,11 +30,10 @@ public:
         : ClientSession(service),
           _rgate(RecvGate::create(buford, msgord)),
           _sgate(SendGate::create(&_rgate)) {
-        if(!Errors::occurred())
-            delegate_obj(_sgate.sel());
+        delegate_obj(_sgate.sel());
     }
 
-    RecvGate &rgate() {
+    RecvGate &rgate() noexcept {
         return _rgate;
     }
 

@@ -67,10 +67,7 @@ static void timer_event(GateIStream &) {
             next_tick = ticks + IStringStream::read_from<int>(linebuf) * SPEED;
             for(int i = 0; i < ROWS; ++i) {
                 size_t res = movie->getline(linebuf, sizeof(linebuf));
-                if(movie->error())
-                    errmsg("Unable to read from movie file");
-                else
-                    copy_to_vga(startrow + i, startcol, linebuf, res, COLS);
+                copy_to_vga(startrow + i, startcol, linebuf, res, COLS);
             }
             frame++;
         }
@@ -111,12 +108,7 @@ int main(int argc, char **argv) {
 
     moviefile = argv[1];
 
-    if(VFS::mount("/", "m3fs") != Errors::NONE)
-        exitmsg("Mounting root-fs failed");
-
     movie = new FStream(moviefile, FILE_R);
-    if(!*movie)
-        exitmsg("Opening " << moviefile << " failed");
 
     WorkLoop wl;
 

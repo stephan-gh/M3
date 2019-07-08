@@ -15,6 +15,7 @@
  */
 
 #include <m3/stream/Standard.h>
+#include <m3/Exception.h>
 
 using namespace m3;
 
@@ -30,13 +31,13 @@ int main(int argc, char **argv) {
         read(cin);
     else {
         for(int i = 1; i < argc; ++i) {
-            FStream input(argv[i], FILE_R);
-            if(Errors::occurred()) {
-                errmsg("Open of " << argv[i] << " failed");
-                continue;
+            try {
+                FStream input(argv[i], FILE_R);
+                read(input);
             }
-
-            read(input);
+            catch(const Exception &e) {
+                errmsg("open failed: " << e.what());
+            }
         }
     }
     return 0;

@@ -17,7 +17,6 @@
 #include <base/util/Profile.h>
 #include <base/Env.h>
 
-#include <m3/accel/StreamAccel.h>
 #include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
@@ -31,32 +30,24 @@ int main() {
     String status;
 
     Socket * socket = net.create(Socket::SOCK_STREAM);
-    if(!socket)
-        exitmsg("Socket creation failed");
 
     socket->blocking(true);
-    Errors::Code err = socket->bind(IpAddr(192, 168, 112, 1), 1337);
-    if(err != Errors::NONE)
-        exitmsg("Socket bind failed: " << Errors::to_string(err));
+    socket->bind(IpAddr(192, 168, 112, 1), 1337);
 
     socket->listen();
 
     // notify client
     sem.up();
 
-    Socket * accepted_socket = 0;
-    err = socket->accept(accepted_socket);
-    if(err != Errors::NONE)
-        exitmsg("Socket accept failed: " << Errors::to_string(err));
+    Socket *accepted_socket = 0;
+    socket->accept(accepted_socket);
 
     cout << "Socket accepted!\n";
 
     // TODO somehow we need to choose a large size to prevent that we get stuck (on host)
     MemGate mem(MemGate::create_global(64 * 1024, MemGate::RW));
     fd_t fd;
-    err = net.as_file(accepted_socket->sd(), FILE_RW, mem, 32 * 1024, fd);
-    if(err != Errors::NONE)
-        exitmsg("as_file failed: " << Errors::to_string(err));
+    net.as_file(accepted_socket->sd(), FILE_RW, mem, 32 * 1024, fd);
     Reference<File> file = VPE::self().fds()->get(fd);
 
     constexpr size_t packet_size = 1024;
@@ -75,11 +66,7 @@ int main() {
     cycles_t first_received = 0;
     cycles_t last_received = 0;
     while(received_bytes < bytes_to_receive) {
-        ssize_t recv_len = file->read(response.raw, packet_size);
-        if(recv_len <= 0) {
-            errmsg("Reading has failed: " << recv_len);
-            break;
-        }
+        size_t recv_len = file->read(response.raw, packet_size);
         received_bytes += static_cast<size_t>(recv_len);
 
         if(packet_received_count == 0)

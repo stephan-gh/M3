@@ -30,7 +30,7 @@ public:
     /**
      * @return the file descriptor for the reader
      */
-    fd_t reader_fd() const {
+    fd_t reader_fd() const noexcept {
         return _rdfd;
     }
     /**
@@ -41,7 +41,7 @@ public:
     /**
      * @return the file descriptor for the writer
      */
-    fd_t writer_fd() const {
+    fd_t writer_fd() const noexcept {
         return _wrfd;
     }
     /**

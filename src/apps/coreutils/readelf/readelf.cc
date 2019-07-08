@@ -87,8 +87,6 @@ int main(int argc, char **argv) {
         exitmsg("Usage: " << argv[0] << " <bin>");
 
     FStream bin(argv[1], FILE_R);
-    if(Errors::occurred())
-        exitmsg("open(" << argv[1] << ") failed");
 
     /* load and check ELF header */
     ElfEh header;

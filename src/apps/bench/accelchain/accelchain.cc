@@ -77,11 +77,7 @@ int main(int argc, char **argv) {
     for(int i = 0; i < repeats; ++i) {
         // open files
         fd_t infd = VFS::open(in, FILE_R);
-        if(infd == FileTable::INVALID)
-            exitmsg("Unable to open " << in);
         fd_t outfd = VFS::open(out, FILE_W | FILE_TRUNC | FILE_CREATE);
-        if(outfd == FileTable::INVALID)
-            exitmsg("Unable to open " << out);
 
         auto fin = VPE::self().fds()->get(infd);
         auto fout = VPE::self().fds()->get(outfd);

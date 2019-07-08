@@ -26,22 +26,26 @@
 namespace m3 {
 
 struct MessageHeader {
-    explicit MessageHeader()
-        : addr(), port(0), size(0) {
+    explicit MessageHeader() noexcept
+        : addr(),
+          port(0),
+          size(0) {
     }
-    explicit MessageHeader(IpAddr _addr, uint16_t _port, size_t _size)
-        : addr(_addr), port(_port), size(_size) {
+    explicit MessageHeader(IpAddr _addr, uint16_t _port, size_t _size) noexcept
+        : addr(_addr),
+          port(_port),
+          size(_size) {
     }
 
-    static size_t serialize_length() {
+    static size_t serialize_length() noexcept {
         return ostreamsize<uint32_t, uint16_t, size_t>();
     }
 
-    void serialize(Marshaller &m) {
+    void serialize(Marshaller &m) noexcept {
         m.vput(addr.addr(), port, size);
     }
 
-    void unserialize(Unmarshaller &um) {
+    void unserialize(Unmarshaller &um) noexcept {
         uint32_t _addr;
         um.vpull(_addr, port, size);
         addr.addr(_addr);
@@ -81,21 +85,19 @@ public:
     explicit NetworkManager(capsel_t session, capsel_t metagate);
     ~NetworkManager();
 
-    const SendGate &meta_gate() const {
+    const SendGate &meta_gate() const noexcept {
         return _metagate;
     }
 
-    void multithreaded(WorkLoop *wl);
-
     Socket *create(Socket::SocketType type, uint8_t protocol = 0);
-    Errors::Code bind(int sd, IpAddr addr, uint16_t port);
-    Errors::Code listen(int sd);
-    Errors::Code connect(int sd, IpAddr addr, uint16_t port);
-    Errors::Code close(int sd);
-    Errors::Code as_file(int sd, int mode, MemGate &mem, size_t memsize, fd_t &fd);
+    void bind(int sd, IpAddr addr, uint16_t port);
+    void listen(int sd);
+    void connect(int sd, IpAddr addr, uint16_t port);
+    void close(int sd);
+    void as_file(int sd, int mode, MemGate &mem, size_t memsize, fd_t &fd);
 
 private:
-    Errors::Code ensure_channel_established();
+    void ensure_channel_established();
 
     void listen_channel(NetEventChannel & _channel);
     void wait_for_credit(NetEventChannel& _channel);

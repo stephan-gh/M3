@@ -26,6 +26,8 @@
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
+#include <memory>
+
 #include "Args.h"
 #include "Parser.h"
 #include "Vars.h"
@@ -106,18 +108,19 @@ static void execute_assignment(CmdList *list) {
     }
 }
 
-static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
-    VPE *vpes[MAX_CMDS] = {nullptr};
-    IndirectPipe *pipes[MAX_CMDS] = {nullptr};
-    MemGate *mems[MAX_CMDS] = {nullptr};
+static void execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
     PEDesc descs[MAX_CMDS];
-    StreamAccel *accels[MAX_CMDS] = {nullptr};
+    std::unique_ptr<IndirectPipe> pipes[MAX_CMDS] = {nullptr};
+    std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
+    // destroy the VPEs first to prevent errors due to destroyed communication channels
+    std::unique_ptr<StreamAccel> accels[MAX_CMDS] = {nullptr};
+    std::unique_ptr<VPE> vpes[MAX_CMDS] = {nullptr};
 
     // get PE types
     for(size_t i = 0; i < list->count; ++i) {
         if(list->cmds[i]->args->count == 0) {
             errmsg("Command has no arguments");
-            return true;
+            return;
         }
 
         descs[i] = get_pedesc(*list->cmds[i]->vars, expr_value(list->cmds[i]->args->args[0]));
@@ -129,47 +132,34 @@ static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        vpes[i] = new VPE(expr_value(cmd->args->args[0]), VPEArgs().pedesc(descs[i])
-                                                                   .flags(muxed ? VPE::MUXABLE : 0));
+        auto args = VPEArgs().pedesc(descs[i]).flags(muxed ? VPE::MUXABLE : 0);
+        vpes[i] = std::unique_ptr<VPE>(new VPE(expr_value(cmd->args->args[0]), args));
         vpe_count++;
-        if(Errors::last != Errors::NONE) {
-            errmsg("Unable to create VPE for " << expr_value(cmd->args->args[0]));
-            goto error;
-        }
 
         // I/O redirection is only supported at the beginning and end
         if((i + 1 < list->count && cmd->redirs->fds[STDOUT_FD]) ||
             (i > 0 && cmd->redirs->fds[STDIN_FD])) {
-            errmsg("Invalid I/O redirection");
-            goto error;
+            throw MessageException("Invalid I/O redirection");
         }
 
         if(i == 0) {
-            if(cmd->redirs->fds[STDIN_FD]) {
+            if(cmd->redirs->fds[STDIN_FD])
                 infd = VFS::open(cmd->redirs->fds[STDIN_FD], FILE_R);
-                if(infd == FileTable::INVALID) {
-                    errmsg("Unable to open " << cmd->redirs->fds[STDIN_FD]);
-                    goto error;
-                }
-            }
             vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(infd));
         }
         else if(descs[i - 1].is_programmable() || descs[i].is_programmable())
             vpes[i]->fds()->set(STDIN_FD, VPE::self().fds()->get(pipes[i - 1]->reader_fd()));
 
         if(i + 1 == list->count) {
-            if(cmd->redirs->fds[STDOUT_FD]) {
+            if(cmd->redirs->fds[STDOUT_FD])
                 outfd = VFS::open(cmd->redirs->fds[STDOUT_FD], FILE_W | FILE_CREATE | FILE_TRUNC);
-                if(outfd == FileTable::INVALID) {
-                    errmsg("Unable to open " << cmd->redirs->fds[STDOUT_FD]);
-                    goto error;
-                }
-            }
             vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(outfd));
         }
         else if(descs[i].is_programmable() || descs[i + 1].is_programmable()) {
-            mems[i] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-            pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE);
+            mems[i] = std::unique_ptr<MemGate>(
+                new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW)));
+            pipes[i] = std::unique_ptr<IndirectPipe>(
+                new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE));
             vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(pipes[i]->writer_fd()));
         }
 
@@ -183,14 +173,9 @@ static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
             char **args = build_args(cmd);
             vpes[i]->exec(static_cast<int>(cmd->args->count), const_cast<const char**>(args));
             delete[] args;
-
-            if(Errors::last != Errors::NONE) {
-                errmsg("Unable to execute '" << expr_value(cmd->args->args[0]) << "'");
-                goto error;
-            }
         }
         else
-            accels[i] = new StreamAccel(vpes[i], ACOMP_TIME);
+            accels[i] = std::unique_ptr<StreamAccel>(new StreamAccel(vpes[i], ACOMP_TIME));
 
         if(i > 0 && pipes[i - 1]) {
             if(vpes[i]->pe().is_programmable())
@@ -214,7 +199,7 @@ static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
                         clones[c++] = ain;
                 }
                 else if(accels[i - 1])
-                    accels[i]->connect_input(accels[i - 1]);
+                    accels[i]->connect_input(accels[i - 1].get());
 
                 auto out = vpes[i]->fds()->get(STDOUT_FD);
                 if(out) {
@@ -224,7 +209,7 @@ static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
                         clones[c++] = aout;
                 }
                 else if(accels[i + 1])
-                    accels[i]->connect_output(accels[i + 1]);
+                    accels[i]->connect_output(accels[i + 1].get());
             }
         }
 
@@ -242,68 +227,47 @@ static bool execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
             }
 
             capsel_t vpe;
-            int exitcode;
-            if(Syscalls::vpe_wait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
-                errmsg("Unable to wait for VPEs");
-            else {
-                for(size_t i = 0; i < vpe_count; ++i) {
-                    if(vpes[i] && vpes[i]->sel() == vpe) {
-                        if(exitcode != 0) {
-                            cerr << expr_value(list->cmds[i]->args->args[0])
-                                 << " terminated with exit code " << exitcode << "\n";
-                        }
-                        if(!vpes[i]->pe().is_programmable()) {
-                            if(pipes[i])
-                                pipes[i]->close_writer();
-                            if(i > 0 && pipes[i - 1])
-                                pipes[i - 1]->close_reader();
-                        }
-                        delete vpes[i];
-                        vpes[i] = nullptr;
-                        break;
+            int exitcode = Syscalls::vpe_wait(sels, rem, 0, &vpe);
+
+            for(size_t i = 0; i < vpe_count; ++i) {
+                if(vpes[i] && vpes[i]->sel() == vpe) {
+                    if(exitcode != 0) {
+                        cerr << expr_value(list->cmds[i]->args->args[0])
+                             << " terminated with exit code " << exitcode << "\n";
                     }
+                    if(!vpes[i]->pe().is_programmable()) {
+                        if(pipes[i])
+                            pipes[i]->close_writer();
+                        if(i > 0 && pipes[i - 1])
+                            pipes[i - 1]->close_reader();
+                    }
+                    delete vpes[i].release();
+                    vpes[i] = nullptr;
+                    break;
                 }
             }
         }
     }
-
-error:
-    // destroy the VPEs first to prevent errors due to destroyed communication channels
-    for(size_t i = 0; i < vpe_count; ++i) {
-        delete vpes[i];
-        delete accels[i];
-    }
-    for(size_t i = 0; i < vpe_count; ++i) {
-        delete mems[i];
-        delete pipes[i];
-    }
-    if(infd != STDIN_FD && infd != FileTable::INVALID)
-        VFS::close(infd);
-    if(outfd != STDOUT_FD && outfd != FileTable::INVALID)
-        VFS::close(outfd);
-    return true;
 }
 
-static bool execute(Pipes &pipesrv, CmdList *list, bool muxed) {
+static void execute(Pipes &pipesrv, CmdList *list, bool muxed) {
     for(size_t i = 0; i < list->count; ++i) {
         Args::prefix_path(list->cmds[i]->args);
         Args::expand(list->cmds[i]->args);
     }
 
-    bool res = true;
-    if(list->count == 1 && list->cmds[0]->args->count == 0)
-        execute_assignment(list);
-    else
-        res = execute_pipeline(pipesrv, list, muxed);
-    return res;
+    try {
+        if(list->count == 1 && list->cmds[0]->args->count == 0)
+            execute_assignment(list);
+        else
+            execute_pipeline(pipesrv, list, muxed);
+    }
+    catch(const Exception &e) {
+        errmsg("command failed: " << e.what());
+    }
 }
 
 int main(int argc, char **argv) {
-    if(VFS::mount("/", "m3fs") != Errors::NONE) {
-        if(Errors::last != Errors::EXISTS)
-            exitmsg("Unable to mount filesystem\n");
-    }
-
     Pipes pipesrv("pipes");
 
     bool muxed = argc > 1 && strcmp(argv[1], "1") == 0;
@@ -340,10 +304,8 @@ int main(int argc, char **argv) {
         if(!list)
             continue;
 
-        bool cont = execute(pipesrv, list, muxed);
+        execute(pipesrv, list, muxed);
         ast_cmds_destroy(list);
-        if(!cont)
-            break;
     }
     return 0;
 }

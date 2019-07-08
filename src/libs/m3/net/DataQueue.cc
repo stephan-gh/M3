@@ -19,23 +19,23 @@
 namespace m3 {
 
 DataQueue::Item::Item(NetEventChannel::InbandDataTransferMessage const *msg,
-                                            NetEventChannel::Event &&event)
+                      NetEventChannel::Event &&event) noexcept
     : _msg(msg), _event(std::move(event)), _pos(0) {
 }
 
-const uchar *DataQueue::Item::get_data() {
+const uchar *DataQueue::Item::get_data() noexcept {
     return _msg->data;
 }
 
-size_t DataQueue::Item::get_size() {
+size_t DataQueue::Item::get_size() noexcept {
     return _msg->size;
 }
 
-size_t DataQueue::Item::get_pos() {
+size_t DataQueue::Item::get_pos() noexcept {
     return _pos;
 }
 
-void DataQueue::Item::set_pos(size_t pos) {
+void DataQueue::Item::set_pos(size_t pos) noexcept {
     assert(pos <= get_size());
     _pos = pos;
 }
@@ -44,15 +44,15 @@ DataQueue::~DataQueue() {
     clear();
 }
 
-void DataQueue::append(Item *item) {
+void DataQueue::append(Item *item) noexcept {
     _recv_queue.append(item);
 }
 
-bool DataQueue::has_data() {
+bool DataQueue::has_data() noexcept {
     return _recv_queue.length() > 0;
 }
 
-bool DataQueue::get_next_data(const uchar *&data, size_t &size) {
+bool DataQueue::get_next_data(const uchar *&data, size_t &size) noexcept {
     if(!has_data())
         return false;
 
@@ -62,7 +62,7 @@ bool DataQueue::get_next_data(const uchar *&data, size_t &size) {
     return true;
 }
 
-void DataQueue::ack_data(size_t size) {
+void DataQueue::ack_data(size_t size) noexcept {
     // May be called exactly once for every successful invocation of get_next_data().
     assert(_recv_queue.length() > 0);
 
@@ -76,7 +76,7 @@ void DataQueue::ack_data(size_t size) {
     }
 }
 
-void DataQueue::clear() {
+void DataQueue::clear() noexcept {
     Item *item;
     while((item = _recv_queue.remove_first()) != nullptr) {
         delete item;

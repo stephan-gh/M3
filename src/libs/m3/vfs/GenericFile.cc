@@ -47,40 +47,60 @@ GenericFile::~GenericFile() {
         delete _sg;
 }
 
-void GenericFile::close() {
-    if(_writing)
-        submit();
+void GenericFile::close() noexcept {
+    if(_writing) {
+        try {
+            submit();
+        }
+        catch(...) {
+            // ignore
+        }
+    }
 
     if(flags() & FILE_NOSESS) {
         LLOG(FS, "GenFile[" << fd() << "," << _id << "]::close()");
-        send_receive_vmsg(*_sg, M3FS::CLOSE_PRIV, _id);
+        try {
+            send_receive_vmsg(*_sg, M3FS::CLOSE_PRIV, _id);
+        }
+        catch(...) {
+            // ignore
+        }
+
         VFS::free_ep(VPE::self().ep_to_sel(_mg.ep()));
     }
     else {
         if(_mg.ep() != MemGate::UNBOUND) {
             LLOG(FS, "GenFile[" << fd() << "," << _id << "]::revoke_ep(" << _mg.ep() << ")");
             capsel_t sel = VPE::self().ep_to_sel(_mg.ep());
-            VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel), true);
+            try {
+                VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel), true);
+            }
+            catch(...) {
+                // ignore
+            }
             VPE::self().free_ep(_mg.ep());
         }
 
         // file sessions are not known to our resource manager; thus close them manually
         LLOG(FS, "GenFile[" << fd() << "]::close()");
-        send_receive_vmsg(*_sg, M3FS::CLOSE);
+        try {
+            send_receive_vmsg(*_sg, M3FS::CLOSE);
+        }
+        catch(...) {
+            // ignore
+        }
     }
 }
 
-Errors::Code GenericFile::stat(FileInfo &info) const {
+void GenericFile::stat(FileInfo &info) const {
     LLOG(FS, "GenFile[" << fd() << "," << _id << "]::stat()");
 
     GateIStream reply = send_receive_vmsg(*_sg, STAT, _id);
-    reply >> Errors::last;
-    if(Errors::last == Errors::NONE)
-        reply >> info;
-    return Errors::last;
+    receive_result(reply);
+    reply >> info;
 }
 
-ssize_t GenericFile::seek(size_t offset, int whence) {
+size_t GenericFile::seek(size_t offset, int whence) {
     LLOG(FS, "GenFile[" << fd() << "," << _id << "]::seek(" << offset << ", " << whence << ")");
 
     // handle SEEK_CUR as SEEK_SET
@@ -93,41 +113,38 @@ ssize_t GenericFile::seek(size_t offset, int whence) {
     if(whence == M3FS_SEEK_SET) {
         // no change?
         if(offset == _goff + _pos)
-            return static_cast<ssize_t>(offset);
+            return offset;
 
         // first submit the written data
-        if(_writing && submit() != Errors::NONE)
-            return -1;
+        if(_writing)
+            submit();
 
         if(offset >= _goff && offset <= _goff + _len) {
             _pos = offset - _goff;
-            return static_cast<ssize_t>(offset);
+            return offset;
         }
     }
     else {
         // first submit the written data
-        if(_writing && submit() != Errors::NONE)
-            return -1;
+        if(_writing)
+            submit();
     }
 
     // now seek on the server side
     size_t off;
     GateIStream reply = !have_sess() ? send_receive_vmsg(*_sg, SEEK, _id, offset, whence)
                                      : send_receive_vmsg(*_sg, SEEK, offset, whence);
-    reply >> Errors::last;
-    if(Errors::last != Errors::NONE)
-        return -1;
+    receive_result(reply);
 
     reply >> _goff >> off;
     _pos = _len = 0;
-    return static_cast<ssize_t>(_goff + off);
+    return _goff + off;
 }
 
-ssize_t GenericFile::read(void *buffer, size_t count) {
-    if(delegate_ep() != Errors::NONE)
-        return -1;
-    if(_writing && submit() != Errors::NONE)
-        return -1;
+size_t GenericFile::read(void *buffer, size_t count) {
+    delegate_ep();
+    if(_writing)
+        submit();
 
     LLOG(FS, "GenFile[" << fd() << "," << _id << "]::read("
         << count << ", pos=" << (_goff + _pos) << ")");
@@ -135,10 +152,8 @@ ssize_t GenericFile::read(void *buffer, size_t count) {
     if(_pos == _len) {
         Time::start(0xbbbb);
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
-        reply >> Errors::last;
+        receive_result(reply);
         Time::stop(0xbbbb);
-        if(Errors::last != Errors::NONE)
-            return -1;
 
         _goff += _len;
         reply >> _off >> _len;
@@ -157,12 +172,11 @@ ssize_t GenericFile::read(void *buffer, size_t count) {
         Time::stop(0xaaaa);
         _pos += amount;
     }
-    return static_cast<ssize_t>(amount);
+    return amount;
 }
 
-ssize_t GenericFile::write(const void *buffer, size_t count) {
-    if(delegate_ep() != Errors::NONE)
-        return -1;
+size_t GenericFile::write(const void *buffer, size_t count) {
+    delegate_ep();
 
     LLOG(FS, "GenFile[" << fd() << "," << _id << "]::write("
         << count << ", pos=" << (_goff + _pos) << ")");
@@ -170,10 +184,8 @@ ssize_t GenericFile::write(const void *buffer, size_t count) {
     if(_pos == _len) {
         Time::start(0xbbbb);
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
-        reply >> Errors::last;
+        receive_result(reply);
         Time::stop(0xbbbb);
-        if(Errors::last != Errors::NONE)
-            return -1;
 
         _goff += _len;
         reply >> _off >> _len;
@@ -193,7 +205,7 @@ ssize_t GenericFile::write(const void *buffer, size_t count) {
         _pos += amount;
     }
     _writing = true;
-    return static_cast<ssize_t>(amount);
+    return amount;
 }
 
 void GenericFile::evict() {
@@ -210,36 +222,30 @@ void GenericFile::evict() {
     _mg.ep(MemGate::UNBOUND);
 }
 
-Errors::Code GenericFile::submit() {
+void GenericFile::submit() {
     if(_pos > 0) {
         LLOG(FS, "GenFile[" << fd() << "," << _id << "]::submit("
             << (_writing ? "write" : "read") << ", " << _pos << ")");
 
         GateIStream reply = !have_sess() ? send_receive_vmsg(*_sg, COMMIT, _id, _pos)
                                          : send_receive_vmsg(*_sg, COMMIT, _pos);
-        reply >> Errors::last;
-        if(Errors::last != Errors::NONE)
-            return Errors::last;
+        receive_result(reply);
 
         // if we append, the file was truncated
         _goff += _pos;
         _pos = _len = 0;
     }
     _writing = false;
-    return Errors::NONE;
 }
 
-Errors::Code GenericFile::delegate_ep() {
+void GenericFile::delegate_ep() {
     if(_mg.ep() == MemGate::UNBOUND) {
         assert(!(flags() & FILE_NOSESS));
         epid_t ep = VPE::self().fds()->request_ep(this);
         LLOG(FS, "GenFile[" << fd() << "," << _id << "]::delegate_ep(" << ep << ")");
         _sess.delegate_obj(VPE::self().ep_to_sel(ep));
-        if(Errors::last != Errors::NONE)
-            return Errors::last;
         _mg.ep(ep);
     }
-    return Errors::NONE;
 }
 
 }

@@ -54,19 +54,19 @@ public:
 
             if(VERBOSE) Serial::get() << "Creating VPE " << name.str() << "\n";
 
-            vpes[i] = new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
-                                                   .flags(VPE::MUXABLE)
-                                                   .group(&group));
-            if(Errors::last != Errors::NONE) {
-                exitmsg("Unable to create VPE for " << name.str());
-                break;
-            }
+            vpes[i] = std::unique_ptr<VPE>(
+                new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
+                                             .flags(VPE::MUXABLE)
+                                             .group(&group))
+            );
 
-            accels[i] = new StreamAccel(vpes[i], ACCEL_TIMES[i]);
+            accels[i] = std::unique_ptr<StreamAccel>(new StreamAccel(vpes[i], ACCEL_TIMES[i]));
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < ACCEL_COUNT) {
-                mems[i] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-                pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE);
+                mems[i] = std::unique_ptr<MemGate>(
+                    new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW)));
+                pipes[i] = std::unique_ptr<IndirectPipe>(
+                    new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE));
             }
         }
 
@@ -82,7 +82,7 @@ public:
                     accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
                 }
                 else
-                    accels[i]->connect_input(accels[i - 1]);
+                    accels[i]->connect_input(accels[i - 1].get());
             }
             if(i + 1 < ACCEL_COUNT) {
                 if(mode == Mode::DIR_SIMPLE) {
@@ -90,20 +90,8 @@ public:
                     accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
                 }
                 else
-                    accels[i]->connect_output(accels[i + 1]);
+                    accels[i]->connect_output(accels[i + 1].get());
             }
-        }
-    }
-    ~DirectChain() {
-        if(mode == Mode::DIR_SIMPLE) {
-            for(size_t i = 0; i < ACCEL_COUNT; ++i) {
-                delete mems[i];
-                delete pipes[i];
-            }
-        }
-        for(size_t i = 0; i < ACCEL_COUNT; ++i) {
-            delete vpes[i];
-            delete accels[i];
         }
     }
 
@@ -142,10 +130,10 @@ public:
 private:
     Mode mode;
     VPEGroup group;
-    VPE *vpes[ACCEL_COUNT];
-    StreamAccel *accels[ACCEL_COUNT];
-    IndirectPipe *pipes[ACCEL_COUNT];
-    MemGate *mems[ACCEL_COUNT];
+    std::unique_ptr<VPE> vpes[ACCEL_COUNT];
+    std::unique_ptr<StreamAccel> accels[ACCEL_COUNT];
+    std::unique_ptr<IndirectPipe> pipes[ACCEL_COUNT];
+    std::unique_ptr<MemGate> mems[ACCEL_COUNT];
     bool running[ACCEL_COUNT];
 };
 
@@ -157,13 +145,9 @@ static void wait_for(DirectChain **chains, size_t num) {
             chains[i]->add_running(sels, &count);
 
         capsel_t vpe;
-        int exitcode;
-        if(Syscalls::vpe_wait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
-            errmsg("Unable to wait for VPEs");
-        else {
-            for(size_t i = 0; i < num; ++i)
-                chains[i]->terminated(vpe, exitcode);
-        }
+        int exitcode = Syscalls::vpe_wait(sels, rem, 0, &vpe);
+        for(size_t i = 0; i < num; ++i)
+            chains[i]->terminated(vpe, exitcode);
     }
 }
 
@@ -179,11 +163,7 @@ void chain_direct(const char *in, size_t num, Mode mode) {
         outpath << "/tmp/res-" << i;
 
         infds[i] = VFS::open(in, FILE_R);
-        if(infds[i] == FileTable::INVALID)
-            exitmsg("Unable to open " << in);
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
-        if(outfds[i] == FileTable::INVALID)
-            exitmsg("Unable to open " << outpath.str());
 
         chains[i] = new DirectChain(pipes,
                                     i,

@@ -33,12 +33,12 @@ Semaphore Semaphore::create(uint value) {
     return Semaphore(nsel, 0);
 }
 
-Errors::Code Semaphore::up() const {
-    return Syscalls::sem_ctrl(sel(), KIF::Syscall::SCTRL_UP);
+void Semaphore::up() const {
+    Syscalls::sem_ctrl(sel(), KIF::Syscall::SCTRL_UP);
 }
 
-Errors::Code Semaphore::down() const {
-    return Syscalls::sem_ctrl(sel(), KIF::Syscall::SCTRL_DOWN);
+void Semaphore::down() const {
+    Syscalls::sem_ctrl(sel(), KIF::Syscall::SCTRL_DOWN);
 }
 
 }

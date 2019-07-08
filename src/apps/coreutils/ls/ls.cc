@@ -93,18 +93,13 @@ int main(int argc, char **argv) {
         }
     }
 
-    Errors::Code res;
     FileInfo info;
-    if((res = VFS::stat(dirname, info)) != Errors::NONE)
-        exitmsg("stat of " << dirname << " failed");
+    VFS::stat(dirname, info);
     if(!M3FS_ISDIR(info.mode))
         exitmsg(dirname << " is no directory");
 
-    Dir dir(dirname);
-    if(Errors::occurred())
-        exitmsg("open of " << dirname << " failed");
-
     // count entries
+    Dir dir(dirname);
     Dir::Entry e;
     size_t total;
     for(total = 0; dir.readdir(e); ) {

@@ -24,17 +24,7 @@ alignas(64) static char buffer[4096];
 
 static void copy(const char *src, const char *dst) {
     FStream out(dst, FILE_W | FILE_CREATE | FILE_TRUNC);
-    if(out.error()) {
-        errmsg("Opening/creating " << dst << " for writing failed");
-        return;
-    }
-
     FStream in(src, FILE_R);
-    if(in.error()) {
-        errmsg("Opening/creating " << src << " for reading failed");
-        return;
-    }
-
     size_t res;
     while((res = in.read(buffer, sizeof(buffer))) > 0)
         out.write_all(buffer, res);
@@ -63,14 +53,23 @@ static void add_filename(OStringStream &os, const char *path) {
         os << path[i];
 }
 
+bool is_dir(const char *path) {
+    try {
+        FileInfo info;
+        VFS::stat(path, info);
+
+        return M3FS_ISDIR(info.mode);
+    }
+    catch(...) {
+        return false;
+    }
+}
+
 int main(int argc, char **argv) {
     if(argc < 3)
         exitmsg("Usage: " << argv[0] << " <in>... <out>");
 
-    FileInfo info;
-    Errors::Code res = VFS::stat(argv[argc - 1], info);
-
-    if(res == Errors::NONE && M3FS_ISDIR(info.mode)) {
+    if(is_dir(argv[argc - 1])) {
         for(int i = 1; i < argc - 1; ++i) {
             OStringStream dst;
             dst << argv[argc - 1] << "/";
@@ -81,8 +80,9 @@ int main(int argc, char **argv) {
     else {
         if(argc > 3)
             exitmsg("Last argument is no directory, but multiple source files given");
-        if(VFS::stat(argv[1], info) != Errors::NONE)
-            exitmsg("Stat for " << argv[1] << " failed");
+
+        FileInfo info;
+        VFS::stat(argv[1], info);
         if(M3FS_ISDIR(info.mode))
             exitmsg("Second argument is no directory, but first is");
 

@@ -32,8 +32,6 @@ static void dir_listing() {
     // read a dir with known content
     const char *dirname = "/largedir";
     Dir dir(dirname);
-    if(Errors::occurred())
-        exitmsg("open of " << dirname << " failed");
 
     Dir::Entry e;
     std::vector<Dir::Entry> entries;
@@ -66,9 +64,9 @@ static void dir_listing() {
 }
 
 static void meta_operations() {
-    assert_int(VFS::mkdir("/example", 0755), Errors::NONE);
-    assert_int(VFS::mkdir("/example", 0755), Errors::EXISTS);
-    assert_int(VFS::mkdir("/example/foo/bar", 0755), Errors::NO_SUCH_FILE);
+    VFS::mkdir("/example", 0755);
+    assert_err(Errors::EXISTS, [] { VFS::mkdir("/example", 0755); });
+    assert_err(Errors::NO_SUCH_FILE, [] { VFS::mkdir("/example/foo/bar", 0755); });
 
     {
         FStream f("/example/myfile", FILE_W | FILE_CREATE);
@@ -76,25 +74,24 @@ static void meta_operations() {
     }
 
     {
-        assert_int(VFS::mount("/fs/", "m3fs", "m3fs-clone"), Errors::NONE);
-        assert_int(VFS::link("/example/myfile", "/fs/foo"), Errors::XFS_LINK);
+        VFS::mount("/fs/", "m3fs", "m3fs-clone");
+        assert_err(Errors::XFS_LINK, [] { VFS::link("/example/myfile", "/fs/foo"); });
         VFS::unmount("/fs");
     }
 
-    assert_int(VFS::rmdir("/example/foo/bar"), Errors::NO_SUCH_FILE);
-    assert_int(VFS::rmdir("/example/myfile"), Errors::IS_NO_DIR);
-    assert_int(VFS::rmdir("/example"), Errors::DIR_NOT_EMPTY);
+    assert_err(Errors::NO_SUCH_FILE, [] { VFS::rmdir("/example/foo/bar"); });
+    assert_err(Errors::IS_NO_DIR, [] { VFS::rmdir("/example/myfile"); });
+    assert_err(Errors::DIR_NOT_EMPTY, [] { VFS::rmdir("/example"); });
 
-    assert_int(VFS::link("/example", "/newpath"), Errors::IS_DIR);
-    assert_int(VFS::link("/example/myfile", "/newpath"), Errors::NONE);
+    assert_err(Errors::IS_DIR, [] { VFS::link("/example", "/newpath"); });
+    VFS::link("/example/myfile", "/newpath");
 
-    assert_int(VFS::unlink("/example"), Errors::IS_DIR);
-    assert_int(VFS::unlink("/example/foo"), Errors::NO_SUCH_FILE);
-    assert_int(VFS::unlink("/example/myfile"), Errors::NONE);
+    assert_err(Errors::IS_DIR, [] { VFS::unlink("/example"); });
+    assert_err(Errors::NO_SUCH_FILE, [] { VFS::unlink("/example/foo"); });
+    VFS::unlink("/example/myfile");
 
-    assert_int(VFS::rmdir("/example"), Errors::NONE);
-
-    assert_int(VFS::unlink("/newpath"), Errors::NONE);
+    VFS::rmdir("/example");
+    VFS::unlink("/newpath");
 }
 
 static void delete_file() {
@@ -109,19 +106,15 @@ static void delete_file() {
         char buffer[32];
 
         FileRef file(tmp_file, FILE_R);
-        if(Errors::occurred())
-            exitmsg("open of " << tmp_file << "failed");
 
-        assert_int(VFS::unlink(tmp_file), Errors::NONE);
+        VFS::unlink(tmp_file);
 
-        assert_true(VFS::open(tmp_file, FILE_R) == FileTable::INVALID);
-        assert_int(Errors::last, Errors::NO_SUCH_FILE);
+        assert_err(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
 
-        assert_ssize(file->read(buffer, sizeof(buffer)), 5);
+        assert_size(file->read(buffer, sizeof(buffer)), 5);
     }
 
-    assert_true(VFS::open(tmp_file, FILE_R) == FileTable::INVALID);
-    assert_int(Errors::last, Errors::NO_SUCH_FILE);
+    assert_err(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
 }
 
 void tfsmeta() {

@@ -265,10 +265,6 @@ int main(int argc, char *argv[]) {
     }
     else
         usage(argv[0]);
-    if(Errors::last != Errors::NONE) {
-        delete backend;
-        PANIC("Backup creation failed");
-    }
 
     auto hdl    = new M3FSRequestHandler(&wl, backend, extend, clear, revoke_first, max_load);
     if(sels != ObjCap::INVALID)

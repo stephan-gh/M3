@@ -23,7 +23,12 @@ namespace m3 {
 
 ClientSession::~ClientSession() {
     if(_close && sel() != INVALID) {
-        VPE::self().resmng().close_sess(sel());
+        try {
+            VPE::self().resmng().close_sess(sel());
+        }
+        catch(...) {
+            // ignore
+        }
         flags(0);
     }
 }
@@ -32,17 +37,17 @@ void ClientSession::connect(const String &service, capsel_t selector) {
     if(selector == INVALID)
         selector = VPE::self().alloc_sel();
 
-    if(VPE::self().resmng().open_sess(selector, service) == Errors::NONE)
-        sel(selector);
+    VPE::self().resmng().open_sess(selector, service);
+    sel(selector);
 }
 
-Errors::Code ClientSession::delegate_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
-    return Syscalls::delegate(vpe.sel(), sel(), crd, args);
+void ClientSession::delegate_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
+    Syscalls::delegate(vpe.sel(), sel(), crd, args);
 }
 
-Errors::Code ClientSession::obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
+void ClientSession::obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
     vpe.mark_caps_allocated(crd.start(), crd.count());
-    return Syscalls::obtain(vpe.sel(), sel(), crd, args);
+    Syscalls::obtain(vpe.sel(), sel(), crd, args);
 }
 
 }

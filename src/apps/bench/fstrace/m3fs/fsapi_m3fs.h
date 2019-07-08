@@ -66,10 +66,6 @@ public:
         m3::cerr << "Total time: " << (end - _start) << " cycles\n";
     }
 
-    virtual int error() override {
-        return m3::Errors::last;
-    }
-
     virtual void checkpoint(int, int, bool) override {
         // TODO not implemented
     }
@@ -83,32 +79,20 @@ public:
         if(args->fd != -1 && (_fdMap[args->fd] != -1 || _dirMap[args->fd] != nullptr))
             exitmsg("Overwriting already used file/dir @ " << args->fd);
 
-        if(args->flags & O_DIRECTORY) {
-            auto dir = new m3::Dir(add_prefix(args->name), m3::FILE_R | m3::FILE_NOSESS);
-            if(m3::Errors::occurred()) {
-               delete dir;
-                if(args->fd != -1)
-                   THROW1(ReturnValueException, m3::Errors::last, args->fd, lineNo);
+        try {
+            if(args->flags & O_DIRECTORY) {
+                auto dir = new m3::Dir(add_prefix(args->name), m3::FILE_R | m3::FILE_NOSESS);
+                _dirMap[args->fd] = dir;
             }
             else {
-                _dirMap[args->fd] = dir;
-                if (_dirMap[args->fd] == nullptr && args->fd >= 0)
-                    THROW1(ReturnValueException, m3::Errors::last, args->fd, lineNo);
+                auto nfile = m3::VFS::open(add_prefix(args->name),
+                                           args->flags | (_data ? 0 : m3::FILE_NODATA) | m3::FILE_NOSESS);
+                _fdMap[args->fd] = nfile;
             }
         }
-        else {
-            auto nfile = m3::VFS::open(add_prefix(args->name),
-                                       args->flags | (_data ? 0 : m3::FILE_NODATA) | m3::FILE_NOSESS);
-            if(m3::Errors::occurred()) {
-                m3::VFS::close(nfile);
-                if(args->fd != -1)
-                   THROW1(ReturnValueException, m3::Errors::last, args->fd, lineNo);
-            }
-            else {
-                _fdMap[args->fd] = nfile;
-                if(_fdMap[args->fd] == m3::FileTable::INVALID)
-                    THROW1(ReturnValueException, m3::Errors::last, args->fd, lineNo);
-            }
+        catch(const m3::Exception &e) {
+            if(args->fd != -1)
+               THROW1(ReturnValueException, e.code(), args->fd, lineNo);
         }
     }
 
@@ -133,18 +117,21 @@ public:
 
     virtual ssize_t read(int fd, void *buffer, size_t size) override {
         checkFd(fd);
-        auto file = m3::VPE::self().fds()->get(_fdMap[fd]);
-        char *buf = reinterpret_cast<char*>(buffer);
-        while(size > 0) {
-            ssize_t res = file->read(buf, size);
-            if(res < 0)
-                return m3::Errors::last;
-            if(res == 0)
-                break;
-            size -= static_cast<size_t>(res);
-            buf += res;
+        try {
+            auto file = m3::VPE::self().fds()->get(_fdMap[fd]);
+            char *buf = reinterpret_cast<char*>(buffer);
+            while(size > 0) {
+                size_t res = file->read(buf, size);
+                if(res == 0)
+                    break;
+                size -= static_cast<size_t>(res);
+                buf += res;
+            }
+            return buf - reinterpret_cast<char*>(buffer);
         }
-        return buf - reinterpret_cast<char*>(buffer);
+        catch(const m3::Exception &e) {
+            return -e.code();
+        }
     }
 
     virtual ssize_t write(int fd, const void *buffer, size_t size) override {
@@ -154,9 +141,12 @@ public:
     }
 
     ssize_t write_file(m3::Reference<m3::File> file, const void *buffer, size_t size) {
-        m3::Errors::Code res = file->write_all(buffer, size);
-        if(res != m3::Errors::NONE)
-            return -static_cast<ssize_t>(res);
+        try {
+            file->write_all(buffer, size);
+        }
+        catch(const m3::Exception &e) {
+            return -e.code();
+        }
         return static_cast<ssize_t>(size);
     }
 
@@ -174,67 +164,100 @@ public:
 
     virtual void lseek(const lseek_args_t *args, UNUSED int lineNo) override {
         checkFd(args->fd);
-        m3::VPE::self().fds()->get(_fdMap[args->fd])->seek(static_cast<size_t>(args->offset), args->whence);
-        // if (res != args->err)
-        //     THROW1(ReturnValueException, res, args->offset, lineNo);
+        try {
+            auto file = m3::VPE::self().fds()->get(_fdMap[args->fd]);
+            file->seek(static_cast<size_t>(args->offset), args->whence);
+        }
+        catch(...) {
+            // ignore
+            // THROW1(ReturnValueException, res, args->offset, lineNo);
+        }
     }
 
     virtual void ftruncate(const ftruncate_args_t *, int ) override {
         // TODO not implemented
     }
 
+    template<class F>
+    int get_result_of(F func) {
+        int res = m3::Errors::NONE;
+        try {
+            func();
+        }
+        catch(const m3::Exception &e) {
+            res = -e.code();
+        }
+        return res;
+    }
+
     virtual void fstat(const fstat_args_t *args, UNUSED int lineNo) override {
-        int res;
-        m3::FileInfo info;
-        if(_fdMap[args->fd] != -1)
-            res = m3::VPE::self().fds()->get(_fdMap[args->fd])->stat(info);
-        else if(_dirMap[args->fd])
-            res = _dirMap[args->fd]->stat(info);
-        else
-            exitmsg("Using uninitialized file/dir @ " << args->fd);
+        int res = get_result_of([this, &args] {
+            m3::FileInfo info;
+            if(_fdMap[args->fd] != -1)
+                m3::VPE::self().fds()->get(_fdMap[args->fd])->stat(info);
+            else if(_dirMap[args->fd])
+                _dirMap[args->fd]->stat(info);
+            else
+                exitmsg("Using uninitialized file/dir @ " << args->fd);
+        });
 
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }
 
     virtual void fstatat(const fstatat_args_t *args, UNUSED int lineNo) override {
-        m3::FileInfo info;
-        int res = m3::VFS::stat(add_prefix(args->name), info);
+        int res = get_result_of([this, &args] {
+            m3::FileInfo info;
+            m3::VFS::stat(add_prefix(args->name), info);
+        });
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }
 
     virtual void stat(const stat_args_t *args, UNUSED int lineNo) override {
-        m3::FileInfo info;
-        int res = m3::VFS::stat(add_prefix(args->name), info);
+        int res = get_result_of([this, &args] {
+            m3::FileInfo info;
+            m3::VFS::stat(add_prefix(args->name), info);
+        });
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }
 
     virtual void rename(const rename_args_t *args, int lineNo) override {
-        static char todst[255];
-        int res = m3::VFS::link(add_prefix(args->from), add_prefix_to(args->to, todst, sizeof(todst)));
+        int res = get_result_of([this, &args] {
+            static char todst[255];
+            m3::VFS::link(add_prefix(args->from), add_prefix_to(args->to, todst, sizeof(todst)));
+        });
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
-        res = m3::VFS::unlink(add_prefix(args->from));
+
+        res = get_result_of([this, &args] {
+            m3::VFS::unlink(add_prefix(args->from));
+        });
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }
 
     virtual void unlink(const unlink_args_t *args, UNUSED int lineNo) override {
-        int res = m3::VFS::unlink(add_prefix(args->name));
+        int res = get_result_of([this, &args] {
+            m3::VFS::unlink(add_prefix(args->name));
+        });
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }
 
     virtual void rmdir(const rmdir_args_t *args, UNUSED int lineNo) override {
-        int res = m3::VFS::rmdir(add_prefix(args->name));
+        int res = get_result_of([this, &args] {
+            m3::VFS::rmdir(add_prefix(args->name));
+        });
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }
 
     virtual void mkdir(const mkdir_args_t *args, UNUSED int lineNo) override {
-        int res = m3::VFS::mkdir(add_prefix(args->name), 0777 /*args->mode*/);
+        int res = get_result_of([this, &args] {
+            m3::VFS::mkdir(add_prefix(args->name), 0777 /*args->mode*/);
+        });
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }
@@ -256,14 +279,12 @@ public:
         while(rem > 0) {
             size_t amount = m3::Math::min(static_cast<size_t>(Buffer::MaxBufferSize), rem);
 
-            ssize_t res = in->read(rbuf, amount);
+            size_t res = in->read(rbuf, amount);
             if(res == 0)
                 break;
-            if(res < 0)
-                THROW1(ReturnValueException, res, amount, lineNo);
 
             ssize_t wres = write_file(out, rbuf, static_cast<size_t>(res));
-            if(wres != res)
+            if(wres != static_cast<ssize_t>(res))
                 THROW1(ReturnValueException, wres, res, lineNo);
 
             rem -= static_cast<size_t>(res);
@@ -275,17 +296,22 @@ public:
     virtual void getdents(const getdents_args_t *args, UNUSED int lineNo) override {
         if(_dirMap[args->fd] == nullptr)
             exitmsg("Using uninitialized dir @ " << args->fd);
-        m3::Dir::Entry e;
-        int i;
-        // we don't check the result here because strace is often unable to determine the number of
-        // fetched entries.
-        if(args->count == 0 && _dirMap[args->fd]->readdir(e))
-            ; //THROW1(ReturnValueException, 1, args->count, lineNo);
-        else {
-            for(i = 0; i < args->count && _dirMap[args->fd]->readdir(e); ++i)
-                ;
-            //if(i != args->count)
-            //    THROW1(ReturnValueException, i, args->count, lineNo);
+
+        try {
+            m3::Dir::Entry e;
+            int i;
+            // we don't check the result here because strace is often unable to determine the number of
+            // fetched entries.
+            if(args->count == 0 && _dirMap[args->fd]->readdir(e))
+                ; //THROW1(ReturnValueException, 1, args->count, lineNo);
+            else {
+                for(i = 0; i < args->count && _dirMap[args->fd]->readdir(e); ++i)
+                    ;
+                //if(i != args->count)
+                //    THROW1(ReturnValueException, i, args->count, lineNo);
+            }
+        }
+        catch(...) {
         }
     }
 
@@ -325,9 +351,7 @@ public:
         while(rem > 0) {
             size_t amount = m3::Math::min(static_cast<size_t>(Buffer::MaxBufferSize), rem);
 
-            ssize_t res = in->read(rbuf, amount);
-            if(res < 0)
-                THROW1(ReturnValueException, res, amount, lineNo);
+            size_t res = in->read(rbuf, amount);
 
             _lgchan->push(rbuf, static_cast<size_t>(res));
 

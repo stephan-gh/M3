@@ -88,21 +88,21 @@ public:
     class Event {
     friend class NetEventChannel;
     public:
-        Event();
+        Event() noexcept;
         ~Event();
 
         Event(const Event &e) = delete;
-        Event(Event &&e);
+        Event(Event &&e) noexcept;
         Event &operator=(const Event &e) = delete;
-        Event &operator=(Event &&e);
+        Event &operator=(Event &&e) noexcept;
 
-        bool is_present();
+        bool is_present() noexcept;
         void finish();
 
-        GateIStream to_stream();
-        const ControlMessage * get_message();
+        GateIStream to_stream() noexcept;
+        const ControlMessage *get_message() noexcept;
     private:
-        explicit Event(const DTU::Message *msg, NetEventChannel *channel);
+        explicit Event(const DTU::Message *msg, NetEventChannel *channel) noexcept;
 
         const DTU::Message *_msg;
         NetEventChannel *_channel;
@@ -111,7 +111,7 @@ public:
 
     class EventWorkItem : public WorkItem {
     public:
-        explicit EventWorkItem(NetEventChannel *channel) : _channel(channel) {
+        explicit EventWorkItem(NetEventChannel *channel) noexcept : _channel(channel) {
         }
 
         virtual void work() override;
@@ -130,15 +130,14 @@ public:
      */
     static void prepare_caps(capsel_t caps, size_t size);
 
-    NetEventChannel(capsel_t caps, bool use_credits);
-    ~NetEventChannel();
+    NetEventChannel(capsel_t caps, bool use_credits) noexcept;
 
-    Errors::Code data_transfer(int sd, size_t pos, size_t size);
-    Errors::Code ack_data_transfer(int sd, size_t pos, size_t size);
-    Errors::Code inband_data_transfer(int sd, size_t size, std::function<void(uchar *)> cb_data);
-    Errors::Code socket_accept(int sd, int new_sd, IpAddr remote_addr, uint16_t remote_port);
-    Errors::Code socket_connected(int sd);
-    Errors::Code socket_closed(int sd, Errors::Code cause);
+    void data_transfer(int sd, size_t pos, size_t size);
+    void ack_data_transfer(int sd, size_t pos, size_t size);
+    bool inband_data_transfer(int sd, size_t size, std::function<void(uchar *)> cb_data);
+    void socket_accept(int sd, int new_sd, IpAddr remote_addr, uint16_t remote_port);
+    void socket_connected(int sd);
+    void socket_closed(int sd, Errors::Code cause);
 
     using evhandler_t = std::function<void(Event& event)>;
     using crdhandler_t = std::function<void(event_t wait_event, size_t waiting)>;
@@ -161,18 +160,18 @@ public:
 
     bool has_events(evhandler_t &evhandler, crdhandler_t &crdhandler);
 
-    bool has_credits();
-    void set_credit_event(event_t event);
-    event_t get_credit_event();
-    void wait_for_credit();
+    bool has_credits() noexcept;
+    void set_credit_event(event_t event) noexcept;
+    event_t get_credit_event() noexcept;
+    void wait_for_credit() noexcept;
 
 private:
-    Errors::Code send_message(const void* msg, size_t size);
+    void send_message(const void* msg, size_t size);
 
     bool _ret_credits;
     RecvGate _rgate;
     SendGate _sgate;
-    EventWorkItem * _workitem;
+    std::unique_ptr<EventWorkItem> _workitem;
     evhandler_t _evhandler;
     crdhandler_t _crdhandler;
     event_t _credit_event;

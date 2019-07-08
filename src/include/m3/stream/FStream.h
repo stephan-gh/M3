@@ -22,6 +22,7 @@
 
 #include <m3/vfs/File.h>
 #include <m3/vfs/FileTable.h>
+#include <m3/Exception.h>
 #include <m3/VPE.h>
 
 namespace m3 {
@@ -80,20 +81,19 @@ public:
      * @return the File instance
      */
     Reference<File> file() const {
-        return _fd == FileTable::INVALID ? Reference<File>() : VPE::self().fds()->get(_fd);
+        return VPE::self().fds()->get(_fd);
     }
 
     /**
      * Retrieves information about this file
      *
      * @param info the struct to fill
-     * @return 0 on success
      */
-    int stat(FileInfo &info) const {
-        Reference<File> f = file();
-        if(f)
-            return f->stat(info);
-        return -1;
+    void stat(FileInfo &info) const {
+        if(bad())
+            throw Exception(Errors::INV_STATE);
+
+        file()->stat(info);
     }
 
     /**
@@ -160,7 +160,7 @@ public:
     }
 
 private:
-    void set_error(ssize_t res);
+    void set_error(size_t res);
 
     fd_t _fd;
     File::Buffer *_rbuf;

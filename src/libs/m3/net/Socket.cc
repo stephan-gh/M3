@@ -21,6 +21,7 @@
 #include <m3/net/TcpSocket.h>
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>
+#include <m3/Exception.h>
 
 #include <thread/ThreadManager.h>
 
@@ -55,8 +56,14 @@ Socket::Socket(int sd, NetworkManager &nm)
 }
 
 Socket::~Socket() {
-    if(_state != Closed || _close_cause != Errors::SOCKET_CLOSED)
-        close();
+    if(_state != Closed || _close_cause != Errors::SOCKET_CLOSED) {
+        try {
+            close();
+        }
+        catch(...) {
+            // ignore
+        }
+    }
 
     // TODO: Notify waiting threads (events and credits)
 
@@ -67,38 +74,33 @@ Socket::~Socket() {
     _nm._sockets.remove(this);
 }
 
-Errors::Code Socket::bind(IpAddr addr, uint16_t port) {
+void Socket::bind(IpAddr addr, uint16_t port) {
     if(_state != None)
         return inv_state();
 
-    auto result = _nm.bind(sd(), addr, port);
-    if(result == Errors::NONE) {
-        _state = Bound;
-        _local_addr = addr;
-        _local_port = port;
-    }
-    return result;
+    _nm.bind(sd(), addr, port);
+    _state = Bound;
+    _local_addr = addr;
+    _local_port = port;
 }
 
-Errors::Code Socket::listen() {
-    return Errors::NOT_SUP;
+void Socket::listen() {
+    throw Exception(Errors::NOT_SUP);
 }
 
-Errors::Code Socket::connect(IpAddr, uint16_t) {
-    return Errors::NOT_SUP;
+void Socket::connect(IpAddr, uint16_t) {
+    throw Exception(Errors::NOT_SUP);
 }
 
-Errors::Code Socket::accept(Socket*&) {
-    return Errors::NOT_SUP;
+bool Socket::accept(Socket*&) {
+    throw Exception(Errors::NOT_SUP);
 }
 
-Errors::Code Socket::close() {
-    Errors::Code err = _nm.close(sd());
-    if(err == Errors::NONE) {
-        _state = Closed;
-        _close_cause = Errors::SOCKET_CLOSED;
-    }
-    return err;
+void Socket::close() {
+    // TODO catch exception here?
+    _nm.close(sd());
+    _state = Closed;
+    _close_cause = Errors::SOCKET_CLOSED;
 }
 
 ssize_t Socket::send(const void *src, size_t amount) {
@@ -109,7 +111,7 @@ ssize_t Socket::recv(void* dst, size_t amount) {
     return recvmsg(dst, amount, nullptr, nullptr);
 }
 
-Errors::Code Socket::process_message(const NetEventChannel::SocketControlMessage & message, NetEventChannel::Event &event) {
+void Socket::process_message(const NetEventChannel::SocketControlMessage & message, NetEventChannel::Event &event) {
     // Notify waiting threads
     if(_waiting > 0) {
         ThreadManager::get().notify(get_wait_event());
@@ -130,74 +132,65 @@ Errors::Code Socket::process_message(const NetEventChannel::SocketControlMessage
         case NetEventChannel::SocketClosed:
             return handle_socket_closed(static_cast<NetEventChannel::SocketClosedMessage const &>(message));
         default:
-            return Errors::NOT_SUP;
+            throw Exception(Errors::NOT_SUP);
     }
 }
 
-Errors::Code Socket::update_status(Errors::Code err, SocketState state) {
-    if(err == Errors::NONE)
-        _state = state;
-    return err;
+void Socket::inv_state() {
+    or_closed(Errors::INV_STATE);
 }
 
-Errors::Code Socket::inv_state() {
-    return or_closed(Errors::INV_STATE);
-}
-
-Errors::Code Socket::or_closed(Errors::Code err) {
+void Socket::or_closed(Errors::Code err) {
     if(_state == Closed)
-        return _close_cause != Errors::NONE ? _close_cause : Errors::SOCKET_CLOSED;
-    return err;
+        err = _close_cause != Errors::NONE ? _close_cause : Errors::SOCKET_CLOSED;
+    throw Exception(err);
 }
 
-Errors::Code Socket::handle_data_transfer(NetEventChannel::DataTransferMessage const &) {
-    return Errors::NOT_SUP;
+void Socket::handle_data_transfer(NetEventChannel::DataTransferMessage const &) {
+    throw Exception(Errors::NOT_SUP);
 }
 
-Errors::Code Socket::handle_ack_data_transfer(NetEventChannel::AckDataTransferMessage const &) {
-    return Errors::NOT_SUP;
+void Socket::handle_ack_data_transfer(NetEventChannel::AckDataTransferMessage const &) {
+    throw Exception(Errors::NOT_SUP);
 }
 
-Errors::Code Socket::handle_inband_data_transfer(NetEventChannel::InbandDataTransferMessage const & msg, NetEventChannel::Event &event) {
+void Socket::handle_inband_data_transfer(NetEventChannel::InbandDataTransferMessage const & msg, NetEventChannel::Event &event) {
     _recv_queue.append(new DataQueue::Item(&msg, std::move(event)));
-    return Errors::NONE;
 }
 
-Errors::Code Socket::handle_socket_accept(NetEventChannel::SocketAcceptMessage const &) {
-    return Errors::NOT_SUP;
+void Socket::handle_socket_accept(NetEventChannel::SocketAcceptMessage const &) {
+    throw Exception(Errors::NOT_SUP);
 }
 
-Errors::Code Socket::handle_socket_connected(NetEventChannel::SocketConnectedMessage const &) {
+void Socket::handle_socket_connected(NetEventChannel::SocketConnectedMessage const &) {
     _state = Connected;
-    return Errors::NONE;
 }
 
-Errors::Code Socket::handle_socket_closed(NetEventChannel::SocketClosedMessage const &msg) {
+void Socket::handle_socket_closed(NetEventChannel::SocketClosedMessage const &msg) {
     _state = Closed;
     _close_cause = msg.cause;
-    return Errors::NONE;
 }
 
-Errors::Code Socket::get_next_data(const uchar *&data, size_t &size) {
+bool Socket::get_next_data(const uchar *&data, size_t &size) {
     if(!_recv_queue.get_next_data(data, size))
         fetch_events();
 
     if(!_recv_queue.get_next_data(data, size)) {
         if(!_blocking) {
             if(_state == Closed)
-                return inv_state();
-            return Errors::WOULD_BLOCK;
+                inv_state();
+            return false;
         }
 
         do {
             if(_state == Closed)
-                return inv_state();;
+                inv_state();
 
             wait_for_event();
         }
         while(!_recv_queue.get_next_data(data, size));
     }
-    return Errors::NONE;
+    return true;
 }
 
 void Socket::ack_data(size_t size) {

@@ -24,6 +24,7 @@
 #include <m3/WorkLoop.h>
 
 #include <functional>
+#include <memory>
 
 namespace m3 {
 
@@ -48,7 +49,7 @@ class RecvGate : public Gate {
 
     class RecvGateWorkItem : public WorkItem {
     public:
-        explicit RecvGateWorkItem(RecvGate *buf) : _buf(buf) {
+        explicit RecvGateWorkItem(RecvGate *buf) noexcept : _buf(buf) {
         }
 
         virtual void work() override;
@@ -57,7 +58,7 @@ class RecvGate : public Gate {
         RecvGate *_buf;
     };
 
-    explicit RecvGate(VPE &vpe, capsel_t cap, int order, uint flags)
+    explicit RecvGate(VPE &vpe, capsel_t cap, int order, uint flags) noexcept
         : Gate(RECV_GATE, cap, flags),
           _vpe(vpe),
           _buf(),
@@ -74,20 +75,20 @@ public:
     /**
      * @return the receive gate for system call replies
      */
-    static RecvGate &syscall() {
+    static RecvGate &syscall() noexcept {
         return _syscall;
     }
     /**
      * @return the receive gate for upcalls
      */
-    static RecvGate &upcall() {
+    static RecvGate &upcall() noexcept {
         return _upcall;
     }
     /**
      * @return the default receive gate. can be used whenever a buffer for a single message with a
      *  reasonable size is sufficient
      */
-    static RecvGate &def() {
+    static RecvGate &def() noexcept {
         return _default;
     }
 
@@ -95,7 +96,7 @@ public:
      * @return an invalid receive, which can be passed as reply gate to a send gate
      *  that is not interested in actual replies, but only wants to get its credits back.
      */
-    static RecvGate &invalid() {
+    static RecvGate &invalid() noexcept {
         return _invalid;
     }
 
@@ -145,18 +146,18 @@ public:
      * @param ep the endpoint it has already been activated to
      * @return the receive gate
      */
-    static RecvGate bind(capsel_t sel, int order, epid_t ep = EP_COUNT);
+    static RecvGate bind(capsel_t sel, int order, epid_t ep = EP_COUNT) noexcept;
 
     RecvGate(const RecvGate&) = delete;
     RecvGate &operator=(const RecvGate&) = delete;
-    RecvGate(RecvGate &&r)
+    RecvGate(RecvGate &&r) noexcept
             : Gate(Util::move(r)),
               _vpe(r._vpe),
               _buf(r._buf),
               _order(r._order),
               _free(r._free),
               _handler(r._handler),
-              _workitem(r._workitem) {
+              _workitem(Util::move(r._workitem)) {
         r._free = 0;
         r._workitem = nullptr;
     }
@@ -165,7 +166,7 @@ public:
     /**
      * @return the buffer address
      */
-    const void *addr() const {
+    const void *addr() const noexcept {
         return _buf;
     }
 
@@ -186,7 +187,7 @@ public:
     /**
      * Deactivates and stops the receive gate.
      */
-    void deactivate();
+    void deactivate() noexcept;
 
     /**
      * Starts to listen for received messages, i.e., adds an item to the given workloop.
@@ -199,7 +200,7 @@ public:
     /**
      * Stops to listen for received messages
      */
-    void stop();
+    void stop() noexcept;
 
     /**
      * Fetches a message from this receive gate and returns it, if there is any.
@@ -213,13 +214,12 @@ public:
 
     /**
      * Waits until a message is received. If <sgate> is given, it will stop if as soon as <sgate>
-     * gets invalid and return the appropriate error.
+     * gets invalid and throw an exception.
      *
      * @param sgate the send gate (optional), if waiting for a reply
-     * @param msg will be set to the fetched message
-     * @return the error code
+     * @return the fetched message
      */
-    Errors::Code wait(SendGate *sgate, const DTU::Message **msg);
+    const DTU::Message *wait(SendGate *sgate);
 
     /**
      * Replies the <len> bytes at <data> to the message at <msgidx>.
@@ -227,16 +227,15 @@ public:
      * @param data the data to send
      * @param len the length of the data
      * @param msgidx the index of the message to reply to
-     * @return the error code or Errors::NONE
      */
-    Errors::Code reply(const void *data, size_t len, size_t msgidx);
+    void reply(const void *data, size_t len, size_t msgidx);
 
     /**
      * Drops all messages with given label. That is, these messages will be marked as read.
      *
      * @param label the label
      */
-    void drop_msgs_with(label_t label) {
+    void drop_msgs_with(label_t label) noexcept {
         DTU::get().drop_msgs(ep(), label);
     }
 
@@ -249,7 +248,7 @@ private:
     int _order;
     uint _free;
     msghandler_t _handler;
-    RecvGateWorkItem *_workitem;
+    std::unique_ptr<RecvGateWorkItem> _workitem;
     static RecvGate _syscall;
     static RecvGate _upcall;
     static RecvGate _default;

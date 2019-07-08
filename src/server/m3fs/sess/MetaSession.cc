@@ -110,8 +110,8 @@ Errors::Code M3FSMetaSession::do_open(capsel_t srv, String &&path, int flags, si
 
     inodeno_t ino = Dirs::search(r, path.c_str(), flags & FILE_CREATE);
     if(ino == INVALID_INO) {
-        PRINT(this, "open failed: " << Errors::to_string(Errors::last));
-        return Errors::last;
+        PRINT(this, "open failed: " << Errors::to_string(r.error()));
+        return r.error();
     }
 
     INode *inode = INodes::get(r, ino);
@@ -196,8 +196,8 @@ void M3FSMetaSession::stat(GateIStream &is) {
 
     m3::inodeno_t ino = Dirs::search(r, path.c_str(), false);
     if(ino == INVALID_INO) {
-        PRINT(this, "stat failed: " << Errors::to_string(Errors::last));
-        reply_error(is, Errors::last);
+        PRINT(this, "stat failed: " << Errors::to_string(r.error()));
+        reply_error(is, r.error());
         return;
     }
 

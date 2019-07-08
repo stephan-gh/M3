@@ -31,7 +31,7 @@ public:
           _gate(MemGate::bind(obtain(1).start())) {
     }
 
-    MemGate &gate() {
+    MemGate &gate() noexcept {
         return _gate;
     }
 

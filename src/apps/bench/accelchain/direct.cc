@@ -50,19 +50,19 @@ public:
 
             if(VERBOSE) Serial::get() << "Creating VPE " << name.str() << "\n";
 
-            vpes[i] = new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
-                                                   .flags(VPE::MUXABLE)
-                                                   .group(&group));
-            if(Errors::last != Errors::NONE) {
-                exitmsg("Unable to create VPE for " << name.str());
-                break;
-            }
+            vpes[i] = std::unique_ptr<VPE>(
+                new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
+                                             .flags(VPE::MUXABLE)
+                                             .group(&group))
+            );
 
-            accels[i] = new StreamAccel(vpes[i], comptime);
+            accels[i] = std::unique_ptr<StreamAccel>(new StreamAccel(vpes[i], comptime));
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < num) {
-                mems[i] = new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
-                pipes[i] = new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE);
+                mems[i] = std::unique_ptr<MemGate>(
+                    new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW)));
+                pipes[i] = std::unique_ptr<IndirectPipe>(
+                    new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE));
             }
         }
 
@@ -78,7 +78,7 @@ public:
                     accels[i]->connect_input(static_cast<GenericFile*>(rd.get()));
                 }
                 else
-                    accels[i]->connect_input(accels[i - 1]);
+                    accels[i]->connect_input(accels[i - 1].get());
             }
             if(i + 1 < num) {
                 if(mode == Mode::DIR_SIMPLE) {
@@ -86,20 +86,8 @@ public:
                     accels[i]->connect_output(static_cast<GenericFile*>(wr.get()));
                 }
                 else
-                    accels[i]->connect_output(accels[i + 1]);
+                    accels[i]->connect_output(accels[i + 1].get());
             }
-        }
-    }
-    ~Chain() {
-        if(mode == Mode::DIR_SIMPLE) {
-            for(size_t i = 0; i < num; ++i) {
-                delete mems[i];
-                delete pipes[i];
-            }
-        }
-        for(size_t i = 0; i < num; ++i) {
-            delete vpes[i];
-            delete accels[i];
         }
     }
 
@@ -139,10 +127,10 @@ private:
     size_t num;
     Mode mode;
     VPEGroup group;
-    VPE *vpes[MAX_NUM];
-    StreamAccel *accels[MAX_NUM];
-    IndirectPipe *pipes[MAX_NUM];
-    MemGate *mems[MAX_NUM];
+    std::unique_ptr<VPE> vpes[MAX_NUM];
+    std::unique_ptr<StreamAccel> accels[MAX_NUM];
+    std::unique_ptr<IndirectPipe> pipes[MAX_NUM];
+    std::unique_ptr<MemGate> mems[MAX_NUM];
     bool running[MAX_NUM];
 };
 
@@ -163,11 +151,8 @@ void chain_direct(Reference<File> in, Reference<File> out, size_t num, cycles_t 
         ch.add_running(sels, &count);
 
         capsel_t vpe;
-        int exitcode;
-        if(Syscalls::vpe_wait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
-            errmsg("Unable to wait for VPEs");
-        else
-            ch.terminated(vpe, exitcode);
+        int exitcode = Syscalls::vpe_wait(sels, rem, 0, &vpe);
+        ch.terminated(vpe, exitcode);
     }
 
     cycles_t end = Time::stop(0);
@@ -179,8 +164,6 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num, cyc
     Chain ch1(pipes, in, out, num, comptime, mode);
 
     fd_t outfd = VFS::open("/tmp/out2.txt", FILE_W | FILE_TRUNC | FILE_CREATE);
-    if(outfd == FileTable::INVALID)
-        exitmsg("Unable to open /tmp/out2.txt");
     auto in2 = in->clone();
     Chain ch2(pipes, in2, VPE::self().fds()->get(outfd), num, comptime, mode);
 
@@ -199,13 +182,9 @@ void chain_direct_multi(Reference<File> in, Reference<File> out, size_t num, cyc
         ch2.add_running(sels, &count);
 
         capsel_t vpe;
-        int exitcode;
-        if(Syscalls::vpe_wait(sels, rem, 0, &vpe, &exitcode) != Errors::NONE)
-            errmsg("Unable to wait for VPEs");
-        else {
-            ch1.terminated(vpe, exitcode);
-            ch2.terminated(vpe, exitcode);
-        }
+        int exitcode = Syscalls::vpe_wait(sels, rem, 0, &vpe);
+        ch1.terminated(vpe, exitcode);
+        ch2.terminated(vpe, exitcode);
     }
 
     cycles_t end = Time::stop(0);

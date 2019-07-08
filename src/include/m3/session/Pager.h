@@ -35,8 +35,6 @@ private:
                                     : RecvGate::bind(ObjCap::INVALID, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(obtain(1).start())) {
-        if(_sep == 0 || _rep == 0)
-            PANIC("No free EPs");
     }
 
 public:
@@ -66,7 +64,7 @@ public:
         RWX     = READ | WRITE | EXEC,
     };
 
-    explicit Pager(capsel_t sess, capsel_t rgate)
+    explicit Pager(capsel_t sess, capsel_t rgate) noexcept
         : ClientSession(sess),
           _sep(0),
           _rep(0),
@@ -82,8 +80,6 @@ public:
                                     : RecvGate::bind(ObjCap::INVALID, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(obtain(1).start())) {
-        if(_sep == 0 || _rep == 0)
-            PANIC("No free EPs");
     }
 
     void activate_gates(VPE &vpe) {
@@ -96,31 +92,31 @@ public:
         }
     }
 
-    const SendGate &own_sgate() const {
+    const SendGate &own_sgate() const noexcept {
         return _own_sgate;
     }
-    const SendGate &child_sgate() const {
+    const SendGate &child_sgate() const noexcept {
         return _child_sgate;
     }
 
-    epid_t sep() const {
+    epid_t sep() const noexcept {
         return _sep;
     }
-    epid_t rep() const {
+    epid_t rep() const noexcept {
         return _rep;
     }
-    const RecvGate &rgate() const {
+    const RecvGate &rgate() const noexcept {
         return _rgate;
     }
 
     Pager *create_clone(VPE &vpe);
-    Errors::Code clone();
-    Errors::Code pagefault(goff_t addr, uint access);
-    Errors::Code map_anon(goff_t *virt, size_t len, int prot, int flags);
-    Errors::Code map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSession &sess,
-                        size_t offset);
-    Errors::Code map_mem(goff_t *virt, MemGate &mem, size_t len, int prot);
-    Errors::Code unmap(goff_t virt);
+    void clone();
+    void pagefault(goff_t addr, uint access);
+    void map_anon(goff_t *virt, size_t len, int prot, int flags);
+    void map_ds(goff_t *virt, size_t len, int prot, int flags,
+                const ClientSession &sess, size_t offset);
+    void map_mem(goff_t *virt, MemGate &mem, size_t len, int prot);
+    void unmap(goff_t virt);
 
 private:
     epid_t _sep;

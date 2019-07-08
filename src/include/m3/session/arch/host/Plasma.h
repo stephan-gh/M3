@@ -39,25 +39,23 @@ public:
           _gate(SendGate::bind(obtain(1).start())) {
     }
 
-    int left() {
-        return execute(LEFT);
+    void left() {
+        execute(LEFT);
     }
-    int right() {
-        return execute(RIGHT);
+    void right() {
+        execute(RIGHT);
     }
-    int colup() {
-        return execute(COLUP);
+    void colup() {
+        execute(COLUP);
     }
-    int coldown() {
-        return execute(COLDOWN);
+    void coldown() {
+        execute(COLDOWN);
     }
 
 private:
-    int execute(Operation op) {
-        int res;
+    void execute(Operation op) {
         GateIStream reply = send_receive_vmsg(_gate, op);
-        reply >> res;
-        return res;
+        receive_result(reply);
     }
 
     SendGate _gate;

@@ -29,9 +29,6 @@ int main(int argc, char **argv) {
     cycles_t start = Time::start(0);
     {
         VPE child(argv[1]);
-        if(Errors::last != Errors::NONE)
-            exitmsg("Creating VPE for " << argv[1] << " failed");
-
         child.fds()->set(STDIN_FD, VPE::self().fds()->get(STDIN_FD));
         child.fds()->set(STDOUT_FD, VPE::self().fds()->get(STDOUT_FD));
         child.fds()->set(STDERR_FD, VPE::self().fds()->get(STDERR_FD));
@@ -40,9 +37,7 @@ int main(int argc, char **argv) {
         child.mounts(*VPE::self().mounts());
         child.obtain_mounts();
 
-        Errors::Code err = child.exec(argc - 1, const_cast<const char**>(argv) + 1);
-        if(err != Errors::NONE)
-            exitmsg("Executing " << argv[1] << " failed");
+        child.exec(argc - 1, const_cast<const char**>(argv) + 1);
 
         res = child.wait();
     }

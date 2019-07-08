@@ -40,15 +40,15 @@ class VPE;
 class MountTable {
     class MountPoint {
     public:
-        explicit MountPoint(const char *path, FileSystem *fs)
+        explicit MountPoint(const char *path, FileSystem *fs) noexcept
             : _path(path),
               _fs(fs) {
         }
 
-        const String &path() const {
+        const String &path() const noexcept {
             return _path;
         }
-        const Reference<FileSystem> &fs() const {
+        const Reference<FileSystem> &fs() const noexcept {
             return _fs;
         }
 
@@ -63,29 +63,28 @@ public:
     /**
      * Constructor
      */
-    explicit MountTable()
+    explicit MountTable() noexcept
         : _count(),
           _mounts() {
     }
 
-    explicit MountTable(const MountTable &ms);
-    MountTable &operator=(const MountTable &ms);
+    explicit MountTable(const MountTable &ms) noexcept;
+    MountTable &operator=(const MountTable &ms) noexcept;
 
     /**
      * Adds the given mountpoint
      *
      * @param path the path
      * @param fs the filesystem instance
-     * @return the error or Errors::NONE
      */
-    Errors::Code add(const char *path, FileSystem *fs);
+    void add(const char *path, FileSystem *fs);
 
     /**
      * Resolves the given path to a mounted filesystem.
      *
      * @param path the path
      * @param pos will be set to the position within the path where the mounted FS starts
-     * @return the filesystem or an invalid reference
+     * @return the filesystem
      */
     Reference<FileSystem> resolve(const char *path, size_t *pos);
 
@@ -105,15 +104,14 @@ public:
     /**
      * Removes all mountpoints.
      */
-    void remove_all();
+    void remove_all() noexcept;
 
     /**
      * Delegates the mount points to <vpe>.
      *
      * @param vpe the VPE to delegate the caps to
-     * @return the error, if any
      */
-    Errors::Code delegate(VPE &vpe) const;
+    void delegate(VPE &vpe) const;
 
     /**
      * Serializes the current mounts into the given buffer
@@ -138,7 +136,7 @@ public:
      *
      * @param os the stream to write to
      */
-    void print(OStream &os) const;
+    void print(OStream &os) const noexcept;
 
 private:
     void do_remove(size_t i);

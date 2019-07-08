@@ -56,31 +56,31 @@ public:
           FileSystem(),
           _gate(obtain_sgate()) {
     }
-    explicit M3FS(capsel_t caps)
+    explicit M3FS(capsel_t caps) noexcept
         : ClientSession(caps + 0),
           FileSystem(),
           _gate(SendGate::bind(caps + 1)) {
     }
 
-    const SendGate &gate() const {
+    const SendGate &gate() const noexcept {
         return _gate;
     }
-    virtual char type() const override {
+    virtual char type() const noexcept override {
         return 'M';
     }
 
-    virtual Errors::Code delegate_eps(capsel_t first, uint count) override {
-        return ClientSession::delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, first, count));
+    virtual void delegate_eps(capsel_t first, uint count) override {
+        ClientSession::delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, first, count));
     }
 
     virtual Reference<File> open(const char *path, int perms) override;
-    virtual Errors::Code stat(const char *path, FileInfo &info) override;
-    virtual Errors::Code mkdir(const char *path, mode_t mode) override;
-    virtual Errors::Code rmdir(const char *path) override;
-    virtual Errors::Code link(const char *oldpath, const char *newpath) override;
-    virtual Errors::Code unlink(const char *path) override;
+    virtual void stat(const char *path, FileInfo &info) override;
+    virtual void mkdir(const char *path, mode_t mode) override;
+    virtual void rmdir(const char *path) override;
+    virtual void link(const char *oldpath, const char *newpath) override;
+    virtual void unlink(const char *path) override;
 
-    virtual Errors::Code delegate(VPE &vpe) override;
+    virtual void delegate(VPE &vpe) override;
     virtual void serialize(Marshaller &m) override;
     static FileSystem *unserialize(Unmarshaller &um);
 
@@ -90,12 +90,9 @@ public:
         args.count = 1;
         args.vals[0] = *off;
         KIF::CapRngDesc crd = sess.obtain(1, &args);
-        if(Errors::last == Errors::NONE) {
-            *off = args.vals[0];
-            *sel = crd.start();
-            return args.vals[1];
-        }
-        return 0;
+        *off = args.vals[0];
+        *sel = crd.start();
+        return args.vals[1];
     }
 
 private:
@@ -113,19 +110,19 @@ struct OStreamSize<FileInfo> {
     static const size_t value = 9 * sizeof(xfer_t);
 };
 
-static inline Unmarshaller &operator>>(Unmarshaller &u, FileInfo &info) {
+static inline Unmarshaller &operator>>(Unmarshaller &u, FileInfo &info) noexcept {
     u >> info.devno >> info.inode >> info.mode >> info.links >> info.size >> info.lastaccess
       >> info.lastmod >> info.extents >> info.firstblock;
     return u;
 }
 
-static inline GateIStream &operator>>(GateIStream &is, FileInfo &info) {
+static inline GateIStream &operator>>(GateIStream &is, FileInfo &info) noexcept {
     is >> info.devno >> info.inode >> info.mode >> info.links >> info.size >> info.lastaccess
       >> info.lastmod >> info.extents >> info.firstblock;
     return is;
 }
 
-static inline Marshaller &operator<<(Marshaller &m, const FileInfo &info) {
+static inline Marshaller &operator<<(Marshaller &m, const FileInfo &info) noexcept {
     m << info.devno << info.inode << info.mode << info.links << info.size << info.lastaccess
       << info.lastmod << info.extents << info.firstblock;
     return m;

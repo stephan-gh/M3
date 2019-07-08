@@ -24,7 +24,7 @@ namespace m3 {
  * A semaphore allows synchronization of different VPEs, based on system calls
  */
 class Semaphore : public ObjCap {
-    Semaphore(capsel_t sel, uint flags)
+    Semaphore(capsel_t sel, uint flags) noexcept
         : ObjCap(SEM, sel, flags) {
     }
 
@@ -45,23 +45,19 @@ public:
      */
     static Semaphore create(uint value);
 
-    Semaphore(Semaphore &&sem)
+    Semaphore(Semaphore &&sem) noexcept
         : ObjCap(Util::move(sem)) {
     }
 
     /**
      * Increase the value by one.
-     *
-     * @return the error code
      */
-    Errors::Code up() const;
+    void up() const;
 
     /**
      * Decrease the value by one.
-     *
-     * @return the error code
      */
-    Errors::Code down() const;
+    void down() const;
 };
 
 }

@@ -41,9 +41,7 @@ int main(int argc, char **argv) {
 
         VPE vpe("hello");
         const char *args[] = {os.str(), "dummy"};
-        Errors::Code res = vpe.exec(ARRAY_SIZE(args), args);
-        if(res != Errors::NONE)
-            exitmsg("VPE::exec failed");
+        vpe.exec(ARRAY_SIZE(args), args);
 
         vpe.wait();
     }

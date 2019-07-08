@@ -23,31 +23,31 @@ namespace m3 {
 
 class IpAddr {
 public:
-    IpAddr()
+    explicit IpAddr() noexcept
         : _addr(0) {
     }
 
-    explicit IpAddr(uint32_t addr)
+    explicit IpAddr(uint32_t addr) noexcept
         : _addr(addr) {
     }
-    IpAddr(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+    explicit IpAddr(uint8_t a, uint8_t b, uint8_t c, uint8_t d) noexcept
         : _addr(static_cast<uint32_t>(a << 24 | b << 16 | c << 8 | d)) {
     }
 
-    uint32_t addr() const {
+    uint32_t addr() const noexcept {
         return _addr;
     }
-    void addr(uint32_t addr) {
+    void addr(uint32_t addr) noexcept {
         _addr = addr;
     }
 private:
     uint32_t _addr;
 };
 
-static inline bool operator==(const IpAddr &a,const IpAddr &b) {
+static inline bool operator==(const IpAddr &a,const IpAddr &b) noexcept {
     return a.addr() == b.addr();
 }
-static inline bool operator!=(const IpAddr &a,const IpAddr &b) {
+static inline bool operator!=(const IpAddr &a,const IpAddr &b) noexcept {
     return !operator==(a,b);
 }
 
@@ -60,15 +60,15 @@ class MAC {
 public:
     static const size_t LEN    = 6;
 
-    static MAC broadcast() {
+    static MAC broadcast() noexcept {
         return MAC(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
     }
 
-    explicit MAC() : _bytes() {
+    explicit MAC() noexcept : _bytes() {
     }
-    explicit MAC(const uint8_t *b) : MAC(b[0], b[1], b[2], b[3], b[4], b[5]) {
+    explicit MAC(const uint8_t *b) noexcept : MAC(b[0], b[1], b[2], b[3], b[4], b[5]) {
     }
-    explicit MAC(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint8_t b6) {
+    explicit MAC(uint8_t b1, uint8_t b2, uint8_t b3, uint8_t b4, uint8_t b5, uint8_t b6) noexcept {
         _bytes[0] = b1;
         _bytes[1] = b2;
         _bytes[2] = b3;
@@ -77,10 +77,10 @@ public:
         _bytes[5] = b6;
     }
 
-    const uint8_t *bytes() const {
+    const uint8_t *bytes() const noexcept {
         return _bytes;
     }
-    uint64_t value() const {
+    uint64_t value() const noexcept {
         return (uint64_t)_bytes[5] << 40 |
             (uint64_t)_bytes[4] << 32 |
             (uint64_t)_bytes[3] << 24 |
@@ -93,7 +93,7 @@ private:
     uint8_t _bytes[LEN];
 };
 
-static inline bool operator==(const MAC &a,const MAC &b) {
+static inline bool operator==(const MAC &a,const MAC &b) noexcept {
     return a.bytes()[0] == b.bytes()[0] &&
         a.bytes()[1] == b.bytes()[1] &&
         a.bytes()[2] == b.bytes()[2] &&
@@ -101,7 +101,7 @@ static inline bool operator==(const MAC &a,const MAC &b) {
         a.bytes()[4] == b.bytes()[4] &&
         a.bytes()[5] == b.bytes()[5];
 }
-static inline bool operator!=(const MAC &a,const MAC &b) {
+static inline bool operator!=(const MAC &a,const MAC &b) noexcept {
     return !operator==(a,b);
 }
 

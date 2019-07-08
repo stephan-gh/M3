@@ -55,14 +55,13 @@ void Region::limit_to(size_t pos, size_t pages) {
     }
 }
 
-m3::Errors::Code Region::map(int flags) {
+void Region::map(int flags) {
     if(has_mem()) {
+        m3::Syscalls::create_map(virt() >> PAGE_BITS, _ds->addrspace()->vpe.sel(),
+                                 mem()->gate->sel(), mem_offset() >> PAGE_BITS,
+                                 size() >> PAGE_BITS, flags);
         _mapped = true;
-        return m3::Syscalls::create_map(virt() >> PAGE_BITS, _ds->addrspace()->vpe.sel(),
-                                        mem()->gate->sel(), mem_offset() >> PAGE_BITS,
-                                        size() >> PAGE_BITS, flags);
     }
-    return m3::Errors::NONE;
 }
 
 void Region::copy(m3::MemGate *mem, goff_t virt) {

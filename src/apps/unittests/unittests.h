@@ -15,6 +15,9 @@
  */
 
 #include <m3/stream/Standard.h>
+#include <m3/Exception.h>
+
+#include <functional>
 
 extern int succeeded;
 extern int failed;
@@ -65,6 +68,16 @@ void tstream();
     check_equal<bool>((expected), false, __FILE__, __LINE__)
 #define assert_float(actual, expected)                              \
     check_equal<float>((expected), (actual), __FILE__, __LINE__)
+
+static inline void assert_err(m3::Errors::Code err, std::function<void()> func) {
+    try {
+        func();
+        assert(false);
+    }
+    catch(const m3::Exception &e) {
+        assert_int(e.code(), err);
+    }
+}
 
 #define RUN_SUITE(name)                                             \
     m3::cout << "Running testsuite " << #name << " ...\n";          \

@@ -27,8 +27,19 @@ IndirectPipe::IndirectPipe(Pipes &pipes, MemGate &mem, size_t memsize, int flags
 }
 
 IndirectPipe::~IndirectPipe() {
-    close_reader();
-    close_writer();
+    try {
+        close_reader();
+    }
+    catch(...) {
+        // ignore
+    }
+
+    try {
+        close_writer();
+    }
+    catch(...) {
+        // ignore
+    }
 }
 
 void IndirectPipe::close_reader() {

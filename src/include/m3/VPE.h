@@ -30,6 +30,7 @@
 #include <m3/ObjCap.h>
 
 #include <functional>
+#include <memory>
 
 namespace m3 {
 
@@ -55,16 +56,16 @@ public:
 class KMem : public ObjCap, public RefCounted {
     friend class VPE;
 
-    explicit KMem(capsel_t sel, uint flags)
+    explicit KMem(capsel_t sel, uint flags) noexcept
         : ObjCap(KMEM, sel, flags) {
     }
 
-    void set_flags(uint fl) {
+    void set_flags(uint fl) noexcept {
         flags(fl);
     }
 
 public:
-    explicit KMem(capsel_t sel) : KMem(sel, KEEP_CAP) {
+    explicit KMem(capsel_t sel) noexcept : KMem(sel, KEEP_CAP) {
     }
 
     size_t quota() const;
@@ -76,29 +77,29 @@ class VPEArgs {
     friend class VPE;
 
 public:
-    explicit VPEArgs();
+    explicit VPEArgs() noexcept;
 
-    VPEArgs &flags(uint flags) {
+    VPEArgs &flags(uint flags) noexcept {
         _flags = flags;
         return *this;
     }
-    VPEArgs &pedesc(const PEDesc &desc) {
+    VPEArgs &pedesc(const PEDesc &desc) noexcept {
         _pedesc = desc;
         return *this;
     }
-    VPEArgs &pager(const char *pager) {
+    VPEArgs &pager(const char *pager) noexcept {
         _pager = pager;
         return *this;
     }
-    VPEArgs &resmng(ResMng *resmng) {
+    VPEArgs &resmng(ResMng *resmng) noexcept {
         _rmng = resmng;
         return *this;
     }
-    VPEArgs &group(const VPEGroup *group) {
+    VPEArgs &group(const VPEGroup *group) noexcept {
         _group = group;
         return *this;
     }
-    VPEArgs &kmem(Reference<KMem> kmem) {
+    VPEArgs &kmem(Reference<KMem> kmem) noexcept {
         _kmem = kmem;
         return *this;
     }
@@ -141,7 +142,7 @@ public:
     /**
      * @return your own VPE
      */
-    static VPE &self() {
+    static VPE &self() noexcept {
         return _self;
     }
 
@@ -151,42 +152,42 @@ public:
     /**
      * @return the PE description this VPE has been assigned to
      */
-    const PEDesc &pe() const {
+    const PEDesc &pe() const noexcept {
         return _pe;
     }
 
-    epid_t sel_to_ep(capsel_t sel) {
+    epid_t sel_to_ep(capsel_t sel) noexcept {
         return (sel - KIF::FIRST_EP_SEL) + DTU::FIRST_FREE_EP;
     }
-    capsel_t ep_to_sel(epid_t ep) {
+    capsel_t ep_to_sel(epid_t ep) noexcept {
         return sel() + KIF::FIRST_EP_SEL + ep - DTU::FIRST_FREE_EP;
     }
 
     /**
      * @return the pager of this VPE (or nullptr)
      */
-    Pager *pager() {
+    Pager *pager() noexcept {
         return _pager;
     }
 
     /**
      * @return the resource manager
      */
-    ResMng &resmng() {
+    ResMng &resmng() noexcept {
         return *_resmng;
     }
 
     /**
      * @return the mount table
      */
-    MountTable *mounts() {
+    MountTable *mounts() noexcept {
         return _ms;
     }
 
     /**
      * @return the kernel memory quota
      */
-    const Reference<KMem> &kmem() const {
+    const Reference<KMem> &kmem() const noexcept {
         return _kmem;
     }
 
@@ -195,20 +196,18 @@ public:
      *
      * @param ms the mount table
      */
-    void mounts(const MountTable &ms);
+    void mounts(const MountTable &ms) noexcept;
 
     /**
      * Lets this VPE obtain all mount points in its mount table, i.e., the required capability
      * exchanges are performed.
-     *
-     * @return the error, if any
      */
-    Errors::Code obtain_mounts();
+    void obtain_mounts();
 
     /**
      * @return the file descriptors
      */
-    FileTable *fds() {
+    FileTable *fds() noexcept {
         return _fds;
     }
 
@@ -218,15 +217,13 @@ public:
      *
      * @param fds the file descriptors
      */
-    void fds(const FileTable &fds);
+    void fds(const FileTable &fds) noexcept;
 
     /**
      * Lets this VPE obtain all files in its file table, i.e., the required capability exchanges
      * are performed.
-     *
-     * @return the error, if any
      */
-    Errors::Code obtain_fds();
+    void obtain_fds();
 
     /**
      * Allocates capability selectors.
@@ -234,11 +231,11 @@ public:
      * @param count the number of selectors
      * @return the first one
      */
-    capsel_t alloc_sels(uint count) {
+    capsel_t alloc_sels(uint count) noexcept {
         _next_sel += count;
         return _next_sel - count;
     }
-    capsel_t alloc_sel() {
+    capsel_t alloc_sel() noexcept {
         return _next_sel++;
     }
 
@@ -253,7 +250,7 @@ public:
      * @param id the endpoint id
      * @return true if the endpoint is free
      */
-    bool is_ep_free(epid_t id) {
+    bool is_ep_free(epid_t id) noexcept {
         return id >= DTU::FIRST_FREE_EP && (_eps & (static_cast<uint64_t>(1) << id)) == 0;
     }
 
@@ -262,17 +259,17 @@ public:
      *
      * @param id the endpoint id
      */
-    void free_ep(epid_t id) {
+    void free_ep(epid_t id) noexcept {
         _eps &= ~(static_cast<uint64_t>(1) << id);
     }
 
     /**
      * @return the local memory of the PE this VPE is attached to
      */
-    MemGate &mem() {
+    MemGate &mem() noexcept {
         return _mem;
     }
-    const MemGate &mem() const {
+    const MemGate &mem() const noexcept {
         return _mem;
     }
 
@@ -280,20 +277,18 @@ public:
      * Delegates the given object capability to this VPE.
      *
      * @param sel the selector
-     * @return the error code
      */
-    Errors::Code delegate_obj(capsel_t sel) {
-        return delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel));
+    void delegate_obj(capsel_t sel) {
+        delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel));
     }
 
     /**
      * Delegates the given range of capabilities to this VPE. They are put at the same selectors.
      *
      * @param crd the capabilities of your to VPE to delegate to this VPE
-     * @return the error code
      */
-    Errors::Code delegate(const KIF::CapRngDesc &crd) {
-        return delegate(crd, crd.start());
+    void delegate(const KIF::CapRngDesc &crd) {
+        delegate(crd, crd.start());
     }
 
     /**
@@ -301,50 +296,42 @@ public:
      *
      * @param crd the capabilities of your to VPE to delegate to this VPE
      * @param dest the destination in this VPE
-     * @return the error code
      */
-    Errors::Code delegate(const KIF::CapRngDesc &crd, capsel_t dest);
+    void delegate(const KIF::CapRngDesc &crd, capsel_t dest);
 
     /**
      * Obtains the given range of capabilities from this VPE to your VPE. The selectors are
      * automatically chosen.
      *
      * @param crd the capabilities of this VPE to delegate to your VPE
-     * @return the error code
      */
-    Errors::Code obtain(const KIF::CapRngDesc &crd);
+    void obtain(const KIF::CapRngDesc &crd);
 
     /**
      * Obtains the given range of capabilities from this VPE to your VPE at position <dest>.
      *
      * @param crd the capabilities of this VPE to delegate to your VPE
      * @param dest the destination in your VPE
-     * @return the error code
      */
-    Errors::Code obtain(const KIF::CapRngDesc &crd, capsel_t dest);
+    void obtain(const KIF::CapRngDesc &crd, capsel_t dest);
 
     /**
      * Revokes the given range of capabilities from this VPE.
      *
      * @param crd the capabilities to revoke
      * @param delonly whether to revoke delegations only
-     * @return the error code
      */
-    Errors::Code revoke(const KIF::CapRngDesc &crd, bool delonly = false);
+    void revoke(const KIF::CapRngDesc &crd, bool delonly = false);
 
     /**
      * Starts the VPE, i.e., prepares the PE for execution and wakes it up.
-     *
-     * @return the error if any occurred
      */
-    Errors::Code start();
+    void start();
 
     /**
      * Stops the VPE, i.e., if it is running, the execution is stopped.
-     *
-     * @return the error if any occurred
      */
-    Errors::Code stop();
+    void stop();
 
     /**
      * Waits until the currently executing program on this VPE is finished
@@ -367,21 +354,17 @@ public:
      *
      * @param argc the number of arguments to pass to the program
      * @param argv the arguments to pass (argv[0] is the executable)
-     * @return the error if any occurred
      */
-    Errors::Code exec(int argc, const char **argv);
+    void exec(int argc, const char **argv);
 
     /**
      * Clones this program onto this VPE and executes the given function.
      *
      * @param f the function to execute
-     * @return the error if any occurred
      */
-    Errors::Code run(std::function<int()> f) {
-        std::function<int()> *copy = new std::function<int()>(f);
-        Errors::Code res = run(copy);
-        delete copy;
-        return res;
+    void run(std::function<int()> f) {
+        std::unique_ptr<std::function<int()>> copy(new std::function<int()>(f));
+        run(copy.get());
     }
 
 private:
@@ -391,15 +374,15 @@ private:
 
     void init_state();
     void init_fs();
-    Errors::Code run(void *lambda);
-    Errors::Code load_segment(ElfPh &pheader, char *buffer);
-    Errors::Code load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size);
+    void run(void *lambda);
+    void load_segment(ElfPh &pheader, char *buffer);
+    void load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size);
     void clear_mem(char *buffer, size_t count, uintptr_t dest);
     size_t store_arguments(char *buffer, int argc, const char **argv);
 
     uintptr_t get_entry();
     static bool skip_section(ElfPh *ph);
-    Errors::Code copy_sections();
+    void copy_sections();
 
     PEDesc _pe;
     MemGate _mem;
@@ -412,7 +395,7 @@ private:
     uint64_t _rbufend;
     MountTable *_ms;
     FileTable *_fds;
-    FStream *_exec;
+    std::unique_ptr<FStream> _exec;
     static VPE _self;
 };
 

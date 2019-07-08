@@ -46,7 +46,7 @@ public:
         KMEM_ALLOCS     = 1 << 16,
     };
 
-    static const int level = INFO | ERR;
+    static const int level = INFO;
 };
 
 }

@@ -38,9 +38,7 @@ enum Mode {
 static void start(VPE &v, int argc, const char **argv) {
     v.mounts(*VPE::self().mounts());
     v.obtain_mounts();
-    Errors::Code res = v.exec(argc, argv);
-    if(res != Errors::NONE)
-        PANIC("Cannot execute " << argv[0] << ": " << Errors::to_string(res));
+    v.exec(argc, argv);
 }
 
 static void usage(const char *name) {
@@ -78,16 +76,8 @@ int main(int argc, char **argv) {
         if(VERBOSE) cout << "Creating VPEs...\n";
 
         VPE c1("client", VPEArgs().flags(mode == ALL_MUXED ? VPE::MUXABLE : 0));
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create VPE");
-
         VPE s1("service1", VPEArgs().flags(mode == SERV_MUXED || mode == ALL_MUXED ? VPE::MUXABLE : 0));
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create VPE");
-
         VPE s2("service2", VPEArgs().flags(mode == SERV_MUXED || mode == ALL_MUXED ? VPE::MUXABLE : 0));
-        if(Errors::last != Errors::NONE)
-            exitmsg("Unable to create VPE");
 
         if(VERBOSE) cout << "Creating services...\n";
 

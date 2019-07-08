@@ -35,49 +35,58 @@ static const uint META_EPS          = 4;
 
 static void remove_rec(const char *path) {
     if(VERBOSE) cerr << "Unlinking " << path << "\n";
-    if(VFS::unlink(path) == Errors::IS_DIR) {
-        Dir::Entry e;
-        char tmp[128];
-        Dir dir(path);
-        while(dir.readdir(e)) {
-            if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
-                continue;
 
-            OStringStream file(tmp, sizeof(tmp));
-            file << path << "/" << e.name;
-            remove_rec(file.str());
+    try {
+        VFS::unlink(path);
+    }
+    catch(const m3::Exception &e) {
+        if(e.code() == Errors::IS_DIR) {
+            Dir::Entry e;
+            char tmp[128];
+            Dir dir(path);
+            while(dir.readdir(e)) {
+                if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
+                    continue;
+
+                OStringStream file(tmp, sizeof(tmp));
+                file << path << "/" << e.name;
+                remove_rec(file.str());
+            }
+            VFS::rmdir(path);
         }
-        VFS::rmdir(path);
     }
 }
 
 static void cleanup() {
-    Dir dir("/tmp");
-    if(Errors::occurred())
-        return;
+    try {
+        Dir dir("/tmp");
 
-    size_t x = 0;
-    String *entries[MAX_TMP_FILES];
+        size_t x = 0;
+        String *entries[MAX_TMP_FILES];
 
-    if(VERBOSE) cerr << "Collecting files in /tmp\n";
+        if(VERBOSE) cerr << "Collecting files in /tmp\n";
 
-    // remove all entries; we assume here that they are files
-    Dir::Entry e;
-    char path[128];
-    while(dir.readdir(e)) {
-        if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
-            continue;
+        // remove all entries; we assume here that they are files
+        Dir::Entry e;
+        char path[128];
+        while(dir.readdir(e)) {
+            if(strcmp(e.name, ".") == 0 || strcmp(e.name, "..") == 0)
+                continue;
 
-        OStringStream file(path, sizeof(path));
-        file << "/tmp/" << e.name;
-        if(x > ARRAY_SIZE(entries))
-            PANIC("Too few entries");
-        entries[x++] = new String(file.str());
+            OStringStream file(path, sizeof(path));
+            file << "/tmp/" << e.name;
+            if(x > ARRAY_SIZE(entries))
+                PANIC("Too few entries");
+            entries[x++] = new String(file.str());
+        }
+
+        for(; x > 0; --x) {
+            remove_rec(entries[x - 1]->c_str());
+            delete entries[x - 1];
+        }
     }
-
-    for(; x > 0; --x) {
-        remove_rec(entries[x - 1]->c_str());
-        delete entries[x - 1];
+    catch(...) {
+        // ignore
     }
 }
 
@@ -125,24 +134,23 @@ int main(int argc, char **argv) {
 
     Platform::init(argc, argv, loadgen);
 
-    if(VFS::mount("/", "m3fs", fs) != Errors::NONE) {
-        if(Errors::last != Errors::EXISTS)
-            PANIC("Unable to mount root filesystem " << fs);
+    if(*prefix) {
+        try {
+            VFS::mkdir(prefix, 0755);
+        }
+        catch(const m3::Exception &e) {
+            if(e.code() != Errors::EXISTS)
+                throw;
+        }
     }
-
-    if(*prefix)
-        VFS::mkdir(prefix, 0755);
 
     // pass some EP caps to m3fs (required for FILE_NOSESS)
     epid_t eps = VPE::self().alloc_ep();
-    if(eps == EP_COUNT)
-        PANIC("Unable to allocate EPs for meta session");
     for(uint i = 1; i < META_EPS; ++i) {
         if(VPE::self().alloc_ep() != eps + i)
            PANIC("Unable to allocate EPs for meta session");
     }
-    if(VFS::delegate_eps("/", VPE::self().ep_to_sel(eps), META_EPS) != Errors::NONE)
-        PANIC("Unable to delegate EPs to meta session");
+    VFS::delegate_eps("/", VPE::self().ep_to_sel(eps), META_EPS);
 
     TracePlayer player(prefix);
 

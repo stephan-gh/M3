@@ -43,12 +43,10 @@ NOINLINE static void run() {
         VPE vpe("hello");
 
         auto start = Time::start(0x91);
-        Errors::Code err = vpe.run([start]() {
+        vpe.run([start]() {
             cycles_t end = Time::stop(0x91);
             return end - start;
         });
-        if(err != Errors::NONE)
-            exitmsg("VPE::run failed");
 
         cycles_t time = static_cast<cycles_t>(vpe.wait());
         if(i >= warmup)
@@ -63,11 +61,9 @@ NOINLINE static void run_wait() {
 
     cout << "VPE run wait: " << pr.run_with_id([] {
         VPE vpe("hello");
-        Errors::Code res = vpe.run([]() {
+        vpe.run([]() {
             return 0;
         });
-        if(res != Errors::NONE)
-            exitmsg("VPE::run failed");
         vpe.wait();
     }, 0x90) << "\n";
 }
@@ -78,11 +74,9 @@ NOINLINE static void run_multi_wait() {
     VPE vpe("hello");
 
     cout << "VPE run multi-wait: " << pr.run_with_id([&vpe] {
-        Errors::Code res = vpe.run([]() {
+        vpe.run([]() {
             return 0;
         });
-        if(res != Errors::NONE)
-            exitmsg("VPE::run failed");
         vpe.wait();
     }, 0x90) << "\n";
 }
@@ -93,9 +87,7 @@ NOINLINE static void exec() {
     cout << "VPE exec: " << pr.run_with_id([] {
         VPE vpe("hello");
         const char *args[] = {"/bin/noop"};
-        Errors::Code res = vpe.exec(ARRAY_SIZE(args), args);
-        if(res != Errors::NONE)
-            exitmsg("Unable to load " << args[0]);
+        vpe.exec(ARRAY_SIZE(args), args);
         vpe.wait();
     }, 0x90) << "\n";
 }

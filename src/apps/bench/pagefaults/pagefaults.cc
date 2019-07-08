@@ -53,10 +53,7 @@ int main(int argc, char **argv) {
         cycles_t anon = 0;
         for(size_t i = 0; i < COUNT; ++i) {
             goff_t virt = 0x30000000;
-            Errors::Code res = VPE::self().pager()->map_anon(&virt, PAGES * PAGE_SIZE,
-                                                             Pager::READ | Pager::WRITE, 0);
-            if(res != Errors::NONE)
-                exitmsg("Unable to map anonymous memory");
+            VPE::self().pager()->map_anon(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
             if(i < COUNT - 1)
                 anon += do_warmup(reinterpret_cast<char*>(virt), 0xFF);
@@ -72,16 +69,11 @@ int main(int argc, char **argv) {
         cycles_t file = 0;
         for(size_t i = 0; i < COUNT; ++i) {
             FileRef f("/zeros.bin", FILE_RW);
-            if(Errors::last != Errors::NONE)
-                exitmsg("Unable to open /zeros.bin");
 
             const GenericFile *rfile = static_cast<const GenericFile*>(&*f);
             goff_t virt = 0x31000000;
-            Errors::Code res = VPE::self().pager()->map_ds(&virt, PAGES * PAGE_SIZE,
-                                                           Pager::READ | Pager::WRITE, 0,
-                                                           rfile->sess(), 0);
-            if(res != Errors::NONE)
-                exitmsg("Unable to map /test.txt");
+            VPE::self().pager()->map_ds(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0,
+                                        rfile->sess(), 0);
 
             if(i < COUNT - 1)
                 file += do_warmup(reinterpret_cast<char*>(virt), 0xFF);

@@ -129,7 +129,7 @@ Errors::Code DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     LLOG(DTU, "EP" << ep << ": acked message at index " << idx);
 
     dstpe = buf->pe;
-    dstep = buf->rpl_ep == Gate::UNBOUND ? SYSC_SEP : buf->rpl_ep;
+    dstep = buf->rpl_ep == EP_COUNT ? SYSC_SEP : buf->rpl_ep;
     _buf.label = buf->replylabel;
     _buf.credits = 1;
     _buf.crd_ep = buf->snd_ep;

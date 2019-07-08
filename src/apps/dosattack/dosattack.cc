@@ -15,6 +15,7 @@
  */
 
 #include <m3/com/RecvGate.h>
+#include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
 
 using namespace m3;
@@ -23,7 +24,13 @@ int main() {
     capsel_t sel = 1000;
 
     RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
-    while(1)
-        m3::Syscalls::create_sgate(sel++, rgate.sel(), 0, SendGate::UNLIMITED);
+    while(1) {
+        try {
+            m3::Syscalls::create_sgate(sel++, rgate.sel(), 0, SendGate::UNLIMITED);
+        }
+        catch(const Exception &e) {
+            cerr << "Unable to create sgate: " << e.what() << "\n";
+        }
+    }
     return 0;
 }

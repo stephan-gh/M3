@@ -50,25 +50,16 @@ struct IndirChain {
             OStringStream name;
             name << "chain" << id << "-" << i;
 
-            vpes[i] = new VPE(name.str(),
-                              VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR)));
-            if(Errors::last != Errors::NONE) {
-                exitmsg("Unable to create VPE for " << name.str());
-                break;
-            }
+            vpes[i] = std::unique_ptr<VPE>(
+                new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR)))
+            );
 
-            accels[i] = new InDirAccel(vpes[i], reply_gate);
+            accels[i] = std::unique_ptr<InDirAccel>(new InDirAccel(vpes[i], reply_gate));
             ops[i] = InDirAccel::Operation::IDLE;
         }
 
         for(size_t i = 0; i < ACCEL_COUNT - 1; ++i)
-            accels[i]->connect_output(accels[i + 1]);
-    }
-    ~IndirChain() {
-        for(size_t i = 0; i < ACCEL_COUNT; ++i) {
-            delete accels[i];
-            delete vpes[i];
-        }
+            accels[i]->connect_output(accels[i + 1].get());
     }
 
     label_t idx_to_label(size_t i) const {
@@ -123,8 +114,8 @@ struct IndirChain {
     }
 
     bool read_next(void *buffer) {
-        ssize_t count = in->read(buffer, BUF_SIZE);
-        if(count <= 0)
+        size_t count = in->read(buffer, BUF_SIZE);
+        if(count == 0)
             return false;
 
         accels[0]->write(buffer, static_cast<size_t>(count));
@@ -144,13 +135,13 @@ struct IndirChain {
     size_t seen;
     RecvGate &reply_gate;
     size_t sizes[ACCEL_COUNT];
-    VPE *vpes[ACCEL_COUNT];
-    InDirAccel *accels[ACCEL_COUNT];
+    std::unique_ptr<VPE> vpes[ACCEL_COUNT];
+    std::unique_ptr<InDirAccel> accels[ACCEL_COUNT];
     InDirAccel::Operation ops[ACCEL_COUNT];
 };
 
 void chain_indirect(const char *in, size_t num) {
-    uint8_t *buffer = new uint8_t[BUF_SIZE];
+    std::unique_ptr<uint8_t[]> buffer(new uint8_t[BUF_SIZE]);
 
     RecvGate reply_gate = RecvGate::create(getnextlog2(REPLY_SIZE * num * ACCEL_COUNT),
                                            nextlog2<REPLY_SIZE>::val);
@@ -158,7 +149,7 @@ void chain_indirect(const char *in, size_t num) {
 
     fd_t infds[num];
     fd_t outfds[num];
-    IndirChain *chains[num];
+    std::unique_ptr<IndirChain> chains[num];
 
     // create chains
     for(size_t i = 0; i < num; ++i) {
@@ -166,15 +157,12 @@ void chain_indirect(const char *in, size_t num) {
         outpath << "/tmp/res-" << i;
 
         infds[i] = VFS::open(in, FILE_R);
-        if(infds[i] == FileTable::INVALID)
-            exitmsg("Unable to open " << in);
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
-        if(outfds[i] == FileTable::INVALID)
-            exitmsg("Unable to open " << outpath.str());
 
-        chains[i] = new IndirChain(i, reply_gate,
-                                   VPE::self().fds()->get(infds[i]),
-                                   VPE::self().fds()->get(outfds[i]));
+        chains[i] = std::unique_ptr<IndirChain>(
+            new IndirChain(i, reply_gate, VPE::self().fds()->get(infds[i]),
+                                          VPE::self().fds()->get(outfds[i]))
+        );
     }
 
     cycles_t end = 0, start = Time::start(0);
@@ -185,7 +173,7 @@ void chain_indirect(const char *in, size_t num) {
 
     size_t active_chains = 0;
     for(size_t i = 0; i < num; ++i) {
-        if(!chains[i]->read_next(buffer))
+        if(!chains[i]->read_next(buffer.get()))
             goto error;
         active_chains |= static_cast<size_t>(1) << i;
     }
@@ -206,7 +194,7 @@ void chain_indirect(const char *in, size_t num) {
 
         if(VERBOSE) cout << "message for chain" << chain << ", accel" << accel << "\n";
 
-        if(!chains[chain]->handle_msg(buffer, accel, written))
+        if(!chains[chain]->handle_msg(buffer.get(), accel, written))
             active_chains &= ~(static_cast<size_t>(1) << chain);
     }
 
@@ -217,7 +205,5 @@ error:
     for(size_t i = 0; i < num; ++i) {
         VFS::close(infds[i]);
         VFS::close(outfds[i]);
-        delete chains[i];
     }
-    delete[] buffer;
 }

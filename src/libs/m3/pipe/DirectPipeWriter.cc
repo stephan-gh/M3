@@ -35,7 +35,7 @@ DirectPipeWriter::State::State(capsel_t caps, size_t size)
     _rgate.activate();
 }
 
-ssize_t DirectPipeWriter::State::find_spot(size_t *len) {
+ssize_t DirectPipeWriter::State::find_spot(size_t *len) noexcept {
     if(_free == 0)
         return -1;
     if(_wrpos >= _rdpos) {
@@ -69,31 +69,43 @@ void DirectPipeWriter::State::read_replies() {
     }
 }
 
-DirectPipeWriter::DirectPipeWriter(capsel_t caps, size_t size, State *state)
-    : File(FILE_W), _caps(caps), _size(size), _state(state), _noeof() {
+DirectPipeWriter::DirectPipeWriter(capsel_t caps, size_t size, std::unique_ptr<State> &&state) noexcept
+    : File(FILE_W),
+      _caps(caps),
+      _size(size),
+      _state(Util::move(state)),
+      _noeof() {
 }
 
-DirectPipeWriter::~DirectPipeWriter() {
-    delete _state;
-}
-
-void DirectPipeWriter::close() {
+void DirectPipeWriter::close() noexcept {
     if(_noeof)
         return;
 
     if(!_state)
-        _state = new State(_caps, _size);
+        _state = std::unique_ptr<State>(new State(_caps, _size));
     if(!_state->_eof) {
-        write(nullptr, 0);
+        try {
+            write(nullptr, 0);
+        }
+        catch(...) {
+            // ignore
+        }
         _state->_eof |= DirectPipe::WRITE_EOF;
     }
-    if(_state)
-        _state->read_replies();
+
+    if(_state) {
+        try {
+            _state->read_replies();
+        }
+        catch(...) {
+            // ignore
+        }
+    }
 }
 
 ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking) {
     if(!_state)
-        _state = new State(_caps, _size);
+        _state = std::unique_ptr<State>(new State(_caps, _size));
     if(_state->_eof)
         return 0;
 
@@ -151,8 +163,8 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
     return buf - reinterpret_cast<const char*>(buffer);
 }
 
-Errors::Code DirectPipeWriter::delegate(VPE &vpe) {
-    return vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
+void DirectPipeWriter::delegate(VPE &vpe) {
+    vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _caps, 2));
 }
 
 void DirectPipeWriter::serialize(Marshaller &m) {
@@ -164,7 +176,7 @@ File *DirectPipeWriter::unserialize(Unmarshaller &um) {
     capsel_t caps;
     size_t size;
     um >> caps >> size;
-    return new DirectPipeWriter(caps, size, new State(caps, size));
+    return new DirectPipeWriter(caps, size, std::unique_ptr<State>(new State(caps, size)));
 }
 
 }

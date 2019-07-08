@@ -63,7 +63,7 @@ public:
      * @param flags control whether the selector and/or the capability should be free'd
      *  during destruction
      */
-    explicit ObjCap(uint type, capsel_t sel = INVALID, uint flags = 0)
+    explicit ObjCap(uint type, capsel_t sel = INVALID, uint flags = 0) noexcept
         : _sel(sel),
           _type(type),
           _flags(flags) {
@@ -74,14 +74,14 @@ public:
     ObjCap& operator=(const ObjCap&) = delete;
 
     // but moving is allowed
-    ObjCap(ObjCap &&c)
+    ObjCap(ObjCap &&c) noexcept
         : _sel(c._sel),
           _type(c._type),
           _flags(c._flags) {
         // don't destroy anything with the old cap
         c._flags = KEEP_CAP;
     }
-    ObjCap& operator=(ObjCap &&c) {
+    ObjCap& operator=(ObjCap &&c) noexcept {
         if(&c != this) {
             _sel = c._sel;
             _type = c._type;
@@ -96,16 +96,21 @@ public:
      * Destructor. Depending on the flags, it frees the selector and/or the capability (revoke).
      */
     ~ObjCap() {
-        release();
+        try {
+            release();
+        }
+        catch(...) {
+            // ignore
+        }
     }
 
     /**
      * @return the selector for this capability
      */
-    capsel_t sel() const {
+    capsel_t sel() const noexcept {
         return _sel;
     }
-    uint type() const {
+    uint type() const noexcept {
         return _type;
     }
 
@@ -115,13 +120,13 @@ protected:
      *
      * @param sel the new selector
      */
-    void sel(capsel_t sel) {
+    void sel(capsel_t sel) noexcept {
         _sel = sel;
     }
     /**
      * @return the flags
      */
-    unsigned flags() const {
+    unsigned flags() const noexcept {
         return _flags;
     }
     /**
@@ -129,7 +134,7 @@ protected:
      *
      * @param flags the new flags
      */
-    void flags(unsigned flags) {
+    void flags(unsigned flags) noexcept {
         _flags = flags;
     }
 

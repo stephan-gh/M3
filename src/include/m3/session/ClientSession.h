@@ -42,7 +42,8 @@ public:
      * @param sel the desired selector
      */
     explicit ClientSession(const String &name, capsel_t sel = ObjCap::INVALID)
-        : ObjCap(SESSION), _close(true) {
+        : ObjCap(SESSION),
+          _close(true) {
         connect(name, sel);
     }
 
@@ -52,11 +53,12 @@ public:
      * @param sel the capability selector of the session
      * @param flags whether capabilitly/selector should be kept on destruction or not
      */
-    explicit ClientSession(capsel_t sel, uint flags = ObjCap::KEEP_CAP)
-        : ObjCap(SESSION, sel, flags), _close(false) {
+    explicit ClientSession(capsel_t sel, uint flags = ObjCap::KEEP_CAP) noexcept
+        : ObjCap(SESSION, sel, flags),
+          _close(false) {
     }
 
-    ClientSession(ClientSession &&s)
+    ClientSession(ClientSession &&s) noexcept
         : ObjCap(Util::move(s)),
           _close(s._close) {
     }
@@ -64,21 +66,13 @@ public:
     ~ClientSession();
 
     /**
-     * @return whether this session is connected
-     */
-    bool is_connected() const {
-        return sel() != INVALID;
-    }
-
-    /**
      * Delegates the given object capability to the server.
      *
      * @param sel the capability
-     * @return the error, if any
      */
-    Errors::Code delegate_obj(capsel_t sel) {
+    void delegate_obj(capsel_t sel) {
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sel, 1);
-        return delegate(crd);
+        delegate(crd);
     }
 
     /**
@@ -87,10 +81,9 @@ public:
      *
      * @param caps the capabilities
      * @param args the arguments to pass to the server
-     * @return the error code
      */
-    Errors::Code delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr) {
-        return delegate_for(VPE::self(), caps, args);
+    void delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr) {
+        delegate_for(VPE::self(), caps, args);
     }
 
     /**
@@ -100,9 +93,8 @@ public:
      * @param vpe the vpe to do the delegate for
      * @param caps the capabilities
      * @param args the arguments to pass to the server
-     * @return the error code
      */
-    Errors::Code delegate_for(VPE &vpe, const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr);
+    void delegate_for(VPE &vpe, const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr);
 
     /**
      * Obtains up to <count> capabilities from the server with additional arguments and puts the
@@ -139,9 +131,8 @@ public:
      * @param crd the selectors to use
      * @param argcount the number of arguments
      * @param args the arguments to pass to the server
-     * @return the error code
      */
-    Errors::Code obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args = nullptr);
+    void obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args = nullptr);
 
 private:
     void connect(const String &name, capsel_t sel);

@@ -37,13 +37,13 @@ public:
      */
     explicit FileRef(const char *path, int perms) : _fd(VFS::open(path, perms)) {
     }
-    FileRef(FileRef &&f) : _fd(f._fd) {
-        f._fd = FileTable::INVALID;
+    FileRef(FileRef &&f) noexcept : _fd(f._fd) {
+        f._fd = FileTable::MAX_FDS;
     }
     FileRef(const FileRef&) = delete;
     FileRef &operator=(const FileRef&) = delete;
     ~FileRef() {
-        if(_fd != FileTable::INVALID)
+        if(_fd != FileTable::MAX_FDS)
             VFS::close(_fd);
     }
 
@@ -51,16 +51,16 @@ public:
         return VPE::self().fds()->get(_fd).get();
     }
 
-    File *operator->() {
+    File *operator->() noexcept {
         return get();
     }
-    const File *operator->() const {
+    const File *operator->() const noexcept {
         return const_cast<FileRef*>(this)->get();
     }
-    File &operator*() {
+    File &operator*() noexcept {
         return *get();
     }
-    const File &operator*() const {
+    const File &operator*() const noexcept {
         return *const_cast<FileRef*>(this)->get();
     }
 

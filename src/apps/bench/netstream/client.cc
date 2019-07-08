@@ -28,16 +28,12 @@ int main() {
     NetworkManager net("net0");
 
     Socket *socket = net.create(Socket::SOCK_STREAM);
-    if(!socket)
-        exitmsg("Socket creation failed");
 
     // wait for server
     Semaphore::attach("net").down();
 
     socket->blocking(true);
-    Errors::Code err = socket->connect(IpAddr(192, 168, 112, 1), 1337);
-    if(err != Errors::NONE)
-        exitmsg("Socket connect failed: " << Errors::to_string(err));
+    socket->connect(IpAddr(192, 168, 112, 1), 1337);
 
     constexpr size_t packet_size = 1024;
     union {

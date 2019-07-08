@@ -1,5 +1,6 @@
 Import('env')
 myenv = env.Clone()
+myenv.Append(CXXFLAGS = ' -fno-exceptions')
 myenv['CXXFLAGS'] = str(myenv['CXXFLAGS']).replace('-flto', '')
 lib = myenv.StaticLibrary(
     target = 'libheap',

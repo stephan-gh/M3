@@ -102,8 +102,7 @@ Errors::Code FileSession::activate() {
             _client_memgate = new MemGate(_memory->derive(0, _rbuf.size() + _sbuf.size(), MemGate::RW));
         }
 
-        if(Syscalls::activate(_client_memep, _client_memgate->sel(), 0) != Errors::NONE)
-            return Errors::last;
+        Syscalls::activate(_client_memep, _client_memgate->sel(), 0);
         _client_memep = ObjCap::INVALID;
     }
     return Errors::NONE;

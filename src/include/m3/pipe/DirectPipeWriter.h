@@ -18,7 +18,12 @@
 
 #include <base/Common.h>
 
+#include <m3/com/RecvGate.h>
+#include <m3/com/SendGate.h>
 #include <m3/vfs/File.h>
+#include <m3/Exception.h>
+
+#include <memory>
 
 namespace m3 {
 
@@ -34,7 +39,7 @@ public:
     struct State {
         explicit State(capsel_t caps, size_t size);
 
-        ssize_t find_spot(size_t *len);
+        ssize_t find_spot(size_t *len) noexcept;
         void read_replies();
 
         MemGate _mgate;
@@ -48,30 +53,23 @@ public:
         int _eof;
     };
 
-    explicit DirectPipeWriter(capsel_t caps, size_t size, State *state);
+    explicit DirectPipeWriter(capsel_t caps, size_t size, std::unique_ptr<State> &&state) noexcept;
 
 public:
-    /**
-     * Sends EOF and waits for all outstanding replies
-     */
-    ~DirectPipeWriter();
-
-    virtual Errors::Code stat(FileInfo &) const override {
-        // not supported
-        return Errors::NOT_SUP;
+    virtual void stat(FileInfo &) const override {
+        throw Exception(Errors::NOT_SUP);
     }
-    virtual ssize_t seek(size_t, int) override {
-        // not supported
-        return Errors::NOT_SUP;
+    virtual size_t seek(size_t, int) override {
+        throw Exception(Errors::NOT_SUP);
     }
 
-    virtual ssize_t read(void *, size_t) override {
-        // not supported
-        return 0;
+    virtual size_t read(void *, size_t) override {
+        throw Exception(Errors::NOT_SUP);
     }
-    virtual ssize_t write(const void *buffer, size_t count) override {
-        return write(buffer, count, true);
+    virtual size_t write(const void *buffer, size_t count) override {
+        return static_cast<size_t>(write(buffer, count, true));
     }
+
     // returns -1 when in non blocking mode and there is not enough space left in buffer
     ssize_t write(const void *buffer, size_t count, bool blocking);
 
@@ -79,19 +77,19 @@ public:
         return Reference<File>();
     }
 
-    virtual char type() const override {
+    virtual char type() const noexcept override {
         return 'P';
     }
-    virtual Errors::Code delegate(VPE &vpe) override;
+    virtual void delegate(VPE &vpe) override;
     virtual void serialize(Marshaller &m) override;
     static File *unserialize(Unmarshaller &um);
 
 private:
-    virtual void close() override;
+    virtual void close() noexcept override;
 
     capsel_t _caps;
     size_t _size;
-    State *_state;
+    std::unique_ptr<State> _state;
     bool _noeof;
 };
 
