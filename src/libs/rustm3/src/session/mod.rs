@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains session-related abstractions.
+
 mod clisession;
 mod srvsession;
 mod pager;
@@ -25,5 +27,5 @@ pub use self::clisession::ClientSession;
 pub use self::srvsession::ServerSession;
 pub use self::pager::Pager;
 pub use self::pipe::{Pipes, Pipe};
-pub use self::m3fs::{ExtId, M3FS, LocFlags};
+pub use self::m3fs::{ExtId, M3FS};
 pub use self::resmng::{ResMng, ResMngOperation};

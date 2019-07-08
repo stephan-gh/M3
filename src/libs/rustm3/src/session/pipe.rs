@@ -23,11 +23,13 @@ use rc::Rc;
 use session::ClientSession;
 use vfs::{FileHandle, GenericFile, OpenFlags};
 
+/// Represents a session at the pipes server.
 pub struct Pipes {
     sess: ClientSession,
 }
 
 impl Pipes {
+    /// Creates a new `Pipes` session at service with given name.
     pub fn new(name: &str) -> Result<Self, Error> {
         let sess = ClientSession::new(name)?;
         Ok(Pipes {
@@ -35,6 +37,7 @@ impl Pipes {
         })
     }
 
+    /// Creates a new pipe using `mem` of `mem_size` bytes as shared memory for the data exchange.
     pub fn create_pipe(&self, mem: &MemGate, mem_size: usize) -> Result<Pipe, Error> {
         let mut args = kif::syscalls::ExchangeArgs {
             count: 1,
@@ -47,12 +50,13 @@ impl Pipes {
     }
 }
 
+/// Represents a pipe.
 pub struct Pipe {
     sess: ClientSession,
 }
 
 impl Pipe {
-    pub fn new(mem: &MemGate, sel: Selector) -> Result<Self, Error> {
+    fn new(mem: &MemGate, sel: Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sel);
         sess.delegate_obj(mem.sel())?;
         Ok(Pipe {
@@ -60,10 +64,13 @@ impl Pipe {
         })
     }
 
+    /// Returns the session's capability selector.
     pub fn sel(&self) -> Selector {
         self.sess.sel()
     }
 
+    /// Creates a new channel for this pipe. If `read` is true, it is a read-end, otherwise a
+    /// write-end.
     pub fn create_chan(&self, read: bool) -> Result<FileHandle, Error> {
         let mut args = kif::syscalls::ExchangeArgs {
             count: 1,

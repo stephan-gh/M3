@@ -31,19 +31,14 @@ use vfs::{
 };
 use vpe::VPE;
 
+/// The type of extent ids.
 pub type ExtId = u16;
 
+/// Represents a session at m3fs.
 pub struct M3FS {
     self_weak: Weak<RefCell<M3FS>>,
     sess: ClientSession,
     sgate: Rc<SendGate>,
-}
-
-bitflags! {
-    pub struct LocFlags : u32 {
-        const BYTE_OFF  = 0b01;
-        const EXTEND    = 0b10;
-    }
 }
 
 impl M3FS {
@@ -57,6 +52,7 @@ impl M3FS {
         inst
     }
 
+    /// Creates a new session at the m3fs server with given name.
     pub fn new(name: &str) -> Result<FSHandle, Error> {
         let sels = VPE::cur().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 1)?;
@@ -68,10 +64,12 @@ impl M3FS {
         Ok(Self::create(sess, sgate))
     }
 
+    /// Binds a new m3fs-session to selectors `sels`..`sels+1`.
     pub fn new_bind(sels: Selector) -> FSHandle {
         Self::create(ClientSession::new_bind(sels + 0), SendGate::new_bind(sels + 1))
     }
 
+    /// Returns a reference to the underlying [`ClientSession`]
     pub fn sess(&self) -> &ClientSession {
         &self.sess
     }

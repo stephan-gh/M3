@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-//! Contains abstractions for servers.
+//! Contains server-related abstractions.
 
 mod server;
 mod sesscon;

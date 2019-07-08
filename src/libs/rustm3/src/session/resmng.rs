@@ -40,12 +40,17 @@ int_enum! {
     }
 }
 
+/// Represents a connection to the resource manager.
+///
+/// The resource manager is used to request access to resources like memory and services and is
+/// provided by any of the parent VPEs.
 pub struct ResMng {
     sgate: SendGate,
     vpe_sel: Selector,
 }
 
 impl ResMng {
+    /// Creates a new `ResMng` with given [`SendGate`] to send requests to the server.
     pub fn new(sgate: SendGate) -> Self {
         ResMng {
             sgate: sgate,
@@ -53,10 +58,13 @@ impl ResMng {
         }
     }
 
+    /// Returns the capability selector of the [`SendGate`] used for requests.
     pub fn sel(&self) -> Selector {
         self.sgate.sel()
     }
 
+    /// Clones this connection to be used by the given VPE as well. `name` specifies the name of the
+    /// VPE.
     pub fn clone(&self, vpe: &mut VPE, name: &str) -> Result<Self, Error> {
         let sgate_sel = vpe.alloc_sel();
         send_recv_res!(
@@ -70,14 +78,23 @@ impl ResMng {
         })
     }
 
-    pub fn reg_service(&self, child: Selector, dst: Selector,
-                       rgate: Selector, name: &str) -> Result<(), Error> {
+    /// Registers a service with given name at selector `dst`, using `rgate` to receive service
+    /// calls.
+    pub fn reg_service(&self, dst: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
+        self.reg_child_service(0, dst, rgate, name)
+    }
+    /// Registers a service for the child VPE `child` with given name at selector `dst`, using
+    /// `rgate` to receive service calls.
+    pub fn reg_child_service(&self, child: Selector, dst: Selector,
+                             rgate: Selector, name: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
             ResMngOperation::REG_SERV, child, dst, rgate, name
         ).map(|_| ())
     }
 
+    /// Unregisters the service with given selector. If `notify` is true, the server will be
+    /// notified via the `SHUTDOWN` service call.
     pub fn unreg_service(&self, sel: Selector, notify: bool) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
@@ -85,6 +102,7 @@ impl ResMng {
         ).map(|_| ())
     }
 
+    /// Opens a session at service `name` using selector `dst`.
     pub fn open_sess(&self, dst: Selector, name: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
@@ -92,6 +110,7 @@ impl ResMng {
         ).map(|_| ())
     }
 
+    /// Closes the session with given selector.
     pub fn close_sess(&self, sel: Selector) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
@@ -99,6 +118,8 @@ impl ResMng {
         ).map(|_| ())
     }
 
+    /// Allocates `size` bytes of physical memory with given permissions. If `addr` is not `!0`, it
+    /// will be allocated at that address.
     pub fn alloc_mem(&self, dst: Selector, addr: goff,
                      size: usize, perms: kif::Perm) -> Result<(), Error> {
         send_recv_res!(
@@ -107,6 +128,7 @@ impl ResMng {
         ).map(|_| ())
     }
 
+    /// Free's the memory with given selector.
     pub fn free_mem(&self, sel: Selector) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),
@@ -114,6 +136,7 @@ impl ResMng {
         ).map(|_| ())
     }
 
+    /// Attaches to the semaphore with given name using selector `sel`.
     pub fn use_sem(&self, sel: Selector, name: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate, RecvGate::def(),

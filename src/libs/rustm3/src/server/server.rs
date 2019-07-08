@@ -60,7 +60,7 @@ impl Server {
         let mut rgate = RecvGate::new(util::next_log2(512), util::next_log2(256))?;
         rgate.activate()?;
 
-        VPE::cur().resmng().reg_service(0, sel, rgate.sel(), name)?;
+        VPE::cur().resmng().reg_service(sel, rgate.sel(), name)?;
 
         Ok(Server {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),

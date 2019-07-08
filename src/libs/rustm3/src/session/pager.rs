@@ -24,13 +24,16 @@ use kif;
 use session::ClientSession;
 use vpe::VPE;
 
+/// Represents a session at the pager.
+///
+/// The pager is responsible to resolve page faults and allows to create memory mappings.
 pub struct Pager {
     sess: ClientSession,
     sep: EpId,
     rep: EpId,
     rbuf: usize,
     rgate: Option<RecvGate>,
-    own_sgate: SendGate,
+    parent_sgate: SendGate,
     child_sgate: SendGate,
 }
 
@@ -51,11 +54,13 @@ int_enum! {
 }
 
 impl Pager {
+    /// Creates a new session for VPE `vpe` at the pager service with given name.
     pub fn new(vpe: &mut VPE, rbuf: usize, pager: &str) -> Result<Self, Error> {
         let sess = ClientSession::new(pager)?;
         Self::create(vpe, rbuf, sess)
     }
 
+    /// Binds a new pager-session to given selectors.
     pub fn new_bind(sess_sel: cap::Selector, rgate: cap::Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sess_sel);
         let sgate = SendGate::new_bind(sess.obtain_obj()?);
@@ -65,11 +70,12 @@ impl Pager {
             rep: 0,
             rbuf: 0,
             rgate: Some(RecvGate::new_bind(rgate, 6)),
-            own_sgate: sgate,
+            parent_sgate: sgate,
             child_sgate: SendGate::new_bind(kif::INVALID_SEL),
         })
     }
 
+    /// Clones the session to be shared with given VPE.
     pub fn new_clone(&self, vpe: &mut VPE, rbuf: usize) -> Result<Self, Error> {
         let mut args = kif::syscalls::ExchangeArgs::default();
         // dummy arg to distinguish from the get_sgate operation
@@ -94,42 +100,52 @@ impl Pager {
             rep: rep,
             rbuf: rbuf,
             rgate: rgate,
-            own_sgate: own_sgate,
+            parent_sgate: own_sgate,
             child_sgate: child_sgate,
         })
     }
 
+    /// Returns the sessions capability selector.
     pub fn sel(&self) -> cap::Selector {
         self.sess.sel()
     }
 
+    /// Returns the endpoint used for sending page faults.
     pub fn sep(&self) -> EpId {
         self.sep
     }
+    /// Returns the endpoint used for receiving page fault replies.
     pub fn rep(&self) -> EpId {
         self.rep
     }
 
-    pub fn own_sgate(&self) -> &SendGate {
-        &self.own_sgate
+    /// Returns the [`SendGate`] used by the parent to send requests to the pager.
+    pub fn parent_sgate(&self) -> &SendGate {
+        &self.parent_sgate
     }
+    /// Returns the [`SendGate`] used by the child to send page faults to the pager.
     pub fn child_sgate(&self) -> &SendGate {
         &self.child_sgate
     }
+    /// Returns the [`RecvGate`] used to receive page fault replies.
     pub fn rgate(&self) -> Option<&RecvGate> {
         self.rgate.as_ref()
     }
 
+    /// Delegates the required capabilities from `vpe` to the server.
     pub fn delegate_caps(&mut self, vpe: &VPE) -> Result<(), Error> {
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 2);
         self.sess.delegate_crd(crd)
     }
 
+    /// Deactivates the gates (necessary after stopping the VPE).
+    // TODO actually, this was only necessary to use a VPE multiple times, right?
     pub fn deactivate(&mut self) {
         if let Some(ref mut rg) = self.rgate {
             rg.deactivate();
         }
     }
+    /// Activates the gates (necessary before starting the VPE).
     pub fn activate(&mut self, first_ep: cap::Selector) -> Result<(), Error> {
         self.child_sgate.activate_for(first_ep + (self.sep - FIRST_FREE_EP) as cap::Selector)?;
 
@@ -142,28 +158,33 @@ impl Pager {
         }
     }
 
+    /// Performs the clone-operation on server-side using copy-on-write.
     pub fn clone(&self) -> Result<(), Error> {
         send_recv_res!(
-            &self.own_sgate, RecvGate::def(),
+            &self.parent_sgate, RecvGate::def(),
             Operation::CLONE
         ).map(|_| ())
     }
 
+    /// Sends a page fault for the virtual address `addr` for given access type to the server.
     pub fn pagefault(&self, addr: goff, access: u32) -> Result<(), Error> {
         send_recv_res!(
-            &self.own_sgate, RecvGate::def(),
+            &self.parent_sgate, RecvGate::def(),
             Operation::PAGEFAULT, addr, access
         ).map(|_| ())
     }
 
+    /// Maps `len` bytes of anonymous memory to virtual address `addr` with permissions `prot`.
     pub fn map_anon(&self, addr: goff, len: usize, prot: kif::Perm) -> Result<goff, Error> {
         let mut reply = send_recv_res!(
-            &self.own_sgate, RecvGate::def(),
+            &self.parent_sgate, RecvGate::def(),
             Operation::MAP_ANON, addr, len, prot.bits(), 0
         )?;
         Ok(reply.pop())
     }
 
+    /// Maps a dataspace of `len` bytes handled by given session to virtual address `addr` with
+    /// permissions `prot`.
     pub fn map_ds(&self, addr: goff, len: usize, off: usize, prot: kif::Perm,
                   sess: &ClientSession) -> Result<goff, Error> {
         let mut args = kif::syscalls::ExchangeArgs {
@@ -187,9 +208,10 @@ impl Pager {
         }
     }
 
+    /// Unaps the mapping at virtual address `addr`.
     pub fn unmap(&self, addr: goff) -> Result<(), Error> {
         send_recv_res!(
-            &self.own_sgate, RecvGate::def(),
+            &self.parent_sgate, RecvGate::def(),
             Operation::UNMAP, addr
         ).map(|_| ())
     }
@@ -198,6 +220,6 @@ impl Pager {
 impl fmt::Debug for Pager {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "Pager[sel: {}, rep: {}, sep: {}]",
-            self.sel(), self.rep, self.own_sgate.ep().unwrap())
+            self.sel(), self.rep, self.parent_sgate.ep().unwrap())
     }
 }
