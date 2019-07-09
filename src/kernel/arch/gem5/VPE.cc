@@ -95,24 +95,25 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool n
         read_from_mod(mod, &pheader, sizeof(pheader), off);
 
         // we're only interested in non-empty load segments
-        if(pheader.p_type != PT_LOAD || pheader.p_memsz == 0)
+        if(pheader.p_type != m3::PT_LOAD || pheader.p_memsz == 0)
             continue;
 
         int perms = 0;
-        if(pheader.p_flags & PF_R)
+        if(pheader.p_flags & m3::PF_R)
             perms |= m3::DTU::PTE_R;
-        if(pheader.p_flags & PF_W)
+        if(pheader.p_flags & m3::PF_W)
             perms |= m3::DTU::PTE_W;
-        if(pheader.p_flags & PF_X)
+        if(pheader.p_flags & m3::PF_X)
             perms |= m3::DTU::PTE_X;
 
-        goff_t offset = m3::Math::round_dn(pheader.p_offset, PAGE_SIZE);
-        goff_t virt = m3::Math::round_dn(pheader.p_vaddr, PAGE_SIZE);
+        goff_t offset = m3::Math::round_dn(static_cast<size_t>(pheader.p_offset), PAGE_SIZE);
+        goff_t virt = m3::Math::round_dn(static_cast<size_t>(pheader.p_vaddr), PAGE_SIZE);
 
         // do we need new memory for this segment?
         if((copy && (perms & m3::DTU::PTE_W)) || pheader.p_filesz == 0) {
             // allocate memory
-            size_t size = m3::Math::round_up((pheader.p_vaddr & PAGE_BITS) + pheader.p_memsz, PAGE_SIZE);
+            size_t size = static_cast<size_t>((pheader.p_vaddr & PAGE_BITS) + pheader.p_memsz);
+            size = m3::Math::round_up(size, PAGE_SIZE);
             gaddr_t phys = alloc_mem(size);
 
             // map it

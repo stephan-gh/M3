@@ -196,7 +196,8 @@ void VPE::load_segment(ElfPh &pheader, char *buffer) {
             prot |= Pager::EXEC;
 
         goff_t virt = pheader.p_vaddr;
-        size_t sz = Math::round_up(pheader.p_memsz, static_cast<size_t>(PAGE_SIZE));
+        size_t sz = Math::round_up(static_cast<size_t>(pheader.p_memsz),
+                                   static_cast<size_t>(PAGE_SIZE));
         if(pheader.p_memsz == pheader.p_filesz) {
             const GenericFile *rfile = static_cast<const GenericFile*>(_exec->file().get());
             _pager->map_ds(&virt, sz, prot, 0, rfile->sess(), pheader.p_offset);
