@@ -71,6 +71,10 @@ vars = [
 for v in vars:
     baseenv.Append(ENV = {v : os.environ[v]})
 
+# hardlink support
+link_builder = Builder(action = Action("ln -f ${SOURCE.abspath} ${TARGET.abspath}", "$LNCOMSTR"))
+baseenv.Append(BUILDERS = {"Hardlink" : link_builder})
+
 # check for tools
 def CheckOTFConfig(context):
     context.Message('Checking for tud-otfconfig...')
@@ -113,6 +117,7 @@ if int(verbose) == 0:
     baseenv['MKFSCOMSTR']   = "[MKFS   ] $TARGET"
     baseenv['CPPCOMSTR']    = "[CPP    ] $TARGET"
     baseenv['CRGCOMSTR']    = "[CARGO  ] $TARGET"
+    baseenv['LNCOMSTR']     = "[HARDLN ] $TARGET"
 
 # for host compilation
 hostenv = baseenv.Clone()
@@ -265,7 +270,7 @@ def M3Mkfs(env, target, source, blocks, inodes, blks_per_ext):
         )
     )
     env.Depends(fs, '$BUILDDIR/src/tools/mkm3fs/mkm3fs')
-    env.Install('$BUILDDIR', fs)
+    env.Hardlink('$BUILDDIR/' + fs[0].name, fs)
 
 def M3Strip(env, target, source):
     return env.Command(
