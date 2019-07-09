@@ -19,7 +19,7 @@
 #define PE_COUNT             18
 
 #define TOTAL_MEM_SIZE      (1024 * 1024 * 1024)
-#define FS_MAX_SIZE         (512 * 1024 * 1024)
+#define FS_MAX_SIZE         (640 * 1024 * 1024)
 #define FS_IMG_OFFSET       0
 
 #define PAGE_BITS           12

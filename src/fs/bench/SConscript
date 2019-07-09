@@ -18,10 +18,10 @@ for f in env.Glob('$BINARYDIR/*'):
 
 bpe = 0 if os.environ.get('M3_FSBPE') is None else int(os.environ.get('M3_FSBPE'))
 if os.environ.get('M3_FSBLKS') is None:
-    if env['ARCH'] == 't2' or env['ARCH'] == 't3':
-        blocks = 64 * 1024
+    if env['ARCH'] == 'host':
+        blocks = 160 * 1024
     else:
-        blocks = 128 * 1024
+        blocks = 64 * 1024
 else:
     blocks = int(os.environ.get('M3_FSBLKS'))
 env.M3Mkfs(target = 'bench.img', source = '$FSDIR/bench', blocks = blocks, inodes = 4096, blks_per_ext = bpe)
