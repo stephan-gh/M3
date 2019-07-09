@@ -1,2 +1,25 @@
+import os
+
 Import('env')
+
+def BuildFSImage(env, target, source, blocks, inodes):
+    def is_bin(f):
+        if f.abspath.endswith('kernel'):
+            return False
+        if f.abspath.endswith('.a'):
+            return False
+        if f.abspath.endswith('.rlib'):
+            return False
+        return True
+
+    for f in env.Glob('$BINARYDIR/*'):
+        if is_bin(f):
+            env.M3Strip(source + '/bin/${SOURCE.file}', f)
+
+    bpe = 0 if os.environ.get('M3_FSBPE') is None else int(os.environ.get('M3_FSBPE'))
+    blocks = os.environ.get('M3_FSBLKS', blocks)
+    env.M3Mkfs(target, source, blocks = blocks, inodes = inodes, blks_per_ext = bpe)
+
+env = env.Clone()
+env.AddMethod(BuildFSImage)
 env.SConscript(Glob('*/SConscript'), 'env')

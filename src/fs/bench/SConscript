@@ -1,30 +1,11 @@
-import os
-
 Import('env')
 env.InstallFiles('$FSDIR/bench', '.', scan=1)
 
-def is_bin(f):
-    if f.abspath.endswith('kernel'):
-        return False
-    if f.abspath.endswith('.a'):
-        return False
-    if f.abspath.endswith('.rlib'):
-        return False
-    return True
-
-for f in env.Glob('$BINARYDIR/*'):
-    if is_bin(f):
-        env.M3Strip('$FSDIR/bench/bin/${SOURCE.file}', f)
-
-bpe = 0 if os.environ.get('M3_FSBPE') is None else int(os.environ.get('M3_FSBPE'))
-if os.environ.get('M3_FSBLKS') is None:
-    if env['ARCH'] == 'host':
-        blocks = 160 * 1024
-    else:
-        blocks = 64 * 1024
+if env['ARCH'] == 'host':
+    blocks = 160 * 1024
 else:
-    blocks = int(os.environ.get('M3_FSBLKS'))
-env.M3Mkfs(target = 'bench.img', source = '$FSDIR/bench', blocks = blocks, inodes = 4096, blks_per_ext = bpe)
+    blocks = 64 * 1024
+env.BuildFSImage(target = 'bench.img', source = '$FSDIR/bench', blocks = blocks, inodes = 4096)
 
 if env['ARCH'] == 't2' or env['ARCH'] == 't3':
     args = '--sim' if env['ARCH'] == 't3' else ''
