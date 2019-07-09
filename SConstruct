@@ -111,7 +111,6 @@ if int(verbose) == 0:
     baseenv['SHLINKCOMSTR'] = "[SHLD   ] $TARGET"
     baseenv['ARCOMSTR']     = "[AR     ] $TARGET"
     baseenv['RANLIBCOMSTR'] = "[RANLIB ] $TARGET"
-    baseenv['MDUMPCOMSTR']  = "[MDUMP  ] $TARGET"
     baseenv['STRIPCOMSTR']  = "[STRIP  ] $TARGET"
     baseenv['DUMPCOMSTR']   = "[DUMP   ] $TARGET"
     baseenv['MKFSCOMSTR']   = "[MKFS   ] $TARGET"
@@ -239,16 +238,6 @@ env.Append(
 hostenv.Append(
     BINARYDIR = env['BINARYDIR']
 )
-
-def M3MemDump(env, target, source):
-    dump = env.Command(
-        target, source,
-        Action(
-            'xt-dumpelf --width=64 --offset=0 $SOURCE > $TARGET',
-            '$MDUMPCOMSTR'
-        )
-    )
-    env.Install('$MEMDIR', dump)
 
 def M3FileDump(env, target, source, addr, args = ''):
     dump = env.Command(
@@ -436,7 +425,6 @@ def RustProgram(env, target, libs = []):
     return prog
 
 env.AddMethod(Cargo)
-env.AddMethod(M3MemDump)
 env.AddMethod(M3FileDump)
 env.AddMethod(M3Mkfs)
 env.AddMethod(M3Strip)
