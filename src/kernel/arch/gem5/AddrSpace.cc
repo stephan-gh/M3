@@ -386,6 +386,7 @@ void AddrSpace::remove_pts(vpeid_t vpe) {
         remove_pts_rec(v, _root, 0, m3::DTU::LEVEL_CNT - 1);
 }
 
+#if defined(__x86_64__)
 void AddrSpace::handle_xlate(m3::DTU::reg_t xlate_req) {
     m3::DTU &dtu = m3::DTU::get();
     // we can't use Platform yet, because Platform needs this code to initialize
@@ -435,6 +436,7 @@ void *AddrSpace::dtu_handler(m3::Exceptions::State *state) {
     }
     return state;
 }
+#endif
 
 void *irq_handler(m3::Exceptions::State *state) {
     m3::Serial::get() << *state;
@@ -448,7 +450,9 @@ struct ISR {
         m3::ISR::init();
         for(size_t i = 0; i < m3::ISR::ISR_COUNT; ++i)
             m3::ISR::reg(i, irq_handler);
+#if defined(__x86_64__)
         m3::ISR::reg(64, AddrSpace::dtu_handler);
+#endif
         m3::ISR::enable_irqs();
     }
 
