@@ -75,7 +75,7 @@ Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl
     if(replylbl)
         write_reg(CmdRegs::REPLY_LABEL, replylbl);
     CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, buildCommand(ep, CmdOpCode::SEND, 0, reply_ep));
+    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::SEND, 0, reply_ep));
 
     return get_error();
 }
@@ -83,7 +83,7 @@ Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl
 Errors::Code DTU::reply(epid_t ep, const void *msg, size_t size, size_t off) {
     write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 48));
     CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, buildCommand(ep, CmdOpCode::REPLY, 0, off));
+    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, 0, off));
 
     return get_error();
 }
@@ -109,7 +109,7 @@ Errors::Code DTU::transfer(reg_t cmd, uintptr_t data, size_t size, goff_t off) {
 
 Errors::Code DTU::read(epid_t ep, void *data, size_t size, goff_t off, uint flags) {
     uintptr_t dataaddr = reinterpret_cast<uintptr_t>(data);
-    reg_t cmd = buildCommand(ep, CmdOpCode::READ, flags, 0);
+    reg_t cmd = build_command(ep, CmdOpCode::READ, flags, 0);
     Errors::Code res = transfer(cmd, dataaddr, size, off);
     CPU::memory_barrier();
     return res;
@@ -117,7 +117,7 @@ Errors::Code DTU::read(epid_t ep, void *data, size_t size, goff_t off, uint flag
 
 Errors::Code DTU::write(epid_t ep, const void *data, size_t size, goff_t off, uint flags) {
     uintptr_t dataaddr = reinterpret_cast<uintptr_t>(data);
-    reg_t cmd = buildCommand(ep, CmdOpCode::WRITE, flags, 0);
+    reg_t cmd = build_command(ep, CmdOpCode::WRITE, flags, 0);
     return transfer(cmd, dataaddr, size, off);
 }
 

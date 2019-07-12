@@ -285,7 +285,7 @@ public:
     }
 
     Message *fetch_msg(epid_t ep) const {
-        write_reg(CmdRegs::COMMAND, buildCommand(ep, CmdOpCode::FETCH_MSG));
+        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         CPU::memory_barrier();
         return reinterpret_cast<Message*>(read_reg(CmdRegs::OFFSET));
     }
@@ -293,7 +293,7 @@ public:
     reg_t fetch_events() const {
         reg_t old = read_reg(DtuRegs::EVENTS);
         if(old != 0)
-            write_reg(CmdRegs::COMMAND, buildCommand(0, CmdOpCode::ACK_EVENTS, 0, old));
+            write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::ACK_EVENTS, 0, old));
         CPU::memory_barrier();
         return old;
     }
@@ -305,7 +305,7 @@ public:
     void mark_read(epid_t ep, size_t off) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
-        write_reg(CmdRegs::COMMAND, buildCommand(ep, CmdOpCode::ACK_MSG, 0, off));
+        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, 0, off));
         // ensure that we don't do something else before the ack
         CPU::memory_barrier();
     }
@@ -320,7 +320,7 @@ public:
 
     void try_sleep(bool yield = true, uint64_t cycles = 0, reg_t evmask = EventMask::MSG_RECV);
     void sleep(uint64_t cycles = 0) {
-        write_reg(CmdRegs::COMMAND, buildCommand(0, CmdOpCode::SLEEP, 0, cycles));
+        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, cycles));
         get_error();
     }
 
@@ -338,7 +338,7 @@ public:
     void print(const char *str, size_t len) {
         write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(str) | (static_cast<reg_t>(len) << 48));
         CPU::memory_barrier();
-        write_reg(CmdRegs::COMMAND, buildCommand(0, CmdOpCode::PRINT));
+        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::PRINT));
     }
 
     void clear_irq() {
@@ -461,7 +461,7 @@ private:
         return BASE_ADDR + regCount * sizeof(reg_t) + idx * sizeof(ReplyHeader);
     }
 
-    static reg_t buildCommand(epid_t ep, CmdOpCode c, uint flags = 0, reg_t arg = 0) {
+    static reg_t build_command(epid_t ep, CmdOpCode c, uint flags = 0, reg_t arg = 0) {
         return static_cast<reg_t>(c) |
                 (static_cast<reg_t>(ep) << 4) |
                 (static_cast<reg_t>(flags) << 12 |
