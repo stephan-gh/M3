@@ -91,8 +91,7 @@ EXTERN_C WEAK void init_env() {
 
 PostInit::PostInit() {
     env()->init_dtu();
-    if(!env()->is_kernel())
-        init_syscall();
+    init_syscall();
 }
 
 void Env::init_dtu() {

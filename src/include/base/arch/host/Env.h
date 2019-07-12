@@ -87,9 +87,6 @@ public:
         return _backend;
     }
 
-    bool is_kernel() const {
-        return pe == 0;
-    }
     int log_fd() const {
         return _logfd;
     }
