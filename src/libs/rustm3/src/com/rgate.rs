@@ -49,6 +49,10 @@ pub struct RecvGate {
     buf: usize,
     order: i32,
     free: FreeFlags,
+    // TODO this is a workaround for a code-generation bug for arm, which generates
+    // "ldm r8!,{r2,r4,r6,r8}" with the EP id loaded into r8 and afterwards increased by 16 because
+    // of the "!".
+    _dummy: u64,
 }
 
 impl fmt::Debug for RecvGate {
@@ -119,6 +123,7 @@ impl RecvGate {
             buf: 0,
             order: 0,
             free: FreeFlags { bits: 0 },
+            _dummy: 0,
         }
     }
 
@@ -143,6 +148,7 @@ impl RecvGate {
             buf: 0,
             order: args.order,
             free: FreeFlags::empty(),
+            _dummy: 0,
         })
     }
 
@@ -154,6 +160,7 @@ impl RecvGate {
             buf: 0,
             order: order,
             free: FreeFlags::empty(),
+            _dummy: 0,
         }
     }
 
