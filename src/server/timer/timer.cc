@@ -30,7 +30,7 @@ struct TickWorkItem : public WorkItem {
         cycles_t tsc = DTU::get().tsc();
         if(tsc >= next_tick) {
             SLOG(TIMER, "Timer tick @ " << tsc);
-            static_cast<EventHandler<>&>(server->handler()).broadcast(0);
+            server->handler()->broadcast(0);
             next_tick = DTU::get().tsc() + interval;
         }
     }
@@ -39,7 +39,7 @@ struct TickWorkItem : public WorkItem {
 int main() {
     WorkLoop wl;
 
-    server = new Server<EventHandler<>>("timer", &wl, new EventHandler<>());
+    server = new Server<EventHandler<>>("timer", &wl, std::make_unique<EventHandler<>>());
 
     TickWorkItem wi;
     wi.work();

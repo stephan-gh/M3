@@ -54,7 +54,7 @@ public:
 int main() {
     WorkLoop wl;
 
-    srv = new Server<TestRequestHandler>("testmsgs", &wl, new TestRequestHandler(&wl));
+    srv = new Server<TestRequestHandler>("testmsgs", &wl, std::make_unique<TestRequestHandler>(&wl));
 
     wl.run();
 

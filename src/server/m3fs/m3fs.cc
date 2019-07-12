@@ -266,11 +266,11 @@ int main(int argc, char *argv[]) {
     else
         usage(argv[0]);
 
-    auto hdl    = new M3FSRequestHandler(&wl, backend, extend, clear, revoke_first, max_load);
+    auto hdl = std::make_unique<M3FSRequestHandler>(&wl, backend, extend, clear, revoke_first, max_load);
     if(sels != ObjCap::INVALID)
-        srv = new Server<M3FSRequestHandler>(sels, ep, &wl, hdl);
+        srv = new Server<M3FSRequestHandler>(sels, ep, &wl, Util::move(hdl));
     else
-        srv = new Server<M3FSRequestHandler>(name, &wl, hdl);
+        srv = new Server<M3FSRequestHandler>(name, &wl, Util::move(hdl));
 
     wl.multithreaded(16);
     wl.run();

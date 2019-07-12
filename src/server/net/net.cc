@@ -306,7 +306,7 @@ int main(int argc, char **argv) {
 
     /* Start DHCP */
     // dhcp_start(&netif );
-    srv = new Server<NMRequestHandler>(argv[1], &wl, new NMRequestHandler(&wl, driver));
+    srv = new Server<NMRequestHandler>(argv[1], &wl, std::make_unique<NMRequestHandler>(&wl, driver));
 
     while(wl.has_items()) {
         /* Check link state, e.g. via MDIO communication with PHY */

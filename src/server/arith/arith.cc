@@ -68,7 +68,7 @@ public:
 int main() {
     WorkLoop wl;
 
-    Server<ArithRequestHandler> srv("arith", &wl, new ArithRequestHandler(&wl));
+    Server<ArithRequestHandler> srv("arith", &wl, std::make_unique<ArithRequestHandler>(&wl));
 
     wl.run();
     return 0;

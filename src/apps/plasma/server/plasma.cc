@@ -415,7 +415,7 @@ int main() {
     Timer timer("timer");
     timer.rgate().start(&wl, std::bind(refresh_screen, &vga, std::placeholders::_1));
 
-    Server<PlasmaRequestHandler> srv("plasma", &wl, new PlasmaRequestHandler(&wl));
+    Server<PlasmaRequestHandler> srv("plasma", &wl, std::make_unique<PlasmaRequestHandler>(&wl));
 
     wl.run();
     return 0;

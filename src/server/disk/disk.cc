@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
 
     WorkLoop wl;
 
-    srv = new Server<DiskRequestHandler>("disk", &wl, new DiskRequestHandler(&wl));
+    srv = new Server<DiskRequestHandler>("disk", &wl, std::make_unique<DiskRequestHandler>(&wl));
 
     // wl.multithreaded(8);
     wl.run();

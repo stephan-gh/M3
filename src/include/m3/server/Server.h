@@ -34,9 +34,9 @@ class Server : public ObjCap {
     using handler_func = void (Server::*)(GateIStream &is);
 
 public:
-    explicit Server(const String &name, WorkLoop *wl, HDL *handler)
+    explicit Server(const String &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
         : ObjCap(SERVICE, VPE::self().alloc_sel()),
-          _handler(handler),
+          _handler(Util::move(handler)),
           _ctrl_handler(),
           _rgate(RecvGate::create(nextlog2<512>::val, nextlog2<256>::val)) {
         init(wl);
@@ -45,9 +45,9 @@ public:
         VPE::self().resmng().reg_service(0, sel(), _rgate.sel(), name);
     }
 
-    explicit Server(capsel_t caps, epid_t ep, WorkLoop *wl, HDL *handler)
+    explicit Server(capsel_t caps, epid_t ep, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
         : ObjCap(SERVICE, caps + 0, KEEP_CAP),
-          _handler(handler),
+          _handler(Util::move(handler)),
           _ctrl_handler(),
           _rgate(RecvGate::bind(caps + 1, nextlog2<512>::val, ep)) {
         init(wl);
@@ -62,7 +62,6 @@ public:
                 // ignore
             }
         }
-        delete _handler;
     }
 
     void shutdown() {
@@ -70,8 +69,8 @@ public:
         _rgate.stop();
     }
 
-    HDL &handler() {
-        return *_handler;
+    std::unique_ptr<HDL> &handler() {
+        return _handler;
     }
 
 private:
@@ -179,7 +178,7 @@ private:
     }
 
 protected:
-    HDL *_handler;
+    std::unique_ptr<HDL> _handler;
     handler_func _ctrl_handler[5];
     RecvGate _rgate;
 };

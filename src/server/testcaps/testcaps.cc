@@ -65,7 +65,7 @@ private:
 int main() {
     WorkLoop wl;
     for(int i = 0; !kern_shutdown_req && i < 10; ++i) {
-        srv = new Server<MyHandler>("testcaps", &wl, new MyHandler());
+        srv = new Server<MyHandler>("testcaps", &wl, std::make_unique<MyHandler>());
         wl.run();
         delete srv;
     }

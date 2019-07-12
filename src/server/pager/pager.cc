@@ -353,9 +353,9 @@ int main(int argc, char **argv) {
     WorkLoop wl;
 
     if(sels != ObjCap::INVALID)
-        srv = new Server<MemReqHandler>(sels, ep, &wl, new MemReqHandler(&wl));
+        srv = new Server<MemReqHandler>(sels, ep, &wl, std::make_unique<MemReqHandler>(&wl));
     else
-        srv = new Server<MemReqHandler>("pager", &wl, new MemReqHandler(&wl));
+        srv = new Server<MemReqHandler>("pager", &wl, std::make_unique<MemReqHandler>(&wl));
 
     wl.multithreaded(4);
     wl.run();

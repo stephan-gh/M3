@@ -38,7 +38,7 @@ static char *gendata() {
 }
 
 static void timer_irq(GateIStream &) {
-    for(auto &h : server->handler().sessions()) {
+    for(auto &h : server->handler()->sessions()) {
         // skip clients that have a session but no gate yet
         if(h.gate())
             SendQueue::get().send(*h.gate(), gendata(), DATA_SIZE, SendQueue::array_deleter<char>);
@@ -54,7 +54,7 @@ int main() {
     timer.rgate().start(&wl, timer_irq);
 
     // now, register service
-    server = new Server<EventHandler<>>("queuetest", &wl, new EventHandler<>());
+    server = new Server<EventHandler<>>("queuetest", &wl, std::make_unique<EventHandler<>>());
 
     wl.add(&SendQueue::get(), true);
     wl.run();

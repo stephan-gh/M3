@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
     WorkLoop wl;
 
     const char *name = argc > 1 ? argv[1] : "loadgen";
-    Server<ReqHandler> srv(name, &wl, new ReqHandler(&wl));
+    Server<ReqHandler> srv(name, &wl, std::make_unique<ReqHandler>(&wl));
 
     wl.run();
     return 0;

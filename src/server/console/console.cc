@@ -65,7 +65,7 @@ struct ConsoleWorkItem : public WorkItem {
             ev.scancode = sc;
             if(Scancodes::get_keycode(ev.isbreak, ev.keycode, ev.scancode)) {
                 SLOG(KEYB, "Got " << (unsigned)ev.keycode << ":" << (unsigned)ev.isbreak);
-                static_cast<EventHandler<>&>(kbserver->handler()).broadcast(ev);
+                kbserver->handler()->broadcast(ev);
             }
         }
     }
@@ -78,9 +78,9 @@ int main() {
 
     MemGate memgate = VPE::self().mem().derive(
         reinterpret_cast<uintptr_t>(vgamem), VGA::SIZE, MemGate::RW);
-    Server<VGAHandler> vgasrv("vga", &wl, new VGAHandler(&memgate));
+    Server<VGAHandler> vgasrv("vga", &wl, std::make_unique<VGAHandler>(&memgate));
 
-    kbserver = new Server<EventHandler<>>("keyb", &wl, new EventHandler<>());
+    kbserver = new Server<EventHandler<>>("keyb", &wl, std::make_unique<EventHandler<>>());
 
     ConsoleWorkItem wi;
     wl.add(&wi, true);

@@ -183,9 +183,9 @@ int main(int argc, char **argv) {
     WorkLoop wl;
 
     if(sels != ObjCap::INVALID)
-        srv = new Server<PipeServiceHandler>(sels, ep, &wl, new PipeServiceHandler(&wl));
+        srv = new Server<PipeServiceHandler>(sels, ep, &wl, std::make_unique<PipeServiceHandler>(&wl));
     else
-        srv = new Server<PipeServiceHandler>("pipes", &wl, new PipeServiceHandler(&wl));
+        srv = new Server<PipeServiceHandler>("pipes", &wl, std::make_unique<PipeServiceHandler>(&wl));
 
     wl.multithreaded(16);
     wl.run();
