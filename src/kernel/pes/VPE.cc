@@ -20,6 +20,8 @@
 
 #include <thread/ThreadManager.h>
 
+#include <utility>
+
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "pes/VPEGroup.h"
@@ -46,7 +48,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _services(),
       _pending_fwds(),
       _waits(),
-      _name(m3::Util::move(prog)),
+      _name(std::move(prog)),
       _objcaps(id + 1),
       _mapcaps(id + 1),
       _lastsched(),

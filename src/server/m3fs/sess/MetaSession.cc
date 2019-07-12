@@ -47,7 +47,7 @@ void M3FSMetaSession::open_private_file(m3::GateIStream &is) {
     }
 
     size_t id;
-    Errors::Code res = do_open(ObjCap::INVALID, Util::move(path), flags, &id);
+    Errors::Code res = do_open(ObjCap::INVALID, std::move(path), flags, &id);
     if(res != Errors::NONE) {
         reply_error(is, res);
         return;
@@ -130,7 +130,7 @@ Errors::Code M3FSMetaSession::do_open(capsel_t srv, String &&path, int flags, si
     // for directories: ensure that we don't have a changed version in the cache
     if(M3FS_ISDIR(inode->mode))
         INodes::sync_metadata(r, inode);
-    ssize_t res = alloc_file(srv, Util::move(path), flags, inode->inode);
+    ssize_t res = alloc_file(srv, std::move(path), flags, inode->inode);
     if(res < 0)
         return static_cast<Errors::Code>(-res);
 
@@ -283,7 +283,7 @@ ssize_t M3FSMetaSession::alloc_file(capsel_t srv, String &&path, int flags, inod
     assert(flags != 0);
     for(size_t i = 0; i < _max_files; ++i) {
         if(_files[i] == NULL) {
-            _files[i] = new M3FSFileSession(hdl(), srv, this, Util::move(path), flags, ino);
+            _files[i] = new M3FSFileSession(hdl(), srv, this, std::move(path), flags, ino);
             return static_cast<ssize_t>(i);
         }
     }

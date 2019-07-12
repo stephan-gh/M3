@@ -22,6 +22,8 @@
 
 #include <thread/ThreadManager.h>
 
+#include <utility>
+
 #include "com/Services.h"
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
@@ -379,7 +381,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
     // create VPE
-    VPE *nvpe = VPEManager::get().create(m3::Util::move(name), m3::PEDesc(pe),
+    VPE *nvpe = VPEManager::get().create(std::move(name), m3::PEDesc(pe),
         sep, rep, sgate, &*kmemcap->obj, flags, vpegrp);
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");

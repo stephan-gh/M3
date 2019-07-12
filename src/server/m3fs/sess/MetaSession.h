@@ -22,7 +22,7 @@
 
 class M3FSMetaSession : public M3FSSession {
     struct MetaSGate : public m3::SListItem {
-        explicit MetaSGate(m3::SendGate &&_sgate) : sgate(m3::Util::move(_sgate)) {
+        explicit MetaSGate(m3::SendGate &&_sgate) : sgate(std::move(_sgate)) {
         }
         m3::SendGate sgate;
     };

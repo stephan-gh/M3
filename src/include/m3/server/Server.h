@@ -36,7 +36,7 @@ class Server : public ObjCap {
 public:
     explicit Server(const String &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
         : ObjCap(SERVICE, VPE::self().alloc_sel()),
-          _handler(Util::move(handler)),
+          _handler(std::move(handler)),
           _ctrl_handler(),
           _rgate(RecvGate::create(nextlog2<512>::val, nextlog2<256>::val)) {
         init(wl);
@@ -47,7 +47,7 @@ public:
 
     explicit Server(capsel_t caps, epid_t ep, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
         : ObjCap(SERVICE, caps + 0, KEEP_CAP),
-          _handler(Util::move(handler)),
+          _handler(std::move(handler)),
           _ctrl_handler(),
           _rgate(RecvGate::bind(caps + 1, nextlog2<512>::val, ep)) {
         init(wl);

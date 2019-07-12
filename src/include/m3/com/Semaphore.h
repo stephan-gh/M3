@@ -18,6 +18,8 @@
 
 #include <m3/ObjCap.h>
 
+#include <utility>
+
 namespace m3 {
 
 /**
@@ -46,7 +48,7 @@ public:
     static Semaphore create(uint value);
 
     Semaphore(Semaphore &&sem) noexcept
-        : ObjCap(Util::move(sem)) {
+        : ObjCap(std::move(sem)) {
     }
 
     /**

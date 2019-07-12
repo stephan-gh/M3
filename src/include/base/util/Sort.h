@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <base/util/Util.h>
+#include <utility>
 
 namespace m3 {
 
@@ -37,13 +37,13 @@ IT divide(IT ileft, IT ipiv, CMP comp) {
 
         // swap
         if(i < j)
-            Util::swap(*i, *j);
+            std::swap(*i, *j);
     }
     while(i < j);
 
     // swap piv with element i
     if(comp(*ipiv, *i))
-        Util::swap(*i, *ipiv);
+        std::swap(*i, *ipiv);
     return i;
 }
 

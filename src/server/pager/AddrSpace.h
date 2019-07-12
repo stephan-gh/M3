@@ -26,7 +26,7 @@
 class AddrSpace : public m3::ServerSession {
 public:
     struct SGateItem : public m3::SListItem {
-        explicit SGateItem(m3::SendGate &&_sgate) : sgate(m3::Util::move(_sgate)) {
+        explicit SGateItem(m3::SendGate &&_sgate) : sgate(std::move(_sgate)) {
         }
         m3::SendGate sgate;
     };

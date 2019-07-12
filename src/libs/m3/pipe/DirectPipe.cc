@@ -35,12 +35,12 @@ DirectPipe::DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size)
     std::unique_ptr<DirectPipeReader::State> rstate(
         &rd == &VPE::self() ? new DirectPipeReader::State(caps()) : nullptr);
     _rdfd = VPE::self().fds()->alloc(Reference<File>(
-        new DirectPipeReader(caps(), Util::move(rstate))));
+        new DirectPipeReader(caps(), std::move(rstate))));
 
     std::unique_ptr<DirectPipeWriter::State> wstate(
         &wr == &VPE::self() ? new DirectPipeWriter::State(caps() + 1, _size) : nullptr);
     _wrfd = VPE::self().fds()->alloc(Reference<File>(
-        new DirectPipeWriter(caps() + 1, _size, Util::move(wstate))));
+        new DirectPipeWriter(caps() + 1, _size, std::move(wstate))));
 }
 
 DirectPipe::~DirectPipe() {

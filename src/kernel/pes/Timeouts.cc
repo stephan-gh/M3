@@ -71,7 +71,7 @@ Timeout *Timeouts::wait_for(cycles_t cycles, std::function<void()> &&callback) {
         prev = &*it;
     }
 
-    Timeout *to = new Timeout(when, m3::Util::move(callback));
+    Timeout *to = new Timeout(when, std::move(callback));
     KLOG(TIMEOUTS, "Inserting timeout " << to << " (due=" << to->when << ")");
     _timeouts.insert(prev, to);
     return to;

@@ -55,7 +55,7 @@ M3FSFileSession::M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSes
           ))
       ),
       _oflags(flags),
-      _filename(Util::move(filename)),
+      _filename(std::move(filename)),
       _ino(ino),
       _capscon(),
       _meta(meta) {

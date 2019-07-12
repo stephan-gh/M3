@@ -18,6 +18,8 @@
 #include <base/util/Math.h>
 #include <base/Panic.h>
 
+#include <utility>
+
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "Args.h"
@@ -145,7 +147,7 @@ VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epi
     // groups are implicitly pinned
     if(group)
         vflags |= VPE::F_PINNED;
-    VPE *vpe = new VPE(m3::Util::move(name), i, id, vflags, kmem, sep, rep, sgate, group);
+    VPE *vpe = new VPE(std::move(name), i, id, vflags, kmem, sep, rep, sgate, group);
     assert(vpe == _vpes[id]);
 
     return vpe;

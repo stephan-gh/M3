@@ -29,7 +29,7 @@
 
 class DiskSrvSession : public m3::ServerSession {
     struct DiskSrvSGate : public m3::SListItem {
-        explicit DiskSrvSGate(m3::SendGate &&_sgate) : sgate(m3::Util::move(_sgate)) {
+        explicit DiskSrvSGate(m3::SendGate &&_sgate) : sgate(std::move(_sgate)) {
         }
         m3::SendGate sgate;
     };

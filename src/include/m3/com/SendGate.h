@@ -118,7 +118,7 @@ public:
     }
 
     SendGate(SendGate &&g) noexcept
-        : Gate(Util::move(g)),
+        : Gate(std::move(g)),
           _replygate(g._replygate) {
     }
 

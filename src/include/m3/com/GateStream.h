@@ -178,7 +178,7 @@ public:
         return *this;
     }
     GateIStream(GateIStream &&is) noexcept
-        : Unmarshaller(Util::move(is)),
+        : Unmarshaller(std::move(is)),
           _ack(is._ack),
           _rgate(is._rgate),
           _msg(is._msg) {

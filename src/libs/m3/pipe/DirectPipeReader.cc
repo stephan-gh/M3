@@ -35,7 +35,7 @@ DirectPipeReader::DirectPipeReader(capsel_t caps, std::unique_ptr<State> &&state
     : File(FILE_R),
       _noeof(),
       _caps(caps),
-      _state(Util::move(state)) {
+      _state(std::move(state)) {
 }
 
 void DirectPipeReader::close() noexcept {

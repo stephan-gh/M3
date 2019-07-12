@@ -87,7 +87,7 @@ public:
     }
 
     MemGate(MemGate &&m) noexcept
-        : Gate(Util::move(m)),
+        : Gate(std::move(m)),
           _revoke(m._revoke),
           _cmdflags(m._cmdflags) {
     }

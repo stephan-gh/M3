@@ -49,36 +49,4 @@ static_assert(nextlog2<1UL << 31>::val == 31, "failed");
 static_assert(nextlog2<(1UL << 30) + 1>::val == 31, "failed");
 static_assert(nextlog2<(1UL << (sizeof(size_t) * 8 - 1)) + 1>::val == (sizeof(size_t) * 8 - 1), "failed");
 
-template<typename T>
-struct remove_reference {
-    using type = T;
-};
-template<typename T>
-struct remove_reference<T&> {
-    using type = T;
-};
-template<typename T>
-struct remove_reference<T&&> {
-    using type = T;
-};
-
-class Util {
-public:
-    template<typename T>
-    static typename remove_reference<T>::type && move(T &&t) {
-        return static_cast<typename remove_reference<T>::type&&>(t);
-    }
-    template<typename T>
-    static constexpr T&& forward(typename remove_reference<T>::type& a) {
-        return static_cast<T&&>(a);
-    }
-
-    template<class T>
-    static void swap(T& a,T& b) {
-        T tmp(a);
-        a = b;
-        b = tmp;
-    }
-};
-
 }

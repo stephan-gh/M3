@@ -73,7 +73,7 @@ DirectPipeWriter::DirectPipeWriter(capsel_t caps, size_t size, std::unique_ptr<S
     : File(FILE_W),
       _caps(caps),
       _size(size),
-      _state(Util::move(state)),
+      _state(std::move(state)),
       _noeof() {
 }
 

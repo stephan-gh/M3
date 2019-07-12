@@ -59,7 +59,7 @@ public:
     }
 
     ClientSession(ClientSession &&s) noexcept
-        : ObjCap(Util::move(s)),
+        : ObjCap(std::move(s)),
           _close(s._close) {
     }
 

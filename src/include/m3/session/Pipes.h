@@ -31,7 +31,7 @@ public:
             delegate_obj(memory.sel());
         }
         Pipe(Pipe &&p) noexcept
-            : ClientSession(Util::move(p)) {
+            : ClientSession(std::move(p)) {
         }
 
         Reference<File> create_channel(bool read, int flags = 0) {

@@ -22,6 +22,8 @@
 #include <m3/com/EPMux.h>
 #include <m3/ObjCap.h>
 
+#include <utility>
+
 namespace m3 {
 
 /**
@@ -52,7 +54,7 @@ protected:
 
 public:
     Gate(Gate &&g) noexcept
-        : ObjCap(Util::move(g)),
+        : ObjCap(std::move(g)),
           _ep(g._ep) {
         g._ep = NODESTROY;
     }
