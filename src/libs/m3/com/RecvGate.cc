@@ -169,7 +169,7 @@ void RecvGate::start(WorkLoop *wl, msghandler_t handler) {
     _handler = handler;
 
     bool permanent = ep() < DTU::FIRST_FREE_EP;
-    _workitem = std::unique_ptr<RecvGateWorkItem>(new RecvGateWorkItem(this));
+    _workitem = std::make_unique<RecvGateWorkItem>(this);
     wl->add(_workitem.get(), permanent);
 }
 

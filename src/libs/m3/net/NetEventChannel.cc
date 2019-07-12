@@ -117,7 +117,7 @@ void NetEventChannel::start(WorkLoop *wl, evhandler_t evhandler, crdhandler_t cr
     if(!_workitem) {
         _evhandler = evhandler;
         _crdhandler = crdhandler;
-        _workitem = std::unique_ptr<EventWorkItem>(new EventWorkItem(this));
+        _workitem = std::make_unique<EventWorkItem>(this);
         wl->add(_workitem.get(), false);
     }
 }

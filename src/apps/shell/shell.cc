@@ -133,7 +133,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
         Command *cmd = list->cmds[i];
 
         auto args = VPEArgs().pedesc(descs[i]).flags(muxed ? VPE::MUXABLE : 0);
-        vpes[i] = std::unique_ptr<VPE>(new VPE(expr_value(cmd->args->args[0]), args));
+        vpes[i] = std::make_unique<VPE>(expr_value(cmd->args->args[0]), args);
         vpe_count++;
 
         // I/O redirection is only supported at the beginning and end
@@ -156,10 +156,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
             vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(outfd));
         }
         else if(descs[i].is_programmable() || descs[i + 1].is_programmable()) {
-            mems[i] = std::unique_ptr<MemGate>(
-                new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW)));
-            pipes[i] = std::unique_ptr<IndirectPipe>(
-                new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE));
+            mems[i] = std::make_unique<MemGate>(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
+            pipes[i] = std::make_unique<IndirectPipe>(pipesrv, *mems[i], PIPE_SHM_SIZE);
             vpes[i]->fds()->set(STDOUT_FD, VPE::self().fds()->get(pipes[i]->writer_fd()));
         }
 
@@ -175,7 +173,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
             delete[] args;
         }
         else
-            accels[i] = std::unique_ptr<StreamAccel>(new StreamAccel(vpes[i], ACOMP_TIME));
+            accels[i] = std::make_unique<StreamAccel>(vpes[i], ACOMP_TIME);
 
         if(i > 0 && pipes[i - 1]) {
             if(vpes[i]->pe().is_programmable())

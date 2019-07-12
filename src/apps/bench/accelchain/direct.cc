@@ -50,19 +50,19 @@ public:
 
             if(VERBOSE) Serial::get() << "Creating VPE " << name.str() << "\n";
 
-            vpes[i] = std::unique_ptr<VPE>(
-                new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
-                                             .flags(VPE::MUXABLE)
-                                             .group(&group))
+            vpes[i] = std::make_unique<VPE>(
+                name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
+                                     .flags(VPE::MUXABLE)
+                                     .group(&group)
             );
 
-            accels[i] = std::unique_ptr<StreamAccel>(new StreamAccel(vpes[i], comptime));
+            accels[i] = std::make_unique<StreamAccel>(vpes[i], comptime);
 
             if(mode == Mode::DIR_SIMPLE && i + 1 < num) {
-                mems[i] = std::unique_ptr<MemGate>(
-                    new MemGate(MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW)));
-                pipes[i] = std::unique_ptr<IndirectPipe>(
-                    new IndirectPipe(pipesrv, *mems[i], PIPE_SHM_SIZE));
+                mems[i] = std::make_unique<MemGate>(
+                    MemGate::create_global(PIPE_SHM_SIZE, MemGate::RW));
+                pipes[i] = std::make_unique<IndirectPipe>(
+                    pipesrv, *mems[i], PIPE_SHM_SIZE);
             }
         }
 

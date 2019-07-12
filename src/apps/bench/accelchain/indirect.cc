@@ -50,9 +50,9 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
         name << "chain" << i;
 
         auto args = VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR));
-        vpes[i] = std::unique_ptr<VPE>(new VPE(name.str(), args));
+        vpes[i] = std::make_unique<VPE>(name.str(), args);
 
-        accels[i] = std::unique_ptr<InDirAccel>(new InDirAccel(vpes[i], reply_gate));
+        accels[i] = std::make_unique<InDirAccel>(vpes[i], reply_gate);
     }
 
     // connect outputs

@@ -73,9 +73,9 @@ int main(int argc, char **argv) {
 
     Server<TestRequestHandler> *srv;
     if(ep != EP_COUNT)
-        srv = new Server<TestRequestHandler>(sels, ep, &wl, new TestRequestHandler(&wl));
+        srv = new Server<TestRequestHandler>(sels, ep, &wl, std::make_unique<TestRequestHandler>(&wl));
     else
-        srv = new Server<TestRequestHandler>("srv1", &wl, new TestRequestHandler(&wl));
+        srv = new Server<TestRequestHandler>("srv1", &wl, std::make_unique<TestRequestHandler>(&wl));
 
     wl.run();
 

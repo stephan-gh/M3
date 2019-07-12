@@ -39,28 +39,28 @@ int main() {
         OStringStream name;
         name << "chain" << i;
 
-        vpes[i] = std::unique_ptr<VPE>(
-            new VPE(name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
-                                         .flags(VPE::MUXABLE))
+        vpes[i] = std::make_unique<VPE>(
+            name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
+                                 .flags(VPE::MUXABLE)
         );
-        accels[i] = std::unique_ptr<StreamAccel>(new StreamAccel(vpes[i], COMP_TIME));
+        accels[i] = std::make_unique<StreamAccel>(vpes[i], COMP_TIME);
     }
 
     // create and activate gates
     for(size_t i = 0; i < 2; ++i) {
-        rgates[i] = std::unique_ptr<RecvGate>(
-            new RecvGate(RecvGate::create(nextlog2<64 * 2>::val, nextlog2<64>::val)));
+        rgates[i] = std::make_unique<RecvGate>(
+            RecvGate::create(nextlog2<64 * 2>::val, nextlog2<64>::val));
         rgates[i]->activate();
 
-        ins[i] = std::unique_ptr<SendGate>(
-            new SendGate(SendGate::create(rgates[i].get(), SendGateArgs().label(StreamAccel::LBL_IN_REQ)
-                                                                         .credits(64)))
+        ins[i] = std::make_unique<SendGate>(
+            SendGate::create(rgates[i].get(), SendGateArgs().label(StreamAccel::LBL_IN_REQ)
+                                                            .credits(64))
         );
         ins[i]->activate_for(*vpes[i], StreamAccel::EP_IN_SEND);
 
-        outs[i] = std::unique_ptr<SendGate>(
-            new SendGate(SendGate::create(rgates[i].get(), SendGateArgs().label(StreamAccel::LBL_OUT_REQ)
-                                                                         .credits(64)))
+        outs[i] = std::make_unique<SendGate>(
+            SendGate::create(rgates[i].get(), SendGateArgs().label(StreamAccel::LBL_OUT_REQ)
+                                                            .credits(64))
         );
         outs[i]->activate_for(*vpes[i], StreamAccel::EP_OUT_SEND);
     }

@@ -82,7 +82,7 @@ void DirectPipeWriter::close() noexcept {
         return;
 
     if(!_state)
-        _state = std::unique_ptr<State>(new State(_caps, _size));
+        _state = std::make_unique<State>(_caps, _size);
     if(!_state->_eof) {
         try {
             write(nullptr, 0);
@@ -105,7 +105,7 @@ void DirectPipeWriter::close() noexcept {
 
 ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking) {
     if(!_state)
-        _state = std::unique_ptr<State>(new State(_caps, _size));
+        _state = std::make_unique<State>(_caps, _size);
     if(_state->_eof)
         return 0;
 

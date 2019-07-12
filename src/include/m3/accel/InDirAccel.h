@@ -62,8 +62,7 @@ public:
     }
 
     void connect_output(InDirAccel *accel) {
-        _mgate = std::unique_ptr<MemGate>(
-            new MemGate(accel->_vpe->mem().derive(BUF_ADDR, MAX_BUF_SIZE)));
+        _mgate = std::make_unique<MemGate>(accel->_vpe->mem().derive(BUF_ADDR, MAX_BUF_SIZE));
         _mgate->activate_for(*_vpe, EP_OUT);
     }
 

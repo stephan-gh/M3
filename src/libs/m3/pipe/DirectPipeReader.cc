@@ -43,7 +43,7 @@ void DirectPipeReader::close() noexcept {
         return;
 
     if(!_state)
-        _state = std::unique_ptr<State>(new State(_caps));
+        _state = std::make_unique<State>(_caps);
     if(~_state->_eof & DirectPipe::READ_EOF) {
         try {
             // if we have not fetched a message yet, do so now
@@ -61,7 +61,7 @@ void DirectPipeReader::close() noexcept {
 
 ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
     if(!_state)
-        _state = std::unique_ptr<State>(new State(_caps));
+        _state = std::make_unique<State>(_caps);
     if(_state->_eof)
         return 0;
 

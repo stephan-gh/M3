@@ -116,7 +116,7 @@ void VPE::exec(int argc, const char **argv) {
     alignas(DTU_PKG_SIZE) Env senv;
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
-    _exec = std::unique_ptr<FStream>(new FStream(argv[0], FILE_RWX));
+    _exec = std::make_unique<FStream>(argv[0], FILE_RWX);
 
     if(_pager)
         _pager->activate_gates(*this);
