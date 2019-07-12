@@ -17,7 +17,7 @@
 use cap::{CapFlags, Selector};
 use com::gate::Gate;
 use core::fmt;
-use core::intrinsics;
+use core::mem::MaybeUninit;
 use dtu;
 use errors::{Code, Error};
 use goff;
@@ -153,7 +153,7 @@ impl MemGate {
     /// Reads `util::size_of::<T>()` bytes via the DTU read command from the memory region at offset
     /// `off` and returns the data as an object of `T`.
     pub fn read_obj<T>(&self, off: goff) -> Result<T, Error> {
-        let mut obj: T = unsafe { intrinsics::uninit() };
+        let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
         self.read_bytes(&mut obj as *mut T as *mut u8, util::size_of::<T>(), off)?;
         Ok(obj)
     }

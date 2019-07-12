@@ -17,6 +17,7 @@
 use col::{String, Vec};
 use com::{RecvGate, SendGate};
 use core::intrinsics;
+use core::mem::MaybeUninit;
 use core::ops;
 use core::slice;
 use dtu;
@@ -38,7 +39,7 @@ impl ArraySink {
     /// Creates a new `ArraySink`.
     pub fn new() -> Self {
         ArraySink {
-            arr: unsafe { intrinsics::uninit() },
+            arr: unsafe { MaybeUninit::uninit().assume_init() },
             pos: 0,
         }
     }

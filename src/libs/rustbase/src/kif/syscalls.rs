@@ -16,7 +16,7 @@
 
 //! The system call interface
 
-use core::intrinsics;
+use core::mem::MaybeUninit;
 
 /// The maximum message length that can be used
 pub const MAX_MSG_SIZE: usize = 440;
@@ -111,7 +111,7 @@ impl Default for ExchangeArgs {
     fn default() -> Self {
         ExchangeArgs {
             count: 0,
-            vals: unsafe { intrinsics::uninit() },
+            vals: unsafe { MaybeUninit::uninit().assume_init() },
         }
     }
 }

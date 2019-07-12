@@ -16,7 +16,7 @@
 
 use col::{String, ToString, Vec};
 use com::VecSink;
-use core::intrinsics;
+use core::mem::MaybeUninit;
 use errors::{Code, Error};
 use io::Read;
 use libc;
@@ -116,7 +116,7 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
             return None;
         }
 
-        let mut info: libc::stat = intrinsics::uninit();
+        let mut info: libc::stat = MaybeUninit::uninit().assume_init();
         assert!(libc::fstat(fd, &mut info) != -1);
         let size = info.st_size as usize;
         assert!(size & 7 == 0);

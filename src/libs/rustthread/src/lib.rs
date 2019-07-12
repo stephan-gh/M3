@@ -124,7 +124,7 @@ impl Thread {
             stack: Vec::new(),
             event: 0,
             has_msg: false,
-            msg: unsafe { intrinsics::uninit() },
+            msg: unsafe { mem::MaybeUninit::uninit().assume_init() },
         })
     }
 
@@ -137,7 +137,7 @@ impl Thread {
             stack: vec![0usize; cfg::STACK_SIZE / 8],
             event: 0,
             has_msg: false,
-            msg: unsafe { intrinsics::uninit() },
+            msg: unsafe { mem::MaybeUninit::uninit().assume_init() },
         });
 
         log!(THREAD, "Created thread {}", thread.id);

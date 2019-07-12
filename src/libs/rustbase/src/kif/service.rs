@@ -18,7 +18,7 @@
 
 use serialize::{Source, Unmarshallable};
 use core::fmt;
-use core::intrinsics;
+use core::mem::MaybeUninit;
 use kif::syscalls;
 
 /// The maximum size of strings in service calls
@@ -106,7 +106,7 @@ impl Unmarshallable for ExchangeData {
     fn unmarshall(s: &mut dyn Source) -> Self {
         let mut res = ExchangeData {
             caps: s.pop_word(),
-            args: unsafe { intrinsics::uninit() },
+            args: unsafe { MaybeUninit::uninit().assume_init() },
         };
         res.args.count = s.pop_word();
         for i in 0..res.args.count {

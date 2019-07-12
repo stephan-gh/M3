@@ -16,7 +16,8 @@
 
 //! Contains the read and write traits
 
-use core::{fmt, intrinsics};
+use core::fmt;
+use core::mem::MaybeUninit;
 use col::*;
 use errors::{Code, Error};
 use util;
@@ -179,6 +180,6 @@ pub trait Write {
 /// Convenience method that reads `util::size_of::<T>()` bytes from the given source and interprets
 /// them as a `T`
 pub fn read_object<T : Sized>(r: &mut dyn Read) -> Result<T, Error> {
-    let mut obj: T = unsafe { intrinsics::uninit() };
+    let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
     r.read_exact(util::object_to_bytes_mut(&mut obj)).map(|_| obj)
 }

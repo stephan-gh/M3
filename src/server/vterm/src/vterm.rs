@@ -19,7 +19,7 @@
 #[macro_use]
 extern crate m3;
 
-use core::mem;
+use core::mem::MaybeUninit;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::com::*;
@@ -100,7 +100,7 @@ impl Channel {
         self.pos += self.len - self.pos;
 
         if self.pos == self.len {
-            let mut buf: [u8; 256] = unsafe { mem::uninitialized() };
+            let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
             let len = Serial::new().borrow_mut().read(&mut buf)?;
             self.mem.write(&buf[0..len], 0)?;
             self.len = len;
@@ -149,7 +149,7 @@ impl Channel {
 
     fn flush(&mut self, nbytes: usize) -> Result<(), Error> {
         if nbytes > 0 {
-            let mut buf: [u8; 256] = unsafe { mem::uninitialized() };
+            let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
             self.mem.read(&mut buf[0..nbytes], 0)?;
             Serial::new().borrow_mut().write(&buf[0..nbytes])?;
         }

@@ -19,7 +19,8 @@ use cell::RefCell;
 use col::Vec;
 use com::*;
 use core::any::Any;
-use core::{fmt, intrinsics};
+use core::fmt;
+use core::mem::MaybeUninit;
 use errors::Error;
 use kif;
 use rc::{Rc, Weak};
@@ -100,7 +101,7 @@ impl FileSystem for M3FS {
             vals: kif::syscalls::ExchangeUnion {
                 s: kif::syscalls::ExchangeUnionStr {
                     i: [flags.bits() as u64, 0],
-                    s: unsafe { intrinsics::uninit() },
+                    s: unsafe { MaybeUninit::uninit().assume_init() },
                 },
             },
         };

@@ -15,6 +15,7 @@
  */
 
 use core::intrinsics;
+use core::mem::MaybeUninit;
 use m3::cap::{Capability, CapFlags, Selector};
 use m3::cell::StaticCell;
 use m3::col::{String, Vec};
@@ -94,7 +95,7 @@ impl Session {
         let mut smsg = kif::service::Open {
             opcode: kif::service::Operation::OPEN.val as u64,
             arglen: (arg.len() + 1) as u64,
-            arg: unsafe { intrinsics::uninit() },
+            arg: unsafe { MaybeUninit::uninit().assume_init() },
         };
         // copy arg
         for (a, c) in smsg.arg.iter_mut().zip(arg.bytes()) {

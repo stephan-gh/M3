@@ -18,6 +18,7 @@
 
 use cap::Selector;
 use core::intrinsics;
+use core::mem::MaybeUninit;
 use dtu;
 use errors::Error;
 use goff;
@@ -77,7 +78,7 @@ pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> 
         vpe_sel: vpe as u64,
         rgate_sel: rgate as u64,
         namelen: name.len() as u64,
-        name: unsafe { intrinsics::uninit() },
+        name: unsafe { MaybeUninit::uninit().assume_init() },
     };
 
     // copy name
@@ -182,7 +183,7 @@ pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
         group_sel: group as u64,
         kmem_sel: kmem as u64,
         namelen: name.len() as u64,
-        name: unsafe { intrinsics::uninit() },
+        name: unsafe { MaybeUninit::uninit().assume_init() },
     };
 
     // copy name
@@ -273,7 +274,7 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
         opcode: syscalls::Operation::VPE_WAIT.val,
         event: event,
         vpe_count: vpes.len() as u64,
-        sels: unsafe { intrinsics::uninit() },
+        sels: unsafe { MaybeUninit::uninit().assume_init() },
     };
     for i in 0..vpes.len() {
         req.sels[i] = vpes[i] as u64;
@@ -395,7 +396,7 @@ pub fn forward_write(mgate: Selector, data: &[u8], off: goff,
         flags: (flags | syscalls::ForwardMemFlags::WRITE).bits() as u64,
         event: event as u64,
         len: data.len() as u64,
-        data: unsafe { intrinsics::uninit() },
+        data: unsafe { MaybeUninit::uninit().assume_init() },
     };
     req.data[0..data.len()].copy_from_slice(data);
 
@@ -416,7 +417,7 @@ pub fn forward_read(mgate: Selector, data: &mut [u8], off: goff,
         flags: flags.bits() as u64,
         event: event as u64,
         len: data.len() as u64,
-        data: unsafe { intrinsics::uninit() },
+        data: unsafe { MaybeUninit::uninit().assume_init() },
     };
 
     let reply: Reply<syscalls::ForwardMemReply> = send_receive(&req)?;
