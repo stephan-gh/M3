@@ -22,6 +22,8 @@
 
 #include <base/stream/OStream.h>
 
+#include <memory>
+
 namespace m3 {
 
 class Profile;
@@ -33,9 +35,6 @@ public:
     explicit Results(size_t runs)
         : _runs(0),
           _times(new cycles_t[runs]) {
-    }
-    ~Results() {
-        delete[] _times;
     }
 
     size_t runs() const {
@@ -74,7 +73,7 @@ public:
 
 private:
     size_t _runs;
-    cycles_t *_times;
+    std::unique_ptr<cycles_t[]> _times;
 };
 
 struct Runner {
