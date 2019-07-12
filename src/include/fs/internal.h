@@ -245,6 +245,8 @@ private:
 #include <stdarg.h>
 #include <err.h>
 
+#include <memory>
+
 extern m3::SuperBlock sb;
 extern FILE *file;
 
@@ -272,8 +274,8 @@ static UNUSED m3::INode read_inode(m3::inodeno_t ino) {
 
 static UNUSED m3::blockno_t get_block_no_rec(const m3::INode &ino, m3::blockno_t indirect, size_t &no, int layer) {
     m3::blockno_t res = 0;
-    m3::Extent *extents = new m3::Extent[sb.extents_per_block()];
-    read_from_block(extents, sb.blocksize, indirect);
+    std::unique_ptr<m3::Extent[]> extents(new m3::Extent[sb.extents_per_block()]);
+    read_from_block(extents.get(), sb.blocksize, indirect);
     for(size_t i = 0; i < sb.extents_per_block(); ++i) {
         if(layer > 0) {
             res = get_block_no_rec(ino, extents[i].start, no, layer - 1);
@@ -288,7 +290,6 @@ static UNUSED m3::blockno_t get_block_no_rec(const m3::INode &ino, m3::blockno_t
             no -= extents[i].length;
         }
     }
-    delete[] extents;
     return res;
 }
 
