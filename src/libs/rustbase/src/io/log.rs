@@ -47,7 +47,7 @@ pub const RESMNG_CFG: bool    = true;
 /// Logs memory operations
 pub const RESMNG_MEM: bool    = false;
 /// Logs sendqueue operations
-pub const RESMNG_SQUEUE: bool = true;
+pub const RESMNG_SQUEUE: bool = false;
 
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";
