@@ -432,6 +432,37 @@ pub fn forward_read(mgate: Selector, data: &mut [u8], off: goff,
     }
 }
 
+pub fn forward_msg(sgate: Selector, rgate: Selector, msg: &[u8],
+                   rlabel: dtu::Label, event: u64) -> Result<(), Error> {
+    let mut req = syscalls::ForwardMsg {
+        opcode: syscalls::Operation::FORWARD_MSG.val,
+        sgate_sel: sgate as u64,
+        rgate_sel: rgate as u64,
+        len: msg.len() as u64,
+        rlabel: rlabel as u64,
+        event: event,
+        msg: unsafe { MaybeUninit::uninit().assume_init() },
+    };
+    req.msg[0..msg.len()].copy_from_slice(msg);
+
+    send_receive_result(&req)
+}
+
+pub fn forward_reply(rgate: Selector, reply: &[u8],
+                     msg_addr: usize, event: u64) -> Result<(), Error> {
+    let mut req = syscalls::ForwardReply {
+        opcode: syscalls::Operation::FORWARD_REPLY.val,
+        rgate_sel: rgate as u64,
+        msgaddr: msg_addr as u64,
+        len: reply.len() as u64,
+        event: event,
+        msg: unsafe { MaybeUninit::uninit().assume_init() },
+    };
+    req.msg[0..reply.len()].copy_from_slice(reply);
+
+    send_receive_result(&req)
+}
+
 /// The noop system call for benchmarking
 pub fn noop() -> Result<(), Error> {
     let req = syscalls::Noop {

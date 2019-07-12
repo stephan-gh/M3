@@ -20,6 +20,7 @@ use cell::StaticCell;
 use com::gate::Gate;
 use com::{GateIStream, SendGate};
 use core::fmt;
+use core::intrinsics;
 use core::ops;
 use dtu;
 use errors::{Code, Error};
@@ -258,7 +259,19 @@ impl RecvGate {
     /// Sends `reply` with `size` bytes as a reply to the message `msg`.
     #[inline(always)]
     pub fn reply_bytes(&self, reply: *const u8, size: usize, msg: &'static dtu::Message) -> Result<(), Error> {
-        dtu::DTU::reply(self.ep().unwrap(), reply, size, msg)
+        let res = dtu::DTU::reply(self.ep().unwrap(), reply, size, msg);
+        match res {
+            Ok(_)                                   => Ok(()),
+            Err(ref e) if e.code() == Code::VPEGone => {
+                // TODO switch to a different thread while waiting
+                let msg_addr: [usize; 2] = unsafe { intrinsics::transmute(msg) };
+                syscalls::forward_reply(self.sel(),
+                                        unsafe { util::slice_for(reply, size) },
+                                        msg_addr[0],
+                                        0)
+            },
+            Err(e)                                  => Err(e),
+        }
     }
 
     /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,
