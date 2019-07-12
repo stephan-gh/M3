@@ -132,24 +132,22 @@ static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps, capsel_t rmng
                         uint64_t rbufcur, uint64_t rbufend,
                         FileTable &files, MountTable &mounts) {
     size_t len = STATE_BUF_SIZE;
-    unsigned char *buf = new unsigned char[len];
+    std::unique_ptr<unsigned char[]> buf(new unsigned char[len]);
 
     write_file(pid, "nextsel", nextsel);
     write_file(pid, "eps", eps);
     write_file(pid, "rmng", rmng);
     write_file(pid, "kmem", kmem);
 
-    Marshaller m(buf, len);
+    Marshaller m(buf.get(), len);
     m << rbufcur << rbufend;
-    write_file(pid, "rbufs", buf, m.total());
+    write_file(pid, "rbufs", buf.get(), m.total());
 
-    len = mounts.serialize(buf, STATE_BUF_SIZE);
-    write_file(pid, "ms", buf, len);
+    len = mounts.serialize(buf.get(), STATE_BUF_SIZE);
+    write_file(pid, "ms", buf.get(), len);
 
-    len = files.serialize(buf, STATE_BUF_SIZE);
-    write_file(pid, "fds", buf, len);
-
-    delete[] buf;
+    len = files.serialize(buf.get(), STATE_BUF_SIZE);
+    write_file(pid, "fds", buf.get(), len);
 }
 
 void VPE::init_state() {
@@ -189,16 +187,16 @@ void VPE::init_fs() {
     _ms = nullptr;
 
     size_t len = STATE_BUF_SIZE;
-    char *buf = new char[len];
+    std::unique_ptr<char[]> buf(new char[len]);
 
-    memset(buf, 0, len);
-    if(read_from("ms", buf, len))
-        _ms = MountTable::unserialize(buf, len);
+    memset(buf.get(), 0, len);
+    if(read_from("ms", buf.get(), len))
+        _ms = MountTable::unserialize(buf.get(), len);
 
     len = STATE_BUF_SIZE;
-    memset(buf, 0, len);
-    if(read_from("fds", buf, len))
-        _fds = FileTable::unserialize(buf, len);
+    memset(buf.get(), 0, len);
+    if(read_from("fds", buf.get(), len))
+        _fds = FileTable::unserialize(buf.get(), len);
 
     // DTU is ready now; notify parent
     int pipefd;
@@ -207,8 +205,6 @@ void VPE::init_fs() {
         write(pipefd, &dummy, sizeof(dummy));
         close(pipefd);
     }
-
-    delete[] buf;
 }
 
 void VPE::run(void *lambda) {

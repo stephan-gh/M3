@@ -67,9 +67,6 @@ FStream::~FStream() {
             // ignore
         }
     }
-
-    delete _rbuf;
-    delete _wbuf;
 }
 
 void FStream::set_error(size_t res) {

@@ -163,8 +163,8 @@ private:
     void set_error(size_t res);
 
     fd_t _fd;
-    File::Buffer *_rbuf;
-    File::Buffer *_wbuf;
+    std::unique_ptr<File::Buffer> _rbuf;
+    std::unique_ptr<File::Buffer> _wbuf;
     uint _flags;
 };
 
