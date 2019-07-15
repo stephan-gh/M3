@@ -33,7 +33,7 @@ else
     REBUILD=0
 fi
 
-echo "Downloading binutils, gcc, newlib, and gdb..."
+echo -e "\e[1mDownloading binutils, gcc, newlib, and gdb...\e[0m"
 
 BINVER=2.32
 GCCVER=9.1.0
@@ -88,6 +88,7 @@ mkdir -p $BUILD/gcc $BUILD/binutils $BUILD/newlib $BUILD/gdb
 # binutils
 if $BUILD_BINUTILS; then
     if [ $REBUILD -eq 1 ] || [ ! -d $SRC/binutils ]; then
+        echo -e "\e[1mUnpacking binutils...\e[0m"
         cat ${ARCHIVE[0]} | bunzip2 | tar -C $SRC -xf -
         mv $SRC/binutils-$BINVER $SRC/binutils
         if [ -f $ARCH/binutils.diff ]; then
@@ -96,11 +97,13 @@ if $BUILD_BINUTILS; then
     fi
     cd $BUILD/binutils
     if [ $REBUILD -eq 1 ] || [ ! -f $BUILD/binutils/Makefile ]; then
+        echo -e "\e[1mConfiguring binutils...\e[0m"
         CC=$BUILD_CC $SRC/binutils/configure --target=$TARGET --prefix=$PREFIX --disable-nls --disable-werror
         if [ $? -ne 0 ]; then
             exit 1
         fi
     fi
+    echo -e "\e[1mBuilding binutils...\e[0m"
     make $MAKE_ARGS all && make install
     if [ $? -ne 0 ]; then
         exit 1
@@ -123,6 +126,7 @@ fi
 export PATH=$PATH:$PREFIX/bin
 if $BUILD_GCC; then
     if [ $REBUILD -eq 1 ] || [ ! -d $SRC/gcc ]; then
+        echo -e "\e[1mUnpacking gcc...\e[0m"
         cat ${ARCHIVE[1]} | gunzip | tar -C $SRC -xf -
         mv $SRC/gcc-$GCCVER $SRC/gcc
         if [ -f $ARCH/gcc.diff ]; then
@@ -131,6 +135,7 @@ if $BUILD_GCC; then
     fi
     cd $BUILD/gcc
     if [ $REBUILD -eq 1 ] || [ ! -f $BUILD/gcc/Makefile ]; then
+        echo -e "\e[1mConfiguring gcc...\e[0m"
         CC=$BUILD_CC \
             $SRC/gcc/configure --target=$TARGET --prefix=$PREFIX --disable-nls \
               --enable-languages=c,c++ --disable-linker-build-id
@@ -138,6 +143,7 @@ if $BUILD_GCC; then
             exit 1
         fi
     fi
+    echo -e "\e[1mBuilding gcc...\e[0m"
     make $MAKE_ARGS all-gcc && make install-gcc
     if [ $? -ne 0 ]; then
         exit 1
@@ -187,6 +193,7 @@ if $BUILD_GCC; then
     fi
 
     # now build libgcc
+    echo -e "\e[1mBuilding libgcc...\e[0m"
     make $MAKE_ARGS all-target-libgcc && make install-target-libgcc
     if [ $? -ne 0 ]; then
         exit 1
@@ -203,6 +210,7 @@ if $BUILD_CPP; then
     mkdir -p $BUILD/gcc/libstdc++-v3
     cd $BUILD/gcc/libstdc++-v3
     if [ $REBUILD -eq 1 ] || [ ! -f Makefile ]; then
+        echo -e "\e[1mConfiguring libstdc++...\e[0m"
         # pretend that we're using newlib
         CPP=$TARGET-cpp \
             $SRC/gcc/libstdc++-v3/configure --host=$TARGET --prefix=$PREFIX \
@@ -212,12 +220,14 @@ if $BUILD_CPP; then
         fi
     fi
 
+    echo -e "\e[1mBuilding libsupc++...\e[0m"
     cd include
     make $MAKE_ARGS && make install-headers
     if [ $? -ne 0 ]; then
         exit 1
     fi
 
+    echo -e "\e[1mBuilding libstdc++...\e[0m"
     cd ../libsupc++
     make $MAKE_ARGS && make install
     if [ $? -ne 0 ]; then
@@ -229,6 +239,7 @@ fi
 # gdb
 if $BUILD_GDB; then
     if [ $REBUILD -eq 1 ] || [ ! -d $SRC/gdb ]; then
+        echo -e "\e[1mUnpacking gdb...\e[0m"
         cat ${ARCHIVE[3]} | gunzip | tar -C $SRC -xf -
         mv $SRC/gdb-$GDBVER $SRC/gdb
         if [ -f $ARCH/gdb.diff ]; then
@@ -239,6 +250,7 @@ if $BUILD_GDB; then
     cd $BUILD/gdb
 
     if [ $REBUILD -eq 1 ] || [ ! -f Makefile ]; then
+        echo -e "\e[1mConfiguring gdb...\e[0m"
         $SRC/gdb/configure --target=$TARGET --prefix=$PREFIX --with-python=yes \
           --disable-nls --disable-werror --disable-gas --disable-binutils \
           --disable-ld --disable-gprof \
@@ -248,6 +260,7 @@ if $BUILD_GDB; then
         fi
     fi
 
+    echo -e "\e[1mBuilding gdb...\e[0m"
     make $MAKE_ARGS && make install
     if [ $? -ne 0 ]; then
         exit 1
