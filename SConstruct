@@ -32,7 +32,7 @@ elif target == 'gem5':
     rustabi     = 'gnueabihf'       if isa == 'arm' else 'gnu'
     cross       = 'arm-none-eabi-'  if isa == 'arm' else 'x86_64-elf-m3-'
     crt1        = 'crti.o'          if isa == 'arm' else 'crt1.o'
-    crossdir    = '/opt/m3-cross-' + isa
+    crossdir    = Dir('build/cross-' + isa).abspath
     crossver    = '9.1.0'
     configpath  = Dir('.')
 else:

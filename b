@@ -40,9 +40,9 @@ if [ "$M3_TARGET" = "host" ] || [ "$M3_TARGET" = "gem5" ]; then
     crossprefix=''
     if [ "$M3_TARGET" = "gem5" ]; then
         if [ "$M3_ISA" = "arm" ]; then
-            crossprefix='/opt/m3-cross-arm/bin/arm-none-eabi-'
+            crossprefix="./build/cross-arm/bin/arm-none-eabi-"
         else
-            crossprefix='/opt/m3-cross-x86_64/bin/x86_64-elf-m3-'
+            crossprefix="./build/cross-x86_64/bin/x86_64-elf-m3-"
         fi
     fi
 else

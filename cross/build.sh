@@ -1,6 +1,5 @@
 #!/bin/sh
 
-SUDO=sudo
 BUILD_BINUTILS=true
 BUILD_GCC=true
 BUILD_CPP=true
@@ -22,8 +21,8 @@ if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "arm" ]; then
 fi
 
 ROOT=`dirname $(readlink -f $0)`
+DIST="$(readlink -f $ROOT/..)/build/cross-$ARCH"
 BUILD=$ROOT/$ARCH/build
-DIST=/opt/m3-cross-$ARCH
 SRC=$ROOT/$ARCH/src
 BUILD_CC=gcc
 
@@ -58,11 +57,7 @@ else
     export TARGET=$ARCH-elf-m3
 fi
 
-# create dist-dir and chown it to the current user. without this we would need sudo to change anything
-# which becomes a problem when "make install" wants to use the just built cross-compiler which does
-# not by default reside in $PATH. and we can't always change $PATH for sudo (might be forbidden).
-$SUDO mkdir -p $DIST
-$SUDO chown -R $USER $DIST
+mkdir -p $DIST
 
 # cleanup
 if [ $REBUILD -eq 1 ]; then

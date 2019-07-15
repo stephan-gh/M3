@@ -36,9 +36,9 @@ Additionally, you need to build a cross compiler for the desired ISA:
     $ cd cross
     $ ./build.sh (x86_64|arm)
 
-The cross compiler will be installed to ``/opt/m3-cross-<ISA>``.
+The cross compiler will be installed to ``<m3-root>/build/cross-<ISA>``.
 
-#### Rust
+### Rust
 
 M³ is partially written in Rust and therefore you need to install Rust before building M³. Since M³ still uses some nightly features of Rust, you need the nightly version. Additionally, ``cargo-xbuild`` is required to build ``core``, ``alloc``, and other base libraries of Rust for a non-standard platforms like M³. You can install these with ``rustup`` and ``cargo``:
 
