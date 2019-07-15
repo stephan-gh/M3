@@ -323,11 +323,7 @@ case "$cmd" in
             echo "display/i \$pc" >> $tmp
             echo "b main" >> $tmp
             echo "set var wait_for_debugger = 0" >> $tmp
-            if hash rust-gdb 2>/dev/null; then
-                rust-gdb --tui $build/bin/$prog $pid --command=$tmp
-            else
-                gdb --tui $build/bin/$prog $pid --command=$tmp
-            fi
+            rust-gdb --tui $build/bin/$prog $pid --command=$tmp
 
             kill_m3_procs 2>/dev/null
             rm $tmp
@@ -352,11 +348,8 @@ case "$cmd" in
             echo "target remote localhost:$port" > $gdbcmd
             echo "display/i \$pc" >> $gdbcmd
             echo "b main" >> $gdbcmd
-            if [ "$M3_ISA" = "x86_64" ] && hash rust-gdb 2>/dev/null; then
-                rust-gdb --tui $bindir/${cmd#dbg=} --command=$gdbcmd
-            else
-                ${crossprefix}gdb --tui $bindir/${cmd#dbg=} --command=$gdbcmd
-            fi
+            RUST_GDB=${crossprefix}gdb rust-gdb --tui $bindir/${cmd#dbg=} --command=$gdbcmd
+
             killall -9 gem5.opt
             rm $gdbcmd
         elif [ "$M3_TARGET" = "t3" ]; then
@@ -374,6 +367,7 @@ case "$cmd" in
             echo "display/i \$pc" >> $gdbcmd
             echo "b main" >> $gdbcmd
             xt-gdb --tui $bindir/${cmd#dbg=} --command=$gdbcmd
+
             killall -9 t3-sim
             rm $gdbcmd
         else

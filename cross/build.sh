@@ -3,6 +3,7 @@
 BUILD_BINUTILS=true
 BUILD_GCC=true
 BUILD_CPP=true
+BUILD_GDB=true
 
 MAKE_ARGS="-j"$(nproc)
 
@@ -32,21 +33,28 @@ else
     REBUILD=0
 fi
 
-echo "Downloading binutils, gcc and newlib..."
+echo "Downloading binutils, gcc, newlib, and gdb..."
+
 BINVER=2.32
 GCCVER=9.1.0
 NEWLVER=1.20.0
+GDBVER=8.3
 
-wget -c http://ftp.gnu.org/gnu/binutils/binutils-$BINVER.tar.bz2
-wget -c http://ftp.gnu.org/gnu/gcc/gcc-$GCCVER/gcc-$GCCVER.tar.gz
-wget -c ftp://sources.redhat.com/pub/newlib/newlib-$NEWLVER.tar.gz
+ARCHIVE[0]=binutils-$BINVER.tar.bz2
+ARCHIVE[1]=gcc-$GCCVER.tar.gz
+ARCHIVE[2]=newlib-$NEWLVER.tar.gz
+ARCHIVE[3]=gdb-$GDBVER.tar.gz
 
-REG_SP="%rsp"
-REG_BP="%rbp"
+URL[0]=http://ftp.gnu.org/gnu/binutils/
+URL[1]=http://ftp.gnu.org/gnu/gcc/gcc-$GCCVER/
+URL[2]=ftp://sources.redhat.com/pub/newlib/
+URL[3]=https://ftp.gnu.org/gnu/gdb/
 
-GCC_ARCH=gcc-$GCCVER.tar.gz
-BINUTILS_ARCH=binutils-$BINVER.tar.bz2
-NEWLIB_ARCH=newlib-$NEWLVER.tar.gz
+for n in 0 1 2 3; do
+    if [ ! -f ${ARCHIVE[$n]} ]; then
+        wget -c ${URL[$n]}/${ARCHIVE[$n]}
+    fi
+done
 
 # setup
 
@@ -70,14 +78,17 @@ if [ $REBUILD -eq 1 ]; then
     if $BUILD_CPP; then
         rm -Rf $BUILD/newlib $SRC/newlib
     fi
+    if $BUILD_GDB; then
+        rm -Rf $BUILD/gdb $SRC/gdb
+    fi
     mkdir -p $SRC
 fi
-mkdir -p $BUILD/gcc $BUILD/binutils $BUILD/newlib
+mkdir -p $BUILD/gcc $BUILD/binutils $BUILD/newlib $BUILD/gdb
 
 # binutils
 if $BUILD_BINUTILS; then
-    if [ $REBUILD -eq 1 ]; then
-        cat $BINUTILS_ARCH | bunzip2 | tar -C $SRC -xf -
+    if [ $REBUILD -eq 1 ] || [ ! -d $SRC/binutils ]; then
+        cat ${ARCHIVE[0]} | bunzip2 | tar -C $SRC -xf -
         mv $SRC/binutils-$BINVER $SRC/binutils
         if [ -f $ARCH/binutils.diff ]; then
             cd $ARCH && patch -p0 < binutils.diff
@@ -103,7 +114,7 @@ if $BUILD_GCC || $BUILD_CPP; then
     # libc-functions later
     rm -Rf $DIST/$TARGET/include $DIST/$TARGET/sys-include
     mkdir -p tmp
-    cat $ROOT/$NEWLIB_ARCH | gunzip | tar -C tmp -xf - newlib-$NEWLVER/newlib/libc/include
+    cat $ROOT/${ARCHIVE[2]} | gunzip | tar -C tmp -xf - newlib-$NEWLVER/newlib/libc/include
     mv tmp/newlib-$NEWLVER/newlib/libc/include $DIST/$TARGET
     rm -Rf tmp
 fi
@@ -111,8 +122,8 @@ fi
 # gcc
 export PATH=$PATH:$PREFIX/bin
 if $BUILD_GCC; then
-    if [ $REBUILD -eq 1 ]; then
-        cat $GCC_ARCH | gunzip | tar -C $SRC -xf -
+    if [ $REBUILD -eq 1 ] || [ ! -d $SRC/gcc ]; then
+        cat ${ARCHIVE[1]} | gunzip | tar -C $SRC -xf -
         mv $SRC/gcc-$GCCVER $SRC/gcc
         if [ -f $ARCH/gcc.diff ]; then
             cd $ARCH && patch -p0 < gcc.diff
@@ -140,6 +151,9 @@ if $BUILD_GCC; then
         TMPCRT0=`mktemp`
         TMPCRT1=`mktemp`
         TMPCRTN=`mktemp`
+
+        REG_SP="%rsp"
+        REG_BP="%rbp"
 
         # we need the function prologs and epilogs. otherwise the INIT entry in the dynamic section
         # won't be created (and the init- and fini-sections don't work).
@@ -178,6 +192,9 @@ if $BUILD_GCC; then
         exit 1
     fi
     cd $ROOT
+
+    # copy crt* to basic gcc-stuff
+    cp -f $BUILD/gcc/$TARGET/libgcc/crt*.o $DIST/lib/gcc/$TARGET/$GCCVER
 fi
 
 # libsupc++
@@ -206,10 +223,36 @@ if $BUILD_CPP; then
     if [ $? -ne 0 ]; then
         exit 1
     fi
+    cd $ROOT
 fi
 
-# copy crt* to basic gcc-stuff
-cp -f $BUILD/gcc/$TARGET/libgcc/crt*.o $DIST/lib/gcc/$TARGET/$GCCVER
+# gdb
+if $BUILD_GDB; then
+    if [ $REBUILD -eq 1 ] || [ ! -d $SRC/gdb ]; then
+        cat ${ARCHIVE[3]} | gunzip | tar -C $SRC -xf -
+        mv $SRC/gdb-$GDBVER $SRC/gdb
+        if [ -f $ARCH/gdb.diff ]; then
+            cd $ARCH && patch -p0 < gdb.diff
+        fi
+    fi
+
+    cd $BUILD/gdb
+
+    if [ $REBUILD -eq 1 ] || [ ! -f Makefile ]; then
+        $SRC/gdb/configure --target=$TARGET --prefix=$PREFIX --with-python=yes \
+          --disable-nls --disable-werror --disable-gas --disable-binutils \
+          --disable-ld --disable-gprof \
+          --enable-tui
+        if [ $? -ne 0 ]; then
+            exit 1
+        fi
+    fi
+
+    make $MAKE_ARGS && make install
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+fi
 
 # create basic symlinks
 rm -Rf $DIST/$TARGET/include
