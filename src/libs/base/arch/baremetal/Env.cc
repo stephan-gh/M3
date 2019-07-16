@@ -28,10 +28,6 @@ EXTERN_C int main(int argc, char **argv);
 namespace m3 {
 
 OStream &operator<<(OStream &os, const Env &senv) {
-#if defined(__t2__) || defined(__t3__)
-    static_assert((sizeof(Env) % DTU_PKG_SIZE) == 0, "sizeof(Env) % 8 !=  0");
-#endif
-
     os << "pe    : " << senv.pe << "\n";
     os << "argc  : " << senv.argc << "\n";
     os << "argv  : " << fmt(senv.argv, "p") << "\n";

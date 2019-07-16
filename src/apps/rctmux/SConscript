@@ -1,27 +1,6 @@
 Import('env')
 
-# define useful variables
-archdir = 'arch/' + env['ARCH']
-archdir_absolute = '#src/apps/rctmux/' + archdir
-
-# t3
-if env['ARCH'] == 't3':
-    rctmux = env.M3Program(
-        env,
-        target = 'rctmux',
-        source = [
-            env['BINARYDIR'].abspath + '/Window.o',
-            env.Glob('*.cc'),
-            env.Glob(archdir + '/*.S'),
-            env.Glob(archdir + '/*.cc'),
-        ],
-        NoSup = True,
-        ldscript = File(archdir_absolute + '/link-elf32.ld'),
-        libs = ['c', 'handler-reset', 'hal', 'handlers-sim']
-    )
-    env.Depends(rctmux, File(archdir_absolute + '/link-elf32.ld'))
-# gem5
-elif env['ARCH'] == 'gem5':
+if env['ARCH'] == 'gem5':
     myenv = env.Clone()
 
     # -O0 makes the code too large. Better use -Og here.
@@ -37,8 +16,8 @@ elif env['ARCH'] == 'gem5':
         source = [
             env.Glob('arch/gem5-$ISA/*.S'),
             env.Glob('arch/gem5-$ISA/*.cc'),
-            env.Glob(archdir + '/*.S'),
-            env.Glob(archdir + '/*.cc'),
+            env.Glob('arch/' + env['ARCH'] + '/*.S'),
+            env.Glob('arch/' + env['ARCH'] + '/*.cc'),
             env.Glob('*.cc'),
         ],
         NoSup = True,

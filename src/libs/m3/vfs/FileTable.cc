@@ -141,15 +141,12 @@ FileTable *FileTable::unserialize(const void *buffer, size_t size) {
             case 'S':
                 obj->_fds[fd] = Reference<File>(SerialFile::unserialize(um));
                 break;
-// TODO currently, m3fs gets too large when enabling that
-#if !defined(__t2__)
             case 'P':
                 obj->_fds[fd] = Reference<File>(DirectPipeWriter::unserialize(um));
                 break;
             case 'Q':
                 obj->_fds[fd] = Reference<File>(DirectPipeReader::unserialize(um));
                 break;
-#endif
         }
     }
     return obj;

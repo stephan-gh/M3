@@ -17,7 +17,6 @@
 #pragma once
 
 #include <base/Common.h>
-#include <c/div.h>
 
 namespace m3 {
 
@@ -35,8 +34,7 @@ public:
     static uint count_unsigned(T n, uint base) {
         uint width = 1;
         while(n >= base) {
-            T rem;
-            n = divide(n, base, &rem);
+            n /= base;
             width++;
         }
         return width;
@@ -56,8 +54,7 @@ public:
             n = -n;
         }
         while(n >= base) {
-            T rem;
-            n = divide(n, base, &rem);
+            n /= base;
             width++;
         }
         return width;

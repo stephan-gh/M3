@@ -1,2 +1,0 @@
-Import('hostenv')
-hostenv.Program(target = 'logfilter', source = hostenv.Glob('*.cc'))

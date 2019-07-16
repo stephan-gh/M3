@@ -97,32 +97,12 @@ private:
  */
 class AutoGateOStream : public GateOStream {
 public:
-#if defined(__t2__) or defined(__t3__)
-    // TODO alloca() uses movsp which causes an exception to be handled appropriately. since this
-    // isn't that trivial to implement, we're using malloc instead.
-    explicit AutoGateOStream(size_t size) noexcept
-        : GateOStream(static_cast<unsigned char*>(malloc(Math::round_up(size, DTU_PKG_SIZE))),
-                      Math::round_up(size, DTU_PKG_SIZE)) {
-    }
-    ~AutoGateOStream() {
-        free(this->_bytes);
-    }
-#else
     ALWAYS_INLINE explicit AutoGateOStream(size_t size) noexcept
         : GateOStream(static_cast<unsigned char*>(alloca(Math::round_up(size, DTU_PKG_SIZE))),
                       Math::round_up(size, DTU_PKG_SIZE)) {
     }
-#endif
 
     AutoGateOStream(AutoGateOStream &&os) noexcept : GateOStream(os) {
-    }
-
-    bool is_on_heap() const noexcept {
-#if defined(__t2__) or defined(__t3__)
-        return true;
-#else
-        return false;
-#endif
     }
 
     /**

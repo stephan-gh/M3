@@ -11,5 +11,4 @@ Cargo.lock
 /cross/*.tar.gz
 /cross/*.tar.bz2
 /run
-/hw/th/config.ini
 /config.log

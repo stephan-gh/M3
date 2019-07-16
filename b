@@ -18,11 +18,7 @@ if [ -z $M3_GEM5_OUT ]; then
     M3_GEM5_OUT="run"
 fi
 
-if [ "$M3_TARGET" = "t3" ]; then
-    M3_ISA='xtensa'
-elif [ "$M3_TARGET" = "t2" ]; then
-    M3_ISA='xtensa'
-elif [ "$M3_TARGET" = "gem5" ]; then
+if [ "$M3_TARGET" = "gem5" ]; then
     if [ "$M3_ISA" != "arm" ]; then
         M3_ISA='x86_64'
     fi
@@ -35,33 +31,14 @@ fi
 
 export M3_BUILD M3_TARGET M3_ISA
 
-if [ "$M3_TARGET" = "host" ] || [ "$M3_TARGET" = "gem5" ]; then
-    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
-    crossprefix=''
-    if [ "$M3_TARGET" = "gem5" ]; then
-        if [ "$M3_ISA" = "arm" ]; then
-            crossprefix="./build/cross-arm/bin/arm-none-eabi-"
-        else
-            crossprefix="./build/cross-x86_64/bin/x86_64-elf-m3-"
-        fi
-    fi
-else
-    . hw/th/config.ini
-    crossprefix="/opt/m3-cross-xtensa/bin/xtensa-elf-m3-"
-    if [ "$M3_TARGET" = "t3" ]; then
-        toolversion="RE-2014.5-linux"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
+crossprefix=''
+if [ "$M3_TARGET" = "gem5" ]; then
+    if [ "$M3_ISA" = "arm" ]; then
+        crossprefix="./build/cross-arm/bin/arm-none-eabi-"
     else
-        toolversion="RD-2011.2-linux"
+        crossprefix="./build/cross-x86_64/bin/x86_64-elf-m3-"
     fi
-    tooldir=$xtroot/XtDevTools/install/tools/$toolversion/XtensaTools/bin
-    export PATH=$tooldir:$PATH
-
-    if [ "$M3_TARGET" = "t3" ]; then
-        export XTENSA_CORE='Pe_4MB_128k_4irq'
-    else
-        export XTENSA_CORE='oi_lx4_PE_6'
-    fi
-    export XTENSA_SYSTEM=$cfgpath/$XTENSA_CORE/config
 fi
 
 # rust env vars
@@ -77,7 +54,7 @@ help() {
     echo ""
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
-    echo "variables that influence its behaviour are M3_TARGET=(host|t2|t3|gem5),"
+    echo "variables that influence its behaviour are M3_TARGET=(host|gem5),"
     echo "M3_ISA=(x86_64|arm) [on gem5 only], and M3_BUILD=(debug|release)."
     echo "You can also prevent the script from building everything by specifying -n or"
     echo "--no-build. In this case, only the specified command is executed."
@@ -93,7 +70,6 @@ help() {
     echo "    macros=<path>:           expand rust macros for app in <path>."
     echo "    dbg=<prog> <script>:     run <script> and debug <prog> in gdb"
     echo "    dis=<prog>:              run objdump -SC <prog> (the cross-compiler version)"
-    echo "    disp=<prog>:             run objdump -SC <prog> and use pimpdisasm.awk"
     echo "    elf=<prog>:              run readelf -a <prog> (the cc version)"
     echo "    nms=<prog>:              run nm -SC --size-sort <prog> (the cc version)"
     echo "    nma=<prog>:              run nm -SCn <prog> (the cc version)"
@@ -103,14 +79,13 @@ help() {
     echo "    shfs=<fsimg> ...:        show m3-fs in <fsimg>"
     echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>"
     echo "    exfs=<fsimg> <dir>:      export contents of <fsimg> to <dir>"
-    echo "    memlayout:               show the memory layout using const2ini"
     echo "    bt=<prog>:               print the backtrace, using given symbols"
     echo "    list:                    list the link-address of all programs"
     echo ""
     echo "Environment variables:"
     echo "    M3_TARGET:               the target. Either 'host' for using the Linux-based"
-    echo "                             coarse-grained simulator, or 'gem5' or 't2'/'t3' for"
-    echo "                             tomahawk 2/3. The default is 'host'."
+    echo "                             coarse-grained simulator, or 'gem5'. The default is"
+    echo "                             'host'."
     echo "    M3_ISA:                  the ISA to use. On gem5, 'arm' and 'x86_64' is"
     echo "                             supported. On other targets, it is ignored."
     echo "    M3_BUILD:                the build-type. Either debug or release. In debug"
@@ -120,11 +95,7 @@ help() {
     echo "    M3_CFLAGS:               flags to pass to the preprocessor."
     echo "    M3_VERBOSE:              print executed commands in detail during build."
     echo "    M3_VALGRIND:             for runvalgrind: pass arguments to valgrind."
-    echo "    M3_CORES:                # of cores to simulate (only considered on t3)."
-    echo "                             This overwrites the default from Config.h."
-    echo "                             Note also that this only affects the number of"
-    echo "                             added idle-cores."
-    echo "    M3_NOTRACE:              Disable per-core tracing on t3."
+    echo "    M3_CORES:                # of cores to simulate."
     echo "    M3_FS:                   The filesystem to use (filename only)."
     echo "    M3_HDD:                  The hard drive image to use (filename only)."
     echo "    M3_FSBPE:                The blocks per extent (0 = unlimited)."
@@ -142,8 +113,6 @@ help() {
     echo "    M3_GEM5_FSNUM:           The number of times to load the FS image."
     echo "    M3_PAUSE_PE:             Pause the PE with given number until GDB connects"
     echo "                             (only on gem5 and with command dbg=)."
-    echo "    M3_SSH_PREFIX:           The prefix for the ssh aliases used for T2."
-    echo "                             These are th and thshell."
     exit 0
 }
 
@@ -194,7 +163,6 @@ if $dobuild; then
 fi
 
 mkdir -p run
-./src/tools/remmsgq.sh
 
 run_on_host() {
     echo -n > run/log.txt
@@ -352,48 +320,13 @@ case "$cmd" in
 
             killall -9 gem5.opt
             rm $gdbcmd
-        elif [ "$M3_TARGET" = "t3" ]; then
-            truncate --size=0 run/xtsc.log
-            ./src/tools/execute.sh $script --debug=${cmd#dbg=} 1>run/log.txt 2>&1 &
-
-            # figure out the port that has been used
-            while [ "`grep 'Debug info: port=' run/xtsc.log`" = "" ]; do
-                sleep 1
-            done
-            port=`grep 'Debug info: port=' run/xtsc.log | sed -e 's/.*port=\([[:digit:]]*\).*/\1/'`
-
-            gdbcmd=`mktemp`
-            echo "target remote localhost:$port" > $gdbcmd
-            echo "display/i \$pc" >> $gdbcmd
-            echo "b main" >> $gdbcmd
-            xt-gdb --tui $bindir/${cmd#dbg=} --command=$gdbcmd
-
-            killall -9 t3-sim
-            rm $gdbcmd
         else
             echo "Not supported"
         fi
         ;;
 
     dis=*)
-        # the binutils from the latest cross-compiler seems to be buggy. it can't decode some
-        # instruction properly. maybe it doesn't know about the differences between the cores?
-        # thus, we use the one from tensilica
-        if [ "$M3_TARGET" = "host" ] || [ "$M3_TARGET" = "gem5" ]; then
-            objdump=${crossprefix}objdump
-        else
-            objdump=xt-objdump
-        fi
-        $objdump -SC $bindir/${cmd#dis=} | less
-        ;;
-
-    disp=*)
-        if [ "$M3_TARGET" = "t2" ] || [ "$M3_TARGET" = "t3" ]; then
-            xt-objdump -dC $bindir/${cmd#disp=} | \
-                awk -v EXEC=$bindir/${cmd#disp=} -f ./src/tools/pimpdisasm.awk | less
-        else
-            echo "Not supported"
-        fi
+        ${crossprefix}objdump -SC $bindir/${cmd#dis=} | less
         ;;
 
     elf=*)
@@ -466,13 +399,6 @@ case "$cmd" in
 
     exfs=*)
         $build/src/tools/exm3fs/exm3fs $build/${cmd#exfs=} $script
-        ;;
-
-    memlayout)
-        $build/src/tools/consts2ini/consts2ini | awk '{
-            if($3)
-                printf("%s = %#x\n", $1, $3);
-        }'
         ;;
 
     bt=*)

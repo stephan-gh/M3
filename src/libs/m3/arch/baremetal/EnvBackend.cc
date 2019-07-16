@@ -48,19 +48,9 @@ public:
         while(senv->pe == 0)
             ;
 
-#if defined(__t3__)
-        // set default receive buffer again
-        RecvGate &def = RecvGate::def();
-        DTU::get().configure_recv(def.ep(), reinterpret_cast<word_t>(def.addr()),
-            def.order(), def.msgorder(), def.flags());
-#endif
-
         uint64_t *argv = reinterpret_cast<uint64_t*>(env()->argv);
         Serial::init(argv ? reinterpret_cast<char*>(argv[0]) : "Unknown", senv->pe);
         EPMux::get().reset();
-#if defined(__t2__)
-        DTU::get().reset();
-#endif
 
         VPE::reset();
     }

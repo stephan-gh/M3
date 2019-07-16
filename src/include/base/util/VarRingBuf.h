@@ -21,10 +21,6 @@
 
 #include <algorithm>
 
-#if !defined(SINGLE_ITEM_BUF)
-#   define SINGLE_ITEM_BUF  0
-#endif
-
 class VarRingBuf {
 public:
     explicit VarRingBuf(size_t size)
@@ -49,7 +45,7 @@ public:
      * @return the write position of the buffer, or -1 if the buffer does not has <size> bytes of consecutive free memory
      */
     ssize_t get_write_pos(size_t size) {
-        if(SINGLE_ITEM_BUF || (_wrpos % DTU_PKG_SIZE)) {
+        if(_wrpos % DTU_PKG_SIZE) {
             if(!empty())
                 return -1;
             _wrpos = m3::Math::round_up(_wrpos, DTU_PKG_SIZE);

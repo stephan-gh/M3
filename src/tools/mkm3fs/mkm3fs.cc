@@ -292,11 +292,7 @@ int main(int argc,char **argv) {
 
     srand(static_cast<uint>(time(nullptr)));
 
-#if defined(__t2__) || defined(__t3__)
-    sb.blocksize = 1024;
-#else
     sb.blocksize = 4096;
-#endif
     sb.total_blocks = strtoul(argv[3], nullptr, 0);
     sb.total_inodes = strtoul(argv[4], nullptr, 0);
     sb.free_blocks = sb.total_blocks;

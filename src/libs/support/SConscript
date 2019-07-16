@@ -1,6 +1,6 @@
 Import('env')
 
 if env['ARCH'] != 'host':
-    for f in [env.Glob('$ARCHTYPE/*.S'), env.Glob('$ARCHTYPE-$ISA/*.S')]:
+    for f in [env.Glob('$ARCH/*.S'), env.Glob('$ARCH-$ISA/*.S')]:
         obj = env.Object(source = f)
         env.Install(env['SYSGCCLIBPATH'], obj)

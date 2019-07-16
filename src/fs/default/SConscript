@@ -6,7 +6,3 @@ if env['ARCH'] == 'host':
 else:
     blocks = 16 * 1024
 env.BuildFSImage(target = 'default.img', source = '$FSDIR/default', blocks = blocks, inodes = 512)
-
-if env['ARCH'] in ['t2', 't3']:
-    args = '--sim' if env['ARCH'] == 't3' else ''
-    env.M3FileDump(target = 'default.img.mem', source = 'default.img', addr = 0x1000000, args = args)

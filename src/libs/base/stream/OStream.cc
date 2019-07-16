@@ -17,7 +17,6 @@
 #include <base/stream/OStream.h>
 #include <base/util/Digits.h>
 #include <base/util/Math.h>
-#include <c/div.h>
 #include <string.h>
 
 namespace m3 {
@@ -172,12 +171,10 @@ size_t OStream::printpad(size_t count, int flags) {
 }
 
 USED size_t OStream::printu(ullong n, uint base, char *chars) {
-    ullong rem;
-    ullong quot = divide(n, base, &rem);
     size_t res = 0;
     if(n >= base)
-        res += printu(quot, base, chars);
-    write(chars[rem]);
+        res += printu(n / base, base, chars);
+    write(chars[n % base]);
     return res + 1;
 }
 
@@ -189,11 +186,9 @@ USED size_t OStream::printn(llong n) {
         res++;
     }
 
-    llong rem;
-    llong quot = divide(n, 10, &rem);
     if(n >= 10)
-        res += printn(quot);
-    write('0' + rem);
+        res += printn(n / 10);
+    write('0' + (n % 10));
     return res + 1;
 }
 

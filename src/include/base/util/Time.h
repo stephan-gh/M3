@@ -32,18 +32,4 @@ public:
     static cycles_t stop(unsigned id = 0);
 };
 
-#if defined(__t3__)
-inline cycles_t Time::start(unsigned id) {
-    CPU::compiler_barrier();
-    DTU::get().debug_msg(START_TSC | id);
-    return 0;
-}
-
-inline cycles_t Time::stop(unsigned id) {
-    DTU::get().debug_msg(STOP_TSC | id);
-    CPU::compiler_barrier();
-    return 0;
-}
-#endif
-
 }

@@ -15,7 +15,6 @@
  */
 
 #include <base/stream/Serial.h>
-#include <c/div.h>
 #include <string.h>
 
 namespace m3 {
@@ -39,8 +38,7 @@ void Serial::init(const char *path, peid_t pe) {
     size_t i = 0;
     strcpy(_inst->_outbuf + i, "\e[0;");
     i += 4;
-    ulong col;
-    divide(pe, ARRAY_SIZE(_colors), &col);
+    ulong col = pe % ARRAY_SIZE(_colors);
     strcpy(_inst->_outbuf + i, _colors[col]);
     i += 2;
     _inst->_outbuf[i++] = 'm';
@@ -89,10 +87,8 @@ bool Serial::putback(char c) {
 }
 
 void Serial::flush() {
-#if !defined(__t2__)
     strcpy(_outbuf + _outpos, "\e[0m");
     _outpos += SUFFIX_LEN;
-#endif
     Machine::write(_outbuf, _outpos);
     // keep prefix
     _outpos = _start;

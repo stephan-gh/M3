@@ -1,3 +1,0 @@
-Import('env')
-if env['ARCH'] == 't2':
-    env.SConscript('$ARCHTYPE/SConscript', 'env')

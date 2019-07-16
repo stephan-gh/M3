@@ -18,10 +18,6 @@
 
 #if defined(__host__)
 #   include <base/arch/host/DTU.h>
-#elif defined(__t2__)
-#   include <base/arch/t2/DTU.h>
-#elif defined(__t3__)
-#   include <base/arch/t3/DTU.h>
 #elif defined(__gem5__)
 #   include <base/arch/gem5/DTU.h>
 #else

@@ -67,7 +67,6 @@ static const T *get_message(const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::init() {
-#if !defined(__t2__)
     // configure both receive buffers (we need to do that manually in the kernel)
     // TODO we also need to make sure that a VPE's syscall slot isn't in use if we suspend it
     for(size_t i = 0; i < SYSC_REP_COUNT; ++i) {
@@ -81,7 +80,6 @@ void SyscallHandler::init() {
     size_t bufsize = static_cast<size_t>(1) << buford;
     DTU::get().recv_msgs(srvep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, m3::nextlog2<256>::val);
-#endif
 
     add_operation(m3::KIF::Syscall::PAGEFAULT,      &SyscallHandler::page_fault);
     add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::create_srv);
@@ -1119,6 +1117,7 @@ void SyscallHandler::forward_reply(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "RGate cap is not activated");
     epid_t ep = epobj->ep;
 
+    // TODO that's not necessary!!!!
     // ensure that the VPE is running, because we need to access it's address space
     while(vpe->state() != VPE::RUNNING) {
         if(!vpe->resume())

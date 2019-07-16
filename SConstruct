@@ -1,32 +1,9 @@
 import os, sys
-try:
-    import ConfigParser
-except:
-    import configparser
-from io import StringIO
 sys.path.insert(0, 'src/tools')
 import install
 
 target = os.environ.get('M3_TARGET')
-if target == 't2' or target == 't3':
-    toolversion = 'RE-2014.5-linux'  if target == 't3' else 'RD-2011.2-linux'
-    core        = 'Pe_4MB_128k_4irq' if target == 't3' else 'oi_lx4_PE_6'
-    runtime     = 'sim'              if target == 't3' else 'min-rt'
-    isa         = 'xtensa'
-    cross       = 'xtensa-buildroot-linux-uclibc-'
-    crossver    = '5.3.0'
-
-    # config (prefix it with [root] to make it usable from bash and python)
-    ini_str = '[root]\n' + open('hw/th/config.ini', 'r').read()
-    config = configparser.RawConfigParser()
-    config.readfp(StringIO.StringIO(ini_str))
-
-    crossdir    = Dir(config.get('root', 'buildroot')).abspath + '/host/usr/'
-    configpath  = Dir(config.get('root', 'cfgpath'))
-    xtroot      = Dir(config.get('root', 'xtroot'))
-    tooldir     = Dir(xtroot.abspath + '/XtDevTools/install/tools/' + toolversion + '/XtensaTools/bin')
-    crtdir      = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
-elif target == 'gem5':
+if target == 'gem5':
     isa = os.environ.get('M3_ISA', 'x86_64')
 
     rustabi     = 'gnueabihf'       if isa == 'arm' else 'gnu'
@@ -127,7 +104,7 @@ hostenv.Append(
 # for target compilation
 env = baseenv.Clone()
 env.Append(
-    CXXFLAGS = ' -ffreestanding -fno-strict-aliasing -gdwarf-2' \
+    CXXFLAGS = ' -ffreestanding -fno-strict-aliasing -gdwarf-2 -fno-omit-frame-pointer' \
         ' -fno-threadsafe-statics -fno-stack-protector -Wno-address-of-packed-member',
     CPPFLAGS = ' -U_FORTIFY_SOURCE',
     CFLAGS = ' -gdwarf-2 -fno-stack-protector',
@@ -140,44 +117,30 @@ if int(verbose) != 0:
     env.Append(CRGFLAGS = ' -v')
 
 # add target-dependent stuff to env
-if target == 't2' or target == 't3':
-    env.Append(
-        # align it appropriately for the DTU
-        LINKFLAGS = ' -nostdlib -Wl,-z,max-page-size=8 -Wl,-z,common-page-size=8',
-        CPPPATH = [
-            Dir(configpath.abspath + '/' + core + '/xtensa-elf/arch/include'),
-            Dir(xtroot.abspath + '/XtDevTools/install/tools/' + toolversion + '/XtensaTools/xtensa-elf/include')
-        ],
-        SUPDIR = Dir(configpath.abspath + '/' + core + '/xtensa-elf/arch/lib'),
-        CRTDIR = Dir(crtdir)
-    )
-    env.Replace(ENV = {'PATH' : crossdir + '/bin:' + tooldir.abspath + ':' + os.environ['PATH']})
-else:
-    env.Append(CXXFLAGS = ' -fno-omit-frame-pointer')
-    if target == 'gem5':
-        if isa == 'x86_64':
-            # disable red-zone for all applications, because we use the application's stack in rctmux's
-            # IRQ handlers since applications run in privileged mode.
-            env.Append(CFLAGS = ' -mno-red-zone')
-            env.Append(CXXFLAGS = ' -mno-red-zone')
-        else:
-            env.Append(CFLAGS = ' -march=armv7-a')
-            env.Append(CXXFLAGS = ' -march=armv7-a')
-            env.Append(LINKFLAGS = ' -march=armv7-a')
-            env.Append(ASFLAGS = ' -march=armv7-a')
-        env.Append(CPPPATH = [
-            '#src/include/c',
-            crossdir + '/include/c++/' + crossver,
-            crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
-        ])
-        # we install the crt* files to that directory
-        env.Append(SYSGCCLIBPATH = Dir(crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver))
-        # no build-id because it confuses gem5
-        env.Append(LINKFLAGS = ' -static -Wl,--build-id=none')
-        # binaries get very large otherwise
-        env.Append(LINKFLAGS = ' -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096')
-        # add cross-compiler binary dir to PATH
-        env['ENV']['PATH'] = crossdir + '/bin:' + env['ENV']['PATH']
+if target == 'gem5':
+    if isa == 'x86_64':
+        # disable red-zone for all applications, because we use the application's stack in rctmux's
+        # IRQ handlers since applications run in privileged mode.
+        env.Append(CFLAGS = ' -mno-red-zone')
+        env.Append(CXXFLAGS = ' -mno-red-zone')
+    else:
+        env.Append(CFLAGS = ' -march=armv7-a')
+        env.Append(CXXFLAGS = ' -march=armv7-a')
+        env.Append(LINKFLAGS = ' -march=armv7-a')
+        env.Append(ASFLAGS = ' -march=armv7-a')
+    env.Append(CPPPATH = [
+        '#src/include/c',
+        crossdir + '/include/c++/' + crossver,
+        crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
+    ])
+    # we install the crt* files to that directory
+    env.Append(SYSGCCLIBPATH = Dir(crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver))
+    # no build-id because it confuses gem5
+    env.Append(LINKFLAGS = ' -static -Wl,--build-id=none')
+    # binaries get very large otherwise
+    env.Append(LINKFLAGS = ' -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096')
+    # add cross-compiler binary dir to PATH
+    env['ENV']['PATH'] = crossdir + '/bin:' + env['ENV']['PATH']
 
 env.Replace(CXX = cross + 'g++')
 env.Replace(AS = cross + 'gcc')
@@ -189,44 +152,28 @@ env.Replace(RANLIB = cross + 'gcc-ranlib')
 # add build-dependent flags (debug/release)
 btype = os.environ.get('M3_BUILD', 'release')
 if btype == 'debug':
-    if target == 'gem5':
-        env.Append(CXXFLAGS = ' -O0 -g')
-        env.Append(CFLAGS = ' -O0 -g')
-    elif target == 'host':
-        env.Append(CXXFLAGS = ' -O0 -g -fsanitize=address -fsanitize=undefined')
-        env.Append(CFLAGS = ' -O0 -g -fsanitize=address -fsanitize=undefined')
+    env.Append(CXXFLAGS = ' -O0 -g')
+    env.Append(CFLAGS = ' -O0 -g')
+    if target == 'host':
+        env.Append(CXXFLAGS = ' -fsanitize=address -fsanitize=undefined')
+        env.Append(CFLAGS = ' -fsanitize=address -fsanitize=undefined')
         env.Append(LINKFLAGS = ' -fsanitize=address -fsanitize=undefined -lasan -lubsan')
-    else:
-        # use -Os here because otherwise the binaries tend to get larger than 32k
-        env.Append(CXXFLAGS = ' -Os -g')
-        env.Append(CFLAGS = ' -Os -g')
     env.Append(ASFLAGS = ' -g')
     hostenv.Append(CXXFLAGS = ' -O0 -g')
     hostenv.Append(CFLAGS = ' -O0 -g')
 else:
     env.Append(CRGFLAGS = ' --release')
-    if target == 't2':
-        env.Append(CXXFLAGS = ' -Os -DNDEBUG -flto')
-        env.Append(CFLAGS = ' -Os -DNDEBUG -flto')
-        env.Append(LINKFLAGS = ' -Os -flto')
-    else:
-        env.Append(CXXFLAGS = ' -O2 -DNDEBUG -flto')
-        env.Append(CFLAGS = ' -O2 -DNDEBUG -flto')
-        env.Append(LINKFLAGS = ' -O2 -flto')
+    env.Append(CXXFLAGS = ' -O2 -DNDEBUG -flto')
+    env.Append(CFLAGS = ' -O2 -DNDEBUG -flto')
+    env.Append(LINKFLAGS = ' -O2 -flto')
 builddir = 'build/' + target + '-' + isa + '-' + btype
 
 env.Append(CPPFLAGS = ' -DBUILD_DIR=' + builddir)
-
-if target == 't2' or target == 't3':
-    archtype = 'th'
-else:
-    archtype = target
 
 # add some important paths
 env.Append(
     ARCH = target,
     ISA = isa,
-    ARCHTYPE = archtype,
     BUILD = btype,
     CFGS = configpath,
     BUILDDIR = Dir(builddir),
@@ -238,17 +185,6 @@ env.Append(
 hostenv.Append(
     BINARYDIR = env['BINARYDIR']
 )
-
-def M3FileDump(env, target, source, addr, args = ''):
-    dump = env.Command(
-        target, source,
-        Action(
-            '$BUILDDIR/src/tools/dumpfile/dumpfile $SOURCE 0x%x %s > $TARGET' % (addr, args),
-            '$DUMPCOMSTR'
-        )
-    )
-    env.Depends(dump, '$BUILDDIR/src/tools/dumpfile/dumpfile')
-    env.Install('$MEMDIR', dump)
 
 def M3Mkfs(env, target, source, blocks, inodes, blks_per_ext):
     fs = env.Command(
@@ -295,46 +231,7 @@ def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False, tgtc
 
     m3libs = ['base', 'thread'] if target == 'kernel' else ['base', 'm3', 'thread']
 
-    if myenv['ARCH'] == 't2' or myenv['ARCH'] == 't3':
-        # set variables, depending on core
-        if tgtcore is None:
-            tgtcore = core
-        runtimedir = configpath.abspath + '/' + tgtcore + '/xtensa-elf/lib/' + runtime
-
-        sources = []
-        if not NoSup:
-            sources += [
-                myenv['LIBDIR'].abspath + '/crti.o',
-                crtdir + '/crtbegin.o',
-                crtdir + '/crtend.o',
-                myenv['LIBDIR'].abspath + '/crtn.o',
-                myenv['LIBDIR'].abspath + '/Window.o'
-            ]
-            libs = ['hal', 'handlers-sim', 'gcc', 'c'] + m3libs + libs
-        sources += source
-
-        if ldscript is None:
-            ldscript = File(runtimedir + '/ldscripts/elf32xtensa.x')
-        myenv.Append(LINKFLAGS = ' -Wl,-T,' + ldscript.abspath)
-
-        myenv.Append(CPPPATH = [
-            '#src/include',
-            Dir(configpath.abspath + '/' + tgtcore + '/xtensa-elf/arch/include'),
-            Dir(xtroot.abspath + '/XtDevTools/install/tools/' + toolversion + '/XtensaTools/xtensa-elf/include'),
-        ])
-
-        prog = myenv.Program(
-            target,
-            sources,
-            LIBS = ['handler-reset'] + libs,
-            LIBPATH = [myenv['LIBDIR'], myenv['SUPDIR']] + libpaths,
-            SUPDIR = Dir(configpath.abspath + '/' + tgtcore + '/xtensa-elf/arch/lib')
-        )
-        myenv.M3MemDump(target + '.mem', prog)
-        myenv.Depends(prog, ldscript)
-        myenv.Depends(prog, File(runtimedir + '/specs'))
-        myenv.Depends(prog, myenv['LIBDIR'].abspath + '/libm3.a')
-    elif myenv['ARCH'] == 'gem5':
+    if myenv['ARCH'] == 'gem5':
         if not NoSup:
             baselibs = ['gcc', 'c', 'm', 'stdc++', 'supc++', 'heap']
             if env['ISA'] == 'x86_64':
@@ -425,7 +322,6 @@ def RustProgram(env, target, libs = []):
     return prog
 
 env.AddMethod(Cargo)
-env.AddMethod(M3FileDump)
 env.AddMethod(M3Mkfs)
 env.AddMethod(M3Strip)
 env.AddMethod(M3CPP)

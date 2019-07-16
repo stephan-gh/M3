@@ -41,13 +41,8 @@ static void *get_rgate_buf(UNUSED size_t off) {
 }
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
-#if defined(__host__) || defined(__gem5__)
     VPE::self(), ObjCap::INVALID, DTU::SYSC_REP, get_rgate_buf(0),
         m3::nextlog2<SYSC_RBUF_SIZE>::val, SYSC_RBUF_ORDER, 0
-#else
-    VPE::self(), ObjCap::INVALID, DTU::SYSC_REP, reinterpret_cast<void*>(DEF_RCVBUF),
-        DEF_RCVBUF_MSGORDER, DEF_RCVBUF_MSGORDER, 0
-#endif
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
@@ -141,11 +136,6 @@ void RecvGate::activate(epid_t _ep, uintptr_t addr) {
     assert(ep() == UNBOUND);
 
     ep(_ep);
-
-#if defined(__t3__)
-    // required for t3 because one can't write to these registers externally
-    DTU::get().configure_recv(ep(), addr, order(), msgorder(), flags());
-#endif
 
     if(sel() != ObjCap::INVALID)
         Syscalls::activate(_vpe.ep_to_sel(ep()), sel(), addr);

@@ -25,8 +25,6 @@
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
-#include <c/div.h>
-
 namespace m3 {
 
 INIT_PRIO_EPMUX EPMux EPMux::_inst;
@@ -103,12 +101,8 @@ bool EPMux::is_in_use(epid_t ep) const {
 epid_t EPMux::select_victim() {
     epid_t victim = _next_victim;
     for(size_t count = 0; count < EP_COUNT; ++count) {
-        if(!VPE::self().is_ep_free(victim) || is_in_use(victim)) {
-            // victim = (victim + 1) % EP_COUNT
-            size_t rem;
-            divide(victim + 1, static_cast<size_t>(EP_COUNT), &rem);
-            victim = rem;
-        }
+        if(!VPE::self().is_ep_free(victim) || is_in_use(victim))
+            victim = (victim + 1) % EP_COUNT;
         else
             goto done;
     }
@@ -118,10 +112,7 @@ done:
     if(_gates[victim] != nullptr)
         _gates[victim]->_ep = Gate::UNBOUND;
 
-    // _next_victim = (victim + 1) % EP_COUNT
-    size_t rem;
-    divide(victim + 1, static_cast<size_t>(EP_COUNT), &rem);
-    _next_victim = rem;
+    _next_victim = (victim + 1) % EP_COUNT;
     return victim;
 }
 

@@ -16,10 +16,6 @@
 
 #pragma once
 
-#if defined(__t3__)
-#   include <base/arch/t3/RCTMux.h>
-#endif
-
 namespace m3 {
 
 /**

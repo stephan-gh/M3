@@ -1,2 +1,0 @@
-Import('hostenv')
-hostenv.Program(target = 'dumpfile', source = hostenv.Glob('*.cc'))

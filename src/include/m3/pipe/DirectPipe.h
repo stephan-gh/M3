@@ -24,10 +24,6 @@
 #include <m3/com/SendGate.h>
 #include <m3/VPE.h>
 
-#if !defined(SINGLE_ITEM_BUF)
-#   define SINGLE_ITEM_BUF  0
-#endif
-
 #define DEBUG_PIPE  0
 #if DEBUG_PIPE
 #   include <base/stream/Serial.h>
@@ -82,20 +78,8 @@ namespace m3 {
 class DirectPipe {
 public:
     static const size_t MSG_SIZE        = 64;
-
-#if defined(__t2__) || SINGLE_ITEM_BUF
-    // TODO on t2, we can't send multiple messages at once
-    static const size_t MSG_BUF_SIZE    = MSG_SIZE;
-#else
     static const size_t MSG_BUF_SIZE    = MSG_SIZE * 16;
-#endif
-
-#if defined(__t3__)
-    // TODO since credits can't be given back on t3 currently, give "unlimited" credits
-    static const size_t CREDITS         = 0xFFFF;
-#else
     static const size_t CREDITS         = MSG_BUF_SIZE;
-#endif
 
     enum {
         READ_EOF    = 1 << 0,

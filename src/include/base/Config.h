@@ -20,10 +20,6 @@
 
 #if defined(__host__)
 #   include <base/arch/host/Config.h>
-#elif defined(__t2__)
-#   include <base/arch/t2/Config.h>
-#elif defined(__t3__)
-#   include <base/arch/t3/Config.h>
 #elif defined(__gem5__)
 #   include <base/arch/gem5/Config.h>
 #else
