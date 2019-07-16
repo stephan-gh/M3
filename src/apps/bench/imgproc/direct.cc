@@ -137,7 +137,7 @@ private:
     bool running[ACCEL_COUNT];
 };
 
-static void wait_for(DirectChain **chains, size_t num) {
+static void wait_for(std::unique_ptr<DirectChain> *chains, size_t num) {
     for(size_t rem = num * DirectChain::ACCEL_COUNT; rem > 0; --rem) {
         size_t count = 0;
         capsel_t sels[num * DirectChain::ACCEL_COUNT];
@@ -153,7 +153,7 @@ static void wait_for(DirectChain **chains, size_t num) {
 
 void chain_direct(const char *in, size_t num, Mode mode) {
     Pipes pipes("pipes");
-    DirectChain *chains[num];
+    std::unique_ptr<DirectChain> chains[num];
     fd_t infds[num];
     fd_t outfds[num];
 
@@ -165,11 +165,11 @@ void chain_direct(const char *in, size_t num, Mode mode) {
         infds[i] = VFS::open(in, FILE_R);
         outfds[i] = VFS::open(outpath.str(), FILE_W | FILE_TRUNC | FILE_CREATE);
 
-        chains[i] = new DirectChain(pipes,
-                                    i,
-                                    VPE::self().fds()->get(infds[i]),
-                                    VPE::self().fds()->get(outfds[i]),
-                                    mode);
+        chains[i] = std::make_unique<DirectChain>(pipes,
+                                                  i,
+                                                  VPE::self().fds()->get(infds[i]),
+                                                  VPE::self().fds()->get(outfds[i]),
+                                                  mode);
     }
 
     if(VERBOSE) Serial::get() << "Starting chain...\n";
@@ -197,6 +197,5 @@ void chain_direct(const char *in, size_t num, Mode mode) {
     for(size_t i = 0; i < num; ++i) {
         VFS::close(infds[i]);
         VFS::close(outfds[i]);
-        delete chains[i];
     }
 }
