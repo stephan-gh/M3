@@ -127,7 +127,7 @@ static void add(Aladdin &alad, size_t size, Aladdin::Array *a, int prot) {
     virt += psize;
 }
 
-static AccelWorkload *create_workload(const char *bench, const char *name, const char *pager) {
+static std::unique_ptr<AccelWorkload> create_workload(const char *bench, const char *name, const char *pager) {
     PEISA isa;
     if(strcmp(bench, "stencil") == 0)
         isa = PEISA::ACCEL_STE;
@@ -137,7 +137,7 @@ static AccelWorkload *create_workload(const char *bench, const char *name, const
         isa = PEISA::ACCEL_SPMV;
     else
         isa = PEISA::ACCEL_AFFT;
-    return new AccelWorkload(isa, name, pager);
+    return std::make_unique<AccelWorkload>(isa, name, pager);
 }
 
 void AccelWorkload::init() {
@@ -246,26 +246,23 @@ int main(int argc, char **argv) {
         cycles_t start = Time::start(0x1234);
 
         if(mode == MODE_DEFAULT) {
-            AccelWorkload *wl = create_workload(bench, "accel1", "pg-accel1");
+            auto wl = create_workload(bench, "accel1", "pg-accel1");
             wl->init();
             wl->run();
-            delete wl;
         }
         else if(mode == MODE_SEQUENCE) {
-            AccelWorkload *wl1 = create_workload(bench, "accel1", "pg-accel1");
-            AccelWorkload *wl2 = create_workload(bench, "accel2", "pg-accel2");
+            auto wl1 = create_workload(bench, "accel1", "pg-accel1");
+            auto wl2 = create_workload(bench, "accel2", "pg-accel2");
             wl1->init();
             wl2->init();
             wl1->msg.repeats = wl1->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;
             wl2->msg.repeats = wl2->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;
             wl1->run();
             wl2->run();
-            delete wl2;
-            delete wl1;
         }
         else {
-            AccelWorkload *wl1 = create_workload(bench, "accel1", "pg-accel1");
-            AccelWorkload *wl2 = create_workload(bench, "accel2", "pg-accel2");
+            auto wl1 = create_workload(bench, "accel1", "pg-accel1");
+            auto wl2 = create_workload(bench, "accel2", "pg-accel2");
             wl1->init();
             wl2->init();
             wl1->msg.repeats = wl1->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;
@@ -274,8 +271,6 @@ int main(int argc, char **argv) {
             wl2->alad.start(wl2->msg);
             wl1->alad.wait();
             wl2->alad.wait();
-            delete wl2;
-            delete wl1;
         }
 
         cycles_t end = Time::stop(0x1234);
