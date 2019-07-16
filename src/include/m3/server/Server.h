@@ -95,11 +95,22 @@ private:
             }
             catch(const Exception &e) {
                 cerr << "exception during service request: " << e.what() << "\n";
-                reply_error(is, e.code());
+                try {
+                    reply_error(is, e.code());
+                }
+                catch(...) {
+                    // ignore
+                }
             }
             return;
         }
-        reply_error(is, Errors::INV_ARGS);
+
+        try {
+            reply_error(is, Errors::INV_ARGS);
+        }
+        catch(...) {
+            // ignore
+        }
     }
 
     void handle_open(GateIStream &is) {

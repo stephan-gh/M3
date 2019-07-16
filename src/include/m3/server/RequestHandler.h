@@ -50,12 +50,23 @@ public:
             }
             catch(const Exception &e) {
                 cerr << "exception during request: " << e.what() << "\n";
-                reply_error(msg, e.code());
+                try {
+                    reply_error(msg, e.code());
+                }
+                catch(...) {
+                    // just ignore the error here; maybe the client is no longer available and thus
+                    // we can't send a reply
+                }
             }
             return;
         }
 
-        reply_error(msg, Errors::INV_ARGS);
+        try {
+            reply_error(msg, Errors::INV_ARGS);
+        }
+        catch(...) {
+            // as above
+        }
     }
 
 private:
