@@ -15,7 +15,7 @@
  */
 
 use m3::col::String;
-use m3::com::{recv_msg, recv_result, RecvGate, SendGate, SGateArgs};
+use m3::com::{recv_msg, recv_reply, RecvGate, SendGate, SGateArgs};
 use m3::errors::Code;
 use m3::test;
 use m3::util;
@@ -80,7 +80,7 @@ fn send_reply() {
 
     // rgate -> reply_gate
     {
-        let mut reply = assert_ok!(recv_result(&reply_gate, Some(&sgate)));
+        let mut reply = assert_ok!(recv_reply(&reply_gate, Some(&sgate)));
         let (i1, i2): (i32, i32) = (reply.pop(), reply.pop());
         assert_eq!(i1, 44);
         assert_eq!(i2, 3);
