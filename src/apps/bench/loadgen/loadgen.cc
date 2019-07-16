@@ -44,10 +44,6 @@ public:
          sgate(),
          mgate() {
     }
-    ~LoadGenSession() {
-        delete mgate;
-        delete sgate;
-    }
 
     void send_request() {
         if(rem_req > 0) {
@@ -60,8 +56,8 @@ public:
 
     uint rem_req;
     SendGate clisgate;
-    SendGate *sgate;
-    MemGate *mgate;
+    std::unique_ptr<SendGate> sgate;
+    std::unique_ptr<MemGate> mgate;
 };
 
 class ReqHandler;
@@ -104,8 +100,8 @@ public:
 
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, VPE::self().alloc_sels(2), 2);
 
-        sess->sgate = new SendGate(SendGate::bind(crd.start() + 0, &_rgate));
-        sess->mgate = new MemGate(MemGate::bind(crd.start() + 1));
+        sess->sgate.reset(new SendGate(SendGate::bind(crd.start() + 0, &_rgate)));
+        sess->mgate.reset(new MemGate(MemGate::bind(crd.start() + 1)));
 
         data.caps = crd.value();
         return Errors::NONE;
