@@ -158,12 +158,10 @@ void VPE::init_state() {
     read_from("eps", &_eps);
 
     capsel_t rmng_sel;
-    if(read_from("rmng", &rmng_sel)) {
-        delete _resmng;
-        _resmng = new ResMng(rmng_sel);
-    }
+    if(read_from("rmng", &rmng_sel))
+        _resmng.reset(new ResMng(rmng_sel));
     else if(_resmng == nullptr)
-        _resmng = new ResMng(ObjCap::INVALID);
+        _resmng.reset(new ResMng(ObjCap::INVALID));
 
     if(!_kmem) {
         capsel_t kmem_sel;
@@ -191,12 +189,12 @@ void VPE::init_fs() {
 
     memset(buf.get(), 0, len);
     if(read_from("ms", buf.get(), len))
-        _ms = MountTable::unserialize(buf.get(), len);
+        _ms.reset(MountTable::unserialize(buf.get(), len));
 
     len = STATE_BUF_SIZE;
     memset(buf.get(), 0, len);
     if(read_from("fds", buf.get(), len))
-        _fds = FileTable::unserialize(buf.get(), len);
+        _fds.reset(FileTable::unserialize(buf.get(), len));
 
     // DTU is ready now; notify parent
     int pipefd;
@@ -303,7 +301,6 @@ void VPE::exec(int argc, const char **argv) {
         // wait until the DTU sockets have been binded
         c2p.wait();
     }
-
 }
 
 }

@@ -109,7 +109,7 @@ public:
         return _rgate;
     }
 
-    Pager *create_clone(VPE &vpe);
+    std::unique_ptr<Pager> create_clone(VPE &vpe);
     void clone();
     void pagefault(goff_t addr, uint access);
     void map_anon(goff_t *virt, size_t len, int prot, int flags);

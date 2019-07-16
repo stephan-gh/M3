@@ -23,7 +23,7 @@ namespace m3 {
 
 Semaphore Semaphore::attach(const char *name) {
     capsel_t nsel = VPE::self().alloc_sel();
-    VPE::self().resmng().use_sem(nsel, name);
+    VPE::self().resmng()->use_sem(nsel, name);
     return Semaphore(nsel, KEEP_CAP);
 }
 

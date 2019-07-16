@@ -49,9 +49,9 @@ static void taking_turns() {
     child.delegate_obj(sem0.sel());
     child.delegate_obj(sem1.sel());
 
-    child.fds(*VPE::self().fds());
+    child.fds(VPE::self().fds());
     child.obtain_fds();
-    child.mounts(*VPE::self().mounts());
+    child.mounts(VPE::self().mounts());
     child.obtain_mounts();
 
     set_counter("/sem0", 0);

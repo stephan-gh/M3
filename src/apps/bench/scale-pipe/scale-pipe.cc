@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
                 apps[i]->vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipes[i / 2]->reader_fd()));
             apps[i]->vpe.obtain_fds();
 
-            apps[i]->vpe.mounts(*VPE::self().mounts());
+            apps[i]->vpe.mounts(VPE::self().mounts());
             apps[i]->vpe.obtain_mounts();
 
             apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);

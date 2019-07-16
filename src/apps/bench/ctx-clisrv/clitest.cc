@@ -63,7 +63,7 @@ int main() {
     if(VERBOSE) cout << "Starting VPEs...\n";
 
     for(size_t i = 0; i < ARRAY_SIZE(apps); ++i) {
-        apps[i]->vpe.mounts(*VPE::self().mounts());
+        apps[i]->vpe.mounts(VPE::self().mounts());
         apps[i]->vpe.obtain_mounts();
         apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
     }

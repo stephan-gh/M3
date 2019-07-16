@@ -186,14 +186,14 @@ int main(int argc, char **argv) {
         // start writer
         apps[3]->vpe.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipe->writer_fd()));
         apps[3]->vpe.obtain_fds();
-        apps[3]->vpe.mounts(*VPE::self().mounts());
+        apps[3]->vpe.mounts(VPE::self().mounts());
         apps[3]->vpe.obtain_mounts();
         apps[3]->vpe.exec(wargs, const_cast<const char**>(wargv));
 
         // start reader
         apps[4]->vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe->reader_fd()));
         apps[4]->vpe.obtain_fds();
-        apps[4]->vpe.mounts(*VPE::self().mounts());
+        apps[4]->vpe.mounts(VPE::self().mounts());
         apps[4]->vpe.obtain_mounts();
         apps[4]->vpe.exec(rargs, const_cast<const char**>(rargv));
 

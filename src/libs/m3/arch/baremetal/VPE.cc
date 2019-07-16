@@ -34,7 +34,7 @@ namespace m3 {
 void VPE::init_state() {
     _eps = env()->eps;
 
-    _resmng = new ResMng(env()->rmng_sel);
+    _resmng.reset(new ResMng(env()->rmng_sel));
     _kmem = Reference<KMem>(new KMem(env()->kmem_sel));
 
     // it's initially 0. make sure it's at least the first usable selector
@@ -45,9 +45,9 @@ void VPE::init_state() {
 
 void VPE::init_fs() {
     if(env()->pager_sess)
-        _pager = new Pager(env()->pager_sess, env()->pager_rgate);
-    _ms = MountTable::unserialize(reinterpret_cast<const void*>(env()->mounts), env()->mounts_len);
-    _fds = FileTable::unserialize(reinterpret_cast<const void*>(env()->fds), env()->fds_len);
+        _pager.reset(new Pager(env()->pager_sess, env()->pager_rgate));
+    _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(env()->mounts), env()->mounts_len));
+    _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(env()->fds), env()->fds_len));
 }
 
 void VPE::reset() noexcept {

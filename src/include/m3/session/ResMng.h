@@ -87,7 +87,7 @@ public:
     ~ResMng() {
         if(_vpe != ObjCap::INVALID) {
             try {
-                send_receive_vmsg(VPE::self().resmng()._sgate, REM_CHILD, _vpe);
+                send_receive_vmsg(VPE::self().resmng()->_sgate, REM_CHILD, _vpe);
             }
             catch(...) {
                 // ignore
@@ -99,10 +99,10 @@ public:
         return _sgate.sel();
     }
 
-    ResMng *clone(VPE &vpe, const String &name) {
+    std::unique_ptr<ResMng> clone(VPE &vpe, const String &name) {
         capsel_t sgate_sel = vpe.alloc_sel();
         clone(vpe.sel(), sgate_sel, name);
-        return new ResMng(sgate_sel, vpe.sel());
+        return std::unique_ptr<ResMng>(new ResMng(sgate_sel, vpe.sel()));
     }
 
     void reg_service(capsel_t child, capsel_t dst, capsel_t rgate, const String &name) {

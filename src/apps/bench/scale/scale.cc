@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
             cout << "\n";
         }
 
-        apps[i]->vpe.mounts(*VPE::self().mounts());
+        apps[i]->vpe.mounts(VPE::self().mounts());
         apps[i]->vpe.obtain_mounts();
 
         apps[i]->vpe.exec(static_cast<int>(apps[i]->argc), apps[i]->argv);

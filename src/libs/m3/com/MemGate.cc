@@ -32,7 +32,7 @@ namespace m3 {
 MemGate::~MemGate() {
     if(!(flags() & KEEP_CAP) && !_revoke) {
         try {
-            VPE::self().resmng().free_mem(sel());
+            VPE::self().resmng()->free_mem(sel());
         }
         catch(...) {
             // ignore
@@ -44,7 +44,7 @@ MemGate::~MemGate() {
 MemGate MemGate::create_global_for(goff_t addr, size_t size, int perms, capsel_t sel, uint flags) {
     if(sel == INVALID)
         sel = VPE::self().alloc_sel();
-    VPE::self().resmng().alloc_mem(sel, addr, size, perms);
+    VPE::self().resmng()->alloc_mem(sel, addr, size, perms);
     return MemGate(flags, sel, false);
 }
 

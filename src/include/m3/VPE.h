@@ -165,21 +165,21 @@ public:
     /**
      * @return the pager of this VPE (or nullptr)
      */
-    Pager *pager() noexcept {
+    std::unique_ptr<Pager> &pager() noexcept {
         return _pager;
     }
 
     /**
      * @return the resource manager
      */
-    ResMng &resmng() noexcept {
-        return *_resmng;
+    std::unique_ptr<ResMng> &resmng() noexcept {
+        return _resmng;
     }
 
     /**
      * @return the mount table
      */
-    MountTable *mounts() noexcept {
+    std::unique_ptr<MountTable> &mounts() noexcept {
         return _ms;
     }
 
@@ -195,7 +195,7 @@ public:
      *
      * @param ms the mount table
      */
-    void mounts(const MountTable &ms) noexcept;
+    void mounts(const std::unique_ptr<MountTable> &ms) noexcept;
 
     /**
      * Lets this VPE obtain all mount points in its mount table, i.e., the required capability
@@ -206,7 +206,7 @@ public:
     /**
      * @return the file descriptors
      */
-    FileTable *fds() noexcept {
+    std::unique_ptr<FileTable> &fds() noexcept {
         return _fds;
     }
 
@@ -216,7 +216,7 @@ public:
      *
      * @param fds the file descriptors
      */
-    void fds(const FileTable &fds) noexcept;
+    void fds(const std::unique_ptr<FileTable> &fds) noexcept;
 
     /**
      * Lets this VPE obtain all files in its file table, i.e., the required capability exchanges
@@ -387,15 +387,15 @@ private:
 
     PEDesc _pe;
     MemGate _mem;
-    ResMng *_resmng;
     capsel_t _next_sel;
     uint64_t _eps;
-    Pager *_pager;
-    Reference<KMem> _kmem;
     uint64_t _rbufcur;
     uint64_t _rbufend;
-    MountTable *_ms;
-    FileTable *_fds;
+    Reference<KMem> _kmem;
+    std::unique_ptr<ResMng> _resmng;
+    std::unique_ptr<Pager> _pager;
+    std::unique_ptr<MountTable> _ms;
+    std::unique_ptr<FileTable> _fds;
     std::unique_ptr<FStream> _exec;
     static VPE _self;
     static VPE *_self_ptr;

@@ -36,7 +36,7 @@ VFS::Cleanup::~Cleanup() {
     VPE::self().mounts()->remove_all();
 }
 
-MountTable *VFS::ms() {
+std::unique_ptr<MountTable> &VFS::ms() {
     return VPE::self().mounts();
 }
 

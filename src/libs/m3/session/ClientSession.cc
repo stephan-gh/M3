@@ -24,7 +24,7 @@ namespace m3 {
 ClientSession::~ClientSession() {
     if(_close && sel() != INVALID) {
         try {
-            VPE::self().resmng().close_sess(sel());
+            VPE::self().resmng()->close_sess(sel());
         }
         catch(...) {
             // ignore
@@ -37,7 +37,7 @@ void ClientSession::connect(const String &service, capsel_t selector) {
     if(selector == INVALID)
         selector = VPE::self().alloc_sel();
 
-    VPE::self().resmng().open_sess(selector, service);
+    VPE::self().resmng()->open_sess(selector, service);
     sel(selector);
 }
 

@@ -165,7 +165,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
             vpes[i]->fds()->set(STDERR_FD, VPE::self().fds()->get(STDERR_FD));
             vpes[i]->obtain_fds();
 
-            vpes[i]->mounts(*VPE::self().mounts());
+            vpes[i]->mounts(VPE::self().mounts());
             vpes[i]->obtain_mounts();
 
             char **args = build_args(cmd);

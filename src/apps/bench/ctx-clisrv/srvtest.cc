@@ -36,7 +36,7 @@ enum Mode {
 };
 
 static void start(VPE &v, int argc, const char **argv) {
-    v.mounts(*VPE::self().mounts());
+    v.mounts(VPE::self().mounts());
     v.obtain_mounts();
     v.exec(argc, argv);
 }

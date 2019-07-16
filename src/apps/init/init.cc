@@ -44,7 +44,7 @@ int main(int argc, const char **argv) {
         errmsg("Unable to open vterm: " << e.what());
     }
 
-    sh.mounts(*VPE::self().mounts());
+    sh.mounts(VPE::self().mounts());
     sh.obtain_mounts();
 
     sh.exec(argc - 1, argv + 1);

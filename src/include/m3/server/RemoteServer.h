@@ -30,11 +30,11 @@ struct RemoteServer {
         rgate.activate();
 
         vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, rgate.sel(), 1), srv.sel() + 1);
-        VPE::self().resmng().reg_service(vpe.sel(), srv.sel(), srv.sel() + 1, name);
+        VPE::self().resmng()->reg_service(vpe.sel(), srv.sel(), srv.sel() + 1, name);
     }
 
     void request_shutdown() {
-        VPE::self().resmng().unreg_service(srv.sel(), true);
+        VPE::self().resmng()->unreg_service(srv.sel(), true);
     }
 
     String sel_arg() const {

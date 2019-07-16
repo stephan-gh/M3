@@ -35,7 +35,7 @@ struct Worker {
           sgate(SendGate::create(&rgate, SendGateArgs().credits(64))),
           vpe("worker") {
         vpe.delegate_obj(submem.sel());
-        vpe.fds(*VPE::self().fds());
+        vpe.fds(VPE::self().fds());
         vpe.obtain_fds();
     }
 };

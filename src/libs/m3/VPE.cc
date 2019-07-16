@@ -64,24 +64,19 @@ VPE::VPE()
     : ObjCap(VIRTPE, 0, KEEP_CAP),
       _pe(env()->pedesc),
       _mem(MemGate::bind(1)),
-      _resmng(nullptr),
       _next_sel(KIF::FIRST_FREE_SEL),
       _eps(),
-      _pager(),
-      _kmem(),
       _rbufcur(),
       _rbufend(),
+      _kmem(),
+      _resmng(nullptr),
+      _pager(),
       _ms(),
       _fds(),
       _exec() {
     static_assert(EP_COUNT <= 64, "64 endpoints are the maximum due to the 64-bit bitmask");
     init_state();
     init_fs();
-
-    if(!_ms)
-        _ms = new MountTable();
-    if(!_fds)
-        _fds = new FileTable();
 
     // create stdin, stdout and stderr, if not existing
     if(!_fds->exists(STDIN_FD))
@@ -96,20 +91,20 @@ VPE::VPE(const String &name, const VPEArgs &args)
     : ObjCap(VIRTPE, VPE::self().alloc_sels(KIF::FIRST_FREE_SEL)),
       _pe(args._pedesc),
       _mem(MemGate::bind(sel() + 1, 0)),
-      _resmng(args._rmng),
       _next_sel(KIF::FIRST_FREE_SEL),
       _eps(),
-      _pager(),
-      _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
       _rbufcur(),
       _rbufend(),
+      _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
+      _resmng(args._rmng),
+      _pager(),
       _ms(new MountTable()),
       _fds(new FileTable()),
       _exec() {
     // create pager first, to create session and obtain gate cap
     if(_pe.has_virtmem()) {
         if(args._pager)
-            _pager = new Pager(*this, args._pager);
+            _pager = std::make_unique<Pager>(*this, args._pager);
         else if(VPE::self().pager())
             _pager = VPE::self().pager()->create_clone(*this);
         // we need a pager on VM PEs
@@ -139,7 +134,7 @@ VPE::VPE(const String &name, const VPEArgs &args)
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
     if(_resmng == nullptr) {
-        _resmng = VPE::self().resmng().clone(*this, name);
+        _resmng = VPE::self().resmng()->clone(*this, name);
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
         VPE::self()._next_sel = Math::max(_next_sel, VPE::self()._next_sel);
@@ -150,20 +145,14 @@ VPE::VPE(const String &name, const VPEArgs &args)
 
 VPE::~VPE() {
     if(this != &_self) {
-        delete _resmng;
         try {
             stop();
         }
         catch(...) {
             // ignore
         }
-        delete _pager;
         // unarm it first. we can't do that after revoke (which would be triggered by the Gate destructor)
         EPMux::get().remove(&_mem, true);
-        // only free that if it's not our own VPE. 1. it doesn't matter in this case and 2. it might
-        // be stored not on the heap but somewhere else
-        delete _fds;
-        delete _ms;
     }
 }
 
@@ -182,18 +171,16 @@ epid_t VPE::alloc_ep() {
     throw MessageException("Unable to allocate endpoint", Errors::NO_SPACE);
 }
 
-void VPE::mounts(const MountTable &ms) noexcept {
-    delete _ms;
-    _ms = new MountTable(ms);
+void VPE::mounts(const std::unique_ptr<MountTable> &ms) noexcept {
+    _ms.reset(new MountTable(*ms.get()));
 }
 
 void VPE::obtain_mounts() {
     _ms->delegate(*this);
 }
 
-void VPE::fds(const FileTable &fds) noexcept {
-    delete _fds;
-    _fds = new FileTable(fds);
+void VPE::fds(const std::unique_ptr<FileTable> &fds) noexcept {
+    _fds.reset(new FileTable(*fds.get()));
 }
 
 void VPE::obtain_fds() {

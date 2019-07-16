@@ -59,7 +59,7 @@ void Pager::unmap(goff_t virt) {
     receive_result(reply);
 }
 
-Pager *Pager::create_clone(VPE &vpe) {
+std::unique_ptr<Pager> Pager::create_clone(VPE &vpe) {
     KIF::CapRngDesc caps;
     {
         KIF::ExchangeArgs args;
@@ -68,7 +68,7 @@ Pager *Pager::create_clone(VPE &vpe) {
         args.vals[0] = 0;
         caps = obtain(1, &args);
     }
-    return new Pager(vpe, caps.start());
+    return std::unique_ptr<Pager>(new Pager(vpe, caps.start()));
 }
 
 void Pager::clone() {

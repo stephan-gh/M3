@@ -184,7 +184,7 @@ public:
     static void print(OStream &os) noexcept;
 
 private:
-    static MountTable *ms();
+    static std::unique_ptr<MountTable> &ms();
 
     static Cleanup _cleanup;
     static ReservedEPs _reseps[MAX_RES_EPS];

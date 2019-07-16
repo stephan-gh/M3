@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     // use the buffer as the receive memory area at t2
     MemGate resmem = t2.mem().derive(reinterpret_cast<uintptr_t>(buffer), BUF_SIZE);
 
-    t2.fds(*VPE::self().fds());
+    t2.fds(VPE::self().fds());
     t2.obtain_fds();
     t2.delegate_obj(rgate.sel());
     t2.run([&rgate] {
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
     });
 
     VPE t1("sender");
-    t1.fds(*VPE::self().fds());
+    t1.fds(VPE::self().fds());
     t1.obtain_fds();
     t1.delegate_obj(mem.sel());
     t1.delegate_obj(resmem.sel());
