@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/tracing/Tracing.h>
 #include <base/log/Kernel.h>
 
 #include "mem/MainMemory.h"
@@ -28,8 +27,6 @@ using namespace kernel;
 
 int main(int argc, char *argv[]) {
     Args::parse(argc, argv);
-
-    EVENT_TRACE_INIT_KERNEL();
 
     KLOG(MEM, MainMemory::get());
 
@@ -47,8 +44,6 @@ int main(int argc, char *argv[]) {
     KLOG(INFO, "Kernel is ready");
 
     wl.run();
-
-    EVENT_TRACE_FLUSH();
 
     KLOG(INFO, "Shutting down");
 

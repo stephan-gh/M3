@@ -103,8 +103,6 @@ private:
     }
 
     void handle_open(GateIStream &is) {
-        EVENT_TRACER_Service_open();
-
         auto *req = reinterpret_cast<const KIF::Service::Open*>(is.message().data);
 
         KIF::Service::OpenReply reply;
@@ -121,8 +119,6 @@ private:
     }
 
     void handle_obtain(GateIStream &is) {
-        EVENT_TRACER_Service_obtain();
-
         auto *req = reinterpret_cast<const KIF::Service::Exchange*>(is.message().data);
 
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": obtain(caps="
@@ -138,8 +134,6 @@ private:
     }
 
     void handle_delegate(GateIStream &is) {
-        EVENT_TRACER_Service_delegate();
-
         auto *req = reinterpret_cast<const KIF::Service::Exchange*>(is.message().data);
 
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": delegate(caps="
@@ -155,8 +149,6 @@ private:
     }
 
     void handle_close(GateIStream &is) {
-        EVENT_TRACER_Service_close();
-
         auto *req = reinterpret_cast<const KIF::Service::Close*>(is.message().data);
 
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": close()");
@@ -168,8 +160,6 @@ private:
     }
 
     void handle_shutdown(GateIStream &is) {
-        EVENT_TRACER_Service_shutdown();
-
         LLOG(SERV, "shutdown()");
 
         shutdown();

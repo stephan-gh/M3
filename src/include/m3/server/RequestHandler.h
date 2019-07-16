@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <base/tracing/Tracing.h>
 #include <base/Errors.h>
 
 #include <m3/com/GateStream.h>
@@ -43,7 +42,6 @@ public:
     }
 
     void handle_message(GateIStream &msg) {
-        EVENT_TRACER_Service_request();
         OP op;
         msg >> op;
         if(static_cast<size_t>(op) < sizeof(_callbacks) / sizeof(_callbacks[0])) {

@@ -93,7 +93,6 @@ Errors::Code M3FSFileSession::clone(capsel_t srv, KIF::Service::ExchangeData &da
 }
 
 Errors::Code M3FSFileSession::get_mem(KIF::Service::ExchangeData &data) {
-    EVENT_TRACER_FS_getlocs();
     if(data.args.count != 1)
         return Errors::INV_ARGS;
 

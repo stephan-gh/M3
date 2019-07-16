@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <base/tracing/Tracing.h>
 #include <base/KIF.h>
 
 #include <m3/com/Gate.h>

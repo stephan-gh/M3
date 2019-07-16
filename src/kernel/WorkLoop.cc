@@ -16,7 +16,6 @@
 
 #include <base/Common.h>
 #include <base/log/Kernel.h>
-#include <base/tracing/Tracing.h>
 
 #include <thread/ThreadManager.h>
 
@@ -116,7 +115,6 @@ void WorkLoop::run() {
             // we know the subscriber here, so optimize that a bit
             VPE *vpe = reinterpret_cast<VPE*>(msg->label);
             SyscallHandler::handle_message(vpe, msg);
-            EVENT_TRACE_FLUSH_LIGHT();
         }
 
         msg = dtu.fetch_msg(sysep1);
@@ -124,7 +122,6 @@ void WorkLoop::run() {
             // we know the subscriber here, so optimize that a bit
             VPE *vpe = reinterpret_cast<VPE*>(msg->label);
             SyscallHandler::handle_message(vpe, msg);
-            EVENT_TRACE_FLUSH_LIGHT();
         }
 
         msg = dtu.fetch_msg(srvep);

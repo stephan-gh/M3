@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/tracing/Tracing.h>
 #include <base/log/Kernel.h>
 #include <base/util/Math.h>
 #include <base/Init.h>
@@ -137,8 +136,6 @@ void SyscallHandler::handle_message(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::page_fault(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_pagefault();
-
     m3::Errors::Code res = m3::Errors::NOT_SUP;
 #if defined(__gem5__)
     auto req = get_message<m3::KIF::Syscall::Pagefault>(msg);
@@ -191,8 +188,6 @@ void SyscallHandler::page_fault(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::create_srv(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_createsrv();
-
     auto req = get_message<m3::KIF::Syscall::CreateSrv>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t tvpe = req->vpe_sel;
@@ -225,8 +220,6 @@ void SyscallHandler::create_srv(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::create_sess(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_createsessat();
-
     auto req = get_message<m3::KIF::Syscall::CreateSess>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t srv = req->srv_sel;
@@ -251,8 +244,6 @@ void SyscallHandler::create_sess(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::create_rgate(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_creatergate();
-
     auto req = get_message<m3::KIF::Syscall::CreateRGate>(msg);
     capsel_t dst = req->dst_sel;
     int order = req->order;
@@ -278,8 +269,6 @@ void SyscallHandler::create_rgate(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::create_sgate(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_createsgate();
-
     auto req = get_message<m3::KIF::Syscall::CreateSGate>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t rgate = req->rgate_sel;
@@ -321,8 +310,6 @@ void SyscallHandler::create_vgroup(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_createvpe();
-
     auto req = get_message<m3::KIF::Syscall::CreateVPE>(msg);
     m3::KIF::CapRngDesc dst(req->dst_crd);
     capsel_t sgate = req->sgate_sel;
@@ -402,7 +389,6 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_createmap();
 
 #if defined(__gem5__)
     auto req = get_message<m3::KIF::Syscall::CreateMap>(msg);
@@ -483,8 +469,6 @@ void SyscallHandler::create_sem(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_activate();
-
     auto *req = get_message<m3::KIF::Syscall::Activate>(msg);
     capsel_t ep = req->ep_sel;
     capsel_t gate = req->gate_sel;
@@ -589,8 +573,6 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_vpectrl();
-
     auto req = get_message<m3::KIF::Syscall::VPECtrl>(msg);
     capsel_t tvpe = req->vpe_sel;
     m3::KIF::Syscall::VPEOp op = static_cast<m3::KIF::Syscall::VPEOp>(req->op);
@@ -683,8 +665,6 @@ void SyscallHandler::vpe_wait(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::derive_mem(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_derivemem();
-
     auto req = get_message<m3::KIF::Syscall::DeriveMem>(msg);
     capsel_t tvpe = req->vpe_sel;
     capsel_t dst = req->dst_sel;
@@ -795,18 +775,14 @@ void SyscallHandler::sem_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::delegate(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_delegate();
     exchange_over_sess(vpe, msg, false);
 }
 
 void SyscallHandler::obtain(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_obtain();
     exchange_over_sess(vpe, msg, true);
 }
 
 void SyscallHandler::exchange(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_exchange();
-
     auto req = get_message<m3::KIF::Syscall::Exchange>(msg);
     capsel_t tvpe = req->vpe_sel;
     m3::KIF::CapRngDesc own(req->own_crd);
@@ -826,8 +802,6 @@ void SyscallHandler::exchange(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::revoke(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_revoke();
-
     auto *req = get_message<m3::KIF::Syscall::Revoke>(msg);
     capsel_t tvpe = req->vpe_sel;
     m3::KIF::CapRngDesc crd(req->crd);
@@ -979,7 +953,6 @@ m3::Errors::Code SyscallHandler::wait_for(const char *name, VPE &tvpe, VPE *cur,
 }
 
 void SyscallHandler::forward_msg(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_forwardmsg();
 
 #if !defined(__gem5__)
     reply_result(vpe, msg, m3::Errors::NOT_SUP);
@@ -1048,7 +1021,6 @@ void SyscallHandler::forward_msg(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::forward_mem(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_forwardmem();
 
 #if !defined(__gem5__)
     reply_result(vpe, msg, m3::Errors::NOT_SUP);
@@ -1123,7 +1095,6 @@ void SyscallHandler::forward_mem(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::forward_reply(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_forwardreply();
 
 #if !defined(__gem5__)
     reply_result(vpe, msg, m3::Errors::NOT_SUP);
@@ -1199,7 +1170,6 @@ void SyscallHandler::forward_reply(VPE *vpe, const m3::DTU::Message *msg) {
 }
 
 void SyscallHandler::noop(VPE *vpe, const m3::DTU::Message *msg) {
-    EVENT_TRACER_Syscall_noop();
     LOG_SYS(vpe, ": syscall::noop", "()");
 
     reply_result(vpe, msg, m3::Errors::NONE);

@@ -186,7 +186,6 @@ void M3FSMetaSession::fstat(GateIStream &is) {
 }
 
 void M3FSMetaSession::stat(GateIStream &is) {
-    EVENT_TRACER_FS_stat();
     StringRef path;
     is >> path;
 
@@ -210,7 +209,6 @@ void M3FSMetaSession::stat(GateIStream &is) {
 }
 
 void M3FSMetaSession::mkdir(GateIStream &is) {
-    EVENT_TRACER_FS_mkdir();
     StringRef path;
     mode_t mode;
     is >> path >> mode;
@@ -226,7 +224,6 @@ void M3FSMetaSession::mkdir(GateIStream &is) {
 }
 
 void M3FSMetaSession::rmdir(GateIStream &is) {
-    EVENT_TRACER_FS_rmdir();
     StringRef path;
     is >> path;
 
@@ -241,7 +238,6 @@ void M3FSMetaSession::rmdir(GateIStream &is) {
 }
 
 void M3FSMetaSession::link(GateIStream &is) {
-    EVENT_TRACER_FS_link();
     StringRef oldpath, newpath;
     is >> oldpath >> newpath;
 
@@ -256,7 +252,6 @@ void M3FSMetaSession::link(GateIStream &is) {
 }
 
 void M3FSMetaSession::unlink(GateIStream &is) {
-    EVENT_TRACER_FS_unlink();
     StringRef path;
     is >> path;
 

@@ -23,7 +23,6 @@
 #include <inttypes.h>
 
 #define TRACE_FUNCS_TO_STRING
-#include <base/tracing/Event.h>
 
 #include <open-trace-format/otf.h>
 
@@ -45,10 +44,10 @@ static const int GEM5_MAX_VPES              = 1024 + 1;
 static const unsigned INVALID_VPEID         = 0xFFFF;
 
 enum event_type {
-    EVENT_FUNC_ENTER    = m3::EVENT_FUNC_ENTER,
-    EVENT_FUNC_EXIT     = m3::EVENT_FUNC_EXIT,
-    EVENT_UFUNC_ENTER   = m3::EVENT_UFUNC_ENTER,
-    EVENT_UFUNC_EXIT    = m3::EVENT_UFUNC_EXIT,
+    EVENT_FUNC_ENTER = 1,
+    EVENT_FUNC_EXIT,
+    EVENT_UFUNC_ENTER,
+    EVENT_UFUNC_EXIT,
     EVENT_MSG_SEND_START,
     EVENT_MSG_SEND_DONE,
     EVENT_MSG_RECV,
@@ -126,10 +125,7 @@ struct Event {
         switch(ev.type) {
             case EVENT_FUNC_ENTER:
             case EVENT_FUNC_EXIT:
-                if(ev.tag >= sizeof(m3::event_funcs) / sizeof(m3::event_funcs[0]))
-                    os << " function: unknown (" << ev.tag << ")";
-                else
-                    os << " function: " << m3::event_funcs[ev.tag].name;
+                os << " function: unknown (" << ev.tag << ")";
                 break;
 
             case EVENT_UFUNC_ENTER:
@@ -616,11 +612,6 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
     unsigned fn_mem_write = (3 << 20) + 3;
     OTF_Writer_writeDefFunction(writer, 0, fn_mem_write, "mem_write", grp_func_mem, 0);
 
-    // Function groups, defined in Event.h
-    unsigned grp_func_start = (4 << 20);
-    for(unsigned int i = 0; i < m3::event_func_groups_size; ++i)
-        OTF_Writer_writeDefFunctionGroup(writer, 0, grp_func_start + i, m3::event_func_groups[i]);
-
     printf("writing OTF events\n");
 
     unsigned cur_vpe[pe_count];
@@ -632,7 +623,6 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
     std::map<std::pair<int, std::string>, uint32_t> ufunc_map;
 
     uint32_t func_start_id = ( 4 << 20 );
-    std::set<uint32_t> func_set;
 
     // function call stack per VPE
     std::array<uint, GEM5_MAX_VPES> func_stack;
@@ -783,11 +773,6 @@ static void gen_vpe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> 
 
             case EVENT_FUNC_ENTER: {
                 uint32_t id = event->tag;
-                if(func_set.find(id) == func_set.end()) {
-                    func_set.insert(id);
-                    unsigned group = grp_func_start + m3::event_funcs[id].group;
-                    OTF_Writer_writeDefFunction(writer, 0, func_start_id + id, m3::event_funcs[id].name, group, 0);
-                }
                 ++(func_stack[vpe]);
                 OTF_Writer_writeEnter(writer, timestamp, func_start_id + id, vpe, 0);
                 ++stats.func_enter;

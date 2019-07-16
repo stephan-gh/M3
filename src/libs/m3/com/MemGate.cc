@@ -89,7 +89,6 @@ Errors::Code MemGate::forward(void *&data, size_t &len, goff_t &offset, uint fla
 }
 
 void MemGate::read(void *data, size_t len, goff_t offset) {
-    EVENT_TRACER_read();
     ensure_activated();
 
 retry:
@@ -104,7 +103,6 @@ retry:
 }
 
 void MemGate::write(const void *data, size_t len, goff_t offset) {
-    EVENT_TRACER_write();
     ensure_activated();
 
 retry:

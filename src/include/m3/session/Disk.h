@@ -78,7 +78,6 @@ private:
 
     template<typename... Args>
     static inline Errors::Code send_vmsg(SendGate &gate, blockno_t bno, const Args &... args) {
-        EVENT_TRACER_send_vmsg();
         auto msg = create_vmsg(args...);
         // just assume there won't be 2^31 previous wait events
         event_t label = bno | (1U << 31);

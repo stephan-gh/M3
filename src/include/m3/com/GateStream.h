@@ -274,11 +274,9 @@ static inline void reply_error(GateIStream &is, m3::Errors::Code error) {
  * @param len the message length
  */
 static inline void send_msg(SendGate &gate, const void *data, size_t len) {
-    EVENT_TRACER_send_msg();
     gate.send(data, len);
 }
 static inline void reply_msg(GateIStream &is, const void *data, size_t len) {
-    EVENT_TRACER_reply_msg();
     is.reply(data, len);
 }
 
@@ -304,13 +302,11 @@ static inline auto create_vmsg(const Args& ... args) noexcept -> StaticGateOStre
  */
 template<typename... Args>
 static inline void send_vmsg(SendGate &gate, const Args &... args) {
-    EVENT_TRACER_send_vmsg();
     auto msg = create_vmsg(args...);
     gate.send(msg.bytes(), msg.total());
 }
 template<typename... Args>
 static inline void reply_vmsg(GateIStream &is, const Args &... args) {
-    EVENT_TRACER_reply_vmsg();
     is.reply(create_vmsg(args...));
 }
 
@@ -324,7 +320,6 @@ static inline void reply_vmsg(GateIStream &is, const Args &... args) {
  */
 template<typename... Args>
 static inline void write_vmsg(MemGate &gate, size_t offset, const Args &... args) {
-    EVENT_TRACER_write_vmsg();
     auto os = create_vmsg(args...);
     gate.write(os.bytes(), os.total(), offset);
 }
@@ -337,7 +332,6 @@ static inline void write_vmsg(MemGate &gate, size_t offset, const Args &... args
  * @return the GateIStream
  */
 static inline GateIStream receive_msg(RecvGate &rgate) {
-    EVENT_TRACER_receive_msg();
     const DTU::Message *msg = rgate.wait(nullptr);
     return GateIStream(rgate, msg);
 }
@@ -351,7 +345,6 @@ static inline GateIStream receive_msg(RecvGate &rgate) {
  */
 template<typename... Args>
 static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
-    EVENT_TRACER_receive_vmsg();
     const DTU::Message *msg = rgate.wait(nullptr);
     GateIStream is(rgate, msg);
     is.vpull(args...);
@@ -367,7 +360,6 @@ static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
  * @return the GateIStream
  */
 static inline GateIStream receive_reply(SendGate &gate) {
-    EVENT_TRACER_receive_msg();
     const DTU::Message *msg = gate.reply_gate()->wait(&gate);
     return GateIStream(*gate.reply_gate(), msg);
 }

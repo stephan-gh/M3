@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/tracing/Tracing.h>
 #include <base/Errors.h>
 #include <base/Init.h>
 
@@ -373,8 +372,6 @@ void Syscalls::noop() {
 
 // the USED seems to be necessary, because the libc calls it and LTO removes it otherwise
 USED void Syscalls::exit(int exitcode) {
-    EVENT_TRACE_FLUSH();
-
     KIF::Syscall::VPECtrl req;
     req.opcode = KIF::Syscall::VPE_CTRL;
     req.vpe_sel = 0;

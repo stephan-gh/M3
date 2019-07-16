@@ -63,8 +63,6 @@ public:
 #endif
 
         VPE::reset();
-
-        EVENT_TRACE_REINIT();
     }
 
     void yield() override {

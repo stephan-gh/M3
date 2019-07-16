@@ -16,7 +16,6 @@
 
 #include <base/stream/OStream.h>
 #include <base/stream/Serial.h>
-#include <base/tracing/Tracing.h>
 #include <base/Env.h>
 #include <base/DTU.h>
 #include <functional>
@@ -59,7 +58,6 @@ void Env::run() {
     if(e->lambda) {
         e->backend()->reinit();
 
-        EVENT_TRACER_Lambda();
         std::function<int()> *f = reinterpret_cast<std::function<int()>*>(e->lambda);
         res = (*f)();
     }
@@ -69,7 +67,6 @@ void Env::run() {
         e->backend()->init();
         e->post_init();
 
-        EVENT_TRACER_Main();
         char **argv = reinterpret_cast<char**>(e->argv);
         if(sizeof(char*) != sizeof(uint64_t)) {
             uint64_t *argv64 = reinterpret_cast<uint64_t*>(e->argv);
