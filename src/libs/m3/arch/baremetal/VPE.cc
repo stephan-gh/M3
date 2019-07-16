@@ -34,11 +34,8 @@ namespace m3 {
 void VPE::init_state() {
     _eps = env()->eps;
 
-    delete _resmng;
     _resmng = new ResMng(env()->rmng_sel);
-
-    if(!_kmem)
-        _kmem = Reference<KMem>(new KMem(env()->kmem_sel));
+    _kmem = Reference<KMem>(new KMem(env()->kmem_sel));
 
     // it's initially 0. make sure it's at least the first usable selector
     _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->caps);
@@ -47,23 +44,16 @@ void VPE::init_state() {
 }
 
 void VPE::init_fs() {
-    if(Heap::is_on_heap(_fds))
-        delete _fds;
-    if(Heap::is_on_heap(_ms))
-        delete _ms;
-
     if(env()->pager_sess)
         _pager = new Pager(env()->pager_sess, env()->pager_rgate);
+    _ms = MountTable::unserialize(reinterpret_cast<const void*>(env()->mounts), env()->mounts_len);
+    _fds = FileTable::unserialize(reinterpret_cast<const void*>(env()->fds), env()->fds_len);
+}
 
-    if(env()->mounts_len)
-        _ms = MountTable::unserialize(reinterpret_cast<const void*>(env()->mounts), env()->mounts_len);
-    else
-        _ms = reinterpret_cast<MountTable*>(env()->mounts);
-
-    if(env()->fds_len)
-        _fds = FileTable::unserialize(reinterpret_cast<const void*>(env()->fds), env()->fds_len);
-    else
-        _fds = reinterpret_cast<FileTable*>(env()->fds);
+void VPE::reset() noexcept {
+    _self_ptr = reinterpret_cast<VPE*>(env()->mounts);
+    _self_ptr->sel(0);
+    _self_ptr->_mem.rebind(1);
 }
 
 void VPE::run(void *lambda) {
@@ -81,18 +71,7 @@ void VPE::run(void *lambda) {
     senv.lambda = reinterpret_cast<uintptr_t>(lambda);
     senv.exitaddr = 0;
 
-    senv.mounts_len = 0;
-    senv.mounts = reinterpret_cast<uintptr_t>(_ms);
-    senv.fds_len = 0;
-    senv.fds = reinterpret_cast<uintptr_t>(_fds);
-    senv.rbufcur = _rbufcur;
-    senv.rbufend = _rbufend;
-    senv.rmng_sel = _resmng->sel();
-    senv.kmem_sel = _kmem->sel();
-    senv.caps = _next_sel;
-    senv.eps = _eps;
-    senv.pager_rgate = 0;
-    senv.pager_sess = 0;
+    senv.mounts = reinterpret_cast<uint64_t>(this);
 
     senv._backend = env()->_backend;
     senv.pedesc = _pe;

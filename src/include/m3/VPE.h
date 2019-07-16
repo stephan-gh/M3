@@ -130,20 +130,19 @@ class VPE : public ObjCap {
 
     static const size_t BUF_SIZE;
 
+    explicit VPE();
+
 public:
     enum Flags {
         MUXABLE     = KIF::VPEFlags::MUXABLE,
         PINNED      = KIF::VPEFlags::PINNED,
     };
 
-    explicit VPE();
-
-public:
     /**
      * @return your own VPE
      */
     static VPE &self() noexcept {
-        return _self;
+        return *_self_ptr;
     }
 
     explicit VPE(const String &name, const VPEArgs &args = VPEArgs());
@@ -372,6 +371,8 @@ private:
         _next_sel = Math::max(_next_sel, sel + count);
     }
 
+    static void reset() noexcept;
+
     void init_state();
     void init_fs();
     void run(void *lambda);
@@ -397,6 +398,7 @@ private:
     FileTable *_fds;
     std::unique_ptr<FStream> _exec;
     static VPE _self;
+    static VPE *_self_ptr;
 };
 
 }

@@ -62,8 +62,7 @@ public:
         DTU::get().reset();
 #endif
 
-        VPE::self().init_state();
-        VPE::self().init_fs();
+        VPE::reset();
 
         EVENT_TRACE_REINIT();
     }

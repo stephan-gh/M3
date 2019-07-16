@@ -32,6 +32,7 @@ namespace m3 {
 
 const size_t VPE::BUF_SIZE    = 4096;
 INIT_PRIO_VPE VPE VPE::_self;
+VPE *VPE::_self_ptr = &VPE::_self;
 
 VPEGroup::VPEGroup() : ObjCap(ObjCap::VPEGRP) {
     capsel_t dst = VPE::self().alloc_sel();
