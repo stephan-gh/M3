@@ -43,20 +43,19 @@ struct App {
 int main() {
     if(VERBOSE) cout << "Creating VPEs...\n";
 
-    App *apps[3];
-
     const char *args1[] = {"/bin/ctx-service", "-s", ""};
-    apps[0] = new App("service", ARRAY_SIZE(args1), args1, true);
-
     const char *args2[] = {"/bin/ctx-client", "2"};
-    apps[1] = new App("client1", ARRAY_SIZE(args2), args2, true);
-
     const char *args3[] = {"/bin/ctx-client", "2"};
-    apps[2] = new App("client2", ARRAY_SIZE(args3), args3, true);
+
+    std::unique_ptr<App> apps[3] = {
+        std::make_unique<App>("service", ARRAY_SIZE(args1), args1, true),
+        std::make_unique<App>("client1", ARRAY_SIZE(args2), args2, true),
+        std::make_unique<App>("client2", ARRAY_SIZE(args3), args3, true),
+    };
 
     if(VERBOSE) cout << "Starting server...\n";
 
-    RemoteServer *srv = new RemoteServer(apps[0]->vpe, "srv1");
+    std::unique_ptr<RemoteServer> srv(new RemoteServer(apps[0]->vpe, "srv1"));
     String srv_args = srv->sel_arg();
     apps[0]->argv[2] = srv_args.c_str();
 
@@ -80,12 +79,5 @@ int main() {
 
     srv->request_shutdown();
     apps[0]->vpe.wait();
-
-    if(VERBOSE) cout << "Deleting VPEs...\n";
-
-    for(size_t i = 0; i < ARRAY_SIZE(apps); ++i)
-        delete apps[i];
-
-    if(VERBOSE) cout << "Done\n";
     return 0;
 }

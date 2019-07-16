@@ -35,14 +35,14 @@ static const int REPEAT = 12;
 int main(int argc, char **argv) {
     int mode = argc > 1 ? IStringStream::read_from<int>(argv[1]) : 0;
 
-    ClientSession *sess[2] = {nullptr, nullptr};
-    SendGate *sgate[2] = {nullptr, nullptr};
+    std::unique_ptr<ClientSession> sess[2];
+    std::unique_ptr<SendGate> sgate[2];
     const char *name[2] = {nullptr, nullptr};
 
     for(int i = 0; i < (mode == 2 ? 1 : 2); ++i) {
         name[i] = i == 0 ? "srv1" : "srv2";
-        sess[i] = new ClientSession(name[i]);
-        sgate[i] = new SendGate(SendGate::bind(sess[i]->obtain(1).start()));
+        sess[i].reset(new ClientSession(name[i]));
+        sgate[i].reset(new SendGate(SendGate::bind(sess[i]->obtain(1).start())));
     }
 
     for(int i = 0; i < WARMUP; ++i) {
@@ -67,10 +67,5 @@ int main(int argc, char **argv) {
     }
 
     cout << "Time: " << (total / REPEAT) << "\n";
-
-    for(int i = 0; i < 2; ++i) {
-        delete sgate[i];
-        delete sess[i];
-    }
     return 0;
 }

@@ -71,14 +71,13 @@ int main(int argc, char **argv) {
 
     WorkLoop wl;
 
-    Server<TestRequestHandler> *srv;
+    auto hdl = std::make_unique<TestRequestHandler>(&wl);
+    std::unique_ptr<Server<TestRequestHandler>> srv;
     if(ep != EP_COUNT)
-        srv = new Server<TestRequestHandler>(sels, ep, &wl, std::make_unique<TestRequestHandler>(&wl));
+        srv.reset(new Server<TestRequestHandler>(sels, ep, &wl, std::move(hdl)));
     else
-        srv = new Server<TestRequestHandler>("srv1", &wl, std::make_unique<TestRequestHandler>(&wl));
+        srv.reset(new Server<TestRequestHandler>("srv1", &wl, std::move(hdl)));
 
     wl.run();
-
-    delete srv;
     return 0;
 }
