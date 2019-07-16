@@ -158,67 +158,66 @@ int main(int argc, char **argv) {
             apps[1]->vpe.exec(ARRAY_SIZE(m3fs_args), m3fs_args);
         }
 
-        Pipes pipes("mypipes");
+        {
+            Pipes pipes("mypipes");
 
-        // create pipe
-        MemGate *vpemem = nullptr;
-        VPE *memvpe = nullptr;
-        IndirectPipe *pipe;
-        if(pmem == DRAM)
-            pipe = new IndirectPipe(pipes, pipemem, PIPE_SHM_SIZE);
-        else {
-            memvpe = new VPE("mem");
-            vpemem = new MemGate(memvpe->mem().derive(0x10000, PIPE_SHM_SIZE, MemGate::RW));
-            pipe = new IndirectPipe(pipes, *vpemem, PIPE_SHM_SIZE);
-            // let the kernel schedule the VPE; this cannot be done by the reader/writer, because
-            // the pipe service just configures their EP, but doesn't delegate the memory capability
-            // to them
-            vpemem->write(&vpemem, sizeof(vpemem), 0);
+            // create pipe
+            std::unique_ptr<MemGate> vpemem;
+            std::unique_ptr<VPE> memvpe;
+            std::unique_ptr<IndirectPipe> pipe;
+            if(pmem == DRAM)
+                pipe.reset(new IndirectPipe(pipes, pipemem, PIPE_SHM_SIZE));
+            else {
+                memvpe.reset(new VPE("mem"));
+                vpemem.reset(new MemGate(memvpe->mem().derive(0x10000, PIPE_SHM_SIZE, MemGate::RW)));
+                pipe.reset(new IndirectPipe(pipes, *vpemem, PIPE_SHM_SIZE));
+                // let the kernel schedule the VPE; this cannot be done by the reader/writer, because
+                // the pipe service just configures their EP, but doesn't delegate the memory capability
+                // to them
+                vpemem->write(&vpemem, sizeof(vpemem), 0);
+            }
+
+            if(VERBOSE) cout << "Starting reader and writer...\n";
+
+            if(apps[1])
+                VFS::mount("/foo", "m3fs", "mym3fs");
+
+            cycles_t start = Time::start(0x1234);
+
+            // start writer
+            apps[3]->vpe.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipe->writer_fd()));
+            apps[3]->vpe.obtain_fds();
+            apps[3]->vpe.mounts(VPE::self().mounts());
+            apps[3]->vpe.obtain_mounts();
+            apps[3]->vpe.exec(wargs, const_cast<const char**>(wargv));
+
+            // start reader
+            apps[4]->vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe->reader_fd()));
+            apps[4]->vpe.obtain_fds();
+            apps[4]->vpe.mounts(VPE::self().mounts());
+            apps[4]->vpe.obtain_mounts();
+            apps[4]->vpe.exec(rargs, const_cast<const char**>(rargv));
+
+            pipe->close_writer();
+            pipe->close_reader();
+
+            if(VERBOSE) cout << "Waiting for applications...\n";
+            cycles_t runstart = Time::start(0x1111);
+
+            // don't wait for the services
+            for(size_t i = 3; i < ARRAY_SIZE(apps); ++i) {
+                int res = apps[i]->vpe.wait();
+                if(VERBOSE) cout << apps[i]->name << " exited with " << res << "\n";
+            }
+
+            cycles_t runend = Time::stop(0x1111);
+            cycles_t end = Time::stop(0x1234);
+            cout << "Time: " << (end - start) << ", runtime: " << (runend - runstart) << "\n";
+
+            if(VERBOSE) cout << "Waiting for services...\n";
+
+            // destroy pipe first
         }
-
-        if(VERBOSE) cout << "Starting reader and writer...\n";
-
-        if(apps[1])
-            VFS::mount("/foo", "m3fs", "mym3fs");
-
-        cycles_t start = Time::start(0x1234);
-
-        // start writer
-        apps[3]->vpe.fds()->set(STDOUT_FD, VPE::self().fds()->get(pipe->writer_fd()));
-        apps[3]->vpe.obtain_fds();
-        apps[3]->vpe.mounts(VPE::self().mounts());
-        apps[3]->vpe.obtain_mounts();
-        apps[3]->vpe.exec(wargs, const_cast<const char**>(wargv));
-
-        // start reader
-        apps[4]->vpe.fds()->set(STDIN_FD, VPE::self().fds()->get(pipe->reader_fd()));
-        apps[4]->vpe.obtain_fds();
-        apps[4]->vpe.mounts(VPE::self().mounts());
-        apps[4]->vpe.obtain_mounts();
-        apps[4]->vpe.exec(rargs, const_cast<const char**>(rargv));
-
-        pipe->close_writer();
-        pipe->close_reader();
-
-        if(VERBOSE) cout << "Waiting for applications...\n";
-        cycles_t runstart = Time::start(0x1111);
-
-        // don't wait for the services
-        for(size_t i = 3; i < ARRAY_SIZE(apps); ++i) {
-            int res = apps[i]->vpe.wait();
-            if(VERBOSE) cout << apps[i]->name << " exited with " << res << "\n";
-        }
-
-        cycles_t runend = Time::stop(0x1111);
-        cycles_t end = Time::stop(0x1234);
-        cout << "Time: " << (end - start) << ", runtime: " << (runend - runstart) << "\n";
-
-        if(VERBOSE) cout << "Waiting for services...\n";
-
-        // destroy pipe first
-        delete pipe;
-        delete vpemem;
-        delete memvpe;
 
         if(apps[1])
             VFS::unmount("/foo");
