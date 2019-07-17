@@ -119,6 +119,13 @@ public:
     static size_t contiguous_mem();
 
     /**
+     * @return the total amount of heap memory
+     */
+    static size_t total_memory() {
+        return reinterpret_cast<uintptr_t>(heap_end) - reinterpret_cast<uintptr_t>(heap_begin);
+    }
+
+    /**
      * @return the total amount of free memory
      */
     static size_t free_memory() {

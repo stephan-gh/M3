@@ -265,11 +265,13 @@ static void allocate_all_and_free_it_again() {
         return;
     }
 
-    void *ptrs[HEAP_SIZE / 0x4000];
+    size_t total = Heap::total_memory();
+    size_t num = total / 0x4000;
+    void **ptrs = new void*[num];
 
     // free backwards
     ssize_t i;
-    for(i = 0; i < static_cast<ssize_t>(ARRAY_SIZE(ptrs)); ++i) {
+    for(i = 0; i < static_cast<ssize_t>(num); ++i) {
         ptrs[i] = Heap::try_alloc(0x4000);
         if(ptrs[i] == nullptr)
             break;
@@ -279,13 +281,15 @@ static void allocate_all_and_free_it_again() {
         Heap::free(ptrs[i]);
 
     // free forward
-    for(i = 0; i < static_cast<ssize_t>(ARRAY_SIZE(ptrs)); ++i) {
+    for(i = 0; i < static_cast<ssize_t>(num); ++i) {
         ptrs[i] = Heap::try_alloc(0x4000);
         if(ptrs[i] == nullptr)
             break;
     }
     for(ssize_t j = 0; j < i; ++j)
         Heap::free(ptrs[j]);
+
+    delete[] ptrs;
 
     check_heap_after();
 }
