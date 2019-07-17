@@ -188,21 +188,24 @@ void VPE::load_segment(ElfPh &pheader, char *buffer) {
         return;
     }
 
-    /* seek to that offset and copy it to destination PE */
-    size_t off = pheader.p_offset;
-    if(_exec->seek(off, M3FS_SEEK_SET) != off)
-        throw Exception(Errors::INVALID_ELF);
-
-    size_t count = pheader.p_filesz;
     size_t segoff = pheader.p_vaddr;
-    while(count > 0) {
-        size_t amount = std::min(count, BUF_SIZE);
-        if(_exec->read(buffer, amount) != amount)
-            throw Exception(Errors::INVALID_ELF);
+    size_t count = pheader.p_filesz;
+    /* the offset might be beyond EOF if count is 0 */
+    if(count > 0) {
+        /* seek to that offset and copy it to destination PE */
+        size_t off = pheader.p_offset;
+        if(_exec->seek(off, M3FS_SEEK_SET) != off)
+            VTHROW(Errors::INVALID_ELF, "Unable to seek to segment at " << off);
 
-        _mem.write(buffer, Math::round_up(amount, DTU_PKG_SIZE), segoff);
-        count -= amount;
-        segoff += amount;
+        while(count > 0) {
+            size_t amount = std::min(count, BUF_SIZE);
+            if(_exec->read(buffer, amount) != amount)
+                VTHROW(Errors::INVALID_ELF, "Unable to read " << amount << " bytes");
+
+            _mem.write(buffer, Math::round_up(amount, DTU_PKG_SIZE), segoff);
+            count -= amount;
+            segoff += amount;
+        }
     }
 
     /* zero the rest */
@@ -213,11 +216,11 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
     /* load and check ELF header */
     ElfEh header;
     if(_exec->read(&header, sizeof(header)) != sizeof(header))
-        throw Exception(Errors::INVALID_ELF);
+        throw MessageException("Unable to read header", Errors::INVALID_ELF);
 
     if(header.e_ident[0] != '\x7F' || header.e_ident[1] != 'E' || header.e_ident[2] != 'L' ||
         header.e_ident[3] != 'F')
-        throw Exception(Errors::INVALID_ELF);
+        throw MessageException("Invalid magic number", Errors::INVALID_ELF);
 
     /* copy load segments to destination PE */
     goff_t end = 0;
@@ -226,9 +229,9 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
         /* load program header */
         ElfPh pheader;
         if(_exec->seek(off, M3FS_SEEK_SET) != off)
-            throw Exception(Errors::INVALID_ELF);
+            VTHROW(Errors::INVALID_ELF, "Unable to seek to pheader at " << off);
         if(_exec->read(&pheader, sizeof(pheader)) != sizeof(pheader))
-            throw Exception(Errors::INVALID_ELF);
+            VTHROW(Errors::INVALID_ELF, "Unable to read pheader at " << off);
 
         /* we're only interested in non-empty load segments */
         if(pheader.p_type != PT_LOAD || pheader.p_memsz == 0 || skip_section(&pheader))
