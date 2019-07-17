@@ -4,8 +4,8 @@ myenv = env.Clone()
 
 myenv.Append(
     CPPPATH = '.',
-    CXXFLAGS = ' -fno-exceptions -fno-rtti',
-    LINKFLAGS = ' -fno-exceptions -fno-rtti',
+    CXXFLAGS = ' -fno-exceptions',
+    LINKFLAGS = ' -fno-exceptions',
 )
 
 sources = [
