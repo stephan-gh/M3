@@ -34,6 +34,7 @@ struct Errors {
         NO_MAPPING,
         INV_EP,
         ABORT,
+        REPLY_DISABLED,
         // SW errors
         INV_ARGS,
         OUT_OF_MEM,

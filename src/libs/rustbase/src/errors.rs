@@ -30,6 +30,7 @@ pub enum Code {
     NoMapping,
     InvEP,
     Abort,
+    ReplyDisabled,
     // SW Errors
     InvArgs,
     OutOfMem,
