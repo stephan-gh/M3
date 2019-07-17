@@ -30,9 +30,10 @@ static const char *errmsgs[] = {
     "Invalid endpoint",
     "Abort",
     "Reply disabled",
-    "Invalid arguments",
+    "Invalid message",
 
     /* 10 */
+    "Invalid arguments",
     "Out of memory",
     "No such file or directory",
     "No permissions",
@@ -42,9 +43,9 @@ static const char *errmsgs[] = {
     "No space left",
     "Object does already exist",
     "Cross-filesystem link not possible",
-    "Directory not empty",
 
     /* 20 */
+    "Directory not empty",
     "Is a directory",
     "Is no directory",
     "Endpoint is invalid",

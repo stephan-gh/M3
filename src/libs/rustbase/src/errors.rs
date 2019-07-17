@@ -31,6 +31,7 @@ pub enum Code {
     InvEP,
     Abort,
     ReplyDisabled,
+    InvMsg,
     // SW Errors
     InvArgs,
     OutOfMem,

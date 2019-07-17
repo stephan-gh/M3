@@ -35,6 +35,7 @@ struct Errors {
         INV_EP,
         ABORT,
         REPLY_DISABLED,
+        INV_MSG,
         // SW errors
         INV_ARGS,
         OUT_OF_MEM,
