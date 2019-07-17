@@ -377,6 +377,7 @@ impl DTU {
     #[inline(always)]
     pub fn fetch_msg(ep: EpId) -> Option<&'static Message> {
         Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0, 0));
+        unsafe { intrinsics::atomic_fence() };
         let msg = Self::read_cmd_reg(CmdReg::OFFSET);
         if msg != 0 {
             unsafe {
