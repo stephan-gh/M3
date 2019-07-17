@@ -14,17 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::recv_msg;
-use m3::com::{SendGate, SGateArgs, RecvGate, RGateArgs};
-use m3::dtu::DTU;
+use m3::com::{SendGate, SGateArgs, RecvGate};
 use m3::boxed::Box;
 use m3::env;
 use m3::test;
 use m3::util;
-use m3::vfs;
 use m3::vpe::{Activity, VPE, VPEArgs};
 
 pub fn run(t: &mut dyn test::Tester) {
+    #[cfg(not(target_arch = "arm"))]
     run_test!(t, run_stop);
     run_test!(t, run_arguments);
     run_test!(t, run_send_receive);
@@ -34,7 +32,14 @@ pub fn run(t: &mut dyn test::Tester) {
     run_test!(t, exec_rust_hello);
 }
 
+// this doesn't work on arm yet, because of problems in rctmux
+#[cfg(not(target_arch = "arm"))]
 fn run_stop() {
+    use m3::com::recv_msg;
+    use m3::com::RGateArgs;
+    use m3::dtu::DTU;
+    use m3::vfs;
+
     let mut rg = assert_ok!(RecvGate::new_with(RGateArgs::new().order(6).msg_order(6)));
     assert_ok!(rg.activate());
 
