@@ -353,12 +353,12 @@ public:
             return;
 
         goff_t base = read_reg(ep, 1);
-        size_t bufsize = (r0 >> 26) & 0x3F;
+        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 26) & 0x3F);
         size_t msgsize = (r0 >> 32) & 0xFFFF;
         word_t unread = read_reg(ep, 2) >> 32;
         for(size_t i = 0; i < bufsize; ++i) {
             if(unread & (static_cast<size_t>(1) << i)) {
-                m3::DTU::Message *msg = reinterpret_cast<m3::DTU::Message*>(base + (i * msgsize));
+                m3::DTU::Message *msg = reinterpret_cast<m3::DTU::Message*>(base + (i << msgsize));
                 if(msg->label == label)
                     mark_read(ep, reinterpret_cast<size_t>(msg));
             }
