@@ -49,6 +49,16 @@ void M3FS::stat(const char *path, FileInfo &info) {
     reply >> info;
 }
 
+Errors::Code M3FS::try_stat(const char *path, FileInfo &info) noexcept {
+    GateIStream reply = send_receive_vmsg(_gate, STAT, path);
+    Errors::Code res;
+    reply >> res;
+    if(res != Errors::NONE)
+        return res;
+    reply >> info;
+    return Errors::NONE;
+}
+
 void M3FS::mkdir(const char *path, mode_t mode) {
     GateIStream reply = send_receive_vmsg(_gate, MKDIR, path, mode);
     receive_result(reply);

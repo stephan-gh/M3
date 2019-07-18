@@ -114,11 +114,19 @@ void VFS::stat(const char *path, FileInfo &info) {
     try {
         size_t pos;
         Reference<FileSystem> fs = ms()->resolve(path, &pos);
-        return fs->stat(path + pos, info);
+        fs->stat(path + pos, info);
     }
     catch(const Exception &e) {
         VTHROW(e.code(), "stat '" << path << "' failed");
     }
+}
+
+Errors::Code VFS::try_stat(const char *path, FileInfo &info) noexcept {
+    size_t pos;
+    Reference<FileSystem> fs = ms()->try_resolve(path, &pos);
+    if(!fs)
+        return Errors::NO_SUCH_FILE;
+    return fs->try_stat(path + pos, info);
 }
 
 void VFS::mkdir(const char *path, mode_t mode) {

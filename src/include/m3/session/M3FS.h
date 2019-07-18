@@ -75,6 +75,7 @@ public:
 
     virtual Reference<File> open(const char *path, int perms) override;
     virtual void stat(const char *path, FileInfo &info) override;
+    virtual Errors::Code try_stat(const char *path, FileInfo &info) noexcept override;
     virtual void mkdir(const char *path, mode_t mode) override;
     virtual void rmdir(const char *path) override;
     virtual void link(const char *oldpath, const char *newpath) override;

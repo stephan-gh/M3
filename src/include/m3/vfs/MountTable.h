@@ -89,6 +89,16 @@ public:
     Reference<FileSystem> resolve(const char *path, size_t *pos);
 
     /**
+     * Tries to resolves the given path to a mounted filesystem. That is, on error, it does not
+     * throw an exception, but returns an invalid reference.
+     *
+     * @param path the path
+     * @param pos will be set to the position within the path where the mounted FS starts
+     * @return the filesystem or an invalid reference
+     */
+    Reference<FileSystem> try_resolve(const char *path, size_t *pos) noexcept;
+
+    /**
      * @param path the path
      * @return the index of the mountpoint at given path
      */

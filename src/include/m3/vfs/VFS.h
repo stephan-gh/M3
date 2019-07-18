@@ -147,6 +147,16 @@ public:
     static void stat(const char *path, FileInfo &info);
 
     /**
+     * Tries to retrieve the file information for the given path. That is, on error it does not
+     * throw an exception, but returns the error code.
+     *
+     * @param path the path
+     * @param info where to write to
+     * @return the error code on failure
+     */
+    static Errors::Code try_stat(const char *path, FileInfo &info) noexcept;
+
+    /**
      * Creates the given directory. Expects that all path-components except the last already exists.
      *
      * @param path the path

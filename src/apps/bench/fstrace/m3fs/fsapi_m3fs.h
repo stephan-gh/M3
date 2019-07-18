@@ -206,19 +206,15 @@ public:
     }
 
     virtual void fstatat(const fstatat_args_t *args, UNUSED int lineNo) override {
-        int res = get_result_of([this, &args] {
-            m3::FileInfo info;
-            m3::VFS::stat(add_prefix(args->name), info);
-        });
+        m3::FileInfo info;
+        m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }
 
     virtual void stat(const stat_args_t *args, UNUSED int lineNo) override {
-        int res = get_result_of([this, &args] {
-            m3::FileInfo info;
-            m3::VFS::stat(add_prefix(args->name), info);
-        });
+        m3::FileInfo info;
+        m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
         if ((res == m3::Errors::NONE) != (args->err == 0))
             THROW1(ReturnValueException, res, args->err, lineNo);
     }

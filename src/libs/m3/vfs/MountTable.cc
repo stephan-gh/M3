@@ -95,13 +95,19 @@ void MountTable::add(const char *path, FileSystem *fs) {
 }
 
 Reference<FileSystem> MountTable::resolve(const char *path, size_t *pos) {
+    auto res = try_resolve(path, pos);
+    if(res)
+        return res;
+    VTHROW(Errors::NO_SUCH_FILE, "Unable to resolve path '" << path << "'");
+}
+
+Reference<FileSystem> MountTable::try_resolve(const char *path, size_t *pos) noexcept {
     for(size_t i = 0; i < _count; ++i) {
         *pos = is_in_mount(_mounts[i]->path(), path);
         if(*pos != 0)
             return _mounts[i]->fs();
     }
-
-    VTHROW(Errors::NO_SUCH_FILE, "Unable to resolve path '" << path << "'");
+    return Reference<FileSystem>();
 }
 
 size_t MountTable::indexof_mount(const char *path) {

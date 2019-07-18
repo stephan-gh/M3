@@ -60,6 +60,16 @@ public:
     virtual void stat(const char *path, FileInfo &info) = 0;
 
     /**
+     * Tries to retrieve the file information for the given path. That is, on error it does not
+     * throw an exception, but the error code is returned.
+     *
+     * @param path the path
+     * @param info where to write to
+     * @return the error code on failure
+     */
+    virtual Errors::Code try_stat(const char *path, FileInfo &info) noexcept = 0;
+
+    /**
      * Creates the given directory.
      *
      * @param path the directory path
