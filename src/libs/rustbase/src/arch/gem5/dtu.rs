@@ -58,6 +58,8 @@ pub const CMD_REGS: usize       = 5;
 pub const EP_REGS: usize        = 3;
 /// The number of headers per DTU
 pub const HEADER_COUNT: usize   = 128;
+/// The number of registers per header
+pub const HEADER_REGS: usize    = 2;
 
 /// Represents unlimited credits
 pub const CREDITS_UNLIM: u64    = 0xFFFF;
@@ -457,8 +459,18 @@ impl DTU {
 
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) {
-        Self::write_cmd_reg(CmdReg::DATA, s.as_ptr() as Reg | (s.len() as Reg) << 48);
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(0, CmdOpCode::PRINT, 0, 0));
+        let regs = DTU_REGS + CMD_REGS + EP_REGS * EP_COUNT + HEADER_REGS * HEADER_COUNT;
+        let mut buffer = BASE_ADDR + regs * 8;
+
+        let rstr: &[u64] = unsafe { intrinsics::transmute(s) };
+        let num = util::round_up(s.len(), 8) / 8;
+        for i in 0..num {
+            arch::cpu::write8b(buffer, rstr[i]);
+            buffer += 8;
+        }
+
+        Self::write_cmd_reg(CmdReg::COMMAND,
+                            Self::build_cmd(0, CmdOpCode::PRINT, 0, s.len() as u64));
     }
 
     fn read_dtu_reg(reg: DtuReg) -> Reg {

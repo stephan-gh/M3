@@ -59,6 +59,8 @@ private:
     static const size_t REQ_REGS            = 3;
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
+    static const size_t HD_COUNT            = 128;
+    static const size_t HD_REGS             = 2;
 
     static const size_t CREDITS_UNLIM       = 0xFFFF;
     // actual max is 64k - 1; use less for better alignment
@@ -335,11 +337,7 @@ public:
         return true;
     }
 
-    void print(const char *str, size_t len) {
-        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(str) | (static_cast<reg_t>(len) << 48));
-        CPU::memory_barrier();
-        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::PRINT));
-    }
+    void print(const char *str, size_t len);
 
     void clear_irq() {
         write_reg(DtuRegs::CLEAR_IRQ, 1);
@@ -459,6 +457,10 @@ private:
     static uintptr_t header_addr(size_t idx) {
         size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
         return BASE_ADDR + regCount * sizeof(reg_t) + idx * sizeof(ReplyHeader);
+    }
+    static uintptr_t buffer_addr() {
+        size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS + HD_COUNT * HD_REGS;
+        return BASE_ADDR + regCount * sizeof(reg_t);
     }
 
     static reg_t build_command(epid_t ep, CmdOpCode c, uint flags = 0, reg_t arg = 0) {

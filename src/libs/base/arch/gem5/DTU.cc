@@ -63,6 +63,19 @@ void DTU::try_sleep(bool yield, uint64_t cycles, reg_t evmask) {
     sleep(cycles);
 }
 
+void DTU::print(const char *str, size_t len) {
+    uintptr_t buffer = buffer_addr();
+    const reg_t *rstr = reinterpret_cast<const reg_t*>(str);
+    const reg_t *end = reinterpret_cast<const reg_t*>(str + len);
+    while(rstr < end) {
+        CPU::write8b(buffer, *rstr);
+        buffer += sizeof(reg_t);
+        rstr++;
+    }
+
+    write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::PRINT, 0, len));
+}
+
 Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
     static_assert(KIF::Perm::R == DTU::R, "DTU::R does not match KIF::Perm::R");
     static_assert(KIF::Perm::W == DTU::W, "DTU::W does not match KIF::Perm::W");
