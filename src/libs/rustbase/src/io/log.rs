@@ -113,7 +113,7 @@ impl Log {
         self.pos = 0;
         let pe_id = arch::envdata::get().pe_id;
         self.write_fmt(format_args!(
-            "\x1B[0;{}m[{:<8}@{:x}] ",
+            "\x1B[0;{}m[{:<8}@{:X}] ",
             colors[(pe_id as usize) % colors.len()],
             &name[begin..],
             pe_id
