@@ -32,8 +32,8 @@ void DTU::try_sleep(bool yield, uint64_t cycles, reg_t evmask) {
             return;
     }
 
-    uint64_t yield_time = *reinterpret_cast<uint64_t*>(RCTMUX_YIELD);
-    if(yield && yield_time > 0) {
+    uint64_t yield_time;
+    if(yield && (yield_time = *reinterpret_cast<uint64_t*>(RCTMUX_YIELD)) > 0) {
         // if we want to wait longer than our yield time, sleep first for a while until we yield
         if(cycles == 0 || cycles > yield_time) {
             // sleep a bit
