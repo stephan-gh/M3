@@ -26,6 +26,8 @@
 #include <m3/com/SendGate.h>
 #include <m3/VPE.h>
 
+#include <memory>
+
 namespace m3 {
 
 class LoadGen : public ClientSession {
@@ -38,13 +40,13 @@ public:
               _rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
               _sgate(SendGate::create(&_rgate, SendGateArgs().credits(64).sel(sels + 0))),
               _mgate(MemGate::create_global(memsize, MemGate::RW, sels + 1)),
-              _is(_rgate, nullptr) {
+              _is() {
             _rgate.activate();
         }
 
         void wait() {
-            _is = receive_msg(_rgate);
-            _is >> _rem;
+            _is = std::make_unique<GateIStream>(receive_msg(_rgate));
+            *_is >> _rem;
             _off = 0;
         }
 
@@ -71,7 +73,7 @@ public:
         }
 
         void reply() {
-            reply_vmsg(_is, RESPONSE, _off);
+            reply_vmsg(*_is, RESPONSE, _off);
         }
 
     private:
@@ -80,7 +82,7 @@ public:
         RecvGate _rgate;
         SendGate _sgate;
         MemGate _mgate;
-        GateIStream _is;
+        std::unique_ptr<GateIStream> _is;
     };
 
     enum Operation {
