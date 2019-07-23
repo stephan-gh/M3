@@ -53,38 +53,38 @@ Platform::Init::Init() {
     DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_pes, pe_size);
 
     // register memory modules
-    int count = 0;
     size_t memidx = 0;
-    const goff_t USABLE_MEM = (static_cast<goff_t>(2048) + 512) * 1024 * 1024;
     MainMemory &mem = MainMemory::get();
     for(size_t i = 0; i < info->pe_count; ++i) {
         m3::PEDesc pedesc = Platform::_pes[i];
         if(pedesc.type() == m3::PEType::MEM) {
-            if(memidx >= ARRAY_SIZE(info->mems))
-                PANIC("Not enough memory slots in boot info");
-
             // the first memory module hosts the FS image and other stuff
-            if(count == 0) {
-                if(pedesc.mem_size() <= USABLE_MEM + Args::kmem)
-                    PANIC("Not enough DRAM");
-                mem.add(new MemoryModule(MemoryModule::OCCUPIED, i, 0, USABLE_MEM));
-                info->mems[memidx++] = m3::BootInfo::Mem(USABLE_MEM, true);
+            if(memidx == 0) {
+                size_t avail = info->mems[memidx].size();
+                if(avail <= Args::kmem)
+                    PANIC("Not enough DRAM for kernel memory (" << Args::kmem << ")");
+                size_t used = pedesc.mem_size() - avail;
+                mem.add(new MemoryModule(MemoryModule::OCCUPIED, i, 0, used));
+                info->mems[memidx++] = m3::BootInfo::Mem(used, true);
 
-                mem.add(new MemoryModule(MemoryModule::KERNEL, i, USABLE_MEM, Args::kmem));
+                mem.add(new MemoryModule(MemoryModule::KERNEL, i, used, Args::kmem));
 
-                size_t usize = pedesc.mem_size() - (USABLE_MEM + Args::kmem);
-                mem.add(new MemoryModule(MemoryModule::USER, i, USABLE_MEM + Args::kmem, usize));
-                info->mems[memidx++] = m3::BootInfo::Mem(usize, false);
+                mem.add(new MemoryModule(MemoryModule::USER, i, used + Args::kmem, avail));
+                info->mems[memidx++] = m3::BootInfo::Mem(avail, false);
             }
             else {
+                if(memidx >= ARRAY_SIZE(info->mems))
+                    PANIC("Not enough memory slots in boot info");
+
                 mem.add(new MemoryModule(MemoryModule::USER, i, 0, pedesc.mem_size()));
                 info->mems[memidx++] = m3::BootInfo::Mem(pedesc.mem_size(), false);
             }
-            count++;
         }
         else
             last_pe_id = i;
     }
+    for(; memidx < m3::BootInfo::MAX_MEMS; ++memidx)
+        info->mems[memidx] = m3::BootInfo::Mem(0, false);
 
     // write-back boot info (changes to mems)
     addr = m3::DTU::gaddr_to_virt(m3::env()->kenv);
