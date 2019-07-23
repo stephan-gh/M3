@@ -35,11 +35,38 @@ use m3::session::{ResMng, ResMngOperation};
 use m3::vpe::{DefaultMapper, VPE, VPEArgs};
 use m3::vfs::{VFS, OpenFlags};
 
-use resmng::childs::Child;
+use resmng::childs::{Child, Id};
 use resmng::{config, childs, sendqueue, services};
 
-const MAX_CAPS: Selector = 100000;
+const MAX_CAPS: Selector                        = 1000000;
+const MAX_CHILDS: Selector                      = 20;
 
+struct ChildCaps {
+    used: u64,
+}
+
+impl ChildCaps {
+    const fn new() -> Self {
+        ChildCaps {
+            used: 0,
+        }
+    }
+
+    fn alloc(&mut self) -> Result<Id, Error> {
+        for i in 0..MAX_CHILDS {
+            if self.used & (1 << i) == 0 {
+                self.used |= 1 << i;
+                return Ok(i);
+            }
+        }
+        Err(Error::new(Code::NoSpace))
+    }
+    fn free(&mut self, id: Id) {
+        self.used &= !(1 << id);
+    }
+}
+
+static CHILD_CAPS: StaticCell<ChildCaps>        = StaticCell::new(ChildCaps::new());
 static BASE_SEL: StaticCell<Selector>           = StaticCell::new(0);
 static RGATE: StaticCell<Option<RecvGate>>      = StaticCell::new(None);
 
@@ -57,12 +84,12 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     }.expect("Unable to reply");
 }
 
-fn xlate_sel(sel: Selector) -> Result<Selector, Error> {
-    if sel >= MAX_CAPS {
+fn xlate_sel(id: Id, sel: Selector) -> Result<Selector, Error> {
+    if sel >= MAX_CAPS / MAX_CHILDS {
         Err(Error::new(Code::InvArgs))
     }
     else {
-        Ok(BASE_SEL.get() + sel)
+        Ok(BASE_SEL.get() + id * (MAX_CAPS / MAX_CHILDS) + sel)
     }
 }
 
@@ -92,7 +119,7 @@ fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error
         Ok(_)   => Ok(()),
         Err(_)  => {
             // if that failed, ask our resource manager
-            let our_sel = xlate_sel(dst_sel)?;
+            let our_sel = xlate_sel(child.id(), dst_sel)?;
             VPE::cur().resmng().open_sess(our_sel, &name)?;
             child.delegate(our_sel, dst_sel)
         },
@@ -106,7 +133,7 @@ fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Erro
     match res {
         Ok(_)  => Ok(()),
         Err(_) => {
-            let our_sel = xlate_sel(sel)?;
+            let our_sel = xlate_sel(child.id(), sel)?;
             VPE::cur().resmng().close_sess(our_sel)
         },
     }
@@ -117,13 +144,21 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sgate_sel: Selector = is.pop();
     let name: String = is.pop();
 
-    child.add_child(vpe_sel, req_rgate(), sgate_sel, name)
+    let id = CHILD_CAPS.get_mut().alloc()?;
+    childs::get().set_next_id(id);
+    let res = child.add_child(vpe_sel, req_rgate(), sgate_sel, name);
+    if let Err(_) = res {
+        CHILD_CAPS.get_mut().free(id);
+    }
+    res
 }
 
 fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let vpe_sel: Selector = is.pop();
 
-    child.rem_child(vpe_sel)
+    let id = child.rem_child(vpe_sel)?;
+    CHILD_CAPS.get_mut().free(id);
+    Ok(())
 }
 
 fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
@@ -136,7 +171,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
          child.name(), dst_sel, addr, size, perms);
 
     // forward memory requests to our resource manager
-    let our_sel = xlate_sel(dst_sel)?;
+    let our_sel = xlate_sel(child.id(), dst_sel)?;
     VPE::cur().resmng().alloc_mem(our_sel, addr, size, perms)?;
 
     // delegate memory to our child
@@ -148,7 +183,7 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 
     log!(RESMNG_MEM, "{}: free(sel={})", child.name(), sel);
 
-    let our_sel = xlate_sel(sel)?;
+    let our_sel = xlate_sel(child.id(), sel)?;
     VPE::cur().resmng().free_mem(our_sel)
 }
 
@@ -250,6 +285,10 @@ pub fn main() -> i32 {
     let file = VFS::open(&name, OpenFlags::RX)
         .expect("Unable to open executable");
     let mut mapper = DefaultMapper::new(vpe.pe().has_virtmem());
+
+    let id = CHILD_CAPS.get_mut().alloc()
+        .expect("Unable to allocate child id");
+    childs::get().set_next_id(id);
 
     child.start(vpe, &mut mapper, file)
         .expect("Unable to start VPE");

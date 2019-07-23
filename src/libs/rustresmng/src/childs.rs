@@ -112,14 +112,15 @@ pub trait Child {
         Ok(())
     }
 
-    fn rem_child(&mut self, vpe_sel: Selector) -> Result<(), Error> {
+    fn rem_child(&mut self, vpe_sel: Selector) -> Result<Id, Error> {
         log!(RESMNG, "{}: rem_child(vpe={})", self.name(), vpe_sel);
 
         let idx = self.res().childs.iter().position(|c| c.1 == vpe_sel).ok_or(Error::new(Code::InvArgs))?;
-        get().remove_rec(self.res().childs[idx].0);
+        let id = self.res().childs[idx].0;
+        get().remove_rec(id);
         self.cfg().remove_child(vpe_sel);
         self.res_mut().childs.remove(idx);
-        Ok(())
+        Ok(id)
     }
 
     fn delegate(&self, src: Selector, dst: Selector) -> Result<(), Error> {

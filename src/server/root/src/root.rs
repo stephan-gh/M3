@@ -117,7 +117,7 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) {
 fn rem_child(is: &mut GateIStream, child: &mut dyn Child) {
     let vpe_sel: Selector = is.pop();
 
-    let res = child.rem_child(vpe_sel);
+    let res = child.rem_child(vpe_sel).map(|_| ());
     reply_result(is, res);
 }
 
