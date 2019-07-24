@@ -42,7 +42,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 fn noop() {
     let mut prof = profile::Profiler::new();
 
-    wv_perf!(function!(), prof.run_with_id(|| {
+    wv_perf!("noop", prof.run_with_id(|| {
         wv_assert_ok!(syscalls::noop());
     }, 0x10));
 }
@@ -55,7 +55,7 @@ fn activate() {
 
     let mut prof = profile::Profiler::new();
 
-    wv_perf!(function!(), prof.run_with_id(|| {
+    wv_perf!("activate", prof.run_with_id(|| {
         wv_assert_ok!(syscalls::activate(VPE::cur().ep_sel(ep), mgate.sel(), 0));
     }, 0x11));
 }
@@ -75,7 +75,7 @@ fn create_rgate() {
         }
     }
 
-    wv_perf!(function!(), prof.runner_with_id(&mut Tester::default(), 0x12));
+    wv_perf!("create_rgate", prof.runner_with_id(&mut Tester::default(), 0x12));
 }
 
 fn create_sgate() {
@@ -98,7 +98,7 @@ fn create_sgate() {
         }
     }
 
-    wv_perf!(function!(), prof.runner_with_id(&mut Tester::default(), 0x13));
+    wv_perf!("create_sgate", prof.runner_with_id(&mut Tester::default(), 0x13));
 }
 
 fn create_map() {
@@ -122,7 +122,7 @@ fn create_map() {
     }
 
     let mut tester = Tester { 0: MemGate::new(0x1000, Perm::RW).unwrap() };
-    wv_perf!(function!(), prof.runner_with_id(&mut tester, 0x14));
+    wv_perf!("create_map", prof.runner_with_id(&mut tester, 0x14));
 }
 
 fn create_srv() {
@@ -147,7 +147,7 @@ fn create_srv() {
         }
     }
 
-    wv_perf!(function!(), prof.runner_with_id(&mut Tester::default(), 0x15));
+    wv_perf!("create_srv", prof.runner_with_id(&mut Tester::default(), 0x15));
 }
 
 fn derive_mem() {
@@ -171,7 +171,7 @@ fn derive_mem() {
         }
     }
 
-    wv_perf!(function!(), prof.runner_with_id(&mut Tester::default(), 0x17));
+    wv_perf!("derive_mem", prof.runner_with_id(&mut Tester::default(), 0x17));
 }
 
 fn exchange() {
@@ -203,7 +203,7 @@ fn exchange() {
         }
     }
 
-    wv_perf!(function!(), prof.runner_with_id(&mut Tester::default(), 0x18));
+    wv_perf!("exchange", prof.runner_with_id(&mut Tester::default(), 0x18));
 }
 
 fn revoke() {
@@ -221,5 +221,5 @@ fn revoke() {
         }
     }
 
-    wv_perf!(function!(), prof.runner_with_id(&mut Tester::default(), 0x19));
+    wv_perf!("revoke", prof.runner_with_id(&mut Tester::default(), 0x19));
 }

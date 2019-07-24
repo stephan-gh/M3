@@ -44,7 +44,7 @@ fn open_close() {
 fn stat() {
     let mut prof = profile::Profiler::new().repeats(20).warmup(5);
 
-    wv_perf!("{}", prof.run_with_id(|| {
+    wv_perf!("stat", prof.run_with_id(|| {
         wv_assert_ok!(VFS::stat("/data/2048k.txt"));
     }, 0x22));
 }
@@ -52,7 +52,7 @@ fn stat() {
 fn mkdir_rmdir() {
     let mut prof = profile::Profiler::new().repeats(20).warmup(5);
 
-    wv_perf!("{}", prof.run_with_id(|| {
+    wv_perf!("mkdir_rmdir", prof.run_with_id(|| {
         wv_assert_ok!(VFS::mkdir("/newdir", 0755));
         wv_assert_ok!(VFS::rmdir("/newdir"));
     }, 0x23));
@@ -61,7 +61,7 @@ fn mkdir_rmdir() {
 fn link_unlink() {
     let mut prof = profile::Profiler::new().repeats(20).warmup(5);
 
-    wv_perf!("{}", prof.run_with_id(|| {
+    wv_perf!("link_unlink", prof.run_with_id(|| {
         wv_assert_ok!(VFS::link("/large.txt", "/newlarge.txt"));
         wv_assert_ok!(VFS::unlink("/newlarge.txt"));
     }, 0x24));
