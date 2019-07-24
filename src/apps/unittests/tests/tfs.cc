@@ -22,6 +22,7 @@
 #include <m3/vfs/VFS.h>
 #include <m3/vfs/FileRef.h>
 #include <m3/vfs/Dir.h>
+#include <m3/Test.h>
 
 #include <vector>
 #include <algorithm>
@@ -42,13 +43,13 @@ static void check_content(const char *filename, size_t size) {
     size_t count;
     while((count = file->read(largebuf, sizeof(largebuf))) > 0) {
         for(size_t i = 0; i < count; ++i)
-            assert_int(largebuf[i], static_cast<uint8_t>(pos++ % 100));
+            WVASSERTEQ(largebuf[i], static_cast<uint8_t>(pos++ % 100));
     }
-    assert_size(pos, size);
+    WVASSERTEQ(pos, size);
 
     FileInfo info;
     file->stat(info);
-    assert_size(info.size, size);
+    WVASSERTEQ(info.size, size);
 }
 
 static void append_bug() {
@@ -167,12 +168,12 @@ static void append_with_read() {
             file->write_all(largebuf, sizeof(largebuf));
 
         // there is nothing to read now
-        assert_size(file->read(largebuf, sizeof(largebuf)), 0);
+        WVASSERTEQ(file->read(largebuf, sizeof(largebuf)), 0u);
 
         // seek back
-        assert_size(file->seek(sizeof(largebuf) * 1, M3FS_SEEK_SET), sizeof(largebuf) * 1);
+        WVASSERTEQ(file->seek(sizeof(largebuf) * 1, M3FS_SEEK_SET), sizeof(largebuf) * 1);
         // now reading should work
-        assert_size(file->read(largebuf, sizeof(largebuf)), sizeof(largebuf));
+        WVASSERTEQ(file->read(largebuf, sizeof(largebuf)), sizeof(largebuf));
     }
 
     check_content(small_file, sizeof(largebuf) * 2);
@@ -193,7 +194,7 @@ static void file_mux() {
             size_t end = Math::min(FILE_SIZE, pos + STEP_SIZE);
             while(tpos < end) {
                 uint8_t byte = static_cast<uint8_t>(files[i]->read());
-                assert_uint(byte, tpos & 0xFF);
+                WVASSERTEQ(byte, tpos & 0xFF);
                 tpos++;
             }
         }
@@ -237,7 +238,7 @@ static void pipe_mux() {
 
             reader[i]->read(dst_buf, STEP_SIZE);
 
-            assert_int(memcmp(src_buf, dst_buf, STEP_SIZE), 0);
+            WVASSERTEQ(memcmp(src_buf, dst_buf, STEP_SIZE), 0);
         }
         pos += STEP_SIZE;
     }
@@ -254,14 +255,14 @@ static void file_errors() {
     alignas(DTU_PKG_SIZE) char buf[DTU_PKG_SIZE];
     {
         FileRef file(filename, FILE_R);
-        assert_err(Errors::NO_PERM, [&file, &buf] {
+        WVASSERTERR(Errors::NO_PERM, [&file, &buf] {
             file->write(buf, sizeof(buf));
         });
     }
 
     {
         FileRef file(filename, FILE_W);
-        assert_err(Errors::NO_PERM, [&file, &buf] {
+        WVASSERTERR(Errors::NO_PERM, [&file, &buf] {
             file->read(buf, sizeof(buf));
         });
     }
@@ -277,7 +278,7 @@ static void read_file_at_once() {
     alignas(DTU_PKG_SIZE) char buf[sizeof(content)];
     assert_ssize(file->read(buf, sizeof(buf) - 1), sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
-    assert_str(buf, content);
+    WVASSERTEQ(buf, content);
 }
 #endif
 
@@ -288,7 +289,7 @@ static void read_file_in_64b_steps() {
     size_t count, pos = 0;
     while((count = file->read(buf, sizeof(buf))) > 0) {
         for(size_t i = 0; i < count; ++i)
-            assert_int(buf[i], pos++ & 0xFF);
+            WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
 }
 
@@ -299,7 +300,7 @@ static void read_file_in_large_steps() {
     size_t count, pos = 0;
     while((count = file->read(buf, sizeof(buf))) > 0) {
         for(size_t i = 0; i < count; ++i)
-            assert_int(buf[i], pos++ & 0xFF);
+            WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
 }
 
@@ -311,13 +312,13 @@ static void write_file_and_read_again() {
 
     file->write_all(content, contentsz);
 
-    assert_size(file->seek(0, M3FS_SEEK_CUR), contentsz);
-    assert_size(file->seek(0, M3FS_SEEK_SET), 0);
+    WVASSERTEQ(file->seek(0, M3FS_SEEK_CUR), contentsz);
+    WVASSERTEQ(file->seek(0, M3FS_SEEK_SET), 0u);
 
     alignas(DTU_PKG_SIZE) char buf[contentsz];
     size_t count = file->read(buf, sizeof(buf));
-    assert_size(count, sizeof(buf));
-    assert_str(buf, content);
+    WVASSERTEQ(count, sizeof(buf));
+    WVASSERTEQ(buf, StringRef(content));
 
     // undo the write
     file->seek(0, M3FS_SEEK_SET);
@@ -340,25 +341,25 @@ static void transactions() {
         {
             FileRef file2(tmp_file, FILE_W | FILE_CREATE);
 
-            assert_err(Errors::EXISTS, [&file2, &content2] {
+            WVASSERTERR(Errors::EXISTS, [&file2, &content2] {
                 file2->write_all(content2, sizeof(content2) - 1);
             });
 
             file2->stat(info);
-            assert_size(info.size, 0);
+            WVASSERTEQ(info.size, 0u);
 
             file1->stat(info);
-            assert_size(info.size, 0);
+            WVASSERTEQ(info.size, 0u);
 
             file1->flush();
 
             file2->stat(info);
-            assert_size(info.size, sizeof(content1) - 1);
+            WVASSERTEQ(info.size, sizeof(content1) - 1);
 
             file1->stat(info);
-            assert_size(info.size, sizeof(content1) - 1);
+            WVASSERTEQ(info.size, sizeof(content1) - 1);
 
-            assert_size(file2->seek(0, M3FS_SEEK_END), sizeof(content1) - 1);
+            WVASSERTEQ(file2->seek(0, M3FS_SEEK_END), sizeof(content1) - 1);
             file2->write_all(content2, sizeof(content2) - 1);
         }
     }
@@ -367,9 +368,9 @@ static void transactions() {
         FileRef file(tmp_file, FILE_R);
 
         char buf[sizeof(content3)] = {0};
-        assert_size(file->read(buf, sizeof(buf)), static_cast<ssize_t>(sizeof(content3) - 1));
-        assert_str(buf, content3);
-        assert_size(file->read(buf, sizeof(buf)), 0);
+        WVASSERTEQ(file->read(buf, sizeof(buf)), static_cast<size_t>(sizeof(content3) - 1));
+        WVASSERTEQ(buf, StringRef(content3));
+        WVASSERTEQ(file->read(buf, sizeof(buf)), 0u);
     }
 }
 
@@ -380,9 +381,9 @@ static void buffered_read_until_end() {
     size_t count, pos = 0;
     while((count = file.read(buf, sizeof(buf))) > 0) {
         for(size_t i = 0; i < count; ++i)
-            assert_int(buf[i], pos++ & 0xFF);
+            WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
-    assert_true(file.eof() && !file.error());
+    WVASSERT(file.eof() && !file.error());
 }
 
 static void buffered_read_with_seek() {
@@ -392,9 +393,9 @@ static void buffered_read_with_seek() {
     size_t count, pos = 0;
     for(int i = 0; i < 10; ++i) {
         count = file.read(buf, sizeof(buf));
-        assert_size(count, 32);
+        WVASSERTEQ(count, 32u);
         for(size_t i = 0; i < count; ++i)
-            assert_int(buf[i], pos++ & 0xFF);
+            WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
 
     // we are at pos 320, i.e. we have 200..399 in our buffer
@@ -402,18 +403,18 @@ static void buffered_read_with_seek() {
     file.seek(pos, M3FS_SEEK_SET);
 
     count = file.read(buf, sizeof(buf));
-    assert_size(count, 32);
+    WVASSERTEQ(count, 32u);
     for(size_t i = 0; i < count; ++i)
-        assert_int(buf[i], pos++ & 0xFF);
+        WVASSERTEQ(buf[i], pos++ & 0xFF);
 
     pos = 405;
     file.seek(pos, M3FS_SEEK_SET);
 
     while((count = file.read(buf, sizeof(buf))) > 0) {
         for(size_t i = 0; i < count; ++i)
-            assert_int(buf[i], pos++ & 0xFF);
+            WVASSERTEQ(buf[i], pos++ & 0xFF);
     }
-    assert_true(file.eof() && !file.error());
+    WVASSERT(file.eof() && !file.error());
 }
 
 static void buffered_read_with_large_buf() {
@@ -422,9 +423,9 @@ static void buffered_read_with_large_buf() {
     size_t count, pos = 0;
     while((count = file.read(largebuf, sizeof(largebuf))) > 0) {
         for(size_t i = 0; i < count; ++i)
-            assert_int(largebuf[i], pos++ & 0xFF);
+            WVASSERTEQ(largebuf[i], pos++ & 0xFF);
     }
-    assert_true(file.eof() && !file.error());
+    WVASSERT(file.eof() && !file.error());
 }
 
 static void buffered_read_and_write() {
@@ -436,23 +437,23 @@ static void buffered_read_and_write() {
     // overwrite it
     uint8_t val = size - 1;
     for(size_t i = 0; i < size; ++i, --val)
-        assert_size(file.write(&val, sizeof(val)), sizeof(val));
+        WVASSERTEQ(file.write(&val, sizeof(val)), sizeof(val));
 
     // read it again and check content
     file.seek(0, M3FS_SEEK_SET);
     val = size - 1;
     for(size_t i = 0; i < size; ++i, --val) {
         uint8_t check;
-        assert_size(file.read(&check, sizeof(check)), sizeof(check));
-        assert_int(check, val);
+        WVASSERTEQ(file.read(&check, sizeof(check)), sizeof(check));
+        WVASSERTEQ(check, val);
     }
 
     // restore old content
     file.seek(0, M3FS_SEEK_SET);
     val = 0;
     for(size_t i = 0; i < size; ++i, ++val)
-        assert_size(file.write(&val, sizeof(val)), sizeof(val));
-    assert_true(file.good());
+        WVASSERTEQ(file.write(&val, sizeof(val)), sizeof(val));
+    WVASSERT(file.good());
 }
 
 static void buffered_write_only() {
@@ -462,7 +463,7 @@ static void buffered_write_only() {
     file.seek(DTU_PKG_SIZE * 10, M3FS_SEEK_SET);
     file.write("foobar", DTU_PKG_SIZE - 2);
     file.flush();
-    assert_true(file.good());
+    WVASSERT(file.good());
 }
 
 #if DTU_PKG_SIZE == 8
@@ -483,10 +484,10 @@ static void buffered_write_with_seek() {
     char buf[16];
     file.read(buf, 16);
     buf[15] = '\0';
-    assert_true(file.good());
+    WVASSERT(file.good());
 
     char exp[] = {1,'t','e','s','t',6,7,'f','o','o','f','o','o',14,15,0};
-    assert_str(buf, exp);
+    WVASSERTEQ(buf, exp);
 }
 #endif
 

@@ -14,15 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-#define RUN_SUITE(name)                                             \
-    m3::cout << "Running benchmark suite " << #name << " ...\n";    \
-    name();                                                         \
-    m3::cout << "Done\n\n";
+#define RUN_SUITE(name)                                                 \
+    m3::cout << "Running benchmark suite " << #name << " ...\n";        \
+    name();                                                             \
+    m3::cout << "\n";
 
-#define RUN_BENCH(name)                                             \
-    m3::cout << "-- Running benchmark " << #name << " ...\n";          \
-    name();                                                         \
-    m3::cout << "-- Done\n";
+#define RUN_BENCH(name)                                                 \
+    m3::cout << "Testing \"" << #name << "\" in " << __FILE__ << ":\n"; \
+    name();                                                             \
+    m3::cout << "\n";
 
 void bslist();
 void bdlist();

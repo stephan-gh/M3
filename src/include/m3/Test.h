@@ -1,0 +1,50 @@
+/*
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
+#pragma once
+
+#include <m3/stream/Standard.h>
+
+#define WVPERF(name, bench)                                                 \
+    m3::cout << "! " << __FILE__ << ":" << __LINE__                         \
+             << "  PERF \"" << name << "\": " << bench << "\n"
+
+#define WVASSERT(val) ({                                                    \
+        if(!(val)) {                                                        \
+            m3::cout << "! " << __FILE__ << ":" << __LINE__                 \
+                     << "  expected true, got "                             \
+                     << #val << " (false) FAILED\n";                        \
+        }                                                                   \
+    })
+
+#define WVASSERTEQ(a, b) ({                                                 \
+        auto _a = a;                                                        \
+        auto _b = b;                                                        \
+        if(_a != _b) {                                                      \
+            m3::cout << "! " << __FILE__ << ":" << __LINE__                 \
+                     << "  \"" << _a << "\" == \"" << _b << "\" FAILED\n";  \
+        }                                                                   \
+    })
+
+static inline void WVASSERTERR(m3::Errors::Code err, std::function<void()> func) {
+    try {
+        func();
+        WVASSERT(false);
+    }
+    catch(const m3::Exception &e) {
+        WVASSERTEQ(e.code(), err);
+    }
+}

@@ -19,7 +19,7 @@
 #include <base/Panic.h>
 
 #include <m3/com/GateStream.h>
-#include <m3/stream/Standard.h>
+#include <m3/Test.h>
 
 #include "../cppbenchs.h"
 
@@ -34,7 +34,7 @@ NOINLINE static void pingpong_1u64() {
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
-    cout << pr.run_with_id([&sgate, &rgate] {
+    WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
         send_vmsg(sgate, 0);
 
         uint64_t res;
@@ -48,7 +48,7 @@ NOINLINE static void pingpong_1u64() {
         reply >> res;
         if(res != 0)
             PANIC("test failed");
-    }, 0x90) << "\n";
+    }, 0x90));
 }
 
 NOINLINE static void pingpong_2u64() {
@@ -57,7 +57,7 @@ NOINLINE static void pingpong_2u64() {
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
-    cout << pr.run_with_id([&sgate, &rgate] {
+    WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
         send_vmsg(sgate, 23, 42);
 
         uint64_t res1, res2;
@@ -71,7 +71,7 @@ NOINLINE static void pingpong_2u64() {
         reply >> res1 >> res2;
         if(res1 != 5 || res2 != 6)
             PANIC("test failed");
-    }, 0x91) << "\n";
+    }, 0x91));
 }
 
 NOINLINE static void pingpong_4u64() {
@@ -80,7 +80,7 @@ NOINLINE static void pingpong_4u64() {
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
-    cout << pr.run_with_id([&sgate, &rgate] {
+    WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
         send_vmsg(sgate, 23, 42, 10, 12);
 
         uint64_t res1, res2, res3, res4;
@@ -94,7 +94,7 @@ NOINLINE static void pingpong_4u64() {
         reply >> res1 >> res2 >> res3 >> res4;
         if(res1 != 5 || res2 != 6 || res3 != 7 || res4 != 8)
             PANIC("test failed");
-    }, 0x92) << "\n";
+    }, 0x92));
 }
 
 NOINLINE static void pingpong_str() {
@@ -103,7 +103,7 @@ NOINLINE static void pingpong_str() {
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
-    cout << pr.run_with_id([&sgate, &rgate] {
+    WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
         send_vmsg(sgate, "test");
 
         String res;
@@ -117,7 +117,7 @@ NOINLINE static void pingpong_str() {
         reply >> res;
         if(res.length() != 6)
             PANIC("test failed");
-    }, 0x93) << "\n";
+    }, 0x93));
 }
 
 NOINLINE static void pingpong_strref() {
@@ -126,7 +126,7 @@ NOINLINE static void pingpong_strref() {
     auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
 
     Profile pr;
-    cout << pr.run_with_id([&sgate, &rgate] {
+    WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
         send_vmsg(sgate, "test");
 
         StringRef res;
@@ -140,7 +140,7 @@ NOINLINE static void pingpong_strref() {
         reply >> res;
         if(res.length() != 6)
             PANIC("test failed");
-    }, 0x94) << "\n";
+    }, 0x94));
 }
 
 void bstream() {

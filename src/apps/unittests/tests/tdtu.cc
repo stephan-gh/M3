@@ -21,6 +21,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
+#include <m3/Test.h>
 
 #include <sys/mman.h>
 
@@ -76,16 +77,16 @@ static void cmds_read() {
             rcvep, datasize, 0);
 
         dmacmd(nullptr, 0, sndep, 0, datasize, DTU::WRITE);
-        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
 
         dmacmd(nullptr, 0, sndep, 0, datasize + 1, DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
 
         dmacmd(nullptr, 0, sndep, datasize, 0, DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
 
         dmacmd(nullptr, 0, sndep, sizeof(word_t), datasize, DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
     }
 
     cout << "-- Test reading --\n";
@@ -96,9 +97,9 @@ static void cmds_read() {
         word_t buf[datasize / sizeof(word_t)];
 
         dmacmd(buf, datasize, sndep, 0, datasize, DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::NONE);
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
         for(size_t i = 0; i < 4; ++i)
-            assert_word(buf[i], data[i]);
+            WVASSERTEQ(buf[i], data[i]);
     }
 
     unmap_page(addr);
@@ -123,7 +124,7 @@ static void cmds_write() {
             rcvep, sizeof(data), 0);
 
         dmacmd(nullptr, 0, sndep, 0, sizeof(data), DTU::READ);
-        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::INV_ARGS);
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
     }
 
     cout << "-- Test writing --\n";
@@ -133,13 +134,13 @@ static void cmds_write() {
             rcvep, sizeof(data), 0);
 
         dmacmd(data, sizeof(data), sndep, 0, sizeof(data), DTU::WRITE);
-        assert_true(dtu.get_cmd(DTU::CMD_ERROR) == Errors::NONE);
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
         volatile const word_t *words = reinterpret_cast<const word_t*>(addr);
         // TODO we do current not know when this is finished
         while(words[0] == 0)
             ;
         for(size_t i = 0; i < sizeof(data) / sizeof(data[0]); ++i)
-            assert_word(static_cast<word_t>(words[i]), data[i]);
+            WVASSERTEQ(static_cast<word_t>(words[i]), data[i]);
     }
 
     unmap_page(addr);
@@ -158,10 +159,10 @@ static void mem_sync() {
     {
         write_vmsg(gate, 0, 1, 2, 3, 4);
         gate.read(data, sizeof(data), 0);
-        assert_xfer(data[0], 1);
-        assert_xfer(data[1], 2);
-        assert_xfer(data[2], 3);
-        assert_xfer(data[3], 4);
+        WVASSERTEQ(data[0], 1u);
+        WVASSERTEQ(data[1], 2u);
+        WVASSERTEQ(data[2], 3u);
+        WVASSERTEQ(data[3], 4u);
     }
 }
 
@@ -176,30 +177,30 @@ static void mem_derive() {
     {
         gate.read(test, sizeof(xfer_t) * 4, 0);
 
-        assert_xfer(test[0], 1);
-        assert_xfer(test[1], 2);
-        assert_xfer(test[2], 3);
-        assert_xfer(test[3], 4);
-        assert_xfer(test[4], 0);
+        WVASSERTEQ(test[0], 1u);
+        WVASSERTEQ(test[1], 2u);
+        WVASSERTEQ(test[2], 3u);
+        WVASSERTEQ(test[3], 4u);
+        WVASSERTEQ(test[4], 0u);
 
         MemGate sub = gate.derive(4 * sizeof(xfer_t), sizeof(xfer_t), MemGate::RWX);
         write_vmsg(sub, 0, 5);
         gate.read(test, sizeof(xfer_t) * 5, 0);
 
-        assert_xfer(test[0], 1);
-        assert_xfer(test[1], 2);
-        assert_xfer(test[2], 3);
-        assert_xfer(test[3], 4);
-        assert_xfer(test[4], 5);
+        WVASSERTEQ(test[0], 1u);
+        WVASSERTEQ(test[1], 2u);
+        WVASSERTEQ(test[2], 3u);
+        WVASSERTEQ(test[3], 4u);
+        WVASSERTEQ(test[4], 5u);
     }
 
     cout << "-- Test wrong derive --\n";
     {
         MemGate sub = gate.derive(4 * sizeof(xfer_t), sizeof(xfer_t), MemGate::R);
         sub.read(test, sizeof(xfer_t), 0);
-        assert_xfer(test[0], 5);
+        WVASSERTEQ(test[0], 5u);
 
-        assert_err(Errors::INV_ARGS, [&sub] { write_vmsg(sub, 0, 8); });
+        WVASSERTERR(Errors::INV_ARGS, [&sub] { write_vmsg(sub, 0, 8); });
     }
 }
 

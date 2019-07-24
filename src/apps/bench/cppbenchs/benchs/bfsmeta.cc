@@ -18,9 +18,8 @@
 #include <base/util/Profile.h>
 #include <base/Panic.h>
 
-#include <m3/stream/Standard.h>
-
 #include <m3/vfs/VFS.h>
+#include <m3/Test.h>
 
 #include "../cppbenchs.h"
 
@@ -29,15 +28,15 @@ using namespace m3;
 NOINLINE static void stat() {
     Profile pr(32, 4);
 
-    cout << "Stat in root dir: " << pr.run_with_id([] {
+    WVPERF("Stat in root dir", pr.run_with_id([] {
         FileInfo info;
         VFS::stat("/large.txt", info);
-    }, 0x80) << "\n";
+    }, 0x80));
 
-    cout << "Stat in sub dir: " << pr.run_with_id([] {
+    WVPERF("Stat in sub dir", pr.run_with_id([] {
         FileInfo info;
         VFS::stat("/finddata/dir/dir-1/32.txt", info);
-    }, 0x81) << "\n";
+    }, 0x81));
 }
 
 void bfsmeta() {

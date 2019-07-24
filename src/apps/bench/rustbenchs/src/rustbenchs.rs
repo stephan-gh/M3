@@ -15,6 +15,7 @@
  */
 
 #![no_std]
+#![feature(core_intrinsics)]
 
 #[macro_use]
 extern crate m3;
@@ -31,26 +32,26 @@ mod btreap;
 mod btreemap;
 
 use m3::mem::heap;
-use m3::test::Tester;
+use m3::test::WvTester;
 use m3::vfs::VFS;
 use m3::vpe::VPE;
 
 struct MyTester {
 }
 
-impl Tester for MyTester {
-    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn Tester)) {
-        println!("Running benchmark suite {} ...", name);
+impl WvTester for MyTester {
+    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {
+        println!("Running benchmark suite {} ...\n", name);
         f(self);
-        println!("Done\n");
+        println!("");
     }
 
-    fn run_test(&mut self, name: &str, f: &dyn Fn()) {
-        println!("-- Running benchmark {} ...", name);
+    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn()) {
+        println!("Testing \"{}\" in {}:", name, file);
         let free_mem = heap::free_memory();
         f();
-        assert_eq!(heap::free_memory(), free_mem);
-        println!("-- Done");
+        wv_assert_eq!(heap::free_memory(), free_mem);
+        println!("");
     }
 }
 
@@ -64,16 +65,16 @@ pub fn main() -> i32 {
         .expect("Unable to delegate EPs to meta session");
 
     let mut tester = MyTester {};
-    run_suite!(tester, bboxlist::run);
-    run_suite!(tester, bdlist::run);
-    run_suite!(tester, bmemmap::run);
-    run_suite!(tester, bmgate::run);
-    run_suite!(tester, bpipe::run);
-    run_suite!(tester, bregfile::run);
-    run_suite!(tester, bstream::run);
-    run_suite!(tester, bsyscall::run);
-    run_suite!(tester, btreap::run);
-    run_suite!(tester, btreemap::run);
+    wv_run_suite!(tester, bboxlist::run);
+    wv_run_suite!(tester, bdlist::run);
+    wv_run_suite!(tester, bmemmap::run);
+    wv_run_suite!(tester, bmgate::run);
+    wv_run_suite!(tester, bpipe::run);
+    wv_run_suite!(tester, bregfile::run);
+    wv_run_suite!(tester, bstream::run);
+    wv_run_suite!(tester, bsyscall::run);
+    wv_run_suite!(tester, btreap::run);
+    wv_run_suite!(tester, btreemap::run);
 
     println!("\x1B[1;32mAll tests successful!\x1B[0;m");
     0

@@ -18,10 +18,10 @@ use m3::col::Treap;
 use m3::profile;
 use m3::test;
 
-pub fn run(t: &mut dyn test::Tester) {
-    run_test!(t, insert);
-    run_test!(t, find);
-    run_test!(t, clear);
+pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, insert);
+    wv_run_test!(t, find);
+    wv_run_test!(t, clear);
 }
 
 fn insert() {
@@ -41,7 +41,7 @@ fn insert() {
         }
     }
 
-    println!("Inserting 100 elements: {}", prof.runner_with_id(&mut BTreeTester::default(), 0x71));
+    wv_perf!("Inserting 100 elements", prof.runner_with_id(&mut BTreeTester::default(), 0x71));
 }
 
 fn find() {
@@ -59,7 +59,7 @@ fn find() {
         fn run(&mut self) {
             for i in 0..100 {
                 let val = self.0.get(&i);
-                assert_eq!(val, Some(&i));
+                wv_assert_eq!(val, Some(&i));
             }
         }
         fn post(&mut self) {
@@ -67,7 +67,7 @@ fn find() {
         }
     }
 
-    println!("Searching for 100 elements: {}", prof.runner_with_id(&mut BTreeTester::default(), 0x72));
+    wv_perf!("Searching for 100 elements", prof.runner_with_id(&mut BTreeTester::default(), 0x72));
 }
 
 fn clear() {
@@ -87,5 +87,5 @@ fn clear() {
         }
     }
 
-    println!("Removing 100-element list: {}", prof.runner_with_id(&mut BTreeTester::default(), 0x73));
+    wv_perf!("Removing 100-element list", prof.runner_with_id(&mut BTreeTester::default(), 0x73));
 }

@@ -19,7 +19,7 @@
 #include <base/util/Profile.h>
 #include <base/Panic.h>
 
-#include <m3/stream/Standard.h>
+#include <m3/Test.h>
 
 #include "../cppbenchs.h"
 
@@ -53,7 +53,7 @@ NOINLINE static void insert() {
 
     Profile pr(30);
     TreapInsertRunner runner;
-    cout << "100-elements: " << pr.runner_with_id(runner, 0x03) << "\n";
+    WVPERF("100-elements", pr.runner_with_id(runner, 0x03));
 }
 
 NOINLINE static void find() {
@@ -82,7 +82,7 @@ NOINLINE static void find() {
 
     Profile pr(30);
     TreapSearchRunner runner;
-    cout << "100-elements: " << pr.runner_with_id(runner, 0x02) << "\n";
+    WVPERF("100-elements", pr.runner_with_id(runner, 0x02));
 }
 
 NOINLINE static void clear() {
@@ -104,7 +104,7 @@ NOINLINE static void clear() {
 
     Profile pr(30);
     TreapClearRunner runner;
-    cout << "100-elements: " << pr.runner_with_id(runner, 0x01) << "\n";
+    WVPERF("100-elements", pr.runner_with_id(runner, 0x01));
 }
 
 void btreap() {

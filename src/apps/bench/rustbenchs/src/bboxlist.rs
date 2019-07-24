@@ -40,11 +40,11 @@ impl TestItem {
     }
 }
 
-pub fn run(t: &mut dyn test::Tester) {
-    run_test!(t, push_back);
-    run_test!(t, push_front);
-    run_test!(t, push_pop);
-    run_test!(t, clear);
+pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, push_back);
+    wv_run_test!(t, push_front);
+    wv_run_test!(t, push_pop);
+    wv_run_test!(t, clear);
 }
 
 fn push_back() {
@@ -64,7 +64,7 @@ fn push_back() {
         }
     }
 
-    println!("Appending 100 elements: {}", prof.runner_with_id(&mut ListTester::default(), 0x60));
+    wv_perf!("Appending 100 elements", prof.runner_with_id(&mut ListTester::default(), 0x60));
 }
 
 fn push_front() {
@@ -84,7 +84,7 @@ fn push_front() {
         }
     }
 
-    println!("Prepending 100 elements: {}", prof.runner_with_id(&mut ListTester::default(), 0x61));
+    wv_perf!("Prepending 100 elements", prof.runner_with_id(&mut ListTester::default(), 0x61));
 }
 
 fn push_pop() {
@@ -103,11 +103,11 @@ fn push_pop() {
         }
         fn post(&mut self) {
             self.2 += 1;
-            assert_eq!(self.0.len(), self.2);
+            wv_assert_eq!(self.0.len(), self.2);
         }
     }
 
-    println!("Prepending 1 element: {}", prof.runner_with_id(&mut ListTester::default(), 0x62));
+    wv_perf!("Prepending 1 element", prof.runner_with_id(&mut ListTester::default(), 0x62));
 }
 
 fn clear() {
@@ -127,5 +127,5 @@ fn clear() {
         }
     }
 
-    println!("Clearing 100-element list: {}", prof.runner_with_id(&mut ListTester::default(), 0x63));
+    wv_perf!("Clearing 100-element list", prof.runner_with_id(&mut ListTester::default(), 0x63));
 }

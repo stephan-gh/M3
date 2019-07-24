@@ -20,7 +20,7 @@
 extern crate m3;
 
 use m3::mem::heap;
-use m3::test::Tester;
+use m3::test::WvTester;
 use m3::vfs::VFS;
 
 mod tboxlist;
@@ -44,19 +44,19 @@ mod tvpe;
 struct MyTester {
 }
 
-impl Tester for MyTester {
-    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn Tester)) {
-        println!("Running test suite {} ...", name);
+impl WvTester for MyTester {
+    fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {
+        println!("Running test suite {} ...\n", name);
         f(self);
-        println!("Done\n");
+        println!("");
     }
 
-    fn run_test(&mut self, name: &str, f: &dyn Fn()) {
-        println!("-- Running test {} ...", name);
+    fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn()) {
+        println!("Testing \"{}\" in {}:", name, file);
         let free_mem = heap::free_memory();
         f();
-        assert_eq!(heap::free_memory(), free_mem);
-        println!("-- Done");
+        wv_assert_eq!(heap::free_memory(), free_mem);
+        println!("");
     }
 }
 
@@ -64,27 +64,27 @@ impl Tester for MyTester {
 pub fn main() -> i32 {
     // do a mount here to ensure that we don't need to realloc the mount-table later, which screws
     // up our simple memory-leak detection above
-    assert_ok!(VFS::mount("/fs/", "m3fs", "m3fs-clone"));
-    assert_ok!(VFS::unmount("/fs/"));
+    wv_assert_ok!(VFS::mount("/fs/", "m3fs", "m3fs-clone"));
+    wv_assert_ok!(VFS::unmount("/fs/"));
 
     let mut tester = MyTester {};
-    run_suite!(tester, tboxlist::run);
-    run_suite!(tester, tbufio::run);
-    run_suite!(tester, tdir::run);
-    run_suite!(tester, tdlist::run);
-    run_suite!(tester, tfilemux::run);
-    run_suite!(tester, tgenfile::run);
-    run_suite!(tester, tm3fs::run);
-    run_suite!(tester, tmemmap::run);
-    run_suite!(tester, tmgate::run);
-    run_suite!(tester, tpipe::run);
-    run_suite!(tester, trgate::run);
-    run_suite!(tester, tsgate::run);
-    run_suite!(tester, tsems::run);
-    run_suite!(tester, tserver::run);
-    run_suite!(tester, tsyscalls::run);
-    run_suite!(tester, ttreap::run);
-    run_suite!(tester, tvpe::run);
+    wv_run_suite!(tester, tboxlist::run);
+    wv_run_suite!(tester, tbufio::run);
+    wv_run_suite!(tester, tdir::run);
+    wv_run_suite!(tester, tdlist::run);
+    wv_run_suite!(tester, tfilemux::run);
+    wv_run_suite!(tester, tgenfile::run);
+    wv_run_suite!(tester, tm3fs::run);
+    wv_run_suite!(tester, tmemmap::run);
+    wv_run_suite!(tester, tmgate::run);
+    wv_run_suite!(tester, tpipe::run);
+    wv_run_suite!(tester, trgate::run);
+    wv_run_suite!(tester, tsgate::run);
+    wv_run_suite!(tester, tsems::run);
+    wv_run_suite!(tester, tserver::run);
+    wv_run_suite!(tester, tsyscalls::run);
+    wv_run_suite!(tester, ttreap::run);
+    wv_run_suite!(tester, tvpe::run);
 
     println!("\x1B[1;32mAll tests successful!\x1B[0;m");
     0

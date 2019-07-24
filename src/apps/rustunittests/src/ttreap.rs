@@ -17,10 +17,10 @@
 use m3::col::{Treap, Vec};
 use m3::test;
 
-pub fn run(t: &mut dyn test::Tester) {
-    run_test!(t, test_in_order);
-    run_test!(t, test_rev_order);
-    run_test!(t, test_rand_order);
+pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, test_in_order);
+    wv_run_test!(t, test_rev_order);
+    wv_run_test!(t, test_rand_order);
 }
 
 const TEST_NODE_COUNT: u32 = 10;
@@ -51,13 +51,13 @@ fn test_add_and_rem(vals: &[u32]) {
     // find all
     for v in vals {
         let val = treap.get(&v);
-        assert_eq!(val, Some(v));
+        wv_assert_eq!(val, Some(v));
     }
 
     // remove
     for v in vals {
         let val = treap.remove(&v);
-        assert_eq!(val, Some(*v));
-        assert_eq!(treap.get(&v), None);
+        wv_assert_eq!(val, Some(*v));
+        wv_assert_eq!(treap.get(&v), None);
     }
 }

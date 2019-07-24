@@ -19,9 +19,9 @@ use m3::mem::MemMap;
 use m3::test;
 use m3::profile;
 
-pub fn run(t: &mut dyn test::Tester) {
-    run_test!(t, perf_alloc);
-    run_test!(t, perf_free);
+pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, perf_alloc);
+    wv_run_test!(t, perf_free);
 }
 
 fn perf_alloc() {
@@ -37,7 +37,7 @@ fn perf_alloc() {
         }
         fn run(&mut self) {
             for _ in 0..100 {
-                assert_ok!(self.map.allocate(0x1000, 0x1000));
+                wv_assert_ok!(self.map.allocate(0x1000, 0x1000));
             }
         }
     }
@@ -46,7 +46,7 @@ fn perf_alloc() {
         map: MemMap::new(0, 0x100000),
     };
 
-    println!("Allocating 100 areas: {}", prof.runner_with_id(&mut tester, 0x10));
+    wv_perf!("Allocating 100 areas", prof.runner_with_id(&mut tester, 0x10));
 }
 
 fn perf_free() {
@@ -63,7 +63,7 @@ fn perf_free() {
             self.map = MemMap::new(0, 0x100000);
             self.addrs.clear();
             for _ in 0..100 {
-                self.addrs.push(assert_ok!(self.map.allocate(0x1000, 0x1000)));
+                self.addrs.push(wv_assert_ok!(self.map.allocate(0x1000, 0x1000)));
             }
         }
         fn run(&mut self) {
@@ -71,7 +71,7 @@ fn perf_free() {
                 let idx = if self.forward { i } else { 100 - i - 1 };
                 self.map.free(self.addrs[idx], 0x1000);
             }
-            assert_eq!(self.map.size(), (0x100000, 1));
+            wv_assert_eq!(self.map.size(), (0x100000, 1));
         }
     }
 
@@ -80,8 +80,8 @@ fn perf_free() {
         addrs: Vec::new(),
         forward: true,
     };
-    println!("Freeing 100 areas forward  : {}", prof.runner_with_id(&mut tester, 0x11));
+    wv_perf!("Freeing 100 areas forward", prof.runner_with_id(&mut tester, 0x11));
 
     tester.forward = false;
-    println!("Freeing 100 areas backwards: {}", prof.runner_with_id(&mut tester, 0x12));
+    wv_perf!("Freeing 100 areas backwards", prof.runner_with_id(&mut tester, 0x12));
 }

@@ -19,6 +19,7 @@
 #include <m3/stream/FStream.h>
 #include <m3/com/Semaphore.h>
 #include <m3/vfs/FileRef.h>
+#include <m3/Test.h>
 
 #include "../unittests.h"
 
@@ -60,7 +61,7 @@ static void taking_turns() {
     child.run([&sem0, &sem1] {
         for(int i = 0; i < 10; ++i) {
             sem0.down();
-            assert_int(get_counter("/sem0"), i);
+            WVASSERTEQ(get_counter("/sem0"), i);
             set_counter("/sem1", i);
             sem1.up();
         }
@@ -69,12 +70,12 @@ static void taking_turns() {
 
     for(int i = 0; i < 10; ++i) {
         sem1.down();
-        assert_int(get_counter("/sem1"), i);
+        WVASSERTEQ(get_counter("/sem1"), i);
         set_counter("/sem0", i + 1);
         sem0.up();
     }
 
-    assert_int(child.wait(), 0);
+    WVASSERTEQ(child.wait(), 0);
 }
 
 void tsems() {

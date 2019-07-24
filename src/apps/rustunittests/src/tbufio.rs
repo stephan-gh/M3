@@ -19,24 +19,24 @@ use m3::test;
 use m3::io::{Read, Write};
 use m3::vfs::{BufReader, BufWriter, OpenFlags, VFS};
 
-pub fn run(t: &mut dyn test::Tester) {
-    run_test!(t, read_write);
+pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, read_write);
 }
 
 fn read_write() {
     {
-        let file = assert_ok!(VFS::open("/myfile", OpenFlags::CREATE | OpenFlags::W));
+        let file = wv_assert_ok!(VFS::open("/myfile", OpenFlags::CREATE | OpenFlags::W));
         let mut bfile = BufWriter::new(file);
 
-        assert_ok!(write!(bfile, "This {:.3} is the {}th test of {:#0X}!\n", "foobar", 42, 0xABCDEF));
+        wv_assert_ok!(write!(bfile, "This {:.3} is the {}th test of {:#0X}!\n", "foobar", 42, 0xABCDEF));
     }
 
     {
-        let file = assert_ok!(VFS::open("/myfile", OpenFlags::R));
+        let file = wv_assert_ok!(VFS::open("/myfile", OpenFlags::R));
         let mut bfile = BufReader::new(file);
 
         let mut s = String::new();
-        assert_eq!(bfile.read_to_string(&mut s), Ok(39));
-        assert_eq!(s, "This foo is the 42th test of 0xABCDEF!\n");
+        wv_assert_eq!(bfile.read_to_string(&mut s), Ok(39));
+        wv_assert_eq!(s, "This foo is the 42th test of 0xABCDEF!\n");
     }
 }

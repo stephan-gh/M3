@@ -18,9 +18,8 @@
 #include <base/util/Profile.h>
 #include <base/Panic.h>
 
-#include <m3/stream/Standard.h>
-
 #include <m3/vfs/FileRef.h>
+#include <m3/Test.h>
 
 #include "../cppbenchs.h"
 
@@ -29,9 +28,9 @@ using namespace m3;
 NOINLINE static void creation() {
     Profile pr(4, 2);
 
-    cout << "VPE creation: " << pr.run_with_id([] {
+    WVPERF("VPE creation", pr.run_with_id([] {
         VPE vpe("hello");
-    }, 0x90) << "\n";
+    }, 0x90));
 }
 
 NOINLINE static void run() {
@@ -53,19 +52,19 @@ NOINLINE static void run() {
             res.push(time);
     }
 
-    cout << "VPE run: " << res << "\n";
+    WVPERF("VPE run", res);
 }
 
 NOINLINE static void run_wait() {
     Profile pr(4, 2);
 
-    cout << "VPE run wait: " << pr.run_with_id([] {
+    WVPERF("VPE run wait", pr.run_with_id([] {
         VPE vpe("hello");
         vpe.run([]() {
             return 0;
         });
         vpe.wait();
-    }, 0x90) << "\n";
+    }, 0x90));
 }
 
 NOINLINE static void run_multi_wait() {
@@ -73,23 +72,23 @@ NOINLINE static void run_multi_wait() {
 
     VPE vpe("hello");
 
-    cout << "VPE run multi-wait: " << pr.run_with_id([&vpe] {
+    WVPERF("VPE run multi-wait", pr.run_with_id([&vpe] {
         vpe.run([]() {
             return 0;
         });
         vpe.wait();
-    }, 0x90) << "\n";
+    }, 0x90));
 }
 
 NOINLINE static void exec() {
     Profile pr(4, 2);
 
-    cout << "VPE exec: " << pr.run_with_id([] {
+    WVPERF("VPE exec", pr.run_with_id([] {
         VPE vpe("hello");
         const char *args[] = {"/bin/noop"};
         vpe.exec(ARRAY_SIZE(args), args);
         vpe.wait();
-    }, 0x90) << "\n";
+    }, 0x90));
 }
 
 void bvpe() {

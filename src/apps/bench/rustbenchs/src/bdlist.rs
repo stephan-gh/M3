@@ -18,10 +18,10 @@ use m3::col::DList;
 use m3::profile;
 use m3::test;
 
-pub fn run(t: &mut dyn test::Tester) {
-    run_test!(t, push_back);
-    run_test!(t, push_front);
-    run_test!(t, clear);
+pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, push_back);
+    wv_run_test!(t, push_front);
+    wv_run_test!(t, clear);
 }
 
 fn push_back() {
@@ -41,7 +41,7 @@ fn push_back() {
         }
     }
 
-    println!("Appending 100 elements: {}", prof.runner_with_id(&mut ListTester::default(), 0x50));
+    wv_perf!("Appending 100 elements", prof.runner_with_id(&mut ListTester::default(), 0x50));
 }
 
 fn push_front() {
@@ -61,7 +61,7 @@ fn push_front() {
         }
     }
 
-    println!("Prepending 100 elements: {}", prof.runner_with_id(&mut ListTester::default(), 0x51));
+    wv_perf!("Prepending 100 elements", prof.runner_with_id(&mut ListTester::default(), 0x51));
 }
 
 fn clear() {
@@ -81,5 +81,5 @@ fn clear() {
         }
     }
 
-    println!("Clearing 100-element list: {}", prof.runner_with_id(&mut ListTester::default(), 0x52));
+    wv_perf!("Clearing 100-element list", prof.runner_with_id(&mut ListTester::default(), 0x52));
 }

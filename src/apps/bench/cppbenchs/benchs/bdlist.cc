@@ -19,7 +19,7 @@
 #include <base/util/Profile.h>
 #include <base/Panic.h>
 
-#include <m3/stream/Standard.h>
+#include <m3/Test.h>
 
 #include "../cppbenchs.h"
 
@@ -52,7 +52,7 @@ NOINLINE static void append() {
 
     Profile pr(30);
     DListAppendRunner runner;
-    cout << "100-elements: " << pr.runner_with_id(runner, 0x20) << "\n";
+    WVPERF("100-elements", pr.runner_with_id(runner, 0x20));
 }
 
 NOINLINE static void clear() {
@@ -75,7 +75,7 @@ NOINLINE static void clear() {
 
     Profile pr(30);
     DListClearRunner runner;
-    cout << "100-elements: " << pr.runner_with_id(runner, 0x21) << "\n";
+    WVPERF("100-elements", pr.runner_with_id(runner, 0x21));
 }
 
 void bdlist() {

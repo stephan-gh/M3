@@ -147,6 +147,20 @@ pub fn max<T: Ord>(a: T, b: T) -> T {
     }
 }
 
+/// Expands to the current function name.
+#[macro_export]
+macro_rules! function {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            extern crate core;
+            unsafe { core::intrinsics::type_name::<T>() }
+        }
+        let name = type_name_of(f);
+        &name[0..name.len() - 3]
+    }}
+}
+
 /// Creates an struct where the members can be used as integers, similar to C enums.
 ///
 /// # Examples

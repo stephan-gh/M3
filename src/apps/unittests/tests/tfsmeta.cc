@@ -20,6 +20,7 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/FileRef.h>
 #include <m3/vfs/VFS.h>
+#include <m3/Test.h>
 
 #include <algorithm>
 #include <vector>
@@ -37,7 +38,7 @@ static void dir_listing() {
     std::vector<Dir::Entry> entries;
     while(dir.readdir(e))
         entries.push_back(e);
-    assert_size(entries.size(), 82);
+    WVASSERTEQ(entries.size(), 82u);
 
     // we don't know the order because it is determined by the host OS. thus, sort it first.
     std::sort(entries.begin(), entries.end(), [] (const Dir::Entry &a, const Dir::Entry &b) -> bool {
@@ -53,20 +54,20 @@ static void dir_listing() {
     });
 
     // now check file names
-    assert_str(entries[0].name, ".");
-    assert_str(entries[1].name, "..");
+    WVASSERTEQ(entries[0].name, StringRef("."));
+    WVASSERTEQ(entries[1].name, StringRef(".."));
     for(size_t i = 0; i < 80; ++i) {
         char tmp[16];
         OStringStream os(tmp, sizeof(tmp));
         os << i << ".txt";
-        assert_str(entries[i + 2].name, os.str());
+        WVASSERTEQ(entries[i + 2].name, StringRef(os.str()));
     }
 }
 
 static void meta_operations() {
     VFS::mkdir("/example", 0755);
-    assert_err(Errors::EXISTS, [] { VFS::mkdir("/example", 0755); });
-    assert_err(Errors::NO_SUCH_FILE, [] { VFS::mkdir("/example/foo/bar", 0755); });
+    WVASSERTERR(Errors::EXISTS, [] { VFS::mkdir("/example", 0755); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::mkdir("/example/foo/bar", 0755); });
 
     {
         FStream f("/example/myfile", FILE_W | FILE_CREATE);
@@ -75,19 +76,19 @@ static void meta_operations() {
 
     {
         VFS::mount("/fs/", "m3fs", "m3fs-clone");
-        assert_err(Errors::XFS_LINK, [] { VFS::link("/example/myfile", "/fs/foo"); });
+        WVASSERTERR(Errors::XFS_LINK, [] { VFS::link("/example/myfile", "/fs/foo"); });
         VFS::unmount("/fs");
     }
 
-    assert_err(Errors::NO_SUCH_FILE, [] { VFS::rmdir("/example/foo/bar"); });
-    assert_err(Errors::IS_NO_DIR, [] { VFS::rmdir("/example/myfile"); });
-    assert_err(Errors::DIR_NOT_EMPTY, [] { VFS::rmdir("/example"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::rmdir("/example/foo/bar"); });
+    WVASSERTERR(Errors::IS_NO_DIR, [] { VFS::rmdir("/example/myfile"); });
+    WVASSERTERR(Errors::DIR_NOT_EMPTY, [] { VFS::rmdir("/example"); });
 
-    assert_err(Errors::IS_DIR, [] { VFS::link("/example", "/newpath"); });
+    WVASSERTERR(Errors::IS_DIR, [] { VFS::link("/example", "/newpath"); });
     VFS::link("/example/myfile", "/newpath");
 
-    assert_err(Errors::IS_DIR, [] { VFS::unlink("/example"); });
-    assert_err(Errors::NO_SUCH_FILE, [] { VFS::unlink("/example/foo"); });
+    WVASSERTERR(Errors::IS_DIR, [] { VFS::unlink("/example"); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [] { VFS::unlink("/example/foo"); });
     VFS::unlink("/example/myfile");
 
     VFS::rmdir("/example");
@@ -109,12 +110,12 @@ static void delete_file() {
 
         VFS::unlink(tmp_file);
 
-        assert_err(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
+        WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
 
-        assert_size(file->read(buffer, sizeof(buffer)), 5);
+        WVASSERTEQ(file->read(buffer, sizeof(buffer)), 5u);
     }
 
-    assert_err(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
+    WVASSERTERR(Errors::NO_SUCH_FILE, [&tmp_file] { VFS::open(tmp_file, FILE_R); });
 }
 
 void tfsmeta() {

@@ -20,9 +20,9 @@
 #include <base/KIF.h>
 #include <base/Panic.h>
 
-#include <m3/stream/Standard.h>
 #include <m3/pipe/IndirectPipe.h>
 #include <m3/Syscalls.h>
+#include <m3/Test.h>
 
 #include "../cppbenchs.h"
 
@@ -66,8 +66,8 @@ NOINLINE void child_to_parent() {
         vpe.wait();
     }, 0x60);
 
-    cout << "c->p: " << (DATA_SIZE / 1024) << " KiB transfer with "
-         << (BUF_SIZE / 1024) << " KiB buf: " << res << "\n";
+    WVPERF("c->p: " << (DATA_SIZE / 1024) << " KiB transfer with "
+           << (BUF_SIZE / 1024) << " KiB buf", res);
 }
 
 NOINLINE void parent_to_child() {
@@ -103,8 +103,8 @@ NOINLINE void parent_to_child() {
         vpe.wait();
     }, 0x60);
 
-    cout << "p->c: " << (DATA_SIZE / 1024) << " KiB transfer with "
-         << (BUF_SIZE / 1024) << " KiB buf: " << res << "\n";
+    WVPERF("p->c: " << (DATA_SIZE / 1024) << " KiB transfer with "
+           << (BUF_SIZE / 1024) << " KiB buf", res);
 }
 
 void bpipe() {

@@ -14,25 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-#include <m3/stream/Standard.h>
-#include <m3/Exception.h>
+#define RUN_SUITE(name)                                                 \
+    m3::cout << "Running testsuite " << #name << " ...\n";              \
+    name();                                                             \
+    m3::cout << "\n";
 
-#include <functional>
-
-extern int succeeded;
-extern int failed;
-
-template<class T>
-static inline void check_equal(const T &expected, const T &actual, const char *file, int line) {
-    if(expected != actual) {
-        m3::cout << "  \033[0;31mAssert failed\033[0m in " << file
-                 << ", line " << line
-                 << ": expected '" << expected << "', got '" << actual << "'\n";
-        failed++;
-    }
-    else
-        succeeded++;
-}
+#define RUN_TEST(name)                                                  \
+    m3::cout << "Testing \"" << #name << "\" in " << __FILE__ << ":\n"; \
+    name();                                                             \
+    m3::cout << "\n";
 
 #if defined(__host__)
 void tdtu();
@@ -43,48 +33,3 @@ void tbitfield();
 void theap();
 void tsems();
 void tstream();
-
-#define assert_int(actual, expected)                                \
-    check_equal<int>((expected), (actual), __FILE__, __LINE__)
-#define assert_long(actual, expected)                               \
-    check_equal<long>((expected), (actual), __FILE__, __LINE__)
-#define assert_uint(actual, expected)                               \
-    check_equal<unsigned int>((expected), (actual), __FILE__, __LINE__)
-#define assert_ulong(actual, expected)                              \
-    check_equal<unsigned long>((expected), (actual), __FILE__, __LINE__)
-#define assert_size(actual, expected)                               \
-    check_equal<size_t>((expected), (actual), __FILE__, __LINE__)
-#define assert_ssize(actual, expected)                              \
-    check_equal<ssize_t>((expected), (actual), __FILE__, __LINE__)
-#define assert_word(actual, expected)                               \
-    check_equal<word_t>((expected), (actual), __FILE__, __LINE__)
-#define assert_xfer(actual, expected)                               \
-    check_equal<xfer_t>((expected), (actual), __FILE__, __LINE__)
-#define assert_str(actual, expected)                                \
-    check_equal<m3::String>((expected), (actual), __FILE__, __LINE__)
-#define assert_true(expected)                                       \
-    check_equal<bool>((expected), true, __FILE__, __LINE__)
-#define assert_false(expected)                                      \
-    check_equal<bool>((expected), false, __FILE__, __LINE__)
-#define assert_float(actual, expected)                              \
-    check_equal<float>((expected), (actual), __FILE__, __LINE__)
-
-static inline void assert_err(m3::Errors::Code err, std::function<void()> func) {
-    try {
-        func();
-        assert(false);
-    }
-    catch(const m3::Exception &e) {
-        assert_int(e.code(), err);
-    }
-}
-
-#define RUN_SUITE(name)                                             \
-    m3::cout << "Running testsuite " << #name << " ...\n";          \
-    name();                                                         \
-    m3::cout << "Done\n\n";
-
-#define RUN_TEST(name)                                              \
-    m3::cout << "-- Running testcase " << #name << " ...\n";        \
-    name();                                                         \
-    m3::cout << "-- Done\n";

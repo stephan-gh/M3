@@ -19,6 +19,7 @@
 #include <base/util/Math.h>
 
 #include <m3/stream/FStream.h>
+#include <m3/Test.h>
 
 #include "../unittests.h"
 
@@ -32,55 +33,55 @@ static void istream() {
     {
         IStringStream is("1 2 0xAfd2");
         is >> a >> b >> d;
-        assert_int(a, 1);
-        assert_int(b, 2);
-        assert_uint(d, 0xAfd2);
+        WVASSERTEQ(a, 1);
+        WVASSERTEQ(b, 2);
+        WVASSERTEQ(d, 0xAfd2u);
     }
 
     {
         IStringStream is("  -1\t+2\n\n0XA");
         is >> a >> b >> d;
-        assert_int(a, -1);
-        assert_int(b, 2);
-        assert_uint(d, 0XA);
+        WVASSERTEQ(a, -1);
+        WVASSERTEQ(b, 2);
+        WVASSERTEQ(d, 0XAu);
     }
 
     {
         String str;
         IStringStream is("  1\tabc\n\n12.4");
         is >> d >> str >> f;
-        assert_uint(d, 1);
-        assert_str(str.c_str(), "abc");
-        assert_float(f, 12.4);
+        WVASSERTEQ(d, 1u);
+        WVASSERTEQ(str.c_str(), StringRef("abc"));
+        WVASSERTEQ(f, 12.4f);
     }
 
     {
         char buf[16];
         size_t res;
         IStringStream is(" 1234 55 test\n\nfoo\n012345678901234567");
-        assert_true(is.good());
+        WVASSERT(is.good());
 
         res = is.getline(buf, sizeof(buf));
-        assert_size(res, 13);
-        assert_str(buf, " 1234 55 test");
+        WVASSERTEQ(res, 13u);
+        WVASSERTEQ(buf, StringRef(" 1234 55 test"));
 
         res = is.getline(buf, sizeof(buf));
-        assert_size(res, 0);
-        assert_str(buf, "");
+        WVASSERTEQ(res, 0u);
+        WVASSERTEQ(buf, StringRef(""));
 
         res = is.getline(buf, sizeof(buf));
-        assert_size(res, 3);
-        assert_str(buf, "foo");
+        WVASSERTEQ(res, 3u);
+        WVASSERTEQ(buf, StringRef("foo"));
 
         res = is.getline(buf, sizeof(buf));
-        assert_size(res, 15);
-        assert_str(buf, "012345678901234");
+        WVASSERTEQ(res, 15u);
+        WVASSERTEQ(buf, StringRef("012345678901234"));
 
         res = is.getline(buf, sizeof(buf));
-        assert_size(res, 3);
-        assert_str(buf, "567");
+        WVASSERTEQ(res, 3u);
+        WVASSERTEQ(buf, StringRef("567"));
 
-        assert_true(is.eof());
+        WVASSERT(is.eof());
     }
 
     struct TestItem {
@@ -97,14 +98,14 @@ static void istream() {
     for(size_t i = 0; i < ARRAY_SIZE(tests); i++) {
         IStringStream is(tests[i].str);
         is >> f;
-        assert_float(f, tests[i].res);
+        WVASSERTEQ(f, tests[i].res);
     }
 }
 
 #define STREAM_CHECK(expr, expstr) do {                                                     \
         OStringStream __os(str, sizeof(str));                                               \
         __os << expr;                                                                       \
-        assert_str(str, expstr);                                                             \
+        WVASSERTEQ(str, StringRef(expstr));                                                 \
     } while(0)
 
 static void ostream() {
@@ -131,11 +132,11 @@ static void ostream() {
     OStringStream os(str, sizeof(str));
     os << fmt(0xdeadbeef, "p") << ", " << fmt(0x12345678, "x");
     if(sizeof(uintptr_t) == 4)
-        assert_str(str, "0xdeadbeef, 12345678");
+        WVASSERTEQ(str, StringRef("0xdeadbeef, 12345678"));
     else if(sizeof(uintptr_t) == 8)
-        assert_str(str, "0x00000000deadbeef, 12345678");
+        WVASSERTEQ(str, StringRef("0x00000000deadbeef, 12345678"));
     else
-        assert_false(true);
+        WVASSERT(false);
 
     STREAM_CHECK(0.f << ", " << 1.f << ", " << -1.f << ", " << 0.f << ", " << 0.4f << ", " << 18.4f,
                  "0.000, 1.000, -1.000, 0.000, 0.400, 18.399");
@@ -158,12 +159,12 @@ static void fstream() {
         totalb += b;
         totalc += c;
     }
-    assert_int(totala, 52184);
-    assert_int(totalb, 52184);
+    WVASSERTEQ(totala, 52184);
+    WVASSERTEQ(totalb, 52184);
     // unittests with floats are really bad. the results are slightly different on x86 and Xtensa.
     // thus, we only require that the integer value is correct. this gives us at least some degree
     // of correctness here
-    assert_int(static_cast<int>(totalc), 1107);
+    WVASSERTEQ(static_cast<int>(totalc), 1107);
 }
 
 void tstream() {

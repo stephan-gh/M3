@@ -17,7 +17,7 @@
 #include <base/Common.h>
 #include <base/Config.h>
 
-#include <m3/stream/Standard.h>
+#include <m3/Test.h>
 
 #include <cstdlib>
 
@@ -63,7 +63,7 @@ static void check_heap_before() {
 
 static void check_heap_after() {
     size_t after = m3::Heap::free_memory();
-    assert_size(after, heap_before);
+    WVASSERTEQ(after, heap_before);
 }
 
 static void alloc_then_free_in_same_direction() {
@@ -185,10 +185,10 @@ static void allocate_3_region() {
     for(size_t i = 0; i < 2; i++)
         *(ptr5 + i) = 5;
 
-    assert_true(test_check_content(ptr1, 4, 1));
-    assert_true(test_check_content(ptr3, 12, 3));
-    assert_true(test_check_content(ptr4, 6, 4));
-    assert_true(test_check_content(ptr5, 2, 5));
+    WVASSERT(test_check_content(ptr1, 4, 1));
+    WVASSERT(test_check_content(ptr3, 12, 3));
+    WVASSERT(test_check_content(ptr4, 6, 4));
+    WVASSERT(test_check_content(ptr5, 2, 5));
 
     Heap::free(ptr1);
     Heap::free(ptr3);
@@ -219,9 +219,9 @@ static void reallocate() {
     ptr2 = static_cast<uint*>(Heap::realloc(ptr2, 10 * sizeof(uint)));
 
     /* check content */
-    assert_true(test_check_content(ptr1, 10, 1));
-    assert_true(test_check_content(ptr3, 2, 3));
-    assert_true(test_check_content(ptr2, 5, 2));
+    WVASSERT(test_check_content(ptr1, 10, 1));
+    WVASSERT(test_check_content(ptr3, 2, 3));
+    WVASSERT(test_check_content(ptr2, 5, 2));
 
     /* fill 2 completely */
     for(p = ptr2, i = 0; i < 10; i++)
@@ -230,9 +230,9 @@ static void reallocate() {
     ptr3 = static_cast<uint*>(Heap::realloc(ptr3, 6 * sizeof(uint)));
 
     /* check content */
-    assert_true(test_check_content(ptr1, 10, 1));
-    assert_true(test_check_content(ptr2, 10, 2));
-    assert_true(test_check_content(ptr3, 2, 3));
+    WVASSERT(test_check_content(ptr1, 10, 1));
+    WVASSERT(test_check_content(ptr2, 10, 2));
+    WVASSERT(test_check_content(ptr3, 2, 3));
 
     /* fill 3 completely */
     for(p = ptr3, i = 0; i < 6; i++)
@@ -241,9 +241,9 @@ static void reallocate() {
     ptr3 = static_cast<uint*>(Heap::realloc(ptr3, 7 * sizeof(uint)));
 
     /* check content */
-    assert_true(test_check_content(ptr1, 10, 1));
-    assert_true(test_check_content(ptr2, 10, 2));
-    assert_true(test_check_content(ptr3, 6, 3));
+    WVASSERT(test_check_content(ptr1, 10, 1));
+    WVASSERT(test_check_content(ptr2, 10, 2));
+    WVASSERT(test_check_content(ptr3, 6, 3));
 
     /* fill 3 completely */
     for(p = ptr3, i = 0; i < 7; i++)
@@ -276,7 +276,7 @@ static void allocate_all_and_free_it_again() {
         if(ptrs[i] == nullptr)
             break;
     }
-    assert_true(ptrs[i] == nullptr);
+    WVASSERT(ptrs[i] == nullptr);
     for(i--; i >= 0; --i)
         Heap::free(ptrs[i]);
 

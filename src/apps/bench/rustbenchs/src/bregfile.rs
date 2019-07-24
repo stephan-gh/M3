@@ -19,51 +19,51 @@ use m3::profile;
 use m3::test;
 use m3::vfs::{OpenFlags, VFS};
 
-pub fn run(t: &mut dyn test::Tester) {
-    run_test!(t, open_close);
-    run_test!(t, stat);
-    run_test!(t, mkdir_rmdir);
-    run_test!(t, link_unlink);
-    run_test!(t, read);
-    run_test!(t, write);
-    run_test!(t, copy);
+pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, open_close);
+    wv_run_test!(t, stat);
+    wv_run_test!(t, mkdir_rmdir);
+    wv_run_test!(t, link_unlink);
+    wv_run_test!(t, read);
+    wv_run_test!(t, write);
+    wv_run_test!(t, copy);
 }
 
 fn open_close() {
     let mut prof = profile::Profiler::new().repeats(20).warmup(5);
 
-    println!("w/  file session: {}", prof.run_with_id(|| {
-        assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+    wv_perf!("w/  file session", prof.run_with_id(|| {
+        wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
     }, 0x20));
 
-    println!("w/o file session: {}", prof.run_with_id(|| {
-        assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R | OpenFlags::NOSESS));
+    wv_perf!("w/o file session", prof.run_with_id(|| {
+        wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R | OpenFlags::NOSESS));
     }, 0x21));
 }
 
 fn stat() {
     let mut prof = profile::Profiler::new().repeats(20).warmup(5);
 
-    println!("{}", prof.run_with_id(|| {
-        assert_ok!(VFS::stat("/data/2048k.txt"));
+    wv_perf!("{}", prof.run_with_id(|| {
+        wv_assert_ok!(VFS::stat("/data/2048k.txt"));
     }, 0x22));
 }
 
 fn mkdir_rmdir() {
     let mut prof = profile::Profiler::new().repeats(20).warmup(5);
 
-    println!("{}", prof.run_with_id(|| {
-        assert_ok!(VFS::mkdir("/newdir", 0755));
-        assert_ok!(VFS::rmdir("/newdir"));
+    wv_perf!("{}", prof.run_with_id(|| {
+        wv_assert_ok!(VFS::mkdir("/newdir", 0755));
+        wv_assert_ok!(VFS::rmdir("/newdir"));
     }, 0x23));
 }
 
 fn link_unlink() {
     let mut prof = profile::Profiler::new().repeats(20).warmup(5);
 
-    println!("{}", prof.run_with_id(|| {
-        assert_ok!(VFS::link("/large.txt", "/newlarge.txt"));
-        assert_ok!(VFS::unlink("/newlarge.txt"));
+    wv_perf!("{}", prof.run_with_id(|| {
+        wv_assert_ok!(VFS::link("/large.txt", "/newlarge.txt"));
+        wv_assert_ok!(VFS::unlink("/newlarge.txt"));
     }, 0x24));
 }
 
@@ -72,10 +72,10 @@ fn read() {
 
     let mut prof = profile::Profiler::new().repeats(2).warmup(1);
 
-    println!("2 MiB file with 8K buf: {}", prof.run_with_id(|| {
-        let mut file = assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+    wv_perf!("2 MiB file with 8K buf", prof.run_with_id(|| {
+        let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
         loop {
-            let amount = assert_ok!(file.read(&mut buf));
+            let amount = wv_assert_ok!(file.read(&mut buf));
             if amount == 0 {
                 break;
             }
@@ -89,13 +89,13 @@ fn write() {
 
     let mut prof = profile::Profiler::new().repeats(2).warmup(1);
 
-    println!("2 MiB file with 8K buf: {}", prof.run_with_id(|| {
-        let mut file = assert_ok!(VFS::open("/newfile",
+    wv_perf!("2 MiB file with 8K buf", prof.run_with_id(|| {
+        let mut file = wv_assert_ok!(VFS::open("/newfile",
             OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC));
 
         let mut total = 0;
         while total < SIZE {
-            let amount = assert_ok!(file.write(&buf));
+            let amount = wv_assert_ok!(file.write(&buf));
             if amount == 0 {
                 break;
             }
@@ -108,17 +108,17 @@ fn copy() {
     let mut buf = vec![0u8; 8192];
     let mut prof = profile::Profiler::new().repeats(2).warmup(1);
 
-    println!("2 MiB file with 8K buf: {}", prof.run_with_id(|| {
-        let mut fin  = assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
-        let mut fout = assert_ok!(VFS::open("/newfile",
+    wv_perf!("2 MiB file with 8K buf", prof.run_with_id(|| {
+        let mut fin  = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
+        let mut fout = wv_assert_ok!(VFS::open("/newfile",
             OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC));
 
         loop {
-            let amount = assert_ok!(fin.read(&mut buf));
+            let amount = wv_assert_ok!(fin.read(&mut buf));
             if amount == 0 {
                 break;
             }
-            assert_ok!(fout.write_all(&buf[0..amount]));
+            wv_assert_ok!(fout.write_all(&buf[0..amount]));
         }
     }, 0x27));
 }

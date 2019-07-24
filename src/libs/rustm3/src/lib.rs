@@ -42,7 +42,8 @@ pub use base::{
     // macros
     vec, format,
     log, impl_boxitem, int_enum,
-    run_test, run_suite, assert_ok, assert_err, assert_some,
+    function,
+    wv_run_test, wv_run_suite, wv_perf, wv_assert_eq, wv_assert_ok, wv_assert_err, wv_assert_some,
 
     // modules
     libc, boxed, rc, sync, util, test, backtrace, col, cell, elf, env, errors, mem, kif, profile,

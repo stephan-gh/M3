@@ -20,8 +20,8 @@
 #include <base/KIF.h>
 #include <base/Panic.h>
 
-#include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
+#include <m3/Test.h>
 
 #include "../cppbenchs.h"
 
@@ -32,9 +32,9 @@ static capsel_t selector = ObjCap::INVALID;
 
 NOINLINE static void noop() {
     Profile pr;
-    cout << pr.run_with_id([] {
+    WVPERF(__func__, pr.run_with_id([] {
         Syscalls::noop();
-    }, 0x50) << "\n";
+    }, 0x50));
 }
 
 NOINLINE static void activate() {
@@ -42,9 +42,9 @@ NOINLINE static void activate() {
     mgate.read(buf, 8, 0);
 
     Profile pr;
-    cout << pr.run_with_id([&mgate] {
+    WVPERF(__func__, pr.run_with_id([&mgate] {
         Syscalls::activate(VPE::self().ep_to_sel(mgate.ep()), mgate.sel(), 0);
-    }, 0x51) << "\n";
+    }, 0x51));
 }
 
 NOINLINE static void create_rgate() {
@@ -59,7 +59,7 @@ NOINLINE static void create_rgate() {
 
     Profile pr;
     SyscallRGateRunner runner;
-    cout << pr.runner_with_id(runner, 0x52) << "\n";
+    WVPERF(__func__, pr.runner_with_id(runner, 0x52));
 }
 
 NOINLINE static void create_sgate() {
@@ -78,7 +78,7 @@ NOINLINE static void create_sgate() {
 
     Profile pr;
     SyscallSGateRunner runner;
-    cout << pr.runner_with_id(runner, 0x53) << "\n";
+    WVPERF(__func__, pr.runner_with_id(runner, 0x53));
 }
 
 NOINLINE static void create_map() {
@@ -105,7 +105,7 @@ NOINLINE static void create_map() {
 
     Profile pr;
     SyscallMapRunner runner;
-    cout << pr.runner_with_id(runner, 0x55) << "\n";
+    WVPERF(__func__, pr.runner_with_id(runner, 0x55));
 }
 
 NOINLINE static void create_srv() {
@@ -126,7 +126,7 @@ NOINLINE static void create_srv() {
 
     Profile pr;
     SyscallSrvRunner runner;
-    cout << pr.runner_with_id(runner, 0x56) << "\n";
+    WVPERF(__func__, pr.runner_with_id(runner, 0x56));
 }
 
 NOINLINE static void derive_mem() {
@@ -146,7 +146,7 @@ NOINLINE static void derive_mem() {
 
     Profile pr;
     SyscallDeriveRunner runner;
-    cout << pr.runner_with_id(runner, 0x58) << "\n";
+    WVPERF(__func__, pr.runner_with_id(runner, 0x58));
 }
 
 NOINLINE static void exchange() {
@@ -167,7 +167,7 @@ NOINLINE static void exchange() {
 
     Profile pr;
     SyscallExchangeRunner runner;
-    cout << pr.runner_with_id(runner, 0x59) << "\n";
+    WVPERF(__func__, pr.runner_with_id(runner, 0x59));
 }
 
 NOINLINE static void revoke() {
@@ -185,7 +185,7 @@ NOINLINE static void revoke() {
 
     Profile pr;
     SyscallRevokeRunner runner;
-    cout << pr.runner_with_id(runner, 0x5A) << "\n";
+    WVPERF(__func__, pr.runner_with_id(runner, 0x5A));
 }
 
 void bsyscall() {

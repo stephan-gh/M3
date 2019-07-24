@@ -17,6 +17,8 @@
 #include <base/Common.h>
 #include <base/util/BitField.h>
 
+#include <m3/Test.h>
+
 #include "../unittests.h"
 
 using namespace m3;
@@ -24,60 +26,60 @@ using namespace m3;
 static void first_clear() {
     {
         BitField<16> bf;
-        assert_uint(bf.first_clear(), 0);
+        WVASSERTEQ(bf.first_clear(), 0u);
 
         bf.set(0);
-        assert_uint(bf.first_clear(), 1);
+        WVASSERTEQ(bf.first_clear(), 1u);
 
         bf.set(1);
-        assert_uint(bf.first_clear(), 2);
+        WVASSERTEQ(bf.first_clear(), 2u);
 
         bf.set(3);
-        assert_uint(bf.first_clear(), 2);
+        WVASSERTEQ(bf.first_clear(), 2u);
 
         for(uint i = 0; i < 16; ++i)
             bf.set(i);
-        assert_uint(bf.first_clear(), 16);
+        WVASSERTEQ(bf.first_clear(), 16u);
     }
 
     {
         BitField<65> bf;
 
         bf.set(33);
-        assert_uint(bf.first_clear(), 0);
+        WVASSERTEQ(bf.first_clear(), 0u);
 
         for(uint i = 0; i < 65; ++i)
             bf.set(i);
-        assert_uint(bf.first_clear(), 65);
+        WVASSERTEQ(bf.first_clear(), 65u);
     }
 
     {
         BitField<10> bf;
         for(uint i = 0; i < 10; ++i)
             bf.set(i);
-        assert_uint(bf.first_clear(), 10);
+        WVASSERTEQ(bf.first_clear(), 10u);
 
         bf.clear(9);
-        assert_uint(bf.first_clear(), 9);
+        WVASSERTEQ(bf.first_clear(), 9u);
 
         bf.clear(3);
-        assert_uint(bf.first_clear(), 3);
+        WVASSERTEQ(bf.first_clear(), 3u);
 
         bf.set(3);
-        assert_uint(bf.first_clear(), 9);
+        WVASSERTEQ(bf.first_clear(), 9u);
 
         bf.clear(6);
         bf.clear(7);
-        assert_uint(bf.first_clear(), 6);
+        WVASSERTEQ(bf.first_clear(), 6u);
 
         bf.set(6);
-        assert_uint(bf.first_clear(), 7);
+        WVASSERTEQ(bf.first_clear(), 7u);
 
         bf.set(9);
-        assert_uint(bf.first_clear(), 7);
+        WVASSERTEQ(bf.first_clear(), 7u);
 
         bf.set(7);
-        assert_uint(bf.first_clear(), 10);
+        WVASSERTEQ(bf.first_clear(), 10u);
     }
 }
 
