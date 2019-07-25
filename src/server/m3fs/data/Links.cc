@@ -96,7 +96,7 @@ Errors::Code Links::remove(Request &r, INode *dir, const char *name, size_t name
                         DirEntry *next = reinterpret_cast<DirEntry*>(reinterpret_cast<char*>(e) + e->next);
                         if(next < __eend) {
                             size_t dist = e->next;
-                            memcpy(e, next, sizeof(DirEntry) + next->namelen);
+                            memmove(e, next, sizeof(DirEntry) + next->namelen);
                             e->next = dist + next->next;
                         }
                     }
