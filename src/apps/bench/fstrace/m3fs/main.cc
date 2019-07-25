@@ -16,6 +16,7 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
+#include <base/util/Profile.h>
 #include <base/Panic.h>
 #include <base/CmdArgs.h>
 
@@ -23,6 +24,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
+#include <m3/Test.h>
 
 #include "common/traceplayer.h"
 #include "platform.h"
@@ -191,11 +193,27 @@ int main(int argc, char **argv) {
          << "ops=" << numTraceOps
          << "]\n";
 
-    for(int i = 0; i < num_iterations; ++i) {
-        player.play(trace, wait, data, stdio, keep_time, make_ckpt);
-        if(i + 1 < num_iterations)
+    Profile pr(static_cast<size_t>(num_iterations), 1);
+    struct FSTraceRunner : public Runner {
+        std::function<void()> func;
+
+        explicit FSTraceRunner(std::function<void()> func)
+            : Runner(),
+              func(func) {
+        }
+
+        void run() override {
+            func();
+        }
+        void post() override {
             cleanup();
-    }
+        }
+    };
+
+    FSTraceRunner runner([&] {
+        player.play(trace, wait, data, stdio, keep_time, make_ckpt);
+    });
+    WVPERF(argv[CmdArgs::ind], pr.runner_with_id(runner, 0xFFFF));
 
     cerr << "VPFS trace_bench benchmark terminated\n";
 
