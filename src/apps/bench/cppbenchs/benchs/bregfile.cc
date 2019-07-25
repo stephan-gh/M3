@@ -28,7 +28,7 @@ using namespace m3;
 alignas(64) static char buf[8192];
 
 NOINLINE static void open_close() {
-    Profile pr(20, 5);
+    Profile pr(50, 10);
 
     WVPERF("open-close w/ file session", pr.run_with_id([] {
         FileRef file("/data/2048k.txt", FILE_R);
@@ -44,7 +44,7 @@ NOINLINE static void open_close() {
 }
 
 NOINLINE static void stat() {
-    Profile pr(20, 5);
+    Profile pr(50, 10);
 
     WVPERF(__func__, pr.run_with_id([] {
         FileInfo info;
@@ -53,7 +53,7 @@ NOINLINE static void stat() {
 }
 
 NOINLINE static void mkdir_rmdir() {
-    Profile pr(20, 5);
+    Profile pr(50, 10);
 
     WVPERF(__func__, pr.run_with_id([] {
         VFS::mkdir("/newdir", 0755);
@@ -62,7 +62,7 @@ NOINLINE static void mkdir_rmdir() {
 }
 
 NOINLINE static void link_unlink() {
-    Profile pr(20, 5);
+    Profile pr(50, 10);
 
     WVPERF(__func__, pr.run_with_id([] {
         VFS::link("/large.txt", "/newlarge.txt");

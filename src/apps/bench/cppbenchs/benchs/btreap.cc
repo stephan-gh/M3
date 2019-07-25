@@ -51,7 +51,7 @@ NOINLINE static void insert() {
         Treap<MyTItem> treap;
     };
 
-    Profile pr(30);
+    Profile pr(100, 50);
     TreapInsertRunner runner;
     WVPERF("inserting 100-elements", pr.runner_with_id(runner, 0x03));
 }
@@ -80,7 +80,7 @@ NOINLINE static void find() {
         Treap<MyTItem> treap;
     };
 
-    Profile pr(30);
+    Profile pr(100, 50);
     TreapSearchRunner runner;
     WVPERF("searching 100-elements", pr.runner_with_id(runner, 0x02));
 }
@@ -102,7 +102,7 @@ NOINLINE static void clear() {
         Treap<MyTItem> treap;
     };
 
-    Profile pr(30);
+    Profile pr(100, 50);
     TreapClearRunner runner;
     WVPERF("removing 100-elements", pr.runner_with_id(runner, 0x01));
 }

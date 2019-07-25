@@ -26,7 +26,7 @@
 using namespace m3;
 
 NOINLINE static void stat() {
-    Profile pr(32, 4);
+    Profile pr(50, 20);
 
     WVPERF("Stat in root dir", pr.run_with_id([] {
         FileInfo info;

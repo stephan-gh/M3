@@ -30,7 +30,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn open_close() {
-    let mut prof = profile::Profiler::new().repeats(20).warmup(5);
+    let mut prof = profile::Profiler::new().repeats(50).warmup(10);
 
     wv_perf!("open-close w/ file session", prof.run_with_id(|| {
         wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
@@ -42,7 +42,7 @@ fn open_close() {
 }
 
 fn stat() {
-    let mut prof = profile::Profiler::new().repeats(20).warmup(5);
+    let mut prof = profile::Profiler::new().repeats(50).warmup(10);
 
     wv_perf!("stat", prof.run_with_id(|| {
         wv_assert_ok!(VFS::stat("/data/2048k.txt"));
@@ -50,7 +50,7 @@ fn stat() {
 }
 
 fn mkdir_rmdir() {
-    let mut prof = profile::Profiler::new().repeats(20).warmup(5);
+    let mut prof = profile::Profiler::new().repeats(50).warmup(10);
 
     wv_perf!("mkdir_rmdir", prof.run_with_id(|| {
         wv_assert_ok!(VFS::mkdir("/newdir", 0755));
@@ -59,7 +59,7 @@ fn mkdir_rmdir() {
 }
 
 fn link_unlink() {
-    let mut prof = profile::Profiler::new().repeats(20).warmup(5);
+    let mut prof = profile::Profiler::new().repeats(50).warmup(10);
 
     wv_perf!("link_unlink", prof.run_with_id(|| {
         wv_assert_ok!(VFS::link("/large.txt", "/newlarge.txt"));
