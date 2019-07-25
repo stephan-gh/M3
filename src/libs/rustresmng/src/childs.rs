@@ -80,7 +80,7 @@ pub trait Child {
         let child_name = format!("{}.{}", self.name(), name);
         let id = get().next_id();
 
-        log!(RESMNG, "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
+        log!(RESMNG_CHILD, "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
              self.name(), vpe_sel, name, sgate_sel, id, child_name);
 
         let cfg = self.cfg();
@@ -113,7 +113,7 @@ pub trait Child {
     }
 
     fn rem_child(&mut self, vpe_sel: Selector) -> Result<Id, Error> {
-        log!(RESMNG, "{}: rem_child(vpe={})", self.name(), vpe_sel);
+        log!(RESMNG_CHILD, "{}: rem_child(vpe={})", self.name(), vpe_sel);
 
         let idx = self.res().childs.iter().position(|c| c.1 == vpe_sel).ok_or(Error::new(Code::InvArgs))?;
         let id = self.res().childs[idx].0;
@@ -185,7 +185,7 @@ pub trait Child {
     }
 
     fn use_sem(&mut self, name: &String, sel: Selector) -> Result<(), Error> {
-        log!(RESMNG, "{}: use_sem(name={}, sel={})", self.name(), name, sel);
+        log!(RESMNG_SEM, "{}: use_sem(name={}, sel={})", self.name(), name, sel);
 
         let cfg = self.cfg();
         let sdesc = cfg.get_sem(&name).ok_or(Error::new(Code::InvArgs))?;
@@ -452,7 +452,7 @@ impl ChildManager {
         if let Some(id) = self.sel_to_id(sel) {
             let child = self.remove_rec(id).unwrap();
 
-            log!(RESMNG, "Child '{}' exited with exitcode {}", child.name(), exitcode);
+            log!(RESMNG_CHILD, "Child '{}' exited with exitcode {}", child.name(), exitcode);
         }
     }
 
@@ -463,7 +463,7 @@ impl ChildManager {
             let can_kill = {
                 let child = self.child_by_id(id).unwrap();
                 if child.daemon() && child.res().services.len() == 0 {
-                    log!(RESMNG, "Killing child '{}'", child.name());
+                    log!(RESMNG_CHILD, "Killing child '{}'", child.name());
                     true
                 }
                 else {
@@ -487,7 +487,7 @@ impl ChildManager {
                 self.foreigns -= 1;
             }
 
-            log!(RESMNG, "Removed child '{}'", child.name());
+            log!(RESMNG_CHILD, "Removed child '{}'", child.name());
 
             for csel in &child.res().childs {
                 self.remove_rec(csel.0);

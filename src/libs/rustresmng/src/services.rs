@@ -71,7 +71,7 @@ impl Service {
     }
 
     fn shutdown(&mut self) {
-        log!(RESMNG, "Sending SHUTDOWN to service '{}'", self.name);
+        log!(RESMNG_SERV, "Sending SHUTDOWN to service '{}'", self.name);
 
         let smsg = kif::service::Shutdown {
             opcode: kif::service::Operation::SHUTDOWN.val as u64,
@@ -172,20 +172,20 @@ impl ServiceManager {
     }
 
     fn add_service(&mut self, serv: Service) {
-        log!(RESMNG, "Adding service '{}'", serv.name());
+        log!(RESMNG_SERV, "Adding service '{}'", serv.name());
         self.servs.push(serv);
     }
 
     pub fn remove_service(&mut self, id: Id) -> Service {
         let idx = self.servs.iter().position(|s| s.id == id).unwrap();
         let serv = self.servs.remove(idx);
-        log!(RESMNG, "Removing service '{}'", serv.name());
+        log!(RESMNG_SERV, "Removing service '{}'", serv.name());
         serv
     }
 
     pub fn reg_serv(&mut self, child: &mut dyn Child, child_sel: Selector, dst_sel: Selector,
                     rgate_sel: Selector, name: String) -> Result<(), Error> {
-        log!(RESMNG, "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
+        log!(RESMNG_SERV, "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
              child.name(), child_sel, dst_sel, rgate_sel, name);
 
         let cfg = child.cfg();
@@ -222,7 +222,7 @@ impl ServiceManager {
     }
 
     pub fn unreg_serv(&mut self, child: &mut dyn Child, sel: Selector, notify: bool) -> Result<(), Error> {
-        log!(RESMNG, "{}: unreg_serv(sel={})", child.name(), sel);
+        log!(RESMNG_SERV, "{}: unreg_serv(sel={})", child.name(), sel);
 
         let id = child.remove_service(sel)?;
         if notify {
@@ -238,7 +238,7 @@ impl ServiceManager {
 
     pub fn open_session(&mut self, child: &mut dyn Child,
                         dst_sel: Selector, name: &String) -> Result<(), Error> {
-        log!(RESMNG, "{}: open_sess(dst_sel={}, name={})",
+        log!(RESMNG_SERV, "{}: open_sess(dst_sel={}, name={})",
              child.name(), dst_sel, name);
 
         let cfg = child.cfg();
@@ -269,7 +269,7 @@ impl ServiceManager {
     }
 
     pub fn close_session(&mut self, child: &mut dyn Child, sel: Selector) -> Result<(), Error> {
-        log!(RESMNG, "{}: close_sess(sel={})", child.name(), sel);
+        log!(RESMNG_SERV, "{}: close_sess(sel={})", child.name(), sel);
 
         let sess = child.remove_session(sel)?;
         child.cfg().close_session(sel);

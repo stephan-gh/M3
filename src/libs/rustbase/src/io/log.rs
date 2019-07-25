@@ -44,6 +44,12 @@ pub const VTERM: bool   = false;
 pub const RESMNG: bool        = true;
 /// Logs parsed configs
 pub const RESMNG_CFG: bool    = true;
+/// Logs child operations
+pub const RESMNG_CHILD: bool  = false;
+/// Logs semaphore operations
+pub const RESMNG_SEM: bool    = false;
+/// Logs service operations
+pub const RESMNG_SERV: bool   = false;
 /// Logs memory operations
 pub const RESMNG_MEM: bool    = false;
 /// Logs sendqueue operations

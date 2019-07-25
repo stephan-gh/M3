@@ -394,5 +394,7 @@ pub fn main() -> i32 {
 
     workloop();
 
+    log!(RESMNG, "All childs gone. Exiting.");
+
     0
 }
