@@ -52,7 +52,7 @@ NOINLINE static void append() {
 
     Profile pr(30);
     DListAppendRunner runner;
-    WVPERF("100-elements", pr.runner_with_id(runner, 0x20));
+    WVPERF("Appending 100-elements", pr.runner_with_id(runner, 0x20));
 }
 
 NOINLINE static void clear() {
@@ -75,7 +75,7 @@ NOINLINE static void clear() {
 
     Profile pr(30);
     DListClearRunner runner;
-    WVPERF("100-elements", pr.runner_with_id(runner, 0x21));
+    WVPERF("Removing 100-elements", pr.runner_with_id(runner, 0x21));
 }
 
 void bdlist() {

@@ -32,11 +32,11 @@ pub fn run(t: &mut dyn test::WvTester) {
 fn open_close() {
     let mut prof = profile::Profiler::new().repeats(20).warmup(5);
 
-    wv_perf!("w/  file session", prof.run_with_id(|| {
+    wv_perf!("open-close w/ file session", prof.run_with_id(|| {
         wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
     }, 0x20));
 
-    wv_perf!("w/o file session", prof.run_with_id(|| {
+    wv_perf!("open-close w/o file session", prof.run_with_id(|| {
         wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R | OpenFlags::NOSESS));
     }, 0x21));
 }
@@ -72,7 +72,7 @@ fn read() {
 
     let mut prof = profile::Profiler::new().repeats(2).warmup(1);
 
-    wv_perf!("2 MiB file with 8K buf", prof.run_with_id(|| {
+    wv_perf!("read 2 MiB file with 8K buf", prof.run_with_id(|| {
         let mut file = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
         loop {
             let amount = wv_assert_ok!(file.read(&mut buf));
@@ -89,7 +89,7 @@ fn write() {
 
     let mut prof = profile::Profiler::new().repeats(2).warmup(1);
 
-    wv_perf!("2 MiB file with 8K buf", prof.run_with_id(|| {
+    wv_perf!("write 2 MiB file with 8K buf", prof.run_with_id(|| {
         let mut file = wv_assert_ok!(VFS::open("/newfile",
             OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC));
 
@@ -108,7 +108,7 @@ fn copy() {
     let mut buf = vec![0u8; 8192];
     let mut prof = profile::Profiler::new().repeats(2).warmup(1);
 
-    wv_perf!("2 MiB file with 8K buf", prof.run_with_id(|| {
+    wv_perf!("copy 2 MiB file with 8K buf", prof.run_with_id(|| {
         let mut fin  = wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
         let mut fout = wv_assert_ok!(VFS::open("/newfile",
             OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC));

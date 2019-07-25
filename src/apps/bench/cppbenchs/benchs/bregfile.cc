@@ -30,7 +30,7 @@ alignas(64) static char buf[8192];
 NOINLINE static void open_close() {
     Profile pr(20, 5);
 
-    WVPERF("w/  file session", pr.run_with_id([] {
+    WVPERF("open-close w/ file session", pr.run_with_id([] {
         FileRef file("/data/2048k.txt", FILE_R);
     }, 0x30));
 
@@ -38,7 +38,7 @@ NOINLINE static void open_close() {
     epid_t ep = VPE::self().alloc_ep();
     VFS::delegate_eps("/", VPE::self().ep_to_sel(ep), 1);
 
-    WVPERF("w/o file session", pr.run_with_id([] {
+    WVPERF("open-close w/o file session", pr.run_with_id([] {
         FileRef file("/data/2048k.txt", FILE_R | m3::FILE_NOSESS);
     }, 0x31));
 }
@@ -73,7 +73,7 @@ NOINLINE static void link_unlink() {
 NOINLINE static void read() {
     Profile pr(2, 1);
 
-    WVPERF("2 MiB file with 8K buf", pr.run_with_id([] {
+    WVPERF("read 2 MiB file with 8K buf", pr.run_with_id([] {
         FileRef file("/data/2048k.txt", FILE_R);
 
         size_t amount;
@@ -86,7 +86,7 @@ NOINLINE static void write() {
     const size_t SIZE = 2 * 1024 * 1024;
     Profile pr(2, 1);
 
-    WVPERF("2 MiB file with 8K buf", pr.run_with_id([] {
+    WVPERF("write 2 MiB file with 8K buf", pr.run_with_id([] {
         FileRef file("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
 
         size_t total = 0;
@@ -100,7 +100,7 @@ NOINLINE static void write() {
 NOINLINE static void copy() {
     Profile pr(2, 1);
 
-    WVPERF("2 MiB file with 8K buf", pr.run_with_id([] {
+    WVPERF("copy 2 MiB file with 8K buf", pr.run_with_id([] {
         FileRef in("/data/2048k.txt", FILE_R);
         FileRef out("/newfile", FILE_W | FILE_TRUNC | FILE_CREATE);
 

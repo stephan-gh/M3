@@ -33,7 +33,7 @@ NOINLINE static void read() {
     MemGate mgate = MemGate::create_global(8192, MemGate::R);
 
     Profile pr(2, 1);;
-    WVPERF("2 MiB with 8K buf", pr.run_with_id([&mgate] {
+    WVPERF("read 2 MiB with 8K buf", pr.run_with_id([&mgate] {
         size_t total = 0;
         while(total < SIZE) {
             mgate.read(buf, sizeof(buf), 0);
@@ -46,7 +46,7 @@ NOINLINE static void write() {
     MemGate mgate = MemGate::create_global(8192, MemGate::W);
 
     Profile pr(2, 1);
-    WVPERF("2 MiB with 8K buf", pr.run_with_id([&mgate] {
+    WVPERF("write 2 MiB with 8K buf", pr.run_with_id([&mgate] {
         size_t total = 0;
         while(total < SIZE) {
             mgate.write(buf, sizeof(buf), 0);
