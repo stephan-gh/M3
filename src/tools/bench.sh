@@ -1,15 +1,15 @@
 #!/bin/sh
 
-if [ $# -ne 2 ] && [ $# -ne 3 ]; then
-    echo "Usage: $0 <log> <mhz> [<warmup>]" 1>&2
+if [ $# -ne 1 ] && [ $# -ne 2 ]; then
+    echo "Usage: $0 <mhz> [<warmup>]" 1>&2
+    echo "  Expects the gem5 log in stdin." 1>&2
     exit 1
 fi
 
-log=$1
-mhz=$2
+mhz=$1
 warmup=0
-if [ "$3" != "" ]; then
-    warmup=$3
+if [ "$2" != "" ]; then
+    warmup=$2
 fi
 starttsc="1ff1"
 stoptsc="1ff2"
@@ -42,4 +42,4 @@ function ticksToCycles(ticks) {
     match($2, /(pe|cpu)([[:digit:]]+)/, pe)
     handle($4, pe[2], ticksToCycles(time[1]))
 }
-' $log
+'
