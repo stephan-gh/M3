@@ -93,19 +93,21 @@ static void cleanup() {
 }
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-f <fs>]"
+    cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-f <fs>] [-t] [-u <warmup>]"
                               << " [-g <rgate selector>] [-l <loadgen>] [-i] [-d] <name>\n";
     exit(1);
 }
 
 int main(int argc, char **argv) {
     // defaults
-    int num_iterations  = 1;
+    ulong num_iterations  = 1;
+    ulong warmup          = 0;
     bool keep_time      = true;
     bool make_ckpt      = false;
     bool wait           = false;
     bool stdio          = false;
     bool data           = false;
+    bool wvtest         = false;
     const char *fs      = "m3fs";
     const char *prefix  = "";
     const char *loadgen = "";
@@ -113,15 +115,17 @@ int main(int argc, char **argv) {
     epid_t rgate_ep     = EP_COUNT;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "p:n:wf:g:l:id")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "p:n:wf:g:l:idtu:")) != -1) {
         switch(opt) {
             case 'p': prefix = CmdArgs::arg; break;
-            case 'n': num_iterations = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'n': num_iterations = IStringStream::read_from<ulong>(CmdArgs::arg); break;
             case 'w': wait = true; break;
             case 'f': fs = CmdArgs::arg; break;
             case 'l': loadgen = CmdArgs::arg; break;
             case 'i': stdio = true; break;
             case 'd': data = true; break;
+            case 't': wvtest = true; break;
+            case 'u': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
             case 'g': {
                 IStringStream is(CmdArgs::arg);
                 is >> rgate >> rgate_ep;
@@ -193,7 +197,7 @@ int main(int argc, char **argv) {
          << "ops=" << numTraceOps
          << "]\n";
 
-    Profile pr(static_cast<size_t>(num_iterations), 1);
+    Profile pr(num_iterations, warmup);
     struct FSTraceRunner : public Runner {
         std::function<void()> func;
 
@@ -213,7 +217,10 @@ int main(int argc, char **argv) {
     FSTraceRunner runner([&] {
         player.play(trace, wait, data, stdio, keep_time, make_ckpt);
     });
-    WVPERF(argv[CmdArgs::ind], pr.runner_with_id(runner, 0xFFFF));
+    if(wvtest)
+        WVPERF(argv[CmdArgs::ind], pr.runner_with_id(runner, 0xFFFF));
+    else
+        pr.runner_with_id(runner, 0xFFFF);
 
     cerr << "VPFS trace_bench benchmark terminated\n";
 
