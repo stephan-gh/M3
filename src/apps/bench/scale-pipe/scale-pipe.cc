@@ -16,6 +16,7 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
+#include <base/util/Profile.h>
 #include <base/util/Time.h>
 #include <base/CmdArgs.h>
 #include <base/Panic.h>
@@ -26,6 +27,7 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
+#include <m3/Test.h>
 #include <m3/VPE.h>
 
 using namespace m3;
@@ -51,11 +53,12 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-m] [-d] [-i <instances>] [-r <repeats>] <wr_name> <rd_name>\n";
+    cerr << "Usage: " << name << " [-m] [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>\n";
     cerr << "  -m enables PE sharing\n";
     cerr << "  -d enables data transfers (otherwise the same time is spent locally)\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
+    cerr << "  <warmup> specifies the number of warmup rounds\n";
     cerr << "  <wr_name> specifies the name of the application trace for the writer\n";
     cerr << "  <rd_name> specifies the name of the application trace for the reader\n";
     exit(1);
@@ -66,14 +69,16 @@ int main(int argc, char **argv) {
     bool data = false;
     size_t instances = 1;
     int repeats = 1;
+    int warmup = 0;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "mdi:r:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "mdi:r:w:")) != -1) {
         switch(opt) {
             case 'm': muxed = true; break;
             case 'd': data = true; break;
             case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'w': warmup = IStringStream::read_from<int>(CmdArgs::arg); break;
             default:
                 usage(argv[0]);
         }
@@ -106,7 +111,9 @@ int main(int argc, char **argv) {
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
-    for(int j = 0; j < repeats; ++j) {
+    Results res(static_cast<ulong>(repeats));
+
+    for(int j = 0; j < warmup + repeats; ++j) {
         const size_t ARG_COUNT = 11;
         for(size_t i = 0; i < instances * 2; ++i) {
             const char **args = new const char *[ARG_COUNT];
@@ -150,7 +157,7 @@ int main(int argc, char **argv) {
             const char **args = apps[i]->argv;
             args[1] = "-p";
             args[2] = tmpdir.str();
-            args[3] = "-w";
+            args[3] = instances > 1 ? "-w" : "-i";
             args[4] = "-i";
             args[5] = data ? "-d" : "-i";
             args[6] = "-f";
@@ -208,6 +215,8 @@ int main(int argc, char **argv) {
 
         cycles_t overall_end = Time::stop(0x1235);
         cycles_t end = Time::stop(0x1234);
+        if(j >= warmup)
+            res.push(end - start);
         cout << "Time: " << (end - start) << ", total: " << (overall_end - overall_start) << "\n";
 
         if(VERBOSE) cout << "Deleting VPEs...\n";
@@ -220,6 +229,21 @@ int main(int argc, char **argv) {
             delete apps[i];
         }
     }
+
+    OStringStream name;
+    const char *s = wr_name;
+    int underscores = 0;
+    while(*s) {
+        if(*s == '_') {
+            if(++underscores == 2)
+                break;
+            name << '-';
+        }
+        else
+            name << *s;
+        s++;
+    }
+    WVPERF(name.str(), res);
 
     if(VERBOSE) cout << "Shutting down servers...\n";
 
