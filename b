@@ -40,8 +40,14 @@ if [ "$M3_TARGET" = "gem5" ]; then
         crossprefix="./build/cross-x86_64/bin/x86_64-elf-m3-"
     fi
 fi
+if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
+    rustabi='gnueabihf'
+else
+    rustabi='gnu'
+fi
 
 # rust env vars
+export RUST_TARGET=$M3_ISA-unknown-$M3_TARGET-$rustabi
 export RUST_TARGET_PATH=`readlink -f src/toolchain/rust`
 export CARGO_TARGET_DIR=`readlink -f build/rust`
 export XBUILD_SYSROOT_PATH=$CARGO_TARGET_DIR/sysroot
@@ -246,14 +252,14 @@ case "$cmd" in
         export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
         export RUSTDOCFLAGS=$RUSTFLAGS
         for lib in rustm3 rustthread rustresmng; do
-            ( cd src/libs/$lib && cargo doc --target $M3_ISA-unknown-$M3_TARGET-gnu )
+            ( cd src/libs/$lib && cargo doc --target $RUST_TARGET )
         done
         ;;
 
     macros=*)
         export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
         ( cd ${cmd#macros=} && \
-            cargo rustc --target $M3_ISA-unknown-$M3_TARGET-gnu --profile=check \
+            cargo rustc --target $RUST_TARGET --profile=check \
                 -- -Zunstable-options --pretty=expanded | less )
         ;;
 
