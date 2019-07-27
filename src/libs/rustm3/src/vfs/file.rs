@@ -39,24 +39,24 @@ bitflags! {
     /// The flags to open files.
     pub struct OpenFlags : u32 {
         /// Opens the file for reading.
-        const R         = 0b00000001;
+        const R         = 0b0000_0001;
         /// Opens the file for writing.
-        const W         = 0b00000010;
+        const W         = 0b0000_0010;
         /// Opens the file for code execution.
-        const X         = 0b00000100;
+        const X         = 0b0000_0100;
         /// Truncates the file on open.
-        const TRUNC     = 0b00001000;
+        const TRUNC     = 0b0000_1000;
         /// Appends to the file.
-        const APPEND    = 0b00010000;
+        const APPEND    = 0b0001_0000;
         /// Creates the file if it doesn't exist.
-        const CREATE    = 0b00100000;
+        const CREATE    = 0b0010_0000;
         /// For benchmarking: only pretend to access the file's data.
-        const NODATA    = 0b01000000;
+        const NODATA    = 0b0100_0000;
         /// Do not create a file session, but store the file in the metadata session.
         ///
         /// Setting this flag improves the performance of [`VFS::open`] and [`VFS::close`], but
         /// does not allow to delegate the "file capability" to another VPE.
-        const NOSESS    = 0b10000000;
+        const NOSESS    = 0b1000_0000;
 
         /// Opens the file for reading and writing.
         const RW        = Self::R.bits | Self::W.bits;

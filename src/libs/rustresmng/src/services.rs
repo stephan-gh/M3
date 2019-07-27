@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use core::intrinsics;
 use core::mem::MaybeUninit;
 use m3::cap::{Capability, CapFlags, Selector};
 use m3::cell::StaticCell;
@@ -50,11 +49,11 @@ impl Service {
         child.delegate(sel, dst_sel)?;
 
         Ok(Service {
-            id: id,
+            id,
             _cap: Capability::new(sel, CapFlags::empty()),
             queue: SendQueue::new(id, sgate),
             _rgate: rgate,
-            name: name,
+            name,
             child: child.id(),
         })
     }
@@ -91,7 +90,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(sel: Selector, serv: &mut Service, arg: &String) -> Result<(Selector, Self), Error> {
+    pub fn new(sel: Selector, serv: &mut Service, arg: &str) -> Result<(Selector, Self), Error> {
         let mut smsg = kif::service::Open {
             opcode: kif::service::Operation::OPEN.val as u64,
             arglen: (arg.len() + 1) as u64,
@@ -108,8 +107,9 @@ impl Session {
         event.and_then(|event| {
             thread::ThreadManager::get().wait_for(event);
 
-            let reply = thread::ThreadManager::get().fetch_msg().ok_or(Error::new(Code::RecvGone))?;
-            let reply: &[kif::service::OpenReply] = unsafe { intrinsics::transmute(&reply.data) };
+            let reply = thread::ThreadManager::get().fetch_msg()
+                .ok_or_else(|| Error::new(Code::RecvGone))?;
+            let reply = unsafe { &*(&reply.data as *const [u8] as *const [kif::service::OpenReply]) };
             let reply = &reply[0];
 
             if reply.res != 0 {
@@ -118,10 +118,11 @@ impl Session {
 
             Ok((reply.sess as Selector,
                 Session {
-                sel: sel,
-                ident: reply.ident,
-                serv: serv.id,
-            }))
+                    sel,
+                    ident: reply.ident,
+                    serv: serv.id,
+                }
+            ))
         })
     }
 
@@ -164,11 +165,11 @@ impl ServiceManager {
         }
     }
 
-    pub fn get(&mut self, name: &String) -> Result<&mut Service, Error> {
-        self.servs.iter_mut().find(|s| s.name == *name).ok_or(Error::new(Code::InvArgs))
+    pub fn get(&mut self, name: &str) -> Result<&mut Service, Error> {
+        self.servs.iter_mut().find(|s| s.name == *name).ok_or_else(|| Error::new(Code::InvArgs))
     }
     pub fn get_by_id(&mut self, id: Id) -> Result<&mut Service, Error> {
-        self.servs.iter_mut().find(|s| s.id == id).ok_or(Error::new(Code::InvArgs))
+        self.servs.iter_mut().find(|s| s.id == id).ok_or_else(|| Error::new(Code::InvArgs))
     }
 
     fn add_service(&mut self, serv: Service) {
@@ -190,7 +191,7 @@ impl ServiceManager {
 
         let cfg = child.cfg();
         let sdesc = if cfg.restrict() {
-            let sdesc = cfg.get_service(&name).ok_or(Error::new(Code::InvArgs))?;
+            let sdesc = cfg.get_service(&name).ok_or_else(|| Error::new(Code::InvArgs))?;
             if sdesc.is_used() {
                 return Err(Error::new(Code::Exists));
             }
@@ -207,7 +208,7 @@ impl ServiceManager {
             Service::new(self.next_id, child, dst_sel, rgate_sel, name)
         }
         else {
-            let server = child.child_mut(child_sel).ok_or(Error::new(Code::InvArgs))?;
+            let server = child.child_mut(child_sel).ok_or_else(|| Error::new(Code::InvArgs))?;
             Service::new(self.next_id, server, dst_sel, rgate_sel, name)
         }?;
         self.next_id += 1;
@@ -236,6 +237,7 @@ impl ServiceManager {
         Ok(())
     }
 
+    #[allow(clippy::ptr_arg)]   // &String is preferable here, because we &String in the if-else
     pub fn open_session(&mut self, child: &mut dyn Child,
                         dst_sel: Selector, name: &String) -> Result<(), Error> {
         log!(RESMNG_SERV, "{}: open_sess(dst_sel={}, name={})",
@@ -245,7 +247,7 @@ impl ServiceManager {
         let empty_arg = String::new();
         // TODO "restrict=0" shouldn't prevent us from passing arguments on session creation
         let (sdesc, sname, arg) = if cfg.restrict() {
-            let sdesc = cfg.get_session(&name).ok_or(Error::new(Code::InvArgs))?;
+            let sdesc = cfg.get_session(name).ok_or_else(|| Error::new(Code::InvArgs))?;
             if sdesc.is_used() {
                 return Err(Error::new(Code::Exists));
             }

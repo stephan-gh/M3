@@ -35,10 +35,7 @@ pub struct FileRef {
 impl FileRef {
     /// Creates new file reference for given file and file descriptor.
     pub fn new(file: FileHandle, fd: Fd) -> Self {
-        FileRef {
-            file: file,
-            fd: fd,
-        }
+        FileRef { file, fd }
     }
 
     /// Returns the file descriptor.

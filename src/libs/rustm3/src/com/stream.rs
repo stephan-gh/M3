@@ -35,9 +35,8 @@ pub struct ArraySink {
     pos: usize,
 }
 
-impl ArraySink {
-    /// Creates a new `ArraySink`.
-    pub fn new() -> Self {
+impl Default for ArraySink {
+    fn default() -> Self {
         ArraySink {
             arr: unsafe { MaybeUninit::uninit().assume_init() },
             pos: 0,
@@ -79,9 +78,8 @@ pub struct VecSink {
     vec: Vec<u64>,
 }
 
-impl VecSink {
-    /// Creates a new `VecSink`.
-    pub fn new() -> Self {
+impl Default for VecSink {
+    fn default() -> Self {
         VecSink {
             vec: Vec::new(),
         }
@@ -129,7 +127,7 @@ impl MsgSource {
     /// Creates a new `MsgSource` for given DTU message.
     pub fn new(msg: &'static dtu::Message) -> Self {
         MsgSource {
-            msg: msg,
+            msg,
             pos: 0,
         }
     }
@@ -138,6 +136,7 @@ impl MsgSource {
     #[inline(always)]
     pub fn data(&self) -> &'static [u64] {
         unsafe {
+            #[allow(clippy::cast_ptr_alignment)]
             let ptr = self.msg.data.as_ptr() as *const u64;
             slice::from_raw_parts(ptr, (self.msg.header.length / 8) as usize)
         }
@@ -160,7 +159,7 @@ fn copy_from_str(words: &mut [u64], s: &str) {
 
 fn copy_str_from(s: &[u64], len: usize) -> String {
     unsafe {
-        let bytes: *mut libc::c_void = intrinsics::transmute((s).as_ptr());
+        let bytes: *mut libc::c_void = s.as_ptr() as *mut libc::c_void;
         let copy = heap::alloc(len + 1);
         libc::memcpy(copy, bytes, len);
         String::from_raw_parts(copy as *mut u8, len, len)
@@ -239,14 +238,15 @@ pub struct GateOStream {
     buf: ArraySink,
 }
 
-impl GateOStream {
-    /// Creates a new `GateOStream`.
-    pub fn new() -> Self {
+impl Default for GateOStream {
+    fn default() -> Self {
         GateOStream {
-            buf: ArraySink::new(),
+            buf: ArraySink::default(),
         }
     }
+}
 
+impl GateOStream {
     /// Returns the size of the marshalled message
     #[inline(always)]
     pub fn size(&self) -> usize {
@@ -279,7 +279,7 @@ impl<'r> GateIStream<'r> {
     pub fn new(msg: &'static dtu::Message, rgate: &'r RecvGate) -> Self {
         GateIStream {
             source: MsgSource::new(msg),
-            rgate: rgate,
+            rgate,
             ack: true,
         }
     }
@@ -333,7 +333,7 @@ impl<'r> ops::Drop for GateIStream<'r> {
 #[macro_export]
 macro_rules! send_vmsg {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let mut os = $crate::com::GateOStream::new();
+        let mut os = $crate::com::GateOStream::default();
         $( os.push(&$args); )*
         os.send($sg, $rg)
     });
@@ -343,7 +343,7 @@ macro_rules! send_vmsg {
 #[macro_export]
 macro_rules! reply_vmsg {
     ( $is:expr, $( $args:expr ),* ) => ({
-        let mut os = $crate::com::GateOStream::new();
+        let mut os = $crate::com::GateOStream::default();
         $( os.push(&$args); )*
         $is.reply_os(&os)
     });
@@ -359,7 +359,7 @@ impl<'r> GateIStream<'r> {
 
 /// Receives a message from `rgate` and returns a [`GateIStream`] for the message.
 #[inline(always)]
-pub fn recv_msg<'r>(rgate: &'r RecvGate) -> Result<GateIStream<'r>, Error> {
+pub fn recv_msg(rgate: &RecvGate) -> Result<GateIStream<'_>, Error> {
     rgate.wait(None)
 }
 

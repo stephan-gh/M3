@@ -117,7 +117,7 @@ impl<'a, T: BoxItem> BoxListIterMut<'a, T> {
     pub fn remove(&mut self) -> Option<Box<T>> {
         match self.head {
             // if we already walked at the list-end, remove the last element
-            None            => return self.list.pop_back(),
+            None            => self.list.pop_back(),
 
             // otherwise, check if there is a current (=prev) element to remove
             Some(mut head)  => unsafe {
@@ -135,7 +135,7 @@ impl<'a, T: BoxItem> BoxListIterMut<'a, T> {
                     }
 
                     self.list.len -= 1;
-                    Box::from_raw(intrinsics::transmute(prev))
+                    Box::from_raw(prev as *mut T)
                 })
             },
         }
@@ -209,7 +209,7 @@ impl<T : BoxItem> BoxList<T> {
     }
 
     /// Returns an iterator for the list
-    pub fn iter<'a>(&'a self) -> BoxListIter<'a, T> {
+    pub fn iter(&self) -> BoxListIter<'_, T> {
         BoxListIter {
             head: self.head,
             marker: PhantomData,
@@ -217,7 +217,7 @@ impl<T : BoxItem> BoxList<T> {
     }
 
     /// Returns a mutable iterator for the list
-    pub fn iter_mut<'a>(&'a mut self) -> BoxListIterMut<'a, T> {
+    pub fn iter_mut(&mut self) -> BoxListIterMut<'_, T> {
         BoxListIterMut {
             head: self.head,
             list: self,
@@ -354,10 +354,6 @@ impl<'a, T : BoxItem> IntoIterator for &'a mut BoxList<T> {
 impl<T: BoxItem + PartialEq> PartialEq for BoxList<T> {
     fn eq(&self, other: &Self) -> bool {
         self.len() == other.len() && self.iter().eq(other)
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.len() != other.len() || self.iter().ne(other)
     }
 }
 

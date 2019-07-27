@@ -41,7 +41,7 @@ impl BootFile {
     pub fn new(sel: Selector, size: usize) -> Self {
         BootFile {
             mgate: MemGate::new_bind(sel),
-            size: size,
+            size,
             pos: 0,
         }
     }
@@ -142,9 +142,9 @@ pub struct BootMapper {
 impl BootMapper {
     pub fn new(vpe_sel: Selector, mem_sel: Selector, has_virtmem: bool) -> Self {
         BootMapper {
-            vpe_sel: vpe_sel,
-            mem_sel: mem_sel,
-            has_virtmem: has_virtmem,
+            vpe_sel,
+            mem_sel,
+            has_virtmem,
             allocs: Vec::new(),
         }
     }

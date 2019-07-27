@@ -46,7 +46,7 @@ impl M3FS {
     fn create(sess: ClientSession, sgate: SendGate) -> FSHandle {
         let inst = Rc::new(RefCell::new(M3FS {
             self_weak: Weak::new(),
-            sess: sess,
+            sess,
             sgate: Rc::new(sgate),
         }));
         inst.borrow_mut().self_weak = Rc::downgrade(&inst);
@@ -54,6 +54,7 @@ impl M3FS {
     }
 
     /// Creates a new session at the m3fs server with given name.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(name: &str) -> Result<FSHandle, Error> {
         let sels = VPE::cur().alloc_sels(2);
         let sess = ClientSession::new_with_sel(name, sels + 1)?;
@@ -100,7 +101,7 @@ impl FileSystem for M3FS {
             count: 1,
             vals: kif::syscalls::ExchangeUnion {
                 s: kif::syscalls::ExchangeUnionStr {
-                    i: [flags.bits() as u64, 0],
+                    i: [u64::from(flags.bits()), 0],
                     s: unsafe { MaybeUninit::uninit().assume_init() },
                 },
             },
@@ -111,7 +112,7 @@ impl FileSystem for M3FS {
             for (a, c) in args.vals.s.s.iter_mut().zip(path.bytes()) {
                 *a = c as u8;
             }
-            args.vals.s.s[path.len()] = '\0' as u8;
+            args.vals.s.s[path.len()] = b'\0';
         }
 
         let crd = self.sess.obtain(2, &mut args)?;

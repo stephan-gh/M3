@@ -32,7 +32,7 @@ impl EnvData {
     pub fn new(pe_id: u64, pe_desc: PEDesc, argc: i32, argv: *const *const i8,
                first_sel: CapSel, kmem_sel: CapSel) -> Self {
         EnvData {
-            pe_id: pe_id,
+            pe_id,
             pe_desc: pe_desc.value(),
             argc: argc as u32,
             argv: argv as u64,

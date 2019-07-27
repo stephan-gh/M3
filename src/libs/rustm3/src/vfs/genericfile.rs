@@ -77,12 +77,12 @@ impl GenericFile {
         }
 
         GenericFile {
-            id: id,
+            id,
             fd: filetable::MAX_FILES,
-            flags: flags,
+            flags,
             sess: ClientSession::new_bind(sel),
-            sgate: sgate,
-            mgate: mgate,
+            sgate,
+            mgate,
             goff: 0,
             off: 0,
             pos: 0,
@@ -202,15 +202,14 @@ impl Seek for GenericFile {
         self.submit(false)?;
 
         if whence == SeekMode::CUR {
-            off = self.goff + self.pos + off;
+            off += self.goff + self.pos;
             whence = SeekMode::SET;
         }
 
-        if whence != SeekMode::END && self.pos < self.len {
-            if off > self.goff && off < self.goff + self.len {
-                self.pos = off - self.goff;
-                return Ok(off)
-            }
+        if whence != SeekMode::END && self.pos < self.len &&
+           off > self.goff && off < self.goff + self.len {
+            self.pos = off - self.goff;
+            return Ok(off)
         }
 
         let mut reply = if self.flags.contains(OpenFlags::NOSESS) {

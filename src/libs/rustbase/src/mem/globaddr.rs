@@ -47,15 +47,15 @@ impl GlobAddr {
     }
 
     /// Returns the raw value
-    pub fn raw(&self) -> u64 {
+    pub fn raw(self) -> u64 {
         self.val
     }
     /// Returns the PE id
-    pub fn pe(&self) -> PEId {
+    pub fn pe(self) -> PEId {
         ((self.val >> PE_SHIFT) - 0x80) as PEId
     }
     /// Returns the offset
-    pub fn offset(&self) -> goff {
+    pub fn offset(self) -> goff {
         (self.val & ((1 << PE_SHIFT) - 1)) as goff
     }
 }

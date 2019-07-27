@@ -76,7 +76,7 @@ fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) {
     let name: String = is.pop();
 
     let res = services::get().reg_serv(child, child_sel, dst_sel, rgate_sel, name);
-    if res.is_ok() && DELAYED.get().len() > 0 {
+    if res.is_ok() && !DELAYED.get().is_empty() {
         start_delayed();
     }
     reply_result(is, res);
@@ -146,7 +146,7 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) {
 
 fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
     let sgate = SendGate::new_with(
-        SGateArgs::new(req_rgate()).credits(256).label(child.id() as u64)
+        SGateArgs::new(req_rgate()).credits(256).label(dtu::Label::from(child.id()))
     )?;
     let vpe = VPE::new_with(VPEArgs::new(child.name()).resmng(ResMng::new(sgate))
                                                       .kmem(child.kmem().clone()))?;
@@ -246,7 +246,7 @@ fn workloop() {
             thmng.try_yield();
         }
 
-        if childs::get().len() == 0 {
+        if childs::get().is_empty() {
             break;
         }
     }
@@ -258,65 +258,7 @@ fn workloop() {
     }
 }
 
-#[no_mangle]
-pub fn main() -> i32 {
-    let mgate = MemGate::new_bind(BOOT_MOD_SELS + 1);
-    let mut off: goff = 0;
-
-    let info: boot::Info = mgate.read_obj(0).expect("Unable to read boot info");
-    off += util::size_of::<boot::Info>() as goff;
-
-    let mut mods_list = vec![0u8; info.mod_size as usize];
-    mgate.read(&mut mods_list, off).expect("Unable to read mods");
-    off += info.mod_size;
-
-    log!(RESMNG, "Boot modules:");
-    MODS.set((mods_list.as_slice().as_ptr() as usize, info.mod_size as usize));
-    let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
-    for m in moditer {
-        log!(RESMNG, "  {:?}", m);
-    }
-
-    let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
-    unsafe { pes.set_len(info.pe_count as usize) };
-    mgate.read(&mut pes, off).expect("Unable to read PEs");
-
-    let mut i = 0;
-    log!(RESMNG, "Available PEs:");
-    for pe in pes {
-        log!(
-            RESMNG,
-            "  PE{:02}: {} {} {} KiB memory",
-            i, pe.pe_type(), pe.isa(), pe.mem_size() / 1024
-        );
-        i += 1;
-    }
-
-    let mut mem_sel = BOOT_MOD_SELS + 2 + info.mod_count as Selector;
-    for i in 0..info.mems.len() {
-        let mem = &info.mems[i];
-        if mem.size() == 0 {
-            continue;
-        }
-
-        memory::get().add(memory::MemMod::new(mem_sel, mem.size(), mem.reserved()));
-        mem_sel += 1;
-    }
-    log!(RESMNG, "Memory: {:?}", memory::get());
-
-    let mut rgate = RecvGate::new_with(
-        RGateArgs::new().order(12).msg_order(8)
-    ).expect("Unable to create RecvGate");
-    rgate.activate().expect("Unable to activate RecvGate");
-    RGATE.set(Some(rgate));
-
-    sendqueue::init();
-    thread::init();
-    // TODO calculate the number of threads we need (one per child?)
-    for _ in 0..8 {
-        thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
-    }
-
+fn start_boot_mods() {
     let mut same_kmem = false;
 
     let mut cfgs = Vec::new();
@@ -386,6 +328,68 @@ pub fn main() -> i32 {
             childs::get().add(Box::new(child));
         }
     }
+}
+
+#[no_mangle]
+pub fn main() -> i32 {
+    let mgate = MemGate::new_bind(BOOT_MOD_SELS + 1);
+    let mut off: goff = 0;
+
+    let info: boot::Info = mgate.read_obj(0).expect("Unable to read boot info");
+    off += util::size_of::<boot::Info>() as goff;
+
+    let mut mods_list = vec![0u8; info.mod_size as usize];
+    mgate.read(&mut mods_list, off).expect("Unable to read mods");
+    off += info.mod_size;
+
+    log!(RESMNG, "Boot modules:");
+    MODS.set((mods_list.as_slice().as_ptr() as usize, info.mod_size as usize));
+    let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
+    for m in moditer {
+        log!(RESMNG, "  {:?}", m);
+    }
+
+    let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
+    unsafe { pes.set_len(info.pe_count as usize) };
+    mgate.read(&mut pes, off).expect("Unable to read PEs");
+
+    let mut i = 0;
+    log!(RESMNG, "Available PEs:");
+    for pe in pes {
+        log!(
+            RESMNG,
+            "  PE{:02}: {} {} {} KiB memory",
+            i, pe.pe_type(), pe.isa(), pe.mem_size() / 1024
+        );
+        i += 1;
+    }
+
+    let mut mem_sel = BOOT_MOD_SELS + 2 + info.mod_count as Selector;
+    for i in 0..info.mems.len() {
+        let mem = &info.mems[i];
+        if mem.size() == 0 {
+            continue;
+        }
+
+        memory::get().add(memory::MemMod::new(mem_sel, mem.size(), mem.reserved()));
+        mem_sel += 1;
+    }
+    log!(RESMNG, "Memory: {:?}", memory::get());
+
+    let mut rgate = RecvGate::new_with(
+        RGateArgs::default().order(12).msg_order(8)
+    ).expect("Unable to create RecvGate");
+    rgate.activate().expect("Unable to activate RecvGate");
+    RGATE.set(Some(rgate));
+
+    sendqueue::init();
+    thread::init();
+    // TODO calculate the number of threads we need (one per child?)
+    for _ in 0..8 {
+        thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
+    }
+
+    start_boot_mods();
 
     // ensure that there is no id overlap
     childs::get().set_next_id(info.mod_count as Id + 1);

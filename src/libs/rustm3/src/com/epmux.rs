@@ -51,7 +51,7 @@ impl EpMux {
     /// at the next usage.
     pub fn reserve(&mut self, ep: EpId) {
         // take care that some non-fixed gate could already use that endpoint
-        if let Some(_) = self.gates[ep] {
+        if self.gates[ep].is_some() {
             self.activate(ep, INVALID_SEL).ok();
         }
         self.gates[ep] = None;

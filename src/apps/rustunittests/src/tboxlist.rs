@@ -43,7 +43,7 @@ impl fmt::Debug for TestItem {
 impl TestItem {
     pub fn new(data: u32) -> Self {
         TestItem {
-            data: data,
+            data,
             prev: None,
             next: None,
         }
@@ -84,6 +84,7 @@ fn basics() {
     wv_assert_eq!(l.back_mut().unwrap().data, 57);
 }
 
+#[allow(clippy::option_map_unit_fn)]
 fn iter() {
     let mut l: BoxList<TestItem> = gen_list(&[23, 42, 57]);
 

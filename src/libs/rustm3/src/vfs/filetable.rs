@@ -90,8 +90,8 @@ impl FileTable {
     /// Removes the file with given file descriptor from the table.
     pub fn remove(&mut self, fd: Fd) {
         let find_file_ep = |files: &[Option<FileEP>], fd| -> Option<usize> {
-            for i in 0..MAX_EPS {
-                if let Some(ref fep) = files[i] {
+            for (i, f) in files.iter().enumerate() {
+                if let Some(ref fep) = f {
                     if fep.fd == fd {
                         return Some(i);
                     }
@@ -122,10 +122,7 @@ impl FileTable {
                             "FileEPs[{}] = EP:{},FD:{}", i, ep, fd
                         );
 
-                        self.file_eps[i] = Some(FileEP {
-                            fd: fd,
-                            ep: ep,
-                        });
+                        self.file_eps[i] = Some(FileEP { fd, ep });
                         self.file_ep_count += 1;
                         return Ok(ep);
                     }
@@ -201,10 +198,10 @@ impl FileTable {
 
 impl fmt::Debug for FileTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "FileTable[\n")?;
+        writeln!(f, "FileTable[")?;
         for fd in 0..MAX_FILES {
             if let Some(ref file) = self.files[fd] {
-                write!(f, "  {} -> {:?}\n", fd, file)?;
+                writeln!(f, "  {} -> {:?}", fd, file)?;
             }
         }
         write!(f, "]")

@@ -65,7 +65,7 @@ impl Pager {
         let sess = ClientSession::new_bind(sess_sel);
         let sgate = SendGate::new_bind(sess.obtain_obj()?);
         Ok(Pager {
-            sess: sess,
+            sess,
             sep: 0,
             rep: 0,
             rbuf: 0,
@@ -85,23 +85,25 @@ impl Pager {
     }
 
     fn create(vpe: &mut VPE, rbuf: usize, sess: ClientSession) -> Result<Self, Error> {
-        let own_sgate = SendGate::new_bind(sess.obtain_obj()?);
+        let parent_sgate = SendGate::new_bind(sess.obtain_obj()?);
         let child_sgate = SendGate::new_bind(sess.obtain_obj()?);
         let sep = vpe.alloc_ep()?;
         let rep = vpe.alloc_ep()?;
-        let rgate = match vpe.pe().has_mmu() {
-            true    => Some(RecvGate::new_with(RGateArgs::new().order(6).msg_order(6))?),
-            false   => None,
+        let rgate = if vpe.pe().has_mmu() {
+            Some(RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?)
+        }
+        else {
+            None
         };
 
         Ok(Pager {
-            sess: sess,
-            sep: sep,
-            rep: rep,
-            rbuf: rbuf,
-            rgate: rgate,
-            parent_sgate: own_sgate,
-            child_sgate: child_sgate,
+            sess,
+            sep,
+            rep,
+            rbuf,
+            rgate,
+            parent_sgate,
+            child_sgate,
         })
     }
 
@@ -159,6 +161,7 @@ impl Pager {
     }
 
     /// Performs the clone-operation on server-side using copy-on-write.
+    #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Result<(), Error> {
         send_recv_res!(
             &self.parent_sgate, RecvGate::def(),
@@ -191,10 +194,10 @@ impl Pager {
             count: 5,
             vals: kif::syscalls::ExchangeUnion {
                 i: [
-                    DelOp::DATASPACE.val as u64,
+                    u64::from(DelOp::DATASPACE.val),
                     addr as u64,
                     len as u64,
-                    prot.bits() as u64,
+                    u64::from(prot.bits()),
                     off as u64,
                     0, 0, 0
                 ]

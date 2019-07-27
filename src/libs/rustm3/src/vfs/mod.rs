@@ -25,6 +25,7 @@ mod filetable;
 mod genericfile;
 mod indirpipe;
 mod mounttable;
+#[allow(clippy::module_inception)]
 mod vfs;
 
 /// File permissions.

@@ -87,7 +87,7 @@ impl EnvData {
             self.base().first_sel as Selector
         }
         else {
-            Self::load_word("nextsel", kif::FIRST_FREE_SEL as u64) as Selector
+            Self::load_word("nextsel", u64::from(kif::FIRST_FREE_SEL)) as Selector
         }
     }
 
@@ -102,7 +102,7 @@ impl EnvData {
     }
 
     pub fn load_kmem(&self) -> Rc<vpe::KMem> {
-        let sel = Self::load_word("kmem", self.base().kmem_sel as u64) as Selector;
+        let sel = Self::load_word("kmem", u64::from(self.base().kmem_sel)) as Selector;
         Rc::new(vpe::KMem::new(sel))
     }
 

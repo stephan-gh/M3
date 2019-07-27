@@ -55,10 +55,7 @@ impl Handler for MyHandler {
         )?;
 
         let sel = sess.sel();
-        self.sessions.add(sid, MySession {
-            sess: sess,
-            sgate: sgate,
-        });
+        self.sessions.add(sid, MySession { sess, sgate });
         Ok((sel, sid))
     }
 
@@ -84,7 +81,7 @@ impl MyHandler {
         rgate.activate()?;
         Ok(MyHandler {
             sessions: SessionContainer::new(32),
-            rgate: rgate,
+            rgate,
         })
     }
 

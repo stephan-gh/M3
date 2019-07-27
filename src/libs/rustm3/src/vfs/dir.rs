@@ -31,10 +31,7 @@ pub struct DirEntry {
 impl DirEntry {
     /// Creates a new directory entry with given inode number and name.
     pub fn new(inode: INodeId, name: String) -> Self {
-        DirEntry {
-            inode: inode,
-            name: name,
-        }
+        DirEntry { inode, name }
     }
 
     /// Returns the inode number
@@ -81,10 +78,8 @@ impl iter::Iterator for ReadDir {
 
         // move to next entry
         let off = entry.next as usize - (util::size_of::<M3FSDirEntry>() + entry.name_len as usize);
-        if off != 0 {
-            if self.reader.seek(off, SeekMode::CUR).is_err() {
-                return None
-            }
+        if off != 0 && self.reader.seek(off, SeekMode::CUR).is_err() {
+            return None
         }
 
         Some(res)

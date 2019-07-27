@@ -51,13 +51,13 @@ impl<K : Copy + KeyOrd, V> Node<K, V> {
         Node {
             left: None,
             right: None,
-            prio: prio,
-            key: key,
-            value: value,
+            prio,
+            key,
+            value,
         }
     }
 
-    fn into_value(self: Box<Self>) -> V {
+    fn into_value(self) -> V {
         self.value
     }
 }
@@ -84,7 +84,7 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
     pub const fn new() -> Self {
         Treap {
             root: None,
-            prio: Wrapping(314159265),
+            prio: Wrapping(314_159_265),
         }
     }
 
@@ -95,25 +95,25 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
 
     /// Removes all elements from the treap
     pub fn clear(&mut self) {
-        mem::replace(&mut self.root, None).map(|r| unsafe {
+        if let Some(r) = mem::replace(&mut self.root, None) {
             Self::remove_rec(r);
             // destroy the node
-            Box::from_raw(r.as_ptr());
-        });
+            unsafe { Box::from_raw(r.as_ptr()) };
+        }
 
-        self.prio = Wrapping(314159265);
+        self.prio = Wrapping(314_159_265);
     }
 
     fn remove_rec(node: NonNull<Node<K, V>>) {
         unsafe {
-            (*node.as_ptr()).left.map(|l| {
+            if let Some(l) = (*node.as_ptr()).left {
                 Self::remove_rec(l);
                 Box::from_raw(l.as_ptr());
-            });
-            (*node.as_ptr()).right.map(|r| {
+            }
+            if let Some(r) = (*node.as_ptr()).right {
                 Self::remove_rec(r);
                 Box::from_raw(r.as_ptr());
-            });
+            }
         }
     }
 
@@ -206,10 +206,10 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
                 *r = None;
             }
 
-            *q = Some(NonNull::from(Box::into_raw_non_null(Box::new(node))));
+            *q = Some(Box::into_raw_non_null(Box::new(node)));
 
             // fibonacci hashing to spread the priorities very even in the 32-bit room
-            self.prio += Wrapping(0x9e3779b9);    // floor(2^32 / phi), with phi = golden ratio
+            self.prio += Wrapping(0x9e37_79b9);    // floor(2^32 / phi), with phi = golden ratio
 
             &mut (*q.unwrap().as_ptr()).value
         }
@@ -294,7 +294,7 @@ fn print_rec<K, V>(node: NonNull<Node<K, V>>, f: &mut fmt::Formatter) -> fmt::Re
                    where K : Copy + KeyOrd + fmt::Debug, V: fmt::Debug {
     let node_ptr = node.as_ptr();
     unsafe {
-        write!(f, "  {:?} -> {:?}\n", (*node_ptr).key, (*node_ptr).value)?;
+        writeln!(f, "  {:?} -> {:?}", (*node_ptr).key, (*node_ptr).value)?;
         if let Some(l) = (*node_ptr).left {
             print_rec(l, f)?;
         }

@@ -46,7 +46,7 @@ pub fn stderr() -> &'static mut BufWriter<FileRef> {
 
 pub(crate) fn init() {
     for fd in 0..3 {
-        if let None = VPE::cur().files().get(fd) {
+        if VPE::cur().files().get(fd).is_none() {
             VPE::cur().files().set(fd, Serial::new());
         }
     }

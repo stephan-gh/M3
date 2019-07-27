@@ -37,6 +37,7 @@ macro_rules! print {
 /// Uses stdout to print `$fmt` with given arguments and a newline.
 #[macro_export]
 macro_rules! println {
+    ()                       => (print!("\n"));
     ($fmt:expr)              => (print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
 }

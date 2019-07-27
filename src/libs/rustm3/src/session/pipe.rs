@@ -32,9 +32,7 @@ impl Pipes {
     /// Creates a new `Pipes` session at service with given name.
     pub fn new(name: &str) -> Result<Self, Error> {
         let sess = ClientSession::new(name)?;
-        Ok(Pipes {
-            sess: sess,
-        })
+        Ok(Pipes { sess })
     }
 
     /// Creates a new pipe using `mem` of `mem_size` bytes as shared memory for the data exchange.
@@ -59,9 +57,7 @@ impl Pipe {
     fn new(mem: &MemGate, sel: Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sel);
         sess.delegate_obj(mem.sel())?;
-        Ok(Pipe {
-            sess: sess,
-        })
+        Ok(Pipe { sess })
     }
 
     /// Returns the session's capability selector.

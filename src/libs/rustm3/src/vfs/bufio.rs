@@ -38,7 +38,7 @@ impl<R : Read> BufReader<R> {
     /// Creates a new `BufReader` with the given reader, using a buffer with `cap` bytes.
     pub fn with_capacity(reader: R, cap: usize) -> Self {
         let mut br = BufReader {
-            reader: reader,
+            reader,
             buf: Vec::with_capacity(cap),
             pos: 0,
             cap: 0,
@@ -89,7 +89,7 @@ impl<R : Read> Read for BufReader<R> {
         let end = util::min(self.cap, self.pos + buf.len());
         let res = end - self.pos;
         if end > self.pos {
-            &buf[0..res].copy_from_slice(&self.buf[self.pos..end]);
+            buf[0..res].copy_from_slice(&self.buf[self.pos..end]);
         }
         self.pos += res;
         Ok(res)
@@ -129,7 +129,7 @@ impl<W : Write> BufWriter<W> {
     /// Creates a new `BufWriter` with the given writer and a buffer with `cap` bytes.
     pub fn with_capacity(writer: W, cap: usize) -> Self {
         let mut br = BufWriter {
-            writer: writer,
+            writer,
             buf: Vec::with_capacity(cap),
             pos: 0,
         };
@@ -167,13 +167,13 @@ impl<W : Write> Write for BufWriter<W> {
             let end = util::min(self.buf.len(), self.pos + buf.len());
             let res = end - self.pos;
             if end > self.pos {
-                &self.buf[self.pos..end].copy_from_slice(&buf[0..res]);
+                self.buf[self.pos..end].copy_from_slice(&buf[0..res]);
             }
 
             self.pos += res;
 
             // use line buffering
-            if self.buf.iter().find(|b| **b == b'\n').is_some() {
+            if self.buf.iter().any(|b| *b == b'\n') {
                 self.flush()?;
             }
             else if self.pos == self.buf.len() {

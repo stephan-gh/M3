@@ -48,9 +48,9 @@ impl MGateArgs {
     /// Creates a new `MGateArgs` object with default settings
     pub fn new(size: usize, perm: Perm) -> MGateArgs {
         MGateArgs {
-            size: size,
+            size,
             addr: !0,
-            perm: perm,
+            perm,
             sel: INVALID_SEL,
             flags: CapFlags::empty(),
         }
@@ -212,7 +212,7 @@ impl MemGate {
             self.sel(), unsafe { util::slice_for_mut(*data, amount) }, *off,
             kif::syscalls::ForwardMemFlags::empty(), 0
         )?;
-        *data = unsafe { (*data).offset(amount as isize) };
+        *data = unsafe { (*data).add(amount) };
         *off += amount as goff;
         *size -= amount;
         Ok(())
@@ -224,7 +224,7 @@ impl MemGate {
             self.sel(), unsafe { util::slice_for(*data, amount) }, *off,
             kif::syscalls::ForwardMemFlags::empty(), 0
         )?;
-        *data = unsafe { (*data).offset(amount as isize) };
+        *data = unsafe { (*data).add(amount) };
         *off += amount as goff;
         *size -= amount;
         Ok(())

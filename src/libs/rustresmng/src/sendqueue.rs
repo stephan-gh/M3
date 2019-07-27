@@ -31,10 +31,7 @@ struct Entry {
 
 impl Entry {
     pub fn new(id: u64, msg: Vec<u8>) -> Self {
-        Entry {
-            id: id,
-            msg: msg,
-        }
+        Entry { id, msg }
     }
 }
 
@@ -66,7 +63,7 @@ fn get_event(id: u64) -> thread::Event {
 
 pub fn init() {
     let mut rgate = RecvGate::new_with(
-        RGateArgs::new().order(11).msg_order(6)
+        RGateArgs::default().order(11).msg_order(6)
     ).expect("Unable to create service rgate");
     rgate.activate().expect("Unable to activate service rgate");
 
@@ -89,8 +86,8 @@ pub fn check_replies() {
 impl SendQueue {
     pub fn new(sid: Id, sgate: SendGate) -> Self {
         SendQueue {
-            sid: sid,
-            sgate: sgate,
+            sid,
+            sgate,
             queue: DList::new(),
             cur_event: 0,
             state: QState::Idle,
@@ -155,7 +152,7 @@ impl SendQueue {
         self.state = QState::Waiting;
 
         let rgate = &RGATE.get().as_ref().unwrap();
-        self.sgate.send_with_rlabel(msg, rgate, self.sid as dtu::Label)?;
+        self.sgate.send_with_rlabel(msg, rgate, dtu::Label::from(self.sid))?;
 
         Ok(self.cur_event)
     }
@@ -167,7 +164,7 @@ impl Drop for SendQueue {
             thread::ThreadManager::get().notify(self.cur_event, None);
         }
 
-        while self.queue.len() > 0 {
+        while !self.queue.is_empty() {
             self.queue.pop_front();
         }
     }

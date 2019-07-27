@@ -16,6 +16,7 @@
 
 //! Contains server-related abstractions.
 
+#[allow(clippy::module_inception)]
 mod server;
 mod sesscon;
 

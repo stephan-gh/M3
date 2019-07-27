@@ -35,7 +35,7 @@ impl<S> SessionContainer<S> {
         }
 
         SessionContainer {
-            con: con,
+            con,
             used: 0,
         }
     }

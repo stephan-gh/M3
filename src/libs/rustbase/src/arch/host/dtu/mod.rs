@@ -96,7 +96,7 @@ int_enum! {
 
 impl From<u8> for Command {
     fn from(cmd: u8) -> Self {
-        unsafe { intrinsics::transmute(cmd as Reg) }
+        unsafe { intrinsics::transmute(Reg::from(cmd)) }
     }
 }
 
@@ -193,8 +193,8 @@ impl DTU {
         let msg = Self::get_cmd(CmdReg::OFFSET);
         if msg != 0 {
             unsafe {
-                let head: *const Header = intrinsics::transmute(msg);
-                let slice: [usize; 2] = [msg as usize, (*head).length as usize];
+                let head = msg as *const Header;
+                let slice = [msg as usize, (*head).length as usize];
                 Some(intrinsics::transmute(slice))
             }
         }
@@ -223,7 +223,7 @@ impl DTU {
         let time = libc::timespec {
             // just a rough estimate, based on a 3GHz CPU
             tv_nsec: (cycles / 3) as i64,
-            tv_sec: (cycles / 3000000000) as i64,
+            tv_sec: (cycles / 3_000_000_000) as i64,
         };
         unsafe { libc::nanosleep(&time, ptr::null_mut()); }
         Ok(())
@@ -254,8 +254,9 @@ impl DTU {
         Self::set_ep(ep, EpReg::BUF_OCCUPIED, 0);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn exec_command(ep: EpId, cmd: Command, msg: *const u8, size: usize, off: usize, len: usize,
-            reply_lbl: Label, reply_ep: EpId) -> Result<(), Error> {
+                    reply_lbl: Label, reply_ep: EpId) -> Result<(), Error> {
         Self::set_cmd(CmdReg::ADDR, msg as Reg);
         Self::set_cmd(CmdReg::SIZE, size as Reg);
         Self::set_cmd(CmdReg::EPID, ep as Reg);
@@ -281,7 +282,7 @@ impl DTU {
     }
 
     fn is_ready() -> bool {
-        (Self::get_cmd(CmdReg::CTRL) >> 3) & 0x1FFF == 0
+        (Self::get_cmd(CmdReg::CTRL) >> 3).trailing_zeros() >= 13
     }
     fn get_result() -> Result<(), Error> {
         match Self::get_cmd(CmdReg::CTRL) >> 16 {

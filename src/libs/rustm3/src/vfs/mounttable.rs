@@ -39,7 +39,7 @@ impl MountPoint {
     pub fn new(path: &str, fs: FSHandle) -> MountPoint {
         MountPoint {
             path: path.to_string(),
-            fs: fs,
+            fs,
         }
     }
 }
@@ -149,8 +149,8 @@ impl MountTable {
 
     fn path_to_idx(&self, path: &str) -> Option<usize> {
         // TODO support imperfect paths
-        assert!(path.starts_with("/"));
-        assert!(path.ends_with("/"));
+        assert!(path.starts_with('/'));
+        assert!(path.ends_with('/'));
         assert!(path.find("..").is_none());
 
         for (i, m) in self.mounts.iter().enumerate() {
@@ -183,9 +183,9 @@ impl MountTable {
 
 impl fmt::Debug for MountTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MountTable[\n")?;
+        writeln!(f, "MountTable[")?;
         for m in self.mounts.iter() {
-            write!(f, "  {} -> {:?}\n", m.path, m.fs.borrow())?;
+            writeln!(f, "  {} -> {:?}", m.path, m.fs.borrow())?;
         }
         write!(f, "]")
     }

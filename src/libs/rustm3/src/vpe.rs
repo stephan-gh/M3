@@ -133,6 +133,7 @@ pub trait Mapper {
     /// `foff` and zero'ing the remaining space.
     ///
     /// The argument `buf` can be used as a buffer and `mem` refers to the address space of the VPE.
+    #[allow(clippy::too_many_arguments)]
     fn init_mem(&self, buf: &mut [u8], mem: &MemGate,
                 file: &mut BufReader<FileRef>, foff: usize, fsize: usize,
                 virt: goff, memsize: usize) -> Result<(), Error> {
@@ -162,8 +163,8 @@ pub trait Mapper {
             return Ok(())
         }
 
-        for i in 0..buf.len() {
-            buf[i] = 0;
+        for it in buf.iter_mut() {
+            *it = 0;
         }
 
         while len > 0 {
@@ -185,9 +186,7 @@ pub struct DefaultMapper {
 impl DefaultMapper {
     /// Creates a new `DefaultMapper`.
     pub fn new(has_virtmem: bool) -> Self {
-        DefaultMapper {
-            has_virtmem: has_virtmem,
-        }
+        DefaultMapper { has_virtmem }
     }
 }
 
@@ -258,7 +257,7 @@ impl ClosureActivity {
     /// Creates a new `ClosureActivity` for the given VPE and closure.
     pub fn new(vpe: VPE, closure: env::Closure) -> ClosureActivity {
         ClosureActivity {
-            vpe: vpe,
+            vpe,
             _closure: closure,
         }
     }
@@ -292,7 +291,7 @@ impl ExecActivity {
     /// Creates a new `ExecActivity` for the given VPE and executable.
     pub fn new(vpe: VPE, file: BufReader<FileRef>) -> ExecActivity {
         ExecActivity {
-            vpe: vpe,
+            vpe,
             _file: file,
         }
     }
@@ -320,7 +319,7 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
     /// Creates a new instance of `VPEArgs` using default settings.
     pub fn new(name: &'n str) -> VPEArgs<'n, 'p> {
         VPEArgs {
-            name: name,
+            name,
             pager: None,
             pe: VPE::cur().pe(),
             muxable: false,
@@ -438,7 +437,7 @@ impl VPE {
             eps: 0,
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
-            kmem: args.kmem.unwrap_or(VPE::cur().kmem.clone()),
+            kmem: args.kmem.unwrap_or_else(|| VPE::cur().kmem.clone()),
             files: FileTable::default(),
             mounts: MountTable::default(),
         };
@@ -608,7 +607,7 @@ impl VPE {
 
     /// Allocates `size` bytes from the VPE's receive buffer space and returns the address.
     pub fn alloc_rbuf(&mut self, size: usize) -> Result<usize, Error> {
-        self.rbufs.alloc(&self.pe, size)
+        self.rbufs.alloc(self.pe, size)
     }
     /// Free's the area at `addr` of `size` bytes that had been allocated via [`VPE::alloc_rbuf`].
     pub fn free_rbuf(&mut self, addr: usize, size: usize) {
@@ -730,7 +729,7 @@ impl VPE {
             senv.set_argc(env.argc());
             senv.set_argv(loader.write_arguments(&mut off, env::args())?);
 
-            senv.set_pedesc(&self.pe());
+            senv.set_pedesc(self.pe());
 
             // write start env to PE
             self.mem.write_obj(&senv, cfg::RT_START as goff)?;
@@ -800,6 +799,7 @@ impl VPE {
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<ExecActivity, Error> {
         let file = VFS::open(args[0].as_ref(), OpenFlags::RX)?;
         let mut mapper = DefaultMapper::new(self.pe.has_virtmem());
+        #[allow(clippy::unnecessary_mut_passed)] // only mutable on gem5
         self.exec_file(&mut mapper, file, args)
     }
 
@@ -841,7 +841,7 @@ impl VPE {
 
             // write file table
             {
-                let mut fds = VecSink::new();
+                let mut fds = VecSink::default();
                 self.files.serialize(&mut fds);
                 self.mem.write(fds.words(), off as goff)?;
                 senv.set_files(off, fds.size());
@@ -850,7 +850,7 @@ impl VPE {
 
             // write mounts table
             {
-                let mut mounts = VecSink::new();
+                let mut mounts = VecSink::default();
                 self.mounts.serialize(&mut mounts);
                 self.mem.write(mounts.words(), off as goff)?;
                 senv.set_mounts(off, mounts.size());
@@ -861,7 +861,7 @@ impl VPE {
             senv.set_rbufs(&self.rbufs);
             senv.set_next_sel(self.next_sel);
             senv.set_eps(self.eps);
-            senv.set_pedesc(&self.pe());
+            senv.set_pedesc(self.pe());
 
             if let Some(ref pg) = self.pager {
                 senv.set_pager(pg);
@@ -912,24 +912,24 @@ impl VPE {
                 arch::loader::write_env_value(pid, "dturdy", c2p.fds()[1] as u64);
 
                 // write nextsel, eps, rmng, and kmem
-                arch::loader::write_env_value(pid, "nextsel", self.next_sel as u64);
+                arch::loader::write_env_value(pid, "nextsel", u64::from(self.next_sel));
                 arch::loader::write_env_value(pid, "eps", self.eps);
-                arch::loader::write_env_value(pid, "rmng", self.rmng.sel() as u64);
-                arch::loader::write_env_value(pid, "kmem", self.kmem.sel() as u64);
+                arch::loader::write_env_value(pid, "rmng", u64::from(self.rmng.sel()));
+                arch::loader::write_env_value(pid, "kmem", u64::from(self.kmem.sel()));
 
                 // write rbufs
-                let mut rbufs = VecSink::new();
+                let mut rbufs = VecSink::default();
                 rbufs.push(&self.rbufs.cur);
                 rbufs.push(&self.rbufs.end);
                 arch::loader::write_env_file(pid, "rbufs", rbufs.words());
 
                 // write file table
-                let mut fds = VecSink::new();
+                let mut fds = VecSink::default();
                 self.files.serialize(&mut fds);
                 arch::loader::write_env_file(pid, "fds", fds.words());
 
                 // write mounts table
-                let mut mounts = VecSink::new();
+                let mut mounts = VecSink::default();
                 self.mounts.serialize(&mut mounts);
                 arch::loader::write_env_file(pid, "ms", mounts.words());
 

@@ -85,7 +85,7 @@ pub fn main() -> i32 {
             let mut file = VFS::open("/test2.txt", OpenFlags::W | OpenFlags::CREATE)
                 .expect("create of /test2.txt failed");
 
-            write!(file, "This is the {}th test of {:.3}\n", 42, 12.3).expect("write failed");
+            writeln!(file, "This is the {:<2}th test of {:.3}", 42, 12.3).expect("write failed");
         }
 
         {
@@ -173,12 +173,12 @@ pub fn main() -> i32 {
 
         let mut total = 0;
         for _ in 0..10 {
-            let start = time::start(0xDEADBEEF);
+            let start = time::start(0xDEAD_BEEF);
             send_vmsg!(&sgate, RecvGate::def(), 23, 42, "foobar_test_asd").unwrap();
 
             let (a1, a2, a3) = recv_vmsg!(&rgate, i32, i32, String).unwrap();
 
-            let end = time::stop(0xDEADBEEF);
+            let end = time::stop(0xDEAD_BEEF);
 
             total += end - start;
 

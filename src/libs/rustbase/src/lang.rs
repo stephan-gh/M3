@@ -31,7 +31,7 @@ fn panic(info: &PanicInfo) -> ! {
                                      loc.file(), loc.line(), loc.column())).unwrap();
         }
         else {
-            l.write("PANIC at unknown location: ".as_bytes()).unwrap();
+            l.write(b"PANIC at unknown location: ").unwrap();
         }
         if let Some(msg) = info.message() {
             l.write_fmt(*msg).unwrap();
@@ -41,8 +41,8 @@ fn panic(info: &PanicInfo) -> ! {
         let mut bt = [0usize; 16];
         let bt_len = backtrace::collect(&mut bt);
         l.write("Backtrace:\n".as_bytes()).unwrap();
-        for i in 0..bt_len {
-            l.write_fmt(format_args!("  {:#x}\n", bt[i])).unwrap();
+        for addr in bt.iter().take(bt_len) {
+            l.write_fmt(format_args!("  {:#x}\n", addr)).unwrap();
         }
     }
 
@@ -80,14 +80,12 @@ macro_rules! def_cmpswap {
     ($name:ident, $type:ty) => {
         #[cfg(target_arch = "arm")]
         #[no_mangle]
-        pub extern "C" fn $name(ptr: *mut $type, oldval: $type, newval: $type) -> $type {
-            unsafe {
-                let old = *ptr;
-                if old == oldval {
-                    *ptr = newval
-                }
-                return old;
+        pub unsafe extern "C" fn $name(ptr: *mut $type, oldval: $type, newval: $type) -> $type {
+            let old = *ptr;
+            if old == oldval {
+                *ptr = newval
             }
+            return old;
         }
     };
 }

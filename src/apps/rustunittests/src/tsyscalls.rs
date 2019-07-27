@@ -70,9 +70,9 @@ fn create_sgate() {
     let rgate = wv_assert_ok!(RecvGate::new(10, 10));
 
     // invalid dest selector
-    wv_assert_err!(syscalls::create_sgate(0, rgate.sel(), 0xDEADBEEF, 123), Code::InvArgs);
+    wv_assert_err!(syscalls::create_sgate(0, rgate.sel(), 0xDEAD_BEEF, 123), Code::InvArgs);
     // invalid rgate selector
-    wv_assert_err!(syscalls::create_sgate(sel, 0, 0xDEADBEEF, 123), Code::InvArgs);
+    wv_assert_err!(syscalls::create_sgate(sel, 0, 0xDEAD_BEEF, 123), Code::InvArgs);
 }
 
 fn create_rgate() {

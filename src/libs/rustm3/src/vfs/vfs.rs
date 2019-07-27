@@ -33,9 +33,9 @@ struct ResEps {
 impl ResEps {
     pub fn new(fs: FSHandle, sel: Selector, count: u32) -> Self {
         ResEps {
-            fs: fs,
-            sel: sel,
-            count: count,
+            fs,
+            sel,
+            count,
             used: 0,
         }
     }
@@ -74,7 +74,7 @@ pub fn delegate_eps(path: &str, first: Selector, count: u32) -> Result<(), Error
 pub(crate) fn alloc_ep(fs: FSHandle) -> Result<(u32, Selector), Error> {
     for r in RES_EPS.get_mut() {
         if Rc::ptr_eq(&r.fs, &fs) {
-            let ep = r.alloc_ep().ok_or(Error::new(Code::NoSpace))?;
+            let ep = r.alloc_ep().ok_or_else(|| Error::new(Code::NoSpace))?;
             let idx = ep - r.sel;
             return Ok((idx, ep));
         }
@@ -147,6 +147,7 @@ pub fn link(old: &str, new: &str) -> Result<(), Error> {
     if !Rc::ptr_eq(&fs1, &fs2) {
         return Err(Error::new(Code::XfsLink))
     }
+    #[allow(clippy::let_and_return)] // is required because of fs1.borrow()'s lifetime
     let res = fs1.borrow().link(&old[pos1..], &new[pos2..]);
     res
 }

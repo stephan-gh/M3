@@ -28,7 +28,7 @@ fn read_write() {
         let file = wv_assert_ok!(VFS::open("/myfile", OpenFlags::CREATE | OpenFlags::W));
         let mut bfile = BufWriter::new(file);
 
-        wv_assert_ok!(write!(bfile, "This {:.3} is the {}th test of {:#0X}!\n", "foobar", 42, 0xABCDEF));
+        wv_assert_ok!(write!(bfile, "This {:.3} is the {}th test of {:#0X}!\n", "foobar", 42, 0xAB_CDEF));
     }
 
     {

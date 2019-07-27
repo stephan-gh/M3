@@ -41,7 +41,7 @@ impl EnvData {
     pub fn pe_desc(&self) -> PEDesc {
         PEDesc::new_from(self.base.pe_desc)
     }
-    pub fn set_pedesc(&mut self, pe: &PEDesc) {
+    pub fn set_pedesc(&mut self, pe: PEDesc) {
         self.base.pe_desc = pe.value();
     }
 
@@ -155,18 +155,19 @@ impl EnvData {
     }
 
     pub fn set_next_sel(&mut self, sel: Selector) {
-        self.base.caps = sel as u64;
+        self.base.caps = u64::from(sel);
     }
     pub fn set_eps(&mut self, eps: u64) {
         self.base.eps = eps;
     }
 
     pub fn set_kmem(&mut self, sel: Selector) {
-        self.base.kmem_sel = sel as u64;
+        self.base.kmem_sel = u64::from(sel);
     }
     pub fn set_rmng(&mut self, sel: Selector) {
-        self.base.rmng_sel = sel as u64;
+        self.base.rmng_sel = u64::from(sel);
     }
+    #[allow(clippy::trivially_copy_pass_by_ref)] // only <= 8 bytes on 32-bit architectures
     pub fn set_rbufs(&mut self, rbufs: &arch::rbufs::RBufSpace) {
         self.base.rbuf_cur = rbufs.cur as u64;
         self.base.rbuf_end = rbufs.end as u64;

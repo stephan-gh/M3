@@ -33,7 +33,7 @@ impl_boxitem!(TestItem);
 impl TestItem {
     pub fn new(data: u32) -> Self {
         TestItem {
-            data: data,
+            data,
             prev: None,
             next: None,
         }
@@ -48,7 +48,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn push_back() {
-    let mut prof = profile::Profiler::new().repeats(30);
+    let mut prof = profile::Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);
@@ -68,7 +68,7 @@ fn push_back() {
 }
 
 fn push_front() {
-    let mut prof = profile::Profiler::new().repeats(30);
+    let mut prof = profile::Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);
@@ -88,7 +88,7 @@ fn push_front() {
 }
 
 fn push_pop() {
-    let mut prof = profile::Profiler::new().repeats(30);
+    let mut prof = profile::Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>, Option<Box<TestItem>>, usize);
@@ -111,7 +111,7 @@ fn push_pop() {
 }
 
 fn clear() {
-    let mut prof = profile::Profiler::new().repeats(30);
+    let mut prof = profile::Profiler::default().repeats(30);
 
     #[derive(Default)]
     struct ListTester(BoxList<TestItem>);

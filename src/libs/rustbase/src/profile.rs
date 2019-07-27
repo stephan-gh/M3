@@ -84,7 +84,7 @@ impl fmt::Display for Results {
 /// ```
 /// use base::profile;
 ///
-/// let mut prof = profile::Profiler::new();
+/// let mut prof = profile::Profiler::default();
 /// println!("{}", prof.run_with_id(|| /* my benchmark */, 0));
 /// ```
 ///
@@ -105,7 +105,7 @@ impl fmt::Display for Results {
 ///     }
 /// }
 ///
-/// let mut prof = profile::Profiler::new().repeats(10).warmup(2);
+/// let mut prof = profile::Profiler::default().repeats(10).warmup(2);
 /// println!("{}", prof.runner_with_id(&mut Tester::default(), 0));
 /// ```
 pub struct Profiler {
@@ -128,14 +128,6 @@ pub trait Runner {
 }
 
 impl Profiler {
-    /// Creates a default profiler with 100 runs and 10 warmup runs
-    pub fn new() -> Self {
-        Profiler {
-            repeats: 100,
-            warmup: 10,
-        }
-    }
-
     /// Sets the number of runs to `repeats`
     pub fn repeats(mut self, repeats: u64) -> Self {
         self.repeats = repeats;
@@ -195,5 +187,15 @@ impl Profiler {
             }
         }
         res
+    }
+}
+
+impl Default for Profiler {
+    /// Creates a default profiler with 100 runs and 10 warmup runs
+    fn default() -> Self {
+        Profiler {
+            repeats: 100,
+            warmup: 10,
+        }
     }
 }

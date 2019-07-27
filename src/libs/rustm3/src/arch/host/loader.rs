@@ -17,6 +17,7 @@
 use col::{String, ToString, Vec};
 use com::VecSink;
 use core::mem::MaybeUninit;
+use core::ptr;
 use errors::{Code, Error};
 use io::Read;
 use libc;
@@ -33,7 +34,7 @@ impl Channel {
         let mut fds = [0i32; 2];
         match unsafe { libc::pipe(fds.as_mut_ptr()) } {
             -1  => Err(Error::new(Code::InvArgs)),
-            _   => Ok(Channel { fds: fds })
+            _   => Ok(Channel { fds })
         }
     }
 
@@ -119,7 +120,7 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
         let mut info: libc::stat = MaybeUninit::uninit().assume_init();
         assert!(libc::fstat(fd, &mut info) != -1);
         let size = info.st_size as usize;
-        assert!(size & 7 == 0);
+        assert!(size.trailing_zeros() >= 3);
 
         let mut res: Vec<u64> = Vec::with_capacity(size / 8);
         res.set_len(size / 8);
@@ -133,7 +134,7 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
 }
 
 pub fn write_env_value(pid: i32, suffix: &str, data: u64) {
-    let mut buf = VecSink::new();
+    let mut buf = VecSink::default();
     buf.push(&data);
     write_env_file(pid, suffix, buf.words());
 }
@@ -152,7 +153,7 @@ pub fn write_env_file(pid: i32, suffix: &str, data: &[u64]) {
     }
 }
 
-pub fn exec<S: AsRef<str>>(args: &[S], path: &String) -> ! {
+pub fn exec<S: AsRef<str>>(args: &[S], path: &str) -> ! {
     let mut buf = vec![0u8; 4096];
 
     unsafe {
@@ -165,7 +166,7 @@ pub fn exec<S: AsRef<str>>(args: &[S], path: &String) -> ! {
             buf.push(b'\0');
             argv.push(ptr as *const i8);
         }
-        argv.push(0 as *const i8);
+        argv.push(ptr::null());
 
         // open it readonly again as fexecve requires
         let path_ptr = path.as_bytes().as_ptr() as *const i8;

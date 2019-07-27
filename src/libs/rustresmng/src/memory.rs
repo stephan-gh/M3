@@ -38,9 +38,9 @@ impl MemMod {
     pub fn new(sel: Selector, size: usize, reserved: bool) -> Self {
         MemMod {
             gate: MemGate::new_bind(sel),
-            size: size,
+            size,
             map: MemMap::new(0, size),
-            reserved: reserved,
+            reserved,
         }
     }
 
@@ -74,12 +74,7 @@ pub struct Allocation {
 
 impl Allocation {
     pub fn new(mod_id: usize, addr: goff, size: usize, sel: Selector) -> Self {
-        Allocation {
-            mod_id: mod_id,
-            addr: addr,
-            size: size,
-            sel: sel,
-        }
+        Allocation { mod_id, addr, size, sel }
     }
 }
 
@@ -161,10 +156,10 @@ impl MainMemory {
 
 impl fmt::Debug for MainMemory {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "size: {} MiB, available: {} MiB, mods: [\n",
+        writeln!(f, "size: {} MiB, available: {} MiB, mods: [",
             self.capacity() / (1024 * 1024), self.available() / (1024 * 1024))?;
         for m in &self.mods {
-            write!(f, "  {:?}\n", m)?;
+            writeln!(f, "  {:?}", m)?;
         }
         write!(f, "]")
     }

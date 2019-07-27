@@ -36,11 +36,13 @@ impl Buffer {
 
     fn as_words(&self) -> &[u64] {
         unsafe {
+            #[allow(clippy::cast_ptr_alignment)]
             util::slice_for(self.data.as_ptr() as *const u64, MAX_MSG_SIZE / util::size_of::<u64>())
         }
     }
     fn as_words_mut(&mut self) -> &mut [u64] {
         unsafe {
+            #[allow(clippy::cast_ptr_alignment)]
             util::slice_for_mut(self.data.as_mut_ptr() as *mut u64, MAX_MSG_SIZE / util::size_of::<u64>())
         }
     }
@@ -113,7 +115,7 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
     // message
     buf.header.length = msg_size;
     unsafe {
-        &buf.data[0..msg_size].copy_from_slice(util::slice_for(msg as *const u8, msg_size));
+        buf.data[0..msg_size].copy_from_slice(util::slice_for(msg as *const u8, msg_size));
     }
 
     Ok((DTU::get_ep(ep, EpReg::PE_ID) as PEId, DTU::get_ep(ep, EpReg::EP_ID) as EpId))
@@ -156,7 +158,7 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
     // message
     buf.header.length = size;
     unsafe {
-        &buf.data[0..size].copy_from_slice(util::slice_for(src as *const u8, size));
+        buf.data[0..size].copy_from_slice(util::slice_for(src as *const u8, size));
     }
 
     Ok((reply_header.pe as PEId, reply_header.rpl_ep as EpId))
@@ -169,20 +171,23 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     let offset = DTU::get_cmd(CmdReg::OFFSET);
     let length = DTU::get_cmd(CmdReg::LENGTH);
 
-    let perms = label & (kif::Perm::RWX.bits() as Label);
+    let perms = label & Label::from(kif::Perm::RWX.bits());
     if (perms & (1 << op)) == 0 {
         log_dtu!("DTU-error: EP{}: operation not permitted (perms={}, op={})", ep, perms, op);
         Err(Error::new(Code::InvEP))
     }
-    else if offset >= credits || offset + length < offset || offset + length > credits {
-        log_dtu!(
-            "DTU-error: EP{}: invalid parameters (credits={}, offset={}, datalen={})",
-            ep, credits, offset, length
-        );
-        Err(Error::new(Code::InvEP))
-    }
     else {
-        Ok(())
+        let end = offset.overflowing_add(length);
+        if end.1 || end.0 > credits {
+            log_dtu!(
+                "DTU-error: EP{}: invalid parameters (credits={}, offset={}, datalen={})",
+                ep, credits, offset, length
+            );
+            Err(Error::new(Code::InvEP))
+        }
+        else {
+            Ok(())
+        }
     }
 }
 
@@ -360,7 +365,7 @@ fn handle_msg(ep: EpId, len: usize) {
 
 fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
     let buf = buffer();
-    let base = buf.header.label & !(kif::Perm::RWX.bits() as Label);
+    let base = buf.header.label & !Label::from(kif::Perm::RWX.bits());
 
     {
         let data = buf.as_words();
@@ -392,7 +397,7 @@ fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Er
 
 fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
     let buf = buffer();
-    let base = buf.header.label & !(kif::Perm::RWX.bits() as Label);
+    let base = buf.header.label & !Label::from(kif::Perm::RWX.bits());
 
     let (offset, length, dest) = {
         let data = buf.as_words();
@@ -429,7 +434,7 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
 fn handle_resp_cmd() {
     let buf = buffer();
     let data = buf.as_words();
-    let base = buf.header.label & !(kif::Perm::RWX.bits() as Label);
+    let base = buf.header.label & !Label::from(kif::Perm::RWX.bits());
     let resp = if buf.header.length > 0 {
         let offset = base + data[0];
         let length = data[1];
@@ -638,7 +643,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
 }
 
 pub fn init() {
-    LOG.set(Some(io::log::Log::new()));
+    LOG.set(Some(io::log::Log::default()));
     log().init();
 
     BACKEND.set(Some(backend::SocketBackend::new()));

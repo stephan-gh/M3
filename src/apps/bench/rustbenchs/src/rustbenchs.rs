@@ -43,7 +43,7 @@ impl WvTester for MyTester {
     fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {
         println!("Running benchmark suite {} ...\n", name);
         f(self);
-        println!("");
+        println!();
     }
 
     fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn()) {
@@ -51,7 +51,7 @@ impl WvTester for MyTester {
         let free_mem = heap::free_memory();
         f();
         wv_assert_eq!(heap::free_memory(), free_mem);
-        println!("");
+        println!();
     }
 }
 

@@ -16,7 +16,6 @@
 
 use arch::dtu::*;
 use col::Vec;
-use core::intrinsics;
 use libc;
 use util;
 
@@ -41,7 +40,7 @@ impl SocketBackend {
             sun_path: [0; 108],
         };
         sockaddr.sun_path[0..addr.len()].clone_from_slice(
-            unsafe { intrinsics::transmute(addr.as_bytes()) }
+            unsafe { &*(addr.as_bytes() as *const [u8] as *const [i8]) }
         );
         sockaddr
     }
@@ -74,7 +73,7 @@ impl SocketBackend {
 
                 assert!(libc::bind(
                     epsock,
-                    intrinsics::transmute(&eps[pe as usize * EP_COUNT + ep]),
+                    &eps[pe as usize * EP_COUNT + ep] as *const libc::sockaddr_un as *const libc::sockaddr,
                     util::size_of::<libc::sockaddr_un>() as u32
                 ) == 0);
 
@@ -82,13 +81,7 @@ impl SocketBackend {
             }
         }
 
-        SocketBackend {
-            sock: sock,
-            knotify_sock: knotify_sock,
-            knotify_addr: knotify_addr,
-            localsock: localsock,
-            eps: eps,
-        }
+        SocketBackend { sock, knotify_sock, knotify_addr, localsock, eps }
     }
 
     pub fn send(&self, pe: PEId, ep: EpId, buf: &thread::Buffer) -> bool {
@@ -126,7 +119,7 @@ impl SocketBackend {
     }
 
     pub fn notify_kernel(&self, pid: libc::pid_t, status: i32) {
-        let data = KNotifyData { pid: pid, status: status };
+        let data = KNotifyData { pid, status };
         unsafe {
             let res = libc::sendto(
                 self.knotify_sock,

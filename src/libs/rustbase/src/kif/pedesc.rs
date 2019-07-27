@@ -94,42 +94,40 @@ impl PEDesc {
 
     /// Creates a new PE description from the given raw value
     pub fn new_from(val: PEDescRaw) -> PEDesc {
-        PEDesc {
-            val: val
-        }
+        PEDesc { val }
     }
 
     /// Returns the raw value
-    pub fn value(&self) -> PEDescRaw {
+    pub fn value(self) -> PEDescRaw {
         self.val
     }
 
-    pub fn pe_type(&self) -> PEType {
+    pub fn pe_type(self) -> PEType {
         PEType::from(self.val & 0x7)
     }
 
-    pub fn isa(&self) -> PEISA {
+    pub fn isa(self) -> PEISA {
         PEISA::from((self.val >> 3) & 0xF)
     }
 
-    pub fn flags(&self) -> PEFlags {
+    pub fn flags(self) -> PEFlags {
         PEFlags::from_bits((self.val >> 7) & 0x3).unwrap()
     }
 
     /// Returns the size of the internal memory (0 if none is present)
-    pub fn mem_size(&self) -> usize {
+    pub fn mem_size(self) -> usize {
         (self.val & !0xFFF) as usize
     }
 
     /// Returns whether the PE executes software
-    pub fn is_programmable(&self) -> bool {
+    pub fn is_programmable(self) -> bool {
         match self.isa() {
             PEISA::X86 | PEISA::ARM | PEISA::XTENSA  => true,
             _                                        => false,
         }
     }
     /// Returns whether the PE contains a fixed-function accelerator
-    pub fn is_ffaccel(&self) -> bool {
+    pub fn is_ffaccel(self) -> bool {
         match self.isa() {
             PEISA::ACCEL_INDIR | PEISA::ACCEL_FFT | PEISA::ACCEL_ROT13 => true,
             _                                                          => false
@@ -137,36 +135,36 @@ impl PEDesc {
     }
 
     /// Return if the PE supports multiple contexts
-    pub fn supports_ctxsw(&self) -> bool {
+    pub fn supports_ctxsw(self) -> bool {
         self.supports_ctx() && (self.isa() >= PEISA::ACCEL_INDIR || self.has_cache())
     }
     /// Return if the PE supports the context switching protocol
-    pub fn supports_ctx(&self) -> bool {
+    pub fn supports_ctx(self) -> bool {
         self.supports_vpes() && self.isa() != PEISA::IDE_DEV
     }
     /// Return if the PE supports VPEs
-    pub fn supports_vpes(&self) -> bool {
+    pub fn supports_vpes(self) -> bool {
         self.pe_type() != PEType::MEM
     }
 
     /// Returns whether the PE has an internal memory (SPM, DRAM, ...)
-    pub fn has_mem(&self) -> bool {
+    pub fn has_mem(self) -> bool {
         self.pe_type() == PEType::COMP_IMEM || self.pe_type() == PEType::MEM
     }
     /// Returns whether the PE has a cache
-    pub fn has_cache(&self) -> bool {
+    pub fn has_cache(self) -> bool {
         self.pe_type() == PEType::COMP_EMEM
     }
     /// Returns whether the PE supports virtual memory (either by DTU or MMU)
-    pub fn has_virtmem(&self) -> bool {
+    pub fn has_virtmem(self) -> bool {
         self.has_dtuvm() || self.has_mmu()
     }
     /// Returns whether the PE uses DTU-based virtual memory
-    pub fn has_dtuvm(&self) -> bool {
+    pub fn has_dtuvm(self) -> bool {
         self.flags().contains(PEFlags::DTU_VM)
     }
     /// Returns whether the PE uses MMU-based virtual memory
-    pub fn has_mmu(&self) -> bool {
+    pub fn has_mmu(self) -> bool {
         self.flags().contains(PEFlags::MMU_VM)
     }
 }

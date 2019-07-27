@@ -27,10 +27,7 @@ struct Area {
 
 impl Area {
     pub fn new(addr: goff, size: usize) -> Self {
-        Area {
-            addr: addr,
-            size: size,
-        }
+        Area { addr, size }
     }
 }
 
@@ -50,9 +47,7 @@ impl MemMap {
     pub fn new(addr: goff, size: usize) -> Self {
         let mut areas = DList::new();
         areas.push_back(Area::new(addr, size));
-        MemMap {
-            areas: areas,
-        }
+        MemMap { areas }
     }
 
     /// Allocates a region of `size` bytes, aligned by `align`.
@@ -155,9 +150,9 @@ impl MemMap {
 
 impl fmt::Debug for MemMap {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[\n")?;
+        writeln!(f, "[")?;
         for a in &self.areas {
-            write!(f, "    {:?}\n", a)?;
+            writeln!(f, "    {:?}", a)?;
         }
         write!(f, "  ]")
     }

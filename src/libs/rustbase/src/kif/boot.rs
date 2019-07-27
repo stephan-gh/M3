@@ -39,11 +39,11 @@ impl Mem {
     }
 
     /// Returns the size of the memory region
-    pub fn size(&self) -> usize {
+    pub fn size(self) -> usize {
         self.size as usize & !1
     }
     /// Returns true if the region is reserved, that is, not usable by applications
-    pub fn reserved(&self) -> bool {
+    pub fn reserved(self) -> bool {
         (self.size & 1) == 1
     }
 }
@@ -99,7 +99,7 @@ impl ModIterator {
     /// Creates a new iterator for the boot modules at `addr`..`addr`+`len`.
     pub fn new(addr: usize, len: usize) -> Self {
         ModIterator {
-            addr: addr,
+            addr,
             end: addr + len,
         }
     }

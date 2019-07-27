@@ -71,9 +71,8 @@ pub struct RGateArgs {
     flags: CapFlags,
 }
 
-impl RGateArgs {
-    /// Creates a new `RGateArgs` object with default settings
-    pub fn new() -> Self {
+impl Default for RGateArgs {
+    fn default() -> Self {
         RGateArgs {
             order: DEF_MSG_ORD,
             msg_order: DEF_MSG_ORD,
@@ -81,7 +80,9 @@ impl RGateArgs {
             flags: CapFlags::empty(),
         }
     }
+}
 
+impl RGateArgs {
     /// Sets the size of the receive buffer as a power of two. That is, the size in bytes is
     /// `2^order`. This overwrites the default size of 64 bytes.
     pub fn order(mut self, order: i32) -> Self {
@@ -131,7 +132,7 @@ impl RecvGate {
     /// Creates a new `RecvGate` with a `2^order` bytes receive buffer and `2^msg_order` bytes
     /// message slots.
     pub fn new(order: i32, msg_order: i32) -> Result<Self, Error> {
-        Self::new_with(RGateArgs::new().order(order).msg_order(msg_order))
+        Self::new_with(RGateArgs::default().order(order).msg_order(msg_order))
     }
 
     /// Creates a new `RecvGate` with given arguments.
@@ -159,7 +160,7 @@ impl RecvGate {
         RecvGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
             buf: 0,
-            order: order,
+            order,
             free: FreeFlags::empty(),
             _dummy: 0,
         }
@@ -258,15 +259,16 @@ impl RecvGate {
     }
     /// Sends `reply` with `size` bytes as a reply to the message `msg`.
     #[inline(always)]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn reply_bytes(&self, reply: *const u8, size: usize, msg: &'static dtu::Message) -> Result<(), Error> {
         let res = dtu::DTU::reply(self.ep().unwrap(), reply, size, msg);
         match res {
             Ok(_)                                   => Ok(()),
-            Err(ref e) if e.code() == Code::VPEGone => {
+            Err(ref e) if e.code() == Code::VPEGone => unsafe {
                 // TODO switch to a different thread while waiting
-                let msg_addr: [usize; 2] = unsafe { intrinsics::transmute(msg) };
+                let msg_addr: [usize; 2] = intrinsics::transmute(msg);
                 syscalls::forward_reply(self.sel(),
-                                        unsafe { util::slice_for(reply, size) },
+                                        util::slice_for(reply, size),
                                         msg_addr[0],
                                         0)
             },

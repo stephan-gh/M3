@@ -39,12 +39,7 @@ pub struct Loader<'l> {
 impl<'l> Loader<'l> {
     pub fn new(pager: Option<&'l Pager>, pager_inherited: bool,
                mapper: &'l mut dyn Mapper, mem: &'l MemGate) -> Loader<'l> {
-        Loader {
-            pager: pager,
-            pager_inherited: pager_inherited,
-            mapper: mapper,
-            mem: mem,
-        }
+        Loader { pager, pager_inherited, mapper, mem }
     }
 
     pub fn copy_regions(&mut self, sp: usize) -> Result<usize, Error> {
@@ -117,10 +112,10 @@ impl<'l> Loader<'l> {
         let mut buf = vec![0u8; 4096];
         let hdr: elf::Ehdr = read_object(file)?;
 
-        if hdr.ident[0] != '\x7F' as u8 ||
-           hdr.ident[1] != 'E' as u8 ||
-           hdr.ident[2] != 'L' as u8 ||
-           hdr.ident[3] != 'F' as u8 {
+        if hdr.ident[0] != b'\x7F' ||
+           hdr.ident[1] != b'E' ||
+           hdr.ident[2] != b'L' ||
+           hdr.ident[3] != b'F' {
             return Err(Error::new(Code::InvalidElf))
         }
 
@@ -173,7 +168,7 @@ impl<'l> Loader<'l> {
             argbuf.extend_from_slice(arg);
 
             // 0-terminate it
-            argbuf.push('\0' as u8);
+            argbuf.push(b'\0');
 
             argoff += arg.len() + 1;
         }

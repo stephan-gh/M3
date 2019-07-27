@@ -51,12 +51,12 @@ impl SemManager {
         Ok(())
     }
 
-    pub fn get(&self, name: &String) -> Option<Selector> {
+    pub fn get(&self, name: &str) -> Option<Selector> {
         for (sname, sel) in &self.sems {
             if sname == name {
                 return Some(*sel);
             }
         }
-        return None;
+        None
     }
 }

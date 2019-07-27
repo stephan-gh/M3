@@ -148,7 +148,7 @@ impl Thread {
     }
 
     pub fn is_main(&self) -> bool {
-        self.stack.len() == 0
+        self.stack.is_empty()
     }
     pub fn id(&self) -> u32 {
         self.id
@@ -156,8 +156,8 @@ impl Thread {
     pub fn fetch_msg(&mut self) -> Option<&'static dtu::Message> {
         if mem::replace(&mut self.has_msg, false) {
             unsafe {
-                let head: *const dtu::Header = intrinsics::transmute(self.msg.as_ptr());
-                let slice: [usize; 2] = [head as usize, (*head).length as usize];
+                let head = self.msg.as_ptr() as *const dtu::Header;
+                let slice = [head as usize, (*head).length as usize];
                 Some(intrinsics::transmute(slice))
             }
         }
@@ -230,10 +230,10 @@ impl ThreadManager {
         TMNG.get_mut().as_mut().unwrap()
     }
 
-    pub fn cur(&self) -> &Box<Thread> {
+    pub fn cur(&self) -> &Thread {
         self.current.as_ref().unwrap()
     }
-    fn cur_mut(&mut self) -> &mut Box<Thread> {
+    fn cur_mut(&mut self) -> &mut Thread {
         self.current.as_mut().unwrap()
     }
 
@@ -293,7 +293,7 @@ impl ThreadManager {
 
     pub fn try_yield(&mut self) {
         match self.ready.pop_front() {
-            None        => return,
+            None        => {},
             Some(next)  => {
                 let cur = mem::replace(&mut self.current, Some(next)).unwrap();
                 log!(THREAD, "Yielding from {} to {}", cur.id, self.cur().id);
@@ -337,7 +337,7 @@ impl ThreadManager {
     }
 
     fn get_next(&mut self) -> Box<Thread> {
-        if self.ready.len() > 0 {
+        if !self.ready.is_empty() {
             self.ready.pop_front().unwrap()
         }
         else {

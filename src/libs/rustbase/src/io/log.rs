@@ -74,16 +74,6 @@ impl Log {
         LOG.get_mut().as_mut()
     }
 
-    /// Creates a new logger
-    pub fn new() -> Self {
-        Log {
-            serial: Serial::new(),
-            buf: [0; MAX_LINE_LEN],
-            pos: 0,
-            start_pos: 0,
-        }
-    }
-
     fn write_bytes(&mut self, bytes: &[u8]) {
         for b in bytes {
             self.put_char(*b)
@@ -95,8 +85,8 @@ impl Log {
         self.pos += 1;
 
         if c == b'\n' || self.pos + SUFFIX.len() + 1 >= MAX_LINE_LEN {
-            for i in 0..SUFFIX.len() {
-                self.buf[self.pos] = SUFFIX[i];
+            for c in SUFFIX {
+                self.buf[self.pos] = *c;
                 self.pos += 1;
             }
             if c != b'\n' {
@@ -128,6 +118,17 @@ impl Log {
     }
 }
 
+impl Default for Log {
+    fn default() -> Self {
+        Log {
+            serial: Serial::new(),
+            buf: [0; MAX_LINE_LEN],
+            pos: 0,
+            start_pos: 0,
+        }
+    }
+}
+
 impl Write for Log {
     fn flush(&mut self) -> Result<(), Error> {
         self.serial.borrow_mut().write(&self.buf[0..self.pos])?;
@@ -143,7 +144,7 @@ impl Write for Log {
 
 /// Initializes the logger
 pub fn init() {
-    LOG.set(Some(Log::new()));
+    LOG.set(Some(Log::default()));
     reinit();
 }
 

@@ -31,7 +31,7 @@ pub fn sqrt(n: f32) -> f32 {
     val_int >>= 1;                           /* Divide by 2. */
     val_int = val_int.wrapping_add(1 << 29); /* Add ((b + 1) / 2) * 2^m. */
 
-    unsafe { intrinsics::transmute(val_int) }
+    f32::from_bits(val_int)
 }
 
 /// Returns the size of `T`
@@ -50,7 +50,7 @@ pub fn size_of_val<T: ?Sized>(val: &T) -> usize {
 pub unsafe fn cstr_to_str(s: *const i8) -> &'static str {
     let len = libc::strlen(s);
     let sl = slice::from_raw_parts(s, len as usize + 1);
-    intrinsics::transmute(&sl[..sl.len() - 1])
+    &*(&sl[..sl.len() - 1] as *const [i8] as *const str)
 }
 
 /// Creates a slice of `T`s for the given address range

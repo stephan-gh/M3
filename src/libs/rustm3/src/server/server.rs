@@ -64,7 +64,7 @@ impl Server {
 
         Ok(Server {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
-            rgate: rgate,
+            rgate,
         })
     }
 
@@ -100,7 +100,7 @@ impl Server {
 
         match res {
             Ok((sel, ident)) => {
-                let reply = service::OpenReply { res: 0, sess: sel as u64, ident: ident as u64, };
+                let reply = service::OpenReply { res: 0, sess: u64::from(sel), ident: ident as u64, };
                 is.reply(&[reply])?
             },
             Err(e) => {
@@ -123,7 +123,7 @@ impl Server {
                 Ok(_)   => 0,
                 Err(e)  => e.code() as u64,
             },
-            data: data,
+            data,
         };
         is.reply(&[reply])
     }
@@ -140,7 +140,7 @@ impl Server {
                 Ok(_)   => 0,
                 Err(e)  => e.code() as u64,
             },
-            data: data,
+            data,
         };
         is.reply(&[reply])
     }

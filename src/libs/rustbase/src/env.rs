@@ -61,7 +61,7 @@ pub struct Args {
 }
 
 impl Args {
-    fn arg(&self, idx: isize) -> &'static str {
+    fn arg(self, idx: isize) -> &'static str {
         unsafe {
             let args = arch::envdata::get().argv as *const u64;
             let arg = *args.offset(idx);
@@ -69,8 +69,13 @@ impl Args {
         }
     }
 
+    /// Returns true if there are no arguments
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns the number of arguments
-    pub fn len(&self) -> usize {
+    pub fn len(self) -> usize {
         arch::envdata::get().argc as usize
     }
 }

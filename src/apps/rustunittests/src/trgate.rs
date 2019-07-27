@@ -26,7 +26,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 fn create() {
     wv_assert_err!(RecvGate::new(8, 9), Code::InvArgs);
-    wv_assert_err!(RecvGate::new_with(RGateArgs::new().sel(1)), Code::InvArgs);
+    wv_assert_err!(RecvGate::new_with(RGateArgs::default().sel(1)), Code::InvArgs);
 }
 
 // doesn't work on host yet
@@ -39,7 +39,7 @@ fn destroy() {
     let mut child = wv_assert_ok!(VPE::new("test"));
 
     let act = {
-        let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::new().order(6).msg_order(6)));
+        let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::default().order(6).msg_order(6)));
         // TODO actually, we could create it in the child, but this is not possible in rust atm
         // because we would need to move rg to the child *and* use it in the parent
         let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64)));

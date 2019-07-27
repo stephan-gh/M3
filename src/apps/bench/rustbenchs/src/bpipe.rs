@@ -34,7 +34,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 fn child_to_parent() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
-    let mut prof = profile::Profiler::new().repeats(2).warmup(1);
+    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(format!("c->p: {} KiB transfer with {} KiB buf", DATA_SIZE / 1024, BUF_SIZE / 1024),
         prof.run_with_id(|| {
@@ -70,7 +70,7 @@ fn child_to_parent() {
 
 fn parent_to_child() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
-    let mut prof = profile::Profiler::new().repeats(2).warmup(1);
+    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
     wv_perf!(format!("p->c: {} KiB transfer with {} KiB buf", DATA_SIZE / 1024, BUF_SIZE / 1024),
         prof.run_with_id(|| {

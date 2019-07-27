@@ -31,17 +31,14 @@ impl RBufSpace {
     }
 
     pub fn new_with(cur: usize, end: usize) -> Self {
-        RBufSpace {
-            cur: cur,
-            end: end,
-        }
+        RBufSpace { cur, end }
     }
 
     pub fn get_std(&mut self, off: usize, _size: usize) -> usize {
         envdata::rbuf_start() + off
     }
 
-    pub fn alloc(&mut self, _pe: &PEDesc, size: usize) -> Result<usize, Error> {
+    pub fn alloc(&mut self, _pe: PEDesc, size: usize) -> Result<usize, Error> {
         if self.end == 0 {
             self.cur = cfg::SYSC_RBUF_SIZE + cfg::UPCALL_RBUF_SIZE + cfg::DEF_RBUF_SIZE;
             self.end = cfg::RECVBUF_SIZE;

@@ -53,7 +53,7 @@ impl ResMng {
     /// Creates a new `ResMng` with given [`SendGate`] to send requests to the server.
     pub fn new(sgate: SendGate) -> Self {
         ResMng {
-            sgate: sgate,
+            sgate,
             vpe_sel: kif::INVALID_SEL,
         }
     }

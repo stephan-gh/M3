@@ -25,7 +25,7 @@ fn rdtsc() -> time::Time {
             : "={rax}"(l), "={rdx}"(u)
         );
     }
-    (u as time::Time) << 32 | (l as time::Time)
+    time::Time::from(u) << 32 | time::Time::from(l)
 }
 
 pub fn start(_msg: usize) -> time::Time {

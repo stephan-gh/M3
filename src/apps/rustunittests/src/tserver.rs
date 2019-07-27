@@ -114,7 +114,7 @@ pub fn testcliexit() {
 
     let sact = wv_assert_ok!(serv.run(Box::new(&server_main)));
 
-    let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::new().order(7).msg_order(6)));
+    let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::default().order(7).msg_order(6)));
     wv_assert_ok!(rg.activate());
 
     let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64 * 2)));
@@ -133,8 +133,8 @@ pub fn testcliexit() {
         // perform the obtain syscall
         let req = kif::syscalls::ExchangeSess {
             opcode: kif::syscalls::Operation::OBTAIN.val,
-            vpe_sel: VPE::cur().sel() as u64,
-            sess_sel: sess.sel() as u64,
+            vpe_sel: u64::from(VPE::cur().sel()),
+            sess_sel: u64::from(sess.sel()),
             crd: 0,
             args: kif::syscalls::ExchangeArgs::default(),
         };
@@ -146,6 +146,7 @@ pub fn testcliexit() {
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
 
         // wait here; don't exit (we don't have credits anymore)
+        #[allow(clippy::empty_loop)]
         loop {}
     })));
 
@@ -161,10 +162,10 @@ pub fn testmsgs() {
     {
         let sess = wv_assert_ok!(ClientSession::new("testmsgs"));
         let sel = wv_assert_ok!(sess.obtain_obj());
-        let mut sgate = SendGate::new_bind(sel);
+        let sgate = SendGate::new_bind(sel);
 
         for _ in 0..5 {
-            let mut reply = wv_assert_ok!(send_recv!(&mut sgate, RecvGate::def(), 0, "123456"));
+            let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));
             let resp: String = reply.pop();
             wv_assert_eq!(resp, "654321");
         }
@@ -173,13 +174,13 @@ pub fn testmsgs() {
     {
         let sess = wv_assert_ok!(ClientSession::new("testmsgs"));
         let sel = wv_assert_ok!(sess.obtain_obj());
-        let mut sgate = SendGate::new_bind(sel);
+        let sgate = SendGate::new_bind(sel);
 
-        let mut reply = wv_assert_ok!(send_recv!(&mut sgate, RecvGate::def(), 0, "123456"));
+        let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));
         let resp: String = reply.pop();
         wv_assert_eq!(resp, "654321");
 
-        wv_assert_err!(send_recv!(&mut sgate, RecvGate::def(), 0, "123456"), Code::InvEP, Code::RecvGone);
+        wv_assert_err!(send_recv!(&sgate, RecvGate::def(), 0, "123456"), Code::InvEP, Code::RecvGone);
     }
 }
 

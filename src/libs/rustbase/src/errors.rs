@@ -90,9 +90,9 @@ impl ErrorInfo {
         let count = backtrace::collect(bt.as_mut());
 
         ErrorInfo {
-            code: code,
+            code,
             bt_len: count,
-            bt: bt,
+            bt,
         }
     }
 }
@@ -125,9 +125,9 @@ impl Error {
     }
 
     fn debug(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?} at:\n", self.code())?;
+        writeln!(f, "{:?} at:", self.code())?;
         for i in 0..self.info.bt_len {
-            write!(f, "  {:#x}\n", self.info.bt[i as usize])?;
+            writeln!(f, "  {:#x}", self.info.bt[i as usize])?;
         }
         Ok(())
     }
@@ -148,7 +148,7 @@ impl Error {
     /// Note that this gathers and stores the backtrace
     pub fn new(code: Code) -> Self {
         Error {
-            code: code,
+            code,
         }
     }
 

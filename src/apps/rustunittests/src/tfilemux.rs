@@ -81,8 +81,8 @@ fn pipe_mux() {
     }
 
     let mut src_buf = [0u8; STEP_SIZE];
-    for i in 0..STEP_SIZE {
-        src_buf[i] = i as u8;
+    for (i, b) in src_buf.iter_mut().enumerate() {
+        *b = i as u8;
     }
 
     let mut pos = 0;

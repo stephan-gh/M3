@@ -38,7 +38,7 @@ use m3::vfs::{VFS, OpenFlags};
 use resmng::childs::{Child, Id};
 use resmng::{config, childs, sendqueue, services};
 
-const MAX_CAPS: Selector                        = 1000000;
+const MAX_CAPS: Selector                        = 1_000_000;
 const MAX_CHILDS: Selector                      = 20;
 
 struct ChildCaps {
@@ -147,7 +147,7 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let id = CHILD_CAPS.get_mut().alloc()?;
     childs::get().set_next_id(id);
     let res = child.add_child(vpe_sel, req_rgate(), sgate_sel, name);
-    if let Err(_) = res {
+    if res.is_err() {
         CHILD_CAPS.get_mut().free(id);
     }
     res
@@ -235,7 +235,7 @@ fn workloop() {
             thmng.try_yield();
         }
 
-        if childs::get().len() == 0 {
+        if childs::get().is_empty() {
             break;
         }
     }
@@ -258,7 +258,7 @@ pub fn main() -> i32 {
         thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
     }
 
-    let mut rgate = RecvGate::new_with(RGateArgs::new().order(12).msg_order(8))
+    let mut rgate = RecvGate::new_with(RGateArgs::default().order(12).msg_order(8))
         .expect("Unable to create RecvGate");
     rgate.activate()
         .expect("Unable to activate RecvGate");

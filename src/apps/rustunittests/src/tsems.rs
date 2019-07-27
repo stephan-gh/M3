@@ -67,7 +67,7 @@ fn taking_turns() {
             set_counter("/sem1", i);
             wv_assert_ok!(sem1.up());
         }
-        return 0;
+        0
     })));
 
     for i in 0..10 {

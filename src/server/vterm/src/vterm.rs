@@ -70,11 +70,11 @@ impl Channel {
         let cmem  = mem.derive(id as u64 * BUF_SIZE as u64, BUF_SIZE, kif::Perm::RW)?;
 
         Ok(Channel {
-            id: id,
+            id,
             active: false,
-            writing: writing,
+            writing,
             ep: None,
-            sgate: sgate,
+            sgate,
             mem: cmem,
             pos: 0,
             len: 0,
@@ -83,7 +83,7 @@ impl Channel {
 
     fn activate(&mut self) -> Result<(), Error> {
         if !self.active {
-            let ep = self.ep.ok_or(Error::new(Code::InvArgs))?;
+            let ep = self.ep.ok_or_else(|| Error::new(Code::InvArgs))?;
             syscalls::activate(ep, self.mem.sel(), 0)?;
             self.active = true;
         }
@@ -170,10 +170,7 @@ impl VTermHandler {
                 sel: Selector, data: SessionData) -> Result<VTermSession, Error> {
         let sess = ServerSession::new_with_sel(srv_sel, sel, sid as u64)?;
 
-        Ok(VTermSession {
-            sess: sess,
-            data: data,
-        })
+        Ok(VTermSession { sess, data })
     }
 
     fn new_chan(&self, sid: SessId, writing: bool) -> Result<VTermSession, Error> {
@@ -264,10 +261,10 @@ impl VTermHandler {
                                       util::next_log2(MSG_SIZE))?;
         rgate.activate()?;
         Ok(VTermHandler {
-            sel: sel,
+            sel,
             sessions: RefCell::new(SessionContainer::new(MAX_CLIENTS)),
             mem: MemGate::new(MAX_CLIENTS * BUF_SIZE, Perm::RW)?,
-            rgate: rgate,
+            rgate,
         })
     }
 

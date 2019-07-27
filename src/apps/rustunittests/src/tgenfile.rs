@@ -126,8 +126,8 @@ fn write_and_read_file() {
     // undo the write
     let mut old = vec![0u8; content.len()];
     wv_assert_eq!(file.seek(0, SeekMode::SET), Ok(0));
-    for i in 0..content.len() {
-        old[i] = i as u8;
+    for (i, b) in old.iter_mut().enumerate() {
+        *b = i as u8;
     }
     wv_assert_eq!(file.write(&old), Ok(content.len()));
 }
@@ -136,7 +136,7 @@ fn write_fmt() {
     let mut file = wv_assert_ok!(VFS::open("/newfile",
         OpenFlags::CREATE | OpenFlags::RW));
 
-    wv_assert_ok!(write!(file, "This {:.3} is the {}th test of {:#0X}!\n", "foobar", 42, 0xABCDEF));
+    wv_assert_ok!(write!(file, "This {:.3} is the {}th test of {:#0X}!\n", "foobar", 42, 0xAB_CDEF));
     wv_assert_ok!(write!(file, "More formatting: {:?}", Some(Some(1))));
 
     wv_assert_eq!(file.seek(0, SeekMode::SET), Ok(0));
@@ -258,10 +258,10 @@ fn _validate_pattern_content(file: &mut FileRef, mut buf: &mut [u8]) -> usize {
         let count = wv_assert_ok!(file.read(&mut buf));
         if count == 0 { break; }
 
-        for i in 0..count {
-            wv_assert_eq!(buf[i], (pos & 0xFF) as u8,
+        for b in buf.iter().take(count) {
+            wv_assert_eq!(*b, (pos & 0xFF) as u8,
                           "content wrong at offset {}: {} vs. {}",
-                          pos, buf[i], (pos & 0xFF) as u8);
+                          pos, *b, (pos & 0xFF) as u8);
             pos += 1;
         }
     }

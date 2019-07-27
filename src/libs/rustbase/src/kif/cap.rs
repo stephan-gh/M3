@@ -40,7 +40,7 @@ impl CapRngDesc {
     /// `start + count - 1` is the last one.
     pub fn new(ty: CapType, start: CapSel, count: CapSel) -> CapRngDesc {
         CapRngDesc {
-            value: ty.val | ((start as u64) << 33) | ((count as u64) << 1)
+            value: ty.val | (u64::from(start) << 33) | (u64::from(count) << 1)
         }
     }
 
@@ -52,20 +52,20 @@ impl CapRngDesc {
     }
 
     /// Returns the raw value
-    pub fn value(&self) -> u64 {
+    pub fn value(self) -> u64 {
         self.value
     }
     /// Returns the capability type
-    pub fn cap_type(&self) -> CapType {
+    pub fn cap_type(self) -> CapType {
         CapType::from(self.value & 0x1)
     }
     /// Returns the first capability selector
-    pub fn start(&self) -> CapSel {
+    pub fn start(self) -> CapSel {
         (self.value >> 33) as CapSel
     }
     /// Returns the number of capability selectors
-    pub fn count(&self) -> CapSel {
-        ((self.value >> 1) & 0xFFFFFFFF) as CapSel
+    pub fn count(self) -> CapSel {
+        ((self.value >> 1) & 0xFFFF_FFFF) as CapSel
     }
 }
 

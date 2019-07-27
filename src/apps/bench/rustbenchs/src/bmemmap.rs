@@ -25,7 +25,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn perf_alloc() {
-    let mut prof = profile::Profiler::new().repeats(10);
+    let mut prof = profile::Profiler::default().repeats(10);
 
     struct MemMapTester {
         map: MemMap,
@@ -33,7 +33,7 @@ fn perf_alloc() {
 
     impl profile::Runner for MemMapTester {
         fn pre(&mut self) {
-            self.map = MemMap::new(0, 0x1000000);
+            self.map = MemMap::new(0, 0x0100_0000);
         }
         fn run(&mut self) {
             for _ in 0..100 {
@@ -43,14 +43,14 @@ fn perf_alloc() {
     }
 
     let mut tester = MemMapTester {
-        map: MemMap::new(0, 0x100000),
+        map: MemMap::new(0, 0x0010_0000),
     };
 
     wv_perf!("Allocating 100 areas", prof.runner_with_id(&mut tester, 0x10));
 }
 
 fn perf_free() {
-    let mut prof = profile::Profiler::new().repeats(10);
+    let mut prof = profile::Profiler::default().repeats(10);
 
     struct MemMapTester {
         map: MemMap,
@@ -60,7 +60,7 @@ fn perf_free() {
 
     impl profile::Runner for MemMapTester {
         fn pre(&mut self) {
-            self.map = MemMap::new(0, 0x100000);
+            self.map = MemMap::new(0, 0x0010_0000);
             self.addrs.clear();
             for _ in 0..100 {
                 self.addrs.push(wv_assert_ok!(self.map.allocate(0x1000, 0x1000)));
@@ -71,12 +71,12 @@ fn perf_free() {
                 let idx = if self.forward { i } else { 100 - i - 1 };
                 self.map.free(self.addrs[idx], 0x1000);
             }
-            wv_assert_eq!(self.map.size(), (0x100000, 1));
+            wv_assert_eq!(self.map.size(), (0x0010_0000, 1));
         }
     }
 
     let mut tester = MemMapTester {
-        map: MemMap::new(0, 0x100000),
+        map: MemMap::new(0, 0x0010_0000),
         addrs: Vec::new(),
         forward: true,
     };

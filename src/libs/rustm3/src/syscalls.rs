@@ -17,7 +17,6 @@
 //! Contains the system call wrapper functions
 
 use cap::Selector;
-use core::intrinsics;
 use core::mem::MaybeUninit;
 use dtu;
 use errors::Error;
@@ -51,7 +50,7 @@ fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
 
         let msg = dtu::DTU::fetch_msg(dtu::SYSC_REP);
         if let Some(m) = msg {
-            let data: &[R] = unsafe { intrinsics::transmute(&m.data) };
+            let data: &[R] = unsafe { &*(&m.data as *const [u8] as *const [R]) };
             return Ok(Reply {
                 msg: m,
                 data: &data[0],
@@ -74,9 +73,9 @@ fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
 pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
     let mut req = syscalls::CreateSrv {
         opcode: syscalls::Operation::CREATE_SRV.val,
-        dst_sel: dst as u64,
-        vpe_sel: vpe as u64,
-        rgate_sel: rgate as u64,
+        dst_sel: u64::from(dst),
+        vpe_sel: u64::from(vpe),
+        rgate_sel: u64::from(rgate),
         namelen: name.len() as u64,
         name: unsafe { MaybeUninit::uninit().assume_init() },
     };
@@ -94,10 +93,10 @@ pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> 
 pub fn create_sgate(dst: Selector, rgate: Selector, label: dtu::Label, credits: u64) -> Result<(), Error> {
     let req = syscalls::CreateSGate {
         opcode: syscalls::Operation::CREATE_SGATE.val,
-        dst_sel: dst as u64,
-        rgate_sel: rgate as u64,
-        label: label,
-        credits: credits,
+        dst_sel: u64::from(dst),
+        rgate_sel: u64::from(rgate),
+        label,
+        credits,
     };
     send_receive_result(&req)
 }
@@ -107,7 +106,7 @@ pub fn create_sgate(dst: Selector, rgate: Selector, label: dtu::Label, credits: 
 pub fn create_rgate(dst: Selector, order: i32, msgorder: i32) -> Result<(), Error> {
     let req = syscalls::CreateRGate {
         opcode: syscalls::Operation::CREATE_RGATE.val,
-        dst_sel: dst as u64,
+        dst_sel: u64::from(dst),
         order: order as u64,
         msgorder: msgorder as u64,
     };
@@ -118,9 +117,9 @@ pub fn create_rgate(dst: Selector, order: i32, msgorder: i32) -> Result<(), Erro
 pub fn create_sess(dst: Selector, srv: Selector, ident: u64) -> Result<(), Error> {
     let req = syscalls::CreateSess {
         opcode: syscalls::Operation::CREATE_SESS.val,
-        dst_sel: dst as u64,
-        srv_sel: srv as u64,
-        ident: ident,
+        dst_sel: u64::from(dst),
+        srv_sel: u64::from(srv),
+        ident,
     };
     send_receive_result(&req)
 }
@@ -144,12 +143,12 @@ pub fn create_map(dst: Selector, vpe: Selector, mgate: Selector, first: Selector
                   pages: u32, perms: Perm) -> Result<(), Error> {
     let req = syscalls::CreateMap {
         opcode: syscalls::Operation::CREATE_MAP.val,
-        dst_sel: dst as u64,
-        vpe_sel: vpe as u64,
-        mgate_sel: mgate as u64,
-        first: first as u64,
-        pages: pages as u64,
-        perms: perms.bits() as u64,
+        dst_sel: u64::from(dst),
+        vpe_sel: u64::from(vpe),
+        mgate_sel: u64::from(mgate),
+        first: u64::from(first),
+        pages: u64::from(pages),
+        perms: u64::from(perms.bits()),
     };
     send_receive_result(&req)
 }
@@ -158,7 +157,7 @@ pub fn create_map(dst: Selector, vpe: Selector, mgate: Selector, first: Selector
 pub fn create_vgroup(dst: Selector) -> Result<(), Error> {
     let req = syscalls::CreateVPEGrp {
         opcode: syscalls::Operation::CREATE_VPEGRP.val,
-        dst_sel: dst as u64
+        dst_sel: u64::from(dst)
     };
     send_receive_result(&req)
 }
@@ -169,19 +168,20 @@ pub fn create_vgroup(dst: Selector) -> Result<(), Error> {
 /// desired PE type for the VPE to run on. The arguments `sep` and `rep` specify the send and
 /// receive EPs to use for page fault handling. Finally, `kmem` defines the kernel memory to assign
 /// to the VPE and `group` the VPE group.
+#[allow(clippy::too_many_arguments)]
 pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
                   sep: dtu::EpId, rep: dtu::EpId, tmuxable: bool,
                   kmem: Selector, group: Selector) -> Result<PEDesc, Error> {
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
-        dst_crd: dst.value() as u64,
-        sgate_sel: sgate as u64,
-        pe: pe.value() as u64,
+        dst_crd: dst.value(),
+        sgate_sel: u64::from(sgate),
+        pe: u64::from(pe.value()),
         sep: sep as u64,
         rep: rep as u64,
-        muxable: tmuxable as u64,
-        group_sel: group as u64,
-        kmem_sel: kmem as u64,
+        muxable: u64::from(tmuxable),
+        group_sel: u64::from(group),
+        kmem_sel: u64::from(kmem),
         namelen: name.len() as u64,
         name: unsafe { MaybeUninit::uninit().assume_init() },
     };
@@ -202,8 +202,8 @@ pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
 pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
     let req = syscalls::CreateSem {
         opcode: syscalls::Operation::CREATE_SEM.val,
-        dst_sel: dst as u64,
-        value: value as u64
+        dst_sel: u64::from(dst),
+        value: u64::from(value)
     };
     send_receive_result(&req)
 }
@@ -216,12 +216,12 @@ pub fn derive_mem(vpe: Selector, dst: Selector, src: Selector, offset: goff,
                   size: usize, perms: Perm) -> Result<(), Error> {
     let req = syscalls::DeriveMem {
         opcode: syscalls::Operation::DERIVE_MEM.val,
-        vpe_sel: vpe as u64,
-        dst_sel: dst as u64,
-        src_sel: src as u64,
-        offset: offset as u64,
+        vpe_sel: u64::from(vpe),
+        dst_sel: u64::from(dst),
+        src_sel: u64::from(src),
+        offset,
         size: size as u64,
-        perms: perms.bits() as u64,
+        perms: u64::from(perms.bits()),
     };
     send_receive_result(&req)
 }
@@ -231,8 +231,8 @@ pub fn derive_mem(vpe: Selector, dst: Selector, src: Selector, offset: goff,
 pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Error> {
     let req = syscalls::DeriveKMem {
         opcode: syscalls::Operation::DERIVE_KMEM.val,
-        kmem_sel: kmem as u64,
-        dst_sel: dst as u64,
+        kmem_sel: u64::from(kmem),
+        dst_sel: u64::from(dst),
         quota: quota as u64,
     };
     send_receive_result(&req)
@@ -242,7 +242,7 @@ pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Er
 pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
     let req = syscalls::KMemQuota {
         opcode: syscalls::Operation::KMEM_QUOTA.val,
-        kmem_sel: kmem as u64,
+        kmem_sel: u64::from(kmem),
     };
 
     let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&req)?;
@@ -256,9 +256,9 @@ pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
 pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Error> {
     let req = syscalls::VPECtrl {
         opcode: syscalls::Operation::VPE_CTRL.val,
-        vpe_sel: vpe as u64,
+        vpe_sel: u64::from(vpe),
         op: op.val,
-        arg: arg as u64,
+        arg,
     };
     send_receive_result(&req)
 }
@@ -272,12 +272,12 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
 pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
     let mut req = syscalls::VPEWait {
         opcode: syscalls::Operation::VPE_WAIT.val,
-        event: event,
+        event,
         vpe_count: vpes.len() as u64,
         sels: unsafe { MaybeUninit::uninit().assume_init() },
     };
-    for i in 0..vpes.len() {
-        req.sels[i] = vpes[i] as u64;
+    for (i, sel) in vpes.iter().enumerate() {
+        req.sels[i] = u64::from(*sel);
     }
 
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&req)?;
@@ -292,8 +292,8 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
 pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
     let req = syscalls::SemCtrl {
         opcode: syscalls::Operation::SEM_CTRL.val,
-        sem_sel: sem as u64,
-        op: op.val as u64
+        sem_sel: u64::from(sem),
+        op: op.val
     };
     send_receive_result(&req)
 }
@@ -305,10 +305,10 @@ pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
 pub fn exchange(vpe: Selector, own: CapRngDesc, other: Selector, obtain: bool) -> Result<(), Error> {
     let req = syscalls::Exchange {
         opcode: syscalls::Operation::EXCHANGE.val,
-        vpe_sel: vpe as u64,
+        vpe_sel: u64::from(vpe),
         own_crd: own.value(),
-        other_sel: other as u64,
-        obtain: obtain as u64,
+        other_sel: u64::from(other),
+        obtain: u64::from(obtain),
     };
     send_receive_result(&req)
 }
@@ -337,10 +337,10 @@ fn exchange_sess(vpe: Selector, op: syscalls::Operation, sess: Selector, crd: Ca
                  args: &mut syscalls::ExchangeArgs) -> Result<(), Error> {
     let req = syscalls::ExchangeSess {
         opcode: op.val,
-        vpe_sel: vpe as u64,
-        sess_sel: sess as u64,
+        vpe_sel: u64::from(vpe),
+        sess_sel: u64::from(sess),
         crd: crd.value(),
-        args: args.clone(),
+        args: *args,
     };
 
     let reply: Reply<syscalls::ExchangeSessReply> = send_receive(&req)?;
@@ -361,9 +361,9 @@ fn exchange_sess(vpe: Selector, op: syscalls::Operation, sess: Selector, crd: Ca
 pub fn activate(ep: Selector, gate: Selector, addr: goff) -> Result<(), Error> {
     let req = syscalls::Activate {
         opcode: syscalls::Operation::ACTIVATE.val,
-        ep_sel: ep as u64,
-        gate_sel: gate as u64,
-        addr: addr as u64,
+        ep_sel: u64::from(ep),
+        gate_sel: u64::from(gate),
+        addr,
     };
     send_receive_result(&req)
 }
@@ -375,9 +375,9 @@ pub fn activate(ep: Selector, gate: Selector, addr: goff) -> Result<(), Error> {
 pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
     let req = syscalls::Revoke {
         opcode: syscalls::Operation::REVOKE.val,
-        vpe_sel: vpe as u64,
+        vpe_sel: u64::from(vpe),
         crd: crd.value(),
-        own: own as u64,
+        own: u64::from(own),
     };
     send_receive_result(&req)
 }
@@ -391,10 +391,10 @@ pub fn forward_write(mgate: Selector, data: &[u8], off: goff,
                      flags: syscalls::ForwardMemFlags, event: u64) -> Result<(), Error> {
     let mut req = syscalls::ForwardMem {
         opcode: syscalls::Operation::FORWARD_MEM.val,
-        mgate_sel: mgate as u64,
-        offset: off as u64,
-        flags: (flags | syscalls::ForwardMemFlags::WRITE).bits() as u64,
-        event: event as u64,
+        mgate_sel: u64::from(mgate),
+        offset: off,
+        flags: u64::from((flags | syscalls::ForwardMemFlags::WRITE).bits()),
+        event,
         len: data.len() as u64,
         data: unsafe { MaybeUninit::uninit().assume_init() },
     };
@@ -412,10 +412,10 @@ pub fn forward_read(mgate: Selector, data: &mut [u8], off: goff,
                     flags: syscalls::ForwardMemFlags, event: u64) -> Result<(), Error> {
     let req = syscalls::ForwardMem {
         opcode: syscalls::Operation::FORWARD_MEM.val,
-        mgate_sel: mgate as u64,
-        offset: off as u64,
-        flags: flags.bits() as u64,
-        event: event as u64,
+        mgate_sel: u64::from(mgate),
+        offset: off,
+        flags: u64::from(flags.bits()),
+        event,
         len: data.len() as u64,
         data: unsafe { MaybeUninit::uninit().assume_init() },
     };
@@ -436,11 +436,11 @@ pub fn forward_msg(sgate: Selector, rgate: Selector, msg: &[u8],
                    rlabel: dtu::Label, event: u64) -> Result<(), Error> {
     let mut req = syscalls::ForwardMsg {
         opcode: syscalls::Operation::FORWARD_MSG.val,
-        sgate_sel: sgate as u64,
-        rgate_sel: rgate as u64,
+        sgate_sel: u64::from(sgate),
+        rgate_sel: u64::from(rgate),
         len: msg.len() as u64,
-        rlabel: rlabel as u64,
-        event: event,
+        rlabel,
+        event,
         msg: unsafe { MaybeUninit::uninit().assume_init() },
     };
     req.msg[0..msg.len()].copy_from_slice(msg);
@@ -452,10 +452,10 @@ pub fn forward_reply(rgate: Selector, reply: &[u8],
                      msg_addr: usize, event: u64) -> Result<(), Error> {
     let mut req = syscalls::ForwardReply {
         opcode: syscalls::Operation::FORWARD_REPLY.val,
-        rgate_sel: rgate as u64,
+        rgate_sel: u64::from(rgate),
         msgaddr: msg_addr as u64,
         len: reply.len() as u64,
-        event: event,
+        event,
         msg: unsafe { MaybeUninit::uninit().assume_init() },
     };
     req.msg[0..reply.len()].copy_from_slice(reply);

@@ -30,7 +30,7 @@ fn read() {
     let mut buf = vec![0u8; 8192];
     let mgate = MemGate::new(8192, kif::Perm::R).expect("Unable to create mgate");
 
-    let mut prof = profile::Profiler::new().repeats(2).warmup(1);
+    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
     wv_perf!("read 2 MiB with 8K buf", prof.run_with_id(|| {
         let mut total = 0;
@@ -45,7 +45,7 @@ fn write() {
     let buf = vec![0u8; 8192];
     let mgate = MemGate::new(8192, kif::Perm::W).expect("Unable to create mgate");
 
-    let mut prof = profile::Profiler::new().repeats(2).warmup(1);
+    let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
     wv_perf!("write 2 MiB with 8K buf", prof.run_with_id(|| {
         let mut total = 0;

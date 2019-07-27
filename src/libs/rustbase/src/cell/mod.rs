@@ -48,6 +48,7 @@ impl<T: Sized> StaticCell<T> {
         }
     }
     /// Returns a mutable reference to the inner value
+    #[allow(clippy::mut_from_ref)]
     pub fn get_mut(&self) -> &mut T {
         unsafe {
             &mut *self.inner.get()

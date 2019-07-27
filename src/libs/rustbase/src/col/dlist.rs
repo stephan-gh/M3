@@ -30,11 +30,11 @@ impl<T> Node<T> {
         Node {
             next: None,
             prev: None,
-            data: data,
+            data,
         }
     }
 
-    fn into_data(self: Box<Self>) -> T {
+    fn into_data(self) -> T {
         self.data
     }
 }
@@ -144,11 +144,11 @@ impl<'a, T> DListIterMut<'a, T> {
                 Some(prev) => prev,
             };
 
-            let new = Some(NonNull::from(Box::into_raw_non_null(Box::new(Node {
+            let new = Some(Box::into_raw_non_null(Box::new(Node {
                 next: Some(node),
                 prev: Some(prev),
                 data,
-            }))));
+            })));
 
             prev.as_mut().next = new;
             node.as_mut().prev = new;
@@ -170,7 +170,7 @@ impl<'a, T> DListIterMut<'a, T> {
     pub fn remove(&mut self) -> Option<T> {
         match self.head {
             // if we already walked at the list-end, remove the last element
-            None            => return self.list.pop_back(),
+            None            => self.list.pop_back(),
 
             // otherwise, check if there is a current (=prev) element to remove
             Some(mut head)  => unsafe {
@@ -263,7 +263,7 @@ impl<T> DList<T> {
     }
 
     /// Returns an iterator for the list
-    pub fn iter<'a>(&'a self) -> DListIter<'a, T> {
+    pub fn iter(&self) -> DListIter<'_, T> {
         DListIter {
             head: self.head,
             marker: PhantomData,
@@ -271,7 +271,7 @@ impl<T> DList<T> {
     }
 
     /// Returns a mutable iterator for the list
-    pub fn iter_mut<'a>(&'a mut self) -> DListIterMut<'a, T> {
+    pub fn iter_mut(&mut self) -> DListIterMut<'_, T> {
         DListIterMut {
             head: self.head,
             list: self,
@@ -284,7 +284,7 @@ impl<T> DList<T> {
             let mut node = Box::new(Node::new(data));
             node.next = self.head;
             node.prev = None;
-            let node = Some(NonNull::from(Box::into_raw_non_null(node)));
+            let node = Some(Box::into_raw_non_null(node));
 
             match self.head {
                 None => self.tail = node,
@@ -318,7 +318,7 @@ impl<T> DList<T> {
             let mut node = Box::new(Node::new(data));
             node.next = None;
             node.prev = self.tail;
-            let node = Some(NonNull::from(Box::into_raw_non_null(node)));
+            let node = Some(Box::into_raw_non_null(node));
 
             match self.tail {
                 None            => self.head = node,
@@ -408,10 +408,6 @@ impl<'a, T> IntoIterator for &'a mut DList<T> {
 impl<T: PartialEq> PartialEq for DList<T> {
     fn eq(&self, other: &Self) -> bool {
         self.len() == other.len() && self.iter().eq(other)
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.len() != other.len() || self.iter().ne(other)
     }
 }
 

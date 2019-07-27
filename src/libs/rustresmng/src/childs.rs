@@ -14,12 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use core::intrinsics;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::com::{RecvGate, SendGate, SGateArgs};
-use m3::col::{String, Treap, Vec};
+use m3::col::{String, ToString, Treap, Vec};
 use m3::dtu;
 use m3::errors::{Code, Error};
 use m3::kif::{self, CapRngDesc, CapType, Perm};
@@ -42,8 +41,8 @@ pub struct Resources {
     mem: Vec<Allocation>,
 }
 
-impl Resources {
-    pub fn new() -> Self {
+impl Default for Resources {
+    fn default() -> Self {
         Resources {
             childs: Vec::new(),
             services: Vec::new(),
@@ -95,11 +94,11 @@ pub trait Child {
             cfg.clone()
         };
 
-        if self.res().childs.iter().find(|c| c.1 == vpe_sel).is_some() {
+        if self.res().childs.iter().any(|c| c.1 == vpe_sel) {
             return Err(Error::new(Code::Exists));
         }
 
-        let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256).label(id as u64))?;
+        let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256).label(u64::from(id)))?;
         let our_sg_sel = sgate.sel();
         let child = Box::new(ForeignChild::new(id, child_name, our_sel, sgate, child_cfg));
         child.delegate(our_sg_sel, sgate_sel)?;
@@ -115,7 +114,8 @@ pub trait Child {
     fn rem_child(&mut self, vpe_sel: Selector) -> Result<Id, Error> {
         log!(RESMNG_CHILD, "{}: rem_child(vpe={})", self.name(), vpe_sel);
 
-        let idx = self.res().childs.iter().position(|c| c.1 == vpe_sel).ok_or(Error::new(Code::InvArgs))?;
+        let idx = self.res().childs.iter().position(|c| c.1 == vpe_sel)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
         let id = self.res().childs[idx].0;
         get().remove_rec(id);
         self.cfg().remove_child(vpe_sel);
@@ -138,11 +138,11 @@ pub trait Child {
         self.res_mut().services.push((id, sel));
     }
     fn has_service(&self, sel: Selector) -> bool {
-        self.res().services.iter().find(|t| t.1 == sel).is_some()
+        self.res().services.iter().any(|t| t.1 == sel)
     }
     fn remove_service(&mut self, sel: Selector) -> Result<Id, Error> {
         let serv = &mut self.res_mut().services;
-        let idx = serv.iter().position(|t| t.1 == sel).ok_or(Error::new(Code::InvArgs))?;
+        let idx = serv.iter().position(|t| t.1 == sel).ok_or_else(|| Error::new(Code::InvArgs))?;
         Ok(serv.remove(idx).0)
     }
 
@@ -154,7 +154,8 @@ pub trait Child {
     }
     fn remove_session(&mut self, sel: Selector) -> Result<Session, Error> {
         let sessions = &mut self.res_mut().sessions;
-        let idx = sessions.iter().position(|s| s.sel() == sel).ok_or(Error::new(Code::InvArgs))?;
+        let idx = sessions.iter().position(|s| s.sel() == sel)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
         Ok(sessions.remove(idx))
     }
 
@@ -170,7 +171,7 @@ pub trait Child {
     }
     fn remove_mem(&mut self, sel: Selector) -> Result<(), Error> {
         let idx = self.res_mut().mem.iter()
-            .position(|s| s.sel == sel).ok_or(Error::new(Code::InvArgs))?;
+            .position(|s| s.sel == sel).ok_or_else(|| Error::new(Code::InvArgs))?;
         self.remove_mem_by_idx(idx);
         Ok(())
     }
@@ -184,30 +185,30 @@ pub trait Child {
         log!(RESMNG_MEM, "{}: removed {:?}", self.name(), alloc);
     }
 
-    fn use_sem(&mut self, name: &String, sel: Selector) -> Result<(), Error> {
+    fn use_sem(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
         log!(RESMNG_SEM, "{}: use_sem(name={}, sel={})", self.name(), name, sel);
 
         let cfg = self.cfg();
-        let sdesc = cfg.get_sem(&name).ok_or(Error::new(Code::InvArgs))?;
+        let sdesc = cfg.get_sem(name).ok_or_else(|| Error::new(Code::InvArgs))?;
 
         let our_sel = sems::get().get(sdesc.global_name()).unwrap();
         self.delegate(our_sel, sel)
     }
 
     fn remove_resources(&mut self) where Self: Sized {
-        while self.res().sessions.len() > 0 {
+        while !self.res().sessions.is_empty() {
             let sess = self.res_mut().sessions.remove(0);
             self.cfg().close_session(sess.sel());
             sess.close().ok();
         }
 
-        while self.res().services.len() > 0 {
+        while !self.res().services.is_empty() {
             let (id, _) = self.res_mut().services.remove(0);
             let serv = services::get().remove_service(id);
             self.cfg().unreg_service(serv.name());
         }
 
-        while self.res().mem.len() > 0 {
+        while !self.res().mem.is_empty() {
             self.remove_mem_by_idx(0);
         }
     }
@@ -227,14 +228,14 @@ pub struct OwnChild {
 impl OwnChild {
     pub fn new(id: Id, args: Vec<String>, daemon: bool, kmem: Rc<KMem>, cfg: Rc<Config>) -> Self {
         OwnChild {
-            id: id,
-            name: cfg.name().clone(),
-            args: args,
-            cfg: cfg,
-            res: Resources::new(),
-            daemon: daemon,
+            id,
+            name: cfg.name().to_string(),
+            args,
+            cfg,
+            res: Resources::default(),
+            daemon,
             activity: None,
-            kmem: kmem,
+            kmem,
         }
     }
 
@@ -307,11 +308,11 @@ pub struct ForeignChild {
 impl ForeignChild {
     pub fn new(id: Id, name: String, vpe: Selector, sgate: SendGate, cfg: Rc<Config>) -> Self {
         ForeignChild {
-            id: id,
-            name: name,
-            cfg: cfg,
-            res: Resources::new(),
-            vpe: vpe,
+            id,
+            name,
+            cfg,
+            res: Resources::default(),
+            vpe,
             _sgate: sgate,
         }
     }
@@ -379,6 +380,9 @@ impl ChildManager {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     pub fn len(&self) -> usize {
         self.ids.len()
     }
@@ -426,7 +430,9 @@ impl ChildManager {
     }
 
     pub fn handle_upcall(&mut self, msg: &'static dtu::Message) {
-        let slice: &[kif::upcalls::VPEWait] = unsafe { intrinsics::transmute(&msg.data) };
+        let slice: &[kif::upcalls::VPEWait] = unsafe {
+            &*(&msg.data as *const [u8] as *const [kif::upcalls::VPEWait])
+        };
         let upcall = &slice[0];
 
         self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
@@ -443,7 +449,7 @@ impl ChildManager {
             self.kill_daemons();
             services::get().shutdown();
         }
-        if self.len() > 0 {
+        if !self.is_empty() {
             self.start_waiting(1);
         }
     }
@@ -462,7 +468,7 @@ impl ChildManager {
             // kill all daemons that didn't register a service
             let can_kill = {
                 let child = self.child_by_id(id).unwrap();
-                if child.daemon() && child.res().services.len() == 0 {
+                if child.daemon() && child.res().services.is_empty() {
                     log!(RESMNG_CHILD, "Killing child '{}'", child.name());
                     true
                 }
@@ -500,6 +506,6 @@ impl ChildManager {
         self.ids.iter().find(|&&id| {
             let child = self.child_by_id(id).unwrap();
             child.vpe_sel() == sel
-        }).map(|&c| c)
+        }).copied()
     }
 }

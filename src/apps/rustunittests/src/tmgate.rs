@@ -141,8 +141,8 @@ fn read_write_forward_big() {
 
     let mut refdata = vec![0x00u8; 1024];
     let mut data = vec![0x00u8; 1024];
-    for i in 0..refdata.len() {
-        refdata[i] = i as u8;
+    for (i, b) in refdata.iter_mut().enumerate() {
+        *b = i as u8;
     }
 
     wv_assert_ok!(vpe1.mem().write(&refdata, TEST_ADDR));

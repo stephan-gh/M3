@@ -36,7 +36,7 @@ fn pingpong_1u64() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
 
-    let mut prof = profile::Profiler::new();
+    let mut prof = profile::Profiler::default();
 
     wv_perf!("pingpong with (1 * u64) msgs", prof.run_with_id(|| {
         wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 0u64));
@@ -56,7 +56,7 @@ fn pingpong_2u64() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
 
-    let mut prof = profile::Profiler::new();
+    let mut prof = profile::Profiler::default();
 
     wv_perf!("pingpong with (2 * u64) msgs", prof.run_with_id(|| {
         wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 23u64, 42u64));
@@ -78,7 +78,7 @@ fn pingpong_4u64() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
 
-    let mut prof = profile::Profiler::new();
+    let mut prof = profile::Profiler::default();
 
     wv_perf!("pingpong with (4 * u64) msgs", prof.run_with_id(|| {
         wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 23u64, 42u64, 10u64, 12u64));
@@ -104,7 +104,7 @@ fn pingpong_str() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
 
-    let mut prof = profile::Profiler::new();
+    let mut prof = profile::Profiler::default();
 
     wv_perf!("pingpong with (String) msgs", prof.run_with_id(|| {
         wv_assert_ok!(send_vmsg!(&sgate, reply_gate, "test"));
@@ -124,7 +124,7 @@ fn pingpong_strslice() {
     wv_assert_ok!(rgate.activate());
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(MSG_SIZE as u64)));
 
-    let mut prof = profile::Profiler::new();
+    let mut prof = profile::Profiler::default();
 
     wv_perf!("pingpong with (&str) msgs", prof.run_with_id(|| {
         wv_assert_ok!(send_vmsg!(&sgate, reply_gate, "test"));

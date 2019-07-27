@@ -59,7 +59,7 @@ pub struct SessionDesc {
 
 impl SessionDesc {
     pub fn new(line: &str) -> Result<Self, Error> {
-        let parts = line.split(":").collect::<Vec<&str>>();
+        let parts = line.split(':').collect::<Vec<&str>>();
         let (lname, serv, arg) = if parts.len() == 1 {
             (parts[0].to_string(), parts[0].to_string(), String::new())
         }
@@ -75,8 +75,8 @@ impl SessionDesc {
 
         Ok(SessionDesc {
             local_name: lname,
-            serv: serv,
-            arg: arg,
+            serv,
+            arg,
             usage: RefCell::new(None),
         })
     }
@@ -105,7 +105,7 @@ pub struct ChildDesc {
 impl ChildDesc {
     pub fn new(cfg: Rc<Config>) -> Self {
         ChildDesc {
-            cfg: cfg,
+            cfg,
             usage: RefCell::new(None),
         }
     }
@@ -147,7 +147,7 @@ impl SemDesc {
 }
 
 fn parse_names(line: &str) -> Result<(String, String), Error> {
-    let parts = line.split(":").collect::<Vec<&str>>();
+    let parts = line.split(':').collect::<Vec<&str>>();
     if parts.len() == 1 {
         Ok((parts[0].to_string(), parts[0].to_string()))
     }
@@ -155,7 +155,7 @@ fn parse_names(line: &str) -> Result<(String, String), Error> {
         Ok((parts[0].to_string(), parts[1].to_string()))
     }
     else {
-        return Err(Error::new(Code::InvArgs));
+        Err(Error::new(Code::InvArgs))
     }
 }
 
@@ -197,7 +197,7 @@ fn check_services(set: &BTreeSet<String>, cfg: &Config) {
     }
 }
 
-pub fn check(cfgs: &Vec<(Vec<String>, bool, Rc<Config>)>) {
+pub fn check(cfgs: &[(Vec<String>, bool, Rc<Config>)]) {
     let mut services = BTreeSet::new();
     for (_, _, cfg) in cfgs {
         collect_services(&mut services, &cfg);
@@ -228,7 +228,7 @@ impl Config {
         let mut res = Config {
             name: String::new(),
             kmem: 0,
-            restrict: restrict,
+            restrict,
             services: Vec::new(),
             sessions: Vec::new(),
             childs: Vec::new(),
@@ -243,34 +243,32 @@ impl Config {
                 res.name = a.to_string();
                 args.push(a.to_string());
             }
-            else {
-                if a.starts_with("serv=") {
-                    res.services.push(ServiceDesc::new(&a[5..])?);
-                }
-                else if a.starts_with("kmem=") {
-                    res.kmem = parse_size(&a[5..])?;
-                }
-                else if a.starts_with("sess=") {
-                    let sess = SessionDesc::new(&a[5..])?;
+            else if a.starts_with("serv=") {
+                res.services.push(ServiceDesc::new(&a[5..])?);
+            }
+            else if a.starts_with("kmem=") {
+                res.kmem = parse_size(&a[5..])?;
+            }
+            else if a.starts_with("sess=") {
+                let sess = SessionDesc::new(&a[5..])?;
 
-                    // the pager is only used on gem5
-                    if cfg!(target_os = "none") || sess.serv_name() != "pager" {
-                        res.sessions.push(sess);
-                    }
+                // the pager is only used on gem5
+                if cfg!(target_os = "none") || sess.serv_name() != "pager" {
+                    res.sessions.push(sess);
                 }
-                else if a.starts_with("child=") {
-                    let (_, _, cfg) = Self::parse(&a[6..], ';', restrict)?;
-                    res.childs.push(ChildDesc::new(cfg));
-                }
-                else if a.starts_with("sem=") {
-                    res.sems.push(SemDesc::new(&a[4..])?);
-                }
-                else if a == "daemon" {
-                    daemon = true;
-                }
-                else {
-                    args.push(a.to_string());
-                }
+            }
+            else if a.starts_with("child=") {
+                let (_, _, cfg) = Self::parse(&a[6..], ';', restrict)?;
+                res.childs.push(ChildDesc::new(cfg));
+            }
+            else if a.starts_with("sem=") {
+                res.sems.push(SemDesc::new(&a[4..])?);
+            }
+            else if a == "daemon" {
+                daemon = true;
+            }
+            else {
+                args.push(a.to_string());
             }
         }
 
@@ -284,7 +282,7 @@ impl Config {
         self.kmem
     }
 
-    pub fn name(&self) -> &String {
+    pub fn name(&self) -> &str {
         &self.name
     }
     pub fn services(&self) -> &Vec<ServiceDesc> {
@@ -297,14 +295,14 @@ impl Config {
         &self.childs
     }
 
-    pub fn get_sem(&self, lname: &String) -> Option<&SemDesc> {
+    pub fn get_sem(&self, lname: &str) -> Option<&SemDesc> {
         self.sems.iter().find(|s| s.local_name == *lname)
     }
 
-    pub fn get_service(&self, lname: &String) -> Option<&ServiceDesc> {
+    pub fn get_service(&self, lname: &str) -> Option<&ServiceDesc> {
         self.services.iter().find(|s| s.local_name == *lname)
     }
-    pub fn unreg_service(&self, gname: &String) {
+    pub fn unreg_service(&self, gname: &str) {
         if !self.restrict {
             return;
         }
@@ -313,7 +311,7 @@ impl Config {
         serv.used.replace(false);
     }
 
-    pub fn get_session(&self, lname: &String) -> Option<&SessionDesc> {
+    pub fn get_session(&self, lname: &str) -> Option<&SessionDesc> {
         self.sessions.iter().find(|s| s.local_name == *lname)
     }
     pub fn close_session(&self, sel: Selector) {
@@ -332,7 +330,7 @@ impl Config {
         sess.usage.replace(None);
     }
 
-    pub fn get_child(&self, lname: &String) -> Option<&ChildDesc> {
+    pub fn get_child(&self, lname: &str) -> Option<&ChildDesc> {
         self.childs.iter().find(|c| c.local_name() == lname)
     }
     pub fn remove_child(&self, sel: Selector) {
@@ -351,22 +349,22 @@ impl Config {
     }
 
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
-        write!(f, "{} [\n", self.name)?;
+        writeln!(f, "{} [", self.name)?;
         if self.kmem != 0 {
-            write!(f, "  kmem={}\n", self.kmem)?;
+            writeln!(f, "  kmem={}", self.kmem)?;
         }
         for s in &self.services {
-            write!(f, "{:0w$}Service[lname={}, gname={}]\n",
+            writeln!(f, "{:0w$}Service[lname={}, gname={}]",
                 "", s.local_name, s.global_name, w = layer + 2)?;
         }
         for s in &self.sessions {
-            write!(f, "{:0w$}Session[lname={}, gname={}, arg={}]\n",
+            writeln!(f, "{:0w$}Session[lname={}, gname={}, arg={}]",
                 "", s.local_name, s.serv, s.arg, w = layer + 2)?;
         }
         for c in &self.childs {
             write!(f, "{:0w$}Child ", "", w = layer + 2)?;
             c.cfg.print_rec(f, layer + 2)?;
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         write!(f, "{:0w$}]", "", w = layer)
     }

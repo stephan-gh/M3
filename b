@@ -248,6 +248,11 @@ case "$cmd" in
         fi
         ;;
 
+    clippy)
+        export SYSROOT=$XBUILD_SYSROOT_PATH
+        ( cd src && cargo clippy --target $RUST_TARGET -- -A clippy::identity_op )
+        ;;
+
     doc)
         export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
         export RUSTDOCFLAGS=$RUSTFLAGS

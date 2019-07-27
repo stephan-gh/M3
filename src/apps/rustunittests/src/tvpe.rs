@@ -40,7 +40,7 @@ fn run_stop() {
     use m3::dtu::DTU;
     use m3::vfs;
 
-    let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::new().order(6).msg_order(6)));
+    let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::default().order(6).msg_order(6)));
     wv_assert_ok!(rg.activate());
 
     let mut wait_time = 10000;

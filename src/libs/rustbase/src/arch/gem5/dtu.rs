@@ -46,7 +46,7 @@ pub const DEF_REP: EpId         = 3;
 pub const FIRST_FREE_EP: EpId   = 4;
 
 /// The base address of the DTU's MMIO area
-pub const BASE_ADDR: usize      = 0xF0000000;
+pub const BASE_ADDR: usize      = 0xF000_0000;
 /// The base address of the DTU's MMIO area for external requests
 pub const BASE_REQ_ADDR: usize  = BASE_ADDR + cfg::PAGE_SIZE;
 /// The number of DTU registers
@@ -229,17 +229,17 @@ bitflags! {
     /// The page table entry flags
     pub struct PTEFlags : u64 {
         /// Readable
-        const R             = 0b000001;
+        const R             = 0b0000_0001;
         /// Writable
-        const W             = 0b000010;
+        const W             = 0b0000_0010;
         /// Executable
-        const X             = 0b000100;
+        const X             = 0b0000_0100;
         /// Internally accessible, i.e., by the CU
-        const I             = 0b001000;
+        const I             = 0b0000_1000;
         /// Large page (2 MiB)
-        const LARGE         = 0b010000;
+        const LARGE         = 0b0001_0000;
         /// Unsupported by DTU, but used for MMU
-        const UNCACHED      = 0b100000;
+        const UNCACHED      = 0b0010_0000;
         /// Read+write
         const RW            = Self::R.bits | Self::W.bits;
         /// Read+write+execute
@@ -383,8 +383,8 @@ impl DTU {
         let msg = Self::read_cmd_reg(CmdReg::OFFSET);
         if msg != 0 {
             unsafe {
-                let head: *const Header = intrinsics::transmute(msg as usize);
-                let slice: [usize; 2] = [msg as usize, (*head).length as usize];
+                let head = msg as usize as *const Header;
+                let slice = [msg as usize, (*head).length as usize];
                 Some(intrinsics::transmute(slice))
             }
         }
@@ -462,10 +462,11 @@ impl DTU {
         let regs = DTU_REGS + CMD_REGS + EP_REGS * EP_COUNT + HEADER_REGS * HEADER_COUNT;
         let mut buffer = BASE_ADDR + regs * 8;
 
+        #[allow(clippy::transmute_ptr_to_ptr)]
         let rstr: &[u64] = unsafe { intrinsics::transmute(s) };
         let num = util::round_up(s.len(), 8) / 8;
-        for i in 0..num {
-            arch::cpu::write8b(buffer, rstr[i]);
+        for c in rstr.iter().take(num) {
+            arch::cpu::write8b(buffer, *c);
             buffer += 8;
         }
 

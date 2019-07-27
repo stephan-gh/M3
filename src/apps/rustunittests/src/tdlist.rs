@@ -53,6 +53,7 @@ fn basics() {
     wv_assert_eq!(l.back_mut(), Some(&mut 57));
 }
 
+#[allow(clippy::option_map_unit_fn)]
 fn iter() {
     let mut l = gen_list(&[23, 42, 57]);
 
