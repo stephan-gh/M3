@@ -17,6 +17,7 @@
 #include <base/Common.h>
 #include <base/stream/Serial.h>
 #include <base/stream/IStringStream.h>
+#include <base/util/Profile.h>
 #include <base/util/Time.h>
 #include <base/CmdArgs.h>
 
@@ -27,11 +28,10 @@
 #include <m3/session/Pager.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
+#include <m3/Test.h>
 #include <m3/VPE.h>
 
 using namespace m3;
-
-static const int REPEATS = 4;
 
 static size_t step_size = 0;
 static bool use_files = false;
@@ -211,11 +211,14 @@ void AccelWorkload::init() {
 }
 
 static void usage(const char *name) {
-    Serial::get() << "Usage: " << name << " [-s <step_size>] [-f] [-e] [-m <mode>] (stencil|md|spmv|fft)\n";
+    Serial::get() << "Usage: " << name << " [-s <step_size>] [-f] [-e] [-m <mode>]"
+                  << " [-r <repeats>] [-w <warmups>] (stencil|md|spmv|fft)\n";
     Serial::get() << "  -s: the step size (0 = unlimited)\n";
     Serial::get() << "  -f: use files for input and output\n";
     Serial::get() << "  -e: map all memory eagerly\n";
     Serial::get() << "  -m: the mode: 0 = default, 1 = two accels sequentially, 2 = two accels simultaneously\n";
+    Serial::get() << "  -r: the number of repeats\n";
+    Serial::get() << "  -w: the number of warmup rounds\n";
     exit(1);
 }
 
@@ -227,13 +230,18 @@ enum {
 
 int main(int argc, char **argv) {
     int mode = MODE_DEFAULT;
+    ulong repeats = 1;
+    ulong warmup = 1;
+
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "s:fem:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "s:fem:r:w:")) != -1) {
         switch(opt) {
             case 's': step_size = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'f': use_files = true; break;
             case 'e': map_eager = true; break;
             case 'm': mode = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'r': repeats = IStringStream::read_from<ulong>(CmdArgs::arg); break;
+            case 'w': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
             default:
                 usage(argv[0]);
         }
@@ -242,7 +250,8 @@ int main(int argc, char **argv) {
         usage(argv[0]);
 
     const char *bench = argv[CmdArgs::ind];
-    for(int i = 0; i < REPEATS; ++i) {
+    Results res(repeats);
+    for(ulong i = 0; i < repeats + warmup; ++i) {
         cycles_t start = Time::start(0x1234);
 
         if(mode == MODE_DEFAULT) {
@@ -275,8 +284,14 @@ int main(int argc, char **argv) {
 
         cycles_t end = Time::stop(0x1234);
         cout << "Benchmark took " << (end - start) << " cycles\n";
+        if(i >= warmup)
+            res.push(end - start);
 
         reset();
     }
+
+    OStringStream name;
+    name << "aladdin-" << bench;
+    WVPERF(name.str(), res);
     return 0;
 }
