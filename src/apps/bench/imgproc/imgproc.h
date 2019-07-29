@@ -26,5 +26,5 @@ enum Mode {
 
 extern const cycles_t ACCEL_TIMES[];
 
-void chain_direct(const char *in, size_t num, Mode mode);
-void chain_indirect(const char *in, size_t num);
+cycles_t chain_direct(const char *in, size_t num, Mode mode);
+cycles_t chain_indirect(const char *in, size_t num);

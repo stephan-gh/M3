@@ -140,7 +140,7 @@ struct IndirChain {
     InDirAccel::Operation ops[ACCEL_COUNT];
 };
 
-void chain_indirect(const char *in, size_t num) {
+cycles_t chain_indirect(const char *in, size_t num) {
     std::unique_ptr<uint8_t[]> buffer(new uint8_t[BUF_SIZE]);
 
     RecvGate reply_gate = RecvGate::create(getnextlog2(REPLY_SIZE * num * ACCEL_COUNT),
@@ -199,11 +199,12 @@ void chain_indirect(const char *in, size_t num) {
     }
 
     end = Time::stop(0);
-    cout << "Total time: " << (end - start) << " cycles\n";
 
 error:
     for(size_t i = 0; i < num; ++i) {
         VFS::close(infds[i]);
         VFS::close(outfds[i]);
     }
+
+    return end - start;
 }

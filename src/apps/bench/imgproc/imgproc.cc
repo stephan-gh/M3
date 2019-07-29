@@ -16,11 +16,13 @@
 
 #include <base/Common.h>
 #include <base/stream/IStringStream.h>
+#include <base/util/Profile.h>
 #include <base/util/Time.h>
 #include <base/CmdArgs.h>
 
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
+#include <m3/Test.h>
 
 #include "imgproc.h"
 
@@ -33,25 +35,29 @@ const cycles_t ACCEL_TIMES[] = {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-m <mode>] [-n <num>] [-r <repeats>] <in>\n";
+    cerr << "Usage: " << name << " [-m <mode>] [-n <num>] [-w <warmups>] [-r <repeats>] <in>\n";
     cerr << "  <mode> can be:\n";
     cerr << "    'indir'      for a single chain, assisted\n";
     cerr << "    'dir'        for a single chain, connected directly\n";
     cerr << "    'dir-simple' for a single chain, connected via pipes\n";
     cerr << "  <num> specifies the number of chains\n";
+    cerr << "  <warmups> specifies the number of warmups\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
     exit(1);
 }
 
 int main(int argc, char **argv) {
     Mode mode = Mode::INDIR;
+    const char *modename = "indir";
     size_t num = 1;
-    int repeats = 1;
+    ulong repeats = 1;
+    ulong warmup = 1;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "m:n:r:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "m:n:r:w:")) != -1) {
         switch(opt) {
             case 'm': {
+                modename = CmdArgs::arg;
                 if(strcmp(CmdArgs::arg, "indir") == 0)
                     mode = Mode::INDIR;
                 else if(strcmp(CmdArgs::arg, "dir") == 0)
@@ -63,7 +69,8 @@ int main(int argc, char **argv) {
                 break;
             }
             case 'n': num = IStringStream::read_from<size_t>(CmdArgs::arg); break;
-            case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
+            case 'r': repeats = IStringStream::read_from<ulong>(CmdArgs::arg); break;
+            case 'w': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
             default:
                 usage(argv[0]);
         }
@@ -73,11 +80,20 @@ int main(int argc, char **argv) {
 
     const char *in = argv[CmdArgs::ind];
 
-    for(int i = 0; i < repeats; ++i) {
+    Results res(repeats);
+    for(ulong i = 0; i < repeats + warmup; ++i) {
+        cycles_t time;
         if(mode == Mode::INDIR)
-            chain_indirect(in, num);
+            time = chain_indirect(in, num);
         else
-            chain_direct(in, num, mode);
+            time = chain_direct(in, num, mode);
+
+        if(i >= warmup)
+            res.push(time);
     }
+
+    OStringStream os;
+    os << "imgproc-" << modename << " (" << num << " chains)";
+    WVPERF(os.str(), res);
     return 0;
 }

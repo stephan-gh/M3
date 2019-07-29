@@ -151,7 +151,7 @@ static void wait_for(std::unique_ptr<DirectChain> *chains, size_t num) {
     }
 }
 
-void chain_direct(const char *in, size_t num, Mode mode) {
+cycles_t chain_direct(const char *in, size_t num, Mode mode) {
     Pipes pipes("pipes");
     std::unique_ptr<DirectChain> chains[num];
     fd_t infds[num];
@@ -191,11 +191,12 @@ void chain_direct(const char *in, size_t num, Mode mode) {
     }
 
     cycles_t end = Time::stop(0);
-    Serial::get() << "Total time: " << (end - start) << " cycles\n";
 
     // cleanup
     for(size_t i = 0; i < num; ++i) {
         VFS::close(infds[i]);
         VFS::close(outfds[i]);
     }
+
+    return end - start;
 }
