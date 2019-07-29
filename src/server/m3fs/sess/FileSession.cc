@@ -33,13 +33,13 @@ M3FSFileSession::M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSes
     : M3FSSession(handle, srv_sel, srv_sel == ObjCap::INVALID ? srv_sel : m3::VPE::self().alloc_sels(2)),
       m3::SListItem(),
       _extent(),
+      _lastext(),
       _extoff(),
       _lastoff(),
       _extlen(),
       _fileoff(),
       _lastbytes(),
       _accessed(),
-      _moved_forward(false),
       _appending(),
       _append_ext(),
       _last(ObjCap::INVALID),
@@ -152,7 +152,7 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
 
     // in/out implicitly commits the previous in/out request
     if(out && _appending) {
-        Errors::Code res = commit(r, inode, _lastbytes);
+        Errors::Code res = commit_append(r, inode, _lastbytes);
         if(res != Errors::NONE) {
             reply_error(is, res);
             return;
@@ -206,12 +206,9 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
         }
     }
 
-    _lastoff = _extoff;
     // the mem cap covers all blocks from <_extoff> to <_extoff>+<len>. thus, the offset to start
     // is the offset within the first of these blocks.
-    size_t capoff = _lastoff % hdl().sb().blocksize;
-    _extlen = extlen;
-    _lastbytes = len - capoff;
+    size_t capoff = _extoff % hdl().sb().blocksize;
     if(len > 0) {
         // activate mem cap for client
         try {
@@ -224,14 +221,14 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
         }
 
         // move forward
-        if(_extoff + len >= _extlen) {
-            _moved_forward = true;
+        _lastoff = _extoff;
+        _lastext = _extent;
+        if(_extoff + len >= extlen) {
             _extent += 1;
             _extoff = 0;
         }
         else {
             _extoff += len - _extoff % hdl().sb().blocksize;
-            _moved_forward = false;
         }
         _fileoff += len - capoff;
     }
@@ -239,6 +236,8 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
         capoff = _lastoff = 0;
         sel = ObjCap::INVALID;
     }
+    _extlen = extlen;
+    _lastbytes = len - capoff;
 
     PRINT(this, "file::next_" << (out ? "out" : "in")
                               << "() -> (" << _lastoff << ", " << _lastbytes << ")");
@@ -288,10 +287,10 @@ void M3FSFileSession::commit(GateIStream &is) {
 
     Errors::Code res;
     if(_appending)
-        res = commit(r, inode, nbytes);
+        res = commit_append(r, inode, nbytes);
     else {
         res = Errors::NONE;
-        if(_moved_forward && _lastoff + nbytes < _extlen)
+        if(_extent > _lastext && _lastoff + nbytes < _extlen)
             _extent--;
         if(nbytes < _lastbytes)
             _extoff = _lastoff + nbytes;
@@ -338,7 +337,7 @@ void M3FSFileSession::fstat(GateIStream &is) {
     reply_vmsg(is, Errors::NONE, info);
 }
 
-Errors::Code M3FSFileSession::commit(Request &r, INode *inode, size_t submit) {
+Errors::Code M3FSFileSession::commit_append(Request &r, INode *inode, size_t submit) {
     assert(submit > 0);
 
     // were we actually appending?
@@ -349,9 +348,6 @@ Errors::Code M3FSFileSession::commit(Request &r, INode *inode, size_t submit) {
     _fileoff -= _lastbytes - submit;
 
     // add new extent?
-    size_t lastoff = _lastoff;
-    bool truncated = submit < _lastbytes;
-    size_t prev_ext_len = 0;
     if(_append_ext) {
         uint32_t blocksize = r.hdl().sb().blocksize;
         size_t blocks = (submit + blocksize - 1) / blocksize;
@@ -359,7 +355,8 @@ Errors::Code M3FSFileSession::commit(Request &r, INode *inode, size_t submit) {
 
         // append extent to file
         _append_ext->length = blocks;
-        Errors::Code res = INodes::append_extent(r, inode, _append_ext, &prev_ext_len);
+        bool newext;
+        Errors::Code res = INodes::append_extent(r, inode, _append_ext, &newext);
         if(res != Errors::NONE)
             return res;
 
@@ -369,22 +366,21 @@ Errors::Code M3FSFileSession::commit(Request &r, INode *inode, size_t submit) {
 
         _extlen = blocks * blocksize;
         // have we appended the new extent to the previous extent?
-        if(prev_ext_len > 0)
+        if(!newext)
             _extent--;
         _lastoff = 0;
         delete _append_ext;
     }
 
-    // we did not get the whole extent, but truncated it, so we have to move forward
-    if(!_moved_forward) {
+    // we are at the end of the extent now, so move forward if not already done
+    if(_extoff >= _extlen) {
         _extent++;
         _extoff = 0;
     }
-    else if(truncated) {
-        // move to the end of the last extent
-        _extent--;
-        _extoff = prev_ext_len + lastoff + submit;
-    }
+    // if(!_moved_forward) {
+    //     _extent++;
+    //     _extoff = 0;
+    // }
 
     // change size
     inode->size += submit;

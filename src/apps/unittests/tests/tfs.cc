@@ -179,6 +179,36 @@ static void append_with_read() {
     check_content(small_file, sizeof(largebuf) * 2);
 }
 
+static void append_with_commit() {
+    {
+        FileRef file("/myfile", FILE_RW | FILE_TRUNC | FILE_CREATE);
+        for(size_t i = 0; i < sizeof(largebuf); ++i)
+            largebuf[i] = i % 100;
+
+        // we assume a blocksize of 4096 here
+        {
+            FileInfo info;
+            file->stat(info);
+            WVASSERTEQ(info.blocksize, 4096u);
+        }
+
+        size_t off = 0;
+        for(int i = 0; i < 2; ++i) {
+            size_t rem = 4096;
+            while(rem > 0) {
+                size_t amount = std::min(rem, sizeof(largebuf) - off);
+                file->write_all(largebuf + off, amount);
+                off = (off + amount) % sizeof(largebuf);
+                rem -= amount;
+            }
+            if(i == 0)
+                file->flush();
+        }
+    }
+
+    check_content("/myfile", 8192);
+}
+
 static void file_mux() {
     const size_t NUM = 6;
     const size_t STEP_SIZE = 400;
@@ -499,6 +529,7 @@ void tfs() {
     RUN_TEST(truncate);
     RUN_TEST(append);
     RUN_TEST(append_with_read);
+    RUN_TEST(append_with_commit);
     RUN_TEST(file_mux);
     RUN_TEST(pipe_mux);
     RUN_TEST(file_errors);

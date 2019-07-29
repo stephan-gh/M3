@@ -91,16 +91,16 @@ public:
 
 private:
     void next_in_out(m3::GateIStream &is, bool out);
-    m3::Errors::Code commit(Request &r, m3::INode *inode, size_t submit);
+    m3::Errors::Code commit_append(Request &r, m3::INode *inode, size_t submit);
 
     size_t _extent;
+    size_t _lastext;
     size_t _extoff;
     size_t _lastoff;
     size_t _extlen;
     size_t _fileoff;
     size_t _lastbytes;
     size_t _accessed;
-    bool _moved_forward;
 
     bool _appending;
     m3::Extent *_append_ext;

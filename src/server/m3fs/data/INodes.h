@@ -57,8 +57,7 @@ public:
                                  size_t *extlen, int perms, capsel_t sel, bool dirty, size_t accessed);
     static size_t req_append(Request &r, m3::INode *inode, size_t i, size_t extoff, size_t *extlen,
                              capsel_t sel, int perm, m3::Extent *ext, size_t accessed);
-    static m3::Errors::Code append_extent(Request &r, m3::INode *inode, m3::Extent *next,
-                                          size_t *prev_ext_len);
+    static m3::Errors::Code append_extent(Request &r, m3::INode *inode, m3::Extent *next, bool *newext);
 
     static m3::Extent *get_extent(Request &r, m3::INode *inode, size_t i, m3::Extent **indir, bool create);
     static m3::Extent *change_extent(Request &r, m3::INode *inode, size_t i, m3::Extent **indir, bool remove);

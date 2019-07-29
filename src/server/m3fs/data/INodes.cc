@@ -131,19 +131,19 @@ size_t INodes::req_append(Request &r, INode *inode, size_t i, size_t extoff, siz
     return r.hdl().backend()->get_filedata(r, ext, extoff, perm, sel, true, load, accessed);
 }
 
-Errors::Code INodes::append_extent(Request &r, INode *inode, Extent *next, size_t *prev_ext_len) {
+Errors::Code INodes::append_extent(Request &r, INode *inode, Extent *next, bool *newext) {
     Extent *indir = nullptr;
 
     Extent *ext = nullptr;
 
-    *prev_ext_len = 0;
+    *newext = true;
     if(inode->extents > 0) {
         ext = INodes::get_extent(r, inode, inode->extents - 1, &indir, false);
         assert(ext != nullptr);
         if(ext->start + ext->length != next->start)
             ext = nullptr;
         else
-            *prev_ext_len = ext->length * r.hdl().sb().blocksize;
+            *newext = false;
     }
 
     if(ext == nullptr) {
