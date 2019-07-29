@@ -55,7 +55,7 @@ INode *INodes::get(Request &r, inodeno_t ino) {
     return inode;
 }
 
-void INodes::stat(Request &, const m3::INode *inode, FileInfo &info) {
+void INodes::stat(Request &r, const m3::INode *inode, FileInfo &info) {
     info.devno = inode->devno;
     info.inode = inode->inode;
     info.mode = inode->mode;
@@ -64,6 +64,7 @@ void INodes::stat(Request &, const m3::INode *inode, FileInfo &info) {
     info.lastaccess = inode->lastaccess;
     info.lastmod = inode->lastmod;
     info.extents = inode->extents;
+    info.blocksize = r.hdl().sb().blocksize;
     info.firstblock = inode->direct[0].start;
 }
 

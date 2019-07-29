@@ -104,6 +104,7 @@ struct FileInfo {
     size_t size;
     time_t lastaccess;
     time_t lastmod;
+    unsigned blocksize;
     // for debugging
     unsigned extents;
     blockno_t firstblock;

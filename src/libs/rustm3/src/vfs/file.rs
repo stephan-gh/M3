@@ -78,6 +78,7 @@ pub struct FileInfo {
     pub size: usize,
     pub lastaccess: u32,
     pub lastmod: u32,
+    pub blocksize: u32,
     // for debugging
     pub extents: u32,
     pub firstblock: BlockId,
@@ -92,6 +93,7 @@ impl Marshallable for FileInfo {
         s.push(&{self.size});
         s.push(&{self.lastaccess});
         s.push(&{self.lastmod});
+        s.push(&{self.blocksize});
         s.push(&{self.extents});
         s.push(&{self.firstblock});
     }
@@ -107,6 +109,7 @@ impl Unmarshallable for FileInfo {
             size:       s.pop_word() as usize,
             lastaccess: s.pop_word() as u32,
             lastmod:    s.pop_word() as u32,
+            blocksize:  s.pop_word() as u32,
             extents:    s.pop_word() as u32,
             firstblock: s.pop_word() as BlockId,
         }

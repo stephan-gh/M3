@@ -108,24 +108,24 @@ private:
 
 template<>
 struct OStreamSize<FileInfo> {
-    static const size_t value = 9 * sizeof(xfer_t);
+    static const size_t value = 10 * sizeof(xfer_t);
 };
 
 static inline Unmarshaller &operator>>(Unmarshaller &u, FileInfo &info) noexcept {
     u >> info.devno >> info.inode >> info.mode >> info.links >> info.size >> info.lastaccess
-      >> info.lastmod >> info.extents >> info.firstblock;
+      >> info.lastmod >> info.blocksize >> info.extents >> info.firstblock;
     return u;
 }
 
 static inline GateIStream &operator>>(GateIStream &is, FileInfo &info) noexcept {
     is >> info.devno >> info.inode >> info.mode >> info.links >> info.size >> info.lastaccess
-      >> info.lastmod >> info.extents >> info.firstblock;
+      >> info.lastmod >> info.blocksize >> info.extents >> info.firstblock;
     return is;
 }
 
 static inline Marshaller &operator<<(Marshaller &m, const FileInfo &info) noexcept {
     m << info.devno << info.inode << info.mode << info.links << info.size << info.lastaccess
-      << info.lastmod << info.extents << info.firstblock;
+      << info.lastmod << info.blocksize << info.extents << info.firstblock;
     return m;
 }
 
