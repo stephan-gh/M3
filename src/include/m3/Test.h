@@ -18,12 +18,15 @@
 
 #include <m3/stream/Standard.h>
 
+extern int failed;
+
 #define WVPERF(name, bench)                                                 \
     m3::cout << "! " << __FILE__ << ":" << __LINE__                         \
              << "  PERF \"" << name << "\": " << bench << "\n"
 
 #define WVASSERT(val) ({                                                    \
         if(!(val)) {                                                        \
+            failed++;                                                       \
             m3::cout << "! " << __FILE__ << ":" << __LINE__                 \
                      << "  expected true, got "                             \
                      << #val << " (false) FAILED\n";                        \
@@ -34,6 +37,7 @@
         auto _a = a;                                                        \
         auto _b = b;                                                        \
         if(_a != _b) {                                                      \
+            failed++;                                                       \
             m3::cout << "! " << __FILE__ << ":" << __LINE__                 \
                      << "  \"" << _a << "\" == \"" << _b << "\" FAILED\n";  \
         }                                                                   \

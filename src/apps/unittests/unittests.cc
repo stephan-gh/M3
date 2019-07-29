@@ -24,7 +24,6 @@
 
 using namespace m3;
 
-int succeeded;
 int failed;
 
 int main() {
