@@ -72,8 +72,9 @@ public:
     static const size_t BUF_SIZE    = 8192;
 
     explicit StreamAccel(std::unique_ptr<VPE> &vpe, cycles_t compTime)
-        : _sgate(),
-          _mgate(),
+        : _sgate_in(),
+          _sgate_out(),
+          _mgate_out(),
           _rgate(RecvGate::create_for(*vpe, getnextlog2(RB_SIZE), getnextlog2(MSG_SIZE))),
           _spm(MemGate::create_global(BUF_SIZE + sizeof(Context), MemGate::RW)),
           _vpe(vpe) {
@@ -94,26 +95,26 @@ public:
         connect_file(file, EP_IN_SEND, EP_IN_MEM, CAP_IN);
     }
     void connect_input(StreamAccel *prev) {
-        _sgate = std::make_unique<SendGate>(
+        _sgate_in = std::make_unique<SendGate>(
             SendGate::create(&prev->_rgate, SendGateArgs().label(LBL_IN_REQ)
                                                           .credits(MSG_SIZE))
         );
-        _sgate->activate_for(*_vpe, EP_IN_SEND);
-        _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate->sel()), CAP_IN);
+        _sgate_in->activate_for(*_vpe, EP_IN_SEND);
+        _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate_in->sel()), CAP_IN);
     }
 
     void connect_output(GenericFile *file) {
         connect_file(file, EP_OUT_SEND, EP_OUT_MEM, CAP_OUT);
     }
     void connect_output(StreamAccel *next) {
-        _sgate = std::make_unique<SendGate>(
+        _sgate_out = std::make_unique<SendGate>(
             SendGate::create(&next->_rgate, SendGateArgs().label(LBL_OUT_REQ)
                                                           .credits(MSG_SIZE))
         );
-        _sgate->activate_for(*_vpe, EP_OUT_SEND);
-        _mgate = std::make_unique<MemGate>(next->_vpe->mem().derive(BUF_ADDR, BUF_SIZE));
-        _mgate->activate_for(*_vpe, EP_OUT_MEM);
-        _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate->sel()), CAP_OUT);
+        _sgate_out->activate_for(*_vpe, EP_OUT_SEND);
+        _mgate_out = std::make_unique<MemGate>(next->_vpe->mem().derive(BUF_ADDR, BUF_SIZE));
+        _mgate_out->activate_for(*_vpe, EP_OUT_MEM);
+        _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate_out->sel()), CAP_OUT);
     }
 
 private:
@@ -123,8 +124,9 @@ private:
         _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, file->sgate().sel()), scap);
     }
 
-    std::unique_ptr<SendGate> _sgate;
-    std::unique_ptr<MemGate> _mgate;
+    std::unique_ptr<SendGate> _sgate_in;
+    std::unique_ptr<SendGate> _sgate_out;
+    std::unique_ptr<MemGate> _mgate_out;
     RecvGate _rgate;
     MemGate _spm;
     std::unique_ptr<VPE> &_vpe;
