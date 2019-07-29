@@ -48,6 +48,11 @@ macro_rules! wv_perf {
     };
 }
 
+extern {
+    #[allow(dead_code)]
+    fn wvtest_failed();
+}
+
 /// Convenience macro that tests whether $a and $b are equal and reports failures
 #[macro_export]
 macro_rules! wv_assert_eq {
@@ -56,6 +61,7 @@ macro_rules! wv_assert_eq {
             (a_val, b_val) => {
                 if *a_val != *b_val {
                     println!("! {}:{}  {:?} == {:?} FAILED", file!(), line!(), &*a_val, &*b_val);
+                    ::wvtest_failed();
                 }
             }
         }
@@ -66,6 +72,7 @@ macro_rules! wv_assert_eq {
             (a_val, b_val) => {
                 if *a_val != *b_val {
                     println!("! {}:{}  {} FAILED", file!(), line!(), format_args!($($arg)+));
+                    ::wvtest_failed();
                 }
             }
         }
@@ -110,11 +117,13 @@ macro_rules! wv_assert_err {
     ($res:expr, $err:expr) => ({
         match $res {
             Ok(r)                           => {
-                println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r)
+                println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
+                ::wvtest_failed();
             },
             Err(ref e) if e.code() != $err  => {
                 println!("! {}:{}  received error {:?}, expected {:?} FAILED",
-                         file!(), line!(), e, $err)
+                         file!(), line!(), e, $err);
+                ::wvtest_failed();
             },
             Err(_)                          => (),
         }
@@ -122,12 +131,14 @@ macro_rules! wv_assert_err {
     ($res:expr, $err1:expr, $err2:expr) => ({
         match $res {
             Ok(r)                           => {
-                println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r)
+                println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
+                ::wvtest_failed();
             },
             Err(ref e) if e.code() != $err1 &&
                           e.code() != $err2 => {
                 println!("! {}:{}  received error {:?}, expected {:?} or {:?} FAILED",
-                         file!(), line!(), e, $err1, $err2)
+                         file!(), line!(), e, $err1, $err2);
+                ::wvtest_failed();
             },
             Err(_)                          => (),
         }
