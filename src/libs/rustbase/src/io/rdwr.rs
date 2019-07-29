@@ -32,11 +32,11 @@ pub trait Read {
     /// Reads at most `max` bytes into a string and returns it
     fn read_string(&mut self, max: usize) -> Result<String, Error> {
         let mut buf = Vec::with_capacity(max);
+        // increase length so that we can write into the slice
+        unsafe { buf.set_len(max); }
 
         let mut off = 0;
         while off < max {
-            // increase length so that we can write into the slice
-            unsafe { buf.set_len(max); }
             let amount = self.read(&mut buf.as_mut_slice()[off..max])?;
 
             // stop on EOF
