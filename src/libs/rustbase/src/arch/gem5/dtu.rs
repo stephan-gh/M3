@@ -323,9 +323,9 @@ impl DTU {
     #[inline(always)]
     pub fn reply(ep: EpId, reply: *const u8, size: usize, msg: &'static Message) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(reply, size));
-        let slice: [usize; 2] = unsafe { intrinsics::transmute(msg) };
+        let msg_addr = msg as *const Message as *const u8 as usize;
         Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(
-            ep, CmdOpCode::REPLY, 0, slice[0] as u64
+            ep, CmdOpCode::REPLY, 0, msg_addr as Reg
         ));
 
         Self::get_error()
