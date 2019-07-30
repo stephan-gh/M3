@@ -74,10 +74,4 @@ void Platform::log(const char *msg) {
 }
 
 void Platform::logf(UNUSED const char *fmt, ...) {
-#if defined(__host__)
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-#endif
 }
