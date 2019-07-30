@@ -1,4 +1,5 @@
 .scons*
+.sconf_temp
 *~
 *.pyc
 *.sublime-project
