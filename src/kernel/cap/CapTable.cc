@@ -82,13 +82,15 @@ void CapTable::revoke_rec(Capability *c, bool revnext) {
     vpe.kmem()->free(vpe, sizeof(SGateCapability));
     if(c->is_root())
         vpe.kmem()->free(vpe, c->obj_size());
-    c->table()->unset(c->sel());
 
     if(child)
         revoke_rec(child, true);
     // on the first level, we don't want to revoke siblings
     if(revnext && next)
         revoke_rec(next, true);
+
+    // delete the object here to allow the child capabilities to use their parent pointer
+    c->table()->unset(c->sel());
 }
 
 void CapTable::revoke(Capability *c, bool revnext) {
