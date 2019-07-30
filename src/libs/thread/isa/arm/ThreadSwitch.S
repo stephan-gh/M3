@@ -16,8 +16,6 @@
 
 #include <base/Asm.h>
 
-#include <thread/isa/arm/Thread.h>
-
 # bool thread_save(m3::Thread::Regs *regs);
 BEGIN_FUNC(thread_save)
     mov     r1, #1 // thread_resume's return value

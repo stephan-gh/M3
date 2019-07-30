@@ -16,8 +16,6 @@
 
 #include <base/Asm.h>
 
-#include <thread/isa/x86_64/Thread.h>
-
 # bool thread_save(m3::Thread::Regs *regs);
 BEGIN_FUNC(thread_save)
     # save registers

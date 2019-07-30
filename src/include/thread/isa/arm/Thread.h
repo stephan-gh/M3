@@ -16,7 +16,6 @@
 
 #pragma once
 
-#ifdef __cplusplus
 #include <base/Types.h>
 
 namespace m3 {
@@ -41,5 +40,3 @@ enum {
 };
 
 }
-
-#endif
