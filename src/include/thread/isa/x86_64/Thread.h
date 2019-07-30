@@ -32,7 +32,7 @@ struct Regs {
     word_t r15;
     word_t rflags;
     word_t rdi;
-};
+} PACKED;
 
 enum {
 #if defined(__SANITIZE_ADDRESS__)

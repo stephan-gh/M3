@@ -34,7 +34,7 @@ struct Regs {
     word_t r13;
     word_t r14;
     word_t cpsr;
-};
+} PACKED;
 
 enum {
     T_STACK_WORDS = 1024
