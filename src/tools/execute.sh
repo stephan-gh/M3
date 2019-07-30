@@ -150,6 +150,8 @@ build_params_gem5() {
     export M3_GEM5_IDE_DRIVE=$build/$M3_HDD
 
     params=`mktemp`
+    trap "rm -f $params" EXIT ERR INT TERM
+
     echo -n "--outdir=$M3_GEM5_OUT --debug-file=gem5.log --debug-flags=$M3_GEM5_DBG" >> $params
     if [ "$M3_PAUSE_PE" != "" ]; then
         echo -n " --listener-mode=on" >> $params
@@ -175,17 +177,15 @@ build_params_gem5() {
     export M5_PATH=$build
     if [ "$DBG_GEM5" != "" ]; then
         tmp=`mktemp`
+        trap "rm -f $tmp" EXIT ERR INT TERM
         echo "b main" >> $tmp
         echo -n "run " >> $tmp
         cat $params >> $tmp
         echo >> $tmp
         gdb --tui hw/gem5/build/$gem5build/gem5.debug --command=$tmp
-        rm $tmp
     else
         xargs -a $params hw/gem5/build/$gem5build/gem5.opt
     fi
-
-    rm $params
 }
 
 if [ "$M3_TARGET" = "host" ]; then
