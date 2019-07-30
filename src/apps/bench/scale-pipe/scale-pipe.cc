@@ -258,8 +258,8 @@ int main(int argc, char **argv) {
 
         int res = srv_vpes[i]->wait();
         if(VERBOSE) cout << "server " << i << " exited with " << res << "\n";
-        delete srv_vpes[i];
         delete srvs[i];
+        delete srv_vpes[i];
     }
 
     if(VERBOSE) cout << "Done\n";
