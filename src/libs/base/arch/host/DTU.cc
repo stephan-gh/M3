@@ -114,8 +114,6 @@ Errors::Code DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     }
 
     Buffer *buf = reinterpret_cast<Buffer*>(reply);
-    assert(buf->has_replycap);
-
     if(!buf->has_replycap) {
         LLOG(DTUERR, "DMA-error: EP" << ep << ": double-reply for msg " << (void*)reply);
         return Errors::INV_ARGS;
