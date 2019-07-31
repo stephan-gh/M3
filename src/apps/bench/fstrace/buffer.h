@@ -7,17 +7,9 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
-#ifndef __TRACE_BENCH_BUFFER_H
-#define __TRACE_BENCH_BUFFER_H
-
-#include <string.h>
-#include <new>
+#pragma once
 
 #include "exceptions.h"
-
-/*
- * *************************************************************************
- */
 
 class Buffer {
   public:
@@ -28,14 +20,11 @@ class Buffer {
     virtual ~Buffer();
 
     char *readBuffer(size_t size);
-    char *writeBuffer(size_t size, bool nonNull = false);
+    char *writeBuffer(size_t size);
 
   protected:
     size_t maxReadSize;
     size_t maxWriteSize;
-    char   state;
     char  *readBuf;
     char  *writeBuf;
 };
-
-#endif // __TRACE_BENCH_BUFFER_H

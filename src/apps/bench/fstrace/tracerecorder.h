@@ -7,17 +7,12 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
-#ifndef __TRACE_BENCH_TRACE_RECORDER_H
-#define __TRACE_BENCH_TRACE_RECORDER_H
+#pragma once
 
 #include <list>
 #include <set>
 
 #include "opdescr.h"
-
-/*
- * *************************************************************************
- */
 
 class TraceRecorder {
 
@@ -57,5 +52,3 @@ class TraceRecorder {
     TraceList  ops;
     SysCallSet sysCalls;
 };
-
-#endif // __TRACE_BENCH_TRACE_RECORDER_H

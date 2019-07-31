@@ -8,27 +8,7 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
-#ifndef __TRACE_BENCH_OP_TYPES_H
-#define __TRACE_BENCH_OP_TYPES_H
-
-#ifdef __cplusplus
-#define BEGIN_EXTERN_C extern "C" {
-#define END_EXTERN_C } // extern "C"
-#else
-#define BEGIN_EXTERN_C
-#define END_EXTERN_C
-#endif
-
-/*
- * *************************************************************************
- */
-
-// #ifndef _LARGEFILE64_SOURCE
-// # define _LARGEFILE64_SOURCE
-// #endif
-// #ifndef _FILE_OFFSET_BITS
-// # define _FILE_OFFSET_BITS 64
-// #endif
+#pragma once
 
 #if defined(__LINUX__)
 // for O_CLOEXEC and O_DIRECTORY
@@ -61,17 +41,6 @@ typedef long off_t;
 #   endif
 #endif
 
-
-/*
- * *************************************************************************
- */
-
-BEGIN_EXTERN_C
-
-/*
- * *************************************************************************
- */
-
 #ifndef O_EXLOCK
 # define O_EXLOCK 0
 #endif
@@ -83,10 +52,6 @@ BEGIN_EXTERN_C
 #ifndef O_SHLOCK
 # define O_SHLOCK 0
 #endif
-
-/*
- * *************************************************************************
- */
 
 typedef enum {
     INVALID_OP,
@@ -114,10 +79,6 @@ typedef enum {
     RECVFROM_OP,
     WRITEV_OP,
 } trace_opcode_t;
-
-/*
- * *************************************************************************
- */
 
 typedef struct { int err; uint64_t timestamp; } waituntil_args_t;
 typedef struct { int fd; char const * name; int flags; int mode; } open_args_t;
@@ -171,11 +132,3 @@ typedef struct {
         writev_args_t     writev;
     } args;
 } trace_op_t;
-
-/*
- * *************************************************************************
- */
-
-END_EXTERN_C
-
-#endif // __TRACE_BENCH_OP_TYPES_H

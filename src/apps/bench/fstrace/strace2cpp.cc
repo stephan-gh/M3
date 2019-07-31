@@ -9,29 +9,8 @@
 
 #include "tracerecorder.h"
 #include "exceptions.h"
-#include "platform_common.h"
 
 #include <fs/internal.h>
-
-/*
- * *************************************************************************
- */
-
-void Platform::init(int argc, const char * const argv[], const char *loadgen) {
-
-    // nothing to do here
-    (void)argc; (void)argv; (void)loadgen;
-}
-
-
-void Platform::log(const char *msg) {
-
-    std::cerr << msg << std::endl;
-}
-
-/*
- * *************************************************************************
- */
 
 FILE *file;
 m3::SuperBlock sb;
@@ -39,7 +18,7 @@ m3::SuperBlock sb;
 int main(int argc, char **argv) {
     if(argc != 2) {
         std::cerr << "Usage: " << argv[0] << " <name>\n";
-        exit(1);
+        return 1;
     }
 
     const char *name = argv[1];
@@ -51,7 +30,7 @@ int main(int argc, char **argv) {
         rec.print(name);
     }
     catch (Exception &e) {
-        e.complain();
+        std::cerr << "Caught exception: " << e.msg() << "\n";
         return 1;
     }
 

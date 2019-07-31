@@ -8,16 +8,11 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
-#ifndef __TRACE_BENCH_OP_DESCR_H
-#define __TRACE_BENCH_OP_DESCR_H
+#pragma once
 
 #include <iostream>
 #include <vector>
 #include <string>
-
-/*
- * *************************************************************************
- */
 
 class OpDescr {
 
@@ -77,9 +72,6 @@ class FoldableOpDescr: public OpDescr {
     unsigned int repeatCount;
 };
 
-/*
- * *************************************************************************
- */
 
 class OpDescrFactory {
 
@@ -98,5 +90,3 @@ class OpDescrFactory {
   protected:
     static bool isStringHead(const std::string &str, const std::string &head);
 };
-
-#endif // __TRACE_BENCH_OP_DESCR_H

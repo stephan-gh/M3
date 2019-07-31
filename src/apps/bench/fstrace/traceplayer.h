@@ -8,21 +8,13 @@
  * GNU General Public License 2. Please see the COPYING-GPL-2 file for details.
  */
 
-#ifndef __TRACE_BENCH_TRACE_PLAYER_H
-#define __TRACE_BENCH_TRACE_PLAYER_H
+#pragma once
 
-#include <string>
-#include <list>
-#include <map>
-#include <string>
+#include <m3/session/LoadGen.h>
 
 #include "buffer.h"
 #include "op_types.h"
 #include "traces.h"
-
-/*
- * *************************************************************************
- */
 
 class TracePlayer {
   public:
@@ -32,11 +24,11 @@ class TracePlayer {
         : pathPrefix(rootDir) { }
 
     virtual ~TracePlayer() { };
-    virtual int play(Trace *trace, bool wait, bool data = true, bool stdio = false, bool keep_time = false, bool make_chkpt = false);
+
+    virtual int play(Trace *trace, m3::LoadGen::Channel *chan,
+                     bool data = true, bool stdio = false,
+                     bool keep_time = false, bool verbose = false);
 
   protected:
     const char *pathPrefix;
 };
-
-#endif /* __TRACE_BENCH_TRACE_PLAYER_H */
-

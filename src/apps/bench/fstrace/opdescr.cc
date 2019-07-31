@@ -9,19 +9,15 @@
  */
 
 #include <stdio.h>
-//#include <sys/types.h>
 #include <regex.h>
+
+#include <sstream>
 
 #include "opdescr.h"
 #include "exceptions.h"
 
-#include <sstream>
-
 using namespace std;
 
-/*
- * *************************************************************************
- */
 
 std::string OpDescr::codeLine(unsigned int lineNo) {
 
@@ -174,9 +170,6 @@ string OpDescr::codeLine() {
     return codeStr;
 }
 
-/*
- * *************************************************************************
- */
 
 string FoldableOpDescr::codeLine() {
 
@@ -204,9 +197,6 @@ bool FoldableOpDescr::merge(const FoldableOpDescr &fod) {
     return true;
 }
 
-/*
- * *************************************************************************
- */
 
 class WaitUntilOpDescr: public FoldableOpDescr {
 public:
@@ -366,9 +356,6 @@ public:
     WritevOpDescr(const std::string &str);
 };
 
-/*
- * *************************************************************************
- */
 
 WaitUntilOpDescr::WaitUntilOpDescr(const string &in) {
 
@@ -379,9 +366,6 @@ WaitUntilOpDescr::WaitUntilOpDescr(const string &in) {
     buildCodeLine("WAITUNTIL_OP", "waituntil", retVal + ", " + args[0]);
 }
 
-/*
- * *************************************************************************
- */
 
 OpenOpDescr::OpenOpDescr(const string &in) {
 
@@ -394,9 +378,6 @@ OpenOpDescr::OpenOpDescr(const string &in) {
                   ", " + ((args.size() > 2) ? args[2] : "0"));
 }
 
-/*
- * *************************************************************************
- */
 
 CloseOpDescr::CloseOpDescr(const string &in) {
 
@@ -407,9 +388,6 @@ CloseOpDescr::CloseOpDescr(const string &in) {
     buildCodeLine("CLOSE_OP", "close", retVal + ", " + args[0]);
 }
 
-/*
- * *************************************************************************
- */
 
 FsyncOpDescr::FsyncOpDescr(const string &in) {
 
@@ -420,9 +398,6 @@ FsyncOpDescr::FsyncOpDescr(const string &in) {
     buildCodeLine("FSYNC_OP", "fsync", retVal + ", " + args[0]);
 }
 
-/*
- * *************************************************************************
- */
 
 ReadOpDescr::ReadOpDescr(const string &in) {
 
@@ -434,9 +409,6 @@ ReadOpDescr::ReadOpDescr(const string &in) {
     buildCodeLine("READ_OP", "read", argStr);
 }
 
-/*
- * *************************************************************************
- */
 
 WriteOpDescr::WriteOpDescr(const string &in) {
 
@@ -448,9 +420,6 @@ WriteOpDescr::WriteOpDescr(const string &in) {
     buildCodeLine("WRITE_OP", "write", argStr);
 }
 
-/*
- * *************************************************************************
- */
 
 PReadOpDescr::PReadOpDescr(const string &in) {
 
@@ -462,9 +431,6 @@ PReadOpDescr::PReadOpDescr(const string &in) {
     buildCodeLine("PREAD_OP", "pread", argStr);
 }
 
-/*
- * *************************************************************************
- */
 
 PWriteOpDescr::PWriteOpDescr(const string &in) {
 
@@ -476,9 +442,6 @@ PWriteOpDescr::PWriteOpDescr(const string &in) {
     buildCodeLine("PWRITE_OP", "pwrite", argStr);
 }
 
-/*
- * *************************************************************************
- */
 
 LSeekOpDescr::LSeekOpDescr(const string &in) {
 
@@ -490,9 +453,6 @@ LSeekOpDescr::LSeekOpDescr(const string &in) {
                   retVal + ", " + args[0] + ", " + args[1] + ", " + args[2]);
 }
 
-/*
- * *************************************************************************
- */
 
 _LlSeekOpDescr::_LlSeekOpDescr(const string &in) {
 
@@ -506,9 +466,6 @@ _LlSeekOpDescr::_LlSeekOpDescr(const string &in) {
                   args[0] + ", " + args[1] + ", " + args[3]);
 }
 
-/*
- * *************************************************************************
- */
 
 FTruncateOpDescr::FTruncateOpDescr(const string &in) {
 
@@ -519,9 +476,6 @@ FTruncateOpDescr::FTruncateOpDescr(const string &in) {
     buildCodeLine("FTRUNCATE_OP", "ftruncate", retVal + ", " + args[0] + ", " + args[1]);
 }
 
-/*
- * *************************************************************************
- */
 
 FStatOpDescr::FStatOpDescr(const string &in) {
 
@@ -532,9 +486,6 @@ FStatOpDescr::FStatOpDescr(const string &in) {
     buildCodeLine("FSTAT_OP", "fstat", retVal + ", " + args[0]);
 }
 
-/*
- * *************************************************************************
- */
 
 FStatAtOpDescr::FStatAtOpDescr(const string &in) {
 
@@ -545,9 +496,6 @@ FStatAtOpDescr::FStatAtOpDescr(const string &in) {
     buildCodeLine("FSTATAT_OP", "fstatat", retVal + ", " + args[1]);
 }
 
-/*
- * *************************************************************************
- */
 
 StatOpDescr::StatOpDescr(const string &in) {
 
@@ -558,9 +506,6 @@ StatOpDescr::StatOpDescr(const string &in) {
     buildCodeLine("STAT_OP", "stat", retVal + ", " + args[0]);
 }
 
-/*
- * *************************************************************************
- */
 
 RenameOpDescr::RenameOpDescr(const string &in) {
 
@@ -571,9 +516,6 @@ RenameOpDescr::RenameOpDescr(const string &in) {
     buildCodeLine("RENAME_OP", "rename", retVal + ", " + args[0] + ", " + args[1]);
 }
 
-/*
- * *************************************************************************
- */
 
 UnlinkOpDescr::UnlinkOpDescr(const string &in) {
 
@@ -584,9 +526,6 @@ UnlinkOpDescr::UnlinkOpDescr(const string &in) {
     buildCodeLine("UNLINK_OP", "unlink", retVal + ", " + args[0]);
 }
 
-/*
- * *************************************************************************
- */
 
 RmdirOpDescr::RmdirOpDescr(const string &in) {
 
@@ -597,9 +536,6 @@ RmdirOpDescr::RmdirOpDescr(const string &in) {
     buildCodeLine("RMDIR_OP", "rmdir", retVal + ", " + args[0]);
 }
 
-/*
- * *************************************************************************
- */
 
 MkdirOpDescr::MkdirOpDescr(const string &in) {
 
@@ -610,9 +546,6 @@ MkdirOpDescr::MkdirOpDescr(const string &in) {
     buildCodeLine("MKDIR_OP", "mkdir", retVal + ", " + args[0] + ", " + args[1]);
 }
 
-/*
- * *************************************************************************
- */
 
 SendfileOpDescr::SendfileOpDescr(const string &in) {
 
@@ -625,9 +558,6 @@ SendfileOpDescr::SendfileOpDescr(const string &in) {
                   retVal + ", " + args[0] + ", " + args[1] + ", 0, " + args[3]);
 }
 
-/*
- * *************************************************************************
- */
 
 GetDEntsOpDescr::GetDEntsOpDescr(const string &in) {
 
@@ -639,9 +569,6 @@ GetDEntsOpDescr::GetDEntsOpDescr(const string &in) {
                   retVal + ", " + args[0] + ", " + args[1] + ", " + args[2]);
 }
 
-/*
- * *************************************************************************
- */
 
 CreateFileOpDescr::CreateFileOpDescr(const string &in) {
 
@@ -653,9 +580,6 @@ CreateFileOpDescr::CreateFileOpDescr(const string &in) {
                   retVal + ", " + args[0] + ", " + args[1] + ", " + args[2]);
 }
 
-/*
- * *************************************************************************
- */
 
 AcceptOpDescr::AcceptOpDescr(const string &in) {
 
@@ -667,9 +591,6 @@ AcceptOpDescr::AcceptOpDescr(const string &in) {
                   retVal + ", " + args[0]);
 }
 
-/*
- * *************************************************************************
- */
 
 RecvFromOpDescr::RecvFromOpDescr(const string &in) {
 
@@ -681,9 +602,6 @@ RecvFromOpDescr::RecvFromOpDescr(const string &in) {
     buildCodeLine("RECVFROM_OP", "recvfrom", argStr);
 }
 
-/*
- * *************************************************************************
- */
 
 WritevOpDescr::WritevOpDescr(const string &in) {
 
@@ -697,9 +615,6 @@ WritevOpDescr::WritevOpDescr(const string &in) {
     buildCodeLine("WRITEV_OP", "writev", argStr);
 }
 
-/*
- * *************************************************************************
- */
 
 OpDescr *OpDescrFactory::create(const string &line) {
 

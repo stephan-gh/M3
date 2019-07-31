@@ -27,6 +27,7 @@ public:
 
     virtual void start() = 0;
     virtual void stop() = 0;
+
     virtual void checkpoint(int numReplayed, int numTraceOps, bool make_chkpt) = 0;
     virtual void waituntil(const waituntil_args_t *args, int lineNo) = 0;
     virtual void open(const open_args_t *args, int lineNo) = 0;

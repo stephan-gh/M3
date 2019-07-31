@@ -25,9 +25,9 @@
 #include <m3/vfs/VFS.h>
 #include <m3/VPE.h>
 
-#include "common/exceptions.h"
-#include "common/fsapi.h"
-#include "common/buffer.h"
+#include "exceptions.h"
+#include "fsapi.h"
+#include "buffer.h"
 
 class FSAPI_M3FS : public FSAPI {
     enum { MaxOpenFds = 16 };
@@ -38,9 +38,8 @@ class FSAPI_M3FS : public FSAPI {
     }
 
 public:
-    explicit FSAPI_M3FS(bool wait, bool data, bool stdio, m3::String const &prefix, m3::LoadGen::Channel *lgchan)
-        : _wait(wait),
-          _data(data),
+    explicit FSAPI_M3FS(bool data, bool stdio, m3::String const &prefix, m3::LoadGen::Channel *lgchan)
+        : _data(data),
           _start(),
           _prefix(prefix),
           _fdMap(),
@@ -71,8 +70,7 @@ public:
     }
 
     virtual void waituntil(UNUSED const waituntil_args_t *args, int) override {
-        if(_wait)
-            m3::CPU::compute(args->timestamp);
+        m3::CPU::compute(args->timestamp);
     }
 
     virtual void open(const open_args_t *args, UNUSED int lineNo) override {
@@ -92,7 +90,7 @@ public:
         }
         catch(const m3::Exception &e) {
             if(args->fd != -1)
-               THROW1(ReturnValueException, e.code(), args->fd, lineNo);
+               throw ReturnValueException(e.code(), args->fd, lineNo);
         }
     }
 
@@ -170,7 +168,7 @@ public:
         }
         catch(...) {
             // ignore
-            // THROW1(ReturnValueException, res, args->offset, lineNo);
+            // throw ReturnValueException(res, args->offset, lineNo);
         }
     }
 
@@ -202,21 +200,21 @@ public:
         });
 
         if ((res == m3::Errors::NONE) != (args->err == 0))
-            THROW1(ReturnValueException, res, args->err, lineNo);
+            throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void fstatat(const fstatat_args_t *args, UNUSED int lineNo) override {
         m3::FileInfo info;
         m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
         if ((res == m3::Errors::NONE) != (args->err == 0))
-            THROW1(ReturnValueException, res, args->err, lineNo);
+            throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void stat(const stat_args_t *args, UNUSED int lineNo) override {
         m3::FileInfo info;
         m3::Errors::Code res = m3::VFS::try_stat(add_prefix(args->name), info);
         if ((res == m3::Errors::NONE) != (args->err == 0))
-            THROW1(ReturnValueException, res, args->err, lineNo);
+            throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void rename(const rename_args_t *args, int lineNo) override {
@@ -225,13 +223,13 @@ public:
             m3::VFS::link(add_prefix(args->from), add_prefix_to(args->to, todst, sizeof(todst)));
         });
         if ((res == m3::Errors::NONE) != (args->err == 0))
-            THROW1(ReturnValueException, res, args->err, lineNo);
+            throw ReturnValueException(res, args->err, lineNo);
 
         res = get_result_of([this, &args] {
             m3::VFS::unlink(add_prefix(args->from));
         });
         if ((res == m3::Errors::NONE) != (args->err == 0))
-            THROW1(ReturnValueException, res, args->err, lineNo);
+            throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void unlink(const unlink_args_t *args, UNUSED int lineNo) override {
@@ -239,7 +237,7 @@ public:
             m3::VFS::unlink(add_prefix(args->name));
         });
         if ((res == m3::Errors::NONE) != (args->err == 0))
-            THROW1(ReturnValueException, res, args->err, lineNo);
+            throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void rmdir(const rmdir_args_t *args, UNUSED int lineNo) override {
@@ -247,7 +245,7 @@ public:
             m3::VFS::rmdir(add_prefix(args->name));
         });
         if ((res == m3::Errors::NONE) != (args->err == 0))
-            THROW1(ReturnValueException, res, args->err, lineNo);
+            throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void mkdir(const mkdir_args_t *args, UNUSED int lineNo) override {
@@ -255,7 +253,7 @@ public:
             m3::VFS::mkdir(add_prefix(args->name), 0777 /*args->mode*/);
         });
         if ((res == m3::Errors::NONE) != (args->err == 0))
-            THROW1(ReturnValueException, res, args->err, lineNo);
+            throw ReturnValueException(res, args->err, lineNo);
     }
 
     virtual void sendfile(Buffer &buf, const sendfile_args_t *args, int lineNo) override {
@@ -281,12 +279,12 @@ public:
 
             ssize_t wres = write_file(out, rbuf, static_cast<size_t>(res));
             if(wres != static_cast<ssize_t>(res))
-                THROW1(ReturnValueException, wres, res, lineNo);
+                throw ReturnValueException(wres, res, lineNo);
 
             rem -= static_cast<size_t>(res);
         }
         if(static_cast<int>(args->count - rem) != args->err)
-            THROW1(ReturnValueException, args->count - rem, args->err, lineNo);
+            throw ReturnValueException(args->count - rem, args->err, lineNo);
     }
 
     virtual void getdents(const getdents_args_t *args, UNUSED int lineNo) override {
@@ -299,12 +297,12 @@ public:
             // we don't check the result here because strace is often unable to determine the number of
             // fetched entries.
             if(args->count == 0 && _dirMap[args->fd]->readdir(e))
-                ; //THROW1(ReturnValueException, 1, args->count, lineNo);
+                ; //throw ReturnValueException(1, args->count, lineNo);
             else {
                 for(i = 0; i < args->count && _dirMap[args->fd]->readdir(e); ++i)
                     ;
                 //if(i != args->count)
-                //    THROW1(ReturnValueException, i, args->count, lineNo);
+                //    throw ReturnValueException(i, args->count, lineNo);
             }
         }
         catch(...) {
@@ -317,27 +315,27 @@ public:
 
     virtual void accept(const accept_args_t *args, int lineNo) override {
         if(!_lgchan)
-            THROW1(IllegalArgumentException, -ENOTSUP, 0, lineNo);
+            throw NotSupportedException(lineNo);
         _lgchan->wait();
         _lgchan_fd = args->err;
     }
     virtual void recvfrom(Buffer &buf, const recvfrom_args_t *args, int lineNo) override {
         if(!_lgchan)
-            THROW1(IllegalArgumentException, -ENOTSUP, 0, lineNo);
+            throw NotSupportedException(lineNo);
 
         char *rbuf = buf.readBuffer(args->size);
         _lgchan->pull(rbuf, args->size);
     }
     virtual void writev(Buffer &buf, const writev_args_t *args, int lineNo) override {
         if(!_lgchan)
-            THROW1(IllegalArgumentException, -ENOTSUP, 0, lineNo);
+            throw NotSupportedException(lineNo);
 
         char *wbuf = buf.writeBuffer(args->size);
         _lgchan->push(wbuf, args->size);
     }
     void lgchansend(Buffer &buf, const sendfile_args_t *args, int lineNo) {
         if(!_lgchan)
-            THROW1(IllegalArgumentException, -ENOTSUP, 0, lineNo);
+            throw NotSupportedException(lineNo);
 
         checkFd(args->in_fd);
         auto in = m3::VPE::self().fds()->get(_fdMap[args->in_fd]);

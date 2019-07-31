@@ -20,20 +20,22 @@
 #include <base/Panic.h>
 #include <base/CmdArgs.h>
 
+#include <m3/session/LoadGen.h>
 #include <m3/session/M3FS.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Test.h>
 
-#include "common/traceplayer.h"
-#include "platform.h"
+#include "traceplayer.h"
 
 using namespace m3;
 
 static const size_t MAX_TMP_FILES   = 128;
 static const bool VERBOSE           = 0;
 static const uint META_EPS          = 4;
+
+static m3::LoadGen::Channel *chan;
 
 static void remove_rec(const char *path) {
     if(VERBOSE) cerr << "Unlinking " << path << "\n";
@@ -93,21 +95,20 @@ static void cleanup() {
 }
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-f <fs>] [-t] [-u <warmup>]"
+    cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-f <fs>] [-t] [-v] [-u <warmup>]"
                               << " [-g <rgate selector>] [-l <loadgen>] [-i] [-d] <name>\n";
     exit(1);
 }
 
 int main(int argc, char **argv) {
     // defaults
-    ulong num_iterations  = 1;
-    ulong warmup          = 0;
-    bool keep_time      = true;
-    bool make_ckpt      = false;
-    bool wait           = false;
+    ulong iters         = 1;
+    ulong warmup        = 0;
+    bool keep_time      = false;
     bool stdio          = false;
     bool data           = false;
     bool wvtest         = false;
+    bool verbose        = false;
     const char *fs      = "m3fs";
     const char *prefix  = "";
     const char *loadgen = "";
@@ -115,17 +116,18 @@ int main(int argc, char **argv) {
     epid_t rgate_ep     = EP_COUNT;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "p:n:wf:g:l:idtu:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "p:n:wf:g:l:idtu:v")) != -1) {
         switch(opt) {
             case 'p': prefix = CmdArgs::arg; break;
-            case 'n': num_iterations = IStringStream::read_from<ulong>(CmdArgs::arg); break;
-            case 'w': wait = true; break;
+            case 'n': iters = IStringStream::read_from<ulong>(CmdArgs::arg); break;
+            case 'w': keep_time = true; break;
             case 'f': fs = CmdArgs::arg; break;
             case 'l': loadgen = CmdArgs::arg; break;
             case 'i': stdio = true; break;
             case 'd': data = true; break;
             case 't': wvtest = true; break;
             case 'u': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
+            case 'v': verbose = true; break;
             case 'g': {
                 IStringStream is(CmdArgs::arg);
                 is >> rgate >> rgate_ep;
@@ -138,7 +140,17 @@ int main(int argc, char **argv) {
     if(CmdArgs::ind >= argc)
         usage(argv[0]);
 
-    Platform::init(argc, argv, loadgen);
+    // connect to load generator
+    if(*loadgen) {
+        try {
+            m3::LoadGen *lg = new m3::LoadGen(loadgen);
+            chan = lg->create_channel(2 * 1024 * 1024);
+            lg->start(3 * 11);
+        }
+        catch(...) {
+            // ignore
+        }
+    }
 
     if(*prefix) {
         try {
@@ -168,9 +180,9 @@ int main(int argc, char **argv) {
     unsigned int numTraceOps = 0;
     trace_op_t *op = trace->trace_ops;
     while (op && op->opcode != INVALID_OP) {
-        op++;
         if (op->opcode != WAITUNTIL_OP)
             numTraceOps++;
+        op++;
     }
 
     if(rgate != ObjCap::INVALID) {
@@ -187,8 +199,8 @@ int main(int argc, char **argv) {
     // print parameters for reference
     cerr << "VPFS trace_bench started ["
          << "trace=" << argv[CmdArgs::ind] << ","
-         << "n=" << num_iterations << ","
-         << "wait=" << (wait ? "yes" : "no") << ","
+         << "n=" << iters << ","
+         << "wait=" << (keep_time ? "yes" : "no") << ","
          << "data=" << (data ? "yes" : "no") << ","
          << "stdio=" << (stdio ? "yes" : "no") << ","
          << "prefix=" << prefix << ","
@@ -197,7 +209,7 @@ int main(int argc, char **argv) {
          << "ops=" << numTraceOps
          << "]\n";
 
-    Profile pr(num_iterations, warmup);
+    Profile pr(iters, warmup);
     struct FSTraceRunner : public Runner {
         std::function<void()> func;
 
@@ -215,7 +227,7 @@ int main(int argc, char **argv) {
     };
 
     FSTraceRunner runner([&] {
-        player.play(trace, wait, data, stdio, keep_time, make_ckpt);
+        player.play(trace, chan, data, stdio, keep_time, verbose);
     });
     if(wvtest)
         WVPERF(argv[CmdArgs::ind], pr.runner_with_id(runner, 0xFFFF));
@@ -223,8 +235,5 @@ int main(int argc, char **argv) {
         pr.runner_with_id(runner, 0xFFFF);
 
     cerr << "VPFS trace_bench benchmark terminated\n";
-
-    // done
-    Platform::shutdown();
     return 0;
 }

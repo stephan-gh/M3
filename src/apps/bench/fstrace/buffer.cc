@@ -9,15 +9,11 @@
 
 #include "buffer.h"
 
-/*
- * *************************************************************************
- */
 
 Buffer::Buffer(size_t maxReadSize, size_t maxWriteSize) {
 
     this->maxReadSize  = maxReadSize;
     this->maxWriteSize = maxWriteSize;
-    this->state        = 1;
 
     readBuf  = new char[maxReadSize];
     writeBuf = new char[maxWriteSize];
@@ -25,11 +21,8 @@ Buffer::Buffer(size_t maxReadSize, size_t maxWriteSize) {
     if (readBuf == 0 || writeBuf == 0) {
         delete [] readBuf;
         delete [] writeBuf;
-        THROW(OutOfMemoryException);
+        throw OutOfMemoryException();
     }
-
-    // memset(readBuf, 0, maxReadSize);
-    // memset(writeBuf, 0, maxWriteSize);
 }
 
 
@@ -43,19 +36,16 @@ Buffer::~Buffer() {
 char *Buffer::readBuffer(size_t size) {
 
     if (size > maxReadSize)
-        THROW(OutOfMemoryException);
+        throw OutOfMemoryException();
 
     return readBuf;
 }
 
 
-char *Buffer::writeBuffer(size_t size, bool) {
+char *Buffer::writeBuffer(size_t size) {
 
     if (size > maxWriteSize)
-        THROW(OutOfMemoryException);
-
-    // char byte = (nonNull) ? 0 : state++;
-    // memset(writeBuf, byte, size);
+        throw OutOfMemoryException();
 
     return writeBuf;
 }

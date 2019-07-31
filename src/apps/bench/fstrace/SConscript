@@ -2,5 +2,19 @@ import os
 
 Import('env', 'hostenv')
 
-for d in ['strace2cpp', 'm3fs']:
-    hostenv.SConscript(d + '/SConscript', exports = ['env', 'hostenv'])
+env.M3Program(env,
+    target = 'fstrace-m3fs',
+    source = [
+        env.Glob('traces/*.c'),
+        'player_main.cc', 'traceplayer.cc', 'buffer.cc', 'traces.cc'
+    ]
+)
+
+hostenv = hostenv.Clone()
+hostenv.Append(
+    CPPFLAGS = ' -D__LINUX__=1',
+)
+hostenv.Program(
+    target = 'strace2cpp',
+    source = ['strace2cpp.cc', 'tracerecorder.cc', 'opdescr.cc']
+)
