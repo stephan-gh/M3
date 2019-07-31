@@ -13,3 +13,5 @@ Cargo.lock
 /cross/*.tar.bz2
 /run
 /config.log
+/dddg_parse_progress.out
+/out.csv
