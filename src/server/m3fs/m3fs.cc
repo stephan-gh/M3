@@ -37,10 +37,6 @@
 #include "sess/MetaSession.h"
 #include "FSHandle.h"
 
-// TODO remove workloop; do it like in rust
-
-// TODO rust-unittests tpipe child_to_parent is broken with MMU=1
-
 using namespace m3;
 
 class M3FSRequestHandler;
