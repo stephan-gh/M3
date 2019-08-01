@@ -206,8 +206,12 @@ Errors::Code DTU::prepare_ackmsg(epid_t ep) {
     }
 
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
+    if(!bit_set(occupied, idx)) {
+        LLOG(DTUERR, "DMA-error: EP" << ep << ": slot at " << (void*)addr << " not occupied");
+        return Errors::INV_ARGS;
+    }
+
     word_t unread = get_ep(ep, EP_BUF_UNREAD);
-    assert(bit_set(occupied, idx));
     set_bit(occupied, idx, false);
     if(bit_set(unread, idx)) {
         set_bit(unread, idx, false);
