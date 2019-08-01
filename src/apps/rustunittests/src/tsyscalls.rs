@@ -193,7 +193,7 @@ fn create_vpe() {
 
 fn activate() {
     let ep1     = VPE::cur().ep_sel(wv_assert_ok!(VPE::cur().alloc_ep()));
-    // let ep2     = VPE::cur().ep_sel(wv_assert_ok!(VPE::cur().alloc_ep()));
+    let ep2     = VPE::cur().ep_sel(wv_assert_ok!(VPE::cur().alloc_ep()));
     let sel     = VPE::cur().alloc_sel();
     let mgate   = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
 
@@ -205,9 +205,9 @@ fn activate() {
     // invalid address
     wv_assert_err!(syscalls::activate(ep1, mgate.sel(), 0x1000), Code::InvArgs);
     wv_assert_err!(syscalls::activate(ep1, mgate.sel(), !0), Code::InvArgs);
-    // already activated; TODO does not work with rustkernel
-    // wv_assert_ok!(syscalls::activate(ep1, mgate.sel(), 0));
-    // wv_assert_err!(syscalls::activate(ep2, mgate.sel(), 0), Code::Exists);
+    // already activated
+    wv_assert_ok!(syscalls::activate(ep1, mgate.sel(), 0));
+    wv_assert_err!(syscalls::activate(ep2, mgate.sel(), 0), Code::Exists);
 }
 
 fn derive_mem() {
