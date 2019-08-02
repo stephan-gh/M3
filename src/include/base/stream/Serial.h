@@ -79,8 +79,8 @@ private:
     size_t _outpos;
     size_t _inpos;
     size_t _inlen;
-    alignas(DTU_PKG_SIZE) char _outbuf[OUTBUF_SIZE];
-    alignas(DTU_PKG_SIZE) char _inbuf[INBUF_SIZE];
+    char _outbuf[OUTBUF_SIZE];
+    char _inbuf[INBUF_SIZE];
 
     static const char *_colors[];
     static Serial *_inst;

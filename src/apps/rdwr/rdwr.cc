@@ -24,8 +24,8 @@ using namespace m3;
 
 static constexpr size_t SIZE = 64;
 
-alignas(DTU_PKG_SIZE) static unsigned int some_data[SIZE];
-alignas(DTU_PKG_SIZE) static unsigned int some_data_ctrl[SIZE];
+static unsigned int some_data[SIZE];
+static unsigned int some_data_ctrl[SIZE];
 
 static void check_result() {
     int errors = 0;
@@ -51,17 +51,17 @@ int main() {
     MemGate mem = MemGate::create_global(sizeof(some_data) * 8, MemGate::RW);
 
     cout << "Writing to it and reading it back...\n";
-    mem.write(some_data, sizeof(some_data), DTU_PKG_SIZE);
-    mem.read(some_data_ctrl, sizeof(some_data_ctrl), DTU_PKG_SIZE);
+    mem.write(some_data, sizeof(some_data), 2 * sizeof(some_data));
+    mem.read(some_data_ctrl, sizeof(some_data_ctrl), 2 * sizeof(some_data));
 
     check_result();
 
     cout << "Deriving memory...\n";
-    MemGate submem = mem.derive(0x20, sizeof(some_data) + DTU_PKG_SIZE, MemGate::RWX);
+    MemGate submem = mem.derive(0x20, 4 * sizeof(some_data), MemGate::RWX);
 
     cout << "Writing to it and reading it back...\n";
-    submem.write(some_data, sizeof(some_data), DTU_PKG_SIZE);
-    submem.read(some_data_ctrl, sizeof(some_data_ctrl), DTU_PKG_SIZE);
+    submem.write(some_data, sizeof(some_data), 2 * sizeof(some_data));
+    submem.read(some_data_ctrl, sizeof(some_data_ctrl), 2 * sizeof(some_data));
 
     check_result();
     return 0;

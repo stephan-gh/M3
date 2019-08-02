@@ -290,7 +290,7 @@ private:
     CapTable _mapcaps;
     uint64_t _lastsched;
     size_t _rbufs_size;
-    alignas(DTU_PKG_SIZE) DTUState _dtustate;
+    DTUState _dtustate;
     SendQueue _upcqueue;
     volatile xfer_t *_vpe_wait_sels;
     volatile size_t _vpe_wait_count;

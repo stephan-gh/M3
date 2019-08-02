@@ -22,7 +22,7 @@
 
 using namespace m3;
 
-alignas(DTU_PKG_SIZE) static char buffer[0x100];
+static char buffer[0x100];
 
 int main() {
     {

@@ -111,7 +111,7 @@ struct FileInfo {
 };
 
 // should be 64 bytes large
-struct alignas(DTU_PKG_SIZE) INode {
+struct alignas(8) INode {
     dev_t devno;
     uint16_t links;
     uint8_t : 8;
@@ -133,7 +133,7 @@ struct DirEntry {
     char name[];
 } PACKED;
 
-struct alignas(DTU_PKG_SIZE) SuperBlock {
+struct SuperBlock {
     blockno_t first_inodebm_block() const {
         return 1;
     }

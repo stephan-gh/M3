@@ -67,7 +67,7 @@ void Syscalls::create_srv(capsel_t dst, capsel_t vpe, capsel_t rgate, const Stri
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
     size_t msgsize = sizeof(req) - sizeof(req.name) + req.namelen;
-    send_receive_throw(&req, Math::round_up(msgsize, DTU_PKG_SIZE));
+    send_receive_throw(&req, msgsize);
 }
 
 void Syscalls::create_sess(capsel_t dst, capsel_t srv, word_t ident) {
@@ -135,7 +135,7 @@ void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const Stri
     memcpy(req.name, name.c_str(), req.namelen);
 
     size_t msgsize = sizeof(req) - sizeof(req.name) + req.namelen;
-    DTU::Message *msg = send_receive(&req, Math::round_up(msgsize, DTU_PKG_SIZE));
+    DTU::Message *msg = send_receive(&req, msgsize);
     auto *reply = reinterpret_cast<KIF::Syscall::CreateVPEReply*>(msg->data);
 
     Errors::Code res = static_cast<Errors::Code>(reply->error);
@@ -319,7 +319,7 @@ bool Syscalls::forward_msg(capsel_t sgate, capsel_t rgate, const void *msg, size
     req.len = len;
     memcpy(req.msg, msg, Math::min(sizeof(req.msg), len));
     size_t msgsize = sizeof(req) - sizeof(req.msg) + req.len;
-    Errors::Code res = send_receive_err(&req, Math::round_up(msgsize, DTU_PKG_SIZE));
+    Errors::Code res = send_receive_err(&req, msgsize);
     return get_forward_result(res, KIF::Syscall::FORWARD_MSG);
 }
 
@@ -333,7 +333,7 @@ bool Syscalls::forward_reply(capsel_t rgate, const void *msg, size_t len,
     req.len = len;
     memcpy(req.msg, msg, Math::min(sizeof(req.msg), len));
     size_t msgsize = sizeof(req) - sizeof(req.msg) + req.len;
-    Errors::Code res = send_receive_err(&req, Math::round_up(msgsize, DTU_PKG_SIZE));
+    Errors::Code res = send_receive_err(&req, msgsize);
     return get_forward_result(res, KIF::Syscall::FORWARD_MEM);
 }
 

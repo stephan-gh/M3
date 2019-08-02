@@ -23,8 +23,6 @@
 #include <base/Errors.h>
 #include <assert.h>
 
-#define DTU_PKG_SIZE        (static_cast<size_t>(8))
-
 namespace kernel {
 class AddrSpace;
 class DTU;

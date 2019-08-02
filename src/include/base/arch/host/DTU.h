@@ -29,8 +29,6 @@
 #include <time.h>
 #include <unistd.h>
 
-// we have no alignment or size requirements here
-#define DTU_PKG_SIZE        (static_cast<size_t>(8))
 #define EP_COUNT            16
 
 namespace m3 {

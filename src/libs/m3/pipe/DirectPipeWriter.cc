@@ -130,7 +130,6 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
                     return -1;
             }
             DBG_PIPE("[write] got len=" << len << "\n");
-            len = Math::round_up(len, DTU_PKG_SIZE);
             _state->_rdpos = (_state->_rdpos + len) % _state->_size;
             _state->_free += len;
             _state->_capacity++;

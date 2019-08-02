@@ -89,7 +89,7 @@ public:
     }
 
 private:
-    alignas(DTU_PKG_SIZE) unsigned char _bytes[SIZE];
+    unsigned char _bytes[SIZE];
 };
 
 /**
@@ -98,8 +98,7 @@ private:
 class AutoGateOStream : public GateOStream {
 public:
     ALWAYS_INLINE explicit AutoGateOStream(size_t size) noexcept
-        : GateOStream(static_cast<unsigned char*>(alloca(Math::round_up(size, DTU_PKG_SIZE))),
-                      Math::round_up(size, DTU_PKG_SIZE)) {
+        : GateOStream(static_cast<unsigned char*>(alloca(size)), size) {
     }
 
     AutoGateOStream(AutoGateOStream &&os) noexcept : GateOStream(os) {

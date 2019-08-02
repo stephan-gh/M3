@@ -28,7 +28,6 @@ public:
           _rdpos(),
           _wrpos(),
           _last(size) {
-        assert((size & DTU_PKG_SIZE) == 0);
     }
 
     bool empty() const {
@@ -45,13 +44,6 @@ public:
      * @return the write position of the buffer, or -1 if the buffer does not has <size> bytes of consecutive free memory
      */
     ssize_t get_write_pos(size_t size) {
-        if(_wrpos % DTU_PKG_SIZE) {
-            if(!empty())
-                return -1;
-            _wrpos = m3::Math::round_up(_wrpos, DTU_PKG_SIZE);
-            _rdpos = _wrpos;
-        }
-
         if(_wrpos >= _rdpos) {
             if(_size - _wrpos >= size)
                 return static_cast<ssize_t>(_wrpos);
@@ -92,8 +84,6 @@ public:
      * @param size the number of bytes to advance the write position by
      */
     void push(size_t req_size, size_t size) {
-        assert((_wrpos % DTU_PKG_SIZE) == 0);
-
         if(_wrpos >= _rdpos) {
             if(_size - _wrpos >= req_size)
                 _wrpos += size;

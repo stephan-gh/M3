@@ -30,8 +30,6 @@ DirectPipe::DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size)
       _sgate(SendGate::create(&_rgate, SendGateArgs().credits(CREDITS).sel(_rgate.sel() + 2))),
       _rdfd(),
       _wrfd() {
-    assert(Math::is_aligned(size, DTU_PKG_SIZE));
-
     std::unique_ptr<DirectPipeReader::State> rstate(
         &rd == &VPE::self() ? new DirectPipeReader::State(caps()) : nullptr);
     _rdfd = VPE::self().fds()->alloc(Reference<File>(

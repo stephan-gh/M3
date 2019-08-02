@@ -62,7 +62,7 @@ void VPE::run(void *lambda) {
 
     copy_sections();
 
-    alignas(DTU_PKG_SIZE) Env senv;
+    Env senv;
     senv.pe = 0;
     senv.argc = env()->argc;
     senv.argv = RT_SPACE_START;
@@ -92,7 +92,7 @@ void VPE::run(void *lambda) {
 }
 
 void VPE::exec(int argc, const char **argv) {
-    alignas(DTU_PKG_SIZE) Env senv;
+    Env senv;
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
 
     _exec = std::make_unique<FStream>(argv[0], FILE_RWX);
@@ -158,7 +158,7 @@ void VPE::clear_mem(char *buffer, size_t count, uintptr_t dest) {
     memset(buffer, 0, BUF_SIZE);
     while(count > 0) {
         size_t amount = std::min(count, BUF_SIZE);
-        _mem.write(buffer, Math::round_up(amount, DTU_PKG_SIZE), dest);
+        _mem.write(buffer, amount, dest);
         count -= amount;
         dest += amount;
     }
@@ -202,7 +202,7 @@ void VPE::load_segment(ElfPh &pheader, char *buffer) {
             if(_exec->read(buffer, amount) != amount)
                 VTHROW(Errors::INVALID_ELF, "Unable to read " << amount << " bytes");
 
-            _mem.write(buffer, Math::round_up(amount, DTU_PKG_SIZE), segoff);
+            _mem.write(buffer, amount, segoff);
             count -= amount;
             segoff += amount;
         }

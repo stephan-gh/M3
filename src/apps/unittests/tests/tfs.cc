@@ -28,7 +28,7 @@
 
 using namespace m3;
 
-alignas(DTU_PKG_SIZE) static uint8_t largebuf[100 * 8];
+static uint8_t largebuf[100 * 8];
 
 static const char *small_file = "/test.txt";
 static const char *pat_file = "/pat.bin";
@@ -279,7 +279,7 @@ static void pipe_mux() {
 static void file_errors() {
     const char *filename = "/subdir/subsubdir/testfile.txt";
 
-    alignas(DTU_PKG_SIZE) char buf[DTU_PKG_SIZE];
+    char buf[8];
     {
         FileRef file(filename, FILE_R);
         WVASSERTERR(Errors::NO_PERM, [&file, &buf] {
@@ -295,24 +295,22 @@ static void file_errors() {
     }
 }
 
-#if DTU_PKG_SIZE == 8
 static void read_file_at_once() {
     const char *filename = "/subdir/subsubdir/testfile.txt";
     const char content[] = "This is a test!\n";
-    static_assert(((sizeof(content) - 1) % DTU_PKG_SIZE) == 0, "Wrong size");
+    char buf[sizeof(content)];
 
     FileRef file(filename, FILE_R);
-    alignas(DTU_PKG_SIZE) char buf[sizeof(content)];
-    assert_ssize(file->read(buf, sizeof(buf) - 1), sizeof(buf) - 1);
+    WVASSERTEQ(file->read(buf, sizeof(buf) - 1), sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
-    WVASSERTEQ(buf, content);
+
+    WVASSERTEQ(buf, StringRef(content));
 }
-#endif
 
 static void read_file_in_64b_steps() {
     FileRef file(pat_file, FILE_R);
 
-    alignas(DTU_PKG_SIZE) uint8_t buf[64];
+    uint8_t buf[64];
     size_t count, pos = 0;
     while((count = file->read(buf, sizeof(buf))) > 0) {
         for(size_t i = 0; i < count; ++i)
@@ -323,7 +321,7 @@ static void read_file_in_64b_steps() {
 static void read_file_in_large_steps() {
     FileRef file(pat_file, FILE_R);
 
-    alignas(DTU_PKG_SIZE) static uint8_t buf[1024 * 3];
+    static uint8_t buf[1024 * 3];
     size_t count, pos = 0;
     while((count = file->read(buf, sizeof(buf))) > 0) {
         for(size_t i = 0; i < count; ++i)
@@ -332,8 +330,8 @@ static void read_file_in_large_steps() {
 }
 
 static void write_file_and_read_again() {
-    alignas(DTU_PKG_SIZE) char content[64] = "Foobar, a test and more and more and more!";
-    const size_t contentsz = (strlen(content) + DTU_PKG_SIZE - 1) & ~(DTU_PKG_SIZE - 1);
+    char content[64] = "Foobar, a test and more and more and more!";
+    const size_t contentsz = strlen(content) + 1;
 
     FileRef file(pat_file, FILE_RW);
 
@@ -342,7 +340,7 @@ static void write_file_and_read_again() {
     WVASSERTEQ(file->seek(0, M3FS_SEEK_CUR), contentsz);
     WVASSERTEQ(file->seek(0, M3FS_SEEK_SET), 0u);
 
-    alignas(DTU_PKG_SIZE) char buf[contentsz];
+    char buf[contentsz];
     size_t count = file->read(buf, sizeof(buf));
     WVASSERTEQ(count, sizeof(buf));
     WVASSERTEQ(buf, StringRef(content));
@@ -483,19 +481,7 @@ static void buffered_read_and_write() {
     WVASSERT(file.good());
 }
 
-static void buffered_write_only() {
-    FStream file(pat_file, 600, 256, FILE_W);
-
-    // require a read by performing an unaligned write
-    file.seek(DTU_PKG_SIZE * 10, M3FS_SEEK_SET);
-    file.write("foobar", DTU_PKG_SIZE - 2);
-    file.flush();
-    WVASSERT(file.good());
-}
-
-#if DTU_PKG_SIZE == 8
 static void buffered_write_with_seek() {
-    static_assert(DTU_PKG_SIZE == 8, "Unexpected DTU_PKG_SIZE");
     FStream file(pat_file, 600, 256, FILE_RW);
 
     file.seek(2, M3FS_SEEK_SET);
@@ -514,9 +500,8 @@ static void buffered_write_with_seek() {
     WVASSERT(file.good());
 
     char exp[] = {1,'t','e','s','t',6,7,'f','o','o','f','o','o',14,15,0};
-    WVASSERTEQ(buf, exp);
+    WVASSERTEQ(buf, StringRef(exp));
 }
-#endif
 
 void tfs() {
     RUN_TEST(extending_small_file);
@@ -530,9 +515,7 @@ void tfs() {
     RUN_TEST(file_mux);
     RUN_TEST(pipe_mux);
     RUN_TEST(file_errors);
-#if DTU_PKG_SIZE == 8
     RUN_TEST(read_file_at_once);
-#endif
     RUN_TEST(read_file_in_64b_steps);
     RUN_TEST(read_file_in_large_steps);
     RUN_TEST(write_file_and_read_again);
@@ -543,8 +526,5 @@ void tfs() {
     RUN_TEST(buffered_read_and_write);
 
     // have to be last: overwrite /pat.bin
-    RUN_TEST(buffered_write_only);
-#if DTU_PKG_SIZE == 8
     RUN_TEST(buffered_write_with_seek);
-#endif
 }

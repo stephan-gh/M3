@@ -106,8 +106,8 @@ public:
     size_t seek(size_t offset, int whence);
 
     /**
-     * Reads <count> bytes into <dst>. If both is aligned by DTU_PKG_SIZE and the buffer is
-     * empty, the buffer is not used but it the File instance is used directly.
+     * Reads <count> bytes into <dst>. If the buffer is empty, the buffer is not used but it the
+     * File instance is used directly.
      *
      * @param dst the destination to read into
      * @param count the number of bytes to read
@@ -116,9 +116,9 @@ public:
     size_t read(void *dst, size_t count);
 
     /**
-     * Writes at most <count> bytes from <src> into the file. If both is aligned by DTU_PKG_SIZE and
-     * the buffer is empty, the buffer is not used but it the File instance is used directly.
-
+     * Writes at most <count> bytes from <src> into the file. If the buffer is empty, the buffer is
+     * not used but it the File instance is used directly.
+     *
      * @param src the data to write
      * @param count the number of bytes to write
      * @return the number of written bytes

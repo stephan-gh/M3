@@ -75,7 +75,6 @@ void heap_init(uintptr_t begin, uintptr_t end) {
 }
 
 USED void *heap_alloc(size_t size) {
-    static_assert(ALIGN >= DTU_PKG_SIZE, "ALIGN is wrong");
     // assert(size < HEAP_USED_BITS);
 
     // align it to at least word-size (the fortran-runtime seems to expect that). 8 is even better

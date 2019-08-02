@@ -43,7 +43,7 @@ public:
      * @return the total number of bytes of the data
      */
     size_t total() const noexcept {
-        return Math::round_up(_bytecount, DTU_PKG_SIZE);
+        return _bytecount;
     }
     /**
      * @return the bytes of the data
@@ -276,7 +276,7 @@ constexpr size_t _ostreamsize() {
  */
 template<typename T1, typename... Args>
 constexpr size_t ostreamsize() {
-    return Math::round_up(_ostreamsize<T1, Args...>(), DTU_PKG_SIZE);
+    return _ostreamsize<T1, Args...>();
 }
 
 /**
@@ -288,19 +288,27 @@ constexpr size_t vostreamsize(T len) {
 }
 template<typename T1, typename... Args>
 constexpr size_t vostreamsize(T1 len, Args... lens) {
-    return Math::round_up(
-        Math::round_up(len, sizeof(xfer_t)) + vostreamsize<Args...>(lens...), DTU_PKG_SIZE);
+    return Math::round_up(len, sizeof(xfer_t)) + vostreamsize<Args...>(lens...);
 }
 
-static_assert(ostreamsize<int, float, int>() ==
-    Math::round_up(sizeof(xfer_t) * 3, DTU_PKG_SIZE), "failed");
-static_assert(ostreamsize<short, StringRef>() ==
-    Math::round_up(sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN, DTU_PKG_SIZE), "failed");
-static_assert(ostreamsize<short, String>() ==
-    Math::round_up(sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN, DTU_PKG_SIZE), "failed");
-static_assert(ostreamsize<short, const char*>() ==
-    Math::round_up(sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN, DTU_PKG_SIZE), "failed");
-static_assert(ostreamsize<short, char[5]>() ==
-    Math::round_up(sizeof(xfer_t) + sizeof(xfer_t) + 5, DTU_PKG_SIZE), "failed");
+static_assert(
+    ostreamsize<int, float, int>() == sizeof(xfer_t) * 3,
+    "failed");
+
+static_assert(
+    ostreamsize<short, StringRef>() == sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+    "failed");
+
+static_assert(
+    ostreamsize<short, String>() == sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+    "failed");
+
+static_assert(
+    ostreamsize<short, const char*>() == sizeof(xfer_t) + sizeof(xfer_t) + StringRef::DEFAULT_MAX_LEN,
+    "failed");
+
+static_assert(
+    ostreamsize<short, char[5]>() == sizeof(xfer_t) + sizeof(xfer_t) + 5,
+    "failed");
 
 }

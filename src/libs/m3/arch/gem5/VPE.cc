@@ -44,14 +44,14 @@ void VPE::copy_sections() {
         }
 
         // map text
-        start_addr = Math::round_dn(reinterpret_cast<uintptr_t>(&_text_start), DTU_PKG_SIZE);
-        end_addr = Math::round_up(reinterpret_cast<uintptr_t>(&_text_end), DTU_PKG_SIZE);
+        start_addr = reinterpret_cast<uintptr_t>(&_text_start);
+        end_addr = reinterpret_cast<uintptr_t>(&_text_end);
         _pager->map_anon(&start_addr, end_addr - start_addr,
                          Pager::READ | Pager::WRITE | Pager::EXEC, 0);
 
         // map data
-        start_addr = Math::round_dn(reinterpret_cast<uintptr_t>(&_data_start), DTU_PKG_SIZE);
-        end_addr = Math::round_up(Heap::end_area() + Heap::end_area_size(), DTU_PKG_SIZE);
+        start_addr = reinterpret_cast<uintptr_t>(&_data_start);
+        end_addr = Heap::end_area() + Heap::end_area_size();
         _pager->map_anon(&start_addr, end_addr - start_addr, Pager::READ | Pager::WRITE, 0);
 
         // map area for stack and boot/runtime stuff
@@ -60,13 +60,13 @@ void VPE::copy_sections() {
     }
 
     /* copy text */
-    start_addr = Math::round_dn(reinterpret_cast<uintptr_t>(&_text_start), DTU_PKG_SIZE);
-    end_addr = Math::round_up(reinterpret_cast<uintptr_t>(&_text_end), DTU_PKG_SIZE);
+    start_addr = reinterpret_cast<uintptr_t>(&_text_start);
+    end_addr = reinterpret_cast<uintptr_t>(&_text_end);
     _mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 
     /* copy data and heap */
-    start_addr = Math::round_dn(reinterpret_cast<uintptr_t>(&_data_start), DTU_PKG_SIZE);
-    end_addr = Math::round_up(Heap::used_end(), DTU_PKG_SIZE);
+    start_addr = reinterpret_cast<uintptr_t>(&_data_start);
+    end_addr = Heap::used_end();
     _mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 
     /* copy end-area of heap */

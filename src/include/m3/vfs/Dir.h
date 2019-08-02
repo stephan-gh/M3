@@ -27,7 +27,6 @@ namespace m3 {
  */
 class Dir {
 public:
-    // ensure that it's a multiple of DTU_PKG_SIZE
     struct Entry {
         static constexpr size_t MAX_NAME_LEN    = 28;
 

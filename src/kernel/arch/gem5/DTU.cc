@@ -32,13 +32,13 @@ namespace kernel {
 static char buffer[4096];
 
 void DTU::do_set_vpeid(const VPEDesc &vpe, vpeid_t nid) {
-    alignas(DTU_PKG_SIZE) m3::DTU::reg_t vpeId = nid;
+    m3::DTU::reg_t vpeId = nid;
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::VPE_ID), &vpeId, sizeof(vpeId));
 }
 
 void DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
-    alignas(DTU_PKG_SIZE) m3::DTU::reg_t reg = cmd;
+    m3::DTU::reg_t reg = cmd;
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EXT_CMD), &reg, sizeof(reg));
 }
@@ -53,7 +53,7 @@ peid_t DTU::log_to_phys(peid_t pe) {
 
 void DTU::deprivilege(peid_t pe) {
     // unset the privileged flag
-    alignas(DTU_PKG_SIZE) m3::DTU::reg_t features = 0;
+    m3::DTU::reg_t features = 0;
     m3::CPU::compiler_barrier();
     write_mem(VPEDesc(pe, VPE::INVALID_ID),
         m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), &features, sizeof(features));
@@ -82,7 +82,7 @@ void DTU::inject_irq(const VPEDesc &vpe) {
 }
 
 void DTU::ext_request(const VPEDesc &vpe, uint64_t req) {
-    alignas(DTU_PKG_SIZE) m3::DTU::reg_t reg = req;
+    m3::DTU::reg_t reg = req;
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::ReqRegs::EXT_REQ), &reg, sizeof(reg));
 }
@@ -97,7 +97,7 @@ void DTU::invlpg_remote(const VPEDesc &vpe, goff_t virt) {
 }
 
 m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force) {
-    alignas(DTU_PKG_SIZE) m3::DTU::reg_t reg =
+    m3::DTU::reg_t reg =
         static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 3) |
         (static_cast<m3::DTU::reg_t>(force) << 11);
     m3::CPU::compiler_barrier();
