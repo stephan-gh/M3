@@ -27,11 +27,12 @@
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
+#include <vector>
+
 using namespace m3;
 
-#define VERBOSE         0
-#define MAX_TMP_DIRS    4
-#define MAX_TMP_FILES   16
+static constexpr bool VERBOSE           = false;
+static constexpr int MAX_TMP_DIRS       = 4;
 
 struct App {
     explicit App(int argc, const char *argv[], bool muxed)
@@ -134,8 +135,7 @@ int main(int argc, char **argv) {
             try {
                 Dir dir(os.str());
 
-                size_t x = 0;
-                String *entries[MAX_TMP_FILES];
+                std::vector<String> entries;
 
                 if(VERBOSE) cout << "Collecting files in " << os.str() << "\n";
 
@@ -147,15 +147,12 @@ int main(int argc, char **argv) {
 
                     OStringStream file(path, sizeof(path));
                     file << "/tmp/" << i << "/" << e.name;
-                    if(x > ARRAY_SIZE(entries))
-                        PANIC("Too few entries");
-                    entries[x++] = new String(file.str());
+                    entries.push_back(file.str());
                 }
 
-                for(; x > 0; --x) {
-                    if(VERBOSE) cout << "Unlinking " << *(entries[x - 1]) << "\n";
-                    VFS::unlink(entries[x - 1]->c_str());
-                    delete entries[x - 1];
+                for(String &s : entries) {
+                    if(VERBOSE) cout << "Unlinking " << s << "\n";
+                    VFS::unlink(s.c_str());
                 }
             }
             catch(...) {
