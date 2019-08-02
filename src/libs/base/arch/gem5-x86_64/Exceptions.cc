@@ -86,7 +86,6 @@ OStream &operator<<(OStream &os, const Exceptions::State &state) {
 }
 
 void Exceptions::init() {
-    // TODO put the exception stuff in rctmux into a library and use it in the kernel as well
     if(env()->isrs) {
         // the PF exception is handled by RCTMux if we have an MMU
         bool want_pf = !env()->pedesc.has_mmu();
