@@ -136,9 +136,6 @@ static void cmds_write() {
         dmacmd(data, sizeof(data), sndep, 0, sizeof(data), DTU::WRITE);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
         volatile const word_t *words = reinterpret_cast<const word_t*>(addr);
-        // TODO we do current not know when this is finished
-        while(words[0] == 0)
-            ;
         for(size_t i = 0; i < sizeof(data) / sizeof(data[0]); ++i)
             WVASSERTEQ(static_cast<word_t>(words[i]), data[i]);
     }
