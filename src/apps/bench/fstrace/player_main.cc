@@ -226,13 +226,19 @@ int main(int argc, char **argv) {
         }
     };
 
-    FSTraceRunner runner([&] {
-        player.play(trace, chan, data, stdio, keep_time, verbose);
-    });
-    if(wvtest)
-        WVPERF(argv[CmdArgs::ind], pr.runner_with_id(runner, 0xFFFF));
-    else
-        pr.runner_with_id(runner, 0xFFFF);
+    try {
+        FSTraceRunner runner([&] {
+            player.play(trace, chan, data, stdio, keep_time, verbose);
+        });
+        if(wvtest)
+            WVPERF(argv[CmdArgs::ind], pr.runner_with_id(runner, 0xFFFF));
+        else
+            pr.runner_with_id(runner, 0xFFFF);
+    }
+    catch (::Exception &e) {
+        cerr << "Caught exception: " << e.msg() << "\n";
+        return 1;
+    }
 
     cerr << "VPFS trace_bench benchmark terminated\n";
     return 0;
