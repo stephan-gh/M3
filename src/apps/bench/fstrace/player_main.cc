@@ -27,6 +27,8 @@
 #include <m3/vfs/VFS.h>
 #include <m3/Test.h>
 
+#include <vector>
+
 #include "traceplayer.h"
 
 using namespace m3;
@@ -65,8 +67,7 @@ static void cleanup() {
     try {
         Dir dir("/tmp");
 
-        size_t x = 0;
-        String *entries[MAX_TMP_FILES];
+        std::vector<String> entries;
 
         if(VERBOSE) cerr << "Collecting files in /tmp\n";
 
@@ -79,15 +80,11 @@ static void cleanup() {
 
             OStringStream file(path, sizeof(path));
             file << "/tmp/" << e.name;
-            if(x > ARRAY_SIZE(entries))
-                PANIC("Too few entries");
-            entries[x++] = new String(file.str());
+            entries.push_back(file.str());
         }
 
-        for(; x > 0; --x) {
-            remove_rec(entries[x - 1]->c_str());
-            delete entries[x - 1];
-        }
+        for(String &s : entries)
+            remove_rec(s.c_str());
     }
     catch(...) {
         // ignore
