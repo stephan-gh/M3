@@ -20,8 +20,6 @@
 #include <base/Panic.h>
 #include <functional>
 
-#define MAX_EXIT_FUNCS      8
-
 using namespace m3;
 
 struct GlobalObj {
@@ -29,6 +27,8 @@ struct GlobalObj {
     void *p;
     void *d;
 };
+
+static constexpr size_t MAX_EXIT_FUNCS = 8;
 
 static size_t exit_count = 0;
 static GlobalObj exit_funcs[MAX_EXIT_FUNCS];

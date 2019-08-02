@@ -27,7 +27,7 @@
 
 using namespace m3;
 
-#define VERBOSE     0
+static constexpr bool VERBOSE = false;
 
 enum Mode {
     DEDICATED,

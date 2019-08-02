@@ -32,7 +32,7 @@
 
 using namespace m3;
 
-#define VERBOSE         1
+static constexpr bool VERBOSE = true;
 
 struct App {
     explicit App(int argc, const char **argv, const char *pager, uint flags)

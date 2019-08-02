@@ -29,7 +29,7 @@
 
 using namespace m3;
 
-#define VERBOSE         1
+static constexpr bool VERBOSE = true;
 
 struct App {
     explicit App(size_t argc, const char **argv, const char *pager, uint flags)

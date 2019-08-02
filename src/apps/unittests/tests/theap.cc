@@ -23,16 +23,16 @@
 
 #include "../unittests.h"
 
-#define SINGLE_BYTE_COUNT 30
-
 using namespace m3;
 
-static uint *ptrs_single[SINGLE_BYTE_COUNT];
+static constexpr size_t SINGLE_BYTE_COUNT = 30;
 
-static size_t sizes[] = {1, 4, 10, 32, 67, 124, 56, 43};
+static const size_t sizes[] = {1, 4, 10, 32, 67, 124, 56, 43};
+static const size_t rand_free1[] = {7, 5, 2, 0, 6, 3, 4, 1};
+static const size_t rand_free2[] = {3, 4, 1, 5, 6, 0, 7, 2};
+
+static uint *ptrs_single[SINGLE_BYTE_COUNT];
 static uint *ptrs[ARRAY_SIZE(sizes)];
-static size_t rand_free1[] = {7, 5, 2, 0, 6, 3, 4, 1};
-static size_t rand_free2[] = {3, 4, 1, 5, 6, 0, 7, 2};
 
 static size_t heap_before;
 

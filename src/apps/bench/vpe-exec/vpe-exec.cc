@@ -27,7 +27,7 @@
 
 using namespace m3;
 
-#define COUNT   20
+static constexpr int REPEATS = 20;
 
 int main(int argc, char **argv) {
     if(argc < 2)
@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     OStringStream os;
     os << "/bin/bench-vpe-clone-" << argv[1];
 
-    for(int i = 0; i < COUNT; ++i) {
+    for(int i = 0; i < REPEATS; ++i) {
         Time::start(1);
 
         VPE vpe("hello");

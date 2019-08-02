@@ -28,9 +28,8 @@
 
 using namespace m3;
 
-#define VERBOSE     1
-
-static const size_t PIPE_SHM_SIZE   = 512 * 1024;
+static constexpr bool VERBOSE           = true;
+static constexpr size_t PIPE_SHM_SIZE   = 512 * 1024;
 
 enum Mode {
     DEDICATED,

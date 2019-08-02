@@ -24,7 +24,7 @@
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
-#define VERBOSE     0
+static constexpr bool VERBOSE = false;
 
 using namespace m3;
 

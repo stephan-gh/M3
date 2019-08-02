@@ -22,7 +22,7 @@
 
 using namespace m3;
 
-#define SIZE        64
+static constexpr size_t SIZE = 64;
 
 alignas(DTU_PKG_SIZE) static unsigned int some_data[SIZE];
 alignas(DTU_PKG_SIZE) static unsigned int some_data_ctrl[SIZE];

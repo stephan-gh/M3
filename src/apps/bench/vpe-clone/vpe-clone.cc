@@ -26,11 +26,11 @@
 
 using namespace m3;
 
-#define COUNT   20
-
 #if !defined(DUMMY_BUF_SIZE)
 #   define DUMMY_BUF_SIZE    8192
 #endif
+
+static constexpr int REPEATS = 20;
 
 USED static char dummy[DUMMY_BUF_SIZE] = {'a'};
 
@@ -45,7 +45,7 @@ int main(int argc, char **) {
 
     cycles_t exec_time = 0;
 
-    for(int i = 0; i < COUNT; ++i) {
+    for(int i = 0; i < REPEATS; ++i) {
         cycles_t start2 = Time::start(1);
 
         VPE vpe("hello");
@@ -58,6 +58,6 @@ int main(int argc, char **) {
         exec_time += static_cast<cycles_t>(time);
     }
 
-    cout << "Time for clone: " << (exec_time / COUNT) << " cycles\n";
+    cout << "Time for clone: " << (exec_time / REPEATS) << " cycles\n";
     return 0;
 }
