@@ -98,13 +98,3 @@ EXTERN_C size_t fwrite(const void *str, UNUSED size_t size, size_t nmemb, void *
         ser.write(*s++);
     return 0;
 }
-
-/* Fortran support */
-EXTERN_C void outbyte(char byte) {
-    Machine::write(&byte, 1);
-}
-
-EXTERN_C uint8_t inbyte() {
-    // TODO implement me
-    return 0;
-}
