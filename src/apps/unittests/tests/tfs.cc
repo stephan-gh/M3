@@ -24,9 +24,6 @@
 #include <m3/vfs/Dir.h>
 #include <m3/Test.h>
 
-#include <vector>
-#include <algorithm>
-
 #include "../unittests.h"
 
 using namespace m3;
