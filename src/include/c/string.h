@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 
+EXTERN_C int bcmp(const void *s1, const void *s2, size_t n);
 EXTERN_C int memcmp(const void *mem1, const void *mem2, size_t count);
 EXTERN_C void *memcpy(void *dest, const void *src, size_t len);
 EXTERN_C void *memmove(void *dest, const void *src, size_t count);
