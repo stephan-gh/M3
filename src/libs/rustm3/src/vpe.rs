@@ -689,7 +689,7 @@ impl VPE {
     /// functions completeness or to stop it.
     #[cfg(target_os = "none")]
     pub fn run<F>(mut self, func: Box<F>) -> Result<ClosureActivity, Error>
-                  where F: FnOnce() -> i32, F: Send + 'static {
+                  where F: FnOnce() -> i32 + Send + 'static {
         use cfg;
         use cpu;
 
@@ -749,7 +749,7 @@ impl VPE {
     /// functions completeness or to stop it.
     #[cfg(target_os = "linux")]
     pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
-                  where F: FnOnce() -> i32, F: Send + 'static {
+                  where F: FnOnce() -> i32 + Send + 'static {
         use libc;
 
         let mut closure = env::Closure::new(func);

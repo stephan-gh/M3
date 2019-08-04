@@ -31,7 +31,7 @@ pub struct Closure {
 impl Closure {
     /// Creates a new object for given closure
     pub fn new<F>(func: Box<F>) -> Self
-                  where F: FnOnce() -> i32, F: Send + 'static {
+                  where F: FnOnce() -> i32 + Send + 'static {
         Closure {
             func: Some(func),
         }
