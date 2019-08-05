@@ -36,14 +36,11 @@ public:
         EPS             = 1 << 6,
         SERV            = 1 << 7,
         SLAB            = 1 << 8,
-        TIMEOUTS        = 1 << 9,
-        CTXSW           = 1 << 10,
-        CTXSW_STATES    = 1 << 11,
-        SQUEUE          = 1 << 12,
-        UPCALLS         = 1 << 13,
-        MAPPINGS        = 1 << 14,
-        KMEM            = 1 << 15,
-        KMEM_ALLOCS     = 1 << 16,
+        SQUEUE          = 1 << 9,
+        UPCALLS         = 1 << 10,
+        MAPPINGS        = 1 << 11,
+        KMEM            = 1 << 12,
+        KMEM_ALLOCS     = 1 << 13,
     };
 
     static const int level = INFO;

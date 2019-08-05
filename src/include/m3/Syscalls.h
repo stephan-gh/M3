@@ -39,10 +39,8 @@ public:
     static void create_sess(capsel_t dst, capsel_t srv, word_t ident);
     static void create_rgate(capsel_t dst, int order, int msgorder);
     static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits);
-    static void create_vgroup(capsel_t dst);
     static void create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name,
-                           PEDesc &pe, epid_t sep, epid_t rep, uint flags, capsel_t kmem,
-                           capsel_t group);
+                           PEDesc &pe, epid_t sep, epid_t rep, capsel_t kmem);
     static void create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                            capsel_t pages, int perms);
     static void create_sem(capsel_t dst, uint value);
@@ -62,13 +60,6 @@ public:
                        KIF::ExchangeArgs *args = nullptr);
     static void exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other, bool obtain);
     static void revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own = true);
-
-    static bool forward_msg(capsel_t sgate, capsel_t rgate, const void *msg, size_t len,
-                            label_t rlabel, event_t event);
-    static bool forward_reply(capsel_t rgate, const void *msg, size_t len, goff_t msgaddr,
-                              event_t event);
-    static Errors::Code forward_mem(capsel_t mgate, void *data, size_t len, goff_t offset,
-                                    uint flags, event_t event);
 
     static void noop();
 

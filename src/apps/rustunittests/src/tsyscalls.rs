@@ -31,7 +31,6 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create_rgate);
     wv_run_test!(t, create_sess);
     wv_run_test!(t, create_map);
-    wv_run_test!(t, create_vgroup);
     wv_run_test!(t, create_vpe);
 
     wv_run_test!(t, activate);
@@ -132,10 +131,6 @@ fn create_map() {
     wv_assert_err!(syscalls::create_map(0, VPE::cur().sel(), mem.sel(), 0, 4, Perm::RWX), Code::InvArgs);
 }
 
-fn create_vgroup() {
-    wv_assert_err!(syscalls::create_vgroup(0), Code::InvArgs);
-}
-
 fn create_vpe() {
     let cap_count = FIRST_FREE_SEL;
     let sels      = VPE::cur().alloc_sels(cap_count);
@@ -147,48 +142,38 @@ fn create_vpe() {
 
     // invalid dest caps
     wv_assert_err!(syscalls::create_vpe(CapRngDesc::new(CapType::OBJECT, 0, cap_count),
-                                     INVALID_SEL, "test", pedesc,
-                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+                                        INVALID_SEL, "test", pedesc, 0, 0, kmem), Code::InvArgs);
     wv_assert_err!(syscalls::create_vpe(CapRngDesc::new(CapType::OBJECT, sels, 0),
-                                     INVALID_SEL, "test", pedesc,
-                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+                                        INVALID_SEL, "test", pedesc, 0, 0, kmem), Code::InvArgs);
     wv_assert_err!(syscalls::create_vpe(CapRngDesc::new(CapType::OBJECT, sels, cap_count - 1),
-                                     INVALID_SEL, "test", pedesc,
-                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+                                        INVALID_SEL, "test", pedesc, 0, 0, kmem), Code::InvArgs);
     wv_assert_err!(syscalls::create_vpe(CapRngDesc::new(CapType::OBJECT, sels, !0),
-                                     INVALID_SEL, "test", pedesc,
-                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+                                        INVALID_SEL, "test", pedesc, 0, 0, kmem), Code::InvArgs);
 
     // invalid sgate
-    wv_assert_err!(syscalls::create_vpe(crd, 0, "test", pedesc,
-                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+    wv_assert_err!(syscalls::create_vpe(crd, 0, "test", pedesc, 0, 0, kmem), Code::InvArgs);
 
     // invalid name
-    wv_assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "", pedesc,
-                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+    wv_assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "", pedesc, 0, 0, kmem), Code::InvArgs);
 
     // invalid SEP
     wv_assert_err!(syscalls::create_vpe(crd, sgate.sel(), "test", pedesc,
-                                     0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+                                        0, 0, kmem), Code::InvArgs);
     wv_assert_err!(syscalls::create_vpe(crd, sgate.sel(), "test", pedesc,
-                                     EP_COUNT, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+                                        EP_COUNT, 0, kmem), Code::InvArgs);
     wv_assert_err!(syscalls::create_vpe(crd, sgate.sel(), "test", pedesc,
-                                     !0, 0, false, kmem, INVALID_SEL), Code::InvArgs);
+                                        !0, 0, kmem), Code::InvArgs);
     // invalid REP
     wv_assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
-                                     0, EP_COUNT, false, kmem, INVALID_SEL), Code::InvArgs);
+                                        0, EP_COUNT, kmem), Code::InvArgs);
     wv_assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
-                                     0, !0, false, kmem, INVALID_SEL), Code::InvArgs);
-
-    // invalid vpe group
-    wv_assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
-                                     0, 0, false, kmem, 0), Code::InvArgs);
+                                        0, !0, kmem), Code::InvArgs);
 
     // invalid kmem
     wv_assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
-                                     0, 0, false, INVALID_SEL, 0), Code::InvArgs);
+                                        0, 0, INVALID_SEL), Code::InvArgs);
     wv_assert_err!(syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc,
-                                     0, 0, false, 1, 0), Code::InvArgs);
+                                        0, 0, 1), Code::InvArgs);
 }
 
 fn activate() {
@@ -232,14 +217,10 @@ fn derive_mem() {
 }
 
 fn vpe_ctrl() {
-    let child = wv_assert_ok!(VPE::new("test"));
-
     wv_assert_err!(syscalls::vpe_ctrl(1, VPEOp::START, 0), Code::InvArgs);
     wv_assert_err!(syscalls::vpe_ctrl(INVALID_SEL, VPEOp::START, 0), Code::InvArgs);
     // can't start ourself
     wv_assert_err!(syscalls::vpe_ctrl(VPE::cur().sel(), VPEOp::START, 0), Code::InvArgs);
-    // can't yield others
-    wv_assert_err!(syscalls::vpe_ctrl(child.sel(), VPEOp::YIELD, 0), Code::InvArgs);
 }
 
 fn vpe_wait() {

@@ -1,4 +1,0 @@
-Import('env')
-env.M3Program(env, 'ctx-pipetest', 'pipetest.cc')
-env.M3Program(env, 'ctx-piperd', 'piperd.cc')
-env.M3Program(env, 'ctx-pipewr', 'pipewr.cc')

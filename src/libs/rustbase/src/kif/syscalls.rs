@@ -30,41 +30,32 @@ pub const MAX_EXCHG_ARGS: usize = 8;
 int_enum! {
     /// The system calls
     pub struct Operation : u64 {
-        // sent by the DTU if the PF handler is not reachable
-        const PAGEFAULT         = 0;
-
         // capability creations
-        const CREATE_SRV        = 1;
-        const CREATE_SESS       = 2;
-        const CREATE_RGATE      = 3;
-        const CREATE_SGATE      = 4;
-        const CREATE_MAP        = 5;
-        const CREATE_VPEGRP     = 6;
-        const CREATE_VPE        = 7;
-        const CREATE_SEM        = 8;
+        const CREATE_SRV        = 0;
+        const CREATE_SESS       = 1;
+        const CREATE_RGATE      = 2;
+        const CREATE_SGATE      = 3;
+        const CREATE_MAP        = 4;
+        const CREATE_VPE        = 5;
+        const CREATE_SEM        = 6;
 
         // capability operations
-        const ACTIVATE          = 9;
-        const VPE_CTRL          = 10;
-        const VPE_WAIT          = 11;
-        const DERIVE_MEM        = 12;
-        const DERIVE_KMEM       = 13;
-        const KMEM_QUOTA        = 14;
-        const SEM_CTRL          = 15;
+        const ACTIVATE          = 7;
+        const VPE_CTRL          = 8;
+        const VPE_WAIT          = 9;
+        const DERIVE_MEM        = 10;
+        const DERIVE_KMEM       = 11;
+        const KMEM_QUOTA        = 12;
+        const SEM_CTRL          = 13;
 
         // capability exchange
-        const DELEGATE          = 16;
-        const OBTAIN            = 17;
-        const EXCHANGE          = 18;
-        const REVOKE            = 19;
-
-        // forwarding
-        const FORWARD_MSG       = 20;
-        const FORWARD_MEM       = 21;
-        const FORWARD_REPLY     = 22;
+        const DELEGATE          = 14;
+        const OBTAIN            = 15;
+        const EXCHANGE          = 16;
+        const REVOKE            = 17;
 
         // misc
-        const NOOP              = 23;
+        const NOOP              = 18;
     }
 }
 
@@ -114,14 +105,6 @@ impl Default for ExchangeArgs {
             vals: unsafe { MaybeUninit::uninit().assume_init() },
         }
     }
-}
-
-/// The pagefault request message
-#[repr(C, packed)]
-pub struct Pagefault {
-    pub opcode: u64,
-    pub virt: u64,
-    pub access: u64,
 }
 
 /// The create service request message
@@ -175,13 +158,6 @@ pub struct CreateMap {
     pub perms: u64,
 }
 
-/// The create VPE group request message
-#[repr(C, packed)]
-pub struct CreateVPEGrp {
-    pub opcode: u64,
-    pub dst_sel: u64,
-}
-
 /// The create VPE request message
 #[repr(C, packed)]
 pub struct CreateVPE {
@@ -191,8 +167,6 @@ pub struct CreateVPE {
     pub pe: u64,
     pub sep: u64,
     pub rep: u64,
-    pub muxable: u64,
-    pub group_sel: u64,
     pub kmem_sel: u64,
     pub namelen: u64,
     pub name: [u8; MAX_STR_SIZE],
@@ -227,8 +201,7 @@ int_enum! {
     pub struct VPEOp : u64 {
         const INIT  = 0x0;
         const START = 0x1;
-        const YIELD = 0x2;
-        const STOP  = 0x3;
+        const STOP  = 0x2;
     }
 }
 
@@ -343,56 +316,6 @@ pub struct Revoke {
     pub vpe_sel: u64,
     pub crd: u64,
     pub own: u64,
-}
-
-/// The forward message request message
-#[repr(C, packed)]
-pub struct ForwardMsg {
-    pub opcode: u64,
-    pub sgate_sel: u64,
-    pub rgate_sel: u64,
-    pub len: u64,
-    pub rlabel: u64,
-    pub event: u64,
-    pub msg: [u8; MAX_MSG_SIZE],
-}
-
-bitflags! {
-    /// The flags for the `forward_mem` system call
-    pub struct ForwardMemFlags : u32 {
-        const NOPF      = 0x1;
-        const WRITE     = 0x2;
-    }
-}
-
-/// The forward memory request message
-#[repr(C, packed)]
-pub struct ForwardMem {
-    pub opcode: u64,
-    pub mgate_sel: u64,
-    pub len: u64,
-    pub offset: u64,
-    pub flags: u64,
-    pub event: u64,
-    pub data: [u8; MAX_MSG_SIZE],
-}
-
-/// The forward memory reply message
-#[repr(C, packed)]
-pub struct ForwardMemReply {
-    pub error: u64,
-    pub data: [u8; MAX_MSG_SIZE],
-}
-
-/// The forward reply request message
-#[repr(C, packed)]
-pub struct ForwardReply {
-    pub opcode: u64,
-    pub rgate_sel: u64,
-    pub msgaddr: u64,
-    pub len: u64,
-    pub event: u64,
-    pub msg: [u8; MAX_MSG_SIZE],
 }
 
 /// The noop request message

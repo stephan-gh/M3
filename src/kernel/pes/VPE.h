@@ -25,16 +25,13 @@
 #include "mem/AddrSpace.h"
 #include "mem/SlabCache.h"
 #include "pes/VPEDesc.h"
-#include "pes/VPEGroup.h"
 #include "DTUState.h"
 #include "Types.h"
 
 namespace kernel {
 
-class ContextSwitcher;
 class PEManager;
 class VPECapability;
-class VPEGroup;
 class VPEManager;
 
 #define CREATE_CAP(CAP, KOBJ, tbl, sel, ...)                               \
@@ -43,10 +40,8 @@ class VPEManager;
         nullptr
 
 class VPE : public m3::SListItem, public SlabObject<VPE>, public m3::RefCounted {
-    friend class ContextSwitcher;
     friend class PEManager;
     friend class VPECapability;
-    friend class VPEGroup;
     friend class VPEManager;
 
     struct ServName : public m3::SListItem {
@@ -58,9 +53,6 @@ class VPE : public m3::SListItem, public SlabObject<VPE>, public m3::RefCounted 
 public:
     static const uint16_t INVALID_ID    = 0xFFFF;
     static const epid_t INVALID_EP      = static_cast<epid_t>(-1);
-
-    static const cycles_t APP_YIELD     = 20000;
-    static const cycles_t SRV_YIELD     = 1;
 
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
@@ -82,8 +74,6 @@ public:
 
     enum State {
         RUNNING,
-        SUSPENDED,
-        RESUMING,
         DEAD
     };
 
@@ -92,18 +82,11 @@ public:
         F_IDLE        = 1 << 1,
         F_INIT        = 1 << 2,
         F_HASAPP      = 1 << 3,
-        F_MUXABLE     = 1 << 4, // TODO temporary
-        F_READY       = 1 << 5,
-        F_NEEDS_INVAL = 1 << 6,
-        F_FLUSHED     = 1 << 7,
-        F_NOBLOCK     = 1 << 8,
-        F_PINNED      = 1 << 9,
-        F_YIELDED     = 1 << 10,
+        F_READY       = 1 << 4,
     };
 
     explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem,
-                 epid_t sep = INVALID_EP, epid_t rep = INVALID_EP, capsel_t sgate = m3::KIF::INV_SEL,
-                 VPEGroup *group = nullptr);
+                 epid_t sep = INVALID_EP, epid_t rep = INVALID_EP, capsel_t sgate = m3::KIF::INV_SEL);
     VPE(const VPE &) = delete;
     VPE &operator=(const VPE &) = delete;
     ~VPE();
@@ -113,9 +96,6 @@ public:
     }
     const m3::String &name() const {
         return _name;
-    }
-    const m3::Reference<VPEGroup> &group() const {
-        return _group;
     }
     const m3::Reference<KMemObject> &kmem() {
         return _kmem;
@@ -139,9 +119,6 @@ public:
         return _pid;
     }
 
-    bool has_yielded() const {
-        return _flags & F_YIELDED;
-    }
     bool is_idle() const {
         return _flags & F_IDLE;
     }
@@ -149,10 +126,7 @@ public:
         return _flags & F_HASAPP;
     }
     bool is_on_pe() const {
-        return state() == RUNNING || state() == RESUMING;
-    }
-    bool is_pinned() const {
-        return _flags & F_PINNED;
+        return state() == RUNNING;
     }
     State state() const {
         return _state;
@@ -184,17 +158,6 @@ public:
     }
     static void wait_for_exit();
 
-    bool is_waiting() const {
-        return _waits > 0;
-    }
-    void start_wait() {
-        _waits++;
-    }
-    void stop_wait() {
-        assert(_waits > 0);
-        _waits--;
-    }
-
     CapTable &objcaps() {
         return _objcaps;
     }
@@ -209,51 +172,16 @@ public:
     void upcall(const void *msg, size_t size, bool onheap) {
         _upcqueue.send(m3::DTU::UPCALL_REP, 0, msg, size, onheap);
     }
-    void upcall_forward(word_t event, m3::Errors::Code res);
     void upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply);
-
-    void add_forward() {
-        _pending_fwds++;
-    }
-    void rem_forward() {
-        _pending_fwds--;
-    }
-
-    cycles_t yield_time() const {
-        if(_group)
-            return APP_YIELD;
-        return _services > 0 || !Platform::pe(pe()).is_programmable() ? SRV_YIELD : APP_YIELD;
-    }
-    void add_service() {
-        _services++;
-    }
-    void rem_service() {
-        _services--;
-    }
-
-    void needs_invalidate() {
-        _flags |= F_NEEDS_INVAL;
-    }
-    void flush_cache();
 
     void start_app(int pid);
     void stop_app(int exitcode, bool self);
+    void wakeup();
 
     bool check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
     void wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
 
-    void yield();
-
-    bool migrate(bool fast);
-    bool migrate_for(VPE *vpe);
-    bool resume(bool need_app = true, bool unblock = true);
-    void wakeup();
-
     bool invalidate_ep(epid_t ep, bool force = false);
-
-    bool can_forward_msg(epid_t ep);
-    void forward_msg(epid_t ep, peid_t pe, vpeid_t vpe);
-    void forward_mem(epid_t ep, peid_t pe);
 
     m3::Errors::Code config_rcv_ep(epid_t ep, RGateObject &obj);
     m3::Errors::Code config_snd_ep(epid_t ep, SGateObject &obj);
@@ -272,23 +200,16 @@ private:
 
     void update_ep(epid_t ep);
 
-    void notify_resume();
-
     VPEDesc _desc;
     uint _flags;
     int _pid;
     State _state;
     int _exitcode;
     epid_t _sysc_ep;
-    m3::Reference<VPEGroup> _group;
     m3::Reference<KMemObject> _kmem;
-    uint _services;
-    uint _pending_fwds;
-    uint _waits;
     m3::String _name;
     CapTable _objcaps;
     CapTable _mapcaps;
-    uint64_t _lastsched;
     size_t _rbufs_size;
     DTUState _dtustate;
     SendQueue _upcqueue;

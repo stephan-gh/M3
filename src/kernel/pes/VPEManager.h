@@ -55,10 +55,10 @@ private:
     ~VPEManager();
 
 public:
-    KMemObject *start_root();
+    void start_root();
 
     VPE *create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epid_t rep,
-                capsel_t sgate, KMemObject *kmem, uint flags = 0, VPEGroup *group = nullptr);
+                capsel_t sgate, KMemObject *kmem);
 
     size_t used() const {
         return _count;

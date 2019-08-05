@@ -34,12 +34,6 @@ const size_t VPE::BUF_SIZE    = 4096;
 INIT_PRIO_VPE VPE VPE::_self;
 VPE *VPE::_self_ptr = &VPE::_self;
 
-VPEGroup::VPEGroup() : ObjCap(ObjCap::VPEGRP) {
-    capsel_t dst = VPE::self().alloc_sel();
-    Syscalls::create_vgroup(dst);
-    sel(dst);
-}
-
 size_t KMem::quota() const {
     return Syscalls::kmem_quota(sel());
 }
@@ -51,11 +45,9 @@ Reference<KMem> KMem::derive(const KMem &base, size_t quota) {
 }
 
 VPEArgs::VPEArgs() noexcept
-    : _flags(0),
-      _pedesc(VPE::self().pe()),
+    : _pedesc(VPE::self().pe()),
       _pager(nullptr),
       _rmng(nullptr),
-      _group(nullptr),
       _kmem() {
 }
 
@@ -112,13 +104,11 @@ VPE::VPE(const String &name, const VPEArgs &args)
             throw Exception(Errors::NOT_SUP);
     }
 
-    capsel_t group_sel = args._group ? args._group->sel() : ObjCap::INVALID;
     KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, sel(), KIF::FIRST_FREE_SEL);
     if(_pager) {
         // now create VPE, which implicitly obtains the gate cap from us
         Syscalls::create_vpe(dst, _pager->child_sgate().sel(), name, _pe,
-                             _pager->sep(), _pager->rep(), args._flags,
-                             _kmem->sel(), group_sel);
+                             _pager->sep(), _pager->rep(), _kmem->sel());
         // mark the send gate cap allocated
         _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
         // now delegate our VPE cap and memory cap to the pager
@@ -126,11 +116,8 @@ VPE::VPE(const String &name, const VPEArgs &args)
         // and delegate the pager cap to the VPE
         delegate_obj(_pager->sel());
     }
-    else {
-        Syscalls::create_vpe(dst, ObjCap::INVALID, name, _pe,
-                             0, 0, args._flags,
-                             _kmem->sel(), group_sel);
-    }
+    else
+        Syscalls::create_vpe(dst, ObjCap::INVALID, name, _pe, 0, 0, _kmem->sel());
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
     if(_resmng == nullptr) {

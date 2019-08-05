@@ -265,28 +265,8 @@ static goff_t get_pte_addr(goff_t virt, int level) {
     return virt;
 }
 
-goff_t AddrSpace::get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt, int level) {
-    goff_t pt = m3::DTU::gaddr_to_virt(root);
-    for(int l = m3::DTU::LEVEL_CNT - 1; l >= 0; --l) {
-        size_t idx = (virt >> (PAGE_BITS + m3::DTU::LEVEL_BITS * l)) & m3::DTU::LEVEL_MASK;
-        pt += idx * m3::DTU::PTE_SIZE;
-
-        if(level == l)
-            return pt;
-
-        m3::DTU::pte_t pte;
-        DTU::get().read_mem(vpe, pt, &pte, sizeof(pte));
-        pte = to_dtu_pte(_pe, pte);
-
-        pt = m3::DTU::gaddr_to_virt(pte & ~PAGE_MASK);
-    }
-
-    UNREACHED;
-}
-
 void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pages, int perm) {
     VPE *vpeobj = vpe.pe != Platform::kernel_pe() ? &VPEManager::get().vpe(vpe.id) : nullptr;
-    bool running = !vpeobj || vpeobj->is_on_pe();
     if(vpeobj && !Platform::pe(vpeobj->pe()).has_virtmem())
         return;
 
@@ -296,38 +276,20 @@ void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pa
         << m3::fmt(phys, "#0x", 16) << ".." << m3::fmt(phys + pages * PAGE_SIZE - 1, "#0x", 16)
         << " with " << m3::fmt(perm, "#x"));
 
-    VPEDesc rvpe(vpe);
-    gaddr_t root = 0;
-    if(!running) {
-        // first, flush the cache to ensure that all PTEs are in memory
-        vpeobj->flush_cache();
-        // update the cache from memory when resuming the VPE
-        vpeobj->needs_invalidate();
-
-        // TODO we currently assume that all PTEs are in the same mem PE as the root PT
-        peid_t pe = m3::DTU::gaddr_to_pe(_root);
-        root = _root;
-        rvpe = VPEDesc(pe, VPE::INVALID_ID);
-    }
-
     while(pages > 0) {
         for(int level = m3::DTU::LEVEL_CNT - 1; level >= 0; --level) {
-            goff_t pteAddr;
-            if(!running)
-                pteAddr = get_pte_addr_mem(rvpe, root, virt, level);
-            else
-                pteAddr = get_pte_addr(virt, level);
+            goff_t pteAddr = get_pte_addr(virt, level);
 
             m3::DTU::pte_t pte;
-            DTU::get().read_mem(rvpe, pteAddr, &pte, sizeof(pte));
+            DTU::get().read_mem(vpe, pteAddr, &pte, sizeof(pte));
             pte = to_dtu_pte(_pe, pte);
 
             if(level > 0) {
-                if(create_pt(rvpe, vpeobj, virt, pteAddr, pte, phys, pages, perm, level))
+                if(create_pt(vpe, vpeobj, virt, pteAddr, pte, phys, pages, perm, level))
                     break;
             }
             else {
-                if(create_ptes(rvpe, virt, pteAddr, pte, phys, pages, perm))
+                if(create_ptes(vpe, virt, pteAddr, pte, phys, pages, perm))
                     return;
             }
         }

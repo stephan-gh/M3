@@ -19,7 +19,6 @@
 
 #include <thread/ThreadManager.h>
 
-#include "pes/Timeouts.h"
 #include "pes/VPEManager.h"
 #include "SyscallHandler.h"
 #include "WorkLoop.h"
@@ -105,10 +104,7 @@ void WorkLoop::run() {
     epid_t srvep = SyscallHandler::srvep();
     const m3::DTU::Message *msg;
     while(_run) {
-        cycles_t sleep = Timeouts::get().sleep_time();
-        if(sleep != static_cast<cycles_t>(-1))
-            m3::DTU::get().try_sleep(false, sleep);
-        Timeouts::get().trigger();
+        m3::DTU::get().try_sleep(false);
 
         msg = dtu.fetch_msg(sysep0);
         if(msg) {

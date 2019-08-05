@@ -22,7 +22,6 @@
 
 namespace kernel {
 
-struct Timeout;
 class VPE;
 
 class SendQueue {
@@ -48,8 +47,7 @@ public:
         : _vpe(vpe),
           _queue(),
           _cur_event(),
-          _inflight(0),
-          _timeout() {
+          _inflight(0) {
     }
     ~SendQueue();
 
@@ -77,7 +75,6 @@ private:
     m3::SList<Entry> _queue;
     event_t _cur_event;
     int _inflight;
-    Timeout *_timeout;
     static uint64_t _next_id;
 };
 

@@ -79,8 +79,6 @@ private:
 
     void remove_pts_rec(VPE &vpe, gaddr_t pt, goff_t virt, int level);
 
-    goff_t get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt, int level);
-
     static mmu_pte_t to_mmu_pte(const m3::PEDesc &pe, m3::DTU::pte_t pte);
     static m3::DTU::pte_t to_dtu_pte(const m3::PEDesc &pe, mmu_pte_t pte);
 

@@ -61,7 +61,6 @@ public:
     static const size_t EP_IN_MEM   = 7;
     static const size_t EP_OUT_SEND = 8;
     static const size_t EP_OUT_MEM  = 9;
-    static const size_t EP_CTX      = 10;
 
     static const uint64_t LBL_IN_REQ    = 1;
     static const uint64_t LBL_IN_REPLY  = 2;
@@ -71,24 +70,16 @@ public:
     static const size_t BUF_ADDR    = 0x8000;
     static const size_t BUF_SIZE    = 8192;
 
-    explicit StreamAccel(std::unique_ptr<VPE> &vpe, cycles_t compTime)
+    explicit StreamAccel(std::unique_ptr<VPE> &vpe, cycles_t /* TODO */)
         : _sgate_in(),
           _sgate_out(),
           _mgate_out(),
           _rgate(RecvGate::create_for(*vpe, getnextlog2(RB_SIZE), getnextlog2(MSG_SIZE))),
-          _spm(MemGate::create_global(BUF_SIZE + sizeof(Context), MemGate::RW)),
           _vpe(vpe) {
         // activate EPs
         _rgate.activate(EP_RECV, vpe->pe().mem_size() - RB_SIZE);
-        _spm.activate_for(*vpe, EP_CTX);
         // delegate caps
         vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _rgate.sel(), 1), CAP_RECV);
-
-        // init the state
-        Context ctx;
-        memset(&ctx, 0, sizeof(ctx));
-        ctx.compTime = compTime;
-        _spm.write(&ctx, sizeof(ctx), 0);
     }
 
     void connect_input(GenericFile *file) {
@@ -128,7 +119,6 @@ private:
     std::unique_ptr<SendGate> _sgate_out;
     std::unique_ptr<MemGate> _mgate_out;
     RecvGate _rgate;
-    MemGate _spm;
     std::unique_ptr<VPE> &_vpe;
 };
 

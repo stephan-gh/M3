@@ -24,38 +24,12 @@ namespace m3 {
 
 INIT_PRIO_DTU DTU DTU::inst;
 
-void DTU::try_sleep(bool yield, uint64_t cycles, reg_t evmask) {
+void DTU::try_sleep(uint64_t cycles, reg_t evmask) {
     // check for messages a few times
     const int num = m3::env()->pedesc.has_mmu() ? 2 : 100;
     for(int i = 0; i < num; ++i) {
         if(read_reg(DtuRegs::EVENTS) & evmask)
             return;
-    }
-
-    uint64_t yield_time;
-    if(yield && (yield_time = *reinterpret_cast<uint64_t*>(RCTMUX_YIELD)) > 0) {
-        // if we want to wait longer than our yield time, sleep first for a while until we yield
-        if(cycles == 0 || cycles > yield_time) {
-            // sleep a bit
-            uint64_t now = read_reg(DtuRegs::CUR_TIME);
-            CPU::memory_barrier();
-            sleep(yield_time);
-            CPU::memory_barrier();
-            uint64_t sleep_time = read_reg(DtuRegs::CUR_TIME) - now;
-
-            // if we were waked up early, there is something to do
-            if(sleep_time < yield_time)
-                return;
-
-            // adjust the remaining sleep time
-            if(cycles >= sleep_time)
-                cycles -= sleep_time;
-            else if(cycles)
-                return;
-        }
-
-        // if we still want to sleep, yield
-        m3::env()->backend()->yield();
     }
 
     // note that the DTU checks again whether there actually are no messages, because we might

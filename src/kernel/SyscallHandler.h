@@ -57,12 +57,10 @@ public:
     static void handle_message(VPE *vpe, const m3::DTU::Message *msg);
 
 private:
-    static void page_fault(VPE *vpe, const m3::DTU::Message *msg);
     static void create_srv(VPE *vpe, const m3::DTU::Message *msg);
     static void create_sess(VPE *vpe, const m3::DTU::Message *msg);
     static void create_rgate(VPE *vpe, const m3::DTU::Message *msg);
     static void create_sgate(VPE *vpe, const m3::DTU::Message *msg);
-    static void create_vgroup(VPE *vpe, const m3::DTU::Message *msg);
     static void create_vpe(VPE *vpe, const m3::DTU::Message *msg);
     static void create_map(VPE *vpe, const m3::DTU::Message *msg);
     static void create_sem(VPE *vpe, const m3::DTU::Message *msg);
@@ -77,9 +75,6 @@ private:
     static void delegate(VPE *vpe, const m3::DTU::Message *msg);
     static void obtain(VPE *vpe, const m3::DTU::Message *msg);
     static void revoke(VPE *vpe, const m3::DTU::Message *msg);
-    static void forward_msg(VPE *vpe, const m3::DTU::Message *msg);
-    static void forward_mem(VPE *vpe, const m3::DTU::Message *msg);
-    static void forward_reply(VPE *vpe, const m3::DTU::Message *msg);
     static void noop(VPE *vpe, const m3::DTU::Message *msg);
 
     static void add_operation(m3::KIF::Syscall::Operation op, handler_func func) {
@@ -89,7 +84,6 @@ private:
     static void reply_msg(VPE *vpe, const m3::DTU::Message *msg, const void *reply, size_t size);
     static void reply_result(VPE *vpe, const m3::DTU::Message *msg, m3::Errors::Code code);
 
-    static m3::Errors::Code wait_for(const char *name, VPE &tvpe, VPE *cur, bool need_app);
     static m3::Errors::Code do_exchange(VPE *v1, VPE *v2, const m3::KIF::CapRngDesc &c1,
                                         const m3::KIF::CapRngDesc &c2, bool obtain);
     static void exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, bool obtain);

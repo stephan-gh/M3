@@ -42,12 +42,11 @@ public:
 
     explicit DirectChain(Pipes &pipesrv, size_t id, Reference<File> in, Reference<File> out, Mode _mode)
         : mode(_mode),
-          group(),
           vpes(),
           accels(),
           pipes(),
           mems() {
-        // create VPEs and put them into the same group
+        // create VPEs
         for(size_t i = 0; i < ACCEL_COUNT; ++i) {
             OStringStream name;
             name << names[i] << id;
@@ -56,8 +55,6 @@ public:
 
             vpes[i] = std::make_unique<VPE>(
                 name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
-                                     .flags(VPE::MUXABLE)
-                                     .group(&group)
             );
 
             accels[i] = std::make_unique<StreamAccel>(vpes[i], ACCEL_TIMES[i]);
@@ -129,7 +126,6 @@ public:
 
 private:
     Mode mode;
-    VPEGroup group;
     std::unique_ptr<VPE> vpes[ACCEL_COUNT];
     std::unique_ptr<StreamAccel> accels[ACCEL_COUNT];
     std::unique_ptr<IndirectPipe> pipes[ACCEL_COUNT];

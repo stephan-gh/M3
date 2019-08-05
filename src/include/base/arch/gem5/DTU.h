@@ -318,7 +318,7 @@ public:
         return read_reg(DtuRegs::CLOCK);
     }
 
-    void try_sleep(bool yield = true, uint64_t cycles = 0, reg_t evmask = EventMask::MSG_RECV);
+    void try_sleep(uint64_t cycles = 0, reg_t evmask = EventMask::MSG_RECV);
     void sleep(uint64_t cycles = 0) {
         write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, cycles));
         get_error();

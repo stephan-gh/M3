@@ -29,11 +29,9 @@ Service::Service(VPE &vpe, const m3::String &name, const m3::Reference<RGateObje
       _squeue(vpe),
       _name(name),
       _rgate(rgate) {
-    vpe.add_service();
 }
 
 Service::~Service() {
-    vpe().rem_service();
     // we have allocated the selector and stored it in our cap-table on creation; undo that
     ServiceList::get().remove(this);
 }

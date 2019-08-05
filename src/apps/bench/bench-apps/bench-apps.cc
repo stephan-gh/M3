@@ -35,10 +35,10 @@ static constexpr bool VERBOSE           = false;
 static constexpr int MAX_TMP_DIRS       = 4;
 
 struct App {
-    explicit App(int argc, const char *argv[], bool muxed)
+    explicit App(int argc, const char *argv[])
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPEArgs().flags(muxed ? VPE::MUXABLE : 0)) {
+          vpe(argv[0]) {
     }
 
     int argc;
@@ -47,20 +47,17 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-m <muxed>] [-r <repeats>] <argcount> <prog1>...\n";
-    cerr << "  <muxed> specifies whether the PEs are multiplexed\n";
+    cerr << "Usage: " << name << " [-r <repeats>] <argcount> <prog1>...\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
     exit(1);
 }
 
 int main(int argc, char **argv) {
-    bool muxed = false;
     int repeats = 1;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "m:r:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "r:")) != -1) {
         switch(opt) {
-            case 'm': muxed = IStringStream::read_from<int>(CmdArgs::arg) == 1; break;
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
             default:
                 usage(argv[0]);
@@ -90,7 +87,7 @@ int main(int argc, char **argv) {
                         cout << args[x] << " ";
                     cout << "\n";
                 }
-                apps[idx++] = std::make_unique<App>(argcount, args, muxed);
+                apps[idx++] = std::make_unique<App>(argcount, args);
             }
 
             if(VERBOSE) cout << "Starting VPEs...\n";
@@ -102,21 +99,10 @@ int main(int argc, char **argv) {
                 apps[i]->vpe.obtain_mounts();
                 apps[i]->vpe.exec(apps[i]->argc, apps[i]->argv);
 
-                if(!muxed) {
-                    if(VERBOSE) cout << "Waiting for VPE " << apps[i]->argv[0] << " ...\n";
+                if(VERBOSE) cout << "Waiting for VPE " << apps[i]->argv[0] << " ...\n";
 
-                    UNUSED int res = apps[i]->vpe.wait();
-                    if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
-                }
-            }
-
-            if(muxed) {
-                if(VERBOSE) cout << "Waiting for VPEs...\n";
-
-                for(size_t i = 0; i < ARRAY_SIZE(apps); ++i) {
-                    int res = apps[i]->vpe.wait();
-                    if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
-                }
+                UNUSED int res = apps[i]->vpe.wait();
+                if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
             }
 
             cycles_t end = Time::stop(0x1234);

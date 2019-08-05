@@ -1,5 +1,0 @@
-Import('env')
-env.M3Program(env, 'ctx-clitest', 'clitest.cc')
-env.M3Program(env, 'ctx-srvtest', 'srvtest.cc')
-env.M3Program(env, 'ctx-client', 'client.cc')
-env.M3Program(env, 'ctx-service', 'service.cc')

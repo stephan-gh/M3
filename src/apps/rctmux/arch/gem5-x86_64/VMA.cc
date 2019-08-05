@@ -48,10 +48,7 @@ static m3::DTU::reg_t cmdregs[2] = {0, 0};
 
 // store messages in static data to ensure that we don't pagefault
 alignas(64) static uint64_t pfmsg[3] = {
-    m3::KIF::Syscall::PAGEFAULT, 0, 0
-};
-alignas(64) static uint64_t yieldmsg[4] = {
-    m3::KIF::Syscall::VPE_CTRL, 0, m3::KIF::Syscall::VCTRL_YIELD, 0
+    /* PAGEFAULT */ 0, 0, 0
 };
 
 uintptr_t VMA::get_pte_addr(uintptr_t virt, int level) {
@@ -196,17 +193,9 @@ void VMA::execute_fsm(m3::Exceptions::State *state) {
             }
 
             case PfState::SEND_YIELD: {
-                res = dtu.send(m3::DTU::SYSC_SEP, yieldmsg, sizeof(yieldmsg), 0, m3::DTU::SYSC_REP);
-                if(res == m3::Errors::MISS_CREDITS) {
-                    // if we have no credits (maybe the app is currently doing a syscall), don't
-                    // notify the kernel about our idling.
-                    sleep = true;
-                    pfstate = PfState::WAIT_PAGER;
-                }
-                else {
-                    panic_if(res != m3::Errors::NONE, "RCTMux: unexpected result: %u\n", res);
-                    pfstate = PfState::WAIT_KERNEL;
-                }
+                // TODO remove that entirely
+                sleep = true;
+                pfstate = PfState::WAIT_PAGER;
                 break;
             }
 

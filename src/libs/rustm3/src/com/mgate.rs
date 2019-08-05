@@ -19,9 +19,9 @@ use com::gate::Gate;
 use core::fmt;
 use core::mem::MaybeUninit;
 use dtu;
-use errors::{Code, Error};
+use errors::Error;
 use goff;
-use kif::{self, INVALID_SEL};
+use kif::INVALID_SEL;
 use syscalls;
 use util;
 use vpe;
@@ -160,21 +160,10 @@ impl MemGate {
 
     /// Reads `size` bytes via the DTU read command from the memory region at offset `off` and
     /// stores the read data into `data`.
-    pub fn read_bytes(&self, mut data: *mut u8, mut size: usize, mut off: goff) -> Result<(), Error> {
+    pub fn read_bytes(&self, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
         let ep = self.gate.activate()?;
 
-        loop {
-            match dtu::DTU::read(ep, data, size, off, dtu::CmdFlags::empty()) {
-                Ok(_)                                   => return Ok(()),
-                Err(ref e) if e.code() == Code::VPEGone => {
-                    // simply retry the write if the forward failed (pagefault)
-                    if self.forward_read(&mut data, &mut size, &mut off).is_ok() && size == 0 {
-                        break Ok(())
-                    }
-                },
-                Err(e)                                  => return Err(e),
-            }
-        }
+        dtu::DTU::read(ep, data, size, off, dtu::CmdFlags::empty())
     }
 
     /// Writes `data` with the DTU write command to the memory region at offset `off`.
@@ -189,45 +178,9 @@ impl MemGate {
 
     /// Writes the `size` bytes at `data` via the DTU write command to the memory region at offset
     /// `off`.
-    pub fn write_bytes(&self, mut data: *const u8, mut size: usize, mut off: goff) -> Result<(), Error> {
+    pub fn write_bytes(&self, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
         let ep = self.gate.activate()?;
-
-        loop {
-            match dtu::DTU::write(ep, data, size, off, dtu::CmdFlags::empty()) {
-                Ok(_)                                   => return Ok(()),
-                Err(ref e) if e.code() == Code::VPEGone => {
-                    // simply retry the write if the forward failed (pagefault)
-                    if self.forward_write(&mut data, &mut size, &mut off).is_ok() && size == 0 {
-                        break Ok(());
-                    }
-                },
-                Err(e)                                  => return Err(e),
-            }
-        }
-    }
-
-    fn forward_read(&self, data: &mut *mut u8, size: &mut usize, off: &mut goff) -> Result<(), Error> {
-        let amount = util::min(kif::syscalls::MAX_MSG_SIZE, *size);
-        syscalls::forward_read(
-            self.sel(), unsafe { util::slice_for_mut(*data, amount) }, *off,
-            kif::syscalls::ForwardMemFlags::empty(), 0
-        )?;
-        *data = unsafe { (*data).add(amount) };
-        *off += amount as goff;
-        *size -= amount;
-        Ok(())
-    }
-
-    fn forward_write(&self, data: &mut *const u8, size: &mut usize, off: &mut goff) -> Result<(), Error> {
-        let amount = util::min(kif::syscalls::MAX_MSG_SIZE, *size);
-        syscalls::forward_write(
-            self.sel(), unsafe { util::slice_for(*data, amount) }, *off,
-            kif::syscalls::ForwardMemFlags::empty(), 0
-        )?;
-        *data = unsafe { (*data).add(amount) };
-        *off += amount as goff;
-        *size -= amount;
-        Ok(())
+        dtu::DTU::write(ep, data, size, off, dtu::CmdFlags::empty())
     }
 }
 

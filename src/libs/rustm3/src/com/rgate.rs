@@ -20,7 +20,6 @@ use cell::StaticCell;
 use com::gate::Gate;
 use com::{GateIStream, SendGate};
 use core::fmt;
-use core::intrinsics;
 use core::ops;
 use dtu;
 use errors::{Code, Error};
@@ -259,21 +258,8 @@ impl RecvGate {
     }
     /// Sends `reply` with `size` bytes as a reply to the message `msg`.
     #[inline(always)]
-    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn reply_bytes(&self, reply: *const u8, size: usize, msg: &'static dtu::Message) -> Result<(), Error> {
-        let res = dtu::DTU::reply(self.ep().unwrap(), reply, size, msg);
-        match res {
-            Ok(_)                                   => Ok(()),
-            Err(ref e) if e.code() == Code::VPEGone => unsafe {
-                // TODO switch to a different thread while waiting
-                let msg_addr: [usize; 2] = intrinsics::transmute(msg);
-                syscalls::forward_reply(self.sel(),
-                                        util::slice_for(reply, size),
-                                        msg_addr[0],
-                                        0)
-            },
-            Err(e)                                  => Err(e),
-        }
+        dtu::DTU::reply(self.ep().unwrap(), reply, size, msg)
     }
 
     /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,

@@ -17,6 +17,7 @@
 #include <base/Common.h>
 #include <base/log/Kernel.h>
 #include <base/util/Math.h>
+#include <base/util/Time.h>
 
 #include <thread/ThreadManager.h>
 
@@ -24,7 +25,6 @@
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
-#include "pes/VPEGroup.h"
 #include "pes/VPE.h"
 #include "DTU.h"
 #include "Platform.h"
@@ -33,25 +33,20 @@
 namespace kernel {
 
 VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem,
-         epid_t sep, epid_t rep, capsel_t sgate, VPEGroup *group)
+         epid_t sep, epid_t rep, capsel_t sgate)
     : SListItem(),
       SlabObject<VPE>(),
       RefCounted(),
       _desc(peid, id),
-      _flags(flags | F_INIT | F_NEEDS_INVAL),
+      _flags(flags | F_INIT),
       _pid(),
       _state(DEAD),
       _exitcode(),
       _sysc_ep((flags & F_IDLE) ? SyscallHandler::ep(0) : SyscallHandler::alloc_ep()),
-      _group(group),
       _kmem(kmem),
-      _services(),
-      _pending_fwds(),
-      _waits(),
       _name(std::move(prog)),
       _objcaps(id + 1),
       _mapcaps(id + 1),
-      _lastsched(),
       _rbufs_size(),
       _dtustate(),
       _upcqueue(*this),
@@ -64,8 +59,6 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _mem_base() {
     if(_sysc_ep == EP_COUNT)
         PANIC("Too few slots in syscall receive buffers");
-    if(group)
-        _group->add(this);
 
     _kmem->alloc(*this, base_kmem());
 
@@ -101,13 +94,10 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
 VPE::~VPE() {
     KLOG(VPES, "Deleting VPE '" << _name << "' [id=" << id() << "]");
 
-    // ensure that the VPE is stopped
-    PEManager::get().stop_vpe(this);
-
     _state = DEAD;
 
-    if(_group)
-        _group->remove(this);
+    // ensure that the VPE is stopped
+    PEManager::get().stop_vpe(this);
 
     _objcaps.revoke_all();
     _mapcaps.revoke_all();
@@ -124,18 +114,6 @@ VPE::~VPE() {
     delete _as;
 
     VPEManager::get().remove(this);
-}
-
-void VPE::flush_cache() {
-    if(_flags & F_FLUSHED)
-        return;
-
-    KLOG(VPES, "Flushing cache of VPE '" << _name << "' [id=" << id() << "]");
-
-    VPE *cur = PEManager::get().current(pe());
-    assert(cur != nullptr);
-    DTU::get().flush_cache(cur->desc());
-    _flags |= F_FLUSHED;
 }
 
 void VPE::start_app(int pid) {
@@ -180,6 +158,7 @@ static int exit_event = 0;
 
 void VPE::wait_for_exit() {
     m3::ThreadManager::get().wait_for(reinterpret_cast<event_t>(&exit_event));
+    m3::CPU::compiler_barrier();
 }
 
 void VPE::exit_app(int exitcode) {
@@ -226,9 +205,7 @@ bool VPE::check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWai
         }
     }
 
-    start_wait();
     VPE::wait_for_exit();
-    stop_wait();
     return false;
 }
 
@@ -249,75 +226,8 @@ void VPE::wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitR
     _vpe_wait_sels = nullptr;
 }
 
-void VPE::yield() {
-    _flags |= F_YIELDED;
-    if(_pending_fwds == 0)
-        PEManager::get().yield_vpe(this);
-    else
-        KLOG(VPES, "Ignoring yield of VPE '" << _name << "' due to pending forwards");
-}
-
-bool VPE::migrate(bool fast) {
-    // idle VPEs are never migrated
-    if(_flags & (VPE::F_IDLE | VPE::F_PINNED))
-        return false;
-
-    peid_t old = pe();
-
-    bool changed = PEManager::get().migrate_vpe(this, fast);
-    if(changed)
-        KLOG(VPES, "Migrated VPE '" << _name << "' [id=" << id() << "] from " << old << " to " << pe());
-
-    return changed;
-}
-
-bool VPE::migrate_for(VPE *vpe) {
-    if(is_on_pe() || (_flags & (VPE::F_IDLE | VPE::F_PINNED)))
-        return false;
-
-    peid_t old = pe();
-
-    bool changed = PEManager::get().migrate_for(this, vpe);
-    if(changed)
-        KLOG(VPES, "Migrated VPE '" << _name << "' [id=" << id() << "] from " << old << " to " << pe());
-    return changed;
-}
-
-bool VPE::resume(bool need_app, bool unblock) {
-    if(need_app && !has_app())
-        return false;
-
-    KLOG(VPES, "Resuming VPE '" << _name << "' (unblock=" << unblock << ") [id=" << id() << "]");
-
-    bool wait = true;
-    if(unblock && !is_on_pe())
-        wait = !PEManager::get().unblock_vpe(this, false);
-    if(wait)
-        m3::ThreadManager::get().wait_for(reinterpret_cast<event_t>(this));
-
-    KLOG(VPES, "Resumed VPE '" << _name << "' [id=" << id() << "]");
-    return true;
-}
-
 void VPE::wakeup() {
-    if(_state == RUNNING)
-        DTU::get().inject_irq(desc());
-    else if(has_app() && !is_on_pe() && !is_waiting())
-        PEManager::get().unblock_vpe(this, false);
-}
-
-void VPE::notify_resume() {
-    m3::ThreadManager::get().notify(reinterpret_cast<event_t>(this));
-}
-
-void VPE::upcall_forward(word_t event, m3::Errors::Code res) {
-    m3::KIF::Upcall::Forward msg;
-    msg.opcode = m3::KIF::Upcall::FORWARD;
-    msg.event = event;
-    msg.error = static_cast<xfer_t>(res);
-    KLOG(UPCALLS, "Sending upcall FORWARD (error=" << res << ", event="
-        << (void*)event << ") to VPE " << id());
-    upcall(&msg, sizeof(msg), false);
+    DTU::get().inject_irq(desc());
 }
 
 void VPE::upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply) {
@@ -341,26 +251,6 @@ bool VPE::invalidate_ep(epid_t ep, bool force) {
     else
         res = _dtustate.invalidate(ep, force);
     return res;
-}
-
-bool VPE::can_forward_msg(epid_t ep) {
-    if(is_on_pe())
-        _dtustate.read_ep(desc(), ep);
-    return _dtustate.can_forward_msg(ep);
-}
-
-void VPE::forward_msg(epid_t ep, peid_t pe, vpeid_t vpe) {
-    KLOG(EPS, "VPE" << id() << ":EP" << ep << " forward message");
-
-    _dtustate.forward_msg(ep, pe, vpe);
-    update_ep(ep);
-}
-
-void VPE::forward_mem(epid_t ep, peid_t pe) {
-    KLOG(EPS, "VPE" << id() << ":EP" << ep << " forward mem");
-
-    _dtustate.forward_mem(ep, pe);
-    update_ep(ep);
 }
 
 m3::Errors::Code VPE::config_rcv_ep(epid_t ep, RGateObject &obj) {

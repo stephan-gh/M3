@@ -32,10 +32,10 @@ using namespace m3;
 static constexpr bool VERBOSE = true;
 
 struct App {
-    explicit App(size_t argc, const char **argv, const char *pager, uint flags)
+    explicit App(size_t argc, const char **argv, const char *pager)
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPEArgs().pager(pager).flags(flags)),
+          vpe(argv[0], VPEArgs().pager(pager)),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
         rgate.activate();
@@ -50,8 +50,7 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-m] [-l] [-i <instances>] [-s <servers>] [-r <repeats>] <name> <fssize>\n";
-    cerr << "  -m enables PE sharing\n";
+    cerr << "Usage: " << name << " [-l] [-i <instances>] [-s <servers>] [-r <repeats>] <name> <fssize>\n";
     cerr << "  -l enables the load generator\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
     cerr << "  <servers> specifies the number of m3fs instances\n";
@@ -62,16 +61,14 @@ static void usage(const char *name) {
 }
 
 int main(int argc, char **argv) {
-    bool muxed = false;
     bool loadgen = false;
     size_t instances = 1;
     size_t servers = 1;
     int repeats = 1;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "mli:s:r:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "li:s:r:")) != -1) {
         switch(opt) {
-            case 'm': muxed = true; break;
             case 'l': loadgen = true; break;
             case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 's': servers = IStringStream::read_from<size_t>(CmdArgs::arg); break;
@@ -95,7 +92,7 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
-        srvvpes[0] = new VPE("pager", VPEArgs().flags(muxed ? VPE::MUXABLE : 0));
+        srvvpes[0] = new VPE("pager");
         srv[0] = new RemoteServer(*srvvpes[0], "mypager");
         OStringStream pager_name(srvnames[0], sizeof(srvnames[0]));
         pager_name << "pager";
@@ -116,13 +113,13 @@ int main(int argc, char **argv) {
         const char **args = new const char *[ARG_COUNT];
         args[0] = "/bin/fstrace-m3fs";
 
-        apps[i] = new App(ARG_COUNT, args, "mypager", muxed ? (VPE::MUXABLE | VPE::PINNED) : 0);
+        apps[i] = new App(ARG_COUNT, args, "mypager");
     }
 
     if(VERBOSE) cout << "Creating servers...\n";
 
     for(size_t i = 0; i < servers; ++i) {
-        srvvpes[i + 1] = new VPE("m3fs", VPEArgs().flags(muxed ? VPE::MUXABLE : 0));
+        srvvpes[i + 1] = new VPE("m3fs");
         OStringStream m3fs_name(srvnames[i + 1], sizeof(srvnames[i + 1]));
         m3fs_name << "m3fs" << i;
         srv[i + 1] = new RemoteServer(*srvvpes[i + 1], m3fs_name.str());

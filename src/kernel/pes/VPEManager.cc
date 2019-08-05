@@ -36,7 +36,7 @@ VPEManager::VPEManager()
       _count() {
 }
 
-KMemObject *VPEManager::start_root() {
+void VPEManager::start_root() {
     // TODO the required PE depends on the boot module, not the kernel PE
     m3::PEDesc pedesc = Platform::pe(Platform::kernel_pe());
     m3::PEDesc pedesc_emem(m3::PEType::COMP_EMEM, pedesc.isa(), pedesc.mem_size());
@@ -46,10 +46,10 @@ KMemObject *VPEManager::start_root() {
     assert(id != MAX_VPES);
 
     // try to find a PE with the required ISA and external memory first
-    peid_t peid = PEManager::get().find_pe(pedesc_emem, 0, 0, nullptr);
+    peid_t peid = PEManager::get().find_pe(pedesc_emem, 0);
     if(peid == 0) {
         // if that failed, try to find a SPM PE
-        peid = PEManager::get().find_pe(pedesc_imem, 0, 0, nullptr);
+        peid = PEManager::get().find_pe(pedesc_imem, 0);
         if(peid == 0)
             PANIC("Unable to find a free PE for root task");
     }
@@ -103,11 +103,12 @@ KMemObject *VPEManager::start_root() {
         }
     }
 
-    // go!
+    // let root know the first usable selector
     _vpes[id]->set_first_sel(sel);
-    _vpes[id]->start_app(_vpes[id]->pid());
 
-    return kmem;
+    // go!
+    PEManager::get().init_vpe(_vpes[id]);
+    _vpes[id]->start_app(_vpes[id]->pid());
 }
 
 vpeid_t VPEManager::get_id() {
@@ -125,14 +126,8 @@ vpeid_t VPEManager::get_id() {
 }
 
 VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epid_t rep,
-                        capsel_t sgate, KMemObject *kmem, uint flags, VPEGroup *group) {
-    uint vflags = 0;
-    if(flags & m3::KIF::VPEFlags::MUXABLE)
-        vflags |= VPE::F_MUXABLE;
-    if(flags & m3::KIF::VPEFlags::PINNED)
-        vflags |= VPE::F_PINNED;
-
-    peid_t i = PEManager::get().find_pe(pe, 0, vflags, group);
+                        capsel_t sgate, KMemObject *kmem) {
+    peid_t i = PEManager::get().find_pe(pe, 0);
     if(i == 0)
         return nullptr;
 
@@ -144,11 +139,10 @@ VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epi
     if(id == MAX_VPES)
         return nullptr;
 
-    // groups are implicitly pinned
-    if(group)
-        vflags |= VPE::F_PINNED;
-    VPE *vpe = new VPE(std::move(name), i, id, vflags, kmem, sep, rep, sgate, group);
+    VPE *vpe = new VPE(std::move(name), i, id, 0, kmem, sep, rep, sgate);
     assert(vpe == _vpes[id]);
+
+    PEManager::get().init_vpe(vpe);
 
     return vpe;
 }

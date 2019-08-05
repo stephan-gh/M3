@@ -111,16 +111,8 @@ void Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t f
     send_receive_throw(&req, sizeof(req));
 }
 
-void Syscalls::create_vgroup(capsel_t dst) {
-    KIF::Syscall::CreateVPEGrp req;
-    req.opcode = KIF::Syscall::CREATE_VPEGRP;
-    req.dst_sel = dst;
-    send_receive_throw(&req, sizeof(req));
-}
-
 void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name,
-                          PEDesc &pe, epid_t sep, epid_t rep, uint flags,
-                          capsel_t kmem, capsel_t group) {
+                          PEDesc &pe, epid_t sep, epid_t rep, capsel_t kmem) {
     KIF::Syscall::CreateVPE req;
     req.opcode = KIF::Syscall::CREATE_VPE;
     req.dst_crd = dst.value();
@@ -128,8 +120,6 @@ void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const Stri
     req.pe = pe.value();
     req.sep = sep;
     req.rep = rep;
-    req.flags = static_cast<xfer_t>(flags);
-    req.group_sel = group;
     req.kmem_sel = kmem;
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
@@ -298,70 +288,6 @@ void Syscalls::revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own) {
     req.crd = crd.value();
     req.own = own;
     send_receive_throw(&req, sizeof(req));
-}
-
-static bool get_forward_result(Errors::Code res, KIF::Syscall::Operation syscall) {
-    if(res == Errors::UPCALL_REPLY)
-        return true;
-    if(res != Errors::NONE)
-        throw SyscallException(res, syscall);
-    return false;
-}
-
-bool Syscalls::forward_msg(capsel_t sgate, capsel_t rgate, const void *msg, size_t len,
-                           label_t rlabel, event_t event) {
-    KIF::Syscall::ForwardMsg req;
-    req.opcode = KIF::Syscall::FORWARD_MSG;
-    req.sgate_sel = sgate;
-    req.rgate_sel = rgate;
-    req.rlabel = rlabel;
-    req.event = event;
-    req.len = len;
-    memcpy(req.msg, msg, Math::min(sizeof(req.msg), len));
-    size_t msgsize = sizeof(req) - sizeof(req.msg) + req.len;
-    Errors::Code res = send_receive_err(&req, msgsize);
-    return get_forward_result(res, KIF::Syscall::FORWARD_MSG);
-}
-
-bool Syscalls::forward_reply(capsel_t rgate, const void *msg, size_t len,
-                             goff_t msgaddr, event_t event) {
-    KIF::Syscall::ForwardReply req;
-    req.opcode = KIF::Syscall::FORWARD_REPLY;
-    req.rgate_sel = rgate;
-    req.msgaddr = msgaddr;
-    req.event = event;
-    req.len = len;
-    memcpy(req.msg, msg, Math::min(sizeof(req.msg), len));
-    size_t msgsize = sizeof(req) - sizeof(req.msg) + req.len;
-    Errors::Code res = send_receive_err(&req, msgsize);
-    return get_forward_result(res, KIF::Syscall::FORWARD_MEM);
-}
-
-Errors::Code Syscalls::forward_mem(capsel_t mgate, void *data, size_t len, goff_t offset,
-                                   uint flags, event_t event) {
-    KIF::Syscall::ForwardMem req;
-    req.opcode = KIF::Syscall::FORWARD_MEM;
-    req.mgate_sel = mgate;
-    req.offset = offset;
-    req.flags = flags;
-    req.event = event;
-    req.len = len;
-    if(flags & KIF::Syscall::ForwardMem::WRITE)
-        memcpy(req.data, data, Math::min(sizeof(req.data), len));
-
-    DTU::Message *msg = send_receive(&req, sizeof(req) - sizeof(req.data) + req.len);
-    auto *reply = reinterpret_cast<KIF::Syscall::ForwardMemReply*>(msg->data);
-
-    Errors::Code res = static_cast<Errors::Code>(reply->error);
-    if(res == Errors::NONE && (~flags & KIF::Syscall::ForwardMem::WRITE))
-        memcpy(data, reply->data, len);
-    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<size_t>(reply));
-
-    if(res == Errors::UPCALL_REPLY || res == Errors::PAGEFAULT)
-        return res;
-    if(res != Errors::NONE)
-        throw SyscallException(res, KIF::Syscall::FORWARD_MEM);
-    return res;
 }
 
 void Syscalls::noop() {

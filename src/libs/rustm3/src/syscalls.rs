@@ -153,25 +153,15 @@ pub fn create_map(dst: Selector, vpe: Selector, mgate: Selector, first: Selector
     send_receive_result(&req)
 }
 
-/// Creates a new VPE group at selector `dst`.
-pub fn create_vgroup(dst: Selector) -> Result<(), Error> {
-    let req = syscalls::CreateVPEGrp {
-        opcode: syscalls::Operation::CREATE_VPEGRP.val,
-        dst_sel: u64::from(dst)
-    };
-    send_receive_result(&req)
-}
-
 /// Creates a new VPE with given name at the selector range `dst`.
 ///
 /// The argument `sgate` denotes the selector of the `SendGate` to the pager and `pe` defines the
 /// desired PE type for the VPE to run on. The arguments `sep` and `rep` specify the send and
 /// receive EPs to use for page fault handling. Finally, `kmem` defines the kernel memory to assign
-/// to the VPE and `group` the VPE group.
+/// to the VPE.
 #[allow(clippy::too_many_arguments)]
 pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
-                  sep: dtu::EpId, rep: dtu::EpId, tmuxable: bool,
-                  kmem: Selector, group: Selector) -> Result<PEDesc, Error> {
+                  sep: dtu::EpId, rep: dtu::EpId, kmem: Selector) -> Result<PEDesc, Error> {
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
         dst_crd: dst.value(),
@@ -179,8 +169,6 @@ pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
         pe: u64::from(pe.value()),
         sep: sep as u64,
         rep: rep as u64,
-        muxable: u64::from(tmuxable),
-        group_sel: u64::from(group),
         kmem_sel: u64::from(kmem),
         namelen: name.len() as u64,
         name: unsafe { MaybeUninit::uninit().assume_init() },
@@ -379,87 +367,6 @@ pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
         crd: crd.value(),
         own: u64::from(own),
     };
-    send_receive_result(&req)
-}
-
-/// Forwards a DTU write request via the kernel to the destination.
-///
-/// The write request will be performed with memory gate `mgate` at offset `off` using the given
-/// data. If `event` is non-zero, the kernel sends a completion notification via upcall and replies
-/// immediately. Otherwise, the reply is sent as a completion notification.
-pub fn forward_write(mgate: Selector, data: &[u8], off: goff,
-                     flags: syscalls::ForwardMemFlags, event: u64) -> Result<(), Error> {
-    let mut req = syscalls::ForwardMem {
-        opcode: syscalls::Operation::FORWARD_MEM.val,
-        mgate_sel: u64::from(mgate),
-        offset: off,
-        flags: u64::from((flags | syscalls::ForwardMemFlags::WRITE).bits()),
-        event,
-        len: data.len() as u64,
-        data: unsafe { MaybeUninit::uninit().assume_init() },
-    };
-    req.data[0..data.len()].copy_from_slice(data);
-
-    send_receive_result(&req)
-}
-
-/// Forwards a DTU read request via the kernel to the destination.
-///
-/// The read request will be performed with memory gate `mgate` at offset `off` and stored into
-/// `data`. If `event` is non-zero, the kernel sends a completion notification via upcall and
-/// replies immediately. Otherwise, the reply is sent as a completion notification.
-pub fn forward_read(mgate: Selector, data: &mut [u8], off: goff,
-                    flags: syscalls::ForwardMemFlags, event: u64) -> Result<(), Error> {
-    let req = syscalls::ForwardMem {
-        opcode: syscalls::Operation::FORWARD_MEM.val,
-        mgate_sel: u64::from(mgate),
-        offset: off,
-        flags: u64::from(flags.bits()),
-        event,
-        len: data.len() as u64,
-        data: unsafe { MaybeUninit::uninit().assume_init() },
-    };
-
-    let reply: Reply<syscalls::ForwardMemReply> = send_receive(&req)?;
-    if reply.data.error == 0 {
-        let len = data.len();
-        data.copy_from_slice(&reply.data.data[0..len]);
-    }
-
-    match reply.data.error {
-        0 => Ok(()),
-        e => Err(Error::from(e as u32))
-    }
-}
-
-pub fn forward_msg(sgate: Selector, rgate: Selector, msg: &[u8],
-                   rlabel: dtu::Label, event: u64) -> Result<(), Error> {
-    let mut req = syscalls::ForwardMsg {
-        opcode: syscalls::Operation::FORWARD_MSG.val,
-        sgate_sel: u64::from(sgate),
-        rgate_sel: u64::from(rgate),
-        len: msg.len() as u64,
-        rlabel,
-        event,
-        msg: unsafe { MaybeUninit::uninit().assume_init() },
-    };
-    req.msg[0..msg.len()].copy_from_slice(msg);
-
-    send_receive_result(&req)
-}
-
-pub fn forward_reply(rgate: Selector, reply: &[u8],
-                     msg_addr: usize, event: u64) -> Result<(), Error> {
-    let mut req = syscalls::ForwardReply {
-        opcode: syscalls::Operation::FORWARD_REPLY.val,
-        rgate_sel: u64::from(rgate),
-        msgaddr: msg_addr as u64,
-        len: reply.len() as u64,
-        event,
-        msg: unsafe { MaybeUninit::uninit().assume_init() },
-    };
-    req.msg[0..reply.len()].copy_from_slice(reply);
-
     send_receive_result(&req)
 }
 

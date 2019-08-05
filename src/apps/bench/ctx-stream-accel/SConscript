@@ -1,2 +1,0 @@
-Import('env')
-env.M3Program(env, 'ctx-stream-accel', env.Glob('*.cc'))

@@ -35,10 +35,10 @@ using namespace m3;
 static constexpr bool VERBOSE = true;
 
 struct App {
-    explicit App(int argc, const char **argv, const char *pager, uint flags)
+    explicit App(int argc, const char **argv, const char *pager)
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPEArgs().pager(pager).flags(flags)),
+          vpe(argv[0], VPEArgs().pager(pager)),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
         rgate.activate();
@@ -53,8 +53,7 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-m] [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>\n";
-    cerr << "  -m enables PE sharing\n";
+    cerr << "Usage: " << name << " [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>\n";
     cerr << "  -d enables data transfers (otherwise the same time is spent locally)\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
@@ -65,16 +64,14 @@ static void usage(const char *name) {
 }
 
 int main(int argc, char **argv) {
-    bool muxed = false;
     bool data = false;
     size_t instances = 1;
     int repeats = 1;
     int warmup = 0;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "mdi:r:w:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "di:r:w:")) != -1) {
         switch(opt) {
-            case 'm': muxed = true; break;
             case 'd': data = true; break;
             case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
@@ -97,7 +94,7 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
-        srv_vpes[2] = new VPE("pager", VPEArgs().flags(muxed ? VPE::MUXABLE : 0));
+        srv_vpes[2] = new VPE("pager");
         srvs[2] = new RemoteServer(*srv_vpes[2], "mypager");
 
         String srv_arg = srvs[2]->sel_arg();
@@ -119,13 +116,13 @@ int main(int argc, char **argv) {
             const char **args = new const char *[ARG_COUNT];
             args[0] = "/bin/fstrace-m3fs";
 
-            apps[i] = new App(ARG_COUNT, args, "mypager", muxed ? VPE::MUXABLE | VPE::PINNED : 0);
+            apps[i] = new App(ARG_COUNT, args, "mypager");
         }
 
         if(j == 0 && VERBOSE) cout << "Creating servers...\n";
 
         if(j == 0) {
-            srv_vpes[0] = new VPE("m3fs", VPEArgs().flags(muxed ? VPE::MUXABLE : 0));
+            srv_vpes[0] = new VPE("m3fs");
             srvs[0] = new RemoteServer(*srv_vpes[0], "mym3fs");
 
             String srv_arg = srvs[0]->sel_arg();
@@ -134,7 +131,7 @@ int main(int argc, char **argv) {
         }
 
         if(j == 0) {
-            srv_vpes[1] = new VPE("pipes", VPEArgs().flags(muxed ? VPE::MUXABLE : 0));
+            srv_vpes[1] = new VPE("pipes");
             srvs[1] = new RemoteServer(*srv_vpes[1], "mypipe");
 
             String srv_arg = srvs[1]->sel_arg();

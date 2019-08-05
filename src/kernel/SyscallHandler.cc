@@ -81,12 +81,10 @@ void SyscallHandler::init() {
     DTU::get().recv_msgs(srvep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, m3::nextlog2<256>::val);
 
-    add_operation(m3::KIF::Syscall::PAGEFAULT,      &SyscallHandler::page_fault);
     add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::create_srv);
     add_operation(m3::KIF::Syscall::CREATE_SESS,    &SyscallHandler::create_sess);
     add_operation(m3::KIF::Syscall::CREATE_RGATE,   &SyscallHandler::create_rgate);
     add_operation(m3::KIF::Syscall::CREATE_SGATE,   &SyscallHandler::create_sgate);
-    add_operation(m3::KIF::Syscall::CREATE_VPEGRP,  &SyscallHandler::create_vgroup);
     add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::create_vpe);
     add_operation(m3::KIF::Syscall::CREATE_MAP,     &SyscallHandler::create_map);
     add_operation(m3::KIF::Syscall::CREATE_SEM,     &SyscallHandler::create_sem);
@@ -101,18 +99,10 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::DELEGATE,       &SyscallHandler::delegate);
     add_operation(m3::KIF::Syscall::OBTAIN,         &SyscallHandler::obtain);
     add_operation(m3::KIF::Syscall::REVOKE,         &SyscallHandler::revoke);
-    add_operation(m3::KIF::Syscall::FORWARD_MSG,    &SyscallHandler::forward_msg);
-    add_operation(m3::KIF::Syscall::FORWARD_MEM,    &SyscallHandler::forward_mem);
-    add_operation(m3::KIF::Syscall::FORWARD_REPLY,  &SyscallHandler::forward_reply);
     add_operation(m3::KIF::Syscall::NOOP,           &SyscallHandler::noop);
 }
 
 void SyscallHandler::reply_msg(VPE *vpe, const m3::DTU::Message *msg, const void *reply, size_t size) {
-    while(vpe->state() != VPE::RUNNING) {
-        if(!vpe->resume(false))
-            return;
-    }
-
     epid_t ep = vpe->syscall_ep();
     DTU::get().reply(ep, reply, size, m3::DTU::get().get_msgoff(ep, msg));
 }
@@ -131,58 +121,6 @@ void SyscallHandler::handle_message(VPE *vpe, const m3::DTU::Message *msg) {
         _callbacks[op](vpe, msg);
     else
         reply_result(vpe, msg, m3::Errors::INV_ARGS);
-}
-
-void SyscallHandler::page_fault(VPE *vpe, const m3::DTU::Message *msg) {
-    m3::Errors::Code res = m3::Errors::NOT_SUP;
-#if defined(__gem5__)
-    auto req = get_message<m3::KIF::Syscall::Pagefault>(msg);
-    uint64_t virt = req->virt;
-    uint access = req->access;
-
-    LOG_SYS(vpe, ": syscall::page_fault", "(virt=" << m3::fmt(virt, "p")
-        << ", access " << m3::fmt(access, "#x") << ")");
-
-    AddrSpace *as = vpe->address_space();
-    if(!as)
-        SYS_ERROR(vpe, msg, m3::Errors::NOT_SUP, "No address space / PF handler");
-
-    // get sgate
-    auto sgatecap = static_cast<SGateCapability*>(vpe->objcaps().get(as->sgate(), Capability::SGATE));
-    if(sgatecap == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid msg cap");
-
-    // get and check EP
-    epid_t sep = as->sep();
-    if(!vpe->can_forward_msg(sep))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Send did not fail");
-
-    reply_result(vpe, msg, m3::Errors::NONE);
-
-    // wait for pager
-    VPE &tvpe = VPEManager::get().vpe(sgatecap->obj->rgate->vpe);
-    res = wait_for(": syscall::page_fault", tvpe, vpe, true);
-
-    if(res == m3::Errors::NONE) {
-        // re-enable the EP first, because the reply to the sent message below might otherwise
-        // pass credits back BEFORE we overwrote the EP
-        vpe->forward_msg(sep, tvpe.pe(), tvpe.id());
-
-        // forward PF msg to pager
-        m3::KIF::Syscall::Pagefault pfmsg;
-        pfmsg.virt = virt;
-        pfmsg.access = access;
-
-        epid_t rep = as->rep();
-        uint64_t sender = vpe->pe() | (vpe->id() << 8) | (sep << 24) | (static_cast<uint64_t>(rep) << 32);
-        res = DTU::get().send_to(tvpe.desc(), sgatecap->obj->rgate->ep, sgatecap->obj->label,
-                                 &pfmsg, sizeof(pfmsg), 0, rep, sender);
-    }
-    if(res != m3::Errors::NONE)
-        LOG_ERROR(vpe, res, "page_fault failed");
-#else
-    reply_result(vpe, msg, res);
-#endif
 }
 
 void SyscallHandler::create_srv(VPE *vpe, const m3::DTU::Message *msg) {
@@ -292,21 +230,6 @@ void SyscallHandler::create_sgate(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::create_vgroup(VPE *vpe, const m3::DTU::Message *msg) {
-    auto req = get_message<m3::KIF::Syscall::CreateVPEGrp>(msg);
-    capsel_t dst = req->dst_sel;
-
-    LOG_SYS(vpe, ": syscall::create_vgroup", "(dst=" << dst << ")");
-
-    if(!vpe->objcaps().unused(dst))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
-
-    auto vpegcap = SYS_CREATE_CAP(vpe, msg, VPEGroupCapability, VPEGroup, &vpe->objcaps(), dst);
-    vpe->objcaps().set(dst, vpegcap);
-
-    reply_result(vpe, msg, m3::Errors::NONE);
-}
-
 void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateVPE>(msg);
     m3::KIF::CapRngDesc dst(req->dst_crd);
@@ -314,15 +237,12 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     m3::PEDesc::value_t pe = req->pe;
     epid_t sep = req->sep;
     epid_t rep = req->rep;
-    uint flags = req->flags;
-    capsel_t group = req->group_sel;
     capsel_t kmem = req->kmem_sel;
     m3::String name(req->name, m3::Math::min(static_cast<size_t>(req->namelen), sizeof(req->name)));
 
     LOG_SYS(vpe, ": syscall::create_vpe", "(dst=" << dst << ", sgate=" << sgate << ", name=" << name
         << ", pe=" << static_cast<int>(m3::PEDesc(pe).type())
-        << ", sep=" << sep << ", rep=" << rep << ", flags=" << flags
-        << ", group=" << group << ", kmem=" << kmem << ")");
+        << ", sep=" << sep << ", rep=" << rep << ", kmem=" << kmem << ")");
 
     capsel_t capnum = m3::KIF::FIRST_FREE_SEL;
     if(dst.count() != capnum || !vpe->objcaps().range_unused(dst))
@@ -346,14 +266,6 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     if(rep != 0 && rep >= EP_COUNT)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid REP");
 
-    VPEGroup *vpegrp = nullptr;
-    if(group != m3::KIF::INV_SEL) {
-        auto vpegrpcap = static_cast<VPEGroupCapability*>(vpe->objcaps().get(group, Capability::VPEGRP));
-        if(vpegrpcap == nullptr)
-            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid VPEGroup cap");
-        vpegrp = &*vpegrpcap->obj;
-    }
-
     auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
     if(kmemcap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid KMem cap");
@@ -367,7 +279,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
 
     // create VPE
     VPE *nvpe = VPEManager::get().create(std::move(name), m3::PEDesc(pe),
-        sep, rep, sgate, &*kmemcap->obj, flags, vpegrp);
+        sep, rep, sgate, &*kmemcap->obj);
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");
 
@@ -525,9 +437,7 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
                 LOG_SYS(vpe, ": syscall::activate",
                     ": waiting for rgate " << &sgateobj->rgate);
 
-                vpe->start_wait();
                 m3::ThreadManager::get().wait_for(reinterpret_cast<event_t>(&*sgateobj->rgate));
-                vpe->stop_wait();
 
                 LOG_SYS(vpe, ": syscall::activate-cont",
                     ": rgate " << &sgateobj->rgate << " activated");
@@ -577,7 +487,7 @@ void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
     word_t arg = req->arg;
 
     static const char *opnames[] = {
-        "INIT", "START", "YIELD", "STOP"
+        "INIT", "START", "STOP"
     };
 
     LOG_SYS(vpe, ": syscall::vpe_ctrl", "(vpe=" << tvpe
@@ -598,15 +508,6 @@ void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
                 SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE can't start itself");
             vpecap->obj->start_app(static_cast<int>(arg));
             break;
-
-        case m3::KIF::Syscall::VCTRL_YIELD:
-            if(vpe != &*vpecap->obj)
-                SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Yield for other VPEs is prohibited");
-
-            // reply before the context switch
-            reply_result(vpe, msg, m3::Errors::NONE);
-            vpecap->obj->yield();
-            return;
 
         case m3::KIF::Syscall::VCTRL_STOP: {
             bool self = vpe == &*vpecap->obj;
@@ -877,15 +778,6 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     m3::Reference<Service> rsrv(sesscap->obj->srv);
     m3::Reference<VPE> rvpe(vpe);
 
-    vpe->start_wait();
-    while(rsrv->vpe().state() != VPE::RUNNING) {
-        rsrv->vpe().migrate_for(vpe);
-        if(!rsrv->vpe().resume()) {
-            vpe->stop_wait();
-            SYS_ERROR(vpe, msg, m3::Errors::VPE_GONE, "VPE does no longer exist");
-        }
-    }
-
     m3::KIF::Service::Exchange smsg;
     smsg.opcode = obtain ? m3::KIF::Service::OBTAIN : m3::KIF::Service::DELEGATE;
     smsg.sess = sesscap->obj->ident;
@@ -893,7 +785,6 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     memcpy(&smsg.data.args, &req->args, sizeof(req->args));
 
     const m3::DTU::Message *srvreply = rsrv->send_receive(smsg.sess, &smsg, sizeof(smsg), false);
-    vpe->stop_wait();
     // if the VPE exited, we don't even want to reply
     if(!vpe->has_app()) {
         // due to the missing reply, we need to ack the msg explicitly
@@ -924,248 +815,6 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     if(res == m3::Errors::NONE)
         memcpy(&kreply.args, &reply->data.args, sizeof(reply->data.args));
     reply_msg(vpe, msg, &kreply, sizeof(kreply));
-}
-
-m3::Errors::Code SyscallHandler::wait_for(const char *name, VPE &tvpe, VPE *cur, bool need_app) {
-    m3::Errors::Code res = m3::Errors::NONE;
-    bool same_group = cur->group() && cur->group().get() == tvpe.group().get();
-    while(res == m3::Errors::NONE && tvpe.state() != VPE::RUNNING) {
-        if(!same_group)
-            cur->start_wait();
-        tvpe.add_forward();
-
-        tvpe.migrate_for(cur);
-
-        LOG_SYS(cur, name, ": waiting for VPE " << tvpe.id() << " at " << tvpe.pe() << ", state=" << tvpe.state());
-
-        if(!tvpe.resume(need_app))
-            res = m3::Errors::VPE_GONE;
-
-        tvpe.rem_forward();
-        if(!same_group)
-            cur->stop_wait();
-    }
-
-    LOG_SYS(cur, name, "-cont: VPE " << tvpe.id() << " ready");
-    return res;
-}
-
-void SyscallHandler::forward_msg(VPE *vpe, const m3::DTU::Message *msg) {
-
-#if !defined(__gem5__)
-    reply_result(vpe, msg, m3::Errors::NOT_SUP);
-#else
-    auto *req = get_message<m3::KIF::Syscall::ForwardMsg>(msg);
-    capsel_t sgate = req->sgate_sel;
-    capsel_t rgate = req->rgate_sel;
-    size_t len = req->len;
-    label_t rlabel = req->rlabel;
-    word_t event = req->event;
-    char msg_cpy[m3::KIF::MAX_MSG_SIZE];
-    const char *msg_ptr = req->msg;
-
-    LOG_SYS(vpe, ": syscall::forward_msg", "(sgate=" << sgate << ", rgate=" << rgate
-        << ", len=" << len << ", rlabel=" << m3::fmt(rlabel, "0x")
-        << ", event=" << m3::fmt(event, "0x") << ")");
-
-    auto sgatecap = static_cast<SGateCapability*>(vpe->objcaps().get(sgate, Capability::SGATE));
-    if(sgatecap == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid msg cap");
-    epid_t rep = m3::DTU::DEF_REP;
-    if(rgate != m3::KIF::INV_SEL) {
-        auto rgatecap = static_cast<RGateCapability*>(vpe->objcaps().get(rgate, Capability::RGATE));
-        if(rgatecap == nullptr)
-            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid rgate cap");
-        rep = rgatecap->obj->ep;
-    }
-
-    EPObject *epobj = sgatecap->obj->ep_of_vpe(vpe->id());
-    if(epobj == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Msg cap is not activated");
-    epid_t ep = epobj->ep;
-    if(!vpe->can_forward_msg(ep))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Send did not fail");
-
-    // TODO if we do that asynchronously, we need to buffer the message somewhere, because the
-    // VPE might want to do other system calls in the meantime. probably, VPEs need to allocate
-    // the memory beforehand and the kernel will simply use it afterwards.
-    VPE &tvpe = VPEManager::get().vpe(sgatecap->obj->rgate->vpe);
-    bool async = tvpe.state() != VPE::RUNNING && event;
-    if(async) {
-        memcpy(msg_cpy, msg_ptr, len);
-        msg_ptr = msg_cpy;
-        reply_result(vpe, msg, m3::Errors::UPCALL_REPLY);
-    }
-
-    m3::Errors::Code res = wait_for(": syscall::forward_msg", tvpe, vpe, true);
-
-    if(res == m3::Errors::NONE) {
-        // re-enable the EP first, because the reply to the sent message below might otherwise
-        // pass credits back BEFORE we overwrote the EP
-        vpe->forward_msg(ep, tvpe.pe(), tvpe.id());
-
-        uint64_t sender = vpe->pe() | (vpe->id() << 8) | (ep << 24) | (static_cast<uint64_t>(rep) << 32);
-        res = DTU::get().send_to(tvpe.desc(), sgatecap->obj->rgate->ep, sgatecap->obj->label,
-                                 msg_ptr, len, rlabel, rep, sender);
-    }
-    if(res != m3::Errors::NONE)
-        LOG_ERROR(vpe, res, "forward_msg failed");
-
-    if(async)
-        vpe->upcall_forward(event, res);
-    else
-        reply_result(vpe, msg, res);
-#endif
-}
-
-void SyscallHandler::forward_mem(VPE *vpe, const m3::DTU::Message *msg) {
-
-#if !defined(__gem5__)
-    reply_result(vpe, msg, m3::Errors::NOT_SUP);
-#else
-    auto *req = get_message<m3::KIF::Syscall::ForwardMem>(msg);
-    capsel_t mgate = req->mgate_sel;
-    size_t len = m3::Math::min(sizeof(req->data), static_cast<size_t>(req->len));
-    goff_t offset = req->offset;
-    uint flags = req->flags;
-    word_t event = req->event;
-    char msg_cpy[m3::KIF::MAX_MSG_SIZE];
-    const char *msg_ptr = req->data;
-
-    LOG_SYS(vpe, ": syscall::forward_mem", "(mgate=" << mgate << ", len=" << len
-        << ", offset=" << offset << ", flags=" << m3::fmt(flags, "0x")
-        << ", event=" << m3::fmt(event, "0x") << ")");
-
-    auto mgatecap = static_cast<MGateCapability*>(vpe->objcaps().get(mgate, Capability::MGATE));
-    if(mgatecap == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid memory cap");
-
-    EPObject *epobj = mgatecap->obj->ep_of_vpe(vpe->id());
-    if(epobj == 0)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Mem cap is not activated");
-    epid_t ep = epobj->ep;
-
-    if(mgatecap->obj->addr + offset < offset || offset >= mgatecap->obj->size ||
-       offset + len < offset || offset + len > mgatecap->obj->size)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid offset/length");
-    if((flags & m3::KIF::Syscall::ForwardMem::WRITE) && !(mgatecap->obj->perms & m3::KIF::Perm::W))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "No write permission");
-    if((~flags & m3::KIF::Syscall::ForwardMem::WRITE) && !(mgatecap->obj->perms & m3::KIF::Perm::R))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "No read permission");
-
-    VPE &tvpe = VPEManager::get().vpe(mgatecap->obj->vpe);
-    bool async = tvpe.state() != VPE::RUNNING && event;
-    if(async) {
-        memcpy(msg_cpy, msg_ptr, len);
-        msg_ptr = msg_cpy;
-        reply_result(vpe, msg, m3::Errors::UPCALL_REPLY);
-    }
-
-    m3::Errors::Code res = wait_for(": syscall::forward_mem", tvpe, vpe, false);
-
-    m3::KIF::Syscall::ForwardMemReply reply;
-    reply.error = static_cast<xfer_t>(res);
-
-    if(res == m3::Errors::NONE) {
-        if(flags & m3::KIF::Syscall::ForwardMem::WRITE)
-            res = DTU::get().try_write_mem(tvpe.desc(), mgatecap->obj->addr + offset, msg_ptr, len);
-        else
-            res = DTU::get().try_read_mem(tvpe.desc(), mgatecap->obj->addr + offset, reply.data, len);
-
-        vpe->forward_mem(ep, tvpe.pe());
-    }
-    if(res != m3::Errors::NONE && res != m3::Errors::PAGEFAULT)
-        LOG_ERROR(vpe, res, "forward_mem failed");
-
-    if(~flags & m3::KIF::Syscall::ForwardMem::WRITE) {
-        if(async)
-            UNREACHED; // TODO
-        else
-            reply_msg(vpe, msg, &reply, sizeof(reply));
-    }
-    else {
-        if(async)
-            vpe->upcall_forward(event, res);
-        else
-            reply_result(vpe, msg, res);
-    }
-#endif
-}
-
-void SyscallHandler::forward_reply(VPE *vpe, const m3::DTU::Message *msg) {
-
-#if !defined(__gem5__)
-    reply_result(vpe, msg, m3::Errors::NOT_SUP);
-#else
-    auto *req = get_message<m3::KIF::Syscall::ForwardReply>(msg);
-    capsel_t rgate = req->rgate_sel;
-    goff_t msgaddr = req->msgaddr;
-    size_t len = m3::Math::min(sizeof(req->msg), static_cast<size_t>(req->len));
-    word_t event = req->event;
-    char msg_cpy[m3::KIF::MAX_MSG_SIZE];
-    const char *msg_ptr = req->msg;
-
-    LOG_SYS(vpe, ": syscall::forward_reply", "(rgate=" << rgate << ", len=" << len
-        << ", msgaddr=" << (void*)msgaddr << ", event=" << m3::fmt(event, "0x") << ")");
-
-    auto rgatecap = static_cast<RGateCapability*>(vpe->objcaps().get(rgate, Capability::RGATE));
-    if(rgatecap == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid rgate cap");
-
-    EPObject *epobj = rgatecap->obj->ep_of_vpe(vpe->id());
-    if(epobj == 0)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "RGate cap is not activated");
-    epid_t ep = epobj->ep;
-
-    // TODO that's not necessary!!!!
-    // ensure that the VPE is running, because we need to access it's address space
-    while(vpe->state() != VPE::RUNNING) {
-        if(!vpe->resume())
-            return;
-    }
-
-    m3::DTU::ReplyHeader head;
-    m3::Errors::Code res = DTU::get().get_header(vpe->desc(), &*rgatecap->obj, msgaddr, &head);
-    if(res != m3::Errors::NONE || !(head.flags & m3::DTU::Header::FL_REPLY_FAILED))
-        SYS_ERROR(vpe, msg, res, "Invalid arguments");
-
-    // we have read the header. thus, we can mark the message as read (and have to do that before
-    // doing the reply)
-    DTU::get().mark_read_remote(vpe->desc(), ep, msgaddr);
-
-    // ensure that the VPE still exists since we don't have a capability, but only a message header
-    if(!VPEManager::get().exists(head.senderVpeId))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE does not exist");
-
-    VPE &tvpe = VPEManager::get().vpe(head.senderVpeId);
-    bool async = tvpe.state() != VPE::RUNNING && event;
-    if(async) {
-        memcpy(msg_cpy, msg_ptr, len);
-        msg_ptr = msg_cpy;
-        reply_result(vpe, msg, m3::Errors::UPCALL_REPLY);
-    }
-
-    // on PEs with an MMU, the VMA needs to do message passing even though the application might not
-    // be running yet. otherwise, the app needs to be running
-    // TODO this is just a stop-gap solution
-    bool need_app = !Platform::pe(tvpe.pe()).has_mmu();
-    res = wait_for(": syscall::forward_reply", tvpe, vpe, need_app);
-    if(res == m3::Errors::NONE) {
-        uint64_t sender = vpe->pe() | (vpe->id() << 8) |
-                        (static_cast<uint64_t>(head.senderEp) << 32) |
-                        (static_cast<uint64_t>(1) << 40);
-        res = DTU::get().reply_to(tvpe.desc(), head.replyEp, head.replylabel, msg_ptr, len, sender);
-    }
-    if(res != m3::Errors::NONE) {
-        LOG_ERROR(vpe, res, "forward_reply to "
-            << tvpe.id() << ":" << tvpe.name() << "@" << tvpe.pe() << " failed");
-    }
-
-    if(async)
-        vpe->upcall_forward(event, res);
-    else
-        reply_result(vpe, msg, res);
-#endif
 }
 
 void SyscallHandler::noop(VPE *vpe, const m3::DTU::Message *msg) {

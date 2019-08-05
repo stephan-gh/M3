@@ -45,14 +45,6 @@ class EnvUserBackend;
 class RecvGate;
 class ClientSession;
 
-/**
- * A group of VPEs, which should be gang-scheduled.
- */
-class VPEGroup : public ObjCap {
-public:
-    explicit VPEGroup();
-};
-
 class KMem : public ObjCap, public RefCounted {
     friend class VPE;
 
@@ -79,10 +71,6 @@ class VPEArgs {
 public:
     explicit VPEArgs() noexcept;
 
-    VPEArgs &flags(uint flags) noexcept {
-        _flags = flags;
-        return *this;
-    }
     VPEArgs &pedesc(const PEDesc &desc) noexcept {
         _pedesc = desc;
         return *this;
@@ -95,21 +83,15 @@ public:
         _rmng = resmng;
         return *this;
     }
-    VPEArgs &group(const VPEGroup *group) noexcept {
-        _group = group;
-        return *this;
-    }
     VPEArgs &kmem(Reference<KMem> kmem) noexcept {
         _kmem = kmem;
         return *this;
     }
 
 private:
-    uint _flags;
     PEDesc _pedesc;
     const char *_pager;
     ResMng *_rmng;
-    const VPEGroup *_group;
     Reference<KMem> _kmem;
 };
 
@@ -133,11 +115,6 @@ class VPE : public ObjCap {
     explicit VPE();
 
 public:
-    enum Flags {
-        MUXABLE     = KIF::VPEFlags::MUXABLE,
-        PINNED      = KIF::VPEFlags::PINNED,
-    };
-
     /**
      * @return your own VPE
      */

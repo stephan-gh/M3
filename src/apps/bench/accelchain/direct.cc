@@ -38,12 +38,11 @@ public:
                    cycles_t comptime, Mode _mode)
         : num(_num),
           mode(_mode),
-          group(),
           vpes(),
           accels(),
           pipes(),
           mems() {
-        // create VPEs and put them into the same group
+        // create VPEs
         for(size_t i = 0; i < num; ++i) {
             OStringStream name;
             name << "chain" << i;
@@ -52,8 +51,6 @@ public:
 
             vpes[i] = std::make_unique<VPE>(
                 name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT))
-                                     .flags(VPE::MUXABLE)
-                                     .group(&group)
             );
 
             accels[i] = std::make_unique<StreamAccel>(vpes[i], comptime);
@@ -126,7 +123,6 @@ public:
 private:
     size_t num;
     Mode mode;
-    VPEGroup group;
     std::unique_ptr<VPE> vpes[MAX_NUM];
     std::unique_ptr<StreamAccel> accels[MAX_NUM];
     std::unique_ptr<IndirectPipe> pipes[MAX_NUM];

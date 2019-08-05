@@ -38,28 +38,6 @@ use io::Read;
 use vfs::{BufReader, FileRef, OpenFlags, Seek, SeekMode, VFS};
 use vfs::{FileTable, Map, MountTable};
 
-/// Represents a [`VPE`] group that is used by the kernel for gang scheduling.
-pub struct VPEGroup {
-    cap: Capability,
-}
-
-impl VPEGroup {
-    /// Creates a new VPE group.
-    pub fn new() -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
-
-        syscalls::create_vgroup(sel)?;
-        Ok(VPEGroup {
-            cap: Capability::new(sel, CapFlags::empty()),
-        })
-    }
-
-    /// Returns the Capability selector of the VPE group.
-    pub fn sel(&self) -> Selector {
-        self.cap.sel()
-    }
-}
-
 /// Represents kernel memory
 pub struct KMem {
     cap: Capability,
@@ -113,8 +91,6 @@ pub struct VPEArgs<'n, 'p> {
     name: &'n str,
     pager: Option<&'p str>,
     pe: PEDesc,
-    muxable: bool,
-    group: Option<VPEGroup>,
     kmem: Option<Rc<KMem>>,
     rmng: Option<ResMng>,
 }
@@ -322,8 +298,6 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
             name,
             pager: None,
             pe: VPE::cur().pe(),
-            muxable: false,
-            group: None,
             kmem: None,
             rmng: None,
         }
@@ -346,18 +320,6 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
     /// Sets the name of the pager service. By default, the current pager will be cloned.
     pub fn pager(mut self, pager: &'p str) -> Self {
         self.pager = Some(pager);
-        self
-    }
-
-    /// Sets whether the assigned PE for the VPE can be shared with other VPEs.
-    pub fn muxable(mut self, muxable: bool) -> Self {
-        self.muxable = muxable;
-        self
-    }
-
-    /// Sets the VPE group. By default, the VPE has no group.
-    pub fn group(mut self, group: VPEGroup) -> Self {
-        self.group = Some(group);
         self
     }
 
@@ -471,9 +433,7 @@ impl VPE {
             // now create VPE, which implicitly obtains the gate cap from us
             vpe.pe = syscalls::create_vpe(
                 crd, sgate_sel, args.name,
-                args.pe, pg.sep(), pg.rep(), args.muxable,
-                vpe.kmem.sel(),
-                args.group.map_or(INVALID_SEL, |g| g.sel())
+                args.pe, pg.sep(), pg.rep(), vpe.kmem.sel()
             )?;
 
             // after the VPE creation, we can activate the receive gate
@@ -491,9 +451,7 @@ impl VPE {
         else {
             vpe.pe = syscalls::create_vpe(
                 crd, INVALID_SEL, args.name,
-                args.pe, 0, 0, args.muxable,
-                vpe.kmem.sel(),
-                args.group.map_or(INVALID_SEL, |g| g.sel())
+                args.pe, 0, 0, vpe.kmem.sel()
             )?;
             None
         };

@@ -38,7 +38,9 @@ void DTU::deprivilege(peid_t) {
 
 void DTU::kill_vpe(const VPEDesc &vpe) {
     pid_t pid = VPEManager::get().vpe(vpe.id).pid();
-    kill(pid, SIGKILL);
+    // if the VPE didn't run, it has no PID yet
+    if(pid != 0)
+        kill(pid, SIGKILL);
 }
 
 cycles_t DTU::get_time() {

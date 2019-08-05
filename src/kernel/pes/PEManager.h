@@ -18,11 +18,9 @@
 
 #include <base/PEDesc.h>
 
-#include "ContextSwitcher.h"
-
 namespace kernel {
 
-class VPEGroup;
+class VPE;
 class KMemObject;
 
 class PEManager {
@@ -38,32 +36,18 @@ private:
     explicit PEManager();
 
 public:
-    void init(KMemObject *kmem);
-
-    peid_t find_pe(const m3::PEDesc &pe, peid_t except, uint flags, const VPEGroup *group);
-
-    bool can_unblock_now(VPE *vpe);
-    VPE *current(peid_t pe) const;
-    bool yield(peid_t pe);
+    peid_t find_pe(const m3::PEDesc &pe, peid_t except);
 
     void add_vpe(VPE *vpe);
     void remove_vpe(VPE *vpe);
 
+    void init_vpe(VPE *vpe);
     void start_vpe(VPE *vpe);
     void stop_vpe(VPE *vpe);
 
-    bool migrate_vpe(VPE *vpe, bool fast);
-    bool migrate_for(VPE *vpe, VPE *dst);
-    void yield_vpe(VPE *vpe);
-    bool unblock_vpe(VPE *vpe, bool force);
-
 private:
-    bool migrate_to(VPE *vpe, peid_t npe, bool fast);
-    void steal_vpe(peid_t pe);
-    void update_yield(size_t before, size_t after);
     void deprivilege_pes();
 
-    ContextSwitcher **_ctxswitcher;
     bool * _used;
     static PEManager *_inst;
 };

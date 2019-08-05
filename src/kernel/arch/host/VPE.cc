@@ -48,7 +48,6 @@ void VPE::init_eps() {
 void VPE::finish_start() {
     // now all EPs are installed, sockets are created and so on; so the VPE is ready for communication
     _state = VPE::RUNNING;
-    notify_resume();
 
     // update all EPs (e.g., to allow parents to activate EPs for their childs)
     for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {

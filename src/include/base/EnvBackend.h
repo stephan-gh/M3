@@ -34,7 +34,6 @@ public:
     virtual bool extend_heap(size_t) {
         return false;
     }
-    virtual void yield() {}
     virtual void exit(int code) = 0;
 };
 

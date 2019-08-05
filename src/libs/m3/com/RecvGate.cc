@@ -169,22 +169,7 @@ void RecvGate::stop() noexcept {
 
 void RecvGate::reply(const void *data, size_t len, size_t msgidx) {
     Errors::Code res = DTU::get().reply(ep(), const_cast<void*>(data), len, msgidx);
-
-    if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
-        event_t event = ThreadManager::get().get_wait_event();
-        bool upcall = Syscalls::forward_reply(sel(), data, len, msgidx, event);
-
-        // if this has been done, go to sleep and wait until the kernel sends us the upcall
-        if(upcall) {
-            ThreadManager::get().wait_for(event);
-            auto *msg = reinterpret_cast<const KIF::Upcall::Forward*>(
-                ThreadManager::get().get_current_msg());
-            res = static_cast<Errors::Code>(msg->error);
-            if(res != Errors::NONE)
-                throw SyscallException(res, KIF::Syscall::FORWARD_REPLY);
-        }
-    }
-    else if(EXPECT_FALSE(res != Errors::NONE))
+    if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }
 

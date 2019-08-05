@@ -65,39 +65,10 @@ void MemGate::activate_for(VPE &vpe, epid_t ep, goff_t offset) {
         Gate::ep(ep);
 }
 
-Errors::Code MemGate::forward(void *&data, size_t &len, goff_t &offset, uint flags) {
-    event_t event = ThreadManager::get().get_wait_event();
-    size_t amount = Math::min(static_cast<size_t>(KIF::MAX_MSG_SIZE), len);
-    Errors::Code res = Syscalls::forward_mem(sel(), data, amount, offset, flags, event);
-
-    // if this has been done, go to sleep and wait until the kernel sends us the upcall
-    if(res == Errors::UPCALL_REPLY) {
-        ThreadManager::get().wait_for(event);
-        auto *msg = reinterpret_cast<const KIF::Upcall::Forward*>(
-            ThreadManager::get().get_current_msg());
-        Errors::Code res = static_cast<Errors::Code>(msg->error);
-        if(res != Errors::NONE && res != Errors::PAGEFAULT)
-            throw SyscallException(res, KIF::Syscall::FORWARD_MEM);
-    }
-
-    if(res == Errors::NONE) {
-        len -= amount;
-        offset += amount;
-        data = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(data) + amount);
-    }
-    return res;
-}
-
 void MemGate::read(void *data, size_t len, goff_t offset) {
     ensure_activated();
 
-retry:
     Errors::Code res = DTU::get().read(ep(), data, len, offset, _cmdflags);
-    if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
-        res = forward(data, len, offset, _cmdflags);
-        if(len > 0 || res == Errors::PAGEFAULT)
-            goto retry;
-    }
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }
@@ -105,14 +76,7 @@ retry:
 void MemGate::write(const void *data, size_t len, goff_t offset) {
     ensure_activated();
 
-retry:
     Errors::Code res = DTU::get().write(ep(), data, len, offset, _cmdflags);
-    if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
-        res = forward(const_cast<void*&>(data), len, offset,
-            _cmdflags | KIF::Syscall::ForwardMem::WRITE);
-        if(len > 0 || res == Errors::PAGEFAULT)
-            goto retry;
-    }
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }

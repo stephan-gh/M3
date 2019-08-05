@@ -30,8 +30,7 @@ class Aladdin {
 public:
     static const uint RBUF_SEL      = 64;
     static const uint RECV_EP       = 7;
-    static const uint MEM_EP        = 8;
-    static const uint DATA_EP       = 9;
+    static const uint DATA_EP       = 8;
     static const size_t RB_SIZE     = 256;
 
     static const size_t BUF_SIZE    = 1024;
@@ -54,8 +53,7 @@ public:
 
     explicit Aladdin(PEISA isa, const char *name, const char *pager)
         : _accel(new VPE(name, VPEArgs().pedesc(PEDesc(PEType::COMP_EMEM, isa))
-                                        .pager(pager)
-                                        .flags(VPE::MUXABLE))),
+                                        .pager(pager))),
           _lastmem(ObjCap::INVALID),
           _rgate(RecvGate::create(nextlog2<256>::val, nextlog2<256>::val)),
           _srgate(RecvGate::create_for(*_accel, getnextlog2(RB_SIZE), getnextlog2(RB_SIZE))),

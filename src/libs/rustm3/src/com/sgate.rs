@@ -19,7 +19,7 @@ use com::gate::Gate;
 use com::RecvGate;
 use core::fmt;
 use dtu;
-use errors::{Code, Error};
+use errors::Error;
 use kif::INVALID_SEL;
 use syscalls;
 use util;
@@ -136,20 +136,7 @@ impl SendGate {
     fn send_bytes(&self, msg: *const u8, size: usize, reply_gate: &RecvGate,
                   rlabel: dtu::Label) -> Result<(), Error> {
         let ep = self.gate.activate()?;
-        let res = dtu::DTU::send(ep, msg, size, rlabel, reply_gate.ep().unwrap());
-
-        match res {
-            Ok(_)                                   => Ok(()),
-            Err(ref e) if e.code() == Code::VPEGone => {
-                // TODO switch to a different thread while waiting
-                syscalls::forward_msg(self.sel(),
-                                      reply_gate.sel(),
-                                      unsafe { util::slice_for(msg, size) },
-                                      rlabel,
-                                      0)
-            },
-            Err(e)                                  => Err(e),
-        }
+        dtu::DTU::send(ep, msg, size, rlabel, reply_gate.ep().unwrap())
     }
 }
 

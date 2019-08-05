@@ -15,10 +15,10 @@
  */
 
 #include <base/log/Kernel.h>
+#include <base/RCTMux.h>
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
-#include "pes/VPEGroup.h"
 #include "DTU.h"
 #include "Platform.h"
 
@@ -27,228 +27,79 @@ namespace kernel {
 PEManager *PEManager::_inst;
 
 PEManager::PEManager()
-    : _ctxswitcher(new ContextSwitcher*[Platform::pe_count()]),
-      _used(new bool[Platform::pe_count()]) {
-    for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
-        if(Platform::pe(i).supports_vpes())
-            _ctxswitcher[i] = new ContextSwitcher(i);
-        else
-            _ctxswitcher[i] = nullptr;
+    : _used(new bool[Platform::pe_count()]) {
+    for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i)
         _used[i] = false;
-    }
     deprivilege_pes();
 }
 
-void PEManager::init(KMemObject *kmem) {
-    for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
-        if(_ctxswitcher[i])
-            _ctxswitcher[i]->init(kmem);
-    }
-}
-
-bool PEManager::can_unblock_now(VPE *vpe) {
-    ContextSwitcher *ctx = _ctxswitcher[vpe->pe()];
-    if(ctx)
-        return ctx->can_unblock_now(vpe);
-    return false;
-}
-
-VPE *PEManager::current(peid_t pe) const {
-    ContextSwitcher *ctx = _ctxswitcher[pe];
-    if(ctx)
-        return ctx->current();
-    return nullptr;
-}
-
-bool PEManager::yield(peid_t pe) {
-    ContextSwitcher *ctx = _ctxswitcher[pe];
-    if(ctx) {
-        VPE *cur = ctx->current();
-        if(cur)
-            return ctx->yield_vpe(cur);
-    }
-    return false;
-}
-
-void PEManager::update_yield(size_t before, size_t after) {
-    if((before == 0 && after > 0) || (before > 0 && after == 0)) {
-        for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
-            if(_ctxswitcher[i])
-                _ctxswitcher[i]->update_yield();
-        }
-    }
-}
-
 void PEManager::add_vpe(VPE *vpe) {
-    ContextSwitcher *ctx = _ctxswitcher[vpe->pe()];
-    if(ctx) {
-        size_t global = ctx->global_ready();
-        ctx->add_vpe(vpe);
-        update_yield(global, ctx->global_ready());
-    }
-    else
-        _used[vpe->pe()] = true;
+    _used[vpe->pe()] = true;
 }
 
 void PEManager::remove_vpe(VPE *vpe) {
-    ContextSwitcher *ctx = _ctxswitcher[vpe->pe()];
-    if(ctx) {
-        size_t global = ctx->global_ready();
-        ctx->remove_vpe(vpe);
-        // if there is no one left, try to steal a VPE from somewhere else
-        if(ctx->ready() == 0)
-            steal_vpe(vpe->pe());
-        update_yield(global, ctx->global_ready());
+    _used[vpe->pe()] = false;
+}
+
+void PEManager::init_vpe(UNUSED VPE *vpe) {
+#if defined(__gem5__)
+    vpe->_dtustate.reset(RCTMUX_ENTRY, true);
+    vpe->_state = VPE::RUNNING;
+
+    // set address space properties first to load them during the restore
+    if((vpe->_flags & VPE::F_INIT) && vpe->address_space()) {
+        AddrSpace *as = vpe->address_space();
+        vpe->_dtustate.config_pf(as->root_pt(), as->sep(), as->rep());
     }
-    else
-        _used[vpe->pe()] = false;
+    vpe->_dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), vpe->_headers, vpe->id());
+
+    if(vpe->_flags & VPE::F_INIT)
+        vpe->init_memory();
+
+    start_vpe(vpe);
+
+    vpe->_dtustate.enable_communication(vpe->desc());
+    vpe->_flags &= ~static_cast<uint>(VPE::F_INIT);
+#endif
 }
 
 void PEManager::start_vpe(VPE *vpe) {
-    ContextSwitcher *ctx = _ctxswitcher[vpe->pe()];
-    if(ctx) {
-        size_t global = ctx->global_ready();
-        ctx->start_vpe(vpe);
-        update_yield(global, ctx->global_ready());
+#if defined(__host__)
+    vpe->_dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), 0, vpe->id());
+    vpe->_state = VPE::RUNNING;
+    vpe->init_memory();
+#else
+    uint64_t report = 0;
+    uint64_t flags = m3::RCTMuxCtrl::WAITING;
+    if(vpe->_flags & VPE::F_HASAPP)
+        flags |= m3::RCTMuxCtrl::RESTORE | (static_cast<uint64_t>(vpe->pe()) << 32);
+
+    DTU::get().write_swstate(vpe->desc(), flags, report);
+    DTU::get().inject_irq(vpe->desc());
+
+    while(true) {
+        DTU::get().read_swflags(vpe->desc(), &flags);
+        if(flags & m3::RCTMuxCtrl::SIGNAL)
+            break;
     }
-    else {
-        vpe->_dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), 0, vpe->id());
-        vpe->_state = VPE::RUNNING;
-        vpe->init_memory();
-    }
+
+    DTU::get().write_swflags(vpe->desc(), 0);
+#endif
 }
 
 void PEManager::stop_vpe(VPE *vpe) {
-    ContextSwitcher *ctx = _ctxswitcher[vpe->pe()];
-    if(ctx) {
-        size_t global = ctx->global_ready();
-        ctx->stop_vpe(vpe);
-        if(ctx->ready() == 0)
-            steal_vpe(vpe->pe());
-        update_yield(global, ctx->global_ready());
-    }
-    else {
+    if(vpe->state() == VPE::DEAD)
         DTU::get().kill_vpe(vpe->desc());
-        vpe->_state = VPE::SUSPENDED;
-    }
 }
 
-bool PEManager::migrate_vpe(VPE *vpe, bool fast) {
-    peid_t npe = find_pe(Platform::pe(vpe->pe()), vpe->pe(), VPE::F_MUXABLE, nullptr);
-    if(npe == 0)
-        return false;
-
-    return migrate_to(vpe, npe, fast);
-}
-
-bool PEManager::migrate_for(VPE *vpe, VPE *dst) {
-    if(vpe->pe() == dst->pe())
-        return migrate_vpe(vpe, true);
-    if(!_ctxswitcher[dst->pe()]->can_mux())
-        return false;
-
-    return migrate_to(vpe, dst->pe(), true);
-}
-
-bool PEManager::migrate_to(VPE *vpe, peid_t npe, bool fast) {
-    ContextSwitcher *ctx = _ctxswitcher[vpe->pe()];
-    // only migrate if we can directly switch to this VPE on the other PE
-    if(!ctx || (fast && !_ctxswitcher[npe]->can_switch()))
-        return false;
-
-    size_t global = ctx->global_ready();
-    ctx->remove_vpe(vpe, true);
-
-    vpe->set_pe(npe);
-    vpe->needs_invalidate();
-
-    ctx = _ctxswitcher[npe];
-    assert(ctx);
-    ctx->add_vpe(vpe);
-
-    // we can use a different ctx object here, because we only migrate between compatible PEs.
-    // hence, the ISA is the same.
-    update_yield(global, ctx->global_ready());
-    return true;
-}
-
-void PEManager::yield_vpe(VPE *vpe) {
-    peid_t pe = vpe->pe();
-    ContextSwitcher *ctx = _ctxswitcher[pe];
-    assert(ctx);
-    size_t global = ctx->global_ready();
-    // check if there is somebody else on the current PE
-    if(!ctx->yield_vpe(vpe))
-        steal_vpe(pe);
-
-    update_yield(global, ctx->global_ready());
-}
-
-void PEManager::steal_vpe(peid_t pe) {
-    m3::PEDesc pedesc = Platform::pe(pe);
-
-    // try to steal a VPE from a different PE
+peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except) {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
-        if(!_ctxswitcher[i] ||
-            i == pe ||
-            Platform::pe(i).isa() != pedesc.isa() ||
-            Platform::pe(i).type() != pedesc.type())
-            continue;
-
-        VPE *nvpe = _ctxswitcher[i]->steal_vpe();
-        if(!nvpe)
-            continue;
-
-        KLOG(VPES, "Stole VPE " << nvpe->id() << " from " << i << " to " << pe);
-
-        nvpe->set_pe(pe);
-        nvpe->needs_invalidate();
-        _ctxswitcher[pe]->add_vpe(nvpe);
-
-        _ctxswitcher[pe]->unblock_vpe(nvpe, true);
-        break;
-    }
-}
-
-bool PEManager::unblock_vpe(VPE *vpe, bool force) {
-    ContextSwitcher *ctx = _ctxswitcher[vpe->pe()];
-    assert(ctx);
-    size_t global = ctx->global_ready();
-    bool res = ctx->unblock_vpe(vpe, force);
-
-    update_yield(global, ctx->global_ready());
-    return res;
-}
-
-peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except, uint flags, const VPEGroup *group) {
-    peid_t choice = 0;
-    uint others = VPEManager::MAX_VPES;
-    for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
-        if(i == except ||
-           Platform::pe(i).isa() != pe.isa() ||
-           Platform::pe(i).type() != pe.type())
-            continue;
-
-        if(!_ctxswitcher[i]) {
-            if(_used[i])
-                continue;
+        if(i != except && !_used[i] &&
+           Platform::pe(i).isa() == pe.isa() &&
+           Platform::pe(i).type() == pe.type())
             return i;
-        }
-
-        if(_ctxswitcher[i]->count() == 0)
-            return i;
-
-        // TODO temporary
-        if((flags & VPE::F_MUXABLE) && _ctxswitcher[i]->can_mux() && _ctxswitcher[i]->count() < others) {
-            if(group && group->is_pe_used(i))
-                continue;
-            if((flags & VPE::F_PINNED) && _ctxswitcher[i]->has_pinned())
-                continue;
-            choice = i;
-            others = _ctxswitcher[i]->count();
-        }
     }
-    return choice;
+    return 0;
 }
 
 void PEManager::deprivilege_pes() {

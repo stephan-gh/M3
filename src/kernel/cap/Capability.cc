@@ -158,10 +158,6 @@ void ServCapability::revoke() {
     obj->abort();
 }
 
-size_t VPEGroupCapability::obj_size() const {
-    return sizeof(VPEGroup);
-}
-
 size_t VPECapability::obj_size() const {
     return sizeof(VPE) + sizeof(AddrSpace);
 }
@@ -226,10 +222,6 @@ void EPCapability::printInfo(m3::OStream &os) const {
     os << ": ep  [refs=" << obj->refcount()
         << ", vpe=" << obj->vpe
         << ", ep=" << obj->ep << "]";
-}
-
-void VPEGroupCapability::printInfo(m3::OStream &os) const {
-    os << ": vgrp [refs=" << obj->refcount() << "]";
 }
 
 void VPECapability::printInfo(m3::OStream &os) const {

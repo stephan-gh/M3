@@ -108,7 +108,7 @@ static void execute_assignment(CmdList *list) {
     }
 }
 
-static void execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
+static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     PEDesc descs[MAX_CMDS];
     std::unique_ptr<IndirectPipe> pipes[MAX_CMDS] = {nullptr};
     std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
@@ -132,7 +132,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        auto args = VPEArgs().pedesc(descs[i]).flags(muxed ? VPE::MUXABLE : 0);
+        auto args = VPEArgs().pedesc(descs[i]);
         vpes[i] = std::make_unique<VPE>(expr_value(cmd->args->args[0]), args);
         vpe_count++;
 
@@ -248,7 +248,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list, bool muxed) {
     }
 }
 
-static void execute(Pipes &pipesrv, CmdList *list, bool muxed) {
+static void execute(Pipes &pipesrv, CmdList *list) {
     for(size_t i = 0; i < list->count; ++i) {
         Args::prefix_path(list->cmds[i]->args);
         Args::expand(list->cmds[i]->args);
@@ -258,7 +258,7 @@ static void execute(Pipes &pipesrv, CmdList *list, bool muxed) {
         if(list->count == 1 && list->cmds[0]->args->count == 0)
             execute_assignment(list);
         else
-            execute_pipeline(pipesrv, list, muxed);
+            execute_pipeline(pipesrv, list);
     }
     catch(const Exception &e) {
         errmsg("command failed: " << e.what());
@@ -268,11 +268,9 @@ static void execute(Pipes &pipesrv, CmdList *list, bool muxed) {
 int main(int argc, char **argv) {
     Pipes pipesrv("pipes");
 
-    bool muxed = argc > 1 && strcmp(argv[1], "1") == 0;
-
-    if(argc > 2) {
+    if(argc > 1) {
         OStringStream os;
-        for(int i = 2; i < argc; ++i)
+        for(int i = 1; i < argc; ++i)
             os << argv[i] << " ";
 
         IStringStream is(StringRef(os.str(), os.length()));
@@ -281,7 +279,7 @@ int main(int argc, char **argv) {
             exitmsg("Unable to parse command '" << os.str() << "'");
 
         cycles_t start = Time::start(0x1234);
-        execute(pipesrv, list, muxed);
+        execute(pipesrv, list);
         cycles_t end = Time::stop(0x1234);
         ast_cmds_destroy(list);
 
@@ -302,7 +300,7 @@ int main(int argc, char **argv) {
         if(!list)
             continue;
 
-        execute(pipesrv, list, muxed);
+        execute(pipesrv, list);
         ast_cmds_destroy(list);
     }
     return 0;

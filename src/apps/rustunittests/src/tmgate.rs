@@ -25,10 +25,6 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, derive);
     wv_run_test!(t, read_write);
     wv_run_test!(t, read_write_object);
-    #[cfg(target_os = "none")]
-    wv_run_test!(t, read_write_forward_small);
-    #[cfg(target_os = "none")]
-    wv_run_test!(t, read_write_forward_big);
 }
 
 fn create() {
@@ -88,69 +84,4 @@ fn read_write_object() {
     let obj: Test = wv_assert_ok!(mgate.read_obj(0));
 
     wv_assert_eq!(refobj, obj);
-}
-
-#[cfg(target_os = "none")]
-fn read_write_forward_small() {
-    use m3::goff;
-    use m3::kif;
-    use m3::vpe;
-
-    let vpe1 = wv_assert_ok!(vpe::VPE::new_with(vpe::VPEArgs::new("v1").muxable(true)));
-    let vpe2 = wv_assert_ok!(vpe::VPE::new_with(vpe::VPEArgs::new("v2").muxable(true)));
-
-    const TEST_ADDR: goff = 0x20000;
-
-    if let Some(ref mut pg) = vpe1.pager() {
-        wv_assert_ok!(pg.map_anon(TEST_ADDR, 0x1000, kif::Perm::RW));
-    }
-    if let Some(ref mut pg) = vpe2.pager() {
-        wv_assert_ok!(pg.map_anon(TEST_ADDR, 0x1000, kif::Perm::RW));
-    }
-
-    let refdata = [0u8, 1, 2, 3, 4, 5, 6, 7];
-    let mut data = [0u8; 8];
-
-    wv_assert_ok!(vpe1.mem().write(&refdata, TEST_ADDR));
-    wv_assert_ok!(vpe2.mem().write(&refdata, TEST_ADDR));
-
-    wv_assert_ok!(vpe1.mem().read(&mut data, TEST_ADDR));
-    wv_assert_eq!(refdata, data);
-
-    wv_assert_ok!(vpe2.mem().read(&mut data, TEST_ADDR));
-    wv_assert_eq!(refdata, data);
-}
-
-#[cfg(target_os = "none")]
-fn read_write_forward_big() {
-    use m3::goff;
-    use m3::kif;
-    use m3::vpe;
-
-    let vpe1 = wv_assert_ok!(vpe::VPE::new_with(vpe::VPEArgs::new("v1").muxable(true)));
-    let vpe2 = wv_assert_ok!(vpe::VPE::new_with(vpe::VPEArgs::new("v2").muxable(true)));
-
-    const TEST_ADDR: goff = 0x20000;
-
-    if let Some(ref mut pg) = vpe1.pager() {
-        wv_assert_ok!(pg.map_anon(TEST_ADDR, 0x1000, kif::Perm::RW));
-    }
-    if let Some(ref mut pg) = vpe2.pager() {
-        wv_assert_ok!(pg.map_anon(TEST_ADDR, 0x1000, kif::Perm::RW));
-    }
-
-    let mut refdata = vec![0x00u8; 1024];
-    let mut data = vec![0x00u8; 1024];
-    for (i, b) in refdata.iter_mut().enumerate() {
-        *b = i as u8;
-    }
-
-    wv_assert_ok!(vpe1.mem().write(&refdata, TEST_ADDR));
-    wv_assert_ok!(vpe2.mem().write(&refdata, TEST_ADDR));
-
-    wv_assert_ok!(vpe1.mem().read(&mut data, TEST_ADDR));
-    wv_assert_eq!(refdata, data);
-
-    wv_assert_ok!(vpe2.mem().read(&mut data, TEST_ADDR));
-    wv_assert_eq!(refdata, data);
 }

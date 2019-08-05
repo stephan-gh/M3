@@ -16,7 +16,6 @@
 
 #include <base/log/Kernel.h>
 
-#include "pes/Timeouts.h"
 #include "pes/VPE.h"
 #include "DTU.h"
 #include "SendQueue.h"
@@ -29,9 +28,6 @@ uint64_t SendQueue::_next_id = 0;
 SendQueue::~SendQueue() {
     // ensure that there are no messages left for this SendQueue in the receive buffer
     m3::DTU::get().drop_msgs(SyscallHandler::srvep(), reinterpret_cast<label_t>(this));
-
-    if(_timeout)
-        Timeouts::get().cancel(_timeout);
 }
 
 event_t SendQueue::get_event(uint64_t id) {
@@ -44,12 +40,9 @@ event_t SendQueue::send(epid_t dst_ep, label_t ident, const void *msg, size_t si
     if(_inflight == -1)
         return 0;
 
-    if(_vpe.state() == VPE::RUNNING && _inflight == 0)
+    assert(_vpe.state() == VPE::RUNNING);
+    if(_inflight == 0)
         return do_send(dst_ep, _next_id++, msg, size, onheap);
-
-    // call this again from the workloop to be sure that we can switch the thread
-    if(_vpe.state() != VPE::RUNNING && _inflight == 0)
-        _timeout = Timeouts::get().wait_for(0, std::bind(&SendQueue::send_pending, this));
 
     // if it's not already on the heap, put it there
     if(!onheap) {
@@ -66,8 +59,6 @@ event_t SendQueue::send(epid_t dst_ep, label_t ident, const void *msg, size_t si
 }
 
 void SendQueue::send_pending() {
-    _timeout = nullptr;
-
     if(_queue.length() == 0)
         return;
 
@@ -75,16 +66,8 @@ void SendQueue::send_pending() {
 
     KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: found pending message");
 
-    // ensure that the VPE is running
-    while(_vpe.state() != VPE::RUNNING) {
-        // if it died, just drop the pending message
-        if(!_vpe.resume()) {
-            delete e;
-            return;
-        }
-    }
-
     // it might happen that there is another message in flight now
+    assert(_vpe.state() == VPE::RUNNING);
     if(_inflight != 0) {
         KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: queuing message");
         _queue.append(e);
@@ -155,11 +138,6 @@ void SendQueue::abort() {
 
     while(_queue.length() > 0)
         delete _queue.remove_first();
-
-    if(_timeout) {
-        Timeouts::get().cancel(_timeout);
-        _timeout = nullptr;
-    }
 }
 
 }

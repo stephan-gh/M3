@@ -55,10 +55,6 @@ public:
         VPE::reset();
     }
 
-    void yield() override {
-        Syscalls::vpe_ctrl(0, KIF::Syscall::VCTRL_YIELD, 0);
-    }
-
     void exit(int code) override {
         Syscalls::exit(code);
     }

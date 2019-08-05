@@ -138,16 +138,12 @@ struct KIF {
      */
     struct Syscall {
         enum Operation {
-            // sent by the DTU if the PF handler is not reachable
-            PAGEFAULT = 0,
-
             // capability creations
             CREATE_SRV,
             CREATE_SESS,
             CREATE_RGATE,
             CREATE_SGATE,
             CREATE_MAP,
-            CREATE_VPEGRP,
             CREATE_VPE,
             CREATE_SEM,
 
@@ -166,11 +162,6 @@ struct KIF {
             EXCHANGE,
             REVOKE,
 
-            // forwarding
-            FORWARD_MSG,
-            FORWARD_MEM,
-            FORWARD_REPLY,
-
             // misc
             NOOP,
 
@@ -180,7 +171,6 @@ struct KIF {
         enum VPEOp {
             VCTRL_INIT,
             VCTRL_START,
-            VCTRL_YIELD,
             VCTRL_STOP,
         };
 
@@ -188,11 +178,6 @@ struct KIF {
             SCTRL_UP,
             SCTRL_DOWN,
         };
-
-        struct Pagefault : public DefaultRequest {
-            xfer_t virt;
-            xfer_t access;
-        } PACKED;
 
         struct CreateSrv : public DefaultRequest {
             xfer_t dst_sel;
@@ -230,18 +215,12 @@ struct KIF {
             xfer_t perms;
         } PACKED;
 
-        struct CreateVPEGrp : public DefaultRequest {
-            xfer_t dst_sel;
-        } PACKED;
-
         struct CreateVPE : public DefaultRequest {
             xfer_t dst_crd;
             xfer_t sgate_sel;
             xfer_t pe;
             xfer_t sep;
             xfer_t rep;
-            xfer_t flags;
-            xfer_t group_sel;
             xfer_t kmem_sel;
             xfer_t namelen;
             char name[32];
@@ -331,41 +310,6 @@ struct KIF {
             xfer_t own;
         } PACKED;
 
-        struct ForwardMsg : public DefaultRequest {
-            xfer_t sgate_sel;
-            xfer_t rgate_sel;
-            xfer_t len;
-            xfer_t rlabel;
-            xfer_t event;
-            char msg[MAX_MSG_SIZE];
-        };
-
-        struct ForwardMem : public DefaultRequest {
-            enum Flags {
-                NOPF    = 1,
-                WRITE   = 2,
-            };
-
-            xfer_t mgate_sel;
-            xfer_t len;
-            xfer_t offset;
-            xfer_t flags;
-            xfer_t event;
-            char data[MAX_MSG_SIZE];
-        };
-
-        struct ForwardMemReply : public DefaultReply {
-            char data[MAX_MSG_SIZE];
-        };
-
-        struct ForwardReply : public DefaultRequest {
-            xfer_t rgate_sel;
-            xfer_t msgaddr;
-            xfer_t len;
-            xfer_t event;
-            char msg[MAX_MSG_SIZE];
-        };
-
         struct Noop : public DefaultRequest {
         } PACKED;
     };
@@ -419,16 +363,11 @@ struct KIF {
      */
     struct Upcall {
         enum Operation {
-            FORWARD,
             VPEWAIT,
         };
 
         struct DefaultUpcall : public DefaultRequest {
             xfer_t event;
-        } PACKED;
-
-        struct Forward : public DefaultUpcall {
-            xfer_t error;
         } PACKED;
 
         struct VPEWait : public DefaultUpcall {

@@ -45,23 +45,7 @@ void SendGate::send(const void *data, size_t len, label_t reply_label) {
 Errors::Code SendGate::try_send(const void *data, size_t len, label_t reply_label) {
     ensure_activated();
 
-    Errors::Code res = DTU::get().send(ep(), data, len, reply_label, _replygate->ep());
-    if(EXPECT_FALSE(res == Errors::VPE_GONE)) {
-        res = Errors::NONE;
-
-        event_t event = ThreadManager::get().get_wait_event();
-        bool upcall = Syscalls::forward_msg(sel(), _replygate->sel(), data, len, reply_label, event);
-
-        // if this has been done, go to sleep and wait until the kernel sends us the upcall
-        if(upcall) {
-            ThreadManager::get().wait_for(event);
-            auto *msg = reinterpret_cast<const KIF::Upcall::Forward*>(
-                ThreadManager::get().get_current_msg());
-            res = static_cast<Errors::Code>(msg->error);
-        }
-    }
-
-    return res;
+    return DTU::get().send(ep(), data, len, reply_label, _replygate->ep());
 }
 
 }
