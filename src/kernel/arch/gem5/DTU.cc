@@ -63,8 +63,18 @@ cycles_t DTU::get_time() {
     return m3::DTU::get().tsc();
 }
 
-void DTU::kill_vpe(const VPEDesc &vpe) {
-    do_set_vpeid(vpe, VPE::INVALID_ID);
+void DTU::kill_vpe(const VPEDesc &vpe, bool dead) {
+    m3::DTU::reg_t value = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::RESET);
+    value |= static_cast<m3::DTU::reg_t>(1) << 63;
+    do_ext_cmd(vpe, value);
+
+    if(dead)
+        do_set_vpeid(vpe, VPE::INVALID_ID);
+    else {
+        m3::DTU::reg_t features = m3::DTU::StatusFlags::COM_DISABLED;
+        m3::CPU::compiler_barrier();
+        write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), &features, sizeof(features));
+    }
 }
 
 void DTU::wakeup(const VPEDesc &vpe) {

@@ -36,7 +36,7 @@ void DTU::deprivilege(peid_t) {
     // unsupported
 }
 
-void DTU::kill_vpe(const VPEDesc &vpe) {
+void DTU::kill_vpe(const VPEDesc &vpe, bool) {
     pid_t pid = VPEManager::get().vpe(vpe.id).pid();
     // if the VPE didn't run, it has no PID yet
     if(pid != 0)

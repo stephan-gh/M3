@@ -49,7 +49,7 @@ public:
 
     void deprivilege(peid_t pe);
 
-    void kill_vpe(const VPEDesc &vpe);
+    void kill_vpe(const VPEDesc &vpe, bool dead);
 
     cycles_t get_time();
     void wakeup(const VPEDesc &vpe);
