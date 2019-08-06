@@ -71,10 +71,7 @@ impl FileTable {
 
     /// Returns the file with given file descriptor.
     pub fn get(&self, fd: Fd) -> Option<FileHandle> {
-        match self.files[fd] {
-            Some(ref f) => Some(f.clone()),
-            None => None,
-        }
+        self.files[fd].as_ref().map(|f| f.clone())
     }
 
     /// Adds the given file to the table using the file descriptor `fd`, assuming that the file
