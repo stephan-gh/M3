@@ -73,7 +73,7 @@ fn run_stop() {
         wv_assert_ok!(recv_msg(&rg));
 
         // wait a bit and stop VPE
-        wv_assert_ok!(DTU::sleep(wait_time));
+        wv_assert_ok!(DTU::sleep_for(wait_time));
         wv_assert_ok!(act.stop());
 
         // increase by one cycle to attempt interrupts at many points in the instruction stream

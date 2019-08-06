@@ -192,7 +192,7 @@ void E1000::sleep(cycles_t usec) {
     do {
         cycles_t sleep_time = (DTU::get().tsc() - t);
         if(cycles_to_seep > sleep_time)
-            DTU::get().sleep(cycles_to_seep - sleep_time);
+            DTU::get().sleep_for(cycles_to_seep - sleep_time);
     } while ((DTU::get().tsc() - t) < cycles_to_seep);
 }
 

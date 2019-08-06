@@ -233,7 +233,7 @@ fn workloop() {
     loop {
         // we are not interested in the events here; just fetch them before the sleep
         dtu::DTU::fetch_events();
-        dtu::DTU::try_sleep(true, 0).ok();
+        dtu::DTU::sleep().ok();
 
         let is = rgate.fetch();
         if let Some(is) = is {

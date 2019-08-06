@@ -189,7 +189,7 @@ const DTU::Message *RecvGate::wait(SendGate *sgate) {
         if(sgate && !DTU::get().is_valid(sgate->ep()))
             throw MessageException("SendGate became invalid while waiting for reply", Errors::EP_INVALID);
 
-        DTU::get().try_sleep(true);
+        DTU::get().sleep();
     }
     UNREACHED;
 }

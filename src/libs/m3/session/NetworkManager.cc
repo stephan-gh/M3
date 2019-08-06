@@ -140,7 +140,7 @@ void NetworkManager::wait_sync() {
         if(DTU::get().fetch_events() == 0) {
             LLOG(NET, "NetworkManager::process_sleep: Trying to sleep!");
             // This would be the place to implement timeouts.
-            DTU::get().try_sleep(true, 0);
+            DTU::get().sleep();
         }
 
         if(_channel->has_events(ev, crd))

@@ -506,7 +506,7 @@ bool DTU::handle_receive(epid_t ep) {
 
 Errors::Code DTU::exec_command() {
     while(!is_ready())
-        try_sleep();
+        sleep();
     return static_cast<Errors::Code>(get_cmd(CMD_ERROR));
 }
 
@@ -548,7 +548,7 @@ void *DTU::thread(void *arg) {
         for(epid_t ep = 0; ep < EP_COUNT; ++ep)
             dma->handle_receive(ep);
 
-        dma->try_sleep();
+        dma->sleep();
     }
 
     // deny further receives

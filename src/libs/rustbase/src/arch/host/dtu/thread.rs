@@ -684,7 +684,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
             handle_receive(&backend, ep);
         }
 
-        DTU::try_sleep(false, 0).unwrap();
+        DTU::sleep().unwrap();
     }
 
     // deny further receives
@@ -700,7 +700,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
             break;
         }
 
-        DTU::try_sleep(false, 0).unwrap();
+        DTU::sleep().unwrap();
     }
 
     ptr::null_mut()

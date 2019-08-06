@@ -79,7 +79,7 @@ int main() {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
             failures = 0;
-            DTU::get().try_sleep(false);
+            DTU::get().sleep();
         }
 
         size_t send_count = burst_size;

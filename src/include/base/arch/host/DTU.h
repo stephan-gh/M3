@@ -283,16 +283,16 @@ public:
         return 1000000000;
     }
 
-    void sleep(uint64_t cycles = 0) const {
+    void sleep() const {
+        sleep_for(100000);
+    }
+    void sleep_for(uint64_t cycles) const {
         struct timespec time;
         // we treat cycles as nanoseconds here
         uint64_t secs = cycles / 1000000000;
         time.tv_nsec = static_cast<long>(cycles - secs * 1000000000);
         time.tv_sec = static_cast<time_t>(secs);
         nanosleep(&time, nullptr);
-    }
-    void try_sleep(bool = true, uint64_t = 0) const {
-        usleep(1);
     }
 
     void drop_msgs(epid_t ep, label_t label) {

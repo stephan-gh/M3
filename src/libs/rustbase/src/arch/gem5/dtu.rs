@@ -19,7 +19,6 @@ use cfg;
 use core::intrinsics;
 use errors::Error;
 use goff;
-use kif::PEDesc;
 use util;
 
 /// A DTU register
@@ -466,31 +465,16 @@ impl DTU {
         }
     }
 
-    /// Tries to put the CU to sleep after checking for new messages a few times. Additionally, the
-    /// kernel is notified about it, if required.
+    /// Puts the CU to sleep until the CU is woken up (e.g., by a message reception).
     #[inline(always)]
-    pub fn try_sleep(_yield: bool, cycles: u64) -> Result<(), Error> {
-        let num = if PEDesc::new_from(arch::envdata::get().pe_desc).has_mmu() {
-            2
-        }
-        else {
-            100
-        };
-        for _ in 0..num {
-            if (Self::read_dtu_reg(DtuReg::EVENTS) & EventMask::MSG_RECV.bits) != 0 {
-                return Ok(());
-            }
-        }
-
-        // TODO yield
-
-        Self::sleep(cycles)
+    pub fn sleep() -> Result<(), Error> {
+        Self::sleep_for(0)
     }
 
     /// Puts the CU to sleep for at most `cycles` or until the CU is woken up (e.g., by a message
     /// reception).
     #[inline(always)]
-    pub fn sleep(cycles: u64) -> Result<(), Error> {
+    pub fn sleep_for(cycles: u64) -> Result<(), Error> {
         Self::write_cmd_reg(
             CmdReg::COMMAND,
             Self::build_cmd(0, CmdOpCode::SLEEP, 0, cycles),

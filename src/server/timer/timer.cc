@@ -21,7 +21,7 @@
 
 using namespace m3;
 
-static cycles_t interval = 20000000;
+static const cycles_t interval = 20000000;
 static Server<EventHandler<>> *server;
 static cycles_t next_tick = 0;
 
@@ -49,7 +49,7 @@ int main() {
     while(wl.has_items()) {
         DTU::get().fetch_events();
 
-        DTU::get().try_sleep(true, next_tick - DTU::get().tsc());
+        DTU::get().sleep_for(next_tick - DTU::get().tsc());
 
         wl.tick();
     }

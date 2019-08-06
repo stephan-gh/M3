@@ -104,7 +104,7 @@ void WorkLoop::run() {
     epid_t srvep = SyscallHandler::srvep();
     const m3::DTU::Message *msg;
     while(_run) {
-        m3::DTU::get().try_sleep(false);
+        m3::DTU::get().sleep();
 
         msg = dtu.fetch_msg(sysep0);
         if(msg) {

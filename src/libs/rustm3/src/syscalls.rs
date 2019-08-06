@@ -52,7 +52,7 @@ fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
         // we are not interested in the events here; just fetch them before the sleep
         dtu::DTU::fetch_events();
 
-        dtu::DTU::try_sleep(false, 0)?;
+        dtu::DTU::sleep()?;
 
         let msg = dtu::DTU::fetch_msg(dtu::SYSC_REP);
         if let Some(m) = msg {

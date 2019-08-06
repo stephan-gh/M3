@@ -31,7 +31,7 @@ DTU::Message *Syscalls::send_receive(const void *msg, size_t size) noexcept {
         // we are not interested in the events here; just fetch them before the sleep
         DTU::get().fetch_events();
 
-        DTU::get().try_sleep(false);
+        DTU::get().sleep();
 
         reply = DTU::get().fetch_msg(m3::DTU::SYSC_REP);
     }

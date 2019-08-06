@@ -24,19 +24,6 @@ namespace m3 {
 
 INIT_PRIO_DTU DTU DTU::inst;
 
-void DTU::try_sleep(uint64_t cycles, reg_t evmask) {
-    // check for messages a few times
-    const int num = m3::env()->pedesc.has_mmu() ? 2 : 100;
-    for(int i = 0; i < num; ++i) {
-        if(read_reg(DtuRegs::EVENTS) & evmask)
-            return;
-    }
-
-    // note that the DTU checks again whether there actually are no messages, because we might
-    // have received something after the check above
-    sleep(cycles);
-}
-
 void DTU::print(const char *str, size_t len) {
     uintptr_t buffer = buffer_addr();
     const reg_t *rstr = reinterpret_cast<const reg_t*>(str);

@@ -316,7 +316,7 @@ impl RecvGate {
                 }
             }
 
-            dtu::DTU::try_sleep(true, 0)?;
+            dtu::DTU::sleep()?;
         }
     }
 }

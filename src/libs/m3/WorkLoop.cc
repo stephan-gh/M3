@@ -65,7 +65,7 @@ void WorkLoop::thread_shutdown() {
         // we are not interested in the events here; just fetch them before the sleep
         DTU::get().fetch_events();
 
-        DTU::get().try_sleep();
+        DTU::get().sleep();
 
         tick();
 
@@ -109,7 +109,7 @@ void WorkLoop::run() {
 
         // if there are no events, sleep
         if(DTU::get().fetch_events() == 0)
-            DTU::get().try_sleep();
+            DTU::get().sleep();
 
         tick();
 
