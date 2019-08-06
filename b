@@ -422,7 +422,7 @@ case "$cmd" in
         ;;
 
     bt=*)
-        ./src/tools/backtrace $bindir/${cmd#bt=}
+        ./src/tools/backtrace.py "$crossprefix" $bindir/${cmd#bt=}
         ;;
 
     list)
