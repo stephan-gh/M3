@@ -234,7 +234,7 @@ void VPE::init_memory() {
         address_space()->setup(desc());
         // write all PTEs to memory until we have loaded rctmux
         if(Platform::pe(pe()).has_mmu())
-            PANIC("TODO implement me");
+            _state = VPE::DEAD;
     }
 
     if(Platform::pe(pe()).is_programmable())

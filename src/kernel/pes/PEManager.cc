@@ -88,8 +88,12 @@ void PEManager::start_vpe(VPE *vpe) {
 }
 
 void PEManager::stop_vpe(VPE *vpe) {
-    if(vpe->state() == VPE::DEAD)
+    if(vpe->state() == VPE::DEAD) {
+        // ensure that all PTEs are in memory
+        DTU::get().flush_cache(vpe->desc());
+
         DTU::get().kill_vpe(vpe->desc());
+    }
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except) {

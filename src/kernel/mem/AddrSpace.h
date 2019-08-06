@@ -82,6 +82,8 @@ private:
     static mmu_pte_t to_mmu_pte(const m3::PEDesc &pe, m3::DTU::pte_t pte);
     static m3::DTU::pte_t to_dtu_pte(const m3::PEDesc &pe, mmu_pte_t pte);
 
+    goff_t get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt, int level);
+
     void mmu_cmd_remote(const VPEDesc &vpe, m3::DTU::reg_t arg);
 
     static void handle_xlate(m3::DTU::reg_t xlate_req);
