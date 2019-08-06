@@ -67,19 +67,6 @@ NOINLINE static void run_wait() {
     }, 0x90));
 }
 
-NOINLINE static void run_multi_wait() {
-    Profile pr(4, 2);
-
-    VPE vpe("hello");
-
-    WVPERF("VPE run multi-wait", pr.run_with_id([&vpe] {
-        vpe.run([]() {
-            return 0;
-        });
-        vpe.wait();
-    }, 0x90));
-}
-
 NOINLINE static void exec() {
     Profile pr(4, 2);
 
@@ -95,6 +82,5 @@ void bvpe() {
     RUN_BENCH(creation);
     RUN_BENCH(run);
     RUN_BENCH(run_wait);
-    RUN_BENCH(run_multi_wait);
     RUN_BENCH(exec);
 }
