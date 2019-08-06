@@ -17,7 +17,7 @@
 use cap::Selector;
 use cell::RefCell;
 use col::Vec;
-use com::*;
+use com::{RecvGate, SendGate, SliceSource, VecSink};
 use core::any::Any;
 use core::fmt;
 use core::mem::MaybeUninit;

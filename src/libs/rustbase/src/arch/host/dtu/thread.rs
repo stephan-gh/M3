@@ -14,12 +14,17 @@
  * General Public License version 2 for more details.
  */
 
-use arch::dtu::*;
+use arch::dtu::{
+    backend, CmdReg, Command, Control, EpId, EpReg, Header, Label, PEId, Reg, DTU, EP_COUNT,
+    MAX_MSG_SIZE,
+};
+use arch::envdata;
 use cell::StaticCell;
-use core::sync::atomic;
+use core::{intrinsics, ptr, sync::atomic};
 use errors::{Code, Error};
 use io;
 use kif;
+use util;
 
 pub(crate) struct Buffer {
     pub header: Header,
@@ -571,7 +576,7 @@ fn handle_command(backend: &backend::SocketBackend) {
                 if op != Command::REPLY {
                     // reply cap
                     buf.header.has_replycap = 1;
-                    buf.header.pe = arch::envdata::get().pe_id as u16;
+                    buf.header.pe = envdata::get().pe_id as u16;
                     buf.header.snd_ep = ep as u8;
                     buf.header.rpl_ep = DTU::get_cmd(CmdReg::REPLY_EPID) as u8;
                     buf.header.reply_label = DTU::get_cmd(CmdReg::REPLY_LBL);

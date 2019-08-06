@@ -14,8 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use arch::dtu::*;
+use arch::dtu::{thread, EpId, Header, PEId, EP_COUNT, PE_COUNT};
+use arch::envdata;
 use col::Vec;
+use core::ptr;
 use libc;
 use util;
 
@@ -63,7 +65,7 @@ impl SocketBackend {
             }
         }
 
-        let pe = arch::envdata::get().pe_id as PEId;
+        let pe = envdata::get().pe_id as PEId;
         let mut localsock = vec![];
         for ep in 0..EP_COUNT {
             unsafe {

@@ -15,7 +15,7 @@
  */
 
 use m3::col::String;
-use m3::com::*;
+use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::profile;
 use m3::test;
 

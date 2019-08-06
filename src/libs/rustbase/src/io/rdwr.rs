@@ -16,7 +16,7 @@
 
 //! Contains the read and write traits
 
-use col::*;
+use col::{String, Vec};
 use core::fmt;
 use core::mem::MaybeUninit;
 use errors::{Code, Error};
