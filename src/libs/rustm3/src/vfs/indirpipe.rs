@@ -17,7 +17,7 @@
 use com::MemGate;
 use errors::Error;
 use rc::Rc;
-use session::{Pipes, Pipe};
+use session::{Pipe, Pipes};
 use vfs::Fd;
 use vpe::VPE;
 

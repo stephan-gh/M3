@@ -32,9 +32,7 @@ bitflags! {
 impl CapFlags {
     /// Creates a new `CapFlags` object.
     pub const fn const_empty() -> Self {
-        CapFlags {
-            bits: 0
-        }
+        CapFlags { bits: 0 }
     }
 }
 
@@ -55,10 +53,12 @@ impl Capability {
     pub fn sel(&self) -> Selector {
         self.sel
     }
+
     /// Returns the flags.
     pub fn flags(&self) -> CapFlags {
         self.flags
     }
+
     /// Sets the flags to `flags`.
     pub fn set_flags(&mut self, flags: CapFlags) {
         self.flags = flags;

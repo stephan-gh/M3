@@ -39,9 +39,8 @@ impl SocketBackend {
             sun_family: libc::AF_UNIX as libc::sa_family_t,
             sun_path: [0; 108],
         };
-        sockaddr.sun_path[0..addr.len()].clone_from_slice(
-            unsafe { &*(addr.as_bytes() as *const [u8] as *const [i8]) }
-        );
+        sockaddr.sun_path[0..addr.len()]
+            .clone_from_slice(unsafe { &*(addr.as_bytes() as *const [u8] as *const [i8]) });
         sockaddr
     }
 
@@ -51,7 +50,9 @@ impl SocketBackend {
 
         let knotify_sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0) };
         assert!(knotify_sock != -1);
-        unsafe { assert!(libc::fcntl(knotify_sock, libc::F_SETFD, libc::FD_CLOEXEC) == 0); }
+        unsafe {
+            assert!(libc::fcntl(knotify_sock, libc::F_SETFD, libc::FD_CLOEXEC) == 0);
+        }
         let knotify_addr = Self::get_sock_addr("\0m3_knotify\0");
 
         let mut eps = vec![];
@@ -71,17 +72,26 @@ impl SocketBackend {
 
                 assert!(libc::fcntl(epsock, libc::F_SETFD, libc::FD_CLOEXEC) == 0);
 
-                assert!(libc::bind(
-                    epsock,
-                    &eps[pe as usize * EP_COUNT + ep] as *const libc::sockaddr_un as *const libc::sockaddr,
-                    util::size_of::<libc::sockaddr_un>() as u32
-                ) == 0);
+                assert!(
+                    libc::bind(
+                        epsock,
+                        &eps[pe as usize * EP_COUNT + ep] as *const libc::sockaddr_un
+                            as *const libc::sockaddr,
+                        util::size_of::<libc::sockaddr_un>() as u32
+                    ) == 0
+                );
 
                 localsock.push(epsock);
             }
         }
 
-        SocketBackend { sock, knotify_sock, knotify_addr, localsock, eps }
+        SocketBackend {
+            sock,
+            knotify_sock,
+            knotify_addr,
+            localsock,
+            eps,
+        }
     }
 
     pub fn send(&self, pe: PEId, ep: EpId, buf: &thread::Buffer) -> bool {
@@ -93,7 +103,7 @@ impl SocketBackend {
                 buf.header.length + util::size_of::<Header>(),
                 0,
                 sock as *const libc::sockaddr_un as *const libc::sockaddr,
-                util::size_of::<libc::sockaddr_un>() as u32
+                util::size_of::<libc::sockaddr_un>() as u32,
             )
         };
         res != -1
@@ -127,7 +137,7 @@ impl SocketBackend {
                 util::size_of::<KNotifyData>(),
                 0,
                 &self.knotify_addr as *const libc::sockaddr_un as *const libc::sockaddr,
-                util::size_of::<libc::sockaddr_un>() as u32
+                util::size_of::<libc::sockaddr_un>() as u32,
             );
             assert!(res != -1);
         }

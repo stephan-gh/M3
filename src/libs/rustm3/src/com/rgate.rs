@@ -14,9 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-use cfg;
 use cap::{CapFlags, Selector};
 use cell::StaticCell;
+use cfg;
 use com::gate::Gate;
 use com::{GateIStream, SendGate};
 use core::fmt;
@@ -29,11 +29,11 @@ use syscalls;
 use util;
 use vpe;
 
-const DEF_MSG_ORD: i32          = 6;
+const DEF_MSG_ORD: i32 = 6;
 
-static SYS_RGATE: StaticCell<RecvGate>  = StaticCell::new(RecvGate::new_def(dtu::SYSC_REP));
-static UPC_RGATE: StaticCell<RecvGate>  = StaticCell::new(RecvGate::new_def(dtu::UPCALL_REP));
-static DEF_RGATE: StaticCell<RecvGate>  = StaticCell::new(RecvGate::new_def(dtu::DEF_REP));
+static SYS_RGATE: StaticCell<RecvGate> = StaticCell::new(RecvGate::new_def(dtu::SYSC_REP));
+static UPC_RGATE: StaticCell<RecvGate> = StaticCell::new(RecvGate::new_def(dtu::UPCALL_REP));
+static DEF_RGATE: StaticCell<RecvGate> = StaticCell::new(RecvGate::new_def(dtu::DEF_REP));
 
 bitflags! {
     struct FreeFlags : u8 {
@@ -57,8 +57,14 @@ pub struct RecvGate {
 
 impl fmt::Debug for RecvGate {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "RecvGate[sel: {}, buf: {:#0x}, size: {:#0x}, ep: {:?}]",
-            self.sel(), self.buf, 1 << self.order, self.gate.ep())
+        write!(
+            f,
+            "RecvGate[sel: {}, buf: {:#0x}, size: {:#0x}, ep: {:?}]",
+            self.sel(),
+            self.buf,
+            1 << self.order,
+            self.gate.ep()
+        )
     }
 }
 
@@ -109,10 +115,12 @@ impl RecvGate {
     pub fn syscall() -> &'static mut RecvGate {
         SYS_RGATE.get_mut()
     }
+
     /// Returns the receive gate to receive upcalls from the kernel
     pub fn upcall() -> &'static mut RecvGate {
         UPC_RGATE.get_mut()
     }
+
     /// Returns the default receive gate
     pub fn def() -> &'static mut RecvGate {
         DEF_RGATE.get_mut()
@@ -169,14 +177,17 @@ impl RecvGate {
     pub fn sel(&self) -> Selector {
         self.gate.sel()
     }
+
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub fn ep(&self) -> Option<dtu::EpId> {
         self.gate.ep()
     }
+
     /// Returns the address of the receive buffer
     pub fn buffer(&self) -> usize {
         self.buf
     }
+
     /// Returns the size of the receive buffer in bytes
     pub fn size(&self) -> usize {
         1 << self.order
@@ -217,7 +228,12 @@ impl RecvGate {
         Ok(())
     }
 
-    pub(crate) fn activate_for(&mut self, first_ep: Selector, ep: dtu::EpId, addr: goff) -> Result<(), Error> {
+    pub(crate) fn activate_for(
+        &mut self,
+        first_ep: Selector,
+        ep: dtu::EpId,
+        addr: goff,
+    ) -> Result<(), Error> {
         if self.ep().is_none() {
             self.gate.set_ep(ep);
 
@@ -254,11 +270,21 @@ impl RecvGate {
     /// Sends `reply` as a reply to the message `msg`.
     #[inline(always)]
     pub fn reply<T>(&self, reply: &[T], msg: &'static dtu::Message) -> Result<(), Error> {
-        self.reply_bytes(reply.as_ptr() as *const u8, reply.len() * util::size_of::<T>(), msg)
+        self.reply_bytes(
+            reply.as_ptr() as *const u8,
+            reply.len() * util::size_of::<T>(),
+            msg,
+        )
     }
+
     /// Sends `reply` with `size` bytes as a reply to the message `msg`.
     #[inline(always)]
-    pub fn reply_bytes(&self, reply: *const u8, size: usize, msg: &'static dtu::Message) -> Result<(), Error> {
+    pub fn reply_bytes(
+        &self,
+        reply: *const u8,
+        size: usize,
+        msg: &'static dtu::Message,
+    ) -> Result<(), Error> {
         dtu::DTU::reply(self.ep().unwrap(), reply, size, msg)
     }
 
@@ -276,7 +302,7 @@ impl RecvGate {
         loop {
             let msg = dtu::DTU::fetch_msg(rep);
             if let Some(m) = msg {
-                return Ok(GateIStream::new(m, self))
+                return Ok(GateIStream::new(m, self));
             }
 
             // fetch the events first
@@ -286,7 +312,7 @@ impl RecvGate {
                 // line above, we'll notice that with this check. if the EP is invalidated between the line
                 // above and the sleep command, the DTU will refuse to suspend the core.
                 if !dtu::DTU::is_valid(sg.ep().unwrap()) {
-                    return Err(Error::new(Code::InvEP))
+                    return Err(Error::new(Code::InvEP));
                 }
             }
 

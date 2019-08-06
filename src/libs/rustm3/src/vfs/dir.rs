@@ -64,22 +64,22 @@ impl iter::Iterator for ReadDir {
         // read header
         let entry: M3FSDirEntry = match read_object(&mut self.reader) {
             Ok(obj) => obj,
-            Err(_)  => return None,
+            Err(_) => return None,
         };
 
         // read name
         let res = DirEntry::new(
             entry.inode,
             match self.reader.read_string(entry.name_len as usize) {
-                Ok(s)   => s,
-                Err(_)  => return None,
+                Ok(s) => s,
+                Err(_) => return None,
             },
         );
 
         // move to next entry
         let off = entry.next as usize - (util::size_of::<M3FSDirEntry>() + entry.name_len as usize);
         if off != 0 && self.reader.seek(off, SeekMode::CUR).is_err() {
-            return None
+            return None;
         }
 
         Some(res)

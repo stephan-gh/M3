@@ -122,19 +122,38 @@ impl SendGate {
     /// Sends `msg` to the associated [`RecvGate`] and uses `reply_gate` to receive a reply.
     #[inline(always)]
     pub fn send<T>(&self, msg: &[T], reply_gate: &RecvGate) -> Result<(), Error> {
-        self.send_bytes(msg.as_ptr() as *const u8, msg.len() * util::size_of::<T>(), reply_gate, 0)
+        self.send_bytes(
+            msg.as_ptr() as *const u8,
+            msg.len() * util::size_of::<T>(),
+            reply_gate,
+            0,
+        )
     }
 
     /// Sends `msg` to the associated [`RecvGate`], uses `reply_gate` to receive the reply, and
     /// lets the communication partner use the label `rlabel` for the reply.
-    pub fn send_with_rlabel<T>(&self, msg: &[T], reply_gate: &RecvGate,
-                               rlabel: dtu::Label) -> Result<(), Error> {
-        self.send_bytes(msg.as_ptr() as *const u8, msg.len() * util::size_of::<T>(), reply_gate, rlabel)
+    pub fn send_with_rlabel<T>(
+        &self,
+        msg: &[T],
+        reply_gate: &RecvGate,
+        rlabel: dtu::Label,
+    ) -> Result<(), Error> {
+        self.send_bytes(
+            msg.as_ptr() as *const u8,
+            msg.len() * util::size_of::<T>(),
+            reply_gate,
+            rlabel,
+        )
     }
 
     #[inline(always)]
-    fn send_bytes(&self, msg: *const u8, size: usize, reply_gate: &RecvGate,
-                  rlabel: dtu::Label) -> Result<(), Error> {
+    fn send_bytes(
+        &self,
+        msg: *const u8,
+        size: usize,
+        reply_gate: &RecvGate,
+        rlabel: dtu::Label,
+    ) -> Result<(), Error> {
         let ep = self.gate.activate()?;
         dtu::DTU::send(ep, msg, size, rlabel, reply_gate.ep().unwrap())
     }

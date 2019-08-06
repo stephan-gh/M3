@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::{MemGate, MGateArgs, Perm};
+use m3::com::{MGateArgs, MemGate, Perm};
 use m3::errors::Code;
 use m3::test;
 
@@ -28,7 +28,10 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn create() {
-    wv_assert_err!(MemGate::new_with(MGateArgs::new(0x1000, Perm::R).sel(1)), Code::InvArgs);
+    wv_assert_err!(
+        MemGate::new_with(MGateArgs::new(0x1000, Perm::R).sel(1)),
+        Code::InvArgs
+    );
 }
 
 fn create_readonly() {
@@ -78,7 +81,11 @@ fn read_write_object() {
     }
 
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-    let refobj = Test { a: 0x1234, b: 0xF000_F000_AAAA_BBBB, c: true };
+    let refobj = Test {
+        a: 0x1234,
+        b: 0xF000_F000_AAAA_BBBB,
+        c: true,
+    };
 
     wv_assert_ok!(mgate.write_obj(&refobj, 0));
     let obj: Test = wv_assert_ok!(mgate.read_obj(0));

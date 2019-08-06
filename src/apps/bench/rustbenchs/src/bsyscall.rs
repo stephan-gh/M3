@@ -14,14 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::{MemGate, RecvGate, Perm};
 use m3::cell::StaticCell;
 use m3::cfg;
+use m3::com::{MemGate, Perm, RecvGate};
 use m3::kif;
 use m3::profile;
 use m3::syscalls;
 use m3::test;
-use m3::vpe::{VPE, VPEArgs};
+use m3::vpe::{VPEArgs, VPE};
 
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
 
@@ -42,9 +42,15 @@ pub fn run(t: &mut dyn test::WvTester) {
 fn noop() {
     let mut prof = profile::Profiler::default();
 
-    wv_perf!("noop", prof.run_with_id(|| {
-        wv_assert_ok!(syscalls::noop());
-    }, 0x10));
+    wv_perf!(
+        "noop",
+        prof.run_with_id(
+            || {
+                wv_assert_ok!(syscalls::noop());
+            },
+            0x10
+        )
+    );
 }
 
 fn activate() {
@@ -55,9 +61,15 @@ fn activate() {
 
     let mut prof = profile::Profiler::default();
 
-    wv_perf!("activate", prof.run_with_id(|| {
-        wv_assert_ok!(syscalls::activate(VPE::cur().ep_sel(ep), mgate.sel(), 0));
-    }, 0x11));
+    wv_perf!(
+        "activate",
+        prof.run_with_id(
+            || {
+                wv_assert_ok!(syscalls::activate(VPE::cur().ep_sel(ep), mgate.sel(), 0));
+            },
+            0x11
+        )
+    );
 }
 
 fn create_rgate() {
@@ -70,12 +82,20 @@ fn create_rgate() {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_rgate(*SEL, 10, 10));
         }
+
         fn post(&mut self) {
-            wv_assert_ok!(syscalls::revoke(0, kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1), true));
+            wv_assert_ok!(syscalls::revoke(
+                0,
+                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                true
+            ));
         }
     }
 
-    wv_perf!("create_rgate", prof.runner_with_id(&mut Tester::default(), 0x12));
+    wv_perf!(
+        "create_rgate",
+        prof.runner_with_id(&mut Tester::default(), 0x12)
+    );
 }
 
 fn create_sgate() {
@@ -90,15 +110,29 @@ fn create_sgate() {
                 self.0 = Some(wv_assert_ok!(RecvGate::new(10, 10)));
             }
         }
+
         fn run(&mut self) {
-            wv_assert_ok!(syscalls::create_sgate(*SEL, self.0.as_ref().unwrap().sel(), 0x1234, 1024));
+            wv_assert_ok!(syscalls::create_sgate(
+                *SEL,
+                self.0.as_ref().unwrap().sel(),
+                0x1234,
+                1024
+            ));
         }
+
         fn post(&mut self) {
-            wv_assert_ok!(syscalls::revoke(0, kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1), true));
+            wv_assert_ok!(syscalls::revoke(
+                0,
+                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                true
+            ));
         }
     }
 
-    wv_perf!("create_sgate", prof.runner_with_id(&mut Tester::default(), 0x13));
+    wv_perf!(
+        "create_sgate",
+        prof.runner_with_id(&mut Tester::default(), 0x13)
+    );
 }
 
 fn create_map() {
@@ -116,12 +150,19 @@ fn create_map() {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_map(DEST, 0, self.0.sel(), 0, 1, Perm::RW));
         }
+
         fn post(&mut self) {
-            wv_assert_ok!(syscalls::revoke(0, kif::CapRngDesc::new(kif::CapType::MAPPING, DEST, 1), true));
+            wv_assert_ok!(syscalls::revoke(
+                0,
+                kif::CapRngDesc::new(kif::CapType::MAPPING, DEST, 1),
+                true
+            ));
         }
     }
 
-    let mut tester = Tester { 0: MemGate::new(0x1000, Perm::RW).unwrap() };
+    let mut tester = Tester {
+        0: MemGate::new(0x1000, Perm::RW).unwrap(),
+    };
     wv_perf!("create_map", prof.runner_with_id(&mut tester, 0x14));
 }
 
@@ -138,16 +179,29 @@ fn create_srv() {
                 self.0.as_mut().unwrap().activate().unwrap();
             }
         }
+
         fn run(&mut self) {
-            wv_assert_ok!(syscalls::create_srv(*SEL, VPE::cur().sel(),
-                                            self.0.as_ref().unwrap().sel(), "test"));
+            wv_assert_ok!(syscalls::create_srv(
+                *SEL,
+                VPE::cur().sel(),
+                self.0.as_ref().unwrap().sel(),
+                "test"
+            ));
         }
+
         fn post(&mut self) {
-            wv_assert_ok!(syscalls::revoke(0, kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1), true));
+            wv_assert_ok!(syscalls::revoke(
+                0,
+                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                true
+            ));
         }
     }
 
-    wv_perf!("create_srv", prof.runner_with_id(&mut Tester::default(), 0x15));
+    wv_perf!(
+        "create_srv",
+        prof.runner_with_id(&mut Tester::default(), 0x15)
+    );
 }
 
 fn derive_mem() {
@@ -162,16 +216,31 @@ fn derive_mem() {
                 self.0 = Some(wv_assert_ok!(MemGate::new(0x1000, Perm::RW)));
             }
         }
+
         fn run(&mut self) {
-            wv_assert_ok!(syscalls::derive_mem(VPE::cur().sel(), *SEL,
-                                            self.0.as_ref().unwrap().sel(), 0, 0x1000, Perm::RW));
+            wv_assert_ok!(syscalls::derive_mem(
+                VPE::cur().sel(),
+                *SEL,
+                self.0.as_ref().unwrap().sel(),
+                0,
+                0x1000,
+                Perm::RW
+            ));
         }
+
         fn post(&mut self) {
-            wv_assert_ok!(syscalls::revoke(0, kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1), true));
+            wv_assert_ok!(syscalls::revoke(
+                0,
+                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                true
+            ));
         }
     }
 
-    wv_perf!("derive_mem", prof.runner_with_id(&mut Tester::default(), 0x17));
+    wv_perf!(
+        "derive_mem",
+        prof.runner_with_id(&mut Tester::default(), 0x17)
+    );
 }
 
 fn exchange() {
@@ -186,6 +255,7 @@ fn exchange() {
                 self.0 = Some(wv_assert_ok!(VPE::new_with(VPEArgs::new("test"))));
             }
         }
+
         fn run(&mut self) {
             wv_assert_ok!(syscalls::exchange(
                 self.0.as_ref().unwrap().sel(),
@@ -194,6 +264,7 @@ fn exchange() {
                 false,
             ));
         }
+
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 self.0.as_ref().unwrap().sel(),
@@ -203,7 +274,10 @@ fn exchange() {
         }
     }
 
-    wv_perf!("exchange", prof.runner_with_id(&mut Tester::default(), 0x18));
+    wv_perf!(
+        "exchange",
+        prof.runner_with_id(&mut Tester::default(), 0x18)
+    );
 }
 
 fn revoke() {
@@ -216,6 +290,7 @@ fn revoke() {
         fn pre(&mut self) {
             self.0 = Some(wv_assert_ok!(MemGate::new(0x1000, Perm::RW)));
         }
+
         fn run(&mut self) {
             self.0 = None;
         }

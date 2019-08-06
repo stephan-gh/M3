@@ -16,8 +16,8 @@
 
 use m3::col::{String, Vec};
 use m3::errors::Code;
-use m3::test;
 use m3::io::{Read, Write};
+use m3::test;
 use m3::vfs::{FileRef, OpenFlags, Seek, SeekMode, VFS};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -133,17 +133,23 @@ fn write_and_read_file() {
 }
 
 fn write_fmt() {
-    let mut file = wv_assert_ok!(VFS::open("/newfile",
-        OpenFlags::CREATE | OpenFlags::RW));
+    let mut file = wv_assert_ok!(VFS::open("/newfile", OpenFlags::CREATE | OpenFlags::RW));
 
-    wv_assert_ok!(write!(file, "This {:.3} is the {}th test of {:#0X}!\n", "foobar", 42, 0xAB_CDEF));
+    wv_assert_ok!(write!(
+        file,
+        "This {:.3} is the {}th test of {:#0X}!\n",
+        "foobar", 42, 0xAB_CDEF
+    ));
     wv_assert_ok!(write!(file, "More formatting: {:?}", Some(Some(1))));
 
     wv_assert_eq!(file.seek(0, SeekMode::SET), Ok(0));
 
     let mut s = String::new();
     wv_assert_eq!(file.read_to_string(&mut s), Ok(69));
-    wv_assert_eq!(s, "This foo is the 42th test of 0xABCDEF!\nMore formatting: Some(Some(1))");
+    wv_assert_eq!(
+        s,
+        "This foo is the 42th test of 0xABCDEF!\nMore formatting: Some(Some(1))"
+    );
 }
 
 fn extend_small_file() {
@@ -174,8 +180,7 @@ fn overwrite_beginning() {
 
 fn truncate() {
     {
-        let mut file = wv_assert_ok!(VFS::open("/test.txt",
-            OpenFlags::W | OpenFlags::TRUNC));
+        let mut file = wv_assert_ok!(VFS::open("/test.txt", OpenFlags::W | OpenFlags::TRUNC));
 
         let buf = _get_pat_vector(1024);
         for _ in 0..2 {
@@ -188,8 +193,7 @@ fn truncate() {
 
 fn append() {
     {
-        let mut file = wv_assert_ok!(VFS::open("/test.txt",
-            OpenFlags::W | OpenFlags::APPEND));
+        let mut file = wv_assert_ok!(VFS::open("/test.txt", OpenFlags::W | OpenFlags::APPEND));
         // TODO perform the seek to end here, because we cannot do that during open atm (m3fs
         // already borrowed as mutable). it's the wrong semantic anyway, so ...
         wv_assert_ok!(file.seek(0, SeekMode::END));
@@ -205,8 +209,10 @@ fn append() {
 
 fn append_read() {
     {
-        let mut file = wv_assert_ok!(VFS::open("/test.txt",
-            OpenFlags::RW | OpenFlags::TRUNC | OpenFlags::CREATE));
+        let mut file = wv_assert_ok!(VFS::open(
+            "/test.txt",
+            OpenFlags::RW | OpenFlags::TRUNC | OpenFlags::CREATE
+        ));
 
         let pat = _get_pat_vector(1024);
         for _ in 0..2 {
@@ -246,7 +252,7 @@ fn _validate_pattern_file(filename: &str, size: usize) {
     let mut file = wv_assert_ok!(VFS::open(filename, OpenFlags::R));
 
     let info = wv_assert_ok!(file.borrow().stat());
-    wv_assert_eq!({info.size}, size);
+    wv_assert_eq!({ info.size }, size);
 
     let mut buf = [0u8; 1024];
     wv_assert_eq!(_validate_pattern_content(&mut file, &mut buf), size);
@@ -256,12 +262,19 @@ fn _validate_pattern_content(file: &mut FileRef, mut buf: &mut [u8]) -> usize {
     let mut pos: usize = 0;
     loop {
         let count = wv_assert_ok!(file.read(&mut buf));
-        if count == 0 { break; }
+        if count == 0 {
+            break;
+        }
 
         for b in buf.iter().take(count) {
-            wv_assert_eq!(*b, (pos & 0xFF) as u8,
-                          "content wrong at offset {}: {} vs. {}",
-                          pos, *b, (pos & 0xFF) as u8);
+            wv_assert_eq!(
+                *b,
+                (pos & 0xFF) as u8,
+                "content wrong at offset {}: {} vs. {}",
+                pos,
+                *b,
+                (pos & 0xFF) as u8
+            );
             pos += 1;
         }
     }

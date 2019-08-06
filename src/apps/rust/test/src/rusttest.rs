@@ -19,10 +19,10 @@
 #[macro_use]
 extern crate m3;
 
-use m3::com::*;
 use m3::boxed::Box;
-use m3::env;
 use m3::col::*;
+use m3::com::*;
+use m3::env;
 use m3::io::*;
 use m3::syscalls;
 use m3::time;
@@ -35,7 +35,9 @@ pub fn main() -> i32 {
         let mut vpe = VPE::new_with(VPEArgs::new("test")).expect("Unable to create VPE");
         println!("VPE runs on {:?}", vpe.pe());
 
-        vpe.mounts().add("/", VPE::cur().mounts().get_by_path("/").unwrap()).unwrap();
+        vpe.mounts()
+            .add("/", VPE::cur().mounts().get_by_path("/").unwrap())
+            .unwrap();
         vpe.obtain_mounts().unwrap();
 
         let act = vpe.exec(&["/bin/ls", "-l", "/"]).expect("Exec failed");
@@ -50,27 +52,31 @@ pub fn main() -> i32 {
         let mut vpe = VPE::new_with(VPEArgs::new("test")).expect("Unable to create VPE");
         println!("VPE runs on {:?}", vpe.pe());
 
-        vpe.mounts().add("/", VPE::cur().mounts().get_by_path("/").unwrap()).unwrap();
+        vpe.mounts()
+            .add("/", VPE::cur().mounts().get_by_path("/").unwrap())
+            .unwrap();
         vpe.obtain_mounts().unwrap();
 
-        let file = VFS::open("/test.txt", OpenFlags::RW)
-            .expect("open of /test.txt failed");
+        let file = VFS::open("/test.txt", OpenFlags::RW).expect("open of /test.txt failed");
 
-        vpe.files().set(0, VPE::cur().files().get(file.fd()).unwrap());
+        vpe.files()
+            .set(0, VPE::cur().files().get(file.fd()).unwrap());
         vpe.obtain_fds().unwrap();
 
         let mut val = 42;
-        let act = vpe.run(Box::new(move || {
-            let f = VPE::cur().files().get(0).unwrap();
-            let mut s = String::new();
-            f.borrow_mut().read_to_string(&mut s).unwrap();
-            println!("Read '{}'", s);
+        let act = vpe
+            .run(Box::new(move || {
+                let f = VPE::cur().files().get(0).unwrap();
+                let mut s = String::new();
+                f.borrow_mut().read_to_string(&mut s).unwrap();
+                println!("Read '{}'", s);
 
-            println!("I'm a closure on PE {}", VPE::cur().pe_id());
-            val += 1;
-            println!("val = {}", val);
-            val
-        })).expect("Unable to run VPE");
+                println!("I'm a closure on PE {}", VPE::cur().pe_id());
+                val += 1;
+                println!("val = {}", val);
+                val
+            }))
+            .expect("Unable to run VPE");
 
         let res = act.wait().expect("Unable to wait for VPE");
         println!("VPE exited with {}", res);
@@ -89,13 +95,17 @@ pub fn main() -> i32 {
         }
 
         {
-            let mut file = VFS::open("/test2.txt", OpenFlags::RW).expect("open of /test2.txt failed");
+            let mut file =
+                VFS::open("/test2.txt", OpenFlags::RW).expect("open of /test2.txt failed");
 
             let info = file.borrow().stat().unwrap();
             println!("Got info: {:?}", info);
 
             println!("File /test.txt: {:?}", VFS::stat("/test.txt").unwrap());
-            println!("Creating directory /foobar: {:?}", VFS::mkdir("/foobar", 0o755));
+            println!(
+                "Creating directory /foobar: {:?}",
+                VFS::mkdir("/foobar", 0o755)
+            );
 
             let mut s = String::new();
             {
@@ -115,7 +125,8 @@ pub fn main() -> i32 {
         }
 
         {
-            let mut file = VFS::open("/test2.txt", OpenFlags::RW).expect("open of /test2.txt failed");
+            let mut file =
+                VFS::open("/test2.txt", OpenFlags::RW).expect("open of /test2.txt failed");
 
             let mut s = String::new();
             let count = file.read_to_string(&mut s).expect("read failed");
@@ -167,9 +178,8 @@ pub fn main() -> i32 {
         let mut rgate = RecvGate::new(12, 8).unwrap();
         rgate.activate().unwrap();
 
-        let sgate = SendGate::new_with(
-            SGateArgs::new(&rgate).credits((1 << 8) * 10).label(0x1234)
-        ).unwrap();
+        let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits((1 << 8) * 10).label(0x1234))
+            .unwrap();
 
         let mut total = 0;
         for _ in 0..10 {

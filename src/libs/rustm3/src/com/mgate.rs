@@ -86,7 +86,9 @@ impl MemGate {
             args.sel
         };
 
-        vpe::VPE::cur().resmng().alloc_mem(sel, args.addr, args.size, args.perm)?;
+        vpe::VPE::cur()
+            .resmng()
+            .alloc_mem(sel, args.addr, args.size, args.perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, args.flags),
             revoke: false,
@@ -105,6 +107,7 @@ impl MemGate {
     pub fn sel(&self) -> Selector {
         self.gate.sel()
     }
+
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub fn ep(&self) -> Option<dtu::EpId> {
         self.gate.ep()
@@ -113,6 +116,7 @@ impl MemGate {
     pub(crate) fn set_ep(&mut self, ep: dtu::EpId) {
         self.gate.set_ep(ep);
     }
+
     pub(crate) fn unset_ep(&mut self) {
         self.gate.unset_ep();
     }
@@ -130,8 +134,14 @@ impl MemGate {
 
     /// Like [`MemGate::derive`], but assigns the new `MemGate` to the given VPE and uses given
     /// selector.
-    pub fn derive_for(&self, vpe: Selector, sel: Selector, offset: goff,
-                      size: usize, perm: Perm) -> Result<Self, Error> {
+    pub fn derive_for(
+        &self,
+        vpe: Selector,
+        sel: Selector,
+        offset: goff,
+        size: usize,
+        perm: Perm,
+    ) -> Result<Self, Error> {
         syscalls::derive_mem(vpe, sel, self.sel(), offset, size, perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
@@ -147,7 +157,11 @@ impl MemGate {
     /// Uses the DTU read command to read from the memory region at offset `off` and stores the read
     /// data into the slice `data`. The number of bytes to read is defined by `data`.
     pub fn read<T>(&self, data: &mut [T], off: goff) -> Result<(), Error> {
-        self.read_bytes(data.as_mut_ptr() as *mut u8, data.len() * util::size_of::<T>(), off)
+        self.read_bytes(
+            data.as_mut_ptr() as *mut u8,
+            data.len() * util::size_of::<T>(),
+            off,
+        )
     }
 
     /// Reads `util::size_of::<T>()` bytes via the DTU read command from the memory region at offset
@@ -168,7 +182,11 @@ impl MemGate {
 
     /// Writes `data` with the DTU write command to the memory region at offset `off`.
     pub fn write<T>(&self, data: &[T], off: goff) -> Result<(), Error> {
-        self.write_bytes(data.as_ptr() as *const u8, data.len() * util::size_of::<T>(), off)
+        self.write_bytes(
+            data.as_ptr() as *const u8,
+            data.len() * util::size_of::<T>(),
+            off,
+        )
     }
 
     /// Writes `obj` via the DTU write command to the memory region at offset `off`.

@@ -24,7 +24,7 @@ pub enum c_void {
     __variant2,
 }
 
-extern {
+extern "C" {
     pub fn memcpy(dst: *mut c_void, src: *const c_void, len: usize) -> *mut c_void;
     pub fn memset(dst: *mut c_void, val: i32, len: usize) -> *mut c_void;
     pub fn strlen(s: *const i8) -> usize;

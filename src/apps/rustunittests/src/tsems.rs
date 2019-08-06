@@ -35,8 +35,10 @@ fn get_counter(filename: &str) -> u32 {
 }
 
 fn set_counter(filename: &str, value: u32) {
-    let mut file = wv_assert_ok!(VFS::open(filename,
-                                        OpenFlags::W | OpenFlags::TRUNC | OpenFlags::CREATE));
+    let mut file = wv_assert_ok!(VFS::open(
+        filename,
+        OpenFlags::W | OpenFlags::TRUNC | OpenFlags::CREATE
+    ));
     wv_assert_ok!(write!(file, "{}", value));
 }
 

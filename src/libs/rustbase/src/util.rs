@@ -18,8 +18,8 @@
 
 use core::intrinsics;
 use core::slice;
-use num_traits::PrimInt;
 use libc;
+use num_traits::PrimInt;
 
 /// Computes the square root of `n`.
 ///
@@ -28,7 +28,7 @@ pub fn sqrt(n: f32) -> f32 {
     let mut val_int: u32 = unsafe { intrinsics::transmute(n) };
 
     val_int = val_int.wrapping_sub(1 << 23); /* Subtract 2^m. */
-    val_int >>= 1;                           /* Divide by 2. */
+    val_int >>= 1; /* Divide by 2. */
     val_int = val_int.wrapping_add(1 << 29); /* Add ((b + 1) / 2) * 2^m. */
 
     f32::from_bits(val_int)
@@ -41,9 +41,7 @@ pub const fn size_of<T>() -> usize {
 
 /// Returns the size of `val`
 pub fn size_of_val<T: ?Sized>(val: &T) -> usize {
-    unsafe {
-        intrinsics::size_of_val(val)
-    }
+    unsafe { intrinsics::size_of_val(val) }
 }
 
 /// Converts the given C string into a string slice
@@ -64,21 +62,17 @@ pub unsafe fn slice_for_mut<T>(start: *mut T, size: usize) -> &'static mut [T] {
 }
 
 /// Creates a byte slice for the given object
-pub fn object_to_bytes<T : Sized>(obj: &T) -> &[u8] {
+pub fn object_to_bytes<T: Sized>(obj: &T) -> &[u8] {
     let p: *const T = obj;
     let p: *const u8 = p as *const u8;
-    unsafe {
-        slice::from_raw_parts(p, size_of::<T>())
-    }
+    unsafe { slice::from_raw_parts(p, size_of::<T>()) }
 }
 
 /// Creates a mutable byte slice for the given object
-pub fn object_to_bytes_mut<T : Sized>(obj: &mut T) -> &mut [u8] {
+pub fn object_to_bytes_mut<T: Sized>(obj: &mut T) -> &mut [u8] {
     let p: *mut T = obj;
     let p: *mut u8 = p as *mut u8;
-    unsafe {
-        slice::from_raw_parts_mut(p, size_of::<T>())
-    }
+    unsafe { slice::from_raw_parts_mut(p, size_of::<T>()) }
 }
 
 fn _next_log2(size: usize, shift: i32) -> i32 {
@@ -151,14 +145,15 @@ pub fn max<T: Ord>(a: T, b: T) -> T {
 #[macro_export]
 macro_rules! function {
     () => {{
-        fn f() {}
+        fn f() {
+        }
         fn type_name_of<T>(_: T) -> &'static str {
             extern crate core;
             unsafe { core::intrinsics::type_name::<T>() }
         }
         let name = type_name_of(f);
         &name[0..name.len() - 3]
-    }}
+    }};
 }
 
 /// Creates an struct where the members can be used as integers, similar to C enums.

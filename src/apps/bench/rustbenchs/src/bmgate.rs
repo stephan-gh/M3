@@ -32,13 +32,19 @@ fn read() {
 
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
-    wv_perf!("read 2 MiB with 8K buf", prof.run_with_id(|| {
-        let mut total = 0;
-        while total < SIZE {
-            mgate.read(&mut buf, 0).expect("Reading failed");
-            total += buf.len();
-        }
-    }, 0x30));
+    wv_perf!(
+        "read 2 MiB with 8K buf",
+        prof.run_with_id(
+            || {
+                let mut total = 0;
+                while total < SIZE {
+                    mgate.read(&mut buf, 0).expect("Reading failed");
+                    total += buf.len();
+                }
+            },
+            0x30
+        )
+    );
 }
 
 fn write() {
@@ -47,11 +53,17 @@ fn write() {
 
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
-    wv_perf!("write 2 MiB with 8K buf", prof.run_with_id(|| {
-        let mut total = 0;
-        while total < SIZE {
-            mgate.write(&buf, 0).expect("Writing failed");
-            total += buf.len();
-        }
-    }, 0x31));
+    wv_perf!(
+        "write 2 MiB with 8K buf",
+        prof.run_with_id(
+            || {
+                let mut total = 0;
+                while total < SIZE {
+                    mgate.write(&buf, 0).expect("Writing failed");
+                    total += buf.len();
+                }
+            },
+            0x31
+        )
+    );
 }

@@ -22,9 +22,9 @@ use core::ops;
 use core::slice;
 use dtu;
 use errors::{Code, Error};
-use mem::heap;
 use libc;
-use serialize::{Sink, Source, Marshallable, Unmarshallable};
+use mem::heap;
+use serialize::{Marshallable, Sink, Source, Unmarshallable};
 use util;
 
 const MAX_MSG_SIZE: usize = 512;
@@ -59,11 +59,13 @@ impl Sink for ArraySink {
     fn push(&mut self, item: &dyn Marshallable) {
         item.marshall(self);
     }
+
     #[inline(always)]
     fn push_word(&mut self, word: u64) {
         self.arr[self.pos] = word;
         self.pos += 1;
     }
+
     fn push_str(&mut self, b: &str) {
         let len = b.len() + 1;
         self.push_word(len as u64);
@@ -80,9 +82,7 @@ pub struct VecSink {
 
 impl Default for VecSink {
     fn default() -> Self {
-        VecSink {
-            vec: Vec::new(),
-        }
+        VecSink { vec: Vec::new() }
     }
 }
 
@@ -98,9 +98,11 @@ impl Sink for VecSink {
     fn push(&mut self, item: &dyn Marshallable) {
         item.marshall(self);
     }
+
     fn push_word(&mut self, word: u64) {
         self.vec.push(word);
     }
+
     fn push_str(&mut self, b: &str) {
         let len = b.len() + 1;
         self.push_word(len as u64);
@@ -126,10 +128,7 @@ pub struct MsgSource {
 impl MsgSource {
     /// Creates a new `MsgSource` for given DTU message.
     pub fn new(msg: &'static dtu::Message) -> Self {
-        MsgSource {
-            msg,
-            pos: 0,
-        }
+        MsgSource { msg, pos: 0 }
     }
 
     /// Returns a slice to the message data.
@@ -168,8 +167,7 @@ fn copy_str_from(s: &[u64], len: usize) -> String {
 
 fn str_slice_from(s: &[u64], len: usize) -> &'static str {
     unsafe {
-        core::str::from_utf8_unchecked(
-            core::slice::from_raw_parts(s.as_ptr() as *const u8, len))
+        core::str::from_utf8_unchecked(core::slice::from_raw_parts(s.as_ptr() as *const u8, len))
     }
 }
 
@@ -179,12 +177,14 @@ impl Source for MsgSource {
         self.pos += 1;
         self.data()[self.pos - 1]
     }
+
     fn pop_str(&mut self) -> String {
         let len = self.pop_word() as usize;
         let res = copy_str_from(&self.data()[self.pos..], len - 1);
         self.pos += (len + 7) / 8;
         res
     }
+
     fn pop_str_slice(&mut self) -> &'static str {
         let len = self.pop_word() as usize;
         let str = str_slice_from(&self.data()[self.pos..], len - 1);
@@ -202,14 +202,11 @@ pub struct SliceSource<'s> {
 impl<'s> SliceSource<'s> {
     /// Creates a new `SliceSource` for given slice.
     pub fn new(s: &'s [u64]) -> SliceSource<'s> {
-        SliceSource {
-            slice: s,
-            pos: 0,
-        }
+        SliceSource { slice: s, pos: 0 }
     }
 
     /// Pops an object of type `T` from the source.
-    pub fn pop<T : Unmarshallable>(&mut self) -> T {
+    pub fn pop<T: Unmarshallable>(&mut self) -> T {
         T::unmarshall(self)
     }
 }
@@ -219,12 +216,14 @@ impl<'s> Source for SliceSource<'s> {
         self.pos += 1;
         self.slice[self.pos - 1]
     }
+
     fn pop_str(&mut self) -> String {
         let len = self.pop_word() as usize;
         let res = copy_str_from(&self.slice[self.pos..], len - 1);
         self.pos += (len + 7) / 8;
         res
     }
+
     fn pop_str_slice(&mut self) -> &'static str {
         let len = self.pop_word() as usize;
         let str = str_slice_from(&self.slice[self.pos..], len - 1);
@@ -255,7 +254,7 @@ impl GateOStream {
 
     /// Pushes the given object into the stream.
     #[inline(always)]
-    pub fn push<T : Marshallable>(&mut self, item: &T) {
+    pub fn push<T: Marshallable>(&mut self, item: &T) {
         item.marshall(&mut self.buf);
     }
 
@@ -298,7 +297,7 @@ impl<'r> GateIStream<'r> {
 
     /// Pops an object of type `T` from the message.
     #[inline(always)]
-    pub fn pop<T : Unmarshallable>(&mut self) -> T {
+    pub fn pop<T: Unmarshallable>(&mut self) -> T {
         T::unmarshall(&mut self.source)
     }
 
@@ -306,11 +305,11 @@ impl<'r> GateIStream<'r> {
     #[inline(always)]
     pub fn reply<T>(&mut self, reply: &[T]) -> Result<(), Error> {
         match self.rgate.reply(reply, self.source.msg) {
-            Ok(_)   => {
+            Ok(_) => {
                 self.ack = false;
                 Ok(())
             },
-            Err(e)  => Err(e),
+            Err(e) => Err(e),
         }
     }
 
@@ -366,7 +365,10 @@ pub fn recv_msg(rgate: &RecvGate) -> Result<GateIStream<'_>, Error> {
 /// Receives a message from `rgate` as a reply to the message that has been sent over `sgate` and
 /// returns a [`GateIStream`] for the message.
 #[inline(always)]
-pub fn recv_reply<'r>(rgate: &'r RecvGate, sgate: Option<&SendGate>) -> Result<GateIStream<'r>, Error> {
+pub fn recv_reply<'r>(
+    rgate: &'r RecvGate,
+    sgate: Option<&SendGate>,
+) -> Result<GateIStream<'r>, Error> {
     rgate.wait(sgate)
 }
 
@@ -392,7 +394,10 @@ macro_rules! recv_vmsg {
 /// unmarshalls the result (error code). If the result is an error, it returns the error and
 /// otherwise the [`GateIStream`] for the message.
 #[inline(always)]
-pub fn recv_result<'r>(rgate: &'r RecvGate, sgate: Option<&SendGate>) -> Result<GateIStream<'r>, Error> {
+pub fn recv_result<'r>(
+    rgate: &'r RecvGate,
+    sgate: Option<&SendGate>,
+) -> Result<GateIStream<'r>, Error> {
     let mut reply = recv_reply(rgate, sgate)?;
     let res: u32 = reply.pop();
     match res {

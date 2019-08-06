@@ -42,6 +42,7 @@ impl Mem {
     pub fn size(self) -> usize {
         self.size as usize & !1
     }
+
     /// Returns true if the region is reserved, that is, not usable by applications
     pub fn reserved(self) -> bool {
         (self.size & 1) == 1
@@ -76,16 +77,19 @@ pub struct Mod {
 impl Mod {
     /// Returns the name and arguments of the module
     pub fn name(&self) -> &'static str {
-        unsafe {
-            util::cstr_to_str(self.name.as_ptr())
-        }
+        unsafe { util::cstr_to_str(self.name.as_ptr()) }
     }
 }
 
 impl fmt::Debug for Mod {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "Mod[addr: {:#x}, size: {:#x}, name: {}]",
-               {self.addr}, {self.size}, self.name())
+        write!(
+            f,
+            "Mod[addr: {:#x}, size: {:#x}, name: {}]",
+            { self.addr },
+            { self.size },
+            self.name()
+        )
     }
 }
 

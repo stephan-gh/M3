@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::{RecvGate, RGateArgs};
+use m3::com::{RGateArgs, RecvGate};
 use m3::errors::Code;
 use m3::test;
 
@@ -26,20 +26,25 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 fn create() {
     wv_assert_err!(RecvGate::new(8, 9), Code::InvArgs);
-    wv_assert_err!(RecvGate::new_with(RGateArgs::default().sel(1)), Code::InvArgs);
+    wv_assert_err!(
+        RecvGate::new_with(RGateArgs::default().sel(1)),
+        Code::InvArgs
+    );
 }
 
 // doesn't work on host yet
 #[cfg(target_os = "none")]
 fn destroy() {
-    use m3::com::{recv_msg, SendGate, SGateArgs};
     use m3::boxed::Box;
+    use m3::com::{recv_msg, SGateArgs, SendGate};
     use m3::vpe::{Activity, VPE};
 
     let mut child = wv_assert_ok!(VPE::new("test"));
 
     let act = {
-        let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::default().order(6).msg_order(6)));
+        let mut rg = wv_assert_ok!(RecvGate::new_with(
+            RGateArgs::default().order(6).msg_order(6)
+        ));
         // TODO actually, we could create it in the child, but this is not possible in rust atm
         // because we would need to move rg to the child *and* use it in the parent
         let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64)));
@@ -52,7 +57,10 @@ fn destroy() {
                 wv_assert_ok!(send_recv!(&sg, RecvGate::def(), i, i + 1, i + 2));
                 i += 3;
             }
-            wv_assert_err!(send_recv!(&sg, RecvGate::def(), i, i + 1, i + 2), Code::InvEP);
+            wv_assert_err!(
+                send_recv!(&sg, RecvGate::def(), i, i + 1, i + 2),
+                Code::InvEP
+            );
             0
         })));
 

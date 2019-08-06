@@ -16,8 +16,8 @@
 
 //! Contains types to simplify profiling
 
-use core::fmt;
 use col::Vec;
+use core::fmt;
 use time;
 use util;
 
@@ -71,7 +71,13 @@ impl Results {
 
 impl fmt::Display for Results {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} cycles/iter (+/- {} with {} runs)", self.avg(), self.stddev(), self.runs())
+        write!(
+            f,
+            "{} cycles/iter (+/- {} with {} runs)",
+            self.avg(),
+            self.stddev(),
+            self.runs()
+        )
     }
 }
 

@@ -14,12 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::{SendGate, SGateArgs, RecvGate};
 use m3::boxed::Box;
+use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::env;
 use m3::test;
 use m3::util;
-use m3::vpe::{Activity, VPE, VPEArgs};
+use m3::vpe::{Activity, VPEArgs, VPE};
 
 pub fn run(t: &mut dyn test::WvTester) {
     #[cfg(not(target_arch = "arm"))]
@@ -40,7 +40,9 @@ fn run_stop() {
     use m3::dtu::DTU;
     use m3::vfs;
 
-    let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::default().order(6).msg_order(6)));
+    let mut rg = wv_assert_ok!(RecvGate::new_with(
+        RGateArgs::default().order(6).msg_order(6)
+    ));
     wv_assert_ok!(rg.activate());
 
     let mut wait_time = 10000;

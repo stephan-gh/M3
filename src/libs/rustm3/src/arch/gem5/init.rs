@@ -17,8 +17,8 @@
 use arch;
 use com;
 use cpu;
-use mem;
 use io;
+use mem;
 use syscalls;
 use vfs;
 use vpe;

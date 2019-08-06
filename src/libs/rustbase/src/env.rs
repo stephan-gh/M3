@@ -18,9 +18,9 @@
 
 use arch;
 use boxed::Box;
-use core::ops::FnOnce;
 use core::iter;
 use core::mem;
+use core::ops::FnOnce;
 use util;
 
 /// The closure used by `VPE::run`
@@ -31,17 +31,17 @@ pub struct Closure {
 impl Closure {
     /// Creates a new object for given closure
     pub fn new<F>(func: Box<F>) -> Self
-                  where F: FnOnce() -> i32 + Send + 'static {
-        Closure {
-            func: Some(func),
-        }
+    where
+        F: FnOnce() -> i32 + Send + 'static,
+    {
+        Closure { func: Some(func) }
     }
 
     /// Calls the closure (can only be done once) and returns its exit code
     pub fn call(&mut self) -> i32 {
         match mem::replace(&mut self.func, None) {
             Some(c) => c(),
-            None    => 1
+            None => 1,
         }
     }
 }
@@ -97,7 +97,5 @@ impl iter::Iterator for Args {
 
 /// Returns the argument iterator
 pub fn args() -> Args {
-    Args {
-        pos: 0,
-    }
+    Args { pos: 0 }
 }

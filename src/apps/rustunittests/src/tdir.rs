@@ -15,7 +15,7 @@
  */
 
 use core::cmp;
-use m3::col::{Vec,ToString};
+use m3::col::{ToString, Vec};
 use m3::test;
 use m3::vfs::read_dir;
 
@@ -39,15 +39,15 @@ fn list_dir() {
         let aspec = aname == "." || aname == "..";
         let bspec = bname == "." || bname == "..";
         match (aspec, bspec) {
-            (true, true)    => aname.cmp(bname),
-            (true, false)   => cmp::Ordering::Less,
-            (false, true)   => cmp::Ordering::Greater,
-            (false, false)  => {
+            (true, true) => aname.cmp(bname),
+            (true, false) => cmp::Ordering::Less,
+            (false, true) => cmp::Ordering::Greater,
+            (false, false) => {
                 // cut off ".txt"
                 let anum = aname[0..aname.len() - 4].parse::<i32>().unwrap();
                 let bnum = bname[0..bname.len() - 4].parse::<i32>().unwrap();
                 anum.cmp(&bnum)
-            }
+            },
         }
     });
 

@@ -34,10 +34,7 @@ impl<S> SessionContainer<S> {
             con.push(None);
         }
 
-        SessionContainer {
-            con,
-            used: 0,
-        }
+        SessionContainer { con, used: 0 }
     }
 
     /// Returns the id that will be used for the next session
@@ -54,6 +51,7 @@ impl<S> SessionContainer<S> {
     pub fn get(&self, sid: SessId) -> Option<&S> {
         self.con[sid].as_ref()
     }
+
     /// Returns a mutable reference to the session with given id
     pub fn get_mut(&mut self, sid: SessId) -> Option<&mut S> {
         self.con[sid].as_mut()

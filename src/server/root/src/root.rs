@@ -15,13 +15,12 @@
  */
 
 #![no_std]
-
 #![feature(const_vec_new)]
 
 #[macro_use]
 extern crate m3;
-extern crate thread;
 extern crate resmng;
+extern crate thread;
 
 mod loader;
 
@@ -29,7 +28,7 @@ use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
 use m3::col::{String, ToString, Vec};
-use m3::com::{GateIStream, MemGate, RecvGate, RGateArgs, SendGate, SGateArgs};
+use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::Error;
 use m3::goff;
@@ -37,9 +36,9 @@ use m3::kif::{self, boot, PEDesc};
 use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
 use m3::util;
-use m3::vpe::{VPE, VPEArgs};
+use m3::vpe::{VPEArgs, VPE};
 
-use resmng::childs::{self, OwnChild, Child, Id};
+use resmng::childs::{self, Child, Id, OwnChild};
 use resmng::{config, memory, sems, sendqueue, services};
 
 //
@@ -51,9 +50,9 @@ use resmng::{config, memory, sems, sendqueue, services};
 //
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
 
-static DELAYED: StaticCell<Vec<OwnChild>>   = StaticCell::new(Vec::new());
-static MODS: StaticCell<(usize, usize)>     = StaticCell::new((0, 0));
-static RGATE: StaticCell<Option<RecvGate>>  = StaticCell::new(None);
+static DELAYED: StaticCell<Vec<OwnChild>> = StaticCell::new(Vec::new());
+static MODS: StaticCell<(usize, usize)> = StaticCell::new((0, 0));
+static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
 
 fn req_rgate() -> &'static RecvGate {
     RGATE.get().as_ref().unwrap()
@@ -65,8 +64,9 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
             log!(RESMNG, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
-        Ok(_)  => reply_vmsg!(is, 0 as u64),
-    }.expect("Unable to reply");
+        Ok(_) => reply_vmsg!(is, 0 as u64),
+    }
+    .expect("Unable to reply");
 }
 
 fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) {
@@ -146,10 +146,15 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) {
 
 fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
     let sgate = SendGate::new_with(
-        SGateArgs::new(req_rgate()).credits(256).label(dtu::Label::from(child.id()))
+        SGateArgs::new(req_rgate())
+            .credits(256)
+            .label(dtu::Label::from(child.id())),
     )?;
-    let vpe = VPE::new_with(VPEArgs::new(child.name()).resmng(ResMng::new(sgate))
-                                                      .kmem(child.kmem().clone()))?;
+    let vpe = VPE::new_with(
+        VPEArgs::new(child.name())
+            .resmng(ResMng::new(sgate))
+            .kmem(child.kmem().clone()),
+    )?;
 
     let bfile = loader::BootFile::new(bsel, m.size as usize);
     let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
@@ -202,21 +207,21 @@ fn handle_request(mut is: GateIStream) {
     let child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
 
     match op {
-        ResMngOperation::REG_SERV    => reg_serv(&mut is, child),
-        ResMngOperation::UNREG_SERV  => unreg_serv(&mut is, child),
+        ResMngOperation::REG_SERV => reg_serv(&mut is, child),
+        ResMngOperation::UNREG_SERV => unreg_serv(&mut is, child),
 
-        ResMngOperation::OPEN_SESS   => open_session(&mut is, child),
-        ResMngOperation::CLOSE_SESS  => close_session(&mut is, child),
+        ResMngOperation::OPEN_SESS => open_session(&mut is, child),
+        ResMngOperation::CLOSE_SESS => close_session(&mut is, child),
 
-        ResMngOperation::ADD_CHILD   => add_child(&mut is, child),
-        ResMngOperation::REM_CHILD   => rem_child(&mut is, child),
+        ResMngOperation::ADD_CHILD => add_child(&mut is, child),
+        ResMngOperation::REM_CHILD => rem_child(&mut is, child),
 
-        ResMngOperation::ALLOC_MEM   => alloc_mem(&mut is, child),
-        ResMngOperation::FREE_MEM    => free_mem(&mut is, child),
+        ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
+        ResMngOperation::FREE_MEM => free_mem(&mut is, child),
 
-        ResMngOperation::USE_SEM     => use_sem(&mut is, child),
+        ResMngOperation::USE_SEM => use_sem(&mut is, child),
 
-        _                            => unreachable!(),
+        _ => unreachable!(),
     }
 }
 
@@ -274,15 +279,16 @@ fn start_boot_mods() {
                     same_kmem = true;
                 }
                 if arg.starts_with("sem=") {
-                    sems::get().add_sem(arg[4..].to_string())
+                    sems::get()
+                        .add_sem(arg[4..].to_string())
                         .expect("Unable to add semaphore");
                 }
             }
             continue;
         }
 
-        let (args, daemon, cfg) = config::Config::new(m.name(), true)
-            .expect("Unable to parse config");
+        let (args, daemon, cfg) =
+            config::Config::new(m.name(), true).expect("Unable to parse config");
         log!(RESMNG_CFG, "Parsed config {:?}", cfg);
         cfgs.push((args, daemon, cfg));
     }
@@ -290,7 +296,9 @@ fn start_boot_mods() {
     config::check(&cfgs);
 
     // determine default kmem per child
-    let mut total_kmem = VPE::cur().kmem().quota()
+    let mut total_kmem = VPE::cur()
+        .kmem()
+        .quota()
         .expect("Unable to determine own quota");
     let mut total_parties = cfgs.len() + 1;
     for (_, _, c) in &cfgs {
@@ -314,7 +322,14 @@ fn start_boot_mods() {
             VPE::cur().kmem().clone()
         }
         else {
-            VPE::cur().kmem().derive(if cfg.kmem() != 0 { cfg.kmem() } else { def_kmem })
+            VPE::cur()
+                .kmem()
+                .derive(if cfg.kmem() != 0 {
+                    cfg.kmem()
+                }
+                else {
+                    def_kmem
+                })
                 .expect("Unable to derive new kernel memory")
         };
 
@@ -339,11 +354,16 @@ pub fn main() -> i32 {
     off += util::size_of::<boot::Info>() as goff;
 
     let mut mods_list = vec![0u8; info.mod_size as usize];
-    mgate.read(&mut mods_list, off).expect("Unable to read mods");
+    mgate
+        .read(&mut mods_list, off)
+        .expect("Unable to read mods");
     off += info.mod_size;
 
     log!(RESMNG, "Boot modules:");
-    MODS.set((mods_list.as_slice().as_ptr() as usize, info.mod_size as usize));
+    MODS.set((
+        mods_list.as_slice().as_ptr() as usize,
+        info.mod_size as usize,
+    ));
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for m in moditer {
         log!(RESMNG, "  {:?}", m);
@@ -359,7 +379,10 @@ pub fn main() -> i32 {
         log!(
             RESMNG,
             "  PE{:02}: {} {} {} KiB memory",
-            i, pe.pe_type(), pe.isa(), pe.mem_size() / 1024
+            i,
+            pe.pe_type(),
+            pe.isa(),
+            pe.mem_size() / 1024
         );
         i += 1;
     }
@@ -376,9 +399,8 @@ pub fn main() -> i32 {
     }
     log!(RESMNG, "Memory: {:?}", memory::get());
 
-    let mut rgate = RecvGate::new_with(
-        RGateArgs::default().order(12).msg_order(8)
-    ).expect("Unable to create RecvGate");
+    let mut rgate = RecvGate::new_with(RGateArgs::default().order(12).msg_order(8))
+        .expect("Unable to create RecvGate");
     rgate.activate().expect("Unable to activate RecvGate");
     RGATE.set(Some(rgate));
 

@@ -15,8 +15,8 @@
  */
 
 use m3::errors::Code;
-use m3::test;
 use m3::io::Write;
+use m3::test;
 use m3::vfs::{OpenFlags, VFS};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -29,8 +29,10 @@ pub fn meta_ops() {
     wv_assert_err!(VFS::mkdir("/example/foo/bar", 0o755), Code::NoSuchFile);
 
     {
-        let mut file = wv_assert_ok!(VFS::open("/example/myfile",
-            OpenFlags::W | OpenFlags::CREATE));
+        let mut file = wv_assert_ok!(VFS::open(
+            "/example/myfile",
+            OpenFlags::W | OpenFlags::CREATE
+        ));
         wv_assert_ok!(write!(file, "text\n"));
     }
 

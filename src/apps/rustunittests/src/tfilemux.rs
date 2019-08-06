@@ -29,9 +29,9 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn genfile_mux() {
-    const NUM: usize        = 6;
-    const STEP_SIZE: usize  = 400;
-    const FILE_SIZE: usize  = 12 * 1024;
+    const NUM: usize = 6;
+    const STEP_SIZE: usize = 400;
+    const FILE_SIZE: usize = 12 * 1024;
 
     let mut files = vec![];
     for _ in 0..NUM {
@@ -55,10 +55,10 @@ fn genfile_mux() {
 }
 
 fn pipe_mux() {
-    const NUM: usize        = 6;
-    const STEP_SIZE: usize  = 16;
-    const DATA_SIZE: usize  = 1024;
-    const PIPE_SIZE: usize  = 256;
+    const NUM: usize = 6;
+    const STEP_SIZE: usize = 16;
+    const DATA_SIZE: usize = 1024;
+    const PIPE_SIZE: usize = 256;
 
     struct Pipe {
         _mgate: MemGate,

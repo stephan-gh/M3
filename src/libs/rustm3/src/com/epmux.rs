@@ -60,6 +60,7 @@ impl EpMux {
     pub(crate) fn set_owned(&mut self, ep: EpId, sel: Selector) {
         self.gates[ep] = Some(sel);
     }
+
     pub(crate) fn unset_owned(&mut self, ep: EpId) {
         self.gates[ep] = None;
     }
@@ -74,7 +75,7 @@ impl EpMux {
     pub fn ep_owned_by(&self, ep: EpId, sel: Selector) -> bool {
         match self.gates[ep] {
             Some(s) => s == sel,
-            None    => false
+            None => false,
         }
     }
 

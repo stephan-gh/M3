@@ -79,12 +79,12 @@ impl Server {
         if let Some(mut is) = is {
             let op: service::Operation = is.pop();
             match op {
-                service::Operation::OPEN        => Self::handle_open(hdl, self.sel(), is),
-                service::Operation::OBTAIN      => Self::handle_obtain(hdl, is),
-                service::Operation::DELEGATE    => Self::handle_delegate(hdl, is),
-                service::Operation::CLOSE       => Self::handle_close(hdl, is),
-                service::Operation::SHUTDOWN    => Self::handle_shutdown(hdl, is),
-                _                               => unreachable!(),
+                service::Operation::OPEN => Self::handle_open(hdl, self.sel(), is),
+                service::Operation::OBTAIN => Self::handle_obtain(hdl, is),
+                service::Operation::DELEGATE => Self::handle_delegate(hdl, is),
+                service::Operation::CLOSE => Self::handle_close(hdl, is),
+                service::Operation::SHUTDOWN => Self::handle_shutdown(hdl, is),
+                _ => unreachable!(),
             }
         }
         else {
@@ -100,11 +100,19 @@ impl Server {
 
         match res {
             Ok((sel, ident)) => {
-                let reply = service::OpenReply { res: 0, sess: u64::from(sel), ident: ident as u64, };
+                let reply = service::OpenReply {
+                    res: 0,
+                    sess: u64::from(sel),
+                    ident: ident as u64,
+                };
                 is.reply(&[reply])?
             },
             Err(e) => {
-                let reply = service::OpenReply { res: e.code() as u64, sess: 0, ident: 0, };
+                let reply = service::OpenReply {
+                    res: e.code() as u64,
+                    sess: 0,
+                    ident: 0,
+                };
                 is.reply(&[reply])?
             },
         };
@@ -120,8 +128,8 @@ impl Server {
 
         let reply = service::ExchangeReply {
             res: match res {
-                Ok(_)   => 0,
-                Err(e)  => e.code() as u64,
+                Ok(_) => 0,
+                Err(e) => e.code() as u64,
             },
             data,
         };
@@ -137,8 +145,8 @@ impl Server {
 
         let reply = service::ExchangeReply {
             res: match res {
-                Ok(_)   => 0,
-                Err(e)  => e.code() as u64,
+                Ok(_) => 0,
+                Err(e) => e.code() as u64,
             },
             data,
         };

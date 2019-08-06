@@ -16,8 +16,8 @@
 
 //! Contains the error handling types
 
-use core::intrinsics;
 use core::fmt;
+use core::intrinsics;
 
 /// The error codes
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -119,6 +119,7 @@ impl Error {
     pub fn code(&self) -> Code {
         self.info.code
     }
+
     /// Returns the backtrace to the location where the error occurred
     pub fn backtrace(&self) -> &[usize] {
         self.info.bt.as_ref()
@@ -133,7 +134,6 @@ impl Error {
     }
 }
 
-
 // simple and fast implementation for release mode
 
 #[cfg(not(debug_assertions))]
@@ -147,9 +147,7 @@ impl Error {
     ///
     /// Note that this gathers and stores the backtrace
     pub fn new(code: Code) -> Self {
-        Error {
-            code,
-        }
+        Error { code }
     }
 
     /// Returns the error code

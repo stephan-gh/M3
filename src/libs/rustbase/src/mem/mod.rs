@@ -16,9 +16,9 @@
 
 //! Contains memory management abstractions
 
+mod globaddr;
 pub mod heap;
 mod map;
-mod globaddr;
 
 pub use self::globaddr::GlobAddr;
 pub use self::map::MemMap;

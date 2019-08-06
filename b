@@ -72,7 +72,9 @@ help() {
     echo "    run <script>:            run the specified <script>. See directory boot."
     echo "    runq <script>:           run the specified <script> quietly."
     echo "    runvalgrind <script>:    run the specified script in valgrind."
+    echo "    clippy:                  run clippy for rust code."
     echo "    doc:                     generate rust documentation."
+    echo "    fmt:                     run rustfmt for rust code."
     echo "    macros=<path>:           expand rust macros for app in <path>."
     echo "    dbg=<prog> <script>:     run <script> and debug <prog> in gdb"
     echo "    dis=<prog>:              run objdump -SC <prog> (the cross-compiler version)"
@@ -258,6 +260,13 @@ case "$cmd" in
         export RUSTDOCFLAGS=$RUSTFLAGS
         for lib in rustm3 rustthread rustresmng; do
             ( cd src/libs/$lib && cargo doc --target $RUST_TARGET )
+        done
+        ;;
+
+    fmt)
+        for f in $(find src -mindepth 2 -name Cargo.toml); do
+            echo "Formatting $(dirname $f)..."
+            rustfmt $(dirname $f)/src/*.rs
         done
         ;;
 

@@ -16,10 +16,10 @@
 
 //! The service interface
 
-use serialize::{Source, Unmarshallable};
 use core::fmt;
 use core::mem::MaybeUninit;
 use kif::syscalls;
+use serialize::{Source, Unmarshallable};
 
 /// The maximum size of strings in service calls
 pub const MAX_STR_SIZE: usize = 32;
@@ -90,9 +90,7 @@ impl fmt::Debug for ExchangeData {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "ExchangeData[")?;
         for i in 0..self.args.count {
-            let arg = unsafe {
-                self.args.vals.i[i as usize]
-            };
+            let arg = unsafe { self.args.vals.i[i as usize] };
             write!(f, "{}", arg)?;
             if i + 1 < self.args.count {
                 write!(f, ", ")?;

@@ -23,14 +23,14 @@ mod epmux;
 mod gate;
 mod mgate;
 mod rgate;
-mod sgate;
 mod sem;
+mod sgate;
 
 pub use self::epmux::EpMux;
-pub use self::mgate::{MemGate, MGateArgs, Perm};
-pub use self::rgate::{RecvGate, RGateArgs};
-pub use self::sgate::{SendGate, SGateArgs};
+pub use self::mgate::{MGateArgs, MemGate, Perm};
+pub use self::rgate::{RGateArgs, RecvGate};
 pub use self::sem::Semaphore;
+pub use self::sgate::{SGateArgs, SendGate};
 pub use self::stream::*;
 
 pub(crate) fn init() {

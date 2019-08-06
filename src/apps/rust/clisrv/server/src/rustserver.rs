@@ -19,14 +19,14 @@
 #[macro_use]
 extern crate m3;
 
-use m3::errors::{Code, Error};
 use m3::cap::Selector;
+use m3::errors::{Code, Error};
 // use m3::cell::StaticCell;
 use m3::col::String;
 use m3::com::*;
 use m3::kif;
+use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
-use m3::server::{Handler, Server, SessId, SessionContainer, server_loop};
 use m3::util;
 
 #[derive(Debug)]
@@ -50,9 +50,7 @@ impl Handler for MyHandler {
     fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
         let sid = self.sessions.next_id()?;
         let sess = ServerSession::new(srv_sel, sid as u64)?;
-        let sgate = SendGate::new_with(
-            SGateArgs::new(&self.rgate).label(sid as u64).credits(256)
-        )?;
+        let sgate = SendGate::new_with(SGateArgs::new(&self.rgate).label(sid as u64).credits(256))?;
 
         let sel = sess.sel();
         self.sessions.add(sid, MySession { sess, sgate });
@@ -88,8 +86,8 @@ impl MyHandler {
     pub fn handle(&mut self) -> Result<(), Error> {
         if let Some(mut is) = self.rgate.fetch() {
             match is.pop() {
-                Operation::REVERSE_STRING   => Self::reverse_string(is),
-                _                           => reply_vmsg!(is, Code::InvArgs as u64),
+                Operation::REVERSE_STRING => Self::reverse_string(is),
+                _ => reply_vmsg!(is, Code::InvArgs as u64),
             }
         }
         else {
@@ -128,7 +126,8 @@ pub fn main() -> i32 {
         s.handle_ctrl_chan(&mut hdl)?;
 
         hdl.handle()
-    }).ok();
+    })
+    .ok();
 
     0
 }

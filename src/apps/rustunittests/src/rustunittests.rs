@@ -46,12 +46,11 @@ mod tvpe;
 // test case and every single wv_assert_* call, which is quite inconvenient.
 static FAILED: StaticCell<u32> = StaticCell::new(0);
 
-extern fn wvtest_failed() {
+extern "C" fn wvtest_failed() {
     FAILED.set(*FAILED + 1);
 }
 
-struct MyTester {
-}
+struct MyTester {}
 
 impl WvTester for MyTester {
     fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {

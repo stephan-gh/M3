@@ -48,7 +48,5 @@ pub struct EnvData {
 }
 
 pub fn get() -> &'static mut EnvData {
-    unsafe {
-        intrinsics::transmute(0x6000 as usize)
-    }
+    unsafe { intrinsics::transmute(0x6000 as usize) }
 }

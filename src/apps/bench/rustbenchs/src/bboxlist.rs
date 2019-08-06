@@ -17,7 +17,7 @@
 use core::mem;
 
 use m3::boxed::Box;
-use m3::col::{BoxRef, BoxList};
+use m3::col::{BoxList, BoxRef};
 use m3::profile;
 use m3::test;
 
@@ -57,6 +57,7 @@ fn push_back() {
         fn pre(&mut self) {
             self.0.clear();
         }
+
         fn run(&mut self) {
             for i in 0..100 {
                 self.0.push_back(Box::new(TestItem::new(i)));
@@ -64,7 +65,10 @@ fn push_back() {
         }
     }
 
-    wv_perf!("Appending 100 elements", prof.runner_with_id(&mut ListTester::default(), 0x60));
+    wv_perf!(
+        "Appending 100 elements",
+        prof.runner_with_id(&mut ListTester::default(), 0x60)
+    );
 }
 
 fn push_front() {
@@ -77,6 +81,7 @@ fn push_front() {
         fn pre(&mut self) {
             self.0.clear();
         }
+
         fn run(&mut self) {
             for i in 0..100 {
                 self.0.push_front(Box::new(TestItem::new(i)));
@@ -84,7 +89,10 @@ fn push_front() {
         }
     }
 
-    wv_perf!("Prepending 100 elements", prof.runner_with_id(&mut ListTester::default(), 0x61));
+    wv_perf!(
+        "Prepending 100 elements",
+        prof.runner_with_id(&mut ListTester::default(), 0x61)
+    );
 }
 
 fn push_pop() {
@@ -97,17 +105,22 @@ fn push_pop() {
         fn pre(&mut self) {
             self.1 = Some(Box::new(TestItem::new(213)));
         }
+
         fn run(&mut self) {
             let item = mem::replace(&mut self.1, None);
             self.0.push_front(item.unwrap());
         }
+
         fn post(&mut self) {
             self.2 += 1;
             wv_assert_eq!(self.0.len(), self.2);
         }
     }
 
-    wv_perf!("Prepending 1 element", prof.runner_with_id(&mut ListTester::default(), 0x62));
+    wv_perf!(
+        "Prepending 1 element",
+        prof.runner_with_id(&mut ListTester::default(), 0x62)
+    );
 }
 
 fn clear() {
@@ -122,10 +135,14 @@ fn clear() {
                 self.0.push_back(Box::new(TestItem::new(i)));
             }
         }
+
         fn run(&mut self) {
             self.0.clear();
         }
     }
 
-    wv_perf!("Clearing 100-element list", prof.runner_with_id(&mut ListTester::default(), 0x63));
+    wv_perf!(
+        "Clearing 100-element list",
+        prof.runner_with_id(&mut ListTester::default(), 0x63)
+    );
 }

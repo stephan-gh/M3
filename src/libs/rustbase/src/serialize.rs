@@ -25,7 +25,7 @@ pub trait Marshallable {
 }
 
 /// For types that can be unmarshalled from a [`Source`](trait.Source.html).
-pub trait Unmarshallable : Sized {
+pub trait Unmarshallable: Sized {
     /// Reads an object from the given source and returns it
     fn unmarshall(s: &mut dyn Source) -> Self;
 }
@@ -55,7 +55,7 @@ pub trait Source {
 }
 
 macro_rules! impl_xfer_prim {
-    ( $t:ty ) => (
+    ( $t:ty ) => {
         impl Marshallable for $t {
             fn marshall(&self, s: &mut dyn Sink) {
                 s.push_word(*self as u64);
@@ -66,7 +66,7 @@ macro_rules! impl_xfer_prim {
                 s.pop_word() as $t
             }
         }
-    )
+    };
 }
 
 impl_xfer_prim!(u8);

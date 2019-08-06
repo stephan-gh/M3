@@ -21,7 +21,6 @@
 #![feature(core_intrinsics)]
 #![feature(lang_items)]
 #![feature(panic_info_message)]
-
 #![default_lib_allocator]
 #![no_std]
 
@@ -40,8 +39,8 @@ pub extern crate core as _core;
 pub extern crate static_assertions;
 
 // Macros
+pub use alloc::{format, vec};
 pub use static_assertions::const_assert;
-pub use alloc::{vec, format};
 
 // lang stuff
 mod lang;
@@ -78,13 +77,13 @@ pub mod util;
 pub mod test;
 
 pub mod backtrace;
-pub mod col;
 pub mod cell;
+pub mod col;
 pub mod elf;
 pub mod env;
 pub mod errors;
-pub mod mem;
 pub mod kif;
+pub mod mem;
 pub mod profile;
 pub mod serialize;
 pub mod time;

@@ -17,7 +17,7 @@
 use cell::StaticCell;
 use cfg;
 use core::ptr;
-use kif::{PEDesc, CapSel};
+use kif::{CapSel, PEDesc};
 
 pub struct EnvData {
     pub pe_id: u64,
@@ -25,12 +25,18 @@ pub struct EnvData {
     pub argc: u32,
     pub argv: u64,
     pub first_sel: u32,
-    pub kmem_sel : u32,
+    pub kmem_sel: u32,
 }
 
 impl EnvData {
-    pub fn new(pe_id: u64, pe_desc: PEDesc, argc: i32, argv: *const *const i8,
-               first_sel: CapSel, kmem_sel: CapSel) -> Self {
+    pub fn new(
+        pe_id: u64,
+        pe_desc: PEDesc,
+        argc: i32,
+        argv: *const *const i8,
+        first_sel: CapSel,
+        kmem_sel: CapSel,
+    ) -> Self {
         EnvData {
             pe_id,
             pe_desc: pe_desc.value(),
@@ -75,7 +81,7 @@ pub fn mem_start() -> usize {
                     libc::PROT_READ | libc::PROT_WRITE,
                     libc::MAP_ANON | libc::MAP_PRIVATE,
                     -1,
-                    0
+                    0,
                 )
             };
             assert!(addr != libc::MAP_FAILED);

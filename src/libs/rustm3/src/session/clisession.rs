@@ -32,6 +32,7 @@ impl ClientSession {
     pub fn new(name: &str) -> Result<Self, Error> {
         Self::new_with_sel(name, vpe::VPE::cur().alloc_sel())
     }
+
     /// Creates a new `ClientSession` by connecting to the service with given name, using the given
     /// capability selector for the session.
     pub fn new_with_sel(name: &str, sel: Selector) -> Result<Self, Error> {
@@ -50,6 +51,7 @@ impl ClientSession {
             close: false,
         }
     }
+
     /// Binds a new `ClientSession` to given selector and closes the session on drop.
     pub fn new_owned_bind(sel: Selector) -> Self {
         ClientSession {
@@ -76,14 +78,21 @@ impl ClientSession {
     }
 
     /// Delegates the given capability range with given arguments to the server.
-    pub fn delegate(&self, crd: kif::CapRngDesc,
-                    args: &mut kif::syscalls::ExchangeArgs) -> Result<(), Error> {
+    pub fn delegate(
+        &self,
+        crd: kif::CapRngDesc,
+        args: &mut kif::syscalls::ExchangeArgs,
+    ) -> Result<(), Error> {
         self.delegate_for(vpe::VPE::cur().sel(), crd, args)
     }
 
     /// Delegates the given capability range from `vpe` with given arguments to the server.
-    pub fn delegate_for(&self, vpe: Selector, crd: kif::CapRngDesc,
-                        args: &mut kif::syscalls::ExchangeArgs) -> Result<(), Error> {
+    pub fn delegate_for(
+        &self,
+        vpe: Selector,
+        crd: kif::CapRngDesc,
+        args: &mut kif::syscalls::ExchangeArgs,
+    ) -> Result<(), Error> {
         syscalls::delegate(vpe, self.sel(), crd, args)
     }
 
@@ -100,8 +109,11 @@ impl ClientSession {
 
     /// Obtains `count` capabilities from the server with given arguments and returns the capability
     /// range descriptor.
-    pub fn obtain(&self, count: u32,
-                  args: &mut kif::syscalls::ExchangeArgs) -> Result<kif::CapRngDesc, Error> {
+    pub fn obtain(
+        &self,
+        count: u32,
+        args: &mut kif::syscalls::ExchangeArgs,
+    ) -> Result<kif::CapRngDesc, Error> {
         let caps = vpe::VPE::cur().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
         self.obtain_for(vpe::VPE::cur().sel(), crd, args)?;
@@ -109,8 +121,12 @@ impl ClientSession {
     }
 
     /// Obtains `count` capabilities from the server with given arguments for VPE `vpe`.
-    pub fn obtain_for(&self, vpe: Selector, crd: kif::CapRngDesc,
-                      args: &mut kif::syscalls::ExchangeArgs) -> Result<(), Error> {
+    pub fn obtain_for(
+        &self,
+        vpe: Selector,
+        crd: kif::CapRngDesc,
+        args: &mut kif::syscalls::ExchangeArgs,
+    ) -> Result<(), Error> {
         syscalls::obtain(vpe, self.sel(), crd, args)
     }
 }

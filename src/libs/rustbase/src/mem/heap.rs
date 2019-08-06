@@ -26,7 +26,7 @@ const HEAP_USED_BITS: usize = 0x5 << (8 * util::size_of::<usize>() - 3);
 
 #[repr(C, packed)]
 pub struct HeapArea {
-    pub next: usize,    /* HEAP_USED_BITS set = used */
+    pub next: usize, /* HEAP_USED_BITS set = used */
     pub prev: usize,
     _pad: [u8; 64 - util::size_of::<usize>() * 2],
 }
@@ -35,21 +35,23 @@ impl HeapArea {
     fn is_used(&self) -> bool {
         (self.next & HEAP_USED_BITS) != 0
     }
+
     unsafe fn forward(&self, size: usize) -> *const HeapArea {
         let next = (self as *const _ as usize) + size;
         next as *const HeapArea
     }
+
     unsafe fn backwards(&self, size: usize) -> *const HeapArea {
         let prev = (self as *const _ as usize) - size;
         prev as *const HeapArea
     }
 }
 
-extern {
-    fn heap_set_alloc_callback(cb: extern fn(p: *const u8, size: usize));
-    fn heap_set_free_callback(cb: extern fn(p: *const u8));
-    fn heap_set_oom_callback(cb: extern fn(size: usize) -> bool);
-    fn heap_set_dblfree_callback(cb: extern fn(p: *const u8));
+extern "C" {
+    fn heap_set_alloc_callback(cb: extern "C" fn(p: *const u8, size: usize));
+    fn heap_set_free_callback(cb: extern "C" fn(p: *const u8));
+    fn heap_set_oom_callback(cb: extern "C" fn(size: usize) -> bool);
+    fn heap_set_dblfree_callback(cb: extern "C" fn(p: *const u8));
 
     /// Initializes the heap
     fn heap_init(begin: usize, end: usize);
@@ -75,7 +77,7 @@ extern {
     fn heap_used_end() -> usize;
 }
 
-extern {
+extern "C" {
     static _bss_end: u8;
     static mut heap_begin: *const HeapArea;
     static mut heap_end: *const HeapArea;
@@ -108,14 +110,15 @@ fn heap_bounds() -> (usize, usize) {
 fn heap_bounds() -> (usize, usize) {
     use arch::envdata;
 
-    (envdata::heap_start(), envdata::heap_start() + cfg::APP_HEAP_SIZE)
+    (
+        envdata::heap_start(),
+        envdata::heap_start() + cfg::APP_HEAP_SIZE,
+    )
 }
 
 /// Allocates `size` bytes from the heap.
 pub fn alloc(size: usize) -> *mut libc::c_void {
-    unsafe {
-        heap_alloc(size)
-    }
+    unsafe { heap_alloc(size) }
 }
 
 pub fn init() {
@@ -142,34 +145,31 @@ pub fn append(pages: usize) {
 
 /// Returns the number of free bytes on the heap.
 pub fn free_memory() -> usize {
-    unsafe {
-        heap_free_memory()
-    }
+    unsafe { heap_free_memory() }
 }
 
 /// Returns the end of used part of the heap.
 pub fn end() -> usize {
-    unsafe {
-        heap_end as usize
-    }
+    unsafe { heap_end as usize }
 }
 
 /// Returns the end of used part of the heap.
 pub fn used_end() -> usize {
-    unsafe {
-        heap_used_end()
-    }
+    unsafe { heap_used_end() }
 }
 
 /// Prints the heap.
 pub fn print() {
     unsafe {
         let print_area = |a: *const HeapArea| {
-            log!(DEF, "  Area[addr={:#x}, prev={:#x}, size={:#x}, used={}]",
-                 a as usize + util::size_of::<HeapArea>(),
-                 (*a).backwards((*a).prev as usize) as usize + util::size_of::<HeapArea>(),
-                 (*a).next & !HEAP_USED_BITS,
-                 (*a).is_used());
+            log!(
+                DEF,
+                "  Area[addr={:#x}, prev={:#x}, size={:#x}, used={}]",
+                a as usize + util::size_of::<HeapArea>(),
+                (*a).backwards((*a).prev as usize) as usize + util::size_of::<HeapArea>(),
+                (*a).next & !HEAP_USED_BITS,
+                (*a).is_used()
+            );
         };
 
         let mut a = heap_begin;
@@ -181,102 +181,115 @@ pub fn print() {
     }
 }
 
-extern fn heap_alloc_callback(p: *const u8, size: usize) {
+extern "C" fn heap_alloc_callback(p: *const u8, size: usize) {
     log!(HEAP, "alloc({}) -> {:?}", size, p);
 }
 
-extern fn heap_free_callback(p: *const u8) {
+extern "C" fn heap_free_callback(p: *const u8) {
     log!(HEAP, "free({:?})", p);
 }
 
-extern fn heap_dblfree_callback(p: *const u8) {
+extern "C" fn heap_dblfree_callback(p: *const u8) {
     panic!("Used bits not set for {:?}; double free?", p);
 }
 
-extern fn heap_oom_callback(size: usize) -> bool {
-    panic!("Unable to allocate {} bytes on the heap: out of memory", size);
+extern "C" fn heap_oom_callback(size: usize) -> bool {
+    panic!(
+        "Unable to allocate {} bytes on the heap: out of memory",
+        size
+    );
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_alloc(size: usize,
-                                 _align: usize,
-                                 _err: *mut u8) -> *mut libc::c_void {
+pub unsafe extern "C" fn __rdl_alloc(
+    size: usize,
+    _align: usize,
+    _err: *mut u8,
+) -> *mut libc::c_void {
     alloc(size)
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_dealloc(ptr: *mut libc::c_void,
-                                   _size: usize,
-                                   _align: usize) {
+pub unsafe extern "C" fn __rdl_dealloc(ptr: *mut libc::c_void, _size: usize, _align: usize) {
     heap_free(ptr);
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_realloc(ptr: *mut libc::c_void,
-                                   _old_size: usize,
-                                   _old_align: usize,
-                                   new_size: usize,
-                                   _new_align: usize,
-                                   _err: *mut u8) -> *mut libc::c_void {
+pub unsafe extern "C" fn __rdl_realloc(
+    ptr: *mut libc::c_void,
+    _old_size: usize,
+    _old_align: usize,
+    new_size: usize,
+    _new_align: usize,
+    _err: *mut u8,
+) -> *mut libc::c_void {
     heap_realloc(ptr, new_size)
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_alloc_zeroed(size: usize,
-                                        _align: usize,
-                                        _err: *mut u8) -> *mut libc::c_void {
+pub unsafe extern "C" fn __rdl_alloc_zeroed(
+    size: usize,
+    _align: usize,
+    _err: *mut u8,
+) -> *mut libc::c_void {
     heap_calloc(size, 1)
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_oom(_err: *const u8) -> ! {
+pub unsafe extern "C" fn __rdl_oom(_err: *const u8) -> ! {
     intrinsics::abort();
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_usable_size(_layout: *const u8,
-                                       _min: *mut usize,
-                                       _max: *mut usize) {
+pub unsafe extern "C" fn __rdl_usable_size(_layout: *const u8, _min: *mut usize, _max: *mut usize) {
     // TODO implement me
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_alloc_excess(size: usize,
-                                        _align: usize,
-                                        _excess: *mut usize,
-                                        _err: *mut u8) -> *mut libc::c_void {
+pub unsafe extern "C" fn __rdl_alloc_excess(
+    size: usize,
+    _align: usize,
+    _excess: *mut usize,
+    _err: *mut u8,
+) -> *mut libc::c_void {
     // TODO is that correct?
     alloc(size)
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_realloc_excess(ptr: *mut libc::c_void,
-                                          _old_size: usize,
-                                          _old_align: usize,
-                                          new_size: usize,
-                                          _new_align: usize,
-                                          _excess: *mut usize,
-                                          _err: *mut u8) -> *mut libc::c_void {
+pub unsafe extern "C" fn __rdl_realloc_excess(
+    ptr: *mut libc::c_void,
+    _old_size: usize,
+    _old_align: usize,
+    new_size: usize,
+    _new_align: usize,
+    _excess: *mut usize,
+    _err: *mut u8,
+) -> *mut libc::c_void {
     // TODO is that correct?
     heap_realloc(ptr, new_size)
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_grow_in_place(_ptr: *mut libc::c_void,
-                                         _old_size: usize,
-                                         _old_align: usize,
-                                         _new_size: usize,
-                                         _new_align: usize) -> u8 {
+pub unsafe extern "C" fn __rdl_grow_in_place(
+    _ptr: *mut libc::c_void,
+    _old_size: usize,
+    _old_align: usize,
+    _new_size: usize,
+    _new_align: usize,
+) -> u8 {
     // TODO implement me
     0
 }
 
 #[no_mangle]
-pub unsafe extern fn __rdl_shrink_in_place(_ptr: *mut libc::c_void,
-                                           _old_size: usize,
-                                           _old_align: usize,
-                                           _new_size: usize,
-                                           _new_align: usize) -> u8 {
+pub unsafe extern "C" fn __rdl_shrink_in_place(
+    _ptr: *mut libc::c_void,
+    _old_size: usize,
+    _old_align: usize,
+    _new_size: usize,
+    _new_align: usize,
+) -> u8 {
     // TODO implement me
     0
 }

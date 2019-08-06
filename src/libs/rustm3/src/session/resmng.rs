@@ -68,13 +68,17 @@ impl ResMng {
     pub fn clone(&self, vpe: &mut VPE, name: &str) -> Result<Self, Error> {
         let sgate_sel = vpe.alloc_sel();
         send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            ResMngOperation::ADD_CHILD, vpe.sel(), sgate_sel, name
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::ADD_CHILD,
+            vpe.sel(),
+            sgate_sel,
+            name
         )?;
 
         Ok(ResMng {
             sgate: SendGate::new_bind(sgate_sel),
-            vpe_sel: vpe.sel()
+            vpe_sel: vpe.sel(),
         })
     }
 
@@ -83,65 +87,100 @@ impl ResMng {
     pub fn reg_service(&self, dst: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
         self.reg_child_service(0, dst, rgate, name)
     }
+
     /// Registers a service for the child VPE `child` with given name at selector `dst`, using
     /// `rgate` to receive service calls.
-    pub fn reg_child_service(&self, child: Selector, dst: Selector,
-                             rgate: Selector, name: &str) -> Result<(), Error> {
+    pub fn reg_child_service(
+        &self,
+        child: Selector,
+        dst: Selector,
+        rgate: Selector,
+        name: &str,
+    ) -> Result<(), Error> {
         send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            ResMngOperation::REG_SERV, child, dst, rgate, name
-        ).map(|_| ())
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::REG_SERV,
+            child,
+            dst,
+            rgate,
+            name
+        )
+        .map(|_| ())
     }
 
     /// Unregisters the service with given selector. If `notify` is true, the server will be
     /// notified via the `SHUTDOWN` service call.
     pub fn unreg_service(&self, sel: Selector, notify: bool) -> Result<(), Error> {
         send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            ResMngOperation::UNREG_SERV, sel, notify
-        ).map(|_| ())
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::UNREG_SERV,
+            sel,
+            notify
+        )
+        .map(|_| ())
     }
 
     /// Opens a session at service `name` using selector `dst`.
     pub fn open_sess(&self, dst: Selector, name: &str) -> Result<(), Error> {
         send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            ResMngOperation::OPEN_SESS, dst, name
-        ).map(|_| ())
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::OPEN_SESS,
+            dst,
+            name
+        )
+        .map(|_| ())
     }
 
     /// Closes the session with given selector.
     pub fn close_sess(&self, sel: Selector) -> Result<(), Error> {
         send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            ResMngOperation::CLOSE_SESS, sel
-        ).map(|_| ())
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::CLOSE_SESS,
+            sel
+        )
+        .map(|_| ())
     }
 
     /// Allocates `size` bytes of physical memory with given permissions. If `addr` is not `!0`, it
     /// will be allocated at that address.
-    pub fn alloc_mem(&self, dst: Selector, addr: goff,
-                     size: usize, perms: kif::Perm) -> Result<(), Error> {
+    pub fn alloc_mem(
+        &self,
+        dst: Selector,
+        addr: goff,
+        size: usize,
+        perms: kif::Perm,
+    ) -> Result<(), Error> {
         send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            ResMngOperation::ALLOC_MEM, dst, addr, size, perms.bits()
-        ).map(|_| ())
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::ALLOC_MEM,
+            dst,
+            addr,
+            size,
+            perms.bits()
+        )
+        .map(|_| ())
     }
 
     /// Free's the memory with given selector.
     pub fn free_mem(&self, sel: Selector) -> Result<(), Error> {
-        send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            ResMngOperation::FREE_MEM, sel
-        ).map(|_| ())
+        send_recv_res!(&self.sgate, RecvGate::def(), ResMngOperation::FREE_MEM, sel).map(|_| ())
     }
 
     /// Attaches to the semaphore with given name using selector `sel`.
     pub fn use_sem(&self, sel: Selector, name: &str) -> Result<(), Error> {
         send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            ResMngOperation::USE_SEM, sel, name
-        ).map(|_| ())
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::USE_SEM,
+            sel,
+            name
+        )
+        .map(|_| ())
     }
 }
 
@@ -149,9 +188,12 @@ impl Drop for ResMng {
     fn drop(&mut self) {
         if self.vpe_sel != kif::INVALID_SEL {
             send_recv_res!(
-                &VPE::cur().resmng().sgate, RecvGate::def(),
-                ResMngOperation::REM_CHILD, self.vpe_sel
-            ).ok();
+                &VPE::cur().resmng().sgate,
+                RecvGate::def(),
+                ResMngOperation::REM_CHILD,
+                self.vpe_sel
+            )
+            .ok();
         }
     }
 }

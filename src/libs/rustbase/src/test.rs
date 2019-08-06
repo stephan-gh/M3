@@ -27,17 +27,17 @@ pub trait WvTester {
 /// Convenience macro that calls `Tester::run_suite` and uses the function name as suite name
 #[macro_export]
 macro_rules! wv_run_suite {
-    ($t:expr, $func:path) => (
+    ($t:expr, $func:path) => {
         $t.run_suite(stringify!($func), &$func)
-    );
+    };
 }
 
 /// Convenience macro that calls `Tester::run_test` and uses the function name as test name
 #[macro_export]
 macro_rules! wv_run_test {
-    ($t:expr, $func:path) => (
+    ($t:expr, $func:path) => {
         $t.run_test(stringify!($func), file!(), &$func)
-    );
+    };
 }
 
 /// Convenience macro that runs the given benchmark and reports the result
@@ -48,7 +48,7 @@ macro_rules! wv_perf {
     };
 }
 
-extern {
+extern "C" {
     #[allow(dead_code)]
     fn wvtest_failed();
 }
@@ -83,64 +83,83 @@ macro_rules! wv_assert_eq {
 /// panics otherwise
 #[macro_export]
 macro_rules! wv_assert_ok {
-    ($res:expr) => ({
+    ($res:expr) => {{
         match $res {
-            Ok(r)   => r,
-            Err(e)  => {
-                println!("! {}:{}  expected Ok for {}, got {:?} FAILED",
-                         file!(), line!(), stringify!($res), e);
+            Ok(r) => r,
+            Err(e) => {
+                println!(
+                    "! {}:{}  expected Ok for {}, got {:?} FAILED",
+                    file!(),
+                    line!(),
+                    stringify!($res),
+                    e
+                );
                 panic!("Stopping tests here.")
-            }
+            },
         }
-    });
+    }};
 }
 
 /// Convenience macro that tests whether the argument is `Some`, returns the inner value if so, and
 /// panics otherwise
 #[macro_export]
 macro_rules! wv_assert_some {
-    ($res:expr) => ({
+    ($res:expr) => {{
         match $res {
-            Some(r)   => r,
-            None  => {
-                println!("! {}:{}  expected Some for {}, received None FAILED",
-                         file!(), line!(), stringify!($res));
+            Some(r) => r,
+            None => {
+                println!(
+                    "! {}:{}  expected Some for {}, received None FAILED",
+                    file!(),
+                    line!(),
+                    stringify!($res)
+                );
                 panic!("Stopping tests here.")
-            }
+            },
         }
-    });
+    }};
 }
 
 /// Convenience macro that tests whether the argument is `Err` with the given error code
 #[macro_export]
 macro_rules! wv_assert_err {
-    ($res:expr, $err:expr) => ({
+    ($res:expr, $err:expr) => {{
         match $res {
-            Ok(r)                           => {
+            Ok(r) => {
                 println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
                 ::wvtest_failed();
             },
-            Err(ref e) if e.code() != $err  => {
-                println!("! {}:{}  received error {:?}, expected {:?} FAILED",
-                         file!(), line!(), e, $err);
+            Err(ref e) if e.code() != $err => {
+                println!(
+                    "! {}:{}  received error {:?}, expected {:?} FAILED",
+                    file!(),
+                    line!(),
+                    e,
+                    $err
+                );
                 ::wvtest_failed();
             },
-            Err(_)                          => (),
+            Err(_) => (),
         }
-    });
-    ($res:expr, $err1:expr, $err2:expr) => ({
+    }};
+    ($res:expr, $err1:expr, $err2:expr) => {{
         match $res {
-            Ok(r)                           => {
+            Ok(r) => {
                 println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
                 ::wvtest_failed();
             },
-            Err(ref e) if e.code() != $err1 &&
-                          e.code() != $err2 => {
-                println!("! {}:{}  received error {:?}, expected {:?} or {:?} FAILED",
-                         file!(), line!(), e, $err1, $err2);
+            Err(ref e) if e.code() != $err1 && e.code() != $err2 => {
+                println!(
+                    "! {}:{}  received error {:?}, expected {:?} or {:?} FAILED",
+                    file!(),
+                    line!(),
+                    e,
+                    $err1,
+                    $err2
+                );
                 ::wvtest_failed();
             },
-            Err(_)                          => (),
+            Err(_) => (),
         }
-    });
+    }};
 }

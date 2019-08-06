@@ -17,14 +17,14 @@
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::col::String;
-use m3::com::{RecvGate, RGateArgs, SendGate, SGateArgs, recv_msg};
+use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::{Code, Error};
 use m3::kif;
-use m3::server::{Handler, Server, SessId, SessionContainer, server_loop};
+use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::test;
-use m3::vpe::{Activity, VPE, VPEArgs};
+use m3::vpe::{Activity, VPEArgs, VPE};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, testnoresp);
@@ -47,9 +47,7 @@ impl Handler for MyHandler {
 
         let sel = sess.sel();
         // keep the session to ensure that it's not destroyed
-        self.sessions.add(0, MySession {
-            _sess: sess,
-        });
+        self.sessions.add(0, MySession { _sess: sess });
         Ok((sel, 0))
     }
 
@@ -74,9 +72,7 @@ fn server_main() -> i32 {
     let s = wv_assert_ok!(Server::new("test"));
     let mut hdl = MyHandler::new();
 
-    server_loop(|| {
-        s.handle_ctrl_chan(&mut hdl)
-    }).ok();
+    server_loop(|| s.handle_ctrl_chan(&mut hdl)).ok();
     0
 }
 
@@ -114,7 +110,9 @@ pub fn testcliexit() {
 
     let sact = wv_assert_ok!(serv.run(Box::new(&server_main)));
 
-    let mut rg = wv_assert_ok!(RecvGate::new_with(RGateArgs::default().order(7).msg_order(6)));
+    let mut rg = wv_assert_ok!(RecvGate::new_with(
+        RGateArgs::default().order(7).msg_order(6)
+    ));
     wv_assert_ok!(rg.activate());
 
     let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64 * 2)));
@@ -140,7 +138,13 @@ pub fn testcliexit() {
         };
         let msg_ptr = &req as *const kif::syscalls::ExchangeSess as *const u8;
         let msg_size = m3::util::size_of::<kif::syscalls::ExchangeSess>();
-        wv_assert_ok!(dtu::DTU::send(dtu::SYSC_SEP, msg_ptr, msg_size, 0, dtu::SYSC_REP));
+        wv_assert_ok!(dtu::DTU::send(
+            dtu::SYSC_SEP,
+            msg_ptr,
+            msg_size,
+            0,
+            dtu::SYSC_REP
+        ));
 
         // now we're ready to be killed
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
@@ -180,7 +184,11 @@ pub fn testmsgs() {
         let resp: String = reply.pop();
         wv_assert_eq!(resp, "654321");
 
-        wv_assert_err!(send_recv!(&sgate, RecvGate::def(), 0, "123456"), Code::InvEP, Code::RecvGone);
+        wv_assert_err!(
+            send_recv!(&sgate, RecvGate::def(), 0, "123456"),
+            Code::InvEP,
+            Code::RecvGone
+        );
     }
 }
 

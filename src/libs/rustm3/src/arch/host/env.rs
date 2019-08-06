@@ -25,7 +25,7 @@ use dtu::{EpId, Label};
 use kif::{self, PEDesc, PEType, PEISA};
 use libc;
 use rc::Rc;
-use session::{ResMng, Pager};
+use session::{Pager, ResMng};
 use vfs::{FileTable, MountTable};
 use vpe;
 
@@ -54,6 +54,7 @@ impl EnvData {
     pub fn argc(&self) -> usize {
         self.base().argc as usize
     }
+
     pub fn argv(&self) -> *const *const i8 {
         self.base().argv as *const *const i8
     }
@@ -61,11 +62,11 @@ impl EnvData {
     pub fn has_vpe(&self) -> bool {
         self.vpe != 0
     }
+
     pub fn vpe(&self) -> &'static mut vpe::VPE {
-        unsafe {
-            intrinsics::transmute(self.vpe)
-        }
+        unsafe { intrinsics::transmute(self.vpe) }
     }
+
     pub fn set_vpe(&mut self, vpe: &vpe::VPE) {
         self.vpe = vpe as *const vpe::VPE as usize;
     }
@@ -93,11 +94,11 @@ impl EnvData {
 
     pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
         match arch::loader::read_env_file("rbufs") {
-            Some(rbuf)  => {
+            Some(rbuf) => {
                 let mut ss = SliceSource::new(&rbuf);
                 arch::rbufs::RBufSpace::new_with(ss.pop(), ss.pop())
             },
-            None        => arch::rbufs::RBufSpace::new(),
+            None => arch::rbufs::RBufSpace::new(),
         }
     }
 
@@ -108,22 +109,22 @@ impl EnvData {
 
     pub fn load_mounts(&self) -> MountTable {
         match arch::loader::read_env_file("ms") {
-            Some(ms)    => MountTable::unserialize(&mut SliceSource::new(&ms)),
-            None        => MountTable::default(),
+            Some(ms) => MountTable::unserialize(&mut SliceSource::new(&ms)),
+            None => MountTable::default(),
         }
     }
 
     pub fn load_fds(&self) -> FileTable {
         match arch::loader::read_env_file("fds") {
-            Some(fds)   => FileTable::unserialize(&mut SliceSource::new(&fds)),
-            None        => FileTable::default(),
+            Some(fds) => FileTable::unserialize(&mut SliceSource::new(&fds)),
+            None => FileTable::default(),
         }
     }
 
     fn load_word(name: &str, default: u64) -> u64 {
         match arch::loader::read_env_file(name) {
-            Some(buf)       => SliceSource::new(&buf).pop(),
-            None            => default,
+            Some(buf) => SliceSource::new(&buf).pop(),
+            None => default,
         }
     }
 

@@ -17,8 +17,8 @@
 use arch::cpu;
 use time;
 
-const START_TSC: usize    = 0x1FF1_0000;
-const STOP_TSC: usize     = 0x1FF2_0000;
+const START_TSC: usize = 0x1FF1_0000;
+const STOP_TSC: usize = 0x1FF2_0000;
 
 pub fn start(msg: usize) -> time::Time {
     cpu::gem5_debug(START_TSC | msg)

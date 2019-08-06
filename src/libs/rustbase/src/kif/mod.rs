@@ -17,17 +17,17 @@
 //! Contains the kernel interface definitions
 
 mod cap;
-mod perm;
 mod pedesc;
+mod perm;
 
 pub mod boot;
 pub mod service;
 pub mod syscalls;
 pub mod upcalls;
 
-pub use self::perm::*;
-pub use self::pedesc::*;
 pub use self::cap::*;
+pub use self::pedesc::*;
+pub use self::perm::*;
 
 use dtu;
 
@@ -35,7 +35,7 @@ use dtu;
 pub const INVALID_SEL: CapSel = 0xFFFF;
 
 /// The first selector for the endpoint capabilities (0 and 1 are reserved for VPE cap and mem cap)
-pub const FIRST_EP_SEL: CapSel    = 2;
+pub const FIRST_EP_SEL: CapSel = 2;
 
 /// The first free selector
-pub const FIRST_FREE_SEL: CapSel  = FIRST_EP_SEL + (dtu::EP_COUNT - dtu::FIRST_FREE_EP) as CapSel;
+pub const FIRST_FREE_SEL: CapSel = FIRST_EP_SEL + (dtu::EP_COUNT - dtu::FIRST_FREE_EP) as CapSel;

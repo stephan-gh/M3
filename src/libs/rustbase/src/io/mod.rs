@@ -20,9 +20,9 @@ pub mod log;
 mod rdwr;
 mod serial;
 
-use arch;
-pub use self::rdwr::{Read, Write, read_object};
+pub use self::rdwr::{read_object, Read, Write};
 pub use self::serial::Serial;
+use arch;
 
 /// Macro for logging (includes a trailing newline)
 ///

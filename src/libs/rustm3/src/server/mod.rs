@@ -27,7 +27,7 @@ use dtu::DTU;
 use errors::Error;
 
 /// Executes the server loop, calling `func` in every iteration.
-pub fn server_loop<F : FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
+pub fn server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
     loop {
         // we are not interested in the events here; just fetch them before the sleep
         DTU::fetch_events();

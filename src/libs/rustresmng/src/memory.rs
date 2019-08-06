@@ -15,9 +15,9 @@
  */
 
 use core::fmt;
-use m3::cfg;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
+use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
@@ -47,6 +47,7 @@ impl MemMod {
     pub fn capacity(&self) -> usize {
         self.size
     }
+
     pub fn available(&self) -> usize {
         self.map.size().0
     }
@@ -54,10 +55,15 @@ impl MemMod {
 
 impl fmt::Debug for MemMod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MemMod[sel: {}, res: {}, size: {} MiB, available: {} MiB, map: {:?}]",
-            self.gate.sel(), self.reserved,
-            self.size / (1024 * 1024), self.map.size().0 / (1024 * 1024),
-            self.map)
+        write!(
+            f,
+            "MemMod[sel: {}, res: {}, size: {} MiB, available: {} MiB, map: {:?}]",
+            self.gate.sel(),
+            self.reserved,
+            self.size / (1024 * 1024),
+            self.map.size().0 / (1024 * 1024),
+            self.map
+        )
     }
 }
 
@@ -74,7 +80,12 @@ pub struct Allocation {
 
 impl Allocation {
     pub fn new(mod_id: usize, addr: goff, size: usize, sel: Selector) -> Self {
-        Allocation { mod_id, addr, size, sel }
+        Allocation {
+            mod_id,
+            addr,
+            size,
+            sel,
+        }
     }
 }
 
@@ -87,23 +98,29 @@ impl Drop for Allocation {
 
 impl fmt::Debug for Allocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Alloc[mod={}, addr={:#x}, size={:#x}, sel={}]",
-               self.mod_id, self.addr, self.size, self.sel)
+        write!(
+            f,
+            "Alloc[mod={}, addr={:#x}, size={:#x}, sel={}]",
+            self.mod_id, self.addr, self.size, self.sel
+        )
     }
 }
 
 impl MainMemory {
     const fn new() -> Self {
-        MainMemory {
-            mods: Vec::new(),
-        }
+        MainMemory { mods: Vec::new() }
     }
 
     pub fn capacity(&self) -> usize {
-        self.mods.iter().fold(0, |total, ref m| total + m.capacity())
+        self.mods
+            .iter()
+            .fold(0, |total, ref m| total + m.capacity())
     }
+
     pub fn available(&self) -> usize {
-        self.mods.iter().fold(0, |total, ref m| total + m.available())
+        self.mods
+            .iter()
+            .fold(0, |total, ref m| total + m.available())
     }
 
     pub fn mem_cap(&self, idx: usize) -> Selector {
@@ -115,7 +132,12 @@ impl MainMemory {
     }
 
     pub fn allocate(&mut self, size: usize) -> Result<Allocation, Error> {
-        let align = if size >= cfg::LPAGE_SIZE { cfg::LPAGE_SIZE } else { cfg::PAGE_SIZE };
+        let align = if size >= cfg::LPAGE_SIZE {
+            cfg::LPAGE_SIZE
+        }
+        else {
+            cfg::PAGE_SIZE
+        };
 
         for (id, m) in &mut self.mods.iter_mut().enumerate() {
             if m.reserved {
@@ -131,10 +153,21 @@ impl MainMemory {
         Err(Error::new(Code::OutOfMem))
     }
 
-    pub fn allocate_for(&mut self, child: &mut dyn Child, dst_sel: Selector,
-                        size: usize, perm: Perm) -> Result<(), Error> {
-        log!(RESMNG_MEM, "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
-             child.name(), dst_sel, size, perm);
+    pub fn allocate_for(
+        &mut self,
+        child: &mut dyn Child,
+        dst_sel: Selector,
+        size: usize,
+        perm: Perm,
+    ) -> Result<(), Error> {
+        log!(
+            RESMNG_MEM,
+            "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
+            child.name(),
+            dst_sel,
+            size,
+            perm
+        );
 
         let mut alloc = self.allocate(size)?;
         let mod_id = alloc.mod_id;
@@ -142,22 +175,41 @@ impl MainMemory {
         child.add_mem(alloc, self.mods[mod_id].gate.sel(), perm)
     }
 
-    pub fn allocate_at(&mut self, child: &mut dyn Child, dst_sel: Selector,
-                       offset: goff, size: usize) -> Result<(), Error> {
-        log!(RESMNG_MEM, "{}: allocate_at(dst_sel={}, offset={:#x}, size={:#x})",
-             child.name(), dst_sel, offset, size);
+    pub fn allocate_at(
+        &mut self,
+        child: &mut dyn Child,
+        dst_sel: Selector,
+        offset: goff,
+        size: usize,
+    ) -> Result<(), Error> {
+        log!(
+            RESMNG_MEM,
+            "{}: allocate_at(dst_sel={}, offset={:#x}, size={:#x})",
+            child.name(),
+            dst_sel,
+            offset,
+            size
+        );
 
         // TODO check if that's actually ok
         let m = &self.mods[0];
         assert!(m.reserved);
-        child.add_mem(Allocation::new(0, offset, size, dst_sel), m.gate.sel(), Perm::RWX)
+        child.add_mem(
+            Allocation::new(0, offset, size, dst_sel),
+            m.gate.sel(),
+            Perm::RWX,
+        )
     }
 }
 
 impl fmt::Debug for MainMemory {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "size: {} MiB, available: {} MiB, mods: [",
-            self.capacity() / (1024 * 1024), self.available() / (1024 * 1024))?;
+        writeln!(
+            f,
+            "size: {} MiB, available: {} MiB, mods: [",
+            self.capacity() / (1024 * 1024),
+            self.available() / (1024 * 1024)
+        )?;
         for m in &self.mods {
             writeln!(f, "  {:?}", m)?;
         }

@@ -34,6 +34,7 @@ fn insert() {
         fn pre(&mut self) {
             self.0.clear();
         }
+
         fn run(&mut self) {
             for i in 0..100 {
                 self.0.insert(i, i);
@@ -41,7 +42,10 @@ fn insert() {
         }
     }
 
-    wv_perf!("Inserting 100 elements", prof.runner_with_id(&mut BTreeTester::default(), 0x81));
+    wv_perf!(
+        "Inserting 100 elements",
+        prof.runner_with_id(&mut BTreeTester::default(), 0x81)
+    );
 }
 
 fn find() {
@@ -56,6 +60,7 @@ fn find() {
                 self.0.insert(i, i);
             }
         }
+
         fn run(&mut self) {
             for i in 0..100 {
                 wv_assert_eq!(self.0.get(&i), Some(&i));
@@ -63,7 +68,10 @@ fn find() {
         }
     }
 
-    wv_perf!("Searching for 100 elements", prof.runner_with_id(&mut BTreeTester::default(), 0x82));
+    wv_perf!(
+        "Searching for 100 elements",
+        prof.runner_with_id(&mut BTreeTester::default(), 0x82)
+    );
 }
 
 fn clear() {
@@ -78,10 +86,14 @@ fn clear() {
                 self.0.insert(i, i);
             }
         }
+
         fn run(&mut self) {
             self.0.clear();
         }
     }
 
-    wv_perf!("Removing 100-element list", prof.runner_with_id(&mut BTreeTester::default(), 0x83));
+    wv_perf!(
+        "Removing 100-element list",
+        prof.runner_with_id(&mut BTreeTester::default(), 0x83)
+    );
 }

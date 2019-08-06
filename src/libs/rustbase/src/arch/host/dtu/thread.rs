@@ -18,8 +18,8 @@ use arch::dtu::*;
 use cell::StaticCell;
 use core::sync::atomic;
 use errors::{Code, Error};
-use kif;
 use io;
+use kif;
 
 pub(crate) struct Buffer {
     pub header: Header,
@@ -37,13 +37,20 @@ impl Buffer {
     fn as_words(&self) -> &[u64] {
         unsafe {
             #[allow(clippy::cast_ptr_alignment)]
-            util::slice_for(self.data.as_ptr() as *const u64, MAX_MSG_SIZE / util::size_of::<u64>())
+            util::slice_for(
+                self.data.as_ptr() as *const u64,
+                MAX_MSG_SIZE / util::size_of::<u64>(),
+            )
         }
     }
+
     fn as_words_mut(&mut self) -> &mut [u64] {
         unsafe {
             #[allow(clippy::cast_ptr_alignment)]
-            util::slice_for_mut(self.data.as_mut_ptr() as *mut u64, MAX_MSG_SIZE / util::size_of::<u64>())
+            util::slice_for_mut(
+                self.data.as_mut_ptr() as *mut u64,
+                MAX_MSG_SIZE / util::size_of::<u64>(),
+            )
         }
     }
 }
@@ -100,8 +107,12 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
 
         let needed = 1 << msg_order;
         if needed > credits {
-            log_dtu!("DTU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
-                ep, credits, needed);
+            log_dtu!(
+                "DTU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
+                ep,
+                credits,
+                needed
+            );
             return Err(Error::new(Code::MissCredits));
         }
 
@@ -118,7 +129,10 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
         buf.data[0..msg_size].copy_from_slice(util::slice_for(msg as *const u8, msg_size));
     }
 
-    Ok((DTU::get_ep(ep, EpReg::PE_ID) as PEId, DTU::get_ep(ep, EpReg::EP_ID) as EpId))
+    Ok((
+        DTU::get_ep(ep, EpReg::PE_ID) as PEId,
+        DTU::get_ep(ep, EpReg::EP_ID) as EpId,
+    ))
 }
 
 fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
@@ -173,7 +187,12 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
 
     let perms = label & Label::from(kif::Perm::RWX.bits());
     if (perms & (1 << op)) == 0 {
-        log_dtu!("DTU-error: EP{}: operation not permitted (perms={}, op={})", ep, perms, op);
+        log_dtu!(
+            "DTU-error: EP{}: operation not permitted (perms={}, op={})",
+            ep,
+            perms,
+            op
+        );
         Err(Error::new(Code::InvEP))
     }
     else {
@@ -181,7 +200,10 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
         if end.1 || end.0 > credits {
             log_dtu!(
                 "DTU-error: EP{}: invalid parameters (credits={}, offset={}, datalen={})",
-                ep, credits, offset, length
+                ep,
+                credits,
+                offset,
+                length
             );
             Err(Error::new(Code::InvEP))
         }
@@ -205,7 +227,10 @@ fn prepare_read(ep: EpId) -> Result<(PEId, EpId), Error> {
     data[1] = DTU::get_cmd(CmdReg::LENGTH);
     data[2] = DTU::get_cmd(CmdReg::ADDR);
 
-    Ok((DTU::get_ep(ep, EpReg::PE_ID) as PEId, DTU::get_ep(ep, EpReg::EP_ID) as EpId))
+    Ok((
+        DTU::get_ep(ep, EpReg::PE_ID) as PEId,
+        DTU::get_ep(ep, EpReg::EP_ID) as EpId,
+    ))
 }
 
 fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
@@ -227,11 +252,14 @@ fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
         libc::memcpy(
             data[2..].as_mut_ptr() as *mut libc::c_void,
             src as *const libc::c_void,
-            size as usize
+            size as usize,
         );
     }
 
-    Ok((DTU::get_ep(ep, EpReg::PE_ID) as PEId, DTU::get_ep(ep, EpReg::EP_ID) as EpId))
+    Ok((
+        DTU::get_ep(ep, EpReg::PE_ID) as PEId,
+        DTU::get_ep(ep, EpReg::EP_ID) as EpId,
+    ))
 }
 
 fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
@@ -253,7 +281,11 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
     if is_bit_set(unread, idx) {
         let unread = set_bit(unread, idx, false);
         DTU::set_ep(ep, EpReg::BUF_UNREAD, unread);
-        DTU::set_ep(ep, EpReg::BUF_MSG_CNT, DTU::get_ep(ep, EpReg::BUF_MSG_CNT) - 1);
+        DTU::set_ep(
+            ep,
+            EpReg::BUF_MSG_CNT,
+            DTU::get_ep(ep, EpReg::BUF_MSG_CNT) - 1,
+        );
     }
     DTU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
 
@@ -313,7 +345,8 @@ fn handle_msg(ep: EpId, len: usize) {
     if len > msg_size {
         log_dtu!(
             "DTU-error: dropping msg due to insufficient space (required: {}, available: {})",
-            len, msg_size
+            len,
+            msg_size
         );
         return;
     }
@@ -372,14 +405,19 @@ fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Er
         let offset = base + data[0];
         let length = data[1];
 
-        log_dtu!("(write) {} bytes to {:#x}+{:#x}", length, base, offset - base);
+        log_dtu!(
+            "(write) {} bytes to {:#x}+{:#x}",
+            length,
+            base,
+            offset - base
+        );
         assert!(length as usize <= MAX_MSG_SIZE - 2 * util::size_of::<u64>());
 
         unsafe {
             libc::memcpy(
                 offset as *mut libc::c_void,
                 data[2..].as_ptr() as *const libc::c_void,
-                length as usize
+                length as usize,
             );
         }
     }
@@ -404,7 +442,13 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
         (base + data[0], data[1], data[2])
     };
 
-    log_dtu!("(read) {} bytes from {:#x}+{:#x} -> {:#x}", length, base, offset - base, dest);
+    log_dtu!(
+        "(read) {} bytes from {:#x}+{:#x} -> {:#x}",
+        length,
+        base,
+        offset - base,
+        dest
+    );
     assert!(length as usize <= MAX_MSG_SIZE - 3 * util::size_of::<u64>());
 
     let dst_pe = buf.header.pe as PEId;
@@ -424,7 +468,7 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
         libc::memcpy(
             data[3..].as_mut_ptr() as *mut libc::c_void,
             offset as *const libc::c_void,
-            length as usize
+            length as usize,
         );
     }
 
@@ -440,14 +484,20 @@ fn handle_resp_cmd() {
         let length = data[1];
         let resp = data[2];
 
-        log_dtu!("(resp) {} bytes to {:#x}+{:#x} -> {:#x}", length, base, offset - base, resp);
+        log_dtu!(
+            "(resp) {} bytes to {:#x}+{:#x} -> {:#x}",
+            length,
+            base,
+            offset - base,
+            resp
+        );
         assert!(length as usize <= MAX_MSG_SIZE - 3 * util::size_of::<usize>());
 
         unsafe {
             libc::memcpy(
                 offset as *mut libc::c_void,
                 data[3..].as_ptr() as *const libc::c_void,
-                length as usize
+                length as usize,
             );
         }
         resp
@@ -460,16 +510,23 @@ fn handle_resp_cmd() {
     DTU::set_cmd(CmdReg::CTRL, resp << 16);
 }
 
-fn send_msg(backend: &backend::SocketBackend, ep: EpId, dst_pe: PEId, dst_ep: EpId) -> Result<(), Error> {
+#[rustfmt::skip]
+fn send_msg(
+    backend: &backend::SocketBackend,
+    ep: EpId,
+    dst_pe: PEId,
+    dst_ep: EpId,
+) -> Result<(), Error> {
     let buf = buffer();
 
     log_dtu!(
         "{} {:3}b lbl={:#016x} over {} to pe:ep={}:{} (crd={:#x} rep={})",
         if buf.header.opcode == Command::REPLY.val as u8 { ">>" } else { "->" },
-        {buf.header.length},
-        {buf.header.label},
+        { buf.header.length },
+        { buf.header.label },
         buf.header.snd_ep,
-        dst_pe, dst_ep,
+        dst_pe,
+        dst_ep,
         DTU::get_ep(ep, EpReg::CREDITS),
         buf.header.rpl_ep
     );
@@ -497,13 +554,13 @@ fn handle_command(backend: &backend::SocketBackend) {
         let op: Command = Command::from((ctrl >> 3) & 0xF);
 
         let res = match op {
-            Command::SEND       => prepare_send(ep),
-            Command::REPLY      => prepare_reply(ep),
-            Command::READ       => prepare_read(ep),
-            Command::WRITE      => prepare_write(ep),
-            Command::FETCH_MSG  => prepare_fetch(ep),
-            Command::ACK_MSG    => prepare_ack(ep),
-            _                   => Err(Error::new(Code::NotSup)),
+            Command::SEND => prepare_send(ep),
+            Command::REPLY => prepare_reply(ep),
+            Command::READ => prepare_read(ep),
+            Command::WRITE => prepare_write(ep),
+            Command::FETCH_MSG => prepare_fetch(ep),
+            Command::ACK_MSG => prepare_ack(ep),
+            _ => Err(Error::new(Code::NotSup)),
         };
 
         match res {
@@ -522,7 +579,7 @@ fn handle_command(backend: &backend::SocketBackend) {
 
                 match send_msg(backend, ep, dst_pe, dst_ep) {
                     Err(e) => Err(e),
-                    Ok(_)  => {
+                    Ok(_) => {
                         if op == Command::READ || op == Command::WRITE {
                             // wait for the response
                             Ok(op.val << 3)
@@ -533,14 +590,14 @@ fn handle_command(backend: &backend::SocketBackend) {
                     },
                 }
             },
-            Ok((_, _))  => Ok(0),
-            Err(e)      => Err(e),
+            Ok((_, _)) => Ok(0),
+            Err(e) => Err(e),
         }
     };
 
     match res {
         Ok(val) => DTU::set_cmd(CmdReg::CTRL, val),
-        Err(e)  => DTU::set_cmd(CmdReg::CTRL, (e.code() as Reg) << 16),
+        Err(e) => DTU::set_cmd(CmdReg::CTRL, (e.code() as Reg) << 16),
     };
 }
 
@@ -548,11 +605,11 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
     let buf = buffer();
     if let Some(size) = backend.receive(ep, buf) {
         match Command::from(buf.header.opcode) {
-            Command::SEND | Command::REPLY  => handle_msg(ep, size),
-            Command::READ                   => handle_read_cmd(backend, ep).unwrap(),
-            Command::WRITE                  => handle_write_cmd(backend, ep).unwrap(),
-            Command::RESP                   => handle_resp_cmd(),
-            _                               => panic!("Not supported!"),
+            Command::SEND | Command::REPLY => handle_msg(ep, size),
+            Command::READ => handle_read_cmd(backend, ep).unwrap(),
+            Command::WRITE => handle_write_cmd(backend, ep).unwrap(),
+            Command::RESP => handle_resp_cmd(),
+            _ => panic!("Not supported!"),
         }
 
         // refill credits
@@ -566,7 +623,9 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
             if buf.header.credits != 0 && credits != !0 {
                 log_dtu!(
                     "Refilling credits of ep {} from {:#x} to {:#x}",
-                    crd_ep, credits, credits + (1 << msg_ord)
+                    crd_ep,
+                    credits,
+                    credits + (1 << msg_ord)
                 );
                 DTU::set_ep(crd_ep, EpReg::CREDITS, credits + (1 << msg_ord));
             }
@@ -575,7 +634,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
         log_dtu!(
             "<- {:3}b lbl={:#016x} ep={} (cnt={:#x}, crd={:#x})",
             size - util::size_of::<Header>(),
-            {buf.header.label},
+            { buf.header.label },
             ep,
             DTU::get_ep(ep, EpReg::BUF_MSG_CNT),
             DTU::get_ep(ep, EpReg::CREDITS),

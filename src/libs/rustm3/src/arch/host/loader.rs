@@ -33,8 +33,8 @@ impl Channel {
     pub fn new() -> Result<Channel, Error> {
         let mut fds = [0i32; 2];
         match unsafe { libc::pipe(fds.as_mut_ptr()) } {
-            -1  => Err(Error::new(Code::InvArgs)),
-            _   => Ok(Channel { fds })
+            -1 => Err(Error::new(Code::InvArgs)),
+            _ => Ok(Channel { fds }),
         }
     }
 
@@ -145,10 +145,14 @@ pub fn write_env_file(pid: i32, suffix: &str, data: &[u64]) {
         let fd = libc::open(
             path.as_bytes().as_ptr() as *const i8,
             libc::O_WRONLY | libc::O_TRUNC | libc::O_CREAT,
-            0o600
+            0o600,
         );
         assert!(fd != -1);
-        libc::write(fd, data.as_ptr() as *const libc::c_void, data.len() * util::size_of::<u64>());
+        libc::write(
+            fd,
+            data.as_ptr() as *const libc::c_void,
+            data.len() * util::size_of::<u64>(),
+        );
         libc::close(fd);
     }
 }
@@ -177,7 +181,7 @@ pub fn exec<S: AsRef<str>>(args: &[S], path: &str) -> ! {
         libc::fchmod(tmpdup, 0o700);
 
         // execute that file
-        extern {
+        extern "C" {
             static environ: *const *const i8;
         }
         libc::fexecve(tmpdup, argv.as_ptr(), environ);

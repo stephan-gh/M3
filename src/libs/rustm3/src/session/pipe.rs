@@ -40,7 +40,7 @@ impl Pipes {
         let mut args = kif::syscalls::ExchangeArgs {
             count: 1,
             vals: kif::syscalls::ExchangeUnion {
-                i: [mem_size as u64, 0, 0, 0, 0, 0, 0, 0]
+                i: [mem_size as u64, 0, 0, 0, 0, 0, 0, 0],
             },
         };
         let crd = self.sess.obtain(2, &mut args)?;
@@ -71,7 +71,7 @@ impl Pipe {
         let mut args = kif::syscalls::ExchangeArgs {
             count: 1,
             vals: kif::syscalls::ExchangeUnion {
-                i: [read as u64, 0, 0, 0, 0, 0, 0, 0]
+                i: [read as u64, 0, 0, 0, 0, 0, 0, 0],
             },
         };
         let crd = self.sess.obtain(2, &mut args)?;

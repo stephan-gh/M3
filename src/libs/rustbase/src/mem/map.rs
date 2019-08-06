@@ -56,18 +56,18 @@ impl MemMap {
         let mut it = self.areas.iter_mut();
         let a: Option<&mut Area> = loop {
             match it.next() {
-                None    => break None,
+                None => break None,
                 Some(a) => {
                     let diff = util::round_up(a.addr, align as goff) - a.addr;
                     if a.size > diff as usize && a.size - diff as usize >= size {
-                        break Some(a)
+                        break Some(a);
                     }
                 },
             }
         };
 
         match a {
-            None    => Err(Error::new(Code::OutOfMem)),
+            None => Err(Error::new(Code::OutOfMem)),
             Some(a) => {
                 // if we need to do some alignment, create a new area in front of a
                 let diff = util::round_up(a.addr, align as goff) - a.addr;
@@ -88,7 +88,7 @@ impl MemMap {
                 }
 
                 Ok(res)
-            }
+            },
         }
     }
 
@@ -98,8 +98,12 @@ impl MemMap {
         let mut it = self.areas.iter_mut();
         let n: Option<&mut Area> = loop {
             match it.next() {
-                None    => break None,
-                Some(n) => if addr <= n.addr { break Some(n) },
+                None => break None,
+                Some(n) => {
+                    if addr <= n.addr {
+                        break Some(n);
+                    }
+                },
             }
         };
 
@@ -107,24 +111,25 @@ impl MemMap {
             let p: Option<&mut Area> = it.peek_prev();
             match (p, n) {
                 // merge with prev and next
-                (Some(ref mut p), Some(ref n)) if p.addr + p.size as goff == addr &&
-                                                  addr + size as goff == n.addr => {
+                (Some(ref mut p), Some(ref n))
+                    if p.addr + p.size as goff == addr && addr + size as goff == n.addr =>
+                {
                     p.size += size + n.size;
                     1
-                },
+                }
 
                 // merge with prev
                 (Some(ref mut p), _) if p.addr + p.size as goff == addr => {
                     p.size += size;
                     0
-                }
+                },
 
                 // merge with next
                 (_, Some(ref mut n)) if addr + size as goff == n.addr => {
                     n.addr -= size as goff;
                     n.size += size;
                     0
-                }
+                },
 
                 (_, _) => 2,
             }

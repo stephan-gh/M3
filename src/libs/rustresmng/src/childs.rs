@@ -17,8 +17,8 @@
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
-use m3::com::{RecvGate, SendGate, SGateArgs};
 use m3::col::{String, ToString, Treap, Vec};
+use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::{Code, Error};
 use m3::kif::{self, CapRngDesc, CapType, Perm};
@@ -73,14 +73,27 @@ pub trait Child {
         }
     }
 
-    fn add_child(&mut self, vpe_sel: Selector, rgate: &RecvGate,
-                 sgate_sel: Selector, name: String) -> Result<(), Error> {
+    fn add_child(
+        &mut self,
+        vpe_sel: Selector,
+        rgate: &RecvGate,
+        sgate_sel: Selector,
+        name: String,
+    ) -> Result<(), Error> {
         let our_sel = self.obtain(vpe_sel)?;
         let child_name = format!("{}.{}", self.name(), name);
         let id = get().next_id();
 
-        log!(RESMNG_CHILD, "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
-             self.name(), vpe_sel, name, sgate_sel, id, child_name);
+        log!(
+            RESMNG_CHILD,
+            "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
+            self.name(),
+            vpe_sel,
+            name,
+            sgate_sel,
+            id,
+            child_name
+        );
 
         let cfg = self.cfg();
         let cdesc = cfg.get_child(&name);
@@ -114,7 +127,11 @@ pub trait Child {
     fn rem_child(&mut self, vpe_sel: Selector) -> Result<Id, Error> {
         log!(RESMNG_CHILD, "{}: rem_child(vpe={})", self.name(), vpe_sel);
 
-        let idx = self.res().childs.iter().position(|c| c.1 == vpe_sel)
+        let idx = self
+            .res()
+            .childs
+            .iter()
+            .position(|c| c.1 == vpe_sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         let id = self.res().childs[idx].0;
         get().remove_rec(id);
@@ -142,7 +159,10 @@ pub trait Child {
     }
     fn remove_service(&mut self, sel: Selector) -> Result<Id, Error> {
         let serv = &mut self.res_mut().services;
-        let idx = serv.iter().position(|t| t.1 == sel).ok_or_else(|| Error::new(Code::InvArgs))?;
+        let idx = serv
+            .iter()
+            .position(|t| t.1 == sel)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
         Ok(serv.remove(idx).0)
     }
 
@@ -154,7 +174,9 @@ pub trait Child {
     }
     fn remove_session(&mut self, sel: Selector) -> Result<Session, Error> {
         let sessions = &mut self.res_mut().sessions;
-        let idx = sessions.iter().position(|s| s.sel() == sel)
+        let idx = sessions
+            .iter()
+            .position(|s| s.sel() == sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         Ok(sessions.remove(idx))
     }
@@ -164,14 +186,25 @@ pub trait Child {
 
         if mem_sel != 0 {
             assert!(alloc.sel != 0);
-            syscalls::derive_mem(self.vpe_sel(), alloc.sel, mem_sel, alloc.addr, alloc.size, perm)?;
+            syscalls::derive_mem(
+                self.vpe_sel(),
+                alloc.sel,
+                mem_sel,
+                alloc.addr,
+                alloc.size,
+                perm,
+            )?;
         }
         self.res_mut().mem.push(alloc);
         Ok(())
     }
     fn remove_mem(&mut self, sel: Selector) -> Result<(), Error> {
-        let idx = self.res_mut().mem.iter()
-            .position(|s| s.sel == sel).ok_or_else(|| Error::new(Code::InvArgs))?;
+        let idx = self
+            .res_mut()
+            .mem
+            .iter()
+            .position(|s| s.sel == sel)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
         self.remove_mem_by_idx(idx);
         Ok(())
     }
@@ -186,7 +219,13 @@ pub trait Child {
     }
 
     fn use_sem(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
-        log!(RESMNG_SEM, "{}: use_sem(name={}, sel={})", self.name(), name, sel);
+        log!(
+            RESMNG_SEM,
+            "{}: use_sem(name={}, sel={})",
+            self.name(),
+            name,
+            sel
+        );
 
         let cfg = self.cfg();
         let sdesc = cfg.get_sem(name).ok_or_else(|| Error::new(Code::InvArgs))?;
@@ -195,7 +234,10 @@ pub trait Child {
         self.delegate(our_sel, sel)
     }
 
-    fn remove_resources(&mut self) where Self: Sized {
+    fn remove_resources(&mut self)
+    where
+        Self: Sized,
+    {
         while !self.res().sessions.is_empty() {
             let sess = self.res_mut().sessions.remove(0);
             self.cfg().close_session(sess.sel());
@@ -244,7 +286,12 @@ impl OwnChild {
     }
 
     pub fn start(&mut self, vpe: VPE, mapper: &mut dyn Mapper, file: FileRef) -> Result<(), Error> {
-        log!(RESMNG, "Starting boot module '{}' with arguments {:?}", self.name(), &self.args[1..]);
+        log!(
+            RESMNG,
+            "Starting boot module '{}' with arguments {:?}",
+            self.name(),
+            &self.args[1..]
+        );
 
         self.activity = Some(vpe.exec_file(mapper, file, &self.args)?);
 
@@ -265,12 +312,15 @@ impl Child for OwnChild {
     fn id(&self) -> Id {
         self.id
     }
+
     fn name(&self) -> &String {
         &self.name
     }
+
     fn daemon(&self) -> bool {
         self.daemon
     }
+
     fn foreign(&self) -> bool {
         false
     }
@@ -282,9 +332,11 @@ impl Child for OwnChild {
     fn cfg(&self) -> Rc<Config> {
         self.cfg.clone()
     }
+
     fn res(&self) -> &Resources {
         &self.res
     }
+
     fn res_mut(&mut self) -> &mut Resources {
         &mut self.res
     }
@@ -322,12 +374,15 @@ impl Child for ForeignChild {
     fn id(&self) -> Id {
         self.id
     }
+
     fn name(&self) -> &String {
         &self.name
     }
+
     fn daemon(&self) -> bool {
         false
     }
+
     fn foreign(&self) -> bool {
         true
     }
@@ -339,9 +394,11 @@ impl Child for ForeignChild {
     fn cfg(&self) -> Rc<Config> {
         self.cfg.clone()
     }
+
     fn res(&self) -> &Resources {
         &self.res
     }
+
     fn res_mut(&mut self) -> &mut Resources {
         &mut self.res
     }
@@ -383,12 +440,15 @@ impl ChildManager {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
     pub fn len(&self) -> usize {
         self.ids.len()
     }
+
     pub fn daemons(&self) -> usize {
         self.daemons
     }
+
     pub fn foreigns(&self) -> usize {
         self.foreigns
     }
@@ -396,6 +456,7 @@ impl ChildManager {
     pub fn next_id(&self) -> Id {
         self.next_id
     }
+
     pub fn set_next_id(&mut self, id: Id) {
         self.next_id = id;
     }
@@ -415,6 +476,7 @@ impl ChildManager {
     pub fn child_by_id(&self, id: Id) -> Option<&dyn Child> {
         self.childs.get(&id).map(|c| c.as_ref())
     }
+
     pub fn child_by_id_mut(&mut self, id: Id) -> Option<&mut (dyn Child + 'static)> {
         self.childs.get_mut(&id).map(|c| c.as_mut())
     }
@@ -430,17 +492,16 @@ impl ChildManager {
     }
 
     pub fn handle_upcall(&mut self, msg: &'static dtu::Message) {
-        let slice: &[kif::upcalls::VPEWait] = unsafe {
-            &*(&msg.data as *const [u8] as *const [kif::upcalls::VPEWait])
-        };
+        let slice: &[kif::upcalls::VPEWait] =
+            unsafe { &*(&msg.data as *const [u8] as *const [kif::upcalls::VPEWait]) };
         let upcall = &slice[0];
 
         self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
 
-        let reply = kif::syscalls::DefaultReply {
-            error: 0u64,
-        };
-        RecvGate::upcall().reply(&[reply], msg).expect("Upcall reply failed");
+        let reply = kif::syscalls::DefaultReply { error: 0u64 };
+        RecvGate::upcall()
+            .reply(&[reply], msg)
+            .expect("Upcall reply failed");
 
         // wait for the next
         let no_wait_childs = self.daemons() + self.foreigns();
@@ -458,7 +519,12 @@ impl ChildManager {
         if let Some(id) = self.sel_to_id(sel) {
             let child = self.remove_rec(id).unwrap();
 
-            log!(RESMNG_CHILD, "Child '{}' exited with exitcode {}", child.name(), exitcode);
+            log!(
+                RESMNG_CHILD,
+                "Child '{}' exited with exitcode {}",
+                child.name(),
+                exitcode
+            );
         }
     }
 
@@ -503,9 +569,12 @@ impl ChildManager {
     }
 
     fn sel_to_id(&self, sel: Selector) -> Option<Id> {
-        self.ids.iter().find(|&&id| {
-            let child = self.child_by_id(id).unwrap();
-            child.vpe_sel() == sel
-        }).copied()
+        self.ids
+            .iter()
+            .find(|&&id| {
+                let child = self.child_by_id(id).unwrap();
+                child.vpe_sel() == sel
+            })
+            .copied()
     }
 }

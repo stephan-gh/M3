@@ -16,16 +16,16 @@
 
 use arch;
 use com;
-use mem;
 use io;
 use libc;
+use mem;
 use syscalls;
 use vfs;
 use vpe;
 
 pub fn exit(code: i32) -> ! {
     unsafe {
-       libc::exit(code);
+        libc::exit(code);
     }
 }
 

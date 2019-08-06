@@ -15,10 +15,10 @@
  */
 
 use core::mem::MaybeUninit;
-use m3::cap::{Capability, CapFlags, Selector};
+use m3::cap::{CapFlags, Capability, Selector};
 use m3::cell::StaticCell;
 use m3::col::{String, Vec};
-use m3::com::{RecvGate, SendGate, SGateArgs};
+use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::syscalls;
@@ -40,8 +40,13 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(id: Id, child: &mut dyn Child, dst_sel: Selector,
-               rgate_sel: Selector, name: String) -> Result<Self, Error> {
+    pub fn new(
+        id: Id,
+        child: &mut dyn Child,
+        dst_sel: Selector,
+        rgate_sel: Selector,
+        name: String,
+    ) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         let rgate = RecvGate::new_bind(child.obtain(rgate_sel)?, util::next_log2(512));
         let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256))?;
@@ -61,6 +66,7 @@ impl Service {
     pub fn name(&self) -> &String {
         &self.name
     }
+
     pub fn queue(&mut self) -> &mut SendQueue {
         &mut self.queue
     }
@@ -107,22 +113,22 @@ impl Session {
         event.and_then(|event| {
             thread::ThreadManager::get().wait_for(event);
 
-            let reply = thread::ThreadManager::get().fetch_msg()
+            let reply = thread::ThreadManager::get()
+                .fetch_msg()
                 .ok_or_else(|| Error::new(Code::RecvGone))?;
-            let reply = unsafe { &*(&reply.data as *const [u8] as *const [kif::service::OpenReply]) };
+            let reply =
+                unsafe { &*(&reply.data as *const [u8] as *const [kif::service::OpenReply]) };
             let reply = &reply[0];
 
             if reply.res != 0 {
                 return Err(Error::from(reply.res as u32));
             }
 
-            Ok((reply.sess as Selector,
-                Session {
-                    sel,
-                    ident: reply.ident,
-                    serv: serv.id,
-                }
-            ))
+            Ok((reply.sess as Selector, Session {
+                sel,
+                ident: reply.ident,
+                serv: serv.id,
+            }))
         })
     }
 
@@ -139,9 +145,7 @@ impl Session {
         };
         let event = serv.queue.send(util::object_to_bytes(&smsg));
 
-        event.map(|ev| {
-            thread::ThreadManager::get().wait_for(ev)
-        })
+        event.map(|ev| thread::ThreadManager::get().wait_for(ev))
     }
 }
 
@@ -166,10 +170,17 @@ impl ServiceManager {
     }
 
     pub fn get(&mut self, name: &str) -> Result<&mut Service, Error> {
-        self.servs.iter_mut().find(|s| s.name == *name).ok_or_else(|| Error::new(Code::InvArgs))
+        self.servs
+            .iter_mut()
+            .find(|s| s.name == *name)
+            .ok_or_else(|| Error::new(Code::InvArgs))
     }
+
     pub fn get_by_id(&mut self, id: Id) -> Result<&mut Service, Error> {
-        self.servs.iter_mut().find(|s| s.id == id).ok_or_else(|| Error::new(Code::InvArgs))
+        self.servs
+            .iter_mut()
+            .find(|s| s.id == id)
+            .ok_or_else(|| Error::new(Code::InvArgs))
     }
 
     fn add_service(&mut self, serv: Service) {
@@ -184,14 +195,29 @@ impl ServiceManager {
         serv
     }
 
-    pub fn reg_serv(&mut self, child: &mut dyn Child, child_sel: Selector, dst_sel: Selector,
-                    rgate_sel: Selector, name: String) -> Result<(), Error> {
-        log!(RESMNG_SERV, "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
-             child.name(), child_sel, dst_sel, rgate_sel, name);
+    pub fn reg_serv(
+        &mut self,
+        child: &mut dyn Child,
+        child_sel: Selector,
+        dst_sel: Selector,
+        rgate_sel: Selector,
+        name: String,
+    ) -> Result<(), Error> {
+        log!(
+            RESMNG_SERV,
+            "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
+            child.name(),
+            child_sel,
+            dst_sel,
+            rgate_sel,
+            name
+        );
 
         let cfg = child.cfg();
         let sdesc = if cfg.restrict() {
-            let sdesc = cfg.get_service(&name).ok_or_else(|| Error::new(Code::InvArgs))?;
+            let sdesc = cfg
+                .get_service(&name)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
             if sdesc.is_used() {
                 return Err(Error::new(Code::Exists));
             }
@@ -208,7 +234,9 @@ impl ServiceManager {
             Service::new(self.next_id, child, dst_sel, rgate_sel, name)
         }
         else {
-            let server = child.child_mut(child_sel).ok_or_else(|| Error::new(Code::InvArgs))?;
+            let server = child
+                .child_mut(child_sel)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
             Service::new(self.next_id, server, dst_sel, rgate_sel, name)
         }?;
         self.next_id += 1;
@@ -222,7 +250,12 @@ impl ServiceManager {
         Ok(())
     }
 
-    pub fn unreg_serv(&mut self, child: &mut dyn Child, sel: Selector, notify: bool) -> Result<(), Error> {
+    pub fn unreg_serv(
+        &mut self,
+        child: &mut dyn Child,
+        sel: Selector,
+        notify: bool,
+    ) -> Result<(), Error> {
         log!(RESMNG_SERV, "{}: unreg_serv(sel={})", child.name(), sel);
 
         let id = child.remove_service(sel)?;
@@ -237,17 +270,28 @@ impl ServiceManager {
         Ok(())
     }
 
-    #[allow(clippy::ptr_arg)]   // &String is preferable here, because we &String in the if-else
-    pub fn open_session(&mut self, child: &mut dyn Child,
-                        dst_sel: Selector, name: &String) -> Result<(), Error> {
-        log!(RESMNG_SERV, "{}: open_sess(dst_sel={}, name={})",
-             child.name(), dst_sel, name);
+    #[allow(clippy::ptr_arg)] // &String is preferable here, because we &String in the if-else
+    pub fn open_session(
+        &mut self,
+        child: &mut dyn Child,
+        dst_sel: Selector,
+        name: &String,
+    ) -> Result<(), Error> {
+        log!(
+            RESMNG_SERV,
+            "{}: open_sess(dst_sel={}, name={})",
+            child.name(),
+            dst_sel,
+            name
+        );
 
         let cfg = child.cfg();
         let empty_arg = String::new();
         // TODO "restrict=0" shouldn't prevent us from passing arguments on session creation
         let (sdesc, sname, arg) = if cfg.restrict() {
-            let sdesc = cfg.get_session(name).ok_or_else(|| Error::new(Code::InvArgs))?;
+            let sdesc = cfg
+                .get_session(name)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
             if sdesc.is_used() {
                 return Err(Error::new(Code::Exists));
             }
@@ -285,7 +329,7 @@ impl ServiceManager {
             ids.push(s.id);
         }
         // reverse sort to shutdown the services in reverse order
-        ids.sort_by(|a,b| b.cmp(a));
+        ids.sort_by(|a, b| b.cmp(a));
 
         // now send a shutdown request to all that still exist.
         // this is required, because shutdown switches the thread, so that the service list can

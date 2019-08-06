@@ -122,15 +122,16 @@ impl PEDesc {
     /// Returns whether the PE executes software
     pub fn is_programmable(self) -> bool {
         match self.isa() {
-            PEISA::X86 | PEISA::ARM | PEISA::XTENSA  => true,
-            _                                        => false,
+            PEISA::X86 | PEISA::ARM | PEISA::XTENSA => true,
+            _ => false,
         }
     }
+
     /// Returns whether the PE contains a fixed-function accelerator
     pub fn is_ffaccel(self) -> bool {
         match self.isa() {
             PEISA::ACCEL_INDIR | PEISA::ACCEL_FFT | PEISA::ACCEL_ROT13 => true,
-            _                                                          => false
+            _ => false,
         }
     }
 
@@ -138,10 +139,12 @@ impl PEDesc {
     pub fn supports_ctxsw(self) -> bool {
         self.supports_ctx() && (self.isa() >= PEISA::ACCEL_INDIR || self.has_cache())
     }
+
     /// Return if the PE supports the context switching protocol
     pub fn supports_ctx(self) -> bool {
         self.supports_vpes() && self.isa() != PEISA::IDE_DEV
     }
+
     /// Return if the PE supports VPEs
     pub fn supports_vpes(self) -> bool {
         self.pe_type() != PEType::MEM
@@ -151,18 +154,22 @@ impl PEDesc {
     pub fn has_mem(self) -> bool {
         self.pe_type() == PEType::COMP_IMEM || self.pe_type() == PEType::MEM
     }
+
     /// Returns whether the PE has a cache
     pub fn has_cache(self) -> bool {
         self.pe_type() == PEType::COMP_EMEM
     }
+
     /// Returns whether the PE supports virtual memory (either by DTU or MMU)
     pub fn has_virtmem(self) -> bool {
         self.has_dtuvm() || self.has_mmu()
     }
+
     /// Returns whether the PE uses DTU-based virtual memory
     pub fn has_dtuvm(self) -> bool {
         self.flags().contains(PEFlags::DTU_VM)
     }
+
     /// Returns whether the PE uses MMU-based virtual memory
     pub fn has_mmu(self) -> bool {
         self.flags().contains(PEFlags::MMU_VM)
@@ -171,6 +178,12 @@ impl PEDesc {
 
 impl fmt::Debug for PEDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PEDesc[type={}, isa={}, memsz={}]", self.pe_type(), self.isa(), self.mem_size())
+        write!(
+            f,
+            "PEDesc[type={}, isa={}, memsz={}]",
+            self.pe_type(),
+            self.isa(),
+            self.mem_size()
+        )
     }
 }

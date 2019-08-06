@@ -14,22 +14,22 @@
  * General Public License version 2 for more details.
  */
 
-use col::{Vec, String};
+use col::{String, Vec};
 use core::fmt;
 use errors::Error;
 use io::{Read, Write};
 use util;
-use vfs::{SeekMode, Seek};
+use vfs::{Seek, SeekMode};
 
 /// A reader implementation with an internal buffer.
-pub struct BufReader<R : Read> {
+pub struct BufReader<R: Read> {
     reader: R,
     buf: Vec<u8>,
     pos: usize,
     cap: usize,
 }
 
-impl<R : Read> BufReader<R> {
+impl<R: Read> BufReader<R> {
     /// Creates a new `BufReader` with the given reader.
     pub fn new(reader: R) -> Self {
         Self::with_capacity(reader, 512)
@@ -51,6 +51,7 @@ impl<R : Read> BufReader<R> {
     pub fn get_ref(&self) -> &R {
         &self.reader
     }
+
     /// Returns a mutable reference to the internal reader.
     pub fn get_mut(&mut self) -> &mut R {
         &mut self.reader
@@ -63,7 +64,7 @@ impl<R : Read> BufReader<R> {
             let mut buf = [0u8; 1];
             let len = self.read(&mut buf)?;
             if len == 0 || buf[0] == b'\n' {
-                break
+                break;
             }
 
             s.push(buf[0] as char);
@@ -73,11 +74,11 @@ impl<R : Read> BufReader<R> {
     }
 }
 
-impl<R : Read> Read for BufReader<R> {
+impl<R: Read> Read for BufReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         // read directly into user buffer, if the buffer is larger
         if buf.len() > self.buf.capacity() && self.pos == self.cap {
-            return self.reader.read(buf)
+            return self.reader.read(buf);
         }
 
         if self.pos >= self.cap {
@@ -109,18 +110,22 @@ impl<R: Read + Seek> Seek for BufReader<R> {
 
 impl<R: Read + fmt::Debug> fmt::Debug for BufReader<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BufReader[reader={:?}, pos={}, cap={}]", self.reader, self.pos, self.cap)
+        write!(
+            f,
+            "BufReader[reader={:?}, pos={}, cap={}]",
+            self.reader, self.pos, self.cap
+        )
     }
 }
 
 /// A writer implementation with an internal buffer.
-pub struct BufWriter<W : Write> {
+pub struct BufWriter<W: Write> {
     writer: W,
     buf: Vec<u8>,
     pos: usize,
 }
 
-impl<W : Write> BufWriter<W> {
+impl<W: Write> BufWriter<W> {
     /// Creates a new `BufWriter` with the given writer.
     pub fn new(writer: W) -> Self {
         Self::with_capacity(writer, 512)
@@ -141,6 +146,7 @@ impl<W : Write> BufWriter<W> {
     pub fn get_ref(&self) -> &W {
         &self.writer
     }
+
     /// Returns a mutable reference to the internal writer.
     pub fn get_mut(&mut self) -> &mut W {
         &mut self.writer
@@ -155,7 +161,7 @@ impl<W : Write> BufWriter<W> {
     }
 }
 
-impl<W : Write> Write for BufWriter<W> {
+impl<W: Write> Write for BufWriter<W> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         // write directly from user buffer, if it is larger
         if buf.len() > self.buf.len() {

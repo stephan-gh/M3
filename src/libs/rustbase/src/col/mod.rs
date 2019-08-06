@@ -16,12 +16,12 @@
 
 //! Contains various collections
 
-mod dlist;
 mod boxlist;
+mod dlist;
 mod treap;
 
-pub use self::dlist::{DList, DListIter, DListIterMut};
 pub use self::boxlist::{BoxItem, BoxList, BoxListIter, BoxListIterMut, BoxRef};
+pub use self::dlist::{DList, DListIter, DListIterMut};
 pub use self::treap::{KeyOrd, Treap};
 
 pub use ::alloc::collections::binary_heap::BinaryHeap;

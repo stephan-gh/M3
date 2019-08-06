@@ -17,17 +17,17 @@
 use cell::StaticCell;
 use core::mem;
 use io::Serial;
-use vfs::{Fd, FileRef, BufReader, BufWriter};
+use vfs::{BufReader, BufWriter, Fd, FileRef};
 use vpe::VPE;
 
 /// The file descriptor for the stanard input stream
-pub const STDIN_FILENO: Fd      = 0;
+pub const STDIN_FILENO: Fd = 0;
 /// The file descriptor for the stanard output stream
-pub const STDOUT_FILENO: Fd     = 1;
+pub const STDOUT_FILENO: Fd = 1;
 /// The file descriptor for the stanard error stream
-pub const STDERR_FILENO: Fd     = 2;
+pub const STDERR_FILENO: Fd = 2;
 
-static STDIN : StaticCell<Option<BufReader<FileRef>>> = StaticCell::new(None);
+static STDIN: StaticCell<Option<BufReader<FileRef>>> = StaticCell::new(None);
 static STDOUT: StaticCell<Option<BufWriter<FileRef>>> = StaticCell::new(None);
 static STDERR: StaticCell<Option<BufWriter<FileRef>>> = StaticCell::new(None);
 
@@ -60,20 +60,20 @@ pub(crate) fn init() {
         Some(BufWriter::new(FileRef::new(f, fd)))
     };
 
-    STDIN .set(create_in(STDIN_FILENO));
+    STDIN.set(create_in(STDIN_FILENO));
     STDOUT.set(create_out(STDOUT_FILENO));
     STDERR.set(create_out(STDERR_FILENO));
 }
 
 pub(crate) fn reinit() {
-    mem::forget(STDIN .set(None));
+    mem::forget(STDIN.set(None));
     mem::forget(STDOUT.set(None));
     mem::forget(STDERR.set(None));
     init();
 }
 
 pub(crate) fn deinit() {
-    STDIN .set(None);
+    STDIN.set(None);
     STDOUT.set(None);
     STDERR.set(None);
 }

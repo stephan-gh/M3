@@ -15,7 +15,6 @@
  */
 
 #![no_std]
-
 #![feature(const_fn)]
 #![feature(const_vec_new)]
 #![feature(core_intrinsics)]

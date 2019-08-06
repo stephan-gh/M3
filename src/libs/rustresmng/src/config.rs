@@ -67,7 +67,11 @@ impl SessionDesc {
             (parts[0].to_string(), parts[1].to_string(), String::new())
         }
         else if parts.len() == 3 {
-            (parts[0].to_string(), parts[1].to_string(), parts[2].to_string())
+            (
+                parts[0].to_string(),
+                parts[1].to_string(),
+                parts[2].to_string(),
+            )
         }
         else {
             return Err(Error::new(Code::InvArgs));
@@ -84,6 +88,7 @@ impl SessionDesc {
     pub fn serv_name(&self) -> &String {
         &self.serv
     }
+
     pub fn arg(&self) -> &String {
         &self.arg
     }
@@ -162,15 +167,16 @@ fn parse_names(line: &str) -> Result<(String, String), Error> {
 fn parse_size(s: &str) -> Result<usize, Error> {
     let mul = match s.chars().last() {
         Some(c) if c >= '0' && c <= '9' => 1,
-        Some('k') | Some('K')           => 1024,
-        Some('m') | Some('M')           => 1024 * 1024,
-        Some('g') | Some('G')           => 1024 * 1024 * 1024,
-        _                               => return Err(Error::new(Code::InvArgs)),
+        Some('k') | Some('K') => 1024,
+        Some('m') | Some('M') => 1024 * 1024,
+        Some('g') | Some('G') => 1024 * 1024 * 1024,
+        _ => return Err(Error::new(Code::InvArgs)),
     };
     let num = match mul {
         1 => s.parse::<usize>(),
-        _ => s[0 .. s.len() - 1].parse::<usize>(),
-    }.map_err(|_| Error::new(Code::InvArgs))?;
+        _ => s[0..s.len() - 1].parse::<usize>(),
+    }
+    .map_err(|_| Error::new(Code::InvArgs))?;
     Ok(num * mul)
 }
 
@@ -223,8 +229,11 @@ impl Config {
         Self::parse(cmdline, ' ', restrict)
     }
 
-    fn parse(cmdline: &str, split: char,
-             restrict: bool) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
+    fn parse(
+        cmdline: &str,
+        split: char,
+        restrict: bool,
+    ) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
         let mut res = Config {
             name: String::new(),
             kmem: 0,
@@ -278,6 +287,7 @@ impl Config {
     pub fn restrict(&self) -> bool {
         self.restrict
     }
+
     pub fn kmem(&self) -> usize {
         self.kmem
     }
@@ -285,12 +295,15 @@ impl Config {
     pub fn name(&self) -> &str {
         &self.name
     }
+
     pub fn services(&self) -> &Vec<ServiceDesc> {
         &self.services
     }
+
     pub fn sessions(&self) -> &Vec<SessionDesc> {
         &self.sessions
     }
+
     pub fn childs(&self) -> &Vec<ChildDesc> {
         &self.childs
     }
@@ -302,50 +315,64 @@ impl Config {
     pub fn get_service(&self, lname: &str) -> Option<&ServiceDesc> {
         self.services.iter().find(|s| s.local_name == *lname)
     }
+
     pub fn unreg_service(&self, gname: &str) {
         if !self.restrict {
             return;
         }
 
-        let serv = self.services.iter().find(|s| s.global_name == *gname).unwrap();
+        let serv = self
+            .services
+            .iter()
+            .find(|s| s.global_name == *gname)
+            .unwrap();
         serv.used.replace(false);
     }
 
     pub fn get_session(&self, lname: &str) -> Option<&SessionDesc> {
         self.sessions.iter().find(|s| s.local_name == *lname)
     }
+
     pub fn close_session(&self, sel: Selector) {
         if !self.restrict {
             return;
         }
 
-        let sess = self.sessions.iter().find(|s| {
-            if let Some(s) = *s.usage.borrow() {
-                s == sel
-            }
-            else {
-                false
-            }
-        }).unwrap();
+        let sess = self
+            .sessions
+            .iter()
+            .find(|s| {
+                if let Some(s) = *s.usage.borrow() {
+                    s == sel
+                }
+                else {
+                    false
+                }
+            })
+            .unwrap();
         sess.usage.replace(None);
     }
 
     pub fn get_child(&self, lname: &str) -> Option<&ChildDesc> {
         self.childs.iter().find(|c| c.local_name() == lname)
     }
+
     pub fn remove_child(&self, sel: Selector) {
         if !self.restrict {
             return;
         }
 
-        self.childs.iter().find(|c| {
-            if let Some(ref child) = *c.usage.borrow() {
-                *child == sel
-            }
-            else {
-                false
-            }
-        }).and_then(|c| c.usage.replace(None));
+        self.childs
+            .iter()
+            .find(|c| {
+                if let Some(ref child) = *c.usage.borrow() {
+                    *child == sel
+                }
+                else {
+                    false
+                }
+            })
+            .and_then(|c| c.usage.replace(None));
     }
 
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
@@ -354,12 +381,25 @@ impl Config {
             writeln!(f, "  kmem={}", self.kmem)?;
         }
         for s in &self.services {
-            writeln!(f, "{:0w$}Service[lname={}, gname={}]",
-                "", s.local_name, s.global_name, w = layer + 2)?;
+            writeln!(
+                f,
+                "{:0w$}Service[lname={}, gname={}]",
+                "",
+                s.local_name,
+                s.global_name,
+                w = layer + 2
+            )?;
         }
         for s in &self.sessions {
-            writeln!(f, "{:0w$}Session[lname={}, gname={}, arg={}]",
-                "", s.local_name, s.serv, s.arg, w = layer + 2)?;
+            writeln!(
+                f,
+                "{:0w$}Session[lname={}, gname={}, arg={}]",
+                "",
+                s.local_name,
+                s.serv,
+                s.arg,
+                w = layer + 2
+            )?;
         }
         for c in &self.childs {
             write!(f, "{:0w$}Child ", "", w = layer + 2)?;

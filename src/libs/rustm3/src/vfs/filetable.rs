@@ -17,8 +17,8 @@
 use cap::Selector;
 use cell::RefCell;
 use col::Vec;
+use com::{SliceSource, VecSink};
 use core::{fmt, mem};
-use com::{VecSink, SliceSource};
 use dtu::EpId;
 use errors::{Code, Error};
 use io::Serial;
@@ -31,9 +31,9 @@ use vpe::VPE;
 pub type Fd = usize;
 
 /// The maximum number of endpoints that can be dedicated to files.
-pub const MAX_EPS: usize    = 4;
+pub const MAX_EPS: usize = 4;
 /// The maximum number of files per [`FileTable`].
-pub const MAX_FILES: usize  = 32;
+pub const MAX_FILES: usize = 32;
 
 /// A reference to a file.
 pub type FileHandle = Rc<RefCell<dyn File>>;
@@ -73,7 +73,7 @@ impl FileTable {
     pub fn get(&self, fd: Fd) -> Option<FileHandle> {
         match self.files[fd] {
             Some(ref f) => Some(f.clone()),
-            None        => None,
+            None => None,
         }
     }
 
@@ -117,10 +117,7 @@ impl FileTable {
             if let Ok(ep) = VPE::cur().alloc_ep() {
                 for i in 0..MAX_EPS {
                     if self.file_eps[i].is_none() {
-                        log!(
-                            FILES,
-                            "FileEPs[{}] = EP:{},FD:{}", i, ep, fd
-                        );
+                        log!(FILES, "FileEPs[{}] = EP:{},FD:{}", i, ep, fd);
 
                         self.file_eps[i] = Some(FileEP { fd, ep });
                         self.file_ep_count += 1;
@@ -137,7 +134,10 @@ impl FileTable {
                 log!(
                     FILES,
                     "FileEPs[{}] = EP:{},FD: switching from {} to {}",
-                    i, fep.ep, fep.fd, fd
+                    i,
+                    fep.ep,
+                    fep.fd,
+                    fd
                 );
 
                 let file = self.files[fep.fd].as_ref().unwrap();
@@ -153,9 +153,12 @@ impl FileTable {
         Err(Error::new(Code::NoSpace))
     }
 
-    pub(crate) fn collect_caps(&self, vpe: Selector,
-                               dels: &mut Vec<Selector>,
-                               max_sel: &mut Selector) -> Result<(), Error> {
+    pub(crate) fn collect_caps(
+        &self,
+        vpe: Selector,
+        dels: &mut Vec<Selector>,
+        max_sel: &mut Selector,
+    ) -> Result<(), Error> {
         for fd in 0..MAX_FILES {
             if let Some(ref f) = self.files[fd] {
                 f.borrow().exchange_caps(vpe, dels, max_sel)?;
@@ -188,7 +191,7 @@ impl FileTable {
             ft.set(fd, match file_type {
                 b'F' => GenericFile::unserialize(s),
                 b'S' => Serial::new(),
-                _    => panic!("Unexpected file type {}", file_type),
+                _ => panic!("Unexpected file type {}", file_type),
             });
         }
 

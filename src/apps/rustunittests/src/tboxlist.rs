@@ -17,7 +17,7 @@
 use core::fmt;
 
 use m3::boxed::Box;
-use m3::col::{BoxRef, BoxList};
+use m3::col::{BoxList, BoxRef};
 use m3::test;
 
 struct TestItem {

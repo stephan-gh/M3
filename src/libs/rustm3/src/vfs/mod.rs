@@ -38,12 +38,12 @@ pub type INodeId = u32;
 pub type BlockId = u32;
 
 pub use self::bufio::{BufReader, BufWriter};
-pub use self::dir::{DirEntry, ReadDir, read_dir};
-pub use self::file::{File, FileInfo, Map, OpenFlags, SeekMode, Seek};
+pub use self::dir::{read_dir, DirEntry, ReadDir};
+pub use self::file::{File, FileInfo, Map, OpenFlags, Seek, SeekMode};
 pub use self::fileref::FileRef;
-pub use self::filesystem::{FileSystem, FSOperation};
+pub use self::filesystem::{FSOperation, FileSystem};
 pub use self::filetable::{Fd, FileHandle, FileTable};
-pub use self::genericfile::{GenericFile, GenFileOp};
+pub use self::genericfile::{GenFileOp, GenericFile};
 pub use self::indirpipe::IndirectPipe;
 pub use self::mounttable::{FSHandle, MountTable};
 

@@ -34,6 +34,7 @@ fn push_back() {
         fn pre(&mut self) {
             self.0.clear();
         }
+
         fn run(&mut self) {
             for i in 0..100 {
                 self.0.push_back(i);
@@ -41,7 +42,10 @@ fn push_back() {
         }
     }
 
-    wv_perf!("Appending 100 elements", prof.runner_with_id(&mut ListTester::default(), 0x50));
+    wv_perf!(
+        "Appending 100 elements",
+        prof.runner_with_id(&mut ListTester::default(), 0x50)
+    );
 }
 
 fn push_front() {
@@ -54,6 +58,7 @@ fn push_front() {
         fn pre(&mut self) {
             self.0.clear();
         }
+
         fn run(&mut self) {
             for i in 0..100 {
                 self.0.push_front(i);
@@ -61,7 +66,10 @@ fn push_front() {
         }
     }
 
-    wv_perf!("Prepending 100 elements", prof.runner_with_id(&mut ListTester::default(), 0x51));
+    wv_perf!(
+        "Prepending 100 elements",
+        prof.runner_with_id(&mut ListTester::default(), 0x51)
+    );
 }
 
 fn clear() {
@@ -76,10 +84,14 @@ fn clear() {
                 self.0.push_back(i);
             }
         }
+
         fn run(&mut self) {
             self.0.clear();
         }
     }
 
-    wv_perf!("Clearing 100-element list", prof.runner_with_id(&mut ListTester::default(), 0x52));
+    wv_perf!(
+        "Clearing 100-element list",
+        prof.runner_with_id(&mut ListTester::default(), 0x52)
+    );
 }

@@ -16,9 +16,9 @@
 
 //! Contains the read and write traits
 
+use col::*;
 use core::fmt;
 use core::mem::MaybeUninit;
-use col::*;
 use errors::{Code, Error};
 use util;
 
@@ -33,7 +33,9 @@ pub trait Read {
     fn read_string(&mut self, max: usize) -> Result<String, Error> {
         let mut buf = Vec::with_capacity(max);
         // increase length so that we can write into the slice
-        unsafe { buf.set_len(max); }
+        unsafe {
+            buf.set_len(max);
+        }
 
         let mut off = 0;
         while off < max {
@@ -65,7 +67,9 @@ pub trait Read {
 
             while off < cap {
                 // increase length so that we can write into the slice
-                unsafe { buf.set_len(cap); }
+                unsafe {
+                    buf.set_len(cap);
+                }
                 let count = self.read(&mut buf.as_mut_slice()[off..cap])?;
 
                 // stop on EOF
@@ -80,7 +84,9 @@ pub trait Read {
         }
 
         // set final length
-        unsafe { buf.set_len(off); }
+        unsafe {
+            buf.set_len(off);
+        }
         Ok(off - old_len)
     }
 
@@ -98,12 +104,12 @@ pub trait Read {
     fn read_exact(&mut self, mut buf: &mut [u8]) -> Result<(), Error> {
         while !buf.is_empty() {
             match self.read(buf) {
-                Err(e)  => return Err(e),
-                Ok(0)   => break,
-                Ok(n)   => {
+                Err(e) => return Err(e),
+                Ok(0) => break,
+                Ok(n) => {
                     let tmp = buf;
                     buf = &mut tmp[n..];
-                }
+                },
             }
         }
 
@@ -133,9 +139,9 @@ pub trait Write {
     fn write_all(&mut self, mut buf: &[u8]) -> Result<(), Error> {
         while !buf.is_empty() {
             match self.write(buf) {
-                Err(e)  => return Err(e),
-                Ok(0)   => return Err(Error::new(Code::WriteFailed)),
-                Ok(n)   => buf = &buf[n..],
+                Err(e) => return Err(e),
+                Ok(0) => return Err(Error::new(Code::WriteFailed)),
+                Ok(n) => buf = &buf[n..],
             }
         }
         Ok(())
@@ -157,29 +163,34 @@ pub trait Write {
                     Err(e) => {
                         self.error = Err(e);
                         Err(fmt::Error)
-                    }
+                    },
                 }
             }
         }
 
-        let mut output = Adaptor { inner: self, error: Ok(()) };
+        let mut output = Adaptor {
+            inner: self,
+            error: Ok(()),
+        };
         match fmt::write(&mut output, fmt) {
             Ok(()) => Ok(()),
             Err(..) => {
                 // check if the error came from the underlying `Write` or not
                 if output.error.is_err() {
                     output.error
-                } else {
+                }
+                else {
                     Err(Error::new(Code::WriteFailed))
                 }
-            }
+            },
         }
     }
 }
 
 /// Convenience method that reads `util::size_of::<T>()` bytes from the given source and interprets
 /// them as a `T`
-pub fn read_object<T : Sized>(r: &mut dyn Read) -> Result<T, Error> {
+pub fn read_object<T: Sized>(r: &mut dyn Read) -> Result<T, Error> {
     let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
-    r.read_exact(util::object_to_bytes_mut(&mut obj)).map(|_| obj)
+    r.read_exact(util::object_to_bytes_mut(&mut obj))
+        .map(|_| obj)
 }

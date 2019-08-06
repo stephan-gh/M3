@@ -21,7 +21,7 @@ use core::mem::MaybeUninit;
 use dtu;
 use errors::Error;
 use goff;
-use kif::{CapRngDesc, syscalls, Perm, PEDesc};
+use kif::{syscalls, CapRngDesc, PEDesc, Perm};
 use util;
 
 struct Reply<R: 'static> {
@@ -36,7 +36,13 @@ impl<R: 'static> Drop for Reply<R> {
 }
 
 fn send<T>(msg: *const T) -> Result<(), Error> {
-    dtu::DTU::send(dtu::SYSC_SEP, msg as *const u8, util::size_of::<T>(), 0, dtu::SYSC_REP)
+    dtu::DTU::send(
+        dtu::SYSC_SEP,
+        msg as *const u8,
+        util::size_of::<T>(),
+        0,
+        dtu::SYSC_REP,
+    )
 }
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
@@ -54,7 +60,7 @@ fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
             return Ok(Reply {
                 msg: m,
                 data: &data[0],
-            })
+            });
         }
     }
 }
@@ -90,7 +96,12 @@ pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> 
 
 /// Creates a new send gate at selector `dst` for receive gate `rgate` using the given label and
 /// credit amount.
-pub fn create_sgate(dst: Selector, rgate: Selector, label: dtu::Label, credits: u64) -> Result<(), Error> {
+pub fn create_sgate(
+    dst: Selector,
+    rgate: Selector,
+    label: dtu::Label,
+    credits: u64,
+) -> Result<(), Error> {
     let req = syscalls::CreateSGate {
         opcode: syscalls::Operation::CREATE_SGATE.val,
         dst_sel: u64::from(dst),
@@ -139,8 +150,14 @@ pub fn create_sess(dst: Selector, srv: Selector, ident: u64) -> Result<(), Error
 /// let mem = MemGate::new(0x2000, MemGate::RW).expect("Unable to alloc mem");
 /// syscalls::create_map(10, VPE::cur().sel(), mem.sel(), 0, 2, MemGate::RW);
 /// ```
-pub fn create_map(dst: Selector, vpe: Selector, mgate: Selector, first: Selector,
-                  pages: u32, perms: Perm) -> Result<(), Error> {
+pub fn create_map(
+    dst: Selector,
+    vpe: Selector,
+    mgate: Selector,
+    first: Selector,
+    pages: u32,
+    perms: Perm,
+) -> Result<(), Error> {
     let req = syscalls::CreateMap {
         opcode: syscalls::Operation::CREATE_MAP.val,
         dst_sel: u64::from(dst),
@@ -160,8 +177,15 @@ pub fn create_map(dst: Selector, vpe: Selector, mgate: Selector, first: Selector
 /// receive EPs to use for page fault handling. Finally, `kmem` defines the kernel memory to assign
 /// to the VPE.
 #[allow(clippy::too_many_arguments)]
-pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
-                  sep: dtu::EpId, rep: dtu::EpId, kmem: Selector) -> Result<PEDesc, Error> {
+pub fn create_vpe(
+    dst: CapRngDesc,
+    sgate: Selector,
+    name: &str,
+    pe: PEDesc,
+    sep: dtu::EpId,
+    rep: dtu::EpId,
+    kmem: Selector,
+) -> Result<PEDesc, Error> {
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
         dst_crd: dst.value(),
@@ -182,7 +206,7 @@ pub fn create_vpe(dst: CapRngDesc, sgate: Selector, name: &str, pe: PEDesc,
     let reply: Reply<syscalls::CreateVPEReply> = send_receive(&req)?;
     match reply.data.error {
         0 => Ok(PEDesc::new_from(reply.data.pe as u32)),
-        e => Err(Error::from(e as u32))
+        e => Err(Error::from(e as u32)),
     }
 }
 
@@ -191,7 +215,7 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
     let req = syscalls::CreateSem {
         opcode: syscalls::Operation::CREATE_SEM.val,
         dst_sel: u64::from(dst),
-        value: u64::from(value)
+        value: u64::from(value),
     };
     send_receive_result(&req)
 }
@@ -200,8 +224,14 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
 ///
 /// The subset of the region is given by `offset` and `size`, whereas the subset of the permissions
 /// are given by `perm`.
-pub fn derive_mem(vpe: Selector, dst: Selector, src: Selector, offset: goff,
-                  size: usize, perms: Perm) -> Result<(), Error> {
+pub fn derive_mem(
+    vpe: Selector,
+    dst: Selector,
+    src: Selector,
+    offset: goff,
+    size: usize,
+    perms: Perm,
+) -> Result<(), Error> {
     let req = syscalls::DeriveMem {
         opcode: syscalls::Operation::DERIVE_MEM.val,
         vpe_sel: u64::from(vpe),
@@ -236,7 +266,7 @@ pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
     let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&req)?;
     match reply.data.error {
         0 => Ok(reply.data.amount as usize),
-        e => Err(Error::from(e as u32))
+        e => Err(Error::from(e as u32)),
     }
 }
 
@@ -269,10 +299,10 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
     }
 
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&req)?;
-    match {reply.data.error} {
+    match { reply.data.error } {
         0 if event != 0 => Ok((0, 0)),
-        0               => Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32)),
-        e               => Err(Error::from(e as u32))
+        0 => Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32)),
+        e => Err(Error::from(e as u32)),
     }
 }
 
@@ -281,7 +311,7 @@ pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
     let req = syscalls::SemCtrl {
         opcode: syscalls::Operation::SEM_CTRL.val,
         sem_sel: u64::from(sem),
-        op: op.val
+        op: op.val,
     };
     send_receive_result(&req)
 }
@@ -290,7 +320,12 @@ pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
 ///
 /// If `obtain` is true, the capabilities `other`..`own.count()` and copied to `own`. If `obtain` is
 /// false, the capabilities `own` are copied to `other`..`own.count()`.
-pub fn exchange(vpe: Selector, own: CapRngDesc, other: Selector, obtain: bool) -> Result<(), Error> {
+pub fn exchange(
+    vpe: Selector,
+    own: CapRngDesc,
+    other: Selector,
+    obtain: bool,
+) -> Result<(), Error> {
     let req = syscalls::Exchange {
         opcode: syscalls::Operation::EXCHANGE.val,
         vpe_sel: u64::from(vpe),
@@ -306,8 +341,12 @@ pub fn exchange(vpe: Selector, own: CapRngDesc, other: Selector, obtain: bool) -
 ///
 /// The arguments are passed to the server to provide further information for the capability
 /// delegation and back to the client to provide feedback to the client.
-pub fn delegate(vpe: Selector, sess: Selector, crd: CapRngDesc,
-                args: &mut syscalls::ExchangeArgs) -> Result<(), Error> {
+pub fn delegate(
+    vpe: Selector,
+    sess: Selector,
+    crd: CapRngDesc,
+    args: &mut syscalls::ExchangeArgs,
+) -> Result<(), Error> {
     exchange_sess(vpe, syscalls::Operation::DELEGATE, sess, crd, args)
 }
 
@@ -316,13 +355,22 @@ pub fn delegate(vpe: Selector, sess: Selector, crd: CapRngDesc,
 ///
 /// The arguments are passed to the server to provide further information for the capability
 /// delegation and back to the client to provide feedback to the client.
-pub fn obtain(vpe: Selector, sess: Selector, crd: CapRngDesc,
-              args: &mut syscalls::ExchangeArgs) -> Result<(), Error> {
+pub fn obtain(
+    vpe: Selector,
+    sess: Selector,
+    crd: CapRngDesc,
+    args: &mut syscalls::ExchangeArgs,
+) -> Result<(), Error> {
     exchange_sess(vpe, syscalls::Operation::OBTAIN, sess, crd, args)
 }
 
-fn exchange_sess(vpe: Selector, op: syscalls::Operation, sess: Selector, crd: CapRngDesc,
-                 args: &mut syscalls::ExchangeArgs) -> Result<(), Error> {
+fn exchange_sess(
+    vpe: Selector,
+    op: syscalls::Operation,
+    sess: Selector,
+    crd: CapRngDesc,
+    args: &mut syscalls::ExchangeArgs,
+) -> Result<(), Error> {
     let req = syscalls::ExchangeSess {
         opcode: op.val,
         vpe_sel: u64::from(vpe),
@@ -338,7 +386,7 @@ fn exchange_sess(vpe: Selector, op: syscalls::Operation, sess: Selector, crd: Ca
 
     match reply.data.error {
         0 => Ok(()),
-        e => Err(Error::from(e as u32))
+        e => Err(Error::from(e as u32)),
     }
 }
 

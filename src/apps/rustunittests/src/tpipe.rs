@@ -15,14 +15,14 @@
  */
 
 use m3::boxed::Box;
-use m3::com::MemGate;
 use m3::col::String;
+use m3::com::MemGate;
 use m3::io::{self, Read};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test;
 use m3::vfs::IndirectPipe;
-use m3::vpe::{Activity, VPE, VPEArgs};
+use m3::vpe::{Activity, VPEArgs, VPE};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, child_to_parent);
@@ -37,7 +37,10 @@ fn child_to_parent() {
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
     let mut vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("writer")));
-    vpe.files().set(io::STDOUT_FILENO, VPE::cur().files().get(pipe.writer_fd()).unwrap());
+    vpe.files().set(
+        io::STDOUT_FILENO,
+        VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+    );
     wv_assert_ok!(vpe.obtain_fds());
 
     let act = wv_assert_ok!(vpe.run(Box::new(|| {
@@ -61,7 +64,10 @@ fn parent_to_child() {
     let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
     let mut vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("reader")));
-    vpe.files().set(io::STDIN_FILENO, VPE::cur().files().get(pipe.reader_fd()).unwrap());
+    vpe.files().set(
+        io::STDIN_FILENO,
+        VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+    );
     wv_assert_ok!(vpe.obtain_fds());
 
     let act = wv_assert_ok!(vpe.run(Box::new(|| {
@@ -88,8 +94,14 @@ fn child_to_child() {
 
     let mut writer = wv_assert_ok!(VPE::new_with(VPEArgs::new("writer")));
     let mut reader = wv_assert_ok!(VPE::new_with(VPEArgs::new("reader")));
-    writer.files().set(io::STDOUT_FILENO, VPE::cur().files().get(pipe.writer_fd()).unwrap());
-    reader.files().set(io::STDIN_FILENO, VPE::cur().files().get(pipe.reader_fd()).unwrap());
+    writer.files().set(
+        io::STDOUT_FILENO,
+        VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+    );
+    reader.files().set(
+        io::STDIN_FILENO,
+        VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+    );
     wv_assert_ok!(writer.obtain_fds());
     wv_assert_ok!(reader.obtain_fds());
 
@@ -119,8 +131,14 @@ fn exec_child_to_child() {
 
     let mut writer = wv_assert_ok!(VPE::new_with(VPEArgs::new("writer")));
     let mut reader = wv_assert_ok!(VPE::new_with(VPEArgs::new("reader")));
-    writer.files().set(io::STDOUT_FILENO, VPE::cur().files().get(pipe.writer_fd()).unwrap());
-    reader.files().set(io::STDIN_FILENO, VPE::cur().files().get(pipe.reader_fd()).unwrap());
+    writer.files().set(
+        io::STDOUT_FILENO,
+        VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+    );
+    reader.files().set(
+        io::STDIN_FILENO,
+        VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+    );
     wv_assert_ok!(writer.obtain_fds());
     wv_assert_ok!(reader.obtain_fds());
 

@@ -17,20 +17,20 @@
 use cap::Selector;
 use cell::RefCell;
 use col::Vec;
-use core::fmt;
 use com::{MemGate, RecvGate, SendGate, SliceSource, VecSink};
+use core::fmt;
 use dtu::EpId;
 use errors::{Code, Error};
 use goff;
 use io::{Read, Write};
-use kif::{CapRngDesc, CapType, INVALID_SEL, Perm, syscalls};
+use kif::{syscalls, CapRngDesc, CapType, Perm, INVALID_SEL};
 use rc::Rc;
 use serialize::Sink;
-use session::{Pager, ClientSession};
+use session::{ClientSession, Pager};
 use time;
 use util;
 use vfs::{
-    filetable, Fd, File, FileHandle, FileInfo, FSOperation, Map, OpenFlags, Seek, SeekMode, VFS
+    filetable, FSOperation, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode, VFS,
 };
 use vpe::VPE;
 
@@ -69,8 +69,13 @@ impl GenericFile {
         Self::new_without_sess(flags, 0, sel, None, Rc::new(SendGate::new_bind(sel + 1)))
     }
 
-    pub(crate) fn new_without_sess(flags: OpenFlags, id: usize, sel: Selector,
-                                   mep: Option<EpId>, sgate: Rc<SendGate>) -> Self {
+    pub(crate) fn new_without_sess(
+        flags: OpenFlags,
+        id: usize,
+        sel: Selector,
+        mep: Option<EpId>,
+        sgate: Rc<SendGate>,
+    ) -> Self {
         let mut mgate = MemGate::new_bind(INVALID_SEL);
         if let Some(ep) = mep {
             mgate.set_ep(ep);
@@ -93,13 +98,22 @@ impl GenericFile {
 
     pub(crate) fn unserialize(s: &mut SliceSource) -> FileHandle {
         let flags: u32 = s.pop();
-        Rc::new(RefCell::new(GenericFile::new(OpenFlags::from_bits_truncate(flags), s.pop())))
+        Rc::new(RefCell::new(GenericFile::new(
+            OpenFlags::from_bits_truncate(flags),
+            s.pop(),
+        )))
     }
 
     fn submit(&mut self, force: bool) -> Result<(), Error> {
         if self.pos > 0 && (self.writing || force) {
             if self.flags.contains(OpenFlags::NOSESS) {
-                send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::COMMIT, self.id, self.pos)?;
+                send_recv_res!(
+                    &self.sgate,
+                    RecvGate::def(),
+                    GenFileOp::COMMIT,
+                    self.id,
+                    self.pos
+                )?;
             }
             else {
                 send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::COMMIT, self.pos)?;
@@ -128,6 +142,7 @@ impl File for GenericFile {
     fn fd(&self) -> Fd {
         self.fd
     }
+
     fn set_fd(&mut self, fd: Fd) {
         self.fd = fd;
     }
@@ -141,7 +156,9 @@ impl File for GenericFile {
         // revoke EP cap
         let ep = self.mgate.ep().unwrap();
         let sel = VPE::cur().ep_sel(ep);
-        VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), true).ok();
+        VPE::cur()
+            .revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), true)
+            .ok();
         self.mgate.unset_ep();
     }
 
@@ -149,13 +166,21 @@ impl File for GenericFile {
         self.submit(false).ok();
 
         if self.flags.contains(OpenFlags::NOSESS) {
-            send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::CLOSE_PRIV, self.id).ok();
+            send_recv_res!(
+                &self.sgate,
+                RecvGate::def(),
+                FSOperation::CLOSE_PRIV,
+                self.id
+            )
+            .ok();
             VFS::free_ep(VPE::cur().ep_sel(self.mgate.ep().unwrap()));
         }
         else {
             if let Some(ep) = self.mgate.ep() {
                 let sel = VPE::cur().ep_sel(ep);
-                VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), true).ok();
+                VPE::cur()
+                    .revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), true)
+                    .ok();
                 VPE::cur().free_ep(ep);
             }
 
@@ -165,10 +190,7 @@ impl File for GenericFile {
     }
 
     fn stat(&self) -> Result<FileInfo, Error> {
-        let mut reply = send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            GenFileOp::STAT
-        )?;
+        let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::STAT)?;
         Ok(reply.pop())
     }
 
@@ -176,9 +198,12 @@ impl File for GenericFile {
         b'F'
     }
 
-    fn exchange_caps(&self, vpe: Selector,
-                            _dels: &mut Vec<Selector>,
-                            max_sel: &mut Selector) -> Result<(), Error> {
+    fn exchange_caps(
+        &self,
+        vpe: Selector,
+        _dels: &mut Vec<Selector>,
+        max_sel: &mut Selector,
+    ) -> Result<(), Error> {
         if self.flags.contains(OpenFlags::NOSESS) {
             return Err(Error::new(Code::NotSup));
         }
@@ -206,15 +231,26 @@ impl Seek for GenericFile {
             whence = SeekMode::SET;
         }
 
-        if whence != SeekMode::END && self.pos < self.len &&
-           off > self.goff && off < self.goff + self.len {
+        if whence != SeekMode::END
+            && self.pos < self.len
+            && off > self.goff
+            && off < self.goff + self.len
+        {
             self.pos = off - self.goff;
-            return Ok(off)
+            return Ok(off);
         }
 
         let mut reply = if self.flags.contains(OpenFlags::NOSESS) {
-            send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::SEEK, self.id, off, whence)?
-        } else {
+            send_recv_res!(
+                &self.sgate,
+                RecvGate::def(),
+                GenFileOp::SEEK,
+                self.id,
+                off,
+                whence
+            )?
+        }
+        else {
             send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::SEEK, off, whence)?
         };
 
@@ -233,10 +269,8 @@ impl Read for GenericFile {
 
         if self.pos == self.len {
             time::start(0xbbbb);
-            let mut reply = send_recv_res!(
-                &self.sgate, RecvGate::def(),
-                GenFileOp::NEXT_IN, self.id
-            )?;
+            let mut reply =
+                send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_IN, self.id)?;
             time::stop(0xbbbb);
             self.goff += self.len;
             self.off = reply.pop();
@@ -247,7 +281,8 @@ impl Read for GenericFile {
         let amount = util::min(buf.len(), self.len - self.pos);
         if amount > 0 {
             time::start(0xaaaa);
-            self.mgate.read(&mut buf[0..amount], (self.off + self.pos) as goff)?;
+            self.mgate
+                .read(&mut buf[0..amount], (self.off + self.pos) as goff)?;
             time::stop(0xaaaa);
             self.pos += amount;
         }
@@ -266,10 +301,8 @@ impl Write for GenericFile {
 
         if self.pos == self.len {
             time::start(0xbbbb);
-            let mut reply = send_recv_res!(
-                &self.sgate, RecvGate::def(),
-                GenFileOp::NEXT_OUT, self.id
-            )?;
+            let mut reply =
+                send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_OUT, self.id)?;
             time::stop(0xbbbb);
             self.goff += self.len;
             self.off = reply.pop();
@@ -280,7 +313,8 @@ impl Write for GenericFile {
         let amount = util::min(buf.len(), self.len - self.pos);
         if amount > 0 {
             time::start(0xaaaa);
-            self.mgate.write(&buf[0..amount], (self.off + self.pos) as goff)?;
+            self.mgate
+                .write(&buf[0..amount], (self.off + self.pos) as goff)?;
             time::stop(0xaaaa);
             self.pos += amount;
         }
@@ -290,7 +324,14 @@ impl Write for GenericFile {
 }
 
 impl Map for GenericFile {
-    fn map(&self, pager: &Pager, virt: goff, off: usize, len: usize, prot: Perm) -> Result<(), Error> {
+    fn map(
+        &self,
+        pager: &Pager,
+        virt: goff,
+        off: usize,
+        len: usize,
+        prot: Perm,
+    ) -> Result<(), Error> {
         // TODO maybe check here whether self is a pipe and return an error?
         pager.map_ds(virt, len, off, prot, &self.sess).map(|_| ())
     }
@@ -298,7 +339,15 @@ impl Map for GenericFile {
 
 impl fmt::Debug for GenericFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "GenFile[flags={:?}, sess={}, goff={:#x}, off={:#x}, pos={:#x}, len={:#x}]",
-            self.flags, self.sess.sel(), self.goff, self.off, self.pos, self.len)
+        write!(
+            f,
+            "GenFile[flags={:?}, sess={}, goff={:#x}, off={:#x}, pos={:#x}, len={:#x}]",
+            self.flags,
+            self.sess.sel(),
+            self.goff,
+            self.off,
+            self.pos,
+            self.len
+        )
     }
 }

@@ -15,7 +15,7 @@
  */
 
 use cap;
-use com::{SendGate, RecvGate, RGateArgs};
+use com::{RGateArgs, RecvGate, SendGate};
 use core::fmt;
 use dtu::{EpId, FIRST_FREE_EP};
 use errors::Error;
@@ -90,7 +90,9 @@ impl Pager {
         let sep = vpe.alloc_ep()?;
         let rep = vpe.alloc_ep()?;
         let rgate = if vpe.pe().has_mmu() {
-            Some(RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?)
+            Some(RecvGate::new_with(
+                RGateArgs::default().order(6).msg_order(6),
+            )?)
         }
         else {
             None
@@ -116,6 +118,7 @@ impl Pager {
     pub fn sep(&self) -> EpId {
         self.sep
     }
+
     /// Returns the endpoint used for receiving page fault replies.
     pub fn rep(&self) -> EpId {
         self.rep
@@ -125,10 +128,12 @@ impl Pager {
     pub fn parent_sgate(&self) -> &SendGate {
         &self.parent_sgate
     }
+
     /// Returns the [`SendGate`] used by the child to send page faults to the pager.
     pub fn child_sgate(&self) -> &SendGate {
         &self.child_sgate
     }
+
     /// Returns the [`RecvGate`] used to receive page fault replies.
     pub fn rgate(&self) -> Option<&RecvGate> {
         self.rgate.as_ref()
@@ -147,9 +152,11 @@ impl Pager {
             rg.deactivate();
         }
     }
+
     /// Activates the gates (necessary before starting the VPE).
     pub fn activate(&mut self, first_ep: cap::Selector) -> Result<(), Error> {
-        self.child_sgate.activate_for(first_ep + (self.sep - FIRST_FREE_EP) as cap::Selector)?;
+        self.child_sgate
+            .activate_for(first_ep + (self.sep - FIRST_FREE_EP) as cap::Selector)?;
 
         if let Some(ref mut rg) = self.rgate {
             assert!(self.rbuf != 0);
@@ -163,33 +170,45 @@ impl Pager {
     /// Performs the clone-operation on server-side using copy-on-write.
     #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Result<(), Error> {
-        send_recv_res!(
-            &self.parent_sgate, RecvGate::def(),
-            Operation::CLONE
-        ).map(|_| ())
+        send_recv_res!(&self.parent_sgate, RecvGate::def(), Operation::CLONE).map(|_| ())
     }
 
     /// Sends a page fault for the virtual address `addr` for given access type to the server.
     pub fn pagefault(&self, addr: goff, access: u32) -> Result<(), Error> {
         send_recv_res!(
-            &self.parent_sgate, RecvGate::def(),
-            Operation::PAGEFAULT, addr, access
-        ).map(|_| ())
+            &self.parent_sgate,
+            RecvGate::def(),
+            Operation::PAGEFAULT,
+            addr,
+            access
+        )
+        .map(|_| ())
     }
 
     /// Maps `len` bytes of anonymous memory to virtual address `addr` with permissions `prot`.
     pub fn map_anon(&self, addr: goff, len: usize, prot: kif::Perm) -> Result<goff, Error> {
         let mut reply = send_recv_res!(
-            &self.parent_sgate, RecvGate::def(),
-            Operation::MAP_ANON, addr, len, prot.bits(), 0
+            &self.parent_sgate,
+            RecvGate::def(),
+            Operation::MAP_ANON,
+            addr,
+            len,
+            prot.bits(),
+            0
         )?;
         Ok(reply.pop())
     }
 
     /// Maps a dataspace of `len` bytes handled by given session to virtual address `addr` with
     /// permissions `prot`.
-    pub fn map_ds(&self, addr: goff, len: usize, off: usize, prot: kif::Perm,
-                  sess: &ClientSession) -> Result<goff, Error> {
+    pub fn map_ds(
+        &self,
+        addr: goff,
+        len: usize,
+        off: usize,
+        prot: kif::Perm,
+        sess: &ClientSession,
+    ) -> Result<goff, Error> {
         let mut args = kif::syscalls::ExchangeArgs {
             count: 5,
             vals: kif::syscalls::ExchangeUnion {
@@ -199,30 +218,32 @@ impl Pager {
                     len as u64,
                     u64::from(prot.bits()),
                     off as u64,
-                    0, 0, 0
-                ]
+                    0,
+                    0,
+                    0,
+                ],
             },
         };
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sess.sel(), 1);
         self.sess.delegate(crd, &mut args)?;
-        unsafe {
-            Ok(args.vals.i[0] as goff)
-        }
+        unsafe { Ok(args.vals.i[0] as goff) }
     }
 
     /// Unaps the mapping at virtual address `addr`.
     pub fn unmap(&self, addr: goff) -> Result<(), Error> {
-        send_recv_res!(
-            &self.parent_sgate, RecvGate::def(),
-            Operation::UNMAP, addr
-        ).map(|_| ())
+        send_recv_res!(&self.parent_sgate, RecvGate::def(), Operation::UNMAP, addr).map(|_| ())
     }
 }
 
 impl fmt::Debug for Pager {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "Pager[sel: {}, rep: {}, sep: {}]",
-            self.sel(), self.rep, self.parent_sgate.ep().unwrap())
+        write!(
+            f,
+            "Pager[sel: {}, rep: {}, sep: {}]",
+            self.sel(),
+            self.rep,
+            self.parent_sgate.ep().unwrap()
+        )
     }
 }

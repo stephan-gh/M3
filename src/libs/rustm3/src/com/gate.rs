@@ -52,6 +52,7 @@ impl Gate {
     pub fn flags(&self) -> CapFlags {
         self.cap.flags()
     }
+
     pub(crate) fn set_flags(&mut self, flags: CapFlags) {
         self.cap.set_flags(flags);
     }
@@ -65,6 +66,7 @@ impl Gate {
         self.ep.set(Some(ep));
         EpMux::get().set_owned(ep, self.sel());
     }
+
     pub(crate) fn unset_ep(&self) {
         if let Some(ep) = self.ep() {
             EpMux::get().unset_owned(ep);
@@ -83,7 +85,7 @@ impl Gate {
         // genericfile), we have to mark it owned in EpMux. That's why we set/unset it owned above.
         match self.ep() {
             Some(ep) if EpMux::get().ep_owned_by(ep, self.sel()) => Ok(ep),
-            _                                                    => EpMux::get().switch_to(self),
+            _ => EpMux::get().switch_to(self),
         }
     }
 

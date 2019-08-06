@@ -20,7 +20,7 @@ use col::Vec;
 use errors::{Code, Error};
 use rc::Rc;
 use session::M3FS;
-use vfs::{FileInfo, FileMode, FileRef, FSHandle, OpenFlags};
+use vfs::{FSHandle, FileInfo, FileMode, FileRef, OpenFlags};
 use vpe::VPE;
 
 struct ResEps {
@@ -43,6 +43,7 @@ impl ResEps {
     pub fn has_ep(&self, ep: Selector) -> bool {
         ep >= self.sel && ep < self.sel + self.count
     }
+
     pub fn alloc_ep(&mut self) -> Option<Selector> {
         for i in 0..self.count {
             if self.used & (1 << i) == 0 {
@@ -52,6 +53,7 @@ impl ResEps {
         }
         None
     }
+
     pub fn free_ep(&mut self, ep: Selector) {
         self.used &= !(1 << (ep - self.sel));
     }
@@ -66,7 +68,9 @@ static RES_EPS: StaticCell<Vec<ResEps>> = StaticCell::new(Vec::new());
 pub fn delegate_eps(path: &str, first: Selector, count: u32) -> Result<(), Error> {
     with_path(path, |fs, _| {
         fs.borrow_mut().delegate_eps(first, count)?;
-        RES_EPS.get_mut().push(ResEps::new(fs.clone(), first, count));
+        RES_EPS
+            .get_mut()
+            .push(ResEps::new(fs.clone(), first, count));
         Ok(())
     })
 }
@@ -95,7 +99,7 @@ pub(crate) fn free_ep(ep: Selector) {
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {
     let fsobj = match fstype {
         "m3fs" => M3FS::new(service)?,
-        _      => return Err(Error::new(Code::InvArgs)),
+        _ => return Err(Error::new(Code::InvArgs)),
     };
     VPE::cur().mounts().add(path, fsobj)
 }
@@ -106,7 +110,9 @@ pub fn unmount(path: &str) -> Result<(), Error> {
 }
 
 fn with_path<F, R>(path: &str, func: F) -> Result<R, Error>
-                   where F : Fn(&FSHandle, usize) -> Result<R, Error> {
+where
+    F: Fn(&FSHandle, usize) -> Result<R, Error>,
+{
     let (fs, pos) = VPE::cur().mounts().resolve(path)?;
     func(&fs, pos)
 }
@@ -121,23 +127,17 @@ pub fn open(path: &str, flags: OpenFlags) -> Result<FileRef, Error> {
 
 /// Retrieves the file information from the file at `path`.
 pub fn stat(path: &str) -> Result<FileInfo, Error> {
-    with_path(path, |fs, pos| {
-        fs.borrow().stat(&path[pos..])
-    })
+    with_path(path, |fs, pos| fs.borrow().stat(&path[pos..]))
 }
 
 /// Creates a directory with permissions `mode` at `path`.
 pub fn mkdir(path: &str, mode: FileMode) -> Result<(), Error> {
-    with_path(path, |fs, pos| {
-        fs.borrow().mkdir(&path[pos..], mode)
-    })
+    with_path(path, |fs, pos| fs.borrow().mkdir(&path[pos..], mode))
 }
 
 /// Removes the directory at `path`, if it is empty.
 pub fn rmdir(path: &str) -> Result<(), Error> {
-    with_path(path, |fs, pos| {
-        fs.borrow().rmdir(&path[pos..])
-    })
+    with_path(path, |fs, pos| fs.borrow().rmdir(&path[pos..]))
 }
 
 /// Creates a link at `new` to `old`.
@@ -145,7 +145,7 @@ pub fn link(old: &str, new: &str) -> Result<(), Error> {
     let (fs1, pos1) = VPE::cur().mounts().resolve(old)?;
     let (fs2, pos2) = VPE::cur().mounts().resolve(new)?;
     if !Rc::ptr_eq(&fs1, &fs2) {
-        return Err(Error::new(Code::XfsLink))
+        return Err(Error::new(Code::XfsLink));
     }
     #[allow(clippy::let_and_return)] // is required because of fs1.borrow()'s lifetime
     let res = fs1.borrow().link(&old[pos1..], &new[pos2..]);
@@ -154,7 +154,5 @@ pub fn link(old: &str, new: &str) -> Result<(), Error> {
 
 /// Removes the file at `path`.
 pub fn unlink(path: &str) -> Result<(), Error> {
-    with_path(path, |fs, pos| {
-        fs.borrow().unlink(&path[pos..])
-    })
+    with_path(path, |fs, pos| fs.borrow().unlink(&path[pos..]))
 }

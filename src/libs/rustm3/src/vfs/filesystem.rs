@@ -20,7 +20,7 @@ use com::VecSink;
 use core::any::Any;
 use core::fmt;
 use errors::Error;
-use vfs::{OpenFlags, FileHandle, FileInfo, FileMode};
+use vfs::{FileHandle, FileInfo, FileMode, OpenFlags};
 
 int_enum! {
     /// The file system operations.
@@ -36,7 +36,7 @@ int_enum! {
 }
 
 /// Trait for file systems.
-pub trait FileSystem : fmt::Debug {
+pub trait FileSystem: fmt::Debug {
     /// Returns an [`Any`] reference to downcast to the actual implementation of `FileSystem`.
     fn as_any(&self) -> &dyn Any;
 
@@ -59,9 +59,12 @@ pub trait FileSystem : fmt::Debug {
     /// Returns the type of the file system implementation used for serialization.
     fn fs_type(&self) -> u8;
     /// Exchanges the capabilities to provide `vpe` access to the file system.
-    fn exchange_caps(&self, vpe: Selector,
-                            dels: &mut Vec<Selector>,
-                            max_sel: &mut Selector) -> Result<(), Error>;
+    fn exchange_caps(
+        &self,
+        vpe: Selector,
+        dels: &mut Vec<Selector>,
+        max_sel: &mut Selector,
+    ) -> Result<(), Error>;
     /// Serializes this file system into `s`.
     fn serialize(&self, s: &mut VecSink);
 

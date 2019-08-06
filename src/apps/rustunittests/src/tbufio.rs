@@ -15,8 +15,8 @@
  */
 
 use m3::col::String;
-use m3::test;
 use m3::io::{Read, Write};
+use m3::test;
 use m3::vfs::{BufReader, BufWriter, OpenFlags, VFS};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -28,7 +28,11 @@ fn read_write() {
         let file = wv_assert_ok!(VFS::open("/myfile", OpenFlags::CREATE | OpenFlags::W));
         let mut bfile = BufWriter::new(file);
 
-        wv_assert_ok!(write!(bfile, "This {:.3} is the {}th test of {:#0X}!\n", "foobar", 42, 0xAB_CDEF));
+        wv_assert_ok!(write!(
+            bfile,
+            "This {:.3} is the {}th test of {:#0X}!\n",
+            "foobar", 42, 0xAB_CDEF
+        ));
     }
 
     {

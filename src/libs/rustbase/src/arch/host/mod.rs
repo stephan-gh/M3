@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+#[rustfmt::skip]
 pub mod cfg;
 pub mod dtu;
 pub mod envdata;

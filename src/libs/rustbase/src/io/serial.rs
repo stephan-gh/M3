@@ -24,8 +24,7 @@ use io;
 use rc::Rc;
 
 /// The serial line
-pub struct Serial {
-}
+pub struct Serial {}
 
 impl Serial {
     /// Creates a new serial line

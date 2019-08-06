@@ -14,58 +14,58 @@
  * General Public License version 2 for more details.
  */
 
+use arch;
 use cfg;
 use core::intrinsics;
-use arch;
 use errors::Error;
 use goff;
 use kif::PEDesc;
 use util;
 
 /// A DTU register
-pub type Reg    = u64;
+pub type Reg = u64;
 /// An endpoint id
-pub type EpId   = usize;
+pub type EpId = usize;
 /// A DTU label used in send EPs
-pub type Label  = u64;
+pub type Label = u64;
 /// A PE id
-pub type PEId   = usize;
+pub type PEId = usize;
 
 /// The number of endpoints in each DTU
-pub const EP_COUNT: EpId        = 16;
+pub const EP_COUNT: EpId = 16;
 
 /// The send EP for system calls
-pub const SYSC_SEP: EpId        = 0;
+pub const SYSC_SEP: EpId = 0;
 /// The receive EP for system calls
-pub const SYSC_REP: EpId        = 1;
+pub const SYSC_REP: EpId = 1;
 /// The receive EP for upcalls from the kernel
-pub const UPCALL_REP: EpId      = 2;
+pub const UPCALL_REP: EpId = 2;
 /// The default receive EP
-pub const DEF_REP: EpId         = 3;
+pub const DEF_REP: EpId = 3;
 /// The first free EP id
-pub const FIRST_FREE_EP: EpId   = 4;
+pub const FIRST_FREE_EP: EpId = 4;
 
 /// The base address of the DTU's MMIO area
-pub const BASE_ADDR: usize      = 0xF000_0000;
+pub const BASE_ADDR: usize = 0xF000_0000;
 /// The base address of the DTU's MMIO area for external requests
-pub const BASE_REQ_ADDR: usize  = BASE_ADDR + cfg::PAGE_SIZE;
+pub const BASE_REQ_ADDR: usize = BASE_ADDR + cfg::PAGE_SIZE;
 /// The number of DTU registers
-pub const DTU_REGS: usize       = 10;
+pub const DTU_REGS: usize = 10;
 // const REQ_REGS: usize        = 3;
 /// The number of command registers
-pub const CMD_REGS: usize       = 5;
+pub const CMD_REGS: usize = 5;
 /// The number of registers per EP
-pub const EP_REGS: usize        = 3;
+pub const EP_REGS: usize = 3;
 /// The number of headers per DTU
-pub const HEADER_COUNT: usize   = 128;
+pub const HEADER_COUNT: usize = 128;
 /// The number of registers per header
-pub const HEADER_REGS: usize    = 2;
+pub const HEADER_REGS: usize = 2;
 
 /// Represents unlimited credits
-pub const CREDITS_UNLIM: u64    = 0xFFFF;
+pub const CREDITS_UNLIM: u64 = 0xFFFF;
 
 // actual max is 64k - 1; use less for better alignment
-const MAX_PKT_SIZE: usize       = 60 * 1024;
+const MAX_PKT_SIZE: usize = 60 * 1024;
 
 int_enum! {
     /// The DTU registers
@@ -253,11 +253,11 @@ bitflags! {
 #[repr(C, packed)]
 #[derive(Copy, Clone, Default, Debug)]
 pub struct ReplyHeader {
-    pub flags: u8,      // if bit 0 is set its a reply, if bit 1 is set we grant credits
+    pub flags: u8, // if bit 0 is set its a reply, if bit 1 is set we grant credits
     pub sender_pe: u8,
     pub sender_ep: u8,
-    pub reply_ep: u8,   // for a normal message this is the reply epId
-                        // for a reply this is the enpoint that receives credits
+    pub reply_ep: u8, // for a normal message this is the reply epId
+    // for a reply this is the enpoint that receives credits
     pub length: u16,
     pub sender_vpe_id: u16,
 
@@ -289,8 +289,7 @@ pub struct Message {
 }
 
 /// The DTU interface
-pub struct DTU {
-}
+pub struct DTU {}
 
 impl DTU {
     /// Sends `msg[0..size]` via given endpoint.
@@ -303,14 +302,21 @@ impl DTU {
     /// If the number of left credits is not sufficient, the function returns (`Code::MISS_CREDITS`).
     /// If the receiver is suspended, the function returns (`Code::VPE_GONE`).
     #[inline(always)]
-    pub fn send(ep: EpId, msg: *const u8, size: usize, reply_lbl: Label, reply_ep: EpId) -> Result<(), Error> {
+    pub fn send(
+        ep: EpId,
+        msg: *const u8,
+        size: usize,
+        reply_lbl: Label,
+        reply_ep: EpId,
+    ) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(msg, size));
         if reply_lbl != 0 {
             Self::write_cmd_reg(CmdReg::REPLY_LABEL, reply_lbl);
         }
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(
-            ep, CmdOpCode::SEND, 0, reply_ep as Reg
-        ));
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(ep, CmdOpCode::SEND, 0, reply_ep as Reg),
+        );
 
         Self::get_error()
     }
@@ -321,12 +327,18 @@ impl DTU {
     ///
     /// If the receiver is suspended, the function returns (`Code::VPE_GONE`).
     #[inline(always)]
-    pub fn reply(ep: EpId, reply: *const u8, size: usize, msg: &'static Message) -> Result<(), Error> {
+    pub fn reply(
+        ep: EpId,
+        reply: *const u8,
+        size: usize,
+        msg: &'static Message,
+    ) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(reply, size));
         let msg_addr = msg as *const Message as *const u8 as usize;
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(
-            ep, CmdOpCode::REPLY, 0, msg_addr as Reg
-        ));
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(ep, CmdOpCode::REPLY, 0, msg_addr as Reg),
+        );
 
         Self::get_error()
     }
@@ -338,7 +350,13 @@ impl DTU {
     /// # Errors
     ///
     /// If the receiver is suspended, the function returns (`Code::VPE_GONE`).
-    pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff, flags: CmdFlags) -> Result<(), Error> {
+    pub fn read(
+        ep: EpId,
+        data: *mut u8,
+        size: usize,
+        off: goff,
+        flags: CmdFlags,
+    ) -> Result<(), Error> {
         let cmd = Self::build_cmd(ep, CmdOpCode::READ, flags.bits(), 0);
         let res = Self::transfer(cmd, data as usize, size, off);
         unsafe { intrinsics::atomic_fence() };
@@ -352,7 +370,13 @@ impl DTU {
     /// # Errors
     ///
     /// If the receiver is suspended, the function returns (`Code::VPE_GONE`).
-    pub fn write(ep: EpId, data: *const u8, size: usize, off: goff, flags: CmdFlags) -> Result<(), Error> {
+    pub fn write(
+        ep: EpId,
+        data: *const u8,
+        size: usize,
+        off: goff,
+        flags: CmdFlags,
+    ) -> Result<(), Error> {
         let cmd = Self::build_cmd(ep, CmdOpCode::WRITE, flags.bits(), 0);
         Self::transfer(cmd, data as usize, size, off)
     }
@@ -378,7 +402,10 @@ impl DTU {
     /// Tries to fetch a new message from the given endpoint.
     #[inline(always)]
     pub fn fetch_msg(ep: EpId) -> Option<&'static Message> {
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0, 0));
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0, 0),
+        );
         unsafe { intrinsics::atomic_fence() };
         let msg = Self::read_cmd_reg(CmdReg::OFFSET);
         if msg != 0 {
@@ -397,7 +424,10 @@ impl DTU {
     pub fn fetch_events() -> Reg {
         let old = Self::read_dtu_reg(DtuReg::EVENTS);
         if old != 0 {
-            Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(0, CmdOpCode::ACK_EVENTS, 0, old));
+            Self::write_cmd_reg(
+                CmdReg::COMMAND,
+                Self::build_cmd(0, CmdOpCode::ACK_EVENTS, 0, old),
+            );
         }
         old
     }
@@ -413,7 +443,10 @@ impl DTU {
     #[inline(always)]
     pub fn mark_read(ep: EpId, msg: &Message) {
         let off = (msg as *const Message) as *const u8 as usize as Reg;
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(ep, CmdOpCode::ACK_MSG, 0, off));
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(ep, CmdOpCode::ACK_MSG, 0, off),
+        );
     }
 
     /// Waits until the current command is completed and returns the error, if any occurred
@@ -428,7 +461,7 @@ impl DTU {
                 }
                 else {
                     Err(Error::from(err as u32))
-                }
+                };
             }
         }
     }
@@ -437,10 +470,15 @@ impl DTU {
     /// kernel is notified about it, if required.
     #[inline(always)]
     pub fn try_sleep(_yield: bool, cycles: u64) -> Result<(), Error> {
-        let num = if PEDesc::new_from(arch::envdata::get().pe_desc).has_mmu() { 2 } else { 100 };
+        let num = if PEDesc::new_from(arch::envdata::get().pe_desc).has_mmu() {
+            2
+        }
+        else {
+            100
+        };
         for _ in 0..num {
             if (Self::read_dtu_reg(DtuReg::EVENTS) & EventMask::MSG_RECV.bits) != 0 {
-                return Ok(())
+                return Ok(());
             }
         }
 
@@ -453,7 +491,10 @@ impl DTU {
     /// reception).
     #[inline(always)]
     pub fn sleep(cycles: u64) -> Result<(), Error> {
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(0, CmdOpCode::SLEEP, 0, cycles));
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(0, CmdOpCode::SLEEP, 0, cycles),
+        );
         Self::get_error()
     }
 
@@ -470,16 +511,20 @@ impl DTU {
             buffer += 8;
         }
 
-        Self::write_cmd_reg(CmdReg::COMMAND,
-                            Self::build_cmd(0, CmdOpCode::PRINT, 0, s.len() as u64));
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(0, CmdOpCode::PRINT, 0, s.len() as u64),
+        );
     }
 
     fn read_dtu_reg(reg: DtuReg) -> Reg {
         Self::read_reg(reg.val as usize)
     }
+
     fn read_cmd_reg(reg: CmdReg) -> Reg {
         Self::read_reg(DTU_REGS + reg.val as usize)
     }
+
     fn read_ep_reg(ep: EpId, reg: usize) -> Reg {
         Self::read_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + reg)
     }

@@ -14,8 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-use core::ops::Deref;
 use core::fmt;
+use core::ops::Deref;
 use errors::Error;
 use goff;
 use io::{Read, Write};
@@ -42,6 +42,7 @@ impl FileRef {
     pub fn fd(&self) -> Fd {
         self.fd
     }
+
     /// Returns the file.
     pub fn handle(&self) -> FileHandle {
         self.file.clone()
@@ -72,6 +73,7 @@ impl Write for FileRef {
     fn flush(&mut self) -> Result<(), Error> {
         self.file.borrow_mut().flush()
     }
+
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.file.borrow_mut().write(buf)
     }
@@ -84,7 +86,14 @@ impl Seek for FileRef {
 }
 
 impl Map for FileRef {
-    fn map(&self, pager: &Pager, virt: goff, off: usize, len: usize, prot: kif::Perm) -> Result<(), Error> {
+    fn map(
+        &self,
+        pager: &Pager,
+        virt: goff,
+        off: usize,
+        len: usize,
+        prot: kif::Perm,
+    ) -> Result<(), Error> {
         self.file.borrow().map(pager, virt, off, len, prot)
     }
 }

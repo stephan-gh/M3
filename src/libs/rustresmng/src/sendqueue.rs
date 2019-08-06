@@ -16,7 +16,7 @@
 
 use m3::cell::StaticCell;
 use m3::col::{DList, String, Vec};
-use m3::com::{RecvGate, RGateArgs, SendGate};
+use m3::com::{RGateArgs, RecvGate, SendGate};
 use m3::dtu;
 use m3::errors::Error;
 use thread;
@@ -53,7 +53,7 @@ static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
 
 fn alloc_qid() -> u64 {
     static NEXT_ID: StaticCell<u64> = StaticCell::new(0);
-    NEXT_ID.set(*NEXT_ID +  1);
+    NEXT_ID.set(*NEXT_ID + 1);
     *NEXT_ID
 }
 
@@ -62,9 +62,8 @@ fn get_event(id: u64) -> thread::Event {
 }
 
 pub fn init() {
-    let mut rgate = RecvGate::new_with(
-        RGateArgs::default().order(11).msg_order(6)
-    ).expect("Unable to create service rgate");
+    let mut rgate = RecvGate::new_with(RGateArgs::default().order(11).msg_order(6))
+        .expect("Unable to create service rgate");
     rgate.activate().expect("Unable to activate service rgate");
 
     RGATE.set(Some(rgate));
@@ -95,7 +94,11 @@ impl SendQueue {
     }
 
     pub fn send(&mut self, msg: &[u8]) -> Result<thread::Event, Error> {
-        log!(RESMNG_SQUEUE, "{}:squeue: trying to send msg", self.serv_name());
+        log!(
+            RESMNG_SQUEUE,
+            "{}:squeue: trying to send msg",
+            self.serv_name()
+        );
 
         if self.state == QState::Idle {
             return self.do_send(alloc_qid(), msg);
@@ -132,15 +135,19 @@ impl SendQueue {
     fn send_pending(&mut self) {
         loop {
             match self.queue.pop_front() {
-                None    => return,
+                None => return,
 
                 Some(e) => {
-                    log!(RESMNG_SQUEUE, "{}:squeue: found pending message", self.serv_name());
+                    log!(
+                        RESMNG_SQUEUE,
+                        "{}:squeue: found pending message",
+                        self.serv_name()
+                    );
 
                     if self.do_send(e.id, &e.msg).is_ok() {
                         break;
                     }
-                }
+                },
             }
         }
     }
@@ -152,7 +159,8 @@ impl SendQueue {
         self.state = QState::Waiting;
 
         let rgate = &RGATE.get().as_ref().unwrap();
-        self.sgate.send_with_rlabel(msg, rgate, dtu::Label::from(self.sid))?;
+        self.sgate
+            .send_with_rlabel(msg, rgate, dtu::Label::from(self.sid))?;
 
         Ok(self.cur_event)
     }

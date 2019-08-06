@@ -17,41 +17,41 @@
 //! Contains the logger
 
 use arch;
-use cell::{StaticCell, RefCell};
+use cell::{RefCell, StaticCell};
 use env;
 use errors::Error;
-use rc::Rc;
 use io::{Serial, Write};
+use rc::Rc;
 
 /// Default log message type
-pub const DEF: bool     = true;
+pub const DEF: bool = true;
 /// Logs heap operations
-pub const HEAP: bool    = false;
+pub const HEAP: bool = false;
 /// Logs file system operations
-pub const FS: bool      = false;
+pub const FS: bool = false;
 /// Logs server operations
-pub const SERV: bool    = false;
+pub const SERV: bool = false;
 /// Logs DTU operations (only on host)
-pub const DTU: bool     = false;
+pub const DTU: bool = false;
 /// Logs thread switching etc.
-pub const THREAD: bool  = false;
+pub const THREAD: bool = false;
 /// Logs file multiplexing
-pub const FILES: bool   = false;
+pub const FILES: bool = false;
 /// Logs vterm operations
-pub const VTERM: bool   = false;
+pub const VTERM: bool = false;
 
 /// Logs general operations of the resource manager
-pub const RESMNG: bool        = true;
+pub const RESMNG: bool = true;
 /// Logs parsed configs
-pub const RESMNG_CFG: bool    = true;
+pub const RESMNG_CFG: bool = true;
 /// Logs child operations
-pub const RESMNG_CHILD: bool  = false;
+pub const RESMNG_CHILD: bool = false;
 /// Logs semaphore operations
-pub const RESMNG_SEM: bool    = false;
+pub const RESMNG_SEM: bool = false;
 /// Logs service operations
-pub const RESMNG_SERV: bool   = false;
+pub const RESMNG_SERV: bool = false;
 /// Logs memory operations
-pub const RESMNG_MEM: bool    = false;
+pub const RESMNG_MEM: bool = false;
 /// Logs sendqueue operations
 pub const RESMNG_SQUEUE: bool = false;
 
@@ -103,7 +103,7 @@ impl Log {
         let name = env::args().nth(0).unwrap_or("Unknown");
         let begin = match name.rfind('/') {
             Some(b) => b + 1,
-            None    => 0,
+            None => 0,
         };
 
         self.pos = 0;
@@ -113,7 +113,8 @@ impl Log {
             colors[(pe_id as usize) % colors.len()],
             &name[begin..],
             pe_id
-        )).unwrap();
+        ))
+        .unwrap();
         self.start_pos = self.pos;
     }
 }

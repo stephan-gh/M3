@@ -25,21 +25,21 @@ use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::col::{String, ToString, Vec};
-use m3::com::{GateIStream, RecvGate, RGateArgs, SendGate, SGateArgs};
+use m3::com::{GateIStream, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
 use m3::session::{ResMng, ResMngOperation};
-use m3::vpe::{DefaultMapper, VPE, VPEArgs};
-use m3::vfs::{VFS, OpenFlags};
+use m3::vfs::{OpenFlags, VFS};
+use m3::vpe::{DefaultMapper, VPEArgs, VPE};
 
 use resmng::childs::{Child, Id};
-use resmng::{config, childs, sendqueue, services};
+use resmng::{childs, config, sendqueue, services};
 
-const MAX_CAPS: Selector                        = 1_000_000;
-const MAX_CHILDS: Selector                      = 20;
+const MAX_CAPS: Selector = 1_000_000;
+const MAX_CHILDS: Selector = 20;
 
 struct ChildCaps {
     used: u64,
@@ -47,9 +47,7 @@ struct ChildCaps {
 
 impl ChildCaps {
     const fn new() -> Self {
-        ChildCaps {
-            used: 0,
-        }
+        ChildCaps { used: 0 }
     }
 
     fn alloc(&mut self) -> Result<Id, Error> {
@@ -61,14 +59,15 @@ impl ChildCaps {
         }
         Err(Error::new(Code::NoSpace))
     }
+
     fn free(&mut self, id: Id) {
         self.used &= !(1 << id);
     }
 }
 
-static CHILD_CAPS: StaticCell<ChildCaps>        = StaticCell::new(ChildCaps::new());
-static BASE_SEL: StaticCell<Selector>           = StaticCell::new(0);
-static RGATE: StaticCell<Option<RecvGate>>      = StaticCell::new(None);
+static CHILD_CAPS: StaticCell<ChildCaps> = StaticCell::new(ChildCaps::new());
+static BASE_SEL: StaticCell<Selector> = StaticCell::new(0);
+static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
 
 fn req_rgate() -> &'static RecvGate {
     RGATE.get().as_ref().unwrap()
@@ -80,8 +79,9 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
             log!(RESMNG, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
-        Ok(_)  => reply_vmsg!(is, 0 as u64),
-    }.expect("Unable to reply");
+        Ok(_) => reply_vmsg!(is, 0 as u64),
+    }
+    .expect("Unable to reply");
 }
 
 fn xlate_sel(id: Id, sel: Selector) -> Result<Selector, Error> {
@@ -116,8 +116,8 @@ fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error
     // first check our service list
     let res = services::get().open_session(child, dst_sel, &name);
     match res {
-        Ok(_)   => Ok(()),
-        Err(_)  => {
+        Ok(_) => Ok(()),
+        Err(_) => {
             // if that failed, ask our resource manager
             let our_sel = xlate_sel(child.id(), dst_sel)?;
             VPE::cur().resmng().open_sess(our_sel, &name)?;
@@ -131,7 +131,7 @@ fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Erro
 
     let res = services::get().close_session(child, sel);
     match res {
-        Ok(_)  => Ok(()),
+        Ok(_) => Ok(()),
         Err(_) => {
             let our_sel = xlate_sel(child.id(), sel)?;
             VPE::cur().resmng().close_sess(our_sel)
@@ -167,8 +167,15 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let size: usize = is.pop();
     let perms = kif::Perm::from_bits_truncate(is.pop::<u8>());
 
-    log!(RESMNG_MEM, "{}: allocate(dst_sel={}, addr={:#x}, size={:#x}, perm={:?})",
-         child.name(), dst_sel, addr, size, perms);
+    log!(
+        RESMNG_MEM,
+        "{}: allocate(dst_sel={}, addr={:#x}, size={:#x}, perm={:?})",
+        child.name(),
+        dst_sel,
+        addr,
+        size,
+        perms
+    );
 
     // forward memory requests to our resource manager
     let our_sel = xlate_sel(child.id(), dst_sel)?;
@@ -189,22 +196,24 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 
 fn handle_request(mut is: GateIStream) {
     let op: ResMngOperation = is.pop();
-    let child = childs::get().child_by_id_mut(is.label() as childs::Id).unwrap();
+    let child = childs::get()
+        .child_by_id_mut(is.label() as childs::Id)
+        .unwrap();
 
     let res = match op {
-        ResMngOperation::REG_SERV    => reg_serv(&mut is, child),
-        ResMngOperation::UNREG_SERV  => unreg_serv(&mut is, child),
+        ResMngOperation::REG_SERV => reg_serv(&mut is, child),
+        ResMngOperation::UNREG_SERV => unreg_serv(&mut is, child),
 
-        ResMngOperation::OPEN_SESS   => open_session(&mut is, child),
-        ResMngOperation::CLOSE_SESS  => close_session(&mut is, child),
+        ResMngOperation::OPEN_SESS => open_session(&mut is, child),
+        ResMngOperation::CLOSE_SESS => close_session(&mut is, child),
 
-        ResMngOperation::ADD_CHILD   => add_child(&mut is, child),
-        ResMngOperation::REM_CHILD   => rem_child(&mut is, child),
+        ResMngOperation::ADD_CHILD => add_child(&mut is, child),
+        ResMngOperation::REM_CHILD => rem_child(&mut is, child),
 
-        ResMngOperation::ALLOC_MEM   => alloc_mem(&mut is, child),
-        ResMngOperation::FREE_MEM    => free_mem(&mut is, child),
+        ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
+        ResMngOperation::FREE_MEM => free_mem(&mut is, child),
 
-        _                            => unreachable!(),
+        _ => unreachable!(),
     };
     reply_result(&mut is, res);
 }
@@ -260,37 +269,45 @@ pub fn main() -> i32 {
 
     let mut rgate = RecvGate::new_with(RGateArgs::default().order(12).msg_order(8))
         .expect("Unable to create RecvGate");
-    rgate.activate()
-        .expect("Unable to activate RecvGate");
+    rgate.activate().expect("Unable to activate RecvGate");
 
-    let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256))
-        .expect("Unable to create SendGate");
+    let sgate =
+        SendGate::new_with(SGateArgs::new(&rgate).credits(256)).expect("Unable to create SendGate");
     RGATE.set(Some(rgate));
 
-    let args = env::args().skip(1).map(|s| s.to_string()).collect::<Vec<String>>();
+    let args = env::args()
+        .skip(1)
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>();
     let name = args[0].clone();
 
     let mut vpe = VPE::new_with(
-        VPEArgs::new(&name).resmng(ResMng::new(sgate)).pager("pager")
-    ).expect("Unable to create VPE");
+        VPEArgs::new(&name)
+            .resmng(ResMng::new(sgate))
+            .pager("pager"),
+    )
+    .expect("Unable to create VPE");
 
-    let (_, _, cfg) = config::Config::new(&args[0], false)
-        .expect("Unable to parse config");
+    let (_, _, cfg) = config::Config::new(&args[0], false).expect("Unable to parse config");
     let mut child = childs::OwnChild::new(0, args, false, VPE::cur().kmem().clone(), cfg);
     childs::get().set_next_id(1);
 
-    vpe.mounts().add("/", VPE::cur().mounts().get_by_path("/").unwrap()).unwrap();
+    vpe.mounts()
+        .add("/", VPE::cur().mounts().get_by_path("/").unwrap())
+        .unwrap();
     vpe.obtain_mounts().unwrap();
 
-    let file = VFS::open(&name, OpenFlags::RX)
-        .expect("Unable to open executable");
+    let file = VFS::open(&name, OpenFlags::RX).expect("Unable to open executable");
     let mut mapper = DefaultMapper::new(vpe.pe().has_virtmem());
 
-    let id = CHILD_CAPS.get_mut().alloc()
+    let id = CHILD_CAPS
+        .get_mut()
+        .alloc()
         .expect("Unable to allocate child id");
     childs::get().set_next_id(id);
 
-    child.start(vpe, &mut mapper, file)
+    child
+        .start(vpe, &mut mapper, file)
         .expect("Unable to start VPE");
     childs::get().add(Box::new(child));
 

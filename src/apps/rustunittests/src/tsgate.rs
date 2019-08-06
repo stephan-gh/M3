@@ -15,7 +15,7 @@
  */
 
 use m3::col::String;
-use m3::com::{recv_msg, recv_reply, RecvGate, SendGate, SGateArgs};
+use m3::com::{recv_msg, recv_reply, RecvGate, SGateArgs, SendGate};
 use m3::errors::Code;
 use m3::test;
 use m3::util;
@@ -28,7 +28,10 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 fn create() {
     let rgate = wv_assert_ok!(RecvGate::new(util::next_log2(512), util::next_log2(256)));
-    wv_assert_err!(SendGate::new_with(SGateArgs::new(&rgate).sel(1)), Code::InvArgs);
+    wv_assert_err!(
+        SendGate::new_with(SGateArgs::new(&rgate).sel(1)),
+        Code::InvArgs
+    );
 }
 
 fn send_recv() {

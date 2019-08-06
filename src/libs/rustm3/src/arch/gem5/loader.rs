@@ -15,8 +15,8 @@
  */
 
 use cfg;
-use com::MemGate;
 use col::Vec;
+use com::MemGate;
 use core::iter;
 use elf;
 use errors::{Code, Error};
@@ -37,13 +37,22 @@ pub struct Loader<'l> {
 }
 
 impl<'l> Loader<'l> {
-    pub fn new(pager: Option<&'l Pager>, pager_inherited: bool,
-               mapper: &'l mut dyn Mapper, mem: &'l MemGate) -> Loader<'l> {
-        Loader { pager, pager_inherited, mapper, mem }
+    pub fn new(
+        pager: Option<&'l Pager>,
+        pager_inherited: bool,
+        mapper: &'l mut dyn Mapper,
+        mem: &'l MemGate,
+    ) -> Loader<'l> {
+        Loader {
+            pager,
+            pager_inherited,
+            mapper,
+            mem,
+        }
     }
 
     pub fn copy_regions(&mut self, sp: usize) -> Result<usize, Error> {
-        extern {
+        extern "C" {
             static _start: u8;
             static _text_start: u8;
             static _text_end: u8;
@@ -51,14 +60,12 @@ impl<'l> Loader<'l> {
             static _bss_end: u8;
         }
 
-        let addr = |sym: &u8| {
-            (sym as *const u8) as usize
-        };
+        let addr = |sym: &u8| (sym as *const u8) as usize;
 
         // use COW if both have a pager
         if let Some(pg) = self.pager {
             if self.pager_inherited {
-                return pg.clone().map(|_| unsafe { addr(&_start) })
+                return pg.clone().map(|_| unsafe { addr(&_start) });
             }
             // TODO handle that case
             unimplemented!();
@@ -68,40 +75,68 @@ impl<'l> Loader<'l> {
             // copy text
             let text_start = addr(&_text_start);
             let text_end = addr(&_text_end);
-            self.mem.write_bytes(&_text_start, text_end - text_start, text_start as goff)?;
+            self.mem
+                .write_bytes(&_text_start, text_end - text_start, text_start as goff)?;
 
             // copy data and heap
             let data_start = addr(&_data_start);
-            self.mem.write_bytes(&_data_start, heap::used_end() - data_start, data_start as goff)?;
+            self.mem.write_bytes(
+                &_data_start,
+                heap::used_end() - data_start,
+                data_start as goff,
+            )?;
 
             // copy end-area of heap
             let heap_area_size = util::size_of::<heap::HeapArea>();
-            self.mem.write_bytes(heap::end() as *const u8, heap_area_size, heap::end() as goff)?;
+            self.mem.write_bytes(
+                heap::end() as *const u8,
+                heap_area_size,
+                heap::end() as goff,
+            )?;
 
             // copy stack
-            self.mem.write_bytes(sp as *const u8, cfg::STACK_TOP - sp, sp as goff)?;
+            self.mem
+                .write_bytes(sp as *const u8, cfg::STACK_TOP - sp, sp as goff)?;
 
             Ok(addr(&_start))
         }
     }
 
-    fn load_segment(&mut self, file: &mut BufReader<FileRef>,
-                    phdr: &elf::Phdr, buf: &mut [u8]) -> Result<(), Error> {
+    fn load_segment(
+        &mut self,
+        file: &mut BufReader<FileRef>,
+        phdr: &elf::Phdr,
+        buf: &mut [u8],
+    ) -> Result<(), Error> {
         let prot = kif::Perm::from(elf::PF::from_bits_truncate(phdr.flags));
         let size = util::round_up(phdr.memsz as usize, cfg::PAGE_SIZE);
 
         let needs_init = if phdr.memsz == phdr.filesz {
-            self.mapper.map_file(self.pager, file, phdr.offset as usize,
-                                 phdr.vaddr as goff, size, prot)
+            self.mapper.map_file(
+                self.pager,
+                file,
+                phdr.offset as usize,
+                phdr.vaddr as goff,
+                size,
+                prot,
+            )
         }
         else {
             assert!(phdr.filesz == 0);
-            self.mapper.map_anon(self.pager, phdr.vaddr as goff, size, prot)
+            self.mapper
+                .map_anon(self.pager, phdr.vaddr as goff, size, prot)
         }?;
 
         if needs_init {
-            self.mapper.init_mem(buf, &self.mem, file, phdr.offset as usize, phdr.filesz as usize,
-                                 phdr.vaddr as goff, phdr.memsz as usize)
+            self.mapper.init_mem(
+                buf,
+                &self.mem,
+                file,
+                phdr.offset as usize,
+                phdr.filesz as usize,
+                phdr.vaddr as goff,
+                phdr.memsz as usize,
+            )
         }
         else {
             Ok(())
@@ -112,11 +147,12 @@ impl<'l> Loader<'l> {
         let mut buf = vec![0u8; 4096];
         let hdr: elf::Ehdr = read_object(file)?;
 
-        if hdr.ident[0] != b'\x7F' ||
-           hdr.ident[1] != b'E' ||
-           hdr.ident[2] != b'L' ||
-           hdr.ident[3] != b'F' {
-            return Err(Error::new(Code::InvalidElf))
+        if hdr.ident[0] != b'\x7F'
+            || hdr.ident[1] != b'E'
+            || hdr.ident[2] != b'L'
+            || hdr.ident[3] != b'F'
+        {
+            return Err(Error::new(Code::InvalidElf));
         }
 
         // copy load segments to destination PE
@@ -139,22 +175,41 @@ impl<'l> Loader<'l> {
         }
 
         // create area for boot/runtime stuff
-        self.mapper.map_anon(self.pager, cfg::RT_START as goff, cfg::RT_SIZE, kif::Perm::RW)?;
+        self.mapper.map_anon(
+            self.pager,
+            cfg::RT_START as goff,
+            cfg::RT_SIZE,
+            kif::Perm::RW,
+        )?;
 
         // create area for stack
-        self.mapper.map_anon(self.pager, cfg::STACK_BOTTOM as goff, cfg::STACK_SIZE, kif::Perm::RW)?;
+        self.mapper.map_anon(
+            self.pager,
+            cfg::STACK_BOTTOM as goff,
+            cfg::STACK_SIZE,
+            kif::Perm::RW,
+        )?;
 
         // create heap
         // TODO align heap to 2M to use huge pages
         let heap_begin = util::round_up(end, cfg::PAGE_SIZE);
-        let heap_size = if self.pager.is_some() { cfg::APP_HEAP_SIZE } else { cfg::MOD_HEAP_SIZE };
-        self.mapper.map_anon(self.pager, heap_begin as goff, heap_size, kif::Perm::RW)?;
+        let heap_size = if self.pager.is_some() {
+            cfg::APP_HEAP_SIZE
+        }
+        else {
+            cfg::MOD_HEAP_SIZE
+        };
+        self.mapper
+            .map_anon(self.pager, heap_begin as goff, heap_size, kif::Perm::RW)?;
 
         Ok(hdr.entry)
     }
 
     pub fn write_arguments<I, S>(&self, off: &mut usize, args: I) -> Result<usize, Error>
-                                 where I: iter::IntoIterator<Item = S>, S: AsRef<str> {
+    where
+        I: iter::IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
         let mut argptr = Vec::<u64>::new();
         let mut argbuf = Vec::new();
 

@@ -27,8 +27,13 @@ extern "C" {
 fn panic(info: &PanicInfo) -> ! {
     if let Some(l) = log::Log::get() {
         if let Some(loc) = info.location() {
-            l.write_fmt(format_args!("PANIC at {}, line {}, column {}: ",
-                                     loc.file(), loc.line(), loc.column())).unwrap();
+            l.write_fmt(format_args!(
+                "PANIC at {}, line {}, column {}: ",
+                loc.file(),
+                loc.line(),
+                loc.column()
+            ))
+            .unwrap();
         }
         else {
             l.write(b"PANIC at unknown location: ").unwrap();
@@ -59,7 +64,7 @@ fn alloc_error(_: core::alloc::Layout) -> ! {
 
 #[lang = "eh_personality"]
 #[no_mangle]
-pub extern fn rust_eh_personality() {
+pub extern "C" fn rust_eh_personality() {
     unsafe { intrinsics::abort() }
 }
 

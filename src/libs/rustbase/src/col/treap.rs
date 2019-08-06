@@ -33,6 +33,7 @@ impl KeyOrd for u32 {
     fn compare(&self, other: &Self) -> Ordering {
         self.cmp(other)
     }
+
     fn smaller(&self, other: &Self) -> bool {
         self < other
     }
@@ -46,7 +47,7 @@ struct Node<K, V> {
     value: V,
 }
 
-impl<K : Copy + KeyOrd, V> Node<K, V> {
+impl<K: Copy + KeyOrd, V> Node<K, V> {
     fn new(key: K, value: V, prio: Wrapping<u32>) -> Self {
         Node {
             left: None,
@@ -74,12 +75,12 @@ impl<K : Copy + KeyOrd, V> Node<K, V> {
 /// The idea and parts of the implementation are taken from the [MMIX](http://mmix.cs.hm.edu/)
 /// simulator, written by Donald Knuth
 #[derive(Default)]
-pub struct Treap<K : Copy + KeyOrd, V> {
+pub struct Treap<K: Copy + KeyOrd, V> {
     root: Option<NonNull<Node<K, V>>>,
     prio: Wrapping<u32>,
 }
 
-impl<K : Copy + KeyOrd, V> Treap<K, V> {
+impl<K: Copy + KeyOrd, V> Treap<K, V> {
     /// Creates an empty treap
     pub const fn new() -> Self {
         Treap {
@@ -119,16 +120,13 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
 
     /// Returns a reference to the value for the given key
     pub fn get(&self, key: &K) -> Option<&V> {
-        self.get_node(key).map(|n| unsafe {
-            &(*n.as_ptr()).value
-        })
+        self.get_node(key).map(|n| unsafe { &(*n.as_ptr()).value })
     }
 
     /// Returns a mutable reference to the value for the given key
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-        self.get_node(key).map(|n| unsafe {
-            &mut (*n.as_ptr()).value
-        })
+        self.get_node(key)
+            .map(|n| unsafe { &mut (*n.as_ptr()).value })
     }
 
     /// Returns a mutable reference to the root value
@@ -137,9 +135,7 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
             // FIXME the read_volatile seems to be necessary to convince the compiler to re-extract
             // the root element every time and not just once (see CapTable::revoke_all).
             // looks like a compiler bug
-            read_volatile(&self.root).map(|r| {
-                &mut (*r.as_ptr()).value
-            })
+            read_volatile(&self.root).map(|r| &mut (*r.as_ptr()).value)
         }
     }
 
@@ -149,12 +145,12 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
             match node {
                 Some(n) => unsafe {
                     match key.compare(&(*n.as_ptr()).key) {
-                        Ordering::Less      => node = (*n.as_ptr()).left,
-                        Ordering::Greater   => node = (*n.as_ptr()).right,
-                        Ordering::Equal     => return Some(n),
+                        Ordering::Less => node = (*n.as_ptr()).left,
+                        Ordering::Greater => node = (*n.as_ptr()).right,
+                        Ordering::Equal => return Some(n),
                     }
                 },
-                None    => return None,
+                None => return None,
             }
         }
     }
@@ -165,8 +161,8 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
             let mut q = &mut self.root;
             loop {
                 match *q {
-                    None                                        => break,
-                    Some(n) if (*n.as_ptr()).prio >= self.prio  => break,
+                    None => break,
+                    Some(n) if (*n.as_ptr()).prio >= self.prio => break,
                     Some(n) => {
                         if key.smaller(&(*n.as_ptr()).key) {
                             q = &mut (*n.as_ptr()).left;
@@ -189,13 +185,13 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
                 let mut r = &mut node.right;
                 loop {
                     match prev {
-                        None                                        => break,
-                        Some(p) if key.smaller(&(*p.as_ptr()).key)  => {
+                        None => break,
+                        Some(p) if key.smaller(&(*p.as_ptr()).key) => {
                             *r = Some(p);
                             r = &mut (*p.as_ptr()).left;
                             prev = *r;
                         },
-                        Some(p)                                     => {
+                        Some(p) => {
                             *l = Some(p);
                             l = &mut (*p.as_ptr()).right;
                             prev = *l;
@@ -209,7 +205,7 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
             *q = Some(Box::into_raw_non_null(Box::new(node)));
 
             // fibonacci hashing to spread the priorities very even in the 32-bit room
-            self.prio += Wrapping(0x9e37_79b9);    // floor(2^32 / phi), with phi = golden ratio
+            self.prio += Wrapping(0x9e37_79b9); // floor(2^32 / phi), with phi = golden ratio
 
             &mut (*q.unwrap().as_ptr()).value
         }
@@ -219,9 +215,7 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
     pub fn remove_root(&mut self) -> Option<V> {
         self.root.map(|r| {
             Self::remove_from(&mut self.root, r);
-            unsafe {
-                Box::from_raw(r.as_ptr()).into_value()
-            }
+            unsafe { Box::from_raw(r.as_ptr()).into_value() }
         })
     }
 
@@ -232,20 +226,18 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
             match *p {
                 Some(n) => unsafe {
                     match key.compare(&(*n.as_ptr()).key) {
-                        Ordering::Less      => p = &mut (*n.as_ptr()).left,
-                        Ordering::Greater   => p = &mut (*n.as_ptr()).right,
-                        Ordering::Equal     => break,
+                        Ordering::Less => p = &mut (*n.as_ptr()).left,
+                        Ordering::Greater => p = &mut (*n.as_ptr()).right,
+                        Ordering::Equal => break,
                     }
                 },
-                None    => return None,
+                None => return None,
             }
         }
 
         let node = (*p).unwrap();
         Self::remove_from(p, node);
-        unsafe {
-            Some(Box::from_raw(node.as_ptr()).into_value())
-        }
+        unsafe { Some(Box::from_raw(node.as_ptr()).into_value()) }
     }
 
     fn remove_from(p: &mut Option<NonNull<Node<K, V>>>, node: NonNull<Node<K, V>>) {
@@ -284,14 +276,17 @@ impl<K : Copy + KeyOrd, V> Treap<K, V> {
     }
 }
 
-impl<K : Copy + KeyOrd, V> Drop for Treap<K, V> {
+impl<K: Copy + KeyOrd, V> Drop for Treap<K, V> {
     fn drop(&mut self) {
         self.clear();
     }
 }
 
 fn print_rec<K, V>(node: NonNull<Node<K, V>>, f: &mut fmt::Formatter) -> fmt::Result
-                   where K : Copy + KeyOrd + fmt::Debug, V: fmt::Debug {
+where
+    K: Copy + KeyOrd + fmt::Debug,
+    V: fmt::Debug,
+{
     let node_ptr = node.as_ptr();
     unsafe {
         writeln!(f, "  {:?} -> {:?}", (*node_ptr).key, (*node_ptr).value)?;
@@ -305,11 +300,11 @@ fn print_rec<K, V>(node: NonNull<Node<K, V>>, f: &mut fmt::Formatter) -> fmt::Re
     }
 }
 
-impl<K : Copy + KeyOrd + fmt::Debug, V: fmt::Debug> fmt::Debug for Treap<K, V> {
+impl<K: Copy + KeyOrd + fmt::Debug, V: fmt::Debug> fmt::Debug for Treap<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.root {
             Some(r) => print_rec(r, f),
-            None    => Ok(())
+            None => Ok(()),
         }
     }
 }

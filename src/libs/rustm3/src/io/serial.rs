@@ -31,8 +31,14 @@ impl vfs::Seek for io::Serial {
 }
 
 impl vfs::Map for io::Serial {
-    fn map(&self, _pager: &Pager, _virt: goff,
-           _off: usize, _len: usize, _prot: kif::Perm) -> Result<(), Error> {
+    fn map(
+        &self,
+        _pager: &Pager,
+        _virt: goff,
+        _off: usize,
+        _len: usize,
+        _prot: kif::Perm,
+    ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 }
@@ -41,6 +47,7 @@ impl vfs::File for io::Serial {
     fn fd(&self) -> vfs::Fd {
         0
     }
+
     fn set_fd(&mut self, _fd: vfs::Fd) {
     }
 
@@ -58,9 +65,12 @@ impl vfs::File for io::Serial {
         b'S'
     }
 
-    fn exchange_caps(&self, _vpe: Selector,
-                            _dels: &mut Vec<Selector>,
-                            _max_sel: &mut Selector) -> Result<(), Error> {
+    fn exchange_caps(
+        &self,
+        _vpe: Selector,
+        _dels: &mut Vec<Selector>,
+        _max_sel: &mut Selector,
+    ) -> Result<(), Error> {
         // nothing to do
         Ok(())
     }

@@ -28,7 +28,7 @@ use serialize::Sink;
 use session::ClientSession;
 use util;
 use vfs::{
-    VFS, FileHandle, FileInfo, FileMode, FileSystem, FSHandle, FSOperation, GenericFile, OpenFlags
+    FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags, VFS,
 };
 use vpe::VPE;
 
@@ -68,7 +68,10 @@ impl M3FS {
 
     /// Binds a new m3fs-session to selectors `sels`..`sels+1`.
     pub fn new_bind(sels: Selector) -> FSHandle {
-        Self::create(ClientSession::new_bind(sels + 0), SendGate::new_bind(sels + 1))
+        Self::create(
+            ClientSession::new_bind(sels + 0),
+            SendGate::new_bind(sels + 1),
+        )
     }
 
     /// Returns a reference to the underlying [`ClientSession`]
@@ -86,11 +89,20 @@ impl FileSystem for M3FS {
         if flags.contains(OpenFlags::NOSESS) {
             if let Ok((idx, ep)) = VFS::alloc_ep(self.self_weak.upgrade().unwrap()) {
                 let mut reply = send_recv_res!(
-                    &self.sgate, RecvGate::def(), FSOperation::OPEN_PRIV, path, flags.bits(), idx
+                    &self.sgate,
+                    RecvGate::def(),
+                    FSOperation::OPEN_PRIV,
+                    path,
+                    flags.bits(),
+                    idx
                 )?;
                 let id = reply.pop();
                 return Ok(Rc::new(RefCell::new(GenericFile::new_without_sess(
-                    flags, id, self.sess.sel(), Some(VPE::cur().sel_ep(ep)), self.sgate.clone()
+                    flags,
+                    id,
+                    self.sess.sel(),
+                    Some(VPE::cur().sel_ep(ep)),
+                    self.sgate.clone(),
                 ))));
             }
         }
@@ -120,45 +132,43 @@ impl FileSystem for M3FS {
     }
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {
-        let mut reply = send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            FSOperation::STAT, path
-        )?;
+        let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::STAT, path)?;
         Ok(reply.pop())
     }
 
     fn mkdir(&self, path: &str, mode: FileMode) -> Result<(), Error> {
-        send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            FSOperation::MKDIR, path, mode
-        ).map(|_| ())
+        send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::MKDIR, path, mode).map(|_| ())
     }
+
     fn rmdir(&self, path: &str) -> Result<(), Error> {
-        send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            FSOperation::RMDIR, path
-        ).map(|_| ())
+        send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::RMDIR, path).map(|_| ())
     }
 
     fn link(&self, old_path: &str, new_path: &str) -> Result<(), Error> {
         send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            FSOperation::LINK, old_path, new_path
-        ).map(|_| ())
+            &self.sgate,
+            RecvGate::def(),
+            FSOperation::LINK,
+            old_path,
+            new_path
+        )
+        .map(|_| ())
     }
+
     fn unlink(&self, path: &str) -> Result<(), Error> {
-        send_recv_res!(
-            &self.sgate, RecvGate::def(),
-            FSOperation::UNLINK, path
-        ).map(|_| ())
+        send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::UNLINK, path).map(|_| ())
     }
 
     fn fs_type(&self) -> u8 {
         b'M'
     }
-    fn exchange_caps(&self, vpe: Selector,
-                            dels: &mut Vec<Selector>,
-                            max_sel: &mut Selector) -> Result<(), Error> {
+
+    fn exchange_caps(
+        &self,
+        vpe: Selector,
+        dels: &mut Vec<Selector>,
+        max_sel: &mut Selector,
+    ) -> Result<(), Error> {
         dels.push(self.sess.sel());
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
@@ -167,6 +177,7 @@ impl FileSystem for M3FS {
         *max_sel = util::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }
+
     fn serialize(&self, s: &mut VecSink) {
         s.push(&self.sess.sel());
         s.push(&self.sgate.sel());

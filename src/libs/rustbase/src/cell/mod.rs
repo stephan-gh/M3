@@ -31,7 +31,8 @@ pub struct StaticCell<T: Sized> {
     inner: UnsafeCell<T>,
 }
 
-unsafe impl<T: Sized> Sync for StaticCell<T> {}
+unsafe impl<T: Sized> Sync for StaticCell<T> {
+}
 
 impl<T: Sized> StaticCell<T> {
     /// Creates a new static cell with given value
@@ -43,16 +44,13 @@ impl<T: Sized> StaticCell<T> {
 
     /// Returns a reference to the inner value
     pub fn get(&self) -> &T {
-        unsafe {
-            &*self.inner.get()
-        }
+        unsafe { &*self.inner.get() }
     }
+
     /// Returns a mutable reference to the inner value
     #[allow(clippy::mut_from_ref)]
     pub fn get_mut(&self) -> &mut T {
-        unsafe {
-            &mut *self.inner.get()
-        }
+        unsafe { &mut *self.inner.get() }
     }
 
     /// Sets the inner value to `val` and returns the old value

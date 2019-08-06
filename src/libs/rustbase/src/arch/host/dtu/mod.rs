@@ -27,23 +27,23 @@ use util;
 mod backend;
 mod thread;
 
-pub type Reg    = u64;
-pub type EpId   = usize;
-pub type Label  = u64;
-pub type PEId   = usize;
+pub type Reg = u64;
+pub type EpId = usize;
+pub type Label = u64;
+pub type PEId = usize;
 
-const PE_COUNT: usize           = 16;
-const MAX_MSG_SIZE: usize       = 16 * 1024;
+const PE_COUNT: usize = 16;
+const MAX_MSG_SIZE: usize = 16 * 1024;
 
-pub const HEADER_COUNT: usize   = usize::max_value();
+pub const HEADER_COUNT: usize = usize::max_value();
 
-pub const EP_COUNT: EpId        = 16;
+pub const EP_COUNT: EpId = 16;
 
-pub const SYSC_SEP: EpId        = 0;
-pub const SYSC_REP: EpId        = 1;
-pub const UPCALL_REP: EpId      = 2;
-pub const DEF_REP: EpId         = 3;
-pub const FIRST_FREE_EP: EpId   = 4;
+pub const SYSC_SEP: EpId = 0;
+pub const SYSC_REP: EpId = 1;
+pub const UPCALL_REP: EpId = 2;
+pub const DEF_REP: EpId = 3;
+pub const FIRST_FREE_EP: EpId = 4;
 
 int_enum! {
     struct CmdReg : Reg {
@@ -158,24 +158,46 @@ pub const EPS_RCNT: usize = 15;
 
 static mut CMD_REGS: [Reg; CMD_RCNT] = [0; CMD_RCNT];
 
-pub struct DTU {
-}
+pub struct DTU {}
 
 impl DTU {
-    pub fn send(ep: EpId, msg: *const u8, size: usize, reply_lbl: Label, reply_ep: EpId) -> Result<(), Error> {
+    pub fn send(
+        ep: EpId,
+        msg: *const u8,
+        size: usize,
+        reply_lbl: Label,
+        reply_ep: EpId,
+    ) -> Result<(), Error> {
         Self::exec_command(ep, Command::SEND, msg, size, 0, 0, reply_lbl, reply_ep)
     }
 
-    pub fn reply(ep: EpId, reply: *const u8, size: usize, msg: &'static Message) -> Result<(), Error> {
+    pub fn reply(
+        ep: EpId,
+        reply: *const u8,
+        size: usize,
+        msg: &'static Message,
+    ) -> Result<(), Error> {
         let msg_addr = msg as *const Message as *const u8 as usize;
         Self::exec_command(ep, Command::REPLY, reply, size, msg_addr, 0, 0, 0)
     }
 
-    pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff, _flags: CmdFlags) -> Result<(), Error> {
+    pub fn read(
+        ep: EpId,
+        data: *mut u8,
+        size: usize,
+        off: goff,
+        _flags: CmdFlags,
+    ) -> Result<(), Error> {
         Self::exec_command(ep, Command::READ, data, size, off as usize, size, 0, 0)
     }
 
-    pub fn write(ep: EpId, data: *const u8, size: usize, off: goff, _flags: CmdFlags) -> Result<(), Error> {
+    pub fn write(
+        ep: EpId,
+        data: *const u8,
+        size: usize,
+        off: goff,
+        _flags: CmdFlags,
+    ) -> Result<(), Error> {
         Self::exec_command(ep, Command::WRITE, data, size, off as usize, size, 0, 0)
     }
 
@@ -185,7 +207,10 @@ impl DTU {
         }
 
         Self::set_cmd(CmdReg::EPID, ep as Reg);
-        Self::set_cmd(CmdReg::CTRL, (Command::FETCH_MSG.val << 3) | Control::START.bits);
+        Self::set_cmd(
+            CmdReg::CTRL,
+            (Command::FETCH_MSG.val << 3) | Control::START.bits,
+        );
         if Self::get_command_result().is_err() {
             return None;
         }
@@ -215,7 +240,10 @@ impl DTU {
         let msg_addr = msg as *const Message as *const u8 as usize;
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::OFFSET, msg_addr as Reg);
-        Self::set_cmd(CmdReg::CTRL, (Command::ACK_MSG.val << 3) | Control::START.bits);
+        Self::set_cmd(
+            CmdReg::CTRL,
+            (Command::ACK_MSG.val << 3) | Control::START.bits,
+        );
         Self::get_command_result().unwrap();
     }
 
@@ -225,7 +253,9 @@ impl DTU {
             tv_nsec: (cycles / 3) as i64,
             tv_sec: (cycles / 3_000_000_000) as i64,
         };
-        unsafe { libc::nanosleep(&time, ptr::null_mut()); }
+        unsafe {
+            libc::nanosleep(&time, ptr::null_mut());
+        }
         Ok(())
     }
 
@@ -242,6 +272,7 @@ impl DTU {
         Self::set_ep(ep, EpReg::CREDITS, crd);
         Self::set_ep(ep, EpReg::MSGORDER, msg_order as Reg);
     }
+
     pub fn configure_recv(ep: EpId, buf: usize, order: i32, msg_order: i32) {
         Self::set_ep(ep, EpReg::VALID, 1);
         Self::set_ep(ep, EpReg::BUF_ADDR, buf as Reg);
@@ -255,8 +286,16 @@ impl DTU {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn exec_command(ep: EpId, cmd: Command, msg: *const u8, size: usize, off: usize, len: usize,
-                    reply_lbl: Label, reply_ep: EpId) -> Result<(), Error> {
+    fn exec_command(
+        ep: EpId,
+        cmd: Command,
+        msg: *const u8,
+        size: usize,
+        off: usize,
+        len: usize,
+        reply_lbl: Label,
+        reply_ep: EpId,
+    ) -> Result<(), Error> {
         Self::set_cmd(CmdReg::ADDR, msg as Reg);
         Self::set_cmd(CmdReg::SIZE, size as Reg);
         Self::set_cmd(CmdReg::EPID, ep as Reg);
@@ -268,7 +307,10 @@ impl DTU {
             Self::set_cmd(CmdReg::CTRL, (cmd.val << 3) | Control::START.bits);
         }
         else {
-            Self::set_cmd(CmdReg::CTRL, (cmd.val << 3) | (Control::START | Control::REPLY_CAP).bits);
+            Self::set_cmd(
+                CmdReg::CTRL,
+                (cmd.val << 3) | (Control::START | Control::REPLY_CAP).bits,
+            );
         }
         Self::get_command_result()
     }
@@ -284,6 +326,7 @@ impl DTU {
     fn is_ready() -> bool {
         (Self::get_cmd(CmdReg::CTRL) >> 3).trailing_zeros() >= 13
     }
+
     fn get_result() -> Result<(), Error> {
         match Self::get_cmd(CmdReg::CTRL) >> 16 {
             0 => Ok(()),
@@ -292,32 +335,24 @@ impl DTU {
     }
 
     fn get_cmd(cmd: CmdReg) -> Reg {
-        unsafe {
-            ptr::read_volatile(&CMD_REGS[cmd.val as usize])
-        }
+        unsafe { ptr::read_volatile(&CMD_REGS[cmd.val as usize]) }
     }
+
     fn set_cmd(cmd: CmdReg, val: Reg) {
-        unsafe {
-            ptr::write_volatile(&mut CMD_REGS[cmd.val as usize], val)
-        }
+        unsafe { ptr::write_volatile(&mut CMD_REGS[cmd.val as usize], val) }
     }
 
     fn get_ep(ep: EpId, reg: EpReg) -> Reg {
-        unsafe {
-            ptr::read_volatile(Self::ep_addr(ep, reg.val as usize))
-        }
+        unsafe { ptr::read_volatile(Self::ep_addr(ep, reg.val as usize)) }
     }
+
     fn set_ep(ep: EpId, reg: EpReg, val: Reg) {
-        unsafe {
-            ptr::write_volatile(Self::ep_addr(ep, reg.val as usize), val)
-        }
+        unsafe { ptr::write_volatile(Self::ep_addr(ep, reg.val as usize), val) }
     }
 
     fn ep_addr(ep: EpId, reg: usize) -> &'static mut Reg {
         let off = (ep * EPS_RCNT + reg as usize) * util::size_of::<Reg>();
-        unsafe {
-            intrinsics::transmute(arch::envdata::eps_start() + off)
-        }
+        unsafe { intrinsics::transmute(arch::envdata::eps_start() + off) }
     }
 }
 

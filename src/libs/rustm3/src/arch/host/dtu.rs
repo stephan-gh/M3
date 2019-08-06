@@ -31,18 +31,38 @@ pub fn init() {
     }
 
     let sysc = RecvGate::syscall();
-    dtu::DTU::configure_recv(dtu::SYSC_REP, sysc.buffer(), cfg::SYSC_RBUF_ORD, cfg::SYSC_RBUF_ORD);
+    dtu::DTU::configure_recv(
+        dtu::SYSC_REP,
+        sysc.buffer(),
+        cfg::SYSC_RBUF_ORD,
+        cfg::SYSC_RBUF_ORD,
+    );
 
     let upc = RecvGate::upcall();
-    dtu::DTU::configure_recv(dtu::UPCALL_REP, upc.buffer(), cfg::UPCALL_RBUF_ORD, cfg::UPCALL_RBUF_ORD);
+    dtu::DTU::configure_recv(
+        dtu::UPCALL_REP,
+        upc.buffer(),
+        cfg::UPCALL_RBUF_ORD,
+        cfg::UPCALL_RBUF_ORD,
+    );
 
     let def = RecvGate::def();
-    dtu::DTU::configure_recv(dtu::DEF_REP, def.buffer(), cfg::DEF_RBUF_ORD, cfg::DEF_RBUF_ORD);
+    dtu::DTU::configure_recv(
+        dtu::DEF_REP,
+        def.buffer(),
+        cfg::DEF_RBUF_ORD,
+        cfg::DEF_RBUF_ORD,
+    );
 
     dtu::init();
 
     let addr = envdata::mem_start();
-    syscalls::vpe_ctrl(vpe::VPE::cur().sel(), kif::syscalls::VPEOp::INIT, addr as u64).unwrap();
+    syscalls::vpe_ctrl(
+        vpe::VPE::cur().sel(),
+        kif::syscalls::VPEOp::INIT,
+        addr as u64,
+    )
+    .unwrap();
 
     if let Some(vec) = loader::read_env_file("dturdy") {
         let fd = vec[0] as i32;

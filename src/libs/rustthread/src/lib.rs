@@ -15,7 +15,6 @@
  */
 
 #![feature(core_intrinsics)]
-
 #![no_std]
 
 #[macro_use]
@@ -73,21 +72,21 @@ pub struct Regs {
 fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
     let top_idx = thread.stack.len() - 2;
     // put argument in rdi and function to return to on the stack
-    thread.regs.rdi         = arg as u64;
-    thread.regs.rsp         = &thread.stack[top_idx] as *const usize as u64;
-    thread.stack[top_idx]   = func_addr;
-    thread.regs.rbp         = thread.regs.rsp;
-    thread.regs.rflags      = 0x200;    // enable interrupts
+    thread.regs.rdi = arg as u64;
+    thread.regs.rsp = &thread.stack[top_idx] as *const usize as u64;
+    thread.stack[top_idx] = func_addr;
+    thread.regs.rbp = thread.regs.rsp;
+    thread.regs.rflags = 0x200; // enable interrupts
 }
 
 #[cfg(target_arch = "arm")]
 fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
     let top_idx = thread.stack.len() - 2;
-    thread.regs.r0          = arg as u32;                                       // arg
-    thread.regs.r13         = &thread.stack[top_idx] as *const usize as u32;    // sp
-    thread.regs.r11         = 0;                                                // fp
-    thread.regs.r14         = func_addr as u32;                                 // lr
-    thread.regs.cpsr        = 0x13;                                             // supervisor mode
+    thread.regs.r0 = arg as u32; // arg
+    thread.regs.r13 = &thread.stack[top_idx] as *const usize as u32; // sp
+    thread.regs.r11 = 0; // fp
+    thread.regs.r14 = func_addr as u32; // lr
+    thread.regs.cpsr = 0x13; // supervisor mode
 }
 
 fn alloc_id() -> u32 {
@@ -109,7 +108,7 @@ pub struct Thread {
 
 impl_boxitem!(Thread);
 
-extern {
+extern "C" {
     fn thread_save(regs: *mut Regs) -> bool;
     fn thread_resume(regs: *mut Regs) -> bool;
 }
@@ -150,9 +149,11 @@ impl Thread {
     pub fn is_main(&self) -> bool {
         self.stack.is_empty()
     }
+
     pub fn id(&self) -> u32 {
         self.id
     }
+
     pub fn fetch_msg(&mut self) -> Option<&'static dtu::Message> {
         if mem::replace(&mut self.has_msg, false) {
             unsafe {
@@ -170,6 +171,7 @@ impl Thread {
     unsafe fn save(&mut self) -> bool {
         thread_save(&mut self.regs)
     }
+
     #[inline(always)]
     unsafe fn resume(&mut self) -> bool {
         thread_resume(&mut self.regs)
@@ -197,7 +199,7 @@ impl Thread {
             libc::memcpy(
                 self.msg.as_ptr() as *mut libc::c_void,
                 msg as *const dtu::Message as *const libc::c_void,
-                size
+                size,
             );
         }
     }
@@ -233,6 +235,7 @@ impl ThreadManager {
     pub fn cur(&self) -> &Thread {
         self.current.as_ref().unwrap()
     }
+
     fn cur_mut(&mut self) -> &mut Thread {
         self.current.as_mut().unwrap()
     }
@@ -240,12 +243,15 @@ impl ThreadManager {
     pub fn thread_count(&self) -> usize {
         self.ready.len() + self.block.len() + self.sleep.len()
     }
+
     pub fn ready_count(&self) -> usize {
         self.ready.len()
     }
+
     pub fn blocked_count(&self) -> usize {
         self.block.len()
     }
+
     pub fn sleeping_count(&self) -> usize {
         self.sleep.len()
     }
@@ -253,7 +259,7 @@ impl ThreadManager {
     pub fn fetch_msg(&mut self) -> Option<&'static dtu::Message> {
         match self.current {
             Some(ref mut t) => t.fetch_msg(),
-            None            => None,
+            None => None,
         }
     }
 
@@ -279,7 +285,13 @@ impl ThreadManager {
 
         let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
         cur.subscribe(event);
-        log!(THREAD, "Thread {} waits for {:#x}, switching to {}", cur.id, event, self.cur().id);
+        log!(
+            THREAD,
+            "Thread {} waits for {:#x}, switching to {}",
+            cur.id,
+            event,
+            self.cur().id
+        );
 
         unsafe {
             let old = Box::into_raw(cur);
@@ -293,8 +305,8 @@ impl ThreadManager {
 
     pub fn try_yield(&mut self) {
         match self.ready.pop_front() {
-            None        => {},
-            Some(next)  => {
+            None => {},
+            Some(next) => {
                 let cur = mem::replace(&mut self.current, Some(next)).unwrap();
                 log!(THREAD, "Yielding from {} to {}", cur.id, self.cur().id);
 
@@ -326,7 +338,12 @@ impl ThreadManager {
     pub fn stop(&mut self) {
         if let Some(t) = self.ready.pop_front() {
             let mut cur = mem::replace(&mut self.current, Some(t)).unwrap();
-            log!(THREAD, "Stopping thread {}, switching to {}", cur.id, self.cur().id);
+            log!(
+                THREAD,
+                "Stopping thread {}, switching to {}",
+                cur.id,
+                self.cur().id
+            );
 
             unsafe {
                 if !cur.save() {

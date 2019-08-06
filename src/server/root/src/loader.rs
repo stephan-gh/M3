@@ -52,8 +52,10 @@ impl vfs::File for BootFile {
     fn fd(&self) -> vfs::Fd {
         0
     }
+
     fn set_fd(&mut self, _fd: vfs::Fd) {
     }
+
     fn evict(&mut self) {
     }
 
@@ -66,13 +68,17 @@ impl vfs::File for BootFile {
         info.extents = 1;
         Ok(info)
     }
+
     fn file_type(&self) -> u8 {
         b'F'
     }
 
-    fn exchange_caps(&self, _vpe: Selector,
-                            _dels: &mut Vec<Selector>,
-                            _max_sel: &mut Selector) -> Result<(), Error> {
+    fn exchange_caps(
+        &self,
+        _vpe: Selector,
+        _dels: &mut Vec<Selector>,
+        _max_sel: &mut Selector,
+    ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 
@@ -87,7 +93,7 @@ impl vfs::Seek for BootFile {
             vfs::SeekMode::CUR => self.pos += off,
             vfs::SeekMode::SET => self.pos = off,
             vfs::SeekMode::END => self.pos = self.size,
-            _                  => panic!("Unexpected whence")
+            _ => panic!("Unexpected whence"),
         }
         Ok(self.pos)
     }
@@ -119,7 +125,14 @@ impl Write for BootFile {
 }
 
 impl vfs::Map for BootFile {
-    fn map(&self, _pager: &Pager, _virt: goff, _off: usize, _len: usize, _prot: Perm) -> Result<(), Error> {
+    fn map(
+        &self,
+        _pager: &Pager,
+        _virt: goff,
+        _off: usize,
+        _len: usize,
+        _prot: Perm,
+    ) -> Result<(), Error> {
         // not used
         Ok(())
     }
@@ -127,8 +140,13 @@ impl vfs::Map for BootFile {
 
 impl fmt::Debug for BootFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "BootFile[sel={}, size={:#x}, pos={:#x}]",
-            self.mgate.sel(), self.size, self.pos)
+        write!(
+            f,
+            "BootFile[sel={}, size={:#x}, pos={:#x}]",
+            self.mgate.sel(),
+            self.size,
+            self.pos
+        )
     }
 }
 
@@ -155,32 +173,55 @@ impl BootMapper {
 }
 
 impl Mapper for BootMapper {
-    fn map_file<'l>(&mut self, pager: Option<&'l Pager>, _file: &mut vfs::BufReader<vfs::FileRef>,
-                    foff: usize, virt: goff, len: usize, perm: Perm) -> Result<bool, Error> {
+    fn map_file<'l>(
+        &mut self,
+        pager: Option<&'l Pager>,
+        _file: &mut vfs::BufReader<vfs::FileRef>,
+        foff: usize,
+        virt: goff,
+        len: usize,
+        perm: Perm,
+    ) -> Result<bool, Error> {
         if perm.contains(Perm::W) {
             // create new memory and copy data into it
             self.map_anon(pager, virt, len, perm)
         }
         else if self.has_virtmem {
             // map the memory of the boot module directly; therefore no initialization necessary
-            syscalls::create_map((virt >> PAGE_BITS) as Selector, self.vpe_sel,
-                                 self.mem_sel, (foff >> PAGE_BITS) as Selector,
-                                 (len >> PAGE_BITS) as Selector, perm).map(|_| false)
+            syscalls::create_map(
+                (virt >> PAGE_BITS) as Selector,
+                self.vpe_sel,
+                self.mem_sel,
+                (foff >> PAGE_BITS) as Selector,
+                (len >> PAGE_BITS) as Selector,
+                perm,
+            )
+            .map(|_| false)
         }
         else {
             Ok(true)
         }
     }
 
-    fn map_anon<'l>(&mut self, _pager: Option<&'l Pager>,
-                    virt: goff, len: usize, perm: Perm) -> Result<bool, Error> {
+    fn map_anon<'l>(
+        &mut self,
+        _pager: Option<&'l Pager>,
+        virt: goff,
+        len: usize,
+        perm: Perm,
+    ) -> Result<bool, Error> {
         if self.has_virtmem {
             let alloc = memory::get().allocate(len)?;
             let msel = memory::get().mem_cap(alloc.mod_id);
 
-            syscalls::create_map((virt >> PAGE_BITS) as Selector, self.vpe_sel, msel,
-                                 (alloc.addr >> PAGE_BITS) as Selector,
-                                 (len >> PAGE_BITS) as Selector, perm)?;
+            syscalls::create_map(
+                (virt >> PAGE_BITS) as Selector,
+                self.vpe_sel,
+                msel,
+                (alloc.addr >> PAGE_BITS) as Selector,
+                (len >> PAGE_BITS) as Selector,
+                perm,
+            )?;
             self.allocs.push(alloc);
             Ok(true)
         }

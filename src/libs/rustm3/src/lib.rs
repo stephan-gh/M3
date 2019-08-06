@@ -19,7 +19,6 @@
 #![feature(const_vec_new)]
 #![feature(core_intrinsics)]
 #![feature(trace_macros)]
-
 #![no_std]
 
 #[macro_use]
@@ -31,7 +30,7 @@ extern crate bitflags;
 #[cfg(target_os = "none")]
 pub use arch::init::{env_run, exit};
 #[cfg(target_os = "linux")]
-pub use arch::init::{exit, rust_init, rust_deinit};
+pub use arch::init::{exit, rust_deinit, rust_init};
 
 #[macro_use]
 pub mod io;
@@ -39,18 +38,45 @@ pub mod io;
 pub mod com;
 
 pub use base::{
-    // macros
-    vec, format,
-    log, impl_boxitem, int_enum,
+    backtrace,
+    boxed,
+    cell,
+    cfg,
+    col,
+    cpu,
+    dtu,
+
+    elf,
+    env,
+    errors,
+    format,
     function,
-    wv_run_test, wv_run_suite, wv_perf, wv_assert_eq, wv_assert_ok, wv_assert_err, wv_assert_some,
-
-    // modules
-    libc, boxed, rc, sync, util, test, backtrace, col, cell, elf, env, errors, mem, kif, profile,
-    serialize, time, cfg, cpu, dtu,
-
     // types
     goff,
+    impl_boxitem,
+    int_enum,
+    kif,
+    // modules
+    libc,
+    log,
+    mem,
+    profile,
+    rc,
+    serialize,
+    sync,
+    test,
+    time,
+    util,
+    // macros
+    vec,
+    wv_assert_eq,
+    wv_assert_err,
+    wv_assert_ok,
+    wv_assert_some,
+
+    wv_perf,
+    wv_run_suite,
+    wv_run_test,
 };
 
 pub mod cap;

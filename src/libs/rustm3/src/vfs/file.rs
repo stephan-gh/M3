@@ -22,9 +22,9 @@ use errors::Error;
 use goff;
 use io::{Read, Write};
 use kif;
-use serialize::{Marshallable, Unmarshallable, Sink, Source};
+use serialize::{Marshallable, Sink, Source, Unmarshallable};
 use session::Pager;
-use vfs::{BlockId, DevId, Fd, INodeId, FileMode};
+use vfs::{BlockId, DevId, Fd, FileMode, INodeId};
 
 int_enum! {
     /// The different seek modes.
@@ -87,30 +87,30 @@ pub struct FileInfo {
 impl Marshallable for FileInfo {
     fn marshall(&self, s: &mut dyn Sink) {
         s.push(&self.devno);
-        s.push(&{self.inode});
-        s.push(&{self.mode});
-        s.push(&{self.links});
-        s.push(&{self.size});
-        s.push(&{self.lastaccess});
-        s.push(&{self.lastmod});
-        s.push(&{self.blocksize});
-        s.push(&{self.extents});
-        s.push(&{self.firstblock});
+        s.push(&{ self.inode });
+        s.push(&{ self.mode });
+        s.push(&{ self.links });
+        s.push(&{ self.size });
+        s.push(&{ self.lastaccess });
+        s.push(&{ self.lastmod });
+        s.push(&{ self.blocksize });
+        s.push(&{ self.extents });
+        s.push(&{ self.firstblock });
     }
 }
 
 impl Unmarshallable for FileInfo {
     fn unmarshall(s: &mut dyn Source) -> Self {
         FileInfo {
-            devno:      s.pop_word() as DevId,
-            inode:      s.pop_word() as INodeId,
-            mode:       s.pop_word() as FileMode,
-            links:      s.pop_word() as u32,
-            size:       s.pop_word() as usize,
+            devno: s.pop_word() as DevId,
+            inode: s.pop_word() as INodeId,
+            mode: s.pop_word() as FileMode,
+            links: s.pop_word() as u32,
+            size: s.pop_word() as usize,
             lastaccess: s.pop_word() as u32,
-            lastmod:    s.pop_word() as u32,
-            blocksize:  s.pop_word() as u32,
-            extents:    s.pop_word() as u32,
+            lastmod: s.pop_word() as u32,
+            blocksize: s.pop_word() as u32,
+            extents: s.pop_word() as u32,
             firstblock: s.pop_word() as BlockId,
         }
     }
@@ -119,7 +119,7 @@ impl Unmarshallable for FileInfo {
 /// Trait for files.
 ///
 /// All files can be read, written, seeked and mapped into memory.
-pub trait File : Read + Write + Seek + Map + Debug {
+pub trait File: Read + Write + Seek + Map + Debug {
     /// Returns the file descriptor.
     fn fd(&self) -> Fd;
     /// Sets the file descriptor.
@@ -139,9 +139,12 @@ pub trait File : Read + Write + Seek + Map + Debug {
     /// Returns the type of the file implementation used for serialization.
     fn file_type(&self) -> u8;
     /// Exchanges the capabilities to provide `vpe` access to the file.
-    fn exchange_caps(&self, vpe: Selector,
-                            dels: &mut Vec<Selector>,
-                            max_sel: &mut Selector) -> Result<(), Error>;
+    fn exchange_caps(
+        &self,
+        vpe: Selector,
+        dels: &mut Vec<Selector>,
+        max_sel: &mut Selector,
+    ) -> Result<(), Error>;
     /// Serializes this file into `s`.
     fn serialize(&self, s: &mut VecSink);
 }
@@ -160,6 +163,12 @@ pub trait Seek {
 pub trait Map {
     /// Maps the region `off`..`off`+`len` of this file at address `virt` using the given pager and
     /// permissions.
-    fn map(&self, pager: &Pager, virt: goff,
-           off: usize, len: usize, prot: kif::Perm) -> Result<(), Error>;
+    fn map(
+        &self,
+        pager: &Pager,
+        virt: goff,
+        off: usize,
+        len: usize,
+        prot: kif::Perm,
+    ) -> Result<(), Error>;
 }

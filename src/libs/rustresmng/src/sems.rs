@@ -33,9 +33,7 @@ pub fn get() -> &'static mut SemManager {
 
 impl SemManager {
     pub const fn new() -> Self {
-        SemManager {
-            sems: Vec::new(),
-        }
+        SemManager { sems: Vec::new() }
     }
 
     pub fn add_sem(&mut self, name: String) -> Result<(), Error> {

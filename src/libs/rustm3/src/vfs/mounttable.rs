@@ -54,7 +54,7 @@ impl MountTable {
     /// Adds a new mount point at given path and given file system to the table.
     pub fn add(&mut self, path: &str, fs: FSHandle) -> Result<(), Error> {
         if self.path_to_idx(path).is_some() {
-            return Err(Error::new(Code::Exists))
+            return Err(Error::new(Code::Exists));
         }
 
         let pos = self.insert_pos(path);
@@ -66,14 +66,15 @@ impl MountTable {
     pub fn get_by_path(&self, path: &str) -> Option<FSHandle> {
         match self.path_to_idx(path) {
             Some(i) => Some(self.mounts[i].fs.clone()),
-            None    => None,
+            None => None,
         }
     }
+
     /// Returns the mount point with index `mid`.
     pub fn get_by_index(&self, mid: usize) -> Option<FSHandle> {
         match self.mounts.get(mid) {
             Some(mp) => Some(mp.fs.clone()),
-            None     => None,
+            None => None,
         }
     }
 
@@ -81,7 +82,7 @@ impl MountTable {
     pub fn index_of(&self, fs: &FSHandle) -> Option<usize> {
         for (i, m) in self.mounts.iter().enumerate() {
             if Rc::ptr_eq(&m.fs, fs) {
-                return Some(i)
+                return Some(i);
             }
         }
         None
@@ -92,7 +93,7 @@ impl MountTable {
     pub fn resolve(&self, path: &str) -> Result<(FSHandle, usize), Error> {
         for m in &self.mounts {
             if path.starts_with(m.path.as_str()) {
-                return Ok((m.fs.clone(), m.path.len()))
+                return Ok((m.fs.clone(), m.path.len()));
             }
         }
         Err(Error::new(Code::NoSuchFile))
@@ -105,13 +106,16 @@ impl MountTable {
                 self.mounts.remove(i);
                 Ok(())
             },
-            None    => Err(Error::new(Code::NoSuchFile)),
+            None => Err(Error::new(Code::NoSuchFile)),
         }
     }
 
-    pub(crate) fn collect_caps(&self, vpe: Selector,
-                               dels: &mut Vec<Selector>,
-                               max_sel: &mut Selector) -> Result<(), Error> {
+    pub(crate) fn collect_caps(
+        &self,
+        vpe: Selector,
+        dels: &mut Vec<Selector>,
+        max_sel: &mut Selector,
+    ) -> Result<(), Error> {
         for m in &self.mounts {
             m.fs.borrow().exchange_caps(vpe, dels, max_sel)?;
         }
@@ -140,8 +144,9 @@ impl MountTable {
             let fs_type: u8 = s.pop();
             mt.add(&path, match fs_type {
                 b'M' => M3FS::unserialize(s),
-                _    => panic!("Unexpected fs type {}", fs_type),
-            }).unwrap();
+                _ => panic!("Unexpected fs type {}", fs_type),
+            })
+            .unwrap();
         }
 
         mt
@@ -155,7 +160,7 @@ impl MountTable {
 
         for (i, m) in self.mounts.iter().enumerate() {
             if m.path == path {
-                return Some(i)
+                return Some(i);
             }
         }
         None

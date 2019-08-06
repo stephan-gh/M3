@@ -37,10 +37,9 @@ const PE_SHIFT: u32 = 48;
 impl GlobAddr {
     /// Creates a new global address from the given raw value
     pub fn new(addr: u64) -> GlobAddr {
-        GlobAddr {
-            val: addr
-        }
+        GlobAddr { val: addr }
     }
+
     /// Creates a new global address from the given PE id and offset
     pub fn new_with(pe: PEId, off: goff) -> GlobAddr {
         Self::new(((0x80 + pe as u64) << PE_SHIFT) | off)
@@ -50,10 +49,12 @@ impl GlobAddr {
     pub fn raw(self) -> u64 {
         self.val
     }
+
     /// Returns the PE id
     pub fn pe(self) -> PEId {
         ((self.val >> PE_SHIFT) - 0x80) as PEId
     }
+
     /// Returns the offset
     pub fn offset(self) -> goff {
         (self.val & ((1 << PE_SHIFT) - 1)) as goff
