@@ -31,7 +31,7 @@ static size_t strlen(const char *s) {
 
 static size_t print_num_rec(char *buf, size_t pos, uint64_t num, uint base) {
     size_t p = pos;
-    if(num > base)
+    if(num >= base)
         p = print_num_rec(buf, pos - 1, num / base, base);
     buf[pos] = "0123456789abcdef"[num % base];
     return p;
