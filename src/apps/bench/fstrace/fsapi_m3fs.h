@@ -278,13 +278,15 @@ public:
                 break;
 
             ssize_t wres = write_file(out, rbuf, static_cast<size_t>(res));
-            if(wres != static_cast<ssize_t>(res))
-                throw ReturnValueException(wres, res, lineNo);
+            if(static_cast<size_t>(wres) != res)
+                throw ReturnValueException(static_cast<int>(wres), static_cast<int>(res), lineNo);
 
             rem -= static_cast<size_t>(res);
         }
-        if(static_cast<int>(args->count - rem) != args->err)
-            throw ReturnValueException(args->count - rem, args->err, lineNo);
+
+        int expected = static_cast<int>(args->count - rem);
+        if(expected != args->err)
+            throw ReturnValueException(expected, args->err, lineNo);
     }
 
     virtual void getdents(const getdents_args_t *args, UNUSED int lineNo) override {
