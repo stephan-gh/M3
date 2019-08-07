@@ -34,12 +34,6 @@ void init() {
     m3::ISR::reg(64, VMA::dtu_irq);
 }
 
-void wait_for_reset() {
-    asm volatile ("sti");
-    while(1)
-        asm volatile ("hlt");
-}
-
 void *init_state(m3::Exceptions::State *state) {
     m3::Env *senv = m3::env();
     senv->isrs = reinterpret_cast<uintptr_t>(m3::ISR::table());

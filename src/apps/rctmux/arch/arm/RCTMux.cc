@@ -44,7 +44,7 @@ static void *isr_irq(m3::Exceptions::State *state) {
 
         case m3::DTU::ExtReqOpCode::RCTMUX: {
             dtu.clear_irq();
-            return ctxsw_protocol(state, false);
+            return ctxsw_protocol(state);
         }
     }
 
@@ -59,18 +59,6 @@ namespace Arch {
 void init() {
     m3::ISR::init();
     m3::ISR::reg(6, RCTMux::VMA::isr_irq);
-}
-
-void wait_for_reset() {
-    asm volatile (
-        // set idle stack and enable interrupts
-        "ldr     sp, =idle_stack;\n"
-        "mrs     r0, CPSR;\n"
-        "bic     r0, #1 << 7;\n"
-        "msr     CPSR, r0;\n"
-    );
-    while(1)
-        m3::DTU::get().sleep();
 }
 
 void *init_state(m3::Exceptions::State *) {

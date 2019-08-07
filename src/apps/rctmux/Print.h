@@ -21,7 +21,7 @@
 namespace RCTMux {
 
 void print_num(uint64_t num, uint base);
-void print(const char *str, size_t len);
+void print_str(const char *str, size_t len);
 void printf(const char *fmt, ...);
 
 #define panic_if(cond, msg, ...) do { if((cond)) {                                              \

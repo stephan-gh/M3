@@ -20,6 +20,8 @@
 
 namespace RCTMux {
 
+EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uint64_t file);
+
 static size_t strlen(const char *s) {
     size_t len = 0;
     while(*s++)
@@ -38,7 +40,7 @@ static size_t print_num_rec(char *buf, size_t pos, uint64_t num, uint base) {
 void print_num(uint64_t num, uint base) {
     char buf[16];
     size_t first = print_num_rec(buf, ARRAY_SIZE(buf) - 1, num, base);
-    print(&buf[first], ARRAY_SIZE(buf) - first);
+    print_str(&buf[first], ARRAY_SIZE(buf) - first);
 }
 
 void printf(const char *fmt, ...) {
@@ -46,7 +48,7 @@ void printf(const char *fmt, ...) {
     va_start(ap, fmt);
     while(*fmt) {
         if(*fmt != '%')
-            print(fmt++, 1);
+            print_str(fmt++, 1);
         else {
             fmt++;
             switch(*fmt) {
@@ -59,7 +61,7 @@ void printf(const char *fmt, ...) {
 
                 case 's': {
                     const char *s = va_arg(ap, const char*);
-                    print(s, strlen(s));
+                    print_str(s, strlen(s));
                     break;
                 }
             }
@@ -67,6 +69,11 @@ void printf(const char *fmt, ...) {
         }
     }
     va_end(ap);
+}
+
+void print_str(const char *str, size_t len) {
+    const char *fileAddr = "stdout";
+    gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
 }
 
 }

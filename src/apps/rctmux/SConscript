@@ -14,14 +14,14 @@ if env['ARCH'] == 'gem5':
         myenv,
         target = 'rctmux',
         source = [
-            env.Glob('arch/gem5-$ISA/*.S'),
-            env.Glob('arch/gem5-$ISA/*.cc'),
+            env.Glob('arch/$ISA/*.S'),
+            env.Glob('arch/$ISA/*.cc'),
             env.Glob('arch/' + env['ARCH'] + '/*.S'),
             env.Glob('arch/' + env['ARCH'] + '/*.cc'),
             env.Glob('*.cc'),
         ],
         NoSup = True,
         varAddr = False,
-        ldscript = myenv.File('#src/apps/rctmux/arch/gem5/ld-${ISA}.conf'),
+        ldscript = myenv.File('#src/apps/rctmux/arch/$ISA/ld.conf'),
         libs = ['gcc', 'c', 'isr']
     )

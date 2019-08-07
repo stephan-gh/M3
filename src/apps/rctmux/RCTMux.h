@@ -27,16 +27,10 @@ namespace Arch {
 
 void init();
 void *init_state(m3::Exceptions::State *state);
-void abort();
-void resume();
-void wait_for_reset();
-void sleep();
 
 }
 
-uint64_t report_time();
-void *ctxsw_protocol(void *s, bool inpf);
-void ctxsw_resume();
+void *ctxsw_protocol(void *s);
 
 EXTERN_C void init();
 EXTERN_C void sleep();
