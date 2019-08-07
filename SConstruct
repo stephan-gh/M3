@@ -291,6 +291,7 @@ def RustProgram(env, target, libs = []):
     myenv.Depends(stlib, myenv.File('#src/Cargo.toml'))
     myenv.Depends(stlib, myenv.File('#src/toolchain/rust/$ISA-unknown-$ARCH-' + rustabi + '.json'))
     myenv.Depends(stlib, [
+        myenv.Glob('#src/libs/rust*/Cargo.toml'),
         myenv.Glob('#src/libs/rust*/src/*.rs'),
         myenv.Glob('#src/libs/rust*/src/*/*.rs'),
         myenv.Glob('#src/libs/rust*/src/*/*/*.rs'),
