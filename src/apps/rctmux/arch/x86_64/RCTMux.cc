@@ -25,6 +25,9 @@
 #include "../../RCTMux.h"
 #include "VMA.h"
 
+EXTERN_C void *idle_stack;
+EXTERN_C void idle();
+
 namespace RCTMux {
 namespace Arch {
 
@@ -62,6 +65,13 @@ void *init_state(m3::Exceptions::State *state) {
     state->rflags = 0x200;  // enable interrupts
 
     return state;
+}
+
+void stop_state(m3::Exceptions::State *state) {
+    state->rip = reinterpret_cast<uintptr_t>(&idle);
+    state->rsp = reinterpret_cast<uintptr_t>(&idle_stack);
+    state->rbp = state->rsp;
+    state->rflags = 0x200;  // enable interrupts
 }
 
 }

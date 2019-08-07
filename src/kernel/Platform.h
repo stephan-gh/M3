@@ -41,6 +41,13 @@ public:
         return m3::BootInfo::ModIterator(reinterpret_cast<m3::BootInfo::Mod*>(last));
     }
 
+    static gaddr_t pe_mem_base() {
+        return _info.pe_mem_base;
+    }
+    static size_t pe_mem_size() {
+        return _info.pe_mem_size;
+    }
+
     static gaddr_t info_addr();
     static size_t info_size() {
         return sizeof(_info) + _info.mod_size + _info.pe_count * sizeof(m3::PEDesc);

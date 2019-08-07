@@ -30,6 +30,7 @@
 namespace kernel {
 
 static char buffer[4096];
+static gaddr_t idle_rootpt;
 
 void DTU::do_set_vpeid(const VPEDesc &vpe, vpeid_t nid) {
     m3::DTU::reg_t vpeId = nid;
@@ -52,11 +53,15 @@ peid_t DTU::log_to_phys(peid_t pe) {
 }
 
 void DTU::deprivilege(peid_t pe) {
+    VPEDesc vpe(pe, VPE::INVALID_ID);
+
+    // remember root PT
+    read_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::ROOT_PT), &idle_rootpt, sizeof(idle_rootpt));
+
     // unset the privileged flag
     m3::DTU::reg_t features = 0;
     m3::CPU::compiler_barrier();
-    write_mem(VPEDesc(pe, VPE::INVALID_ID),
-        m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), &features, sizeof(features));
+    write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), &features, sizeof(features));
 }
 
 cycles_t DTU::get_time() {
@@ -64,9 +69,23 @@ cycles_t DTU::get_time() {
 }
 
 void DTU::kill_vpe(const VPEDesc &vpe, bool dead) {
-    m3::DTU::reg_t value = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::RESET);
-    value |= static_cast<m3::DTU::reg_t>(1) << 63;
-    do_ext_cmd(vpe, value);
+    ext_request(vpe, m3::DTU::ExtReqOpCode::STOP);
+
+    // reset all EPs and headers to remove unread messages
+    size_t regsSize = EP_COUNT * m3::DTU::EP_REGS + m3::DTU::HD_COUNT * m3::DTU::HD_REGS;
+    regsSize *= sizeof(m3::DTU::reg_t);
+    memset(buffer, 0, regsSize);
+    write_mem(vpe, m3::DTU::ep_regs_addr(0), buffer, regsSize);
+    // reset events register to be sure that the remote core can sleep
+    write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EVENTS), buffer, sizeof(m3::DTU::reg_t));
+
+    // set new root PT and disable pagefaults
+    static_assert(static_cast<int>(m3::DTU::DtuRegs::FEATURES) == 0, "FEATURES illdefined");
+    static_assert(static_cast<int>(m3::DTU::DtuRegs::ROOT_PT) == 1, "ROOT_PT illdefined");
+    static_assert(static_cast<int>(m3::DTU::DtuRegs::PF_EP) == 2, "PF_EP illdefined");
+    m3::DTU::reg_t regs[3] = {0, idle_rootpt, 0};
+    m3::CPU::compiler_barrier();
+    write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), regs, sizeof(regs));
 
     if(dead)
         do_set_vpeid(vpe, VPE::INVALID_ID);

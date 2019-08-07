@@ -77,7 +77,7 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int pe
     }
 }
 
-static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool needs_heap, bool to_mem) {
+static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool is_idle, bool to_mem) {
     // load and check ELF header
     m3::ElfEh header;
     read_from_mod(mod, &header, sizeof(header), 0);
@@ -109,8 +109,15 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool n
         goff_t offset = m3::Math::round_dn(static_cast<size_t>(pheader.p_offset), PAGE_SIZE);
         goff_t virt = m3::Math::round_dn(static_cast<size_t>(pheader.p_vaddr), PAGE_SIZE);
 
+        if(is_idle) {
+            gaddr_t phys_base = Platform::pe_mem_base() + vpe.pe() * Platform::pe_mem_size();
+
+            size_t size = (pheader.p_offset & PAGE_BITS) + pheader.p_memsz;
+            map_segment(vpe, phys_base + virt, virt, size, perms);
+            end = virt + size;
+        }
         // do we need new memory for this segment?
-        if((copy && (perms & m3::DTU::PTE_W)) || pheader.p_filesz == 0) {
+        else if((copy && (perms & m3::DTU::PTE_W)) || pheader.p_filesz == 0) {
             // allocate memory
             size_t size = static_cast<size_t>((pheader.p_vaddr & PAGE_BITS) + pheader.p_memsz);
             size = m3::Math::round_up(size, PAGE_SIZE);
@@ -144,7 +151,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool n
         }
     }
 
-    if(needs_heap) {
+    if(!is_idle) {
         // create initial heap
         gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE);
         goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
@@ -161,7 +168,7 @@ static goff_t map_idle(VPE &vpe) {
         PANIC("Unable to find boot module 'rctmux'");
 
     // load idle
-    goff_t res = load_mod(vpe, idle, true, false, Platform::pe(vpe.pe()).has_mmu());
+    goff_t res = load_mod(vpe, idle, true, true, Platform::pe(vpe.pe()).has_mmu());
 
     // clear RCTMUX_*
     if(Platform::pe(vpe.pe()).has_mmu()) {
@@ -196,7 +203,7 @@ void VPE::load_app() {
     }
 
     // load app
-    goff_t entry = load_mod(*this, mod, !appFirst, true, false);
+    goff_t entry = load_mod(*this, mod, !appFirst, false, false);
 
     // copy arguments and arg pointers to buffer
     static const char *uargv[] = {"root"};

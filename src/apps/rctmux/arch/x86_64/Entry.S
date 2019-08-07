@@ -17,20 +17,15 @@
 #include <base/Asm.h>
 
 .extern isr_stack
+.global idle_stack
 .extern init
 .extern sleep
+.global idle
 
 .text
 
 // put that at the beginning so that we know the address
 BEGIN_FUNC(_start)
-    // we need nops here to ensure that we start executing at the first real instruction. because
-    // the DTU simply sets the PC and it might be that the CPU finishes the last instruction
-    // afterwards, which increases the PC. so, use more nops than the longest instruction
-.rept 32
-    nop
-.endr
-
     // disable interrupts in case they are enabled
     cli
 

@@ -27,6 +27,7 @@ namespace Arch {
 
 void init();
 void *init_state(m3::Exceptions::State *state);
+void stop_state(m3::Exceptions::State *state);
 
 }
 

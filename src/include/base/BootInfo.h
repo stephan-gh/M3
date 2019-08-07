@@ -89,6 +89,8 @@ public:
     uint64_t mod_count;
     uint64_t mod_size;
     uint64_t pe_count;
+    uint64_t pe_mem_base;
+    uint64_t pe_mem_size;
     Mem mems[MAX_MEMS];
 } PACKED;
 

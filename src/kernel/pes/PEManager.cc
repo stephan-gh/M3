@@ -43,7 +43,7 @@ void PEManager::remove_vpe(VPE *vpe) {
 
 void PEManager::init_vpe(UNUSED VPE *vpe) {
 #if defined(__gem5__)
-    vpe->_dtustate.reset(RCTMUX_ENTRY, true);
+    vpe->_dtustate.reset(0, true);
     vpe->_state = VPE::RUNNING;
 
     // set address space properties first to load them during the restore
@@ -53,8 +53,7 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
     }
     vpe->_dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), vpe->_headers, vpe->id());
 
-    if(vpe->_flags & VPE::F_INIT)
-        vpe->init_memory();
+    vpe->init_memory();
 
     start_vpe(vpe);
 

@@ -19,14 +19,11 @@
 .extern init
 .extern isr_stack
 .extern sleep
-.global idle_stack
+.global idle
 
 .text
 
 BEGIN_FUNC(_start)
-    // TODO currently required, because the reset lets us start at the next instruction
-    nop
-
     mrc     p15, 0, r0, c10, c2, 0  // PRRR
     orr     r0, r0, #0x00000002     // set tr0 = 0x2 (normal memory)
     mcr     p15, 0, r0, c10, c2, 0
@@ -61,7 +58,3 @@ BEGIN_FUNC(idle)
 1:  bl      sleep
     b       1b
 END_FUNC(idle)
-
-.bss
-    .space 128, 0
-idle_stack:

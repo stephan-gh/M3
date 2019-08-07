@@ -229,6 +229,11 @@ void *VMA::handle_ext_req(m3::Exceptions::State *state, m3::DTU::reg_t mst_req) 
             panic_if(!(state->cs & 0x3), "Not in PF, but ctxsw request in nested IRQ!?");
             return ctxsw_protocol(state);
         }
+
+        case m3::DTU::ExtReqOpCode::STOP: {
+            RCTMux::Arch::stop_state(state);
+            break;
+        }
     }
 
     return state;

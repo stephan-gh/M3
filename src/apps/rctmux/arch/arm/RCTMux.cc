@@ -24,6 +24,8 @@
 #include "../../RCTMux.h"
 #include "../../Print.h"
 
+EXTERN_C void idle();
+
 namespace RCTMux {
 
 class VMA {
@@ -45,6 +47,11 @@ static void *isr_irq(m3::Exceptions::State *state) {
         case m3::DTU::ExtReqOpCode::RCTMUX: {
             dtu.clear_irq();
             return ctxsw_protocol(state);
+        }
+
+        case m3::DTU::ExtReqOpCode::STOP: {
+            Arch::stop_state(state);
+            break;
         }
     }
 
@@ -75,6 +82,10 @@ void *init_state(m3::Exceptions::State *) {
     state->lr       = 0;
 
     return state;
+}
+
+void stop_state(m3::Exceptions::State *state) {
+    state->pc = reinterpret_cast<uintptr_t>(&idle);
 }
 
 }

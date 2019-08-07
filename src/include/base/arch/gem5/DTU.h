@@ -186,6 +186,7 @@ public:
     enum ExtReqOpCode {
         INV_PAGE            = 0,
         RCTMUX              = 1,
+        STOP                = 2,
     };
 
     struct alignas(8) ReplyHeader {
