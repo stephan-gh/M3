@@ -79,10 +79,7 @@ public:
 
     enum Flags {
         F_BOOTMOD     = 1 << 0,
-        F_IDLE        = 1 << 1,
-        F_INIT        = 1 << 2,
-        F_HASAPP      = 1 << 3,
-        F_READY       = 1 << 4,
+        F_HASAPP      = 1 << 1,
     };
 
     explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem,
@@ -119,9 +116,6 @@ public:
         return _pid;
     }
 
-    bool is_idle() const {
-        return _flags & F_IDLE;
-    }
     bool has_app() const {
         return _flags & F_HASAPP;
     }

@@ -161,8 +161,7 @@ bool AddrSpace::create_pt(const VPEDesc &vpe, VPE *vpeobj, goff_t &virt, goff_t 
         if(perm == 0)
             return true;
 
-        // don't let idle pay for the memory, because we can't give it back (see below)
-        if(vpeobj && !vpeobj->is_idle()) {
+        if(vpeobj) {
             UNUSED bool res = vpeobj->kmem()->alloc(*vpeobj, PAGE_SIZE);
             assert(res);
         }
@@ -377,8 +376,7 @@ void AddrSpace::remove_pts(vpeid_t vpe) {
     assert(v.state() == VPE::DEAD);
 
     // don't destroy page tables of idle VPEs. we need them to execute something on the other PEs
-    if(!v.is_idle())
-        remove_pts_rec(v, _root, 0, m3::DTU::LEVEL_CNT - 1);
+    remove_pts_rec(v, _root, 0, m3::DTU::LEVEL_CNT - 1);
 }
 
 #if defined(__x86_64__)

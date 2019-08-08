@@ -150,10 +150,8 @@ VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epi
 void VPEManager::add(VPE *vpe) {
     _vpes[vpe->id()] = vpe;
 
-    if(~vpe->_flags & VPE::F_IDLE) {
-        _count++;
-        PEManager::get().add_vpe(vpe);
-    }
+    _count++;
+    PEManager::get().add_vpe(vpe);
 }
 
 void VPEManager::remove(VPE *vpe) {
@@ -161,9 +159,6 @@ void VPEManager::remove(VPE *vpe) {
 
     // do that afterwards, because some actions in the destructor might try to get the VPE
     _vpes[vpe->id()] = nullptr;
-
-    if(vpe->_flags & VPE::F_IDLE)
-        return;
 
     assert(_count > 0);
     _count--;

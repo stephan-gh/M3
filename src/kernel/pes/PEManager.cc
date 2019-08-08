@@ -47,7 +47,7 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
     vpe->_state = VPE::RUNNING;
 
     // set address space properties first to load them during the restore
-    if((vpe->_flags & VPE::F_INIT) && vpe->address_space()) {
+    if(vpe->address_space()) {
         AddrSpace *as = vpe->address_space();
         vpe->_dtustate.config_pf(as->root_pt(), as->sep(), as->rep());
     }
@@ -58,7 +58,6 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
     start_vpe(vpe);
 
     vpe->_dtustate.enable_communication(vpe->desc());
-    vpe->_flags &= ~static_cast<uint>(VPE::F_INIT);
 #endif
 }
 

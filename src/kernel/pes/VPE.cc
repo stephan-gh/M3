@@ -38,11 +38,11 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       SlabObject<VPE>(),
       RefCounted(),
       _desc(peid, id),
-      _flags(flags | F_INIT),
+      _flags(flags),
       _pid(),
       _state(DEAD),
       _exitcode(),
-      _sysc_ep((flags & F_IDLE) ? SyscallHandler::ep(0) : SyscallHandler::alloc_ep()),
+      _sysc_ep(SyscallHandler::alloc_ep()),
       _kmem(kmem),
       _name(std::move(prog)),
       _objcaps(id + 1),
@@ -75,8 +75,8 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
         _kmem->alloc(*this, _rbufcpy.size);
         assert(_rbufcpy);
     }
-    // for the root PT; but not for idle because we can't free them
-    else if(!is_idle())
+    // for the root PT
+    else
         _kmem->alloc(*this, PAGE_SIZE);
 
     // let the VPEManager know about us before we continue with initialization
@@ -85,8 +85,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
     // we have one reference to ourself
     rem_ref();
 
-    if(~_flags & F_IDLE)
-        init_eps();
+    init_eps();
 
     KLOG(VPES, "Created VPE '" << _name << "' [id=" << id << ", pe=" << pe() << "]");
 }
