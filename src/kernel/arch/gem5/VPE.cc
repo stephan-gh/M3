@@ -244,13 +244,16 @@ void VPE::init_memory() {
             _state = VPE::DEAD;
     }
 
-    if(Platform::pe(pe()).is_programmable())
-        map_idle(*this);
-    // PEs with virtual memory still need the rctmux flags
-    else if(vm) {
-        gaddr_t phys = alloc_mem(PAGE_SIZE);
-        map_segment(*this, phys, RCTMUX_FLAGS & ~PAGE_MASK, PAGE_SIZE,
-                    m3::DTU::PTE_RW | MapCapability::EXCL);
+    // for SPM PEs, we don't need to do anything; rctmux has already been loaded
+    if(vm) {
+        if(Platform::pe(pe()).is_programmable())
+            map_idle(*this);
+        // PEs with virtual memory still need the rctmux flags
+        else {
+            gaddr_t phys = alloc_mem(PAGE_SIZE);
+            map_segment(*this, phys, RCTMUX_FLAGS & ~PAGE_MASK, PAGE_SIZE,
+                        m3::DTU::PTE_RW | MapCapability::EXCL);
+        }
     }
 
     // rctmux is ready; let it initialize itself
