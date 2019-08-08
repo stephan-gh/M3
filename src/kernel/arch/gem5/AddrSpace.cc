@@ -286,7 +286,8 @@ goff_t AddrSpace::get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt
 void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pages, int perm) {
     VPE *vpeobj = vpe.pe != Platform::kernel_pe() ? &VPEManager::get().vpe(vpe.id) : nullptr;
     bool running = !vpeobj || vpeobj->is_on_pe();
-    if(vpeobj && !Platform::pe(vpeobj->pe()).has_virtmem())
+    // just ignore the request if the VPE has already been stopped (we've set the idle addrspace then)
+    if(vpeobj && (!Platform::pe(vpeobj->pe()).has_virtmem() || vpeobj->is_stopped()))
         return;
 
     KLOG(MAPPINGS, "VPE" << _vpeid << ": mapping "

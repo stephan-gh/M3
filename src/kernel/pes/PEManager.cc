@@ -90,6 +90,7 @@ void PEManager::stop_vpe(VPE *vpe) {
     DTU::get().flush_cache(vpe->desc());
 
     DTU::get().kill_vpe(vpe->desc(), vpe->state() == VPE::DEAD);
+    vpe->_flags |= VPE::F_STOPPED;
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except) {
