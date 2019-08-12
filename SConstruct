@@ -224,8 +224,7 @@ M3CPP(myenv, isr_ldscript, '#src/toolchain/gem5/ld.conf')
 
 link_addr = 0x212000
 
-def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False,
-              ldscript = None, varAddr = True):
+def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, varAddr = True):
     myenv = env.Clone()
 
     m3libs = ['base', 'thread'] if target == 'kernel' else ['base', 'm3', 'thread']
@@ -249,7 +248,7 @@ def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False,
         prog = myenv.Program(
             target, source,
             LIBS = libs,
-            LIBPATH = [crossdir + '/lib', myenv['LIBDIR']] + libpaths
+            LIBPATH = [crossdir + '/lib', myenv['LIBDIR']]
         )
         myenv.Depends(prog, myenv['SYSGCCLIBPATH'].abspath + '/crt0.o')
         myenv.Depends(prog, myenv['SYSGCCLIBPATH'].abspath + '/' + crt1)
@@ -262,7 +261,7 @@ def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False,
         prog = myenv.Program(
             target, source,
             LIBS = libs,
-            LIBPATH = [myenv['LIBDIR']] + libpaths
+            LIBPATH = [myenv['LIBDIR']]
         )
 
     myenv.Install(myenv['BINARYDIR'], prog)
