@@ -183,7 +183,9 @@ env.Append(
     FSDIR = Dir(builddir + '/fsdata'),
 )
 hostenv.Append(
-    BINARYDIR = env['BINARYDIR']
+    BUILD = btype,
+    TOOLDIR = Dir(builddir + '/tools'),
+    BINARYDIR = env['BINARYDIR'],
 )
 
 def M3Mkfs(env, target, source, blocks, inodes, blks_per_ext):

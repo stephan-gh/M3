@@ -83,6 +83,12 @@ help() {
     echo "    nma=<prog>:              run nm -SCn <prog> (the cc version)"
     echo "    straddr=<prog> <string>  search for <string> in <prog>"
     echo "    ctors=<prog>:            show the constructors of <prog>"
+    echo "    trace=<progs>:           shows an annotated instruction trace stdin. <progs>"
+    echo "                             are the binary names for the symbols. stdin expects"
+    echo "                             the gem5.log with Exec,ExecPC enabled."
+    echo "    flamegraph=<progs>:      produces a flamegraph with stdin to stdout. <progs>"
+    echo "                             are the binary names for the symbols. stdin expects"
+    echo "                             the gem5.log with Exec,ExecPC enabled."
     echo "    mkfs=<fsimg> <dir> ...:  create m3-fs in <fsimg> with content of <dir>"
     echo "    shfs=<fsimg> ...:        show m3-fs in <fsimg>"
     echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>"
@@ -401,24 +407,41 @@ case "$cmd" in
         fi
         ;;
 
+    trace=*)
+        paths=""
+        for f in $(echo ${cmd#trace=} | sed "s/,/ /g"); do
+            paths="$paths $build/bin/$f"
+        done
+        $build/tools/gem5log $M3_ISA trace $paths | less
+        ;;
+
+    flamegraph=*)
+        paths=""
+        for f in $(echo ${cmd#flamegraph=} | sed "s/,/ /g"); do
+            paths="$paths $build/bin/$f"
+        done
+        # inferno-flamegraph is available at https://github.com/jonhoo/inferno
+        $build/tools/gem5log $M3_ISA flamegraph $paths | inferno-flamegraph --countname ns
+        ;;
+
     mkfs=*)
         if [[ "$@" = "" ]]; then
-            $build/src/tools/mkm3fs/mkm3fs $build/${cmd#mkfs=} $script src/tests 8192 256 95
+            $build/tools/mkm3fs $build/${cmd#mkfs=} $script src/tests 8192 256 95
         else
-            $build/src/tools/mkm3fs/mkm3fs $build/${cmd#mkfs=} $script $@
+            $build/tools/mkm3fs $build/${cmd#mkfs=} $script $@
         fi
         ;;
 
     shfs=*)
-        $build/src/tools/shm3fs/shm3fs $build/${cmd#shfs=} $script $@
+        $build/tools/shm3fs $build/${cmd#shfs=} $script $@
         ;;
 
     fsck=*)
-        $build/src/tools/m3fsck/m3fsck $build/${cmd#fsck=} $script
+        $build/tools/m3fsck $build/${cmd#fsck=} $script
         ;;
 
     exfs=*)
-        $build/src/tools/exm3fs/exm3fs $build/${cmd#exfs=} $script
+        $build/tools/exm3fs $build/${cmd#exfs=} $script
         ;;
 
     bt=*)
