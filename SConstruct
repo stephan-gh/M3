@@ -222,7 +222,7 @@ myenv = env.Clone()
 myenv.Append(CPPFLAGS = ' -D__isr__=1')
 M3CPP(myenv, isr_ldscript, '#src/toolchain/gem5/ld.conf')
 
-link_addr = 0x200000
+link_addr = 0x212000
 
 def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False,
               ldscript = None, varAddr = True):
@@ -244,7 +244,7 @@ def M3Program(env, target, source, libs = [], libpaths = [], NoSup = False,
         if varAddr:
             global link_addr
             myenv.Append(LINKFLAGS = ' -Wl,--section-start=.text=' + ("0x%x" % link_addr))
-            link_addr += 0x10000
+            link_addr += 0x40000
 
         prog = myenv.Program(
             target, source,

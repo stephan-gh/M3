@@ -47,7 +47,7 @@ for i in range(num_pes - num_spm, num_pes):
                       no=i,
                       cmdline=cmd_list[i],
                       memPE=mem_pe,
-                      spmsize='16MB')
+                      spmsize='32MB')
     pes.append(pe)
 
 # create the memory PEs
