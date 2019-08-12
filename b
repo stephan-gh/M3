@@ -356,7 +356,7 @@ case "$cmd" in
         ;;
 
     elf=*)
-        ${crossprefix}readelf -aW $bindir/${cmd#elf=} | less
+        ${crossprefix}readelf -aW $bindir/${cmd#elf=} | c++filt | less
         ;;
 
     nms=*)
