@@ -116,8 +116,8 @@ env.Append(
 # add target-dependent stuff to env
 if target == 'gem5':
     if isa == 'x86_64':
-        # disable red-zone for all applications, because we use the application's stack in rctmux's
-        # IRQ handlers since applications run in privileged mode.
+        # disable red-zone for all applications, because we used the application's stack in rctmux's
+        # IRQ handlers since applications run in privileged mode. TODO can we enable that now?
         env.Append(CFLAGS = ' -mno-red-zone')
         env.Append(CXXFLAGS = ' -mno-red-zone')
     else:

@@ -20,15 +20,14 @@ namespace m3 {
 
 /**
  * These flags implement the flags register for remote controlled time-multiplexing, which is used
- * to synchronize rctmux and the kernel. The kernel sets the flags register to let rctmux know
- * about the required operation. Rctmux signals completion to the kernel afterwards.
+ * to synchronize PEMux and the kernel. The kernel sets the flags register to let PEMux know
+ * about the required operation. PEMux signals completion to the kernel afterwards.
  */
-enum RCTMuxCtrl {
+enum PEMuxCtrl {
     NONE                = 0,
-    STORE               = 1 << 0, // store operation required
-    RESTORE             = 1 << 1, // restore operation required
-    WAITING             = 1 << 2, // set by the kernel if a signal is required
-    SIGNAL              = 1 << 3, // used to signal completion to the kernel
+    RESTORE             = 1 << 0, // restore operation required
+    WAITING             = 1 << 1, // set by the kernel if a signal is required
+    SIGNAL              = 1 << 2, // used to signal completion to the kernel
 };
 
 }

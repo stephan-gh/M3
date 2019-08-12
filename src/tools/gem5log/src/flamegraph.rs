@@ -187,7 +187,7 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
                 }
                 let cur_pe = pes.get_mut(&pe).unwrap();
 
-                // detect binary changes (e.g., dtumux to app)
+                // detect binary changes (e.g., pemux to app)
                 if sym.bin != cur_pe.cur_tid.bin {
                     cur_pe.binary_switch(&sym, time);
                 }

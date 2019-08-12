@@ -31,10 +31,6 @@ class DTUState;
 class VPE;
 }
 
-namespace RCTMux {
-class VMA;
-}
-
 namespace m3 {
 
 class DTU {
@@ -43,7 +39,6 @@ class DTU {
     friend class kernel::DTURegs;
     friend class kernel::DTUState;
     friend class kernel::VPE;
-    friend class RCTMux::VMA;
 
     explicit DTU() {
     }
@@ -185,7 +180,7 @@ public:
 
     enum ExtReqOpCode {
         INV_PAGE            = 0,
-        RCTMUX              = 1,
+        PEMUX               = 1,
         STOP                = 2,
     };
 

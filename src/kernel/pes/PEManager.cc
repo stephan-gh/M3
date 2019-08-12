@@ -15,7 +15,7 @@
  */
 
 #include <base/log/Kernel.h>
-#include <base/RCTMux.h>
+#include <base/PEMux.h>
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
@@ -68,16 +68,16 @@ void PEManager::start_vpe(VPE *vpe) {
     vpe->init_memory();
 #else
     uint64_t report = 0;
-    uint64_t flags = m3::RCTMuxCtrl::WAITING;
+    uint64_t flags = m3::PEMuxCtrl::WAITING;
     if(vpe->_flags & VPE::F_HASAPP)
-        flags |= m3::RCTMuxCtrl::RESTORE | (static_cast<uint64_t>(vpe->pe()) << 32);
+        flags |= m3::PEMuxCtrl::RESTORE | (static_cast<uint64_t>(vpe->pe()) << 32);
 
     DTU::get().write_swstate(vpe->desc(), flags, report);
     DTU::get().inject_irq(vpe->desc());
 
     while(true) {
         DTU::get().read_swflags(vpe->desc(), &flags);
-        if(flags & m3::RCTMuxCtrl::SIGNAL)
+        if(flags & m3::PEMuxCtrl::SIGNAL)
             break;
     }
 

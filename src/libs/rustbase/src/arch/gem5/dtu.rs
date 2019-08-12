@@ -207,8 +207,8 @@ int_enum! {
     pub struct ExtReqOpCode : Reg {
         /// Invalidates a TLB entry in the CU's MMU
         const INV_PAGE    = 0x0;
-        /// Requests some rctmux action
-        const RCTMUX      = 0x1;
+        /// Requests some PEMux action
+        const PEMUX       = 0x1;
         /// Stops the current VPE
         const STOP        = 0x2;
     }

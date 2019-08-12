@@ -20,7 +20,7 @@
 .extern env_run
 
 BEGIN_FUNC(_start)
-    // have we been started by dtumux?
+    // have we been started by pemux?
     ldr     r0, =#0xDEADBEEF
     cmp     r1, r0
     beq     1f

@@ -92,6 +92,6 @@ pub extern "C" fn init() {
             &HEAP as *const u64 as usize + HEAP.len() * 8,
         );
 
-        io::init(0, "dtumux");
+        io::init(0, "pemux");
     }
 }

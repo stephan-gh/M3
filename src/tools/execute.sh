@@ -126,13 +126,13 @@ build_params_gem5() {
             if [ $c -eq 0 ]; then
                 echo -n $bindir/$line -- $kargs,
             else
-                echo -n $bindir/dtumux,
+                echo -n $bindir/pemux,
             fi
             c=$((c + 1))
         done
 
         while [ $c -lt $M3_CORES ]; do
-            echo -n $bindir/dtumux,
+            echo -n $bindir/pemux,
             c=$((c + 1))
         done
     )`

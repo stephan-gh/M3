@@ -120,7 +120,7 @@ public:
 
 private:
     epid_t _sep;
-    // the receive gate is only necessary for the PF handler in RCTMux. it needs a dedicated one
+    // the receive gate is only necessary for the PF handler in PEMux. it needs a dedicated one
     // in order to prevent interference with the application
     epid_t _rep;
     RecvGate _rgate;

@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "apps/bench/rustbenchs",
-    "apps/dtumux",
+    "apps/pemux",
     "apps/rusthello",
     "apps/rustunittests",
     "libs/rustbase",

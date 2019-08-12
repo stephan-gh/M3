@@ -35,11 +35,11 @@
 // +----------------------------+ 0x0
 // |      reserved for PTs      |
 // +----------------------------+ 0x100000
-// |        RCTMUX_YIELD        |
+// |         PEMUX_YIELD        |
 // +----------------------------+ 0x100008
-// |        RCTMUX_FLAGS        |
+// |         PEMUX_FLAGS        |
 // +----------------------------+ 0x100010
-// |      rctmux code+data      |
+// |       PEMux code+data      |
 // +----------------------------+ 0x200000
 // |         environment        |
 // +----------------------------+ 0x202000
@@ -54,8 +54,8 @@
 // |          DTU MMIO          |
 // +----------------------------+ 0xF0002000
 
-#define RCTMUX_YIELD        0x100000
-#define RCTMUX_FLAGS        0x100008
+#define PEMUX_YIELD         0x100000
+#define PEMUX_FLAGS         0x100008
 
 #define ENV_START           0x200000
 #define ENV_SIZE            0x2000

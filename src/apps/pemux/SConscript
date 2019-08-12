@@ -9,9 +9,9 @@ if env['ARCH'] == 'gem5':
     entry = myenv.Object(myenv.Glob('src/arch/$ISA/Entry.S'))
     myenv.RustProgram(
         myenv,
-        target = 'dtumux',
+        target = 'pemux',
         libs = ['isr'],
         startup = entry,
-        ldscript = myenv.File('#src/apps/dtumux/src/arch/$ISA/ld.conf'),
+        ldscript = myenv.File('#src/apps/pemux/src/arch/$ISA/ld.conf'),
         varAddr = False,
     )

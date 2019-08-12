@@ -164,16 +164,16 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
 
 static goff_t map_idle(VPE &vpe) {
     bool first;
-    const m3::BootInfo::Mod *idle = get_mod("dtumux", &first);
+    const m3::BootInfo::Mod *idle = get_mod("pemux", &first);
     if(!idle)
-        PANIC("Unable to find boot module 'dtumux'");
+        PANIC("Unable to find boot module 'pemux'");
 
     // load idle
     goff_t res = load_mod(vpe, idle, true, true, Platform::pe(vpe.pe()).has_mmu());
 
-    // clear RCTMUX_*
+    // clear PEMUX_*
     if(Platform::pe(vpe.pe()).has_mmu()) {
-        gaddr_t phys = idle->addr + RCTMUX_YIELD;
+        gaddr_t phys = idle->addr + PEMUX_YIELD;
         DTU::get().copy_clear(VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID),
             m3::DTU::gaddr_to_virt(phys),
             VPEDesc(0, 0), 0, // unused
@@ -240,24 +240,24 @@ void VPE::init_memory() {
     bool vm = Platform::pe(pe()).has_virtmem();
     if(vm) {
         address_space()->setup(desc());
-        // write all PTEs to memory until we have loaded rctmux
+        // write all PTEs to memory until we have loaded PEMux
         if(Platform::pe(pe()).has_mmu())
             _state = VPE::DEAD;
     }
 
-    // for SPM PEs, we don't need to do anything; rctmux has already been loaded
+    // for SPM PEs, we don't need to do anything; PEMux has already been loaded
     if(vm) {
         if(Platform::pe(pe()).is_programmable())
             map_idle(*this);
-        // PEs with virtual memory still need the rctmux flags
+        // PEs with virtual memory still need the PEMux flags
         else {
             gaddr_t phys = alloc_mem(PAGE_SIZE);
-            map_segment(*this, phys, RCTMUX_FLAGS & ~PAGE_MASK, PAGE_SIZE,
+            map_segment(*this, phys, PEMUX_FLAGS & ~PAGE_MASK, PAGE_SIZE,
                         m3::DTU::PTE_RW | MapCapability::EXCL);
         }
     }
 
-    // rctmux is ready; let it initialize itself
+    // PEMux is ready; let it initialize itself
     DTU::get().wakeup(desc());
     // we can now write the PTEs to the VPE's address space
     if(Platform::pe(pe()).has_mmu())

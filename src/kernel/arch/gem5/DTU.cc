@@ -19,7 +19,7 @@
 #include <base/util/Math.h>
 #include <base/CPU.h>
 #include <base/DTU.h>
-#include <base/RCTMux.h>
+#include <base/PEMux.h>
 
 #include "mem/MainMemory.h"
 #include "pes/VPEManager.h"
@@ -107,7 +107,7 @@ void DTU::flush_cache(const VPEDesc &vpe) {
 }
 
 void DTU::inject_irq(const VPEDesc &vpe) {
-    ext_request(vpe, m3::DTU::ExtReqOpCode::RCTMUX);
+    ext_request(vpe, m3::DTU::ExtReqOpCode::PEMUX);
 }
 
 void DTU::ext_request(const VPEDesc &vpe, uint64_t req) {
@@ -283,21 +283,21 @@ void DTU::write_swstate(const VPEDesc &vpe, uint64_t flags, uint64_t notify) {
     if(!Platform::pe(vpe.pe).supports_ctx())
         return;
     uint64_t vals[2] = {notify, flags};
-    write_mem(vpe, RCTMUX_YIELD, &vals, sizeof(vals));
+    write_mem(vpe, PEMUX_YIELD, &vals, sizeof(vals));
 }
 
 void DTU::write_swflags(const VPEDesc &vpe, uint64_t flags) {
     if(!Platform::pe(vpe.pe).supports_ctx())
         return;
-    write_mem(vpe, RCTMUX_FLAGS, &flags, sizeof(flags));
+    write_mem(vpe, PEMUX_FLAGS, &flags, sizeof(flags));
 }
 
 void DTU::read_swflags(const VPEDesc &vpe, uint64_t *flags) {
     if(!Platform::pe(vpe.pe).supports_ctx()) {
-        *flags = m3::RCTMuxCtrl::SIGNAL;
+        *flags = m3::PEMuxCtrl::SIGNAL;
         return;
     }
-    read_mem(vpe, RCTMUX_FLAGS, flags, sizeof(*flags));
+    read_mem(vpe, PEMUX_FLAGS, flags, sizeof(*flags));
 }
 
 }

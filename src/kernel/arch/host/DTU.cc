@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/RCTMux.h>
+#include <base/PEMux.h>
 
 #include "pes/VPEManager.h"
 #include "DTU.h"
@@ -149,7 +149,7 @@ void DTU::write_swflags(const VPEDesc &, uint64_t) {
 
 void DTU::read_swflags(const VPEDesc &, uint64_t *flags) {
     // we are always immediately finished here
-    *flags = m3::RCTMuxCtrl::SIGNAL;
+    *flags = m3::PEMuxCtrl::SIGNAL;
 }
 
 }

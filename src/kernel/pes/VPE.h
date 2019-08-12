@@ -68,7 +68,7 @@ public:
     }
     static size_t extra_kmem(const m3::PEDesc &pe) {
         // we either need the root PT or space for the receive buffer copy
-        // additionally, we need space for RCTMux, its page tables etc.
+        // additionally, we need space for PEMux, its page tables etc.
         return (pe.has_virtmem() ? PAGE_SIZE : RECVBUF_SIZE_SPM) + VPE_EXTRA_MEM;
     }
 

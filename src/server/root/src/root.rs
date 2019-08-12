@@ -269,7 +269,7 @@ fn start_boot_mods() {
     let mut cfgs = Vec::new();
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for m in moditer {
-        if m.name() == "dtumux" {
+        if m.name() == "pemux" {
             continue;
         }
         // parse arguments for root
@@ -311,7 +311,7 @@ fn start_boot_mods() {
 
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
-        if m.name() == "dtumux" || m.name().starts_with("root") {
+        if m.name() == "pemux" || m.name().starts_with("root") {
             continue;
         }
 

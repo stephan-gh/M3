@@ -229,7 +229,7 @@ fn handle_pending_ctxsw(state: &mut isr::State) {
     // was there a context switch request in the meantime?
     if (state.cs & 0x3) != 0 && STATE.ctxsw {
         STATE.get_mut().ctxsw = false;
-        kernreq::handle_rctmux(state);
+        kernreq::handle_pemux(state);
     }
 }
 
@@ -260,7 +260,7 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
         asm!( "mov %cr2, $0" : "=r"(cr2));
     }
 
-    // rctmux isn't causing PFs
+    // PEMux isn't causing PFs
     assert!(state.cs == (isr::SEG_UCODE << 3) | 3);
 
     // if we don't use the MMU, we shouldn't get here
@@ -269,7 +269,7 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     let perm = to_dtu_pte(state.error & 0x7);
     if !STATE.get_mut().handle_pf(0, cr2, perm) {
         // if we can't handle the PF, there is something wrong
-        panic!("RCTMux: pagefault for {:#x} at {:#x}", cr2, { state.rip });
+        panic!("PEMux: pagefault for {:#x} at {:#x}", cr2, { state.rip });
     }
 
     STATE.get_mut().resume_cmd();

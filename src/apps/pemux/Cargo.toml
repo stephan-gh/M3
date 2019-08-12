@@ -1,9 +1,9 @@
 [package]
-name = "dtumux"
+name = "pemux"
 version = "0.1.0"
 
 [lib]
-path = "src/dtumux.rs"
+path = "src/pemux.rs"
 crate-type = ["staticlib"]
 
 [dependencies]

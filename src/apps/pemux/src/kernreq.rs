@@ -25,41 +25,40 @@ use arch::isr;
 use arch::vma;
 
 int_enum! {
-    pub struct RCTMuxCtrl : u64 {
+    pub struct PEMuxCtrl : u64 {
         const NONE    = 0;
-        const STORE   = 1 << 0; // store operation required
-        const RESTORE = 1 << 1; // restore operation required
-        const WAITING = 1 << 2; // set by the kernel if a signal is required
-        const SIGNAL  = 1 << 3; // used to signal completion to the kernel
+        const RESTORE = 1 << 0; // restore operation required
+        const WAITING = 1 << 1; // set by the kernel if a signal is required
+        const SIGNAL  = 1 << 2; // used to signal completion to the kernel
     }
 }
 
 #[used]
-#[link_section = ".rctmux"]
-static RCTMUX_FLAGS: StaticCell<[u64; 2]> = StaticCell::new([0, 0]);
+#[link_section = ".pemux"]
+static PEMUX_FLAGS: StaticCell<[u64; 2]> = StaticCell::new([0, 0]);
 
 fn env() -> &'static mut envdata::EnvData {
     unsafe { intrinsics::transmute(cfg::ENV_START) }
 }
 
 fn flags_get() -> u64 {
-    unsafe { ptr::read_volatile(&RCTMUX_FLAGS[1]) }
+    unsafe { ptr::read_volatile(&PEMUX_FLAGS[1]) }
 }
 
 fn flags_set(val: u64) {
-    unsafe { ptr::write_volatile(&mut RCTMUX_FLAGS.get_mut()[1], val) }
+    unsafe { ptr::write_volatile(&mut PEMUX_FLAGS.get_mut()[1], val) }
 }
 
 fn signal() {
     unsafe { intrinsics::atomic_fence() };
     // tell the kernel that we are ready
-    flags_set(RCTMuxCtrl::SIGNAL.val);
+    flags_set(PEMuxCtrl::SIGNAL.val);
 }
 
-pub fn handle_rctmux(state: &mut isr::State) {
+pub fn handle_pemux(state: &mut isr::State) {
     let flags = flags_get();
 
-    if (flags & RCTMuxCtrl::RESTORE.val) != 0 {
+    if (flags & PEMuxCtrl::RESTORE.val) != 0 {
         // notify the kernel as early as possible
         signal();
 
@@ -70,7 +69,7 @@ pub fn handle_rctmux(state: &mut isr::State) {
         return;
     }
 
-    if (flags & RCTMuxCtrl::WAITING.val) != 0 {
+    if (flags & PEMuxCtrl::WAITING.val) != 0 {
         signal();
     }
 }
@@ -84,7 +83,7 @@ pub fn handle_ext_req(state: &mut isr::State, mut mst_req: dtu::Reg) {
 
     match From::from(cmd) {
         dtu::ExtReqOpCode::INV_PAGE => vma::flush_tlb(mst_req as usize),
-        dtu::ExtReqOpCode::RCTMUX => handle_rctmux(state),
+        dtu::ExtReqOpCode::PEMUX => handle_pemux(state),
         dtu::ExtReqOpCode::STOP => state.stop(),
         _ => log!(DEF, "Unexpected cmd: {}", cmd),
     }
