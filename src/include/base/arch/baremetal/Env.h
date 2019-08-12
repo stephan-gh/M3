@@ -62,7 +62,6 @@ public:
     uint64_t kmem_sel;
     uint64_t eps;
     uint64_t caps;
-    uint64_t exitaddr;
     uint64_t _backend;
     uintptr_t isrs;
 
@@ -75,18 +74,17 @@ public:
     void exit(int code) NORETURN;
 
 private:
-    void jmpto(uintptr_t addr) NORETURN;
     void pre_init();
     void post_init();
     void pre_exit();
 } PACKED;
 
-#define RT_SPACE_SIZE           (RT_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))
-#define RT_SPACE_START          (RT_START + sizeof(m3::Env))
-#define RT_SPACE_END            (RT_SPACE_START + RT_SPACE_SIZE)
+#define ENV_SPACE_SIZE           (ENV_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))
+#define ENV_SPACE_START          (ENV_START + sizeof(m3::Env))
+#define ENV_SPACE_END            (ENV_SPACE_START + ENV_SPACE_SIZE)
 
 static inline Env *env() {
-    return reinterpret_cast<Env*>(RT_START);
+    return reinterpret_cast<Env*>(ENV_START);
 }
 
 }

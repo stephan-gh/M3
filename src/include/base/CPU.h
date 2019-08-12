@@ -27,7 +27,7 @@ public:
 
     static inline word_t get_sp();
 
-    NORETURN static inline void jumpto(uintptr_t addr);
+    NORETURN static inline void exit();
 
     static inline void compute(cycles_t cycles);
 

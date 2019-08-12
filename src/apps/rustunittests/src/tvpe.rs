@@ -22,7 +22,6 @@ use m3::util;
 use m3::vpe::{Activity, VPEArgs, VPE};
 
 pub fn run(t: &mut dyn test::WvTester) {
-    #[cfg(not(target_arch = "arm"))]
     wv_run_test!(t, run_stop);
     wv_run_test!(t, run_arguments);
     wv_run_test!(t, run_send_receive);
@@ -32,8 +31,6 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, exec_rust_hello);
 }
 
-// this doesn't work on arm yet, because of problems in rctmux
-#[cfg(not(target_arch = "arm"))]
 fn run_stop() {
     use m3::com::recv_msg;
     use m3::com::RGateArgs;

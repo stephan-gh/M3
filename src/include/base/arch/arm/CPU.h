@@ -47,12 +47,8 @@ inline word_t CPU::get_sp() {
     return val;
 }
 
-inline void CPU::jumpto(uintptr_t addr) {
-    asm volatile (
-        "blx %0"
-        :
-        : "r"(addr)
-    );
+inline void CPU::exit() {
+    asm volatile ("swi $0");
     UNREACHED;
 }
 

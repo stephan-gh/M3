@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use cfg;
 use core::intrinsics;
 
 #[derive(Default, Copy, Clone)]
@@ -41,12 +42,11 @@ pub struct EnvData {
     pub kmem_sel: u64,
     pub eps: u64,
     pub caps: u64,
-    pub exit_addr: u64,
 
     pub vpe: u64,
     pub _isrs: u64,
 }
 
 pub fn get() -> &'static mut EnvData {
-    unsafe { intrinsics::transmute(0x6000 as usize) }
+    unsafe { intrinsics::transmute(cfg::ENV_START) }
 }

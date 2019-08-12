@@ -55,7 +55,7 @@ void VPE::copy_sections() {
         _pager->map_anon(&start_addr, end_addr - start_addr, Pager::READ | Pager::WRITE, 0);
 
         // map area for stack and boot/runtime stuff
-        start_addr = RT_START;
+        start_addr = ENV_START;
         _pager->map_anon(&start_addr, STACK_TOP - start_addr, Pager::READ | Pager::WRITE, 0);
     }
 

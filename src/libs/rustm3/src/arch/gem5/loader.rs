@@ -177,8 +177,8 @@ impl<'l> Loader<'l> {
         // create area for boot/runtime stuff
         self.mapper.map_anon(
             self.pager,
-            cfg::RT_START as goff,
-            cfg::RT_SIZE,
+            cfg::ENV_START as goff,
+            cfg::ENV_SIZE,
             kif::Perm::RW,
         )?;
 

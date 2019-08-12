@@ -17,7 +17,7 @@
 use arch;
 use cfg;
 use core::intrinsics;
-use errors::Error;
+use errors::{Code, Error};
 use goff;
 use util;
 
@@ -107,14 +107,14 @@ int_enum! {
         /// For translation requests
         const XLATE_REQ   = 0x1;
         /// For translation responses
-        const XLATER_ESP  = 0x2;
+        const XLATE_RESP  = 0x2;
     }
 }
 
 #[allow(dead_code)]
 int_enum! {
     /// The command registers
-    struct CmdReg : Reg {
+    pub struct CmdReg : Reg {
         /// Starts commands and signals their completion
         const COMMAND     = 0x0;
         /// Aborts commands
@@ -129,8 +129,18 @@ int_enum! {
 }
 
 int_enum! {
+    /// The abort requests
+    pub struct AbortReq : Reg {
+        /// Abort the current VPE
+        const VPE         = 0x1;
+        /// Abort the currently running command
+        const CMD         = 0x2;
+    }
+}
+
+int_enum! {
     /// The commands
-    struct CmdOpCode : u64 {
+    pub struct CmdOpCode : u64 {
         /// The idle command has no effect
         const IDLE        = 0x0;
         /// Sends a message
@@ -199,6 +209,8 @@ int_enum! {
         const INV_PAGE    = 0x0;
         /// Requests some rctmux action
         const RCTMUX      = 0x1;
+        /// Stops the current VPE
+        const STOP        = 0x2;
     }
 }
 
@@ -501,20 +513,89 @@ impl DTU {
         );
     }
 
+    /// Aborts the current command or VPE, specified in `req`, and returns (`xfer_buf`, `cmd_reg`).
+    ///
+    /// The `xfer_buf` indicates the transfer buffer that was used by the aborted command
+    /// The `cmd_reg` contains the value of the command register before the abort
+    pub fn abort(req: AbortReq) -> (Reg, Reg) {
+        // save the old value before aborting
+        let mut cmd_reg = Self::read_cmd_reg(CmdReg::COMMAND);
+        Self::write_cmd_reg(CmdReg::ABORT, req.val);
+
+        // wait until the abort is finished.
+        match Self::get_error() {
+            // command aborted; we'll retry it later
+            Err(ref e) if e.code() == Code::Abort => {},
+            // keep error code
+            _ => {
+                // if there was something running which finished after the read_cmd_reg above,
+                // reset the cmd register to idle.
+                if (cmd_reg & 0xF) != CmdOpCode::IDLE.val {
+                    cmd_reg = CmdOpCode::IDLE.val;
+                }
+            },
+        }
+
+        (Self::read_cmd_reg(CmdReg::ABORT), cmd_reg)
+    }
+
+    pub fn retry(cmd: Reg) {
+        Self::write_cmd_reg(CmdReg::COMMAND, cmd)
+    }
+
+    pub fn clear_irq() {
+        Self::write_reg(DtuReg::CLEAR_IRQ.val as usize, 1);
+    }
+
+    pub fn get_ext_req() -> Reg {
+        Self::read_req_reg(ReqReg::EXT_REQ)
+    }
+
+    pub fn set_ext_req(val: Reg) {
+        Self::write_req_reg(ReqReg::EXT_REQ, val)
+    }
+
+    pub fn get_xlate_req() -> Reg {
+        Self::read_req_reg(ReqReg::XLATE_REQ)
+    }
+
+    pub fn set_xlate_req(val: Reg) {
+        Self::write_req_reg(ReqReg::XLATE_REQ, val)
+    }
+
+    pub fn set_xlate_resp(val: Reg) {
+        Self::write_req_reg(ReqReg::XLATE_RESP, val)
+    }
+
+    pub fn read_cmd_reg(reg: CmdReg) -> Reg {
+        Self::read_reg(DTU_REGS + reg.val as usize)
+    }
+
+    pub fn write_cmd_reg(reg: CmdReg, val: Reg) {
+        Self::write_reg(DTU_REGS + reg.val as usize, val)
+    }
+
+    pub fn get_pfep() -> Reg {
+        Self::read_dtu_reg(DtuReg::PF_EP)
+    }
+
     fn read_dtu_reg(reg: DtuReg) -> Reg {
         Self::read_reg(reg.val as usize)
     }
 
-    fn read_cmd_reg(reg: CmdReg) -> Reg {
-        Self::read_reg(DTU_REGS + reg.val as usize)
+    fn read_req_reg(reg: ReqReg) -> Reg {
+        Self::read_reg((cfg::PAGE_SIZE / util::size_of::<Reg>()) + reg.val as usize)
     }
 
     fn read_ep_reg(ep: EpId, reg: usize) -> Reg {
         Self::read_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + reg)
     }
 
-    fn write_cmd_reg(reg: CmdReg, val: Reg) {
-        Self::write_reg(DTU_REGS + reg.val as usize, val)
+    fn write_req_reg(reg: ReqReg, val: Reg) {
+        Self::write_reg(
+            (cfg::PAGE_SIZE / util::size_of::<Reg>()) + reg.val as usize,
+            val,
+        )
     }
 
     fn read_reg(idx: usize) -> Reg {

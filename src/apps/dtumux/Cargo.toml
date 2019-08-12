@@ -1,0 +1,10 @@
+[package]
+name = "dtumux"
+version = "0.1.0"
+
+[lib]
+path = "src/dtumux.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+base = { path = "../../libs/rustbase" }

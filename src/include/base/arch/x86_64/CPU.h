@@ -48,12 +48,8 @@ inline word_t CPU::get_sp() {
     return val;
 }
 
-inline void CPU::jumpto(uintptr_t addr) {
-    asm volatile (
-        "jmp *%0"
-        :
-        : "r"(addr)
-    );
+inline void CPU::exit() {
+    asm volatile ("int $63");
     UNREACHED;
 }
 

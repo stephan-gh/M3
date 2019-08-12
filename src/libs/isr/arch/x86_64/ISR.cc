@@ -40,6 +40,8 @@ EXTERN_C void isr_13();
 EXTERN_C void isr_14();
 EXTERN_C void isr_15();
 EXTERN_C void isr_16();
+// for the exit "syscall"
+EXTERN_C void isr_63();
 // for the DTU
 EXTERN_C void isr_64();
 // the handler for a other interrupts
@@ -101,6 +103,8 @@ void ISR::init() {
     for(size_t i = 17; i < 63; i++)
         set_idt(i, isr_null, Desc::DPL_KERNEL);
 
+    // exit "syscalls"
+    set_idt(63, isr_63, Desc::DPL_USER);
     // DTU interrupts
     set_idt(64, isr_64, Desc::DPL_KERNEL);
 

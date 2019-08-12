@@ -55,12 +55,12 @@ macro_rules! log {
 }
 
 /// Initializes the I/O module
-pub fn init() {
+pub fn init(pe_id: u64, name: &str) {
     arch::serial::init();
-    log::init();
+    log::init(pe_id, name);
 }
 
 /// Reinitializes the I/O module (for VPE::run)
-pub fn reinit() {
-    log::reinit();
+pub fn reinit(pe_id: u64, name: &str) {
+    log::reinit(pe_id, name);
 }

@@ -736,7 +736,7 @@ impl VPE {
             senv.set_vpe(&self);
 
             // env goes first
-            let mut off = cfg::RT_START + util::size_of_val(&senv);
+            let mut off = cfg::ENV_START + util::size_of_val(&senv);
 
             // create and write closure
             let closure = env::Closure::new(func);
@@ -750,7 +750,7 @@ impl VPE {
             senv.set_pedesc(self.pe());
 
             // write start env to PE
-            self.mem.write_obj(&senv, cfg::RT_START as goff)?;
+            self.mem.write_obj(&senv, cfg::ENV_START as goff)?;
 
             closure
         };
@@ -860,7 +860,7 @@ impl VPE {
             senv.set_entry(loader.load_program(&mut file)?);
 
             // write args
-            let mut off = cfg::RT_START + util::size_of_val(&senv);
+            let mut off = cfg::ENV_START + util::size_of_val(&senv);
             senv.set_argc(args.len());
             senv.set_argv(loader.write_arguments(&mut off, args)?);
 
@@ -897,7 +897,7 @@ impl VPE {
             }
 
             // write start env to PE
-            self.mem.write_obj(&senv, cfg::RT_START as goff)?;
+            self.mem.write_obj(&senv, cfg::ENV_START as goff)?;
         }
 
         // go!

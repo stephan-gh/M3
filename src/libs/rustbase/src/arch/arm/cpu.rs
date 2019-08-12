@@ -61,13 +61,9 @@ pub fn get_bp() -> usize {
     val
 }
 
-pub fn jmp_to(addr: usize) -> ! {
+pub fn exit() -> ! {
     unsafe {
-        asm!(
-            "mov pc, $0;"
-            : : "r"(addr)
-            : : "volatile"
-        );
+        asm!("swi $$0");
     }
     unreachable!();
 }

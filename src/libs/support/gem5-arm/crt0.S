@@ -20,6 +20,12 @@
 .extern env_run
 
 BEGIN_FUNC(_start)
+    // have we been started by dtumux?
+    ldr     r0, =#0xDEADBEEF
+    cmp     r1, r0
+    beq     1f
+
+    // otherwise initialize the core
     mrc     p15, 0, r0, c10, c2, 0  // PRRR
     orr     r0, r0, #0x00000002     // set tr0 = 0x2 (normal memory)
     mcr     p15, 0, r0, c10, c2, 0
@@ -35,14 +41,10 @@ BEGIN_FUNC(_start)
     orr     r0, r0, #0x10000000     // enable TEX remap
     mcr     p15, 0, r0, c1, c0, 0
 
-    // set default stack pointer?
-    ldr     r0, =#0xDEADBEEF
-    cmp     r1, r0
-    beq     1f
     ldr     sp, =#STACK_TOP - 8
+    mov     fp, #0
 
 1:
-    mov     fp, #0
     bl      env_run
 
     // just to be sure

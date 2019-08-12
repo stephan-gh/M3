@@ -18,6 +18,6 @@
 #include <base/Env.h>
 #include <stdlib.h>
 
-void exit(int code) {
+WEAK void exit(int code) {
     m3::env()->exit(code);
 }

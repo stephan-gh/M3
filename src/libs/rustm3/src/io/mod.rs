@@ -24,6 +24,9 @@ pub use self::std::{stderr, stdin, stdout};
 pub use self::std::{STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO};
 pub use base::io::{read_object, Read, Serial, Write};
 
+use base::envdata;
+use env;
+
 /// Uses stdout to print `$fmt` with given arguments.
 #[macro_export]
 macro_rules! print {
@@ -43,12 +46,18 @@ macro_rules! println {
 }
 
 pub(crate) fn init() {
-    ::base::io::init();
+    ::base::io::init(
+        envdata::get().pe_id,
+        env::args().nth(0).unwrap_or("Unknown"),
+    );
     std::init();
 }
 
 pub(crate) fn reinit() {
-    ::base::io::reinit();
+    ::base::io::reinit(
+        envdata::get().pe_id,
+        env::args().nth(0).unwrap_or("Unknown"),
+    );
     std::reinit();
 }
 

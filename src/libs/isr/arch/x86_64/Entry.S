@@ -103,6 +103,7 @@ BUILD_ERR_ISR 13
 BUILD_ERR_ISR 14
 BUILD_DEF_ISR 15
 BUILD_DEF_ISR 16
+BUILD_DEF_ISR 63
 BUILD_DEF_ISR 64
 
 BEGIN_FUNC(isr_null)
@@ -114,5 +115,5 @@ END_FUNC(isr_null)
 .bss
 
     .align 16
-    .space 1024, 0
+    .space 4096, 0
 isr_stack:

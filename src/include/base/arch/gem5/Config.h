@@ -31,23 +31,45 @@
 
 #define EP_COUNT            16
 
-#define RT_START            0x6000
-#define RT_SIZE             0x2000
-#define RT_END              (RT_START + RT_SIZE)
+// Application memory layout:
+// +----------------------------+ 0x0
+// |      reserved for PTs      |
+// +----------------------------+ 0x100000
+// |        RCTMUX_YIELD        |
+// +----------------------------+ 0x100008
+// |        RCTMUX_FLAGS        |
+// +----------------------------+ 0x100010
+// |      rctmux code+data      |
+// +----------------------------+ 0x200000
+// |         environment        |
+// +----------------------------+ 0x202000
+// |         app stack          |
+// +----------------------------+ 0x212000
+// |       app code+data        |
+// +----------------------------+ 0x3FC00000
+// |        recv buffers        |
+// +----------------------------+ 0x3FC04000
+// |            ...             |
+// +----------------------------+ 0xF0000000
+// |          DTU MMIO          |
+// +----------------------------+ 0xF0002000
 
-#define RCTMUX_ENTRY        0x1000
-#define RCTMUX_YIELD        0x5FF0
-#define RCTMUX_FLAGS        0x5FF8
+#define RCTMUX_YIELD        0x100000
+#define RCTMUX_FLAGS        0x100008
 
-#define STACK_SIZE          0x8000
-#define STACK_BOTTOM        (RT_END + 0x1000)
-#define STACK_TOP           (RT_END + STACK_SIZE)
+#define ENV_START           0x200000
+#define ENV_SIZE            0x2000
+#define ENV_END             (ENV_START + ENV_SIZE)
 
-#define MAX_RB_SIZE         32
+#define STACK_SIZE          0xF000
+#define STACK_BOTTOM        (ENV_END + 0x1000)
+#define STACK_TOP           (ENV_END + STACK_SIZE)
 
 #define RECVBUF_SPACE       0x3FC00000
 #define RECVBUF_SIZE        (4U * PAGE_SIZE)
 #define RECVBUF_SIZE_SPM    16384U
+
+#define MAX_RB_SIZE         32
 
 // this has to be large enough for forwarded memory reads
 #define SYSC_RBUF_ORDER     9

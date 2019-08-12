@@ -57,6 +57,13 @@ static void read_from_mod(const m3::BootInfo::Mod *mod, void *data, size_t size,
     DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, data, size);
 }
 
+static void copy_clear(const VPEDesc &vpe, uintptr_t virt, gaddr_t phys, size_t size, bool clear) {
+    DTU::get().copy_clear(vpe, virt,
+        VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID),
+        m3::DTU::gaddr_to_virt(phys),
+        size, clear);
+}
+
 static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int perms) {
     if(Platform::pe(vpe.pe()).has_virtmem() || (perms & MapCapability::EXCL)) {
         capsel_t dst = virt >> PAGE_BITS;
@@ -70,11 +77,8 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int pe
         vpe.mapcaps().set(dst, mapcap);
     }
 
-    if(!Platform::pe(vpe.pe()).has_virtmem()) {
-        DTU::get().copy_clear(vpe.desc(), virt,
-            VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID), m3::DTU::gaddr_to_virt(phys),
-            size, false);
-    }
+    if(!Platform::pe(vpe.pe()).has_virtmem())
+        copy_clear(vpe.desc(), static_cast<uintptr_t>(virt), phys, size, false);
 }
 
 static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool is_idle, bool to_mem) {
@@ -111,10 +115,19 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
 
         if(is_idle) {
             gaddr_t phys_base = Platform::pe_mem_base() + vpe.pe() * Platform::pe_mem_size();
+            gaddr_t phys = phys_base + virt;
 
             size_t size = (pheader.p_offset & PAGE_BITS) + pheader.p_memsz;
-            map_segment(vpe, phys_base + virt, virt, size, perms);
+            map_segment(vpe, phys, virt, size, perms);
             end = virt + size;
+
+            // workaround for ARM: if we push remotely into the cache, it gets loaded to the L1d
+            // cache. however, we push instructions which need to end up in L1i. Thus, write to mem.
+            if(virt == 0x0 && Platform::pe(vpe.pe()).has_virtmem()) {
+                VPEDesc tgt(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID);
+                copy_clear(tgt, m3::DTU::gaddr_to_virt(phys),
+                           mod->addr + offset, size, pheader.p_filesz == 0);
+            }
         }
         // do we need new memory for this segment?
         else if((copy && (perms & m3::DTU::PTE_W)) || pheader.p_filesz == 0) {
@@ -127,21 +140,9 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
             map_segment(vpe, phys, virt, size, perms | MapCapability::EXCL);
             end = virt + size;
 
-            // workaround for ARM: if we push remotely into the cache, it gets loaded to the L1d
-            // cache. however, we push instructions which need to end up in L1i. Thus, write to mem.
-            if(to_mem || (virt == 0x0 && Platform::pe(vpe.pe()).has_virtmem())) {
-                VPEDesc memvpe(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID);
-                DTU::get().copy_clear(memvpe, m3::DTU::gaddr_to_virt(phys),
-                    VPEDesc(m3::DTU::gaddr_to_pe(mod->addr), VPE::INVALID_ID),
-                    m3::DTU::gaddr_to_virt(mod->addr + offset),
-                    size, pheader.p_filesz == 0);
-            }
-            else {
-                DTU::get().copy_clear(vpe.desc(), virt,
-                    VPEDesc(m3::DTU::gaddr_to_pe(mod->addr), VPE::INVALID_ID),
-                    m3::DTU::gaddr_to_virt(mod->addr + offset),
-                    size, pheader.p_filesz == 0);
-            }
+            // initialize it
+            VPEDesc tgt = to_mem ? VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID) : vpe.desc();
+            copy_clear(tgt, virt, mod->addr + offset, size, pheader.p_filesz == 0);
         }
         else {
             assert(pheader.p_memsz == pheader.p_filesz);
@@ -163,9 +164,9 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
 
 static goff_t map_idle(VPE &vpe) {
     bool first;
-    const m3::BootInfo::Mod *idle = get_mod("rctmux", &first);
+    const m3::BootInfo::Mod *idle = get_mod("dtumux", &first);
     if(!idle)
-        PANIC("Unable to find boot module 'rctmux'");
+        PANIC("Unable to find boot module 'dtumux'");
 
     // load idle
     goff_t res = load_mod(vpe, idle, true, true, Platform::pe(vpe.pe()).has_mmu());
@@ -197,7 +198,7 @@ void VPE::load_app() {
 
     if(Platform::pe(pe()).has_virtmem()) {
         // map runtime space
-        goff_t virt = RT_START;
+        goff_t virt = ENV_START;
         gaddr_t phys = alloc_mem(STACK_TOP - virt);
         map_segment(*this, phys, virt, STACK_TOP - virt, m3::DTU::PTE_RW | MapCapability::EXCL);
     }
@@ -211,19 +212,19 @@ void VPE::load_app() {
     uint64_t *argptr = reinterpret_cast<uint64_t*>(buffer);
     char *args = buffer + 1 * sizeof(uint64_t);
     size_t off = static_cast<size_t>(args - buffer);
-    *argptr++ = RT_SPACE_START + off;
+    *argptr++ = ENV_SPACE_START + off;
     strcpy(args, uargv[0]);
 
     // write buffer to the target PE
     size_t argssize = off + sizeof("root");
-    DTU::get().write_mem(desc(), RT_SPACE_START, buffer, argssize);
+    DTU::get().write_mem(desc(), ENV_SPACE_START, buffer, argssize);
 
     // write env to targetPE
     m3::Env senv;
     memset(&senv, 0, sizeof(senv));
 
     senv.argc = 1;
-    senv.argv = RT_SPACE_START;
+    senv.argv = ENV_SPACE_START;
     senv.sp = STACK_TOP - sizeof(word_t);
     senv.entry = entry;
     senv.pedesc = Platform::pe(pe());
@@ -232,7 +233,7 @@ void VPE::load_app() {
     senv.kmem_sel = m3::KIF::FIRST_FREE_SEL;
     senv.caps = _first_sel;
 
-    DTU::get().write_mem(desc(), RT_START, &senv, sizeof(senv));
+    DTU::get().write_mem(desc(), ENV_START, &senv, sizeof(senv));
 }
 
 void VPE::init_memory() {

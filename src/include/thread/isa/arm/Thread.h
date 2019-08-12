@@ -36,7 +36,7 @@ struct Regs {
 } PACKED;
 
 enum {
-    T_STACK_WORDS = 1024
+    T_STACK_WORDS = 4096
 };
 
 }

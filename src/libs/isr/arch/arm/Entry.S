@@ -24,29 +24,18 @@
 
 .macro BUILD_ENTRY, no
 BEGIN_FUNC(entry_\no)
-    // temporarily save lr (old pc)
-    ldr     sp, =_tmp
-    str     lr, [sp]
-    // save the vector number
-    mov     lr, #\no
-    str     lr, [sp, #4]
-    // save SPRS (old CPRS)
-    mrs     lr, SPSR
-    str     lr, [sp, #8]
+    // save spsr and r14 onto the supervisor stack
+    srsdb   #0x13!
 
-    // switch back to supervisor mode
-    mrs     sp, CPSR
-    bic     sp, #0x1F
-    orr     sp, sp, #0x13
-    msr     CPSR, sp
+    // switch to supervisor mode, interrupts disabled
+    cpsid   i,#0x13
 
-.if \no == 6
-    // use the application's stack; leave one slot for the pc
-    sub     sp, sp, #4
-.else
-    // use our own stack
-    ldr     sp, =isr_stack
-.endif
+    // save all regs
+    push    {r0-r12, lr}
+
+    // remember entry
+    mov     r0, #\no
+    push    {r0}
 
     b       exc_common
 END_FUNC(entry_\no)
@@ -61,39 +50,33 @@ BUILD_ENTRY 6
 BUILD_ENTRY 7
 
 BEGIN_FUNC(exc_common)
-    // save regs
-    push    {r0-r12, lr}
+    // save user space sp/lr
+    sub     sp, #8
+    stmia   sp, {r13, r14}^
 
-    // save pc, cpsr and vector number
-    ldr     r0, =_tmp
-    ldm     r0, {r1, r2, r3}
-    str     r1, [sp, #14 * 4]
-    sub     sp, sp, #8
-    stm     sp, {r2, r3}
-
-    // call handler
+    // make sure the stack is aligned
     mov     r0, sp
-    bl      irq_handler
+    tst     sp, #4
+    subeq   sp, #4
+    push    {r0}
 
-    // skip vector number
-    add     sp, r0, #4
-    // restore CPSR
-    pop     {r0}
-    msr     CPSR, r0
-    // restore register
-    pop     {r0-r12, lr}
-    // continue execution
-    pop     {pc}
+    // call handler (sp already in r0)
+    bl      irq_handler
+    mov     sp, r0
+
+    // restore user space sp/lr
+    ldmia   sp, {r13, r14}^
+    add     sp, #12
+
+    // restore all regs
+    pop     {r0-r12, r14}
+
+    // return to user
+    rfeia   sp!
 END_FUNC(exc_common)
 
 .bss
 
-_tmp:
-    // temporary place for pc, cpsr and vector number
-    .long       0
-    .long       0
-    .long       0
-
     .align      2
-    .space 1024,0
+    .space 4096,0
 isr_stack:

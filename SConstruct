@@ -276,7 +276,7 @@ def Cargo(env, target, source):
         )
     )
 
-def RustProgram(env, target, libs = []):
+def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr = True):
     myenv = env.Clone()
     myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs')
     rustdir = myenv['ENV']['CARGO_TARGET_DIR']
@@ -302,7 +302,7 @@ def RustProgram(env, target, libs = []):
     ])
 
     if myenv['ARCH'] == 'gem5':
-        sources = [myenv['SYSGCCLIBPATH'].abspath + '/crt0.o']
+        sources = [myenv['SYSGCCLIBPATH'].abspath + '/crt0.o' if startup is None else startup]
         libs    = ['c', 'm', 'heap', 'gcc', target] + libs
     else:
         sources = []
@@ -316,8 +316,12 @@ def RustProgram(env, target, libs = []):
         target = target,
         source = sources,
         libs = libs,
-        NoSup = True
+        NoSup = True,
+        ldscript = ldscript,
+        varAddr = varAddr,
     )
+    if not startup is None:
+        myenv.Depends(prog, startup)
     return prog
 
 env.AddMethod(Cargo)

@@ -708,7 +708,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
 
 pub fn init() {
     LOG.set(Some(io::log::Log::default()));
-    log().init();
+    log().init(envdata::get().pe_id, "DTU");
 
     BACKEND.set(Some(backend::SocketBackend::new()));
 

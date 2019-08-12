@@ -43,7 +43,6 @@ OStream &operator<<(OStream &os, const Env &senv) {
     os << "mounts: " << fmt(senv.mounts, "p") << "\n";
     os << "eps   : " << fmt(senv.eps, "p") << "\n";
     os << "caps  : " << fmt(senv.caps, "p") << "\n";
-    os << "exit  : " << fmt(senv.exitaddr, "p") << "\n";
     return os;
 }
 
@@ -82,7 +81,7 @@ USED void Env::exit(int code) {
     __cxa_finalize(nullptr);
     backend()->exit(code);
     entry = 0;
-    jmpto(exitaddr);
+    CPU::exit();
 }
 
 }

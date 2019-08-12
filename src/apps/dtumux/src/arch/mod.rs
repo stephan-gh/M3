@@ -14,41 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
-use com;
-use cpu;
-use io;
-use mem;
-use syscalls;
-use vfs;
-use vpe;
+#[cfg(target_arch = "x86_64")]
+#[path = "x86_64/mod.rs"]
+mod isa;
 
-#[no_mangle]
-pub extern "C" fn exit(code: i32) -> ! {
-    io::deinit();
-    vfs::deinit();
-    syscalls::exit(code);
-    cpu::exit();
-}
+#[cfg(target_arch = "arm")]
+#[path = "arm/mod.rs"]
+mod isa;
 
-extern "C" {
-    fn main() -> i32;
-}
-
-#[no_mangle]
-pub extern "C" fn env_run() {
-    let res = if arch::env::get().has_lambda() {
-        io::reinit();
-        com::reinit();
-        vpe::reinit();
-        arch::env::closure().call()
-    }
-    else {
-        mem::heap::init();
-        vpe::init();
-        io::init();
-        com::init();
-        unsafe { main() }
-    };
-    exit(res)
-}
+pub use self::isa::*;

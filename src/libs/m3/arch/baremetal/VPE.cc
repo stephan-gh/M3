@@ -65,11 +65,10 @@ void VPE::run(void *lambda) {
     Env senv;
     senv.pe = 0;
     senv.argc = env()->argc;
-    senv.argv = RT_SPACE_START;
+    senv.argv = ENV_SPACE_START;
     senv.sp = CPU::get_sp();
     senv.entry = get_entry();
     senv.lambda = reinterpret_cast<uintptr_t>(lambda);
-    senv.exitaddr = 0;
 
     senv.mounts = reinterpret_cast<uint64_t>(this);
 
@@ -79,13 +78,13 @@ void VPE::run(void *lambda) {
     senv.heapsize = env()->heapsize;
 
     /* write start env to PE */
-    _mem.write(&senv, sizeof(senv), RT_START);
+    _mem.write(&senv, sizeof(senv), ENV_START);
 
     /* write args */
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
     size_t size = store_arguments(buffer.get(), static_cast<int>(env()->argc),
         reinterpret_cast<const char**>(env()->argv));
-    _mem.write(buffer.get(), size, RT_SPACE_START);
+    _mem.write(buffer.get(), size, ENV_SPACE_START);
 
     /* go! */
     start();
@@ -105,31 +104,30 @@ void VPE::exec(int argc, const char **argv) {
     load(argc, argv, &entry, buffer.get(), &size);
 
     senv.argc = static_cast<uint32_t>(argc);
-    senv.argv = RT_SPACE_START;
+    senv.argv = ENV_SPACE_START;
     senv.sp = STACK_TOP;
     senv.entry = entry;
     senv.lambda = 0;
-    senv.exitaddr = 0;
 
     /* add mounts, fds, caps and eps */
     /* align it because we cannot necessarily read e.g. integers from unaligned addresses */
     size_t offset = Math::round_up(size, sizeof(word_t));
 
-    senv.mounts = RT_SPACE_START + offset;
-    senv.mounts_len = _ms->serialize(buffer.get() + offset, RT_SPACE_SIZE - offset);
+    senv.mounts = ENV_SPACE_START + offset;
+    senv.mounts_len = _ms->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.mounts_len), sizeof(word_t));
 
-    senv.fds = RT_SPACE_START + offset;
-    senv.fds_len = _fds->serialize(buffer.get() + offset, RT_SPACE_SIZE - offset);
+    senv.fds = ENV_SPACE_START + offset;
+    senv.fds_len = _fds->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
     // map the memory first in case the VPE is not running and the kernel needs to forward the mem
     // access (the kernel cannot cause a pagefault)
     if(_pager)
-        _pager->pagefault(RT_SPACE_START, MemGate::W);
+        _pager->pagefault(ENV_SPACE_START, MemGate::W);
 
     /* write entire runtime stuff */
-    _mem.write(buffer.get(), offset, RT_SPACE_START);
+    _mem.write(buffer.get(), offset, ENV_SPACE_START);
 
     senv.eps = _eps;
     senv.caps = _next_sel;
@@ -148,7 +146,7 @@ void VPE::exec(int argc, const char **argv) {
     senv.heapsize = _pager ? APP_HEAP_SIZE : 0;
 
     /* write start env to PE */
-    _mem.write(&senv, sizeof(senv), RT_START);
+    _mem.write(&senv, sizeof(senv), ENV_START);
 
     /* go! */
     start();
@@ -243,8 +241,8 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
 
     if(_pager) {
         // create area for boot/runtime stuff
-        goff_t virt = RT_START;
-        _pager->map_anon(&virt, RT_END - virt, Pager::READ | Pager::WRITE, 0);
+        goff_t virt = ENV_START;
+        _pager->map_anon(&virt, ENV_END - virt, Pager::READ | Pager::WRITE, 0);
 
         // create area for stack
         virt = STACK_BOTTOM;
@@ -269,7 +267,7 @@ size_t VPE::store_arguments(char *buffer, int argc, const char **argv) {
         if(args + len >= buffer + BUF_SIZE)
             throw Exception(Errors::INV_ARGS);
         strcpy(args, argv[i]);
-        *argptr++ = RT_SPACE_START + static_cast<size_t>(args - buffer);
+        *argptr++ = ENV_SPACE_START + static_cast<size_t>(args - buffer);
         args += len + 1;
     }
     return static_cast<size_t>(args - buffer);

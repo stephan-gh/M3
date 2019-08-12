@@ -1,0 +1,17 @@
+Import('env')
+
+if env['ARCH'] == 'gem5':
+    myenv = env.Clone()
+    myenv.Append(
+        LINKFLAGS = ' -nostartfiles',
+    )
+
+    entry = myenv.Object(myenv.Glob('src/arch/$ISA/Entry.S'))
+    myenv.RustProgram(
+        myenv,
+        target = 'dtumux',
+        libs = ['isr'],
+        startup = entry,
+        ldscript = myenv.File('#src/apps/dtumux/src/arch/$ISA/ld.conf'),
+        varAddr = False,
+    )

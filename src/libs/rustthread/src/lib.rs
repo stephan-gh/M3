@@ -22,7 +22,6 @@ extern crate base;
 
 use base::boxed::Box;
 use base::cell::StaticCell;
-use base::cfg;
 use base::col::{BoxList, Vec};
 use base::dtu;
 use base::libc;
@@ -34,6 +33,7 @@ use core::ptr::NonNull;
 pub type Event = u64;
 
 const MAX_MSG_SIZE: usize = 1024;
+const STACK_SIZE: usize = 16 * 1024;
 
 #[cfg(target_arch = "x86_64")]
 #[derive(Default)]
@@ -133,7 +133,7 @@ impl Thread {
             next: None,
             id: alloc_id(),
             regs: Regs::default(),
-            stack: vec![0usize; cfg::STACK_SIZE / 8],
+            stack: vec![0usize; STACK_SIZE / 8],
             event: 0,
             has_msg: false,
             msg: unsafe { mem::MaybeUninit::uninit().assume_init() },

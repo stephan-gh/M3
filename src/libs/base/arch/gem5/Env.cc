@@ -47,8 +47,4 @@ void Env::post_init() {
 void Env::pre_exit() {
 }
 
-void Env::jmpto(uintptr_t addr) {
-    CPU::jumpto(addr);
-}
-
 }

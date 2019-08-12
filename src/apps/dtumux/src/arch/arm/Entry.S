@@ -17,8 +17,8 @@
 #include <base/Asm.h>
 
 .extern init
-.extern isr_stack
 .extern sleep
+.extern isr_stack
 .global idle
 
 .text
@@ -46,8 +46,8 @@ BEGIN_FUNC(_start)
     // perform initialization, if necessary
     bl      init
 
-    // enable interrupts and supervisor mode
-    mov     r0, #0x13
+    // enable interrupts and user mode
+    mov     r0, #0x10
     msr     CPSR, r0
     // start idling
     ldr     r0, =idle
@@ -55,6 +55,12 @@ BEGIN_FUNC(_start)
 END_FUNC(_start)
 
 BEGIN_FUNC(idle)
-1:  bl      sleep
+1:  ldr     sp, =idle_stack
+    bl      sleep
     b       1b
 END_FUNC(idle)
+
+.bss
+
+    .space 128
+idle_stack:

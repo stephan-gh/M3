@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016, René Küttner <rene.kuettner@.tu-dresden.de>
  * Economic rights: Technische Universität Dresden (Germany)
  *
  * This file is part of M3 (Microkernel for Minimalist Manycores).
@@ -15,17 +15,14 @@
  */
 
 #include <base/DTU.h>
+#include <base/Env.h>
+
+#include <isr/ISR.h>
 
 namespace m3 {
 
-Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
-    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 48));
-    if(replylbl)
-        write_reg(CmdRegs::REPLY_LABEL, replylbl);
-    CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::SEND, 0, reply_ep));
-
-    return get_error();
+void ISR::reg(size_t idx, Exceptions::isr_func func) {
+    isrs[idx] = func;
 }
 
 }

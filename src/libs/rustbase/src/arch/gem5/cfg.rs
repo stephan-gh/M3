@@ -37,10 +37,10 @@ pub const MAX_RB_SIZE: usize        = 32;
 
 pub const MEM_CAP_END: usize        = RECVBUF_SPACE;
 
-pub const RT_START: usize           = 0x6000;
-pub const RT_SIZE: usize            = 0x2000;
-pub const STACK_SIZE: usize         = 0x8000;
-pub const STACK_BOTTOM: usize       = RT_START + RT_SIZE + PAGE_SIZE;
+pub const ENV_START: usize          = 0x200000;
+pub const ENV_SIZE: usize           = 0x2000;
+pub const STACK_SIZE: usize         = 0xF000;
+pub const STACK_BOTTOM: usize       = ENV_START + ENV_SIZE + PAGE_SIZE;
 pub const STACK_TOP: usize          = STACK_BOTTOM + STACK_SIZE;
 
 pub const APP_HEAP_SIZE: usize      = 64 * 1024 * 1024;

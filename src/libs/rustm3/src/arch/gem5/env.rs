@@ -17,6 +17,7 @@
 use arch;
 use base;
 use cap::Selector;
+use cfg;
 use com::{SendGate, SliceSource};
 use core::intrinsics;
 use env;
@@ -146,10 +147,6 @@ impl EnvData {
         self.base.vpe = vpe as *const vpe::VPE as u64;
     }
 
-    pub fn exit_addr(&self) -> usize {
-        self.base.exit_addr as usize
-    }
-
     pub fn has_lambda(&self) -> bool {
         self.base.lambda == 1
     }
@@ -200,9 +197,9 @@ impl EnvData {
 }
 
 pub fn get() -> &'static mut EnvData {
-    unsafe { intrinsics::transmute(0x6000 as usize) }
+    unsafe { intrinsics::transmute(cfg::ENV_START) }
 }
 
 pub fn closure() -> &'static mut env::Closure {
-    unsafe { intrinsics::transmute(0x6000 as usize + util::size_of::<EnvData>()) }
+    unsafe { intrinsics::transmute(cfg::ENV_START + util::size_of::<EnvData>()) }
 }

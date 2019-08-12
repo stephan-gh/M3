@@ -14,41 +14,17 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
-use com;
-use cpu;
-use io;
-use mem;
-use syscalls;
-use vfs;
-use vpe;
+use arch::isr;
+use base::dtu;
 
-#[no_mangle]
-pub extern "C" fn exit(code: i32) -> ! {
-    io::deinit();
-    vfs::deinit();
-    syscalls::exit(code);
-    cpu::exit();
+pub fn handle_xlate(_state: &mut isr::State, _xlate_req: dtu::Reg) {
+    log!(DEF, "Unexpected Xlate request");
 }
 
-extern "C" {
-    fn main() -> i32;
+pub fn handle_mmu_pf(_state: &mut isr::State) {
+    log!(DEF, "Unexpected PF");
 }
 
-#[no_mangle]
-pub extern "C" fn env_run() {
-    let res = if arch::env::get().has_lambda() {
-        io::reinit();
-        com::reinit();
-        vpe::reinit();
-        arch::env::closure().call()
-    }
-    else {
-        mem::heap::init();
-        vpe::init();
-        io::init();
-        com::init();
-        unsafe { main() }
-    };
-    exit(res)
+pub fn flush_tlb(_virt: usize) {
+    log!(DEF, "Unexpected TLB flush request");
 }

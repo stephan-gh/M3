@@ -8,6 +8,7 @@ lib = myenv.StaticLibrary(
     source = [
         myenv.Glob('arch/$ISA/*.cc'),
         myenv.Glob('arch/$ISA/*.S'),
+        myenv.Glob('*.cc'),
     ],
 )
 myenv.Install(myenv['LIBDIR'], lib)

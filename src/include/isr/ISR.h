@@ -33,16 +33,14 @@ namespace m3 {
 
 class ISR : public ISRBase {
 public:
-    static void init();
+    static void init() asm("isr_init");
 
     static m3::Exceptions::isr_func *table() {
         return isrs;
     }
 
-    static void reg(size_t idx, Exceptions::isr_func func) {
-        isrs[idx] = func;
-    }
-    static void enable_irqs();
+    static void reg(size_t idx, Exceptions::isr_func func) asm("isr_reg");
+    static void enable_irqs() asm("isr_enable");
 
 private:
     static void *handler(m3::Exceptions::State *state) asm("irq_handler");

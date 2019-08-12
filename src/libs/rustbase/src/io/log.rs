@@ -16,9 +16,7 @@
 
 //! Contains the logger
 
-use arch;
 use cell::{RefCell, StaticCell};
-use env;
 use errors::Error;
 use io::{Serial, Write};
 use rc::Rc;
@@ -98,16 +96,14 @@ impl Log {
         }
     }
 
-    pub(crate) fn init(&mut self) {
+    pub(crate) fn init(&mut self, pe_id: u64, name: &str) {
         let colors = ["31", "32", "33", "34", "35", "36"];
-        let name = env::args().nth(0).unwrap_or("Unknown");
         let begin = match name.rfind('/') {
             Some(b) => b + 1,
             None => 0,
         };
 
         self.pos = 0;
-        let pe_id = arch::envdata::get().pe_id;
         self.write_fmt(format_args!(
             "\x1B[0;{}m[{:<8}@{:X}] ",
             colors[(pe_id as usize) % colors.len()],
@@ -144,12 +140,12 @@ impl Write for Log {
 }
 
 /// Initializes the logger
-pub fn init() {
+pub fn init(pe_id: u64, name: &str) {
     LOG.set(Some(Log::default()));
-    reinit();
+    reinit(pe_id, name);
 }
 
 /// Reinitializes the logger (for VPE::run)
-pub fn reinit() {
-    Log::get().unwrap().init();
+pub fn reinit(pe_id: u64, name: &str) {
+    Log::get().unwrap().init(pe_id, name);
 }
