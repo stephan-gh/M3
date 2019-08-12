@@ -113,9 +113,6 @@ env.Append(
     CRGFLAGS = ' --target ' + isa + '-unknown-' + target + '-' + rustabi,
 )
 
-if int(verbose) != 0:
-    env.Append(CRGFLAGS = ' -v')
-
 # add target-dependent stuff to env
 if target == 'gem5':
     if isa == 'x86_64':
