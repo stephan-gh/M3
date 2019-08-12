@@ -28,7 +28,7 @@ extern "C" {
     static idle: libc::c_void;
 }
 
-fn vector_name(vec: u32) -> &'static str {
+fn vec_name(vec: u32) -> &'static str {
     match vec {
         0 => "Reset",
         1 => "UndefInstr",
@@ -45,7 +45,7 @@ fn vector_name(vec: u32) -> &'static str {
 pub struct State {
     pub sp: u32,
     pub lr: u32,
-    pub vector: u32,
+    pub vec: u32,
     pub r: [u32; 13], // r0 .. r12
     pub klr: u32,
     pub pc: u32,
@@ -57,12 +57,7 @@ impl fmt::Debug for State {
         writeln!(fmt, "State @ {:#x}", self as *const State as usize)?;
         writeln!(fmt, "  lr:     {:#x}", { self.lr })?;
         writeln!(fmt, "  sp:     {:#x}", { self.sp })?;
-        writeln!(
-            fmt,
-            "  vector: {:#x} ({:?})",
-            {self.vector},
-            vector_name(self.vector)
-        )?;
+        writeln!(fmt, "  vec: {:#x} ({})", { self.vec }, vec_name(self.vec))?;
         writeln!(fmt, "  klr:    {:#x}", { self.klr })?;
         for (idx, r) in { self.r }.iter().enumerate() {
             writeln!(fmt, "  r[{:02}]:  {:#x}", idx, r)?;
@@ -75,9 +70,6 @@ impl fmt::Debug for State {
 
 impl State {
     pub fn init(&mut self, entry: usize, sp: usize) {
-        // TODO m3::Env *senv = m3::env();
-        // senv->isrs = reinterpret_cast<uintptr_t>(m3::ISR::table());
-
         self.r[1] = 0xDEADBEEF; // don't set the stackpointer in crt0
         self.pc = entry as u32;
         self.sp = sp as u32;

@@ -17,7 +17,6 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/Exceptions.h>
 
 #include <assert.h>
 
@@ -33,23 +32,27 @@ namespace m3 {
 
 class ISR : public ISRBase {
 public:
+    typedef ExceptionState State;
+
+    typedef void *(*isr_func)(State *state);
+
     static void init() asm("isr_init");
 
-    static m3::Exceptions::isr_func *table() {
+    static isr_func *table() {
         return isrs;
     }
 
-    static void reg(size_t idx, Exceptions::isr_func func) asm("isr_reg");
+    static void reg(size_t idx, isr_func func) asm("isr_reg");
     static void enable_irqs() asm("isr_enable");
 
 private:
-    static void *handler(m3::Exceptions::State *state) asm("irq_handler");
+    static void *handler(State *state) asm("irq_handler");
 
-    static void *null_handler(m3::Exceptions::State *state) {
+    static void *null_handler(State *state) {
         return state;
     }
 
-    static Exceptions::isr_func isrs[ISR_COUNT];
+    static isr_func isrs[ISR_COUNT];
 };
 
 }

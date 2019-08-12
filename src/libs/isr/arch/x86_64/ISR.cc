@@ -49,13 +49,13 @@ EXTERN_C void isr_null();
 
 namespace m3 {
 
-Exceptions::isr_func ISR::isrs[ISR_COUNT];
+ISR::isr_func ISR::isrs[ISR_COUNT];
 
 ISR::Desc ISRBase::gdt[GDT_ENTRY_COUNT];
 ISR::Desc64 ISRBase::idt[ISR_COUNT];
 ISR::TSS ISRBase::tss ALIGNED(PAGE_SIZE);
 
-void *ISR::handler(m3::Exceptions::State *state) {
+void *ISR::handler(State *state) {
     return isrs[state->intrptNo](state);
 }
 

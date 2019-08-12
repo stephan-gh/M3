@@ -18,7 +18,6 @@
 #include <base/stream/Serial.h>
 #include <base/CPU.h>
 #include <base/Env.h>
-#include <base/Exceptions.h>
 
 #include <exception>
 #include <stdlib.h>
@@ -36,8 +35,6 @@ void Env::pre_init() {
 }
 
 void Env::post_init() {
-    m3::Exceptions::init();
-
     // call constructors
     _init();
     for(constr_func *func = &CTORS_BEGIN; func < &CTORS_END; ++func)

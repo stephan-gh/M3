@@ -63,7 +63,6 @@ public:
     uint64_t eps;
     uint64_t caps;
     uint64_t _backend;
-    uintptr_t isrs;
 
     BaremetalEnvBackend *backend() {
         return reinterpret_cast<BaremetalEnvBackend*>(_backend);

@@ -21,9 +21,9 @@
 
 namespace m3 {
 
-Exceptions::isr_func ISR::isrs[ISR_COUNT];
+ISR::isr_func ISR::isrs[ISR_COUNT];
 
-void *ISR::handler(m3::Exceptions::State *state) {
+void *ISR::handler(State *state) {
     // repeat last instruction, except for SWIs
     if(state->vector != 2)
         state->pc -= 4;

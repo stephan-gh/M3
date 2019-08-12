@@ -18,7 +18,8 @@
 
 #include <base/Common.h>
 #include <base/DTU.h>
-#include <base/Exceptions.h>
+
+#include <isr/ISR.h>
 
 #include "mem/MainMemory.h"
 #include "pes/VPEDesc.h"
@@ -87,7 +88,7 @@ private:
     void mmu_cmd_remote(const VPEDesc &vpe, m3::DTU::reg_t arg);
 
     static void handle_xlate(m3::DTU::reg_t xlate_req);
-    static void *dtu_handler(m3::Exceptions::State *state);
+    static void *dtu_handler(m3::ISR::State *state);
 #endif
 
     m3::PEDesc _pe;

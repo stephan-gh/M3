@@ -418,7 +418,7 @@ void AddrSpace::handle_xlate(m3::DTU::reg_t xlate_req) {
     dtu.set_xlate_resp(pte | (xferbuf << 5));
 }
 
-void *AddrSpace::dtu_handler(m3::Exceptions::State *state) {
+void *AddrSpace::dtu_handler(m3::ISR::State *state) {
     m3::DTU &dtu = m3::DTU::get();
 
     // translation request from DTU?
@@ -431,28 +431,5 @@ void *AddrSpace::dtu_handler(m3::Exceptions::State *state) {
     return state;
 }
 #endif
-
-void *irq_handler(m3::Exceptions::State *state) {
-    m3::Serial::get() << *state;
-
-    m3::Machine::shutdown();
-    UNREACHED;
-}
-
-struct ISR {
-    explicit ISR() {
-        m3::ISR::init();
-        for(size_t i = 0; i < m3::ISR::ISR_COUNT; ++i)
-            m3::ISR::reg(i, irq_handler);
-#if defined(__x86_64__)
-        m3::ISR::reg(64, AddrSpace::dtu_handler);
-#endif
-        m3::ISR::enable_irqs();
-    }
-
-    static ISR irqs;
-};
-
-INIT_PRIO_USER(0) ISR ISR::irqs;
 
 }

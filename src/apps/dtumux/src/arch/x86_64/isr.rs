@@ -53,10 +53,32 @@ pub struct State {
     pub ss: u64,
 }
 
+fn vec_name(vec: u64) -> &'static str {
+    match vec {
+        0x00 => "Divide by zero",
+        0x01 => "Single step",
+        0x02 => "Non maskable",
+        0x03 => "Breakpoint",
+        0x04 => "Overflow",
+        0x05 => "Bounds check",
+        0x06 => "Invalid opcode",
+        0x07 => "Co-proc. n/a",
+        0x08 => "Double fault",
+        0x09 => "Co-proc seg. overrun",
+        0x0A => "Invalid TSS",
+        0x0B => "Segment not present",
+        0x0C => "Stack exception",
+        0x0D => "Gen. prot. fault",
+        0x0E => "Page fault",
+        0x10 => "Co-processor error",
+        _ => "<unknown>",
+    }
+}
+
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         writeln!(fmt, "State @ {:#x}", self as *const State as usize)?;
-        writeln!(fmt, "  vector: {:#x}", { self.irq })?;
+        writeln!(fmt, "  vec: {:#x} ({})", { self.irq }, vec_name(self.irq))?;
         writeln!(fmt, "  error:  {:#x}", { self.error })?;
         writeln!(fmt, "  rip:    {:#x}", { self.rip })?;
         writeln!(fmt, "  rflags: {:#x}", { self.rflags })?;
@@ -72,15 +94,13 @@ impl fmt::Debug for State {
 
 impl State {
     pub fn init(&mut self, entry: usize, sp: usize) {
-        // TODO m3::Env *senv = m3::env();
-        // senv->isrs = reinterpret_cast<uintptr_t>(m3::ISR::table());
-
         self.rip = entry as u64;
         self.rsp = sp as u64;
         self.r[8] = 0; // rbp
         self.r[14] = 0xDEADBEEF; // set rax to tell crt0 that we've set the SP
 
         self.rflags = 0x200; // enable interrupts
+                             // run in user mode
         self.cs = (isr::SEG_UCODE << 3) | DPL_USER;
         self.ss = (isr::SEG_UDATA << 3) | DPL_USER;
     }

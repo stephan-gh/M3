@@ -21,7 +21,7 @@
 
 namespace m3 {
 
-void ISR::reg(size_t idx, Exceptions::isr_func func) {
+void ISR::reg(size_t idx, isr_func func) {
     isrs[idx] = func;
 }
 
