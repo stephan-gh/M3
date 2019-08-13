@@ -19,6 +19,7 @@
 .extern init
 .extern sleep
 .extern isr_stack
+.global idle_stack
 .global idle
 
 .text
@@ -46,6 +47,10 @@ BEGIN_FUNC(_start)
     // perform initialization, if necessary
     bl      init
 
+    // load user sp
+    ldr     r0, =idle_stack
+    push    {r0}
+    ldmia   sp, {r13}^
     // enable interrupts and user mode
     mov     r0, #0x10
     msr     CPSR, r0
@@ -55,12 +60,11 @@ BEGIN_FUNC(_start)
 END_FUNC(_start)
 
 BEGIN_FUNC(idle)
-1:  ldr     sp, =idle_stack
-    bl      sleep
+1:  bl      sleep
     b       1b
 END_FUNC(idle)
 
 .bss
 
-    .space 128
+    .space 4096
 idle_stack:

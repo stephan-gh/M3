@@ -26,6 +26,7 @@ extern "C" {
     fn isr_enable();
 
     static idle: libc::c_void;
+    static idle_stack: libc::c_void;
 }
 
 fn vec_name(vec: u32) -> &'static str {
@@ -80,6 +81,7 @@ impl State {
     pub fn stop(&mut self) {
         unsafe {
             self.pc = &idle as *const libc::c_void as u32;
+            self.sp = &idle_stack as *const libc::c_void as u32;
         }
     }
 }
