@@ -51,8 +51,7 @@ for i in range(0, len(accs)):
                        no=num_pes + num_mem + i,
                        accel=accs[i],
                        memPE=mem_pe,
-                       spmsize='64kB')
-                       #l1size='32kB')
+                       spmsize='2MB'))
     pes.append(pe)
 
 # create ALADDIN accelerator
