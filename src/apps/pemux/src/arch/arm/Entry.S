@@ -60,6 +60,11 @@ BEGIN_FUNC(_start)
 END_FUNC(_start)
 
 BEGIN_FUNC(idle)
+    // TODO: the isb (or something else) is required, because of a bug in the O3 CPU as its seems.
+    // The problem is that the restore of lr within a rfe is performed *after* the setting of
+    // lr by the bl instruction below. Consequently, lr is overwritten and we return to somewhere
+    // else with the next "bx lr".
+    isb
 1:  bl      sleep
     b       1b
 END_FUNC(idle)
