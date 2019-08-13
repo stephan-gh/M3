@@ -31,11 +31,6 @@ BEGIN_FUNC(_start)
     pushq   $isr_stack      // rsp
     pushq   $0x200          // rflags: interrupts enabled
     pushq   $(1 << 3)       // cs
-    pushq   $idle           // rip
+    pushq   $sleep           // rip
     iretq
 END_FUNC(_start)
-
-BEGIN_FUNC(idle)
-1:  call    sleep
-    jmp     1b
-END_FUNC(idle)

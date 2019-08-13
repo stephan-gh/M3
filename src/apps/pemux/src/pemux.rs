@@ -45,8 +45,13 @@ pub extern "C" fn exit(_code: i32) {
 }
 
 #[no_mangle]
-pub extern "C" fn sleep() {
-    dtu::DTU::sleep().ok();
+pub fn sleep() {
+    // XXX: on ARM, we need this function to not call any other functions (use lr), because
+    // of a bug in the O3 CPU model, as it seems. The problem is that a store to lr shortly
+    // after rfe sometimes has no effect or gets overwritten with the old value again.
+    loop {
+        dtu::DTU::sleep().ok();
+    }
 }
 
 pub extern "C" fn unexpected_irq(state: &mut isr::State) -> *mut libc::c_void {

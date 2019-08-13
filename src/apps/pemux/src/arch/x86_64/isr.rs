@@ -25,7 +25,6 @@ extern "C" {
     fn isr_reg(idx: usize, func: IsrFunc);
     fn isr_enable();
 
-    static idle: libc::c_void;
     static isr_stack: libc::c_void;
 }
 
@@ -106,12 +105,10 @@ impl State {
     }
 
     pub fn stop(&mut self) {
-        unsafe {
-            self.rip = &idle as *const libc::c_void as u64;
-            self.rsp = &isr_stack as *const libc::c_void as u64;
-        }
+        self.rip = crate::sleep as *const fn() as u64;
+        self.rsp = unsafe { &isr_stack as *const libc::c_void as u64 };
         self.r[8] = self.rsp; // rbp and rsp
-        
+
         self.rflags = 0x200; // enable interrupts
         self.cs = (isr::SEG_KCODE << 3) | DPL_KERNEL;
         self.ss = (isr::SEG_KDATA << 3) | DPL_KERNEL;

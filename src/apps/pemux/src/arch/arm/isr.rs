@@ -25,7 +25,6 @@ extern "C" {
     fn isr_reg(idx: usize, func: IsrFunc);
     fn isr_enable();
 
-    static idle: libc::c_void;
     static idle_stack: libc::c_void;
 }
 
@@ -79,10 +78,8 @@ impl State {
     }
 
     pub fn stop(&mut self) {
-        unsafe {
-            self.pc = &idle as *const libc::c_void as u32;
-            self.sp = &idle_stack as *const libc::c_void as u32;
-        }
+        self.pc = crate::sleep as *const fn() as u32;
+        self.sp = unsafe { &idle_stack as *const libc::c_void as u32 };
     }
 }
 
