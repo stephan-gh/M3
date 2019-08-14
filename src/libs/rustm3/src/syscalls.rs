@@ -18,51 +18,40 @@
 
 use cap::Selector;
 use core::mem::MaybeUninit;
-use dtu;
+use dtu::{DTUIf, EpId, Label, Message, SYSC_REP, SYSC_SEP};
 use errors::Error;
 use goff;
 use kif::{syscalls, CapRngDesc, PEDesc, Perm};
 use util;
 
 struct Reply<R: 'static> {
-    msg: &'static dtu::Message,
+    msg: &'static Message,
     data: &'static R,
 }
 
 impl<R: 'static> Drop for Reply<R> {
     fn drop(&mut self) {
-        dtu::DTU::mark_read(dtu::SYSC_REP, self.msg);
+        DTUIf::mark_read(SYSC_REP, self.msg);
     }
 }
 
 fn send<T>(msg: *const T) -> Result<(), Error> {
-    dtu::DTU::send(
-        dtu::SYSC_SEP,
+    DTUIf::send(
+        SYSC_SEP,
         msg as *const u8,
         util::size_of::<T>(),
         0,
-        dtu::SYSC_REP,
+        SYSC_REP,
     )
 }
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
-    send(msg)?;
-
-    loop {
-        // we are not interested in the events here; just fetch them before the sleep
-        dtu::DTU::fetch_events();
-
-        dtu::DTU::sleep()?;
-
-        let msg = dtu::DTU::fetch_msg(dtu::SYSC_REP);
-        if let Some(m) = msg {
-            let data: &[R] = unsafe { &*(&m.data as *const [u8] as *const [R]) };
-            return Ok(Reply {
-                msg: m,
-                data: &data[0],
-            });
-        }
-    }
+    let msg = DTUIf::call(SYSC_SEP, msg as *const u8, util::size_of::<T>(), SYSC_REP)?;
+    let data: &[R] = unsafe { &*(&msg.data as *const [u8] as *const [R]) };
+    return Ok(Reply {
+        msg,
+        data: &data[0],
+    });
 }
 
 fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
@@ -99,7 +88,7 @@ pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> 
 pub fn create_sgate(
     dst: Selector,
     rgate: Selector,
-    label: dtu::Label,
+    label: Label,
     credits: u64,
 ) -> Result<(), Error> {
     let req = syscalls::CreateSGate {
@@ -182,8 +171,8 @@ pub fn create_vpe(
     sgate: Selector,
     name: &str,
     pe: PEDesc,
-    sep: dtu::EpId,
-    rep: dtu::EpId,
+    sep: EpId,
+    rep: EpId,
     kmem: Selector,
 ) -> Result<PEDesc, Error> {
     let mut req = syscalls::CreateVPE {

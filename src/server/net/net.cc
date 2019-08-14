@@ -347,7 +347,7 @@ int main(int argc, char **argv) {
                 SLOG(NET_ALL, "@" << start << " sleep: " << sleep_time << " cycles"
                     << " (" << sleep_ms << " ms)");
 
-                DTU::get().sleep_for(sleep_time);
+                DTUIf::sleep_for(sleep_time);
 
                 cycles_t stop = m3::DTU::get().tsc();
                 SLOG(NET_ALL, "@" << stop << " wakeup: " << stop - start << " cycles"

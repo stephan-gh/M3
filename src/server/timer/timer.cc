@@ -49,7 +49,7 @@ int main() {
     while(wl.has_items()) {
         DTU::get().fetch_events();
 
-        DTU::get().sleep_for(next_tick - DTU::get().tsc());
+        DTUIf::sleep_for(next_tick - DTU::get().tsc());
 
         wl.tick();
     }

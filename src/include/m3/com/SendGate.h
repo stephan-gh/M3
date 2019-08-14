@@ -146,24 +146,34 @@ public:
     void activate_for(VPE &vpe, epid_t ep);
 
     /**
-     * Sends <data> of length <len> to the associated RecvGate.
+     * Sends <msg> of length <len> to the associated RecvGate.
      *
-     * @param data the data to send
-     * @param len the length of the data
+     * @param msg the message to send
+     * @param len the length of the message
      * @param reply_label the reply label to set
      */
-    void send(const void *data, size_t len, label_t reply_label = 0);
+    void send(const void *msg, size_t len, label_t reply_label = 0);
 
     /**
-     * Tries to send <data> of length <len> to the associated RecvGate and returns the error code
+     * Tries to send <msg> of length <len> to the associated RecvGate and returns the error code
      * on failure.
      *
-     * @param data the data to send
-     * @param len the length of the data
+     * @param msg the message to send
+     * @param len the length of the message
      * @param reply_label the reply label to set
      * @return the error code if failed
      */
-    Errors::Code try_send(const void *data, size_t len, label_t reply_label = 0);
+    Errors::Code try_send(const void *msg, size_t len, label_t reply_label = 0);
+
+    /**
+     * Sends <msg> of length <len> to the associated RecvGate and receives the reply from the set
+     * reply gate.
+     *
+     * @param msg the message to send
+     * @param len the length of the message
+     * @return the received reply
+     */
+    const DTU::Message *call(const void *msg, size_t len);
 
 private:
     RecvGate *_replygate;

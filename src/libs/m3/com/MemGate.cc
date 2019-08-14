@@ -19,6 +19,7 @@
 
 #include <m3/com/MemGate.h>
 #include <m3/session/ResMng.h>
+#include <m3/DTUIf.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
@@ -68,7 +69,7 @@ void MemGate::activate_for(VPE &vpe, epid_t ep, goff_t offset) {
 void MemGate::read(void *data, size_t len, goff_t offset) {
     ensure_activated();
 
-    Errors::Code res = DTU::get().read(ep(), data, len, offset, _cmdflags);
+    Errors::Code res = DTUIf::read(ep(), data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }
@@ -76,7 +77,7 @@ void MemGate::read(void *data, size_t len, goff_t offset) {
 void MemGate::write(const void *data, size_t len, goff_t offset) {
     ensure_activated();
 
-    Errors::Code res = DTU::get().write(ep(), data, len, offset, _cmdflags);
+    Errors::Code res = DTUIf::write(ep(), data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }

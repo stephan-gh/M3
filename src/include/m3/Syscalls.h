@@ -66,7 +66,7 @@ public:
     static void exit(int exitcode);
 
 private:
-    static DTU::Message *send_receive(const void *msg, size_t size) noexcept;
+    static const DTU::Message *send_receive(const void *msg, size_t size) noexcept;
     static Errors::Code send_receive_err(const void *msg, size_t size) noexcept;
     static void send_receive_throw(const void *msg, size_t size);
     static void exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,

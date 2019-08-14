@@ -18,6 +18,7 @@
 
 #include <m3/pipe/DirectPipe.h>
 #include <m3/pipe/DirectPipeReader.h>
+#include <m3/DTUIf.h>
 
 namespace m3 {
 
@@ -79,7 +80,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
         }
         else {
             _state->_rgate.activate();
-            DTU::Message *msg = DTU::get().fetch_msg(_state->_rgate.ep());
+            const DTU::Message *msg = DTUIf::fetch_msg(_state->_rgate.ep());
             if(msg) {
                 _state->_is = GateIStream(_state->_rgate, msg);
                 _state->_is.vpull(_state->_pos, _state->_pkglen);

@@ -19,6 +19,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/pipe/DirectPipe.h>
 #include <m3/pipe/DirectPipeWriter.h>
+#include <m3/DTUIf.h>
 
 namespace m3 {
 
@@ -121,7 +122,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
             }
             else {
                 _state->_rgate.activate();
-                DTU::Message *msg = DTU::get().fetch_msg(_state->_rgate.ep());
+                const DTU::Message *msg = DTUIf::fetch_msg(_state->_rgate.ep());
                 if(msg) {
                     GateIStream is(_state->_rgate, msg);
                     is.vpull(len);

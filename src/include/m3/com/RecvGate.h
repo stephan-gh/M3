@@ -18,9 +18,9 @@
 
 #include <base/Common.h>
 #include <base/util/Util.h>
-#include <base/DTU.h>
 
 #include <m3/com/Gate.h>
+#include <m3/DTUIf.h>
 #include <m3/WorkLoop.h>
 
 #include <functional>
@@ -209,7 +209,7 @@ public:
      */
     const DTU::Message *fetch() {
         activate();
-        return DTU::get().fetch_msg(ep());
+        return DTUIf::fetch_msg(ep());
     }
 
     /**
@@ -236,7 +236,7 @@ public:
      * @param msg the message
      */
     void mark_read(const DTU::Message *msg) {
-        DTU::get().mark_read(ep(), msg);
+        DTUIf::mark_read(ep(), msg);
     }
 
     /**
@@ -245,7 +245,7 @@ public:
      * @param label the label
      */
     void drop_msgs_with(label_t label) noexcept {
-        DTU::get().drop_msgs(ep(), label);
+        DTUIf::drop_msgs(ep(), label);
     }
 
 private:

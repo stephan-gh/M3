@@ -36,6 +36,12 @@ pub use arch::init::{exit, rust_deinit, rust_init};
 pub mod io;
 #[macro_use]
 pub mod com;
+mod dtuif;
+
+pub mod dtu {
+    pub use base::dtu::*;
+    pub use dtuif::*;
+}
 
 pub use base::{
     backtrace,
@@ -44,7 +50,6 @@ pub use base::{
     cfg,
     col,
     cpu,
-    dtu,
 
     elf,
     env,

@@ -16,6 +16,7 @@
 
 use cap::{CapFlags, Selector};
 use com::gate::Gate;
+use com::stream::GateIStream;
 use com::RecvGate;
 use core::fmt;
 use dtu;
@@ -146,6 +147,23 @@ impl SendGate {
         )
     }
 
+    /// Sends `msg` of length `len` to the associated [`RecvGate`] and receives the reply from the
+    /// set reply gate. Returns the received reply.
+    pub fn call<'r, T>(
+        &self,
+        msg: &[T],
+        reply_gate: &'r RecvGate,
+    ) -> Result<GateIStream<'r>, Error> {
+        let ep = self.gate.activate()?;
+        dtu::DTUIf::call(
+            ep,
+            msg.as_ptr() as *const u8,
+            msg.len() * util::size_of::<T>(),
+            reply_gate.ep().unwrap(),
+        )
+        .map(|m| GateIStream::new(m, reply_gate))
+    }
+
     #[inline(always)]
     fn send_bytes(
         &self,
@@ -155,7 +173,7 @@ impl SendGate {
         rlabel: dtu::Label,
     ) -> Result<(), Error> {
         let ep = self.gate.activate()?;
-        dtu::DTU::send(ep, msg, size, rlabel, reply_gate.ep().unwrap())
+        dtu::DTUIf::send(ep, msg, size, rlabel, reply_gate.ep().unwrap())
     }
 }
 

@@ -315,7 +315,7 @@ int ctrl_waitUntil(sATAController *ctrl, time_t timeout, time_t sleepTime, uint8
             return 0;
         SLOG(IDE_ALL, "Status %#x" << status);
         if(sleepTime) {
-            m3::DTU::get().sleep_for(1000 * sleepTime);
+            m3::DTUIf::sleep_for(1000 * sleepTime);
             elapsed += sleepTime;
         }
         else

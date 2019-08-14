@@ -15,6 +15,7 @@
  */
 
 #include <m3/com/SendGate.h>
+#include <m3/DTUIf.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
@@ -36,16 +37,26 @@ void SendGate::activate_for(VPE &vpe, epid_t ep) {
     Syscalls::activate(vpe.ep_to_sel(ep), sel(), 0);
 }
 
-void SendGate::send(const void *data, size_t len, label_t reply_label) {
-    Errors::Code res = try_send(data, len, reply_label);
+void SendGate::send(const void *msg, size_t len, label_t reply_label) {
+    Errors::Code res = try_send(msg, len, reply_label);
     if(res != Errors::NONE)
         throw DTUException(res);
 }
 
-Errors::Code SendGate::try_send(const void *data, size_t len, label_t reply_label) {
+Errors::Code SendGate::try_send(const void *msg, size_t len, label_t reply_label) {
     ensure_activated();
 
-    return DTU::get().send(ep(), data, len, reply_label, _replygate->ep());
+    return DTUIf::send(ep(), msg, len, reply_label, _replygate->ep());
+}
+
+const DTU::Message *SendGate::call(const void *msg, size_t len) {
+    ensure_activated();
+
+    const DTU::Message *reply = nullptr;
+    Errors::Code res = DTUIf::call(ep(), msg, len, _replygate->ep(), &reply);
+    if(res != Errors::NONE)
+        throw DTUException(res);
+    return reply;
 }
 
 }

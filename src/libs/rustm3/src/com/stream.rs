@@ -263,6 +263,16 @@ impl GateOStream {
     pub fn send(&self, gate: &SendGate, reply_gate: &RecvGate) -> Result<(), Error> {
         gate.send(self.buf.words(), reply_gate)
     }
+
+    /// Sends the marshalled message via `gate`, using `reply_gate` for the reply.
+    #[inline(always)]
+    pub fn call<'r>(
+        &self,
+        gate: &SendGate,
+        reply_gate: &'r RecvGate,
+    ) -> Result<GateIStream<'r>, Error> {
+        gate.call(self.buf.words(), reply_gate)
+    }
 }
 
 /// An input stream for unmarshalling a DTU message that has been received over a [`RecvGate`].
@@ -411,10 +421,9 @@ pub fn recv_result<'r>(
 #[macro_export]
 macro_rules! send_recv {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        match send_vmsg!($sg, $rg, $( $args ),* ) {
-            Ok(_)   => $crate::com::recv_reply($rg, Some($sg)),
-            Err(e)  => Err(e),
-        }
+        let mut os = $crate::com::GateOStream::default();
+        $( os.push(&$args); )*
+        os.call($sg, $rg)
     });
 }
 
@@ -424,9 +433,12 @@ macro_rules! send_recv {
 #[macro_export]
 macro_rules! send_recv_res {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        match send_vmsg!($sg, $rg, $( $args ),* ) {
-            Ok(_)   => $crate::com::recv_result($rg, Some($sg)),
-            Err(e)  => Err(e),
-        }
+        send_recv!($sg, $rg, $( $args ),* ).and_then(|mut reply| {
+            let res: u32 = reply.pop();
+            match res {
+                0 => Ok(reply),
+                e => Err(Error::from(e)),
+            }
+        })
     });
 }

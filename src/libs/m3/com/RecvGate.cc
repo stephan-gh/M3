@@ -61,7 +61,7 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_invalid (
 );
 
 void RecvGate::RecvGateWorkItem::work() {
-    DTU::Message *msg = DTU::get().fetch_msg(_buf->ep());
+    const DTU::Message *msg = DTUIf::fetch_msg(_buf->ep());
     if(msg) {
         LLOG(IPC, "Received msg @ " << (void*)msg << " over ep " << _buf->ep());
         GateIStream is(*_buf, msg);
@@ -168,30 +168,18 @@ void RecvGate::stop() noexcept {
 }
 
 void RecvGate::reply(const void *reply, size_t len, const DTU::Message *msg) {
-    Errors::Code res = DTU::get().reply(ep(), reply, len, msg);
+    Errors::Code res = DTUIf::reply(ep(), reply, len, msg);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }
 
 const DTU::Message *RecvGate::receive(SendGate *sgate) {
     activate();
-
-    while(1) {
-        const DTU::Message *msg = DTU::get().fetch_msg(ep());
-        if(msg)
-            return msg;
-
-        // fetch the events first
-        DTU::get().fetch_events();
-        // now check whether the endpoint is still valid. if the EP has been invalidated before the
-        // line above, we'll notice that with this check. if the EP is invalidated between the line
-        // above and the sleep command, the DTU will refuse to suspend the core.
-        if(sgate && !DTU::get().is_valid(sgate->ep()))
-            throw MessageException("SendGate became invalid while waiting for reply", Errors::EP_INVALID);
-
-        DTU::get().sleep();
-    }
-    UNREACHED;
+    const DTU::Message *reply = nullptr;
+    Errors::Code res = DTUIf::receive(ep(), sgate ? sgate->ep() : EP_COUNT, &reply);
+    if(res != Errors::NONE)
+        throw MessageException("SendGate became invalid while waiting for reply", res);
+    return reply;
 }
 
 }

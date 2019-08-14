@@ -72,12 +72,12 @@ pub fn init() {
 pub fn check_replies() {
     let rep = RGATE.get().as_ref().unwrap().ep().unwrap();
 
-    if let Some(msg) = dtu::DTU::fetch_msg(rep) {
+    if let Some(msg) = dtu::DTUIf::fetch_msg(rep) {
         if let Ok(serv) = services::get().get_by_id(msg.header.label as Id) {
             serv.queue().received_reply(rep, msg);
         }
         else {
-            dtu::DTU::mark_read(rep, msg);
+            dtu::DTUIf::mark_read(rep, msg);
         }
     }
 }
@@ -127,7 +127,7 @@ impl SendQueue {
         thread::ThreadManager::get().notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
-        dtu::DTU::mark_read(rep, msg);
+        dtu::DTUIf::mark_read(rep, msg);
 
         self.send_pending();
     }

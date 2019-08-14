@@ -152,7 +152,7 @@ static bool device_identify(sATADevice *device, uint cmd) {
         time_t elapsed = 0;
         while((ctrl_inb(ctrl, ATA_REG_STATUS) & CMD_ST_BUSY) && elapsed < ATA_WAIT_TIMEOUT) {
             elapsed += 20;
-            m3::DTU::get().sleep_for((uint64_t)1000 * 20);
+            m3::DTUIf::sleep_for((uint64_t)1000 * 20);
         }
         /* wait a bit */
         ctrl_wait(ctrl);

@@ -233,14 +233,14 @@ fn workloop() {
     loop {
         // we are not interested in the events here; just fetch them before the sleep
         dtu::DTU::fetch_events();
-        dtu::DTU::sleep().ok();
+        dtu::DTUIf::sleep().ok();
 
         let is = rgate.fetch();
         if let Some(is) = is {
             handle_request(is);
         }
 
-        let msg = dtu::DTU::fetch_msg(upcall_ep);
+        let msg = dtu::DTUIf::fetch_msg(upcall_ep);
         if let Some(msg) = msg {
             childs::get().handle_upcall(msg);
         }

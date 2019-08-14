@@ -22,7 +22,7 @@ use com::{GateIStream, SendGate};
 use core::fmt;
 use core::ops;
 use dtu;
-use errors::{Code, Error};
+use errors::Error;
 use goff;
 use kif::INVALID_SEL;
 use syscalls;
@@ -258,7 +258,7 @@ impl RecvGate {
     /// a [`GateIStream`] for the message. Otherwise it returns None.
     pub fn fetch(&self) -> Option<GateIStream> {
         let rep = self.ep().unwrap();
-        let msg = dtu::DTU::fetch_msg(rep);
+        let msg = dtu::DTUIf::fetch_msg(rep);
         if let Some(m) = msg {
             Some(GateIStream::new(m, self))
         }
@@ -285,13 +285,13 @@ impl RecvGate {
         size: usize,
         msg: &'static dtu::Message,
     ) -> Result<(), Error> {
-        dtu::DTU::reply(self.ep().unwrap(), reply, size, msg)
+        dtu::DTUIf::reply(self.ep().unwrap(), reply, size, msg)
     }
 
     /// Marks the given message as 'read', allowing the DTU to overwrite it with a new message.
     #[inline(always)]
     pub fn mark_read(&self, msg: &dtu::Message) {
-        dtu::DTU::mark_read(self.ep().unwrap(), msg);
+        dtu::DTUIf::mark_read(self.ep().unwrap(), msg);
     }
 
     /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,
@@ -301,29 +301,8 @@ impl RecvGate {
     /// communication partner is no longer interested in the communication.
     #[inline(always)]
     pub fn receive(&self, sgate: Option<&SendGate>) -> Result<GateIStream, Error> {
-        assert!(self.ep().is_some());
-
-        let rep = self.ep().unwrap();
-
-        loop {
-            let msg = dtu::DTU::fetch_msg(rep);
-            if let Some(m) = msg {
-                return Ok(GateIStream::new(m, self));
-            }
-
-            // fetch the events first
-            dtu::DTU::fetch_events();
-            if let Some(sg) = sgate {
-                // now check whether the endpoint is still valid. if the EP has been invalidated before the
-                // line above, we'll notice that with this check. if the EP is invalidated between the line
-                // above and the sleep command, the DTU will refuse to suspend the core.
-                if !dtu::DTU::is_valid(sg.ep().unwrap()) {
-                    return Err(Error::new(Code::InvEP));
-                }
-            }
-
-            dtu::DTU::sleep()?;
-        }
+        dtu::DTUIf::receive(self.ep().unwrap(), sgate.map(|sg| sg.ep().unwrap()))
+            .map(|m| GateIStream::new(m, self))
     }
 }
 

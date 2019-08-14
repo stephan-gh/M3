@@ -20,6 +20,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
+#include <m3/DTUIf.h>
 #include <m3/Exception.h>
 
 #include <alloca.h>
@@ -357,13 +358,14 @@ static inline GateIStream receive_reply(SendGate &gate) {
  * Convenience methods that combine send_msg()/send_vmsg() and receive_msg().
  */
 static inline GateIStream send_receive_msg(SendGate &gate, const void *data, size_t len) {
-    send_msg(gate, data, len);
-    return receive_reply(gate);
+    const DTU::Message *reply = gate.call(data, len);
+    return GateIStream(*gate.reply_gate(), reply);
 }
 template<typename... Args>
 static inline GateIStream send_receive_vmsg(SendGate &gate, const Args &... args) {
-    send_vmsg(gate, args...);
-    return receive_reply(gate);
+    auto msg = create_vmsg(args...);
+    const DTU::Message *reply = gate.call(msg.bytes(), msg.total());
+    return GateIStream(*gate.reply_gate(), reply);
 }
 
 }

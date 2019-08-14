@@ -28,17 +28,26 @@ class AddrSpace;
 class DTU;
 class DTURegs;
 class DTUState;
+class SendQueue;
+class SyscallHandler;
 class VPE;
+class WorkLoop;
 }
 
 namespace m3 {
+
+class DTUIf;
 
 class DTU {
     friend class kernel::AddrSpace;
     friend class kernel::DTU;
     friend class kernel::DTURegs;
     friend class kernel::DTUState;
+    friend class kernel::SendQueue;
+    friend class kernel::SyscallHandler;
     friend class kernel::VPE;
+    friend class kernel::WorkLoop;
+    friend class DTUIf;
 
     explicit DTU() {
     }
@@ -243,25 +252,6 @@ public:
         return (static_cast<gaddr_t>(0x80 + pe) << 56) | virt;
     }
 
-    Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep);
-    Errors::Code reply(epid_t ep, const void *reply, size_t size, const Message *msg);
-    Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off, uint flags);
-    Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off, uint flags);
-
-    m3::DTU::reg_t abort(uint flags, reg_t *cmdreg) {
-        // save the old value before aborting
-        *cmdreg = read_reg(CmdRegs::COMMAND);
-        write_reg(CmdRegs::ABORT, flags);
-        // wait until the abort is finished. if a command was running and was aborted, we want to
-        // retry it later. if no command was running, we want to keep the error code though.
-        if(get_error() != Errors::ABORT && (*cmdreg & 0xF) != static_cast<reg_t>(CmdOpCode::IDLE))
-            *cmdreg = static_cast<reg_t>(CmdOpCode::IDLE);
-        return read_reg(CmdRegs::ABORT);
-    }
-    void retry(reg_t cmd) {
-        write_reg(CmdRegs::COMMAND, cmd);
-    }
-
     bool has_missing_credits(epid_t ep) const {
         reg_t r1 = read_reg(ep, 1);
         uint16_t cur = r1 & 0xFFFF;
@@ -280,18 +270,33 @@ public:
         return static_cast<EpType>(r0 >> 61) != EpType::INVALID;
     }
 
-    Message *fetch_msg(epid_t ep) const {
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
-        CPU::memory_barrier();
-        return reinterpret_cast<Message*>(read_reg(CmdRegs::OFFSET));
-    }
-
     reg_t fetch_events() const {
         reg_t old = read_reg(DtuRegs::EVENTS);
         if(old != 0)
             write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::ACK_EVENTS, 0, old));
         CPU::memory_barrier();
         return old;
+    }
+
+    cycles_t tsc() const {
+        return read_reg(DtuRegs::CUR_TIME);
+    }
+    cycles_t clock() const {
+        return read_reg(DtuRegs::CLOCK);
+    }
+
+    void print(const char *str, size_t len);
+
+private:
+    Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep);
+    Errors::Code reply(epid_t ep, const void *reply, size_t size, const Message *msg);
+    Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off, uint flags);
+    Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off, uint flags);
+
+    Message *fetch_msg(epid_t ep) const {
+        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
+        CPU::memory_barrier();
+        return reinterpret_cast<Message*>(read_reg(CmdRegs::OFFSET));
     }
 
     void mark_read(epid_t ep, const Message *msg) {
@@ -303,37 +308,12 @@ public:
         CPU::memory_barrier();
     }
 
-    cycles_t tsc() const {
-        return read_reg(DtuRegs::CUR_TIME);
-    }
-
-    cycles_t clock() const {
-        return read_reg(DtuRegs::CLOCK);
-    }
-
     void sleep() {
         sleep_for(0);
     }
     void sleep_for(uint64_t cycles) {
         write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, cycles));
         get_error();
-    }
-
-    void wait_until_ready(epid_t) const {
-        // this is superfluous now, but leaving it here improves the syscall time by 40 cycles (!!!)
-        // compilers are the worst. let's get rid of them and just write assembly code again ;)
-        while((read_reg(CmdRegs::COMMAND) & 0xF) != 0)
-            ;
-    }
-    bool wait_for_mem_cmd() const {
-        // we've already waited
-        return true;
-    }
-
-    void print(const char *str, size_t len);
-
-    void clear_irq() {
-        write_reg(DtuRegs::CLEAR_IRQ, 1);
     }
 
     void drop_msgs(epid_t ep, label_t label) {
@@ -356,7 +336,6 @@ public:
         }
     }
 
-private:
     Errors::Code transfer(reg_t cmd, uintptr_t data, size_t size, goff_t off);
 
     reg_t get_pfep() const {

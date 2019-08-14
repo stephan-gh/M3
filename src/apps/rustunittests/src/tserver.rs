@@ -138,7 +138,7 @@ pub fn testcliexit() {
         };
         let msg_ptr = &req as *const kif::syscalls::ExchangeSess as *const u8;
         let msg_size = m3::util::size_of::<kif::syscalls::ExchangeSess>();
-        wv_assert_ok!(dtu::DTU::send(
+        wv_assert_ok!(dtu::DTUIf::send(
             dtu::SYSC_SEP,
             msg_ptr,
             msg_size,
