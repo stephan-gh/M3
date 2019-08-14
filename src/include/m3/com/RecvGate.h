@@ -222,13 +222,13 @@ public:
     const DTU::Message *wait(SendGate *sgate);
 
     /**
-     * Replies the <len> bytes at <data> to the message at <msgidx>.
+     * Replies the <len> bytes at <reply> to the message <msg>.
      *
-     * @param data the data to send
+     * @param reply the reply message to send
      * @param len the length of the data
-     * @param msgidx the index of the message to reply to
+     * @param msg the message to reply to
      */
-    void reply(const void *data, size_t len, size_t msgidx);
+    void reply(const void *reply, size_t len, const DTU::Message *msg);
 
     /**
      * Drops all messages with given label. That is, these messages will be marked as read.

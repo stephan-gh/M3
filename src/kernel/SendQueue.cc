@@ -85,7 +85,7 @@ void SendQueue::received_reply(epid_t ep, const m3::DTU::Message *msg) {
     m3::ThreadManager::get().notify(_cur_event, msg, msg->length + sizeof(m3::DTU::Message::Header));
 
     // now that we've copied the message, we can mark it read
-    m3::DTU::get().mark_read(ep, reinterpret_cast<size_t>(msg));
+    m3::DTU::get().mark_read(ep, msg);
 
     if(_inflight != -1) {
         assert(_inflight > 0);

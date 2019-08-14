@@ -202,7 +202,7 @@ public:
      * @param len the length of the message
      */
     void reply(const void *data, size_t len) {
-        _rgate->reply(data, len, DTU::get().get_msgoff(_rgate->ep(), _msg));
+        _rgate->reply(data, len, _msg);
         // it's already acked
         _ack = false;
     }
@@ -221,7 +221,7 @@ public:
      */
     void finish() noexcept {
         if(_ack) {
-            DTU::get().mark_read(_rgate->ep(), DTU::get().get_msgoff(_rgate->ep(), _msg));
+            DTU::get().mark_read(_rgate->ep(), _msg);
             _ack = false;
         }
     }

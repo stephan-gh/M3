@@ -75,7 +75,7 @@ public:
 
     void recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder);
 
-    void reply(epid_t ep, const void *msg, size_t size, size_t msgidx);
+    void reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg);
 
     m3::Errors::Code send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                              size_t size, label_t replylbl, epid_t replyep,

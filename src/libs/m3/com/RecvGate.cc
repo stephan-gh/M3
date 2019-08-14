@@ -167,8 +167,8 @@ void RecvGate::stop() noexcept {
     _workitem.reset();
 }
 
-void RecvGate::reply(const void *data, size_t len, size_t msgidx) {
-    Errors::Code res = DTU::get().reply(ep(), const_cast<void*>(data), len, msgidx);
+void RecvGate::reply(const void *reply, size_t len, const DTU::Message *msg) {
+    Errors::Code res = DTU::get().reply(ep(), reply, len, msg);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }

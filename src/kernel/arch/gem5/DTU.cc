@@ -218,10 +218,10 @@ m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, cons
     return m3::DTU::get().get_error();
 }
 
-void DTU::reply(epid_t ep, const void *msg, size_t size, size_t msgidx) {
-    m3::Errors::Code res = m3::DTU::get().reply(ep, msg, size, msgidx);
+void DTU::reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg) {
+    m3::Errors::Code res = m3::DTU::get().reply(ep, reply, size, msg);
     if(res == m3::Errors::VPE_GONE) {
-        size_t idx = _state.get_header_idx(ep, msgidx);
+        size_t idx = _state.get_header_idx(ep, reinterpret_cast<size_t>(msg));
         alignas(m3::DTU::reg_t) m3::DTU::ReplyHeader rmsg;
         m3::DTU::read_header(idx, rmsg);
 
@@ -234,7 +234,7 @@ void DTU::reply(epid_t ep, const void *msg, size_t size, size_t msgidx) {
 
         m3::DTU::write_header(idx, rmsg);
 
-        res = m3::DTU::get().reply(ep, msg, size, msgidx);
+        res = m3::DTU::get().reply(ep, reply, size, msg);
     }
     if(res != m3::Errors::NONE)
         PANIC("Reply failed");

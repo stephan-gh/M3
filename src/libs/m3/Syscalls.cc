@@ -46,7 +46,7 @@ Errors::Code Syscalls::send_receive_err(const void *msg, size_t size) noexcept {
     KIF::DefaultReply *rdata = reinterpret_cast<KIF::DefaultReply*>(reply->data);
     Errors::Code res = static_cast<Errors::Code>(rdata->error);
 
-    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<size_t>(reply));
+    DTU::get().mark_read(m3::DTU::SYSC_REP, reply);
     return res;
 }
 
@@ -131,7 +131,7 @@ void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const Stri
     Errors::Code res = static_cast<Errors::Code>(reply->error);
     if(res == Errors::NONE)
         pe = PEDesc(reply->pe);
-    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<size_t>(reply));
+    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::CREATE_VPE);
@@ -180,7 +180,7 @@ int Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel
         *vpe = reply->vpe_sel;
         exitcode = reply->exitcode;
     }
-    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<size_t>(reply));
+    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::VPE_WAIT);
@@ -221,7 +221,7 @@ size_t Syscalls::kmem_quota(capsel_t kmem) {
     Errors::Code res = static_cast<Errors::Code>(reply->error);
     if(res == Errors::NONE)
         amount = reply->amount;
-    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<size_t>(reply));
+    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::KMEM_QUOTA);
@@ -265,7 +265,7 @@ void Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc 
     Errors::Code res = static_cast<Errors::Code>(reply->error);
     if(res == Errors::NONE && args)
         memcpy(args, &reply->args, sizeof(*args));
-    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<size_t>(reply));
+    DTU::get().mark_read(m3::DTU::SYSC_REP, reinterpret_cast<DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, static_cast<KIF::Syscall::Operation>(req.opcode));

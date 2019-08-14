@@ -104,7 +104,7 @@ void SyscallHandler::init() {
 
 void SyscallHandler::reply_msg(VPE *vpe, const m3::DTU::Message *msg, const void *reply, size_t size) {
     epid_t ep = vpe->syscall_ep();
-    DTU::get().reply(ep, reply, size, m3::DTU::get().get_msgoff(ep, msg));
+    DTU::get().reply(ep, reply, size, msg);
 }
 
 void SyscallHandler::reply_result(VPE *vpe, const m3::DTU::Message *msg, m3::Errors::Code code) {
@@ -514,7 +514,7 @@ void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
             vpecap->obj->stop_app(static_cast<int>(arg), self);
             if(self) {
                 // if we don't reply, we need to mark it read manually
-                m3::DTU::get().mark_read(vpe->syscall_ep(), reinterpret_cast<uintptr_t>(msg));
+                m3::DTU::get().mark_read(vpe->syscall_ep(), msg);
                 return;
             }
             break;
@@ -788,7 +788,7 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     // if the VPE exited, we don't even want to reply
     if(!vpe->has_app()) {
         // due to the missing reply, we need to ack the msg explicitly
-        m3::DTU::get().mark_read(vpe->syscall_ep(), reinterpret_cast<uintptr_t>(msg));
+        m3::DTU::get().mark_read(vpe->syscall_ep(), msg);
         LOG_ERROR(vpe, m3::Errors::VPE_GONE, "Client died during cap exchange");
         return;
     }

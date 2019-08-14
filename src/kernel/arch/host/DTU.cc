@@ -109,8 +109,8 @@ void DTU::recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder) {
     write_ep_local(ep);
 }
 
-void DTU::reply(epid_t ep, const void *msg, size_t size, size_t msgidx) {
-    m3::DTU::get().reply(ep, msg, size, msgidx);
+void DTU::reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg) {
+    m3::DTU::get().reply(ep, reply, size, msg);
 }
 
 m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,

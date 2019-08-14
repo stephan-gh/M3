@@ -201,13 +201,12 @@ bool NetEventChannel::Event::is_present() noexcept {
 
 void NetEventChannel::Event::finish() {
     if(is_present() && _ack) {
-        auto msgoff = DTU::get().get_msgoff(_channel->_rgate.ep(), _msg);
         if(_channel->_ret_credits) {
             auto data = 0;
-            _channel->_rgate.reply(&data, sizeof(data), msgoff);
+            _channel->_rgate.reply(&data, sizeof(data), _msg);
         } else {
             // Only acknowledge message
-            DTU::get().mark_read(_channel->_rgate.ep(), msgoff);
+            DTU::get().mark_read(_channel->_rgate.ep(), _msg);
         }
         _ack = false;
     }

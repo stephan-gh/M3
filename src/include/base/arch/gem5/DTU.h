@@ -244,7 +244,7 @@ public:
     }
 
     Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep);
-    Errors::Code reply(epid_t ep, const void *msg, size_t size, size_t off);
+    Errors::Code reply(epid_t ep, const void *reply, size_t size, const Message *msg);
     Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off, uint flags);
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off, uint flags);
 
@@ -294,13 +294,10 @@ public:
         return old;
     }
 
-    size_t get_msgoff(epid_t, const Message *msg) const {
-        return reinterpret_cast<uintptr_t>(msg);
-    }
-
-    void mark_read(epid_t ep, size_t off) {
+    void mark_read(epid_t ep, const Message *msg) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
+        reg_t off = reinterpret_cast<reg_t>(msg);
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, 0, off));
         // ensure that we don't do something else before the ack
         CPU::memory_barrier();
@@ -354,7 +351,7 @@ public:
             if(unread & (static_cast<size_t>(1) << i)) {
                 m3::DTU::Message *msg = reinterpret_cast<m3::DTU::Message*>(base + (i << msgsize));
                 if(msg->label == label)
-                    mark_read(ep, reinterpret_cast<size_t>(msg));
+                    mark_read(ep, msg);
             }
         }
     }

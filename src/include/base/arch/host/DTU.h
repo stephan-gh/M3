@@ -193,8 +193,8 @@ public:
         setup_command(ep, SEND, msg, size, 0, 0, replylbl, replyep);
         return exec_command();
     }
-    Errors::Code reply(epid_t ep, const void *msg, size_t size, size_t msgidx) {
-        setup_command(ep, REPLY, msg, size, msgidx, 0, label_t(), 0);
+    Errors::Code reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
+        setup_command(ep, REPLY, reply, size, reinterpret_cast<size_t>(msg), 0, label_t(), 0);
         return exec_command();
     }
     Errors::Code read(epid_t ep, void *msg, size_t size, size_t off, uint) {
@@ -232,13 +232,9 @@ public:
         return 0;
     }
 
-    size_t get_msgoff(epid_t, const Message *msg) const {
-        return reinterpret_cast<size_t>(msg);
-    }
-
-    void mark_read(epid_t ep, size_t addr) {
+    void mark_read(epid_t ep, const Message *msg) {
         set_cmd(CMD_EPID, ep);
-        set_cmd(CMD_OFFSET, addr);
+        set_cmd(CMD_OFFSET, reinterpret_cast<size_t>(msg));
         set_cmd(CMD_CTRL, (ACKMSG << OPCODE_SHIFT) | CTRL_START);
         exec_command();
     }
@@ -310,7 +306,7 @@ public:
             if(unread & (1UL << i)) {
                 Message *msg = reinterpret_cast<Message*>(base + (static_cast<size_t>(i) << msgorder));
                 if(msg->label == label)
-                    mark_read(ep, reinterpret_cast<size_t>(msg));
+                    mark_read(ep, msg);
             }
         }
     }

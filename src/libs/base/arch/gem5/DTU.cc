@@ -54,10 +54,10 @@ Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl
     return get_error();
 }
 
-Errors::Code DTU::reply(epid_t ep, const void *msg, size_t size, size_t off) {
-    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 48));
+Errors::Code DTU::reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
+    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 48));
     CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, 0, off));
+    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, 0, reinterpret_cast<reg_t>(msg)));
 
     return get_error();
 }
