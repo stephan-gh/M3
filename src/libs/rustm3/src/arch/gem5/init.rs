@@ -16,7 +16,6 @@
 
 use arch;
 use com;
-use cpu;
 use io;
 use mem;
 use syscalls;
@@ -28,7 +27,8 @@ pub extern "C" fn exit(code: i32) -> ! {
     io::deinit();
     vfs::deinit();
     syscalls::exit(code);
-    cpu::exit();
+    arch::pexcalls::call1(arch::pexcalls::Operation::EXIT, code as usize).ok();
+    unreachable!();
 }
 
 extern "C" {

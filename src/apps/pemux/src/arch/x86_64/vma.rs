@@ -261,12 +261,12 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     }
 
     // PEMux isn't causing PFs
-    assert!(state.cs == (isr::SEG_UCODE << 3) | 3);
+    assert!(state.cs == ((isr::SEG_UCODE << 3) | 3) as usize);
 
     // if we don't use the MMU, we shouldn't get here
     // TODO assert!(env().pedesc.has_mmu());
 
-    let perm = to_dtu_pte(state.error & 0x7);
+    let perm = to_dtu_pte((state.error & 0x7) as u64);
     if !STATE.get_mut().handle_pf(0, cr2, perm) {
         // if we can't handle the PF, there is something wrong
         panic!("PEMux: pagefault for {:#x} at {:#x}", cr2, { state.rip });

@@ -61,13 +61,6 @@ pub fn get_bp() -> usize {
     val
 }
 
-pub fn exit() -> ! {
-    unsafe {
-        asm!("int $$63");
-    }
-    unreachable!();
-}
-
 pub fn gem5_debug(msg: usize) -> time::Time {
     let res: time::Time;
     unsafe {

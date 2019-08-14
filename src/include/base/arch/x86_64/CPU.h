@@ -49,7 +49,8 @@ inline word_t CPU::get_sp() {
 }
 
 inline void CPU::exit() {
-    asm volatile ("int $63");
+    ulong res = 9;  // EXIT
+    asm volatile ("int $63" : "+a"(res) : : "memory");
     UNREACHED;
 }
 

@@ -23,6 +23,7 @@ extern crate base;
 
 mod arch;
 mod kernreq;
+mod pexcalls;
 
 use base::dtu;
 use base::io;
@@ -64,8 +65,8 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
     state as *mut isr::State as *mut libc::c_void
 }
 
-pub extern "C" fn stop_irq(state: &mut isr::State) -> *mut libc::c_void {
-    state.stop();
+pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
+    pexcalls::handle_call(state);
 
     state as *mut isr::State as *mut libc::c_void
 }

@@ -28,7 +28,7 @@ extern "C" {
     static idle_stack: libc::c_void;
 }
 
-fn vec_name(vec: u32) -> &'static str {
+fn vec_name(vec: usize) -> &'static str {
     match vec {
         0 => "Reset",
         1 => "UndefInstr",
@@ -43,14 +43,21 @@ fn vec_name(vec: u32) -> &'static str {
 
 #[repr(C, packed)]
 pub struct State {
-    pub sp: u32,
-    pub lr: u32,
-    pub vec: u32,
-    pub r: [u32; 13], // r0 .. r12
-    pub klr: u32,
-    pub pc: u32,
-    pub cpsr: u32,
+    pub sp: usize,
+    pub lr: usize,
+    pub vec: usize,
+    pub r: [usize; 13], // r0 .. r12
+    pub klr: usize,
+    pub pc: usize,
+    pub cpsr: usize,
 }
+
+pub const PEXC_ARG0: usize = 0;    // r0
+pub const PEXC_ARG1: usize = 1;    // r1
+pub const PEXC_ARG2: usize = 2;    // r2
+pub const PEXC_ARG3: usize = 3;    // r3
+pub const PEXC_ARG4: usize = 4;    // r4
+pub const PEXC_ARG5: usize = 5;    // r5
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -71,15 +78,15 @@ impl fmt::Debug for State {
 impl State {
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.r[1] = 0xDEADBEEF; // don't set the stackpointer in crt0
-        self.pc = entry as u32;
-        self.sp = sp as u32;
+        self.pc = entry;
+        self.sp = sp;
         self.cpsr = 0x10; // user mode
         self.lr = 0;
     }
 
     pub fn stop(&mut self) {
-        self.pc = crate::sleep as *const fn() as u32;
-        self.sp = unsafe { &idle_stack as *const libc::c_void as u32 };
+        self.pc = crate::sleep as *const fn() as usize;
+        self.sp = unsafe { &idle_stack as *const libc::c_void as usize };
     }
 }
 
@@ -88,7 +95,7 @@ pub fn init() {
         isr_init();
         for i in 0..=7 {
             match i {
-                2 => isr_reg(i, crate::stop_irq),
+                2 => isr_reg(i, crate::pexcall),
                 6 => isr_reg(i, crate::dtu_irq),
                 i => isr_reg(i, crate::unexpected_irq),
             }
