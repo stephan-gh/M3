@@ -69,6 +69,8 @@ void VPE::run(void *lambda) {
     senv.sp = CPU::get_sp();
     senv.entry = get_entry();
     senv.lambda = reinterpret_cast<uintptr_t>(lambda);
+    senv.rbufcur = _rbufcur;
+    senv.rbufend = _rbufend;
 
     senv.mounts = reinterpret_cast<uint64_t>(this);
 
