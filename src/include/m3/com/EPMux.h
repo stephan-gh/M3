@@ -60,15 +60,6 @@ public:
     void switch_to(Gate *gate);
 
     /**
-     * If <gate> is already configured on some endpoint, it exchanges the configuration to use the
-     * one from the capability <newcap>. If it is not configured somewhere, nothing happens.
-     *
-     * @param gate the gate
-     * @param newcap the capability to use
-     */
-    void switch_cap(Gate *gate, capsel_t newcap);
-
-    /**
      * Removes <gate> from the endpoint it is configured on, if any. If <invalidate> is true, the
      * kernel will invalidate the endpoint as well.
      *

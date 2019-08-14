@@ -64,12 +64,6 @@ impl Capability {
         self.flags = flags;
     }
 
-    /// Rebinds the selector to `sel`.
-    pub fn rebind(&mut self, sel: Selector) {
-        self.release();
-        self.sel = sel;
-    }
-
     fn release(&mut self) {
         if (self.flags & CapFlags::KEEP_CAP).is_empty() {
             let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sel, 1);

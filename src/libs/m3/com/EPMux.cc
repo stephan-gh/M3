@@ -54,16 +54,6 @@ void EPMux::switch_to(Gate *gate) {
     gate->_ep = victim;
 }
 
-void EPMux::switch_cap(Gate *gate, capsel_t newcap) {
-    if(gate->ep() != Gate::UNBOUND) {
-        activate(gate->ep(), newcap);
-        if(newcap == ObjCap::INVALID) {
-            _gates[gate->ep()] = nullptr;
-            gate->_ep = Gate::UNBOUND;
-        }
-    }
-}
-
 void EPMux::remove(Gate *gate, bool invalidate) noexcept {
     if(gate->_ep != Gate::NODESTROY && gate->_ep != Gate::UNBOUND && gate->sel() != ObjCap::INVALID) {
         assert(_gates[gate->_ep] == nullptr || _gates[gate->_ep] == gate);

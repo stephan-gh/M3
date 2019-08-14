@@ -21,7 +21,7 @@
 
 namespace m3 {
 
-class GenericFile;
+class VPE;
 
 /**
  * The base class for all object-capabilities. Manages the selector and capability.
@@ -32,7 +32,7 @@ class GenericFile;
  * increases performance, it's worth it, I think.
  */
 class ObjCap {
-    friend class GenericFile;
+    friend class VPE;
 
 public:
     static const capsel_t INVALID   = KIF::INV_SEL;

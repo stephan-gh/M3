@@ -88,14 +88,6 @@ impl Gate {
             _ => EpMux::get().switch_to(self),
         }
     }
-
-    /// Switches the underlying capability selector to `sel`. If the gate is currently activated,
-    /// it will be reactivated with the given capability selector.
-    pub fn rebind(&mut self, sel: Selector) -> Result<(), Error> {
-        EpMux::get().switch_cap(self, sel)?;
-        self.cap.rebind(sel);
-        Ok(())
-    }
 }
 
 impl ops::Drop for Gate {

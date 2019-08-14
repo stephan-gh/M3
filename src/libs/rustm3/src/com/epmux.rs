@@ -88,20 +88,6 @@ impl EpMux {
         Ok(idx)
     }
 
-    /// Switches the underlying capability selector of the given gate to `sel`. If the gate is
-    /// currently activated, it will be reactivated with the given capability selector.
-    pub fn switch_cap(&mut self, g: &Gate, sel: Selector) -> Result<(), Error> {
-        if let Some(ep) = g.ep() {
-            if self.ep_owned_by(ep, g.sel()) {
-                self.activate(ep, sel)?;
-                if sel == INVALID_SEL {
-                    self.gates[ep] = None;
-                }
-            }
-        }
-        Ok(())
-    }
-
     /// Removes the given gate from `EpMux`.
     pub fn remove(&mut self, g: &Gate) {
         if let Some(ep) = g.ep() {

@@ -149,11 +149,6 @@ impl MemGate {
         })
     }
 
-    /// Rebinds this gate to capability selector `sel`
-    pub fn rebind(&mut self, sel: Selector) -> Result<(), Error> {
-        self.gate.rebind(sel)
-    }
-
     /// Uses the DTU read command to read from the memory region at offset `off` and stores the read
     /// data into the slice `data`. The number of bytes to read is defined by `data`.
     pub fn read<T>(&self, data: &mut [T], off: goff) -> Result<(), Error> {

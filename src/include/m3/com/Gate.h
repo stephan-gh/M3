@@ -77,20 +77,6 @@ public:
         _ep = ep;
     }
 
-    /**
-     * Rebinds this gate to the given capability selector. Note that this will release the so far
-     * bound capability selector, depending on what has been done on object creation. So, if the
-     * capability has been created, it will be released. If the selector has been allocated, it will
-     * be released. If not, nothing is done.
-     *
-     * @param newsel the new selector (might also be ObjCap::INVALID)
-     */
-    void rebind(capsel_t newsel) {
-        EPMux::get().switch_cap(this, newsel);
-        release();
-        sel(newsel);
-    }
-
 protected:
     void ensure_activated() {
         if(_ep == UNBOUND && sel() != ObjCap::INVALID)
