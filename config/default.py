@@ -90,7 +90,7 @@ rpe = createAccelPE(noc=root.noc,
                     no=num_pes + num_mem + num_sto + 2,
                     accel='rot13',
                     memPE=mem_pe,
-                    spmsize='2MB'))
+                    spmsize='2MB')
 pes.append(rpe)
 
 runSimulation(root, options, pes)
