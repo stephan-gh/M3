@@ -49,12 +49,12 @@ fn send_recv() {
     wv_assert_err!(sgate.send(&data, RecvGate::def()), Code::MissCredits);
 
     {
-        let is = wv_assert_ok!(rgate.wait(Some(&sgate)));
+        let is = wv_assert_ok!(rgate.receive(Some(&sgate)));
         wv_assert_eq!(is.label(), 0x1234);
     }
 
     {
-        let is = wv_assert_ok!(rgate.wait(Some(&sgate)));
+        let is = wv_assert_ok!(rgate.receive(Some(&sgate)));
         wv_assert_eq!(is.label(), 0x1234);
     }
 }

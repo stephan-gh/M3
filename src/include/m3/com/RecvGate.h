@@ -219,7 +219,7 @@ public:
      * @param sgate the send gate (optional), if waiting for a reply
      * @return the fetched message
      */
-    const DTU::Message *wait(SendGate *sgate);
+    const DTU::Message *receive(SendGate *sgate);
 
     /**
      * Replies the <len> bytes at <reply> to the message <msg>.
@@ -229,6 +229,15 @@ public:
      * @param msg the message to reply to
      */
     void reply(const void *reply, size_t len, const DTU::Message *msg);
+
+    /**
+     * Marks the given message as 'read', allowing the DTU to overwrite it with a new message.
+     *
+     * @param msg the message
+     */
+    void mark_read(const DTU::Message *msg) {
+        DTU::get().mark_read(ep(), msg);
+    }
 
     /**
      * Drops all messages with given label. That is, these messages will be marked as read.

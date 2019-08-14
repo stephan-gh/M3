@@ -188,6 +188,16 @@ public:
     }
 
     /**
+     * Pulls an error code from this GateIStream and throws an exception if it is not Errors::NONE.
+     */
+    void pull_result() {
+        Errors::Code res;
+        *this >> res;
+        if(res != Errors::NONE)
+            throw Exception(res);
+    }
+
+    /**
      * Replies the message constructed by <os> to this message
      *
      * @param os the GateOStream hosting the message to reply
@@ -209,7 +219,7 @@ public:
 
     /**
      * Disables acknowledgement of the message. That is, it will be marked as read, but you have
-     * to ack the message on your own via DTU::get().mark_acked(<ep>).
+     * to ack the message on your own via RecvGate::mark_read().
      */
     void claim() noexcept {
         _ack = false;
@@ -221,7 +231,7 @@ public:
      */
     void finish() noexcept {
         if(_ack) {
-            DTU::get().mark_read(_rgate->ep(), _msg);
+            _rgate->mark_read(_msg);
             _ack = false;
         }
     }
@@ -311,7 +321,7 @@ static inline void write_vmsg(MemGate &gate, size_t offset, const Args &... args
  * @return the GateIStream
  */
 static inline GateIStream receive_msg(RecvGate &rgate) {
-    const DTU::Message *msg = rgate.wait(nullptr);
+    const DTU::Message *msg = rgate.receive(nullptr);
     return GateIStream(rgate, msg);
 }
 /**
@@ -324,7 +334,7 @@ static inline GateIStream receive_msg(RecvGate &rgate) {
  */
 template<typename... Args>
 static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
-    const DTU::Message *msg = rgate.wait(nullptr);
+    const DTU::Message *msg = rgate.receive(nullptr);
     GateIStream is(rgate, msg);
     is.vpull(args...);
     return is;
@@ -339,21 +349,8 @@ static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
  * @return the GateIStream
  */
 static inline GateIStream receive_reply(SendGate &gate) {
-    const DTU::Message *msg = gate.reply_gate()->wait(&gate);
+    const DTU::Message *msg = gate.reply_gate()->receive(&gate);
     return GateIStream(*gate.reply_gate(), msg);
-}
-
-/**
- * Receives an error code from the given GateIStream and throws an exception if it is not
- * Errors::NONE
- *
- * @param is the GateIStream
- */
-static inline void receive_result(GateIStream &is) {
-    Errors::Code res;
-    is >> res;
-    if(res != Errors::NONE)
-        throw Exception(res);
 }
 
 /**

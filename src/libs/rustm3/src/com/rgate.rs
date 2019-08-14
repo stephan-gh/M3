@@ -288,13 +288,19 @@ impl RecvGate {
         dtu::DTU::reply(self.ep().unwrap(), reply, size, msg)
     }
 
+    /// Marks the given message as 'read', allowing the DTU to overwrite it with a new message.
+    #[inline(always)]
+    pub fn mark_read(&self, msg: &dtu::Message) {
+        dtu::DTU::mark_read(self.ep().unwrap(), msg);
+    }
+
     /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,
     /// the argument `sgate` denotes the [`SendGate`] that was used to send the request to the
     /// communication for which this method should receive the reply now. If the endpoint associated
     /// with `sgate` becomes invalid, the method stops waiting for a reply assuming that the
     /// communication partner is no longer interested in the communication.
     #[inline(always)]
-    pub fn wait(&self, sgate: Option<&SendGate>) -> Result<GateIStream, Error> {
+    pub fn receive(&self, sgate: Option<&SendGate>) -> Result<GateIStream, Error> {
         assert!(self.ep().is_some());
 
         let rep = self.ep().unwrap();

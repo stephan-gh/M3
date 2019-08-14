@@ -55,7 +55,7 @@ public:
 private:
     void execute(Operation op) {
         GateIStream reply = send_receive_vmsg(_gate, op);
-        receive_result(reply);
+        reply.pull_result();
     }
 
     SendGate _gate;

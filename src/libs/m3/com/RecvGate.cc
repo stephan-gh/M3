@@ -173,7 +173,7 @@ void RecvGate::reply(const void *reply, size_t len, const DTU::Message *msg) {
         throw DTUException(res);
 }
 
-const DTU::Message *RecvGate::wait(SendGate *sgate) {
+const DTU::Message *RecvGate::receive(SendGate *sgate) {
     activate();
 
     while(1) {

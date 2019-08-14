@@ -323,7 +323,7 @@ impl<'r> GateIStream<'r> {
 impl<'r> ops::Drop for GateIStream<'r> {
     fn drop(&mut self) {
         if self.ack {
-            dtu::DTU::mark_read(self.rgate.ep().unwrap(), self.source.msg);
+            self.rgate.mark_read(self.source.msg);
         }
     }
 }
@@ -359,7 +359,7 @@ impl<'r> GateIStream<'r> {
 /// Receives a message from `rgate` and returns a [`GateIStream`] for the message.
 #[inline(always)]
 pub fn recv_msg(rgate: &RecvGate) -> Result<GateIStream<'_>, Error> {
-    rgate.wait(None)
+    rgate.receive(None)
 }
 
 /// Receives a message from `rgate` as a reply to the message that has been sent over `sgate` and
@@ -369,7 +369,7 @@ pub fn recv_reply<'r>(
     rgate: &'r RecvGate,
     sgate: Option<&SendGate>,
 ) -> Result<GateIStream<'r>, Error> {
-    rgate.wait(sgate)
+    rgate.receive(sgate)
 }
 
 /// Receives a message from `$rg` and unmarshalls the message into the given arguments.

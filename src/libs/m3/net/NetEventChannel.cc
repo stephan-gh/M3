@@ -206,7 +206,7 @@ void NetEventChannel::Event::finish() {
             _channel->_rgate.reply(&data, sizeof(data), _msg);
         } else {
             // Only acknowledge message
-            DTU::get().mark_read(_channel->_rgate.ep(), _msg);
+            _channel->_rgate.mark_read(_msg);
         }
         _ack = false;
     }

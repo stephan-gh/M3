@@ -21,12 +21,12 @@ namespace m3 {
 
 void Pager::pagefault(goff_t addr, uint access) {
     GateIStream reply = send_receive_vmsg(_own_sgate, PAGEFAULT, addr, access);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void Pager::map_anon(goff_t *virt, size_t len, int prot, int flags) {
     GateIStream reply = send_receive_vmsg(_own_sgate, MAP_ANON, *virt, len, prot, flags);
-    receive_result(reply);
+    reply.pull_result();
     reply >> *virt;
 }
 
@@ -56,7 +56,7 @@ void Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
 
 void Pager::unmap(goff_t virt) {
     GateIStream reply = send_receive_vmsg(_own_sgate, UNMAP, virt);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 std::unique_ptr<Pager> Pager::create_clone(VPE &vpe) {
@@ -73,7 +73,7 @@ std::unique_ptr<Pager> Pager::create_clone(VPE &vpe) {
 
 void Pager::clone() {
     GateIStream reply = send_receive_vmsg(_own_sgate, CLONE);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 }

@@ -27,7 +27,7 @@ Reference<File> M3FS::open(const char *path, int perms) {
     if((perms & FILE_NOSESS) &&
        (ep = VFS::try_alloc_ep(Reference<FileSystem>(this), &epidx)) != ObjCap::INVALID) {
         GateIStream reply = send_receive_vmsg(_gate, OPEN_PRIV, path, perms, epidx);
-        receive_result(reply);
+        reply.pull_result();
         size_t id;
         reply >> id;
         return Reference<File>(new GenericFile(perms, sel(), id, VPE::self().sel_to_ep(ep), &_gate));
@@ -45,7 +45,7 @@ Reference<File> M3FS::open(const char *path, int perms) {
 
 void M3FS::stat(const char *path, FileInfo &info) {
     GateIStream reply = send_receive_vmsg(_gate, STAT, path);
-    receive_result(reply);
+    reply.pull_result();
     reply >> info;
 }
 
@@ -61,22 +61,22 @@ Errors::Code M3FS::try_stat(const char *path, FileInfo &info) noexcept {
 
 void M3FS::mkdir(const char *path, mode_t mode) {
     GateIStream reply = send_receive_vmsg(_gate, MKDIR, path, mode);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void M3FS::rmdir(const char *path) {
     GateIStream reply = send_receive_vmsg(_gate, RMDIR, path);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void M3FS::link(const char *oldpath, const char *newpath) {
     GateIStream reply = send_receive_vmsg(_gate, LINK, oldpath, newpath);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void M3FS::unlink(const char *path) {
     GateIStream reply = send_receive_vmsg(_gate, UNLINK, path);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void M3FS::delegate(VPE &vpe) {

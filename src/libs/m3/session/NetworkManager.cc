@@ -49,7 +49,7 @@ Socket* NetworkManager::create(Socket::SocketType type, uint8_t protocol) {
     ensure_channel_established();
 
     GateIStream reply = send_receive_vmsg(_metagate, CREATE, type, protocol);
-    receive_result(reply);
+    reply.pull_result();
 
     int sd;
     reply >> sd;
@@ -63,22 +63,22 @@ Socket* NetworkManager::create(Socket::SocketType type, uint8_t protocol) {
 
 void NetworkManager::bind(int sd, IpAddr addr, uint16_t port) {
     GateIStream reply = send_receive_vmsg(_metagate, BIND, sd, addr.addr(), port);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void NetworkManager::listen(int sd) {
     GateIStream reply = send_receive_vmsg(_metagate, LISTEN, sd);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void NetworkManager::connect(int sd, IpAddr addr, uint16_t port) {
     GateIStream reply = send_receive_vmsg(_metagate, CONNECT, sd, addr.addr(), port);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void NetworkManager::close(int sd) {
     GateIStream reply = send_receive_vmsg(_metagate, CLOSE, sd);
-    receive_result(reply);
+    reply.pull_result();
 }
 
 void m3::NetworkManager::as_file(int sd, int mode, MemGate& mem, size_t memsize, fd_t& fd) {

@@ -96,7 +96,7 @@ void GenericFile::stat(FileInfo &info) const {
     LLOG(FS, "GenFile[" << fd() << "," << _id << "]::stat()");
 
     GateIStream reply = send_receive_vmsg(*_sg, STAT, _id);
-    receive_result(reply);
+    reply.pull_result();
     reply >> info;
 }
 
@@ -134,7 +134,7 @@ size_t GenericFile::seek(size_t offset, int whence) {
     size_t off;
     GateIStream reply = !have_sess() ? send_receive_vmsg(*_sg, SEEK, _id, offset, whence)
                                      : send_receive_vmsg(*_sg, SEEK, offset, whence);
-    receive_result(reply);
+    reply.pull_result();
 
     reply >> _goff >> off;
     _pos = _len = 0;
@@ -152,7 +152,7 @@ size_t GenericFile::read(void *buffer, size_t count) {
     if(_pos == _len) {
         Time::start(0xbbbb);
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
-        receive_result(reply);
+        reply.pull_result();
         Time::stop(0xbbbb);
 
         _goff += _len;
@@ -184,7 +184,7 @@ size_t GenericFile::write(const void *buffer, size_t count) {
     if(_pos == _len) {
         Time::start(0xbbbb);
         GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
-        receive_result(reply);
+        reply.pull_result();
         Time::stop(0xbbbb);
 
         _goff += _len;
@@ -229,7 +229,7 @@ void GenericFile::submit() {
 
         GateIStream reply = !have_sess() ? send_receive_vmsg(*_sg, COMMIT, _id, _pos)
                                          : send_receive_vmsg(*_sg, COMMIT, _pos);
-        receive_result(reply);
+        reply.pull_result();
 
         // if we append, the file was truncated
         _goff += _pos;
