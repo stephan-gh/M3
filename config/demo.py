@@ -51,7 +51,7 @@ for i in range(0, len(accs)):
                        no=num_pes + num_mem + i,
                        accel=accs[i],
                        memPE=mem_pe,
-                       spmsize='2MB'))
+                       spmsize='2MB')
     pes.append(pe)
 
 runSimulation(root, options, pes)
