@@ -72,7 +72,9 @@ BEGIN_FUNC(exc_common)
     pop     {r0-r12, r14}
 
     // return to user
-    rfeia   sp!
+    pop     {lr}
+    add     sp, #4
+    movs    pc, lr
 END_FUNC(exc_common)
 
 .bss
