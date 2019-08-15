@@ -122,6 +122,15 @@ impl State {
     }
 }
 
+pub fn toggle_ints(enabled: bool) {
+    if enabled {
+        unsafe { asm!("sti" : : : "memory") };
+    }
+    else {
+        unsafe { asm!("cli" : : : "memory") };
+    }
+}
+
 pub fn init() {
     unsafe {
         isr_init();

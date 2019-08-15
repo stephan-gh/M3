@@ -150,6 +150,9 @@ pub fn handle_call(state: &mut isr::State) {
     // log!(DEF, " Arg4 = {:#x}", { state.r[isr::PEXC_ARG4] });
     // log!(DEF, " Arg5 = {:#x}", { state.r[isr::PEXC_ARG5] });
 
+    // enable interrupts in case we need to translate addresses for the DTU
+    isr::toggle_ints(true);
+
     let res = match call {
         Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
         Operation::SEND => pexcall_send(state).map(|_| 0isize),
@@ -163,6 +166,8 @@ pub fn handle_call(state: &mut isr::State) {
         Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
         _ => Err(Error::new(Code::NotSup)),
     };
+
+    isr::toggle_ints(false);
 
     state.r[isr::PEXC_ARG0] = res.unwrap_or_else(|e| -(e.code() as isize)) as usize;
 }

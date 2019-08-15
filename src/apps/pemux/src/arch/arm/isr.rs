@@ -90,6 +90,10 @@ impl State {
     }
 }
 
+pub fn toggle_ints(_enabled: bool) {
+    // not necessary, because PE-type C is not supported anyway
+}
+
 pub fn init() {
     unsafe {
         isr_init();
