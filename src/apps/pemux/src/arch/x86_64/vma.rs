@@ -59,8 +59,6 @@ impl XlateState {
             return false;
         }
 
-        self.in_pf = true;
-
         // abort the current command, if there is any
         let (xfer_buf, old_cmd) = dtu::DTU::abort(dtu::AbortReq::CMD);
         self.cmd_xfer_buf = xfer_buf;
@@ -70,13 +68,18 @@ impl XlateState {
             self.cmd_regs[1] = dtu::DTU::read_cmd_reg(dtu::CmdReg::DATA);
         }
 
-        // allow other translation requests in the meantime
-        unsafe { asm!("sti" : : : "memory") };
-
         // get EPs
         let pf_eps = dtu::DTU::get_pfep();
         let sep = (pf_eps & 0xFF) as dtu::EpId;
         let rep = (pf_eps >> 8) as dtu::EpId;
+        if sep >= dtu::EP_COUNT {
+            return false;
+        }
+
+        self.in_pf = true;
+
+        // allow other translation requests in the meantime
+        unsafe { asm!("sti" : : : "memory") };
 
         // send PF message
         self.pf_msg[1] = virt;
