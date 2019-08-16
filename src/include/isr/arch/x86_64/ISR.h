@@ -54,21 +54,12 @@ struct ExceptionState {
 class ISRBase {
     ISRBase() = delete;
 
-public:
+protected:
     /* the descriptor table */
     struct DescTable {
         uint16_t size;      /* the size of the table -1 (size=0 is not allowed) */
         ulong offset;
     } PACKED;
-
-    /* segments numbers */
-    enum {
-        SEG_KCODE          = 1,
-        SEG_KDATA          = 2,
-        SEG_UCODE          = 3,
-        SEG_UDATA          = 4,
-        SEG_TSS            = 5,
-    };
 
     /* a descriptor */
     struct Desc {
@@ -154,10 +145,20 @@ public:
 
     typedef void (*entry_func)();
 
-    static const size_t ISR_COUNT       = 66;
-
     /* we need 5 entries: null-entry, code+data for kernel/user, 2 for TSS (on x86_64) */
     static const size_t GDT_ENTRY_COUNT = 7;
+
+public:
+    static const size_t ISR_COUNT       = 66;
+
+    /* segments numbers */
+    enum {
+        SEG_KCODE          = 1,
+        SEG_KDATA          = 2,
+        SEG_UCODE          = 3,
+        SEG_UDATA          = 4,
+        SEG_TSS            = 5,
+    };
 
 protected:
     static void load_idt(DescTable *tbl) {

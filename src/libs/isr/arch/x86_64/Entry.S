@@ -61,7 +61,7 @@ BEGIN_FUNC(isr_common)
     pop     %rax
 
     // remove error-code and interrupt-number from stack and return
-    add     $16,%rsp
+    add     $16, %rsp
     iretq
 END_FUNC(isr_common)
 
