@@ -41,22 +41,9 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
         asm!(
-            "svc $$63"
+            "svc $$0"
             : "+{r0}"(res)
             : "{r1}"(arg1), "{r2}"(arg2)
-            : "memory"
-        );
-    }
-    get_result(res)
-}
-
-pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
-    let mut res = op.val;
-    unsafe {
-        asm!(
-            "svc $$63"
-            : "+{r0}"(res)
-            : "{r1}"(arg1), "{r2}"(arg2), "{r3}"(arg3)
             : "memory"
         );
     }
@@ -73,7 +60,7 @@ pub fn call4(
     let mut res = op.val;
     unsafe {
         asm!(
-            "svc $$63"
+            "svc $$0"
             : "+{r0}"(res)
             : "{r1}"(arg1), "{r2}"(arg2), "{r3}"(arg3), "{r4}"(arg4)
             : "memory"
@@ -93,7 +80,7 @@ pub fn call5(
     let mut res = op.val;
     unsafe {
         asm!(
-            "svc $$63"
+            "svc $$0"
             : "+{r0}"(res)
             : "{r1}"(arg1), "{r2}"(arg2), "{r3}"(arg3), "{r4}"(arg4), "{r5}"(arg5)
             : "memory"
