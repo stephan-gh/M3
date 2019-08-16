@@ -40,10 +40,11 @@ fn repl_instr_line(
     if let Some(sym) = symbols::resolve(syms, addr_int) {
         write!(
             writer,
-            "{} {}: \x1b[1m{}\x1b[0m @ {}+{:#x} : {}",
+            "{} {}: \x1b[1m{}\x1b[0m @ {:#x} : {}+{:#x} : {}",
             time,
             cpu,
             sym.bin,
+            addr_int,
             sym.name,
             addr_int - sym.addr,
             rem
