@@ -34,7 +34,7 @@ impl Log for Logger {
                 record.module_path().unwrap_or_default()
             };
 
-            println!("{:<5} [{}] {}", level_string, target, record.args());
+            eprintln!("{:<5} [{}] {}", level_string, target, record.args());
         }
     }
 
