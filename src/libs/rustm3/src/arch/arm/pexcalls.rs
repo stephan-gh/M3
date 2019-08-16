@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use arch::pexcalls::Operation;
+use base::pexif::Operation;
 use errors::Error;
 
 fn get_result(res: isize) -> Result<usize, Error> {

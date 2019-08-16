@@ -17,24 +17,9 @@
 use base::dtu;
 use base::errors::{Code, Error};
 use base::goff;
+use base::pexif;
 use core::intrinsics;
 use isr;
-
-// TODO move somewhere else
-int_enum! {
-    struct Operation : usize {
-        const SEND    = 0x0;
-        const REPLY   = 0x1;
-        const CALL    = 0x2;
-        const FETCH   = 0x3;
-        const RECV    = 0x4;
-        const ACK     = 0x5;
-        const READ    = 0x6;
-        const WRITE   = 0x7;
-        const SLEEP   = 0x8;
-        const EXIT    = 0x9;
-    }
-}
 
 fn addr_to_msg(addr: usize) -> &'static dtu::Message {
     unsafe {
@@ -142,7 +127,7 @@ fn pexcall_stop(state: &mut isr::State) -> Result<(), Error> {
 }
 
 pub fn handle_call(state: &mut isr::State) {
-    let call = Operation::from(state.r[isr::PEXC_ARG0]);
+    let call = pexif::Operation::from(state.r[isr::PEXC_ARG0] as isize);
 
     // log!(DEF, "Got PEXCall {}", call);
     // log!(DEF, " Arg1 = {:#x}", { state.r[isr::PEXC_ARG1] });
@@ -155,16 +140,16 @@ pub fn handle_call(state: &mut isr::State) {
     isr::toggle_ints(true);
 
     let res = match call {
-        Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
-        Operation::SEND => pexcall_send(state).map(|_| 0isize),
-        Operation::REPLY => pexcall_reply(state).map(|_| 0isize),
-        Operation::CALL => pexcall_call(state),
-        Operation::FETCH => pexcall_fetch(state),
-        Operation::RECV => pexcall_recv(state),
-        Operation::ACK => pexcall_ack(state).map(|_| 0isize),
-        Operation::READ => pexcall_read(state).map(|_| 0isize),
-        Operation::WRITE => pexcall_write(state).map(|_| 0isize),
-        Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
+        pexif::Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
+        pexif::Operation::SEND => pexcall_send(state).map(|_| 0isize),
+        pexif::Operation::REPLY => pexcall_reply(state).map(|_| 0isize),
+        pexif::Operation::CALL => pexcall_call(state),
+        pexif::Operation::FETCH => pexcall_fetch(state),
+        pexif::Operation::RECV => pexcall_recv(state),
+        pexif::Operation::ACK => pexcall_ack(state).map(|_| 0isize),
+        pexif::Operation::READ => pexcall_read(state).map(|_| 0isize),
+        pexif::Operation::WRITE => pexcall_write(state).map(|_| 0isize),
+        pexif::Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
         _ => Err(Error::new(Code::NotSup)),
     };
 

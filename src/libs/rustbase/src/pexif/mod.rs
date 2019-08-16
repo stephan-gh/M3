@@ -14,21 +14,17 @@
  * General Public License version 2 for more details.
  */
 
-#[cfg(target_os = "none")]
-#[path = "gem5/mod.rs"]
-mod inner;
-
-#[cfg(target_os = "linux")]
-#[path = "host/mod.rs"]
-mod inner;
-
-#[cfg(target_arch = "x86_64")]
-#[path = "x86_64/mod.rs"]
-mod isa;
-
-#[cfg(target_arch = "arm")]
-#[path = "arm/mod.rs"]
-mod isa;
-
-pub use self::inner::*;
-pub use self::isa::*;
+int_enum! {
+    pub struct Operation : isize {
+        const SEND    = 0x0;
+        const REPLY   = 0x1;
+        const CALL    = 0x2;
+        const FETCH   = 0x3;
+        const RECV    = 0x4;
+        const ACK     = 0x5;
+        const READ    = 0x6;
+        const WRITE   = 0x7;
+        const SLEEP   = 0x8;
+        const EXIT    = 0x9;
+    }
+}

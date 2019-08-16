@@ -15,6 +15,7 @@
  */
 
 use arch::pexcalls;
+use base::pexif;
 use core::intrinsics;
 use dtu::{self, CmdFlags, EpId, Header, Label, Message, EP_COUNT};
 use errors::{Code, Error};
@@ -46,7 +47,7 @@ impl DTUIf {
     ) -> Result<(), Error> {
         if USE_PEXCALLS {
             pexcalls::call5(
-                pexcalls::Operation::SEND,
+                pexif::Operation::SEND,
                 ep,
                 msg as usize,
                 size,
@@ -69,7 +70,7 @@ impl DTUIf {
     ) -> Result<(), Error> {
         if USE_PEXCALLS {
             pexcalls::call4(
-                pexcalls::Operation::REPLY,
+                pexif::Operation::REPLY,
                 ep,
                 reply as usize,
                 size,
@@ -90,7 +91,7 @@ impl DTUIf {
         reply_ep: EpId,
     ) -> Result<&'static Message, Error> {
         if USE_PEXCALLS {
-            pexcalls::call4(pexcalls::Operation::CALL, ep, msg as usize, size, reply_ep)
+            pexcalls::call4(pexif::Operation::CALL, ep, msg as usize, size, reply_ep)
                 .map(|m| Self::addr_to_msg(m))
         }
         else {
@@ -102,7 +103,7 @@ impl DTUIf {
     #[inline(always)]
     pub fn fetch_msg(ep: EpId) -> Option<&'static Message> {
         if USE_PEXCALLS {
-            pexcalls::call1(pexcalls::Operation::FETCH, ep)
+            pexcalls::call1(pexif::Operation::FETCH, ep)
                 .ok()
                 .map(|m| Self::addr_to_msg(m))
         }
@@ -115,7 +116,7 @@ impl DTUIf {
     pub fn mark_read(ep: EpId, msg: &Message) {
         if USE_PEXCALLS {
             pexcalls::call2(
-                pexcalls::Operation::ACK,
+                pexif::Operation::ACK,
                 ep,
                 msg as *const Message as *const u8 as usize,
             )
@@ -132,7 +133,7 @@ impl DTUIf {
                 Some(ep) => ep,
                 None => EP_COUNT,
             };
-            pexcalls::call2(pexcalls::Operation::RECV, rep, sep).map(|m| Self::addr_to_msg(m))
+            pexcalls::call2(pexif::Operation::RECV, rep, sep).map(|m| Self::addr_to_msg(m))
         }
         else {
             loop {
@@ -167,7 +168,7 @@ impl DTUIf {
     ) -> Result<(), Error> {
         if USE_PEXCALLS {
             pexcalls::call5(
-                pexcalls::Operation::READ,
+                pexif::Operation::READ,
                 ep,
                 data as usize,
                 size,
@@ -190,7 +191,7 @@ impl DTUIf {
     ) -> Result<(), Error> {
         if USE_PEXCALLS {
             pexcalls::call5(
-                pexcalls::Operation::WRITE,
+                pexif::Operation::WRITE,
                 ep,
                 data as usize,
                 size,
@@ -212,7 +213,7 @@ impl DTUIf {
     #[inline(always)]
     pub fn sleep_for(cycles: u64) -> Result<(), Error> {
         if USE_PEXCALLS {
-            pexcalls::call1(pexcalls::Operation::SLEEP, cycles as usize).map(|_| ())
+            pexcalls::call1(pexif::Operation::SLEEP, cycles as usize).map(|_| ())
         }
         else {
             dtu::DTU::sleep_for(cycles)

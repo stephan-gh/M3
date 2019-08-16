@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,21 +14,23 @@
  * General Public License version 2 for more details.
  */
 
-#[cfg(target_os = "none")]
-#[path = "gem5/mod.rs"]
-mod inner;
+#pragma once
 
-#[cfg(target_os = "linux")]
-#[path = "host/mod.rs"]
-mod inner;
+#include <base/Common.h>
 
-#[cfg(target_arch = "x86_64")]
-#[path = "x86_64/mod.rs"]
-mod isa;
+namespace m3 {
 
-#[cfg(target_arch = "arm")]
-#[path = "arm/mod.rs"]
-mod isa;
+enum Operation : word_t {
+    SEND,
+    REPLY,
+    CALL,
+    FETCH,
+    RECV,
+    ACK,
+    READ,
+    WRITE,
+    SLEEP,
+    EXIT,
+};
 
-pub use self::inner::*;
-pub use self::isa::*;
+}

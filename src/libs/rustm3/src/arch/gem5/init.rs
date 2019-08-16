@@ -15,6 +15,7 @@
  */
 
 use arch;
+use base::pexif;
 use com;
 use io;
 use mem;
@@ -27,7 +28,7 @@ pub extern "C" fn exit(code: i32) -> ! {
     io::deinit();
     vfs::deinit();
     syscalls::exit(code);
-    arch::pexcalls::call1(arch::pexcalls::Operation::EXIT, code as usize).ok();
+    arch::pexcalls::call1(pexif::Operation::EXIT, code as usize).ok();
     unreachable!();
 }
 

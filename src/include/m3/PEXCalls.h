@@ -18,19 +18,6 @@
 
 #include <base/Common.h>
 
-enum Operation : word_t {
-    SEND,
-    REPLY,
-    CALL,
-    FETCH,
-    RECV,
-    ACK,
-    READ,
-    WRITE,
-    SLEEP,
-    EXIT,
-};
-
 #if defined(__x86_64__)
 #   include "arch/x86_64/PEXCalls.h"
 #elif defined(__arm__)

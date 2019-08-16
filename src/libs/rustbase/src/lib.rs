@@ -84,6 +84,7 @@ pub mod env;
 pub mod errors;
 pub mod kif;
 pub mod mem;
+pub mod pexif;
 pub mod profile;
 pub mod serialize;
 pub mod time;

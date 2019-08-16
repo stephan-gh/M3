@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 #include <base/Errors.h>
+#include <base/PEXIF.h>
 
 namespace m3 {
 
