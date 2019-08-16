@@ -80,8 +80,7 @@ USED void Env::exit(int code) {
     pre_exit();
     __cxa_finalize(nullptr);
     backend()->exit(code);
-    entry = 0;
-    CPU::exit();
+    UNREACHED;
 }
 
 }

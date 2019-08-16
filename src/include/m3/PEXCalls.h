@@ -18,23 +18,23 @@
 
 #include <base/Common.h>
 
-namespace m3 {
-
-class Env;
-
-class EnvBackend {
-    friend class Env;
-
-public:
-    explicit EnvBackend() {
-    }
-    virtual ~EnvBackend() {
-    }
-
-    virtual bool extend_heap(size_t) {
-        return false;
-    }
-    virtual void exit(int code) NORETURN = 0;
+enum Operation : word_t {
+    SEND,
+    REPLY,
+    CALL,
+    FETCH,
+    RECV,
+    ACK,
+    READ,
+    WRITE,
+    SLEEP,
+    EXIT,
 };
 
-}
+#if defined(__x86_64__)
+#   include "arch/x86_64/PEXCalls.h"
+#elif defined(__arm__)
+#   include "arch/arm/PEXCalls.h"
+#else
+#   error "Unsupported ISA"
+#endif

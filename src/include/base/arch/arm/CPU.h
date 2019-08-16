@@ -47,11 +47,6 @@ inline word_t CPU::get_sp() {
     return val;
 }
 
-inline void CPU::exit() {
-    asm volatile ("swi $0");
-    UNREACHED;
-}
-
 inline void CPU::compute(cycles_t cycles) {
     asm volatile (
         ".align 4;"

@@ -48,12 +48,6 @@ inline word_t CPU::get_sp() {
     return val;
 }
 
-inline void CPU::exit() {
-    ulong res = 9;  // EXIT
-    asm volatile ("int $63" : "+a"(res) : : "memory");
-    UNREACHED;
-}
-
 void CPU::compute(cycles_t cycles) {
     cycles_t iterations = cycles / 2;
     asm volatile (

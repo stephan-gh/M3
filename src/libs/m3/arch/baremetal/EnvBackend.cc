@@ -21,6 +21,7 @@
 
 #include <m3/com/RecvGate.h>
 #include <m3/stream/Standard.h>
+#include <m3/PEXCalls.h>
 #include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
@@ -55,8 +56,10 @@ public:
         VPE::reset();
     }
 
-    void exit(int code) override {
+    NORETURN void exit(int code) override {
         Syscalls::exit(code);
+        PEXCalls::call1(Operation::EXIT, static_cast<word_t>(code));
+        UNREACHED;
     }
 };
 
