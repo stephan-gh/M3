@@ -87,18 +87,23 @@ impl XlateState {
         }
 
         // wait for reply
-        loop {
+        let res = loop {
+            if isr::is_stopped() {
+                break false;
+            }
+
             if let Some(reply) = dtu::DTU::fetch_msg(rep) {
                 dtu::DTU::mark_read(rep, reply);
-                break;
+                break true;
             }
+
             dtu::DTU::sleep().ok();
-        }
+        };
 
         unsafe { asm!("cli" : : : "memory") };
 
         self.in_pf = false;
-        true
+        res
     }
 
     fn resume_cmd(&mut self) {
@@ -227,7 +232,7 @@ fn translate_addr(req: dtu::Reg) -> bool {
 
 fn handle_pending_ctxsw(state: &mut isr::State) {
     // was there a context switch request in the meantime?
-    if (state.cs & 0x3) != 0 && STATE.ctxsw {
+    if state.from_user() && STATE.ctxsw {
         STATE.get_mut().ctxsw = false;
         kernreq::handle_pemux(state);
     }
@@ -261,13 +266,17 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     }
 
     // PEMux isn't causing PFs
-    assert!(state.cs == ((isr::SEG_UCODE << 3) | 3) as usize);
+    assert!(state.from_user());
 
     // if we don't use the MMU, we shouldn't get here
     // TODO assert!(env().pedesc.has_mmu());
 
     let perm = to_dtu_pte((state.error & 0x7) as u64);
     if !STATE.get_mut().handle_pf(0, cr2, perm) {
+        if isr::is_stopped() {
+            return;
+        }
+
         // if we can't handle the PF, there is something wrong
         panic!("PEMux: pagefault for {:#x} at {:#x}", cr2, { state.rip });
     }

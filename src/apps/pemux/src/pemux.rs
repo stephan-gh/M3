@@ -59,13 +59,13 @@ pub extern "C" fn unexpected_irq(state: &mut isr::State) -> *mut libc::c_void {
 pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
     vma::handle_mmu_pf(state);
 
-    state as *mut isr::State as *mut libc::c_void
+    state.finalize()
 }
 
 pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
     pexcalls::handle_call(state);
 
-    state as *mut isr::State as *mut libc::c_void
+    state.finalize()
 }
 
 pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
@@ -81,7 +81,7 @@ pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
         kernreq::handle_ext_req(state, ext_req);
     }
 
-    state as *mut isr::State as *mut libc::c_void
+    state.finalize()
 }
 
 #[no_mangle]

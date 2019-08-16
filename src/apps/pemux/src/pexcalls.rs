@@ -45,7 +45,7 @@ fn addr_to_msg(addr: usize) -> &'static dtu::Message {
 }
 
 fn recv_msg(rep: dtu::EpId, sep: dtu::EpId) -> Result<isize, Error> {
-    loop {
+    while !isr::is_stopped() {
         let msg = dtu::DTU::fetch_msg(rep);
         if let Some(m) = msg {
             return Ok(m as *const dtu::Message as *const u8 as isize);
@@ -63,6 +63,7 @@ fn recv_msg(rep: dtu::EpId, sep: dtu::EpId) -> Result<isize, Error> {
 
         dtu::DTU::sleep()?;
     }
+    Err(Error::new(Code::Abort))
 }
 
 fn pexcall_send(state: &mut isr::State) -> Result<(), Error> {

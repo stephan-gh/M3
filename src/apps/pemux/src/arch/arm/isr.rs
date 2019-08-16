@@ -14,8 +14,10 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::StaticCell;
 use base::libc;
 use core::fmt;
+use core::ptr;
 use isr;
 
 type IsrFunc = extern "C" fn(state: &mut isr::State) -> *mut libc::c_void;
@@ -75,7 +77,16 @@ impl fmt::Debug for State {
     }
 }
 
+static STOPPED: StaticCell<bool> = StaticCell::new(false);
+
 impl State {
+    pub fn from_user(&self) -> bool {
+        (self.cpsr & 0x0F) == 0x0
+    }
+    pub fn nested(&self) -> bool {
+        !self.from_user()
+    }
+
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.r[1] = 0xDEADBEEF; // don't set the stackpointer in crt0
         self.pc = entry;
@@ -85,13 +96,31 @@ impl State {
     }
 
     pub fn stop(&mut self) {
-        self.pc = crate::sleep as *const fn() as usize;
-        self.sp = unsafe { &idle_stack as *const libc::c_void as usize };
+        if self.nested() {
+            *STOPPED.get_mut() = true;
+        }
+        else {
+            self.pc = crate::sleep as *const fn() as usize;
+            self.sp = unsafe { &idle_stack as *const libc::c_void as usize };
+
+            *STOPPED.get_mut() = false;
+        }
+    }
+
+    pub fn finalize(&mut self) -> *mut libc::c_void {
+        if *STOPPED {
+            self.stop();
+        }
+        self as *mut Self as *mut libc::c_void
     }
 }
 
 pub fn toggle_ints(_enabled: bool) {
     // not necessary, because PE-type C is not supported anyway
+}
+
+pub fn is_stopped() -> bool {
+    unsafe { ptr::read_volatile(STOPPED.get_mut()) }
 }
 
 pub fn init() {

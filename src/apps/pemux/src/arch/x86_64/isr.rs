@@ -14,8 +14,10 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::StaticCell;
 use base::libc;
 use core::fmt;
+use core::ptr;
 use isr;
 
 type IsrFunc = extern "C" fn(state: &mut isr::State) -> *mut libc::c_void;
@@ -25,14 +27,11 @@ extern "C" {
     fn isr_reg(idx: usize, func: IsrFunc);
     fn isr_enable();
 
-    static isr_stack: libc::c_void;
+    static idle_stack: libc::c_void;
 }
 
-pub const DPL_KERNEL: u64 = 0;
 pub const DPL_USER: u64 = 3;
 
-pub const SEG_KCODE: u64 = 1;
-pub const SEG_KDATA: u64 = 2;
 pub const SEG_UCODE: u64 = 3;
 pub const SEG_UDATA: u64 = 4;
 
@@ -45,13 +44,13 @@ pub const PEXC_ARG5: usize = 7;     // r8
 
 #[repr(C, packed)]
 pub struct State {
-    /* general purpose registers */
+    // general purpose registers
     pub r: [usize; 15],
-    /* interrupt-number */
+    // interrupt-number
     pub irq: usize,
-    /* error-code (for exceptions); default = 0 */
+    // error-code (for exceptions); default = 0
     pub error: usize,
-    /* pushed by the CPU */
+    // pushed by the CPU
     pub rip: usize,
     pub cs: usize,
     pub rflags: usize,
@@ -98,7 +97,16 @@ impl fmt::Debug for State {
     }
 }
 
+static STOPPED: StaticCell<bool> = StaticCell::new(false);
+
 impl State {
+    pub fn from_user(&self) -> bool {
+        (self.cs & DPL_USER as usize) == DPL_USER as usize
+    }
+    pub fn nested(&self) -> bool {
+        !self.from_user()
+    }
+
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.rip = entry;
         self.rsp = sp;
@@ -112,13 +120,23 @@ impl State {
     }
 
     pub fn stop(&mut self) {
-        self.rip = crate::sleep as *const fn() as usize;
-        self.rsp = unsafe { &isr_stack as *const libc::c_void as usize };
-        self.r[8] = self.rsp; // rbp and rsp
+        if self.nested() {
+            *STOPPED.get_mut() = true;
+        }
+        else {
+            self.rip = crate::sleep as *const fn() as usize;
+            self.rsp = unsafe { &idle_stack as *const libc::c_void as usize };
+            self.r[8] = self.rsp; // rbp and rsp
 
-        self.rflags = 0x200; // enable interrupts
-        self.cs = ((isr::SEG_KCODE << 3) | DPL_KERNEL) as usize;
-        self.ss = ((isr::SEG_KDATA << 3) | DPL_KERNEL) as usize;
+            *STOPPED.get_mut() = false;
+        }
+    }
+
+    pub fn finalize(&mut self) -> *mut libc::c_void {
+        if *STOPPED {
+            self.stop();
+        }
+        self as *mut Self as *mut libc::c_void
     }
 }
 
@@ -129,6 +147,10 @@ pub fn toggle_ints(enabled: bool) {
     else {
         unsafe { asm!("cli" : : : "memory") };
     }
+}
+
+pub fn is_stopped() -> bool {
+    unsafe { ptr::read_volatile(STOPPED.get_mut()) }
 }
 
 pub fn init() {

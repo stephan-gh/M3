@@ -19,6 +19,7 @@
 .extern init
 .extern sleep
 .extern isr_stack
+.global idle_stack
 
 BEGIN_FUNC(_start)
     xor     %rax, %rax
@@ -27,10 +28,15 @@ BEGIN_FUNC(_start)
     call    init
 
     // return to idle code
-    pushq   $(2 << 3)       // ss
-    pushq   $isr_stack      // rsp
+    pushq   $(4 << 3) | 3   // ss
+    pushq   $idle_stack     // rsp
     pushq   $0x200          // rflags: interrupts enabled
-    pushq   $(1 << 3)       // cs
-    pushq   $sleep           // rip
+    pushq   $(3 << 3) | 3   // cs
+    pushq   $sleep          // rip
     iretq
 END_FUNC(_start)
+
+.bss
+
+    .space 4096
+idle_stack:
