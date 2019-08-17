@@ -45,6 +45,8 @@ where
 
     let mut line = String::new();
     while reader.read_line(&mut line)? != 0 {
+        // 0021a300 00000030 T kernel::CapTable::vpe() const
+        // ^------^ ^------^ ^ ^---------------------------^
         let parts: Vec<_> = line.trim_end().splitn(4, ' ').collect();
         if parts.len() < 3 {
             continue;
