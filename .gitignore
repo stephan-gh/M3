@@ -1,9 +1,11 @@
-.scons*
+.sconsign*
 .sconf_temp
 *~
 *.pyc
 *.sublime-project
 *.sublime-workspace
+*.ninja_deps
+*.ninja_log
 Cargo.lock
 /build
 /cross/buildroot

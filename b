@@ -1,12 +1,5 @@
 #!/bin/bash
 
-# jobs
-if [ -f /proc/cpuinfo ]; then
-    cpus=`cat /proc/cpuinfo | grep '^processor[[:space:]]*:' | wc -l`
-else
-    cpus=1
-fi
-
 # fall back to reasonable defaults
 if [ -z $M3_BUILD ]; then
     M3_BUILD='release'
@@ -14,19 +7,28 @@ fi
 if [ -z $M3_TARGET ]; then
     M3_TARGET='host'
 fi
+if [ -z $M3_ISA ]; then
+    M3_ISA='x86_64'
+fi
 if [ -z $M3_GEM5_OUT ]; then
     M3_GEM5_OUT="run"
 fi
 
+if [ "$M3_BUILD" != "debug" ] && [ "$M3_BUILD" != "release" ]; then
+    echo "Build type $M3_BUILD not supported." >&2 && exit 1
+fi
+
 if [ "$M3_TARGET" = "gem5" ]; then
-    if [ "$M3_ISA" != "arm" ]; then
-        M3_ISA='x86_64'
+    if [ "$M3_ISA" != "arm" ] && [ "$M3_ISA" != "x86_64" ]; then
+        echo "ISA $M3_ISA not supported for target gem5." >&2 && exit 1
     fi
-else
+elif [ "$M3_TARGET" = "host" ]; then
     M3_ISA=`uname -m`
     if [ "$M3_ISA" = "armv7l" ]; then
         M3_ISA="arm"
     fi
+else
+    echo "Target $M3_TARGET not supported." >&2 && exit 1
 fi
 
 export M3_BUILD M3_TARGET M3_ISA
@@ -35,10 +37,13 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
 crossprefix=''
 if [ "$M3_TARGET" = "gem5" ]; then
     if [ "$M3_ISA" = "arm" ]; then
-        crossprefix="./build/cross-arm/bin/arm-none-eabi-"
+        crossdir="./build/cross-arm/bin"
+        crossprefix="$crossdir/arm-none-eabi-"
     else
-        crossprefix="./build/cross-x86_64/bin/x86_64-elf-m3-"
+        crossdir="./build/cross-x86_64/bin"
+        crossprefix="$crossdir/x86_64-elf-m3-"
     fi
+    export PATH=$crossdir:$PATH
 fi
 if [ "$M3_TARGET" = "gem5" ] && [ "$M3_ISA" = "arm" ]; then
     rustabi='gnueabihf'
@@ -56,7 +61,7 @@ build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/
 
 help() {
-    echo "Usage: $1 [<cmd> <arg>] [-s] [--no-build|-n]"
+    echo "Usage: $1 [<cmd> <arg>]"
     echo ""
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
@@ -113,8 +118,6 @@ help() {
     echo "    M3_CORES:                # of cores to simulate."
     echo "    M3_FS:                   The filesystem to use (filename only)."
     echo "    M3_HDD:                  The hard drive image to use (filename only)."
-    echo "    M3_FSBPE:                The blocks per extent (0 = unlimited)."
-    echo "    M3_FSBLKS:               The fs block count (default=16384)."
     echo "    M3_GEM5_DBG:             The trace-flags for gem5 (--debug-flags)."
     echo "    M3_GEM5_DBGSTART:        When to start tracing for gem5 (--debug-start)."
     echo "    M3_GEM5_CPU:             The CPU model (detailed by default)."
@@ -132,52 +135,63 @@ help() {
 }
 
 # parse arguments
-dobuild=true
+case "$1" in
+    -h|-\?|--help)
+        help $0
+        ;;
+esac
+
 cmd=""
 script=""
 while [ $# -gt 0 ]; do
-    case "$1" in
-        -h|-\?|--help)
-            help $0
-            ;;
-
-        -n|--no-build)
-            dobuild=false
-            ;;
-
-        -s)
-            cpus=1
-            ;;
-
-        *)
-            if [ "$cmd" = "" ]; then
-                cmd="$1"
-            elif [ "$script" = "" ]; then
-                script="$1"
-            else
-                break
-            fi
-            ;;
-    esac
+    if [ "$cmd" = "" ]; then
+        cmd="$1"
+    elif [ "$script" = "" ]; then
+        script="$1"
+    else
+        break
+    fi
     shift
 done
 
-# for clean and distclean, it makes no sense to build it (this might even fail because e.g. scons has
-# a non existing dependency which might be the reason the user wants to do a clean)
-if [ "$cmd" = "clean" ] || [ "$cmd" = "distclean" ]; then
-    dobuild=false
+mkdir -p $build/fsdata run
+
+if [ "$M3_VERBOSE" != "" ]; then
+    ninjaargs="-v"
 fi
 
-if $dobuild; then
-    echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD using $cpus jobs..."
-
-    scons -j$cpus
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
+rebuilt=false
+filesid=$build/.scons2ninja-files.id
+find src -type f > $filesid.new
+if [ ! -f $build/build.ninja ] || ! cmp $filesid.new $filesid &>/dev/null; then
+    echo "Configuring for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+    ./src/tools/scons2ninja.py --dir $build >&2 || exit 1
+    mv $filesid.new $filesid
+    rebuilt=true
 fi
 
-mkdir -p run
+case "$cmd" in
+    scons)
+        scons $script $@
+        exit $?
+        ;;
+
+    ninja)
+        ninja -f $build/build.ninja $ninjaargs $script $@
+        exit $?
+        ;;
+esac
+
+echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+ninja -f $build/build.ninja $ninjaargs >&2 || exit 1
+
+if [ ! -f $build/fsdata/build.ninja ] || $rebuilt; then
+    echo "Configuring file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+    ./src/tools/scons2ninja.py --dir $build/fsdata build_fs=1 >&2 || exit 1
+fi
+
+echo "Building file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+ninja -f $build/fsdata/build.ninja $ninjaargs >&2 || exit 1
 
 run_on_host() {
     echo -n > run/log.txt
@@ -217,14 +231,6 @@ findprog() {
 
 # run the specified command, if any
 case "$cmd" in
-    clean)
-        scons -c
-        ;;
-
-    distclean)
-        rm -Rf build/*
-        ;;
-
     run)
         if [ "$M3_TARGET" = "host" ]; then
             run_on_host $script

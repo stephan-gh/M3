@@ -1,6 +1,7 @@
 import os, sys
 sys.path.insert(0, 'src/tools')
 import install
+import SCons
 
 target = os.environ.get('M3_TARGET')
 if target == 'gem5':
@@ -31,13 +32,6 @@ baseenv = Environment(
     CPPPATH  = ['#src/include'],
 )
 
-if not "RUST_TARGET_PATH" in os.environ:
-    os.environ["RUST_TARGET_PATH"] = Dir('src/toolchain/rust').abspath
-if not "CARGO_TARGET_DIR" in os.environ:
-    os.environ["CARGO_TARGET_DIR"] = Dir('build/rust').abspath
-if not "XBUILD_SYSROOT_PATH" in os.environ:
-    os.environ["XBUILD_SYSROOT_PATH"] = os.environ['CARGO_TARGET_DIR'] + '/sysroot'
-
 vars = [
     'PATH',
     # required for colored outputs
@@ -45,8 +39,11 @@ vars = [
     # rust env vars (set in b)
     'RUST_TARGET_PATH', 'CARGO_TARGET_DIR', 'XBUILD_SYSROOT_PATH'
 ]
-for v in vars:
-    baseenv.Append(ENV = {v : os.environ[v]})
+try:
+    for v in vars:
+        baseenv.Append(ENV = {v : os.environ[v]})
+except KeyError as e:
+    exit('Environment variable not found (' + str(e) + '). Please build M³ via ./b')
 
 # hardlink support
 link_builder = Builder(action = Action("ln -f ${SOURCE.abspath} ${TARGET.abspath}", "$LNCOMSTR"))
@@ -74,27 +71,6 @@ if not conf.CheckRust():
 baseenv['HAS_OTF']  = conf.CheckOTFConfig()
 conf.Finish()
 
-# print executed commands?
-verbose = os.environ.get('M3_VERBOSE', 0)
-if int(verbose) == 0:
-    baseenv['INSTALLSTR']   = "[INSTALL] $TARGET"
-    baseenv['ASPPCOMSTR']   = "[AS     ] $TARGET"
-    baseenv['ASPPCOMSTR']   = "[ASPP   ] $TARGET"
-    baseenv['CCCOMSTR']     = "[CC     ] $TARGET"
-    baseenv['SHCCCOMSTR']   = "[SHCC   ] $TARGET"
-    baseenv['CXXCOMSTR']    = "[CXX    ] $TARGET"
-    baseenv['SHCXXCOMSTR']  = "[SHCXX  ] $TARGET"
-    baseenv['LINKCOMSTR']   = "[LD     ] $TARGET"
-    baseenv['SHLINKCOMSTR'] = "[SHLD   ] $TARGET"
-    baseenv['ARCOMSTR']     = "[AR     ] $TARGET"
-    baseenv['RANLIBCOMSTR'] = "[RANLIB ] $TARGET"
-    baseenv['STRIPCOMSTR']  = "[STRIP  ] $TARGET"
-    baseenv['DUMPCOMSTR']   = "[DUMP   ] $TARGET"
-    baseenv['MKFSCOMSTR']   = "[MKFS   ] $TARGET"
-    baseenv['CPPCOMSTR']    = "[CPP    ] $TARGET"
-    baseenv['CRGCOMSTR']    = "[CARGO  ] $TARGET"
-    baseenv['LNCOMSTR']     = "[HARDLN ] $TARGET"
-
 # for host compilation
 hostenv = baseenv.Clone()
 hostenv.Append(
@@ -110,7 +86,7 @@ env.Append(
     CFLAGS = ' -gdwarf-2 -fno-stack-protector',
     ASFLAGS = ' -Wl,-W -Wall -Wextra',
     LINKFLAGS = ' -Wl,--no-gc-sections -Wno-lto-type-mismatch -fno-stack-protector',
-    CRGFLAGS = ' --target ' + isa + '-unknown-' + target + '-' + rustabi,
+    CRGFLAGS = ' -q --target ' + isa + '-unknown-' + target + '-' + rustabi,
 )
 
 # add target-dependent stuff to env
@@ -147,7 +123,7 @@ env.Replace(AR = cross + 'gcc-ar')
 env.Replace(RANLIB = cross + 'gcc-ranlib')
 
 # add build-dependent flags (debug/release)
-btype = os.environ.get('M3_BUILD', 'release')
+btype = os.environ.get('M3_BUILD')
 if btype == 'debug':
     env.Append(CXXFLAGS = ' -O0 -g')
     env.Append(CFLAGS = ' -O0 -g')
@@ -185,11 +161,11 @@ hostenv.Append(
     BINARYDIR = env['BINARYDIR'],
 )
 
-def M3Mkfs(env, target, source, blocks, inodes, blks_per_ext):
+def M3Mkfs(env, target, source, blocks, inodes):
     fs = env.Command(
         target, source,
         Action(
-            '$BUILDDIR/src/tools/mkm3fs/mkm3fs $TARGET $SOURCE %d %d %d' % (blocks, inodes, blks_per_ext),
+            '$BUILDDIR/src/tools/mkm3fs/mkm3fs $TARGET $SOURCE %d %d 0' % (blocks, inodes),
             '$MKFSCOMSTR'
         )
     )
@@ -209,7 +185,7 @@ def M3CPP(env, target, source):
     env.Command(
         target, source,
         Action(
-            cross + 'cpp -P $CPPFLAGS $SOURCE $TARGET',
+            cross + 'cpp -P $CPPFLAGS $SOURCE -o $TARGET',
             '$CPPCOMSTR'
         )
     )
@@ -337,3 +313,8 @@ env.RustProgram = RustProgram
 env['_LIBFLAGS'] = '-Wl,--start-group ' + env['_LIBFLAGS'] + ' -Wl,--end-group'
 
 env.SConscript('src/SConscript', exports = ['env', 'hostenv'], variant_dir = builddir, src_dir = '.', duplicate = 0)
+
+if ARGUMENTS.get('dump_trace', 0):
+    env.SetOption('no_exec', True)
+    env.Decider(lambda x, y, z: True)
+    SCons.Node.Python.Value.changed_since_last_build = (lambda x, y, z: True)

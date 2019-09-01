@@ -1,5 +1,5 @@
 Import('env')
-env.InstallFiles('$FSDIR/default', '.', scan=1)
+env.InstallFiles('$FSDIR/default', '.', scan=1, exclude=['SConscript'])
 
 if env['ARCH'] == 'host':
     blocks = 160 * 1024
