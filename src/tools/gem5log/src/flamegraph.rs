@@ -282,7 +282,11 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
                 // detect thread switches
                 if sym.name == "thread_resume" && instr_is_sp_init(isa, line) {
                     if let Some(pos) = line.find("D=") {
-                        let tid = u64::from_str_radix(&line[(pos + 4)..(pos + 20)], 16)?;
+                        let mut tid = u64::from_str_radix(&line[(pos + 4)..(pos + 20)], 16)?;
+                        if *isa == crate::ISA::ARM {
+                            // we get both FP and SP, but only care about SP
+                            tid >>= 32;
+                        }
                         cur_bin.thread_switch(tid, time);
                     }
                 }
