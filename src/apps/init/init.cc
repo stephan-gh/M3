@@ -23,7 +23,7 @@
 
 using namespace m3;
 
-int main(int argc, const char **argv) {
+int main(int argc, char **argv) {
     if(argc < 2)
         exitmsg("Usage: " << argv[0] << " <program> [<arg>...]");
 
@@ -47,7 +47,7 @@ int main(int argc, const char **argv) {
     sh.mounts(VPE::self().mounts());
     sh.obtain_mounts();
 
-    sh.exec(argc - 1, argv + 1);
+    sh.exec(argc - 1, const_cast<const char**>(argv + 1));
 
     sh.wait();
     return 0;
