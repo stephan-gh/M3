@@ -212,7 +212,7 @@ m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, cons
     }
     m3::DTU::get().write_reg(m3::DTU::CmdRegs::OFFSET, sender);
     m3::CPU::compiler_barrier();
-    m3::DTU::reg_t cmd = m3::DTU::get().build_command(_ep, m3::DTU::CmdOpCode::SEND);
+    m3::DTU::reg_t cmd = m3::DTU::get().build_command(_ep, m3::DTU::CmdOpCode::SEND_BY);
     m3::DTU::get().write_reg(m3::DTU::CmdRegs::COMMAND, cmd);
 
     return m3::DTU::get().get_error();

@@ -145,22 +145,24 @@ int_enum! {
         const IDLE        = 0x0;
         /// Sends a message
         const SEND        = 0x1;
+        /// Sends a message on behalf of someone (privileged)
+        const SEND_BY     = 0x2;
         /// Replies to a message
-        const REPLY       = 0x2;
+        const REPLY       = 0x3;
         /// Reads from external memory
-        const READ        = 0x3;
+        const READ        = 0x4;
         /// Writes to external memory
-        const WRITE       = 0x4;
+        const WRITE       = 0x5;
         /// Fetches a message
-        const FETCH_MSG   = 0x5;
+        const FETCH_MSG   = 0x6;
         /// Acknowledges a message
-        const ACK_MSG     = 0x6;
+        const ACK_MSG     = 0x7;
         /// Acknowledges events
-        const ACK_EVENTS  = 0x7;
+        const ACK_EVENTS  = 0x8;
         /// Puts the CU to sleep
-        const SLEEP       = 0x8;
+        const SLEEP       = 0x9;
         /// Prints a message
-        const PRINT       = 0x9;
+        const PRINT       = 0x10;
     }
 }
 
