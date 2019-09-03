@@ -294,10 +294,10 @@ private:
     Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off, uint flags);
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off, uint flags);
 
-    Message *fetch_msg(epid_t ep) const {
+    const Message *fetch_msg(epid_t ep) const {
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         CPU::memory_barrier();
-        return reinterpret_cast<Message*>(read_reg(CmdRegs::OFFSET));
+        return reinterpret_cast<const Message*>(read_reg(CmdRegs::OFFSET));
     }
 
     void mark_read(epid_t ep, const Message *msg) {

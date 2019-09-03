@@ -218,14 +218,14 @@ public:
         return get_ep(ep, EP_CREDITS) > 0;
     }
 
-    Message *fetch_msg(epid_t ep) {
+    const Message *fetch_msg(epid_t ep) {
         if(get_ep(ep, EP_BUF_MSGCNT) == 0)
             return nullptr;
 
         set_cmd(CMD_EPID, ep);
         set_cmd(CMD_CTRL, (FETCHMSG << OPCODE_SHIFT) | CTRL_START);
         exec_command();
-        return reinterpret_cast<Message*>(get_cmd(CMD_OFFSET));
+        return reinterpret_cast<const Message*>(get_cmd(CMD_OFFSET));
     }
 
     word_t fetch_events() const {
