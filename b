@@ -88,7 +88,7 @@ help() {
     echo "                             the gem5.log with Exec,ExecPC enabled."
     echo "    flamegraph=<progs>:      produces a flamegraph with stdin to stdout. <progs>"
     echo "                             are the binary names for the symbols. stdin expects"
-    echo "                             the gem5.log with Exec,ExecPC enabled."
+    echo "                             the gem5.log with Exec,ExecPC,DtuConnector enabled."
     echo "    mkfs=<fsimg> <dir> ...:  create m3-fs in <fsimg> with content of <dir>"
     echo "    shfs=<fsimg> ...:        show m3-fs in <fsimg>"
     echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>"

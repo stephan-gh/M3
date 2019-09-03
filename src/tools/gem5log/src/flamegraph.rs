@@ -1,4 +1,4 @@
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::io::{StdoutLock, Write};
@@ -9,9 +9,11 @@ use crate::symbols;
 const STACK_SIZE: u64 = 0x4000;
 
 struct PE {
+    id: usize,
     bins: BTreeMap<String, Binary>,
     last_bin: String,
     last_isr_exit: bool,
+    susp_start: u64,
 }
 
 struct Binary {
@@ -58,34 +60,42 @@ impl fmt::Display for ThreadId {
     }
 }
 
-fn get_func_addr(line: &str) -> Option<(u64, usize, usize)> {
+fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
     // get the first parts:
     // 7802000: pe00.cpu T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
     // ^------^ ^------^ ^^ ^ ^------^ ^---------------------------------------------^
     let mut parts = line.splitn(6, ' ');
     let time = parts.next()?;
     let cpu = parts.next()?;
-    if !cpu.ends_with(".cpu") {
+    if !cpu.starts_with("pe") {
         return None;
     }
 
-    let addr = parts.nth(2)?;
-    let mut addr_parts = addr.splitn(2, '.');
-    let addr_int = usize::from_str_radix(&addr_parts.next()?[2..], 16).ok()?;
     let time_int = time[..time.len() - 1].parse::<u64>().ok()?;
     let cpu_int = cpu[2..4].parse::<usize>().ok()?;
+    let addr_int = if cpu.ends_with(".cpu") {
+        let addr = parts.nth(2)?;
+        let mut addr_parts = addr.splitn(2, '.');
+        usize::from_str_radix(&addr_parts.next()?[2..], 16).ok()
+    }
+    else {
+        None
+    };
+
     Some((time_int, cpu_int, addr_int))
 }
 
 impl PE {
-    fn new(bin: Binary) -> Self {
+    fn new(bin: Binary, id: usize) -> Self {
         let mut bins = BTreeMap::new();
         let name = bin.name.clone();
         bins.insert(name.clone(), bin);
         PE {
+            id,
             bins,
             last_bin: name,
             last_isr_exit: false,
+            susp_start: 0,
         }
     }
 
@@ -98,6 +108,29 @@ impl PE {
             debug!("{}: switched to {}", time, sym.bin);
         }
         self.last_bin = sym.bin.clone();
+    }
+
+    fn suspend(&mut self, now: u64) {
+        self.susp_start = now;
+        debug!("{}: PE{}: sleep begin", now, self.id);
+    }
+
+    fn resume(&mut self, now: u64) {
+        let duration = now - self.susp_start;
+        debug!("{}: PE{}: sleep end ({})", now, self.id, duration);
+        assert!(self.susp_start > 0);
+
+        for (_, bin) in &mut self.bins {
+            for (_, thread) in &mut bin.stacks {
+                if thread.switched != 0 {
+                    thread.switched += duration;
+                }
+                for f in &mut thread.stack {
+                    f.time += duration;
+                }
+            }
+        }
+        self.susp_start = 0;
     }
 }
 
@@ -147,6 +180,7 @@ impl Binary {
         for f in &mut cur_thread.stack {
             f.time += duration;
         }
+        cur_thread.switched = 0;
     }
 }
 
@@ -166,7 +200,12 @@ impl Thread {
 
     fn ret(&mut self, sym: &symbols::Symbol, time: u64, tid: &ThreadId) -> Option<Call> {
         if self.stack.iter().find(|s| s.func == sym.name).is_none() {
-            trace!("{}: {} return to {} w/o preceeding call", time, tid, sym.name);
+            trace!(
+                "{}: {} return to {} w/o preceeding call",
+                time,
+                tid,
+                sym.name
+            );
             return None;
         }
 
@@ -247,11 +286,24 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
     let mut pes: HashMap<usize, PE> = HashMap::new();
 
     crate::with_stdin_lines(syms, |syms, writer, line| {
-        if let Some((time, pe, addr)) = get_func_addr(line) {
+        if let Some((time, pe, maybe_addr)) = get_func_addr(line) {
+            if maybe_addr.is_none() {
+                if let Some(cur_pe) = pes.get_mut(&pe) {
+                    if line.contains("dtu.connector: Suspending core") {
+                        cur_pe.suspend(time);
+                    }
+                    else if line.contains("dtu.connector: Waking up core") {
+                        cur_pe.resume(time);
+                    }
+                }
+                return Ok(());
+            }
+
+            let addr = maybe_addr.unwrap();
             if let Some(sym) = symbols::resolve(syms, addr) {
                 // detect PEs
                 if pes.get(&pe).is_none() {
-                    pes.insert(pe, PE::new(Binary::new(&sym.name)));
+                    pes.insert(pe, PE::new(Binary::new(&sym.name), pe));
                 }
                 let cur_pe = pes.get_mut(&pe).unwrap();
 
@@ -311,6 +363,9 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
 
                 cur_pe.last_isr_exit = is_isr_exit(isa, line);
                 cur_thread.last_func = sym.addr;
+            }
+            else {
+                warn!("{}: No symbol for address {:#x}", time, addr);
             }
         }
 
