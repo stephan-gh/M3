@@ -342,9 +342,6 @@ private:
     reg_t get_pfep() const {
         return read_reg(DtuRegs::PF_EP);
     }
-    bool ep_valid(epid_t ep) const {
-        return (read_reg(ep, 0) >> 61) != 0;
-    }
 
     reg_t get_xlate_req() const {
         return read_reg(ReqRegs::XLATE_REQ);
