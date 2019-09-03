@@ -466,7 +466,7 @@ impl DTU {
         loop {
             let cmd = Self::read_cmd_reg(CmdReg::COMMAND);
             if (cmd & 0xF) == CmdOpCode::IDLE.val {
-                let err = (cmd >> 13) & 0x7;
+                let err = (cmd >> 12) & 0xF;
                 return if err == 0 {
                     Ok(())
                 }
@@ -611,6 +611,6 @@ impl DTU {
     }
 
     fn build_cmd(ep: EpId, c: CmdOpCode, flags: Reg, arg: Reg) -> Reg {
-        c.val as Reg | ((ep as Reg) << 4) | (flags << 12) | (arg << 16)
+        c.val as Reg | ((ep as Reg) << 4) | (flags << 11) | (arg << 16)
     }
 }

@@ -88,7 +88,7 @@ Errors::Code DTU::check_cmd(epid_t ep, int op, word_t label, word_t credits, siz
         if(!(perms & (1U << (op - 1)))) {
             LLOG(DTUERR, "DMA-error: operation not permitted on ep " << ep << " (perms="
                     << perms << ", op=" << op << ")");
-            return Errors::INV_ARGS;
+            return Errors::NO_PERM;
         }
         if(offset >= credits || offset + length < offset || offset + length > credits) {
             LLOG(DTUERR, "DMA-error: invalid parameters (credits=" << credits

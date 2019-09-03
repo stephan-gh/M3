@@ -366,7 +366,7 @@ private:
         while(true) {
             reg_t cmd = read_reg(CmdRegs::COMMAND);
             if(static_cast<CmdOpCode>(cmd & 0xF) == CmdOpCode::IDLE)
-                return static_cast<Errors::Code>((cmd >> 13) & 0x7);
+                return static_cast<Errors::Code>((cmd >> 12) & 0xF);
         }
         UNREACHED;
     }
@@ -438,7 +438,7 @@ private:
     static reg_t build_command(epid_t ep, CmdOpCode c, uint flags = 0, reg_t arg = 0) {
         return static_cast<reg_t>(c) |
                 (static_cast<reg_t>(ep) << 4) |
-                (static_cast<reg_t>(flags) << 12 |
+                (static_cast<reg_t>(flags) << 11 |
                 arg << 16);
     }
 

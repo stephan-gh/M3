@@ -37,14 +37,14 @@ fn create() {
 fn create_readonly() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::R));
     let mut data = [0u8; 8];
-    wv_assert_err!(mgate.write(&data, 0), Code::InvEP);
+    wv_assert_err!(mgate.write(&data, 0), Code::NoPerm);
     wv_assert_ok!(mgate.read(&mut data, 0));
 }
 
 fn create_writeonly() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::W));
     let mut data = [0u8; 8];
-    wv_assert_err!(mgate.read(&mut data, 0), Code::InvEP);
+    wv_assert_err!(mgate.read(&mut data, 0), Code::NoPerm);
     wv_assert_ok!(mgate.write(&data, 0));
 }
 
@@ -55,7 +55,7 @@ fn derive() {
     wv_assert_err!(mgate.derive(0x800, 0x1000, Perm::RW), Code::InvArgs);
     let dgate = wv_assert_ok!(mgate.derive(0x800, 0x800, Perm::R));
     let mut data = [0u8; 8];
-    wv_assert_err!(dgate.write(&data, 0), Code::InvEP);
+    wv_assert_err!(dgate.write(&data, 0), Code::NoPerm);
     wv_assert_ok!(dgate.read(&mut data, 0));
 }
 

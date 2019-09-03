@@ -34,9 +34,9 @@ static const char *errmsgs[] = {
 
     /* 10 */
     "Invalid arguments",
+    "No permissions",
     "Out of memory",
     "No such file or directory",
-    "No permissions",
     "Not supported",
     "No free/suitable PE",
     "Invalid ELF file",

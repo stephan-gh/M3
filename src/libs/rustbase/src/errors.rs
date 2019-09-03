@@ -32,11 +32,11 @@ pub enum Code {
     Abort,
     ReplyDisabled,
     InvMsg,
-    // SW Errors
     InvArgs,
+    NoPerm,
+    // SW Errors
     OutOfMem,
     NoSuchFile,
-    NoPerm,
     NotSup,
     NoFreePE,
     InvalidElf,

@@ -36,11 +36,11 @@ struct Errors {
         ABORT,
         REPLY_DISABLED,
         INV_MSG,
-        // SW errors
         INV_ARGS,
+        NO_PERM,
+        // SW errors
         OUT_OF_MEM,
         NO_SUCH_FILE,
-        NO_PERM,
         NOT_SUP,
         NO_FREE_PE,
         INVALID_ELF,

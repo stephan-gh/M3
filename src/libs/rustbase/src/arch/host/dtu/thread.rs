@@ -198,7 +198,7 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
             perms,
             op
         );
-        Err(Error::new(Code::InvEP))
+        Err(Error::new(Code::NoPerm))
     }
     else {
         let end = offset.overflowing_add(length);
@@ -210,7 +210,7 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
                 offset,
                 length
             );
-            Err(Error::new(Code::InvEP))
+            Err(Error::new(Code::InvArgs))
         }
         else {
             Ok(())
