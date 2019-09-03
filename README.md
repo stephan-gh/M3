@@ -26,8 +26,7 @@ Getting Started:
 
 The submodule in `hw/gem5` needs to be pulled in and built:
 
-    $ git submodule init
-    $ git submodule update hw/gem5
+    $ git submodule update --init --recursive
     $ cd hw/gem5
     $ scons build/X86/gem5.opt build/X86/gem5.debug
 

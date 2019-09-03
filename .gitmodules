@@ -1,6 +1,3 @@
-[submodule "th"]
-	path = hw/th
-	url = os.inf.tu-dresden.de:/home/nils/tomahawk.git
 [submodule "hw/gem5"]
 	path = hw/gem5
 	url = os.inf.tu-dresden.de:/home/nils/gem5-dtu.git
