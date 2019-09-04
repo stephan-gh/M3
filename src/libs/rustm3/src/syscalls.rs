@@ -48,10 +48,10 @@ fn send<T>(msg: *const T) -> Result<(), Error> {
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
     let msg = DTUIf::call(SYSC_SEP, msg as *const u8, util::size_of::<T>(), SYSC_REP)?;
     let data: &[R] = unsafe { &*(&msg.data as *const [u8] as *const [R]) };
-    return Ok(Reply {
+    Ok(Reply {
         msg,
         data: &data[0],
-    });
+    })
 }
 
 fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {

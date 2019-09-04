@@ -37,7 +37,7 @@ pub const MAX_RB_SIZE: usize        = 32;
 
 pub const MEM_CAP_END: usize        = RECVBUF_SPACE;
 
-pub const ENV_START: usize          = 0x200000;
+pub const ENV_START: usize          = 0x0020_0000;
 pub const ENV_SIZE: usize           = 0x2000;
 pub const STACK_SIZE: usize         = 0xF000;
 pub const STACK_BOTTOM: usize       = ENV_START + ENV_SIZE + PAGE_SIZE;

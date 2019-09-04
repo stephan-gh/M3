@@ -35,12 +35,12 @@ pub const DPL_USER: u64 = 3;
 pub const SEG_UCODE: u64 = 3;
 pub const SEG_UDATA: u64 = 4;
 
-pub const PEXC_ARG0: usize = 14;    // rax
-pub const PEXC_ARG1: usize = 12;    // rcx
-pub const PEXC_ARG2: usize = 11;    // rdx
-pub const PEXC_ARG3: usize = 10;    // rdi
-pub const PEXC_ARG4: usize = 9;     // rsi
-pub const PEXC_ARG5: usize = 7;     // r8
+pub const PEXC_ARG0: usize = 14; // rax
+pub const PEXC_ARG1: usize = 12; // rcx
+pub const PEXC_ARG2: usize = 11; // rdx
+pub const PEXC_ARG3: usize = 10; // rdi
+pub const PEXC_ARG4: usize = 9; // rsi
+pub const PEXC_ARG5: usize = 7; // r8
 
 #[repr(C, packed)]
 pub struct State {
@@ -100,18 +100,19 @@ impl fmt::Debug for State {
 static STOPPED: StaticCell<bool> = StaticCell::new(false);
 
 impl State {
-    pub fn from_user(&self) -> bool {
+    pub fn came_from_user(&self) -> bool {
         (self.cs & DPL_USER as usize) == DPL_USER as usize
     }
+
     pub fn nested(&self) -> bool {
-        !self.from_user()
+        !self.came_from_user()
     }
 
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.rip = entry;
         self.rsp = sp;
         self.r[8] = 0; // rbp
-        self.r[14] = 0xDEADBEEF; // set rax to tell crt0 that we've set the SP
+        self.r[14] = 0xDEAD_BEEF; // set rax to tell crt0 that we've set the SP
 
         self.rflags = 0x200; // enable interrupts
                              // run in user mode

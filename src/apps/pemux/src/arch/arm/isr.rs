@@ -54,12 +54,12 @@ pub struct State {
     pub cpsr: usize,
 }
 
-pub const PEXC_ARG0: usize = 0;    // r0
-pub const PEXC_ARG1: usize = 1;    // r1
-pub const PEXC_ARG2: usize = 2;    // r2
-pub const PEXC_ARG3: usize = 3;    // r3
-pub const PEXC_ARG4: usize = 4;    // r4
-pub const PEXC_ARG5: usize = 5;    // r5
+pub const PEXC_ARG0: usize = 0; // r0
+pub const PEXC_ARG1: usize = 1; // r1
+pub const PEXC_ARG2: usize = 2; // r2
+pub const PEXC_ARG3: usize = 3; // r3
+pub const PEXC_ARG4: usize = 4; // r4
+pub const PEXC_ARG5: usize = 5; // r5
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -83,6 +83,7 @@ impl State {
     pub fn from_user(&self) -> bool {
         (self.cpsr & 0x0F) == 0x0
     }
+
     pub fn nested(&self) -> bool {
         !self.from_user()
     }

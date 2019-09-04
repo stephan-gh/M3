@@ -23,7 +23,7 @@ mod sesscon;
 pub use self::server::{Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
-use dtu::{DTU, DTUIf};
+use dtu::{DTUIf, DTU};
 use errors::Error;
 
 /// Executes the server loop, calling `func` in every iteration.

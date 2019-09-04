@@ -19,6 +19,7 @@ use base::cfg;
 use base::const_assert;
 use base::dtu;
 use core::intrinsics;
+use core::ptr;
 
 use isr;
 use kernreq;
@@ -146,6 +147,7 @@ fn to_dtu_pte(pte: u64) -> dtu::PTE {
 }
 
 fn get_pte_at(mut virt: u64, level: u32) -> u64 {
+    #[allow(clippy::erasing_op)]
     #[rustfmt::skip]
     const REC_MASK: u64 = ((cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 3))
                          | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 2))
@@ -230,12 +232,12 @@ fn translate_addr(req: dtu::Reg) -> bool {
         STATE.get_mut().resume_cmd();
     }
 
-    return pf;
+    pf
 }
 
 fn handle_pending_ctxsw(state: &mut isr::State) {
     // was there a context switch request in the meantime?
-    if state.from_user() && STATE.ctxsw {
+    if state.came_from_user() && STATE.ctxsw {
         STATE.get_mut().ctxsw = false;
         kernreq::handle_pemux(state);
     }
@@ -247,7 +249,7 @@ pub fn handle_xlate(state: &mut isr::State, mut xlate_req: dtu::Reg) {
 
     if translate_addr(xlate_req) {
         // handle other requests that pagefaulted in the meantime
-        while STATE.req_count > 0 {
+        while unsafe { ptr::read_volatile(&STATE.req_count) } > 0 {
             for r in &mut STATE.get_mut().reqs {
                 xlate_req = *r;
                 if xlate_req != 0 {
@@ -269,7 +271,7 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     }
 
     // PEMux isn't causing PFs
-    assert!(state.from_user());
+    assert!(state.came_from_user());
 
     // if we don't use the MMU, we shouldn't get here
     // TODO assert!(env().pedesc.has_mmu());
