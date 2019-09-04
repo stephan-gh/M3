@@ -109,7 +109,7 @@ impl Channel {
 
         if self.pos == self.len {
             let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
-            let len = Serial::new().borrow_mut().read(&mut buf)?;
+            let len = Serial::default().read(&mut buf)?;
             self.mem.write(&buf[0..len], 0)?;
             self.len = len;
             self.pos = 0;
@@ -159,7 +159,7 @@ impl Channel {
         if nbytes > 0 {
             let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
             self.mem.read(&mut buf[0..nbytes], 0)?;
-            Serial::new().borrow_mut().write(&buf[0..nbytes])?;
+            Serial::default().write(&buf[0..nbytes])?;
         }
         self.len = 0;
         Ok(())

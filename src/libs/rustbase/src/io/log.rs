@@ -16,10 +16,9 @@
 
 //! Contains the logger
 
-use cell::{RefCell, StaticCell};
+use cell::StaticCell;
 use errors::Error;
 use io::{Serial, Write};
-use rc::Rc;
 
 /// Default log message type
 pub const DEF: bool = true;
@@ -60,7 +59,7 @@ static LOG: StaticCell<Option<Log>> = StaticCell::new(None);
 
 /// A buffered logger that writes to the serial line
 pub struct Log {
-    serial: Rc<RefCell<Serial>>,
+    serial: Serial,
     buf: [u8; MAX_LINE_LEN],
     pos: usize,
     start_pos: usize,
@@ -118,7 +117,7 @@ impl Log {
 impl Default for Log {
     fn default() -> Self {
         Log {
-            serial: Serial::new(),
+            serial: Serial::default(),
             buf: [0; MAX_LINE_LEN],
             pos: 0,
             start_pos: 0,
@@ -128,7 +127,7 @@ impl Default for Log {
 
 impl Write for Log {
     fn flush(&mut self) -> Result<(), Error> {
-        self.serial.borrow_mut().write(&self.buf[0..self.pos])?;
+        self.serial.write(&self.buf[0..self.pos])?;
         self.pos = self.start_pos;
         Ok(())
     }

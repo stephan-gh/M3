@@ -14,9 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use cell::StaticCell;
+use cell::{RefCell, StaticCell};
 use core::mem;
 use io::Serial;
+use rc::Rc;
 use vfs::{BufReader, BufWriter, Fd, FileRef};
 use vpe::VPE;
 
@@ -47,7 +48,7 @@ pub fn stderr() -> &'static mut BufWriter<FileRef> {
 pub(crate) fn init() {
     for fd in 0..3 {
         if VPE::cur().files().get(fd).is_none() {
-            VPE::cur().files().set(fd, Serial::new());
+            VPE::cur().files().set(fd, Rc::new(RefCell::new(Serial::default())));
         }
     }
 
