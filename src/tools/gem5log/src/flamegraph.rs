@@ -1,60 +1,57 @@
 use log::{debug, trace, warn};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
-use std::io::{StdoutLock, Write};
+use std::io::{self, BufRead, StdoutLock, Write};
 
 use crate::error::Error;
 use crate::symbols;
 
 const STACK_SIZE: u64 = 0x4000;
 
-struct PE {
+struct PE<'n> {
     id: usize,
-    bins: BTreeMap<String, Binary>,
-    last_bin: String,
+    bins: BTreeMap<&'n str, Binary<'n>>,
+    last_bin: &'n str,
     last_isr_exit: bool,
     susp_start: u64,
 }
 
-struct Binary {
-    name: String,
-    stacks: BTreeMap<ThreadId, Thread>,
-    cur_tid: ThreadId,
+struct Binary<'n> {
+    name: &'n str,
+    stacks: BTreeMap<ThreadId<'n>, Thread<'n>>,
+    cur_tid: ThreadId<'n>,
 }
 
 #[derive(Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
-struct ThreadId {
-    bin: String,
+struct ThreadId<'n> {
+    bin: &'n str,
     stack: u64,
 }
 
 #[derive(Default)]
-struct Thread {
-    stack: Vec<Call>,
+struct Thread<'n> {
+    stack: Vec<Call<'n>>,
     switched: u64,
     last_func: usize,
 }
 
 #[derive(Debug)]
-struct Call {
-    func: String,
+struct Call<'n> {
+    func: &'n str,
     time: u64,
 }
 
-impl ThreadId {
-    fn new(bin: &str) -> Self {
+impl<'n> ThreadId<'n> {
+    fn new(bin: &'n str) -> Self {
         Self::new_with_stack(bin, 0)
     }
 
-    fn new_with_stack(bin: &str, stack: u64) -> Self {
-        ThreadId {
-            bin: bin.to_string(),
-            stack,
-        }
+    fn new_with_stack(bin: &'n str, stack: u64) -> Self {
+        ThreadId { bin, stack }
     }
 }
 
-impl fmt::Display for ThreadId {
+impl<'n> fmt::Display for ThreadId<'n> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(fmt, "{} [tid={:#x}]", self.bin, self.stack)
     }
@@ -85,11 +82,11 @@ fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
     Some((time_int, cpu_int, addr_int))
 }
 
-impl PE {
-    fn new(bin: Binary, id: usize) -> Self {
+impl<'n> PE<'n> {
+    fn new(bin: Binary<'n>, id: usize) -> Self {
         let mut bins = BTreeMap::new();
-        let name = bin.name.clone();
-        bins.insert(name.clone(), bin);
+        let name = bin.name;
+        bins.insert(bin.name, bin);
         PE {
             id,
             bins,
@@ -99,15 +96,15 @@ impl PE {
         }
     }
 
-    fn binary_switch(&mut self, sym: &symbols::Symbol, time: u64) {
-        if self.bins.get(&sym.bin).is_none() {
+    fn binary_switch(&mut self, sym: &'n symbols::Symbol, time: u64) {
+        if self.bins.get::<str>(&sym.bin).is_none() {
             debug!("{}: new binary {}", time, sym.bin);
-            self.bins.insert(sym.bin.clone(), Binary::new(&sym.bin));
+            self.bins.insert(&sym.bin, Binary::new(&sym.bin));
         }
         else {
             debug!("{}: switched to {}", time, sym.bin);
         }
-        self.last_bin = sym.bin.clone();
+        self.last_bin = &sym.bin;
     }
 
     fn suspend(&mut self, now: u64) {
@@ -134,13 +131,13 @@ impl PE {
     }
 }
 
-impl Binary {
-    fn new(name: &str) -> Self {
+impl<'n> Binary<'n> {
+    fn new(name: &'n str) -> Self {
         let cur_tid = ThreadId::new(name);
         let mut stacks = BTreeMap::new();
         stacks.insert(cur_tid.clone(), Thread::default());
         Binary {
-            name: name.to_string(),
+            name,
             stacks,
             cur_tid,
         }
@@ -184,16 +181,16 @@ impl Binary {
     }
 }
 
-impl Thread {
+impl<'n> Thread<'n> {
     fn depth(&self) -> usize {
         self.stack.len() * 2
     }
 
-    fn call(&mut self, sym: &symbols::Symbol, time: u64, tid: &ThreadId) {
+    fn call(&mut self, sym: &'n symbols::Symbol, time: u64, tid: &ThreadId) {
         let w = self.depth();
         trace!("{}: {} {:w$} CALL -> {}", time, tid, "", sym.name, w = w);
         self.stack.push(Call {
-            func: sym.name.clone(),
+            func: &sym.name,
             time,
         });
     }
@@ -285,8 +282,15 @@ fn handle_return(
 pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Result<(), Error> {
     let mut pes: HashMap<usize, PE> = HashMap::new();
 
-    crate::with_stdin_lines(syms, |syms, writer, line| {
-        if let Some((time, pe, maybe_addr)) = get_func_addr(line) {
+    let stdin = io::stdin();
+    let mut reader = io::BufReader::new(stdin.lock());
+
+    let stdout = io::stdout();
+    let mut writer = stdout.lock();
+
+    let mut line = String::new();
+    while reader.read_line(&mut line)? != 0 {
+        if let Some((time, pe, maybe_addr)) = get_func_addr(&line) {
             if maybe_addr.is_none() {
                 if let Some(cur_pe) = pes.get_mut(&pe) {
                     if line.contains("dtu.connector: Suspending core") {
@@ -296,7 +300,9 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
                         cur_pe.resume(time);
                     }
                 }
-                return Ok(());
+
+                line.clear();
+                continue;
             }
 
             let addr = maybe_addr.unwrap();
@@ -313,18 +319,18 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
                 if bin_switch {
                     // detect ISR exits
                     if cur_pe.last_isr_exit {
-                        let old_bin = cur_pe.bins.get_mut(&cur_pe.last_bin).unwrap();
-                        let old_thread = old_bin.stacks.get_mut(&old_bin.cur_tid).unwrap();
-                        handle_return(writer, time, pe, sym, old_thread, &old_bin.cur_tid, false)?;
+                        let obin = cur_pe.bins.get_mut::<str>(&cur_pe.last_bin).unwrap();
+                        let othread = obin.stacks.get_mut(&obin.cur_tid).unwrap();
+                        handle_return(&mut writer, time, pe, sym, othread, &obin.cur_tid, false)?;
                         isr_exit = true;
                     }
                     cur_pe.binary_switch(&sym, time);
                 }
 
-                let cur_bin = cur_pe.bins.get_mut(&sym.bin).unwrap();
+                let cur_bin = cur_pe.bins.get_mut::<str>(&sym.bin).unwrap();
 
                 // detect the stack pointer
-                if cur_bin.cur_tid.stack == 0 && instr_is_sp_assign(isa, line) {
+                if cur_bin.cur_tid.stack == 0 && instr_is_sp_assign(isa, &line) {
                     if let Some(pos) = line.find("D=") {
                         let tid = u64::from_str_radix(&line[(pos + 4)..(pos + 20)], 16)?;
                         cur_bin.found_stack(tid, time);
@@ -332,7 +338,7 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
                 }
 
                 // detect thread switches
-                if sym.name == "thread_resume" && instr_is_sp_init(isa, line) {
+                if sym.name == "thread_resume" && instr_is_sp_init(isa, &line) {
                     if let Some(pos) = line.find("D=") {
                         let mut tid = u64::from_str_radix(&line[(pos + 4)..(pos + 20)], 16)?;
                         if *isa == crate::ISA::ARM {
@@ -347,9 +353,10 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
 
                 // function changed?
                 if !isr_exit && sym.addr != cur_thread.last_func {
+                    let cur_tid = &cur_bin.cur_tid;
                     // it's a call when we jumped to the beginning of a function
                     if addr == sym.addr {
-                        cur_thread.call(&sym, time, &cur_bin.cur_tid);
+                        cur_thread.call(&sym, time, cur_tid);
                     }
                     // otherwise it's a return
                     else {
@@ -357,11 +364,11 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
                             panic!("{}: return with empty stack", time);
                         }
 
-                        handle_return(writer, time, pe, sym, cur_thread, &cur_bin.cur_tid, true)?;
+                        handle_return(&mut writer, time, pe, sym, cur_thread, cur_tid, true)?;
                     }
                 }
 
-                cur_pe.last_isr_exit = is_isr_exit(isa, line);
+                cur_pe.last_isr_exit = is_isr_exit(isa, &line);
                 cur_thread.last_func = sym.addr;
             }
             else {
@@ -369,6 +376,8 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
             }
         }
 
-        Ok(())
-    })
+        line.clear();
+    }
+
+    Ok(())
 }

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use std::io::Write;
-use std::io::{self};
+use std::io::{self, BufRead};
 
 use crate::error::Error;
 use crate::symbols;
@@ -63,12 +63,20 @@ fn repl_instr_line(
 }
 
 pub fn generate(syms: &BTreeMap<usize, symbols::Symbol>) -> Result<(), Error> {
-    crate::with_stdin_lines(syms, |syms, mut writer, line| {
+    let stdin = io::stdin();
+    let mut reader = io::BufReader::new(stdin.lock());
+
+    let stdout = io::stdout();
+    let mut writer = stdout.lock();
+
+    let mut line = String::new();
+    while reader.read_line(&mut line)? != 0 {
         // try to replace the address with the binary and symbol
         if repl_instr_line(syms, &mut writer, &line).is_none() {
             // if that failed, just write out the line
             writer.write(&line.as_bytes())?;
         }
-        Ok(())
-    })
+        line.clear();
+    }
+    Ok(())
 }

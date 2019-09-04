@@ -8,12 +8,8 @@ mod trace;
 use log::{Level, Log, Metadata, Record};
 use std::collections::BTreeMap;
 use std::env;
-use std::io::{self, BufRead};
 use std::process::exit;
 use std::str::FromStr;
-
-use error::Error;
-use symbols::Symbol;
 
 struct Logger {
     level: Level,
@@ -51,25 +47,6 @@ enum Mode {
 pub enum ISA {
     X86_64,
     ARM,
-}
-
-pub fn with_stdin_lines<F>(syms: &BTreeMap<usize, Symbol>, mut func: F) -> Result<(), Error>
-where
-    F: FnMut(&BTreeMap<usize, Symbol>, &mut io::StdoutLock, &str) -> Result<(), Error>,
-{
-    let stdin = io::stdin();
-    let mut reader = io::BufReader::new(stdin.lock());
-
-    let stdout = io::stdout();
-    let mut writer = stdout.lock();
-
-    let mut line = String::new();
-    while reader.read_line(&mut line)? != 0 {
-        func(syms, &mut writer, &line)?;
-        line.clear();
-    }
-
-    Ok(())
 }
 
 fn usage(prog: &str) -> ! {
