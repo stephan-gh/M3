@@ -26,27 +26,8 @@
 
 namespace kernel {
 
-bool DTUState::was_idling() const {
-    return !(_regs.get(m3::DTU::DtuRegs::EVENTS) & m3::DTU::EventMask::MSG_RECV) &&
-        (_regs.get(m3::DTU::DtuRegs::FEATURES) & m3::DTU::IRQ_WAKEUP);
-}
-
-cycles_t DTUState::get_idle_time() const {
-    return _regs.get(m3::DTU::DtuRegs::IDLE_TIME);
-}
-
 void *DTUState::get_ep(epid_t ep) {
     return _regs._eps + ep * m3::DTU::EP_REGS;
-}
-
-void DTUState::save(const VPEDesc &vpe, size_t headers) {
-    size_t regsSize = sizeof(_regs._dtu) + sizeof(_regs._cmd) + sizeof(_regs._eps);
-    regsSize += sizeof(_regs._header[0]) * headers;
-    DTU::get().read_mem(vpe, m3::DTU::BASE_ADDR, this, regsSize);
-
-    // copy the receive buffers, which have pending messages, to an external location
-    if(!Platform::pe(vpe.pe).has_virtmem())
-        move_rbufs(vpe, 0, true);
 }
 
 void DTUState::restore(const VPEDesc &vpe, size_t headers, vpeid_t vpeid) {
@@ -59,9 +40,6 @@ void DTUState::restore(const VPEDesc &vpe, size_t headers, vpeid_t vpeid) {
 
     // similarly, set the vpeid again, because abort invalidates it
     _regs.set(m3::DTU::DtuRegs::VPE_ID, vpeid);
-
-    // reset idle time and msg count; msg count will be recalculated from the EPs
-    _regs.set(m3::DTU::DtuRegs::IDLE_TIME, 0);
 
     m3::CPU::compiler_barrier();
     size_t regsSize = sizeof(_regs._dtu) + sizeof(_regs._cmd);
@@ -89,41 +67,9 @@ void DTUState::enable_communication(const VPEDesc &vpe) {
     DTU::get().write_mem(vpe, m3::DTU::BASE_ADDR, this, sizeof(m3::DTU::reg_t));
 }
 
-bool DTUState::invalidate(epid_t ep, bool force) {
-    if(!force) {
-        m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-        if(static_cast<m3::DTU::EpType>(r[0] >> 61) == m3::DTU::EpType::SEND) {
-            if(((r[1] >> 16) & 0xFFFF) != (r[1] & 0xFFFF))
-                return false;
-        }
-    }
-
-    memset(get_ep(ep), 0, sizeof(m3::DTU::reg_t) * m3::DTU::EP_REGS);
-    return true;
-}
-
 void DTUState::invalidate_eps(epid_t first) {
     size_t total = sizeof(m3::DTU::reg_t) * m3::DTU::EP_REGS * (EP_COUNT - first);
     memset(get_ep(first), 0, total);
-}
-
-bool DTUState::can_forward_msg(epid_t ep) {
-    m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-    return ((r[0] >> 16) & 0xFFFF) == VPE::INVALID_ID;
-}
-
-void DTUState::forward_msg(epid_t ep, peid_t pe, vpeid_t vpe) {
-    m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-    r[0] &= ~(static_cast<m3::DTU::reg_t>(0xFFFF) << 16);
-    r[0] |= vpe << 16;
-    r[1] &= ~(static_cast<m3::DTU::reg_t>(0xFF) << 40);
-    r[1] |= static_cast<m3::DTU::reg_t>(pe) << 40;
-}
-
-void DTUState::forward_mem(epid_t ep, peid_t pe) {
-    m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-    r[2] &= ~(static_cast<m3::DTU::reg_t>(0xFF) << 4);
-    r[2] |= pe << 4;
 }
 
 size_t DTUState::get_header_idx(epid_t ep, goff_t msgaddr) {

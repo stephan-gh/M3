@@ -23,22 +23,8 @@
 
 namespace kernel {
 
-bool DTUState::was_idling() const {
-    // not supported
-    return false;
-}
-
-cycles_t DTUState::get_idle_time() const {
-    // not supported
-    return 0;
-}
-
 void *DTUState::get_ep(epid_t ep) {
     return _regs._eps + ep * m3::DTU::EPS_RCNT;
-}
-
-void DTUState::save(const VPEDesc &, size_t) {
-    // not supported
 }
 
 void DTUState::restore(const VPEDesc &, size_t, vpeid_t) {
@@ -49,27 +35,9 @@ void DTUState::enable_communication(const VPEDesc &) {
     // not supported
 }
 
-bool DTUState::invalidate(epid_t ep, bool) {
-    memset(get_ep(ep), 0, sizeof(word_t) * m3::DTU::EPS_RCNT);
-    return true;
-}
-
 void DTUState::invalidate_eps(epid_t first) {
     size_t total = sizeof(word_t) * m3::DTU::EPS_RCNT * (EP_COUNT - first);
     memset(get_ep(first), 0, total);
-}
-
-bool DTUState::can_forward_msg(epid_t) {
-    // not supported
-    return false;
-}
-
-void DTUState::forward_msg(epid_t, peid_t, vpeid_t) {
-    // not supported
-}
-
-void DTUState::forward_mem(epid_t, peid_t) {
-    // not supported
 }
 
 void DTUState::read_ep(const VPEDesc &vpe, epid_t ep) {

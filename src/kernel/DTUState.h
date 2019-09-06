@@ -35,20 +35,11 @@ public:
     explicit DTUState() : _regs() {
     }
 
-    bool was_idling() const;
-    cycles_t get_idle_time() const;
-
     void *get_ep(epid_t ep);
-    void save(const VPEDesc &vpe, size_t headers);
     void restore(const VPEDesc &vpe, size_t headers, vpeid_t vpeid);
     void enable_communication(const VPEDesc &vpe);
 
-    bool invalidate(epid_t ep, bool force);
     void invalidate_eps(epid_t first);
-
-    bool can_forward_msg(epid_t ep);
-    void forward_msg(epid_t ep, peid_t pe, vpeid_t vpe);
-    void forward_mem(epid_t ep, peid_t pe);
 
     size_t get_header_idx(epid_t ep, goff_t msgaddr);
 

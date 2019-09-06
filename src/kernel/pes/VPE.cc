@@ -234,12 +234,9 @@ void VPE::upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply) {
 bool VPE::invalidate_ep(epid_t ep, bool force) {
     KLOG(EPS, "VPE" << id() << ":EP" << ep << " = invalid");
 
-    bool res = true;
     if(is_on_pe())
-        res = DTU::get().inval_ep_remote(desc(), ep, force) == m3::Errors::NONE;
-    else
-        res = _dtustate.invalidate(ep, force);
-    return res;
+        return DTU::get().inval_ep_remote(desc(), ep, force) == m3::Errors::NONE;
+    return true;
 }
 
 m3::Errors::Code VPE::config_rcv_ep(epid_t ep, RGateObject &obj) {
