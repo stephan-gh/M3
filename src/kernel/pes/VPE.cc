@@ -54,7 +54,6 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _vpe_wait_count(),
       _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id, sep, rep, sgate) : nullptr),
       _headers(),
-      _rbufcpy(),
       _first_sel(m3::KIF::FIRST_FREE_SEL),
       _mem_base() {
     if(_sysc_ep == EP_COUNT)
@@ -70,14 +69,10 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
         _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(id, ep)));
     }
 
-    if(!Platform::pe(pe()).has_virtmem()) {
-        _rbufcpy = MainMemory::get().allocate(RECVBUF_SIZE_SPM, PAGE_SIZE);
-        _kmem->alloc(*this, _rbufcpy.size);
-        assert(_rbufcpy);
-    }
-    // for the root PT
-    else
+    if(Platform::pe(pe()).has_virtmem()) {
+        // for the root PT
         _kmem->alloc(*this, PAGE_SIZE);
+    }
 
     // let the VPEManager know about us before we continue with initialization
     VPEManager::get().add(this);
@@ -104,11 +99,6 @@ VPE::~VPE() {
     // ensure that there are no syscalls for this VPE anymore
     m3::DTU::get().drop_msgs(syscall_ep(), reinterpret_cast<label_t>(this));
     SyscallHandler::free_ep(syscall_ep());
-
-    if(_rbufcpy) {
-        MainMemory::get().free(_rbufcpy);
-        _kmem->free(*this, _rbufcpy.size);
-    }
 
     delete _as;
 

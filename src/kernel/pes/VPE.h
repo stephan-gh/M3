@@ -67,9 +67,9 @@ public:
                (EP_COUNT - m3::DTU::FIRST_FREE_EP) * (sizeof(EPCapability) + sizeof(EPObject));
     }
     static size_t extra_kmem(const m3::PEDesc &pe) {
-        // we either need the root PT or space for the receive buffer copy
+        // for VM PEs we need the root PT
         // additionally, we need space for PEMux, its page tables etc.
-        return (pe.has_virtmem() ? PAGE_SIZE : RECVBUF_SIZE_SPM) + VPE_EXTRA_MEM;
+        return (pe.has_virtmem() ? PAGE_SIZE : 0) + VPE_EXTRA_MEM;
     }
 
     enum State {
@@ -132,9 +132,6 @@ public:
 
     AddrSpace *address_space() {
         return _as;
-    }
-    const MainMemory::Allocation &recvbuf_copy() const {
-        return _rbufcpy;
     }
 
     goff_t mem_base() const {
@@ -215,7 +212,6 @@ private:
     volatile size_t _vpe_wait_count;
     AddrSpace *_as;
     size_t _headers;
-    MainMemory::Allocation _rbufcpy;
     capsel_t _first_sel;
     goff_t _mem_base;
 };

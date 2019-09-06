@@ -39,28 +39,6 @@ void *DTUState::get_ep(epid_t ep) {
     return _regs._eps + ep * m3::DTU::EP_REGS;
 }
 
-void DTUState::move_rbufs(const VPEDesc &vpe, vpeid_t oldvpe, bool save) {
-    VPE &vpeobj = VPEManager::get().vpe(vpe.id);
-    VPEDesc memvpe(vpeobj.recvbuf_copy().pe(), VPE::INVALID_ID);
-    size_t offset = vpeobj.recvbuf_copy().addr;
-
-    for(epid_t ep = 0; ep < EP_COUNT; ++ep) {
-        m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-        // receive EP and any slot occupied?
-        if(static_cast<m3::DTU::EpType>(r[0] >> 61) == m3::DTU::EpType::RECEIVE && r[2]) {
-            const goff_t addr = r[1];
-            const size_t bufsize = (r[0] >> 26) & 0x3F;
-            const size_t msgsize = (r[0] >> 32) & 0xFFFF;
-            const size_t size = static_cast<size_t>(1) << (bufsize + msgsize);
-            if(save)
-                DTU::get().copy_clear(memvpe, offset, vpe, addr, size, false);
-            else
-                DTU::get().copy_clear(VPEDesc(vpe.pe, oldvpe), addr, memvpe, offset, size, false);
-            offset += size;
-        }
-    }
-}
-
 void DTUState::save(const VPEDesc &vpe, size_t headers) {
     size_t regsSize = sizeof(_regs._dtu) + sizeof(_regs._cmd) + sizeof(_regs._eps);
     regsSize += sizeof(_regs._header[0]) * headers;
@@ -72,10 +50,6 @@ void DTUState::save(const VPEDesc &vpe, size_t headers) {
 }
 
 void DTUState::restore(const VPEDesc &vpe, size_t headers, vpeid_t vpeid) {
-    // copy the receive buffers back to the SPM
-    if(!Platform::pe(vpe.pe).has_virtmem())
-        move_rbufs(VPEDesc(vpe.pe, vpeid), vpe.id, false);
-
     // re-enable pagefaults, if we have a valid pagefault EP (the abort operation disables it)
     // and unset IRQ_WAKEUP
     m3::DTU::reg_t features = m3::DTU::StatusFlags::COM_DISABLED;
