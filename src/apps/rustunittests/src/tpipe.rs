@@ -17,11 +17,12 @@
 use m3::boxed::Box;
 use m3::col::String;
 use m3::com::MemGate;
+use m3::errors::Code;
 use m3::io::{self, Read};
 use m3::kif;
 use m3::session::Pipes;
 use m3::test;
-use m3::vfs::IndirectPipe;
+use m3::vfs::{BufReader, IndirectPipe};
 use m3::vpe::{Activity, VPEArgs, VPE};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -29,6 +30,8 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, parent_to_child);
     wv_run_test!(t, child_to_child);
     wv_run_test!(t, exec_child_to_child);
+    wv_run_test!(t, writer_quit);
+    wv_run_test!(t, reader_quit);
 }
 
 fn child_to_parent() {
@@ -156,4 +159,79 @@ fn exec_child_to_child() {
 
     wv_assert_eq!(wr_act.wait(), Ok(0));
     wv_assert_eq!(rd_act.wait(), Ok(0));
+}
+
+fn writer_quit() {
+    let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
+    let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
+    let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
+
+    let mut vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("writer")));
+    vpe.files().set(
+        io::STDOUT_FILENO,
+        VPE::cur().files().get(pipe.writer_fd()).unwrap(),
+    );
+    wv_assert_ok!(vpe.obtain_fds());
+
+    let act = wv_assert_ok!(vpe.run(Box::new(|| {
+        println!("This is a test!");
+        println!("This is a test!");
+        0
+    })));
+
+    pipe.close_writer();
+
+    {
+        let input = VPE::cur().files().get_ref(pipe.reader_fd()).unwrap();
+        let mut reader = BufReader::new(input);
+        let mut s = String::new();
+        wv_assert_eq!(reader.read_line(&mut s), Ok(15));
+        wv_assert_eq!(s, "This is a test!");
+        s.clear();
+        wv_assert_eq!(reader.read_line(&mut s), Ok(15));
+        wv_assert_eq!(s, "This is a test!");
+        s.clear();
+        wv_assert_eq!(reader.read_line(&mut s), Ok(0));
+        wv_assert_eq!(s, "");
+    }
+
+    wv_assert_eq!(act.wait(), Ok(0));
+}
+
+fn reader_quit() {
+    let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
+    let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
+    let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
+
+    let mut vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("reader")));
+    vpe.files().set(
+        io::STDIN_FILENO,
+        VPE::cur().files().get(pipe.reader_fd()).unwrap(),
+    );
+    wv_assert_ok!(vpe.obtain_fds());
+
+    let act = wv_assert_ok!(vpe.run(Box::new(|| {
+        let mut s = String::new();
+        wv_assert_eq!(io::stdin().read_line(&mut s), Ok(15));
+        wv_assert_eq!(s, "This is a test!");
+        0
+    })));
+
+    pipe.close_reader();
+
+    let output = VPE::cur().files().get(pipe.writer_fd()).unwrap();
+    loop {
+        let res = output.borrow_mut().write(b"This is a test!\n");
+        match res {
+            Ok(count) => wv_assert_eq!(count, 16),
+            Err(e) => {
+                wv_assert_eq!(e.code(), Code::EndOfFile);
+                break;
+            },
+        }
+    }
+
+    pipe.close_writer();
+
+    wv_assert_eq!(act.wait(), Ok(0));
 }

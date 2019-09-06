@@ -33,3 +33,4 @@ void tbitfield();
 void theap();
 void tsems();
 void tstream();
+void tpipe();

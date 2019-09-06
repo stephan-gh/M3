@@ -69,6 +69,12 @@ impl FileTable {
         Err(Error::new(Code::NoSpace))
     }
 
+    /// Returns a reference to the file with given file descriptor. The file will be closed as soon
+    /// as the reference is dropped.
+    pub fn get_ref(&self, fd: Fd) -> Option<FileRef> {
+        self.files[fd].as_ref().map(|f| FileRef::new(f.clone(), fd))
+    }
+
     /// Returns the file with given file descriptor.
     pub fn get(&self, fd: Fd) -> Option<FileHandle> {
         self.files[fd].as_ref().cloned()

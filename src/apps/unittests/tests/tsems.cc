@@ -65,7 +65,7 @@ static void taking_turns() {
             set_counter("/sem1", i);
             sem1.up();
         }
-        return 0;
+        return failed ? 1 : 0;
     });
 
     for(int i = 0; i < 10; ++i) {
