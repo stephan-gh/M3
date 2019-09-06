@@ -29,7 +29,7 @@ DirectPipeReader::State::State(capsel_t caps) noexcept
       _rem(),
       _pkglen(static_cast<size_t>(-1)),
       _eof(0),
-      _is(_rgate, nullptr) {
+      _is() {
 }
 
 DirectPipeReader::DirectPipeReader(capsel_t caps, std::unique_ptr<State> &&state) noexcept
@@ -48,10 +48,12 @@ void DirectPipeReader::close() noexcept {
     if(~_state->_eof & DirectPipe::READ_EOF) {
         try {
             // if we have not fetched a message yet, do so now
-            if(_state->_pkglen == static_cast<size_t>(-1))
-                _state->_is = receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen);
+            if(_state->_pkglen == static_cast<size_t>(-1)) {
+                _state->_is = std::make_unique<GateIStream>(
+                    receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen));
+            }
             DBG_PIPE("[read] replying len=0\n");
-            reply_vmsg(_state->_is, static_cast<size_t>(0));
+            reply_vmsg(*_state->_is, static_cast<size_t>(0));
         }
         catch(...) {
             // ignore
@@ -69,21 +71,22 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
     if(_state->_rem == 0) {
         if(_state->_pos > 0) {
             DBG_PIPE("[read] replying len=" << _state->_pkglen << "\n");
-            reply_vmsg(_state->_is, _state->_pkglen);
-            _state->_is.finish();
+            reply_vmsg(*_state->_is, _state->_pkglen);
+            _state->_is->finish();
             // Non blocking mode: Reset pos, so that reply is not sent a second time on next invocation.
             _state->_pos = 0;
         }
 
         if(blocking) {
-            _state->_is = receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen);
+            _state->_is = std::make_unique<GateIStream>(
+                receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen));
         }
         else {
             _state->_rgate.activate();
             const DTU::Message *msg = DTUIf::fetch_msg(_state->_rgate.ep());
             if(msg) {
-                _state->_is = GateIStream(_state->_rgate, msg);
-                _state->_is.vpull(_state->_pos, _state->_pkglen);
+                _state->_is = std::make_unique<GateIStream>(GateIStream(_state->_rgate, msg));
+                _state->_is->vpull(_state->_pos, _state->_pkglen);
             }
             else
                 return -1;

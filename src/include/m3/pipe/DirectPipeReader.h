@@ -44,7 +44,7 @@ public:
         size_t _rem;
         size_t _pkglen;
         int _eof;
-        GateIStream _is;
+        std::unique_ptr<GateIStream> _is;
     };
 
     explicit DirectPipeReader(capsel_t caps, std::unique_ptr<State> &&state) noexcept;
