@@ -27,43 +27,45 @@ namespace kernel {
 PEManager *PEManager::_inst;
 
 PEManager::PEManager()
-    : _used(new bool[Platform::pe_count()]) {
+    : _muxes(new PEMux*[Platform::pe_count()]) {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i)
-        _used[i] = false;
+        _muxes[i] = new PEMux(i);
     deprivilege_pes();
 }
 
 void PEManager::add_vpe(VPE *vpe) {
-    _used[vpe->pe()] = true;
+    _muxes[vpe->pe()]->add_vpe(vpe);
 }
 
 void PEManager::remove_vpe(VPE *vpe) {
-    _used[vpe->pe()] = false;
+    _muxes[vpe->pe()]->remove_vpe(vpe);
 }
 
 void PEManager::init_vpe(UNUSED VPE *vpe) {
 #if defined(__gem5__)
-    vpe->_dtustate.reset(0, true);
+    auto pex = pemux(vpe->pe());
+    auto dtustate = pex->dtustate();
+    dtustate.reset(0, true);
     vpe->_state = VPE::RUNNING;
 
     // set address space properties first to load them during the restore
     if(vpe->address_space()) {
         AddrSpace *as = vpe->address_space();
-        vpe->_dtustate.config_pf(as->root_pt(), as->sep(), as->rep());
+        dtustate.config_pf(as->root_pt(), as->sep(), as->rep());
     }
-    vpe->_dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), vpe->_headers, vpe->id());
+    dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), pex->headers(), vpe->id());
 
     vpe->init_memory();
 
     start_vpe(vpe);
 
-    vpe->_dtustate.enable_communication(vpe->desc());
+    dtustate.enable_communication(vpe->desc());
 #endif
 }
 
 void PEManager::start_vpe(VPE *vpe) {
 #if defined(__host__)
-    vpe->_dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), 0, vpe->id());
+    pemux(vpe->pe())->dtustate().restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), 0, vpe->id());
     vpe->_state = VPE::RUNNING;
     vpe->init_memory();
 #else
@@ -95,7 +97,7 @@ void PEManager::stop_vpe(VPE *vpe) {
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except) {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
-        if(i != except && !_used[i] &&
+        if(i != except && !_muxes[i]->used() &&
            Platform::pe(i).isa() == pe.isa() &&
            Platform::pe(i).type() == pe.type())
             return i;

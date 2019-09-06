@@ -18,6 +18,8 @@
 
 #include <base/PEDesc.h>
 
+#include "PEMux.h"
+
 namespace kernel {
 
 class VPE;
@@ -38,6 +40,10 @@ private:
 public:
     peid_t find_pe(const m3::PEDesc &pe, peid_t except);
 
+    PEMux *pemux(peid_t pe) {
+        return _muxes[pe];
+    }
+
     void add_vpe(VPE *vpe);
     void remove_vpe(VPE *vpe);
 
@@ -48,7 +54,7 @@ public:
 private:
     void deprivilege_pes();
 
-    bool * _used;
+    PEMux **_muxes;
     static PEManager *_inst;
 };
 

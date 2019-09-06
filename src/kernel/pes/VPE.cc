@@ -48,12 +48,10 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _objcaps(id + 1),
       _mapcaps(id + 1),
       _rbufs_size(),
-      _dtustate(),
       _upcqueue(*this),
       _vpe_wait_sels(),
       _vpe_wait_count(),
       _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id, sep, rep, sgate) : nullptr),
-      _headers(),
       _first_sel(m3::KIF::FIRST_FREE_SEL),
       _mem_base() {
     if(_sysc_ep == EP_COUNT)
@@ -151,8 +149,7 @@ void VPE::wait_for_exit() {
 }
 
 void VPE::exit_app(int exitcode) {
-    // no update on the PE here, since we don't save the state anyway
-    _dtustate.invalidate_eps(m3::DTU::FIRST_FREE_EP);
+    PEManager::get().pemux(pe())->invalidate_eps();
 
     // "deactivate" send and receive gates
     for(capsel_t sel = m3::KIF::FIRST_EP_SEL; sel < m3::KIF::FIRST_FREE_SEL; ++sel) {
@@ -249,12 +246,15 @@ m3::Errors::Code VPE::config_rcv_ep(epid_t ep, RGateObject &obj) {
     if(obj.addr < addr + _rbufs_size)
         return m3::Errors::INV_ARGS;
 
+    auto pemux = PEManager::get().pemux(pe());
+
     // no free headers left?
     size_t msgSlots = 1UL << (obj.order - obj.msgorder);
-    if(_headers + msgSlots > m3::DTU::HEADER_COUNT)
+    size_t off = pemux->allocate_headers(msgSlots);
+    if(off == m3::DTU::HEADER_COUNT)
         return m3::Errors::OUT_OF_MEM;
 
-    obj.header = _headers;
+    obj.header = off;
     KLOG(EPS, "VPE" << id() << ":EP" << ep << " = "
         "RGate[addr=#" << m3::fmt(obj.addr, "x")
         << ", order=" << obj.order
@@ -262,11 +262,8 @@ m3::Errors::Code VPE::config_rcv_ep(epid_t ep, RGateObject &obj) {
         << ", header=" << obj.header
         << "]");
 
-    _dtustate.config_recv(ep, rbuf_base() + obj.addr, obj.order, obj.msgorder, obj.header);
+    pemux->dtustate().config_recv(ep, rbuf_base() + obj.addr, obj.order, obj.msgorder, obj.header);
     update_ep(ep);
-
-    // TODO really manage the header space and zero the headers first in case they are reused
-    _headers += msgSlots;
 
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&obj));
     return m3::Errors::NONE;
@@ -277,10 +274,10 @@ m3::Errors::Code VPE::config_snd_ep(epid_t ep, SGateObject &obj) {
     if(obj.activated)
         return m3::Errors::EXISTS;
 
-    peid_t pe = VPEManager::get().peof(obj.rgate->vpe);
+    peid_t peid = VPEManager::get().peof(obj.rgate->vpe);
     KLOG(EPS, "VPE" << id() << ":EP" << ep << " = "
         "Send[vpe=" << obj.rgate->vpe
-        << ", pe=" << pe
+        << ", pe=" << peid
         << ", ep=" << obj.rgate->ep
         << ", label=#" << m3::fmt(obj.label, "x")
         << ", msgsize=" << obj.rgate->msgorder
@@ -288,8 +285,9 @@ m3::Errors::Code VPE::config_snd_ep(epid_t ep, SGateObject &obj) {
         << "]");
 
     obj.activated = true;
-    _dtustate.config_send(ep, obj.label, pe, obj.rgate->vpe,
-                          obj.rgate->ep, 1UL << obj.rgate->msgorder, obj.credits);
+    auto pemux = PEManager::get().pemux(pe());
+    pemux->dtustate().config_send(ep, obj.label, peid, obj.rgate->vpe,
+                                  obj.rgate->ep, 1UL << obj.rgate->msgorder, obj.credits);
     update_ep(ep);
     return m3::Errors::NONE;
 }
@@ -307,14 +305,15 @@ m3::Errors::Code VPE::config_mem_ep(epid_t ep, const MGateObject &obj, goff_t of
         << "]");
 
     // TODO
-    _dtustate.config_mem(ep, obj.pe, obj.vpe, obj.addr + off, obj.size - off, obj.perms);
+    auto pemux = PEManager::get().pemux(pe());
+    pemux->dtustate().config_mem(ep, obj.pe, obj.vpe, obj.addr + off, obj.size - off, obj.perms);
     update_ep(ep);
     return m3::Errors::NONE;
 }
 
 void VPE::update_ep(epid_t ep) {
     if(is_on_pe())
-        DTU::get().write_ep_remote(desc(), ep, _dtustate.get_ep(ep));
+        DTU::get().write_ep_remote(desc(), ep, PEManager::get().pemux(pe())->dtustate().get_ep(ep));
 }
 
 }

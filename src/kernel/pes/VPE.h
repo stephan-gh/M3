@@ -25,7 +25,6 @@
 #include "mem/AddrSpace.h"
 #include "mem/SlabCache.h"
 #include "pes/VPEDesc.h"
-#include "DTUState.h"
 #include "Types.h"
 
 namespace kernel {
@@ -69,7 +68,7 @@ public:
     static size_t extra_kmem(const m3::PEDesc &pe) {
         // for VM PEs we need the root PT
         // additionally, we need space for PEMux, its page tables etc.
-        return (pe.has_virtmem() ? PAGE_SIZE : 0) + VPE_EXTRA_MEM;
+        return (pe.has_virtmem() ? PAGE_SIZE : 0u) + VPE_EXTRA_MEM;
     }
 
     enum State {
@@ -206,12 +205,10 @@ private:
     CapTable _objcaps;
     CapTable _mapcaps;
     size_t _rbufs_size;
-    DTUState _dtustate;
     SendQueue _upcqueue;
     volatile xfer_t *_vpe_wait_sels;
     volatile size_t _vpe_wait_count;
     AddrSpace *_as;
-    size_t _headers;
     capsel_t _first_sel;
     goff_t _mem_base;
 };
