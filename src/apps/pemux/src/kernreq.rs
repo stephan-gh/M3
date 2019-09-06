@@ -18,6 +18,7 @@ use base::cell::StaticCell;
 use base::cfg;
 use base::dtu;
 use base::envdata;
+use base::io;
 use core::intrinsics;
 use core::ptr;
 
@@ -64,6 +65,10 @@ pub fn handle_pemux(state: &mut isr::State) {
 
         // remember the current PE (might have changed since last switch)
         env().pe_id = flags >> 32;
+
+        // reinit io with correct PE id
+        // TODO there should be a better way
+        io::init(flags >> 32, "pemux");
 
         state.init(env().entry as usize, env().sp as usize);
         return;
