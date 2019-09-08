@@ -86,7 +86,7 @@ env.Append(
     CFLAGS = ' -gdwarf-2 -fno-stack-protector',
     ASFLAGS = ' -Wl,-W -Wall -Wextra',
     LINKFLAGS = ' -Wl,--no-gc-sections -Wno-lto-type-mismatch -fno-stack-protector',
-    CRGFLAGS = ' -q --target ' + isa + '-unknown-' + target + '-' + rustabi,
+    CRGFLAGS = ' --target ' + isa + '-unknown-' + target + '-' + rustabi,
 )
 
 # add target-dependent stuff to env

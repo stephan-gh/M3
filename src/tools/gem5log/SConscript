@@ -8,7 +8,7 @@ prog = henv.Command(
     'gem5log', [henv.Glob('src/*.rs'), 'Cargo.toml'],
     Action(
         'cd ${SOURCE.dir.dir}'
-        + ' && cargo build -q $CRGFLAGS -Z unstable-options --out-dir ${TARGET.abspath}.out'
+        + ' && cargo build $CRGFLAGS -Z unstable-options --out-dir ${TARGET.abspath}.out'
         + ' && cp -f ${TARGET.abspath}.out/gem5log ${TARGET.abspath}.out/..',
         '$CRGCOMSTR'
     )
