@@ -322,14 +322,15 @@ fn start_boot_mods() {
             VPE::cur().kmem().clone()
         }
         else {
+            let kmem_bytes = if cfg.kmem() != 0 {
+                cfg.kmem()
+            }
+            else {
+                def_kmem
+            };
             VPE::cur()
                 .kmem()
-                .derive(if cfg.kmem() != 0 {
-                    cfg.kmem()
-                }
-                else {
-                    def_kmem
-                })
+                .derive(kmem_bytes)
                 .expect("Unable to derive new kernel memory")
         };
 
