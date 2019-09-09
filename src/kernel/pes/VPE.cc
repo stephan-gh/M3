@@ -286,8 +286,8 @@ m3::Errors::Code VPE::config_snd_ep(epid_t ep, SGateObject &obj) {
 
     obj.activated = true;
     auto pemux = PEManager::get().pemux(pe());
-    pemux->dtustate().config_send(ep, obj.label, peid, obj.rgate->vpe,
-                                  obj.rgate->ep, 1UL << obj.rgate->msgorder, obj.credits);
+    pemux->dtustate().config_send(ep, obj.label, peid, obj.rgate->ep,
+                                  1UL << obj.rgate->msgorder, obj.credits);
     update_ep(ep);
     return m3::Errors::NONE;
 }
@@ -306,7 +306,7 @@ m3::Errors::Code VPE::config_mem_ep(epid_t ep, const MGateObject &obj, goff_t of
 
     // TODO
     auto pemux = PEManager::get().pemux(pe());
-    pemux->dtustate().config_mem(ep, obj.pe, obj.vpe, obj.addr + off, obj.size - off, obj.perms);
+    pemux->dtustate().config_mem(ep, obj.pe, obj.addr + off, obj.size - off, obj.perms);
     update_ep(ep);
     return m3::Errors::NONE;
 }

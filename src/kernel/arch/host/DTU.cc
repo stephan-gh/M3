@@ -24,19 +24,11 @@
 
 namespace kernel {
 
-void DTU::init() {
-    // nothing to do
-}
-
-peid_t log_to_phys(peid_t pe) {
-    return pe;
-}
-
 void DTU::deprivilege(peid_t) {
     // unsupported
 }
 
-void DTU::kill_vpe(const VPEDesc &vpe, bool) {
+void DTU::kill_vpe(const VPEDesc &vpe) {
     pid_t pid = VPEManager::get().vpe(vpe.id).pid();
     // if the VPE didn't run, it has no PID yet
     if(pid != 0)
@@ -94,16 +86,6 @@ void DTU::mark_read_remote(const VPEDesc &, epid_t, goff_t) {
     // not supported
 }
 
-m3::Errors::Code get_header(const VPEDesc &, const RGateObject *, goff_t &, void *) {
-    // unused
-    return m3::Errors::NONE;
-}
-
-m3::Errors::Code set_header(const VPEDesc &, const RGateObject *, goff_t &, const void *) {
-    // unused
-    return m3::Errors::NONE;
-}
-
 void DTU::recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder) {
     _state.config_recv(ep, buf, order, msgorder, 0);
     write_ep_local(ep);
@@ -114,15 +96,10 @@ void DTU::reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Messag
 }
 
 m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
-                              size_t size, label_t replylbl, epid_t replyep, uint64_t) {
+                              size_t size, label_t replylbl, epid_t replyep) {
     const size_t msg_ord = static_cast<uint>(m3::getnextlog2(size + m3::DTU::HEADER_SIZE));
     m3::DTU::get().configure(_ep, label, vpe.pe, ep, 1UL << msg_ord, msg_ord);
     return m3::DTU::get().send(_ep, msg, size, replylbl, replyep);
-}
-
-m3::Errors::Code DTU::reply_to(const VPEDesc &, epid_t, label_t, const void *, size_t, uint64_t) {
-    // UNUSED
-    return m3::Errors::NONE;
 }
 
 m3::Errors::Code DTU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {

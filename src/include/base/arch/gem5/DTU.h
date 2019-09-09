@@ -57,7 +57,7 @@ public:
 
 private:
     static const uintptr_t BASE_ADDR        = 0xF0000000;
-    static const size_t DTU_REGS            = 10;
+    static const size_t DTU_REGS            = 8;
     static const size_t REQ_REGS            = 3;
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
@@ -72,13 +72,11 @@ private:
         FEATURES            = 0,
         ROOT_PT             = 1,
         PF_EP               = 2,
-        VPE_ID              = 3,
-        CUR_TIME            = 4,
-        IDLE_TIME           = 5,
-        EVENTS              = 6,
-        EXT_CMD             = 7,
-        CLEAR_IRQ           = 8,
-        CLOCK               = 9,
+        CUR_TIME            = 3,
+        EVENTS              = 4,
+        EXT_CMD             = 5,
+        CLEAR_IRQ           = 6,
+        CLOCK               = 7,
     };
 
     enum class ReqRegs {
@@ -104,8 +102,6 @@ private:
     enum StatusFlags : reg_t {
         PRIV                = 1 << 0,
         PAGEFAULTS          = 1 << 1,
-        COM_DISABLED        = 1 << 2,
-        IRQ_WAKEUP          = 1 << 3,
     };
 
     enum class EpType {
@@ -118,15 +114,14 @@ private:
     enum class CmdOpCode {
         IDLE                = 0,
         SEND                = 1,
-        SEND_BY             = 2,
-        REPLY               = 3,
-        READ                = 4,
-        WRITE               = 5,
-        FETCH_MSG           = 6,
-        ACK_MSG             = 7,
-        ACK_EVENTS          = 8,
-        SLEEP               = 9,
-        PRINT               = 10,
+        REPLY               = 2,
+        READ                = 3,
+        WRITE               = 4,
+        FETCH_MSG           = 5,
+        ACK_MSG             = 6,
+        ACK_EVENTS          = 7,
+        SLEEP               = 8,
+        PRINT               = 9,
     };
 
     enum class ExtCmdOpCode {
@@ -183,11 +178,6 @@ public:
         PTE_IRWX            = PTE_RWX | PTE_I,
     };
 
-    enum {
-        ABORT_VPE           = 1,
-        ABORT_CMD           = 2,
-    };
-
     enum ExtReqOpCode {
         INV_PAGE            = 0,
         PEMUX               = 1,
@@ -203,13 +193,14 @@ public:
             FL_REPLY_FAILED     = 1 << 4,
         };
 
-        uint8_t flags; // if bit 0 is set its a reply, if bit 1 is set we grant credits
+        uint8_t flags;     // if bit 0 is set its a reply, if bit 1 is set we grant credits
         uint8_t senderPe;
         uint8_t senderEp;
         uint8_t replyEp;   // for a normal message this is the reply epId
                            // for a reply this is the enpoint that receives credits
         uint16_t length;
-        uint16_t senderVpeId;
+        // we keep that for now, because otherwise ReplyHeader is not 16 bytes = 2 registers
+        uint16_t : 16;     // reserved
 
         uint64_t replylabel;
     } PACKED;

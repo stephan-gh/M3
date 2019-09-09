@@ -61,7 +61,7 @@ impl XlateState {
         }
 
         // abort the current command, if there is any
-        let (xfer_buf, old_cmd) = dtu::DTU::abort(dtu::AbortReq::CMD);
+        let (xfer_buf, old_cmd) = dtu::DTU::abort();
         self.cmd_xfer_buf = xfer_buf;
         self.cmd_regs[0] = old_cmd;
         // if a command was being executed, save the DATA register, because we'll overwrite it

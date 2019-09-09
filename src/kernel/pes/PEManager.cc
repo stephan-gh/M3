@@ -53,19 +53,17 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
         AddrSpace *as = vpe->address_space();
         dtustate.config_pf(as->root_pt(), as->sep(), as->rep());
     }
-    dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), pex->headers(), vpe->id());
+    dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), pex->headers());
 
     vpe->init_memory();
 
     start_vpe(vpe);
-
-    dtustate.enable_communication(vpe->desc());
 #endif
 }
 
 void PEManager::start_vpe(VPE *vpe) {
 #if defined(__host__)
-    pemux(vpe->pe())->dtustate().restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), 0, vpe->id());
+    pemux(vpe->pe())->dtustate().restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), 0);
     vpe->_state = VPE::RUNNING;
     vpe->init_memory();
 #else
@@ -91,7 +89,7 @@ void PEManager::stop_vpe(VPE *vpe) {
     // ensure that all PTEs are in memory
     DTU::get().flush_cache(vpe->desc());
 
-    DTU::get().kill_vpe(vpe->desc(), vpe->state() == VPE::DEAD);
+    DTU::get().kill_vpe(vpe->desc());
     vpe->_flags |= VPE::F_STOPPED;
 }
 

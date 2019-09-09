@@ -30,51 +30,26 @@ void *DTUState::get_ep(epid_t ep) {
     return _regs._eps + ep * m3::DTU::EP_REGS;
 }
 
-void DTUState::restore(const VPEDesc &vpe, size_t headers, vpeid_t vpeid) {
+void DTUState::restore(const VPEDesc &vpe, size_t headers) {
     // re-enable pagefaults, if we have a valid pagefault EP (the abort operation disables it)
-    // and unset IRQ_WAKEUP
-    m3::DTU::reg_t features = m3::DTU::StatusFlags::COM_DISABLED;
+    m3::DTU::reg_t features = 0;
     if(_regs.get(m3::DTU::DtuRegs::PF_EP) != static_cast<epid_t>(-1))
         features |= m3::DTU::StatusFlags::PAGEFAULTS;
     _regs.set(m3::DTU::DtuRegs::FEATURES, features);
 
-    // similarly, set the vpeid again, because abort invalidates it
-    _regs.set(m3::DTU::DtuRegs::VPE_ID, vpeid);
-
     m3::CPU::compiler_barrier();
-    size_t regsSize = sizeof(_regs._dtu) + sizeof(_regs._cmd);
+    size_t regsSize = sizeof(_regs._dtu) + sizeof(_regs._cmd) + sizeof(_regs._eps);
     DTU::get().write_mem(vpe, m3::DTU::BASE_ADDR, this, regsSize);
 
-    // we've already set the VPE id
-    DTU::get().write_mem(VPEDesc(vpe.pe, vpeid),
-                         m3::DTU::BASE_ADDR + regsSize,
-                         _regs._eps,
-                         sizeof(_regs._eps));
-    DTU::get().write_mem(VPEDesc(vpe.pe, vpeid),
+    DTU::get().write_mem(vpe,
                          m3::DTU::BASE_ADDR + regsSize + sizeof(_regs._eps),
                          _regs._header,
                          sizeof(_regs._header[0]) * headers);
 }
 
-void DTUState::enable_communication(const VPEDesc &vpe) {
-    static_assert(m3::DTU::DtuRegs::FEATURES == static_cast<m3::DTU::DtuRegs>(0),
-                  "Features register changed");
-
-    m3::DTU::reg_t features = _regs.get(m3::DTU::DtuRegs::FEATURES);
-    features &= ~m3::DTU::StatusFlags::COM_DISABLED;
-    _regs.set(m3::DTU::DtuRegs::FEATURES, features);
-
-    DTU::get().write_mem(vpe, m3::DTU::BASE_ADDR, this, sizeof(m3::DTU::reg_t));
-}
-
 void DTUState::invalidate_eps(epid_t first) {
     size_t total = sizeof(m3::DTU::reg_t) * m3::DTU::EP_REGS * (EP_COUNT - first);
     memset(get_ep(first), 0, total);
-}
-
-size_t DTUState::get_header_idx(epid_t ep, goff_t msgaddr) {
-    m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-    return ((r[0] >> 6) & 0xFFFFF) + ((msgaddr - r[1]) >> ((r[0] >> 32) & 0xFFFF));
 }
 
 void DTUState::read_ep(const VPEDesc &vpe, epid_t ep) {
@@ -91,11 +66,10 @@ void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint 
     r[2] = 0;
 }
 
-void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, vpeid_t vpe, epid_t dstep,
+void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
                            size_t msgsize, word_t credits) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-    r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::SEND) << 61) |
-            ((vpe & 0xFFFF) << 16) | (msgsize & 0xFFFF);
+    r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::SEND) << 61) | (msgsize & 0xFFFF);
     r[1] = (static_cast<m3::DTU::reg_t>(pe & 0xFF) << 40) |
             (static_cast<m3::DTU::reg_t>(dstep & 0xFF) << 32) |
             (credits << 16) |
@@ -103,18 +77,18 @@ void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, vpeid_t vpe, epid_
     r[2] = lbl;
 }
 
-void DTUState::config_mem(epid_t ep, peid_t pe, vpeid_t vpe, goff_t addr, size_t size, int perm) {
+void DTUState::config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
     r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) << 61) | (size & 0x1FFFFFFFFFFFFFFF);
     r[1] = addr;
-    r[2] = ((vpe & 0xFFFF) << 12) | ((pe & 0xFF) << 4) | (perm & 0x7);
+    r[2] = ((pe & 0xFF) << 4) | (perm & 0x7);
 }
 
-bool DTUState::config_mem_cached(epid_t ep, peid_t pe, vpeid_t vpe) {
+bool DTUState::config_mem_cached(epid_t ep, peid_t pe) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
     m3::DTU::reg_t r0, r2;
     r0 = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) << 61) | 0x1FFFFFFFFFFFFFFF;
-    r2 = ((vpe & 0xFFFF) << 12) | ((pe & 0xFF) << 4) | m3::DTU::RW;
+    r2 = ((pe & 0xFF) << 4) | m3::DTU::RW;
     bool res = false;
     if(r0 != r[0]) {
         r[0] = r0;

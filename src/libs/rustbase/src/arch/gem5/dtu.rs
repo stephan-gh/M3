@@ -49,8 +49,7 @@ pub const BASE_ADDR: usize = 0xF000_0000;
 /// The base address of the DTU's MMIO area for external requests
 pub const BASE_REQ_ADDR: usize = BASE_ADDR + cfg::PAGE_SIZE;
 /// The number of DTU registers
-pub const DTU_REGS: usize = 10;
-// const REQ_REGS: usize        = 3;
+pub const DTU_REGS: usize = 8;
 /// The number of command registers
 pub const CMD_REGS: usize = 5;
 /// The number of registers per EP
@@ -73,13 +72,11 @@ int_enum! {
         const STATUS      = 0;
         const ROOT_PT     = 1;
         const PF_EP       = 2;
-        const VPE_ID      = 3;
-        const CUR_TIME    = 4;
-        const IDLE_TIME   = 5;
-        const EVENTS      = 6;
-        const EXT_CMD     = 7;
-        const CLEAR_IRQ   = 8;
-        const CLOCK       = 9;
+        const CUR_TIME    = 3;
+        const EVENTS      = 4;
+        const EXT_CMD     = 5;
+        const CLEAR_IRQ   = 6;
+        const CLOCK       = 7;
     }
 }
 
@@ -91,10 +88,6 @@ bitflags! {
         const PRIV         = 1 << 0;
         /// Whether page faults are send via `PF_EP`
         const PAGEFAULTS   = 1 << 1;
-        /// Whether communication is currently disabled (for context switching)
-        const COM_DISABLED = 1 << 2;
-        /// Set by the DTU if the PE was woken up by an IRQ
-        const IRQ_WAKEUP   = 1 << 3;
     }
 }
 
@@ -129,40 +122,28 @@ int_enum! {
 }
 
 int_enum! {
-    /// The abort requests
-    pub struct AbortReq : Reg {
-        /// Abort the current VPE
-        const VPE         = 0x1;
-        /// Abort the currently running command
-        const CMD         = 0x2;
-    }
-}
-
-int_enum! {
     /// The commands
     pub struct CmdOpCode : u64 {
         /// The idle command has no effect
         const IDLE        = 0x0;
         /// Sends a message
         const SEND        = 0x1;
-        /// Sends a message on behalf of someone (privileged)
-        const SEND_BY     = 0x2;
         /// Replies to a message
-        const REPLY       = 0x3;
+        const REPLY       = 0x2;
         /// Reads from external memory
-        const READ        = 0x4;
+        const READ        = 0x3;
         /// Writes to external memory
-        const WRITE       = 0x5;
+        const WRITE       = 0x4;
         /// Fetches a message
-        const FETCH_MSG   = 0x6;
+        const FETCH_MSG   = 0x5;
         /// Acknowledges a message
-        const ACK_MSG     = 0x7;
+        const ACK_MSG     = 0x6;
         /// Acknowledges events
-        const ACK_EVENTS  = 0x8;
+        const ACK_EVENTS  = 0x7;
         /// Puts the CU to sleep
-        const SLEEP       = 0x9;
+        const SLEEP       = 0x8;
         /// Prints a message
-        const PRINT       = 0x10;
+        const PRINT       = 0x9;
     }
 }
 
@@ -272,7 +253,8 @@ pub struct ReplyHeader {
     pub reply_ep: u8, // for a normal message this is the reply epId
     // for a reply this is the enpoint that receives credits
     pub length: u16,
-    pub sender_vpe_id: u16,
+    // we keep that for now, because otherwise ReplyHeader is not 16 bytes = 2 registers
+    pub _reserved: u16,
 
     pub reply_label: u64,
 }
@@ -287,7 +269,7 @@ pub struct Header {
     pub reply_ep: u8,
 
     pub length: u16,
-    pub sender_vpe_id: u16,
+    pub _reserved: u16,
 
     pub reply_label: u64,
     pub label: u64,
@@ -519,10 +501,10 @@ impl DTU {
     ///
     /// The `xfer_buf` indicates the transfer buffer that was used by the aborted command
     /// The `cmd_reg` contains the value of the command register before the abort
-    pub fn abort(req: AbortReq) -> (Reg, Reg) {
+    pub fn abort() -> (Reg, Reg) {
         // save the old value before aborting
         let mut cmd_reg = Self::read_cmd_reg(CmdReg::COMMAND);
-        Self::write_cmd_reg(CmdReg::ABORT, req.val);
+        Self::write_cmd_reg(CmdReg::ABORT, 1);
 
         // wait until the abort is finished.
         match Self::get_error() {

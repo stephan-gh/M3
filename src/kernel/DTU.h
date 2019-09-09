@@ -31,7 +31,6 @@ class VPEDesc;
 
 class DTU {
     explicit DTU() : _ep(SyscallHandler::srvep() + 1) {
-        init();
     }
 
 public:
@@ -43,13 +42,9 @@ public:
         return _state;
     }
 
-    void init();
-
-    peid_t log_to_phys(peid_t pe);
-
     void deprivilege(peid_t pe);
 
-    void kill_vpe(const VPEDesc &vpe, bool dead);
+    void kill_vpe(const VPEDesc &vpe);
 
     cycles_t get_time();
     void wakeup(const VPEDesc &vpe);
@@ -68,20 +63,12 @@ public:
 
     void mark_read_remote(const VPEDesc &vpe, epid_t ep, goff_t msg);
 
-    m3::Errors::Code get_header(const VPEDesc &vpe, const RGateObject *obj, goff_t &msgaddr,
-                                void *head);
-    m3::Errors::Code set_header(const VPEDesc &vpe, const RGateObject *obj, goff_t &msgaddr,
-                                const void *head);
-
     void recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder);
 
     void reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg);
 
     m3::Errors::Code send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
-                             size_t size, label_t replylbl, epid_t replyep,
-                             uint64_t sender = static_cast<uint64_t>(-1));
-    m3::Errors::Code reply_to(const VPEDesc &vpe, epid_t rep, label_t label, const void *msg,
-                              size_t size, uint64_t sender);
+                             size_t size, label_t replylbl, epid_t replyep);
 
     m3::Errors::Code try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size);
     m3::Errors::Code try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size);
