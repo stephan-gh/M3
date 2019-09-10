@@ -56,6 +56,8 @@ public:
     void invtlb_remote(const VPEDesc &vpe);
     void invlpg_remote(const VPEDesc &vpe, goff_t virt);
 
+    void inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
+
     m3::Errors::Code inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool force);
     void read_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
     void write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);

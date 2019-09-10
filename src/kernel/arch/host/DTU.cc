@@ -56,6 +56,10 @@ void DTU::inject_irq(const VPEDesc &) {
     // unsupported
 }
 
+void DTU::inv_reply_remote(const VPEDesc &, epid_t, peid_t, epid_t) {
+    // unused
+}
+
 m3::Errors::Code DTU::inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool) {
     word_t regs[m3::DTU::EPS_RCNT];
     memset(regs, 0, sizeof(regs));

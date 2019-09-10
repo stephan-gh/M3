@@ -210,10 +210,12 @@ int_enum! {
         const INV_PAGE    = 3;
         /// Invalidate all TLB entries
         const INV_TLB     = 4;
+        /// Invalidate replies from a given sender
+        const INV_REPLY   = 5;
         /// Reset the CU
-        const RESET       = 5;
+        const RESET       = 6;
         /// Acknowledge a message
-        const ACK_MSG     = 6;
+        const ACK_MSG     = 7;
     }
 }
 

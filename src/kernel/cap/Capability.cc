@@ -68,6 +68,14 @@ GateObject::~GateObject() {
         // we want to force-invalidate the send EP if the receive gate is already invalid
         bool force = type == Capability::SGATE && !static_cast<SGateObject*>(this)->rgate_valid();
         vpe.invalidate_ep(old->ep->ep, force);
+        // invalidate reply caps at receiver
+        if(type == Capability::SGATE && !force) {
+            auto sgate = static_cast<SGateObject*>(this);
+            VPE &receiver = VPEManager::get().vpe(sgate->rgate->vpe);
+            KLOG(EPS, "VPE" << vpe.id() << ":EP" << old->ep->ep << ": invalidating reply caps at "
+                   << "PE" << receiver.pe() << ":EP" << sgate->rgate->ep);
+            DTU::get().inv_reply_remote(receiver.desc(), sgate->rgate->ep, vpe.pe(), old->ep->ep);
+        }
         old->ep->gate = nullptr;
         delete &*old;
     }

@@ -100,13 +100,19 @@ void DTU::invtlb_remote(const VPEDesc &vpe) {
 
 void DTU::invlpg_remote(const VPEDesc &vpe, goff_t virt) {
     assert((virt & PAGE_MASK) == 0);
-    do_ext_cmd(vpe, static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_PAGE) | (virt << 3));
+    do_ext_cmd(vpe, static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_PAGE) | (virt << 4));
+}
+
+void DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
+    m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_REPLY);
+    cmd |= (rep << 4) | (pe << 12) | (sep << 20);
+    do_ext_cmd(vpe, cmd);
 }
 
 m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force) {
     m3::DTU::reg_t reg =
-        static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 3) |
-        (static_cast<m3::DTU::reg_t>(force) << 11);
+        static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 4) |
+        (static_cast<m3::DTU::reg_t>(force) << 12);
     m3::CPU::compiler_barrier();
     goff_t addr = m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EXT_CMD);
     return try_write_mem(vpe, addr, &reg, sizeof(reg));

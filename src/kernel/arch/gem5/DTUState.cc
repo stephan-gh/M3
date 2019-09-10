@@ -115,7 +115,7 @@ void DTUState::config_pf(gaddr_t rootpt, epid_t sep, epid_t rep) {
 }
 
 void DTUState::reset(gaddr_t entry, bool flushInval) {
-    m3::DTU::reg_t value = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::RESET) | (entry << 3);
+    m3::DTU::reg_t value = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::RESET) | (entry << 4);
     value |= static_cast<m3::DTU::reg_t>(flushInval) << 63;
     _regs.set(m3::DTU::DtuRegs::EXT_CMD, value);
 }
