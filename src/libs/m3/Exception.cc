@@ -24,6 +24,11 @@ namespace m3 {
 char Exception::msg_buf[Exception::MAX_MSG_SIZE];
 
 void Exception::terminate_handler() {
+    static bool term_started = false;
+    if(term_started)
+        abort();
+
+    term_started = true;
     try {
         throw;
     }
