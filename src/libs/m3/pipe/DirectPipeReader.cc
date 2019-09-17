@@ -15,6 +15,7 @@
  */
 
 #include <base/util/Time.h>
+#include <base/log/Lib.h>
 
 #include <m3/pipe/DirectPipe.h>
 #include <m3/pipe/DirectPipeReader.h>
@@ -52,7 +53,7 @@ void DirectPipeReader::close() noexcept {
                 _state->_is = std::make_unique<GateIStream>(
                     receive_vmsg(_state->_rgate, _state->_pos, _state->_pkglen));
             }
-            DBG_PIPE("[read] replying len=0\n");
+            LLOG(DIRPIPE, "[read] replying len=0");
             reply_vmsg(*_state->_is, static_cast<size_t>(0));
         }
         catch(...) {
@@ -70,7 +71,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
 
     if(_state->_rem == 0) {
         if(_state->_pos > 0) {
-            DBG_PIPE("[read] replying len=" << _state->_pkglen << "\n");
+            LLOG(DIRPIPE, "[read] replying len=" << _state->_pkglen);
             reply_vmsg(*_state->_is, _state->_pkglen);
             _state->_is->finish();
             // Non blocking mode: Reset pos, so that reply is not sent a second time on next invocation.
@@ -95,7 +96,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
     }
 
     size_t amount = Math::min(count, _state->_rem);
-    DBG_PIPE("[read] read from pos=" << _state->_pos << ", len=" << amount << "\n");
+    LLOG(DIRPIPE, "[read] read from pos=" << _state->_pos << ", len=" << amount);
     if(amount == 0)
         _state->_eof |= DirectPipe::WRITE_EOF;
     else {

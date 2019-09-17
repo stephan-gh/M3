@@ -40,6 +40,7 @@ public:
         ACCEL       = 1 << 10,
         FILES       = 1 << 11,
         NET 		= 1 << 12,
+        DIRPIPE     = 1 << 13,
     };
 
     static const int level = DTUERR;

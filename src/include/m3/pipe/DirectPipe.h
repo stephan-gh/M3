@@ -24,14 +24,6 @@
 #include <m3/com/SendGate.h>
 #include <m3/VPE.h>
 
-#define DEBUG_PIPE  0
-#if DEBUG_PIPE
-#   include <base/stream/Serial.h>
-#   define DBG_PIPE(expr)   Serial::get() << expr
-#else
-#   define DBG_PIPE(...)
-#endif
-
 namespace m3 {
 
 /**

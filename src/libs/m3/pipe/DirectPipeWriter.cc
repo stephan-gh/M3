@@ -15,6 +15,7 @@
  */
 
 #include <base/util/Time.h>
+#include <base/log/Lib.h>
 
 #include <m3/com/GateStream.h>
 #include <m3/pipe/DirectPipe.h>
@@ -64,7 +65,7 @@ void DirectPipeWriter::State::read_replies() {
         int cap = DirectPipe::MSG_BUF_SIZE / DirectPipe::MSG_SIZE;
         while(len && _capacity < cap) {
             receive_vmsg(_rgate, len);
-            DBG_PIPE("[shutdown] got len=" << len << "\n");
+            LLOG(DIRPIPE, "[shutdown] got len=" << len);
             _capacity++;
         }
     }
@@ -130,7 +131,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
                 else
                     return -1;
             }
-            DBG_PIPE("[write] got len=" << len << "\n");
+            LLOG(DIRPIPE, "[write] got len=" << len);
             _state->_rdpos = (_state->_rdpos + len) % _state->_size;
             _state->_free += len;
             _state->_capacity++;
@@ -145,7 +146,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
             }
         }
 
-        DBG_PIPE("[write] send pos=" << off << ", len=" << amount << "\n");
+        LLOG(DIRPIPE, "[write] send pos=" << off << ", len=" << amount);
 
         if(amount) {
             Time::start(0xaaaa);
