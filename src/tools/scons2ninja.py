@@ -470,7 +470,7 @@ for line in f.stdout :
 
 if f.wait() != 0 :
   print("Error calling '" + scons_generate_cmd + "'")
-  print(f.stderr.read())
+  print(f.stderr.read().decode())
   exit(-1)
 
 # Pass 2: Parse build rules
@@ -536,7 +536,8 @@ for line in build_lines :
     libs = get_unary_flags('-l', flags)
     libpaths = get_unary_flags("-L", flags)
     deps = get_built_libs(libs, libpaths, ninja.targets)
-    deps += get_unary_flags('-Wl,-T,', flags)
+    for p in get_unary_flags('-Wl,-T,', flags):
+      deps.append(p.replace(os.getcwd() + '/', ''))
     ninja.build(out, 'link', files, deps = sorted(deps), linkflags = flags, cmd = command[0])
 
   elif tool == 'ar':
