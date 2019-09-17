@@ -1,5 +1,6 @@
 Import('env')
-env.InstallFiles('$FSDIR/bench', '.', scan=1, exclude=['SConscript'])
+if not ARGUMENTS.get('build_fs', 0):
+    env.InstallFiles('$FSDIR/bench', '.', scan=1, exclude=['SConscript'])
 
 if env['ARCH'] == 'host':
     blocks = 160 * 1024
