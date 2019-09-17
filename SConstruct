@@ -49,28 +49,6 @@ except KeyError as e:
 link_builder = Builder(action = Action("ln -f ${SOURCE.abspath} ${TARGET.abspath}", "$LNCOMSTR"))
 baseenv.Append(BUILDERS = {"Hardlink" : link_builder})
 
-# check for tools
-def CheckOTFConfig(context):
-    context.Message('Checking for tud-otfconfig...')
-    result = context.TryAction('tud-otfconfig')[0]
-    context.Result(result)
-    return result
-
-def CheckRust(context):
-    context.Message('Checking for cargo-xbuild...')
-    result = context.TryAction('cargo xbuild -h')[0]
-    context.Result(result)
-    return result
-
-conf = Configure(baseenv, custom_tests={
-    'CheckOTFConfig': CheckOTFConfig,
-    'CheckRust': CheckRust,
-})
-if not conf.CheckRust():
-    exit('\033[1mYou need Rust including cargo-xbuild to build M³. See README.md.\033[0m')
-baseenv['HAS_OTF']  = conf.CheckOTFConfig()
-conf.Finish()
-
 # for host compilation
 hostenv = baseenv.Clone()
 hostenv.Append(
@@ -160,6 +138,41 @@ hostenv.Append(
     TOOLDIR = Dir(builddir + '/tools'),
     BINARYDIR = env['BINARYDIR'],
 )
+
+env.SConsignFile(builddir + '/.sconsign')
+hostenv.SConsignFile(builddir + '/.sconsign')
+
+def M3Config(env, custom_tests={}):
+    return Configure(
+        env,
+        conf_dir='#' + builddir,
+        log_file='#' + builddir + '/config.log',
+        custom_tests=custom_tests
+    )
+env.AddMethod(M3Config)
+hostenv.AddMethod(M3Config)
+
+# check for tools
+def CheckOTFConfig(context):
+    context.Message('Checking for tud-otfconfig...')
+    result = context.TryAction('tud-otfconfig')[0]
+    context.Result(result)
+    return result
+
+def CheckRust(context):
+    context.Message('Checking for cargo-xbuild...')
+    result = context.TryAction('cargo xbuild -h')[0]
+    context.Result(result)
+    return result
+
+conf = env.M3Config(custom_tests={
+    'CheckOTFConfig': CheckOTFConfig,
+    'CheckRust': CheckRust,
+})
+if not conf.CheckRust():
+    exit('\033[1mYou need Rust including cargo-xbuild to build M³. See README.md.\033[0m')
+hostenv['HAS_OTF']  = conf.CheckOTFConfig()
+conf.Finish()
 
 def M3Mkfs(env, target, source, blocks, inodes):
     fs = env.Command(

@@ -1,5 +1,3 @@
-.sconsign*
-.sconf_temp
 *~
 *.pyc
 *.sublime-project
@@ -8,12 +6,10 @@
 *.ninja_log
 Cargo.lock
 /build
-/cross/buildroot
 /cross/*/build
 /cross/*/src
 /cross/*.tar.gz
 /cross/*.tar.bz2
 /run
-/config.log
 /dddg_parse_progress.out
 /out.csv

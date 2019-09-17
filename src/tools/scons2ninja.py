@@ -428,7 +428,8 @@ for line in f.stdout :
     elif re.match("^Using tempfile", line) :
       # Ignore response files from MSVS
       skip_nth_line = 2
-    elif not line.startswith("scons: building associated VariantDir targets:") :
+    elif not line.startswith("scons: building associated VariantDir targets:") and \
+         not line.startswith("scons: `.' is up to date.") :
       build_lines.append(line)
 
       # Already detect targets that will need 'mt'

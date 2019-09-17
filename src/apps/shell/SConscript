@@ -8,7 +8,7 @@ def CheckBYACC(context):
     return result
 
 myenv = env.Clone()
-conf = Configure(myenv, custom_tests={'CheckBYACC': CheckBYACC})
+conf = myenv.M3Config(custom_tests={'CheckBYACC': CheckBYACC})
 
 # silence warnings
 parseenv = myenv.Clone()

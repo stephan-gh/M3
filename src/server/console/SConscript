@@ -1,6 +1,6 @@
 Import('env')
 if env['ARCH'] == 'host':
-    conf = Configure(env)
+    conf = env.M3Config()
     if conf.CheckCXXHeader('X11/Xlib.h'):
         env.M3Program(env, 'console', env.Glob('*.cc'), libs = ['X11', 'rt'])
     conf.Finish()
