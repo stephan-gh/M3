@@ -59,11 +59,7 @@ void EPMux::remove(Gate *gate, bool invalidate) noexcept {
         assert(_gates[gate->_ep] == nullptr || _gates[gate->_ep] == gate);
         if(invalidate) {
             try {
-                // we have to invalidate our endpoint, i.e. set the registers to zero. otherwise the cmpxchg
-                // will fail when we program the next gate on this endpoint.
-                // note that the kernel has to validate that it is 0 for "unused endpoints" because otherwise
-                // we could just specify that our endpoint is unused and the kernel won't check it and thereby
-                // trick the whole system.
+                // invalidate our endpoint to be able to reuse it for something else later
                 activate(gate->_ep, ObjCap::INVALID);
             }
             catch(...) {
