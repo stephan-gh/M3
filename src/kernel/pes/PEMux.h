@@ -25,7 +25,7 @@ class VPE;
 class PEMux {
 public:
     explicit PEMux(peid_t pe)
-        : _pe(pe) {
+        : _vpes(), _pe(pe), _headers(), _dtustate() {
     }
 
     bool used() const {
