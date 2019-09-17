@@ -65,11 +65,10 @@ GateObject::~GateObject() {
     for(auto user = epuser.begin(); user != epuser.end(); ) {
         auto old = user++;
         VPE &vpe = VPEManager::get().vpe(old->ep->vpe);
-        // we want to force-invalidate the send EP if the receive gate is already invalid
-        bool force = type == Capability::SGATE && !static_cast<SGateObject*>(this)->rgate_valid();
-        vpe.invalidate_ep(old->ep->ep, force);
+        // always force-invalidate send gates here
+        vpe.invalidate_ep(old->ep->ep, type == Capability::SGATE);
         // invalidate reply caps at receiver
-        if(type == Capability::SGATE && !force) {
+        if(type == Capability::SGATE && static_cast<SGateObject*>(this)->rgate_valid()) {
             auto sgate = static_cast<SGateObject*>(this);
             VPE &receiver = VPEManager::get().vpe(sgate->rgate->vpe);
             KLOG(EPS, "VPE" << vpe.id() << ":EP" << old->ep->ep << ": invalidating reply caps at "
