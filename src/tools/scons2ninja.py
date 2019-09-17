@@ -535,6 +535,7 @@ for line in build_lines :
     libs = get_unary_flags('-l', flags)
     libpaths = get_unary_flags("-L", flags)
     deps = get_built_libs(libs, libpaths, ninja.targets)
+    deps += get_unary_flags('-Wl,-T,', flags)
     ninja.build(out, 'link', files, deps = sorted(deps), linkflags = flags, cmd = command[0])
 
   elif tool == 'ar':
