@@ -38,9 +38,11 @@ impl Log for Logger {
     }
 }
 
-enum Mode {
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum Mode {
     Trace,
     FlameGraph,
+    Snapshot,
 }
 
 #[derive(Eq, PartialEq)]
@@ -51,7 +53,7 @@ pub enum ISA {
 
 fn usage(prog: &str) -> ! {
     eprintln!(
-        "Usage: {} (x86_64|arm) (trace|flamegraph) [<binary>...]",
+        "Usage: {} (x86_64|arm) (trace|flamegraph|snapshot <time>) [<binary>...]",
         prog
     );
     exit(1)
@@ -73,16 +75,25 @@ fn main() -> Result<(), error::Error> {
     let mode = match args.get(2) {
         Some(mode) if mode == "trace" => Mode::Trace,
         Some(mode) if mode == "flamegraph" => Mode::FlameGraph,
+        Some(mode) if mode == "snapshot" => Mode::Snapshot,
         _ => usage(&args[0]),
     };
 
+    let (snapshot_time, bin_start) = if mode == Mode::Snapshot {
+        let time = args.get(3).expect("Invalid arguments");
+        (time.parse::<u64>().expect("Invalid time"), 4)
+    }
+    else {
+        (0, 3)
+    };
+
     let mut syms = BTreeMap::new();
-    for f in &args[3..] {
+    for f in &args[bin_start..] {
         symbols::parse_symbols(&mut syms, f)?;
     }
 
     match mode {
         Mode::Trace => trace::generate(&syms),
-        Mode::FlameGraph => flamegraph::generate(&isa, &syms),
+        Mode::FlameGraph | Mode::Snapshot => flamegraph::generate(mode, snapshot_time, &isa, &syms),
     }
 }

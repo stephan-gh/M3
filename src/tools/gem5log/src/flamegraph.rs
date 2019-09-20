@@ -1,4 +1,5 @@
 use log::{debug, trace, warn};
+use std::cmp;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::io::{self, BufRead, StdoutLock, Write};
@@ -38,6 +39,8 @@ struct Thread<'n> {
 #[derive(Debug)]
 struct Call<'n> {
     func: &'n str,
+    addr: usize,
+    org_time: u64,
     time: u64,
 }
 
@@ -129,6 +132,34 @@ impl<'n> PE<'n> {
         }
         self.susp_start = 0;
     }
+
+    fn snapshot(&self) {
+        println!("PE{}:", self.id);
+        for (_, bin) in &self.bins {
+            for (tid, thread) in &bin.stacks {
+                // ignore empty threads
+                if thread.stack.is_empty() {
+                    continue;
+                }
+
+                if self.last_bin == bin.name && *tid == bin.cur_tid {
+                    println!("  \x1B[1mThread {}:\x1B[0m", tid);
+                }
+                else {
+                    println!("  Thread {}:", tid);
+                }
+
+                for frame in &thread.stack {
+                    println!(
+                        "    {:#x} {} (called at {})",
+                        frame.addr, frame.func, frame.org_time
+                    );
+                }
+                println!();
+            }
+        }
+        println!();
+    }
 }
 
 impl<'n> Binary<'n> {
@@ -191,6 +222,8 @@ impl<'n> Thread<'n> {
         trace!("{}: {} {:w$} CALL -> {}", time, tid, "", sym.name, w = w);
         self.stack.push(Call {
             func: &sym.name,
+            addr: sym.addr,
+            org_time: time,
             time,
         });
     }
@@ -245,7 +278,8 @@ fn is_isr_exit(isa: &crate::ISA, line: &str) -> bool {
 }
 
 fn handle_return(
-    writer: &mut StdoutLock,
+    mode: crate::Mode,
+    wr: &mut StdoutLock,
     time: u64,
     pe: usize,
     sym: &symbols::Symbol,
@@ -255,13 +289,19 @@ fn handle_return(
 ) -> Result<(), Error> {
     if !thread.stack.is_empty() {
         // generate stack
-        let mut stack: String = format!("PE{}", pe);
-        stack.push_str(";");
-        stack.push_str(&format!("{}", tid));
-        for f in thread.stack.iter() {
+        let stack = if mode == crate::Mode::FlameGraph {
+            let mut stack: String = format!("PE{}", pe);
             stack.push_str(";");
-            stack.push_str(&f.func);
+            stack.push_str(&format!("{}", tid));
+            for f in thread.stack.iter() {
+                stack.push_str(";");
+                stack.push_str(&f.func);
+            }
+            Some(stack)
         }
+        else {
+            None
+        };
 
         let last = if unwind {
             thread.ret(&sym, time, tid)
@@ -271,26 +311,44 @@ fn handle_return(
             thread.stack.pop()
         };
 
-        // print flamegraph line
-        if let Some(l) = last {
-            writeln!(writer, "{} {}", stack, (time - l.time) / 1000)?;
+        if let Some(stack) = stack {
+            // print flamegraph line
+            if let Some(l) = last {
+                writeln!(wr, "{} {}", stack, (time - l.time) / 1000)?;
+            }
         }
     }
     Ok(())
 }
 
-pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Result<(), Error> {
+pub fn generate(
+    mode: crate::Mode,
+    snapshot_time: u64,
+    isa: &crate::ISA,
+    syms: &BTreeMap<usize, symbols::Symbol>,
+) -> Result<(), Error> {
+    let mut max_peid = 0;
     let mut pes: HashMap<usize, PE> = HashMap::new();
 
     let stdin = io::stdin();
     let mut reader = io::BufReader::new(stdin.lock());
 
     let stdout = io::stdout();
-    let mut writer = stdout.lock();
+    let mut wr = stdout.lock();
 
     let mut line = String::new();
     while reader.read_line(&mut line)? != 0 {
         if let Some((time, pe, maybe_addr)) = get_func_addr(&line) {
+            if mode == crate::Mode::Snapshot && time >= snapshot_time {
+                println!("Snapshot at timestamp {}:", time);
+                for id in 0..=max_peid {
+                    if let Some(pe) = pes.get(&id) {
+                        pe.snapshot();
+                    }
+                }
+                break;
+            }
+
             if maybe_addr.is_none() {
                 if let Some(cur_pe) = pes.get_mut(&pe) {
                     if line.contains("dtu.connector: Suspending core") {
@@ -309,6 +367,7 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
             if let Some(sym) = symbols::resolve(syms, addr) {
                 // detect PEs
                 if pes.get(&pe).is_none() {
+                    max_peid = cmp::max(max_peid, pe);
                     pes.insert(pe, PE::new(Binary::new(&sym.name), pe));
                 }
                 let cur_pe = pes.get_mut(&pe).unwrap();
@@ -321,7 +380,7 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
                     if cur_pe.last_isr_exit {
                         let obin = cur_pe.bins.get_mut::<str>(&cur_pe.last_bin).unwrap();
                         let othread = obin.stacks.get_mut(&obin.cur_tid).unwrap();
-                        handle_return(&mut writer, time, pe, sym, othread, &obin.cur_tid, false)?;
+                        handle_return(mode, &mut wr, time, pe, sym, othread, &obin.cur_tid, false)?;
                         isr_exit = true;
                     }
                     cur_pe.binary_switch(&sym, time);
@@ -364,7 +423,7 @@ pub fn generate(isa: &crate::ISA, syms: &BTreeMap<usize, symbols::Symbol>) -> Re
                             panic!("{}: return with empty stack", time);
                         }
 
-                        handle_return(&mut writer, time, pe, sym, cur_thread, cur_tid, true)?;
+                        handle_return(mode, &mut wr, time, pe, sym, cur_thread, cur_tid, true)?;
                     }
                 }
 

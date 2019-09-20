@@ -89,6 +89,9 @@ help() {
     echo "    flamegraph=<progs>:      produces a flamegraph with stdin to stdout. <progs>"
     echo "                             are the binary names for the symbols. stdin expects"
     echo "                             the gem5.log with Exec,ExecPC,DtuConnector enabled."
+    echo "    snapshot=<progs> <time>: prints the stacktrace of all programs at timestamp"
+    echo "                             <time>. <progs> are the binary names for the symbols."
+    echo "                             stdin expects the gem5.log with Exec,ExecPC enabled."
     echo "    mkfs=<fsimg> <dir> ...:  create m3-fs in <fsimg> with content of <dir>"
     echo "    shfs=<fsimg> ...:        show m3-fs in <fsimg>"
     echo "    fsck=<fsimg> ...:        run m3fsck on <fsimg>"
@@ -422,6 +425,14 @@ case "$cmd" in
         done
         # inferno-flamegraph is available at https://github.com/jonhoo/inferno
         $build/tools/gem5log $M3_ISA flamegraph $paths | inferno-flamegraph --countname ns
+        ;;
+
+    snapshot=*)
+        paths=""
+        for f in $(echo ${cmd#snapshot=} | sed "s/,/ /g"); do
+            paths="$paths $build/bin/$f"
+        done
+        $build/tools/gem5log $M3_ISA snapshot $script $paths
         ;;
 
     mkfs=*)
