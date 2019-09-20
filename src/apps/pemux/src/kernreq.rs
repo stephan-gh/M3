@@ -24,6 +24,7 @@ use core::ptr;
 
 use arch::isr;
 use arch::vma;
+use vpe;
 
 int_enum! {
     pub struct PEMuxCtrl : u64 {
@@ -64,19 +65,27 @@ pub fn handle_pemux(state: &mut isr::State) {
         signal();
 
         // remember the current PE (might have changed since last switch)
-        env().pe_id = flags >> 32;
+        let vpe_id = flags >> 48;
+        env().pe_id = (flags >> 32) & 0xFFFF;
 
         // reinit io with correct PE id
         // TODO there should be a better way
-        io::init(flags >> 32, "pemux");
+        io::init(env().pe_id, "pemux");
 
         state.init(env().entry as usize, env().sp as usize);
+
+        vpe::add(vpe_id);
         return;
     }
 
     if (flags & PEMuxCtrl::WAITING.val) != 0 {
         signal();
     }
+}
+
+fn handle_stop(state: &mut isr::State) {
+    state.stop();
+    vpe::remove();
 }
 
 pub fn handle_ext_req(state: &mut isr::State, mut mst_req: dtu::Reg) {
@@ -89,7 +98,7 @@ pub fn handle_ext_req(state: &mut isr::State, mut mst_req: dtu::Reg) {
     match From::from(cmd) {
         dtu::ExtReqOpCode::INV_PAGE => vma::flush_tlb(mst_req as usize),
         dtu::ExtReqOpCode::PEMUX => handle_pemux(state),
-        dtu::ExtReqOpCode::STOP => state.stop(),
+        dtu::ExtReqOpCode::STOP => handle_stop(state),
         _ => log!(DEF, "Unexpected cmd: {}", cmd),
     }
 

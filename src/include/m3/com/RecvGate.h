@@ -20,7 +20,6 @@
 #include <base/util/Util.h>
 
 #include <m3/com/Gate.h>
-#include <m3/DTUIf.h>
 #include <m3/WorkLoop.h>
 
 #include <functional>
@@ -172,8 +171,10 @@ public:
 
     /**
      * Activates this receive gate, i.e., lets the kernel configure a free endpoint for it
+     *
+     * @return the used EP id
      */
-    void activate();
+    epid_t activate();
     /**
      * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it
      */
@@ -207,10 +208,7 @@ public:
      *
      * @return the message or nullptr
      */
-    const DTU::Message *fetch() {
-        activate();
-        return DTUIf::fetch_msg(ep());
-    }
+    const DTU::Message *fetch();
 
     /**
      * Waits until a message is received. If <sgate> is given, it will stop if as soon as <sgate>
@@ -235,18 +233,14 @@ public:
      *
      * @param msg the message
      */
-    void mark_read(const DTU::Message *msg) {
-        DTUIf::mark_read(ep(), msg);
-    }
+    void mark_read(const DTU::Message *msg);
 
     /**
      * Drops all messages with given label. That is, these messages will be marked as read.
      *
      * @param label the label
      */
-    void drop_msgs_with(label_t label) noexcept {
-        DTUIf::drop_msgs(ep(), label);
-    }
+    void drop_msgs_with(label_t label) noexcept;
 
 private:
     static void *allocate(VPE &vpe, epid_t ep, size_t size);

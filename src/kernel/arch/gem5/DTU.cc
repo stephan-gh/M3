@@ -58,10 +58,11 @@ void DTU::kill_vpe(const VPEDesc &vpe) {
     ext_request(vpe, m3::DTU::ExtReqOpCode::STOP);
 
     // reset all EPs and headers to remove unread messages
-    size_t regsSize = EP_COUNT * m3::DTU::EP_REGS + m3::DTU::HD_COUNT * m3::DTU::HD_REGS;
+    size_t regsSize = (EP_COUNT - m3::DTU::FIRST_USER_EP) * m3::DTU::EP_REGS;
+    regsSize += m3::DTU::HD_COUNT * m3::DTU::HD_REGS;
     regsSize *= sizeof(m3::DTU::reg_t);
     memset(buffer, 0, regsSize);
-    write_mem(vpe, m3::DTU::ep_regs_addr(0), buffer, regsSize);
+    write_mem(vpe, m3::DTU::ep_regs_addr(m3::DTU::FIRST_USER_EP), buffer, regsSize);
     // reset events register to be sure that the remote core can sleep
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EVENTS), buffer, sizeof(m3::DTU::reg_t));
 

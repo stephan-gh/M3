@@ -30,7 +30,7 @@ class VPE;
 class VPEDesc;
 
 class DTU {
-    explicit DTU() : _ep(SyscallHandler::srvep() + 1) {
+    explicit DTU() : _ep(SyscallHandler::memep()) {
     }
 
 public:

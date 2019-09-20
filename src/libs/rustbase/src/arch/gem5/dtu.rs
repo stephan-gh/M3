@@ -33,16 +33,20 @@ pub type PEId = usize;
 /// The number of endpoints in each DTU
 pub const EP_COUNT: EpId = 16;
 
+/// The send EP for kernel calls from PEMux
+pub const KPEX_SEP: EpId = 0;
+/// The receive EP for kernel calls from PEMux
+pub const KPEX_REP: EpId = 1;
 /// The send EP for system calls
-pub const SYSC_SEP: EpId = 0;
+pub const SYSC_SEP: EpId = 2;
 /// The receive EP for system calls
-pub const SYSC_REP: EpId = 1;
+pub const SYSC_REP: EpId = 3;
 /// The receive EP for upcalls from the kernel
-pub const UPCALL_REP: EpId = 2;
+pub const UPCALL_REP: EpId = 4;
 /// The default receive EP
-pub const DEF_REP: EpId = 3;
+pub const DEF_REP: EpId = 5;
 /// The first free EP id
-pub const FIRST_FREE_EP: EpId = 4;
+pub const FIRST_FREE_EP: EpId = 6;
 
 /// The base address of the DTU's MMIO area
 pub const BASE_ADDR: usize = 0xF000_0000;

@@ -19,6 +19,9 @@
 #include <base/DTU.h>
 
 #include <m3/PEXCalls.h>
+#include <m3/com/MemGate.h>
+#include <m3/com/RecvGate.h>
+#include <m3/com/SendGate.h>
 
 #if defined(__gem5__)
 static const bool USE_PEXCALLS = true;
@@ -29,7 +32,7 @@ static const bool USE_PEXCALLS = false;
 namespace m3 {
 
 class DTUIf {
-    static Errors::Code get_error(word_t res) {
+    static Errors::Code get_error(word_t res) noexcept {
         long err = static_cast<long>(res);
         if(err < 0)
             return static_cast<Errors::Code>(-err);
@@ -37,80 +40,87 @@ class DTUIf {
     }
 
 public:
-    static Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
+    static Errors::Code send(SendGate &sg, const void *msg, size_t size,
+                             label_t replylbl, RecvGate &rg) noexcept {
         if(USE_PEXCALLS) {
             return get_error(PEXCalls::call5(Operation::SEND,
-                                             ep,
+                                             sg.sel(),
                                              reinterpret_cast<word_t>(msg),
                                              size,
                                              replylbl,
-                                             reply_ep));
+                                             rg.sel()));
         }
-        else
-            return DTU::get().send(ep, msg, size, replylbl, reply_ep);
+        else {
+            epid_t sep = sg.acquire_ep();
+            return DTU::get().send(sep, msg, size, replylbl, rg.ep());
+        }
     }
 
-    static Errors::Code reply(epid_t ep, const void *reply, size_t size, const DTU::Message *msg) {
+    static Errors::Code reply(RecvGate &rg, const void *reply, size_t size,
+                              const DTU::Message *msg) noexcept {
         if(USE_PEXCALLS) {
             return get_error(PEXCalls::call4(Operation::REPLY,
-                                             ep,
+                                             rg.sel(),
                                              reinterpret_cast<word_t>(reply),
                                              size,
                                              reinterpret_cast<word_t>(msg)));
         }
         else
-            return DTU::get().reply(ep, reply, size, msg);
+            return DTU::get().reply(rg.ep(), reply, size, msg);
     }
 
-    static Errors::Code call(epid_t ep, const void *msg, size_t size,
-                             epid_t reply_ep, const DTU::Message **reply) {
+    static Errors::Code call(SendGate &sg, const void *msg, size_t size,
+                             RecvGate &rg, const DTU::Message **reply) noexcept {
         if(USE_PEXCALLS) {
             word_t res = PEXCalls::call4(Operation::CALL,
-                                         ep,
+                                         sg.sel(),
                                          reinterpret_cast<word_t>(msg),
                                          size,
-                                         reply_ep);
+                                         rg.sel());
             Errors::Code err = get_error(res);
             if(err == Errors::NONE)
                 *reply = reinterpret_cast<const DTU::Message*>(res);
             return err;
         }
         else {
-            Errors::Code res = send(ep, msg, size, 0, reply_ep);
+            Errors::Code res = send(sg, msg, size, 0, rg);
             if(res != Errors::NONE)
                 return res;
-            return receive(reply_ep, ep, reply);
+            return receive(rg, &sg, reply);
         }
     }
 
-    static const DTU::Message *fetch_msg(epid_t ep) {
+    static const DTU::Message *fetch_msg(RecvGate &rg) noexcept {
         if(USE_PEXCALLS) {
-            word_t res = PEXCalls::call1(Operation::FETCH, ep);
+            word_t res = PEXCalls::call1(Operation::FETCH, rg.sel());
             Errors::Code err = get_error(res);
             if(err != Errors::NONE)
                 return nullptr;
             return reinterpret_cast<const DTU::Message*>(res);
         }
-        else
-            return DTU::get().fetch_msg(ep);
+        else {
+            epid_t rep = rg.activate();
+            return DTU::get().fetch_msg(rep);
+        }
     }
 
-    static void mark_read(epid_t ep, const DTU::Message *msg) {
+    static void mark_read(RecvGate &rg, const DTU::Message *msg) noexcept {
         if(USE_PEXCALLS)
-            PEXCalls::call2(Operation::ACK, ep, reinterpret_cast<word_t>(msg));
+            PEXCalls::call2(Operation::ACK, rg.sel(), reinterpret_cast<word_t>(msg));
         else
-            DTU::get().mark_read(ep, msg);
+            DTU::get().mark_read(rg.ep(), msg);
     }
 
-    static Errors::Code receive(epid_t rep, epid_t sep, const DTU::Message **reply) {
+    static Errors::Code receive(RecvGate &rg, SendGate *sg, const DTU::Message **reply) noexcept {
         if(USE_PEXCALLS) {
-            word_t res = PEXCalls::call2(Operation::RECV, rep, sep);
+            word_t res = PEXCalls::call2(Operation::RECV, rg.sel(), sg ? sg->sel() : ObjCap::INVALID);
             Errors::Code err = get_error(res);
             if(err == Errors::NONE)
                 *reply = reinterpret_cast<const DTU::Message*>(res);
             return err;
         }
         else {
+            epid_t rep = rg.activate();
             while(1) {
                 *reply = DTU::get().fetch_msg(rep);
                 if(*reply)
@@ -121,7 +131,7 @@ public:
                 // now check whether the endpoint is still valid. if the EP has been invalidated before
                 // the line above, we'll notice that with this check. if the EP is invalidated between
                 // the line above and the sleep command, the DTU will refuse to suspend the core.
-                if(sep != EP_COUNT && EXPECT_FALSE(!DTU::get().is_valid(sep)))
+                if(sg && EXPECT_FALSE(!DTU::get().is_valid(sg->ep())))
                     return Errors::EP_INVALID;
 
                 DTU::get().sleep();
@@ -130,43 +140,83 @@ public:
         }
     }
 
-    static Errors::Code read(epid_t ep, void *data, size_t size, goff_t off, uint flags) {
+    static Errors::Code read(MemGate &mg, void *data, size_t size, goff_t off, uint flags) noexcept {
         if(USE_PEXCALLS) {
             return get_error(PEXCalls::call5(Operation::READ,
-                                             ep,
+                                             mgate_sel(mg),
                                              reinterpret_cast<word_t>(data),
                                              size,
                                              off,
                                              flags));
         }
-        else
+        else {
+            epid_t ep = mg.acquire_ep();
             return DTU::get().read(ep, data, size, off, flags);
-    }
-    static Errors::Code write(epid_t ep, const void *data, size_t size, goff_t off, uint flags) {
-        if(USE_PEXCALLS) {
-            return get_error(PEXCalls::call5(Operation::WRITE,
-                                             ep,
-                                             reinterpret_cast<word_t>(data),
-                                             size,
-                                             off,
-                                             flags));
         }
-        else
-            return DTU::get().write(ep, data, size, off, flags);
     }
 
-    static void drop_msgs(epid_t ep, label_t label) {
+    static Errors::Code write(MemGate &mg, const void *data, size_t size,
+                              goff_t off, uint flags) noexcept {
+        if(USE_PEXCALLS) {
+            return get_error(PEXCalls::call5(Operation::WRITE,
+                                             mgate_sel(mg),
+                                             reinterpret_cast<word_t>(data),
+                                             size,
+                                             off,
+                                             flags));
+        }
+        else {
+            epid_t ep = mg.acquire_ep();
+            return DTU::get().write(ep, data, size, off, flags);
+        }
+    }
+
+    static Errors::Code reserve_ep(epid_t *ep) noexcept {
+        assert(USE_PEXCALLS);
+        assert(*ep <= EP_COUNT);
+
+        word_t res = PEXCalls::call1(Operation::RES_EP, *ep);
+        Errors::Code err = get_error(res);
+        if(err != Errors::NONE)
+            return err;
+
+        *ep = res;
+        return Errors::NONE;
+    }
+
+    static void free_ep(epid_t ep) noexcept {
+        assert(USE_PEXCALLS);
+        assert(ep < EP_COUNT);
+
+        PEXCalls::call1(Operation::FREE_EP, ep);
+    }
+
+    static void activate_gate(Gate &gate, epid_t ep, goff_t addr);
+
+    static void remove_gate(Gate &gate, bool invalidate) noexcept {
+        if(USE_PEXCALLS)
+            PEXCalls::call2(Operation::REMOVE_GATE, gate.sel(), invalidate);
+        else
+            EPMux::get().remove(&gate, invalidate);
+    }
+
+    static void drop_msgs(epid_t ep, label_t label) noexcept {
         DTU::get().drop_msgs(ep, label);
     }
 
-    static void sleep() {
+    static void sleep() noexcept {
         sleep_for(0);
     }
-    static void sleep_for(uint64_t cycles) {
+    static void sleep_for(uint64_t cycles) noexcept {
         if(USE_PEXCALLS)
             PEXCalls::call1(Operation::SLEEP, cycles);
         else
             DTU::get().sleep_for(cycles);
+    }
+
+private:
+    static size_t mgate_sel(MemGate &mg) {
+        return mg.sel() == ObjCap::INVALID ? (static_cast<size_t>(1) << 31 | mg.ep()) : mg.sel();
     }
 };
 

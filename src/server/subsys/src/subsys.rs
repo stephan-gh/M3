@@ -221,7 +221,7 @@ fn handle_request(mut is: GateIStream) {
 fn workloop() {
     let thmng = thread::ThreadManager::get();
     let rgate = req_rgate();
-    let upcall_ep = RecvGate::upcall().ep().unwrap();
+    let upcall_rg = RecvGate::upcall();
 
     loop {
         // we are not interested in the events here; just fetch them before the sleep
@@ -233,7 +233,7 @@ fn workloop() {
             handle_request(is);
         }
 
-        let msg = dtu::DTUIf::fetch_msg(upcall_ep);
+        let msg = dtu::DTUIf::fetch_msg(upcall_rg);
         if let Some(msg) = msg {
             childs::get().handle_upcall(msg);
         }

@@ -24,9 +24,12 @@
 
 namespace m3 {
 
+INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::SEL_SYSC_SG, ObjCap::KEEP_CAP,
+                                                &RecvGate::syscall(), DTU::SYSC_SEP);
+
 const DTU::Message *Syscalls::send_receive(const void *msg, size_t size) noexcept {
     const DTU::Message *reply = nullptr;
-    DTUIf::call(DTU::SYSC_SEP, msg, size, m3::DTU::SYSC_REP, &reply);
+    DTUIf::call(_sendgate, msg, size, *_sendgate.reply_gate(), &reply);
     return reply;
 }
 
@@ -36,7 +39,7 @@ Errors::Code Syscalls::send_receive_err(const void *msg, size_t size) noexcept {
     const KIF::DefaultReply *rdata = reinterpret_cast<const KIF::DefaultReply*>(reply->data);
     Errors::Code res = static_cast<Errors::Code>(rdata->error);
 
-    DTUIf::mark_read(m3::DTU::SYSC_REP, reply);
+    DTUIf::mark_read(*_sendgate.reply_gate(), reply);
     return res;
 }
 
@@ -121,7 +124,7 @@ void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const Stri
     Errors::Code res = static_cast<Errors::Code>(reply->error);
     if(res == Errors::NONE)
         pe = PEDesc(reply->pe);
-    DTUIf::mark_read(m3::DTU::SYSC_REP, reinterpret_cast<const DTU::Message*>(reply));
+    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::CREATE_VPE);
@@ -170,7 +173,7 @@ int Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel
         *vpe = reply->vpe_sel;
         exitcode = reply->exitcode;
     }
-    DTUIf::mark_read(m3::DTU::SYSC_REP, reinterpret_cast<const DTU::Message*>(reply));
+    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::VPE_WAIT);
@@ -211,7 +214,7 @@ size_t Syscalls::kmem_quota(capsel_t kmem) {
     Errors::Code res = static_cast<Errors::Code>(reply->error);
     if(res == Errors::NONE)
         amount = reply->amount;
-    DTUIf::mark_read(m3::DTU::SYSC_REP, reinterpret_cast<const DTU::Message*>(reply));
+    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::KMEM_QUOTA);
@@ -255,7 +258,7 @@ void Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc 
     Errors::Code res = static_cast<Errors::Code>(reply->error);
     if(res == Errors::NONE && args)
         memcpy(args, &reply->args, sizeof(*args));
-    DTUIf::mark_read(m3::DTU::SYSC_REP, reinterpret_cast<const DTU::Message*>(reply));
+    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, static_cast<KIF::Syscall::Operation>(req.opcode));
@@ -293,7 +296,7 @@ USED void Syscalls::exit(int exitcode) {
     req.vpe_sel = 0;
     req.op = KIF::Syscall::VCTRL_STOP;
     req.arg = static_cast<xfer_t>(exitcode);
-    DTUIf::send(DTU::SYSC_SEP, &req, sizeof(req), 0, m3::DTU::SYSC_REP);
+    DTUIf::send(_sendgate, &req, sizeof(req), 0, *_sendgate.reply_gate());
 }
 
 }

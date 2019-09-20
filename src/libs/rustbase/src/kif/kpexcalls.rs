@@ -14,36 +14,21 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
-use com;
-use io;
-use libc;
-use mem;
-use syscalls;
-use vfs;
-use vpe;
+//! The kernel-pemux interface
 
-pub fn exit(code: i32) -> ! {
-    unsafe {
-        libc::exit(code);
+int_enum! {
+    /// The kpex calls
+    pub struct Operation : u64 {
+        const ACTIVATE      = 0x0;
     }
 }
 
-#[no_mangle]
-pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
-    syscalls::init();
-    mem::heap::init();
-    arch::env::init(argc, argv);
-    vpe::init();
-    com::init();
-    io::init();
-    arch::dtu::init();
-}
-
-#[no_mangle]
-pub extern "C" fn rust_deinit(status: i32, _arg: *const libc::c_void) {
-    io::deinit();
-    vfs::deinit();
-    syscalls::exit(status);
-    arch::dtu::deinit();
+/// The activate request message
+#[repr(C, packed)]
+pub struct Activate {
+    pub op: u64,
+    pub vpe_sel: u64,
+    pub gate_sel: u64,
+    pub ep: u64,
+    pub addr: u64,
 }

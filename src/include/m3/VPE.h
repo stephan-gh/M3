@@ -235,9 +235,7 @@ public:
      *
      * @param id the endpoint id
      */
-    void free_ep(epid_t id) noexcept {
-        _eps &= ~(static_cast<uint64_t>(1) << id);
-    }
+    void free_ep(epid_t id) noexcept;
 
     /**
      * @return the local memory of the PE this VPE is attached to

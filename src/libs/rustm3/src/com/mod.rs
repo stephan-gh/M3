@@ -32,6 +32,7 @@ pub use self::rgate::{RGateArgs, RecvGate};
 pub use self::sem::Semaphore;
 pub use self::sgate::{SGateArgs, SendGate};
 pub use self::stream::*;
+pub(crate) use self::gate::Gate;
 
 pub(crate) fn init() {
     rgate::init();

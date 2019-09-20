@@ -81,6 +81,13 @@ void SyscallHandler::init() {
     DTU::get().recv_msgs(srvep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, m3::nextlog2<256>::val);
 
+    if(Platform::pe_count() > 32)
+        PANIC("At most 32 PEs are supported");
+    buford = m3::nextlog2<32>::val + PEMux::PEXC_MSGSIZE_ORD;
+    bufsize = static_cast<size_t>(1) << buford;
+    DTU::get().recv_msgs(pexep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+        buford, PEMux::PEXC_MSGSIZE_ORD);
+
     add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::create_srv);
     add_operation(m3::KIF::Syscall::CREATE_SESS,    &SyscallHandler::create_sess);
     add_operation(m3::KIF::Syscall::CREATE_RGATE,   &SyscallHandler::create_rgate);
@@ -110,7 +117,7 @@ void SyscallHandler::reply_msg(VPE *vpe, const m3::DTU::Message *msg, const void
 void SyscallHandler::reply_result(VPE *vpe, const m3::DTU::Message *msg, m3::Errors::Code code) {
     m3::KIF::DefaultReply reply;
     reply.error = static_cast<xfer_t>(code);
-    return reply_msg(vpe, msg, &reply, sizeof(reply));
+    reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
 void SyscallHandler::handle_message(VPE *vpe, const m3::DTU::Message *msg) {
@@ -389,95 +396,10 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
 
     auto epcap = static_cast<EPCapability*>(vpe->objcaps().get(ep, Capability::EP));
     if(epcap == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "EP capability is invalid");
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid EP cap");
 
-    VPE &dstvpe = VPEManager::get().vpe(epcap->obj->vpe);
-
-    GateObject *gateobj = nullptr;
-    if(gate != m3::KIF::INV_SEL) {
-        auto gatecap = vpe->objcaps().get(gate, Capability::SGATE | Capability::MGATE | Capability::RGATE);
-        if(gatecap == nullptr)
-            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid capability");
-        gateobj = gatecap->as_gate();
-    }
-
-    bool invalid = false;
-    if(epcap->obj->gate) {
-        if(epcap->obj->gate->type == Capability::RGATE)
-            static_cast<RGateObject*>(epcap->obj->gate)->addr = 0;
-        // the remote invalidation is only required for send gates
-        else if(epcap->obj->gate->type == Capability::SGATE) {
-            if(!dstvpe.invalidate_ep(epcap->obj->ep))
-                SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Unable to invalidate EP");
-            static_cast<SGateObject*>(epcap->obj->gate)->activated = false;
-            invalid = true;
-        }
-
-        if(gateobj != epcap->obj->gate) {
-            epcap->obj->gate->remove_ep(&*epcap->obj);
-            epcap->obj->gate = nullptr;
-        }
-    }
-
-    if(gateobj) {
-        EPObject *oldep = gateobj->ep_of_vpe(dstvpe.id());
-        if(oldep && oldep->ep != epcap->obj->ep)
-            SYS_ERROR(vpe, msg, m3::Errors::EXISTS, "Capability already in use");
-
-        if(gateobj->type == Capability::MGATE) {
-            auto mgateobj = static_cast<MGateObject*>(gateobj);
-            m3::Errors::Code res = dstvpe.config_mem_ep(epcap->obj->ep, *mgateobj, addr);
-            if(res != m3::Errors::NONE)
-                SYS_ERROR(vpe, msg, res, "Unable to configure memory EP");
-        }
-        else if(gateobj->type == Capability::SGATE) {
-            auto sgateobj = static_cast<SGateObject*>(gateobj);
-
-            if(!sgateobj->rgate->activated()) {
-                LOG_SYS(vpe, ": syscall::activate",
-                    ": waiting for rgate " << &sgateobj->rgate);
-
-                m3::ThreadManager::get().wait_for(reinterpret_cast<event_t>(&*sgateobj->rgate));
-
-                LOG_SYS(vpe, ": syscall::activate-cont",
-                    ": rgate " << &sgateobj->rgate << " activated");
-
-                // ensure that dstvpe is still valid
-                if(vpe->objcaps().get(ep, Capability::EP) == nullptr)
-                    SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "EP was revoked");
-            }
-
-            m3::Errors::Code res = dstvpe.config_snd_ep(epcap->obj->ep, *sgateobj);
-            if(res != m3::Errors::NONE)
-                SYS_ERROR(vpe, msg, res, "Unable to configure send EP");
-        }
-        else {
-            auto rgateobj = static_cast<RGateObject*>(gateobj);
-            if(rgateobj->activated())
-                SYS_ERROR(vpe, msg, m3::Errors::EXISTS, "RGate already activated");
-
-            rgateobj->vpe = dstvpe.id();
-            rgateobj->addr = addr;
-            rgateobj->ep = epcap->obj->ep;
-
-            m3::Errors::Code res = dstvpe.config_rcv_ep(epcap->obj->ep, *rgateobj);
-            if(res != m3::Errors::NONE) {
-                rgateobj->addr = 0;
-                SYS_ERROR(vpe, msg, res, "Unable to configure receive EP");
-            }
-        }
-
-        if(!oldep)
-            gateobj->add_ep(&*epcap->obj);
-    }
-    else {
-        if(!invalid && !dstvpe.invalidate_ep(epcap->obj->ep))
-            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Unable to invalidate EP");
-    }
-
-    epcap->obj->gate = gateobj;
-
-    reply_result(vpe, msg, m3::Errors::NONE);
+    m3::Errors::Code res = vpe->activate(epcap, gate, addr);
+    reply_result(vpe, msg, res);
 }
 
 void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {

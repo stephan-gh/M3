@@ -14,15 +14,16 @@
  * General Public License version 2 for more details.
  */
 
-#include "../proto_def.h"
-#include "e1000dev.h"
-
-#include <assert.h>
-#include <base/DTU.h>
 #include <base/log/Services.h>
 
+#include <m3/DTUIf.h>
+
+#include <assert.h>
 #include <cstddef>
 #include <cstdlib>
+
+#include "../proto_def.h"
+#include "e1000dev.h"
 
 /* parts of the code are inspired by the Escape e1000 driver */
 

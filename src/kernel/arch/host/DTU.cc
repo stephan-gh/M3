@@ -17,6 +17,7 @@
 #include <base/Common.h>
 #include <base/PEMux.h>
 
+#include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "DTU.h"
 
@@ -69,13 +70,13 @@ m3::Errors::Code DTU::inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool) {
 }
 
 void DTU::read_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
-    uintptr_t eps = static_cast<uintptr_t>(VPEManager::get().vpe(vpe.id).eps_base());
+    uintptr_t eps = static_cast<uintptr_t>(PEManager::get().pemux(vpe.pe)->eps_base());
     uintptr_t addr = eps + ep * m3::DTU::EPS_RCNT * sizeof(word_t);
     read_mem(vpe, addr, regs, m3::DTU::EPS_RCNT * sizeof(word_t));
 }
 
 void DTU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
-    uintptr_t eps = static_cast<uintptr_t>(VPEManager::get().vpe(vpe.id).eps_base());
+    uintptr_t eps = static_cast<uintptr_t>(PEManager::get().pemux(vpe.pe)->eps_base());
     uintptr_t addr = eps + ep * m3::DTU::EPS_RCNT * sizeof(word_t);
     write_mem(vpe, addr, regs, m3::DTU::EPS_RCNT * sizeof(word_t));
 }

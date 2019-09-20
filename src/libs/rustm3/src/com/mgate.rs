@@ -170,9 +170,7 @@ impl MemGate {
     /// Reads `size` bytes via the DTU read command from the memory region at offset `off` and
     /// stores the read data into `data`.
     pub fn read_bytes(&self, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        let ep = self.gate.activate()?;
-
-        dtu::DTUIf::read(ep, data, size, off, dtu::CmdFlags::empty())
+        dtu::DTUIf::read(self, data, size, off, dtu::CmdFlags::empty())
     }
 
     /// Writes `data` with the DTU write command to the memory region at offset `off`.
@@ -192,8 +190,11 @@ impl MemGate {
     /// Writes the `size` bytes at `data` via the DTU write command to the memory region at offset
     /// `off`.
     pub fn write_bytes(&self, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        let ep = self.gate.activate()?;
-        dtu::DTUIf::write(ep, data, size, off, dtu::CmdFlags::empty())
+        dtu::DTUIf::write(self, data, size, off, dtu::CmdFlags::empty())
+    }
+
+    pub(crate) fn activate(&self) -> Result<dtu::EpId, Error> {
+        self.gate.activate()
     }
 }
 

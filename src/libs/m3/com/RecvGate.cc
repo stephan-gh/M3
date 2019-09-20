@@ -41,27 +41,26 @@ static void *get_rgate_buf(UNUSED size_t off) {
 }
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
-    VPE::self(), ObjCap::INVALID, DTU::SYSC_REP, get_rgate_buf(0),
-        m3::nextlog2<SYSC_RBUF_SIZE>::val, SYSC_RBUF_ORDER, 0
+    VPE::self(), KIF::SEL_SYSC_RG, DTU::SYSC_REP, get_rgate_buf(0),
+        m3::nextlog2<SYSC_RBUF_SIZE>::val, SYSC_RBUF_ORDER, KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
-    VPE::self(), ObjCap::INVALID, DTU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
-        m3::nextlog2<UPCALL_RBUF_SIZE>::val, UPCALL_RBUF_ORDER, 0
+    VPE::self(), KIF::SEL_UPC_RG, DTU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
+        m3::nextlog2<UPCALL_RBUF_SIZE>::val, UPCALL_RBUF_ORDER, KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
-    VPE::self(), ObjCap::INVALID, DTU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
-        m3::nextlog2<DEF_RBUF_SIZE>::val, DEF_RBUF_ORDER, 0
+    VPE::self(), KIF::SEL_DEF_RG, DTU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
+        m3::nextlog2<DEF_RBUF_SIZE>::val, DEF_RBUF_ORDER, KEEP_CAP
 );
-
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_invalid (
     VPE::self(), ObjCap::INVALID, UNBOUND, nullptr, 0, 0, 0
 );
 
 void RecvGate::RecvGateWorkItem::work() {
-    const DTU::Message *msg = DTUIf::fetch_msg(_buf->ep());
+    const DTU::Message *msg = DTUIf::fetch_msg(*_buf);
     if(msg) {
         LLOG(IPC, "Received msg @ " << (void*)msg << " over ep " << _buf->ep());
         GateIStream is(*_buf, msg);
@@ -77,7 +76,7 @@ RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, int order, int 
       _free(0),
       _handler(),
       _workitem() {
-    if(sel() != ObjCap::INVALID)
+    if(sel() != ObjCap::INVALID && sel() >= KIF::FIRST_FREE_SEL)
         Syscalls::create_rgate(sel(), order, msgorder);
 
     if(ep != UNBOUND)
@@ -113,12 +112,13 @@ RecvGate::~RecvGate() {
     deactivate();
 }
 
-void RecvGate::activate() {
+epid_t RecvGate::activate() {
     if(ep() == UNBOUND) {
         epid_t ep = _vpe.alloc_ep();
         _free |= FREE_EP;
         activate(ep);
     }
+    return ep();
 }
 
 void RecvGate::activate(epid_t _ep) {
@@ -137,8 +137,12 @@ void RecvGate::activate(epid_t _ep, uintptr_t addr) {
 
     ep(_ep);
 
-    if(sel() != ObjCap::INVALID)
-        Syscalls::activate(_vpe.ep_to_sel(ep()), sel(), addr);
+    if(sel() != ObjCap::INVALID && sel() >= KIF::FIRST_FREE_SEL) {
+        if(&_vpe == &VPE::self())
+            DTUIf::activate_gate(*this, ep(), addr);
+        else
+            Syscalls::activate(_vpe.ep_to_sel(ep()), sel(), addr);
+    }
 }
 
 void RecvGate::deactivate() noexcept {
@@ -167,19 +171,30 @@ void RecvGate::stop() noexcept {
     _workitem.reset();
 }
 
+const DTU::Message *RecvGate::fetch() {
+    return DTUIf::fetch_msg(*this);
+}
+
 void RecvGate::reply(const void *reply, size_t len, const DTU::Message *msg) {
-    Errors::Code res = DTUIf::reply(ep(), reply, len, msg);
+    Errors::Code res = DTUIf::reply(*this, reply, len, msg);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }
 
 const DTU::Message *RecvGate::receive(SendGate *sgate) {
-    activate();
     const DTU::Message *reply = nullptr;
-    Errors::Code res = DTUIf::receive(ep(), sgate ? sgate->ep() : EP_COUNT, &reply);
+    Errors::Code res = DTUIf::receive(*this, sgate, &reply);
     if(res != Errors::NONE)
         throw MessageException("SendGate became invalid while waiting for reply", res);
     return reply;
+}
+
+void RecvGate::mark_read(const DTU::Message *msg) {
+    DTUIf::mark_read(*this, msg);
+}
+
+void RecvGate::drop_msgs_with(label_t label) noexcept {
+    DTUIf::drop_msgs(ep(), label);
 }
 
 }

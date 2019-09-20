@@ -170,7 +170,7 @@ public:
     }
     ~GateObject();
 
-    EPObject *ep_of_vpe(vpeid_t vpe);
+    EPObject *ep_of_pe(peid_t pe);
 
     void add_ep(EPObject *ep) {
         epuser.append(new EPUser(ep));
@@ -191,7 +191,7 @@ public:
         : GateObject(Capability::RGATE),
           RefCounted(),
           valid(true),
-          vpe(),
+          pe(),
           ep(),
           addr(),
           order(_order),
@@ -208,7 +208,7 @@ public:
     }
 
     bool valid;
-    vpeid_t vpe;
+    peid_t pe;
     epid_t ep;
     goff_t addr;
     int order;
@@ -272,16 +272,16 @@ public:
 
 class EPObject : public SlabObject<EPObject>, public m3::RefCounted {
 public:
-    explicit EPObject(vpeid_t _vpe, epid_t _ep)
+    explicit EPObject(peid_t _pe, epid_t _ep)
         : RefCounted(),
           ep(_ep),
-          vpe(_vpe),
+          pe(_pe),
           gate() {
     }
     ~EPObject();
 
     epid_t ep;
-    vpeid_t vpe;
+    peid_t pe;
     GateObject *gate;
 };
 
@@ -577,9 +577,9 @@ public:
     m3::Reference<SemObject> obj;
 };
 
-inline EPObject *GateObject::ep_of_vpe(vpeid_t vpe) {
+inline EPObject *GateObject::ep_of_pe(peid_t pe) {
     for(auto u = epuser.begin(); u != epuser.end(); ++u) {
-        if(u->ep->vpe == vpe)
+        if(u->ep->pe == pe)
             return u->ep;
     }
     return nullptr;
@@ -588,7 +588,7 @@ inline EPObject *GateObject::ep_of_vpe(vpeid_t vpe) {
 inline void GateObject::print_eps(m3::OStream &os) {
     os << "[";
     for(auto u = epuser.begin(); u != epuser.end(); ) {
-        os << "VPE" << u->ep->vpe << ":EP" << u->ep->ep;
+        os << "PE" << u->ep->pe << ":EP" << u->ep->ep;
         if(++u != epuser.end())
             os << ", ";
     }

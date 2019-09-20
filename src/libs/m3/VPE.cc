@@ -53,9 +53,9 @@ VPEArgs::VPEArgs() noexcept
 
 // don't revoke these. they kernel does so on exit
 VPE::VPE()
-    : ObjCap(VIRTPE, 0, KEEP_CAP),
+    : ObjCap(VIRTPE, KIF::SEL_VPE, KEEP_CAP),
       _pe(env()->pedesc),
-      _mem(MemGate::bind(1)),
+      _mem(MemGate::bind(KIF::SEL_MEM)),
       _next_sel(KIF::FIRST_FREE_SEL),
       _eps(),
       _rbufcur(),
@@ -70,6 +70,17 @@ VPE::VPE()
     init_state();
     init_fs();
 
+    // TODO eventually, we have to talk to PEMux before starting the VPE and not tell it afterwards
+    if(_eps != 0 && USE_PEXCALLS) {
+        for(epid_t ep = DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
+            if(!is_ep_free(ep)) {
+                Errors::Code res;
+                if((res = DTUIf::reserve_ep(&ep)) != Errors::NONE)
+                  VTHROW(res, "Unable to reserve ep " << ep);
+            }
+        }
+    }
+
     // create stdin, stdout and stderr, if not existing
     if(!_fds->exists(STDIN_FD))
         _fds->set(STDIN_FD, Reference<File>(new SerialFile()));
@@ -80,9 +91,9 @@ VPE::VPE()
 }
 
 VPE::VPE(const String &name, const VPEArgs &args)
-    : ObjCap(VIRTPE, VPE::self().alloc_sels(KIF::FIRST_FREE_SEL)),
+    : ObjCap(VIRTPE, VPE::self().alloc_sels(KIF::FIRST_FREE_SEL) + KIF::SEL_VPE),
       _pe(args._pedesc),
-      _mem(MemGate::bind(sel() + 1, 0)),
+      _mem(MemGate::bind(sel() + KIF::SEL_MEM, 0)),
       _next_sel(KIF::FIRST_FREE_SEL),
       _eps(),
       _rbufcur(),
@@ -144,6 +155,15 @@ VPE::~VPE() {
 }
 
 epid_t VPE::alloc_ep() {
+    if(this == &VPE::self() && USE_PEXCALLS) {
+        epid_t ep = EP_COUNT;
+        Errors::Code res = DTUIf::reserve_ep(&ep);
+        if(res != Errors::NONE)
+            throw MessageException("Unable to allocate endpoint", res);
+        _eps |= static_cast<uint64_t>(1) << ep;
+        return ep;
+    }
+
     for(epid_t ep = DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
         if(is_ep_free(ep)) {
             // invalidate the EP if necessary and possible
@@ -156,6 +176,13 @@ epid_t VPE::alloc_ep() {
     }
 
     throw MessageException("Unable to allocate endpoint", Errors::NO_SPACE);
+}
+
+void VPE::free_ep(epid_t id) noexcept {
+    if(this == &VPE::self() && USE_PEXCALLS)
+        DTUIf::free_ep(id);
+
+    _eps &= ~(static_cast<uint64_t>(1) << id);
 }
 
 void VPE::mounts(const std::unique_ptr<MountTable> &ms) noexcept {

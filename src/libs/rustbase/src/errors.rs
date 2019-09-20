@@ -53,9 +53,9 @@ pub enum Code {
     UpcallReply,
     CommitFailed,
     NoKernMem,
+    NotFound,
     ReadFailed,
     WriteFailed,
-    InvalidFs,
 }
 
 // we only use this implementation in debug mode, because it adds a bit of some overhead, errors

@@ -44,7 +44,7 @@ public:
         return _muxes[pe];
     }
 
-    void add_vpe(VPE *vpe);
+    void add_vpe(VPECapability *vpe);
     void remove_vpe(VPE *vpe);
 
     void init_vpe(VPE *vpe);

@@ -46,6 +46,17 @@ public:
         return res;
     }
 
+    static word_t call3(Operation op, word_t arg1, word_t arg2, word_t arg3) {
+        word_t res = op;
+        asm volatile(
+            "int $63"
+            : "+a"(res)
+            : "c"(arg1), "d"(arg2), "D"(arg3)
+            : "memory"
+        );
+        return res;
+    }
+
     static word_t call4(Operation op, word_t arg1, word_t arg2, word_t arg3, word_t arg4) {
         word_t res = op;
         asm volatile(

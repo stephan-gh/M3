@@ -19,8 +19,10 @@
 
 namespace kernel {
 
-VPE &CapTable::vpe() const {
-    return VPEManager::get().vpe(_id - 1);
+VPE *CapTable::vpe() const {
+    if(_vpe != VPE::INVALID_ID)
+        return &VPEManager::get().vpe(_vpe);
+    return nullptr;
 }
 
 void CapTable::revoke_all() {
@@ -50,7 +52,8 @@ Capability *CapTable::obtain(capsel_t dst, Capability *c) {
 
     Capability *nc = c;
     if(c) {
-        if(!vpe().kmem()->alloc(vpe(), sizeof(SGateCapability)))
+        VPE *v = vpe();
+        if(v && !v->kmem()->alloc(*v, sizeof(SGateCapability)))
             return nullptr;
 
         nc = c->clone(this, dst);
@@ -77,10 +80,12 @@ void CapTable::revoke_rec(Capability *c, bool revnext) {
 
     c->revoke();
 
-    auto &vpe = c->table()->vpe();
-    vpe.kmem()->free(vpe, sizeof(SGateCapability));
-    if(c->is_root())
-        vpe.kmem()->free(vpe, c->obj_size());
+    auto *vpe = c->table()->vpe();
+    if(vpe) {
+        vpe->kmem()->free(*vpe, sizeof(SGateCapability));
+        if(c->is_root())
+            vpe->kmem()->free(*vpe, c->obj_size());
+    }
 
     if(child)
         revoke_rec(child, true);
@@ -116,7 +121,7 @@ void CapTable::revoke(const m3::KIF::CapRngDesc &crd, bool own) {
 }
 
 m3::OStream &operator<<(m3::OStream &os, const CapTable &ct) {
-    os << "CapTable[" << ct.id() << "]:\n";
+    os << "CapTable[VPE" << ct._vpe << "]:\n";
     ct._caps.print(os, false);
     return os;
 }

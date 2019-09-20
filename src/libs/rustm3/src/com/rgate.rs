@@ -24,16 +24,19 @@ use core::ops;
 use dtu;
 use errors::Error;
 use goff;
-use kif::INVALID_SEL;
+use kif::{self, INVALID_SEL};
 use syscalls;
 use util;
 use vpe;
 
 const DEF_MSG_ORD: i32 = 6;
 
-static SYS_RGATE: StaticCell<RecvGate> = StaticCell::new(RecvGate::new_def(dtu::SYSC_REP));
-static UPC_RGATE: StaticCell<RecvGate> = StaticCell::new(RecvGate::new_def(dtu::UPCALL_REP));
-static DEF_RGATE: StaticCell<RecvGate> = StaticCell::new(RecvGate::new_def(dtu::DEF_REP));
+static SYS_RGATE: StaticCell<RecvGate> =
+    StaticCell::new(RecvGate::new_def(kif::SEL_SYSC_RG, dtu::SYSC_REP));
+static UPC_RGATE: StaticCell<RecvGate> =
+    StaticCell::new(RecvGate::new_def(kif::SEL_UPC_RG, dtu::UPCALL_REP));
+static DEF_RGATE: StaticCell<RecvGate> =
+    StaticCell::new(RecvGate::new_def(kif::SEL_DEF_RG, dtu::DEF_REP));
 
 bitflags! {
     struct FreeFlags : u8 {
@@ -126,9 +129,9 @@ impl RecvGate {
         DEF_RGATE.get_mut()
     }
 
-    const fn new_def(ep: dtu::EpId) -> Self {
+    const fn new_def(sel: Selector, ep: dtu::EpId) -> Self {
         RecvGate {
-            gate: Gate::new_with_ep(INVALID_SEL, CapFlags::const_empty(), Some(ep)),
+            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, Some(ep)),
             buf: 0,
             order: 0,
             free: FreeFlags { bits: 0 },
@@ -195,14 +198,17 @@ impl RecvGate {
 
     /// Activates this receive gate. Activation is required before [`SendGate`]s connected to this
     /// `RecvGate` can be activated.
-    pub fn activate(&mut self) -> Result<(), Error> {
-        if self.ep().is_none() {
-            let vpe = vpe::VPE::cur();
-            let ep = vpe.alloc_ep()?;
-            self.free |= FreeFlags::FREE_EP;
-            self.activate_ep(ep)?;
+    pub fn activate(&mut self) -> Result<dtu::EpId, Error> {
+        match self.ep() {
+            Some(ep) => Ok(ep),
+            None => {
+                let vpe = vpe::VPE::cur();
+                let ep = vpe.alloc_ep()?;
+                self.free |= FreeFlags::FREE_EP;
+                self.activate_ep(ep)?;
+                Ok(ep)
+            },
         }
-        Ok(())
     }
 
     /// Activates this receive gate on the given endpoint. Activation is required before
@@ -218,7 +224,11 @@ impl RecvGate {
                 self.buf
             };
 
-            self.activate_for(vpe.ep_sel(dtu::FIRST_FREE_EP), ep, buf as goff)?;
+            if self.sel() != INVALID_SEL {
+                dtu::DTUIf::activate_gate(&self.gate, ep, buf as goff)?;
+            }
+            self.gate.set_ep(ep);
+
             if self.buf == 0 {
                 self.buf = buf;
                 self.free |= FreeFlags::FREE_BUF;
@@ -235,12 +245,12 @@ impl RecvGate {
         addr: goff,
     ) -> Result<(), Error> {
         if self.ep().is_none() {
-            self.gate.set_ep(ep);
-
             if self.sel() != INVALID_SEL {
+                // TODO this does not work in general anymore
                 let ep_sel = first_ep + (ep - dtu::FIRST_FREE_EP) as Selector;
                 syscalls::activate(ep_sel, self.sel(), addr)?;
             }
+            self.gate.set_ep(ep);
         }
         Ok(())
     }
@@ -257,8 +267,7 @@ impl RecvGate {
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
     /// a [`GateIStream`] for the message. Otherwise it returns None.
     pub fn fetch(&self) -> Option<GateIStream> {
-        let rep = self.ep().unwrap();
-        let msg = dtu::DTUIf::fetch_msg(rep);
+        let msg = dtu::DTUIf::fetch_msg(self);
         if let Some(m) = msg {
             Some(GateIStream::new(m, self))
         }
@@ -285,13 +294,13 @@ impl RecvGate {
         size: usize,
         msg: &'static dtu::Message,
     ) -> Result<(), Error> {
-        dtu::DTUIf::reply(self.ep().unwrap(), reply, size, msg)
+        dtu::DTUIf::reply(self, reply, size, msg)
     }
 
     /// Marks the given message as 'read', allowing the DTU to overwrite it with a new message.
     #[inline(always)]
     pub fn mark_read(&self, msg: &dtu::Message) {
-        dtu::DTUIf::mark_read(self.ep().unwrap(), msg);
+        dtu::DTUIf::mark_read(self, msg);
     }
 
     /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,
@@ -301,15 +310,14 @@ impl RecvGate {
     /// communication partner is no longer interested in the communication.
     #[inline(always)]
     pub fn receive(&self, sgate: Option<&SendGate>) -> Result<GateIStream, Error> {
-        dtu::DTUIf::receive(self.ep().unwrap(), sgate.map(|sg| sg.ep().unwrap()))
-            .map(|m| GateIStream::new(m, self))
+        dtu::DTUIf::receive(self, sgate).map(|m| GateIStream::new(m, self))
     }
 }
 
 pub(crate) fn init() {
     let rbufs = vpe::VPE::cur().rbufs();
 
-    let mut off = 0;
+    let mut off = cfg::KPEX_RBUF_SIZE;
     RecvGate::syscall().buf = rbufs.get_std(off, cfg::SYSC_RBUF_SIZE);
     RecvGate::syscall().order = util::next_log2(cfg::SYSC_RBUF_SIZE);
     off += cfg::SYSC_RBUF_SIZE;

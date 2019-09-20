@@ -44,10 +44,17 @@ struct KIF {
      */
     static const size_t MAX_MSG_SIZE    = 440;
 
+    static const capsel_t SEL_VPE       = 0;
+    static const capsel_t SEL_MEM       = 1;
+    static const capsel_t SEL_SYSC_SG   = 2;
+    static const capsel_t SEL_SYSC_RG   = 3;
+    static const capsel_t SEL_UPC_RG    = 4;
+    static const capsel_t SEL_DEF_RG    = 5;
+
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_EP_SEL      = 2;
+    static const uint FIRST_EP_SEL      = SEL_DEF_RG + 1;
 
     /**
      * The first free selector
@@ -355,6 +362,22 @@ struct KIF {
         } PACKED;
 
         struct Shutdown : public DefaultRequest {
+        } PACKED;
+    };
+
+    /**
+     * PEMux calls
+     */
+    struct PEMux {
+        enum Operation {
+            ACTIVATE,
+        };
+
+        struct Activate : public DefaultRequest {
+            xfer_t vpe_sel;
+            xfer_t gate_sel;
+            xfer_t ep;
+            xfer_t addr;
         } PACKED;
     };
 

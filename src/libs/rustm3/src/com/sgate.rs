@@ -73,6 +73,12 @@ impl SGateArgs {
 }
 
 impl SendGate {
+    pub(crate) const fn new_def(sel: Selector, ep: dtu::EpId) -> Self {
+        SendGate {
+            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, Some(ep)),
+        }
+    }
+
     /// Creates a new `SendGate` that can send messages to `rgate`.
     pub fn new(rgate: &RecvGate) -> Result<Self, Error> {
         Self::new_with(SGateArgs::new(rgate))
@@ -149,12 +155,11 @@ impl SendGate {
         msg: &[T],
         reply_gate: &'r RecvGate,
     ) -> Result<GateIStream<'r>, Error> {
-        let ep = self.gate.activate()?;
         dtu::DTUIf::call(
-            ep,
+            self,
             msg.as_ptr() as *const u8,
             msg.len() * util::size_of::<T>(),
-            reply_gate.ep().unwrap(),
+            reply_gate,
         )
         .map(|m| GateIStream::new(m, reply_gate))
     }
@@ -167,8 +172,11 @@ impl SendGate {
         reply_gate: &RecvGate,
         rlabel: dtu::Label,
     ) -> Result<(), Error> {
-        let ep = self.gate.activate()?;
-        dtu::DTUIf::send(ep, msg, size, rlabel, reply_gate.ep().unwrap())
+        dtu::DTUIf::send(self, msg, size, rlabel, reply_gate)
+    }
+
+    pub(crate) fn activate(&self) -> Result<dtu::EpId, Error> {
+        self.gate.activate()
     }
 }
 

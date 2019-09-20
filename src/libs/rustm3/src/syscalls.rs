@@ -17,12 +17,16 @@
 //! Contains the system call wrapper functions
 
 use cap::Selector;
+use cell::StaticCell;
+use com::{EpMux, RecvGate, SendGate};
 use core::mem::MaybeUninit;
-use dtu::{DTUIf, EpId, Label, Message, SYSC_REP, SYSC_SEP};
+use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
-use kif::{syscalls, CapRngDesc, PEDesc, Perm};
+use kif::{syscalls, CapRngDesc, PEDesc, Perm, SEL_SYSC_SG, SEL_VPE};
 use util;
+
+static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(SEL_SYSC_SG, SYSC_SEP));
 
 struct Reply<R: 'static> {
     msg: &'static Message,
@@ -31,22 +35,22 @@ struct Reply<R: 'static> {
 
 impl<R: 'static> Drop for Reply<R> {
     fn drop(&mut self) {
-        DTUIf::mark_read(SYSC_REP, self.msg);
+        DTUIf::mark_read(RecvGate::syscall(), self.msg);
     }
 }
 
 fn send<T>(msg: *const T) -> Result<(), Error> {
     DTUIf::send(
-        SYSC_SEP,
+        &*SGATE,
         msg as *const u8,
         util::size_of::<T>(),
         0,
-        SYSC_REP,
+        RecvGate::syscall(),
     )
 }
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
-    let msg = DTUIf::call(SYSC_SEP, msg as *const u8, util::size_of::<T>(), SYSC_REP)?;
+    let msg = DTUIf::call(&*SGATE, msg as *const u8, util::size_of::<T>(), RecvGate::syscall())?;
     let data: &[R] = unsafe { &*(&msg.data as *const [u8] as *const [R]) };
     Ok(Reply {
         msg,
@@ -61,6 +65,10 @@ fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
         0 => Ok(()),
         e => Err(Error::from(e as u32)),
     }
+}
+
+pub fn send_gate() -> &'static SendGate {
+    &*SGATE
 }
 
 /// Creates a new service named `name` at selector `dst` for VPE `vpe`. The receive gate `rgate`
@@ -419,9 +427,17 @@ pub fn noop() -> Result<(), Error> {
 pub fn exit(code: i32) {
     let req = syscalls::VPECtrl {
         opcode: syscalls::Operation::VPE_CTRL.val,
-        vpe_sel: 0,
+        vpe_sel: SEL_VPE as u64,
         op: syscalls::VPEOp::STOP.val,
         arg: code as u64,
     };
     send(&req).unwrap();
+}
+
+pub(crate) fn init() {
+    EpMux::get().set_owned(SYSC_SEP, SEL_SYSC_SG);
+}
+
+pub(crate) fn reinit() {
+    init();
 }

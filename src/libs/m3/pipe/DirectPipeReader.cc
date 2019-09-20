@@ -84,7 +84,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
         }
         else {
             _state->_rgate.activate();
-            const DTU::Message *msg = DTUIf::fetch_msg(_state->_rgate.ep());
+            const DTU::Message *msg = DTUIf::fetch_msg(_state->_rgate);
             if(msg) {
                 _state->_is = std::make_unique<GateIStream>(GateIStream(_state->_rgate, msg));
                 _state->_is->vpull(_state->_pos, _state->_pkglen);

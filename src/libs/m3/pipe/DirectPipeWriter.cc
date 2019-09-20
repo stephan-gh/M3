@@ -123,7 +123,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
             }
             else {
                 _state->_rgate.activate();
-                const DTU::Message *msg = DTUIf::fetch_msg(_state->_rgate.ep());
+                const DTU::Message *msg = DTUIf::fetch_msg(_state->_rgate);
                 if(msg) {
                     GateIStream is(_state->_rgate, msg);
                     is.vpull(len);

@@ -21,6 +21,7 @@ mod pedesc;
 mod perm;
 
 pub mod boot;
+pub mod kpexcalls;
 pub mod service;
 pub mod syscalls;
 pub mod upcalls;
@@ -34,8 +35,15 @@ use dtu;
 /// Represents an invalid capability selector
 pub const INVALID_SEL: CapSel = 0xFFFF;
 
-/// The first selector for the endpoint capabilities (0 and 1 are reserved for VPE cap and mem cap)
-pub const FIRST_EP_SEL: CapSel = 2;
+pub const SEL_VPE: CapSel = 0;
+pub const SEL_MEM: CapSel = 1;
+pub const SEL_SYSC_SG: CapSel = 2;
+pub const SEL_SYSC_RG: CapSel = 3;
+pub const SEL_UPC_RG: CapSel = 4;
+pub const SEL_DEF_RG: CapSel = 5;
+
+/// The first selector for the endpoint capabilities
+pub const FIRST_EP_SEL: CapSel = SEL_DEF_RG + 1;
 
 /// The first free selector
 pub const FIRST_FREE_SEL: CapSel = FIRST_EP_SEL + (dtu::EP_COUNT - dtu::FIRST_FREE_EP) as CapSel;

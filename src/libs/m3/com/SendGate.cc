@@ -34,6 +34,9 @@ SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
 }
 
 void SendGate::activate_for(VPE &vpe, epid_t ep) {
+    if(&vpe == &VPE::self())
+        VTHROW(Errors::NOT_SUP, "Activating SendGate explicitly for current VPE is not supported");
+
     Syscalls::activate(vpe.ep_to_sel(ep), sel(), 0);
 }
 
@@ -44,16 +47,12 @@ void SendGate::send(const void *msg, size_t len, label_t reply_label) {
 }
 
 Errors::Code SendGate::try_send(const void *msg, size_t len, label_t reply_label) {
-    ensure_activated();
-
-    return DTUIf::send(ep(), msg, len, reply_label, _replygate->ep());
+    return DTUIf::send(*this, msg, len, reply_label, *_replygate);
 }
 
 const DTU::Message *SendGate::call(const void *msg, size_t len) {
-    ensure_activated();
-
     const DTU::Message *reply = nullptr;
-    Errors::Code res = DTUIf::call(ep(), msg, len, _replygate->ep(), &reply);
+    Errors::Code res = DTUIf::call(*this, msg, len, *_replygate, &reply);
     if(res != Errors::NONE)
         throw DTUException(res);
     return reply;

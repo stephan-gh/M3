@@ -32,20 +32,19 @@ class CapTable {
     friend m3::OStream &operator<<(m3::OStream &os, const CapTable &ct);
 
 public:
-    explicit CapTable(uint id)
-        : _id(id),
+    explicit CapTable(vpeid_t vpe)
+        : _vpe(vpe),
           _caps() {
     }
-    CapTable(const CapTable &ct, uint id) = delete;
     ~CapTable() {
         revoke_all();
     }
 
-    VPE &vpe() const;
-
-    uint id() const {
-        return _id;
+    vpeid_t vpeid() const {
+        return _vpe;
     }
+    VPE *vpe() const;
+
     bool unused(capsel_t i) const {
         return get(i) == nullptr;
     }
@@ -113,7 +112,7 @@ private:
         return crd.count() == 0 || crd.start() + crd.count() > crd.start();
     }
 
-    uint _id;
+    vpeid_t _vpe;
     m3::Treap<Capability> _caps;
 };
 

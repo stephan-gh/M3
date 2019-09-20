@@ -147,8 +147,8 @@ VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epi
     return vpe;
 }
 
-void VPEManager::add(VPE *vpe) {
-    _vpes[vpe->id()] = vpe;
+void VPEManager::add(VPECapability *vpe) {
+    _vpes[vpe->obj->id()] = &*vpe->obj;
 
     _count++;
     PEManager::get().add_vpe(vpe);

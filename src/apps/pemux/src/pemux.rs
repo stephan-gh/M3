@@ -15,6 +15,7 @@
  */
 
 #![feature(asm)]
+#![feature(const_fn)]
 #![feature(core_intrinsics)]
 #![no_std]
 
@@ -22,8 +23,10 @@
 extern crate base;
 
 mod arch;
+mod eps;
 mod kernreq;
 mod pexcalls;
+mod vpe;
 
 use base::dtu;
 use base::io;
@@ -89,12 +92,11 @@ pub extern "C" fn init() {
     unsafe {
         isr::init();
 
-        // init heap
         heap_init(
             &HEAP as *const u64 as usize,
             &HEAP as *const u64 as usize + HEAP.len() * 8,
         );
-
-        io::init(0, "pemux");
     }
+
+    io::init(0, "pemux");
 }

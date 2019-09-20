@@ -25,6 +25,7 @@ use com::{EpMux, MemGate, SendGate};
 use core::fmt;
 use core::ops::FnOnce;
 use dtu::{EpId, EP_COUNT, FIRST_FREE_EP};
+use dtuif;
 use env;
 use errors::{Code, Error};
 use goff;
@@ -377,9 +378,9 @@ impl VPE {
         const_assert!(EP_COUNT < util::size_of::<u64>() * 8);
 
         VPE {
-            cap: Capability::new(0, CapFlags::KEEP_CAP),
+            cap: Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP),
             pe: PEDesc::new_from(0),
-            mem: MemGate::new_bind(1),
+            mem: MemGate::new_bind(kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(0)), // invalid
             next_sel: kif::FIRST_FREE_SEL,
             eps: 0,
@@ -403,6 +404,15 @@ impl VPE {
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
         self.files = env.load_fds();
+
+        // TODO eventually, we have to talk to PEMux before starting the VPE and not tell it afterwards
+        if self.eps != 0 && dtuif::USE_PEXCALLS {
+            for ep in FIRST_FREE_EP..EP_COUNT {
+                if !self.is_ep_free(ep) {
+                    dtuif::DTUIf::reserve_ep(Some(ep)).unwrap();
+                }
+            }
+        }
     }
 
     /// Returns the currently running `VPE`.
@@ -427,9 +437,9 @@ impl VPE {
         let sels = VPE::cur().alloc_sels(kif::FIRST_FREE_SEL);
 
         let mut vpe = VPE {
-            cap: Capability::new(sels + 0, CapFlags::empty()),
+            cap: Capability::new(sels + kif::SEL_VPE, CapFlags::empty()),
             pe: args.pe,
-            mem: MemGate::new_bind(sels + 1),
+            mem: MemGate::new_bind(sels + kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
             next_sel: kif::FIRST_FREE_SEL,
             eps: 0,
@@ -585,6 +595,12 @@ impl VPE {
     /// Allocates and reserves an endpoint, so that it will be no longer considered by the [`EpMux`]
     /// for endpoint multiplexing.
     pub fn alloc_ep(&mut self) -> Result<EpId, Error> {
+        if self.sel() == VPE::cur().sel() && dtuif::USE_PEXCALLS {
+            let ep = dtuif::DTUIf::reserve_ep(None)?;
+            self.eps |= 1 << ep;
+            return Ok(ep);
+        }
+
         for ep in FIRST_FREE_EP..EP_COUNT {
             if self.is_ep_free(ep) {
                 self.eps |= 1 << ep;
@@ -607,6 +623,10 @@ impl VPE {
 
     /// Free's the given endpoint, assuming that it has been allocated via [`VPE::alloc_ep`].
     pub fn free_ep(&mut self, ep: EpId) {
+        if self.sel() == VPE::cur().sel() && dtuif::USE_PEXCALLS {
+            dtuif::DTUIf::free_ep(ep).unwrap();
+        }
+
         self.eps &= !(1 << ep);
     }
 
@@ -784,6 +804,7 @@ impl VPE {
                 // wait until the env file has been written by the kernel
                 p2c.wait();
 
+                syscalls::reinit();
                 arch::env::reinit();
                 arch::env::get().set_vpe(&self);
                 ::io::reinit();
@@ -990,6 +1011,6 @@ pub(crate) fn init() {
 
 pub(crate) fn reinit() {
     VPE::cur().cap.set_flags(CapFlags::KEEP_CAP);
-    VPE::cur().cap = Capability::new(0, CapFlags::KEEP_CAP);
-    VPE::cur().mem = MemGate::new_bind(1);
+    VPE::cur().cap = Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP);
+    VPE::cur().mem = MemGate::new_bind(kif::SEL_MEM);
 }

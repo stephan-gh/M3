@@ -40,6 +40,7 @@ namespace m3 {
  */
 class Gate : public ObjCap {
     friend class EPMux;
+    friend class DTUIf;
 
     static const epid_t NODESTROY   = EP_COUNT + 1;
 
@@ -58,9 +59,7 @@ public:
           _ep(g._ep) {
         g._ep = NODESTROY;
     }
-    ~Gate() {
-       EPMux::get().remove(this, flags() & KEEP_CAP);
-    }
+    ~Gate();
 
     /**
      * @return the endpoint to which this gate is currently bound (might be UNBOUND)
@@ -78,9 +77,10 @@ public:
     }
 
 protected:
-    void ensure_activated() {
+    epid_t acquire_ep() {
         if(_ep == UNBOUND && sel() != ObjCap::INVALID)
             EPMux::get().switch_to(this);
+        return _ep;
     }
 
 private:

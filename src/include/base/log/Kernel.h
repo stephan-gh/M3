@@ -41,6 +41,7 @@ public:
         MAPPINGS        = 1 << 11,
         KMEM            = 1 << 12,
         KMEM_ALLOCS     = 1 << 13,
+        PEXC            = 1 << 14,
     };
 
     static const int level = INFO;

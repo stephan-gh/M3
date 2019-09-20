@@ -84,7 +84,7 @@ public:
 private:
     vpeid_t get_id();
 
-    void add(VPE *vpe);
+    void add(VPECapability *vpe);
     void remove(VPE *vpe);
 
     vpeid_t _next_id;

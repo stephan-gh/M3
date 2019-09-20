@@ -57,6 +57,7 @@ struct Errors {
         UPCALL_REPLY,
         COMMIT_FAILED,
         NO_KMEM,
+        NOT_FOUND,
         // Socket
         IN_USE,
         INV_STATE,

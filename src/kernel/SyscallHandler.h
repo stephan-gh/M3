@@ -40,6 +40,12 @@ public:
     static epid_t srvep() {
         return ep(SYSC_REP_COUNT);
     }
+    static epid_t pexep() {
+        return ep(SYSC_REP_COUNT + 1);
+    }
+    static epid_t memep() {
+        return ep(SYSC_REP_COUNT + 2);
+    }
 
     static epid_t alloc_ep() {
         for(size_t i = 0; i < SYSC_REP_COUNT; ++i) {

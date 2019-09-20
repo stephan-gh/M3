@@ -70,14 +70,14 @@ pub fn init() {
 }
 
 pub fn check_replies() {
-    let rep = RGATE.get().as_ref().unwrap().ep().unwrap();
+    let rg = RGATE.get().as_ref().unwrap();
 
-    if let Some(msg) = dtu::DTUIf::fetch_msg(rep) {
+    if let Some(msg) = dtu::DTUIf::fetch_msg(rg) {
         if let Ok(serv) = services::get().get_by_id(msg.header.label as Id) {
-            serv.queue().received_reply(rep, msg);
+            serv.queue().received_reply(rg, msg);
         }
         else {
-            dtu::DTUIf::mark_read(rep, msg);
+            dtu::DTUIf::mark_read(rg, msg);
         }
     }
 }
@@ -118,7 +118,7 @@ impl SendQueue {
         services::get().get_by_id(self.sid).unwrap().name()
     }
 
-    fn received_reply(&mut self, rep: dtu::EpId, msg: &'static dtu::Message) {
+    fn received_reply(&mut self, rg: &RecvGate, msg: &'static dtu::Message) {
         log!(RESMNG_SQUEUE, "{}:squeue: received reply", self.serv_name());
 
         assert!(self.state == QState::Waiting);
@@ -127,7 +127,7 @@ impl SendQueue {
         thread::ThreadManager::get().notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
-        dtu::DTUIf::mark_read(rep, msg);
+        dtu::DTUIf::mark_read(rg, msg);
 
         self.send_pending();
     }

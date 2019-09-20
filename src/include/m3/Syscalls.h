@@ -71,6 +71,8 @@ private:
     static void send_receive_throw(const void *msg, size_t size);
     static void exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                               KIF::ExchangeArgs *args, bool obtain);
+
+    static SendGate _sendgate;
 };
 
 }

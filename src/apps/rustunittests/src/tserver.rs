@@ -23,6 +23,7 @@ use m3::errors::{Code, Error};
 use m3::kif;
 use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
+use m3::syscalls;
 use m3::test;
 use m3::vpe::{Activity, VPEArgs, VPE};
 
@@ -139,11 +140,11 @@ pub fn testcliexit() {
         let msg_ptr = &req as *const kif::syscalls::ExchangeSess as *const u8;
         let msg_size = m3::util::size_of::<kif::syscalls::ExchangeSess>();
         wv_assert_ok!(dtu::DTUIf::send(
-            dtu::SYSC_SEP,
+            syscalls::send_gate(),
             msg_ptr,
             msg_size,
             0,
-            dtu::SYSC_REP
+            RecvGate::syscall()
         ));
 
         // now we're ready to be killed

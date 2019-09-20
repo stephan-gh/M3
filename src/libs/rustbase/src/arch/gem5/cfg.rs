@@ -46,10 +46,12 @@ pub const STACK_TOP: usize          = STACK_BOTTOM + STACK_SIZE;
 pub const APP_HEAP_SIZE: usize      = 64 * 1024 * 1024;
 pub const MOD_HEAP_SIZE: usize      = 4 * 1024 * 1024;
 
+pub const KPEX_RBUF_ORD: i32        = 6;
 pub const SYSC_RBUF_ORD: i32        = 9;
-pub const UPCALL_RBUF_ORD: i32      = 9;
+pub const UPCALL_RBUF_ORD: i32      = 6;
 pub const DEF_RBUF_ORD: i32         = 8;
 
+pub const KPEX_RBUF_SIZE: usize     = 1 << KPEX_RBUF_ORD;
 pub const SYSC_RBUF_SIZE: usize     = 1 << SYSC_RBUF_ORD;
 pub const UPCALL_RBUF_SIZE: usize   = 1 << UPCALL_RBUF_ORD;
 pub const DEF_RBUF_SIZE: usize      = 1 << DEF_RBUF_ORD;

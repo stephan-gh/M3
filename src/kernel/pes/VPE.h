@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <base/col/SList.h>
 #include <base/KIF.h>
 
 #include <thread/ThreadManager.h>
@@ -33,12 +32,12 @@ class PEManager;
 class VPECapability;
 class VPEManager;
 
-#define CREATE_CAP(CAP, KOBJ, tbl, sel, ...)                               \
-    (tbl)->vpe().kmem()->alloc((tbl)->vpe(), sizeof(CAP) + sizeof(KOBJ)) ? \
-        new CAP(tbl, sel, new KOBJ(__VA_ARGS__))                         : \
+#define CREATE_CAP(CAP, KOBJ, tbl, sel, ...)                                 \
+    (tbl)->vpe()->kmem()->alloc(*(tbl)->vpe(), sizeof(CAP) + sizeof(KOBJ)) ? \
+        new CAP(tbl, sel, new KOBJ(__VA_ARGS__))                           : \
         nullptr
 
-class VPE : public m3::SListItem, public SlabObject<VPE>, public m3::RefCounted {
+class VPE : public SlabObject<VPE>, public m3::RefCounted {
     friend class PEManager;
     friend class VPECapability;
     friend class VPEManager;
@@ -55,7 +54,6 @@ public:
 
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
-    static const int NOTIFY_MSGSIZE_ORD = m3::nextlog2<64>::val;
 
     static size_t base_kmem() {
         // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
@@ -133,19 +131,7 @@ public:
         return _as;
     }
 
-    goff_t mem_base() const {
-        return _mem_base;
-    }
-    goff_t eps_base() const {
-        return mem_base();
-    }
-    goff_t rbuf_base() const {
-        return mem_base() + EPMEM_SIZE;
-    }
-    void set_mem_base(goff_t addr) {
-        _mem_base = addr;
-        finish_start();
-    }
+    void set_mem_base(goff_t addr);
 
     int exitcode() const {
         return _exitcode;
@@ -175,11 +161,7 @@ public:
     bool check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
     void wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
 
-    bool invalidate_ep(epid_t ep, bool force = false);
-
-    m3::Errors::Code config_rcv_ep(epid_t ep, RGateObject &obj);
-    m3::Errors::Code config_snd_ep(epid_t ep, SGateObject &obj);
-    m3::Errors::Code config_mem_ep(epid_t ep, const MGateObject &obj, goff_t off = 0);
+    m3::Errors::Code activate(EPCapability *epcap, capsel_t gate, size_t addr);
 
     void set_first_sel(capsel_t sel) {
         _first_sel = sel;
@@ -204,13 +186,11 @@ private:
     m3::String _name;
     CapTable _objcaps;
     CapTable _mapcaps;
-    size_t _rbufs_size;
     SendQueue _upcqueue;
     volatile xfer_t *_vpe_wait_sels;
     volatile size_t _vpe_wait_count;
     AddrSpace *_as;
     capsel_t _first_sel;
-    goff_t _mem_base;
 };
 
 }

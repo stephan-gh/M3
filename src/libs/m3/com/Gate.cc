@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016-2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,32 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-#pragma once
-
-#include <base/Common.h>
+#include <m3/com/Gate.h>
+#include <m3/DTUIf.h>
 
 namespace m3 {
 
-enum Operation : word_t {
-    SEND,
-    REPLY,
-    CALL,
-
-    FETCH,
-    RECV,
-    ACK,
-
-    READ,
-    WRITE,
-
-    SLEEP,
-    EXIT,
-
-    ACTIVATE_GATE,
-    REMOVE_GATE,
-
-    RES_EP,
-    FREE_EP,
-};
+Gate::~Gate() {
+    if(ep() != UNBOUND && ep() >= DTU::FIRST_FREE_EP)
+        DTUIf::remove_gate(*this, flags() & KEEP_CAP);
+}
 
 }

@@ -102,6 +102,7 @@ private:
     enum StatusFlags : reg_t {
         PRIV                = 1 << 0,
         PAGEFAULTS          = 1 << 1,
+        IRQ_ON_MSG          = 1 << 2,
     };
 
     enum class EpType {
@@ -225,11 +226,14 @@ public:
     static const size_t HEADER_COUNT        = 128;
     static const size_t HEADER_REGS         = 2;
 
-    static const epid_t SYSC_SEP            = 0;
-    static const epid_t SYSC_REP            = 1;
-    static const epid_t UPCALL_REP          = 2;
-    static const epid_t DEF_REP             = 3;
-    static const epid_t FIRST_FREE_EP       = 4;
+    static const epid_t KPEX_SEP            = 0;
+    static const epid_t KPEX_REP            = 1;
+    static const epid_t SYSC_SEP            = 2;
+    static const epid_t SYSC_REP            = 3;
+    static const epid_t UPCALL_REP          = 4;
+    static const epid_t DEF_REP             = 5;
+    static const epid_t FIRST_USER_EP       = 2;
+    static const epid_t FIRST_FREE_EP       = 6;
 
     static DTU &get() {
         return inst;

@@ -18,6 +18,8 @@
 
 #include <thread/ThreadManager.h>
 
+#include "pes/PEMux.h"
+#include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "cap/Capability.h"
 #include "cap/CapTable.h"
@@ -64,16 +66,16 @@ void KMemObject::free(VPE &vpe, size_t size) {
 GateObject::~GateObject() {
     for(auto user = epuser.begin(); user != epuser.end(); ) {
         auto old = user++;
-        VPE &vpe = VPEManager::get().vpe(old->ep->vpe);
+        PEMux *pemux = PEManager::get().pemux(old->ep->pe);
         // always force-invalidate send gates here
-        vpe.invalidate_ep(old->ep->ep, type == Capability::SGATE);
+        pemux->invalidate_ep(old->ep->ep, type == Capability::SGATE);
         // invalidate reply caps at receiver
         if(type == Capability::SGATE && static_cast<SGateObject*>(this)->rgate_valid()) {
             auto sgate = static_cast<SGateObject*>(this);
-            VPE &receiver = VPEManager::get().vpe(sgate->rgate->vpe);
-            KLOG(EPS, "VPE" << vpe.id() << ":EP" << old->ep->ep << ": invalidating reply caps at "
-                   << "PE" << receiver.pe() << ":EP" << sgate->rgate->ep);
-            DTU::get().inv_reply_remote(receiver.desc(), sgate->rgate->ep, vpe.pe(), old->ep->ep);
+            PEMux *receiver = PEManager::get().pemux(sgate->rgate->pe);
+            KLOG(EPS, "PE" << pemux->pe() << ":EP" << old->ep->ep << ": invalidating reply caps at "
+                   << "PE" << receiver->pe() << ":EP" << sgate->rgate->ep);
+            DTU::get().inv_reply_remote(receiver->desc(), sgate->rgate->ep, pemux->pe(), old->ep->ep);
         }
         old->ep->gate = nullptr;
         delete &*old;
@@ -121,33 +123,38 @@ void SemCapability::revoke() {
 void KMemCapability::revoke() {
     // grant the kernel memory back to our parent, if there is any
     if(is_root() && parent()) {
+        auto *vpe = table()->vpe();
+        assert(vpe != nullptr);
         assert(obj->left == obj->quota);
-        static_cast<KMemCapability*>(parent())->obj->free(table()->vpe(), obj->left);
+        static_cast<KMemCapability*>(parent())->obj->free(*vpe, obj->left);
     }
 }
 
 MapCapability::MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj)
     : Capability(tbl, sel, MAP, _pages),
       obj(_obj) {
-    VPE &vpe = tbl->vpe();
-    vpe.address_space()->map_pages(vpe.desc(), sel << PAGE_BITS, obj->phys, length(),
-                                   (obj->attr & ~(EXCL | KERNEL)));
+    VPE *vpe = tbl->vpe();
+    assert(vpe != nullptr);
+    vpe->address_space()->map_pages(vpe->desc(), sel << PAGE_BITS, obj->phys, length(),
+                                    (obj->attr & ~(EXCL | KERNEL)));
 }
 
 void MapCapability::remap(gaddr_t _phys, int _attr) {
     obj->phys = _phys;
     obj->attr = _attr;
-    VPE &vpe = table()->vpe();
-    vpe.address_space()->map_pages(vpe.desc(), sel() << PAGE_BITS, _phys, length(),
-                                   (obj->attr & ~(EXCL | KERNEL)));
+    VPE *vpe = table()->vpe();
+    assert(vpe != nullptr);
+    vpe->address_space()->map_pages(vpe->desc(), sel() << PAGE_BITS, _phys, length(),
+                                    (obj->attr & ~(EXCL | KERNEL)));
 }
 
 void MapCapability::revoke() {
-    VPE &vpe = table()->vpe();
-    vpe.address_space()->unmap_pages(vpe.desc(), sel() << PAGE_BITS, length());
+    VPE *vpe = table()->vpe();
+    assert(vpe != nullptr);
+    vpe->address_space()->unmap_pages(vpe->desc(), sel() << PAGE_BITS, length());
     if(obj->attr & EXCL) {
         MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length() * PAGE_SIZE));
-        vpe.kmem()->free(vpe, length() * PAGE_SIZE);
+        vpe->kmem()->free(*vpe, length() * PAGE_SIZE);
     }
 }
 
@@ -160,7 +167,7 @@ void SessCapability::revoke() {
 void ServCapability::revoke() {
     // first, reset the receive buffer: make all slots not-occupied
     if(obj->rgate()->activated())
-        obj->vpe().config_rcv_ep(obj->rgate()->ep, *obj->rgate());
+        PEManager::get().pemux(obj->vpe().pe())->config_rcv_ep(obj->rgate()->ep, *obj->rgate());
     // now, abort everything in the sendqueue
     obj->abort();
 }
@@ -170,7 +177,7 @@ size_t VPECapability::obj_size() const {
 }
 
 void Capability::print(m3::OStream &os) const {
-    os << m3::fmt(table()->id(), 2) << " @ " << m3::fmt(sel(), 6);
+    os << m3::fmt(table()->vpeid(), 2) << " @ " << m3::fmt(sel(), 6);
     printInfo(os);
     if(_child)
       _child->printChilds(os);
@@ -189,7 +196,7 @@ void RGateCapability::printInfo(m3::OStream &os) const {
 
 void SGateCapability::printInfo(m3::OStream &os) const {
     os << ": sgate[refs=" << obj->refcount()
-       << ", dst=" << obj->rgate->vpe << ":" << obj->rgate->ep
+       << ", dst=" << obj->rgate->pe << ":" << obj->rgate->ep
        << ", lbl=" << m3::fmt(obj->label, "#0x", sizeof(label_t) * 2)
        << ", crd=#" << m3::fmt(obj->credits, "x")
        << ", eps=";
@@ -227,7 +234,7 @@ void SessCapability::printInfo(m3::OStream &os) const {
 
 void EPCapability::printInfo(m3::OStream &os) const {
     os << ": ep  [refs=" << obj->refcount()
-        << ", vpe=" << obj->vpe
+        << ", pe=" << obj->pe
         << ", ep=" << obj->ep << "]";
 }
 

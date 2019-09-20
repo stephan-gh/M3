@@ -61,23 +61,20 @@ MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t si
 }
 
 void MemGate::activate_for(VPE &vpe, epid_t ep, goff_t offset) {
-    Syscalls::activate(vpe.ep_to_sel(ep), sel(), offset);
     if(&vpe == &VPE::self())
-        Gate::ep(ep);
+        VTHROW(Errors::NOT_SUP, "Activating MemGate explicitly for current VPE is not supported");
+
+    Syscalls::activate(vpe.ep_to_sel(ep), sel(), offset);
 }
 
 void MemGate::read(void *data, size_t len, goff_t offset) {
-    ensure_activated();
-
-    Errors::Code res = DTUIf::read(ep(), data, len, offset, _cmdflags);
+    Errors::Code res = DTUIf::read(*this, data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }
 
 void MemGate::write(const void *data, size_t len, goff_t offset) {
-    ensure_activated();
-
-    Errors::Code res = DTUIf::write(ep(), data, len, offset, _cmdflags);
+    Errors::Code res = DTUIf::write(*this, data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw DTUException(res);
 }

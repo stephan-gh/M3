@@ -16,26 +16,38 @@
 
 #pragma once
 
+#include "cap/CapTable.h"
+#include "pes/VPE.h"
 #include "DTUState.h"
 
 namespace kernel {
 
-class VPE;
-
 class PEMux {
 public:
-    explicit PEMux(peid_t pe)
-        : _vpes(), _pe(pe), _headers(), _dtustate() {
+    static const size_t PEXC_MSGSIZE_ORD     = 7;
+    // TODO is there a better way?
+    static const capsel_t VPE_SEL_BEGIN      = 1000;
+
+    explicit PEMux(peid_t pe);
+
+    peid_t pe() const {
+        return _pe;
+    }
+    VPEDesc desc() const {
+        return VPEDesc(_pe, VPE::INVALID_ID);
     }
 
     bool used() const {
         return _vpes > 0;
     }
-    void add_vpe(VPE *) {
+    void add_vpe(VPECapability *vpe) {
         assert(_vpes == 0);
+        _caps.obtain(VPE_SEL_BEGIN + vpe->obj->id(), vpe);
         _vpes++;
     }
-    void remove_vpe(VPE *) {
+    void remove_vpe(UNUSED VPE *vpe) {
+        // has already been revoked
+        assert(_caps.get(VPE_SEL_BEGIN + vpe->id(), Capability::VIRTPE) == nullptr);
         _vpes--;
         _headers = 0;
     }
@@ -44,27 +56,48 @@ public:
         return _headers;
     }
 
+    goff_t mem_base() const {
+        return _mem_base;
+    }
+    goff_t eps_base() const {
+        return mem_base();
+    }
+    goff_t rbuf_base() const {
+        return mem_base() + EPMEM_SIZE;
+    }
+    void set_mem_base(goff_t addr) {
+        _mem_base = addr;
+    }
+
+    void set_rbufsize(size_t size) {
+        _rbufs_size = size;
+    }
+
     DTUState &dtustate() {
         return _dtustate;
     }
 
-    size_t allocate_headers(size_t num) {
-        // TODO really manage the header space and zero the headers first in case they are reused
-        if(_headers + num > m3::DTU::HEADER_COUNT)
-            return m3::DTU::HEADER_COUNT;
-        _headers += num;
-        return _headers - num;
-    }
+    void handle_call(const m3::DTU::Message *msg);
 
-    void invalidate_eps() {
-        // no update on the PE here, since we don't save the state anyway
-        _dtustate.invalidate_eps(m3::DTU::FIRST_FREE_EP);
-    }
+    void pexcall_activate(const m3::DTU::Message *msg);
+
+    size_t allocate_headers(size_t num);
+
+    bool invalidate_ep(epid_t ep, bool force = false);
+    void invalidate_eps();
+
+    m3::Errors::Code config_rcv_ep(epid_t ep, RGateObject &obj);
+    m3::Errors::Code config_snd_ep(epid_t ep, SGateObject &obj);
+    m3::Errors::Code config_mem_ep(epid_t ep, const MGateObject &obj, goff_t off);
+    void update_ep(epid_t ep);
 
 private:
+    CapTable _caps;
     size_t _vpes;
     peid_t _pe;
     size_t _headers;
+    size_t _rbufs_size;
+    goff_t _mem_base;
     DTUState _dtustate;
 };
 

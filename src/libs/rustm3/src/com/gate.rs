@@ -19,6 +19,7 @@ use cell::Cell;
 use com::EpMux;
 use core::ops;
 use dtu::EpId;
+use dtuif;
 use errors::Error;
 
 /// A gate is one side of a DTU-based communication channel and exists in the variants [`MemGate`],
@@ -92,6 +93,6 @@ impl Gate {
 
 impl ops::Drop for Gate {
     fn drop(&mut self) {
-        EpMux::get().remove(self);
+        dtuif::DTUIf::remove_gate(self, self.cap.flags().contains(CapFlags::KEEP_CAP)).ok();
     }
 }
