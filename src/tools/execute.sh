@@ -37,11 +37,6 @@ if [ "$M3_HDD" = "" ]; then
 fi
 export M3_HDD
 
-error() {
-    echo $1 1>&2
-    exit 1
-}
-
 generate_lines() {
     # workaround for bash: it executes the while-loop in a subprocess
     $1 | (
@@ -73,24 +68,8 @@ generate_kargs() {
             done
             c=$((c + 1))
         done
+        c=$((c + 1))
     )
-}
-
-remove_kernel_args() {
-    for word in $1; do
-        case "$word" in
-            daemon)
-                ;;
-            requires=*)
-                ;;
-            core=*)
-                ;;
-
-            *)
-                echo -n "$word "
-                ;;
-        esac
-    done
 }
 
 build_params_host() {
