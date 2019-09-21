@@ -38,43 +38,43 @@ fi
 export M3_HDD
 
 generate_lines() {
-    # workaround for bash: it executes the while-loop in a subprocess
-    $1 | (
-        while read line || [ -n "$line" ]; do
-            echo $line
-        done
-    )
+    if [ ! -x $1 ]; then
+        echo "error: '$1' does not exist or is not executable" >&2 && exit 1
+    fi
+    $1 | tr '\n' '@'
 }
 
 generate_kargs() {
     c=0
-    generate_lines $1 | ( while read line; do
-            i=0
-            for a in $line; do
-                if [ $c -eq 1 ]; then
-                    if [ $i -eq 0 ]; then
-                        echo -n $a
-                    else
-                        echo -n ",$a"
-                    fi
-                elif [ $c -gt 1 ]; then
-                    if [ $i -eq 0 ]; then
-                        echo -n ",--,$a"
-                    else
-                        echo -n ",$a"
-                    fi
+    lines=$(generate_lines $1) || exit 1
+    IFS=@
+    for line in $lines; do
+        i=0
+        for a in $line; do
+            if [ $c -eq 1 ]; then
+                if [ $i -eq 0 ]; then
+                    echo -n $a
+                else
+                    echo -n ",$a"
                 fi
-                i=$((i + 1))
-            done
-            c=$((c + 1))
+            elif [ $c -gt 1 ]; then
+                if [ $i -eq 0 ]; then
+                    echo -n ",--,$a"
+                else
+                    echo -n ",$a"
+                fi
+            fi
+            i=$((i + 1))
         done
         c=$((c + 1))
-    )
+    done
 }
 
 build_params_host() {
     c=0
-    generate_lines $1 | while read line; do
+    lines=$(generate_lines $1) || exit 1
+    IFS=@
+    for line in $lines; do
         if [ $c -eq 0 ]; then
             echo -n "$bindir/$line "
         else
@@ -85,7 +85,8 @@ build_params_host() {
 }
 
 build_params_gem5() {
-    kargs=`generate_kargs $1 | tr ',' ' '`
+    kargs=$(generate_kargs $1) || exit 1
+    kargs=$(echo $kargs | tr ',' ' ')
 
     if [ "$M3_GEM5_DBG" = "" ]; then
         M3_GEM5_DBG="Dtu"
@@ -101,20 +102,22 @@ build_params_gem5() {
     M3_CORES=${M3_CORES:-16}
 
     c=0
-    cmd=`generate_lines $1 | ( while read line; do
-            if [ $c -eq 0 ]; then
-                echo -n $bindir/$line -- $kargs,
-            else
-                echo -n $bindir/pemux,
-            fi
-            c=$((c + 1))
-        done
+    cmd=""
+    IFS=@
+    lines=$(generate_lines $1) || exit 1
+    for line in $lines; do
+        if [ $c -eq 0 ]; then
+            cmd="$cmd$bindir/$line -- $kargs,"
+        else
+            cmd="$cmd$bindir/pemux,"
+        fi
+        c=$((c + 1))
+    done
 
-        while [ $c -lt $M3_CORES ]; do
-            echo -n $bindir/pemux,
-            c=$((c + 1))
-        done
-    )`
+    while [ $c -lt $M3_CORES ]; do
+        cmd="$cmd$bindir/pemux,"
+        c=$((c + 1))
+    done
 
     if [[ $cmd == *disk* ]]; then
         ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
@@ -128,7 +131,7 @@ build_params_gem5() {
     export M3_GEM5_FS=$build/$M3_FS
     export M3_GEM5_IDE_DRIVE=$build/$M3_HDD
 
-    params=`mktemp`
+    params=$(mktemp)
     trap "rm -f $params" EXIT ERR INT TERM
 
     echo -n "--outdir=$M3_GEM5_OUT --debug-file=gem5.log --debug-flags=$M3_GEM5_DBG" >> $params
@@ -155,7 +158,7 @@ build_params_gem5() {
 
     export M5_PATH=$build
     if [ "$DBG_GEM5" != "" ]; then
-        tmp=`mktemp`
+        tmp=$(mktemp)
         trap "rm -f $tmp" EXIT ERR INT TERM
         echo "b main" >> $tmp
         echo -n "run " >> $tmp
@@ -168,7 +171,7 @@ build_params_gem5() {
 }
 
 if [ "$M3_TARGET" = "host" ]; then
-    params=`build_params_host $script`
+    params=$(build_params_host $script) || exit 1
 
     if [[ $params == *disk* ]]; then
         ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
@@ -177,7 +180,7 @@ if [ "$M3_TARGET" = "host" ]; then
     if [ "$M3_VALGRIND" != "" ]; then
         valgrind $M3_VALGRIND $params
     else
-        setarch `uname -m` -R $params
+        setarch $(uname -m) -R $params
     fi
 elif [ "$M3_TARGET" = "gem5" ]; then
     build_params_gem5 $script
