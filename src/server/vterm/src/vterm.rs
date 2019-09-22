@@ -108,6 +108,7 @@ impl Channel {
         self.pos += self.len - self.pos;
 
         if self.pos == self.len {
+            #[allow(clippy::uninit_assumed_init)]
             let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
             let len = Serial::default().read(&mut buf)?;
             self.mem.write(&buf[0..len], 0)?;
@@ -157,6 +158,7 @@ impl Channel {
 
     fn flush(&mut self, nbytes: usize) -> Result<(), Error> {
         if nbytes > 0 {
+            #[allow(clippy::uninit_assumed_init)]
             let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
             self.mem.read(&mut buf[0..nbytes], 0)?;
             Serial::default().write(&buf[0..nbytes])?;

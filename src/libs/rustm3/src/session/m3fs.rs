@@ -109,6 +109,7 @@ impl FileSystem for M3FS {
 
         flags.remove(OpenFlags::NOSESS);
 
+        #[allow(clippy::uninit_assumed_init)]
         let mut args = kif::syscalls::ExchangeArgs {
             count: 1,
             vals: kif::syscalls::ExchangeUnion {

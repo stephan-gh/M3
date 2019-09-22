@@ -79,6 +79,7 @@ pub fn send_gate() -> &'static SendGate {
 /// Creates a new service named `name` at selector `dst` for VPE `vpe`. The receive gate `rgate`
 /// will be used for service calls from the kernel to the server.
 pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
+    #[allow(clippy::uninit_assumed_init)]
     let mut req = syscalls::CreateSrv {
         opcode: syscalls::Operation::CREATE_SRV.val,
         dst_sel: u64::from(dst),
@@ -188,6 +189,7 @@ pub fn create_vpe(
     rep: EpId,
     kmem: Selector,
 ) -> Result<PEDesc, Error> {
+    #[allow(clippy::uninit_assumed_init)]
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
         dst_crd: dst.value(),
@@ -290,6 +292,7 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
 /// as a VPE exists. In both cases, the kernel returns the selector of the VPE that exited and the
 /// exitcode given by the VPE.
 pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
+    #[allow(clippy::uninit_assumed_init)]
     let mut req = syscalls::VPEWait {
         opcode: syscalls::Operation::VPE_WAIT.val,
         event,

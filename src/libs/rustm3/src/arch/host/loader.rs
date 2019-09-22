@@ -117,6 +117,7 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
             return None;
         }
 
+        #[allow(clippy::uninit_assumed_init)]
         let mut info: libc::stat = MaybeUninit::uninit().assume_init();
         assert!(libc::fstat(fd, &mut info) != -1);
         let size = info.st_size as usize;

@@ -23,7 +23,7 @@ impl Log for Logger {
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             let level_string = record.level().to_string();
-            let target = if record.target().len() > 0 {
+            let target = if !record.target().is_empty() {
                 record.target()
             }
             else {
@@ -60,7 +60,7 @@ fn usage(prog: &str) -> ! {
 }
 
 fn main() -> Result<(), error::Error> {
-    let level = Level::from_str(&env::var("RUST_LOG").unwrap_or("error".to_string()))?;
+    let level = Level::from_str(&env::var("RUST_LOG").unwrap_or_else(|_| "error".to_string()))?;
     log::set_boxed_logger(Box::new(Logger { level }))?;
     log::set_max_level(level.to_level_filter());
 

@@ -120,8 +120,8 @@ impl<'n> PE<'n> {
         debug!("{}: PE{}: sleep end ({})", now, self.id, duration);
         assert!(self.susp_start > 0);
 
-        for (_, bin) in &mut self.bins {
-            for (_, thread) in &mut bin.stacks {
+        for bin in self.bins.values_mut() {
+            for thread in bin.stacks.values_mut() {
                 if thread.switched != 0 {
                     thread.switched += duration;
                 }
@@ -135,7 +135,7 @@ impl<'n> PE<'n> {
 
     fn snapshot(&self) {
         println!("PE{}:", self.id);
-        for (_, bin) in &self.bins {
+        for bin in self.bins.values() {
             for (tid, thread) in &bin.stacks {
                 // ignore empty threads
                 if thread.stack.is_empty() {
@@ -277,6 +277,7 @@ fn is_isr_exit(isa: &crate::ISA, line: &str) -> bool {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_return(
     mode: crate::Mode,
     wr: &mut StdoutLock,

@@ -45,6 +45,10 @@ pub fn size_of_val<T: ?Sized>(val: &T) -> usize {
 }
 
 /// Converts the given C string into a string slice
+///
+/// # Safety
+///
+/// This function assumes that `s` points to a permanently valid and null-terminated C string
 pub unsafe fn cstr_to_str(s: *const i8) -> &'static str {
     let len = libc::strlen(s);
     let sl = slice::from_raw_parts(s, len as usize + 1);
@@ -52,11 +56,21 @@ pub unsafe fn cstr_to_str(s: *const i8) -> &'static str {
 }
 
 /// Creates a slice of `T`s for the given address range
+///
+/// # Safety
+///
+/// This function assumes that `start` points to a permanently valid array of `size` bytes
+/// containing `T`s
 pub unsafe fn slice_for<T>(start: *const T, size: usize) -> &'static [T] {
     slice::from_raw_parts(start, size)
 }
 
 /// Creates a mutable slice of `T`s for the given address range
+///
+/// # Safety
+///
+/// This function assumes that `start` points to a permanently valid and writable array of `size`
+/// bytes containing `T`s
 pub unsafe fn slice_for_mut<T>(start: *mut T, size: usize) -> &'static mut [T] {
     slice::from_raw_parts_mut(start, size)
 }

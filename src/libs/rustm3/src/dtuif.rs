@@ -103,7 +103,7 @@ impl DTUIf {
                 size,
                 rg.sel() as usize,
             )
-            .map(|m| Self::addr_to_msg(m))
+            .map(Self::addr_to_msg)
         }
         else {
             let ep = sg.activate()?;
@@ -117,7 +117,7 @@ impl DTUIf {
         if USE_PEXCALLS {
             pexcalls::call1(pexif::Operation::FETCH, rg.sel() as usize)
                 .ok()
-                .map(|m| Self::addr_to_msg(m))
+                .map(Self::addr_to_msg)
         }
         else {
             dtu::DTU::fetch_msg(rg.ep().unwrap())
@@ -146,7 +146,7 @@ impl DTUIf {
                 None => kif::INVALID_SEL as usize,
             };
             pexcalls::call2(pexif::Operation::RECV, rg.sel() as usize, sgsel)
-                .map(|m| Self::addr_to_msg(m))
+                .map(Self::addr_to_msg)
         }
         else {
             loop {

@@ -190,6 +190,7 @@ pub trait Write {
 /// Convenience method that reads `util::size_of::<T>()` bytes from the given source and interprets
 /// them as a `T`
 pub fn read_object<T: Sized>(r: &mut dyn Read) -> Result<T, Error> {
+    #[allow(clippy::uninit_assumed_init)]
     let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
     r.read_exact(util::object_to_bytes_mut(&mut obj))
         .map(|_| obj)

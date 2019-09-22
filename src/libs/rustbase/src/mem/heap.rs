@@ -201,7 +201,7 @@ extern "C" fn heap_oom_callback(size: usize) -> bool {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_alloc(
+extern "C" fn __rdl_alloc(
     size: usize,
     _align: usize,
     _err: *mut u8,
@@ -210,12 +210,12 @@ pub unsafe extern "C" fn __rdl_alloc(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_dealloc(ptr: *mut libc::c_void, _size: usize, _align: usize) {
-    heap_free(ptr);
+extern "C" fn __rdl_dealloc(ptr: *mut libc::c_void, _size: usize, _align: usize) {
+    unsafe { heap_free(ptr) };
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_realloc(
+extern "C" fn __rdl_realloc(
     ptr: *mut libc::c_void,
     _old_size: usize,
     _old_align: usize,
@@ -223,30 +223,30 @@ pub unsafe extern "C" fn __rdl_realloc(
     _new_align: usize,
     _err: *mut u8,
 ) -> *mut libc::c_void {
-    heap_realloc(ptr, new_size)
+    unsafe { heap_realloc(ptr, new_size) }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_alloc_zeroed(
+extern "C" fn __rdl_alloc_zeroed(
     size: usize,
     _align: usize,
     _err: *mut u8,
 ) -> *mut libc::c_void {
-    heap_calloc(size, 1)
+    unsafe { heap_calloc(size, 1) }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_oom(_err: *const u8) -> ! {
-    intrinsics::abort();
+extern "C" fn __rdl_oom(_err: *const u8) -> ! {
+    unsafe { intrinsics::abort() };
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_usable_size(_layout: *const u8, _min: *mut usize, _max: *mut usize) {
+extern "C" fn __rdl_usable_size(_layout: *const u8, _min: *mut usize, _max: *mut usize) {
     // TODO implement me
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_alloc_excess(
+extern "C" fn __rdl_alloc_excess(
     size: usize,
     _align: usize,
     _excess: *mut usize,
@@ -257,7 +257,7 @@ pub unsafe extern "C" fn __rdl_alloc_excess(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_realloc_excess(
+extern "C" fn __rdl_realloc_excess(
     ptr: *mut libc::c_void,
     _old_size: usize,
     _old_align: usize,
@@ -267,11 +267,11 @@ pub unsafe extern "C" fn __rdl_realloc_excess(
     _err: *mut u8,
 ) -> *mut libc::c_void {
     // TODO is that correct?
-    heap_realloc(ptr, new_size)
+    unsafe { heap_realloc(ptr, new_size) }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_grow_in_place(
+extern "C" fn __rdl_grow_in_place(
     _ptr: *mut libc::c_void,
     _old_size: usize,
     _old_align: usize,
@@ -283,7 +283,7 @@ pub unsafe extern "C" fn __rdl_grow_in_place(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn __rdl_shrink_in_place(
+extern "C" fn __rdl_shrink_in_place(
     _ptr: *mut libc::c_void,
     _old_size: usize,
     _old_align: usize,

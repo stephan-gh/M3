@@ -37,6 +37,7 @@ pub struct ArraySink {
 
 impl Default for ArraySink {
     fn default() -> Self {
+        #[allow(clippy::uninit_assumed_init)]
         ArraySink {
             arr: unsafe { MaybeUninit::uninit().assume_init() },
             pos: 0,

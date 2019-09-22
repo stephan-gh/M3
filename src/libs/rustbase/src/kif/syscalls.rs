@@ -102,6 +102,7 @@ impl ExchangeArgs {
 
 impl Default for ExchangeArgs {
     fn default() -> Self {
+        #[allow(clippy::uninit_assumed_init)]
         ExchangeArgs {
             count: 0,
             vals: unsafe { MaybeUninit::uninit().assume_init() },

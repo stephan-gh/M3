@@ -135,6 +135,7 @@ fn create_sess() {
     ));
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn create_map() {
     if !VPE::cur().pe().has_virtmem() {
         return;
@@ -194,6 +195,7 @@ fn create_map() {
     );
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn create_vpe() {
     let cap_count = FIRST_FREE_SEL;
     let sels = VPE::cur().alloc_sels(cap_count);

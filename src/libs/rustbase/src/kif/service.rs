@@ -102,6 +102,7 @@ impl fmt::Debug for ExchangeData {
 
 impl Unmarshallable for ExchangeData {
     fn unmarshall(s: &mut dyn Source) -> Self {
+        #[allow(clippy::uninit_assumed_init)]
         let mut res = ExchangeData {
             caps: s.pop_word(),
             args: unsafe { MaybeUninit::uninit().assume_init() },

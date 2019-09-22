@@ -97,6 +97,7 @@ pub struct Session {
 
 impl Session {
     pub fn new(sel: Selector, serv: &mut Service, arg: &str) -> Result<(Selector, Self), Error> {
+        #[allow(clippy::uninit_assumed_init)]
         let mut smsg = kif::service::Open {
             opcode: kif::service::Operation::OPEN.val as u64,
             arglen: (arg.len() + 1) as u64,

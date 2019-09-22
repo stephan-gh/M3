@@ -248,7 +248,7 @@ impl DTU {
     }
 
     pub fn sleep() -> Result<(), Error> {
-        Self::sleep_for(300000)
+        Self::sleep_for(300_000)
     }
 
     pub fn sleep_for(cycles: u64) -> Result<(), Error> {

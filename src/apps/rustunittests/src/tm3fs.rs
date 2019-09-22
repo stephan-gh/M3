@@ -23,6 +23,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, meta_ops);
 }
 
+#[allow(clippy::cognitive_complexity)]
 pub fn meta_ops() {
     wv_assert_ok!(VFS::mkdir("/example", 0o755));
     wv_assert_err!(VFS::mkdir("/example", 0o755), Code::Exists);
