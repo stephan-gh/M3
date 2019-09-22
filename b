@@ -14,10 +14,12 @@ if [ -z $M3_GEM5_OUT ]; then
     M3_GEM5_OUT="run"
 fi
 
+# set build mode
 if [ "$M3_BUILD" != "debug" ] && [ "$M3_BUILD" != "release" ]; then
     echo "Build type $M3_BUILD not supported." >&2 && exit 1
 fi
 
+# set target
 if [ "$M3_TARGET" = "gem5" ]; then
     if [ "$M3_ISA" != "arm" ] && [ "$M3_ISA" != "x86_64" ]; then
         echo "ISA $M3_ISA not supported for target gem5." >&2 && exit 1
@@ -33,6 +35,7 @@ fi
 
 export M3_BUILD M3_TARGET M3_ISA
 
+# determine cross compiler and rust ABI based on target and ISA
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
 crossprefix=''
 if [ "$M3_TARGET" = "gem5" ]; then
@@ -160,6 +163,7 @@ fi
 rebuilt=false
 filesid=$build/.scons2ninja-files.id
 find src -type f > $filesid.new
+# redo the conversion from scons to ninja if any file was added/removed
 if [ ! -f $build/build.ninja ] || ! cmp $filesid.new $filesid &>/dev/null; then
     echo "Configuring for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
     ./src/tools/scons2ninja.py --dir $build >&2 || exit 1
@@ -179,14 +183,17 @@ case "$cmd" in
         ;;
 esac
 
+# build binaries etc.
 echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
 ninja -f $build/build.ninja $ninjaargs >&2 || exit 1
 
+# redo conversion from scons to ninja for FS images
 if [ ! -f $build/fsdata/build.ninja ] || $rebuilt; then
     echo "Configuring file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
     ./src/tools/scons2ninja.py --dir $build/fsdata build_fs=1 >&2 || exit 1
 fi
 
+# now build the FS images
 echo "Building file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
 ninja -f $build/fsdata/build.ninja $ninjaargs >&2 || exit 1
 
