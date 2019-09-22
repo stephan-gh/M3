@@ -47,8 +47,10 @@ impl RBufSpace {
 
     pub fn alloc(&mut self, pe: PEDesc, size: usize) -> Result<usize, Error> {
         if self.end == 0 {
-            let buf_sizes = cfg::KPEX_RBUF_SIZE + cfg::SYSC_RBUF_SIZE +
-                            cfg::UPCALL_RBUF_SIZE + cfg::DEF_RBUF_SIZE;
+            let buf_sizes = cfg::KPEX_RBUF_SIZE
+                + cfg::SYSC_RBUF_SIZE
+                + cfg::UPCALL_RBUF_SIZE
+                + cfg::DEF_RBUF_SIZE;
             if pe.has_virtmem() {
                 self.cur = cfg::RECVBUF_SPACE + buf_sizes;
                 self.end = cfg::RECVBUF_SPACE + cfg::RECVBUF_SIZE;

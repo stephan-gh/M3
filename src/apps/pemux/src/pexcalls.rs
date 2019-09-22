@@ -217,7 +217,13 @@ fn pexcall_activate_gate(state: &mut isr::State) -> Result<(), Error> {
     let ep = state.r[isr::PEXC_ARG2] as dtu::EpId;
     let addr = state.r[isr::PEXC_ARG3];
 
-    log!(PEX_CALLS, "activate_gate(gate={}, ep={}, addr={:#x})", gate, ep, addr);
+    log!(
+        PEX_CALLS,
+        "activate_gate(gate={}, ep={}, addr={:#x})",
+        gate,
+        ep,
+        addr
+    );
 
     vpe::cur().activate_gate(gate, ep, addr)
 }
@@ -288,7 +294,12 @@ pub fn handle_call(state: &mut isr::State) {
     };
 
     if let Err(e) = &res {
-        log!(PEX_CALLS, "\x1B[1mError for call {:?}: {:?}\x1B[0m", call, e.code());
+        log!(
+            PEX_CALLS,
+            "\x1B[1mError for call {:?}: {:?}\x1B[0m",
+            call,
+            e.code()
+        );
     }
 
     isr::toggle_ints(false);

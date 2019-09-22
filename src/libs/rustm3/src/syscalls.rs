@@ -50,7 +50,12 @@ fn send<T>(msg: *const T) -> Result<(), Error> {
 }
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
-    let msg = DTUIf::call(&*SGATE, msg as *const u8, util::size_of::<T>(), RecvGate::syscall())?;
+    let msg = DTUIf::call(
+        &*SGATE,
+        msg as *const u8,
+        util::size_of::<T>(),
+        RecvGate::syscall(),
+    )?;
     let data: &[R] = unsafe { &*(&msg.data as *const [u8] as *const [R]) };
     Ok(Reply {
         msg,
