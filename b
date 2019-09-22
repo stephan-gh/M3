@@ -70,7 +70,6 @@ help() {
     echo "    clean:                   do a clean in M3"
     echo "    distclean:               remove all build-dirs"
     echo "    run <script>:            run the specified <script>. See directory boot."
-    echo "    runq <script>:           run the specified <script> quietly."
     echo "    runvalgrind <script>:    run the specified script in valgrind."
     echo "    clippy:                  run clippy for rust code."
     echo "    doc:                     generate rust documentation."
@@ -236,15 +235,6 @@ case "$cmd" in
             else
                 ./src/tools/execute.sh $script 2>&1 | tee $M3_GEM5_OUT/log.txt
             fi
-        fi
-        ;;
-
-    runq)
-        if [ "$M3_TARGET" = "host" ]; then
-            ./src/tools/execute.sh $script
-            kill_m3_procs 2>/dev/null
-        else
-            ./src/tools/execute.sh ./$script >/dev/null
         fi
         ;;
 
