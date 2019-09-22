@@ -153,7 +153,7 @@ build_params_gem5() {
     trap "rm -f $params" EXIT ERR INT TERM
 
     echo -n "--outdir=$M3_GEM5_OUT --debug-file=gem5.log --debug-flags=$M3_GEM5_DBG" >> $params
-    if [ "$M3_PAUSE_PE" != "" ]; then
+    if [ "$M3_GEM5_PAUSE" != "" ]; then
         echo -n " --listener-mode=on" >> $params
     fi
     if [ "$M3_GEM5_DBGSTART" != "" ]; then
@@ -161,8 +161,8 @@ build_params_gem5() {
     fi
     echo -n " $M3_GEM5_CFG --cpu-type $M3_GEM5_CPU --isa $M3_ISA --cmd \"$cmd\"" >> $params
     echo -n " --cpu-clock=$M3_GEM5_CPUFREQ --sys-clock=$M3_GEM5_MEMFREQ" >> $params
-    if [ "$M3_PAUSE_PE" != "" ]; then
-        echo -n " --pausepe=$M3_PAUSE_PE" >> $params
+    if [ "$M3_GEM5_PAUSE" != "" ]; then
+        echo -n " --pausepe=$M3_GEM5_PAUSE" >> $params
     fi
     if [ "$M3_GEM5_CC" != "" ]; then
         echo -n " --coherent" >> $params

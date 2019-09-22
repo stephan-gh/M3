@@ -127,7 +127,7 @@ help() {
     echo "    M3_GEM5_CPUFREQ:         The CPU frequency (1GHz by default)."
     echo "    M3_GEM5_MEMFREQ:         The memory frequency (333MHz by default)."
     echo "    M3_GEM5_FSNUM:           The number of times to load the FS image."
-    echo "    M3_PAUSE_PE:             Pause the PE with given number until GDB connects"
+    echo "    M3_GEM5_PAUSE:           Pause the PE with given number until GDB connects"
     echo "                             (only on gem5 and with command dbg=)."
     exit 0
 }
@@ -332,10 +332,10 @@ case "$cmd" in
                 sleep 1
             done
 
-            if [ "$M3_PAUSE_PE" != "" ]; then
-                port=$(($M3_PAUSE_PE + 7000))
+            if [ "$M3_GEM5_PAUSE" != "" ]; then
+                port=$(($M3_GEM5_PAUSE + 7000))
             else
-                echo "Warning: M3_PAUSE_PE not specified; gem5 won't wait for GDB."
+                echo "Warning: M3_GEM5_PAUSE not specified; gem5 won't wait for GDB."
                 pe=`grep --text "^PE.*$build/bin/${cmd#dbg=}" $M3_GEM5_OUT/log.txt | cut -d : -f 1`
                 port=$((${pe#PE} + 7000))
             fi
