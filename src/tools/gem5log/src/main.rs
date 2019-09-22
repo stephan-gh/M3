@@ -80,6 +80,9 @@ fn main() -> Result<(), error::Error> {
     };
 
     let (snapshot_time, bin_start) = if mode == Mode::Snapshot {
+        if args.len() < 5 {
+            usage(&args[0]);
+        }
         let time = args.get(3).expect("Invalid arguments");
         (time.parse::<u64>().expect("Invalid time"), 4)
     }
