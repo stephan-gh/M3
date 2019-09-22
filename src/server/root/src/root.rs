@@ -15,7 +15,6 @@
  */
 
 #![no_std]
-#![feature(const_vec_new)]
 
 #[macro_use]
 extern crate m3;

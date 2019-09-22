@@ -16,7 +16,6 @@
 
 #![feature(asm)]
 #![feature(const_fn)]
-#![feature(const_vec_new)]
 #![feature(core_intrinsics)]
 #![feature(trace_macros)]
 #![no_std]
