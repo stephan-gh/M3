@@ -297,7 +297,8 @@ case "$cmd" in
 
             # ensure that we can ptrace non-child-processes
             if [ "`cat /proc/sys/kernel/yama/ptrace_scope`" = "1" ]; then
-                echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+                echo "We need to enable ptrace for non-child processes via sudo first:"
+                echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope || exit 1
             fi
 
             prog="${cmd#dbg=}"
