@@ -46,15 +46,6 @@ else :
 # TODO: Make this a tool-specific map
 BINARY_FLAGS = ["-framework", "-arch", "-x", "--output-format", "-isystem", "-include"]
 
-if sys.platform == 'win32' :
-  LIB_PREFIX = ""
-  LIB_SUFFIX = ""
-  EXE_SUFFIX = ".exe"
-else :
-  LIB_PREFIX = "lib"
-  LIB_SUFFIX = ".a"
-  EXE_SUFFIX = ""
-
 def is_regexp(x) :
   return 'match' in dir(x)
 
@@ -137,7 +128,7 @@ def get_built_libs(libs, libpaths, outputs) :
   result = []
   for libpath in libpaths :
     for lib in libs :
-      lib_libpath = os.path.join(libpath, LIB_PREFIX + lib + LIB_SUFFIX)
+      lib_libpath = os.path.join(libpath, 'lib' + lib + '.a')
       if os.path.abspath(lib_libpath) in canonical_outputs :
         result.append(lib_libpath)
   return result
@@ -156,7 +147,6 @@ def parse_tool_command(line) :
       break
   if tool in ["cc", "cxx"] and not "-c" in flags :
     tool = "link"
-  tool = tool.replace('-qt4', '')
   return tool, command, flags
 
 def rglob(pattern, root = '.') :
@@ -278,106 +268,47 @@ ninja = NinjaBuilder()
 
 ninja.pool('scons_pool', depth = 1)
 
-if sys.platform == 'win32' :
-  ninja.rule('cl',
-    deps = 'msvc',
-    command = '$cl /showIncludes $clflags -c $in /Fo$out',
-    description = 'CXX $out')
+ninja.rule('cxx',
+  deps = 'gcc',
+  depfile = '$out.d',
+  command = '$cxx -MD -MF $out.d $cxxflags -c $in -o $out',
+  description = 'CXX $out')
 
-  ninja.rule('link',
-    command = '$link $in $linkflags $libs /out:$out',
-    description = 'LINK $out')
+ninja.rule('cc',
+  deps = 'gcc',
+  depfile = '$out.d',
+  command = '$cc -MD -MF $out.d $ccflags -c $in -o $out',
+  description = 'CC $out')
 
-  ninja.rule('link_mt',
-    command = '$link $in $linkflags $libs /out:$out ; $mt $mtflags',
-    description = 'LINK $out')
+ninja.rule('link',
+  command = '$link -o $out $in $linkflags',
+  description = 'LINK $out')
 
-  ninja.rule('lib',
-    command = '$lib $libflags /out:$out $in',
-    description = 'AR $out')
+ninja.rule('strip',
+  command = '$strip $stripflags -o $out $in',
+  description = 'STRIP $out')
 
-  ninja.rule('rc',
-    command = '$rc $rcflags /Fo$out $in',
-    description = 'RC $out')
+ninja.rule('cpp',
+  command = '$cpp $cppflags $in $out',
+  description = 'CPP $out')
 
-  # SCons doesn't touch files if they didn't change, which makes
-  # ninja rebuild the file over and over again. There's no touch on Windows :(
-  # Could implement it with a script, but for now, delete the file if
-  # this problem occurs. I'll fix it if it occurs too much.
-  ninja.rule('scons',
-    command = scons_cmd + " ${scons_args} $out",
-    pool = 'scons_pool',
-    description = 'GEN $out')
+ninja.rule('ar',
+  command = '$ar $arflags $out $in && ranlib $out',
+  description = 'AR $out')
 
-  ninja.rule('install', command = 'cmd /c copy $in $out')
-  ninja.rule('run', command = '$in')
-else :
-  ninja.rule('cxx',
-    deps = 'gcc',
-    depfile = '$out.d',
-    command = '$cxx -MD -MF $out.d $cxxflags -c $in -o $out',
-    description = 'CXX $out')
+ninja.rule('ln',
+  command = '$ln $lnflags $$(readlink -f $in) $out',
+  description = 'LN $out')
 
-  ninja.rule('cc',
-    deps = 'gcc',
-    depfile = '$out.d',
-    command = '$cc -MD -MF $out.d $ccflags -c $in -o $out',
-    description = 'CC $out')
+# SCons doesn't touch files if they didn't change, which makes
+# ninja rebuild the file over and over again. Touching solves this.
+ninja.rule('scons',
+  command = scons_cmd + " $out && touch $out",
+  pool = 'scons_pool',
+  description = 'GEN $out')
 
-  ninja.rule('link',
-    command = '$link -o $out $in $linkflags',
-    description = 'LINK $out')
-
-  ninja.rule('strip',
-    command = '$strip $stripflags -o $out $in',
-    description = 'STRIP $out')
-
-  ninja.rule('cpp',
-    command = '$cpp $cppflags $in $out',
-    description = 'CPP $out')
-
-  ninja.rule('ar',
-    command = '$ar $arflags $out $in && ranlib $out',
-    description = 'AR $out')
-
-  ninja.rule('ln',
-    command = '$ln $lnflags $$(readlink -f $in) $out',
-    description = 'LN $out')
-
-  # SCons doesn't touch files if they didn't change, which makes
-  # ninja rebuild the file over and over again. Touching solves this.
-  ninja.rule('scons',
-    command = scons_cmd + " $out && touch $out",
-    pool = 'scons_pool',
-    description = 'GEN $out')
-
-  ninja.rule('install', command = 'install $in $out')
-  ninja.rule('run', command = './$in')
-
-
-ninja.rule('moc',
-  command = '$moc $mocflags -o $out $in',
-  description = 'MOC $out')
-
-ninja.rule('rcc',
-  command = '$rcc $rccflags -name $name -o $out $in',
-  description = 'RCC $out')
-
-ninja.rule('uic',
-  command = '$uic $uicflags -o $out $in',
-  description = 'UIC $out')
-
-ninja.rule('lrelease',
-  command = '$lrelease $lreleaseflags $in -qm $out',
-  description = 'LRELEASE $out')
-
-ninja.rule('ibtool',
-  command = '$ibtool $ibtoolflags --compile $out $in',
-  description = 'IBTOOL $out')
-
-ninja.rule('dsymutil',
-  command = '$dsymutil $dsymutilflags -o $out $in',
-  description = 'DSYMUTIL $out')
+ninja.rule('install', command = 'install $in $out')
+ninja.rule('run', command = './$in')
 
 ninja.rule('generator',
   command = "python " + SCRIPT + " ${own_args} ${scons_args}",
@@ -511,14 +442,13 @@ for line in build_lines :
       ninja.build(target, 'install', source)
     continue
 
-  # Tools
+  ############################################################
+  # tools
+  ############################################################
+
   tool, command, flags = parse_tool_command(line)
   if not tool in tools:
     tools[tool] = command[0]
-
-  ############################################################
-  # clang/gcc tools
-  ############################################################
 
   if tool == 'cc':
     out, flags = extract_binary_flag("-o", flags)
@@ -565,83 +495,6 @@ for line in build_lines :
 
   elif tool == 'ranlib':
     pass
-
-
-  ############################################################
-  # MSVC tools
-  ############################################################
-
-  elif tool == 'cl':
-    out, flags = extract_unary_flag("/Fo", flags)
-    files, flags = extract_non_flags(flags)
-    ninja.build(out, 'cl', files, order_deps = '_generated_headers', clflags = flags)
-
-  elif tool == 'lib':
-    out, flags = extract_unary_flag("/out:", flags)
-    files, flags = extract_non_flags(flags)
-    ninja.build(out, 'lib', files, libflags = flags)
-
-  elif tool == 'link':
-    objects, flags = partition(flags, lambda x: x.endswith('.obj') or x.endswith('.res'))
-    out, flags = extract_unary_flag("/out:", flags)
-    libs, flags = partition(flags, lambda x: not x.startswith("/") and x.endswith(".lib"))
-    libpaths = get_unary_flags("/libpath:", flags)
-    deps = get_built_libs(libs, libpaths, ninja.targets)
-    if out in mtflags :
-      ninja.build(out, 'link_mt', objects, deps = sorted(deps),
-        libs = libs, linkflags = flags, mtflags = mtflags[out])
-    else :
-      ninja.build(out, 'link', objects, deps = sorted(deps),
-        libs = libs, linkflags = flags)
-
-  elif tool == 'rc':
-    out, flags = extract_unary_flag("/fo", flags)
-    files, flags = extract_non_flags(flags)
-    ninja.build(out, 'rc', files[0], order_deps = '_generated_headers', rcflags = flags)
-
-  elif tool == 'mt':
-    # Already handled
-    pass
-
-  ############################################################
-  # Qt tools
-  ############################################################
-
-  elif tool == 'moc':
-    out, flags = extract_binary_flag("-o", flags)
-    files, flags = extract_non_flags(flags)
-    ninja.build(out, 'moc', files, mocflags = flags)
-
-  elif tool == 'uic':
-    out, flags = extract_binary_flag("-o", flags)
-    files, flags = extract_non_flags(flags)
-    ninja.build(out, 'uic', files, uicflags = flags)
-
-  elif tool == 'lrelease':
-    out, flags = extract_binary_flag("-qm", flags)
-    files, flags = extract_non_flags(flags)
-    ninja.build(out, 'lrelease', files, lreleaseflags = flags)
-
-  elif tool == 'rcc':
-    out, flags = extract_binary_flag("-o", flags)
-    name, flags = extract_binary_flag("-name", flags)
-    files, flags = extract_non_flags(flags)
-    deps = list(set(get_dependencies(out, ninja.targets)) - set(files))
-    ninja.build(out, 'rcc', files, deps = sorted(deps), name = name, rccflags = flags)
-
-  ############################################################
-  # OS X tools
-  ############################################################
-
-  elif tool == 'ibtool':
-    out, flags = extract_binary_flag("--compile", flags)
-    files, flags = extract_non_flags(flags)
-    ninja.build(out, 'ibtool', files, ibtoolflags = flags)
-
-  elif tool == 'dsymutil':
-    out, flags = extract_binary_flag("-o", flags)
-    files, flags = extract_non_flags(flags)
-    ninja.build(out, 'dsymutil', files, dsymutilflags = flags)
 
   elif not ninja_custom_command(ninja, line)  :
     raise Exception("Unknown tool: '" + line + "'")
