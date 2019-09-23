@@ -17,7 +17,7 @@
 use base::dtu;
 use base::errors::{Code, Error};
 use base::goff;
-use base::kif::CapSel;
+use base::kif::{CapSel, INVALID_SEL};
 use base::pexif;
 use core::intrinsics;
 use isr;
@@ -122,7 +122,12 @@ fn pexcall_recv(state: &mut isr::State) -> Result<isize, Error> {
 
     log!(PEX_CALLS, "recv[rg={}, sg={}]", rg, sg,);
 
-    let sep = vpe::cur().acquire_ep(sg)?;
+    let sep = if sg == INVALID_SEL {
+        dtu::EP_COUNT
+    }
+    else {
+        vpe::cur().acquire_ep(sg)?
+    };
     let rep = vpe::cur().acquire_ep(rg)?;
     recv_msg(rep, sep)
 }

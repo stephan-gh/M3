@@ -143,7 +143,7 @@ impl DTUIf {
         if USE_PEXCALLS {
             let sgsel = match sg {
                 Some(sg) => sg.sel() as usize,
-                None => EP_COUNT,
+                None => kif::INVALID_SEL as usize,
             };
             pexcalls::call2(pexif::Operation::RECV, rg.sel() as usize, sgsel)
                 .map(|m| Self::addr_to_msg(m))
