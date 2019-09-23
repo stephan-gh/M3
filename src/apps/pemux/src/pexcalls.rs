@@ -224,12 +224,11 @@ fn pexcall_activate_gate(state: &mut isr::State) -> Result<(), Error> {
 
 fn pexcall_remove_gate(state: &mut isr::State) -> Result<(), Error> {
     let gate = state.r[isr::PEXC_ARG1] as CapSel;
-    // TODO
-    let invalidate = state.r[isr::PEXC_ARG2] != 0;
+    let inval = state.r[isr::PEXC_ARG2] != 0;
 
-    log!(PEX_CALLS, "remove_gate(gate={}, inval={})", gate, invalidate);
+    log!(PEX_CALLS, "remove_gate(gate={}, inval={})", gate, inval);
 
-    vpe::cur().remove_gate(gate);
+    vpe::cur().remove_gate(gate, inval);
     Ok(())
 }
 

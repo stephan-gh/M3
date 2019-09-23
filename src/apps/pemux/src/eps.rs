@@ -63,7 +63,7 @@ impl EPs {
         self.reserved &= !(1 << ep);
     }
 
-    pub fn find_free(&mut self) -> Result<EpId, Error> {
+    pub fn find_free(&mut self, inval: bool) -> Result<EpId, Error> {
         for ep in dtu::FIRST_FREE_EP..dtu::EP_COUNT {
             if self.is_free(ep) {
                 return Ok(ep);
@@ -72,7 +72,7 @@ impl EPs {
 
         let victim = self.get_victim()?;
         let (_, gate) = self.gates[victim].take().unwrap();
-        vpe::cur().remove_gate(gate);
+        vpe::cur().remove_gate(gate, inval);
         if self.next_victim + 1 < dtu::EP_COUNT {
             self.next_victim += 1;
         }

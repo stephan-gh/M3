@@ -70,7 +70,7 @@ impl VPE {
             return Ok(*ep);
         }
 
-        let ep = eps::get().find_free()?;
+        let ep = eps::get().find_free(false)?;
         self.activate(sel, ep, 0)?;
         self.add_gate(sel, ep);
         Ok(ep)
@@ -86,7 +86,7 @@ impl VPE {
             }
         }
         else {
-            eps::get().find_free()
+            eps::get().find_free(true)
         }
         .map(|epid| {
             log!(PEX_EPS, "VPE{}: reserving EP {}", self.id, epid);
@@ -132,9 +132,12 @@ impl VPE {
         self.gates.insert(gate, ep);
     }
 
-    pub fn remove_gate(&mut self, sel: CapSel) {
+    pub fn remove_gate(&mut self, sel: CapSel, inval: bool) {
         if let Some(ep) = self.gates.remove(&sel) {
             log!(PEX_VPES, "VPE{}: removed {}->{}", self.id, sel, ep);
+            if inval {
+                self.activate(kif::INVALID_SEL, ep, 0).ok();
+            }
         }
     }
 
