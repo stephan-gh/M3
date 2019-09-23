@@ -56,7 +56,7 @@ public:
     void invtlb_remote(const VPEDesc &vpe);
     void invlpg_remote(const VPEDesc &vpe, goff_t virt);
 
-    void inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
+    m3::Errors::Code inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
 
     m3::Errors::Code inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool force);
     void read_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
@@ -96,6 +96,7 @@ private:
 #if defined(__gem5__)
     void do_set_vpeid(const VPEDesc &vpe, vpeid_t nid);
     void do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
+    m3::Errors::Code try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
 #endif
 
     epid_t _ep;

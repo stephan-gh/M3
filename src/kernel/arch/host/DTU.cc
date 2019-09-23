@@ -57,8 +57,9 @@ void DTU::inject_irq(const VPEDesc &) {
     // unsupported
 }
 
-void DTU::inv_reply_remote(const VPEDesc &, epid_t, peid_t, epid_t) {
+m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &, epid_t, peid_t, epid_t) {
     // unused
+    return m3::Errors::NONE;
 }
 
 m3::Errors::Code DTU::inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool) {

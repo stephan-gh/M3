@@ -33,9 +33,15 @@ static char buffer[4096];
 static gaddr_t idle_rootpt;
 
 void DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
+    m3::Errors::Code res = try_ext_cmd(vpe, cmd);
+    if(res != m3::Errors::NONE)
+        PANIC("External command " << cmd << " failed: " << res);
+}
+
+m3::Errors::Code DTU::try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     m3::DTU::reg_t reg = cmd;
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EXT_CMD), &reg, sizeof(reg));
+    return try_write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EXT_CMD), &reg, sizeof(reg));
 }
 
 void DTU::deprivilege(peid_t pe) {
@@ -104,19 +110,17 @@ void DTU::invlpg_remote(const VPEDesc &vpe, goff_t virt) {
     do_ext_cmd(vpe, static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_PAGE) | (virt << 4));
 }
 
-void DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
+m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
     m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_REPLY);
     cmd |= (rep << 4) | (pe << 12) | (sep << 20);
-    do_ext_cmd(vpe, cmd);
+    return try_ext_cmd(vpe, cmd);
 }
 
 m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force) {
-    m3::DTU::reg_t reg =
+    m3::DTU::reg_t cmd =
         static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 4) |
         (static_cast<m3::DTU::reg_t>(force) << 12);
-    m3::CPU::compiler_barrier();
-    goff_t addr = m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EXT_CMD);
-    return try_write_mem(vpe, addr, &reg, sizeof(reg));
+    return try_ext_cmd(vpe, cmd);
 }
 
 void DTU::read_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
