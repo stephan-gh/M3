@@ -29,6 +29,7 @@ PEMux::PEMux(peid_t pe)
       _vpes(),
       _pe(pe),
       _headers(0),
+      _header_start(),
       _rbufs_size(),
       _mem_base(),
       _dtustate() {
@@ -49,6 +50,7 @@ PEMux::PEMux(peid_t pe)
     }
 
     _headers += 1;
+    _header_start = _headers;
 }
 
 static void reply_result(const m3::DTU::Message *msg, m3::Errors::Code code) {
