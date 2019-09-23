@@ -44,7 +44,8 @@ fn send_recv() {
 
     let data = [0u8; 16];
     wv_assert_ok!(sgate.send(&data, RecvGate::def()));
-    assert!(sgate.ep().is_some());
+    // TODO no longer set with USE_PEXCALLS enabled
+    // assert!(sgate.ep().is_some());
     wv_assert_ok!(sgate.send(&data, RecvGate::def()));
     wv_assert_err!(sgate.send(&data, RecvGate::def()), Code::MissCredits);
 
