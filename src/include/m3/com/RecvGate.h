@@ -171,10 +171,8 @@ public:
 
     /**
      * Activates this receive gate, i.e., lets the kernel configure a free endpoint for it
-     *
-     * @return the used EP id
      */
-    epid_t activate();
+    void activate();
     /**
      * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it
      */

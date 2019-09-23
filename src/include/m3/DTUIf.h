@@ -98,10 +98,8 @@ public:
                 return nullptr;
             return reinterpret_cast<const DTU::Message*>(res);
         }
-        else {
-            epid_t rep = rg.activate();
-            return DTU::get().fetch_msg(rep);
-        }
+        else
+            return DTU::get().fetch_msg(rg.ep());
     }
 
     static void mark_read(RecvGate &rg, const DTU::Message *msg) noexcept {
@@ -120,9 +118,8 @@ public:
             return err;
         }
         else {
-            epid_t rep = rg.activate();
             while(1) {
-                *reply = DTU::get().fetch_msg(rep);
+                *reply = DTU::get().fetch_msg(rg.ep());
                 if(*reply)
                     return Errors::NONE;
 

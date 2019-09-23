@@ -112,13 +112,12 @@ RecvGate::~RecvGate() {
     deactivate();
 }
 
-epid_t RecvGate::activate() {
+void RecvGate::activate() {
     if(ep() == UNBOUND) {
         epid_t ep = _vpe.alloc_ep();
         _free |= FREE_EP;
         activate(ep);
     }
-    return ep();
 }
 
 void RecvGate::activate(epid_t _ep) {
@@ -172,6 +171,7 @@ void RecvGate::stop() noexcept {
 }
 
 const DTU::Message *RecvGate::fetch() {
+    activate();
     return DTUIf::fetch_msg(*this);
 }
 
@@ -182,6 +182,7 @@ void RecvGate::reply(const void *reply, size_t len, const DTU::Message *msg) {
 }
 
 const DTU::Message *RecvGate::receive(SendGate *sgate) {
+    activate();
     const DTU::Message *reply = nullptr;
     Errors::Code res = DTUIf::receive(*this, sgate, &reply);
     if(res != Errors::NONE)
