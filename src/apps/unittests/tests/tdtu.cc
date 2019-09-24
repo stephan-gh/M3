@@ -77,7 +77,7 @@ static void cmds_read() {
             rcvep, datasize, 0);
 
         dmacmd(nullptr, 0, sndep, 0, datasize, DTU::WRITE);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
 
         dmacmd(nullptr, 0, sndep, 0, datasize + 1, DTU::READ);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
@@ -124,7 +124,7 @@ static void cmds_write() {
             rcvep, sizeof(data), 0);
 
         dmacmd(nullptr, 0, sndep, 0, sizeof(data), DTU::READ);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
+        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
     }
 
     cout << "-- Test writing --\n";
@@ -197,7 +197,7 @@ static void mem_derive() {
         sub.read(test, sizeof(xfer_t), 0);
         WVASSERTEQ(test[0], 5u);
 
-        WVASSERTERR(Errors::INV_ARGS, [&sub] { write_vmsg(sub, 0, 8); });
+        WVASSERTERR(Errors::NO_PERM, [&sub] { write_vmsg(sub, 0, 8); });
     }
 }
 
