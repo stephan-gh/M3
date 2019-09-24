@@ -48,7 +48,7 @@ public:
                                              reinterpret_cast<word_t>(msg),
                                              size,
                                              replylbl,
-                                             rg.sel()));
+                                             gate_sel(rg)));
         }
         else {
             epid_t sep = sg.acquire_ep();
@@ -60,7 +60,7 @@ public:
                               const DTU::Message *msg) noexcept {
         if(USE_PEXCALLS) {
             return get_error(PEXCalls::call4(Operation::REPLY,
-                                             rg.sel(),
+                                             gate_sel(rg),
                                              reinterpret_cast<word_t>(reply),
                                              size,
                                              reinterpret_cast<word_t>(msg)));
@@ -76,7 +76,7 @@ public:
                                          sg.sel(),
                                          reinterpret_cast<word_t>(msg),
                                          size,
-                                         rg.sel());
+                                         gate_sel(rg));
             Errors::Code err = get_error(res);
             if(err == Errors::NONE)
                 *reply = reinterpret_cast<const DTU::Message*>(res);
@@ -92,7 +92,7 @@ public:
 
     static const DTU::Message *fetch_msg(RecvGate &rg) noexcept {
         if(USE_PEXCALLS) {
-            word_t res = PEXCalls::call1(Operation::FETCH, rg.sel());
+            word_t res = PEXCalls::call1(Operation::FETCH, gate_sel(rg));
             Errors::Code err = get_error(res);
             if(err != Errors::NONE)
                 return nullptr;
@@ -104,14 +104,14 @@ public:
 
     static void mark_read(RecvGate &rg, const DTU::Message *msg) noexcept {
         if(USE_PEXCALLS)
-            PEXCalls::call2(Operation::ACK, rg.sel(), reinterpret_cast<word_t>(msg));
+            PEXCalls::call2(Operation::ACK, gate_sel(rg), reinterpret_cast<word_t>(msg));
         else
             DTU::get().mark_read(rg.ep(), msg);
     }
 
     static Errors::Code receive(RecvGate &rg, SendGate *sg, const DTU::Message **reply) noexcept {
         if(USE_PEXCALLS) {
-            word_t res = PEXCalls::call2(Operation::RECV, rg.sel(), sg ? sg->sel() : ObjCap::INVALID);
+            word_t res = PEXCalls::call2(Operation::RECV, gate_sel(rg), sg ? sg->sel() : ObjCap::INVALID);
             Errors::Code err = get_error(res);
             if(err == Errors::NONE)
                 *reply = reinterpret_cast<const DTU::Message*>(res);
@@ -140,7 +140,7 @@ public:
     static Errors::Code read(MemGate &mg, void *data, size_t size, goff_t off, uint flags) noexcept {
         if(USE_PEXCALLS) {
             return get_error(PEXCalls::call5(Operation::READ,
-                                             mgate_sel(mg),
+                                             gate_sel(mg),
                                              reinterpret_cast<word_t>(data),
                                              size,
                                              off,
@@ -156,7 +156,7 @@ public:
                               goff_t off, uint flags) noexcept {
         if(USE_PEXCALLS) {
             return get_error(PEXCalls::call5(Operation::WRITE,
-                                             mgate_sel(mg),
+                                             gate_sel(mg),
                                              reinterpret_cast<word_t>(data),
                                              size,
                                              off,
@@ -212,8 +212,8 @@ public:
     }
 
 private:
-    static size_t mgate_sel(MemGate &mg) {
-        return mg.sel() == ObjCap::INVALID ? (static_cast<size_t>(1) << 31 | mg.ep()) : mg.sel();
+    static size_t gate_sel(Gate &g) {
+        return g.sel() == ObjCap::INVALID ? (static_cast<size_t>(1) << 31 | g.ep()) : g.sel();
     }
 };
 
