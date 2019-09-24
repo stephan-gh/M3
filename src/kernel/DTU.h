@@ -63,8 +63,6 @@ public:
     void write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
     void write_ep_local(epid_t ep);
 
-    void mark_read_remote(const VPEDesc &vpe, epid_t ep, goff_t msg);
-
     void recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder);
 
     void reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg);

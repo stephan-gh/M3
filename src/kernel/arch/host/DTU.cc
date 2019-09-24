@@ -88,10 +88,6 @@ void DTU::write_ep_local(epid_t ep) {
     memcpy(reinterpret_cast<void*>(addr), _state.get_ep(ep), m3::DTU::EPS_RCNT * sizeof(word_t));
 }
 
-void DTU::mark_read_remote(const VPEDesc &, epid_t, goff_t) {
-    // not supported
-}
-
 void DTU::recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder) {
     _state.config_recv(ep, buf, order, msgorder, 0);
     write_ep_local(ep);
