@@ -26,6 +26,9 @@
 
 namespace m3 {
 
+class GenericFile;
+struct RemoteServer;
+
 /**
  * Gate is the base class of all gates. A gate is in general the software abstraction for DTU-based
  * communication. There are three different kinds of gates: SendGate, RecvGate and MemGate.
@@ -41,6 +44,8 @@ namespace m3 {
 class Gate : public ObjCap {
     friend class EPMux;
     friend class DTUIf;
+    friend class GenericFile;
+    friend struct RemoteServer;
 
     static const epid_t NODESTROY   = EP_COUNT + 1;
 
@@ -61,6 +66,7 @@ public:
     }
     ~Gate();
 
+protected:
     /**
      * @return the endpoint to which this gate is currently bound (might be UNBOUND)
      */
@@ -76,7 +82,6 @@ public:
         _ep = ep;
     }
 
-protected:
     epid_t acquire_ep() {
         if(_ep == UNBOUND && sel() != ObjCap::INVALID)
             EPMux::get().switch_to(this);

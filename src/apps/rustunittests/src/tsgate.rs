@@ -39,13 +39,10 @@ fn send_recv() {
     let sgate = wv_assert_ok!(SendGate::new_with(
         SGateArgs::new(&rgate).credits(512).label(0x1234)
     ));
-    assert!(sgate.ep().is_none());
     wv_assert_ok!(rgate.activate());
 
     let data = [0u8; 16];
     wv_assert_ok!(sgate.send(&data, RecvGate::def()));
-    // TODO no longer set with USE_PEXCALLS enabled
-    // assert!(sgate.ep().is_some());
     wv_assert_ok!(sgate.send(&data, RecvGate::def()));
     wv_assert_err!(sgate.send(&data, RecvGate::def()), Code::MissCredits);
 
@@ -66,7 +63,6 @@ fn send_reply() {
     let sgate = wv_assert_ok!(SendGate::new_with(
         SGateArgs::new(&rgate).credits(64).label(0x1234)
     ));
-    assert!(sgate.ep().is_none());
     wv_assert_ok!(rgate.activate());
 
     wv_assert_ok!(send_vmsg!(&sgate, &reply_gate, 0x123, 12, "test"));

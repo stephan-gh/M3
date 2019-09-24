@@ -110,7 +110,6 @@ int main(int argc, char **argv) {
     const char *prefix  = "";
     const char *loadgen = "";
     capsel_t rgate      = ObjCap::INVALID;
-    epid_t rgate_ep     = EP_COUNT;
 
     int opt;
     while((opt = CmdArgs::get(argc, argv, "p:n:wf:g:l:idtu:v")) != -1) {
@@ -125,11 +124,7 @@ int main(int argc, char **argv) {
             case 't': wvtest = true; break;
             case 'u': warmup = IStringStream::read_from<ulong>(CmdArgs::arg); break;
             case 'v': verbose = true; break;
-            case 'g': {
-                IStringStream is(CmdArgs::arg);
-                is >> rgate >> rgate_ep;
-                break;
-            }
+            case 'g': rgate = IStringStream::read_from<capsel_t>(CmdArgs::arg); break;
             default:
                 usage(argv[0]);
         }
@@ -183,7 +178,7 @@ int main(int argc, char **argv) {
     }
 
     if(rgate != ObjCap::INVALID) {
-        RecvGate rg = RecvGate::bind(rgate, 6, rgate_ep);
+        RecvGate rg = RecvGate::bind(rgate, 6);
         {
             // tell the coordinator, that we are ready
             GateIStream msg = receive_msg(rg);

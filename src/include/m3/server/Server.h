@@ -49,7 +49,8 @@ public:
         : ObjCap(SERVICE, caps + 0, KEEP_CAP),
           _handler(std::move(handler)),
           _ctrl_handler(),
-          _rgate(RecvGate::bind(caps + 1, nextlog2<512>::val, ep)) {
+          _rgate(RecvGate::bind(caps + 1, nextlog2<512>::val)) {
+        _rgate.ep(ep);
         init(wl);
     }
 

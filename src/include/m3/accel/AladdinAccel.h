@@ -26,7 +26,7 @@
 
 namespace m3 {
 
-class Aladdin {
+class AladdinAccel {
 public:
     static const uint RBUF_SEL      = 64;
     static const uint RECV_EP       = 7;
@@ -51,7 +51,7 @@ public:
         uint64_t repeats;
     } PACKED;
 
-    explicit Aladdin(PEISA isa, const char *name, const char *pager)
+    explicit AladdinAccel(PEISA isa, const char *name, const char *pager)
         : _accel(new VPE(name, VPEArgs().pedesc(PEDesc(PEType::COMP_EMEM, isa))
                                         .pager(pager))),
           _lastmem(ObjCap::INVALID),

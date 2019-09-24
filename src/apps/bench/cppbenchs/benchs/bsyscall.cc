@@ -27,7 +27,6 @@
 
 using namespace m3;
 
-alignas(64) static char buf[8192];
 static capsel_t selector = ObjCap::INVALID;
 
 NOINLINE static void noop() {
@@ -38,12 +37,12 @@ NOINLINE static void noop() {
 }
 
 NOINLINE static void activate() {
+    epid_t ep = VPE::self().alloc_ep();
     MemGate mgate = MemGate::create_global(0x1000, MemGate::RW);
-    mgate.read(buf, 8, 0);
 
     Profile pr;
-    WVPERF(__func__, pr.run_with_id([&mgate] {
-        Syscalls::activate(VPE::self().ep_to_sel(mgate.ep()), mgate.sel(), 0);
+    WVPERF(__func__, pr.run_with_id([ep,&mgate] {
+        Syscalls::activate(VPE::self().ep_to_sel(ep), mgate.sel(), 0);
     }, 0x51));
 }
 

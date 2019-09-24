@@ -59,7 +59,7 @@ impl Gate {
     }
 
     /// Returns the endpoint. If the gate is not activated, it returns `None`.
-    pub fn ep(&self) -> Option<EpId> {
+    pub(crate) fn ep(&self) -> Option<EpId> {
         self.ep.get()
     }
 

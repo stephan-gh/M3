@@ -182,7 +182,7 @@ impl RecvGate {
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub fn ep(&self) -> Option<dtu::EpId> {
+    pub(crate) fn ep(&self) -> Option<dtu::EpId> {
         self.gate.ep()
     }
 
@@ -198,22 +198,22 @@ impl RecvGate {
 
     /// Activates this receive gate. Activation is required before [`SendGate`]s connected to this
     /// `RecvGate` can be activated.
-    pub fn activate(&mut self) -> Result<dtu::EpId, Error> {
+    pub fn activate(&mut self) -> Result<(), Error> {
         match self.ep() {
-            Some(ep) => Ok(ep),
+            Some(_) => Ok(()),
             None => {
                 let vpe = vpe::VPE::cur();
                 let ep = vpe.alloc_ep()?;
                 self.free |= FreeFlags::FREE_EP;
                 self.activate_ep(ep)?;
-                Ok(ep)
+                Ok(())
             },
         }
     }
 
     /// Activates this receive gate on the given endpoint. Activation is required before
     /// [`SendGate`]s connected to this `RecvGate` can be activated.
-    pub fn activate_ep(&mut self, ep: dtu::EpId) -> Result<(), Error> {
+    pub(crate) fn activate_ep(&mut self, ep: dtu::EpId) -> Result<(), Error> {
         if self.ep().is_none() {
             let vpe = vpe::VPE::cur();
             let buf = if self.buf == 0 {

@@ -55,9 +55,7 @@ fn noop() {
 
 fn activate() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-    let mut buf = [0u8; 8];
-    wv_assert_ok!(mgate.read(&mut buf, 0));
-    let ep = mgate.ep().unwrap();
+    let ep = wv_assert_ok!(VPE::cur().alloc_ep());
 
     let mut prof = profile::Profiler::default();
 

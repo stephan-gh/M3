@@ -30,6 +30,8 @@ namespace m3 {
 class GateIStream;
 class SendGate;
 class VPE;
+template<class HDL>
+class Server;
 
 /**
  * A receive gate is used to receive messages from send gates. To this end, it has a receive buffer
@@ -41,6 +43,13 @@ class VPE;
  * received messages. In this case, a WorkLoop item is created.
  */
 class RecvGate : public Gate {
+    friend class Pager;
+    template<class HDL>
+    friend class Server;
+    friend class AladdinAccel;
+    friend class InDirAccel;
+    friend class StreamAccel;
+
     enum {
         FREE_BUF    = 1,
         FREE_EP     = 2,
@@ -142,10 +151,9 @@ public:
      *
      * @param sel the capability selector
      * @param order the size of the buffer (2^<order> bytes)
-     * @param ep the endpoint it has already been activated to
      * @return the receive gate
      */
-    static RecvGate bind(capsel_t sel, int order, epid_t ep = EP_COUNT) noexcept;
+    static RecvGate bind(capsel_t sel, int order) noexcept;
 
     RecvGate(const RecvGate&) = delete;
     RecvGate &operator=(const RecvGate&) = delete;
@@ -173,15 +181,6 @@ public:
      * Activates this receive gate, i.e., lets the kernel configure a free endpoint for it
      */
     void activate();
-    /**
-     * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it
-     */
-    void activate(epid_t ep);
-    /**
-     * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it and use
-     * <addr> as the buffer.
-     */
-    void activate(epid_t ep, uintptr_t addr);
 
     /**
      * Deactivates and stops the receive gate.
@@ -241,6 +240,16 @@ public:
     void drop_msgs_with(label_t label) noexcept;
 
 private:
+    /**
+     * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it
+     */
+    void activate(epid_t ep);
+    /**
+     * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it and use
+     * <addr> as the buffer.
+     */
+    void activate(epid_t ep, uintptr_t addr);
+
     static void *allocate(VPE &vpe, epid_t ep, size_t size);
     static void free(void *);
 

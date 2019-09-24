@@ -55,8 +55,8 @@ struct AccelWorkload {
         }
     }
 
-    Aladdin alad;
-    Aladdin::InvokeMessage msg;
+    AladdinAccel alad;
+    AladdinAccel::InvokeMessage msg;
     size_t iterations;
 };
 
@@ -92,7 +92,7 @@ static String get_file(size_t size, size_t *off) {
     exitmsg("Unable to find file for data size " << size);
 }
 
-static void add(Aladdin &alad, size_t size, Aladdin::Array *a, int prot) {
+static void add(AladdinAccel &alad, size_t size, AladdinAccel::Array *a, int prot) {
     size_t psize = Math::round_up(size, PAGE_SIZE);
 
     if(use_files) {

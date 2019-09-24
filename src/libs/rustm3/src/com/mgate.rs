@@ -109,7 +109,7 @@ impl MemGate {
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub fn ep(&self) -> Option<dtu::EpId> {
+    pub(crate) fn ep(&self) -> Option<dtu::EpId> {
         self.gate.ep()
     }
 

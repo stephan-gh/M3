@@ -131,7 +131,7 @@ NetEventChannel::Event NetEventChannel::recv_message() {
 }
 
 bool NetEventChannel::has_credits() noexcept {
-    return _sgate.ep() == SendGate::UNBOUND || DTU::get().has_credits(_sgate.ep());
+    return _sgate.can_send();
 }
 
 void NetEventChannel::set_credit_event(event_t event) noexcept {

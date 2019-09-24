@@ -41,7 +41,6 @@ struct App {
           vpe(argv[0], VPEArgs().pager(pager)),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
-        rgate.activate();
         vpe.delegate_obj(rgate.sel());
     }
 
@@ -162,7 +161,7 @@ int main(int argc, char **argv) {
             args[8] = "-g";
 
             OStringStream rgatesel(new char[11], 11);
-            rgatesel << apps[i]->rgate.sel() << " " << apps[i]->rgate.ep();
+            rgatesel << apps[i]->rgate.sel();
             args[9] = rgatesel.str();
             args[10] = (i % 2 == 0) ? wr_name : rd_name;
 

@@ -99,11 +99,8 @@ RecvGate RecvGate::create_for(VPE &vpe, capsel_t cap, int order, int msgorder, u
     return RecvGate(vpe, cap, UNBOUND, nullptr, order, msgorder, flags);
 }
 
-RecvGate RecvGate::bind(capsel_t cap, int order, epid_t ep) noexcept {
-    RecvGate rgate(VPE::self(), cap, order, KEEP_CAP);
-    if(ep != EP_COUNT)
-        rgate.ep(ep);
-    return rgate;
+RecvGate RecvGate::bind(capsel_t cap, int order) noexcept {
+    return RecvGate(VPE::self(), cap, order, KEEP_CAP);
 }
 
 RecvGate::~RecvGate() {

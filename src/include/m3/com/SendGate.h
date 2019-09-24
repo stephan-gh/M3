@@ -21,6 +21,10 @@
 #include <m3/com/Gate.h>
 #include <m3/com/RecvGate.h>
 
+namespace pci {
+class ProxiedPciDevice;
+}
+
 namespace m3 {
 
 class EnvUserBackend;
@@ -90,6 +94,11 @@ private:
 class SendGate : public Gate {
     friend class Syscalls;
     friend class EnvUserBackend;
+    friend class Pager;
+    friend class AladdinAccel;
+    friend class InDirAccel;
+    friend class StreamAccel;
+    friend class pci::ProxiedPciDevice;
 
     explicit SendGate(capsel_t cap, uint capflags, RecvGate *replygate, epid_t ep = UNBOUND) noexcept
         : Gate(SEND_GATE, cap, capflags, ep),
@@ -138,12 +147,11 @@ public:
     }
 
     /**
-     * Activates this gate for <vpe> at EP <ep>.
-     *
-     * @param vpe the VPE to activate it for
-     * @param ep the ep id
+     * @return true if this SendGate can potentially send a message
      */
-    void activate_for(VPE &vpe, epid_t ep);
+    bool can_send() const {
+        return ep() == UNBOUND || DTU::get().has_credits(ep());
+    }
 
     /**
      * Sends <msg> of length <len> to the associated RecvGate.
@@ -176,6 +184,14 @@ public:
     const DTU::Message *call(const void *msg, size_t len);
 
 private:
+    /**
+     * Activates this gate for <vpe> at EP <ep>.
+     *
+     * @param vpe the VPE to activate it for
+     * @param ep the ep id
+     */
+    void activate_for(VPE &vpe, epid_t ep);
+
     RecvGate *_replygate;
 };
 
