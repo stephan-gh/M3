@@ -804,12 +804,12 @@ impl VPE {
                 // wait until the env file has been written by the kernel
                 p2c.wait();
 
-                syscalls::reinit();
                 arch::env::reinit();
                 arch::env::get().set_vpe(&self);
                 ::io::reinit();
                 self::reinit();
                 ::com::reinit();
+                syscalls::reinit();
                 arch::dtu::init();
 
                 c2p.signal();
