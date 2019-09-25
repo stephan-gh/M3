@@ -51,6 +51,8 @@ pub extern "C" fn exit(_code: i32) {
 #[no_mangle]
 pub fn sleep() {
     loop {
+        // ack events since to VPE is currently running
+        dtu::DTU::fetch_events();
         dtu::DTU::sleep().ok();
     }
 }
