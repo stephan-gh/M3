@@ -56,11 +56,11 @@ public:
     static const capsel_t CAP_OUT   = 65;
     static const capsel_t CAP_RECV  = 66;
 
-    static const size_t EP_RECV     = 5;
-    static const size_t EP_IN_SEND  = 6;
-    static const size_t EP_IN_MEM   = 7;
-    static const size_t EP_OUT_SEND = 8;
-    static const size_t EP_OUT_MEM  = 9;
+    static const size_t EP_RECV     = 6;
+    static const size_t EP_IN_SEND  = 7;
+    static const size_t EP_IN_MEM   = 8;
+    static const size_t EP_OUT_SEND = 9;
+    static const size_t EP_OUT_MEM  = 10;
 
     static const uint64_t LBL_IN_REQ    = 1;
     static const uint64_t LBL_IN_REPLY  = 2;
