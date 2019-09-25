@@ -135,6 +135,7 @@ impl VPE {
     pub fn remove_gate(&mut self, sel: CapSel, inval: bool) {
         if let Some(ep) = self.gates.remove(&sel) {
             log!(PEX_VPES, "VPE{}: removed {}->{}", self.id, sel, ep);
+            eps::get().mark_free(ep);
             if inval {
                 self.activate(kif::INVALID_SEL, ep, 0).ok();
             }
