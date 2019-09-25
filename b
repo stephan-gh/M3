@@ -438,11 +438,7 @@ case "$cmd" in
         ;;
 
     mkfs=*)
-        if [[ "$@" = "" ]]; then
-            $build/tools/mkm3fs $build/${cmd#mkfs=} $script src/tests 8192 256 95
-        else
-            $build/tools/mkm3fs $build/${cmd#mkfs=} $script $@
-        fi
+        $build/tools/mkm3fs $build/${cmd#mkfs=} $script $@
         ;;
 
     shfs=*)
