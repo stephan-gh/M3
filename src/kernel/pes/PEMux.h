@@ -28,6 +28,15 @@ public:
     // TODO is there a better way?
     static const capsel_t VPE_SEL_BEGIN      = 1000;
 
+    static size_t total_instances() {
+        size_t num = 0;
+        for(peid_t pe = Platform::first_pe(); pe <= Platform::last_pe(); ++pe) {
+            if(Platform::pe(pe).is_programmable())
+                num++;
+        }
+        return num;
+    }
+
     explicit PEMux(peid_t pe);
 
     peid_t pe() const {

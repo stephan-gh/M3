@@ -81,8 +81,8 @@ void SyscallHandler::init() {
     DTU::get().recv_msgs(srvep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, m3::nextlog2<256>::val);
 
-    if(Platform::pe_count() > 32)
-        PANIC("At most 32 PEs are supported");
+    if(PEMux::total_instances() > 32)
+        PANIC("At most 32 PEMux instances are supported");
     buford = m3::nextlog2<32>::val + PEMux::PEXC_MSGSIZE_ORD;
     bufsize = static_cast<size_t>(1) << buford;
     DTU::get().recv_msgs(pexep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
