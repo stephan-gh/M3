@@ -49,7 +49,8 @@ public:
         // has already been revoked
         assert(_caps.get(VPE_SEL_BEGIN + vpe->id(), Capability::VIRTPE) == nullptr);
         _vpes--;
-        _headers = _header_start;
+        _headers = 1;
+        _rbufs_size = 0;
     }
 
     size_t headers() const {
@@ -96,7 +97,6 @@ private:
     size_t _vpes;
     peid_t _pe;
     size_t _headers;
-    size_t _header_start;
     size_t _rbufs_size;
     goff_t _mem_base;
     DTUState _dtustate;

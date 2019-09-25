@@ -29,7 +29,6 @@ PEMux::PEMux(peid_t pe)
       _vpes(),
       _pe(pe),
       _headers(0),
-      _header_start(),
       _rbufs_size(),
       _mem_base(),
       _dtustate() {
@@ -49,8 +48,8 @@ PEMux::PEMux(peid_t pe)
         _caps.set(sel, new EPCapability(&_caps, sel, new EPObject(_pe, ep)));
     }
 
-    _headers += 1;
-    _header_start = _headers;
+    // one slot for the KPEX receive buffer
+    _headers = 1;
 }
 
 static void reply_result(const m3::DTU::Message *msg, m3::Errors::Code code) {
