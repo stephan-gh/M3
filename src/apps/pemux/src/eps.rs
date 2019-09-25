@@ -94,12 +94,12 @@ impl EPs {
 
     fn get_victim(&self) -> Result<EpId, Error> {
         for v in self.next_victim..dtu::EP_COUNT {
-            if !self.is_reserved(v) {
+            if !self.is_reserved(v) && !dtu::DTU::has_missing_credits(v) {
                 return Ok(v);
             }
         }
         for v in dtu::FIRST_FREE_EP..self.next_victim {
-            if !self.is_reserved(v) {
+            if !self.is_reserved(v) && !dtu::DTU::has_missing_credits(v) {
                 return Ok(v);
             }
         }

@@ -440,6 +440,18 @@ impl DTU {
         (r0 >> 61) != EpType::INVALID.val
     }
 
+    /// Returns true if the given endpoint is a SEND EP and has missing credits
+    pub fn has_missing_credits(ep: EpId) -> bool {
+        let r0 = Self::read_ep_reg(ep, 0);
+        if (r0 >> 61) != EpType::SEND.val {
+            return false;
+        }
+        let r1 = Self::read_ep_reg(ep, 1);
+        let cur = r1 & 0xFFFF;
+        let max = (r1 >> 16) & 0xFFFF;
+        cur < max
+    }
+
     /// Marks the given message for receive endpoint `ep` as read
     #[inline(always)]
     pub fn mark_read(ep: EpId, msg: &Message) {
