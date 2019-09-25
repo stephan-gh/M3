@@ -69,17 +69,7 @@ VPE::VPE()
     static_assert(EP_COUNT <= 64, "64 endpoints are the maximum due to the 64-bit bitmask");
     init_state();
     init_fs();
-
-    // TODO eventually, we have to talk to PEMux before starting the VPE and not tell it afterwards
-    if(_eps != 0 && USE_PEXCALLS) {
-        for(epid_t ep = DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
-            if(!is_ep_free(ep)) {
-                Errors::Code res;
-                if((res = DTUIf::reserve_ep(&ep)) != Errors::NONE)
-                  VTHROW(res, "Unable to reserve ep " << ep);
-            }
-        }
-    }
+    init_eps();
 
     // create stdin, stdout and stderr, if not existing
     if(!_fds->exists(STDIN_FD))
@@ -151,6 +141,19 @@ VPE::~VPE() {
         }
         // unarm it first. we can't do that after revoke (which would be triggered by the Gate destructor)
         EPMux::get().remove(&_mem, true);
+    }
+}
+
+void VPE::init_eps() {
+    // TODO eventually, we have to talk to PEMux before starting the VPE and not tell it afterwards
+    if(_eps != 0 && USE_PEXCALLS) {
+        for(epid_t ep = DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
+            if(!is_ep_free(ep)) {
+                Errors::Code res;
+                if((res = DTUIf::reserve_ep(&ep)) != Errors::NONE)
+                  VTHROW(res, "Unable to reserve ep " << ep);
+            }
+        }
     }
 }
 

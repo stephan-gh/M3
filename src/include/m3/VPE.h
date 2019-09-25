@@ -350,6 +350,7 @@ private:
 
     void init_state();
     void init_fs();
+    void init_eps();
     void run(void *lambda);
     void load_segment(ElfPh &pheader, char *buffer);
     void load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size);

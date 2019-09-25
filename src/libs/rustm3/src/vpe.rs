@@ -404,7 +404,9 @@ impl VPE {
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
         self.files = env.load_fds();
+    }
 
+    fn init_eps(&mut self) {
         // TODO eventually, we have to talk to PEMux before starting the VPE and not tell it afterwards
         if self.eps != 0 && dtuif::USE_PEXCALLS {
             for ep in FIRST_FREE_EP..EP_COUNT {
@@ -1007,10 +1009,12 @@ impl fmt::Debug for VPE {
 pub(crate) fn init() {
     CUR.set(Some(VPE::new_cur()));
     VPE::cur().init();
+    VPE::cur().init_eps();
 }
 
 pub(crate) fn reinit() {
     VPE::cur().cap.set_flags(CapFlags::KEEP_CAP);
     VPE::cur().cap = Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP);
     VPE::cur().mem = MemGate::new_bind(kif::SEL_MEM);
+    VPE::cur().init_eps();
 }

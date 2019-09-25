@@ -54,6 +54,7 @@ void VPE::reset() noexcept {
     _self_ptr = reinterpret_cast<VPE*>(env()->mounts);
     _self_ptr->sel(0);
     _self_ptr->_mem.sel(1);
+    _self_ptr->init_eps();
 }
 
 void VPE::run(void *lambda) {
