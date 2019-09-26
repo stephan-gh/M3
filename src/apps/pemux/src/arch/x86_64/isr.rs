@@ -20,6 +20,8 @@ use core::fmt;
 use core::ptr;
 use isr;
 
+use vpe;
+
 type IsrFunc = extern "C" fn(state: &mut isr::State) -> *mut libc::c_void;
 
 extern "C" {
@@ -128,6 +130,8 @@ impl State {
             self.rip = crate::sleep as *const fn() as usize;
             self.rsp = unsafe { &idle_stack as *const libc::c_void as usize };
             self.r[8] = self.rsp; // rbp and rsp
+
+            vpe::remove();
 
             *STOPPED.get_mut() = false;
         }

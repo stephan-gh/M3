@@ -85,7 +85,6 @@ pub fn handle_pemux(state: &mut isr::State) {
 
 fn handle_stop(state: &mut isr::State) {
     state.stop();
-    vpe::remove();
 }
 
 pub fn handle_ext_req(state: &mut isr::State, mut mst_req: dtu::Reg) {
