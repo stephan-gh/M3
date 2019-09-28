@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
 
     Results res(static_cast<ulong>(repeats));
 
+    int exitcode = 0;
     for(int j = 0; j < warmup + repeats; ++j) {
         const size_t ARG_COUNT = 11;
         for(size_t i = 0; i < instances * 2; ++i) {
@@ -206,6 +207,8 @@ int main(int argc, char **argv) {
 
         for(size_t i = 0; i < instances * 2; ++i) {
             int res = apps[i]->vpe.wait();
+            if(res != 0)
+                exitcode = 1;
             if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
         }
 
@@ -253,11 +256,13 @@ int main(int argc, char **argv) {
             continue;
 
         int res = srv_vpes[i]->wait();
+        if(res != 0)
+            exitcode = 1;
         if(VERBOSE) cout << "server " << i << " exited with " << res << "\n";
         delete srvs[i];
         delete srv_vpes[i];
     }
 
     if(VERBOSE) cout << "Done\n";
-    return 0;
+    return exitcode;
 }

@@ -204,8 +204,11 @@ int main(int argc, char **argv) {
 
     if(VERBOSE) cout << "Waiting for VPEs...\n";
 
+    int exitcode = 0;
     for(size_t i = 0; i < instances; ++i) {
         int res = apps[i]->vpe.wait();
+        if(res != 0)
+            exitcode = 1;
         if(VERBOSE) cout << apps[i]->argv[0] << " exited with " << res << "\n";
     }
 
@@ -224,6 +227,8 @@ int main(int argc, char **argv) {
             continue;
         srv[i]->request_shutdown();
         int res = srvvpes[i]->wait();
+        if(res != 0)
+            exitcode = 1;
         if(VERBOSE) cout << srvnames[i] << " exited with " << res << "\n";
     }
     for(size_t i = 0; i < servers + 1; ++i) {
@@ -232,5 +237,5 @@ int main(int argc, char **argv) {
     }
 
     if(VERBOSE) cout << "Done\n";
-    return 0;
+    return exitcode;
 }

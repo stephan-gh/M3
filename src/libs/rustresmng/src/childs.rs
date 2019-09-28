@@ -519,12 +519,9 @@ impl ChildManager {
         if let Some(id) = self.sel_to_id(sel) {
             let child = self.remove_rec(id).unwrap();
 
-            log!(
-                RESMNG_CHILD,
-                "Child '{}' exited with exitcode {}",
-                child.name(),
-                exitcode
-            );
+            if exitcode != 0 {
+                println!("Child '{}' exited with exitcode {}", child.name(), exitcode);
+            }
         }
     }
 

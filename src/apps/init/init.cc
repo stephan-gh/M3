@@ -49,6 +49,8 @@ int main(int argc, char **argv) {
 
     sh.exec(argc - 1, const_cast<const char**>(argv + 1));
 
-    sh.wait();
+    int res = sh.wait();
+    if(res != 0)
+        errmsg("Child " << argv[1] << " exited with exit code " << res);
     return 0;
 }
