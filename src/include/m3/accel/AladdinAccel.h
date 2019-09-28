@@ -37,7 +37,7 @@ public:
     static const size_t BUF_ADDR    = 0x8000;
     static const size_t STATE_SIZE  = 1024;
     static const size_t STATE_ADDR  = BUF_ADDR - STATE_SIZE;
-    static const size_t RBUF_ADDR   = RECVBUF_SPACE + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
+    static const size_t RBUF_ADDR   = RECVBUF_SPACE + KPEX_RBUF_SIZE + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
 
     struct Array {
         uint64_t addr;
