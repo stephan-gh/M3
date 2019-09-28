@@ -429,6 +429,7 @@ impl DTU {
                 CmdReg::COMMAND,
                 Self::build_cmd(0, CmdOpCode::ACK_EVENTS, 0, old),
             );
+            unsafe { intrinsics::atomic_fence() };
         }
         old
     }
