@@ -39,24 +39,11 @@ public:
     explicit AddrSpace(vpeid_t vpeid)
         : _pe(Platform::pe(Platform::kernel_pe())),
           _vpeid(vpeid),
-          _sep(),
-          _rep(),
-          _sgate(),
           _root() {
     }
 
-    explicit AddrSpace(peid_t pe, vpeid_t vpeid, epid_t sep, epid_t rep, capsel_t sgate);
+    explicit AddrSpace(peid_t pe, vpeid_t vpeid);
     ~AddrSpace();
-
-    epid_t sep() const {
-        return _sep;
-    }
-    epid_t rep() const {
-        return _rep;
-    }
-    capsel_t sgate() const {
-        return _sgate;
-    }
 
     gaddr_t root_pt() const {
         return _root;
@@ -93,9 +80,6 @@ private:
 
     m3::PEDesc _pe;
     vpeid_t _vpeid;
-    epid_t _sep;
-    epid_t _rep;
-    capsel_t _sgate;
     gaddr_t _root;
 };
 

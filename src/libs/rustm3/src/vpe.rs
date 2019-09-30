@@ -290,9 +290,6 @@ impl Activity for ClosureActivity {
 impl Drop for ClosureActivity {
     fn drop(&mut self) {
         self.stop().ok();
-        if let Some(ref mut pg) = self.vpe.pager {
-            pg.deactivate();
-        }
     }
 }
 
@@ -322,9 +319,6 @@ impl Activity for ExecActivity {
 impl Drop for ExecActivity {
     fn drop(&mut self) {
         self.stop().ok();
-        if let Some(ref mut pg) = self.vpe.pager {
-            pg.deactivate();
-        }
     }
 }
 
@@ -367,8 +361,6 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
         self
     }
 }
-
-const VMA_RBUF_SIZE: usize = 64;
 
 static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
 
@@ -452,19 +444,12 @@ impl VPE {
             mounts: MountTable::default(),
         };
 
-        let rbuf = if args.pe.has_mmu() {
-            vpe.alloc_rbuf(VMA_RBUF_SIZE)?
-        }
-        else {
-            0
-        };
-
         let pager = if args.pe.has_virtmem() {
             if let Some(p) = args.pager {
-                Some(Pager::new(&mut vpe, rbuf, p)?)
+                Some(Pager::new(&mut vpe, p)?)
             }
             else if let Some(p) = Self::cur().pager() {
-                Some(p.new_clone(&mut vpe, rbuf)?)
+                Some(p.new_clone(&mut vpe)?)
             }
             else {
                 None
@@ -477,21 +462,20 @@ impl VPE {
         let crd = CapRngDesc::new(CapType::OBJECT, vpe.sel(), kif::FIRST_FREE_SEL);
         vpe.pager = if let Some(mut pg) = pager {
             let sgate_sel = pg.child_sgate().sel();
+            let rgate_sel = match pg.child_rgate() {
+                Some(rg) => rg.sel(),
+                None => kif::INVALID_SEL,
+            };
 
             // now create VPE, which implicitly obtains the gate cap from us
             vpe.pe = syscalls::create_vpe(
                 crd,
                 sgate_sel,
+                rgate_sel,
                 args.name,
                 args.pe,
-                pg.sep(),
-                pg.rep(),
                 vpe.kmem.sel(),
             )?;
-
-            // after the VPE creation, we can activate the receive gate
-            // note that we do that here in case neither run nor exec is used
-            pg.activate(vpe.ep_sel(FIRST_FREE_EP))?;
 
             // mark the pager caps allocated
             vpe.next_sel = util::max(sgate_sel + 1, vpe.next_sel);
@@ -503,7 +487,7 @@ impl VPE {
         }
         else {
             vpe.pe =
-                syscalls::create_vpe(crd, INVALID_SEL, args.name, args.pe, 0, 0, vpe.kmem.sel())?;
+                syscalls::create_vpe(crd, INVALID_SEL, INVALID_SEL, args.name, args.pe, vpe.kmem.sel())?;
             None
         };
         vpe.next_sel = util::max(vpe.kmem.sel() + 1, vpe.next_sel);
@@ -723,17 +707,12 @@ impl VPE {
     /// The method returns the `ClosureActivity` on success that can be used to wait for the
     /// functions completeness or to stop it.
     #[cfg(target_os = "none")]
-    pub fn run<F>(mut self, func: Box<F>) -> Result<ClosureActivity, Error>
+    pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
     where
         F: FnOnce() -> i32 + Send + 'static,
     {
         use cfg;
         use cpu;
-
-        let first_ep_sel = self.ep_sel(FIRST_FREE_EP);
-        if let Some(ref mut pg) = self.pager {
-            pg.activate(first_ep_sel)?;
-        }
 
         let env = arch::env::get();
         let mut senv = arch::env::EnvData::default();
@@ -862,11 +841,6 @@ impl VPE {
         use serialize::Sink;
 
         let mut file = BufReader::new(file);
-
-        let first_ep_sel = self.ep_sel(FIRST_FREE_EP);
-        if let Some(ref mut pg) = self.pager {
-            pg.activate(first_ep_sel)?;
-        }
 
         let mut senv = arch::env::EnvData::default();
 

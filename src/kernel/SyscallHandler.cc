@@ -240,16 +240,15 @@ void SyscallHandler::create_sgate(VPE *vpe, const m3::DTU::Message *msg) {
 void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateVPE>(msg);
     m3::KIF::CapRngDesc dst(req->dst_crd);
-    capsel_t sgate = req->sgate_sel;
+    capsel_t pg_sg = req->pg_sg_sel;
+    capsel_t pg_rg = req->pg_rg_sel;
     m3::PEDesc::value_t pe = req->pe;
-    epid_t sep = req->sep;
-    epid_t rep = req->rep;
     capsel_t kmem = req->kmem_sel;
     m3::String name(req->name, m3::Math::min(static_cast<size_t>(req->namelen), sizeof(req->name)));
 
-    LOG_SYS(vpe, ": syscall::create_vpe", "(dst=" << dst << ", sgate=" << sgate << ", name=" << name
-        << ", pe=" << static_cast<int>(m3::PEDesc(pe).type())
-        << ", sep=" << sep << ", rep=" << rep << ", kmem=" << kmem << ")");
+    LOG_SYS(vpe, ": syscall::create_vpe", "(dst=" << dst << ", pg_sg=" << pg_sg
+        << ", pg_rg=" << pg_rg << ", name=" << name
+        << ", pe=" << static_cast<int>(m3::PEDesc(pe).type()) << ", kmem=" << kmem << ")");
 
     capsel_t capnum = m3::KIF::FIRST_FREE_SEL;
     if(dst.count() != capnum || !vpe->objcaps().range_unused(dst))
@@ -257,21 +256,19 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     if(name.length() == 0)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid name");
 
-    // if it has a pager, we need an sgate cap
+    // if it has a pager, we need sgate/rgate caps
     SGateCapability *sgatecap = nullptr;
-    if(sgate != m3::KIF::INV_SEL) {
-        sgatecap = static_cast<SGateCapability*>(vpe->objcaps().get(sgate, Capability::SGATE));
+    if(pg_sg != m3::KIF::INV_SEL) {
+        sgatecap = static_cast<SGateCapability*>(vpe->objcaps().get(pg_sg, Capability::SGATE));
         if(sgatecap == nullptr)
             SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid SendGate cap(s)");
-        if(sep >= EP_COUNT || sep < m3::DTU::FIRST_FREE_EP)
-            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid SEP");
     }
-    else
-        sep = VPE::INVALID_EP;
-
-    // check REP
-    if(rep != 0 && rep >= EP_COUNT)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid REP");
+    RGateCapability *rgatecap = nullptr;
+    if(pg_rg != m3::KIF::INV_SEL) {
+        rgatecap = static_cast<RGateCapability*>(vpe->objcaps().get(pg_rg, Capability::RGATE));
+        if(rgatecap == nullptr || rgatecap->obj->activated())
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid RecvGate cap(s)");
+    }
 
     auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
     if(kmemcap == nullptr)
@@ -285,8 +282,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
     // create VPE
-    VPE *nvpe = VPEManager::get().create(std::move(name), m3::PEDesc(pe),
-        sep, rep, sgate, &*kmemcap->obj);
+    VPE *nvpe = VPEManager::get().create(std::move(name), m3::PEDesc(pe), &*kmemcap->obj);
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");
 
@@ -294,9 +290,16 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     for(capsel_t i = 0; i < capnum; ++i)
         vpe->objcaps().obtain(dst.start() + i, nvpe->objcaps().get(i));
 
-    // delegate pf gate to the new VPE
-    if(sgate != m3::KIF::INV_SEL)
-        nvpe->objcaps().obtain(sgate, sgatecap);
+    // activate pager EPs
+    if(pg_sg != m3::KIF::INV_SEL)
+        PEManager::get().pemux(nvpe->pe())->config_snd_ep(m3::DTU::PG_SEP, *sgatecap->obj);
+    if(pg_rg != m3::KIF::INV_SEL) {
+        rgatecap->obj->pe = nvpe->pe();
+        rgatecap->obj->addr = VMA_RBUF;
+        PEManager::get().pemux(nvpe->pe())->config_rcv_ep(m3::DTU::PG_REP, *rgatecap->obj);
+    }
+
+    // delegate kmem cap
     nvpe->objcaps().obtain(kmem, kmemcap);
 
     m3::KIF::Syscall::CreateVPEReply reply;

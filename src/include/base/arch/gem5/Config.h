@@ -77,7 +77,7 @@
 
 #define SYSC_RBUF_ORDER     9
 #define SYSC_RBUF_SIZE      (1 << SYSC_RBUF_ORDER)
-#define SYSC_RBUF           (KPEX_RBUF + RECVBUF_SPACE)
+#define SYSC_RBUF           (KPEX_RBUF + KPEX_RBUF_SIZE)
 
 #define UPCALL_RBUF_ORDER   6
 #define UPCALL_RBUF_SIZE    (1 << UPCALL_RBUF_ORDER)
@@ -86,5 +86,9 @@
 #define DEF_RBUF_ORDER      8
 #define DEF_RBUF_SIZE       (1 << DEF_RBUF_ORDER)
 #define DEF_RBUF            (UPCALL_RBUF + UPCALL_RBUF_SIZE)
+
+#define VMA_RBUF_ORDER      6
+#define VMA_RBUF_SIZE       (1 << VMA_RBUF_ORDER)
+#define VMA_RBUF            (DEF_RBUF + DEF_RBUF_SIZE)
 
 #define MEMCAP_END          RECVBUF_SPACE

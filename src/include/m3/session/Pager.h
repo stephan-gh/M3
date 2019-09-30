@@ -29,8 +29,6 @@ class Pager : public ClientSession {
 private:
     explicit Pager(VPE &vpe, capsel_t sess)
         : ClientSession(sess, 0),
-          _sep(vpe.alloc_ep()),
-          _rep(vpe.alloc_ep()),
           _rgate(vpe.pe().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
                                     : RecvGate::bind(ObjCap::INVALID, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
@@ -64,32 +62,18 @@ public:
         RWX     = READ | WRITE | EXEC,
     };
 
-    explicit Pager(capsel_t sess, capsel_t rgate) noexcept
+    explicit Pager(capsel_t sess) noexcept
         : ClientSession(sess),
-          _sep(0),
-          _rep(0),
-          _rgate(RecvGate::bind(rgate, nextlog2<64>::val)),
+          _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(ObjCap::INVALID)) {
     }
     explicit Pager(VPE &vpe, const String &service)
         : ClientSession(service),
-          _sep(vpe.alloc_ep()),
-          _rep(vpe.alloc_ep()),
           _rgate(vpe.pe().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
                                     : RecvGate::bind(ObjCap::INVALID, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(obtain(1).start())) {
-    }
-
-    void activate_gates(VPE &vpe) {
-        _child_sgate.activate_for(vpe, _sep);
-
-        if(_rgate.sel() != ObjCap::INVALID) {
-            // force activation
-            _rgate.deactivate();
-            _rgate.activate(_rep);
-        }
     }
 
     const SendGate &own_sgate() const noexcept {
@@ -99,13 +83,7 @@ public:
         return _child_sgate;
     }
 
-    epid_t sep() const noexcept {
-        return _sep;
-    }
-    epid_t rep() const noexcept {
-        return _rep;
-    }
-    const RecvGate &rgate() const noexcept {
+    const RecvGate &child_rgate() const noexcept {
         return _rgate;
     }
 
@@ -119,10 +97,6 @@ public:
     void unmap(goff_t virt);
 
 private:
-    epid_t _sep;
-    // the receive gate is only necessary for the PF handler in PEMux. it needs a dedicated one
-    // in order to prevent interference with the application
-    epid_t _rep;
     RecvGate _rgate;
     SendGate _own_sgate;
     SendGate _child_sgate;

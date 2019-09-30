@@ -50,8 +50,10 @@ pub const KPEX_RBUF_ORD: i32        = 6;
 pub const SYSC_RBUF_ORD: i32        = 9;
 pub const UPCALL_RBUF_ORD: i32      = 6;
 pub const DEF_RBUF_ORD: i32         = 8;
+pub const VMA_RBUF_ORD: i32         = 6;
 
 pub const KPEX_RBUF_SIZE: usize     = 1 << KPEX_RBUF_ORD;
 pub const SYSC_RBUF_SIZE: usize     = 1 << SYSC_RBUF_ORD;
 pub const UPCALL_RBUF_SIZE: usize   = 1 << UPCALL_RBUF_ORD;
 pub const DEF_RBUF_SIZE: usize      = 1 << DEF_RBUF_ORD;
+pub const VMA_RBUF_SIZE: usize      = 1 << VMA_RBUF_ORD;

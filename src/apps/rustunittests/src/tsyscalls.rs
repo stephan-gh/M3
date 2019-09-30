@@ -16,7 +16,6 @@
 
 use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate};
-use m3::dtu::EP_COUNT;
 use m3::errors::Code;
 use m3::kif::syscalls::{ExchangeArgs, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL};
@@ -210,10 +209,9 @@ fn create_vpe() {
         syscalls::create_vpe(
             CapRngDesc::new(CapType::OBJECT, 0, cap_count),
             INVALID_SEL,
+            INVALID_SEL,
             "test",
             pedesc,
-            0,
-            0,
             kmem
         ),
         Code::InvArgs
@@ -222,10 +220,9 @@ fn create_vpe() {
         syscalls::create_vpe(
             CapRngDesc::new(CapType::OBJECT, sels, 0),
             INVALID_SEL,
+            INVALID_SEL,
             "test",
             pedesc,
-            0,
-            0,
             kmem
         ),
         Code::InvArgs
@@ -234,10 +231,9 @@ fn create_vpe() {
         syscalls::create_vpe(
             CapRngDesc::new(CapType::OBJECT, sels, cap_count - 1),
             INVALID_SEL,
+            INVALID_SEL,
             "test",
             pedesc,
-            0,
-            0,
             kmem
         ),
         Code::InvArgs
@@ -246,10 +242,9 @@ fn create_vpe() {
         syscalls::create_vpe(
             CapRngDesc::new(CapType::OBJECT, sels, !0),
             INVALID_SEL,
+            INVALID_SEL,
             "test",
             pedesc,
-            0,
-            0,
             kmem
         ),
         Code::InvArgs
@@ -257,46 +252,23 @@ fn create_vpe() {
 
     // invalid sgate
     wv_assert_err!(
-        syscalls::create_vpe(crd, 0, "test", pedesc, 0, 0, kmem),
+        syscalls::create_vpe(crd, 0, INVALID_SEL, "test", pedesc, kmem),
         Code::InvArgs
     );
 
     // invalid name
     wv_assert_err!(
-        syscalls::create_vpe(crd, INVALID_SEL, "", pedesc, 0, 0, kmem),
-        Code::InvArgs
-    );
-
-    // invalid SEP
-    wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), "test", pedesc, 0, 0, kmem),
-        Code::InvArgs
-    );
-    wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), "test", pedesc, EP_COUNT, 0, kmem),
-        Code::InvArgs
-    );
-    wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), "test", pedesc, !0, 0, kmem),
-        Code::InvArgs
-    );
-    // invalid REP
-    wv_assert_err!(
-        syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc, 0, EP_COUNT, kmem),
-        Code::InvArgs
-    );
-    wv_assert_err!(
-        syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc, 0, !0, kmem),
+        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "", pedesc, kmem),
         Code::InvArgs
     );
 
     // invalid kmem
     wv_assert_err!(
-        syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc, 0, 0, INVALID_SEL),
+        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pedesc, INVALID_SEL),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_vpe(crd, INVALID_SEL, "test", pedesc, 0, 0, 1),
+        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pedesc, 1),
         Code::InvArgs
     );
 }

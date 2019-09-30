@@ -104,15 +104,14 @@ void Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t f
     send_receive_throw(&req, sizeof(req));
 }
 
-void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t sgate, const String &name,
-                          PEDesc &pe, epid_t sep, epid_t rep, capsel_t kmem) {
+void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
+                          const String &name, PEDesc &pe, capsel_t kmem) {
     KIF::Syscall::CreateVPE req;
     req.opcode = KIF::Syscall::CREATE_VPE;
     req.dst_crd = dst.value();
-    req.sgate_sel = sgate;
+    req.pg_sg_sel = pg_sg;
+    req.pg_rg_sel = pg_rg;
     req.pe = pe.value();
-    req.sep = sep;
-    req.rep = rep;
     req.kmem_sel = kmem;
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);

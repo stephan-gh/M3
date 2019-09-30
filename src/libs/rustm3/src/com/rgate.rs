@@ -238,23 +238,6 @@ impl RecvGate {
         Ok(())
     }
 
-    pub(crate) fn activate_for(
-        &mut self,
-        first_ep: Selector,
-        ep: dtu::EpId,
-        addr: goff,
-    ) -> Result<(), Error> {
-        if self.ep().is_none() {
-            if self.sel() != INVALID_SEL {
-                // TODO this does not work in general anymore
-                let ep_sel = first_ep + (ep - dtu::FIRST_FREE_EP) as Selector;
-                syscalls::activate(ep_sel, self.sel(), addr)?;
-            }
-            self.gate.set_ep(ep);
-        }
-        Ok(())
-    }
-
     /// Deactivates this gate.
     pub fn deactivate(&mut self) {
         if !(self.free & FreeFlags::FREE_EP).is_empty() {

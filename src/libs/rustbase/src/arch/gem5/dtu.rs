@@ -45,8 +45,12 @@ pub const SYSC_REP: EpId = 3;
 pub const UPCALL_REP: EpId = 4;
 /// The default receive EP
 pub const DEF_REP: EpId = 5;
+/// The pager send EP
+pub const PG_SEP: EpId = 6;
+/// The pager receive EP
+pub const PG_REP: EpId = 7;
 /// The first free EP id
-pub const FIRST_FREE_EP: EpId = 6;
+pub const FIRST_FREE_EP: EpId = 8;
 
 /// The base address of the DTU's MMIO area
 pub const BASE_ADDR: usize = 0xF000_0000;

@@ -30,8 +30,8 @@ class InDirAccel {
 public:
     static const size_t MSG_SIZE        = 64;
 
-    static const size_t EP_RECV         = 6;
-    static const size_t EP_OUT          = 7;
+    static const size_t EP_RECV         = 8;
+    static const size_t EP_OUT          = 9;
     static const capsel_t CAP_RECV      = 64;
 
     static const size_t BUF_ADDR        = 0x8000;

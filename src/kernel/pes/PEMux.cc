@@ -43,8 +43,8 @@ PEMux::PEMux(peid_t pe)
                           KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, 0);
 #endif
 
-    for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
-        capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
+    for(epid_t ep = m3::DTU::FIRST_USER_EP; ep < EP_COUNT; ++ep) {
+        capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_USER_EP;
         _caps.set(sel, new EPCapability(&_caps, sel, new EPObject(_pe, ep)));
     }
 
@@ -86,7 +86,8 @@ void PEMux::pexcall_activate(const m3::DTU::Message *msg) {
         return;
     }
 
-    auto epcap = static_cast<EPCapability*>(_caps.get(req->ep, Capability::EP));
+    capsel_t ep_sel = m3::KIF::FIRST_EP_SEL + req->ep - m3::DTU::FIRST_USER_EP;
+    auto epcap = static_cast<EPCapability*>(_caps.get(ep_sel, Capability::EP));
     if(epcap == nullptr) {
         reply_result(msg, m3::Errors::INV_ARGS);
         return;
@@ -116,6 +117,7 @@ void PEMux::invalidate_eps() {
 }
 
 m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, RGateObject &obj) {
+    assert(obj.activated());
     // it needs to be in the receive buffer space
     const goff_t addr = Platform::def_recvbuf(_pe);
     const size_t size = Platform::pe(_pe).has_virtmem() ? RECVBUF_SIZE : RECVBUF_SIZE_SPM;

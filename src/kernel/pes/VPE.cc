@@ -32,8 +32,7 @@
 
 namespace kernel {
 
-VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem,
-         epid_t sep, epid_t rep, capsel_t sgate)
+VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem)
     : SlabObject<VPE>(),
       RefCounted(),
       _desc(peid, id),
@@ -49,7 +48,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _upcqueue(*this),
       _vpe_wait_sels(),
       _vpe_wait_count(),
-      _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id, sep, rep, sgate) : nullptr),
+      _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id) : nullptr),
       _first_sel(m3::KIF::FIRST_FREE_SEL) {
     if(_sysc_ep == EP_COUNT)
         PANIC("Too few slots in syscall receive buffers");

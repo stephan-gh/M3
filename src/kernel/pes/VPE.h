@@ -80,8 +80,7 @@ public:
         F_STOPPED     = 1 << 2,
     };
 
-    explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem,
-                 epid_t sep = INVALID_EP, epid_t rep = INVALID_EP, capsel_t sgate = m3::KIF::INV_SEL);
+    explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem);
     VPE(const VPE &) = delete;
     VPE &operator=(const VPE &) = delete;
     ~VPE();

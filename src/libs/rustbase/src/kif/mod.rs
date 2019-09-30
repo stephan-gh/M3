@@ -41,9 +41,11 @@ pub const SEL_SYSC_SG: CapSel = 2;
 pub const SEL_SYSC_RG: CapSel = 3;
 pub const SEL_UPC_RG: CapSel = 4;
 pub const SEL_DEF_RG: CapSel = 5;
+pub const SEL_PG_SG: CapSel = 6;
+pub const SEL_PG_RG: CapSel = 7;
 
 /// The first selector for the endpoint capabilities
-pub const FIRST_EP_SEL: CapSel = SEL_DEF_RG + 1;
+pub const FIRST_EP_SEL: CapSel = SEL_PG_RG + 1;
 
 /// The first free selector
 pub const FIRST_FREE_SEL: CapSel = FIRST_EP_SEL + (dtu::EP_COUNT - dtu::FIRST_FREE_EP) as CapSel;

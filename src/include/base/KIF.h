@@ -50,11 +50,13 @@ struct KIF {
     static const capsel_t SEL_SYSC_RG   = 3;
     static const capsel_t SEL_UPC_RG    = 4;
     static const capsel_t SEL_DEF_RG    = 5;
+    static const capsel_t SEL_PG_SG     = 6;
+    static const capsel_t SEL_PG_RG     = 7;
 
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_EP_SEL      = SEL_DEF_RG + 1;
+    static const uint FIRST_EP_SEL      = SEL_PG_RG + 1;
 
     /**
      * The first free selector
@@ -224,10 +226,9 @@ struct KIF {
 
         struct CreateVPE : public DefaultRequest {
             xfer_t dst_crd;
-            xfer_t sgate_sel;
+            xfer_t pg_sg_sel;
+            xfer_t pg_rg_sel;
             xfer_t pe;
-            xfer_t sep;
-            xfer_t rep;
             xfer_t kmem_sel;
             xfer_t namelen;
             char name[32];

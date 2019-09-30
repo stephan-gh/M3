@@ -125,21 +125,16 @@ vpeid_t VPEManager::get_id() {
     return id;
 }
 
-VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, epid_t sep, epid_t rep,
-                        capsel_t sgate, KMemObject *kmem) {
+VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, KMemObject *kmem) {
     peid_t i = PEManager::get().find_pe(pe, 0);
     if(i == 0)
-        return nullptr;
-
-    // a pager without virtual memory support, doesn't work
-    if(!Platform::pe(i).has_virtmem() && sgate != m3::KIF::INV_SEL)
         return nullptr;
 
     vpeid_t id = get_id();
     if(id == MAX_VPES)
         return nullptr;
 
-    VPE *vpe = new VPE(std::move(name), i, id, 0, kmem, sep, rep, sgate);
+    VPE *vpe = new VPE(std::move(name), i, id, 0, kmem);
     assert(vpe == _vpes[id]);
 
     PEManager::get().init_vpe(vpe);

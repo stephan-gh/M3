@@ -52,7 +52,7 @@ impl RBufSpace {
                 + cfg::UPCALL_RBUF_SIZE
                 + cfg::DEF_RBUF_SIZE;
             if pe.has_virtmem() {
-                self.cur = cfg::RECVBUF_SPACE + buf_sizes;
+                self.cur = cfg::RECVBUF_SPACE + buf_sizes + cfg::VMA_RBUF_SIZE;
                 self.end = cfg::RECVBUF_SPACE + cfg::RECVBUF_SIZE;
             }
             else {

@@ -45,7 +45,7 @@ void VPE::init_state() {
 
 void VPE::init_fs() {
     if(env()->pager_sess)
-        _pager.reset(new Pager(env()->pager_sess, env()->pager_rgate));
+        _pager.reset(new Pager(env()->pager_sess));
     _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(env()->mounts), env()->mounts_len));
     _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(env()->fds), env()->fds_len));
 }
@@ -58,9 +58,6 @@ void VPE::reset() noexcept {
 }
 
 void VPE::run(void *lambda) {
-    if(_pager)
-        _pager->activate_gates(*this);
-
     copy_sections();
 
     Env senv;
@@ -99,9 +96,6 @@ void VPE::exec(int argc, const char **argv) {
 
     _exec = std::make_unique<FStream>(argv[0], FILE_RWX);
 
-    if(_pager)
-        _pager->activate_gates(*this);
-
     uintptr_t entry;
     size_t size;
     load(argc, argv, &entry, buffer.get(), &size);
@@ -138,14 +132,9 @@ void VPE::exec(int argc, const char **argv) {
     senv.rbufend = _rbufend;
     senv.rmng_sel = _resmng->sel();
     senv.kmem_sel = _kmem->sel();
-
-    /* set pager info */
     senv.pager_sess = _pager ? _pager->sel() : 0;
-    senv.pager_rgate = _pager ? _pager->rgate().sel() : 0;
-
     senv._backend = 0;
     senv.pedesc = _pe;
-
     senv.heapsize = _pager ? APP_HEAP_SIZE : 0;
 
     /* write start env to PE */

@@ -231,8 +231,10 @@ public:
     static const epid_t SYSC_REP            = 3;
     static const epid_t UPCALL_REP          = 4;
     static const epid_t DEF_REP             = 5;
+    static const epid_t PG_SEP              = 6;
+    static const epid_t PG_REP              = 7;
     static const epid_t FIRST_USER_EP       = 2;
-    static const epid_t FIRST_FREE_EP       = 6;
+    static const epid_t FIRST_FREE_EP       = 8;
 
     static DTU &get() {
         return inst;

@@ -20,7 +20,7 @@ use cap::Selector;
 use cell::StaticCell;
 use com::{EpMux, RecvGate, SendGate};
 use core::mem::MaybeUninit;
-use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
+use dtu::{DTUIf, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
 use kif::{syscalls, CapRngDesc, PEDesc, Perm, SEL_SYSC_SG, SEL_VPE};
@@ -176,27 +176,23 @@ pub fn create_map(
 /// Creates a new VPE with given name at the selector range `dst`.
 ///
 /// The argument `sgate` denotes the selector of the `SendGate` to the pager and `pe` defines the
-/// desired PE type for the VPE to run on. The arguments `sep` and `rep` specify the send and
-/// receive EPs to use for page fault handling. Finally, `kmem` defines the kernel memory to assign
-/// to the VPE.
+/// desired PE type for the VPE to run on. `kmem` defines the kernel memory to assign to the VPE.
 #[allow(clippy::too_many_arguments)]
 pub fn create_vpe(
     dst: CapRngDesc,
-    sgate: Selector,
+    pg_sg: Selector,
+    pg_rg: Selector,
     name: &str,
     pe: PEDesc,
-    sep: EpId,
-    rep: EpId,
     kmem: Selector,
 ) -> Result<PEDesc, Error> {
     #[allow(clippy::uninit_assumed_init)]
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
         dst_crd: dst.value(),
-        sgate_sel: u64::from(sgate),
+        pg_sg_sel: u64::from(pg_sg),
+        pg_rg_sel: u64::from(pg_rg),
         pe: u64::from(pe.value()),
-        sep: sep as u64,
-        rep: rep as u64,
         kmem_sel: u64::from(kmem),
         namelen: name.len() as u64,
         name: unsafe { MaybeUninit::uninit().assume_init() },

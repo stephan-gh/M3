@@ -29,8 +29,8 @@ namespace m3 {
 class AladdinAccel {
 public:
     static const uint RBUF_SEL      = 64;
-    static const uint RECV_EP       = 7;
-    static const uint DATA_EP       = 8;
+    static const uint RECV_EP       = 8;
+    static const uint DATA_EP       = 9;
     static const size_t RB_SIZE     = 256;
 
     static const size_t BUF_SIZE    = 1024;
@@ -62,7 +62,6 @@ public:
         _rgate.activate();
 
         if(_accel->pager()) {
-            _accel->pager()->activate_gates(*_accel);
             goff_t virt = STATE_ADDR;
             _accel->pager()->map_anon(&virt, STATE_SIZE + BUF_SIZE, Pager::Prot::RW, 0);
         }

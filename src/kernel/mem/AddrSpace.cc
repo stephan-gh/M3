@@ -25,12 +25,9 @@
 
 namespace kernel {
 
-AddrSpace::AddrSpace(peid_t pe, vpeid_t vpeid, epid_t sep, epid_t rep, capsel_t sgate)
+AddrSpace::AddrSpace(peid_t pe, vpeid_t vpeid)
     : _pe(Platform::pe(pe)),
       _vpeid(vpeid),
-      _sep(sep),
-      _rep(rep),
-      _sgate(sgate),
       _root() {
     MainMemory::Allocation rootpt = MainMemory::get().allocate(PAGE_SIZE, PAGE_SIZE);
     assert(rootpt);

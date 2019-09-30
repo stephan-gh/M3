@@ -17,7 +17,6 @@
 use cap;
 use com::{RGateArgs, RecvGate, SendGate};
 use core::fmt;
-use dtu::{EpId, FIRST_FREE_EP};
 use errors::Error;
 use goff;
 use kif;
@@ -29,9 +28,6 @@ use vpe::VPE;
 /// The pager is responsible to resolve page faults and allows to create memory mappings.
 pub struct Pager {
     sess: ClientSession,
-    sep: EpId,
-    rep: EpId,
-    rbuf: usize,
     rgate: Option<RecvGate>,
     parent_sgate: SendGate,
     child_sgate: SendGate,
@@ -55,40 +51,35 @@ int_enum! {
 
 impl Pager {
     /// Creates a new session for VPE `vpe` at the pager service with given name.
-    pub fn new(vpe: &mut VPE, rbuf: usize, pager: &str) -> Result<Self, Error> {
+    pub fn new(vpe: &mut VPE, pager: &str) -> Result<Self, Error> {
         let sess = ClientSession::new(pager)?;
-        Self::create(vpe, rbuf, sess)
+        Self::create(vpe, sess)
     }
 
-    /// Binds a new pager-session to given selectors.
-    pub fn new_bind(sess_sel: cap::Selector, rgate: cap::Selector) -> Result<Self, Error> {
+    /// Binds a new pager-session to given selector.
+    pub fn new_bind(sess_sel: cap::Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sess_sel);
         let sgate = SendGate::new_bind(sess.obtain_obj()?);
         Ok(Pager {
             sess,
-            sep: 0,
-            rep: 0,
-            rbuf: 0,
-            rgate: Some(RecvGate::new_bind(rgate, 6)),
+            rgate: Some(RecvGate::new_bind(kif::INVALID_SEL, 6)),
             parent_sgate: sgate,
             child_sgate: SendGate::new_bind(kif::INVALID_SEL),
         })
     }
 
     /// Clones the session to be shared with given VPE.
-    pub fn new_clone(&self, vpe: &mut VPE, rbuf: usize) -> Result<Self, Error> {
+    pub fn new_clone(&self, vpe: &mut VPE) -> Result<Self, Error> {
         let mut args = kif::syscalls::ExchangeArgs::default();
         // dummy arg to distinguish from the get_sgate operation
         args.count = 1;
         let sess = self.sess.obtain(1, &mut args)?;
-        Self::create(vpe, rbuf, ClientSession::new_owned_bind(sess.start()))
+        Self::create(vpe, ClientSession::new_owned_bind(sess.start()))
     }
 
-    fn create(vpe: &mut VPE, rbuf: usize, sess: ClientSession) -> Result<Self, Error> {
+    fn create(vpe: &mut VPE, sess: ClientSession) -> Result<Self, Error> {
         let parent_sgate = SendGate::new_bind(sess.obtain_obj()?);
         let child_sgate = SendGate::new_bind(sess.obtain_obj()?);
-        let sep = vpe.alloc_ep()?;
-        let rep = vpe.alloc_ep()?;
         let rgate = if vpe.pe().has_mmu() {
             Some(RecvGate::new_with(
                 RGateArgs::default().order(6).msg_order(6),
@@ -100,9 +91,6 @@ impl Pager {
 
         Ok(Pager {
             sess,
-            sep,
-            rep,
-            rbuf,
             rgate,
             parent_sgate,
             child_sgate,
@@ -112,16 +100,6 @@ impl Pager {
     /// Returns the sessions capability selector.
     pub fn sel(&self) -> cap::Selector {
         self.sess.sel()
-    }
-
-    /// Returns the endpoint used for sending page faults.
-    pub fn sep(&self) -> EpId {
-        self.sep
-    }
-
-    /// Returns the endpoint used for receiving page fault replies.
-    pub fn rep(&self) -> EpId {
-        self.rep
     }
 
     /// Returns the [`SendGate`] used by the parent to send requests to the pager.
@@ -135,7 +113,7 @@ impl Pager {
     }
 
     /// Returns the [`RecvGate`] used to receive page fault replies.
-    pub fn rgate(&self) -> Option<&RecvGate> {
+    pub fn child_rgate(&self) -> Option<&RecvGate> {
         self.rgate.as_ref()
     }
 
@@ -143,28 +121,6 @@ impl Pager {
     pub fn delegate_caps(&mut self, vpe: &VPE) -> Result<(), Error> {
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 2);
         self.sess.delegate_crd(crd)
-    }
-
-    /// Deactivates the gates (necessary after stopping the VPE).
-    // TODO actually, this was only necessary to use a VPE multiple times, right?
-    pub fn deactivate(&mut self) {
-        if let Some(ref mut rg) = self.rgate {
-            rg.deactivate();
-        }
-    }
-
-    /// Activates the gates (necessary before starting the VPE).
-    pub fn activate(&mut self, first_ep: cap::Selector) -> Result<(), Error> {
-        self.child_sgate
-            .activate_for(first_ep + (self.sep - FIRST_FREE_EP) as cap::Selector)?;
-
-        if let Some(ref mut rg) = self.rgate {
-            assert!(self.rbuf != 0);
-            rg.activate_for(first_ep, self.rep, self.rbuf as goff)
-        }
-        else {
-            Ok(())
-        }
     }
 
     /// Performs the clone-operation on server-side using copy-on-write.
@@ -238,12 +194,6 @@ impl Pager {
 
 impl fmt::Debug for Pager {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(
-            f,
-            "Pager[sel: {}, rep: {}, sep: {}]",
-            self.sel(),
-            self.rep,
-            self.parent_sgate.ep().unwrap()
-        )
+        write!(f, "Pager[sel: {}]", self.sel(),)
     }
 }

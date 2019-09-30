@@ -34,7 +34,7 @@ void *RecvGate::allocate(VPE &vpe, epid_t, size_t size) {
         if(desc.has_virtmem()) {
             *cur = RECVBUF_SPACE;
             *cur += KPEX_RBUF_SIZE + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
-            *end = RECVBUF_SPACE + RECVBUF_SIZE;
+            *end = RECVBUF_SPACE + RECVBUF_SIZE + VMA_RBUF_SIZE;
         }
         else {
             *cur = desc.mem_size() - RECVBUF_SIZE_SPM;

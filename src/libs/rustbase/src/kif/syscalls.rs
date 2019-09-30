@@ -166,10 +166,9 @@ pub struct CreateMap {
 pub struct CreateVPE {
     pub opcode: u64,
     pub dst_crd: u64,
-    pub sgate_sel: u64,
+    pub pg_sg_sel: u64,
+    pub pg_rg_sel: u64,
     pub pe: u64,
-    pub sep: u64,
-    pub rep: u64,
     pub kmem_sel: u64,
     pub namelen: u64,
     pub name: [u8; MAX_STR_SIZE],
