@@ -43,12 +43,10 @@ public:
         COUNT,
     };
 
-    explicit GenericFile(int flags, capsel_t caps, size_t id = 0, epid_t mep = EP_COUNT,
-                         SendGate *sg = nullptr, size_t memoff = 0);
-    virtual ~GenericFile();
+    explicit GenericFile(int flags, capsel_t caps);
 
     SendGate &sgate() noexcept {
-        return *_sg;
+        return _sg;
     }
     ClientSession &sess() noexcept {
         return _sess;
@@ -81,44 +79,35 @@ public:
     }
 
     virtual Reference<File> clone() const override {
-        if(flags() & FILE_NOSESS)
-            return Reference<File>();
         KIF::CapRngDesc crd = _sess.obtain(2);
         return Reference<File>(new GenericFile(flags(), crd.start()));
     }
 
     virtual void delegate(VPE &vpe) override {
-        if(flags() & FILE_NOSESS)
-            throw Exception(Errors::NOT_SUP);
         KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _sess.sel(), 2);
         _sess.obtain_for(vpe, crd);
     }
 
     virtual void serialize(Marshaller &m) override {
-        m << flags() << _sess.sel() << _id;
+        m << flags() << _sess.sel();
     }
 
     static File *unserialize(Unmarshaller &um) {
         int fl;
         capsel_t caps;
-        size_t id;
-        um >> fl >> caps >> id;
-        return new GenericFile(fl, caps, id);
+        um >> fl >> caps;
+        return new GenericFile(fl, caps);
     }
 
 private:
     virtual void close() noexcept override;
 
-    bool have_sess() const noexcept {
-        return !(flags() & FILE_NOSESS);
-    }
     void evict();
     void submit();
     void delegate_ep();
 
-    size_t _id;
     mutable ClientSession _sess;
-    mutable SendGate *_sg;
+    mutable SendGate _sg;
     MemGate _mg;
     size_t _memoff;
     size_t _goff;

@@ -46,8 +46,6 @@ public:
         RMDIR,
         LINK,
         UNLINK,
-        OPEN_PRIV,
-        CLOSE_PRIV,
         COUNT
     };
 
@@ -67,10 +65,6 @@ public:
     }
     virtual char type() const noexcept override {
         return 'M';
-    }
-
-    virtual void delegate_eps(capsel_t first, uint count) override {
-        ClientSession::delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, first, count));
     }
 
     virtual Reference<File> open(const char *path, int perms) override;

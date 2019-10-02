@@ -26,25 +26,17 @@
 
 namespace m3 {
 
-GenericFile::GenericFile(int flags, capsel_t caps, size_t id, epid_t mep, SendGate *sg, size_t memoff)
+GenericFile::GenericFile(int flags, capsel_t caps)
     : File(flags),
-      _id(id),
-      _sess(caps + 0, sg ? ObjCap::KEEP_CAP : 0),
-      _sg(sg ? sg : new SendGate(SendGate::bind(caps + 1))),
+      _sess(caps + 0),
+      _sg(SendGate::bind(caps + 1)),
       _mg(MemGate::bind(ObjCap::INVALID)),
-      _memoff(memoff),
+      _memoff(),
       _goff(),
       _off(),
       _pos(),
       _len(),
       _writing() {
-    if(mep != EP_COUNT)
-        _mg.ep(mep);
-}
-
-GenericFile::~GenericFile() {
-    if(!(flags() & FILE_NOSESS))
-        delete _sg;
 }
 
 void GenericFile::close() noexcept {
@@ -57,51 +49,38 @@ void GenericFile::close() noexcept {
         }
     }
 
-    if(flags() & FILE_NOSESS) {
-        LLOG(FS, "GenFile[" << fd() << "," << _id << "]::close()");
+    if(_mg.ep() != MemGate::UNBOUND) {
+        LLOG(FS, "GenFile[" << fd() << "]::revoke_ep(" << _mg.ep() << ")");
+        capsel_t sel = VPE::self().ep_to_sel(_mg.ep());
         try {
-            send_receive_vmsg(*_sg, M3FS::CLOSE_PRIV, _id);
+            VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel), true);
         }
         catch(...) {
             // ignore
         }
-
-        VFS::free_ep(VPE::self().ep_to_sel(_mg.ep()));
+        VPE::self().free_ep(_mg.ep());
     }
-    else {
-        if(_mg.ep() != MemGate::UNBOUND) {
-            LLOG(FS, "GenFile[" << fd() << "," << _id << "]::revoke_ep(" << _mg.ep() << ")");
-            capsel_t sel = VPE::self().ep_to_sel(_mg.ep());
-            try {
-                VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel), true);
-            }
-            catch(...) {
-                // ignore
-            }
-            VPE::self().free_ep(_mg.ep());
-        }
 
-        // file sessions are not known to our resource manager; thus close them manually
-        LLOG(FS, "GenFile[" << fd() << "]::close()");
-        try {
-            send_receive_vmsg(*_sg, M3FS::CLOSE);
-        }
-        catch(...) {
-            // ignore
-        }
+    // file sessions are not known to our resource manager; thus close them manually
+    LLOG(FS, "GenFile[" << fd() << "]::close()");
+    try {
+        send_receive_vmsg(_sg, M3FS::CLOSE);
+    }
+    catch(...) {
+        // ignore
     }
 }
 
 void GenericFile::stat(FileInfo &info) const {
-    LLOG(FS, "GenFile[" << fd() << "," << _id << "]::stat()");
+    LLOG(FS, "GenFile[" << fd() << "]::stat()");
 
-    GateIStream reply = send_receive_vmsg(*_sg, STAT, _id);
+    GateIStream reply = send_receive_vmsg(_sg, STAT);
     reply.pull_result();
     reply >> info;
 }
 
 size_t GenericFile::seek(size_t offset, int whence) {
-    LLOG(FS, "GenFile[" << fd() << "," << _id << "]::seek(" << offset << ", " << whence << ")");
+    LLOG(FS, "GenFile[" << fd() << "]::seek(" << offset << ", " << whence << ")");
 
     // handle SEEK_CUR as SEEK_SET
     if(whence == M3FS_SEEK_CUR) {
@@ -132,8 +111,7 @@ size_t GenericFile::seek(size_t offset, int whence) {
 
     // now seek on the server side
     size_t off;
-    GateIStream reply = !have_sess() ? send_receive_vmsg(*_sg, SEEK, _id, offset, whence)
-                                     : send_receive_vmsg(*_sg, SEEK, offset, whence);
+    GateIStream reply = send_receive_vmsg(_sg, SEEK, offset, whence);
     reply.pull_result();
 
     reply >> _goff >> off;
@@ -146,12 +124,11 @@ size_t GenericFile::read(void *buffer, size_t count) {
     if(_writing)
         submit();
 
-    LLOG(FS, "GenFile[" << fd() << "," << _id << "]::read("
-        << count << ", pos=" << (_goff + _pos) << ")");
+    LLOG(FS, "GenFile[" << fd() << "]::read(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
         Time::start(0xbbbb);
-        GateIStream reply = send_receive_vmsg(*_sg, NEXT_IN, _id);
+        GateIStream reply = send_receive_vmsg(_sg, NEXT_IN);
         reply.pull_result();
         Time::stop(0xbbbb);
 
@@ -178,12 +155,11 @@ size_t GenericFile::read(void *buffer, size_t count) {
 size_t GenericFile::write(const void *buffer, size_t count) {
     delegate_ep();
 
-    LLOG(FS, "GenFile[" << fd() << "," << _id << "]::write("
-        << count << ", pos=" << (_goff + _pos) << ")");
+    LLOG(FS, "GenFile[" << fd() << "]::write(" << count << ", pos=" << (_goff + _pos) << ")");
 
     if(_pos == _len) {
         Time::start(0xbbbb);
-        GateIStream reply = send_receive_vmsg(*_sg, NEXT_OUT, _id);
+        GateIStream reply = send_receive_vmsg(_sg, NEXT_OUT);
         reply.pull_result();
         Time::stop(0xbbbb);
 
@@ -209,9 +185,8 @@ size_t GenericFile::write(const void *buffer, size_t count) {
 }
 
 void GenericFile::evict() {
-    assert(!(flags() & FILE_NOSESS));
     assert(_mg.ep() != MemGate::UNBOUND);
-    LLOG(FS, "GenFile[" << fd() << "," << _id << "]::evict()");
+    LLOG(FS, "GenFile[" << fd() << "]::evict()");
 
     // submit read/written data
     submit();
@@ -224,11 +199,10 @@ void GenericFile::evict() {
 
 void GenericFile::submit() {
     if(_pos > 0) {
-        LLOG(FS, "GenFile[" << fd() << "," << _id << "]::submit("
+        LLOG(FS, "GenFile[" << fd() << "]::submit("
             << (_writing ? "write" : "read") << ", " << _pos << ")");
 
-        GateIStream reply = !have_sess() ? send_receive_vmsg(*_sg, COMMIT, _id, _pos)
-                                         : send_receive_vmsg(*_sg, COMMIT, _pos);
+        GateIStream reply = send_receive_vmsg(_sg, COMMIT, _pos);
         reply.pull_result();
 
         // if we append, the file was truncated
@@ -240,9 +214,8 @@ void GenericFile::submit() {
 
 void GenericFile::delegate_ep() {
     if(_mg.ep() == MemGate::UNBOUND) {
-        assert(!(flags() & FILE_NOSESS));
         epid_t ep = VPE::self().fds()->request_ep(this);
-        LLOG(FS, "GenFile[" << fd() << "," << _id << "]::delegate_ep(" << ep << ")");
+        LLOG(FS, "GenFile[" << fd() << "]::delegate_ep(" << ep << ")");
         _sess.delegate_obj(VPE::self().ep_to_sel(ep));
         _mg.ep(ep);
     }

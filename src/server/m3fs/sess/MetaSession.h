@@ -32,8 +32,6 @@ public:
         : M3FSSession(handle, srv_sel),
           _sgates(),
           _rgate(rgate),
-          _ep_start(),
-          _ep_count(),
           _max_files(max_files),
           _files(new M3FSFileSession*[max_files]()) {
     }
@@ -49,20 +47,6 @@ public:
     virtual Type type() const override {
         return META;
     }
-
-    void set_eps(capsel_t sel, uint count) {
-        _ep_start = sel;
-        _ep_count = count;
-    }
-
-    virtual void open_private_file(m3::GateIStream &is) override;
-    virtual void close_private_file(m3::GateIStream &is) override;
-
-    virtual void next_in(m3::GateIStream &is) override;
-    virtual void next_out(m3::GateIStream &is) override;
-    virtual void commit(m3::GateIStream &is) override;
-    virtual void seek(m3::GateIStream &is) override;
-    virtual void fstat(m3::GateIStream &is) override;
 
     virtual void stat(m3::GateIStream &is) override;
     virtual void mkdir(m3::GateIStream &is) override;
@@ -84,8 +68,6 @@ private:
 
     m3::SList<MetaSGate> _sgates;
     m3::RecvGate &_rgate;
-    capsel_t _ep_start;
-    capsel_t _ep_count;
     size_t _max_files;
     M3FSFileSession **_files;
 };

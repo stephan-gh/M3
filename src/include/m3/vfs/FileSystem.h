@@ -112,14 +112,6 @@ public:
      * @param m the marshaller
      */
     virtual void serialize(Marshaller &m) = 0;
-
-    /**
-     * Delegates the given EP caps to the server.
-     *
-     * @param first the first EP cap
-     * @param count the number of caps
-     */
-    virtual void delegate_eps(capsel_t first, uint count) = 0;
 };
 
 }

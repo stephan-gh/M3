@@ -52,11 +52,6 @@ bitflags! {
         const CREATE    = 0b0010_0000;
         /// For benchmarking: only pretend to access the file's data.
         const NODATA    = 0b0100_0000;
-        /// Do not create a file session, but store the file in the metadata session.
-        ///
-        /// Setting this flag improves the performance of [`VFS::open`] and [`VFS::close`], but
-        /// does not allow to delegate the "file capability" to another VPE.
-        const NOSESS    = 0b1000_0000;
 
         /// Opens the file for reading and writing.
         const RW        = Self::R.bits | Self::W.bits;

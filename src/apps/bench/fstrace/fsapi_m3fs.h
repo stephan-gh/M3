@@ -79,12 +79,12 @@ public:
 
         try {
             if(args->flags & O_DIRECTORY) {
-                auto dir = new m3::Dir(add_prefix(args->name), m3::FILE_R | m3::FILE_NOSESS);
+                auto dir = new m3::Dir(add_prefix(args->name), m3::FILE_R);
                 _dirMap[args->fd] = dir;
             }
             else {
                 auto nfile = m3::VFS::open(add_prefix(args->name),
-                                           args->flags | (_data ? 0 : m3::FILE_NODATA) | m3::FILE_NOSESS);
+                                           args->flags | (_data ? 0 : m3::FILE_NODATA));
                 _fdMap[args->fd] = nfile;
             }
         }

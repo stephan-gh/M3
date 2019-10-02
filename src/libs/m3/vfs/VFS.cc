@@ -29,7 +29,6 @@ namespace m3 {
 
 // clean them up after the standard streams have been destructed
 INIT_PRIO_VFS VFS::Cleanup VFS::_cleanup;
-VFS::ReservedEPs VFS::_reseps[VFS::MAX_RES_EPS];
 
 VFS::Cleanup::~Cleanup() {
     VPE::self().fds()->remove_all();
@@ -54,40 +53,6 @@ void VFS::mount(const char *path, const char *fs, const char *options) {
 
 void VFS::unmount(const char *path) {
     ms()->remove(path);
-}
-
-void VFS::delegate_eps(const char *path, capsel_t first, uint count) {
-    size_t pos;
-    Reference<FileSystem> fs = ms()->resolve(path, &pos);
-    fs->delegate_eps(first, count);
-    for(size_t i = 0; i < MAX_RES_EPS; ++i) {
-        if(!_reseps[i]._fs) {
-            _reseps[i] = ReservedEPs(fs, first, count);
-            return;
-        }
-    }
-    // TODO revoke caps
-    throw Exception(Errors::NO_SPACE);
-}
-
-capsel_t VFS::try_alloc_ep(const Reference<FileSystem> &fs, size_t *idx) noexcept {
-    for(uint i = 0; i < MAX_RES_EPS; ++i) {
-        if(_reseps[i]._fs == fs) {
-            capsel_t ep = _reseps[i].alloc_ep();
-            *idx = ep - _reseps[i]._eps;
-            return ep;
-        }
-    }
-    return ObjCap::INVALID;
-}
-
-void VFS::free_ep(capsel_t ep) noexcept {
-    for(uint i = 0; i < MAX_RES_EPS; ++i) {
-        if(_reseps[i].has_ep(ep)) {
-            _reseps[i].free_ep(ep);
-            break;
-        }
-    }
 }
 
 fd_t VFS::open(const char *path, int flags) {

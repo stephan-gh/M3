@@ -28,7 +28,7 @@ use serialize::Sink;
 use session::ClientSession;
 use util;
 use vfs::{
-    FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags, VFS,
+    FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
 };
 use vpe::VPE;
 
@@ -85,30 +85,7 @@ impl FileSystem for M3FS {
         self
     }
 
-    fn open(&self, path: &str, mut flags: OpenFlags) -> Result<FileHandle, Error> {
-        if flags.contains(OpenFlags::NOSESS) {
-            if let Ok((idx, ep)) = VFS::alloc_ep(self.self_weak.upgrade().unwrap()) {
-                let mut reply = send_recv_res!(
-                    &self.sgate,
-                    RecvGate::def(),
-                    FSOperation::OPEN_PRIV,
-                    path,
-                    flags.bits(),
-                    idx
-                )?;
-                let id = reply.pop();
-                return Ok(Rc::new(RefCell::new(GenericFile::new_without_sess(
-                    flags,
-                    id,
-                    self.sess.sel(),
-                    Some(VPE::cur().sel_ep(ep)),
-                    self.sgate.clone(),
-                ))));
-            }
-        }
-
-        flags.remove(OpenFlags::NOSESS);
-
+    fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error> {
         #[allow(clippy::uninit_assumed_init)]
         let mut args = kif::syscalls::ExchangeArgs {
             count: 1,
@@ -182,11 +159,6 @@ impl FileSystem for M3FS {
     fn serialize(&self, s: &mut VecSink) {
         s.push(&self.sess.sel());
         s.push(&self.sgate.sel());
-    }
-
-    fn delegate_eps(&self, first: Selector, count: u32) -> Result<(), Error> {
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, first, count);
-        self.sess.delegate_crd(crd)
     }
 }
 

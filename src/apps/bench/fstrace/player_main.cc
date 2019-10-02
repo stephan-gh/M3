@@ -154,14 +154,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    // pass some EP caps to m3fs (required for FILE_NOSESS)
-    epid_t eps = VPE::self().alloc_ep();
-    for(uint i = 1; i < META_EPS; ++i) {
-        if(VPE::self().alloc_ep() != eps + i)
-           PANIC("Unable to allocate EPs for meta session");
-    }
-    VFS::delegate_eps("/", VPE::self().ep_to_sel(eps), META_EPS);
-
     TracePlayer player(prefix);
 
     Trace *trace = Traces::get(argv[CmdArgs::ind]);

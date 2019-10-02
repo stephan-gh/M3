@@ -33,25 +33,12 @@ fn open_close() {
     let mut prof = profile::Profiler::default().repeats(50).warmup(10);
 
     wv_perf!(
-        "open-close w/ file session",
+        "open-close",
         prof.run_with_id(
             || {
                 wv_assert_ok!(VFS::open("/data/2048k.txt", OpenFlags::R));
             },
             0x20
-        )
-    );
-
-    wv_perf!(
-        "open-close w/o file session",
-        prof.run_with_id(
-            || {
-                wv_assert_ok!(VFS::open(
-                    "/data/2048k.txt",
-                    OpenFlags::R | OpenFlags::NOSESS
-                ));
-            },
-            0x21
         )
     );
 }

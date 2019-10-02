@@ -30,8 +30,6 @@ int_enum! {
         const RMDIR         = 0x8;
         const LINK          = 0x9;
         const UNLINK        = 0xA;
-        const OPEN_PRIV     = 0xB;
-        const CLOSE_PRIV    = 0xC;
     }
 }
 
@@ -67,10 +65,4 @@ pub trait FileSystem: fmt::Debug {
     ) -> Result<(), Error>;
     /// Serializes this file system into `s`.
     fn serialize(&self, s: &mut VecSink);
-
-    /// Delegates the given endpoint capabilities to this file system.
-    ///
-    /// These endpoints will afterwards be used for files that are opened with [`OpenFlags::NOSESS`],
-    /// which are less expensive to open/close.
-    fn delegate_eps(&self, first: Selector, count: u32) -> Result<(), Error>;
 }

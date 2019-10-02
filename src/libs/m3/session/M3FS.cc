@@ -22,25 +22,12 @@
 namespace m3 {
 
 Reference<File> M3FS::open(const char *path, int perms) {
-    capsel_t ep;
-    size_t epidx;
-    if((perms & FILE_NOSESS) &&
-       (ep = VFS::try_alloc_ep(Reference<FileSystem>(this), &epidx)) != ObjCap::INVALID) {
-        GateIStream reply = send_receive_vmsg(_gate, OPEN_PRIV, path, perms, epidx);
-        reply.pull_result();
-        size_t id;
-        reply >> id;
-        return Reference<File>(new GenericFile(perms, sel(), id, VPE::self().sel_to_ep(ep), &_gate));
-    }
-    else {
-        perms &= ~FILE_NOSESS;
-        KIF::ExchangeArgs args;
-        args.count = 1;
-        args.svals[0] = static_cast<xfer_t>(perms);
-        strncpy(args.str, path, sizeof(args.str));
-        KIF::CapRngDesc crd = obtain(2, &args);
-        return Reference<File>(new GenericFile(perms, crd.start()));
-    }
+    KIF::ExchangeArgs args;
+    args.count = 1;
+    args.svals[0] = static_cast<xfer_t>(perms);
+    strncpy(args.str, path, sizeof(args.str));
+    KIF::CapRngDesc crd = obtain(2, &args);
+    return Reference<File>(new GenericFile(perms, crd.start()));
 }
 
 void M3FS::stat(const char *path, FileInfo &info) {

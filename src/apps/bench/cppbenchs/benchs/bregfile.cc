@@ -30,17 +30,9 @@ alignas(64) static char buf[8192];
 NOINLINE static void open_close() {
     Profile pr(50, 10);
 
-    WVPERF("open-close w/ file session", pr.run_with_id([] {
+    WVPERF("open-close", pr.run_with_id([] {
         FileRef file("/data/2048k.txt", FILE_R);
     }, 0x30));
-
-    // pass one EP caps to m3fs (required for FILE_NOSESS)
-    epid_t ep = VPE::self().alloc_ep();
-    VFS::delegate_eps("/", VPE::self().ep_to_sel(ep), 1);
-
-    WVPERF("open-close w/o file session", pr.run_with_id([] {
-        FileRef file("/data/2048k.txt", FILE_R | m3::FILE_NOSESS);
-    }, 0x31));
 }
 
 NOINLINE static void stat() {
