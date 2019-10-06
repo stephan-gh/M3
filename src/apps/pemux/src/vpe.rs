@@ -158,6 +158,8 @@ impl VPE {
             }
 
             upcalls::check();
+
+            dtu::DTU::sleep().ok();
         }
     }
 }
