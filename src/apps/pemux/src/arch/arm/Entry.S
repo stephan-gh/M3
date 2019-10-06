@@ -60,5 +60,5 @@ END_FUNC(_start)
 
 .bss
 
-    .space 4096
+    .space 16384
 idle_stack:

@@ -80,5 +80,5 @@ END_FUNC(exc_common)
 .bss
 
     .align      2
-    .space 4096,0
+    .space 16384,0
 isr_stack:

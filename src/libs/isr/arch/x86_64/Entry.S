@@ -115,5 +115,5 @@ END_FUNC(isr_null)
 .bss
 
     .align 16
-    .space 4096, 0
+    .space 16384, 0
 isr_stack:
