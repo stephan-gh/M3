@@ -44,7 +44,7 @@ SyscallHandler::handler_func SyscallHandler::_callbacks[m3::KIF::Syscall::COUNT]
     do {                                                                                    \
         KLOG(ERR, "\e[37;41m"                                                               \
             << (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->pe(), "X")      \
-            << ": " << msg << " (" << error << ")\e[0m");                                   \
+            << ": " << msg << " (" << m3::Errors::to_string(error) << ")\e[0m");            \
     }                                                                                       \
     while(0)
 
