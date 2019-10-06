@@ -19,6 +19,17 @@
 
 namespace m3 {
 
+Pager::~Pager() {
+    if(_close) {
+        try {
+            send_receive_vmsg(_own_sgate, CLOSE);
+        }
+        catch(...) {
+            // ignore
+        }
+    }
+}
+
 void Pager::pagefault(goff_t addr, uint access) {
     GateIStream reply = send_receive_vmsg(_own_sgate, PAGEFAULT, addr, access);
     reply.pull_result();

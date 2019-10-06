@@ -50,6 +50,7 @@ public:
         add_operation(Pager::CLONE, &MemReqHandler::clone);
         add_operation(Pager::MAP_ANON, &MemReqHandler::map_anon);
         add_operation(Pager::UNMAP, &MemReqHandler::unmap);
+        add_operation(Pager::CLOSE, &MemReqHandler::close_req);
 
         using std::placeholders::_1;
         _rgate.start(wl, std::bind(&MemReqHandler::handle_message, this, _1));
@@ -118,6 +119,16 @@ public:
 
     virtual void shutdown() override {
         _rgate.stop();
+    }
+
+    void close_req(GateIStream &is) {
+        AddrSpace *sess = is.label<AddrSpace*>();
+
+        SLOG(PAGER, fmt((word_t)sess, "#x") << ": mem::close()");
+
+        // reply first, because we drop the message in close()
+        reply_error(is, Errors::NONE);
+        close(sess);
     }
 
     void pf(GateIStream &is) {

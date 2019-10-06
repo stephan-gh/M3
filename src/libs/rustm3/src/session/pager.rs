@@ -31,6 +31,7 @@ pub struct Pager {
     rgate: Option<RecvGate>,
     parent_sgate: SendGate,
     child_sgate: SendGate,
+    close: bool,
 }
 
 int_enum! {
@@ -46,6 +47,7 @@ int_enum! {
         const CLONE     = 0x1;
         const MAP_ANON  = 0x2;
         const UNMAP     = 0x3;
+        const CLOSE     = 0x4;
     }
 }
 
@@ -53,7 +55,7 @@ impl Pager {
     /// Creates a new session for VPE `vpe` at the pager service with given name.
     pub fn new(vpe: &mut VPE, pager: &str) -> Result<Self, Error> {
         let sess = ClientSession::new(pager)?;
-        Self::create(vpe, sess)
+        Self::create(vpe, sess, false)
     }
 
     /// Binds a new pager-session to given selector.
@@ -65,6 +67,7 @@ impl Pager {
             rgate: Some(RecvGate::new_bind(kif::INVALID_SEL, 6)),
             parent_sgate: sgate,
             child_sgate: SendGate::new_bind(kif::INVALID_SEL),
+            close: false,
         })
     }
 
@@ -74,10 +77,10 @@ impl Pager {
         // dummy arg to distinguish from the get_sgate operation
         args.count = 1;
         let sess = self.sess.obtain(1, &mut args)?;
-        Self::create(vpe, ClientSession::new_owned_bind(sess.start()))
+        Self::create(vpe, ClientSession::new_bind(sess.start()), true)
     }
 
-    fn create(vpe: &mut VPE, sess: ClientSession) -> Result<Self, Error> {
+    fn create(vpe: &mut VPE, sess: ClientSession, close: bool) -> Result<Self, Error> {
         let parent_sgate = SendGate::new_bind(sess.obtain_obj()?);
         let child_sgate = SendGate::new_bind(sess.obtain_obj()?);
         let rgate = if vpe.pe().has_mmu() {
@@ -94,6 +97,7 @@ impl Pager {
             rgate,
             parent_sgate,
             child_sgate,
+            close,
         })
     }
 
@@ -189,6 +193,14 @@ impl Pager {
     /// Unaps the mapping at virtual address `addr`.
     pub fn unmap(&self, addr: goff) -> Result<(), Error> {
         send_recv_res!(&self.parent_sgate, RecvGate::def(), Operation::UNMAP, addr).map(|_| ())
+    }
+}
+
+impl Drop for Pager {
+    fn drop(&mut self) {
+        if self.close {
+            send_recv_res!(&self.parent_sgate, RecvGate::def(), Operation::CLOSE).ok();
+        }
     }
 }
 

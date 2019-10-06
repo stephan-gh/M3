@@ -52,14 +52,6 @@ impl ClientSession {
         }
     }
 
-    /// Binds a new `ClientSession` to given selector and closes the session on drop.
-    pub fn new_owned_bind(sel: Selector) -> Self {
-        ClientSession {
-            cap: Capability::new(sel, CapFlags::KEEP_CAP),
-            close: true,
-        }
-    }
-
     /// Returns the capability selector.
     pub fn sel(&self) -> Selector {
         self.cap.sel()

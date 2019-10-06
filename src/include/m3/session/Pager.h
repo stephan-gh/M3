@@ -28,11 +28,12 @@ namespace m3 {
 class Pager : public ClientSession {
 private:
     explicit Pager(VPE &vpe, capsel_t sess)
-        : ClientSession(sess, 0),
+        : ClientSession(sess),
           _rgate(vpe.pe().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
                                     : RecvGate::bind(ObjCap::INVALID, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
-          _child_sgate(SendGate::bind(obtain(1).start())) {
+          _child_sgate(SendGate::bind(obtain(1).start())),
+          _close(true) {
     }
 
 public:
@@ -46,6 +47,7 @@ public:
         CLONE,
         MAP_ANON,
         UNMAP,
+        CLOSE,
         COUNT,
     };
 
@@ -66,15 +68,18 @@ public:
         : ClientSession(sess),
           _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val)),
           _own_sgate(SendGate::bind(obtain(1).start())),
-          _child_sgate(SendGate::bind(ObjCap::INVALID)) {
+          _child_sgate(SendGate::bind(ObjCap::INVALID)),
+          _close(false) {
     }
     explicit Pager(VPE &vpe, const String &service)
         : ClientSession(service),
           _rgate(vpe.pe().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
                                     : RecvGate::bind(ObjCap::INVALID, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
-          _child_sgate(SendGate::bind(obtain(1).start())) {
+          _child_sgate(SendGate::bind(obtain(1).start())),
+          _close(false) {
     }
+    ~Pager();
 
     const SendGate &own_sgate() const noexcept {
         return _own_sgate;
@@ -100,6 +105,7 @@ private:
     RecvGate _rgate;
     SendGate _own_sgate;
     SendGate _child_sgate;
+    bool _close;
 };
 
 }
