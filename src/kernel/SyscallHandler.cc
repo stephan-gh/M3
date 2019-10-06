@@ -402,6 +402,8 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid EP cap");
 
     m3::Errors::Code res = vpe->activate(epcap, gate, addr);
+    if(res != m3::Errors::NONE)
+        SYS_ERROR(vpe, msg, res, "Gate activation failed");
     reply_result(vpe, msg, res);
 }
 
