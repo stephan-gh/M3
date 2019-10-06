@@ -108,7 +108,7 @@ bool DTUState::config_mem_cached(epid_t ep, peid_t pe) {
 void DTUState::config_pf(gaddr_t rootpt, epid_t sep, epid_t rep) {
     uint features = 0;
     if(sep != static_cast<epid_t>(-1))
-        features = static_cast<uint>(m3::DTU::StatusFlags::PAGEFAULTS);
+        features |= static_cast<uint>(m3::DTU::StatusFlags::PAGEFAULTS);
     _regs.set(m3::DTU::DtuRegs::FEATURES, features);
     _regs.set(m3::DTU::DtuRegs::ROOT_PT, rootpt);
     _regs.set(m3::DTU::DtuRegs::PF_EP, sep | (rep << 8));
