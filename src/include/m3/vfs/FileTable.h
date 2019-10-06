@@ -61,7 +61,12 @@ public:
           _fds() {
     }
 
-    explicit FileTable(const FileTable &f) noexcept {
+    explicit FileTable(const FileTable &f) noexcept
+        : _free_ep_count(),
+          _used_ep_count(),
+          _file_ep_victim(),
+          _free_eps(),
+          _used_eps() {
         for(fd_t i = 0; i < MAX_FDS; ++i)
             _fds[i] = f._fds[i];
     }
