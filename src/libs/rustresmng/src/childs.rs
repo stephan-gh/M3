@@ -39,6 +39,7 @@ pub struct Resources {
     services: Vec<(Id, Selector)>,
     sessions: Vec<Session>,
     mem: Vec<Allocation>,
+    eps: Vec<(Selector, Selector)>,
 }
 
 impl Default for Resources {
@@ -48,6 +49,7 @@ impl Default for Resources {
             services: Vec::new(),
             sessions: Vec::new(),
             mem: Vec::new(),
+            eps: Vec::new(),
         }
     }
 }
@@ -234,6 +236,53 @@ pub trait Child {
         self.delegate(our_sel, sel)
     }
 
+    fn alloc_ep(&mut self, sel: Selector, vpe: Selector) -> Result<dtu::EpId, Error> {
+        log!(RESMNG_EPS, "{}: alloc_ep(sel={}, vpe={})", self.name(), sel, vpe);
+
+        let cfg = self.cfg();
+        if !cfg.has_eps() {
+            return Err(Error::new(Code::NoSpace));
+        }
+
+        let vpe_sel = if vpe == 0 {
+            self.vpe_sel()
+        }
+        else {
+            self.child_mut(vpe).ok_or(Error::new(Code::InvArgs))?.vpe_sel()
+        };
+
+        let ep_sel = VPE::cur().alloc_sel();
+        let ep_id = syscalls::alloc_ep(ep_sel, vpe_sel)?;
+        self.delegate(ep_sel, sel)?;
+        self.res_mut().eps.push((sel, ep_sel));
+        cfg.rem_ep();
+        Ok(ep_id)
+    }
+
+    fn free_ep(&mut self, sel: Selector) -> Result<(), Error> {
+        log!(RESMNG_EPS, "{}: free_ep(sel={})", self.name(), sel);
+
+        let idx = self
+            .res_mut()
+            .eps
+            .iter()
+            .position(|(id, _)| *id == sel)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+        self.remove_ep_by_idx(idx)?;
+
+        let cfg = self.cfg();
+        cfg.add_ep();
+
+        Ok(())
+    }
+
+    fn remove_ep_by_idx(&mut self, idx: usize) -> Result<(), Error> {
+        let (id, ep_sel) = self.res_mut().eps.remove(idx);
+        let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
+        log!(RESMNG_EPS, "{}: removed EP (id={}, sel={})", self.name(), id, ep_sel);
+        VPE::cur().revoke(crd, false)
+    }
+
     fn remove_resources(&mut self)
     where
         Self: Sized,
@@ -252,6 +301,10 @@ pub trait Child {
 
         while !self.res().mem.is_empty() {
             self.remove_mem_by_idx(0);
+        }
+
+        while !self.res().eps.is_empty() {
+            self.remove_ep_by_idx(0).ok();
         }
     }
 }
@@ -498,7 +551,7 @@ impl ChildManager {
 
         self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
 
-        let reply = kif::syscalls::DefaultReply { error: 0u64 };
+        let reply = kif::DefaultReply { error: 0u64 };
         RecvGate::upcall()
             .reply(&[reply], msg)
             .expect("Upcall reply failed");

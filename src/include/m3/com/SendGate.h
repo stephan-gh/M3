@@ -185,12 +185,11 @@ public:
 
 private:
     /**
-     * Activates this gate for <vpe> at EP <ep>.
+     * Activates this gate on EP <ep>.
      *
-     * @param vpe the VPE to activate it for
-     * @param ep the ep id
+     * @param ep the endpoint
      */
-    void activate_for(VPE &vpe, epid_t ep);
+    void activate_on(const EP &ep);
 
     RecvGate *_replygate;
 };

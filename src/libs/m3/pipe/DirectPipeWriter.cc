@@ -156,7 +156,13 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
         }
         _state->_free -= amount;
         _state->_capacity--;
-        send_vmsg(_state->_sgate, off, amount);
+        try {
+            send_vmsg(_state->_sgate, off, amount);
+        }
+        catch(...) {
+            // maybe the reader stopped
+            break;
+        }
         rem -= amount;
         buf += amount;
     }

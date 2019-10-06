@@ -35,12 +35,11 @@ event_t SendQueue::get_event(uint64_t id) {
 }
 
 event_t SendQueue::send(epid_t dst_ep, label_t ident, const void *msg, size_t size, bool onheap) {
-    KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: trying to send message");
+    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: trying to send message");
 
     if(_inflight == -1)
         return 0;
 
-    assert(_vpe.state() == VPE::RUNNING);
     if(_inflight == 0)
         return do_send(dst_ep, _next_id++, msg, size, onheap);
 
@@ -51,7 +50,7 @@ event_t SendQueue::send(epid_t dst_ep, label_t ident, const void *msg, size_t si
         msg = nmsg;
     }
 
-    KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: queuing message");
+    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: queuing message");
 
     Entry *e = new Entry(_next_id++, dst_ep, ident, msg, size);
     _queue.append(e);
@@ -64,12 +63,11 @@ void SendQueue::send_pending() {
 
     Entry *e = _queue.remove_first();
 
-    KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: found pending message");
+    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: found pending message");
 
     // it might happen that there is another message in flight now
-    assert(_vpe.state() == VPE::RUNNING);
     if(_inflight != 0) {
-        KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: queuing message");
+        KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: queuing message");
         _queue.append(e);
         return;
     }
@@ -80,7 +78,7 @@ void SendQueue::send_pending() {
 }
 
 void SendQueue::received_reply(epid_t ep, const m3::DTU::Message *msg) {
-    KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: received reply");
+    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: received reply");
 
     m3::ThreadManager::get().notify(_cur_event, msg, msg->length + sizeof(m3::DTU::Message::Header));
 
@@ -96,12 +94,12 @@ void SendQueue::received_reply(epid_t ep, const m3::DTU::Message *msg) {
 }
 
 event_t SendQueue::do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t size, bool onheap) {
-    KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: sending message");
+    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: sending message");
 
     _cur_event = get_event(id);
     _inflight++;
 
-    if(DTU::get().send_to(_vpe.desc(), dst_ep, 0, msg, size, reinterpret_cast<label_t>(this),
+    if(DTU::get().send_to(_desc, dst_ep, 0, msg, size, reinterpret_cast<label_t>(this),
                           SyscallHandler::srvep()) != m3::Errors::NONE) {
         PANIC("send failed");
     }
@@ -126,11 +124,11 @@ void SendQueue::drop_msgs(label_t ident) {
             prev = &*old;
     }
 
-    KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: dropped " << n << " msgs for " << m3::fmt(ident, "p"));
+    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: dropped " << n << " msgs for " << m3::fmt(ident, "p"));
 }
 
 void SendQueue::abort() {
-    KLOG(SQUEUE, "SendQueue[" << _vpe.id() << "]: aborting");
+    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: aborting");
 
     if(_inflight)
         m3::ThreadManager::get().notify(_cur_event);

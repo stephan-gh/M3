@@ -75,7 +75,7 @@ impl SGateArgs {
 impl SendGate {
     pub(crate) const fn new_def(sel: Selector, ep: dtu::EpId) -> Self {
         SendGate {
-            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, Some(ep)),
+            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
         }
     }
 

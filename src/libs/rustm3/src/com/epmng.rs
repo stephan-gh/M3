@@ -15,60 +15,75 @@
  */
 
 use cap::{CapFlags, Selector};
-use cell::StaticCell;
 use com::gate::Gate;
-use dtu::{self, EpId};
+use com::EP;
+use dtu::{self, EpId, FIRST_FREE_EP, EP_COUNT};
 use errors::{Code, Error};
 use kif::INVALID_SEL;
 use syscalls;
-use vpe;
 
-/// The endpoint multiplexer (`EpMux`) multiplexes all non-reserved endpoints among the gates.
-pub struct EpMux {
+/// The endpoint manager (`EpMng`) multiplexes all non-reserved endpoints among the gates.
+pub struct EpMng {
     // remembers the mapping from gate to endpoint
     gates: [Option<Selector>; dtu::EP_COUNT],
+    // whether we multiplex EPs
+    multiplex: bool,
     // the next index in the gate array we use as a victim on multiplexing
     next_victim: usize,
+    /// the reserved EPs
+    reserved: u64,
 }
 
-static EP_MUX: StaticCell<EpMux> = StaticCell::new(EpMux::new());
-
-impl EpMux {
-    const fn new() -> Self {
-        EpMux {
+impl EpMng {
+    pub fn new(multiplex: bool) -> Self {
+        EpMng {
             gates: [None; dtu::EP_COUNT],
+            multiplex,
             next_victim: 1,
+            reserved: 0,
         }
     }
 
-    /// Returns the `EpMux` instance
-    pub fn get() -> &'static mut EpMux {
-        EP_MUX.get_mut()
+    pub(crate) fn reserved(&self) -> u64 {
+        self.reserved
     }
 
-    /// Reserves the given endpoint, so that it is no longer considered during multiplexing. If it
-    /// is currently in use by a gate, the gate will be deactivated and will request a new endpoint
-    /// at the next usage.
-    pub fn reserve(&mut self, ep: EpId) {
-        // take care that some non-fixed gate could already use that endpoint
-        if self.gates[ep].is_some() {
-            self.activate(ep, INVALID_SEL).ok();
+    /// Allocates a new endpoint and reserves it, that is, excludes it from multiplexing. Note that
+    /// this can fail if a send gate with missing credits is using this EP.
+    pub fn alloc_ep(&mut self) -> Result<EpId, Error> {
+        for ep in FIRST_FREE_EP..EP_COUNT {
+            if self.is_free(ep) {
+                self.reserved |= 1 << ep;
+
+                // take care that some non-fixed gate could already use that endpoint
+                if self.multiplex && self.gates[ep].is_some() {
+                    self.activate(ep, INVALID_SEL).ok();
+                }
+                self.gates[ep] = None;
+
+                return Ok(ep);
+            }
         }
-        self.gates[ep] = None;
+        Err(Error::new(Code::NoSpace))
+    }
+
+    /// Frees the given endpoint
+    pub fn free_ep(&mut self, id: EpId) {
+        self.reserved &= !(1 << id);
     }
 
     pub(crate) fn set_owned(&mut self, ep: EpId, sel: Selector) {
         self.gates[ep] = Some(sel);
     }
-
-    pub(crate) fn unset_owned(&mut self, ep: EpId) {
+    pub(crate) fn set_unowned(&mut self, ep: EpId) {
         self.gates[ep] = None;
     }
 
-    pub(crate) fn reset(&mut self) {
+    pub(crate) fn reset(&mut self, eps: u64) {
         for ep in 0..dtu::EP_COUNT {
             self.gates[ep] = None;
         }
+        self.reserved = eps;
     }
 
     /// Returns true if the endpoint `ep` is owned by the gate with selector `sel`.
@@ -84,11 +99,12 @@ impl EpMux {
     pub fn switch_to(&mut self, g: &Gate) -> Result<EpId, Error> {
         let idx = self.select_victim()?;
         self.activate(idx, g.sel())?;
-        g.set_ep(idx);
+        g.set_epid(idx);
+        self.gates[idx] = Some(g.sel());
         Ok(idx)
     }
 
-    /// Removes the given gate from `EpMux`.
+    /// Removes the given gate from `EpMng`.
     pub fn remove(&mut self, g: &Gate) {
         if let Some(ep) = g.ep() {
             if self.ep_owned_by(ep, g.sel()) {
@@ -101,17 +117,21 @@ impl EpMux {
         }
     }
 
+    fn is_free(&self, id: EpId) -> bool {
+        id >= dtu::FIRST_FREE_EP && (self.reserved & (1 << id)) == 0
+    }
+
     fn select_victim(&mut self) -> Result<EpId, Error> {
         let mut victim = self.next_victim;
         for _ in 0..dtu::EP_COUNT {
-            if vpe::VPE::cur().is_ep_free(victim) {
+            if self.is_free(victim) {
                 break;
             }
 
             victim = (victim + 1) % dtu::EP_COUNT;
         }
 
-        if !vpe::VPE::cur().is_ep_free(victim) {
+        if !self.is_free(victim) {
             Err(Error::new(Code::NoSpace))
         }
         else {
@@ -121,6 +141,6 @@ impl EpMux {
     }
 
     fn activate(&self, ep: EpId, gate: Selector) -> Result<(), Error> {
-        syscalls::activate(vpe::VPE::cur().ep_sel(ep), gate, 0)
+        syscalls::activate(EP::sel_of(ep), gate, 0)
     }
 }

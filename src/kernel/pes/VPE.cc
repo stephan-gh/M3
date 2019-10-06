@@ -45,7 +45,7 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
       _name(std::move(prog)),
       _objcaps(id),
       _mapcaps(id),
-      _upcqueue(*this),
+      _upcqueue(desc()),
       _vpe_wait_sels(),
       _vpe_wait_count(),
       _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id) : nullptr),
@@ -59,12 +59,19 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
     _objcaps.set(0, vpecap);
     _objcaps.set(1, new MGateCapability(
         &_objcaps, 1, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
-    // TODO don't give them to the VPE right away
-    // currently, this is required for the pager, for example
-    for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
-        capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
-        _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(pe(), ep)));
+
+    // only accelerators get their EP caps directly, because no PEMux is running there
+    // TODO introduce method in PEDesc to determine whether PEMux exists
+#if defined(__gem5__)
+    if(!Platform::pe(pe()).is_programmable()) {
+#endif
+        for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
+            capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
+            _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(pe(), ep)));
+        }
+#if defined(__gem5__)
     }
+#endif
 
     if(Platform::pe(pe()).has_virtmem()) {
         // for the root PT

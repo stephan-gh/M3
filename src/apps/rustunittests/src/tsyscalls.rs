@@ -15,7 +15,7 @@
  */
 
 use m3::cfg::PAGE_SIZE;
-use m3::com::{MemGate, RecvGate, SendGate};
+use m3::com::{EP, MemGate, RecvGate, SendGate};
 use m3::errors::Code;
 use m3::kif::syscalls::{ExchangeArgs, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL};
@@ -274,8 +274,8 @@ fn create_vpe() {
 }
 
 fn activate() {
-    let ep1 = VPE::cur().ep_sel(wv_assert_ok!(VPE::cur().alloc_ep()));
-    let ep2 = VPE::cur().ep_sel(wv_assert_ok!(VPE::cur().alloc_ep()));
+    let ep1 = wv_assert_ok!(EP::new());
+    let ep2 = wv_assert_ok!(EP::new());
     let sel = VPE::cur().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
 
@@ -283,13 +283,13 @@ fn activate() {
     wv_assert_err!(syscalls::activate(0, mgate.sel(), 0), Code::InvArgs);
     wv_assert_err!(syscalls::activate(sel, mgate.sel(), 0), Code::InvArgs);
     // invalid mgate sel
-    wv_assert_err!(syscalls::activate(ep1, 0, 0), Code::InvArgs);
+    wv_assert_err!(syscalls::activate(ep1.sel(), 0, 0), Code::InvArgs);
     // invalid address
-    wv_assert_err!(syscalls::activate(ep1, mgate.sel(), 0x1000), Code::InvArgs);
-    wv_assert_err!(syscalls::activate(ep1, mgate.sel(), !0), Code::InvArgs);
+    wv_assert_err!(syscalls::activate(ep1.sel(), mgate.sel(), 0x1000), Code::InvArgs);
+    wv_assert_err!(syscalls::activate(ep1.sel(), mgate.sel(), !0), Code::InvArgs);
     // already activated
-    wv_assert_ok!(syscalls::activate(ep1, mgate.sel(), 0));
-    wv_assert_err!(syscalls::activate(ep2, mgate.sel(), 0), Code::Exists);
+    wv_assert_ok!(syscalls::activate(ep1.sel(), mgate.sel(), 0));
+    wv_assert_err!(syscalls::activate(ep2.sel(), mgate.sel(), 0), Code::Exists);
 }
 
 fn derive_mem() {

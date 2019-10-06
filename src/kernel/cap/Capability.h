@@ -506,6 +506,16 @@ public:
     m3::Reference<EPObject> obj;
 };
 
+class SharedEPCapability : public EPCapability {
+public:
+    explicit SharedEPCapability(CapTable *tbl, capsel_t sel, EPObject *obj)
+        : EPCapability(tbl, sel, obj) {
+    }
+
+private:
+    virtual void revoke() override;
+};
+
 class VPECapability : public SlabObject<VPECapability>, public Capability {
 public:
     explicit VPECapability(CapTable *tbl, capsel_t sel, VPE *_obj)

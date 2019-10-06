@@ -120,8 +120,12 @@ impl State {
     }
 }
 
-pub fn toggle_ints(_enabled: bool) {
+pub fn enable_ints() -> bool {
     // not necessary, because PE-type C is not supported anyway
+    false
+}
+
+pub fn restore_ints(_prev: bool) {
 }
 
 pub fn is_stopped() -> bool {

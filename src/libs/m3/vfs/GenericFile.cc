@@ -30,7 +30,8 @@ GenericFile::GenericFile(int flags, capsel_t caps)
     : File(flags),
       _sess(caps + 0),
       _sg(SendGate::bind(caps + 1)),
-      _mg(MemGate::bind(ObjCap::INVALID)),
+      // we need a selector to use DTUIf::switch_gate
+      _mg(MemGate::bind(VPE::self().alloc_sel())),
       _memoff(),
       _goff(),
       _off(),
@@ -40,27 +41,6 @@ GenericFile::GenericFile(int flags, capsel_t caps)
 }
 
 void GenericFile::close() noexcept {
-    if(_writing) {
-        try {
-            submit();
-        }
-        catch(...) {
-            // ignore
-        }
-    }
-
-    if(_mg.ep() != MemGate::UNBOUND) {
-        LLOG(FS, "GenFile[" << fd() << "]::revoke_ep(" << _mg.ep() << ")");
-        capsel_t sel = VPE::self().ep_to_sel(_mg.ep());
-        try {
-            VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel), true);
-        }
-        catch(...) {
-            // ignore
-        }
-        VPE::self().free_ep(_mg.ep());
-    }
-
     // file sessions are not known to our resource manager; thus close them manually
     LLOG(FS, "GenFile[" << fd() << "]::close()");
     try {
@@ -184,17 +164,19 @@ size_t GenericFile::write(const void *buffer, size_t count) {
     return amount;
 }
 
-void GenericFile::evict() {
-    assert(_mg.ep() != MemGate::UNBOUND);
+EP GenericFile::evict(bool closing) {
     LLOG(FS, "GenFile[" << fd() << "]::evict()");
 
     // submit read/written data
-    submit();
+    if(!closing || _writing)
+        submit();
 
-    // revoke EP cap
-    capsel_t ep_sel = VPE::self().ep_to_sel(_mg.ep());
-    VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep_sel), true);
-    _mg.ep(MemGate::UNBOUND);
+    EP ep = _mg.take_ep();
+
+    if(ep.valid())
+        VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep.sel()), true);
+
+    return ep;
 }
 
 void GenericFile::submit() {
@@ -214,10 +196,10 @@ void GenericFile::submit() {
 
 void GenericFile::delegate_ep() {
     if(_mg.ep() == MemGate::UNBOUND) {
-        epid_t ep = VPE::self().fds()->request_ep(this);
-        LLOG(FS, "GenFile[" << fd() << "]::delegate_ep(" << ep << ")");
-        _sess.delegate_obj(VPE::self().ep_to_sel(ep));
-        _mg.ep(ep);
+        EP ep = VPE::self().fds()->request_ep(this);
+        LLOG(FS, "GenFile[" << fd() << "]::delegate_ep(" << ep.id() << ")");
+        _sess.delegate_obj(ep.sel());
+        _mg.put_ep(std::move(ep));
     }
 }
 

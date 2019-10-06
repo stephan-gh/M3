@@ -38,31 +38,26 @@ int_enum! {
         const CREATE_MAP        = 4;
         const CREATE_VPE        = 5;
         const CREATE_SEM        = 6;
+        const ALLOC_EP          = 7;
 
         // capability operations
-        const ACTIVATE          = 7;
-        const VPE_CTRL          = 8;
-        const VPE_WAIT          = 9;
-        const DERIVE_MEM        = 10;
-        const DERIVE_KMEM       = 11;
-        const KMEM_QUOTA        = 12;
-        const SEM_CTRL          = 13;
+        const ACTIVATE          = 8;
+        const VPE_CTRL          = 9;
+        const VPE_WAIT          = 10;
+        const DERIVE_MEM        = 11;
+        const DERIVE_KMEM       = 12;
+        const KMEM_QUOTA        = 13;
+        const SEM_CTRL          = 14;
 
         // capability exchange
-        const DELEGATE          = 14;
-        const OBTAIN            = 15;
-        const EXCHANGE          = 16;
-        const REVOKE            = 17;
+        const DELEGATE          = 15;
+        const OBTAIN            = 16;
+        const EXCHANGE          = 17;
+        const REVOKE            = 18;
 
         // misc
-        const NOOP              = 18;
+        const NOOP              = 19;
     }
-}
-
-/// The default reply message that only contains the error code
-#[repr(C, packed)]
-pub struct DefaultReply {
-    pub error: u64,
 }
 
 #[repr(C, packed)]
@@ -187,6 +182,21 @@ pub struct CreateSem {
     pub opcode: u64,
     pub dst_sel: u64,
     pub value: u64,
+}
+
+/// The alloc endpoint request message
+#[repr(C, packed)]
+pub struct AllocEP {
+    pub opcode: u64,
+    pub dst_sel: u64,
+    pub vpe_sel: u64,
+}
+
+/// The alloc EP reply message
+#[repr(C, packed)]
+pub struct AllocEPReply {
+    pub error: u64,
+    pub ep: u64,
 }
 
 /// The activate request message

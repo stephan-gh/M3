@@ -31,10 +31,10 @@ pub fn exit(code: i32) -> ! {
 
 #[no_mangle]
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
-    syscalls::init();
     mem::heap::init();
     arch::env::init(argc, argv);
     vpe::init();
+    syscalls::init();
     com::init();
     io::init();
     arch::dtu::init();

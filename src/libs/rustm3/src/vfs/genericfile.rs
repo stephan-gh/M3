@@ -17,12 +17,12 @@
 use cap::Selector;
 use cell::RefCell;
 use col::Vec;
-use com::{MemGate, RecvGate, SendGate, SliceSource, VecSink};
+use com::{MemGate, RecvGate, SendGate, SliceSource, VecSink, EP};
 use core::fmt;
 use errors::Error;
 use goff;
 use io::{Read, Write};
-use kif::{syscalls, CapRngDesc, CapType, Perm, INVALID_SEL};
+use kif::{syscalls, CapRngDesc, CapType, Perm};
 use rc::Rc;
 use serialize::Sink;
 use session::{ClientSession, Pager};
@@ -67,7 +67,8 @@ impl GenericFile {
             flags,
             sess: ClientSession::new_bind(sel),
             sgate: SendGate::new_bind(sel + 1),
-            mgate: MemGate::new_bind(INVALID_SEL),
+            // we need a selector to use DTUIf::switch_gate
+            mgate: MemGate::new_bind(VPE::cur().alloc_sel()),
             goff: 0,
             off: 0,
             pos: 0,
@@ -99,10 +100,12 @@ impl GenericFile {
     fn delegate_ep(&mut self) -> Result<(), Error> {
         if self.mgate.ep().is_none() {
             let ep = VPE::cur().files().request_ep(self.fd)?;
-            self.sess.delegate_obj(VPE::cur().ep_sel(ep))?;
-            self.mgate.set_ep(ep);
+            self.sess.delegate_obj(ep.sel())?;
+            self.mgate.put_ep(ep)
         }
-        Ok(())
+        else {
+            Ok(())
+        }
     }
 }
 
@@ -115,30 +118,21 @@ impl File for GenericFile {
         self.fd = fd;
     }
 
-    fn evict(&mut self) {
+    fn evict(&mut self, closing: bool) -> Option<EP> {
         // submit read/written data
-        self.submit(true).ok();
+        self.submit(!closing).ok();
 
         // revoke EP cap
-        let ep = self.mgate.ep().unwrap();
-        let sel = VPE::cur().ep_sel(ep);
-        VPE::cur()
-            .revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), true)
-            .ok();
-        self.mgate.unset_ep();
+        let ep = self.mgate.take_ep();
+        if ep.valid() {
+            VPE::cur()
+                .revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
+                .ok();
+        }
+        Some(ep)
     }
 
     fn close(&mut self) {
-        self.submit(false).ok();
-
-        if let Some(ep) = self.mgate.ep() {
-            let sel = VPE::cur().ep_sel(ep);
-            VPE::cur()
-                .revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), true)
-                .ok();
-            VPE::cur().free_ep(ep);
-        }
-
         // file sessions are not known to our resource manager; thus close them manually
         send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::CLOSE).ok();
     }

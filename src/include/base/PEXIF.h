@@ -35,11 +35,8 @@ enum Operation : word_t {
     SLEEP,
     EXIT,
 
-    ACTIVATE_GATE,
+    SWITCH_GATE,
     REMOVE_GATE,
-
-    RES_EP,
-    FREE_EP,
 };
 
 }

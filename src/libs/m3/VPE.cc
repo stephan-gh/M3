@@ -57,9 +57,9 @@ VPE::VPE()
       _pe(env()->pedesc),
       _mem(MemGate::bind(KIF::SEL_MEM)),
       _next_sel(KIF::FIRST_FREE_SEL),
-      _eps(),
       _rbufcur(),
       _rbufend(),
+      _epmng(!USE_PEXCALLS),
       _kmem(),
       _resmng(nullptr),
       _pager(),
@@ -69,7 +69,6 @@ VPE::VPE()
     static_assert(EP_COUNT <= 64, "64 endpoints are the maximum due to the 64-bit bitmask");
     init_state();
     init_fs();
-    init_eps();
 
     // create stdin, stdout and stderr, if not existing
     if(!_fds->exists(STDIN_FD))
@@ -85,9 +84,9 @@ VPE::VPE(const String &name, const VPEArgs &args)
       _pe(args._pedesc),
       _mem(MemGate::bind(sel() + KIF::SEL_MEM, 0)),
       _next_sel(KIF::FIRST_FREE_SEL),
-      _eps(),
       _rbufcur(),
       _rbufend(),
+      _epmng(false),
       _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
       _resmng(args._rmng),
       _pager(),
@@ -140,52 +139,8 @@ VPE::~VPE() {
             // ignore
         }
         // unarm it first. we can't do that after revoke (which would be triggered by the Gate destructor)
-        EPMux::get().remove(&_mem, true);
+        _epmng.remove(&_mem, true);
     }
-}
-
-void VPE::init_eps() {
-    // TODO eventually, we have to talk to PEMux before starting the VPE and not tell it afterwards
-    if(_eps != 0 && USE_PEXCALLS) {
-        for(epid_t ep = DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
-            if(!is_ep_free(ep)) {
-                Errors::Code res;
-                if((res = DTUIf::reserve_ep(&ep)) != Errors::NONE)
-                  VTHROW(res, "Unable to reserve ep " << ep);
-            }
-        }
-    }
-}
-
-epid_t VPE::alloc_ep() {
-    if(this == &VPE::self() && USE_PEXCALLS) {
-        epid_t ep = EP_COUNT;
-        Errors::Code res = DTUIf::reserve_ep(&ep);
-        if(res != Errors::NONE)
-            throw MessageException("Unable to allocate endpoint", res);
-        _eps |= static_cast<uint64_t>(1) << ep;
-        return ep;
-    }
-
-    for(epid_t ep = DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
-        if(is_ep_free(ep)) {
-            // invalidate the EP if necessary and possible
-            if(this == &VPE::self() && !EPMux::get().reserve(ep))
-                continue;
-
-            _eps |= static_cast<uint64_t>(1) << ep;
-            return ep;
-        }
-    }
-
-    throw MessageException("Unable to allocate endpoint", Errors::NO_SPACE);
-}
-
-void VPE::free_ep(epid_t id) noexcept {
-    if(this == &VPE::self() && USE_PEXCALLS)
-        DTUIf::free_ep(id);
-
-    _eps &= ~(static_cast<uint64_t>(1) << id);
 }
 
 void VPE::mounts(const std::unique_ptr<MountTable> &ms) noexcept {

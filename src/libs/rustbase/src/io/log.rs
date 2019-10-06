@@ -51,6 +51,8 @@ pub const RESMNG_SERV: bool = false;
 pub const RESMNG_MEM: bool = false;
 /// Logs sendqueue operations
 pub const RESMNG_SQUEUE: bool = false;
+/// Logs ep operations
+pub const RESMNG_EPS: bool = false;
 
 /// Logs pexcalls in PEMux
 pub const PEX_CALLS: bool = false;
@@ -58,6 +60,8 @@ pub const PEX_CALLS: bool = false;
 pub const PEX_EPS: bool = false;
 /// Logs VPE operations in PEMux
 pub const PEX_VPES: bool = false;
+/// Logs upcalls in PEMux
+pub const PEX_UPCALLS: bool = false;
 
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";

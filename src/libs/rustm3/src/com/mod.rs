@@ -19,14 +19,16 @@
 #[macro_use]
 mod stream;
 
-mod epmux;
+mod ep;
+mod epmng;
 mod gate;
 mod mgate;
 mod rgate;
 mod sem;
 mod sgate;
 
-pub use self::epmux::EpMux;
+pub use self::ep::EP;
+pub use self::epmng::EpMng;
 pub(crate) use self::gate::Gate;
 pub use self::mgate::{MGateArgs, MemGate, Perm};
 pub use self::rgate::{RGateArgs, RecvGate};
@@ -36,8 +38,4 @@ pub use self::stream::*;
 
 pub(crate) fn init() {
     rgate::init();
-}
-
-pub(crate) fn reinit() {
-    epmux::EpMux::get().reset();
 }

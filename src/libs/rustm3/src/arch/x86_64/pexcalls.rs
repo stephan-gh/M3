@@ -50,19 +50,6 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     get_result(res)
 }
 
-pub fn call3(op: Operation, arg1: usize, arg2: usize, arg3: usize) -> Result<usize, Error> {
-    let mut res = op.val;
-    unsafe {
-        asm!(
-            "int $$63"
-            : "+{rax}"(res)
-            : "{rcx}"(arg1), "{rdx}"(arg2), "{rdi}"(arg3)
-            : "memory"
-        );
-    }
-    get_result(res)
-}
-
 pub fn call4(
     op: Operation,
     arg1: usize,

@@ -49,53 +49,74 @@ void FileTable::remove(fd_t fd) noexcept {
     Reference<File> file = _fds[fd];
 
     if(file) {
+        // remove from multiplexing table
+        if(_used_ep_count > 0) {
+            for(size_t i = 0; i < MAX_EPS; ++i) {
+                if(_used_eps[i] == file.get()) {
+                    try {
+                        EP ep = _used_eps[i]->evict(true);
+                        if(ep.valid()) {
+                            assert(_free_ep_count < MAX_EPS);
+                            _free_eps[_free_ep_count++] = std::move(ep);
+                        }
+                    }
+                    catch(...) {
+                        // ignore
+                    }
+
+                    LLOG(FILES, "FileEPs[" << i << "] = --");
+                    _used_eps[i] = nullptr;
+                    _used_ep_count--;
+                    break;
+                }
+            }
+        }
+
         // close the file (important for, e.g., pipes)
         file->close();
 
         // remove from file table
         _fds[fd].unref();
 
-        // remove from multiplexing table
-        for(size_t i = 0; i < MAX_EPS; ++i) {
-            if(_file_eps[i].file == file.get()) {
-                LLOG(FILES, "FileEPs[" << i << "] = --");
-                _file_eps[i].file = nullptr;
-                _file_ep_count--;
-                break;
-            }
-        }
-
         LLOG(FILES, "FileTable[" << fd << "] = --");
     }
 }
 
-epid_t FileTable::request_ep(GenericFile *file) {
-    if(_file_ep_count < MAX_EPS) {
-        epid_t ep = VPE::self().alloc_ep();
-        if(ep != 0) {
+EP FileTable::get_ep() {
+    if(_free_ep_count > 0)
+        return std::move(_free_eps[--_free_ep_count]);
+    return EP::alloc();
+}
+
+EP FileTable::request_ep(GenericFile *file) {
+    if(_used_ep_count < MAX_EPS) {
+        try {
+            EP ep = get_ep();
             for(size_t i = 0; i < MAX_EPS; ++i) {
-                if(_file_eps[i].file == nullptr) {
-                    LLOG(FILES, "FileEPs[" << i << "] = EP:" << ep << ",FD:" << file->fd());
-                    _file_eps[i].file = file;
-                    _file_eps[i].epid = ep;
-                    _file_ep_count++;
+                if(_used_eps[i] == nullptr) {
+                    LLOG(FILES, "FileEPs[" << i << "] = EP:" << ep.id() << ",FD:" << file->fd());
+                    _used_eps[i] = file;
+                    _used_ep_count++;
                     return ep;
                 }
             }
             UNREACHED;
+        }
+        catch(...) {
+            // continue below
         }
     }
 
     // TODO be smarter here
     size_t count = 0;
     for(size_t i = _file_ep_victim; count < MAX_EPS; i = (i + 1) % MAX_EPS, ++count) {
-        if(_file_eps[i].file != nullptr) {
-            LLOG(FILES, "FileEPs[" << i << "] = EP:" << _file_eps[i].epid << ", FD: switching from "
-                << _file_eps[i].file->fd() << " to " << file->fd());
-            _file_eps[i].file->evict();
-            _file_eps[i].file = file;
+        if(_used_eps[i] != nullptr) {
+            EP ep = _used_eps[i]->evict(false);
+            LLOG(FILES, "FileEPs[" << i << "] = EP:" << ep.id() << ", FD: switching from "
+                << _used_eps[i]->fd() << " to " << file->fd());
+            _used_eps[i] = file;
             _file_ep_victim = (i + 1) % MAX_EPS;
-            return _file_eps[i].epid;
+            return ep;
         }
     }
 

@@ -16,7 +16,7 @@
 
 use cap::Selector;
 use col::Vec;
-use com::VecSink;
+use com::{EP, VecSink};
 use errors::{Code, Error};
 use goff;
 use io;
@@ -51,7 +51,8 @@ impl vfs::File for io::Serial {
     fn set_fd(&mut self, _fd: vfs::Fd) {
     }
 
-    fn evict(&mut self) {
+    fn evict(&mut self, _closing: bool) -> Option<EP> {
+        None
     }
 
     fn close(&mut self) {

@@ -37,12 +37,12 @@ NOINLINE static void noop() {
 }
 
 NOINLINE static void activate() {
-    epid_t ep = VPE::self().alloc_ep();
+    EP ep = EP::alloc();
     MemGate mgate = MemGate::create_global(0x1000, MemGate::RW);
 
     Profile pr;
-    WVPERF(__func__, pr.run_with_id([ep,&mgate] {
-        Syscalls::activate(VPE::self().ep_to_sel(ep), mgate.sel(), 0);
+    WVPERF(__func__, pr.run_with_id([&ep, &mgate] {
+        Syscalls::activate(ep.sel(), mgate.sel(), 0);
     }, 0x51));
 }
 

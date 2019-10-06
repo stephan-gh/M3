@@ -41,14 +41,13 @@ pub extern "C" fn env_run() {
     let res = if arch::env::get().has_lambda() {
         syscalls::reinit();
         io::reinit();
-        com::reinit();
         vpe::reinit();
         arch::env::closure().call()
     }
     else {
         mem::heap::init();
-        syscalls::init();
         vpe::init();
+        syscalls::init();
         io::init();
         com::init();
         unsafe { main() }

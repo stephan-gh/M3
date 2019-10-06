@@ -52,7 +52,6 @@ class RecvGate : public Gate {
 
     enum {
         FREE_BUF    = 1,
-        FREE_EP     = 2,
     };
 
     class RecvGateWorkItem : public WorkItem {
@@ -243,12 +242,12 @@ private:
     /**
      * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it
      */
-    void activate(epid_t ep);
+    void activate(EP &&ep);
     /**
      * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it and use
      * <addr> as the buffer.
      */
-    void activate(epid_t ep, uintptr_t addr);
+    void activate(EP &&ep, uintptr_t addr);
 
     static void *allocate(VPE &vpe, epid_t ep, size_t size);
     static void free(void *);

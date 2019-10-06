@@ -155,7 +155,9 @@ void VPE::init_state() {
         _next_sel = env()->first_sel();
     else
         read_from("nextsel", &_next_sel);
-    read_from("eps", &_eps);
+    uint64_t eps;
+    read_from("eps", &eps);
+    _epmng.reset(eps);
 
     capsel_t rmng_sel;
     if(read_from("rmng", &rmng_sel))
@@ -229,7 +231,7 @@ void VPE::run(void *lambda) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _eps, _resmng->sel(), _kmem->sel(),
+        write_state(pid, _next_sel, _epmng.reserved(), _resmng->sel(), _kmem->sel(),
             _rbufcur, _rbufend, *_fds, *_ms);
 
         p2c.signal();
@@ -294,7 +296,7 @@ void VPE::exec(int argc, const char **argv) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _eps, _resmng->sel(), _kmem->sel(),
+        write_state(pid, _next_sel, _epmng.reserved(), _resmng->sel(), _kmem->sel(),
             _rbufcur, _rbufend, *_fds, *_ms);
 
         p2c.signal();

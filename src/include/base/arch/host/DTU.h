@@ -140,6 +140,7 @@ public:
     static const epid_t FIRST_USER_EP           = 0;
     static const epid_t FIRST_FREE_EP           = 4;
 
+    static const epid_t PEXUP_REP               = 0;    // unused
     static const epid_t PG_SEP                  = 0;    // unused
     static const epid_t PG_REP                  = 0;    // unused
 

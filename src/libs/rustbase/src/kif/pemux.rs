@@ -17,8 +17,8 @@
 //! The kernel-pemux interface
 
 int_enum! {
-    /// The kpex calls
-    pub struct Operation : u64 {
+    /// The kernel requests
+    pub struct KernReq : u64 {
         const ACTIVATE      = 0x0;
     }
 }
@@ -31,4 +31,33 @@ pub struct Activate {
     pub gate_sel: u64,
     pub ep: u64,
     pub addr: u64,
+}
+
+int_enum! {
+    /// The upcalls from the kernel to PEMux
+    pub struct Upcalls : u64 {
+        const ALLOC_EP      = 0x0;
+        const FREE_EP       = 0x1;
+    }
+}
+
+/// The alloc endpoint upcall
+#[repr(C, packed)]
+pub struct AllocEP {
+    pub op: u64,
+    pub vpe_sel: u64,
+}
+
+/// The alloc endpoint reply
+#[repr(C, packed)]
+pub struct AllocEPReply {
+    pub error: u64,
+    pub ep: u64,
+}
+
+/// The free endpoint upcall
+#[repr(C, packed)]
+pub struct FreeEP {
+    pub op: u64,
+    pub ep: u64,
 }

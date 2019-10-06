@@ -44,6 +44,9 @@ public:
         ALLOC_MEM,
         FREE_MEM,
 
+        ALLOC_EP,
+        FREE_EP,
+
         USE_SEM,
     };
 
@@ -68,6 +71,8 @@ public:
                 "REM_CHILD",
                 "ALLOC_MEM",
                 "FREE_MEM",
+                "ALLOC_EP",
+                "FREE_EP",
                 "USE_SEM",
             };
 
@@ -133,6 +138,19 @@ public:
     void free_mem(capsel_t sel) {
         GateIStream reply = send_receive_vmsg(_sgate, FREE_MEM, sel);
         retrieve_result(FREE_MEM, reply);
+    }
+
+    epid_t alloc_ep(capsel_t sel, capsel_t vpe) {
+        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_EP, sel, vpe);
+        retrieve_result(ALLOC_EP, reply);
+        epid_t id;
+        reply >> id;
+        return id;
+    }
+
+    void free_ep(capsel_t sel) {
+        GateIStream reply = send_receive_vmsg(_sgate, FREE_EP, sel);
+        retrieve_result(FREE_EP, reply);
     }
 
     void use_sem(capsel_t sel, const char *name) {

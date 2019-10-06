@@ -18,10 +18,12 @@ use base::cell::StaticCell;
 use base::col::Treap;
 use base::dtu::{self, EpId};
 use base::errors::{Code, Error};
-use base::kif::{self, kpexcalls, CapSel};
+use base::kif::{self, pemux, CapSel};
 use base::util;
 
+use IRQsOnGuard;
 use eps;
+use upcalls;
 
 pub struct VPE {
     id: u64,
@@ -41,6 +43,13 @@ pub fn remove() {
     if (*CUR).is_some() {
         log!(PEX_VPES, "Destroyed VPE {}", (*CUR).as_ref().unwrap().id);
         CUR.set(None);
+    }
+}
+
+pub fn get_vpe(id: u64) -> Option<&'static mut VPE> {
+    match CUR.get_mut().as_mut() {
+        Some(v) if v.id == id => Some(v),
+        _ => None,
     }
 }
 
@@ -71,65 +80,40 @@ impl VPE {
         }
 
         let ep = eps::get().find_free(false)?;
-        self.activate(sel, ep, 0)?;
+        // do that first to have a consistent state before activate
         self.add_gate(sel, ep);
+        match self.activate(sel, ep, 0) {
+            Ok(_) => Ok(ep),
+            Err(e) => {
+                self.remove_gate(sel, false);
+                Err(e)
+            }
+        }
+    }
+
+    pub fn alloc_ep(&mut self) -> Result<EpId, Error> {
+        let ep = eps::get().find_free(false)?;
+        log!(PEX_EPS, "VPE{}: reserving EP {}", self.id, ep);
+        eps::get().mark_reserved(ep, self.id);
         Ok(ep)
-    }
-
-    pub fn reserve_ep(&mut self, ep: Option<EpId>) -> Result<EpId, Error> {
-        if let Some(id) = ep {
-            if eps::get().is_free(id) {
-                Ok(id)
-            }
-            else {
-                Err(Error::new(Code::Exists))
-            }
-        }
-        else {
-            eps::get().find_free(true)
-        }
-        .map(|epid| {
-            log!(PEX_EPS, "VPE{}: reserving EP {}", self.id, epid);
-            // the application can refer to this EP with this special gate id
-            self.add_gate(1 << 31 | epid as u32, epid);
-            eps::get().mark_reserved(epid);
-            epid
-        })
-    }
-
-    pub fn free_ep(&mut self, ep: EpId) -> Result<(), Error> {
-        if eps::get().is_free(ep) {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        log!(PEX_EPS, "VPE{}: freeing EP {}", self.id, ep);
-        eps::get().mark_free(ep);
-        Ok(())
-    }
-
-    pub fn activate_gate(&mut self, gate: CapSel, ep: EpId, addr: usize) -> Result<(), Error> {
-        // the EP needs to be reserved first
-        if self.gates.get(&(1 << 31 | ep as u32)).is_none() {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        log!(
-            PEX_VPES,
-            "VPE{}: activating gate {} on EP {}",
-            self.id,
-            gate,
-            ep
-        );
-        self.activate(gate, ep, addr)?;
-        self.add_gate(gate, ep);
-        eps::get().mark_reserved(ep);
-        Ok(())
     }
 
     fn add_gate(&mut self, gate: CapSel, ep: EpId) {
         log!(PEX_VPES, "VPE{}: added {}->{:?}", self.id, gate, ep);
         eps::get().mark_used(self.id, ep, gate);
         self.gates.insert(gate, ep);
+    }
+
+    pub fn switch_gate(&mut self, ep: EpId, gate: CapSel) -> Result<(), Error> {
+        if ep >= dtu::EP_COUNT || !eps::get().is_reserved_by(ep, self.id) {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        if let Some(old_gate) = eps::get().gate_on(ep) {
+            self.remove_gate(old_gate, false);
+        }
+        self.add_gate(gate, ep);
+        Ok(())
     }
 
     pub fn remove_gate(&mut self, sel: CapSel, inval: bool) {
@@ -143,17 +127,19 @@ impl VPE {
     }
 
     fn activate(&mut self, sel: CapSel, ep: EpId, addr: usize) -> Result<(), Error> {
-        let msg = kpexcalls::Activate {
-            op: kpexcalls::Operation::ACTIVATE.val as u64,
+        let msg = pemux::Activate {
+            op: pemux::KernReq::ACTIVATE.val as u64,
             vpe_sel: self.id,
             gate_sel: sel as u64,
             ep: ep as u64,
             addr: addr as u64,
         };
+
+        let _irqs = IRQsOnGuard::new();
         dtu::DTU::send(
             dtu::KPEX_SEP,
-            &msg as *const kpexcalls::Activate as *const u8,
-            util::size_of::<kpexcalls::Activate>(),
+            &msg as *const pemux::Activate as *const u8,
+            util::size_of::<pemux::Activate>(),
             0,
             dtu::KPEX_REP,
         )?;
@@ -162,8 +148,7 @@ impl VPE {
         loop {
             let msg = dtu::DTU::fetch_msg(dtu::KPEX_REP);
             if let Some(m) = msg {
-                let reply: &[kif::syscalls::DefaultReply] =
-                    unsafe { &*(&m.data as *const [u8] as *const [kif::syscalls::DefaultReply]) };
+                let reply = unsafe { &*(&m.data as *const [u8] as *const [kif::DefaultReply]) };
                 let res = reply[0].error;
                 dtu::DTU::mark_read(dtu::KPEX_REP, m);
                 return match res {
@@ -171,6 +156,8 @@ impl VPE {
                     e => Err(Error::from(e as u32)),
                 };
             }
+
+            upcalls::check();
         }
     }
 }

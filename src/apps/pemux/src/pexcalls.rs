@@ -22,6 +22,8 @@ use base::pexif;
 use core::intrinsics;
 use isr;
 
+use IRQsOnGuard;
+use upcalls;
 use vpe;
 
 fn addr_to_msg(addr: usize) -> &'static dtu::Message {
@@ -38,6 +40,8 @@ fn recv_msg(rep: dtu::EpId, sep: dtu::EpId) -> Result<isize, Error> {
         if let Some(m) = msg {
             return Ok(m as *const dtu::Message as *const u8 as isize);
         }
+
+        upcalls::check();
 
         // fetch the events first
         dtu::DTU::fetch_events();
@@ -61,6 +65,8 @@ fn pexcall_send(state: &mut isr::State) -> Result<(), Error> {
     let reply_lbl = state.r[isr::PEXC_ARG4] as dtu::Label;
     let rg = state.r[isr::PEXC_ARG5] as CapSel;
 
+    // TODO validate msg and size
+
     log!(
         PEX_CALLS,
         "send[sg={}, msg={:p}, size={:#x}, reply_lbl={:#x}, rg={}]",
@@ -73,6 +79,9 @@ fn pexcall_send(state: &mut isr::State) -> Result<(), Error> {
 
     let sep = vpe::cur().acquire_ep(sg)?;
     let rep = vpe::cur().acquire_ep(rg)?;
+
+    // enable interrupts in case we need to translate addresses for the DTU
+    let _irqs = IRQsOnGuard::new();
     dtu::DTU::send(sep, msg, size, reply_lbl, rep)
 }
 
@@ -81,6 +90,8 @@ fn pexcall_reply(state: &mut isr::State) -> Result<(), Error> {
     let reply = state.r[isr::PEXC_ARG2] as *const u8;
     let size = state.r[isr::PEXC_ARG3];
     let msg = state.r[isr::PEXC_ARG4];
+
+    // TODO validate reply and size
 
     log!(
         PEX_CALLS,
@@ -92,6 +103,8 @@ fn pexcall_reply(state: &mut isr::State) -> Result<(), Error> {
     );
 
     let rep = vpe::cur().acquire_ep(rg)?;
+
+    let _irqs = IRQsOnGuard::new();
     dtu::DTU::reply(rep, reply, size, addr_to_msg(msg))
 }
 
@@ -100,6 +113,8 @@ fn pexcall_call(state: &mut isr::State) -> Result<isize, Error> {
     let msg = state.r[isr::PEXC_ARG2] as *const u8;
     let size = state.r[isr::PEXC_ARG3];
     let rg = state.r[isr::PEXC_ARG4] as CapSel;
+
+    // TODO validate msg and size
 
     log!(
         PEX_CALLS,
@@ -112,6 +127,8 @@ fn pexcall_call(state: &mut isr::State) -> Result<isize, Error> {
 
     let sep = vpe::cur().acquire_ep(sg)?;
     let rep = vpe::cur().acquire_ep(rg)?;
+
+    let _irqs = IRQsOnGuard::new();
     dtu::DTU::send(sep, msg, size, 0, rep)?;
     recv_msg(rep, sep)
 }
@@ -129,6 +146,8 @@ fn pexcall_recv(state: &mut isr::State) -> Result<isize, Error> {
         vpe::cur().acquire_ep(sg)?
     };
     let rep = vpe::cur().acquire_ep(rg)?;
+
+    let _irqs = IRQsOnGuard::new();
     recv_msg(rep, sep)
 }
 
@@ -162,6 +181,8 @@ fn pexcall_read(state: &mut isr::State) -> Result<(), Error> {
     let off = state.r[isr::PEXC_ARG4] as goff;
     let flags = dtu::CmdFlags::from_bits_truncate(state.r[isr::PEXC_ARG5] as u64);
 
+    // TODO validate data and size
+
     log!(
         PEX_CALLS,
         "read[mg={}, data={:p}, size={:#x}, off={:#x}, flags={:#x}]",
@@ -173,6 +194,8 @@ fn pexcall_read(state: &mut isr::State) -> Result<(), Error> {
     );
 
     let mep = vpe::cur().acquire_ep(mg)?;
+
+    let _irqs = IRQsOnGuard::new();
     dtu::DTU::read(mep, data, size, off, flags)
 }
 
@@ -182,6 +205,8 @@ fn pexcall_write(state: &mut isr::State) -> Result<(), Error> {
     let size = state.r[isr::PEXC_ARG3];
     let off = state.r[isr::PEXC_ARG4] as goff;
     let flags = dtu::CmdFlags::from_bits_truncate(state.r[isr::PEXC_ARG5] as u64);
+
+    // TODO validate data and size
 
     log!(
         PEX_CALLS,
@@ -194,6 +219,8 @@ fn pexcall_write(state: &mut isr::State) -> Result<(), Error> {
     );
 
     let mep = vpe::cur().acquire_ep(mg)?;
+
+    let _irqs = IRQsOnGuard::new();
     dtu::DTU::write(mep, data, size, off, flags)
 }
 
@@ -202,6 +229,7 @@ fn pexcall_sleep(state: &mut isr::State) -> Result<(), Error> {
 
     log!(PEX_CALLS, "sleep(cycles={})", cycles);
 
+    let _irqs = IRQsOnGuard::new();
     dtu::DTU::sleep_for(cycles as u64)
 }
 
@@ -212,20 +240,13 @@ fn pexcall_stop(state: &mut isr::State) -> Result<(), Error> {
     Ok(())
 }
 
-fn pexcall_activate_gate(state: &mut isr::State) -> Result<(), Error> {
-    let gate = state.r[isr::PEXC_ARG1] as CapSel;
-    let ep = state.r[isr::PEXC_ARG2] as dtu::EpId;
-    let addr = state.r[isr::PEXC_ARG3];
+fn pexcall_switch_gate(state: &mut isr::State) -> Result<(), Error> {
+    let ep = state.r[isr::PEXC_ARG1] as dtu::EpId;
+    let gate = state.r[isr::PEXC_ARG2] as CapSel;
 
-    log!(
-        PEX_CALLS,
-        "activate_gate(gate={}, ep={}, addr={:#x})",
-        gate,
-        ep,
-        addr
-    );
+    log!(PEX_CALLS, "switch_gate(ep={}, gate={})", ep, gate);
 
-    vpe::cur().activate_gate(gate, ep, addr)
+    vpe::cur().switch_gate(ep, gate)
 }
 
 fn pexcall_remove_gate(state: &mut isr::State) -> Result<(), Error> {
@@ -238,36 +259,8 @@ fn pexcall_remove_gate(state: &mut isr::State) -> Result<(), Error> {
     Ok(())
 }
 
-fn pexcall_reserve_ep(state: &mut isr::State) -> Result<isize, Error> {
-    let ep = state.r[isr::PEXC_ARG1] as dtu::EpId;
-
-    log!(PEX_CALLS, "reserve_ep(ep={})", ep);
-
-    vpe::cur()
-        .reserve_ep(if ep == dtu::EP_COUNT { None } else { Some(ep) })
-        .map(|id| id as isize)
-}
-
-fn pexcall_free_ep(state: &mut isr::State) -> Result<(), Error> {
-    let ep = state.r[isr::PEXC_ARG1] as dtu::EpId;
-
-    log!(PEX_CALLS, "free_ep(ep={})", ep);
-
-    vpe::cur().free_ep(ep)
-}
-
 pub fn handle_call(state: &mut isr::State) {
     let call = pexif::Operation::from(state.r[isr::PEXC_ARG0] as isize);
-
-    // log!(DEF, "Got PEXCall {}", call);
-    // log!(DEF, " Arg1 = {:#x}", { state.r[isr::PEXC_ARG1] });
-    // log!(DEF, " Arg2 = {:#x}", { state.r[isr::PEXC_ARG2] });
-    // log!(DEF, " Arg3 = {:#x}", { state.r[isr::PEXC_ARG3] });
-    // log!(DEF, " Arg4 = {:#x}", { state.r[isr::PEXC_ARG4] });
-    // log!(DEF, " Arg5 = {:#x}", { state.r[isr::PEXC_ARG5] });
-
-    // enable interrupts in case we need to translate addresses for the DTU
-    isr::toggle_ints(true);
 
     let res = match call {
         pexif::Operation::SEND => pexcall_send(state).map(|_| 0isize),
@@ -284,11 +277,8 @@ pub fn handle_call(state: &mut isr::State) {
         pexif::Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
         pexif::Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
 
-        pexif::Operation::ACTIVATE_GATE => pexcall_activate_gate(state).map(|_| 0isize),
+        pexif::Operation::SWITCH_GATE => pexcall_switch_gate(state).map(|_| 0isize),
         pexif::Operation::REMOVE_GATE => pexcall_remove_gate(state).map(|_| 0isize),
-
-        pexif::Operation::RES_EP => pexcall_reserve_ep(state),
-        pexif::Operation::FREE_EP => pexcall_free_ep(state).map(|_| 0isize),
 
         _ => Err(Error::new(Code::NotSup)),
     };
@@ -301,8 +291,6 @@ pub fn handle_call(state: &mut isr::State) {
             e.code()
         );
     }
-
-    isr::toggle_ints(false);
 
     state.r[isr::PEXC_ARG0] = res.unwrap_or_else(|e| -(e.code() as isize)) as usize;
 }

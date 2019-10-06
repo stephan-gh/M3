@@ -33,11 +33,8 @@ SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
     return SendGate(sel, args._flags, replygate);
 }
 
-void SendGate::activate_for(VPE &vpe, epid_t ep) {
-    if(&vpe == &VPE::self())
-        VTHROW(Errors::NOT_SUP, "Activating SendGate explicitly for current VPE is not supported");
-
-    Syscalls::activate(vpe.ep_to_sel(ep), sel(), 0);
+void SendGate::activate_on(const EP &ep) {
+    Syscalls::activate(ep.sel(), sel(), 0);
 }
 
 void SendGate::send(const void *msg, size_t len, label_t reply_label) {

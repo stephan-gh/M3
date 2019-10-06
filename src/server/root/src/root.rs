@@ -143,6 +143,28 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) {
     reply_result(is, res);
 }
 
+fn alloc_ep(is: &mut GateIStream, child: &mut dyn Child) {
+    let dst_sel: Selector = is.pop();
+    let vpe_sel: Selector = is.pop();
+
+    let res = child.alloc_ep(dst_sel, vpe_sel);
+    match res {
+        Err(e) => {
+            log!(RESMNG, "request failed: {}", e);
+            reply_vmsg!(is, e.code() as u64)
+        },
+        Ok(ep) => reply_vmsg!(is, 0 as u64, ep),
+    }
+    .expect("Unable to reply");
+}
+
+fn free_ep(is: &mut GateIStream, child: &mut dyn Child) {
+    let sel: Selector = is.pop();
+
+    let res = child.free_ep(sel);
+    reply_result(is, res);
+}
+
 fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
     let sgate = SendGate::new_with(
         SGateArgs::new(req_rgate())
@@ -217,6 +239,9 @@ fn handle_request(mut is: GateIStream) {
 
         ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
         ResMngOperation::FREE_MEM => free_mem(&mut is, child),
+
+        ResMngOperation::ALLOC_EP => alloc_ep(&mut is, child),
+        ResMngOperation::FREE_EP => free_ep(&mut is, child),
 
         ResMngOperation::USE_SEM => use_sem(&mut is, child),
 

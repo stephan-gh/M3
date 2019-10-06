@@ -87,6 +87,9 @@ public:
         return _dtustate;
     }
 
+    m3::Errors::Code alloc_ep(VPE *caller, vpeid_t dst, capsel_t sel, epid_t *ep);
+    void free_ep(epid_t ep);
+
     void handle_call(const m3::DTU::Message *msg);
 
     void pexcall_activate(const m3::DTU::Message *msg);
@@ -109,6 +112,7 @@ private:
     size_t _rbufs_size;
     goff_t _mem_base;
     DTUState _dtustate;
+    SendQueue _upcqueue;
 };
 
 }

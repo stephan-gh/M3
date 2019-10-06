@@ -47,6 +47,7 @@ Capability *CapTable::obtain(capsel_t dst, Capability *c) {
                   sizeof(SGateCapability) == sizeof(MapCapability) &&
                   sizeof(SGateCapability) == sizeof(ServCapability) &&
                   sizeof(SGateCapability) == sizeof(EPCapability) &&
+                  sizeof(SGateCapability) == sizeof(SharedEPCapability) &&
                   sizeof(SGateCapability) == sizeof(VPECapability) &&
                   sizeof(SGateCapability) == sizeof(KMemCapability), "Cap sizes not equal");
 

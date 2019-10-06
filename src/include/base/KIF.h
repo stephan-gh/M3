@@ -155,6 +155,7 @@ struct KIF {
             CREATE_MAP,
             CREATE_VPE,
             CREATE_SEM,
+            ALLOC_EP,
 
             // capability operations
             ACTIVATE,
@@ -241,6 +242,15 @@ struct KIF {
         struct CreateSem : public DefaultRequest {
             xfer_t dst_sel;
             xfer_t value;
+        } PACKED;
+
+        struct AllocEP : public DefaultRequest {
+            xfer_t dst_sel;
+            xfer_t vpe_sel;
+        } PACKED;
+
+        struct AllocEPReply : public DefaultReply {
+            xfer_t ep;
         } PACKED;
 
         struct Activate : public DefaultRequest {
@@ -379,6 +389,26 @@ struct KIF {
             xfer_t gate_sel;
             xfer_t ep;
             xfer_t addr;
+        } PACKED;
+    };
+
+    /**
+     * PEMux upcalls
+     */
+    struct PEXUpcalls {
+        enum Operation {
+            ALLOC_EP,
+            FREE_EP,
+        };
+
+        struct AllocEP : public DefaultRequest {
+            xfer_t vpe_sel;
+        } PACKED;
+        struct AllocEPReply : public DefaultReply {
+            xfer_t ep;
+        } PACKED;
+        struct FreeEP : public DefaultRequest {
+            xfer_t ep;
         } PACKED;
     };
 

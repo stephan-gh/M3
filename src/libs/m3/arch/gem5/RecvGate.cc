@@ -33,12 +33,12 @@ void *RecvGate::allocate(VPE &vpe, epid_t, size_t size) {
         PEDesc desc = vpe.sel() == 0 ? env()->pedesc : vpe.pe();
         if(desc.has_virtmem()) {
             *cur = RECVBUF_SPACE;
-            *cur += KPEX_RBUF_SIZE + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
+            *cur += KPEX_RBUF_SIZE + PEXUP_RBUF_SIZE + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
             *end = RECVBUF_SPACE + RECVBUF_SIZE + VMA_RBUF_SIZE;
         }
         else {
             *cur = desc.mem_size() - RECVBUF_SIZE_SPM;
-            *cur += KPEX_RBUF_SIZE + SYSC_RBUF_SIZE * 2 + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
+            *cur += KPEX_RBUF_SIZE + PEXUP_RBUF_SIZE + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
             *end = desc.mem_size();
         }
     }

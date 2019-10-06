@@ -34,7 +34,7 @@ ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
     _intgate.activate();
 
     _vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sintgate.sel(), 1));
-    _sintgate.activate_for(_vpe, EP_INT);
+    _sintgate.activate_on(EP::bind_for(_vpe, EP_INT));
 
     _vpe.start();
 }
@@ -49,7 +49,7 @@ void ProxiedPciDevice::stopListing() {
 }
 
 void ProxiedPciDevice::setDmaEp(m3::MemGate &memgate) {
-    memgate.activate_for(_vpe, EP_DMA);
+    memgate.activate_on(EP::bind_for(_vpe, EP_DMA));
 }
 
 void ProxiedPciDevice::receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &) {

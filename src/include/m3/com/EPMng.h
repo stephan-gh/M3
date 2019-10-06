@@ -18,6 +18,7 @@
 
 #include <base/Common.h>
 #include <base/Config.h>
+#include <base/DTU.h>
 #include <base/Errors.h>
 
 #include <assert.h>
@@ -25,31 +26,32 @@
 namespace m3 {
 
 class Gate;
+class VPE;
 
 /**
- * The endpoint multiplexer allows us to have more gates than endpoints by multiplexing
+ * The endpoint manager allows us to have more gates than endpoints by multiplexing
  * the endpoints among the gates.
  */
-class EPMux {
-    explicit EPMux();
+class EPMng {
+    friend class VPE;
 
 public:
-    /**
-     * @return the EPMux instance
-     */
-    static EPMux &get() {
-        return _inst;
-    }
+    explicit EPMng(bool mux);
 
     /**
-     * Reserves the given endpoint in the sense that it is not used for multiplexing. This is
-     * necessary for receive gates, that need to stay on one endpoint all the time. Note that this
-     * can fail if a send gate with missing credits is using this EP.
+     * Allocates a new endpoint and reserves it, that is, excludes it from multiplexing. Note that
+     * this can fail if a send gate with missing credits is using this EP.
      *
-     * @param ep the endpoint id
-     * @return true if successful
+     * @return the endpoint id
      */
-    bool reserve(epid_t ep);
+    epid_t alloc_ep();
+
+    /**
+     * Frees the given endpoint
+     *
+     * @param id the endpoint id
+     */
+    void free_ep(epid_t id) noexcept;
 
     /**
      * Configures an endpoint for the given gate. If necessary, a victim will be picked and removed
@@ -71,16 +73,20 @@ public:
     /**
      * Resets the state of the EP switcher.
      */
-    void reset() noexcept;
+    void reset(uint64_t eps) noexcept;
 
 private:
-    bool is_in_use(epid_t ep) const;
+    uint64_t reserved() const noexcept {
+        return _eps;
+    }
+    bool is_ep_free(epid_t id) const noexcept;
+    bool is_in_use(epid_t ep) const noexcept;
     epid_t select_victim();
     void activate(epid_t ep, capsel_t newcap);
 
+    uint64_t _eps;
     epid_t _next_victim;
-    Gate *_gates[EP_COUNT];
-    static EPMux _inst;
+    Gate **_gates;
 };
 
 }

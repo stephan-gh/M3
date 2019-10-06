@@ -18,7 +18,7 @@ use core::fmt;
 use m3::cap::Selector;
 use m3::cfg::PAGE_BITS;
 use m3::col::Vec;
-use m3::com::{MemGate, VecSink};
+use m3::com::{EP, MemGate, VecSink};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::{Read, Write};
@@ -56,7 +56,8 @@ impl vfs::File for BootFile {
     fn set_fd(&mut self, _fd: vfs::Fd) {
     }
 
-    fn evict(&mut self) {
+    fn evict(&mut self, _closing: bool) -> Option<EP> {
+        None
     }
 
     fn close(&mut self) {

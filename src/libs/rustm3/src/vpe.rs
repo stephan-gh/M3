@@ -21,13 +21,12 @@ use boxed::Box;
 use cap::{CapFlags, Capability, Selector};
 use cell::StaticCell;
 use col::Vec;
-use com::{EpMux, MemGate, SendGate};
+use com::{EpMng, MemGate, SendGate};
 use core::fmt;
 use core::ops::FnOnce;
-use dtu::{EpId, EP_COUNT, FIRST_FREE_EP};
-use dtuif;
+use dtu::EP_COUNT;
 use env;
-use errors::{Code, Error};
+use errors::Error;
 use goff;
 use io::Read;
 use kif;
@@ -79,7 +78,7 @@ pub struct VPE {
     mem: MemGate,
     rmng: ResMng,
     next_sel: Selector,
-    eps: u64,
+    epmng: EpMng,
     rbufs: arch::rbufs::RBufSpace,
     pager: Option<Pager>,
     kmem: Rc<KMem>,
@@ -375,7 +374,7 @@ impl VPE {
             mem: MemGate::new_bind(kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(0)), // invalid
             next_sel: kif::FIRST_FREE_SEL,
-            eps: 0,
+            epmng: EpMng::new(true),
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
             kmem: Rc::new(KMem::new(kif::INVALID_SEL)),
@@ -389,24 +388,13 @@ impl VPE {
         self.pe = env.pe_desc();
         self.next_sel = env.load_nextsel();
         self.rmng = env.load_rmng();
-        self.eps = env.load_eps();
         self.rbufs = env.load_rbufs();
         self.pager = env.load_pager();
         self.kmem = env.load_kmem();
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
         self.files = env.load_fds();
-    }
-
-    fn init_eps(&mut self) {
-        // TODO eventually, we have to talk to PEMux before starting the VPE and not tell it afterwards
-        if self.eps != 0 && dtuif::USE_PEXCALLS {
-            for ep in FIRST_FREE_EP..EP_COUNT {
-                if !self.is_ep_free(ep) {
-                    dtuif::DTUIf::reserve_ep(Some(ep)).unwrap();
-                }
-            }
-        }
+        self.epmng.reset(env.load_eps());
     }
 
     /// Returns the currently running `VPE`.
@@ -436,7 +424,7 @@ impl VPE {
             mem: MemGate::new_bind(sels + kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
             next_sel: kif::FIRST_FREE_SEL,
-            eps: 0,
+            epmng: EpMng::new(false),
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
             kmem: args.kmem.unwrap_or_else(|| VPE::cur().kmem.clone()),
@@ -528,16 +516,6 @@ impl VPE {
         &self.mem
     }
 
-    /// Returns the capability selector for the endpoint with id `ep`.
-    pub fn ep_sel(&self, ep: EpId) -> Selector {
-        self.sel() + kif::FIRST_EP_SEL + (ep - FIRST_FREE_EP) as Selector
-    }
-
-    /// Returns the endpoint id for the given capability selector.
-    pub fn sel_ep(&self, sel: Selector) -> EpId {
-        (sel - kif::FIRST_EP_SEL) as EpId + FIRST_FREE_EP
-    }
-
     pub(crate) fn rbufs(&mut self) -> &mut arch::rbufs::RBufSpace {
         &mut self.rbufs
     }
@@ -555,6 +533,11 @@ impl VPE {
     /// Returns a reference to the VPE's kernel memory.
     pub fn kmem(&self) -> &Rc<KMem> {
         &self.kmem
+    }
+
+    /// Returns a mutable reference to the endpoint manager
+    pub fn epmng(&mut self) -> &mut EpMng {
+        &mut self.epmng
     }
 
     /// Returns a reference to the VPE's resource manager.
@@ -576,44 +559,6 @@ impl VPE {
     pub fn alloc_sels(&mut self, count: u32) -> Selector {
         self.next_sel += count;
         self.next_sel - count
-    }
-
-    /// Allocates and reserves an endpoint, so that it will be no longer considered by the [`EpMux`]
-    /// for endpoint multiplexing.
-    pub fn alloc_ep(&mut self) -> Result<EpId, Error> {
-        if self.sel() == VPE::cur().sel() && dtuif::USE_PEXCALLS {
-            let ep = dtuif::DTUIf::reserve_ep(None)?;
-            self.eps |= 1 << ep;
-            return Ok(ep);
-        }
-
-        for ep in FIRST_FREE_EP..EP_COUNT {
-            if self.is_ep_free(ep) {
-                self.eps |= 1 << ep;
-
-                // invalidate the EP if necessary
-                if self.sel() == 0 {
-                    EpMux::get().reserve(ep);
-                }
-
-                return Ok(ep);
-            }
-        }
-        Err(Error::new(Code::NoSpace))
-    }
-
-    /// Returns true if the given endpoint is still free, that is, not reserved.
-    pub fn is_ep_free(&self, ep: EpId) -> bool {
-        ep >= FIRST_FREE_EP && (self.eps & (1 << ep)) == 0
-    }
-
-    /// Free's the given endpoint, assuming that it has been allocated via [`VPE::alloc_ep`].
-    pub fn free_ep(&mut self, ep: EpId) {
-        if self.sel() == VPE::cur().sel() && dtuif::USE_PEXCALLS {
-            dtuif::DTUIf::free_ep(ep).unwrap();
-        }
-
-        self.eps &= !(1 << ep);
     }
 
     /// Allocates `size` bytes from the VPE's receive buffer space and returns the address.
@@ -771,6 +716,7 @@ impl VPE {
     where
         F: FnOnce() -> i32 + Send + 'static,
     {
+        use errors::Code;
         use libc;
 
         let mut closure = env::Closure::new(func);
@@ -789,7 +735,6 @@ impl VPE {
                 arch::env::get().set_vpe(&self);
                 ::io::reinit();
                 self::reinit();
-                ::com::reinit();
                 syscalls::reinit();
                 arch::dtu::init();
 
@@ -882,7 +827,7 @@ impl VPE {
             senv.set_rmng(self.rmng.sel());
             senv.set_rbufs(&self.rbufs);
             senv.set_next_sel(self.next_sel);
-            senv.set_eps(self.eps);
+            senv.set_eps(self.epmng.reserved());
             senv.set_pedesc(self.pe());
 
             if let Some(ref pg) = self.pager {
@@ -915,6 +860,7 @@ impl VPE {
         args: &[S],
     ) -> Result<ExecActivity, Error> {
         use com::VecSink;
+        use errors::Code;
         use libc;
         use serialize::Sink;
 
@@ -937,7 +883,7 @@ impl VPE {
 
                 // write nextsel, eps, rmng, and kmem
                 arch::loader::write_env_value(pid, "nextsel", u64::from(self.next_sel));
-                arch::loader::write_env_value(pid, "eps", self.eps);
+                arch::loader::write_env_value(pid, "eps", self.epmng.reserved());
                 arch::loader::write_env_value(pid, "rmng", u64::from(self.rmng.sel()));
                 arch::loader::write_env_value(pid, "kmem", u64::from(self.kmem.sel()));
 
@@ -983,12 +929,11 @@ impl fmt::Debug for VPE {
 pub(crate) fn init() {
     CUR.set(Some(VPE::new_cur()));
     VPE::cur().init();
-    VPE::cur().init_eps();
 }
 
 pub(crate) fn reinit() {
     VPE::cur().cap.set_flags(CapFlags::KEEP_CAP);
     VPE::cur().cap = Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP);
     VPE::cur().mem = MemGate::new_bind(kif::SEL_MEM);
-    VPE::cur().init_eps();
+    VPE::cur().epmng().reset(VPE::cur().epmng().reserved());
 }

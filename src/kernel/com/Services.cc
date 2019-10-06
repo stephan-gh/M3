@@ -26,7 +26,8 @@ ServiceList ServiceList::_inst;
 Service::Service(VPE &vpe, const m3::String &name, const m3::Reference<RGateObject> &rgate)
     : m3::SListItem(),
       RefCounted(),
-      _squeue(vpe),
+      _vpe(vpe),
+      _squeue(vpe.desc()),
       _name(name),
       _rgate(rgate) {
 }

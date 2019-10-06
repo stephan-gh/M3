@@ -17,9 +17,8 @@
 use cap::Selector;
 use cell::RefCell;
 use col::Vec;
-use com::{SliceSource, VecSink};
+use com::{EP, SliceSource, VecSink};
 use core::{fmt, mem};
-use dtu::EpId;
 use errors::{Code, Error};
 use io::Serial;
 use rc::Rc;
@@ -38,17 +37,13 @@ pub const MAX_FILES: usize = 32;
 /// A reference to a file.
 pub type FileHandle = Rc<RefCell<dyn File>>;
 
-struct FileEP {
-    fd: Fd,
-    ep: EpId,
-}
-
 /// The table of open files.
 #[derive(Default)]
 pub struct FileTable {
+    free_eps: Vec<EP>,
     file_ep_victim: usize,
-    file_ep_count: usize,
-    file_eps: [Option<FileEP>; MAX_EPS],
+    used_ep_count: usize,
+    used_eps: [Option<Fd>; MAX_EPS],
     files: [Option<FileHandle>; MAX_FILES],
 }
 
@@ -92,38 +87,50 @@ impl FileTable {
 
     /// Removes the file with given file descriptor from the table.
     pub fn remove(&mut self, fd: Fd) {
-        let find_file_ep = |files: &[Option<FileEP>], fd| -> Option<usize> {
+        let find_file_ep = |files: &[Option<Fd>], fd| -> Option<usize> {
             for (i, f) in files.iter().enumerate() {
-                if let Some(ref fep) = f {
-                    if fep.fd == fd {
-                        return Some(i);
-                    }
+                match f {
+                    Some(id) if *id == fd => return Some(i),
+                    _ => continue,
                 }
             }
             None
         };
 
         if let Some(ref mut f) = mem::replace(&mut self.files[fd], None) {
-            f.borrow_mut().close();
+            if let Some(ep) = f.borrow_mut().evict(true) {
+                if ep.valid() {
+                    self.free_eps.push(ep);
+                }
+            }
 
             // remove from multiplexing table
-            if let Some(idx) = find_file_ep(&self.file_eps, fd) {
+            if let Some(idx) = find_file_ep(&self.used_eps, fd) {
                 log!(FILES, "FileEPs[{}] = --", idx);
-                self.file_eps[idx] = None;
-                self.file_ep_count -= 1;
+                self.used_eps[idx] = None;
+                self.used_ep_count -= 1;
             }
+
+            f.borrow_mut().close();
         }
     }
 
-    pub(crate) fn request_ep(&mut self, fd: Fd) -> Result<EpId, Error> {
-        if self.file_ep_count < MAX_EPS {
-            if let Ok(ep) = VPE::cur().alloc_ep() {
-                for i in 0..MAX_EPS {
-                    if self.file_eps[i].is_none() {
-                        log!(FILES, "FileEPs[{}] = EP:{},FD:{}", i, ep, fd);
+    pub(crate) fn request_ep(&mut self, fd: Fd) -> Result<EP, Error> {
+        if self.used_ep_count < MAX_EPS {
+            let ep = if let Some(ep) = self.free_eps.pop() {
+                Ok(ep)
+            }
+            else {
+                EP::new()
+            };
 
-                        self.file_eps[i] = Some(FileEP { fd, ep });
-                        self.file_ep_count += 1;
+            if let Ok(ep) = ep {
+                for i in 0..MAX_EPS {
+                    if self.used_eps[i].is_none() {
+                        log!(FILES, "FileEPs[{}] = EP:{},FD:{}", i, ep.id().unwrap(), fd);
+
+                        self.used_eps[i] = Some(fd);
+                        self.used_ep_count += 1;
                         return Ok(ep);
                     }
                 }
@@ -133,21 +140,22 @@ impl FileTable {
         // TODO be smarter here
         let mut i = self.file_ep_victim;
         for _ in 0..MAX_EPS {
-            if let Some(ref mut fep) = self.file_eps[i] {
+            if let Some(ofd) = self.used_eps[i] {
+                let file = self.files[ofd].as_ref().unwrap();
+                let ep = file.borrow_mut().evict(false).unwrap();
+
                 log!(
                     FILES,
                     "FileEPs[{}] = EP:{},FD: switching from {} to {}",
                     i,
-                    fep.ep,
-                    fep.fd,
+                    ep.id().unwrap(),
+                    ofd,
                     fd
                 );
 
-                let file = self.files[fep.fd].as_ref().unwrap();
-                file.borrow_mut().evict();
-                fep.fd = fd;
+                self.used_eps[i] = Some(fd);
                 self.file_ep_victim = (i + 1) % MAX_EPS;
-                return Ok(fep.ep);
+                return Ok(ep);
             }
 
             i = (i + 1) % MAX_EPS;

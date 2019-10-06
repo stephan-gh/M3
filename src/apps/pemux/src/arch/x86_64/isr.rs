@@ -145,11 +145,18 @@ impl State {
     }
 }
 
-pub fn toggle_ints(enabled: bool) {
-    if enabled {
-        unsafe { asm!("sti" : : : "memory") };
-    }
-    else {
+pub fn enable_ints() -> bool {
+    let prev = unsafe {
+        let mut flags: usize;
+        asm!("pushf; pop $0" : "=r"(flags) : : "memory");
+        (flags & 0x200) != 0
+    };
+    unsafe { asm!("sti" : : : "memory") };
+    prev
+}
+
+pub fn restore_ints(prev: bool) {
+    if !prev {
         unsafe { asm!("cli" : : : "memory") };
     }
 }

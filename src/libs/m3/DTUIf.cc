@@ -15,22 +15,15 @@
  */
 
 #include <m3/DTUIf.h>
-#include <m3/Syscalls.h>
 #include <m3/VPE.h>
 
 namespace m3 {
 
-void DTUIf::activate_gate(Gate &gate, epid_t ep, goff_t addr) {
-    if(USE_PEXCALLS) {
-        Errors::Code res = get_error(PEXCalls::call3(Operation::ACTIVATE_GATE,
-                                                     gate.sel(), ep,  addr));
-        if(res != Errors::NONE)
-            VTHROW(res, "Unable to activate gate " << gate.sel() << " on EP " << ep);
-    }
-    else {
-        capsel_t ep_sel = VPE::self().ep_to_sel(ep);
-        Syscalls::activate(ep_sel, gate.sel(), addr);
-    }
+void DTUIf::remove_gate(Gate &gate, bool invalidate) noexcept {
+    if(USE_PEXCALLS)
+        PEXCalls::call2(Operation::REMOVE_GATE, gate.sel(), invalidate);
+    else
+        VPE::self().epmng().remove(&gate, invalidate);
 }
 
 }

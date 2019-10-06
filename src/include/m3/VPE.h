@@ -25,6 +25,7 @@
 #include <base/KIF.h>
 #include <base/PEDesc.h>
 
+#include <m3/com/EPMng.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/ObjCap.h>
@@ -132,13 +133,6 @@ public:
         return _pe;
     }
 
-    epid_t sel_to_ep(capsel_t sel) noexcept {
-        return (sel - KIF::FIRST_EP_SEL) + DTU::FIRST_FREE_EP;
-    }
-    capsel_t ep_to_sel(epid_t ep) noexcept {
-        return sel() + KIF::FIRST_EP_SEL + ep - DTU::FIRST_FREE_EP;
-    }
-
     /**
      * @return the pager of this VPE (or nullptr)
      */
@@ -216,26 +210,11 @@ public:
     }
 
     /**
-     * Allocates an endpoint.
-     *
-     * @return the endpoint id or 0 if there is no free EP
+     * @return the endpoint manager for this VPE
      */
-    epid_t alloc_ep();
-
-    /**
-     * @param id the endpoint id
-     * @return true if the endpoint is free
-     */
-    bool is_ep_free(epid_t id) noexcept {
-        return id >= DTU::FIRST_FREE_EP && (_eps & (static_cast<uint64_t>(1) << id)) == 0;
+    EPMng &epmng() {
+        return _epmng;
     }
-
-    /**
-     * Frees the given endpoint
-     *
-     * @param id the endpoint id
-     */
-    void free_ep(epid_t id) noexcept;
 
     /**
      * @return the local memory of the PE this VPE is attached to
@@ -350,7 +329,6 @@ private:
 
     void init_state();
     void init_fs();
-    void init_eps();
     void run(void *lambda);
     void load_segment(ElfPh &pheader, char *buffer);
     void load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size);
@@ -364,9 +342,9 @@ private:
     PEDesc _pe;
     MemGate _mem;
     capsel_t _next_sel;
-    uint64_t _eps;
     uint64_t _rbufcur;
     uint64_t _rbufend;
+    EPMng _epmng;
     Reference<KMem> _kmem;
     std::unique_ptr<ResMng> _resmng;
     std::unique_ptr<Pager> _pager;

@@ -95,6 +95,7 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::create_vpe);
     add_operation(m3::KIF::Syscall::CREATE_MAP,     &SyscallHandler::create_map);
     add_operation(m3::KIF::Syscall::CREATE_SEM,     &SyscallHandler::create_sem);
+    add_operation(m3::KIF::Syscall::ALLOC_EP,       &SyscallHandler::alloc_ep);
     add_operation(m3::KIF::Syscall::ACTIVATE,       &SyscallHandler::activate);
     add_operation(m3::KIF::Syscall::VPE_CTRL,       &SyscallHandler::vpe_ctrl);
     add_operation(m3::KIF::Syscall::VPE_WAIT,       &SyscallHandler::vpe_wait);
@@ -369,6 +370,39 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
 #endif
 
     reply_result(vpe, msg, m3::Errors::NONE);
+}
+
+void SyscallHandler::alloc_ep(VPE *vpe, const m3::DTU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::AllocEP>(msg);
+    capsel_t dst = req->dst_sel;
+    capsel_t tvpe = req->vpe_sel;
+
+    // TODO the app needs to pass a PE capability or something to us to ensure that only the root
+    // task and others that have received this permission from the root task, are allowed to
+    // allocate endpoints.
+
+    LOG_SYS(vpe, ": syscall::alloc_ep", "(dst=" << dst << ", vpe=" << tvpe << ")");
+
+    // ensure that the VPE is not destroyed
+    m3::Reference<VPE> rvpe(vpe);
+
+    if(!vpe->objcaps().unused(dst))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
+
+    auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
+    if(vpecap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE capability is invalid");
+
+    epid_t ep;
+    auto pemux = PEManager::get().pemux(vpecap->obj->pe());
+    m3::Errors::Code res = pemux->alloc_ep(vpe, vpecap->obj->id(), dst, &ep);
+    if(res != m3::Errors::NONE)
+        SYS_ERROR(vpe, msg, res, "EP allocation failed");
+
+    m3::KIF::Syscall::AllocEPReply reply;
+    reply.error = m3::Errors::NONE;
+    reply.ep = ep;
+    reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
 void SyscallHandler::create_sem(VPE *vpe, const m3::DTU::Message *msg) {

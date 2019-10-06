@@ -50,7 +50,7 @@ public:
         SESSION,
         VPEGRP,
         VIRTPE,
-        EPMASK,
+        ENDPOINT,
         KMEM,
         SEM,
     };

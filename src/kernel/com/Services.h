@@ -35,7 +35,7 @@ public:
     ~Service();
 
     VPE &vpe() const {
-        return _squeue.vpe();
+        return _vpe;
     }
     const m3::String &name() const {
         return _name;
@@ -55,6 +55,7 @@ public:
     }
 
 private:
+    VPE &_vpe;
     SendQueue _squeue;
     m3::String _name;
     m3::Reference<RGateObject> _rgate;

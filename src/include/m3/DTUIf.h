@@ -168,34 +168,13 @@ public:
         }
     }
 
-    static Errors::Code reserve_ep(epid_t *ep) noexcept {
-        assert(USE_PEXCALLS);
-        assert(*ep <= EP_COUNT);
-
-        word_t res = PEXCalls::call1(Operation::RES_EP, *ep);
-        Errors::Code err = get_error(res);
-        if(err != Errors::NONE)
-            return err;
-
-        *ep = res;
+    static Errors::Code switch_gate(EP &ep, Gate &gate) {
+        if(USE_PEXCALLS)
+            return get_error(PEXCalls::call2(Operation::SWITCH_GATE, ep.id(), gate.sel()));
         return Errors::NONE;
     }
 
-    static void free_ep(epid_t ep) noexcept {
-        assert(USE_PEXCALLS);
-        assert(ep < EP_COUNT);
-
-        PEXCalls::call1(Operation::FREE_EP, ep);
-    }
-
-    static void activate_gate(Gate &gate, epid_t ep, goff_t addr);
-
-    static void remove_gate(Gate &gate, bool invalidate) noexcept {
-        if(USE_PEXCALLS)
-            PEXCalls::call2(Operation::REMOVE_GATE, gate.sel(), invalidate);
-        else
-            EPMux::get().remove(&gate, invalidate);
-    }
+    static void remove_gate(Gate &gate, bool invalidate) noexcept;
 
     static void drop_msgs(epid_t ep, label_t label) noexcept {
         DTU::get().drop_msgs(ep, label);

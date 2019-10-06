@@ -18,13 +18,14 @@
 
 use cap::Selector;
 use cell::StaticCell;
-use com::{EpMux, RecvGate, SendGate};
+use com::{RecvGate, SendGate};
 use core::mem::MaybeUninit;
-use dtu::{DTUIf, Label, Message, SYSC_SEP};
+use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
-use kif::{syscalls, CapRngDesc, PEDesc, Perm, SEL_SYSC_SG, SEL_VPE};
+use kif::{self, syscalls, CapRngDesc, PEDesc, Perm, SEL_SYSC_SG, SEL_VPE};
 use util;
+use vpe::VPE;
 
 static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(SEL_SYSC_SG, SYSC_SEP));
 
@@ -64,7 +65,7 @@ fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
 }
 
 fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
-    let reply: Reply<syscalls::DefaultReply> = send_receive(msg)?;
+    let reply: Reply<kif::DefaultReply> = send_receive(msg)?;
 
     match reply.data.error {
         0 => Ok(()),
@@ -218,6 +219,21 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
         value: u64::from(value),
     };
     send_receive_result(&req)
+}
+
+/// Allocates a new endpoint at selector `dst`.
+pub fn alloc_ep(dst: Selector, vpe: Selector) -> Result<EpId, Error> {
+    let req = syscalls::AllocEP {
+        opcode: syscalls::Operation::ALLOC_EP.val,
+        dst_sel: u64::from(dst),
+        vpe_sel: u64::from(vpe),
+    };
+
+    let reply: Reply<syscalls::AllocEPReply> = send_receive(&req)?;
+    match reply.data.error {
+        0 => Ok(reply.data.ep as EpId),
+        e => Err(Error::from(e as u32)),
+    }
 }
 
 /// Derives a new memory gate for given VPE at selector `dst` based on memory gate `sel`.
@@ -439,7 +455,7 @@ pub fn exit(code: i32) {
 }
 
 pub(crate) fn init() {
-    EpMux::get().set_owned(SYSC_SEP, SEL_SYSC_SG);
+    VPE::cur().epmng().set_owned(SYSC_SEP, SEL_SYSC_SG);
 }
 
 pub(crate) fn reinit() {

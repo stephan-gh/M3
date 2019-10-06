@@ -18,7 +18,6 @@
 #include <base/Init.h>
 #include <base/Panic.h>
 
-#include <m3/com/EPMux.h>
 #include <m3/com/RecvGate.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
@@ -80,7 +79,7 @@ RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, int order, int 
         Syscalls::create_rgate(sel(), order, msgorder);
 
     if(ep != UNBOUND)
-        activate(ep);
+        activate(EP::bind(ep));
 }
 
 RecvGate RecvGate::create(int order, int msgorder) {
@@ -110,43 +109,32 @@ RecvGate::~RecvGate() {
 }
 
 void RecvGate::activate() {
-    if(ep() == UNBOUND) {
-        epid_t ep = _vpe.alloc_ep();
-        _free |= FREE_EP;
-        activate(ep);
-    }
+    if(ep() == UNBOUND)
+        activate(EP::alloc_for(_vpe));
 }
 
-void RecvGate::activate(epid_t _ep) {
+void RecvGate::activate(EP &&nep) {
     if(ep() == UNBOUND) {
         if(_buf == nullptr) {
-            _buf = allocate(_vpe, _ep, 1UL << _order);
+            _buf = allocate(_vpe, ep(), 1UL << _order);
             _free |= FREE_BUF;
         }
 
-        activate(_ep, reinterpret_cast<uintptr_t>(_buf));
+        activate(std::move(nep), reinterpret_cast<uintptr_t>(_buf));
     }
 }
 
-void RecvGate::activate(epid_t _ep, uintptr_t addr) {
+void RecvGate::activate(EP &&nep, uintptr_t addr) {
     assert(ep() == UNBOUND);
 
-    ep(_ep);
+    if(sel() != ObjCap::INVALID && sel() >= KIF::FIRST_FREE_SEL)
+        Syscalls::activate(nep.sel(), sel(), addr);
 
-    if(sel() != ObjCap::INVALID && sel() >= KIF::FIRST_FREE_SEL) {
-        if(&_vpe == &VPE::self())
-            DTUIf::activate_gate(*this, ep(), addr);
-        else
-            Syscalls::activate(_vpe.ep_to_sel(ep()), sel(), addr);
-    }
+    put_ep(std::move(nep));
 }
 
 void RecvGate::deactivate() noexcept {
-    if(_free & FREE_EP) {
-        _vpe.free_ep(ep());
-        _free &= ~static_cast<uint>(FREE_EP);
-    }
-    ep(UNBOUND);
+    put_ep(EP::bind(UNBOUND));
 
     stop();
 }

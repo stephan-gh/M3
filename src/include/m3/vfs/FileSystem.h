@@ -32,7 +32,8 @@ class Marshaller;
  */
 class FileSystem : public RefCounted {
 public:
-    explicit FileSystem() noexcept {
+    explicit FileSystem() noexcept
+        : RefCounted() {
     }
     virtual ~FileSystem() {
     }

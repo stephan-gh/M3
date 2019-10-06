@@ -20,6 +20,8 @@
 #include <base/col/SList.h>
 #include <base/DTU.h>
 
+#include "pes/VPEDesc.h"
+
 namespace kernel {
 
 class VPE;
@@ -43,17 +45,14 @@ class SendQueue {
     };
 
 public:
-    explicit SendQueue(VPE &vpe)
-        : _vpe(vpe),
+    explicit SendQueue(VPEDesc desc)
+        : _desc(desc),
           _queue(),
           _cur_event(),
           _inflight(0) {
     }
     ~SendQueue();
 
-    VPE &vpe() const {
-        return _vpe;
-    }
     int inflight() const {
         return _inflight;
     }
@@ -71,7 +70,7 @@ private:
     event_t get_event(uint64_t id);
     event_t do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t size, bool onheap);
 
-    VPE &_vpe;
+    VPEDesc _desc;
     m3::SList<Entry> _queue;
     event_t _cur_event;
     int _inflight;

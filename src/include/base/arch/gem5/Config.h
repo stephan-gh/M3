@@ -75,9 +75,13 @@
 #define KPEX_RBUF_SIZE      (1 << KPEX_RBUF_ORDER)
 #define KPEX_RBUF           RECVBUF_SPACE
 
+#define PEXUP_RBUF_ORDER    6
+#define PEXUP_RBUF_SIZE     (1 << PEXUP_RBUF_ORDER)
+#define PEXUP_RBUF          (KPEX_RBUF + KPEX_RBUF_SIZE)
+
 #define SYSC_RBUF_ORDER     9
 #define SYSC_RBUF_SIZE      (1 << SYSC_RBUF_ORDER)
-#define SYSC_RBUF           (KPEX_RBUF + KPEX_RBUF_SIZE)
+#define SYSC_RBUF           (PEXUP_RBUF + PEXUP_RBUF_SIZE)
 
 #define UPCALL_RBUF_ORDER   6
 #define UPCALL_RBUF_SIZE    (1 << UPCALL_RBUF_ORDER)

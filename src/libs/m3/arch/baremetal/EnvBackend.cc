@@ -51,7 +51,6 @@ public:
 
         uint64_t *argv = reinterpret_cast<uint64_t*>(env()->argv);
         Serial::init(argv ? reinterpret_cast<char*>(argv[0]) : "Unknown", senv->pe);
-        EPMux::get().reset();
 
         VPE::reset();
     }

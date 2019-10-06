@@ -21,7 +21,7 @@ mod pedesc;
 mod perm;
 
 pub mod boot;
-pub mod kpexcalls;
+pub mod pemux;
 pub mod service;
 pub mod syscalls;
 pub mod upcalls;
@@ -49,3 +49,15 @@ pub const FIRST_EP_SEL: CapSel = SEL_PG_RG + 1;
 
 /// The first free selector
 pub const FIRST_FREE_SEL: CapSel = FIRST_EP_SEL + (dtu::EP_COUNT - dtu::FIRST_FREE_EP) as CapSel;
+
+/// The default request message that only contains the opcode
+#[repr(C, packed)]
+pub struct DefaultRequest {
+    pub opcode: u64,
+}
+
+/// The default reply message that only contains the error code
+#[repr(C, packed)]
+pub struct DefaultReply {
+    pub error: u64,
+}

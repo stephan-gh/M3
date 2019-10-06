@@ -21,6 +21,8 @@
 #include <base/Errors.h>
 #include <base/DTU.h>
 
+#include <m3/com/EP.h>
+
 #include <assert.h>
 
 namespace m3 {
@@ -42,11 +44,6 @@ class VPE;
 class FileTable {
     friend class GenericFile;
 
-    struct FileEp {
-        GenericFile *file;
-        epid_t epid;
-    };
-
 public:
     static const fd_t MAX_EPS       = EP_COUNT / 4;
     static const fd_t MAX_FDS       = 64;
@@ -55,9 +52,11 @@ public:
      * Constructor
      */
     explicit FileTable() noexcept
-        : _file_ep_count(),
+        : _free_ep_count(),
+          _used_ep_count(),
           _file_ep_victim(),
-          _file_eps(),
+          _free_eps(),
+          _used_eps(),
           _fds() {
     }
 
@@ -153,11 +152,14 @@ public:
     static FileTable *unserialize(const void *buffer, size_t size);
 
 private:
-    epid_t request_ep(GenericFile *file);
+    EP get_ep();
+    EP request_ep(GenericFile *file);
 
-    size_t _file_ep_count;
+    size_t _free_ep_count;
+    size_t _used_ep_count;
     size_t _file_ep_victim;
-    FileEp _file_eps[MAX_EPS];
+    EP _free_eps[MAX_EPS];
+    GenericFile *_used_eps[MAX_EPS];
     Reference<File> _fds[MAX_FDS];
 };
 

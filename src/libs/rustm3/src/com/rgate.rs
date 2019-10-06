@@ -18,7 +18,7 @@ use cap::{CapFlags, Selector};
 use cell::StaticCell;
 use cfg;
 use com::gate::Gate;
-use com::{GateIStream, SendGate};
+use com::{EP, GateIStream, SendGate};
 use core::fmt;
 use core::ops;
 use dtu;
@@ -41,7 +41,6 @@ static DEF_RGATE: StaticCell<RecvGate> =
 bitflags! {
     struct FreeFlags : u8 {
         const FREE_BUF  = 0x1;
-        const FREE_EP   = 0x2;
     }
 }
 
@@ -131,7 +130,7 @@ impl RecvGate {
 
     const fn new_def(sel: Selector, ep: dtu::EpId) -> Self {
         RecvGate {
-            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, Some(ep)),
+            gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
             buf: 0,
             order: 0,
             free: FreeFlags { bits: 0 },
@@ -202,9 +201,7 @@ impl RecvGate {
         match self.ep() {
             Some(_) => Ok(()),
             None => {
-                let vpe = vpe::VPE::cur();
-                let ep = vpe.alloc_ep()?;
-                self.free |= FreeFlags::FREE_EP;
+                let ep = EP::new()?;
                 self.activate_ep(ep)?;
                 Ok(())
             },
@@ -213,7 +210,7 @@ impl RecvGate {
 
     /// Activates this receive gate on the given endpoint. Activation is required before
     /// [`SendGate`]s connected to this `RecvGate` can be activated.
-    pub(crate) fn activate_ep(&mut self, ep: dtu::EpId) -> Result<(), Error> {
+    pub(crate) fn activate_ep(&mut self, ep: EP) -> Result<(), Error> {
         if self.ep().is_none() {
             let vpe = vpe::VPE::cur();
             let buf = if self.buf == 0 {
@@ -225,9 +222,9 @@ impl RecvGate {
             };
 
             if self.sel() != INVALID_SEL {
-                dtu::DTUIf::activate_gate(&self.gate, ep, buf as goff)?;
+                syscalls::activate(ep.sel(), self.sel(), buf as goff)?;
             }
-            self.gate.set_ep(ep);
+            self.gate.put_ep(ep)?;
 
             if self.buf == 0 {
                 self.buf = buf;
@@ -240,11 +237,7 @@ impl RecvGate {
 
     /// Deactivates this gate.
     pub fn deactivate(&mut self) {
-        if !(self.free & FreeFlags::FREE_EP).is_empty() {
-            let ep = self.ep().unwrap();
-            vpe::VPE::cur().free_ep(ep);
-        }
-        self.gate.unset_ep();
+        self.gate.take_ep();
     }
 
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
@@ -300,7 +293,7 @@ impl RecvGate {
 pub(crate) fn init() {
     let rbufs = vpe::VPE::cur().rbufs();
 
-    let mut off = cfg::KPEX_RBUF_SIZE;
+    let mut off = cfg::KPEX_RBUF_SIZE + cfg::PEXUP_RBUF_SIZE;
     RecvGate::syscall().buf = rbufs.get_std(off, cfg::SYSC_RBUF_SIZE);
     RecvGate::syscall().order = util::next_log2(cfg::SYSC_RBUF_SIZE);
     off += cfg::SYSC_RBUF_SIZE;

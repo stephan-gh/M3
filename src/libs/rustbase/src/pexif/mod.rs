@@ -30,10 +30,7 @@ int_enum! {
         const SLEEP         = 0x8;
         const EXIT          = 0x9;
 
-        const ACTIVATE_GATE = 0xA;
+        const SWITCH_GATE   = 0xA;
         const REMOVE_GATE   = 0xB;
-
-        const RES_EP        = 0xC;
-        const FREE_EP       = 0xD;
     }
 }

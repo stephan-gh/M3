@@ -31,7 +31,8 @@ PEMux::PEMux(peid_t pe)
       _headers(0),
       _rbufs_size(),
       _mem_base(),
-      _dtustate() {
+      _dtustate(),
+      _upcqueue(desc()) {
 #if defined(__gem5__)
     // configure send EP
     _dtustate.config_send(m3::DTU::KPEX_SEP, reinterpret_cast<label_t>(this),
@@ -39,8 +40,12 @@ PEMux::PEMux(peid_t pe)
                           KPEX_RBUF_SIZE, KPEX_RBUF_SIZE);
 
     // configure receive EP
-    _dtustate.config_recv(m3::DTU::KPEX_REP, Platform::def_recvbuf(_pe),
-                          KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, 0);
+    uintptr_t rbuf = Platform::def_recvbuf(_pe);
+    _dtustate.config_recv(m3::DTU::KPEX_REP, rbuf, KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, 0);
+    rbuf += KPEX_RBUF_SIZE;
+
+    // configure upcall receive EP
+    _dtustate.config_recv(m3::DTU::PEXUP_REP, rbuf, PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, 1);
 #endif
 
     for(epid_t ep = m3::DTU::FIRST_USER_EP; ep < EP_COUNT; ++ep) {
@@ -48,14 +53,61 @@ PEMux::PEMux(peid_t pe)
         _caps.set(sel, new EPCapability(&_caps, sel, new EPObject(_pe, ep)));
     }
 
-    // one slot for the KPEX receive buffer
-    _headers = 1;
+    // one slot for the KPEX receive buffer and one for the upcall receive buffer
+    _headers = 2;
 }
 
 static void reply_result(const m3::DTU::Message *msg, m3::Errors::Code code) {
     m3::KIF::DefaultReply reply;
     reply.error = static_cast<xfer_t>(code);
     DTU::get().reply(SyscallHandler::pexep(), &reply, sizeof(reply), msg);
+}
+
+m3::Errors::Code PEMux::alloc_ep(VPE *caller, vpeid_t dst, capsel_t sel, epid_t *ep) {
+    m3::KIF::PEXUpcalls::AllocEP req;
+    req.opcode = m3::KIF::PEXUpcalls::ALLOC_EP;
+    req.vpe_sel = VPE_SEL_BEGIN + dst;
+
+    KLOG(PEXC, "PEMux[" << _pe << "] sending AllocEP(vpe=" << req.vpe_sel << ")");
+
+    // send upcall
+    event_t event = _upcqueue.send(m3::DTU::PEXUP_REP, 0, &req, sizeof(req), false);
+    m3::ThreadManager::get().wait_for(event);
+
+    // wait for reply
+    auto reply_msg = reinterpret_cast<const m3::DTU::Message*>(m3::ThreadManager::get().get_current_msg());
+    auto reply = reinterpret_cast<const m3::KIF::PEXUpcalls::AllocEPReply*>(reply_msg->data);
+
+    KLOG(PEXC, "PEMux[" << _pe << "] got AllocEPReply(error="
+        << reply->error << ", ep=" << reply->ep << ")");
+
+    if(reply->error != m3::Errors::NONE)
+        return static_cast<m3::Errors::Code>(reply->error);
+
+    capsel_t own_sel = m3::KIF::FIRST_EP_SEL + reply->ep - m3::DTU::FIRST_USER_EP;
+    auto epcap = static_cast<EPCapability*>(_caps.get(own_sel, Capability::EP));
+    if(epcap == nullptr)
+        return m3::Errors::INV_ARGS;
+    if(!caller->kmem()->alloc(*caller, sizeof(SharedEPCapability)))
+        return m3::Errors::NO_SPACE;
+
+    // create new EP cap for VPE; revocation of that cap will call PEMux::free_ep
+    auto aepcap = new SharedEPCapability(&caller->objcaps(), sel, &*epcap->obj);
+    caller->objcaps().inherit(epcap, aepcap);
+    caller->objcaps().set(sel, aepcap);
+
+    *ep = reply->ep;
+    return m3::Errors::NONE;
+}
+
+void PEMux::free_ep(epid_t ep) {
+    m3::KIF::PEXUpcalls::FreeEP req;
+    req.opcode = m3::KIF::PEXUpcalls::FREE_EP;
+    req.ep = ep;
+
+    KLOG(PEXC, "PEMux[" << _pe << "] sending FreeEP(ep=" << req.ep << ")");
+
+    _upcqueue.send(m3::DTU::PEXUP_REP, 0, &req, sizeof(req), false);
 }
 
 void PEMux::handle_call(const m3::DTU::Message *msg) {

@@ -26,6 +26,7 @@ mod arch;
 mod eps;
 mod kernreq;
 mod pexcalls;
+mod upcalls;
 mod vpe;
 
 use base::dtu;
@@ -51,9 +52,29 @@ pub extern "C" fn exit(_code: i32) {
 #[no_mangle]
 pub fn sleep() {
     loop {
-        // ack events since to VPE is currently running
+        upcalls::check();
+
+        // ack events since to VPE is currently not running
         dtu::DTU::fetch_events();
         dtu::DTU::sleep().ok();
+    }
+}
+
+pub struct IRQsOnGuard {
+    prev: bool,
+}
+
+impl IRQsOnGuard {
+    pub fn new() -> Self {
+        IRQsOnGuard {
+            prev: isr::enable_ints()
+        }
+    }
+}
+
+impl Drop for IRQsOnGuard {
+    fn drop(&mut self) {
+        isr::restore_ints(self.prev);
     }
 }
 
@@ -69,6 +90,8 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
 
 pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
     pexcalls::handle_call(state);
+
+    upcalls::check();
 
     state.finalize()
 }

@@ -18,7 +18,6 @@
 
 #include <base/Compiler.h>
 
-#define INIT_PRIO_EPMUX         INIT_PRIO(101)
 #define INIT_PRIO_SENDQUEUE     INIT_PRIO(101)
 #define INIT_PRIO_DTU           INIT_PRIO(102)
 

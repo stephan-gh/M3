@@ -16,6 +16,7 @@
 
 use cap::{CapFlags, Selector};
 use com::gate::Gate;
+use com::EP;
 use core::fmt;
 use core::mem::MaybeUninit;
 use dtu;
@@ -113,12 +114,12 @@ impl MemGate {
         self.gate.ep()
     }
 
-    pub(crate) fn set_ep(&mut self, ep: dtu::EpId) {
-        self.gate.set_ep(ep);
+    pub(crate) fn put_ep(&mut self, ep: EP) -> Result<(), Error> {
+        self.gate.put_ep(ep)
     }
 
-    pub(crate) fn unset_ep(&mut self) {
-        self.gate.unset_ep();
+    pub(crate) fn take_ep(&mut self) -> EP {
+        self.gate.take_ep()
     }
 
     /// Derives a new `MemGate` from `self` that has access to a subset of `self`'s the memory

@@ -67,7 +67,7 @@ public:
         }
 
         _accel->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _srgate.sel(), 1), RBUF_SEL);
-        _srgate.activate(RECV_EP, RBUF_ADDR);
+        _srgate.activate(EP::bind_for(*_accel, RECV_EP), RBUF_ADDR);
         _accel->start();
     }
 

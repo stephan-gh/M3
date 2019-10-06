@@ -16,6 +16,7 @@
 
 use cap::Selector;
 use com::{RecvGate, SendGate};
+use dtu::EpId;
 use errors::Error;
 use goff;
 use kif;
@@ -36,7 +37,10 @@ int_enum! {
         const ALLOC_MEM     = 0x6;
         const FREE_MEM      = 0x7;
 
-        const USE_SEM       = 0x8;
+        const ALLOC_EP      = 0x8;
+        const FREE_EP       = 0x9;
+
+        const USE_SEM       = 0xA;
     }
 }
 
@@ -169,6 +173,24 @@ impl ResMng {
     /// Free's the memory with given selector.
     pub fn free_mem(&self, sel: Selector) -> Result<(), Error> {
         send_recv_res!(&self.sgate, RecvGate::def(), ResMngOperation::FREE_MEM, sel).map(|_| ())
+    }
+
+    /// Allocates a new endpoint for VPE `vpe` and assigns it to selector `sel`.
+    pub fn alloc_ep(&self, sel: Selector, vpe: Selector) -> Result<EpId, Error> {
+        let mut reply = send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            ResMngOperation::ALLOC_EP,
+            sel,
+            vpe
+        )?;
+        let id: EpId = reply.pop();
+        Ok(id)
+    }
+
+    /// Free's the endpoint with given selector
+    pub fn free_ep(&self, sel: Selector) -> Result<(), Error> {
+        send_recv_res!(&self.sgate, RecvGate::def(), ResMngOperation::FREE_EP, sel).map(|_| ())
     }
 
     /// Attaches to the semaphore with given name using selector `sel`.

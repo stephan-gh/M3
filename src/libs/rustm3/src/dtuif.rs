@@ -16,13 +16,13 @@
 
 use arch::pexcalls;
 use base::pexif;
-use com::{EpMux, Gate, MemGate, RecvGate, SendGate};
+use cap::Selector;
+use com::{EP, Gate, MemGate, RecvGate, SendGate};
 use core::intrinsics;
-use dtu::{self, CmdFlags, Header, Label, Message, EP_COUNT};
+use dtu::{self, CmdFlags, Header, Label, Message};
 use errors::{Code, Error};
 use goff;
 use kif;
-use syscalls;
 use vpe::VPE;
 
 pub struct DTUIf {}
@@ -227,35 +227,17 @@ impl DTUIf {
         }
     }
 
-    pub fn reserve_ep(ep: Option<dtu::EpId>) -> Result<dtu::EpId, Error> {
-        assert!(USE_PEXCALLS);
-
-        let ep = match ep {
-            Some(id) => id,
-            None => EP_COUNT,
-        };
-        pexcalls::call1(pexif::Operation::RES_EP, ep)
-    }
-
-    pub fn free_ep(ep: dtu::EpId) -> Result<(), Error> {
-        assert!(USE_PEXCALLS);
-
-        pexcalls::call1(pexif::Operation::FREE_EP, ep).map(|_| ())
-    }
-
-    pub fn activate_gate(gate: &Gate, ep: dtu::EpId, addr: goff) -> Result<(), Error> {
+    pub fn switch_gate(ep: &EP, gate: Selector) -> Result<(), Error> {
         if USE_PEXCALLS {
-            pexcalls::call3(
-                pexif::Operation::ACTIVATE_GATE,
-                gate.sel() as usize,
-                ep as usize,
-                addr as usize,
+            pexcalls::call2(
+                pexif::Operation::SWITCH_GATE,
+                ep.id().unwrap() as usize,
+                gate as usize,
             )
             .map(|_| ())
         }
         else {
-            let ep_sel = VPE::cur().ep_sel(ep);
-            syscalls::activate(ep_sel, gate.sel(), addr)
+            Ok(())
         }
     }
 
@@ -269,7 +251,7 @@ impl DTUIf {
             .map(|_| ())
         }
         else {
-            EpMux::get().remove(gate);
+            VPE::cur().epmng().remove(gate);
             Ok(())
         }
     }

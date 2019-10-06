@@ -70,6 +70,7 @@ private:
     static void create_vpe(VPE *vpe, const m3::DTU::Message *msg);
     static void create_map(VPE *vpe, const m3::DTU::Message *msg);
     static void create_sem(VPE *vpe, const m3::DTU::Message *msg);
+    static void alloc_ep(VPE *vpe, const m3::DTU::Message *msg);
     static void activate(VPE *vpe, const m3::DTU::Message *msg);
     static void vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg);
     static void vpe_wait(VPE *vpe, const m3::DTU::Message *msg);

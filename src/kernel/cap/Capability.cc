@@ -130,6 +130,11 @@ void KMemCapability::revoke() {
     }
 }
 
+void SharedEPCapability::revoke() {
+    auto pemux = PEManager::get().pemux(obj->pe);
+    pemux->free_ep(obj->ep);
+}
+
 MapCapability::MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj)
     : Capability(tbl, sel, MAP, _pages),
       obj(_obj) {

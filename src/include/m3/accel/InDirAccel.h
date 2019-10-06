@@ -56,14 +56,14 @@ public:
                                                          .reply_gate(&reply_gate))),
           _vpe(vpe) {
         // activate EP
-        _rgate.activate(EP_RECV, vpe->pe().mem_size() - MSG_SIZE);
+        _rgate.activate(EP::bind_for(*vpe, EP_RECV), vpe->pe().mem_size() - MSG_SIZE);
         // delegate cap
         vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _rgate.sel(), 1), CAP_RECV);
     }
 
     void connect_output(InDirAccel *accel) {
         _mgate = std::make_unique<MemGate>(accel->_vpe->mem().derive(BUF_ADDR, MAX_BUF_SIZE));
-        _mgate->activate_for(*_vpe, EP_OUT);
+        _mgate->activate_on(EP::bind_for(*_vpe, EP_OUT));
     }
 
     void read(void *data, size_t size) {

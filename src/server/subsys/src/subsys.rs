@@ -194,6 +194,28 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     VPE::cur().resmng().free_mem(our_sel)
 }
 
+fn alloc_ep(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let dst_sel: Selector = is.pop();
+    let vpe_sel: Selector = is.pop();
+
+    let res = child.alloc_ep(dst_sel, vpe_sel);
+    match res {
+        Err(e) => {
+            log!(RESMNG, "request failed: {}", e);
+            reply_vmsg!(is, e.code() as u64)
+        },
+        Ok(ep) => reply_vmsg!(is, 0 as u64, ep),
+    }
+    .expect("Unable to reply");
+    Ok(())
+}
+
+fn free_ep(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop();
+
+    child.free_ep(sel)
+}
+
 fn handle_request(mut is: GateIStream) {
     let op: ResMngOperation = is.pop();
     let child = childs::get()
@@ -212,6 +234,14 @@ fn handle_request(mut is: GateIStream) {
 
         ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
         ResMngOperation::FREE_MEM => free_mem(&mut is, child),
+
+        ResMngOperation::ALLOC_EP => {
+            match alloc_ep(&mut is, child) {
+                Ok(_) => return,
+                Err(e) => Err(e),
+            }
+        },
+        ResMngOperation::FREE_EP => free_ep(&mut is, child),
 
         _ => unreachable!(),
     };

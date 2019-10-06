@@ -118,7 +118,6 @@ void Env::reset() {
     Serial::init(executable(), env()->pe);
 
     DTU::get().reset();
-    EPMux::get().reset();
 
     init_dtu();
 

@@ -51,7 +51,7 @@ public:
           _ctrl_handler(),
           // use INVALID to use the reserved EP
           _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<512>::val)) {
-        _rgate.ep(ep);
+        _rgate.put_ep(EP::bind(ep));
         init(wl);
     }
 
