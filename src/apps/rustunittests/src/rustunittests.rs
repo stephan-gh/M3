@@ -20,9 +20,7 @@
 extern crate m3;
 
 use m3::cell::StaticCell;
-use m3::mem::heap;
 use m3::test::WvTester;
-use m3::vfs::VFS;
 
 mod tboxlist;
 mod tbufio;
@@ -61,20 +59,13 @@ impl WvTester for MyTester {
 
     fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn()) {
         println!("Testing \"{}\" in {}:", name, file);
-        let free_mem = heap::free_memory();
         f();
-        wv_assert_eq!(heap::free_memory(), free_mem);
         println!();
     }
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
-    // do a mount here to ensure that we don't need to realloc the mount-table later, which screws
-    // up our simple memory-leak detection above
-    wv_assert_ok!(VFS::mount("/fs/", "m3fs", "m3fs-clone"));
-    wv_assert_ok!(VFS::unmount("/fs/"));
-
     let mut tester = MyTester {};
     wv_run_suite!(tester, tboxlist::run);
     wv_run_suite!(tester, tbufio::run);
