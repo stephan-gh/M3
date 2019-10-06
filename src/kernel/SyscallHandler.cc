@@ -727,12 +727,12 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
 
     m3::Errors::Code res = static_cast<m3::Errors::Code>(reply->error);
 
-    LOG_SYS(vpe, (obtain ? ": syscall::obtain-cont" : ": syscall::delegate-cont"), "(res=" << res << ")");
-
+    const char *prefix = obtain ? ": syscall::obtain-cont" : ": syscall::delegate-cont";
     if(res != m3::Errors::NONE)
-        LOG_ERROR(vpe, res, "Server denied cap-transfer");
+        LOG_ERROR(vpe, res, prefix << ": server denied cap-transfer");
     else {
         m3::KIF::CapRngDesc srvcaps(reply->data.caps);
+        LOG_SYS(vpe, prefix, "(res=" << res << ", srvcaps=" << srvcaps << ")");
         res = do_exchange(&*vpecap->obj, &rsrv->vpe(), crd, srvcaps, obtain);
     }
 
