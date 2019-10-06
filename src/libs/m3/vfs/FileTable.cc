@@ -35,6 +35,7 @@ void FileTable::remove_all() noexcept {
 fd_t FileTable::alloc(Reference<File> file) {
     for(fd_t i = 0; i < MAX_FDS; ++i) {
         if(!_fds[i]) {
+            LLOG(FILES, "FileTable[" << i << "] = file");
             file->set_fd(i);
             _fds[i] = file;
             return i;
@@ -63,6 +64,8 @@ void FileTable::remove(fd_t fd) noexcept {
                 break;
             }
         }
+
+        LLOG(FILES, "FileTable[" << fd << "] = --");
     }
 }
 
@@ -101,8 +104,10 @@ epid_t FileTable::request_ep(GenericFile *file) {
 
 void FileTable::delegate(VPE &vpe) const {
     for(fd_t i = 0; i < MAX_FDS; ++i) {
-        if(_fds[i])
+        if(_fds[i]) {
+            LLOG(FILES, "FileTable[" << i << "] = delegate");
             _fds[i]->delegate(vpe);
+        }
     }
 }
 
