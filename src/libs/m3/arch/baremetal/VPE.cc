@@ -51,6 +51,10 @@ void VPE::init_fs() {
 }
 
 void VPE::reset() noexcept {
+    // don't free the stuff of our parent
+    _self_ptr->_fds.release();
+    _self_ptr->_ms.release();
+
     _self_ptr = reinterpret_cast<VPE*>(env()->mounts);
     _self_ptr->sel(0);
     _self_ptr->_mem.sel(1);
