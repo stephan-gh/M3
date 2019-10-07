@@ -236,10 +236,10 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
         " with EP\\d+ (?:from|into) (?:0x)?[0-9a-f]+:(\\d+)"
     );
     std::regex suswake_regex(
-        "^: (Suspending|Waking)"
+        "(Suspending|Waking up) core"
     );
     std::regex setvpe_regex(
-        "^\\.regFile: NOC-> DTU\\[VPE_ID      \\]: 0x([0-9a-f]+)"
+        "^\\.regFile: (?:DTU|NOC)-> DTU\\[ROOT_PT     \\]: 0x([0-9a-f]+)"
     );
     std::regex debug_regex(
         "^: DEBUG (?:0x)([0-9a-f]+)"
@@ -316,14 +316,14 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
             last_pe = std::max(pe, std::max(last_pe, ev.remote));
         }
         else if(strstr(line.c_str(), "ing") && std::regex_search(line, match, suswake_regex)) {
-            event_type type = match[1].str() == "Waking" ? EVENT_WAKEUP : EVENT_SUSPEND;
+            event_type type = match[1].str() == "Waking up" ? EVENT_WAKEUP : EVENT_SUSPEND;
             buf.push_back(build_event(type, timestamp, pe, "", "", tag));
 
             last_pe = std::max(pe, last_pe);
             states[pe].tag = tag++;
         }
-        else if(strstr(line.c_str(), "VPE_ID") && std::regex_search(line, match, setvpe_regex)) {
-            uint32_t vpetag = strtoul(match[1].str().c_str(), NULL, 16);
+        else if(strstr(line.c_str(), "ROOT_PT") && std::regex_search(line, match, setvpe_regex)) {
+            uint32_t vpetag = strtoul(match[1].str().c_str(), NULL, 16) >> 12;
             buf.push_back(build_event(EVENT_SET_VPEID, timestamp, pe, "", "", vpetag));
 
             last_pe = std::max(pe, last_pe);
@@ -522,7 +522,7 @@ static void gen_pe_events(OTF_Writer *writer, Stats &stats, std::vector<Event> &
                 auto fn = vpefuncs.find(event->tag);
                 if(fn == vpefuncs.end()) {
                     char name[16];
-                    snprintf(name, sizeof(name), "VPE%u", (unsigned)event->tag);
+                    snprintf(name, sizeof(name), "VPE_%#x", (unsigned)event->tag);
                     vpefuncs[event->tag] = ++fn_exec_last;
                     OTF_Writer_writeDefFunction(writer, 0, vpefuncs[event->tag], name, grp_func_exec, 0);
                     fn = vpefuncs.find(event->tag);
