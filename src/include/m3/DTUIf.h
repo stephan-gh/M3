@@ -17,17 +17,12 @@
 #pragma once
 
 #include <base/DTU.h>
+#include <base/Env.h>
 
 #include <m3/PEXCalls.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-
-#if defined(__gem5__)
-static const bool USE_PEXCALLS = true;
-#else
-static const bool USE_PEXCALLS = false;
-#endif
 
 namespace m3 {
 
@@ -42,7 +37,7 @@ class DTUIf {
 public:
     static Errors::Code send(SendGate &sg, const void *msg, size_t size,
                              label_t replylbl, RecvGate &rg) noexcept {
-        if(USE_PEXCALLS) {
+        if(env()->shared) {
             return get_error(PEXCalls::call5(Operation::SEND,
                                              sg.sel(),
                                              reinterpret_cast<word_t>(msg),
@@ -58,7 +53,7 @@ public:
 
     static Errors::Code reply(RecvGate &rg, const void *reply, size_t size,
                               const DTU::Message *msg) noexcept {
-        if(USE_PEXCALLS) {
+        if(env()->shared) {
             return get_error(PEXCalls::call4(Operation::REPLY,
                                              gate_sel(rg),
                                              reinterpret_cast<word_t>(reply),
@@ -71,7 +66,7 @@ public:
 
     static Errors::Code call(SendGate &sg, const void *msg, size_t size,
                              RecvGate &rg, const DTU::Message **reply) noexcept {
-        if(USE_PEXCALLS) {
+        if(env()->shared) {
             word_t res = PEXCalls::call4(Operation::CALL,
                                          sg.sel(),
                                          reinterpret_cast<word_t>(msg),
@@ -91,7 +86,7 @@ public:
     }
 
     static const DTU::Message *fetch_msg(RecvGate &rg) noexcept {
-        if(USE_PEXCALLS) {
+        if(env()->shared) {
             word_t res = PEXCalls::call1(Operation::FETCH, gate_sel(rg));
             Errors::Code err = get_error(res);
             if(err != Errors::NONE)
@@ -103,14 +98,14 @@ public:
     }
 
     static void mark_read(RecvGate &rg, const DTU::Message *msg) noexcept {
-        if(USE_PEXCALLS)
+        if(env()->shared)
             PEXCalls::call2(Operation::ACK, gate_sel(rg), reinterpret_cast<word_t>(msg));
         else
             DTU::get().mark_read(rg.ep(), msg);
     }
 
     static Errors::Code receive(RecvGate &rg, SendGate *sg, const DTU::Message **reply) noexcept {
-        if(USE_PEXCALLS) {
+        if(env()->shared) {
             word_t res = PEXCalls::call2(Operation::RECV, gate_sel(rg), sg ? sg->sel() : ObjCap::INVALID);
             Errors::Code err = get_error(res);
             if(err == Errors::NONE)
@@ -138,7 +133,7 @@ public:
     }
 
     static Errors::Code read(MemGate &mg, void *data, size_t size, goff_t off, uint flags) noexcept {
-        if(USE_PEXCALLS) {
+        if(env()->shared) {
             return get_error(PEXCalls::call5(Operation::READ,
                                              gate_sel(mg),
                                              reinterpret_cast<word_t>(data),
@@ -154,7 +149,7 @@ public:
 
     static Errors::Code write(MemGate &mg, const void *data, size_t size,
                               goff_t off, uint flags) noexcept {
-        if(USE_PEXCALLS) {
+        if(env()->shared) {
             return get_error(PEXCalls::call5(Operation::WRITE,
                                              gate_sel(mg),
                                              reinterpret_cast<word_t>(data),
@@ -169,7 +164,7 @@ public:
     }
 
     static Errors::Code switch_gate(EP &ep, Gate &gate) {
-        if(USE_PEXCALLS)
+        if(env()->shared)
             return get_error(PEXCalls::call2(Operation::SWITCH_GATE, ep.id(), gate.sel()));
         return Errors::NONE;
     }
@@ -184,7 +179,7 @@ public:
         sleep_for(0);
     }
     static void sleep_for(uint64_t cycles) noexcept {
-        if(USE_PEXCALLS)
+        if(env()->shared)
             PEXCalls::call1(Operation::SLEEP, cycles);
         else {
             if(DTU::get().fetch_events() == 0)

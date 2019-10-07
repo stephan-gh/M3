@@ -43,8 +43,12 @@ impl EnvData {
         base::envdata::get()
     }
 
-    pub fn pe_id(&self) -> u64 {
+    pub fn pe_id(&self) -> u32 {
         self.base().pe_id
+    }
+
+    pub fn shared(&self) -> bool {
+        self.base().shared != 0
     }
 
     pub fn pe_desc(&self) -> PEDesc {
@@ -166,7 +170,7 @@ pub fn init(argc: i32, argv: *const *const i8) {
     let shm_prefix = read_line(fd);
 
     let base = base::envdata::EnvData::new(
-        read_line(fd).parse::<u64>().unwrap(),
+        read_line(fd).parse::<u32>().unwrap(),
         PEDesc::new(PEType::COMP_IMEM, PEISA::X86, 1024 * 1024),
         argc,
         argv,

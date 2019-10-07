@@ -59,7 +59,7 @@ VPE::VPE()
       _next_sel(KIF::FIRST_FREE_SEL),
       _rbufcur(),
       _rbufend(),
-      _epmng(!USE_PEXCALLS),
+      _epmng(!env()->shared),
       _kmem(),
       _resmng(nullptr),
       _pager(),

@@ -136,6 +136,7 @@ private:
 
 public:
     peid_t pe;
+    bool shared;
     PEDesc pedesc;
 
 private:

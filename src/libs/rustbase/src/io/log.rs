@@ -106,7 +106,7 @@ impl Log {
         }
     }
 
-    pub(crate) fn init(&mut self, pe_id: u64, name: &str) {
+    pub(crate) fn init(&mut self, pe_id: u32, name: &str) {
         let colors = ["31", "32", "33", "34", "35", "36"];
         let begin = match name.rfind('/') {
             Some(b) => b + 1,
@@ -150,12 +150,12 @@ impl Write for Log {
 }
 
 /// Initializes the logger
-pub fn init(pe_id: u64, name: &str) {
+pub fn init(pe_id: u32, name: &str) {
     LOG.set(Some(Log::default()));
     reinit(pe_id, name);
 }
 
 /// Reinitializes the logger (for VPE::run)
-pub fn reinit(pe_id: u64, name: &str) {
+pub fn reinit(pe_id: u32, name: &str) {
     Log::get().unwrap().init(pe_id, name);
 }

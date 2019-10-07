@@ -20,7 +20,7 @@
 namespace m3 {
 
 void DTUIf::remove_gate(Gate &gate, bool invalidate) noexcept {
-    if(USE_PEXCALLS)
+    if(env()->shared)
         PEXCalls::call2(Operation::REMOVE_GATE, gate.sel(), invalidate);
     else
         VPE::self().epmng().remove(&gate, invalidate);

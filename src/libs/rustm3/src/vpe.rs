@@ -507,7 +507,7 @@ impl VPE {
     }
 
     /// Returns the id of the PE the VPE has been assigned to.
-    pub fn pe_id(&self) -> u64 {
+    pub fn pe_id(&self) -> u32 {
         arch::env::get().pe_id()
     }
 

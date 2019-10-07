@@ -35,8 +35,12 @@ pub struct EnvData {
 }
 
 impl EnvData {
-    pub fn pe_id(&self) -> u64 {
+    pub fn pe_id(&self) -> u32 {
         self.base.pe_id
+    }
+
+    pub fn shared(&self) -> bool {
+        self.base.shared != 0
     }
 
     pub fn pe_desc(&self) -> PEDesc {

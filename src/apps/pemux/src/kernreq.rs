@@ -66,7 +66,7 @@ pub fn handle_pemux(state: &mut isr::State) {
 
         // remember the current PE (might have changed since last switch)
         let vpe_id = flags >> 48;
-        env().pe_id = (flags >> 32) & 0xFFFF;
+        env().pe_id = ((flags >> 32) & 0xFFFF) as u32;
 
         // reinit io with correct PE id
         // TODO there should be a better way

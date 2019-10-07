@@ -20,7 +20,8 @@ use core::intrinsics;
 #[derive(Default, Copy, Clone)]
 #[repr(C, packed)]
 pub struct EnvData {
-    pub pe_id: u64,
+    pub pe_id: u32,
+    pub shared: u32,
     pub pe_desc: u32,
     pub argc: u32,
     pub argv: u64,

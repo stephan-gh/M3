@@ -48,6 +48,12 @@ class VPE : public SlabObject<VPE>, public m3::RefCounted {
         m3::String name;
     };
 
+#if defined(__gem5__)
+    static const bool USE_PEMUX         = true;
+#else
+    static const bool USE_PEMUX         = false;
+#endif
+
 public:
     static const uint16_t INVALID_ID    = 0xFFFF;
     static const epid_t INVALID_EP      = static_cast<epid_t>(-1);

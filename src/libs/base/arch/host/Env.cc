@@ -71,6 +71,7 @@ Env::Init::~Init() {
 
 Env::Env(EnvBackend *backend, int logfd)
     : pe(set_inst(this)),
+      shared(false),
       _backend(backend),
       _logfd(logfd),
       _shm_prefix(),

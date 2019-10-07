@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use arch::env;
 use cap::{CapFlags, Capability, Selector};
 use cell::Cell;
 use dtu::{EpId, FIRST_FREE_EP};
@@ -49,7 +50,7 @@ impl EP {
 
     /// Allocates a new endpoint for given VPE.
     pub fn new_for(vpe: &mut VPE) -> Result<Self, Error> {
-        if dtuif::USE_PEXCALLS {
+        if env::get().shared() {
             // TODO actually: VPE.runs_on_pemux()
             let (sel, id) = Self::alloc_cap(vpe)?;
             return Ok(Self::create(sel, Some(id), true));
@@ -120,7 +121,7 @@ impl Drop for EP {
     fn drop(&mut self) {
         if self.free {
             assert!(self.valid());
-            if dtuif::USE_PEXCALLS {
+            if env::get().shared() {
                 VPE::cur().resmng().free_ep(self.sel()).ok();
             }
             else {

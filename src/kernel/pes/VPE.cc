@@ -61,17 +61,12 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
         &_objcaps, 1, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
 
     // only accelerators get their EP caps directly, because no PEMux is running there
-    // TODO introduce method in PEDesc to determine whether PEMux exists
-#if defined(__gem5__)
-    if(!Platform::pe(pe()).is_programmable()) {
-#endif
+    if(USE_PEMUX || !Platform::pe(pe()).is_programmable()) {
         for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
             capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
             _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(pe(), ep)));
         }
-#if defined(__gem5__)
     }
-#endif
 
     if(Platform::pe(pe()).has_virtmem()) {
         // for the root PT

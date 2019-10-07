@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use arch::env;
 use arch::pexcalls;
 use base::pexif;
 use cap::Selector;
@@ -26,11 +27,6 @@ use kif;
 use vpe::VPE;
 
 pub struct DTUIf {}
-
-#[cfg(target_os = "none")]
-pub(crate) const USE_PEXCALLS: bool = true;
-#[cfg(target_os = "linux")]
-pub(crate) const USE_PEXCALLS: bool = false;
 
 impl DTUIf {
     fn addr_to_msg(addr: usize) -> &'static Message {
@@ -49,7 +45,7 @@ impl DTUIf {
         reply_lbl: Label,
         rg: &RecvGate,
     ) -> Result<(), Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call5(
                 pexif::Operation::SEND,
                 sg.sel() as usize,
@@ -73,7 +69,7 @@ impl DTUIf {
         size: usize,
         msg: &'static Message,
     ) -> Result<(), Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call4(
                 pexif::Operation::REPLY,
                 rg.sel() as usize,
@@ -95,7 +91,7 @@ impl DTUIf {
         size: usize,
         rg: &RecvGate,
     ) -> Result<&'static Message, Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call4(
                 pexif::Operation::CALL,
                 sg.sel() as usize,
@@ -114,7 +110,7 @@ impl DTUIf {
 
     #[inline(always)]
     pub fn fetch_msg(rg: &RecvGate) -> Option<&'static Message> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call1(pexif::Operation::FETCH, rg.sel() as usize)
                 .ok()
                 .map(Self::addr_to_msg)
@@ -126,7 +122,7 @@ impl DTUIf {
 
     #[inline(always)]
     pub fn mark_read(rg: &RecvGate, msg: &Message) {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call2(
                 pexif::Operation::ACK,
                 rg.sel() as usize,
@@ -140,7 +136,7 @@ impl DTUIf {
     }
 
     pub fn receive(rg: &RecvGate, sg: Option<&SendGate>) -> Result<&'static Message, Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             let sgsel = match sg {
                 Some(sg) => sg.sel() as usize,
                 None => kif::INVALID_SEL as usize,
@@ -186,7 +182,7 @@ impl DTUIf {
         off: goff,
         flags: CmdFlags,
     ) -> Result<(), Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call5(
                 pexif::Operation::READ,
                 Self::mgate_sel(mg),
@@ -210,7 +206,7 @@ impl DTUIf {
         off: goff,
         flags: CmdFlags,
     ) -> Result<(), Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call5(
                 pexif::Operation::WRITE,
                 Self::mgate_sel(mg),
@@ -228,7 +224,7 @@ impl DTUIf {
     }
 
     pub fn switch_gate(ep: &EP, gate: Selector) -> Result<(), Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call2(
                 pexif::Operation::SWITCH_GATE,
                 ep.id().unwrap() as usize,
@@ -242,7 +238,7 @@ impl DTUIf {
     }
 
     pub fn remove_gate(gate: &Gate, invalidate: bool) -> Result<(), Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call2(
                 pexif::Operation::REMOVE_GATE,
                 gate.sel() as usize,
@@ -263,7 +259,7 @@ impl DTUIf {
 
     #[inline(always)]
     pub fn sleep_for(cycles: u64) -> Result<(), Error> {
-        if USE_PEXCALLS {
+        if env::get().shared() {
             pexcalls::call1(pexif::Operation::SLEEP, cycles as usize).map(|_| ())
         }
         else {

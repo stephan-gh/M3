@@ -41,7 +41,7 @@ EP::~EP() {
 
 void EP::free_ep() {
     if(_free) {
-        if(USE_PEXCALLS) {
+        if(env()->shared) {
             try {
                 VPE::self().resmng()->free_ep(sel());
             }
@@ -63,7 +63,7 @@ EP EP::alloc() {
 }
 
 EP EP::alloc_for(VPE &vpe) {
-    if(USE_PEXCALLS) { // TODO actually: VPE.runs_on_pemux()
+    if(env()->shared) { // TODO actually: VPE.runs_on_pemux()
         epid_t id;
         capsel_t sel = alloc_cap(vpe, &id);
         return EP(sel, id, true);

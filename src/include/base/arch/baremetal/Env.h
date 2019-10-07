@@ -40,7 +40,8 @@ class Env {
     friend OStream &operator<<(OStream &, const Env &senv);
 
 public:
-    uint64_t pe;
+    uint32_t pe;
+    uint32_t shared;
     PEDesc pedesc;
     uint32_t argc;
     uint64_t argv;
