@@ -47,8 +47,6 @@ int main() {
     wl.add(&wi, true);
 
     while(wl.has_items()) {
-        DTU::get().fetch_events();
-
         DTUIf::sleep_for(next_tick - DTU::get().tsc());
 
         wl.tick();

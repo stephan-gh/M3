@@ -62,9 +62,6 @@ void WorkLoop::thread_shutdown() {
     // first wait until we have no threads left that wait for some event
     ThreadManager &tm = ThreadManager::get();
     while(tm.get().blocked_count() > 0) {
-        // we are not interested in the events here; just fetch them before the sleep
-        DTU::get().fetch_events();
-
         DTUIf::sleep();
 
         tick();
@@ -105,11 +102,7 @@ void WorkLoop::tick() {
 
 void WorkLoop::run() {
     while(has_items()) {
-        // wait first to ensure that we check for loop termination *before* going to sleep
-
-        // if there are no events, sleep
-        if(DTU::get().fetch_events() == 0)
-            DTUIf::sleep();
+        DTUIf::sleep();
 
         tick();
 

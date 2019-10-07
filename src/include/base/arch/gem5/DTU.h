@@ -269,14 +269,6 @@ public:
         return static_cast<EpType>(r0 >> 61) != EpType::INVALID;
     }
 
-    reg_t fetch_events() const {
-        reg_t old = read_reg(DtuRegs::EVENTS);
-        if(old != 0)
-            write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::ACK_EVENTS, 0, old));
-        CPU::memory_barrier();
-        return old;
-    }
-
     cycles_t tsc() const {
         return read_reg(DtuRegs::CUR_TIME);
     }
@@ -313,6 +305,14 @@ private:
     void sleep_for(uint64_t cycles) {
         write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, cycles));
         get_error();
+    }
+
+    reg_t fetch_events() const {
+        reg_t old = read_reg(DtuRegs::EVENTS);
+        if(old != 0)
+            write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::ACK_EVENTS, 0, old));
+        CPU::memory_barrier();
+        return old;
     }
 
     void drop_msgs(epid_t ep, label_t label) {

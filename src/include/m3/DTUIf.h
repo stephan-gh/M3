@@ -186,8 +186,10 @@ public:
     static void sleep_for(uint64_t cycles) noexcept {
         if(USE_PEXCALLS)
             PEXCalls::call1(Operation::SLEEP, cycles);
-        else
-            DTU::get().sleep_for(cycles);
+        else {
+            if(DTU::get().fetch_events() == 0)
+                DTU::get().sleep_for(cycles);
+        }
     }
 
 private:

@@ -255,8 +255,6 @@ fn workloop() {
     let upcall_rg = RecvGate::upcall();
 
     loop {
-        // we are not interested in the events here; just fetch them before the sleep
-        dtu::DTU::fetch_events();
         dtu::DTUIf::sleep().ok();
 
         let is = rgate.fetch();

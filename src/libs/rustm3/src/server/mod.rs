@@ -23,15 +23,12 @@ mod sesscon;
 pub use self::server::{Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
-use dtu::{DTUIf, DTU};
+use dtu::DTUIf;
 use errors::Error;
 
 /// Executes the server loop, calling `func` in every iteration.
 pub fn server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
     loop {
-        // we are not interested in the events here; just fetch them before the sleep
-        DTU::fetch_events();
-
         DTUIf::sleep().ok();
 
         func()?;

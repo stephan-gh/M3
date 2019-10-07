@@ -229,8 +229,13 @@ fn pexcall_sleep(state: &mut isr::State) -> Result<(), Error> {
 
     log!(PEX_CALLS, "sleep(cycles={})", cycles);
 
-    let _irqs = IRQsOnGuard::new();
-    dtu::DTU::sleep_for(cycles as u64)
+    if dtu::DTU::fetch_events() == 0 {
+        let _irqs = IRQsOnGuard::new();
+        dtu::DTU::sleep_for(cycles as u64)
+    }
+    else {
+        Ok(())
+    }
 }
 
 fn pexcall_stop(state: &mut isr::State) -> Result<(), Error> {

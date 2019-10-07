@@ -137,11 +137,8 @@ void NetworkManager::wait_sync() {
     NetEventChannel::crdhandler_t crd;
 
     while(1) {
-        if(DTU::get().fetch_events() == 0) {
-            LLOG(NET, "NetworkManager::process_sleep: Trying to sleep!");
-            // This would be the place to implement timeouts.
-            DTUIf::sleep();
-        }
+        // This would be the place to implement timeouts.
+        DTUIf::sleep();
 
         if(_channel->has_events(ev, crd))
             break;

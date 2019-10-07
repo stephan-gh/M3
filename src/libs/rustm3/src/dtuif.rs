@@ -267,7 +267,12 @@ impl DTUIf {
             pexcalls::call1(pexif::Operation::SLEEP, cycles as usize).map(|_| ())
         }
         else {
-            dtu::DTU::sleep_for(cycles)
+            if dtu::DTU::fetch_events() == 0 {
+                dtu::DTU::sleep_for(cycles)
+            }
+            else {
+                Ok(())
+            }
         }
     }
 }
