@@ -55,6 +55,7 @@ private:
     void deprivilege_pes();
 
     PEMux **_muxes;
+    gaddr_t *_idle_rootpts;
     static PEManager *_inst;
 };
 

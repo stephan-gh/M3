@@ -30,7 +30,6 @@
 namespace kernel {
 
 static char buffer[4096];
-static gaddr_t idle_rootpt;
 
 void DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     m3::Errors::Code res = try_ext_cmd(vpe, cmd);
@@ -44,23 +43,25 @@ m3::Errors::Code DTU::try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     return try_write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EXT_CMD), &reg, sizeof(reg));
 }
 
-void DTU::deprivilege(peid_t pe) {
+gaddr_t DTU::deprivilege(peid_t pe) {
     VPEDesc vpe(pe, VPE::INVALID_ID);
 
     // remember root PT
+    gaddr_t idle_rootpt;
     read_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::ROOT_PT), &idle_rootpt, sizeof(idle_rootpt));
 
     // unset the privileged flag
     m3::DTU::reg_t features = 0;
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), &features, sizeof(features));
+    return idle_rootpt;
 }
 
 cycles_t DTU::get_time() {
     return m3::DTU::get().tsc();
 }
 
-void DTU::kill_vpe(const VPEDesc &vpe) {
+void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     ext_request(vpe, m3::DTU::ExtReqOpCode::STOP);
 
     // reset all EPs and headers to remove unread messages

@@ -25,11 +25,12 @@
 
 namespace kernel {
 
-void DTU::deprivilege(peid_t) {
+gaddr_t DTU::deprivilege(peid_t) {
     // unsupported
+    return 0;
 }
 
-void DTU::kill_vpe(const VPEDesc &vpe) {
+void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t) {
     pid_t pid = VPEManager::get().vpe(vpe.id).pid();
     // if the VPE didn't run, it has no PID yet
     if(pid != 0)

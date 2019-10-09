@@ -42,9 +42,9 @@ public:
         return _state;
     }
 
-    void deprivilege(peid_t pe);
+    gaddr_t deprivilege(peid_t pe);
 
-    void kill_vpe(const VPEDesc &vpe);
+    void kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt);
 
     cycles_t get_time();
     void wakeup(const VPEDesc &vpe);

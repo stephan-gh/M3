@@ -27,7 +27,8 @@ namespace kernel {
 PEManager *PEManager::_inst;
 
 PEManager::PEManager()
-    : _muxes(new PEMux*[Platform::pe_count()]) {
+    : _muxes(new PEMux*[Platform::pe_count()]),
+      _idle_rootpts(new gaddr_t[Platform::pe_count()]) {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i)
         _muxes[i] = new PEMux(i);
     deprivilege_pes();
@@ -92,7 +93,7 @@ void PEManager::stop_vpe(VPE *vpe) {
     // ensure that all PTEs are in memory
     DTU::get().flush_cache(vpe->desc());
 
-    DTU::get().kill_vpe(vpe->desc());
+    DTU::get().kill_vpe(vpe->desc(), _idle_rootpts[vpe->pe()]);
     vpe->_flags |= VPE::F_STOPPED;
 }
 
@@ -108,7 +109,7 @@ peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except) {
 
 void PEManager::deprivilege_pes() {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i)
-        DTU::get().deprivilege(i);
+        _idle_rootpts[i] = DTU::get().deprivilege(i);
 }
 
 }
