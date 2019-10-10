@@ -80,8 +80,11 @@ Platform::Init::Init() {
                 info->mems[memidx++] = m3::BootInfo::Mem(pedesc.mem_size(), false);
             }
         }
-        else
+        else {
+            if(memidx > 0)
+                PANIC("All memory PEs have to be last");
             last_pe_id = i;
+        }
     }
     for(; memidx < m3::BootInfo::MAX_MEMS; ++memidx)
         info->mems[memidx] = m3::BootInfo::Mem(0, false);

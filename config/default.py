@@ -13,7 +13,6 @@ num_mem = 1
 num_sto = 1 # Number of PEs for IDE storage
 num_pes = int(os.environ.get('M3_GEM5_PES'))
 num_spm = 4 if num_pes >= 4 else 4 - num_pes
-mem_pe = num_pes
 
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
@@ -22,6 +21,8 @@ fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 hard_disk0 = os.environ.get('M3_GEM5_IDE_DRIVE')
 if not os.path.isfile(hard_disk0):
     num_sto = 0
+
+mem_pe = num_pes + num_sto + 3
 
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
 mmu = int(os.environ.get('M3_GEM5_MMU', 0))
@@ -50,21 +51,11 @@ for i in range(num_pes - num_spm, num_pes):
                       spmsize='32MB')
     pes.append(pe)
 
-# create the memory PEs
-for i in range(0, num_mem):
-    pe = createMemPE(noc=root.noc,
-                     options=options,
-                     no=num_pes + i,
-                     size='3072MB',
-                     image=fsimg if i == 0 else None,
-                     imageNum=int(fsimgnum))
-    pes.append(pe)
-
 # create the persistent storage PEs
 for i in range(0, num_sto):
     pe = createStoragePE(noc=root.noc,
                          options=options,
-                         no=num_pes + num_mem + i,
+                         no=num_pes + i,
                          memPE=mem_pe,
                          img0=hard_disk0)
     pes.append(pe)
@@ -72,13 +63,13 @@ for i in range(0, num_sto):
 # create ether PEs
 ether0 = createEtherPE(noc=root.noc,
                        options=options,
-                       no=num_pes + num_mem + num_sto + 0,
+                       no=num_pes + num_sto + 0,
                        memPE=mem_pe)
 pes.append(ether0)
 
 ether1 = createEtherPE(noc=root.noc,
                        options=options,
-                       no=num_pes + num_mem + num_sto + 1,
+                       no=num_pes + num_sto + 1,
                        memPE=mem_pe)
 pes.append(ether1)
 
@@ -87,10 +78,20 @@ linkEtherPEs(ether0, ether1)
 
 rpe = createAccelPE(noc=root.noc,
                     options=options,
-                    no=num_pes + num_mem + num_sto + 2,
+                    no=num_pes + num_sto + 2,
                     accel='rot13',
                     memPE=mem_pe,
                     spmsize='2MB')
 pes.append(rpe)
+
+# create the memory PEs
+for i in range(0, num_mem):
+    pe = createMemPE(noc=root.noc,
+                     options=options,
+                     no=num_pes + num_sto + 3 + i,
+                     size='3072MB',
+                     image=fsimg if i == 0 else None,
+                     imageNum=int(fsimgnum))
+    pes.append(pe)
 
 runSimulation(root, options, pes)

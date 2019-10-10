@@ -14,7 +14,8 @@ fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
 mmu = int(os.environ.get('M3_GEM5_MMU', 0))
-mem_pe = num_pes
+accs = ['rot13', 'rot13']
+mem_pe = num_pes + len(accs)
 
 pes = []
 
@@ -31,27 +32,26 @@ for i in range(0, num_pes):
                       mmu=mmu == 1)
     pes.append(pe)
 
+options.cpu_clock = '1GHz'
+
+# create accelerator PEs
+for i in range(0, len(accs)):
+    pe = createAccelPE(noc=root.noc,
+                       options=options,
+                       no=num_pes + i,
+                       accel=accs[i],
+                       memPE=mem_pe,
+                       spmsize='2MB')
+    pes.append(pe)
+
 # create the memory PEs
 for i in range(0, num_mem):
     pe = createMemPE(noc=root.noc,
                      options=options,
-                     no=num_pes + i,
+                     no=num_pes + len(accs) + i,
                      size='3072MB',
                      image=fsimg if i == 0 else None,
                      imageNum=int(fsimgnum))
-    pes.append(pe)
-
-options.cpu_clock = '1GHz'
-
-# create accelerator PEs
-accs = ['rot13', 'rot13']
-for i in range(0, len(accs)):
-    pe = createAccelPE(noc=root.noc,
-                       options=options,
-                       no=num_pes + num_mem + i,
-                       accel=accs[i],
-                       memPE=mem_pe,
-                       spmsize='2MB')
     pes.append(pe)
 
 runSimulation(root, options, pes)
