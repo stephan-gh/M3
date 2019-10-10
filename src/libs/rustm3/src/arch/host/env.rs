@@ -24,10 +24,10 @@ use core::intrinsics;
 use dtu::{EpId, Label};
 use kif::{self, PEDesc, PEType, PEISA};
 use libc;
+use pes::{KMem, VPE};
 use rc::Rc;
 use session::{Pager, ResMng};
 use vfs::{FileTable, MountTable};
-use vpe;
 
 pub struct EnvData {
     sysc_crd: u64,
@@ -67,12 +67,12 @@ impl EnvData {
         self.vpe != 0
     }
 
-    pub fn vpe(&self) -> &'static mut vpe::VPE {
+    pub fn vpe(&self) -> &'static mut VPE {
         unsafe { intrinsics::transmute(self.vpe) }
     }
 
-    pub fn set_vpe(&mut self, vpe: &vpe::VPE) {
-        self.vpe = vpe as *const vpe::VPE as usize;
+    pub fn set_vpe(&mut self, vpe: &VPE) {
+        self.vpe = vpe as *const VPE as usize;
     }
 
     pub fn load_pager(&self) -> Option<Pager> {
@@ -106,9 +106,9 @@ impl EnvData {
         }
     }
 
-    pub fn load_kmem(&self) -> Rc<vpe::KMem> {
+    pub fn load_kmem(&self) -> Rc<KMem> {
         let sel = Self::load_word("kmem", u64::from(self.base().kmem_sel)) as Selector;
-        Rc::new(vpe::KMem::new(sel))
+        Rc::new(KMem::new(sel))
     }
 
     pub fn load_mounts(&self) -> MountTable {

@@ -25,7 +25,7 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <vector>
 
@@ -38,11 +38,13 @@ struct App {
     explicit App(int argc, const char *argv[])
         : argc(argc),
           argv(argv),
-          vpe(argv[0]) {
+          pe(PE::alloc(VPE::self().pe_desc())),
+          vpe(pe, argv[0]) {
     }
 
     int argc;
     const char **argv;
+    PE pe;
     VPE vpe;
 };
 

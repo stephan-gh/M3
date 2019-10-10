@@ -21,8 +21,8 @@ use com::RecvGate;
 use dtu;
 use kif;
 use libc;
+use pes::VPE;
 use syscalls;
-use vpe;
 
 pub fn init() {
     {
@@ -58,7 +58,7 @@ pub fn init() {
 
     let addr = envdata::mem_start();
     syscalls::vpe_ctrl(
-        vpe::VPE::cur().sel(),
+        VPE::cur().sel(),
         kif::syscalls::VPEOp::INIT,
         addr as u64,
     )

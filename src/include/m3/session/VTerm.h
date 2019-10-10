@@ -21,7 +21,7 @@
 
 #include <m3/vfs/GenericFile.h>
 #include <m3/ObjCap.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

@@ -23,7 +23,7 @@
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/MountTable.h>
 #include <m3/vfs/VFS.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

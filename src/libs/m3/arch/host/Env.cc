@@ -25,7 +25,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
 #include <m3/WorkLoop.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <sys/mman.h>
 #include <fstream>
@@ -47,7 +47,7 @@ static void stop_dtu() {
 
 static void init_syscall() {
     word_t arg = Env::eps_start();
-    Syscalls::vpe_ctrl(VPE::self().sel(), KIF::Syscall::VCTRL_INIT, arg);
+    Syscalls::vpe_ctrl(KIF::SEL_VPE, KIF::Syscall::VCTRL_INIT, arg);
 }
 
 void Env::on_exit_func(int status, void *) {

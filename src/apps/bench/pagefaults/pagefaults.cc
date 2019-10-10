@@ -19,7 +19,7 @@
 #include <m3/session/Pager.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/FileRef.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 

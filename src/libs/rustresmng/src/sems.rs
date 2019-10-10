@@ -18,8 +18,8 @@ use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::col::{String, Vec};
 use m3::errors::{Code, Error};
+use m3::pes::VPE;
 use m3::syscalls;
-use m3::vpe::VPE;
 
 pub struct SemManager {
     sems: Vec<(String, Selector)>,

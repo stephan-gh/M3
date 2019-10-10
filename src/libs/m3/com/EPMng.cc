@@ -23,7 +23,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 
@@ -127,7 +127,7 @@ done:
 }
 
 void EPMng::activate(epid_t ep, capsel_t newcap) {
-    Syscalls::activate(EP::sel_of(VPE::self(), ep), newcap, 0);
+    Syscalls::activate(EP::sel_of(ep), newcap, 0);
 }
 
 }

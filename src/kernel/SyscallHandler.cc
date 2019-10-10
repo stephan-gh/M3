@@ -101,6 +101,7 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::VPE_WAIT,       &SyscallHandler::vpe_wait);
     add_operation(m3::KIF::Syscall::DERIVE_MEM,     &SyscallHandler::derive_mem);
     add_operation(m3::KIF::Syscall::DERIVE_KMEM,    &SyscallHandler::derive_kmem);
+    add_operation(m3::KIF::Syscall::DERIVE_PE,      &SyscallHandler::derive_pe);
     add_operation(m3::KIF::Syscall::KMEM_QUOTA,     &SyscallHandler::kmem_quota);
     add_operation(m3::KIF::Syscall::SEM_CTRL,       &SyscallHandler::sem_ctrl);
     add_operation(m3::KIF::Syscall::EXCHANGE,       &SyscallHandler::exchange);
@@ -245,13 +246,12 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     m3::KIF::CapRngDesc dst(req->dst_crd);
     capsel_t pg_sg = req->pg_sg_sel;
     capsel_t pg_rg = req->pg_rg_sel;
-    m3::PEDesc::value_t pe = req->pe;
+    capsel_t pe = req->pe_sel;
     capsel_t kmem = req->kmem_sel;
     m3::String name(req->name, m3::Math::min(static_cast<size_t>(req->namelen), sizeof(req->name)));
 
     LOG_SYS(vpe, ": syscall::create_vpe", "(dst=" << dst << ", pg_sg=" << pg_sg
-        << ", pg_rg=" << pg_rg << ", name=" << name
-        << ", pe=" << static_cast<int>(m3::PEDesc(pe).type()) << ", kmem=" << kmem << ")");
+        << ", pg_rg=" << pg_rg << ", name=" << name << ", pe=" << pe << ", kmem=" << kmem << ")");
 
     capsel_t capnum = m3::KIF::FIRST_FREE_SEL;
     if(dst.count() != capnum || !vpe->objcaps().range_unused(dst))
@@ -273,6 +273,10 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
             SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid RecvGate cap(s)");
     }
 
+    auto pecap = static_cast<PECapability*>(vpe->objcaps().get(pe, Capability::PE));
+    if(pecap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid PE cap");
+
     auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
     if(kmemcap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid KMem cap");
@@ -281,15 +285,15 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     if(!vpe->kmem()->has_quota(capnum * sizeof(SGateCapability)))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
     // the child quota needs to be sufficient
-    if(!kmemcap->obj->has_quota(VPE::base_kmem() + VPE::extra_kmem(m3::PEDesc(pe))))
+    if(!kmemcap->obj->has_quota(VPE::base_kmem(m3::PEDesc(pe)) + VPE::extra_kmem(m3::PEDesc(pe))))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
     // create VPE
-    VPE *nvpe = VPEManager::get().create(std::move(name), m3::PEDesc(pe), &*kmemcap->obj);
+    VPE *nvpe = VPEManager::get().create(std::move(name), pecap, &*kmemcap->obj);
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");
 
-    // inherit VPE, mem, and EP caps to the parent
+    // inherit PE, VPE, mem, and EP caps to the parent
     for(capsel_t i = 0; i < capnum; ++i)
         vpe->objcaps().obtain(dst.start() + i, nvpe->objcaps().get(i));
 
@@ -378,15 +382,9 @@ void SyscallHandler::alloc_ep(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::AllocEP>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t tvpe = req->vpe_sel;
+    capsel_t pe = req->pe_sel;
 
-    // TODO the app needs to pass a PE capability or something to us to ensure that only the root
-    // task and others that have received this permission from the root task, are allowed to
-    // allocate endpoints.
-
-    LOG_SYS(vpe, ": syscall::alloc_ep", "(dst=" << dst << ", vpe=" << tvpe << ")");
-
-    // ensure that the VPE is not destroyed
-    m3::Reference<VPE> rvpe(vpe);
+    LOG_SYS(vpe, ": syscall::alloc_ep", "(dst=" << dst << ", vpe=" << tvpe << ", pe=" << pe << ")");
 
     if(!vpe->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
@@ -395,11 +393,19 @@ void SyscallHandler::alloc_ep(VPE *vpe, const m3::DTU::Message *msg) {
     if(vpecap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE capability is invalid");
 
+    auto pecap = static_cast<PECapability*>(vpe->objcaps().get(pe, Capability::PE));
+    // the VPE has to run on the PE given by the PE capability
+    if(pecap == nullptr || pecap->obj->id != vpecap->obj->pe())
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "PE capability is invalid");
+    if(!pecap->obj->has_quota(1))
+        SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "PE capability has insufficient EPs");
+
     epid_t ep;
-    auto pemux = PEManager::get().pemux(vpecap->obj->pe());
+    auto pemux = PEManager::get().pemux(pecap->obj->id);
     m3::Errors::Code res = pemux->alloc_ep(vpe, vpecap->obj->id(), dst, &ep);
     if(res != m3::Errors::NONE)
         SYS_ERROR(vpe, msg, res, "EP allocation failed");
+    pecap->obj->alloc(1);
 
     m3::KIF::Syscall::AllocEPReply reply;
     reply.error = m3::Errors::NONE;
@@ -577,7 +583,7 @@ void SyscallHandler::derive_kmem(VPE *vpe, const m3::DTU::Message *msg) {
     if(kmemcap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid KMem cap");
 
-    if(!kmemcap->obj->alloc(*vpe, quota))
+    if(!kmemcap->obj->has_quota(quota))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Insufficient quota");
 
     auto dercap = SYS_CREATE_CAP(vpe, msg, KMemCapability, KMemObject,
@@ -586,6 +592,34 @@ void SyscallHandler::derive_kmem(VPE *vpe, const m3::DTU::Message *msg) {
     );
     vpe->objcaps().inherit(kmemcap, dercap);
     vpe->objcaps().set(dst, dercap);
+    kmemcap->obj->alloc(*vpe, quota);
+
+    reply_result(vpe, msg, m3::Errors::NONE);
+}
+
+void SyscallHandler::derive_pe(VPE *vpe, const m3::DTU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::DerivePE>(msg);
+    capsel_t pe = req->pe_sel;
+    capsel_t dst = req->dst_sel;
+    uint eps = req->eps;
+
+    LOG_SYS(vpe, ": syscall::derive_pe", "(pe=" << pe << ", dst=" << dst
+        << ", eps=" << eps << ")");
+
+    auto pecap = static_cast<PECapability*>(vpe->objcaps().get(pe, Capability::PE));
+    if(pecap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid PE cap");
+
+    if(!pecap->obj->has_quota(eps))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Insufficient EPs");
+
+    auto dercap = SYS_CREATE_CAP(vpe, msg, PECapability, PEObject,
+        &vpe->objcaps(), dst,
+        pecap->obj->id, eps
+    );
+    vpe->objcaps().inherit(pecap, dercap);
+    vpe->objcaps().set(dst, dercap);
+    pecap->obj->alloc(eps);
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }
@@ -675,8 +709,8 @@ void SyscallHandler::revoke(VPE *vpe, const m3::DTU::Message *msg) {
     if(vpecap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
-    if(crd.type() == m3::KIF::CapRngDesc::OBJ && crd.start() < 2)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Cap 0 and 1 are not revokeable");
+    if(crd.type() == m3::KIF::CapRngDesc::OBJ && crd.start() <= m3::KIF::SEL_MEM)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps are not revokeable");
 
     if(crd.type() == m3::KIF::CapRngDesc::OBJ)
         vpecap->obj->objcaps().revoke(crd, own);

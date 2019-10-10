@@ -18,7 +18,7 @@ use errors::{Code, Error};
 use rc::Rc;
 use session::M3FS;
 use vfs::{FSHandle, FileInfo, FileMode, FileRef, OpenFlags};
-use vpe::VPE;
+use pes::VPE;
 
 /// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {

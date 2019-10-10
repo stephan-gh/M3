@@ -30,7 +30,7 @@ void *RecvGate::allocate(VPE &vpe, epid_t, size_t size) {
 
     // TODO this assumes that we don't VPE::run between SPM and non-SPM PEs
     if(*end == 0) {
-        PEDesc desc = vpe.sel() == 0 ? env()->pedesc : vpe.pe();
+        PEDesc desc = vpe.sel() == 0 ? env()->pedesc : vpe.pe_desc();
         if(desc.has_virtmem()) {
             *cur = RECVBUF_SPACE;
             *cur += KPEX_RBUF_SIZE + PEXUP_RBUF_SIZE + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;

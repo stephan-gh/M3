@@ -25,10 +25,11 @@ use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::vfs::FileRef;
-use m3::vpe::{Activity, ExecActivity, KMem, Mapper, VPE};
+use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 
 use config::Config;
 use memory::Allocation;
+use pes;
 use sems;
 use services::{self, Session};
 
@@ -39,7 +40,7 @@ pub struct Resources {
     services: Vec<(Id, Selector)>,
     sessions: Vec<Session>,
     mem: Vec<Allocation>,
-    eps: Vec<(Selector, Selector)>,
+    pes: Vec<(usize, Selector)>
 }
 
 impl Default for Resources {
@@ -49,7 +50,7 @@ impl Default for Resources {
             services: Vec::new(),
             sessions: Vec::new(),
             mem: Vec::new(),
-            eps: Vec::new(),
+            pes: Vec::new(),
         }
     }
 }
@@ -60,6 +61,7 @@ pub trait Child {
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
 
+    fn pe_id(&self) -> Option<usize>;
     fn vpe_sel(&self) -> Selector;
 
     fn cfg(&self) -> Rc<Config>;
@@ -236,51 +238,38 @@ pub trait Child {
         self.delegate(our_sel, sel)
     }
 
-    fn alloc_ep(&mut self, sel: Selector, vpe: Selector) -> Result<dtu::EpId, Error> {
-        log!(RESMNG_EPS, "{}: alloc_ep(sel={}, vpe={})", self.name(), sel, vpe);
+    fn alloc_pe(&mut self, sel: Selector, desc: &kif::PEDesc) -> Result<kif::PEDesc, Error> {
+        log!(RESMNG_PES, "{}: alloc_pe(sel={}, desc={:?})", self.name(), sel, desc);
 
-        let cfg = self.cfg();
-        if !cfg.has_eps() {
-            return Err(Error::new(Code::NoSpace));
-        }
+        // TODO check config
+        let pe = pes::get().alloc(desc)?;   // TODO leak!
+        self.delegate(pes::get().get(pe).sel(), sel)?;
+        self.res_mut().pes.push((pe, sel));
 
-        let vpe_sel = if vpe == 0 {
-            self.vpe_sel()
-        }
-        else {
-            self.child_mut(vpe).ok_or(Error::new(Code::InvArgs))?.vpe_sel()
-        };
-
-        let ep_sel = VPE::cur().alloc_sel();
-        let ep_id = syscalls::alloc_ep(ep_sel, vpe_sel)?;
-        self.delegate(ep_sel, sel)?;
-        self.res_mut().eps.push((sel, ep_sel));
-        cfg.rem_ep();
-        Ok(ep_id)
+        Ok(*pes::get().get(pe).desc())
     }
 
-    fn free_ep(&mut self, sel: Selector) -> Result<(), Error> {
-        log!(RESMNG_EPS, "{}: free_ep(sel={})", self.name(), sel);
+    fn free_pe(&mut self, sel: Selector) -> Result<(), Error> {
+        log!(RESMNG_PES, "{}: free_pe(sel={})", self.name(), sel);
 
         let idx = self
             .res_mut()
-            .eps
+            .pes
             .iter()
-            .position(|(id, _)| *id == sel)
+            .position(|(_, psel)| *psel == sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
-        self.remove_ep_by_idx(idx)?;
+        self.remove_pe_by_idx(idx)?;
 
-        let cfg = self.cfg();
-        cfg.add_ep();
+        // TODO config
 
         Ok(())
     }
 
-    fn remove_ep_by_idx(&mut self, idx: usize) -> Result<(), Error> {
-        let (id, ep_sel) = self.res_mut().eps.remove(idx);
-        let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
-        log!(RESMNG_EPS, "{}: removed EP (id={}, sel={})", self.name(), id, ep_sel);
-        VPE::cur().revoke(crd, false)
+    fn remove_pe_by_idx(&mut self, idx: usize) -> Result<(), Error> {
+        let (id, ep_sel) = self.res_mut().pes.remove(idx);
+        log!(RESMNG_PES, "{}: removed PE (id={}, sel={})", self.name(), id, ep_sel);
+        pes::get().free(id);
+        Ok(())
     }
 
     fn remove_resources(&mut self)
@@ -302,15 +291,12 @@ pub trait Child {
         while !self.res().mem.is_empty() {
             self.remove_mem_by_idx(0);
         }
-
-        while !self.res().eps.is_empty() {
-            self.remove_ep_by_idx(0).ok();
-        }
     }
 }
 
 pub struct OwnChild {
     id: Id,
+    pe: usize,
     name: String,
     args: Vec<String>,
     cfg: Rc<Config>,
@@ -321,9 +307,10 @@ pub struct OwnChild {
 }
 
 impl OwnChild {
-    pub fn new(id: Id, args: Vec<String>, daemon: bool, kmem: Rc<KMem>, cfg: Rc<Config>) -> Self {
+    pub fn new(id: Id, pe: usize, args: Vec<String>, daemon: bool, kmem: Rc<KMem>, cfg: Rc<Config>) -> Self {
         OwnChild {
             id,
+            pe,
             name: cfg.name().to_string(),
             args,
             cfg,
@@ -378,6 +365,10 @@ impl Child for OwnChild {
         false
     }
 
+    fn pe_id(&self) -> Option<usize> {
+        Some(self.pe)
+    }
+
     fn vpe_sel(&self) -> Selector {
         self.activity.as_ref().unwrap().vpe().sel()
     }
@@ -398,6 +389,7 @@ impl Child for OwnChild {
 impl Drop for OwnChild {
     fn drop(&mut self) {
         self.remove_resources();
+        pes::get().free(self.pe);
     }
 }
 
@@ -438,6 +430,10 @@ impl Child for ForeignChild {
 
     fn foreign(&self) -> bool {
         true
+    }
+
+    fn pe_id(&self) -> Option<usize> {
+        None
     }
 
     fn vpe_sel(&self) -> Selector {

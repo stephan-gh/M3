@@ -23,7 +23,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/PEXCalls.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

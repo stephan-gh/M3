@@ -17,7 +17,7 @@
 #include <base/util/Time.h>
 
 #include <m3/stream/Standard.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -28,7 +28,8 @@ int main(int argc, char **argv) {
     int res;
     cycles_t start = Time::start(0);
     {
-        VPE child(argv[1]);
+        PE pe = PE::alloc(VPE::self().pe_desc());
+        VPE child(pe, argv[1]);
         child.fds()->set(STDIN_FD, VPE::self().fds()->get(STDIN_FD));
         child.fds()->set(STDOUT_FD, VPE::self().fds()->get(STDOUT_FD));
         child.fds()->set(STDERR_FD, VPE::self().fds()->get(STDERR_FD));

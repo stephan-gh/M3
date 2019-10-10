@@ -37,9 +37,10 @@ fn create() {
 fn destroy() {
     use m3::boxed::Box;
     use m3::com::{recv_msg, SGateArgs, SendGate};
-    use m3::vpe::{Activity, VPE};
+    use m3::pes::{Activity, PE, VPE};
 
-    let mut child = wv_assert_ok!(VPE::new("test"));
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let mut child = wv_assert_ok!(VPE::new(&pe, "test"));
 
     let act = {
         let mut rg = wv_assert_ok!(RecvGate::new_with(

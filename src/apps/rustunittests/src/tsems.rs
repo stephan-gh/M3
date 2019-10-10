@@ -18,9 +18,9 @@ use m3::boxed::Box;
 use m3::col::String;
 use m3::com::Semaphore;
 use m3::io::{Read, Write};
+use m3::pes::{Activity, PE, VPE};
 use m3::test;
 use m3::vfs::{OpenFlags, VFS};
-use m3::vpe::{Activity, VPE};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, taking_turns);
@@ -46,7 +46,8 @@ fn taking_turns() {
     let sem0 = wv_assert_ok!(Semaphore::create(1));
     let sem1 = wv_assert_ok!(Semaphore::create(0));
 
-    let mut child = wv_assert_ok!(VPE::new("child"));
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let mut child = wv_assert_ok!(VPE::new(&pe, "child"));
     wv_assert_ok!(child.delegate_obj(sem0.sel()));
     wv_assert_ok!(child.delegate_obj(sem1.sel()));
 

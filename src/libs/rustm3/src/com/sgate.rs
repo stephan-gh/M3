@@ -22,9 +22,9 @@ use core::fmt;
 use dtu;
 use errors::Error;
 use kif::INVALID_SEL;
+use pes::VPE;
 use syscalls;
 use util;
-use vpe;
 
 /// A send gate (`SendGate`) can send message via DTU to an associated `RecvGate`.
 pub struct SendGate {
@@ -87,7 +87,7 @@ impl SendGate {
     /// Creates a new `SendGate` with given arguments.
     pub fn new_with(args: SGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            vpe::VPE::cur().alloc_sel()
+            VPE::cur().alloc_sel()
         }
         else {
             args.sel

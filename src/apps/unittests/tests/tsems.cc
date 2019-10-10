@@ -45,7 +45,8 @@ static void taking_turns() {
     Semaphore sem0 = Semaphore::create(1);
     Semaphore sem1 = Semaphore::create(0);
 
-    VPE child("child");
+    PE pe = PE::alloc(VPE::self().pe_desc());
+    VPE child(pe, "child");
 
     child.delegate_obj(sem0.sel());
     child.delegate_obj(sem1.sel());

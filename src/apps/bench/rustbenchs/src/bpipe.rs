@@ -18,11 +18,11 @@ use m3::boxed::Box;
 use m3::com::MemGate;
 use m3::io;
 use m3::kif;
+use m3::pes::{Activity, PE, VPEArgs, VPE};
 use m3::profile;
 use m3::session::Pipes;
 use m3::test;
 use m3::vfs::IndirectPipe;
-use m3::vpe::{Activity, VPEArgs, VPE};
 
 const DATA_SIZE: usize = 2 * 1024 * 1024;
 const BUF_SIZE: usize = 8 * 1024;
@@ -36,6 +36,7 @@ fn child_to_parent() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
     wv_perf!(
         format!(
             "c->p: {} KiB transfer with {} KiB buf",
@@ -47,7 +48,7 @@ fn child_to_parent() {
                 let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
                 let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-                let mut vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("writer")));
+                let mut vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("writer")));
                 vpe.files().set(
                     io::STDOUT_FILENO,
                     VPE::cur().files().get(pipe.writer_fd()).unwrap(),
@@ -82,6 +83,7 @@ fn parent_to_child() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
     wv_perf!(
         format!(
             "p->c: {} KiB transfer with {} KiB buf",
@@ -93,7 +95,7 @@ fn parent_to_child() {
                 let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
                 let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-                let mut vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("reader")));
+                let mut vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("reader")));
                 vpe.files().set(
                     io::STDIN_FILENO,
                     VPE::cur().files().get(pipe.reader_fd()).unwrap(),

@@ -50,9 +50,8 @@ struct IndirChain {
             OStringStream name;
             name << "chain" << id << "-" << i;
 
-            vpes[i] = std::make_unique<VPE>(
-                name.str(), VPEArgs().pedesc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR))
-            );
+            pes[i] = std::make_unique<PE>(PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR)));
+            vpes[i] = std::make_unique<VPE>(*pes[i], name.str());
 
             accels[i] = std::make_unique<InDirAccel>(vpes[i], reply_gate);
             ops[i] = InDirAccel::Operation::IDLE;
@@ -135,6 +134,7 @@ struct IndirChain {
     size_t seen;
     RecvGate &reply_gate;
     size_t sizes[ACCEL_COUNT];
+    std::unique_ptr<PE> pes[ACCEL_COUNT];
     std::unique_ptr<VPE> vpes[ACCEL_COUNT];
     std::unique_ptr<InDirAccel> accels[ACCEL_COUNT];
     InDirAccel::Operation ops[ACCEL_COUNT];

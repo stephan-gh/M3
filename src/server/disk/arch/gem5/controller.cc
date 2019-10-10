@@ -27,7 +27,7 @@
 #include <base/Panic.h>
 
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 #include <m3/com/GateStream.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>

@@ -22,6 +22,7 @@
 
 namespace m3 {
 
+class EPMng;
 class Gate;
 
 /**
@@ -30,12 +31,13 @@ class Gate;
  * be delegated to someone else.
  */
 class EP : public ObjCap {
+    friend class EPMng;
     friend class Gate;
 
     static capsel_t alloc_cap(VPE &vpe, epid_t *id);
 
-    explicit EP(capsel_t sel, epid_t id, bool free) noexcept
-        : ObjCap(ObjCap::ENDPOINT, sel, KEEP_CAP),
+    explicit EP(capsel_t sel, epid_t id, bool free, uint flags) noexcept
+        : ObjCap(ObjCap::ENDPOINT, sel, flags),
           _id(id),
           _free(free) {
     }
@@ -50,8 +52,6 @@ public:
         ep._free = false;
     }
     ~EP();
-
-    static capsel_t sel_of(VPE &vpe, epid_t ep) noexcept;
 
     /**
      * Allocate a new endpoint from the current VPE
@@ -100,6 +100,9 @@ public:
     }
 
 private:
+    static capsel_t sel_of(epid_t ep) noexcept;
+    static capsel_t sel_of_vpe(VPE &vpe, epid_t ep) noexcept;
+
     void assign(Gate &gate);
     void free_ep();
 

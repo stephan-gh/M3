@@ -23,9 +23,9 @@ use core::mem::MaybeUninit;
 use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
-use kif::{self, syscalls, CapRngDesc, PEDesc, Perm, SEL_SYSC_SG, SEL_VPE};
+use kif::{self, syscalls, CapRngDesc, Perm, SEL_SYSC_SG, SEL_VPE};
 use util;
-use vpe::VPE;
+use pes::VPE;
 
 static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(SEL_SYSC_SG, SYSC_SEP));
 
@@ -174,26 +174,26 @@ pub fn create_map(
     send_receive_result(&req)
 }
 
-/// Creates a new VPE with given name at the selector range `dst`.
+/// Creates a new VPE on PE `pe` with given name at the selector range `dst`.
 ///
-/// The argument `sgate` denotes the selector of the `SendGate` to the pager and `pe` defines the
-/// desired PE type for the VPE to run on. `kmem` defines the kernel memory to assign to the VPE.
+/// The argument `sgate` denotes the selector of the `SendGate` to the pager. `kmem` defines the
+/// kernel memory to assign to the VPE.
 #[allow(clippy::too_many_arguments)]
 pub fn create_vpe(
     dst: CapRngDesc,
     pg_sg: Selector,
     pg_rg: Selector,
     name: &str,
-    pe: PEDesc,
+    pe: Selector,
     kmem: Selector,
-) -> Result<PEDesc, Error> {
+) -> Result<(), Error> {
     #[allow(clippy::uninit_assumed_init)]
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
         dst_crd: dst.value(),
         pg_sg_sel: u64::from(pg_sg),
         pg_rg_sel: u64::from(pg_rg),
-        pe: u64::from(pe.value()),
+        pe_sel: u64::from(pe),
         kmem_sel: u64::from(kmem),
         namelen: name.len() as u64,
         name: unsafe { MaybeUninit::uninit().assume_init() },
@@ -204,11 +204,7 @@ pub fn create_vpe(
         *a = c as u8;
     }
 
-    let reply: Reply<syscalls::CreateVPEReply> = send_receive(&req)?;
-    match reply.data.error {
-        0 => Ok(PEDesc::new_from(reply.data.pe as u32)),
-        e => Err(Error::from(e as u32)),
-    }
+    send_receive_result(&req)
 }
 
 /// Creates a new semaphore at selector `dst` using `value` as the initial value.
@@ -221,12 +217,13 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
     send_receive_result(&req)
 }
 
-/// Allocates a new endpoint at selector `dst`.
-pub fn alloc_ep(dst: Selector, vpe: Selector) -> Result<EpId, Error> {
+/// Allocates a new endpoint for `vpe` from the given PE capability at selector `dst`.
+pub fn alloc_ep(dst: Selector, vpe: Selector, pe: Selector) -> Result<EpId, Error> {
     let req = syscalls::AllocEP {
         opcode: syscalls::Operation::ALLOC_EP.val,
         dst_sel: u64::from(dst),
         vpe_sel: u64::from(vpe),
+        pe_sel: u64::from(pe),
     };
 
     let reply: Reply<syscalls::AllocEPReply> = send_receive(&req)?;
@@ -268,6 +265,17 @@ pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Er
         kmem_sel: u64::from(kmem),
         dst_sel: u64::from(dst),
         quota: quota as u64,
+    };
+    send_receive_result(&req)
+}
+
+/// Derives a new PE object at `dst` from `pe`, transferring `eps` EPs to the new PE object.
+pub fn derive_pe(pe: Selector, dst: Selector, eps: u32) -> Result<(), Error> {
+    let req = syscalls::DerivePE {
+        opcode: syscalls::Operation::DERIVE_PE.val,
+        pe_sel: u64::from(pe),
+        dst_sel: u64::from(dst),
+        eps: eps as u64,
     };
     send_receive_result(&req)
 }

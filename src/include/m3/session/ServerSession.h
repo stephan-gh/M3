@@ -22,7 +22,7 @@
 #include <m3/server/Server.h>
 #include <m3/ObjCap.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

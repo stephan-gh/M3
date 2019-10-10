@@ -23,8 +23,8 @@ use errors::{Code, Error};
 use io::Serial;
 use rc::Rc;
 use serialize::Sink;
+use pes::VPE;
 use vfs::{File, FileRef, GenericFile};
-use vpe::VPE;
 
 /// A file descriptor
 pub type Fd = usize;

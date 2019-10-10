@@ -18,9 +18,9 @@ use cap::{CapFlags, Capability, Selector};
 use com::{GateIStream, RecvGate};
 use errors::{Code, Error};
 use kif::service;
+use pes::VPE;
 use server::SessId;
 use util;
-use vpe::VPE;
 
 /// Represents a server that provides a service for clients.
 pub struct Server {

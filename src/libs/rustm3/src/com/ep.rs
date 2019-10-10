@@ -22,7 +22,7 @@ use dtuif;
 use errors::Error;
 use kif;
 use syscalls;
-use vpe::VPE;
+use pes::VPE;
 
 /// Represents a DTU endpoint that can be used for communication. This class only serves the purpose
 /// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
@@ -35,9 +35,9 @@ pub struct EP {
 }
 
 impl EP {
-    const fn create(sel: Selector, ep: Option<EpId>, free: bool) -> Self {
+    const fn create(sel: Selector, ep: Option<EpId>, free: bool, flags: CapFlags) -> Self {
         EP {
-            cap: Capability::new(sel, CapFlags::KEEP_CAP),
+            cap: Capability::new(sel, flags),
             ep: Cell::new(ep),
             free,
         }
@@ -51,17 +51,16 @@ impl EP {
     /// Allocates a new endpoint for given VPE.
     pub fn new_for(vpe: &mut VPE) -> Result<Self, Error> {
         if env::get().shared() {
-            // TODO actually: VPE.runs_on_pemux()
             let (sel, id) = Self::alloc_cap(vpe)?;
-            return Ok(Self::create(sel, Some(id), true));
+            return Ok(Self::create(sel, Some(id), false, CapFlags::empty()));
         }
 
         let id = vpe.epmng().alloc_ep()?;
-        Ok(Self::create(Self::sel_of_vpe(vpe, id), Some(id), true))
+        Ok(Self::create(Self::sel_of_vpe(vpe, id), Some(id), true, CapFlags::empty()))
     }
 
     pub(crate) const fn new_def_bind(ep: EpId) -> Self {
-        Self::create(Self::sel_of(ep), Some(ep), false)
+        Self::create(Self::sel_of(ep), Some(ep), false, CapFlags::KEEP_CAP)
     }
 
     /// Creates a new endpoint object that is bound to the given endpoint id.
@@ -70,7 +69,7 @@ impl EP {
             Some(ep) => Self::sel_of(ep),
             None => kif::INVALID_SEL,
         };
-        Self::create(sel, ep, false)
+        Self::create(sel, ep, false, CapFlags::KEEP_CAP)
     }
 
     /// Returns true if the endpoint is valid, i.e., has a selector and endpoint id
@@ -101,18 +100,13 @@ impl EP {
     }
 
     pub(crate) fn sel_of_vpe(vpe: &VPE, ep: EpId) -> Selector {
-        vpe.sel() + Self::sel_of(ep)
+        const_assert!(kif::SEL_PE == 0);
+        vpe.pe().sel() + Self::sel_of(ep)
     }
 
     fn alloc_cap(vpe: &VPE) -> Result<(Selector, EpId), Error> {
         let sel = VPE::cur().alloc_sel();
-        let resmng = VPE::cur().resmng();
-        let id = if resmng.sel() == kif::INVALID_SEL {
-            syscalls::alloc_ep(sel, vpe.sel())
-        }
-        else {
-            resmng.alloc_ep(sel, vpe.sel())
-        }?;
+        let id = syscalls::alloc_ep(sel, vpe.sel(), vpe.pe().sel())?;
         Ok((sel, id))
     }
 }
@@ -121,12 +115,7 @@ impl Drop for EP {
     fn drop(&mut self) {
         if self.free {
             assert!(self.valid());
-            if env::get().shared() {
-                VPE::cur().resmng().free_ep(self.sel()).ok();
-            }
-            else {
-                VPE::cur().epmng().free_ep(self.ep.get().unwrap());
-            }
+            VPE::cur().epmng().free_ep(self.ep.get().unwrap());
         }
     }
 }

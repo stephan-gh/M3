@@ -35,7 +35,7 @@ void CapTable::revoke_all() {
         // hack for self-referencing VPE capability. we can't dereference it here, because if we
         // force-destruct a VPE, there might be other references, so that it breaks if we decrease
         // the counter (the self-reference did not increase it).
-        if(c->sel() == 0)
+        if(c->sel() == m3::KIF::SEL_VPE)
             static_cast<VPECapability*>(c)->obj.forget();
         delete c;
     }
@@ -47,6 +47,7 @@ Capability *CapTable::obtain(capsel_t dst, Capability *c) {
                   sizeof(SGateCapability) == sizeof(MapCapability) &&
                   sizeof(SGateCapability) == sizeof(ServCapability) &&
                   sizeof(SGateCapability) == sizeof(EPCapability) &&
+                  sizeof(SGateCapability) == sizeof(PECapability) &&
                   sizeof(SGateCapability) == sizeof(SharedEPCapability) &&
                   sizeof(SGateCapability) == sizeof(VPECapability) &&
                   sizeof(SGateCapability) == sizeof(KMemCapability), "Cap sizes not equal");

@@ -16,7 +16,7 @@
 
 use core::fmt;
 use m3::cap::Selector;
-use m3::cell::{Cell, RefCell};
+use m3::cell::RefCell;
 use m3::col::{BTreeSet, String, ToString, Vec};
 use m3::errors::{Code, Error};
 use m3::rc::Rc;
@@ -217,7 +217,6 @@ pub fn check(cfgs: &[(Vec<String>, bool, Rc<Config>)]) {
 pub struct Config {
     name: String,
     kmem: usize,
-    eps: Cell<u32>,
     restrict: bool,
     services: Vec<ServiceDesc>,
     sessions: Vec<SessionDesc>,
@@ -238,7 +237,6 @@ impl Config {
         let mut res = Config {
             name: String::new(),
             kmem: 0,
-            eps: Cell::new(0),
             restrict,
             services: Vec::new(),
             sessions: Vec::new(),
@@ -259,13 +257,6 @@ impl Config {
             }
             else if a.starts_with("kmem=") {
                 res.kmem = parse_size(&a[5..])?;
-            }
-            else if a.starts_with("eps=") {
-                res.eps.set(
-                    a[4..]
-                        .parse::<u32>()
-                        .map_err(|_| Error::new(Code::InvArgs))?,
-                );
             }
             else if a.starts_with("sess=") {
                 let sess = SessionDesc::new(&a[5..])?;
@@ -382,19 +373,6 @@ impl Config {
                 }
             })
             .and_then(|c| c.usage.replace(None));
-    }
-
-    pub fn has_eps(&self) -> bool {
-        // TODO verify that
-        true
-    }
-
-    pub fn rem_ep(&self) {
-        // TODO self.eps.set(self.eps.get() - 1);
-    }
-
-    pub fn add_ep(&self) {
-        // TODO self.eps.set(self.eps.get() + 1);
     }
 
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {

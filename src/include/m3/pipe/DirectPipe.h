@@ -22,7 +22,7 @@
 
 #include <m3/com/MemGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

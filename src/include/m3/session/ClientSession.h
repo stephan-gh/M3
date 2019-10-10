@@ -20,7 +20,7 @@
 #include <base/KIF.h>
 
 #include <m3/ObjCap.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 #include <m3/com/GateStream.h>
 
 namespace m3 {

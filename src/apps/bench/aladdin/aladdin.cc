@@ -29,7 +29,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Test.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -104,19 +104,19 @@ static void add(AladdinAccel &alad, size_t size, AladdinAccel::Array *a, int pro
         fd_t fd = VFS::open(filename.c_str(), perms);
         const GenericFile *file = static_cast<const GenericFile*>(VPE::self().fds()->get(fd).get());
         int flags = (prot & MemGate::W) ? Pager::MAP_SHARED : Pager::MAP_PRIVATE;
-        alad._accel->pager()->map_ds(&virt, psize, prot, flags, file->sess(), off);
+        alad.vpe().pager()->map_ds(&virt, psize, prot, flags, file->sess(), off);
         fds[next_fd++] = fd;
     }
     else {
         MemGate *mem = new MemGate(MemGate::create_global(psize, prot));
-        alad._accel->pager()->map_mem(&virt, *mem, psize, prot);
+        alad.vpe().pager()->map_mem(&virt, *mem, psize, prot);
     }
 
     if(map_eager) {
         size_t off = 0;
         size_t pages = psize / PAGE_SIZE;
         while(pages > 0) {
-            alad._accel->pager()->pagefault(virt + off, static_cast<uint>(prot));
+            alad.vpe().pager()->pagefault(virt + off, static_cast<uint>(prot));
             pages -= 1;
             off += PAGE_SIZE;
         }

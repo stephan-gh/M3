@@ -16,7 +16,7 @@
 
 #include <m3/com/Gate.h>
 #include <m3/DTUIf.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

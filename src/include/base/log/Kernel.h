@@ -42,6 +42,7 @@ public:
         KMEM            = 1 << 12,
         KMEM_ALLOCS     = 1 << 13,
         PEXC            = 1 << 14,
+        PES             = 1 << 15,
     };
 
     static const int level = INFO;

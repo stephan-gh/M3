@@ -32,19 +32,19 @@ use m3::dtu;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::{self, boot, PEDesc};
+use m3::pes::{PE, VPEArgs, VPE};
 use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
 use m3::util;
-use m3::vpe::{VPEArgs, VPE};
 
 use resmng::childs::{self, Child, Id, OwnChild};
-use resmng::{config, memory, sems, sendqueue, services};
+use resmng::{config, memory, pes, sems, sendqueue, services};
 
 //
 // The kernel initializes our cap space as follows:
-// +------+-----------+-------+-----+-----------+-------+-----+-----------+
-// | kmem | boot info | mod_0 | ... | mod_{n-1} | mem_0 | ... | mem_{n-1} |
-// +------+-----------+-------+-----+-----------+-------+-----+-----------+
+// +------+-----------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
+// | kmem | boot info | mod_0 | ... | mod_{n-1} | pe_0 | ... | pe_{n-1} | mem_0 | ... | mem_{n-1} |
+// +------+-----------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
 // ^-- FIRST_FREE_SEL
 //
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
@@ -143,25 +143,25 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) {
     reply_result(is, res);
 }
 
-fn alloc_ep(is: &mut GateIStream, child: &mut dyn Child) {
+fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) {
     let dst_sel: Selector = is.pop();
-    let vpe_sel: Selector = is.pop();
+    let desc = kif::PEDesc::new_from(is.pop());
 
-    let res = child.alloc_ep(dst_sel, vpe_sel);
+    let res = child.alloc_pe(dst_sel, &desc);
     match res {
         Err(e) => {
             log!(RESMNG, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
-        Ok(ep) => reply_vmsg!(is, 0 as u64, ep),
+        Ok(desc) => reply_vmsg!(is, 0 as u64, desc.value()),
     }
     .expect("Unable to reply");
 }
 
-fn free_ep(is: &mut GateIStream, child: &mut dyn Child) {
+fn free_pe(is: &mut GateIStream, child: &mut dyn Child) {
     let sel: Selector = is.pop();
 
-    let res = child.free_ep(sel);
+    let res = child.free_pe(sel);
     reply_result(is, res);
 }
 
@@ -171,14 +171,17 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
             .credits(256)
             .label(dtu::Label::from(child.id())),
     )?;
+
+    let pe = pes::get().get(child.pe_id().unwrap());
     let vpe = VPE::new_with(
+        pe,
         VPEArgs::new(child.name())
             .resmng(ResMng::new(sgate))
             .kmem(child.kmem().clone()),
     )?;
 
     let bfile = loader::BootFile::new(bsel, m.size as usize);
-    let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe().has_virtmem());
+    let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe_desc().has_virtmem());
     let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
 
     child.start(vpe, &mut bmapper, bfileref)?;
@@ -240,8 +243,8 @@ fn handle_request(mut is: GateIStream) {
         ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
         ResMngOperation::FREE_MEM => free_mem(&mut is, child),
 
-        ResMngOperation::ALLOC_EP => alloc_ep(&mut is, child),
-        ResMngOperation::FREE_EP => free_ep(&mut is, child),
+        ResMngOperation::ALLOC_PE => alloc_pe(&mut is, child),
+        ResMngOperation::FREE_PE => free_pe(&mut is, child),
 
         ResMngOperation::USE_SEM => use_sem(&mut is, child),
 
@@ -356,7 +359,9 @@ fn start_boot_mods() {
                 .expect("Unable to derive new kernel memory")
         };
 
-        let mut child = OwnChild::new(id as Id, args, daemon, kmem, cfg);
+        let pe = pes::get().alloc(&VPE::cur().pe_desc())
+            .expect("Unable to allocate PE");
+        let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, cfg);
         if child.has_unmet_reqs() {
             DELAYED.get_mut().push(child);
         }
@@ -396,6 +401,8 @@ pub fn main() -> i32 {
     unsafe { pes.set_len(info.pe_count as usize) };
     mgate.read(&mut pes, off).expect("Unable to read PEs");
 
+    let pe_sel = BOOT_MOD_SELS + 2 + info.mod_count as Selector;
+    let mut user_pes = 0;
     let mut i = 0;
     log!(RESMNG, "Available PEs:");
     for pe in pes {
@@ -407,10 +414,17 @@ pub fn main() -> i32 {
             pe.isa(),
             pe.mem_size() / 1024
         );
+        // skip kernel and our own PE
+        if i > VPE::cur().pe_id() {
+            pes::get().add(i as dtu::PEId, PE::new_bind(&pe, pe_sel + i - 1));
+        }
+        if i > 0 && pe.pe_type() != kif::PEType::MEM {
+            user_pes += 1;
+        }
         i += 1;
     }
 
-    let mut mem_sel = BOOT_MOD_SELS + 2 + info.mod_count as Selector;
+    let mut mem_sel = BOOT_MOD_SELS + 2 + (user_pes + info.mod_count) as Selector;
     for i in 0..info.mems.len() {
         let mem = &info.mems[i];
         if mem.size() == 0 {

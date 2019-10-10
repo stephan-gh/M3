@@ -23,13 +23,13 @@ use errors::Error;
 use goff;
 use io::{Read, Write};
 use kif::{syscalls, CapRngDesc, CapType, Perm};
+use pes::VPE;
 use rc::Rc;
 use serialize::Sink;
 use session::{ClientSession, Pager};
 use time;
 use util;
 use vfs::{filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode};
-use vpe::VPE;
 
 int_enum! {
     /// The operations for [`GenericFile`].

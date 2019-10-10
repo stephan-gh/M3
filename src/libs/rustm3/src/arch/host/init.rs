@@ -19,9 +19,9 @@ use com;
 use io;
 use libc;
 use mem;
+use pes;
 use syscalls;
 use vfs;
-use vpe;
 
 pub fn exit(code: i32) -> ! {
     unsafe {
@@ -33,7 +33,7 @@ pub fn exit(code: i32) -> ! {
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
     mem::heap::init();
     arch::env::init(argc, argv);
-    vpe::init();
+    pes::init();
     syscalls::init();
     com::init();
     io::init();

@@ -18,7 +18,7 @@
 #include <m3/DTUIf.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <thread/ThreadManager.h>
 

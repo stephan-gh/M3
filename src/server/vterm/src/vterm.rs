@@ -26,12 +26,12 @@ use m3::com::{GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::io::{Read, Serial, Write};
 use m3::kif;
+use m3::pes::VPE;
 use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::syscalls;
 use m3::util;
 use m3::vfs::GenFileOp;
-use m3::vpe::VPE;
 
 const MSG_SIZE: usize = 64;
 const BUF_SIZE: usize = 256;

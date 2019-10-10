@@ -24,7 +24,7 @@
 #include <m3/vfs/FileTable.h>
 #include <m3/vfs/MountTable.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <sys/fcntl.h>
 #include <sys/stat.h>

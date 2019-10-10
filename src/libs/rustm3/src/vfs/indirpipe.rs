@@ -16,10 +16,10 @@
 
 use com::MemGate;
 use errors::Error;
+use pes::VPE;
 use rc::Rc;
 use session::{Pipe, Pipes};
 use vfs::Fd;
-use vpe::VPE;
 
 /// A uni-directional channel between potentially multiple readers and writers.
 pub struct IndirectPipe {

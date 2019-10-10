@@ -28,7 +28,7 @@
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
 #include <m3/Test.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -38,7 +38,8 @@ struct App {
     explicit App(int argc, const char **argv, const char *pager)
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPEArgs().pager(pager)),
+          pe(PE::alloc(VPE::self().pe_desc())),
+          vpe(pe, argv[0], VPEArgs().pager(pager)),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
         vpe.delegate_obj(rgate.sel());
@@ -46,6 +47,7 @@ struct App {
 
     int argc;
     const char **argv;
+    PE pe;
     VPE vpe;
     RecvGate rgate;
     SendGate sgate;
@@ -87,13 +89,15 @@ int main(int argc, char **argv) {
 
     App *apps[instances * 2];
     RemoteServer *srvs[3];
+    PE *srv_pes[3];
     VPE *srv_vpes[3];
 
 #if defined(__gem5__)
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
-        srv_vpes[2] = new VPE("pager");
+        srv_pes[2] = new PE(PE::alloc(VPE::self().pe_desc()));
+        srv_vpes[2] = new VPE(*srv_pes[2], "pager");
         srvs[2] = new RemoteServer(*srv_vpes[2], "mypager");
 
         String srv_arg = srvs[2]->sel_arg();
@@ -122,7 +126,8 @@ int main(int argc, char **argv) {
         if(j == 0 && VERBOSE) cout << "Creating servers...\n";
 
         if(j == 0) {
-            srv_vpes[0] = new VPE("m3fs");
+            srv_pes[0] = new PE(PE::alloc(VPE::self().pe_desc()));
+            srv_vpes[0] = new VPE(*srv_pes[0], "m3fs");
             srvs[0] = new RemoteServer(*srv_vpes[0], "mym3fs");
 
             String srv_arg = srvs[0]->sel_arg();
@@ -131,7 +136,8 @@ int main(int argc, char **argv) {
         }
 
         if(j == 0) {
-            srv_vpes[1] = new VPE("pipes");
+            srv_pes[1] = new PE(PE::alloc(VPE::self().pe_desc()));
+            srv_vpes[1] = new VPE(*srv_pes[1], "pipes");
             srvs[1] = new RemoteServer(*srv_vpes[1], "mypipe");
 
             String srv_arg = srvs[1]->sel_arg();

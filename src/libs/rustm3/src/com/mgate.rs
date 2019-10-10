@@ -25,7 +25,7 @@ use goff;
 use kif::INVALID_SEL;
 use syscalls;
 use util;
-use vpe;
+use pes::VPE;
 
 pub use kif::Perm;
 
@@ -64,8 +64,8 @@ impl MGateArgs {
         self
     }
 
-    /// Sets the capability selector that should be used for this `MemGate`. Otherwise and by default,
-    /// [`vpe::VPE::alloc_sel`] will be used to choose a free selector.
+    /// Sets the capability selector that should be used for this `MemGate`. Otherwise and by
+    /// default, [`VPE::alloc_sel`] will be used to choose a free selector.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
@@ -81,13 +81,13 @@ impl MemGate {
     /// Creates a new `MemGate` with given arguments.
     pub fn new_with(args: MGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            vpe::VPE::cur().alloc_sel()
+            VPE::cur().alloc_sel()
         }
         else {
             args.sel
         };
 
-        vpe::VPE::cur()
+        VPE::cur()
             .resmng()
             .alloc_mem(sel, args.addr, args.size, args.perm)?;
         Ok(MemGate {
@@ -129,8 +129,8 @@ impl MemGate {
     /// Note that kernel makes sure that only owned permissions can be passed on to the derived
     /// `MemGate`.
     pub fn derive(&self, offset: goff, size: usize, perm: Perm) -> Result<Self, Error> {
-        let sel = vpe::VPE::cur().alloc_sel();
-        self.derive_for(vpe::VPE::cur().sel(), sel, offset, size, perm)
+        let sel = VPE::cur().alloc_sel();
+        self.derive_for(VPE::cur().sel(), sel, offset, size, perm)
     }
 
     /// Like [`MemGate::derive`], but assigns the new `MemGate` to the given VPE and uses given
@@ -203,7 +203,7 @@ impl MemGate {
 impl Drop for MemGate {
     fn drop(&mut self) {
         if !self.gate.flags().contains(CapFlags::KEEP_CAP) && !self.revoke {
-            vpe::VPE::cur().resmng().free_mem(self.sel()).ok();
+            VPE::cur().resmng().free_mem(self.sel()).ok();
             self.gate.set_flags(CapFlags::KEEP_CAP);
         }
     }

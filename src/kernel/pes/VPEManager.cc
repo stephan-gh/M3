@@ -55,7 +55,7 @@ void VPEManager::start_root() {
     }
 
     auto kmem = new KMemObject(Args::kmem - FIXED_KMEM);
-    _vpes[id] = new VPE("root", peid, id, VPE::F_BOOTMOD, kmem);
+    _vpes[id] = new VPE("root", nullptr, id, VPE::F_BOOTMOD, kmem);
 
     capsel_t sel = m3::KIF::FIRST_FREE_SEL;
 
@@ -88,6 +88,14 @@ void VPEManager::start_root() {
             pe, VPE::INVALID_ID, addr, size, m3::KIF::Perm::R | m3::KIF::Perm::X
         );
         _vpes[id]->objcaps().set(sel, memcap);
+    }
+
+    // PEs
+    for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
+        kmem->alloc(*_vpes[id], sizeof(PECapability) + sizeof(PEObject));
+        auto pecap = new PECapability(&_vpes[id]->objcaps(), sel, PEManager::get().pemux(i)->pe());
+        _vpes[id]->objcaps().set(sel, pecap);
+        sel++;
     }
 
     // memory
@@ -125,16 +133,12 @@ vpeid_t VPEManager::get_id() {
     return id;
 }
 
-VPE *VPEManager::create(m3::String &&name, const m3::PEDesc &pe, KMemObject *kmem) {
-    peid_t i = PEManager::get().find_pe(pe, 0);
-    if(i == 0)
-        return nullptr;
-
+VPE *VPEManager::create(m3::String &&name, PECapability *pecap, KMemObject *kmem) {
     vpeid_t id = get_id();
     if(id == MAX_VPES)
         return nullptr;
 
-    VPE *vpe = new VPE(std::move(name), i, id, 0, kmem);
+    VPE *vpe = new VPE(std::move(name), pecap, id, 0, kmem);
     assert(vpe == _vpes[id]);
 
     PEManager::get().init_vpe(vpe);

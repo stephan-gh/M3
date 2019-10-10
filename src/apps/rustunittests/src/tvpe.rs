@@ -17,9 +17,9 @@
 use m3::boxed::Box;
 use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::env;
+use m3::pes::{Activity, PE, VPEArgs, VPE};
 use m3::test;
 use m3::util;
-use m3::vpe::{Activity, VPEArgs, VPE};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, run_stop);
@@ -42,9 +42,11 @@ fn run_stop() {
     ));
     wv_assert_ok!(rg.activate());
 
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+
     let mut wait_time = 10000;
     for _ in 1..100 {
-        let mut vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("test")));
+        let mut vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
         // pass sendgate to child
         let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64)));
@@ -79,7 +81,8 @@ fn run_stop() {
 }
 
 fn run_arguments() {
-    let vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("test")));
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.run(Box::new(|| {
         wv_assert_eq!(env::args().count(), 1);
@@ -92,7 +95,8 @@ fn run_arguments() {
 }
 
 fn run_send_receive() {
-    let mut vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("test")));
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let mut vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
     let mut rgate = wv_assert_ok!(RecvGate::new(util::next_log2(256), util::next_log2(256)));
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(256)));
@@ -115,30 +119,33 @@ fn run_send_receive() {
 fn exec_fail() {
     use m3::errors::Code;
 
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
     // file too small
     {
-        let vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("test")));
+        let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
         let act = vpe.exec(&["/testfile.txt"]);
         assert!(act.is_err() && act.err().unwrap().code() == Code::EndOfFile);
     }
 
     // not an ELF file
     {
-        let vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("test")));
+        let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
         let act = vpe.exec(&["/pat.bin"]);
         assert!(act.is_err() && act.err().unwrap().code() == Code::InvalidElf);
     }
 }
 
 fn exec_hello() {
-    let vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("test")));
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.exec(&["/bin/hello"]));
     wv_assert_eq!(act.wait(), Ok(0));
 }
 
 fn exec_rust_hello() {
-    let vpe = wv_assert_ok!(VPE::new_with(VPEArgs::new("test")));
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.exec(&["/bin/rusthello"]));
     wv_assert_eq!(act.wait(), Ok(0));

@@ -21,9 +21,9 @@ use m3::col::{String, Vec};
 use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::pes::VPE;
 use m3::syscalls;
 use m3::util;
-use m3::vpe::VPE;
 use thread;
 
 use childs;

@@ -19,7 +19,7 @@
 #include <base/KIF.h>
 #include <base/col/SList.h>
 
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 #include <m3/com/SendGate.h>
 
 #include <fs/internal.h>

@@ -23,7 +23,7 @@
 #include <m3/vfs/File.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include "exceptions.h"
 #include "fsapi.h"

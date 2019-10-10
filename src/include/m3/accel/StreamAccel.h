@@ -20,7 +20,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/vfs/GenericFile.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <memory>
 
@@ -77,7 +77,7 @@ public:
           _rgate(RecvGate::create_for(*vpe, getnextlog2(RB_SIZE), getnextlog2(MSG_SIZE))),
           _vpe(vpe) {
         // activate EPs
-        _rgate.activate(EP::bind_for(*vpe, EP_RECV), vpe->pe().mem_size() - RB_SIZE);
+        _rgate.activate(EP::bind_for(*vpe, EP_RECV), vpe->pe_desc().mem_size() - RB_SIZE);
         // delegate caps
         vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _rgate.sel(), 1), CAP_RECV);
     }

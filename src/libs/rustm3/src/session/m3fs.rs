@@ -23,6 +23,7 @@ use core::fmt;
 use core::mem::MaybeUninit;
 use errors::Error;
 use kif;
+use pes::VPE;
 use rc::{Rc, Weak};
 use serialize::Sink;
 use session::ClientSession;
@@ -30,7 +31,6 @@ use util;
 use vfs::{
     FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
 };
-use vpe::VPE;
 
 /// The type of extent ids.
 pub type ExtId = u16;

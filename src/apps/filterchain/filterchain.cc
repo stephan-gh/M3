@@ -22,7 +22,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -54,7 +54,8 @@ int main(int argc, char **argv) {
     cout << "Starting filter chain...\n";
 
     // create receiver
-    VPE t2("receiver");
+    PE pe2 = PE::alloc(VPE::self().pe_desc());
+    VPE t2(pe2, "receiver");
 
     // create a gate the sender can send to (at the receiver)
     RecvGate rgate = RecvGate::create(nextlog2<512>::val, nextlog2<64>::val);
@@ -80,7 +81,8 @@ int main(int argc, char **argv) {
         return 0;
     });
 
-    VPE t1("sender");
+    PE pe1 = PE::alloc(VPE::self().pe_desc());
+    VPE t1(pe1, "sender");
     t1.fds(VPE::self().fds());
     t1.obtain_fds();
     t1.delegate_obj(mem.sel());

@@ -19,9 +19,9 @@ use base::pexif;
 use com;
 use io;
 use mem;
+use pes;
 use syscalls;
 use vfs;
-use vpe;
 
 #[no_mangle]
 pub extern "C" fn exit(code: i32) -> ! {
@@ -41,12 +41,12 @@ pub extern "C" fn env_run() {
     let res = if arch::env::get().has_lambda() {
         syscalls::reinit();
         io::reinit();
-        vpe::reinit();
+        pes::reinit();
         arch::env::closure().call()
     }
     else {
         mem::heap::init();
-        vpe::init();
+        pes::init();
         syscalls::init();
         io::init();
         com::init();

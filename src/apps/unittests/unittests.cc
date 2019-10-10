@@ -18,7 +18,7 @@
 
 #include <m3/vfs/VFS.h>
 #include <m3/stream/Standard.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include "unittests.h"
 

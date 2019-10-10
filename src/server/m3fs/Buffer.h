@@ -25,7 +25,7 @@
 #include <m3/session/M3FS.h>
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <fs/internal.h>
 #include <thread/ThreadManager.h>

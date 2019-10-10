@@ -105,28 +105,19 @@ void Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t f
 }
 
 void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
-                          const String &name, PEDesc &pe, capsel_t kmem) {
+                          const String &name, capsel_t pe, capsel_t kmem) {
     KIF::Syscall::CreateVPE req;
     req.opcode = KIF::Syscall::CREATE_VPE;
     req.dst_crd = dst.value();
     req.pg_sg_sel = pg_sg;
     req.pg_rg_sel = pg_rg;
-    req.pe = pe.value();
+    req.pe_sel = pe;
     req.kmem_sel = kmem;
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
 
     size_t msgsize = sizeof(req) - sizeof(req.name) + req.namelen;
-    const DTU::Message *msg = send_receive(&req, msgsize);
-    auto *reply = reinterpret_cast<const KIF::Syscall::CreateVPEReply*>(msg->data);
-
-    Errors::Code res = static_cast<Errors::Code>(reply->error);
-    if(res == Errors::NONE)
-        pe = PEDesc(reply->pe);
-    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
-
-    if(res != Errors::NONE)
-        throw SyscallException(res, KIF::Syscall::CREATE_VPE);
+    send_receive_throw(&req, msgsize);
 }
 
 void Syscalls::create_sem(capsel_t dst, uint value) {
@@ -135,6 +126,25 @@ void Syscalls::create_sem(capsel_t dst, uint value) {
     req.dst_sel = dst;
     req.value = value;
     send_receive_throw(&req, sizeof(req));
+}
+
+epid_t Syscalls::alloc_ep(capsel_t dst, capsel_t vpe, capsel_t pe) {
+    KIF::Syscall::AllocEP req;
+    req.opcode = KIF::Syscall::ALLOC_EP;
+    req.dst_sel = dst;
+    req.vpe_sel = vpe;
+    req.pe_sel = pe;
+
+    const DTU::Message *msg = send_receive(&req, sizeof(req));
+    auto *reply = reinterpret_cast<const KIF::Syscall::AllocEPReply*>(msg->data);
+
+    epid_t ep = reply->ep;
+    Errors::Code res = static_cast<Errors::Code>(reply->error);
+    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
+
+    if(res != Errors::NONE)
+        throw SyscallException(res, KIF::Syscall::ALLOC_EP);
+    return ep;
 }
 
 void Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {
@@ -198,6 +208,15 @@ void Syscalls::derive_kmem(capsel_t kmem, capsel_t dst, size_t quota) {
     req.kmem_sel = kmem;
     req.dst_sel = dst;
     req.quota = quota;
+    send_receive_throw(&req, sizeof(req));
+}
+
+void Syscalls::derive_pe(capsel_t pe, capsel_t dst, uint eps) {
+    KIF::Syscall::DerivePE req;
+    req.opcode = KIF::Syscall::DERIVE_PE;
+    req.pe_sel = pe;
+    req.dst_sel = dst;
+    req.eps = eps;
     send_receive_throw(&req, sizeof(req));
 }
 
@@ -292,7 +311,7 @@ void Syscalls::noop() {
 USED void Syscalls::exit(int exitcode) {
     KIF::Syscall::VPECtrl req;
     req.opcode = KIF::Syscall::VPE_CTRL;
-    req.vpe_sel = 0;
+    req.vpe_sel = KIF::SEL_VPE;
     req.op = KIF::Syscall::VCTRL_STOP;
     req.arg = static_cast<xfer_t>(exitcode);
     DTUIf::send(_sendgate, &req, sizeof(req), 0, *_sendgate.reply_gate());

@@ -40,10 +40,11 @@ public:
     static void create_rgate(capsel_t dst, int order, int msgorder);
     static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits);
     static void create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
-                           const String &name, PEDesc &pe, capsel_t kmem);
+                           const String &name, capsel_t pe, capsel_t kmem);
     static void create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                            capsel_t pages, int perms);
     static void create_sem(capsel_t dst, uint value);
+    static epid_t alloc_ep(capsel_t dst, capsel_t vpe, capsel_t pe);
 
     static void activate(capsel_t ep, capsel_t gate, goff_t addr);
     static void vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg);
@@ -51,6 +52,7 @@ public:
     static void derive_mem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
                            size_t size, int perms);
     static void derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);
+    static void derive_pe(capsel_t pe, capsel_t dst, uint eps);
     static size_t kmem_quota(capsel_t kmem);
     static void sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);
 

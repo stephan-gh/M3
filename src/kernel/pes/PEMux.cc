@@ -25,7 +25,7 @@
 #define LOG_ERROR(pemux, error, msg)                                     \
     do {                                                                 \
         KLOG(ERR, "\e[37;41m"                                            \
-            << "PEMux[" << (pemux)->_pe << "]: "                         \
+            << "PEMux[" << (pemux)->peid() << "]: "                      \
             << msg << " (" << m3::Errors::to_string(error) << ")\e[0m"); \
     }                                                                    \
     while(0)
@@ -33,9 +33,9 @@
 namespace kernel {
 
 PEMux::PEMux(peid_t pe)
-    : _caps(VPE::INVALID_ID),
+    : _pe(pe, EP_COUNT - m3::DTU::FIRST_FREE_EP),
+      _caps(VPE::INVALID_ID),
       _vpes(),
-      _pe(pe),
       _headers(0),
       _rbufs_size(),
       _mem_base(),
@@ -48,7 +48,7 @@ PEMux::PEMux(peid_t pe)
                           KPEX_RBUF_SIZE, KPEX_RBUF_SIZE);
 
     // configure receive EP
-    uintptr_t rbuf = Platform::def_recvbuf(_pe);
+    uintptr_t rbuf = Platform::def_recvbuf(peid());
     _dtustate.config_recv(m3::DTU::KPEX_REP, rbuf, KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, 0);
     rbuf += KPEX_RBUF_SIZE;
 
@@ -58,7 +58,7 @@ PEMux::PEMux(peid_t pe)
 
     for(epid_t ep = m3::DTU::FIRST_USER_EP; ep < EP_COUNT; ++ep) {
         capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_USER_EP;
-        _caps.set(sel, new EPCapability(&_caps, sel, new EPObject(_pe, ep)));
+        _caps.set(sel, new EPCapability(&_caps, sel, new EPObject(&_pe, ep)));
     }
 
     // one slot for the KPEX receive buffer and one for the upcall receive buffer
@@ -76,7 +76,7 @@ m3::Errors::Code PEMux::alloc_ep(VPE *caller, vpeid_t dst, capsel_t sel, epid_t 
     req.opcode = m3::KIF::PEXUpcalls::ALLOC_EP;
     req.vpe_sel = VPE_SEL_BEGIN + dst;
 
-    KLOG(PEXC, "PEMux[" << _pe << "] sending AllocEP(vpe=" << req.vpe_sel << ")");
+    KLOG(PEXC, "PEMux[" << peid() << "] sending AllocEP(vpe=" << req.vpe_sel << ")");
 
     // send upcall
     event_t event = _upcqueue.send(m3::DTU::PEXUP_REP, 0, &req, sizeof(req), false);
@@ -86,7 +86,7 @@ m3::Errors::Code PEMux::alloc_ep(VPE *caller, vpeid_t dst, capsel_t sel, epid_t 
     auto reply_msg = reinterpret_cast<const m3::DTU::Message*>(m3::ThreadManager::get().get_current_msg());
     auto reply = reinterpret_cast<const m3::KIF::PEXUpcalls::AllocEPReply*>(reply_msg->data);
 
-    KLOG(PEXC, "PEMux[" << _pe << "] got AllocEPReply(error="
+    KLOG(PEXC, "PEMux[" << peid() << "] got AllocEPReply(error="
         << reply->error << ", ep=" << reply->ep << ")");
 
     if(reply->error != m3::Errors::NONE)
@@ -113,7 +113,7 @@ void PEMux::free_ep(epid_t ep) {
     req.opcode = m3::KIF::PEXUpcalls::FREE_EP;
     req.ep = ep;
 
-    KLOG(PEXC, "PEMux[" << _pe << "] sending FreeEP(ep=" << req.ep << ")");
+    KLOG(PEXC, "PEMux[" << peid() << "] sending FreeEP(ep=" << req.ep << ")");
 
     _upcqueue.send(m3::DTU::PEXUP_REP, 0, &req, sizeof(req), false);
 }
@@ -136,7 +136,7 @@ void PEMux::handle_call(const m3::DTU::Message *msg) {
 void PEMux::pexcall_activate(const m3::DTU::Message *msg) {
     auto req = reinterpret_cast<const m3::KIF::PEMux::Activate*>(msg->data);
 
-    KLOG(PEXC, "PEXCall[" << _pe << "] activate(vpe=" << req->vpe_sel
+    KLOG(PEXC, "PEXCall[" << peid() << "] activate(vpe=" << req->vpe_sel
         << ", gate=" << req->gate_sel << ", ep=" << req->ep
         << ", addr=" << m3::fmt(req->addr, "p") << ")");
 
@@ -170,7 +170,7 @@ size_t PEMux::allocate_headers(size_t num) {
 }
 
 bool PEMux::invalidate_ep(epid_t ep, bool force) {
-    KLOG(EPS, "PE" << _pe << ":EP" << ep << " = invalid");
+    KLOG(EPS, "PE" << peid() << ":EP" << ep << " = invalid");
 
     return DTU::get().inval_ep_remote(desc(), ep, force) == m3::Errors::NONE;
 }
@@ -183,8 +183,8 @@ void PEMux::invalidate_eps() {
 m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, RGateObject &obj) {
     assert(obj.activated());
     // it needs to be in the receive buffer space
-    const goff_t addr = Platform::def_recvbuf(_pe);
-    const size_t size = Platform::pe(_pe).has_virtmem() ? RECVBUF_SIZE : RECVBUF_SIZE_SPM;
+    const goff_t addr = Platform::def_recvbuf(peid());
+    const size_t size = Platform::pe(peid()).has_virtmem() ? RECVBUF_SIZE : RECVBUF_SIZE_SPM;
     // def_recvbuf() == 0 means that we do not validate it
     if(addr && (obj.addr < addr || obj.addr > addr + size || obj.addr + obj.size() > addr + size))
         return m3::Errors::INV_ARGS;
@@ -198,7 +198,7 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, RGateObject &obj) {
         return m3::Errors::OUT_OF_MEM;
 
     obj.header = off;
-    KLOG(EPS, "PE" << _pe << ":EP" << ep << " = "
+    KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
         "RGate[addr=#" << m3::fmt(obj.addr, "x")
         << ", order=" << obj.order
         << ", msgorder=" << obj.msgorder
@@ -217,7 +217,7 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, SGateObject &obj) {
     if(obj.activated)
         return m3::Errors::EXISTS;
 
-    KLOG(EPS, "PE" << _pe << ":EP" << ep << " = "
+    KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
         "Send[pe=" << obj.rgate->pe
         << ", ep=" << obj.rgate->ep
         << ", label=#" << m3::fmt(obj.label, "x")
@@ -236,7 +236,7 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, const MGateObject &obj, goff_t 
     if(off >= obj.size || obj.addr + off < off)
         return m3::Errors::INV_ARGS;
 
-    KLOG(EPS, "PE" << _pe << ":EP" << ep << " = "
+    KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
         "Mem [vpe=" << obj.vpe
         << ", pe=" << obj.pe
         << ", addr=#" << m3::fmt(obj.addr + off, "x")

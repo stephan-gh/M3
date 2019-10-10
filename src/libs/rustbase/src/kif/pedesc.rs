@@ -70,7 +70,7 @@ bitflags! {
     }
 }
 
-type PEDescRaw = u32;
+pub type PEDescRaw = u32;
 
 /// Describes a processing element (PE).
 ///

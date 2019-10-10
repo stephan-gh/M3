@@ -20,7 +20,7 @@
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <memory>
 
@@ -56,7 +56,7 @@ public:
                                                          .reply_gate(&reply_gate))),
           _vpe(vpe) {
         // activate EP
-        _rgate.activate(EP::bind_for(*vpe, EP_RECV), vpe->pe().mem_size() - MSG_SIZE);
+        _rgate.activate(EP::bind_for(*vpe, EP_RECV), vpe->pe_desc().mem_size() - MSG_SIZE);
         // delegate cap
         vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _rgate.sel(), 1), CAP_RECV);
     }

@@ -51,6 +51,7 @@ public:
         VPEGRP,
         VIRTPE,
         ENDPOINT,
+        PE,
         KMEM,
         SEM,
     };

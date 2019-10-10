@@ -53,9 +53,10 @@ public:
         MGATE   = 0x10,
         MAP     = 0x20,
         VIRTPE  = 0x40,
-        EP      = 0x80,
-        KMEM    = 0x100,
-        SEM     = 0x200,
+        PE      = 0x80,
+        EP      = 0x100,
+        KMEM    = 0x200,
+        SEM     = 0x400,
     };
 
     explicit Capability(CapTable *tbl, capsel_t sel, unsigned type, uint len = 1)
@@ -135,6 +136,9 @@ protected:
         clone->_type |= CLONE;
         clone->put(tbl, sel);
         return clone;
+    }
+    void make_clone() {
+        _type |= CLONE;
     }
 
 private:
@@ -270,9 +274,27 @@ public:
     m3::Reference<Service> srv;
 };
 
+class PEObject : public SlabObject<PEObject>, public m3::RefCounted {
+public:
+    explicit PEObject(peid_t _id, uint _eps)
+        : RefCounted(),
+          id(_id),
+          eps(_eps) {
+    }
+
+    bool has_quota(uint eps) {
+        return this->eps >= eps;
+    }
+    void alloc(uint eps);
+    void free(uint eps);
+
+    peid_t id;
+    uint eps;
+};
+
 class EPObject : public SlabObject<EPObject>, public m3::RefCounted {
 public:
-    explicit EPObject(peid_t _pe, epid_t _ep)
+    explicit EPObject(PEObject *_pe, epid_t _ep)
         : RefCounted(),
           ep(_ep),
           pe(_pe),
@@ -281,7 +303,7 @@ public:
     ~EPObject();
 
     epid_t ep;
-    peid_t pe;
+    m3::Reference<PEObject> pe;
     GateObject *gate;
 };
 
@@ -484,6 +506,30 @@ public:
     m3::Reference<SessObject> obj;
 };
 
+class PECapability : public SlabObject<PECapability>, public Capability {
+    friend class VPE;
+public:
+    explicit PECapability(CapTable *tbl, capsel_t sel, PEObject *_obj)
+        : Capability(tbl, sel, PE),
+          obj(_obj) {
+    }
+
+    virtual size_t obj_size() const override {
+        return sizeof(PEObject);
+    }
+
+    void printInfo(m3::OStream &os) const override;
+
+private:
+    virtual void revoke() override;
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+        return do_clone(this, tbl, sel);
+    }
+
+public:
+    m3::Reference<PEObject> obj;
+};
+
 class EPCapability : public SlabObject<EPCapability>, public Capability {
 public:
     explicit EPCapability(CapTable *tbl, capsel_t sel, EPObject *_obj)
@@ -510,6 +556,8 @@ class SharedEPCapability : public EPCapability {
 public:
     explicit SharedEPCapability(CapTable *tbl, capsel_t sel, EPObject *obj)
         : EPCapability(tbl, sel, obj) {
+        // this is always a clone, because we share the EPObject
+        make_clone();
     }
 
 private:
@@ -589,7 +637,7 @@ public:
 
 inline EPObject *GateObject::ep_of_pe(peid_t pe) {
     for(auto u = epuser.begin(); u != epuser.end(); ++u) {
-        if(u->ep->pe == pe)
+        if(u->ep->pe->id == pe)
             return u->ep;
     }
     return nullptr;
@@ -598,7 +646,7 @@ inline EPObject *GateObject::ep_of_pe(peid_t pe) {
 inline void GateObject::print_eps(m3::OStream &os) {
     os << "[";
     for(auto u = epuser.begin(); u != epuser.end(); ) {
-        os << "PE" << u->ep->pe << ":EP" << u->ep->ep;
+        os << "PE" << u->ep->pe->id << ":EP" << u->ep->ep;
         if(++u != epuser.end())
             os << ", ";
     }

@@ -19,7 +19,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -29,7 +29,8 @@ int main(int argc, char **argv) {
 
     VFS::mount("/", "m3fs");
 
-    VPE sh(argv[1], VPEArgs().pager("pager"));
+    PE pe = PE::alloc(VPE::self().pe_desc());
+    VPE sh(pe, argv[1], VPEArgs().pager("pager"));
 
     try {
         VTerm vterm("vterm");

@@ -23,11 +23,11 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
+use m3::pes::Mapper;
 use m3::session::Pager;
 use m3::syscalls;
 use m3::util;
 use m3::vfs;
-use m3::vpe::Mapper;
 
 use memory;
 

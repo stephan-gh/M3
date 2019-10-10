@@ -61,13 +61,18 @@ public:
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
 
-    static size_t base_kmem() {
+    static size_t base_kmem(const m3::PEDesc &pe) {
+        size_t eps = 0;
+        if(!USE_PEMUX || !pe.is_programmable())
+            eps = (EP_COUNT - m3::DTU::FIRST_FREE_EP) * (sizeof(EPCapability) + sizeof(EPObject));
         // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
         return sizeof(VPE) + sizeof(AddrSpace) +
-               // VPE cap and memory cap
-               sizeof(VPECapability) + sizeof(MGateCapability) + sizeof(MGateObject) +
+               // PE and VPE cap
+               sizeof(PECapability) + sizeof(VPECapability) +
+               // memory gate and cap
+               sizeof(MGateCapability) + sizeof(MGateObject) +
                // EP caps
-               (EP_COUNT - m3::DTU::FIRST_FREE_EP) * (sizeof(EPCapability) + sizeof(EPObject));
+               eps;
     }
     static size_t extra_kmem(const m3::PEDesc &pe) {
         // for VM PEs we need the root PT
@@ -86,7 +91,7 @@ public:
         F_STOPPED     = 1 << 2,
     };
 
-    explicit VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem);
+    explicit VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObject *kmem);
     VPE(const VPE &) = delete;
     VPE &operator=(const VPE &) = delete;
     ~VPE();

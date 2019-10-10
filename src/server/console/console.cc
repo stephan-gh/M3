@@ -22,7 +22,7 @@
 #include <m3/session/arch/host/Keyboard.h>
 #include <m3/session/ServerSession.h>
 #include <m3/stream/Standard.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include "Scancodes.h"
 #include "VGAConsole.h"

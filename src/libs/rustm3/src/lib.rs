@@ -87,7 +87,7 @@ pub mod cap;
 pub mod server;
 pub mod session;
 pub mod syscalls;
+pub mod pes;
 pub mod vfs;
-pub mod vpe;
 
 mod arch;

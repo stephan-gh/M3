@@ -32,10 +32,10 @@
 
 namespace kernel {
 
-VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kmem)
+VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObject *kmem)
     : SlabObject<VPE>(),
       RefCounted(),
-      _desc(peid, id),
+      _desc(pecap ? pecap->obj->id : 1, id),
       _flags(flags),
       _pid(),
       _state(DEAD),
@@ -53,18 +53,33 @@ VPE::VPE(m3::String &&prog, peid_t peid, vpeid_t id, uint flags, KMemObject *kme
     if(_sysc_ep == EP_COUNT)
         PANIC("Too few slots in syscall receive buffers");
 
-    _kmem->alloc(*this, base_kmem());
+    _kmem->alloc(*this, base_kmem(Platform::pe(pe())));
 
-    auto vpecap = new VPECapability(&_objcaps, 0, this);
-    _objcaps.set(0, vpecap);
-    _objcaps.set(1, new MGateCapability(
-        &_objcaps, 1, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
+    auto vpecap = new VPECapability(&_objcaps, m3::KIF::SEL_VPE, this);
+
+    // allocate PE cap for root
+    if(pecap == nullptr) {
+        pecap = new PECapability(&_objcaps, m3::KIF::SEL_PE, PEManager::get().pemux(pe())->pe());
+        _objcaps.set(m3::KIF::SEL_PE, pecap);
+        // PECapability is already paid by base_kmem()
+        _kmem->alloc(*this, sizeof(PEObject));
+    }
+    else {
+        auto npecap = pecap->clone(&_objcaps, m3::KIF::SEL_PE);
+        _objcaps.inherit(pecap, npecap);
+        _objcaps.set(m3::KIF::SEL_PE, npecap);
+    }
+    _objcaps.set(m3::KIF::SEL_VPE, vpecap);
+    _objcaps.inherit(pecap, vpecap);
+
+    _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
+        &_objcaps, m3::KIF::SEL_MEM, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
 
     // only accelerators get their EP caps directly, because no PEMux is running there
     if(!USE_PEMUX || !Platform::pe(pe()).is_programmable()) {
         for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
             capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
-            _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(pe(), ep)));
+            _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(&*pecap->obj, ep)));
         }
     }
 
@@ -237,7 +252,7 @@ void VPE::set_mem_base(goff_t addr) {
 }
 
 m3::Errors::Code VPE::activate(EPCapability *epcap, capsel_t gate, size_t addr) {
-    peid_t dst_pe = epcap->obj->pe;
+    peid_t dst_pe = epcap->obj->pe->id;
     PEMux *dst_pemux = PEManager::get().pemux(dst_pe);
 
     GateObject *gateobj = nullptr;

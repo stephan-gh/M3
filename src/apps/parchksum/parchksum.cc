@@ -21,19 +21,21 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
 struct Worker {
     MemGate submem;
     SendGate sgate;
+    PE pe;
     VPE vpe;
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
         : submem(mem.derive(offset, size)),
           sgate(SendGate::create(&rgate, SendGateArgs().credits(64))),
-          vpe("worker") {
+          pe(PE::alloc(VPE::self().pe_desc())),
+          vpe(pe, "worker") {
         vpe.delegate_obj(submem.sel());
         vpe.fds(VPE::self().fds());
         vpe.obtain_fds();

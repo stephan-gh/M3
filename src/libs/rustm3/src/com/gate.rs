@@ -21,7 +21,7 @@ use core::mem;
 use dtu::EpId;
 use dtuif;
 use errors::Error;
-use vpe::VPE;
+use pes::VPE;
 
 /// A gate is one side of a DTU-based communication channel and exists in the variants [`MemGate`],
 /// [`SendGate`], and [`RecvGate`].

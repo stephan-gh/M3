@@ -17,7 +17,7 @@
 #include <base/util/Time.h>
 
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include "../FSHandle.h"
 #include "INodes.h"

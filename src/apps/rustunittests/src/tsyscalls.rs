@@ -18,11 +18,11 @@ use m3::cfg::PAGE_SIZE;
 use m3::com::{EP, MemGate, RecvGate, SendGate};
 use m3::errors::Code;
 use m3::kif::syscalls::{ExchangeArgs, VPEOp};
-use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL};
+use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_PE, SEL_VPE, SEL_MEM};
+use m3::pes::{PE, VPE};
 use m3::session::M3FS;
 use m3::syscalls;
 use m3::test;
-use m3::vpe::VPE;
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create_srv);
@@ -49,13 +49,13 @@ fn create_srv() {
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::create_srv(0, VPE::cur().sel(), rgate.sel(), "test"),
+        syscalls::create_srv(SEL_VPE, VPE::cur().sel(), rgate.sel(), "test"),
         Code::InvArgs
     );
 
     // invalid rgate selector
     wv_assert_err!(
-        syscalls::create_srv(sel, VPE::cur().sel(), 0, "test"),
+        syscalls::create_srv(sel, VPE::cur().sel(), SEL_VPE, "test"),
         Code::InvArgs
     );
     // again, with real rgate, but not activated
@@ -67,7 +67,7 @@ fn create_srv() {
 
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::create_srv(sel, 1, rgate.sel(), "test"),
+        syscalls::create_srv(sel, SEL_MEM, rgate.sel(), "test"),
         Code::InvArgs
     );
 
@@ -84,12 +84,12 @@ fn create_sgate() {
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::create_sgate(0, rgate.sel(), 0xDEAD_BEEF, 123),
+        syscalls::create_sgate(SEL_VPE, rgate.sel(), 0xDEAD_BEEF, 123),
         Code::InvArgs
     );
     // invalid rgate selector
     wv_assert_err!(
-        syscalls::create_sgate(sel, 0, 0xDEAD_BEEF, 123),
+        syscalls::create_sgate(sel, SEL_VPE, 0xDEAD_BEEF, 123),
         Code::InvArgs
     );
 }
@@ -98,7 +98,7 @@ fn create_rgate() {
     let sel = VPE::cur().alloc_sel();
 
     // invalid dest selector
-    wv_assert_err!(syscalls::create_rgate(0, 10, 10), Code::InvArgs);
+    wv_assert_err!(syscalls::create_rgate(SEL_VPE, 10, 10), Code::InvArgs);
     // invalid order
     wv_assert_err!(syscalls::create_rgate(sel, 2000, 10), Code::InvArgs);
     wv_assert_err!(syscalls::create_rgate(sel, -1, 10), Code::InvArgs);
@@ -123,9 +123,9 @@ fn create_sess() {
     let sel = VPE::cur().alloc_sel();
 
     // invalid dest selector
-    wv_assert_err!(syscalls::create_sess(0, srv, 0), Code::InvArgs);
+    wv_assert_err!(syscalls::create_sess(SEL_VPE, srv, 0), Code::InvArgs);
     // invalid service selector
-    wv_assert_err!(syscalls::create_sess(sel, 1, 0), Code::InvArgs);
+    wv_assert_err!(syscalls::create_sess(sel, SEL_VPE, 0), Code::InvArgs);
 
     wv_assert_ok!(syscalls::revoke(
         VPE::cur().sel(),
@@ -136,7 +136,7 @@ fn create_sess() {
 
 #[allow(clippy::cognitive_complexity)]
 fn create_map() {
-    if !VPE::cur().pe().has_virtmem() {
+    if !VPE::cur().pe_desc().has_virtmem() {
         return;
     }
 
@@ -145,12 +145,12 @@ fn create_map() {
 
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::create_map(0, 1, mem.sel(), 0, 4, Perm::RW),
+        syscalls::create_map(0, SEL_MEM, mem.sel(), 0, 4, Perm::RW),
         Code::InvArgs
     );
     // invalid memgate selector
     wv_assert_err!(
-        syscalls::create_map(0, VPE::cur().sel(), 0, 0, 4, Perm::RW),
+        syscalls::create_map(0, VPE::cur().sel(), SEL_VPE, 0, 4, Perm::RW),
         Code::InvArgs
     );
     wv_assert_err!(
@@ -201,17 +201,18 @@ fn create_vpe() {
     let crd = CapRngDesc::new(CapType::OBJECT, sels, cap_count);
     let rgate = wv_assert_ok!(RecvGate::new(10, 10));
     let sgate = wv_assert_ok!(SendGate::new(&rgate));
-    let pedesc = VPE::cur().pe();
     let kmem = VPE::cur().kmem().sel();
+
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
 
     // invalid dest caps
     wv_assert_err!(
         syscalls::create_vpe(
-            CapRngDesc::new(CapType::OBJECT, 0, cap_count),
+            CapRngDesc::new(CapType::OBJECT, SEL_VPE, cap_count),
             INVALID_SEL,
             INVALID_SEL,
             "test",
-            pedesc,
+            pe.sel(),
             kmem
         ),
         Code::InvArgs
@@ -222,7 +223,7 @@ fn create_vpe() {
             INVALID_SEL,
             INVALID_SEL,
             "test",
-            pedesc,
+            pe.sel(),
             kmem
         ),
         Code::InvArgs
@@ -233,7 +234,7 @@ fn create_vpe() {
             INVALID_SEL,
             INVALID_SEL,
             "test",
-            pedesc,
+            pe.sel(),
             kmem
         ),
         Code::InvArgs
@@ -244,7 +245,7 @@ fn create_vpe() {
             INVALID_SEL,
             INVALID_SEL,
             "test",
-            pedesc,
+            pe.sel(),
             kmem
         ),
         Code::InvArgs
@@ -252,23 +253,23 @@ fn create_vpe() {
 
     // invalid sgate
     wv_assert_err!(
-        syscalls::create_vpe(crd, 0, INVALID_SEL, "test", pedesc, kmem),
+        syscalls::create_vpe(crd, SEL_VPE, INVALID_SEL, "test", pe.sel(), kmem),
         Code::InvArgs
     );
 
     // invalid name
     wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "", pedesc, kmem),
+        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "", pe.sel(), kmem),
         Code::InvArgs
     );
 
     // invalid kmem
     wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pedesc, INVALID_SEL),
+        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pe.sel(), INVALID_SEL),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pedesc, 1),
+        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pe.sel(), 1),
         Code::InvArgs
     );
 }
@@ -280,10 +281,10 @@ fn activate() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
 
     // invalid EP sel
-    wv_assert_err!(syscalls::activate(0, mgate.sel(), 0), Code::InvArgs);
+    wv_assert_err!(syscalls::activate(SEL_VPE, mgate.sel(), 0), Code::InvArgs);
     wv_assert_err!(syscalls::activate(sel, mgate.sel(), 0), Code::InvArgs);
     // invalid mgate sel
-    wv_assert_err!(syscalls::activate(ep1.sel(), 0, 0), Code::InvArgs);
+    wv_assert_err!(syscalls::activate(ep1.sel(), SEL_VPE, 0), Code::InvArgs);
     // invalid address
     wv_assert_err!(syscalls::activate(ep1.sel(), mgate.sel(), 0x1000), Code::InvArgs);
     wv_assert_err!(syscalls::activate(ep1.sel(), mgate.sel(), !0), Code::InvArgs);
@@ -299,12 +300,12 @@ fn derive_mem() {
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::derive_mem(vpe, 0, mem.sel(), 0, 0x1000, Perm::RW),
+        syscalls::derive_mem(vpe, SEL_VPE, mem.sel(), 0, 0x1000, Perm::RW),
         Code::InvArgs
     );
     // invalid mem
     wv_assert_err!(
-        syscalls::derive_mem(vpe, sel, 0, 0, 0x1000, Perm::RW),
+        syscalls::derive_mem(vpe, sel, SEL_VPE, 0, 0x1000, Perm::RW),
         Code::InvArgs
     );
     // invalid offset
@@ -341,7 +342,7 @@ fn derive_mem() {
 }
 
 fn vpe_ctrl() {
-    wv_assert_err!(syscalls::vpe_ctrl(1, VPEOp::START, 0), Code::InvArgs);
+    wv_assert_err!(syscalls::vpe_ctrl(SEL_MEM, VPEOp::START, 0), Code::InvArgs);
     wv_assert_err!(
         syscalls::vpe_ctrl(INVALID_SEL, VPEOp::START, 0),
         Code::InvArgs
@@ -358,7 +359,8 @@ fn vpe_wait() {
 }
 
 fn exchange() {
-    let mut child = wv_assert_ok!(VPE::new("test"));
+    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let mut child = wv_assert_ok!(VPE::new(&pe, "test"));
     let csel = child.alloc_sel();
 
     let sel = VPE::cur().alloc_sel();
@@ -366,7 +368,7 @@ fn exchange() {
     let used = CapRngDesc::new(CapType::OBJECT, 0, 1);
 
     // invalid VPE sel
-    wv_assert_err!(syscalls::exchange(1, used, csel, false), Code::InvArgs);
+    wv_assert_err!(syscalls::exchange(SEL_MEM, used, csel, false), Code::InvArgs);
     // invalid own caps (source caps can be invalid)
     wv_assert_err!(
         syscalls::exchange(VPE::cur().sel(), used, unused.start(), true),
@@ -391,17 +393,17 @@ fn delegate() {
     let m3fs = wv_assert_ok!(M3FS::new("m3fs-clone"));
     let m3fs = m3fs.borrow();
     let sess = m3fs.as_any().downcast_ref::<M3FS>().unwrap().sess();
-    let crd = CapRngDesc::new(CapType::OBJECT, 0, 1);
+    let crd = CapRngDesc::new(CapType::OBJECT, SEL_VPE, 1);
     let mut args = ExchangeArgs::default();
 
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::delegate(1, sess.sel(), crd, &mut args),
+        syscalls::delegate(SEL_MEM, sess.sel(), crd, &mut args),
         Code::InvArgs
     );
     // invalid sess selector
     wv_assert_err!(
-        syscalls::delegate(VPE::cur().sel(), 0, crd, &mut args),
+        syscalls::delegate(VPE::cur().sel(), SEL_VPE, crd, &mut args),
         Code::InvArgs
     );
     // CRD can be anything (depends on server)
@@ -413,17 +415,17 @@ fn obtain() {
     let sess = m3fs.as_any().downcast_ref::<M3FS>().unwrap().sess();
     let sel = VPE::cur().alloc_sel();
     let crd = CapRngDesc::new(CapType::OBJECT, sel, 1);
-    let inval = CapRngDesc::new(CapType::OBJECT, 0, 1);
+    let inval = CapRngDesc::new(CapType::OBJECT, SEL_VPE, 1);
     let mut args = ExchangeArgs::default();
 
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::obtain(1, sess.sel(), crd, &mut args),
+        syscalls::obtain(SEL_MEM, sess.sel(), crd, &mut args),
         Code::InvArgs
     );
     // invalid sess selector
     wv_assert_err!(
-        syscalls::obtain(VPE::cur().sel(), 0, crd, &mut args),
+        syscalls::obtain(VPE::cur().sel(), SEL_VPE, crd, &mut args),
         Code::InvArgs
     );
     // invalid CRD
@@ -434,12 +436,17 @@ fn obtain() {
 }
 
 fn revoke() {
-    let crd_vpe = CapRngDesc::new(CapType::OBJECT, 0, 1);
-    let crd_mem = CapRngDesc::new(CapType::OBJECT, 1, 1);
+    let crd_pe = CapRngDesc::new(CapType::OBJECT, SEL_PE, 1);
+    let crd_vpe = CapRngDesc::new(CapType::OBJECT, SEL_VPE, 1);
+    let crd_mem = CapRngDesc::new(CapType::OBJECT, SEL_MEM, 1);
 
     // invalid VPE selector
-    wv_assert_err!(syscalls::revoke(1, crd_vpe, true), Code::InvArgs);
-    // can't revoke VPE or mem cap
+    wv_assert_err!(syscalls::revoke(SEL_MEM, crd_vpe, true), Code::InvArgs);
+    // can't revoke PE, VPE, or mem cap
+    wv_assert_err!(
+        syscalls::revoke(VPE::cur().sel(), crd_pe, true),
+        Code::InvArgs
+    );
     wv_assert_err!(
         syscalls::revoke(VPE::cur().sel(), crd_vpe, true),
         Code::InvArgs

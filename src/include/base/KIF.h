@@ -44,14 +44,15 @@ struct KIF {
      */
     static const size_t MAX_MSG_SIZE    = 440;
 
-    static const capsel_t SEL_VPE       = 0;
-    static const capsel_t SEL_MEM       = 1;
-    static const capsel_t SEL_SYSC_SG   = 2;
-    static const capsel_t SEL_SYSC_RG   = 3;
-    static const capsel_t SEL_UPC_RG    = 4;
-    static const capsel_t SEL_DEF_RG    = 5;
-    static const capsel_t SEL_PG_SG     = 6;
-    static const capsel_t SEL_PG_RG     = 7;
+    static const capsel_t SEL_PE        = 0;
+    static const capsel_t SEL_VPE       = 1;
+    static const capsel_t SEL_MEM       = 2;
+    static const capsel_t SEL_SYSC_SG   = 3;
+    static const capsel_t SEL_SYSC_RG   = 4;
+    static const capsel_t SEL_UPC_RG    = 5;
+    static const capsel_t SEL_DEF_RG    = 6;
+    static const capsel_t SEL_PG_SG     = 7;
+    static const capsel_t SEL_PG_RG     = 8;
 
     /**
      * The first selector for the endpoint capabilities
@@ -163,6 +164,7 @@ struct KIF {
             VPE_WAIT,
             DERIVE_MEM,
             DERIVE_KMEM,
+            DERIVE_PE,
             KMEM_QUOTA,
             SEM_CTRL,
 
@@ -229,7 +231,7 @@ struct KIF {
             xfer_t dst_crd;
             xfer_t pg_sg_sel;
             xfer_t pg_rg_sel;
-            xfer_t pe;
+            xfer_t pe_sel;
             xfer_t kmem_sel;
             xfer_t namelen;
             char name[32];
@@ -247,6 +249,7 @@ struct KIF {
         struct AllocEP : public DefaultRequest {
             xfer_t dst_sel;
             xfer_t vpe_sel;
+            xfer_t pe_sel;
         } PACKED;
 
         struct AllocEPReply : public DefaultReply {
@@ -289,6 +292,12 @@ struct KIF {
             xfer_t kmem_sel;
             xfer_t dst_sel;
             xfer_t quota;
+        } PACKED;
+
+        struct DerivePE : public DefaultRequest {
+            xfer_t pe_sel;
+            xfer_t dst_sel;
+            xfer_t eps;
         } PACKED;
 
         struct KMemQuota : public DefaultRequest {

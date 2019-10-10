@@ -15,23 +15,25 @@
  */
 
 #include <m3/com/EP.h>
-#include <m3/session/ResMng.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 
 EP::EP() noexcept
-    : EP(ObjCap::INVALID, Gate::UNBOUND, false) {
+    : EP(ObjCap::INVALID, Gate::UNBOUND, false, KEEP_CAP) {
 }
 
 EP &EP::operator=(EP &&ep) noexcept {
+    release();
     free_ep();
     sel(ep.sel());
+    flags(ep.flags());
     _id = ep._id;
     _free = ep._free;
     ep._free = false;
+    ep.flags(KEEP_CAP);
     return *this;
 }
 
@@ -40,22 +42,17 @@ EP::~EP() {
 }
 
 void EP::free_ep() {
-    if(_free) {
-        if(env()->shared) {
-            try {
-                VPE::self().resmng()->free_ep(sel());
-            }
-            catch(...) {
-                // ignore
-            }
-        }
-        else
-            VPE::self().epmng().free_ep(_id);
-    }
+    if(_free)
+        VPE::self().epmng().free_ep(_id);
 }
 
-capsel_t EP::sel_of(VPE &vpe, epid_t ep) noexcept {
-    return vpe.sel() + KIF::FIRST_EP_SEL + ep - DTU::FIRST_FREE_EP;
+capsel_t EP::sel_of(epid_t ep) noexcept {
+    return KIF::FIRST_EP_SEL + ep - DTU::FIRST_FREE_EP;
+}
+
+capsel_t EP::sel_of_vpe(VPE &vpe, epid_t ep) noexcept {
+    static_assert(KIF::SEL_PE == 0, "PE selector changed");
+    return vpe.pe().sel() + sel_of(ep);
 }
 
 EP EP::alloc() {
@@ -63,28 +60,29 @@ EP EP::alloc() {
 }
 
 EP EP::alloc_for(VPE &vpe) {
-    if(env()->shared) { // TODO actually: VPE.runs_on_pemux()
+    if(env()->shared) {
         epid_t id;
         capsel_t sel = alloc_cap(vpe, &id);
-        return EP(sel, id, true);
+        return EP(sel, id, false, 0);
     }
 
     epid_t id = vpe.epmng().alloc_ep();
-    return EP(sel_of(vpe, id), id, true);
+    return EP(sel_of_vpe(vpe, id), id, true, KEEP_CAP);
 }
 
 EP EP::bind(epid_t id) noexcept {
-    return bind_for(VPE::self(), id);
+    capsel_t sel = id == Gate::UNBOUND ? ObjCap::INVALID : sel_of(id);
+    return EP(sel, id, false, KEEP_CAP);
 }
 
 EP EP::bind_for(VPE &vpe, epid_t id) noexcept {
-    capsel_t sel = id == Gate::UNBOUND ? ObjCap::INVALID : sel_of(vpe, id);
-    return EP(sel, id, false);
+    capsel_t sel = id == Gate::UNBOUND ? ObjCap::INVALID : sel_of_vpe(vpe, id);
+    return EP(sel, id, false, KEEP_CAP);
 }
 
 capsel_t EP::alloc_cap(VPE &vpe, epid_t *id) {
     capsel_t sel = VPE::self().alloc_sel();
-    *id = VPE::self().resmng()->alloc_ep(sel, vpe.sel());
+    *id = Syscalls::alloc_ep(sel, vpe.sel(), vpe.pe().sel());
     return sel;
 }
 

@@ -18,8 +18,8 @@ use cap::{CapFlags, Capability, Selector};
 use core::fmt;
 use errors::Error;
 use kif;
+use pes::VPE;
 use syscalls;
-use vpe;
 
 /// Represents an established connection to a server that can be used to exchange capabilities.
 pub struct ClientSession {
@@ -30,13 +30,13 @@ pub struct ClientSession {
 impl ClientSession {
     /// Creates a new `ClientSession` by connecting to the service with given name.
     pub fn new(name: &str) -> Result<Self, Error> {
-        Self::new_with_sel(name, vpe::VPE::cur().alloc_sel())
+        Self::new_with_sel(name, VPE::cur().alloc_sel())
     }
 
     /// Creates a new `ClientSession` by connecting to the service with given name, using the given
     /// capability selector for the session.
     pub fn new_with_sel(name: &str, sel: Selector) -> Result<Self, Error> {
-        vpe::VPE::cur().resmng().open_sess(sel, name)?;
+        VPE::cur().resmng().open_sess(sel, name)?;
 
         Ok(ClientSession {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
@@ -75,7 +75,7 @@ impl ClientSession {
         crd: kif::CapRngDesc,
         args: &mut kif::syscalls::ExchangeArgs,
     ) -> Result<(), Error> {
-        self.delegate_for(vpe::VPE::cur().sel(), crd, args)
+        self.delegate_for(VPE::cur().sel(), crd, args)
     }
 
     /// Delegates the given capability range from `vpe` with given arguments to the server.
@@ -106,9 +106,9 @@ impl ClientSession {
         count: u32,
         args: &mut kif::syscalls::ExchangeArgs,
     ) -> Result<kif::CapRngDesc, Error> {
-        let caps = vpe::VPE::cur().alloc_sels(count);
+        let caps = VPE::cur().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
-        self.obtain_for(vpe::VPE::cur().sel(), crd, args)?;
+        self.obtain_for(VPE::cur().sel(), crd, args)?;
         Ok(crd)
     }
 
@@ -126,7 +126,7 @@ impl ClientSession {
 impl Drop for ClientSession {
     fn drop(&mut self) {
         if self.close {
-            vpe::VPE::cur().resmng().close_sess(self.sel()).ok();
+            VPE::cur().resmng().close_sess(self.sel()).ok();
         }
     }
 }

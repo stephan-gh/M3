@@ -91,13 +91,6 @@ impl VPE {
         }
     }
 
-    pub fn alloc_ep(&mut self) -> Result<EpId, Error> {
-        let ep = eps::get().find_free(false)?;
-        log!(PEX_EPS, "VPE{}: reserving EP {}", self.id, ep);
-        eps::get().mark_reserved(ep, self.id);
-        Ok(ep)
-    }
-
     fn add_gate(&mut self, gate: CapSel, ep: EpId) {
         log!(PEX_VPES, "VPE{}: added {}->{:?}", self.id, gate, ep);
         eps::get().mark_used(self.id, ep, gate);

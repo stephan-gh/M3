@@ -52,7 +52,8 @@ NOINLINE static void create_rgate() {
             Syscalls::create_rgate(selector, 10, 10);
         }
         void post() override {
-            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(VPE::self().sel(),
+                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
     };
 
@@ -69,7 +70,8 @@ NOINLINE static void create_sgate() {
             Syscalls::create_sgate(selector, rgate.sel(), 0x1234, 1024);
         }
         void post() override {
-            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(VPE::self().sel(),
+                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         RecvGate rgate;
@@ -81,7 +83,7 @@ NOINLINE static void create_sgate() {
 }
 
 NOINLINE static void create_map() {
-    if(!VPE::self().pe().has_virtmem()) {
+    if(!VPE::self().pe_desc().has_virtmem()) {
         cout << "PE has no virtual memory support; skipping\n";
         return;
     }
@@ -96,7 +98,8 @@ NOINLINE static void create_map() {
             Syscalls::create_map(DEST, 0, mgate.sel(), 0, 1, MemGate::RW);
         }
         void post() override {
-            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 1), true);
+            Syscalls::revoke(VPE::self().sel(),
+                KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 1), true);
         }
 
         MemGate mgate;
@@ -117,7 +120,8 @@ NOINLINE static void create_srv() {
             Syscalls::create_srv(selector, VPE::self().sel(), rgate.sel(), "test");
         }
         void post() override {
-            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(VPE::self().sel(),
+                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         RecvGate rgate;
@@ -137,7 +141,8 @@ NOINLINE static void derive_mem() {
             Syscalls::derive_mem(VPE::self().sel(), selector, mgate.sel(), 0, 0x1000, MemGate::RW);
         }
         void post() override {
-            Syscalls::revoke(0, KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+            Syscalls::revoke(VPE::self().sel(),
+                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
         MemGate mgate;
@@ -150,17 +155,20 @@ NOINLINE static void derive_mem() {
 
 NOINLINE static void exchange() {
     struct SyscallExchangeRunner : public Runner {
-        explicit SyscallExchangeRunner() : vpe("test") {
+        explicit SyscallExchangeRunner()
+            : pe(PE::alloc(VPE::self().pe_desc())),
+              vpe(pe, "test") {
         }
 
         void run() override {
             Syscalls::exchange(vpe.sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, 1, 1), selector, false);
+                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, KIF::SEL_MEM, 1), selector, false);
         }
         void post() override {
             Syscalls::revoke(vpe.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
+        PE pe;
         VPE vpe;
     };
 

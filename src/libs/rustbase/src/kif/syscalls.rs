@@ -46,17 +46,18 @@ int_enum! {
         const VPE_WAIT          = 10;
         const DERIVE_MEM        = 11;
         const DERIVE_KMEM       = 12;
-        const KMEM_QUOTA        = 13;
-        const SEM_CTRL          = 14;
+        const DERIVE_PE         = 13;
+        const KMEM_QUOTA        = 14;
+        const SEM_CTRL          = 15;
 
         // capability exchange
-        const DELEGATE          = 15;
-        const OBTAIN            = 16;
-        const EXCHANGE          = 17;
-        const REVOKE            = 18;
+        const DELEGATE          = 16;
+        const OBTAIN            = 17;
+        const EXCHANGE          = 18;
+        const REVOKE            = 19;
 
         // misc
-        const NOOP              = 19;
+        const NOOP              = 20;
     }
 }
 
@@ -163,17 +164,10 @@ pub struct CreateVPE {
     pub dst_crd: u64,
     pub pg_sg_sel: u64,
     pub pg_rg_sel: u64,
-    pub pe: u64,
+    pub pe_sel: u64,
     pub kmem_sel: u64,
     pub namelen: u64,
     pub name: [u8; MAX_STR_SIZE],
-}
-
-/// The create VPE reply message
-#[repr(C, packed)]
-pub struct CreateVPEReply {
-    pub error: u64,
-    pub pe: u64,
 }
 
 /// The create semaphore request message
@@ -190,6 +184,7 @@ pub struct AllocEP {
     pub opcode: u64,
     pub dst_sel: u64,
     pub vpe_sel: u64,
+    pub pe_sel: u64,
 }
 
 /// The alloc EP reply message
@@ -262,6 +257,15 @@ pub struct DeriveKMem {
     pub kmem_sel: u64,
     pub dst_sel: u64,
     pub quota: u64,
+}
+
+/// The derive PE request message
+#[repr(C, packed)]
+pub struct DerivePE {
+    pub opcode: u64,
+    pub pe_sel: u64,
+    pub dst_sel: u64,
+    pub eps: u64,
 }
 
 /// The kernel memory quota request message

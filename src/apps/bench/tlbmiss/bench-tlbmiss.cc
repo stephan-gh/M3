@@ -19,7 +19,7 @@
 
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -27,7 +27,7 @@ static const size_t COUNT       = 9;
 static const size_t PAGES       = 16;
 
 int main() {
-    if(!VPE::self().pe().has_virtmem())
+    if(!VPE::self().pe_desc().has_virtmem())
         exitmsg("PE has no virtual memory support");
 
     const uintptr_t virt = 0x30000000;

@@ -24,7 +24,7 @@
 #include <m3/vfs/MountTable.h>
 #include <m3/vfs/GenericFile.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <stdlib.h>
 #include <memory>
@@ -56,8 +56,9 @@ void VPE::reset() noexcept {
     _self_ptr->_ms.release();
 
     _self_ptr = reinterpret_cast<VPE*>(env()->mounts);
-    _self_ptr->sel(0);
-    _self_ptr->_mem.sel(1);
+    _self_ptr->_pe.sel(KIF::SEL_PE);
+    _self_ptr->sel(KIF::SEL_VPE);
+    _self_ptr->_mem.sel(KIF::SEL_MEM);
     _self_ptr->epmng().reset(_self_ptr->epmng().reserved());
 }
 

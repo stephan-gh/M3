@@ -21,7 +21,7 @@
 #include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
 #include <m3/Exception.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 
@@ -44,8 +44,8 @@ public:
         ALLOC_MEM,
         FREE_MEM,
 
-        ALLOC_EP,
-        FREE_EP,
+        ALLOC_PE,
+        FREE_PE,
 
         USE_SEM,
     };
@@ -71,8 +71,8 @@ public:
                 "REM_CHILD",
                 "ALLOC_MEM",
                 "FREE_MEM",
-                "ALLOC_EP",
-                "FREE_EP",
+                "ALLOC_PE",
+                "FREE_PE",
                 "USE_SEM",
             };
 
@@ -140,17 +140,17 @@ public:
         retrieve_result(FREE_MEM, reply);
     }
 
-    epid_t alloc_ep(capsel_t sel, capsel_t vpe) {
-        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_EP, sel, vpe);
-        retrieve_result(ALLOC_EP, reply);
-        epid_t id;
-        reply >> id;
-        return id;
+    PEDesc alloc_pe(capsel_t sel, const PEDesc &desc) {
+        GateIStream reply = send_receive_vmsg(_sgate, ALLOC_PE, sel, desc.value());
+        retrieve_result(ALLOC_PE, reply);
+        PEDesc::value_t res;
+        reply >> res;
+        return PEDesc(res);
     }
 
-    void free_ep(capsel_t sel) {
-        GateIStream reply = send_receive_vmsg(_sgate, FREE_EP, sel);
-        retrieve_result(FREE_EP, reply);
+    void free_pe(capsel_t sel) {
+        GateIStream reply = send_receive_vmsg(_sgate, FREE_PE, sel);
+        retrieve_result(FREE_PE, reply);
     }
 
     void use_sem(capsel_t sel, const char *name) {

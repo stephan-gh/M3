@@ -31,12 +31,12 @@ use m3::env;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
+use m3::pes::{DefaultMapper, PE, VPEArgs, VPE};
 use m3::session::{ResMng, ResMngOperation};
 use m3::vfs::{OpenFlags, VFS};
-use m3::vpe::{DefaultMapper, VPEArgs, VPE};
 
 use resmng::childs::{Child, Id};
-use resmng::{childs, config, sendqueue, services};
+use resmng::{childs, config, pes, sendqueue, services};
 
 const MAX_CAPS: Selector = 1_000_000;
 const MAX_CHILDS: Selector = 20;
@@ -169,7 +169,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 
     log!(
         RESMNG_MEM,
-        "{}: allocate(dst_sel={}, addr={:#x}, size={:#x}, perm={:?})",
+        "{}: alloc_mem(dst_sel={}, addr={:#x}, size={:#x}, perm={:?})",
         child.name(),
         dst_sel,
         addr,
@@ -188,32 +188,42 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
 
-    log!(RESMNG_MEM, "{}: free(sel={})", child.name(), sel);
+    log!(RESMNG_MEM, "{}: free_mem(sel={})", child.name(), sel);
 
     let our_sel = xlate_sel(child.id(), sel)?;
     VPE::cur().resmng().free_mem(our_sel)
 }
 
-fn alloc_ep(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop();
-    let vpe_sel: Selector = is.pop();
+    let desc = kif::PEDesc::new_from(is.pop());
 
-    let res = child.alloc_ep(dst_sel, vpe_sel);
+    log!(RESMNG_PES, "{}: alloc_pe(dst_sel={}, desc={:?})", child.name(), dst_sel, desc);
+
+    let our_sel = xlate_sel(child.id(), dst_sel)?;
+    let res = VPE::cur().resmng().alloc_pe(our_sel, &desc);
     match res {
         Err(e) => {
             log!(RESMNG, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
-        Ok(ep) => reply_vmsg!(is, 0 as u64, ep),
+        Ok(desc) => {
+            // delegate PE to our child
+            child.delegate(our_sel, dst_sel)?;
+            reply_vmsg!(is, 0 as u64, desc.value())
+        },
     }
     .expect("Unable to reply");
     Ok(())
 }
 
-fn free_ep(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
 
-    child.free_ep(sel)
+    log!(RESMNG_PES, "{}: free_pe(sel={})", child.name(), sel);
+
+    let our_sel = xlate_sel(child.id(), sel)?;
+    VPE::cur().resmng().free_pe(our_sel)
 }
 
 fn handle_request(mut is: GateIStream) {
@@ -235,13 +245,13 @@ fn handle_request(mut is: GateIStream) {
         ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
         ResMngOperation::FREE_MEM => free_mem(&mut is, child),
 
-        ResMngOperation::ALLOC_EP => {
-            match alloc_ep(&mut is, child) {
+        ResMngOperation::ALLOC_PE => {
+            match alloc_pe(&mut is, child) {
                 Ok(_) => return,
                 Err(e) => Err(e),
             }
         },
-        ResMngOperation::FREE_EP => free_ep(&mut is, child),
+        ResMngOperation::FREE_PE => free_pe(&mut is, child),
 
         _ => unreachable!(),
     };
@@ -309,7 +319,11 @@ pub fn main() -> i32 {
         .collect::<Vec<String>>();
     let name = args[0].clone();
 
+    pes::get().add(0, PE::new(&VPE::cur().pe_desc()).expect("Unable to allocate PE"));
+
+    let peid = pes::get().alloc(&VPE::cur().pe_desc()).unwrap();
     let mut vpe = VPE::new_with(
+        pes::get().get(peid),
         VPEArgs::new(&name)
             .resmng(ResMng::new(sgate))
             .pager("pager"),
@@ -317,7 +331,7 @@ pub fn main() -> i32 {
     .expect("Unable to create VPE");
 
     let (_, _, cfg) = config::Config::new(&args[0], false).expect("Unable to parse config");
-    let mut child = childs::OwnChild::new(0, args, false, VPE::cur().kmem().clone(), cfg);
+    let mut child = childs::OwnChild::new(0, peid, args, false, VPE::cur().kmem().clone(), cfg);
     childs::get().set_next_id(1);
 
     vpe.mounts()
@@ -326,7 +340,7 @@ pub fn main() -> i32 {
     vpe.obtain_mounts().unwrap();
 
     let file = VFS::open(&name, OpenFlags::RX).expect("Unable to open executable");
-    let mut mapper = DefaultMapper::new(vpe.pe().has_virtmem());
+    let mut mapper = DefaultMapper::new(vpe.pe_desc().has_virtmem());
 
     let id = CHILD_CAPS
         .get_mut()

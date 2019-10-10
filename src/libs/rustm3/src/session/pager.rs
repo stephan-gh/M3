@@ -20,8 +20,8 @@ use core::fmt;
 use errors::Error;
 use goff;
 use kif;
+use pes::VPE;
 use session::ClientSession;
-use vpe::VPE;
 
 /// Represents a session at the pager.
 ///
@@ -83,7 +83,7 @@ impl Pager {
     fn create(vpe: &mut VPE, sess: ClientSession, close: bool) -> Result<Self, Error> {
         let parent_sgate = SendGate::new_bind(sess.obtain_obj()?);
         let child_sgate = SendGate::new_bind(sess.obtain_obj()?);
-        let rgate = if vpe.pe().has_mmu() {
+        let rgate = if vpe.pe_desc().has_mmu() {
             Some(RecvGate::new_with(
                 RGateArgs::default().order(6).msg_order(6),
             )?)
@@ -123,6 +123,7 @@ impl Pager {
 
     /// Delegates the required capabilities from `vpe` to the server.
     pub fn delegate_caps(&mut self, vpe: &VPE) -> Result<(), Error> {
+        const_assert!(kif::SEL_VPE + 1 == kif::SEL_MEM);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 2);
         self.sess.delegate_crd(crd)
     }

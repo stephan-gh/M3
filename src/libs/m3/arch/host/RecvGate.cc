@@ -18,7 +18,7 @@
 
 #include <m3/com/RecvGate.h>
 #include <m3/Exception.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

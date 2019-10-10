@@ -18,10 +18,10 @@ use m3::cell::StaticCell;
 use m3::cfg;
 use m3::com::{EP, MemGate, Perm, RecvGate};
 use m3::kif;
+use m3::pes::{PE, VPEArgs, VPE};
 use m3::profile;
 use m3::syscalls;
 use m3::test;
-use m3::vpe::{VPEArgs, VPE};
 
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
 
@@ -134,7 +134,7 @@ fn create_sgate() {
 }
 
 fn create_map() {
-    if !VPE::cur().pe().has_virtmem() {
+    if !VPE::cur().pe_desc().has_virtmem() {
         println!("PE has no virtual memory support; skipping");
         return;
     }
@@ -244,19 +244,21 @@ fn derive_mem() {
 fn exchange() {
     let mut prof = profile::Profiler::default().repeats(100).warmup(10);
 
-    #[derive(Default)]
-    struct Tester(Option<VPE>);
+    struct Tester {
+        pe: PE,
+        vpe: Option<VPE>,
+    }
 
     impl profile::Runner for Tester {
         fn pre(&mut self) {
-            if self.0.is_none() {
-                self.0 = Some(wv_assert_ok!(VPE::new_with(VPEArgs::new("test"))));
+            if self.vpe.is_none() {
+                self.vpe = Some(wv_assert_ok!(VPE::new_with(&self.pe, VPEArgs::new("test"))));
             }
         }
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::exchange(
-                self.0.as_ref().unwrap().sel(),
+                self.vpe.as_ref().unwrap().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, 1, 1),
                 *SEL,
                 false,
@@ -265,7 +267,7 @@ fn exchange() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                self.0.as_ref().unwrap().sel(),
+                self.vpe.as_ref().unwrap().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
                 true
             ));
@@ -274,7 +276,10 @@ fn exchange() {
 
     wv_perf!(
         "exchange",
-        prof.runner_with_id(&mut Tester::default(), 0x18)
+        prof.runner_with_id(&mut Tester {
+            pe: wv_assert_ok!(PE::new(&VPE::cur().pe_desc())),
+            vpe: None
+        }, 0x18)
     );
 }
 

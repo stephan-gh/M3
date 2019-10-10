@@ -21,7 +21,7 @@
 #include <m3/server/Handler.h>
 #include <m3/session/ServerSession.h>
 #include <m3/com/GateStream.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <memory>
 

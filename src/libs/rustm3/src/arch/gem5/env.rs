@@ -26,7 +26,7 @@ use rc::Rc;
 use session::{Pager, ResMng};
 use util;
 use vfs::{FileTable, MountTable};
-use vpe;
+use pes::{KMem, VPE};
 
 #[derive(Default, Copy, Clone)]
 #[repr(C, packed)]
@@ -41,6 +41,10 @@ impl EnvData {
 
     pub fn shared(&self) -> bool {
         self.base.shared != 0
+    }
+
+    pub fn set_shared(&mut self, shared: bool) {
+        self.base.shared = shared as u32;
     }
 
     pub fn pe_desc(&self) -> PEDesc {
@@ -87,7 +91,7 @@ impl EnvData {
         self.base.vpe != 0
     }
 
-    pub fn vpe(&self) -> &'static mut vpe::VPE {
+    pub fn vpe(&self) -> &'static mut VPE {
         unsafe { intrinsics::transmute(self.base.vpe as usize) }
     }
 
@@ -115,8 +119,8 @@ impl EnvData {
         arch::rbufs::RBufSpace::new_with(self.base.rbuf_cur as usize, self.base.rbuf_end as usize)
     }
 
-    pub fn load_kmem(&self) -> Rc<vpe::KMem> {
-        Rc::new(vpe::KMem::new(self.base.kmem_sel as Selector))
+    pub fn load_kmem(&self) -> Rc<KMem> {
+        Rc::new(KMem::new(self.base.kmem_sel as Selector))
     }
 
     pub fn load_mounts(&self) -> MountTable {
@@ -147,8 +151,8 @@ impl EnvData {
 
     // --- gem5 specific API ---
 
-    pub fn set_vpe(&mut self, vpe: &vpe::VPE) {
-        self.base.vpe = vpe as *const vpe::VPE as u64;
+    pub fn set_vpe(&mut self, vpe: &VPE) {
+        self.base.vpe = vpe as *const VPE as u64;
     }
 
     pub fn has_lambda(&self) -> bool {

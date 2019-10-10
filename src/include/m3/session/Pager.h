@@ -29,7 +29,7 @@ class Pager : public ClientSession {
 private:
     explicit Pager(VPE &vpe, capsel_t sess)
         : ClientSession(sess),
-          _rgate(vpe.pe().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
+          _rgate(vpe.pe_desc().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
                                     : RecvGate::bind(ObjCap::INVALID, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(obtain(1).start())),
@@ -73,7 +73,7 @@ public:
     }
     explicit Pager(VPE &vpe, const String &service)
         : ClientSession(service),
-          _rgate(vpe.pe().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
+          _rgate(vpe.pe_desc().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
                                     : RecvGate::bind(ObjCap::INVALID, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(obtain(1).start())),

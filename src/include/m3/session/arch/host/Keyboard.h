@@ -20,7 +20,7 @@
 
 #include <m3/session/ClientSession.h>
 #include <m3/com/GateStream.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

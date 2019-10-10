@@ -25,7 +25,7 @@
 #include <m3/session/ResMng.h>
 #include <m3/stream/Standard.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 
@@ -49,8 +49,8 @@ public:
         : ObjCap(SERVICE, caps + 0, KEEP_CAP),
           _handler(std::move(handler)),
           _ctrl_handler(),
-          // use INVALID to use the reserved EP
-          _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<512>::val)) {
+          // use free selector as an identifier in PEMux
+          _rgate(RecvGate::bind(VPE::self().alloc_sel(), nextlog2<512>::val)) {
         _rgate.put_ep(EP::bind(ep));
         init(wl);
     }

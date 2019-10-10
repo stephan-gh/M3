@@ -21,9 +21,9 @@ use goff;
 use io::{Read, Write};
 use kif;
 use session::Pager;
+use pes::VPE;
 use vfs::filetable::Fd;
 use vfs::{FileHandle, Map, Seek, SeekMode};
-use vpe::VPE;
 
 /// A reference to an open file that is closed on drop.
 #[derive(Clone)]

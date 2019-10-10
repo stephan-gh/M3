@@ -51,8 +51,8 @@ pub const RESMNG_SERV: bool = false;
 pub const RESMNG_MEM: bool = false;
 /// Logs sendqueue operations
 pub const RESMNG_SQUEUE: bool = false;
-/// Logs ep operations
-pub const RESMNG_EPS: bool = false;
+/// Logs PE operations
+pub const RESMNG_PES: bool = false;
 
 /// Logs pexcalls in PEMux
 pub const PEX_CALLS: bool = false;

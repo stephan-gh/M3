@@ -20,7 +20,7 @@
 #include <base/Heap.h>
 
 #include <m3/session/Pager.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

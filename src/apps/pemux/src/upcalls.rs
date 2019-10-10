@@ -41,8 +41,9 @@ fn alloc_ep(msg: &'static dtu::Message) -> Result<(), Error> {
 
     log!(PEX_UPCALLS, "alloc_ep(vpe={})", vpe);
 
-    let vpe = vpe::get_vpe(vpe).ok_or(Error::new(Code::InvArgs))?;
-    let ep = vpe.alloc_ep()?;
+    let ep = eps::get().find_free(false)?;
+    log!(PEX_EPS, "VPE{}: reserving EP {}", vpe, ep);
+    eps::get().mark_reserved(ep, vpe);
 
     let reply = kif::pemux::AllocEPReply {
         error: 0,

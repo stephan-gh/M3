@@ -39,11 +39,14 @@ public:
 
     explicit PEMux(peid_t pe);
 
-    peid_t pe() const {
-        return _pe;
+    PEObject *pe() {
+        return &_pe;
+    }
+    peid_t peid() const {
+        return _pe.id;
     }
     VPEDesc desc() const {
-        return VPEDesc(_pe, VPE::INVALID_ID);
+        return VPEDesc(peid(), VPE::INVALID_ID);
     }
 
     bool used() const {
@@ -105,9 +108,9 @@ public:
     void update_ep(epid_t ep);
 
 private:
+    PEObject _pe;
     CapTable _caps;
     size_t _vpes;
-    peid_t _pe;
     size_t _headers;
     size_t _rbufs_size;
     goff_t _mem_base;

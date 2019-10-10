@@ -24,7 +24,8 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/PE.h>
+#include <m3/pes/VPE.h>
 
 #include <memory>
 
@@ -60,7 +61,7 @@ static PEDesc get_pe_type(const char *name) {
         if(strcmp(name, petypes[i].name) == 0)
             return petypes[i].pe;
     }
-    return VPE::self().pe();
+    return VPE::self().pe_desc();
 }
 
 static char **build_args(Command *cmd) {
@@ -74,7 +75,7 @@ static char **build_args(Command *cmd) {
 static PEDesc get_pedesc(const VarList &vars, const char *path) {
     FStream f(path, FILE_R | FILE_X);
     if(f.bad())
-        return VPE::self().pe();
+        return VPE::self().pe_desc();
 
     // accelerator description file?
     if(f.read() == '@' && f.read() == '=') {
@@ -92,11 +93,11 @@ static PEDesc get_pedesc(const VarList &vars, const char *path) {
             // use the current ISA for comp-PEs
             // TODO we could let the user specify the ISA
             if(pe.type() != PEType::MEM)
-                pe = PEDesc(pe.type(), VPE::self().pe().isa(), pe.mem_size());
+                pe = PEDesc(pe.type(), VPE::self().pe_desc().isa(), pe.mem_size());
             break;
         }
     }
-    return VPE::self().pe();
+    return VPE::self().pe_desc();
 }
 
 static void execute_assignment(CmdList *list) {
@@ -114,6 +115,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
     // destroy the VPEs first to prevent errors due to destroyed communication channels
     std::unique_ptr<StreamAccel> accels[MAX_CMDS] = {nullptr};
+    std::unique_ptr<PE> pes[MAX_CMDS] = {nullptr};
     std::unique_ptr<VPE> vpes[MAX_CMDS] = {nullptr};
 
     // get PE types
@@ -132,8 +134,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        auto args = VPEArgs().pedesc(descs[i]);
-        vpes[i] = std::make_unique<VPE>(expr_value(cmd->args->args[0]), args);
+        pes[i] = std::make_unique<PE>(PE::alloc(descs[i]));
+        vpes[i] = std::make_unique<VPE>(*pes[i], expr_value(cmd->args->args[0]));
         vpe_count++;
 
         // I/O redirection is only supported at the beginning and end
@@ -176,9 +178,9 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
             accels[i] = std::make_unique<StreamAccel>(vpes[i], ACOMP_TIME);
 
         if(i > 0 && pipes[i - 1]) {
-            if(vpes[i]->pe().is_programmable())
+            if(vpes[i]->pe_desc().is_programmable())
                 pipes[i - 1]->close_reader();
-            if(vpes[i - 1]->pe().is_programmable())
+            if(vpes[i - 1]->pe_desc().is_programmable())
                 pipes[i - 1]->close_writer();
         }
     }
@@ -233,7 +235,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
                         cerr << expr_value(list->cmds[i]->args->args[0])
                              << " terminated with exit code " << exitcode << "\n";
                     }
-                    if(!vpes[i]->pe().is_programmable()) {
+                    if(!vpes[i]->pe_desc().is_programmable()) {
                         if(pipes[i])
                             pipes[i]->close_writer();
                         if(i > 0 && pipes[i - 1])

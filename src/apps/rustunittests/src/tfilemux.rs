@@ -17,11 +17,11 @@
 use m3::com::MemGate;
 use m3::io::Read;
 use m3::kif;
+use m3::pes::VPE;
 use m3::session::Pipes;
 use m3::test;
 use m3::util;
 use m3::vfs::{BufReader, FileHandle, IndirectPipe, OpenFlags, VFS};
-use m3::vpe::VPE;
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, genfile_mux);

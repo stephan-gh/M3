@@ -25,9 +25,9 @@ use dtu;
 use errors::Error;
 use goff;
 use kif::{self, INVALID_SEL};
+use pes::VPE;
 use syscalls;
 use util;
-use vpe;
 
 const DEF_MSG_ORD: i32 = 6;
 
@@ -105,7 +105,7 @@ impl RGateArgs {
     }
 
     /// Sets the capability selector to use for the `RecvGate`. Otherwise and by default,
-    /// [`vpe::VPE::alloc_sel`] will be used.
+    /// [`VPE::alloc_sel`] will be used.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
@@ -147,7 +147,7 @@ impl RecvGate {
     /// Creates a new `RecvGate` with given arguments.
     pub fn new_with(args: RGateArgs) -> Result<Self, Error> {
         let sel = if args.sel == INVALID_SEL {
-            vpe::VPE::cur().alloc_sel()
+            VPE::cur().alloc_sel()
         }
         else {
             args.sel
@@ -212,7 +212,7 @@ impl RecvGate {
     /// [`SendGate`]s connected to this `RecvGate` can be activated.
     pub(crate) fn activate_ep(&mut self, ep: EP) -> Result<(), Error> {
         if self.ep().is_none() {
-            let vpe = vpe::VPE::cur();
+            let vpe = VPE::cur();
             let buf = if self.buf == 0 {
                 let size = 1 << self.order;
                 vpe.alloc_rbuf(size)?
@@ -291,7 +291,7 @@ impl RecvGate {
 }
 
 pub(crate) fn init() {
-    let rbufs = vpe::VPE::cur().rbufs();
+    let rbufs = VPE::cur().rbufs();
 
     let mut off = cfg::KPEX_RBUF_SIZE + cfg::PEXUP_RBUF_SIZE;
     RecvGate::syscall().buf = rbufs.get_std(off, cfg::SYSC_RBUF_SIZE);
@@ -309,7 +309,7 @@ pub(crate) fn init() {
 impl ops::Drop for RecvGate {
     fn drop(&mut self) {
         if !(self.free & FreeFlags::FREE_BUF).is_empty() {
-            vpe::VPE::cur().free_rbuf(self.buf, 1 << self.order);
+            VPE::cur().free_rbuf(self.buf, 1 << self.order);
         }
         self.deactivate();
     }

@@ -25,7 +25,7 @@
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -35,7 +35,8 @@ struct App {
     explicit App(size_t argc, const char **argv, const char *pager)
         : argc(argc),
           argv(argv),
-          vpe(argv[0], VPEArgs().pager(pager)),
+          pe(PE::alloc(VPE::self().pe_desc())),
+          vpe(pe, argv[0], VPEArgs().pager(pager)),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
         vpe.delegate_obj(rgate.sel());
@@ -43,6 +44,7 @@ struct App {
 
     size_t argc;
     const char **argv;
+    PE pe;
     VPE vpe;
     RecvGate rgate;
     SendGate sgate;
@@ -84,6 +86,7 @@ int main(int argc, char **argv) {
 
     App *apps[instances];
     RemoteServer *srv[1 + servers];
+    PE *srvpes[1 + servers];
     VPE *srvvpes[1 + servers];
     char srvnames[1 + servers][16];
 
@@ -91,7 +94,8 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Creating pager...\n";
 
     {
-        srvvpes[0] = new VPE("pager");
+        srvpes[0] = new PE(PE::alloc(VPE::self().pe_desc()));
+        srvvpes[0] = new VPE(*srvpes[0], "pager");
         srv[0] = new RemoteServer(*srvvpes[0], "mypager");
         OStringStream pager_name(srvnames[0], sizeof(srvnames[0]));
         pager_name << "pager";
@@ -118,7 +122,8 @@ int main(int argc, char **argv) {
     if(VERBOSE) cout << "Creating servers...\n";
 
     for(size_t i = 0; i < servers; ++i) {
-        srvvpes[i + 1] = new VPE("m3fs");
+        srvpes[i + 1] = new PE(PE::alloc(VPE::self().pe_desc()));
+        srvvpes[i + 1] = new VPE(*srvpes[i + 1], "m3fs");
         OStringStream m3fs_name(srvnames[i + 1], sizeof(srvnames[i + 1]));
         m3fs_name << "m3fs" << i;
         srv[i + 1] = new RemoteServer(*srvvpes[i + 1], m3fs_name.str());

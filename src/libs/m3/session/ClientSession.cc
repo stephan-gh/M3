@@ -17,7 +17,7 @@
 #include <m3/session/ClientSession.h>
 #include <m3/session/ResMng.h>
 #include <m3/Syscalls.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
 

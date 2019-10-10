@@ -28,6 +28,8 @@
 #include <m3/com/EPMng.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/SendGate.h>
+#include <m3/pes/KMem.h>
+#include <m3/pes/PE.h>
 #include <m3/ObjCap.h>
 
 #include <functional>
@@ -46,36 +48,12 @@ class EnvUserBackend;
 class RecvGate;
 class ClientSession;
 
-class KMem : public ObjCap, public RefCounted {
-    friend class VPE;
-
-    explicit KMem(capsel_t sel, uint flags) noexcept
-        : ObjCap(KMEM, sel, flags) {
-    }
-
-    void set_flags(uint fl) noexcept {
-        flags(fl);
-    }
-
-public:
-    explicit KMem(capsel_t sel) noexcept : KMem(sel, KEEP_CAP) {
-    }
-
-    size_t quota() const;
-
-    Reference<KMem> derive(const KMem &base, size_t quota);
-};
-
 class VPEArgs {
     friend class VPE;
 
 public:
     explicit VPEArgs() noexcept;
 
-    VPEArgs &pedesc(const PEDesc &desc) noexcept {
-        _pedesc = desc;
-        return *this;
-    }
     VPEArgs &pager(const char *pager) noexcept {
         _pager = pager;
         return *this;
@@ -90,7 +68,6 @@ public:
     }
 
 private:
-    PEDesc _pedesc;
     const char *_pager;
     ResMng *_rmng;
     Reference<KMem> _kmem;
@@ -123,14 +100,21 @@ public:
         return *_self_ptr;
     }
 
-    explicit VPE(const String &name, const VPEArgs &args = VPEArgs());
+    explicit VPE(const class PE &pe, const String &name, const VPEArgs &args = VPEArgs());
     virtual ~VPE();
+
+    /**
+     * @return the PE this VPE has been assigned to
+     */
+    const class PE &pe() const noexcept {
+        return _pe;
+    }
 
     /**
      * @return the PE description this VPE has been assigned to
      */
-    const PEDesc &pe() const noexcept {
-        return _pe;
+    const PEDesc &pe_desc() const noexcept {
+        return _pe.desc();
     }
 
     /**
@@ -339,7 +323,7 @@ private:
     static bool skip_section(ElfPh *ph);
     void copy_sections();
 
-    PEDesc _pe;
+    class PE _pe;
     MemGate _mem;
     capsel_t _next_sel;
     uint64_t _rbufcur;

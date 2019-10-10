@@ -21,11 +21,11 @@ use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::pes::{Activity, PE, VPEArgs, VPE};
 use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
 use m3::test;
-use m3::vpe::{Activity, VPEArgs, VPE};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, testnoresp);
@@ -78,10 +78,12 @@ fn server_main() -> i32 {
 }
 
 pub fn testnoresp() {
-    let client = wv_assert_ok!(VPE::new_with(VPEArgs::new("client")));
+    let client_pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let client = wv_assert_ok!(VPE::new_with(&client_pe, VPEArgs::new("client")));
 
+    let server_pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
     let cact = {
-        let serv = wv_assert_ok!(VPE::new_with(VPEArgs::new("server")));
+        let serv = wv_assert_ok!(VPE::new_with(&server_pe, VPEArgs::new("server")));
 
         let sact = wv_assert_ok!(serv.run(Box::new(&server_main)));
 
@@ -106,8 +108,11 @@ pub fn testnoresp() {
 }
 
 pub fn testcliexit() {
-    let mut client = wv_assert_ok!(VPE::new_with(VPEArgs::new("client")));
-    let serv = wv_assert_ok!(VPE::new_with(VPEArgs::new("server")));
+    let client_pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let mut client = wv_assert_ok!(VPE::new_with(&client_pe, VPEArgs::new("client")));
+
+    let server_pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let serv = wv_assert_ok!(VPE::new_with(&server_pe, VPEArgs::new("server")));
 
     let sact = wv_assert_ok!(serv.run(Box::new(&server_main)));
 

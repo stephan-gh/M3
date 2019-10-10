@@ -260,7 +260,7 @@ static void reallocate() {
 static void allocate_all_and_free_it_again() {
     check_heap_before();
 
-    if(VPE::self().pe().has_cache()) {
+    if(VPE::self().pe_desc().has_cache()) {
         cout << "Skipping alloc-all test case on cache PE.\n";
         return;
     }

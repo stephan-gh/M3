@@ -23,7 +23,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/vfs/File.h>
 #include <m3/vfs/VFS.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -36,10 +36,11 @@ int main(int argc, char **argv) {
     OStringStream os;
     os << "/bin/bench-vpe-clone-" << argv[1];
 
+    PE pe = PE::alloc(VPE::self().pe_desc());
     for(int i = 0; i < REPEATS; ++i) {
         Time::start(1);
 
-        VPE vpe("hello");
+        VPE vpe(pe, "hello");
         const char *args[] = {os.str(), "dummy"};
         vpe.exec(ARRAY_SIZE(args), args);
 

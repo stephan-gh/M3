@@ -20,7 +20,7 @@
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
 #include <m3/session/Pager.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 #include <memory>
 
@@ -52,27 +52,30 @@ public:
     } PACKED;
 
     explicit AladdinAccel(PEISA isa, const char *name, const char *pager)
-        : _accel(new VPE(name, VPEArgs().pedesc(PEDesc(PEType::COMP_EMEM, isa))
-                                        .pager(pager))),
+        : _pe(PE::alloc(PEDesc(PEType::COMP_EMEM, isa))),
+          _accel(_pe, name, VPEArgs().pager(pager)),
           _lastmem(ObjCap::INVALID),
           _rgate(RecvGate::create(nextlog2<256>::val, nextlog2<256>::val)),
-          _srgate(RecvGate::create_for(*_accel, getnextlog2(RB_SIZE), getnextlog2(RB_SIZE))),
+          _srgate(RecvGate::create_for(_accel, getnextlog2(RB_SIZE), getnextlog2(RB_SIZE))),
           _sgate(SendGate::create(&_srgate, SendGateArgs().credits(RB_SIZE).reply_gate(&_rgate))) {
         // has to be activated
         _rgate.activate();
 
-        if(_accel->pager()) {
+        if(_accel.pager()) {
             goff_t virt = STATE_ADDR;
-            _accel->pager()->map_anon(&virt, STATE_SIZE + BUF_SIZE, Pager::Prot::RW, 0);
+            _accel.pager()->map_anon(&virt, STATE_SIZE + BUF_SIZE, Pager::Prot::RW, 0);
         }
 
-        _accel->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _srgate.sel(), 1), RBUF_SEL);
-        _srgate.activate(EP::bind_for(*_accel, RECV_EP), RBUF_ADDR);
-        _accel->start();
+        _accel.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _srgate.sel(), 1), RBUF_SEL);
+        _srgate.activate(EP::bind_for(_accel, RECV_EP), RBUF_ADDR);
+        _accel.start();
     }
 
+    VPE &vpe() noexcept {
+        return _accel;
+    }
     PEISA isa() const noexcept {
-        return _accel->pe().isa();
+        return _accel.pe_desc().isa();
     }
 
     void start(const InvokeMessage &msg) {
@@ -89,7 +92,9 @@ public:
         return wait();
     }
 
-    std::unique_ptr<VPE> _accel;
+private:
+    PE _pe;
+    VPE _accel;
     capsel_t _lastmem;
     m3::RecvGate _rgate;
     m3::RecvGate _srgate;

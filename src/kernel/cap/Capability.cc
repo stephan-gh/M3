@@ -63,10 +63,21 @@ void KMemObject::free(VPE &vpe, size_t size) {
       << " freed " << size << "b (" << left << "/" << quota << " left)");
 }
 
+void PEObject::alloc(uint eps) {
+    KLOG(PES, "PE[" << id << "]: allocating " << eps << " EPs (" << this->eps << " total)");
+    assert(this->eps >= eps);
+    this->eps -= eps;
+}
+
+void PEObject::free(uint eps) {
+    this->eps += eps;
+    KLOG(PES, "PE[" << id << "]: freed " << eps << " EPs (" << this->eps << " total)");
+}
+
 GateObject::~GateObject() {
     for(auto user = epuser.begin(); user != epuser.end(); ) {
         auto old = user++;
-        PEMux *pemux = PEManager::get().pemux(old->ep->pe);
+        PEMux *pemux = PEManager::get().pemux(old->ep->pe->id);
         // always force-invalidate send gates here
         pemux->invalidate_ep(old->ep->ep, type == Capability::SGATE);
         // invalidate reply caps at receiver
@@ -75,7 +86,7 @@ GateObject::~GateObject() {
             PEMux *receiver = PEManager::get().pemux(sgate->rgate->pe);
             KLOG(EPS, "PE" << pemux->pe() << ":EP" << old->ep->ep << ": invalidating reply caps at "
                    << "PE" << receiver->pe() << ":EP" << sgate->rgate->ep);
-            DTU::get().inv_reply_remote(receiver->desc(), sgate->rgate->ep, pemux->pe(), old->ep->ep);
+            DTU::get().inv_reply_remote(receiver->desc(), sgate->rgate->ep, pemux->peid(), old->ep->ep);
         }
         old->ep->gate = nullptr;
         delete &*old;
@@ -130,9 +141,19 @@ void KMemCapability::revoke() {
     }
 }
 
+void PECapability::revoke() {
+    // grant the EPs back to our parent, if there is any
+    if(is_root() && parent())
+        static_cast<PECapability*>(parent())->obj->free(obj->eps);
+}
+
 void SharedEPCapability::revoke() {
-    auto pemux = PEManager::get().pemux(obj->pe);
+    // free PE at PEMux
+    auto pemux = PEManager::get().pemux(obj->pe->id);
     pemux->free_ep(obj->ep);
+
+    // grant it back to PE cap
+    obj->pe->free(1);
 }
 
 MapCapability::MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj)
@@ -237,9 +258,15 @@ void SessCapability::printInfo(m3::OStream &os) const {
         << ", ident=#" << m3::fmt(obj->ident, "x") << "]";
 }
 
+void PECapability::printInfo(m3::OStream &os) const {
+    os << ": pe  [refs=" << obj->refcount()
+        << ", pe=" << obj->id
+        << ", eps=" << obj->eps << "]";
+}
+
 void EPCapability::printInfo(m3::OStream &os) const {
     os << ": ep  [refs=" << obj->refcount()
-        << ", pe=" << obj->pe
+        << ", pe=" << obj->pe->id
         << ", ep=" << obj->ep << "]";
 }
 

@@ -22,7 +22,7 @@
 #include <m3/stream/Standard.h>
 #include <m3/vfs/File.h>
 #include <m3/vfs/VFS.h>
-#include <m3/VPE.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -45,10 +45,11 @@ int main(int argc, char **) {
 
     cycles_t exec_time = 0;
 
+    PE pe = PE::alloc(VPE::self().pe_desc());
     for(int i = 0; i < REPEATS; ++i) {
         cycles_t start2 = Time::start(1);
 
-        VPE vpe("hello");
+        VPE vpe(pe, "hello");
         vpe.run([start2]() {
             cycles_t end = Time::stop(1);
             return end - start2;

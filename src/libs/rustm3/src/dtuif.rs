@@ -24,7 +24,7 @@ use dtu::{self, CmdFlags, Header, Label, Message};
 use errors::{Code, Error};
 use goff;
 use kif;
-use vpe::VPE;
+use pes::VPE;
 
 pub struct DTUIf {}
 

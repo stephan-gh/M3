@@ -27,7 +27,7 @@ use mem::heap;
 use session::Pager;
 use util;
 use vfs::{BufReader, FileRef, Seek, SeekMode};
-use vpe::Mapper;
+use pes::Mapper;
 
 pub struct Loader<'l> {
     pager: Option<&'l Pager>,

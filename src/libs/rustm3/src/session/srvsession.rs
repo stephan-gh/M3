@@ -17,8 +17,8 @@
 use cap::{CapFlags, Capability, Selector};
 use core::fmt;
 use errors::Error;
+use pes::VPE;
 use syscalls;
-use vpe;
 
 /// Represents a session at the server-side.
 pub struct ServerSession {
@@ -28,7 +28,7 @@ pub struct ServerSession {
 impl ServerSession {
     /// Creates a new session for server `srv` using the given ident.
     pub fn new(srv: Selector, ident: u64) -> Result<Self, Error> {
-        let sel = vpe::VPE::cur().alloc_sel();
+        let sel = VPE::cur().alloc_sel();
         Self::new_with_sel(srv, sel, ident)
     }
 
