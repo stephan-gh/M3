@@ -145,8 +145,10 @@ void SyscallHandler::create_srv(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid server selector");
 
     auto rgatecap = static_cast<RGateCapability*>(vpe->objcaps().get(rgate, Capability::RGATE));
-    if(rgatecap == nullptr || !rgatecap->obj->activated())
+    if(rgatecap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "RGate capability invalid");
+    if(!rgatecap->obj->activated())
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "RGate capability not activated");
 
     auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
     if(vpecap == nullptr)
