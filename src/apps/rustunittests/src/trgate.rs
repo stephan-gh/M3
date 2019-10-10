@@ -39,7 +39,7 @@ fn destroy() {
     use m3::com::{recv_msg, SGateArgs, SendGate};
     use m3::pes::{Activity, PE, VPE};
 
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut child = wv_assert_ok!(VPE::new(&pe, "test"));
 
     let act = {

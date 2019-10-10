@@ -175,7 +175,7 @@ impl ResMng {
     }
 
     /// Allocates a new processing element of given type and assigns it to selector `sel`.
-    pub fn alloc_pe(&self, sel: Selector, desc: &kif::PEDesc) -> Result<kif::PEDesc, Error> {
+    pub fn alloc_pe(&self, sel: Selector, desc: kif::PEDesc) -> Result<kif::PEDesc, Error> {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),

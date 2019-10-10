@@ -78,10 +78,10 @@ fn server_main() -> i32 {
 }
 
 pub fn testnoresp() {
-    let client_pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let client_pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let client = wv_assert_ok!(VPE::new_with(&client_pe, VPEArgs::new("client")));
 
-    let server_pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let server_pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let cact = {
         let serv = wv_assert_ok!(VPE::new_with(&server_pe, VPEArgs::new("server")));
 
@@ -108,10 +108,10 @@ pub fn testnoresp() {
 }
 
 pub fn testcliexit() {
-    let client_pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let client_pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut client = wv_assert_ok!(VPE::new_with(&client_pe, VPEArgs::new("client")));
 
-    let server_pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let server_pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let serv = wv_assert_ok!(VPE::new_with(&server_pe, VPEArgs::new("server")));
 
     let sact = wv_assert_ok!(serv.run(Box::new(&server_main)));

@@ -261,13 +261,11 @@ impl DTUIf {
         if env::get().shared() {
             pexcalls::call1(pexif::Operation::SLEEP, cycles as usize).map(|_| ())
         }
+        else if dtu::DTU::fetch_events() == 0 {
+            dtu::DTU::sleep_for(cycles)
+        }
         else {
-            if dtu::DTU::fetch_events() == 0 {
-                dtu::DTU::sleep_for(cycles)
-            }
-            else {
-                Ok(())
-            }
+            Ok(())
         }
     }
 }

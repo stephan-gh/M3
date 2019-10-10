@@ -238,7 +238,7 @@ pub trait Child {
         self.delegate(our_sel, sel)
     }
 
-    fn alloc_pe(&mut self, sel: Selector, desc: &kif::PEDesc) -> Result<kif::PEDesc, Error> {
+    fn alloc_pe(&mut self, sel: Selector, desc: kif::PEDesc) -> Result<kif::PEDesc, Error> {
         log!(
             RESMNG_PES,
             "{}: alloc_pe(sel={}, desc={:?})",
@@ -252,7 +252,7 @@ pub trait Child {
         self.delegate(pes::get().get(pe).sel(), sel)?;
         self.res_mut().pes.push((pe, sel));
 
-        Ok(*pes::get().get(pe).desc())
+        Ok(pes::get().get(pe).desc())
     }
 
     fn free_pe(&mut self, sel: Selector) -> Result<(), Error> {

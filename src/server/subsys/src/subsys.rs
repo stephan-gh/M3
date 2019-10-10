@@ -207,7 +207,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     );
 
     let our_sel = xlate_sel(child.id(), dst_sel)?;
-    let res = VPE::cur().resmng().alloc_pe(our_sel, &desc);
+    let res = VPE::cur().resmng().alloc_pe(our_sel, desc);
     match res {
         Err(e) => {
             log!(RESMNG, "request failed: {}", e);
@@ -325,10 +325,10 @@ pub fn main() -> i32 {
 
     pes::get().add(
         0,
-        PE::new(&VPE::cur().pe_desc()).expect("Unable to allocate PE"),
+        PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE"),
     );
 
-    let peid = pes::get().alloc(&VPE::cur().pe_desc()).unwrap();
+    let peid = pes::get().alloc(VPE::cur().pe_desc()).unwrap();
     let mut vpe = VPE::new_with(
         pes::get().get(peid),
         VPEArgs::new(&name)

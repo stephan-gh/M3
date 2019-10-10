@@ -203,7 +203,7 @@ fn create_vpe() {
     let sgate = wv_assert_ok!(SendGate::new(&rgate));
     let kmem = VPE::cur().kmem().sel();
 
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
 
     // invalid dest caps
     wv_assert_err!(
@@ -365,7 +365,7 @@ fn vpe_wait() {
 }
 
 fn exchange() {
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut child = wv_assert_ok!(VPE::new(&pe, "test"));
     let csel = child.alloc_sel();
 

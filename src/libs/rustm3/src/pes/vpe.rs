@@ -101,7 +101,7 @@ impl VPE {
 
         VPE {
             cap: Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP),
-            pe: PE::new_bind(&PEDesc::new_from(0), kif::SEL_PE),
+            pe: PE::new_bind(PEDesc::new_from(0), kif::SEL_PE),
             mem: MemGate::new_bind(kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)), // invalid
             next_sel: kif::FIRST_FREE_SEL,
@@ -116,7 +116,7 @@ impl VPE {
 
     fn init(&mut self) {
         let env = arch::env::get();
-        self.pe = PE::new_bind(&env.pe_desc(), kif::SEL_PE);
+        self.pe = PE::new_bind(env.pe_desc(), kif::SEL_PE);
         self.next_sel = env.load_nextsel();
         self.rmng = env.load_rmng();
         self.rbufs = env.load_rbufs();
@@ -245,7 +245,7 @@ impl VPE {
 
     /// Returns the description of the PE the VPE has been assigned to.
     pub fn pe_desc(&self) -> PEDesc {
-        *self.pe.desc()
+        self.pe.desc()
     }
 
     /// Returns the id of the PE the VPE has been assigned to.

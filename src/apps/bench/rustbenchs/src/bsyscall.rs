@@ -278,7 +278,7 @@ fn exchange() {
         "exchange",
         prof.runner_with_id(
             &mut Tester {
-                pe: wv_assert_ok!(PE::new(&VPE::cur().pe_desc())),
+                pe: wv_assert_ok!(PE::new(VPE::cur().pe_desc())),
                 vpe: None
             },
             0x18

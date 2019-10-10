@@ -54,7 +54,7 @@ impl PEManager {
         &self.pes[id].pe
     }
 
-    pub fn alloc(&mut self, desc: &PEDesc) -> Result<usize, Error> {
+    pub fn alloc(&mut self, desc: PEDesc) -> Result<usize, Error> {
         for (id, pe) in self.pes.iter_mut().enumerate() {
             if !pe.used
                 && pe.pe.desc().isa() == desc.isa()

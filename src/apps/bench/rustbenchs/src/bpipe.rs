@@ -36,7 +36,7 @@ fn child_to_parent() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     wv_perf!(
         format!(
             "c->p: {} KiB transfer with {} KiB buf",
@@ -83,7 +83,7 @@ fn parent_to_child() {
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut prof = profile::Profiler::default().repeats(2).warmup(1);
 
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     wv_perf!(
         format!(
             "p->c: {} KiB transfer with {} KiB buf",

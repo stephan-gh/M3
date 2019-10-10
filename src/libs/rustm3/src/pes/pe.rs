@@ -26,7 +26,7 @@ pub struct PE {
 }
 
 impl PE {
-    pub fn new(desc: &PEDesc) -> Result<Self, Error> {
+    pub fn new(desc: PEDesc) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         let ndesc = VPE::cur().resmng().alloc_pe(sel, desc)?;
         Ok(PE {
@@ -35,10 +35,10 @@ impl PE {
         })
     }
 
-    pub fn new_bind(desc: &PEDesc, sel: Selector) -> Self {
+    pub fn new_bind(desc: PEDesc, sel: Selector) -> Self {
         PE {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
-            desc: desc.clone(),
+            desc,
         }
     }
 
@@ -46,8 +46,8 @@ impl PE {
         self.cap.sel()
     }
 
-    pub fn desc(&self) -> &PEDesc {
-        &self.desc
+    pub fn desc(&self) -> PEDesc {
+        self.desc
     }
 }
 

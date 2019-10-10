@@ -42,7 +42,7 @@ fn run_stop() {
     ));
     wv_assert_ok!(rg.activate());
 
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
 
     let mut wait_time = 10000;
     for _ in 1..100 {
@@ -81,7 +81,7 @@ fn run_stop() {
 }
 
 fn run_arguments() {
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.run(Box::new(|| {
@@ -95,7 +95,7 @@ fn run_arguments() {
 }
 
 fn run_send_receive() {
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
     let mut rgate = wv_assert_ok!(RecvGate::new(util::next_log2(256), util::next_log2(256)));
@@ -119,7 +119,7 @@ fn run_send_receive() {
 fn exec_fail() {
     use m3::errors::Code;
 
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     // file too small
     {
         let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
@@ -136,7 +136,7 @@ fn exec_fail() {
 }
 
 fn exec_hello() {
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.exec(&["/bin/hello"]));
@@ -144,7 +144,7 @@ fn exec_hello() {
 }
 
 fn exec_rust_hello() {
-    let pe = wv_assert_ok!(PE::new(&VPE::cur().pe_desc()));
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("test")));
 
     let act = wv_assert_ok!(vpe.exec(&["/bin/rusthello"]));

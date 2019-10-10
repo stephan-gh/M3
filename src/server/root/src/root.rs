@@ -147,7 +147,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) {
     let dst_sel: Selector = is.pop();
     let desc = kif::PEDesc::new_from(is.pop());
 
-    let res = child.alloc_pe(dst_sel, &desc);
+    let res = child.alloc_pe(dst_sel, desc);
     match res {
         Err(e) => {
             log!(RESMNG, "request failed: {}", e);
@@ -360,7 +360,7 @@ fn start_boot_mods() {
         };
 
         let pe = pes::get()
-            .alloc(&VPE::cur().pe_desc())
+            .alloc(VPE::cur().pe_desc())
             .expect("Unable to allocate PE");
         let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, cfg);
         if child.has_unmet_reqs() {
@@ -417,7 +417,7 @@ pub fn main() -> i32 {
         );
         // skip kernel and our own PE
         if i > VPE::cur().pe_id() {
-            pes::get().add(i as dtu::PEId, PE::new_bind(&pe, pe_sel + i - 1));
+            pes::get().add(i as dtu::PEId, PE::new_bind(pe, pe_sel + i - 1));
         }
         if i > 0 && pe.pe_type() != kif::PEType::MEM {
             user_pes += 1;
