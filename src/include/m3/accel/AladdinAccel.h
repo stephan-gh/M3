@@ -29,8 +29,8 @@ namespace m3 {
 class AladdinAccel {
 public:
     static const uint RBUF_SEL      = 64;
-    static const uint RECV_EP       = 8;
-    static const uint DATA_EP       = 9;
+    static const uint RECV_EP       = 9;
+    static const uint DATA_EP       = 10;
     static const size_t RB_SIZE     = 256;
 
     static const size_t BUF_SIZE    = 1024;
