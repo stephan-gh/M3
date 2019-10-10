@@ -21,9 +21,9 @@ use base::errors::{Code, Error};
 use base::kif::{self, pemux, CapSel};
 use base::util;
 
-use IRQsOnGuard;
 use eps;
 use upcalls;
+use IRQsOnGuard;
 
 pub struct VPE {
     id: u64,
@@ -87,7 +87,7 @@ impl VPE {
             Err(e) => {
                 self.remove_gate(sel, false);
                 Err(e)
-            }
+            },
         }
     }
 

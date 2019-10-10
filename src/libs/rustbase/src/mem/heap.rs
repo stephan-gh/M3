@@ -201,11 +201,7 @@ extern "C" fn heap_oom_callback(size: usize) -> bool {
 }
 
 #[no_mangle]
-extern "C" fn __rdl_alloc(
-    size: usize,
-    _align: usize,
-    _err: *mut u8,
-) -> *mut libc::c_void {
+extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
     alloc(size)
 }
 
@@ -227,11 +223,7 @@ extern "C" fn __rdl_realloc(
 }
 
 #[no_mangle]
-extern "C" fn __rdl_alloc_zeroed(
-    size: usize,
-    _align: usize,
-    _err: *mut u8,
-) -> *mut libc::c_void {
+extern "C" fn __rdl_alloc_zeroed(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
     unsafe { heap_calloc(size, 1) }
 }
 

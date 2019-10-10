@@ -67,7 +67,7 @@ pub struct IRQsOnGuard {
 impl IRQsOnGuard {
     pub fn new() -> Self {
         IRQsOnGuard {
-            prev: isr::enable_ints()
+            prev: isr::enable_ints(),
         }
     }
 }

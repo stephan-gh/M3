@@ -84,10 +84,10 @@ pub use base::{
 };
 
 pub mod cap;
+pub mod pes;
 pub mod server;
 pub mod session;
 pub mod syscalls;
-pub mod pes;
 pub mod vfs;
 
 mod arch;

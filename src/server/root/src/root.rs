@@ -32,7 +32,7 @@ use m3::dtu;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::{self, boot, PEDesc};
-use m3::pes::{PE, VPEArgs, VPE};
+use m3::pes::{VPEArgs, PE, VPE};
 use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
 use m3::util;
@@ -359,7 +359,8 @@ fn start_boot_mods() {
                 .expect("Unable to derive new kernel memory")
         };
 
-        let pe = pes::get().alloc(&VPE::cur().pe_desc())
+        let pe = pes::get()
+            .alloc(&VPE::cur().pe_desc())
             .expect("Unable to allocate PE");
         let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, cfg);
         if child.has_unmet_reqs() {

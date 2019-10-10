@@ -22,11 +22,11 @@ use com::{SendGate, SliceSource};
 use core::intrinsics;
 use env;
 use kif::{self, PEDesc};
+use pes::{KMem, VPE};
 use rc::Rc;
 use session::{Pager, ResMng};
 use util;
 use vfs::{FileTable, MountTable};
-use pes::{KMem, VPE};
 
 #[derive(Default, Copy, Clone)]
 #[repr(C, packed)]

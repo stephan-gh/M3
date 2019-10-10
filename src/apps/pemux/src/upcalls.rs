@@ -19,9 +19,9 @@ use base::errors::{Code, Error};
 use base::kif;
 use base::util;
 
-use IRQsOnGuard;
 use eps;
 use vpe;
+use IRQsOnGuard;
 
 fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     let _irqs = IRQsOnGuard::new();

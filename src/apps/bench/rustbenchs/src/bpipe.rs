@@ -18,7 +18,7 @@ use m3::boxed::Box;
 use m3::com::MemGate;
 use m3::io;
 use m3::kif;
-use m3::pes::{Activity, PE, VPEArgs, VPE};
+use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::profile;
 use m3::session::Pipes;
 use m3::test;

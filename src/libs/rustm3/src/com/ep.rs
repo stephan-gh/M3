@@ -21,8 +21,8 @@ use dtu::{EpId, FIRST_FREE_EP};
 use dtuif;
 use errors::Error;
 use kif;
-use syscalls;
 use pes::VPE;
+use syscalls;
 
 /// Represents a DTU endpoint that can be used for communication. This class only serves the purpose
 /// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
@@ -56,7 +56,12 @@ impl EP {
         }
 
         let id = vpe.epmng().alloc_ep()?;
-        Ok(Self::create(Self::sel_of_vpe(vpe, id), Some(id), true, CapFlags::empty()))
+        Ok(Self::create(
+            Self::sel_of_vpe(vpe, id),
+            Some(id),
+            true,
+            CapFlags::empty(),
+        ))
     }
 
     pub(crate) const fn new_def_bind(ep: EpId) -> Self {

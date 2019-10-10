@@ -31,7 +31,7 @@ use m3::env;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
-use m3::pes::{DefaultMapper, PE, VPEArgs, VPE};
+use m3::pes::{DefaultMapper, VPEArgs, PE, VPE};
 use m3::session::{ResMng, ResMngOperation};
 use m3::vfs::{OpenFlags, VFS};
 
@@ -198,7 +198,13 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop();
     let desc = kif::PEDesc::new_from(is.pop());
 
-    log!(RESMNG_PES, "{}: alloc_pe(dst_sel={}, desc={:?})", child.name(), dst_sel, desc);
+    log!(
+        RESMNG_PES,
+        "{}: alloc_pe(dst_sel={}, desc={:?})",
+        child.name(),
+        dst_sel,
+        desc
+    );
 
     let our_sel = xlate_sel(child.id(), dst_sel)?;
     let res = VPE::cur().resmng().alloc_pe(our_sel, &desc);
@@ -245,11 +251,9 @@ fn handle_request(mut is: GateIStream) {
         ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
         ResMngOperation::FREE_MEM => free_mem(&mut is, child),
 
-        ResMngOperation::ALLOC_PE => {
-            match alloc_pe(&mut is, child) {
-                Ok(_) => return,
-                Err(e) => Err(e),
-            }
+        ResMngOperation::ALLOC_PE => match alloc_pe(&mut is, child) {
+            Ok(_) => return,
+            Err(e) => Err(e),
         },
         ResMngOperation::FREE_PE => free_pe(&mut is, child),
 
@@ -319,7 +323,10 @@ pub fn main() -> i32 {
         .collect::<Vec<String>>();
     let name = args[0].clone();
 
-    pes::get().add(0, PE::new(&VPE::cur().pe_desc()).expect("Unable to allocate PE"));
+    pes::get().add(
+        0,
+        PE::new(&VPE::cur().pe_desc()).expect("Unable to allocate PE"),
+    );
 
     let peid = pes::get().alloc(&VPE::cur().pe_desc()).unwrap();
     let mut vpe = VPE::new_with(

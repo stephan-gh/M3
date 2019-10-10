@@ -17,9 +17,9 @@
 use cell::{RefCell, StaticCell};
 use core::mem;
 use io::Serial;
+use pes::VPE;
 use rc::Rc;
 use vfs::{BufReader, BufWriter, Fd, FileRef};
-use pes::VPE;
 
 /// The file descriptor for the stanard input stream
 pub const STDIN_FILENO: Fd = 0;

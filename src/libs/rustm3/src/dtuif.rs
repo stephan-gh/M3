@@ -18,7 +18,7 @@ use arch::env;
 use arch::pexcalls;
 use base::pexif;
 use cap::Selector;
-use com::{EP, Gate, MemGate, RecvGate, SendGate};
+use com::{Gate, MemGate, RecvGate, SendGate, EP};
 use core::intrinsics;
 use dtu::{self, CmdFlags, Header, Label, Message};
 use errors::{Code, Error};
@@ -141,8 +141,7 @@ impl DTUIf {
                 Some(sg) => sg.sel() as usize,
                 None => kif::INVALID_SEL as usize,
             };
-            pexcalls::call2(pexif::Operation::RECV, rg.sel() as usize, sgsel)
-                .map(Self::addr_to_msg)
+            pexcalls::call2(pexif::Operation::RECV, rg.sel() as usize, sgsel).map(Self::addr_to_msg)
         }
         else {
             loop {

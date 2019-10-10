@@ -29,7 +29,7 @@ use env;
 use errors::Error;
 use kif;
 use kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
-use pes::{ClosureActivity, ExecActivity, DefaultMapper, KMem, Mapper, PE};
+use pes::{ClosureActivity, DefaultMapper, ExecActivity, KMem, Mapper, PE};
 use rc::Rc;
 use session::{Pager, ResMng};
 use syscalls;

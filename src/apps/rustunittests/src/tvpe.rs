@@ -17,7 +17,7 @@
 use m3::boxed::Box;
 use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::env;
-use m3::pes::{Activity, PE, VPEArgs, VPE};
+use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::test;
 use m3::util;
 

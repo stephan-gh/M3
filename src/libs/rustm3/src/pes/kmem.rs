@@ -14,12 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-/// Represents kernel memoryuse arch;
-
+/// Represents kernel memory
 use cap::{CapFlags, Capability, Selector};
 use errors::Error;
-use rc::Rc;
 use pes::VPE;
+use rc::Rc;
 use syscalls;
 
 pub struct KMem {

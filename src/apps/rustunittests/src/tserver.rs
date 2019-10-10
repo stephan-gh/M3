@@ -21,7 +21,7 @@ use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::{Code, Error};
 use m3::kif;
-use m3::pes::{Activity, PE, VPEArgs, VPE};
+use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;

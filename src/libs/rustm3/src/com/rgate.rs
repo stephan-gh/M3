@@ -18,7 +18,7 @@ use cap::{CapFlags, Selector};
 use cell::StaticCell;
 use cfg;
 use com::gate::Gate;
-use com::{EP, GateIStream, SendGate};
+use com::{GateIStream, SendGate, EP};
 use core::fmt;
 use core::ops;
 use dtu;

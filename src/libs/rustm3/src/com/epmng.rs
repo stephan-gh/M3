@@ -17,7 +17,7 @@
 use cap::{CapFlags, Selector};
 use com::gate::Gate;
 use com::EP;
-use dtu::{self, EpId, FIRST_FREE_EP, EP_COUNT};
+use dtu::{self, EpId, EP_COUNT, FIRST_FREE_EP};
 use errors::{Code, Error};
 use kif::INVALID_SEL;
 use syscalls;
@@ -75,6 +75,7 @@ impl EpMng {
     pub(crate) fn set_owned(&mut self, ep: EpId, sel: Selector) {
         self.gates[ep] = Some(sel);
     }
+
     pub(crate) fn set_unowned(&mut self, ep: EpId) {
         self.gates[ep] = None;
     }

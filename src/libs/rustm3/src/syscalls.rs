@@ -24,8 +24,8 @@ use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
 use kif::{self, syscalls, CapRngDesc, Perm, SEL_SYSC_SG, SEL_VPE};
-use util;
 use pes::VPE;
+use util;
 
 static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(SEL_SYSC_SG, SYSC_SEP));
 

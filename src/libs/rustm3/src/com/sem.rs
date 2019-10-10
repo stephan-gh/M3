@@ -17,8 +17,8 @@
 use cap::{CapFlags, Capability, Selector};
 use errors::Error;
 use kif;
-use syscalls;
 use pes::VPE;
+use syscalls;
 
 /// A syscall-based semaphore.
 #[derive(Debug)]

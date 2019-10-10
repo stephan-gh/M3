@@ -15,10 +15,10 @@
  */
 
 use m3::cfg::PAGE_SIZE;
-use m3::com::{EP, MemGate, RecvGate, SendGate};
+use m3::com::{MemGate, RecvGate, SendGate, EP};
 use m3::errors::Code;
 use m3::kif::syscalls::{ExchangeArgs, VPEOp};
-use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_PE, SEL_VPE, SEL_MEM};
+use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_MEM, SEL_PE, SEL_VPE};
 use m3::pes::{PE, VPE};
 use m3::session::M3FS;
 use m3::syscalls;
@@ -286,8 +286,14 @@ fn activate() {
     // invalid mgate sel
     wv_assert_err!(syscalls::activate(ep1.sel(), SEL_VPE, 0), Code::InvArgs);
     // invalid address
-    wv_assert_err!(syscalls::activate(ep1.sel(), mgate.sel(), 0x1000), Code::InvArgs);
-    wv_assert_err!(syscalls::activate(ep1.sel(), mgate.sel(), !0), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::activate(ep1.sel(), mgate.sel(), 0x1000),
+        Code::InvArgs
+    );
+    wv_assert_err!(
+        syscalls::activate(ep1.sel(), mgate.sel(), !0),
+        Code::InvArgs
+    );
     // already activated
     wv_assert_ok!(syscalls::activate(ep1.sel(), mgate.sel(), 0));
     wv_assert_err!(syscalls::activate(ep2.sel(), mgate.sel(), 0), Code::Exists);
@@ -368,7 +374,10 @@ fn exchange() {
     let used = CapRngDesc::new(CapType::OBJECT, 0, 1);
 
     // invalid VPE sel
-    wv_assert_err!(syscalls::exchange(SEL_MEM, used, csel, false), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::exchange(SEL_MEM, used, csel, false),
+        Code::InvArgs
+    );
     // invalid own caps (source caps can be invalid)
     wv_assert_err!(
         syscalls::exchange(VPE::cur().sel(), used, unused.start(), true),

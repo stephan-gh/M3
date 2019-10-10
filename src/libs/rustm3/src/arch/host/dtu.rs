@@ -57,12 +57,7 @@ pub fn init() {
     dtu::init();
 
     let addr = envdata::mem_start();
-    syscalls::vpe_ctrl(
-        VPE::cur().sel(),
-        kif::syscalls::VPEOp::INIT,
-        addr as u64,
-    )
-    .unwrap();
+    syscalls::vpe_ctrl(VPE::cur().sel(), kif::syscalls::VPEOp::INIT, addr as u64).unwrap();
 
     if let Some(vec) = loader::read_env_file("dturdy") {
         let fd = vec[0] as i32;

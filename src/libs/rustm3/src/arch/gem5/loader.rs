@@ -24,10 +24,10 @@ use goff;
 use io::read_object;
 use kif;
 use mem::heap;
+use pes::Mapper;
 use session::Pager;
 use util;
 use vfs::{BufReader, FileRef, Seek, SeekMode};
-use pes::Mapper;
 
 pub struct Loader<'l> {
     pager: Option<&'l Pager>,

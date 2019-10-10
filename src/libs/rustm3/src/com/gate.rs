@@ -16,8 +16,8 @@
 
 use cap::{CapFlags, Capability, Selector};
 use com::EP;
-use core::ops;
 use core::mem;
+use core::ops;
 use dtu::EpId;
 use dtuif;
 use errors::Error;
@@ -75,6 +75,7 @@ impl Gate {
         self.ep = ep;
         Ok(())
     }
+
     pub(crate) fn take_ep(&mut self) -> EP {
         if let Some(ep) = self.ep.id() {
             VPE::cur().epmng().set_unowned(ep);

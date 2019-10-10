@@ -23,9 +23,9 @@ use dtu;
 use errors::Error;
 use goff;
 use kif::INVALID_SEL;
+use pes::VPE;
 use syscalls;
 use util;
-use pes::VPE;
 
 pub use kif::Perm;
 

@@ -16,7 +16,7 @@
 
 use cap::Selector;
 use col::Vec;
-use com::{EP, VecSink};
+use com::{VecSink, EP};
 use core::fmt::Debug;
 use errors::Error;
 use goff;

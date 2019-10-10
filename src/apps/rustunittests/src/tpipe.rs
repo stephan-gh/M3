@@ -20,7 +20,7 @@ use m3::com::MemGate;
 use m3::errors::Code;
 use m3::io::{self, Read};
 use m3::kif;
-use m3::pes::{Activity, PE, VPEArgs, VPE};
+use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::session::Pipes;
 use m3::test;
 use m3::vfs::{BufReader, IndirectPipe};

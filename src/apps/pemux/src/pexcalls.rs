@@ -22,9 +22,9 @@ use base::pexif;
 use core::intrinsics;
 use isr;
 
-use IRQsOnGuard;
 use upcalls;
 use vpe;
+use IRQsOnGuard;
 
 fn addr_to_msg(addr: usize) -> &'static dtu::Message {
     unsafe {

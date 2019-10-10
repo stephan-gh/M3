@@ -17,13 +17,13 @@
 use cap::Selector;
 use cell::RefCell;
 use col::Vec;
-use com::{EP, SliceSource, VecSink};
+use com::{SliceSource, VecSink, EP};
 use core::{fmt, mem};
 use errors::{Code, Error};
 use io::Serial;
+use pes::VPE;
 use rc::Rc;
 use serialize::Sink;
-use pes::VPE;
 use vfs::{File, FileRef, GenericFile};
 
 /// A file descriptor

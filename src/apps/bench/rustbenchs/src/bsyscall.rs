@@ -16,9 +16,9 @@
 
 use m3::cell::StaticCell;
 use m3::cfg;
-use m3::com::{EP, MemGate, Perm, RecvGate};
+use m3::com::{MemGate, Perm, RecvGate, EP};
 use m3::kif;
-use m3::pes::{PE, VPEArgs, VPE};
+use m3::pes::{VPEArgs, PE, VPE};
 use m3::profile;
 use m3::syscalls;
 use m3::test;
@@ -276,10 +276,13 @@ fn exchange() {
 
     wv_perf!(
         "exchange",
-        prof.runner_with_id(&mut Tester {
-            pe: wv_assert_ok!(PE::new(&VPE::cur().pe_desc())),
-            vpe: None
-        }, 0x18)
+        prof.runner_with_id(
+            &mut Tester {
+                pe: wv_assert_ok!(PE::new(&VPE::cur().pe_desc())),
+                vpe: None
+            },
+            0x18
+        )
     );
 }
 

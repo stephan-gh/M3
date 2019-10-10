@@ -22,10 +22,10 @@ use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::{Code, Error};
 use m3::kif::{self, CapRngDesc, CapType, Perm};
+use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::vfs::FileRef;
-use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 
 use config::Config;
 use memory::Allocation;
@@ -40,7 +40,7 @@ pub struct Resources {
     services: Vec<(Id, Selector)>,
     sessions: Vec<Session>,
     mem: Vec<Allocation>,
-    pes: Vec<(usize, Selector)>
+    pes: Vec<(usize, Selector)>,
 }
 
 impl Default for Resources {
@@ -239,10 +239,16 @@ pub trait Child {
     }
 
     fn alloc_pe(&mut self, sel: Selector, desc: &kif::PEDesc) -> Result<kif::PEDesc, Error> {
-        log!(RESMNG_PES, "{}: alloc_pe(sel={}, desc={:?})", self.name(), sel, desc);
+        log!(
+            RESMNG_PES,
+            "{}: alloc_pe(sel={}, desc={:?})",
+            self.name(),
+            sel,
+            desc
+        );
 
         // TODO check config
-        let pe = pes::get().alloc(desc)?;   // TODO leak!
+        let pe = pes::get().alloc(desc)?; // TODO leak!
         self.delegate(pes::get().get(pe).sel(), sel)?;
         self.res_mut().pes.push((pe, sel));
 
@@ -267,7 +273,13 @@ pub trait Child {
 
     fn remove_pe_by_idx(&mut self, idx: usize) -> Result<(), Error> {
         let (id, ep_sel) = self.res_mut().pes.remove(idx);
-        log!(RESMNG_PES, "{}: removed PE (id={}, sel={})", self.name(), id, ep_sel);
+        log!(
+            RESMNG_PES,
+            "{}: removed PE (id={}, sel={})",
+            self.name(),
+            id,
+            ep_sel
+        );
         pes::get().free(id);
         Ok(())
     }
@@ -307,7 +319,14 @@ pub struct OwnChild {
 }
 
 impl OwnChild {
-    pub fn new(id: Id, pe: usize, args: Vec<String>, daemon: bool, kmem: Rc<KMem>, cfg: Rc<Config>) -> Self {
+    pub fn new(
+        id: Id,
+        pe: usize,
+        args: Vec<String>,
+        daemon: bool,
+        kmem: Rc<KMem>,
+        cfg: Rc<Config>,
+    ) -> Self {
         OwnChild {
             id,
             pe,
