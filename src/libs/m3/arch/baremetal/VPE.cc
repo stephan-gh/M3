@@ -77,7 +77,8 @@ void VPE::run(void *lambda) {
     senv.mounts = reinterpret_cast<uint64_t>(this);
 
     senv._backend = env()->_backend;
-    senv.pedesc = _pe;
+    senv.shared = env()->shared;
+    senv.pedesc = _pe.desc();
 
     senv.heapsize = env()->heapsize;
 
@@ -138,7 +139,8 @@ void VPE::exec(int argc, const char **argv) {
     senv.kmem_sel = _kmem->sel();
     senv.pager_sess = _pager ? _pager->sel() : 0;
     senv._backend = 0;
-    senv.pedesc = _pe;
+    senv.shared = env()->shared;
+    senv.pedesc = _pe.desc();
     senv.heapsize = _pager ? APP_HEAP_SIZE : 0;
 
     /* write start env to PE */
