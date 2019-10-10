@@ -167,7 +167,7 @@ peid_t Platform::first_pe() {
     return 1;
 }
 peid_t Platform::last_pe() {
-    return _info.pe_count - 1;
+    return _info.pe_count - 2;
 }
 
 goff_t Platform::def_recvbuf(peid_t) {
