@@ -58,7 +58,7 @@ public:
         // has already been revoked
         assert(_caps.get(VPE_SEL_BEGIN + vpe->id(), Capability::VIRTPE) == nullptr);
         _vpes--;
-        _headers = 1;
+        _headers = 2;
         _rbufs_size = 0;
     }
 
