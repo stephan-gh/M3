@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-//! Contains VPE-related abstractions
+//! Contains the VPE abstraction
 
 use arch;
 use boxed::Box;

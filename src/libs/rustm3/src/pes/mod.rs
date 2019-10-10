@@ -14,13 +14,17 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains PE-related abstractions
+
 mod activity;
 mod kmem;
+mod mapper;
 mod pe;
 mod vpe;
 
-pub use self::activity::{Mapper, DefaultMapper, Activity, ClosureActivity, ExecActivity};
+pub use self::activity::{Activity, ClosureActivity, ExecActivity};
 pub use self::kmem::KMem;
+pub use self::mapper::{Mapper, DefaultMapper};
 pub use self::pe::PE;
 pub use self::vpe::{VPE, VPEArgs};
 
