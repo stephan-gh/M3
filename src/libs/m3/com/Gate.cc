@@ -25,8 +25,8 @@ Gate::~Gate() {
         DTUIf::remove_gate(*this, flags() & KEEP_CAP);
 }
 
-void Gate::put_ep(EP &&ep) noexcept {
-    if(ep.id() >= DTU::FIRST_FREE_EP)
+void Gate::put_ep(EP &&ep, bool assign) noexcept {
+    if(assign && ep.id() >= DTU::FIRST_FREE_EP)
         ep.assign(*this);
     _ep = std::move(ep);
 }

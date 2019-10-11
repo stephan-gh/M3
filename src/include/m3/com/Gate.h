@@ -72,7 +72,7 @@ protected:
         _ep.set_id(id);
     }
 
-    void put_ep(EP &&ep) noexcept;
+    void put_ep(EP &&ep, bool assign = true) noexcept;
     EP take_ep() noexcept {
         EP oep = std::move(_ep);
         _ep = EP::bind(UNBOUND);

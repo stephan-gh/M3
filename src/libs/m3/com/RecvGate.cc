@@ -130,7 +130,7 @@ void RecvGate::activate(EP &&nep, uintptr_t addr) {
     if(sel() != ObjCap::INVALID && sel() >= KIF::FIRST_FREE_SEL)
         Syscalls::activate(nep.sel(), sel(), addr);
 
-    put_ep(std::move(nep));
+    put_ep(std::move(nep), &_vpe == &VPE::self());
 }
 
 void RecvGate::deactivate() noexcept {
