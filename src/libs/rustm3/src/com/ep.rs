@@ -60,7 +60,7 @@ impl EP {
             Self::sel_of_vpe(vpe, id),
             Some(id),
             true,
-            CapFlags::empty(),
+            CapFlags::KEEP_CAP,
         ))
     }
 
