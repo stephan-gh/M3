@@ -83,7 +83,7 @@ fn create_rgate() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                0,
+                VPE::cur().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
                 true
             ));
@@ -120,7 +120,7 @@ fn create_sgate() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                0,
+                VPE::cur().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
                 true
             ));
@@ -146,12 +146,19 @@ fn create_map() {
 
     impl profile::Runner for Tester {
         fn run(&mut self) {
-            wv_assert_ok!(syscalls::create_map(DEST, 0, self.0.sel(), 0, 1, Perm::RW));
+            wv_assert_ok!(syscalls::create_map(
+                DEST,
+                VPE::cur().sel(),
+                self.0.sel(),
+                0,
+                1,
+                Perm::RW
+            ));
         }
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                0,
+                VPE::cur().sel(),
                 kif::CapRngDesc::new(kif::CapType::MAPPING, DEST, 1),
                 true
             ));
@@ -189,7 +196,7 @@ fn create_srv() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                0,
+                VPE::cur().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
                 true
             ));
@@ -228,7 +235,7 @@ fn derive_mem() {
 
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
-                0,
+                VPE::cur().sel(),
                 kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
                 true
             ));
