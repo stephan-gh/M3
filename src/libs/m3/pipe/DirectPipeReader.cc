@@ -71,8 +71,13 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
 
     if(_state->_rem == 0) {
         if(_state->_pos > 0) {
-            LLOG(DIRPIPE, "[read] replying len=" << _state->_pkglen);
-            reply_vmsg(*_state->_is, _state->_pkglen);
+            try {
+                LLOG(DIRPIPE, "[read] replying len=" << _state->_pkglen);
+                reply_vmsg(*_state->_is, _state->_pkglen);
+            }
+            catch(...) {
+                // maybe the writer stopped
+            }
             _state->_is->finish();
             // Non blocking mode: Reset pos, so that reply is not sent a second time on next invocation.
             _state->_pos = 0;
