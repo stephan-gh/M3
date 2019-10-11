@@ -32,7 +32,6 @@ mod btreap;
 mod btreemap;
 
 use m3::cell::StaticCell;
-use m3::mem::heap;
 use m3::test::WvTester;
 
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
@@ -54,9 +53,7 @@ impl WvTester for MyTester {
 
     fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn()) {
         println!("Testing \"{}\" in {}:", name, file);
-        let free_mem = heap::free_memory();
         f();
-        wv_assert_eq!(heap::free_memory(), free_mem);
         println!();
     }
 }
