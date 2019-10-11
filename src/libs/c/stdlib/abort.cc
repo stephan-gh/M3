@@ -15,8 +15,9 @@
  */
 
 #include <base/Common.h>
+#include <base/Env.h>
 #include <stdlib.h>
 
 void abort() {
-    exit(1);
+    m3::env()->exit(1, true);
 }

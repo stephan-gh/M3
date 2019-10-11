@@ -19,5 +19,5 @@
 #include <stdlib.h>
 
 WEAK void exit(int code) {
-    m3::env()->exit(code);
+    m3::env()->exit(code, false);
 }

@@ -71,13 +71,14 @@ void Env::run() {
         res = main(static_cast<int>(e->argc), argv);
     }
 
-    e->exit(res);
+    e->exit(res, false);
     UNREACHED;
 }
 
-USED void Env::exit(int code) {
+USED void Env::exit(int code, bool abort) {
     pre_exit();
-    __cxa_finalize(nullptr);
+    if(!abort)
+        __cxa_finalize(nullptr);
     backend()->exit(code);
     UNREACHED;
 }

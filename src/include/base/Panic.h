@@ -23,6 +23,6 @@
 #define PANIC(expr) do {                            \
         m3::Serial::get() << expr << "\n";          \
         m3::Backtrace::print(m3::Serial::get());    \
-        m3::env()->exit(1);                         \
+        abort();                                    \
     }                                               \
     while(0)

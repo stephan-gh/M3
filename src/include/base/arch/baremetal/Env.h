@@ -70,7 +70,7 @@ public:
 
     static void run() asm("env_run");
 
-    void exit(int code) NORETURN;
+    void exit(int code, bool abort) NORETURN;
 
 private:
     void pre_init();
