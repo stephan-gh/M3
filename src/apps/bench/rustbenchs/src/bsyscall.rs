@@ -252,8 +252,8 @@ fn exchange() {
     let mut prof = profile::Profiler::default().repeats(100).warmup(10);
 
     struct Tester {
-        pe: PE,
         vpe: Option<VPE>,
+        pe: PE,
     }
 
     impl profile::Runner for Tester {
@@ -285,8 +285,8 @@ fn exchange() {
         "exchange",
         prof.runner_with_id(
             &mut Tester {
+                vpe: None,
                 pe: wv_assert_ok!(PE::new(VPE::cur().pe_desc())),
-                vpe: None
             },
             0x18
         )
