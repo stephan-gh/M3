@@ -41,8 +41,8 @@ epid_t EPMng::alloc_ep() {
                 continue;
 
             // invalidate the EP if necessary and possible
-            activate(ep, ObjCap::INVALID);
             if(_gates && _gates[ep]) {
+                activate(ep, ObjCap::INVALID);
                 _gates[ep]->set_epid(Gate::UNBOUND);
                 _gates[ep] = nullptr;
             }
