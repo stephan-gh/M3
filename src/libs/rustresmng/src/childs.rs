@@ -280,7 +280,12 @@ pub trait Child {
             id,
             ep_sel
         );
+
+        let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
+        // TODO if that fails, we need to kill this child because otherwise we don't get the PE back
+        syscalls::revoke(self.vpe_sel(), crd, true).unwrap();
         pes::get().free(id);
+
         Ok(())
     }
 
@@ -302,6 +307,10 @@ pub trait Child {
 
         while !self.res().mem.is_empty() {
             self.remove_mem_by_idx(0);
+        }
+
+        while !self.res().pes.is_empty() {
+            self.remove_pe_by_idx(0).ok();
         }
     }
 }
