@@ -279,7 +279,8 @@ public:
     explicit PEObject(peid_t _id, uint _eps)
         : RefCounted(),
           id(_id),
-          eps(_eps) {
+          eps(_eps),
+          vpes() {
     }
 
     bool has_quota(uint eps) {
@@ -290,6 +291,7 @@ public:
 
     peid_t id;
     uint eps;
+    uint vpes;
 };
 
 class EPObject : public SlabObject<EPObject>, public m3::RefCounted {
@@ -521,6 +523,10 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
+    virtual bool can_revoke() override {
+        // revoking with VPEs is considered a violation of the API.
+        return obj->vpes == 0;
+    }
     virtual void revoke() override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
         return do_clone(this, tbl, sel);

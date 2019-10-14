@@ -42,6 +42,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObj
       _exitcode(),
       _sysc_ep(SyscallHandler::alloc_ep()),
       _kmem(kmem),
+      _pe(pecap ? pecap->obj : m3::Reference<PEObject>()),
       _name(std::move(prog)),
       _objcaps(id),
       _mapcaps(id),
@@ -63,6 +64,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObj
         _objcaps.set(m3::KIF::SEL_PE, pecap);
         // PECapability is already paid by base_kmem()
         _kmem->alloc(*this, sizeof(PEObject));
+        _pe = pecap->obj;
     }
     else {
         auto npecap = pecap->clone(&_objcaps, m3::KIF::SEL_PE);
@@ -70,7 +72,6 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObj
         _objcaps.set(m3::KIF::SEL_PE, npecap);
     }
     _objcaps.set(m3::KIF::SEL_VPE, vpecap);
-    _objcaps.inherit(pecap, vpecap);
 
     _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
         &_objcaps, m3::KIF::SEL_MEM, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
@@ -90,6 +91,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObj
 
     // let the VPEManager know about us before we continue with initialization
     VPEManager::get().add(vpecap);
+    _pe->vpes++;
 
     // we have one reference to ourself
     rem_ref();
@@ -118,6 +120,7 @@ VPE::~VPE() {
 
     delete _as;
 
+    _pe->vpes--;
     VPEManager::get().remove(this);
 }
 

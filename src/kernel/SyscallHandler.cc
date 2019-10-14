@@ -712,10 +712,13 @@ void SyscallHandler::revoke(VPE *vpe, const m3::DTU::Message *msg) {
     if(crd.type() == m3::KIF::CapRngDesc::OBJ && crd.start() <= m3::KIF::SEL_MEM)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps are not revokeable");
 
+    m3::Errors::Code res;
     if(crd.type() == m3::KIF::CapRngDesc::OBJ)
-        vpecap->obj->objcaps().revoke(crd, own);
+        res = vpecap->obj->objcaps().revoke(crd, own);
     else
-        vpecap->obj->mapcaps().revoke(crd, own);
+        res = vpecap->obj->mapcaps().revoke(crd, own);
+    if(res != m3::Errors::NONE)
+        SYS_ERROR(vpe, msg, res, "Revoke failed");
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }

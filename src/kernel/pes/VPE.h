@@ -193,6 +193,7 @@ private:
     int _exitcode;
     epid_t _sysc_ep;
     m3::Reference<KMemObject> _kmem;
+    m3::Reference<PEObject> _pe;
     m3::String _name;
     CapTable _objcaps;
     CapTable _mapcaps;

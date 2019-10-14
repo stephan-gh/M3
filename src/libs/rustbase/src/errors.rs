@@ -54,6 +54,7 @@ pub enum Code {
     CommitFailed,
     NoKernMem,
     NotFound,
+    NotRevocable,
     ReadFailed,
     WriteFailed,
 }

@@ -55,7 +55,10 @@ static const char *errmsgs[] = {
     "Reply will be sent via upcall",
     "Commit failed",
     "Out of kernel memory",
+
+    /* 30 */
     "Not found",
+    "Not revocable",
 
     /* Socket */
     "In use",

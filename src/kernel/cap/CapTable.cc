@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+#include <base/log/Kernel.h>
+
 #include "cap/CapTable.h"
 #include "pes/VPEManager.h"
 
@@ -109,17 +111,25 @@ void CapTable::revoke(Capability *c, bool revnext) {
     revoke_rec(c, revnext);
 }
 
-void CapTable::revoke(const m3::KIF::CapRngDesc &crd, bool own) {
+m3::Errors::Code CapTable::revoke(const m3::KIF::CapRngDesc &crd, bool own) {
+    m3::Errors::Code res = m3::Errors::NONE;
     for(capsel_t i = crd.start(), end = crd.start() + crd.count(); i < end; ) {
         Capability *c = get(i);
         i = c ? c->sel() + c->length() : i + 1;
-        if(c && c->can_revoke()) {
+        if(c) {
+            if(!c->can_revoke()) {
+                KLOG(INFO, "Warning: trying to revoke unrevocable cap: " << *c);
+                res = m3::Errors::NOT_REVOCABLE;
+                continue;
+            }
+
             if(own)
                 revoke(c, false);
             else
                 revoke(c->_child, true);
         }
     }
+    return res;
 }
 
 m3::OStream &operator<<(m3::OStream &os, const CapTable &ct) {

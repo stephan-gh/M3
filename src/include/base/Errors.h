@@ -58,6 +58,7 @@ struct Errors {
         COMMIT_FAILED,
         NO_KMEM,
         NOT_FOUND,
+        NOT_REVOCABLE,
         // Socket
         IN_USE,
         INV_STATE,

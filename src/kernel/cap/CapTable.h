@@ -72,7 +72,7 @@ public:
 
     Capability *obtain(capsel_t dst, Capability *c);
     void inherit(Capability *parent, Capability *child);
-    void revoke(const m3::KIF::CapRngDesc &crd, bool own);
+    m3::Errors::Code revoke(const m3::KIF::CapRngDesc &crd, bool own);
 
     Capability *get(capsel_t i) {
         return _caps.find(i);
