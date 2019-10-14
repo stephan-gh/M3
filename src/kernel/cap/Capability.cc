@@ -84,8 +84,8 @@ GateObject::~GateObject() {
         if(type == Capability::SGATE && static_cast<SGateObject*>(this)->rgate_valid()) {
             auto sgate = static_cast<SGateObject*>(this);
             PEMux *receiver = PEManager::get().pemux(sgate->rgate->pe);
-            KLOG(EPS, "PE" << pemux->pe() << ":EP" << old->ep->ep << ": invalidating reply caps at "
-                   << "PE" << receiver->pe() << ":EP" << sgate->rgate->ep);
+            KLOG(EPS, "PE" << pemux->peid() << ":EP" << old->ep->ep << ": invalidating reply caps at "
+                   << "PE" << receiver->peid() << ":EP" << sgate->rgate->ep);
             DTU::get().inv_reply_remote(receiver->desc(), sgate->rgate->ep, pemux->peid(), old->ep->ep);
         }
         old->ep->gate = nullptr;
