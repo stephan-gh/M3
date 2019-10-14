@@ -579,6 +579,9 @@ void SyscallHandler::derive_kmem(VPE *vpe, const m3::DTU::Message *msg) {
     LOG_SYS(vpe, ": syscall::derive_kmem", "(kmem=" << kmem << ", dst=" << dst
         << ", quota=" << quota << ")");
 
+    if(!vpe->objcaps().unused(dst))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
+
     auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
     if(kmemcap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid KMem cap");
@@ -605,6 +608,9 @@ void SyscallHandler::derive_pe(VPE *vpe, const m3::DTU::Message *msg) {
 
     LOG_SYS(vpe, ": syscall::derive_pe", "(pe=" << pe << ", dst=" << dst
         << ", eps=" << eps << ")");
+
+    if(!vpe->objcaps().unused(dst))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
     auto pecap = static_cast<PECapability*>(vpe->objcaps().get(pe, Capability::PE));
     if(pecap == nullptr)
@@ -710,7 +716,7 @@ void SyscallHandler::revoke(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
     if(crd.type() == m3::KIF::CapRngDesc::OBJ && crd.start() <= m3::KIF::SEL_MEM)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps are not revokeable");
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps 0, 1, and 2 are not revocable");
 
     m3::Errors::Code res;
     if(crd.type() == m3::KIF::CapRngDesc::OBJ)
