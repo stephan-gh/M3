@@ -100,6 +100,8 @@ public:
         LLOG(THREAD, "Stopping thread " << _current->id());
         if(_ready.length())
             switch_to(_ready.remove_first());
+        if(_sleep.length())
+            switch_to(_sleep.remove_first());
     }
 
 private:
