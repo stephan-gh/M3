@@ -421,10 +421,11 @@ pub fn generate(
                     // otherwise it's a return
                     else {
                         if sym.name != "thread_resume" && cur_thread.stack.is_empty() {
-                            panic!("{}: return with empty stack", time);
+                            warn!("{}: return with empty stack", time);
                         }
-
-                        handle_return(mode, &mut wr, time, pe, sym, cur_thread, cur_tid, true)?;
+                        else {
+                            handle_return(mode, &mut wr, time, pe, sym, cur_thread, cur_tid, true)?;
+                        }
                     }
                 }
 
