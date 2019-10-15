@@ -59,19 +59,24 @@ impl EPs {
     }
 
     pub fn mark_reserved(&mut self, ep: EpId, vpe: u64) {
+        log!(PEX_EPS, "EPs[{:02}] reserving for VPE{}", ep, vpe);
         self.reserved[ep] = Some(vpe);
     }
 
     pub fn mark_unreserved(&mut self, ep: EpId) -> Option<(u64, CapSel)> {
         self.reserved[ep] = None;
-        mem::replace(&mut self.gates[ep], None)
+        let vpe = mem::replace(&mut self.gates[ep], None);
+        log!(PEX_EPS, "EPs[{:02}] unreserving (VPE: {:?})", ep, vpe);
+        vpe
     }
 
     pub fn mark_used(&mut self, vpe: u64, ep: EpId, gate: CapSel) {
+        log!(PEX_EPS, "EPs[{:02}]: using for VPE{}, Gate{}", ep, vpe, gate);
         self.gates[ep] = Some((vpe, gate));
     }
 
     pub fn mark_free(&mut self, ep: EpId) {
+        log!(PEX_EPS, "EPs[{:02}]: freeing (Gate: {:?})", ep, self.gates[ep]);
         self.gates[ep] = None;
     }
 
@@ -103,7 +108,7 @@ impl EPs {
             }
             if let Some(v) = self.reserved[ep] {
                 if vpe == v {
-                    self.reserved[ep] = None;
+                    self.mark_unreserved(ep);
                 }
             }
         }

@@ -69,13 +69,6 @@ impl VPE {
 
     pub fn acquire_ep(&mut self, sel: CapSel) -> Result<EpId, Error> {
         if let Some(ep) = self.gates.get(&sel) {
-            log!(
-                PEX_EPS,
-                "VPE{}: Using EP {} for Gate {:?}",
-                self.id,
-                *ep,
-                sel
-            );
             return Ok(*ep);
         }
 
