@@ -28,7 +28,7 @@ using namespace m3;
 static char buffer[0x100];
 
 static void reader_quit() {
-    PE pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc(VPE::self().pe_desc());
     VPE writer(pe, "writer");
     MemGate mem = MemGate::create_global(0x1000, MemGate::RW);
     DirectPipe pipe(VPE::self(), writer, mem, 0x1000);
@@ -66,7 +66,7 @@ static void reader_quit() {
 }
 
 static void writer_quit() {
-    PE pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc(VPE::self().pe_desc());
     VPE reader(pe, "reader");
 
     MemGate mem = MemGate::create_global(64, MemGate::RW);
@@ -102,8 +102,8 @@ static void writer_quit() {
 }
 
 static void child_to_child() {
-    PE pe1 = PE::alloc(VPE::self().pe_desc());
-    PE pe2 = PE::alloc(VPE::self().pe_desc());
+    auto pe1 = PE::alloc(VPE::self().pe_desc());
+    auto pe2 = PE::alloc(VPE::self().pe_desc());
     VPE reader(pe1, "reader");
     VPE writer(pe2, "writer");
     MemGate mem = MemGate::create_global(0x1000, MemGate::RW);

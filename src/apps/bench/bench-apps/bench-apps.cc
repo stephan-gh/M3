@@ -44,7 +44,7 @@ struct App {
 
     int argc;
     const char **argv;
-    PE pe;
+    Reference<PE> pe;
     VPE vpe;
 };
 

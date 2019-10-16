@@ -35,7 +35,6 @@ void VPE::init_state() {
     _epmng._eps = env()->eps;
 
     _resmng.reset(new ResMng(env()->rmng_sel));
-    _kmem = Reference<KMem>(new KMem(env()->kmem_sel));
 
     // it's initially 0. make sure it's at least the first usable selector
     _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->caps);
@@ -56,7 +55,8 @@ void VPE::reset() noexcept {
     _self_ptr->_ms.release();
 
     _self_ptr = reinterpret_cast<VPE*>(env()->mounts);
-    _self_ptr->_pe.sel(KIF::SEL_PE);
+    _self_ptr->_pe->sel(KIF::SEL_PE);
+    _self_ptr->_kmem->sel(KIF::SEL_KMEM);
     _self_ptr->sel(KIF::SEL_VPE);
     _self_ptr->_mem.sel(KIF::SEL_MEM);
     _self_ptr->epmng().reset(_self_ptr->epmng().reserved());
@@ -79,7 +79,7 @@ void VPE::run(void *lambda) {
 
     senv._backend = env()->_backend;
     senv.shared = env()->shared;
-    senv.pedesc = _pe.desc();
+    senv.pedesc = _pe->desc();
 
     senv.heapsize = env()->heapsize;
 
@@ -137,11 +137,10 @@ void VPE::exec(int argc, const char **argv) {
     senv.rbufcur = _rbufcur;
     senv.rbufend = _rbufend;
     senv.rmng_sel = _resmng->sel();
-    senv.kmem_sel = _kmem->sel();
     senv.pager_sess = _pager ? _pager->sel() : 0;
     senv._backend = 0;
     senv.shared = env()->shared;
-    senv.pedesc = _pe.desc();
+    senv.pedesc = _pe->desc();
     senv.heapsize = _pager ? APP_HEAP_SIZE : 0;
 
     /* write start env to PE */

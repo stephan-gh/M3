@@ -34,10 +34,10 @@ PE::~PE() {
     flags(KEEP_CAP);
 }
 
-PE PE::alloc(const PEDesc &desc) {
+Reference<PE> PE::alloc(const PEDesc &desc) {
     capsel_t sel = VPE::self().alloc_sel();
     PEDesc res = VPE::self().resmng()->alloc_pe(sel, desc);
-    return PE(sel, res, 0);
+    return Reference<PE>(new PE(sel, res, 0));
 }
 
 }

@@ -44,12 +44,12 @@ VPEArgs::VPEArgs() noexcept
 VPE::VPE()
     : ObjCap(VIRTPE, KIF::SEL_VPE, KEEP_CAP),
       _pe(PE::bind(KIF::SEL_PE, env()->pedesc)),
+      _kmem(new KMem(KIF::SEL_KMEM)),
       _mem(MemGate::bind(KIF::SEL_MEM)),
       _next_sel(KIF::FIRST_FREE_SEL),
       _rbufcur(),
       _rbufend(),
       _epmng(!env()->shared),
-      _kmem(),
       _resmng(nullptr),
       _pager(),
       _ms(),
@@ -68,22 +68,22 @@ VPE::VPE()
         _fds->set(STDERR_FD, Reference<File>(new SerialFile()));
 }
 
-VPE::VPE(const class PE &pe, const String &name, const VPEArgs &args)
+VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
     : ObjCap(VIRTPE, VPE::self().alloc_sels(KIF::FIRST_FREE_SEL) + KIF::SEL_VPE),
-      _pe(PE::bind((sel() - KIF::SEL_VPE) + KIF::SEL_PE, pe.desc())),
-      _mem(MemGate::bind(_pe.sel() + KIF::SEL_MEM, 0)),
+      _pe(pe),
+      _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
+      _mem(MemGate::bind((sel() - KIF::SEL_VPE) + KIF::SEL_MEM, 0)),
       _next_sel(KIF::FIRST_FREE_SEL),
       _rbufcur(),
       _rbufend(),
       _epmng(false),
-      _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
       _resmng(args._rmng),
       _pager(),
       _ms(new MountTable()),
       _fds(new FileTable()),
       _exec() {
     // create pager first, to create session and obtain gate cap
-    if(_pe.desc().has_virtmem()) {
+    if(_pe->desc().has_virtmem()) {
         if(args._pager)
             _pager = std::make_unique<Pager>(*this, args._pager);
         else if(VPE::self().pager())
@@ -93,11 +93,11 @@ VPE::VPE(const class PE &pe, const String &name, const VPEArgs &args)
             throw Exception(Errors::NOT_SUP);
     }
 
-    KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, _pe.sel(), KIF::FIRST_FREE_SEL);
+    KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, sel() - KIF::SEL_VPE, KIF::FIRST_FREE_SEL);
     if(_pager) {
         // now create VPE, which implicitly obtains the gate cap from us
         Syscalls::create_vpe(dst, _pager->child_sgate().sel(), _pager->child_rgate().sel(),
-                             name, pe.sel(), _kmem->sel());
+                             name, pe->sel(), _kmem->sel());
         // mark the send gate cap allocated
         _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
         // now delegate our VPE cap and memory cap to the pager
@@ -107,7 +107,7 @@ VPE::VPE(const class PE &pe, const String &name, const VPEArgs &args)
         delegate_obj(_pager->sel());
     }
     else
-        Syscalls::create_vpe(dst, ObjCap::INVALID, ObjCap::INVALID, name, pe.sel(), _kmem->sel());
+        Syscalls::create_vpe(dst, ObjCap::INVALID, ObjCap::INVALID, name, pe->sel(), _kmem->sel());
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);
 
     if(_resmng == nullptr) {

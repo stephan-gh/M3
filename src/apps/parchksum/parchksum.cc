@@ -28,7 +28,7 @@ using namespace m3;
 struct Worker {
     MemGate submem;
     SendGate sgate;
-    PE pe;
+    Reference<PE> pe;
     VPE vpe;
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)

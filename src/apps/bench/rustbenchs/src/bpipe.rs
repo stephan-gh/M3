@@ -48,7 +48,7 @@ fn child_to_parent() {
                 let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
                 let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-                let mut vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("writer")));
+                let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("writer")));
                 vpe.files().set(
                     io::STDOUT_FILENO,
                     VPE::cur().files().get(pipe.writer_fd()).unwrap(),
@@ -95,7 +95,7 @@ fn parent_to_child() {
                 let pipe_mem = wv_assert_ok!(MemGate::new(0x10000, kif::Perm::RW));
                 let pipe = wv_assert_ok!(IndirectPipe::new(&pipeserv, &pipe_mem, 0x10000));
 
-                let mut vpe = wv_assert_ok!(VPE::new_with(&pe, VPEArgs::new("reader")));
+                let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("reader")));
                 vpe.files().set(
                     io::STDIN_FILENO,
                     VPE::cur().files().get(pipe.reader_fd()).unwrap(),

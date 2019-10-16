@@ -271,7 +271,7 @@ fn create_vpe() {
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pe.sel(), 1),
+        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pe.sel(), SEL_VPE),
         Code::InvArgs
     );
 }
@@ -370,7 +370,7 @@ fn derive_pe() {
     );
 
     {
-        let _vpe = wv_assert_ok!(VPE::new(&pe, "test"));
+        let _vpe = wv_assert_ok!(VPE::new(pe.clone(), "test"));
         // VPE is still using the PE
         wv_assert_err!(
             VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, pe.sel(), 1), false),
@@ -401,7 +401,7 @@ fn vpe_wait() {
 
 fn exchange() {
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
-    let mut child = wv_assert_ok!(VPE::new(&pe, "test"));
+    let mut child = wv_assert_ok!(VPE::new(pe, "test"));
     let csel = child.alloc_sel();
 
     let sel = VPE::cur().alloc_sel();

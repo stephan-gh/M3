@@ -42,9 +42,9 @@ use resmng::{config, memory, pes, sems, sendqueue, services};
 
 //
 // The kernel initializes our cap space as follows:
-// +------+-----------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
-// | kmem | boot info | mod_0 | ... | mod_{n-1} | pe_0 | ... | pe_{n-1} | mem_0 | ... | mem_{n-1} |
-// +------+-----------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
+// +-----------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
+// | boot info | mod_0 | ... | mod_{n-1} | pe_0 | ... | pe_{n-1} | mem_0 | ... | mem_{n-1} |
+// +-----------+-------+-----+-----------+------+-----+----------+-------+-----+-----------+
 // ^-- FIRST_FREE_SEL
 //
 const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
@@ -215,7 +215,7 @@ fn start_delayed() {
         let mods = MODS.get();
         let mut moditer = boot::ModIterator::new(mods.0, mods.1);
         let m = moditer.nth(c.id() as usize).unwrap();
-        let sel = BOOT_MOD_SELS + 2 + c.id();
+        let sel = BOOT_MOD_SELS + 1 + c.id();
         start_child(&mut c, sel, &m).expect("Unable to start boot module");
         childs::get().add(Box::new(c));
         new_wait = true;
@@ -367,7 +367,7 @@ fn start_boot_mods() {
             DELAYED.get_mut().push(child);
         }
         else {
-            start_child(&mut child, BOOT_MOD_SELS + 2 + id as Id, &m)
+            start_child(&mut child, BOOT_MOD_SELS + 1 + id as Id, &m)
                 .expect("Unable to start boot module");
             childs::get().add(Box::new(child));
         }
@@ -376,7 +376,7 @@ fn start_boot_mods() {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let mgate = MemGate::new_bind(BOOT_MOD_SELS + 1);
+    let mgate = MemGate::new_bind(BOOT_MOD_SELS);
     let mut off: goff = 0;
 
     let info: boot::Info = mgate.read_obj(0).expect("Unable to read boot info");
@@ -402,7 +402,7 @@ pub fn main() -> i32 {
     unsafe { pes.set_len(info.pe_count as usize) };
     mgate.read(&mut pes, off).expect("Unable to read PEs");
 
-    let pe_sel = BOOT_MOD_SELS + 2 + info.mod_count as Selector;
+    let pe_sel = BOOT_MOD_SELS + 1 + info.mod_count as Selector;
     let mut user_pes = 0;
     let mut i = 0;
     log!(RESMNG, "Available PEs:");
@@ -417,7 +417,7 @@ pub fn main() -> i32 {
         );
         // skip kernel and our own PE
         if i > VPE::cur().pe_id() {
-            pes::get().add(i as dtu::PEId, PE::new_bind(pe, pe_sel + i - 1));
+            pes::get().add(i as dtu::PEId, Rc::new(PE::new_bind(pe, pe_sel + i - 1)));
         }
         if i > 0 && pe.pe_type() != kif::PEType::MEM {
             user_pes += 1;
@@ -425,7 +425,7 @@ pub fn main() -> i32 {
         i += 1;
     }
 
-    let mut mem_sel = BOOT_MOD_SELS + 2 + (user_pes + info.mod_count) as Selector;
+    let mut mem_sel = BOOT_MOD_SELS + 1 + (user_pes + info.mod_count) as Selector;
     for i in 0..info.mems.len() {
         let mem = &info.mems[i];
         if mem.size() == 0 {

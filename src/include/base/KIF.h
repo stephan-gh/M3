@@ -45,14 +45,15 @@ struct KIF {
     static const size_t MAX_MSG_SIZE    = 440;
 
     static const capsel_t SEL_PE        = 0;
-    static const capsel_t SEL_VPE       = 1;
-    static const capsel_t SEL_MEM       = 2;
-    static const capsel_t SEL_SYSC_SG   = 3;
-    static const capsel_t SEL_SYSC_RG   = 4;
-    static const capsel_t SEL_UPC_RG    = 5;
-    static const capsel_t SEL_DEF_RG    = 6;
-    static const capsel_t SEL_PG_SG     = 7;
-    static const capsel_t SEL_PG_RG     = 8;
+    static const capsel_t SEL_KMEM      = 1;
+    static const capsel_t SEL_VPE       = 2;
+    static const capsel_t SEL_MEM       = 3;
+    static const capsel_t SEL_SYSC_SG   = 4;
+    static const capsel_t SEL_SYSC_RG   = 5;
+    static const capsel_t SEL_UPC_RG    = 6;
+    static const capsel_t SEL_DEF_RG    = 7;
+    static const capsel_t SEL_PG_SG     = 8;
+    static const capsel_t SEL_PG_RG     = 9;
 
     /**
      * The first selector for the endpoint capabilities

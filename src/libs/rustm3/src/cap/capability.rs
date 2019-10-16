@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use cell::Cell;
 use core::ops;
 use kif;
 use syscalls;
@@ -39,19 +40,19 @@ impl CapFlags {
 /// Represents a capability
 #[derive(Debug)]
 pub struct Capability {
-    sel: Selector,
+    sel: Cell<Selector>,
     flags: CapFlags,
 }
 
 impl Capability {
     /// Creates a new `Capability` with given selector and flags.
     pub const fn new(sel: Selector, flags: CapFlags) -> Self {
-        Capability { sel, flags }
+        Capability { sel: Cell::new(sel), flags }
     }
 
     /// Returns the selector.
     pub fn sel(&self) -> Selector {
-        self.sel
+        self.sel.get()
     }
 
     /// Returns the flags.
@@ -64,9 +65,13 @@ impl Capability {
         self.flags = flags;
     }
 
+    pub(crate) fn set_sel(&self, sel: Selector) {
+        self.sel.set(sel);
+    }
+
     fn release(&mut self) {
         if (self.flags & CapFlags::KEEP_CAP).is_empty() {
-            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sel, 1);
+            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sel(), 1);
             syscalls::revoke(kif::SEL_VPE, crd, true).ok();
         }
     }

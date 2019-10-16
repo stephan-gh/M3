@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     int res;
     cycles_t start = Time::start(0);
     {
-        PE pe = PE::alloc(VPE::self().pe_desc());
+        auto pe = PE::alloc(VPE::self().pe_desc());
         VPE child(pe, argv[1]);
         child.fds()->set(STDIN_FD, VPE::self().fds()->get(STDIN_FD));
         child.fds()->set(STDOUT_FD, VPE::self().fds()->get(STDOUT_FD));

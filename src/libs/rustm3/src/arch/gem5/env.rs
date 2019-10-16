@@ -22,8 +22,7 @@ use com::{SendGate, SliceSource};
 use core::intrinsics;
 use env;
 use kif::{self, PEDesc};
-use pes::{KMem, VPE};
-use rc::Rc;
+use pes::VPE;
 use session::{Pager, ResMng};
 use util;
 use vfs::{FileTable, MountTable};
@@ -119,10 +118,6 @@ impl EnvData {
         arch::rbufs::RBufSpace::new_with(self.base.rbuf_cur as usize, self.base.rbuf_end as usize)
     }
 
-    pub fn load_kmem(&self) -> Rc<KMem> {
-        Rc::new(KMem::new(self.base.kmem_sel as Selector))
-    }
-
     pub fn load_mounts(&self) -> MountTable {
         if self.base.mounts_len != 0 {
             let slice = unsafe {
@@ -169,10 +164,6 @@ impl EnvData {
 
     pub fn set_eps(&mut self, eps: u64) {
         self.base.eps = eps;
-    }
-
-    pub fn set_kmem(&mut self, sel: Selector) {
-        self.base.kmem_sel = u64::from(sel);
     }
 
     pub fn set_rmng(&mut self, sel: Selector) {

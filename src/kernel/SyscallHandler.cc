@@ -281,12 +281,12 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
     // create VPE
-    VPE *nvpe = VPEManager::get().create(std::move(name), pecap, &*kmemcap->obj);
+    VPE *nvpe = VPEManager::get().create(std::move(name), pecap, kmemcap);
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");
 
-    // inherit PE, VPE, mem, and EP caps to the parent
-    for(capsel_t i = 0; i < capnum; ++i)
+    // inherit VPE, mem, and EP caps to the parent
+    for(capsel_t i = m3::KIF::SEL_VPE; i < capnum; ++i)
         vpe->objcaps().obtain(dst.start() + i, nvpe->objcaps().get(i));
 
     // activate pager EPs
@@ -297,9 +297,6 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
         rgatecap->obj->addr = VMA_RBUF;
         PEManager::get().pemux(nvpe->pe())->config_rcv_ep(m3::DTU::PG_REP, *rgatecap->obj);
     }
-
-    // delegate kmem cap
-    nvpe->objcaps().obtain(kmem, kmemcap);
 
     m3::KIF::Syscall::CreateVPEReply reply;
     reply.error = m3::Errors::NONE;
@@ -706,7 +703,7 @@ void SyscallHandler::revoke(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
     if(crd.type() == m3::KIF::CapRngDesc::OBJ && crd.start() <= m3::KIF::SEL_MEM)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps 0, 1, and 2 are not revocable");
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps 0, 1, 2, and 3 are not revocable");
 
     m3::Errors::Code res;
     if(crd.type() == m3::KIF::CapRngDesc::OBJ)

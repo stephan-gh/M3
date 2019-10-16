@@ -37,7 +37,7 @@ static const size_t REPLY_SIZE  = 64;
 void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_t comptime) {
     std::unique_ptr<uint8_t> buffer(new uint8_t[BUF_SIZE]);
 
-    std::unique_ptr<PE> pes[num];
+    Reference<PE> pes[num];
     std::unique_ptr<VPE> vpes[num];
     std::unique_ptr<InDirAccel> accels[num];
     InDirAccel::Operation ops[num];
@@ -51,8 +51,8 @@ void chain_indirect(Reference<File> in, Reference<File> out, size_t num, cycles_
         name << "chain" << i;
 
 
-        pes[i] = std::make_unique<PE>(PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR)));
-        vpes[i] = std::make_unique<VPE>(*pes[i], name.str());
+        pes[i] = PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_INDIR));
+        vpes[i] = std::make_unique<VPE>(pes[i], name.str());
 
         accels[i] = std::make_unique<InDirAccel>(vpes[i], reply_gate);
     }

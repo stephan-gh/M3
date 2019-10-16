@@ -45,7 +45,7 @@ int main(int argc, char **) {
 
     cycles_t exec_time = 0;
 
-    PE pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc(VPE::self().pe_desc());
     for(int i = 0; i < REPEATS; ++i) {
         cycles_t start2 = Time::start(1);
 

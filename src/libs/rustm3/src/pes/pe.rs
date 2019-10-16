@@ -19,6 +19,7 @@ use core::fmt;
 use errors::Error;
 use kif::PEDesc;
 use pes::VPE;
+use rc::Rc;
 
 pub struct PE {
     cap: Capability,
@@ -26,13 +27,13 @@ pub struct PE {
 }
 
 impl PE {
-    pub fn new(desc: PEDesc) -> Result<Self, Error> {
+    pub fn new(desc: PEDesc) -> Result<Rc<Self>, Error> {
         let sel = VPE::cur().alloc_sel();
         let ndesc = VPE::cur().resmng().alloc_pe(sel, desc)?;
-        Ok(PE {
+        Ok(Rc::new(PE {
             cap: Capability::new(sel, CapFlags::empty()),
             desc: ndesc,
-        })
+        }))
     }
 
     pub fn new_bind(desc: PEDesc, sel: Selector) -> Self {
@@ -48,6 +49,10 @@ impl PE {
 
     pub fn desc(&self) -> PEDesc {
         self.desc
+    }
+
+    pub(crate) fn set_sel(&self, sel: Selector) {
+        self.cap.set_sel(sel);
     }
 }
 

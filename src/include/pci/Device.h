@@ -80,7 +80,7 @@ public:
 private:
     static void receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &is);
 
-    m3::PE _pe;
+    m3::Reference<m3::PE> _pe;
     m3::VPE _vpe;
     m3::RecvGate _intgate;  // receives interrupts from the proxied pci device
     m3::SendGate _sintgate; // used by the proxied pci device to signal interrupts to its driver

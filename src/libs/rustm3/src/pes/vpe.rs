@@ -40,14 +40,14 @@ use vfs::{FileTable, MountTable};
 /// A virtual processing element is used to run an activity on a PE.
 pub struct VPE {
     cap: Capability,
-    pe: PE,
+    rmng: ResMng,   // close the connection resource manager at last
+    pe: Rc<PE>,
+    kmem: Rc<KMem>,
     mem: MemGate,
-    rmng: ResMng,
     next_sel: Selector,
     epmng: EpMng,
     rbufs: arch::rbufs::RBufSpace,
     pager: Option<Pager>,
-    kmem: Rc<KMem>,
     files: FileTable,
     mounts: MountTable,
 }
@@ -101,14 +101,14 @@ impl VPE {
 
         VPE {
             cap: Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP),
-            pe: PE::new_bind(PEDesc::new_from(0), kif::SEL_PE),
+            pe: Rc::new(PE::new_bind(PEDesc::new_from(0), kif::SEL_PE)),
             mem: MemGate::new_bind(kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)), // invalid
             next_sel: kif::FIRST_FREE_SEL,
             epmng: EpMng::new(true),
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
-            kmem: Rc::new(KMem::new(kif::INVALID_SEL)),
+            kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             files: FileTable::default(),
             mounts: MountTable::default(),
         }
@@ -116,12 +116,11 @@ impl VPE {
 
     fn init(&mut self) {
         let env = arch::env::get();
-        self.pe = PE::new_bind(env.pe_desc(), kif::SEL_PE);
+        self.pe = Rc::new(PE::new_bind(env.pe_desc(), kif::SEL_PE));
         self.next_sel = env.load_nextsel();
         self.rmng = env.load_rmng();
         self.rbufs = env.load_rbufs();
         self.pager = env.load_pager();
-        self.kmem = env.load_kmem();
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
         self.files = env.load_fds();
@@ -140,25 +139,25 @@ impl VPE {
 
     /// Creates a new `VPE` on PE `pe` with given name and default settings. The VPE provides access
     /// to the PE and allows to run an activity on the PE.
-    pub fn new(pe: &PE, name: &str) -> Result<Self, Error> {
+    pub fn new(pe: Rc<PE>, name: &str) -> Result<Self, Error> {
         Self::new_with(pe, VPEArgs::new(name))
     }
 
     /// Creates a new `VPE` on PE `pe` with given arguments. The VPE provides access to the PE and
     /// allows to run an activity on the PE.
-    pub fn new_with(pe: &PE, args: VPEArgs) -> Result<Self, Error> {
+    pub fn new_with(pe: Rc<PE>, args: VPEArgs) -> Result<Self, Error> {
         let sels = VPE::cur().alloc_sels(kif::FIRST_FREE_SEL);
 
         let mut vpe = VPE {
             cap: Capability::new(sels + kif::SEL_VPE, CapFlags::empty()),
-            pe: PE::new_bind(pe.desc(), sels + kif::SEL_PE),
+            pe: pe.clone(),
+            kmem: args.kmem.unwrap_or_else(|| VPE::cur().kmem.clone()),
             mem: MemGate::new_bind(sels + kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
             next_sel: kif::FIRST_FREE_SEL,
             epmng: EpMng::new(false),
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
-            kmem: args.kmem.unwrap_or_else(|| VPE::cur().kmem.clone()),
             files: FileTable::default(),
             mounts: MountTable::default(),
         };
@@ -571,7 +570,6 @@ impl VPE {
                 senv.set_mounts(off, mounts.size());
             }
 
-            senv.set_kmem(self.kmem.sel());
             senv.set_rmng(self.rmng.sel());
             senv.set_rbufs(&self.rbufs);
             senv.set_next_sel(self.next_sel);
@@ -683,7 +681,9 @@ pub(crate) fn init() {
 pub(crate) fn reinit() {
     VPE::cur().cap.set_flags(CapFlags::KEEP_CAP);
     VPE::cur().cap = Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP);
-    VPE::cur().pe = PE::new_bind(VPE::cur().pe.desc(), kif::SEL_PE);
+    // be careful not to destruct the object
+    VPE::cur().pe.set_sel(kif::SEL_PE);
     VPE::cur().mem = MemGate::new_bind(kif::SEL_MEM);
+    VPE::cur().kmem = Rc::new(KMem::new(kif::SEL_KMEM));
     VPE::cur().epmng().reset(VPE::cur().epmng().reserved());
 }

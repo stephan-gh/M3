@@ -40,7 +40,7 @@ fn destroy() {
     use m3::pes::{Activity, PE, VPE};
 
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
-    let mut child = wv_assert_ok!(VPE::new(&pe, "test"));
+    let mut child = wv_assert_ok!(VPE::new(pe, "test"));
 
     let act = {
         let mut rg = wv_assert_ok!(RecvGate::new_with(

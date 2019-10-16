@@ -115,7 +115,7 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     std::unique_ptr<MemGate> mems[MAX_CMDS] = {nullptr};
     // destroy the VPEs first to prevent errors due to destroyed communication channels
     std::unique_ptr<StreamAccel> accels[MAX_CMDS] = {nullptr};
-    std::unique_ptr<PE> pes[MAX_CMDS] = {nullptr};
+    Reference<PE> pes[MAX_CMDS];
     std::unique_ptr<VPE> vpes[MAX_CMDS] = {nullptr};
 
     // get PE types
@@ -134,8 +134,8 @@ static void execute_pipeline(Pipes &pipesrv, CmdList *list) {
     for(size_t i = 0; i < list->count; ++i) {
         Command *cmd = list->cmds[i];
 
-        pes[i] = std::make_unique<PE>(PE::alloc(descs[i]));
-        vpes[i] = std::make_unique<VPE>(*pes[i], expr_value(cmd->args->args[0]));
+        pes[i] = PE::alloc(descs[i]);
+        vpes[i] = std::make_unique<VPE>(pes[i], expr_value(cmd->args->args[0]));
         vpe_count++;
 
         // I/O redirection is only supported at the beginning and end

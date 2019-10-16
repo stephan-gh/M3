@@ -20,6 +20,7 @@ use m3::com::{MemGate, Perm, RecvGate, EP};
 use m3::kif;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::profile;
+use m3::rc::Rc;
 use m3::syscalls;
 use m3::test;
 
@@ -253,20 +254,20 @@ fn exchange() {
 
     struct Tester {
         vpe: Option<VPE>,
-        pe: PE,
+        pe: Rc<PE>,
     }
 
     impl profile::Runner for Tester {
         fn pre(&mut self) {
             if self.vpe.is_none() {
-                self.vpe = Some(wv_assert_ok!(VPE::new_with(&self.pe, VPEArgs::new("test"))));
+                self.vpe = Some(wv_assert_ok!(VPE::new_with(self.pe.clone(), VPEArgs::new("test"))));
             }
         }
 
         fn run(&mut self) {
             wv_assert_ok!(syscalls::exchange(
                 self.vpe.as_ref().unwrap().sel(),
-                kif::CapRngDesc::new(kif::CapType::OBJECT, 1, 1),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, kif::SEL_VPE, 1),
                 *SEL,
                 false,
             ));

@@ -168,7 +168,7 @@ NOINLINE static void exchange() {
             Syscalls::revoke(vpe.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
         }
 
-        PE pe;
+        Reference<PE> pe;
         VPE vpe;
     };
 

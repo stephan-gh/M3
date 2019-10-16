@@ -75,8 +75,8 @@ public:
             eps = (EP_COUNT - m3::DTU::FIRST_FREE_EP) * (sizeof(EPCapability) + sizeof(EPObject));
         // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
         return sizeof(VPE) + sizeof(AddrSpace) +
-               // PE and VPE cap
-               sizeof(PECapability) + sizeof(VPECapability) +
+               // PE cap, VPE cap, and kmem cap
+               sizeof(PECapability) + sizeof(VPECapability) + sizeof(KMemCapability) +
                // memory gate and cap
                sizeof(MGateCapability) + sizeof(MGateObject) +
                // EP caps
@@ -99,7 +99,7 @@ public:
         F_STOPPED     = 1 << 2,
     };
 
-    explicit VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObject *kmem);
+    explicit VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCapability *kmemcap);
     VPE(const VPE &) = delete;
     VPE &operator=(const VPE &) = delete;
     ~VPE();

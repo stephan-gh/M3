@@ -231,7 +231,6 @@ void VPE::load_app() {
     senv.pedesc = Platform::pe(pe());
     senv.heapsize = ROOT_HEAP_SIZE;
     senv.rmng_sel = m3::KIF::INV_SEL;
-    senv.kmem_sel = m3::KIF::FIRST_FREE_SEL;
     senv.caps = _first_sel;
 
     DTU::get().write_mem(desc(), ENV_START, &senv, sizeof(senv));

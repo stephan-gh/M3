@@ -20,10 +20,11 @@ use m3::dtu::PEId;
 use m3::errors::{Code, Error};
 use m3::kif::PEDesc;
 use m3::pes::PE;
+use m3::rc::Rc;
 
 struct ManagedPE {
     id: PEId,
-    pe: PE,
+    pe: Rc<PE>,
     used: bool,
 }
 
@@ -42,7 +43,7 @@ impl PEManager {
         PEManager { pes: Vec::new() }
     }
 
-    pub fn add(&mut self, id: PEId, pe: PE) {
+    pub fn add(&mut self, id: PEId, pe: Rc<PE>) {
         self.pes.push(ManagedPE {
             id,
             pe,
@@ -50,8 +51,8 @@ impl PEManager {
         });
     }
 
-    pub fn get(&self, id: usize) -> &PE {
-        &self.pes[id].pe
+    pub fn get(&self, id: usize) -> Rc<PE> {
+        self.pes[id].pe.clone()
     }
 
     pub fn alloc(&mut self, desc: PEDesc) -> Result<usize, Error> {

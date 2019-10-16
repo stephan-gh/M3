@@ -105,8 +105,7 @@ impl EP {
     }
 
     pub(crate) fn sel_of_vpe(vpe: &VPE, ep: EpId) -> Selector {
-        const_assert!(kif::SEL_PE == 0);
-        vpe.pe().sel() + Self::sel_of(ep)
+        (vpe.sel() - kif::SEL_VPE) + Self::sel_of(ep)
     }
 
     fn alloc_cap(vpe: &VPE) -> Result<(Selector, EpId), Error> {

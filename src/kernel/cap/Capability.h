@@ -591,6 +591,7 @@ public:
 };
 
 class KMemCapability : public SlabObject<KMemCapability>, public Capability {
+    friend class VPE;
 public:
     explicit KMemCapability(CapTable *tbl, capsel_t sel, KMemObject *_obj)
         : Capability(tbl, sel, KMEM),

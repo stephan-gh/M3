@@ -26,13 +26,14 @@
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
+#include "Args.h"
 #include "DTU.h"
 #include "Platform.h"
 #include "SyscallHandler.h"
 
 namespace kernel {
 
-VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObject *kmem)
+VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCapability *kmemcap)
     : SlabObject<VPE>(),
       RefCounted(),
       _desc(pecap ? pecap->obj->id : 1, id),
@@ -41,7 +42,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObj
       _state(DEAD),
       _exitcode(),
       _sysc_ep(SyscallHandler::alloc_ep()),
-      _kmem(kmem),
+      _kmem(kmemcap ? kmemcap->obj : m3::Reference<KMemObject>()),
       _pe(pecap ? pecap->obj : m3::Reference<PEObject>()),
       _name(std::move(prog)),
       _objcaps(id),
@@ -54,24 +55,37 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemObj
     if(_sysc_ep == EP_COUNT)
         PANIC("Too few slots in syscall receive buffers");
 
-    _kmem->alloc(*this, base_kmem(Platform::pe(pe())));
-
     auto vpecap = new VPECapability(&_objcaps, m3::KIF::SEL_VPE, this);
+    _objcaps.set(m3::KIF::SEL_VPE, vpecap);
 
     // allocate PE cap for root
     if(pecap == nullptr) {
         pecap = new PECapability(&_objcaps, m3::KIF::SEL_PE, PEManager::get().pemux(pe())->pe());
         _objcaps.set(m3::KIF::SEL_PE, pecap);
-        // PECapability is already paid by base_kmem()
-        _kmem->alloc(*this, sizeof(PEObject));
         _pe = pecap->obj;
+
+        // same for kmem
+        assert(kmemcap == nullptr);
+        auto kmem = new KMemObject(Args::kmem - FIXED_KMEM);
+        kmemcap = new KMemCapability(&_objcaps, m3::KIF::SEL_KMEM, kmem);
+        _objcaps.set(m3::KIF::SEL_KMEM, kmemcap);
+        _kmem = kmemcap->obj;
+
+        // KMemCapability and PECapability are already paid by base_kmem()
+        _kmem->alloc(*this, sizeof(KMemObject) + sizeof(PEObject));
     }
     else {
         auto npecap = pecap->clone(&_objcaps, m3::KIF::SEL_PE);
         _objcaps.inherit(pecap, npecap);
         _objcaps.set(m3::KIF::SEL_PE, npecap);
+        // same for kmem
+        assert(kmemcap != nullptr);
+        auto nkmemcap = kmemcap->clone(&_objcaps, m3::KIF::SEL_KMEM);
+        _objcaps.inherit(kmemcap, nkmemcap);
+        _objcaps.set(m3::KIF::SEL_KMEM, nkmemcap);
     }
-    _objcaps.set(m3::KIF::SEL_VPE, vpecap);
+
+    _kmem->alloc(*this, base_kmem(Platform::pe(pe())));
 
     _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
         &_objcaps, m3::KIF::SEL_MEM, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));

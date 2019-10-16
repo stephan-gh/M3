@@ -92,7 +92,7 @@ public:
     }
 
 private:
-    PE _pe;
+    Reference<PE> _pe;
     VPE _accel;
     capsel_t _lastmem;
     m3::RecvGate _rgate;

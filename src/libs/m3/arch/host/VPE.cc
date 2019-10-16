@@ -128,7 +128,7 @@ static bool read_from(const char *suffix, T *val) {
     return false;
 }
 
-static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps, capsel_t rmng, capsel_t kmem,
+static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps, capsel_t rmng,
                         uint64_t rbufcur, uint64_t rbufend,
                         FileTable &files, MountTable &mounts) {
     size_t len = STATE_BUF_SIZE;
@@ -137,7 +137,6 @@ static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps, capsel_t rmng
     write_file(pid, "nextsel", nextsel);
     write_file(pid, "eps", eps);
     write_file(pid, "rmng", rmng);
-    write_file(pid, "kmem", kmem);
 
     Marshaller m(buf.get(), len);
     m << rbufcur << rbufend;
@@ -164,14 +163,6 @@ void VPE::init_state() {
         _resmng.reset(new ResMng(rmng_sel));
     else if(_resmng == nullptr)
         _resmng.reset(new ResMng(ObjCap::INVALID));
-
-    if(!_kmem) {
-        capsel_t kmem_sel;
-        if(read_from("kmem", &kmem_sel))
-            _kmem = Reference<KMem>(new KMem(kmem_sel));
-        else
-            _kmem = Reference<KMem>(new KMem(env()->kmem_sel()));
-    }
 
     size_t len = sizeof(uint64_t) * 2;
     uint8_t buf[len];
@@ -231,7 +222,7 @@ void VPE::run(void *lambda) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _epmng.reserved(), _resmng->sel(), _kmem->sel(),
+        write_state(pid, _next_sel, _epmng.reserved(), _resmng->sel(),
             _rbufcur, _rbufend, *_fds, *_ms);
 
         p2c.signal();
@@ -296,7 +287,7 @@ void VPE::exec(int argc, const char **argv) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _epmng.reserved(), _resmng->sel(), _kmem->sel(),
+        write_state(pid, _next_sel, _epmng.reserved(), _resmng->sel(),
             _rbufcur, _rbufend, *_fds, *_ms);
 
         p2c.signal();

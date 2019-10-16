@@ -24,8 +24,7 @@ use core::intrinsics;
 use dtu::{EpId, Label};
 use kif::{self, PEDesc, PEType, PEISA};
 use libc;
-use pes::{KMem, VPE};
-use rc::Rc;
+use pes::VPE;
 use session::{Pager, ResMng};
 use vfs::{FileTable, MountTable};
 
@@ -104,11 +103,6 @@ impl EnvData {
             },
             None => arch::rbufs::RBufSpace::new(),
         }
-    }
-
-    pub fn load_kmem(&self) -> Rc<KMem> {
-        let sel = Self::load_word("kmem", u64::from(self.base().kmem_sel)) as Selector;
-        Rc::new(KMem::new(sel))
     }
 
     pub fn load_mounts(&self) -> MountTable {

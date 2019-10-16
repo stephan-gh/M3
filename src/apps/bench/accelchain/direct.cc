@@ -49,8 +49,8 @@ public:
 
             if(VERBOSE) Serial::get() << "Creating VPE " << name.str() << "\n";
 
-            pes[i] = std::make_unique<PE>(PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT)));
-            vpes[i] = std::make_unique<VPE>(*pes[i], name.str());
+            pes[i] = PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT));
+            vpes[i] = std::make_unique<VPE>(pes[i], name.str());
 
             accels[i] = std::make_unique<StreamAccel>(vpes[i], comptime);
 
@@ -122,7 +122,7 @@ public:
 private:
     size_t num;
     Mode mode;
-    std::unique_ptr<PE> pes[MAX_NUM];
+    Reference<PE> pes[MAX_NUM];
     std::unique_ptr<VPE> vpes[MAX_NUM];
     std::unique_ptr<StreamAccel> accels[MAX_NUM];
     std::unique_ptr<IndirectPipe> pipes[MAX_NUM];

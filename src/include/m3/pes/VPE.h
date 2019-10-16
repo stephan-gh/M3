@@ -100,13 +100,13 @@ public:
         return *_self_ptr;
     }
 
-    explicit VPE(const class PE &pe, const String &name, const VPEArgs &args = VPEArgs());
+    explicit VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args = VPEArgs());
     virtual ~VPE();
 
     /**
      * @return the PE this VPE has been assigned to
      */
-    const class PE &pe() const noexcept {
+    const Reference<class PE> &pe() const noexcept {
         return _pe;
     }
 
@@ -114,7 +114,7 @@ public:
      * @return the PE description this VPE has been assigned to
      */
     const PEDesc &pe_desc() const noexcept {
-        return _pe.desc();
+        return _pe->desc();
     }
 
     /**
@@ -323,13 +323,13 @@ private:
     static bool skip_section(ElfPh *ph);
     void copy_sections();
 
-    class PE _pe;
+    Reference<class PE> _pe;
+    Reference<KMem> _kmem;
     MemGate _mem;
     capsel_t _next_sel;
     uint64_t _rbufcur;
     uint64_t _rbufend;
     EPMng _epmng;
-    Reference<KMem> _kmem;
     std::unique_ptr<ResMng> _resmng;
     std::unique_ptr<Pager> _pager;
     std::unique_ptr<MountTable> _ms;

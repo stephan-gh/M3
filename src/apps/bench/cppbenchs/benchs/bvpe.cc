@@ -28,7 +28,7 @@ using namespace m3;
 NOINLINE static void creation() {
     Profile pr(4, 2);
 
-    PE pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc(VPE::self().pe_desc());
     WVPERF("VPE creation", pr.run_with_id([&pe] {
         VPE vpe(pe, "hello");
     }, 0x90));
@@ -38,7 +38,7 @@ NOINLINE static void run() {
     const ulong warmup = 2;
     const ulong repeats = 4;
 
-    PE pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc(VPE::self().pe_desc());
     Results res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
         VPE vpe(pe, "hello");
@@ -60,7 +60,7 @@ NOINLINE static void run() {
 NOINLINE static void run_wait() {
     Profile pr(4, 2);
 
-    PE pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc(VPE::self().pe_desc());
     WVPERF("VPE run wait", pr.run_with_id([&pe] {
         VPE vpe(pe, "hello");
         vpe.run([]() {
@@ -73,7 +73,7 @@ NOINLINE static void run_wait() {
 NOINLINE static void exec() {
     Profile pr(4, 2);
 
-    PE pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc(VPE::self().pe_desc());
     WVPERF("VPE exec", pr.run_with_id([&pe] {
         VPE vpe(pe, "hello");
         const char *args[] = {"/bin/noop"};

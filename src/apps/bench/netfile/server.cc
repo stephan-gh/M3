@@ -56,7 +56,7 @@ int main() {
 
     // Creating processor
     cout << "Creating accel VPE\n";
-    PE pe = PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_ROT13));
+    auto pe = PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_ROT13));
     std::unique_ptr<VPE> vpe(new VPE(pe, "AccelVPE"));
 
     std::unique_ptr<StreamAccel> accel(new StreamAccel(vpe, 1000));

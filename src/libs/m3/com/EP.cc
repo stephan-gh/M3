@@ -51,8 +51,7 @@ capsel_t EP::sel_of(epid_t ep) noexcept {
 }
 
 capsel_t EP::sel_of_vpe(VPE &vpe, epid_t ep) noexcept {
-    static_assert(KIF::SEL_PE == 0, "PE selector changed");
-    return vpe.pe().sel() + sel_of(ep);
+    return (vpe.sel() - KIF::SEL_VPE) + sel_of(ep);
 }
 
 EP EP::alloc() {
@@ -82,7 +81,7 @@ EP EP::bind_for(VPE &vpe, epid_t id) noexcept {
 
 capsel_t EP::alloc_cap(VPE &vpe, epid_t *id) {
     capsel_t sel = VPE::self().alloc_sel();
-    *id = Syscalls::alloc_ep(sel, vpe.sel(), vpe.pe().sel());
+    *id = Syscalls::alloc_ep(sel, vpe.sel(), vpe.pe()->sel());
     return sel;
 }
 

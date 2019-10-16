@@ -39,7 +39,6 @@ pub struct EnvData {
     pub rbuf_cur: u64,
     pub rbuf_end: u64,
     pub rmng_sel: u64,
-    pub kmem_sel: u64,
     pub eps: u64,
     pub caps: u64,
 

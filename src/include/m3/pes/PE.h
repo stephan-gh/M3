@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <base/util/Reference.h>
 #include <base/PEDesc.h>
 
 #include <m3/ObjCap.h>
@@ -27,15 +28,17 @@ namespace m3 {
 /**
  * Represents a processing element.
  */
-class PE : public ObjCap {
+class PE : public ObjCap, public RefCounted {
     explicit PE(capsel_t sel, const PEDesc &desc, uint flags) noexcept
         : ObjCap(ObjCap::PE, sel, flags),
+          RefCounted(),
           _desc(desc) {
     }
 
 public:
     PE(PE &&pe) noexcept
         : ObjCap(std::move(pe)),
+          RefCounted(std::move(pe)),
           _desc(pe._desc) {
         pe.flags(KEEP_CAP);
     }
@@ -47,7 +50,7 @@ public:
      * @param desc the PE description
      * @return the PE object
      */
-    static PE alloc(const PEDesc &desc);
+    static Reference<PE> alloc(const PEDesc &desc);
 
     /**
      * Binds a PE object to the given selector and PE description
@@ -56,8 +59,8 @@ public:
      * @param desc the PE description
      * @return the PE object
      */
-    static PE bind(capsel_t sel, const PEDesc &desc) {
-        return PE(sel, desc, KEEP_CAP);
+    static Reference<PE> bind(capsel_t sel, const PEDesc &desc) {
+        return Reference<PE>(new PE(sel, desc, KEEP_CAP));
     }
 
     /**

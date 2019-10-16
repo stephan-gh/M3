@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
 
     VFS::mount("/", "m3fs");
 
-    PE pe = PE::alloc(VPE::self().pe_desc());
+    auto pe = PE::alloc(VPE::self().pe_desc());
     VPE sh(pe, argv[1], VPEArgs().pager("pager"));
 
     try {
