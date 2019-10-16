@@ -283,7 +283,7 @@ pub trait Child {
 
         let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
         // TODO if that fails, we need to kill this child because otherwise we don't get the PE back
-        syscalls::revoke(self.vpe_sel(), crd, true).unwrap();
+        syscalls::revoke(self.vpe_sel(), crd, true).ok();
         pes::get().free(id);
 
         Ok(())
