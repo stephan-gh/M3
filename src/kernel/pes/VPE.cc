@@ -261,8 +261,10 @@ m3::Errors::Code VPE::activate(EPCapability *epcap, capsel_t gate, size_t addr) 
     GateObject *gateobj = nullptr;
     if(gate != m3::KIF::INV_SEL) {
         auto gatecap = objcaps().get(gate, Capability::SGATE | Capability::MGATE | Capability::RGATE);
-        if(gatecap == nullptr)
+        if(gatecap == nullptr) {
+            LOG_ERROR(this, m3::Errors::INV_ARGS, "Invalid gate cap");
             return m3::Errors::INV_ARGS;
+        }
         gateobj = gatecap->as_gate();
     }
 
@@ -272,8 +274,10 @@ m3::Errors::Code VPE::activate(EPCapability *epcap, capsel_t gate, size_t addr) 
             static_cast<RGateObject*>(epcap->obj->gate)->addr = 0;
         // the remote invalidation is only required for send gates
         else if(epcap->obj->gate->type == Capability::SGATE) {
-            if(!dst_pemux->invalidate_ep(epcap->obj->ep))
+            if(!dst_pemux->invalidate_ep(epcap->obj->ep)) {
+                LOG_ERROR(this, m3::Errors::INV_ARGS, "EP invalidation failed");
                 return m3::Errors::INV_ARGS;
+            }
             static_cast<SGateObject*>(epcap->obj->gate)->activated = false;
             invalid = true;
         }
@@ -286,14 +290,19 @@ m3::Errors::Code VPE::activate(EPCapability *epcap, capsel_t gate, size_t addr) 
 
     if(gateobj) {
         EPObject *oldep = gateobj->ep_of_pe(dst_pe);
-        if(oldep && oldep->ep != epcap->obj->ep)
+        if(oldep && oldep->ep != epcap->obj->ep) {
+            LOG_ERROR(this, m3::Errors::EXISTS,
+                "Gate is already activated on PE" << oldep->pe->id << ":EP " << oldep->ep);
             return m3::Errors::EXISTS;
+        }
 
         if(gateobj->type == Capability::MGATE) {
             auto mgateobj = static_cast<MGateObject*>(gateobj);
             m3::Errors::Code res = dst_pemux->config_mem_ep(epcap->obj->ep, *mgateobj, addr);
-            if(res != m3::Errors::NONE)
+            if(res != m3::Errors::NONE) {
+                LOG_ERROR(this, res, "Memory EP configuration failed");
                 return res;
+            }
         }
         else if(gateobj->type == Capability::SGATE) {
             auto sgateobj = static_cast<SGateObject*>(gateobj);
@@ -314,8 +323,10 @@ m3::Errors::Code VPE::activate(EPCapability *epcap, capsel_t gate, size_t addr) 
             }
 
             m3::Errors::Code res = dst_pemux->config_snd_ep(epcap->obj->ep, *sgateobj);
-            if(res != m3::Errors::NONE)
+            if(res != m3::Errors::NONE) {
+                LOG_ERROR(this, res, "Send EP configuration failed");
                 return res;
+            }
         }
         else {
             auto rgateobj = static_cast<RGateObject*>(gateobj);
@@ -328,6 +339,7 @@ m3::Errors::Code VPE::activate(EPCapability *epcap, capsel_t gate, size_t addr) 
 
             m3::Errors::Code res = dst_pemux->config_rcv_ep(epcap->obj->ep, *rgateobj);
             if(res != m3::Errors::NONE) {
+                LOG_ERROR(this, res, "Receive EP configuration failed");
                 rgateobj->addr = 0;
                 return res;
             }
@@ -337,8 +349,10 @@ m3::Errors::Code VPE::activate(EPCapability *epcap, capsel_t gate, size_t addr) 
             gateobj->add_ep(&*epcap->obj);
     }
     else {
-        if(!invalid && !dst_pemux->invalidate_ep(epcap->obj->ep))
+        if(!invalid && !dst_pemux->invalidate_ep(epcap->obj->ep)) {
+            LOG_ERROR(this, m3::Errors::INV_ARGS, "EP invalidation failed");
             return m3::Errors::INV_ARGS;
+        }
     }
 
     epcap->obj->gate = gateobj;

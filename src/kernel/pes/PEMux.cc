@@ -22,7 +22,7 @@
 #include "Platform.h"
 #include "SyscallHandler.h"
 
-#define LOG_ERROR(pemux, error, msg)                                     \
+#define LOG_PEX_ERROR(pemux, error, msg)                                     \
     do {                                                                 \
         KLOG(ERR, "\e[37;41m"                                            \
             << "PEMux[" << (pemux)->peid() << "]: "                      \
@@ -142,7 +142,7 @@ void PEMux::pexcall_activate(const m3::DTU::Message *msg) {
 
     auto vpecap = static_cast<VPECapability*>(_caps.get(req->vpe_sel, Capability::VIRTPE));
     if(vpecap == nullptr) {
-        LOG_ERROR(this, m3::Errors::INV_ARGS, "invalid VPE cap");
+        LOG_PEX_ERROR(this, m3::Errors::INV_ARGS, "invalid VPE cap");
         reply_result(msg, m3::Errors::INV_ARGS);
         return;
     }
@@ -150,14 +150,14 @@ void PEMux::pexcall_activate(const m3::DTU::Message *msg) {
     capsel_t ep_sel = m3::KIF::FIRST_EP_SEL + req->ep - m3::DTU::FIRST_USER_EP;
     auto epcap = static_cast<EPCapability*>(_caps.get(ep_sel, Capability::EP));
     if(epcap == nullptr) {
-        LOG_ERROR(this, m3::Errors::INV_ARGS, "invalid EP cap");
+        LOG_PEX_ERROR(this, m3::Errors::INV_ARGS, "invalid EP cap");
         reply_result(msg, m3::Errors::INV_ARGS);
         return;
     }
 
     m3::Errors::Code res = vpecap->obj->activate(epcap, req->gate_sel, req->addr);
     if(res != m3::Errors::NONE)
-        LOG_ERROR(this, res, "activate of EP " << epcap->obj->ep << " failed");
+        LOG_PEX_ERROR(this, res, "activate of EP " << epcap->obj->ep << " failed");
     reply_result(msg, res);
 }
 

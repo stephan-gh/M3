@@ -32,6 +32,14 @@ class PEManager;
 class VPECapability;
 class VPEManager;
 
+#define LOG_ERROR(vpe, error, msg)                                                          \
+    do {                                                                                    \
+        KLOG(ERR, "\e[37;41m"                                                               \
+            << (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->pe(), "X")      \
+            << ": " << msg << " (" << m3::Errors::to_string(error) << ")\e[0m");            \
+    }                                                                                       \
+    while(0)
+
 #define CREATE_CAP(CAP, KOBJ, tbl, sel, ...)                                 \
     (tbl)->vpe()->kmem()->alloc(*(tbl)->vpe(), sizeof(CAP) + sizeof(KOBJ)) ? \
         new CAP(tbl, sel, new KOBJ(__VA_ARGS__))                           : \

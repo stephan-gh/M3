@@ -40,14 +40,6 @@ SyscallHandler::handler_func SyscallHandler::_callbacks[m3::KIF::Syscall::COUNT]
         KLOG(SYSC, (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->pe(), "X")  \
             << (sysname) << expr)
 
-#define LOG_ERROR(vpe, error, msg)                                                          \
-    do {                                                                                    \
-        KLOG(ERR, "\e[37;41m"                                                               \
-            << (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->pe(), "X")      \
-            << ": " << msg << " (" << m3::Errors::to_string(error) << ")\e[0m");            \
-    }                                                                                       \
-    while(0)
-
 #define SYS_ERROR(vpe, msg, errcode, errmsg) {                                              \
         LOG_ERROR(vpe, errcode, errmsg);                                                    \
         reply_result((vpe), (msg), (errcode));                                              \
@@ -444,8 +436,6 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid EP cap");
 
     m3::Errors::Code res = vpe->activate(epcap, gate, addr);
-    if(res != m3::Errors::NONE)
-        SYS_ERROR(vpe, msg, res, "Gate activation failed");
     reply_result(vpe, msg, res);
 }
 
