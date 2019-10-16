@@ -261,7 +261,8 @@ void SessCapability::printInfo(m3::OStream &os) const {
 void PECapability::printInfo(m3::OStream &os) const {
     os << ": pe  [refs=" << obj->refcount()
         << ", pe=" << obj->id
-        << ", eps=" << obj->eps << "]";
+        << ", eps=" << obj->eps
+        << ", vpes=" << obj->vpes << "]";
 }
 
 void EPCapability::printInfo(m3::OStream &os) const {
