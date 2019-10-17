@@ -238,7 +238,7 @@ impl VPE {
     }
 
     /// Returns the description of the PE the VPE has been assigned to.
-    pub fn pe(&self) -> &PE {
+    pub fn pe(&self) -> &Rc<PE> {
         &self.pe
     }
 
