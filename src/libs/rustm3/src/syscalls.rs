@@ -294,6 +294,20 @@ pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
     }
 }
 
+/// Returns the remaining quota (free endpoints) for the PE object at `pe`.
+pub fn pe_quota(pe: Selector) -> Result<u32, Error> {
+    let req = syscalls::PEQuota {
+        opcode: syscalls::Operation::PE_QUOTA.val,
+        pe_sel: u64::from(pe),
+    };
+
+    let reply: Reply<syscalls::PEQuotaReply> = send_receive(&req)?;
+    match reply.data.error {
+        0 => Ok(reply.data.amount as u32),
+        e => Err(Error::from(e as u32)),
+    }
+}
+
 /// Performs the VPE operation `op` with the given VPE.
 pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Error> {
     let req = syscalls::VPECtrl {

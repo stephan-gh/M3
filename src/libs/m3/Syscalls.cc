@@ -240,6 +240,26 @@ size_t Syscalls::kmem_quota(capsel_t kmem) {
     return amount;
 }
 
+uint Syscalls::pe_quota(capsel_t pe) {
+    KIF::Syscall::PEQuota req;
+    req.opcode = KIF::Syscall::PE_QUOTA;
+    req.pe_sel = pe;
+
+    const DTU::Message *msg = send_receive(&req, sizeof(req));
+    auto *reply = reinterpret_cast<const KIF::Syscall::PEQuotaReply*>(msg->data);
+
+    uint amount = 0;
+    Errors::Code res = static_cast<Errors::Code>(reply->error);
+    if(res == Errors::NONE)
+        amount = reply->amount;
+    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
+
+    if(res != Errors::NONE)
+        throw SyscallException(res, KIF::Syscall::PE_QUOTA);
+
+    return amount;
+}
+
 void Syscalls::sem_ctrl(capsel_t sel, KIF::Syscall::SemOp op) {
     KIF::Syscall::SemCtrl req;
     req.opcode = KIF::Syscall::SEM_CTRL;

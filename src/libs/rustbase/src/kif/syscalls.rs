@@ -48,16 +48,17 @@ int_enum! {
         const DERIVE_KMEM       = 12;
         const DERIVE_PE         = 13;
         const KMEM_QUOTA        = 14;
-        const SEM_CTRL          = 15;
+        const PE_QUOTA          = 15;
+        const SEM_CTRL          = 16;
 
         // capability exchange
-        const DELEGATE          = 16;
-        const OBTAIN            = 17;
-        const EXCHANGE          = 18;
-        const REVOKE            = 19;
+        const DELEGATE          = 17;
+        const OBTAIN            = 18;
+        const EXCHANGE          = 19;
+        const REVOKE            = 20;
 
         // misc
-        const NOOP              = 20;
+        const NOOP              = 21;
     }
 }
 
@@ -278,6 +279,20 @@ pub struct KMemQuota {
 /// The kernel memory quota reply message
 #[repr(C, packed)]
 pub struct KMemQuotaReply {
+    pub error: u64,
+    pub amount: u64,
+}
+
+/// The PE quota request message
+#[repr(C, packed)]
+pub struct PEQuota {
+    pub opcode: u64,
+    pub pe_sel: u64,
+}
+
+/// The PE quota reply message
+#[repr(C, packed)]
+pub struct PEQuotaReply {
     pub error: u64,
     pub amount: u64,
 }

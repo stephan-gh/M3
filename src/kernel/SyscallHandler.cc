@@ -95,6 +95,7 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::DERIVE_KMEM,    &SyscallHandler::derive_kmem);
     add_operation(m3::KIF::Syscall::DERIVE_PE,      &SyscallHandler::derive_pe);
     add_operation(m3::KIF::Syscall::KMEM_QUOTA,     &SyscallHandler::kmem_quota);
+    add_operation(m3::KIF::Syscall::PE_QUOTA,       &SyscallHandler::pe_quota);
     add_operation(m3::KIF::Syscall::SEM_CTRL,       &SyscallHandler::sem_ctrl);
     add_operation(m3::KIF::Syscall::EXCHANGE,       &SyscallHandler::exchange);
     add_operation(m3::KIF::Syscall::DELEGATE,       &SyscallHandler::delegate);
@@ -633,6 +634,22 @@ void SyscallHandler::kmem_quota(VPE *vpe, const m3::DTU::Message *msg) {
     m3::KIF::Syscall::KMemQuotaReply reply;
     reply.error = m3::Errors::NONE;
     reply.amount = kmemcap->obj->left;
+    reply_msg(vpe, msg, &reply, sizeof(reply));
+}
+
+void SyscallHandler::pe_quota(VPE *vpe, const m3::DTU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::PEQuota>(msg);
+    capsel_t pe = req->pe_sel;
+
+    LOG_SYS(vpe, ": syscall::pe_quota", "(pe=" << pe << ")");
+
+    auto pecap = static_cast<PECapability*>(vpe->objcaps().get(pe, Capability::PE));
+    if(pecap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid PE cap");
+
+    m3::KIF::Syscall::PEQuotaReply reply;
+    reply.error = m3::Errors::NONE;
+    reply.amount = pecap->obj->eps;
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 

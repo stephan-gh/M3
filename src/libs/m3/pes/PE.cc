@@ -45,4 +45,8 @@ Reference<PE> PE::derive(uint eps) {
     return Reference<PE>(new PE(sel, desc(), 0, false));
 }
 
+uint PE::quota() const {
+    return Syscalls::pe_quota(sel());
+}
+
 }

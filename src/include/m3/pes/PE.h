@@ -81,6 +81,11 @@ public:
         return _desc;
     }
 
+    /**
+     * @return the number of available EPs
+     */
+    uint quota() const;
+
 private:
     PEDesc _desc;
     bool _free;

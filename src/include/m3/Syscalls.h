@@ -54,6 +54,7 @@ public:
     static void derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);
     static void derive_pe(capsel_t pe, capsel_t dst, uint eps);
     static size_t kmem_quota(capsel_t kmem);
+    static uint pe_quota(capsel_t pe);
     static void sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);
 
     static void delegate(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,

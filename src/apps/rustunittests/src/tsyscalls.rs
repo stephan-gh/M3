@@ -42,6 +42,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, derive_kmem);
     wv_run_test!(t, derive_pe);
     wv_run_test!(t, kmem_quota);
+    wv_run_test!(t, pe_quota);
     wv_run_test!(t, sem_ctrl);
 
     wv_run_test!(t, delegate);
@@ -475,6 +476,18 @@ fn derive_pe() {
     // invalid pe sel
     wv_assert_err!(syscalls::derive_pe(SEL_VPE, sel, 1), Code::InvArgs);
 
+    // transfer EPs
+    let oquota = wv_assert_ok!(pe.quota());
+    {
+        let pe2 = wv_assert_ok!(pe.derive(1));
+        let quota2 = wv_assert_ok!(pe2.quota());
+        let nquota = wv_assert_ok!(pe.quota());
+        wv_assert_eq!(quota2, 1);
+        wv_assert_eq!(nquota, oquota - 1);
+    }
+    let nquota = wv_assert_ok!(pe.quota());
+    wv_assert_eq!(nquota, oquota);
+
     {
         let _vpe = wv_assert_ok!(VPE::new(pe.clone(), "test"));
         // VPE is still using the PE
@@ -492,6 +505,12 @@ fn kmem_quota() {
     // invalid selector
     wv_assert_err!(syscalls::kmem_quota(SEL_VPE), Code::InvArgs);
     wv_assert_err!(syscalls::kmem_quota(VPE::cur().alloc_sel()), Code::InvArgs);
+}
+
+fn pe_quota() {
+    // invalid selector
+    wv_assert_err!(syscalls::pe_quota(SEL_VPE), Code::InvArgs);
+    wv_assert_err!(syscalls::pe_quota(VPE::cur().alloc_sel()), Code::InvArgs);
 }
 
 fn sem_ctrl() {

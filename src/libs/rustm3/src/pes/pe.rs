@@ -65,6 +65,10 @@ impl PE {
         self.desc
     }
 
+    pub fn quota(&self) -> Result<u32, Error> {
+        syscalls::pe_quota(self.sel())
+    }
+
     pub(crate) fn set_sel(&self, sel: Selector) {
         self.cap.set_sel(sel);
     }

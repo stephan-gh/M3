@@ -78,6 +78,7 @@ private:
     static void derive_kmem(VPE *vpe, const m3::DTU::Message *msg);
     static void derive_pe(VPE *vpe, const m3::DTU::Message *msg);
     static void kmem_quota(VPE *vpe, const m3::DTU::Message *msg);
+    static void pe_quota(VPE *vpe, const m3::DTU::Message *msg);
     static void sem_ctrl(VPE *vpe, const m3::DTU::Message *msg);
     static void exchange(VPE *vpe, const m3::DTU::Message *msg);
     static void delegate(VPE *vpe, const m3::DTU::Message *msg);

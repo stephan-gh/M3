@@ -167,6 +167,7 @@ struct KIF {
             DERIVE_KMEM,
             DERIVE_PE,
             KMEM_QUOTA,
+            PE_QUOTA,
             SEM_CTRL,
 
             // capability exchange
@@ -306,6 +307,14 @@ struct KIF {
         } PACKED;
 
         struct KMemQuotaReply : public DefaultReply {
+            xfer_t amount;
+        } PACKED;
+
+        struct PEQuota : public DefaultRequest {
+            xfer_t pe_sel;
+        } PACKED;
+
+        struct PEQuotaReply : public DefaultReply {
             xfer_t amount;
         } PACKED;
 
