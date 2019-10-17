@@ -266,7 +266,8 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     }
 
     auto pecap = static_cast<PECapability*>(vpe->objcaps().get(pe, Capability::PE));
-    if(pecap == nullptr)
+    // TODO later we will allow multiple VPEs on one PE
+    if(pecap == nullptr || pecap->obj->vpes > 0)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid PE cap");
 
     auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
