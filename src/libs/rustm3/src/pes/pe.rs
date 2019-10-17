@@ -20,10 +20,12 @@ use errors::Error;
 use kif::PEDesc;
 use pes::VPE;
 use rc::Rc;
+use syscalls;
 
 pub struct PE {
     cap: Capability,
     desc: PEDesc,
+    free: bool,
 }
 
 impl PE {
@@ -31,8 +33,9 @@ impl PE {
         let sel = VPE::cur().alloc_sel();
         let ndesc = VPE::cur().resmng().alloc_pe(sel, desc)?;
         Ok(Rc::new(PE {
-            cap: Capability::new(sel, CapFlags::empty()),
+            cap: Capability::new(sel, CapFlags::KEEP_CAP),
             desc: ndesc,
+            free: true,
         }))
     }
 
@@ -40,7 +43,18 @@ impl PE {
         PE {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
             desc,
+            free: false,
         }
+    }
+
+    pub fn derive(&self, eps: u32) -> Result<Rc<Self>, Error> {
+        let sel = VPE::cur().alloc_sel();
+        syscalls::derive_pe(self.sel(), sel, eps)?;
+        Ok(Rc::new(PE {
+            cap: Capability::new(sel, CapFlags::empty()),
+            desc: self.desc().clone(),
+            free: false,
+        }))
     }
 
     pub fn sel(&self) -> Selector {
@@ -58,11 +72,9 @@ impl PE {
 
 impl Drop for PE {
     fn drop(&mut self) {
-        if !self.cap.flags().contains(CapFlags::KEEP_CAP) {
+        if self.free {
             VPE::cur().resmng().free_pe(self.sel()).ok();
         }
-        // don't revoke cap
-        self.cap.set_flags(CapFlags::KEEP_CAP);
     }
 }
 

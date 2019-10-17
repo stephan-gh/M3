@@ -23,7 +23,7 @@
 namespace m3 {
 
 PE::~PE() {
-    if(!(flags() & KEEP_CAP)) {
+    if(_free) {
         try {
             VPE::self().resmng()->free_pe(sel());
         }
@@ -31,13 +31,18 @@ PE::~PE() {
             // ignore
         }
     }
-    flags(KEEP_CAP);
 }
 
 Reference<PE> PE::alloc(const PEDesc &desc) {
     capsel_t sel = VPE::self().alloc_sel();
     PEDesc res = VPE::self().resmng()->alloc_pe(sel, desc);
-    return Reference<PE>(new PE(sel, res, 0));
+    return Reference<PE>(new PE(sel, res, KEEP_CAP, true));
+}
+
+Reference<PE> PE::derive(uint eps) {
+    capsel_t sel = VPE::self().alloc_sel();
+    Syscalls::derive_pe(this->sel(), sel, eps);
+    return Reference<PE>(new PE(sel, desc(), 0, false));
 }
 
 }

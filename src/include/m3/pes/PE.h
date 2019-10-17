@@ -29,18 +29,21 @@ namespace m3 {
  * Represents a processing element.
  */
 class PE : public ObjCap, public RefCounted {
-    explicit PE(capsel_t sel, const PEDesc &desc, uint flags) noexcept
+    explicit PE(capsel_t sel, const PEDesc &desc, uint flags, bool free) noexcept
         : ObjCap(ObjCap::PE, sel, flags),
           RefCounted(),
-          _desc(desc) {
+          _desc(desc),
+          _free(free) {
     }
 
 public:
     PE(PE &&pe) noexcept
         : ObjCap(std::move(pe)),
           RefCounted(std::move(pe)),
-          _desc(pe._desc) {
+          _desc(pe._desc),
+          _free(pe._free) {
         pe.flags(KEEP_CAP);
+        pe._free = false;
     }
     ~PE();
 
@@ -60,8 +63,16 @@ public:
      * @return the PE object
      */
     static Reference<PE> bind(capsel_t sel, const PEDesc &desc) {
-        return Reference<PE>(new PE(sel, desc, KEEP_CAP));
+        return Reference<PE>(new PE(sel, desc, KEEP_CAP, false));
     }
+
+    /**
+     * Derives a new PE object from the this by transferring <eps> endpoints to the new one
+     *
+     * @param eps the number of EPs to transfer
+     * @return the new PE object
+     */
+    Reference<PE> derive(uint eps);
 
     /**
      * @return the description of the PE
@@ -72,6 +83,7 @@ public:
 
 private:
     PEDesc _desc;
+    bool _free;
 };
 
 }
