@@ -170,6 +170,10 @@ peid_t Platform::last_pe() {
     return _info.pe_count - 2;
 }
 
+bool Platform::is_shared(peid_t) {
+    return false;
+}
+
 goff_t Platform::def_recvbuf(peid_t) {
     // unused
     return 0;

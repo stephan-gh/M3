@@ -278,7 +278,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     if(!vpe->kmem()->has_quota(capnum * sizeof(SGateCapability)))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
     // the child quota needs to be sufficient
-    if(!kmemcap->obj->has_quota(VPE::base_kmem(m3::PEDesc(pe)) + VPE::extra_kmem(m3::PEDesc(pe))))
+    if(!kmemcap->obj->has_quota(VPE::base_kmem(pecap->obj->id) + VPE::extra_kmem(m3::PEDesc(pe))))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
     // create VPE

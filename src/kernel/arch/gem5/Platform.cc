@@ -113,6 +113,10 @@ peid_t Platform::last_pe() {
     return last_pe_id;
 }
 
+bool Platform::is_shared(peid_t no) {
+    return pe(no).is_programmable();
+}
+
 goff_t Platform::def_recvbuf(peid_t no) {
     if(pe(no).has_virtmem())
         return RECVBUF_SPACE;

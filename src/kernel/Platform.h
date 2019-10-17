@@ -62,6 +62,8 @@ public:
         return _pes[no];
     }
 
+    static bool is_shared(peid_t no);
+
     static goff_t def_recvbuf(peid_t no);
 
 private:

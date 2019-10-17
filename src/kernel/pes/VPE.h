@@ -56,12 +56,6 @@ class VPE : public SlabObject<VPE>, public m3::RefCounted {
         m3::String name;
     };
 
-#if defined(__gem5__)
-    static const bool USE_PEMUX         = true;
-#else
-    static const bool USE_PEMUX         = false;
-#endif
-
 public:
     static const uint16_t INVALID_ID    = 0xFFFF;
     static const epid_t INVALID_EP      = static_cast<epid_t>(-1);
@@ -69,9 +63,9 @@ public:
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
 
-    static size_t base_kmem(const m3::PEDesc &pe) {
+    static size_t base_kmem(peid_t pe) {
         size_t eps = 0;
-        if(!USE_PEMUX || !pe.is_programmable())
+        if(!Platform::is_shared(pe))
             eps = (EP_COUNT - m3::DTU::FIRST_FREE_EP) * (sizeof(EPCapability) + sizeof(EPObject));
         // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
         return sizeof(VPE) + sizeof(AddrSpace) +

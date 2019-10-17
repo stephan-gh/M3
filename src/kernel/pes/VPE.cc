@@ -85,13 +85,13 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
         _objcaps.set(m3::KIF::SEL_KMEM, nkmemcap);
     }
 
-    _kmem->alloc(*this, base_kmem(Platform::pe(pe())));
+    _kmem->alloc(*this, base_kmem(pe()));
 
     _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
         &_objcaps, m3::KIF::SEL_MEM, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
 
     // only accelerators get their EP caps directly, because no PEMux is running there
-    if(!USE_PEMUX || !Platform::pe(pe()).is_programmable()) {
+    if(!Platform::is_shared(pe())) {
         for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
             capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
             _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(&*pecap->obj, ep)));
