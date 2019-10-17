@@ -27,20 +27,16 @@ namespace m3 {
 INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::SEL_SYSC_SG, ObjCap::KEEP_CAP,
                                                 &RecvGate::syscall(), DTU::SYSC_SEP);
 
-const DTU::Message *Syscalls::send_receive(const void *msg, size_t size) noexcept {
+template<class T>
+Syscalls::SyscallReply<T> Syscalls::send_receive(const void *msg, size_t size) noexcept {
     const DTU::Message *reply = nullptr;
     DTUIf::call(_sendgate, msg, size, *_sendgate.reply_gate(), &reply);
-    return reply;
+    return SyscallReply<T>(reply);
 }
 
 Errors::Code Syscalls::send_receive_err(const void *msg, size_t size) noexcept {
-    const DTU::Message *reply = send_receive(msg, size);
-
-    const KIF::DefaultReply *rdata = reinterpret_cast<const KIF::DefaultReply*>(reply->data);
-    Errors::Code res = static_cast<Errors::Code>(rdata->error);
-
-    DTUIf::mark_read(*_sendgate.reply_gate(), reply);
-    return res;
+    auto reply = send_receive<KIF::DefaultReply>(msg, size);
+    return static_cast<Errors::Code>(reply->error);
 }
 
 void Syscalls::send_receive_throw(const void *msg, size_t size) {
@@ -135,13 +131,10 @@ epid_t Syscalls::alloc_ep(capsel_t dst, capsel_t vpe, capsel_t pe) {
     req.vpe_sel = vpe;
     req.pe_sel = pe;
 
-    const DTU::Message *msg = send_receive(&req, sizeof(req));
-    auto *reply = reinterpret_cast<const KIF::Syscall::AllocEPReply*>(msg->data);
+    auto reply = send_receive<KIF::Syscall::AllocEPReply>(&req, sizeof(req));
 
     epid_t ep = reply->ep;
     Errors::Code res = static_cast<Errors::Code>(reply->error);
-    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
-
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::ALLOC_EP);
     return ep;
@@ -173,8 +166,7 @@ int Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel
     for(size_t i = 0; i < count; ++i)
         req.sels[i] = vpes[i];
 
-    const DTU::Message *msg = send_receive(&req, sizeof(req));
-    auto *reply = reinterpret_cast<const KIF::Syscall::VPEWaitReply*>(msg->data);
+    auto reply = send_receive<KIF::Syscall::VPEWaitReply>(&req, sizeof(req));
 
     int exitcode = -1;
     Errors::Code res = static_cast<Errors::Code>(reply->error);
@@ -182,7 +174,6 @@ int Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel
         *vpe = reply->vpe_sel;
         exitcode = reply->exitcode;
     }
-    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
 
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::VPE_WAIT);
@@ -225,19 +216,12 @@ size_t Syscalls::kmem_quota(capsel_t kmem) {
     req.opcode = KIF::Syscall::KMEM_QUOTA;
     req.kmem_sel = kmem;
 
-    const DTU::Message *msg = send_receive(&req, sizeof(req));
-    auto *reply = reinterpret_cast<const KIF::Syscall::KMemQuotaReply*>(msg->data);
+    auto reply = send_receive<KIF::Syscall::KMemQuotaReply>(&req, sizeof(req));
 
-    size_t amount = 0;
     Errors::Code res = static_cast<Errors::Code>(reply->error);
-    if(res == Errors::NONE)
-        amount = reply->amount;
-    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
-
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::KMEM_QUOTA);
-
-    return amount;
+    return reply->amount;
 }
 
 uint Syscalls::pe_quota(capsel_t pe) {
@@ -245,19 +229,12 @@ uint Syscalls::pe_quota(capsel_t pe) {
     req.opcode = KIF::Syscall::PE_QUOTA;
     req.pe_sel = pe;
 
-    const DTU::Message *msg = send_receive(&req, sizeof(req));
-    auto *reply = reinterpret_cast<const KIF::Syscall::PEQuotaReply*>(msg->data);
+    auto reply = send_receive<KIF::Syscall::PEQuotaReply>(&req, sizeof(req));
 
-    uint amount = 0;
     Errors::Code res = static_cast<Errors::Code>(reply->error);
-    if(res == Errors::NONE)
-        amount = reply->amount;
-    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
-
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::PE_QUOTA);
-
-    return amount;
+    return reply->amount;
 }
 
 void Syscalls::sem_ctrl(capsel_t sel, KIF::Syscall::SemOp op) {
@@ -290,16 +267,13 @@ void Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc 
     else
         req.args.count = 0;
 
-    const DTU::Message *msg = send_receive(&req, sizeof(req));
-    auto *reply = reinterpret_cast<const KIF::Syscall::ExchangeSessReply*>(msg->data);
+    auto reply = send_receive<KIF::Syscall::ExchangeSessReply>(&req, sizeof(req));
 
     Errors::Code res = static_cast<Errors::Code>(reply->error);
-    if(res == Errors::NONE && args)
-        memcpy(args, &reply->args, sizeof(*args));
-    DTUIf::mark_read(*_sendgate.reply_gate(), reinterpret_cast<const DTU::Message*>(reply));
-
     if(res != Errors::NONE)
         throw SyscallException(res, static_cast<KIF::Syscall::Operation>(req.opcode));
+    if(args)
+        memcpy(args, &reply->args, sizeof(*args));
 }
 
 void Syscalls::delegate(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,

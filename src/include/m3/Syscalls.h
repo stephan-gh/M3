@@ -32,6 +32,23 @@ class RecvGate;
 class Syscalls {
     friend class Env;
 
+    template<class T>
+    struct SyscallReply {
+        explicit SyscallReply(const DTU::Message *msg)
+            : _msg(msg) {
+        }
+        ~SyscallReply() {
+            DTUIf::mark_read(RecvGate::syscall(), _msg);
+        }
+
+        const T *operator->() const {
+            return reinterpret_cast<const T*>(_msg->data);
+        }
+
+    private:
+        const DTU::Message *_msg;
+    };
+
     Syscalls() = delete;
 
 public:
@@ -69,7 +86,8 @@ public:
     static void exit(int exitcode);
 
 private:
-    static const DTU::Message *send_receive(const void *msg, size_t size) noexcept;
+    template<class T>
+    static SyscallReply<T> send_receive(const void *msg, size_t size) noexcept;
     static Errors::Code send_receive_err(const void *msg, size_t size) noexcept;
     static void send_receive_throw(const void *msg, size_t size);
     static void exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
