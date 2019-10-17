@@ -434,6 +434,18 @@ fn derive_kmem() {
         Code::InvArgs
     );
 
+    // transfer memory
+    {
+        let kmem2 = wv_assert_ok!(VPE::cur().kmem().derive(quota / 2));
+        let quota2 = wv_assert_ok!(kmem2.quota());
+        let nquota = wv_assert_ok!(VPE::cur().kmem().quota());
+        wv_assert_eq!(quota2, quota / 2);
+        // we don't know exactly, because we have paid for the new cap and kobject too
+        wv_assert!(nquota <= quota / 2);
+    }
+    let nquota = wv_assert_ok!(VPE::cur().kmem().quota());
+    wv_assert_eq!(nquota, quota);
+
     let kmem = wv_assert_ok!(VPE::cur().kmem().derive(quota / 2));
     {
         let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
