@@ -20,7 +20,7 @@ use m3::dtu;
 use m3::errors::Code;
 use m3::kif::syscalls::{ExchangeArgs, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_MEM, SEL_PE, SEL_VPE};
-use m3::pes::{PE, VPE};
+use m3::pes::{VPEArgs, PE, VPE};
 use m3::session::M3FS;
 use m3::syscalls;
 use m3::test;
@@ -35,6 +35,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 
     wv_run_test!(t, activate);
     wv_run_test!(t, derive_mem);
+    wv_run_test!(t, derive_kmem);
     wv_run_test!(t, derive_pe);
     wv_run_test!(t, vpe_ctrl);
     wv_run_test!(t, vpe_wait);
@@ -349,25 +350,54 @@ fn derive_mem() {
     // perms are arbitrary; will be ANDed
 }
 
+fn derive_kmem() {
+    let sel = VPE::cur().alloc_sel();
+    let quota = wv_assert_ok!(VPE::cur().kmem().quota());
+
+    // invalid dest selector
+    wv_assert_err!(
+        syscalls::derive_kmem(VPE::cur().kmem().sel(), SEL_VPE, quota / 2),
+        Code::InvArgs
+    );
+    // invalid quota
+    wv_assert_err!(
+        syscalls::derive_kmem(VPE::cur().kmem().sel(), sel, quota + 1),
+        Code::InvArgs
+    );
+    // invalid kmem sel
+    wv_assert_err!(
+        syscalls::derive_kmem(SEL_VPE, sel, quota + 1),
+        Code::InvArgs
+    );
+
+    let kmem = wv_assert_ok!(VPE::cur().kmem().derive(quota / 2));
+    {
+        let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+        let _vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test").kmem(kmem.clone())));
+        // VPE is still using the kmem
+        wv_assert_err!(
+            VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, kmem.sel(), 1), false),
+            Code::NotRevocable
+        );
+    }
+
+    // now we can revoke it
+    wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, kmem.sel(), 1), false));
+}
+
 fn derive_pe() {
     let sel = VPE::cur().alloc_sel();
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
 
     // invalid dest selector
-    wv_assert_err!(
-        syscalls::derive_pe(pe.sel(), SEL_VPE, 1),
-        Code::InvArgs
-    );
+    wv_assert_err!(syscalls::derive_pe(pe.sel(), SEL_VPE, 1), Code::InvArgs);
     // invalid ep count
     wv_assert_err!(
         syscalls::derive_pe(pe.sel(), sel, (dtu::EP_COUNT + 1) as u32),
         Code::InvArgs
     );
     // invalid pe sel
-    wv_assert_err!(
-        syscalls::derive_pe(SEL_VPE, sel, 1),
-        Code::InvArgs
-    );
+    wv_assert_err!(syscalls::derive_pe(SEL_VPE, sel, 1), Code::InvArgs);
 
     {
         let _vpe = wv_assert_ok!(VPE::new(pe.clone(), "test"));
