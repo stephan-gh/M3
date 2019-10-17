@@ -387,6 +387,8 @@ void SyscallHandler::alloc_ep(VPE *vpe, const m3::DTU::Message *msg) {
     // the VPE has to run on the PE given by the PE capability
     if(pecap == nullptr || pecap->obj->id != vpecap->obj->pe())
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "PE capability is invalid");
+    if(!Platform::is_shared(pecap->obj->id))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "EPs can only be allocated from shared PEs");
     if(!pecap->obj->has_quota(1))
         SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "PE capability has insufficient EPs");
 
