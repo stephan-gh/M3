@@ -18,7 +18,7 @@ use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate, EP};
 use m3::dtu;
 use m3::errors::Code;
-use m3::kif::syscalls::{ExchangeArgs, VPEOp};
+use m3::kif::syscalls::{ExchangeArgs, SemOp, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_MEM, SEL_PE, SEL_VPE};
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::session::M3FS;
@@ -27,22 +27,26 @@ use m3::test;
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create_srv);
-    wv_run_test!(t, create_sgate);
-    wv_run_test!(t, create_rgate);
     wv_run_test!(t, create_sess);
+    wv_run_test!(t, create_rgate);
+    wv_run_test!(t, create_sgate);
     wv_run_test!(t, create_map);
     wv_run_test!(t, create_vpe);
+    wv_run_test!(t, create_sem);
+    wv_run_test!(t, alloc_ep);
 
     wv_run_test!(t, activate);
+    wv_run_test!(t, vpe_ctrl);
+    wv_run_test!(t, vpe_wait);
     wv_run_test!(t, derive_mem);
     wv_run_test!(t, derive_kmem);
     wv_run_test!(t, derive_pe);
-    wv_run_test!(t, vpe_ctrl);
-    wv_run_test!(t, vpe_wait);
+    wv_run_test!(t, kmem_quota);
+    wv_run_test!(t, sem_ctrl);
 
-    wv_run_test!(t, exchange);
     wv_run_test!(t, delegate);
     wv_run_test!(t, obtain);
+    wv_run_test!(t, exchange);
     wv_run_test!(t, revoke);
 }
 
@@ -277,6 +281,66 @@ fn create_vpe() {
     );
 }
 
+fn create_sem() {
+    let sel = VPE::cur().alloc_sel();
+
+    // invalid selector
+    wv_assert_err!(
+        syscalls::create_sem(SEL_VPE, 0),
+        Code::InvArgs
+    );
+    wv_assert_ok!(syscalls::create_sem(sel, 1));
+    // one down does not block us
+    wv_assert_ok!(syscalls::sem_ctrl(sel, SemOp::DOWN));
+
+    wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
+}
+
+fn alloc_ep() {
+    let sel = VPE::cur().alloc_sel();
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+
+    // invalid dest selector
+    wv_assert_err!(
+        syscalls::alloc_ep(SEL_VPE, VPE::cur().sel(), VPE::cur().pe().sel()),
+        Code::InvArgs
+    );
+    // invalid VPE selector
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, SEL_MEM, VPE::cur().pe().sel()),
+        Code::InvArgs
+    );
+    // invalid PE selector
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, VPE::cur().sel(), SEL_VPE),
+        Code::InvArgs
+    );
+    // PE not matching VPE
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, VPE::cur().sel(), pe.sel()),
+        Code::InvArgs
+    );
+
+    // currently always shared
+    #[cfg(target_os = "none")]
+    {
+        let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), VPE::cur().pe().sel()));
+        wv_assert!(ep >= dtu::FIRST_FREE_EP);
+        wv_assert!(ep < dtu::EP_COUNT);
+
+        wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
+    }
+
+    // never shared
+    #[cfg(target_os = "linux")]
+    {
+        wv_assert_err!(
+            syscalls::alloc_ep(sel, VPE::cur().sel(), VPE::cur().pe().sel()),
+            Code::InvArgs
+        );
+    }
+}
+
 fn activate() {
     let ep1 = wv_assert_ok!(EP::new());
     let ep2 = wv_assert_ok!(EP::new());
@@ -410,6 +474,18 @@ fn derive_pe() {
 
     // now we can revoke it
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, pe.sel(), 1), false));
+}
+
+fn kmem_quota() {
+    // invalid selector
+    wv_assert_err!(syscalls::kmem_quota(SEL_VPE), Code::InvArgs);
+    wv_assert_err!(syscalls::kmem_quota(VPE::cur().alloc_sel()), Code::InvArgs);
+}
+
+fn sem_ctrl() {
+    // invalid selector
+    wv_assert_err!(syscalls::sem_ctrl(SEL_VPE, SemOp::DOWN), Code::InvArgs);
+    wv_assert_err!(syscalls::sem_ctrl(VPE::cur().alloc_sel(), SemOp::DOWN), Code::InvArgs);
 }
 
 fn vpe_ctrl() {

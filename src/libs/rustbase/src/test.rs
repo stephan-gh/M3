@@ -53,6 +53,21 @@ extern "C" {
     fn wvtest_failed();
 }
 
+/// Convenience macro that tests whether $a is true and reports failures
+#[macro_export]
+macro_rules! wv_assert {
+    ($a:expr) => ({
+        match (&$a) {
+            (a_val) => {
+                if !*a_val {
+                    println!("! {}:{}  {:?} FAILED", file!(), line!(), &*a_val);
+                    ::wvtest_failed();
+                }
+            }
+        }
+    });
+}
+
 /// Convenience macro that tests whether $a and $b are equal and reports failures
 #[macro_export]
 macro_rules! wv_assert_eq {

@@ -73,6 +73,7 @@ pub use base::{
     util,
     // macros
     vec,
+    wv_assert,
     wv_assert_eq,
     wv_assert_err,
     wv_assert_ok,
