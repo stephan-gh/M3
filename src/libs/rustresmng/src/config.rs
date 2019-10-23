@@ -284,7 +284,11 @@ fn check_pes(cfg: &Config) {
 fn collect_services(set: &mut BTreeSet<String>, cfg: &Config) {
     for serv in cfg.services() {
         if set.contains(serv.global_name()) {
-            panic!("Service {} does already exist", serv.global_name());
+            panic!(
+                "config '{}': service '{}' does already exist",
+                cfg.name(),
+                serv.global_name()
+            );
         }
         set.insert(serv.global_name().clone());
     }
@@ -296,7 +300,11 @@ fn collect_services(set: &mut BTreeSet<String>, cfg: &Config) {
 fn check_services(set: &BTreeSet<String>, cfg: &Config) {
     for sess in cfg.sessions() {
         if !set.contains(sess.serv_name()) {
-            panic!("Service {} does not exist", sess.serv_name());
+            panic!(
+                "config '{}': service '{}' does not exist",
+                cfg.name(),
+                sess.serv_name()
+            );
         }
     }
     for child in cfg.childs() {
