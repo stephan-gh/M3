@@ -95,7 +95,7 @@ NOINLINE static void create_map() {
         }
 
         void run() override {
-            Syscalls::create_map(DEST, 0, mgate.sel(), 0, 1, MemGate::RW);
+            Syscalls::create_map(DEST, VPE::self().sel(), mgate.sel(), 0, 1, MemGate::RW);
         }
         void post() override {
             Syscalls::revoke(VPE::self().sel(),
