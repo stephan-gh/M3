@@ -23,6 +23,8 @@ use m3::errors::{Code, Error};
 use m3::kif;
 use m3::rc::Rc;
 
+use pes;
+
 pub struct ServiceDesc {
     local_name: String,
     global_name: String,
@@ -107,10 +109,18 @@ impl SessionDesc {
 pub struct PEDesc {
     ty: String,
     count: Cell<u32>,
+    optional: bool,
 }
 
 impl PEDesc {
     pub fn new(line: &str) -> Result<Self, Error> {
+        let (line, optional) = if line.ends_with("?") {
+            (&line[0..line.len() - 1], true)
+        }
+        else {
+            (line, false)
+        };
+
         let parts = line.split(':').collect::<Vec<&str>>();
         let (ty, count) = if parts.len() == 1 {
             (parts[0].to_string(), 1)
@@ -130,11 +140,30 @@ impl PEDesc {
         Ok(PEDesc {
             ty,
             count: Cell::new(count),
+            optional,
         })
     }
 
     pub fn pe_type(&self) -> &String {
         &self.ty
+    }
+
+    pub fn matches(&self, desc: kif::PEDesc) -> bool {
+        match self.ty.as_ref() {
+            "core" => desc.is_programmable(),
+            "arm" => desc.isa() == kif::PEISA::ARM,
+            "x86" => desc.isa() == kif::PEISA::X86,
+            "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
+            "fft" => desc.isa() == kif::PEISA::ACCEL_FFT,
+            "rot13" => desc.isa() == kif::PEISA::ACCEL_ROT13,
+            "ste" => desc.isa() == kif::PEISA::ACCEL_STE,
+            "md" => desc.isa() == kif::PEISA::ACCEL_MD,
+            "spmv" => desc.isa() == kif::PEISA::ACCEL_SPMV,
+            "afft" => desc.isa() == kif::PEISA::ACCEL_AFFT,
+            "ide" => desc.isa() == kif::PEISA::IDE_DEV,
+            "nic" => desc.isa() == kif::PEISA::NIC_DEV,
+            _ => false,
+        }
     }
 
     pub fn alloc(&self) {
@@ -225,6 +254,33 @@ fn parse_size(s: &str) -> Result<usize, Error> {
     Ok(num * mul)
 }
 
+fn count_pes(pe: &PEDesc) -> u32 {
+    let mut count = 0;
+    for i in 0..pes::get().len() {
+        if pe.matches(pes::get().get(i).desc()) {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn check_pes(cfg: &Config) {
+    for pe in &cfg.pes {
+        if !pe.optional {
+            let available = count_pes(&pe);
+            if available < pe.count.get() {
+                panic!(
+                    "config '{}' needs PE type '{}' {} times, but {} are available",
+                    cfg.name(),
+                    pe.ty,
+                    pe.count.get(),
+                    available
+                );
+            }
+        }
+    }
+}
+
 fn collect_services(set: &mut BTreeSet<String>, cfg: &Config) {
     for serv in cfg.services() {
         if set.contains(serv.global_name()) {
@@ -256,6 +312,10 @@ pub fn check(cfgs: &[(Vec<String>, bool, Rc<Config>)]) {
 
     for (_, _, cfg) in cfgs {
         check_services(&services, &cfg);
+    }
+
+    for (_, _, cfg) in cfgs {
+        check_pes(&cfg);
     }
 }
 
@@ -426,21 +486,11 @@ impl Config {
     }
 
     pub fn get_pe_idx(&self, desc: kif::PEDesc) -> Result<usize, Error> {
-        let idx = self.pes.iter().position(|pe| match pe.pe_type().as_ref() {
-            "core" => desc.is_programmable(),
-            "arm" => desc.isa() == kif::PEISA::ARM,
-            "x86" => desc.isa() == kif::PEISA::X86,
-            "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
-            "fft" => desc.isa() == kif::PEISA::ACCEL_FFT,
-            "rot13" => desc.isa() == kif::PEISA::ACCEL_ROT13,
-            "ste" => desc.isa() == kif::PEISA::ACCEL_STE,
-            "md" => desc.isa() == kif::PEISA::ACCEL_MD,
-            "spmv" => desc.isa() == kif::PEISA::ACCEL_SPMV,
-            "afft" => desc.isa() == kif::PEISA::ACCEL_AFFT,
-            "ide" => desc.isa() == kif::PEISA::IDE_DEV,
-            "nic" => desc.isa() == kif::PEISA::NIC_DEV,
-            _ => false,
-        }).ok_or_else(|| Error::new(Code::InvArgs))?;
+        let idx = self
+            .pes
+            .iter()
+            .position(|pe| pe.matches(desc))
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
 
         if self.pes[idx].count.get() > 0 {
             Ok(idx)
