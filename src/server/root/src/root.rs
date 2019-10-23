@@ -360,7 +360,7 @@ fn start_boot_mods() {
         };
 
         let pe = pes::get()
-            .alloc(VPE::cur().pe_desc())
+            .find_and_alloc(VPE::cur().pe_desc())
             .expect("Unable to allocate PE");
         let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, cfg);
         if child.has_unmet_reqs() {

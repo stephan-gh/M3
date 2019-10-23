@@ -328,7 +328,7 @@ pub fn main() -> i32 {
         PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE"),
     );
 
-    let peid = pes::get().alloc(VPE::cur().pe_desc()).unwrap();
+    let peid = pes::get().find_and_alloc(VPE::cur().pe_desc()).unwrap();
     let mut vpe = VPE::new_with(
         pes::get().get(peid),
         VPEArgs::new(&name)

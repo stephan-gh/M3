@@ -40,7 +40,7 @@ pub struct Resources {
     services: Vec<(Id, Selector)>,
     sessions: Vec<Session>,
     mem: Vec<Allocation>,
-    pes: Vec<(usize, Selector)>,
+    pes: Vec<(usize, usize, Selector)>,
 }
 
 impl Default for Resources {
@@ -247,12 +247,17 @@ pub trait Child {
             desc
         );
 
-        // TODO check config
-        let pe = pes::get().alloc(desc)?; // TODO leak!
-        self.delegate(pes::get().get(pe).sel(), sel)?;
-        self.res_mut().pes.push((pe, sel));
+        let cfg = self.cfg();
+        let idx = cfg.get_pe_idx(desc)?;
+        let peid = pes::get().find(desc)?;
 
-        Ok(pes::get().get(pe).desc())
+        self.delegate(pes::get().get(peid).sel(), sel)?;
+
+        self.res_mut().pes.push((peid, idx, sel));
+        cfg.alloc_pe(idx);
+        pes::get().alloc(peid);
+
+        Ok(pes::get().get(peid).desc())
     }
 
     fn free_pe(&mut self, sel: Selector) -> Result<(), Error> {
@@ -262,17 +267,15 @@ pub trait Child {
             .res_mut()
             .pes
             .iter()
-            .position(|(_, psel)| *psel == sel)
+            .position(|(_, _, psel)| *psel == sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         self.remove_pe_by_idx(idx)?;
-
-        // TODO config
 
         Ok(())
     }
 
     fn remove_pe_by_idx(&mut self, idx: usize) -> Result<(), Error> {
-        let (id, ep_sel) = self.res_mut().pes.remove(idx);
+        let (id, idx, ep_sel) = self.res_mut().pes.remove(idx);
         log!(
             RESMNG_PES,
             "{}: removed PE (id={}, sel={})",
@@ -281,10 +284,12 @@ pub trait Child {
             ep_sel
         );
 
+        let cfg = self.cfg();
         let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
         // TODO if that fails, we need to kill this child because otherwise we don't get the PE back
         syscalls::revoke(self.vpe_sel(), crd, true).ok();
         pes::get().free(id);
+        cfg.free_pe(idx);
 
         Ok(())
     }

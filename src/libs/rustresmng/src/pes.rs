@@ -55,18 +55,33 @@ impl PEManager {
         self.pes[id].pe.clone()
     }
 
-    pub fn alloc(&mut self, desc: PEDesc) -> Result<usize, Error> {
-        for (id, pe) in self.pes.iter_mut().enumerate() {
+    pub fn find(&self, desc: PEDesc) -> Result<usize, Error> {
+        for (id, pe) in self.pes.iter().enumerate() {
             if !pe.used
                 && pe.pe.desc().isa() == desc.isa()
                 && pe.pe.desc().pe_type() == desc.pe_type()
             {
-                log!(RESMNG_PES, "Allocating PE{}: {:?}", pe.id, pe.pe.desc());
-                pe.used = true;
                 return Ok(id);
             }
         }
         Err(Error::new(Code::NoSpace))
+    }
+
+    pub fn find_and_alloc(&mut self, desc: PEDesc) -> Result<usize, Error> {
+        self.find(desc).map(|id| {
+            self.alloc(id);
+            id
+        })
+    }
+
+    pub fn alloc(&mut self, id: usize) {
+        log!(
+            RESMNG_PES,
+            "Allocating PE{}: {:?}",
+            self.pes[id].id,
+            self.pes[id].pe.desc()
+        );
+        self.pes[id].used = true;
     }
 
     pub fn free(&mut self, id: usize) {

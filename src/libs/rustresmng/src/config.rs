@@ -16,9 +16,11 @@
 
 use core::fmt;
 use m3::cap::Selector;
+use m3::cell::Cell;
 use m3::cell::RefCell;
 use m3::col::{BTreeSet, String, ToString, Vec};
 use m3::errors::{Code, Error};
+use m3::kif;
 use m3::rc::Rc;
 
 pub struct ServiceDesc {
@@ -99,6 +101,49 @@ impl SessionDesc {
 
     pub fn mark_used(&self, sel: Selector) {
         self.usage.replace(Some(sel));
+    }
+}
+
+pub struct PEDesc {
+    ty: String,
+    count: Cell<u32>,
+}
+
+impl PEDesc {
+    pub fn new(line: &str) -> Result<Self, Error> {
+        let parts = line.split(':').collect::<Vec<&str>>();
+        let (ty, count) = if parts.len() == 1 {
+            (parts[0].to_string(), 1)
+        }
+        else if parts.len() == 2 {
+            (
+                parts[0].to_string(),
+                parts[1]
+                    .parse::<u32>()
+                    .map_err(|_| Error::new(Code::InvArgs))?,
+            )
+        }
+        else {
+            return Err(Error::new(Code::InvArgs));
+        };
+
+        Ok(PEDesc {
+            ty,
+            count: Cell::new(count),
+        })
+    }
+
+    pub fn pe_type(&self) -> &String {
+        &self.ty
+    }
+
+    pub fn alloc(&self) {
+        assert!(self.count.get() > 0);
+        self.count.set(self.count.get() - 1);
+    }
+
+    pub fn free(&self) {
+        self.count.set(self.count.get() + 1);
     }
 }
 
@@ -222,6 +267,7 @@ pub struct Config {
     sessions: Vec<SessionDesc>,
     childs: Vec<ChildDesc>,
     sems: Vec<SemDesc>,
+    pes: Vec<PEDesc>,
 }
 
 impl Config {
@@ -242,6 +288,7 @@ impl Config {
             sessions: Vec::new(),
             childs: Vec::new(),
             sems: Vec::new(),
+            pes: Vec::new(),
         };
 
         let mut args = Vec::new();
@@ -272,6 +319,9 @@ impl Config {
             }
             else if a.starts_with("sem=") {
                 res.sems.push(SemDesc::new(&a[4..])?);
+            }
+            else if a.starts_with("pes=") {
+                res.pes.push(PEDesc::new(&a[4..])?);
             }
             else if a == "daemon" {
                 daemon = true;
@@ -375,6 +425,39 @@ impl Config {
             .and_then(|c| c.usage.replace(None));
     }
 
+    pub fn get_pe_idx(&self, desc: kif::PEDesc) -> Result<usize, Error> {
+        let idx = self.pes.iter().position(|pe| match pe.pe_type().as_ref() {
+            "core" => desc.is_programmable(),
+            "arm" => desc.isa() == kif::PEISA::ARM,
+            "x86" => desc.isa() == kif::PEISA::X86,
+            "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
+            "fft" => desc.isa() == kif::PEISA::ACCEL_FFT,
+            "rot13" => desc.isa() == kif::PEISA::ACCEL_ROT13,
+            "ste" => desc.isa() == kif::PEISA::ACCEL_STE,
+            "md" => desc.isa() == kif::PEISA::ACCEL_MD,
+            "spmv" => desc.isa() == kif::PEISA::ACCEL_SPMV,
+            "afft" => desc.isa() == kif::PEISA::ACCEL_AFFT,
+            "ide" => desc.isa() == kif::PEISA::IDE_DEV,
+            "nic" => desc.isa() == kif::PEISA::NIC_DEV,
+            _ => false,
+        }).ok_or_else(|| Error::new(Code::InvArgs))?;
+
+        if self.pes[idx].count.get() > 0 {
+            Ok(idx)
+        }
+        else {
+            Err(Error::new(Code::NoPerm))
+        }
+    }
+
+    pub fn alloc_pe(&self, idx: usize) {
+        self.pes[idx].alloc();
+    }
+
+    pub fn free_pe(&self, idx: usize) {
+        self.pes[idx].free();
+    }
+
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
         writeln!(f, "{} [", self.name)?;
         if self.kmem != 0 {
@@ -405,6 +488,16 @@ impl Config {
             write!(f, "{:0w$}Child ", "", w = layer + 2)?;
             c.cfg.print_rec(f, layer + 2)?;
             writeln!(f)?;
+        }
+        for pe in &self.pes {
+            writeln!(
+                f,
+                "{:0w$}PE[type={}, count={}]",
+                "",
+                pe.ty,
+                pe.count.get(),
+                w = layer + 2
+            )?;
         }
         write!(f, "{:0w$}]", "", w = layer)
     }

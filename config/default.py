@@ -22,7 +22,8 @@ hard_disk0 = os.environ.get('M3_GEM5_IDE_DRIVE')
 if not os.path.isfile(hard_disk0):
     num_sto = 0
 
-mem_pe = num_pes + num_sto + 3
+num_rot13 = 2
+mem_pe = num_pes + num_sto + 2 + num_rot13
 
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
 mmu = int(os.environ.get('M3_GEM5_MMU', 0))
@@ -75,20 +76,20 @@ pes.append(ether1)
 
 linkEtherPEs(ether0, ether1)
 
-
-rpe = createAccelPE(noc=root.noc,
-                    options=options,
-                    no=num_pes + num_sto + 2,
-                    accel='rot13',
-                    memPE=mem_pe,
-                    spmsize='2MB')
-pes.append(rpe)
+for i in range(0, num_rot13):
+    rpe = createAccelPE(noc=root.noc,
+                        options=options,
+                        no=num_pes + num_sto + 2 + i,
+                        accel='rot13',
+                        memPE=mem_pe,
+                        spmsize='2MB')
+    pes.append(rpe)
 
 # create the memory PEs
 for i in range(0, num_mem):
     pe = createMemPE(noc=root.noc,
                      options=options,
-                     no=num_pes + num_sto + 3 + i,
+                     no=num_pes + num_sto + 2 + num_rot13 + i,
                      size='3072MB',
                      image=fsimg if i == 0 else None,
                      imageNum=int(fsimgnum))
