@@ -1,0 +1,21 @@
+[workspace]
+members = [
+    "src/apps/bench/rustbenchs",
+    "src/apps/pemux",
+    "src/apps/rusthello",
+    "src/apps/rustunittests",
+    "src/libs/rustbase",
+    "src/libs/rustm3",
+    "src/libs/rustresmng",
+    "src/libs/rustthread",
+    "src/server/root",
+    "src/server/vterm",
+    "src/server/subsys",
+]
+
+[profile.release]
+lto = true
+panic = 'abort'
+
+[profile.dev]
+panic = 'abort'
