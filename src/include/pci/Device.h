@@ -28,8 +28,8 @@ namespace pci {
 
 class ProxiedPciDevice {
 public:
-    static const uint EP_INT            = 7;
-    static const uint EP_DMA            = 8;
+    static const uint EP_INT            = 9;
+    static const uint EP_DMA            = 10;
 
     // Hardcoded for now
     static const size_t REG_SIZE        = 128 * 1024;
