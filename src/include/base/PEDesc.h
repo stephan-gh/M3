@@ -36,19 +36,19 @@ enum class PEType {
  * The different ISAs
  */
 enum class PEISA {
-    NONE        = 0,
-    X86         = 1,
-    ARM         = 2,
-    XTENSA      = 3,
-    ACCEL_INDIR = 4,
-    ACCEL_COPY  = 5,
-    ACCEL_ROT13 = 6,
-    ACCEL_STE   = 7,
-    ACCEL_MD    = 8,
-    ACCEL_SPMV  = 9,
-    ACCEL_AFFT  = 10,
-    IDE_DEV     = 11,
-    NIC         = 12
+    NONE            = 0,
+    X86             = 1,
+    ARM             = 2,
+    XTENSA          = 3,
+    ACCEL_INDIR     = 4,
+    ACCEL_COPY      = 5,
+    ACCEL_ROT13     = 6,
+    ACCEL_STENCIL   = 7,
+    ACCEL_MD        = 8,
+    ACCEL_SPMV      = 9,
+    ACCEL_FFT       = 10,
+    IDE_DEV         = 11,
+    NIC             = 12
 };
 
 /**

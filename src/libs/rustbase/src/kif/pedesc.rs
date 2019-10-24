@@ -46,13 +46,13 @@ int_enum! {
         /// Dummy ISA to represent the ROT-13 fixed-function accelerator
         const ACCEL_ROT13   = 0x6;
         /// Dummy ISA to represent the ALADDIN-based stencil accelerator
-        const ACCEL_STE     = 0x7;
+        const ACCEL_STENCIL = 0x7;
         /// Dummy ISA to represent the ALADDIN-based md accelerator
         const ACCEL_MD      = 0x8;
         /// Dummy ISA to represent the ALADDIN-based spmv accelerator
         const ACCEL_SPMV    = 0x9;
         /// Dummy ISA to represent the ALADDIN-based fft accelerator
-        const ACCEL_AFFT    = 0xA;
+        const ACCEL_FFT     = 0xA;
         /// Dummy ISA to represent the IDE controller
         const IDE_DEV       = 0xB;
         /// Dummy ISA to represent the NIC

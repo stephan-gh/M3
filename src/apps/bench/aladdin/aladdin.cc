@@ -130,13 +130,13 @@ static void add(AladdinAccel &alad, size_t size, AladdinAccel::Array *a, int pro
 static std::unique_ptr<AccelWorkload> create_workload(const char *bench, const char *name, const char *pager) {
     PEISA isa;
     if(strcmp(bench, "stencil") == 0)
-        isa = PEISA::ACCEL_STE;
+        isa = PEISA::ACCEL_STENCIL;
     else if(strcmp(bench, "md") == 0)
         isa = PEISA::ACCEL_MD;
     else if(strcmp(bench, "spmv") == 0)
         isa = PEISA::ACCEL_SPMV;
     else
-        isa = PEISA::ACCEL_AFFT;
+        isa = PEISA::ACCEL_FFT;
     return std::make_unique<AccelWorkload>(isa, name, pager);
 }
 
@@ -144,7 +144,7 @@ void AccelWorkload::init() {
     msg.repeats = 1;
 
     switch(alad.isa()) {
-        case PEISA::ACCEL_STE: {
+        case PEISA::ACCEL_STENCIL: {
             const size_t HEIGHT = 32;
             const size_t COLS = 32;
             const size_t ROWS = 64;
@@ -193,7 +193,7 @@ void AccelWorkload::init() {
         }
 
         default:
-        case PEISA::ACCEL_AFFT: {
+        case PEISA::ACCEL_FFT: {
             const size_t DATA_LEN = 16384;
             const size_t SIZE = DATA_LEN * sizeof(double);
             const size_t ITERS = (DATA_LEN / 512) * 11;
@@ -264,8 +264,8 @@ int main(int argc, char **argv) {
             auto wl2 = create_workload(bench, "accel2", "pg-accel2");
             wl1->init();
             wl2->init();
-            wl1->msg.repeats = wl1->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;
-            wl2->msg.repeats = wl2->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;
+            wl1->msg.repeats = wl1->alad.isa() == PEISA::ACCEL_STENCIL ? 40 : 20;
+            wl2->msg.repeats = wl2->alad.isa() == PEISA::ACCEL_STENCIL ? 40 : 20;
             wl1->run();
             wl2->run();
         }
@@ -274,8 +274,8 @@ int main(int argc, char **argv) {
             auto wl2 = create_workload(bench, "accel2", "pg-accel2");
             wl1->init();
             wl2->init();
-            wl1->msg.repeats = wl1->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;
-            wl2->msg.repeats = wl2->alad.isa() == PEISA::ACCEL_STE ? 40 : 20;
+            wl1->msg.repeats = wl1->alad.isa() == PEISA::ACCEL_STENCIL ? 40 : 20;
+            wl2->msg.repeats = wl2->alad.isa() == PEISA::ACCEL_STENCIL ? 40 : 20;
             wl1->alad.start(wl1->msg);
             wl2->alad.start(wl2->msg);
             wl1->alad.wait();
