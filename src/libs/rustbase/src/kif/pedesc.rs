@@ -127,14 +127,6 @@ impl PEDesc {
         }
     }
 
-    /// Returns whether the PE contains a fixed-function accelerator
-    pub fn is_ffaccel(self) -> bool {
-        match self.isa() {
-            PEISA::ACCEL_INDIR | PEISA::ACCEL_FFT | PEISA::ACCEL_ROT13 => true,
-            _ => false,
-        }
-    }
-
     /// Return if the PE supports multiple contexts
     pub fn supports_ctxsw(self) -> bool {
         self.supports_ctx() && (self.isa() >= PEISA::ACCEL_INDIR || self.has_cache())
