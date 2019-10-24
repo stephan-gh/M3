@@ -41,7 +41,7 @@ enum class PEISA {
     ARM         = 2,
     XTENSA      = 3,
     ACCEL_INDIR = 4,
-    ACCEL_FFT   = 5,
+    ACCEL_COPY  = 5,
     ACCEL_ROT13 = 6,
     ACCEL_STE   = 7,
     ACCEL_MD    = 8,

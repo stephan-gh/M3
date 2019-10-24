@@ -154,7 +154,7 @@ impl PEDesc {
             "arm" => desc.isa() == kif::PEISA::ARM,
             "x86" => desc.isa() == kif::PEISA::X86,
             "indir" => desc.isa() == kif::PEISA::ACCEL_INDIR,
-            "fft" => desc.isa() == kif::PEISA::ACCEL_FFT,
+            "copy" => desc.isa() == kif::PEISA::ACCEL_COPY,
             "rot13" => desc.isa() == kif::PEISA::ACCEL_ROT13,
             "ste" => desc.isa() == kif::PEISA::ACCEL_STE,
             "md" => desc.isa() == kif::PEISA::ACCEL_MD,

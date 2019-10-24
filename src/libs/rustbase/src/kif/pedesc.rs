@@ -41,8 +41,8 @@ int_enum! {
         const XTENSA        = 0x3;
         /// Dummy ISA to represent the indirect-chaining fixed-function accelerator
         const ACCEL_INDIR   = 0x4;
-        /// Dummy ISA to represent the FFT fixed-function accelerator
-        const ACCEL_FFT     = 0x5;
+        /// Dummy ISA to represent the COPY fixed-function accelerator
+        const ACCEL_COPY    = 0x5;
         /// Dummy ISA to represent the ROT-13 fixed-function accelerator
         const ACCEL_ROT13   = 0x6;
         /// Dummy ISA to represent the ALADDIN-based stencil accelerator

@@ -53,7 +53,7 @@ public:
 
             if(VERBOSE) Serial::get() << "Creating VPE " << name.str() << "\n";
 
-            pes[i] = PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_FFT));
+            pes[i] = PE::alloc(PEDesc(PEType::COMP_IMEM, PEISA::ACCEL_COPY));
             vpes[i] = std::make_unique<VPE>(pes[i], name.str());
 
             accels[i] = std::make_unique<StreamAccel>(vpes[i], ACCEL_TIMES[i]);

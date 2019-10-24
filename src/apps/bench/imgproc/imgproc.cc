@@ -28,6 +28,12 @@
 
 using namespace m3;
 
+// the time for one 2048 block for 2D-FFT; determined by ALADDIN and
+// picking the sweet spot between area, power and performance.
+// 732 cycles for the FFT function. we have two loops in FFT2D with
+// 16 iterations each. we unroll both 4 times, leading to
+// (4 + 4) * 732 = 5856.
+
 const cycles_t ACCEL_TIMES[] = {
     5856 / 2,   // FFT
     1189 / 2,   // multiply

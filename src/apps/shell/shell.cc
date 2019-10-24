@@ -52,7 +52,7 @@ static struct {
     const char *name;
     PEISA isa;
 } isas[] = {
-    {"FFT",      PEISA::ACCEL_FFT},
+    {"COPY",     PEISA::ACCEL_COPY},
     {"ROT13",    PEISA::ACCEL_ROT13},
 };
 

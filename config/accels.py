@@ -14,7 +14,7 @@ fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
 mmu = int(os.environ.get('M3_GEM5_MMU', 0))
-accs = ['indir', 'indir', 'indir', 'indir', 'fft', 'fft', 'fft', 'fft', 'rot13']
+accs = ['indir', 'indir', 'indir', 'indir', 'copy', 'copy', 'copy', 'copy', 'rot13']
 ala = ['test_stencil', 'test_md', 'test_spmv', 'test_fft']
 mem_pe = num_pes + len(accs) + len(ala)
 
