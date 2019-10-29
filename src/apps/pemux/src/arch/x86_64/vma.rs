@@ -29,7 +29,7 @@ struct XlateState {
     ctxsw: bool,
     req_count: u32,
     reqs: [dtu::Reg; 4],
-    cmd_regs: [dtu::Reg; 2],
+    cmd_regs: [dtu::Reg; 3],
     cmd_xfer_buf: dtu::Reg,
     // store messages in static data to ensure that we don't pagefault
     pf_msg: [u64; 3],
@@ -42,7 +42,7 @@ impl XlateState {
             ctxsw: false,
             req_count: 0,
             reqs: [0; 4],
-            cmd_regs: [0; 2],
+            cmd_regs: [0; 3],
             cmd_xfer_buf: !0,
             pf_msg: [/* PAGEFAULT */ 0, 0, 0],
         }
@@ -64,9 +64,10 @@ impl XlateState {
         let (xfer_buf, old_cmd) = dtu::DTU::abort();
         self.cmd_xfer_buf = xfer_buf;
         self.cmd_regs[0] = old_cmd;
+        self.cmd_regs[1] = dtu::DTU::read_cmd_reg(dtu::CmdReg::OFFSET);
         // if a command was being executed, save the DATA register, because we'll overwrite it
         if self.cmd_regs[0] != dtu::CmdOpCode::IDLE.val {
-            self.cmd_regs[1] = dtu::DTU::read_cmd_reg(dtu::CmdReg::DATA);
+            self.cmd_regs[2] = dtu::DTU::read_cmd_reg(dtu::CmdReg::DATA);
         }
 
         // get EPs
@@ -113,9 +114,10 @@ impl XlateState {
     fn resume_cmd(&mut self) {
         const_assert!(dtu::CmdOpCode::IDLE.val == 0);
 
+        dtu::DTU::write_cmd_reg(dtu::CmdReg::OFFSET, self.cmd_regs[1]);
         if self.cmd_regs[0] != 0 {
             // if there was a command, restore DATA register and retry command
-            dtu::DTU::write_cmd_reg(dtu::CmdReg::DATA, self.cmd_regs[1]);
+            dtu::DTU::write_cmd_reg(dtu::CmdReg::DATA, self.cmd_regs[2]);
             unsafe {
                 intrinsics::atomic_fence();
             }
