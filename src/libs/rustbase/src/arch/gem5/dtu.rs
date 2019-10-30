@@ -32,6 +32,7 @@ pub type PEId = usize;
 
 /// The number of endpoints in each DTU
 pub const EP_COUNT: EpId = 16;
+const TOTAL_EPS: EpId = 128; // TODO temporary
 
 /// The send EP for kernel calls from PEMux
 pub const KPEX_SEP: EpId = 0;
@@ -64,10 +65,6 @@ pub const DTU_REGS: usize = 8;
 pub const CMD_REGS: usize = 5;
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
-/// The number of headers per DTU
-pub const HEADER_COUNT: usize = 128;
-/// The number of registers per header
-pub const HEADER_REGS: usize = 2;
 
 /// Represents unlimited credits
 pub const CREDITS_UNLIM: u64 = 0xFFFF;
@@ -255,23 +252,7 @@ bitflags! {
     }
 }
 
-/// The DTU header including the reply label
-#[repr(C, packed)]
-#[derive(Copy, Clone, Default, Debug)]
-pub struct ReplyHeader {
-    pub flags: u8, // if bit 0 is set its a reply, if bit 1 is set we grant credits
-    pub sender_pe: u8,
-    pub sender_ep: u8,
-    pub reply_ep: u8, // for a normal message this is the reply epId
-    // for a reply this is the enpoint that receives credits
-    pub length: u16,
-    // we keep that for now, because otherwise ReplyHeader is not 16 bytes = 2 registers
-    pub _reserved: u16,
-
-    pub reply_label: u64,
-}
-
-/// The DTU header excluding the reply label
+/// The DTU header
 #[repr(C, packed)]
 #[derive(Copy, Clone, Default, Debug)]
 pub struct Header {
@@ -281,7 +262,7 @@ pub struct Header {
     pub reply_ep: u8,
 
     pub length: u16,
-    pub _reserved: u16,
+    pub reply_crd: u16,
 
     pub reply_label: u64,
     pub label: u64,
@@ -505,7 +486,7 @@ impl DTU {
 
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) {
-        let regs = DTU_REGS + CMD_REGS + EP_REGS * EP_COUNT + HEADER_REGS * HEADER_COUNT;
+        let regs = DTU_REGS + CMD_REGS + EP_REGS * TOTAL_EPS;
         let mut buffer = BASE_ADDR + regs * 8;
 
         #[allow(clippy::transmute_ptr_to_ptr)]

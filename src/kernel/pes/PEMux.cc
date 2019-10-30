@@ -36,7 +36,7 @@ PEMux::PEMux(peid_t pe)
     : _pe(pe, EP_COUNT - m3::DTU::FIRST_FREE_EP),
       _caps(VPE::INVALID_ID),
       _vpes(),
-      _headers(0),
+      _reply_eps(EP_COUNT),
       _rbufs_size(),
       _mem_base(),
       _dtustate(),
@@ -49,11 +49,11 @@ PEMux::PEMux(peid_t pe)
 
     // configure receive EP
     uintptr_t rbuf = Platform::def_recvbuf(peid());
-    _dtustate.config_recv(m3::DTU::KPEX_REP, rbuf, KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, 0);
+    _dtustate.config_recv(m3::DTU::KPEX_REP, rbuf, KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, _reply_eps);
     rbuf += KPEX_RBUF_SIZE;
 
     // configure upcall receive EP
-    _dtustate.config_recv(m3::DTU::PEXUP_REP, rbuf, PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, 1);
+    _dtustate.config_recv(m3::DTU::PEXUP_REP, rbuf, PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, _reply_eps + 1);
 #endif
 
     for(epid_t ep = m3::DTU::FIRST_USER_EP; ep < EP_COUNT; ++ep) {
@@ -62,7 +62,7 @@ PEMux::PEMux(peid_t pe)
     }
 
     // one slot for the KPEX receive buffer and one for the upcall receive buffer
-    _headers = 2;
+    _reply_eps += 2;
 }
 
 static void reply_result(const m3::DTU::Message *msg, m3::Errors::Code code) {
@@ -161,12 +161,12 @@ void PEMux::pexcall_activate(const m3::DTU::Message *msg) {
     reply_result(msg, res);
 }
 
-size_t PEMux::allocate_headers(size_t num) {
+size_t PEMux::allocate_reply_eps(size_t num) {
     // TODO really manage the header space and zero the headers first in case they are reused
-    if(_headers + num > m3::DTU::HEADER_COUNT)
-        return m3::DTU::HEADER_COUNT;
-    _headers += num;
-    return _headers - num;
+    if(_reply_eps + num > TOTAL_EPS)
+        return TOTAL_EPS;
+    _reply_eps += num;
+    return _reply_eps - num;
 }
 
 bool PEMux::invalidate_ep(epid_t ep, bool force) {
@@ -193,8 +193,8 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, RGateObject &obj) {
 
     // no free headers left?
     size_t msgSlots = 1UL << (obj.order - obj.msgorder);
-    size_t off = allocate_headers(msgSlots);
-    if(off == m3::DTU::HEADER_COUNT)
+    size_t off = allocate_reply_eps(msgSlots);
+    if(off == TOTAL_EPS)
         return m3::Errors::OUT_OF_MEM;
 
     obj.header = off;

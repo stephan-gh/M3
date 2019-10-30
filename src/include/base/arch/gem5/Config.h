@@ -30,6 +30,7 @@
 #define EPMEM_SIZE          0
 
 #define EP_COUNT            16
+#define TOTAL_EPS           128 // TODO temporary
 
 // Application memory layout:
 // +----------------------------+ 0x0

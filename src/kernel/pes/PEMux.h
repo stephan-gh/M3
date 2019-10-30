@@ -61,12 +61,8 @@ public:
         // has already been revoked
         assert(_caps.get(VPE_SEL_BEGIN + vpe->id(), Capability::VIRTPE) == nullptr);
         _vpes--;
-        _headers = 2;
+        _reply_eps = EP_COUNT + 2;
         _rbufs_size = 0;
-    }
-
-    size_t headers() const {
-        return _headers;
     }
 
     goff_t mem_base() const {
@@ -97,7 +93,7 @@ public:
 
     void pexcall_activate(const m3::DTU::Message *msg);
 
-    size_t allocate_headers(size_t num);
+    size_t allocate_reply_eps(size_t num);
 
     bool invalidate_ep(epid_t ep, bool force = false);
     void invalidate_eps();
@@ -111,7 +107,7 @@ private:
     PEObject _pe;
     CapTable _caps;
     size_t _vpes;
-    size_t _headers;
+    size_t _reply_eps;
     size_t _rbufs_size;
     goff_t _mem_base;
     DTUState _dtustate;

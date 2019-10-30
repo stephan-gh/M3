@@ -52,9 +52,10 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
     // set address space properties first to load them during the restore
     if(vpe->address_space()) {
         AddrSpace *as = vpe->address_space();
-        dtustate.config_pf(as->root_pt(), m3::DTU::PG_SEP, m3::DTU::PG_REP);
+        epid_t rep = Platform::pe(vpe->pe()).has_mmu() ? m3::DTU::PG_REP : 0xFF;
+        dtustate.config_pf(as->root_pt(), m3::DTU::PG_SEP, rep);
     }
-    dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), pex->headers());
+    dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID));
 
     vpe->init_memory();
 

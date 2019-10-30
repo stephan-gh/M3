@@ -30,7 +30,7 @@ void *DTUState::get_ep(epid_t ep) {
     return _regs._eps + ep * m3::DTU::EP_REGS;
 }
 
-void DTUState::restore(const VPEDesc &vpe, size_t headers) {
+void DTUState::restore(const VPEDesc &vpe) {
     // re-enable pagefaults, if we have a valid pagefault EP (the abort operation disables it)
     m3::DTU::reg_t features = 0;
     if(_regs.get(m3::DTU::DtuRegs::PF_EP) != static_cast<epid_t>(-1))
@@ -38,13 +38,7 @@ void DTUState::restore(const VPEDesc &vpe, size_t headers) {
     _regs.set(m3::DTU::DtuRegs::FEATURES, features);
 
     m3::CPU::compiler_barrier();
-    size_t regsSize = sizeof(_regs._dtu) + sizeof(_regs._cmd) + sizeof(_regs._eps);
-    DTU::get().write_mem(vpe, m3::DTU::BASE_ADDR, this, regsSize);
-
-    DTU::get().write_mem(vpe,
-                         m3::DTU::BASE_ADDR + regsSize + sizeof(_regs._eps),
-                         _regs._header,
-                         sizeof(_regs._header[0]) * headers);
+    DTU::get().write_mem(vpe, m3::DTU::BASE_ADDR, this, sizeof(_regs));
 }
 
 void DTUState::invalidate_eps(epid_t first) {
@@ -56,12 +50,12 @@ void DTUState::read_ep(const VPEDesc &vpe, epid_t ep) {
     DTU::get().read_ep_remote(vpe, ep, get_ep(ep));
 }
 
-void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint header) {
+void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint reply_eps) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
     m3::DTU::reg_t bufSize = static_cast<m3::DTU::reg_t>(order - msgorder);
     m3::DTU::reg_t msgSize = static_cast<m3::DTU::reg_t>(msgorder);
     r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::RECEIVE) << 61) |
-            ((msgSize & 0xFFFF) << 32) | ((bufSize & 0x3F) << 26) | (header << 6);
+            ((msgSize & 0xFFFF) << 32) | ((bufSize & 0x3F) << 26) | (reply_eps << 6);
     r[1] = buf;
     r[2] = 0;
 }

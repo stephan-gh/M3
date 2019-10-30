@@ -64,9 +64,8 @@ cycles_t DTU::get_time() {
 void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     ext_request(vpe, m3::DTU::ExtReqOpCode::STOP);
 
-    // reset all EPs and headers to remove unread messages
-    size_t regsSize = (EP_COUNT - m3::DTU::FIRST_USER_EP) * m3::DTU::EP_REGS;
-    regsSize += m3::DTU::HD_COUNT * m3::DTU::HD_REGS;
+    // reset all EPs to remove unread messages
+    size_t regsSize = (TOTAL_EPS - m3::DTU::FIRST_USER_EP) * m3::DTU::EP_REGS;
     regsSize *= sizeof(m3::DTU::reg_t);
     memset(buffer, 0, regsSize);
     write_mem(vpe, m3::DTU::ep_regs_addr(m3::DTU::FIRST_USER_EP), buffer, regsSize);
@@ -142,17 +141,17 @@ void DTU::write_ep_local(epid_t ep) {
 }
 
 void DTU::recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder) {
-    static size_t header_off = 0;
+    static size_t reply_eps = EP_COUNT;
 
-    _state.config_recv(ep, buf, order, msgorder, header_off);
+    _state.config_recv(ep, buf, order, msgorder, reply_eps);
     write_ep_local(ep);
 
-    header_off += 1UL << (order - msgorder);
+    reply_eps += 1UL << (order - msgorder);
 }
 
 m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
-    size_t msgsize = size + m3::DTU::HEADER_SIZE;
+    size_t msgsize = size + sizeof(m3::DTU::Header);
     _state.config_send(_ep, label, vpe.pe, ep, msgsize, m3::DTU::CREDITS_UNLIM);
     write_ep_local(_ep);
 

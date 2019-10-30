@@ -61,8 +61,6 @@ private:
     static const size_t REQ_REGS            = 3;
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
-    static const size_t HD_COUNT            = 128;
-    static const size_t HD_REGS             = 2;
 
     static const size_t CREDITS_UNLIM       = 0xFFFF;
     // actual max is 64k - 1; use less for better alignment
@@ -185,13 +183,12 @@ public:
         STOP                = 2,
     };
 
-    struct alignas(8) ReplyHeader {
+    struct Header {
         enum {
             FL_REPLY            = 1 << 0,
             FL_GRANT_CREDITS    = 1 << 1,
             FL_REPLY_ENABLED    = 1 << 2,
             FL_PAGEFAULT        = 1 << 3,
-            FL_REPLY_FAILED     = 1 << 4,
         };
 
         uint8_t flags;     // if bit 0 is set its a reply, if bit 1 is set we grant credits
@@ -200,13 +197,9 @@ public:
         uint8_t replyEp;   // for a normal message this is the reply epId
                            // for a reply this is the enpoint that receives credits
         uint16_t length;
-        // we keep that for now, because otherwise ReplyHeader is not 16 bytes = 2 registers
-        uint16_t : 16;     // reserved
+        uint16_t replyCrd;
 
         uint64_t replylabel;
-    } PACKED;
-
-    struct Header : public ReplyHeader {
         uint64_t label;
     } PACKED;
 
@@ -220,10 +213,6 @@ public:
 
         unsigned char data[];
     } PACKED;
-
-    static const size_t HEADER_SIZE         = sizeof(Header);
-    static const size_t HEADER_COUNT        = 128;
-    static const size_t HEADER_REGS         = 2;
 
     static const epid_t KPEX_SEP            = 0;
     static const epid_t KPEX_REP            = 1;
@@ -396,20 +385,6 @@ private:
         CPU::write8b(BASE_ADDR + idx * sizeof(reg_t), value);
     }
 
-    static void read_header(size_t idx, ReplyHeader &hd) {
-        static_assert(sizeof(hd) == 16, "Header size changed");
-        uintptr_t base = header_addr(idx);
-        uint64_t *words = reinterpret_cast<uint64_t*>(&hd);
-        words[0] = CPU::read8b(base);
-        words[1] = CPU::read8b(base + 8);
-    }
-    static void write_header(size_t idx, const ReplyHeader &hd) {
-        uintptr_t base = header_addr(idx);
-        const uint64_t *words = reinterpret_cast<const uint64_t*>(&hd);
-        CPU::write8b(base, words[0]);
-        CPU::write8b(base + 8, words[1]);
-    }
-
     static uintptr_t dtu_reg_addr(DtuRegs reg) {
         return BASE_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
@@ -422,12 +397,8 @@ private:
     static uintptr_t ep_regs_addr(epid_t ep) {
         return BASE_ADDR + (DTU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
-    static uintptr_t header_addr(size_t idx) {
-        size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
-        return BASE_ADDR + regCount * sizeof(reg_t) + idx * sizeof(ReplyHeader);
-    }
     static uintptr_t buffer_addr() {
-        size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS + HD_COUNT * HD_REGS;
+        size_t regCount = DTU_REGS + CMD_REGS + TOTAL_EPS * EP_REGS;
         return BASE_ADDR + regCount * sizeof(reg_t);
     }
 
