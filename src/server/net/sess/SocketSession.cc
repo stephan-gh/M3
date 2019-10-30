@@ -106,7 +106,7 @@ m3::Errors::Code SocketSession::get_sgate(m3::KIF::Service::ExchangeData& data) 
 
     label_t label = reinterpret_cast<label_t>(this);
     _sgate = new SendGate(SendGate::create(&_rgate, SendGateArgs().label(label)
-                                                                  .credits(MSG_SIZE)));
+                                                                  .credits(1)));
 
     data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate->sel()).value();
     return Errors::NONE;

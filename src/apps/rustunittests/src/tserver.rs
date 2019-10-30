@@ -121,7 +121,7 @@ pub fn testcliexit() {
     ));
     wv_assert_ok!(rg.activate());
 
-    let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64 * 2)));
+    let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(2)));
     wv_assert_ok!(client.delegate_obj(sg.sel()));
 
     let cact = wv_assert_ok!(client.run(Box::new(move || {

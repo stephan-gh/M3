@@ -115,7 +115,7 @@ pub trait Child {
             return Err(Error::new(Code::Exists));
         }
 
-        let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(256).label(u64::from(id)))?;
+        let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(1).label(u64::from(id)))?;
         let our_sg_sel = sgate.sel();
         let child = Box::new(ForeignChild::new(id, child_name, our_sel, sgate, child_cfg));
         child.delegate(our_sg_sel, sgate_sel)?;

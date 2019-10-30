@@ -56,7 +56,7 @@ public:
           _lastmem(ObjCap::INVALID),
           _rgate(RecvGate::create(nextlog2<256>::val, nextlog2<256>::val)),
           _srgate(RecvGate::create_for(_accel, getnextlog2(RB_SIZE), getnextlog2(RB_SIZE))),
-          _sgate(SendGate::create(&_srgate, SendGateArgs().credits(RB_SIZE).reply_gate(&_rgate))) {
+          _sgate(SendGate::create(&_srgate, SendGateArgs().credits(1).reply_gate(&_rgate))) {
         // has to be activated
         _rgate.activate();
 

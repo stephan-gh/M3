@@ -62,7 +62,6 @@ private:
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
 
-    static const size_t CREDITS_UNLIM       = 0xFFFF;
     // actual max is 64k - 1; use less for better alignment
     static const size_t MAX_PKT_SIZE        = 60 * 1024;
 
@@ -197,7 +196,7 @@ public:
         uint8_t replyEp;   // for a normal message this is the reply epId
                            // for a reply this is the enpoint that receives credits
         uint16_t length;
-        uint16_t replyCrd;
+        uint16_t replySize;
 
         uint64_t replylabel;
         uint64_t label;
@@ -241,15 +240,15 @@ public:
     }
 
     bool has_missing_credits(epid_t ep) const {
-        reg_t r1 = read_reg(ep, 1);
-        uint16_t cur = r1 & 0xFFFF;
-        uint16_t max = (r1 >> 16) & 0xFFFF;
+        reg_t r0 = read_reg(ep, 0);
+        uint16_t cur = r0 & 0x3F;
+        uint16_t max = (r0 >> 6) & 0x3F;
         return cur < max;
     }
 
     bool has_credits(epid_t ep) const {
-        reg_t r1 = read_reg(ep, 1);
-        uint16_t cur = r1 & 0xFFFF;
+        reg_t r0 = read_reg(ep, 0);
+        uint16_t cur = r0 & 0x3F;
         return cur > 0;
     }
 

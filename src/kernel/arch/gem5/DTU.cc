@@ -140,7 +140,7 @@ void DTU::write_ep_local(epid_t ep) {
         dst[i] = src[i];
 }
 
-void DTU::recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder) {
+void DTU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     static size_t reply_eps = EP_COUNT;
 
     _state.config_recv(ep, buf, order, msgorder, reply_eps);
@@ -151,8 +151,7 @@ void DTU::recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder) {
 
 m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
-    size_t msgsize = size + sizeof(m3::DTU::Header);
-    _state.config_send(_ep, label, vpe.pe, ep, msgsize, m3::DTU::CREDITS_UNLIM);
+    _state.config_send(_ep, label, vpe.pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
     write_ep_local(_ep);
 
     m3::DTU::get().write_reg(m3::DTU::CmdRegs::DATA, reinterpret_cast<m3::DTU::reg_t>(msg) |

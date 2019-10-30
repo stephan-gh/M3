@@ -92,7 +92,7 @@ public:
 
             label_t label = reinterpret_cast<label_t>(sess);
             auto sgate = new AddrSpace::SGateItem(
-                SendGate::create(&_rgate, SendGateArgs().label(label).credits(MSG_SIZE))
+                SendGate::create(&_rgate, SendGateArgs().label(label).credits(1))
             );
             sess->sgates.append(sgate);
 

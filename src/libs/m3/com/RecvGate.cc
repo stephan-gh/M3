@@ -67,7 +67,7 @@ void RecvGate::RecvGateWorkItem::work() {
     }
 }
 
-RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, int order, int msgorder, uint flags)
+RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, uint order, uint msgorder, uint flags)
     : Gate(RECV_GATE, cap, flags),
       _vpe(vpe),
       _buf(buf),
@@ -82,23 +82,23 @@ RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, int order, int 
         activate(EP::bind(ep));
 }
 
-RecvGate RecvGate::create(int order, int msgorder) {
+RecvGate RecvGate::create(uint order, uint msgorder) {
     return create_for(VPE::self(), order, msgorder);
 }
 
-RecvGate RecvGate::create(capsel_t cap, int order, int msgorder) {
+RecvGate RecvGate::create(capsel_t cap, uint order, uint msgorder) {
     return create_for(VPE::self(), cap, order, msgorder);
 }
 
-RecvGate RecvGate::create_for(VPE &vpe, int order, int msgorder) {
+RecvGate RecvGate::create_for(VPE &vpe, uint order, uint msgorder) {
     return RecvGate(vpe, VPE::self().alloc_sel(), UNBOUND, nullptr, order, msgorder, 0);
 }
 
-RecvGate RecvGate::create_for(VPE &vpe, capsel_t cap, int order, int msgorder, uint flags) {
+RecvGate RecvGate::create_for(VPE &vpe, capsel_t cap, uint order, uint msgorder, uint flags) {
     return RecvGate(vpe, cap, UNBOUND, nullptr, order, msgorder, flags);
 }
 
-RecvGate RecvGate::bind(capsel_t cap, int order) noexcept {
+RecvGate RecvGate::bind(capsel_t cap, uint order) noexcept {
     return RecvGate(VPE::self(), cap, order, KEEP_CAP);
 }
 

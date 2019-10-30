@@ -66,9 +66,6 @@ pub const CMD_REGS: usize = 5;
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
 
-/// Represents unlimited credits
-pub const CREDITS_UNLIM: u64 = 0xFFFF;
-
 // actual max is 64k - 1; use less for better alignment
 const MAX_PKT_SIZE: usize = 60 * 1024;
 
@@ -262,7 +259,7 @@ pub struct Header {
     pub reply_ep: u8,
 
     pub length: u16,
-    pub reply_crd: u16,
+    pub reply_size: u16,
 
     pub reply_label: u64,
     pub label: u64,
@@ -434,9 +431,9 @@ impl DTU {
         if (r0 >> 61) != EpType::SEND.val {
             return false;
         }
-        let r1 = Self::read_ep_reg(ep, 1);
-        let cur = r1 & 0xFFFF;
-        let max = (r1 >> 16) & 0xFFFF;
+        let r0 = Self::read_ep_reg(ep, 0);
+        let cur = r0 & 0x3F;
+        let max = (r0 >> 6) & 0x3F;
         cur < max
     }
 

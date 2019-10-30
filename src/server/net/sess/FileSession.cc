@@ -35,7 +35,7 @@ FileSession::FileSession(WorkLoop *wl, capsel_t srv_sel, LwipSocket* socket, int
       _work_item(*this),
       _sgate(SendGate::create(
         &socket->session()->rgate(), SendGateArgs().label(reinterpret_cast<label_t>(this))
-                                                   .credits(MSG_SIZE)
+                                                   .credits(1)
                                                    .sel(sel() + 1))
       ),
       _socket(socket),

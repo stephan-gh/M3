@@ -33,7 +33,7 @@ struct Worker {
 
     Worker(RecvGate &rgate, MemGate &mem, size_t offset, size_t size)
         : submem(mem.derive(offset, size)),
-          sgate(SendGate::create(&rgate, SendGateArgs().credits(64))),
+          sgate(SendGate::create(&rgate, SendGateArgs().credits(1))),
           pe(PE::alloc(VPE::self().pe_desc())),
           vpe(pe, "worker") {
         vpe.delegate_obj(submem.sel());

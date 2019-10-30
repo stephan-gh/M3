@@ -104,21 +104,21 @@ pub fn create_sgate(
     dst: Selector,
     rgate: Selector,
     label: Label,
-    credits: u64,
+    credits: u32,
 ) -> Result<(), Error> {
     let req = syscalls::CreateSGate {
         opcode: syscalls::Operation::CREATE_SGATE.val,
         dst_sel: u64::from(dst),
         rgate_sel: u64::from(rgate),
         label,
-        credits,
+        credits: u64::from(credits),
     };
     send_receive_result(&req)
 }
 
 /// Creates a new receive gate at selector `dst` with a `2^order` bytes receive buffer and
 /// `2^msg_order` bytes message slots.
-pub fn create_rgate(dst: Selector, order: i32, msgorder: i32) -> Result<(), Error> {
+pub fn create_rgate(dst: Selector, order: u32, msgorder: u32) -> Result<(), Error> {
     let req = syscalls::CreateRGate {
         opcode: syscalls::Operation::CREATE_RGATE.val,
         dst_sel: u64::from(dst),

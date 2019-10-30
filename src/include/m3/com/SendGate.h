@@ -65,7 +65,7 @@ public:
     /**
      * The number of credits in bytes (default = UNLIMITED)
      */
-    SendGateArgs &credits(word_t credits) noexcept {
+    SendGateArgs &credits(uint credits) noexcept {
         _credits = credits;
         return *this;
     }
@@ -81,7 +81,7 @@ private:
     uint _flags;
     RecvGate *_replygate;
     label_t _label;
-    word_t _credits;
+    uint _credits;
     capsel_t _sel;
 };
 
@@ -106,7 +106,7 @@ class SendGate : public Gate {
     }
 
 public:
-    static const word_t UNLIMITED   = KIF::UNLIM_CREDITS;
+    static const uint UNLIMITED   = KIF::UNLIM_CREDITS;
 
     /**
      * Creates a new send gate for the given receive gate.

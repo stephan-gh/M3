@@ -72,7 +72,7 @@ impl Channel {
         let sgate = SendGate::new_with(
             SGateArgs::new(rgate)
                 .label(id as u64)
-                .credits(MSG_SIZE as u64)
+                .credits(1)
                 .sel(caps + 1),
         )?;
         let cmem = mem.derive(id as u64 * BUF_SIZE as u64, BUF_SIZE, kif::Perm::RW)?;

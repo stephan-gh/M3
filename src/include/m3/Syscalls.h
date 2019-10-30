@@ -54,8 +54,8 @@ class Syscalls {
 public:
     static void create_srv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name);
     static void create_sess(capsel_t dst, capsel_t srv, word_t ident);
-    static void create_rgate(capsel_t dst, int order, int msgorder);
-    static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits);
+    static void create_rgate(capsel_t dst, uint order, uint msgorder);
+    static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, uint credits);
     static void create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
                            const String &name, capsel_t pe, capsel_t kmem);
     static void create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,

@@ -35,7 +35,7 @@ pub struct SendGate {
 pub struct SGateArgs {
     rgate_sel: Selector,
     label: dtu::Label,
-    credits: u64,
+    credits: u32,
     sel: Selector,
     flags: CapFlags,
 }
@@ -53,7 +53,7 @@ impl SGateArgs {
     }
 
     /// Sets the credits to `credits`.
-    pub fn credits(mut self, credits: u64) -> Self {
+    pub fn credits(mut self, credits: u32) -> Self {
         self.credits = credits;
         self
     }

@@ -29,7 +29,7 @@ Errors::Code M3FSMetaSession::get_sgate(KIF::Service::ExchangeData &data) {
 
     label_t label = reinterpret_cast<label_t>(this);
     MetaSGate *sgate = new MetaSGate(SendGate::create(&_rgate, SendGateArgs().label(label)
-                                                                             .credits(MSG_SIZE)));
+                                                                             .credits(1)));
     _sgates.append(sgate);
 
     data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sgate->sgate.sel()).value();

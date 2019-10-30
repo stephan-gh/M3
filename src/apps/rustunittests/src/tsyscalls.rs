@@ -109,12 +109,12 @@ fn create_rgate() {
     wv_assert_err!(syscalls::create_rgate(SEL_VPE, 10, 10), Code::InvArgs);
     // invalid order
     wv_assert_err!(syscalls::create_rgate(sel, 2000, 10), Code::InvArgs);
-    wv_assert_err!(syscalls::create_rgate(sel, -1, 10), Code::InvArgs);
+    wv_assert_err!(syscalls::create_rgate(sel, !0, 10), Code::InvArgs);
     // invalid msg order
     wv_assert_err!(syscalls::create_rgate(sel, 10, 11), Code::InvArgs);
-    wv_assert_err!(syscalls::create_rgate(sel, 10, -1), Code::InvArgs);
+    wv_assert_err!(syscalls::create_rgate(sel, 10, !0), Code::InvArgs);
     // invalid order and msg order
-    wv_assert_err!(syscalls::create_rgate(sel, -1, -1), Code::InvArgs);
+    wv_assert_err!(syscalls::create_rgate(sel, !0, !0), Code::InvArgs);
 }
 
 fn create_sess() {

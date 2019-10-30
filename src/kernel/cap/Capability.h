@@ -191,7 +191,7 @@ public:
 
 class RGateObject : public SlabObject<RGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit RGateObject(int _order, int _msgorder)
+    explicit RGateObject(uint _order, uint _msgorder)
         : GateObject(Capability::RGATE),
           RefCounted(),
           valid(true),
@@ -215,14 +215,14 @@ public:
     peid_t pe;
     epid_t ep;
     goff_t addr;
-    int order;
-    int msgorder;
+    uint order;
+    uint msgorder;
     uint header;
 };
 
 class SGateObject : public SlabObject<SGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit SGateObject(RGateObject *_rgate, label_t _label, word_t _credits)
+    explicit SGateObject(RGateObject *_rgate, label_t _label, uint _credits)
         : GateObject(Capability::SGATE),
           RefCounted(),
           rgate(_rgate),
@@ -237,7 +237,7 @@ public:
 
     m3::Reference<RGateObject> rgate;
     label_t label;
-    word_t credits;
+    uint credits;
     bool activated;
 };
 

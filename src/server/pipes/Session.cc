@@ -150,7 +150,7 @@ PipeChannel::PipeChannel(PipeData *_pipe, capsel_t _sel)
       epcap(ObjCap::INVALID),
       lastamount(),
       sgate(SendGate::create(&_pipe->rgate, SendGateArgs().label(reinterpret_cast<label_t>(this))
-                                                          .credits(64)
+                                                          .credits(1)
                                                           .sel(sel() + 1))),
       memory(),
       pipe(_pipe) {

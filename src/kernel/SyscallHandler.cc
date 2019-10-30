@@ -62,13 +62,13 @@ void SyscallHandler::init() {
     // configure both receive buffers (we need to do that manually in the kernel)
     // TODO we also need to make sure that a VPE's syscall slot isn't in use if we suspend it
     for(size_t i = 0; i < SYSC_REP_COUNT; ++i) {
-        int buford = m3::getnextlog2(32) + VPE::SYSC_MSGSIZE_ORD;
+        uint buford = m3::getnextlog2(32) + VPE::SYSC_MSGSIZE_ORD;
         size_t bufsize = static_cast<size_t>(1) << buford;
         DTU::get().recv_msgs(ep(i),reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
             buford, VPE::SYSC_MSGSIZE_ORD);
     }
 
-    int buford = m3::nextlog2<1024>::val;
+    uint buford = m3::nextlog2<1024>::val;
     size_t bufsize = static_cast<size_t>(1) << buford;
     DTU::get().recv_msgs(srvep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, m3::nextlog2<256>::val);
@@ -186,8 +186,8 @@ void SyscallHandler::create_sess(VPE *vpe, const m3::DTU::Message *msg) {
 void SyscallHandler::create_rgate(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateRGate>(msg);
     capsel_t dst = req->dst_sel;
-    int order = req->order;
-    int msgorder = req->msgorder;
+    uint order = req->order;
+    uint msgorder = req->msgorder;
 
     LOG_SYS(vpe, ": syscall::create_rgate", "(dst=" << dst
         << ", size=" << m3::fmt(1UL << order, "#x")
@@ -213,11 +213,11 @@ void SyscallHandler::create_sgate(VPE *vpe, const m3::DTU::Message *msg) {
     capsel_t dst = req->dst_sel;
     capsel_t rgate = req->rgate_sel;
     label_t label = req->label;
-    word_t credits = req->credits;
+    uint credits = req->credits;
 
     LOG_SYS(vpe, ": syscall::create_sgate", "(dst=" << dst << ", rgate=" << rgate
         << ", label=" << m3::fmt(label, "#0x", sizeof(label_t) * 2)
-        << ", crd=#" << m3::fmt(credits, "0x") << ")");
+        << ", crd=" << credits << ")");
 
     auto rgatecap = static_cast<RGateCapability*>(vpe->objcaps().get(rgate, Capability::RGATE));
     if(rgatecap == nullptr)

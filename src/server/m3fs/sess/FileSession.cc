@@ -50,7 +50,7 @@ M3FSFileSession::M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSes
         : new m3::SendGate(m3::SendGate::create(
             &meta->rgate(),
             SendGateArgs().label(reinterpret_cast<label_t>(this))
-                          .credits(MSG_SIZE)
+                          .credits(1)
                           .sel(sel() + 1)
           ))
       ),

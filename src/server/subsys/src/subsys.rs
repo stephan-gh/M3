@@ -314,7 +314,7 @@ pub fn main() -> i32 {
     rgate.activate().expect("Unable to activate RecvGate");
 
     let sgate =
-        SendGate::new_with(SGateArgs::new(&rgate).credits(256)).expect("Unable to create SendGate");
+        SendGate::new_with(SGateArgs::new(&rgate).credits(1)).expect("Unable to create SendGate");
     RGATE.set(Some(rgate));
 
     let args = env::args()

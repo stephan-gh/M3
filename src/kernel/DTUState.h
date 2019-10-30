@@ -42,8 +42,8 @@ public:
 
     void read_ep(const VPEDesc &vpe, epid_t ep);
 
-    void config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint reply_eps);
-    void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep, size_t msgsize, word_t crd);
+    void config_recv(epid_t ep, goff_t buf, uint order, uint msgorder, uint reply_eps);
+    void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep, uint msgorder, uint crd);
     void config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm);
     bool config_mem_cached(epid_t ep, peid_t pe);
 

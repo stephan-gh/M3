@@ -29,7 +29,7 @@ use pes::VPE;
 use syscalls;
 use util;
 
-const DEF_MSG_ORD: i32 = 6;
+const DEF_MSG_ORD: u32 = 6;
 
 static SYS_RGATE: StaticCell<RecvGate> =
     StaticCell::new(RecvGate::new_def(kif::SEL_SYSC_RG, dtu::SYSC_REP));
@@ -49,7 +49,7 @@ bitflags! {
 pub struct RecvGate {
     gate: Gate,
     buf: usize,
-    order: i32,
+    order: u32,
     free: FreeFlags,
     // TODO this is a workaround for a code-generation bug for arm, which generates
     // "ldm r8!,{r2,r4,r6,r8}" with the EP id loaded into r8 and afterwards increased by 16 because
@@ -72,8 +72,8 @@ impl fmt::Debug for RecvGate {
 
 /// The arguments for `RecvGate` creations
 pub struct RGateArgs {
-    order: i32,
-    msg_order: i32,
+    order: u32,
+    msg_order: u32,
     sel: Selector,
     flags: CapFlags,
 }
@@ -92,14 +92,14 @@ impl Default for RGateArgs {
 impl RGateArgs {
     /// Sets the size of the receive buffer as a power of two. That is, the size in bytes is
     /// `2^order`. This overwrites the default size of 64 bytes.
-    pub fn order(mut self, order: i32) -> Self {
+    pub fn order(mut self, order: u32) -> Self {
         self.order = order;
         self
     }
 
     /// Sets the size of message slots in the receive buffer as a power of two. That is, the size in
     /// bytes is `2^order`. This overwrites the default size of 64 bytes.
-    pub fn msg_order(mut self, msg_order: i32) -> Self {
+    pub fn msg_order(mut self, msg_order: u32) -> Self {
         self.msg_order = msg_order;
         self
     }
@@ -140,7 +140,7 @@ impl RecvGate {
 
     /// Creates a new `RecvGate` with a `2^order` bytes receive buffer and `2^msg_order` bytes
     /// message slots.
-    pub fn new(order: i32, msg_order: i32) -> Result<Self, Error> {
+    pub fn new(order: u32, msg_order: u32) -> Result<Self, Error> {
         Self::new_with(RGateArgs::default().order(order).msg_order(msg_order))
     }
 
@@ -165,7 +165,7 @@ impl RecvGate {
 
     /// Binds a new `RecvGate` to the given selector. The `order` argument denotes the size of the
     /// receive buffer (`2^order`).
-    pub fn new_bind(sel: Selector, order: i32) -> Self {
+    pub fn new_bind(sel: Selector, order: u32) -> Self {
         RecvGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
             buf: 0,

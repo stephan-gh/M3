@@ -45,7 +45,7 @@ PEMux::PEMux(peid_t pe)
     // configure send EP
     _dtustate.config_send(m3::DTU::KPEX_SEP, reinterpret_cast<label_t>(this),
                           Platform::kernel_pe(), SyscallHandler::pexep(),
-                          KPEX_RBUF_SIZE, KPEX_RBUF_SIZE);
+                          KPEX_RBUF_ORDER, 1);
 
     // configure receive EP
     uintptr_t rbuf = Platform::def_recvbuf(peid());
@@ -227,7 +227,7 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, SGateObject &obj) {
 
     obj.activated = true;
     dtustate().config_send(ep, obj.label, obj.rgate->pe, obj.rgate->ep,
-                           1UL << obj.rgate->msgorder, obj.credits);
+                           obj.rgate->msgorder, obj.credits);
     update_ep(ep);
     return m3::Errors::NONE;
 }

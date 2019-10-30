@@ -35,8 +35,6 @@ class DiskSrvSession : public m3::ServerSession {
     };
 
 public:
-    static constexpr size_t MSG_SIZE = 128;
-
     explicit DiskSrvSession(size_t dev, capsel_t srv_sel, m3::RecvGate *rgate, capsel_t _sel = m3::ObjCap::INVALID)
         : ServerSession(srv_sel, _sel), _dev(dev), _rgate(rgate), _sgates() {
     }
@@ -54,7 +52,7 @@ public:
 
         label_t label       = reinterpret_cast<label_t>(this);
         DiskSrvSGate *sgate = new DiskSrvSGate(m3::SendGate::create(
-            _rgate, m3::SendGateArgs().label(label).credits(MSG_SIZE))
+            _rgate, m3::SendGateArgs().label(label).credits(1))
         );
         _sgates.append(sgate);
 

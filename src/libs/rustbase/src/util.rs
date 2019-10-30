@@ -89,7 +89,7 @@ pub fn object_to_bytes_mut<T: Sized>(obj: &mut T) -> &mut [u8] {
     unsafe { slice::from_raw_parts_mut(p, size_of::<T>()) }
 }
 
-fn _next_log2(size: usize, shift: i32) -> i32 {
+fn _next_log2(size: usize, shift: u32) -> u32 {
     if size > (1 << shift) {
         shift + 1
     }
@@ -109,8 +109,8 @@ fn _next_log2(size: usize, shift: i32) -> i32 {
 /// assert_eq!(util::next_log2(4), 4);
 /// assert_eq!(util::next_log2(5), 8);
 /// ```
-pub fn next_log2(size: usize) -> i32 {
-    _next_log2(size, (size_of::<usize>() * 8 - 2) as i32)
+pub fn next_log2(size: usize) -> u32 {
+    _next_log2(size, (size_of::<usize>() * 8 - 2) as u32)
 }
 
 /// Rounds the given value up to the given alignment

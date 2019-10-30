@@ -50,7 +50,7 @@ void DTUState::read_ep(const VPEDesc &vpe, epid_t ep) {
     DTU::get().read_ep_remote(vpe, ep, get_ep(ep));
 }
 
-void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint reply_eps) {
+void DTUState::config_recv(epid_t ep, goff_t buf, uint order, uint msgorder, uint reply_eps) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
     m3::DTU::reg_t bufSize = static_cast<m3::DTU::reg_t>(order - msgorder);
     m3::DTU::reg_t msgSize = static_cast<m3::DTU::reg_t>(msgorder);
@@ -61,13 +61,14 @@ void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint 
 }
 
 void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
-                           size_t msgsize, word_t credits) {
+                           uint msgorder, uint credits) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-    r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::SEND) << 61) | (msgsize & 0xFFFF);
-    r[1] = (static_cast<m3::DTU::reg_t>(pe & 0xFF) << 40) |
-            (static_cast<m3::DTU::reg_t>(dstep & 0xFF) << 32) |
-            (credits << 16) |
-            (credits << 0);
+    r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::SEND) << 61) |
+            (static_cast<m3::DTU::reg_t>(msgorder & 0x3F) << 12) |
+            (static_cast<m3::DTU::reg_t>(credits) << 6) |
+            (static_cast<m3::DTU::reg_t>(credits) << 0);
+    r[1] = (static_cast<m3::DTU::reg_t>(pe & 0xFF) << 8) |
+            (static_cast<m3::DTU::reg_t>(dstep & 0xFF) << 0);
     r[2] = lbl;
 }
 

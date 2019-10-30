@@ -88,7 +88,7 @@ public:
     void connect_input(StreamAccel *prev) {
         _sgate_in = std::make_unique<SendGate>(
             SendGate::create(&prev->_rgate, SendGateArgs().label(LBL_IN_REQ)
-                                                          .credits(MSG_SIZE))
+                                                          .credits(1))
         );
         _sgate_in->activate_on(EP::bind_for(*_vpe, EP_IN_SEND));
         _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate_in->sel()), CAP_IN);
@@ -100,7 +100,7 @@ public:
     void connect_output(StreamAccel *next) {
         _sgate_out = std::make_unique<SendGate>(
             SendGate::create(&next->_rgate, SendGateArgs().label(LBL_OUT_REQ)
-                                                          .credits(MSG_SIZE))
+                                                          .credits(1))
         );
         _sgate_out->activate_on(EP::bind_for(*_vpe, EP_OUT_SEND));
         _mgate_out = std::make_unique<MemGate>(next->_vpe->mem().derive(BUF_ADDR, BUF_SIZE));

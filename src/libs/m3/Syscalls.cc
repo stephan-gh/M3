@@ -68,7 +68,7 @@ void Syscalls::create_sess(capsel_t dst, capsel_t srv, word_t ident) {
     send_receive_throw(&req, sizeof(req));
 }
 
-void Syscalls::create_rgate(capsel_t dst, int order, int msgorder) {
+void Syscalls::create_rgate(capsel_t dst, uint order, uint msgorder) {
     KIF::Syscall::CreateRGate req;
     req.opcode = KIF::Syscall::CREATE_RGATE;
     req.dst_sel = dst;
@@ -77,7 +77,7 @@ void Syscalls::create_rgate(capsel_t dst, int order, int msgorder) {
     send_receive_throw(&req, sizeof(req));
 }
 
-void Syscalls::create_sgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits) {
+void Syscalls::create_sgate(capsel_t dst, capsel_t rgate, label_t label, uint credits) {
     KIF::Syscall::CreateSGate req;
     req.opcode = KIF::Syscall::CREATE_SGATE;
     req.dst_sel = dst;

@@ -168,7 +168,7 @@ fn free_pe(is: &mut GateIStream, child: &mut dyn Child) {
 fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
     let sgate = SendGate::new_with(
         SGateArgs::new(req_rgate())
-            .credits(256)
+            .credits(1)
             .label(dtu::Label::from(child.id())),
     )?;
 

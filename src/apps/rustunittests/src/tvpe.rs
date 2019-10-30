@@ -49,7 +49,7 @@ fn run_stop() {
         let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("test")));
 
         // pass sendgate to child
-        let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64)));
+        let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(1)));
         wv_assert_ok!(vpe.delegate_obj(sg.sel()));
 
         // pass root fs to child
@@ -99,7 +99,7 @@ fn run_send_receive() {
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
 
     let mut rgate = wv_assert_ok!(RecvGate::new(util::next_log2(256), util::next_log2(256)));
-    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(256)));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     wv_assert_ok!(vpe.delegate_obj(rgate.sel()));
 

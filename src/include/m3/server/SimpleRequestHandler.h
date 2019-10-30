@@ -56,7 +56,7 @@ public:
         label_t label = reinterpret_cast<label_t>(sess);
         sess->sgate = std::make_unique<SendGate>(
             SendGate::create(&_rgate, SendGateArgs().label(label)
-                                                    .credits(MSG_SIZE))
+                                                    .credits(1))
         );
 
         data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->sgate->sel()).value();

@@ -64,8 +64,8 @@ void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep, size
     regs[m3::DTU::EP_LABEL]         = lbl;
     regs[m3::DTU::EP_PEID]          = pe;
     regs[m3::DTU::EP_EPID]          = dstep;
-    regs[m3::DTU::EP_CREDITS]       = credits;
-    regs[m3::DTU::EP_MSGORDER]      = static_cast<word_t>(m3::getnextlog2(msgsize));
+    regs[m3::DTU::EP_CREDITS]       = (1U << msgsize) * credits;
+    regs[m3::DTU::EP_MSGORDER]      = msgsize;
 }
 
 void DTUState::config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perms) {

@@ -20,7 +20,7 @@
 
 namespace m3 {
 
-static constexpr int _getnextlog2(size_t size, int shift) {
+static constexpr uint _getnextlog2(size_t size, uint shift) {
     return size > (static_cast<size_t>(1) << shift)
             ? shift + 1
             : (shift == 0 ? 0 : _getnextlog2(size, shift - 1));
@@ -28,7 +28,7 @@ static constexpr int _getnextlog2(size_t size, int shift) {
 /**
  * Converts <size> to x with 2^x >= <size>. It may be executed at compiletime or runtime,
  */
-static constexpr int getnextlog2(size_t size) {
+static constexpr uint getnextlog2(size_t size) {
     return _getnextlog2(size, sizeof(size_t) * 8 - 2);
 }
 
@@ -37,7 +37,7 @@ static constexpr int getnextlog2(size_t size) {
  */
 template<size_t SIZE>
 struct nextlog2 {
-    static constexpr int val = getnextlog2(SIZE);
+    static constexpr uint val = getnextlog2(SIZE);
 };
 
 static_assert(nextlog2<0>::val == 0, "failed");

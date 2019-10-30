@@ -38,7 +38,7 @@ public:
             : _off(),
               _rem(),
               _rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
-              _sgate(SendGate::create(&_rgate, SendGateArgs().credits(64).sel(sels + 0))),
+              _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1).sel(sels + 0))),
               _mgate(MemGate::create_global(memsize, MemGate::RW, sels + 1)),
               _is() {
             _rgate.activate();

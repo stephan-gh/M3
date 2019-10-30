@@ -40,7 +40,7 @@ public:
        : m3::ServerSession(srv_sel),
          rem_req(),
          clisgate(SendGate::create(rgate, SendGateArgs().label(reinterpret_cast<label_t>(this))
-                                                        .credits(64))),
+                                                        .credits(1))),
          sgate(),
          mgate() {
     }

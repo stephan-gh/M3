@@ -37,7 +37,7 @@ fn create() {
 fn send_recv() {
     let mut rgate = wv_assert_ok!(RecvGate::new(util::next_log2(512), util::next_log2(256)));
     let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(512).label(0x1234)
+        SGateArgs::new(&rgate).credits(2).label(0x1234)
     ));
     wv_assert_ok!(rgate.activate());
 
@@ -61,7 +61,7 @@ fn send_reply() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(util::next_log2(64), util::next_log2(64)));
     let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(64).label(0x1234)
+        SGateArgs::new(&rgate).credits(1).label(0x1234)
     ));
     wv_assert_ok!(rgate.activate());
 
