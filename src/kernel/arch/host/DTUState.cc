@@ -27,7 +27,7 @@ void *DTUState::get_ep(epid_t ep) {
     return _regs._eps + ep * m3::DTU::EPS_RCNT;
 }
 
-void DTUState::restore(const VPEDesc &, size_t) {
+void DTUState::restore(const VPEDesc &) {
     // not supported
 }
 
@@ -45,7 +45,7 @@ void DTUState::update_recv(epid_t ep, goff_t base) {
     regs[m3::DTU::EP_BUF_ADDR]       += base;
 }
 
-void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint) {
+void DTUState::config_recv(epid_t ep, goff_t buf, uint order, uint msgorder, uint) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
     regs[m3::DTU::EP_VALID]          = 1;
     regs[m3::DTU::EP_BUF_ADDR]       = buf;
@@ -58,7 +58,7 @@ void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint)
     regs[m3::DTU::EP_BUF_OCCUPIED]   = 0;
 }
 
-void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep, size_t msgsize, word_t credits) {
+void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep, uint msgsize, uint credits) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
     regs[m3::DTU::EP_VALID]         = 1;
     regs[m3::DTU::EP_LABEL]         = lbl;

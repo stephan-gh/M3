@@ -40,7 +40,6 @@ OStream &operator<<(OStream &os, const Env &senv) {
     os << "fds   : " << senv.fds << "\n";
     os << "fdslen: " << senv.fds_len << "\n";
     os << "mounts: " << fmt(senv.mounts, "p") << "\n";
-    os << "eps   : " << fmt(senv.eps, "p") << "\n";
     os << "caps  : " << fmt(senv.caps, "p") << "\n";
     return os;
 }

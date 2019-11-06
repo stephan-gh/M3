@@ -37,7 +37,7 @@ const MAX_MSG_SIZE: usize = 16 * 1024;
 
 pub const HEADER_COUNT: usize = usize::max_value();
 
-pub const EP_COUNT: EpId = 16;
+pub const EP_COUNT: EpId = 128;
 
 pub const SYSC_SEP: EpId = 0;
 pub const SYSC_REP: EpId = 1;

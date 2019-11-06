@@ -65,7 +65,7 @@ static void copy_clear(const VPEDesc &vpe, uintptr_t virt, gaddr_t phys, size_t 
 }
 
 static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int perms) {
-    if(Platform::pe(vpe.pe()).has_virtmem() || (perms & MapCapability::EXCL)) {
+    if(Platform::pe(vpe.peid()).has_virtmem() || (perms & MapCapability::EXCL)) {
         capsel_t dst = virt >> PAGE_BITS;
         size_t pages = m3::Math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
         vpe.kmem()->alloc(vpe, sizeof(MapObject) + sizeof(MapCapability));
@@ -77,7 +77,7 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int pe
         vpe.mapcaps().set(dst, mapcap);
     }
 
-    if(!Platform::pe(vpe.pe()).has_virtmem())
+    if(!Platform::pe(vpe.peid()).has_virtmem())
         copy_clear(vpe.desc(), static_cast<uintptr_t>(virt), phys, size, false);
 }
 
@@ -114,7 +114,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
         goff_t virt = m3::Math::round_dn(static_cast<size_t>(pheader.p_vaddr), PAGE_SIZE);
 
         if(is_idle) {
-            gaddr_t phys_base = Platform::pe_mem_base() + vpe.pe() * Platform::pe_mem_size();
+            gaddr_t phys_base = Platform::pe_mem_base() + vpe.peid() * Platform::pe_mem_size();
             gaddr_t phys = phys_base + virt;
 
             size_t size = (pheader.p_offset & PAGE_BITS) + pheader.p_memsz;
@@ -123,7 +123,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
 
             // workaround for ARM: if we push remotely into the cache, it gets loaded to the L1d
             // cache. however, we push instructions which need to end up in L1i. Thus, write to mem.
-            if(virt == 0x0 && Platform::pe(vpe.pe()).has_virtmem()) {
+            if(virt == 0x0 && Platform::pe(vpe.peid()).has_virtmem()) {
                 VPEDesc tgt(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID);
                 copy_clear(tgt, m3::DTU::gaddr_to_virt(phys),
                            mod->addr + offset, size, pheader.p_filesz == 0);
@@ -169,10 +169,10 @@ static goff_t map_idle(VPE &vpe) {
         PANIC("Unable to find boot module 'pemux'");
 
     // load idle
-    goff_t res = load_mod(vpe, idle, true, true, Platform::pe(vpe.pe()).has_mmu());
+    goff_t res = load_mod(vpe, idle, true, true, Platform::pe(vpe.peid()).has_mmu());
 
     // clear PEMUX_*
-    if(Platform::pe(vpe.pe()).has_mmu()) {
+    if(Platform::pe(vpe.peid()).has_mmu()) {
         gaddr_t phys = idle->addr + PEMUX_YIELD;
         DTU::get().copy_clear(VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID),
             m3::DTU::gaddr_to_virt(phys),
@@ -196,7 +196,7 @@ void VPE::load_app() {
     if(!mod)
         PANIC("Unable to find boot module 'root'");
 
-    if(Platform::pe(pe()).has_virtmem()) {
+    if(Platform::pe(peid()).has_virtmem()) {
         // map runtime space
         goff_t virt = ENV_START;
         gaddr_t phys = alloc_mem(STACK_TOP - virt);
@@ -227,8 +227,8 @@ void VPE::load_app() {
     senv.argv = ENV_SPACE_START;
     senv.sp = STACK_TOP - sizeof(word_t);
     senv.entry = entry;
-    senv.shared = Platform::is_shared(pe());
-    senv.pedesc = Platform::pe(pe());
+    senv.shared = Platform::is_shared(peid());
+    senv.pedesc = Platform::pe(peid());
     senv.heapsize = ROOT_HEAP_SIZE;
     senv.rmng_sel = m3::KIF::INV_SEL;
     senv.caps = _first_sel;
@@ -237,17 +237,17 @@ void VPE::load_app() {
 }
 
 void VPE::init_memory() {
-    bool vm = Platform::pe(pe()).has_virtmem();
+    bool vm = Platform::pe(peid()).has_virtmem();
     if(vm) {
         address_space()->setup(desc());
         // write all PTEs to memory until we have loaded PEMux
-        if(Platform::pe(pe()).has_mmu())
+        if(Platform::pe(peid()).has_mmu())
             _state = VPE::DEAD;
     }
 
     // for SPM PEs, we don't need to do anything; PEMux has already been loaded
     if(vm) {
-        if(Platform::pe(pe()).is_programmable())
+        if(Platform::pe(peid()).is_programmable())
             map_idle(*this);
         // PEs with virtual memory still need the PEMux flags
         else {
@@ -260,7 +260,7 @@ void VPE::init_memory() {
     // PEMux is ready; let it initialize itself
     DTU::get().wakeup(desc());
     // we can now write the PTEs to the VPE's address space
-    if(Platform::pe(pe()).has_mmu())
+    if(Platform::pe(peid()).has_mmu())
         _state = VPE::RUNNING;
 
     if(vm) {

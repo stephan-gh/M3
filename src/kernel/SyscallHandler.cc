@@ -37,8 +37,16 @@ ulong SyscallHandler::_vpes_per_ep[SyscallHandler::SYSC_REP_COUNT];
 SyscallHandler::handler_func SyscallHandler::_callbacks[m3::KIF::Syscall::COUNT];
 
 #define LOG_SYS(vpe, sysname, expr)                                                         \
-        KLOG(SYSC, (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->pe(), "X")  \
+        KLOG(SYSC, (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->peid(), "X")\
             << (sysname) << expr)
+
+#define LOG_ERROR(vpe, error, msg)                                                          \
+    do {                                                                                    \
+        KLOG(ERR, "\e[37;41m"                                                               \
+            << (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->peid(), "X")    \
+            << ": " << msg << " (" << m3::Errors::to_string(error) << ")\e[0m");            \
+    }                                                                                       \
+    while(0)
 
 #define SYS_ERROR(vpe, msg, errcode, errmsg) {                                              \
         LOG_ERROR(vpe, errcode, errmsg);                                                    \
@@ -87,7 +95,7 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::create_vpe);
     add_operation(m3::KIF::Syscall::CREATE_MAP,     &SyscallHandler::create_map);
     add_operation(m3::KIF::Syscall::CREATE_SEM,     &SyscallHandler::create_sem);
-    add_operation(m3::KIF::Syscall::ALLOC_EP,       &SyscallHandler::alloc_ep);
+    add_operation(m3::KIF::Syscall::ALLOC_EPS,      &SyscallHandler::alloc_ep);
     add_operation(m3::KIF::Syscall::ACTIVATE,       &SyscallHandler::activate);
     add_operation(m3::KIF::Syscall::VPE_CTRL,       &SyscallHandler::vpe_ctrl);
     add_operation(m3::KIF::Syscall::VPE_WAIT,       &SyscallHandler::vpe_wait);
@@ -279,7 +287,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     if(!vpe->kmem()->has_quota(capnum * sizeof(SGateCapability)))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
     // the child quota needs to be sufficient
-    if(!kmemcap->obj->has_quota(VPE::base_kmem(pecap->obj->id) + VPE::extra_kmem(m3::PEDesc(pe))))
+    if(!kmemcap->obj->has_quota(VPE::base_kmem() + VPE::extra_kmem(m3::PEDesc(pe))))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
     // create VPE
@@ -293,16 +301,16 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
 
     // activate pager EPs
     if(pg_sg != m3::KIF::INV_SEL)
-        PEManager::get().pemux(nvpe->pe())->config_snd_ep(m3::DTU::PG_SEP, *sgatecap->obj);
+        PEManager::get().pemux(nvpe->peid())->config_snd_ep(m3::DTU::PG_SEP, *sgatecap->obj);
     if(pg_rg != m3::KIF::INV_SEL) {
-        rgatecap->obj->pe = nvpe->pe();
+        rgatecap->obj->pe = nvpe->peid();
         rgatecap->obj->addr = VMA_RBUF;
-        PEManager::get().pemux(nvpe->pe())->config_rcv_ep(m3::DTU::PG_REP, *rgatecap->obj);
+        PEManager::get().pemux(nvpe->peid())->config_rcv_ep(m3::DTU::PG_REP, EP_COUNT, *rgatecap->obj);
     }
 
     m3::KIF::Syscall::CreateVPEReply reply;
     reply.error = m3::Errors::NONE;
-    reply.pe = Platform::pe(nvpe->pe()).value();
+    reply.pe = Platform::pe(nvpe->peid()).value();
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
@@ -321,7 +329,7 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
         << ", first=" << first << ", pages=" << pages << ", perms=" << perms << ")");
 
     auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
-    if(vpecap == nullptr || !Platform::pe(vpecap->obj->pe()).has_virtmem())
+    if(vpecap == nullptr || !Platform::pe(vpecap->obj->peid()).has_virtmem())
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE capability is invalid");
     auto mgatecap = static_cast<MGateCapability*>(vpe->objcaps().get(mgate, Capability::MGATE));
     if(mgatecap == nullptr)
@@ -373,36 +381,49 @@ void SyscallHandler::alloc_ep(VPE *vpe, const m3::DTU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::AllocEP>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t tvpe = req->vpe_sel;
-    capsel_t pe = req->pe_sel;
+    epid_t epid = req->epid;
+    uint replies = req->replies;
 
-    LOG_SYS(vpe, ": syscall::alloc_ep", "(dst=" << dst << ", vpe=" << tvpe << ", pe=" << pe << ")");
+    LOG_SYS(vpe, ": syscall::alloc_ep", "(dst=" << dst << ", vpe="
+        << tvpe << ", epid=" << epid << ", replies=" << replies << ")");
 
     if(!vpe->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
+    uint epcount = 1 + replies;
     auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
     if(vpecap == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE capability is invalid");
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid VPE cap");
+    if(!vpecap->obj->pe()->has_quota(epcount)) {
+        SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "PE capability has insufficient EPs (have "
+            << vpecap->obj->pe()->eps << ", need " << epcount << ")");
+    }
 
-    auto pecap = static_cast<PECapability*>(vpe->objcaps().get(pe, Capability::PE));
-    // the VPE has to run on the PE given by the PE capability
-    if(pecap == nullptr || pecap->obj->id != vpecap->obj->pe())
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "PE capability is invalid");
-    if(!Platform::is_shared(pecap->obj->id))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "EPs can only be allocated from shared PEs");
-    if(!pecap->obj->has_quota(1))
-        SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "PE capability has insufficient EPs");
+    auto pemux = PEManager::get().pemux(vpecap->obj->peid());
 
-    epid_t ep;
-    auto pemux = PEManager::get().pemux(pecap->obj->id);
-    m3::Errors::Code res = pemux->alloc_ep(vpe, vpecap->obj->id(), dst, &ep);
-    if(res != m3::Errors::NONE)
-        SYS_ERROR(vpe, msg, res, "EP allocation failed");
-    pecap->obj->alloc(1);
+    if(epid == EP_COUNT) {
+        epid = pemux->find_eps(epcount);
+        if(epid == EP_COUNT)
+            SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "No " << epcount << " contiguous EPs found");
+    }
+    else {
+        if(epid > EP_COUNT || epid + epcount < epid || epid + epcount > EP_COUNT)
+            SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "Invalid endpoint id");
+        if(!pemux->eps_free(epid, epcount)) {
+            SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE,
+                "Endpoints " << epid << ".." << (epid + epcount - 1) << " not free");
+        }
+    }
+
+    auto epcap = SYS_CREATE_CAP(vpe, msg, EPCapability, EPObject,
+        &vpe->objcaps(), dst, pemux->pe(), &*vpecap->obj, epid, replies);
+    vpe->objcaps().set(dst, epcap);
+    vpecap->obj->pe()->alloc(epcount);
+    pemux->alloc_eps(epid, epcount);
 
     m3::KIF::Syscall::AllocEPReply reply;
     reply.error = m3::Errors::NONE;
-    reply.ep = ep;
+    reply.ep = epid;
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
@@ -436,8 +457,109 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
     if(epcap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid EP cap");
 
-    m3::Errors::Code res = vpe->activate(epcap, gate, addr);
-    reply_result(vpe, msg, res);
+    peid_t dst_pe = epcap->obj->pe->id;
+    PEMux *dst_pemux = PEManager::get().pemux(dst_pe);
+
+    GateObject *gateobj = nullptr;
+    if(gate != m3::KIF::INV_SEL) {
+        auto gatecap = vpe->objcaps().get(gate, Capability::SGATE | Capability::MGATE | Capability::RGATE);
+        if(gatecap == nullptr)
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid gate cap");
+        if(epcap->obj->replies != 0 && gatecap->type() != Capability::RGATE)
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Only rgates use EP caps with reply slots");
+        gateobj = gatecap->as_gate();
+    }
+
+    bool invalid = false;
+    if(epcap->obj->gate) {
+        if(epcap->obj->gate->type == Capability::RGATE)
+            static_cast<RGateObject*>(epcap->obj->gate)->addr = 0;
+        // the remote invalidation is only required for send gates
+        else if(epcap->obj->gate->type == Capability::SGATE) {
+            if(!dst_pemux->invalidate_ep(epcap->obj->ep))
+                SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "EP invalidation failed");
+            static_cast<SGateObject*>(epcap->obj->gate)->activated = false;
+            invalid = true;
+        }
+
+        if(gateobj != epcap->obj->gate) {
+            epcap->obj->gate->remove_ep(&*epcap->obj);
+            epcap->obj->gate = nullptr;
+        }
+    }
+
+    if(gateobj) {
+        EPObject *oldep = gateobj->ep_of_pe(dst_pe);
+        if(oldep && oldep->ep != epcap->obj->ep) {
+            SYS_ERROR(vpe, msg, m3::Errors::EXISTS,
+                "Gate is already activated on PE" << oldep->pe->id << ":EP " << oldep->ep);
+        }
+
+        if(gateobj->type == Capability::MGATE) {
+            auto mgateobj = static_cast<MGateObject*>(gateobj);
+            m3::Errors::Code res = dst_pemux->config_mem_ep(epcap->obj->ep, *mgateobj, addr);
+            if(res != m3::Errors::NONE)
+                SYS_ERROR(vpe, msg, res, "Memory EP configuration failed");
+        }
+        else if(gateobj->type == Capability::SGATE) {
+            auto sgateobj = static_cast<SGateObject*>(gateobj);
+
+            if(!sgateobj->rgate->activated()) {
+                LOG_SYS(vpe, ": syscall::activate",
+                    ": waiting for rgate " << &sgateobj->rgate);
+
+                m3::ThreadManager::get().wait_for(reinterpret_cast<event_t>(&*sgateobj->rgate));
+
+                LOG_SYS(vpe, ": syscall::activate-cont",
+                    ": rgate " << &sgateobj->rgate << " activated");
+
+                // ensure that dstvpe is still valid
+                if(vpe->objcaps().get(ep, Capability::EP) == nullptr) {
+                    SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS,
+                        "EP capability was revoked during activate");
+                }
+            }
+
+            m3::Errors::Code res = dst_pemux->config_snd_ep(epcap->obj->ep, *sgateobj);
+            if(res != m3::Errors::NONE)
+                SYS_ERROR(vpe, msg, res, "Send EP configuration failed");
+        }
+        else {
+            auto rgateobj = static_cast<RGateObject*>(gateobj);
+            if(rgateobj->activated())
+                SYS_ERROR(vpe, msg, m3::Errors::EXISTS, "Receive gate already activated");
+
+            epid_t replies = EP_COUNT;
+            if(epcap->obj->replies > 0) {
+                uint slots = 1U << (rgateobj->order - rgateobj->msgorder);
+                if(epcap->obj->replies != slots) {
+                    SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS,
+                        "EP cap has " << epcap->obj->replies << " reply slots, need " << slots);
+                }
+                replies = epcap->obj->ep + 1;
+            }
+
+            rgateobj->pe = dst_pe;
+            rgateobj->addr = addr;
+            rgateobj->ep = epcap->obj->ep;
+
+            m3::Errors::Code res = dst_pemux->config_rcv_ep(epcap->obj->ep, replies, *rgateobj);
+            if(res != m3::Errors::NONE) {
+                rgateobj->addr = 0;
+                SYS_ERROR(vpe, msg, res, "Receive EP configuration failed");
+            }
+        }
+
+        if(!oldep)
+            gateobj->add_ep(&*epcap->obj);
+    }
+    else {
+        if(!invalid && !dst_pemux->invalidate_ep(epcap->obj->ep))
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "EP invalidation failed");
+    }
+
+    epcap->obj->gate = gateobj;
+    reply_result(vpe, msg, m3::Errors::NONE);
 }
 
 void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {

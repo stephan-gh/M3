@@ -29,8 +29,8 @@ namespace m3 {
 class AladdinAccel {
 public:
     static const uint RBUF_SEL      = 64;
-    static const uint RECV_EP       = 9;
-    static const uint DATA_EP       = 10;
+    static const uint DATA_EP       = 16;
+    static const uint RECV_EP       = 17;
     static const size_t RB_SIZE     = 256;
 
     static const size_t BUF_SIZE    = 1024;
@@ -56,7 +56,8 @@ public:
           _lastmem(ObjCap::INVALID),
           _rgate(RecvGate::create(nextlog2<256>::val, nextlog2<256>::val)),
           _srgate(RecvGate::create_for(_accel, getnextlog2(RB_SIZE), getnextlog2(RB_SIZE))),
-          _sgate(SendGate::create(&_srgate, SendGateArgs().credits(1).reply_gate(&_rgate))) {
+          _sgate(SendGate::create(&_srgate, SendGateArgs().credits(1).reply_gate(&_rgate))),
+          _rep(_accel.epmng().acquire(RECV_EP, _srgate.slots())) {
         // has to be activated
         _rgate.activate();
 
@@ -66,7 +67,7 @@ public:
         }
 
         _accel.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _srgate.sel(), 1), RBUF_SEL);
-        _srgate.activate(EP::bind_for(_accel, RECV_EP));
+        _srgate.activate_on(*_rep);
         _accel.start();
     }
 
@@ -98,6 +99,7 @@ private:
     m3::RecvGate _rgate;
     m3::RecvGate _srgate;
     m3::SendGate _sgate;
+    std::unique_ptr<EP> _rep;
 };
 
 }

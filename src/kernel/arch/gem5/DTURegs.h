@@ -38,7 +38,7 @@ public:
 
     m3::DTU::reg_t _dtu[m3::DTU::DTU_REGS];
     m3::DTU::reg_t _cmd[m3::DTU::CMD_REGS];
-    m3::DTU::reg_t _eps[m3::DTU::EP_REGS * TOTAL_EPS];
+    m3::DTU::reg_t _eps[m3::DTU::EP_REGS * EP_COUNT];
 } PACKED;
 
 }

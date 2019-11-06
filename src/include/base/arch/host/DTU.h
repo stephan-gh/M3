@@ -29,7 +29,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define EP_COUNT            16
+#define EP_COUNT            128
 
 namespace m3 {
 

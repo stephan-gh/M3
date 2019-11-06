@@ -17,7 +17,7 @@
 use cap::Selector;
 use cell::RefCell;
 use col::Vec;
-use com::{SliceSource, VecSink, EP};
+use com::{SliceSource, VecSink};
 use core::{fmt, mem};
 use errors::{Code, Error};
 use io::Serial;
@@ -29,8 +29,6 @@ use vfs::{File, FileRef, GenericFile};
 /// A file descriptor
 pub type Fd = usize;
 
-/// The maximum number of endpoints that can be dedicated to files.
-pub const MAX_EPS: usize = 4;
 /// The maximum number of files per [`FileTable`].
 pub const MAX_FILES: usize = 32;
 
@@ -40,10 +38,6 @@ pub type FileHandle = Rc<RefCell<dyn File>>;
 /// The table of open files.
 #[derive(Default)]
 pub struct FileTable {
-    free_eps: Vec<EP>,
-    file_ep_victim: usize,
-    used_ep_count: usize,
-    used_eps: [Option<Fd>; MAX_EPS],
     files: [Option<FileHandle>; MAX_FILES],
 }
 
@@ -87,81 +81,9 @@ impl FileTable {
 
     /// Removes the file with given file descriptor from the table.
     pub fn remove(&mut self, fd: Fd) {
-        let find_file_ep = |files: &[Option<Fd>], fd| -> Option<usize> {
-            for (i, f) in files.iter().enumerate() {
-                match f {
-                    Some(id) if *id == fd => return Some(i),
-                    _ => continue,
-                }
-            }
-            None
-        };
-
         if let Some(ref mut f) = mem::replace(&mut self.files[fd], None) {
-            if let Some(ep) = f.borrow_mut().evict(true) {
-                if ep.valid() {
-                    self.free_eps.push(ep);
-                }
-            }
-
-            // remove from multiplexing table
-            if let Some(idx) = find_file_ep(&self.used_eps, fd) {
-                log!(FILES, "FileEPs[{}] = --", idx);
-                self.used_eps[idx] = None;
-                self.used_ep_count -= 1;
-            }
-
             f.borrow_mut().close();
         }
-    }
-
-    pub(crate) fn request_ep(&mut self, fd: Fd) -> Result<EP, Error> {
-        if self.used_ep_count < MAX_EPS {
-            let ep = if let Some(ep) = self.free_eps.pop() {
-                Ok(ep)
-            }
-            else {
-                EP::new()
-            };
-
-            if let Ok(ep) = ep {
-                for i in 0..MAX_EPS {
-                    if self.used_eps[i].is_none() {
-                        log!(FILES, "FileEPs[{}] = EP:{},FD:{}", i, ep.id().unwrap(), fd);
-
-                        self.used_eps[i] = Some(fd);
-                        self.used_ep_count += 1;
-                        return Ok(ep);
-                    }
-                }
-            }
-        }
-
-        // TODO be smarter here
-        let mut i = self.file_ep_victim;
-        for _ in 0..MAX_EPS {
-            if let Some(ofd) = self.used_eps[i] {
-                let file = self.files[ofd].as_ref().unwrap();
-                let ep = file.borrow_mut().evict(false).unwrap();
-
-                log!(
-                    FILES,
-                    "FileEPs[{}] = EP:{},FD: switching from {} to {}",
-                    i,
-                    ep.id().unwrap(),
-                    ofd,
-                    fd
-                );
-
-                self.used_eps[i] = Some(fd);
-                self.file_ep_victim = (i + 1) % MAX_EPS;
-                return Ok(ep);
-            }
-
-            i = (i + 1) % MAX_EPS;
-        }
-
-        Err(Error::new(Code::NoSpace))
     }
 
     pub(crate) fn collect_caps(

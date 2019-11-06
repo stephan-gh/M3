@@ -32,14 +32,6 @@ class PEManager;
 class VPECapability;
 class VPEManager;
 
-#define LOG_ERROR(vpe, error, msg)                                                          \
-    do {                                                                                    \
-        KLOG(ERR, "\e[37;41m"                                                               \
-            << (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->pe(), "X")      \
-            << ": " << msg << " (" << m3::Errors::to_string(error) << ")\e[0m");            \
-    }                                                                                       \
-    while(0)
-
 #define CREATE_CAP(CAP, KOBJ, tbl, sel, ...)                                 \
     (tbl)->vpe()->kmem()->alloc(*(tbl)->vpe(), sizeof(CAP) + sizeof(KOBJ)) ? \
         new CAP(tbl, sel, new KOBJ(__VA_ARGS__))                           : \
@@ -63,18 +55,13 @@ public:
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
 
-    static size_t base_kmem(peid_t pe) {
-        size_t eps = 0;
-        if(!Platform::is_shared(pe))
-            eps = (EP_COUNT - m3::DTU::FIRST_FREE_EP) * (sizeof(EPCapability) + sizeof(EPObject));
+    static size_t base_kmem() {
         // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
         return sizeof(VPE) + sizeof(AddrSpace) +
                // PE cap, VPE cap, and kmem cap
                sizeof(PECapability) + sizeof(VPECapability) + sizeof(KMemCapability) +
                // memory gate and cap
-               sizeof(MGateCapability) + sizeof(MGateObject) +
-               // EP caps
-               eps;
+               sizeof(MGateCapability) + sizeof(MGateObject);
     }
     static size_t extra_kmem(const m3::PEDesc &pe) {
         // for VM PEs we need the root PT
@@ -107,11 +94,14 @@ public:
     const m3::Reference<KMemObject> &kmem() {
         return _kmem;
     }
+    const m3::Reference<PEObject> &pe() {
+        return _pe;
+    }
 
     const VPEDesc &desc() const {
         return _desc;
     }
-    peid_t pe() const {
+    peid_t peid() const {
         return desc().pe;
     }
     void set_pe(peid_t pe) {
@@ -161,6 +151,13 @@ public:
         return _upcqueue;
     }
 
+    void add_ep(EPObject *ep) {
+        _eps.append(ep);
+    }
+    void remove_ep(EPObject *ep) {
+        _eps.remove(ep);
+    }
+
     void upcall(const void *msg, size_t size, bool onheap) {
         _upcqueue.send(m3::DTU::UPCALL_REP, 0, msg, size, onheap);
     }
@@ -172,8 +169,6 @@ public:
 
     bool check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
     void wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
-
-    m3::Errors::Code activate(EPCapability *epcap, capsel_t gate, size_t addr);
 
     void set_first_sel(capsel_t sel) {
         _first_sel = sel;
@@ -196,6 +191,7 @@ private:
     epid_t _sysc_ep;
     m3::Reference<KMemObject> _kmem;
     m3::Reference<PEObject> _pe;
+    m3::DList<EPObject> _eps;
     m3::String _name;
     CapTable _objcaps;
     CapTable _mapcaps;

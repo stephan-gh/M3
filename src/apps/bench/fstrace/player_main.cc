@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
     }
 
     if(rgate != ObjCap::INVALID) {
-        RecvGate rg = RecvGate::bind(rgate, 6);
+        RecvGate rg = RecvGate::bind(rgate, 6, 6);
         {
             // tell the coordinator, that we are ready
             GateIStream msg = receive_msg(rg);

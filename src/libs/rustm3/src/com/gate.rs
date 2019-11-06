@@ -15,20 +15,19 @@
  */
 
 use cap::{CapFlags, Capability, Selector};
+use cell::Cell;
 use com::EP;
-use core::mem;
 use core::ops;
 use dtu::EpId;
-use dtuif;
 use errors::Error;
 use pes::VPE;
+use syscalls;
 
 /// A gate is one side of a DTU-based communication channel and exists in the variants [`MemGate`],
 /// [`SendGate`], and [`RecvGate`].
-#[derive(Debug)]
 pub struct Gate {
     cap: Capability,
-    ep: EP,
+    ep: Cell<Option<EP>>,
 }
 
 impl Gate {
@@ -36,7 +35,7 @@ impl Gate {
     pub fn new(sel: Selector, flags: CapFlags) -> Self {
         Gate {
             cap: Capability::new(sel, flags),
-            ep: EP::new_bind(None),
+            ep: Cell::new(None),
         }
     }
 
@@ -44,7 +43,7 @@ impl Gate {
     pub const fn new_with_ep(sel: Selector, flags: CapFlags, ep: EpId) -> Self {
         Gate {
             cap: Capability::new(sel, flags),
-            ep: EP::new_def_bind(ep),
+            ep: Cell::new(Some(EP::new_def_bind(ep))),
         }
     }
 
@@ -63,49 +62,47 @@ impl Gate {
     }
 
     /// Returns the endpoint. If the gate is not activated, it returns `None`.
-    pub(crate) fn ep(&self) -> Option<EpId> {
-        self.ep.id()
+    pub(crate) fn ep(&self) -> Option<&EP> {
+        // why is there no method that gives us a immutable reference to the Cell's inner value?
+        unsafe { (*self.ep.as_ptr()).as_ref() }
     }
 
-    pub(crate) fn put_ep(&mut self, mut ep: EP) -> Result<(), Error> {
-        ep.assign(self.sel())?;
-        if let Some(ep) = ep.id() {
-            VPE::cur().epmng().set_owned(ep, self.sel());
+    /// Returns the endpoint. If the gate is not activated, it returns `None`.
+    pub(crate) fn ep_id(&self) -> Option<EpId> {
+        self.ep().map(|ep| ep.id())
+    }
+
+    /// Activates the gate. Returns the chosen endpoint number.
+    pub(crate) fn activate_rgate(&self, addr: usize, replies: u32) -> Result<EpId, Error> {
+        let ep = VPE::cur().epmng().acquire(replies)?;
+        syscalls::activate(ep.sel(), self.sel(), addr)?;
+        self.ep.replace(Some(ep));
+        Ok(self.ep_id().unwrap())
+    }
+
+    /// Activates the gate. Returns the chosen endpoint number.
+    pub(crate) fn activate(&self) -> Result<&EP, Error> {
+        if let Some(ep) = self.ep() {
+            return Ok(ep);
         }
-        self.ep = ep;
-        Ok(())
+
+        let ep = VPE::cur().epmng().activate(self)?;
+        self.ep.replace(Some(ep));
+        Ok(self.ep().unwrap())
     }
 
-    pub(crate) fn take_ep(&mut self) -> EP {
-        if let Some(ep) = self.ep.id() {
-            VPE::cur().epmng().set_unowned(ep);
-        }
-        mem::replace(&mut self.ep, EP::new_bind(None))
-    }
-
-    pub(crate) fn set_epid(&self, ep: EpId) {
-        self.ep.set_id(Some(ep));
-    }
-
-    /// Activates the gate, if not already done, potentially involving endpoint multiplexing.
-    /// Returns the chosen endpoint number.
-    pub fn activate(&self) -> Result<EpId, Error> {
-        // the invariants here are:
-        // 1. if ep is Some, ep_owned_by determines whether we currently own that EP.
-        //    (it might have been reused for something else behind our back)
-        // 2. if ep is None, we don't have an EP yet and need to get one via switch_to
-        // the first implies that if we configure EPs otherwise for a gate (for example, in
-        // genericfile), we have to mark it owned in EpMux. That's why we set/unset it owned above.
-        let epmng = VPE::cur().epmng();
-        match self.ep() {
-            Some(ep) if epmng.ep_owned_by(ep, self.sel()) => Ok(ep),
-            _ => epmng.switch_to(self),
+    /// Releases the EP that is used by this gate
+    pub(crate) fn release(&mut self) {
+        if let Some(ep) = self.ep.replace(None) {
+            VPE::cur()
+                .epmng()
+                .release(ep, self.cap.flags().contains(CapFlags::KEEP_CAP));
         }
     }
 }
 
 impl ops::Drop for Gate {
     fn drop(&mut self) {
-        dtuif::DTUIf::remove_gate(self, self.cap.flags().contains(CapFlags::KEEP_CAP)).ok();
+        self.release();
     }
 }

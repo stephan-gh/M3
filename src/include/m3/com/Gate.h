@@ -53,36 +53,33 @@ public:
 protected:
     explicit Gate(uint type, capsel_t cap, unsigned capflags, epid_t ep = UNBOUND) noexcept
         : ObjCap(type, cap, capflags),
-          _ep(EP::bind(ep)) {
+          _ep(ep == UNBOUND ? nullptr : new EP(EP::bind(ep))) {
     }
 
 public:
     Gate(Gate &&g) noexcept
         : ObjCap(std::move(g)),
-          _ep(std::move(g._ep)) {
-        g._ep.set_id(UNBOUND);
+          _ep(g._ep) {
+        g._ep = nullptr;
     }
     ~Gate();
 
+    const EP &activate(uintptr_t addr = 0);
+    void activate_on(const EP &ep, uintptr_t addr = 0);
+
 protected:
-    epid_t ep() const noexcept {
-        return _ep.id();
+    const EP *ep() const noexcept {
+        return _ep;
     }
-    void set_epid(epid_t id) noexcept {
-        _ep.set_id(id);
-    }
-
-    void put_ep(EP &&ep, bool assign = true) noexcept;
-    EP take_ep() noexcept {
-        EP oep = std::move(_ep);
-        _ep = EP::bind(UNBOUND);
-        return oep;
+    void set_ep(EP *ep) noexcept {
+        _ep = ep;
     }
 
-    epid_t acquire_ep();
+    const EP &acquire_ep();
+    void release_ep(VPE &vpe) noexcept;
 
 private:
-    EP _ep;
+    EP *_ep;
 };
 
 }

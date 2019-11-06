@@ -24,7 +24,6 @@ use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
 use kif::{self, syscalls, CapRngDesc, Perm, SEL_SYSC_SG, SEL_VPE};
-use pes::VPE;
 use util;
 
 static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(SEL_SYSC_SG, SYSC_SEP));
@@ -217,13 +216,15 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
     send_receive_result(&req)
 }
 
-/// Allocates a new endpoint for `vpe` from the given PE capability at selector `dst`.
-pub fn alloc_ep(dst: Selector, vpe: Selector, pe: Selector) -> Result<EpId, Error> {
+/// Allocates a new endpoint for the given VPE at selector `dst`. Optionally, it can have `replies`
+/// reply slots attached to it (for receive gate activations).
+pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Result<EpId, Error> {
     let req = syscalls::AllocEP {
-        opcode: syscalls::Operation::ALLOC_EP.val,
+        opcode: syscalls::Operation::ALLOC_EPS.val,
         dst_sel: u64::from(dst),
         vpe_sel: u64::from(vpe),
-        pe_sel: u64::from(pe),
+        epid: epid as u64,
+        replies: u64::from(replies),
     };
 
     let reply: Reply<syscalls::AllocEPReply> = send_receive(&req)?;
@@ -433,12 +434,12 @@ fn exchange_sess(
 ///
 /// When activating a receive gate, the address of the receive buffer has to be specified via
 /// `addr`.
-pub fn activate(ep: Selector, gate: Selector, addr: goff) -> Result<(), Error> {
+pub fn activate(ep: Selector, gate: Selector, addr: usize) -> Result<(), Error> {
     let req = syscalls::Activate {
         opcode: syscalls::Operation::ACTIVATE.val,
         ep_sel: u64::from(ep),
         gate_sel: u64::from(gate),
-        addr,
+        addr: addr as u64,
     };
     send_receive_result(&req)
 }
@@ -477,9 +478,7 @@ pub fn exit(code: i32) {
 }
 
 pub(crate) fn init() {
-    VPE::cur().epmng().set_owned(SYSC_SEP, SEL_SYSC_SG);
 }
 
 pub(crate) fn reinit() {
-    init();
 }

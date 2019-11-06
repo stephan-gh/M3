@@ -216,14 +216,16 @@ public:
     static const epid_t KPEX_SEP            = 0;
     static const epid_t KPEX_REP            = 1;
     static const epid_t PEXUP_REP           = 2;
-    static const epid_t SYSC_SEP            = 3;
-    static const epid_t SYSC_REP            = 4;
-    static const epid_t UPCALL_REP          = 5;
-    static const epid_t DEF_REP             = 6;
-    static const epid_t PG_SEP              = 7;
-    static const epid_t PG_REP              = 8;
-    static const epid_t FIRST_USER_EP       = 3;
-    static const epid_t FIRST_FREE_EP       = 9;
+    static const epid_t PEXUP_RPLEP         = 3;
+    static const epid_t SYSC_SEP            = 4;
+    static const epid_t SYSC_REP            = 5;
+    static const epid_t UPCALL_REP          = 6;
+    static const epid_t UPCALL_RPLEP        = 7;
+    static const epid_t DEF_REP             = 8;
+    static const epid_t PG_SEP              = 9;
+    static const epid_t PG_REP              = 10;
+    static const epid_t FIRST_USER_EP       = 4;
+    static const epid_t FIRST_FREE_EP       = 11;
 
     static DTU &get() {
         return inst;
@@ -397,7 +399,7 @@ private:
         return BASE_ADDR + (DTU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
     static uintptr_t buffer_addr() {
-        size_t regCount = DTU_REGS + CMD_REGS + TOTAL_EPS * EP_REGS;
+        size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
         return BASE_ADDR + regCount * sizeof(reg_t);
     }
 

@@ -124,20 +124,21 @@ void Syscalls::create_sem(capsel_t dst, uint value) {
     send_receive_throw(&req, sizeof(req));
 }
 
-epid_t Syscalls::alloc_ep(capsel_t dst, capsel_t vpe, capsel_t pe) {
+epid_t Syscalls::alloc_ep(capsel_t dst, capsel_t vpe, epid_t ep, uint replies) {
     KIF::Syscall::AllocEP req;
-    req.opcode = KIF::Syscall::ALLOC_EP;
+    req.opcode = KIF::Syscall::ALLOC_EPS;
     req.dst_sel = dst;
     req.vpe_sel = vpe;
-    req.pe_sel = pe;
+    req.epid = ep;
+    req.replies = replies;
 
     auto reply = send_receive<KIF::Syscall::AllocEPReply>(&req, sizeof(req));
 
-    epid_t ep = reply->ep;
+    epid_t epid = reply->ep;
     Errors::Code res = static_cast<Errors::Code>(reply->error);
     if(res != Errors::NONE)
-        throw SyscallException(res, KIF::Syscall::ALLOC_EP);
-    return ep;
+        throw SyscallException(res, KIF::Syscall::ALLOC_EPS);
+    return epid;
 }
 
 void Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {

@@ -38,7 +38,7 @@ int_enum! {
         const CREATE_MAP        = 4;
         const CREATE_VPE        = 5;
         const CREATE_SEM        = 6;
-        const ALLOC_EP          = 7;
+        const ALLOC_EPS         = 7;
 
         // capability operations
         const ACTIVATE          = 8;
@@ -179,16 +179,17 @@ pub struct CreateSem {
     pub value: u64,
 }
 
-/// The alloc endpoint request message
+/// The alloc endpoints request message
 #[repr(C, packed)]
 pub struct AllocEP {
     pub opcode: u64,
     pub dst_sel: u64,
     pub vpe_sel: u64,
-    pub pe_sel: u64,
+    pub epid: u64,
+    pub replies: u64,
 }
 
-/// The alloc EP reply message
+/// The alloc endpoints reply message
 #[repr(C, packed)]
 pub struct AllocEPReply {
     pub error: u64,

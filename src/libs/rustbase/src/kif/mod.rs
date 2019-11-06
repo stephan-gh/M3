@@ -30,8 +30,6 @@ pub use self::cap::*;
 pub use self::pedesc::*;
 pub use self::perm::*;
 
-use dtu;
-
 /// Represents an invalid capability selector
 pub const INVALID_SEL: CapSel = 0xFFFF;
 
@@ -46,11 +44,8 @@ pub const SEL_DEF_RG: CapSel = 7;
 pub const SEL_PG_SG: CapSel = 8;
 pub const SEL_PG_RG: CapSel = 9;
 
-/// The first selector for the endpoint capabilities
-pub const FIRST_EP_SEL: CapSel = SEL_PG_RG + 1;
-
 /// The first free selector
-pub const FIRST_FREE_SEL: CapSel = FIRST_EP_SEL + (dtu::EP_COUNT - dtu::FIRST_FREE_EP) as CapSel;
+pub const FIRST_FREE_SEL: CapSel = SEL_PG_RG + 1;
 
 /// The default request message that only contains the opcode
 #[repr(C, packed)]

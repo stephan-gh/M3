@@ -14,11 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-use arch::env;
 use cap::{CapFlags, Capability, Selector};
-use cell::Cell;
-use dtu::{EpId, FIRST_FREE_EP};
-use dtuif;
+use dtu::{EpId, EP_COUNT};
 use errors::Error;
 use kif;
 use pes::VPE;
@@ -30,61 +27,65 @@ use syscalls;
 #[derive(Debug)]
 pub struct EP {
     cap: Capability,
-    ep: Cell<Option<EpId>>,
-    free: bool,
+    ep: EpId,
+    replies: u32,
+}
+
+/// The arguments for [`EP`] creations.
+pub struct EPArgs {
+    epid: EpId,
+    replies: u32,
+}
+
+impl EPArgs {
+    /// Creates a new `EPArgs` with default arguments (any EP and no reply slots)
+    pub fn new() -> Self {
+        EPArgs {
+            epid: EP_COUNT,
+            replies: 0,
+        }
+    }
+
+    /// Sets the endpoint id to `epid`.
+    pub fn epid(mut self, epid: EpId) -> Self {
+        self.epid = epid;
+        self
+    }
+
+    /// Sets the number of reply slots to `slots`.
+    pub fn replies(mut self, slots: u32) -> Self {
+        self.replies = slots;
+        self
+    }
 }
 
 impl EP {
-    const fn create(sel: Selector, ep: Option<EpId>, free: bool, flags: CapFlags) -> Self {
+    const fn create(sel: Selector, ep: EpId, replies: u32, flags: CapFlags) -> Self {
         EP {
             cap: Capability::new(sel, flags),
-            ep: Cell::new(ep),
-            free,
+            ep,
+            replies,
         }
     }
 
     /// Allocates a new endpoint.
-    pub fn new() -> Result<Self, Error> {
-        Self::new_for(VPE::cur())
+    pub(crate) fn new() -> Result<Self, Error> {
+        Self::new_with(EPArgs::new())
     }
 
-    /// Allocates a new endpoint for given VPE.
-    pub fn new_for(vpe: &mut VPE) -> Result<Self, Error> {
-        if env::get().shared() {
-            let (sel, id) = Self::alloc_cap(vpe)?;
-            return Ok(Self::create(sel, Some(id), false, CapFlags::empty()));
-        }
-
-        let id = vpe.epmng().alloc_ep()?;
-        Ok(Self::create(
-            Self::sel_of_vpe(vpe, id),
-            Some(id),
-            true,
-            CapFlags::KEEP_CAP,
-        ))
+    /// Allocates a new endpoint with custom arguments
+    pub(crate) fn new_with(args: EPArgs) -> Result<Self, Error> {
+        let (sel, id) = Self::alloc_cap(args.epid, args.replies)?;
+        return Ok(Self::create(sel, id, args.replies, CapFlags::empty()));
     }
 
     pub(crate) const fn new_def_bind(ep: EpId) -> Self {
-        Self::create(Self::sel_of(ep), Some(ep), false, CapFlags::KEEP_CAP)
-    }
-
-    /// Creates a new endpoint object that is bound to the given endpoint id.
-    pub fn new_bind(ep: Option<EpId>) -> Self {
-        let sel = match ep {
-            Some(ep) => Self::sel_of(ep),
-            None => kif::INVALID_SEL,
-        };
-        Self::create(sel, ep, false, CapFlags::KEEP_CAP)
-    }
-
-    /// Returns true if the endpoint is valid, i.e., has a selector and endpoint id
-    pub fn valid(&self) -> bool {
-        self.ep.get().is_some()
+        Self::create(kif::INVALID_SEL, ep, 0, CapFlags::KEEP_CAP)
     }
 
     /// Returns the endpoint id
-    pub fn id(&self) -> Option<EpId> {
-        self.ep.get()
+    pub fn id(&self) -> EpId {
+        self.ep
     }
 
     /// Returns the endpoint selector
@@ -92,34 +93,14 @@ impl EP {
         self.cap.sel()
     }
 
-    pub(crate) fn assign(&mut self, gate: Selector) -> Result<(), Error> {
-        dtuif::DTUIf::switch_gate(self, gate)
+    /// Returns the number of reply slots
+    pub fn replies(&self) -> u32 {
+        self.replies
     }
 
-    pub(crate) fn set_id(&self, ep: Option<EpId>) {
-        self.ep.set(ep);
-    }
-
-    pub(crate) const fn sel_of(ep: EpId) -> Selector {
-        kif::FIRST_EP_SEL + ep as Selector - FIRST_FREE_EP as Selector
-    }
-
-    pub(crate) fn sel_of_vpe(vpe: &VPE, ep: EpId) -> Selector {
-        (vpe.sel() - kif::SEL_VPE) + Self::sel_of(ep)
-    }
-
-    fn alloc_cap(vpe: &VPE) -> Result<(Selector, EpId), Error> {
+    fn alloc_cap(epid: EpId, replies: u32) -> Result<(Selector, EpId), Error> {
         let sel = VPE::cur().alloc_sel();
-        let id = syscalls::alloc_ep(sel, vpe.sel(), vpe.pe().sel())?;
+        let id = syscalls::alloc_ep(sel, VPE::cur().sel(), epid, replies)?;
         Ok((sel, id))
-    }
-}
-
-impl Drop for EP {
-    fn drop(&mut self) {
-        if self.free {
-            assert!(self.valid());
-            VPE::cur().epmng().free_ep(self.ep.get().unwrap());
-        }
     }
 }

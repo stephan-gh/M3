@@ -65,7 +65,7 @@ void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     ext_request(vpe, m3::DTU::ExtReqOpCode::STOP);
 
     // reset all EPs to remove unread messages
-    size_t regsSize = (TOTAL_EPS - m3::DTU::FIRST_USER_EP) * m3::DTU::EP_REGS;
+    size_t regsSize = (EP_COUNT - m3::DTU::FIRST_USER_EP) * m3::DTU::EP_REGS;
     regsSize *= sizeof(m3::DTU::reg_t);
     memset(buffer, 0, regsSize);
     write_mem(vpe, m3::DTU::ep_regs_addr(m3::DTU::FIRST_USER_EP), buffer, regsSize);
@@ -141,7 +141,8 @@ void DTU::write_ep_local(epid_t ep) {
 }
 
 void DTU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
-    static size_t reply_eps = EP_COUNT;
+    // TODO manage the kernel EPs properly
+    static size_t reply_eps = 16;
 
     _state.config_recv(ep, buf, order, msgorder, reply_eps);
     write_ep_local(ep);

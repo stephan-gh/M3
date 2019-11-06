@@ -49,9 +49,8 @@ public:
         : ObjCap(SERVICE, caps + 0, KEEP_CAP),
           _handler(std::move(handler)),
           _ctrl_handler(),
-          // use free selector as an identifier in PEMux
-          _rgate(RecvGate::bind(VPE::self().alloc_sel(), nextlog2<512>::val)) {
-        _rgate.put_ep(EP::bind(ep));
+          _rgate(RecvGate::bind(caps + 1, nextlog2<512>::val, nextlog2<256>::val)) {
+        _rgate.set_ep(ep);
         init(wl);
     }
 

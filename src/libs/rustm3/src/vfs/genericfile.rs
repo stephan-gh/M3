@@ -17,12 +17,12 @@
 use cap::Selector;
 use cell::RefCell;
 use col::Vec;
-use com::{MemGate, RecvGate, SendGate, SliceSource, VecSink, EP};
+use com::{MemGate, RecvGate, SendGate, SliceSource, VecSink};
 use core::fmt;
 use errors::Error;
 use goff;
 use io::{Read, Write};
-use kif::{syscalls, CapRngDesc, CapType, Perm};
+use kif::{syscalls, CapRngDesc, CapType, INVALID_SEL, Perm};
 use pes::VPE;
 use rc::Rc;
 use serialize::Sink;
@@ -67,8 +67,7 @@ impl GenericFile {
             flags,
             sess: ClientSession::new_bind(sel),
             sgate: SendGate::new_bind(sel + 1),
-            // we need a selector to use DTUIf::switch_gate
-            mgate: MemGate::new_bind(VPE::cur().alloc_sel()),
+            mgate: MemGate::new_bind(INVALID_SEL),
             goff: 0,
             off: 0,
             pos: 0,
@@ -99,9 +98,8 @@ impl GenericFile {
 
     fn delegate_ep(&mut self) -> Result<(), Error> {
         if self.mgate.ep().is_none() {
-            let ep = VPE::cur().files().request_ep(self.fd)?;
-            self.sess.delegate_obj(ep.sel())?;
-            self.mgate.put_ep(ep)
+            let ep = self.mgate.activate()?;
+            self.sess.delegate_obj(ep.sel())
         }
         else {
             Ok(())
@@ -118,21 +116,17 @@ impl File for GenericFile {
         self.fd = fd;
     }
 
-    fn evict(&mut self, closing: bool) -> Option<EP> {
+    fn close(&mut self) {
         // submit read/written data
-        self.submit(!closing).ok();
+        self.submit(false).ok();
 
         // revoke EP cap
-        let ep = self.mgate.take_ep();
-        if ep.valid() {
+        if let Some(ep) = self.mgate.ep() {
             VPE::cur()
                 .revoke(CapRngDesc::new(CapType::OBJECT, ep.sel(), 1), true)
                 .ok();
         }
-        Some(ep)
-    }
 
-    fn close(&mut self) {
         // file sessions are not known to our resource manager; thus close them manually
         send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::CLOSE).ok();
     }

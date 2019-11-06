@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <base/col/SList.h>
+
 #include <m3/ObjCap.h>
 
 #include <utility>
@@ -24,66 +26,38 @@ namespace m3 {
 
 class EPMng;
 class Gate;
+class RecvGate;
 
 /**
  * Represents a DTU endpoint that can be used for communication. This class only serves the purpose
  * to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
  * be delegated to someone else.
  */
-class EP : public ObjCap {
+class EP : public SListItem, public ObjCap {
     friend class EPMng;
     friend class Gate;
+    friend class RecvGate;
 
-    static capsel_t alloc_cap(VPE &vpe, epid_t *id);
+    static EP alloc(uint replies = 0);
+    static EP alloc_for(const VPE &vpe, epid_t ep = EP_COUNT, uint replies = 0);
+    static EP bind(epid_t id) noexcept;
 
-    explicit EP(capsel_t sel, epid_t id, bool free, uint flags) noexcept
-        : ObjCap(ObjCap::ENDPOINT, sel, flags),
+    explicit EP(capsel_t sel, epid_t id, uint replies, uint flags) noexcept
+        : SListItem(),
+          ObjCap(ObjCap::ENDPOINT, sel, flags),
           _id(id),
-          _free(free) {
+          _replies(replies) {
     }
 
 public:
     explicit EP() noexcept;
     EP &operator=(EP &&ep) noexcept;
     EP(EP &&ep) noexcept
-        : ObjCap(std::move(ep)),
+        : SListItem(std::move(ep)),
+          ObjCap(std::move(ep)),
           _id(ep._id),
-          _free(ep._free) {
-        ep._free = false;
+          _replies(ep._replies) {
     }
-    ~EP();
-
-    /**
-     * Allocate a new endpoint from the current VPE
-     *
-     * @return the endpoint
-     */
-    static EP alloc();
-
-    /**
-     * Allocate a new endpoint from the given VPE
-     *
-     * @param vpe the VPE
-     * @return the endpoint
-     */
-    static EP alloc_for(VPE &vpe);
-
-    /**
-     * Binds the given endpoint id to a new EP object for the current VPE
-     *
-     * @param id the endpoint id
-     * @return the EP object
-     */
-    static EP bind(epid_t id) noexcept;
-
-    /**
-     * Binds the given endpoint id to a new EP object for the given VPE
-     *
-     * @param vpe the VPE
-     * @param id the endpoint id
-     * @return the EP object
-     */
-    static EP bind_for(VPE &vpe, epid_t id) noexcept;
 
     /**
      * @return true if the endpoint is valid, i.e., has a selector and endpoint id
@@ -99,19 +73,20 @@ public:
         return _id;
     }
 
+    /**
+     * @return the number of reply slots
+     */
+    uint replies() const noexcept {
+        return _replies;
+    }
+
 private:
-    static capsel_t sel_of(epid_t ep) noexcept;
-    static capsel_t sel_of_vpe(VPE &vpe, epid_t ep) noexcept;
-
-    void assign(Gate &gate);
-    void free_ep();
-
     void set_id(epid_t id) noexcept {
         _id = id;
     }
 
     epid_t _id;
-    bool _free;
+    uint _replies;
 };
 
 }

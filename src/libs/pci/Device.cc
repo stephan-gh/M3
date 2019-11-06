@@ -28,13 +28,15 @@ namespace pci {
 ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
     : _pe(PE::alloc(PEDesc(PEType::COMP_IMEM, isa))),
       _vpe(_pe, name),
+      _sep(_vpe.epmng().acquire(EP_INT)),
+      _mep(_vpe.epmng().acquire(EP_DMA)),
       _intgate(RecvGate::create(nextlog2<256>::val, nextlog2<32>::val)),
       // TODO: Specify receive gate, grant it to nic dtu, send replies to give credits back
       _sintgate(SendGate::create(&_intgate)) {
     _intgate.activate();
 
     _vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sintgate.sel(), 1));
-    _sintgate.activate_on(EP::bind_for(_vpe, EP_INT));
+    _sintgate.activate_on(*_sep);
 
     _vpe.start();
 }
@@ -49,7 +51,7 @@ void ProxiedPciDevice::stopListing() {
 }
 
 void ProxiedPciDevice::setDmaEp(m3::MemGate &memgate) {
-    memgate.activate_on(EP::bind_for(_vpe, EP_DMA));
+    memgate.activate_on(*_mep);
 }
 
 void ProxiedPciDevice::receiveInterrupt(ProxiedPciDevice *nic, m3::GateIStream &) {

@@ -16,7 +16,7 @@
 
 use cap::Selector;
 use col::Vec;
-use com::{VecSink, EP};
+use com::VecSink;
 use core::fmt::Debug;
 use errors::Error;
 use goff;
@@ -119,11 +119,6 @@ pub trait File: Read + Write + Seek + Map + Debug {
     fn fd(&self) -> Fd;
     /// Sets the file descriptor.
     fn set_fd(&mut self, fd: Fd);
-
-    /// Evicts the file to be able to use it's memory endpoint for a different file.
-    ///
-    /// This is only used for file multiplexing.
-    fn evict(&mut self, closing: bool) -> Option<EP>;
 
     /// Closes the file.
     fn close(&mut self);

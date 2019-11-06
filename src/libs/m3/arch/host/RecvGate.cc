@@ -22,7 +22,7 @@
 
 namespace m3 {
 
-void *RecvGate::allocate(VPE &vpe, epid_t, size_t size) {
+void *RecvGate::allocate(VPE &vpe, size_t size) {
     uint64_t *cur = &vpe._rbufcur;
     uint64_t *end = &vpe._rbufend;
 

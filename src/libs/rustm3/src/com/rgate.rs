@@ -18,12 +18,11 @@ use cap::{CapFlags, Selector};
 use cell::StaticCell;
 use cfg;
 use com::gate::Gate;
-use com::{GateIStream, SendGate, EP};
+use com::{GateIStream, SendGate};
 use core::fmt;
 use core::ops;
 use dtu;
 use errors::Error;
-use goff;
 use kif::{self, INVALID_SEL};
 use pes::VPE;
 use syscalls;
@@ -50,6 +49,7 @@ pub struct RecvGate {
     gate: Gate,
     buf: usize,
     order: u32,
+    msg_order: u32,
     free: FreeFlags,
     // TODO this is a workaround for a code-generation bug for arm, which generates
     // "ldm r8!,{r2,r4,r6,r8}" with the EP id loaded into r8 and afterwards increased by 16 because
@@ -133,6 +133,7 @@ impl RecvGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
             buf: 0,
             order: 0,
+            msg_order: 0,
             free: FreeFlags { bits: 0 },
             _dummy: 0,
         }
@@ -158,18 +159,20 @@ impl RecvGate {
             gate: Gate::new(sel, args.flags),
             buf: 0,
             order: args.order,
+            msg_order: args.msg_order,
             free: FreeFlags::empty(),
             _dummy: 0,
         })
     }
 
     /// Binds a new `RecvGate` to the given selector. The `order` argument denotes the size of the
-    /// receive buffer (`2^order`).
-    pub fn new_bind(sel: Selector, order: u32) -> Self {
+    /// receive buffer (`2^order`) and `msg_order` denotes the size of the messages (`2^msg_order`).
+    pub fn new_bind(sel: Selector, order: u32, msg_order: u32) -> Self {
         RecvGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
             buf: 0,
             order,
+            msg_order,
             free: FreeFlags::empty(),
             _dummy: 0,
         }
@@ -182,7 +185,7 @@ impl RecvGate {
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub(crate) fn ep(&self) -> Option<dtu::EpId> {
-        self.gate.ep()
+        self.gate.ep().map(|ep| ep.id())
     }
 
     /// Returns the address of the receive buffer
@@ -198,37 +201,29 @@ impl RecvGate {
     /// Activates this receive gate. Activation is required before [`SendGate`]s connected to this
     /// `RecvGate` can be activated.
     pub fn activate(&mut self) -> Result<(), Error> {
-        match self.ep() {
-            Some(_) => Ok(()),
-            None => {
-                let ep = EP::new()?;
-                self.activate_ep(ep)?;
-                Ok(())
-            },
-        }
-    }
-
-    /// Activates this receive gate on the given endpoint. Activation is required before
-    /// [`SendGate`]s connected to this `RecvGate` can be activated.
-    pub(crate) fn activate_ep(&mut self, ep: EP) -> Result<(), Error> {
         if self.ep().is_none() {
-            let vpe = VPE::cur();
             let buf = if self.buf == 0 {
                 let size = 1 << self.order;
-                vpe.alloc_rbuf(size)?
+                VPE::cur().alloc_rbuf(size)?
             }
             else {
                 self.buf
             };
 
-            if self.sel() != INVALID_SEL {
-                syscalls::activate(ep.sel(), self.sel(), buf as goff)?;
-            }
-            self.gate.put_ep(ep)?;
-
-            if self.buf == 0 {
-                self.buf = buf;
-                self.free |= FreeFlags::FREE_BUF;
+            let replies = 1 << (self.order - self.msg_order);
+            match self.gate.activate_rgate(buf, replies) {
+                Ok(_) => {
+                    if self.buf == 0 {
+                        self.buf = buf;
+                        self.free |= FreeFlags::FREE_BUF;
+                    }
+                },
+                Err(e) => {
+                    if self.buf == 0 {
+                        VPE::cur().free_rbuf(buf, 1 << self.order);
+                    }
+                    return Err(e);
+                },
             }
         }
 
@@ -237,7 +232,7 @@ impl RecvGate {
 
     /// Deactivates this gate.
     pub fn deactivate(&mut self) {
-        self.gate.take_ep();
+        self.gate.release();
     }
 
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns

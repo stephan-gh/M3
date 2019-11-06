@@ -24,7 +24,6 @@ use col::Vec;
 use com::{EpMng, MemGate, SendGate};
 use core::fmt;
 use core::ops::FnOnce;
-use dtu::EP_COUNT;
 use env;
 use errors::Error;
 use kif;
@@ -96,16 +95,13 @@ static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
 
 impl VPE {
     fn new_cur() -> Self {
-        // currently, the bitmask limits us to 64 endpoints
-        const_assert!(EP_COUNT < util::size_of::<u64>() * 8);
-
         VPE {
             cap: Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP),
             pe: Rc::new(PE::new_bind(PEDesc::new_from(0), kif::SEL_PE)),
             mem: MemGate::new_bind(kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)), // invalid
             next_sel: kif::FIRST_FREE_SEL,
-            epmng: EpMng::new(true),
+            epmng: EpMng::new(),
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
             kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
@@ -124,7 +120,7 @@ impl VPE {
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
         self.files = env.load_fds();
-        self.epmng.reset(env.load_eps());
+        self.epmng.reset();
     }
 
     /// Returns the currently running `VPE`.
@@ -155,7 +151,7 @@ impl VPE {
             mem: MemGate::new_bind(sels + kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
             next_sel: kif::FIRST_FREE_SEL,
-            epmng: EpMng::new(false),
+            epmng: EpMng::new(),
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
             files: FileTable::default(),
@@ -573,7 +569,6 @@ impl VPE {
             senv.set_rmng(self.rmng.sel());
             senv.set_rbufs(&self.rbufs);
             senv.set_next_sel(self.next_sel);
-            senv.set_eps(self.epmng.reserved());
             senv.set_shared(arch::env::get().shared());
             senv.set_pedesc(self.pe_desc());
 
@@ -630,7 +625,6 @@ impl VPE {
 
                 // write nextsel, eps, rmng, and kmem
                 arch::loader::write_env_value(pid, "nextsel", u64::from(self.next_sel));
-                arch::loader::write_env_value(pid, "eps", self.epmng.reserved());
                 arch::loader::write_env_value(pid, "rmng", u64::from(self.rmng.sel()));
                 arch::loader::write_env_value(pid, "kmem", u64::from(self.kmem.sel()));
 
@@ -685,5 +679,5 @@ pub(crate) fn reinit() {
     VPE::cur().pe.set_sel(kif::SEL_PE);
     VPE::cur().mem = MemGate::new_bind(kif::SEL_MEM);
     VPE::cur().kmem = Rc::new(KMem::new(kif::SEL_KMEM));
-    VPE::cur().epmng().reset(VPE::cur().epmng().reserved());
+    VPE::cur().epmng().reset();
 }

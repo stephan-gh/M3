@@ -23,7 +23,7 @@
 
 namespace m3 {
 
-void *RecvGate::allocate(VPE &vpe, epid_t, size_t size) {
+void *RecvGate::allocate(VPE &vpe, size_t size) {
     // use values in env for VPE::self to work around initialization order problems
     uint64_t *cur = vpe.sel() == 0 ? &env()->rbufcur : &vpe._rbufcur;
     uint64_t *end = vpe.sel() == 0 ? &env()->rbufend : &vpe._rbufend;

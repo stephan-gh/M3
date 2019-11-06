@@ -17,26 +17,14 @@
 use arch::env;
 use arch::pexcalls;
 use base::pexif;
-use cap::Selector;
-use com::{Gate, MemGate, RecvGate, SendGate, EP};
-use core::intrinsics;
-use dtu::{self, CmdFlags, Header, Label, Message};
+use com::{MemGate, RecvGate, SendGate};
+use dtu::{self, CmdFlags, Label, Message};
 use errors::{Code, Error};
 use goff;
-use kif;
-use pes::VPE;
 
 pub struct DTUIf {}
 
 impl DTUIf {
-    fn addr_to_msg(addr: usize) -> &'static Message {
-        unsafe {
-            let head = addr as usize as *const Header;
-            let slice = [addr as usize, (*head).length as usize];
-            intrinsics::transmute(slice)
-        }
-    }
-
     #[inline(always)]
     pub fn send(
         sg: &SendGate,
@@ -45,21 +33,8 @@ impl DTUIf {
         reply_lbl: Label,
         rg: &RecvGate,
     ) -> Result<(), Error> {
-        if env::get().shared() {
-            pexcalls::call5(
-                pexif::Operation::SEND,
-                sg.sel() as usize,
-                msg as usize,
-                size,
-                reply_lbl as usize,
-                rg.sel() as usize,
-            )
-            .map(|_| ())
-        }
-        else {
-            let ep = sg.activate()?;
-            dtu::DTU::send(ep, msg, size, reply_lbl, rg.ep().unwrap())
-        }
+        let ep = sg.activate()?;
+        dtu::DTU::send(ep.id(), msg, size, reply_lbl, rg.ep().unwrap())
     }
 
     #[inline(always)]
@@ -69,19 +44,7 @@ impl DTUIf {
         size: usize,
         msg: &'static Message,
     ) -> Result<(), Error> {
-        if env::get().shared() {
-            pexcalls::call4(
-                pexif::Operation::REPLY,
-                rg.sel() as usize,
-                reply as usize,
-                size,
-                msg as *const Message as *const u8 as usize,
-            )
-            .map(|_| ())
-        }
-        else {
-            dtu::DTU::reply(rg.ep().unwrap(), reply, size, msg)
-        }
+        dtu::DTU::reply(rg.ep().unwrap(), reply, size, msg)
     }
 
     #[inline(always)]
@@ -91,86 +54,41 @@ impl DTUIf {
         size: usize,
         rg: &RecvGate,
     ) -> Result<&'static Message, Error> {
-        if env::get().shared() {
-            pexcalls::call4(
-                pexif::Operation::CALL,
-                sg.sel() as usize,
-                msg as usize,
-                size,
-                rg.sel() as usize,
-            )
-            .map(Self::addr_to_msg)
-        }
-        else {
-            let ep = sg.activate()?;
-            dtu::DTU::send(ep, msg, size, 0, rg.ep().unwrap())?;
-            Self::receive(rg, Some(sg))
-        }
+        let ep = sg.activate()?;
+        dtu::DTU::send(ep.id(), msg, size, 0, rg.ep().unwrap())?;
+        Self::receive(rg, Some(sg))
     }
 
     #[inline(always)]
     pub fn fetch_msg(rg: &RecvGate) -> Option<&'static Message> {
-        if env::get().shared() {
-            pexcalls::call1(pexif::Operation::FETCH, rg.sel() as usize)
-                .ok()
-                .map(Self::addr_to_msg)
-        }
-        else {
-            dtu::DTU::fetch_msg(rg.ep().unwrap())
-        }
+        dtu::DTU::fetch_msg(rg.ep().unwrap())
     }
 
     #[inline(always)]
     pub fn mark_read(rg: &RecvGate, msg: &Message) {
-        if env::get().shared() {
-            pexcalls::call2(
-                pexif::Operation::ACK,
-                rg.sel() as usize,
-                msg as *const Message as *const u8 as usize,
-            )
-            .ok();
-        }
-        else {
-            dtu::DTU::mark_read(rg.ep().unwrap(), msg)
-        }
+        dtu::DTU::mark_read(rg.ep().unwrap(), msg)
     }
 
     pub fn receive(rg: &RecvGate, sg: Option<&SendGate>) -> Result<&'static Message, Error> {
-        if env::get().shared() {
-            let sgsel = match sg {
-                Some(sg) => sg.sel() as usize,
-                None => kif::INVALID_SEL as usize,
-            };
-            pexcalls::call2(pexif::Operation::RECV, rg.sel() as usize, sgsel).map(Self::addr_to_msg)
-        }
-        else {
-            loop {
-                let msg = dtu::DTU::fetch_msg(rg.ep().unwrap());
-                if let Some(m) = msg {
-                    return Ok(m);
-                }
-
-                // fetch the events first
-                dtu::DTU::fetch_events();
-                if let Some(sg) = sg {
-                    // now check whether the endpoint is still valid. if the EP has been invalidated
-                    // before the line above, we'll notice that with this check. if the EP is
-                    // invalidated between the line above and the sleep command, the DTU will refuse
-                    // to suspend the core.
-                    if !dtu::DTU::is_valid(sg.ep().unwrap()) {
-                        return Err(Error::new(Code::InvEP));
-                    }
-                }
-
-                dtu::DTU::sleep()?;
+        loop {
+            let msg = dtu::DTU::fetch_msg(rg.ep().unwrap());
+            if let Some(m) = msg {
+                return Ok(m);
             }
-        }
-    }
 
-    fn mgate_sel(mg: &MemGate) -> usize {
-        match mg.sel() {
-            kif::INVALID_SEL => 1 << 31 | mg.ep().unwrap(),
-            sel => sel as usize,
+            // fetch the events first
+            dtu::DTU::fetch_events();
+            if let Some(sg) = sg {
+                // now check whether the endpoint is still valid. if the EP has been invalidated
+                // before the line above, we'll notice that with this check. if the EP is
+                // invalidated between the line above and the sleep command, the DTU will refuse
+                // to suspend the core.
+                if !dtu::DTU::is_valid(sg.ep().unwrap().id()) {
+                    return Err(Error::new(Code::InvEP));
+                }
+            }
+
+            dtu::DTU::sleep()?;
         }
     }
 
@@ -181,21 +99,8 @@ impl DTUIf {
         off: goff,
         flags: CmdFlags,
     ) -> Result<(), Error> {
-        if env::get().shared() {
-            pexcalls::call5(
-                pexif::Operation::READ,
-                Self::mgate_sel(mg),
-                data as usize,
-                size,
-                off as usize,
-                flags.bits() as usize,
-            )
-            .map(|_| ())
-        }
-        else {
-            let ep = mg.activate()?;
-            dtu::DTU::read(ep, data, size, off, flags)
-        }
+        let ep = mg.activate()?;
+        dtu::DTU::read(ep.id(), data, size, off, flags)
     }
 
     pub fn write(
@@ -205,50 +110,8 @@ impl DTUIf {
         off: goff,
         flags: CmdFlags,
     ) -> Result<(), Error> {
-        if env::get().shared() {
-            pexcalls::call5(
-                pexif::Operation::WRITE,
-                Self::mgate_sel(mg),
-                data as usize,
-                size,
-                off as usize,
-                flags.bits() as usize,
-            )
-            .map(|_| ())
-        }
-        else {
-            let ep = mg.activate()?;
-            dtu::DTU::write(ep, data, size, off, flags)
-        }
-    }
-
-    pub fn switch_gate(ep: &EP, gate: Selector) -> Result<(), Error> {
-        if env::get().shared() {
-            pexcalls::call2(
-                pexif::Operation::SWITCH_GATE,
-                ep.id().unwrap() as usize,
-                gate as usize,
-            )
-            .map(|_| ())
-        }
-        else {
-            Ok(())
-        }
-    }
-
-    pub fn remove_gate(gate: &Gate, invalidate: bool) -> Result<(), Error> {
-        if env::get().shared() {
-            pexcalls::call2(
-                pexif::Operation::REMOVE_GATE,
-                gate.sel() as usize,
-                invalidate as usize,
-            )
-            .map(|_| ())
-        }
-        else {
-            VPE::cur().epmng().remove(gate);
-            Ok(())
-        }
+        let ep = mg.activate()?;
+        dtu::DTU::write(ep.id(), data, size, off, flags)
     }
 
     #[inline(always)]

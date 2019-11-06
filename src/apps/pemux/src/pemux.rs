@@ -23,7 +23,6 @@
 extern crate base;
 
 mod arch;
-mod eps;
 mod kernreq;
 mod pexcalls;
 mod upcalls;

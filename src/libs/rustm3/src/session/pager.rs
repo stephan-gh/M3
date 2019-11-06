@@ -64,7 +64,7 @@ impl Pager {
         let sgate = SendGate::new_bind(sess.obtain_obj()?);
         Ok(Pager {
             sess,
-            rgate: Some(RecvGate::new_bind(kif::INVALID_SEL, 6)),
+            rgate: Some(RecvGate::new_bind(kif::INVALID_SEL, 6, 6)),
             parent_sgate: sgate,
             child_sgate: SendGate::new_bind(kif::INVALID_SEL),
             close: false,

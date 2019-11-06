@@ -35,16 +35,16 @@ PEManager::PEManager()
 }
 
 void PEManager::add_vpe(VPECapability *vpe) {
-    _muxes[vpe->obj->pe()]->add_vpe(vpe);
+    _muxes[vpe->obj->peid()]->add_vpe(vpe);
 }
 
 void PEManager::remove_vpe(VPE *vpe) {
-    _muxes[vpe->pe()]->remove_vpe(vpe);
+    _muxes[vpe->peid()]->remove_vpe(vpe);
 }
 
 void PEManager::init_vpe(UNUSED VPE *vpe) {
 #if defined(__gem5__)
-    auto pex = pemux(vpe->pe());
+    auto pex = pemux(vpe->peid());
     auto dtustate = pex->dtustate();
     dtustate.reset(0, true);
     vpe->_state = VPE::RUNNING;
@@ -52,10 +52,10 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
     // set address space properties first to load them during the restore
     if(vpe->address_space()) {
         AddrSpace *as = vpe->address_space();
-        epid_t rep = Platform::pe(vpe->pe()).has_mmu() ? m3::DTU::PG_REP : 0xFF;
+        epid_t rep = Platform::pe(vpe->peid()).has_mmu() ? m3::DTU::PG_REP : 0xFF;
         dtustate.config_pf(as->root_pt(), m3::DTU::PG_SEP, rep);
     }
-    dtustate.restore(VPEDesc(vpe->pe(), VPE::INVALID_ID));
+    dtustate.restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
 
     vpe->init_memory();
 
@@ -65,7 +65,7 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
 
 void PEManager::start_vpe(VPE *vpe) {
 #if defined(__host__)
-    pemux(vpe->pe())->dtustate().restore(VPEDesc(vpe->pe(), VPE::INVALID_ID), 0);
+    pemux(vpe->peid())->dtustate().restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
     vpe->_state = VPE::RUNNING;
     vpe->init_memory();
 #else
@@ -73,7 +73,7 @@ void PEManager::start_vpe(VPE *vpe) {
     uint64_t flags = m3::PEMuxCtrl::WAITING;
     if(vpe->_flags & VPE::F_HASAPP) {
         flags |= m3::PEMuxCtrl::RESTORE;
-        flags |= static_cast<uint64_t>(vpe->pe()) << 32;
+        flags |= static_cast<uint64_t>(vpe->peid()) << 32;
         flags |= static_cast<uint64_t>(PEMux::VPE_SEL_BEGIN + vpe->id()) << 48;
     }
 
@@ -94,7 +94,7 @@ void PEManager::stop_vpe(VPE *vpe) {
     // ensure that all PTEs are in memory
     DTU::get().flush_cache(vpe->desc());
 
-    DTU::get().kill_vpe(vpe->desc(), _idle_rootpts[vpe->pe()]);
+    DTU::get().kill_vpe(vpe->desc(), _idle_rootpts[vpe->peid()]);
     vpe->_flags |= VPE::F_STOPPED;
 }
 

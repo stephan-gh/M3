@@ -75,7 +75,7 @@ public:
     peid_t peof(vpeid_t id) {
         if(id == MAX_VPES)
             return Platform::kernel_pe();
-        return vpe(id).pe();
+        return vpe(id).peid();
     }
 
     VPE *vpe_by_pid(int pid);

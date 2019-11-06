@@ -105,10 +105,6 @@ impl EnvData {
         ResMng::new(SendGate::new_bind(self.base.rmng_sel as Selector))
     }
 
-    pub fn load_eps(&self) -> u64 {
-        self.base.eps
-    }
-
     pub fn load_nextsel(&self) -> Selector {
         // it's initially 0. make sure it's at least the first usable selector
         util::max(kif::FIRST_FREE_SEL, self.base.caps as Selector)
@@ -160,10 +156,6 @@ impl EnvData {
 
     pub fn set_next_sel(&mut self, sel: Selector) {
         self.base.caps = u64::from(sel);
-    }
-
-    pub fn set_eps(&mut self, eps: u64) {
-        self.base.eps = eps;
     }
 
     pub fn set_rmng(&mut self, sel: Selector) {

@@ -29,8 +29,7 @@
 #define APP_HEAP_SIZE       (64 * 1024 * 1024)
 #define EPMEM_SIZE          0
 
-#define EP_COUNT            16
-#define TOTAL_EPS           128 // TODO temporary
+#define EP_COUNT            192
 
 // Application memory layout:
 // +----------------------------+ 0x0

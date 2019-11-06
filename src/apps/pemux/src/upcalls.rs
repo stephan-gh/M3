@@ -19,8 +19,6 @@ use base::errors::{Code, Error};
 use base::kif;
 use base::util;
 
-use eps;
-use vpe;
 use IRQsOnGuard;
 
 fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
@@ -34,47 +32,10 @@ fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     .unwrap();
 }
 
-fn alloc_ep(msg: &'static dtu::Message) -> Result<(), Error> {
-    let req = &unsafe { &*(&msg.data as *const [u8] as *const [kif::pemux::AllocEP]) }[0];
-
-    let vpe = req.vpe_sel;
-
-    log!(PEX_UPCALLS, "alloc_ep(vpe={})", vpe);
-
-    let ep = eps::get().find_free(false)?;
-    eps::get().mark_reserved(ep, vpe);
-
-    let reply = kif::pemux::AllocEPReply {
-        error: 0,
-        ep: ep as u64,
-    };
-    reply_msg(msg, &reply);
-    Ok(())
-}
-
-fn free_ep(msg: &'static dtu::Message) -> Result<(), Error> {
-    let req = &unsafe { &*(&msg.data as *const [u8] as *const [kif::pemux::FreeEP]) }[0];
-
-    let ep = req.ep as dtu::EpId;
-
-    log!(PEX_UPCALLS, "free_ep(ep={})", ep);
-
-    if let Some((vpe, gate)) = eps::get().mark_unreserved(ep) {
-        if let Some(vpe) = vpe::get_vpe(vpe) {
-            vpe.remove_gate(gate, true);
-        }
-    }
-
-    reply_msg(msg, &kif::DefaultReply { error: 0 });
-    Ok(())
-}
-
 fn handle_upcall(msg: &'static dtu::Message) {
     let req = &unsafe { &*(&msg.data as *const [u8] as *const [kif::DefaultRequest]) }[0];
 
-    let res = match kif::pemux::Upcalls::from(req.opcode) {
-        kif::pemux::Upcalls::ALLOC_EP => alloc_ep(msg),
-        kif::pemux::Upcalls::FREE_EP => free_ep(msg),
+    let res: Result<(), Error> = match kif::pemux::Upcalls::from(req.opcode) {
         _ => Err(Error::new(Code::NotSup)),
     };
 

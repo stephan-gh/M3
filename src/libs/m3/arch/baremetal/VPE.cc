@@ -32,8 +32,6 @@
 namespace m3 {
 
 void VPE::init_state() {
-    _epmng._eps = env()->eps;
-
     _resmng.reset(new ResMng(env()->rmng_sel));
 
     // it's initially 0. make sure it's at least the first usable selector
@@ -59,7 +57,7 @@ void VPE::reset() noexcept {
     _self_ptr->_kmem->sel(KIF::SEL_KMEM);
     _self_ptr->sel(KIF::SEL_VPE);
     _self_ptr->_mem.sel(KIF::SEL_MEM);
-    _self_ptr->epmng().reset(_self_ptr->epmng().reserved());
+    _self_ptr->epmng().reset();
 }
 
 void VPE::run(void *lambda) {
@@ -132,7 +130,6 @@ void VPE::exec(int argc, const char **argv) {
     /* write entire runtime stuff */
     _mem.write(buffer.get(), offset, ENV_SPACE_START);
 
-    senv.eps = _epmng._eps;
     senv.caps = _next_sel;
     senv.rbufcur = _rbufcur;
     senv.rbufend = _rbufend;

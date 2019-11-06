@@ -52,12 +52,10 @@ pub const RESMNG_MEM: bool = false;
 /// Logs sendqueue operations
 pub const RESMNG_SQUEUE: bool = false;
 /// Logs PE operations
-pub const RESMNG_PES: bool = false;
+pub const RESMNG_PES: bool = true;
 
 /// Logs pexcalls in PEMux
 pub const PEX_CALLS: bool = false;
-/// Logs EP operations in PEMux
-pub const PEX_EPS: bool = false;
 /// Logs VPE operations in PEMux
 pub const PEX_VPES: bool = false;
 /// Logs upcalls in PEMux

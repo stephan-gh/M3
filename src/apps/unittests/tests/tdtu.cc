@@ -56,8 +56,8 @@ static void dmacmd(const void *data, size_t len, epid_t ep, size_t offset, size_
 }
 
 static void cmds_read() {
-    const EP rcvep = EP::alloc();
-    const EP sndep = EP::alloc();
+    EP *rcvep = VPE::self().epmng().acquire(0);
+    EP *sndep = VPE::self().epmng().acquire(0);
     DTU &dtu = DTU::get();
 
     void *addr = map_page();
@@ -73,42 +73,45 @@ static void cmds_read() {
 
     cout << "-- Test errors --\n";
     {
-        dtu.configure(sndep.id(), reinterpret_cast<word_t>(data) | MemGate::R, env()->pe,
-            rcvep.id(), datasize, 0);
+        dtu.configure(sndep->id(), reinterpret_cast<word_t>(data) | MemGate::R, env()->pe,
+            rcvep->id(), datasize, 0);
 
-        dmacmd(nullptr, 0, sndep.id(), 0, datasize, DTU::WRITE);
+        dmacmd(nullptr, 0, sndep->id(), 0, datasize, DTU::WRITE);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
 
-        dmacmd(nullptr, 0, sndep.id(), 0, datasize + 1, DTU::READ);
+        dmacmd(nullptr, 0, sndep->id(), 0, datasize + 1, DTU::READ);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
 
-        dmacmd(nullptr, 0, sndep.id(), datasize, 0, DTU::READ);
+        dmacmd(nullptr, 0, sndep->id(), datasize, 0, DTU::READ);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
 
-        dmacmd(nullptr, 0, sndep.id(), sizeof(word_t), datasize, DTU::READ);
+        dmacmd(nullptr, 0, sndep->id(), sizeof(word_t), datasize, DTU::READ);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
     }
 
     cout << "-- Test reading --\n";
     {
-        dtu.configure(sndep.id(), reinterpret_cast<word_t>(data) | MemGate::R, env()->pe,
-            rcvep.id(), datasize, 0);
+        dtu.configure(sndep->id(), reinterpret_cast<word_t>(data) | MemGate::R, env()->pe,
+            rcvep->id(), datasize, 0);
 
         word_t buf[datasize / sizeof(word_t)];
 
-        dmacmd(buf, datasize, sndep.id(), 0, datasize, DTU::READ);
+        dmacmd(buf, datasize, sndep->id(), 0, datasize, DTU::READ);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
         for(size_t i = 0; i < 4; ++i)
             WVASSERTEQ(buf[i], data[i]);
     }
 
     unmap_page(addr);
-    dtu.configure(sndep.id(), 0, 0, 0, 0, 0);
+    dtu.configure(sndep->id(), 0, 0, 0, 0, 0);
+
+    VPE::self().epmng().release(sndep, true);
+    VPE::self().epmng().release(rcvep, true);
 }
 
 static void cmds_write() {
-    const EP rcvep = EP::alloc();
-    const EP sndep = EP::alloc();
+    EP *rcvep = VPE::self().epmng().acquire(0);
+    EP *sndep = VPE::self().epmng().acquire(0);
     DTU &dtu = DTU::get();
 
     void *addr = map_page();
@@ -118,20 +121,20 @@ static void cmds_write() {
     cout << "-- Test errors --\n";
     {
         word_t data[] = {1234, 5678, 1122, 3344};
-        dtu.configure(sndep.id(), reinterpret_cast<word_t>(addr) | MemGate::W, env()->pe,
-            rcvep.id(), sizeof(data), 0);
+        dtu.configure(sndep->id(), reinterpret_cast<word_t>(addr) | MemGate::W, env()->pe,
+            rcvep->id(), sizeof(data), 0);
 
-        dmacmd(nullptr, 0, sndep.id(), 0, sizeof(data), DTU::READ);
+        dmacmd(nullptr, 0, sndep->id(), 0, sizeof(data), DTU::READ);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
     }
 
     cout << "-- Test writing --\n";
     {
         word_t data[] = {1234, 5678, 1122, 3344};
-        dtu.configure(sndep.id(), reinterpret_cast<word_t>(addr) | MemGate::W, env()->pe,
-            rcvep.id(), sizeof(data), 0);
+        dtu.configure(sndep->id(), reinterpret_cast<word_t>(addr) | MemGate::W, env()->pe,
+            rcvep->id(), sizeof(data), 0);
 
-        dmacmd(data, sizeof(data), sndep.id(), 0, sizeof(data), DTU::WRITE);
+        dmacmd(data, sizeof(data), sndep->id(), 0, sizeof(data), DTU::WRITE);
         WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
         volatile const word_t *words = reinterpret_cast<const word_t*>(addr);
         for(size_t i = 0; i < sizeof(data) / sizeof(data[0]); ++i)
@@ -139,7 +142,10 @@ static void cmds_write() {
     }
 
     unmap_page(addr);
-    dtu.configure(sndep.id(), 0, 0, 0, 0, 0);
+    dtu.configure(sndep->id(), 0, 0, 0, 0, 0);
+
+    VPE::self().epmng().release(sndep, true);
+    VPE::self().epmng().release(rcvep, true);
 }
 
 static void mem_sync() {

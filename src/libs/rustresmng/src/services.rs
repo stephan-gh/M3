@@ -48,7 +48,11 @@ impl Service {
         name: String,
     ) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
-        let rgate = RecvGate::new_bind(child.obtain(rgate_sel)?, util::next_log2(512));
+        let rgate = RecvGate::new_bind(
+            child.obtain(rgate_sel)?,
+            util::next_log2(512),
+            util::next_log2(512),
+        );
         let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(1))?;
         syscalls::create_srv(sel, child.vpe_sel(), rgate.sel(), &name)?;
         child.delegate(sel, dst_sel)?;

@@ -45,27 +45,16 @@ class FileTable {
     friend class GenericFile;
 
 public:
-    static const fd_t MAX_EPS       = EP_COUNT / 4;
     static const fd_t MAX_FDS       = 64;
 
     /**
      * Constructor
      */
     explicit FileTable() noexcept
-        : _free_ep_count(),
-          _used_ep_count(),
-          _file_ep_victim(),
-          _free_eps(),
-          _used_eps(),
-          _fds() {
+        : _fds() {
     }
 
-    explicit FileTable(const FileTable &f) noexcept
-        : _free_ep_count(),
-          _used_ep_count(),
-          _file_ep_victim(),
-          _free_eps(),
-          _used_eps() {
+    explicit FileTable(const FileTable &f) noexcept {
         for(fd_t i = 0; i < MAX_FDS; ++i)
             _fds[i] = f._fds[i];
     }
@@ -155,11 +144,6 @@ private:
     EP get_ep();
     EP request_ep(GenericFile *file);
 
-    size_t _free_ep_count;
-    size_t _used_ep_count;
-    size_t _file_ep_victim;
-    EP _free_eps[MAX_EPS];
-    GenericFile *_used_eps[MAX_EPS];
     Reference<File> _fds[MAX_FDS];
 };
 

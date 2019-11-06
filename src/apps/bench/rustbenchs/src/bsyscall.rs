@@ -16,7 +16,7 @@
 
 use m3::cell::StaticCell;
 use m3::cfg;
-use m3::com::{MemGate, Perm, RecvGate, EP};
+use m3::com::{MemGate, Perm, RecvGate};
 use m3::kif;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::profile;
@@ -56,7 +56,7 @@ fn noop() {
 
 fn activate() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-    let ep = wv_assert_ok!(EP::new());
+    let ep = wv_assert_ok!(VPE::cur().epmng().acquire(0));
 
     let mut prof = profile::Profiler::default();
 
@@ -69,6 +69,8 @@ fn activate() {
             0x11
         )
     );
+
+    VPE::cur().epmng().release(ep, true);
 }
 
 fn create_rgate() {

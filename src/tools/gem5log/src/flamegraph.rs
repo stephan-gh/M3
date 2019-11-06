@@ -328,6 +328,7 @@ pub fn generate(
     isa: &crate::ISA,
     syms: &BTreeMap<usize, symbols::Symbol>,
 ) -> Result<(), Error> {
+    let mut last_time = 0;
     let mut max_peid = 0;
     let mut pes: HashMap<usize, PE> = HashMap::new();
 
@@ -349,6 +350,9 @@ pub fn generate(
                 }
                 break;
             }
+
+            let time = if time >= last_time { time } else { last_time };
+            last_time = time;
 
             if maybe_addr.is_none() {
                 if let Some(cur_pe) = pes.get_mut(&pe) {

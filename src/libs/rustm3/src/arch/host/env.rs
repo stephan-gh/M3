@@ -82,10 +82,6 @@ impl EnvData {
         ResMng::new(SendGate::new_bind(Self::load_word("rmng", 0) as Selector))
     }
 
-    pub fn load_eps(&self) -> u64 {
-        Self::load_word("eps", 0)
-    }
-
     pub fn load_nextsel(&self) -> Selector {
         if self.base().first_sel != 0 {
             self.base().first_sel as Selector

@@ -30,8 +30,7 @@ GenericFile::GenericFile(int flags, capsel_t caps)
     : File(flags),
       _sess(caps + 0),
       _sg(SendGate::bind(caps + 1)),
-      // we need a selector to use DTUIf::switch_gate
-      _mg(MemGate::bind(VPE::self().alloc_sel())),
+      _mg(MemGate::bind(ObjCap::INVALID)),
       _memoff(),
       _goff(),
       _off(),
@@ -41,6 +40,16 @@ GenericFile::GenericFile(int flags, capsel_t caps)
 }
 
 void GenericFile::close() noexcept {
+    LLOG(FS, "GenFile[" << fd() << "]::evict()");
+
+    // submit read/written data
+    if(_writing)
+        submit();
+
+    const EP *ep = _mg.ep();
+    if(ep)
+        VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
+
     // file sessions are not known to our resource manager; thus close them manually
     LLOG(FS, "GenFile[" << fd() << "]::close()");
     try {
@@ -164,21 +173,6 @@ size_t GenericFile::write(const void *buffer, size_t count) {
     return amount;
 }
 
-EP GenericFile::evict(bool closing) {
-    LLOG(FS, "GenFile[" << fd() << "]::evict()");
-
-    // submit read/written data
-    if(!closing || _writing)
-        submit();
-
-    EP ep = _mg.take_ep();
-
-    if(ep.valid())
-        VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep.sel()), true);
-
-    return ep;
-}
-
 void GenericFile::submit() {
     if(_pos > 0) {
         LLOG(FS, "GenFile[" << fd() << "]::submit("
@@ -195,11 +189,10 @@ void GenericFile::submit() {
 }
 
 void GenericFile::delegate_ep() {
-    if(_mg.ep() == MemGate::UNBOUND) {
-        EP ep = VPE::self().fds()->request_ep(this);
+    if(!_mg.ep()) {
+        const EP &ep = _mg.acquire_ep();
         LLOG(FS, "GenFile[" << fd() << "]::delegate_ep(" << ep.id() << ")");
         _sess.delegate_obj(ep.sel());
-        _mg.put_ep(std::move(ep));
     }
 }
 

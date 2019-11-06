@@ -27,9 +27,8 @@ mod rgate;
 mod sem;
 mod sgate;
 
-pub use self::ep::EP;
+pub use self::ep::{EPArgs, EP};
 pub use self::epmng::EpMng;
-pub(crate) use self::gate::Gate;
 pub use self::mgate::{MGateArgs, MemGate, Perm};
 pub use self::rgate::{RGateArgs, RecvGate};
 pub use self::sem::Semaphore;

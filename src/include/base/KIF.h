@@ -58,12 +58,7 @@ struct KIF {
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_EP_SEL      = SEL_PG_RG + 1;
-
-    /**
-     * The first free selector
-     */
-    static const uint FIRST_FREE_SEL    = FIRST_EP_SEL + (EP_COUNT - DTU::FIRST_FREE_EP);
+    static const uint FIRST_FREE_SEL      = SEL_PG_RG + 1;
 
     /**
      * The permissions for MemGate
@@ -157,7 +152,7 @@ struct KIF {
             CREATE_MAP,
             CREATE_VPE,
             CREATE_SEM,
-            ALLOC_EP,
+            ALLOC_EPS,
 
             // capability operations
             ACTIVATE,
@@ -251,7 +246,8 @@ struct KIF {
         struct AllocEP : public DefaultRequest {
             xfer_t dst_sel;
             xfer_t vpe_sel;
-            xfer_t pe_sel;
+            xfer_t epid;
+            xfer_t replies;
         } PACKED;
 
         struct AllocEPReply : public DefaultReply {

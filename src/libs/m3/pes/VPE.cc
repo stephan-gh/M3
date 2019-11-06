@@ -49,13 +49,12 @@ VPE::VPE()
       _next_sel(KIF::FIRST_FREE_SEL),
       _rbufcur(),
       _rbufend(),
-      _epmng(!env()->shared),
+      _epmng(*this),
       _resmng(nullptr),
       _pager(),
       _ms(),
       _fds(),
       _exec() {
-    static_assert(EP_COUNT <= 64, "64 endpoints are the maximum due to the 64-bit bitmask");
     init_state();
     init_fs();
 
@@ -76,7 +75,7 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
       _next_sel(KIF::FIRST_FREE_SEL),
       _rbufcur(),
       _rbufend(),
-      _epmng(false),
+      _epmng(*this),
       _resmng(args._rmng),
       _pager(),
       _ms(new MountTable()),
@@ -128,8 +127,6 @@ VPE::~VPE() {
         catch(...) {
             // ignore
         }
-        // unarm it first. we can't do that after revoke (which would be triggered by the Gate destructor)
-        _epmng.remove(&_mem, true);
     }
 }
 

@@ -72,6 +72,7 @@ RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, uint order, uin
       _vpe(vpe),
       _buf(buf),
       _order(order),
+      _msgorder(msgorder),
       _free(0),
       _handler(),
       _workitem() {
@@ -79,7 +80,7 @@ RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, uint order, uin
         Syscalls::create_rgate(sel(), order, msgorder);
 
     if(ep != UNBOUND)
-        activate(EP::bind(ep));
+        set_ep(ep);
 }
 
 RecvGate RecvGate::create(uint order, uint msgorder) {
@@ -98,8 +99,8 @@ RecvGate RecvGate::create_for(VPE &vpe, capsel_t cap, uint order, uint msgorder,
     return RecvGate(vpe, cap, UNBOUND, nullptr, order, msgorder, flags);
 }
 
-RecvGate RecvGate::bind(capsel_t cap, uint order) noexcept {
-    return RecvGate(VPE::self(), cap, order, KEEP_CAP);
+RecvGate RecvGate::bind(capsel_t cap, uint order, uint msgorder) noexcept {
+    return RecvGate(VPE::self(), cap, order, msgorder, KEEP_CAP);
 }
 
 RecvGate::~RecvGate() {
@@ -109,32 +110,30 @@ RecvGate::~RecvGate() {
 }
 
 void RecvGate::activate() {
-    if(ep() == UNBOUND)
-        activate(EP::alloc_for(_vpe));
-}
-
-void RecvGate::activate(EP &&nep) {
-    if(ep() == UNBOUND) {
+    if(!this->ep()) {
+        uintptr_t addr = reinterpret_cast<uintptr_t>(_buf);
         if(_buf == nullptr) {
-            _buf = allocate(_vpe, ep(), 1UL << _order);
+            addr = reinterpret_cast<uintptr_t>(_buf = allocate(_vpe, 1UL << _order));
             _free |= FREE_BUF;
         }
 
-        activate(std::move(nep), reinterpret_cast<uintptr_t>(_buf));
+        auto rep = _vpe.epmng().acquire(EP_COUNT, slots());
+        Gate::activate_on(*rep, addr);
+        Gate::set_ep(rep);
     }
 }
 
-void RecvGate::activate(EP &&nep, uintptr_t addr) {
-    assert(ep() == UNBOUND);
+void RecvGate::activate_on(const EP &ep, uintptr_t addr) {
+    if(addr == 0) {
+        addr = reinterpret_cast<uintptr_t>(_buf = allocate(_vpe, 1UL << _order));
+        _free |= FREE_BUF;
+    }
 
-    if(sel() != ObjCap::INVALID && sel() >= KIF::FIRST_FREE_SEL)
-        Syscalls::activate(nep.sel(), sel(), addr);
-
-    put_ep(std::move(nep), &_vpe == &VPE::self());
+    Gate::activate_on(ep, addr);
 }
 
 void RecvGate::deactivate() noexcept {
-    put_ep(EP::bind(UNBOUND));
+    release_ep(_vpe);
 
     stop();
 }
@@ -146,7 +145,7 @@ void RecvGate::start(WorkLoop *wl, msghandler_t handler) {
     assert(!_workitem);
     _handler = handler;
 
-    bool permanent = ep() < DTU::FIRST_FREE_EP;
+    bool permanent = ep()->id() < DTU::FIRST_FREE_EP;
     _workitem = std::make_unique<RecvGateWorkItem>(this);
     wl->add(_workitem.get(), permanent);
 }
@@ -180,7 +179,7 @@ void RecvGate::mark_read(const DTU::Message *msg) {
 }
 
 void RecvGate::drop_msgs_with(label_t label) noexcept {
-    DTUIf::drop_msgs(ep(), label);
+    DTUIf::drop_msgs(ep()->id(), label);
 }
 
 }

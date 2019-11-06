@@ -30,7 +30,7 @@ private:
     explicit Pager(VPE &vpe, capsel_t sess)
         : ClientSession(sess),
           _rgate(vpe.pe_desc().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
-                                    : RecvGate::bind(ObjCap::INVALID, 0)),
+                                         : RecvGate::bind(ObjCap::INVALID, 0, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(obtain(1).start())),
           _close(true) {
@@ -66,7 +66,7 @@ public:
 
     explicit Pager(capsel_t sess) noexcept
         : ClientSession(sess),
-          _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val)),
+          _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(ObjCap::INVALID)),
           _close(false) {
@@ -74,7 +74,7 @@ public:
     explicit Pager(VPE &vpe, const String &service)
         : ClientSession(service),
           _rgate(vpe.pe_desc().has_mmu() ? RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)
-                                    : RecvGate::bind(ObjCap::INVALID, 0)),
+                                    : RecvGate::bind(ObjCap::INVALID, 0, 0)),
           _own_sgate(SendGate::bind(obtain(1).start())),
           _child_sgate(SendGate::bind(obtain(1).start())),
           _close(false) {

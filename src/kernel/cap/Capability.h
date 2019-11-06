@@ -199,8 +199,7 @@ public:
           ep(),
           addr(),
           order(_order),
-          msgorder(_msgorder),
-          header() {
+          msgorder(_msgorder) {
     }
     ~RGateObject();
 
@@ -217,7 +216,6 @@ public:
     goff_t addr;
     uint order;
     uint msgorder;
-    uint header;
 };
 
 class SGateObject : public SlabObject<SGateObject>, public GateObject, public m3::RefCounted {
@@ -294,17 +292,14 @@ public:
     uint vpes;
 };
 
-class EPObject : public SlabObject<EPObject>, public m3::RefCounted {
+class EPObject : public SlabObject<EPObject>, public m3::RefCounted, public m3::DListItem {
 public:
-    explicit EPObject(PEObject *_pe, epid_t _ep)
-        : RefCounted(),
-          ep(_ep),
-          pe(_pe),
-          gate() {
-    }
+    explicit EPObject(PEObject *_pe, VPE *_vpe, epid_t _ep, uint _replies);
     ~EPObject();
 
+    VPE *vpe;
     epid_t ep;
+    uint replies;
     m3::Reference<PEObject> pe;
     GateObject *gate;
 };
@@ -558,18 +553,6 @@ public:
     m3::Reference<EPObject> obj;
 };
 
-class SharedEPCapability : public EPCapability {
-public:
-    explicit SharedEPCapability(CapTable *tbl, capsel_t sel, EPObject *obj)
-        : EPCapability(tbl, sel, obj) {
-        // this is always a clone, because we share the EPObject
-        make_clone();
-    }
-
-private:
-    virtual void revoke() override;
-};
-
 class VPECapability : public SlabObject<VPECapability>, public Capability {
 public:
     explicit VPECapability(CapTable *tbl, capsel_t sel, VPE *_obj)
@@ -653,7 +636,8 @@ inline EPObject *GateObject::ep_of_pe(peid_t pe) {
 inline void GateObject::print_eps(m3::OStream &os) {
     os << "[";
     for(auto u = epuser.begin(); u != epuser.end(); ) {
-        os << "PE" << u->ep->pe->id << ":EP" << u->ep->ep;
+        os << "PE" << u->ep->pe->id
+           << ":EP" << u->ep->ep << "(" << u->ep->replies << " replies)";
         if(++u != epuser.end())
             os << ", ";
     }

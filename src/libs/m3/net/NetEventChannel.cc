@@ -38,7 +38,7 @@ void NetEventChannel::prepare_caps(capsel_t caps, size_t size) {
 
 NetEventChannel::NetEventChannel(capsel_t caps, bool ret_credits) noexcept
     : _ret_credits(ret_credits),
-      _rgate(RecvGate::bind(caps + 0, nextlog2<MSG_BUF_SIZE>::val)),
+      _rgate(RecvGate::bind(caps + 0, nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
       _sgate(SendGate::bind(caps + 1, &RecvGate::invalid())),
       _workitem(nullptr),_credit_event(0), _waiting_credit(0) {
 }

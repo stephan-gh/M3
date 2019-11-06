@@ -61,7 +61,7 @@ public:
     static void create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                            capsel_t pages, int perms);
     static void create_sem(capsel_t dst, uint value);
-    static epid_t alloc_ep(capsel_t dst, capsel_t vpe, capsel_t pe);
+    static epid_t alloc_ep(capsel_t dst, capsel_t vpe, epid_t ep, uint replies);
 
     static void activate(capsel_t ep, capsel_t gate, goff_t addr);
     static void vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg);

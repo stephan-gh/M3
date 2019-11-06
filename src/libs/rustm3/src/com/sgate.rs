@@ -15,6 +15,7 @@
  */
 
 use cap::{CapFlags, Selector};
+use com::ep::EP;
 use com::gate::Gate;
 use com::stream::GateIStream;
 use com::RecvGate;
@@ -112,7 +113,7 @@ impl SendGate {
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub(crate) fn ep(&self) -> Option<dtu::EpId> {
+    pub(crate) fn ep(&self) -> Option<&EP> {
         self.gate.ep()
     }
 
@@ -175,7 +176,7 @@ impl SendGate {
         dtu::DTUIf::send(self, msg, size, rlabel, reply_gate)
     }
 
-    pub(crate) fn activate(&self) -> Result<dtu::EpId, Error> {
+    pub(crate) fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }
 }

@@ -60,10 +60,6 @@ MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t si
     return MemGate(flags, cap, true);
 }
 
-void MemGate::activate_on(const EP &ep, goff_t offset) {
-    Syscalls::activate(ep.sel(), sel(), offset);
-}
-
 void MemGate::read(void *data, size_t len, goff_t offset) {
     Errors::Code res = DTUIf::read(*this, data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res != Errors::NONE))

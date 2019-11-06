@@ -15,8 +15,8 @@
  */
 
 use m3::cfg::PAGE_SIZE;
-use m3::com::{MemGate, RecvGate, SendGate, EP};
-use m3::dtu;
+use m3::com::{MemGate, RecvGate, SendGate};
+use m3::dtu::{EP_COUNT, FIRST_FREE_EP};
 use m3::errors::Code;
 use m3::kif::syscalls::{ExchangeArgs, SemOp, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_MEM, SEL_PE, SEL_VPE};
@@ -299,52 +299,33 @@ fn create_sem() {
 
 fn alloc_ep() {
     let sel = VPE::cur().alloc_sel();
-    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::alloc_ep(SEL_VPE, VPE::cur().sel(), VPE::cur().pe().sel()),
+        syscalls::alloc_ep(SEL_VPE, VPE::cur().pe().sel(), EP_COUNT, 1),
         Code::InvArgs
     );
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::alloc_ep(sel, SEL_MEM, VPE::cur().pe().sel()),
-        Code::InvArgs
-    );
-    // invalid PE selector
-    wv_assert_err!(
-        syscalls::alloc_ep(sel, VPE::cur().sel(), SEL_VPE),
-        Code::InvArgs
-    );
-    // PE not matching VPE
-    wv_assert_err!(
-        syscalls::alloc_ep(sel, VPE::cur().sel(), pe.sel()),
+        syscalls::alloc_ep(sel, SEL_PE, EP_COUNT, 1),
         Code::InvArgs
     );
 
-    // currently always shared
-    #[cfg(target_os = "none")]
-    {
-        let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), VPE::cur().pe().sel()));
-        wv_assert!(ep >= dtu::FIRST_FREE_EP);
-        wv_assert!(ep < dtu::EP_COUNT);
+    // any EP
+    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT, 1));
+    wv_assert!(ep >= FIRST_FREE_EP);
+    wv_assert!(ep < EP_COUNT);
+    wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 
-        wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
-    }
-
-    // never shared
-    #[cfg(target_os = "linux")]
-    {
-        wv_assert_err!(
-            syscalls::alloc_ep(sel, VPE::cur().sel(), VPE::cur().pe().sel()),
-            Code::InvArgs
-        );
-    }
+    // specific EP
+    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT / 2, 1));
+    wv_assert_eq!(ep, EP_COUNT / 2);
+    wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 }
 
 fn activate() {
-    let ep1 = wv_assert_ok!(EP::new());
-    let ep2 = wv_assert_ok!(EP::new());
+    let ep1 = wv_assert_ok!(VPE::cur().epmng().acquire(0));
+    let ep2 = wv_assert_ok!(VPE::cur().epmng().acquire(0));
     let sel = VPE::cur().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
 
@@ -365,6 +346,9 @@ fn activate() {
     // already activated
     wv_assert_ok!(syscalls::activate(ep1.sel(), mgate.sel(), 0));
     wv_assert_err!(syscalls::activate(ep2.sel(), mgate.sel(), 0), Code::Exists);
+
+    VPE::cur().epmng().release(ep2, true);
+    VPE::cur().epmng().release(ep1, true);
 }
 
 fn derive_mem() {
@@ -465,19 +449,19 @@ fn derive_kmem() {
 fn derive_pe() {
     let sel = VPE::cur().alloc_sel();
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+    let oquota = wv_assert_ok!(pe.quota());
 
     // invalid dest selector
     wv_assert_err!(syscalls::derive_pe(pe.sel(), SEL_VPE, 1), Code::InvArgs);
     // invalid ep count
     wv_assert_err!(
-        syscalls::derive_pe(pe.sel(), sel, (dtu::EP_COUNT + 1) as u32),
+        syscalls::derive_pe(pe.sel(), sel, oquota + 1),
         Code::InvArgs
     );
     // invalid pe sel
     wv_assert_err!(syscalls::derive_pe(SEL_VPE, sel, 1), Code::InvArgs);
 
     // transfer EPs
-    let oquota = wv_assert_ok!(pe.quota());
     {
         let pe2 = wv_assert_ok!(pe.derive(1));
         let quota2 = wv_assert_ok!(pe2.quota());

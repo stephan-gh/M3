@@ -15,8 +15,8 @@
  */
 
 use cap::{CapFlags, Selector};
+use com::ep::EP;
 use com::gate::Gate;
-use com::EP;
 use core::fmt;
 use core::mem::MaybeUninit;
 use dtu;
@@ -110,16 +110,8 @@ impl MemGate {
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub(crate) fn ep(&self) -> Option<dtu::EpId> {
+    pub(crate) fn ep(&self) -> Option<&EP> {
         self.gate.ep()
-    }
-
-    pub(crate) fn put_ep(&mut self, ep: EP) -> Result<(), Error> {
-        self.gate.put_ep(ep)
-    }
-
-    pub(crate) fn take_ep(&mut self) -> EP {
-        self.gate.take_ep()
     }
 
     /// Derives a new `MemGate` from `self` that has access to a subset of `self`'s the memory
@@ -195,7 +187,7 @@ impl MemGate {
         dtu::DTUIf::write(self, data, size, off, dtu::CmdFlags::empty())
     }
 
-    pub(crate) fn activate(&self) -> Result<dtu::EpId, Error> {
+    pub(crate) fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }
 }
@@ -211,6 +203,6 @@ impl Drop for MemGate {
 
 impl fmt::Debug for MemGate {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "MemGate[sel: {}, ep: {:?}]", self.sel(), self.gate.ep())
+        write!(f, "MemGate[sel: {}, ep: {:?}]", self.sel(), self.gate.ep_id())
     }
 }
