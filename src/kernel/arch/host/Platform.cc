@@ -43,12 +43,20 @@ Platform::Init::Init() {
     Platform::_info.mod_count = 0;
     Platform::_info.mod_size = 0;
 
+    size_t cores = PE_COUNT;
+    const char *cores_str = getenv("M3_CORES");
+    if(cores_str) {
+        cores = strtoul(cores_str, NULL, 10);
+        if(cores < 2 || cores > PE_COUNT)
+            PANIC("Invalid PE count (min=2, max=" << PE_COUNT << ")");
+    }
+
     // init PEs
-    Platform::_info.pe_count = PE_COUNT + 1;
-    Platform::_pes = new m3::PEDesc[PE_COUNT + 1];
-    for(int i = 0; i < PE_COUNT; ++i)
+    Platform::_info.pe_count = cores + 1;
+    Platform::_pes = new m3::PEDesc[cores + 1];
+    for(size_t i = 0; i < cores; ++i)
         Platform::_pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
-    Platform::_pes[PE_COUNT] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
+    Platform::_pes[cores] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
 
     // create memory
     uintptr_t base = reinterpret_cast<uintptr_t>(
