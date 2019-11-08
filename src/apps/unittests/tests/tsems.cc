@@ -26,7 +26,7 @@
 using namespace m3;
 
 static int get_counter(const char *filename) {
-    char buffer[8];
+    char buffer[8] = {0};
     FileRef file(filename, FILE_R);
     file->read(buffer, sizeof(buffer));
     return IStringStream::read_from<int>(buffer);
