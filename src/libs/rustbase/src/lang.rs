@@ -83,7 +83,6 @@ pub extern "C" fn __sync_synchronize() {
 
 macro_rules! def_cmpswap {
     ($name:ident, $type:ty) => {
-        #[cfg(target_arch = "arm")]
         #[no_mangle]
         pub unsafe extern "C" fn $name(ptr: *mut $type, oldval: $type, newval: $type) -> $type {
             let old = *ptr;
@@ -99,3 +98,21 @@ def_cmpswap!(__sync_val_compare_and_swap_1, u8);
 def_cmpswap!(__sync_val_compare_and_swap_2, u16);
 def_cmpswap!(__sync_val_compare_and_swap_4, u32);
 def_cmpswap!(__sync_val_compare_and_swap_8, u64);
+def_cmpswap!(__sync_val_compare_and_swap_16, u128);
+
+macro_rules! def_testnset {
+    ($name:ident, $type:ty) => {
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(ptr: *mut $type, val: $type) -> $type {
+            let old = *ptr;
+            *ptr = val;
+            return old;
+        }
+    };
+}
+
+def_testnset!(__sync_lock_test_and_set_1, u8);
+def_testnset!(__sync_lock_test_and_set_2, u16);
+def_testnset!(__sync_lock_test_and_set_4, u32);
+def_testnset!(__sync_lock_test_and_set_8, u64);
+def_testnset!(__sync_lock_test_and_set_16, u128);
