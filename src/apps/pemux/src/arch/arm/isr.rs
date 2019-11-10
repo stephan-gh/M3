@@ -17,7 +17,6 @@
 use base::cell::StaticCell;
 use base::libc;
 use core::fmt;
-use core::ptr;
 use isr;
 
 use vpe;
@@ -122,10 +121,6 @@ pub fn enable_ints() -> bool {
 }
 
 pub fn restore_ints(_prev: bool) {
-}
-
-pub fn is_stopped() -> bool {
-    unsafe { ptr::read_volatile(STOPPED.get_mut()) }
 }
 
 pub fn init() {
