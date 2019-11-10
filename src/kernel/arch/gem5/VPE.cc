@@ -181,9 +181,10 @@ static goff_t map_idle(VPE &vpe) {
 
         // map DTU
         int perm = m3::DTU::PTE_RW | m3::DTU::PTE_I | m3::DTU::PTE_UNCACHED;
-        map_segment(vpe, 0xF0000000, 0xF0000000, PAGE_SIZE, perm);
+        map_segment(vpe, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_SIZE, perm);
         // map the privileged registers only for ring 0
-        map_segment(vpe, 0xF0001000, 0xF0001000, PAGE_SIZE, m3::DTU::PTE_RW | m3::DTU::PTE_UNCACHED);
+        map_segment(vpe, m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_SIZE,
+                    m3::DTU::PTE_RW | m3::DTU::PTE_UNCACHED);
     }
     return res;
 }

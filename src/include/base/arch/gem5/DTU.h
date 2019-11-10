@@ -55,8 +55,12 @@ class DTU {
 public:
     typedef uint64_t reg_t;
 
+    static const uintptr_t MMIO_ADDR        = 0xF0000000;
+    static const size_t MMIO_SIZE           = PAGE_SIZE * 2;
+    static const uintptr_t MMIO_PRIV_ADDR   = MMIO_ADDR + MMIO_SIZE;
+    static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;
+
 private:
-    static const uintptr_t BASE_ADDR        = 0xF0000000;
     static const size_t DTU_REGS            = 8;
     static const size_t REQ_REGS            = 3;
     static const size_t CMD_REGS            = 5;
@@ -361,7 +365,7 @@ private:
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(ReqRegs reg) {
-        return read_reg((PAGE_SIZE / sizeof(reg_t)) + static_cast<size_t>(reg));
+        return read_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg));
     }
     static reg_t read_reg(CmdRegs reg) {
         return read_reg(static_cast<size_t>(reg));
@@ -370,37 +374,37 @@ private:
         return read_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + idx);
     }
     static reg_t read_reg(size_t idx) {
-        return CPU::read8b(BASE_ADDR + idx * sizeof(reg_t));
+        return CPU::read8b(MMIO_ADDR + idx * sizeof(reg_t));
     }
 
     static void write_reg(DtuRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(ReqRegs reg, reg_t value) {
-        write_reg((PAGE_SIZE / sizeof(reg_t)) + static_cast<size_t>(reg), value);
+        write_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg), value);
     }
     static void write_reg(CmdRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(size_t idx, reg_t value) {
-        CPU::write8b(BASE_ADDR + idx * sizeof(reg_t), value);
+        CPU::write8b(MMIO_ADDR + idx * sizeof(reg_t), value);
     }
 
     static uintptr_t dtu_reg_addr(DtuRegs reg) {
-        return BASE_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
+        return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t dtu_reg_addr(ReqRegs reg) {
-        return BASE_ADDR + PAGE_SIZE + static_cast<size_t>(reg) * sizeof(reg_t);
+        return MMIO_ADDR + (PAGE_SIZE * 2) + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t cmd_reg_addr(CmdRegs reg) {
-        return BASE_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
+        return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t ep_regs_addr(epid_t ep) {
-        return BASE_ADDR + (DTU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
+        return MMIO_ADDR + (DTU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
     static uintptr_t buffer_addr() {
         size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
-        return BASE_ADDR + regCount * sizeof(reg_t);
+        return MMIO_ADDR + regCount * sizeof(reg_t);
     }
 
     static reg_t build_command(epid_t ep, CmdOpCode c, uint flags = 0, reg_t arg = 0) {

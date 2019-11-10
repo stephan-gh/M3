@@ -59,9 +59,7 @@ pub const PG_REP: EpId = 10;
 pub const FIRST_FREE_EP: EpId = 11;
 
 /// The base address of the DTU's MMIO area
-pub const BASE_ADDR: usize = 0xF000_0000;
-/// The base address of the DTU's MMIO area for external requests
-pub const BASE_REQ_ADDR: usize = BASE_ADDR + cfg::PAGE_SIZE;
+pub const MMIO_ADDR: usize = 0xF000_0000;
 /// The number of DTU registers
 pub const DTU_REGS: usize = 8;
 /// The number of command registers
@@ -487,7 +485,7 @@ impl DTU {
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) {
         let regs = DTU_REGS + CMD_REGS + EP_REGS * EP_COUNT;
-        let mut buffer = BASE_ADDR + regs * 8;
+        let mut buffer = MMIO_ADDR + regs * 8;
 
         #[allow(clippy::transmute_ptr_to_ptr)]
         let rstr: &[u64] = unsafe { intrinsics::transmute(s) };
@@ -574,7 +572,7 @@ impl DTU {
     }
 
     fn read_req_reg(reg: ReqReg) -> Reg {
-        Self::read_reg((cfg::PAGE_SIZE / util::size_of::<Reg>()) + reg.val as usize)
+        Self::read_reg(((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize)
     }
 
     fn read_ep_reg(ep: EpId, reg: usize) -> Reg {
@@ -583,17 +581,17 @@ impl DTU {
 
     fn write_req_reg(reg: ReqReg, val: Reg) {
         Self::write_reg(
-            (cfg::PAGE_SIZE / util::size_of::<Reg>()) + reg.val as usize,
+            ((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize,
             val,
         )
     }
 
     fn read_reg(idx: usize) -> Reg {
-        arch::cpu::read8b(BASE_ADDR + idx * 8)
+        arch::cpu::read8b(MMIO_ADDR + idx * 8)
     }
 
     fn write_reg(idx: usize, val: Reg) {
-        arch::cpu::write8b(BASE_ADDR + idx * 8, val);
+        arch::cpu::write8b(MMIO_ADDR + idx * 8, val);
     }
 
     fn build_data(addr: *const u8, size: usize) -> Reg {

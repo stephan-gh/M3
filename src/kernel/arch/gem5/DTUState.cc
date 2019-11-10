@@ -38,7 +38,7 @@ void DTUState::restore(const VPEDesc &vpe) {
     _regs.set(m3::DTU::DtuRegs::FEATURES, features);
 
     m3::CPU::compiler_barrier();
-    DTU::get().write_mem(vpe, m3::DTU::BASE_ADDR, this, sizeof(_regs));
+    DTU::get().write_mem(vpe, m3::DTU::MMIO_ADDR, this, sizeof(_regs));
 }
 
 void DTUState::invalidate_eps(epid_t first) {
