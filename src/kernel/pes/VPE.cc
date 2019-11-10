@@ -86,15 +86,10 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
         _objcaps.set(m3::KIF::SEL_KMEM, nkmemcap);
     }
 
-    _kmem->alloc(*this, base_kmem());
+    _kmem->alloc(*this, kmem(Platform::pe(peid())));
 
     _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
         &_objcaps, m3::KIF::SEL_MEM, new MGateObject(peid(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
-
-    if(Platform::pe(peid()).has_virtmem()) {
-        // for the root PT
-        _kmem->alloc(*this, PAGE_SIZE);
-    }
 
     // let the VPEManager know about us before we continue with initialization
     VPEManager::get().add(vpecap);

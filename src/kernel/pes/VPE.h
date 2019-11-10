@@ -55,18 +55,15 @@ public:
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
 
-    static size_t base_kmem() {
-        // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
-        return sizeof(VPE) + sizeof(AddrSpace) +
+    static size_t kmem(const m3::PEDesc &pe) {
+        // for VM PEs we need the root PT
+        return (pe.has_virtmem() ? PAGE_SIZE : 0u) +
+               // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
+               sizeof(VPE) + sizeof(AddrSpace) +
                // PE cap, VPE cap, and kmem cap
                sizeof(PECapability) + sizeof(VPECapability) + sizeof(KMemCapability) +
                // memory gate and cap
                sizeof(MGateCapability) + sizeof(MGateObject);
-    }
-    static size_t extra_kmem(const m3::PEDesc &pe) {
-        // for VM PEs we need the root PT
-        // additionally, we need space for PEMux, its page tables etc.
-        return (pe.has_virtmem() ? PAGE_SIZE : 0u) + VPE_EXTRA_MEM;
     }
 
     enum State {

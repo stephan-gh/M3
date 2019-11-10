@@ -286,8 +286,8 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     // the parent gets all caps from the child
     if(!vpe->kmem()->has_quota(capnum * sizeof(SGateCapability)))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
-    // the child quota needs to be sufficient
-    if(!kmemcap->obj->has_quota(VPE::base_kmem() + VPE::extra_kmem(m3::PEDesc(pe))))
+    // the child quota needs to be sufficient; VPE_EXTRA_MEM is needed for PEMux, its PTs etc.
+    if(!kmemcap->obj->has_quota(VPE_EXTRA_MEM + VPE::kmem(m3::PEDesc(pe))))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
     // create VPE
