@@ -50,6 +50,7 @@ class VPE : public SlabObject<VPE>, public m3::RefCounted {
 
 public:
     static const uint16_t INVALID_ID    = 0xFFFF;
+    static const uint16_t KERNEL_ID     = INVALID_ID;
     static const epid_t INVALID_EP      = static_cast<epid_t>(-1);
 
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;

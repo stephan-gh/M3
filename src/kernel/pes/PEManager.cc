@@ -69,12 +69,14 @@ void PEManager::start_vpe(VPE *vpe) {
     vpe->_state = VPE::RUNNING;
     vpe->init_memory();
 #else
+    DTU::get().start_vpe(vpe->desc());
+
     uint64_t report = 0;
     uint64_t flags = m3::PEMuxCtrl::WAITING;
     if(vpe->_flags & VPE::F_HASAPP) {
         flags |= m3::PEMuxCtrl::RESTORE;
         flags |= static_cast<uint64_t>(vpe->peid()) << 32;
-        flags |= static_cast<uint64_t>(PEMux::VPE_SEL_BEGIN + vpe->id()) << 48;
+        flags |= static_cast<uint64_t>(vpe->id()) << 48;
     }
 
     DTU::get().write_swstate(vpe->desc(), flags, report);

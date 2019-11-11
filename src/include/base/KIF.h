@@ -37,7 +37,7 @@ struct KIF {
     /**
      * Represents unlimited credits
      */
-    static const uint UNLIM_CREDITS   = 0x3F;
+    static const uint UNLIM_CREDITS     = 0x3F;
 
     /**
      * The maximum message length that can be used
@@ -58,7 +58,12 @@ struct KIF {
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_FREE_SEL      = SEL_PG_RG + 1;
+    static const uint FIRST_FREE_SEL    = SEL_PG_RG + 1;
+
+    /**
+     * The VPE id of PEMux
+     */
+    static const uint PEMUX_VPE_ID      = 0xFFFF;
 
     /**
      * The permissions for MemGate

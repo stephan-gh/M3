@@ -300,12 +300,13 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
         vpe->objcaps().obtain(dst.start() + i, nvpe->objcaps().get(i));
 
     // activate pager EPs
+    auto pemux = PEManager::get().pemux(nvpe->peid());
     if(pg_sg != m3::KIF::INV_SEL)
-        PEManager::get().pemux(nvpe->peid())->config_snd_ep(m3::DTU::PG_SEP, *sgatecap->obj);
+        pemux->config_snd_ep(m3::DTU::PG_SEP, nvpe->id(), *sgatecap->obj);
     if(pg_rg != m3::KIF::INV_SEL) {
         rgatecap->obj->pe = nvpe->peid();
         rgatecap->obj->addr = VMA_RBUF;
-        PEManager::get().pemux(nvpe->peid())->config_rcv_ep(m3::DTU::PG_REP, EP_COUNT, *rgatecap->obj);
+        pemux->config_rcv_ep(m3::DTU::PG_REP, nvpe->id(), EP_COUNT, *rgatecap->obj);
     }
 
     m3::KIF::Syscall::CreateVPEReply reply;
@@ -497,7 +498,8 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
 
         if(gateobj->type == Capability::MGATE) {
             auto mgateobj = static_cast<MGateObject*>(gateobj);
-            m3::Errors::Code res = dst_pemux->config_mem_ep(epcap->obj->ep, *mgateobj, addr);
+            m3::Errors::Code res = dst_pemux->config_mem_ep(
+                epcap->obj->ep, epcap->obj->vpe->id(), *mgateobj, addr);
             if(res != m3::Errors::NONE)
                 SYS_ERROR(vpe, msg, res, "Memory EP configuration failed");
         }
@@ -520,7 +522,8 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
                 }
             }
 
-            m3::Errors::Code res = dst_pemux->config_snd_ep(epcap->obj->ep, *sgateobj);
+            m3::Errors::Code res = dst_pemux->config_snd_ep(
+                epcap->obj->ep, epcap->obj->vpe->id(), *sgateobj);
             if(res != m3::Errors::NONE)
                 SYS_ERROR(vpe, msg, res, "Send EP configuration failed");
         }
@@ -543,7 +546,8 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
             rgateobj->addr = addr;
             rgateobj->ep = epcap->obj->ep;
 
-            m3::Errors::Code res = dst_pemux->config_rcv_ep(epcap->obj->ep, replies, *rgateobj);
+            m3::Errors::Code res = dst_pemux->config_rcv_ep(
+                epcap->obj->ep, epcap->obj->vpe->id(), replies, *rgateobj);
             if(res != m3::Errors::NONE) {
                 rgateobj->addr = 0;
                 SYS_ERROR(vpe, msg, res, "Receive EP configuration failed");

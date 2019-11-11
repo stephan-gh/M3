@@ -62,7 +62,7 @@ public:
 
 private:
     static const size_t DTU_REGS            = 8;
-    static const size_t REQ_REGS            = 3;
+    static const size_t REQ_REGS            = 4;
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
 
@@ -84,6 +84,7 @@ private:
         EXT_REQ             = 0,
         XLATE_REQ           = 1,
         XLATE_RESP          = 2,
+        VPE_ID              = 3,
     };
 
     enum class CmdRegs {
@@ -103,7 +104,6 @@ private:
     enum StatusFlags : reg_t {
         PRIV                = 1 << 0,
         PAGEFAULTS          = 1 << 1,
-        IRQ_ON_MSG          = 1 << 2,
     };
 
     enum class EpType {
@@ -247,20 +247,20 @@ public:
 
     bool has_missing_credits(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
-        uint16_t cur = r0 & 0x3F;
-        uint16_t max = (r0 >> 6) & 0x3F;
+        uint16_t cur = (r0 >> 19) & 0x3F;
+        uint16_t max = (r0 >> 25) & 0x3F;
         return cur < max;
     }
 
     bool has_credits(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
-        uint16_t cur = r0 & 0x3F;
+        uint16_t cur = (r0 >> 19) & 0x3F;
         return cur > 0;
     }
 
     bool is_valid(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
-        return static_cast<EpType>(r0 >> 61) != EpType::INVALID;
+        return static_cast<EpType>(r0 & 0x7) != EpType::INVALID;
     }
 
     cycles_t tsc() const {
@@ -313,12 +313,12 @@ private:
         // we assume that the one that used the label can no longer send messages. thus, if there are
         // no messages yet, we are done.
         reg_t r0 = read_reg(ep, 0);
-        if((r0 & 0x3F) == 0)
+        if(((r0 >> 19) & 0x3F) == 0)
             return;
 
         goff_t base = read_reg(ep, 1);
-        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 26) & 0x3F);
-        size_t msgsize = (r0 >> 32) & 0xFFFF;
+        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 33) & 0x3F);
+        size_t msgsize = (r0 >> 39) & 0x3F;
         word_t unread = read_reg(ep, 2) >> 32;
         for(size_t i = 0; i < bufsize; ++i) {
             if(unread & (static_cast<size_t>(1) << i)) {

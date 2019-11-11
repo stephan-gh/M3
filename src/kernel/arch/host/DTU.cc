@@ -90,7 +90,7 @@ void DTU::write_ep_local(epid_t ep) {
 }
 
 void DTU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
-    _state.config_recv(ep, buf, order, msgorder, 0);
+    _state.config_recv(ep, VPE::INVALID_ID, buf, order, msgorder, 0);
     write_ep_local(ep);
 }
 

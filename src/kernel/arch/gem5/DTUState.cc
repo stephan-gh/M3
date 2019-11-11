@@ -50,40 +50,51 @@ void DTUState::read_ep(const VPEDesc &vpe, epid_t ep) {
     DTU::get().read_ep_remote(vpe, ep, get_ep(ep));
 }
 
-void DTUState::config_recv(epid_t ep, goff_t buf, uint order, uint msgorder, uint reply_eps) {
+void DTUState::config_recv(epid_t ep, vpeid_t vpe, goff_t buf,
+                           uint order, uint msgorder, uint reply_eps) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
     m3::DTU::reg_t bufSize = static_cast<m3::DTU::reg_t>(order - msgorder);
     m3::DTU::reg_t msgSize = static_cast<m3::DTU::reg_t>(msgorder);
-    r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::RECEIVE) << 61) |
-            ((msgSize & 0xFFFF) << 32) | ((bufSize & 0x3F) << 26) | (reply_eps << 6);
+    r[0] = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::RECEIVE) |
+            (static_cast<m3::DTU::reg_t>(vpe) << 3) |
+            (static_cast<m3::DTU::reg_t>(reply_eps) << 25) |
+            (static_cast<m3::DTU::reg_t>(bufSize) << 33) |
+            (static_cast<m3::DTU::reg_t>(msgSize) << 39);
     r[1] = buf;
     r[2] = 0;
 }
 
-void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
+void DTUState::config_send(epid_t ep, vpeid_t vpe, label_t lbl, peid_t pe, epid_t dstep,
                            uint msgorder, uint credits) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-    r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::SEND) << 61) |
-            (static_cast<m3::DTU::reg_t>(msgorder & 0x3F) << 12) |
-            (static_cast<m3::DTU::reg_t>(credits) << 6) |
-            (static_cast<m3::DTU::reg_t>(credits) << 0);
+    r[0] = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::SEND) |
+            (static_cast<m3::DTU::reg_t>(vpe) << 3) |
+            (static_cast<m3::DTU::reg_t>(credits) << 19) |
+            (static_cast<m3::DTU::reg_t>(credits) << 25) |
+            (static_cast<m3::DTU::reg_t>(msgorder) << 31);
     r[1] = (static_cast<m3::DTU::reg_t>(pe & 0xFF) << 8) |
             (static_cast<m3::DTU::reg_t>(dstep & 0xFF) << 0);
     r[2] = lbl;
 }
 
-void DTUState::config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm) {
+void DTUState::config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t size, int perm) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
-    r[0] = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) << 61) | (size & 0x1FFFFFFFFFFFFFFF);
+    r[0] = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) |
+            (static_cast<m3::DTU::reg_t>(vpe) << 3) |
+            (static_cast<m3::DTU::reg_t>(perm) << 19) |
+            (static_cast<m3::DTU::reg_t>(pe) << 23);
     r[1] = addr;
-    r[2] = ((pe & 0xFF) << 4) | (perm & 0x7);
+    r[2] = size;
 }
 
 bool DTUState::config_mem_cached(epid_t ep, peid_t pe) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
     m3::DTU::reg_t r0, r2;
-    r0 = (static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) << 61) | 0x1FFFFFFFFFFFFFFF;
-    r2 = ((pe & 0xFF) << 4) | m3::DTU::RW;
+    r0 = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) |
+         (VPE::KERNEL_ID << 3) |
+         (pe << 23) |
+         (m3::DTU::RW << 19);
+    r2 = 0xFFFFFFFFFFFFFFFF;
     bool res = false;
     if(r0 != r[0]) {
         r[0] = r0;

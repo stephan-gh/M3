@@ -37,6 +37,14 @@ void DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
         PANIC("External command " << cmd << " failed: " << res);
 }
 
+void DTU::set_vpeid(const VPEDesc &vpe, vpeid_t id) {
+    // set VPE id here, because there is no PEMux that does that
+    if(!Platform::pe(vpe.pe).is_programmable()) {
+        m3::DTU::reg_t vpeid = id;
+        DTU::get().write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::ReqRegs::VPE_ID), &vpeid, sizeof(vpeid));
+    }
+}
+
 m3::Errors::Code DTU::try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     m3::DTU::reg_t reg = cmd;
     m3::CPU::compiler_barrier();
@@ -61,6 +69,10 @@ cycles_t DTU::get_time() {
     return m3::DTU::get().tsc();
 }
 
+void DTU::start_vpe(const VPEDesc &vpe) {
+    set_vpeid(vpe, vpe.id);
+}
+
 void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     ext_request(vpe, m3::DTU::ExtReqOpCode::STOP);
 
@@ -79,6 +91,8 @@ void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     m3::DTU::reg_t regs[3] = {0, idle_rootpt, 0};
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), regs, sizeof(regs));
+
+    set_vpeid(vpe, VPE::INVALID_ID);
 }
 
 void DTU::wakeup(const VPEDesc &vpe) {
@@ -144,7 +158,7 @@ void DTU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     // TODO manage the kernel EPs properly
     static size_t reply_eps = 16;
 
-    _state.config_recv(ep, buf, order, msgorder, reply_eps);
+    _state.config_recv(ep, VPE::KERNEL_ID, buf, order, msgorder, reply_eps);
     write_ep_local(ep);
 
     reply_eps += 1UL << (order - msgorder);
@@ -152,7 +166,7 @@ void DTU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
 
 m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
-    _state.config_send(_ep, label, vpe.pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
+    _state.config_send(_ep, VPE::KERNEL_ID, label, vpe.pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
     write_ep_local(_ep);
 
     m3::DTU::get().write_reg(m3::DTU::CmdRegs::DATA, reinterpret_cast<m3::DTU::reg_t>(msg) |

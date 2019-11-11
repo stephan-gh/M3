@@ -15,6 +15,8 @@
  */
 
 use base::cell::StaticCell;
+use base::dtu;
+use base::kif;
 
 pub struct VPE {
     id: u64,
@@ -27,12 +29,16 @@ pub fn add(id: u64) {
 
     log!(PEX_VPES, "Created VPE {}", id);
     CUR.set(Some(VPE::new(id)));
+
+    dtu::DTU::set_vpe_id(id);
 }
 
 pub fn remove() {
     if (*CUR).is_some() {
         log!(PEX_VPES, "Destroyed VPE {}", (*CUR).as_ref().unwrap().id);
         CUR.set(None);
+
+        dtu::DTU::set_vpe_id(kif::pemux::VPE_ID);
     }
 }
 

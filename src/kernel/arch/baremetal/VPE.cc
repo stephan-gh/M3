@@ -33,28 +33,28 @@ void VPE::init_eps() {
 
     // configure syscall endpoint
     SGateObject mobj(&rgate, reinterpret_cast<label_t>(this), 1);
-    UNUSED m3::Errors::Code res = pemux->config_snd_ep(m3::DTU::SYSC_SEP, mobj);
+    UNUSED m3::Errors::Code res = pemux->config_snd_ep(m3::DTU::SYSC_SEP, id(), mobj);
     assert(res == m3::Errors::NONE);
 
     // attach syscall receive endpoint
     rgate.order = m3::nextlog2<SYSC_RBUF_SIZE>::val;
     rgate.msgorder = SYSC_RBUF_ORDER;
     rgate.addr = Platform::def_recvbuf(peid()) + KPEX_RBUF_SIZE + PEXUP_RBUF_SIZE;
-    res = pemux->config_rcv_ep(m3::DTU::SYSC_REP, EP_COUNT, rgate);
+    res = pemux->config_rcv_ep(m3::DTU::SYSC_REP, id(), EP_COUNT, rgate);
     assert(res == m3::Errors::NONE);
 
     // attach upcall receive endpoint
     rgate.order = m3::nextlog2<UPCALL_RBUF_SIZE>::val;
     rgate.msgorder = UPCALL_RBUF_ORDER;
     rgate.addr += SYSC_RBUF_SIZE;
-    res = pemux->config_rcv_ep(m3::DTU::UPCALL_REP, m3::DTU::UPCALL_RPLEP, rgate);
+    res = pemux->config_rcv_ep(m3::DTU::UPCALL_REP, id(), m3::DTU::UPCALL_RPLEP, rgate);
     assert(res == m3::Errors::NONE);
 
     // attach default receive endpoint
     rgate.order = m3::nextlog2<DEF_RBUF_SIZE>::val;
     rgate.msgorder = DEF_RBUF_ORDER;
     rgate.addr += UPCALL_RBUF_SIZE;
-    res = pemux->config_rcv_ep(m3::DTU::DEF_REP, EP_COUNT, rgate);
+    res = pemux->config_rcv_ep(m3::DTU::DEF_REP, id(), EP_COUNT, rgate);
     assert(res == m3::Errors::NONE);
 
     // TODO don't do that here

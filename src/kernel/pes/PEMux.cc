@@ -38,18 +38,18 @@ PEMux::PEMux(peid_t pe)
 
 #if defined(__gem5__)
     // configure send EP
-    _dtustate.config_send(m3::DTU::KPEX_SEP, reinterpret_cast<label_t>(this),
+    _dtustate.config_send(m3::DTU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, reinterpret_cast<label_t>(this),
                           Platform::kernel_pe(), SyscallHandler::pexep(),
                           KPEX_RBUF_ORDER, 1);
 
     // configure receive EP
     uintptr_t rbuf = Platform::def_recvbuf(peid());
-    _dtustate.config_recv(m3::DTU::KPEX_REP, rbuf,
+    _dtustate.config_recv(m3::DTU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
                           KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, EP_COUNT);
     rbuf += KPEX_RBUF_SIZE;
 
     // configure upcall receive EP
-    _dtustate.config_recv(m3::DTU::PEXUP_REP, rbuf,
+    _dtustate.config_recv(m3::DTU::PEXUP_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
                           PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::DTU::PEXUP_RPLEP);
 #endif
 }
@@ -62,13 +62,13 @@ static void reply_result(const m3::DTU::Message *msg, m3::Errors::Code code) {
 
 void PEMux::add_vpe(VPECapability *vpe) {
     assert(_vpes == 0);
-    _caps.obtain(VPE_SEL_BEGIN + vpe->obj->id(), vpe);
+    _caps.obtain(vpe->obj->id(), vpe);
     _vpes++;
 }
 
 void PEMux::remove_vpe(UNUSED VPE *vpe) {
     // has already been revoked
-    assert(_caps.get(VPE_SEL_BEGIN + vpe->id(), Capability::VIRTPE) == nullptr);
+    assert(_caps.get(vpe->id(), Capability::VIRTPE) == nullptr);
     _vpes--;
     _rbufs_size = 0;
 }
@@ -129,7 +129,7 @@ void PEMux::invalidate_eps() {
     _dtustate.invalidate_eps(m3::DTU::FIRST_FREE_EP);
 }
 
-m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, epid_t rpleps, RGateObject &obj) {
+m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj) {
     assert(obj.activated());
     // it needs to be in the receive buffer space
     const goff_t addr = Platform::def_recvbuf(peid());
@@ -147,14 +147,14 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, epid_t rpleps, RGateObject &obj
         << ", replyeps=" << rpleps
         << "]");
 
-    dtustate().config_recv(ep, rbuf_base() + obj.addr, obj.order, obj.msgorder, rpleps);
+    dtustate().config_recv(ep, vpe, rbuf_base() + obj.addr, obj.order, obj.msgorder, rpleps);
     update_ep(ep);
 
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&obj));
     return m3::Errors::NONE;
 }
 
-m3::Errors::Code PEMux::config_snd_ep(epid_t ep, SGateObject &obj) {
+m3::Errors::Code PEMux::config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj) {
     assert(obj.rgate->addr != 0);
     if(obj.activated)
         return m3::Errors::EXISTS;
@@ -168,13 +168,13 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, SGateObject &obj) {
         << "]");
 
     obj.activated = true;
-    dtustate().config_send(ep, obj.label, obj.rgate->pe, obj.rgate->ep,
+    dtustate().config_send(ep, vpe, obj.label, obj.rgate->pe, obj.rgate->ep,
                            obj.rgate->msgorder, obj.credits);
     update_ep(ep);
     return m3::Errors::NONE;
 }
 
-m3::Errors::Code PEMux::config_mem_ep(epid_t ep, const MGateObject &obj, goff_t off) {
+m3::Errors::Code PEMux::config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject &obj, goff_t off) {
     if(off >= obj.size || obj.addr + off < off)
         return m3::Errors::INV_ARGS;
 
@@ -186,7 +186,7 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, const MGateObject &obj, goff_t 
         << "]");
 
     // TODO
-    dtustate().config_mem(ep, obj.pe, obj.addr + off, obj.size - off, obj.perms);
+    dtustate().config_mem(ep, vpe, obj.pe, obj.addr + off, obj.size - off, obj.perms);
     update_ep(ep);
     return m3::Errors::NONE;
 }

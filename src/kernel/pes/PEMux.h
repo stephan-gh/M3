@@ -27,8 +27,6 @@ namespace kernel {
 class PEMux {
 public:
     static const size_t PEXC_MSGSIZE_ORD     = 7;
-    // TODO is there a better way?
-    static const capsel_t VPE_SEL_BEGIN      = 1000;
 
     static size_t total_instances() {
         size_t num = 0;
@@ -88,9 +86,9 @@ public:
     bool invalidate_ep(epid_t ep, bool force = false);
     void invalidate_eps();
 
-    m3::Errors::Code config_rcv_ep(epid_t ep, epid_t rpleps, RGateObject &obj);
-    m3::Errors::Code config_snd_ep(epid_t ep, SGateObject &obj);
-    m3::Errors::Code config_mem_ep(epid_t ep, const MGateObject &obj, goff_t off);
+    m3::Errors::Code config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj);
+    m3::Errors::Code config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj);
+    m3::Errors::Code config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject &obj, goff_t off);
     void update_ep(epid_t ep);
 
 private:

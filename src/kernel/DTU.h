@@ -44,6 +44,7 @@ public:
 
     gaddr_t deprivilege(peid_t pe);
 
+    void start_vpe(const VPEDesc &vpe);
     void kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt);
 
     cycles_t get_time();
@@ -92,7 +93,7 @@ public:
 
 private:
 #if defined(__gem5__)
-    void do_set_vpeid(const VPEDesc &vpe, vpeid_t nid);
+    void set_vpeid(const VPEDesc &vpe, vpeid_t id);
     void do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
     m3::Errors::Code try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
 #endif

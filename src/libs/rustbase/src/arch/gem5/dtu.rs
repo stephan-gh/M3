@@ -106,6 +106,8 @@ int_enum! {
         const XLATE_REQ   = 0x1;
         /// For translation responses
         const XLATE_RESP  = 0x2;
+        /// The current VPE
+        const VPE_ID      = 0x3;
     }
 }
 
@@ -423,18 +425,18 @@ impl DTU {
     #[inline(always)]
     pub fn is_valid(ep: EpId) -> bool {
         let r0 = Self::read_ep_reg(ep, 0);
-        (r0 >> 61) != EpType::INVALID.val
+        (r0 & 0x7) != EpType::INVALID.val
     }
 
     /// Returns true if the given endpoint is a SEND EP and has missing credits
     pub fn has_missing_credits(ep: EpId) -> bool {
         let r0 = Self::read_ep_reg(ep, 0);
-        if (r0 >> 61) != EpType::SEND.val {
+        if (r0 & 0x7) != EpType::SEND.val {
             return false;
         }
         let r0 = Self::read_ep_reg(ep, 0);
-        let cur = r0 & 0x3F;
-        let max = (r0 >> 6) & 0x3F;
+        let cur = (r0 >> 19) & 0x3F;
+        let max = (r0 >> 25) & 0x3F;
         cur < max
     }
 
@@ -553,6 +555,14 @@ impl DTU {
 
     pub fn set_xlate_resp(val: Reg) {
         Self::write_req_reg(ReqReg::XLATE_RESP, val)
+    }
+
+    pub fn get_vpe_id() -> Reg {
+        Self::read_req_reg(ReqReg::VPE_ID)
+    }
+
+    pub fn set_vpe_id(id: Reg) {
+        Self::write_req_reg(ReqReg::VPE_ID, id);
     }
 
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {

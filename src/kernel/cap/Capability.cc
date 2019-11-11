@@ -204,8 +204,10 @@ void SessCapability::revoke() {
 
 void ServCapability::revoke() {
     // first, reset the receive buffer: make all slots not-occupied
-    if(obj->rgate()->activated())
-        PEManager::get().pemux(obj->vpe().peid())->config_rcv_ep(obj->rgate()->ep, 0, *obj->rgate());
+    if(obj->rgate()->activated()) {
+        PEManager::get().pemux(obj->vpe().peid())->config_rcv_ep(
+          obj->rgate()->ep, obj->vpe().id(), 0, *obj->rgate());
+    }
     // now, abort everything in the sendqueue
     obj->abort();
 }
