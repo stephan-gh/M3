@@ -244,7 +244,7 @@ void SGateCapability::printInfo(m3::OStream &os) const {
 
 void MGateCapability::printInfo(m3::OStream &os) const {
     os << ": mgate[refs=" << obj->refcount()
-       << ", dst=" << obj->vpe << "@" << obj->pe
+       << ", dst=" << obj->pe
        << ", addr=" << m3::fmt(obj->addr, "#0x", sizeof(label_t) * 2)
        << ", size=" << m3::fmt(obj->size, "#0x", sizeof(label_t) * 2)
        << ", perms=#" << m3::fmt(obj->perms, "x")

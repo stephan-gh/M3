@@ -179,8 +179,7 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, const MGateObject &obj, goff_t 
         return m3::Errors::INV_ARGS;
 
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
-        "Mem [vpe=" << obj.vpe
-        << ", pe=" << obj.pe
+        "Mem [pe=" << obj.pe
         << ", addr=#" << m3::fmt(obj.addr + off, "x")
         << ", size=#" << m3::fmt(obj.size - off, "x")
         << ", perms=#" << m3::fmt(obj.perms, "x")
