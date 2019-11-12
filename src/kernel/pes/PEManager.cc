@@ -73,17 +73,17 @@ void PEManager::start_vpe(VPE *vpe) {
 }
 
 void PEManager::stop_vpe(VPE *vpe) {
-    // ensure that all PTEs are in memory
-    DTU::get().flush_cache(vpe->desc());
-
-    DTU::get().kill_vpe(vpe->desc(), _idle_rootpts[vpe->peid()]);
-    vpe->_flags |= VPE::F_STOPPED;
-
 #if defined(__gem5__)
     // don't do that from the destructor
     if(vpe->state() != VPE::DEAD)
         pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
 #endif
+
+    // ensure that all PTEs are in memory
+    DTU::get().flush_cache(vpe->desc());
+
+    DTU::get().kill_vpe(vpe->desc(), _idle_rootpts[vpe->peid()]);
+    vpe->_flags |= VPE::F_STOPPED;
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except) {
