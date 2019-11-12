@@ -258,8 +258,6 @@ void VPE::init_memory() {
         }
     }
 
-    // PEMux is ready; let it initialize itself
-    DTU::get().wakeup(desc());
     // we can now write the PTEs to the VPE's address space
     if(Platform::pe(peid()).has_mmu())
         _state = VPE::RUNNING;

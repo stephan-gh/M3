@@ -15,7 +15,6 @@
  */
 
 #include <base/Common.h>
-#include <base/PEMux.h>
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
@@ -52,10 +51,6 @@ void DTU::wakeup(const VPEDesc &) {
 
 void DTU::suspend(const VPEDesc &) {
     // nothing to do
-}
-
-void DTU::inject_irq(const VPEDesc &) {
-    // unsupported
 }
 
 m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &, epid_t, peid_t, epid_t) {
@@ -119,17 +114,6 @@ m3::Errors::Code DTU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, 
 
 void DTU::copy_clear(const VPEDesc &, goff_t, const VPEDesc &, goff_t, size_t, bool) {
     // not supported
-}
-
-void DTU::write_swstate(const VPEDesc &, uint64_t, uint64_t) {
-}
-
-void DTU::write_swflags(const VPEDesc &, uint64_t) {
-}
-
-void DTU::read_swflags(const VPEDesc &, uint64_t *flags) {
-    // we are always immediately finished here
-    *flags = m3::PEMuxCtrl::SIGNAL;
 }
 
 }

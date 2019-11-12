@@ -19,7 +19,6 @@
 #include <base/util/Math.h>
 #include <base/CPU.h>
 #include <base/DTU.h>
-#include <base/PEMux.h>
 
 #include "mem/MainMemory.h"
 #include "pes/VPEManager.h"
@@ -35,14 +34,6 @@ void DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     m3::Errors::Code res = try_ext_cmd(vpe, cmd);
     if(res != m3::Errors::NONE)
         PANIC("External command " << cmd << " failed: " << res);
-}
-
-void DTU::set_vpeid(const VPEDesc &vpe, vpeid_t id) {
-    // set VPE id here, because there is no PEMux that does that
-    if(!Platform::pe(vpe.pe).is_programmable()) {
-        m3::DTU::reg_t vpeid = id;
-        DTU::get().write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::ReqRegs::VPE_ID), &vpeid, sizeof(vpeid));
-    }
 }
 
 m3::Errors::Code DTU::try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
@@ -69,13 +60,7 @@ cycles_t DTU::get_time() {
     return m3::DTU::get().tsc();
 }
 
-void DTU::start_vpe(const VPEDesc &vpe) {
-    set_vpeid(vpe, vpe.id);
-}
-
 void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
-    ext_request(vpe, m3::DTU::ExtReqOpCode::STOP);
-
     // reset all EPs to remove unread messages
     size_t regsSize = (EP_COUNT - m3::DTU::FIRST_USER_EP) * m3::DTU::EP_REGS;
     regsSize *= sizeof(m3::DTU::reg_t);
@@ -91,8 +76,6 @@ void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     m3::DTU::reg_t regs[3] = {0, idle_rootpt, 0};
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), regs, sizeof(regs));
-
-    set_vpeid(vpe, VPE::INVALID_ID);
 }
 
 void DTU::wakeup(const VPEDesc &vpe) {
@@ -103,10 +86,6 @@ void DTU::wakeup(const VPEDesc &vpe) {
 void DTU::flush_cache(const VPEDesc &vpe) {
     m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::FLUSH_CACHE);
     do_ext_cmd(vpe, cmd);
-}
-
-void DTU::inject_irq(const VPEDesc &vpe) {
-    ext_request(vpe, m3::DTU::ExtReqOpCode::PEMUX);
 }
 
 void DTU::ext_request(const VPEDesc &vpe, uint64_t req) {
@@ -217,27 +196,6 @@ void DTU::copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,
         dstaddr += amount;
         rem -= amount;
     }
-}
-
-void DTU::write_swstate(const VPEDesc &vpe, uint64_t flags, uint64_t notify) {
-    if(!Platform::pe(vpe.pe).supports_ctx())
-        return;
-    uint64_t vals[2] = {notify, flags};
-    write_mem(vpe, PEMUX_YIELD, &vals, sizeof(vals));
-}
-
-void DTU::write_swflags(const VPEDesc &vpe, uint64_t flags) {
-    if(!Platform::pe(vpe.pe).supports_ctx())
-        return;
-    write_mem(vpe, PEMUX_FLAGS, &flags, sizeof(flags));
-}
-
-void DTU::read_swflags(const VPEDesc &vpe, uint64_t *flags) {
-    if(!Platform::pe(vpe.pe).supports_ctx()) {
-        *flags = m3::PEMuxCtrl::SIGNAL;
-        return;
-    }
-    read_mem(vpe, PEMUX_FLAGS, flags, sizeof(*flags));
 }
 
 }

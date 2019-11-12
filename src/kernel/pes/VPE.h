@@ -163,7 +163,6 @@ public:
 
     void start_app(int pid);
     void stop_app(int exitcode, bool self);
-    void wakeup();
 
     bool check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
     void wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);

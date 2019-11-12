@@ -18,33 +18,23 @@
 
 /// The VPE id of PEMux
 pub const VPE_ID: u64 = 0xFFFF;
+/// The VPE id when PEMux is idling
+pub const IDLE_ID: u64 = 0xFFFE;
 
 int_enum! {
     /// The upcalls from the kernel to PEMux
     pub struct Upcalls : u64 {
-        const INIT           = 0x0;
-        const START_VPE      = 0x1;
-        const STOP_VPE       = 0x2;
+        const VPE_CTRL       = 0x0;
     }
 }
 
-/// The init upcall
+pub use super::syscalls::VPEOp;
+
+/// The VPE control upcall
 #[repr(C, packed)]
-pub struct Init {
+pub struct VPECtrl {
     pub op: u64,
     pub pe_id: u64,
-}
-
-/// The start VPE upcall
-#[repr(C, packed)]
-pub struct StartVPE {
-    pub op: u64,
     pub vpe_sel: u64,
-}
-
-/// The stop VPE upcall
-#[repr(C, packed)]
-pub struct StopVPE {
-    pub op: u64,
-    pub vpe_sel: u64,
+    pub vpe_op: u64,
 }

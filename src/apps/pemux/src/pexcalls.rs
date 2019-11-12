@@ -17,9 +17,9 @@
 use base::dtu;
 use base::errors::{Code, Error};
 use base::pexif;
-use isr;
 
-use IRQsOnGuard;
+use helper;
+use isr;
 
 fn pexcall_sleep(state: &mut isr::State) -> Result<(), Error> {
     let cycles = state.r[isr::PEXC_ARG1];
@@ -27,7 +27,7 @@ fn pexcall_sleep(state: &mut isr::State) -> Result<(), Error> {
     log!(PEX_CALLS, "pexcall::sleep(cycles={})", cycles);
 
     if dtu::DTU::fetch_events() == 0 {
-        let _irqs = IRQsOnGuard::new();
+        let _irqs = helper::IRQsOnGuard::new();
         dtu::DTU::sleep_for(cycles as u64)
     }
     else {

@@ -44,13 +44,11 @@ public:
 
     gaddr_t deprivilege(peid_t pe);
 
-    void start_vpe(const VPEDesc &vpe);
     void kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt);
 
     cycles_t get_time();
     void wakeup(const VPEDesc &vpe);
     void suspend(const VPEDesc &vpe);
-    void inject_irq(const VPEDesc &vpe);
     void ext_request(const VPEDesc &vpe, uint64_t req);
     void flush_cache(const VPEDesc &vpe);
 
@@ -87,13 +85,8 @@ public:
                     const VPEDesc &srcvpe, goff_t srcaddr,
                     size_t size, bool clear);
 
-    void write_swstate(const VPEDesc &vpe, uint64_t flags, uint64_t notify);
-    void write_swflags(const VPEDesc &vpe, uint64_t flags);
-    void read_swflags(const VPEDesc &vpe, uint64_t *flags);
-
 private:
 #if defined(__gem5__)
-    void set_vpeid(const VPEDesc &vpe, vpeid_t id);
     void do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
     m3::Errors::Code try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
 #endif

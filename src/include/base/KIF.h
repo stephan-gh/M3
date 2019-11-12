@@ -397,38 +397,18 @@ struct KIF {
     };
 
     /**
-     * PEMux calls
-     */
-    struct PEMux {
-        enum Operation {
-            ACTIVATE,
-        };
-
-        struct Activate : public DefaultRequest {
-            xfer_t vpe_sel;
-            xfer_t gate_sel;
-            xfer_t ep;
-            xfer_t addr;
-        } PACKED;
-    };
-
-    /**
      * PEMux upcalls
      */
     struct PEXUpcalls {
         enum Operation {
-            ALLOC_EP,
-            FREE_EP,
+            VPE_CTRL,
         };
+        typedef Syscall::VPEOp VPEOp;
 
-        struct AllocEP : public DefaultRequest {
+        struct VPECtrl : public DefaultRequest {
+            xfer_t pe_id;
             xfer_t vpe_sel;
-        } PACKED;
-        struct AllocEPReply : public DefaultReply {
-            xfer_t ep;
-        } PACKED;
-        struct FreeEP : public DefaultRequest {
-            xfer_t ep;
+            xfer_t vpe_op;
         } PACKED;
     };
 

@@ -23,6 +23,7 @@
 extern crate base;
 
 mod arch;
+mod helper;
 mod kernreq;
 mod pexcalls;
 mod upcalls;
@@ -30,6 +31,7 @@ mod vpe;
 
 use base::dtu;
 use base::io;
+use base::kif;
 use base::libc;
 
 use arch::isr;
@@ -51,29 +53,9 @@ pub extern "C" fn exit(_code: i32) {
 #[no_mangle]
 pub fn sleep() {
     loop {
-        upcalls::check();
-
         // ack events since to VPE is currently not running
         dtu::DTU::fetch_events();
         dtu::DTU::sleep().ok();
-    }
-}
-
-pub struct IRQsOnGuard {
-    prev: bool,
-}
-
-impl IRQsOnGuard {
-    pub fn new() -> Self {
-        IRQsOnGuard {
-            prev: isr::enable_ints(),
-        }
-    }
-}
-
-impl Drop for IRQsOnGuard {
-    fn drop(&mut self) {
-        isr::restore_ints(self.prev);
     }
 }
 
@@ -90,7 +72,7 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
 pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
     pexcalls::handle_call(state);
 
-    upcalls::check();
+    upcalls::check(state);
 
     state.finalize()
 }
@@ -99,14 +81,21 @@ pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
     // translation request from DTU?
     let xlate_req = dtu::DTU::get_xlate_req();
     if xlate_req != 0 {
-        vma::handle_xlate(state, xlate_req)
+        vma::handle_xlate(xlate_req)
     }
 
     // request from the kernel?
     let ext_req = dtu::DTU::get_ext_req();
     if ext_req != 0 {
-        kernreq::handle_ext_req(state, ext_req);
+        kernreq::handle_ext_req(ext_req);
     }
+
+    if state.came_from_user() {
+        upcalls::check(state);
+    }
+
+    #[cfg(target_arch = "arm")]
+    dtu::DTU::clear_irq();
 
     state.finalize()
 }
@@ -123,4 +112,5 @@ pub extern "C" fn init() {
     }
 
     io::init(0, "pemux");
+    dtu::DTU::set_vpe_id(kif::pemux::IDLE_ID);
 }

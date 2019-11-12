@@ -15,7 +15,6 @@
  */
 
 #include <base/log/Kernel.h>
-#include <base/PEMux.h>
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
@@ -59,7 +58,7 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
 
     vpe->init_memory();
 
-    start_vpe(vpe);
+    pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_INIT);
 #endif
 }
 
@@ -69,26 +68,7 @@ void PEManager::start_vpe(VPE *vpe) {
     vpe->_state = VPE::RUNNING;
     vpe->init_memory();
 #else
-    DTU::get().start_vpe(vpe->desc());
-
-    uint64_t report = 0;
-    uint64_t flags = m3::PEMuxCtrl::WAITING;
-    if(vpe->_flags & VPE::F_HASAPP) {
-        flags |= m3::PEMuxCtrl::RESTORE;
-        flags |= static_cast<uint64_t>(vpe->peid()) << 32;
-        flags |= static_cast<uint64_t>(vpe->id()) << 48;
-    }
-
-    DTU::get().write_swstate(vpe->desc(), flags, report);
-    DTU::get().inject_irq(vpe->desc());
-
-    while(true) {
-        DTU::get().read_swflags(vpe->desc(), &flags);
-        if(flags & m3::PEMuxCtrl::SIGNAL)
-            break;
-    }
-
-    DTU::get().write_swflags(vpe->desc(), 0);
+    pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_START);
 #endif
 }
 
@@ -98,6 +78,12 @@ void PEManager::stop_vpe(VPE *vpe) {
 
     DTU::get().kill_vpe(vpe->desc(), _idle_rootpts[vpe->peid()]);
     vpe->_flags |= VPE::F_STOPPED;
+
+#if defined(__gem5__)
+    // don't do that from the destructor
+    if(vpe->state() != VPE::DEAD)
+        pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
+#endif
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except) {

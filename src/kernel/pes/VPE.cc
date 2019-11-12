@@ -234,10 +234,6 @@ void VPE::wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitR
     _vpe_wait_sels = nullptr;
 }
 
-void VPE::wakeup() {
-    DTU::get().inject_irq(desc());
-}
-
 void VPE::upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply) {
     m3::KIF::Upcall::VPEWait msg;
     msg.opcode = m3::KIF::Upcall::VPEWAIT;

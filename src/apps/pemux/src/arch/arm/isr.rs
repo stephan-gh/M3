@@ -77,12 +77,12 @@ impl fmt::Debug for State {
 static STOPPED: StaticCell<bool> = StaticCell::new(false);
 
 impl State {
-    pub fn from_user(&self) -> bool {
+    pub fn came_from_user(&self) -> bool {
         (self.cpsr & 0x0F) == 0x0
     }
 
     pub fn nested(&self) -> bool {
-        !self.from_user()
+        !self.came_from_user()
     }
 
     pub fn init(&mut self, entry: usize, sp: usize) {

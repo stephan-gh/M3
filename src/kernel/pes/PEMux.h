@@ -81,7 +81,7 @@ public:
     void alloc_eps(epid_t first, uint count);
     void free_eps(epid_t first, uint count);
 
-    void handle_call(const m3::DTU::Message *msg);
+    m3::Errors::Code vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
 
     bool invalidate_ep(epid_t ep, bool force = false);
     void invalidate_eps();

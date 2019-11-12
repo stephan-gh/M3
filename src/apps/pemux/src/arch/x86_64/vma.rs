@@ -18,19 +18,16 @@ use base::cell::StaticCell;
 use base::cfg;
 use base::const_assert;
 use base::dtu;
-use core::intrinsics;
 use core::ptr;
 
+use helper;
 use isr;
-use kernreq;
 
 struct XlateState {
     in_pf: bool,
-    ctxsw: bool,
     req_count: u32,
     reqs: [dtu::Reg; 4],
-    cmd_regs: [dtu::Reg; 3],
-    cmd_xfer_buf: dtu::Reg,
+    cmd: helper::DTUCmdState,
     // store messages in static data to ensure that we don't pagefault
     pf_msg: [u64; 3],
 }
@@ -39,11 +36,9 @@ impl XlateState {
     const fn new() -> Self {
         XlateState {
             in_pf: false,
-            ctxsw: false,
             req_count: 0,
             reqs: [0; 4],
-            cmd_regs: [0; 3],
-            cmd_xfer_buf: !0,
+            cmd: helper::DTUCmdState::new(),
             pf_msg: [/* PAGEFAULT */ 0, 0, 0],
         }
     }
@@ -61,14 +56,7 @@ impl XlateState {
         }
 
         // abort the current command, if there is any
-        let (xfer_buf, old_cmd) = dtu::DTU::abort();
-        self.cmd_xfer_buf = xfer_buf;
-        self.cmd_regs[0] = old_cmd;
-        self.cmd_regs[1] = dtu::DTU::read_cmd_reg(dtu::CmdReg::OFFSET);
-        // if a command was being executed, save the DATA register, because we'll overwrite it
-        if self.cmd_regs[0] != dtu::CmdOpCode::IDLE.val {
-            self.cmd_regs[2] = dtu::DTU::read_cmd_reg(dtu::CmdReg::DATA);
-        }
+        self.cmd.save();
 
         // get EPs
         let pf_eps = dtu::DTU::get_pfep();
@@ -113,17 +101,7 @@ impl XlateState {
 
     fn resume_cmd(&mut self) {
         const_assert!(dtu::CmdOpCode::IDLE.val == 0);
-
-        dtu::DTU::write_cmd_reg(dtu::CmdReg::OFFSET, self.cmd_regs[1]);
-        if self.cmd_regs[0] != 0 {
-            // if there was a command, restore DATA register and retry command
-            dtu::DTU::write_cmd_reg(dtu::CmdReg::DATA, self.cmd_regs[2]);
-            unsafe {
-                intrinsics::atomic_fence();
-            }
-            dtu::DTU::retry(self.cmd_regs[0]);
-            self.cmd_regs[0] = 0;
-        }
+        self.cmd.restore();
     }
 }
 
@@ -226,7 +204,7 @@ fn translate_addr(req: dtu::Reg) -> bool {
     // TODO that means that aborted commands cause another TLB miss in the DTU, which can then
     // (hopefully) be handled with a simple PT walk. we could improve that by setting the TLB entry
     // right away without continuing the transfer (because that's aborted)
-    if !pf || STATE.cmd_regs[0] == 0 || STATE.cmd_xfer_buf != xfer_buf {
+    if !pf || !STATE.cmd.has_cmd() || STATE.cmd.xfer_buf() != xfer_buf {
         dtu::DTU::set_xlate_resp(pte | (xfer_buf << 5));
     }
 
@@ -237,15 +215,7 @@ fn translate_addr(req: dtu::Reg) -> bool {
     pf
 }
 
-fn handle_pending_ctxsw(state: &mut isr::State) {
-    // was there a context switch request in the meantime?
-    if state.came_from_user() && STATE.ctxsw {
-        STATE.get_mut().ctxsw = false;
-        kernreq::handle_pemux(state);
-    }
-}
-
-pub fn handle_xlate(state: &mut isr::State, mut xlate_req: dtu::Reg) {
+pub fn handle_xlate(mut xlate_req: dtu::Reg) {
     // acknowledge the translation
     dtu::DTU::set_xlate_req(0);
 
@@ -261,8 +231,6 @@ pub fn handle_xlate(state: &mut isr::State, mut xlate_req: dtu::Reg) {
                 }
             }
         }
-
-        handle_pending_ctxsw(state);
     }
 }
 
@@ -289,8 +257,6 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     }
 
     STATE.get_mut().resume_cmd();
-
-    handle_pending_ctxsw(state);
 }
 
 pub fn flush_tlb(virt: usize) {

@@ -17,7 +17,7 @@
 use arch::isr;
 use base::dtu;
 
-pub fn handle_xlate(_state: &mut isr::State, _xlate_req: dtu::Reg) {
+pub fn handle_xlate(_xlate_req: dtu::Reg) {
     log!(DEF, "Unexpected Xlate request");
 }
 

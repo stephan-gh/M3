@@ -54,12 +54,6 @@ PEMux::PEMux(peid_t pe)
 #endif
 }
 
-static void reply_result(const m3::DTU::Message *msg, m3::Errors::Code code) {
-    m3::KIF::DefaultReply reply;
-    reply.error = static_cast<xfer_t>(code);
-    DTU::get().reply(SyscallHandler::pexep(), &reply, sizeof(reply), msg);
-}
-
 void PEMux::add_vpe(VPECapability *vpe) {
     assert(_vpes == 0);
     _caps.obtain(vpe->obj->id(), vpe);
@@ -107,15 +101,28 @@ void PEMux::free_eps(epid_t first, uint count) {
     }
 }
 
-void PEMux::handle_call(const m3::DTU::Message *msg) {
-    auto req = reinterpret_cast<const m3::KIF::DefaultRequest*>(msg->data);
-    auto op = static_cast<m3::KIF::PEMux::Operation>(req->opcode);
+m3::Errors::Code PEMux::vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
+    static const char *ctrls[] = {
+        "INIT", "START", "STOP"
+    };
 
-    switch(op) {
-        default:
-            reply_result(msg, m3::Errors::INV_ARGS);
-            break;
-    }
+    m3::KIF::PEXUpcalls::VPECtrl req;
+    req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::VPE_CTRL);
+    req.pe_id = _pe->id;
+    req.vpe_sel = vpe;
+    req.vpe_op = ctrl;
+
+    KLOG(PEXC, "PEMux[" << peid() << "] sending VPECtrl(vpe="
+        << req.vpe_sel << ", ctrl=" << ctrls[req.vpe_op] << ")");
+
+    // send upcall
+    event_t event = _upcqueue.send(m3::DTU::PEXUP_REP, 0, &req, sizeof(req), false);
+    m3::ThreadManager::get().wait_for(event);
+
+    // wait for reply
+    auto reply_msg = reinterpret_cast<const m3::DTU::Message*>(m3::ThreadManager::get().get_current_msg());
+    auto reply = reinterpret_cast<const m3::KIF::DefaultReply*>(reply_msg->data);
+    return static_cast<m3::Errors::Code>(reply->error);
 }
 
 bool PEMux::invalidate_ep(epid_t ep, bool force) {

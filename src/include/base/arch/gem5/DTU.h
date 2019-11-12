@@ -182,8 +182,6 @@ public:
 
     enum ExtReqOpCode {
         INV_PAGE            = 0,
-        PEMUX               = 1,
-        STOP                = 2,
     };
 
     struct Header {
