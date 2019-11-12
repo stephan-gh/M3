@@ -23,7 +23,7 @@
 
 #include <utility>
 
-#include "com/Services.h"
+#include "com/Service.h"
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "DTU.h"
@@ -161,7 +161,6 @@ void SyscallHandler::create_srv(VPE *vpe, const m3::DTU::Message *msg) {
 
     auto servcap = SYS_CREATE_CAP(vpe, msg, ServCapability, Service,
         &vpe->objcaps(), dst, *vpecap->obj, name, rgatecap->obj);
-    ServiceList::get().add(&*servcap->obj);
     vpe->objcaps().set(dst, servcap);
 
     reply_result(vpe, msg, m3::Errors::NONE);

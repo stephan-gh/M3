@@ -16,25 +16,17 @@
 
 #include <base/Common.h>
 
-#include "com/Services.h"
+#include "com/Service.h"
 #include "pes/VPE.h"
 
 namespace kernel {
 
-ServiceList ServiceList::_inst;
-
 Service::Service(VPE &vpe, const m3::String &name, const m3::Reference<RGateObject> &rgate)
-    : m3::SListItem(),
-      RefCounted(),
+    : RefCounted(),
       _vpe(vpe),
       _squeue(vpe.desc()),
       _name(name),
       _rgate(rgate) {
-}
-
-Service::~Service() {
-    // we have allocated the selector and stored it in our cap-table on creation; undo that
-    ServiceList::get().remove(this);
 }
 
 int Service::pending() const {

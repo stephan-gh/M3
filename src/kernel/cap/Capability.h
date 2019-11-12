@@ -20,7 +20,7 @@
 #include <base/col/Treap.h>
 #include <base/DTU.h>
 
-#include "com/Services.h"
+#include "com/Service.h"
 #include "mem/SlabCache.h"
 #include "Types.h"
 

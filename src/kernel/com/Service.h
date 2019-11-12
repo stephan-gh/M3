@@ -17,7 +17,6 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/col/SList.h>
 #include <base/util/String.h>
 #include <base/util/Reference.h>
 
@@ -29,10 +28,9 @@ namespace kernel {
 class VPE;
 class RGateObject;
 
-class Service : public SlabObject<Service>, public m3::SListItem, public m3::RefCounted {
+class Service : public SlabObject<Service>, public m3::RefCounted {
 public:
     explicit Service(VPE &vpe, const m3::String &name, const m3::Reference<RGateObject> &rgate);
-    ~Service();
 
     VPE &vpe() const {
         return _vpe;
@@ -59,31 +57,6 @@ private:
     SendQueue _squeue;
     m3::String _name;
     m3::Reference<RGateObject> _rgate;
-};
-
-class ServiceList {
-    explicit ServiceList() : _list() {
-    }
-
-public:
-    friend class Service;
-
-    static ServiceList &get() {
-        return _inst;
-    }
-
-    void add(Service *serv) {
-        // prepend to the list to shutdown services in the opposite order
-        _list.insert(nullptr, serv);
-    }
-
-private:
-    void remove(Service *inst) {
-        _list.remove(inst);
-    }
-
-    m3::SList<Service> _list;
-    static ServiceList _inst;
 };
 
 }
