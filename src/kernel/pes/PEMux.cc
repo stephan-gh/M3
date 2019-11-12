@@ -131,11 +131,6 @@ bool PEMux::invalidate_ep(epid_t ep, bool force) {
     return DTU::get().inval_ep_remote(desc(), ep, force) == m3::Errors::NONE;
 }
 
-void PEMux::invalidate_eps() {
-    // no update on the PE here, since we don't save the state anyway
-    _dtustate.invalidate_eps(m3::DTU::FIRST_FREE_EP);
-}
-
 m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj) {
     assert(obj.activated());
     // it needs to be in the receive buffer space

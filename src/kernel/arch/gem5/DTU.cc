@@ -56,10 +56,6 @@ gaddr_t DTU::deprivilege(peid_t pe) {
     return idle_rootpt;
 }
 
-cycles_t DTU::get_time() {
-    return m3::DTU::get().tsc();
-}
-
 void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     // reset all EPs to remove unread messages
     size_t regsSize = (EP_COUNT - m3::DTU::FIRST_USER_EP) * m3::DTU::EP_REGS;
@@ -76,11 +72,6 @@ void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     m3::DTU::reg_t regs[3] = {0, idle_rootpt, 0};
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), regs, sizeof(regs));
-}
-
-void DTU::wakeup(const VPEDesc &vpe) {
-    m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::WAKEUP_CORE);
-    do_ext_cmd(vpe, cmd);
 }
 
 void DTU::flush_cache(const VPEDesc &vpe) {
@@ -114,11 +105,6 @@ m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, boo
         static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 4) |
         (static_cast<m3::DTU::reg_t>(force) << 12);
     return try_ext_cmd(vpe, cmd);
-}
-
-void DTU::read_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
-    m3::CPU::compiler_barrier();
-    read_mem(vpe, m3::DTU::ep_regs_addr(ep), regs, sizeof(m3::DTU::reg_t) * m3::DTU::EP_REGS);
 }
 
 void DTU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {

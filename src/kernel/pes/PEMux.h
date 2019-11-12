@@ -84,7 +84,6 @@ public:
     m3::Errors::Code vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
 
     bool invalidate_ep(epid_t ep, bool force = false);
-    void invalidate_eps();
 
     m3::Errors::Code config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj);
     m3::Errors::Code config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj);

@@ -46,9 +46,6 @@ public:
 
     void kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt);
 
-    cycles_t get_time();
-    void wakeup(const VPEDesc &vpe);
-    void suspend(const VPEDesc &vpe);
     void ext_request(const VPEDesc &vpe, uint64_t req);
     void flush_cache(const VPEDesc &vpe);
 
@@ -58,7 +55,6 @@ public:
     m3::Errors::Code inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
 
     m3::Errors::Code inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool force);
-    void read_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
     void write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
     void write_ep_local(epid_t ep);
 

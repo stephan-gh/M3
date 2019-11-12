@@ -36,20 +36,7 @@ void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t) {
         kill(pid, SIGKILL);
 }
 
-cycles_t DTU::get_time() {
-    // unsupported
-    return 0;
-}
-
 void DTU::flush_cache(const VPEDesc &) {
-    // nothing to do
-}
-
-void DTU::wakeup(const VPEDesc &) {
-    // nothing to do
-}
-
-void DTU::suspend(const VPEDesc &) {
     // nothing to do
 }
 
@@ -64,12 +51,6 @@ m3::Errors::Code DTU::inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool) {
     // TODO detect if credits are outstanding
     write_ep_remote(vpe, ep, regs);
     return m3::Errors::NONE;
-}
-
-void DTU::read_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
-    uintptr_t eps = static_cast<uintptr_t>(PEManager::get().pemux(vpe.pe)->eps_base());
-    uintptr_t addr = eps + ep * m3::DTU::EPS_RCNT * sizeof(word_t);
-    read_mem(vpe, addr, regs, m3::DTU::EPS_RCNT * sizeof(word_t));
 }
 
 void DTU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {

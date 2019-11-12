@@ -31,15 +31,6 @@ void DTUState::restore(const VPEDesc &) {
     // not supported
 }
 
-void DTUState::invalidate_eps(epid_t first) {
-    size_t total = sizeof(word_t) * m3::DTU::EPS_RCNT * (EP_COUNT - first);
-    memset(get_ep(first), 0, total);
-}
-
-void DTUState::read_ep(const VPEDesc &vpe, epid_t ep) {
-    DTU::get().read_ep_remote(vpe, ep, get_ep(ep));
-}
-
 void DTUState::update_recv(epid_t ep, goff_t base) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
     regs[m3::DTU::EP_BUF_ADDR]       += base;
