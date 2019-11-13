@@ -54,9 +54,6 @@
 // |          DTU MMIO          |
 // +----------------------------+ 0xF0002000
 
-#define PEMUX_YIELD         0x100000
-#define PEMUX_FLAGS         0x100008
-
 #define ENV_START           0x200000
 #define ENV_SIZE            0x2000
 #define ENV_END             (ENV_START + ENV_SIZE)

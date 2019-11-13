@@ -171,15 +171,8 @@ static goff_t map_idle(VPE &vpe) {
     // load idle
     goff_t res = load_mod(vpe, idle, true, true, Platform::pe(vpe.peid()).has_mmu());
 
-    // clear PEMUX_*
+    // map DTU
     if(Platform::pe(vpe.peid()).has_mmu()) {
-        gaddr_t phys = idle->addr + PEMUX_YIELD;
-        DTU::get().copy_clear(VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID),
-            m3::DTU::gaddr_to_virt(phys),
-            VPEDesc(0, 0), 0, // unused
-            16, true);
-
-        // map DTU
         int perm = m3::DTU::PTE_RW | m3::DTU::PTE_I | m3::DTU::PTE_UNCACHED;
         map_segment(vpe, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_SIZE, perm);
         // map the privileged registers only for ring 0
@@ -247,16 +240,8 @@ void VPE::init_memory() {
     }
 
     // for SPM PEs, we don't need to do anything; PEMux has already been loaded
-    if(vm) {
-        if(Platform::pe(peid()).is_programmable())
-            map_idle(*this);
-        // PEs with virtual memory still need the PEMux flags
-        else {
-            gaddr_t phys = alloc_mem(PAGE_SIZE);
-            map_segment(*this, phys, PEMUX_FLAGS & ~PAGE_MASK, PAGE_SIZE,
-                        m3::DTU::PTE_RW | MapCapability::EXCL);
-        }
-    }
+    if(vm && Platform::pe(peid()).is_programmable())
+        map_idle(*this);
 
     // we can now write the PTEs to the VPE's address space
     if(Platform::pe(peid()).has_mmu())
