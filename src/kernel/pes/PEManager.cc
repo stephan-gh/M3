@@ -86,10 +86,9 @@ void PEManager::stop_vpe(VPE *vpe) {
     vpe->_flags |= VPE::F_STOPPED;
 }
 
-peid_t PEManager::find_pe(const m3::PEDesc &pe, peid_t except) {
+peid_t PEManager::find_pe(const m3::PEDesc &pe) {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
-        if(i != except && !_muxes[i]->used() &&
-           Platform::pe(i).isa() == pe.isa() &&
+        if(Platform::pe(i).isa() == pe.isa() &&
            Platform::pe(i).type() == pe.type())
             return i;
     }

@@ -46,10 +46,10 @@ void VPEManager::start_root() {
     assert(id != MAX_VPES);
 
     // try to find a PE with the required ISA and external memory first
-    peid_t peid = PEManager::get().find_pe(pedesc_emem, 0);
+    peid_t peid = PEManager::get().find_pe(pedesc_emem);
     if(peid == 0) {
         // if that failed, try to find a SPM PE
-        peid = PEManager::get().find_pe(pedesc_imem, 0);
+        peid = PEManager::get().find_pe(pedesc_imem);
         if(peid == 0)
             PANIC("Unable to find a free PE for root task");
     }

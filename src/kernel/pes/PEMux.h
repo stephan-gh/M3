@@ -49,9 +49,6 @@ public:
         return VPEDesc(peid(), VPE::INVALID_ID);
     }
 
-    bool used() const {
-        return _vpes > 0;
-    }
     void add_vpe(VPECapability *vpe);
     void remove_vpe(VPE *vpe);
 

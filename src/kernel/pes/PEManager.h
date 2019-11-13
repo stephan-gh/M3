@@ -38,7 +38,7 @@ private:
     explicit PEManager();
 
 public:
-    peid_t find_pe(const m3::PEDesc &pe, peid_t except);
+    peid_t find_pe(const m3::PEDesc &pe);
 
     PEMux *pemux(peid_t pe) {
         return _muxes[pe];
