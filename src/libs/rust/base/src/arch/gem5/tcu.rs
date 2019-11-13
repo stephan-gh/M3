@@ -607,3 +607,27 @@ impl TCU {
         c.val as Reg | ((ep as Reg) << 4) | (arg << 24)
     }
 }
+
+#[cfg(feature = "kernel")]
+impl TCU {
+    /// Configures the given endpoint
+    pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
+        let off = EXT_REGS + UNPRIV_REGS + EP_REGS * ep;
+        let addr = MMIO_ADDR + off * 8;
+        for i in 0..EP_REGS {
+            unsafe {
+                arch::cpu::write8b(addr + i * util::size_of::<Reg>(), regs[i]);
+            }
+        }
+    }
+
+    /// Returns the MMIO address for the given external register
+    pub fn ext_reg_addr(reg: ExtReg) -> usize {
+        MMIO_ADDR + reg.val as usize * 8
+    }
+
+    /// Returns the MMIO address of the given endpoint registers
+    pub fn ep_regs_addr(ep: EpId) -> usize {
+        MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + EP_REGS * ep) * 8
+    }
+}

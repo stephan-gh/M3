@@ -663,21 +663,35 @@ static BACKEND: StaticCell<Option<backend::SocketBackend>> = StaticCell::new(Non
 static RUN: atomic::AtomicUsize = atomic::AtomicUsize::new(1);
 static mut TID: libc::pthread_t = 0;
 
+fn get_backend() -> &'static mut backend::SocketBackend {
+    BACKEND.get_mut().as_mut().unwrap()
+}
+
 extern "C" fn sigchild(_: i32) {
     // send notification to kernel
     unsafe {
         let mut status: i32 = 0;
         let pid = libc::wait(&mut status as *mut i32);
         if pid != -1 {
-            BACKEND.get().as_ref().unwrap().notify_kernel(pid, status);
+            get_backend().notify_kernel(pid, status);
         }
 
         libc::signal(libc::SIGCHLD, sigchild as usize);
     }
 }
 
+#[cfg(feature = "kernel")]
+pub fn bind_knotify() {
+    get_backend().bind_knotify();
+}
+
+#[cfg(feature = "kernel")]
+pub fn receive_knotify() -> Option<(libc::pid_t, i32)> {
+    get_backend().receive_knotify()
+}
+
 extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
-    let backend = BACKEND.get_mut().as_mut().unwrap();
+    let backend = get_backend();
 
     unsafe {
         libc::signal(libc::SIGCHLD, sigchild as usize);

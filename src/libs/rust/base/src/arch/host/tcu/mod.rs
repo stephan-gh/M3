@@ -198,7 +198,7 @@ impl Message {
 }
 
 pub const CMD_RCNT: usize = 8;
-pub const EPS_RCNT: usize = 16;
+pub const EP_REGS: usize = 16;
 
 static mut CMD_REGS: [Reg; CMD_RCNT] = [0; CMD_RCNT];
 
@@ -410,13 +410,36 @@ impl TCU {
     }
 
     fn ep_addr(ep: EpId, reg: usize) -> &'static mut Reg {
-        let off = (ep * EPS_RCNT + reg as usize) * util::size_of::<Reg>();
+        let off = (ep * EP_REGS + reg as usize) * util::size_of::<Reg>();
         unsafe { intrinsics::transmute(arch::envdata::eps_start() + off) }
     }
 }
 
+#[cfg(feature = "kernel")]
+impl TCU {
+    /// Configures the given endpoint
+    pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
+        for i in 0..EP_REGS {
+            unsafe { ptr::write_volatile(Self::ep_addr(ep, i), regs[i]) }
+        }
+    }
+
+    /// Returns the MMIO address of the given endpoint registers
+    pub fn ep_regs_addr(ep: EpId) -> usize {
+        Self::ep_addr(ep, 0) as *const _ as usize
+    }
+
+    pub fn bind_knotify() {
+        thread::bind_knotify();
+    }
+
+    pub fn receive_knotify() -> Option<(libc::pid_t, i32)> {
+        thread::receive_knotify()
+    }
+}
+
 pub fn init() {
-    const EP_SIZE: usize = (EP_COUNT * EPS_RCNT) * util::size_of::<Reg>();
+    const EP_SIZE: usize = (EP_COUNT * EP_REGS) * util::size_of::<Reg>();
     const_assert!(EP_SIZE <= cfg::EPMEM_SIZE);
 
     thread::init();

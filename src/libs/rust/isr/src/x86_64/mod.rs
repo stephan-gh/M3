@@ -18,6 +18,7 @@ use base::cpu;
 use core::fmt;
 
 pub const ISR_COUNT: usize = 66;
+pub const TCU_IRQ: usize = 64;
 
 pub const DPL_USER: u64 = 3;
 pub const DPL_KERNEL: u64 = 0;

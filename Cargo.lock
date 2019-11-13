@@ -149,6 +149,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustkernel"
+version = "0.1.0"
+dependencies = [
+ "base 0.1.0",
+ "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "isr 0.1.0",
+ "paging 0.1.0",
+ "thread 0.1.0",
+]
+
+[[package]]
 name = "rustunittests"
 version = "0.1.0"
 dependencies = [

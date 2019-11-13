@@ -26,7 +26,7 @@ pub const MEM_CAP_END: usize        = 0xFFFF_FFFF_FFFF_FFFF;
 pub const PE_COUNT: usize           = 18;
 
 pub const TOTAL_MEM_SIZE: usize     = 1024 * 1024 * 1024;
-pub const FS_MAX_SIZE: usize        = 512 * 1024 * 1024;
+pub const FS_MAX_SIZE: usize        = 640 * 1024 * 1024;
 pub const STACK_SIZE: usize         = 0x8000;
 
 pub const RBUF_STD_ADDR: usize      = 0;
@@ -38,6 +38,8 @@ pub const RBUF_SIZE_SPM: usize      = 16384;
 pub const LOCAL_MEM_SIZE: usize     = 512 * 1024 * 1024;
 pub const EPMEM_SIZE: usize         = 1 * 1024 * 1024;
 pub const APP_HEAP_SIZE: usize      = LOCAL_MEM_SIZE - RBUF_SIZE - EPMEM_SIZE;
+
+pub const FIXED_KMEM: usize         = 2 * 1024 * 1024;
 
 pub const KPEX_RBUF_ORD: i32        = 6;
 pub const SYSC_RBUF_ORD: i32        = 9;

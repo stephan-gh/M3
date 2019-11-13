@@ -108,18 +108,18 @@ impl PEDesc {
     }
 
     /// Return if the PE supports multiple contexts
-    pub fn supports_ctxsw(self) -> bool {
-        self.supports_ctx() && (self.isa() >= PEISA::ACCEL_INDIR || self.has_cache())
-    }
-
-    /// Return if the PE supports the context switching protocol
-    pub fn supports_ctx(self) -> bool {
-        self.supports_vpes() && self.isa() != PEISA::IDE_DEV
+    pub fn is_device(self) -> bool {
+        self.isa() == PEISA::NIC_DEV || self.isa() == PEISA::IDE_DEV
     }
 
     /// Return if the PE supports VPEs
     pub fn supports_vpes(self) -> bool {
         self.pe_type() != PEType::MEM
+    }
+
+    /// Return if the PE supports the context switching protocol
+    pub fn supports_pemux(self) -> bool {
+        self.supports_vpes() && self.isa() != PEISA::IDE_DEV
     }
 
     /// Returns whether the PE has an internal memory (SPM, DRAM, ...)

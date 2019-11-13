@@ -56,3 +56,9 @@ bitflags! {
         const RWX           = Self::R.bits | Self::W.bits | Self::X.bits;
     }
 }
+
+impl From<Perm> for PageFlags {
+    fn from(perm: Perm) -> Self {
+        PageFlags::from_bits_truncate(perm.bits() as u64)
+    }
+}

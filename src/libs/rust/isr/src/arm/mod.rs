@@ -17,6 +17,7 @@
 use core::fmt;
 
 pub const ISR_COUNT: usize = 8;
+pub const TCU_IRQ: usize = Vector::IRQ.val;
 
 #[derive(Default)]
 // for some reason, we need to specify the alignment here. actually, this struct needs to be packed,

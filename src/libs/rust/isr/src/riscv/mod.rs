@@ -17,6 +17,7 @@
 use core::fmt;
 
 pub const ISR_COUNT: usize = 32;
+pub const TCU_IRQ: usize = Vector::SUPER_EXT_IRQ.val;
 
 #[derive(Default)]
 // see comment in ARM code

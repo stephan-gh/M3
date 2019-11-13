@@ -30,6 +30,7 @@ pub(crate) struct SocketBackend {
 }
 
 #[repr(C, packed)]
+#[derive(Default)]
 struct KNotifyData {
     pid: libc::pid_t,
     status: i32,
@@ -142,6 +143,41 @@ impl SocketBackend {
                 util::size_of::<libc::sockaddr_un>() as u32,
             );
             assert!(res != -1);
+        }
+    }
+
+    #[cfg(feature = "kernel")]
+    pub fn bind_knotify(&self) {
+        unsafe {
+            assert!(
+                libc::bind(
+                    self.knotify_sock,
+                    &self.knotify_addr as *const libc::sockaddr_un as *const libc::sockaddr,
+                    util::size_of::<libc::sockaddr_un>() as u32
+                ) != -1
+            );
+        }
+    }
+
+    #[cfg(feature = "kernel")]
+    pub fn receive_knotify(&self) -> Option<(libc::pid_t, i32)> {
+        let mut data = KNotifyData::default();
+
+        let res = unsafe {
+            libc::recvfrom(
+                self.knotify_sock,
+                &mut data as *mut KNotifyData as *mut libc::c_void,
+                util::size_of::<KNotifyData>(),
+                libc::MSG_DONTWAIT,
+                ptr::null_mut(),
+                ptr::null_mut(),
+            )
+        };
+        if res <= 0 {
+            None
+        }
+        else {
+            Some((data.pid, data.status))
         }
     }
 

@@ -12,6 +12,10 @@ fi
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin
 
+if [ "$M3_KERNEL" = "rustkernel" ]; then
+    KPREFIX=rust
+fi
+
 if [ $# -lt 1 ]; then
     usage $0
 fi
@@ -62,7 +66,7 @@ build_params_host() {
 
     kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < run/boot-all.xml)
     mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < run/boot-all.xml)
-    echo "$bindir/$kargs run/boot.xml$mods"
+    echo "$bindir/$KPREFIX$kargs run/boot.xml$mods"
 }
 
 build_params_gem5() {
@@ -87,7 +91,7 @@ build_params_gem5() {
 
     M3_CORES=${M3_CORES:-16}
 
-    cmd="$cmd$bindir/$kargs,"
+    cmd="$cmd$bindir/$KPREFIX$kargs,"
     c=0
     while [ $c -lt $M3_CORES ]; do
         cmd="$cmd$bindir/pemux,"

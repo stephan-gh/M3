@@ -1,0 +1,16 @@
+[package]
+name = "rustkernel"
+version = "0.1.0"
+
+[lib]
+path = "src/rustkernel.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+base = { path = "../libs/rust/base", features = ["kernel"] }
+bitflags = "*"
+thread = { path = "../libs/rust/thread" }
+
+[target.'cfg(target_os = "none")'.dependencies]
+isr = { path = "../libs/rust/isr" }
+paging = { path = "../libs/rust/paging" }

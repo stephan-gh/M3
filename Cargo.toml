@@ -12,6 +12,7 @@ members = [
     "src/libs/rust/resmng",
     "src/libs/rust/thread",
     "src/pemux",
+    "src/rustkernel",
     "src/server/disk",
     "src/server/pager",
     "src/server/pipes",

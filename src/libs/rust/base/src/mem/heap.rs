@@ -96,9 +96,6 @@ fn heap_bounds() -> (usize, usize) {
         let end = if env.heap_size == 0 {
             PEDesc::new_from(env.pe_desc).rbuf_std_space().0
         }
-        else if env.pe_id == 0 {
-            begin + (4096 + 2048) * 1024
-        }
         else {
             begin + env.heap_size as usize
         };
