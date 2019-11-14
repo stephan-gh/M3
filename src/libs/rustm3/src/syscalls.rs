@@ -220,7 +220,7 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
 /// reply slots attached to it (for receive gate activations).
 pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Result<EpId, Error> {
     let req = syscalls::AllocEP {
-        opcode: syscalls::Operation::ALLOC_EPS.val,
+        opcode: syscalls::Operation::ALLOC_EP.val,
         dst_sel: u64::from(dst),
         vpe_sel: u64::from(vpe),
         epid: epid as u64,

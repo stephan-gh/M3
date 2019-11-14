@@ -38,7 +38,7 @@ int_enum! {
         const CREATE_MAP        = 4;
         const CREATE_VPE        = 5;
         const CREATE_SEM        = 6;
-        const ALLOC_EPS         = 7;
+        const ALLOC_EP          = 7;
 
         // capability operations
         const ACTIVATE          = 8;
