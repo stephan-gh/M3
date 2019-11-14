@@ -621,7 +621,7 @@ void SyscallHandler::vpe_wait(VPE *vpe, const m3::DTU::Message *msg) {
     reply.error = m3::Errors::NONE;
     reply.vpe_sel = m3::KIF::INV_SEL;
 
-    LOG_SYS(vpe, ": syscall::vpe_wait", "(vpes=" << count << ")");
+    LOG_SYS(vpe, ": syscall::vpe_wait", "(vpes=" << count << ", event=" << event << ")");
 
     if(event) {
         // first copy the selectors from the message to the stack
