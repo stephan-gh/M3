@@ -58,6 +58,7 @@ void VPE::reset() noexcept {
     _self_ptr->sel(KIF::SEL_VPE);
     _self_ptr->_mem.sel(KIF::SEL_MEM);
     _self_ptr->epmng().reset();
+    Gate::reset();
 }
 
 void VPE::run(void *lambda) {

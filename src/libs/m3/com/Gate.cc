@@ -20,6 +20,8 @@
 
 namespace m3 {
 
+SList<Gate> Gate::_gates;
+
 Gate::~Gate() {
     release_ep(VPE::self());
 }
@@ -40,13 +42,21 @@ const EP &Gate::activate(uintptr_t addr) {
 
 void Gate::activate_on(const EP &ep, uintptr_t addr) {
     Syscalls::activate(ep.sel(), sel(), addr);
+    _gates.append(this);
 }
 
 void Gate::release_ep(VPE &vpe) noexcept {
     if(_ep && _ep->id() >= DTU::FIRST_FREE_EP) {
         vpe.epmng().release(_ep, flags() & KEEP_CAP);
+        _gates.remove(this);
         _ep = nullptr;
     }
+}
+
+void Gate::reset() {
+    for(auto g = _gates.begin(); g != _gates.end(); ++g)
+        g->_ep = nullptr;
+    _gates.clear();
 }
 
 }
