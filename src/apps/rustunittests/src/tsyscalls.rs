@@ -411,7 +411,7 @@ fn derive_kmem() {
     // invalid quota
     wv_assert_err!(
         syscalls::derive_kmem(VPE::cur().kmem().sel(), sel, quota + 1),
-        Code::InvArgs
+        Code::NoSpace
     );
     // invalid kmem sel
     wv_assert_err!(
@@ -456,7 +456,7 @@ fn derive_pe() {
     // invalid ep count
     wv_assert_err!(
         syscalls::derive_pe(pe.sel(), sel, oquota + 1),
-        Code::InvArgs
+        Code::NoSpace
     );
     // invalid pe sel
     wv_assert_err!(syscalls::derive_pe(SEL_VPE, sel, 1), Code::InvArgs);

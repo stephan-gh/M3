@@ -702,7 +702,7 @@ void SyscallHandler::derive_kmem(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid KMem cap");
 
     if(!kmemcap->obj->has_quota(quota))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Insufficient quota");
+        SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "Insufficient quota");
 
     auto dercap = SYS_CREATE_CAP(vpe, msg, KMemCapability, KMemObject,
         &vpe->objcaps(), dst,
@@ -732,7 +732,7 @@ void SyscallHandler::derive_pe(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid PE cap");
 
     if(!pecap->obj->has_quota(eps))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Insufficient EPs");
+        SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "Insufficient EPs");
 
     auto dercap = SYS_CREATE_CAP(vpe, msg, PECapability, PEObject,
         &vpe->objcaps(), dst,
