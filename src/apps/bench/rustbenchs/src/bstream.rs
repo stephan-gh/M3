@@ -33,9 +33,7 @@ fn pingpong_1u64() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(1)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 
@@ -61,9 +59,7 @@ fn pingpong_2u64() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(1)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 
@@ -91,9 +87,7 @@ fn pingpong_4u64() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(1)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 
@@ -125,9 +119,7 @@ fn pingpong_str() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(1)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 
@@ -153,9 +145,7 @@ fn pingpong_strslice() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(1)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 

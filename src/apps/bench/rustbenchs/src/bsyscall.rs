@@ -262,7 +262,10 @@ fn exchange() {
     impl profile::Runner for Tester {
         fn pre(&mut self) {
             if self.vpe.is_none() {
-                self.vpe = Some(wv_assert_ok!(VPE::new_with(self.pe.clone(), VPEArgs::new("test"))));
+                self.vpe = Some(wv_assert_ok!(VPE::new_with(
+                    self.pe.clone(),
+                    VPEArgs::new("test")
+                )));
             }
         }
 
