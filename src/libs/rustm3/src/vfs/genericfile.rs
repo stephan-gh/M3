@@ -22,7 +22,7 @@ use core::fmt;
 use errors::Error;
 use goff;
 use io::{Read, Write};
-use kif::{syscalls, CapRngDesc, CapType, INVALID_SEL, Perm};
+use kif::{syscalls, CapRngDesc, CapType, Perm, INVALID_SEL};
 use pes::VPE;
 use rc::Rc;
 use serialize::Sink;

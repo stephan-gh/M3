@@ -16,7 +16,7 @@
 
 use col::Vec;
 use com::gate::Gate;
-use com::{EP, EPArgs};
+use com::{EPArgs, EP};
 use errors::Error;
 use kif::INVALID_SEL;
 use syscalls;

@@ -47,7 +47,10 @@ pub struct Capability {
 impl Capability {
     /// Creates a new `Capability` with given selector and flags.
     pub const fn new(sel: Selector, flags: CapFlags) -> Self {
-        Capability { sel: Cell::new(sel), flags }
+        Capability {
+            sel: Cell::new(sel),
+            flags,
+        }
     }
 
     /// Returns the selector.

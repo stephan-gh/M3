@@ -39,7 +39,7 @@ use vfs::{FileTable, MountTable};
 /// A virtual processing element is used to run an activity on a PE.
 pub struct VPE {
     cap: Capability,
-    rmng: ResMng,   // close the connection resource manager at last
+    rmng: ResMng, // close the connection resource manager at last
     pe: Rc<PE>,
     kmem: Rc<KMem>,
     mem: MemGate,
