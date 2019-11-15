@@ -286,10 +286,7 @@ fn create_sem() {
     let sel = VPE::cur().alloc_sel();
 
     // invalid selector
-    wv_assert_err!(
-        syscalls::create_sem(SEL_VPE, 0),
-        Code::InvArgs
-    );
+    wv_assert_err!(syscalls::create_sem(SEL_VPE, 0), Code::InvArgs);
     wv_assert_ok!(syscalls::create_sem(sel, 1));
     // one down does not block us
     wv_assert_ok!(syscalls::sem_ctrl(sel, SemOp::DOWN));
@@ -306,10 +303,7 @@ fn alloc_ep() {
         Code::InvArgs
     );
     // invalid VPE selector
-    wv_assert_err!(
-        syscalls::alloc_ep(sel, SEL_PE, EP_COUNT, 1),
-        Code::InvArgs
-    );
+    wv_assert_err!(syscalls::alloc_ep(sel, SEL_PE, EP_COUNT, 1), Code::InvArgs);
 
     // any EP
     let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT, 1));
@@ -500,7 +494,10 @@ fn pe_quota() {
 fn sem_ctrl() {
     // invalid selector
     wv_assert_err!(syscalls::sem_ctrl(SEL_VPE, SemOp::DOWN), Code::InvArgs);
-    wv_assert_err!(syscalls::sem_ctrl(VPE::cur().alloc_sel(), SemOp::DOWN), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::sem_ctrl(VPE::cur().alloc_sel(), SemOp::DOWN),
+        Code::InvArgs
+    );
 }
 
 fn vpe_ctrl() {
