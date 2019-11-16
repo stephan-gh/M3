@@ -30,13 +30,13 @@ INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::SEL_SYSC_SG, ObjCap::KEEP_C
 template<class T>
 Syscalls::SyscallReply<T> Syscalls::send_receive(const void *msg, size_t size) noexcept {
     const DTU::Message *reply = nullptr;
-    DTUIf::call(_sendgate, msg, size, *_sendgate.reply_gate(), &reply);
-    return SyscallReply<T>(reply);
+    Errors::Code res = DTUIf::call(_sendgate, msg, size, *_sendgate.reply_gate(), &reply);
+    return SyscallReply<T>(res, reply);
 }
 
 Errors::Code Syscalls::send_receive_err(const void *msg, size_t size) noexcept {
     auto reply = send_receive<KIF::DefaultReply>(msg, size);
-    return static_cast<Errors::Code>(reply->error);
+    return static_cast<Errors::Code>(reply.error());
 }
 
 void Syscalls::send_receive_throw(const void *msg, size_t size) {
@@ -134,11 +134,10 @@ epid_t Syscalls::alloc_ep(capsel_t dst, capsel_t vpe, epid_t ep, uint replies) {
 
     auto reply = send_receive<KIF::Syscall::AllocEPReply>(&req, sizeof(req));
 
-    epid_t epid = reply->ep;
-    Errors::Code res = static_cast<Errors::Code>(reply->error);
+    Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::ALLOC_EPS);
-    return epid;
+    return reply->ep;
 }
 
 void Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {
@@ -170,7 +169,7 @@ int Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel
     auto reply = send_receive<KIF::Syscall::VPEWaitReply>(&req, sizeof(req));
 
     int exitcode = -1;
-    Errors::Code res = static_cast<Errors::Code>(reply->error);
+    Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res == Errors::NONE && event == 0) {
         *vpe = reply->vpe_sel;
         exitcode = reply->exitcode;
@@ -219,7 +218,7 @@ size_t Syscalls::kmem_quota(capsel_t kmem) {
 
     auto reply = send_receive<KIF::Syscall::KMemQuotaReply>(&req, sizeof(req));
 
-    Errors::Code res = static_cast<Errors::Code>(reply->error);
+    Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::KMEM_QUOTA);
     return reply->amount;
@@ -232,7 +231,7 @@ uint Syscalls::pe_quota(capsel_t pe) {
 
     auto reply = send_receive<KIF::Syscall::PEQuotaReply>(&req, sizeof(req));
 
-    Errors::Code res = static_cast<Errors::Code>(reply->error);
+    Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, KIF::Syscall::PE_QUOTA);
     return reply->amount;
@@ -270,7 +269,7 @@ void Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc 
 
     auto reply = send_receive<KIF::Syscall::ExchangeSessReply>(&req, sizeof(req));
 
-    Errors::Code res = static_cast<Errors::Code>(reply->error);
+    Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
         throw SyscallException(res, static_cast<KIF::Syscall::Operation>(req.opcode));
     if(args)

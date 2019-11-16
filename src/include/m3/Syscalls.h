@@ -34,11 +34,18 @@ class Syscalls {
 
     template<class T>
     struct SyscallReply {
-        explicit SyscallReply(const DTU::Message *msg)
-            : _msg(msg) {
+        explicit SyscallReply(Errors::Code res, const DTU::Message *msg)
+            : _res(res),
+              _msg(msg) {
         }
         ~SyscallReply() {
             DTUIf::mark_read(RecvGate::syscall(), _msg);
+        }
+
+        Errors::Code error() const {
+            if(_res != Errors::NONE)
+                return _res;
+            return static_cast<Errors::Code>(operator->()->error);
         }
 
         const T *operator->() const {
@@ -46,6 +53,7 @@ class Syscalls {
         }
 
     private:
+        Errors::Code _res;
         const DTU::Message *_msg;
     };
 
