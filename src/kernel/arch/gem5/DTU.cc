@@ -28,7 +28,7 @@
 
 namespace kernel {
 
-static char buffer[4096];
+static char buffer[8192];
 
 void DTU::do_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     m3::Errors::Code res = try_priv_cmd(vpe, cmd);
@@ -64,8 +64,9 @@ void DTU::init_vpe(const VPEDesc &vpe) {
 
 void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     // reset all EPs to remove unread messages
-    size_t regsSize = (EP_COUNT - m3::DTU::FIRST_USER_EP) * m3::DTU::EP_REGS;
-    regsSize *= sizeof(m3::DTU::reg_t);
+    constexpr size_t userRegs = EP_COUNT - m3::DTU::FIRST_USER_EP;
+    constexpr size_t regsSize = (userRegs * m3::DTU::EP_REGS) * sizeof(m3::DTU::reg_t);
+    static_assert(regsSize <= sizeof(buffer), "Buffer too small");
     memset(buffer, 0, regsSize);
     write_mem(vpe, m3::DTU::ep_regs_addr(m3::DTU::FIRST_USER_EP), buffer, regsSize);
     // reset events register to be sure that the remote core can sleep
