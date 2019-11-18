@@ -15,12 +15,11 @@
  */
 
 use base::cell::StaticCell;
+use base::dtu;
 use base::libc;
 use core::fmt;
 use core::ptr;
 use isr;
-
-use vpe;
 
 type IsrFunc = extern "C" fn(state: &mut isr::State) -> *mut libc::c_void;
 
@@ -120,14 +119,14 @@ impl State {
 
     pub fn stop(&mut self) {
         if self.nested() {
+            // prevent us from sleeping
+            dtu::DTU::set_event().ok();
             *STOPPED.get_mut() = true;
         }
         else {
             self.rip = crate::sleep as *const fn() as usize;
             self.rsp = unsafe { &idle_stack as *const libc::c_void as usize };
             self.r[8] = self.rsp; // rbp and rsp
-
-            vpe::remove();
 
             *STOPPED.get_mut() = false;
         }

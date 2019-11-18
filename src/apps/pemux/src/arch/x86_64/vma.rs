@@ -23,6 +23,7 @@ use core::ptr;
 
 use helper;
 use isr;
+use upcalls;
 
 struct XlateState {
     in_pf: bool,
@@ -69,6 +70,9 @@ impl XlateState {
 
         self.in_pf = true;
 
+        // disable upcalls during DTU::send, because don't want to abort this command
+        upcalls::disable();
+
         // allow other translation requests in the meantime
         unsafe { asm!("sti" : : : "memory") };
 
@@ -79,6 +83,8 @@ impl XlateState {
         if let Err(e) = dtu::DTU::send(sep, msg, 3 * 8, 0, rep) {
             panic!("VMA: unable to send PF message: {}", e);
         }
+
+        upcalls::enable();
 
         // wait for reply
         let res = loop {
@@ -163,7 +169,7 @@ fn get_pte(virt: u64, perm: u64) -> u64 {
 
 fn translate_addr(req: dtu::Reg) -> bool {
     let virt = req & !cfg::PAGE_MASK as u64;
-    let perm = req & 0xF;
+    let perm = (req >> 1) & 0xF;
     let xfer_buf = (req >> 5) & 0x7;
 
     // translate to physical
@@ -206,7 +212,7 @@ fn translate_addr(req: dtu::Reg) -> bool {
     // (hopefully) be handled with a simple PT walk. we could improve that by setting the TLB entry
     // right away without continuing the transfer (because that's aborted)
     if !pf || !STATE.cmd.has_cmd() || STATE.cmd.xfer_buf() != xfer_buf {
-        dtu::DTU::set_xlate_resp(pte | (xfer_buf << 5));
+        dtu::DTU::set_core_resp(pte | (xfer_buf << 5));
     }
 
     if pf {
@@ -217,8 +223,8 @@ fn translate_addr(req: dtu::Reg) -> bool {
 }
 
 pub fn handle_xlate(mut xlate_req: dtu::Reg) {
-    // acknowledge the translation
-    dtu::DTU::set_xlate_req(0);
+    // acknowledge the request
+    dtu::DTU::set_core_req(0);
 
     if translate_addr(xlate_req) {
         // handle other requests that pagefaulted in the meantime

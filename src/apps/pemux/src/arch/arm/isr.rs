@@ -19,8 +19,6 @@ use base::libc;
 use core::fmt;
 use isr;
 
-use vpe;
-
 type IsrFunc = extern "C" fn(state: &mut isr::State) -> *mut libc::c_void;
 
 extern "C" {
@@ -100,8 +98,6 @@ impl State {
         else {
             self.pc = crate::sleep as *const fn() as usize;
             self.sp = unsafe { &idle_stack as *const libc::c_void as usize };
-
-            vpe::remove();
 
             *STOPPED.get_mut() = false;
         }

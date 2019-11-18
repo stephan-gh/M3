@@ -37,6 +37,17 @@ fn run_stop() {
     use m3::dtu::DTUIf;
     use m3::vfs;
 
+    if VPE::cur().pe_desc().has_virtmem() && !VPE::cur().pe_desc().has_mmu() {
+        // disabled for now, because if the kernel sends the STOP request to PEMux and PEMux's core
+        // is stuck in a pagefault, it deadlocks. This is because the pagefault might need the
+        // kernel to be completed and although the kernel handles the STOP request asynchronously,
+        // this deadlocks because the DTU cannot even complete *receive* the message at PEMux's PE
+        // due to the recvForeign core request :)
+        // so basically: kernel -> PEMux's DTU -> PEMux's core -> pager -> kernel
+        println!("VPE stop test does not work anymore with DTU-based paging; skipping.");
+        return;
+    }
+
     let mut rg = wv_assert_ok!(RecvGate::new_with(
         RGateArgs::default().order(6).msg_order(6)
     ));

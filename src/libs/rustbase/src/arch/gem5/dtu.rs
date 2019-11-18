@@ -61,7 +61,7 @@ pub const FIRST_FREE_EP: EpId = 11;
 /// The base address of the DTU's MMIO area
 pub const MMIO_ADDR: usize = 0xF000_0000;
 /// The number of DTU registers
-pub const DTU_REGS: usize = 7;
+pub const DTU_REGS: usize = 6;
 /// The number of command registers
 pub const CMD_REGS: usize = 5;
 /// The number of registers per EP
@@ -74,13 +74,12 @@ int_enum! {
     /// The DTU registers
     pub struct DtuReg : Reg {
         /// Stores various status flags
-        const STATUS      = 0;
-        const ROOT_PT     = 1;
-        const PF_EP       = 2;
-        const CUR_TIME    = 3;
-        const EVENTS      = 4;
-        const CLEAR_IRQ   = 5;
-        const CLOCK       = 6;
+        const STATUS        = 0;
+        const ROOT_PT       = 1;
+        const PF_EP         = 2;
+        const CUR_TIME      = 3;
+        const CLEAR_IRQ     = 4;
+        const CLOCK         = 5;
     }
 }
 
@@ -89,9 +88,9 @@ bitflags! {
     /// The status flag for the `DtuReg::STATUS` register
     pub struct StatusFlags : Reg {
         /// Whether the PE is privileged
-        const PRIV         = 1 << 0;
+        const PRIV          = 1 << 0;
         /// Whether page faults are send via `PF_EP`
-        const PAGEFAULTS   = 1 << 1;
+        const PAGEFAULTS    = 1 << 1;
     }
 }
 
@@ -100,15 +99,17 @@ int_enum! {
     /// The request registers
     pub struct PrivReg : Reg {
         /// For external requests
-        const EXT_REQ     = 0x0;
-        /// For translation requests
-        const XLATE_REQ   = 0x1;
-        /// For translation responses
-        const XLATE_RESP  = 0x2;
+        const EXT_REQ       = 0x0;
+        /// For core requests
+        const CORE_REQ     = 0x1;
+        /// For core responses
+        const CORE_RESP    = 0x2;
         /// For privileged commands
-        const PRIV_CMD    = 0x3;
+        const PRIV_CMD      = 0x3;
         /// The current VPE
-        const VPE_ID      = 0x4;
+        const CUR_VPE       = 0x4;
+        /// The old VPE (only set by XCHG_VPE command)
+        const OLD_VPE       = 0x5;
     }
 }
 
@@ -117,15 +118,15 @@ int_enum! {
     /// The command registers
     pub struct CmdReg : Reg {
         /// Starts commands and signals their completion
-        const COMMAND     = 0x0;
+        const COMMAND       = 0x0;
         /// Aborts commands
-        const ABORT       = 0x1;
+        const ABORT         = 0x1;
         /// Specifies the data address and size
-        const DATA        = 0x2;
+        const DATA          = 0x2;
         /// Specifies an offset
-        const OFFSET      = 0x3;
+        const OFFSET        = 0x3;
         /// Specifies the reply label
-        const REPLY_LABEL = 0x4;
+        const REPLY_LABEL   = 0x4;
     }
 }
 
@@ -133,41 +134,43 @@ int_enum! {
     /// The commands
     pub struct CmdOpCode : u64 {
         /// The idle command has no effect
-        const IDLE        = 0x0;
+        const IDLE          = 0x0;
         /// Sends a message
-        const SEND        = 0x1;
+        const SEND          = 0x1;
         /// Replies to a message
-        const REPLY       = 0x2;
+        const REPLY         = 0x2;
         /// Reads from external memory
-        const READ        = 0x3;
+        const READ          = 0x3;
         /// Writes to external memory
-        const WRITE       = 0x4;
+        const WRITE         = 0x4;
         /// Fetches a message
-        const FETCH_MSG   = 0x5;
+        const FETCH_MSG     = 0x5;
+        /// Fetches the events
+        const FETCH_EVENTS  = 0x6;
+        /// Sets the user event
+        const SET_EVENT     = 0x7;
         /// Acknowledges a message
-        const ACK_MSG     = 0x6;
-        /// Acknowledges events
-        const ACK_EVENTS  = 0x7;
+        const ACK_MSG       = 0x8;
         /// Puts the CU to sleep
-        const SLEEP       = 0x8;
+        const SLEEP         = 0x9;
         /// Prints a message
-        const PRINT       = 0x9;
+        const PRINT         = 0xA;
     }
 }
 
 int_enum! {
     struct EventType : u64 {
-        const MSG_RECV    = 0x0;
-        const CRD_RECV    = 0x1;
-        const EP_INVAL    = 0x2;
+        const MSG_RECV      = 0x0;
+        const CRD_RECV      = 0x1;
+        const EP_INVAL      = 0x2;
     }
 }
 
 bitflags! {
     struct EventMask : u64 {
-        const MSG_RECV    = 1 << EventType::MSG_RECV.val;
-        const CRD_RECV    = 1 << EventType::CRD_RECV.val;
-        const EP_INVAL    = 1 << EventType::EP_INVAL.val;
+        const MSG_RECV      = 1 << EventType::MSG_RECV.val;
+        const CRD_RECV      = 1 << EventType::CRD_RECV.val;
+        const EP_INVAL      = 1 << EventType::EP_INVAL.val;
     }
 }
 
@@ -218,6 +221,8 @@ int_enum! {
         const RESET       = 5;
         /// Flushes the CU's cache
         const FLUSH_CACHE = 6;
+        /// Changes the VPE
+        const XCHG_VPE    = 7;
     }
 }
 
@@ -413,15 +418,21 @@ impl DTU {
 
     #[inline(always)]
     pub fn fetch_events() -> Reg {
-        let old = Self::read_dtu_reg(DtuReg::EVENTS);
-        if old != 0 {
-            Self::write_cmd_reg(
-                CmdReg::COMMAND,
-                Self::build_cmd(0, CmdOpCode::ACK_EVENTS, 0, old),
-            );
-            unsafe { intrinsics::atomic_fence() };
-        }
-        old
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(0, CmdOpCode::FETCH_EVENTS, 0, 0),
+        );
+        unsafe { intrinsics::atomic_fence() };
+        Self::read_cmd_reg(CmdReg::OFFSET)
+    }
+
+    #[inline(always)]
+    pub fn set_event() -> Result<(), Error> {
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(0, CmdOpCode::SET_EVENT, 0, 0),
+        );
+        Self::get_error()
     }
 
     /// Returns true if the given endpoint is valid, i.e., a SEND, RECEIVE, or MEMORY endpoint
@@ -441,6 +452,13 @@ impl DTU {
         let cur = (r0 >> 19) & 0x3F;
         let max = (r0 >> 25) & 0x3F;
         cur < max
+    }
+
+    /// Returns the number of messages for the given receive EP
+    #[inline(always)]
+    pub fn msg_cnt(ep: EpId) -> Reg {
+        let r0 = Self::read_ep_reg(ep, 0);
+        (r0 >> 19) & 0x3F
     }
 
     /// Marks the given message for receive endpoint `ep` as read
@@ -548,24 +566,22 @@ impl DTU {
         Self::write_priv_reg(PrivReg::EXT_REQ, val)
     }
 
-    pub fn get_xlate_req() -> Reg {
-        Self::read_priv_reg(PrivReg::XLATE_REQ)
+    pub fn get_core_req() -> Reg {
+        Self::read_priv_reg(PrivReg::CORE_REQ)
     }
 
-    pub fn set_xlate_req(val: Reg) {
-        Self::write_priv_reg(PrivReg::XLATE_REQ, val)
+    pub fn set_core_req(val: Reg) {
+        Self::write_priv_reg(PrivReg::CORE_REQ, val)
     }
 
-    pub fn set_xlate_resp(val: Reg) {
-        Self::write_priv_reg(PrivReg::XLATE_RESP, val)
+    pub fn set_core_resp(val: Reg) {
+        Self::write_priv_reg(PrivReg::CORE_RESP, val)
     }
 
-    pub fn get_vpe_id() -> Reg {
-        Self::read_priv_reg(PrivReg::VPE_ID)
-    }
-
-    pub fn set_vpe_id(id: Reg) {
-        Self::write_priv_reg(PrivReg::VPE_ID, id);
+    pub fn xchg_vpe(nvpe: Reg) -> Reg {
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 4));
+        unsafe { intrinsics::atomic_fence() };
+        Self::read_priv_reg(PrivReg::OLD_VPE)
     }
 
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {

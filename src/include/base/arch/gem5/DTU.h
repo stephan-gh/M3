@@ -61,8 +61,8 @@ public:
     static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;
 
 private:
-    static const size_t DTU_REGS            = 7;
-    static const size_t PRIV_REGS           = 5;
+    static const size_t DTU_REGS            = 6;
+    static const size_t PRIV_REGS           = 6;
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
 
@@ -74,17 +74,17 @@ private:
         ROOT_PT             = 1,
         PF_EP               = 2,
         CUR_TIME            = 3,
-        EVENTS              = 4,
-        CLEAR_IRQ           = 5,
-        CLOCK               = 6,
+        CLEAR_IRQ           = 4,
+        CLOCK               = 5,
     };
 
     enum class PrivRegs {
         EXT_REQ             = 0,
-        XLATE_REQ           = 1,
-        XLATE_RESP          = 2,
+        CORE_REQ           = 1,
+        CORE_RESP          = 2,
         PRIV_CMD            = 3,
-        VPE_ID              = 4,
+        CUR_VPE             = 4,
+        OLD_VPE             = 5,
     };
 
     enum class CmdRegs {
@@ -120,10 +120,11 @@ private:
         READ                = 3,
         WRITE               = 4,
         FETCH_MSG           = 5,
-        ACK_MSG             = 6,
-        ACK_EVENTS          = 7,
-        SLEEP               = 8,
-        PRINT               = 9,
+        FETCH_EVENTS        = 6,
+        SET_EVENT           = 7,
+        ACK_MSG             = 8,
+        SLEEP               = 9,
+        PRINT               = 10,
     };
 
     enum class PrivCmdOpCode {
@@ -134,6 +135,7 @@ private:
         INV_REPLY           = 4,
         RESET               = 5,
         FLUSH_CACHE         = 6,
+        XCHG_VPE            = 7,
     };
 
 public:
@@ -281,6 +283,12 @@ private:
         return reinterpret_cast<const Message*>(read_reg(CmdRegs::OFFSET));
     }
 
+    reg_t fetch_events() const {
+        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::FETCH_EVENTS));
+        CPU::memory_barrier();
+        return read_reg(CmdRegs::OFFSET);
+    }
+
     void mark_read(epid_t ep, const Message *msg) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
@@ -296,14 +304,6 @@ private:
     void sleep_for(uint64_t cycles) {
         write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, cycles));
         get_error();
-    }
-
-    reg_t fetch_events() const {
-        reg_t old = read_reg(DtuRegs::EVENTS);
-        if(old != 0)
-            write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::ACK_EVENTS, 0, old));
-        CPU::memory_barrier();
-        return old;
     }
 
     void drop_msgs(epid_t ep, label_t label) {
@@ -332,14 +332,14 @@ private:
         return read_reg(DtuRegs::PF_EP);
     }
 
-    reg_t get_xlate_req() const {
-        return read_reg(PrivRegs::XLATE_REQ);
+    reg_t get_core_req() const {
+        return read_reg(PrivRegs::CORE_REQ);
     }
-    void set_xlate_req(reg_t val) {
-        write_reg(PrivRegs::XLATE_REQ, val);
+    void set_core_req(reg_t val) {
+        write_reg(PrivRegs::CORE_REQ, val);
     }
-    void set_xlate_resp(reg_t val) {
-        write_reg(PrivRegs::XLATE_RESP, val);
+    void set_core_resp(reg_t val) {
+        write_reg(PrivRegs::CORE_RESP, val);
     }
 
     reg_t get_ext_req() const {

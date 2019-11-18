@@ -23,6 +23,7 @@
 extern crate base;
 
 mod arch;
+mod corereq;
 mod helper;
 mod kernreq;
 mod pexcalls;
@@ -33,7 +34,6 @@ use base::cfg;
 use base::dtu;
 use base::envdata;
 use base::io;
-use base::kif;
 use base::libc;
 use core::intrinsics;
 
@@ -73,6 +73,8 @@ pub extern "C" fn unexpected_irq(state: &mut isr::State) -> *mut libc::c_void {
 pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
     vma::handle_mmu_pf(state);
 
+    upcalls::check(state);
+
     state.finalize()
 }
 
@@ -85,10 +87,15 @@ pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    // translation request from DTU?
-    let xlate_req = dtu::DTU::get_xlate_req();
-    if xlate_req != 0 {
-        vma::handle_xlate(xlate_req)
+    // core request from DTU?
+    let core_req = dtu::DTU::get_core_req();
+    if core_req != 0 {
+        if (core_req & 0x1) != 0 {
+            corereq::handle_recv(state, core_req);
+        }
+        else {
+            vma::handle_xlate(core_req)
+        }
     }
 
     // request from the kernel?
@@ -97,9 +104,7 @@ pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
         kernreq::handle_ext_req(ext_req);
     }
 
-    if state.came_from_user() {
-        upcalls::check(state);
-    }
+    upcalls::check(state);
 
     #[cfg(target_arch = "arm")]
     dtu::DTU::clear_irq();
@@ -119,5 +124,5 @@ pub extern "C" fn init() {
     }
 
     io::init(0, "pemux");
-    dtu::DTU::set_vpe_id(kif::pemux::IDLE_ID);
+    dtu::DTU::xchg_vpe(vpe::cur().vpe_reg());
 }

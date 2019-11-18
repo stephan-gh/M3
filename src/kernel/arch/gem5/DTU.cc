@@ -69,8 +69,6 @@ void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
     static_assert(regsSize <= sizeof(buffer), "Buffer too small");
     memset(buffer, 0, regsSize);
     write_mem(vpe, m3::DTU::ep_regs_addr(m3::DTU::FIRST_USER_EP), buffer, regsSize);
-    // reset events register to be sure that the remote core can sleep
-    write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::EVENTS), buffer, sizeof(m3::DTU::reg_t));
 
     // set new root PT and disable pagefaults
     static_assert(static_cast<int>(m3::DTU::DtuRegs::FEATURES) == 0, "FEATURES illdefined");

@@ -74,8 +74,7 @@ void PEManager::start_vpe(VPE *vpe) {
 
 void PEManager::stop_vpe(VPE *vpe) {
 #if defined(__gem5__)
-    // don't do that from the destructor
-    if(vpe->state() != VPE::DEAD)
+    if(!(vpe->_flags & VPE::F_STOPPED))
         pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
 #endif
 

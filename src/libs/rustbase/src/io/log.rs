@@ -60,6 +60,8 @@ pub const PEX_CALLS: bool = false;
 pub const PEX_VPES: bool = false;
 /// Logs upcalls in PEMux
 pub const PEX_UPCALLS: bool = false;
+/// Logs foreign messages in PEMux
+pub const PEX_FOREIGN_MSG: bool = false;
 
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";

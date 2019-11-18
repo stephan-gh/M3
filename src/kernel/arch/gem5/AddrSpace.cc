@@ -389,7 +389,7 @@ void AddrSpace::handle_xlate(m3::DTU::reg_t xlate_req) {
     m3::PEDesc kpe = m3::PEDesc(m3::MMU_VM);
 
     uintptr_t virt = xlate_req & ~PAGE_MASK;
-    uint perm = xlate_req & 0xF;
+    uint perm = (xlate_req >> 1) & 0xF;
     uint xferbuf = (xlate_req >> 5) & 0x7;
 
     // translate to physical
@@ -415,18 +415,20 @@ void AddrSpace::handle_xlate(m3::DTU::reg_t xlate_req) {
         PANIC("Pagefault during PT walk for " << virt << " (PTE=" << m3::fmt(pte, "p") << ")");
 
     // tell DTU the result
-    dtu.set_xlate_resp(pte | (xferbuf << 5));
+    dtu.set_core_resp(pte | (xferbuf << 5));
 }
 
 void *AddrSpace::dtu_handler(m3::ISR::State *state) {
     m3::DTU &dtu = m3::DTU::get();
 
     // translation request from DTU?
-    m3::DTU::reg_t xlate_req = dtu.get_xlate_req();
-    if(xlate_req) {
+    m3::DTU::reg_t core_req = dtu.get_core_req();
+    if(core_req) {
+        if(core_req & 0x1)
+            PANIC("Unexpected foreign receive: " << m3::fmt(core_req, "x"));
         // acknowledge the translation
-        dtu.set_xlate_req(0);
-        handle_xlate(xlate_req);
+        dtu.set_core_req(0);
+        handle_xlate(core_req);
     }
     return state;
 }

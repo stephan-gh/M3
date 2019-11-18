@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::StaticCell;
 use base::dtu;
 use base::errors::{Code, Error};
 use base::io;
@@ -23,6 +24,8 @@ use base::util;
 use helper;
 use isr;
 use vpe;
+
+static ENABLED: StaticCell<bool> = StaticCell::new(true);
 
 fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     let _irqs = helper::IRQsOnGuard::new();
@@ -35,11 +38,7 @@ fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     .unwrap();
 }
 
-fn vpe_ctrl(
-    msg: &'static dtu::Message,
-    state: &mut isr::State,
-    vpe: &mut u64,
-) -> Result<(), Error> {
+fn vpe_ctrl(msg: &'static dtu::Message, state: &mut isr::State) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
     let pe_id = req.pe_id as u32;
@@ -55,31 +54,29 @@ fn vpe_ctrl(
 
     match op {
         kif::pemux::VPEOp::INIT => {
-            *vpe = vpe_id;
+            vpe::add(vpe_id);
         },
 
         kif::pemux::VPEOp::START => {
             // remember the current PE
-            env().pe_id = pe_id;
-            state.init(env().entry as usize, env().sp as usize);
-            vpe::add(vpe_id);
-            *vpe = vpe_id;
+            ::env().pe_id = pe_id;
+            state.init(::env().entry as usize, ::env().sp as usize);
         },
 
         _ => {
             state.stop();
-            *vpe = kif::pemux::IDLE_ID;
+            vpe::remove();
         },
     }
 
     Ok(())
 }
 
-fn handle_upcall(msg: &'static dtu::Message, state: &mut isr::State, vpe: &mut u64) {
+fn handle_upcall(msg: &'static dtu::Message, state: &mut isr::State) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::pemux::Upcalls::from(req.opcode) {
-        kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg, state, vpe),
+        kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg, state),
         _ => Err(Error::new(Code::NotSup)),
     };
 
@@ -91,18 +88,47 @@ fn handle_upcall(msg: &'static dtu::Message, state: &mut isr::State, vpe: &mut u
     }
 }
 
+pub fn disable() {
+    ENABLED.set(false);
+}
+
+pub fn enable() {
+    ENABLED.set(true);
+}
+
 pub fn check(state: &mut isr::State) {
-    let _guard = helper::DTUGuard::new();
-
-    // change to our VPE
-    let mut old_vpe = dtu::DTU::get_vpe_id();
-    dtu::DTU::set_vpe_id(kif::pemux::VPE_ID);
-
-    let msg = dtu::DTU::fetch_msg(dtu::PEXUP_REP);
-    if let Some(m) = msg {
-        handle_upcall(m, state, &mut old_vpe);
+    if !*ENABLED {
+        return;
     }
 
-    // change back to old VPE
-    dtu::DTU::set_vpe_id(old_vpe);
+    let our = vpe::our();
+    if !our.has_msgs() {
+        return;
+    }
+
+    let _guard = helper::DTUGuard::new();
+
+    // don't handle other upcalls in the meantime
+    disable();
+
+    loop {
+        // change to our VPE
+        let old_vpe = dtu::DTU::xchg_vpe(our.vpe_reg());
+        vpe::cur().set_vpe_reg(old_vpe);
+
+        let msg = dtu::DTU::fetch_msg(dtu::PEXUP_REP);
+        if let Some(m) = msg {
+            handle_upcall(m, state);
+        }
+
+        // change back to old VPE
+        let new_vpe = vpe::cur().vpe_reg();
+        our.set_vpe_reg(dtu::DTU::xchg_vpe(new_vpe));
+        // if no events arrived in the meantime, we're done
+        if !our.has_msgs() {
+            break;
+        }
+    }
+
+    enable();
 }
