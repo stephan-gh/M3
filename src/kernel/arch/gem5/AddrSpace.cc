@@ -100,9 +100,9 @@ void AddrSpace::mmu_cmd_remote(const VPEDesc &vpe, m3::DTU::reg_t arg) {
     assert(arg != 0);
     DTU::get().ext_request(vpe, arg);
 
-    // wait until the remote core sends us an ACK (writes 0 to MASTER_REQ)
+    // wait until the remote core sends us an ACK (writes 0 to EXT_REQ)
     m3::DTU::reg_t mstreq = 1;
-    goff_t extarg_addr = m3::DTU::dtu_reg_addr(m3::DTU::ReqRegs::EXT_REQ);
+    goff_t extarg_addr = m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_REQ);
     while(mstreq != 0)
         DTU::get().read_mem(vpe, extarg_addr, &mstreq, sizeof(mstreq));
 }

@@ -39,7 +39,7 @@ void DTU::do_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
 m3::Errors::Code DTU::try_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     m3::DTU::reg_t reg = cmd;
     m3::CPU::compiler_barrier();
-    return try_write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::ReqRegs::PRIV_CMD), &reg, sizeof(reg));
+    return try_write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::PRIV_CMD), &reg, sizeof(reg));
 }
 
 gaddr_t DTU::deprivilege(peid_t pe) {
@@ -88,7 +88,7 @@ void DTU::flush_cache(const VPEDesc &vpe) {
 void DTU::ext_request(const VPEDesc &vpe, uint64_t req) {
     m3::DTU::reg_t reg = req;
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::ReqRegs::EXT_REQ), &reg, sizeof(reg));
+    write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_REQ), &reg, sizeof(reg));
 }
 
 void DTU::invtlb_remote(const VPEDesc &vpe) {

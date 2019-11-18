@@ -98,7 +98,7 @@ bitflags! {
 #[allow(dead_code)]
 int_enum! {
     /// The request registers
-    pub struct ReqReg : Reg {
+    pub struct PrivReg : Reg {
         /// For external requests
         const EXT_REQ     = 0x0;
         /// For translation requests
@@ -541,31 +541,31 @@ impl DTU {
     }
 
     pub fn get_ext_req() -> Reg {
-        Self::read_req_reg(ReqReg::EXT_REQ)
+        Self::read_priv_reg(PrivReg::EXT_REQ)
     }
 
     pub fn set_ext_req(val: Reg) {
-        Self::write_req_reg(ReqReg::EXT_REQ, val)
+        Self::write_priv_reg(PrivReg::EXT_REQ, val)
     }
 
     pub fn get_xlate_req() -> Reg {
-        Self::read_req_reg(ReqReg::XLATE_REQ)
+        Self::read_priv_reg(PrivReg::XLATE_REQ)
     }
 
     pub fn set_xlate_req(val: Reg) {
-        Self::write_req_reg(ReqReg::XLATE_REQ, val)
+        Self::write_priv_reg(PrivReg::XLATE_REQ, val)
     }
 
     pub fn set_xlate_resp(val: Reg) {
-        Self::write_req_reg(ReqReg::XLATE_RESP, val)
+        Self::write_priv_reg(PrivReg::XLATE_RESP, val)
     }
 
     pub fn get_vpe_id() -> Reg {
-        Self::read_req_reg(ReqReg::VPE_ID)
+        Self::read_priv_reg(PrivReg::VPE_ID)
     }
 
     pub fn set_vpe_id(id: Reg) {
-        Self::write_req_reg(ReqReg::VPE_ID, id);
+        Self::write_priv_reg(PrivReg::VPE_ID, id);
     }
 
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {
@@ -584,7 +584,7 @@ impl DTU {
         Self::read_reg(reg.val as usize)
     }
 
-    fn read_req_reg(reg: ReqReg) -> Reg {
+    fn read_priv_reg(reg: PrivReg) -> Reg {
         Self::read_reg(((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize)
     }
 
@@ -592,7 +592,7 @@ impl DTU {
         Self::read_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + reg)
     }
 
-    fn write_req_reg(reg: ReqReg, val: Reg) {
+    fn write_priv_reg(reg: PrivReg, val: Reg) {
         Self::write_reg(
             ((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize,
             val,

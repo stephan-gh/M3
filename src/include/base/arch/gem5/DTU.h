@@ -62,7 +62,7 @@ public:
 
 private:
     static const size_t DTU_REGS            = 7;
-    static const size_t REQ_REGS            = 5;
+    static const size_t PRIV_REGS           = 5;
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
 
@@ -79,7 +79,7 @@ private:
         CLOCK               = 6,
     };
 
-    enum class ReqRegs {
+    enum class PrivRegs {
         EXT_REQ             = 0,
         XLATE_REQ           = 1,
         XLATE_RESP          = 2,
@@ -333,20 +333,20 @@ private:
     }
 
     reg_t get_xlate_req() const {
-        return read_reg(ReqRegs::XLATE_REQ);
+        return read_reg(PrivRegs::XLATE_REQ);
     }
     void set_xlate_req(reg_t val) {
-        write_reg(ReqRegs::XLATE_REQ, val);
+        write_reg(PrivRegs::XLATE_REQ, val);
     }
     void set_xlate_resp(reg_t val) {
-        write_reg(ReqRegs::XLATE_RESP, val);
+        write_reg(PrivRegs::XLATE_RESP, val);
     }
 
     reg_t get_ext_req() const {
-        return read_reg(ReqRegs::EXT_REQ);
+        return read_reg(PrivRegs::EXT_REQ);
     }
     void set_ext_req(reg_t val) {
-        write_reg(ReqRegs::EXT_REQ, val);
+        write_reg(PrivRegs::EXT_REQ, val);
     }
 
     static Errors::Code get_error() {
@@ -361,7 +361,7 @@ private:
     static reg_t read_reg(DtuRegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
-    static reg_t read_reg(ReqRegs reg) {
+    static reg_t read_reg(PrivRegs reg) {
         return read_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg));
     }
     static reg_t read_reg(CmdRegs reg) {
@@ -377,7 +377,7 @@ private:
     static void write_reg(DtuRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
-    static void write_reg(ReqRegs reg, reg_t value) {
+    static void write_reg(PrivRegs reg, reg_t value) {
         write_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg), value);
     }
     static void write_reg(CmdRegs reg, reg_t value) {
@@ -390,7 +390,7 @@ private:
     static uintptr_t dtu_reg_addr(DtuRegs reg) {
         return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
-    static uintptr_t dtu_reg_addr(ReqRegs reg) {
+    static uintptr_t priv_reg_addr(PrivRegs reg) {
         return MMIO_ADDR + (PAGE_SIZE * 2) + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t cmd_reg_addr(CmdRegs reg) {
