@@ -121,9 +121,7 @@ impl Session {
             let reply = thread::ThreadManager::get()
                 .fetch_msg()
                 .ok_or_else(|| Error::new(Code::RecvGone))?;
-            let reply =
-                unsafe { &*(&reply.data as *const [u8] as *const [kif::service::OpenReply]) };
-            let reply = &reply[0];
+            let reply = reply.get_data::<kif::service::OpenReply>();
 
             if reply.res != 0 {
                 return Err(Error::from(reply.res as u32));

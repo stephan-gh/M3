@@ -574,9 +574,7 @@ impl ChildManager {
     }
 
     pub fn handle_upcall(&mut self, msg: &'static dtu::Message) {
-        let slice: &[kif::upcalls::VPEWait] =
-            unsafe { &*(&msg.data as *const [u8] as *const [kif::upcalls::VPEWait]) };
-        let upcall = &slice[0];
+        let upcall = msg.get_data::<kif::upcalls::VPEWait>();
 
         self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
 

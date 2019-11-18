@@ -56,10 +56,10 @@ fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
         util::size_of::<T>(),
         RecvGate::syscall(),
     )?;
-    let data: &[R] = unsafe { &*(&msg.data as *const [u8] as *const [R]) };
+
     Ok(Reply {
         msg,
-        data: &data[0],
+        data: msg.get_data::<R>(),
     })
 }
 

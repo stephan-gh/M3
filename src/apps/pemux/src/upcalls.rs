@@ -47,7 +47,7 @@ fn vpe_ctrl(
     state: &mut isr::State,
     vpe: &mut u64,
 ) -> Result<(), Error> {
-    let req = &unsafe { &*(&msg.data as *const [u8] as *const [kif::pemux::VPECtrl]) }[0];
+    let req = msg.get_data::<kif::pemux::VPECtrl>();
 
     let pe_id = req.pe_id as u32;
     let vpe_id = req.vpe_sel;
@@ -83,7 +83,7 @@ fn vpe_ctrl(
 }
 
 fn handle_upcall(msg: &'static dtu::Message, state: &mut isr::State, vpe: &mut u64) {
-    let req = &unsafe { &*(&msg.data as *const [u8] as *const [kif::DefaultRequest]) }[0];
+    let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::pemux::Upcalls::from(req.opcode) {
         kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg, state, vpe),

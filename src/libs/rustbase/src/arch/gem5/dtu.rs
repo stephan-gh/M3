@@ -272,6 +272,14 @@ pub struct Message {
     pub data: [u8],
 }
 
+impl Message {
+    /// Returns the message data as a reference to `T`.
+    pub fn get_data<T>(&self) -> &T {
+        let slice = unsafe { &*(&self.data as *const [u8] as *const [T]) };
+        &slice[0]
+    }
+}
+
 /// The DTU interface
 pub struct DTU {}
 
