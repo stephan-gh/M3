@@ -29,10 +29,13 @@ mod pexcalls;
 mod upcalls;
 mod vpe;
 
+use base::cfg;
 use base::dtu;
+use base::envdata;
 use base::io;
 use base::kif;
 use base::libc;
+use core::intrinsics;
 
 use arch::isr;
 use arch::vma;
@@ -48,6 +51,10 @@ static mut HEAP: [u64; 8 * 1024] = [0; 8 * 1024];
 #[no_mangle]
 pub extern "C" fn exit(_code: i32) {
     unsafe { gem5_shutdown(0) };
+}
+
+pub fn env() -> &'static mut envdata::EnvData {
+    unsafe { intrinsics::transmute(cfg::ENV_START) }
 }
 
 #[no_mangle]

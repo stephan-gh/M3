@@ -14,22 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-use base::cfg;
 use base::dtu;
-use base::envdata;
 use base::errors::{Code, Error};
 use base::io;
 use base::kif;
 use base::util;
-use core::intrinsics;
 
 use helper;
 use isr;
 use vpe;
-
-fn env() -> &'static mut envdata::EnvData {
-    unsafe { intrinsics::transmute(cfg::ENV_START) }
-}
 
 fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     let _irqs = helper::IRQsOnGuard::new();

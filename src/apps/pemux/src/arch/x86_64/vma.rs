@@ -18,6 +18,7 @@ use base::cell::StaticCell;
 use base::cfg;
 use base::const_assert;
 use base::dtu;
+use base::kif::PEDesc;
 use core::ptr;
 
 use helper;
@@ -244,7 +245,7 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     assert!(state.came_from_user());
 
     // if we don't use the MMU, we shouldn't get here
-    // TODO assert!(env().pedesc.has_mmu());
+    assert!(PEDesc::new_from(::env().pe_desc).has_mmu());
 
     let perm = to_dtu_pte((state.error & 0x7) as u64);
     if !STATE.get_mut().handle_pf(0, cr2, perm) {
