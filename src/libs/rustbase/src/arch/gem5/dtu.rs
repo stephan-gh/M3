@@ -205,20 +205,18 @@ int_enum! {
     pub struct ExtCmdOpCode : Reg {
         /// The idle command has no effect
         const IDLE        = 0;
-        /// Wake up the CU in case it's sleeping
-        const WAKEUP_CORE = 1;
         /// Invalidate and endpoint, if possible
-        const INV_EP      = 2;
+        const INV_EP      = 1;
         /// Invalidate a single TLB entry
-        const INV_PAGE    = 3;
+        const INV_PAGE    = 2;
         /// Invalidate all TLB entries
-        const INV_TLB     = 4;
+        const INV_TLB     = 3;
         /// Invalidate replies from a given sender
-        const INV_REPLY   = 5;
+        const INV_REPLY   = 4;
         /// Reset the CU
-        const RESET       = 6;
-        /// Acknowledge a message
-        const ACK_MSG     = 7;
+        const RESET       = 5;
+        /// Flushes the CU's cache
+        const FLUSH_CACHE = 6;
     }
 }
 
