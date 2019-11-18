@@ -44,7 +44,6 @@ public:
     bool config_mem_cached(epid_t ep, peid_t pe);
 
     void config_pf(gaddr_t rootpt, epid_t sep, epid_t rep);
-    void reset(gaddr_t entry, bool flushInval);
 
 #if defined(__host__)
     void update_recv(epid_t ep, goff_t base);

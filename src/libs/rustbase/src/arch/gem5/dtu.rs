@@ -61,7 +61,7 @@ pub const FIRST_FREE_EP: EpId = 11;
 /// The base address of the DTU's MMIO area
 pub const MMIO_ADDR: usize = 0xF000_0000;
 /// The number of DTU registers
-pub const DTU_REGS: usize = 8;
+pub const DTU_REGS: usize = 7;
 /// The number of command registers
 pub const CMD_REGS: usize = 5;
 /// The number of registers per EP
@@ -79,9 +79,8 @@ int_enum! {
         const PF_EP       = 2;
         const CUR_TIME    = 3;
         const EVENTS      = 4;
-        const EXT_CMD     = 5;
-        const CLEAR_IRQ   = 6;
-        const CLOCK       = 7;
+        const CLEAR_IRQ   = 5;
+        const CLOCK       = 6;
     }
 }
 
@@ -106,8 +105,10 @@ int_enum! {
         const XLATE_REQ   = 0x1;
         /// For translation responses
         const XLATE_RESP  = 0x2;
+        /// For privileged commands
+        const PRIV_CMD    = 0x3;
         /// The current VPE
-        const VPE_ID      = 0x3;
+        const VPE_ID      = 0x4;
     }
 }
 
@@ -201,8 +202,8 @@ int_enum! {
 }
 
 int_enum! {
-    /// The external commands
-    pub struct ExtCmdOpCode : Reg {
+    /// The privileged commands
+    pub struct PrivCmdOpCode : Reg {
         /// The idle command has no effect
         const IDLE        = 0;
         /// Invalidate and endpoint, if possible

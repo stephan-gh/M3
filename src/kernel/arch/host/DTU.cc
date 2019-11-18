@@ -29,6 +29,10 @@ gaddr_t DTU::deprivilege(peid_t) {
     return 0;
 }
 
+void DTU::init_vpe(const VPEDesc &) {
+    // nothing to do
+}
+
 void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t) {
     pid_t pid = VPEManager::get().vpe(vpe.id).pid();
     // if the VPE didn't run, it has no PID yet

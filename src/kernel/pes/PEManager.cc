@@ -45,7 +45,6 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
 #if defined(__gem5__)
     auto pex = pemux(vpe->peid());
     auto dtustate = pex->dtustate();
-    dtustate.reset(0, true);
     vpe->_state = VPE::RUNNING;
 
     // set address space properties first to load them during the restore
@@ -55,6 +54,7 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
         dtustate.config_pf(as->root_pt(), m3::DTU::PG_SEP, rep);
     }
     dtustate.restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
+    DTU::get().init_vpe(vpe->desc());
 
     vpe->init_memory();
 

@@ -44,6 +44,7 @@ public:
 
     gaddr_t deprivilege(peid_t pe);
 
+    void init_vpe(const VPEDesc &vpe);
     void kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt);
 
     void ext_request(const VPEDesc &vpe, uint64_t req);
@@ -83,8 +84,8 @@ public:
 
 private:
 #if defined(__gem5__)
-    void do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
-    m3::Errors::Code try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
+    void do_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
+    m3::Errors::Code try_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
 #endif
 
     epid_t _ep;

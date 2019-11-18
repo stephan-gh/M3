@@ -61,8 +61,8 @@ public:
     static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;
 
 private:
-    static const size_t DTU_REGS            = 8;
-    static const size_t REQ_REGS            = 4;
+    static const size_t DTU_REGS            = 7;
+    static const size_t REQ_REGS            = 5;
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
 
@@ -75,16 +75,16 @@ private:
         PF_EP               = 2,
         CUR_TIME            = 3,
         EVENTS              = 4,
-        EXT_CMD             = 5,
-        CLEAR_IRQ           = 6,
-        CLOCK               = 7,
+        CLEAR_IRQ           = 5,
+        CLOCK               = 6,
     };
 
     enum class ReqRegs {
         EXT_REQ             = 0,
         XLATE_REQ           = 1,
         XLATE_RESP          = 2,
-        VPE_ID              = 3,
+        PRIV_CMD            = 3,
+        VPE_ID              = 4,
     };
 
     enum class CmdRegs {
@@ -126,7 +126,7 @@ private:
         PRINT               = 9,
     };
 
-    enum class ExtCmdOpCode {
+    enum class PrivCmdOpCode {
         IDLE                = 0,
         INV_EP              = 1,
         INV_PAGE            = 2,
