@@ -21,7 +21,7 @@ extern crate m3;
 
 use core::mem::MaybeUninit;
 use m3::cap::Selector;
-use m3::cell::RefCell;
+use m3::cell::StaticCell;
 use m3::com::{GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::io::{Read, Serial, Write};
@@ -36,6 +36,12 @@ use m3::vfs::GenFileOp;
 const MSG_SIZE: usize = 64;
 const BUF_SIZE: usize = 256;
 const MAX_CLIENTS: usize = 32;
+
+static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
+
+fn rgate() -> &'static RecvGate {
+    RGATE.get().as_ref().unwrap()
+}
 
 #[derive(Debug)]
 struct VTermSession {
@@ -62,15 +68,9 @@ struct Channel {
 }
 
 impl Channel {
-    fn new(
-        id: SessId,
-        rgate: &RecvGate,
-        mem: &MemGate,
-        caps: Selector,
-        writing: bool,
-    ) -> Result<Self, Error> {
+    fn new(id: SessId, mem: &MemGate, caps: Selector, writing: bool) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
-            SGateArgs::new(rgate)
+            SGateArgs::new(rgate())
                 .label(id as u64)
                 .credits(1)
                 .sel(caps + 1),
@@ -170,9 +170,8 @@ impl Channel {
 
 struct VTermHandler {
     sel: Selector,
-    sessions: RefCell<SessionContainer<VTermSession>>,
+    sessions: SessionContainer<VTermSession>,
     mem: MemGate,
-    rgate: RecvGate,
 }
 
 impl VTermHandler {
@@ -194,23 +193,23 @@ impl VTermHandler {
             sid,
             self.sel,
             sels,
-            SessionData::Chan(Channel::new(sid, &self.rgate, &self.mem, sels, writing)?),
+            SessionData::Chan(Channel::new(sid, &self.mem, sels, writing)?),
         )
     }
 
-    fn close_sess(&self, sid: SessId) -> Result<(), Error> {
+    fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
         log!(VTERM, "[{}] vterm::close()", sid);
-        self.sessions.borrow_mut().remove(sid);
+        self.sessions.remove(sid);
         Ok(())
     }
 }
 
 impl Handler for VTermHandler {
     fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        let sid = self.sessions.borrow().next_id()?;
+        let sid = self.sessions.next_id()?;
         let sel = VPE::cur().alloc_sel();
         let sess = self.new_sess(sid, srv_sel, sel, SessionData::Meta)?;
-        self.sessions.borrow_mut().add(sid, sess);
+        self.sessions.add(sid, sess);
         log!(VTERM, "[{}] vterm::new_meta()", sid);
         Ok((sel, sid))
     }
@@ -221,7 +220,7 @@ impl Handler for VTermHandler {
         }
 
         let (nsid, nsess) = {
-            let sessions = self.sessions.borrow();
+            let sessions = &self.sessions;
             let nsid = sessions.next_id()?;
             let sess = sessions.get(sid).unwrap();
             match &sess.data {
@@ -245,7 +244,7 @@ impl Handler for VTermHandler {
         log!(VTERM, "[{}] vterm::new_chan()", nsid);
 
         let sel = nsess.sess.sel();
-        self.sessions.borrow_mut().add(nsid, nsess);
+        self.sessions.add(nsid, nsess);
 
         data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2).value();
         Ok(())
@@ -260,7 +259,7 @@ impl Handler for VTermHandler {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let mut sessions = self.sessions.borrow_mut();
+        let sessions = &mut self.sessions;
         let sess = sessions.get_mut(sid).unwrap();
         match &mut sess.data {
             SessionData::Meta => Err(Error::new(Code::InvArgs)),
@@ -280,52 +279,51 @@ impl Handler for VTermHandler {
 
 impl VTermHandler {
     pub fn new(sel: Selector) -> Result<Self, Error> {
-        let mut rgate = RecvGate::new(
-            util::next_log2(MAX_CLIENTS * MSG_SIZE),
-            util::next_log2(MSG_SIZE),
-        )?;
-        rgate.activate()?;
         Ok(VTermHandler {
             sel,
-            sessions: RefCell::new(SessionContainer::new(MAX_CLIENTS)),
+            sessions: SessionContainer::new(MAX_CLIENTS),
             mem: MemGate::new(MAX_CLIENTS * BUF_SIZE, Perm::RW)?,
-            rgate,
         })
     }
 
-    pub fn handle(&mut self) -> Result<(), Error> {
-        if let Some(mut is) = self.rgate.fetch() {
-            let res = match is.pop() {
-                GenFileOp::NEXT_IN => self.with_chan(&mut is, |c, is| c.next_in(is)),
-                GenFileOp::NEXT_OUT => self.with_chan(&mut is, |c, is| c.next_out(is)),
-                GenFileOp::COMMIT => self.with_chan(&mut is, |c, is| c.commit(is)),
-                GenFileOp::CLOSE => {
-                    let sid = is.label() as SessId;
-                    // reply before we destroy the client's sgate. otherwise the client might
-                    // notice the invalidated sgate before getting the reply and therefore give
-                    // up before receiving the reply a bit later anyway. this in turn causes
-                    // trouble if the receive gate (with the reply) is reused for something else.
-                    reply_vmsg!(is, 0).ok();
-                    self.close_sess(sid)
-                },
-                GenFileOp::STAT => Err(Error::new(Code::NotSup)),
-                GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
-                _ => Err(Error::new(Code::InvArgs)),
-            };
+    pub fn handle(&mut self, mut is: &mut GateIStream) -> Result<(), Error> {
+        let res = match is.pop() {
+            GenFileOp::NEXT_IN => {
+                Self::with_chan(&mut self.sessions, &mut is, |c, is| c.next_in(is))
+            },
+            GenFileOp::NEXT_OUT => {
+                Self::with_chan(&mut self.sessions, &mut is, |c, is| c.next_out(is))
+            },
+            GenFileOp::COMMIT => Self::with_chan(&mut self.sessions, &mut is, |c, is| c.commit(is)),
+            GenFileOp::CLOSE => {
+                let sid = is.label() as SessId;
+                // reply before we destroy the client's sgate. otherwise the client might
+                // notice the invalidated sgate before getting the reply and therefore give
+                // up before receiving the reply a bit later anyway. this in turn causes
+                // trouble if the receive gate (with the reply) is reused for something else.
+                reply_vmsg!(is, 0).ok();
+                self.close_sess(sid)
+            },
+            GenFileOp::STAT => Err(Error::new(Code::NotSup)),
+            GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
+            _ => Err(Error::new(Code::InvArgs)),
+        };
 
-            if let Err(e) = res {
-                is.reply_error(e.code()).ok();
-            }
+        if let Err(e) = res {
+            is.reply_error(e.code()).ok();
         }
 
         Ok(())
     }
 
-    fn with_chan<F, R>(&self, is: &mut GateIStream, func: F) -> Result<R, Error>
+    fn with_chan<F, R>(
+        sessions: &mut SessionContainer<VTermSession>,
+        is: &mut GateIStream,
+        func: F,
+    ) -> Result<R, Error>
     where
         F: Fn(&mut Channel, &mut GateIStream) -> Result<R, Error>,
     {
-        let mut sessions = self.sessions.borrow_mut();
         let sess = sessions.get_mut(is.label() as SessId).unwrap();
         match &mut sess.data {
             SessionData::Meta => Err(Error::new(Code::InvArgs)),
@@ -340,10 +338,23 @@ pub fn main() -> i32 {
 
     let mut hdl = VTermHandler::new(s.sel()).expect("Unable to create handler");
 
+    let mut rg = RecvGate::new(
+        util::next_log2(MAX_CLIENTS * MSG_SIZE),
+        util::next_log2(MSG_SIZE),
+    )
+    .expect("Unable to create rgate");
+    rg.activate().expect("Unable to activate rgate");
+    RGATE.set(Some(rg));
+
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        hdl.handle()
+        if let Some(mut is) = rgate().fetch() {
+            hdl.handle(&mut is)
+        }
+        else {
+            Ok(())
+        }
     })
     .ok();
 
