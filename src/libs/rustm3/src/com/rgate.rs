@@ -188,6 +188,11 @@ impl RecvGate {
         self.gate.ep().map(|ep| ep.id())
     }
 
+    /// Sets the receive gate's endpoint
+    pub(crate) fn set_ep(&mut self, ep: dtu::EpId) {
+        self.gate.set_ep(ep);
+    }
+
     /// Returns the address of the receive buffer
     pub fn buffer(&self) -> usize {
         self.buf
@@ -282,6 +287,11 @@ impl RecvGate {
     #[inline(always)]
     pub fn receive(&self, sgate: Option<&SendGate>) -> Result<GateIStream, Error> {
         dtu::DTUIf::receive(self, sgate).map(|m| GateIStream::new(m, self))
+    }
+
+    /// Drops all messages with given label. That is, these messages will be marked as read.
+    pub fn drop_msgs_with(&self, label: dtu::Label) {
+        dtu::DTU::drop_msgs_with(self.ep().unwrap(), label);
     }
 }
 

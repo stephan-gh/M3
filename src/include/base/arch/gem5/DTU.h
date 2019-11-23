@@ -307,8 +307,8 @@ private:
     }
 
     void drop_msgs(epid_t ep, label_t label) {
-        // we assume that the one that used the label can no longer send messages. thus, if there are
-        // no messages yet, we are done.
+        // we assume that the one that used the label can no longer send messages. thus, if there
+        // are no messages yet, we are done.
         reg_t r0 = read_reg(ep, 0);
         if(((r0 >> 19) & 0x3F) == 0)
             return;

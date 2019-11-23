@@ -8,9 +8,10 @@ members = [
     "src/libs/rustm3",
     "src/libs/rustresmng",
     "src/libs/rustthread",
+    "src/server/pipes",
     "src/server/root",
-    "src/server/vterm",
     "src/server/subsys",
+    "src/server/vterm",
 ]
 
 [profile.release]

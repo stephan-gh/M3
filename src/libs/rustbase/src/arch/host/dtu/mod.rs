@@ -225,11 +225,7 @@ impl DTU {
 
         let msg = Self::get_cmd(CmdReg::OFFSET);
         if msg != 0 {
-            unsafe {
-                let head = msg as *const Header;
-                let slice = [msg as usize, (*head).length as usize];
-                Some(intrinsics::transmute(slice))
-            }
+            Some(Self::addr_to_msg(msg))
         }
         else {
             None
@@ -290,6 +286,36 @@ impl DTU {
         Self::set_ep(ep, EpReg::BUF_MSG_CNT, 0);
         Self::set_ep(ep, EpReg::BUF_UNREAD, 0);
         Self::set_ep(ep, EpReg::BUF_OCCUPIED, 0);
+    }
+
+    pub fn drop_msgs_with(ep: EpId, label: Label) {
+        // we assume that the one that used the label can no longer send messages. thus, if there
+        // are no messages yet, we are done.
+        if Self::get_ep(ep, EpReg::BUF_MSG_CNT) == 0 {
+            return;
+        }
+
+        let base = Self::get_ep(ep, EpReg::BUF_ADDR);
+        let order = Self::get_ep(ep, EpReg::BUF_ORDER);
+        let msg_order = Self::get_ep(ep, EpReg::BUF_MSGORDER);
+        let unread = Self::get_ep(ep, EpReg::BUF_UNREAD);
+        let max = 1 << (order - msg_order);
+        for i in 0..max {
+            if (unread & (1 << i)) != 0 {
+                let msg = Self::addr_to_msg(base + (i << msg_order));
+                if msg.header.label == label {
+                    Self::mark_read(ep, msg);
+                }
+            }
+        }
+    }
+
+    fn addr_to_msg(addr: Reg) -> &'static Message {
+        unsafe {
+            let head = addr as *const Header;
+            let slice = [addr as usize, (*head).length as usize];
+            intrinsics::transmute(slice)
+        }
     }
 
     #[allow(clippy::too_many_arguments)]

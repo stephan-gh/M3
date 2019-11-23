@@ -1,2 +1,2 @@
 Import('env')
-env.M3Program(env, 'pipes', env.Glob('*.cc'))
+env.RustProgram(env, target = 'pipes')

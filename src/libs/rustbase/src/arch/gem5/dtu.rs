@@ -405,11 +405,7 @@ impl DTU {
         unsafe { intrinsics::atomic_fence() };
         let msg = Self::read_cmd_reg(CmdReg::OFFSET);
         if msg != 0 {
-            unsafe {
-                let head = msg as usize as *const Header;
-                let slice = [msg as usize, (*head).length as usize];
-                Some(intrinsics::transmute(slice))
-            }
+            Some(Self::addr_to_msg(msg))
         }
         else {
             None
@@ -503,6 +499,29 @@ impl DTU {
             Self::build_cmd(0, CmdOpCode::SLEEP, 0, cycles),
         );
         Self::get_error()
+    }
+
+    /// Drops all messages in the receive buffer of given receive EP that have the given label.
+    pub fn drop_msgs_with(ep: EpId, label: Label) {
+        // we assume that the one that used the label can no longer send messages. thus, if there
+        // are no messages yet, we are done.
+        let r0 = Self::read_ep_reg(ep, 0);
+        if ((r0 >> 19) & 0x3F) == 0 {
+            return;
+        }
+
+        let base = Self::read_ep_reg(ep, 1);
+        let buf_size = 1 << ((r0 >> 33) & 0x3F);
+        let msg_size = (r0 >> 39) & 0x3F;
+        let unread = Self::read_ep_reg(ep, 2) >> 32;
+        for i in 0..buf_size {
+            if (unread & (1 << i)) != 0 {
+                let msg = Self::addr_to_msg(base + (i << msg_size));
+                if msg.header.label == label {
+                    Self::mark_read(ep, msg);
+                }
+            }
+        }
     }
 
     /// Prints the given message into the gem5 log
@@ -613,6 +632,14 @@ impl DTU {
             ((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize,
             val,
         )
+    }
+
+    fn addr_to_msg(addr: Reg) -> &'static Message {
+        unsafe {
+            let head = addr as usize as *const Header;
+            let slice = [addr as usize, (*head).length as usize];
+            intrinsics::transmute(slice)
+        }
     }
 
     fn read_reg(idx: usize) -> Reg {

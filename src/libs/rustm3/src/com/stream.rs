@@ -253,6 +253,11 @@ impl GateOStream {
         self.buf.size()
     }
 
+    /// Returns the marshalled message as a slice of words
+    pub fn words(&self) -> &[u64] {
+        self.buf.words()
+    }
+
     /// Pushes the given object into the stream.
     #[inline(always)]
     pub fn push<T: Marshallable>(&mut self, item: &T) {
@@ -304,6 +309,12 @@ impl<'r> GateIStream<'r> {
     #[inline(always)]
     pub fn size(&self) -> usize {
         self.source.data().len() * util::size_of::<u64>()
+    }
+
+    /// Removes the message from this gate stream, so that no ACK will be performed on drop.
+    pub fn take_msg(&mut self) -> &'static dtu::Message {
+        self.ack = false;
+        self.source.msg
     }
 
     /// Pops an object of type `T` from the message.

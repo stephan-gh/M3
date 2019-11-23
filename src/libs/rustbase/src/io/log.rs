@@ -36,6 +36,8 @@ pub const THREAD: bool = false;
 pub const FILES: bool = false;
 /// Logs vterm operations
 pub const VTERM: bool = false;
+/// Logs pipes operations
+pub const PIPES: bool = false;
 
 /// Logs general operations of the resource manager
 pub const RESMNG: bool = true;

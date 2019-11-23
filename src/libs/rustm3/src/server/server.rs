@@ -16,6 +16,7 @@
 
 use cap::{CapFlags, Capability, Selector};
 use com::{GateIStream, RecvGate};
+use dtu::EpId;
 use errors::{Code, Error};
 use kif::service;
 use pes::VPE;
@@ -66,6 +67,17 @@ impl Server {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
             rgate,
         })
+    }
+
+    /// Binds a new server to given selector and receive EP.
+    pub fn new_bind(caps: Selector, ep: EpId) -> Self {
+        let mut rgate = RecvGate::new_bind(caps + 1, util::next_log2(512), util::next_log2(256));
+        rgate.set_ep(ep);
+
+        Server {
+            cap: Capability::new(caps + 0, CapFlags::KEEP_CAP),
+            rgate,
+        }
     }
 
     /// Returns the capability selector of the service
