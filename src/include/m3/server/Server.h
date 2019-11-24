@@ -33,12 +33,15 @@ template<class HDL>
 class Server : public ObjCap {
     using handler_func = void (Server::*)(GateIStream &is);
 
+    static constexpr size_t MSG_SIZE = 256;
+    static constexpr size_t BUF_SIZE = MSG_SIZE * 2;
+
 public:
     explicit Server(const String &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
         : ObjCap(SERVICE, VPE::self().alloc_sel()),
           _handler(std::move(handler)),
           _ctrl_handler(),
-          _rgate(RecvGate::create(nextlog2<512>::val, nextlog2<256>::val)) {
+          _rgate(RecvGate::create(nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         init(wl);
 
         LLOG(SERV, "create(" << name << ")");
@@ -49,7 +52,7 @@ public:
         : ObjCap(SERVICE, caps + 0, KEEP_CAP),
           _handler(std::move(handler)),
           _ctrl_handler(),
-          _rgate(RecvGate::bind(caps + 1, nextlog2<512>::val, nextlog2<256>::val)) {
+          _rgate(RecvGate::bind(caps + 1, nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         _rgate.set_ep(ep);
         init(wl);
     }
