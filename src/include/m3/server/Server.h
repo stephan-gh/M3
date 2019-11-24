@@ -65,6 +65,7 @@ public:
             catch(...) {
                 // ignore
             }
+            flags(KEEP_CAP);
         }
     }
 

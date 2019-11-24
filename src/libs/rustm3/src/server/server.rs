@@ -67,7 +67,7 @@ impl Server {
         VPE::cur().resmng().reg_service(sel, rgate.sel(), name)?;
 
         Ok(Server {
-            cap: Capability::new(sel, CapFlags::KEEP_CAP),
+            cap: Capability::new(sel, CapFlags::empty()),
             rgate,
         })
     }
@@ -194,6 +194,9 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        VPE::cur().resmng().unreg_service(self.sel(), false).ok();
+        if !self.cap.flags().contains(CapFlags::KEEP_CAP) {
+            VPE::cur().resmng().unreg_service(self.sel(), false).ok();
+            self.cap.set_flags(CapFlags::KEEP_CAP);
+        }
     }
 }
