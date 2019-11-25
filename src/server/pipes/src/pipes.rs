@@ -38,7 +38,7 @@ use m3::session::ServerSession;
 use m3::util;
 use m3::vfs::GenFileOp;
 
-use sess::{Channel, Meta, PipesSession, SessionData};
+use sess::{Channel, ChanType, Meta, PipesSession, SessionData};
 
 const MSG_SIZE: usize = 64;
 const MAX_CLIENTS: usize = 32;
@@ -133,16 +133,19 @@ impl Handler for PipesHandler {
                     }
 
                     let sel = VPE::cur().alloc_sels(2);
-                    let read = data.args.ival(0) == 1;
+                    let ty = match data.args.ival(0) {
+                        1 => ChanType::READ,
+                        _ => ChanType::WRITE,
+                    };
                     log!(
                         PIPES,
-                        "[{}] pipes::new_chan(sid={}, sel={}, read={})",
+                        "[{}] pipes::new_chan(sid={}, sel={}, ty={:?})",
                         sid,
                         nsid,
                         sel,
-                        read
+                        ty
                     );
-                    let chan = p.new_chan(nsid, sel, read)?;
+                    let chan = p.new_chan(nsid, sel, ty)?;
                     p.attach(&chan);
                     self.new_sess(nsid, self.sel, sel, SessionData::Chan(chan))
                         .map(|s| (nsid, s, false))

@@ -245,17 +245,15 @@ impl Pipe {
         self.state.borrow_mut().mem = Some(MemGate::new_bind(sel));
     }
 
-    pub fn new_chan(&self, sid: SessId, sel: Selector, read: bool) -> Result<Channel, Error> {
-        Channel::new(sid, sel, read, self.id, self.state.clone())
+    pub fn new_chan(&self, sid: SessId, sel: Selector, ty: ChanType) -> Result<Channel, Error> {
+        Channel::new(sid, sel, ty, self.id, self.state.clone())
     }
 
     pub fn attach(&mut self, chan: &Channel) {
         assert!(chan.pipe == self.id);
-        if chan.read {
-            self.state.borrow_mut().reader.push(chan.id);
-        }
-        else {
-            self.state.borrow_mut().writer.push(chan.id);
+        match chan.i.ty {
+            ChanType::READ => self.state.borrow_mut().reader.push(chan.id),
+            ChanType::WRITE => self.state.borrow_mut().writer.push(chan.id),
         }
     }
 
@@ -267,21 +265,33 @@ impl Pipe {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum ChanType {
+    READ,
+    WRITE,
+}
+
+// TODO this struct is packed atm to avoid a code generation bug on ARM (as far as I can see)
+#[repr(C, packed)]
+struct ChanIntern {
+    ty: ChanType,
+    mem: Option<MemGate>,
+}
+
 pub struct Channel {
+    i: ChanIntern,
     id: SessId,
-    read: bool,
     pipe: SessId,
     state: Rc<RefCell<State>>,
     sgate: SendGate,
     ep_cap: Option<Selector>,
-    mem: Option<MemGate>,
 }
 
 impl Channel {
     fn new(
         id: SessId,
         sel: Selector,
-        read: bool,
+        ty: ChanType,
         pipe: SessId,
         state: Rc<RefCell<State>>,
     ) -> Result<Self, Error> {
@@ -292,13 +302,12 @@ impl Channel {
                 .sel(sel + 1),
         )?;
         Ok(Channel {
+            i: ChanIntern { ty, mem: None },
             id,
-            read,
             pipe,
             state,
             sgate,
             ep_cap: None,
-            mem: None,
         })
     }
 
@@ -311,7 +320,7 @@ impl Channel {
     }
 
     pub fn clone(&self, id: SessId, sel: Selector) -> Result<Channel, Error> {
-        Channel::new(id, sel, self.read, self.pipe, self.state.clone())
+        Channel::new(id, sel, self.i.ty, self.pipe, self.state.clone())
     }
 
     pub fn set_ep(&mut self, ep: Selector) {
@@ -321,11 +330,9 @@ impl Channel {
     pub fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         log!(PIPES, "[{}] pipes::next_in()", self.id);
 
-        let res = if !self.read {
-            Err(Error::new(Code::InvArgs))
-        }
-        else {
-            self.read(is, 0)
+        let res = match self.i.ty {
+            ChanType::READ => self.read(is, 0),
+            ChanType::WRITE => Err(Error::new(Code::InvArgs)),
         };
 
         self.state.borrow_mut().handle_pending_writes();
@@ -335,11 +342,9 @@ impl Channel {
     pub fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         log!(PIPES, "[{}] pipes::next_out()", self.id);
 
-        let res = if self.read {
-            Err(Error::new(Code::InvArgs))
-        }
-        else {
-            self.write(is, 0)
+        let res = match self.i.ty {
+            ChanType::READ => Err(Error::new(Code::InvArgs)),
+            ChanType::WRITE => self.write(is, 0),
         };
 
         self.state.borrow_mut().handle_pending_reads();
@@ -351,11 +356,9 @@ impl Channel {
 
         log!(PIPES, "[{}] pipes::commit(nbytes={})", self.id, nbytes);
 
-        let res = if self.read {
-            self.read(is, nbytes)
-        }
-        else {
-            self.write(is, nbytes)
+        let res = match self.i.ty {
+            ChanType::READ => self.read(is, nbytes),
+            ChanType::WRITE => self.write(is, nbytes),
         };
 
         self.handle_pending();
@@ -363,11 +366,9 @@ impl Channel {
     }
 
     pub fn close(&mut self, _sids: &mut Vec<SessId>) -> Result<(), Error> {
-        let res = if self.read {
-            self.close_reader()
-        }
-        else {
-            self.close_writer()
+        let res = match self.i.ty {
+            ChanType::READ => self.close_reader(),
+            ChanType::WRITE => self.close_writer(),
         };
 
         self.handle_pending();
@@ -375,11 +376,9 @@ impl Channel {
     }
 
     fn handle_pending(&mut self) {
-        if self.read {
-            self.state.borrow_mut().handle_pending_writes();
-        }
-        else {
-            self.state.borrow_mut().handle_pending_reads();
+        match self.i.ty {
+            ChanType::READ => self.state.borrow_mut().handle_pending_writes(),
+            ChanType::WRITE => self.state.borrow_mut().handle_pending_reads(),
         }
     }
 
@@ -534,15 +533,15 @@ impl Channel {
 
     fn activate(&mut self) -> Result<(), Error> {
         if let Some(cap) = self.ep_cap.take() {
-            assert!(self.mem.is_none());
+            unsafe {
+                assert!(self.i.mem.is_none());
+            }
 
             let state = self.state.borrow();
             if let Some(mem) = &state.mem {
-                let perm = if self.read {
-                    kif::Perm::R
-                }
-                else {
-                    kif::Perm::W
+                let perm = match self.i.ty {
+                    ChanType::READ => kif::Perm::R,
+                    ChanType::WRITE => kif::Perm::W,
                 };
                 let cmem = mem.derive(0, state.mem_size, perm)?;
                 log!(
@@ -553,7 +552,7 @@ impl Channel {
                     cmem.sel()
                 );
                 syscalls::activate(cap, cmem.sel(), 0)?;
-                self.mem = Some(cmem);
+                self.i.mem = Some(cmem);
             }
             else {
                 return Err(Error::new(Code::InvArgs));
