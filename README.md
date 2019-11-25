@@ -22,13 +22,24 @@ Currently, M³ runs on the following platforms:
 Getting Started:
 ----------------
 
+### Initial setup
+
+If you setup the project on a new (ubuntu) machine make sure to have at least the following packages installed
+
+    $ sudo apt update
+    $ sudo apt install git build-essential scons zlib1g-dev \
+        m4 libboost-all-dev libssl-dev libgmp3-dev libmpfr-dev \
+        libmpc-dev libncurses5-dev texinfo ninja-build
+
 ### Preparations for gem5:
 
+The submodule in `hw/gem5` needs to be pulled in and built: \
+_(__Hint__: you need username/password-authentication. SSH-authentication won't work due to the submodule git urls)_
 The submodule in `hw/gem5` needs to be pulled in and built:
 
     $ git submodule update --init --recursive
     $ cd hw/gem5
-    $ scons build/X86/gem5.opt build/X86/gem5.debug
+    $ scons build/X86/gem5.opt build/X86/gem5.debug [-j 4]
 
 Additionally, you need to build a cross compiler for the desired ISA:
 
@@ -73,3 +84,11 @@ References:
 
 [2] Nils Asmussen, Marcus Völp, Benedikt Nöthen, Hermann Härtig, and Gerhard Fettweis. *M3: A Hardware/Operating-System Co-Design to Tame Heterogeneous Manycores*. In Proceedings of the Twenty-first International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS'16), pages 189-203, April 2016.
 
+Troubleshooting:
+----------------
+
+- gem5
+  - "six not found":
+    - `pip3 install --ignore-installed six`
+  - "pid_t getpid() was declared 'extern' and later 'static'":
+    - on newer versions of e.g. ubuntu (19.10) the declaration of `pid_t getpid()` in `unistd_ext.h` changed; just remove the old declaration in `src/cpu/kvm/timer.cc` at the beginning of the file and build again
