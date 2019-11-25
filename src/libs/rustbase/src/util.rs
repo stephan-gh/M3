@@ -41,7 +41,7 @@ pub const fn size_of<T>() -> usize {
 
 /// Returns the size of `val`
 pub fn size_of_val<T: ?Sized>(val: &T) -> usize {
-    unsafe { intrinsics::size_of_val(val) }
+    intrinsics::size_of_val(val)
 }
 
 /// Converts the given C string into a string slice
