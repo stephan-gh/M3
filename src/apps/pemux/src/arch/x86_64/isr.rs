@@ -19,7 +19,9 @@ use base::dtu;
 use base::libc;
 use core::fmt;
 use core::ptr;
+
 use isr;
+use vpe;
 
 type IsrFunc = extern "C" fn(state: &mut isr::State) -> *mut libc::c_void;
 
@@ -119,7 +121,7 @@ impl State {
 
     pub fn stop(&mut self) {
         if self.nested() {
-            // prevent us from sleeping
+            // prevent us from sleeping by setting the user event
             dtu::DTU::set_event().ok();
             *STOPPED.get_mut() = true;
         }
@@ -128,6 +130,9 @@ impl State {
             self.rsp = unsafe { &idle_stack as *const libc::c_void as usize };
             self.r[8] = self.rsp; // rbp and rsp
 
+            // remove user event again
+            let our = vpe::our();
+            our.set_vpe_reg(our.vpe_reg() & !dtu::EventMask::USER.bits());
             *STOPPED.get_mut() = false;
         }
     }

@@ -160,17 +160,17 @@ int_enum! {
 
 int_enum! {
     struct EventType : u64 {
-        const MSG_RECV      = 0x0;
-        const CRD_RECV      = 0x1;
-        const EP_INVAL      = 0x2;
+        const CRD_RECV      = 0x0;
+        const EP_INVAL      = 0x1;
+        const USER          = 0x2;
     }
 }
 
 bitflags! {
-    struct EventMask : u64 {
-        const MSG_RECV      = 1 << EventType::MSG_RECV.val;
+    pub struct EventMask : u64 {
         const CRD_RECV      = 1 << EventType::CRD_RECV.val;
         const EP_INVAL      = 1 << EventType::EP_INVAL.val;
+        const USER          = 1 << EventType::USER.val;
     }
 }
 
