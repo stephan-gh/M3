@@ -300,12 +300,22 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
 
     // activate pager EPs
     auto pemux = PEManager::get().pemux(nvpe->peid());
-    if(pg_sg != m3::KIF::INV_SEL)
+    if(pg_sg != m3::KIF::INV_SEL) {
+        // workaround: remember the endpoint so that we invalidate it on gate destruction
+        auto sep = new EPObject(pemux->pe(), nvpe, m3::DTU::PG_SEP, 0);
+        nvpe->set_pg_sep(sep);
         pemux->config_snd_ep(m3::DTU::PG_SEP, nvpe->id(), *sgatecap->obj);
+        sgatecap->obj->add_ep(sep);
+        sep->gate = &*sgatecap->obj;
+    }
     if(pg_rg != m3::KIF::INV_SEL) {
+        auto rep = new EPObject(pemux->pe(), nvpe, m3::DTU::PG_REP, 1);
+        nvpe->set_pg_rep(rep);
         rgatecap->obj->pe = nvpe->peid();
         rgatecap->obj->addr = VMA_RBUF;
         pemux->config_rcv_ep(m3::DTU::PG_REP, nvpe->id(), EP_COUNT, *rgatecap->obj);
+        rgatecap->obj->add_ep(rep);
+        rep->gate = &*rgatecap->obj;
     }
 
     m3::KIF::Syscall::CreateVPEReply reply;

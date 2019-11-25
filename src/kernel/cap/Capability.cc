@@ -109,22 +109,26 @@ EPObject::EPObject(PEObject *_pe, VPE *_vpe, epid_t _ep, uint _replies)
       replies(_replies),
       pe(_pe),
       gate() {
-    vpe->add_ep(this);
+    if(ep >= m3::DTU::FIRST_FREE_EP)
+        vpe->add_ep(this);
 }
 
 EPObject::~EPObject() {
     if(gate != nullptr)
         gate->remove_ep(this);
 
-    if(vpe != nullptr)
-        vpe->remove_ep(this);
+    // this check is necessary for the pager EP objects in the VPE
+    if(ep >= m3::DTU::FIRST_FREE_EP) {
+        if(vpe != nullptr)
+            vpe->remove_ep(this);
 
-    // free EPs at PEMux
-    auto pemux = PEManager::get().pemux(pe->id);
-    pemux->free_eps(ep, 1 + replies);
+        // free EPs at PEMux
+        auto pemux = PEManager::get().pemux(pe->id);
+        pemux->free_eps(ep, 1 + replies);
 
-    // grant it back to PE cap
-    pe->free(1 + replies);
+        // grant it back to PE cap
+        pe->free(1 + replies);
+    }
 }
 
 m3::Errors::Code SemObject::down() {

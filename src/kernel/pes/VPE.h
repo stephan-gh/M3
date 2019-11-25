@@ -156,6 +156,13 @@ public:
         _eps.remove(ep);
     }
 
+    void set_pg_sep(EPObject *ep) {
+        _pg_sep = ep;
+    }
+    void set_pg_rep(EPObject *ep) {
+        _pg_rep = ep;
+    }
+
     void upcall(const void *msg, size_t size, bool onheap) {
         _upcqueue.send(m3::DTU::UPCALL_REP, 0, msg, size, onheap);
     }
@@ -189,6 +196,8 @@ private:
     m3::Reference<KMemObject> _kmem;
     m3::Reference<PEObject> _pe;
     m3::DList<EPObject> _eps;
+    EPObject *_pg_sep;
+    EPObject *_pg_rep;
     m3::String _name;
     CapTable _objcaps;
     CapTable _mapcaps;

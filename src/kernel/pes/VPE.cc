@@ -45,6 +45,8 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
       _kmem(kmemcap ? kmemcap->obj : m3::Reference<KMemObject>()),
       _pe(pecap ? pecap->obj : m3::Reference<PEObject>()),
       _eps(),
+      _pg_sep(),
+      _pg_rep(),
       _name(std::move(prog)),
       _objcaps(id),
       _mapcaps(id),
@@ -120,6 +122,8 @@ VPE::~VPE() {
     m3::DTU::get().drop_msgs(syscall_ep(), reinterpret_cast<label_t>(this));
     SyscallHandler::free_ep(syscall_ep());
 
+    delete _pg_sep;
+    delete _pg_rep;
     delete _as;
 
     _pe->vpes--;
