@@ -70,20 +70,20 @@ impl PipesHandler {
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
-            let sess = self.sessions.get_mut(id).unwrap();
+            if let Some(sess) = self.sessions.get_mut(id) {
+                log!(PIPES, "[{}] pipes::close(): closing {}", sid, id);
 
-            log!(PIPES, "[{}] pipes::close(): closing {}", sid, id);
+                // ignore errors here
+                let _ = match &mut sess.data_mut() {
+                    SessionData::Meta(ref mut m) => m.close(&mut sids),
+                    SessionData::Pipe(ref mut p) => p.close(&mut sids),
+                    SessionData::Chan(ref mut c) => c.close(&mut sids),
+                };
 
-            // ignore errors here
-            let _ = match &mut sess.data_mut() {
-                SessionData::Meta(ref mut m) => m.close(&mut sids),
-                SessionData::Pipe(ref mut p) => p.close(&mut sids),
-                SessionData::Chan(ref mut c) => c.close(&mut sids),
-            };
-
-            self.sessions.remove(id);
-            // ignore all potentially outstanding messages of this session
-            rgate().drop_msgs_with(id as Label);
+                self.sessions.remove(id);
+                // ignore all potentially outstanding messages of this session
+                rgate().drop_msgs_with(id as Label);
+            }
         }
         Ok(())
     }
