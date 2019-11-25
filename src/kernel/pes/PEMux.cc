@@ -149,6 +149,7 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGa
         << ", replyeps=" << rpleps
         << "]");
 
+    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     dtustate().config_recv(ep, vpe, rbuf_base() + obj.addr, obj.order, obj.msgorder, rpleps);
     update_ep(ep);
 
@@ -170,6 +171,7 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj) 
         << "]");
 
     obj.activated = true;
+    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     dtustate().config_send(ep, vpe, obj.label, obj.rgate->pe, obj.rgate->ep,
                            obj.rgate->msgorder, obj.credits);
     update_ep(ep);
@@ -187,7 +189,7 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject 
         << ", perms=#" << m3::fmt(obj.perms, "x")
         << "]");
 
-    // TODO
+    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     dtustate().config_mem(ep, vpe, obj.pe, obj.addr + off, obj.size - off, obj.perms);
     update_ep(ep);
     return m3::Errors::NONE;
