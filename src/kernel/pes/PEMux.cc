@@ -142,14 +142,14 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGa
     if(obj.addr < addr + _rbufs_size)
         return m3::Errors::INV_ARGS;
 
+    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
-        "RGate[addr=#" << m3::fmt(obj.addr, "x")
+        "RGate[vpe=" << vpe << ", addr=#" << m3::fmt(obj.addr, "x")
         << ", order=" << obj.order
         << ", msgorder=" << obj.msgorder
         << ", replyeps=" << rpleps
         << "]");
 
-    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     dtustate().config_recv(ep, vpe, rbuf_base() + obj.addr, obj.order, obj.msgorder, rpleps);
     update_ep(ep);
 
@@ -162,8 +162,9 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj) 
     if(obj.activated)
         return m3::Errors::EXISTS;
 
+    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
-        "Send[pe=" << obj.rgate->pe
+        "Send[vpe=" << vpe << ", pe=" << obj.rgate->pe
         << ", ep=" << obj.rgate->ep
         << ", label=#" << m3::fmt(obj.label, "x")
         << ", msgsize=" << obj.rgate->msgorder
@@ -171,7 +172,6 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj) 
         << "]");
 
     obj.activated = true;
-    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     dtustate().config_send(ep, vpe, obj.label, obj.rgate->pe, obj.rgate->ep,
                            obj.rgate->msgorder, obj.credits);
     update_ep(ep);
@@ -182,14 +182,14 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject 
     if(off >= obj.size || obj.addr + off < off)
         return m3::Errors::INV_ARGS;
 
+    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
-        "Mem [pe=" << obj.pe
+        "Mem [vpe=" << vpe << ", pe=" << obj.pe
         << ", addr=#" << m3::fmt(obj.addr + off, "x")
         << ", size=#" << m3::fmt(obj.size - off, "x")
         << ", perms=#" << m3::fmt(obj.perms, "x")
         << "]");
 
-    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     dtustate().config_mem(ep, vpe, obj.pe, obj.addr + off, obj.size - off, obj.perms);
     update_ep(ep);
     return m3::Errors::NONE;
