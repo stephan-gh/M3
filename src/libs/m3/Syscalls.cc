@@ -24,7 +24,7 @@
 
 namespace m3 {
 
-INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::SEL_SYSC_SG, ObjCap::KEEP_CAP,
+INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::INV_SEL, ObjCap::KEEP_CAP,
                                                 &RecvGate::syscall(), DTU::SYSC_SEP);
 
 template<class T>

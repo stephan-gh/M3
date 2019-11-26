@@ -40,17 +40,17 @@ static void *get_rgate_buf(UNUSED size_t off) {
 }
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
-    VPE::self(), KIF::SEL_SYSC_RG, DTU::SYSC_REP, get_rgate_buf(0),
+    VPE::self(), KIF::INV_SEL, DTU::SYSC_REP, get_rgate_buf(0),
         m3::nextlog2<SYSC_RBUF_SIZE>::val, SYSC_RBUF_ORDER, KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
-    VPE::self(), KIF::SEL_UPC_RG, DTU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
+    VPE::self(), KIF::INV_SEL, DTU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
         m3::nextlog2<UPCALL_RBUF_SIZE>::val, UPCALL_RBUF_ORDER, KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
-    VPE::self(), KIF::SEL_DEF_RG, DTU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
+    VPE::self(), KIF::INV_SEL, DTU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
         m3::nextlog2<DEF_RBUF_SIZE>::val, DEF_RBUF_ORDER, KEEP_CAP
 );
 

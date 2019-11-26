@@ -23,7 +23,7 @@ use core::fmt;
 use core::ops;
 use dtu;
 use errors::Error;
-use kif::{self, INVALID_SEL};
+use kif::INVALID_SEL;
 use pes::VPE;
 use syscalls;
 use util;
@@ -31,11 +31,11 @@ use util;
 const DEF_MSG_ORD: u32 = 6;
 
 static SYS_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(kif::SEL_SYSC_RG, dtu::SYSC_REP));
+    StaticCell::new(RecvGate::new_def(INVALID_SEL, dtu::SYSC_REP));
 static UPC_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(kif::SEL_UPC_RG, dtu::UPCALL_REP));
+    StaticCell::new(RecvGate::new_def(INVALID_SEL, dtu::UPCALL_REP));
 static DEF_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(kif::SEL_DEF_RG, dtu::DEF_REP));
+    StaticCell::new(RecvGate::new_def(INVALID_SEL, dtu::DEF_REP));
 
 bitflags! {
     struct FreeFlags : u8 {

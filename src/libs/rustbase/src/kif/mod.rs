@@ -37,15 +37,9 @@ pub const SEL_PE: CapSel = 0;
 pub const SEL_KMEM: CapSel = 1;
 pub const SEL_VPE: CapSel = 2;
 pub const SEL_MEM: CapSel = 3;
-pub const SEL_SYSC_SG: CapSel = 4;
-pub const SEL_SYSC_RG: CapSel = 5;
-pub const SEL_UPC_RG: CapSel = 6;
-pub const SEL_DEF_RG: CapSel = 7;
-pub const SEL_PG_SG: CapSel = 8;
-pub const SEL_PG_RG: CapSel = 9;
 
 /// The first free selector
-pub const FIRST_FREE_SEL: CapSel = SEL_PG_RG + 1;
+pub const FIRST_FREE_SEL: CapSel = SEL_MEM + 1;
 
 /// The default request message that only contains the opcode
 #[repr(C, packed)]

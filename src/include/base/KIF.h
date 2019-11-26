@@ -48,17 +48,11 @@ struct KIF {
     static const capsel_t SEL_KMEM      = 1;
     static const capsel_t SEL_VPE       = 2;
     static const capsel_t SEL_MEM       = 3;
-    static const capsel_t SEL_SYSC_SG   = 4;
-    static const capsel_t SEL_SYSC_RG   = 5;
-    static const capsel_t SEL_UPC_RG    = 6;
-    static const capsel_t SEL_DEF_RG    = 7;
-    static const capsel_t SEL_PG_SG     = 8;
-    static const capsel_t SEL_PG_RG     = 9;
 
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_FREE_SEL    = SEL_PG_RG + 1;
+    static const uint FIRST_FREE_SEL    = SEL_MEM + 1;
 
     /**
      * The VPE id of PEMux
