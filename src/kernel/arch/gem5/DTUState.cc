@@ -41,6 +41,11 @@ void DTUState::restore(const VPEDesc &vpe) {
     DTU::get().write_mem(vpe, m3::DTU::MMIO_ADDR, this, sizeof(_regs));
 }
 
+void DTUState::invalidate_ep(epid_t ep) {
+    m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
+    memset(r, 0, sizeof(m3::DTU::reg_t) * m3::DTU::EP_REGS);
+}
+
 void DTUState::config_recv(epid_t ep, vpeid_t vpe, goff_t buf,
                            uint order, uint msgorder, uint reply_eps) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));

@@ -128,6 +128,7 @@ m3::Errors::Code PEMux::vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
 bool PEMux::invalidate_ep(epid_t ep, bool force) {
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = invalid");
 
+    dtustate().invalidate_ep(ep);
     return DTU::get().inval_ep_remote(desc(), ep, force) == m3::Errors::NONE;
 }
 

@@ -38,6 +38,8 @@ public:
     void *get_ep(epid_t ep);
     void restore(const VPEDesc &vpe);
 
+    void invalidate_ep(epid_t ep);
+
     void config_recv(epid_t ep, vpeid_t vpe, goff_t buf, uint order, uint msgorder, uint reply_eps);
     void config_send(epid_t ep, vpeid_t vpe, label_t lbl, peid_t pe, epid_t dstep, uint msgorder, uint crd);
     void config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t size, int perm);
