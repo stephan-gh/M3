@@ -52,10 +52,6 @@ public:
     static const size_t MSG_SIZE    = 64;
     static const size_t RB_SIZE     = MSG_SIZE * 4;
 
-    static const capsel_t CAP_IN    = 64;
-    static const capsel_t CAP_OUT   = 65;
-    static const capsel_t CAP_RECV  = 66;
-
     static const epid_t EP_IN_SEND  = 16;
     static const epid_t EP_IN_MEM   = 17;
     static const epid_t EP_OUT_SEND = 18;
@@ -83,12 +79,10 @@ public:
           _vpe(vpe) {
         // activate EPs
         _rgate.activate_on(*_rep, vpe->pe_desc().mem_size() - RB_SIZE);
-        // delegate caps
-        vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _rgate.sel(), 1), CAP_RECV);
     }
 
     void connect_input(GenericFile *file) {
-        connect_file(file, *_in_sep, *_in_mep, CAP_IN);
+        connect_file(file, *_in_sep, *_in_mep);
     }
     void connect_input(StreamAccel *prev) {
         _sgate_in = std::make_unique<SendGate>(
@@ -96,11 +90,10 @@ public:
                                                           .credits(1))
         );
         _sgate_in->activate_on(*_in_sep);
-        _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate_in->sel()), CAP_IN);
     }
 
     void connect_output(GenericFile *file) {
-        connect_file(file, *_out_sep, *_out_mep, CAP_OUT);
+        connect_file(file, *_out_sep, *_out_mep);
     }
     void connect_output(StreamAccel *next) {
         _sgate_out = std::make_unique<SendGate>(
@@ -110,14 +103,12 @@ public:
         _sgate_out->activate_on(*_out_sep);
         _mgate_out = std::make_unique<MemGate>(next->_vpe->mem().derive(BUF_ADDR, BUF_SIZE));
         _mgate_out->activate_on(*_out_mep);
-        _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate_out->sel()), CAP_OUT);
     }
 
 private:
-    void connect_file(GenericFile *file, EP &sep, EP &mep, capsel_t scap) {
+    void connect_file(GenericFile *file, EP &sep, EP &mep) {
         file->sgate().activate_on(sep);
         file->sess().delegate_obj(mep.sel());
-        _vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, file->sgate().sel()), scap);
     }
 
     std::unique_ptr<SendGate> _sgate_in;

@@ -32,7 +32,6 @@ public:
 
     static const size_t EP_OUT          = 16;
     static const size_t EP_RECV         = 17;
-    static const capsel_t CAP_RECV      = 64;
 
     static const size_t BUF_ADDR        = 0x8000;
     static const size_t MAX_BUF_SIZE    = 32768;
@@ -59,8 +58,6 @@ public:
           _vpe(vpe) {
         // activate EP
         _rgate.activate_on(*_rep, vpe->pe_desc().mem_size() - MSG_SIZE);
-        // delegate cap
-        vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _rgate.sel(), 1), CAP_RECV);
     }
 
     void connect_output(InDirAccel *accel) {

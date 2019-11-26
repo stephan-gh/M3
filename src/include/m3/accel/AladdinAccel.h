@@ -28,7 +28,6 @@ namespace m3 {
 
 class AladdinAccel {
 public:
-    static const uint RBUF_SEL      = 64;
     static const uint DATA_EP       = 16;
     static const uint RECV_EP       = 17;
     static const size_t RB_SIZE     = 256;
@@ -66,7 +65,6 @@ public:
             _accel.pager()->map_anon(&virt, STATE_SIZE + BUF_SIZE, Pager::Prot::RW, 0);
         }
 
-        _accel.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _srgate.sel(), 1), RBUF_SEL);
         _srgate.activate_on(*_rep);
         _accel.start();
     }
