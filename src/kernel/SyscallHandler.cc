@@ -313,7 +313,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
         nvpe->set_pg_rep(rep);
         rgatecap->obj->pe = nvpe->peid();
         rgatecap->obj->addr = VMA_RBUF;
-        pemux->config_rcv_ep(m3::DTU::PG_REP, nvpe->id(), EP_COUNT, *rgatecap->obj);
+        pemux->config_rcv_ep(m3::DTU::PG_REP, nvpe->id(), m3::DTU::NO_REPLIES, *rgatecap->obj);
         rgatecap->obj->add_ep(rep);
         rep->gate = &*rgatecap->obj;
     }
@@ -541,7 +541,7 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
             if(rgateobj->activated())
                 SYS_ERROR(vpe, msg, m3::Errors::EXISTS, "Receive gate already activated");
 
-            epid_t replies = EP_COUNT;
+            epid_t replies = m3::DTU::NO_REPLIES;
             if(epcap->obj->replies > 0) {
                 uint slots = 1U << (rgateobj->order - rgateobj->msgorder);
                 if(epcap->obj->replies != slots) {

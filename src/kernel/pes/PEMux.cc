@@ -45,7 +45,7 @@ PEMux::PEMux(peid_t pe)
     // configure receive EP
     uintptr_t rbuf = Platform::def_recvbuf(peid());
     _dtustate.config_recv(m3::DTU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
-                          KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, EP_COUNT);
+                          KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::DTU::NO_REPLIES);
     rbuf += KPEX_RBUF_SIZE;
 
     // configure upcall receive EP
