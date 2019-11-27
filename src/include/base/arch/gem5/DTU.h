@@ -229,6 +229,7 @@ public:
     static const epid_t DEF_REP             = 8;
     static const epid_t PG_SEP              = 9;
     static const epid_t PG_REP              = 10;
+
     static const epid_t FIRST_USER_EP       = 4;
     static const epid_t FIRST_FREE_EP       = 11;
 
