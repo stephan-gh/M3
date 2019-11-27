@@ -36,10 +36,10 @@ extern "C" int puts(const char *str);
     } while(0)
 
 static void test_mem() {
-    DTU::config_mem(0, 1, DTU::INVALID_VPE, 0x1000, sizeof(uint64_t), DTU::RW);
-    DTU::config_mem(1, 1, DTU::INVALID_VPE, 0x1000, sizeof(uint64_t), DTU::R);
-    DTU::config_mem(2, 1, DTU::INVALID_VPE, 0x1000, sizeof(uint64_t), DTU::W);
-    DTU::config_mem(3, 1, DTU::INVALID_VPE, 0x2000, sizeof(uint64_t) * 2, DTU::RW);
+    DTU::config_mem(0, 1, 0x1000, sizeof(uint64_t), DTU::RW);
+    DTU::config_mem(1, 1, 0x1000, sizeof(uint64_t), DTU::R);
+    DTU::config_mem(2, 1, 0x1000, sizeof(uint64_t), DTU::W);
+    DTU::config_mem(3, 1, 0x2000, sizeof(uint64_t) * 2, DTU::RW);
 
     uint64_t data = 1234;
 
@@ -70,15 +70,15 @@ static void test_msg() {
     char buffer[128];
     char buffer2[128];
 
-    DTU::config_recv(1, reinterpret_cast<uintptr_t>(&buffer),  7 /* 128 */, 6 /* 64 */, 0);
-    DTU::config_recv(2, reinterpret_cast<uintptr_t>(&buffer2), 7 /* 128 */, 6 /* 64 */, 0);
+    DTU::config_recv(1, reinterpret_cast<uintptr_t>(&buffer),  7 /* 128 */, 6 /* 64 */, 3);
+    DTU::config_recv(2, reinterpret_cast<uintptr_t>(&buffer2), 7 /* 128 */, 6 /* 64 */, 0xFF);
 
     uint64_t msg = 5678;
     uint64_t reply = 9123;
 
     // send + recv + reply
     {
-        DTU::config_send(0, 0x1234, 0, DTU::INVALID_VPE, 1, 64, 64);
+        DTU::config_send(0, 0x1234, 0, 1, 6 /* 64 */, 1);
 
         ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0x1111, 2), Error::NONE);
 
@@ -97,7 +97,7 @@ static void test_msg() {
         ASSERT_EQ(*msg_ctrl, msg);
 
         // we need the reply to get our credits back
-        ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0, 0), Error::MISS_CREDITS);
+        ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0, 2), Error::MISS_CREDITS);
 
         // send reply
         ASSERT_EQ(DTU::reply(1, &reply, sizeof(reply), rmsg), Error::NONE);
@@ -120,12 +120,12 @@ static void test_msg() {
 
     // send + send + recv + recv
     {
-        DTU::config_send(0, 0x1234, 0, DTU::INVALID_VPE, 1, 64, 128);
+        DTU::config_send(0, 0x1234, 0, 1, 6 /* 64 */, 2);
 
         ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0x1111, 2), Error::NONE);
         ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0x2222, 2), Error::NONE);
         // we need the reply to get our credits back
-        ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0, 0), Error::MISS_CREDITS);
+        ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0, 2), Error::MISS_CREDITS);
 
         for(int i = 0; i < 2; ++i) {
             // fetch message

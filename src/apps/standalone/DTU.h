@@ -111,8 +111,7 @@ enum Error {
 class DTU {
 public:
     static const uintptr_t BASE_ADDR        = 0xF0000000;
-    static const size_t DTU_REGS            = 10;
-    static const size_t REQ_REGS            = 3;
+    static const size_t DTU_REGS            = 6;
     static const size_t CMD_REGS            = 5;
     static const size_t EP_REGS             = 3;
 
@@ -125,13 +124,9 @@ public:
         FEATURES            = 0,
         ROOT_PT             = 1,
         PF_EP               = 2,
-        VPE_ID              = 3,
-        CUR_TIME            = 4,
-        IDLE_TIME           = 5,
-        EVENTS              = 6,
-        EXT_CMD             = 7,
-        CLEAR_IRQ           = 8,
-        CLOCK               = 9,
+        CUR_TIME            = 3,
+        CLEAR_IRQ           = 4,
+        CLOCK               = 5,
     };
 
     enum class CmdRegs {
@@ -162,10 +157,11 @@ public:
         READ                = 3,
         WRITE               = 4,
         FETCH_MSG           = 5,
-        ACK_MSG             = 6,
-        ACK_EVENTS          = 7,
-        SLEEP               = 8,
-        PRINT               = 9,
+        FETCH_EVENTS        = 6,
+        SET_EVENT           = 7,
+        ACK_MSG             = 8,
+        SLEEP               = 9,
+        PRINT               = 10,
     };
 
     enum {
@@ -173,13 +169,12 @@ public:
         ABORT_CMD           = 2,
     };
 
-    struct alignas(8) ReplyHeader {
+    struct alignas(8) Header {
         enum {
             FL_REPLY            = 1 << 0,
             FL_GRANT_CREDITS    = 1 << 1,
             FL_REPLY_ENABLED    = 1 << 2,
             FL_PAGEFAULT        = 1 << 3,
-            FL_REPLY_FAILED     = 1 << 4,
         };
 
         uint8_t flags; // if bit 0 is set its a reply, if bit 1 is set we grant credits
@@ -188,12 +183,9 @@ public:
         uint8_t replyEp;   // for a normal message this is the reply epId
                            // for a reply this is the enpoint that receives credits
         uint16_t length;
-        uint16_t senderVpeId;
+        uint16_t replySize;
 
         uint64_t replylabel;
-    } PACKED;
-
-    struct Header : public ReplyHeader {
         uint64_t label;
     } PACKED;
 
@@ -210,33 +202,41 @@ public:
 
     static bool is_valid(epid_t ep) {
         reg_t r0 = read_reg(ep, 0);
-        return static_cast<EpType>(r0 >> 61) != EpType::INVALID;
+        return static_cast<EpType>(r0 & 0x7) != EpType::INVALID;
     }
 
-    static void config_recv(epid_t ep, goff_t buf, int order, int msgorder, unsigned header) {
+    static void config_recv(epid_t ep, goff_t buf, unsigned order,
+                            unsigned msgorder, unsigned reply_eps) {
         reg_t bufSize = static_cast<reg_t>(order - msgorder);
         reg_t msgSize = static_cast<reg_t>(msgorder);
-        write_reg(ep, 0, (static_cast<reg_t>(EpType::RECEIVE) << 61) |
-                         ((msgSize & 0xFFFF) << 32) | ((bufSize & 0x3F) << 26) | (header << 6));
+        write_reg(ep, 0, static_cast<reg_t>(EpType::RECEIVE) |
+                        (static_cast<reg_t>(INVALID_VPE) << 3) |
+                        (static_cast<reg_t>(reply_eps) << 25) |
+                        (static_cast<reg_t>(bufSize) << 33) |
+                        (static_cast<reg_t>(msgSize) << 39));
         write_reg(ep, 1, buf);
         write_reg(ep, 2, 0);
     }
 
-    static void config_send(epid_t ep, label_t lbl, peid_t pe, vpeid_t vpe, epid_t dstep,
-                            size_t msgsize, crd_t credits) {
-        write_reg(ep, 0, (static_cast<reg_t>(EpType::SEND) << 61) |
-                         ((vpe & 0xFFFF) << 16) | (msgsize & 0xFFFF));
-        write_reg(ep, 1, (static_cast<reg_t>(pe & 0xFF) << 40) |
-                         (static_cast<reg_t>(dstep & 0xFF) << 32) |
-                         (static_cast<reg_t>(credits) << 16) |
-                         (static_cast<reg_t>(credits) << 0));
+    static void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
+                            unsigned msgorder, unsigned credits) {
+        write_reg(ep, 0, static_cast<reg_t>(EpType::SEND) |
+                        (static_cast<reg_t>(INVALID_VPE) << 3) |
+                        (static_cast<reg_t>(credits) << 19) |
+                        (static_cast<reg_t>(credits) << 25) |
+                        (static_cast<reg_t>(msgorder) << 31));
+        write_reg(ep, 1, (static_cast<reg_t>(pe & 0xFF) << 8) |
+                         (static_cast<reg_t>(dstep & 0xFF) << 0));
         write_reg(ep, 2, lbl);
     }
 
-    static void config_mem(epid_t ep, peid_t pe, vpeid_t vpe, goff_t addr, size_t size, int perm) {
-        write_reg(ep, 0, (static_cast<reg_t>(EpType::MEMORY) << 61) | (size & 0x1FFFFFFFFFFFFFFF));
+    static void config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm) {
+        write_reg(ep, 0, static_cast<reg_t>(EpType::MEMORY) |
+                        (static_cast<reg_t>(INVALID_VPE) << 3) |
+                        (static_cast<reg_t>(perm) << 19) |
+                        (static_cast<reg_t>(pe) << 23));
         write_reg(ep, 1, addr);
-        write_reg(ep, 2, ((vpe & 0xFFFF) << 12) | ((pe & 0xFF) << 4) | (perm & 0x7));
+        write_reg(ep, 2, size);
     }
 
     static Error send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
@@ -263,7 +263,7 @@ public:
             size_t amount = left < MAX_PKT_SIZE ? left : MAX_PKT_SIZE;
             write_reg(CmdRegs::DATA, data | (static_cast<reg_t>(amount) << 48));
             compiler_barrier();
-            write_reg(CmdRegs::COMMAND, cmd | (static_cast<reg_t>(off) << 16));
+            write_reg(CmdRegs::COMMAND, cmd | (static_cast<reg_t>(off) << 17));
 
             left -= amount;
             data += amount;
@@ -302,14 +302,14 @@ public:
         reg_t off = reinterpret_cast<reg_t>(msg);
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, 0, off));
         // ensure that we don't do something else before the ack
-        memory_barrier();
+        get_error();
     }
 
     static Error get_error() {
         while(true) {
             reg_t cmd = read_reg(CmdRegs::COMMAND);
             if(static_cast<CmdOpCode>(cmd & 0xF) == CmdOpCode::IDLE)
-                return static_cast<Error>((cmd >> 12) & 0xF);
+                return static_cast<Error>((cmd >> 13) & 0xF);
         }
         UNREACHED;
     }
@@ -343,7 +343,7 @@ public:
     static reg_t build_command(epid_t ep, CmdOpCode c, unsigned flags = 0, reg_t arg = 0) {
         return static_cast<reg_t>(c) |
                 (static_cast<reg_t>(ep) << 4) |
-                (static_cast<reg_t>(flags) << 11 |
-                arg << 16);
+                (static_cast<reg_t>(flags) << 12 |
+                arg << 17);
     }
 };
