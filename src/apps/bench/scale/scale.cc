@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
     for(size_t i = 0; i < instances; ++i)
         delete apps[i];
 
-    if(VERBOSE) cout << "Shutting down servers...\n";
+    if(VERBOSE) cout << "Stopping servers...\n";
 
     for(size_t i = 0; i < servers + 1; ++i) {
         if(!srv[i])

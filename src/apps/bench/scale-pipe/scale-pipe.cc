@@ -250,7 +250,7 @@ int main(int argc, char **argv) {
     }
     WVPERF(name.str(), res);
 
-    if(VERBOSE) cout << "Shutting down servers...\n";
+    if(VERBOSE) cout << "Stopping servers...\n";
 
     for(size_t i = 0; i < ARRAY_SIZE(srvs); ++i) {
         if(srvs[i])
