@@ -384,7 +384,7 @@ impl DTU {
         while left > 0 {
             let amount = util::min(left, MAX_PKT_SIZE);
             Self::write_cmd_reg(CmdReg::DATA, data_addr as Reg | ((amount as Reg) << 48));
-            Self::write_cmd_reg(CmdReg::COMMAND, cmd | ((offset as Reg) << 16));
+            Self::write_cmd_reg(CmdReg::COMMAND, cmd | ((offset as Reg) << 17));
 
             left -= amount;
             offset += amount as goff;
@@ -473,7 +473,7 @@ impl DTU {
         loop {
             let cmd = Self::read_cmd_reg(CmdReg::COMMAND);
             if (cmd & 0xF) == CmdOpCode::IDLE.val {
-                let err = (cmd >> 12) & 0xF;
+                let err = (cmd >> 13) & 0xF;
                 return if err == 0 {
                     Ok(())
                 }
@@ -655,6 +655,6 @@ impl DTU {
     }
 
     fn build_cmd(ep: EpId, c: CmdOpCode, flags: Reg, arg: Reg) -> Reg {
-        c.val as Reg | ((ep as Reg) << 4) | (flags << 11) | (arg << 16)
+        c.val as Reg | ((ep as Reg) << 4) | (flags << 12) | (arg << 17)
     }
 }

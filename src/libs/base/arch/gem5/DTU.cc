@@ -68,7 +68,7 @@ Errors::Code DTU::transfer(reg_t cmd, uintptr_t data, size_t size, goff_t off) {
         size_t amount = Math::min<size_t>(left, MAX_PKT_SIZE);
         write_reg(CmdRegs::DATA, data | (static_cast<reg_t>(amount) << 48));
         CPU::compiler_barrier();
-        write_reg(CmdRegs::COMMAND, cmd | (static_cast<reg_t>(off) << 16));
+        write_reg(CmdRegs::COMMAND, cmd | (static_cast<reg_t>(off) << 17));
 
         left -= amount;
         data += amount;
