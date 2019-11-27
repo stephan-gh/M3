@@ -211,9 +211,9 @@ public:
         reg_t msgSize = static_cast<reg_t>(msgorder);
         write_reg(ep, 0, static_cast<reg_t>(EpType::RECEIVE) |
                         (static_cast<reg_t>(INVALID_VPE) << 3) |
-                        (static_cast<reg_t>(reply_eps) << 25) |
-                        (static_cast<reg_t>(bufSize) << 33) |
-                        (static_cast<reg_t>(msgSize) << 39));
+                        (static_cast<reg_t>(reply_eps) << 19) |
+                        (static_cast<reg_t>(bufSize) << 27) |
+                        (static_cast<reg_t>(msgSize) << 33));
         write_reg(ep, 1, buf);
         write_reg(ep, 2, 0);
     }

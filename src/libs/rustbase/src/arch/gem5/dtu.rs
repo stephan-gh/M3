@@ -450,11 +450,11 @@ impl DTU {
         cur < max
     }
 
-    /// Returns the number of messages for the given receive EP
+    /// Returns the unread mask for the given receive EP
     #[inline(always)]
-    pub fn msg_cnt(ep: EpId) -> Reg {
-        let r0 = Self::read_ep_reg(ep, 0);
-        (r0 >> 19) & 0x3F
+    pub fn unread_mask(ep: EpId) -> Reg {
+        let r2 = Self::read_ep_reg(ep, 2);
+        r2 >> 32
     }
 
     /// Marks the given message for receive endpoint `ep` as read
@@ -505,15 +505,15 @@ impl DTU {
     pub fn drop_msgs_with(ep: EpId, label: Label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
-        let r0 = Self::read_ep_reg(ep, 0);
-        if ((r0 >> 19) & 0x3F) == 0 {
+        let unread = Self::read_ep_reg(ep, 2) >> 32;
+        if unread == 0 {
             return;
         }
 
+        let r0 = Self::read_ep_reg(ep, 0);
         let base = Self::read_ep_reg(ep, 1);
-        let buf_size = 1 << ((r0 >> 33) & 0x3F);
-        let msg_size = (r0 >> 39) & 0x3F;
-        let unread = Self::read_ep_reg(ep, 2) >> 32;
+        let buf_size = 1 << ((r0 >> 27) & 0x3F);
+        let msg_size = (r0 >> 33) & 0x3F;
         for i in 0..buf_size {
             if (unread & (1 << i)) != 0 {
                 let msg = Self::addr_to_msg(base + (i << msg_size));

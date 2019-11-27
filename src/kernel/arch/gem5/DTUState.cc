@@ -53,9 +53,9 @@ void DTUState::config_recv(epid_t ep, vpeid_t vpe, goff_t buf,
     m3::DTU::reg_t msgSize = static_cast<m3::DTU::reg_t>(msgorder);
     r[0] = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::RECEIVE) |
             (static_cast<m3::DTU::reg_t>(vpe) << 3) |
-            (static_cast<m3::DTU::reg_t>(reply_eps) << 25) |
-            (static_cast<m3::DTU::reg_t>(bufSize) << 33) |
-            (static_cast<m3::DTU::reg_t>(msgSize) << 39);
+            (static_cast<m3::DTU::reg_t>(reply_eps) << 19) |
+            (static_cast<m3::DTU::reg_t>(bufSize) << 27) |
+            (static_cast<m3::DTU::reg_t>(msgSize) << 33);
     r[1] = buf;
     r[2] = 0;
 }

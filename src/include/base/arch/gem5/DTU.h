@@ -311,14 +311,14 @@ private:
     void drop_msgs(epid_t ep, label_t label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
-        reg_t r0 = read_reg(ep, 0);
-        if(((r0 >> 19) & 0x3F) == 0)
+        word_t unread = read_reg(ep, 2) >> 32;
+        if(unread == 0)
             return;
 
+        reg_t r0 = read_reg(ep, 0);
         goff_t base = read_reg(ep, 1);
-        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 33) & 0x3F);
-        size_t msgsize = (r0 >> 39) & 0x3F;
-        word_t unread = read_reg(ep, 2) >> 32;
+        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 27) & 0x3F);
+        size_t msgsize = (r0 >> 33) & 0x3F;
         for(size_t i = 0; i < bufsize; ++i) {
             if(unread & (static_cast<size_t>(1) << i)) {
                 m3::DTU::Message *msg = reinterpret_cast<m3::DTU::Message*>(base + (i << msgsize));

@@ -38,7 +38,7 @@ pub fn handle_recv(state: &mut isr::State, req: dtu::Reg) {
     if state.came_from_user() {
         // get number of messages
         let ep_id = (req >> 28) as dtu::EpId;
-        let msg_cnt = dtu::DTU::msg_cnt(ep_id);
+        let unread_mask = dtu::DTU::unread_mask(ep_id);
         unsafe { intrinsics::atomic_fence() };
 
         // let the DTU continue the message reception
@@ -54,7 +54,7 @@ pub fn handle_recv(state: &mut isr::State, req: dtu::Reg) {
 
         // wait here until the message has been received
         // (otherwise fetching it afterwards might fail)
-        while dtu::DTU::msg_cnt(ep_id) == msg_cnt {
+        while dtu::DTU::unread_mask(ep_id) == unread_mask {
         }
 
         upcalls::enable();
