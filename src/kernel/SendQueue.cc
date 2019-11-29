@@ -27,7 +27,7 @@ uint64_t SendQueue::_next_id = 0;
 
 SendQueue::~SendQueue() {
     // ensure that there are no messages left for this SendQueue in the receive buffer
-    m3::DTU::get().drop_msgs(SyscallHandler::srvep(), reinterpret_cast<label_t>(this));
+    m3::DTU::get().drop_msgs(SyscallHandler::srvep(), m3::ptr_to_label(this));
 }
 
 event_t SendQueue::get_event(uint64_t id) {
@@ -99,7 +99,7 @@ event_t SendQueue::do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t s
     _cur_event = get_event(id);
     _inflight++;
 
-    if(DTU::get().send_to(_desc, dst_ep, 0, msg, size, reinterpret_cast<label_t>(this),
+    if(DTU::get().send_to(_desc, dst_ep, 0, msg, size, m3::ptr_to_label(this),
                           SyscallHandler::srvep()) != m3::Errors::NONE) {
         PANIC("send failed");
     }

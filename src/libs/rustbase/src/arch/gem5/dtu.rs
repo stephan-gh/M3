@@ -26,7 +26,7 @@ pub type Reg = u64;
 /// An endpoint id
 pub type EpId = usize;
 /// A DTU label used in send EPs
-pub type Label = u64;
+pub type Label = u32;
 /// A PE id
 pub type PEId = usize;
 
@@ -66,9 +66,6 @@ pub const DTU_REGS: usize = 6;
 pub const CMD_REGS: usize = 5;
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
-
-// actual max is 64k - 1; use less for better alignment
-const MAX_PKT_SIZE: usize = 60 * 1024;
 
 int_enum! {
     /// The DTU registers
@@ -256,16 +253,15 @@ bitflags! {
 #[repr(C, packed)]
 #[derive(Copy, Clone, Default, Debug)]
 pub struct Header {
-    pub flags: u8,
+    pub flags_reply_size: u8,
     pub sender_pe: u8,
-    pub sender_ep: u8,
-    pub reply_ep: u8,
+    pub sender_ep: u16,
+    pub reply_ep: u16,
 
     pub length: u16,
-    pub reply_size: u16,
 
-    pub reply_label: u64,
-    pub label: u64,
+    pub reply_label: u32,
+    pub label: u32,
 }
 
 /// The DTU message consisting of the header and the payload
@@ -307,7 +303,7 @@ impl DTU {
     ) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(msg, size));
         if reply_lbl != 0 {
-            Self::write_cmd_reg(CmdReg::REPLY_LABEL, reply_lbl);
+            Self::write_cmd_reg(CmdReg::REPLY_LABEL, reply_lbl as Reg);
         }
         Self::write_cmd_reg(
             CmdReg::COMMAND,
@@ -353,8 +349,14 @@ impl DTU {
         off: goff,
         flags: CmdFlags,
     ) -> Result<(), Error> {
-        let cmd = Self::build_cmd(ep, CmdOpCode::READ, flags.bits(), 0);
-        let res = Self::transfer(cmd, data as usize, size, off);
+        assert!(size <= 0xFFFFFFFF);
+        Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
+        Self::write_cmd_reg(CmdReg::OFFSET, off as Reg);
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(ep, CmdOpCode::READ, flags.bits(), 0),
+        );
+        let res = Self::get_error();
         unsafe { intrinsics::atomic_fence() };
         res
     }
@@ -373,26 +375,14 @@ impl DTU {
         off: goff,
         flags: CmdFlags,
     ) -> Result<(), Error> {
-        let cmd = Self::build_cmd(ep, CmdOpCode::WRITE, flags.bits(), 0);
-        Self::transfer(cmd, data as usize, size, off)
-    }
-
-    fn transfer(cmd: Reg, data: usize, size: usize, off: goff) -> Result<(), Error> {
-        let mut left = size;
-        let mut offset = off;
-        let mut data_addr = data;
-        while left > 0 {
-            let amount = util::min(left, MAX_PKT_SIZE);
-            Self::write_cmd_reg(CmdReg::DATA, data_addr as Reg | ((amount as Reg) << 48));
-            Self::write_cmd_reg(CmdReg::COMMAND, cmd | ((offset as Reg) << 17));
-
-            left -= amount;
-            offset += amount as goff;
-            data_addr += amount;
-
-            Self::get_error()?;
-        }
-        Ok(())
+        assert!(size <= 0xFFFFFFFF);
+        Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
+        Self::write_cmd_reg(CmdReg::OFFSET, off as Reg);
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(ep, CmdOpCode::WRITE, flags.bits(), 0),
+        );
+        Self::get_error()
     }
 
     /// Tries to fetch a new message from the given endpoint.
@@ -473,7 +463,7 @@ impl DTU {
         loop {
             let cmd = Self::read_cmd_reg(CmdReg::COMMAND);
             if (cmd & 0xF) == CmdOpCode::IDLE.val {
-                let err = (cmd >> 13) & 0xF;
+                let err = (cmd >> 21) & 0xF;
                 return if err == 0 {
                     Ok(())
                 }
@@ -512,8 +502,8 @@ impl DTU {
 
         let r0 = Self::read_ep_reg(ep, 0);
         let base = Self::read_ep_reg(ep, 1);
-        let buf_size = 1 << ((r0 >> 27) & 0x3F);
-        let msg_size = (r0 >> 33) & 0x3F;
+        let buf_size = 1 << ((r0 >> 35) & 0x3F);
+        let msg_size = (r0 >> 41) & 0x3F;
         for i in 0..buf_size {
             if (unread & (1 << i)) != 0 {
                 let msg = Self::addr_to_msg(base + (i << msg_size));
@@ -651,10 +641,10 @@ impl DTU {
     }
 
     fn build_data(addr: *const u8, size: usize) -> Reg {
-        addr as Reg | (size as Reg) << 48
+        addr as Reg | (size as Reg) << 32
     }
 
     fn build_cmd(ep: EpId, c: CmdOpCode, flags: Reg, arg: Reg) -> Reg {
-        c.val as Reg | ((ep as Reg) << 4) | (flags << 12) | (arg << 17)
+        c.val as Reg | ((ep as Reg) << 4) | (flags << 20) | (arg << 25)
     }
 }

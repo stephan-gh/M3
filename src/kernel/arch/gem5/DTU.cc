@@ -139,14 +139,7 @@ m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, cons
     _state.config_send(_ep, VPE::KERNEL_ID, label, vpe.pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
     write_ep_local(_ep);
 
-    m3::DTU::get().write_reg(m3::DTU::CmdRegs::DATA, reinterpret_cast<m3::DTU::reg_t>(msg) |
-        (static_cast<m3::DTU::reg_t>(size) << 48));
-    m3::DTU::get().write_reg(m3::DTU::CmdRegs::REPLY_LABEL, replylbl);
-    m3::CPU::compiler_barrier();
-    m3::DTU::reg_t cmd = m3::DTU::get().build_command(_ep, m3::DTU::CmdOpCode::SEND, 0, replyep);
-    m3::DTU::get().write_reg(m3::DTU::CmdRegs::COMMAND, cmd);
-
-    return m3::DTU::get().get_error();
+    return m3::DTU::get().send(_ep, msg, size, replylbl, replyep);
 }
 
 void DTU::reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg) {

@@ -301,7 +301,7 @@ impl<'r> GateIStream<'r> {
 
     /// Returns the label of the message
     #[inline(always)]
-    pub fn label(&self) -> u64 {
+    pub fn label(&self) -> dtu::Label {
         self.source.msg.header.label
     }
 

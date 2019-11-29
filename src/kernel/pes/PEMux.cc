@@ -38,7 +38,7 @@ PEMux::PEMux(peid_t pe)
 
 #if defined(__gem5__)
     // configure send EP
-    _dtustate.config_send(m3::DTU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, reinterpret_cast<label_t>(this),
+    _dtustate.config_send(m3::DTU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
                           Platform::kernel_pe(), SyscallHandler::pexep(),
                           KPEX_RBUF_ORDER, 1);
 

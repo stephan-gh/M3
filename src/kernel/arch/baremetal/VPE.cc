@@ -33,7 +33,7 @@ void VPE::init_eps() {
     rgate.add_ref(); // don't free this (on destruction of SGateObject)
 
     // configure syscall endpoint
-    SGateObject mobj(&rgate, reinterpret_cast<label_t>(this), 1);
+    SGateObject mobj(&rgate, m3::ptr_to_label(this), 1);
     UNUSED m3::Errors::Code res = pemux->config_snd_ep(m3::DTU::SYSC_SEP, vpe, mobj);
     assert(res == m3::Errors::NONE);
 

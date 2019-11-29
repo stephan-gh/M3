@@ -34,7 +34,11 @@ typedef long ssize_t;
 #endif
 
 typedef unsigned long word_t;
-typedef word_t label_t;
+#if defined(__gem5__)
+typedef uint32_t label_t;
+#else
+typedef uint64_t label_t;
+#endif
 typedef unsigned capsel_t;
 typedef int fd_t;
 typedef uint64_t cycles_t;

@@ -65,7 +65,7 @@ void VPE::load_app() {
         if(_pid < 0)
             PANIC("fork");
         if(_pid == 0) {
-            write_env_file(_first_sel, syscall_ep(), getpid(), peid(), reinterpret_cast<label_t>(this));
+            write_env_file(_first_sel, syscall_ep(), getpid(), peid(), m3::ptr_to_label(this));
             static char root_path[] = STRINGIZE(BUILD_DIR) "/bin/root";
             char *const childargs[] = {root_path, nullptr};
             execv(childargs[0], childargs);
@@ -75,7 +75,7 @@ void VPE::load_app() {
         }
     }
     else
-        write_env_file(0, syscall_ep(), _pid, peid(), reinterpret_cast<label_t>(this));
+        write_env_file(0, syscall_ep(), _pid, peid(), m3::ptr_to_label(this));
 
     KLOG(VPES, "Started VPE '" << _name << "' [pid=" << _pid << "]");
 }

@@ -23,6 +23,7 @@ use core::mem::MaybeUninit;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::com::{GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate};
+use m3::dtu::Label;
 use m3::errors::{Code, Error};
 use m3::io::{Read, Serial, Write};
 use m3::kif;
@@ -71,7 +72,7 @@ impl Channel {
     fn new(id: SessId, mem: &MemGate, caps: Selector, writing: bool) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
             SGateArgs::new(rgate())
-                .label(id as u64)
+                .label(id as Label)
                 .credits(1)
                 .sel(caps + 1),
         )?;

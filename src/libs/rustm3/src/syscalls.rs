@@ -109,7 +109,7 @@ pub fn create_sgate(
         opcode: syscalls::Operation::CREATE_SGATE.val,
         dst_sel: u64::from(dst),
         rgate_sel: u64::from(rgate),
-        label,
+        label: u64::from(label),
         credits: u64::from(credits),
     };
     send_receive_result(&req)

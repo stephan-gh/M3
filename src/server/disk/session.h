@@ -50,7 +50,7 @@ public:
         if(data.caps != 1)
             return m3::Errors::INV_ARGS;
 
-        label_t label       = reinterpret_cast<label_t>(this);
+        label_t label       = ptr_to_label(this);
         DiskSrvSGate *sgate = new DiskSrvSGate(m3::SendGate::create(
             _rgate, m3::SendGateArgs().label(label).credits(1))
         );

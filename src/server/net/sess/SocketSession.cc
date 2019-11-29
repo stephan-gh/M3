@@ -104,7 +104,7 @@ m3::Errors::Code SocketSession::get_sgate(m3::KIF::Service::ExchangeData& data) 
     if(_sgate)
         return Errors::INV_ARGS;
 
-    label_t label = reinterpret_cast<label_t>(this);
+    label_t label = ptr_to_label(this);
     _sgate = new SendGate(SendGate::create(&_rgate, SendGateArgs().label(label)
                                                                   .credits(1)));
 

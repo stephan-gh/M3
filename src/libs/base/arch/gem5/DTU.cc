@@ -45,7 +45,7 @@ Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl
     static_assert(KIF::Perm::W == DTU::PTE_W, "DTU::PTE_W does not match KIF::Perm::W");
     static_assert(KIF::Perm::X == DTU::PTE_X, "DTU::PTE_X does not match KIF::Perm::X");
 
-    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 48));
+    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
     if(replylbl)
         write_reg(CmdRegs::REPLY_LABEL, replylbl);
     CPU::compiler_barrier();
@@ -55,44 +55,31 @@ Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl
 }
 
 Errors::Code DTU::reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
-    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 48));
+    assert(size <= 0xFFFFFFFF);
+    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
     CPU::compiler_barrier();
     write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, 0, reinterpret_cast<reg_t>(msg)));
 
     return get_error();
 }
 
-Errors::Code DTU::transfer(reg_t cmd, uintptr_t data, size_t size, goff_t off) {
-    size_t left = size;
-    while(left > 0) {
-        size_t amount = Math::min<size_t>(left, MAX_PKT_SIZE);
-        write_reg(CmdRegs::DATA, data | (static_cast<reg_t>(amount) << 48));
-        CPU::compiler_barrier();
-        write_reg(CmdRegs::COMMAND, cmd | (static_cast<reg_t>(off) << 17));
-
-        left -= amount;
-        data += amount;
-        off += amount;
-
-        Errors::Code res = get_error();
-        if(EXPECT_FALSE(res != Errors::NONE))
-            return res;
-    }
-    return Errors::NONE;
-}
-
 Errors::Code DTU::read(epid_t ep, void *data, size_t size, goff_t off, uint flags) {
-    uintptr_t dataaddr = reinterpret_cast<uintptr_t>(data);
-    reg_t cmd = build_command(ep, CmdOpCode::READ, flags, 0);
-    Errors::Code res = transfer(cmd, dataaddr, size, off);
+    assert(size <= 0xFFFFFFFF);
+    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
+    write_reg(CmdRegs::OFFSET, off);
+    CPU::compiler_barrier();
+    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::READ, flags));
+    Errors::Code res = get_error();
     CPU::memory_barrier();
     return res;
 }
 
 Errors::Code DTU::write(epid_t ep, const void *data, size_t size, goff_t off, uint flags) {
-    uintptr_t dataaddr = reinterpret_cast<uintptr_t>(data);
-    reg_t cmd = build_command(ep, CmdOpCode::WRITE, flags, 0);
-    return transfer(cmd, dataaddr, size, off);
+    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
+    write_reg(CmdRegs::OFFSET, off);
+    CPU::compiler_barrier();
+    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::WRITE, flags));
+    return get_error();
 }
 
 }

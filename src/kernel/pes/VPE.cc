@@ -119,7 +119,7 @@ VPE::~VPE() {
     _mapcaps.revoke_all();
 
     // ensure that there are no syscalls for this VPE anymore
-    m3::DTU::get().drop_msgs(syscall_ep(), reinterpret_cast<label_t>(this));
+    m3::DTU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
     SyscallHandler::free_ep(syscall_ep());
 
     delete _pg_sep;
@@ -161,7 +161,7 @@ void VPE::stop_app(int exitcode, bool self) {
             _flags ^= F_HASAPP;
         }
         // ensure that there are no pending system calls
-        m3::DTU::get().drop_msgs(syscall_ep(), reinterpret_cast<label_t>(this));
+        m3::DTU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
     }
 
     if(rem_ref())

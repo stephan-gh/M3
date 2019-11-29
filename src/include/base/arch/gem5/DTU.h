@@ -190,21 +190,19 @@ public:
     struct Header {
         enum {
             FL_REPLY            = 1 << 0,
-            FL_GRANT_CREDITS    = 1 << 1,
-            FL_REPLY_ENABLED    = 1 << 2,
-            FL_PAGEFAULT        = 1 << 3,
+            FL_PAGEFAULT        = 1 << 1,
         };
 
-        uint8_t flags;     // if bit 0 is set its a reply, if bit 1 is set we grant credits
+        uint8_t flags : 2,
+                replySize : 6;
         uint8_t senderPe;
-        uint8_t senderEp;
-        uint8_t replyEp;   // for a normal message this is the reply epId
-                           // for a reply this is the enpoint that receives credits
+        uint16_t senderEp;
+        uint16_t replyEp;   // for a normal message this is the reply epId
+                            // for a reply this is the enpoint that receives credits
         uint16_t length;
-        uint16_t replySize;
 
-        uint64_t replylabel;
-        uint64_t label;
+        uint32_t replylabel;
+        uint32_t label;
     } PACKED;
 
     struct Message : Header {
@@ -318,8 +316,8 @@ private:
 
         reg_t r0 = read_reg(ep, 0);
         goff_t base = read_reg(ep, 1);
-        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 27) & 0x3F);
-        size_t msgsize = (r0 >> 33) & 0x3F;
+        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 35) & 0x3F);
+        size_t msgsize = (r0 >> 41) & 0x3F;
         for(size_t i = 0; i < bufsize; ++i) {
             if(unread & (static_cast<size_t>(1) << i)) {
                 m3::DTU::Message *msg = reinterpret_cast<m3::DTU::Message*>(base + (i << msgsize));
@@ -328,8 +326,6 @@ private:
             }
         }
     }
-
-    Errors::Code transfer(reg_t cmd, uintptr_t data, size_t size, goff_t off);
 
     reg_t get_pfep() const {
         return read_reg(DtuRegs::PF_EP);
@@ -356,7 +352,7 @@ private:
         while(true) {
             reg_t cmd = read_reg(CmdRegs::COMMAND);
             if(static_cast<CmdOpCode>(cmd & 0xF) == CmdOpCode::IDLE)
-                return static_cast<Errors::Code>((cmd >> 13) & 0xF);
+                return static_cast<Errors::Code>((cmd >> 21) & 0xF);
         }
         UNREACHED;
     }
@@ -410,8 +406,8 @@ private:
     static reg_t build_command(epid_t ep, CmdOpCode c, uint flags = 0, reg_t arg = 0) {
         return static_cast<reg_t>(c) |
                 (static_cast<reg_t>(ep) << 4) |
-                (static_cast<reg_t>(flags) << 12 |
-                arg << 17);
+                (static_cast<reg_t>(flags) << 20 |
+                arg << 25);
     }
 
     static DTU inst;

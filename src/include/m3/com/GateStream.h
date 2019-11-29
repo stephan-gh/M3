@@ -185,7 +185,7 @@ public:
      */
     template<typename T>
     T label() const noexcept {
-        return (T)_msg->label;
+        return (T)static_cast<word_t>(_msg->label);
     }
 
     /**

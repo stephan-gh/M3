@@ -92,7 +92,7 @@ static void test_msg() {
         ASSERT_EQ(rmsg->senderEp, 0);
         ASSERT_EQ(rmsg->replyEp, 2);
         ASSERT_EQ(rmsg->senderPe, 0);
-        ASSERT_EQ(rmsg->flags, DTU::Header::FL_REPLY_ENABLED);
+        ASSERT_EQ(rmsg->flags, 0);
         const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
         ASSERT_EQ(*msg_ctrl, msg);
 
@@ -111,7 +111,7 @@ static void test_msg() {
         ASSERT_EQ(rmsg->senderEp, 1);
         ASSERT_EQ(rmsg->replyEp, 0);
         ASSERT_EQ(rmsg->senderPe, 0);
-        ASSERT_EQ(rmsg->flags, DTU::Header::FL_REPLY | DTU::Header::FL_GRANT_CREDITS);
+        ASSERT_EQ(rmsg->flags, DTU::Header::FL_REPLY);
         msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
         ASSERT_EQ(*msg_ctrl, reply);
         // free slot
@@ -138,7 +138,7 @@ static void test_msg() {
             ASSERT_EQ(rmsg->senderEp, 0);
             ASSERT_EQ(rmsg->replyEp, 2);
             ASSERT_EQ(rmsg->senderPe, 0);
-            ASSERT_EQ(rmsg->flags, DTU::Header::FL_REPLY_ENABLED);
+            ASSERT_EQ(rmsg->flags, 0);
             const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
             ASSERT_EQ(*msg_ctrl, msg);
 
@@ -157,7 +157,7 @@ static void test_msg() {
             ASSERT_EQ(rmsg->senderEp, 1);
             ASSERT_EQ(rmsg->replyEp, 0);
             ASSERT_EQ(rmsg->senderPe, 0);
-            ASSERT_EQ(rmsg->flags, DTU::Header::FL_REPLY | DTU::Header::FL_GRANT_CREDITS);
+            ASSERT_EQ(rmsg->flags, DTU::Header::FL_REPLY);
             const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
             ASSERT_EQ(*msg_ctrl, reply);
             // free slot

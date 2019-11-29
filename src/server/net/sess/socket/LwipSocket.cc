@@ -30,11 +30,11 @@ LwipSocket::~LwipSocket() {
     // Revoke file session
     if(_rfile) {
         delete _rfile;
-        _rgate->drop_msgs_with(reinterpret_cast<label_t>(_rfile));
+        _rgate->drop_msgs_with(ptr_to_label(_rfile));
     }
     if(_sfile && _sfile != _rfile) {
         delete _sfile;
-        _rgate->drop_msgs_with(reinterpret_cast<label_t>(_sfile));
+        _rgate->drop_msgs_with(ptr_to_label(_sfile));
     }
 }
 

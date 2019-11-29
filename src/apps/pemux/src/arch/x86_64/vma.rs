@@ -62,8 +62,8 @@ impl XlateState {
 
         // get EPs
         let pf_eps = dtu::DTU::get_pfep();
-        let sep = (pf_eps & 0xFF) as dtu::EpId;
-        let rep = (pf_eps >> 8) as dtu::EpId;
+        let sep = (pf_eps & 0xFFFF) as dtu::EpId;
+        let rep = (pf_eps >> 16) as dtu::EpId;
         if sep >= dtu::EP_COUNT {
             return false;
         }

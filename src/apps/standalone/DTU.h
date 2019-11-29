@@ -39,7 +39,7 @@ typedef unsigned long epid_t;
 typedef unsigned long peid_t;
 typedef unsigned vpeid_t;
 typedef unsigned long word_t;
-typedef word_t label_t;
+typedef uint32_t label_t;
 typedef uint16_t crd_t;
 typedef uint64_t reg_t;
 typedef uint64_t goff_t;
@@ -172,18 +172,16 @@ public:
     struct alignas(8) Header {
         enum {
             FL_REPLY            = 1 << 0,
-            FL_GRANT_CREDITS    = 1 << 1,
-            FL_REPLY_ENABLED    = 1 << 2,
-            FL_PAGEFAULT        = 1 << 3,
+            FL_PAGEFAULT        = 1 << 1,
         };
 
-        uint8_t flags; // if bit 0 is set its a reply, if bit 1 is set we grant credits
+        uint8_t flags : 2,
+                replySize : 6;
         uint8_t senderPe;
-        uint8_t senderEp;
-        uint8_t replyEp;   // for a normal message this is the reply epId
-                           // for a reply this is the enpoint that receives credits
+        uint16_t senderEp;
+        uint16_t replyEp;   // for a normal message this is the reply epId
+                            // for a reply this is the enpoint that receives credits
         uint16_t length;
-        uint16_t replySize;
 
         uint64_t replylabel;
         uint64_t label;
@@ -212,8 +210,8 @@ public:
         write_reg(ep, 0, static_cast<reg_t>(EpType::RECEIVE) |
                         (static_cast<reg_t>(INVALID_VPE) << 3) |
                         (static_cast<reg_t>(reply_eps) << 19) |
-                        (static_cast<reg_t>(bufSize) << 27) |
-                        (static_cast<reg_t>(msgSize) << 33));
+                        (static_cast<reg_t>(bufSize) << 35) |
+                        (static_cast<reg_t>(msgSize) << 41));
         write_reg(ep, 1, buf);
         write_reg(ep, 2, 0);
     }
@@ -225,8 +223,8 @@ public:
                         (static_cast<reg_t>(credits) << 19) |
                         (static_cast<reg_t>(credits) << 25) |
                         (static_cast<reg_t>(msgorder) << 31));
-        write_reg(ep, 1, (static_cast<reg_t>(pe & 0xFF) << 8) |
-                         (static_cast<reg_t>(dstep & 0xFF) << 0));
+        write_reg(ep, 1, (static_cast<reg_t>(pe) << 16) |
+                         (static_cast<reg_t>(dstep) << 0));
         write_reg(ep, 2, lbl);
     }
 

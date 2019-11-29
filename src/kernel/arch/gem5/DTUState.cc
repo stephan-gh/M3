@@ -54,9 +54,9 @@ void DTUState::config_recv(epid_t ep, vpeid_t vpe, goff_t buf,
     r[0] = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::RECEIVE) |
             (static_cast<m3::DTU::reg_t>(vpe) << 3) |
             (static_cast<m3::DTU::reg_t>(reply_eps) << 19) |
-            (static_cast<m3::DTU::reg_t>(bufSize) << 27) |
-            (static_cast<m3::DTU::reg_t>(msgSize) << 33);
-    r[1] = buf;
+            (static_cast<m3::DTU::reg_t>(bufSize) << 35) |
+            (static_cast<m3::DTU::reg_t>(msgSize) << 41);
+    r[1] = buf & 0xFFFFFFFF;
     r[2] = 0;
 }
 
@@ -68,7 +68,7 @@ void DTUState::config_send(epid_t ep, vpeid_t vpe, label_t lbl, peid_t pe, epid_
             (static_cast<m3::DTU::reg_t>(credits) << 19) |
             (static_cast<m3::DTU::reg_t>(credits) << 25) |
             (static_cast<m3::DTU::reg_t>(msgorder) << 31);
-    r[1] = (static_cast<m3::DTU::reg_t>(pe & 0xFF) << 8) |
+    r[1] = (static_cast<m3::DTU::reg_t>(pe & 0xFF) << 16) |
             (static_cast<m3::DTU::reg_t>(dstep & 0xFF) << 0);
     r[2] = lbl;
 }
@@ -113,7 +113,7 @@ void DTUState::config_pf(gaddr_t rootpt, epid_t sep, epid_t rep) {
         features |= static_cast<uint>(m3::DTU::StatusFlags::PAGEFAULTS);
     _regs.set(m3::DTU::DtuRegs::FEATURES, features);
     _regs.set(m3::DTU::DtuRegs::ROOT_PT, rootpt);
-    _regs.set(m3::DTU::DtuRegs::PF_EP, sep | (rep << 8));
+    _regs.set(m3::DTU::DtuRegs::PF_EP, sep | (rep << 16));
 }
 
 }

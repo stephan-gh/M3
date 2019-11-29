@@ -49,4 +49,11 @@ static_assert(nextlog2<1UL << 31>::val == 31, "failed");
 static_assert(nextlog2<(1UL << 30) + 1>::val == 31, "failed");
 static_assert(nextlog2<(1UL << (sizeof(size_t) * 8 - 1)) + 1>::val == (sizeof(size_t) * 8 - 1), "failed");
 
+/**
+ * Converts the given pointer to a label
+ */
+static inline label_t ptr_to_label(void *ptr) {
+    return static_cast<label_t>(reinterpret_cast<word_t>(ptr));
+}
+
 }

@@ -90,7 +90,7 @@ public:
         if(data.args.count == 0) {
             SLOG(PAGER, fmt((word_t)sess, "#x") << ": mem::get_sgate()");
 
-            label_t label = reinterpret_cast<label_t>(sess);
+            label_t label = ptr_to_label(sess);
             auto sgate = new AddrSpace::SGateItem(
                 SendGate::create(&_rgate, SendGateArgs().label(label).credits(1))
             );
@@ -113,7 +113,7 @@ public:
 
     virtual Errors::Code close(AddrSpace *sess) override {
         delete sess;
-        _rgate.drop_msgs_with(reinterpret_cast<label_t>(sess));
+        _rgate.drop_msgs_with(ptr_to_label(sess));
         return Errors::NONE;
     }
 
