@@ -365,6 +365,8 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
 
     auto mapcap = static_cast<MapCapability*>(mcaps.get(dst, Capability::MAP));
     if(mapcap == nullptr) {
+        if(!mcaps.range_unused(m3::KIF::CapRngDesc(m3::KIF::CapRngDesc::MAP, dst, pages)))
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Capability range already in use");
         if(!vpeobj.kmem()->alloc(vpeobj, sizeof(MapObject) + sizeof(MapCapability)))
             SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
