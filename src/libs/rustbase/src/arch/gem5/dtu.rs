@@ -484,9 +484,16 @@ impl DTU {
     /// reception).
     #[inline(always)]
     pub fn sleep_for(cycles: u64) -> Result<(), Error> {
+        Self::wait_for_msg(0xFFFF, cycles)
+    }
+
+    /// Puts the CU to sleep until a message arrives at receive EP `ep`, but at most for `cycles`.
+    #[inline(always)]
+    pub fn wait_for_msg(ep: EpId, cycles: u64) -> Result<(), Error> {
+        Self::write_cmd_reg(CmdReg::OFFSET, ((ep as Reg) << 48) | cycles as Reg);
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(0, CmdOpCode::SLEEP, 0, cycles),
+            Self::build_cmd(0, CmdOpCode::SLEEP, 0, 0),
         );
         Self::get_error()
     }

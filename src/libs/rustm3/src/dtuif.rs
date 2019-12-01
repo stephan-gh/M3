@@ -88,7 +88,7 @@ impl DTUIf {
                 }
             }
 
-            dtu::DTU::sleep()?;
+            dtu::DTU::wait_for_msg(rg.ep().unwrap(), 0)?;
         }
     }
 

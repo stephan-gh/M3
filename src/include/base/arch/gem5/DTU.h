@@ -303,7 +303,12 @@ private:
         sleep_for(0);
     }
     void sleep_for(uint64_t cycles) {
-        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, cycles));
+        wait_for_msg(0xFFFF, cycles);
+    }
+    void wait_for_msg(epid_t ep, uint64_t timeout = 0) {
+        write_reg(CmdRegs::OFFSET, (static_cast<reg_t>(ep) << 48) | timeout);
+        CPU::compiler_barrier();
+        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP));
         get_error();
     }
 

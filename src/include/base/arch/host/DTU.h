@@ -297,6 +297,9 @@ public:
         time.tv_sec = static_cast<time_t>(secs);
         nanosleep(&time, nullptr);
     }
+    void wait_for_msg(epid_t, uint64_t = 0) const {
+        sleep();
+    }
 
     void drop_msgs(epid_t ep, label_t label) {
         // we assume that the one that used the label can no longer send messages. thus, if there are

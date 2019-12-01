@@ -267,6 +267,10 @@ impl DTU {
         Ok(())
     }
 
+    pub fn wait_for_msg(_ep: EpId, _timeout: u64) -> Result<(), Error> {
+        Self::sleep()
+    }
+
     pub fn configure(ep: EpId, lbl: Label, pe: PEId, dst_ep: EpId, crd: u64, msg_order: i32) {
         Self::set_ep(ep, EpReg::VALID, 1);
         Self::set_ep(ep, EpReg::LABEL, lbl);

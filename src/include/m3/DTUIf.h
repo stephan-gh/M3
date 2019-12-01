@@ -69,7 +69,7 @@ public:
             if(sg && EXPECT_FALSE(!DTU::get().is_valid(sg->ep()->id())))
                 return Errors::EP_INVALID;
 
-            DTU::get().sleep();
+            DTU::get().wait_for_msg(rg.ep()->id());
         }
         UNREACHED;
     }
