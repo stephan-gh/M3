@@ -26,7 +26,7 @@ use kif::{syscalls, CapRngDesc, CapType, Perm, INVALID_SEL};
 use pes::VPE;
 use rc::Rc;
 use serialize::Sink;
-use session::{ClientSession, Pager};
+use session::{ClientSession, MapFlags, Pager};
 use time;
 use util;
 use vfs::{filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode};
@@ -255,9 +255,10 @@ impl Map for GenericFile {
         off: usize,
         len: usize,
         prot: Perm,
+        flags: MapFlags,
     ) -> Result<(), Error> {
         // TODO maybe check here whether self is a pipe and return an error?
-        pager.map_ds(virt, len, off, prot, &self.sess).map(|_| ())
+        pager.map_ds(virt, len, off, prot, flags, &self.sess).map(|_| ())
     }
 }
 

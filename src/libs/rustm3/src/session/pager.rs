@@ -35,19 +35,26 @@ pub struct Pager {
 }
 
 int_enum! {
-    struct DelOp : u32 {
+    pub struct PagerDelOp : u32 {
         const DATASPACE = 0x0;
         const MEMGATE   = 0x1;
     }
 }
 
 int_enum! {
-    struct Operation : u32 {
+    pub struct PagerOp : u32 {
         const PAGEFAULT = 0x0;
         const CLONE     = 0x1;
         const MAP_ANON  = 0x2;
         const UNMAP     = 0x3;
         const CLOSE     = 0x4;
+    }
+}
+
+bitflags! {
+    pub struct MapFlags : u32 {
+        const PRIVATE = 0x0;
+        const SHARED  = 0x2000;
     }
 }
 
@@ -131,7 +138,7 @@ impl Pager {
     /// Performs the clone-operation on server-side using copy-on-write.
     #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Result<(), Error> {
-        send_recv_res!(&self.parent_sgate, RecvGate::def(), Operation::CLONE).map(|_| ())
+        send_recv_res!(&self.parent_sgate, RecvGate::def(), PagerOp::CLONE).map(|_| ())
     }
 
     /// Sends a page fault for the virtual address `addr` for given access type to the server.
@@ -139,7 +146,7 @@ impl Pager {
         send_recv_res!(
             &self.parent_sgate,
             RecvGate::def(),
-            Operation::PAGEFAULT,
+            PagerOp::PAGEFAULT,
             addr,
             access
         )
@@ -147,15 +154,15 @@ impl Pager {
     }
 
     /// Maps `len` bytes of anonymous memory to virtual address `addr` with permissions `prot`.
-    pub fn map_anon(&self, addr: goff, len: usize, prot: kif::Perm) -> Result<goff, Error> {
+    pub fn map_anon(&self, addr: goff, len: usize, prot: kif::Perm, flags: MapFlags) -> Result<goff, Error> {
         let mut reply = send_recv_res!(
             &self.parent_sgate,
             RecvGate::def(),
-            Operation::MAP_ANON,
+            PagerOp::MAP_ANON,
             addr,
             len,
             prot.bits(),
-            0
+            flags.bits()
         )?;
         Ok(reply.pop())
     }
@@ -168,18 +175,19 @@ impl Pager {
         len: usize,
         off: usize,
         prot: kif::Perm,
+        flags: MapFlags,
         sess: &ClientSession,
     ) -> Result<goff, Error> {
         let mut args = kif::syscalls::ExchangeArgs {
-            count: 5,
+            count: 6,
             vals: kif::syscalls::ExchangeUnion {
                 i: [
-                    u64::from(DelOp::DATASPACE.val),
+                    u64::from(PagerDelOp::DATASPACE.val),
                     addr as u64,
                     len as u64,
                     u64::from(prot.bits()),
+                    u64::from(flags.bits()),
                     off as u64,
-                    0,
                     0,
                     0,
                 ],
@@ -193,14 +201,14 @@ impl Pager {
 
     /// Unaps the mapping at virtual address `addr`.
     pub fn unmap(&self, addr: goff) -> Result<(), Error> {
-        send_recv_res!(&self.parent_sgate, RecvGate::def(), Operation::UNMAP, addr).map(|_| ())
+        send_recv_res!(&self.parent_sgate, RecvGate::def(), PagerOp::UNMAP, addr).map(|_| ())
     }
 }
 
 impl Drop for Pager {
     fn drop(&mut self) {
         if self.close {
-            send_recv_res!(&self.parent_sgate, RecvGate::def(), Operation::CLOSE).ok();
+            send_recv_res!(&self.parent_sgate, RecvGate::def(), PagerOp::CLOSE).ok();
         }
     }
 }

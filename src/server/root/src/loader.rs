@@ -24,7 +24,7 @@ use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
 use m3::pes::Mapper;
-use m3::session::Pager;
+use m3::session::{MapFlags, Pager};
 use m3::syscalls;
 use m3::util;
 use m3::vfs;
@@ -129,6 +129,7 @@ impl vfs::Map for BootFile {
         _off: usize,
         _len: usize,
         _prot: Perm,
+        _flags: MapFlags,
     ) -> Result<(), Error> {
         // not used
         Ok(())
@@ -178,10 +179,11 @@ impl Mapper for BootMapper {
         virt: goff,
         len: usize,
         perm: Perm,
+        flags: MapFlags,
     ) -> Result<bool, Error> {
         if perm.contains(Perm::W) {
             // create new memory and copy data into it
-            self.map_anon(pager, virt, len, perm)
+            self.map_anon(pager, virt, len, perm, flags)
         }
         else if self.has_virtmem {
             // map the memory of the boot module directly; therefore no initialization necessary
@@ -206,6 +208,7 @@ impl Mapper for BootMapper {
         virt: goff,
         len: usize,
         perm: Perm,
+        _flags: MapFlags,
     ) -> Result<bool, Error> {
         if self.has_virtmem {
             let alloc = memory::get().allocate(len)?;

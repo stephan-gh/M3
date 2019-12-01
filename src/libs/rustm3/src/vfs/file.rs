@@ -23,7 +23,7 @@ use goff;
 use io::{Read, Write};
 use kif;
 use serialize::{Marshallable, Sink, Source, Unmarshallable};
-use session::Pager;
+use session::{MapFlags, Pager};
 use vfs::{BlockId, DevId, Fd, FileMode, INodeId};
 
 int_enum! {
@@ -160,5 +160,6 @@ pub trait Map {
         off: usize,
         len: usize,
         prot: kif::Perm,
+        flags: MapFlags,
     ) -> Result<(), Error>;
 }

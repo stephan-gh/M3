@@ -25,7 +25,7 @@ use io::read_object;
 use kif;
 use mem::heap;
 use pes::Mapper;
-use session::Pager;
+use session::{MapFlags, Pager};
 use util;
 use vfs::{BufReader, FileRef, Seek, SeekMode};
 
@@ -119,12 +119,18 @@ impl<'l> Loader<'l> {
                 phdr.vaddr as goff,
                 size,
                 prot,
+                MapFlags::PRIVATE,
             )
         }
         else {
             assert!(phdr.filesz == 0);
-            self.mapper
-                .map_anon(self.pager, phdr.vaddr as goff, size, prot)
+            self.mapper.map_anon(
+                self.pager,
+                phdr.vaddr as goff,
+                size,
+                prot,
+                MapFlags::PRIVATE,
+            )
         }?;
 
         if needs_init {
@@ -180,6 +186,7 @@ impl<'l> Loader<'l> {
             cfg::ENV_START as goff,
             cfg::ENV_SIZE,
             kif::Perm::RW,
+            MapFlags::PRIVATE,
         )?;
 
         // create area for stack
@@ -188,6 +195,7 @@ impl<'l> Loader<'l> {
             cfg::STACK_BOTTOM as goff,
             cfg::STACK_SIZE,
             kif::Perm::RW,
+            MapFlags::PRIVATE,
         )?;
 
         // create heap
@@ -199,8 +207,13 @@ impl<'l> Loader<'l> {
         else {
             cfg::MOD_HEAP_SIZE
         };
-        self.mapper
-            .map_anon(self.pager, heap_begin as goff, heap_size, kif::Perm::RW)?;
+        self.mapper.map_anon(
+            self.pager,
+            heap_begin as goff,
+            heap_size,
+            kif::Perm::RW,
+            MapFlags::PRIVATE,
+        )?;
 
         Ok(hdr.entry)
     }

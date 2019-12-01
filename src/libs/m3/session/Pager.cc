@@ -44,12 +44,13 @@ void Pager::map_anon(goff_t *virt, size_t len, int prot, int flags) {
 void Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSession &sess,
                    size_t offset) {
     KIF::ExchangeArgs args;
-    args.count = 5;
+    args.count = 6;
     args.vals[0] = DelOp::DATASPACE;
     args.vals[1] = *virt;
     args.vals[2] = len;
-    args.vals[3] = static_cast<xfer_t>(prot | flags);
-    args.vals[4] = offset;
+    args.vals[3] = static_cast<xfer_t>(prot);
+    args.vals[4] = static_cast<xfer_t>(flags);
+    args.vals[5] = offset;
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess.sel()), &args);
     *virt = args.vals[0];
 }

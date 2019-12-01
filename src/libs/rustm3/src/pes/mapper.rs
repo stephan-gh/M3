@@ -21,7 +21,7 @@ use errors::Error;
 use goff;
 use io::Read;
 use kif;
-use session::Pager;
+use session::{Pager, MapFlags};
 use util;
 use vfs::{BufReader, FileRef, Map, Seek, SeekMode};
 
@@ -36,6 +36,7 @@ pub trait Mapper {
         virt: goff,
         len: usize,
         perm: kif::Perm,
+        flags: MapFlags,
     ) -> Result<bool, Error>;
 
     /// Maps anonymous memory to `virt`..`virt`+`len` with given permissions.
@@ -45,6 +46,7 @@ pub trait Mapper {
         virt: goff,
         len: usize,
         perm: kif::Perm,
+        flags: MapFlags,
     ) -> Result<bool, Error>;
 
     /// Initializes the memory at `virt`..`memsize` by loading `fsize` bytes from the given file at
@@ -129,9 +131,10 @@ impl Mapper for DefaultMapper {
         virt: goff,
         len: usize,
         perm: kif::Perm,
+        flags: MapFlags,
     ) -> Result<bool, Error> {
         if let Some(pg) = pager {
-            file.get_ref().map(pg, virt, foff, len, perm).map(|_| false)
+            file.get_ref().map(pg, virt, foff, len, perm, flags).map(|_| false)
         }
         else if self.has_virtmem {
             // TODO handle that case
@@ -148,9 +151,10 @@ impl Mapper for DefaultMapper {
         virt: goff,
         len: usize,
         perm: kif::Perm,
+        flags: MapFlags,
     ) -> Result<bool, Error> {
         if let Some(pg) = pager {
-            pg.map_anon(virt, len, perm).map(|_| false)
+            pg.map_anon(virt, len, perm, flags).map(|_| false)
         }
         else if self.has_virtmem {
             // TODO handle that case

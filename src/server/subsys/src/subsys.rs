@@ -165,7 +165,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop();
     let addr: goff = is.pop();
     let size: usize = is.pop();
-    let perms = kif::Perm::from_bits_truncate(is.pop::<u8>());
+    let perms = kif::Perm::from_bits_truncate(is.pop::<u32>());
 
     log!(
         RESMNG_MEM,

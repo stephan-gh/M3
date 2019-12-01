@@ -21,7 +21,7 @@ use errors::{Code, Error};
 use goff;
 use io;
 use kif;
-use session::Pager;
+use session::{MapFlags, Pager};
 use vfs;
 
 impl vfs::Seek for io::Serial {
@@ -38,6 +38,7 @@ impl vfs::Map for io::Serial {
         _off: usize,
         _len: usize,
         _prot: kif::Perm,
+        _flags: MapFlags,
     ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }

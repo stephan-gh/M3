@@ -16,7 +16,7 @@
 
 bitflags! {
     /// The permission bitmap that is used for memory and mapping capabilities.
-    pub struct Perm : u8 {
+    pub struct Perm : u32 {
         /// Read permission
         const R = 1;
         /// Write permission

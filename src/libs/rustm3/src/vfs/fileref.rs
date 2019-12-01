@@ -21,7 +21,7 @@ use goff;
 use io::{Read, Write};
 use kif;
 use pes::VPE;
-use session::Pager;
+use session::{MapFlags, Pager};
 use vfs::filetable::Fd;
 use vfs::{FileHandle, Map, Seek, SeekMode};
 
@@ -93,8 +93,9 @@ impl Map for FileRef {
         off: usize,
         len: usize,
         prot: kif::Perm,
+        flags: MapFlags,
     ) -> Result<(), Error> {
-        self.file.borrow().map(pager, virt, off, len, prot)
+        self.file.borrow().map(pager, virt, off, len, prot, flags)
     }
 }
 
