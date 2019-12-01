@@ -29,11 +29,20 @@ use util;
 
 pub use kif::Perm;
 
+bitflags! {
+    pub struct MGateFlags : u64 {
+        /// Pagefaults result in an abort
+        const NOPF = dtu::CmdFlags::NOPF.bits();
+        /// revoke the `MemGate` on destruction
+        const REVOKE = 0x80;
+    }
+}
+
 /// A memory gate (`MemGate`) has access to a contiguous memory region and allows RDMA-like memory
 /// accesses via DTU.
 pub struct MemGate {
     gate: Gate,
-    revoke: bool,
+    flags: MGateFlags,
 }
 
 /// The arguments for `MemGate` creations.
@@ -42,7 +51,6 @@ pub struct MGateArgs {
     addr: goff,
     perm: Perm,
     sel: Selector,
-    flags: CapFlags,
 }
 
 impl MGateArgs {
@@ -53,7 +61,6 @@ impl MGateArgs {
             addr: !0,
             perm,
             sel: INVALID_SEL,
-            flags: CapFlags::empty(),
         }
     }
 
@@ -91,8 +98,8 @@ impl MemGate {
             .resmng()
             .alloc_mem(sel, args.addr, args.size, args.perm)?;
         Ok(MemGate {
-            gate: Gate::new(sel, args.flags),
-            revoke: false,
+            gate: Gate::new(sel, CapFlags::empty()),
+            flags: MGateFlags::empty(),
         })
     }
 
@@ -100,7 +107,15 @@ impl MemGate {
     pub fn new_bind(sel: Selector) -> Self {
         MemGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
-            revoke: true,
+            flags: MGateFlags::REVOKE,
+        }
+    }
+
+    /// Binds a new `MemGate` to the given selector and revokes the cap on drop.
+    pub fn new_owned_bind(sel: Selector) -> Self {
+        MemGate {
+            gate: Gate::new(sel, CapFlags::empty()),
+            flags: MGateFlags::REVOKE,
         }
     }
 
@@ -112,6 +127,11 @@ impl MemGate {
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub(crate) fn ep(&self) -> Option<&EP> {
         self.gate.ep()
+    }
+
+    /// Sets the flags to use for memory requests.
+    pub fn set_flags(&mut self, flags: MGateFlags) {
+        self.flags = flags | (self.flags & MGateFlags::REVOKE);
     }
 
     /// Derives a new `MemGate` from `self` that has access to a subset of `self`'s the memory
@@ -138,7 +158,7 @@ impl MemGate {
         syscalls::derive_mem(vpe, sel, self.sel(), offset, size, perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
-            revoke: true,
+            flags: MGateFlags::REVOKE,
         })
     }
 
@@ -164,7 +184,7 @@ impl MemGate {
     /// Reads `size` bytes via the DTU read command from the memory region at offset `off` and
     /// stores the read data into `data`.
     pub fn read_bytes(&self, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        dtu::DTUIf::read(self, data, size, off, dtu::CmdFlags::empty())
+        dtu::DTUIf::read(self, data, size, off, self.cmd_flags())
     }
 
     /// Writes `data` with the DTU write command to the memory region at offset `off`.
@@ -184,17 +204,22 @@ impl MemGate {
     /// Writes the `size` bytes at `data` via the DTU write command to the memory region at offset
     /// `off`.
     pub fn write_bytes(&self, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        dtu::DTUIf::write(self, data, size, off, dtu::CmdFlags::empty())
+        dtu::DTUIf::write(self, data, size, off, self.cmd_flags())
     }
 
     pub(crate) fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }
+
+    fn cmd_flags(&self) -> dtu::CmdFlags {
+        dtu::CmdFlags::from_bits_truncate(self.flags.bits() & MGateFlags::NOPF.bits())
+    }
 }
 
 impl Drop for MemGate {
     fn drop(&mut self) {
-        if !self.gate.flags().contains(CapFlags::KEEP_CAP) && !self.revoke {
+        if !self.gate.flags().contains(CapFlags::KEEP_CAP)
+            && !self.flags.contains(MGateFlags::REVOKE) {
             VPE::cur().resmng().free_mem(self.sel()).ok();
             self.gate.set_flags(CapFlags::KEEP_CAP);
         }

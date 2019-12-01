@@ -88,6 +88,10 @@ impl ExchangeArgs {
         unsafe { self.vals.i[idx] }
     }
 
+    pub fn set_ival(&mut self, idx: usize, val: u64) {
+        unsafe { self.vals.i[idx] = val };
+    }
+
     pub fn sval(&self, idx: usize) -> u64 {
         unsafe { self.vals.s.i[idx] }
     }

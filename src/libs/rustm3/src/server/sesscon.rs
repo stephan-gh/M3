@@ -57,6 +57,20 @@ impl<S> SessionContainer<S> {
         self.con[sid].as_mut()
     }
 
+    /// Returns mutable references to the sessions with ids `sid1` and `sid2`
+    pub fn get_two_mut(&mut self, sid1: SessId, sid2: SessId) -> (Option<&mut S>, Option<&mut S>) {
+        assert!(sid1 != sid2);
+        assert!(sid1 < self.con.len());
+        assert!(sid2 < self.con.len());
+
+        unsafe {
+            let ptr = self.con.as_mut_slice().as_mut_ptr();
+            let s1 = (*ptr.add(sid1)).as_mut();
+            let s2 = (*ptr.add(sid2)).as_mut();
+            (s1, s2)
+        }
+    }
+
     /// Adds a new session with given id, assuming that the id is not in use.
     pub fn add(&mut self, sid: SessId, sess: S) {
         assert!(self.used & (1 << sid) == 0);

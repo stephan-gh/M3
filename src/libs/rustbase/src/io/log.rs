@@ -38,6 +38,8 @@ pub const FILES: bool = false;
 pub const VTERM: bool = false;
 /// Logs pipes operations
 pub const PIPES: bool = false;
+/// Logs pager operations
+pub const PAGER: bool = false;
 
 /// Logs general operations of the resource manager
 pub const RESMNG: bool = true;

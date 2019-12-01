@@ -22,6 +22,7 @@ use core::any::Any;
 use core::fmt;
 use core::mem::MaybeUninit;
 use errors::Error;
+use goff;
 use kif;
 use pes::VPE;
 use rc::{Rc, Weak};
@@ -77,6 +78,14 @@ impl M3FS {
     /// Returns a reference to the underlying [`ClientSession`]
     pub fn sess(&self) -> &ClientSession {
         &self.sess
+    }
+
+    pub fn get_mem(sess: &ClientSession, off: goff) -> Result<(goff, goff, Selector), Error> {
+        let mut args = kif::syscalls::ExchangeArgs::default();
+        args.count = 1;
+        args.set_ival(0, off as u64);
+        let crd = sess.obtain(1, &mut args)?;
+        Ok((args.ival(0) as goff, args.ival(1) as goff, crd.start()))
     }
 }
 

@@ -1,3 +1,3 @@
 Import('env')
 if env['ARCH'] == 'gem5':
-    env.M3Program(env, 'pager', env.Glob('*.cc'))
+    env.RustProgram(env, target = 'pager')

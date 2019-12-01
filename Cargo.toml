@@ -10,6 +10,7 @@ members = [
     "src/libs/rustthread",
     "src/server/pipes",
     "src/server/root",
+    "src/server/pager",
     "src/server/subsys",
     "src/server/vterm",
 ]
