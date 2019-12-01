@@ -29,6 +29,7 @@ int main() {
     RUN_SUITE(bpipe);
     RUN_SUITE(bfsmeta);
     RUN_SUITE(bvpe);
+    RUN_SUITE(bpagefaults);
 
     m3::cout << "\033[1;32mAll tests successful!\033[0;m\n";
     return 0;
