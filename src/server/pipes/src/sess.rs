@@ -152,13 +152,17 @@ impl State {
     }
 
     fn handle_pending_reads(&mut self) {
+        // if a read is still in progress, we cannot start other reads
         if self.last_read.is_some() {
             return;
         }
 
+        // use a loop here, because if we are at write-EOF, we want to report EOF to all readers
         while let Some(req) = self.pending_reads.last() {
+            // try to find a place to read from
             let amount = self.get_read_size();
             if let Some((pos, amount)) = self.rbuf.get_read_pos(amount) {
+                // start reading
                 self.last_read = Some((req.chan, amount));
                 log!(
                     PIPES,
@@ -169,35 +173,45 @@ impl State {
                 );
                 reply_vmsg_late!(rgate(), req.msg, 0, pos, amount).ok();
 
+                // remove write request
                 self.pending_reads.pop();
                 break;
             }
+            // did all writers leave?
             else if self.flags.contains(Flags::WRITE_EOF) {
+                // report EOF
                 log!(PIPES, "[{}] pipes::late_read(): EOF", req.chan);
                 reply_vmsg_late!(rgate(), req.msg, 0, 0usize, 0usize).ok();
 
+                // remove write request
                 self.pending_reads.pop();
             }
             else {
+                // otherwise, don't consider more read requests
                 break;
             }
         }
     }
 
     fn handle_pending_writes(&mut self) {
+        // if a write is still in progress, we cannot start other writes
         if self.last_write.is_some() {
             return;
         }
 
+        // if all readers left, just report EOF to all pending write requests
         if self.flags.contains(Flags::READ_EOF) {
             while let Some(req) = self.pending_writes.pop() {
                 log!(PIPES, "[{}] pipes::late_write(): EOF", req.chan);
                 reply_vmsg_late!(rgate(), req.msg, Code::EndOfFile as u32).ok();
             }
         }
+        // is there a pending write request?
         else if let Some(req) = self.pending_writes.last() {
+            // try to find a place to write
             let amount = self.get_write_size();
             if let Some(pos) = self.rbuf.get_write_pos(amount) {
+                // start writing
                 self.last_write = Some((req.chan, amount));
                 log!(
                     PIPES,
@@ -208,6 +222,7 @@ impl State {
                 );
                 reply_vmsg_late!(rgate(), req.msg, 0, pos, amount).ok();
 
+                // remove write request
                 self.pending_writes.pop();
             }
         }
@@ -385,9 +400,12 @@ impl Channel {
     fn read(&mut self, is: &mut GateIStream, commit: usize) -> Result<(), Error> {
         self.activate()?;
 
+        // if a read is in progress, we have to commit it
         let mut state = self.state.borrow_mut();
         if let Some((last_id, last_amount)) = state.last_read {
+            // if that wasn't the same client, queue the read request
             if last_id != self.id {
+                // commits cannot be queued
                 if commit > 0 {
                     return Err(Error::new(Code::InvArgs));
                 }
@@ -395,34 +413,42 @@ impl Channel {
                 return Ok(());
             }
 
+            // this client is the current reader, so commit the read by pulling it from the ringbuf
             let amount = if commit == 0 { last_amount } else { commit };
             log!(PIPES, "[{}] pipes::read_pull({})", self.id, amount);
             state.rbuf.pull(amount);
             state.last_read = None;
         }
 
+        // commits are done here, because they don't get new data
         if commit > 0 {
             return reply_vmsg!(is, 0, state.rbuf.size());
         }
 
+        // if there are already queued read requests, just append this request
         if state.pending_reads.len() > 0 {
+            // only queue the request if we still have writers
             if !state.flags.contains(Flags::WRITE_EOF) {
                 state.append_request(self.id, is, true);
                 return Ok(());
             }
         }
 
+        // request new read position
         let amount = state.get_read_size();
         if let Some((pos, amount)) = state.rbuf.get_read_pos(amount) {
+            // there is something to read; give client the position and size
             state.last_read = Some((self.id, amount));
             log!(PIPES, "[{}] pipes::read(): {} @ {}", self.id, amount, pos);
             reply_vmsg!(is, 0, pos, amount)
         }
         else {
+            // nothing to read; if there is no writer left, report EOF
             if state.flags.contains(Flags::WRITE_EOF) {
                 log!(PIPES, "[{}] pipes::read(): EOF", self.id);
                 reply_vmsg!(is, 0, 0usize, 0usize)
             }
+            // otherwise queue the request
             else {
                 state.append_request(self.id, is, true);
                 Ok(())
@@ -433,14 +459,18 @@ impl Channel {
     fn write(&mut self, is: &mut GateIStream, commit: usize) -> Result<(), Error> {
         self.activate()?;
 
+        // if there are no readers left, report EOF
         let mut state = self.state.borrow_mut();
         if state.flags.contains(Flags::READ_EOF) {
             log!(PIPES, "[{}] pipes::write(): EOF", self.id);
             return is.reply_error(Code::EndOfFile);
         }
 
+        // is a write in progress?
         if let Some((last_id, last_amount)) = state.last_write {
+            // if that wasn't the same client, queue the write request
             if last_id != self.id {
+                // commits cannot be queued
                 if commit > 0 {
                     return Err(Error::new(Code::InvArgs));
                 }
@@ -448,28 +478,34 @@ impl Channel {
                 return Ok(());
             }
 
+            // this client is the current reader, so commit the write by pushing it to the ringbuf
             let amount = if commit == 0 { last_amount } else { commit };
             log!(PIPES, "[{}] pipes::write_push({})", self.id, amount);
             state.rbuf.push(last_amount, amount);
             state.last_write = None;
         }
 
+        // commits are done here, because they don't get new data
         if commit > 0 {
             return reply_vmsg!(is, 0, state.rbuf.size());
         }
 
+        // if there are already queued write requests, just append this request
         if state.pending_writes.len() > 0 {
             state.append_request(self.id, is, false);
             return Ok(());
         }
 
+        // request new write position
         let amount = state.get_write_size();
         if let Some(pos) = state.rbuf.get_write_pos(amount) {
+            // there is space to write; give client the position and size
             state.last_write = Some((self.id, amount));
             log!(PIPES, "[{}] pipes::write(): {} @ {}", self.id, amount, pos);
             reply_vmsg!(is, 0, pos, amount)
         }
         else {
+            // nothing to write, so queue the request
             state.append_request(self.id, is, false);
             Ok(())
         }
@@ -479,18 +515,23 @@ impl Channel {
         let mut state = self.state.borrow_mut();
         state.remove_pending(true, self.id);
 
+        // if we're already at read-EOF, there is something wrong
         if state.flags.contains(Flags::READ_EOF) {
             return Err(Error::new(Code::InvArgs));
         }
 
+        // is a read in progress?
         if let Some((last_id, _)) = state.last_read {
+            // pull it from the ring buffer, if it's this client's read
             if last_id == self.id {
                 log!(PIPES, "[{}] pipes::read_pull(): 0", self.id);
                 state.rbuf.pull(0);
                 state.last_read = None;
             }
+            // otherwise, we ignore it because the client violated the protocol
         }
 
+        // remove client
         state.reader.remove_item(&(self.id as usize));
         let rd_left = state.reader.len();
         if rd_left > 0 {
@@ -498,6 +539,7 @@ impl Channel {
             return Ok(());
         }
 
+        // no readers left: EOF
         state.flags.insert(Flags::READ_EOF);
         log!(PIPES, "[{}] pipes::close(): read EOF", self.id);
         Ok(())
@@ -507,18 +549,23 @@ impl Channel {
         let mut state = self.state.borrow_mut();
         state.remove_pending(false, self.id);
 
+        // if we're already at write-EOF, there is something wrong
         if state.flags.contains(Flags::WRITE_EOF) {
             return Err(Error::new(Code::InvArgs));
         }
 
+        // is a write in progress?
         if let Some((last_id, last_amount)) = state.last_write {
+            // push it to the ring buffer, if it's this client's read
             if last_id == self.id {
                 log!(PIPES, "[{}] pipes::write_push(): 0", self.id);
                 state.rbuf.push(last_amount, 0);
                 state.last_write = None;
             }
+            // otherwise, we ignore it because the client violated the protocol
         }
 
+        // remove client
         state.writer.remove_item(&(self.id as usize));
         let wr_left = state.writer.len();
         if wr_left > 0 {
@@ -526,24 +573,29 @@ impl Channel {
             return Ok(());
         }
 
+        // no writers left: EOF
         state.flags.insert(Flags::WRITE_EOF);
         log!(PIPES, "[{}] pipes::close(): write EOF", self.id);
         Ok(())
     }
 
     fn activate(&mut self) -> Result<(), Error> {
+        // did we get an EP cap from the client?
         if let Some(cap) = self.ep_cap.take() {
             unsafe {
                 assert!(self.i.mem.is_none());
             }
 
+            // did we get a memory cap from the client?
             let state = self.state.borrow();
             if let Some(mem) = &state.mem {
+                // derive read-only/write-only mem cap
                 let perm = match self.i.ty {
                     ChanType::READ => kif::Perm::R,
                     ChanType::WRITE => kif::Perm::W,
                 };
                 let cmem = mem.derive(0, state.mem_size, perm)?;
+                // activate it on client's EP
                 log!(
                     PIPES,
                     "[{}] pipes::activate(ep={}, gate={})",

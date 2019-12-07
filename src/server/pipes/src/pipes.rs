@@ -68,6 +68,7 @@ impl PipesHandler {
     }
 
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
+        // close this and all child sessions
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
             if let Some(sess) = self.sessions.get_mut(id) {
@@ -108,6 +109,7 @@ impl Handler for PipesHandler {
             let nsid = self.sessions.next_id()?;
             let sess = self.sessions.get_mut(sid).unwrap();
             match &mut sess.data_mut() {
+                // meta sessions allow to create new pipes
                 SessionData::Meta(ref mut m) => {
                     if data.args.count != 1 {
                         return Err(Error::new(Code::InvArgs));
@@ -127,6 +129,7 @@ impl Handler for PipesHandler {
                         .map(|s| (nsid, s, false))
                 },
 
+                // pipe sessions allow to create new channels
                 SessionData::Pipe(ref mut p) => {
                     if data.args.count != 1 {
                         return Err(Error::new(Code::InvArgs));
@@ -151,6 +154,7 @@ impl Handler for PipesHandler {
                         .map(|s| (nsid, s, false))
                 },
 
+                // channel sessions can be cloned
                 SessionData::Chan(ref mut c) => {
                     let sel = VPE::cur().alloc_sels(2);
                     log!(PIPES, "[{}] pipes::clone(sid={}, sel={})", sid, nsid, sel);
@@ -191,6 +195,7 @@ impl Handler for PipesHandler {
     ) -> Result<(), Error> {
         let sess = self.sessions.get_mut(sid).unwrap();
         match &mut sess.data_mut() {
+            // pipe sessions expect a memory cap for the shared memory of the pipe
             SessionData::Pipe(ref mut p) => {
                 if data.caps != 1 || data.args.count != 0 || p.has_mem() {
                     return Err(Error::new(Code::InvArgs));
@@ -204,6 +209,7 @@ impl Handler for PipesHandler {
                 Ok(())
             },
 
+            // channel sessions expect an EP cap to get access to the data
             SessionData::Chan(ref mut c) => {
                 if data.caps != 1 || data.args.count != 0 {
                     return Err(Error::new(Code::InvArgs));
