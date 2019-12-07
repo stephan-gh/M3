@@ -199,15 +199,7 @@ impl AddrSpace {
             off
         );
 
-        if virt >= MAX_VIRT_ADDR {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if (virt & cfg::PAGE_BITS as goff) != 0 || (len & cfg::PAGE_BITS as goff) != 0 {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if self.overlaps(virt, len) {
-            return Err(Error::new(Code::Exists));
-        }
+        self.check_map_args(virt, len, perm)?;
 
         let sel = VPE::cur().alloc_sel();
         let as_mem = self.as_mem.as_ref().unwrap().clone();
@@ -218,6 +210,10 @@ impl AddrSpace {
     }
 
     pub fn map_anon(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        if !self.has_as_mem() {
+            return Err(Error::new(Code::InvArgs));
+        }
+
         let virt: goff = is.pop();
         let len: goff = is.pop();
         let perm = Perm::from_bits_truncate(is.pop::<u32>());
@@ -233,18 +229,7 @@ impl AddrSpace {
             flags
         );
 
-        if virt >= MAX_VIRT_ADDR || !self.has_as_mem() {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if (virt & cfg::PAGE_BITS as goff) != 0 || (len & cfg::PAGE_BITS as goff) != 0 {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if perm.is_empty() {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if self.overlaps(virt, len) {
-            return Err(Error::new(Code::Exists));
-        }
+        self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
         self.ds
@@ -271,18 +256,7 @@ impl AddrSpace {
             perm,
         );
 
-        if virt >= MAX_VIRT_ADDR {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if (virt & cfg::PAGE_BITS as goff) != 0 || (len & cfg::PAGE_BITS as goff) != 0 {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if perm.is_empty() {
-            return Err(Error::new(Code::InvArgs));
-        }
-        if self.overlaps(virt, len) {
-            return Err(Error::new(Code::Exists));
-        }
+        self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
         let mut ds = Box::new(DataSpace::new_anon(as_mem, virt, len, perm, MapFlags::empty()));
@@ -316,6 +290,23 @@ impl AddrSpace {
         log!(PAGER, "[{}] pager::close()", self.id);
 
         reply_vmsg!(is, 0)
+    }
+
+    fn check_map_args(&self, virt: goff, len: goff, perm: Perm) -> Result<(), Error> {
+        if virt >= MAX_VIRT_ADDR {
+            return Err(Error::new(Code::InvArgs));
+        }
+        if (virt & cfg::PAGE_BITS as goff) != 0 || (len & cfg::PAGE_BITS as goff) != 0 {
+            return Err(Error::new(Code::InvArgs));
+        }
+        if perm.is_empty() {
+            return Err(Error::new(Code::InvArgs));
+        }
+        if self.overlaps(virt, len) {
+            return Err(Error::new(Code::Exists));
+        }
+
+        Ok(())
     }
 
     fn find_ds(&mut self, virt: goff) -> Option<&mut Box<DataSpace>> {
