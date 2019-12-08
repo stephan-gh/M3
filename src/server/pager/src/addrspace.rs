@@ -23,11 +23,11 @@ use m3::dtu::{Label, PTEFlags};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{syscalls::ExchangeArgs, Perm};
+use m3::math;
 use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
-use m3::util;
 
 use dataspace::DataSpace;
 use rgate;
@@ -324,7 +324,7 @@ impl AddrSpace {
 
     fn overlaps(&self, virt: goff, size: goff) -> bool {
         for ds in &self.ds {
-            if util::overlaps(ds.virt(), ds.virt() + ds.size(), virt, virt + size) {
+            if math::overlaps(ds.virt(), ds.virt() + ds.size(), virt, virt + size) {
                 return true;
             }
         }

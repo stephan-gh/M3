@@ -24,6 +24,7 @@ use core::ops;
 use dtu;
 use errors::Error;
 use kif::INVALID_SEL;
+use math;
 use pes::VPE;
 use syscalls;
 use util;
@@ -300,15 +301,15 @@ pub(crate) fn init() {
 
     let mut off = cfg::KPEX_RBUF_SIZE + cfg::PEXUP_RBUF_SIZE;
     RecvGate::syscall().buf = rbufs.get_std(off, cfg::SYSC_RBUF_SIZE);
-    RecvGate::syscall().order = util::next_log2(cfg::SYSC_RBUF_SIZE);
+    RecvGate::syscall().order = math::next_log2(cfg::SYSC_RBUF_SIZE);
     off += cfg::SYSC_RBUF_SIZE;
 
     RecvGate::upcall().buf = rbufs.get_std(off, cfg::UPCALL_RBUF_SIZE);
-    RecvGate::upcall().order = util::next_log2(cfg::UPCALL_RBUF_SIZE);
+    RecvGate::upcall().order = math::next_log2(cfg::UPCALL_RBUF_SIZE);
     off += cfg::UPCALL_RBUF_SIZE;
 
     RecvGate::def().buf = rbufs.get_std(off, cfg::DEF_RBUF_SIZE);
-    RecvGate::def().order = util::next_log2(cfg::DEF_RBUF_SIZE);
+    RecvGate::def().order = math::next_log2(cfg::DEF_RBUF_SIZE);
 }
 
 impl ops::Drop for RecvGate {

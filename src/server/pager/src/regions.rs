@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use core::cmp;
 use core::fmt;
 use m3::boxed::Box;
 use m3::cap::Selector;
@@ -26,7 +27,6 @@ use m3::goff;
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use m3::rc::Rc;
 use m3::syscalls;
-use m3::util;
 
 use addrspace::ASMem;
 use physmem::{copy_block, PhysMem};
@@ -202,9 +202,9 @@ impl Region {
         if self.size > pages * cfg::PAGE_SIZE as goff {
             let end = self.off + self.size;
             if pos > (pages / 2) * cfg::PAGE_SIZE as goff {
-                self.off = util::max(self.off, pos - (pages / 2) * cfg::PAGE_SIZE as goff);
+                self.off = cmp::max(self.off, pos - (pages / 2) * cfg::PAGE_SIZE as goff);
             }
-            self.size = util::min(pages * cfg::PAGE_SIZE as goff, end - self.off);
+            self.size = cmp::min(pages * cfg::PAGE_SIZE as goff, end - self.off);
         }
     }
 

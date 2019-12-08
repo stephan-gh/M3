@@ -23,6 +23,7 @@ use errors::{Code, Error};
 use goff;
 use io::read_object;
 use kif;
+use math;
 use mem::heap;
 use pes::Mapper;
 use session::{MapFlags, Pager};
@@ -109,7 +110,7 @@ impl<'l> Loader<'l> {
         buf: &mut [u8],
     ) -> Result<(), Error> {
         let prot = kif::Perm::from(elf::PF::from_bits_truncate(phdr.flags));
-        let size = util::round_up(phdr.memsz as usize, cfg::PAGE_SIZE);
+        let size = math::round_up(phdr.memsz as usize, cfg::PAGE_SIZE);
 
         let needs_init = if phdr.memsz == phdr.filesz {
             self.mapper.map_file(
@@ -200,7 +201,7 @@ impl<'l> Loader<'l> {
 
         // create heap
         // TODO align heap to 2M to use huge pages
-        let heap_begin = util::round_up(end, cfg::PAGE_SIZE);
+        let heap_begin = math::round_up(end, cfg::PAGE_SIZE);
         let heap_size = if self.pager.is_some() {
             cfg::APP_HEAP_SIZE
         }
@@ -242,7 +243,7 @@ impl<'l> Loader<'l> {
         }
 
         self.mem.write(&argbuf, *off as goff)?;
-        argoff = util::round_up(argoff, util::size_of::<u64>());
+        argoff = math::round_up(argoff, util::size_of::<u64>());
         self.mem.write(&argptr, argoff as goff)?;
 
         *off = argoff + argptr.len() * util::size_of::<u64>();

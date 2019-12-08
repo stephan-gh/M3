@@ -18,7 +18,7 @@
 
 use arch::cfg;
 use arch::cpu;
-use util;
+use math;
 
 /// Walks up the stack and stores the return addresses into the given slice and returns the number
 /// of addresses.
@@ -28,8 +28,8 @@ use util;
 pub fn collect(addrs: &mut [usize]) -> usize {
     let mut bp = cpu::get_bp();
 
-    let base = util::round_dn(bp, cfg::STACK_SIZE);
-    let end = util::round_up(bp, cfg::STACK_SIZE);
+    let base = math::round_dn(bp, cfg::STACK_SIZE);
+    let end = math::round_up(bp, cfg::STACK_SIZE);
     let start = end - cfg::STACK_SIZE;
 
     for (i, addr) in addrs.iter_mut().enumerate() {

@@ -21,9 +21,9 @@ use m3::errors::Error;
 use m3::com::MemGate;
 use m3::goff;
 use m3::kif;
+use m3::math;
 use m3::rc::Rc;
 use m3::session::{ClientSession, MapFlags, M3FS};
-use m3::util;
 
 use addrspace::ASMem;
 use regions::RegionList;
@@ -161,7 +161,7 @@ impl DataSpace {
     }
 
     pub fn handle_pf(&mut self, virt: goff) -> Result<(), Error> {
-        let pf_off = util::round_dn(virt - self.virt, cfg::PAGE_SIZE as goff);
+        let pf_off = math::round_dn(virt - self.virt, cfg::PAGE_SIZE as goff);
         let reg = self.regions.pagefault(pf_off);
 
         // if it isn't backed with memory yet, allocate memory for it
@@ -189,7 +189,7 @@ impl DataSpace {
 
                 // ensure that we don't exceed the memcap size
                 if reg.mem_off() + reg.size() > len {
-                    reg.set_size(util::round_up(len - reg.mem_off(), cfg::PAGE_SIZE as goff));
+                    reg.set_size(math::round_up(len - reg.mem_off(), cfg::PAGE_SIZE as goff));
                 }
 
                 // if it's writable and should not be shared, create a copy
@@ -221,7 +221,7 @@ impl DataSpace {
                 );
             }
             else {
-                let max = if util::is_aligned(virt, cfg::LPAGE_SIZE as goff)
+                let max = if math::is_aligned(virt, cfg::LPAGE_SIZE as goff)
                     && reg.size() >= cfg::LPAGE_SIZE as goff
                 {
                     cfg::LPAGE_SIZE / cfg::PAGE_SIZE

@@ -22,6 +22,7 @@ use cap::{CapFlags, Capability, Selector};
 use cell::StaticCell;
 use col::Vec;
 use com::{EpMng, MemGate, SendGate};
+use core::cmp;
 use core::fmt;
 use core::ops::FnOnce;
 use env;
@@ -32,7 +33,6 @@ use pes::{ClosureActivity, DefaultMapper, ExecActivity, KMem, Mapper, PE};
 use rc::Rc;
 use session::{Pager, ResMng};
 use syscalls;
-use util;
 use vfs::{BufReader, FileRef, OpenFlags, VFS};
 use vfs::{FileTable, MountTable};
 
@@ -192,7 +192,7 @@ impl VPE {
             )?;
 
             // mark the pager caps allocated
-            vpe.next_sel = util::max(sgate_sel + 1, vpe.next_sel);
+            vpe.next_sel = cmp::max(sgate_sel + 1, vpe.next_sel);
             // now delegate our VPE cap and memory cap to the pager
             pg.delegate_caps(&vpe)?;
             // and delegate the pager cap to the VPE
@@ -210,7 +210,7 @@ impl VPE {
             )?;
             None
         };
-        vpe.next_sel = util::max(vpe.kmem.sel() + 1, vpe.next_sel);
+        vpe.next_sel = cmp::max(vpe.kmem.sel() + 1, vpe.next_sel);
 
         // determine resource manager
         let resmng = if let Some(rmng) = args.rmng {
@@ -223,7 +223,7 @@ impl VPE {
         vpe.rmng = resmng;
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
-        VPE::cur().next_sel = util::max(vpe.next_sel, VPE::cur().next_sel);
+        VPE::cur().next_sel = cmp::max(vpe.next_sel, VPE::cur().next_sel);
 
         Ok(vpe)
     }
@@ -323,7 +323,7 @@ impl VPE {
     /// `dst`..`dst`+`crd.count()`.
     pub fn delegate_to(&mut self, crd: CapRngDesc, dst: Selector) -> Result<(), Error> {
         syscalls::exchange(self.sel(), crd, dst, false)?;
-        self.next_sel = util::max(self.next_sel, dst + crd.count());
+        self.next_sel = cmp::max(self.next_sel, dst + crd.count());
         Ok(())
     }
 
@@ -397,6 +397,7 @@ impl VPE {
         use cpu;
         use goff;
         use pes::Activity;
+        use util;
 
         let env = arch::env::get();
         let mut senv = arch::env::EnvData::default();
@@ -527,6 +528,7 @@ impl VPE {
         use goff;
         use pes::Activity;
         use serialize::Sink;
+        use util;
 
         let mut file = BufReader::new(file);
 

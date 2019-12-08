@@ -18,7 +18,7 @@ use col::DList;
 use core::fmt;
 use errors::{Code, Error};
 use goff;
-use util;
+use math;
 
 struct Area {
     addr: goff,
@@ -58,7 +58,7 @@ impl MemMap {
             match it.next() {
                 None => break None,
                 Some(a) => {
-                    let diff = util::round_up(a.addr, align as goff) - a.addr;
+                    let diff = math::round_up(a.addr, align as goff) - a.addr;
                     if a.size > diff as usize && a.size - diff as usize >= size {
                         break Some(a);
                     }
@@ -70,7 +70,7 @@ impl MemMap {
             None => Err(Error::new(Code::OutOfMem)),
             Some(a) => {
                 // if we need to do some alignment, create a new area in front of a
-                let diff = util::round_up(a.addr, align as goff) - a.addr;
+                let diff = math::round_up(a.addr, align as goff) - a.addr;
                 if diff != 0 {
                     it.insert_before(Area::new(a.addr, diff as usize));
                     a.addr += diff;

@@ -19,6 +19,7 @@ use cell::RefCell;
 use col::Vec;
 use com::{RecvGate, SendGate, SliceSource, VecSink};
 use core::any::Any;
+use core::cmp;
 use core::fmt;
 use core::mem::MaybeUninit;
 use errors::Error;
@@ -28,7 +29,6 @@ use pes::VPE;
 use rc::{Rc, Weak};
 use serialize::Sink;
 use session::ClientSession;
-use util;
 use vfs::{
     FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
 };
@@ -161,7 +161,7 @@ impl FileSystem for M3FS {
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
         let mut args = kif::syscalls::ExchangeArgs::default();
         self.sess.obtain_for(vpe, crd, &mut args)?;
-        *max_sel = util::max(*max_sel, self.sess.sel() + 2);
+        *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }
 

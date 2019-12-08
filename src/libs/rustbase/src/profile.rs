@@ -18,8 +18,8 @@
 
 use col::Vec;
 use core::fmt;
+use math;
 use time;
-use util;
 
 /// A container for the measured execution times
 pub struct Results {
@@ -61,7 +61,7 @@ impl Results {
             };
             sum += val * val;
         }
-        util::sqrt((sum as f32) / (self.times.len() as f32))
+        math::sqrt((sum as f32) / (self.times.len() as f32))
     }
 
     fn push(&mut self, time: time::Time) {

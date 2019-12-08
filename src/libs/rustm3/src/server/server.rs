@@ -19,9 +19,9 @@ use com::{GateIStream, RecvGate};
 use dtu::EpId;
 use errors::{Code, Error};
 use kif::service;
+use math;
 use pes::VPE;
 use server::SessId;
-use util;
 
 /// Represents a server that provides a service for clients.
 pub struct Server {
@@ -61,7 +61,7 @@ impl Server {
     /// Creates a new server with given service name.
     pub fn new(name: &str) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
-        let mut rgate = RecvGate::new(util::next_log2(BUF_SIZE), util::next_log2(MSG_SIZE))?;
+        let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         rgate.activate()?;
 
         VPE::cur().resmng().reg_service(sel, rgate.sel(), name)?;
@@ -76,8 +76,8 @@ impl Server {
     pub fn new_bind(caps: Selector, ep: EpId) -> Self {
         let mut rgate = RecvGate::new_bind(
             caps + 1,
-            util::next_log2(BUF_SIZE),
-            util::next_log2(MSG_SIZE),
+            math::next_log2(BUF_SIZE),
+            math::next_log2(MSG_SIZE),
         );
         rgate.set_ep(ep);
 

@@ -83,6 +83,7 @@ pub mod elf;
 pub mod env;
 pub mod errors;
 pub mod kif;
+pub mod math;
 pub mod mem;
 pub mod pexif;
 pub mod profile;

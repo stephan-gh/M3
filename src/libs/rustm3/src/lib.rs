@@ -63,6 +63,7 @@ pub use base::{
     // modules
     libc,
     log,
+    math,
     mem,
     profile,
     rc,

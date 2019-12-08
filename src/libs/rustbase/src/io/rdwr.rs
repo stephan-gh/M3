@@ -17,6 +17,7 @@
 //! Contains the read and write traits
 
 use col::{String, Vec};
+use core::cmp;
 use core::fmt;
 use core::mem::MaybeUninit;
 use errors::{Code, Error};
@@ -58,7 +59,7 @@ pub trait Read {
 
     /// Reads all available bytes from this source into the given vector and returns the number of
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize, Error> {
-        let mut cap = util::max(64, buf.capacity() * 2);
+        let mut cap = cmp::max(64, buf.capacity() * 2);
         let old_len = buf.len();
         let mut off = old_len;
 

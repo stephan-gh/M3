@@ -15,10 +15,10 @@
  */
 
 use col::{String, Vec};
+use core::cmp;
 use core::fmt;
 use errors::Error;
 use io::{Read, Write};
-use util;
 use vfs::{Seek, SeekMode};
 
 /// A reader implementation with an internal buffer.
@@ -87,7 +87,7 @@ impl<R: Read> Read for BufReader<R> {
             self.pos = 0;
         }
 
-        let end = util::min(self.cap, self.pos + buf.len());
+        let end = cmp::min(self.cap, self.pos + buf.len());
         let res = end - self.pos;
         if end > self.pos {
             buf[0..res].copy_from_slice(&self.buf[self.pos..end]);
@@ -170,7 +170,7 @@ impl<W: Write> Write for BufWriter<W> {
             self.writer.write(buf)
         }
         else {
-            let end = util::min(self.buf.len(), self.pos + buf.len());
+            let end = cmp::min(self.buf.len(), self.pos + buf.len());
             let res = end - self.pos;
             if end > self.pos {
                 self.buf[self.pos..end].copy_from_slice(&buf[0..res]);

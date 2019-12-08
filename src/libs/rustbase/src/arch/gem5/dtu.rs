@@ -19,6 +19,7 @@ use cfg;
 use core::intrinsics;
 use errors::{Code, Error};
 use goff;
+use math;
 use util;
 
 /// A DTU register
@@ -526,7 +527,7 @@ impl DTU {
 
         #[allow(clippy::transmute_ptr_to_ptr)]
         let rstr: &[u64] = unsafe { intrinsics::transmute(s) };
-        let num = util::round_up(s.len(), 8) / 8;
+        let num = math::round_up(s.len(), 8) / 8;
         for c in rstr.iter().take(num) {
             arch::cpu::write8b(buffer, *c);
             buffer += 8;

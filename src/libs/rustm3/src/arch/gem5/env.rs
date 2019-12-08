@@ -19,6 +19,7 @@ use base;
 use cap::Selector;
 use cfg;
 use com::{SendGate, SliceSource};
+use core::cmp;
 use core::intrinsics;
 use env;
 use kif::{self, PEDesc};
@@ -107,7 +108,7 @@ impl EnvData {
 
     pub fn load_nextsel(&self) -> Selector {
         // it's initially 0. make sure it's at least the first usable selector
-        util::max(kif::FIRST_FREE_SEL, self.base.caps as Selector)
+        cmp::max(kif::FIRST_FREE_SEL, self.base.caps as Selector)
     }
 
     pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {

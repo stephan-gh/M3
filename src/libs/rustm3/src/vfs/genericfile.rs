@@ -18,6 +18,7 @@ use cap::Selector;
 use cell::RefCell;
 use col::Vec;
 use com::{MemGate, RecvGate, SendGate, SliceSource, VecSink};
+use core::cmp;
 use core::fmt;
 use errors::Error;
 use goff;
@@ -28,7 +29,6 @@ use rc::Rc;
 use serialize::Sink;
 use session::{ClientSession, MapFlags, Pager};
 use time;
-use util;
 use vfs::{filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode};
 
 int_enum! {
@@ -149,7 +149,7 @@ impl File for GenericFile {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
         let mut args = syscalls::ExchangeArgs::default();
         self.sess.obtain_for(vpe, crd, &mut args)?;
-        *max_sel = util::max(*max_sel, self.sess.sel() + 2);
+        *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }
 
@@ -203,7 +203,7 @@ impl Read for GenericFile {
             self.pos = 0;
         }
 
-        let amount = util::min(buf.len(), self.len - self.pos);
+        let amount = cmp::min(buf.len(), self.len - self.pos);
         if amount > 0 {
             time::start(0xaaaa);
             self.mgate
@@ -234,7 +234,7 @@ impl Write for GenericFile {
             self.pos = 0;
         }
 
-        let amount = util::min(buf.len(), self.len - self.pos);
+        let amount = cmp::min(buf.len(), self.len - self.pos);
         if amount > 0 {
             time::start(0xaaaa);
             self.mgate

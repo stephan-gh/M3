@@ -35,10 +35,10 @@ use m3::dtu::Label;
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::math;
 use m3::pes::VPE;
 use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::{PagerDelOp, PagerOp};
-use m3::util;
 
 use addrspace::AddrSpace;
 
@@ -195,8 +195,8 @@ pub fn main() -> i32 {
     let mut hdl = PagerReqHandler::new(s.sel()).expect("Unable to create handler");
 
     let mut rg = RecvGate::new(
-        util::next_log2(MAX_CLIENTS * MSG_SIZE),
-        util::next_log2(MSG_SIZE),
+        math::next_log2(MAX_CLIENTS * MSG_SIZE),
+        math::next_log2(MSG_SIZE),
     )
     .expect("Unable to create rgate");
     rg.activate().expect("Unable to activate rgate");

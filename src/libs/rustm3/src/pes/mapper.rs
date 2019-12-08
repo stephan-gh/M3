@@ -17,12 +17,12 @@
 //! The mapper types that are used to init the memory of an activity.
 
 use com::MemGate;
+use core::cmp;
 use errors::Error;
 use goff;
 use io::Read;
 use kif;
 use session::{Pager, MapFlags};
-use util;
 use vfs::{BufReader, FileRef, Map, Seek, SeekMode};
 
 /// The mapper trait is used to map the memory of an activity before running it.
@@ -69,7 +69,7 @@ pub trait Mapper {
         let mut count = fsize;
         let mut segoff = virt as usize;
         while count > 0 {
-            let amount = util::min(count, buf.len());
+            let amount = cmp::min(count, buf.len());
             let amount = file.read(&mut buf[0..amount])?;
 
             mem.write(&buf[0..amount], segoff as goff)?;
@@ -100,7 +100,7 @@ pub trait Mapper {
         }
 
         while len > 0 {
-            let amount = util::min(len, buf.len());
+            let amount = cmp::min(len, buf.len());
             mem.write(&buf[0..amount], virt as goff)?;
             len -= amount;
             virt += amount;

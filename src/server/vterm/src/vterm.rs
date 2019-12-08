@@ -27,11 +27,11 @@ use m3::dtu::Label;
 use m3::errors::{Code, Error};
 use m3::io::{Read, Serial, Write};
 use m3::kif;
+use m3::math;
 use m3::pes::VPE;
 use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::syscalls;
-use m3::util;
 use m3::vfs::GenFileOp;
 
 const MSG_SIZE: usize = 64;
@@ -340,8 +340,8 @@ pub fn main() -> i32 {
     let mut hdl = VTermHandler::new(s.sel()).expect("Unable to create handler");
 
     let mut rg = RecvGate::new(
-        util::next_log2(MAX_CLIENTS * MSG_SIZE),
-        util::next_log2(MSG_SIZE),
+        math::next_log2(MAX_CLIENTS * MSG_SIZE),
+        math::next_log2(MSG_SIZE),
     )
     .expect("Unable to create rgate");
     rg.activate().expect("Unable to activate rgate");

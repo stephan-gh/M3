@@ -14,13 +14,13 @@
  * General Public License version 2 for more details.
  */
 
+use core::cmp;
 use m3::com::MemGate;
 use m3::io::Read;
 use m3::kif;
 use m3::pes::VPE;
 use m3::session::Pipes;
 use m3::test;
-use m3::util;
 use m3::vfs::{BufReader, FileHandle, IndirectPipe, OpenFlags, VFS};
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -42,7 +42,7 @@ fn genfile_mux() {
     let mut pos = 0;
     while pos < FILE_SIZE {
         for f in &mut files {
-            let end = util::min(FILE_SIZE, pos + STEP_SIZE);
+            let end = cmp::min(FILE_SIZE, pos + STEP_SIZE);
             for tpos in pos..end {
                 let mut buf = [0u8];
                 wv_assert_eq!(f.read(&mut buf), Ok(1));

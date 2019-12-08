@@ -17,9 +17,9 @@
 use m3::boxed::Box;
 use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::env;
+use m3::math;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::test;
-use m3::util;
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, run_stop);
@@ -109,7 +109,7 @@ fn run_send_receive() {
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
 
-    let mut rgate = wv_assert_ok!(RecvGate::new(util::next_log2(256), util::next_log2(256)));
+    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     wv_assert_ok!(vpe.delegate_obj(rgate.sel()));

@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use util;
+use core::cmp;
 
 #[derive(Debug)]
 pub struct VarRingBuf {
@@ -74,10 +74,10 @@ impl VarRingBuf {
         };
 
         if self.wr_pos > rpos {
-            Some((rpos, util::min(self.wr_pos - rpos, size)))
+            Some((rpos, cmp::min(self.wr_pos - rpos, size)))
         }
         else {
-            Some((rpos, util::min(util::min(self.size, self.last) - rpos, size)))
+            Some((rpos, cmp::min(cmp::min(self.size, self.last) - rpos, size)))
         }
     }
 

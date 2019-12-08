@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use core::cmp;
 use core::fmt;
 use m3::cap::Selector;
 use m3::cfg::PAGE_BITS;
@@ -26,7 +27,6 @@ use m3::kif::Perm;
 use m3::pes::Mapper;
 use m3::session::{MapFlags, Pager};
 use m3::syscalls;
-use m3::util;
 use m3::vfs;
 
 use memory;
@@ -102,7 +102,7 @@ impl Read for BootFile {
             Ok(0)
         }
         else {
-            let amount = util::min(buf.len(), self.size - self.pos);
+            let amount = cmp::min(buf.len(), self.size - self.pos);
             self.mgate.read(&mut buf[0..amount], self.pos as goff)?;
             self.pos += amount;
             Ok(amount)
