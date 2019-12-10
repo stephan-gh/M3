@@ -61,8 +61,9 @@ public:
         _rgate.activate();
 
         if(_accel.pager()) {
-            goff_t virt = STATE_ADDR;
-            _accel.pager()->map_anon(&virt, STATE_SIZE + BUF_SIZE, Pager::Prot::RW, 0);
+            goff_t virt = Math::round_dn(STATE_ADDR, PAGE_SIZE);
+            size_t size = Math::round_up((STATE_ADDR & PAGE_MASK) + STATE_SIZE + BUF_SIZE, PAGE_SIZE);
+            _accel.pager()->map_anon(&virt, size, Pager::Prot::RW, 0);
         }
 
         _srgate.activate_on(*_rep);
