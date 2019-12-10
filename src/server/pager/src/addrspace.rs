@@ -32,8 +32,7 @@ use m3::session::{MapFlags, ServerSession};
 use dataspace::DataSpace;
 use rgate;
 
-const SHIFT: usize = cfg::LEVEL_CNT * cfg::LEVEL_BITS + cfg::PAGE_BITS;
-const MAX_VIRT_ADDR: goff = (1 << SHIFT) - 1;
+const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 
 pub struct ASMem {
     pub vpe: Selector,
