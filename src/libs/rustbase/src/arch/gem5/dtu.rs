@@ -63,7 +63,7 @@ pub const MMIO_ADDR: usize = 0xF000_0000;
 /// The number of DTU registers
 pub const DTU_REGS: usize = 6;
 /// The number of command registers
-pub const CMD_REGS: usize = 5;
+pub const CMD_REGS: usize = 4;
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
 
@@ -120,10 +120,8 @@ int_enum! {
         const ABORT         = 0x1;
         /// Specifies the data address and size
         const DATA          = 0x2;
-        /// Specifies an offset
-        const OFFSET        = 0x3;
-        /// Specifies the reply label
-        const REPLY_LABEL   = 0x4;
+        /// Specifies an additional argument
+        const ARG1          = 0x3;
     }
 }
 
@@ -303,7 +301,7 @@ impl DTU {
     ) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(msg, size));
         if reply_lbl != 0 {
-            Self::write_cmd_reg(CmdReg::REPLY_LABEL, reply_lbl as Reg);
+            Self::write_cmd_reg(CmdReg::ARG1, reply_lbl as Reg);
         }
         Self::write_cmd_reg(
             CmdReg::COMMAND,
@@ -351,7 +349,7 @@ impl DTU {
     ) -> Result<(), Error> {
         assert!(size <= 0xFFFFFFFF);
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
-        Self::write_cmd_reg(CmdReg::OFFSET, off as Reg);
+        Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
         Self::write_cmd_reg(
             CmdReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::READ, flags.bits(), 0),
@@ -377,7 +375,7 @@ impl DTU {
     ) -> Result<(), Error> {
         assert!(size <= 0xFFFFFFFF);
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
-        Self::write_cmd_reg(CmdReg::OFFSET, off as Reg);
+        Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
         Self::write_cmd_reg(
             CmdReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::WRITE, flags.bits(), 0),
@@ -393,7 +391,7 @@ impl DTU {
             Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0, 0),
         );
         unsafe { intrinsics::atomic_fence() };
-        let msg = Self::read_cmd_reg(CmdReg::OFFSET);
+        let msg = Self::read_cmd_reg(CmdReg::ARG1);
         if msg != 0 {
             Some(Self::addr_to_msg(msg))
         }
@@ -409,7 +407,7 @@ impl DTU {
             Self::build_cmd(0, CmdOpCode::FETCH_EVENTS, 0, 0),
         );
         unsafe { intrinsics::atomic_fence() };
-        Self::read_cmd_reg(CmdReg::OFFSET)
+        Self::read_cmd_reg(CmdReg::ARG1)
     }
 
     #[inline(always)]
@@ -490,7 +488,7 @@ impl DTU {
     /// Puts the CU to sleep until a message arrives at receive EP `ep`, but at most for `cycles`.
     #[inline(always)]
     pub fn wait_for_msg(ep: EpId, cycles: u64) -> Result<(), Error> {
-        Self::write_cmd_reg(CmdReg::OFFSET, ((ep as Reg) << 48) | cycles as Reg);
+        Self::write_cmd_reg(CmdReg::ARG1, ((ep as Reg) << 48) | cycles as Reg);
         Self::write_cmd_reg(
             CmdReg::COMMAND,
             Self::build_cmd(0, CmdOpCode::SLEEP, 0, 0),

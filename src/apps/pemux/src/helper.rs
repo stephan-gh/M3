@@ -66,7 +66,7 @@ impl DTUCmdState {
         self.xfer_buf = xfer_buf;
 
         self.cmd_regs[0] = old_cmd;
-        self.cmd_regs[1] = dtu::DTU::read_cmd_reg(dtu::CmdReg::OFFSET);
+        self.cmd_regs[1] = dtu::DTU::read_cmd_reg(dtu::CmdReg::ARG1);
         // if a command was being executed, save the DATA register, because we'll overwrite it
         if self.cmd_regs[0] != dtu::CmdOpCode::IDLE.val {
             self.cmd_regs[2] = dtu::DTU::read_cmd_reg(dtu::CmdReg::DATA);
@@ -74,7 +74,7 @@ impl DTUCmdState {
     }
 
     pub fn restore(&mut self) {
-        dtu::DTU::write_cmd_reg(dtu::CmdReg::OFFSET, self.cmd_regs[1]);
+        dtu::DTU::write_cmd_reg(dtu::CmdReg::ARG1, self.cmd_regs[1]);
         if self.cmd_regs[0] != 0 {
             // if there was a command, restore DATA register and retry command
             dtu::DTU::write_cmd_reg(dtu::CmdReg::DATA, self.cmd_regs[2]);

@@ -65,7 +65,7 @@ public:
 private:
     static const size_t DTU_REGS            = 6;
     static const size_t PRIV_REGS           = 6;
-    static const size_t CMD_REGS            = 5;
+    static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
 
     // actual max is 64k - 1; use less for better alignment
@@ -82,8 +82,8 @@ private:
 
     enum class PrivRegs {
         EXT_REQ             = 0,
-        CORE_REQ           = 1,
-        CORE_RESP          = 2,
+        CORE_REQ            = 1,
+        CORE_RESP           = 2,
         PRIV_CMD            = 3,
         CUR_VPE             = 4,
         OLD_VPE             = 5,
@@ -93,8 +93,7 @@ private:
         COMMAND             = DTU_REGS + 0,
         ABORT               = DTU_REGS + 1,
         DATA                = DTU_REGS + 2,
-        OFFSET              = DTU_REGS + 3,
-        REPLY_LABEL         = DTU_REGS + 4,
+        ARG1                = DTU_REGS + 3,
     };
 
     enum MemFlags : reg_t {
@@ -281,13 +280,13 @@ private:
     const Message *fetch_msg(epid_t ep) const {
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         CPU::memory_barrier();
-        return reinterpret_cast<const Message*>(read_reg(CmdRegs::OFFSET));
+        return reinterpret_cast<const Message*>(read_reg(CmdRegs::ARG1));
     }
 
     reg_t fetch_events() const {
         write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::FETCH_EVENTS));
         CPU::memory_barrier();
-        return read_reg(CmdRegs::OFFSET);
+        return read_reg(CmdRegs::ARG1);
     }
 
     void mark_read(epid_t ep, const Message *msg) {
@@ -306,7 +305,7 @@ private:
         wait_for_msg(0xFFFF, cycles);
     }
     void wait_for_msg(epid_t ep, uint64_t timeout = 0) {
-        write_reg(CmdRegs::OFFSET, (static_cast<reg_t>(ep) << 48) | timeout);
+        write_reg(CmdRegs::ARG1, (static_cast<reg_t>(ep) << 48) | timeout);
         CPU::compiler_barrier();
         write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP));
         get_error();

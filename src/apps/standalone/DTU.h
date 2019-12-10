@@ -112,7 +112,7 @@ class DTU {
 public:
     static const uintptr_t BASE_ADDR        = 0xF0000000;
     static const size_t DTU_REGS            = 6;
-    static const size_t CMD_REGS            = 5;
+    static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
 
     // actual max is 64k - 1; use less for better alignment
@@ -135,8 +135,7 @@ public:
         COMMAND             = DTU_REGS + 0,
         ABORT               = DTU_REGS + 1,
         DATA                = DTU_REGS + 2,
-        OFFSET              = DTU_REGS + 3,
-        REPLY_LABEL         = DTU_REGS + 4,
+        ARG1                = DTU_REGS + 3,
     };
 
     enum MemFlags : reg_t {
@@ -242,7 +241,7 @@ public:
     static Error send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
         write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
         if(replylbl)
-            write_reg(CmdRegs::REPLY_LABEL, replylbl);
+            write_reg(CmdRegs::ARG1, replylbl);
         compiler_barrier();
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::SEND, 0, reply_ep));
 
@@ -259,7 +258,7 @@ public:
 
     static Error read(epid_t ep, void *data, size_t size, goff_t off, unsigned flags) {
         write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
-        write_reg(CmdRegs::OFFSET, off);
+        write_reg(CmdRegs::ARG1, off);
         compiler_barrier();
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::READ, flags));
         Error res = get_error();
@@ -269,7 +268,7 @@ public:
 
     static Error write(epid_t ep, const void *data, size_t size, goff_t off, unsigned flags) {
         write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
-        write_reg(CmdRegs::OFFSET, off);
+        write_reg(CmdRegs::ARG1, off);
         compiler_barrier();
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::WRITE, flags));
         return get_error();
@@ -278,7 +277,7 @@ public:
     static const Message *fetch_msg(epid_t ep) {
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         memory_barrier();
-        return reinterpret_cast<const Message*>(read_reg(CmdRegs::OFFSET));
+        return reinterpret_cast<const Message*>(read_reg(CmdRegs::ARG1));
     }
 
     static void mark_read(epid_t ep, const Message *msg) {
