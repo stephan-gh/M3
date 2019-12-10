@@ -60,7 +60,7 @@ public:
     static const uintptr_t MMIO_PRIV_ADDR   = MMIO_ADDR + MMIO_SIZE;
     static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;
 
-    static const reg_t NO_REPLIES           = 0xFF;
+    static const reg_t NO_REPLIES           = 0xFFFF;
 
 private:
     static const size_t DTU_REGS            = 6;
