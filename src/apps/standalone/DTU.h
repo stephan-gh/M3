@@ -120,6 +120,8 @@ public:
 
     static const vpeid_t INVALID_VPE        = 0xFFFF;
 
+    static const reg_t NO_REPLIES           = 0xFFFF;
+
     enum class DtuRegs {
         FEATURES            = 0,
         ROOT_PT             = 1,
@@ -183,8 +185,8 @@ public:
                             // for a reply this is the enpoint that receives credits
         uint16_t length;
 
-        uint64_t replylabel;
-        uint64_t label;
+        uint32_t replylabel;
+        uint32_t label;
     } PACKED;
 
     struct Message : Header {
@@ -238,7 +240,7 @@ public:
     }
 
     static Error send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
-        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 48));
+        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
         if(replylbl)
             write_reg(CmdRegs::REPLY_LABEL, replylbl);
         compiler_barrier();
@@ -248,44 +250,29 @@ public:
     }
 
     static Error reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
-        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 48));
+        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
         compiler_barrier();
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, 0, reinterpret_cast<reg_t>(msg)));
 
         return get_error();
     }
 
-    static Error transfer(reg_t cmd, uintptr_t data, size_t size, goff_t off) {
-        size_t left = size;
-        while(left > 0) {
-            size_t amount = left < MAX_PKT_SIZE ? left : MAX_PKT_SIZE;
-            write_reg(CmdRegs::DATA, data | (static_cast<reg_t>(amount) << 48));
-            compiler_barrier();
-            write_reg(CmdRegs::COMMAND, cmd | (static_cast<reg_t>(off) << 17));
-
-            left -= amount;
-            data += amount;
-            off += amount;
-
-            Error res = get_error();
-            if(res != Error::NONE)
-                return res;
-        }
-        return Error::NONE;
-    }
-
     static Error read(epid_t ep, void *data, size_t size, goff_t off, unsigned flags) {
-        uintptr_t dataaddr = reinterpret_cast<uintptr_t>(data);
-        reg_t cmd = build_command(ep, CmdOpCode::READ, flags, 0);
-        Error res = transfer(cmd, dataaddr, size, off);
+        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
+        write_reg(CmdRegs::OFFSET, off);
+        compiler_barrier();
+        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::READ, flags));
+        Error res = get_error();
         memory_barrier();
         return res;
     }
 
     static Error write(epid_t ep, const void *data, size_t size, goff_t off, unsigned flags) {
-        uintptr_t dataaddr = reinterpret_cast<uintptr_t>(data);
-        reg_t cmd = build_command(ep, CmdOpCode::WRITE, flags, 0);
-        return transfer(cmd, dataaddr, size, off);
+        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
+        write_reg(CmdRegs::OFFSET, off);
+        compiler_barrier();
+        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::WRITE, flags));
+        return get_error();
     }
 
     static const Message *fetch_msg(epid_t ep) {
@@ -307,7 +294,7 @@ public:
         while(true) {
             reg_t cmd = read_reg(CmdRegs::COMMAND);
             if(static_cast<CmdOpCode>(cmd & 0xF) == CmdOpCode::IDLE)
-                return static_cast<Error>((cmd >> 13) & 0xF);
+                return static_cast<Error>((cmd >> 21) & 0xF);
         }
         UNREACHED;
     }
@@ -341,7 +328,7 @@ public:
     static reg_t build_command(epid_t ep, CmdOpCode c, unsigned flags = 0, reg_t arg = 0) {
         return static_cast<reg_t>(c) |
                 (static_cast<reg_t>(ep) << 4) |
-                (static_cast<reg_t>(flags) << 12 |
-                arg << 17);
+                (static_cast<reg_t>(flags) << 20 |
+                arg << 25);
     }
 };

@@ -71,7 +71,7 @@ static void test_msg() {
     char buffer2[128];
 
     DTU::config_recv(1, reinterpret_cast<uintptr_t>(&buffer),  7 /* 128 */, 6 /* 64 */, 3);
-    DTU::config_recv(2, reinterpret_cast<uintptr_t>(&buffer2), 7 /* 128 */, 6 /* 64 */, 0xFF);
+    DTU::config_recv(2, reinterpret_cast<uintptr_t>(&buffer2), 7 /* 128 */, 6 /* 64 */, DTU::NO_REPLIES);
 
     uint64_t msg = 5678;
     uint64_t reply = 9123;
