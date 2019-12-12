@@ -101,14 +101,14 @@ void DTU::invlpg_remote(const VPEDesc &vpe, goff_t virt) {
 
 m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
     m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::INV_REPLY);
-    cmd |= (rep << 4) | (pe << 12) | (sep << 20);
+    cmd |= (rep << 4) | (pe << 20) | (sep << 28);
     return try_priv_cmd(vpe, cmd);
 }
 
 m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force) {
     m3::DTU::reg_t cmd =
         static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::INV_EP) | (ep << 4) |
-        (static_cast<m3::DTU::reg_t>(force) << 12);
+        (static_cast<m3::DTU::reg_t>(force) << 20);
     return try_priv_cmd(vpe, cmd);
 }
 
