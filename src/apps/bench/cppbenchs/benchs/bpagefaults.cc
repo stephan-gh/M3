@@ -45,7 +45,7 @@ NOINLINE static void anon() {
 NOINLINE static void file() {
     Profile pr(4, 4);
     WVPERF("file mapping (64 pages)", pr.run_with_id([] {
-        FileRef f("/zeros.bin", FILE_RW);
+        FileRef f("/large.bin", FILE_RW);
         const GenericFile *rfile = static_cast<const GenericFile*>(&*f);
         goff_t virt = 0x31000000;
         VPE::self().pager()->map_ds(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0,
