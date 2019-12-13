@@ -125,7 +125,6 @@ help() {
     echo "    M3_GEM5_OUT:             The output directory of gem5 ('run' by default)."
     echo "    M3_GEM5_DTUPOS:          The DTU position (0=before L1, 1=behind L1 or"
     echo "                             2=behind L2)."
-    echo "    M3_GEM5_MMU:             Make use of the core-internal MMU (1 or 0)."
     echo "    M3_GEM5_CPUFREQ:         The CPU frequency (1GHz by default)."
     echo "    M3_GEM5_MEMFREQ:         The memory frequency (333MHz by default)."
     echo "    M3_GEM5_FSNUM:           The number of times to load the FS image."

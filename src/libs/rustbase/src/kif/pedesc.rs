@@ -45,28 +45,10 @@ int_enum! {
         const ACCEL_COPY    = 0x5;
         /// Dummy ISA to represent the ROT-13 fixed-function accelerator
         const ACCEL_ROT13   = 0x6;
-        /// Dummy ISA to represent the ALADDIN-based stencil accelerator
-        const ACCEL_STENCIL = 0x7;
-        /// Dummy ISA to represent the ALADDIN-based md accelerator
-        const ACCEL_MD      = 0x8;
-        /// Dummy ISA to represent the ALADDIN-based spmv accelerator
-        const ACCEL_SPMV    = 0x9;
-        /// Dummy ISA to represent the ALADDIN-based fft accelerator
-        const ACCEL_FFT     = 0xA;
         /// Dummy ISA to represent the IDE controller
-        const IDE_DEV       = 0xB;
+        const IDE_DEV       = 0x7;
         /// Dummy ISA to represent the NIC
-        const NIC_DEV       = 0xC;
-    }
-}
-
-bitflags! {
-    /// Special flags for PE features
-    pub struct PEFlags : PEDescRaw {
-        /// This flag is set if the MMU of the CU should be used
-        const MMU_VM        = 0b01;
-        /// This flag is set if the DTU's virtual memory support should be used
-        const DTU_VM        = 0b10;
+        const NIC_DEV       = 0x8;
     }
 }
 
@@ -110,10 +92,6 @@ impl PEDesc {
         PEISA::from((self.val >> 3) & 0xF)
     }
 
-    pub fn flags(self) -> PEFlags {
-        PEFlags::from_bits((self.val >> 7) & 0x3).unwrap()
-    }
-
     /// Returns the size of the internal memory (0 if none is present)
     pub fn mem_size(self) -> usize {
         (self.val & !0xFFF) as usize
@@ -154,17 +132,7 @@ impl PEDesc {
 
     /// Returns whether the PE supports virtual memory (either by DTU or MMU)
     pub fn has_virtmem(self) -> bool {
-        self.has_dtuvm() || self.has_mmu()
-    }
-
-    /// Returns whether the PE uses DTU-based virtual memory
-    pub fn has_dtuvm(self) -> bool {
-        self.flags().contains(PEFlags::DTU_VM)
-    }
-
-    /// Returns whether the PE uses MMU-based virtual memory
-    pub fn has_mmu(self) -> bool {
-        self.flags().contains(PEFlags::MMU_VM)
+        self.has_cache()
     }
 }
 

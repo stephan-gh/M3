@@ -38,10 +38,7 @@ static const AddrSpace::mmu_pte_t X86_PTE_NOEXEC   = 1ULL << 63;
 
 static char buffer[4096];
 
-AddrSpace::mmu_pte_t AddrSpace::to_mmu_pte(const m3::PEDesc &pe, m3::DTU::pte_t pte) {
-    if(pe.has_dtuvm())
-        return pte;
-
+AddrSpace::mmu_pte_t AddrSpace::to_mmu_pte(UNUSED m3::DTU::pte_t pte) {
 #if defined(__x86_64__)
     // the current implementation is based on some equal properties of MMU and DTU paging
     static_assert(sizeof(mmu_pte_t) == sizeof(m3::DTU::pte_t), "MMU and DTU PTEs incompatible");
@@ -71,8 +68,8 @@ AddrSpace::mmu_pte_t AddrSpace::to_mmu_pte(const m3::PEDesc &pe, m3::DTU::pte_t 
 #endif
 }
 
-m3::DTU::pte_t AddrSpace::to_dtu_pte(const m3::PEDesc &pe, mmu_pte_t pte) {
-    if(pe.has_dtuvm() || pte == 0)
+m3::DTU::pte_t AddrSpace::to_dtu_pte(mmu_pte_t pte) {
+    if(pte == 0)
         return pte;
 
 #if defined(__x86_64__)
@@ -110,7 +107,7 @@ void AddrSpace::mmu_cmd_remote(const VPEDesc &vpe, m3::DTU::reg_t arg) {
 void AddrSpace::setup(const VPEDesc &vpe) {
     // insert recursive entry
     goff_t addr = m3::DTU::gaddr_to_virt(_root);
-    m3::DTU::pte_t pte = to_mmu_pte(_pe, _root | m3::DTU::PTE_RWX);
+    m3::DTU::pte_t pte = to_mmu_pte(_root | m3::DTU::PTE_RWX);
     DTU::get().write_mem(VPEDesc(m3::DTU::gaddr_to_pe(_root), VPE::INVALID_ID),
         addr + m3::DTU::PTE_REC_IDX * sizeof(pte), &pte, sizeof(pte));
 
@@ -145,7 +142,7 @@ bool AddrSpace::create_pt(const VPEDesc &vpe, VPE *vpeobj, goff_t &virt, goff_t 
     if(level == 1 && m3::Math::is_aligned(virt, m3::DTU::LPAGE_SIZE) &&
                      m3::Math::is_aligned(phys, m3::DTU::LPAGE_SIZE) &&
                      pages * PAGE_SIZE >= m3::DTU::LPAGE_SIZE) {
-        pte = to_mmu_pte(_pe, phys | static_cast<uint>(perm) | m3::DTU::PTE_I | m3::DTU::PTE_LARGE);
+        pte = to_mmu_pte(phys | static_cast<uint>(perm) | m3::DTU::PTE_I | m3::DTU::PTE_LARGE);
         KLOG(PTES, "VPE" << _vpeid << ": lvl " << level << " PTE for "
             << m3::fmt(virt, "p") << ": " << m3::fmt(pte, "#0x", 16));
         DTU::get().write_mem(vpe, pteAddr, &pte, sizeof(pte));
@@ -175,7 +172,7 @@ bool AddrSpace::create_pt(const VPEDesc &vpe, VPE *vpeobj, goff_t &virt, goff_t 
 
         // insert PTE
         pte |= m3::DTU::PTE_IRWX;
-        pte = to_mmu_pte(_pe, pte);
+        pte = to_mmu_pte(pte);
         const size_t ptsize = (1UL << (m3::DTU::LEVEL_BITS * level)) * PAGE_SIZE;
         KLOG(PTES, "VPE" << _vpeid << ": lvl " << level << " PTE for "
             << m3::fmt(virt & ~(ptsize - 1), "p") << ": " << m3::fmt(pte, "#0x", 16)
@@ -193,7 +190,7 @@ bool AddrSpace::create_ptes(const VPEDesc &vpe, goff_t &virt, goff_t pteAddr, m3
     // be resized. thus, we know that a downgrade for the first, is a downgrade for all
     // and that an existing mapping for the first is an existing mapping for all.
 
-    m3::DTU::pte_t pteDTU = to_dtu_pte(_pe, pte);
+    m3::DTU::pte_t pteDTU = to_dtu_pte(pte);
     m3::DTU::pte_t npte = phys | static_cast<uint>(perm) | m3::DTU::PTE_I;
     if(npte == pteDTU)
         return true;
@@ -211,7 +208,7 @@ bool AddrSpace::create_ptes(const VPEDesc &vpe, goff_t &virt, goff_t pteAddr, m3
     pages -= count;
     phys += count << PAGE_BITS;
 
-    npte = to_mmu_pte(_pe, npte);
+    npte = to_mmu_pte(npte);
     while(pteAddr < endpte) {
         size_t i = 0;
         goff_t startAddr = pteAddr;
@@ -233,8 +230,7 @@ bool AddrSpace::create_ptes(const VPEDesc &vpe, goff_t &virt, goff_t pteAddr, m3
 
         if(downgrade) {
             for(goff_t vaddr = virt - i * PAGE_SIZE; vaddr < virt; vaddr += PAGE_SIZE) {
-                if(_pe.has_mmu())
-                    mmu_cmd_remote(vpe, vaddr | m3::DTU::ExtReqOpCode::INV_PAGE);
+                mmu_cmd_remote(vpe, vaddr | m3::DTU::ExtReqOpCode::INV_PAGE);
                 DTU::get().invlpg_remote(vpe, vaddr);
             }
         }
@@ -275,7 +271,7 @@ goff_t AddrSpace::get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt
 
         m3::DTU::pte_t pte;
         DTU::get().read_mem(vpe, pt, &pte, sizeof(pte));
-        pte = to_dtu_pte(_pe, pte);
+        pte = to_dtu_pte(pte);
 
         pt = m3::DTU::gaddr_to_virt(pte & ~PAGE_MASK);
     }
@@ -315,7 +311,7 @@ void AddrSpace::map_pages(const VPEDesc &vpe, goff_t virt, gaddr_t phys, uint pa
 
             m3::DTU::pte_t pte;
             DTU::get().read_mem(rvpe, pteAddr, &pte, sizeof(pte));
-            pte = to_dtu_pte(_pe, pte);
+            pte = to_dtu_pte(pte);
 
             if(level > 0) {
                 if(create_pt(rvpe, vpeobj, virt, pteAddr, pte, phys, pages, perm, level))
@@ -350,7 +346,7 @@ void AddrSpace::remove_pts_rec(VPE &vpe, gaddr_t pt, goff_t virt, int level) {
     m3::DTU::pte_t *ptes = reinterpret_cast<m3::DTU::pte_t*>(buffer);
     for(size_t i = 0; i < 1 << m3::DTU::LEVEL_BITS; ++i) {
         if(ptes[i]) {
-            gaddr_t gaddr = to_dtu_pte(_pe, ptes[i]) & ~static_cast<gaddr_t>(PAGE_MASK);
+            gaddr_t gaddr = to_dtu_pte(ptes[i]) & ~static_cast<gaddr_t>(PAGE_MASK);
             // not for the recursive entry
             if(level > 1 && !(level == m3::DTU::LEVEL_CNT - 1 && i == m3::DTU::PTE_REC_IDX)) {
                 remove_pts_rec(vpe, gaddr, virt, level - 1);
@@ -383,10 +379,6 @@ void AddrSpace::remove_pts(vpeid_t vpe) {
 #if defined(__x86_64__)
 void AddrSpace::handle_xlate(m3::DTU::reg_t xlate_req) {
     m3::DTU &dtu = m3::DTU::get();
-    // we can't use Platform yet, because Platform needs this code to initialize
-    // the only relevant bit in PEDesc is the MMU_VM/DTU_VM bit, which is always MMU_VM here,
-    // because otherwise we wouldn't be here
-    m3::PEDesc kpe = m3::PEDesc(m3::MMU_VM);
 
     uintptr_t virt = xlate_req & ~PAGE_MASK;
     uint perm = (xlate_req >> 1) & 0xF;
@@ -397,15 +389,15 @@ void AddrSpace::handle_xlate(m3::DTU::reg_t xlate_req) {
     // special case for root pt
     if((virt & 0xFFFFFFFFF000) == 0x080402010000) {
         asm volatile ("mov %%cr3, %0" : "=r"(pte));
-        pte = to_dtu_pte(kpe, pte | 0x3);
+        pte = to_dtu_pte(pte | 0x3);
     }
     // in the PTE area, we can assume that all upper level PTEs are present
     else if((virt & 0xFFF000000000) == 0x080000000000)
-        pte = to_dtu_pte(kpe, *reinterpret_cast<uint64_t*>(get_pte_addr(virt, 0)));
+        pte = to_dtu_pte(*reinterpret_cast<uint64_t*>(get_pte_addr(virt, 0)));
     // otherwise, walk through all levels
     else {
         for(int lvl = 3; lvl >= 0; lvl--) {
-            pte = to_dtu_pte(kpe, *reinterpret_cast<uint64_t*>(get_pte_addr(virt, lvl)));
+            pte = to_dtu_pte(*reinterpret_cast<uint64_t*>(get_pte_addr(virt, lvl)));
             if((~(pte & 0xF) & perm) || (pte & m3::DTU::PTE_LARGE))
                 break;
         }

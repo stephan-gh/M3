@@ -31,13 +31,6 @@ void *DTUState::get_ep(epid_t ep) {
 }
 
 void DTUState::restore(const VPEDesc &vpe) {
-    // re-enable pagefaults, if we have a valid pagefault EP (the abort operation disables it)
-    m3::DTU::reg_t features = 0;
-    if(_regs.get(m3::DTU::DtuRegs::PF_EP) != static_cast<epid_t>(-1))
-        features |= m3::DTU::StatusFlags::PAGEFAULTS;
-    _regs.set(m3::DTU::DtuRegs::FEATURES, features);
-
-    m3::CPU::compiler_barrier();
     DTU::get().write_mem(vpe, m3::DTU::MMIO_ADDR, this, sizeof(_regs));
 }
 
@@ -105,15 +98,6 @@ bool DTUState::config_mem_cached(epid_t ep, peid_t pe) {
         res = true;
     }
     return res;
-}
-
-void DTUState::config_pf(gaddr_t rootpt, epid_t sep, epid_t rep) {
-    uint features = 0;
-    if(sep != static_cast<epid_t>(-1))
-        features |= static_cast<uint>(m3::DTU::StatusFlags::PAGEFAULTS);
-    _regs.set(m3::DTU::DtuRegs::FEATURES, features);
-    _regs.set(m3::DTU::DtuRegs::ROOT_PT, rootpt);
-    _regs.set(m3::DTU::DtuRegs::PF_EP, sep | (rep << 16));
 }
 
 }

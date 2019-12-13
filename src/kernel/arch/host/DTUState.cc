@@ -80,8 +80,4 @@ bool DTUState::config_mem_cached(epid_t, peid_t) {
     return true;
 }
 
-void DTUState::config_pf(gaddr_t, epid_t, epid_t) {
-    // not supported
-}
-
 }

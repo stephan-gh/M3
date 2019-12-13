@@ -19,6 +19,7 @@
 #include <base/ELF.h>
 
 #include "mem/MainMemory.h"
+#include "pes/PEManager.h"
 #include "pes/VPE.h"
 #include "DTU.h"
 #include "Platform.h"
@@ -169,16 +170,14 @@ static goff_t map_idle(VPE &vpe) {
         PANIC("Unable to find boot module 'pemux'");
 
     // load idle
-    goff_t res = load_mod(vpe, idle, true, true, Platform::pe(vpe.peid()).has_mmu());
+    goff_t res = load_mod(vpe, idle, true, true, true);
 
     // map DTU
-    if(Platform::pe(vpe.peid()).has_mmu()) {
-        int perm = m3::DTU::PTE_RW | m3::DTU::PTE_I | m3::DTU::PTE_UNCACHED;
-        map_segment(vpe, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_SIZE, perm);
-        // map the privileged registers only for ring 0
-        map_segment(vpe, m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_SIZE,
-                    m3::DTU::PTE_RW | m3::DTU::PTE_UNCACHED);
-    }
+    int perm = m3::DTU::PTE_RW | m3::DTU::PTE_I | m3::DTU::PTE_UNCACHED;
+    map_segment(vpe, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_SIZE, perm);
+    // map the privileged registers only for ring 0
+    map_segment(vpe, m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_SIZE,
+                m3::DTU::PTE_RW | m3::DTU::PTE_UNCACHED);
     return res;
 }
 
@@ -234,18 +233,13 @@ void VPE::init_memory() {
     bool vm = Platform::pe(peid()).has_virtmem();
     if(vm) {
         address_space()->setup(desc());
-        // write all PTEs to memory until we have loaded PEMux
-        if(Platform::pe(peid()).has_mmu())
-            _state = VPE::DEAD;
+        // write all PTEs to memory until PEMux loaded the address space
+        _state = VPE::DEAD;
     }
 
     // for SPM PEs, we don't need to do anything; PEMux has already been loaded
     if(vm && Platform::pe(peid()).is_programmable())
         map_idle(*this);
-
-    // we can now write the PTEs to the VPE's address space
-    if(Platform::pe(peid()).has_mmu())
-        _state = VPE::RUNNING;
 
     if(vm) {
         // map receive buffer
@@ -253,6 +247,11 @@ void VPE::init_memory() {
         map_segment(*this, phys, RECVBUF_SPACE, RECVBUF_SIZE,
                     m3::DTU::PTE_RW | MapCapability::EXCL);
     }
+
+    // let PEMux load the address space
+    auto root_pt = address_space() ? address_space()->root_pt() : 0;
+    PEManager::get().pemux(peid())->init(id(), root_pt);
+    _state = VPE::RUNNING;
 
     // boot modules are started implicitly
     if(_flags & F_BOOTMOD)

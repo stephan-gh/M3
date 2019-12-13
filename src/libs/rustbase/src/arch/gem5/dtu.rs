@@ -62,7 +62,7 @@ pub const FIRST_FREE_EP: EpId = 11;
 /// The base address of the DTU's MMIO area
 pub const MMIO_ADDR: usize = 0xF000_0000;
 /// The number of DTU registers
-pub const DTU_REGS: usize = 6;
+pub const DTU_REGS: usize = 4;
 /// The number of command registers
 pub const CMD_REGS: usize = 4;
 /// The number of registers per EP
@@ -73,11 +73,9 @@ int_enum! {
     pub struct DtuReg : Reg {
         /// Stores various status flags
         const STATUS        = 0;
-        const ROOT_PT       = 1;
-        const PF_EP         = 2;
-        const CUR_TIME      = 3;
-        const CLEAR_IRQ     = 4;
-        const CLOCK         = 5;
+        const CUR_TIME      = 1;
+        const CLEAR_IRQ     = 2;
+        const CLOCK         = 3;
     }
 }
 
@@ -87,8 +85,6 @@ bitflags! {
     pub struct StatusFlags : Reg {
         /// Whether the PE is privileged
         const PRIV          = 1 << 0;
-        /// Whether page faults are send via `PF_EP`
-        const PAGEFAULTS    = 1 << 1;
     }
 }
 
@@ -599,20 +595,16 @@ impl DTU {
         Self::read_priv_reg(PrivReg::OLD_VPE)
     }
 
+    pub fn invalidate_tlb() {
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::INV_TLB.val);
+    }
+
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {
         Self::read_reg(DTU_REGS + reg.val as usize)
     }
 
     pub fn write_cmd_reg(reg: CmdReg, val: Reg) {
         Self::write_reg(DTU_REGS + reg.val as usize, val)
-    }
-
-    pub fn get_pfep() -> Reg {
-        Self::read_dtu_reg(DtuReg::PF_EP)
-    }
-
-    fn read_dtu_reg(reg: DtuReg) -> Reg {
-        Self::read_reg(reg.val as usize)
     }
 
     fn read_priv_reg(reg: PrivReg) -> Reg {

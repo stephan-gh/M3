@@ -42,10 +42,10 @@ public:
         return _state;
     }
 
-    gaddr_t deprivilege(peid_t pe);
+    void deprivilege(peid_t pe);
 
     void init_vpe(const VPEDesc &vpe);
-    void kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt);
+    void kill_vpe(const VPEDesc &vpe);
 
     void ext_request(const VPEDesc &vpe, uint64_t req);
     void flush_cache(const VPEDesc &vpe);

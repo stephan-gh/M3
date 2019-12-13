@@ -395,9 +395,20 @@ struct KIF {
      */
     struct PEXUpcalls {
         enum Operation {
+            INIT,
             VPE_CTRL,
         };
-        typedef Syscall::VPEOp VPEOp;
+
+        enum VPEOp {
+            VCTRL_START,
+            VCTRL_STOP,
+        };
+
+        struct Init : public DefaultRequest {
+            xfer_t pe_id;
+            xfer_t vpe_sel;
+            xfer_t root_pt;
+        } PACKED;
 
         struct VPECtrl : public DefaultRequest {
             xfer_t pe_id;

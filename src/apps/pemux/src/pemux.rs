@@ -124,5 +124,6 @@ pub extern "C" fn init() {
     }
 
     io::init(0, "pemux");
+    vpe::init();
     dtu::DTU::xchg_vpe(vpe::cur().vpe_reg());
 }

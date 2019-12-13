@@ -160,10 +160,10 @@ impl VPE {
 
         let pager = if vpe.pe.desc().has_virtmem() {
             if let Some(p) = args.pager {
-                Some(Pager::new(&mut vpe, p)?)
+                Some(Pager::new(p)?)
             }
             else if let Some(p) = Self::cur().pager() {
-                Some(p.new_clone(&mut vpe)?)
+                Some(p.new_clone()?)
             }
             else {
                 None
@@ -176,10 +176,7 @@ impl VPE {
         let crd = CapRngDesc::new(CapType::OBJECT, sels, kif::FIRST_FREE_SEL);
         vpe.pager = if let Some(mut pg) = pager {
             let sgate_sel = pg.child_sgate().sel();
-            let rgate_sel = match pg.child_rgate() {
-                Some(rg) => rg.sel(),
-                None => kif::INVALID_SEL,
-            };
+            let rgate_sel = pg.child_rgate().sel();
 
             // now create VPE, which implicitly obtains the gate cap from us
             syscalls::create_vpe(

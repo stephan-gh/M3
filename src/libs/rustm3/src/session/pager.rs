@@ -28,7 +28,7 @@ use session::ClientSession;
 /// The pager is responsible to resolve page faults and allows to create memory mappings.
 pub struct Pager {
     sess: ClientSession,
-    rgate: Option<RecvGate>,
+    rgate: RecvGate,
     parent_sgate: SendGate,
     child_sgate: SendGate,
     close: bool,
@@ -60,9 +60,9 @@ bitflags! {
 
 impl Pager {
     /// Creates a new session for VPE `vpe` at the pager service with given name.
-    pub fn new(vpe: &mut VPE, pager: &str) -> Result<Self, Error> {
+    pub fn new(pager: &str) -> Result<Self, Error> {
         let sess = ClientSession::new(pager)?;
-        Self::create(vpe, sess, false)
+        Self::create(sess, false)
     }
 
     /// Binds a new pager-session to given selector.
@@ -71,7 +71,7 @@ impl Pager {
         let sgate = SendGate::new_bind(sess.obtain_obj()?);
         Ok(Pager {
             sess,
-            rgate: Some(RecvGate::new_bind(kif::INVALID_SEL, 6, 6)),
+            rgate: RecvGate::new_bind(kif::INVALID_SEL, 6, 6),
             parent_sgate: sgate,
             child_sgate: SendGate::new_bind(kif::INVALID_SEL),
             close: false,
@@ -79,25 +79,18 @@ impl Pager {
     }
 
     /// Clones the session to be shared with given VPE.
-    pub fn new_clone(&self, vpe: &mut VPE) -> Result<Self, Error> {
+    pub fn new_clone(&self) -> Result<Self, Error> {
         let mut args = kif::syscalls::ExchangeArgs::default();
         // dummy arg to distinguish from the get_sgate operation
         args.count = 1;
         let sess = self.sess.obtain(1, &mut args)?;
-        Self::create(vpe, ClientSession::new_bind(sess.start()), true)
+        Self::create(ClientSession::new_bind(sess.start()), true)
     }
 
-    fn create(vpe: &mut VPE, sess: ClientSession, close: bool) -> Result<Self, Error> {
+    fn create(sess: ClientSession, close: bool) -> Result<Self, Error> {
         let parent_sgate = SendGate::new_bind(sess.obtain_obj()?);
         let child_sgate = SendGate::new_bind(sess.obtain_obj()?);
-        let rgate = if vpe.pe_desc().has_mmu() {
-            Some(RecvGate::new_with(
-                RGateArgs::default().order(6).msg_order(6),
-            )?)
-        }
-        else {
-            None
-        };
+        let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
 
         Ok(Pager {
             sess,
@@ -124,8 +117,8 @@ impl Pager {
     }
 
     /// Returns the [`RecvGate`] used to receive page fault replies.
-    pub fn child_rgate(&self) -> Option<&RecvGate> {
-        self.rgate.as_ref()
+    pub fn child_rgate(&self) -> &RecvGate {
+        &self.rgate
     }
 
     /// Delegates the required capabilities from `vpe` to the server.

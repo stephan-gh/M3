@@ -101,9 +101,22 @@ void PEMux::free_eps(epid_t first, uint count) {
     }
 }
 
+m3::Errors::Code PEMux::init(vpeid_t vpe, gaddr_t root_pt) {
+    m3::KIF::PEXUpcalls::Init req;
+    req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::INIT);
+    req.pe_id = _pe->id;
+    req.vpe_sel = vpe;
+    req.root_pt = root_pt;
+
+    KLOG(PEXC, "PEMux[" << peid() << "] sending init(vpe="
+        << req.vpe_sel << ", root=" << req.root_pt << ")");
+
+    return upcall(&req, sizeof(req));
+}
+
 m3::Errors::Code PEMux::vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
     static const char *ctrls[] = {
-        "INIT", "START", "STOP"
+        "START", "STOP"
     };
 
     m3::KIF::PEXUpcalls::VPECtrl req;
@@ -115,8 +128,12 @@ m3::Errors::Code PEMux::vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
     KLOG(PEXC, "PEMux[" << peid() << "] sending VPECtrl(vpe="
         << req.vpe_sel << ", ctrl=" << ctrls[req.vpe_op] << ")");
 
+    return upcall(&req, sizeof(req));
+}
+
+m3::Errors::Code PEMux::upcall(void *req, size_t size) {
     // send upcall
-    event_t event = _upcqueue.send(m3::DTU::PEXUP_REP, 0, &req, sizeof(req), false);
+    event_t event = _upcqueue.send(m3::DTU::PEXUP_REP, 0, req, size, false);
     m3::ThreadManager::get().wait_for(event);
 
     // wait for reply

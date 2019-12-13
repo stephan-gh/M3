@@ -78,6 +78,7 @@ public:
     void alloc_eps(epid_t first, uint count);
     void free_eps(epid_t first, uint count);
 
+    m3::Errors::Code init(vpeid_t vpe, gaddr_t root_pt);
     m3::Errors::Code vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
 
     bool invalidate_ep(epid_t ep, bool force = false);
@@ -88,6 +89,8 @@ public:
     void update_ep(epid_t ep);
 
 private:
+    m3::Errors::Code upcall(void *req, size_t size);
+
     m3::Reference<PEObject> _pe;
     CapTable _caps;
     size_t _vpes;

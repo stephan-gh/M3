@@ -38,6 +38,22 @@ fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     .unwrap();
 }
 
+fn init(msg: &'static dtu::Message) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::Init>();
+
+    let pe_id = req.pe_id as u32;
+    let vpe_id = req.vpe_sel;
+    let root_pt = req.root_pt;
+
+    // do that here to get the color of the next print correct
+    io::init(pe_id, "pemux");
+
+    log!(PEX_UPCALLS, "upcall::init(vpe={}, root_pt={:#x})", vpe_id, root_pt);
+
+    vpe::add(vpe_id, root_pt);
+    Ok(())
+}
+
 fn vpe_ctrl(msg: &'static dtu::Message, state: &mut isr::State) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
@@ -45,25 +61,16 @@ fn vpe_ctrl(msg: &'static dtu::Message, state: &mut isr::State) -> Result<(), Er
     let vpe_id = req.vpe_sel;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
 
-    // do that here to get the color of the next print correct
-    if op == kif::pemux::VPEOp::INIT {
-        io::init(pe_id, "pemux");
-    }
-
     log!(PEX_UPCALLS, "upcall::vpe_ctrl(vpe={}, op={:?})", vpe_id, op);
 
     match op {
-        kif::pemux::VPEOp::INIT => {
-            vpe::add(vpe_id);
-        },
-
         kif::pemux::VPEOp::START => {
             // remember the current PE
             ::env().pe_id = pe_id;
             state.init(::env().entry as usize, ::env().sp as usize);
         },
 
-        _ => {
+        kif::pemux::VPEOp::STOP | _ => {
             state.stop();
             vpe::remove();
         },
@@ -76,6 +83,7 @@ fn handle_upcall(msg: &'static dtu::Message, state: &mut isr::State) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::pemux::Upcalls::from(req.opcode) {
+        kif::pemux::Upcalls::INIT => init(msg),
         kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg, state),
         _ => Err(Error::new(Code::NotSup)),
     };

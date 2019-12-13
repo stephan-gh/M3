@@ -28,3 +28,10 @@ pub fn handle_mmu_pf(_state: &mut isr::State) {
 pub fn flush_tlb(_virt: usize) {
     log!(DEF, "Unexpected TLB flush request");
 }
+
+pub fn get_addr_space() -> u64 {
+    0
+}
+
+pub fn set_addr_space(_addr: u64) {
+}

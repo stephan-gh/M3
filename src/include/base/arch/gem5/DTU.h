@@ -63,7 +63,7 @@ public:
     static const reg_t NO_REPLIES           = 0xFFFF;
 
 private:
-    static const size_t DTU_REGS            = 6;
+    static const size_t DTU_REGS            = 4;
     static const size_t PRIV_REGS           = 6;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
@@ -73,11 +73,9 @@ private:
 
     enum class DtuRegs {
         FEATURES            = 0,
-        ROOT_PT             = 1,
-        PF_EP               = 2,
-        CUR_TIME            = 3,
-        CLEAR_IRQ           = 4,
-        CLOCK               = 5,
+        CUR_TIME            = 1,
+        CLEAR_IRQ           = 2,
+        CLOCK               = 3,
     };
 
     enum class PrivRegs {
@@ -104,7 +102,6 @@ private:
 
     enum StatusFlags : reg_t {
         PRIV                = 1 << 0,
-        PAGEFAULTS          = 1 << 1,
     };
 
     enum class EpType {
@@ -329,10 +326,6 @@ private:
                     mark_read(ep, msg);
             }
         }
-    }
-
-    reg_t get_pfep() const {
-        return read_reg(DtuRegs::PF_EP);
     }
 
     reg_t get_core_req() const {

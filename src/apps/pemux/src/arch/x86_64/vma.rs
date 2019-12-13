@@ -18,7 +18,6 @@ use base::cell::StaticCell;
 use base::cfg;
 use base::const_assert;
 use base::dtu;
-use base::kif::PEDesc;
 use core::ptr;
 
 use helper;
@@ -60,14 +59,6 @@ impl XlateState {
         // abort the current command, if there is any
         self.cmd.save();
 
-        // get EPs
-        let pf_eps = dtu::DTU::get_pfep();
-        let sep = (pf_eps & 0xFFFF) as dtu::EpId;
-        let rep = (pf_eps >> 16) as dtu::EpId;
-        if sep >= dtu::EP_COUNT {
-            return false;
-        }
-
         self.in_pf = true;
 
         // disable upcalls during DTU::send, because don't want to abort this command
@@ -80,7 +71,7 @@ impl XlateState {
         self.pf_msg[1] = virt;
         self.pf_msg[2] = perm;
         let msg = &self.pf_msg as *const u64 as *const u8;
-        if let Err(e) = dtu::DTU::send(sep, msg, 3 * 8, 0, rep) {
+        if let Err(e) = dtu::DTU::send(dtu::PG_SEP, msg, 3 * 8, 0, dtu::PG_REP) {
             panic!("VMA: unable to send PF message: {}", e);
         }
 
@@ -92,8 +83,8 @@ impl XlateState {
                 break false;
             }
 
-            if let Some(reply) = dtu::DTU::fetch_msg(rep) {
-                dtu::DTU::mark_read(rep, reply);
+            if let Some(reply) = dtu::DTU::fetch_msg(dtu::PG_REP) {
+                dtu::DTU::mark_read(dtu::PG_REP, reply);
                 break true;
             }
 
@@ -133,7 +124,11 @@ fn to_dtu_pte(pte: u64) -> dtu::PTE {
     res
 }
 
-fn get_pte_at(mut virt: u64, level: u32) -> u64 {
+fn noc_to_phys(noc: u64) -> u64 {
+    (noc & !0xFF00000000000000) | ((noc & 0xFF00000000000000) >> 16)
+}
+
+fn get_pte_addr(mut virt: u64, level: u32) -> u64 {
     #[allow(clippy::erasing_op)]
     #[rustfmt::skip]
     const REC_MASK: u64 = ((cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 3))
@@ -153,7 +148,11 @@ fn get_pte_at(mut virt: u64, level: u32) -> u64 {
     // finally, make sure that we stay within the bounds for virtual addresses
     // this is because of recMask, that might actually have too many of those.
     virt &= (1 << (cfg::LEVEL_CNT * cfg::LEVEL_BITS + cfg::PAGE_BITS)) - 1;
+    virt
+}
 
+fn get_pte_at(virt: u64, level: u32) -> u64 {
+    let virt = get_pte_addr(virt, level);
     unsafe { *(virt as *const u64) }
 }
 
@@ -250,9 +249,6 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     // PEMux isn't causing PFs
     assert!(state.came_from_user());
 
-    // if we don't use the MMU, we shouldn't get here
-    assert!(PEDesc::new_from(::env().pe_desc).has_mmu());
-
     let perm = to_dtu_pte((state.error & 0x7) as u64);
     if !STATE.get_mut().handle_pf(0, cr2, perm) {
         if isr::is_stopped() {
@@ -268,4 +264,14 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
 
 pub fn flush_tlb(virt: usize) {
     unsafe { asm!("invlpg ($0)" : : "r"(virt)) }
+}
+
+pub fn get_addr_space() -> u64 {
+    let addr: u64;
+    unsafe { asm!("mov %cr3, $0" : "=r"(addr)) };
+    addr
+}
+
+pub fn set_addr_space(addr: u64) {
+    unsafe { asm!("mov $0, %cr3" : : "r"(noc_to_phys(addr))) };
 }

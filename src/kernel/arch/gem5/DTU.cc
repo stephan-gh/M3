@@ -42,18 +42,13 @@ m3::Errors::Code DTU::try_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     return try_write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::PRIV_CMD), &reg, sizeof(reg));
 }
 
-gaddr_t DTU::deprivilege(peid_t pe) {
+void DTU::deprivilege(peid_t pe) {
     VPEDesc vpe(pe, VPE::INVALID_ID);
-
-    // remember root PT
-    gaddr_t idle_rootpt;
-    read_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::ROOT_PT), &idle_rootpt, sizeof(idle_rootpt));
 
     // unset the privileged flag
     m3::DTU::reg_t features = 0;
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), &features, sizeof(features));
-    return idle_rootpt;
 }
 
 void DTU::init_vpe(const VPEDesc &vpe) {
@@ -62,21 +57,13 @@ void DTU::init_vpe(const VPEDesc &vpe) {
     DTU::get().do_priv_cmd(vpe, value);
 }
 
-void DTU::kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt) {
+void DTU::kill_vpe(const VPEDesc &vpe) {
     // reset all EPs to remove unread messages
     constexpr size_t userRegs = EP_COUNT - m3::DTU::FIRST_USER_EP;
     constexpr size_t regsSize = (userRegs * m3::DTU::EP_REGS) * sizeof(m3::DTU::reg_t);
     static_assert(regsSize <= sizeof(buffer), "Buffer too small");
     memset(buffer, 0, regsSize);
     write_mem(vpe, m3::DTU::ep_regs_addr(m3::DTU::FIRST_USER_EP), buffer, regsSize);
-
-    // set new root PT and disable pagefaults
-    static_assert(static_cast<int>(m3::DTU::DtuRegs::FEATURES) == 0, "FEATURES illdefined");
-    static_assert(static_cast<int>(m3::DTU::DtuRegs::ROOT_PT) == 1, "ROOT_PT illdefined");
-    static_assert(static_cast<int>(m3::DTU::DtuRegs::PF_EP) == 2, "PF_EP illdefined");
-    m3::DTU::reg_t regs[3] = {0, idle_rootpt, 0};
-    m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), regs, sizeof(regs));
 }
 
 void DTU::flush_cache(const VPEDesc &vpe) {

@@ -45,8 +45,6 @@ public:
     void config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t size, int perm);
     bool config_mem_cached(epid_t ep, peid_t pe);
 
-    void config_pf(gaddr_t rootpt, epid_t sep, epid_t rep);
-
 #if defined(__host__)
     void update_recv(epid_t ep, goff_t base);
 #endif
