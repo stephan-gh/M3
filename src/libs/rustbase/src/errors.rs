@@ -25,16 +25,14 @@ pub enum Code {
     // DTU errors
     MissCredits = 1,
     NoRingSpace,
-    VPEGone,
     Pagefault,
-    NoMapping,
     InvEP,
     Abort,
-    ReplyDisabled,
     InvMsg,
     InvArgs,
     NoPerm,
     // SW Errors
+    VPEGone,
     OutOfMem,
     NoSuchFile,
     NotSup,

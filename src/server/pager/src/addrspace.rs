@@ -146,10 +146,6 @@ impl AddrSpace {
             access
         );
 
-        if (virt & !cfg::PAGE_MASK as goff) == 0 {
-            log!(PAGER, "No mapping at page 0");
-            return Err(Error::new(Code::NoMapping));
-        }
         if !self.has_as_mem() {
             log!(PAGER, "Invalid session");
             return Err(Error::new(Code::InvArgs));

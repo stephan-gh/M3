@@ -29,16 +29,14 @@ struct Errors {
         // DTU errors
         MISS_CREDITS,
         NO_RING_SPACE,
-        VPE_GONE,
         PAGEFAULT,
-        NO_MAPPING,
         INV_EP,
         ABORT,
-        REPLY_DISABLED,
         INV_MSG,
         INV_ARGS,
         NO_PERM,
         // SW errors
+        VPE_GONE,
         OUT_OF_MEM,
         NO_SUCH_FILE,
         NOT_SUP,
