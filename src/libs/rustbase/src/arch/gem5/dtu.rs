@@ -287,7 +287,6 @@ impl DTU {
     /// # Errors
     ///
     /// If the number of left credits is not sufficient, the function returns (`Code::MISS_CREDITS`).
-    /// If the receiver is suspended, the function returns (`Code::VPE_GONE`).
     #[inline(always)]
     pub fn send(
         ep: EpId,
@@ -309,10 +308,6 @@ impl DTU {
     }
 
     /// Sends `reply[0..size]` as reply to `msg`.
-    ///
-    /// # Errors
-    ///
-    /// If the receiver is suspended, the function returns (`Code::VPE_GONE`).
     #[inline(always)]
     pub fn reply(
         ep: EpId,
@@ -333,10 +328,6 @@ impl DTU {
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
     ///
     /// The `flags` can be used to control whether page faults should abort the command.
-    ///
-    /// # Errors
-    ///
-    /// If the receiver is suspended, the function returns (`Code::VPE_GONE`).
     pub fn read(
         ep: EpId,
         data: *mut u8,
@@ -359,10 +350,6 @@ impl DTU {
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
     ///
     /// The `flags` can be used to control whether page faults should abort the command.
-    ///
-    /// # Errors
-    ///
-    /// If the receiver is suspended, the function returns (`Code::VPE_GONE`).
     pub fn write(
         ep: EpId,
         data: *const u8,
