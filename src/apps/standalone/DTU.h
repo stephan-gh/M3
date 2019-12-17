@@ -16,93 +16,15 @@
 
 #pragma once
 
-#ifndef PACKED
-#   define PACKED      __attribute__((packed))
-#endif
-#ifndef UNREACHED
-#   define UNREACHED   __builtin_unreachable()
-#endif
-
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
-
-#if defined(__arm__)
-typedef unsigned int size_t;
-typedef unsigned int uintptr_t;
-#else
-typedef unsigned long size_t;
-typedef unsigned long uintptr_t;
-#endif
-typedef unsigned long epid_t;
-typedef unsigned long peid_t;
-typedef unsigned vpeid_t;
-typedef unsigned long word_t;
-typedef uint32_t label_t;
-typedef uint16_t crd_t;
-typedef uint64_t reg_t;
-typedef uint64_t goff_t;
-
-inline void compiler_barrier() {
-    asm volatile ("" : : : "memory");
-}
-
-#if defined(__arm__)
-inline void memory_barrier() {
-    asm volatile ("dmb" : : : "memory");
-}
-
-inline uint64_t read8b(uintptr_t addr) {
-    uint64_t res;
-    asm volatile (
-        "ldrd %0, [%1]"
-        : "=r"(res)
-        : "r"(addr)
-    );
-    return res;
-}
-
-inline void write8b(uintptr_t addr, uint64_t val) {
-    asm volatile (
-        "strd %0, [%1]"
-        : : "r"(val), "r"(addr)
-    );
-}
-#else
-inline void memory_barrier() {
-    asm volatile ("mfence" : : : "memory");
-}
-
-inline uint64_t read8b(uintptr_t addr) {
-    uint64_t res;
-    asm volatile (
-        "mov (%1), %0"
-        : "=r"(res)
-        : "r"(addr)
-    );
-    return res;
-}
-
-inline void write8b(uintptr_t addr, uint64_t val) {
-    asm volatile (
-        "mov %0, (%1)"
-        :
-        : "r"(val), "r"(addr)
-    );
-}
-#endif
+#include "common.h"
 
 enum Error {
     NONE,
     MISS_CREDITS,
     NO_RING_SPACE,
-    VPE_GONE,
     PAGEFAULT,
-    NO_MAPPING,
     INV_EP,
     ABORT,
-    REPLY_DISABLED,
     INV_MSG,
     INV_ARGS,
     NO_PERM,
@@ -111,12 +33,9 @@ enum Error {
 class DTU {
 public:
     static const uintptr_t BASE_ADDR        = 0xF0000000;
-    static const size_t DTU_REGS            = 6;
+    static const size_t DTU_REGS            = 4;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
-
-    // actual max is 64k - 1; use less for better alignment
-    static const size_t MAX_PKT_SIZE        = 60 * 1024;
 
     static const vpeid_t INVALID_VPE        = 0xFFFF;
 
@@ -124,11 +43,9 @@ public:
 
     enum class DtuRegs {
         FEATURES            = 0,
-        ROOT_PT             = 1,
-        PF_EP               = 2,
-        CUR_TIME            = 3,
-        CLEAR_IRQ           = 4,
-        CLOCK               = 5,
+        CUR_TIME            = 1,
+        CLEAR_IRQ           = 2,
+        CLOCK               = 3,
     };
 
     enum class CmdRegs {
@@ -173,7 +90,6 @@ public:
     struct alignas(8) Header {
         enum {
             FL_REPLY            = 1 << 0,
-            FL_PAGEFAULT        = 1 << 1,
         };
 
         uint8_t flags : 2,
