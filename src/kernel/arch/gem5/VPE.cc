@@ -249,8 +249,10 @@ void VPE::init_memory() {
     }
 
     // let PEMux load the address space
-    auto root_pt = address_space() ? address_space()->root_pt() : 0;
-    PEManager::get().pemux(peid())->init(id(), root_pt);
+    if(Platform::pe(peid()).supports_ctx()) {
+        auto root_pt = address_space() ? address_space()->root_pt() : 0;
+        PEManager::get().pemux(peid())->init(id(), root_pt);
+    }
     _state = VPE::RUNNING;
 
     // boot modules are started implicitly

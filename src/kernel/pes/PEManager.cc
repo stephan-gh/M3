@@ -59,13 +59,14 @@ void PEManager::start_vpe(VPE *vpe) {
     vpe->_state = VPE::RUNNING;
     vpe->init_memory();
 #else
-    pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_START);
+    if(Platform::pe(vpe->peid()).supports_ctx())
+        pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_START);
 #endif
 }
 
 void PEManager::stop_vpe(VPE *vpe) {
 #if defined(__gem5__)
-    if(!(vpe->_flags & VPE::F_STOPPED))
+    if(Platform::pe(vpe->peid()).supports_ctx() && !(vpe->_flags & VPE::F_STOPPED))
         pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
 #endif
 
