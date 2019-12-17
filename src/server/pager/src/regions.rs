@@ -317,12 +317,7 @@ impl RegionList {
 
     pub fn populate(&mut self, sel: Selector) {
         assert!(self.regs.is_empty());
-        let mut r = Box::new(Region::new(
-            self.as_mem.clone(),
-            self.ds_off,
-            0,
-            self.size,
-        ));
+        let mut r = Box::new(Region::new(self.as_mem.clone(), self.ds_off, 0, self.size));
         r.set_mem(Rc::new(RefCell::new(PhysMem::new_bind(
             self.as_mem.clone(),
             self.ds_off,
@@ -334,6 +329,13 @@ impl RegionList {
     pub fn pagefault(&mut self, off: goff) -> &mut Region {
         let idx = self.do_pagefault(off);
         &mut self.regs[idx]
+    }
+
+    pub fn physmem_at(&self, off: goff) -> Option<(goff, Rc<RefCell<PhysMem>>)> {
+        self.regs
+            .iter()
+            .find(|r| off >= r.off && off < r.off + r.size)
+            .map(|r| (off - r.off, r.mem.as_ref().unwrap().clone()))
     }
 
     pub fn kill(&mut self) {
@@ -385,7 +387,7 @@ impl RegionList {
         ));
         let nidx = match last {
             Some(n) => n + 1,
-            None => 0
+            None => 0,
         };
         self.regs.insert(nidx, r);
         nidx

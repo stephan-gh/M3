@@ -17,7 +17,6 @@
 #include <base/Init.h>
 #include <base/Panic.h>
 
-#include <m3/session/Pager.h>
 #include <m3/session/ResMng.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/FileTable.h>
@@ -35,9 +34,14 @@ INIT_PRIO_VPE VPE VPE::_self;
 VPE *VPE::_self_ptr = &VPE::_self;
 
 VPEArgs::VPEArgs() noexcept
-    : _pager(nullptr),
-      _rmng(nullptr),
+    : _rmng(nullptr),
+      _pager(),
       _kmem() {
+}
+
+VPEArgs &VPEArgs::pager(Reference<Pager> pager) noexcept {
+    _pager = pager;
+    return *this;
 }
 
 // don't revoke these. they kernel does so on exit
@@ -50,8 +54,8 @@ VPE::VPE()
       _rbufcur(),
       _rbufend(),
       _epmng(*this),
-      _resmng(nullptr),
       _pager(),
+      _resmng(nullptr),
       _ms(),
       _fds(),
       _exec() {
@@ -76,15 +80,15 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
       _rbufcur(),
       _rbufend(),
       _epmng(*this),
-      _resmng(args._rmng),
       _pager(),
+      _resmng(args._rmng),
       _ms(new MountTable()),
       _fds(new FileTable()),
       _exec() {
     // create pager first, to create session and obtain gate cap
     if(_pe->desc().has_virtmem()) {
         if(args._pager)
-            _pager = std::make_unique<Pager>(*this, args._pager);
+            _pager = args._pager;
         else if(VPE::self().pager())
             _pager = VPE::self().pager()->create_clone(*this);
         // we need a pager on VM PEs
@@ -99,9 +103,8 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
                              name, pe->sel(), _kmem->sel());
         // mark the send gate cap allocated
         _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
-        // now delegate our VPE cap and memory cap to the pager
-        static_assert(KIF::SEL_VPE + 1 == KIF::SEL_MEM, "Selectors wrong");
-        _pager->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel(), 2));
+        // delegate VPE and memory cap to pager
+        _pager->delegate_caps(*this);
         // and delegate the pager cap to the VPE
         delegate_obj(_pager->sel());
     }

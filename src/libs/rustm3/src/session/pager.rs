@@ -59,13 +59,20 @@ bitflags! {
 }
 
 impl Pager {
-    /// Creates a new session for VPE `vpe` at the pager service with given name.
-    pub fn new(pager: &str) -> Result<Self, Error> {
-        let sess = ClientSession::new(pager)?;
-        Self::create(sess, false)
+    /// Creates a new session with given `SendGate` (for the pager).
+    pub fn new(sess: ClientSession, sgate: SendGate) -> Result<Self, Error> {
+        let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
+
+        Ok(Pager {
+            sess,
+            rgate,
+            parent_sgate: SendGate::new_bind(kif::INVALID_SEL),
+            child_sgate: sgate,
+            close: false,
+        })
     }
 
-    /// Binds a new pager-session to given selector.
+    /// Binds a new pager-session to given selector (for childs).
     pub fn new_bind(sess_sel: cap::Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sess_sel);
         let sgate = SendGate::new_bind(sess.obtain_obj()?);
@@ -78,26 +85,25 @@ impl Pager {
         })
     }
 
-    /// Clones the session to be shared with given VPE.
+    /// Clones the session to be shared with the given VPE.
     pub fn new_clone(&self) -> Result<Self, Error> {
         let mut args = kif::syscalls::ExchangeArgs::default();
         // dummy arg to distinguish from the get_sgate operation
         args.count = 1;
-        let sess = self.sess.obtain(1, &mut args)?;
-        Self::create(ClientSession::new_bind(sess.start()), true)
-    }
+        let res = self.sess.obtain(1, &mut args)?;
+        let sess = ClientSession::new_bind(res.start());
 
-    fn create(sess: ClientSession, close: bool) -> Result<Self, Error> {
+        // get send gates for us and our child
         let parent_sgate = SendGate::new_bind(sess.obtain_obj()?);
         let child_sgate = SendGate::new_bind(sess.obtain_obj()?);
-        let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
 
+        let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
         Ok(Pager {
             sess,
             rgate,
             parent_sgate,
             child_sgate,
-            close,
+            close: true,
         })
     }
 
@@ -123,9 +129,15 @@ impl Pager {
 
     /// Delegates the required capabilities from `vpe` to the server.
     pub fn delegate_caps(&mut self, vpe: &VPE) -> Result<(), Error> {
-        const_assert!(kif::SEL_VPE + 1 == kif::SEL_MEM);
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 2);
-        self.sess.delegate_crd(crd)
+        // we only need to do that for clones
+        if self.close {
+            const_assert!(kif::SEL_VPE + 1 == kif::SEL_MEM);
+            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 2);
+            self.sess.delegate_crd(crd)
+        }
+        else {
+            Ok(())
+        }
     }
 
     /// Performs the clone-operation on server-side using copy-on-write.
@@ -147,7 +159,13 @@ impl Pager {
     }
 
     /// Maps `len` bytes of anonymous memory to virtual address `addr` with permissions `prot`.
-    pub fn map_anon(&self, addr: goff, len: usize, prot: kif::Perm, flags: MapFlags) -> Result<goff, Error> {
+    pub fn map_anon(
+        &self,
+        addr: goff,
+        len: usize,
+        prot: kif::Perm,
+        flags: MapFlags,
+    ) -> Result<goff, Error> {
         let mut reply = send_recv_res!(
             &self.parent_sgate,
             RecvGate::def(),

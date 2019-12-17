@@ -41,8 +41,22 @@ void ClientSession::connect(const String &service, capsel_t selector) {
     sel(selector);
 }
 
+void ClientSession::delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args) {
+    delegate_for(VPE::self(), caps, args);
+}
+
 void ClientSession::delegate_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {
     Syscalls::delegate(vpe.sel(), sel(), crd, args);
+}
+
+KIF::CapRngDesc ClientSession::obtain(uint count, KIF::ExchangeArgs *args) {
+    return obtain_for(VPE::self(), count, args);
+}
+
+KIF::CapRngDesc ClientSession::obtain_for(VPE &vpe, uint count, KIF::ExchangeArgs *args) {
+    KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, vpe.alloc_sels(count), count);
+    obtain_for(vpe, crd, args);
+    return crd;
 }
 
 void ClientSession::obtain_for(VPE &vpe, const KIF::CapRngDesc &crd, KIF::ExchangeArgs *args) {

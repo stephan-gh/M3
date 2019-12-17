@@ -23,22 +23,23 @@ extern crate bitflags;
 
 mod addrspace;
 mod dataspace;
+mod mapper;
 mod physmem;
 mod regions;
 
 use m3::cap::Selector;
 use m3::cell::StaticCell;
-use m3::col::Vec;
-use m3::com::{GateIStream, RecvGate};
-use m3::dtu::EpId;
-use m3::dtu::Label;
+use m3::col::{String, ToString, Vec};
+use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
+use m3::dtu::{DTUIf, Label};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math;
-use m3::pes::VPE;
+use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
-use m3::session::{PagerDelOp, PagerOp};
+use m3::session::{ClientSession, Pager, PagerDelOp, PagerOp};
+use m3::vfs;
 
 use addrspace::AddrSpace;
 
@@ -86,9 +87,9 @@ impl PagerReqHandler {
                 PagerOp::PAGEFAULT => aspace.pagefault(&mut is),
                 PagerOp::MAP_ANON => aspace.map_anon(&mut is),
                 PagerOp::UNMAP => aspace.unmap(&mut is),
-                PagerOp::CLOSE => {
-                    aspace.close(&mut is).and_then(|_| Ok(self.close(is.label() as SessId)))
-                },
+                PagerOp::CLOSE => aspace
+                    .close(&mut is)
+                    .and_then(|_| Ok(self.close(is.label() as SessId))),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         };
@@ -144,7 +145,9 @@ impl Handler for PagerReqHandler {
 
         let aspace = self.sessions.get_mut(sid).unwrap();
         let sel = if !aspace.has_as_mem() {
-            aspace.init()
+            let sels = VPE::cur().alloc_sels(2);
+            aspace.init(sels);
+            sels
         }
         else {
             let (sel, virt) = if data.args.ival(0) as u32 == PagerDelOp::DATASPACE.val {
@@ -173,26 +176,15 @@ impl Handler for PagerReqHandler {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let mut sel_ep = None;
+    vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
 
-    let args: Vec<&str> = env::args().collect();
-    for i in 1..args.len() {
-        if args[i] == "-s" {
-            let mut parts = args[i + 1].split_whitespace();
-            let sel = parts.next().unwrap().parse::<Selector>().unwrap();
-            let ep = parts.next().unwrap().parse::<EpId>().unwrap();
-            sel_ep = Some((sel, ep));
-        }
-    }
+    let args = env::args()
+        .skip(1)
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>();
+    let name = args[0].clone();
 
-    let s = if let Some(sel_ep) = sel_ep {
-        Server::new_bind(sel_ep.0, sel_ep.1)
-    }
-    else {
-        Server::new("pager").expect("Unable to create service 'pager'")
-    };
-
-    let mut hdl = PagerReqHandler::new(s.sel()).expect("Unable to create handler");
+    let s = Server::new_private("pager").expect("Unable to create service");
 
     let mut rg = RecvGate::new(
         math::next_log2(MAX_CLIENTS * MSG_SIZE),
@@ -200,9 +192,60 @@ pub fn main() -> i32 {
     )
     .expect("Unable to create rgate");
     rg.activate().expect("Unable to activate rgate");
+
+    let mut hdl = PagerReqHandler::new(s.sel()).expect("Unable to create handler");
+
+    // create session for child
+    let (sel, sid) = hdl.open(s.sel(), "").expect("Session creation failed");
+    let sess = ClientSession::new_bind(sel);
+    let sgate = SendGate::new_with(
+        SGateArgs::new(&rg)
+            .credits(1)
+            .label(Label::from(sid as u32)),
+    )
+    .expect("Unable to create SendGate");
+
+    // create child VPE
+    let pe = PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE");
+    let pager = Pager::new(sess, sgate).expect("Unable to create pager");
+    let mut vpe =
+        VPE::new_with(pe, VPEArgs::new(&name).pager(pager)).expect("Unable to create VPE");
+
+    // pass root FS to child
+    vpe.mounts()
+        .add("/", VPE::cur().mounts().get_by_path("/").unwrap())
+        .unwrap();
+    vpe.obtain_mounts().unwrap();
+
+    let vpe_act = {
+        // init address space (give it VPE and mgate selector)
+        let mut aspace = hdl.sessions.get_mut(sid).unwrap();
+        aspace.init(vpe.sel());
+
+        // start VPE
+        let file = vfs::VFS::open(&name, vfs::OpenFlags::RX).expect("Unable to open binary");
+        let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
+        vpe.exec_file(&mut mapper, file, &args)
+            .expect("Unable to execute child VPE")
+    };
+
     RGATE.set(Some(rg));
 
+    // start waiting for the child
+    vpe_act
+        .wait_async(1)
+        .expect("Unable to start waiting for child VPE");
+
+    let upcall_rg = RecvGate::upcall();
     server_loop(|| {
+        // fetch upcalls to see whether our child died
+        let msg = DTUIf::fetch_msg(upcall_rg);
+        if let Some(msg) = msg {
+            let upcall = msg.get_data::<kif::upcalls::VPEWait>();
+            assert!(upcall.vpe_sel as Selector == vpe_act.vpe().sel());
+            return Err(Error::new(Code::VPEGone));
+        }
+
         s.handle_ctrl_chan(&mut hdl)?;
 
         if let Some(mut is) = rgate().fetch() {

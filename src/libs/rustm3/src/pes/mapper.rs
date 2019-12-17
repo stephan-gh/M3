@@ -22,7 +22,7 @@ use errors::Error;
 use goff;
 use io::Read;
 use kif;
-use session::{Pager, MapFlags};
+use session::{MapFlags, Pager};
 use vfs::{BufReader, FileRef, Map, Seek, SeekMode};
 
 /// The mapper trait is used to map the memory of an activity before running it.
@@ -48,6 +48,18 @@ pub trait Mapper {
         perm: kif::Perm,
         flags: MapFlags,
     ) -> Result<bool, Error>;
+
+    /// Writes the given data to the given virtual address. `mem` refers to the VPE's virtual
+    /// address space.
+    fn write_bytes(
+        &mut self,
+        mem: &MemGate,
+        data: *const u8,
+        len: usize,
+        virt: goff,
+    ) -> Result<(), Error> {
+        mem.write_bytes(data, len, virt)
+    }
 
     /// Initializes the memory at `virt`..`memsize` by loading `fsize` bytes from the given file at
     /// `foff` and zero'ing the remaining space.
@@ -134,7 +146,9 @@ impl Mapper for DefaultMapper {
         flags: MapFlags,
     ) -> Result<bool, Error> {
         if let Some(pg) = pager {
-            file.get_ref().map(pg, virt, foff, len, perm, flags).map(|_| false)
+            file.get_ref()
+                .map(pg, virt, foff, len, perm, flags)
+                .map(|_| false)
         }
         else if self.has_virtmem {
             // TODO handle that case

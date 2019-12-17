@@ -16,6 +16,7 @@
 
 use m3::boxed::Box;
 use m3::cap::Selector;
+use m3::cell::RefCell;
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::{GateIStream, MGateFlags, MemGate, SGateArgs, SendGate};
@@ -30,6 +31,7 @@ use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
 
 use dataspace::DataSpace;
+use physmem::PhysMem;
 use rgate;
 
 const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
@@ -73,8 +75,7 @@ impl AddrSpace {
         self.as_mem.is_some()
     }
 
-    pub fn init(&mut self) -> Selector {
-        let sels = VPE::cur().alloc_sels(2);
+    pub fn init(&mut self, sels: Selector) {
         log!(PAGER, "[{}] pager::init(sels={})", self.id, sels);
 
         let mut mem = MemGate::new_bind(sels + 1);
@@ -87,8 +88,6 @@ impl AddrSpace {
             vpe: sels + 0,
             mgate: mem,
         }));
-
-        sels
     }
 
     pub fn add_sgate(&mut self) -> Result<Selector, Error> {
@@ -133,6 +132,10 @@ impl AddrSpace {
         reply_vmsg!(is, 0)
     }
 
+    pub(crate) fn physmem_at(&self, virt: goff) -> Option<(goff, Rc<RefCell<PhysMem>>)> {
+        self.find_ds(virt).and_then(|ds| ds.physmem_at(virt))
+    }
+
     pub fn pagefault(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let virt: goff = is.pop();
         let access = PTEFlags::from_bits_truncate(is.pop()) & !PTEFlags::I;
@@ -151,7 +154,13 @@ impl AddrSpace {
             return Err(Error::new(Code::InvArgs));
         }
 
-        if let Some(ds) = self.find_ds(virt) {
+        self.pagefault_at(virt, access)?;
+
+        reply_vmsg!(is, 0)
+    }
+
+    pub(crate) fn pagefault_at(&mut self, virt: goff, access: Perm) -> Result<(), Error> {
+        if let Some(ds) = self.find_ds_mut(virt) {
             if (ds.perm() & access) != access {
                 log!(
                     PAGER,
@@ -163,14 +172,12 @@ impl AddrSpace {
                 return Err(Error::new(Code::InvArgs));
             }
 
-            ds.handle_pf(virt)?;
+            ds.handle_pf(virt)
         }
         else {
             log!(PAGER, "No dataspace at {:#x}", virt);
-            return Err(Error::new(Code::NotFound));
+            Err(Error::new(Code::NotFound))
         }
-
-        reply_vmsg!(is, 0)
     }
 
     pub fn map_ds(&mut self, args: &ExchangeArgs) -> Result<(Selector, goff), Error> {
@@ -184,24 +191,40 @@ impl AddrSpace {
         let flags = MapFlags::from_bits_truncate(args.ival(4) as u32);
         let off = args.ival(5) as goff;
 
+        let sel = VPE::cur().alloc_sel();
+        self.map_ds_with(virt, len, off, perm, flags, sel)
+            .map(|virt| (sel, virt))
+    }
+
+    pub(crate) fn map_ds_with(
+        &mut self,
+        virt: goff,
+        len: goff,
+        off: goff,
+        perm: Perm,
+        flags: MapFlags,
+        sess: Selector,
+    ) -> Result<goff, Error> {
         log!(
             PAGER,
-            "[{}] pager::map_ds(virt={:#x}, len={:#x}, perm={:?}, off={:#x})",
+            "[{}] pager::map_ds(virt={:#x}, len={:#x}, perm={:?}, off={:#x}, flags={:?})",
             self.id,
             virt,
             len,
             perm,
-            off
+            off,
+            flags,
         );
 
         self.check_map_args(virt, len, perm)?;
 
-        let sel = VPE::cur().alloc_sel();
         let as_mem = self.as_mem.as_ref().unwrap().clone();
-        let ds = Box::new(DataSpace::new_extern(as_mem, virt, len, perm, flags, off, sel));
+        let ds = Box::new(DataSpace::new_extern(
+            as_mem, virt, len, perm, flags, off, sess,
+        ));
         self.ds.push(ds);
 
-        Ok((sel, virt))
+        Ok(virt)
     }
 
     pub fn map_anon(&mut self, is: &mut GateIStream) -> Result<(), Error> {
@@ -214,6 +237,18 @@ impl AddrSpace {
         let perm = Perm::from_bits_truncate(is.pop::<u32>());
         let flags = MapFlags::from_bits_truncate(is.pop::<u32>());
 
+        self.map_anon_with(virt, len, perm, flags)?;
+
+        reply_vmsg!(is, 0, virt)
+    }
+
+    pub(crate) fn map_anon_with(
+        &mut self,
+        virt: goff,
+        len: goff,
+        perm: Perm,
+        flags: MapFlags,
+    ) -> Result<(), Error> {
         log!(
             PAGER,
             "[{}] pager::map_anon(virt={:#x}, len={:#x}, perm={:?}, flags={:?})",
@@ -227,10 +262,11 @@ impl AddrSpace {
         self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
-        self.ds
-            .push(Box::new(DataSpace::new_anon(as_mem, virt, len, perm, flags)));
+        self.ds.push(Box::new(DataSpace::new_anon(
+            as_mem, virt, len, perm, flags,
+        )));
 
-        reply_vmsg!(is, 0, virt)
+        Ok(())
     }
 
     pub fn map_mem(&mut self, args: &ExchangeArgs) -> Result<(Selector, goff), Error> {
@@ -254,7 +290,13 @@ impl AddrSpace {
         self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
-        let mut ds = Box::new(DataSpace::new_anon(as_mem, virt, len, perm, MapFlags::empty()));
+        let mut ds = Box::new(DataSpace::new_anon(
+            as_mem,
+            virt,
+            len,
+            perm,
+            MapFlags::empty(),
+        ));
 
         // immediately insert a region, so that we don't allocate new memory on PFs
         let sel = VPE::cur().alloc_sel();
@@ -304,11 +346,15 @@ impl AddrSpace {
         Ok(())
     }
 
-    fn find_ds(&mut self, virt: goff) -> Option<&mut Box<DataSpace>> {
+    fn find_ds(&self, virt: goff) -> Option<&Box<DataSpace>> {
+        self.find_ds_idx(virt).map(move |idx| &self.ds[idx])
+    }
+
+    fn find_ds_mut(&mut self, virt: goff) -> Option<&mut Box<DataSpace>> {
         self.find_ds_idx(virt).map(move |idx| &mut self.ds[idx])
     }
 
-    fn find_ds_idx(&mut self, virt: goff) -> Option<usize> {
+    fn find_ds_idx(&self, virt: goff) -> Option<usize> {
         for (i, ds) in self.ds.iter().enumerate() {
             if virt >= ds.virt() && virt < ds.virt() + ds.size() {
                 return Some(i);

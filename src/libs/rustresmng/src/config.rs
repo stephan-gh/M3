@@ -370,12 +370,7 @@ impl Config {
                 res.kmem = parse_size(&a[5..])?;
             }
             else if a.starts_with("sess=") {
-                let sess = SessionDesc::new(&a[5..])?;
-
-                // the pager is only used on gem5
-                if cfg!(target_os = "none") || sess.serv_name() != "pager" {
-                    res.sessions.push(sess);
-                }
+                res.sessions.push(SessionDesc::new(&a[5..])?);
             }
             else if a.starts_with("child=") {
                 let (_, _, cfg) = Self::parse(&a[6..], ';', restrict)?;

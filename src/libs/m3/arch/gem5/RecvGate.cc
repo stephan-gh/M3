@@ -18,6 +18,7 @@
 
 #include <m3/com/RecvGate.h>
 #include <m3/com/MemGate.h>
+#include <m3/pes/VPE.h>
 #include <m3/session/Pager.h>
 #include <m3/Syscalls.h>
 

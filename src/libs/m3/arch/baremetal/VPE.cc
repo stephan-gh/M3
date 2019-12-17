@@ -42,7 +42,7 @@ void VPE::init_state() {
 
 void VPE::init_fs() {
     if(env()->pager_sess)
-        _pager.reset(new Pager(env()->pager_sess));
+        _pager = Reference<Pager>(new Pager(env()->pager_sess));
     _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(env()->mounts), env()->mounts_len));
     _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(env()->fds), env()->fds_len));
 }

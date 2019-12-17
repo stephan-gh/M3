@@ -16,14 +16,17 @@
 
 #pragma once
 
+#include <base/util/String.h>
 #include <base/Errors.h>
 #include <base/KIF.h>
 
 #include <m3/ObjCap.h>
-#include <m3/pes/VPE.h>
-#include <m3/com/GateStream.h>
+
+#include <utility>
 
 namespace m3 {
+
+class VPE;
 
 /**
  * A client session represents a connection between client and the server for the client. Over the
@@ -82,9 +85,7 @@ public:
      * @param caps the capabilities
      * @param args the arguments to pass to the server
      */
-    void delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr) {
-        delegate_for(VPE::self(), caps, args);
-    }
+    void delegate(const KIF::CapRngDesc &caps, KIF::ExchangeArgs *args = nullptr);
 
     /**
      * Delegates the given capability range of <vpe> to the server with additional arguments and
@@ -104,9 +105,7 @@ public:
      * @param args the arguments to pass to the server
      * @return the received capabilities
      */
-    KIF::CapRngDesc obtain(uint count, KIF::ExchangeArgs *args = nullptr) {
-        return obtain_for(VPE::self(), count, args);
-    }
+    KIF::CapRngDesc obtain(uint count, KIF::ExchangeArgs *args = nullptr);
 
     /**
      * Obtains up to <count> capabilities from the server for <vpe> with additional arguments and
@@ -117,11 +116,7 @@ public:
      * @param args the arguments to pass to the server
      * @return the received capabilities
      */
-    KIF::CapRngDesc obtain_for(VPE &vpe, uint count, KIF::ExchangeArgs *args = nullptr) {
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, vpe.alloc_sels(count), count);
-        obtain_for(vpe, crd, args);
-        return crd;
-    }
+    KIF::CapRngDesc obtain_for(VPE &vpe, uint count, KIF::ExchangeArgs *args = nullptr);
 
     /**
      * Obtains up to <crd>.count() capabilities from the server for <vpe> with additional arguments and

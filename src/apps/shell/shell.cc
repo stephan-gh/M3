@@ -19,8 +19,9 @@
 #include <base/util/Time.h>
 
 #include <m3/accel/StreamAccel.h>
-#include <m3/stream/Standard.h>
 #include <m3/pipe/IndirectPipe.h>
+#include <m3/session/VTerm.h>
+#include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
 #include <m3/Syscalls.h>
@@ -269,6 +270,16 @@ static void execute(Pipes &pipesrv, CmdList *list) {
 
 int main(int argc, char **argv) {
     Pipes pipesrv("pipes");
+
+    try {
+        VTerm vterm("vterm");
+        const fd_t fds[] = {STDIN_FD, STDOUT_FD, STDERR_FD};
+        for(fd_t fd : fds)
+            VPE::self().fds()->set(fd, vterm.create_channel(fd == STDIN_FD));
+    }
+    catch(const Exception &e) {
+        errmsg("Unable to open vterm: " << e.what());
+    }
 
     if(argc > 1) {
         OStringStream os;

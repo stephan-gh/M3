@@ -16,8 +16,27 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/session/Pager.h>
+#include <m3/pes/VPE.h>
 
 namespace m3 {
+
+Pager::Pager(VPE &vpe, capsel_t sess) noexcept
+    : RefCounted(),
+      ClientSession(sess),
+      _rgate(RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)),
+      _own_sgate(SendGate::bind(obtain(1).start())),
+      _child_sgate(SendGate::bind(obtain(1).start())),
+      _close(true) {
+}
+
+Pager::Pager(capsel_t sess) noexcept
+    : RefCounted(),
+      ClientSession(sess),
+      _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
+      _own_sgate(SendGate::bind(obtain(1).start())),
+      _child_sgate(SendGate::bind(ObjCap::INVALID)),
+      _close(false) {
+}
 
 Pager::~Pager() {
     if(_close) {
@@ -71,7 +90,7 @@ void Pager::unmap(goff_t virt) {
     reply.pull_result();
 }
 
-std::unique_ptr<Pager> Pager::create_clone(VPE &vpe) {
+Reference<Pager> Pager::create_clone(VPE &vpe) {
     KIF::CapRngDesc caps;
     {
         KIF::ExchangeArgs args;
@@ -80,7 +99,17 @@ std::unique_ptr<Pager> Pager::create_clone(VPE &vpe) {
         args.vals[0] = 0;
         caps = obtain(1, &args);
     }
-    return std::unique_ptr<Pager>(new Pager(vpe, caps.start()));
+
+    return Reference<Pager>(new Pager(vpe, caps.start()));
+}
+
+void Pager::delegate_caps(VPE &vpe) {
+    // we only need to do that for clones
+    if(_close) {
+        // now delegate our VPE cap and memory cap to the pager
+        static_assert(KIF::SEL_VPE + 1 == KIF::SEL_MEM, "Selectors wrong");
+        delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, vpe.sel(), 2));
+    }
 }
 
 void Pager::clone() {

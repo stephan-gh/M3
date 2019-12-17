@@ -94,12 +94,6 @@ void Platform::add_modules(int argc, char **argv) {
             args << " " << argv[j];
         }
 
-        // ignore the pager
-        if(strncmp(args.str(), "pager", 5) == 0) {
-            i = j;
-            continue;
-        }
-
         m3::BootInfo::Mod *mod = reinterpret_cast<m3::BootInfo::Mod*>(
             malloc(sizeof(m3::BootInfo::Mod) + args.length() + 1));
         mod->namelen = args.length() + 1;

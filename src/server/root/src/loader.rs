@@ -56,6 +56,10 @@ impl vfs::File for BootFile {
     fn set_fd(&mut self, _fd: vfs::Fd) {
     }
 
+    fn session(&self) -> Option<Selector> {
+        None
+    }
+
     fn close(&mut self) {
     }
 

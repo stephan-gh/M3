@@ -82,6 +82,31 @@ int_enum! {
     }
 }
 
+// TODO temporary
+bitflags! {
+    /// The page table entry flags
+    pub struct PTEFlags : u64 {
+        /// Readable
+        const R             = 0b0000_0001;
+        /// Writable
+        const W             = 0b0000_0010;
+        /// Executable
+        const X             = 0b0000_0100;
+        /// Internally accessible, i.e., by the CU
+        const I             = 0b0000_1000;
+        /// Large page (2 MiB)
+        const LARGE         = 0b0001_0000;
+        /// Unsupported by DTU, but used for MMU
+        const UNCACHED      = 0b0010_0000;
+        /// Read+write
+        const RW            = Self::R.bits | Self::W.bits;
+        /// Read+write+execute
+        const RWX           = Self::R.bits | Self::W.bits | Self::X.bits;
+        /// Internal+read+write+execute
+        const IRWX          = Self::R.bits | Self::W.bits | Self::X.bits | Self::I.bits;
+    }
+}
+
 int_enum! {
     struct Command : Reg {
         const READ          = 1;

@@ -52,16 +52,16 @@ pub struct VPE {
 }
 
 /// The arguments for [`VPE`] creations.
-pub struct VPEArgs<'n, 'p> {
+pub struct VPEArgs<'n> {
     name: &'n str,
-    pager: Option<&'p str>,
+    pager: Option<Pager>,
     kmem: Option<Rc<KMem>>,
     rmng: Option<ResMng>,
 }
 
-impl<'n, 'p> VPEArgs<'n, 'p> {
+impl<'n> VPEArgs<'n> {
     /// Creates a new instance of `VPEArgs` using default settings.
-    pub fn new(name: &'n str) -> VPEArgs<'n, 'p> {
+    pub fn new(name: &'n str) -> VPEArgs<'n> {
         VPEArgs {
             name,
             pager: None,
@@ -77,8 +77,8 @@ impl<'n, 'p> VPEArgs<'n, 'p> {
         self
     }
 
-    /// Sets the name of the pager service. By default, the current pager will be cloned.
-    pub fn pager(mut self, pager: &'p str) -> Self {
+    /// Sets the pager. By default, the current pager will be cloned.
+    pub fn pager(mut self, pager: Pager) -> Self {
         self.pager = Some(pager);
         self
     }
@@ -160,7 +160,7 @@ impl VPE {
 
         let pager = if vpe.pe.desc().has_virtmem() {
             if let Some(p) = args.pager {
-                Some(Pager::new(p)?)
+                Some(p)
             }
             else if let Some(p) = Self::cur().pager() {
                 Some(p.new_clone()?)
@@ -190,7 +190,7 @@ impl VPE {
 
             // mark the pager caps allocated
             vpe.next_sel = cmp::max(sgate_sel + 1, vpe.next_sel);
-            // now delegate our VPE cap and memory cap to the pager
+            // delegate VPE and memory cap to pager
             pg.delegate_caps(&vpe)?;
             // and delegate the pager cap to the VPE
             vpe.delegate_obj(pg.sel())?;
@@ -552,7 +552,13 @@ impl VPE {
             {
                 let mut fds = VecSink::default();
                 self.files.serialize(&mut fds);
-                self.mem.write(fds.words(), off as goff)?;
+                let words = fds.words();
+                mapper.write_bytes(
+                    &self.mem,
+                    words.as_ptr() as *const u8,
+                    words.len() * util::size_of::<u64>(),
+                    off as goff,
+                )?;
                 senv.set_files(off, fds.size());
                 off += fds.size();
             }
@@ -561,7 +567,13 @@ impl VPE {
             {
                 let mut mounts = VecSink::default();
                 self.mounts.serialize(&mut mounts);
-                self.mem.write(mounts.words(), off as goff)?;
+                let words = mounts.words();
+                mapper.write_bytes(
+                    &self.mem,
+                    words.as_ptr() as *const u8,
+                    words.len() * util::size_of::<u64>(),
+                    off as goff,
+                )?;
                 senv.set_mounts(off, mounts.size());
             }
 
@@ -580,7 +592,12 @@ impl VPE {
             }
 
             // write start env to PE
-            self.mem.write_obj(&senv, cfg::ENV_START as goff)?;
+            mapper.write_bytes(
+                &self.mem,
+                &senv as *const _ as *const u8,
+                util::size_of_val(&senv),
+                cfg::ENV_START as goff,
+            )?;
         }
 
         // go!

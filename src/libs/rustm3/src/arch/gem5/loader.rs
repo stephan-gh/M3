@@ -219,7 +219,7 @@ impl<'l> Loader<'l> {
         Ok(hdr.entry)
     }
 
-    pub fn write_arguments<I, S>(&self, off: &mut usize, args: I) -> Result<usize, Error>
+    pub fn write_arguments<I, S>(&mut self, off: &mut usize, args: I) -> Result<usize, Error>
     where
         I: iter::IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -242,9 +242,20 @@ impl<'l> Loader<'l> {
             argoff += arg.len() + 1;
         }
 
-        self.mem.write(&argbuf, *off as goff)?;
+        self.mapper.write_bytes(
+            &self.mem,
+            argbuf.as_ptr() as *const _,
+            argbuf.len(),
+            *off as goff,
+        )?;
+
         argoff = math::round_up(argoff, util::size_of::<u64>());
-        self.mem.write(&argptr, argoff as goff)?;
+        self.mapper.write_bytes(
+            &self.mem,
+            argptr.as_ptr() as *const _,
+            argptr.len() * util::size_of::<u64>(),
+            argoff as goff,
+        )?;
 
         *off = argoff + argptr.len() * util::size_of::<u64>();
         Ok(argoff as usize)

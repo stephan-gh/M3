@@ -22,11 +22,13 @@ use kif::service;
 use math;
 use pes::VPE;
 use server::SessId;
+use syscalls;
 
 /// Represents a server that provides a service for clients.
 pub struct Server {
     cap: Capability,
     rgate: RecvGate,
+    public: bool,
 }
 
 /// The handler for a server that implements the service calls (session creations, cap exchange,
@@ -60,15 +62,30 @@ const BUF_SIZE: usize = MSG_SIZE * 2;
 impl Server {
     /// Creates a new server with given service name.
     pub fn new(name: &str) -> Result<Self, Error> {
+        Self::create(name, true)
+    }
+
+    /// Creates a new private server that is not visible to anyone
+    pub fn new_private(name: &str) -> Result<Self, Error> {
+        Self::create(name, false)
+    }
+
+    fn create(name: &str, public: bool) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         rgate.activate()?;
 
-        VPE::cur().resmng().reg_service(sel, rgate.sel(), name)?;
+        if public {
+            VPE::cur().resmng().reg_service(sel, rgate.sel(), name)?;
+        }
+        else {
+            syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), name)?;
+        }
 
         Ok(Server {
             cap: Capability::new(sel, CapFlags::empty()),
             rgate,
+            public,
         })
     }
 
@@ -84,6 +101,7 @@ impl Server {
         Server {
             cap: Capability::new(caps + 0, CapFlags::KEEP_CAP),
             rgate,
+            public: false,
         }
     }
 
@@ -194,7 +212,7 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        if !self.cap.flags().contains(CapFlags::KEEP_CAP) {
+        if self.public && !self.cap.flags().contains(CapFlags::KEEP_CAP) {
             VPE::cur().resmng().unreg_service(self.sel(), false).ok();
             self.cap.set_flags(CapFlags::KEEP_CAP);
         }

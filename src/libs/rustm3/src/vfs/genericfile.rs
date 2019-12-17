@@ -116,6 +116,10 @@ impl File for GenericFile {
         self.fd = fd;
     }
 
+    fn session(&self) -> Option<Selector> {
+        Some(self.sess.sel())
+    }
+
     fn close(&mut self) {
         // submit read/written data
         self.submit(false).ok();

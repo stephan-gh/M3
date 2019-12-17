@@ -120,6 +120,9 @@ pub trait File: Read + Write + Seek + Map + Debug {
     /// Sets the file descriptor.
     fn set_fd(&mut self, fd: Fd);
 
+    /// Returns the session selector, if any
+    fn session(&self) -> Option<Selector>;
+
     /// Closes the file.
     fn close(&mut self);
 

@@ -300,8 +300,6 @@ fn workloop() {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root file system");
-
     sendqueue::init();
     thread::init();
     // TODO calculate the number of threads we need (one per child?)
@@ -331,9 +329,7 @@ pub fn main() -> i32 {
     let peid = pes::get().find_and_alloc(VPE::cur().pe_desc()).unwrap();
     let mut vpe = VPE::new_with(
         pes::get().get(peid),
-        VPEArgs::new(&name)
-            .resmng(ResMng::new(sgate))
-            .pager("pager"),
+        VPEArgs::new(&name).resmng(ResMng::new(sgate)),
     )
     .expect("Unable to create VPE");
 

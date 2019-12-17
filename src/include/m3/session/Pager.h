@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <base/util/Reference.h>
 #include <base/Panic.h>
 
 #include <m3/session/ClientSession.h>
@@ -25,15 +26,11 @@
 
 namespace m3 {
 
-class Pager : public ClientSession {
+class VPE;
+
+class Pager : public RefCounted, public ClientSession {
 private:
-    explicit Pager(VPE &vpe, capsel_t sess)
-        : ClientSession(sess),
-          _rgate(RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)),
-          _own_sgate(SendGate::bind(obtain(1).start())),
-          _child_sgate(SendGate::bind(obtain(1).start())),
-          _close(true) {
-    }
+    explicit Pager(VPE &vpe, capsel_t sess) noexcept;
 
 public:
     enum DelOp {
@@ -63,20 +60,7 @@ public:
         RWX     = READ | WRITE | EXEC,
     };
 
-    explicit Pager(capsel_t sess) noexcept
-        : ClientSession(sess),
-          _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
-          _own_sgate(SendGate::bind(obtain(1).start())),
-          _child_sgate(SendGate::bind(ObjCap::INVALID)),
-          _close(false) {
-    }
-    explicit Pager(VPE &vpe, const String &service)
-        : ClientSession(service),
-          _rgate(RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)),
-          _own_sgate(SendGate::bind(obtain(1).start())),
-          _child_sgate(SendGate::bind(obtain(1).start())),
-          _close(false) {
-    }
+    explicit Pager(capsel_t sess) noexcept;
     ~Pager();
 
     const SendGate &own_sgate() const noexcept {
@@ -90,7 +74,9 @@ public:
         return _rgate;
     }
 
-    std::unique_ptr<Pager> create_clone(VPE &vpe);
+    void delegate_caps(VPE &vpe);
+
+    Reference<Pager> create_clone(VPE &vpe);
     void clone();
     void pagefault(goff_t addr, uint access);
     void map_anon(goff_t *virt, size_t len, int prot, int flags);

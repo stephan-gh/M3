@@ -35,11 +35,11 @@ using namespace m3;
 static constexpr bool VERBOSE = true;
 
 struct App {
-    explicit App(int argc, const char **argv, const char *pager)
+    explicit App(int argc, const char **argv)
         : argc(argc),
           argv(argv),
           pe(PE::alloc(VPE::self().pe_desc())),
-          vpe(pe, argv[0], VPEArgs().pager(pager)),
+          vpe(pe, argv[0]),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
         vpe.delegate_obj(rgate.sel());
@@ -88,26 +88,9 @@ int main(int argc, char **argv) {
     const char *rd_name = argv[CmdArgs::ind + 1];
 
     App *apps[instances * 2];
-    RemoteServer *srvs[3];
-    Reference<PE> srv_pes[3];
-    VPE *srv_vpes[3];
-
-#if defined(__gem5__)
-    if(VERBOSE) cout << "Creating pager...\n";
-
-    {
-        srv_pes[2] = PE::alloc(VPE::self().pe_desc());
-        srv_vpes[2] = new VPE(srv_pes[2], "pager");
-        srvs[2] = new RemoteServer(*srv_vpes[2], "mypager");
-
-        String srv_arg = srvs[2]->sel_arg();
-        const char *args[] = {"/bin/pager", "-a", "16", "-f", "16", "-s", srv_arg.c_str()};
-        srv_vpes[2]->exec(ARRAY_SIZE(args), args);
-    }
-#else
-    srv_vpes[2] = nullptr;
-    srvs[2] = nullptr;
-#endif
+    RemoteServer *srvs[2];
+    Reference<PE> srv_pes[2];
+    VPE *srv_vpes[2];
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
@@ -120,7 +103,7 @@ int main(int argc, char **argv) {
             const char **args = new const char *[ARG_COUNT];
             args[0] = "/bin/fstrace-m3fs";
 
-            apps[i] = new App(ARG_COUNT, args, "mypager");
+            apps[i] = new App(ARG_COUNT, args);
         }
 
         if(j == 0 && VERBOSE) cout << "Creating servers...\n";
