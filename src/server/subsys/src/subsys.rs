@@ -121,7 +121,15 @@ fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error
             // if that failed, ask our resource manager
             let our_sel = xlate_sel(child.id(), dst_sel)?;
             VPE::cur().resmng().open_sess(our_sel, &name)?;
-            child.delegate(our_sel, dst_sel)
+
+            if let Err(e) = child.delegate(our_sel, dst_sel) {
+                // if that failed, close it at our parent; ignore failures here
+                VPE::cur().resmng().close_sess(our_sel).ok();
+                Err(e)
+            }
+            else {
+                Ok(())
+            }
         },
     }
 }
@@ -182,7 +190,14 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     VPE::cur().resmng().alloc_mem(our_sel, addr, size, perms)?;
 
     // delegate memory to our child
-    child.delegate(our_sel, dst_sel)
+    if let Err(e) = child.delegate(our_sel, dst_sel) {
+        // if that failed, free it at our parent; ignore failures here
+        VPE::cur().resmng().free_mem(our_sel).ok();
+        Err(e)
+    }
+    else {
+        Ok(())
+    }
 }
 
 fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
@@ -215,8 +230,14 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
         },
         Ok(desc) => {
             // delegate PE to our child
-            child.delegate(our_sel, dst_sel)?;
-            reply_vmsg!(is, 0 as u64, desc.value())
+            if let Err(e) = child.delegate(our_sel, dst_sel) {
+                // if that failed, free it at our parent; ignore failures here
+                VPE::cur().resmng().free_pe(our_sel).ok();
+                reply_vmsg!(is, e.code() as u64)
+            }
+            else {
+                reply_vmsg!(is, 0 as u64, desc.value())
+            }
         },
     }
     .expect("Unable to reply");
