@@ -60,7 +60,7 @@
 
 #define STACK_SIZE          0xF000
 #define STACK_BOTTOM        (ENV_END + 0x1000)
-#define STACK_TOP           (ENV_END + STACK_SIZE)
+#define STACK_TOP           (STACK_BOTTOM + STACK_SIZE)
 
 #define RECVBUF_SPACE       0x3FC00000
 #define RECVBUF_SIZE        (4U * PAGE_SIZE)
