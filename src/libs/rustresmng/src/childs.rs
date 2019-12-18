@@ -220,7 +220,8 @@ pub trait Child {
         let alloc = self.res_mut().mem.remove(idx);
         if alloc.sel != 0 {
             let crd = CapRngDesc::new(CapType::OBJECT, alloc.sel, 1);
-            syscalls::revoke(self.vpe_sel(), crd, true).unwrap();
+            // ignore failures here; maybe the VPE is already gone
+            syscalls::revoke(self.vpe_sel(), crd, true).ok();
         }
 
         log!(RESMNG_MEM, "{}: removed {:?}", self.name(), alloc);
