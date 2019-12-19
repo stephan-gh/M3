@@ -190,14 +190,11 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     VPE::cur().resmng().alloc_mem(our_sel, addr, size, perms)?;
 
     // delegate memory to our child
-    if let Err(e) = child.delegate(our_sel, dst_sel) {
+    child.delegate(our_sel, dst_sel).or_else(|e| {
         // if that failed, free it at our parent; ignore failures here
         VPE::cur().resmng().free_mem(our_sel).ok();
         Err(e)
-    }
-    else {
-        Ok(())
-    }
+    })
 }
 
 fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
