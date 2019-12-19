@@ -23,7 +23,7 @@ extern crate resmng;
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::{RefCell, StaticCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
@@ -32,11 +32,12 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
 use m3::pes::{DefaultMapper, VPEArgs, PE, VPE};
+use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
 use m3::vfs::{OpenFlags, VFS};
 
 use resmng::childs::{Child, Id};
-use resmng::{childs, config, pes, sendqueue, services};
+use resmng::{childs, config, memory, pes, sendqueue, services};
 
 const MAX_CAPS: Selector = 1_000_000;
 const MAX_CHILDS: Selector = 20;
@@ -351,8 +352,19 @@ pub fn main() -> i32 {
     )
     .expect("Unable to create VPE");
 
+    // we don't use the memory pool
+    let mem_pool = Rc::new(RefCell::new(memory::MemPool::default()));
+
     let (_, _, cfg) = config::Config::new(&args[0], false).expect("Unable to parse config");
-    let mut child = childs::OwnChild::new(0, peid, args, false, VPE::cur().kmem().clone(), cfg);
+    let mut child = childs::OwnChild::new(
+        0,
+        peid,
+        args,
+        false,
+        VPE::cur().kmem().clone(),
+        mem_pool,
+        cfg,
+    );
     childs::get().set_next_id(1);
 
     vpe.mounts()

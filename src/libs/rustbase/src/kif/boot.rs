@@ -27,20 +27,27 @@ const MAX_MEMS: usize = 4;
 #[repr(C, packed)]
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Mem {
+    addr: u64,
     size: u64,
 }
 
 impl Mem {
     /// Creates a new memory region of given size.
-    pub fn new(size: usize, reserved: bool) -> Self {
+    pub fn new(addr: u64, size: u64, reserved: bool) -> Self {
         Mem {
-            size: size as u64 | (reserved as u64),
+            addr,
+            size: size | (reserved as u64),
         }
     }
 
+    /// Returns the start address of the memory region
+    pub fn addr(&self) -> u64 {
+        self.addr
+    }
+
     /// Returns the size of the memory region
-    pub fn size(self) -> usize {
-        self.size as usize & !1
+    pub fn size(self) -> u64 {
+        self.size & !1
     }
 
     /// Returns true if the region is reserved, that is, not usable by applications

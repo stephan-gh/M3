@@ -17,6 +17,7 @@
 use core::cmp;
 use core::fmt;
 use m3::cap::Selector;
+use m3::cell::RefCell;
 use m3::cfg::PAGE_BITS;
 use m3::col::Vec;
 use m3::com::{MemGate, VecSink};
@@ -25,6 +26,7 @@ use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
 use m3::pes::Mapper;
+use m3::rc::Rc;
 use m3::session::{MapFlags, Pager};
 use m3::syscalls;
 use m3::vfs;
@@ -156,15 +158,22 @@ pub struct BootMapper {
     vpe_sel: Selector,
     mem_sel: Selector,
     has_virtmem: bool,
+    mem_pool: Rc<RefCell<memory::MemPool>>,
     allocs: Vec<memory::Allocation>,
 }
 
 impl BootMapper {
-    pub fn new(vpe_sel: Selector, mem_sel: Selector, has_virtmem: bool) -> Self {
+    pub fn new(
+        vpe_sel: Selector,
+        mem_sel: Selector,
+        has_virtmem: bool,
+        mem_pool: Rc<RefCell<memory::MemPool>>,
+    ) -> Self {
         BootMapper {
             vpe_sel,
             mem_sel,
             has_virtmem,
+            mem_pool,
             allocs: Vec::new(),
         }
     }
@@ -215,14 +224,14 @@ impl Mapper for BootMapper {
         _flags: MapFlags,
     ) -> Result<bool, Error> {
         if self.has_virtmem {
-            let alloc = memory::get().allocate(len)?;
-            let msel = memory::get().mem_cap(alloc.mod_id);
+            let alloc = self.mem_pool.borrow_mut().allocate(len as goff)?;
+            let msel = self.mem_pool.borrow().mem_cap(alloc.slice_id());
 
             syscalls::create_map(
                 (virt >> PAGE_BITS) as Selector,
                 self.vpe_sel,
                 msel,
-                (alloc.addr >> PAGE_BITS) as Selector,
+                (alloc.addr() >> PAGE_BITS) as Selector,
                 (len >> PAGE_BITS) as Selector,
                 perm,
             )?;

@@ -14,42 +14,36 @@
  * General Public License version 2 for more details.
  */
 
+use core::cmp;
 use core::fmt;
 use m3::cap::Selector;
-use m3::cell::StaticCell;
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::kif::Perm;
 use m3::mem::MemMap;
-
-use childs::Child;
+use m3::rc::Rc;
 
 pub struct MemMod {
     gate: MemGate,
-    size: usize,
-    map: MemMap,
+    addr: goff,
+    size: goff,
     reserved: bool,
 }
 
 impl MemMod {
-    pub fn new(sel: Selector, size: usize, reserved: bool) -> Self {
+    pub fn new(sel: Selector, addr: goff, size: goff, reserved: bool) -> Self {
         MemMod {
             gate: MemGate::new_bind(sel),
+            addr,
             size,
-            map: MemMap::new(0, size),
             reserved,
         }
     }
 
-    pub fn capacity(&self) -> usize {
+    pub fn capacity(&self) -> goff {
         self.size
-    }
-
-    pub fn available(&self) -> usize {
-        self.map.size().0
     }
 }
 
@@ -57,42 +51,136 @@ impl fmt::Debug for MemMod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "MemMod[sel: {}, res: {}, size: {} MiB, available: {} MiB, map: {:?}]",
+            "MemMod[sel: {}, res: {}, addr: {:#x}, size: {} MiB]",
             self.gate.sel(),
             self.reserved,
+            self.addr,
             self.size / (1024 * 1024),
+        )
+    }
+}
+
+#[derive(Default)]
+pub struct MemModCon {
+    mods: Vec<Rc<MemMod>>,
+    cur_mod: usize,
+    cur_off: goff,
+}
+
+impl MemModCon {
+    pub fn add(&mut self, m: Rc<MemMod>) {
+        self.mods.push(m);
+    }
+
+    pub fn capacity(&self) -> goff {
+        self.mods.iter().fold(0, |total, ref m| {
+            if !m.reserved {
+                total + m.capacity()
+            }
+            else {
+                total
+            }
+        })
+    }
+
+    pub fn find_mem(&mut self, phys: goff, size: goff) -> Result<MemSlice, Error> {
+        for m in &self.mods {
+            if m.reserved && phys >= m.addr && phys + size <= m.addr + m.capacity() {
+                return Ok(MemSlice::new(m.clone(), phys - m.addr, size));
+            }
+        }
+        Err(Error::new(Code::InvArgs))
+    }
+
+    pub fn alloc_pool(&mut self, mut size: goff) -> Result<MemPool, Error> {
+        let mut res = MemPool::default();
+        while size > 0 && self.cur_mod < self.mods.len() {
+            let m = &self.mods[self.cur_mod];
+            if m.reserved || self.cur_off == m.capacity() {
+                self.cur_mod += 1;
+                self.cur_off = 0;
+                continue;
+            }
+
+            let avail = m.capacity() - self.cur_off;
+            let amount = cmp::min(avail, size);
+            res.add(MemSlice::new(m.clone(), self.cur_off, amount));
+
+            size -= amount;
+            self.cur_off += amount;
+        }
+
+        if size == 0 {
+            Ok(res)
+        }
+        else {
+            Err(Error::new(Code::NoSpace))
+        }
+    }
+}
+
+pub struct MemSlice {
+    mem: Rc<MemMod>,
+    size: goff,
+    map: MemMap,
+}
+
+impl MemSlice {
+    pub fn new(mem: Rc<MemMod>, offset: goff, size: goff) -> Self {
+        MemSlice {
+            mem,
+            size,
+            map: MemMap::new(offset, size),
+        }
+    }
+
+    pub fn capacity(&self) -> goff {
+        self.size
+    }
+
+    pub fn available(&self) -> goff {
+        self.map.size().0
+    }
+}
+
+impl fmt::Debug for MemSlice {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "MemSlice[mod: {:?}, available: {} MiB, map: {:?}]",
+            self.mem,
             self.map.size().0 / (1024 * 1024),
             self.map
         )
     }
 }
 
-pub struct MainMemory {
-    mods: Vec<MemMod>,
-}
-
+#[derive(Copy, Clone)]
 pub struct Allocation {
-    pub mod_id: usize,
-    pub addr: goff,
-    pub size: usize,
-    pub sel: Selector,
+    slice_id: usize,
+    addr: goff,
+    size: goff,
 }
 
 impl Allocation {
-    pub fn new(mod_id: usize, addr: goff, size: usize, sel: Selector) -> Self {
+    pub fn new(slice_id: usize, addr: goff, size: goff) -> Self {
         Allocation {
-            mod_id,
+            slice_id,
             addr,
             size,
-            sel,
         }
     }
-}
 
-impl Drop for Allocation {
-    fn drop(&mut self) {
-        log!(RESMNG_MEM, "Freeing {:?}", self);
-        get().mods[self.mod_id].map.free(self.addr, self.size);
+    pub fn slice_id(&self) -> usize {
+        self.slice_id
+    }
+
+    pub fn addr(&self) -> goff {
+        self.addr
+    }
+
+    pub fn size(&self) -> goff {
+        self.size
     }
 }
 
@@ -100,52 +188,53 @@ impl fmt::Debug for Allocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Alloc[mod={}, addr={:#x}, size={:#x}, sel={}]",
-            self.mod_id, self.addr, self.size, self.sel
+            "Alloc[slice={}, addr={:#x}, size={:#x}]",
+            self.slice_id, self.addr, self.size
         )
     }
 }
 
-impl MainMemory {
-    const fn new() -> Self {
-        MainMemory { mods: Vec::new() }
-    }
+#[derive(Default)]
+pub struct MemPool {
+    slices: Vec<MemSlice>,
+}
 
-    pub fn capacity(&self) -> usize {
-        self.mods
+impl MemPool {
+    pub fn capacity(&self) -> goff {
+        self.slices
             .iter()
             .fold(0, |total, ref m| total + m.capacity())
     }
 
-    pub fn available(&self) -> usize {
-        self.mods
+    pub fn available(&self) -> goff {
+        self.slices
             .iter()
             .fold(0, |total, ref m| total + m.available())
     }
 
     pub fn mem_cap(&self, idx: usize) -> Selector {
-        self.mods[idx].gate.sel()
+        self.slices[idx].mem.gate.sel()
     }
 
-    pub fn add(&mut self, m: MemMod) {
-        self.mods.push(m)
+    pub fn add(&mut self, s: MemSlice) {
+        self.slices.push(s)
     }
 
-    pub fn allocate(&mut self, size: usize) -> Result<Allocation, Error> {
-        let align = if size >= cfg::LPAGE_SIZE {
-            cfg::LPAGE_SIZE
+    pub fn allocate(&mut self, size: goff) -> Result<Allocation, Error> {
+        let align = if size >= cfg::LPAGE_SIZE as goff {
+            cfg::LPAGE_SIZE as goff
         }
         else {
-            cfg::PAGE_SIZE
+            cfg::PAGE_SIZE as goff
         };
 
-        for (id, m) in &mut self.mods.iter_mut().enumerate() {
-            if m.reserved {
+        for (id, s) in self.slices.iter_mut().enumerate() {
+            if s.mem.reserved {
                 continue;
             }
 
-            if let Ok(addr) = m.map.allocate(size, align) {
-                let alloc = Allocation::new(id, addr, size, 0);
+            if let Ok(addr) = s.map.allocate(size, align) {
+                let alloc = Allocation::new(id, addr, size);
                 log!(RESMNG_MEM, "Allocated {:?}", alloc);
                 return Ok(alloc);
             }
@@ -153,72 +242,34 @@ impl MainMemory {
         Err(Error::new(Code::OutOfMem))
     }
 
-    pub fn allocate_for(
-        &mut self,
-        child: &mut dyn Child,
-        dst_sel: Selector,
-        size: usize,
-        perm: Perm,
-    ) -> Result<(), Error> {
-        log!(
-            RESMNG_MEM,
-            "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
-            child.name(),
-            dst_sel,
-            size,
-            perm
-        );
-
-        let mut alloc = self.allocate(size)?;
-        let mod_id = alloc.mod_id;
-        alloc.sel = dst_sel;
-        child.add_mem(alloc, self.mods[mod_id].gate.sel(), perm)
+    pub fn allocate_at(&mut self, phys: goff, size: goff) -> Result<Allocation, Error> {
+        for (id, s) in self.slices.iter().enumerate() {
+            if s.mem.reserved && phys >= s.mem.addr && phys + size <= s.mem.addr + s.capacity() {
+                let alloc = Allocation::new(id, phys, size);
+                log!(RESMNG_MEM, "Allocated {:?}", alloc);
+                return Ok(alloc);
+            }
+        }
+        Err(Error::new(Code::OutOfMem))
     }
 
-    pub fn allocate_at(
-        &mut self,
-        child: &mut dyn Child,
-        dst_sel: Selector,
-        offset: goff,
-        size: usize,
-    ) -> Result<(), Error> {
-        log!(
-            RESMNG_MEM,
-            "{}: allocate_at(dst_sel={}, offset={:#x}, size={:#x})",
-            child.name(),
-            dst_sel,
-            offset,
-            size
-        );
-
-        // TODO check if that's actually ok
-        let m = &self.mods[0];
-        assert!(m.reserved);
-        child.add_mem(
-            Allocation::new(0, offset, size, dst_sel),
-            m.gate.sel(),
-            Perm::RWX,
-        )
+    pub fn free(&mut self, alloc: Allocation) {
+        log!(RESMNG_MEM, "Freeing {:?}", alloc);
+        self.slices[alloc.slice_id].map.free(alloc.addr, alloc.size);
     }
 }
 
-impl fmt::Debug for MainMemory {
+impl fmt::Debug for MemPool {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
-            "size: {} MiB, available: {} MiB, mods: [",
+            "MemPool[size: {} MiB, available: {} MiB, slices: [",
             self.capacity() / (1024 * 1024),
             self.available() / (1024 * 1024)
         )?;
-        for m in &self.mods {
+        for m in &self.slices {
             writeln!(f, "  {:?}", m)?;
         }
-        write!(f, "]")
+        write!(f, "]]")
     }
-}
-
-static MEM: StaticCell<MainMemory> = StaticCell::new(MainMemory::new());
-
-pub fn get() -> &'static mut MainMemory {
-    MEM.get_mut()
 }

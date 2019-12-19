@@ -26,12 +26,14 @@ mod loader;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
+use m3::cfg;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::{self, boot, PEDesc};
+use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
@@ -123,14 +125,14 @@ fn rem_child(is: &mut GateIStream, child: &mut dyn Child) {
 fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) {
     let dst_sel: Selector = is.pop();
     let addr: goff = is.pop();
-    let size: usize = is.pop();
+    let size: goff = is.pop();
     let perms = kif::Perm::from_bits_truncate(is.pop::<u32>());
 
     let res = if addr == !0 {
-        memory::get().allocate_for(child, dst_sel, size, perms)
+        child.alloc_mem(dst_sel, size, perms)
     }
     else {
-        memory::get().allocate_at(child, dst_sel, addr, size)
+        child.alloc_mem_at(dst_sel, addr, size, perms)
     };
 
     reply_result(is, res);
@@ -139,7 +141,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) {
 fn free_mem(is: &mut GateIStream, child: &mut dyn Child) {
     let sel: Selector = is.pop();
 
-    let res = child.remove_mem(sel);
+    let res = child.free_mem(sel);
     reply_result(is, res);
 }
 
@@ -181,13 +183,15 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
     )?;
 
     let bfile = loader::BootFile::new(bsel, m.size as usize);
-    let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe_desc().has_virtmem());
+    let mem_pool = child.mem().clone();
+    let mut bmapper =
+        loader::BootMapper::new(vpe.sel(), bsel, vpe.pe_desc().has_virtmem(), mem_pool);
     let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
 
     child.start(vpe, &mut bmapper, bfileref)?;
 
     for a in bmapper.fetch_allocs() {
-        child.add_mem(a, 0, kif::Perm::RWX).unwrap();
+        child.add_mem(a, None);
     }
 
     Ok(())
@@ -288,7 +292,7 @@ fn workloop() {
     }
 }
 
-fn start_boot_mods() {
+fn start_boot_mods(mut mems: memory::MemModCon) {
     let mut same_kmem = false;
 
     let mut cfgs = Vec::new();
@@ -320,19 +324,27 @@ fn start_boot_mods() {
 
     config::check(&cfgs);
 
-    // determine default kmem per child
+    // determine default mem and kmem per child
+    let mut total_mem = mems.capacity();
     let mut total_kmem = VPE::cur()
         .kmem()
         .quota()
         .expect("Unable to determine own quota");
-    let mut total_parties = cfgs.len() + 1;
+    let mut total_kparties = cfgs.len() + 1;
+    let mut total_mparties = cfgs.len() + 1;
     for (_, _, c) in &cfgs {
         if c.kmem() != 0 {
             total_kmem -= c.kmem();
-            total_parties -= 1;
+            total_kparties -= 1;
+        }
+
+        if c.mem() != 0 {
+            total_mem -= c.mem() as goff;
+            total_mparties -= 1;
         }
     }
-    let def_kmem = total_kmem / total_parties;
+    let def_kmem = total_kmem / total_kparties;
+    let def_mem = math::round_dn(total_mem / total_mparties as goff, cfg::PAGE_SIZE as goff);
 
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
@@ -359,10 +371,30 @@ fn start_boot_mods() {
                 .expect("Unable to derive new kernel memory")
         };
 
+        // memory pool for child
+        let child_mem = if cfg.mem() == 0 {
+            def_mem
+        }
+        else {
+            cfg.mem() as goff
+        };
+        let mem_pool = Rc::new(RefCell::new(
+            mems.alloc_pool(child_mem)
+                .expect("Unable to allocate memory pool"),
+        ));
+        // add requested physical memory regions to pool
+        for memat in cfg.memats() {
+            let mslice = mems.find_mem(memat.phys(), memat.size())
+                .expect(&format!("Unable to find memory {:#x}:{:#x}", memat.phys(), memat.size()));
+            mem_pool.borrow_mut().add(mslice);
+        }
+
         let pe = pes::get()
             .find_and_alloc(VPE::cur().pe_desc())
             .expect("Unable to allocate PE");
-        let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, cfg);
+        let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, mem_pool, cfg);
+        log!(RESMNG_CHILD, "Created {:?}", child);
+
         if child.has_unmet_reqs() {
             DELAYED.get_mut().push(child);
         }
@@ -425,6 +457,7 @@ pub fn main() -> i32 {
         i += 1;
     }
 
+    let mut memcon = memory::MemModCon::default();
     let mut mem_sel = BOOT_MOD_SELS + 1 + (user_pes + info.mod_count) as Selector;
     for i in 0..info.mems.len() {
         let mem = &info.mems[i];
@@ -432,10 +465,16 @@ pub fn main() -> i32 {
             continue;
         }
 
-        memory::get().add(memory::MemMod::new(mem_sel, mem.size(), mem.reserved()));
+        let mem_mod = Rc::new(memory::MemMod::new(
+            mem_sel,
+            mem.addr(),
+            mem.size(),
+            mem.reserved(),
+        ));
+        log!(RESMNG, "Found {:?}", mem_mod);
+        memcon.add(mem_mod);
         mem_sel += 1;
     }
-    log!(RESMNG, "Memory: {:?}", memory::get());
 
     let mut rgate = RecvGate::new_with(RGateArgs::default().order(12).msg_order(8))
         .expect("Unable to create RecvGate");
@@ -449,7 +488,7 @@ pub fn main() -> i32 {
         thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
     }
 
-    start_boot_mods();
+    start_boot_mods(memcon);
 
     // ensure that there is no id overlap
     childs::get().set_next_id(info.mod_count as Id + 1);

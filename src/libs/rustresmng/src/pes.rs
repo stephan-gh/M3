@@ -55,6 +55,10 @@ impl PEManager {
         self.pes.len()
     }
 
+    pub fn pe(&self, id: usize) -> PEId {
+        self.pes[id].id
+    }
+
     pub fn get(&self, id: usize) -> Rc<PE> {
         self.pes[id].pe.clone()
     }

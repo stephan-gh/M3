@@ -20,10 +20,38 @@ use m3::cell::Cell;
 use m3::cell::RefCell;
 use m3::col::{BTreeSet, String, ToString, Vec};
 use m3::errors::{Code, Error};
+use m3::goff;
 use m3::kif;
 use m3::rc::Rc;
 
 use pes;
+
+pub struct MemAtDesc {
+    phys: goff,
+    size: goff,
+}
+
+impl MemAtDesc {
+    pub fn new(line: &str) -> Result<Self, Error> {
+        let parts = line.split(':').collect::<Vec<&str>>();
+        let (phys, size) = if parts.len() == 2 {
+            (parse_addr(parts[0])?, parse_size(parts[1])? as goff)
+        }
+        else {
+            return Err(Error::new(Code::InvArgs));
+        };
+
+        Ok(MemAtDesc { phys, size })
+    }
+
+    pub fn phys(&self) -> goff {
+        self.phys
+    }
+
+    pub fn size(&self) -> goff {
+        self.size
+    }
+}
 
 pub struct ServiceDesc {
     local_name: String,
@@ -234,6 +262,16 @@ fn parse_names(line: &str) -> Result<(String, String), Error> {
     }
 }
 
+fn parse_addr(s: &str) -> Result<goff, Error> {
+    if s.starts_with("0x") {
+        goff::from_str_radix(&s[2..], 16)
+    }
+    else {
+        s.parse::<goff>()
+    }
+    .map_err(|_| Error::new(Code::InvArgs))
+}
+
 fn parse_size(s: &str) -> Result<usize, Error> {
     let mul = match s.chars().last() {
         Some(c) if c >= '0' && c <= '9' => 1,
@@ -326,7 +364,9 @@ pub fn check(cfgs: &[(Vec<String>, bool, Rc<Config>)]) {
 pub struct Config {
     name: String,
     kmem: usize,
+    mem: usize,
     restrict: bool,
+    memats: Vec<MemAtDesc>,
     services: Vec<ServiceDesc>,
     sessions: Vec<SessionDesc>,
     childs: Vec<ChildDesc>,
@@ -347,7 +387,9 @@ impl Config {
         let mut res = Config {
             name: String::new(),
             kmem: 0,
+            mem: 0,
             restrict,
+            memats: Vec::new(),
             services: Vec::new(),
             sessions: Vec::new(),
             childs: Vec::new(),
@@ -368,6 +410,12 @@ impl Config {
             }
             else if a.starts_with("kmem=") {
                 res.kmem = parse_size(&a[5..])?;
+            }
+            else if a.starts_with("mem=") {
+                res.mem = parse_size(&a[4..])?;
+            }
+            else if a.starts_with("memat=") {
+                res.memats.push(MemAtDesc::new(&a[6..])?);
             }
             else if a.starts_with("sess=") {
                 res.sessions.push(SessionDesc::new(&a[5..])?);
@@ -401,8 +449,16 @@ impl Config {
         self.kmem
     }
 
+    pub fn mem(&self) -> usize {
+        self.mem
+    }
+
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn memats(&self) -> &Vec<MemAtDesc> {
+        &self.memats
     }
 
     pub fn services(&self) -> &Vec<ServiceDesc> {
@@ -510,7 +566,13 @@ impl Config {
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
         writeln!(f, "{} [", self.name)?;
         if self.kmem != 0 {
-            writeln!(f, "  kmem={}", self.kmem)?;
+            writeln!(f, "  KernelMem[size={} KiB]", self.kmem / 1024)?;
+        }
+        if self.mem != 0 {
+            writeln!(f, "  Memory[size={} KiB]", self.mem / 1024)?;
+        }
+        for m in &self.memats {
+            writeln!(f, "  MemoryAt[phys={:#x}, size={:#x}]", m.phys(), m.size())?;
         }
         for s in &self.services {
             writeln!(

@@ -22,11 +22,11 @@ use math;
 
 struct Area {
     addr: goff,
-    size: usize,
+    size: goff,
 }
 
 impl Area {
-    pub fn new(addr: goff, size: usize) -> Self {
+    pub fn new(addr: goff, size: goff) -> Self {
         Area { addr, size }
     }
 }
@@ -44,14 +44,14 @@ pub struct MemMap {
 
 impl MemMap {
     /// Creates a new memory map from `addr` to `addr`+`size`.
-    pub fn new(addr: goff, size: usize) -> Self {
+    pub fn new(addr: goff, size: goff) -> Self {
         let mut areas = DList::new();
         areas.push_back(Area::new(addr, size));
         MemMap { areas }
     }
 
     /// Allocates a region of `size` bytes, aligned by `align`.
-    pub fn allocate(&mut self, size: usize, align: usize) -> Result<goff, Error> {
+    pub fn allocate(&mut self, size: goff, align: goff) -> Result<goff, Error> {
         // find an area with sufficient space
         let mut it = self.areas.iter_mut();
         let a: Option<&mut Area> = loop {
@@ -59,7 +59,7 @@ impl MemMap {
                 None => break None,
                 Some(a) => {
                     let diff = math::round_up(a.addr, align as goff) - a.addr;
-                    if a.size > diff as usize && a.size - diff as usize >= size {
+                    if a.size > diff && a.size - diff >= size {
                         break Some(a);
                     }
                 },
@@ -72,9 +72,9 @@ impl MemMap {
                 // if we need to do some alignment, create a new area in front of a
                 let diff = math::round_up(a.addr, align as goff) - a.addr;
                 if diff != 0 {
-                    it.insert_before(Area::new(a.addr, diff as usize));
+                    it.insert_before(Area::new(a.addr, diff));
                     a.addr += diff;
-                    a.size -= diff as usize;
+                    a.size -= diff;
                 }
 
                 // take it from the front
@@ -93,7 +93,7 @@ impl MemMap {
     }
 
     /// Free's the given memory region defined by `addr` and `size`.
-    pub fn free(&mut self, addr: goff, size: usize) {
+    pub fn free(&mut self, addr: goff, size: goff) {
         // find the area behind ours
         let mut it = self.areas.iter_mut();
         let n: Option<&mut Area> = loop {
@@ -144,7 +144,7 @@ impl MemMap {
     }
 
     /// Returns a pair of the remaining space and the number of areas.
-    pub fn size(&self) -> (usize, usize) {
+    pub fn size(&self) -> (goff, usize) {
         let mut total = 0;
         for a in self.areas.iter() {
             total += a.size;

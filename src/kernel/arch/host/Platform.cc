@@ -72,8 +72,8 @@ Platform::Init::Init() {
     mem.add(new MemoryModule(MemoryModule::USER, 0, base + FS_MAX_SIZE + Args::kmem, usize));
 
     // set memories
-    _info.mems[0] = m3::BootInfo::Mem(FS_MAX_SIZE, true);
-    _info.mems[1] = m3::BootInfo::Mem(usize, false);
+    _info.mems[0] = m3::BootInfo::Mem(0, FS_MAX_SIZE, true);
+    _info.mems[1] = m3::BootInfo::Mem(FS_MAX_SIZE + Args::kmem, usize, false);
 }
 
 void Platform::add_modules(int argc, char **argv) {

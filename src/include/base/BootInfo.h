@@ -36,14 +36,17 @@ public:
     class Mem {
     public:
         explicit Mem()
-            : _size(0) {
+            : _addr(), _size() {
         }
-        explicit Mem(size_t size, bool reserved)
-            : _size(size | (reserved ? 1 : 0)) {
+        explicit Mem(uint64_t addr, uint64_t size, bool reserved)
+            : _addr(addr), _size(size | (reserved ? 1 : 0)) {
             assert((size & 1) == 0);
         }
 
-        size_t size() const {
+        uint64_t addr() const {
+            return _addr;
+        }
+        uint64_t size() const {
             return _size & ~static_cast<uint64_t>(1);
         }
         bool reserved() const {
@@ -51,6 +54,7 @@ public:
         }
 
     private:
+        uint64_t _addr;
         uint64_t _size;
     } PACKED;
 

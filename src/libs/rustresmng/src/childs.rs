@@ -14,13 +14,15 @@
  * General Public License version 2 for more details.
  */
 
+use core::fmt;
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::{RefCell, StaticCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::{Code, Error};
+use m3::goff;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 use m3::rc::Rc;
@@ -28,7 +30,7 @@ use m3::syscalls;
 use m3::vfs::FileRef;
 
 use config::Config;
-use memory::Allocation;
+use memory::{Allocation, MemPool};
 use pes;
 use sems;
 use services::{self, Session};
@@ -39,7 +41,7 @@ pub struct Resources {
     childs: Vec<(Id, Selector)>,
     services: Vec<(Id, Selector)>,
     sessions: Vec<Session>,
-    mem: Vec<Allocation>,
+    mem: Vec<(Selector, Allocation)>,
     pes: Vec<(usize, usize, Selector)>,
 }
 
@@ -64,6 +66,7 @@ pub trait Child {
     fn pe_id(&self) -> Option<usize>;
     fn vpe_sel(&self) -> Selector;
 
+    fn mem(&mut self) -> &Rc<RefCell<MemPool>>;
     fn cfg(&self) -> Rc<Config>;
     fn res(&self) -> &Resources;
     fn res_mut(&mut self) -> &mut Resources;
@@ -121,7 +124,14 @@ pub trait Child {
                 .label(dtu::Label::from(id)),
         )?;
         let our_sg_sel = sgate.sel();
-        let child = Box::new(ForeignChild::new(id, child_name, our_sel, sgate, child_cfg));
+        let child = Box::new(ForeignChild::new(
+            id,
+            child_name,
+            our_sel,
+            sgate,
+            child_cfg,
+            self.mem().clone(),
+        ));
         child.delegate(our_sg_sel, sgate_sel)?;
 
         if let Some(cd) = cdesc {
@@ -189,42 +199,89 @@ pub trait Child {
         Ok(sessions.remove(idx))
     }
 
-    fn add_mem(&mut self, alloc: Allocation, mem_sel: Selector, perm: Perm) -> Result<(), Error> {
-        log!(RESMNG_MEM, "{}: added {:?}", self.name(), alloc);
+    fn alloc_mem(&mut self, dst_sel: Selector, size: goff, perm: Perm) -> Result<(), Error> {
+        log!(
+            RESMNG_MEM,
+            "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
+            self.name(),
+            dst_sel,
+            size,
+            perm
+        );
 
-        if mem_sel != 0 {
-            assert!(alloc.sel != 0);
-            syscalls::derive_mem(
-                self.vpe_sel(),
-                alloc.sel,
-                mem_sel,
-                alloc.addr,
-                alloc.size,
-                perm,
-            )?;
-        }
-        self.res_mut().mem.push(alloc);
+        let alloc = self.mem().borrow_mut().allocate(size)?;
+        let mem_sel = self.mem().borrow().mem_cap(alloc.slice_id());
+        self.add_child_mem(alloc, mem_sel, dst_sel, perm)
+    }
+    fn alloc_mem_at(
+        &mut self,
+        dst_sel: Selector,
+        offset: goff,
+        size: goff,
+        perm: Perm,
+    ) -> Result<(), Error> {
+        log!(
+            RESMNG_MEM,
+            "{}: allocate_at(dst_sel={}, size={:#x}, offset={:#x}, perm={:?})",
+            self.name(),
+            dst_sel,
+            size,
+            offset,
+            perm
+        );
+
+        let alloc = self.mem().borrow_mut().allocate_at(offset, size)?;
+        let mem_sel = self.mem().borrow().mem_cap(alloc.slice_id());
+        self.add_child_mem(alloc, mem_sel, dst_sel, perm)
+    }
+    fn add_child_mem(
+        &mut self,
+        alloc: Allocation,
+        mem_sel: Selector,
+        dst_sel: Selector,
+        perm: Perm,
+    ) -> Result<(), Error> {
+        syscalls::derive_mem(
+            self.vpe_sel(),
+            dst_sel,
+            mem_sel,
+            alloc.addr(),
+            alloc.size() as usize,
+            perm,
+        )
+        .or_else(|e| {
+            self.mem().borrow_mut().free(alloc);
+            Err(e)
+        })?;
+
+        self.add_mem(alloc, Some(dst_sel));
         Ok(())
     }
-    fn remove_mem(&mut self, sel: Selector) -> Result<(), Error> {
+    fn add_mem(&mut self, alloc: Allocation, dst_sel: Option<Selector>) {
+        log!(RESMNG_MEM, "{}: added {:?}", self.name(), alloc);
+        self.res_mut().mem.push((dst_sel.unwrap_or(0), alloc));
+    }
+
+    fn free_mem(&mut self, sel: Selector) -> Result<(), Error> {
         let idx = self
             .res_mut()
             .mem
             .iter()
-            .position(|s| s.sel == sel)
+            .position(|(s, _)| *s == sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         self.remove_mem_by_idx(idx);
         Ok(())
     }
     fn remove_mem_by_idx(&mut self, idx: usize) {
-        let alloc = self.res_mut().mem.remove(idx);
-        if alloc.sel != 0 {
-            let crd = CapRngDesc::new(CapType::OBJECT, alloc.sel, 1);
+        let (sel, alloc) = self.res_mut().mem.remove(idx);
+        if sel != 0 {
+            let crd = CapRngDesc::new(CapType::OBJECT, sel, 1);
             // ignore failures here; maybe the VPE is already gone
             syscalls::revoke(self.vpe_sel(), crd, true).ok();
         }
 
         log!(RESMNG_MEM, "{}: removed {:?}", self.name(), alloc);
+        self.mem().borrow_mut().free(alloc);
     }
 
     fn use_sem(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
@@ -331,6 +388,7 @@ pub struct OwnChild {
     name: String,
     args: Vec<String>,
     cfg: Rc<Config>,
+    mem: Rc<RefCell<MemPool>>,
     res: Resources,
     daemon: bool,
     activity: Option<ExecActivity>,
@@ -344,6 +402,7 @@ impl OwnChild {
         args: Vec<String>,
         daemon: bool,
         kmem: Rc<KMem>,
+        mem: Rc<RefCell<MemPool>>,
         cfg: Rc<Config>,
     ) -> Self {
         OwnChild {
@@ -352,6 +411,7 @@ impl OwnChild {
             name: cfg.name().to_string(),
             args,
             cfg,
+            mem,
             res: Resources::default(),
             daemon,
             activity: None,
@@ -411,6 +471,10 @@ impl Child for OwnChild {
         self.activity.as_ref().unwrap().vpe().sel()
     }
 
+    fn mem(&mut self) -> &Rc<RefCell<MemPool>> {
+        &self.mem
+    }
+
     fn cfg(&self) -> Rc<Config> {
         self.cfg.clone()
     }
@@ -421,6 +485,21 @@ impl Child for OwnChild {
 
     fn res_mut(&mut self) -> &mut Resources {
         &mut self.res
+    }
+}
+
+impl fmt::Debug for OwnChild {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            f,
+            "OwnChild[id={}, pe={}, args={:?}, kmem=KMem[sel={}, quota={}], mem={:?}]",
+            self.id,
+            pes::get().pe(self.pe),
+            self.args,
+            self.kmem.sel(),
+            self.kmem.quota().unwrap(),
+            self.mem.borrow()
+        )
     }
 }
 
@@ -435,17 +514,26 @@ pub struct ForeignChild {
     id: Id,
     name: String,
     cfg: Rc<Config>,
+    mem: Rc<RefCell<MemPool>>,
     res: Resources,
     vpe: Selector,
     _sgate: SendGate,
 }
 
 impl ForeignChild {
-    pub fn new(id: Id, name: String, vpe: Selector, sgate: SendGate, cfg: Rc<Config>) -> Self {
+    pub fn new(
+        id: Id,
+        name: String,
+        vpe: Selector,
+        sgate: SendGate,
+        cfg: Rc<Config>,
+        mem: Rc<RefCell<MemPool>>,
+    ) -> Self {
         ForeignChild {
             id,
             name,
             cfg,
+            mem,
             res: Resources::default(),
             vpe,
             _sgate: sgate,
@@ -478,6 +566,10 @@ impl Child for ForeignChild {
         self.vpe
     }
 
+    fn mem(&mut self) -> &Rc<RefCell<MemPool>> {
+        &self.mem
+    }
+
     fn cfg(&self) -> Rc<Config> {
         self.cfg.clone()
     }
@@ -488,6 +580,12 @@ impl Child for ForeignChild {
 
     fn res_mut(&mut self) -> &mut Resources {
         &mut self.res
+    }
+}
+
+impl fmt::Debug for ForeignChild {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "ForeignChild[id={}, mem={:?}]", self.id, self.mem)
     }
 }
 
