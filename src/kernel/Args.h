@@ -29,6 +29,7 @@ public:
     static size_t kmem;
     static const char *bridge;
     static const char *fsimg;
+    static bool disk;
 };
 
 }

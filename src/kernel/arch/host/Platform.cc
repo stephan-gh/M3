@@ -51,11 +51,27 @@ void Platform::init() {
     }
 
     // init PEs
-    Platform::_info.pe_count = cores + 1;
-    Platform::_pes = new m3::PEDesc[cores + 1];
-    for(size_t i = 0; i < cores; ++i)
+    size_t total_pes = cores + 1;
+    if(Args::bridge)
+        total_pes += 2;
+    if(Args::disk)
+        total_pes++;
+    Platform::_info.pe_count = total_pes;
+    Platform::_pes = new m3::PEDesc[total_pes];
+    size_t i = 0;
+    for(; i < cores; ++i)
         Platform::_pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
-    Platform::_pes[cores] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
+
+    // these are dummy PEs; they do not really exist, but serve the purpose to let root not
+    // complain that the IDE/NIC PE isn't present.
+    if(Args::bridge) {
+        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::NIC, 0);
+        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::NIC, 0);
+    }
+    if(Args::disk)
+        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::IDE_DEV, 0);
+
+    Platform::_pes[i++] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
 
     // create memory
     uintptr_t base = reinterpret_cast<uintptr_t>(
