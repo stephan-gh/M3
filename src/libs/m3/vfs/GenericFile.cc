@@ -43,12 +43,22 @@ void GenericFile::close() noexcept {
     LLOG(FS, "GenFile[" << fd() << "]::evict()");
 
     // submit read/written data
-    if(_writing)
-        submit();
+    try {
+        if(_writing)
+            submit();
+    }
+    catch(...) {
+        // ignore
+    }
 
-    const EP *ep = _mg.ep();
-    if(ep)
-        VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
+    try {
+        const EP *ep = _mg.ep();
+        if(ep)
+            VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, ep->sel()), true);
+    }
+    catch(...) {
+        // ignore
+    }
 
     // file sessions are not known to our resource manager; thus close them manually
     LLOG(FS, "GenFile[" << fd() << "]::close()");
