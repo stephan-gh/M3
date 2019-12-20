@@ -250,7 +250,7 @@ impl MemPool {
                 return Ok(alloc);
             }
         }
-        Err(Error::new(Code::OutOfMem))
+        Err(Error::new(Code::NoPerm))
     }
 
     pub fn free(&mut self, alloc: Allocation) {
