@@ -287,15 +287,10 @@ public:
     }
 
     void sleep() const {
-        sleep_for(100000);
+        usleep(1);
     }
-    void sleep_for(uint64_t cycles) const {
-        struct timespec time;
-        // we treat cycles as nanoseconds here
-        uint64_t secs = cycles / 1000000000;
-        time.tv_nsec = static_cast<long>(cycles - secs * 1000000000);
-        time.tv_sec = static_cast<time_t>(secs);
-        nanosleep(&time, nullptr);
+    void sleep_for(uint64_t) const {
+        usleep(1);
     }
     void wait_for_msg(epid_t, uint64_t = 0) const {
         sleep();
