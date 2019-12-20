@@ -43,6 +43,8 @@ use m3::vfs;
 
 use addrspace::AddrSpace;
 
+pub const LOG_DEF: bool = false;
+
 const MSG_SIZE: usize = 64;
 const MAX_CLIENTS: usize = 32;
 
@@ -108,7 +110,7 @@ impl Handler for PagerReqHandler {
         let sel = VPE::cur().alloc_sel();
         let aspace = AddrSpace::new(sid, None, srv_sel, sel)?;
         self.sessions.add(sid, aspace);
-        log!(PAGER, "[{}] pager::open()", sid);
+        log!(crate::LOG_DEF, "[{}] pager::open()", sid);
         Ok((sel, sid))
     }
 
@@ -124,7 +126,7 @@ impl Handler for PagerReqHandler {
         else {
             let nsid = self.sessions.next_id()?;
             let sel = VPE::cur().alloc_sel();
-            log!(PAGER, "[{}] pager::new_sess(nsid={})", sid, nsid);
+            log!(crate::LOG_DEF, "[{}] pager::new_sess(nsid={})", sid, nsid);
             let aspace = AddrSpace::new(nsid, Some(sid), self.sel, sel)?;
             self.sessions.add(nsid, aspace);
             Ok(sel)
@@ -167,7 +169,7 @@ impl Handler for PagerReqHandler {
     }
 
     fn close(&mut self, sid: SessId) {
-        log!(PAGER, "[{}] pager::close()", sid);
+        log!(crate::LOG_DEF, "[{}] pager::close()", sid);
         self.sessions.remove(sid);
         // ignore all potentially outstanding messages of this session
         rgate().drop_msgs_with(sid as Label);

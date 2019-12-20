@@ -26,13 +26,13 @@ pub fn handle_recv(state: &mut isr::State, req: dtu::Reg) {
     // acknowledge the request
     dtu::DTU::set_core_req(0);
 
-    log!(PEX_FOREIGN_MSG, "Got core request {:#x}", req);
+    log!(crate::LOG_FOREIGN_MSG, "Got core request {:#x}", req);
 
     // add message to VPE
     let vpe_id = (req >> 12) & 0xFFFF;
     if let Some(v) = vpe::get_mut(vpe_id) {
         v.add_msg();
-        log!(PEX_FOREIGN_MSG, "Added message to VPE {} ({} msgs)", vpe_id, v.msgs());
+        log!(crate::LOG_FOREIGN_MSG, "Added message to VPE {} ({} msgs)", vpe_id, v.msgs());
     }
 
     if state.came_from_user() {

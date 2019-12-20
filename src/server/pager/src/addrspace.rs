@@ -76,7 +76,7 @@ impl AddrSpace {
     }
 
     pub fn init(&mut self, sels: Selector) {
-        log!(PAGER, "[{}] pager::init(sels={})", self.id, sels);
+        log!(crate::LOG_DEF, "[{}] pager::init(sels={})", self.id, sels);
 
         let mut mem = MemGate::new_bind(sels + 1);
         // we don't want to cause pagefault with this, because we are the one that handles them. we
@@ -91,7 +91,7 @@ impl AddrSpace {
     }
 
     pub fn add_sgate(&mut self) -> Result<Selector, Error> {
-        log!(PAGER, "[{}] pager::add_sgate()", self.id);
+        log!(crate::LOG_DEF, "[{}] pager::add_sgate()", self.id);
 
         let sgate = SendGate::new_with(SGateArgs::new(rgate()).label(self.id as Label).credits(1))?;
         let sel = sgate.sel();
@@ -101,7 +101,7 @@ impl AddrSpace {
     }
 
     pub fn clone(&mut self, is: &mut GateIStream, parent: &mut AddrSpace) -> Result<(), Error> {
-        log!(PAGER, "[{}] pager::clone(parent={})", self.id, parent.id);
+        log!(crate::LOG_DEF, "[{}] pager::clone(parent={})", self.id, parent.id);
 
         for ds in &mut parent.ds {
             let mut ds_idx = if let Some(cur) = self.find_ds_idx(ds.virt()) {
@@ -142,7 +142,7 @@ impl AddrSpace {
         let access = Perm::from_bits_truncate(access.bits() as u32);
 
         log!(
-            PAGER,
+            crate::LOG_DEF,
             "[{}] pager::pagefault(virt={:#x}, access={:#x})",
             self.id,
             virt,
@@ -150,7 +150,7 @@ impl AddrSpace {
         );
 
         if !self.has_as_mem() {
-            log!(PAGER, "Invalid session");
+            log!(crate::LOG_DEF, "Invalid session");
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -163,7 +163,7 @@ impl AddrSpace {
         if let Some(ds) = self.find_ds_mut(virt) {
             if (ds.perm() & access) != access {
                 log!(
-                    PAGER,
+                    crate::LOG_DEF,
                     "Access at {:#x} for {:#x} not allowed: {:#x}",
                     virt,
                     access,
@@ -175,7 +175,7 @@ impl AddrSpace {
             ds.handle_pf(virt)
         }
         else {
-            log!(PAGER, "No dataspace at {:#x}", virt);
+            log!(crate::LOG_DEF, "No dataspace at {:#x}", virt);
             Err(Error::new(Code::NotFound))
         }
     }
@@ -206,7 +206,7 @@ impl AddrSpace {
         sess: Selector,
     ) -> Result<goff, Error> {
         log!(
-            PAGER,
+            crate::LOG_DEF,
             "[{}] pager::map_ds(virt={:#x}, len={:#x}, perm={:?}, off={:#x}, flags={:?})",
             self.id,
             virt,
@@ -250,7 +250,7 @@ impl AddrSpace {
         flags: MapFlags,
     ) -> Result<(), Error> {
         log!(
-            PAGER,
+            crate::LOG_DEF,
             "[{}] pager::map_anon(virt={:#x}, len={:#x}, perm={:?}, flags={:?})",
             self.id,
             virt,
@@ -279,7 +279,7 @@ impl AddrSpace {
         let perm = Perm::from_bits_truncate(args.ival(3) as u32);
 
         log!(
-            PAGER,
+            crate::LOG_DEF,
             "[{}] pager::map_mem(virt={:#x}, len={:#x}, perm={:?})",
             self.id,
             virt,
@@ -310,13 +310,13 @@ impl AddrSpace {
     pub fn unmap(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let virt: goff = is.pop();
 
-        log!(PAGER, "[{}] pager::unmap(virt={:#x})", self.id, virt,);
+        log!(crate::LOG_DEF, "[{}] pager::unmap(virt={:#x})", self.id, virt,);
 
         if let Some(idx) = self.find_ds_idx(virt) {
             self.ds.remove(idx);
         }
         else {
-            log!(PAGER, "No dataspace at {:#x}", virt);
+            log!(crate::LOG_DEF, "No dataspace at {:#x}", virt);
             return Err(Error::new(Code::NotFound));
         }
 
@@ -324,7 +324,7 @@ impl AddrSpace {
     }
 
     pub fn close(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        log!(PAGER, "[{}] pager::close()", self.id);
+        log!(crate::LOG_DEF, "[{}] pager::close()", self.id);
 
         reply_vmsg!(is, 0)
     }

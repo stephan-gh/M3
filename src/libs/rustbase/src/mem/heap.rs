@@ -163,7 +163,7 @@ pub fn used_end() -> usize {
 pub fn print() {
     unsafe {
         let print_area = |a: *const HeapArea| {
-            log!(
+            llog!(
                 DEF,
                 "  Area[addr={:#x}, prev={:#x}, size={:#x}, used={}]",
                 a as usize + util::size_of::<HeapArea>(),
@@ -183,11 +183,11 @@ pub fn print() {
 }
 
 extern "C" fn heap_alloc_callback(p: *const u8, size: usize) {
-    log!(HEAP, "alloc({}) -> {:?}", size, p);
+    llog!(HEAP, "alloc({}) -> {:?}", size, p);
 }
 
 extern "C" fn heap_free_callback(p: *const u8) {
-    log!(HEAP, "free({:?})", p);
+    llog!(HEAP, "free({:?})", p);
 }
 
 extern "C" fn heap_dblfree_callback(p: *const u8) {

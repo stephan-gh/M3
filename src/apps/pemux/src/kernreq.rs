@@ -27,6 +27,6 @@ pub fn handle_ext_req(mut mst_req: dtu::Reg) {
 
     match From::from(cmd) {
         dtu::ExtReqOpCode::INV_PAGE => vma::flush_tlb(mst_req as usize),
-        _ => log!(DEF, "Unexpected cmd: {}", cmd),
+        _ => panic!("Unexpected cmd: {}", cmd),
     }
 }

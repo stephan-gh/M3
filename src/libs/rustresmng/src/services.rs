@@ -81,7 +81,7 @@ impl Service {
     }
 
     fn shutdown(&mut self) {
-        log!(RESMNG_SERV, "Sending SHUTDOWN to service '{}'", self.name);
+        log!(crate::LOG_SERV, "Sending SHUTDOWN to service '{}'", self.name);
 
         let smsg = kif::service::Shutdown {
             opcode: kif::service::Operation::SHUTDOWN.val as u64,
@@ -188,14 +188,14 @@ impl ServiceManager {
     }
 
     fn add_service(&mut self, serv: Service) {
-        log!(RESMNG_SERV, "Adding service '{}'", serv.name());
+        log!(crate::LOG_SERV, "Adding service '{}'", serv.name());
         self.servs.push(serv);
     }
 
     pub fn remove_service(&mut self, id: Id) -> Service {
         let idx = self.servs.iter().position(|s| s.id == id).unwrap();
         let serv = self.servs.remove(idx);
-        log!(RESMNG_SERV, "Removing service '{}'", serv.name());
+        log!(crate::LOG_SERV, "Removing service '{}'", serv.name());
         serv
     }
 
@@ -208,7 +208,7 @@ impl ServiceManager {
         name: String,
     ) -> Result<(), Error> {
         log!(
-            RESMNG_SERV,
+            crate::LOG_SERV,
             "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
             child.name(),
             child_sel,
@@ -260,7 +260,7 @@ impl ServiceManager {
         sel: Selector,
         notify: bool,
     ) -> Result<(), Error> {
-        log!(RESMNG_SERV, "{}: unreg_serv(sel={})", child.name(), sel);
+        log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", child.name(), sel);
 
         let id = child.remove_service(sel)?;
         if notify {
@@ -282,7 +282,7 @@ impl ServiceManager {
         name: &String,
     ) -> Result<(), Error> {
         log!(
-            RESMNG_SERV,
+            crate::LOG_SERV,
             "{}: open_sess(dst_sel={}, name={})",
             child.name(),
             dst_sel,
@@ -319,7 +319,7 @@ impl ServiceManager {
     }
 
     pub fn close_session(&mut self, child: &mut dyn Child, sel: Selector) -> Result<(), Error> {
-        log!(RESMNG_SERV, "{}: close_sess(sel={})", child.name(), sel);
+        log!(crate::LOG_SERV, "{}: close_sess(sel={})", child.name(), sel);
 
         let sess = child.remove_session(sel)?;
         child.cfg().close_session(sel);

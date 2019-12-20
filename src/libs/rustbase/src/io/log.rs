@@ -30,42 +30,8 @@ pub const FS: bool = false;
 pub const SERV: bool = false;
 /// Logs DTU operations (only on host)
 pub const DTU: bool = false;
-/// Logs thread switching etc.
-pub const THREAD: bool = false;
 /// Logs file multiplexing
 pub const FILES: bool = false;
-/// Logs vterm operations
-pub const VTERM: bool = false;
-/// Logs pipes operations
-pub const PIPES: bool = false;
-/// Logs pager operations
-pub const PAGER: bool = false;
-
-/// Logs general operations of the resource manager
-pub const RESMNG: bool = true;
-/// Logs parsed configs
-pub const RESMNG_CFG: bool = true;
-/// Logs child operations
-pub const RESMNG_CHILD: bool = false;
-/// Logs semaphore operations
-pub const RESMNG_SEM: bool = false;
-/// Logs service operations
-pub const RESMNG_SERV: bool = false;
-/// Logs memory operations
-pub const RESMNG_MEM: bool = false;
-/// Logs sendqueue operations
-pub const RESMNG_SQUEUE: bool = false;
-/// Logs PE operations
-pub const RESMNG_PES: bool = true;
-
-/// Logs pexcalls in PEMux
-pub const PEX_CALLS: bool = false;
-/// Logs VPE operations in PEMux
-pub const PEX_VPES: bool = false;
-/// Logs upcalls in PEMux
-pub const PEX_UPCALLS: bool = false;
-/// Logs foreign messages in PEMux
-pub const PEX_FOREIGN_MSG: bool = false;
 
 const MAX_LINE_LEN: usize = 160;
 const SUFFIX: &[u8] = b"\x1B[0m";

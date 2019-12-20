@@ -44,7 +44,7 @@ impl SemManager {
         let sel = VPE::cur().alloc_sel();
         syscalls::create_sem(sel, 0)?;
 
-        log!(RESMNG_SEM, "Created semaphore {} @ {}", name, sel);
+        log!(crate::LOG_SEM, "Created semaphore {} @ {}", name, sel);
         self.sems.push((name, sel));
         Ok(())
     }

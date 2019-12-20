@@ -142,11 +142,11 @@ impl State {
     fn append_request(&mut self, id: SessId, is: &mut GateIStream, read: bool) {
         let req = PendingRequest::new(id, is.take_msg());
         if read {
-            log!(PIPES, "[{}] pipes::read_wait()", id);
+            log!(crate::LOG_DEF, "[{}] pipes::read_wait()", id);
             self.pending_reads.insert(0, req);
         }
         else {
-            log!(PIPES, "[{}] pipes::write_wait()", id);
+            log!(crate::LOG_DEF, "[{}] pipes::write_wait()", id);
             self.pending_writes.insert(0, req);
         }
     }
@@ -165,7 +165,7 @@ impl State {
                 // start reading
                 self.last_read = Some((req.chan, amount));
                 log!(
-                    PIPES,
+                    crate::LOG_DEF,
                     "[{}] pipes::late_read(): {} @ {}",
                     req.chan,
                     amount,
@@ -180,7 +180,7 @@ impl State {
             // did all writers leave?
             else if self.flags.contains(Flags::WRITE_EOF) {
                 // report EOF
-                log!(PIPES, "[{}] pipes::late_read(): EOF", req.chan);
+                log!(crate::LOG_DEF, "[{}] pipes::late_read(): EOF", req.chan);
                 reply_vmsg_late!(rgate(), req.msg, 0, 0usize, 0usize).ok();
 
                 // remove write request
@@ -202,7 +202,7 @@ impl State {
         // if all readers left, just report EOF to all pending write requests
         if self.flags.contains(Flags::READ_EOF) {
             while let Some(req) = self.pending_writes.pop() {
-                log!(PIPES, "[{}] pipes::late_write(): EOF", req.chan);
+                log!(crate::LOG_DEF, "[{}] pipes::late_write(): EOF", req.chan);
                 reply_vmsg_late!(rgate(), req.msg, Code::EndOfFile as u32).ok();
             }
         }
@@ -214,7 +214,7 @@ impl State {
                 // start writing
                 self.last_write = Some((req.chan, amount));
                 log!(
-                    PIPES,
+                    crate::LOG_DEF,
                     "[{}] pipes::late_write(): {} @ {}",
                     req.chan,
                     amount,
@@ -343,7 +343,7 @@ impl Channel {
     }
 
     pub fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        log!(PIPES, "[{}] pipes::next_in()", self.id);
+        log!(crate::LOG_DEF, "[{}] pipes::next_in()", self.id);
 
         let res = match self.i.ty {
             ChanType::READ => self.read(is, 0),
@@ -355,7 +355,7 @@ impl Channel {
     }
 
     pub fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        log!(PIPES, "[{}] pipes::next_out()", self.id);
+        log!(crate::LOG_DEF, "[{}] pipes::next_out()", self.id);
 
         let res = match self.i.ty {
             ChanType::READ => Err(Error::new(Code::InvArgs)),
@@ -369,7 +369,7 @@ impl Channel {
     pub fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let nbytes: usize = is.pop();
 
-        log!(PIPES, "[{}] pipes::commit(nbytes={})", self.id, nbytes);
+        log!(crate::LOG_DEF, "[{}] pipes::commit(nbytes={})", self.id, nbytes);
 
         let res = match self.i.ty {
             ChanType::READ => self.read(is, nbytes),
@@ -415,7 +415,7 @@ impl Channel {
 
             // this client is the current reader, so commit the read by pulling it from the ringbuf
             let amount = if commit == 0 { last_amount } else { commit };
-            log!(PIPES, "[{}] pipes::read_pull({})", self.id, amount);
+            log!(crate::LOG_DEF, "[{}] pipes::read_pull({})", self.id, amount);
             state.rbuf.pull(amount);
             state.last_read = None;
         }
@@ -439,13 +439,13 @@ impl Channel {
         if let Some((pos, amount)) = state.rbuf.get_read_pos(amount) {
             // there is something to read; give client the position and size
             state.last_read = Some((self.id, amount));
-            log!(PIPES, "[{}] pipes::read(): {} @ {}", self.id, amount, pos);
+            log!(crate::LOG_DEF, "[{}] pipes::read(): {} @ {}", self.id, amount, pos);
             reply_vmsg!(is, 0, pos, amount)
         }
         else {
             // nothing to read; if there is no writer left, report EOF
             if state.flags.contains(Flags::WRITE_EOF) {
-                log!(PIPES, "[{}] pipes::read(): EOF", self.id);
+                log!(crate::LOG_DEF, "[{}] pipes::read(): EOF", self.id);
                 reply_vmsg!(is, 0, 0usize, 0usize)
             }
             // otherwise queue the request
@@ -462,7 +462,7 @@ impl Channel {
         // if there are no readers left, report EOF
         let mut state = self.state.borrow_mut();
         if state.flags.contains(Flags::READ_EOF) {
-            log!(PIPES, "[{}] pipes::write(): EOF", self.id);
+            log!(crate::LOG_DEF, "[{}] pipes::write(): EOF", self.id);
             return is.reply_error(Code::EndOfFile);
         }
 
@@ -480,7 +480,7 @@ impl Channel {
 
             // this client is the current reader, so commit the write by pushing it to the ringbuf
             let amount = if commit == 0 { last_amount } else { commit };
-            log!(PIPES, "[{}] pipes::write_push({})", self.id, amount);
+            log!(crate::LOG_DEF, "[{}] pipes::write_push({})", self.id, amount);
             state.rbuf.push(last_amount, amount);
             state.last_write = None;
         }
@@ -501,7 +501,7 @@ impl Channel {
         if let Some(pos) = state.rbuf.get_write_pos(amount) {
             // there is space to write; give client the position and size
             state.last_write = Some((self.id, amount));
-            log!(PIPES, "[{}] pipes::write(): {} @ {}", self.id, amount, pos);
+            log!(crate::LOG_DEF, "[{}] pipes::write(): {} @ {}", self.id, amount, pos);
             reply_vmsg!(is, 0, pos, amount)
         }
         else {
@@ -524,7 +524,7 @@ impl Channel {
         if let Some((last_id, _)) = state.last_read {
             // pull it from the ring buffer, if it's this client's read
             if last_id == self.id {
-                log!(PIPES, "[{}] pipes::read_pull(): 0", self.id);
+                log!(crate::LOG_DEF, "[{}] pipes::read_pull(): 0", self.id);
                 state.rbuf.pull(0);
                 state.last_read = None;
             }
@@ -535,13 +535,13 @@ impl Channel {
         state.reader.remove_item(&(self.id as usize));
         let rd_left = state.reader.len();
         if rd_left > 0 {
-            log!(PIPES, "[{}] pipes::close(): rd-refs={}", self.id, rd_left);
+            log!(crate::LOG_DEF, "[{}] pipes::close(): rd-refs={}", self.id, rd_left);
             return Ok(());
         }
 
         // no readers left: EOF
         state.flags.insert(Flags::READ_EOF);
-        log!(PIPES, "[{}] pipes::close(): read EOF", self.id);
+        log!(crate::LOG_DEF, "[{}] pipes::close(): read EOF", self.id);
         Ok(())
     }
 
@@ -558,7 +558,7 @@ impl Channel {
         if let Some((last_id, last_amount)) = state.last_write {
             // push it to the ring buffer, if it's this client's read
             if last_id == self.id {
-                log!(PIPES, "[{}] pipes::write_push(): 0", self.id);
+                log!(crate::LOG_DEF, "[{}] pipes::write_push(): 0", self.id);
                 state.rbuf.push(last_amount, 0);
                 state.last_write = None;
             }
@@ -569,13 +569,13 @@ impl Channel {
         state.writer.remove_item(&(self.id as usize));
         let wr_left = state.writer.len();
         if wr_left > 0 {
-            log!(PIPES, "[{}] pipes::close(): wr-refs={}", self.id, wr_left);
+            log!(crate::LOG_DEF, "[{}] pipes::close(): wr-refs={}", self.id, wr_left);
             return Ok(());
         }
 
         // no writers left: EOF
         state.flags.insert(Flags::WRITE_EOF);
-        log!(PIPES, "[{}] pipes::close(): write EOF", self.id);
+        log!(crate::LOG_DEF, "[{}] pipes::close(): write EOF", self.id);
         Ok(())
     }
 
@@ -597,7 +597,7 @@ impl Channel {
                 let cmem = mem.derive(0, state.mem_size, perm)?;
                 // activate it on client's EP
                 log!(
-                    PIPES,
+                    crate::LOG_DEF,
                     "[{}] pipes::activate(ep={}, gate={})",
                     self.id,
                     cap,

@@ -235,7 +235,7 @@ impl MemPool {
 
             if let Ok(addr) = s.map.allocate(size, align) {
                 let alloc = Allocation::new(id, addr, size);
-                log!(RESMNG_MEM, "Allocated {:?}", alloc);
+                log!(crate::LOG_MEM, "Allocated {:?}", alloc);
                 return Ok(alloc);
             }
         }
@@ -246,7 +246,7 @@ impl MemPool {
         for (id, s) in self.slices.iter().enumerate() {
             if s.mem.reserved && phys >= s.mem.addr && phys + size <= s.mem.addr + s.capacity() {
                 let alloc = Allocation::new(id, phys, size);
-                log!(RESMNG_MEM, "Allocated {:?}", alloc);
+                log!(crate::LOG_MEM, "Allocated {:?}", alloc);
                 return Ok(alloc);
             }
         }
@@ -255,7 +255,7 @@ impl MemPool {
 
     pub fn free(&mut self, alloc: Allocation) {
         let s = &mut self.slices[alloc.slice_id];
-        log!(RESMNG_MEM, "Freeing {:?}", alloc);
+        log!(crate::LOG_MEM, "Freeing {:?}", alloc);
         if !s.mem.reserved {
             s.map.free(alloc.addr, alloc.size);
         }

@@ -62,7 +62,7 @@ fn req_rgate() -> &'static RecvGate {
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
         Err(e) => {
-            log!(RESMNG, "request failed: {}", e);
+            log!(resmng::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(_) => reply_vmsg!(is, 0 as u64),
@@ -152,7 +152,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) {
     let res = child.alloc_pe(dst_sel, desc);
     match res {
         Err(e) => {
-            log!(RESMNG, "request failed: {}", e);
+            log!(resmng::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(desc) => reply_vmsg!(is, 0 as u64, desc.value()),
@@ -318,7 +318,7 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
 
         let (args, daemon, cfg) =
             config::Config::new(m.name(), true).expect("Unable to parse config");
-        log!(RESMNG_CFG, "Parsed config {:?}", cfg);
+        log!(resmng::LOG_CFG, "Parsed config {:?}", cfg);
         cfgs.push((args, daemon, cfg));
     }
 
@@ -393,7 +393,7 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
             .find_and_alloc(VPE::cur().pe_desc())
             .expect("Unable to allocate PE");
         let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, mem_pool, cfg);
-        log!(RESMNG_CHILD, "Created {:?}", child);
+        log!(resmng::LOG_CHILD, "Created {:?}", child);
 
         if child.has_unmet_reqs() {
             DELAYED.get_mut().push(child);
@@ -420,14 +420,14 @@ pub fn main() -> i32 {
         .expect("Unable to read mods");
     off += info.mod_size;
 
-    log!(RESMNG, "Boot modules:");
+    log!(resmng::LOG_DEF, "Boot modules:");
     MODS.set((
         mods_list.as_slice().as_ptr() as usize,
         info.mod_size as usize,
     ));
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for m in moditer {
-        log!(RESMNG, "  {:?}", m);
+        log!(resmng::LOG_DEF, "  {:?}", m);
     }
 
     let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
@@ -437,10 +437,10 @@ pub fn main() -> i32 {
     let pe_sel = BOOT_MOD_SELS + 1 + info.mod_count as Selector;
     let mut user_pes = 0;
     let mut i = 0;
-    log!(RESMNG, "Available PEs:");
+    log!(resmng::LOG_DEF, "Available PEs:");
     for pe in pes {
         log!(
-            RESMNG,
+            resmng::LOG_DEF,
             "  PE{:02}: {} {} {} KiB memory",
             i,
             pe.pe_type(),
@@ -471,7 +471,7 @@ pub fn main() -> i32 {
             mem.size(),
             mem.reserved(),
         ));
-        log!(RESMNG, "Found {:?}", mem_mod);
+        log!(resmng::LOG_DEF, "Found {:?}", mem_mod);
         memcon.add(mem_mod);
         mem_sel += 1;
     }
@@ -497,7 +497,7 @@ pub fn main() -> i32 {
 
     workloop();
 
-    log!(RESMNG, "All childs gone. Exiting.");
+    log!(resmng::LOG_DEF, "All childs gone. Exiting.");
 
     0
 }

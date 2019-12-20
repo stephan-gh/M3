@@ -40,6 +40,8 @@ use m3::vfs::GenFileOp;
 
 use sess::{Channel, ChanType, Meta, PipesSession, SessionData};
 
+pub const LOG_DEF: bool = false;
+
 const MSG_SIZE: usize = 64;
 const MAX_CLIENTS: usize = 32;
 
@@ -72,7 +74,7 @@ impl PipesHandler {
         let mut sids = vec![sid];
         while let Some(id) = sids.pop() {
             if let Some(sess) = self.sessions.get_mut(id) {
-                log!(PIPES, "[{}] pipes::close(): closing {}", sid, id);
+                log!(crate::LOG_DEF, "[{}] pipes::close(): closing {}", sid, id);
 
                 // ignore errors here
                 let _ = match &mut sess.data_mut() {
@@ -96,7 +98,7 @@ impl Handler for PipesHandler {
         let sel = VPE::cur().alloc_sel();
         let sess = self.new_sess(sid, srv_sel, sel, SessionData::Meta(Meta::default()))?;
         self.sessions.add(sid, sess);
-        log!(PIPES, "[{}] pipes::new_meta()", sid);
+        log!(crate::LOG_DEF, "[{}] pipes::new_meta()", sid);
         Ok((sel, sid))
     }
 
@@ -117,7 +119,7 @@ impl Handler for PipesHandler {
                     let sel = VPE::cur().alloc_sel();
                     let msize = data.args.ival(0);
                     log!(
-                        PIPES,
+                        crate::LOG_DEF,
                         "[{}] pipes::new_pipe(sid={}, sel={}, size={:#x})",
                         sid,
                         nsid,
@@ -141,7 +143,7 @@ impl Handler for PipesHandler {
                         _ => ChanType::WRITE,
                     };
                     log!(
-                        PIPES,
+                        crate::LOG_DEF,
                         "[{}] pipes::new_chan(sid={}, sel={}, ty={:?})",
                         sid,
                         nsid,
@@ -157,7 +159,7 @@ impl Handler for PipesHandler {
                 // channel sessions can be cloned
                 SessionData::Chan(ref mut c) => {
                     let sel = VPE::cur().alloc_sels(2);
-                    log!(PIPES, "[{}] pipes::clone(sid={}, sel={})", sid, nsid, sel);
+                    log!(crate::LOG_DEF, "[{}] pipes::clone(sid={}, sel={})", sid, nsid, sel);
 
                     let chan = c.clone(nsid, sel)?;
                     self.new_sess(nsid, self.sel, sel, SessionData::Chan(chan))
@@ -202,7 +204,7 @@ impl Handler for PipesHandler {
                 }
 
                 let sel = VPE::cur().alloc_sel();
-                log!(PIPES, "[{}] pipes::set_mem(sel={})", sid, sel);
+                log!(crate::LOG_DEF, "[{}] pipes::set_mem(sel={})", sid, sel);
                 p.set_mem(sel);
                 data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1).value();
 
@@ -216,7 +218,7 @@ impl Handler for PipesHandler {
                 }
 
                 let sel = VPE::cur().alloc_sel();
-                log!(PIPES, "[{}] pipes::set_ep(sel={})", sid, sel);
+                log!(crate::LOG_DEF, "[{}] pipes::set_ep(sel={})", sid, sel);
                 c.set_ep(sel);
                 data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1).value();
 

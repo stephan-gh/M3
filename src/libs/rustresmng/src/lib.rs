@@ -30,3 +30,20 @@ pub mod pes;
 pub mod sems;
 pub mod sendqueue;
 pub mod services;
+
+/// Logs general operations
+pub const LOG_DEF: bool = true;
+/// Logs parsed configs
+pub const LOG_CFG: bool = true;
+/// Logs child operations
+pub const LOG_CHILD: bool = false;
+/// Logs semaphore operations
+pub const LOG_SEM: bool = false;
+/// Logs service operations
+pub const LOG_SERV: bool = false;
+/// Logs memory operations
+pub const LOG_MEM: bool = false;
+/// Logs sendqueue operations
+pub const LOG_SQUEUE: bool = false;
+/// Logs PE operations
+pub const LOG_PES: bool = false;

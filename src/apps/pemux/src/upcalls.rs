@@ -48,7 +48,7 @@ fn init(msg: &'static dtu::Message) -> Result<(), Error> {
     // do that here to get the color of the next print correct
     io::init(pe_id, "pemux");
 
-    log!(PEX_UPCALLS, "upcall::init(vpe={}, root_pt={:#x})", vpe_id, root_pt);
+    log!(crate::LOG_UPCALLS, "upcall::init(vpe={}, root_pt={:#x})", vpe_id, root_pt);
 
     vpe::add(vpe_id, root_pt);
     Ok(())
@@ -61,7 +61,7 @@ fn vpe_ctrl(msg: &'static dtu::Message, state: &mut isr::State) -> Result<(), Er
     let vpe_id = req.vpe_sel;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
 
-    log!(PEX_UPCALLS, "upcall::vpe_ctrl(vpe={}, op={:?})", vpe_id, op);
+    log!(crate::LOG_UPCALLS, "upcall::vpe_ctrl(vpe={}, op={:?})", vpe_id, op);
 
     match op {
         kif::pemux::VPEOp::START => {

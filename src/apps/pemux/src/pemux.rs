@@ -40,6 +40,15 @@ use core::intrinsics;
 use arch::isr;
 use arch::vma;
 
+/// Logs pexcalls
+pub const LOG_CALLS: bool = false;
+/// Logs VPE operations
+pub const LOG_VPES: bool = false;
+/// Logs upcalls
+pub const LOG_UPCALLS: bool = false;
+/// Logs foreign messages
+pub const LOG_FOREIGN_MSG: bool = false;
+
 extern "C" {
     fn heap_init(begin: usize, end: usize);
     fn gem5_shutdown(delay: u64);

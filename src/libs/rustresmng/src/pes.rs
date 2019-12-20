@@ -84,7 +84,7 @@ impl PEManager {
 
     pub fn alloc(&mut self, id: usize) {
         log!(
-            RESMNG_PES,
+            crate::LOG_PES,
             "Allocating PE{}: {:?}",
             self.pes[id].id,
             self.pes[id].pe.desc()
@@ -94,7 +94,7 @@ impl PEManager {
 
     pub fn free(&mut self, id: usize) {
         let mut pe = &mut self.pes[id];
-        log!(RESMNG_PES, "Freeing PE{}: {:?}", pe.id, pe.pe.desc());
+        log!(crate::LOG_PES, "Freeing PE{}: {:?}", pe.id, pe.pe.desc());
         pe.used = false;
     }
 }

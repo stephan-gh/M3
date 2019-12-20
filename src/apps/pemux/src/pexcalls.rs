@@ -24,7 +24,7 @@ use isr;
 fn pexcall_sleep(state: &mut isr::State) -> Result<(), Error> {
     let cycles = state.r[isr::PEXC_ARG1];
 
-    log!(PEX_CALLS, "pexcall::sleep(cycles={})", cycles);
+    log!(crate::LOG_CALLS, "pexcall::sleep(cycles={})", cycles);
 
     if dtu::DTU::fetch_events() == 0 {
         let _irqs = helper::IRQsOnGuard::new();
@@ -36,7 +36,7 @@ fn pexcall_sleep(state: &mut isr::State) -> Result<(), Error> {
 }
 
 fn pexcall_stop(state: &mut isr::State) -> Result<(), Error> {
-    log!(PEX_CALLS, "pexcall::stop()");
+    log!(crate::LOG_CALLS, "pexcall::stop()");
 
     state.stop();
     Ok(())
@@ -54,7 +54,7 @@ pub fn handle_call(state: &mut isr::State) {
 
     if let Err(e) = &res {
         log!(
-            PEX_CALLS,
+            crate::LOG_CALLS,
             "\x1B[1mError for call {:?}: {:?}\x1B[0m",
             call,
             e.code()

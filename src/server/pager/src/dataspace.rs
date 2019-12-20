@@ -220,7 +220,7 @@ impl DataSpace {
                 }
 
                 log!(
-                    PAGER,
+                    crate::LOG_DEF,
                     "Obtained memory for {:#x}..{:#x}",
                     reg.virt(),
                     reg.virt() + reg.size() - 1
@@ -240,7 +240,7 @@ impl DataSpace {
                 reg.limit_to(pf_off, max as goff);
 
                 log!(
-                    PAGER,
+                    crate::LOG_DEF,
                     "Allocating anonymous memory for {:#x}..{:#x}",
                     reg.virt(),
                     reg.virt() + reg.size() - 1

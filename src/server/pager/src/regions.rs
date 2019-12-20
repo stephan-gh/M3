@@ -149,7 +149,7 @@ impl Region {
                 let ngate = MemGate::new(self.size as usize, Perm::RWX)?;
 
                 log!(
-                    PAGER,
+                    crate::LOG_DEF,
                     "Copying memory {:#x}..{:#x} from {} (we are {})",
                     self.ds_off + self.off,
                     self.ds_off + self.off + self.size - 1,

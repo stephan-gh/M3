@@ -133,7 +133,7 @@ impl Server {
         let arg: &str = is.pop();
         let res = hdl.open(sel, arg);
 
-        log!(SERV, "server::open({}) -> {:?}", arg, res);
+        llog!(SERV, "server::open({}) -> {:?}", arg, res);
 
         match res {
             Ok((sel, ident)) => {
@@ -161,7 +161,7 @@ impl Server {
         let mut data: service::ExchangeData = is.pop();
         let res = hdl.obtain(sid as SessId, &mut data);
 
-        log!(SERV, "server::obtain({}, {:?}) -> {:?}", sid, data, res);
+        llog!(SERV, "server::obtain({}, {:?}) -> {:?}", sid, data, res);
 
         let reply = service::ExchangeReply {
             res: match res {
@@ -178,7 +178,7 @@ impl Server {
         let mut data: service::ExchangeData = is.pop();
         let res = hdl.delegate(sid as SessId, &mut data);
 
-        log!(SERV, "server::delegate({}, {:?}) -> {:?}", sid, data, res);
+        llog!(SERV, "server::delegate({}, {:?}) -> {:?}", sid, data, res);
 
         let reply = service::ExchangeReply {
             res: match res {
@@ -193,7 +193,7 @@ impl Server {
     fn handle_close(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
         let sid: u64 = is.pop();
 
-        log!(SERV, "server::close({})", sid);
+        llog!(SERV, "server::close({})", sid);
 
         hdl.close(sid as SessId);
 
@@ -201,7 +201,7 @@ impl Server {
     }
 
     fn handle_shutdown(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
-        log!(SERV, "server::shutdown()");
+        llog!(SERV, "server::shutdown()");
 
         hdl.shutdown();
 

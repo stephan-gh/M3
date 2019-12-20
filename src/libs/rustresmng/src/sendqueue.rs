@@ -95,7 +95,7 @@ impl SendQueue {
 
     pub fn send(&mut self, msg: &[u8]) -> Result<thread::Event, Error> {
         log!(
-            RESMNG_SQUEUE,
+            crate::LOG_SQUEUE,
             "{}:squeue: trying to send msg",
             self.serv_name()
         );
@@ -104,7 +104,7 @@ impl SendQueue {
             return self.do_send(alloc_qid(), msg);
         }
 
-        log!(RESMNG_SQUEUE, "{}:squeue: queuing msg", self.serv_name());
+        log!(crate::LOG_SQUEUE, "{}:squeue: queuing msg", self.serv_name());
 
         let qid = alloc_qid();
 
@@ -119,7 +119,7 @@ impl SendQueue {
     }
 
     fn received_reply(&mut self, rg: &RecvGate, msg: &'static dtu::Message) {
-        log!(RESMNG_SQUEUE, "{}:squeue: received reply", self.serv_name());
+        log!(crate::LOG_SQUEUE, "{}:squeue: received reply", self.serv_name());
 
         assert!(self.state == QState::Waiting);
         self.state = QState::Idle;
@@ -139,7 +139,7 @@ impl SendQueue {
 
                 Some(e) => {
                     log!(
-                        RESMNG_SQUEUE,
+                        crate::LOG_SQUEUE,
                         "{}:squeue: found pending message",
                         self.serv_name()
                     );
@@ -153,7 +153,7 @@ impl SendQueue {
     }
 
     fn do_send(&mut self, id: u64, msg: &[u8]) -> Result<thread::Event, Error> {
-        log!(RESMNG_SQUEUE, "{}:squeue: sending msg", self.serv_name());
+        log!(crate::LOG_SQUEUE, "{}:squeue: sending msg", self.serv_name());
 
         self.cur_event = get_event(id);
         self.state = QState::Waiting;

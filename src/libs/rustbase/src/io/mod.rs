@@ -26,7 +26,7 @@ use arch;
 
 /// Macro for logging (includes a trailing newline)
 ///
-/// The arguments are printed if `io::log::$type` is enabled.
+/// The arguments are printed if `$type` is enabled.
 ///
 /// # Examples
 ///
@@ -35,12 +35,26 @@ use arch;
 /// ```
 #[macro_export]
 macro_rules! log {
+    ($type:expr, $fmt:expr)                   => (
+        llog!(@log_impl $type, concat!($fmt, "\n"))
+    );
+
+    ($type:expr, $fmt:expr, $($arg:tt)*)      => (
+        llog!(@log_impl $type, concat!($fmt, "\n"), $($arg)*)
+    );
+}
+
+/// Macro for library-internal logging (includes a trailing newline)
+///
+/// The arguments are printed if `$crate::io::log::$type` is enabled.
+#[macro_export]
+macro_rules! llog {
     ($type:tt, $fmt:expr)                   => (
-        log!(@log_impl $crate::io::log::$type, concat!($fmt, "\n"))
+        llog!(@log_impl $crate::io::log::$type, concat!($fmt, "\n"))
     );
 
     ($type:tt, $fmt:expr, $($arg:tt)*)      => (
-        log!(@log_impl $crate::io::log::$type, concat!($fmt, "\n"), $($arg)*)
+        llog!(@log_impl $crate::io::log::$type, concat!($fmt, "\n"), $($arg)*)
     );
 
     (@log_impl $type:expr, $($args:tt)*)    => ({

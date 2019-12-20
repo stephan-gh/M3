@@ -39,7 +39,7 @@ pub fn init() {
 pub fn add(id: u64, root_pt: u64) {
     assert!((*CUR).is_none());
 
-    log!(PEX_VPES, "Created VPE {}", id);
+    log!(crate::LOG_VPES, "Created VPE {}", id);
 
     // switch to the address space
     if root_pt != 0 {
@@ -77,7 +77,7 @@ pub fn cur() -> &'static mut VPE {
 pub fn remove() {
     if (*CUR).is_some() {
         let old = CUR.set(None).unwrap();
-        log!(PEX_VPES, "Destroyed VPE {}", old.id);
+        log!(crate::LOG_VPES, "Destroyed VPE {}", old.id);
 
         // switch back to our own address space
         if old.root_pt != 0 {

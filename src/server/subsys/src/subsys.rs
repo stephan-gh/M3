@@ -77,7 +77,7 @@ fn req_rgate() -> &'static RecvGate {
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
         Err(e) => {
-            log!(RESMNG, "request failed: {}", e);
+            log!(resmng::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(_) => reply_vmsg!(is, 0 as u64),
@@ -177,7 +177,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let perms = kif::Perm::from_bits_truncate(is.pop::<u32>());
 
     log!(
-        RESMNG_MEM,
+        resmng::LOG_MEM,
         "{}: alloc_mem(dst_sel={}, addr={:#x}, size={:#x}, perm={:?})",
         child.name(),
         dst_sel,
@@ -201,7 +201,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
 
-    log!(RESMNG_MEM, "{}: free_mem(sel={})", child.name(), sel);
+    log!(resmng::LOG_MEM, "{}: free_mem(sel={})", child.name(), sel);
 
     let our_sel = xlate_sel(child.id(), sel)?;
     VPE::cur().resmng().free_mem(our_sel)
@@ -212,7 +212,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let desc = kif::PEDesc::new_from(is.pop());
 
     log!(
-        RESMNG_PES,
+        resmng::LOG_PES,
         "{}: alloc_pe(dst_sel={}, desc={:?})",
         child.name(),
         dst_sel,
@@ -223,7 +223,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let res = VPE::cur().resmng().alloc_pe(our_sel, desc);
     match res {
         Err(e) => {
-            log!(RESMNG, "request failed: {}", e);
+            log!(resmng::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(desc) => {
@@ -245,7 +245,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
 
-    log!(RESMNG_PES, "{}: free_pe(sel={})", child.name(), sel);
+    log!(resmng::LOG_PES, "{}: free_pe(sel={})", child.name(), sel);
 
     let our_sel = xlate_sel(child.id(), sel)?;
     VPE::cur().resmng().free_pe(our_sel)
@@ -392,7 +392,7 @@ pub fn main() -> i32 {
 
     workloop();
 
-    log!(RESMNG, "Child gone. Exiting.");
+    log!(resmng::LOG_DEF, "Child gone. Exiting.");
 
     0
 }

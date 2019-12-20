@@ -18,15 +18,15 @@ use arch::isr;
 use base::dtu;
 
 pub fn handle_xlate(_xlate_req: dtu::Reg) {
-    log!(DEF, "Unexpected Xlate request");
+    panic!("Unexpected Xlate request");
 }
 
 pub fn handle_mmu_pf(_state: &mut isr::State) {
-    log!(DEF, "Unexpected PF");
+    panic!("Unexpected PF");
 }
 
 pub fn flush_tlb(_virt: usize) {
-    log!(DEF, "Unexpected TLB flush request");
+    panic!("Unexpected TLB flush request");
 }
 
 pub fn get_addr_space() -> u64 {

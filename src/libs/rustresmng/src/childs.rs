@@ -92,7 +92,7 @@ pub trait Child {
         let id = get().next_id();
 
         log!(
-            RESMNG_CHILD,
+            crate::LOG_CHILD,
             "{}: add_child(vpe={}, name={}, sgate_sel={}) -> child(id={}, name={})",
             self.name(),
             vpe_sel,
@@ -143,7 +143,7 @@ pub trait Child {
     }
 
     fn rem_child(&mut self, vpe_sel: Selector) -> Result<Id, Error> {
-        log!(RESMNG_CHILD, "{}: rem_child(vpe={})", self.name(), vpe_sel);
+        log!(crate::LOG_CHILD, "{}: rem_child(vpe={})", self.name(), vpe_sel);
 
         let idx = self
             .res()
@@ -201,7 +201,7 @@ pub trait Child {
 
     fn alloc_mem(&mut self, dst_sel: Selector, size: goff, perm: Perm) -> Result<(), Error> {
         log!(
-            RESMNG_MEM,
+            crate::LOG_MEM,
             "{}: allocate(dst_sel={}, size={:#x}, perm={:?})",
             self.name(),
             dst_sel,
@@ -221,7 +221,7 @@ pub trait Child {
         perm: Perm,
     ) -> Result<(), Error> {
         log!(
-            RESMNG_MEM,
+            crate::LOG_MEM,
             "{}: allocate_at(dst_sel={}, size={:#x}, offset={:#x}, perm={:?})",
             self.name(),
             dst_sel,
@@ -258,7 +258,7 @@ pub trait Child {
         Ok(())
     }
     fn add_mem(&mut self, alloc: Allocation, dst_sel: Option<Selector>) {
-        log!(RESMNG_MEM, "{}: added {:?}", self.name(), alloc);
+        log!(crate::LOG_MEM, "{}: added {:?}", self.name(), alloc);
         self.res_mut().mem.push((dst_sel.unwrap_or(0), alloc));
     }
 
@@ -280,13 +280,13 @@ pub trait Child {
             syscalls::revoke(self.vpe_sel(), crd, true).ok();
         }
 
-        log!(RESMNG_MEM, "{}: removed {:?}", self.name(), alloc);
+        log!(crate::LOG_MEM, "{}: removed {:?}", self.name(), alloc);
         self.mem().borrow_mut().free(alloc);
     }
 
     fn use_sem(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
         log!(
-            RESMNG_SEM,
+            crate::LOG_SEM,
             "{}: use_sem(name={}, sel={})",
             self.name(),
             name,
@@ -302,7 +302,7 @@ pub trait Child {
 
     fn alloc_pe(&mut self, sel: Selector, desc: kif::PEDesc) -> Result<kif::PEDesc, Error> {
         log!(
-            RESMNG_PES,
+            crate::LOG_PES,
             "{}: alloc_pe(sel={}, desc={:?})",
             self.name(),
             sel,
@@ -323,7 +323,7 @@ pub trait Child {
     }
 
     fn free_pe(&mut self, sel: Selector) -> Result<(), Error> {
-        log!(RESMNG_PES, "{}: free_pe(sel={})", self.name(), sel);
+        log!(crate::LOG_PES, "{}: free_pe(sel={})", self.name(), sel);
 
         let idx = self
             .res_mut()
@@ -339,7 +339,7 @@ pub trait Child {
     fn remove_pe_by_idx(&mut self, idx: usize) -> Result<(), Error> {
         let (id, idx, ep_sel) = self.res_mut().pes.remove(idx);
         log!(
-            RESMNG_PES,
+            crate::LOG_PES,
             "{}: removed PE (id={}, sel={})",
             self.name(),
             id,
@@ -425,7 +425,7 @@ impl OwnChild {
 
     pub fn start(&mut self, vpe: VPE, mapper: &mut dyn Mapper, file: FileRef) -> Result<(), Error> {
         log!(
-            RESMNG,
+            crate::LOG_DEF,
             "Starting boot module '{}' with arguments {:?}",
             self.name(),
             &self.args[1..]
@@ -715,7 +715,7 @@ impl ChildManager {
             let can_kill = {
                 let child = self.child_by_id(id).unwrap();
                 if child.daemon() && child.res().services.is_empty() {
-                    log!(RESMNG_CHILD, "Killing child '{}'", child.name());
+                    log!(crate::LOG_CHILD, "Killing child '{}'", child.name());
                     true
                 }
                 else {
@@ -739,7 +739,7 @@ impl ChildManager {
                 self.foreigns -= 1;
             }
 
-            log!(RESMNG_CHILD, "Removed child '{}'", child.name());
+            log!(crate::LOG_CHILD, "Removed child '{}'", child.name());
 
             for csel in &child.res().childs {
                 self.remove_rec(csel.0);

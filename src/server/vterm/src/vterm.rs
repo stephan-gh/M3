@@ -34,6 +34,8 @@ use m3::session::ServerSession;
 use m3::syscalls;
 use m3::vfs::GenFileOp;
 
+pub const LOG_DEF: bool = false;
+
 const MSG_SIZE: usize = 64;
 const BUF_SIZE: usize = 256;
 const MAX_CLIENTS: usize = 32;
@@ -100,7 +102,7 @@ impl Channel {
     }
 
     fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        log!(VTERM, "[{}] vterm::next_in()", self.id);
+        log!(crate::LOG_DEF, "[{}] vterm::next_in()", self.id);
 
         if self.writing {
             return Err(Error::new(Code::NoPerm));
@@ -123,7 +125,7 @@ impl Channel {
     }
 
     fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        log!(VTERM, "[{}] vterm::next_out()", self.id);
+        log!(crate::LOG_DEF, "[{}] vterm::next_out()", self.id);
 
         if !self.writing {
             return Err(Error::new(Code::NoPerm));
@@ -141,7 +143,7 @@ impl Channel {
     fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let nbytes: usize = is.pop();
 
-        log!(VTERM, "[{}] vterm::commit(nbytes={})", self.id, nbytes);
+        log!(crate::LOG_DEF, "[{}] vterm::commit(nbytes={})", self.id, nbytes);
 
         if nbytes > self.len - self.pos {
             return Err(Error::new(Code::InvArgs));
@@ -199,7 +201,7 @@ impl VTermHandler {
     }
 
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
-        log!(VTERM, "[{}] vterm::close()", sid);
+        log!(crate::LOG_DEF, "[{}] vterm::close()", sid);
         self.sessions.remove(sid);
         Ok(())
     }
@@ -211,7 +213,7 @@ impl Handler for VTermHandler {
         let sel = VPE::cur().alloc_sel();
         let sess = self.new_sess(sid, srv_sel, sel, SessionData::Meta)?;
         self.sessions.add(sid, sess);
-        log!(VTERM, "[{}] vterm::new_meta()", sid);
+        log!(crate::LOG_DEF, "[{}] vterm::new_meta()", sid);
         Ok((sel, sid))
     }
 
@@ -242,7 +244,7 @@ impl Handler for VTermHandler {
             }
         }?;
 
-        log!(VTERM, "[{}] vterm::new_chan()", nsid);
+        log!(crate::LOG_DEF, "[{}] vterm::new_chan()", nsid);
 
         let sel = nsess.sess.sel();
         self.sessions.add(nsid, nsess);

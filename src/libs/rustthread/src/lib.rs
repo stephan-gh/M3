@@ -30,6 +30,9 @@ use core::intrinsics;
 use core::mem;
 use core::ptr::NonNull;
 
+/// Logs thread switching etc.
+pub const LOG_DEF: bool = false;
+
 pub type Event = u64;
 
 const MAX_MSG_SIZE: usize = 1024;
@@ -139,7 +142,7 @@ impl Thread {
             msg: unsafe { mem::MaybeUninit::uninit().assume_init() },
         });
 
-        log!(THREAD, "Created thread {}", thread.id);
+        log!(LOG_DEF, "Created thread {}", thread.id);
 
         thread_init(&mut thread, func_addr, arg);
 
@@ -286,7 +289,7 @@ impl ThreadManager {
         let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
         cur.subscribe(event);
         log!(
-            THREAD,
+            LOG_DEF,
             "Thread {} waits for {:#x}, switching to {}",
             cur.id,
             event,
@@ -308,7 +311,7 @@ impl ThreadManager {
             None => {},
             Some(next) => {
                 let cur = mem::replace(&mut self.current, Some(next)).unwrap();
-                log!(THREAD, "Yielding from {} to {}", cur.id, self.cur().id);
+                log!(LOG_DEF, "Yielding from {} to {}", cur.id, self.cur().id);
 
                 unsafe {
                     let old = Box::into_raw(cur);
@@ -328,7 +331,7 @@ impl ThreadManager {
                 if let Some(m) = msg {
                     t.set_msg(m);
                 }
-                log!(THREAD, "Waking up thread {} for event {:#x}", t.id, event);
+                log!(LOG_DEF, "Waking up thread {} for event {:#x}", t.id, event);
                 let t = it.remove();
                 self.ready.push_back(t.unwrap());
             }
@@ -339,7 +342,7 @@ impl ThreadManager {
         if let Some(t) = self.ready.pop_front() {
             let mut cur = mem::replace(&mut self.current, Some(t)).unwrap();
             log!(
-                THREAD,
+                LOG_DEF,
                 "Stopping thread {}, switching to {}",
                 cur.id,
                 self.cur().id
