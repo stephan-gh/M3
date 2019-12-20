@@ -144,6 +144,6 @@ struct ISR {
     static ISR irqs;
 };
 
-INIT_PRIO_USER(0) ISR ISR::irqs;
+ISR ISR::irqs;
 
 }

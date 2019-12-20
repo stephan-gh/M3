@@ -26,9 +26,7 @@ namespace kernel {
 MemoryMap::Area *MemoryMap::freelist = nullptr;
 MemoryMap::Area MemoryMap::areas[MemoryMap::MAX_AREAS];
 
-INIT_PRIO_USER(1) MemoryMap::Init MemoryMap::Init::inst;
-
-MemoryMap::Init::Init() {
+void MemoryMap::init() {
     for(size_t i = 0; i < MAX_AREAS; ++i) {
         areas[i].next = freelist;
         freelist = areas + i;

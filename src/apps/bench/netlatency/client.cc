@@ -15,11 +15,13 @@
  */
 
 #include <base/util/Time.h>
+#include <base/util/Profile.h>
 #include <base/Env.h>
 
 #include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/Test.h>
 
 using namespace m3;
 
@@ -44,8 +46,7 @@ int main() {
         cycles_t time;
     } response;
 
-    size_t samples = 15;
-    size_t packet_size = 8;
+    const size_t samples = 15;
 
     size_t warmup = 5;
     cout << "Warmup...\n";
@@ -56,35 +57,34 @@ int main() {
     cout << "Warmup done.\n";
 
     cout << "Benchmark...\n";
-    size_t sample = 0;
-    while(true) {
-        cycles_t start = Time::start(0);
+    const size_t packet_size[] = {8, 16, 32, 64, 128, 256, 512, 1024};
+    for(auto pkt_size : packet_size) {
+        Results res(samples);
+        while(res.runs() < samples) {
+            cycles_t start = Time::start(0);
 
-        request.time = start;
-        ssize_t send_len = socket->send(request.raw, packet_size);
-        ssize_t recv_len = socket->recv(response.raw, packet_size);
+            request.time = start;
+            ssize_t send_len = socket->send(request.raw, pkt_size);
+            ssize_t recv_len = socket->recv(response.raw, pkt_size);
 
-        cycles_t stop = Time::stop(0);
+            cycles_t stop = Time::stop(0);
 
-        if(static_cast<size_t>(send_len) != packet_size)
-            exitmsg("Send failed, expected " << packet_size << ", got " << send_len);
+            if(static_cast<size_t>(send_len) != pkt_size)
+                exitmsg("Send failed, expected " << pkt_size << ", got " << send_len);
 
-        if(static_cast<size_t>(recv_len) != packet_size || start != response.time)
-            exitmsg("Receive failed, expected " << packet_size << ", got " << recv_len);
+            if(static_cast<size_t>(recv_len) != pkt_size || start != response.time)
+                exitmsg("Receive failed, expected " << pkt_size << ", got " << recv_len);
 
-        cout << "RTT (" << packet_size << "b): " << stop - start << " cycles / " << (stop - start) / 3e6f << " ms (@3GHz) \n";
+            cout << "RTT (" << pkt_size << "b): " << stop - start << " cycles / " << (stop - start) / 3e6f << " ms (@3GHz) \n";
 
-        packet_size *= 2;
-        if(packet_size > sizeof(request)) {
-            sample++;
-            if(sample >= samples)
-                 break;
-
-            packet_size = 8;
+            res.push(stop - start);
         }
-    }
 
-    cout << "Benchmark done.\n";
+        OStringStream name;
+        name << "network latency (" << pkt_size << "b)";
+        WVPERF(name.str(), (res.avg() / 3e6f) << " ms (+/- " << (res.stddev() / 3e6f)
+                                              << " with " << res.runs() << " runs)\n");
+    }
 
     socket->close();
     delete socket;

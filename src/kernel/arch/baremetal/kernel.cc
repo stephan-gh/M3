@@ -28,6 +28,8 @@ using namespace kernel;
 int main(int argc, char *argv[]) {
     Args::parse(argc, argv);
 
+    MainMemory::init();
+    Platform::init();
     KLOG(MEM, MainMemory::get());
 
     WorkLoop &wl = WorkLoop::get();

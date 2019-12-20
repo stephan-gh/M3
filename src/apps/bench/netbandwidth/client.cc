@@ -21,6 +21,7 @@
 #include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/Test.h>
 
 using namespace m3;
 
@@ -112,8 +113,8 @@ int main() {
     cout << "Received bytes: " << received_bytes << "\n";
     size_t duration = last_received - start;
     cout << "Duration: " << duration << "\n";
-    cout << "Rate: " << static_cast<float>(received_bytes) / duration << " bytes / cycle\n";
-    cout << "Rate: " << static_cast<float>(received_bytes) / (duration / 3e9f) << " bytes / s\n";
+    float bps = static_cast<float>(received_bytes) / (duration / 3e9f);
+    WVPERF("network bandwidth", bps << " bytes / s\n");
 
     delete socket;
 

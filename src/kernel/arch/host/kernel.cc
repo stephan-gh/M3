@@ -185,6 +185,7 @@ int main(int argc, char *argv[]) {
     if(Args::bridge)
         create_bridge(Args::bridge);
 
+    MainMemory::init();
     KLOG(MEM, MainMemory::get());
 
     WorkLoop &wl = WorkLoop::get();
@@ -192,6 +193,7 @@ int main(int argc, char *argv[]) {
     // create some worker threads
     wl.multithreaded(8);
 
+    Platform::init();
     Platform::add_modules(argc - argstart, argv + argstart);
     if(Args::fsimg)
         copyfromfs(MainMemory::get(), Args::fsimg);

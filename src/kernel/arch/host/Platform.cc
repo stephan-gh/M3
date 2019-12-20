@@ -33,12 +33,11 @@ namespace kernel {
 
 m3::PEDesc *Platform::_pes;
 m3::BootInfo::Mod *Platform::_mods;
-INIT_PRIO_USER(2) m3::BootInfo Platform::_info;
-INIT_PRIO_USER(3) Platform::Init Platform::_init;
+m3::BootInfo Platform::_info;
 
 static MainMemory::Allocation binfomem;
 
-Platform::Init::Init() {
+void Platform::init() {
     // no modules
     Platform::_info.mod_count = 0;
     Platform::_info.mod_size = 0;

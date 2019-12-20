@@ -27,13 +27,12 @@ namespace kernel {
 
 m3::PEDesc *Platform::_pes;
 m3::BootInfo::Mod *Platform::_mods;
-INIT_PRIO_USER(2) m3::BootInfo Platform::_info;
-INIT_PRIO_USER(3) Platform::Init Platform::_init;
+m3::BootInfo Platform::_info;
 
 // note that we currently assume here, that compute PEs and memory PEs are not mixed
 static peid_t last_pe_id;
 
-Platform::Init::Init() {
+void Platform::init() {
     m3::BootInfo *info = &Platform::_info;
     // read kernel env
     peid_t pe = m3::DTU::gaddr_to_pe(m3::env()->kenv);

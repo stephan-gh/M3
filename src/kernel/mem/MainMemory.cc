@@ -21,7 +21,7 @@
 
 namespace kernel {
 
-INIT_PRIO_USER(1) MainMemory MainMemory::_inst;
+MainMemory MainMemory::_inst;
 
 MainMemory::MainMemory()
     : _count(),
