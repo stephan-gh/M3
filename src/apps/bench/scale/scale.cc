@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
         }
         args[3] = "-w";
         args[4] = "-f";
-        args[5] = srvnames[1 + (i % servers)];
+        args[5] = srvnames[i % servers];
         args[6] = "-g";
 
         OStringStream rgatesel(new char[11], 11);
