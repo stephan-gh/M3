@@ -128,8 +128,8 @@ int main() {
     cout << "Received bytes: " << received_bytes << "\n";
     size_t duration = last_received - start;
     cout << "Duration: " << duration << "\n";
-    float bps = static_cast<float>(received_bytes) / (duration / 3e9f);
-    WVPERF("network stream bandwidth", bps << " bytes / s\n");
+    float mbps = (static_cast<float>(received_bytes) / (duration / 3e9f)) / (1024 * 1024);
+    WVPERF("network stream bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
 
     size_t prev_ts = start;
     size_t prev_bytes = 0;
@@ -141,9 +141,10 @@ int main() {
         cout << "  Duration: " << segment_duration << "\n";
 
         float bps = static_cast<float>(segment_received_bytes) / (segment_duration / 3e9f);
+        float mbps = bps / (1024 * 1024);
         OStringStream name;
         name << "network stream bandwidth (segment " << i << ")";
-        WVPERF(name.str(), bps << " bytes / s\n");
+        WVPERF(name.str(), mbps << " MiB/s (+/- 0 with 1 runs)\n");
 
         prev_ts = segment_ts[i];
         prev_bytes = segment_bytes[i];

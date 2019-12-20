@@ -113,8 +113,8 @@ int main() {
     cout << "Received bytes: " << received_bytes << "\n";
     size_t duration = last_received - start;
     cout << "Duration: " << duration << "\n";
-    float bps = static_cast<float>(received_bytes) / (duration / 3e9f);
-    WVPERF("network bandwidth", bps << " bytes / s\n");
+    float mbps = (static_cast<float>(received_bytes) / (duration / 3e9f)) / (1024 * 1024);
+    WVPERF("network bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
 
     delete socket;
 

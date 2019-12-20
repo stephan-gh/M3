@@ -63,7 +63,7 @@ public:
     }
 
     friend OStream &operator<<(OStream &os, const Results &r) {
-        os << r.avg() << " cycles/iter (+/- " << r.stddev() << " with " << r.runs() << " runs)";
+        os << r.avg() << " cycles (+/- " << r.stddev() << " with " << r.runs() << " runs)";
         return os;
     }
 

@@ -73,7 +73,7 @@ impl fmt::Display for Results {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{} cycles/iter (+/- {} with {} runs)",
+            "{} cycles (+/- {} with {} runs)",
             self.avg(),
             self.stddev(),
             self.runs()
