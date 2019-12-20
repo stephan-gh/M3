@@ -127,12 +127,13 @@ Errors::Code DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     LLOG(DTU, "EP" << ep << ": acked message at index " << idx);
 
     dstpe = buf->pe;
-    dstep = buf->rpl_ep == EP_COUNT ? SYSC_SEP : buf->rpl_ep;
+    dstep = buf->rpl_ep == DTU::NO_REPLIES ? SYSC_SEP : buf->rpl_ep;
     _buf.label = buf->replylabel;
     _buf.credits = 1;
     _buf.crd_ep = buf->snd_ep;
     _buf.length = size;
-    memcpy(_buf.data, src, size);
+    if(size > 0)
+        memcpy(_buf.data, src, size);
     // invalidate message for replying
     buf->has_replycap = false;
     return Errors::NONE;
@@ -160,7 +161,8 @@ Errors::Code DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     _buf.label = get_ep(ep, EP_LABEL);
 
     _buf.length = get_cmd(CMD_SIZE);
-    memcpy(_buf.data, src, _buf.length);
+    if(_buf.length > 0)
+        memcpy(_buf.data, src, _buf.length);
     return Errors::NONE;
 }
 

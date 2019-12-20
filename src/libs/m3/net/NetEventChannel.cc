@@ -202,9 +202,10 @@ bool NetEventChannel::Event::is_present() noexcept {
 void NetEventChannel::Event::finish() {
     if(is_present() && _ack) {
         if(_channel->_ret_credits) {
-            auto data = 0;
-            _channel->_rgate.reply(&data, sizeof(data), _msg);
-        } else {
+            // pass credits back to client using an empty message
+            _channel->_rgate.reply(nullptr, 0, _msg);
+        }
+        else {
             // Only acknowledge message
             _channel->_rgate.mark_read(_msg);
         }

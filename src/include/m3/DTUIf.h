@@ -31,7 +31,8 @@ public:
     static Errors::Code send(SendGate &sg, const void *msg, size_t size,
                              label_t replylbl, RecvGate &rg) noexcept {
         const EP &sep = sg.activate();
-        return DTU::get().send(sep.id(), msg, size, replylbl, rg.ep()->id());
+        epid_t rep = rg.ep() ? rg.ep()->id() : DTU::NO_REPLIES;
+        return DTU::get().send(sep.id(), msg, size, replylbl, rep);
     }
 
     static Errors::Code reply(RecvGate &rg, const void *reply, size_t size,
