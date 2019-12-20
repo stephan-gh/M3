@@ -277,18 +277,6 @@ def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr
     myenv.Depends(stlib, myenv.File('Cargo.toml'))
     myenv.Depends(stlib, myenv.File('#Cargo.toml'))
     myenv.Depends(stlib, myenv.File('#src/toolchain/rust/$ISA-unknown-$ARCH-' + rustabi + '.json'))
-    myenv.Depends(stlib, [
-        myenv.Glob('#src/libs/rust*/Cargo.toml'),
-        myenv.Glob('#src/libs/rust*/src/*.rs'),
-        myenv.Glob('#src/libs/rust*/src/*/*.rs'),
-        myenv.Glob('#src/libs/rust*/src/*/*/*.rs'),
-        myenv.Glob('#src/libs/rust*/src/*/*/*/*.rs'),
-    ])
-    myenv.Depends(stlib, [
-        myenv.Glob('src/*.rs'),
-        myenv.Glob('src/*/*.rs'),
-        myenv.Glob('src/*/*/*.rs'),
-    ])
 
     if myenv['ARCH'] == 'gem5':
         sources = [myenv['SYSGCCLIBPATH'].abspath + '/crt0.o' if startup is None else startup]
