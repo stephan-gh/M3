@@ -254,8 +254,11 @@ impl MemPool {
     }
 
     pub fn free(&mut self, alloc: Allocation) {
+        let s = &mut self.slices[alloc.slice_id];
         log!(RESMNG_MEM, "Freeing {:?}", alloc);
-        self.slices[alloc.slice_id].map.free(alloc.addr, alloc.size);
+        if !s.mem.reserved {
+            s.map.free(alloc.addr, alloc.size);
+        }
     }
 }
 
