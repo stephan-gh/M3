@@ -102,24 +102,24 @@ struct PEDesc {
     bool is_programmable() const {
         return isa() != PEISA::NONE && isa() < PEISA::ACCEL_INDIR;
     }
-
     /**
      * @return if the PE supports multiple contexts
      */
-    bool supports_ctxsw() const {
-        return supports_ctx() && (isa() >= PEISA::ACCEL_INDIR || has_cache()) && isa() != PEISA::NIC;
+    bool is_device() const {
+        return isa() == PEISA::NIC || isa() == PEISA::IDE_DEV;
     }
-    /**
-     * @return if the PE supports the context switching protocol
-     */
-    bool supports_ctx() const {
-        return supports_vpes() && isa() != PEISA::IDE_DEV && isa() != PEISA::NIC;
-    }
+
     /**
      * @return if the PE supports VPEs
      */
     bool supports_vpes() const {
         return type() != PEType::MEM;
+    }
+    /**
+     * @return if the PE supports the context switching protocol
+     */
+    bool supports_pemux() const {
+        return supports_vpes() && !is_device();
     }
 
     /**

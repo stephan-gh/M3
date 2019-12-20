@@ -37,21 +37,23 @@ PEMux::PEMux(peid_t pe)
         _eps.set(ep);
 
 #if defined(__gem5__)
-    // configure send EP
-    _dtustate.config_send(m3::DTU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
-                          Platform::kernel_pe(), SyscallHandler::pexep(),
-                          KPEX_RBUF_ORDER, 1);
+    if(Platform::pe(pe).supports_pemux()) {
+        // configure send EP
+        _dtustate.config_send(m3::DTU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
+                              Platform::kernel_pe(), SyscallHandler::pexep(),
+                              KPEX_RBUF_ORDER, 1);
 
-    // configure receive EP
-    uintptr_t rbuf = Platform::def_recvbuf(peid());
-    _dtustate.config_recv(m3::DTU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
-                          KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::DTU::NO_REPLIES);
-    rbuf += KPEX_RBUF_SIZE;
+        // configure receive EP
+        uintptr_t rbuf = Platform::def_recvbuf(peid());
+        _dtustate.config_recv(m3::DTU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
+                              KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::DTU::NO_REPLIES);
+        rbuf += KPEX_RBUF_SIZE;
 
-    // configure upcall receive EP
-    _dtustate.config_recv(m3::DTU::PEXUP_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
-                          PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::DTU::PEXUP_RPLEP);
-#endif
+        // configure upcall receive EP
+        _dtustate.config_recv(m3::DTU::PEXUP_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
+                              PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::DTU::PEXUP_RPLEP);
+    }
+    #endif
 }
 
 void PEMux::add_vpe(VPECapability *vpe) {

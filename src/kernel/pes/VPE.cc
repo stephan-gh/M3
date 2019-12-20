@@ -102,7 +102,8 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
     // and PEMux has one reference to us
     rem_ref();
 
-    init_eps();
+    if(!Platform::pe(peid()).is_device())
+        init_eps();
 
     KLOG(VPES, "Created VPE '" << _name << "' [id=" << id << ", pe=" << peid() << "]");
 }
@@ -154,8 +155,11 @@ void VPE::stop_app(int exitcode, bool self) {
     if(self)
         exit_app(exitcode);
     else {
-        if(_state == RUNNING)
-            exit_app(1);
+        if(_state == RUNNING) {
+            // device always exit successfully
+            exitcode = Platform::pe(peid()).is_device() ? 0 : 1;
+            exit_app(exitcode);
+        }
         else {
             PEManager::get().stop_vpe(this);
             _flags ^= F_HASAPP;

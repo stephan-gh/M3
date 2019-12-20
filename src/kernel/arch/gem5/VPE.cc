@@ -249,7 +249,7 @@ void VPE::init_memory() {
     }
 
     // let PEMux load the address space
-    if(Platform::pe(peid()).supports_ctx()) {
+    if(Platform::pe(peid()).supports_pemux()) {
         auto root_pt = address_space() ? address_space()->root_pt() : 0;
         PEManager::get().pemux(peid())->init(id(), root_pt);
     }
