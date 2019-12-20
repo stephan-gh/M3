@@ -60,7 +60,10 @@ void DTUState::config_send(epid_t ep, vpeid_t, label_t lbl, peid_t pe, epid_t ds
     regs[m3::DTU::EP_LABEL]         = lbl;
     regs[m3::DTU::EP_PEID]          = pe;
     regs[m3::DTU::EP_EPID]          = dstep;
-    regs[m3::DTU::EP_CREDITS]       = (1U << msgsize) * credits;
+    if(credits == m3::KIF::UNLIM_CREDITS)
+        regs[m3::DTU::EP_CREDITS]       = credits;
+    else
+        regs[m3::DTU::EP_CREDITS]       = (1U << msgsize) * credits;
     regs[m3::DTU::EP_MSGORDER]      = msgsize;
 }
 
