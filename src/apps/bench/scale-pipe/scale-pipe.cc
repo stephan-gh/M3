@@ -54,7 +54,7 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>\n";
+    cerr << "Usage: " << name << " [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name> <fssize>\n";
     cerr << "  -d enables data transfers (otherwise the same time is spent locally)\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
@@ -81,11 +81,12 @@ int main(int argc, char **argv) {
                 usage(argv[0]);
         }
     }
-    if(CmdArgs::ind + 1 >= argc)
+    if(CmdArgs::ind + 2 >= argc)
         usage(argv[0]);
 
     const char *wr_name = argv[CmdArgs::ind + 0];
     const char *rd_name = argv[CmdArgs::ind + 1];
+    const char *fs_size = argv[CmdArgs::ind + 2];
 
     App *apps[instances * 2];
     RemoteServer *srvs[2];
@@ -114,7 +115,7 @@ int main(int argc, char **argv) {
             srvs[0] = new RemoteServer(*srv_vpes[0], "mym3fs");
 
             String srv_arg = srvs[0]->sel_arg();
-            const char *args[] = {"/bin/m3fs", "-s", srv_arg.c_str(), "mem", "268435456"};
+            const char *args[] = {"/bin/m3fs", "-s", srv_arg.c_str(), "mem", fs_size};
             srv_vpes[0]->exec(ARRAY_SIZE(args), args);
         }
 
