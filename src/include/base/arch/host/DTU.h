@@ -111,6 +111,7 @@ public:
     static constexpr size_t EP_LABEL            = 12;
     static constexpr size_t EP_CREDITS          = 13;
     static constexpr size_t EP_MSGORDER         = 14;
+    static constexpr size_t EP_PERM             = 15;
 
     // bits in ctrl register
     static constexpr word_t CTRL_START          = 0x1;
@@ -119,7 +120,7 @@ public:
     static constexpr size_t OPCODE_SHIFT        = 3;
 
     // register counts (cont.)
-    static constexpr size_t EPS_RCNT            = 1 + EP_MSGORDER;
+    static constexpr size_t EPS_RCNT            = 1 + EP_PERM;
 
     enum CmdFlags {
         NOPF                                    = 1,
@@ -182,16 +183,19 @@ public:
         _epregs[ep * EPS_RCNT + reg] = val;
     }
 
-    void configure(epid_t ep, label_t label, peid_t pe, epid_t dstep, word_t credits, uint msgorder) {
-        configure(const_cast<word_t*>(_epregs), ep, label, pe, dstep, credits, msgorder);
+    void configure(epid_t ep, label_t label, uint perms, peid_t pe, epid_t dstep,
+                   word_t credits, uint msgorder) {
+        configure(const_cast<word_t*>(_epregs), ep, label, perms, pe, dstep, credits, msgorder);
     }
-    static void configure(word_t *eps, epid_t ep, label_t label, peid_t pe, epid_t dstep, word_t credits, uint msgorder) {
+    static void configure(word_t *eps, epid_t ep, label_t label, uint perms, peid_t pe,
+                          epid_t dstep, word_t credits, uint msgorder) {
         eps[ep * EPS_RCNT + EP_VALID] = 1;
         eps[ep * EPS_RCNT + EP_LABEL] = label;
         eps[ep * EPS_RCNT + EP_PEID] = pe;
         eps[ep * EPS_RCNT + EP_EPID] = dstep;
         eps[ep * EPS_RCNT + EP_CREDITS] = credits;
         eps[ep * EPS_RCNT + EP_MSGORDER] = msgorder;
+        eps[ep * EPS_RCNT + EP_PERM] = perms;
     }
 
     void configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder);

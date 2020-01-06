@@ -15,7 +15,7 @@
  */
 
 use arch::dtu::{
-    backend, CmdReg, Command, Control, EpId, EpReg, Header, Label, PEId, Reg, DTU, EP_COUNT,
+    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, DTU, EP_COUNT,
     MAX_MSG_SIZE,
 };
 use arch::envdata;
@@ -23,7 +23,6 @@ use cell::StaticCell;
 use core::{intrinsics, ptr, sync::atomic};
 use errors::{Code, Error};
 use io;
-use kif;
 use util;
 
 pub(crate) struct Buffer {
@@ -185,12 +184,11 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
 
 fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     let op = if read { 0 } else { 1 };
-    let label = DTU::get_ep(ep, EpReg::LABEL);
+    let perms = DTU::get_ep(ep, EpReg::PERM);
     let credits = DTU::get_ep(ep, EpReg::CREDITS);
     let offset = DTU::get_cmd(CmdReg::OFFSET);
     let length = DTU::get_cmd(CmdReg::LENGTH);
 
-    let perms = label & Label::from(kif::Perm::RWX.bits());
     if (perms & (1 << op)) == 0 {
         log_dtu!(
             "DTU-error: EP{}: operation not permitted (perms={}, op={})",
@@ -403,7 +401,7 @@ fn handle_msg(ep: EpId, len: usize) {
 
 fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
     let buf = buffer();
-    let base = buf.header.label & !Label::from(kif::Perm::RWX.bits());
+    let base = buf.header.label;
 
     {
         let data = buf.as_words();
@@ -440,7 +438,7 @@ fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Er
 
 fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
     let buf = buffer();
-    let base = buf.header.label & !Label::from(kif::Perm::RWX.bits());
+    let base = buf.header.label;
 
     let (offset, length, dest) = {
         let data = buf.as_words();
@@ -483,7 +481,7 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
 fn handle_resp_cmd() {
     let buf = buffer();
     let data = buf.as_words();
-    let base = buf.header.label & !Label::from(kif::Perm::RWX.bits());
+    let base = buf.header.label;
     let resp = if buf.header.length > 0 {
         let offset = base + data[0];
         let length = data[1];

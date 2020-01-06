@@ -65,13 +65,14 @@ void DTUState::config_send(epid_t ep, vpeid_t, label_t lbl, peid_t pe, epid_t ds
     else
         regs[m3::DTU::EP_CREDITS]       = (1U << msgsize) * credits;
     regs[m3::DTU::EP_MSGORDER]      = msgsize;
+    regs[m3::DTU::EP_PERM]          = 0;
 }
 
 void DTUState::config_mem(epid_t ep, vpeid_t, peid_t pe, goff_t addr, size_t size, int perms) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
-    assert((addr & static_cast<goff_t>(perms)) == 0);
     regs[m3::DTU::EP_VALID]         = 1;
-    regs[m3::DTU::EP_LABEL]         = addr | static_cast<uint>(perms);
+    regs[m3::DTU::EP_LABEL]         = addr;
+    regs[m3::DTU::EP_PERM]          = static_cast<word_t>(perms);
     regs[m3::DTU::EP_PEID]          = pe;
     regs[m3::DTU::EP_EPID]          = 0;
     regs[m3::DTU::EP_CREDITS]       = size;

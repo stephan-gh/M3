@@ -80,18 +80,18 @@ void DTU::reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Messag
 m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
     const size_t msg_ord = static_cast<uint>(m3::getnextlog2(size + m3::DTU::HEADER_SIZE));
-    m3::DTU::get().configure(_ep, label, vpe.pe, ep, 1UL << msg_ord, msg_ord);
+    m3::DTU::get().configure(_ep, label, 0, vpe.pe, ep, 1UL << msg_ord, msg_ord);
     return m3::DTU::get().send(_ep, msg, size, replylbl, replyep);
 }
 
 m3::Errors::Code DTU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
-    m3::DTU::get().configure(_ep, addr | m3::KIF::Perm::RWX, vpe.pe, 0, size, 0);
+    m3::DTU::get().configure(_ep, addr, m3::KIF::Perm::RWX, vpe.pe, 0, size, 0);
     m3::DTU::get().write(_ep, data, size, 0, 0);
     return m3::Errors::NONE;
 }
 
 m3::Errors::Code DTU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
-    m3::DTU::get().configure(_ep, addr | m3::KIF::Perm::RWX, vpe.pe, 0, size, 0);
+    m3::DTU::get().configure(_ep, addr, m3::KIF::Perm::RWX, vpe.pe, 0, size, 0);
     m3::DTU::get().read(_ep, data, size, 0, 0);
     return m3::Errors::NONE;
 }

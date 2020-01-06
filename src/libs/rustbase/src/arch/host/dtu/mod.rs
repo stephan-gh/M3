@@ -21,6 +21,7 @@ use core::intrinsics;
 use core::ptr;
 use errors::Error;
 use goff;
+use kif;
 use libc;
 use util;
 
@@ -79,6 +80,7 @@ int_enum! {
         const LABEL         = 12;
         const CREDITS       = 13;
         const MSGORDER      = 14;
+        const PERM          = 15;
     }
 }
 
@@ -187,7 +189,7 @@ impl Message {
 }
 
 pub const CMD_RCNT: usize = 8;
-pub const EPS_RCNT: usize = 15;
+pub const EPS_RCNT: usize = 16;
 
 static mut CMD_REGS: [Reg; CMD_RCNT] = [0; CMD_RCNT];
 
@@ -296,13 +298,14 @@ impl DTU {
         Self::sleep()
     }
 
-    pub fn configure(ep: EpId, lbl: Label, pe: PEId, dst_ep: EpId, crd: u64, msg_order: i32) {
+    pub fn configure(ep: EpId, lbl: Label, perm: kif::Perm, pe: PEId, dst_ep: EpId, crd: u64, msg_order: i32) {
         Self::set_ep(ep, EpReg::VALID, 1);
         Self::set_ep(ep, EpReg::LABEL, lbl);
         Self::set_ep(ep, EpReg::PE_ID, pe as Reg);
         Self::set_ep(ep, EpReg::EP_ID, dst_ep as Reg);
         Self::set_ep(ep, EpReg::CREDITS, crd);
         Self::set_ep(ep, EpReg::MSGORDER, msg_order as Reg);
+        Self::set_ep(ep, EpReg::PERM, perm.bits() as Reg);
     }
 
     pub fn configure_recv(ep: EpId, buf: usize, order: i32, msg_order: i32) {

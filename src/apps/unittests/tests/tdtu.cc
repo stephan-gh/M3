@@ -73,7 +73,7 @@ static void cmds_read() {
 
     cout << "-- Test errors --\n";
     {
-        dtu.configure(sndep->id(), reinterpret_cast<word_t>(data) | MemGate::R, env()->pe,
+        dtu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->pe,
             rcvep->id(), datasize, 0);
 
         dmacmd(nullptr, 0, sndep->id(), 0, datasize, DTU::WRITE);
@@ -91,7 +91,7 @@ static void cmds_read() {
 
     cout << "-- Test reading --\n";
     {
-        dtu.configure(sndep->id(), reinterpret_cast<word_t>(data) | MemGate::R, env()->pe,
+        dtu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->pe,
             rcvep->id(), datasize, 0);
 
         word_t buf[datasize / sizeof(word_t)];
@@ -103,7 +103,7 @@ static void cmds_read() {
     }
 
     unmap_page(addr);
-    dtu.configure(sndep->id(), 0, 0, 0, 0, 0);
+    dtu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
 
     VPE::self().epmng().release(sndep, true);
     VPE::self().epmng().release(rcvep, true);
@@ -121,7 +121,7 @@ static void cmds_write() {
     cout << "-- Test errors --\n";
     {
         word_t data[] = {1234, 5678, 1122, 3344};
-        dtu.configure(sndep->id(), reinterpret_cast<word_t>(addr) | MemGate::W, env()->pe,
+        dtu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->pe,
             rcvep->id(), sizeof(data), 0);
 
         dmacmd(nullptr, 0, sndep->id(), 0, sizeof(data), DTU::READ);
@@ -131,7 +131,7 @@ static void cmds_write() {
     cout << "-- Test writing --\n";
     {
         word_t data[] = {1234, 5678, 1122, 3344};
-        dtu.configure(sndep->id(), reinterpret_cast<word_t>(addr) | MemGate::W, env()->pe,
+        dtu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->pe,
             rcvep->id(), sizeof(data), 0);
 
         dmacmd(data, sizeof(data), sndep->id(), 0, sizeof(data), DTU::WRITE);
@@ -142,7 +142,7 @@ static void cmds_write() {
     }
 
     unmap_page(addr);
-    dtu.configure(sndep->id(), 0, 0, 0, 0, 0);
+    dtu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
 
     VPE::self().epmng().release(sndep, true);
     VPE::self().epmng().release(rcvep, true);

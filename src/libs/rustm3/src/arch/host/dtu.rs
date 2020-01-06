@@ -27,7 +27,7 @@ use syscalls;
 pub fn init() {
     {
         let (ep, lbl, crd) = env::get().syscall_params();
-        dtu::DTU::configure(dtu::SYSC_SEP, lbl, 0, ep, crd, cfg::SYSC_RBUF_ORD);
+        dtu::DTU::configure(dtu::SYSC_SEP, lbl, kif::Perm::empty(), 0, ep, crd, cfg::SYSC_RBUF_ORD);
     }
 
     let sysc = RecvGate::syscall();

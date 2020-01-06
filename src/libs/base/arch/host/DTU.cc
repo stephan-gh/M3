@@ -82,9 +82,8 @@ void DTU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     assert((1UL << (order - msgorder)) <= sizeof(word_t) * 8);
 }
 
-Errors::Code DTU::check_cmd(epid_t ep, int op, word_t label, word_t credits, size_t offset, size_t length) {
+Errors::Code DTU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, size_t offset, size_t length) {
     if(op == READ || op == WRITE) {
-        uint perms = label & KIF::Perm::RWX;
         if(!(perms & (1U << (op - 1)))) {
             LLOG(DTUERR, "DMA-error: operation not permitted on ep " << ep << " (perms="
                     << perms << ", op=" << op << ")");
@@ -287,7 +286,7 @@ void DTU::handle_command(peid_t pe) {
         goto done;
     }
 
-    res = check_cmd(ep, op, get_ep(ep, EP_LABEL), get_ep(ep, EP_CREDITS),
+    res = check_cmd(ep, op, get_ep(ep, EP_PERM), get_ep(ep, EP_CREDITS),
                     get_cmd(CMD_OFFSET), get_cmd(CMD_LENGTH));
     if(res != Errors::NONE)
         goto done;
@@ -354,7 +353,7 @@ bool DTU::send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply) {
 }
 
 void DTU::handle_read_cmd(epid_t ep) {
-    word_t base = _buf.label & ~static_cast<word_t>(KIF::Perm::RWX);
+    word_t base = _buf.label;
     word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
     word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
     word_t dest = reinterpret_cast<word_t*>(_buf.data)[2];
@@ -377,7 +376,7 @@ void DTU::handle_read_cmd(epid_t ep) {
 }
 
 void DTU::handle_write_cmd(epid_t ep) {
-    word_t base = _buf.label & ~static_cast<word_t>(KIF::Perm::RWX);
+    word_t base = _buf.label;
     word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
     word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
     LLOG(DTU, "(write) " << length << " bytes to #" << fmt(base, "x")
@@ -395,7 +394,7 @@ void DTU::handle_write_cmd(epid_t ep) {
 }
 
 void DTU::handle_resp_cmd() {
-    word_t base = _buf.label & ~static_cast<word_t>(KIF::Perm::RWX);
+    word_t base = _buf.label;
     word_t resp = 0;
     if(_buf.length > 0) {
         word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
