@@ -56,8 +56,8 @@ static void dmacmd(const void *data, size_t len, epid_t ep, size_t offset, size_
 }
 
 static void cmds_read() {
-    EP *rcvep = VPE::self().epmng().acquire(0);
-    EP *sndep = VPE::self().epmng().acquire(0);
+    EP *rcvep = VPE::self().epmng().acquire();
+    EP *sndep = VPE::self().epmng().acquire();
     DTU &dtu = DTU::get();
 
     void *addr = map_page();
@@ -110,8 +110,8 @@ static void cmds_read() {
 }
 
 static void cmds_write() {
-    EP *rcvep = VPE::self().epmng().acquire(0);
-    EP *sndep = VPE::self().epmng().acquire(0);
+    EP *rcvep = VPE::self().epmng().acquire();
+    EP *sndep = VPE::self().epmng().acquire();
     DTU &dtu = DTU::get();
 
     void *addr = map_page();
