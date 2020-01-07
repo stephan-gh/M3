@@ -1,5 +1,3 @@
-#!/bin/sh
-cat <<EOF
 <config>
     <kernel args="kernel" />
     <dom>
@@ -9,4 +7,3 @@ cat <<EOF
         <app args="rdwr" />
     </dom>
 </config>
-EOF

@@ -1,13 +1,10 @@
-#!/bin/sh
-hd=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_HDD
-cat <<EOF
 <config>
     <kernel args="kernel -d" />
     <dom>
         <app args="root" />
     </dom>
     <dom>
-        <app args="disk -d -i -f $hd" daemon="1">
+        <app args="disk -d -i -f $hd.path" daemon="1">
             <serv name="disk" />
             <pes type="ide" />
         </app>
@@ -31,4 +28,3 @@ cat <<EOF
         </app>
     </dom>
 </config>
-EOF

@@ -1,5 +1,3 @@
-#!/bin/sh
-cat <<EOF
 <config>
     <kernel args="kernel -b net0-net1" />
     <dom>
@@ -18,16 +16,15 @@ cat <<EOF
         </app>
     </dom>
     <dom>
-        <app args="netfileb-server" daemon="1">
+        <app args="netbandwidth-server" daemon="1">
             <sess name="net1" />
             <sem name="net" />
         </app>
     </dom>
     <dom>
-        <app args="netfileb-client">
+        <app args="netbandwidth-client">
             <sess name="net0" />
             <sem name="net" />
         </app>
     </dom>
 </config>
-EOF

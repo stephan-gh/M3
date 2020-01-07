@@ -38,30 +38,40 @@ fi
 export M3_HDD
 
 generate_config() {
-    if [ ! -x $1 ]; then
-        echo "error: '$1' does not exist or is not executable" >&2 && exit 1
+    if [ ! -f $1 ]; then
+        echo "error: '$1' is not a file" >&2 && exit 1
     fi
 
-    $1 > $bindir/boot.cfg || exit 1
-    if type xmllint > /dev/null; then
-        xmllint --schema misc/boot.xsd --noout $bindir/boot.cfg > /dev/null || exit 1
+    hd=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_HDD
+    fs=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_FS
+    fssize=`stat --format="%s" $fs`
+    sed "
+        s#\$fs.path#$fs#g;
+        s#\$fs.size#$fssize#g;
+        s#\$hd.path#$hd#g;
+    " < $1 > $2/boot.xml
+
+    if type xmllint &> /dev/null; then
+        xmllint --schema misc/boot.xsd --noout $2/boot.xml > /dev/null || exit 1
     fi
 }
 
 build_params_host() {
-    generate_config $1 || exit 1
+    generate_config $1 run || exit 1
 
-    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $bindir/boot.cfg)
-    mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^"\s]+).*"/' < $bindir/boot.cfg)
-    echo "$bindir/$kargs $bindir/boot.cfg$mods"
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < run/boot.xml)
+    mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^"\s]+).*"/' < run/boot.xml)
+    echo "$bindir/$kargs run/boot.xml$mods"
 }
 
 build_params_gem5() {
-    generate_config $1 || exit 1
+    M3_GEM5_OUT=${M3_GEM5_OUT:-run}
 
-    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $bindir/boot.cfg)
-    mods=$(perl -ne 'printf(",%s", $1) if /app\s.*args="([^"\s]+).*"/' < $bindir/boot.cfg)
-    mods="boot.cfg$mods,pemux"
+    generate_config $1 $M3_GEM5_OUT || exit 1
+
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $M3_GEM5_OUT/boot.xml)
+    mods=$(perl -ne 'printf(",'$bindir'/%s", $1) if /app\s.*args="([^"\s]+).*"/' < $M3_GEM5_OUT/boot.xml)
+    mods="$M3_GEM5_OUT/boot.xml$mods,$bindir/pemux"
 
     if [ "$M3_GEM5_DBG" = "" ]; then
         M3_GEM5_DBG="Dtu"
@@ -83,13 +93,12 @@ build_params_gem5() {
         c=$((c + 1))
     done
 
-    if [[ $cmd == *disk* ]]; then
+    if [[ $mods == *disk* ]]; then
         ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
     fi
 
     M3_GEM5_CPUFREQ=${M3_GEM5_CPUFREQ:-1GHz}
     M3_GEM5_MEMFREQ=${M3_GEM5_MEMFREQ:-333MHz}
-    M3_GEM5_OUT=${M3_GEM5_OUT:-run}
     M3_GEM5_CFG=${M3_GEM5_CFG:-config/default.py}
     export M3_GEM5_PES=$M3_CORES
     export M3_GEM5_FS=$build/$M3_FS

@@ -1,16 +1,12 @@
-#!/bin/sh
-fs=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_FS
-fssize=`stat --format="%s" $fs`
-cat <<EOF
 <config>
-    <kernel args="kernel -f $fs" />
+    <kernel args="kernel -f $fs.path" />
     <dom>
         <app args="root" />
     </dom>
     <dom>
-        <app args="m3fs mem $fssize" daemon="1">
+        <app args="m3fs mem $fs.size" daemon="1">
             <serv name="m3fs" />
-            <mem addr="0" size="$fssize" />
+            <mem addr="0" size="$fs.size" />
         </app>
     </dom>
     <dom>
@@ -19,7 +15,7 @@ cat <<EOF
         </app>
     </dom>
     <dom>
-        <app args="pager /bin/accelchain -m dir -n 3 -c 1024 -r 1 /medium.bin /tmp/out1.txt">
+        <app args="pager /bin/imgproc -m dir -n 1 -r 8 /large.txt">
             <sess name="m3fs" />
             <sess name="pipes" />
             <pes type="core" />
@@ -27,4 +23,3 @@ cat <<EOF
         </app>
     </dom>
 </config>
-EOF

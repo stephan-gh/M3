@@ -1,5 +1,3 @@
-#!/bin/sh
-cat <<EOF
 <config>
     <kernel args="kernel -m 4m" />
     <dom>
@@ -14,4 +12,3 @@ cat <<EOF
         <app args="allocator" />
     </dom>
 </config>
-EOF

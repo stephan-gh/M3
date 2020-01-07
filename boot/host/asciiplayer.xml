@@ -1,7 +1,5 @@
-#!/bin/sh
-cat <<EOF
 <config>
-    <kernel args="kernel" />
+    <kernel args="kernel -f $fs.path" />
     <dom>
         <app args="root" />
     </dom>
@@ -17,17 +15,18 @@ cat <<EOF
         </app>
     </dom>
     <dom>
-        <app args="plasma" daemon="1">
-            <sess name="vga" />
-            <sess name="timer" />
-            <serv name="plasma" />
+        <app args="m3fs mem $fs.size" daemon="1">
+            <serv name="m3fs" />
+            <mem addr="0" size="$fs.size" />
         </app>
     </dom>
     <dom>
-        <app args="plasmactrl">
+        <app args="pager /bin/asciiplay /movies/starwars.txt">
+            <sess name="timer" />
+            <sess name="vga" />
             <sess name="keyb" />
-            <sess name="plasma" />
+            <sess name="m3fs" />
+            <pes type="core" />
         </app>
     </dom>
 </config>
-EOF

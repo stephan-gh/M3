@@ -299,7 +299,7 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
     // find boot config
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
-        if m.name() == "boot.cfg" {
+        if m.name() == "boot.xml" {
             cfg_mem = Some((BOOT_MOD_SELS + 1 + id as Id, m.size));
             continue;
         }
@@ -363,7 +363,7 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
 
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
-        if m.name() == "pemux" || m.name() == "boot.cfg" || m.name().starts_with("root") {
+        if m.name() == "pemux" || m.name() == "boot.xml" || m.name().starts_with("root") {
             continue;
         }
 

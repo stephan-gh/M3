@@ -1,12 +1,9 @@
-#!/bin/sh
-cat <<EOF
 <config>
     <kernel args="kernel" />
     <dom>
         <app args="root" />
     </dom>
     <dom>
-        <app args="rusthello" />
+        <app args="float" />
     </dom>
 </config>
-EOF

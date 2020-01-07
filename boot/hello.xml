@@ -1,5 +1,3 @@
-#!/bin/sh
-cat <<EOF
 <config>
     <kernel args="kernel" />
     <dom>
@@ -12,4 +10,3 @@ cat <<EOF
         <app args="hello" />
     </dom>
 </config>
-EOF

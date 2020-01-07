@@ -1,5 +1,3 @@
-#!/bin/sh
-cat <<EOF
 <config>
     <kernel args="kernel -b net0-net1" />
     <dom>
@@ -30,4 +28,3 @@ cat <<EOF
         </app>
     </dom>
 </config>
-EOF
