@@ -29,7 +29,7 @@ use m3::rc::Rc;
 use m3::syscalls;
 use m3::vfs::FileRef;
 
-use config::Config;
+use config::AppConfig;
 use memory::{Allocation, MemPool};
 use pes;
 use sems;
@@ -67,7 +67,7 @@ pub trait Child {
     fn vpe_sel(&self) -> Selector;
 
     fn mem(&mut self) -> &Rc<RefCell<MemPool>>;
-    fn cfg(&self) -> Rc<Config>;
+    fn cfg(&self) -> Rc<AppConfig>;
     fn res(&self) -> &Resources;
     fn res_mut(&mut self) -> &mut Resources;
 
@@ -103,16 +103,8 @@ pub trait Child {
         );
 
         let cfg = self.cfg();
-        let cdesc = cfg.get_child(&name);
-        let child_cfg = if let Some(cd) = cdesc {
-            if cd.is_used() {
-                return Err(Error::new(Code::Exists));
-            }
-            cd.config()
-        }
-        else {
-            cfg.clone()
-        };
+        // TODO support different child configs
+        let child_cfg = cfg.clone();
 
         if self.res().childs.iter().any(|c| c.1 == vpe_sel) {
             return Err(Error::new(Code::Exists));
@@ -134,9 +126,6 @@ pub trait Child {
         ));
         child.delegate(our_sg_sel, sgate_sel)?;
 
-        if let Some(cd) = cdesc {
-            cd.mark_used(vpe_sel);
-        }
         self.res_mut().childs.push((id, vpe_sel));
         get().add(child);
         Ok(())
@@ -153,7 +142,6 @@ pub trait Child {
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         let id = self.res().childs[idx].0;
         get().remove_rec(id);
-        self.cfg().remove_child(vpe_sel);
         self.res_mut().childs.remove(idx);
         Ok(id)
     }
@@ -387,7 +375,7 @@ pub struct OwnChild {
     pe: usize,
     name: String,
     args: Vec<String>,
-    cfg: Rc<Config>,
+    cfg: Rc<AppConfig>,
     mem: Rc<RefCell<MemPool>>,
     res: Resources,
     daemon: bool,
@@ -403,7 +391,7 @@ impl OwnChild {
         daemon: bool,
         kmem: Rc<KMem>,
         mem: Rc<RefCell<MemPool>>,
-        cfg: Rc<Config>,
+        cfg: Rc<AppConfig>,
     ) -> Self {
         OwnChild {
             id,
@@ -475,7 +463,7 @@ impl Child for OwnChild {
         &self.mem
     }
 
-    fn cfg(&self) -> Rc<Config> {
+    fn cfg(&self) -> Rc<AppConfig> {
         self.cfg.clone()
     }
 
@@ -513,7 +501,7 @@ impl Drop for OwnChild {
 pub struct ForeignChild {
     id: Id,
     name: String,
-    cfg: Rc<Config>,
+    cfg: Rc<AppConfig>,
     mem: Rc<RefCell<MemPool>>,
     res: Resources,
     vpe: Selector,
@@ -526,7 +514,7 @@ impl ForeignChild {
         name: String,
         vpe: Selector,
         sgate: SendGate,
-        cfg: Rc<Config>,
+        cfg: Rc<AppConfig>,
         mem: Rc<RefCell<MemPool>>,
     ) -> Self {
         ForeignChild {
@@ -570,7 +558,7 @@ impl Child for ForeignChild {
         &self.mem
     }
 
-    fn cfg(&self) -> Rc<Config> {
+    fn cfg(&self) -> Rc<AppConfig> {
         self.cfg.clone()
     }
 

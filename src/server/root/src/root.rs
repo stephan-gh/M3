@@ -294,35 +294,29 @@ fn workloop() {
 
 fn start_boot_mods(mut mems: memory::MemModCon) {
     let mut same_kmem = false;
+    let mut cfg_mem: Option<(Id, goff)> = None;
 
-    let mut cfgs = Vec::new();
+    // find boot config
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
-    for m in moditer {
-        if m.name() == "pemux" {
+    for (id, m) in moditer.enumerate() {
+        if m.name() == "boot.cfg" {
+            cfg_mem = Some((BOOT_MOD_SELS + 1 + id as Id, m.size));
             continue;
         }
-        // parse arguments for root
-        if m.name().starts_with("root") {
-            for arg in m.name().split_whitespace() {
-                if arg == "samekmem" {
-                    same_kmem = true;
-                }
-                if arg.starts_with("sem=") {
-                    sems::get()
-                        .add_sem(arg[4..].to_string())
-                        .expect("Unable to add semaphore");
-                }
-            }
-            continue;
-        }
-
-        let (args, daemon, cfg) =
-            config::Config::new(m.name(), true).expect("Unable to parse config");
-        log!(resmng::LOG_CFG, "Parsed config {:?}", cfg);
-        cfgs.push((args, daemon, cfg));
     }
 
-    config::check(&cfgs);
+    // read boot config
+    let cfg_mem = cfg_mem.unwrap();
+    let mgate = MemGate::new_bind(cfg_mem.0 as Id);
+    let mut xml: Vec<u8> = Vec::with_capacity(cfg_mem.1 as usize);
+    unsafe { xml.set_len(cfg_mem.1 as usize) };
+    mgate.read(&mut xml, 0).expect("Unable to read boot config");
+
+    // parse boot config
+    let xml_str = String::from_utf8(xml).expect("Unable to convert boot config to UTF-8 string");
+    let cfg = config::Config::parse(&xml_str, true).expect("Unable to parse boot config");
+    log!(resmng::LOG_CFG, "Parsed {:?}", cfg);
+    cfg.check();
 
     // determine default mem and kmem per child
     let mut total_mem = mems.capacity();
@@ -330,17 +324,38 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
         .kmem()
         .quota()
         .expect("Unable to determine own quota");
-    let mut total_kparties = cfgs.len() + 1;
-    let mut total_mparties = cfgs.len() + 1;
-    for (_, _, c) in &cfgs {
-        if c.kmem() != 0 {
-            total_kmem -= c.kmem();
-            total_kparties -= 1;
-        }
+    let mut total_kparties = cfg.count_apps() + 1;
+    let mut total_mparties = total_kparties;
+    let mut childs = Vec::new();
+    for d in cfg.domains() {
+        for a in d.apps() {
+            if let Some(kmem) = a.kmem() {
+                total_kmem -= kmem;
+                total_kparties -= 1;
+            }
 
-        if c.mem() != 0 {
-            total_mem -= c.mem() as goff;
-            total_mparties -= 1;
+            let app_mem = a.sum_mem();
+            if app_mem != 0 {
+                total_mem -= app_mem as goff;
+                total_mparties -= 1;
+            }
+
+            if a.name().starts_with("root") {
+                // parse our own arguments
+                for arg in a.args() {
+                    if arg == "samekmem" {
+                        same_kmem = true;
+                    }
+                    else if arg.starts_with("sem=") {
+                        sems::get()
+                            .add_sem(arg[4..].to_string())
+                            .expect("Unable to add semaphore");
+                    }
+                }
+            }
+            else {
+                childs.push(a.clone());
+            }
         }
     }
     let def_kmem = total_kmem / total_kparties;
@@ -348,23 +363,18 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
 
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
-        if m.name() == "pemux" || m.name().starts_with("root") {
+        if m.name() == "pemux" || m.name() == "boot.cfg" || m.name().starts_with("root") {
             continue;
         }
 
-        let (args, daemon, cfg) = cfgs.remove(0);
+        let cfg = childs.remove(0);
 
         // kernel memory for child
-        let kmem = if cfg.kmem() == 0 && same_kmem {
+        let kmem = if cfg.kmem().is_none() && same_kmem {
             VPE::cur().kmem().clone()
         }
         else {
-            let kmem_bytes = if cfg.kmem() != 0 {
-                cfg.kmem()
-            }
-            else {
-                def_kmem
-            };
+            let kmem_bytes = cfg.kmem().unwrap_or(def_kmem);
             VPE::cur()
                 .kmem()
                 .derive(kmem_bytes)
@@ -372,27 +382,42 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
         };
 
         // memory pool for child
-        let child_mem = if cfg.mem() == 0 {
+        let child_mem = cfg.sum_mem();
+        let child_mem = if child_mem == 0 {
             def_mem
         }
         else {
-            cfg.mem() as goff
+            child_mem as goff
         };
         let mem_pool = Rc::new(RefCell::new(
             mems.alloc_pool(child_mem)
                 .expect("Unable to allocate memory pool"),
         ));
         // add requested physical memory regions to pool
-        for memat in cfg.memats() {
-            let mslice = mems.find_mem(memat.phys(), memat.size())
-                .expect(&format!("Unable to find memory {:#x}:{:#x}", memat.phys(), memat.size()));
-            mem_pool.borrow_mut().add(mslice);
+        for mem in cfg.mems() {
+            if let Some(p) = mem.phys() {
+                let mslice = mems.find_mem(p, mem.size()).expect(&format!(
+                    "Unable to find memory {:#x}:{:#x}",
+                    p,
+                    mem.size()
+                ));
+                mem_pool.borrow_mut().add(mslice);
+            }
         }
 
         let pe = pes::get()
             .find_and_alloc(VPE::cur().pe_desc())
             .expect("Unable to allocate PE");
-        let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, mem_pool, cfg);
+        let mut child = OwnChild::new(
+            id as Id,
+            pe,
+            // TODO either remove args and daemon from config or remove the clones from OwnChild
+            cfg.args().clone(),
+            cfg.daemon(),
+            kmem,
+            mem_pool,
+            cfg,
+        );
         log!(resmng::LOG_CHILD, "Created {:?}", child);
 
         if child.has_unmet_reqs() {

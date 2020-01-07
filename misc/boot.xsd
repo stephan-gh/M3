@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" attributeFormDefault="unqualified">
+    <xs:element name="config">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="kernel">
+                    <xs:complexType>
+                        <xs:attribute name="args" type="xs:string"></xs:attribute>
+                    </xs:complexType>
+                </xs:element>
+
+                <xs:element name="dom" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="app" minOccurs="1" maxOccurs="unbounded">
+                                <xs:complexType>
+                                    <xs:choice minOccurs="0" maxOccurs="unbounded">
+                                        <xs:element name="mem">
+                                            <xs:complexType>
+                                                <xs:attribute name="addr" type="xs:int"></xs:attribute>
+                                                <xs:attribute name="size" type="xs:string" use="required"></xs:attribute>
+                                            </xs:complexType>
+                                        </xs:element>
+
+                                        <xs:element name="kmem">
+                                            <xs:complexType>
+                                                <xs:attribute name="size" type="xs:string" use="required"></xs:attribute>
+                                            </xs:complexType>
+                                        </xs:element>
+
+                                        <xs:element name="serv">
+                                            <xs:complexType>
+                                                <xs:attribute name="name" type="xs:string"></xs:attribute>
+                                                <xs:attribute name="lname" type="xs:string"></xs:attribute>
+                                                <xs:attribute name="gname" type="xs:string"></xs:attribute>
+                                            </xs:complexType>
+                                        </xs:element>
+
+                                        <xs:element name="sess">
+                                            <xs:complexType>
+                                                <xs:attribute name="name" type="xs:string"></xs:attribute>
+                                                <xs:attribute name="lname" type="xs:string"></xs:attribute>
+                                                <xs:attribute name="gname" type="xs:string"></xs:attribute>
+                                                <xs:attribute name="args" type="xs:string"></xs:attribute>
+                                            </xs:complexType>
+                                        </xs:element>
+
+                                        <xs:element name="pes">
+                                            <xs:complexType>
+                                                <xs:attribute name="type" type="xs:string" use="required"></xs:attribute>
+                                                <xs:attribute name="count" type="xs:string" default="1"></xs:attribute>
+                                                <xs:attribute name="optional" type="xs:int"></xs:attribute>
+                                            </xs:complexType>
+                                        </xs:element>
+
+                                        <xs:element name="sem">
+                                            <xs:complexType>
+                                                <xs:attribute name="name" type="xs:string"></xs:attribute>
+                                                <xs:attribute name="lname" type="xs:string"></xs:attribute>
+                                                <xs:attribute name="gname" type="xs:string"></xs:attribute>
+                                            </xs:complexType>
+                                        </xs:element>
+                                    </xs:choice>
+                                    <xs:attribute name="args" type="xs:string" use="required"></xs:attribute>
+                                    <xs:attribute name="daemon" type="xs:int"></xs:attribute>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

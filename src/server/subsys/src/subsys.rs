@@ -355,11 +355,11 @@ pub fn main() -> i32 {
     // we don't use the memory pool
     let mem_pool = Rc::new(RefCell::new(memory::MemPool::default()));
 
-    let (_, _, cfg) = config::Config::new(&args[0], false).expect("Unable to parse config");
+    let cfg = Rc::new(config::AppConfig::new(args, false));
     let mut child = childs::OwnChild::new(
         0,
         peid,
-        args,
+        cfg.args().clone(),
         false,
         VPE::cur().kmem().clone(),
         mem_pool,

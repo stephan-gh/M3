@@ -18,33 +18,27 @@ use core::fmt;
 use m3::cap::Selector;
 use m3::cell::Cell;
 use m3::cell::RefCell;
-use m3::col::{BTreeSet, String, ToString, Vec};
+use m3::col::{BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
 use m3::rc::Rc;
 
+use parser;
 use pes;
 
-pub struct MemAtDesc {
-    phys: goff,
+#[derive(Default)]
+pub struct MemDesc {
+    phys: Option<goff>,
     size: goff,
 }
 
-impl MemAtDesc {
-    pub fn new(line: &str) -> Result<Self, Error> {
-        let parts = line.split(':').collect::<Vec<&str>>();
-        let (phys, size) = if parts.len() == 2 {
-            (parse_addr(parts[0])?, parse_size(parts[1])? as goff)
-        }
-        else {
-            return Err(Error::new(Code::InvArgs));
-        };
-
-        Ok(MemAtDesc { phys, size })
+impl MemDesc {
+    pub(crate) fn new(phys: Option<goff>, size: goff) -> Self {
+        MemDesc { phys, size }
     }
 
-    pub fn phys(&self) -> goff {
+    pub fn phys(&self) -> Option<goff> {
         self.phys
     }
 
@@ -53,6 +47,7 @@ impl MemAtDesc {
     }
 }
 
+#[derive(Default)]
 pub struct ServiceDesc {
     local_name: String,
     global_name: String,
@@ -60,13 +55,12 @@ pub struct ServiceDesc {
 }
 
 impl ServiceDesc {
-    pub fn new(line: &str) -> Result<Self, Error> {
-        let (lname, gname) = parse_names(line)?;
-        Ok(ServiceDesc {
-            local_name: lname,
-            global_name: gname,
+    pub(crate) fn new(local_name: String, global_name: String) -> Self {
+        ServiceDesc {
+            local_name,
+            global_name,
             used: RefCell::new(false),
-        })
+        }
     }
 
     pub fn global_name(&self) -> &String {
@@ -82,6 +76,7 @@ impl ServiceDesc {
     }
 }
 
+#[derive(Default)]
 pub struct SessionDesc {
     local_name: String,
     serv: String,
@@ -90,31 +85,13 @@ pub struct SessionDesc {
 }
 
 impl SessionDesc {
-    pub fn new(line: &str) -> Result<Self, Error> {
-        let parts = line.split(':').collect::<Vec<&str>>();
-        let (lname, serv, arg) = if parts.len() == 1 {
-            (parts[0].to_string(), parts[0].to_string(), String::new())
-        }
-        else if parts.len() == 2 {
-            (parts[0].to_string(), parts[1].to_string(), String::new())
-        }
-        else if parts.len() == 3 {
-            (
-                parts[0].to_string(),
-                parts[1].to_string(),
-                parts[2].to_string(),
-            )
-        }
-        else {
-            return Err(Error::new(Code::InvArgs));
-        };
-
-        Ok(SessionDesc {
-            local_name: lname,
+    pub(crate) fn new(local_name: String, serv: String, arg: String) -> Self {
+        SessionDesc {
+            local_name,
             serv,
             arg,
             usage: RefCell::new(None),
-        })
+        }
     }
 
     pub fn serv_name(&self) -> &String {
@@ -134,6 +111,7 @@ impl SessionDesc {
     }
 }
 
+#[derive(Default)]
 pub struct PEDesc {
     ty: String,
     count: Cell<u32>,
@@ -141,35 +119,12 @@ pub struct PEDesc {
 }
 
 impl PEDesc {
-    pub fn new(line: &str) -> Result<Self, Error> {
-        let (line, optional) = if line.ends_with("?") {
-            (&line[0..line.len() - 1], true)
-        }
-        else {
-            (line, false)
-        };
-
-        let parts = line.split(':').collect::<Vec<&str>>();
-        let (ty, count) = if parts.len() == 1 {
-            (parts[0].to_string(), 1)
-        }
-        else if parts.len() == 2 {
-            (
-                parts[0].to_string(),
-                parts[1]
-                    .parse::<u32>()
-                    .map_err(|_| Error::new(Code::InvArgs))?,
-            )
-        }
-        else {
-            return Err(Error::new(Code::InvArgs));
-        };
-
-        Ok(PEDesc {
+    pub(crate) fn new(ty: String, count: u32, optional: bool) -> Self {
+        PEDesc {
             ty,
             count: Cell::new(count),
             optional,
-        })
+        }
     }
 
     pub fn pe_type(&self) -> &String {
@@ -200,48 +155,17 @@ impl PEDesc {
     }
 }
 
-pub struct ChildDesc {
-    cfg: Rc<Config>,
-    usage: RefCell<Option<Selector>>,
-}
-
-impl ChildDesc {
-    pub fn new(cfg: Rc<Config>) -> Self {
-        ChildDesc {
-            cfg,
-            usage: RefCell::new(None),
-        }
-    }
-
-    pub fn local_name(&self) -> &String {
-        &self.cfg.name
-    }
-
-    pub fn config(&self) -> Rc<Config> {
-        self.cfg.clone()
-    }
-
-    pub fn is_used(&self) -> bool {
-        self.usage.borrow().is_some()
-    }
-
-    pub fn mark_used(&self, sel: Selector) {
-        self.usage.replace(Some(sel));
-    }
-}
-
 pub struct SemDesc {
     local_name: String,
     global_name: String,
 }
 
 impl SemDesc {
-    pub fn new(line: &str) -> Result<Self, Error> {
-        let (lname, gname) = parse_names(line)?;
-        Ok(SemDesc {
-            local_name: lname,
-            global_name: gname,
-        })
+    pub(crate) fn new(local_name: String, global_name: String) -> Self {
+        SemDesc {
+            local_name,
+            global_name,
+        }
     }
 
     pub fn global_name(&self) -> &String {
@@ -249,216 +173,165 @@ impl SemDesc {
     }
 }
 
-fn parse_names(line: &str) -> Result<(String, String), Error> {
-    let parts = line.split(':').collect::<Vec<&str>>();
-    if parts.len() == 1 {
-        Ok((parts[0].to_string(), parts[0].to_string()))
-    }
-    else if parts.len() == 2 {
-        Ok((parts[0].to_string(), parts[1].to_string()))
-    }
-    else {
-        Err(Error::new(Code::InvArgs))
-    }
+pub struct Config {
+    pub(crate) doms: Vec<Domain>,
 }
 
-fn parse_addr(s: &str) -> Result<goff, Error> {
-    if s.starts_with("0x") {
-        goff::from_str_radix(&s[2..], 16)
+impl Config {
+    pub fn parse(xml: &str, restrict: bool) -> Result<Self, Error> {
+        parser::parse(xml, restrict)
     }
-    else {
-        s.parse::<goff>()
-    }
-    .map_err(|_| Error::new(Code::InvArgs))
-}
 
-fn parse_size(s: &str) -> Result<usize, Error> {
-    let mul = match s.chars().last() {
-        Some(c) if c >= '0' && c <= '9' => 1,
-        Some('k') | Some('K') => 1024,
-        Some('m') | Some('M') => 1024 * 1024,
-        Some('g') | Some('G') => 1024 * 1024 * 1024,
-        _ => return Err(Error::new(Code::InvArgs)),
-    };
-    let num = match mul {
-        1 => s.parse::<usize>(),
-        _ => s[0..s.len() - 1].parse::<usize>(),
+    pub fn domains(&self) -> &Vec<Domain> {
+        &self.doms
     }
-    .map_err(|_| Error::new(Code::InvArgs))?;
-    Ok(num * mul)
-}
 
-fn count_pes(pe: &PEDesc) -> u32 {
-    let mut count = 0;
-    for i in 0..pes::get().len() {
-        if pe.matches(pes::get().get(i).desc()) {
-            count += 1;
+    pub fn count_apps(&self) -> usize {
+        self.doms.iter().fold(0, |total, d| total + d.apps.len())
+    }
+
+    pub fn check(&self) {
+        let mut services = BTreeSet::new();
+        for d in &self.doms {
+            for a in &d.apps {
+                Self::collect_services(&mut services, a);
+            }
+        }
+
+        for d in &self.doms {
+            for a in &d.apps {
+                Self::check_services(&services, a);
+            }
+        }
+
+        for d in &self.doms {
+            for a in &d.apps {
+                Self::check_pes(a);
+            }
         }
     }
-    count
-}
 
-fn check_pes(cfg: &Config) {
-    for pe in &cfg.pes {
-        if !pe.optional {
-            let available = count_pes(&pe);
-            if available < pe.count.get() {
+    fn count_pes(pe: &PEDesc) -> u32 {
+        let mut count = 0;
+        for i in 0..pes::get().len() {
+            if pe.matches(pes::get().get(i).desc()) {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    fn check_pes(app: &AppConfig) {
+        for pe in &app.pes {
+            if !pe.optional {
+                let available = Self::count_pes(&pe);
+                if available < pe.count.get() {
+                    panic!(
+                        "AppConfig '{}' needs PE type '{}' {} times, but {} are available",
+                        app.name(),
+                        pe.ty,
+                        pe.count.get(),
+                        available
+                    );
+                }
+            }
+        }
+    }
+
+    fn collect_services(set: &mut BTreeSet<String>, app: &AppConfig) {
+        for serv in app.services() {
+            if set.contains(serv.global_name()) {
                 panic!(
-                    "config '{}' needs PE type '{}' {} times, but {} are available",
-                    cfg.name(),
-                    pe.ty,
-                    pe.count.get(),
-                    available
+                    "config '{}': service '{}' does already exist",
+                    app.name(),
+                    serv.global_name()
+                );
+            }
+            set.insert(serv.global_name().clone());
+        }
+    }
+
+    fn check_services(set: &BTreeSet<String>, app: &AppConfig) {
+        for sess in app.sessions() {
+            if !set.contains(sess.serv_name()) {
+                panic!(
+                    "config '{}': service '{}' does not exist",
+                    app.name(),
+                    sess.serv_name()
                 );
             }
         }
     }
 }
 
-fn collect_services(set: &mut BTreeSet<String>, cfg: &Config) {
-    for serv in cfg.services() {
-        if set.contains(serv.global_name()) {
-            panic!(
-                "config '{}': service '{}' does already exist",
-                cfg.name(),
-                serv.global_name()
-            );
-        }
-        set.insert(serv.global_name().clone());
-    }
-    for child in cfg.childs() {
-        collect_services(set, &child.cfg);
+#[derive(Default)]
+pub struct Domain {
+    pub(crate) apps: Vec<Rc<AppConfig>>,
+}
+
+impl Domain {
+    pub fn apps(&self) -> &Vec<Rc<AppConfig>> {
+        &self.apps
     }
 }
 
-fn check_services(set: &BTreeSet<String>, cfg: &Config) {
-    for sess in cfg.sessions() {
-        if !set.contains(sess.serv_name()) {
-            panic!(
-                "config '{}': service '{}' does not exist",
-                cfg.name(),
-                sess.serv_name()
-            );
-        }
-    }
-    for child in cfg.childs() {
-        check_services(set, &child.cfg);
-    }
+#[derive(Default)]
+pub struct AppConfig {
+    pub(crate) name: String,
+    pub(crate) args: Vec<String>,
+    pub(crate) restrict: bool,
+    pub(crate) daemon: bool,
+    pub(crate) kmem: Option<usize>,
+    pub(crate) mems: Vec<MemDesc>,
+    pub(crate) services: Vec<ServiceDesc>,
+    pub(crate) sessions: Vec<SessionDesc>,
+    pub(crate) sems: Vec<SemDesc>,
+    pub(crate) pes: Vec<PEDesc>,
 }
 
-pub fn check(cfgs: &[(Vec<String>, bool, Rc<Config>)]) {
-    let mut services = BTreeSet::new();
-    for (_, _, cfg) in cfgs {
-        collect_services(&mut services, &cfg);
+impl AppConfig {
+    pub fn new(args: Vec<String>, restrict: bool) -> Self {
+        assert!(!args.is_empty());
+        let mut cfg = AppConfig::default();
+        cfg.name = args[0].clone();
+        cfg.args = args;
+        cfg.restrict = restrict;
+        cfg
     }
 
-    for (_, _, cfg) in cfgs {
-        check_services(&services, &cfg);
-    }
-
-    for (_, _, cfg) in cfgs {
-        check_pes(&cfg);
-    }
-}
-
-pub struct Config {
-    name: String,
-    kmem: usize,
-    mem: usize,
-    restrict: bool,
-    memats: Vec<MemAtDesc>,
-    services: Vec<ServiceDesc>,
-    sessions: Vec<SessionDesc>,
-    childs: Vec<ChildDesc>,
-    sems: Vec<SemDesc>,
-    pes: Vec<PEDesc>,
-}
-
-impl Config {
-    pub fn new(cmdline: &str, restrict: bool) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
-        Self::parse(cmdline, ' ', restrict)
-    }
-
-    fn parse(
-        cmdline: &str,
-        split: char,
-        restrict: bool,
-    ) -> Result<(Vec<String>, bool, Rc<Self>), Error> {
-        let mut res = Config {
-            name: String::new(),
-            kmem: 0,
-            mem: 0,
-            restrict,
-            memats: Vec::new(),
-            services: Vec::new(),
-            sessions: Vec::new(),
-            childs: Vec::new(),
-            sems: Vec::new(),
-            pes: Vec::new(),
-        };
-
-        let mut args = Vec::new();
-        let mut daemon = false;
-
-        for (idx, a) in cmdline.split(split).enumerate() {
-            if idx == 0 {
-                res.name = a.to_string();
-                args.push(a.to_string());
-            }
-            else if a.starts_with("serv=") {
-                res.services.push(ServiceDesc::new(&a[5..])?);
-            }
-            else if a.starts_with("kmem=") {
-                res.kmem = parse_size(&a[5..])?;
-            }
-            else if a.starts_with("mem=") {
-                res.mem = parse_size(&a[4..])?;
-            }
-            else if a.starts_with("memat=") {
-                res.memats.push(MemAtDesc::new(&a[6..])?);
-            }
-            else if a.starts_with("sess=") {
-                res.sessions.push(SessionDesc::new(&a[5..])?);
-            }
-            else if a.starts_with("child=") {
-                let (_, _, cfg) = Self::parse(&a[6..], ';', restrict)?;
-                res.childs.push(ChildDesc::new(cfg));
-            }
-            else if a.starts_with("sem=") {
-                res.sems.push(SemDesc::new(&a[4..])?);
-            }
-            else if a.starts_with("pes=") {
-                res.pes.push(PEDesc::new(&a[4..])?);
-            }
-            else if a == "daemon" {
-                daemon = true;
-            }
-            else {
-                args.push(a.to_string());
-            }
-        }
-
-        Ok((args, daemon, Rc::new(res)))
+    pub fn daemon(&self) -> bool {
+        self.daemon
     }
 
     pub fn restrict(&self) -> bool {
         self.restrict
     }
 
-    pub fn kmem(&self) -> usize {
+    pub fn kmem(&self) -> Option<usize> {
         self.kmem
     }
 
-    pub fn mem(&self) -> usize {
-        self.mem
+    pub fn sum_mem(&self) -> goff {
+        self.mems.iter().fold(0, |sum, m| {
+            if m.phys().is_none() {
+                sum + m.size()
+            }
+            else {
+                sum
+            }
+        })
     }
 
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn memats(&self) -> &Vec<MemAtDesc> {
-        &self.memats
+    pub fn args(&self) -> &Vec<String> {
+        &self.args
+    }
+
+    pub fn mems(&self) -> &Vec<MemDesc> {
+        &self.mems
     }
 
     pub fn services(&self) -> &Vec<ServiceDesc> {
@@ -467,10 +340,6 @@ impl Config {
 
     pub fn sessions(&self) -> &Vec<SessionDesc> {
         &self.sessions
-    }
-
-    pub fn childs(&self) -> &Vec<ChildDesc> {
-        &self.childs
     }
 
     pub fn get_sem(&self, lname: &str) -> Option<&SemDesc> {
@@ -518,28 +387,6 @@ impl Config {
         sess.usage.replace(None);
     }
 
-    pub fn get_child(&self, lname: &str) -> Option<&ChildDesc> {
-        self.childs.iter().find(|c| c.local_name() == lname)
-    }
-
-    pub fn remove_child(&self, sel: Selector) {
-        if !self.restrict {
-            return;
-        }
-
-        self.childs
-            .iter()
-            .find(|c| {
-                if let Some(ref child) = *c.usage.borrow() {
-                    *child == sel
-                }
-                else {
-                    false
-                }
-            })
-            .and_then(|c| c.usage.replace(None));
-    }
-
     pub fn get_pe_idx(&self, desc: kif::PEDesc) -> Result<usize, Error> {
         let idx = self
             .pes
@@ -564,20 +411,48 @@ impl Config {
     }
 
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
-        writeln!(f, "{} [", self.name)?;
-        if self.kmem != 0 {
-            writeln!(f, "  KernelMem[size={} KiB]", self.kmem / 1024)?;
+        write!(f, "{:0w$}", "", w = layer)?;
+        for a in &self.args {
+            write!(f, "{} ", a)?;
         }
-        if self.mem != 0 {
-            writeln!(f, "  Memory[size={} KiB]", self.mem / 1024)?;
+        writeln!(f, "[")?;
+        if self.daemon {
+            writeln!(f, "{:0w$}Daemon,", "", w = layer + 2)?;
         }
-        for m in &self.memats {
-            writeln!(f, "  MemoryAt[phys={:#x}, size={:#x}]", m.phys(), m.size())?;
+        if let Some(kmem) = self.kmem {
+            writeln!(
+                f,
+                "{:0w$}KernelMem[size={} KiB],",
+                "",
+                kmem / 1024,
+                w = layer + 2
+            )?;
+        }
+        for m in &self.mems {
+            if let Some(p) = m.phys() {
+                writeln!(
+                    f,
+                    "{:0w$}Memory[phys={:#x}, size={:#x} KiB],",
+                    "",
+                    p,
+                    m.size() / 1024,
+                    w = layer + 2
+                )?;
+            }
+            else {
+                writeln!(
+                    f,
+                    "{:0w$}Memory[size={} KiB],",
+                    "",
+                    m.size() / 1024,
+                    w = layer + 2
+                )?;
+            }
         }
         for s in &self.services {
             writeln!(
                 f,
-                "{:0w$}Service[lname={}, gname={}]",
+                "{:0w$}Service[lname={}, gname={}],",
                 "",
                 s.local_name,
                 s.global_name,
@@ -587,7 +462,7 @@ impl Config {
         for s in &self.sessions {
             writeln!(
                 f,
-                "{:0w$}Session[lname={}, gname={}, arg={}]",
+                "{:0w$}Session[lname={}, gname={}, arg={}],",
                 "",
                 s.local_name,
                 s.serv,
@@ -595,18 +470,14 @@ impl Config {
                 w = layer + 2
             )?;
         }
-        for c in &self.childs {
-            write!(f, "{:0w$}Child ", "", w = layer + 2)?;
-            c.cfg.print_rec(f, layer + 2)?;
-            writeln!(f)?;
-        }
         for pe in &self.pes {
             writeln!(
                 f,
-                "{:0w$}PE[type={}, count={}]",
+                "{:0w$}PE[type={}, count={}, optional={}],",
                 "",
                 pe.ty,
                 pe.count.get(),
+                pe.optional,
                 w = layer + 2
             )?;
         }
@@ -616,6 +487,26 @@ impl Config {
 
 impl fmt::Debug for Config {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        self.print_rec(f, 0)
+        writeln!(f, "Config [")?;
+        for d in &self.doms {
+            writeln!(f, "{:?}", d)?;
+        }
+        write!(f, "]")
+    }
+}
+
+impl fmt::Debug for Domain {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        writeln!(f, "  Domain [")?;
+        for a in &self.apps {
+            writeln!(f, "{:?}", a)?;
+        }
+        write!(f, "  ]")
+    }
+}
+
+impl fmt::Debug for AppConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        self.print_rec(f, 4)
     }
 }

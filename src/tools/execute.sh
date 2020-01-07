@@ -37,56 +37,31 @@ if [ "$M3_HDD" = "" ]; then
 fi
 export M3_HDD
 
-generate_lines() {
+generate_config() {
     if [ ! -x $1 ]; then
         echo "error: '$1' does not exist or is not executable" >&2 && exit 1
     fi
-    $1 | tr '\n' '@'
-}
 
-generate_kargs() {
-    c=0
-    lines=$(generate_lines $1) || exit 1
-    IFS=@
-    for line in $lines; do
-        i=0
-        for a in $line; do
-            if [ $c -eq 1 ]; then
-                if [ $i -eq 0 ]; then
-                    echo -n $a
-                else
-                    echo -n ",$a"
-                fi
-            elif [ $c -gt 1 ]; then
-                if [ $i -eq 0 ]; then
-                    echo -n ",--,$a"
-                else
-                    echo -n ",$a"
-                fi
-            fi
-            i=$((i + 1))
-        done
-        c=$((c + 1))
-    done
+    $1 > $bindir/boot.cfg || exit 1
+    if type xmllint > /dev/null; then
+        xmllint --schema misc/boot.xsd --noout $bindir/boot.cfg > /dev/null || exit 1
+    fi
 }
 
 build_params_host() {
-    c=0
-    lines=$(generate_lines $1) || exit 1
-    IFS=@
-    for line in $lines; do
-        if [ $c -eq 0 ]; then
-            echo -n "$bindir/$line "
-        else
-            echo -n "$bindir/$line -- "
-        fi
-        c=$((c + 1))
-    done
+    generate_config $1 || exit 1
+
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $bindir/boot.cfg)
+    mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^"\s]+).*"/' < $bindir/boot.cfg)
+    echo "$bindir/$kargs $bindir/boot.cfg$mods"
 }
 
 build_params_gem5() {
-    kargs=$(generate_kargs $1) || exit 1
-    kargs=$(echo $kargs | tr ',' ' ')
+    generate_config $1 || exit 1
+
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $bindir/boot.cfg)
+    mods=$(perl -ne 'printf(",%s", $1) if /app\s.*args="([^"\s]+).*"/' < $bindir/boot.cfg)
+    mods="boot.cfg$mods,pemux"
 
     if [ "$M3_GEM5_DBG" = "" ]; then
         M3_GEM5_DBG="Dtu"
@@ -101,19 +76,8 @@ build_params_gem5() {
 
     M3_CORES=${M3_CORES:-16}
 
+    cmd="$cmd$bindir/$kargs,"
     c=0
-    cmd=""
-    IFS=@
-    lines=$(generate_lines $1) || exit 1
-    for line in $lines; do
-        if [ $c -eq 0 ]; then
-            cmd="$cmd$bindir/$line -- $kargs,"
-        else
-            cmd="$cmd$bindir/pemux,"
-        fi
-        c=$((c + 1))
-    done
-
     while [ $c -lt $M3_CORES ]; do
         cmd="$cmd$bindir/pemux,"
         c=$((c + 1))
@@ -141,7 +105,8 @@ build_params_gem5() {
     if [ "$M3_GEM5_DBGSTART" != "" ]; then
         echo -n " --debug-start=$M3_GEM5_DBGSTART" >> $params
     fi
-    echo -n " $M3_GEM5_CFG --cpu-type $M3_GEM5_CPU --isa $M3_ISA --cmd \"$cmd\"" >> $params
+    echo -n " $M3_GEM5_CFG --cpu-type $M3_GEM5_CPU --isa $M3_ISA" >> $params
+    echo -n " --cmd \"$cmd\" --mods \"$mods\"" >> $params
     echo -n " --cpu-clock=$M3_GEM5_CPUFREQ --sys-clock=$M3_GEM5_MEMFREQ" >> $params
     if [ "$M3_GEM5_PAUSE" != "" ]; then
         echo -n " --pausepe=$M3_GEM5_PAUSE" >> $params

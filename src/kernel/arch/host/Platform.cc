@@ -97,17 +97,8 @@ void Platform::add_modules(int argc, char **argv) {
     std::vector<m3::BootInfo::Mod*> mods;
     size_t bmodsize = 0;
     for(int i = 0; i < argc; ++i) {
-        if(strcmp(argv[i], "--") == 0)
-            continue;
-
         m3::OStringStream args;
-        int j = i + 1;
         args << basename(argv[i]);
-        for(; j < argc; ++j) {
-            if(strcmp(argv[j], "--") == 0)
-                break;
-            args << " " << argv[j];
-        }
 
         m3::BootInfo::Mod *mod = reinterpret_cast<m3::BootInfo::Mod*>(
             malloc(sizeof(m3::BootInfo::Mod) + args.length() + 1));
@@ -138,7 +129,6 @@ void Platform::add_modules(int argc, char **argv) {
         }
 
         mods.push_back(mod);
-        i = j;
     }
 
     // set modules
