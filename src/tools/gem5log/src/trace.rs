@@ -40,7 +40,7 @@ fn repl_instr_line(
     if let Some(sym) = symbols::resolve(syms, addr_int) {
         write!(
             writer,
-            "{} {}: \x1b[1m{}\x1b[0m @ {:#x} : {}+{:#x} : {}",
+            "{} {} \x1b[1m{}\x1b[0m @ {:#x} : {}+{:#x} : {}",
             time,
             cpu,
             sym.bin,
@@ -54,7 +54,7 @@ fn repl_instr_line(
     else {
         write!(
             writer,
-            "{} {}: <Unknown>: {:#x} : {}",
+            "{} {} <Unknown>: {:#x} : {}",
             time, cpu, addr_int, rem
         )
         .ok()?;
