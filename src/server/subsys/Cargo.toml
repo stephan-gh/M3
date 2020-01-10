@@ -7,6 +7,6 @@ path = "src/subsys.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
-m3 = { path = "../../libs/rustm3" }
-resmng = { path = "../../libs/rustresmng" }
-thread = { path = "../../libs/rustthread" }
+m3 = { path = "../../libs/rust/m3" }
+resmng = { path = "../../libs/rust/resmng" }
+thread = { path = "../../libs/rust/thread" }

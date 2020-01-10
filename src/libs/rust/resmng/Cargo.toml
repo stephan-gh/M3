@@ -8,5 +8,5 @@ crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 bitflags = "*"
-m3 = { path = "../rustm3" }
-thread = { path = "../rustthread" }
+m3 = { path = "../m3" }
+thread = { path = "../thread" }

@@ -8,4 +8,4 @@ crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 bitflags = "*"
-base = { path = "../rustbase" }
+base = { path = "../base" }
