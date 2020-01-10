@@ -135,7 +135,7 @@ bool AddrSpace::create_ptes(const VPEDesc &vpe, goff_t &virt, goff_t pteAddr, m3
     // and that an existing mapping for the first is an existing mapping for all.
 
     m3::DTU::pte_t pteDTU = to_dtu_pte(pte);
-    m3::DTU::pte_t npte = phys | static_cast<uint>(perm) | m3::DTU::PTE_I;
+    m3::DTU::pte_t npte = phys | static_cast<uint>(perm);
     if(npte == pteDTU)
         return true;
 

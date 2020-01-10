@@ -349,6 +349,8 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Memory capability is not page aligned");
     if(perms & ~mgatecap->obj->perms)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid permissions");
+    // user-mapped memory is always user-accessible
+    perms |= m3::DTU::PTE_I;
 
     size_t total = mgatecap->obj->size >> PAGE_BITS;
     if(first >= total || first + pages <= first || first + pages > total)

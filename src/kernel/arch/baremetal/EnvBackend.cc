@@ -60,7 +60,7 @@ public:
 
         VPEDesc vpe(Platform::kernel_pe(), VPEManager::MAX_VPES);
         AddrSpace kas(vpe.id);
-        kas.map_pages(vpe, virt, phys, pages, m3::KIF::Perm::RW);
+        kas.map_pages(vpe, virt, phys, pages, m3::DTU::PTE_I | m3::DTU::PTE_RW);
         // ensure that Heap::append is not done before all PTEs have been created
         m3::CPU::memory_barrier();
 

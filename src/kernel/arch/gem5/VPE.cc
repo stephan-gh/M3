@@ -103,7 +103,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
         if(pheader.p_type != m3::PT_LOAD || pheader.p_memsz == 0)
             continue;
 
-        int perms = 0;
+        int perms = m3::DTU::PTE_I;
         if(pheader.p_flags & m3::PF_R)
             perms |= m3::DTU::PTE_R;
         if(pheader.p_flags & m3::PF_W)
@@ -157,7 +157,8 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
         // create initial heap
         gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE);
         goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
-        map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, m3::DTU::PTE_RW | MapCapability::EXCL);
+        int perms = m3::DTU::PTE_I | m3::DTU::PTE_RW | MapCapability::EXCL;
+        map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, perms);
     }
 
     return header.e_entry;
@@ -193,7 +194,8 @@ void VPE::load_app() {
         // map runtime space
         goff_t virt = ENV_START;
         gaddr_t phys = alloc_mem(STACK_TOP - virt);
-        map_segment(*this, phys, virt, STACK_TOP - virt, m3::DTU::PTE_RW | MapCapability::EXCL);
+        map_segment(*this, phys, virt, STACK_TOP - virt,
+                    m3::DTU::PTE_I | m3::DTU::PTE_RW | MapCapability::EXCL);
     }
 
     // load app
@@ -245,7 +247,7 @@ void VPE::init_memory() {
         // map receive buffer
         gaddr_t phys = alloc_mem(RECVBUF_SIZE);
         map_segment(*this, phys, RECVBUF_SPACE, RECVBUF_SIZE,
-                    m3::DTU::PTE_RW | MapCapability::EXCL);
+                    m3::DTU::PTE_I | m3::DTU::PTE_RW | MapCapability::EXCL);
     }
 
     // let PEMux load the address space
