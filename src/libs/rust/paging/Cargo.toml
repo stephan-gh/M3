@@ -1,0 +1,11 @@
+[package]
+name = "paging"
+version = "0.1.0"
+
+[lib]
+path = "src/paging.rs"
+crate-type = ["rlib", "staticlib"]
+
+[dependencies]
+bitflags = "*"
+base = { path = "../base" }

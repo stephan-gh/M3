@@ -67,9 +67,6 @@ private:
 
     void remove_pts_rec(VPE &vpe, gaddr_t pt, goff_t virt, int level);
 
-    static mmu_pte_t to_mmu_pte(m3::DTU::pte_t pte);
-    static m3::DTU::pte_t to_dtu_pte(mmu_pte_t pte);
-
     goff_t get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt, int level);
 
     void mmu_cmd_remote(const VPEDesc &vpe, m3::DTU::reg_t arg);

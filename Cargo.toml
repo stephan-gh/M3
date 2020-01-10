@@ -8,6 +8,7 @@ members = [
     "src/libs/rust/m3",
     "src/libs/rust/resmng",
     "src/libs/rust/thread",
+    "src/libs/rust/paging",
     "src/server/pipes",
     "src/server/root",
     "src/server/pager",

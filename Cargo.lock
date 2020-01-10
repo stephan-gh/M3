@@ -50,10 +50,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "paging"
+version = "0.1.0"
+dependencies = [
+ "base 0.1.0",
+ "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "pemux"
 version = "0.1.0"
 dependencies = [
  "base 0.1.0",
+ "paging 0.1.0",
 ]
 
 [[package]]

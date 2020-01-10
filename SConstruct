@@ -265,18 +265,22 @@ def Cargo(env, target, source):
         )
     )
 
-def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr = True):
-    myenv = env.Clone()
-    myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs')
-    rustdir = myenv['ENV']['CARGO_TARGET_DIR']
-    stlib = myenv.Cargo(
+def RustLibrary(env, target):
+    rustdir = env['ENV']['CARGO_TARGET_DIR']
+    stlib = env.Cargo(
         target = rustdir + '/$ISA-unknown-$ARCH-' + rustabi + '/$BUILD/lib' + target + '.a',
         source = 'src/' + target + '.rs'
     )
-    myenv.Install(myenv['LIBDIR'], stlib)
-    myenv.Depends(stlib, myenv.File('Cargo.toml'))
-    myenv.Depends(stlib, myenv.File('#Cargo.toml'))
-    myenv.Depends(stlib, myenv.File('#src/toolchain/rust/$ISA-unknown-$ARCH-' + rustabi + '.json'))
+    env.Install(env['LIBDIR'], stlib)
+    env.Depends(stlib, env.File('Cargo.toml'))
+    env.Depends(stlib, env.File('#Cargo.toml'))
+    env.Depends(stlib, env.File('#src/toolchain/rust/$ISA-unknown-$ARCH-' + rustabi + '.json'))
+    return stlib
+
+def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr = True):
+    myenv = env.Clone()
+    myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs')
+    stlib = RustLibrary(myenv, target)
 
     if myenv['ARCH'] == 'gem5':
         sources = [myenv['SYSGCCLIBPATH'].abspath + '/crt0.o' if startup is None else startup]
@@ -308,6 +312,7 @@ env.AddMethod(M3CPP)
 env.AddMethod(install.InstallFiles)
 env.M3Program = M3Program
 env.RustProgram = RustProgram
+env.RustLibrary = RustLibrary
 
 # always use grouping for static libraries, because they may depend on each other so that we want
 # to cycle through them until all references are resolved.

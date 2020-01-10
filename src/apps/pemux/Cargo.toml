@@ -8,3 +8,4 @@ crate-type = ["staticlib"]
 
 [dependencies]
 base = { path = "../../libs/rust/base" }
+paging = { path = "../../libs/rust/paging" }

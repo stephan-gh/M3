@@ -21,6 +21,7 @@
 
 #[macro_use]
 extern crate base;
+extern crate paging;
 
 mod arch;
 mod corereq;

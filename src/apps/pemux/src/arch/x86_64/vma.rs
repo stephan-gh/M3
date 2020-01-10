@@ -19,6 +19,7 @@ use base::cfg;
 use base::const_assert;
 use base::dtu;
 use core::ptr;
+use paging;
 
 use helper;
 use isr;
@@ -105,87 +106,13 @@ impl XlateState {
 
 static STATE: StaticCell<XlateState> = StaticCell::new(XlateState::new());
 
-fn to_dtu_pte(pte: u64) -> dtu::PTE {
-    let mut res = pte & !cfg::PAGE_MASK as u64;
-    // translate physical address to NoC address
-    res = (res & !0x0000_FF00_0000_0000) | ((res & 0x0000_FF00_0000_0000) << 16);
-    if (pte & 0x1) != 0 {
-        res |= dtu::PTEFlags::R.bits();
-    }
-    if (pte & 0x2) != 0 {
-        res |= dtu::PTEFlags::W.bits();
-    }
-    if (pte & 0x4) != 0 {
-        res |= dtu::PTEFlags::I.bits();
-    }
-    if (pte & 0x80) != 0 {
-        res |= dtu::PTEFlags::LARGE.bits();
-    }
-    res
-}
-
-fn noc_to_phys(noc: u64) -> u64 {
-    (noc & !0xFF00000000000000) | ((noc & 0xFF00000000000000) >> 16)
-}
-
-fn get_pte_addr(mut virt: u64, level: u32) -> u64 {
-    #[allow(clippy::erasing_op)]
-    #[rustfmt::skip]
-    const REC_MASK: u64 = ((cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 3))
-                         | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 2))
-                         | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 1))
-                         | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 0))) as u64;
-
-    // at first, just shift it accordingly.
-    virt >>= cfg::PAGE_BITS + level as usize * cfg::LEVEL_BITS;
-    virt <<= cfg::PTE_BITS;
-
-    // now put in one PTE_REC_IDX's for each loop that we need to take
-    let shift = (level + 1) as usize;
-    let rem_mask = (1 << (cfg::PAGE_BITS + cfg::LEVEL_BITS * (cfg::LEVEL_CNT - shift))) - 1;
-    virt |= REC_MASK & !rem_mask;
-
-    // finally, make sure that we stay within the bounds for virtual addresses
-    // this is because of recMask, that might actually have too many of those.
-    virt &= (1 << (cfg::LEVEL_CNT * cfg::LEVEL_BITS + cfg::PAGE_BITS)) - 1;
-    virt
-}
-
-fn get_pte_at(virt: u64, level: u32) -> u64 {
-    let virt = get_pte_addr(virt, level);
-    unsafe { *(virt as *const u64) }
-}
-
-fn get_pte(virt: u64, perm: u64) -> u64 {
-    for lvl in (0..4).rev() {
-        let pte = to_dtu_pte(get_pte_at(virt, lvl));
-        if lvl == 0 || (!(pte & 0xF) & perm) != 0 || (pte & dtu::PTEFlags::LARGE.bits()) != 0 {
-            return pte;
-        }
-    }
-    unreachable!();
-}
-
 fn translate_addr(req: dtu::Reg) -> bool {
     let virt = req & !cfg::PAGE_MASK as u64;
     let perm = (req >> 1) & 0xF;
     let xfer_buf = (req >> 5) & 0x7;
 
     // translate to physical
-    let mut pte = if (virt & 0xFFFF_FFFF_F000) == 0x0804_0201_0000 {
-        // special case for root pt
-        let mut pte: dtu::PTE;
-        unsafe { asm!("mov %cr3, $0" : "=r"(pte)) };
-        to_dtu_pte(pte | 0x3)
-    }
-    else if (virt & 0xFFF0_0000_0000) == 0x0800_0000_0000 {
-        // in the PTE area, we can assume that all upper level PTEs are present
-        to_dtu_pte(get_pte_at(virt, 0))
-    }
-    else {
-        // otherwise, walk through all levels
-        get_pte(virt, perm)
-    };
+    let mut pte = paging::get_pte(virt, perm);
 
     let mut pf = false;
     if (!(pte & 0xF) & perm) != 0 {
@@ -200,7 +127,7 @@ fn translate_addr(req: dtu::Reg) -> bool {
             }
 
             // read PTE again
-            pte = to_dtu_pte(get_pte_at(virt, 0));
+            pte = paging::to_dtu_pte(paging::get_pte_at(virt, 0));
             pf = true;
         }
     }
@@ -249,7 +176,9 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     // PEMux isn't causing PFs
     assert!(state.came_from_user());
 
-    let perm = to_dtu_pte((state.error & 0x7) as u64);
+    let perm = (state.error & 0x7) as u64;
+    // the access is implicitly no-exec
+    let perm = paging::to_dtu_pte(perm | paging::MMUFlags::NOEXEC.bits());
     if !STATE.get_mut().handle_pf(0, cr2, perm) {
         if isr::is_stopped() {
             return;
@@ -273,5 +202,5 @@ pub fn get_addr_space() -> u64 {
 }
 
 pub fn set_addr_space(addr: u64) {
-    unsafe { asm!("mov $0, %cr3" : : "r"(noc_to_phys(addr))) };
+    unsafe { asm!("mov $0, %cr3" : : "r"(paging::noc_to_phys(addr))) };
 }

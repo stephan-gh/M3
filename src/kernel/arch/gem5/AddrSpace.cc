@@ -27,71 +27,15 @@
 #include "DTU.h"
 #include "Platform.h"
 
+// defined in paging library (Rust)
+extern "C" kernel::AddrSpace::mmu_pte_t to_mmu_pte(m3::DTU::pte_t);
+extern "C" m3::DTU::pte_t to_dtu_pte(kernel::AddrSpace::mmu_pte_t pte);
+extern "C" goff_t get_pte_addr(goff_t virt, int level);
+extern "C" m3::DTU::pte_t get_pte(uint64_t virt, uint64_t perm);
+
 namespace kernel {
 
-static const AddrSpace::mmu_pte_t X86_PTE_PRESENT  = 0x1;
-static const AddrSpace::mmu_pte_t X86_PTE_WRITE    = 0x2;
-static const AddrSpace::mmu_pte_t X86_PTE_USER     = 0x4;
-static const AddrSpace::mmu_pte_t X86_PTE_UNCACHED = 0x10;
-static const AddrSpace::mmu_pte_t X86_PTE_LARGE    = 0x80;
-static const AddrSpace::mmu_pte_t X86_PTE_NOEXEC   = 1ULL << 63;
-
 static char buffer[4096];
-
-AddrSpace::mmu_pte_t AddrSpace::to_mmu_pte(UNUSED m3::DTU::pte_t pte) {
-#if defined(__x86_64__)
-    // the current implementation is based on some equal properties of MMU and DTU paging
-    static_assert(sizeof(mmu_pte_t) == sizeof(m3::DTU::pte_t), "MMU and DTU PTEs incompatible");
-    static_assert(m3::DTU::LEVEL_CNT == 4, "MMU and DTU PTEs incompatible: levels != 4");
-    static_assert(PAGE_SIZE == 4096, "MMU and DTU PTEs incompatible: pagesize != 4k");
-    static_assert(m3::DTU::LEVEL_BITS == 9, "MMU and DTU PTEs incompatible: level bits != 9");
-
-    mmu_pte_t res = pte & ~static_cast<m3::DTU::pte_t>(PAGE_MASK);
-    // translate NoC address to physical address
-    res = (res & ~0xFF00000000000000ULL) | ((res & 0xFF00000000000000ULL) >> 16);
-
-    if(pte & m3::DTU::PTE_RWX)
-        res |= X86_PTE_PRESENT;
-    if(pte & m3::DTU::PTE_W)
-        res |= X86_PTE_WRITE;
-    if(pte & m3::DTU::PTE_I)
-        res |= X86_PTE_USER;
-    if(pte & m3::DTU::PTE_UNCACHED)
-        res |= X86_PTE_UNCACHED;
-    if(pte & m3::DTU::PTE_LARGE)
-        res |= X86_PTE_LARGE;
-    if(~pte & m3::DTU::PTE_X)
-        res |= X86_PTE_NOEXEC;
-    return res;
-#else
-    return 0;
-#endif
-}
-
-m3::DTU::pte_t AddrSpace::to_dtu_pte(mmu_pte_t pte) {
-    if(pte == 0)
-        return pte;
-
-#if defined(__x86_64__)
-    m3::DTU::pte_t res = pte & ~static_cast<m3::DTU::pte_t>(PAGE_MASK);
-    // translate physical address to NoC address
-    res = (res & ~0x0000FF0000000000ULL) | ((res & 0x0000FF0000000000ULL) << 16);
-
-    if(pte & X86_PTE_PRESENT)
-        res |= m3::DTU::PTE_R;
-    if(pte & X86_PTE_WRITE)
-        res |= m3::DTU::PTE_W;
-    if(pte & X86_PTE_USER)
-        res |= m3::DTU::PTE_I;
-    if(pte & X86_PTE_LARGE)
-        res |= m3::DTU::PTE_LARGE;
-    if(~pte & X86_PTE_NOEXEC)
-        res |= m3::DTU::PTE_X;
-    return res;
-#else
-    return 0;
-#endif
-}
 
 void AddrSpace::mmu_cmd_remote(const VPEDesc &vpe, m3::DTU::reg_t arg) {
     assert(arg != 0);
@@ -238,28 +182,6 @@ bool AddrSpace::create_ptes(const VPEDesc &vpe, goff_t &virt, goff_t pteAddr, m3
     return false;
 }
 
-static goff_t get_pte_addr(goff_t virt, int level) {
-    static goff_t recMask =
-        (static_cast<goff_t>(m3::DTU::PTE_REC_IDX) << (PAGE_BITS + m3::DTU::LEVEL_BITS * 3)) |
-        (static_cast<goff_t>(m3::DTU::PTE_REC_IDX) << (PAGE_BITS + m3::DTU::LEVEL_BITS * 2)) |
-        (static_cast<goff_t>(m3::DTU::PTE_REC_IDX) << (PAGE_BITS + m3::DTU::LEVEL_BITS * 1)) |
-        (static_cast<goff_t>(m3::DTU::PTE_REC_IDX) << (PAGE_BITS + m3::DTU::LEVEL_BITS * 0));
-
-    // at first, just shift it accordingly.
-    virt >>= PAGE_BITS + level * m3::DTU::LEVEL_BITS;
-    virt <<= m3::DTU::PTE_BITS;
-
-    // now put in one PTE_REC_IDX's for each loop that we need to take
-    int mask_shift = (m3::DTU::LEVEL_BITS * (m3::DTU::LEVEL_CNT - (level + 1)) + PAGE_BITS);
-    goff_t remMask = (static_cast<goff_t>(1) << mask_shift) - 1;
-    virt |= recMask & ~remMask;
-
-    // finally, make sure that we stay within the bounds for virtual addresses
-    // this is because of recMask, that might actually have too many of those.
-    virt &= (static_cast<goff_t>(1) << (m3::DTU::LEVEL_CNT * m3::DTU::LEVEL_BITS + PAGE_BITS)) - 1;
-    return virt;
-}
-
 goff_t AddrSpace::get_pte_addr_mem(const VPEDesc &vpe, gaddr_t root, goff_t virt, int level) {
     goff_t pt = m3::DTU::gaddr_to_virt(root);
     for(int l = m3::DTU::LEVEL_CNT - 1; l >= 0; --l) {
@@ -384,25 +306,7 @@ void AddrSpace::handle_xlate(m3::DTU::reg_t xlate_req) {
     uint perm = (xlate_req >> 1) & 0xF;
     uint xferbuf = (xlate_req >> 5) & 0x7;
 
-    // translate to physical
-    m3::DTU::pte_t pte;
-    // special case for root pt
-    if((virt & 0xFFFFFFFFF000) == 0x080402010000) {
-        asm volatile ("mov %%cr3, %0" : "=r"(pte));
-        pte = to_dtu_pte(pte | 0x3);
-    }
-    // in the PTE area, we can assume that all upper level PTEs are present
-    else if((virt & 0xFFF000000000) == 0x080000000000)
-        pte = to_dtu_pte(*reinterpret_cast<uint64_t*>(get_pte_addr(virt, 0)));
-    // otherwise, walk through all levels
-    else {
-        for(int lvl = 3; lvl >= 0; lvl--) {
-            pte = to_dtu_pte(*reinterpret_cast<uint64_t*>(get_pte_addr(virt, lvl)));
-            if((~(pte & 0xF) & perm) || (pte & m3::DTU::PTE_LARGE))
-                break;
-        }
-    }
-
+    m3::DTU::pte_t pte = get_pte(virt, perm);
     if(~(pte & 0xF) & perm)
         PANIC("Pagefault during PT walk for " << virt << " (PTE=" << m3::fmt(pte, "p") << ")");
 
