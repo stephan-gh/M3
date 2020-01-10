@@ -111,7 +111,7 @@ m3::Errors::Code PEMux::init(vpeid_t vpe, gaddr_t root_pt) {
     req.root_pt = root_pt;
 
     KLOG(PEXC, "PEMux[" << peid() << "] sending init(vpe="
-        << req.vpe_sel << ", root=" << req.root_pt << ")");
+        << req.vpe_sel << ", root=" << m3::fmt((void*)req.root_pt, "p") << ")");
 
     return upcall(&req, sizeof(req));
 }
