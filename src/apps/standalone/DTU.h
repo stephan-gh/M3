@@ -39,7 +39,8 @@ public:
 
     static const vpeid_t INVALID_VPE        = 0xFFFF;
 
-    static const reg_t NO_REPLIES           = 0xFFFF;
+    static const reg_t INVALID_EP           = 0xFFFF;
+    static const reg_t NO_REPLIES           = INVALID_EP;
 
     enum class DtuRegs {
         FEATURES            = 0,
@@ -120,6 +121,11 @@ public:
         return static_cast<EpType>(r0 & 0x7) != EpType::INVALID;
     }
 
+    static int credits(epid_t ep) {
+        reg_t r0 = read_reg(ep, 0);
+        return (r0 >> 19) & 0x3F;
+    }
+
     static void config_recv(epid_t ep, goff_t buf, unsigned order,
                             unsigned msgorder, unsigned reply_eps) {
         reg_t bufSize = static_cast<reg_t>(order - msgorder);
@@ -196,13 +202,13 @@ public:
         return reinterpret_cast<const Message*>(read_reg(CmdRegs::ARG1));
     }
 
-    static void mark_read(epid_t ep, const Message *msg) {
+    static Error mark_read(epid_t ep, const Message *msg) {
         // ensure that we are really done with the message before acking it
         memory_barrier();
         reg_t off = reinterpret_cast<reg_t>(msg);
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, 0, off));
         // ensure that we don't do something else before the ack
-        get_error();
+        return get_error();
     }
 
     static Error get_error() {

@@ -35,7 +35,7 @@
     } while(0)
 
 extern volatile uint64_t *ui64_ptr;
-extern volatile uintptr_t *ui32_ptr;
+extern volatile uint32_t *ui32_ptr;
 
 void init();
 void deinit();
