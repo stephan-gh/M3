@@ -24,11 +24,8 @@
 #![default_lib_allocator]
 #![no_std]
 
-#[cfg(target_os = "none")]
-extern crate alloc;
-#[cfg(target_os = "linux")]
 #[macro_use]
-extern crate alloc;
+extern crate cfg_if;
 
 extern crate num_traits;
 
@@ -38,6 +35,24 @@ extern crate bitflags;
 pub extern crate core as _core;
 pub extern crate static_assertions;
 
+cfg_if! {
+    if #[cfg(target_os = "none")] {
+        extern crate alloc;
+
+        /// The C library
+        pub mod libc {
+            pub use arch::libc::*;
+        }
+    }
+    else if #[cfg(target_os = "linux")] {
+        #[macro_use]
+        extern crate alloc;
+
+        /// The C library
+        pub extern crate libc;
+    }
+}
+
 // Macros
 pub use alloc::{format, vec};
 pub use static_assertions::const_assert;
@@ -45,14 +60,6 @@ pub use static_assertions::const_assert;
 // lang stuff
 mod lang;
 pub use lang::*;
-
-#[cfg(target_os = "linux")]
-pub extern crate libc;
-#[cfg(target_os = "none")]
-/// The C library
-pub mod libc {
-    pub use arch::libc::*;
-}
 
 /// Pointer types for heap allocation
 pub mod boxed {
