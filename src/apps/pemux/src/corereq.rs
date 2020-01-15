@@ -23,9 +23,6 @@ use upcalls;
 use vpe;
 
 pub fn handle_recv(state: &mut isr::State, req: dtu::Reg) {
-    // acknowledge the request
-    dtu::DTU::set_core_req(0);
-
     log!(crate::LOG_FOREIGN_MSG, "Got core request {:#x}", req);
 
     // add message to VPE

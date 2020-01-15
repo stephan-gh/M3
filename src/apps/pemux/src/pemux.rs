@@ -100,6 +100,9 @@ pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
     // core request from DTU?
     let core_req = dtu::DTU::get_core_req();
     if core_req != 0 {
+        // acknowledge the request
+        dtu::DTU::set_core_req(0);
+
         if (core_req & 0x1) != 0 {
             corereq::handle_recv(state, core_req);
         }

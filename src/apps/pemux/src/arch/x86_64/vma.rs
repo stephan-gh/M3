@@ -149,9 +149,6 @@ fn translate_addr(req: dtu::Reg) -> bool {
 }
 
 pub fn handle_xlate(mut xlate_req: dtu::Reg) {
-    // acknowledge the request
-    dtu::DTU::set_core_req(0);
-
     if translate_addr(xlate_req) {
         // handle other requests that pagefaulted in the meantime
         while unsafe { ptr::read_volatile(&STATE.req_count) } > 0 {
