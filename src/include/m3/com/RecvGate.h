@@ -246,7 +246,7 @@ public:
      *
      * @param msg the message
      */
-    void mark_read(const DTU::Message *msg);
+    void ack_msg(const DTU::Message *msg);
 
     /**
      * Drops all messages with given label. That is, these messages will be marked as read.

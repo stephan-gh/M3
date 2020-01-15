@@ -243,7 +243,7 @@ public:
         return 0;
     }
 
-    void mark_read(epid_t ep, const Message *msg) {
+    void ack_msg(epid_t ep, const Message *msg) {
         set_cmd(CMD_EPID, ep);
         set_cmd(CMD_OFFSET, reinterpret_cast<size_t>(msg));
         set_cmd(CMD_CTRL, (ACKMSG << OPCODE_SHIFT) | CTRL_START);
@@ -315,7 +315,7 @@ public:
             if(unread & (1UL << i)) {
                 Message *msg = reinterpret_cast<Message*>(base + (static_cast<size_t>(i) << msgorder));
                 if(msg->label == label)
-                    mark_read(ep, msg);
+                    ack_msg(ep, msg);
             }
         }
     }

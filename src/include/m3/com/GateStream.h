@@ -220,7 +220,7 @@ public:
 
     /**
      * Disables acknowledgement of the message. That is, it will be marked as read, but you have
-     * to ack the message on your own via RecvGate::mark_read().
+     * to ack the message on your own via RecvGate::ack_msg().
      */
     void claim() noexcept {
         _ack = false;
@@ -232,7 +232,7 @@ public:
      */
     void finish() noexcept {
         if(_ack) {
-            _rgate->mark_read(_msg);
+            _rgate->ack_msg(_msg);
             _ack = false;
         }
     }

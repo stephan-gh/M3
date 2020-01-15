@@ -52,8 +52,8 @@ public:
         return DTU::get().fetch_msg(rg.ep()->id());
     }
 
-    static void mark_read(RecvGate &rg, const DTU::Message *msg) noexcept {
-        DTU::get().mark_read(rg.ep()->id(), msg);
+    static void ack_msg(RecvGate &rg, const DTU::Message *msg) noexcept {
+        DTU::get().ack_msg(rg.ep()->id(), msg);
     }
 
     static Errors::Code receive(RecvGate &rg, SendGate *sg, const DTU::Message **reply) noexcept {

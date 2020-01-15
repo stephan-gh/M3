@@ -431,7 +431,7 @@ impl DTU {
 
     /// Marks the given message for receive endpoint `ep` as read
     #[inline(always)]
-    pub fn mark_read(ep: EpId, msg: &Message) {
+    pub fn ack_msg(ep: EpId, msg: &Message) {
         let off = (msg as *const Message) as *const u8 as usize as Reg;
         Self::write_cmd_reg(
             CmdReg::COMMAND,
@@ -497,7 +497,7 @@ impl DTU {
             if (unread & (1 << i)) != 0 {
                 let msg = Self::addr_to_msg(base + (i << msg_size));
                 if msg.header.label == label {
-                    Self::mark_read(ep, msg);
+                    Self::ack_msg(ep, msg);
                 }
             }
         }

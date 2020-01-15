@@ -267,7 +267,7 @@ impl DTU {
         Self::get_ep(ep, EpReg::VALID) == 1
     }
 
-    pub fn mark_read(ep: EpId, msg: &Message) {
+    pub fn ack_msg(ep: EpId, msg: &Message) {
         let msg_addr = msg as *const Message as *const u8 as usize;
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::OFFSET, msg_addr as Reg);
@@ -336,7 +336,7 @@ impl DTU {
             if (unread & (1 << i)) != 0 {
                 let msg = Self::addr_to_msg(base + (i << msg_order));
                 if msg.header.label == label {
-                    Self::mark_read(ep, msg);
+                    Self::ack_msg(ep, msg);
                 }
             }
         }

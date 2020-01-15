@@ -123,7 +123,7 @@ static void test_msg_short() {
         // invalid reply EP
         ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0x1111, 0), Error::INV_EP);
         // not a reply EP
-        ASSERT_EQ(DTU::mark_read(0, nullptr), Error::INV_EP);
+        ASSERT_EQ(DTU::ack_msg(0, nullptr), Error::INV_EP);
     }
 
     // send without reply
@@ -194,7 +194,7 @@ static void test_msg_short() {
         // ack the other message we sent above
         rmsg = DTU::fetch_msg(1);
         ASSERT(rmsg != nullptr);
-        ASSERT_EQ(DTU::mark_read(1, rmsg), Error::NONE);
+        ASSERT_EQ(DTU::ack_msg(1, rmsg), Error::NONE);
     }
 
     // send + send + recv + recv
@@ -243,7 +243,7 @@ static void test_msg_short() {
             const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
             ASSERT_EQ(*msg_ctrl, reply);
             // free slot
-            ASSERT_EQ(DTU::mark_read(2, rmsg), Error::NONE);
+            ASSERT_EQ(DTU::ack_msg(2, rmsg), Error::NONE);
         }
     }
 }
@@ -312,7 +312,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
         for(size_t i = 0; i < reply_size_in; ++i)
             ASSERT_EQ(msg_ctrl[i], reply[i]);
         // free slot
-        ASSERT_EQ(DTU::mark_read(2, rmsg), Error::NONE);
+        ASSERT_EQ(DTU::ack_msg(2, rmsg), Error::NONE);
     }
 }
 

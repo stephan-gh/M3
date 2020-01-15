@@ -276,8 +276,8 @@ impl RecvGate {
 
     /// Marks the given message as 'read', allowing the DTU to overwrite it with a new message.
     #[inline(always)]
-    pub fn mark_read(&self, msg: &dtu::Message) {
-        dtu::DTUIf::mark_read(self, msg);
+    pub fn ack_msg(&self, msg: &dtu::Message) {
+        dtu::DTUIf::ack_msg(self, msg);
     }
 
     /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,

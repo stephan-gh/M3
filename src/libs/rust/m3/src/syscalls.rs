@@ -35,7 +35,7 @@ struct Reply<R: 'static> {
 
 impl<R: 'static> Drop for Reply<R> {
     fn drop(&mut self) {
-        DTUIf::mark_read(RecvGate::syscall(), self.msg);
+        DTUIf::ack_msg(RecvGate::syscall(), self.msg);
     }
 }
 

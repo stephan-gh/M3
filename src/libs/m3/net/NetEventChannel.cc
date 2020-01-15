@@ -207,7 +207,7 @@ void NetEventChannel::Event::finish() {
         }
         else {
             // Only acknowledge message
-            _channel->_rgate.mark_read(_msg);
+            _channel->_rgate.ack_msg(_msg);
         }
         _ack = false;
     }

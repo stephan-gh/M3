@@ -286,7 +286,7 @@ private:
         return read_reg(CmdRegs::ARG1);
     }
 
-    void mark_read(epid_t ep, const Message *msg) {
+    void ack_msg(epid_t ep, const Message *msg) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
         reg_t off = reinterpret_cast<reg_t>(msg);
@@ -323,7 +323,7 @@ private:
             if(unread & (static_cast<size_t>(1) << i)) {
                 m3::DTU::Message *msg = reinterpret_cast<m3::DTU::Message*>(base + (i << msgsize));
                 if(msg->label == label)
-                    mark_read(ep, msg);
+                    ack_msg(ep, msg);
             }
         }
     }

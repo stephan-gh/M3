@@ -85,7 +85,7 @@ impl XlateState {
             }
 
             if let Some(reply) = dtu::DTU::fetch_msg(dtu::PG_REP) {
-                dtu::DTU::mark_read(dtu::PG_REP, reply);
+                dtu::DTU::ack_msg(dtu::PG_REP, reply);
                 break true;
             }
 

@@ -77,7 +77,7 @@ pub fn check_replies() {
             serv.queue().received_reply(rg, msg);
         }
         else {
-            dtu::DTUIf::mark_read(rg, msg);
+            dtu::DTUIf::ack_msg(rg, msg);
         }
     }
 }
@@ -127,7 +127,7 @@ impl SendQueue {
         thread::ThreadManager::get().notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
-        dtu::DTUIf::mark_read(rg, msg);
+        dtu::DTUIf::ack_msg(rg, msg);
 
         self.send_pending();
     }

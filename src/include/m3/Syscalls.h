@@ -39,7 +39,7 @@ class Syscalls {
               _msg(msg) {
         }
         ~SyscallReply() {
-            DTUIf::mark_read(RecvGate::syscall(), _msg);
+            DTUIf::ack_msg(RecvGate::syscall(), _msg);
         }
 
         Errors::Code error() const {

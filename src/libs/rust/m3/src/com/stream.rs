@@ -345,7 +345,7 @@ impl<'r> GateIStream<'r> {
 impl<'r> ops::Drop for GateIStream<'r> {
     fn drop(&mut self) {
         if self.ack {
-            self.rgate.mark_read(self.source.msg);
+            self.rgate.ack_msg(self.source.msg);
         }
     }
 }

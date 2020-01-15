@@ -65,8 +65,8 @@ impl DTUIf {
     }
 
     #[inline(always)]
-    pub fn mark_read(rg: &RecvGate, msg: &Message) {
-        dtu::DTU::mark_read(rg.ep().unwrap(), msg)
+    pub fn ack_msg(rg: &RecvGate, msg: &Message) {
+        dtu::DTU::ack_msg(rg.ep().unwrap(), msg)
     }
 
     pub fn receive(rg: &RecvGate, sg: Option<&SendGate>) -> Result<&'static Message, Error> {

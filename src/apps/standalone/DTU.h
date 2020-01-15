@@ -202,7 +202,7 @@ public:
         return reinterpret_cast<const Message*>(read_reg(CmdRegs::ARG1));
     }
 
-    static Error mark_read(epid_t ep, const Message *msg) {
+    static Error ack_msg(epid_t ep, const Message *msg) {
         // ensure that we are really done with the message before acking it
         memory_barrier();
         reg_t off = reinterpret_cast<reg_t>(msg);

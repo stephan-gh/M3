@@ -174,8 +174,8 @@ const DTU::Message *RecvGate::receive(SendGate *sgate) {
     return reply;
 }
 
-void RecvGate::mark_read(const DTU::Message *msg) {
-    DTUIf::mark_read(*this, msg);
+void RecvGate::ack_msg(const DTU::Message *msg) {
+    DTUIf::ack_msg(*this, msg);
 }
 
 void RecvGate::drop_msgs_with(label_t label) noexcept {
