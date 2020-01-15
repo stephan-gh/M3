@@ -104,7 +104,7 @@ pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
         dtu::DTU::set_core_req(0);
 
         if (core_req & 0x1) != 0 {
-            corereq::handle_recv(state, core_req);
+            corereq::handle_recv(core_req);
         }
         else {
             vma::handle_xlate(core_req)

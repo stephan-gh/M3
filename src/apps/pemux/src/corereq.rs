@@ -15,14 +15,14 @@
  */
 
 use base::dtu;
+use base::kif;
 use core::intrinsics;
 
 use helper::IRQsOnGuard;
-use isr;
 use upcalls;
 use vpe;
 
-pub fn handle_recv(state: &mut isr::State, req: dtu::Reg) {
+pub fn handle_recv(req: dtu::Reg) {
     log!(crate::LOG_FOREIGN_MSG, "Got core request {:#x}", req);
 
     // add message to VPE
@@ -32,7 +32,8 @@ pub fn handle_recv(state: &mut isr::State, req: dtu::Reg) {
         log!(crate::LOG_FOREIGN_MSG, "Added message to VPE {} ({} msgs)", vpe_id, v.msgs());
     }
 
-    if state.came_from_user() {
+    // wait for the message if it's for us or for the current VPE
+    if vpe_id == kif::pemux::VPE_ID || vpe_id == vpe::cur().id() {
         // get number of messages
         let ep_id = (req >> 28) as dtu::EpId;
         let unread_mask = dtu::DTU::unread_mask(ep_id);
@@ -57,7 +58,6 @@ pub fn handle_recv(state: &mut isr::State, req: dtu::Reg) {
         upcalls::enable();
     }
     else {
-        // TODO is that okay to just not wait until the message has been received here?
         dtu::DTU::set_core_resp(req);
     }
 }
