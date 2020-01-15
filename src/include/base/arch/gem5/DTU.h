@@ -24,10 +24,10 @@
 #include <assert.h>
 
 namespace kernel {
-class AddrSpace;
 class DTU;
 class DTURegs;
 class DTUState;
+class ISR;
 class SendQueue;
 class SyscallHandler;
 class VPE;
@@ -39,10 +39,10 @@ namespace m3 {
 class DTUIf;
 
 class DTU {
-    friend class kernel::AddrSpace;
     friend class kernel::DTU;
     friend class kernel::DTURegs;
     friend class kernel::DTUState;
+    friend class kernel::ISR;
     friend class kernel::SendQueue;
     friend class kernel::SyscallHandler;
     friend class kernel::VPE;
@@ -64,7 +64,7 @@ public:
 
 private:
     static const size_t DTU_REGS            = 4;
-    static const size_t PRIV_REGS           = 6;
+    static const size_t PRIV_REGS           = 5;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
 
@@ -79,12 +79,11 @@ private:
     };
 
     enum class PrivRegs {
-        EXT_REQ             = 0,
-        CORE_REQ            = 1,
-        CORE_RESP           = 2,
-        PRIV_CMD            = 3,
-        CUR_VPE             = 4,
-        OLD_VPE             = 5,
+        CORE_REQ            = 0,
+        CORE_RESP           = 1,
+        PRIV_CMD            = 2,
+        CUR_VPE             = 3,
+        OLD_VPE             = 4,
     };
 
     enum class CmdRegs {
@@ -177,10 +176,6 @@ public:
         PTE_RW              = PTE_R | PTE_W,
         PTE_RWX             = PTE_RW | PTE_X,
         PTE_IRWX            = PTE_RWX | PTE_I,
-    };
-
-    enum ExtReqOpCode {
-        INV_PAGE            = 0,
     };
 
     struct Header {
@@ -336,13 +331,6 @@ private:
     }
     void set_core_resp(reg_t val) {
         write_reg(PrivRegs::CORE_RESP, val);
-    }
-
-    reg_t get_ext_req() const {
-        return read_reg(PrivRegs::EXT_REQ);
-    }
-    void set_ext_req(reg_t val) {
-        write_reg(PrivRegs::EXT_REQ, val);
     }
 
     static Errors::Code get_error() {

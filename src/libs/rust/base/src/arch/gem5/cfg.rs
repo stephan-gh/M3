@@ -35,6 +35,8 @@ pub const RECVBUF_SIZE: usize       = 4 * PAGE_SIZE;
 pub const RECVBUF_SIZE_SPM: usize   = 16384;
 pub const MAX_RB_SIZE: usize        = 32;
 
+pub const PE_MEM_BASE: usize        = 0xE000_0000;
+
 pub const MEM_CAP_END: usize        = RECVBUF_SPACE;
 
 pub const ENV_START: usize          = 0x0020_0000;

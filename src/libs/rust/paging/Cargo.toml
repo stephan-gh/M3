@@ -8,4 +8,5 @@ crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 bitflags = "*"
+cfg-if = "*"
 base = { path = "../base" }

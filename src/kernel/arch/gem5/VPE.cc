@@ -75,6 +75,8 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int pe
         // these mappings cannot be changed or revoked by applications
         perms |= MapCapability::KERNEL;
         auto mapcap = new MapCapability(&vpe.mapcaps(), dst, pages, new MapObject(phys, perms));
+        if(Platform::pe(vpe.peid()).has_virtmem())
+            mapcap->remap(phys, perms);
         vpe.mapcaps().set(dst, mapcap);
     }
 
@@ -82,7 +84,7 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int pe
         copy_clear(vpe.desc(), static_cast<uintptr_t>(virt), phys, size, false);
 }
 
-static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool is_idle, bool to_mem) {
+static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool to_mem) {
     // load and check ELF header
     m3::ElfEh header;
     read_from_mod(mod, &header, sizeof(header), 0);
@@ -114,24 +116,8 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
         goff_t offset = m3::Math::round_dn(static_cast<size_t>(pheader.p_offset), PAGE_SIZE);
         goff_t virt = m3::Math::round_dn(static_cast<size_t>(pheader.p_vaddr), PAGE_SIZE);
 
-        if(is_idle) {
-            gaddr_t phys_base = Platform::pe_mem_base() + vpe.peid() * Platform::pe_mem_size();
-            gaddr_t phys = phys_base + virt;
-
-            size_t size = (pheader.p_offset & PAGE_BITS) + pheader.p_memsz;
-            map_segment(vpe, phys, virt, size, perms);
-            end = virt + size;
-
-            // workaround for ARM: if we push remotely into the cache, it gets loaded to the L1d
-            // cache. however, we push instructions which need to end up in L1i. Thus, write to mem.
-            if(virt == 0x0 && Platform::pe(vpe.peid()).has_virtmem()) {
-                VPEDesc tgt(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID);
-                copy_clear(tgt, m3::DTU::gaddr_to_virt(phys),
-                           mod->addr + offset, size, pheader.p_filesz == 0);
-            }
-        }
         // do we need new memory for this segment?
-        else if((copy && (perms & m3::DTU::PTE_W)) || pheader.p_filesz == 0) {
+        if((copy && (perms & m3::DTU::PTE_W)) || pheader.p_filesz == 0) {
             // allocate memory
             size_t size = static_cast<size_t>((pheader.p_vaddr & PAGE_BITS) + pheader.p_memsz);
             size = m3::Math::round_up(size, PAGE_SIZE);
@@ -153,33 +139,13 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool i
         }
     }
 
-    if(!is_idle) {
-        // create initial heap
-        gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE);
-        goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
-        int perms = m3::DTU::PTE_I | m3::DTU::PTE_RW | MapCapability::EXCL;
-        map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, perms);
-    }
+    // create initial heap
+    gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE);
+    goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
+    int perms = m3::DTU::PTE_I | m3::DTU::PTE_RW | MapCapability::EXCL;
+    map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, perms);
 
     return header.e_entry;
-}
-
-static goff_t map_idle(VPE &vpe) {
-    bool first;
-    const m3::BootInfo::Mod *idle = get_mod("pemux", &first);
-    if(!idle)
-        PANIC("Unable to find boot module 'pemux'");
-
-    // load idle
-    goff_t res = load_mod(vpe, idle, true, true, true);
-
-    // map DTU
-    int perm = m3::DTU::PTE_RW | m3::DTU::PTE_I | m3::DTU::PTE_UNCACHED;
-    map_segment(vpe, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_SIZE, perm);
-    // map the privileged registers only for ring 0
-    map_segment(vpe, m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_SIZE,
-                m3::DTU::PTE_RW | m3::DTU::PTE_UNCACHED);
-    return res;
 }
 
 void VPE::load_app() {
@@ -199,7 +165,7 @@ void VPE::load_app() {
     }
 
     // load app
-    goff_t entry = load_mod(*this, mod, !appFirst, false, false);
+    goff_t entry = load_mod(*this, mod, !appFirst, false);
 
     // copy arguments and arg pointers to buffer
     static const char *uargv[] = {"root"};
@@ -232,29 +198,14 @@ void VPE::load_app() {
 }
 
 void VPE::init_memory() {
-    bool vm = Platform::pe(peid()).has_virtmem();
-    if(vm) {
-        address_space()->setup(desc());
-        // write all PTEs to memory until PEMux loaded the address space
-        _state = VPE::DEAD;
-    }
-
-    // for SPM PEs, we don't need to do anything; PEMux has already been loaded
-    if(vm && Platform::pe(peid()).is_programmable())
-        map_idle(*this);
-
-    if(vm) {
-        // map receive buffer
-        gaddr_t phys = alloc_mem(RECVBUF_SIZE);
-        map_segment(*this, phys, RECVBUF_SPACE, RECVBUF_SIZE,
-                    m3::DTU::PTE_I | m3::DTU::PTE_RW | MapCapability::EXCL);
-    }
-
     // let PEMux load the address space
     if(Platform::pe(peid()).supports_pemux()) {
-        auto root_pt = address_space() ? address_space()->root_pt() : 0;
-        PEManager::get().pemux(peid())->init(id(), root_pt);
+        // TODO for now, use the upper half of the PE's dedicated area in DRAM for PTS
+        auto pe_mem = Platform::pe_mem_base() + Platform::pe_mem_size() * peid();
+        auto pe_mem_end = pe_mem + Platform::pe_mem_size();
+        PEManager::get().pemux(peid())->init(id(), pe_mem, pe_mem_end);
     }
+
     _state = VPE::RUNNING;
 
     // boot modules are started implicitly

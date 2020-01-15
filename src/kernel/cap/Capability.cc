@@ -23,6 +23,7 @@
 #include "pes/VPEManager.h"
 #include "cap/Capability.h"
 #include "cap/CapTable.h"
+#include "mem/MainMemory.h"
 #include "DTU.h"
 
 namespace kernel {
@@ -171,32 +172,29 @@ void PECapability::revoke() {
         static_cast<PECapability*>(parent())->obj->free(obj->eps);
 }
 
-MapCapability::MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj)
-    : Capability(tbl, sel, MAP, _pages),
-      obj(_obj) {
-    VPE *vpe = tbl->vpe();
+m3::Errors::Code MapCapability::remap(gaddr_t _phys, int _attr) {
+    VPE *vpe = table()->vpe();
     assert(vpe != nullptr);
-    vpe->address_space()->map_pages(vpe->desc(), sel << PAGE_BITS, obj->phys, length(),
-                                    (obj->attr & ~(EXCL | KERNEL)));
-}
+    auto pemux = PEManager::get().pemux(vpe->peid());
+    auto perms = _attr & ~(EXCL | KERNEL);
+    m3::Errors::Code res = pemux->map(vpe->id(), sel() << PAGE_BITS, _phys, length(), perms);
+    if(res != m3::Errors::NONE)
+      return res;
 
-void MapCapability::remap(gaddr_t _phys, int _attr) {
     obj->phys = _phys;
     obj->attr = _attr;
-    VPE *vpe = table()->vpe();
-    assert(vpe != nullptr);
-    vpe->address_space()->map_pages(vpe->desc(), sel() << PAGE_BITS, _phys, length(),
-                                    (obj->attr & ~(EXCL | KERNEL)));
+    return m3::Errors::NONE;
 }
 
-void MapCapability::revoke() {
+void MapCapability::late_revoke() {
     VPE *vpe = table()->vpe();
     assert(vpe != nullptr);
-    vpe->address_space()->unmap_pages(vpe->desc(), sel() << PAGE_BITS, length());
-    if(obj->attr & EXCL) {
-        MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length() * PAGE_SIZE));
-        vpe->kmem()->free(*vpe, length() * PAGE_SIZE);
+    if(!vpe->is_stopped()) {
+        auto pemux = PEManager::get().pemux(vpe->peid());
+        pemux->map(vpe->id(), sel() << PAGE_BITS, 0, length(), 0);
     }
+    if(obj->attr & EXCL)
+        MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length() * PAGE_SIZE));
 }
 
 void SessCapability::revoke() {
@@ -216,7 +214,7 @@ void ServCapability::revoke() {
 }
 
 size_t VPECapability::obj_size() const {
-    return sizeof(VPE) + sizeof(AddrSpace);
+    return sizeof(VPE);
 }
 
 void Capability::print(m3::OStream &os) const {

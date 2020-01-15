@@ -17,21 +17,36 @@
 #![feature(asm)]
 #![no_std]
 
-extern crate base;
-
-#[cfg(target_arch = "x86_64")]
 #[macro_use]
-extern crate bitflags;
+extern crate cfg_if;
 
-#[cfg(target_arch = "arm")]
-extern crate bitflags;
+cfg_if! {
+    if #[cfg(target_arch = "x86_64")] {
+        #[macro_use]
+        extern crate base;
+        #[macro_use]
+        extern crate bitflags;
 
-#[cfg(target_arch = "x86_64")]
-#[path = "x86_64/mod.rs"]
-mod paging;
+        #[path = "x86_64/mod.rs"]
+        mod paging;
+    }
+    else if #[cfg(target_arch = "arm")] {
+        extern crate base;
+        extern crate bitflags;
 
-#[cfg(target_arch = "arm")]
-#[path = "arm/mod.rs"]
-mod paging;
+        #[path = "arm/mod.rs"]
+        mod paging;
+    }
+}
+
+use base::goff;
 
 pub use paging::*;
+
+/// Logs mapping operations
+pub const LOG_MAP: bool = false;
+/// Logs detailed mapping operations
+pub const LOG_MAP_DETAIL: bool = false;
+
+pub type AllocFrameFunc = extern "C" fn(vpe: u64) -> goff;
+pub type XlatePtFunc = extern "C" fn(vpe: u64, phys: goff) -> usize;

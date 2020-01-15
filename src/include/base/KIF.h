@@ -397,6 +397,7 @@ struct KIF {
         enum Operation {
             INIT,
             VPE_CTRL,
+            MAP,
         };
 
         enum VPEOp {
@@ -406,14 +407,24 @@ struct KIF {
 
         struct Init : public DefaultRequest {
             xfer_t pe_id;
+            xfer_t pe_desc;
             xfer_t vpe_sel;
-            xfer_t root_pt;
+            xfer_t pts_start;
+            xfer_t pts_end;
         } PACKED;
 
         struct VPECtrl : public DefaultRequest {
             xfer_t pe_id;
             xfer_t vpe_sel;
             xfer_t vpe_op;
+        } PACKED;
+
+        struct Map : public DefaultRequest {
+            xfer_t vpe_sel;
+            xfer_t virt;
+            xfer_t phys;
+            xfer_t pages;
+            xfer_t perm;
         } PACKED;
     };
 

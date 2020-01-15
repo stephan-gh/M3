@@ -103,15 +103,34 @@ void PEMux::free_eps(epid_t first, uint count) {
     }
 }
 
-m3::Errors::Code PEMux::init(vpeid_t vpe, gaddr_t root_pt) {
+m3::Errors::Code PEMux::init(vpeid_t vpe, gaddr_t pts_start, gaddr_t pts_end) {
     m3::KIF::PEXUpcalls::Init req;
     req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::INIT);
     req.pe_id = _pe->id;
+    req.pe_desc = Platform::pe(_pe->id).value();
     req.vpe_sel = vpe;
-    req.root_pt = root_pt;
+    req.pts_start = pts_start;
+    req.pts_end = pts_end;
 
-    KLOG(PEXC, "PEMux[" << peid() << "] sending init(vpe="
-        << req.vpe_sel << ", root=" << m3::fmt((void*)req.root_pt, "p") << ")");
+    KLOG(PEXC, "PEMux[" << peid() << "] sending init(vpe=" << req.vpe_sel
+        << ", pts_start=" << m3::fmt((void*)req.pts_start, "p")
+        << ", pts_end=" << m3::fmt((void*)req.pts_end, "p") << ")");
+
+    return upcall(&req, sizeof(req));
+}
+
+m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, int perm) {
+    m3::KIF::PEXUpcalls::Map req;
+    req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::MAP);
+    req.vpe_sel = vpe;
+    req.virt = virt;
+    req.phys = phys;
+    req.pages = pages;
+    req.perm = static_cast<xfer_t>(perm);
+
+    KLOG(PEXC, "PEMux[" << peid() << "] sending map(vpe=" << req.vpe_sel
+        << ", virt=" << m3::fmt((void*)req.virt, "p") << ", phys=" << m3::fmt((void*)req.phys, "p")
+        << ", pages=" << req.pages << ", perm=" << req.perm << ")");
 
     return upcall(&req, sizeof(req));
 }

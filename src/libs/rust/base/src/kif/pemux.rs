@@ -26,6 +26,7 @@ int_enum! {
     pub struct Upcalls : u64 {
         const INIT           = 0x0;
         const VPE_CTRL       = 0x1;
+        const MAP            = 0x2;
     }
 }
 
@@ -42,8 +43,10 @@ int_enum! {
 pub struct Init {
     pub op: u64,
     pub pe_id: u64,
+    pub pe_desc: u64,
     pub vpe_sel: u64,
-    pub root_pt: u64,
+    pub pts_start: u64,
+    pub pts_end: u64,
 }
 
 /// The VPE control upcall
@@ -53,4 +56,15 @@ pub struct VPECtrl {
     pub pe_id: u64,
     pub vpe_sel: u64,
     pub vpe_op: u64,
+}
+
+/// The map upcall
+#[repr(C, packed)]
+pub struct Map {
+    pub op: u64,
+    pub vpe_sel: u64,
+    pub virt: u64,
+    pub phys: u64,
+    pub pages: u64,
+    pub perm: u64,
 }

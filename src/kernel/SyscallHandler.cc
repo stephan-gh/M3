@@ -285,8 +285,8 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     // the parent gets all caps from the child
     if(!vpe->kmem()->has_quota(capnum * sizeof(SGateCapability)))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
-    // the child quota needs to be sufficient; VPE_EXTRA_MEM is needed for PEMux, its PTs etc.
-    if(!kmemcap->obj->has_quota(VPE_EXTRA_MEM + VPE::kmem(m3::PEDesc(pe))))
+    // the child quota needs to be sufficient
+    if(!kmemcap->obj->has_quota(VPE::required_kmem()))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
     // create VPE
@@ -359,11 +359,11 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
     gaddr_t phys = m3::DTU::build_gaddr(mgatecap->obj->pe, mgatecap->obj->addr + PAGE_SIZE * first);
     CapTable &mcaps = vpecap->obj->mapcaps();
 
-    // check for the max. amount of memory we need for PTs to avoid failures during the mapping
     VPE &vpeobj = *vpecap->obj;
-    size_t ptmem = vpeobj.address_space()->max_kmem_for(pages * PAGE_SIZE);
-    if(!vpeobj.kmem()->has_quota(ptmem))
-        SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
+    // TODO check for the max. amount of memory we need for PTs to avoid failures during the mapping
+    // size_t ptmem = vpeobj.address_space()->max_kmem_for(pages * PAGE_SIZE);
+    // if(!vpeobj.kmem()->has_quota(ptmem))
+    //     SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 	if(vpeobj.is_stopped())
         SYS_ERROR(vpe, msg, m3::Errors::VPE_GONE, "VPE is currently being destroyed");
     
@@ -375,6 +375,12 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
             SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
         auto mapcap = new MapCapability(&mcaps, dst, pages, new MapObject(phys, perms));
+        auto res = mapcap->remap(phys, perms);
+        if(res != m3::Errors::NONE) {
+            delete mapcap;
+            SYS_ERROR(vpe, msg, res, "Map failed at PEMux");
+        }
+
         mcaps.inherit(mgatecap, mapcap);
         mcaps.set(dst, mapcap);
     }
@@ -386,7 +392,10 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
                 "Map capability exists with different number of pages ("
                     << mapcap->length() << " vs. " << pages << ")");
         }
-        mapcap->remap(phys, perms);
+
+        auto res = mapcap->remap(phys, perms);
+        if(res != m3::Errors::NONE)
+            SYS_ERROR(vpe, msg, res, "Map failed at PEMux");
     }
 #endif
 

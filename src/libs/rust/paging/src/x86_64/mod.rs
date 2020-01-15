@@ -14,12 +14,20 @@
  * General Public License version 2 for more details.
  */
 
-use core::fmt;
 use base::cfg;
 use base::dtu;
+use base::errors::{Code, Error};
+use base::goff;
+use base::math;
+use base::util;
+use core::fmt;
+
+use crate::{AllocFrameFunc, XlatePtFunc};
+
+pub type PTE = usize;
 
 bitflags! {
-    pub struct MMUFlags : u64 {
+    pub struct MMUFlags : PTE {
         const PRESENT       = 0b0000_0001;
         const WRITE         = 0b0000_0010;
         const USER          = 0b0000_0100;
@@ -29,11 +37,9 @@ bitflags! {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn to_mmu_pte(pte: dtu::PTE) -> u64 {
-    let mut res = pte & !cfg::PAGE_MASK as u64;
-    // translate NoC address to physical address
-    res = (res & !0xFF00_0000_0000_0000) | ((res & 0xFF00_0000_0000_0000) >> 16);
+fn to_mmu_pte(pte: dtu::PTE) -> PTE {
+    let res = pte & !cfg::PAGE_MASK as u64;
+    let mut res = noc_to_phys(res) as PTE;
 
     if (pte & dtu::PTEFlags::RWX.bits()) != 0 {
         res |= MMUFlags::PRESENT.bits();
@@ -57,14 +63,13 @@ pub extern "C" fn to_mmu_pte(pte: dtu::PTE) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn to_dtu_pte(pte: u64) -> dtu::PTE {
+pub extern "C" fn to_dtu_pte(pte: PTE) -> dtu::PTE {
     if pte == 0 {
         return 0;
     }
 
-    let mut res = pte & !cfg::PAGE_MASK as u64;
-    // translate physical address to NoC address
-    res = (res & !0x0000_FF00_0000_0000) | ((res & 0x0000_FF00_0000_0000) << 16);
+    let res = (pte & !cfg::PAGE_MASK as PTE) as dtu::PTE;
+    let mut res = phys_to_noc(res);
 
     if (pte & MMUFlags::PRESENT.bits()) != 0 {
         res |= dtu::PTEFlags::R.bits();
@@ -84,19 +89,39 @@ pub extern "C" fn to_dtu_pte(pte: u64) -> dtu::PTE {
     res
 }
 
+fn invalidate_page(virt: usize) {
+    unsafe { asm!("invlpg ($0)" : : "r"(virt)) }
+}
+
+#[no_mangle]
+pub extern "C" fn get_addr_space() -> PTE {
+    let addr: PTE;
+    unsafe { asm!("mov %cr3, $0" : "=r"(addr)) };
+    addr
+}
+
+#[no_mangle]
+pub extern "C" fn set_addr_space(addr: PTE) {
+    unsafe { asm!("mov $0, %cr3" : : "r"(noc_to_phys(addr as u64))) };
+}
+
 #[no_mangle]
 pub extern "C" fn noc_to_phys(noc: u64) -> u64 {
     (noc & !0xFF00000000000000) | ((noc & 0xFF00000000000000) >> 16)
 }
 
 #[no_mangle]
-pub extern "C" fn get_pte_addr(mut virt: u64, level: u32) -> u64 {
+pub extern "C" fn phys_to_noc(phys: u64) -> u64 {
+    (phys & !0x0000_FF00_0000_0000) | ((phys & 0x0000_FF00_0000_0000) << 16)
+}
+
+fn get_pte_addr(mut virt: usize, level: u32) -> usize {
     #[allow(clippy::erasing_op)]
     #[rustfmt::skip]
-    const REC_MASK: u64 = ((cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 3))
-                         | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 2))
-                         | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 1))
-                         | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 0))) as u64;
+    const REC_MASK: usize = ((cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 3))
+                           | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 2))
+                           | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 1))
+                           | (cfg::PTE_REC_IDX << (cfg::PAGE_BITS + cfg::LEVEL_BITS * 0)));
 
     // at first, just shift it accordingly.
     virt >>= cfg::PAGE_BITS + level as usize * cfg::LEVEL_BITS;
@@ -114,29 +139,18 @@ pub extern "C" fn get_pte_addr(mut virt: u64, level: u32) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn get_pte_at(virt: u64, level: u32) -> u64 {
+pub extern "C" fn get_pte_at(virt: usize, level: u32) -> PTE {
     let virt = get_pte_addr(virt, level);
-    unsafe { *(virt as *const u64) }
-}
-
-fn get_pte_by_walk(virt: u64, perm: u64) -> u64 {
-    for lvl in (0..4).rev() {
-        let pte = to_dtu_pte(get_pte_at(virt, lvl));
-        if lvl == 0 || (!(pte & 0xF) & perm) != 0 || (pte & dtu::PTEFlags::LARGE.bits()) != 0 {
-            return pte;
-        }
-    }
-    unreachable!();
+    unsafe { *(virt as *const PTE) }
 }
 
 #[no_mangle]
-pub extern "C" fn get_pte(virt: u64, perm: u64) -> u64 {
+pub extern "C" fn get_pte(virt: usize, perm: u64) -> dtu::PTE {
     // translate to physical
     if (virt & 0xFFFF_FFFF_F000) == 0x0804_0201_0000 {
         // special case for root pt
-        let mut pte: dtu::PTE;
-        unsafe { asm!("mov %cr3, $0" : "=r"(pte)) };
-        to_dtu_pte(pte | 0x3)
+        let pte = get_addr_space();
+        to_dtu_pte(pte | (MMUFlags::PRESENT | MMUFlags::WRITE).bits())
     }
     else if (virt & 0xFFF0_0000_0000) == 0x0800_0000_0000 {
         // in the PTE area, we can assume that all upper level PTEs are present
@@ -144,37 +158,233 @@ pub extern "C" fn get_pte(virt: u64, perm: u64) -> u64 {
     }
     else {
         // otherwise, walk through all levels
-        get_pte_by_walk(virt, perm)
+        for lvl in (0..cfg::LEVEL_CNT as u32).rev() {
+            let pte = to_dtu_pte(get_pte_at(virt, lvl));
+            if lvl == 0
+                || (!(pte & dtu::PTEFlags::IRWX.bits()) & perm) != 0
+                || (pte & dtu::PTEFlags::LARGE.bits()) != 0
+            {
+                return pte;
+            }
+        }
+        unreachable!();
     }
 }
 
-pub struct AddrSpace {}
+#[no_mangle]
+pub extern "C" fn map_pages(
+    vpe: u64,
+    virt: usize,
+    phys: goff,
+    pages: usize,
+    perm: u64,
+    alloc_frame: AllocFrameFunc,
+    xlate_pt: XlatePtFunc,
+    root: goff,
+) {
+    let aspace = AddrSpace::new(vpe, root, xlate_pt, alloc_frame);
+    aspace
+        .map_pages(virt, phys, pages, dtu::PTEFlags::from_bits_truncate(perm))
+        .unwrap();
+}
+
+pub struct AddrSpace {
+    pub vpe: u64,
+    pub root: goff,
+    xlate_pt: XlatePtFunc,
+    alloc_frame: AllocFrameFunc,
+}
+
+impl AddrSpace {
+    pub fn new(vpe: u64, root: goff, xlate_pt: XlatePtFunc, alloc_frame: AllocFrameFunc) -> Self {
+        AddrSpace {
+            vpe,
+            root,
+            xlate_pt,
+            alloc_frame,
+        }
+    }
+
+    pub fn init(&self) {
+        let pt_virt = (self.xlate_pt)(self.vpe, self.root);
+        Self::clear_pt(pt_virt);
+
+        // insert recursive entry
+        let rec_idx_pte = pt_virt + cfg::PTE_REC_IDX * util::size_of::<PTE>();
+        unsafe { *(rec_idx_pte as *mut PTE) = to_mmu_pte(self.root | dtu::PTEFlags::RWX.bits()) };
+    }
+
+    pub fn map_pages(
+        &self,
+        mut virt: usize,
+        mut phys: goff,
+        mut pages: usize,
+        perm: dtu::PTEFlags,
+    ) -> Result<(), Error> {
+        log!(
+            crate::LOG_MAP,
+            "VPE{}: mapping 0x{:0>16x}..0x{:0>16x} to 0x{:0>16x}..0x{:0>16x} with {:?}",
+            self.vpe,
+            virt,
+            virt + pages * cfg::PAGE_SIZE,
+            phys,
+            phys + (pages * cfg::PAGE_SIZE) as goff,
+            perm
+        );
+
+        let root = to_dtu_pte(self.root as PTE);
+        let lvl = cfg::LEVEL_CNT - 1;
+        self.map_pages_rec(&mut virt, &mut phys, &mut pages, perm, root, lvl)
+    }
+
+    fn map_pages_rec(
+        &self,
+        virt: &mut usize,
+        phys: &mut goff,
+        pages: &mut usize,
+        perm: dtu::PTEFlags,
+        pte: dtu::PTE,
+        level: usize,
+    ) -> Result<(), Error> {
+        // determine virtual address for page table
+        let pt_virt = (self.xlate_pt)(self.vpe, pte as goff) & !cfg::PAGE_MASK;
+
+        // start at the corresponding index
+        let idx = (*virt >> (cfg::PAGE_BITS + level * cfg::LEVEL_BITS)) & cfg::LEVEL_MASK;
+        let mut pte_addr = pt_virt + idx * util::size_of::<PTE>();
+
+        while *pages > 0 {
+            // reached end of page table?
+            if pte_addr >= pt_virt + cfg::PAGE_SIZE {
+                break;
+            }
+
+            let mut pte = unsafe { *(pte_addr as *const PTE) };
+
+            // can we use a large page?
+            if level == 0
+                || (level == 1
+                    && math::is_aligned(*virt, cfg::LPAGE_SIZE)
+                    && math::is_aligned(*phys, cfg::LPAGE_SIZE as goff)
+                    && *pages * cfg::PAGE_SIZE >= cfg::LPAGE_SIZE)
+            {
+                let (psize, flags) = if level == 1 {
+                    (cfg::LPAGE_SIZE, dtu::PTEFlags::LARGE.bits())
+                }
+                else {
+                    (cfg::PAGE_SIZE, 0)
+                };
+
+                let new_pte = to_mmu_pte(*phys | perm.bits() | flags);
+
+                // determine if we need to perform an TLB invalidate
+                let rwx = dtu::PTEFlags::RWX.bits() as PTE;
+                let downgrade = (pte & rwx) != 0 && ((pte & rwx) & (!new_pte & rwx)) != 0;
+                if downgrade {
+                    invalidate_page(*virt);
+                }
+
+                unsafe { *(pte_addr as *mut PTE) = new_pte };
+
+                log!(
+                    crate::LOG_MAP_DETAIL,
+                    "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} (downgrade={})",
+                    self.vpe,
+                    level,
+                    virt,
+                    new_pte,
+                    downgrade
+                );
+
+                *pages -= psize / cfg::PAGE_SIZE;
+                *virt += psize;
+                *phys += psize as goff;
+            }
+            else {
+                // unmapping non-existing PTs is a noop
+                if !(pte == 0 && perm.is_empty()) {
+                    if pte == 0 {
+                        pte = self.create_pt(*virt, pte_addr, level)?;
+                    }
+
+                    self.map_pages_rec(virt, phys, pages, perm, to_dtu_pte(pte), level - 1)?;
+                }
+            }
+
+            pte_addr += util::size_of::<PTE>();
+        }
+
+        Ok(())
+    }
+
+    fn create_pt(&self, virt: usize, pte_addr: usize, level: usize) -> Result<PTE, Error> {
+        let frame = (self.alloc_frame)(self.vpe);
+        if frame == 0 {
+            return Err(Error::new(Code::NoSpace));
+        }
+        Self::clear_pt((self.xlate_pt)(self.vpe, frame));
+
+        // insert PTE
+        let pte = to_mmu_pte(frame | dtu::PTEFlags::IRWX.bits());
+        unsafe { *(pte_addr as *mut PTE) = pte };
+
+        let pt_size = (1 << (cfg::LEVEL_BITS * level)) * cfg::PAGE_SIZE;
+        let virt_base = virt as usize & !(pt_size - 1);
+        log!(
+            crate::LOG_MAP_DETAIL,
+            "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x}",
+            self.vpe,
+            level,
+            virt_base,
+            pte
+        );
+
+        Ok(pte)
+    }
+
+    fn clear_pt(mut pt_virt: usize) {
+        for _ in 0..1 << cfg::LEVEL_BITS {
+            unsafe { *(pt_virt as *mut PTE) = 0 };
+            pt_virt += util::size_of::<PTE>();
+        }
+    }
+
+    fn print_as_rec(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        pt: dtu::PTE,
+        mut virt: usize,
+        level: usize,
+    ) {
+        let mut ptes = (self.xlate_pt)(self.vpe, pt);
+        for _ in 0..1 << cfg::LEVEL_BITS {
+            let pte = unsafe { *(ptes as *const PTE) };
+            if pte != 0 {
+                let w = (cfg::LEVEL_CNT - level - 1) * 2;
+                writeln!(f, "{:w$}0x{:0>16x}: 0x{:0>16x}", "", virt, pte, w = w).ok();
+                if level > 0 && (pte & MMUFlags::LARGE.bits()) == 0 {
+                    let pt = phys_to_noc(pte as u64 & !cfg::PAGE_MASK as u64);
+                    self.print_as_rec(f, pt, virt, level - 1);
+                }
+            }
+
+            virt += 1 << (level as usize * cfg::LEVEL_BITS + cfg::PAGE_BITS);
+            ptes += util::size_of::<PTE>();
+
+            // don't enter the PTE area
+            if virt >= 0x0800_0000_0000 {
+                break;
+            }
+        }
+    }
+}
+
+// TODO implement Drop to free the page tables
 
 impl fmt::Debug for AddrSpace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        fn print_as_rec(f: &mut fmt::Formatter<'_>, mut virt: u64, level: usize) {
-            let mut ptes = get_pte_addr(virt, level as u32);
-            for _ in 0..1 << cfg::LEVEL_BITS {
-                let pte = unsafe { *(ptes as *const u64) };
-                if pte != 0 {
-                    let w = (cfg::LEVEL_CNT - level - 1) * 2;
-                    writeln!(f, "{:w$}0x{:0>16x}: 0x{:0>16x}", "", virt, pte, w = w).ok();
-                    if level > 0 {
-                        print_as_rec(f, virt, level - 1);
-                    }
-                }
-
-                virt += 1 << (level as usize * cfg::LEVEL_BITS + cfg::PAGE_BITS);
-                ptes += 8;
-
-                // don't enter the PTE area
-                if virt >= 0x0800_0000_0000 {
-                    break;
-                }
-            }
-        }
-
-        print_as_rec(f, 0, cfg::LEVEL_CNT - 1);
+        writeln!(f, "Address space @ 0x{:0>16x}:", noc_to_phys(self.root))?;
+        self.print_as_rec(f, self.root, 0, cfg::LEVEL_CNT - 1);
         Ok(())
     }
 }

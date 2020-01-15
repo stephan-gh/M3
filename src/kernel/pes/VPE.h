@@ -21,7 +21,6 @@
 #include <thread/ThreadManager.h>
 
 #include "cap/CapTable.h"
-#include "mem/AddrSpace.h"
 #include "mem/SlabCache.h"
 #include "pes/VPEDesc.h"
 #include "Types.h"
@@ -56,11 +55,9 @@ public:
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
 
-    static size_t kmem(const m3::PEDesc &pe) {
-        // for VM PEs we need the root PT
-        return (pe.has_virtmem() ? PAGE_SIZE : 0u) +
-               // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
-               sizeof(VPE) + sizeof(AddrSpace) +
+    static size_t required_kmem() {
+        // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
+        return sizeof(VPE) +
                // PE cap, VPE cap, and kmem cap
                sizeof(PECapability) + sizeof(VPECapability) + sizeof(KMemCapability) +
                // memory gate and cap
@@ -125,10 +122,6 @@ public:
     }
     State state() const {
         return _state;
-    }
-
-    AddrSpace *address_space() {
-        return _as;
     }
 
     void set_mem_base(goff_t addr);
@@ -204,7 +197,6 @@ private:
     SendQueue _upcqueue;
     volatile xfer_t *_vpe_wait_sels;
     volatile size_t _vpe_wait_count;
-    AddrSpace *_as;
     capsel_t _first_sel;
 };
 

@@ -61,6 +61,13 @@ pub const FIRST_FREE_EP: EpId = 11;
 
 /// The base address of the DTU's MMIO area
 pub const MMIO_ADDR: usize = 0xF000_0000;
+/// The size of the DTU's MMIO area
+pub const MMIO_SIZE: usize = cfg::PAGE_SIZE * 2;
+/// The base address of the DTU's private MMIO area
+pub const MMIO_PRIV_ADDR: usize = MMIO_ADDR + MMIO_SIZE;
+/// The size of the DTU's private MMIO area
+pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
+
 /// The number of DTU registers
 pub const DTU_REGS: usize = 4;
 /// The number of command registers
@@ -90,20 +97,18 @@ bitflags! {
 
 #[allow(dead_code)]
 int_enum! {
-    /// The request registers
+    /// The privileged registers
     pub struct PrivReg : Reg {
-        /// For external requests
-        const EXT_REQ       = 0x0;
         /// For core requests
-        const CORE_REQ     = 0x1;
+        const CORE_REQ      = 0x0;
         /// For core responses
-        const CORE_RESP    = 0x2;
+        const CORE_RESP     = 0x1;
         /// For privileged commands
-        const PRIV_CMD      = 0x3;
+        const PRIV_CMD      = 0x2;
         /// The current VPE
-        const CUR_VPE       = 0x4;
+        const CUR_VPE       = 0x3;
         /// The old VPE (only set by XCHG_VPE command)
-        const OLD_VPE       = 0x5;
+        const OLD_VPE       = 0x4;
     }
 }
 
@@ -185,14 +190,6 @@ int_enum! {
         const RECEIVE     = 0x2;
         /// Memory endpoint
         const MEMORY      = 0x3;
-    }
-}
-
-int_enum! {
-    /// The external requests
-    pub struct ExtReqOpCode : Reg {
-        /// Invalidates a TLB entry in the CU's MMU
-        const INV_PAGE    = 0x0;
     }
 }
 
@@ -554,14 +551,6 @@ impl DTU {
 
     pub fn clear_irq() {
         Self::write_reg(DtuReg::CLEAR_IRQ.val as usize, 1);
-    }
-
-    pub fn get_ext_req() -> Reg {
-        Self::read_priv_reg(PrivReg::EXT_REQ)
-    }
-
-    pub fn set_ext_req(val: Reg) {
-        Self::write_priv_reg(PrivReg::EXT_REQ, val)
     }
 
     pub fn get_core_req() -> Reg {

@@ -36,6 +36,7 @@
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
+#include "mem/MainMemory.h"
 #include "Args.h"
 #include "SyscallHandler.h"
 #include "WorkLoop.h"

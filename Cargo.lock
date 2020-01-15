@@ -61,6 +61,7 @@ version = "0.1.0"
 dependencies = [
  "base 0.1.0",
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

@@ -45,7 +45,7 @@ impl XlateState {
         }
     }
 
-    fn handle_pf(&mut self, req: dtu::Reg, virt: u64, perm: u64) -> bool {
+    fn handle_pf(&mut self, req: dtu::Reg, virt: usize, perm: u64) -> bool {
         if self.in_pf {
             for r in &mut self.reqs {
                 if *r == 0 {
@@ -69,11 +69,11 @@ impl XlateState {
         unsafe { asm!("sti" : : : "memory") };
 
         // send PF message
-        self.pf_msg[1] = virt;
+        self.pf_msg[1] = virt as u64;
         self.pf_msg[2] = perm;
         let msg = &self.pf_msg as *const u64 as *const u8;
         if let Err(e) = dtu::DTU::send(dtu::PG_SEP, msg, 3 * 8, 0, dtu::PG_REP) {
-            panic!("VMA: unable to send PF message: {}", e);
+            panic!("VMA: unable to send PF message for virt={:#x}, perm={:#x}: {}", virt, perm, e);
         }
 
         upcalls::enable();
@@ -107,7 +107,7 @@ impl XlateState {
 static STATE: StaticCell<XlateState> = StaticCell::new(XlateState::new());
 
 fn translate_addr(req: dtu::Reg) -> bool {
-    let virt = req & !cfg::PAGE_MASK as u64;
+    let virt = req as usize & !cfg::PAGE_MASK as usize;
     let perm = (req >> 1) & 0xF;
     let xfer_buf = (req >> 5) & 0x7;
 
@@ -165,7 +165,7 @@ pub fn handle_xlate(mut xlate_req: dtu::Reg) {
 }
 
 pub fn handle_mmu_pf(state: &mut isr::State) {
-    let cr2: u64;
+    let cr2: usize;
     unsafe {
         asm!( "mov %cr2, $0" : "=r"(cr2));
     }
@@ -173,7 +173,7 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     // PEMux isn't causing PFs
     assert!(state.came_from_user());
 
-    let perm = (state.error & 0x7) as u64;
+    let perm = state.error & 0x7;
     // the access is implicitly no-exec
     let perm = paging::to_dtu_pte(perm | paging::MMUFlags::NOEXEC.bits());
     if !STATE.get_mut().handle_pf(0, cr2, perm) {
@@ -186,18 +186,4 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     }
 
     STATE.get_mut().resume_cmd();
-}
-
-pub fn flush_tlb(virt: usize) {
-    unsafe { asm!("invlpg ($0)" : : "r"(virt)) }
-}
-
-pub fn get_addr_space() -> u64 {
-    let addr: u64;
-    unsafe { asm!("mov %cr3, $0" : "=r"(addr)) };
-    addr
-}
-
-pub fn set_addr_space(addr: u64) {
-    unsafe { asm!("mov $0, %cr3" : : "r"(paging::noc_to_phys(addr))) };
 }

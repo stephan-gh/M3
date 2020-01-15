@@ -26,7 +26,6 @@ extern crate paging;
 mod arch;
 mod corereq;
 mod helper;
-mod kernreq;
 mod pexcalls;
 mod upcalls;
 mod vpe;
@@ -109,12 +108,6 @@ pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
         else {
             vma::handle_xlate(core_req)
         }
-    }
-
-    // request from the kernel?
-    let ext_req = dtu::DTU::get_ext_req();
-    if ext_req != 0 {
-        kernreq::handle_ext_req(ext_req);
     }
 
     upcalls::check(state);

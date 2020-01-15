@@ -22,6 +22,7 @@
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
+#include "mem/MainMemory.h"
 #include "Args.h"
 #include "Platform.h"
 #include "WorkLoop.h"

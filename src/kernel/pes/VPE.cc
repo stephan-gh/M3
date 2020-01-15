@@ -53,7 +53,6 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
       _upcqueue(desc()),
       _vpe_wait_sels(),
       _vpe_wait_count(),
-      _as(Platform::pe(peid()).has_virtmem() ? new AddrSpace(peid(), id) : nullptr),
       _first_sel(m3::KIF::FIRST_FREE_SEL) {
     if(_sysc_ep == EP_COUNT)
         PANIC("Too few slots in syscall receive buffers");
@@ -88,7 +87,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
         _objcaps.set(m3::KIF::SEL_KMEM, nkmemcap);
     }
 
-    _kmem->alloc(*this, kmem(Platform::pe(peid())));
+    _kmem->alloc(*this, required_kmem());
 
     _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
         &_objcaps, m3::KIF::SEL_MEM, new MGateObject(peid(), 0, MEMCAP_END, m3::KIF::Perm::RWX)));
@@ -125,7 +124,6 @@ VPE::~VPE() {
 
     delete _pg_sep;
     delete _pg_rep;
-    delete _as;
 
     _pe->vpes--;
     VPEManager::get().remove(this);

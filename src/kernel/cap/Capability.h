@@ -147,6 +147,8 @@ private:
     }
     virtual void revoke() {
     }
+    virtual void late_revoke() {
+    }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) = 0;
 
     uint _type;
@@ -431,13 +433,16 @@ public:
         KERNEL  = 0x10000,
     };
 
-    explicit MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj);
+    explicit MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj)
+        : Capability(tbl, sel, MAP, _pages),
+          obj(_obj) {
+    }
 
     virtual size_t obj_size() const override {
         return sizeof(MapObject);
     }
 
-    void remap(gaddr_t _phys, int _attr);
+    m3::Errors::Code remap(gaddr_t _phys, int _attr);
 
     void printInfo(m3::OStream &os) const override;
 
@@ -445,7 +450,7 @@ private:
     virtual bool can_revoke() override {
         return (obj->attr & KERNEL) == 0;
     }
-    virtual void revoke() override;
+    virtual void late_revoke() override;
     virtual Capability *clone(CapTable *, capsel_t) override {
         // not clonable
         return nullptr;

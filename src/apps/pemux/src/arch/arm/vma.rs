@@ -24,14 +24,3 @@ pub fn handle_xlate(_xlate_req: dtu::Reg) {
 pub fn handle_mmu_pf(_state: &mut isr::State) {
     panic!("Unexpected PF");
 }
-
-pub fn flush_tlb(_virt: usize) {
-    panic!("Unexpected TLB flush request");
-}
-
-pub fn get_addr_space() -> u64 {
-    0
-}
-
-pub fn set_addr_space(_addr: u64) {
-}

@@ -71,21 +71,6 @@ void DTU::flush_cache(const VPEDesc &vpe) {
     do_priv_cmd(vpe, cmd);
 }
 
-void DTU::ext_request(const VPEDesc &vpe, uint64_t req) {
-    m3::DTU::reg_t reg = req;
-    m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_REQ), &reg, sizeof(reg));
-}
-
-void DTU::invtlb_remote(const VPEDesc &vpe) {
-    do_priv_cmd(vpe, static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::INV_TLB));
-}
-
-void DTU::invlpg_remote(const VPEDesc &vpe, goff_t virt) {
-    assert((virt & PAGE_MASK) == 0);
-    do_priv_cmd(vpe, static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::INV_PAGE) | (virt << 4));
-}
-
 m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
     m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::INV_REPLY);
     cmd |= (rep << 4) | (pe << 20) | (sep << 28);

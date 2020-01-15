@@ -23,6 +23,7 @@ mod serial;
 pub use self::rdwr::{read_object, Read, Write};
 pub use self::serial::Serial;
 use arch;
+use util;
 
 /// Macro for logging (includes a trailing newline)
 ///
@@ -66,6 +67,11 @@ macro_rules! llog {
             }
         }
     });
+}
+
+#[no_mangle]
+pub extern "C" fn init_rust_io(pe_id: u32, name: *const i8) {
+    init(pe_id, unsafe { util::cstr_to_str(name) });
 }
 
 /// Initializes the I/O module

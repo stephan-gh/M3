@@ -47,11 +47,7 @@ public:
     void init_vpe(const VPEDesc &vpe);
     void kill_vpe(const VPEDesc &vpe);
 
-    void ext_request(const VPEDesc &vpe, uint64_t req);
     void flush_cache(const VPEDesc &vpe);
-
-    void invtlb_remote(const VPEDesc &vpe);
-    void invlpg_remote(const VPEDesc &vpe, goff_t virt);
 
     m3::Errors::Code inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
 
