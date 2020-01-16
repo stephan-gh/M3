@@ -364,7 +364,9 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
     size_t ptmem = vpeobj.address_space()->max_kmem_for(pages * PAGE_SIZE);
     if(!vpeobj.kmem()->has_quota(ptmem))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
-
+	if(vpeobj.is_stopped())
+        SYS_ERROR(vpe, msg, m3::Errors::VPE_GONE, "VPE is currently being destroyed");
+    
     auto mapcap = static_cast<MapCapability*>(mcaps.get(dst, Capability::MAP));
     if(mapcap == nullptr) {
         if(!mcaps.range_unused(m3::KIF::CapRngDesc(m3::KIF::CapRngDesc::MAP, dst, pages)))
@@ -470,6 +472,8 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
     auto epcap = static_cast<EPCapability*>(vpe->objcaps().get(ep, Capability::EP));
     if(epcap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid EP cap");
+    if(epcap->obj->vpe == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::VPE_GONE, "VPE is currently being destroyed");
 
     peid_t dst_pe = epcap->obj->pe->id;
     PEMux *dst_pemux = PEManager::get().pemux(dst_pe);

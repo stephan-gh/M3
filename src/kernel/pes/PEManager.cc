@@ -66,15 +66,16 @@ void PEManager::start_vpe(VPE *vpe) {
 
 void PEManager::stop_vpe(VPE *vpe) {
 #if defined(__gem5__)
-    if(Platform::pe(vpe->peid()).supports_pemux() && !(vpe->_flags & VPE::F_STOPPED))
+    if(Platform::pe(vpe->peid()).supports_pemux() && !(vpe->_flags & VPE::F_STOPPED)) {
+        vpe->_flags |= VPE::F_STOPPED;
         pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
+    }
 #endif
 
     // ensure that all PTEs are in memory
     DTU::get().flush_cache(vpe->desc());
 
     DTU::get().kill_vpe(vpe->desc());
-    vpe->_flags |= VPE::F_STOPPED;
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe) {
