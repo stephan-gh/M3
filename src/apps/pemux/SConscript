@@ -5,6 +5,8 @@ if env['ARCH'] == 'gem5':
     myenv.Append(
         LINKFLAGS = ' -nostartfiles',
     )
+    if myenv['ISA'] == 'x86_64':
+        myenv['TRIPLE'] = 'x86_64-unknown-gem5-pemux-gnu'
 
     entry = myenv.Object(myenv.Glob('src/arch/$ISA/Entry.S'))
     myenv.RustProgram(

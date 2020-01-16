@@ -57,6 +57,7 @@ hostenv.Append(
 
 # for target compilation
 env = baseenv.Clone()
+triple = isa + '-unknown-' + target + '-' + rustabi
 env.Append(
     CXXFLAGS = ' -ffreestanding -fno-strict-aliasing -gdwarf-2 -fno-omit-frame-pointer' \
         ' -fno-threadsafe-statics -fno-stack-protector -Wno-address-of-packed-member',
@@ -64,7 +65,8 @@ env.Append(
     CFLAGS = ' -gdwarf-2 -fno-stack-protector',
     ASFLAGS = ' -Wl,-W -Wall -Wextra',
     LINKFLAGS = ' -Wl,--no-gc-sections -Wno-lto-type-mismatch -fno-stack-protector',
-    CRGFLAGS = ' --target ' + isa + '-unknown-' + target + '-' + rustabi,
+    TRIPLE = triple,
+    CRGFLAGS = '',
 )
 
 # add target-dependent stuff to env
@@ -260,7 +262,7 @@ def Cargo(env, target, source):
     return env.Command(
         target, source,
         Action(
-            'cd ${SOURCE.dir.dir} && cargo xbuild $CRGFLAGS',
+            'cd ${SOURCE.dir.dir} && cargo xbuild --target $TRIPLE $CRGFLAGS',
             '$CRGCOMSTR'
         )
     )
@@ -268,13 +270,13 @@ def Cargo(env, target, source):
 def RustLibrary(env, target):
     rustdir = env['ENV']['CARGO_TARGET_DIR']
     stlib = env.Cargo(
-        target = rustdir + '/$ISA-unknown-$ARCH-' + rustabi + '/$BUILD/lib' + target + '.a',
+        target = rustdir + '/$TRIPLE/$BUILD/lib' + target + '.a',
         source = 'src/' + target + '.rs'
     )
     env.Install(env['LIBDIR'], stlib)
     env.Depends(stlib, env.File('Cargo.toml'))
     env.Depends(stlib, env.File('#Cargo.toml'))
-    env.Depends(stlib, env.File('#src/toolchain/rust/$ISA-unknown-$ARCH-' + rustabi + '.json'))
+    env.Depends(stlib, env.File('#src/toolchain/rust/' + env['TRIPLE'] + '.json'))
     return stlib
 
 def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr = True):
