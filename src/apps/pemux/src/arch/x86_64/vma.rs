@@ -90,7 +90,7 @@ impl XlateState {
                 break true;
             }
 
-            dtu::DTU::sleep().ok();
+            dtu::DTU::wait_for_msg(dtu::PG_REP, 0).ok();
         };
 
         unsafe { asm!("cli" : : : "memory") };
