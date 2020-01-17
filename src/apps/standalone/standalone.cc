@@ -113,6 +113,7 @@ static void test_msg_short() {
 
     DTU::config_send(0, 0x1234, OWN_MODID, 1, 6 /* 64 */, 2);
     DTU::config_send(5, 0x1234, OWN_MODID, 1, 6 /* 64 */, 0x3F);
+    DTU::config_send(6, 0x5678, OWN_MODID, 1, 4 /* 16 */, 1);
 
     // test errors
     {
@@ -124,6 +125,27 @@ static void test_msg_short() {
         ASSERT_EQ(DTU::send(0, &msg, sizeof(msg), 0x1111, 0), Error::INV_EP);
         // not a reply EP
         ASSERT_EQ(DTU::ack_msg(0, nullptr), Error::INV_EP);
+    }
+
+    // send empty message
+    {
+        ASSERT_EQ(DTU::send(6, nullptr, 0, 0x2222, DTU::NO_REPLIES), Error::NONE);
+
+        // fetch message
+        const DTU::Message *rmsg;
+        while((rmsg = DTU::fetch_msg(1)) == nullptr)
+            ;
+        // validate contents
+        ASSERT_EQ(rmsg->label, 0x5678);
+        ASSERT_EQ(rmsg->replylabel, 0x2222);
+        ASSERT_EQ(rmsg->length, 0);
+        ASSERT_EQ(rmsg->senderEp, 6);
+        ASSERT_EQ(rmsg->replySize, 4 /* log2(DTU::Message::Header) */);
+        ASSERT_EQ(rmsg->replyEp, DTU::INVALID_EP);
+        ASSERT_EQ(rmsg->senderPe, OWN_MODID);
+        ASSERT_EQ(rmsg->flags, 0);
+
+        ASSERT_EQ(DTU::ack_msg(1, rmsg), Error::NONE);
     }
 
     // send without reply
