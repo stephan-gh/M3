@@ -119,7 +119,7 @@ m3::Errors::Code PEMux::init(vpeid_t vpe, gaddr_t pts_start, gaddr_t pts_end) {
     return upcall(&req, sizeof(req));
 }
 
-m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, int perm) {
+m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, uint perm) {
     m3::KIF::PEXUpcalls::Map req;
     req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::MAP);
     req.vpe_sel = vpe;

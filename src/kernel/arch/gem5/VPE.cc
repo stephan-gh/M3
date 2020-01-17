@@ -65,7 +65,7 @@ static void copy_clear(const VPEDesc &vpe, uintptr_t virt, gaddr_t phys, size_t 
         size, clear);
 }
 
-static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, int perms) {
+static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, uint perms) {
     if(Platform::pe(vpe.peid()).has_virtmem() || (perms & MapCapability::EXCL)) {
         capsel_t dst = virt >> PAGE_BITS;
         size_t pages = m3::Math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
@@ -105,7 +105,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool t
         if(pheader.p_type != m3::PT_LOAD || pheader.p_memsz == 0)
             continue;
 
-        int perms = m3::DTU::PTE_I;
+        uint perms = m3::DTU::PTE_I;
         if(pheader.p_flags & m3::PF_R)
             perms |= m3::DTU::PTE_R;
         if(pheader.p_flags & m3::PF_W)

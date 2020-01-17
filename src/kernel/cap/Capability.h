@@ -243,7 +243,7 @@ public:
 
 class MGateObject : public SlabObject<MGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit MGateObject(peid_t _pe, goff_t _addr, size_t _size, int _perms)
+    explicit MGateObject(peid_t _pe, goff_t _addr, size_t _size, uint _perms)
         : GateObject(Capability::MGATE),
           RefCounted(),
           pe(_pe),
@@ -255,7 +255,7 @@ public:
     peid_t pe;
     goff_t addr;
     size_t size;
-    int perms;
+    uint perms;
 };
 
 class SessObject : public SlabObject<SessObject>, public m3::RefCounted {
@@ -306,14 +306,14 @@ public:
 
 class MapObject : public SlabObject<MapObject>, public m3::RefCounted {
 public:
-    explicit MapObject(gaddr_t _phys, int _attr)
+    explicit MapObject(gaddr_t _phys, uint _attr)
         : RefCounted(),
           phys(_phys),
           attr(_attr) {
     }
 
     gaddr_t phys;
-    int attr;
+    uint attr;
 };
 
 class KMemObject : public SlabObject<KMemObject>, public m3::RefCounted {
@@ -428,7 +428,7 @@ public:
 
 class MapCapability : public SlabObject<MapCapability>, public Capability {
 public:
-    enum {
+    enum : uint {
         EXCL    = 0x08000,
         KERNEL  = 0x10000,
     };
@@ -442,7 +442,7 @@ public:
         return sizeof(MapObject);
     }
 
-    m3::Errors::Code remap(gaddr_t _phys, int _attr);
+    m3::Errors::Code remap(gaddr_t _phys, uint _attr);
 
     void printInfo(m3::OStream &os) const override;
 

@@ -68,7 +68,7 @@ void DTUState::config_send(epid_t ep, vpeid_t, label_t lbl, peid_t pe, epid_t ds
     regs[m3::DTU::EP_PERM]          = 0;
 }
 
-void DTUState::config_mem(epid_t ep, vpeid_t, peid_t pe, goff_t addr, size_t size, int perms) {
+void DTUState::config_mem(epid_t ep, vpeid_t, peid_t pe, goff_t addr, size_t size, uint perms) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
     regs[m3::DTU::EP_VALID]         = 1;
     regs[m3::DTU::EP_LABEL]         = addr;

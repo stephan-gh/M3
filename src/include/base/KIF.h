@@ -63,11 +63,11 @@ struct KIF {
      * The permissions for MemGate
      */
     struct Perm {
-        static const int R = 1;
-        static const int W = 2;
-        static const int X = 4;
-        static const int RW = R | W;
-        static const int RWX = R | W | X;
+        static const uint R = 1;
+        static const uint W = 2;
+        static const uint X = 4;
+        static const uint RW = R | W;
+        static const uint RWX = R | W | X;
     };
 
     enum VPEFlags {

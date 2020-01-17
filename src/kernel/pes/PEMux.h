@@ -80,7 +80,7 @@ public:
     void free_eps(epid_t first, uint count);
 
     m3::Errors::Code init(vpeid_t vpe, gaddr_t pts_start, gaddr_t pts_end);
-    m3::Errors::Code map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, int perm);
+    m3::Errors::Code map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, uint perm);
     m3::Errors::Code vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
 
     bool invalidate_ep(epid_t ep, bool force = false);

@@ -172,7 +172,7 @@ void PECapability::revoke() {
         static_cast<PECapability*>(parent())->obj->free(obj->eps);
 }
 
-m3::Errors::Code MapCapability::remap(gaddr_t _phys, int _attr) {
+m3::Errors::Code MapCapability::remap(gaddr_t _phys, uint _attr) {
     VPE *vpe = table()->vpe();
     assert(vpe != nullptr);
     auto pemux = PEManager::get().pemux(vpe->peid());

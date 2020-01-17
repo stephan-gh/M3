@@ -66,7 +66,7 @@ void DTUState::config_send(epid_t ep, vpeid_t vpe, label_t lbl, peid_t pe, epid_
     r[2] = lbl;
 }
 
-void DTUState::config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t size, int perm) {
+void DTUState::config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t size, uint perm) {
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
     r[0] = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) |
             (static_cast<m3::DTU::reg_t>(vpe) << 3) |

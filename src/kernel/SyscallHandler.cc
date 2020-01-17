@@ -333,7 +333,7 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
     capsel_t tvpe = req->vpe_sel;
     capsel_t first = req->first;
     capsel_t pages = req->pages;
-    int perms = req->perms;
+    uint perms = req->perms;
 
     LOG_SYS(vpe, ": syscall::create_map", "(dst=" << dst << ", tvpe=" << tvpe << ", mgate=" << mgate
         << ", first=" << first << ", pages=" << pages << ", perms=" << perms << ")");
@@ -682,7 +682,7 @@ void SyscallHandler::derive_mem(VPE *vpe, const m3::DTU::Message *msg) {
     capsel_t src = req->src_sel;
     goff_t offset = req->offset;
     size_t size = req->size;
-    int perms = req->perms;
+    uint perms = req->perms;
 
     LOG_SYS(vpe, ": syscall::derive_mem", "(vpe=" << tvpe << ", src=" << src << ", dst=" << dst
         << ", size=" << size << ", off=" << offset << ", perms=" << perms << ")");
