@@ -142,8 +142,8 @@ fn handle_upcall(msg: &'static dtu::Message, state: &mut isr::State) {
     }
 }
 
-pub fn disable() {
-    ENABLED.set(false);
+pub fn disable() -> bool {
+    ENABLED.set(false)
 }
 
 pub fn enable() {

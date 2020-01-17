@@ -45,7 +45,7 @@ pub fn handle_recv(req: dtu::Reg) {
         // ignore upcalls during nested interrupts; we'll handle them as soon as we're done here
         // (otherwise this could steal the message that we're waiting on here)
         // TODO what about pagefaults in the meantime?
-        upcalls::disable();
+        let upcalls_were_enabled = upcalls::disable();
 
         // we need to enable interrupts to allow address translations for message reception
         let _guard = IRQsOnGuard::new();
@@ -55,7 +55,9 @@ pub fn handle_recv(req: dtu::Reg) {
         while dtu::DTU::unread_mask(ep_id) == unread_mask {
         }
 
-        upcalls::enable();
+        if upcalls_were_enabled {
+            upcalls::enable();
+        }
     }
     else {
         dtu::DTU::set_core_resp(req);
