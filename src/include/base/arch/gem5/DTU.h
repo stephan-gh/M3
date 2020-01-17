@@ -93,12 +93,6 @@ private:
         ARG1                = DTU_REGS + 3,
     };
 
-    enum MemFlags : reg_t {
-        R                   = 1 << 0,
-        W                   = 1 << 1,
-        RW                  = R | W,
-    };
-
     enum StatusFlags : reg_t {
         PRIV                = 1 << 0,
     };
@@ -148,34 +142,13 @@ public:
         EP_INVAL    = 1 << static_cast<reg_t>(EventType::EP_INVAL),
     };
 
-    typedef uint64_t pte_t;
+    enum MemFlags : reg_t {
+        R                   = 1 << 0,
+        W                   = 1 << 1,
+    };
 
     enum CmdFlags {
         NOPF                = 1,
-    };
-
-    enum {
-        PTE_BITS            = 3,
-        PTE_SIZE            = 1 << PTE_BITS,
-        LEVEL_CNT           = 4,
-        LEVEL_BITS          = PAGE_BITS - PTE_BITS,
-        LEVEL_MASK          = (1 << LEVEL_BITS) - 1,
-        LPAGE_BITS          = PAGE_BITS + LEVEL_BITS,
-        LPAGE_SIZE          = 1UL << LPAGE_BITS,
-        LPAGE_MASK          = LPAGE_SIZE - 1,
-        PTE_REC_IDX         = 0x10,
-    };
-
-    enum {
-        PTE_R               = 1,
-        PTE_W               = 2,
-        PTE_X               = 4,
-        PTE_I               = 8,
-        PTE_LARGE           = 16,
-        PTE_UNCACHED        = 32, // unsupported by DTU, but used for MMU
-        PTE_RW              = PTE_R | PTE_W,
-        PTE_RWX             = PTE_RW | PTE_X,
-        PTE_IRWX            = PTE_RWX | PTE_I,
     };
 
     struct Header {

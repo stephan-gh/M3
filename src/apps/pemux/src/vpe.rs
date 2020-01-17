@@ -22,11 +22,11 @@ use base::goff;
 use base::kif;
 use base::math;
 
-extern "C" fn frame_allocator(vpe: u64) -> goff {
+extern "C" fn frame_allocator(vpe: u64) -> paging::MMUPTE {
     get_mut(vpe).unwrap().alloc_frame()
 }
 
-extern "C" fn xlate_pt(vpe: u64, phys: goff) -> usize {
+extern "C" fn xlate_pt(vpe: u64, phys: paging::MMUPTE) -> usize {
     let vpe = get_mut(vpe).unwrap();
     assert!(phys >= vpe.pts_start() && phys < vpe.pts_end());
     let off = phys - vpe.pts_start();
@@ -35,8 +35,9 @@ extern "C" fn xlate_pt(vpe: u64, phys: goff) -> usize {
 
 pub struct VPE {
     aspace: paging::AddrSpace,
+    root_pt: goff,
     vpe_reg: dtu::Reg,
-    pts_start: u64,
+    pts_start: paging::MMUPTE,
     pts_count: usize,
     pts_pos: usize,
 }
@@ -46,7 +47,7 @@ static IDLE: StaticCell<Option<VPE>> = StaticCell::new(None);
 static OWN: StaticCell<Option<VPE>> = StaticCell::new(None);
 
 pub fn init() {
-    let root_pt = paging::phys_to_noc(paging::get_addr_space() as goff);
+    let root_pt = paging::get_addr_space();
     IDLE.set(Some(VPE::new(kif::pemux::IDLE_ID, root_pt, 0, 0)));
     OWN.set(Some(VPE::new(kif::pemux::VPE_ID, root_pt, 0, 0)));
 }
@@ -105,11 +106,12 @@ pub fn remove() {
 }
 
 impl VPE {
-    pub fn new(id: u64, root_pt: u64, pts_start: u64, pts_count: usize) -> Self {
+    pub fn new(id: u64, root_pt: goff, pts_start: goff, pts_count: usize) -> Self {
         VPE {
             aspace: paging::AddrSpace::new(id, root_pt, xlate_pt, frame_allocator),
+            root_pt,
             vpe_reg: id << 19,
-            pts_start,
+            pts_start: paging::noc_to_phys(pts_start) as paging::MMUPTE,
             pts_count,
             // + 1 to skip the root PT
             pts_pos: (root_pt - pts_start) as usize / cfg::PAGE_SIZE + 1,
@@ -121,25 +123,13 @@ impl VPE {
         virt: usize,
         phys: goff,
         pages: usize,
-        perm: dtu::PTEFlags,
+        perm: kif::PageFlags,
     ) -> Result<(), Error> {
         self.aspace.map_pages(virt, phys, pages, perm)
     }
 
     pub fn id(&self) -> u64 {
-        self.aspace.vpe
-    }
-
-    pub fn pts_start(&self) -> u64 {
-        self.pts_start
-    }
-
-    pub fn pts_end(&self) -> u64 {
-        self.pts_start + (self.pts_count * cfg::PAGE_SIZE) as u64
-    }
-
-    pub fn root_pt(&self) -> u64 {
-        self.aspace.root
+        self.aspace.id()
     }
 
     pub fn vpe_reg(&self) -> dtu::Reg {
@@ -162,6 +152,14 @@ impl VPE {
         self.vpe_reg += 1 << 3;
     }
 
+    fn pts_start(&self) -> paging::MMUPTE {
+        self.pts_start
+    }
+
+    fn pts_end(&self) -> paging::MMUPTE {
+        self.pts_start + (self.pts_count * cfg::PAGE_SIZE) as paging::MMUPTE
+    }
+
     fn init(&self) {
         extern "C" {
             static _text_start: u8;
@@ -177,7 +175,7 @@ impl VPE {
         self.aspace.init();
 
         // map DTU
-        let rw = dtu::PTEFlags::I | dtu::PTEFlags::RW;
+        let rw = kif::PageFlags::U | kif::PageFlags::RW;
         self.map(
             dtu::MMIO_ADDR,
             dtu::MMIO_ADDR as goff,
@@ -189,13 +187,13 @@ impl VPE {
             dtu::MMIO_PRIV_ADDR,
             dtu::MMIO_PRIV_ADDR as goff,
             dtu::MMIO_PRIV_SIZE / cfg::PAGE_SIZE,
-            dtu::PTEFlags::RW,
+            kif::PageFlags::RW,
         )
         .unwrap();
 
         // map text, data, and bss
         unsafe {
-            let rx = dtu::PTEFlags::I | dtu::PTEFlags::R | dtu::PTEFlags::X;
+            let rx = kif::PageFlags::U | kif::PageFlags::RX;
             self.map_segment(&_text_start, &_text_end, rx);
             self.map_segment(&_data_start, &_data_end, rw);
             self.map_segment(&_bss_start, &_bss_end, rw);
@@ -203,11 +201,10 @@ impl VPE {
 
         // map receive buffers
         // TODO currently the same rbuf space is used for PEMux and apps
-        let pte = paging::get_pte(cfg::RECVBUF_SPACE, dtu::PTEFlags::R.bits());
-        let recv_phys = paging::to_dtu_pte(pte as paging::PTE) & !cfg::PAGE_MASK as goff;
+        let pte = paging::translate(cfg::RECVBUF_SPACE, kif::PageFlags::R.bits());
         self.map(
             cfg::RECVBUF_SPACE,
-            recv_phys,
+            pte & !cfg::PAGE_MASK as goff,
             cfg::RECVBUF_SIZE / cfg::PAGE_SIZE,
             rw,
         )
@@ -216,29 +213,29 @@ impl VPE {
         // map PTs
         self.map(
             cfg::PE_MEM_BASE,
-            self.pts_start,
+            paging::phys_to_noc(self.pts_start as u64),
             self.pts_count,
-            dtu::PTEFlags::RW,
+            kif::PageFlags::RW,
         )
         .unwrap();
     }
 
     fn switch_to(&self) {
-        paging::set_addr_space(paging::noc_to_phys(self.root_pt() as goff) as paging::PTE);
+        paging::set_addr_space(self.root_pt);
         dtu::DTU::invalidate_tlb();
     }
 
-    fn map_segment(&self, start: *const u8, end: *const u8, perm: dtu::PTEFlags) {
+    fn map_segment(&self, start: *const u8, end: *const u8, perm: kif::PageFlags) {
         let start = math::round_dn(start as usize, cfg::PAGE_SIZE);
         let end = math::round_up(end as usize, cfg::PAGE_SIZE);
         let pages = (end - start) / cfg::PAGE_SIZE;
-        self.map(start, self.pts_start + start as goff, pages, perm)
+        self.map(start, paging::phys_to_noc((self.pts_start as usize + start) as goff), pages, perm)
             .unwrap();
     }
 
-    fn alloc_frame(&mut self) -> u64 {
+    fn alloc_frame(&mut self) -> paging::MMUPTE {
         if self.pts_pos < self.pts_count {
-            let res = self.pts_start + cfg::PAGE_SIZE as u64 * self.pts_pos as u64;
+            let res = self.pts_start + (cfg::PAGE_SIZE * self.pts_pos) as paging::MMUPTE;
             self.pts_pos += 1;
             res
         }

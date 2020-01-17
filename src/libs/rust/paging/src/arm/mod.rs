@@ -14,18 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use base::dtu;
 use base::errors::Error;
 use base::goff;
+use base::kif::{PageFlags, PTE};
 
 use crate::{AllocFrameFunc, XlatePtFunc};
 
-pub type PTE = u32;
-
-#[no_mangle]
-pub extern "C" fn to_dtu_pte(_pte: PTE) -> dtu::PTE {
-    unimplemented!();
-}
+pub type MMUPTE = u32;
 
 #[no_mangle]
 pub extern "C" fn get_addr_space() -> PTE {
@@ -51,22 +46,17 @@ pub extern "C" fn phys_to_noc(phys: u64) -> u64 {
 }
 
 #[no_mangle]
-pub extern "C" fn get_pte_at(_virt: usize, _level: u32) -> PTE {
-    unimplemented!();
-}
-
-#[no_mangle]
-pub extern "C" fn get_pte(_virt: usize, _perm: u64) -> PTE {
+pub extern "C" fn translate(_virt: usize, _perm: PTE) -> PTE {
     unimplemented!();
 }
 
 #[no_mangle]
 pub extern "C" fn map_pages(
-    _vpe: u64,
+    _id: u64,
     _virt: usize,
     _phys: goff,
     _pages: usize,
-    _perm: u64,
+    _perm: PTE,
     _alloc_frame: AllocFrameFunc,
     _xlate_pt: XlatePtFunc,
     _root: goff,
@@ -74,16 +64,17 @@ pub extern "C" fn map_pages(
 }
 
 pub struct AddrSpace {
-    pub vpe: u64,
+    pub id: u64,
     pub root: goff,
 }
 
 impl AddrSpace {
-    pub fn new(vpe: u64, root: goff, _xlate_pt: XlatePtFunc, _alloc_frame: AllocFrameFunc) -> Self {
-        AddrSpace {
-            vpe,
-            root,
-        }
+    pub fn new(id: u64, root: goff, _xlate_pt: XlatePtFunc, _alloc_frame: AllocFrameFunc) -> Self {
+        AddrSpace { id, root }
+    }
+
+    pub fn id(&self) -> u64 {
+        self.id
     }
 
     pub fn init(&self) {
@@ -91,10 +82,10 @@ impl AddrSpace {
 
     pub fn map_pages(
         &self,
-        _virt: usize,
-        _phys: goff,
-        _pages: usize,
-        _perm: dtu::PTEFlags,
+        mut _virt: usize,
+        mut _phys: goff,
+        mut _pages: usize,
+        _perm: PageFlags,
     ) -> Result<(), Error> {
         unimplemented!();
     }

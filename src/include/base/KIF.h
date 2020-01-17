@@ -70,6 +70,19 @@ struct KIF {
         static const uint RWX = R | W | X;
     };
 
+    /**
+     * The flags for virtual mappings
+     */
+    struct PageFlags {
+        static const uint R = Perm::R;
+        static const uint W = Perm::W;
+        static const uint X = Perm::X;
+        static const uint U = 8;
+        static const uint RW = R | W;
+        static const uint RX = R | X;
+        static const uint RWX = R | W | X;
+    };
+
     enum VPEFlags {
         // whether the PE can be shared with others
         MUXABLE     = 1,

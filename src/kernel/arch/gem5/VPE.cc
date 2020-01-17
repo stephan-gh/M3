@@ -105,19 +105,19 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool t
         if(pheader.p_type != m3::PT_LOAD || pheader.p_memsz == 0)
             continue;
 
-        uint perms = m3::DTU::PTE_I;
+        uint perms = 0;
         if(pheader.p_flags & m3::PF_R)
-            perms |= m3::DTU::PTE_R;
+            perms |= m3::KIF::PageFlags::R;
         if(pheader.p_flags & m3::PF_W)
-            perms |= m3::DTU::PTE_W;
+            perms |= m3::KIF::PageFlags::W;
         if(pheader.p_flags & m3::PF_X)
-            perms |= m3::DTU::PTE_X;
+            perms |= m3::KIF::PageFlags::X;
 
         goff_t offset = m3::Math::round_dn(static_cast<size_t>(pheader.p_offset), PAGE_SIZE);
         goff_t virt = m3::Math::round_dn(static_cast<size_t>(pheader.p_vaddr), PAGE_SIZE);
 
         // do we need new memory for this segment?
-        if((copy && (perms & m3::DTU::PTE_W)) || pheader.p_filesz == 0) {
+        if((copy && (perms & m3::KIF::PageFlags::W)) || pheader.p_filesz == 0) {
             // allocate memory
             size_t size = static_cast<size_t>((pheader.p_vaddr & PAGE_BITS) + pheader.p_memsz);
             size = m3::Math::round_up(size, PAGE_SIZE);
@@ -142,8 +142,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool t
     // create initial heap
     gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE);
     goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
-    int perms = m3::DTU::PTE_I | m3::DTU::PTE_RW | MapCapability::EXCL;
-    map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, perms);
+    map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, m3::KIF::PageFlags::RW | MapCapability::EXCL);
 
     return header.e_entry;
 }
@@ -160,8 +159,7 @@ void VPE::load_app() {
         // map runtime space
         goff_t virt = ENV_START;
         gaddr_t phys = alloc_mem(STACK_TOP - virt);
-        map_segment(*this, phys, virt, STACK_TOP - virt,
-                    m3::DTU::PTE_I | m3::DTU::PTE_RW | MapCapability::EXCL);
+        map_segment(*this, phys, virt, STACK_TOP - virt, m3::KIF::PageFlags::RW | MapCapability::EXCL);
     }
 
     // load app

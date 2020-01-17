@@ -102,7 +102,7 @@ fn map(msg: &'static dtu::Message) -> Result<(), Error> {
     let virt = req.virt as usize;
     let phys = req.phys as goff;
     let pages = req.pages as usize;
-    let perm = dtu::PTEFlags::from_bits_truncate(req.perm as u64);
+    let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
 
     // ensure that we don't overmap critical areas
     if virt < cfg::ENV_START || virt + pages * cfg::PAGE_SIZE > cfg::RECVBUF_SPACE {
@@ -119,7 +119,9 @@ fn map(msg: &'static dtu::Message) -> Result<(), Error> {
         perm
     );
 
-    vpe::get_mut(vpe_id).unwrap().map(virt, phys, pages, perm)
+    vpe::get_mut(vpe_id)
+        .unwrap()
+        .map(virt, phys, pages, perm | kif::PageFlags::U)
 }
 
 fn handle_upcall(msg: &'static dtu::Message, state: &mut isr::State) {

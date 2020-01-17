@@ -29,3 +29,28 @@ bitflags! {
         const RWX = Self::R.bits | Self::W.bits | Self::X.bits;
     }
 }
+
+/// A page table entry, containing a NoC address and PageFlags in the lower 4 bits
+pub type PTE = u64;
+
+bitflags! {
+    /// The flags for virtual mappings
+    pub struct PageFlags : u64 {
+        /// Readable
+        const R             = 0b0000_0001;
+        /// Writable
+        const W             = 0b0000_0010;
+        /// Executable
+        const X             = 0b0000_0100;
+        /// User accessible
+        const U             = 0b0000_1000;
+        /// Read+write
+        const RW            = Self::R.bits | Self::W.bits;
+        /// Read+write+execute
+        const RWX           = Self::R.bits | Self::W.bits | Self::X.bits;
+        /// Read+execute
+        const RX            = Self::R.bits | Self::X.bits;
+        /// User+read+write+execute
+        const IRWX          = Self::R.bits | Self::W.bits | Self::X.bits | Self::U.bits;
+    }
+}

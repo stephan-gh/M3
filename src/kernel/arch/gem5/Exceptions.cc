@@ -18,6 +18,7 @@
 #include <base/Backtrace.h>
 #include <base/Init.h>
 #include <base/Panic.h>
+#include <base/KIF.h>
 
 #include <isr/ISR.h>
 
@@ -57,7 +58,7 @@ static m3::OStream &operator<<(m3::OStream &os, const m3::ISR::State &state) {
 
 #else
 
-extern "C" m3::DTU::pte_t get_pte(uintptr_t virt, uint64_t perm);
+extern "C" uint64_t translate(uintptr_t virt, uint64_t perm);
 
 static word_t getCR2() {
     word_t res;
@@ -148,10 +149,10 @@ public:
         m3::DTU &dtu = m3::DTU::get();
 
         uintptr_t virt = xlate_req & ~PAGE_MASK;
-        uint perm = (xlate_req >> 1) & 0xF;
+        uint perm = (xlate_req >> 1) & 0x7;
         uint xferbuf = (xlate_req >> 5) & 0x7;
 
-        m3::DTU::pte_t pte = get_pte(virt, perm);
+        uint64_t pte = translate(virt, perm);
         if(~(pte & 0xF) & perm)
             PANIC("Pagefault during PT walk for " << virt << " (PTE=" << m3::fmt(pte, "p") << ")");
 

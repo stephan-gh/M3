@@ -38,13 +38,6 @@ void DTU::print(const char *str, size_t len) {
 }
 
 Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
-    static_assert(KIF::Perm::R == DTU::R, "DTU::R does not match KIF::Perm::R");
-    static_assert(KIF::Perm::W == DTU::W, "DTU::W does not match KIF::Perm::W");
-
-    static_assert(KIF::Perm::R == DTU::PTE_R, "DTU::PTE_R does not match KIF::Perm::R");
-    static_assert(KIF::Perm::W == DTU::PTE_W, "DTU::PTE_W does not match KIF::Perm::W");
-    static_assert(KIF::Perm::X == DTU::PTE_X, "DTU::PTE_X does not match KIF::Perm::X");
-
     write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
     if(replylbl)
         write_reg(CmdRegs::ARG1, replylbl);

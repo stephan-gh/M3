@@ -67,6 +67,9 @@ void DTUState::config_send(epid_t ep, vpeid_t vpe, label_t lbl, peid_t pe, epid_
 }
 
 void DTUState::config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t size, uint perm) {
+    static_assert(m3::KIF::Perm::R == m3::DTU::R, "DTU::R does not match KIF::Perm::R");
+    static_assert(m3::KIF::Perm::W == m3::DTU::W, "DTU::W does not match KIF::Perm::W");
+
     m3::DTU::reg_t *r = reinterpret_cast<m3::DTU::reg_t*>(get_ep(ep));
     r[0] = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) |
             (static_cast<m3::DTU::reg_t>(vpe) << 3) |
@@ -82,7 +85,7 @@ bool DTUState::config_mem_cached(epid_t ep, peid_t pe) {
     r0 = static_cast<m3::DTU::reg_t>(m3::DTU::EpType::MEMORY) |
          (VPE::KERNEL_ID << 3) |
          (pe << 23) |
-         (m3::DTU::RW << 19);
+         (m3::KIF::Perm::RW << 19);
     r2 = 0xFFFFFFFFFFFFFFFF;
     bool res = false;
     if(r0 != r[0]) {

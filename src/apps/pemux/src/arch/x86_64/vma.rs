@@ -18,6 +18,7 @@ use base::cell::StaticCell;
 use base::cfg;
 use base::const_assert;
 use base::dtu;
+use base::kif::{PageFlags, PTE};
 use core::ptr;
 use paging;
 
@@ -45,7 +46,7 @@ impl XlateState {
         }
     }
 
-    fn handle_pf(&mut self, req: dtu::Reg, virt: usize, perm: u64) -> bool {
+    fn handle_pf(&mut self, req: dtu::Reg, virt: usize, perm: PageFlags) -> bool {
         if self.in_pf {
             for r in &mut self.reqs {
                 if *r == 0 {
@@ -70,10 +71,10 @@ impl XlateState {
 
         // send PF message
         self.pf_msg[1] = virt as u64;
-        self.pf_msg[2] = perm;
+        self.pf_msg[2] = perm.bits();
         let msg = &self.pf_msg as *const u64 as *const u8;
         if let Err(e) = dtu::DTU::send(dtu::PG_SEP, msg, 3 * 8, 0, dtu::PG_REP) {
-            panic!("VMA: unable to send PF message for virt={:#x}, perm={:#x}: {}", virt, perm, e);
+            panic!("VMA: unable to send PF message for virt={:#x}, perm={:?}: {}", virt, perm, e);
         }
 
         upcalls::enable();
@@ -108,18 +109,18 @@ static STATE: StaticCell<XlateState> = StaticCell::new(XlateState::new());
 
 fn translate_addr(req: dtu::Reg) -> bool {
     let virt = req as usize & !cfg::PAGE_MASK as usize;
-    let perm = (req >> 1) & 0xF;
+    let perm = PageFlags::from_bits_truncate((req >> 1) & PageFlags::RW.bits());
     let xfer_buf = (req >> 5) & 0x7;
 
-    // translate to physical
-    let mut pte = paging::get_pte(virt, perm);
+    // perform page table walk
+    let mut pte = paging::translate(virt, perm.bits());
 
     let mut pf = false;
-    if (!(pte & 0xF) & perm) != 0 {
+    if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
         // the first xfer buffer can't raise pagefaults
         if xfer_buf == 0 {
             // the xlate response has to be non-zero, but have no permission bits set
-            pte = cfg::PAGE_SIZE as u64;
+            pte = cfg::PAGE_SIZE as PTE;
         }
         else {
             if !STATE.get_mut().handle_pf(req, virt, perm) {
@@ -127,7 +128,7 @@ fn translate_addr(req: dtu::Reg) -> bool {
             }
 
             // read PTE again
-            pte = paging::to_dtu_pte(paging::get_pte_at(virt, 0));
+            pte = paging::translate(virt, perm.bits());
             pf = true;
         }
     }
@@ -173,9 +174,9 @@ pub fn handle_mmu_pf(state: &mut isr::State) {
     // PEMux isn't causing PFs
     assert!(state.came_from_user());
 
-    let perm = state.error & 0x7;
+    let perm = paging::MMUFlags::from_bits_truncate(state.error & PageFlags::RW.bits() as usize);
     // the access is implicitly no-exec
-    let perm = paging::to_dtu_pte(perm | paging::MMUFlags::NOEXEC.bits());
+    let perm = paging::to_map_flags(perm | paging::MMUFlags::NX);
     if !STATE.get_mut().handle_pf(0, cr2, perm) {
         if isr::is_stopped() {
             return;

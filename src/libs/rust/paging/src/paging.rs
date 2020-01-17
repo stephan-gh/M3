@@ -39,8 +39,6 @@ cfg_if! {
     }
 }
 
-use base::goff;
-
 pub use paging::*;
 
 /// Logs mapping operations
@@ -48,5 +46,5 @@ pub const LOG_MAP: bool = false;
 /// Logs detailed mapping operations
 pub const LOG_MAP_DETAIL: bool = false;
 
-pub type AllocFrameFunc = extern "C" fn(vpe: u64) -> goff;
-pub type XlatePtFunc = extern "C" fn(vpe: u64, phys: goff) -> usize;
+pub type AllocFrameFunc = extern "C" fn(vpe: u64) -> paging::MMUPTE;
+pub type XlatePtFunc = extern "C" fn(vpe: u64, phys: paging::MMUPTE) -> usize;

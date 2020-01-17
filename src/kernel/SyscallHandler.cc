@@ -349,8 +349,6 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Memory capability is not page aligned");
     if(perms & ~mgatecap->obj->perms)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid permissions");
-    // user-mapped memory is always user-accessible
-    perms |= m3::DTU::PTE_I;
 
     size_t total = mgatecap->obj->size >> PAGE_BITS;
     if(first >= total || first + pages <= first || first + pages > total)
@@ -366,7 +364,7 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
     //     SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 	if(vpeobj.is_stopped())
         SYS_ERROR(vpe, msg, m3::Errors::VPE_GONE, "VPE is currently being destroyed");
-    
+
     auto mapcap = static_cast<MapCapability*>(mcaps.get(dst, Capability::MAP));
     if(mapcap == nullptr) {
         if(!mcaps.range_unused(m3::KIF::CapRngDesc(m3::KIF::CapRngDesc::MAP, dst, pages)))

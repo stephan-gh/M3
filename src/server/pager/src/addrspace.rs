@@ -20,10 +20,10 @@ use m3::cell::RefCell;
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::{GateIStream, MGateFlags, MemGate, SGateArgs, SendGate};
-use m3::dtu::{Label, PTEFlags};
+use m3::dtu::Label;
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::kif::{syscalls::ExchangeArgs, Perm};
+use m3::kif::{PageFlags, syscalls::ExchangeArgs, Perm};
 use m3::math;
 use m3::pes::VPE;
 use m3::rc::Rc;
@@ -138,7 +138,7 @@ impl AddrSpace {
 
     pub fn pagefault(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let virt: goff = is.pop();
-        let access = PTEFlags::from_bits_truncate(is.pop()) & !PTEFlags::I;
+        let access = PageFlags::from_bits_truncate(is.pop()) & !PageFlags::U;
         let access = Perm::from_bits_truncate(access.bits() as u32);
 
         log!(
