@@ -45,6 +45,6 @@ pub struct EnvData {
     pub _isrs: u64,
 }
 
-pub fn get() -> &'static mut EnvData {
+pub fn get() -> &'static EnvData {
     unsafe { intrinsics::transmute(cfg::ENV_START) }
 }
