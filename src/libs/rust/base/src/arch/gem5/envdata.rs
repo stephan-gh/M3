@@ -46,5 +46,6 @@ pub struct EnvData {
 }
 
 pub fn get() -> &'static EnvData {
+    // safety: the cast is okay because we trust our loader to put the environment at that place
     unsafe { intrinsics::transmute(cfg::ENV_START) }
 }

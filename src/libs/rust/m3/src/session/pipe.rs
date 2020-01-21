@@ -37,12 +37,9 @@ impl Pipes {
 
     /// Creates a new pipe using `mem` of `mem_size` bytes as shared memory for the data exchange.
     pub fn create_pipe(&self, mem: &MemGate, mem_size: usize) -> Result<Pipe, Error> {
-        let mut args = kif::syscalls::ExchangeArgs {
-            count: 1,
-            vals: kif::syscalls::ExchangeUnion {
-                i: [mem_size as u64, 0, 0, 0, 0, 0, 0, 0],
-            },
-        };
+        let mut args = kif::syscalls::ExchangeArgs::new(1, kif::syscalls::ExchangeUnion {
+            i: [mem_size as u64, 0, 0, 0, 0, 0, 0, 0],
+        });
         let crd = self.sess.obtain(2, &mut args)?;
         Pipe::new(mem, crd.start())
     }
@@ -68,12 +65,9 @@ impl Pipe {
     /// Creates a new channel for this pipe. If `read` is true, it is a read-end, otherwise a
     /// write-end.
     pub fn create_chan(&self, read: bool) -> Result<FileHandle, Error> {
-        let mut args = kif::syscalls::ExchangeArgs {
-            count: 1,
-            vals: kif::syscalls::ExchangeUnion {
-                i: [read as u64, 0, 0, 0, 0, 0, 0, 0],
-            },
-        };
+        let mut args = kif::syscalls::ExchangeArgs::new(1, kif::syscalls::ExchangeUnion {
+            i: [read as u64, 0, 0, 0, 0, 0, 0, 0],
+        });
         let crd = self.sess.obtain(2, &mut args)?;
         let flags = if read { OpenFlags::R } else { OpenFlags::W };
         Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))

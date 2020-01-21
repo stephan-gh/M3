@@ -106,6 +106,7 @@ impl Session {
         let mut smsg = kif::service::Open {
             opcode: kif::service::Operation::OPEN.val as u64,
             arglen: (arg.len() + 1) as u64,
+            // safety: will be initialized below
             arg: unsafe { MaybeUninit::uninit().assume_init() },
         };
         // copy arg

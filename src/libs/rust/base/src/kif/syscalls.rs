@@ -79,25 +79,51 @@ pub union ExchangeUnion {
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
 pub struct ExchangeArgs {
-    pub count: u64,
-    pub vals: ExchangeUnion,
+    count: u64,
+    vals: ExchangeUnion,
 }
 
 impl ExchangeArgs {
+    pub fn new(count: u64, vals: ExchangeUnion) -> Self {
+        Self { count, vals }
+    }
+
+    pub fn count(&self) -> usize {
+        self.count as usize
+    }
+
+    // safety: with this call you guarantee that the values 0..count-1 are initialized
+    // has to be called before `set_ival`.
+    pub unsafe fn set_count(&mut self, count: usize) {
+        self.count = count as u64
+    }
+
     pub fn ival(&self, idx: usize) -> u64 {
+        assert!(idx < self.count as usize);
+        // safety: we guarantee that the values between 0 and count-1 are initialized
         unsafe { self.vals.i[idx] }
     }
 
     pub fn set_ival(&mut self, idx: usize, val: u64) {
+        assert!(idx < self.count as usize);
+        // safety: the assert makes sure that it's within the range that's going to be initialized
         unsafe { self.vals.i[idx] = val };
     }
 
     pub fn sval(&self, idx: usize) -> u64 {
+        assert!(idx < self.count as usize);
+        // safety: we guarantee that the values between 0 and count-1 are initialized
         unsafe { self.vals.s.i[idx] }
     }
 
-    pub fn str(&self) -> &[u8] {
-        unsafe { &self.vals.s.s }
+    pub fn set_str(&mut self, s: &str) {
+        // safety: initialization is okay
+        unsafe {
+            for (a, c) in self.vals.s.s.iter_mut().zip(s.bytes()) {
+                *a = c as u8;
+            }
+            self.vals.s.s[s.len()] = b'\0';
+        }
     }
 }
 
@@ -106,6 +132,7 @@ impl Default for ExchangeArgs {
         #[allow(clippy::uninit_assumed_init)]
         ExchangeArgs {
             count: 0,
+            // safety: we will initialize the values between 0 and count-1
             vals: unsafe { MaybeUninit::uninit().assume_init() },
         }
     }

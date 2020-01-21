@@ -176,6 +176,7 @@ impl MemGate {
     /// `off` and returns the data as an object of `T`.
     pub fn read_obj<T>(&self, off: goff) -> Result<T, Error> {
         #[allow(clippy::uninit_assumed_init)]
+        // safety: will be initialized in read_bytes
         let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
         self.read_bytes(&mut obj as *mut T as *mut u8, util::size_of::<T>(), off)?;
         Ok(obj)

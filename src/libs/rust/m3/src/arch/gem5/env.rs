@@ -92,6 +92,7 @@ impl EnvData {
     }
 
     pub fn vpe(&self) -> &'static mut VPE {
+        // safety: we trust our loader
         unsafe { intrinsics::transmute(self.base.vpe as usize) }
     }
 
@@ -117,6 +118,7 @@ impl EnvData {
 
     pub fn load_mounts(&self) -> MountTable {
         if self.base.mounts_len != 0 {
+            // safety: we trust our loader
             let slice = unsafe {
                 util::slice_for(
                     self.base.mounts as *const u64,
@@ -132,6 +134,7 @@ impl EnvData {
 
     pub fn load_fds(&self) -> FileTable {
         if self.base.fds_len != 0 {
+            // safety: we trust our loader
             let slice =
                 unsafe { util::slice_for(self.base.fds as *const u64, self.base.fds_len as usize) };
             FileTable::unserialize(&mut SliceSource::new(slice))
@@ -185,9 +188,11 @@ impl EnvData {
 }
 
 pub fn get() -> &'static mut EnvData {
+    // safety: we trust our loader
     unsafe { intrinsics::transmute(cfg::ENV_START) }
 }
 
 pub fn closure() -> &'static mut env::Closure {
+    // safety: we trust our loader
     unsafe { intrinsics::transmute(cfg::ENV_START + util::size_of::<EnvData>()) }
 }

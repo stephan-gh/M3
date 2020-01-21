@@ -82,7 +82,8 @@ impl M3FS {
 
     pub fn get_mem(sess: &ClientSession, off: goff) -> Result<(goff, goff, Selector), Error> {
         let mut args = kif::syscalls::ExchangeArgs::default();
-        args.count = 1;
+        // safety: we initialize the value below
+        unsafe { args.set_count(1) };
         args.set_ival(0, off as u64);
         let crd = sess.obtain(1, &mut args)?;
         Ok((args.ival(0) as goff, args.ival(1) as goff, crd.start()))
@@ -96,23 +97,14 @@ impl FileSystem for M3FS {
 
     fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error> {
         #[allow(clippy::uninit_assumed_init)]
-        let mut args = kif::syscalls::ExchangeArgs {
-            count: 1,
-            vals: kif::syscalls::ExchangeUnion {
-                s: kif::syscalls::ExchangeUnionStr {
-                    i: [u64::from(flags.bits()), 0],
-                    s: unsafe { MaybeUninit::uninit().assume_init() },
-                },
+        let mut args = kif::syscalls::ExchangeArgs::new(1, kif::syscalls::ExchangeUnion {
+            s: kif::syscalls::ExchangeUnionStr {
+                i: [u64::from(flags.bits()), 0],
+                // safety: will be initialized via set_str below
+                s: unsafe { MaybeUninit::uninit().assume_init() },
             },
-        };
-
-        // copy path
-        unsafe {
-            for (a, c) in args.vals.s.s.iter_mut().zip(path.bytes()) {
-                *a = c as u8;
-            }
-            args.vals.s.s[path.len()] = b'\0';
-        }
+        });
+        args.set_str(path);
 
         let crd = self.sess.obtain(2, &mut args)?;
         Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))

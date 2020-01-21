@@ -111,6 +111,7 @@ impl Channel {
         self.pos += self.len - self.pos;
 
         if self.pos == self.len {
+            // safety: will be initialized by read below
             #[allow(clippy::uninit_assumed_init)]
             let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
             let len = Serial::default().read(&mut buf)?;
@@ -161,6 +162,7 @@ impl Channel {
 
     fn flush(&mut self, nbytes: usize) -> Result<(), Error> {
         if nbytes > 0 {
+            // safety: will be initialized by read below
             #[allow(clippy::uninit_assumed_init)]
             let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
             self.mem.read(&mut buf[0..nbytes], 0)?;
@@ -228,7 +230,7 @@ impl Handler for VTermHandler {
             let sess = sessions.get(sid).unwrap();
             match &sess.data {
                 SessionData::Meta => {
-                    if data.args.count != 1 {
+                    if data.args.count() != 1 {
                         return Err(Error::new(Code::InvArgs));
                     }
                     self.new_chan(nsid, data.args.ival(0) == 1)
@@ -236,7 +238,7 @@ impl Handler for VTermHandler {
                 },
 
                 SessionData::Chan(c) => {
-                    if data.args.count != 0 {
+                    if data.args.count() != 0 {
                         return Err(Error::new(Code::InvArgs));
                     }
                     self.new_chan(nsid, c.writing).map(|s| (nsid, s))
@@ -258,7 +260,7 @@ impl Handler for VTermHandler {
         sid: SessId,
         data: &mut kif::service::ExchangeData,
     ) -> Result<(), Error> {
-        if data.caps != 1 || data.args.count != 0 {
+        if data.caps != 1 || data.args.count() != 0 {
             return Err(Error::new(Code::InvArgs));
         }
 

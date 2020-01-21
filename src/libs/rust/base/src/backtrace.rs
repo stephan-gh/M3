@@ -39,6 +39,8 @@ pub fn collect(addrs: &mut [usize]) -> usize {
 
         bp = base + (bp & (cfg::STACK_SIZE - 1));
         let bp_ptr = bp as *const usize;
+        // safety: assuming that the current BP was valid at the beginning of the function, the
+        // following access is safe, because the checks above make sure that it's within our stack.
         unsafe {
             *addr = *bp_ptr.offset(1);
             if *addr >= 5 {

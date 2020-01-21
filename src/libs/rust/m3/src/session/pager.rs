@@ -88,8 +88,10 @@ impl Pager {
     /// Clones the session to be shared with the given VPE.
     pub fn new_clone(&self) -> Result<Self, Error> {
         let mut args = kif::syscalls::ExchangeArgs::default();
+        // safety: initialized below
+        unsafe { args.set_count(1) };
         // dummy arg to distinguish from the get_sgate operation
-        args.count = 1;
+        args.set_ival(0, 0);
         let res = self.sess.obtain(1, &mut args)?;
         let sess = ClientSession::new_bind(res.start());
 
@@ -189,25 +191,22 @@ impl Pager {
         flags: MapFlags,
         sess: &ClientSession,
     ) -> Result<goff, Error> {
-        let mut args = kif::syscalls::ExchangeArgs {
-            count: 6,
-            vals: kif::syscalls::ExchangeUnion {
-                i: [
-                    u64::from(PagerDelOp::DATASPACE.val),
-                    addr as u64,
-                    len as u64,
-                    u64::from(prot.bits()),
-                    u64::from(flags.bits()),
-                    off as u64,
-                    0,
-                    0,
-                ],
-            },
-        };
+        let mut args = kif::syscalls::ExchangeArgs::new(6, kif::syscalls::ExchangeUnion {
+            i: [
+                u64::from(PagerDelOp::DATASPACE.val),
+                addr as u64,
+                len as u64,
+                u64::from(prot.bits()),
+                u64::from(flags.bits()),
+                off as u64,
+                0,
+                0,
+            ],
+        });
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sess.sel(), 1);
         self.sess.delegate(crd, &mut args)?;
-        unsafe { Ok(args.vals.i[0] as goff) }
+        Ok(args.ival(0) as goff)
     }
 
     /// Unaps the mapping at virtual address `addr`.

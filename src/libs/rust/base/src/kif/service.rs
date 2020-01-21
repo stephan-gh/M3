@@ -89,10 +89,10 @@ pub struct Shutdown {
 impl fmt::Debug for ExchangeData {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "ExchangeData[")?;
-        for i in 0..self.args.count {
-            let arg = unsafe { self.args.vals.i[i as usize] };
+        for i in 0..self.args.count() {
+            let arg = self.args.ival(i);
             write!(f, "{}", arg)?;
-            if i + 1 < self.args.count {
+            if i + 1 < self.args.count() {
                 write!(f, ", ")?;
             }
         }
@@ -105,13 +105,13 @@ impl Unmarshallable for ExchangeData {
         #[allow(clippy::uninit_assumed_init)]
         let mut res = ExchangeData {
             caps: s.pop_word(),
+            // safety: we initialize them below
             args: unsafe { MaybeUninit::uninit().assume_init() },
         };
-        res.args.count = s.pop_word();
-        for i in 0..res.args.count {
-            unsafe {
-                res.args.vals.i[i as usize] = s.pop_word();
-            }
+        // safety: we initialize them below
+        unsafe { res.args.set_count(s.pop_word() as usize) };
+        for i in 0..res.args.count() {
+            res.args.set_ival(i, s.pop_word());
         }
         res
     }

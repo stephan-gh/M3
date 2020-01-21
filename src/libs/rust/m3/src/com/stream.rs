@@ -39,6 +39,7 @@ impl Default for ArraySink {
     fn default() -> Self {
         #[allow(clippy::uninit_assumed_init)]
         ArraySink {
+            // safety: we will make sure that arr[0..pos-1] is initialized
             arr: unsafe { MaybeUninit::uninit().assume_init() },
             pos: 0,
         }
@@ -71,7 +72,8 @@ impl Sink for ArraySink {
         let len = b.len() + 1;
         self.push_word(len as u64);
 
-        copy_from_str(&mut self.arr[self.pos..], b);
+        // safety: we know the pointer and length are valid
+        unsafe { copy_from_str(&mut self.arr[self.pos..], b) };
         self.pos += (len + 7) / 8;
     }
 }
@@ -113,7 +115,9 @@ impl Sink for VecSink {
         self.vec.reserve_exact(elems);
 
         unsafe {
+            // safety: will be initialized below
             self.vec.set_len(cur + elems);
+            // safety: we know the pointer and length are valid
             copy_from_str(&mut self.vec.as_mut_slice()[cur..cur + elems], b);
         }
     }
@@ -135,6 +139,7 @@ impl MsgSource {
     /// Returns a slice to the message data.
     #[inline(always)]
     pub fn data(&self) -> &'static [u64] {
+        // safety: we trust the DTU
         unsafe {
             #[allow(clippy::cast_ptr_alignment)]
             let ptr = self.msg.data.as_ptr() as *const u64;
@@ -143,33 +148,31 @@ impl MsgSource {
     }
 }
 
-fn copy_from_str(words: &mut [u64], s: &str) {
-    unsafe {
-        let addr = words.as_mut_ptr() as usize;
-        libc::memcpy(
-            addr as *mut libc::c_void,
-            s.as_bytes().as_ptr() as *const libc::c_void,
-            s.len(),
-        );
-        // null termination
-        let end: &mut u8 = intrinsics::transmute(addr + s.len());
-        *end = 0u8;
-    }
+unsafe fn copy_from_str(words: &mut [u64], s: &str) {
+    let addr = words.as_mut_ptr() as usize;
+    libc::memcpy(
+        addr as *mut libc::c_void,
+        s.as_bytes().as_ptr() as *const libc::c_void,
+        s.len(),
+    );
+    // null termination
+    let end: &mut u8 = intrinsics::transmute(addr + s.len());
+    *end = 0u8;
 }
 
-fn copy_str_from(s: &[u64], len: usize) -> String {
-    unsafe {
-        let bytes: *mut libc::c_void = s.as_ptr() as *mut libc::c_void;
-        let copy = heap::alloc(len + 1);
-        libc::memcpy(copy, bytes, len);
-        String::from_raw_parts(copy as *mut u8, len, len)
-    }
+unsafe fn copy_str_from(s: &[u64], len: usize) -> String {
+    let bytes: *mut libc::c_void = s.as_ptr() as *mut libc::c_void;
+    let copy = heap::alloc(len);
+    libc::memcpy(copy, bytes, len);
+    // we need to make sure that `copy` is properly allocated and aligned and that the capacity is
+    // correct for Vec::from_raw_parts.
+    let v = Vec::from_raw_parts(copy as *mut u8, len, len);
+    String::from_utf8(v).unwrap()
 }
 
-fn str_slice_from(s: &[u64], len: usize) -> &'static str {
-    unsafe {
-        core::str::from_utf8_unchecked(core::slice::from_raw_parts(s.as_ptr() as *const u8, len))
-    }
+unsafe fn str_slice_from(s: &[u64], len: usize) -> &'static str {
+    let slice = core::slice::from_raw_parts(s.as_ptr() as *const u8, len);
+    core::str::from_utf8(slice).unwrap()
 }
 
 impl Source for MsgSource {
@@ -181,14 +184,16 @@ impl Source for MsgSource {
 
     fn pop_str(&mut self) -> String {
         let len = self.pop_word() as usize;
-        let res = copy_str_from(&self.data()[self.pos..], len - 1);
+        // safety: we know that the pointer and length are okay
+        let res = unsafe { copy_str_from(&self.data()[self.pos..], len - 1) };
         self.pos += (len + 7) / 8;
         res
     }
 
     fn pop_str_slice(&mut self) -> &'static str {
         let len = self.pop_word() as usize;
-        let str = str_slice_from(&self.data()[self.pos..], len - 1);
+        // safety: we know that the pointer and length are okay
+        let str = unsafe { str_slice_from(&self.data()[self.pos..], len - 1) };
         self.pos += (len + 7) / 8;
         str
     }
@@ -220,14 +225,16 @@ impl<'s> Source for SliceSource<'s> {
 
     fn pop_str(&mut self) -> String {
         let len = self.pop_word() as usize;
-        let res = copy_str_from(&self.slice[self.pos..], len - 1);
+        // safety: we know that the pointer and length are okay
+        let res = unsafe { copy_str_from(&self.slice[self.pos..], len - 1) };
         self.pos += (len + 7) / 8;
         res
     }
 
     fn pop_str_slice(&mut self) -> &'static str {
         let len = self.pop_word() as usize;
-        let str = str_slice_from(&self.slice[self.pos..], len - 1);
+        // safety: we know that the pointer and length are okay
+        let str = unsafe { str_slice_from(&self.slice[self.pos..], len - 1) };
         self.pos += (len + 7) / 8;
         str
     }

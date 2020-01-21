@@ -126,6 +126,7 @@ impl Thread {
             stack: Vec::new(),
             event: 0,
             has_msg: false,
+            // safety: will only be safe to access if `has_msg` is true
             msg: unsafe { mem::MaybeUninit::uninit().assume_init() },
         })
     }
@@ -139,6 +140,7 @@ impl Thread {
             stack: vec![0usize; STACK_SIZE / 8],
             event: 0,
             has_msg: false,
+            // safety: will only be safe to access if `has_msg` is true
             msg: unsafe { mem::MaybeUninit::uninit().assume_init() },
         });
 
@@ -159,6 +161,7 @@ impl Thread {
 
     pub fn fetch_msg(&mut self) -> Option<&'static dtu::Message> {
         if mem::replace(&mut self.has_msg, false) {
+            // safety: has_msg is true and we trust the DTU
             unsafe {
                 let head = self.msg.as_ptr() as *const dtu::Header;
                 let slice = [head as usize, (*head).length as usize];
@@ -198,6 +201,7 @@ impl Thread {
     fn set_msg(&mut self, msg: &'static dtu::Message) {
         let size = msg.header.length as usize + util::size_of::<dtu::Header>();
         self.has_msg = true;
+        // safety: we trust the DTU
         unsafe {
             libc::memcpy(
                 self.msg.as_ptr() as *mut libc::c_void,
@@ -296,6 +300,7 @@ impl ThreadManager {
             self.cur().id
         );
 
+        // safety: moving between two lists is fine
         unsafe {
             let old = Box::into_raw(cur);
             self.block.push_back(Box::from_raw(old));
@@ -313,6 +318,7 @@ impl ThreadManager {
                 let cur = mem::replace(&mut self.current, Some(next)).unwrap();
                 log!(LOG_DEF, "Yielding from {} to {}", cur.id, self.cur().id);
 
+                // safety: moving between two lists is fine
                 unsafe {
                     let old = Box::into_raw(cur);
                     self.sleep.push_back(Box::from_raw(old));

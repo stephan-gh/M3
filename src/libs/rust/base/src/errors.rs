@@ -55,6 +55,7 @@ pub enum Code {
     NotRevocable,
     ReadFailed,
     WriteFailed,
+    Utf8Error,
 }
 
 // we only use this implementation in debug mode, because it adds a bit of some overhead, errors
@@ -167,6 +168,8 @@ impl From<u32> for Error {
 
 impl From<u32> for Code {
     fn from(error: u32) -> Self {
+        assert!(error > 0 && error < Code::Utf8Error as u32);
+        // safety: assuming that the assert above doesn't fail, the conversion is safe
         // TODO better way?
         unsafe { intrinsics::transmute(error as u8) }
     }

@@ -120,7 +120,7 @@ impl Handler for PagerReqHandler {
         }
 
         let aspace = self.sessions.get_mut(sid).unwrap();
-        let sel = if data.args.count == 0 {
+        let sel = if data.args.count() == 0 {
             aspace.add_sgate()
         }
         else {
@@ -159,7 +159,8 @@ impl Handler for PagerReqHandler {
                 aspace.map_mem(&data.args)
             }?;
 
-            data.args.count = 1;
+            // safety: initialized below
+            unsafe { data.args.set_count(1) };
             data.args.set_ival(0, virt);
             sel
         };

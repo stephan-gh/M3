@@ -63,6 +63,8 @@ impl<S> SessionContainer<S> {
         assert!(sid1 < self.con.len());
         assert!(sid2 < self.con.len());
 
+        // safety: we have a mutable reference to self, so we can hand out two mutable references
+        // to two members during that time.
         unsafe {
             let ptr = self.con.as_mut_slice().as_mut_ptr();
             let s1 = (*ptr.add(sid1)).as_mut();

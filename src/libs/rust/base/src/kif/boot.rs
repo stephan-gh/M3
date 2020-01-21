@@ -88,6 +88,7 @@ pub struct Mod {
 impl Mod {
     /// Returns the name and arguments of the module
     pub fn name(&self) -> &'static str {
+        // safety: we trust our loader
         unsafe { util::cstr_to_str(self.name.as_ptr()) }
     }
 }
@@ -128,6 +129,7 @@ impl iter::Iterator for ModIterator {
             None
         }
         else {
+            // safety: we trust our loader
             unsafe {
                 // build a slice to be able to get a pointer to Mod (it has a flexible member)
                 let m: *const Mod = intrinsics::transmute([self.addr as usize, 0usize]);

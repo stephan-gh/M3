@@ -162,6 +162,7 @@ pub fn restore_ints(prev: bool) {
 }
 
 pub fn is_stopped() -> bool {
+    // use volatile because STOPPED may have changed via a nested IRQ
     unsafe { ptr::read_volatile(STOPPED.get_mut()) }
 }
 

@@ -23,7 +23,7 @@ use core::mem::MaybeUninit;
 use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
-use kif::{self, syscalls, CapRngDesc, INVALID_SEL, Perm, SEL_VPE};
+use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL, SEL_VPE};
 use util;
 
 static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(INVALID_SEL, SYSC_SEP));
@@ -50,26 +50,27 @@ fn send<T>(msg: *const T) -> Result<(), Error> {
 }
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
-    let msg = DTUIf::call(
+    let reply_raw = DTUIf::call(
         &*SGATE,
         msg as *const u8,
         util::size_of::<T>(),
         RecvGate::syscall(),
     )?;
 
+    let reply = reply_raw.get_data::<kif::DefaultReply>();
+    if reply.error != 0 {
+        DTUIf::ack_msg(RecvGate::syscall(), reply_raw);
+        return Err(Error::from(reply.error as u32));
+    }
+
     Ok(Reply {
-        msg,
-        data: msg.get_data::<R>(),
+        msg: reply_raw,
+        data: reply_raw.get_data::<R>(),
     })
 }
 
 fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
-    let reply: Reply<kif::DefaultReply> = send_receive(msg)?;
-
-    match reply.data.error {
-        0 => Ok(()),
-        e => Err(Error::from(e as u32)),
-    }
+    send_receive::<T, kif::DefaultReply>(msg).map(|_| ())
 }
 
 pub fn send_gate() -> &'static SendGate {
@@ -86,6 +87,7 @@ pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> 
         vpe_sel: u64::from(vpe),
         rgate_sel: u64::from(rgate),
         namelen: name.len() as u64,
+        // safety: will be initialized below
         name: unsafe { MaybeUninit::uninit().assume_init() },
     };
 
@@ -195,6 +197,7 @@ pub fn create_vpe(
         pe_sel: u64::from(pe),
         kmem_sel: u64::from(kmem),
         namelen: name.len() as u64,
+        // safety: will be initialized below
         name: unsafe { MaybeUninit::uninit().assume_init() },
     };
 
@@ -228,10 +231,7 @@ pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Resul
     };
 
     let reply: Reply<syscalls::AllocEPReply> = send_receive(&req)?;
-    match reply.data.error {
-        0 => Ok(reply.data.ep as EpId),
-        e => Err(Error::from(e as u32)),
-    }
+    Ok(reply.data.ep as EpId)
 }
 
 /// Derives a new memory gate for given VPE at selector `dst` based on memory gate `sel`.
@@ -289,10 +289,7 @@ pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
     };
 
     let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&req)?;
-    match reply.data.error {
-        0 => Ok(reply.data.amount as usize),
-        e => Err(Error::from(e as u32)),
-    }
+    Ok(reply.data.amount as usize)
 }
 
 /// Returns the remaining quota (free endpoints) for the PE object at `pe`.
@@ -303,10 +300,7 @@ pub fn pe_quota(pe: Selector) -> Result<u32, Error> {
     };
 
     let reply: Reply<syscalls::PEQuotaReply> = send_receive(&req)?;
-    match reply.data.error {
-        0 => Ok(reply.data.amount as u32),
-        e => Err(Error::from(e as u32)),
-    }
+    Ok(reply.data.amount as u32)
 }
 
 /// Performs the VPE operation `op` with the given VPE.
@@ -332,6 +326,7 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
         opcode: syscalls::Operation::VPE_WAIT.val,
         event,
         vpe_count: vpes.len() as u64,
+        // safety: will be initialized below
         sels: unsafe { MaybeUninit::uninit().assume_init() },
     };
     for (i, sel) in vpes.iter().enumerate() {
@@ -339,10 +334,11 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
     }
 
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&req)?;
-    match { reply.data.error } {
-        0 if event != 0 => Ok((0, 0)),
-        0 => Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32)),
-        e => Err(Error::from(e as u32)),
+    if event != 0 {
+        Ok((0, 0))
+    }
+    else {
+        Ok((reply.data.vpe_sel as Selector, reply.data.exitcode as i32))
     }
 }
 
@@ -420,14 +416,8 @@ fn exchange_sess(
     };
 
     let reply: Reply<syscalls::ExchangeSessReply> = send_receive(&req)?;
-    if reply.data.error == 0 {
-        *args = reply.data.args;
-    }
-
-    match reply.data.error {
-        0 => Ok(()),
-        e => Err(Error::from(e as u32)),
-    }
+    *args = reply.data.args;
+    Ok(())
 }
 
 /// Activates the given gate on given endpoint.

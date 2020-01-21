@@ -113,7 +113,7 @@ impl Handler for PipesHandler {
             match &mut sess.data_mut() {
                 // meta sessions allow to create new pipes
                 SessionData::Meta(ref mut m) => {
-                    if data.args.count != 1 {
+                    if data.args.count() != 1 {
                         return Err(Error::new(Code::InvArgs));
                     }
                     let sel = VPE::cur().alloc_sel();
@@ -133,7 +133,7 @@ impl Handler for PipesHandler {
 
                 // pipe sessions allow to create new channels
                 SessionData::Pipe(ref mut p) => {
-                    if data.args.count != 1 {
+                    if data.args.count() != 1 {
                         return Err(Error::new(Code::InvArgs));
                     }
 
@@ -199,7 +199,7 @@ impl Handler for PipesHandler {
         match &mut sess.data_mut() {
             // pipe sessions expect a memory cap for the shared memory of the pipe
             SessionData::Pipe(ref mut p) => {
-                if data.caps != 1 || data.args.count != 0 || p.has_mem() {
+                if data.caps != 1 || data.args.count() != 0 || p.has_mem() {
                     return Err(Error::new(Code::InvArgs));
                 }
 
@@ -213,7 +213,7 @@ impl Handler for PipesHandler {
 
             // channel sessions expect an EP cap to get access to the data
             SessionData::Chan(ref mut c) => {
-                if data.caps != 1 || data.args.count != 0 {
+                if data.caps != 1 || data.args.count() != 0 {
                     return Err(Error::new(Code::InvArgs));
                 }
 

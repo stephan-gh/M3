@@ -17,6 +17,7 @@
 use arch;
 use cfg;
 use core::intrinsics;
+use core::mem;
 use errors::{Code, Error};
 use goff;
 use math;
@@ -241,6 +242,9 @@ pub struct Message {
 impl Message {
     /// Returns the message data as a reference to `T`.
     pub fn get_data<T>(&self) -> &T {
+        assert!(mem::align_of_val(&self.data) >= mem::align_of::<T>());
+        assert!(self.data.len() >= util::size_of::<T>());
+        // safety: assuming that the size and alignment checks above works, the cast below is safe
         let slice = unsafe { &*(&self.data as *const [u8] as *const [T]) };
         &slice[0]
     }
@@ -573,6 +577,7 @@ impl DTU {
     }
 
     fn addr_to_msg(addr: Reg) -> &'static Message {
+        // safety: the cast is okay because we trust the DTU
         unsafe {
             let head = addr as usize as *const Header;
             let slice = [addr as usize, (*head).length as usize];

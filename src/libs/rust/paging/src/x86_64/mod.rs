@@ -142,6 +142,7 @@ fn get_pte_addr(mut virt: usize, level: usize) -> usize {
 
 fn get_pte_at(virt: usize, level: usize) -> MMUPTE {
     let virt = get_pte_addr(virt, level);
+    // safety: we can access that address because of our recursive entry
     unsafe { *(virt as *const MMUPTE) }
 }
 
@@ -217,6 +218,8 @@ impl AddrSpace {
 
         // insert recursive entry
         let rec_idx_pte = pt_virt + PTE_REC_IDX * util::size_of::<MMUPTE>();
+        // safety: we can access that address because `xlate_pt` returns as a mapped page for the
+        // whole page table
         unsafe { *(rec_idx_pte as *mut MMUPTE) = self.root | MMUFlags::RWX.bits() };
     }
 
@@ -266,6 +269,7 @@ impl AddrSpace {
                 break;
             }
 
+            // safety: as above
             let mut pte = unsafe { *(pte_addr as *const MMUPTE) };
 
             // can we use a large page?
@@ -291,6 +295,7 @@ impl AddrSpace {
                     invalidate_page(*virt);
                 }
 
+                // safety: as above
                 unsafe { *(pte_addr as *mut MMUPTE) = new_pte };
 
                 log!(
@@ -333,6 +338,7 @@ impl AddrSpace {
 
         // insert MMUPTE
         let pte = frame | MMUFlags::RWX.bits() | MMUFlags::U.bits();
+        // safety: as above
         unsafe { *(pte_addr as *mut MMUPTE) = pte };
 
         let pt_size = (1 << (LEVEL_BITS * level)) * cfg::PAGE_SIZE;
@@ -351,6 +357,7 @@ impl AddrSpace {
 
     fn clear_pt(mut pt_virt: usize) {
         for _ in 0..1 << LEVEL_BITS {
+            // safety: as above
             unsafe { *(pt_virt as *mut MMUPTE) = 0 };
             pt_virt += util::size_of::<MMUPTE>();
         }
@@ -359,6 +366,7 @@ impl AddrSpace {
     fn print_as_rec(&self, f: &mut fmt::Formatter<'_>, pt: MMUPTE, mut virt: usize, level: usize) {
         let mut ptes = (self.xlate_pt)(self.id, pt);
         for _ in 0..1 << LEVEL_BITS {
+            // safety: as above
             let pte = unsafe { *(ptes as *const MMUPTE) };
             if pte != 0 {
                 let w = (LEVEL_CNT - level - 1) * 2;

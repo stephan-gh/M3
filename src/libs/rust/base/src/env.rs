@@ -62,6 +62,7 @@ pub struct Args {
 
 impl Args {
     fn arg(self, idx: isize) -> &'static str {
+        // safety: we assume that our loader has put valid strings at argv
         unsafe {
             let args = arch::envdata::get().argv as *const u64;
             let arg = *args.offset(idx);

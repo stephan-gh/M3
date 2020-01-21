@@ -34,6 +34,8 @@ pub trait Read {
     fn read_string(&mut self, max: usize) -> Result<String, Error> {
         let mut buf = Vec::with_capacity(max);
         // increase length so that we can write into the slice
+        // safety: we will initialize it below and set the length again to only cover the
+        // initialized elements
         unsafe {
             buf.set_len(max);
         }
@@ -50,14 +52,16 @@ pub trait Read {
             off += amount;
         }
 
+        // safety: we know that we have initialized `off` bytes via `self.read`
         unsafe {
             // set final length
             buf.set_len(off);
-            Ok(String::from_utf8_unchecked(buf))
         }
+        Ok(String::from_utf8(buf).map_err(|_| Error::new(Code::Utf8Error))?)
     }
 
     /// Reads all available bytes from this source into the given vector and returns the number of
+    /// read bytes
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize, Error> {
         let mut cap = cmp::max(64, buf.capacity() * 2);
         let old_len = buf.len();
@@ -68,6 +72,7 @@ pub trait Read {
 
             while off < cap {
                 // increase length so that we can write into the slice
+                // safety: as above; initialized via self.read and set again at the end
                 unsafe {
                     buf.set_len(cap);
                 }
@@ -84,8 +89,9 @@ pub trait Read {
             cap *= 2;
         }
 
-        // set final length
+        // safety: we know that we have initialized `off` bytes via `self.read`
         unsafe {
+            // set final length
             buf.set_len(off);
         }
         Ok(off - old_len)
@@ -193,6 +199,7 @@ pub trait Write {
 /// Convenience method that reads `util::size_of::<T>()` bytes from the given source and interprets
 /// them as a `T`
 pub fn read_object<T: Sized>(r: &mut dyn Read) -> Result<T, Error> {
+    // safety: read_exact will initialize it afterwards
     #[allow(clippy::uninit_assumed_init)]
     let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
     r.read_exact(util::object_to_bytes_mut(&mut obj))

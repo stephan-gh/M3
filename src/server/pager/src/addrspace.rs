@@ -181,7 +181,7 @@ impl AddrSpace {
     }
 
     pub fn map_ds(&mut self, args: &ExchangeArgs) -> Result<(Selector, goff), Error> {
-        if args.count != 6 || !self.has_as_mem() {
+        if args.count() != 6 || !self.has_as_mem() {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -270,7 +270,7 @@ impl AddrSpace {
     }
 
     pub fn map_mem(&mut self, args: &ExchangeArgs) -> Result<(Selector, goff), Error> {
-        if args.count != 4 || !self.has_as_mem() {
+        if args.count() != 4 || !self.has_as_mem() {
             return Err(Error::new(Code::InvArgs));
         }
 

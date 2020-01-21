@@ -151,7 +151,8 @@ fn translate_addr(req: dtu::Reg) -> bool {
 
 pub fn handle_xlate(mut xlate_req: dtu::Reg) {
     if translate_addr(xlate_req) {
-        // handle other requests that pagefaulted in the meantime
+        // handle other requests that pagefaulted in the meantime. use volatile because STATE might
+        // have changed after the call to translate_addr through a nested IRQ.
         while unsafe { ptr::read_volatile(&STATE.req_count) } > 0 {
             for r in &mut STATE.get_mut().reqs {
                 xlate_req = *r;

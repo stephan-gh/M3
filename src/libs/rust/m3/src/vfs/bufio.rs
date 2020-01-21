@@ -43,6 +43,7 @@ impl<R: Read> BufReader<R> {
             pos: 0,
             cap: 0,
         };
+        // safety: we will not hand out the Vec and never access anything except 0..`pos`-1 below
         unsafe { br.buf.set_len(cap) };
         br
     }
@@ -138,6 +139,7 @@ impl<W: Write> BufWriter<W> {
             buf: Vec::with_capacity(cap),
             pos: 0,
         };
+        // safety: we will not hand out the Vec and never access anything except 0..`pos`-1 below
         unsafe { br.buf.set_len(cap) };
         br
     }

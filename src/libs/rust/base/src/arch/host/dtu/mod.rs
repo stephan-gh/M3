@@ -18,6 +18,7 @@ use arch;
 use cfg;
 use const_assert;
 use core::intrinsics;
+use core::mem;
 use core::ptr;
 use errors::Error;
 use goff;
@@ -183,6 +184,9 @@ pub struct Message {
 impl Message {
     /// Returns the message data as a reference to `T`.
     pub fn get_data<T>(&self) -> &T {
+        assert!(mem::align_of_val(&self.data) >= mem::align_of::<T>());
+        assert!(self.data.len() >= util::size_of::<T>());
+        // safety: assuming that the size and alignment checks above works, the cast below is safe
         let slice = unsafe { &*(&self.data as *const [u8] as *const [T]) };
         &slice[0]
     }
