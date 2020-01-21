@@ -91,9 +91,11 @@ pub trait Read {
         Ok(off - old_len)
     }
 
-    /// Reads all available bytes from this source into the given string and returns the number of
-    fn read_to_string(&mut self, buf: &mut String) -> Result<usize, Error> {
-        self.read_to_end(unsafe { buf.as_mut_vec() })
+    /// Reads all available bytes from this source into a string
+    fn read_to_string(&mut self) -> Result<String, Error> {
+        let mut v = Vec::new();
+        self.read_to_end(&mut v)?;
+        Ok(String::from_utf8(v).map_err(|_| Error::new(Code::Utf8Error))?)
     }
 
     /// Reads exactly as many bytes as available in `buf`

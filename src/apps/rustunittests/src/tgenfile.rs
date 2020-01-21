@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::col::{String, Vec};
+use m3::col::Vec;
 use m3::errors::Code;
 use m3::io::{Read, Write};
 use m3::test;
@@ -86,8 +86,7 @@ fn read_file_at_once() {
     let filename = "/subdir/subsubdir/testfile.txt";
 
     let mut file = wv_assert_ok!(VFS::open(filename, OpenFlags::R));
-    let mut s = String::new();
-    wv_assert_eq!(file.read_to_string(&mut s), Ok(16));
+    let s = wv_assert_ok!(file.read_to_string());
     wv_assert_eq!(s, "This is a test!\n");
 }
 
@@ -144,8 +143,7 @@ fn write_fmt() {
 
     wv_assert_eq!(file.seek(0, SeekMode::SET), Ok(0));
 
-    let mut s = String::new();
-    wv_assert_eq!(file.read_to_string(&mut s), Ok(69));
+    let s = wv_assert_ok!(file.read_to_string());
     wv_assert_eq!(
         s,
         "This foo is the 42th test of 0xABCDEF!\nMore formatting: Some(Some(1))"

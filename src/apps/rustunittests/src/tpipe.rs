@@ -55,8 +55,7 @@ fn child_to_parent() {
     pipe.close_writer();
 
     let input = VPE::cur().files().get(pipe.reader_fd()).unwrap();
-    let mut s = String::new();
-    wv_assert_eq!(input.borrow_mut().read_to_string(&mut s), Ok(16));
+    let s = wv_assert_ok!(input.borrow_mut().read_to_string());
     wv_assert_eq!(s, "This is a test!\n");
 
     wv_assert_eq!(act.wait(), Ok(0));
@@ -76,8 +75,7 @@ fn parent_to_child() {
     wv_assert_ok!(vpe.obtain_fds());
 
     let act = wv_assert_ok!(vpe.run(Box::new(|| {
-        let mut s = String::new();
-        wv_assert_eq!(io::stdin().read_to_string(&mut s), Ok(16));
+        let s = wv_assert_ok!(io::stdin().read_to_string());
         wv_assert_eq!(s, "This is a test!\n");
         0
     })));
@@ -118,8 +116,7 @@ fn child_to_child() {
     })));
 
     let rd_act = wv_assert_ok!(reader.run(Box::new(|| {
-        let mut s = String::new();
-        wv_assert_eq!(io::stdin().read_to_string(&mut s), Ok(16));
+        let s = wv_assert_ok!(io::stdin().read_to_string());
         wv_assert_eq!(s, "This is a test!\n");
         0
     })));
@@ -154,8 +151,7 @@ fn exec_child_to_child() {
     let wr_act = wv_assert_ok!(writer.exec(&["/bin/hello"]));
 
     let rd_act = wv_assert_ok!(reader.run(Box::new(|| {
-        let mut s = String::new();
-        wv_assert_eq!(io::stdin().read_to_string(&mut s), Ok(12));
+        let s = wv_assert_ok!(io::stdin().read_to_string());
         wv_assert_eq!(s, "Hello World\n");
         0
     })));
