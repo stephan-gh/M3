@@ -653,7 +653,7 @@ void SyscallHandler::vpe_wait(VPE *vpe, const m3::DTU::Message *msg) {
         xfer_t sels_cpy[ARRAY_SIZE(m3::KIF::Syscall::VPEWait::sels)];
         memcpy(sels_cpy, req->sels, count * sizeof(xfer_t));
         // now early-reply to the application; we'll notify it later via upcall
-        reply_result(vpe, msg, m3::Errors::NONE);
+        reply_msg(vpe, msg, &reply, sizeof(reply));
 
         vpe->wait_exit_async(sels_cpy, count, reply);
     }
