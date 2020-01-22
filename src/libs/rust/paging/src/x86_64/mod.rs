@@ -102,9 +102,8 @@ pub extern "C" fn get_addr_space() -> PTE {
     phys_to_noc(addr as u64)
 }
 
-#[no_mangle]
-pub extern "C" fn set_addr_space(addr: PTE) {
-    unsafe { asm!("mov $0, %cr3" : : "r"(noc_to_phys(addr as u64))) };
+fn set_addr_space(addr: MMUPTE) {
+    unsafe { asm!("mov $0, %cr3" : : "r"(addr)) };
 }
 
 #[no_mangle]
@@ -210,6 +209,10 @@ impl AddrSpace {
 
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    pub fn switch_to(&self) {
+        set_addr_space(self.root);
     }
 
     pub fn init(&self) {

@@ -221,7 +221,7 @@ impl VPE {
     }
 
     fn switch_to(&self) {
-        paging::set_addr_space(self.root_pt);
+        self.aspace.switch_to();
         dtu::DTU::invalidate_tlb();
     }
 

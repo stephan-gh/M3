@@ -29,11 +29,6 @@ pub extern "C" fn get_addr_space() -> PTE {
 }
 
 #[no_mangle]
-pub extern "C" fn set_addr_space(_addr: PTE) {
-    // TODO implement me
-}
-
-#[no_mangle]
 pub extern "C" fn noc_to_phys(noc: u64) -> u64 {
     // TODO implement me
     noc
@@ -64,17 +59,20 @@ pub extern "C" fn map_pages(
 }
 
 pub struct AddrSpace {
-    pub id: u64,
-    pub root: goff,
+    id: u64,
 }
 
 impl AddrSpace {
-    pub fn new(id: u64, root: goff, _xlate_pt: XlatePtFunc, _alloc_frame: AllocFrameFunc) -> Self {
-        AddrSpace { id, root }
+    pub fn new(id: u64, _root: goff, _xlate_pt: XlatePtFunc, _alloc_frame: AllocFrameFunc) -> Self {
+        AddrSpace { id }
     }
 
     pub fn id(&self) -> u64 {
         self.id
+    }
+
+    pub fn switch_to(&self) {
+        // TODO implement me
     }
 
     pub fn init(&self) {
