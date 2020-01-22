@@ -303,7 +303,7 @@ impl AddrSpace {
 
                 log!(
                     crate::LOG_MAP_DETAIL,
-                    "VPE{}: lvl {} MMUPTE for 0x{:0>16x}: 0x{:0>16x} (downgrade={})",
+                    "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} (downgrade={})",
                     self.id,
                     level,
                     virt,
@@ -348,7 +348,7 @@ impl AddrSpace {
         let virt_base = virt as usize & !(pt_size - 1);
         log!(
             crate::LOG_MAP_DETAIL,
-            "VPE{}: lvl {} MMUPTE for 0x{:0>16x}: 0x{:0>16x}",
+            "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x}",
             self.id,
             level,
             virt_base,
