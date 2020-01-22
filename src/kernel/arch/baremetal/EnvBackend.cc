@@ -23,32 +23,11 @@
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
 #include "DTU.h"
+#include "Paging.h"
 #include "Platform.h"
 #include "WorkLoop.h"
 
-typedef goff_t (*alloc_frame_func)(uint64_t vpe);
-typedef uintptr_t (*xlate_pt_func)(uint64_t vpe, goff_t phys);
-
-extern "C" void init_rust_io(uint pe_id, const char *name);
-extern "C" goff_t get_addr_space();
-extern "C" uint64_t noc_to_phys(uint64_t noc);
-extern "C" void map_pages(uint64_t vpe, uintptr_t virt, goff_t phys, size_t pages, uint64_t perm,
-                          alloc_frame_func alloc_frame, xlate_pt_func xlate_pt, goff_t root);
-
 namespace kernel {
-
-static goff_t kalloc_frame(uint64_t) {
-    static size_t pos = Platform::pe_mem_size() / 2;
-    goff_t phys_begin = noc_to_phys(Platform::pe_mem_base());
-    pos += PAGE_SIZE;
-    return phys_begin + pos - PAGE_SIZE;
-}
-
-static uintptr_t kxlate_pt(uint64_t, goff_t phys) {
-    goff_t phys_begin = noc_to_phys(Platform::pe_mem_base());
-    goff_t off = phys - phys_begin;
-    return PE_MEM_BASE + off;
-}
 
 class BaremetalKEnvBackend : public m3::BaremetalEnvBackend {
 public:
@@ -80,10 +59,7 @@ public:
         uintptr_t virt = m3::Math::round_up<uintptr_t>(
             reinterpret_cast<uintptr_t>(heap_end), PAGE_SIZE);
         gaddr_t phys = m3::DTU::build_gaddr(alloc.pe(), alloc.addr);
-
-        goff_t root = get_addr_space();
-        auto perm = m3::KIF::PageFlags::U | m3::KIF::PageFlags::RW;
-        ::map_pages(VPE::KERNEL_ID, virt, phys, pages, perm, kalloc_frame, kxlate_pt, root);
+        map_pages(virt, phys, pages, m3::KIF::PageFlags::U | m3::KIF::PageFlags::RW);
 
         // ensure that Heap::append is not done before all PTEs have been created
         m3::CPU::memory_barrier();

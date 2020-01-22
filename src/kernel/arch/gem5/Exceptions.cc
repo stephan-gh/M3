@@ -22,6 +22,8 @@
 
 #include <isr/ISR.h>
 
+#include "Paging.h"
+
 namespace kernel {
 
 #if defined(__arm__)
@@ -57,8 +59,6 @@ static m3::OStream &operator<<(m3::OStream &os, const m3::ISR::State &state) {
 }
 
 #else
-
-extern "C" uint64_t translate(uintptr_t virt, uint64_t perm);
 
 static word_t getCR2() {
     word_t res;
