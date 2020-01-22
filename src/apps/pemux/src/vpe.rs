@@ -30,12 +30,22 @@ extern "C" fn xlate_pt(vpe: u64, phys: paging::MMUPTE) -> usize {
     let vpe = get_mut(vpe).unwrap();
     assert!(phys >= vpe.pts_start() && phys < vpe.pts_end());
     let off = phys - vpe.pts_start();
-    cfg::PE_MEM_BASE + off as usize
+    if vpe.id() == kif::pemux::VPE_ID {
+        off as usize
+    }
+    else {
+        cfg::PE_MEM_BASE + off as usize
+    }
+}
+
+struct Info {
+    pe_desc: kif::PEDesc,
+    mem_start: u64,
+    mem_end: u64,
 }
 
 pub struct VPE {
     aspace: paging::AddrSpace,
-    root_pt: goff,
     vpe_reg: dtu::Reg,
     pts_start: paging::MMUPTE,
     pts_count: usize,
@@ -44,29 +54,48 @@ pub struct VPE {
 
 static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
 static IDLE: StaticCell<Option<VPE>> = StaticCell::new(None);
-static OWN: StaticCell<Option<VPE>> = StaticCell::new(None);
+static OUR: StaticCell<Option<VPE>> = StaticCell::new(None);
+static INFO: StaticCell<Info> = StaticCell::new(Info {
+    pe_desc: kif::PEDesc::new_from(0),
+    mem_start: 0,
+    mem_end: 0,
+});
 
-pub fn init() {
-    let root_pt = paging::get_addr_space();
+pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
+    INFO.get_mut().pe_desc = pe_desc;
+    INFO.get_mut().mem_start = mem_start;
+    INFO.get_mut().mem_end = mem_start + mem_size;
+
+    let root_pt = mem_start;
+    let pts_count = mem_size as usize / cfg::PAGE_SIZE;
     IDLE.set(Some(VPE::new(kif::pemux::IDLE_ID, root_pt, 0, 0)));
-    OWN.set(Some(VPE::new(kif::pemux::VPE_ID, root_pt, 0, 0)));
+    OUR.set(Some(VPE::new(
+        kif::pemux::VPE_ID,
+        root_pt,
+        mem_start,
+        pts_count,
+    )));
+
+    if pe_desc.has_virtmem() {
+        our().init();
+        our().switch_to();
+    }
 }
 
-pub fn add(id: u64, pe_desc: kif::PEDesc, pts_start: u64, pts_end: u64) {
+pub fn add(id: u64) {
     assert!((*CUR).is_none());
 
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
     // TODO temporary
-    let pt_begin = pts_start + (pts_end - pts_start) / 2;
+    let pt_begin = INFO.get().mem_start + (INFO.get().mem_end - INFO.get().mem_start) / 2;
     let root_pt = pt_begin;
-    let pts_count = (pts_end - pts_start) as usize / cfg::PAGE_SIZE;
-    CUR.set(Some(VPE::new(id, root_pt, pts_start, pts_count)));
+    let pts_count = (INFO.get().mem_end - INFO.get().mem_start) as usize / cfg::PAGE_SIZE;
+    CUR.set(Some(VPE::new(id, root_pt, INFO.get().mem_start, pts_count)));
 
     let vpe = get_mut(id).unwrap();
-    if pe_desc.has_virtmem() {
+    if INFO.get().pe_desc.has_virtmem() {
         vpe.init();
-        // log!(crate::LOG_UPCALLS, "{:?}", vpe.aspace);
         vpe.switch_to();
     }
 }
@@ -85,7 +114,7 @@ pub fn get_mut(id: u64) -> Option<&'static mut VPE> {
 }
 
 pub fn our() -> &'static mut VPE {
-    OWN.get_mut().as_mut().unwrap()
+    OUR.get_mut().as_mut().unwrap()
 }
 
 pub fn cur() -> &'static mut VPE {
@@ -100,8 +129,10 @@ pub fn remove() {
         let old = CUR.set(None).unwrap();
         log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
 
-        // switch back to our own address space
-        our().switch_to();
+        if INFO.get().pe_desc.has_virtmem() {
+            // switch back to our own address space
+            our().switch_to();
+        }
     }
 }
 
@@ -109,7 +140,6 @@ impl VPE {
     pub fn new(id: u64, root_pt: goff, pts_start: goff, pts_count: usize) -> Self {
         VPE {
             aspace: paging::AddrSpace::new(id, root_pt, xlate_pt, frame_allocator),
-            root_pt,
             vpe_reg: id << 19,
             pts_start: paging::noc_to_phys(pts_start) as paging::MMUPTE,
             pts_count,
@@ -160,7 +190,7 @@ impl VPE {
         self.pts_start + (self.pts_count * cfg::PAGE_SIZE) as paging::MMUPTE
     }
 
-    fn init(&self) {
+    fn init(&mut self) {
         extern "C" {
             static _text_start: u8;
             static _text_end: u8;
@@ -201,14 +231,29 @@ impl VPE {
 
         // map receive buffers
         // TODO currently the same rbuf space is used for PEMux and apps
-        let pte = paging::translate(cfg::RECVBUF_SPACE, kif::PageFlags::R.bits());
-        self.map(
-            cfg::RECVBUF_SPACE,
-            pte & !cfg::PAGE_MASK as goff,
-            cfg::RECVBUF_SIZE / cfg::PAGE_SIZE,
-            rw,
-        )
-        .unwrap();
+        if self.id() == kif::pemux::VPE_ID {
+            for i in 0..(cfg::RECVBUF_SIZE / cfg::PAGE_SIZE) {
+                let frame = self.alloc_frame();
+                assert!(frame != 0);
+                self.map(
+                    cfg::RECVBUF_SPACE + i * cfg::PAGE_SIZE,
+                    paging::phys_to_noc(frame as u64),
+                    1,
+                    rw,
+                )
+                .unwrap();
+            }
+        }
+        else {
+            let pte = paging::translate(cfg::RECVBUF_SPACE, kif::PageFlags::R.bits());
+            self.map(
+                cfg::RECVBUF_SPACE,
+                pte & !cfg::PAGE_MASK as goff,
+                cfg::RECVBUF_SIZE / cfg::PAGE_SIZE,
+                rw,
+            )
+            .unwrap();
+        }
 
         // map PTs
         self.map(
@@ -229,8 +274,13 @@ impl VPE {
         let start = math::round_dn(start as usize, cfg::PAGE_SIZE);
         let end = math::round_up(end as usize, cfg::PAGE_SIZE);
         let pages = (end - start) / cfg::PAGE_SIZE;
-        self.map(start, paging::phys_to_noc((self.pts_start as usize + start) as goff), pages, perm)
-            .unwrap();
+        self.map(
+            start,
+            paging::phys_to_noc((self.pts_start as usize + start) as goff),
+            pages,
+            perm,
+        )
+        .unwrap();
     }
 
     fn alloc_frame(&mut self) -> paging::MMUPTE {

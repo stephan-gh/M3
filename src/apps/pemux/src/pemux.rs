@@ -34,6 +34,7 @@ use base::cfg;
 use base::dtu;
 use base::envdata;
 use base::io;
+use base::kif;
 use base::libc;
 use core::intrinsics;
 
@@ -130,6 +131,6 @@ pub extern "C" fn init() {
     }
 
     io::init(0, "pemux");
-    vpe::init();
+    vpe::init(kif::PEDesc::new_from(env().pe_desc), env().pe_mem_base, env().pe_mem_size);
     dtu::DTU::xchg_vpe(vpe::cur().vpe_reg());
 }

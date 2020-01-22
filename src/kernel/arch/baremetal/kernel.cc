@@ -21,11 +21,14 @@
 #include "pes/VPEManager.h"
 #include "Args.h"
 #include "SyscallHandler.h"
+#include "Paging.h"
 #include "WorkLoop.h"
 
 using namespace kernel;
 
 int main(int argc, char *argv[]) {
+    init_paging();
+
     Args::parse(argc, argv);
 
     MainMemory::init();

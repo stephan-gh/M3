@@ -420,10 +420,7 @@ struct KIF {
 
         struct Init : public DefaultRequest {
             xfer_t pe_id;
-            xfer_t pe_desc;
             xfer_t vpe_sel;
-            xfer_t pts_start;
-            xfer_t pts_end;
         } PACKED;
 
         struct VPECtrl : public DefaultRequest {

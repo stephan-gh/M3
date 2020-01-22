@@ -103,18 +103,13 @@ void PEMux::free_eps(epid_t first, uint count) {
     }
 }
 
-m3::Errors::Code PEMux::init(vpeid_t vpe, gaddr_t pts_start, gaddr_t pts_end) {
+m3::Errors::Code PEMux::init(vpeid_t vpe) {
     m3::KIF::PEXUpcalls::Init req;
     req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::INIT);
     req.pe_id = _pe->id;
-    req.pe_desc = Platform::pe(_pe->id).value();
     req.vpe_sel = vpe;
-    req.pts_start = pts_start;
-    req.pts_end = pts_end;
 
-    KLOG(PEXC, "PEMux[" << peid() << "] sending init(vpe=" << req.vpe_sel
-        << ", pts_start=" << m3::fmt((void*)req.pts_start, "p")
-        << ", pts_end=" << m3::fmt((void*)req.pts_end, "p") << ")");
+    KLOG(PEXC, "PEMux[" << peid() << "] sending init(vpe=" << req.vpe_sel << ")");
 
     return upcall(&req, sizeof(req));
 }

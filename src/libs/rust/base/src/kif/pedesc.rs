@@ -69,13 +69,13 @@ pub struct PEDesc {
 
 impl PEDesc {
     /// Creates a new PE description from the given type, ISA, and memory size.
-    pub fn new(ty: PEType, isa: PEISA, memsize: usize) -> PEDesc {
+    pub const fn new(ty: PEType, isa: PEISA, memsize: usize) -> PEDesc {
         let val = ty.val | (isa.val << 3) | memsize as PEDescRaw;
         Self::new_from(val)
     }
 
     /// Creates a new PE description from the given raw value
-    pub fn new_from(val: PEDescRaw) -> PEDesc {
+    pub const fn new_from(val: PEDescRaw) -> PEDesc {
         PEDesc { val }
     }
 

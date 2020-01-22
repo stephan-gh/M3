@@ -197,12 +197,8 @@ void VPE::load_app() {
 
 void VPE::init_memory() {
     // let PEMux load the address space
-    if(Platform::pe(peid()).supports_pemux()) {
-        // TODO for now, use the upper half of the PE's dedicated area in DRAM for PTS
-        auto pe_mem = Platform::pe_mem_base() + Platform::pe_mem_size() * peid();
-        auto pe_mem_end = pe_mem + Platform::pe_mem_size();
-        PEManager::get().pemux(peid())->init(id(), pe_mem, pe_mem_end);
-    }
+    if(Platform::pe(peid()).supports_pemux())
+        PEManager::get().pemux(peid())->init(id());
 
     _state = VPE::RUNNING;
 

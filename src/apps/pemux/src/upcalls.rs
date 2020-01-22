@@ -44,24 +44,14 @@ fn init(msg: &'static dtu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::Init>();
 
     let pe_id = req.pe_id as u32;
-    let pe_desc = kif::PEDesc::new_from(req.pe_desc as u32);
     let vpe_id = req.vpe_sel;
-    let pts_start = req.pts_start;
-    let pts_end = req.pts_end;
 
     // do that here to get the color of the next print correct
     io::init(pe_id, "pemux");
 
-    log!(
-        crate::LOG_UPCALLS,
-        "upcall::init(vpe={}, pe_desc={:?}, pts_start={:#x}, pts_end={:#x})",
-        vpe_id,
-        pe_desc,
-        pts_start,
-        pts_end
-    );
+    log!(crate::LOG_UPCALLS, "upcall::init(vpe={})", vpe_id,);
 
-    vpe::add(vpe_id, pe_desc, pts_start, pts_end);
+    vpe::add(vpe_id);
     Ok(())
 }
 

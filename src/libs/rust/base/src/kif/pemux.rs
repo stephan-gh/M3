@@ -43,10 +43,7 @@ int_enum! {
 pub struct Init {
     pub op: u64,
     pub pe_id: u64,
-    pub pe_desc: u64,
     pub vpe_sel: u64,
-    pub pts_start: u64,
-    pub pts_end: u64,
 }
 
 /// The VPE control upcall

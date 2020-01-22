@@ -29,6 +29,11 @@ pub extern "C" fn get_addr_space() -> PTE {
 }
 
 #[no_mangle]
+pub extern "C" fn set_addr_space(_root: PTE, _alloc_frame: AllocFrameFunc, _xlate_pt: XlatePtFunc) {
+    // TODO implement me
+}
+
+#[no_mangle]
 pub extern "C" fn noc_to_phys(noc: u64) -> u64 {
     // TODO implement me
     noc
@@ -43,6 +48,15 @@ pub extern "C" fn phys_to_noc(phys: u64) -> u64 {
 #[no_mangle]
 pub extern "C" fn translate(_virt: usize, _perm: PTE) -> PTE {
     unimplemented!();
+}
+
+#[no_mangle]
+pub extern "C" fn init_aspace(
+    _id: u64,
+    _alloc_frame: AllocFrameFunc,
+    _xlate_pt: XlatePtFunc,
+    _root: goff,
+) {
 }
 
 #[no_mangle]

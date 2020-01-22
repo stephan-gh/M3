@@ -102,8 +102,10 @@ pub extern "C" fn get_addr_space() -> PTE {
     phys_to_noc(addr as u64)
 }
 
-fn set_addr_space(addr: MMUPTE) {
-    unsafe { asm!("mov $0, %cr3" : : "r"(addr)) };
+#[no_mangle]
+pub extern "C" fn set_addr_space(root: PTE, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) {
+    let aspace = AddrSpace::new(0, root, xlate_pt, alloc_frame);
+    aspace.switch_to();
 }
 
 #[no_mangle]
@@ -175,6 +177,17 @@ pub extern "C" fn translate(virt: usize, perm: PTE) -> PTE {
 }
 
 #[no_mangle]
+pub extern "C" fn init_aspace(
+    id: u64,
+    alloc_frame: AllocFrameFunc,
+    xlate_pt: XlatePtFunc,
+    root: goff,
+) {
+    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame);
+    aspace.init();
+}
+
+#[no_mangle]
 pub extern "C" fn map_pages(
     id: u64,
     virt: usize,
@@ -212,7 +225,7 @@ impl AddrSpace {
     }
 
     pub fn switch_to(&self) {
-        set_addr_space(self.root);
+        unsafe { asm!("mov $0, %cr3" : : "r"(self.root)) };
     }
 
     pub fn init(&self) {
