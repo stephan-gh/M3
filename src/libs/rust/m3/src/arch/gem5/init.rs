@@ -24,6 +24,11 @@ use syscalls;
 use vfs;
 
 #[no_mangle]
+pub extern "C" fn abort() -> ! {
+    exit(1);
+}
+
+#[no_mangle]
 pub extern "C" fn exit(code: i32) -> ! {
     io::deinit();
     vfs::deinit();

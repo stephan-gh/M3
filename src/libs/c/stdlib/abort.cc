@@ -18,6 +18,6 @@
 #include <base/Env.h>
 #include <stdlib.h>
 
-void abort() {
+WEAK void abort() {
     m3::env()->exit(1, true);
 }
