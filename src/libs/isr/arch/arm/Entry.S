@@ -72,9 +72,8 @@ BEGIN_FUNC(exc_common)
     pop     {r0-r12, r14}
 
     // return to user
-    pop     {lr}
-    add     sp, #4
-    movs    pc, lr
+    // TODO does that work with the O3 CPU?
+    rfe     sp!
 END_FUNC(exc_common)
 
 .bss

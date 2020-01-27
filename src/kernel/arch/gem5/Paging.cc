@@ -38,6 +38,7 @@ extern "C" goff_t get_addr_space();
 extern "C" void set_addr_space(goff_t root, alloc_frame_func alloc_frame, xlate_pt_func xlate_pt);
 extern "C" uint64_t noc_to_phys(uint64_t noc);
 extern "C" uint64_t phys_to_noc(uint64_t phys);
+extern "C" void enable_paging();
 extern "C" void init_aspace(uint64_t vpe,
                             alloc_frame_func alloc_frame, xlate_pt_func xlate_pt, goff_t root);
 extern "C" void map_pages(uint64_t vpe, uintptr_t virt, goff_t phys, size_t pages, uint64_t perm,
@@ -99,8 +100,15 @@ void init_paging() {
     // map PTs
     map_init(PE_MEM_BASE, m3::env()->pe_mem_base, m3::env()->pe_mem_size / PAGE_SIZE, rw, root);
 
+#if defined(__arm__)
+    // map vectors
+    map_init(0, m3::env()->pe_mem_base, 1, m3::KIF::PageFlags::RX | m3::KIF::PageFlags::U, root);
+#endif
+
     // switch to that address space
     set_addr_space(root, kalloc_frame, kxlate_pt);
+
+    enable_paging();
 }
 
 void map_pages(uintptr_t virt, goff_t phys, size_t pages, uint64_t perm) {

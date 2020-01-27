@@ -28,6 +28,7 @@ mod corereq;
 mod helper;
 mod pexcalls;
 mod upcalls;
+mod vma;
 mod vpe;
 
 use base::cfg;
@@ -37,9 +38,6 @@ use base::io;
 use base::kif;
 use base::libc;
 use core::intrinsics;
-
-use arch::isr;
-use arch::vma;
 
 /// Logs pexcalls
 pub const LOG_CALLS: bool = false;
@@ -81,19 +79,19 @@ pub fn sleep() {
     }
 }
 
-pub extern "C" fn unexpected_irq(state: &mut isr::State) -> *mut libc::c_void {
+pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
     panic!("Unexpected IRQ with {:?}", state);
 }
 
-pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
-    vma::handle_mmu_pf(state);
+pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
+    arch::handle_mmu_pf(state);
 
     upcalls::check(state);
 
     state.finalize()
 }
 
-pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
+pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
     pexcalls::handle_call(state);
 
     upcalls::check(state);
@@ -101,7 +99,10 @@ pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
     state.finalize()
 }
 
-pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
+pub extern "C" fn dtu_irq(state: &mut arch::State) -> *mut libc::c_void {
+    #[cfg(target_arch = "arm")]
+    dtu::DTU::clear_irq();
+
     // core request from DTU?
     let core_req = dtu::DTU::get_core_req();
     if core_req != 0 {
@@ -118,16 +119,13 @@ pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
 
     upcalls::check(state);
 
-    #[cfg(target_arch = "arm")]
-    dtu::DTU::clear_irq();
-
     state.finalize()
 }
 
 #[no_mangle]
 pub extern "C" fn init() {
     unsafe {
-        isr::init();
+        arch::init();
 
         heap_init(
             &HEAP as *const u64 as usize,

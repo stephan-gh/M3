@@ -23,8 +23,8 @@ use base::io;
 use base::kif;
 use base::util;
 
+use arch;
 use helper;
-use isr;
 use vpe;
 
 static ENABLED: StaticCell<bool> = StaticCell::new(true);
@@ -55,7 +55,7 @@ fn init(msg: &'static dtu::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn vpe_ctrl(msg: &'static dtu::Message, state: &mut isr::State) -> Result<(), Error> {
+fn vpe_ctrl(msg: &'static dtu::Message, state: &mut arch::State) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
     let pe_id = req.pe_id as u32;
@@ -114,7 +114,7 @@ fn map(msg: &'static dtu::Message) -> Result<(), Error> {
         .map(virt, phys, pages, perm | kif::PageFlags::U)
 }
 
-fn handle_upcall(msg: &'static dtu::Message, state: &mut isr::State) {
+fn handle_upcall(msg: &'static dtu::Message, state: &mut arch::State) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::pemux::Upcalls::from(req.opcode) {
@@ -140,7 +140,7 @@ pub fn enable() {
     ENABLED.set(true);
 }
 
-pub fn check(state: &mut isr::State) {
+pub fn check(state: &mut arch::State) {
     if !*ENABLED {
         return;
     }

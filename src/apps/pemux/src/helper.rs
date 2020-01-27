@@ -17,7 +17,7 @@
 use base::dtu;
 use core::intrinsics;
 
-use isr;
+use arch;
 
 pub struct IRQsOnGuard {
     prev: bool,
@@ -26,14 +26,14 @@ pub struct IRQsOnGuard {
 impl IRQsOnGuard {
     pub fn new() -> Self {
         IRQsOnGuard {
-            prev: isr::enable_ints(),
+            prev: arch::enable_ints(),
         }
     }
 }
 
 impl Drop for IRQsOnGuard {
     fn drop(&mut self) {
-        isr::restore_ints(self.prev);
+        arch::restore_ints(self.prev);
     }
 }
 

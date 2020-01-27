@@ -13,7 +13,6 @@ num_pes = int(os.environ.get('M3_GEM5_PES'))
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
-isa = os.environ.get('M3_ISA')
 accs = ['rot13', 'rot13']
 mem_pe = num_pes + len(accs)
 
@@ -26,10 +25,8 @@ for i in range(0, num_pes):
                       no=i,
                       cmdline=cmd_list[i],
                       memPE=mem_pe,
-                      # ARM only supports SPM for now
-                      l1size=None if isa == 'arm' else '32kB',
-                      l2size=None if isa == 'arm' else '256kB',
-                      spmsize='32MB' if isa == 'arm' else None,
+                      l1size='32kB',
+                      l2size='256kB',
                       dtupos=dtupos)
     pes.append(pe)
 

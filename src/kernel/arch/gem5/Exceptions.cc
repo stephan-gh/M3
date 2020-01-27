@@ -140,11 +140,12 @@ public:
             m3::ISR::reg(i, irq_handler);
 #if defined(__x86_64__)
         m3::ISR::reg(64, dtu_handler);
+#else
+        m3::ISR::reg(6, dtu_handler);
 #endif
         m3::ISR::enable_irqs();
     }
 
-#if defined(__x86_64__)
     static void handle_xlate(m3::DTU::reg_t xlate_req) {
         m3::DTU &dtu = m3::DTU::get();
 
@@ -163,6 +164,10 @@ public:
     static void *dtu_handler(m3::ISR::State *state) {
         m3::DTU &dtu = m3::DTU::get();
 
+#if defined(__arm__)
+        dtu.clear_irq();
+#endif
+
         // translation request from DTU?
         m3::DTU::reg_t core_req = dtu.get_core_req();
         if(core_req) {
@@ -172,9 +177,9 @@ public:
             dtu.set_core_req(0);
             handle_xlate(core_req);
         }
+
         return state;
     }
-#endif
 
     static ISR irqs;
 };

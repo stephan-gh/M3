@@ -18,11 +18,11 @@ use base::dtu;
 use base::errors::{Code, Error};
 use base::pexif;
 
+use arch;
 use helper;
-use isr;
 
-fn pexcall_sleep(state: &mut isr::State) -> Result<(), Error> {
-    let cycles = state.r[isr::PEXC_ARG1];
+fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
+    let cycles = state.r[arch::PEXC_ARG1];
 
     log!(crate::LOG_CALLS, "pexcall::sleep(cycles={})", cycles);
 
@@ -35,15 +35,15 @@ fn pexcall_sleep(state: &mut isr::State) -> Result<(), Error> {
     }
 }
 
-fn pexcall_stop(state: &mut isr::State) -> Result<(), Error> {
+fn pexcall_stop(state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::stop()");
 
     state.stop();
     Ok(())
 }
 
-pub fn handle_call(state: &mut isr::State) {
-    let call = pexif::Operation::from(state.r[isr::PEXC_ARG0] as isize);
+pub fn handle_call(state: &mut arch::State) {
+    let call = pexif::Operation::from(state.r[arch::PEXC_ARG0] as isize);
 
     let res = match call {
         pexif::Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
@@ -61,5 +61,5 @@ pub fn handle_call(state: &mut isr::State) {
         );
     }
 
-    state.r[isr::PEXC_ARG0] = res.unwrap_or_else(|e| -(e.code() as isize)) as usize;
+    state.r[arch::PEXC_ARG0] = res.unwrap_or_else(|e| -(e.code() as isize)) as usize;
 }

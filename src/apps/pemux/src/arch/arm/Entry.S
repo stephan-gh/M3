@@ -43,7 +43,7 @@ BEGIN_FUNC(_start)
     ldr     sp, =isr_stack
     mov     fp, #0
 
-    // perform initialization, if necessary
+    // perform initialization
     bl      init
 
     // load user sp

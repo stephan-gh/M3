@@ -16,7 +16,6 @@ num_spm = 4 if num_pes >= 4 else 4 - num_pes
 
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
-isa = os.environ.get('M3_ISA')
 
 # disk image
 hard_disk0 = os.environ.get('M3_GEM5_IDE_DRIVE')
@@ -37,10 +36,8 @@ for i in range(0, num_pes - num_spm):
                       no=i,
                       cmdline=cmd_list[i],
                       memPE=mem_pe,
-                      # ARM only supports SPM for now
-                      l1size=None if isa == 'arm' else '32kB',
-                      l2size=None if isa == 'arm' else '256kB',
-                      spmsize='32MB' if isa == 'arm' else None,
+                      l1size='32kB',
+                      l2size='256kB',
                       dtupos=dtupos)
     pes.append(pe)
 

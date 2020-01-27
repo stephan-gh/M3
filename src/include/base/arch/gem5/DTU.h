@@ -306,6 +306,10 @@ private:
         write_reg(PrivRegs::CORE_RESP, val);
     }
 
+    void clear_irq() {
+        write_reg(DtuRegs::CLEAR_IRQ, 1);
+    }
+
     static Errors::Code get_error() {
         while(true) {
             reg_t cmd = read_reg(CmdRegs::COMMAND);

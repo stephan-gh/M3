@@ -22,8 +22,8 @@ use base::kif::{PageFlags, PTE};
 use core::ptr;
 use paging;
 
+use arch;
 use helper;
-use isr;
 use upcalls;
 
 struct XlateState {
@@ -67,21 +67,24 @@ impl XlateState {
         upcalls::disable();
 
         // allow other translation requests in the meantime
-        unsafe { asm!("sti" : : : "memory") };
+        let _guard = helper::IRQsOnGuard::new();
 
         // send PF message
         self.pf_msg[1] = virt as u64;
         self.pf_msg[2] = perm.bits();
         let msg = &self.pf_msg as *const u64 as *const u8;
         if let Err(e) = dtu::DTU::send(dtu::PG_SEP, msg, 3 * 8, 0, dtu::PG_REP) {
-            panic!("VMA: unable to send PF message for virt={:#x}, perm={:?}: {}", virt, perm, e);
+            panic!(
+                "VMA: unable to send PF message for virt={:#x}, perm={:?}: {}",
+                virt, perm, e
+            );
         }
 
         upcalls::enable();
 
         // wait for reply
         let res = loop {
-            if isr::is_stopped() {
+            if arch::is_stopped() {
                 break false;
             }
 
@@ -92,8 +95,6 @@ impl XlateState {
 
             dtu::DTU::wait_for_msg(dtu::PG_REP, 0).ok();
         };
-
-        unsafe { asm!("cli" : : : "memory") };
 
         self.in_pf = false;
         res
@@ -166,25 +167,17 @@ pub fn handle_xlate(mut xlate_req: dtu::Reg) {
     }
 }
 
-pub fn handle_mmu_pf(state: &mut isr::State) {
-    let cr2: usize;
-    unsafe {
-        asm!( "mov %cr2, $0" : "=r"(cr2));
-    }
-
+pub fn handle_pf(user: bool, virt: usize, perm: PageFlags, ip: usize) {
     // PEMux isn't causing PFs
-    assert!(state.came_from_user());
+    assert!(user, "pagefault for {:#x} at {:#x}", virt, ip);
 
-    let perm = paging::MMUFlags::from_bits_truncate(state.error & PageFlags::RW.bits() as usize);
-    // the access is implicitly no-exec
-    let perm = paging::to_map_flags(perm | paging::MMUFlags::NX);
-    if !STATE.get_mut().handle_pf(0, cr2, perm) {
-        if isr::is_stopped() {
+    if !STATE.get_mut().handle_pf(0, virt, perm) {
+        if arch::is_stopped() {
             return;
         }
 
         // if we can't handle the PF, there is something wrong
-        panic!("PEMux: pagefault for {:#x} at {:#x}", cr2, { state.rip });
+        panic!("PEMux: pagefault for {:#x} at {:#x}", virt, ip);
     }
 
     STATE.get_mut().resume_cmd();

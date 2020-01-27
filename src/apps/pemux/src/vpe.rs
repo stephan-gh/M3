@@ -66,7 +66,7 @@ pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     INFO.get_mut().mem_start = mem_start;
     INFO.get_mut().mem_end = mem_start + mem_size;
 
-    let root_pt = mem_start;
+    let root_pt = mem_start + cfg::PAGE_SIZE as u64;
     let pts_count = mem_size as usize / cfg::PAGE_SIZE;
     IDLE.set(Some(VPE::new(kif::pemux::IDLE_ID, root_pt, 0, 0)));
     OUR.set(Some(VPE::new(
@@ -79,6 +79,7 @@ pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     if pe_desc.has_virtmem() {
         our().init();
         our().switch_to();
+        paging::enable_paging();
     }
 }
 
@@ -222,8 +223,9 @@ impl VPE {
         .unwrap();
 
         // map text, data, and bss
+        // TODO don't map that for the user
+        let rx = kif::PageFlags::U | kif::PageFlags::RX;
         unsafe {
-            let rx = kif::PageFlags::U | kif::PageFlags::RX;
             self.map_segment(&_text_start, &_text_end, rx);
             self.map_segment(&_data_start, &_data_end, rw);
             self.map_segment(&_bss_start, &_bss_end, rw);
@@ -256,13 +258,18 @@ impl VPE {
         }
 
         // map PTs
+        let noc_begin = paging::phys_to_noc(self.pts_start as u64);
         self.map(
             cfg::PE_MEM_BASE,
-            paging::phys_to_noc(self.pts_start as u64),
+            noc_begin,
             self.pts_count,
             kif::PageFlags::RW,
         )
         .unwrap();
+
+        // map vectors
+        #[cfg(target_arch = "arm")]
+        self.map(0, noc_begin, 1, rx).unwrap();
     }
 
     fn switch_to(&self) {
