@@ -84,10 +84,13 @@ pub extern "C" fn to_page_flags(pte: MMUFlags) -> PageFlags {
     if !pte.contains(MMUFlags::NX) {
         res |= PageFlags::X;
     }
+    if pte.contains(MMUFlags::L) {
+        res |= PageFlags::L;
+    }
     res
 }
 
-pub fn to_mmu_flags(flags: PageFlags) -> MMUFlags {
+pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
     let mut res = MMUFlags::empty();
     if flags.intersects(PageFlags::RWX) {
         res |= MMUFlags::P;

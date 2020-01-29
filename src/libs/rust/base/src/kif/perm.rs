@@ -44,6 +44,8 @@ bitflags! {
         const X             = 0b0000_0100;
         /// User accessible
         const U             = 0b0000_1000;
+        /// Large page
+        const L             = 0b0001_0000;
         /// Read+write
         const RW            = Self::R.bits | Self::W.bits;
         /// Read+write+execute

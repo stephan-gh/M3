@@ -120,7 +120,7 @@ pub extern "C" fn translate(virt: usize, perm: PTE) -> PTE {
     }
     else {
         // otherwise, walk through all levels
-        let perm = arch::to_mmu_flags(PageFlags::from_bits_truncate(perm));
+        let perm = arch::to_mmu_perms(PageFlags::from_bits_truncate(perm));
         for lvl in (0..LEVEL_CNT).rev() {
             let pte = get_pte_at(virt, lvl);
             let pte_flags = MMUFlags::from_bits_truncate(pte);
@@ -188,7 +188,7 @@ impl AddrSpace {
 
         let lvl = LEVEL_CNT - 1;
         let mut phys = arch::noc_to_phys(noc) as MMUPTE;
-        let perm = arch::to_mmu_flags(perm);
+        let perm = arch::to_mmu_perms(perm);
         self.map_pages_rec(&mut virt, &mut phys, &mut pages, perm, self.root, lvl)
     }
 
