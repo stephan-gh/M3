@@ -25,8 +25,7 @@ extern void *_bss_end;
 namespace m3 {
 
 void Heap::init_arch() {
-    uintptr_t begin = Math::round_up<uintptr_t>(reinterpret_cast<uintptr_t>(&_bss_end),
-                                                sizeof(HeapArea));
+    uintptr_t begin = Math::round_up<uintptr_t>(reinterpret_cast<uintptr_t>(&_bss_end), LPAGE_SIZE);
 
     uintptr_t end;
     if(env()->heapsize == 0) {
@@ -34,10 +33,10 @@ void Heap::init_arch() {
             end = env()->pedesc.mem_size() - RECVBUF_SIZE_SPM;
         // this does only exist so that we can still run scenarios on cache-PEs without pager
         else
-            end = Math::round_up(begin, PAGE_SIZE) + ROOT_HEAP_SIZE;
+            end = begin + ROOT_HEAP_SIZE;
     }
     else
-        end = Math::round_up<size_t>(begin, PAGE_SIZE) + env()->heapsize;
+        end = begin + env()->heapsize;
 
     heap_init(begin, end);
 }

@@ -42,8 +42,8 @@ static const m3::BootInfo::Mod *get_mod(const char *name, bool *first) {
     return nullptr;
 }
 
-static gaddr_t alloc_mem(size_t size) {
-    MainMemory::Allocation alloc = MainMemory::get().allocate(size, PAGE_SIZE);
+static gaddr_t alloc_mem(size_t size, size_t align) {
+    MainMemory::Allocation alloc = MainMemory::get().allocate(size, align);
     if(!alloc)
         PANIC("Not enough memory");
     return m3::DTU::build_gaddr(alloc.pe(), alloc.addr);
@@ -121,7 +121,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool t
             // allocate memory
             size_t size = static_cast<size_t>((pheader.p_vaddr & PAGE_BITS) + pheader.p_memsz);
             size = m3::Math::round_up(size, PAGE_SIZE);
-            gaddr_t phys = alloc_mem(size);
+            gaddr_t phys = alloc_mem(size, PAGE_SIZE);
 
             // map it
             map_segment(vpe, phys, virt, size, perms | MapCapability::EXCL);
@@ -140,8 +140,8 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool t
     }
 
     // create initial heap
-    gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE);
-    goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
+    gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE, LPAGE_SIZE);
+    goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(LPAGE_SIZE));
     map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, m3::KIF::PageFlags::RW | MapCapability::EXCL);
 
     return header.e_entry;
@@ -158,7 +158,7 @@ void VPE::load_app() {
     if(Platform::pe(peid()).has_virtmem()) {
         // map runtime space
         goff_t virt = ENV_START;
-        gaddr_t phys = alloc_mem(STACK_TOP - virt);
+        gaddr_t phys = alloc_mem(STACK_TOP - virt, PAGE_SIZE);
         map_segment(*this, phys, virt, STACK_TOP - virt, m3::KIF::PageFlags::RW | MapCapability::EXCL);
     }
 

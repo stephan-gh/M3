@@ -22,10 +22,14 @@
 #define PAGE_SIZE           (static_cast<size_t>(1) << PAGE_BITS)
 #define PAGE_MASK           (PAGE_SIZE - 1)
 
+#define LPAGE_BITS          21
+#define LPAGE_SIZE          (static_cast<size_t>(1) << LPAGE_BITS)
+#define LPAGE_MASK          (LPAGE_SIZE - 1)
+
 #define FIXED_KMEM          (2 * 1024 * 1024)
 
-#define ROOT_HEAP_SIZE      (512 * 1024)
 #define APP_HEAP_SIZE       (64 * 1024 * 1024)
+#define ROOT_HEAP_SIZE      (2 * 1024 * 1024)
 #define EPMEM_SIZE          0
 
 #define EP_COUNT            192

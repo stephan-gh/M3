@@ -200,8 +200,7 @@ impl<'l> Loader<'l> {
         )?;
 
         // create heap
-        // TODO align heap to 2M to use huge pages
-        let heap_begin = math::round_up(end, cfg::PAGE_SIZE);
+        let heap_begin = math::round_up(end, cfg::LPAGE_SIZE);
         let heap_size = if self.pager.is_some() {
             cfg::APP_HEAP_SIZE
         }

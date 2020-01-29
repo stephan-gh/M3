@@ -90,17 +90,17 @@ fn heap_bounds() -> (usize, usize) {
     use math;
 
     unsafe {
-        let begin = math::round_up(&_bss_end as *const u8 as usize, util::size_of::<HeapArea>());
+        let begin = math::round_up(&_bss_end as *const u8 as usize, cfg::LPAGE_SIZE);
 
         let env = arch::envdata::get();
         let end = if env.heap_size == 0 {
             PEDesc::new_from(env.pe_desc).mem_size() - cfg::RECVBUF_SIZE_SPM
         }
         else if env.pe_id == 0 {
-            math::round_up(begin as usize, cfg::PAGE_SIZE) + (4096 + 2048) * 1024
+            begin + (4096 + 2048) * 1024
         }
         else {
-            math::round_up(begin as usize, cfg::PAGE_SIZE) + env.heap_size as usize
+            begin + env.heap_size as usize
         };
 
         (begin, end)

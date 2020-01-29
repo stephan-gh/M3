@@ -87,7 +87,7 @@ void init_paging() {
     map_segment(&_bss_start, &_bss_end, rw, root);
 
     // map initial heap
-    uintptr_t heap_start = m3::Math::round_up(reinterpret_cast<uintptr_t>(&_bss_end), PAGE_SIZE);
+    uintptr_t heap_start = m3::Math::round_up(reinterpret_cast<uintptr_t>(&_bss_end), LPAGE_SIZE);
     map_init(heap_start, phys_to_noc(m3::env()->pe_mem_base + heap_start), 4, rw, root);
 
     // map stack
