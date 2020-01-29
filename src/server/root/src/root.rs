@@ -309,8 +309,8 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
     let cfg_mem = cfg_mem.unwrap();
     let mgate = MemGate::new_bind(cfg_mem.0 as Id);
     let mut xml: Vec<u8> = Vec::with_capacity(cfg_mem.1 as usize);
-    // safety: will be initialized by read below
 
+    // safety: will be initialized by read below
     unsafe { xml.set_len(cfg_mem.1 as usize) };
     mgate.read(&mut xml, 0).expect("Unable to read boot config");
 
