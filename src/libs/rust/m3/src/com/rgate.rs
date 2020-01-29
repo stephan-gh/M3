@@ -299,7 +299,7 @@ impl RecvGate {
 pub(crate) fn init() {
     let rbufs = VPE::cur().rbufs();
 
-    let mut off = cfg::KPEX_RBUF_SIZE + cfg::PEXUP_RBUF_SIZE;
+    let mut off = 0;
     RecvGate::syscall().buf = rbufs.get_std(off, cfg::SYSC_RBUF_SIZE);
     RecvGate::syscall().order = math::next_log2(cfg::SYSC_RBUF_SIZE);
     off += cfg::SYSC_RBUF_SIZE;

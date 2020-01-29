@@ -39,6 +39,8 @@
 // |         PEMUX_FLAGS        |
 // +----------------------------+ 0x100010
 // |       PEMux code+data      |
+// +----------------------------+ 0x1FF000
+// |      PEMux recv buffers    |
 // +----------------------------+ 0x200000
 // |         environment        |
 // +----------------------------+ 0x202000
@@ -63,6 +65,9 @@
 #define STACK_BOTTOM        (ENV_END + 0x1000)
 #define STACK_TOP           (STACK_BOTTOM + STACK_SIZE)
 
+#define PEMUX_RBUF_SPACE    0x1FF000
+#define PEMUX_RBUF_SIZE     (1U * PAGE_SIZE)
+
 #define RECVBUF_SPACE       0x3FC00000
 #define RECVBUF_SIZE        (4U * PAGE_SIZE)
 #define RECVBUF_SIZE_SPM    16384U
@@ -73,15 +78,13 @@
 
 #define KPEX_RBUF_ORDER     6
 #define KPEX_RBUF_SIZE      (1 << KPEX_RBUF_ORDER)
-#define KPEX_RBUF           RECVBUF_SPACE
 
 #define PEXUP_RBUF_ORDER    6
 #define PEXUP_RBUF_SIZE     (1 << PEXUP_RBUF_ORDER)
-#define PEXUP_RBUF          (KPEX_RBUF + KPEX_RBUF_SIZE)
 
 #define SYSC_RBUF_ORDER     9
 #define SYSC_RBUF_SIZE      (1 << SYSC_RBUF_ORDER)
-#define SYSC_RBUF           (PEXUP_RBUF + PEXUP_RBUF_SIZE)
+#define SYSC_RBUF           RECVBUF_SPACE
 
 #define UPCALL_RBUF_ORDER   6
 #define UPCALL_RBUF_SIZE    (1 << UPCALL_RBUF_ORDER)

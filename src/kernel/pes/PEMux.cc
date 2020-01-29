@@ -44,7 +44,7 @@ PEMux::PEMux(peid_t pe)
                               KPEX_RBUF_ORDER, 1);
 
         // configure receive EP
-        uintptr_t rbuf = Platform::def_recvbuf(peid());
+        uintptr_t rbuf = PEMUX_RBUF_SPACE;
         _dtustate.config_recv(m3::DTU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
                               KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::DTU::NO_REPLIES);
         rbuf += KPEX_RBUF_SIZE;

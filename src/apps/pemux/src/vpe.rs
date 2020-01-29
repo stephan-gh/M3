@@ -231,29 +231,27 @@ impl VPE {
         }
 
         // map receive buffers
-        // TODO currently the same rbuf space is used for PEMux and apps
         if self.id() == kif::pemux::VPE_ID {
-            for i in 0..(cfg::RECVBUF_SIZE / cfg::PAGE_SIZE) {
-                let frame = self.alloc_frame();
-                assert!(frame != 0);
-                self.map(
-                    cfg::RECVBUF_SPACE + i * cfg::PAGE_SIZE,
-                    paging::phys_to_noc(frame as u64),
-                    1,
-                    kif::PageFlags::U | rw,
-                )
-                .unwrap();
-            }
+            self.map_rbuf(
+                cfg::PEMUX_RBUF_SPACE,
+                cfg::PEMUX_RBUF_SIZE,
+                kif::PageFlags::R,
+            );
         }
         else {
-            let pte = paging::translate(cfg::RECVBUF_SPACE, kif::PageFlags::R.bits());
+            // map our own receive buffer again
+            let pte = paging::translate(cfg::PEMUX_RBUF_SPACE, kif::PageFlags::R.bits());
             self.map(
-                cfg::RECVBUF_SPACE,
+                cfg::PEMUX_RBUF_SPACE,
                 pte & !cfg::PAGE_MASK as goff,
-                cfg::RECVBUF_SIZE / cfg::PAGE_SIZE,
-                kif::PageFlags::U | rw,
+                cfg::PEMUX_RBUF_SIZE / cfg::PAGE_SIZE,
+                kif::PageFlags::R,
             )
             .unwrap();
+
+            // map application receive buffer
+            let perm = kif::PageFlags::R | kif::PageFlags::U;
+            self.map_rbuf(cfg::RECVBUF_SPACE, cfg::RECVBUF_SIZE, perm);
         }
 
         // map PTs
@@ -274,6 +272,20 @@ impl VPE {
     fn switch_to(&self) {
         self.aspace.switch_to();
         dtu::DTU::invalidate_tlb();
+    }
+
+    fn map_rbuf(&mut self, addr: usize, size: usize, perm: kif::PageFlags) {
+        for i in 0..(size / cfg::PAGE_SIZE) {
+            let frame = self.alloc_frame();
+            assert!(frame != 0);
+            self.map(
+                addr + i * cfg::PAGE_SIZE,
+                paging::phys_to_noc(frame as u64),
+                1,
+                perm,
+            )
+            .unwrap();
+        }
     }
 
     fn map_segment(&self, start: *const u8, end: *const u8, perm: kif::PageFlags) {
