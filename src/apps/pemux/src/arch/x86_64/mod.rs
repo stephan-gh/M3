@@ -34,8 +34,11 @@ extern "C" {
     static idle_stack: libc::c_void;
 }
 
+pub const DPL_KERNEL: u64 = 0;
 pub const DPL_USER: u64 = 3;
 
+pub const SEG_KCODE: u64 = 1;
+pub const SEG_KDATA: u64 = 2;
 pub const SEG_UCODE: u64 = 3;
 pub const SEG_UDATA: u64 = 4;
 
@@ -115,7 +118,8 @@ impl State {
         self.r[14] = 0xDEAD_BEEF; // set rax to tell crt0 that we've set the SP
 
         self.rflags = 0x200; // enable interrupts
-                             // run in user mode
+
+        // run in user mode
         self.cs = ((SEG_UCODE << 3) | DPL_USER) as usize;
         self.ss = ((SEG_UDATA << 3) | DPL_USER) as usize;
     }
@@ -130,6 +134,10 @@ impl State {
             self.rip = crate::sleep as *const fn() as usize;
             self.rsp = unsafe { &idle_stack as *const libc::c_void as usize };
             self.r[8] = self.rsp; // rbp and rsp
+
+            // run in kernel mode
+            self.cs = ((SEG_KCODE << 3) | DPL_KERNEL) as usize;
+            self.ss = ((SEG_KDATA << 3) | DPL_KERNEL) as usize;
 
             // remove user event again
             let our = vpe::our();

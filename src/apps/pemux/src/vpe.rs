@@ -206,25 +206,24 @@ impl VPE {
         self.aspace.init();
 
         // map DTU
-        let rw = kif::PageFlags::U | kif::PageFlags::RW;
+        let rw = kif::PageFlags::RW;
         self.map(
             dtu::MMIO_ADDR,
             dtu::MMIO_ADDR as goff,
             dtu::MMIO_SIZE / cfg::PAGE_SIZE,
-            rw,
+            kif::PageFlags::U | rw,
         )
         .unwrap();
         self.map(
             dtu::MMIO_PRIV_ADDR,
             dtu::MMIO_PRIV_ADDR as goff,
             dtu::MMIO_PRIV_SIZE / cfg::PAGE_SIZE,
-            kif::PageFlags::RW,
+            rw,
         )
         .unwrap();
 
         // map text, data, and bss
-        // TODO don't map that for the user
-        let rx = kif::PageFlags::U | kif::PageFlags::RX;
+        let rx = kif::PageFlags::RX;
         unsafe {
             self.map_segment(&_text_start, &_text_end, rx);
             self.map_segment(&_data_start, &_data_end, rw);
@@ -241,7 +240,7 @@ impl VPE {
                     cfg::RECVBUF_SPACE + i * cfg::PAGE_SIZE,
                     paging::phys_to_noc(frame as u64),
                     1,
-                    rw,
+                    kif::PageFlags::U | rw,
                 )
                 .unwrap();
             }
@@ -252,7 +251,7 @@ impl VPE {
                 cfg::RECVBUF_SPACE,
                 pte & !cfg::PAGE_MASK as goff,
                 cfg::RECVBUF_SIZE / cfg::PAGE_SIZE,
-                rw,
+                kif::PageFlags::U | rw,
             )
             .unwrap();
         }

@@ -106,6 +106,7 @@ impl State {
         else {
             self.pc = crate::sleep as *const fn() as usize;
             self.sp = unsafe { &idle_stack as *const libc::c_void as usize };
+            self.cpsr = 0x13; // supervisor mode
 
             *STOPPED.get_mut() = false;
         }
