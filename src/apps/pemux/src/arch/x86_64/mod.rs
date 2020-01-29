@@ -149,16 +149,20 @@ impl State {
 pub fn enable_ints() -> bool {
     let prev = unsafe {
         let mut flags: usize;
-        asm!("pushf; pop $0" : "=r"(flags) : : "memory");
+        asm!(
+            "pushf; pop $0"
+            : "=r"(flags)
+            : : "memory"
+        );
         (flags & 0x200) != 0
     };
-    unsafe { asm!("sti" : : : "memory") };
+    unsafe { asm!("sti" : : : "memory" : "volatile") };
     prev
 }
 
 pub fn restore_ints(prev: bool) {
     if !prev {
-        unsafe { asm!("cli" : : : "memory") };
+        unsafe { asm!("cli" : : : "memory" : "volatile") };
     }
 }
 
@@ -185,7 +189,7 @@ pub fn init() {
 pub fn handle_mmu_pf(state: &mut State) {
     let cr2: usize;
     unsafe {
-        asm!( "mov %cr2, $0" : "=r"(cr2));
+        asm!("mov %cr2, $0" : "=r"(cr2));
     }
 
     let perm = paging::MMUFlags::from_bits_truncate(state.error & PageFlags::RW.bits() as usize);

@@ -124,7 +124,8 @@ pub fn enable_ints() -> bool {
     unsafe {
         asm!(
             "mrs $0, cpsr; cpsie if; and $0, $0, #0xc0;"
-            : "=r"(enabled) : : "memory"
+            : "=r"(enabled)
+            : : "memory"
         );
     }
     enabled != 0
@@ -138,7 +139,8 @@ pub fn restore_ints(prev: bool) {
     unsafe {
         asm!(
             "mrs r1, cpsr; bic r1, r1, $0; msr cpsr_c, r1"
-            : : "r"(flags) : "r1", "memory"
+            : : "r"(flags)
+            : "r1", "memory" : "volatile"
         );
     }
 }

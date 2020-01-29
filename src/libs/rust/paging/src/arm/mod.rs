@@ -131,23 +131,40 @@ pub extern "C" fn enable_paging() {
             mov     r0, #0x53;               // enable IRQs
             msr     CPSR, r0;
             "
-        )
+            : : : : "volatile"
+        );
     }
 }
 
 pub fn invalidate_page(id: u64, virt: usize) {
-    unsafe { asm!("mcr p15, 0, $0, c8, c7, 1" : : "r"(virt | (id as usize & 0xFF))) }
+    unsafe {
+        asm!(
+            "mcr p15, 0, $0, c8, c7, 1"
+            : : "r"(virt | (id as usize & 0xFF))
+            : : "volatile"
+        );
+    }
 }
 
 pub fn invalidate_tlb() {
     // note that r0 is ignored
-    unsafe { asm!("mcr p15, 0, r0, c8, c7, 0") }
+    unsafe {
+        asm!(
+            "mcr p15, 0, r0, c8, c7, 0"
+            : : : : "volatile"
+        );
+    }
 }
 
 pub fn get_root_pt() -> MMUPTE {
     let ttbr0_low: u32;
     let ttbr0_high: u32;
-    unsafe { asm!("mrrc p15, 0, $0, $1, c2" : "=r"(ttbr0_low), "=r"(ttbr0_high)) };
+    unsafe {
+        asm!(
+            "mrrc p15, 0, $0, $1, c2"
+            : "=r"(ttbr0_low), "=r"(ttbr0_high)
+        );
+    }
     (ttbr0_high as u64) << 32 | (ttbr0_low as u64 & !cfg::PAGE_MASK as u64)
 }
 
@@ -161,7 +178,13 @@ pub fn set_root_pt(id: u64, root: MMUPTE) {
     // cacheable table walk, non-shareable, outer write-back write-allocate cacheable
     let ttbr0_low: u32 = (root | 0b001001) as u32;
     let ttbr0_high: u32 = ((id as u32 & 0xFF) << 16) | (root >> 32) as u32;
-    unsafe { asm!("mcrr p15, 0, $0, $1, c2" : : "r"(ttbr0_low), "r"(ttbr0_high)) };
+    unsafe {
+        asm!(
+            "mcrr p15, 0, $0, $1, c2"
+            : : "r"(ttbr0_low), "r"(ttbr0_high)
+            : : "volatile"
+        );
+    }
 }
 
 #[no_mangle]

@@ -67,6 +67,7 @@ pub fn gem5_debug(msg: usize) -> time::Time {
         asm!(
             ".long 0xEE630110"
             : "+{r0}"(res)
+            : : : "volatile"
         );
     }
     res

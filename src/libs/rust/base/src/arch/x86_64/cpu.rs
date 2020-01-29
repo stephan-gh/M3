@@ -69,6 +69,7 @@ pub fn gem5_debug(msg: usize) -> time::Time {
              .word 0x63"
             : "={rax}"(res)
             : "{rdi}"(msg)
+            : : "volatile"
         );
     }
     res

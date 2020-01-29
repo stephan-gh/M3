@@ -110,7 +110,13 @@ pub extern "C" fn enable_paging() {
 }
 
 pub fn invalidate_page(_id: u64, virt: usize) {
-    unsafe { asm!("invlpg ($0)" : : "r"(virt)) }
+    unsafe {
+        asm!(
+            "invlpg ($0)"
+            : : "r"(virt)
+            : : "volatile"
+        );
+    }
 }
 
 pub fn invalidate_tlb() {
@@ -119,12 +125,22 @@ pub fn invalidate_tlb() {
 
 pub fn get_root_pt() -> MMUPTE {
     let addr: MMUPTE;
-    unsafe { asm!("mov %cr3, $0" : "=r"(addr)) };
+    unsafe {
+        asm!(
+            "mov %cr3, $0" : "=r"(addr)
+        )
+    };
     addr
 }
 
 pub fn set_root_pt(_id: u64, root: MMUPTE) {
-    unsafe { asm!("mov $0, %cr3" : : "r"(root)) };
+    unsafe {
+        asm!(
+            "mov $0, %cr3"
+            : : "r"(root)
+            : : "volatile"
+        );
+    }
 }
 
 #[no_mangle]
