@@ -77,7 +77,7 @@ fn vpe_ctrl(msg: &'static dtu::Message, state: &mut arch::State) -> Result<(), E
         },
 
         kif::pemux::VPEOp::STOP | _ => {
-            state.stop();
+            crate::stop_vpe(state);
             vpe::remove();
         },
     }

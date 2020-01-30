@@ -22,7 +22,6 @@ use base::kif::{PageFlags, PTE};
 use core::ptr;
 use paging;
 
-use arch;
 use helper;
 use upcalls;
 
@@ -84,7 +83,7 @@ impl XlateState {
 
         // wait for reply
         let res = loop {
-            if arch::is_stopped() {
+            if crate::is_stopped() {
                 break false;
             }
 
@@ -172,7 +171,7 @@ pub fn handle_pf(user: bool, virt: usize, perm: PageFlags, ip: usize) {
     assert!(user, "pagefault for {:#x} at {:#x}", virt, ip);
 
     if !STATE.get_mut().handle_pf(0, virt, perm) {
-        if arch::is_stopped() {
+        if crate::is_stopped() {
             return;
         }
 

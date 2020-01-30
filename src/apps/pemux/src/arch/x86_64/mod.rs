@@ -14,12 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
 use base::dtu;
 use base::kif::PageFlags;
 use base::libc;
 use core::fmt;
-use core::ptr;
 
 use vma;
 use vpe;
@@ -100,15 +98,9 @@ impl fmt::Debug for State {
     }
 }
 
-static STOPPED: StaticCell<bool> = StaticCell::new(false);
-
 impl State {
-    pub fn came_from_user(&self) -> bool {
+    fn came_from_user(&self) -> bool {
         (self.cs & DPL_USER as usize) == DPL_USER as usize
-    }
-
-    pub fn nested(&self) -> bool {
-        !self.came_from_user()
     }
 
     pub fn init(&mut self, entry: usize, sp: usize) {
@@ -125,32 +117,17 @@ impl State {
     }
 
     pub fn stop(&mut self) {
-        if self.nested() {
-            // prevent us from sleeping by setting the user event
-            dtu::DTU::set_event().ok();
-            *STOPPED.get_mut() = true;
-        }
-        else {
-            self.rip = crate::sleep as *const fn() as usize;
-            self.rsp = unsafe { &idle_stack as *const libc::c_void as usize };
-            self.r[8] = self.rsp; // rbp and rsp
+        self.rip = crate::sleep as *const fn() as usize;
+        self.rsp = unsafe { &idle_stack as *const libc::c_void as usize };
+        self.r[8] = self.rsp; // rbp and rsp
 
-            // run in kernel mode
-            self.cs = ((SEG_KCODE << 3) | DPL_KERNEL) as usize;
-            self.ss = ((SEG_KDATA << 3) | DPL_KERNEL) as usize;
+        // run in kernel mode
+        self.cs = ((SEG_KCODE << 3) | DPL_KERNEL) as usize;
+        self.ss = ((SEG_KDATA << 3) | DPL_KERNEL) as usize;
 
-            // remove user event again
-            let our = vpe::our();
-            our.set_vpe_reg(our.vpe_reg() & !dtu::EventMask::USER.bits());
-            *STOPPED.get_mut() = false;
-        }
-    }
-
-    pub fn finalize(&mut self) -> *mut libc::c_void {
-        if *STOPPED {
-            self.stop();
-        }
-        self as *mut Self as *mut libc::c_void
+        // remove user event again
+        let our = vpe::our();
+        our.set_vpe_reg(our.vpe_reg() & !dtu::EventMask::USER.bits());
     }
 }
 
@@ -172,11 +149,6 @@ pub fn restore_ints(prev: bool) {
     if !prev {
         unsafe { asm!("cli" : : : "memory" : "volatile") };
     }
-}
-
-pub fn is_stopped() -> bool {
-    // use volatile because STOPPED may have changed via a nested IRQ
-    unsafe { ptr::read_volatile(STOPPED.get_mut()) }
 }
 
 pub fn init() {

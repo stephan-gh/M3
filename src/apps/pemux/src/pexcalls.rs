@@ -38,7 +38,7 @@ fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
 fn pexcall_stop(state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::stop()");
 
-    state.stop();
+    crate::stop_vpe(state);
     Ok(())
 }
 

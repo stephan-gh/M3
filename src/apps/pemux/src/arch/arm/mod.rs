@@ -14,11 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
 use base::kif::PageFlags;
 use base::libc;
 use core::fmt;
-use core::ptr;
 
 use vma;
 
@@ -80,15 +78,9 @@ impl fmt::Debug for State {
     }
 }
 
-static STOPPED: StaticCell<bool> = StaticCell::new(false);
-
 impl State {
-    pub fn came_from_user(&self) -> bool {
+    fn came_from_user(&self) -> bool {
         (self.cpsr & 0x0F) == 0x0
-    }
-
-    pub fn nested(&self) -> bool {
-        !self.came_from_user()
     }
 
     pub fn init(&mut self, entry: usize, sp: usize) {
@@ -100,23 +92,9 @@ impl State {
     }
 
     pub fn stop(&mut self) {
-        if self.nested() {
-            *STOPPED.get_mut() = true;
-        }
-        else {
-            self.pc = crate::sleep as *const fn() as usize;
-            self.sp = unsafe { &idle_stack as *const libc::c_void as usize };
-            self.cpsr = 0x13; // supervisor mode
-
-            *STOPPED.get_mut() = false;
-        }
-    }
-
-    pub fn finalize(&mut self) -> *mut libc::c_void {
-        if *STOPPED {
-            self.stop();
-        }
-        self as *mut Self as *mut libc::c_void
+        self.pc = crate::sleep as *const fn() as usize;
+        self.sp = unsafe { &idle_stack as *const libc::c_void as usize };
+        self.cpsr = 0x13; // supervisor mode
     }
 }
 
@@ -144,11 +122,6 @@ pub fn restore_ints(prev: bool) {
             : "r1", "memory" : "volatile"
         );
     }
-}
-
-pub fn is_stopped() -> bool {
-    // use volatile because STOPPED may have changed via a nested IRQ
-    unsafe { ptr::read_volatile(STOPPED.get_mut()) }
 }
 
 pub fn init() {

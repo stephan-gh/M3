@@ -31,6 +31,7 @@ mod upcalls;
 mod vma;
 mod vpe;
 
+use base::cell::StaticCell;
 use base::cfg;
 use base::dtu;
 use base::envdata;
@@ -38,6 +39,7 @@ use base::io;
 use base::kif;
 use base::libc;
 use core::intrinsics;
+use core::ptr;
 
 /// Logs pexcalls
 pub const LOG_CALLS: bool = false;
@@ -79,27 +81,67 @@ pub fn sleep() {
     }
 }
 
+static STOPPED: StaticCell<bool> = StaticCell::new(false);
+static NESTING_LEVEL: StaticCell<u32> = StaticCell::new(0);
+
+fn enter() {
+    *NESTING_LEVEL.get_mut() += 1;
+}
+
+fn leave(state: &mut arch::State) -> *mut libc::c_void {
+    if *STOPPED {
+        stop_vpe(state);
+    }
+    *NESTING_LEVEL.get_mut() -= 1;
+    state as *mut _ as *mut libc::c_void
+}
+
+pub fn stop_vpe(state: &mut arch::State) {
+    if *NESTING_LEVEL > 1 {
+        // prevent us from sleeping by setting the user event
+        dtu::DTU::set_event().ok();
+
+        *STOPPED.get_mut() = true;
+    }
+    else {
+        state.stop();
+
+        *STOPPED.get_mut() = false;
+    }
+}
+
+pub fn is_stopped() -> bool {
+    // use volatile because STOPPED may have changed via a nested IRQ
+    unsafe { ptr::read_volatile(STOPPED.get_mut()) }
+}
+
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
     panic!("Unexpected IRQ with {:?}", state);
 }
 
 pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
+    enter();
+
     arch::handle_mmu_pf(state);
 
     upcalls::check(state);
 
-    state.finalize()
+    leave(state)
 }
 
 pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
+    enter();
+
     pexcalls::handle_call(state);
 
     upcalls::check(state);
 
-    state.finalize()
+    leave(state)
 }
 
 pub extern "C" fn dtu_irq(state: &mut arch::State) -> *mut libc::c_void {
+    enter();
+
     #[cfg(target_arch = "arm")]
     dtu::DTU::clear_irq();
 
@@ -119,7 +161,7 @@ pub extern "C" fn dtu_irq(state: &mut arch::State) -> *mut libc::c_void {
 
     upcalls::check(state);
 
-    state.finalize()
+    leave(state)
 }
 
 #[no_mangle]
