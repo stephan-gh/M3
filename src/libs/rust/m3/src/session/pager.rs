@@ -55,6 +55,7 @@ bitflags! {
     pub struct MapFlags : u32 {
         const PRIVATE = 0x0;
         const SHARED  = 0x2000;
+        const UNINIT  = 0x4000;
     }
 }
 

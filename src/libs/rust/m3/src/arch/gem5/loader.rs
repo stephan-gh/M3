@@ -187,7 +187,7 @@ impl<'l> Loader<'l> {
             cfg::ENV_START as goff,
             cfg::ENV_SIZE,
             kif::Perm::RW,
-            MapFlags::PRIVATE,
+            MapFlags::PRIVATE | MapFlags::UNINIT,
         )?;
 
         // create area for stack
@@ -196,7 +196,7 @@ impl<'l> Loader<'l> {
             cfg::STACK_BOTTOM as goff,
             cfg::STACK_SIZE,
             kif::Perm::RW,
-            MapFlags::PRIVATE,
+            MapFlags::PRIVATE | MapFlags::UNINIT,
         )?;
 
         // create heap
@@ -212,7 +212,7 @@ impl<'l> Loader<'l> {
             heap_begin as goff,
             heap_size,
             kif::Perm::RW,
-            MapFlags::PRIVATE,
+            MapFlags::PRIVATE | MapFlags::UNINIT,
         )?;
 
         Ok(hdr.entry)

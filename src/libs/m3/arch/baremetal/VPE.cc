@@ -238,15 +238,15 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
     if(_pager) {
         // create area for boot/runtime stuff
         goff_t virt = ENV_START;
-        _pager->map_anon(&virt, ENV_END - virt, Pager::READ | Pager::WRITE, 0);
+        _pager->map_anon(&virt, ENV_END - virt, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
 
         // create area for stack
         virt = STACK_BOTTOM;
-        _pager->map_anon(&virt, STACK_TOP - virt, Pager::READ | Pager::WRITE, 0);
+        _pager->map_anon(&virt, STACK_TOP - virt, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
 
         // create heap
         virt = Math::round_up(end, static_cast<goff_t>(LPAGE_SIZE));
-        _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE, 0);
+        _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
     }
 
     *size = store_arguments(buffer, argc, argv);

@@ -252,8 +252,11 @@ impl DataSpace {
                     reg.size(),
                     kif::Perm::RWX,
                 )?)));
-                // zero the memory
-                reg.clear();
+
+                if !self.flags.contains(MapFlags::UNINIT) {
+                    // zero the memory
+                    reg.clear();
+                }
             }
         }
         // if we have memory, but COW is in progress

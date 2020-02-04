@@ -50,6 +50,7 @@ public:
     enum Flags {
         MAP_PRIVATE = 0,
         MAP_SHARED  = 0x2000,
+        MAP_UNINIT  = 0x4000,
     };
 
     enum Prot {
