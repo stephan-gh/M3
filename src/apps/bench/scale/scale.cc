@@ -32,11 +32,11 @@ using namespace m3;
 static constexpr bool VERBOSE = true;
 
 struct App {
-    explicit App(size_t argc, const char **argv, const char *pager)
+    explicit App(size_t argc, const char **argv)
         : argc(argc),
           argv(argv),
           pe(PE::alloc(VPE::self().pe_desc())),
-          vpe(pe, argv[0], VPEArgs().pager(pager)),
+          vpe(pe, argv[0]),
           rgate(RecvGate::create_for(vpe, 6, 6)),
           sgate(SendGate::create(&rgate)) {
         vpe.delegate_obj(rgate.sel());
@@ -85,29 +85,10 @@ int main(int argc, char **argv) {
     size_t fssize = IStringStream::read_from<size_t>(argv[CmdArgs::ind + 1]);
 
     App *apps[instances];
-    RemoteServer *srv[1 + servers];
-    Reference<PE> srvpes[1 + servers];
-    VPE *srvvpes[1 + servers];
-    char srvnames[1 + servers][16];
-
-#if defined(__gem5__)
-    if(VERBOSE) cout << "Creating pager...\n";
-
-    {
-        srvpes[0] = PE::alloc(VPE::self().pe_desc());
-        srvvpes[0] = new VPE(srvpes[0], "pager");
-        srv[0] = new RemoteServer(*srvvpes[0], "mypager");
-        OStringStream pager_name(srvnames[0], sizeof(srvnames[0]));
-        pager_name << "pager";
-
-        String srv_arg = srv[0]->sel_arg();
-        const char *args[] = {"/bin/pager", "-a", "16", "-f", "16", "-s", srv_arg.c_str()};
-        srvvpes[0]->exec(ARRAY_SIZE(args), args);
-    }
-#else
-    srvvpes[0] = nullptr;
-    srv[0] = nullptr;
-#endif
+    RemoteServer *srv[servers];
+    Reference<PE> srvpes[servers];
+    VPE *srvvpes[servers];
+    char srvnames[servers][16];
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
@@ -116,26 +97,26 @@ int main(int argc, char **argv) {
         const char **args = new const char *[ARG_COUNT];
         args[0] = "/bin/fstrace-m3fs";
 
-        apps[i] = new App(ARG_COUNT, args, "mypager");
+        apps[i] = new App(ARG_COUNT, args);
     }
 
     if(VERBOSE) cout << "Creating servers...\n";
 
     for(size_t i = 0; i < servers; ++i) {
-        srvpes[i + 1] = PE::alloc(VPE::self().pe_desc());
-        srvvpes[i + 1] = new VPE(srvpes[i + 1], "m3fs");
-        OStringStream m3fs_name(srvnames[i + 1], sizeof(srvnames[i + 1]));
+        srvpes[i] = PE::alloc(VPE::self().pe_desc());
+        srvvpes[i] = new VPE(srvpes[i], "m3fs");
+        OStringStream m3fs_name(srvnames[i], sizeof(srvnames[i]));
         m3fs_name << "m3fs" << i;
-        srv[i + 1] = new RemoteServer(*srvvpes[i + 1], m3fs_name.str());
+        srv[i] = new RemoteServer(*srvvpes[i], m3fs_name.str());
 
-        String m3fsarg = srv[i + 1]->sel_arg();
+        String m3fsarg = srv[i]->sel_arg();
         OStringStream fs_off_str(new char[16], 16);
         fs_off_str << (fssize * i);
         OStringStream fs_size_str(new char[16], 16);
         fs_size_str << fssize;
         const char *m3fs_args[] = {
             "/bin/m3fs",
-            "-n", srvnames[i + 1],
+            "-n", srvnames[i],
             "-s", m3fsarg.c_str(),
             "-o", fs_off_str.str(),
             "-e", "512",
@@ -148,7 +129,7 @@ int main(int argc, char **argv) {
                 cout << m3fs_args[x] << " ";
             cout << "\n";
         }
-        srvvpes[i + 1]->exec(ARRAY_SIZE(m3fs_args), m3fs_args);
+        srvvpes[i]->exec(ARRAY_SIZE(m3fs_args), m3fs_args);
     }
 
     if(VERBOSE) cout << "Starting VPEs...\n";
@@ -169,7 +150,7 @@ int main(int argc, char **argv) {
         }
         args[3] = "-w";
         args[4] = "-f";
-        args[5] = srvnames[1 + (i % servers)];
+        args[5] = srvnames[i % servers];
         args[6] = "-g";
 
         OStringStream rgatesel(new char[11], 11);
@@ -225,9 +206,9 @@ int main(int argc, char **argv) {
     for(size_t i = 0; i < instances; ++i)
         delete apps[i];
 
-    if(VERBOSE) cout << "Shutting down servers...\n";
+    if(VERBOSE) cout << "Stopping servers...\n";
 
-    for(size_t i = 0; i < servers + 1; ++i) {
+    for(size_t i = 0; i < servers; ++i) {
         if(!srv[i])
             continue;
         srv[i]->request_shutdown();
@@ -236,7 +217,7 @@ int main(int argc, char **argv) {
             exitcode = 1;
         if(VERBOSE) cout << srvnames[i] << " exited with " << res << "\n";
     }
-    for(size_t i = 0; i < servers + 1; ++i) {
+    for(size_t i = 0; i < servers; ++i) {
         delete srv[i];
         delete srvvpes[i];
     }

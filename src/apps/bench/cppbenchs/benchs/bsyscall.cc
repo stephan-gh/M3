@@ -37,8 +37,8 @@ NOINLINE static void noop() {
 }
 
 NOINLINE static void activate() {
-    EP ep = EP::alloc();
     MemGate mgate = MemGate::create_global(0x1000, MemGate::RW);
+    const EP &ep = mgate.activate();
 
     Profile pr;
     WVPERF(__func__, pr.run_with_id([&ep, &mgate] {

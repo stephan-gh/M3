@@ -16,6 +16,7 @@
 
 #include <base/Env.h>
 
+#include <m3/com/GateStream.h>
 #include <m3/session/ClientSession.h>
 #include <m3/stream/Standard.h>
 #include <m3/pes/VPE.h>

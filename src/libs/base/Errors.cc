@@ -24,17 +24,15 @@ static const char *errmsgs[] = {
     "No error",
     "Not enough credits",
     "Not enough ringbuffer space",
-    "VPE gone",
     "Pagefault",
-    "No mapping",
     "Invalid endpoint",
     "Abort",
-    "Reply disabled",
     "Invalid message",
-
-    /* 10 */
     "Invalid arguments",
     "No permissions",
+    "VPE gone",
+
+    /* 10 */
     "Out of memory",
     "No such file or directory",
     "Not supported",
@@ -43,10 +41,10 @@ static const char *errmsgs[] = {
     "No space left",
     "Object does already exist",
     "Cross-filesystem link not possible",
-
-    /* 20 */
     "Directory not empty",
     "Is a directory",
+
+    /* 20 */
     "Is no directory",
     "Endpoint is invalid",
     "Receive buffer gone",
@@ -55,11 +53,10 @@ static const char *errmsgs[] = {
     "Reply will be sent via upcall",
     "Commit failed",
     "Out of kernel memory",
-
-    /* 30 */
     "Not found",
     "Not revocable",
 
+    /* 30 */
     /* Socket */
     "In use",
     "Invalid state",

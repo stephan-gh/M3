@@ -51,7 +51,7 @@ static void init_syscall() {
 }
 
 void Env::on_exit_func(int status, void *) {
-    Syscalls::exit(status);
+    Syscalls::vpe_ctrl(KIF::SEL_VPE, KIF::Syscall::VCTRL_STOP, static_cast<xfer_t>(status));
     stop_dtu();
     // destroy the enviromment here, because on_exit functions are called last
     delete _inst;
@@ -107,7 +107,7 @@ void Env::init_dtu() {
     DTU::get().configure_recv(DTU::DEF_REP, reinterpret_cast<uintptr_t>(def.addr()),
         DEF_RBUF_ORDER, DEF_RBUF_ORDER);
 
-    DTU::get().configure(DTU::SYSC_SEP, _sysc_label, 0, _sysc_epid, _sysc_credits, SYSC_RBUF_ORDER);
+    DTU::get().configure(DTU::SYSC_SEP, _sysc_label, 0, 0, _sysc_epid, _sysc_credits, SYSC_RBUF_ORDER);
 
     DTU::get().start();
 }

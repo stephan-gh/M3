@@ -43,15 +43,13 @@ BEGIN_FUNC(_start)
     ldr     sp, =isr_stack
     mov     fp, #0
 
-    // perform initialization, if necessary
+    // perform initialization
     bl      init
 
-    // load user sp
-    ldr     r0, =idle_stack
-    push    {r0}
-    ldmia   sp, {r13}^
-    // enable interrupts and user mode
-    mov     r0, #0x10
+    // load sp
+    ldr     sp, =idle_stack
+    // enable interrupts and supervisor mode
+    mov     r0, #0x13
     msr     CPSR, r0
     // start idling
     ldr     r0, =sleep

@@ -13,10 +13,8 @@ num_pes = int(os.environ.get('M3_GEM5_PES'))
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
-mmu = int(os.environ.get('M3_GEM5_MMU', 0))
 accs = ['indir', 'indir', 'indir', 'indir', 'copy', 'copy', 'copy', 'copy', 'rot13']
-ala = ['test_stencil', 'test_md', 'test_spmv', 'test_fft']
-mem_pe = num_pes + len(accs) + len(ala)
+mem_pe = num_pes + len(accs)
 
 pes = []
 
@@ -29,8 +27,7 @@ for i in range(0, num_pes):
                       memPE=mem_pe,
                       l1size='32kB',
                       l2size='256kB',
-                      dtupos=dtupos,
-                      mmu=mmu == 1)
+                      dtupos=dtupos)
     pes.append(pe)
 
 options.cpu_clock = '1GHz'
@@ -45,21 +42,11 @@ for i in range(0, len(accs)):
                        spmsize='2MB')
     pes.append(pe)
 
-# create ALADDIN accelerator
-for i in range(0, len(ala)):
-    pe = createAladdinPE(noc=root.noc,
-                         options=options,
-                         no=num_pes + len(accs) + i,
-                         accel=ala[i],
-                         memPE=mem_pe,
-                         l1size='32kB')
-    pes.append(pe)
-
 # create the memory PEs
 for i in range(0, num_mem):
     pe = createMemPE(noc=root.noc,
                      options=options,
-                     no=num_pes + len(accs) + len(ala) + i,
+                     no=num_pes + len(accs) + i,
                      size='3072MB',
                      image=fsimg if i == 0 else None,
                      imageNum=int(fsimgnum))

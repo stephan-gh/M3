@@ -44,13 +44,15 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
       _sysc_ep(SyscallHandler::alloc_ep()),
       _kmem(kmemcap ? kmemcap->obj : m3::Reference<KMemObject>()),
       _pe(pecap ? pecap->obj : m3::Reference<PEObject>()),
+      _eps(),
+      _pg_sep(),
+      _pg_rep(),
       _name(std::move(prog)),
       _objcaps(id),
       _mapcaps(id),
       _upcqueue(desc()),
       _vpe_wait_sels(),
       _vpe_wait_count(),
-      _as(Platform::pe(pe()).has_virtmem() ? new AddrSpace(pe(), id) : nullptr),
       _first_sel(m3::KIF::FIRST_FREE_SEL) {
     if(_sysc_ep == EP_COUNT)
         PANIC("Too few slots in syscall receive buffers");
@@ -60,7 +62,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
 
     // allocate PE cap for root
     if(pecap == nullptr) {
-        pecap = new PECapability(&_objcaps, m3::KIF::SEL_PE, PEManager::get().pemux(pe())->pe());
+        pecap = new PECapability(&_objcaps, m3::KIF::SEL_PE, PEManager::get().pemux(peid())->pe());
         _objcaps.set(m3::KIF::SEL_PE, pecap);
         _pe = pecap->obj;
 
@@ -85,23 +87,10 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
         _objcaps.set(m3::KIF::SEL_KMEM, nkmemcap);
     }
 
-    _kmem->alloc(*this, base_kmem(pe()));
+    _kmem->alloc(*this, required_kmem());
 
     _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
-        &_objcaps, m3::KIF::SEL_MEM, new MGateObject(pe(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)));
-
-    // only accelerators get their EP caps directly, because no PEMux is running there
-    if(!Platform::is_shared(pe())) {
-        for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
-            capsel_t sel = m3::KIF::FIRST_EP_SEL + ep - m3::DTU::FIRST_FREE_EP;
-            _objcaps.set(sel, new EPCapability(&_objcaps, sel, new EPObject(&*pecap->obj, ep)));
-        }
-    }
-
-    if(Platform::pe(pe()).has_virtmem()) {
-        // for the root PT
-        _kmem->alloc(*this, PAGE_SIZE);
-    }
+        &_objcaps, m3::KIF::SEL_MEM, new MGateObject(peid(), 0, MEMCAP_END, m3::KIF::Perm::RWX)));
 
     // let the VPEManager know about us before we continue with initialization
     VPEManager::get().add(vpecap);
@@ -112,9 +101,10 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
     // and PEMux has one reference to us
     rem_ref();
 
-    init_eps();
+    if(!Platform::pe(peid()).is_device())
+        init_eps();
 
-    KLOG(VPES, "Created VPE '" << _name << "' [id=" << id << ", pe=" << pe() << "]");
+    KLOG(VPES, "Created VPE '" << _name << "' [id=" << id << ", pe=" << peid() << "]");
 }
 
 VPE::~VPE() {
@@ -129,10 +119,11 @@ VPE::~VPE() {
     _mapcaps.revoke_all();
 
     // ensure that there are no syscalls for this VPE anymore
-    m3::DTU::get().drop_msgs(syscall_ep(), reinterpret_cast<label_t>(this));
+    m3::DTU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
     SyscallHandler::free_ep(syscall_ep());
 
-    delete _as;
+    delete _pg_sep;
+    delete _pg_rep;
 
     _pe->vpes--;
     VPEManager::get().remove(this);
@@ -162,14 +153,17 @@ void VPE::stop_app(int exitcode, bool self) {
     if(self)
         exit_app(exitcode);
     else {
-        if(_state == RUNNING)
-            exit_app(1);
-        else {
-            PEManager::get().stop_vpe(this);
-            _flags ^= F_HASAPP;
-        }
         // ensure that there are no pending system calls
-        m3::DTU::get().drop_msgs(syscall_ep(), reinterpret_cast<label_t>(this));
+        m3::DTU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
+        if(_state == RUNNING) {
+            // device always exit successfully
+            exitcode = Platform::pe(peid()).is_device() ? 0 : 1;
+            exit_app(exitcode);
+        }
+        else {
+            _flags ^= F_HASAPP;
+            PEManager::get().stop_vpe(this);
+        }
     }
 
     if(rem_ref())
@@ -184,25 +178,24 @@ void VPE::wait_for_exit() {
 }
 
 void VPE::exit_app(int exitcode) {
-    PEManager::get().pemux(pe())->invalidate_eps();
+    auto pemux = PEManager::get().pemux(peid());
+    for(auto ep = _eps.begin(); ep != _eps.end(); ++ep) {
+        if(ep->gate != nullptr) {
+            pemux->invalidate_ep(ep->ep);
+            if(ep->gate->type == Capability::SGATE)
+                static_cast<SGateObject*>(ep->gate)->activated = false;
+            else if(ep->gate->type == Capability::RGATE) {
+                static_cast<RGateObject*>(ep->gate)->addr = 0;
+                static_cast<RGateObject*>(ep->gate)->valid = false;
+            }
 
-    // "deactivate" send and receive gates
-    for(capsel_t sel = m3::KIF::FIRST_EP_SEL; sel < m3::KIF::FIRST_FREE_SEL; ++sel) {
-        auto epcap = static_cast<EPCapability*>(_objcaps.get(sel, Capability::EP));
-        if(epcap == nullptr || epcap->obj->gate == nullptr)
-            continue;
-
-        if(epcap->obj->gate->type == Capability::SGATE)
-            static_cast<SGateObject*>(epcap->obj->gate)->activated = false;
-        else if(epcap->obj->gate->type == Capability::RGATE) {
-            static_cast<RGateObject*>(epcap->obj->gate)->addr = 0;
-            static_cast<RGateObject*>(epcap->obj->gate)->valid = false;
+            // forget the connection
+            ep->gate->remove_ep(&*ep);
+            ep->gate = nullptr;
         }
-
-        // forget the connection
-        epcap->obj->gate->remove_ep(&*epcap->obj);
-        epcap->obj->gate = nullptr;
+        ep->vpe = nullptr;
     }
+    _eps.clear();
 
     _exitcode = exitcode;
 
@@ -247,10 +240,6 @@ void VPE::wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitR
     _vpe_wait_sels = nullptr;
 }
 
-void VPE::wakeup() {
-    DTU::get().inject_irq(desc());
-}
-
 void VPE::upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply) {
     m3::KIF::Upcall::VPEWait msg;
     msg.opcode = m3::KIF::Upcall::VPEWAIT;
@@ -264,118 +253,13 @@ void VPE::upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply) {
 }
 
 void VPE::set_mem_base(goff_t addr) {
-    PEManager::get().pemux(pe())->set_mem_base(addr);
+    PEManager::get().pemux(peid())->set_mem_base(addr);
     finish_start();
-}
-
-m3::Errors::Code VPE::activate(EPCapability *epcap, capsel_t gate, size_t addr) {
-    peid_t dst_pe = epcap->obj->pe->id;
-    PEMux *dst_pemux = PEManager::get().pemux(dst_pe);
-
-    GateObject *gateobj = nullptr;
-    if(gate != m3::KIF::INV_SEL) {
-        auto gatecap = objcaps().get(gate, Capability::SGATE | Capability::MGATE | Capability::RGATE);
-        if(gatecap == nullptr) {
-            LOG_ERROR(this, m3::Errors::INV_ARGS, "Invalid gate cap");
-            return m3::Errors::INV_ARGS;
-        }
-        gateobj = gatecap->as_gate();
-    }
-
-    bool invalid = false;
-    if(epcap->obj->gate) {
-        if(epcap->obj->gate->type == Capability::RGATE)
-            static_cast<RGateObject*>(epcap->obj->gate)->addr = 0;
-        // the remote invalidation is only required for send gates
-        else if(epcap->obj->gate->type == Capability::SGATE) {
-            if(!dst_pemux->invalidate_ep(epcap->obj->ep)) {
-                LOG_ERROR(this, m3::Errors::INV_ARGS, "EP invalidation failed");
-                return m3::Errors::INV_ARGS;
-            }
-            static_cast<SGateObject*>(epcap->obj->gate)->activated = false;
-            invalid = true;
-        }
-
-        if(gateobj != epcap->obj->gate) {
-            epcap->obj->gate->remove_ep(&*epcap->obj);
-            epcap->obj->gate = nullptr;
-        }
-    }
-
-    if(gateobj) {
-        EPObject *oldep = gateobj->ep_of_pe(dst_pe);
-        if(oldep && oldep->ep != epcap->obj->ep) {
-            LOG_ERROR(this, m3::Errors::EXISTS,
-                "Gate is already activated on PE" << oldep->pe->id << ":EP " << oldep->ep);
-            return m3::Errors::EXISTS;
-        }
-
-        if(gateobj->type == Capability::MGATE) {
-            auto mgateobj = static_cast<MGateObject*>(gateobj);
-            m3::Errors::Code res = dst_pemux->config_mem_ep(epcap->obj->ep, *mgateobj, addr);
-            if(res != m3::Errors::NONE) {
-                LOG_ERROR(this, res, "Memory EP configuration failed");
-                return res;
-            }
-        }
-        else if(gateobj->type == Capability::SGATE) {
-            auto sgateobj = static_cast<SGateObject*>(gateobj);
-
-            if(!sgateobj->rgate->activated()) {
-                // LOG_SYS(vpe, ": syscall::activate",
-                //     ": waiting for rgate " << &sgateobj->rgate);
-
-                m3::ThreadManager::get().wait_for(reinterpret_cast<event_t>(&*sgateobj->rgate));
-
-                // LOG_SYS(vpe, ": syscall::activate-cont",
-                //     ": rgate " << &sgateobj->rgate << " activated");
-
-                // ensure that dstvpe is still valid
-                // TODO how to handle that?
-                // if(objcaps().get(ep, Capability::EP) == nullptr)
-                //     return m3::Errors::INV_ARGS;
-            }
-
-            m3::Errors::Code res = dst_pemux->config_snd_ep(epcap->obj->ep, *sgateobj);
-            if(res != m3::Errors::NONE) {
-                LOG_ERROR(this, res, "Send EP configuration failed");
-                return res;
-            }
-        }
-        else {
-            auto rgateobj = static_cast<RGateObject*>(gateobj);
-            if(rgateobj->activated())
-                return m3::Errors::EXISTS;
-
-            rgateobj->pe = dst_pe;
-            rgateobj->addr = addr;
-            rgateobj->ep = epcap->obj->ep;
-
-            m3::Errors::Code res = dst_pemux->config_rcv_ep(epcap->obj->ep, *rgateobj);
-            if(res != m3::Errors::NONE) {
-                LOG_ERROR(this, res, "Receive EP configuration failed");
-                rgateobj->addr = 0;
-                return res;
-            }
-        }
-
-        if(!oldep)
-            gateobj->add_ep(&*epcap->obj);
-    }
-    else {
-        if(!invalid && !dst_pemux->invalidate_ep(epcap->obj->ep)) {
-            LOG_ERROR(this, m3::Errors::INV_ARGS, "EP invalidation failed");
-            return m3::Errors::INV_ARGS;
-        }
-    }
-
-    epcap->obj->gate = gateobj;
-    return m3::Errors::NONE;
 }
 
 void VPE::update_ep(epid_t ep) {
     if(is_on_pe())
-        DTU::get().write_ep_remote(desc(), ep, PEManager::get().pemux(pe())->dtustate().get_ep(ep));
+        DTU::get().write_ep_remote(desc(), ep, PEManager::get().pemux(peid())->dtustate().get_ep(ep));
 }
 
 }

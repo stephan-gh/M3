@@ -16,17 +16,18 @@
 
 #pragma once
 
+#include <base/util/BitField.h>
+
 #include "cap/CapTable.h"
 #include "pes/VPE.h"
 #include "DTUState.h"
+#include "Platform.h"
 
 namespace kernel {
 
 class PEMux {
 public:
     static const size_t PEXC_MSGSIZE_ORD     = 7;
-    // TODO is there a better way?
-    static const capsel_t VPE_SEL_BEGIN      = 1000;
 
     static size_t total_instances() {
         size_t num = 0;
@@ -40,34 +41,17 @@ public:
     explicit PEMux(peid_t pe);
 
     PEObject *pe() {
-        return &_pe;
+        return &*_pe;
     }
     peid_t peid() const {
-        return _pe.id;
+        return _pe->id;
     }
     VPEDesc desc() const {
         return VPEDesc(peid(), VPE::INVALID_ID);
     }
 
-    bool used() const {
-        return _vpes > 0;
-    }
-    void add_vpe(VPECapability *vpe) {
-        assert(_vpes == 0);
-        _caps.obtain(VPE_SEL_BEGIN + vpe->obj->id(), vpe);
-        _vpes++;
-    }
-    void remove_vpe(UNUSED VPE *vpe) {
-        // has already been revoked
-        assert(_caps.get(VPE_SEL_BEGIN + vpe->id(), Capability::VIRTPE) == nullptr);
-        _vpes--;
-        _headers = 2;
-        _rbufs_size = 0;
-    }
-
-    size_t headers() const {
-        return _headers;
-    }
+    void add_vpe(VPECapability *vpe);
+    void remove_vpe(VPE *vpe);
 
     goff_t mem_base() const {
         return _mem_base;
@@ -90,30 +74,33 @@ public:
         return _dtustate;
     }
 
-    m3::Errors::Code alloc_ep(VPE *caller, vpeid_t dst, capsel_t sel, epid_t *ep);
-    void free_ep(epid_t ep);
+    epid_t find_eps(uint count) const;
+    bool eps_free(epid_t start, uint count) const;
+    void alloc_eps(epid_t first, uint count);
+    void free_eps(epid_t first, uint count);
 
     void handle_call(const m3::DTU::Message *msg);
 
-    void pexcall_activate(const m3::DTU::Message *msg);
-
-    size_t allocate_headers(size_t num);
+    m3::Errors::Code init(vpeid_t vpe);
+    m3::Errors::Code map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, uint perm);
+    m3::Errors::Code vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
 
     bool invalidate_ep(epid_t ep, bool force = false);
-    void invalidate_eps();
 
-    m3::Errors::Code config_rcv_ep(epid_t ep, RGateObject &obj);
-    m3::Errors::Code config_snd_ep(epid_t ep, SGateObject &obj);
-    m3::Errors::Code config_mem_ep(epid_t ep, const MGateObject &obj, goff_t off);
+    m3::Errors::Code config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj);
+    m3::Errors::Code config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj);
+    m3::Errors::Code config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject &obj, goff_t off);
     void update_ep(epid_t ep);
 
 private:
-    PEObject _pe;
+    m3::Errors::Code upcall(void *req, size_t size);
+
+    m3::Reference<PEObject> _pe;
     CapTable _caps;
     size_t _vpes;
-    size_t _headers;
     size_t _rbufs_size;
     goff_t _mem_base;
+    m3::BitField<EP_COUNT> _eps;
     DTUState _dtustate;
     SendQueue _upcqueue;
 };

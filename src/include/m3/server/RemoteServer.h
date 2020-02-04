@@ -38,9 +38,8 @@ struct RemoteServer {
     }
 
     String sel_arg() const {
-        // TODO this might not work in the future
         OStringStream os;
-        os << srv.sel() << " " << rgate.ep();
+        os << srv.sel() << " " << rgate.ep()->id();
         return os.str();
     }
 

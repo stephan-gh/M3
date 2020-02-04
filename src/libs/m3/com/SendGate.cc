@@ -33,10 +33,6 @@ SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
     return SendGate(sel, args._flags, replygate);
 }
 
-void SendGate::activate_on(const EP &ep) {
-    Syscalls::activate(ep.sel(), sel(), 0);
-}
-
 void SendGate::send(const void *msg, size_t len, label_t reply_label) {
     Errors::Code res = try_send(msg, len, reply_label);
     if(res != Errors::NONE)

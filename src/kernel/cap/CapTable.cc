@@ -50,7 +50,6 @@ Capability *CapTable::obtain(capsel_t dst, Capability *c) {
                   sizeof(SGateCapability) == sizeof(ServCapability) &&
                   sizeof(SGateCapability) == sizeof(EPCapability) &&
                   sizeof(SGateCapability) == sizeof(PECapability) &&
-                  sizeof(SGateCapability) == sizeof(SharedEPCapability) &&
                   sizeof(SGateCapability) == sizeof(VPECapability) &&
                   sizeof(SGateCapability) == sizeof(KMemCapability), "Cap sizes not equal");
 
@@ -98,7 +97,11 @@ void CapTable::revoke_rec(Capability *c, bool revnext) {
         revoke_rec(next, true);
 
     // delete the object here to allow the child capabilities to use their parent pointer
-    c->table()->unset(c->sel());
+    bool exists = c->table()->unset(c->sel());
+    // and we want to give caps a chance to perform some actions after making the cap inaccessible
+    c->late_revoke();
+    if(exists)
+        delete c;
 }
 
 void CapTable::revoke(Capability *c, bool revnext) {

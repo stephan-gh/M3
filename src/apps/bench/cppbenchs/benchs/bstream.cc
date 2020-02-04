@@ -25,13 +25,12 @@
 
 using namespace m3;
 
-static const size_t msg_size = 256;
-static const int msg_ord     = nextlog2<msg_size>::val;
+static const int msg_ord = nextlog2<256>::val;
 
 NOINLINE static void pingpong_1u64() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(1));
 
     Profile pr;
     WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
@@ -54,7 +53,7 @@ NOINLINE static void pingpong_1u64() {
 NOINLINE static void pingpong_2u64() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(1));
 
     Profile pr;
     WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
@@ -77,7 +76,7 @@ NOINLINE static void pingpong_2u64() {
 NOINLINE static void pingpong_4u64() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(1));
 
     Profile pr;
     WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
@@ -100,7 +99,7 @@ NOINLINE static void pingpong_4u64() {
 NOINLINE static void pingpong_str() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(1));
 
     Profile pr;
     WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {
@@ -123,7 +122,7 @@ NOINLINE static void pingpong_str() {
 NOINLINE static void pingpong_strref() {
     auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(msg_size));
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(1));
 
     Profile pr;
     WVPERF(__func__, pr.run_with_id([&sgate, &rgate] {

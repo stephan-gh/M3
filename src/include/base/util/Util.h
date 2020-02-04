@@ -20,7 +20,7 @@
 
 namespace m3 {
 
-static constexpr int _getnextlog2(size_t size, int shift) {
+static constexpr uint _getnextlog2(size_t size, uint shift) {
     return size > (static_cast<size_t>(1) << shift)
             ? shift + 1
             : (shift == 0 ? 0 : _getnextlog2(size, shift - 1));
@@ -28,7 +28,7 @@ static constexpr int _getnextlog2(size_t size, int shift) {
 /**
  * Converts <size> to x with 2^x >= <size>. It may be executed at compiletime or runtime,
  */
-static constexpr int getnextlog2(size_t size) {
+static constexpr uint getnextlog2(size_t size) {
     return _getnextlog2(size, sizeof(size_t) * 8 - 2);
 }
 
@@ -37,7 +37,7 @@ static constexpr int getnextlog2(size_t size) {
  */
 template<size_t SIZE>
 struct nextlog2 {
-    static constexpr int val = getnextlog2(SIZE);
+    static constexpr uint val = getnextlog2(SIZE);
 };
 
 static_assert(nextlog2<0>::val == 0, "failed");
@@ -48,5 +48,12 @@ static_assert(nextlog2<100>::val == 7, "failed");
 static_assert(nextlog2<1UL << 31>::val == 31, "failed");
 static_assert(nextlog2<(1UL << 30) + 1>::val == 31, "failed");
 static_assert(nextlog2<(1UL << (sizeof(size_t) * 8 - 1)) + 1>::val == (sizeof(size_t) * 8 - 1), "failed");
+
+/**
+ * Converts the given pointer to a label
+ */
+static inline label_t ptr_to_label(void *ptr) {
+    return static_cast<label_t>(reinterpret_cast<word_t>(ptr));
+}
 
 }

@@ -37,56 +37,41 @@ if [ "$M3_HDD" = "" ]; then
 fi
 export M3_HDD
 
-generate_lines() {
-    if [ ! -x $1 ]; then
-        echo "error: '$1' does not exist or is not executable" >&2 && exit 1
+generate_config() {
+    if [ ! -f $1 ]; then
+        echo "error: '$1' is not a file" >&2 && exit 1
     fi
-    $1 | tr '\n' '@'
-}
 
-generate_kargs() {
-    c=0
-    lines=$(generate_lines $1) || exit 1
-    IFS=@
-    for line in $lines; do
-        i=0
-        for a in $line; do
-            if [ $c -eq 1 ]; then
-                if [ $i -eq 0 ]; then
-                    echo -n $a
-                else
-                    echo -n ",$a"
-                fi
-            elif [ $c -gt 1 ]; then
-                if [ $i -eq 0 ]; then
-                    echo -n ",--,$a"
-                else
-                    echo -n ",$a"
-                fi
-            fi
-            i=$((i + 1))
-        done
-        c=$((c + 1))
-    done
+    hd=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_HDD
+    fs=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_FS
+    fssize=`stat --format="%s" $fs`
+    sed "
+        s#\$fs.path#$fs#g;
+        s#\$fs.size#$fssize#g;
+        s#\$hd.path#$hd#g;
+    " < $1 > $2/boot.xml
+
+    if type xmllint &> /dev/null; then
+        xmllint --schema misc/boot.xsd --noout $2/boot.xml > /dev/null || exit 1
+    fi
 }
 
 build_params_host() {
-    c=0
-    lines=$(generate_lines $1) || exit 1
-    IFS=@
-    for line in $lines; do
-        if [ $c -eq 0 ]; then
-            echo -n "$bindir/$line "
-        else
-            echo -n "$bindir/$line -- "
-        fi
-        c=$((c + 1))
-    done
+    generate_config $1 run || exit 1
+
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < run/boot.xml)
+    mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^"\s]+).*"/' < run/boot.xml)
+    echo "$bindir/$kargs run/boot.xml$mods"
 }
 
 build_params_gem5() {
-    kargs=$(generate_kargs $1) || exit 1
-    kargs=$(echo $kargs | tr ',' ' ')
+    M3_GEM5_OUT=${M3_GEM5_OUT:-run}
+
+    generate_config $1 $M3_GEM5_OUT || exit 1
+
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $M3_GEM5_OUT/boot.xml)
+    mods=$(perl -ne 'printf(",'$bindir'/%s", $1) if /app\s.*args="([^"\s]+).*"/' < $M3_GEM5_OUT/boot.xml)
+    mods="$M3_GEM5_OUT/boot.xml$mods,$bindir/pemux"
 
     if [ "$M3_GEM5_DBG" = "" ]; then
         M3_GEM5_DBG="Dtu"
@@ -101,31 +86,19 @@ build_params_gem5() {
 
     M3_CORES=${M3_CORES:-16}
 
+    cmd="$cmd$bindir/$kargs,"
     c=0
-    cmd=""
-    IFS=@
-    lines=$(generate_lines $1) || exit 1
-    for line in $lines; do
-        if [ $c -eq 0 ]; then
-            cmd="$cmd$bindir/$line -- $kargs,"
-        else
-            cmd="$cmd$bindir/pemux,"
-        fi
-        c=$((c + 1))
-    done
-
     while [ $c -lt $M3_CORES ]; do
         cmd="$cmd$bindir/pemux,"
         c=$((c + 1))
     done
 
-    if [[ $cmd == *disk* ]]; then
+    if [[ $mods == *disk* ]]; then
         ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
     fi
 
     M3_GEM5_CPUFREQ=${M3_GEM5_CPUFREQ:-1GHz}
     M3_GEM5_MEMFREQ=${M3_GEM5_MEMFREQ:-333MHz}
-    M3_GEM5_OUT=${M3_GEM5_OUT:-run}
     M3_GEM5_CFG=${M3_GEM5_CFG:-config/default.py}
     export M3_GEM5_PES=$M3_CORES
     export M3_GEM5_FS=$build/$M3_FS
@@ -141,7 +114,8 @@ build_params_gem5() {
     if [ "$M3_GEM5_DBGSTART" != "" ]; then
         echo -n " --debug-start=$M3_GEM5_DBGSTART" >> $params
     fi
-    echo -n " $M3_GEM5_CFG --cpu-type $M3_GEM5_CPU --isa $M3_ISA --cmd \"$cmd\"" >> $params
+    echo -n " $M3_GEM5_CFG --cpu-type $M3_GEM5_CPU --isa $M3_ISA" >> $params
+    echo -n " --cmd \"$cmd\" --mods \"$mods\"" >> $params
     echo -n " --cpu-clock=$M3_GEM5_CPUFREQ --sys-clock=$M3_GEM5_MEMFREQ" >> $params
     if [ "$M3_GEM5_PAUSE" != "" ]; then
         echo -n " --pausepe=$M3_GEM5_PAUSE" >> $params
@@ -166,6 +140,9 @@ build_params_gem5() {
         echo >> $tmp
         gdb --tui hw/gem5/build/$gem5build/gem5.debug --command=$tmp
     else
+        if [ "$debug" != "" ]; then
+            params="$params $build/tools/ignoreint"
+        fi
         xargs -a $params hw/gem5/build/$gem5build/gem5.opt
     fi
 }

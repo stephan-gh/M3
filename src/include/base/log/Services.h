@@ -30,15 +30,14 @@ public:
         KEYB        = 1 << 0,
         FS          = 1 << 1,
         PAGER       = 1 << 2,
-        PIPE        = 1 << 3,
-        HASH        = 1 << 4,
-        IDE         = 1 << 5,
-        IDE_ALL     = 1 << 6,
-        LOADGEN     = 1 << 7,
-        NIC         = 1 << 8,
-        NET         = 1 << 9,
-        NET_ALL     = 1 << 10,
-        TIMER       = 1 << 11,
+        HASH        = 1 << 3,
+        IDE         = 1 << 4,
+        IDE_ALL     = 1 << 5,
+        LOADGEN     = 1 << 6,
+        NIC         = 1 << 7,
+        NET         = 1 << 8,
+        NET_ALL     = 1 << 9,
+        TIMER       = 1 << 10,
     };
 
     static const int level = 0;

@@ -22,14 +22,17 @@
 #define PAGE_SIZE           (static_cast<size_t>(1) << PAGE_BITS)
 #define PAGE_MASK           (PAGE_SIZE - 1)
 
-#define FIXED_KMEM          (2 * 1024 * 1024)
-#define VPE_EXTRA_MEM       (64 * 1024)
+#define LPAGE_BITS          21
+#define LPAGE_SIZE          (static_cast<size_t>(1) << LPAGE_BITS)
+#define LPAGE_MASK          (LPAGE_SIZE - 1)
 
-#define ROOT_HEAP_SIZE      (512 * 1024)
+#define FIXED_KMEM          (2 * 1024 * 1024)
+
 #define APP_HEAP_SIZE       (64 * 1024 * 1024)
+#define ROOT_HEAP_SIZE      (2 * 1024 * 1024)
 #define EPMEM_SIZE          0
 
-#define EP_COUNT            16
+#define EP_COUNT            192
 
 // Application memory layout:
 // +----------------------------+ 0x0
@@ -40,6 +43,8 @@
 // |         PEMUX_FLAGS        |
 // +----------------------------+ 0x100010
 // |       PEMux code+data      |
+// +----------------------------+ 0x1FF000
+// |      PEMux recv buffers    |
 // +----------------------------+ 0x200000
 // |         environment        |
 // +----------------------------+ 0x202000
@@ -50,12 +55,11 @@
 // |        recv buffers        |
 // +----------------------------+ 0x3FC04000
 // |            ...             |
+// +----------------------------+ 0xE0000000
+// |      PE's own phys mem     |
 // +----------------------------+ 0xF0000000
 // |          DTU MMIO          |
 // +----------------------------+ 0xF0002000
-
-#define PEMUX_YIELD         0x100000
-#define PEMUX_FLAGS         0x100008
 
 #define ENV_START           0x200000
 #define ENV_SIZE            0x2000
@@ -63,25 +67,28 @@
 
 #define STACK_SIZE          0xF000
 #define STACK_BOTTOM        (ENV_END + 0x1000)
-#define STACK_TOP           (ENV_END + STACK_SIZE)
+#define STACK_TOP           (STACK_BOTTOM + STACK_SIZE)
+
+#define PEMUX_RBUF_SPACE    0x1FF000
+#define PEMUX_RBUF_SIZE     (1U * PAGE_SIZE)
 
 #define RECVBUF_SPACE       0x3FC00000
 #define RECVBUF_SIZE        (4U * PAGE_SIZE)
 #define RECVBUF_SIZE_SPM    16384U
 
+#define PE_MEM_BASE         0xE0000000
+
 #define MAX_RB_SIZE         32
 
 #define KPEX_RBUF_ORDER     6
 #define KPEX_RBUF_SIZE      (1 << KPEX_RBUF_ORDER)
-#define KPEX_RBUF           RECVBUF_SPACE
 
 #define PEXUP_RBUF_ORDER    6
 #define PEXUP_RBUF_SIZE     (1 << PEXUP_RBUF_ORDER)
-#define PEXUP_RBUF          (KPEX_RBUF + KPEX_RBUF_SIZE)
 
 #define SYSC_RBUF_ORDER     9
 #define SYSC_RBUF_SIZE      (1 << SYSC_RBUF_ORDER)
-#define SYSC_RBUF           (PEXUP_RBUF + PEXUP_RBUF_SIZE)
+#define SYSC_RBUF           RECVBUF_SPACE
 
 #define UPCALL_RBUF_ORDER   6
 #define UPCALL_RBUF_SIZE    (1 << UPCALL_RBUF_ORDER)

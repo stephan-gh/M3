@@ -121,16 +121,16 @@ void WorkLoop::run() {
             SyscallHandler::handle_message(vpe, msg);
         }
 
-        msg = dtu.fetch_msg(pexep);
-        if(msg) {
-            PEMux *pex = reinterpret_cast<PEMux*>(msg->label);
-            pex->handle_call(msg);
-        }
-
         msg = dtu.fetch_msg(srvep);
         if(msg) {
             SendQueue *sq = reinterpret_cast<SendQueue*>(msg->label);
             sq->received_reply(srvep, msg);
+        }
+
+        msg = dtu.fetch_msg(pexep);
+        if(msg) {
+            PEMux *pemux = reinterpret_cast<PEMux*>(msg->label);
+            pemux->handle_call(msg);
         }
 
         m3::ThreadManager::get().yield();

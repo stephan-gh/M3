@@ -17,8 +17,8 @@
 use m3::col::String;
 use m3::com::{recv_msg, recv_reply, RecvGate, SGateArgs, SendGate};
 use m3::errors::Code;
+use m3::math;
 use m3::test;
-use m3::util;
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create);
@@ -27,7 +27,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn create() {
-    let rgate = wv_assert_ok!(RecvGate::new(util::next_log2(512), util::next_log2(256)));
+    let rgate = wv_assert_ok!(RecvGate::new(math::next_log2(512), math::next_log2(256)));
     wv_assert_err!(
         SendGate::new_with(SGateArgs::new(&rgate).sel(1)),
         Code::InvArgs
@@ -35,9 +35,9 @@ fn create() {
 }
 
 fn send_recv() {
-    let mut rgate = wv_assert_ok!(RecvGate::new(util::next_log2(512), util::next_log2(256)));
+    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(512), math::next_log2(256)));
     let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(512).label(0x1234)
+        SGateArgs::new(&rgate).credits(2).label(0x1234)
     ));
     wv_assert_ok!(rgate.activate());
 
@@ -59,9 +59,9 @@ fn send_recv() {
 
 fn send_reply() {
     let reply_gate = RecvGate::def();
-    let mut rgate = wv_assert_ok!(RecvGate::new(util::next_log2(64), util::next_log2(64)));
+    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(64), math::next_log2(64)));
     let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(64).label(0x1234)
+        SGateArgs::new(&rgate).credits(1).label(0x1234)
     ));
     wv_assert_ok!(rgate.activate());
 

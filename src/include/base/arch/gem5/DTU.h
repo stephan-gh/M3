@@ -24,13 +24,14 @@
 #include <assert.h>
 
 namespace kernel {
-class AddrSpace;
 class DTU;
 class DTURegs;
 class DTUState;
+class ISR;
 class SendQueue;
 class SyscallHandler;
 class VPE;
+class PEMux;
 class WorkLoop;
 }
 
@@ -39,13 +40,14 @@ namespace m3 {
 class DTUIf;
 
 class DTU {
-    friend class kernel::AddrSpace;
     friend class kernel::DTU;
     friend class kernel::DTURegs;
     friend class kernel::DTUState;
+    friend class kernel::ISR;
     friend class kernel::SendQueue;
     friend class kernel::SyscallHandler;
     friend class kernel::VPE;
+    friend class kernel::PEMux;
     friend class kernel::WorkLoop;
     friend class DTUIf;
 
@@ -55,54 +57,46 @@ class DTU {
 public:
     typedef uint64_t reg_t;
 
-private:
-    static const uintptr_t BASE_ADDR        = 0xF0000000;
-    static const size_t DTU_REGS            = 8;
-    static const size_t REQ_REGS            = 3;
-    static const size_t CMD_REGS            = 5;
-    static const size_t EP_REGS             = 3;
-    static const size_t HD_COUNT            = 128;
-    static const size_t HD_REGS             = 2;
+    static const uintptr_t MMIO_ADDR        = 0xF0000000;
+    static const size_t MMIO_SIZE           = PAGE_SIZE * 2;
+    static const uintptr_t MMIO_PRIV_ADDR   = MMIO_ADDR + MMIO_SIZE;
+    static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;
 
-    static const size_t CREDITS_UNLIM       = 0xFFFF;
+    static const reg_t NO_REPLIES           = 0xFFFF;
+
+private:
+    static const size_t DTU_REGS            = 4;
+    static const size_t PRIV_REGS           = 5;
+    static const size_t CMD_REGS            = 4;
+    static const size_t EP_REGS             = 3;
+
     // actual max is 64k - 1; use less for better alignment
     static const size_t MAX_PKT_SIZE        = 60 * 1024;
 
     enum class DtuRegs {
         FEATURES            = 0,
-        ROOT_PT             = 1,
-        PF_EP               = 2,
-        CUR_TIME            = 3,
-        EVENTS              = 4,
-        EXT_CMD             = 5,
-        CLEAR_IRQ           = 6,
-        CLOCK               = 7,
+        CUR_TIME            = 1,
+        CLEAR_IRQ           = 2,
+        CLOCK               = 3,
     };
 
-    enum class ReqRegs {
-        EXT_REQ             = 0,
-        XLATE_REQ           = 1,
-        XLATE_RESP          = 2,
+    enum class PrivRegs {
+        CORE_REQ            = 0,
+        CORE_RESP           = 1,
+        PRIV_CMD            = 2,
+        CUR_VPE             = 3,
+        OLD_VPE             = 4,
     };
 
     enum class CmdRegs {
         COMMAND             = DTU_REGS + 0,
         ABORT               = DTU_REGS + 1,
         DATA                = DTU_REGS + 2,
-        OFFSET              = DTU_REGS + 3,
-        REPLY_LABEL         = DTU_REGS + 4,
-    };
-
-    enum MemFlags : reg_t {
-        R                   = 1 << 0,
-        W                   = 1 << 1,
-        RW                  = R | W,
+        ARG1                = DTU_REGS + 3,
     };
 
     enum StatusFlags : reg_t {
         PRIV                = 1 << 0,
-        PAGEFAULTS          = 1 << 1,
-        IRQ_ON_MSG          = 1 << 2,
     };
 
     enum class EpType {
@@ -119,21 +113,22 @@ private:
         READ                = 3,
         WRITE               = 4,
         FETCH_MSG           = 5,
-        ACK_MSG             = 6,
-        ACK_EVENTS          = 7,
-        SLEEP               = 8,
-        PRINT               = 9,
+        FETCH_EVENTS        = 6,
+        SET_EVENT           = 7,
+        ACK_MSG             = 8,
+        SLEEP               = 9,
+        PRINT               = 10,
     };
 
-    enum class ExtCmdOpCode {
+    enum class PrivCmdOpCode {
         IDLE                = 0,
-        WAKEUP_CORE         = 1,
-        INV_EP              = 2,
-        INV_PAGE            = 3,
-        INV_TLB             = 4,
-        INV_REPLY           = 5,
-        RESET               = 6,
-        FLUSH_CACHE         = 7,
+        INV_EP              = 1,
+        INV_PAGE            = 2,
+        INV_TLB             = 3,
+        INV_REPLY           = 4,
+        RESET               = 5,
+        FLUSH_CACHE         = 6,
+        XCHG_VPE            = 7,
     };
 
 public:
@@ -149,65 +144,31 @@ public:
         EP_INVAL    = 1 << static_cast<reg_t>(EventType::EP_INVAL),
     };
 
-    typedef uint64_t pte_t;
+    enum MemFlags : reg_t {
+        R                   = 1 << 0,
+        W                   = 1 << 1,
+    };
 
     enum CmdFlags {
         NOPF                = 1,
     };
 
-    enum {
-        PTE_BITS            = 3,
-        PTE_SIZE            = 1 << PTE_BITS,
-        LEVEL_CNT           = 4,
-        LEVEL_BITS          = PAGE_BITS - PTE_BITS,
-        LEVEL_MASK          = (1 << LEVEL_BITS) - 1,
-        LPAGE_BITS          = PAGE_BITS + LEVEL_BITS,
-        LPAGE_SIZE          = 1UL << LPAGE_BITS,
-        LPAGE_MASK          = LPAGE_SIZE - 1,
-        PTE_REC_IDX         = 0x10,
-    };
-
-    enum {
-        PTE_R               = 1,
-        PTE_W               = 2,
-        PTE_X               = 4,
-        PTE_I               = 8,
-        PTE_LARGE           = 16,
-        PTE_UNCACHED        = 32, // unsupported by DTU, but used for MMU
-        PTE_RW              = PTE_R | PTE_W,
-        PTE_RWX             = PTE_RW | PTE_X,
-        PTE_IRWX            = PTE_RWX | PTE_I,
-    };
-
-    enum ExtReqOpCode {
-        INV_PAGE            = 0,
-        PEMUX               = 1,
-        STOP                = 2,
-    };
-
-    struct alignas(8) ReplyHeader {
+    struct Header {
         enum {
             FL_REPLY            = 1 << 0,
-            FL_GRANT_CREDITS    = 1 << 1,
-            FL_REPLY_ENABLED    = 1 << 2,
-            FL_PAGEFAULT        = 1 << 3,
-            FL_REPLY_FAILED     = 1 << 4,
+            FL_PAGEFAULT        = 1 << 1,
         };
 
-        uint8_t flags;     // if bit 0 is set its a reply, if bit 1 is set we grant credits
+        uint8_t flags : 2,
+                replySize : 6;
         uint8_t senderPe;
-        uint8_t senderEp;
-        uint8_t replyEp;   // for a normal message this is the reply epId
-                           // for a reply this is the enpoint that receives credits
+        uint16_t senderEp;
+        uint16_t replyEp;   // for a normal message this is the reply epId
+                            // for a reply this is the enpoint that receives credits
         uint16_t length;
-        // we keep that for now, because otherwise ReplyHeader is not 16 bytes = 2 registers
-        uint16_t : 16;     // reserved
 
-        uint64_t replylabel;
-    } PACKED;
-
-    struct Header : public ReplyHeader {
-        uint64_t label;
+        uint32_t replylabel;
+        uint32_t label;
     } PACKED;
 
     struct Message : Header {
@@ -221,21 +182,20 @@ public:
         unsigned char data[];
     } PACKED;
 
-    static const size_t HEADER_SIZE         = sizeof(Header);
-    static const size_t HEADER_COUNT        = 128;
-    static const size_t HEADER_REGS         = 2;
-
     static const epid_t KPEX_SEP            = 0;
     static const epid_t KPEX_REP            = 1;
     static const epid_t PEXUP_REP           = 2;
-    static const epid_t SYSC_SEP            = 3;
-    static const epid_t SYSC_REP            = 4;
-    static const epid_t UPCALL_REP          = 5;
-    static const epid_t DEF_REP             = 6;
-    static const epid_t PG_SEP              = 7;
-    static const epid_t PG_REP              = 8;
-    static const epid_t FIRST_USER_EP       = 3;
-    static const epid_t FIRST_FREE_EP       = 9;
+    static const epid_t PEXUP_RPLEP         = 3;
+    static const epid_t SYSC_SEP            = 4;
+    static const epid_t SYSC_REP            = 5;
+    static const epid_t UPCALL_REP          = 6;
+    static const epid_t UPCALL_RPLEP        = 7;
+    static const epid_t DEF_REP             = 8;
+    static const epid_t PG_SEP              = 9;
+    static const epid_t PG_REP              = 10;
+
+    static const epid_t FIRST_USER_EP       = 4;
+    static const epid_t FIRST_FREE_EP       = 11;
 
     static DTU &get() {
         return inst;
@@ -252,21 +212,21 @@ public:
     }
 
     bool has_missing_credits(epid_t ep) const {
-        reg_t r1 = read_reg(ep, 1);
-        uint16_t cur = r1 & 0xFFFF;
-        uint16_t max = (r1 >> 16) & 0xFFFF;
+        reg_t r0 = read_reg(ep, 0);
+        uint16_t cur = (r0 >> 19) & 0x3F;
+        uint16_t max = (r0 >> 25) & 0x3F;
         return cur < max;
     }
 
     bool has_credits(epid_t ep) const {
-        reg_t r1 = read_reg(ep, 1);
-        uint16_t cur = r1 & 0xFFFF;
+        reg_t r0 = read_reg(ep, 0);
+        uint16_t cur = (r0 >> 19) & 0x3F;
         return cur > 0;
     }
 
     bool is_valid(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
-        return static_cast<EpType>(r0 >> 61) != EpType::INVALID;
+        return static_cast<EpType>(r0 & 0x7) != EpType::INVALID;
     }
 
     cycles_t tsc() const {
@@ -287,10 +247,16 @@ private:
     const Message *fetch_msg(epid_t ep) const {
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         CPU::memory_barrier();
-        return reinterpret_cast<const Message*>(read_reg(CmdRegs::OFFSET));
+        return reinterpret_cast<const Message*>(read_reg(CmdRegs::ARG1));
     }
 
-    void mark_read(epid_t ep, const Message *msg) {
+    reg_t fetch_events() const {
+        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::FETCH_EVENTS));
+        CPU::memory_barrier();
+        return read_reg(CmdRegs::ARG1);
+    }
+
+    void ack_msg(epid_t ep, const Message *msg) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
         reg_t off = reinterpret_cast<reg_t>(msg);
@@ -303,66 +269,54 @@ private:
         sleep_for(0);
     }
     void sleep_for(uint64_t cycles) {
-        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, cycles));
+        wait_for_msg(0xFFFF, cycles);
+    }
+    void wait_for_msg(epid_t ep, uint64_t timeout = 0) {
+        write_reg(CmdRegs::ARG1, (static_cast<reg_t>(ep) << 48) | timeout);
+        CPU::compiler_barrier();
+        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP));
         get_error();
     }
 
-    reg_t fetch_events() const {
-        reg_t old = read_reg(DtuRegs::EVENTS);
-        if(old != 0)
-            write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::ACK_EVENTS, 0, old));
-        CPU::memory_barrier();
-        return old;
-    }
-
     void drop_msgs(epid_t ep, label_t label) {
-        // we assume that the one that used the label can no longer send messages. thus, if there are
-        // no messages yet, we are done.
-        reg_t r0 = read_reg(ep, 0);
-        if((r0 & 0x3F) == 0)
+        // we assume that the one that used the label can no longer send messages. thus, if there
+        // are no messages yet, we are done.
+        word_t unread = read_reg(ep, 2) >> 32;
+        if(unread == 0)
             return;
 
+        reg_t r0 = read_reg(ep, 0);
         goff_t base = read_reg(ep, 1);
-        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 26) & 0x3F);
-        size_t msgsize = (r0 >> 32) & 0xFFFF;
-        word_t unread = read_reg(ep, 2) >> 32;
+        size_t bufsize = static_cast<size_t>(1) << ((r0 >> 35) & 0x3F);
+        size_t msgsize = (r0 >> 41) & 0x3F;
         for(size_t i = 0; i < bufsize; ++i) {
             if(unread & (static_cast<size_t>(1) << i)) {
                 m3::DTU::Message *msg = reinterpret_cast<m3::DTU::Message*>(base + (i << msgsize));
                 if(msg->label == label)
-                    mark_read(ep, msg);
+                    ack_msg(ep, msg);
             }
         }
     }
 
-    Errors::Code transfer(reg_t cmd, uintptr_t data, size_t size, goff_t off);
-
-    reg_t get_pfep() const {
-        return read_reg(DtuRegs::PF_EP);
+    reg_t get_core_req() const {
+        return read_reg(PrivRegs::CORE_REQ);
+    }
+    void set_core_req(reg_t val) {
+        write_reg(PrivRegs::CORE_REQ, val);
+    }
+    void set_core_resp(reg_t val) {
+        write_reg(PrivRegs::CORE_RESP, val);
     }
 
-    reg_t get_xlate_req() const {
-        return read_reg(ReqRegs::XLATE_REQ);
-    }
-    void set_xlate_req(reg_t val) {
-        write_reg(ReqRegs::XLATE_REQ, val);
-    }
-    void set_xlate_resp(reg_t val) {
-        write_reg(ReqRegs::XLATE_RESP, val);
-    }
-
-    reg_t get_ext_req() const {
-        return read_reg(ReqRegs::EXT_REQ);
-    }
-    void set_ext_req(reg_t val) {
-        write_reg(ReqRegs::EXT_REQ, val);
+    void clear_irq() {
+        write_reg(DtuRegs::CLEAR_IRQ, 1);
     }
 
     static Errors::Code get_error() {
         while(true) {
             reg_t cmd = read_reg(CmdRegs::COMMAND);
             if(static_cast<CmdOpCode>(cmd & 0xF) == CmdOpCode::IDLE)
-                return static_cast<Errors::Code>((cmd >> 12) & 0xF);
+                return static_cast<Errors::Code>((cmd >> 21) & 0xF);
         }
         UNREACHED;
     }
@@ -370,8 +324,8 @@ private:
     static reg_t read_reg(DtuRegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
-    static reg_t read_reg(ReqRegs reg) {
-        return read_reg((PAGE_SIZE / sizeof(reg_t)) + static_cast<size_t>(reg));
+    static reg_t read_reg(PrivRegs reg) {
+        return read_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg));
     }
     static reg_t read_reg(CmdRegs reg) {
         return read_reg(static_cast<size_t>(reg));
@@ -380,62 +334,44 @@ private:
         return read_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + idx);
     }
     static reg_t read_reg(size_t idx) {
-        return CPU::read8b(BASE_ADDR + idx * sizeof(reg_t));
+        return CPU::read8b(MMIO_ADDR + idx * sizeof(reg_t));
     }
 
     static void write_reg(DtuRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
-    static void write_reg(ReqRegs reg, reg_t value) {
-        write_reg((PAGE_SIZE / sizeof(reg_t)) + static_cast<size_t>(reg), value);
+    static void write_reg(PrivRegs reg, reg_t value) {
+        write_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg), value);
     }
     static void write_reg(CmdRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(size_t idx, reg_t value) {
-        CPU::write8b(BASE_ADDR + idx * sizeof(reg_t), value);
-    }
-
-    static void read_header(size_t idx, ReplyHeader &hd) {
-        static_assert(sizeof(hd) == 16, "Header size changed");
-        uintptr_t base = header_addr(idx);
-        uint64_t *words = reinterpret_cast<uint64_t*>(&hd);
-        words[0] = CPU::read8b(base);
-        words[1] = CPU::read8b(base + 8);
-    }
-    static void write_header(size_t idx, const ReplyHeader &hd) {
-        uintptr_t base = header_addr(idx);
-        const uint64_t *words = reinterpret_cast<const uint64_t*>(&hd);
-        CPU::write8b(base, words[0]);
-        CPU::write8b(base + 8, words[1]);
+        CPU::write8b(MMIO_ADDR + idx * sizeof(reg_t), value);
     }
 
     static uintptr_t dtu_reg_addr(DtuRegs reg) {
-        return BASE_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
+        return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
-    static uintptr_t dtu_reg_addr(ReqRegs reg) {
-        return BASE_ADDR + PAGE_SIZE + static_cast<size_t>(reg) * sizeof(reg_t);
+    static uintptr_t priv_reg_addr(PrivRegs reg) {
+        return MMIO_ADDR + (PAGE_SIZE * 2) + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t cmd_reg_addr(CmdRegs reg) {
-        return BASE_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
+        return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t ep_regs_addr(epid_t ep) {
-        return BASE_ADDR + (DTU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
-    }
-    static uintptr_t header_addr(size_t idx) {
-        size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
-        return BASE_ADDR + regCount * sizeof(reg_t) + idx * sizeof(ReplyHeader);
+        return MMIO_ADDR + (DTU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
     static uintptr_t buffer_addr() {
-        size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS + HD_COUNT * HD_REGS;
-        return BASE_ADDR + regCount * sizeof(reg_t);
+        size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
+        return MMIO_ADDR + regCount * sizeof(reg_t);
     }
 
     static reg_t build_command(epid_t ep, CmdOpCode c, uint flags = 0, reg_t arg = 0) {
         return static_cast<reg_t>(c) |
                 (static_cast<reg_t>(ep) << 4) |
-                (static_cast<reg_t>(flags) << 11 |
-                arg << 16);
+                (static_cast<reg_t>(flags) << 20 |
+                arg << 25);
     }
 
     static DTU inst;

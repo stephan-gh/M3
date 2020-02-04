@@ -47,16 +47,18 @@ void VPE::copy_sections() {
         start_addr = reinterpret_cast<uintptr_t>(&_text_start);
         end_addr = reinterpret_cast<uintptr_t>(&_text_end);
         _pager->map_anon(&start_addr, end_addr - start_addr,
-                         Pager::READ | Pager::WRITE | Pager::EXEC, 0);
+                         Pager::READ | Pager::WRITE | Pager::EXEC, Pager::MAP_UNINIT);
 
         // map data
         start_addr = reinterpret_cast<uintptr_t>(&_data_start);
         end_addr = Heap::end_area() + Heap::end_area_size();
-        _pager->map_anon(&start_addr, end_addr - start_addr, Pager::READ | Pager::WRITE, 0);
+        _pager->map_anon(&start_addr, end_addr - start_addr,
+                         Pager::READ | Pager::WRITE, Pager::MAP_UNINIT | Pager::MAP_NOLPAGE);
 
         // map area for stack and boot/runtime stuff
         start_addr = ENV_START;
-        _pager->map_anon(&start_addr, STACK_TOP - start_addr, Pager::READ | Pager::WRITE, 0);
+        _pager->map_anon(&start_addr, STACK_TOP - start_addr,
+                         Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
     }
 
     /* copy text */

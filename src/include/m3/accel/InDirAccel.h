@@ -30,9 +30,8 @@ class InDirAccel {
 public:
     static const size_t MSG_SIZE        = 64;
 
-    static const size_t EP_RECV         = 9;
-    static const size_t EP_OUT          = 10;
-    static const capsel_t CAP_RECV      = 64;
+    static const size_t EP_OUT          = 16;
+    static const size_t EP_RECV         = 17;
 
     static const size_t BUF_ADDR        = 0x8000;
     static const size_t MAX_BUF_SIZE    = 32768;
@@ -52,18 +51,18 @@ public:
     explicit InDirAccel(std::unique_ptr<VPE> &vpe, RecvGate &reply_gate)
         : _mgate(),
           _rgate(RecvGate::create_for(*vpe, getnextlog2(MSG_SIZE), getnextlog2(MSG_SIZE))),
-          _sgate(SendGate::create(&_rgate, SendGateArgs().credits(MSG_SIZE)
+          _sgate(SendGate::create(&_rgate, SendGateArgs().credits(1)
                                                          .reply_gate(&reply_gate))),
+          _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
+          _mep(vpe->epmng().acquire(EP_OUT)),
           _vpe(vpe) {
         // activate EP
-        _rgate.activate(EP::bind_for(*vpe, EP_RECV), vpe->pe_desc().mem_size() - MSG_SIZE);
-        // delegate cap
-        vpe->delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _rgate.sel(), 1), CAP_RECV);
+        _rgate.activate_on(*_rep, vpe->pe_desc().mem_size() - MSG_SIZE);
     }
 
     void connect_output(InDirAccel *accel) {
         _mgate = std::make_unique<MemGate>(accel->_vpe->mem().derive(BUF_ADDR, MAX_BUF_SIZE));
-        _mgate->activate_on(EP::bind_for(*_vpe, EP_OUT));
+        _mgate->activate_on(*_mep);
     }
 
     void read(void *data, size_t size) {
@@ -88,6 +87,8 @@ private:
     std::unique_ptr<MemGate> _mgate;
     RecvGate _rgate;
     SendGate _sgate;
+    std::unique_ptr<EP> _rep;
+    std::unique_ptr<EP> _mep;
     std::unique_ptr<VPE> &_vpe;
 };
 

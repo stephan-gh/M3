@@ -37,7 +37,7 @@ struct KIF {
     /**
      * Represents unlimited credits
      */
-    static const word_t UNLIM_CREDITS   = 0xFFFF;
+    static const uint UNLIM_CREDITS     = 0x3F;
 
     /**
      * The maximum message length that can be used
@@ -48,32 +48,39 @@ struct KIF {
     static const capsel_t SEL_KMEM      = 1;
     static const capsel_t SEL_VPE       = 2;
     static const capsel_t SEL_MEM       = 3;
-    static const capsel_t SEL_SYSC_SG   = 4;
-    static const capsel_t SEL_SYSC_RG   = 5;
-    static const capsel_t SEL_UPC_RG    = 6;
-    static const capsel_t SEL_DEF_RG    = 7;
-    static const capsel_t SEL_PG_SG     = 8;
-    static const capsel_t SEL_PG_RG     = 9;
 
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_EP_SEL      = SEL_PG_RG + 1;
+    static const uint FIRST_FREE_SEL    = SEL_MEM + 1;
 
     /**
-     * The first free selector
+     * The VPE id of PEMux
      */
-    static const uint FIRST_FREE_SEL    = FIRST_EP_SEL + (EP_COUNT - DTU::FIRST_FREE_EP);
+    static const uint PEMUX_VPE_ID      = 0xFFFF;
 
     /**
      * The permissions for MemGate
      */
     struct Perm {
-        static const int R = 1;
-        static const int W = 2;
-        static const int X = 4;
-        static const int RW = R | W;
-        static const int RWX = R | W | X;
+        static const uint R = 1;
+        static const uint W = 2;
+        static const uint X = 4;
+        static const uint RW = R | W;
+        static const uint RWX = R | W | X;
+    };
+
+    /**
+     * The flags for virtual mappings
+     */
+    struct PageFlags {
+        static const uint R = Perm::R;
+        static const uint W = Perm::W;
+        static const uint X = Perm::X;
+        static const uint U = 8;
+        static const uint RW = R | W;
+        static const uint RX = R | X;
+        static const uint RWX = R | W | X;
     };
 
     enum VPEFlags {
@@ -157,7 +164,7 @@ struct KIF {
             CREATE_MAP,
             CREATE_VPE,
             CREATE_SEM,
-            ALLOC_EP,
+            ALLOC_EPS,
 
             // capability operations
             ACTIVATE,
@@ -251,7 +258,8 @@ struct KIF {
         struct AllocEP : public DefaultRequest {
             xfer_t dst_sel;
             xfer_t vpe_sel;
-            xfer_t pe_sel;
+            xfer_t epid;
+            xfer_t replies;
         } PACKED;
 
         struct AllocEPReply : public DefaultReply {
@@ -396,38 +404,51 @@ struct KIF {
     };
 
     /**
-     * PEMux calls
-     */
-    struct PEMux {
-        enum Operation {
-            ACTIVATE,
-        };
-
-        struct Activate : public DefaultRequest {
-            xfer_t vpe_sel;
-            xfer_t gate_sel;
-            xfer_t ep;
-            xfer_t addr;
-        } PACKED;
-    };
-
-    /**
      * PEMux upcalls
      */
     struct PEXUpcalls {
         enum Operation {
-            ALLOC_EP,
-            FREE_EP,
+            INIT,
+            VPE_CTRL,
+            MAP,
         };
 
-        struct AllocEP : public DefaultRequest {
+        enum VPEOp {
+            VCTRL_START,
+            VCTRL_STOP,
+        };
+
+        struct Init : public DefaultRequest {
+            xfer_t pe_id;
             xfer_t vpe_sel;
         } PACKED;
-        struct AllocEPReply : public DefaultReply {
-            xfer_t ep;
+
+        struct VPECtrl : public DefaultRequest {
+            xfer_t pe_id;
+            xfer_t vpe_sel;
+            xfer_t vpe_op;
         } PACKED;
-        struct FreeEP : public DefaultRequest {
-            xfer_t ep;
+
+        struct Map : public DefaultRequest {
+            xfer_t vpe_sel;
+            xfer_t virt;
+            xfer_t phys;
+            xfer_t pages;
+            xfer_t perm;
+        } PACKED;
+    };
+
+    /**
+     * PEMux calls
+     */
+    struct PEXCalls {
+        enum Operation {
+            EXIT,
+        };
+
+        struct Exit : public DefaultRequest {
+            xfer_t vpe_sel;
+            xfer_t code;
         } PACKED;
     };
 

@@ -14,19 +14,21 @@
  * General Public License version 2 for more details.
  */
 
+use core::cmp;
 use core::fmt;
 use m3::cap::Selector;
+use m3::cell::RefCell;
 use m3::cfg::PAGE_BITS;
 use m3::col::Vec;
-use m3::com::{MemGate, VecSink, EP};
+use m3::com::{MemGate, VecSink};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
 use m3::pes::Mapper;
-use m3::session::Pager;
+use m3::rc::Rc;
+use m3::session::{MapFlags, Pager};
 use m3::syscalls;
-use m3::util;
 use m3::vfs;
 
 use memory;
@@ -56,7 +58,7 @@ impl vfs::File for BootFile {
     fn set_fd(&mut self, _fd: vfs::Fd) {
     }
 
-    fn evict(&mut self, _closing: bool) -> Option<EP> {
+    fn session(&self) -> Option<Selector> {
         None
     }
 
@@ -106,7 +108,7 @@ impl Read for BootFile {
             Ok(0)
         }
         else {
-            let amount = util::min(buf.len(), self.size - self.pos);
+            let amount = cmp::min(buf.len(), self.size - self.pos);
             self.mgate.read(&mut buf[0..amount], self.pos as goff)?;
             self.pos += amount;
             Ok(amount)
@@ -133,6 +135,7 @@ impl vfs::Map for BootFile {
         _off: usize,
         _len: usize,
         _prot: Perm,
+        _flags: MapFlags,
     ) -> Result<(), Error> {
         // not used
         Ok(())
@@ -155,15 +158,22 @@ pub struct BootMapper {
     vpe_sel: Selector,
     mem_sel: Selector,
     has_virtmem: bool,
+    mem_pool: Rc<RefCell<memory::MemPool>>,
     allocs: Vec<memory::Allocation>,
 }
 
 impl BootMapper {
-    pub fn new(vpe_sel: Selector, mem_sel: Selector, has_virtmem: bool) -> Self {
+    pub fn new(
+        vpe_sel: Selector,
+        mem_sel: Selector,
+        has_virtmem: bool,
+        mem_pool: Rc<RefCell<memory::MemPool>>,
+    ) -> Self {
         BootMapper {
             vpe_sel,
             mem_sel,
             has_virtmem,
+            mem_pool,
             allocs: Vec::new(),
         }
     }
@@ -182,10 +192,11 @@ impl Mapper for BootMapper {
         virt: goff,
         len: usize,
         perm: Perm,
+        flags: MapFlags,
     ) -> Result<bool, Error> {
         if perm.contains(Perm::W) {
             // create new memory and copy data into it
-            self.map_anon(pager, virt, len, perm)
+            self.map_anon(pager, virt, len, perm, flags)
         }
         else if self.has_virtmem {
             // map the memory of the boot module directly; therefore no initialization necessary
@@ -210,16 +221,17 @@ impl Mapper for BootMapper {
         virt: goff,
         len: usize,
         perm: Perm,
+        _flags: MapFlags,
     ) -> Result<bool, Error> {
         if self.has_virtmem {
-            let alloc = memory::get().allocate(len)?;
-            let msel = memory::get().mem_cap(alloc.mod_id);
+            let alloc = self.mem_pool.borrow_mut().allocate(len as goff)?;
+            let msel = self.mem_pool.borrow().mem_cap(alloc.slice_id());
 
             syscalls::create_map(
                 (virt >> PAGE_BITS) as Selector,
                 self.vpe_sel,
                 msel,
-                (alloc.addr >> PAGE_BITS) as Selector,
+                (alloc.addr() >> PAGE_BITS) as Selector,
                 (len >> PAGE_BITS) as Selector,
                 perm,
             )?;

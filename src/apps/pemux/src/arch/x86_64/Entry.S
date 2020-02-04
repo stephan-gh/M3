@@ -28,10 +28,10 @@ BEGIN_FUNC(_start)
     call    init
 
     // return to idle code
-    pushq   $(4 << 3) | 3   // ss
+    pushq   $(1 << 3) | 0   // ss
     pushq   $idle_stack     // rsp
     pushq   $0x200          // rflags: interrupts enabled
-    pushq   $(3 << 3) | 3   // cs
+    pushq   $(2 << 3) | 0   // cs
     pushq   $sleep          // rip
     iretq
 END_FUNC(_start)

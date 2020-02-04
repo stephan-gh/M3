@@ -21,6 +21,7 @@
 #include <m3/session/ClientSession.h>
 #include <m3/com/RecvGate.h>
 #include <m3/com/SendGate.h>
+#include <m3/com/GateStream.h>
 #include <m3/vfs/FileSystem.h>
 #include <m3/vfs/GenericFile.h>
 

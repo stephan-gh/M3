@@ -27,149 +27,64 @@
 namespace m3 {
 
 class DTUIf {
-    static Errors::Code get_error(word_t res) noexcept {
-        long err = static_cast<long>(res);
-        if(err < 0)
-            return static_cast<Errors::Code>(-err);
-        return Errors::NONE;
-    }
-
 public:
     static Errors::Code send(SendGate &sg, const void *msg, size_t size,
                              label_t replylbl, RecvGate &rg) noexcept {
-        if(env()->shared) {
-            return get_error(PEXCalls::call5(Operation::SEND,
-                                             sg.sel(),
-                                             reinterpret_cast<word_t>(msg),
-                                             size,
-                                             replylbl,
-                                             gate_sel(rg)));
-        }
-        else {
-            epid_t sep = sg.acquire_ep();
-            return DTU::get().send(sep, msg, size, replylbl, rg.ep());
-        }
+        const EP &sep = sg.activate();
+        epid_t rep = rg.ep() ? rg.ep()->id() : DTU::NO_REPLIES;
+        return DTU::get().send(sep.id(), msg, size, replylbl, rep);
     }
 
     static Errors::Code reply(RecvGate &rg, const void *reply, size_t size,
                               const DTU::Message *msg) noexcept {
-        if(env()->shared) {
-            return get_error(PEXCalls::call4(Operation::REPLY,
-                                             gate_sel(rg),
-                                             reinterpret_cast<word_t>(reply),
-                                             size,
-                                             reinterpret_cast<word_t>(msg)));
-        }
-        else
-            return DTU::get().reply(rg.ep(), reply, size, msg);
+        return DTU::get().reply(rg.ep()->id(), reply, size, msg);
     }
 
     static Errors::Code call(SendGate &sg, const void *msg, size_t size,
                              RecvGate &rg, const DTU::Message **reply) noexcept {
-        if(env()->shared) {
-            word_t res = PEXCalls::call4(Operation::CALL,
-                                         sg.sel(),
-                                         reinterpret_cast<word_t>(msg),
-                                         size,
-                                         gate_sel(rg));
-            Errors::Code err = get_error(res);
-            if(err == Errors::NONE)
-                *reply = reinterpret_cast<const DTU::Message*>(res);
-            return err;
-        }
-        else {
-            Errors::Code res = send(sg, msg, size, 0, rg);
-            if(res != Errors::NONE)
-                return res;
-            return receive(rg, &sg, reply);
-        }
+        Errors::Code res = send(sg, msg, size, 0, rg);
+        if(res != Errors::NONE)
+            return res;
+        return receive(rg, &sg, reply);
     }
 
     static const DTU::Message *fetch_msg(RecvGate &rg) noexcept {
-        if(env()->shared) {
-            word_t res = PEXCalls::call1(Operation::FETCH, gate_sel(rg));
-            Errors::Code err = get_error(res);
-            if(err != Errors::NONE)
-                return nullptr;
-            return reinterpret_cast<const DTU::Message*>(res);
-        }
-        else
-            return DTU::get().fetch_msg(rg.ep());
+        return DTU::get().fetch_msg(rg.ep()->id());
     }
 
-    static void mark_read(RecvGate &rg, const DTU::Message *msg) noexcept {
-        if(env()->shared)
-            PEXCalls::call2(Operation::ACK, gate_sel(rg), reinterpret_cast<word_t>(msg));
-        else
-            DTU::get().mark_read(rg.ep(), msg);
+    static void ack_msg(RecvGate &rg, const DTU::Message *msg) noexcept {
+        DTU::get().ack_msg(rg.ep()->id(), msg);
     }
 
     static Errors::Code receive(RecvGate &rg, SendGate *sg, const DTU::Message **reply) noexcept {
-        if(env()->shared) {
-            word_t res = PEXCalls::call2(Operation::RECV, gate_sel(rg), sg ? sg->sel() : ObjCap::INVALID);
-            Errors::Code err = get_error(res);
-            if(err == Errors::NONE)
-                *reply = reinterpret_cast<const DTU::Message*>(res);
-            return err;
-        }
-        else {
-            while(1) {
-                *reply = DTU::get().fetch_msg(rg.ep());
-                if(*reply)
-                    return Errors::NONE;
+        while(1) {
+            *reply = DTU::get().fetch_msg(rg.ep()->id());
+            if(*reply)
+                return Errors::NONE;
 
-                // fetch the events first
-                DTU::get().fetch_events();
-                // now check whether the endpoint is still valid. if the EP has been invalidated before
-                // the line above, we'll notice that with this check. if the EP is invalidated between
-                // the line above and the sleep command, the DTU will refuse to suspend the core.
-                if(sg && EXPECT_FALSE(!DTU::get().is_valid(sg->ep())))
-                    return Errors::EP_INVALID;
+            // fetch the events first
+            DTU::get().fetch_events();
+            // now check whether the endpoint is still valid. if the EP has been invalidated before
+            // the line above, we'll notice that with this check. if the EP is invalidated between
+            // the line above and the sleep command, the DTU will refuse to suspend the core.
+            if(sg && EXPECT_FALSE(!DTU::get().is_valid(sg->ep()->id())))
+                return Errors::EP_INVALID;
 
-                DTU::get().sleep();
-            }
-            UNREACHED;
+            DTU::get().wait_for_msg(rg.ep()->id());
         }
+        UNREACHED;
     }
 
     static Errors::Code read(MemGate &mg, void *data, size_t size, goff_t off, uint flags) noexcept {
-        if(env()->shared) {
-            return get_error(PEXCalls::call5(Operation::READ,
-                                             gate_sel(mg),
-                                             reinterpret_cast<word_t>(data),
-                                             size,
-                                             off,
-                                             flags));
-        }
-        else {
-            epid_t ep = mg.acquire_ep();
-            return DTU::get().read(ep, data, size, off, flags);
-        }
+        const EP &ep = mg.activate();
+        return DTU::get().read(ep.id(), data, size, off, flags);
     }
 
     static Errors::Code write(MemGate &mg, const void *data, size_t size,
                               goff_t off, uint flags) noexcept {
-        if(env()->shared) {
-            return get_error(PEXCalls::call5(Operation::WRITE,
-                                             gate_sel(mg),
-                                             reinterpret_cast<word_t>(data),
-                                             size,
-                                             off,
-                                             flags));
-        }
-        else {
-            epid_t ep = mg.acquire_ep();
-            return DTU::get().write(ep, data, size, off, flags);
-        }
+        const EP &ep = mg.activate();
+        return DTU::get().write(ep.id(), data, size, off, flags);
     }
-
-    static Errors::Code switch_gate(EP &ep, Gate &gate) {
-        if(env()->shared)
-            return get_error(PEXCalls::call2(Operation::SWITCH_GATE, ep.id(), gate.sel()));
-        return Errors::NONE;
-    }
-
-    static void remove_gate(Gate &gate, bool invalidate) noexcept;
 
     static void drop_msgs(epid_t ep, label_t label) noexcept {
         DTU::get().drop_msgs(ep, label);
@@ -185,11 +100,6 @@ public:
             if(DTU::get().fetch_events() == 0)
                 DTU::get().sleep_for(cycles);
         }
-    }
-
-private:
-    static size_t gate_sel(Gate &g) {
-        return g.sel() == ObjCap::INVALID ? (static_cast<size_t>(1) << 31 | g.ep()) : g.sel();
     }
 };
 

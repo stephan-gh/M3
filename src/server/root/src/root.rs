@@ -26,12 +26,14 @@ mod loader;
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
+use m3::cfg;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::{self, boot, PEDesc};
+use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
@@ -60,7 +62,7 @@ fn req_rgate() -> &'static RecvGate {
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
         Err(e) => {
-            log!(RESMNG, "request failed: {}", e);
+            log!(resmng::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(_) => reply_vmsg!(is, 0 as u64),
@@ -123,14 +125,14 @@ fn rem_child(is: &mut GateIStream, child: &mut dyn Child) {
 fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) {
     let dst_sel: Selector = is.pop();
     let addr: goff = is.pop();
-    let size: usize = is.pop();
-    let perms = kif::Perm::from_bits_truncate(is.pop::<u8>());
+    let size: goff = is.pop();
+    let perms = kif::Perm::from_bits_truncate(is.pop::<u32>());
 
     let res = if addr == !0 {
-        memory::get().allocate_for(child, dst_sel, size, perms)
+        child.alloc_mem(dst_sel, size, perms)
     }
     else {
-        memory::get().allocate_at(child, dst_sel, addr, size)
+        child.alloc_mem_at(dst_sel, addr, size, perms)
     };
 
     reply_result(is, res);
@@ -139,7 +141,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) {
 fn free_mem(is: &mut GateIStream, child: &mut dyn Child) {
     let sel: Selector = is.pop();
 
-    let res = child.remove_mem(sel);
+    let res = child.free_mem(sel);
     reply_result(is, res);
 }
 
@@ -150,7 +152,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) {
     let res = child.alloc_pe(dst_sel, desc);
     match res {
         Err(e) => {
-            log!(RESMNG, "request failed: {}", e);
+            log!(resmng::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(desc) => reply_vmsg!(is, 0 as u64, desc.value()),
@@ -168,7 +170,7 @@ fn free_pe(is: &mut GateIStream, child: &mut dyn Child) {
 fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
     let sgate = SendGate::new_with(
         SGateArgs::new(req_rgate())
-            .credits(256)
+            .credits(1)
             .label(dtu::Label::from(child.id())),
     )?;
 
@@ -181,13 +183,15 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
     )?;
 
     let bfile = loader::BootFile::new(bsel, m.size as usize);
-    let mut bmapper = loader::BootMapper::new(vpe.sel(), bsel, vpe.pe_desc().has_virtmem());
+    let mem_pool = child.mem().clone();
+    let mut bmapper =
+        loader::BootMapper::new(vpe.sel(), bsel, vpe.pe_desc().has_virtmem(), mem_pool);
     let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
 
     child.start(vpe, &mut bmapper, bfileref)?;
 
     for a in bmapper.fetch_allocs() {
-        child.add_mem(a, 0, kif::Perm::RWX).unwrap();
+        child.add_mem(a, None);
     }
 
     Ok(())
@@ -288,81 +292,136 @@ fn workloop() {
     }
 }
 
-fn start_boot_mods() {
+fn start_boot_mods(mut mems: memory::MemModCon) {
     let mut same_kmem = false;
+    let mut cfg_mem: Option<(Id, goff)> = None;
 
-    let mut cfgs = Vec::new();
+    // find boot config
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
-    for m in moditer {
-        if m.name() == "pemux" {
+    for (id, m) in moditer.enumerate() {
+        if m.name() == "boot.xml" {
+            cfg_mem = Some((BOOT_MOD_SELS + 1 + id as Id, m.size));
             continue;
         }
-        // parse arguments for root
-        if m.name().starts_with("root") {
-            for arg in m.name().split_whitespace() {
-                if arg == "samekmem" {
-                    same_kmem = true;
-                }
-                if arg.starts_with("sem=") {
-                    sems::get()
-                        .add_sem(arg[4..].to_string())
-                        .expect("Unable to add semaphore");
-                }
-            }
-            continue;
-        }
-
-        let (args, daemon, cfg) =
-            config::Config::new(m.name(), true).expect("Unable to parse config");
-        log!(RESMNG_CFG, "Parsed config {:?}", cfg);
-        cfgs.push((args, daemon, cfg));
     }
 
-    config::check(&cfgs);
+    // read boot config
+    let cfg_mem = cfg_mem.unwrap();
+    let mgate = MemGate::new_bind(cfg_mem.0 as Id);
+    let mut xml: Vec<u8> = Vec::with_capacity(cfg_mem.1 as usize);
 
-    // determine default kmem per child
+    // safety: will be initialized by read below
+    unsafe { xml.set_len(cfg_mem.1 as usize) };
+    mgate.read(&mut xml, 0).expect("Unable to read boot config");
+
+    // parse boot config
+    let xml_str = String::from_utf8(xml).expect("Unable to convert boot config to UTF-8 string");
+    let cfg = config::Config::parse(&xml_str, true).expect("Unable to parse boot config");
+    log!(resmng::LOG_CFG, "Parsed {:?}", cfg);
+    cfg.check();
+
+    // determine default mem and kmem per child
+    let mut total_mem = mems.capacity();
     let mut total_kmem = VPE::cur()
         .kmem()
         .quota()
         .expect("Unable to determine own quota");
-    let mut total_parties = cfgs.len() + 1;
-    for (_, _, c) in &cfgs {
-        if c.kmem() != 0 {
-            total_kmem -= c.kmem();
-            total_parties -= 1;
+    let mut total_kparties = cfg.count_apps() + 1;
+    let mut total_mparties = total_kparties;
+    let mut childs = Vec::new();
+    for d in cfg.domains() {
+        for a in d.apps() {
+            if let Some(kmem) = a.kmem() {
+                total_kmem -= kmem;
+                total_kparties -= 1;
+            }
+
+            let app_mem = a.sum_mem();
+            if app_mem != 0 {
+                total_mem -= app_mem as goff;
+                total_mparties -= 1;
+            }
+
+            if a.name().starts_with("root") {
+                // parse our own arguments
+                for arg in a.args() {
+                    if arg == "samekmem" {
+                        same_kmem = true;
+                    }
+                    else if arg.starts_with("sem=") {
+                        sems::get()
+                            .add_sem(arg[4..].to_string())
+                            .expect("Unable to add semaphore");
+                    }
+                }
+            }
+            else {
+                childs.push(a.clone());
+            }
         }
     }
-    let def_kmem = total_kmem / total_parties;
+    let def_kmem = total_kmem / total_kparties;
+    let def_mem = math::round_dn(total_mem / total_mparties as goff, cfg::PAGE_SIZE as goff);
 
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for (id, m) in moditer.enumerate() {
-        if m.name() == "pemux" || m.name().starts_with("root") {
+        if m.name() == "pemux" || m.name() == "boot.xml" || m.name().starts_with("root") {
             continue;
         }
 
-        let (args, daemon, cfg) = cfgs.remove(0);
+        let cfg = childs.remove(0);
 
         // kernel memory for child
-        let kmem = if cfg.kmem() == 0 && same_kmem {
+        let kmem = if cfg.kmem().is_none() && same_kmem {
             VPE::cur().kmem().clone()
         }
         else {
-            let kmem_bytes = if cfg.kmem() != 0 {
-                cfg.kmem()
-            }
-            else {
-                def_kmem
-            };
+            let kmem_bytes = cfg.kmem().unwrap_or(def_kmem);
             VPE::cur()
                 .kmem()
                 .derive(kmem_bytes)
                 .expect("Unable to derive new kernel memory")
         };
 
+        // memory pool for child
+        let child_mem = cfg.sum_mem();
+        let child_mem = if child_mem == 0 {
+            def_mem
+        }
+        else {
+            child_mem as goff
+        };
+        let mem_pool = Rc::new(RefCell::new(
+            mems.alloc_pool(child_mem)
+                .expect("Unable to allocate memory pool"),
+        ));
+        // add requested physical memory regions to pool
+        for mem in cfg.mems() {
+            if let Some(p) = mem.phys() {
+                let mslice = mems.find_mem(p, mem.size()).expect(&format!(
+                    "Unable to find memory {:#x}:{:#x}",
+                    p,
+                    mem.size()
+                ));
+                mem_pool.borrow_mut().add(mslice);
+            }
+        }
+
         let pe = pes::get()
             .find_and_alloc(VPE::cur().pe_desc())
             .expect("Unable to allocate PE");
-        let mut child = OwnChild::new(id as Id, pe, args, daemon, kmem, cfg);
+        let mut child = OwnChild::new(
+            id as Id,
+            pe,
+            // TODO either remove args and daemon from config or remove the clones from OwnChild
+            cfg.args().clone(),
+            cfg.daemon(),
+            kmem,
+            mem_pool,
+            cfg,
+        );
+        log!(resmng::LOG_CHILD, "Created {:?}", child);
+
         if child.has_unmet_reqs() {
             DELAYED.get_mut().push(child);
         }
@@ -388,27 +447,28 @@ pub fn main() -> i32 {
         .expect("Unable to read mods");
     off += info.mod_size;
 
-    log!(RESMNG, "Boot modules:");
+    log!(resmng::LOG_DEF, "Boot modules:");
     MODS.set((
         mods_list.as_slice().as_ptr() as usize,
         info.mod_size as usize,
     ));
     let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
     for m in moditer {
-        log!(RESMNG, "  {:?}", m);
+        log!(resmng::LOG_DEF, "  {:?}", m);
     }
 
     let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
+    // safety: will be initialized by read below
     unsafe { pes.set_len(info.pe_count as usize) };
     mgate.read(&mut pes, off).expect("Unable to read PEs");
 
     let pe_sel = BOOT_MOD_SELS + 1 + info.mod_count as Selector;
     let mut user_pes = 0;
     let mut i = 0;
-    log!(RESMNG, "Available PEs:");
+    log!(resmng::LOG_DEF, "Available PEs:");
     for pe in pes {
         log!(
-            RESMNG,
+            resmng::LOG_DEF,
             "  PE{:02}: {} {} {} KiB memory",
             i,
             pe.pe_type(),
@@ -425,6 +485,7 @@ pub fn main() -> i32 {
         i += 1;
     }
 
+    let mut memcon = memory::MemModCon::default();
     let mut mem_sel = BOOT_MOD_SELS + 1 + (user_pes + info.mod_count) as Selector;
     for i in 0..info.mems.len() {
         let mem = &info.mems[i];
@@ -432,10 +493,16 @@ pub fn main() -> i32 {
             continue;
         }
 
-        memory::get().add(memory::MemMod::new(mem_sel, mem.size(), mem.reserved()));
+        let mem_mod = Rc::new(memory::MemMod::new(
+            mem_sel,
+            mem.addr(),
+            mem.size(),
+            mem.reserved(),
+        ));
+        log!(resmng::LOG_DEF, "Found {:?}", mem_mod);
+        memcon.add(mem_mod);
         mem_sel += 1;
     }
-    log!(RESMNG, "Memory: {:?}", memory::get());
 
     let mut rgate = RecvGate::new_with(RGateArgs::default().order(12).msg_order(8))
         .expect("Unable to create RecvGate");
@@ -449,7 +516,7 @@ pub fn main() -> i32 {
         thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
     }
 
-    start_boot_mods();
+    start_boot_mods(memcon);
 
     // ensure that there is no id overlap
     childs::get().set_next_id(info.mod_count as Id + 1);
@@ -458,7 +525,7 @@ pub fn main() -> i32 {
 
     workloop();
 
-    log!(RESMNG, "All childs gone. Exiting.");
+    log!(resmng::LOG_DEF, "All childs gone. Exiting.");
 
     0
 }

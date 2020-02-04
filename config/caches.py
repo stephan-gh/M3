@@ -13,7 +13,6 @@ num_pes = int(os.environ.get('M3_GEM5_PES'))
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
-mmu = int(os.environ.get('M3_GEM5_MMU', 0))
 mem_pe = num_pes
 
 # Memory watch example:
@@ -35,8 +34,7 @@ for i in range(0, num_pes):
                       memPE=mem_pe,
                       l1size='32kB',
                       l2size='256kB',
-                      dtupos=dtupos,
-                      mmu=mmu == 1)
+                      dtupos=dtupos)
     pes.append(pe)
 
 # create the memory PEs

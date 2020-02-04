@@ -19,8 +19,7 @@ use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::profile;
 use m3::test;
 
-const MSG_ORD: i32 = 8;
-const MSG_SIZE: usize = 1usize << MSG_ORD;
+const MSG_ORD: u32 = 8;
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, pingpong_1u64);
@@ -34,9 +33,7 @@ fn pingpong_1u64() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(MSG_SIZE as u64)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 
@@ -62,9 +59,7 @@ fn pingpong_2u64() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(MSG_SIZE as u64)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 
@@ -92,9 +87,7 @@ fn pingpong_4u64() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(MSG_SIZE as u64)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 
@@ -126,9 +119,7 @@ fn pingpong_str() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(MSG_SIZE as u64)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 
@@ -154,9 +145,7 @@ fn pingpong_strslice() {
     let reply_gate = RecvGate::def();
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     wv_assert_ok!(rgate.activate());
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(MSG_SIZE as u64)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));
 
     let mut prof = profile::Profiler::default();
 

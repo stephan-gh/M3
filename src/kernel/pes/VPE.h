@@ -21,24 +21,16 @@
 #include <thread/ThreadManager.h>
 
 #include "cap/CapTable.h"
-#include "mem/AddrSpace.h"
 #include "mem/SlabCache.h"
 #include "pes/VPEDesc.h"
 #include "Types.h"
 
 namespace kernel {
 
+class PEMux;
 class PEManager;
 class VPECapability;
 class VPEManager;
-
-#define LOG_ERROR(vpe, error, msg)                                                          \
-    do {                                                                                    \
-        KLOG(ERR, "\e[37;41m"                                                               \
-            << (vpe)->id() << ":" << (vpe)->name() << "@" << m3::fmt((vpe)->pe(), "X")      \
-            << ": " << msg << " (" << m3::Errors::to_string(error) << ")\e[0m");            \
-    }                                                                                       \
-    while(0)
 
 #define CREATE_CAP(CAP, KOBJ, tbl, sel, ...)                                 \
     (tbl)->vpe()->kmem()->alloc(*(tbl)->vpe(), sizeof(CAP) + sizeof(KOBJ)) ? \
@@ -46,6 +38,7 @@ class VPEManager;
         nullptr
 
 class VPE : public SlabObject<VPE>, public m3::RefCounted {
+    friend class PEMux;
     friend class PEManager;
     friend class VPECapability;
     friend class VPEManager;
@@ -58,28 +51,19 @@ class VPE : public SlabObject<VPE>, public m3::RefCounted {
 
 public:
     static const uint16_t INVALID_ID    = 0xFFFF;
+    static const uint16_t KERNEL_ID     = INVALID_ID;
     static const epid_t INVALID_EP      = static_cast<epid_t>(-1);
 
     static const int SYSC_MSGSIZE_ORD   = m3::nextlog2<512>::val;
     static const int SYSC_CREDIT_ORD    = SYSC_MSGSIZE_ORD;
 
-    static size_t base_kmem(peid_t pe) {
-        size_t eps = 0;
-        if(!Platform::is_shared(pe))
-            eps = (EP_COUNT - m3::DTU::FIRST_FREE_EP) * (sizeof(EPCapability) + sizeof(EPObject));
+    static size_t required_kmem() {
         // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
-        return sizeof(VPE) + sizeof(AddrSpace) +
+        return sizeof(VPE) +
                // PE cap, VPE cap, and kmem cap
                sizeof(PECapability) + sizeof(VPECapability) + sizeof(KMemCapability) +
                // memory gate and cap
-               sizeof(MGateCapability) + sizeof(MGateObject) +
-               // EP caps
-               eps;
-    }
-    static size_t extra_kmem(const m3::PEDesc &pe) {
-        // for VM PEs we need the root PT
-        // additionally, we need space for PEMux, its page tables etc.
-        return (pe.has_virtmem() ? PAGE_SIZE : 0u) + VPE_EXTRA_MEM;
+               sizeof(MGateCapability) + sizeof(MGateObject);
     }
 
     enum State {
@@ -107,11 +91,14 @@ public:
     const m3::Reference<KMemObject> &kmem() {
         return _kmem;
     }
+    const m3::Reference<PEObject> &pe() {
+        return _pe;
+    }
 
     const VPEDesc &desc() const {
         return _desc;
     }
-    peid_t pe() const {
+    peid_t peid() const {
         return desc().pe;
     }
     void set_pe(peid_t pe) {
@@ -139,10 +126,6 @@ public:
         return _state;
     }
 
-    AddrSpace *address_space() {
-        return _as;
-    }
-
     void set_mem_base(goff_t addr);
 
     int exitcode() const {
@@ -161,6 +144,20 @@ public:
         return _upcqueue;
     }
 
+    void add_ep(EPObject *ep) {
+        _eps.append(ep);
+    }
+    void remove_ep(EPObject *ep) {
+        _eps.remove(ep);
+    }
+
+    void set_pg_sep(EPObject *ep) {
+        _pg_sep = ep;
+    }
+    void set_pg_rep(EPObject *ep) {
+        _pg_rep = ep;
+    }
+
     void upcall(const void *msg, size_t size, bool onheap) {
         _upcqueue.send(m3::DTU::UPCALL_REP, 0, msg, size, onheap);
     }
@@ -168,12 +165,9 @@ public:
 
     void start_app(int pid);
     void stop_app(int exitcode, bool self);
-    void wakeup();
 
     bool check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
     void wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
-
-    m3::Errors::Code activate(EPCapability *epcap, capsel_t gate, size_t addr);
 
     void set_first_sel(capsel_t sel) {
         _first_sel = sel;
@@ -196,13 +190,15 @@ private:
     epid_t _sysc_ep;
     m3::Reference<KMemObject> _kmem;
     m3::Reference<PEObject> _pe;
+    m3::DList<EPObject> _eps;
+    EPObject *_pg_sep;
+    EPObject *_pg_rep;
     m3::String _name;
     CapTable _objcaps;
     CapTable _mapcaps;
     SendQueue _upcqueue;
     volatile xfer_t *_vpe_wait_sels;
     volatile size_t _vpe_wait_count;
-    AddrSpace *_as;
     capsel_t _first_sel;
 };
 

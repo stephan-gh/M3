@@ -23,7 +23,7 @@ extern crate resmng;
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::{RefCell, StaticCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
@@ -32,11 +32,12 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
 use m3::pes::{DefaultMapper, VPEArgs, PE, VPE};
+use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
 use m3::vfs::{OpenFlags, VFS};
 
 use resmng::childs::{Child, Id};
-use resmng::{childs, config, pes, sendqueue, services};
+use resmng::{childs, config, memory, pes, sendqueue, services};
 
 const MAX_CAPS: Selector = 1_000_000;
 const MAX_CHILDS: Selector = 20;
@@ -76,7 +77,7 @@ fn req_rgate() -> &'static RecvGate {
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
         Err(e) => {
-            log!(RESMNG, "request failed: {}", e);
+            log!(resmng::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(_) => reply_vmsg!(is, 0 as u64),
@@ -121,7 +122,15 @@ fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error
             // if that failed, ask our resource manager
             let our_sel = xlate_sel(child.id(), dst_sel)?;
             VPE::cur().resmng().open_sess(our_sel, &name)?;
-            child.delegate(our_sel, dst_sel)
+
+            if let Err(e) = child.delegate(our_sel, dst_sel) {
+                // if that failed, close it at our parent; ignore failures here
+                VPE::cur().resmng().close_sess(our_sel).ok();
+                Err(e)
+            }
+            else {
+                Ok(())
+            }
         },
     }
 }
@@ -165,10 +174,10 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop();
     let addr: goff = is.pop();
     let size: usize = is.pop();
-    let perms = kif::Perm::from_bits_truncate(is.pop::<u8>());
+    let perms = kif::Perm::from_bits_truncate(is.pop::<u32>());
 
     log!(
-        RESMNG_MEM,
+        resmng::LOG_MEM,
         "{}: alloc_mem(dst_sel={}, addr={:#x}, size={:#x}, perm={:?})",
         child.name(),
         dst_sel,
@@ -182,13 +191,17 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     VPE::cur().resmng().alloc_mem(our_sel, addr, size, perms)?;
 
     // delegate memory to our child
-    child.delegate(our_sel, dst_sel)
+    child.delegate(our_sel, dst_sel).or_else(|e| {
+        // if that failed, free it at our parent; ignore failures here
+        VPE::cur().resmng().free_mem(our_sel).ok();
+        Err(e)
+    })
 }
 
 fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
 
-    log!(RESMNG_MEM, "{}: free_mem(sel={})", child.name(), sel);
+    log!(resmng::LOG_MEM, "{}: free_mem(sel={})", child.name(), sel);
 
     let our_sel = xlate_sel(child.id(), sel)?;
     VPE::cur().resmng().free_mem(our_sel)
@@ -199,7 +212,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let desc = kif::PEDesc::new_from(is.pop());
 
     log!(
-        RESMNG_PES,
+        resmng::LOG_PES,
         "{}: alloc_pe(dst_sel={}, desc={:?})",
         child.name(),
         dst_sel,
@@ -210,13 +223,19 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let res = VPE::cur().resmng().alloc_pe(our_sel, desc);
     match res {
         Err(e) => {
-            log!(RESMNG, "request failed: {}", e);
+            log!(resmng::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(desc) => {
             // delegate PE to our child
-            child.delegate(our_sel, dst_sel)?;
-            reply_vmsg!(is, 0 as u64, desc.value())
+            if let Err(e) = child.delegate(our_sel, dst_sel) {
+                // if that failed, free it at our parent; ignore failures here
+                VPE::cur().resmng().free_pe(our_sel).ok();
+                reply_vmsg!(is, e.code() as u64)
+            }
+            else {
+                reply_vmsg!(is, 0 as u64, desc.value())
+            }
         },
     }
     .expect("Unable to reply");
@@ -226,7 +245,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop();
 
-    log!(RESMNG_PES, "{}: free_pe(sel={})", child.name(), sel);
+    log!(resmng::LOG_PES, "{}: free_pe(sel={})", child.name(), sel);
 
     let our_sel = xlate_sel(child.id(), sel)?;
     VPE::cur().resmng().free_pe(our_sel)
@@ -300,8 +319,6 @@ fn workloop() {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root file system");
-
     sendqueue::init();
     thread::init();
     // TODO calculate the number of threads we need (one per child?)
@@ -314,7 +331,7 @@ pub fn main() -> i32 {
     rgate.activate().expect("Unable to activate RecvGate");
 
     let sgate =
-        SendGate::new_with(SGateArgs::new(&rgate).credits(256)).expect("Unable to create SendGate");
+        SendGate::new_with(SGateArgs::new(&rgate).credits(1)).expect("Unable to create SendGate");
     RGATE.set(Some(rgate));
 
     let args = env::args()
@@ -331,14 +348,23 @@ pub fn main() -> i32 {
     let peid = pes::get().find_and_alloc(VPE::cur().pe_desc()).unwrap();
     let mut vpe = VPE::new_with(
         pes::get().get(peid),
-        VPEArgs::new(&name)
-            .resmng(ResMng::new(sgate))
-            .pager("pager"),
+        VPEArgs::new(&name).resmng(ResMng::new(sgate)),
     )
     .expect("Unable to create VPE");
 
-    let (_, _, cfg) = config::Config::new(&args[0], false).expect("Unable to parse config");
-    let mut child = childs::OwnChild::new(0, peid, args, false, VPE::cur().kmem().clone(), cfg);
+    // we don't use the memory pool
+    let mem_pool = Rc::new(RefCell::new(memory::MemPool::default()));
+
+    let cfg = Rc::new(config::AppConfig::new(args, false));
+    let mut child = childs::OwnChild::new(
+        0,
+        peid,
+        cfg.args().clone(),
+        false,
+        VPE::cur().kmem().clone(),
+        mem_pool,
+        cfg,
+    );
     childs::get().set_next_id(1);
 
     vpe.mounts()
@@ -366,7 +392,7 @@ pub fn main() -> i32 {
 
     workloop();
 
-    log!(RESMNG, "Child gone. Exiting.");
+    log!(resmng::LOG_DEF, "Child gone. Exiting.");
 
     0
 }

@@ -27,9 +27,9 @@ public:
     static int parse(int argc, char **argv);
 
     static size_t kmem;
-    static cycles_t timeslice;
     static const char *bridge;
     static const char *fsimg;
+    static bool disk;
 };
 
 }

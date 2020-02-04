@@ -21,20 +21,36 @@
 
 #[macro_use]
 extern crate base;
+extern crate paging;
 
 mod arch;
-mod eps;
-mod kernreq;
+mod corereq;
+mod helper;
 mod pexcalls;
 mod upcalls;
+mod vma;
 mod vpe;
 
+use base::cell::StaticCell;
+use base::cfg;
 use base::dtu;
+use base::envdata;
 use base::io;
+use base::kif;
 use base::libc;
+use core::intrinsics;
+use core::ptr;
 
-use arch::isr;
-use arch::vma;
+/// Logs errors
+pub const LOG_ERR: bool = true;
+/// Logs pexcalls
+pub const LOG_CALLS: bool = false;
+/// Logs VPE operations
+pub const LOG_VPES: bool = false;
+/// Logs upcalls
+pub const LOG_UPCALLS: bool = false;
+/// Logs foreign messages
+pub const LOG_FOREIGN_MSG: bool = false;
 
 extern "C" {
     fn heap_init(begin: usize, end: usize);
@@ -45,77 +61,120 @@ extern "C" {
 static mut HEAP: [u64; 8 * 1024] = [0; 8 * 1024];
 
 #[no_mangle]
+pub extern "C" fn abort() {
+    exit(1);
+}
+
+#[no_mangle]
 pub extern "C" fn exit(_code: i32) {
     unsafe { gem5_shutdown(0) };
+}
+
+pub fn env() -> &'static mut envdata::EnvData {
+    unsafe { intrinsics::transmute(cfg::ENV_START) }
 }
 
 #[no_mangle]
 pub fn sleep() {
     loop {
-        upcalls::check();
-
         // ack events since to VPE is currently not running
         dtu::DTU::fetch_events();
         dtu::DTU::sleep().ok();
     }
 }
 
-pub struct IRQsOnGuard {
-    prev: bool,
+static STOPPED: StaticCell<bool> = StaticCell::new(false);
+static NESTING_LEVEL: StaticCell<u32> = StaticCell::new(0);
+
+fn enter() {
+    *NESTING_LEVEL.get_mut() += 1;
 }
 
-impl IRQsOnGuard {
-    pub fn new() -> Self {
-        IRQsOnGuard {
-            prev: isr::enable_ints(),
-        }
+fn leave(state: &mut arch::State) -> *mut libc::c_void {
+    upcalls::check(state);
+
+    if *STOPPED {
+        stop_vpe(state);
+    }
+    *NESTING_LEVEL.get_mut() -= 1;
+    state as *mut _ as *mut libc::c_void
+}
+
+pub fn stop_vpe(state: &mut arch::State) {
+    if *NESTING_LEVEL > 1 {
+        // prevent us from sleeping by setting the user event
+        dtu::DTU::set_event().ok();
+
+        *STOPPED.get_mut() = true;
+    }
+    else {
+        state.stop();
+
+        *STOPPED.get_mut() = false;
     }
 }
 
-impl Drop for IRQsOnGuard {
-    fn drop(&mut self) {
-        isr::restore_ints(self.prev);
+pub fn is_stopped() -> bool {
+    // use volatile because STOPPED may have changed via a nested IRQ
+    unsafe { ptr::read_volatile(STOPPED.get_mut()) }
+}
+
+pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
+    enter();
+
+    log!(LOG_ERR, "Unexpected IRQ with {:?}", state);
+    stop_vpe(state);
+    vpe::remove(1, true);
+
+    leave(state)
+}
+
+pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
+    enter();
+
+    if arch::handle_mmu_pf(state).is_err() {
+        stop_vpe(state);
+        vpe::remove(1, true);
     }
+
+    leave(state)
 }
 
-pub extern "C" fn unexpected_irq(state: &mut isr::State) -> *mut libc::c_void {
-    panic!("Unexpected IRQ with {:?}", state);
-}
+pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
+    enter();
 
-pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
-    vma::handle_mmu_pf(state);
-
-    state.finalize()
-}
-
-pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
     pexcalls::handle_call(state);
 
-    upcalls::check();
-
-    state.finalize()
+    leave(state)
 }
 
-pub extern "C" fn dtu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    // translation request from DTU?
-    let xlate_req = dtu::DTU::get_xlate_req();
-    if xlate_req != 0 {
-        vma::handle_xlate(state, xlate_req)
+pub extern "C" fn dtu_irq(state: &mut arch::State) -> *mut libc::c_void {
+    enter();
+
+    #[cfg(target_arch = "arm")]
+    dtu::DTU::clear_irq();
+
+    // core request from DTU?
+    let core_req = dtu::DTU::get_core_req();
+    if core_req != 0 {
+        // acknowledge the request
+        dtu::DTU::set_core_req(0);
+
+        if (core_req & 0x1) != 0 {
+            corereq::handle_recv(core_req);
+        }
+        else {
+            vma::handle_xlate(core_req)
+        }
     }
 
-    // request from the kernel?
-    let ext_req = dtu::DTU::get_ext_req();
-    if ext_req != 0 {
-        kernreq::handle_ext_req(state, ext_req);
-    }
-
-    state.finalize()
+    leave(state)
 }
 
 #[no_mangle]
 pub extern "C" fn init() {
     unsafe {
-        isr::init();
+        arch::init();
 
         heap_init(
             &HEAP as *const u64 as usize,
@@ -124,4 +183,6 @@ pub extern "C" fn init() {
     }
 
     io::init(0, "pemux");
+    vpe::init(kif::PEDesc::new_from(env().pe_desc), env().pe_mem_base, env().pe_mem_size);
+    dtu::DTU::xchg_vpe(vpe::cur().vpe_reg());
 }

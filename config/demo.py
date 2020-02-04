@@ -13,7 +13,6 @@ num_pes = int(os.environ.get('M3_GEM5_PES'))
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
-mmu = int(os.environ.get('M3_GEM5_MMU', 0))
 accs = ['rot13', 'rot13']
 mem_pe = num_pes + len(accs)
 
@@ -28,8 +27,7 @@ for i in range(0, num_pes):
                       memPE=mem_pe,
                       l1size='32kB',
                       l2size='256kB',
-                      dtupos=dtupos,
-                      mmu=mmu == 1)
+                      dtupos=dtupos)
     pes.append(pe)
 
 options.cpu_clock = '1GHz'

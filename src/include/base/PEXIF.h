@@ -21,22 +21,8 @@
 namespace m3 {
 
 enum Operation : word_t {
-    SEND,
-    REPLY,
-    CALL,
-
-    FETCH,
-    RECV,
-    ACK,
-
-    READ,
-    WRITE,
-
     SLEEP,
     EXIT,
-
-    SWITCH_GATE,
-    REMOVE_GATE,
 };
 
 }

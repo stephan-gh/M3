@@ -28,8 +28,8 @@ namespace pci {
 
 class ProxiedPciDevice {
 public:
-    static const uint EP_INT            = 9;
-    static const uint EP_DMA            = 10;
+    static const uint EP_INT            = 16;
+    static const uint EP_DMA            = 17;
 
     // Hardcoded for now
     static const size_t REG_SIZE        = 128 * 1024;
@@ -67,7 +67,7 @@ public:
 
     void waitForIRQ() {
         const m3::DTU::Message *msg = _intgate.receive(nullptr);
-        _intgate.mark_read(msg);
+        _intgate.ack_msg(msg);
     }
 
     /**
@@ -82,6 +82,8 @@ private:
 
     m3::Reference<m3::PE> _pe;
     m3::VPE _vpe;
+    std::unique_ptr<m3::EP> _sep;
+    std::unique_ptr<m3::EP> _mep;
     m3::RecvGate _intgate;  // receives interrupts from the proxied pci device
     m3::SendGate _sintgate; // used by the proxied pci device to signal interrupts to its driver
     std::function<void()> _callback;

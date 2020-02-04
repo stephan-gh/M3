@@ -57,6 +57,7 @@ hostenv.Append(
 
 # for target compilation
 env = baseenv.Clone()
+triple = isa + '-unknown-' + target + '-' + rustabi
 env.Append(
     CXXFLAGS = ' -ffreestanding -fno-strict-aliasing -gdwarf-2 -fno-omit-frame-pointer' \
         ' -fno-threadsafe-statics -fno-stack-protector -Wno-address-of-packed-member',
@@ -64,7 +65,8 @@ env.Append(
     CFLAGS = ' -gdwarf-2 -fno-stack-protector',
     ASFLAGS = ' -Wl,-W -Wall -Wextra',
     LINKFLAGS = ' -Wl,--no-gc-sections -Wno-lto-type-mismatch -fno-stack-protector',
-    CRGFLAGS = ' --target ' + isa + '-unknown-' + target + '-' + rustabi,
+    TRIPLE = triple,
+    CRGFLAGS = '',
 )
 
 # add target-dependent stuff to env
@@ -260,35 +262,27 @@ def Cargo(env, target, source):
     return env.Command(
         target, source,
         Action(
-            'cd ${SOURCE.dir.dir} && cargo xbuild $CRGFLAGS',
+            'cd ${SOURCE.dir.dir} && cargo xbuild --target $TRIPLE $CRGFLAGS',
             '$CRGCOMSTR'
         )
     )
 
+def RustLibrary(env, target):
+    rustdir = env['ENV']['CARGO_TARGET_DIR']
+    stlib = env.Cargo(
+        target = rustdir + '/$TRIPLE/$BUILD/lib' + target + '.a',
+        source = 'src/' + target + '.rs'
+    )
+    env.Install(env['LIBDIR'], stlib)
+    env.Depends(stlib, env.File('Cargo.toml'))
+    env.Depends(stlib, env.File('#Cargo.toml'))
+    env.Depends(stlib, env.File('#src/toolchain/rust/' + env['TRIPLE'] + '.json'))
+    return stlib
+
 def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr = True):
     myenv = env.Clone()
     myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs')
-    rustdir = myenv['ENV']['CARGO_TARGET_DIR']
-    stlib = myenv.Cargo(
-        target = rustdir + '/$ISA-unknown-$ARCH-' + rustabi + '/$BUILD/lib' + target + '.a',
-        source = 'src/' + target + '.rs'
-    )
-    myenv.Install(myenv['LIBDIR'], stlib)
-    myenv.Depends(stlib, myenv.File('Cargo.toml'))
-    myenv.Depends(stlib, myenv.File('#Cargo.toml'))
-    myenv.Depends(stlib, myenv.File('#src/toolchain/rust/$ISA-unknown-$ARCH-' + rustabi + '.json'))
-    myenv.Depends(stlib, [
-        myenv.Glob('#src/libs/rust*/Cargo.toml'),
-        myenv.Glob('#src/libs/rust*/src/*.rs'),
-        myenv.Glob('#src/libs/rust*/src/*/*.rs'),
-        myenv.Glob('#src/libs/rust*/src/*/*/*.rs'),
-        myenv.Glob('#src/libs/rust*/src/*/*/*/*.rs'),
-    ])
-    myenv.Depends(stlib, [
-        myenv.Glob('src/*.rs'),
-        myenv.Glob('src/*/*.rs'),
-        myenv.Glob('src/*/*/*.rs'),
-    ])
+    stlib = RustLibrary(myenv, target)
 
     if myenv['ARCH'] == 'gem5':
         sources = [myenv['SYSGCCLIBPATH'].abspath + '/crt0.o' if startup is None else startup]
@@ -320,6 +314,7 @@ env.AddMethod(M3CPP)
 env.AddMethod(install.InstallFiles)
 env.M3Program = M3Program
 env.RustProgram = RustProgram
+env.RustLibrary = RustLibrary
 
 # always use grouping for static libraries, because they may depend on each other so that we want
 # to cycle through them until all references are resolved.

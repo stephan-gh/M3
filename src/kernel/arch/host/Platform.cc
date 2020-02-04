@@ -33,22 +33,45 @@ namespace kernel {
 
 m3::PEDesc *Platform::_pes;
 m3::BootInfo::Mod *Platform::_mods;
-INIT_PRIO_USER(2) m3::BootInfo Platform::_info;
-INIT_PRIO_USER(3) Platform::Init Platform::_init;
+m3::BootInfo Platform::_info;
 
 static MainMemory::Allocation binfomem;
 
-Platform::Init::Init() {
+void Platform::init() {
     // no modules
     Platform::_info.mod_count = 0;
     Platform::_info.mod_size = 0;
 
+    size_t cores = PE_COUNT;
+    const char *cores_str = getenv("M3_CORES");
+    if(cores_str) {
+        cores = strtoul(cores_str, NULL, 10);
+        if(cores < 2 || cores > PE_COUNT)
+            PANIC("Invalid PE count (min=2, max=" << PE_COUNT << ")");
+    }
+
     // init PEs
-    Platform::_info.pe_count = PE_COUNT + 1;
-    Platform::_pes = new m3::PEDesc[PE_COUNT + 1];
-    for(int i = 0; i < PE_COUNT; ++i)
+    size_t total_pes = cores + 1;
+    if(Args::bridge)
+        total_pes += 2;
+    if(Args::disk)
+        total_pes++;
+    Platform::_info.pe_count = total_pes;
+    Platform::_pes = new m3::PEDesc[total_pes];
+    size_t i = 0;
+    for(; i < cores; ++i)
         Platform::_pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
-    Platform::_pes[PE_COUNT] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
+
+    // these are dummy PEs; they do not really exist, but serve the purpose to let root not
+    // complain that the IDE/NIC PE isn't present.
+    if(Args::bridge) {
+        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::NIC, 0);
+        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::NIC, 0);
+    }
+    if(Args::disk)
+        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::IDE_DEV, 0);
+
+    Platform::_pes[i++] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
 
     // create memory
     uintptr_t base = reinterpret_cast<uintptr_t>(
@@ -64,8 +87,8 @@ Platform::Init::Init() {
     mem.add(new MemoryModule(MemoryModule::USER, 0, base + FS_MAX_SIZE + Args::kmem, usize));
 
     // set memories
-    _info.mems[0] = m3::BootInfo::Mem(FS_MAX_SIZE, true);
-    _info.mems[1] = m3::BootInfo::Mem(usize, false);
+    _info.mems[0] = m3::BootInfo::Mem(0, FS_MAX_SIZE, true);
+    _info.mems[1] = m3::BootInfo::Mem(FS_MAX_SIZE + Args::kmem, usize, false);
 }
 
 void Platform::add_modules(int argc, char **argv) {
@@ -74,23 +97,8 @@ void Platform::add_modules(int argc, char **argv) {
     std::vector<m3::BootInfo::Mod*> mods;
     size_t bmodsize = 0;
     for(int i = 0; i < argc; ++i) {
-        if(strcmp(argv[i], "--") == 0)
-            continue;
-
         m3::OStringStream args;
-        int j = i + 1;
         args << basename(argv[i]);
-        for(; j < argc; ++j) {
-            if(strcmp(argv[j], "--") == 0)
-                break;
-            args << " " << argv[j];
-        }
-
-        // ignore the pager
-        if(strncmp(args.str(), "pager", 5) == 0) {
-            i = j;
-            continue;
-        }
 
         m3::BootInfo::Mod *mod = reinterpret_cast<m3::BootInfo::Mod*>(
             malloc(sizeof(m3::BootInfo::Mod) + args.length() + 1));
@@ -121,7 +129,6 @@ void Platform::add_modules(int argc, char **argv) {
         }
 
         mods.push_back(mod);
-        i = j;
     }
 
     // set modules

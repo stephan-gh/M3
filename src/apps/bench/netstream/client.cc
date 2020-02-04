@@ -21,6 +21,7 @@
 #include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/Test.h>
 
 using namespace m3;
 
@@ -127,8 +128,8 @@ int main() {
     cout << "Received bytes: " << received_bytes << "\n";
     size_t duration = last_received - start;
     cout << "Duration: " << duration << "\n";
-    cout << "Rate: " << static_cast<float>(received_bytes) / duration << " bytes / cycle\n";
-    cout << "Rate: " << static_cast<float>(received_bytes) / (duration / 3e9f) << " bytes / s\n";
+    float mbps = (static_cast<float>(received_bytes) / (duration / 3e9f)) / (1024 * 1024);
+    WVPERF("network stream bandwidth", mbps << " MiB/s (+/- 0 with 1 runs)\n");
 
     size_t prev_ts = start;
     size_t prev_bytes = 0;
@@ -138,7 +139,13 @@ int main() {
         cout << "Segment " << i << "\n";
         cout << "  Received bytes: " << segment_received_bytes << "\n";
         cout << "  Duration: " << segment_duration << "\n";
-        cout << "  Rate: " << static_cast<float>(segment_received_bytes) / (segment_duration / 3e9f) << " bytes / s\n";
+
+        float bps = static_cast<float>(segment_received_bytes) / (segment_duration / 3e9f);
+        float mbps = bps / (1024 * 1024);
+        OStringStream name;
+        name << "network stream bandwidth (segment " << i << ")";
+        WVPERF(name.str(), mbps << " MiB/s (+/- 0 with 1 runs)\n");
+
         prev_ts = segment_ts[i];
         prev_bytes = segment_bytes[i];
     }

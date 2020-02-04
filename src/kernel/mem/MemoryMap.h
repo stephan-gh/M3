@@ -22,6 +22,8 @@
 namespace kernel {
 
 class MemoryMap {
+    friend class MainMemory;
+
     struct Area {
         goff_t addr;
         size_t size;
@@ -31,12 +33,9 @@ class MemoryMap {
         static void operator delete(void *ptr);
     };
 
-    struct Init {
-        Init();
-        static Init inst;
-    };
-
     static const size_t MAX_AREAS   = 4096;
+
+    static void init();
 
 public:
     /**

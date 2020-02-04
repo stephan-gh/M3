@@ -26,7 +26,6 @@ num_rot13 = 2
 mem_pe = num_pes + num_sto + 2 + num_rot13
 
 dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
-mmu = int(os.environ.get('M3_GEM5_MMU', 0))
 
 pes = []
 
@@ -39,8 +38,7 @@ for i in range(0, num_pes - num_spm):
                       memPE=mem_pe,
                       l1size='32kB',
                       l2size='256kB',
-                      dtupos=dtupos,
-                      mmu=mmu == 1)
+                      dtupos=dtupos)
     pes.append(pe)
 
 for i in range(num_pes - num_spm, num_pes):

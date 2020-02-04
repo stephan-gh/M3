@@ -27,17 +27,8 @@ void *DTUState::get_ep(epid_t ep) {
     return _regs._eps + ep * m3::DTU::EPS_RCNT;
 }
 
-void DTUState::restore(const VPEDesc &, size_t) {
+void DTUState::restore(const VPEDesc &) {
     // not supported
-}
-
-void DTUState::invalidate_eps(epid_t first) {
-    size_t total = sizeof(word_t) * m3::DTU::EPS_RCNT * (EP_COUNT - first);
-    memset(get_ep(first), 0, total);
-}
-
-void DTUState::read_ep(const VPEDesc &vpe, epid_t ep) {
-    DTU::get().read_ep_remote(vpe, ep, get_ep(ep));
 }
 
 void DTUState::update_recv(epid_t ep, goff_t base) {
@@ -45,7 +36,12 @@ void DTUState::update_recv(epid_t ep, goff_t base) {
     regs[m3::DTU::EP_BUF_ADDR]       += base;
 }
 
-void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint) {
+void DTUState::invalidate_ep(epid_t ep) {
+    word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
+    memset(regs, 0, sizeof(word_t) * m3::DTU::EPS_RCNT);
+}
+
+void DTUState::config_recv(epid_t ep, vpeid_t, goff_t buf, uint order, uint msgorder, uint) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
     regs[m3::DTU::EP_VALID]          = 1;
     regs[m3::DTU::EP_BUF_ADDR]       = buf;
@@ -58,21 +54,25 @@ void DTUState::config_recv(epid_t ep, goff_t buf, int order, int msgorder, uint)
     regs[m3::DTU::EP_BUF_OCCUPIED]   = 0;
 }
 
-void DTUState::config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep, size_t msgsize, word_t credits) {
+void DTUState::config_send(epid_t ep, vpeid_t, label_t lbl, peid_t pe, epid_t dstep, uint msgsize, uint credits) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
     regs[m3::DTU::EP_VALID]         = 1;
     regs[m3::DTU::EP_LABEL]         = lbl;
     regs[m3::DTU::EP_PEID]          = pe;
     regs[m3::DTU::EP_EPID]          = dstep;
-    regs[m3::DTU::EP_CREDITS]       = credits;
-    regs[m3::DTU::EP_MSGORDER]      = static_cast<word_t>(m3::getnextlog2(msgsize));
+    if(credits == m3::KIF::UNLIM_CREDITS)
+        regs[m3::DTU::EP_CREDITS]       = credits;
+    else
+        regs[m3::DTU::EP_CREDITS]       = (1U << msgsize) * credits;
+    regs[m3::DTU::EP_MSGORDER]      = msgsize;
+    regs[m3::DTU::EP_PERM]          = 0;
 }
 
-void DTUState::config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perms) {
+void DTUState::config_mem(epid_t ep, vpeid_t, peid_t pe, goff_t addr, size_t size, uint perms) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
-    assert((addr & static_cast<goff_t>(perms)) == 0);
     regs[m3::DTU::EP_VALID]         = 1;
-    regs[m3::DTU::EP_LABEL]         = addr | static_cast<uint>(perms);
+    regs[m3::DTU::EP_LABEL]         = addr;
+    regs[m3::DTU::EP_PERM]          = static_cast<word_t>(perms);
     regs[m3::DTU::EP_PEID]          = pe;
     regs[m3::DTU::EP_EPID]          = 0;
     regs[m3::DTU::EP_CREDITS]       = size;
@@ -82,14 +82,6 @@ void DTUState::config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int pe
 bool DTUState::config_mem_cached(epid_t, peid_t) {
     // unused
     return true;
-}
-
-void DTUState::config_pf(gaddr_t, epid_t, epid_t) {
-    // not supported
-}
-
-void DTUState::reset(gaddr_t, bool) {
-    // not supported
 }
 
 }

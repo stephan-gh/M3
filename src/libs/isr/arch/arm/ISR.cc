@@ -24,8 +24,11 @@ namespace m3 {
 ISR::isr_func ISR::isrs[ISR_COUNT];
 
 void *ISR::handler(State *state) {
+    // repeat last instruction
+    if(state->vector == 4)
+        state->pc -= 8;
     // repeat last instruction, except for SWIs
-    if(state->vector != 2)
+    else if(state->vector != 2)
         state->pc -= 4;
     return isrs[state->vector](state);
 }

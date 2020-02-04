@@ -32,12 +32,12 @@ public:
     static const size_t BUFFER_SIZE             = 2 * 1024 * 1024;
 
     static const size_t MSG_SIZE                = 2048;
-    static const size_t MSG_BUF_SIZE            = MSG_SIZE * 4;
-    static const size_t MSG_CREDITS             = MSG_BUF_SIZE;
+    static const size_t MSG_CREDITS             = 4;
+    static const size_t MSG_BUF_SIZE            = MSG_SIZE * MSG_CREDITS;
 
     static const size_t INBAND_DATA_SIZE        = 2048;
-    static const size_t INBAND_DATA_BUF_SIZE    = INBAND_DATA_SIZE * 4;
-    static const size_t INBAND_DATA_CREDITS     = INBAND_DATA_BUF_SIZE;
+    static const size_t INBAND_DATA_CREDITS     = 4;
+    static const size_t INBAND_DATA_BUF_SIZE    = INBAND_DATA_SIZE * INBAND_DATA_CREDITS;
 
     enum ControlMessageType {
         DataTransfer,

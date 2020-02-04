@@ -42,28 +42,20 @@ public:
         return _state;
     }
 
-    gaddr_t deprivilege(peid_t pe);
+    void deprivilege(peid_t pe);
 
-    void kill_vpe(const VPEDesc &vpe, gaddr_t idle_rootpt);
+    void init_vpe(const VPEDesc &vpe);
+    void kill_vpe(const VPEDesc &vpe);
 
-    cycles_t get_time();
-    void wakeup(const VPEDesc &vpe);
-    void suspend(const VPEDesc &vpe);
-    void inject_irq(const VPEDesc &vpe);
-    void ext_request(const VPEDesc &vpe, uint64_t req);
     void flush_cache(const VPEDesc &vpe);
-
-    void invtlb_remote(const VPEDesc &vpe);
-    void invlpg_remote(const VPEDesc &vpe, goff_t virt);
 
     m3::Errors::Code inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
 
     m3::Errors::Code inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool force);
-    void read_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
     void write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
     void write_ep_local(epid_t ep);
 
-    void recv_msgs(epid_t ep, uintptr_t buf, int order, int msgorder);
+    void recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder);
 
     void reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg);
 
@@ -86,15 +78,10 @@ public:
                     const VPEDesc &srcvpe, goff_t srcaddr,
                     size_t size, bool clear);
 
-    void write_swstate(const VPEDesc &vpe, uint64_t flags, uint64_t notify);
-    void write_swflags(const VPEDesc &vpe, uint64_t flags);
-    void read_swflags(const VPEDesc &vpe, uint64_t *flags);
-
 private:
 #if defined(__gem5__)
-    void do_set_vpeid(const VPEDesc &vpe, vpeid_t nid);
-    void do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
-    m3::Errors::Code try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
+    void do_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
+    m3::Errors::Code try_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
 #endif
 
     epid_t _ep;

@@ -30,6 +30,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/pes/KMem.h>
 #include <m3/pes/PE.h>
+#include <m3/session/Pager.h>
 #include <m3/ObjCap.h>
 
 #include <functional>
@@ -41,7 +42,6 @@ class VPE;
 class VFS;
 class FileTable;
 class MountTable;
-class Pager;
 class ResMng;
 class FStream;
 class EnvUserBackend;
@@ -54,10 +54,7 @@ class VPEArgs {
 public:
     explicit VPEArgs() noexcept;
 
-    VPEArgs &pager(const char *pager) noexcept {
-        _pager = pager;
-        return *this;
-    }
+    VPEArgs &pager(Reference<Pager> pager) noexcept;
     VPEArgs &resmng(ResMng *resmng) noexcept {
         _rmng = resmng;
         return *this;
@@ -68,8 +65,8 @@ public:
     }
 
 private:
-    const char *_pager;
     ResMng *_rmng;
+    Reference<Pager> _pager;
     Reference<KMem> _kmem;
 };
 
@@ -120,7 +117,7 @@ public:
     /**
      * @return the pager of this VPE (or nullptr)
      */
-    std::unique_ptr<Pager> &pager() noexcept {
+    Reference<Pager> &pager() noexcept {
         return _pager;
     }
 
@@ -330,8 +327,8 @@ private:
     uint64_t _rbufcur;
     uint64_t _rbufend;
     EPMng _epmng;
+    Reference<Pager> _pager;
     std::unique_ptr<ResMng> _resmng;
-    std::unique_ptr<Pager> _pager;
     std::unique_ptr<MountTable> _ms;
     std::unique_ptr<FileTable> _fds;
     std::unique_ptr<FStream> _exec;

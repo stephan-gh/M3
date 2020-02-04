@@ -21,7 +21,6 @@
 
 namespace kernel {
 
-// the DTU has to initialize before SyscallHandler
-INIT_PRIO_USER(1) DTU DTU::_inst;
+DTU DTU::_inst;
 
 }

@@ -56,6 +56,10 @@ public:
         size_t size;
     };
 
+    static void init() {
+        MemoryMap::init();
+    }
+
     static MainMemory &get() {
         return _inst;
     }

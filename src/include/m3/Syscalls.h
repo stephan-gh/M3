@@ -34,11 +34,18 @@ class Syscalls {
 
     template<class T>
     struct SyscallReply {
-        explicit SyscallReply(const DTU::Message *msg)
-            : _msg(msg) {
+        explicit SyscallReply(Errors::Code res, const DTU::Message *msg)
+            : _res(res),
+              _msg(msg) {
         }
         ~SyscallReply() {
-            DTUIf::mark_read(RecvGate::syscall(), _msg);
+            DTUIf::ack_msg(RecvGate::syscall(), _msg);
+        }
+
+        Errors::Code error() const {
+            if(_res != Errors::NONE)
+                return _res;
+            return static_cast<Errors::Code>(operator->()->error);
         }
 
         const T *operator->() const {
@@ -46,6 +53,7 @@ class Syscalls {
         }
 
     private:
+        Errors::Code _res;
         const DTU::Message *_msg;
     };
 
@@ -54,14 +62,14 @@ class Syscalls {
 public:
     static void create_srv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name);
     static void create_sess(capsel_t dst, capsel_t srv, word_t ident);
-    static void create_rgate(capsel_t dst, int order, int msgorder);
-    static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, word_t credits);
+    static void create_rgate(capsel_t dst, uint order, uint msgorder);
+    static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, uint credits);
     static void create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
                            const String &name, capsel_t pe, capsel_t kmem);
     static void create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                            capsel_t pages, int perms);
     static void create_sem(capsel_t dst, uint value);
-    static epid_t alloc_ep(capsel_t dst, capsel_t vpe, capsel_t pe);
+    static epid_t alloc_ep(capsel_t dst, capsel_t vpe, epid_t ep, uint replies);
 
     static void activate(capsel_t ep, capsel_t gate, goff_t addr);
     static void vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg);
@@ -82,8 +90,6 @@ public:
     static void revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own = true);
 
     static void noop();
-
-    static void exit(int exitcode);
 
 private:
     template<class T>

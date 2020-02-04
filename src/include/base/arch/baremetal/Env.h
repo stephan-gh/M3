@@ -49,6 +49,8 @@ public:
     uint64_t entry;
     uint64_t heapsize;
     uint64_t kenv;
+    uint64_t pe_mem_base;
+    uint64_t pe_mem_size;
 
     uint64_t lambda;
     uint32_t pager_sess;
@@ -59,7 +61,6 @@ public:
     uint64_t rbufcur;
     uint64_t rbufend;
     uint64_t rmng_sel;
-    uint64_t eps;
     uint64_t caps;
     uint64_t _backend;
 

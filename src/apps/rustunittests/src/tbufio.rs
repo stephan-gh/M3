@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::col::String;
 use m3::io::{Read, Write};
 use m3::test;
 use m3::vfs::{BufReader, BufWriter, OpenFlags, VFS};
@@ -39,8 +38,7 @@ fn read_write() {
         let file = wv_assert_ok!(VFS::open("/myfile", OpenFlags::R));
         let mut bfile = BufReader::new(file);
 
-        let mut s = String::new();
-        wv_assert_eq!(bfile.read_to_string(&mut s), Ok(39));
+        let s = wv_assert_ok!(bfile.read_to_string());
         wv_assert_eq!(s, "This foo is the 42th test of 0xABCDEF!\n");
     }
 }

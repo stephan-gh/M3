@@ -62,8 +62,8 @@ impl<'n> fmt::Display for ThreadId<'n> {
 
 fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
     // get the first parts:
-    // 7802000: pe00.cpu T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
-    // ^------^ ^------^ ^^ ^ ^------^ ^---------------------------------------------^
+    // 7802000: pe00.cpu: T0 : 0x226f3a @ heap_init+26    : mov rcx, DS:[rip + 0x295a7]
+    // ^------^ ^-------^ ^^ ^ ^------^ ^---------------------------------------------^
     let mut parts = line.splitn(6, ' ');
     let time = parts.next()?;
     let cpu = parts.next()?;
@@ -73,7 +73,7 @@ fn get_func_addr(line: &str) -> Option<(u64, usize, Option<usize>)> {
 
     let time_int = time[..time.len() - 1].parse::<u64>().ok()?;
     let cpu_int = cpu[2..4].parse::<usize>().ok()?;
-    let addr_int = if cpu.ends_with(".cpu") {
+    let addr_int = if cpu.ends_with(".cpu:") {
         let addr = parts.nth(2)?;
         let mut addr_parts = addr.splitn(2, '.');
         usize::from_str_radix(&addr_parts.next()?[2..], 16).ok()
@@ -328,6 +328,7 @@ pub fn generate(
     isa: &crate::ISA,
     syms: &BTreeMap<usize, symbols::Symbol>,
 ) -> Result<(), Error> {
+    let mut last_time = 0;
     let mut max_peid = 0;
     let mut pes: HashMap<usize, PE> = HashMap::new();
 
@@ -349,6 +350,9 @@ pub fn generate(
                 }
                 break;
             }
+
+            let time = if time >= last_time { time } else { last_time };
+            last_time = time;
 
             if maybe_addr.is_none() {
                 if let Some(cur_pe) = pes.get_mut(&pe) {

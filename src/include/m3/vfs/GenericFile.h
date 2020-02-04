@@ -102,7 +102,6 @@ public:
 private:
     virtual void close() noexcept override;
 
-    EP evict(bool closing);
     void submit();
     void delegate_ep();
 

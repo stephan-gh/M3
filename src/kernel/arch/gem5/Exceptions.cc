@@ -17,10 +17,12 @@
 #include <base/stream/Serial.h>
 #include <base/Backtrace.h>
 #include <base/Init.h>
+#include <base/Panic.h>
+#include <base/KIF.h>
 
 #include <isr/ISR.h>
 
-#include "mem/AddrSpace.h"
+#include "Paging.h"
 
 namespace kernel {
 
@@ -130,20 +132,58 @@ static void *irq_handler(m3::ISR::State *state) {
     UNREACHED;
 }
 
-struct ISR {
+class ISR {
+public:
     explicit ISR() {
         m3::ISR::init();
         for(size_t i = 0; i < m3::ISR::ISR_COUNT; ++i)
             m3::ISR::reg(i, irq_handler);
 #if defined(__x86_64__)
-        m3::ISR::reg(64, AddrSpace::dtu_handler);
+        m3::ISR::reg(64, dtu_handler);
+#else
+        m3::ISR::reg(6, dtu_handler);
 #endif
         m3::ISR::enable_irqs();
+    }
+
+    static void handle_xlate(m3::DTU::reg_t xlate_req) {
+        m3::DTU &dtu = m3::DTU::get();
+
+        uintptr_t virt = xlate_req & ~PAGE_MASK;
+        uint perm = (xlate_req >> 1) & 0x7;
+        uint xferbuf = (xlate_req >> 5) & 0x7;
+
+        uint64_t pte = translate(virt, perm);
+        if(~(pte & 0xF) & perm)
+            PANIC("Pagefault during PT walk for " << virt << " (PTE=" << m3::fmt(pte, "p") << ")");
+
+        // tell DTU the result
+        dtu.set_core_resp(pte | (xferbuf << 5));
+    }
+
+    static void *dtu_handler(m3::ISR::State *state) {
+        m3::DTU &dtu = m3::DTU::get();
+
+#if defined(__arm__)
+        dtu.clear_irq();
+#endif
+
+        // translation request from DTU?
+        m3::DTU::reg_t core_req = dtu.get_core_req();
+        if(core_req) {
+            if(core_req & 0x1)
+                PANIC("Unexpected foreign receive: " << m3::fmt(core_req, "x"));
+            // acknowledge the translation
+            dtu.set_core_req(0);
+            handle_xlate(core_req);
+        }
+
+        return state;
     }
 
     static ISR irqs;
 };
 
-INIT_PRIO_USER(0) ISR ISR::irqs;
+ISR ISR::irqs;
 
 }

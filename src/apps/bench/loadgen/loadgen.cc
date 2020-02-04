@@ -39,8 +39,8 @@ public:
     explicit LoadGenSession(RecvGate *rgate, capsel_t srv_sel)
        : m3::ServerSession(srv_sel),
          rem_req(),
-         clisgate(SendGate::create(rgate, SendGateArgs().label(reinterpret_cast<label_t>(this))
-                                                        .credits(64))),
+         clisgate(SendGate::create(rgate, SendGateArgs().label(ptr_to_label(this))
+                                                        .credits(1))),
          sgate(),
          mgate() {
     }
@@ -49,7 +49,7 @@ public:
         if(rem_req > 0) {
             mgate->write(http_req, sizeof(http_req), 0);
             auto msg = create_vmsg(sizeof(http_req));
-            sgate->send(msg.bytes(), msg.total(), reinterpret_cast<label_t>(this));
+            sgate->send(msg.bytes(), msg.total(), ptr_to_label(this));
             rem_req--;
         }
     }

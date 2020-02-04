@@ -32,8 +32,6 @@
 namespace m3 {
 
 void VPE::init_state() {
-    _epmng._eps = env()->eps;
-
     _resmng.reset(new ResMng(env()->rmng_sel));
 
     // it's initially 0. make sure it's at least the first usable selector
@@ -44,7 +42,7 @@ void VPE::init_state() {
 
 void VPE::init_fs() {
     if(env()->pager_sess)
-        _pager.reset(new Pager(env()->pager_sess));
+        _pager = Reference<Pager>(new Pager(env()->pager_sess));
     _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(env()->mounts), env()->mounts_len));
     _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(env()->fds), env()->fds_len));
 }
@@ -59,7 +57,8 @@ void VPE::reset() noexcept {
     _self_ptr->_kmem->sel(KIF::SEL_KMEM);
     _self_ptr->sel(KIF::SEL_VPE);
     _self_ptr->_mem.sel(KIF::SEL_MEM);
-    _self_ptr->epmng().reset(_self_ptr->epmng().reserved());
+    _self_ptr->epmng().reset();
+    Gate::reset();
 }
 
 void VPE::run(void *lambda) {
@@ -132,7 +131,6 @@ void VPE::exec(int argc, const char **argv) {
     /* write entire runtime stuff */
     _mem.write(buffer.get(), offset, ENV_SPACE_START);
 
-    senv.eps = _epmng._eps;
     senv.caps = _next_sel;
     senv.rbufcur = _rbufcur;
     senv.rbufend = _rbufend;
@@ -240,15 +238,16 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
     if(_pager) {
         // create area for boot/runtime stuff
         goff_t virt = ENV_START;
-        _pager->map_anon(&virt, ENV_END - virt, Pager::READ | Pager::WRITE, 0);
+        _pager->map_anon(&virt, ENV_END - virt, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
 
         // create area for stack
         virt = STACK_BOTTOM;
-        _pager->map_anon(&virt, STACK_TOP - virt, Pager::READ | Pager::WRITE, 0);
+        _pager->map_anon(&virt, STACK_TOP - virt, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
 
         // create heap
-        virt = Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
-        _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE, 0);
+        virt = Math::round_up(end, static_cast<goff_t>(LPAGE_SIZE));
+        _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE,
+                         Pager::MAP_UNINIT | Pager::MAP_NOLPAGE);
     }
 
     *size = store_arguments(buffer, argc, argv);

@@ -49,8 +49,8 @@ M3FSFileSession::M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSes
         ? nullptr
         : new m3::SendGate(m3::SendGate::create(
             &meta->rgate(),
-            SendGateArgs().label(reinterpret_cast<label_t>(this))
-                          .credits(MSG_SIZE)
+            SendGateArgs().label(ptr_to_label(this))
+                          .credits(1)
                           .sel(sel() + 1)
           ))
       ),

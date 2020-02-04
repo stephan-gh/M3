@@ -34,3 +34,4 @@ void bstream();
 void bsyscall();
 void bpipe();
 void bvpe();
+void bpagefaults();

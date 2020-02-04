@@ -48,7 +48,7 @@ fn destroy() {
         ));
         // TODO actually, we could create it in the child, but this is not possible in rust atm
         // because we would need to move rg to the child *and* use it in the parent
-        let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(64)));
+        let sg = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rg).credits(1)));
 
         wv_assert_ok!(child.delegate_obj(sg.sel()));
 

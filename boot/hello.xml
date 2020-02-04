@@ -1,0 +1,12 @@
+<config>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root" />
+    </dom>
+    <dom>
+        <app args="hello" />
+    </dom>
+    <dom>
+        <app args="hello" />
+    </dom>
+</config>

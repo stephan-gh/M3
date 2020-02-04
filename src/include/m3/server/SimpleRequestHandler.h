@@ -53,10 +53,10 @@ public:
         if(sess->sgate || data.args.count != 0 || data.caps != 1)
             return Errors::INV_ARGS;
 
-        label_t label = reinterpret_cast<label_t>(sess);
+        label_t label = ptr_to_label(sess);
         sess->sgate = std::make_unique<SendGate>(
             SendGate::create(&_rgate, SendGateArgs().label(label)
-                                                    .credits(MSG_SIZE))
+                                                    .credits(1))
         );
 
         data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->sgate->sel()).value();
@@ -65,7 +65,7 @@ public:
 
     virtual Errors::Code close(SimpleSession *sess) override {
         delete sess;
-        _rgate.drop_msgs_with(reinterpret_cast<label_t>(sess));
+        _rgate.drop_msgs_with(ptr_to_label(sess));
         return Errors::NONE;
     }
 

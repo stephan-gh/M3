@@ -56,7 +56,6 @@ public:
     }
 
     NORETURN void exit(int code) override {
-        Syscalls::exit(code);
         PEXCalls::call1(Operation::EXIT, static_cast<word_t>(code));
         UNREACHED;
     }

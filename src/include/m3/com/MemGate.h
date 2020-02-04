@@ -159,17 +159,6 @@ public:
     void read(void *data, size_t len, goff_t offset);
 
 private:
-    /**
-     * Activates this gate on EP <ep> with the given offset. That is, the EP <ep> will be configured
-     * to start at this memory region plus <offset>.
-     *
-     * @param ep the ep id
-     * @param offset the offset within this memory region
-     */
-    void activate_on(const EP &ep, goff_t offset = 0);
-
-    Errors::Code forward(void *&data, size_t &len, goff_t &offset, uint flags);
-
     bool _revoke;
     uint _cmdflags;
 };

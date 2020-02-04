@@ -23,6 +23,7 @@
 #include "pes/VPEManager.h"
 #include "cap/Capability.h"
 #include "cap/CapTable.h"
+#include "mem/MainMemory.h"
 #include "DTU.h"
 
 namespace kernel {
@@ -101,9 +102,33 @@ void SessObject::drop_msgs() {
     srv->drop_msgs(ident);
 }
 
+EPObject::EPObject(PEObject *_pe, VPE *_vpe, epid_t _ep, uint _replies)
+    : RefCounted(),
+      DListItem(),
+      vpe(_vpe),
+      ep(_ep),
+      replies(_replies),
+      pe(_pe),
+      gate() {
+    vpe->add_ep(this);
+}
+
 EPObject::~EPObject() {
     if(gate != nullptr)
         gate->remove_ep(this);
+
+    if(vpe != nullptr)
+        vpe->remove_ep(this);
+
+    // this check is necessary for the pager EP objects in the VPE
+    if(ep >= m3::DTU::FIRST_FREE_EP) {
+        // free EPs at PEMux
+        auto pemux = PEManager::get().pemux(pe->id);
+        pemux->free_eps(ep, 1 + replies);
+
+        // grant it back to PE cap
+        pe->free(1 + replies);
+    }
 }
 
 m3::Errors::Code SemObject::down() {
@@ -147,41 +172,29 @@ void PECapability::revoke() {
         static_cast<PECapability*>(parent())->obj->free(obj->eps);
 }
 
-void SharedEPCapability::revoke() {
-    // free PE at PEMux
-    auto pemux = PEManager::get().pemux(obj->pe->id);
-    pemux->free_ep(obj->ep);
-
-    // grant it back to PE cap
-    obj->pe->free(1);
-}
-
-MapCapability::MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj)
-    : Capability(tbl, sel, MAP, _pages),
-      obj(_obj) {
-    VPE *vpe = tbl->vpe();
+m3::Errors::Code MapCapability::remap(gaddr_t _phys, uint _attr) {
+    VPE *vpe = table()->vpe();
     assert(vpe != nullptr);
-    vpe->address_space()->map_pages(vpe->desc(), sel << PAGE_BITS, obj->phys, length(),
-                                    (obj->attr & ~(EXCL | KERNEL)));
-}
+    auto pemux = PEManager::get().pemux(vpe->peid());
+    auto perms = _attr & ~(EXCL | KERNEL);
+    m3::Errors::Code res = pemux->map(vpe->id(), sel() << PAGE_BITS, _phys, length(), perms);
+    if(res != m3::Errors::NONE)
+      return res;
 
-void MapCapability::remap(gaddr_t _phys, int _attr) {
     obj->phys = _phys;
     obj->attr = _attr;
-    VPE *vpe = table()->vpe();
-    assert(vpe != nullptr);
-    vpe->address_space()->map_pages(vpe->desc(), sel() << PAGE_BITS, _phys, length(),
-                                    (obj->attr & ~(EXCL | KERNEL)));
+    return m3::Errors::NONE;
 }
 
-void MapCapability::revoke() {
+void MapCapability::late_revoke() {
     VPE *vpe = table()->vpe();
     assert(vpe != nullptr);
-    vpe->address_space()->unmap_pages(vpe->desc(), sel() << PAGE_BITS, length());
-    if(obj->attr & EXCL) {
-        MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length() * PAGE_SIZE));
-        vpe->kmem()->free(*vpe, length() * PAGE_SIZE);
+    if(!vpe->is_stopped()) {
+        auto pemux = PEManager::get().pemux(vpe->peid());
+        pemux->map(vpe->id(), sel() << PAGE_BITS, 0, length(), 0);
     }
+    if(obj->attr & EXCL)
+        MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length() * PAGE_SIZE));
 }
 
 void SessCapability::revoke() {
@@ -192,14 +205,16 @@ void SessCapability::revoke() {
 
 void ServCapability::revoke() {
     // first, reset the receive buffer: make all slots not-occupied
-    if(obj->rgate()->activated())
-        PEManager::get().pemux(obj->vpe().pe())->config_rcv_ep(obj->rgate()->ep, *obj->rgate());
+    if(obj->rgate()->activated()) {
+        PEManager::get().pemux(obj->vpe().peid())->config_rcv_ep(
+          obj->rgate()->ep, obj->vpe().id(), 0, *obj->rgate());
+    }
     // now, abort everything in the sendqueue
     obj->abort();
 }
 
 size_t VPECapability::obj_size() const {
-    return sizeof(VPE) + sizeof(AddrSpace);
+    return sizeof(VPE);
 }
 
 void Capability::print(m3::OStream &os) const {
@@ -232,7 +247,7 @@ void SGateCapability::printInfo(m3::OStream &os) const {
 
 void MGateCapability::printInfo(m3::OStream &os) const {
     os << ": mgate[refs=" << obj->refcount()
-       << ", dst=" << obj->vpe << "@" << obj->pe
+       << ", dst=" << obj->pe
        << ", addr=" << m3::fmt(obj->addr, "#0x", sizeof(label_t) * 2)
        << ", size=" << m3::fmt(obj->size, "#0x", sizeof(label_t) * 2)
        << ", perms=#" << m3::fmt(obj->perms, "x")
@@ -268,7 +283,8 @@ void PECapability::printInfo(m3::OStream &os) const {
 void EPCapability::printInfo(m3::OStream &os) const {
     os << ": ep  [refs=" << obj->refcount()
         << ", pe=" << obj->pe->id
-        << ", ep=" << obj->ep << "]";
+        << ", ep=" << obj->ep
+        << ", replies=" << obj->replies << "]";
 }
 
 void VPECapability::printInfo(m3::OStream &os) const {

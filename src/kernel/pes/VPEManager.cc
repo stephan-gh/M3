@@ -22,6 +22,7 @@
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
+#include "mem/MainMemory.h"
 #include "Args.h"
 #include "Platform.h"
 #include "WorkLoop.h"
@@ -46,10 +47,10 @@ void VPEManager::start_root() {
     assert(id != MAX_VPES);
 
     // try to find a PE with the required ISA and external memory first
-    peid_t peid = PEManager::get().find_pe(pedesc_emem, 0);
+    peid_t peid = PEManager::get().find_pe(pedesc_emem);
     if(peid == 0) {
         // if that failed, try to find a SPM PE
-        peid = PEManager::get().find_pe(pedesc_imem, 0);
+        peid = PEManager::get().find_pe(pedesc_imem);
         if(peid == 0)
             PANIC("Unable to find a free PE for root task");
     }
@@ -64,7 +65,7 @@ void VPEManager::start_root() {
         goff_t addr = m3::DTU::gaddr_to_virt(Platform::info_addr());
         auto memcap = CREATE_CAP(MGateCapability, MGateObject,
             &_vpes[id]->objcaps(), sel,
-            pe, VPE::INVALID_ID, addr, Platform::info_size(), m3::KIF::Perm::R
+            pe, addr, Platform::info_size(), m3::KIF::Perm::R
         );
         _vpes[id]->objcaps().set(sel, memcap);
         sel++;
@@ -78,7 +79,7 @@ void VPEManager::start_root() {
                                          static_cast<size_t>(PAGE_SIZE));
         auto memcap = CREATE_CAP(MGateCapability, MGateObject,
             &_vpes[id]->objcaps(), sel,
-            pe, VPE::INVALID_ID, addr, size, m3::KIF::Perm::R | m3::KIF::Perm::X
+            pe, addr, size, m3::KIF::Perm::R | m3::KIF::Perm::X
         );
         _vpes[id]->objcaps().set(sel, memcap);
     }
@@ -97,7 +98,7 @@ void VPEManager::start_root() {
         if(mod.type() != MemoryModule::KERNEL) {
             auto memcap = CREATE_CAP(MGateCapability, MGateObject,
                 &_vpes[id]->objcaps(), sel,
-                mod.pe(), VPE::INVALID_ID, mod.addr(), mod.size(), m3::KIF::Perm::RWX
+                mod.pe(), mod.addr(), mod.size(), m3::KIF::Perm::RWX
             );
             _vpes[id]->objcaps().set(sel, memcap);
             sel++;

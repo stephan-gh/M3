@@ -14,17 +14,23 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::StaticCell;
+use base::cfg;
 use base::dtu;
 use base::errors::{Code, Error};
+use base::goff;
+use base::io;
 use base::kif;
 use base::util;
 
-use eps;
+use arch;
+use helper;
 use vpe;
-use IRQsOnGuard;
+
+static ENABLED: StaticCell<bool> = StaticCell::new(true);
 
 fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
-    let _irqs = IRQsOnGuard::new();
+    let _irqs = helper::IRQsOnGuard::new();
     dtu::DTU::reply(
         dtu::PEXUP_REP,
         reply as *const T as *const u8,
@@ -34,61 +40,137 @@ fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     .unwrap();
 }
 
-fn alloc_ep(msg: &'static dtu::Message) -> Result<(), Error> {
-    let req = &unsafe { &*(&msg.data as *const [u8] as *const [kif::pemux::AllocEP]) }[0];
+fn init(msg: &'static dtu::Message) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::Init>();
 
-    let vpe = req.vpe_sel;
+    let pe_id = req.pe_id as u32;
+    let vpe_id = req.vpe_sel;
 
-    log!(PEX_UPCALLS, "alloc_ep(vpe={})", vpe);
+    // do that here to get the color of the next print correct
+    io::init(pe_id, "pemux");
 
-    let ep = eps::get().find_free(false)?;
-    eps::get().mark_reserved(ep, vpe);
+    log!(crate::LOG_UPCALLS, "upcall::init(vpe={})", vpe_id,);
 
-    let reply = kif::pemux::AllocEPReply {
-        error: 0,
-        ep: ep as u64,
-    };
-    reply_msg(msg, &reply);
+    vpe::add(vpe_id);
     Ok(())
 }
 
-fn free_ep(msg: &'static dtu::Message) -> Result<(), Error> {
-    let req = &unsafe { &*(&msg.data as *const [u8] as *const [kif::pemux::FreeEP]) }[0];
+fn vpe_ctrl(msg: &'static dtu::Message, state: &mut arch::State) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::VPECtrl>();
 
-    let ep = req.ep as dtu::EpId;
+    let pe_id = req.pe_id as u32;
+    let vpe_id = req.vpe_sel;
+    let op = kif::pemux::VPEOp::from(req.vpe_op);
 
-    log!(PEX_UPCALLS, "free_ep(ep={})", ep);
+    log!(
+        crate::LOG_UPCALLS,
+        "upcall::vpe_ctrl(vpe={}, op={:?})",
+        vpe_id,
+        op
+    );
 
-    if let Some((vpe, gate)) = eps::get().mark_unreserved(ep) {
-        if let Some(vpe) = vpe::get_vpe(vpe) {
-            vpe.remove_gate(gate, true);
-        }
+    match op {
+        kif::pemux::VPEOp::START => {
+            // remember the current PE
+            ::env().pe_id = pe_id;
+            state.init(::env().entry as usize, ::env().sp as usize);
+        },
+
+        kif::pemux::VPEOp::STOP | _ => {
+            crate::stop_vpe(state);
+            vpe::remove(0, false);
+        },
     }
 
-    reply_msg(msg, &kif::DefaultReply { error: 0 });
     Ok(())
 }
 
-fn handle_upcall(msg: &'static dtu::Message) {
-    let req = &unsafe { &*(&msg.data as *const [u8] as *const [kif::DefaultRequest]) }[0];
+fn map(msg: &'static dtu::Message) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::Map>();
+
+    let vpe_id = req.vpe_sel;
+    let virt = req.virt as usize;
+    let phys = req.phys as goff;
+    let pages = req.pages as usize;
+    let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
+
+    // ensure that we don't overmap critical areas
+    if virt < cfg::ENV_START || virt + pages * cfg::PAGE_SIZE > cfg::RECVBUF_SPACE {
+        return Err(Error::new(Code::InvArgs));
+    }
+
+    log!(
+        crate::LOG_UPCALLS,
+        "upcall::map(vpe={}, virt={:#x}, phys={:#x}, pages={}, perm={:?})",
+        vpe_id,
+        virt,
+        phys,
+        pages,
+        perm
+    );
+
+    vpe::get_mut(vpe_id)
+        .unwrap()
+        .map(virt, phys, pages, perm | kif::PageFlags::U)
+}
+
+fn handle_upcall(msg: &'static dtu::Message, state: &mut arch::State) {
+    let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::pemux::Upcalls::from(req.opcode) {
-        kif::pemux::Upcalls::ALLOC_EP => alloc_ep(msg),
-        kif::pemux::Upcalls::FREE_EP => free_ep(msg),
+        kif::pemux::Upcalls::INIT => init(msg),
+        kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg, state),
+        kif::pemux::Upcalls::MAP => map(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 
-    if let Err(e) = res {
-        let reply = kif::DefaultReply {
+    match res {
+        Ok(_) => reply_msg(msg, &kif::DefaultReply { error: 0 }),
+        Err(e) => reply_msg(msg, &kif::DefaultReply {
             error: e.code() as u64,
-        };
-        reply_msg(msg, &reply);
+        }),
     }
 }
 
-pub fn check() {
-    let msg = dtu::DTU::fetch_msg(dtu::PEXUP_REP);
-    if let Some(m) = msg {
-        handle_upcall(m);
+pub fn disable() -> bool {
+    ENABLED.set(false)
+}
+
+pub fn enable() {
+    ENABLED.set(true);
+}
+
+pub fn check(state: &mut arch::State) {
+    if !*ENABLED {
+        return;
+    }
+
+    let our = vpe::our();
+    if !our.has_msgs() {
+        return;
+    }
+
+    let _cmd_saved = helper::DTUGuard::new();
+
+    // don't handle other upcalls in the meantime
+    let _upcalls_off = helper::UpcallsOffGuard::new();
+
+    loop {
+        // change to our VPE
+        let old_vpe = dtu::DTU::xchg_vpe(our.vpe_reg());
+        vpe::cur().set_vpe_reg(old_vpe);
+
+        let msg = dtu::DTU::fetch_msg(dtu::PEXUP_REP);
+        if let Some(m) = msg {
+            handle_upcall(m, state);
+        }
+
+        // change back to old VPE
+        let new_vpe = vpe::cur().vpe_reg();
+        our.set_vpe_reg(dtu::DTU::xchg_vpe(new_vpe));
+        // if no events arrived in the meantime, we're done
+        if !our.has_msgs() {
+            break;
+        }
     }
 }

@@ -95,12 +95,11 @@ public:
             _caps.insert(c);
         }
     }
-    void unset(capsel_t i) {
+    bool unset(capsel_t i) {
         Capability *c = get(i);
-        if(c) {
+        if(c)
             _caps.remove(c);
-            delete c;
-        }
+        return c != nullptr;
     }
 
     void revoke_all();

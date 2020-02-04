@@ -22,71 +22,31 @@
 namespace m3 {
 
 EP::EP() noexcept
-    : EP(ObjCap::INVALID, Gate::UNBOUND, false, KEEP_CAP) {
+    : EP(ObjCap::INVALID, Gate::UNBOUND, 0, KEEP_CAP) {
 }
 
 EP &EP::operator=(EP &&ep) noexcept {
     release();
-    free_ep();
     sel(ep.sel());
     flags(ep.flags());
     _id = ep._id;
-    _free = ep._free;
-    ep._free = false;
+    _replies = ep._replies;
     ep.flags(KEEP_CAP);
     return *this;
 }
 
-EP::~EP() {
-    free_ep();
+EP EP::alloc(uint replies) {
+    return alloc_for(VPE::self(), EP_COUNT, replies);
 }
 
-void EP::free_ep() {
-    if(_free)
-        VPE::self().epmng().free_ep(_id);
-}
-
-capsel_t EP::sel_of(epid_t ep) noexcept {
-    return KIF::FIRST_EP_SEL + ep - DTU::FIRST_FREE_EP;
-}
-
-capsel_t EP::sel_of_vpe(VPE &vpe, epid_t ep) noexcept {
-    return (vpe.sel() - KIF::SEL_VPE) + sel_of(ep);
-}
-
-EP EP::alloc() {
-    return alloc_for(VPE::self());
-}
-
-EP EP::alloc_for(VPE &vpe) {
-    if(env()->shared) {
-        epid_t id;
-        capsel_t sel = alloc_cap(vpe, &id);
-        return EP(sel, id, false, 0);
-    }
-
-    epid_t id = vpe.epmng().alloc_ep();
-    return EP(sel_of_vpe(vpe, id), id, true, KEEP_CAP);
+EP EP::alloc_for(const VPE &vpe, epid_t ep, uint replies) {
+    capsel_t sel = VPE::self().alloc_sel();
+    epid_t id = Syscalls::alloc_ep(sel, vpe.sel(), ep, replies);
+    return EP(sel, id, replies, 0);
 }
 
 EP EP::bind(epid_t id) noexcept {
-    capsel_t sel = id == Gate::UNBOUND ? ObjCap::INVALID : sel_of(id);
-    return EP(sel, id, false, KEEP_CAP);
-}
-
-EP EP::bind_for(VPE &vpe, epid_t id) noexcept {
-    capsel_t sel = id == Gate::UNBOUND ? ObjCap::INVALID : sel_of_vpe(vpe, id);
-    return EP(sel, id, false, KEEP_CAP);
-}
-
-capsel_t EP::alloc_cap(VPE &vpe, epid_t *id) {
-    capsel_t sel = VPE::self().alloc_sel();
-    *id = Syscalls::alloc_ep(sel, vpe.sel(), vpe.pe()->sel());
-    return sel;
-}
-
-void EP::assign(Gate &gate) {
-    DTUIf::switch_gate(*this, gate);
+    return EP(ObjCap::INVALID, id, 0, KEEP_CAP);
 }
 
 }

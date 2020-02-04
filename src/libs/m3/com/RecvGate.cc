@@ -40,17 +40,17 @@ static void *get_rgate_buf(UNUSED size_t off) {
 }
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
-    VPE::self(), KIF::SEL_SYSC_RG, DTU::SYSC_REP, get_rgate_buf(0),
+    VPE::self(), KIF::INV_SEL, DTU::SYSC_REP, get_rgate_buf(0),
         m3::nextlog2<SYSC_RBUF_SIZE>::val, SYSC_RBUF_ORDER, KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
-    VPE::self(), KIF::SEL_UPC_RG, DTU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
+    VPE::self(), KIF::INV_SEL, DTU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
         m3::nextlog2<UPCALL_RBUF_SIZE>::val, UPCALL_RBUF_ORDER, KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
-    VPE::self(), KIF::SEL_DEF_RG, DTU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
+    VPE::self(), KIF::INV_SEL, DTU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
         m3::nextlog2<DEF_RBUF_SIZE>::val, DEF_RBUF_ORDER, KEEP_CAP
 );
 
@@ -67,11 +67,12 @@ void RecvGate::RecvGateWorkItem::work() {
     }
 }
 
-RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, int order, int msgorder, uint flags)
+RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, uint order, uint msgorder, uint flags)
     : Gate(RECV_GATE, cap, flags),
       _vpe(vpe),
       _buf(buf),
       _order(order),
+      _msgorder(msgorder),
       _free(0),
       _handler(),
       _workitem() {
@@ -79,27 +80,27 @@ RecvGate::RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, int order, int 
         Syscalls::create_rgate(sel(), order, msgorder);
 
     if(ep != UNBOUND)
-        activate(EP::bind(ep));
+        set_ep(ep);
 }
 
-RecvGate RecvGate::create(int order, int msgorder) {
+RecvGate RecvGate::create(uint order, uint msgorder) {
     return create_for(VPE::self(), order, msgorder);
 }
 
-RecvGate RecvGate::create(capsel_t cap, int order, int msgorder) {
+RecvGate RecvGate::create(capsel_t cap, uint order, uint msgorder) {
     return create_for(VPE::self(), cap, order, msgorder);
 }
 
-RecvGate RecvGate::create_for(VPE &vpe, int order, int msgorder) {
+RecvGate RecvGate::create_for(VPE &vpe, uint order, uint msgorder) {
     return RecvGate(vpe, VPE::self().alloc_sel(), UNBOUND, nullptr, order, msgorder, 0);
 }
 
-RecvGate RecvGate::create_for(VPE &vpe, capsel_t cap, int order, int msgorder, uint flags) {
+RecvGate RecvGate::create_for(VPE &vpe, capsel_t cap, uint order, uint msgorder, uint flags) {
     return RecvGate(vpe, cap, UNBOUND, nullptr, order, msgorder, flags);
 }
 
-RecvGate RecvGate::bind(capsel_t cap, int order) noexcept {
-    return RecvGate(VPE::self(), cap, order, KEEP_CAP);
+RecvGate RecvGate::bind(capsel_t cap, uint order, uint msgorder) noexcept {
+    return RecvGate(VPE::self(), cap, order, msgorder, KEEP_CAP);
 }
 
 RecvGate::~RecvGate() {
@@ -109,32 +110,30 @@ RecvGate::~RecvGate() {
 }
 
 void RecvGate::activate() {
-    if(ep() == UNBOUND)
-        activate(EP::alloc_for(_vpe));
-}
-
-void RecvGate::activate(EP &&nep) {
-    if(ep() == UNBOUND) {
+    if(!this->ep()) {
+        uintptr_t addr = reinterpret_cast<uintptr_t>(_buf);
         if(_buf == nullptr) {
-            _buf = allocate(_vpe, ep(), 1UL << _order);
+            addr = reinterpret_cast<uintptr_t>(_buf = allocate(_vpe, 1UL << _order));
             _free |= FREE_BUF;
         }
 
-        activate(std::move(nep), reinterpret_cast<uintptr_t>(_buf));
+        auto rep = _vpe.epmng().acquire(EP_COUNT, slots());
+        Gate::activate_on(*rep, addr);
+        Gate::set_ep(rep);
     }
 }
 
-void RecvGate::activate(EP &&nep, uintptr_t addr) {
-    assert(ep() == UNBOUND);
+void RecvGate::activate_on(const EP &ep, uintptr_t addr) {
+    if(addr == 0) {
+        addr = reinterpret_cast<uintptr_t>(_buf = allocate(_vpe, 1UL << _order));
+        _free |= FREE_BUF;
+    }
 
-    if(sel() != ObjCap::INVALID && sel() >= KIF::FIRST_FREE_SEL)
-        Syscalls::activate(nep.sel(), sel(), addr);
-
-    put_ep(std::move(nep), &_vpe == &VPE::self());
+    Gate::activate_on(ep, addr);
 }
 
 void RecvGate::deactivate() noexcept {
-    put_ep(EP::bind(UNBOUND));
+    release_ep(_vpe);
 
     stop();
 }
@@ -146,7 +145,7 @@ void RecvGate::start(WorkLoop *wl, msghandler_t handler) {
     assert(!_workitem);
     _handler = handler;
 
-    bool permanent = ep() < DTU::FIRST_FREE_EP;
+    bool permanent = ep()->id() < DTU::FIRST_FREE_EP;
     _workitem = std::make_unique<RecvGateWorkItem>(this);
     wl->add(_workitem.get(), permanent);
 }
@@ -175,12 +174,12 @@ const DTU::Message *RecvGate::receive(SendGate *sgate) {
     return reply;
 }
 
-void RecvGate::mark_read(const DTU::Message *msg) {
-    DTUIf::mark_read(*this, msg);
+void RecvGate::ack_msg(const DTU::Message *msg) {
+    DTUIf::ack_msg(*this, msg);
 }
 
 void RecvGate::drop_msgs_with(label_t label) noexcept {
-    DTUIf::drop_msgs(ep(), label);
+    DTUIf::drop_msgs(ep()->id(), label);
 }
 
 }

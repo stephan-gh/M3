@@ -128,14 +128,13 @@ static bool read_from(const char *suffix, T *val) {
     return false;
 }
 
-static void write_state(pid_t pid, capsel_t nextsel, uint64_t eps, capsel_t rmng,
+static void write_state(pid_t pid, capsel_t nextsel, capsel_t rmng,
                         uint64_t rbufcur, uint64_t rbufend,
                         FileTable &files, MountTable &mounts) {
     size_t len = STATE_BUF_SIZE;
     std::unique_ptr<unsigned char[]> buf(new unsigned char[len]);
 
     write_file(pid, "nextsel", nextsel);
-    write_file(pid, "eps", eps);
     write_file(pid, "rmng", rmng);
 
     Marshaller m(buf.get(), len);
@@ -154,9 +153,6 @@ void VPE::init_state() {
         _next_sel = env()->first_sel();
     else
         read_from("nextsel", &_next_sel);
-    uint64_t eps;
-    read_from("eps", &eps);
-    _epmng.reset(eps);
 
     capsel_t rmng_sel;
     if(read_from("rmng", &rmng_sel))
@@ -170,6 +166,8 @@ void VPE::init_state() {
         Unmarshaller um(buf, len);
         um >> _rbufcur >> _rbufend;
     }
+
+    _epmng.reset();
 }
 
 void VPE::init_fs() {
@@ -222,8 +220,7 @@ void VPE::run(void *lambda) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _epmng.reserved(), _resmng->sel(),
-            _rbufcur, _rbufend, *_fds, *_ms);
+        write_state(pid, _next_sel, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
 
         p2c.signal();
         // wait until the DTU sockets have been binded
@@ -287,8 +284,7 @@ void VPE::exec(int argc, const char **argv) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _epmng.reserved(), _resmng->sel(),
-            _rbufcur, _rbufend, *_fds, *_ms);
+        write_state(pid, _next_sel, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
 
         p2c.signal();
         // wait until the DTU sockets have been binded

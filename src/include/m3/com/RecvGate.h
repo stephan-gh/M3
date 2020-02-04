@@ -65,16 +65,17 @@ class RecvGate : public Gate {
         RecvGate *_buf;
     };
 
-    explicit RecvGate(VPE &vpe, capsel_t cap, int order, uint flags) noexcept
+    explicit RecvGate(VPE &vpe, capsel_t cap, uint order, uint msgorder, uint flags) noexcept
         : Gate(RECV_GATE, cap, flags),
           _vpe(vpe),
           _buf(),
           _order(order),
+          _msgorder(msgorder),
           _free(FREE_BUF),
           _handler(),
           _workitem() {
     }
-    explicit RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, int order, int msgorder, uint flags);
+    explicit RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, uint order, uint msgorder, uint flags);
 
 public:
     using msghandler_t = std::function<void(GateIStream&)>;
@@ -114,7 +115,7 @@ public:
      * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
      * @return the receive gate
      */
-    static RecvGate create(int order, int msgorder);
+    static RecvGate create(uint order, uint msgorder);
     /**
      * Creates a new receive gate at selector <sel> with given size.
      *
@@ -123,7 +124,7 @@ public:
      * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
      * @return the receive gate
      */
-    static RecvGate create(capsel_t sel, int order, int msgorder);
+    static RecvGate create(capsel_t sel, uint order, uint msgorder);
 
     /**
      * Creates a new receive gate that should be activated for <vpe>.
@@ -133,7 +134,7 @@ public:
      * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
      * @return the receive gate
      */
-    static RecvGate create_for(VPE &vpe, int order, int msgorder);
+    static RecvGate create_for(VPE &vpe, uint order, uint msgorder);
     /**
      * Creates a new receive gate at selector <sel> that should be activated for <vpe>.
      *
@@ -143,16 +144,17 @@ public:
      * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
      * @return the receive gate
      */
-    static RecvGate create_for(VPE &vpe, capsel_t sel, int order, int msgorder, uint flags = 0);
+    static RecvGate create_for(VPE &vpe, capsel_t sel, uint order, uint msgorder, uint flags = 0);
 
     /**
      * Binds the receive gate at selector <sel>.
      *
      * @param sel the capability selector
      * @param order the size of the buffer (2^<order> bytes)
+     * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
      * @return the receive gate
      */
-    static RecvGate bind(capsel_t sel, int order) noexcept;
+    static RecvGate bind(capsel_t sel, uint order, uint msgorder) noexcept;
 
     RecvGate(const RecvGate&) = delete;
     RecvGate &operator=(const RecvGate&) = delete;
@@ -177,9 +179,24 @@ public:
     }
 
     /**
-     * Activates this receive gate, i.e., lets the kernel configure a free endpoint for it
+     * @return the number of slots in the receive buffer
+     */
+    uint slots() const noexcept {
+        return 1U << (_order - _msgorder);
+    }
+
+    /**
+     * Activates this receive gate, i.e., lets the kernel configure a free endpoint for it.
      */
     void activate();
+
+    /**
+     * Activates this receive gate on the given endpoint with given receive buffer address.
+     *
+     * @param ep the endpoint
+     * @param addr the receive buffer address (0 = automatic)
+     */
+    void activate_on(const EP &ep, uintptr_t addr = 0);
 
     /**
      * Deactivates and stops the receive gate.
@@ -229,7 +246,7 @@ public:
      *
      * @param msg the message
      */
-    void mark_read(const DTU::Message *msg);
+    void ack_msg(const DTU::Message *msg);
 
     /**
      * Drops all messages with given label. That is, these messages will be marked as read.
@@ -239,22 +256,17 @@ public:
     void drop_msgs_with(label_t label) noexcept;
 
 private:
-    /**
-     * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it
-     */
-    void activate(EP &&ep);
-    /**
-     * Activates this receive gate, i.e., lets the kernel configure endpoint <ep> for it and use
-     * <addr> as the buffer.
-     */
-    void activate(EP &&ep, uintptr_t addr);
+    void set_ep(epid_t ep) {
+        Gate::set_ep(new EP(EP::bind(ep)));
+    }
 
-    static void *allocate(VPE &vpe, epid_t ep, size_t size);
+    static void *allocate(VPE &vpe, size_t size);
     static void free(void *);
 
     VPE &_vpe;
     void *_buf;
-    int _order;
+    uint _order;
+    uint _msgorder;
     uint _free;
     msghandler_t _handler;
     std::unique_ptr<RecvGateWorkItem> _workitem;

@@ -1,0 +1,9 @@
+<config>
+    <kernel args="kernel" />
+    <dom>
+        <app args="root" />
+    </dom>
+    <dom>
+        <app args="bench-tlbmiss" />
+    </dom>
+</config>

@@ -27,13 +27,12 @@ namespace kernel {
 
 m3::PEDesc *Platform::_pes;
 m3::BootInfo::Mod *Platform::_mods;
-INIT_PRIO_USER(2) m3::BootInfo Platform::_info;
-INIT_PRIO_USER(3) Platform::Init Platform::_init;
+m3::BootInfo Platform::_info;
 
 // note that we currently assume here, that compute PEs and memory PEs are not mixed
 static peid_t last_pe_id;
 
-Platform::Init::Init() {
+void Platform::init() {
     m3::BootInfo *info = &Platform::_info;
     // read kernel env
     peid_t pe = m3::DTU::gaddr_to_pe(m3::env()->kenv);
@@ -65,19 +64,20 @@ Platform::Init::Init() {
                     PANIC("Not enough DRAM for kernel memory (" << Args::kmem << ")");
                 size_t used = pedesc.mem_size() - avail;
                 mem.add(new MemoryModule(MemoryModule::OCCUPIED, i, 0, used));
-                info->mems[memidx++] = m3::BootInfo::Mem(used, true);
+                info->mems[memidx++] = m3::BootInfo::Mem(0, used, true);
+                memidx++;
 
                 mem.add(new MemoryModule(MemoryModule::KERNEL, i, used, Args::kmem));
 
                 mem.add(new MemoryModule(MemoryModule::USER, i, used + Args::kmem, avail));
-                info->mems[memidx++] = m3::BootInfo::Mem(avail, false);
+                info->mems[memidx++] = m3::BootInfo::Mem(used + Args::kmem, avail, false);
             }
             else {
                 if(memidx >= ARRAY_SIZE(info->mems))
                     PANIC("Not enough memory slots in boot info");
 
                 mem.add(new MemoryModule(MemoryModule::USER, i, 0, pedesc.mem_size()));
-                info->mems[memidx++] = m3::BootInfo::Mem(pedesc.mem_size(), false);
+                info->mems[memidx++] = m3::BootInfo::Mem(0, pedesc.mem_size(), false);
             }
         }
         else {
@@ -87,7 +87,7 @@ Platform::Init::Init() {
         }
     }
     for(; memidx < m3::BootInfo::MAX_MEMS; ++memidx)
-        info->mems[memidx] = m3::BootInfo::Mem(0, false);
+        info->mems[memidx] = m3::BootInfo::Mem(0, 0, false);
 
     // write-back boot info (changes to mems)
     addr = m3::DTU::gaddr_to_virt(m3::env()->kenv);

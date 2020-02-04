@@ -2,4 +2,10 @@ Import('env')
 if env['ARCH'] == 'gem5':
     env = env.Clone()
     env["CXXFLAGS"] = env["CXXFLAGS"].replace('-flto','')
-    env.M3Program(env, 'standalone', env.Glob('*.cc'), NoSup = True, libs = ["c"])
+    env.M3Program(
+        env,
+        'standalone',
+        [env.Glob('*.cc'), env.Glob('gem5/*.cc')],
+        NoSup = True,
+        libs = ["c"]
+    )

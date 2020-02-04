@@ -15,7 +15,6 @@
  */
 
 use m3::boxed::Box;
-use m3::col::String;
 use m3::com::Semaphore;
 use m3::io::{Read, Write};
 use m3::pes::{Activity, PE, VPE};
@@ -29,8 +28,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 fn get_counter(filename: &str) -> u32 {
     let mut file = wv_assert_ok!(VFS::open(filename, OpenFlags::R));
 
-    let mut buf = String::new();
-    wv_assert_ok!(file.read_to_string(&mut buf));
+    let buf = wv_assert_ok!(file.read_to_string());
     buf.parse::<u32>().unwrap()
 }
 

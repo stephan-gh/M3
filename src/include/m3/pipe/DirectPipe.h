@@ -71,7 +71,7 @@ class DirectPipe {
 public:
     static const size_t MSG_SIZE        = 64;
     static const size_t MSG_BUF_SIZE    = MSG_SIZE * 16;
-    static const size_t CREDITS         = MSG_BUF_SIZE;
+    static const size_t CREDITS         = 16;
 
     enum {
         READ_EOF    = 1 << 0,

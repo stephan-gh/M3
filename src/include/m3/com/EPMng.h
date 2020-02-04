@@ -17,15 +17,14 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/Config.h>
-#include <base/DTU.h>
-#include <base/Errors.h>
+#include <base/col/SList.h>
 
-#include <assert.h>
+#include <m3/com/EP.h>
 
 namespace m3 {
 
 class Gate;
+class RecvGate;
 class VPE;
 
 /**
@@ -33,60 +32,43 @@ class VPE;
  * the endpoints among the gates.
  */
 class EPMng {
+    friend class Gate;
+    friend class RecvGate;
     friend class VPE;
 
 public:
-    explicit EPMng(bool mux);
+    explicit EPMng(VPE &vpe)
+        : _vpe(vpe),
+          _eps() {
+    }
 
     /**
-     * Allocates a new endpoint and reserves it, that is, excludes it from multiplexing. Note that
-     * this can fail if a send gate with missing credits is using this EP.
+     * Acquires a new endpoint.
      *
-     * @return the endpoint id
+     * @param ep the endpoint number (default = any)
+     * @param replies the number of reply slots (default = 0)
+     * @return the endpoint
      */
-    epid_t alloc_ep();
+    EP *acquire(epid_t ep = EP_COUNT, uint replies = 0);
 
     /**
-     * Frees the given endpoint
+     * Releases the given endpoint. If <invalidate> is true, the endpoint will be invalidate.
      *
-     * @param id the endpoint id
+     * @param ep the endpoint
+     * @param invalidate whether to invalidate the EP
      */
-    void free_ep(epid_t id) noexcept;
+    void release(EP *ep, bool invalidate) noexcept;
 
-    /**
-     * Configures an endpoint for the given gate. If necessary, a victim will be picked and removed
-     * from an endpoint.
-     *
-     * @param gate the gate
-     */
-    void switch_to(Gate *gate);
-
-    /**
-     * Removes <gate> from the endpoint it is configured on, if any. If <invalidate> is true, the
-     * kernel will invalidate the endpoint as well.
-     *
-     * @param gate the gate
-     * @param invalidate whether to invalidate it, too
-     */
-    void remove(Gate *gate, bool invalidate) noexcept;
-
+private:
     /**
      * Resets the state of the EP switcher.
      */
-    void reset(uint64_t eps) noexcept;
-
-private:
-    uint64_t reserved() const noexcept {
-        return _eps;
+    void reset() noexcept {
+        _eps.clear();
     }
-    bool is_ep_free(epid_t id) const noexcept;
-    bool is_in_use(epid_t ep) const noexcept;
-    epid_t select_victim();
-    void activate(epid_t ep, capsel_t newcap);
 
-    uint64_t _eps;
-    epid_t _next_victim;
-    Gate **_gates;
+    VPE &_vpe;
+    SList<EP> _eps;
 };
 
 }

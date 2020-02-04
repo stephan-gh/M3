@@ -1,3 +1,0 @@
-Import('env')
-env.M3Program(env, 'init', env.Glob('*.cc'))
-

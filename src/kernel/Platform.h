@@ -22,11 +22,8 @@
 namespace kernel {
 
 class Platform {
-    struct Init {
-        Init();
-    };
-
 public:
+    static void init();
     static void add_modules(int argc, char **argv);
 
     static peid_t kernel_pe();
@@ -70,7 +67,6 @@ private:
     static m3::PEDesc *_pes;
     static m3::BootInfo::Mod *_mods;
     static m3::BootInfo _info;
-    static Init _init;
 };
 
 }

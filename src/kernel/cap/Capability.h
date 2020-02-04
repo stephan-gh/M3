@@ -20,7 +20,7 @@
 #include <base/col/Treap.h>
 #include <base/DTU.h>
 
-#include "com/Services.h"
+#include "com/Service.h"
 #include "mem/SlabCache.h"
 #include "Types.h"
 
@@ -147,6 +147,8 @@ private:
     }
     virtual void revoke() {
     }
+    virtual void late_revoke() {
+    }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) = 0;
 
     uint _type;
@@ -191,7 +193,7 @@ public:
 
 class RGateObject : public SlabObject<RGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit RGateObject(int _order, int _msgorder)
+    explicit RGateObject(uint _order, uint _msgorder)
         : GateObject(Capability::RGATE),
           RefCounted(),
           valid(true),
@@ -199,8 +201,7 @@ public:
           ep(),
           addr(),
           order(_order),
-          msgorder(_msgorder),
-          header() {
+          msgorder(_msgorder) {
     }
     ~RGateObject();
 
@@ -215,14 +216,13 @@ public:
     peid_t pe;
     epid_t ep;
     goff_t addr;
-    int order;
-    int msgorder;
-    uint header;
+    uint order;
+    uint msgorder;
 };
 
 class SGateObject : public SlabObject<SGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit SGateObject(RGateObject *_rgate, label_t _label, word_t _credits)
+    explicit SGateObject(RGateObject *_rgate, label_t _label, uint _credits)
         : GateObject(Capability::SGATE),
           RefCounted(),
           rgate(_rgate),
@@ -237,27 +237,25 @@ public:
 
     m3::Reference<RGateObject> rgate;
     label_t label;
-    word_t credits;
+    uint credits;
     bool activated;
 };
 
 class MGateObject : public SlabObject<MGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit MGateObject(peid_t _pe, vpeid_t _vpe, goff_t _addr, size_t _size, int _perms)
+    explicit MGateObject(peid_t _pe, goff_t _addr, size_t _size, uint _perms)
         : GateObject(Capability::MGATE),
           RefCounted(),
           pe(_pe),
-          vpe(_vpe),
           addr(_addr),
           size(_size),
           perms(_perms) {
     }
 
     peid_t pe;
-    vpeid_t vpe;
     goff_t addr;
     size_t size;
-    int perms;
+    uint perms;
 };
 
 class SessObject : public SlabObject<SessObject>, public m3::RefCounted {
@@ -294,31 +292,28 @@ public:
     uint vpes;
 };
 
-class EPObject : public SlabObject<EPObject>, public m3::RefCounted {
+class EPObject : public SlabObject<EPObject>, public m3::RefCounted, public m3::DListItem {
 public:
-    explicit EPObject(PEObject *_pe, epid_t _ep)
-        : RefCounted(),
-          ep(_ep),
-          pe(_pe),
-          gate() {
-    }
+    explicit EPObject(PEObject *_pe, VPE *_vpe, epid_t _ep, uint _replies);
     ~EPObject();
 
+    VPE *vpe;
     epid_t ep;
+    uint replies;
     m3::Reference<PEObject> pe;
     GateObject *gate;
 };
 
 class MapObject : public SlabObject<MapObject>, public m3::RefCounted {
 public:
-    explicit MapObject(gaddr_t _phys, int _attr)
+    explicit MapObject(gaddr_t _phys, uint _attr)
         : RefCounted(),
           phys(_phys),
           attr(_attr) {
     }
 
     gaddr_t phys;
-    int attr;
+    uint attr;
 };
 
 class KMemObject : public SlabObject<KMemObject>, public m3::RefCounted {
@@ -433,18 +428,21 @@ public:
 
 class MapCapability : public SlabObject<MapCapability>, public Capability {
 public:
-    enum {
+    enum : uint {
         EXCL    = 0x08000,
         KERNEL  = 0x10000,
     };
 
-    explicit MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj);
+    explicit MapCapability(CapTable *tbl, capsel_t sel, uint _pages, MapObject *_obj)
+        : Capability(tbl, sel, MAP, _pages),
+          obj(_obj) {
+    }
 
     virtual size_t obj_size() const override {
         return sizeof(MapObject);
     }
 
-    void remap(gaddr_t _phys, int _attr);
+    m3::Errors::Code remap(gaddr_t _phys, uint _attr);
 
     void printInfo(m3::OStream &os) const override;
 
@@ -452,7 +450,7 @@ private:
     virtual bool can_revoke() override {
         return (obj->attr & KERNEL) == 0;
     }
-    virtual void revoke() override;
+    virtual void late_revoke() override;
     virtual Capability *clone(CapTable *, capsel_t) override {
         // not clonable
         return nullptr;
@@ -558,18 +556,6 @@ public:
     m3::Reference<EPObject> obj;
 };
 
-class SharedEPCapability : public EPCapability {
-public:
-    explicit SharedEPCapability(CapTable *tbl, capsel_t sel, EPObject *obj)
-        : EPCapability(tbl, sel, obj) {
-        // this is always a clone, because we share the EPObject
-        make_clone();
-    }
-
-private:
-    virtual void revoke() override;
-};
-
 class VPECapability : public SlabObject<VPECapability>, public Capability {
 public:
     explicit VPECapability(CapTable *tbl, capsel_t sel, VPE *_obj)
@@ -653,7 +639,8 @@ inline EPObject *GateObject::ep_of_pe(peid_t pe) {
 inline void GateObject::print_eps(m3::OStream &os) {
     os << "[";
     for(auto u = epuser.begin(); u != epuser.end(); ) {
-        os << "PE" << u->ep->pe->id << ":EP" << u->ep->ep;
+        os << "PE" << u->ep->pe->id
+           << ":EP" << u->ep->ep << "(" << u->ep->replies << " replies)";
         if(++u != epuser.end())
             os << ", ";
     }

@@ -11,6 +11,8 @@ def BuildFSImage(env, target, source, blocks, inodes):
                 return False
             if f.abspath.endswith('.rlib'):
                 return False
+            if f.abspath.endswith('.xml'):
+                return False
             return True
 
         for f in env.Glob('$BINARYDIR/*'):
