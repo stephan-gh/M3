@@ -227,7 +227,8 @@ impl DataSpace {
                 );
             }
             else {
-                let max = if math::is_aligned(virt, cfg::LPAGE_SIZE as goff)
+                let max = if !self.flags.contains(MapFlags::NOLPAGE)
+                    && math::is_aligned(virt, cfg::LPAGE_SIZE as goff)
                     && reg.size() >= cfg::LPAGE_SIZE as goff
                 {
                     cfg::LPAGE_SIZE / cfg::PAGE_SIZE

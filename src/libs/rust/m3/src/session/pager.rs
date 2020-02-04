@@ -56,6 +56,7 @@ bitflags! {
         const PRIVATE = 0x0;
         const SHARED  = 0x2000;
         const UNINIT  = 0x4000;
+        const NOLPAGE = 0x8000;
     }
 }
 

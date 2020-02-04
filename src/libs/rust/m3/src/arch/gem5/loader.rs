@@ -201,18 +201,18 @@ impl<'l> Loader<'l> {
 
         // create heap
         let heap_begin = math::round_up(end, cfg::LPAGE_SIZE);
-        let heap_size = if self.pager.is_some() {
-            cfg::APP_HEAP_SIZE
+        let (heap_size, flags) = if self.pager.is_some() {
+            (cfg::APP_HEAP_SIZE, MapFlags::NOLPAGE)
         }
         else {
-            cfg::MOD_HEAP_SIZE
+            (cfg::MOD_HEAP_SIZE, MapFlags::empty())
         };
         self.mapper.map_anon(
             self.pager,
             heap_begin as goff,
             heap_size,
             kif::Perm::RW,
-            MapFlags::PRIVATE | MapFlags::UNINIT,
+            MapFlags::PRIVATE | MapFlags::UNINIT | flags,
         )?;
 
         Ok(hdr.entry)

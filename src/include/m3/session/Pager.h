@@ -51,6 +51,7 @@ public:
         MAP_PRIVATE = 0,
         MAP_SHARED  = 0x2000,
         MAP_UNINIT  = 0x4000,
+        MAP_NOLPAGE = 0x8000,
     };
 
     enum Prot {

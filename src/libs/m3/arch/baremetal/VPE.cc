@@ -246,7 +246,8 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
 
         // create heap
         virt = Math::round_up(end, static_cast<goff_t>(LPAGE_SIZE));
-        _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
+        _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE,
+                         Pager::MAP_UNINIT | Pager::MAP_NOLPAGE);
     }
 
     *size = store_arguments(buffer, argc, argv);
