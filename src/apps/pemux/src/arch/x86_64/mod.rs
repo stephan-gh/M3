@@ -15,6 +15,7 @@
  */
 
 use base::dtu;
+use base::errors::Error;
 use base::kif::PageFlags;
 use base::libc;
 use core::fmt;
@@ -99,7 +100,7 @@ impl fmt::Debug for State {
 }
 
 impl State {
-    fn came_from_user(&self) -> bool {
+    pub fn came_from_user(&self) -> bool {
         (self.cs & DPL_USER as usize) == DPL_USER as usize
     }
 
@@ -166,7 +167,7 @@ pub fn init() {
     }
 }
 
-pub fn handle_mmu_pf(state: &mut State) {
+pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
     let cr2: usize;
     unsafe {
         asm!("mov %cr2, $0" : "=r"(cr2));
@@ -176,5 +177,5 @@ pub fn handle_mmu_pf(state: &mut State) {
     // the access is implicitly no-exec
     let perm = paging::to_page_flags(perm | paging::MMUFlags::NX);
 
-    vma::handle_pf(state.came_from_user(), cr2, perm, state.rip);
+    vma::handle_pf(state, cr2, perm, state.rip)
 }

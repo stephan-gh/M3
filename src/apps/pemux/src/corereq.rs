@@ -18,8 +18,7 @@ use base::dtu;
 use base::kif;
 use core::intrinsics;
 
-use helper::IRQsOnGuard;
-use upcalls;
+use helper::{IRQsOnGuard, UpcallsOffGuard};
 use vpe;
 
 pub fn handle_recv(req: dtu::Reg) {
@@ -45,18 +44,14 @@ pub fn handle_recv(req: dtu::Reg) {
         // ignore upcalls during nested interrupts; we'll handle them as soon as we're done here
         // (otherwise this could steal the message that we're waiting on here)
         // TODO what about pagefaults in the meantime?
-        let upcalls_were_enabled = upcalls::disable();
+        let _upcalls_off = UpcallsOffGuard::new();
 
         // we need to enable interrupts to allow address translations for message reception
-        let _guard = IRQsOnGuard::new();
+        let _irqs_on = IRQsOnGuard::new();
 
         // wait here until the message has been received
         // (otherwise fetching it afterwards might fail)
         while dtu::DTU::unread_mask(ep_id) == unread_mask {
-        }
-
-        if upcalls_were_enabled {
-            upcalls::enable();
         }
     }
     else {

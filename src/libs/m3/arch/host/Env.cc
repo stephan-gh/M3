@@ -51,7 +51,7 @@ static void init_syscall() {
 }
 
 void Env::on_exit_func(int status, void *) {
-    Syscalls::exit(status);
+    Syscalls::vpe_ctrl(KIF::SEL_VPE, KIF::Syscall::VCTRL_STOP, static_cast<xfer_t>(status));
     stop_dtu();
     // destroy the enviromment here, because on_exit functions are called last
     delete _inst;

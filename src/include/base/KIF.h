@@ -439,6 +439,20 @@ struct KIF {
     };
 
     /**
+     * PEMux calls
+     */
+    struct PEXCalls {
+        enum Operation {
+            EXIT,
+        };
+
+        struct Exit : public DefaultRequest {
+            xfer_t vpe_sel;
+            xfer_t code;
+        } PACKED;
+    };
+
+    /**
      * Upcalls
      */
     struct Upcall {

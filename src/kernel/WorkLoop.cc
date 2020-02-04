@@ -103,6 +103,7 @@ void WorkLoop::run() {
     epid_t sysep0 = SyscallHandler::ep(0);
     epid_t sysep1 = SyscallHandler::ep(1);
     epid_t srvep = SyscallHandler::srvep();
+    epid_t pexep = SyscallHandler::pexep();
     const m3::DTU::Message *msg;
     while(_run) {
         m3::DTU::get().sleep();
@@ -124,6 +125,12 @@ void WorkLoop::run() {
         if(msg) {
             SendQueue *sq = reinterpret_cast<SendQueue*>(msg->label);
             sq->received_reply(srvep, msg);
+        }
+
+        msg = dtu.fetch_msg(pexep);
+        if(msg) {
+            PEMux *pemux = reinterpret_cast<PEMux*>(msg->label);
+            pemux->handle_call(msg);
         }
 
         m3::ThreadManager::get().yield();

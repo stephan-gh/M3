@@ -41,6 +41,8 @@ use base::libc;
 use core::intrinsics;
 use core::ptr;
 
+/// Logs errors
+pub const LOG_ERR: bool = true;
 /// Logs pexcalls
 pub const LOG_CALLS: bool = false;
 /// Logs VPE operations
@@ -89,6 +91,8 @@ fn enter() {
 }
 
 fn leave(state: &mut arch::State) -> *mut libc::c_void {
+    upcalls::check(state);
+
     if *STOPPED {
         stop_vpe(state);
     }
@@ -116,15 +120,22 @@ pub fn is_stopped() -> bool {
 }
 
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
-    panic!("Unexpected IRQ with {:?}", state);
+    enter();
+
+    log!(LOG_ERR, "Unexpected IRQ with {:?}", state);
+    stop_vpe(state);
+    vpe::remove(1, true);
+
+    leave(state)
 }
 
 pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
     enter();
 
-    arch::handle_mmu_pf(state);
-
-    upcalls::check(state);
+    if arch::handle_mmu_pf(state).is_err() {
+        stop_vpe(state);
+        vpe::remove(1, true);
+    }
 
     leave(state)
 }
@@ -133,8 +144,6 @@ pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
     enter();
 
     pexcalls::handle_call(state);
-
-    upcalls::check(state);
 
     leave(state)
 }
@@ -158,8 +167,6 @@ pub extern "C" fn dtu_irq(state: &mut arch::State) -> *mut libc::c_void {
             vma::handle_xlate(core_req)
         }
     }
-
-    upcalls::check(state);
 
     leave(state)
 }

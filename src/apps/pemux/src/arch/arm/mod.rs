@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::errors::Error;
 use base::kif::PageFlags;
 use base::libc;
 use core::fmt;
@@ -79,7 +80,7 @@ impl fmt::Debug for State {
 }
 
 impl State {
-    fn came_from_user(&self) -> bool {
+    pub fn came_from_user(&self) -> bool {
         (self.cpsr & 0x0F) == 0x0
     }
 
@@ -140,7 +141,7 @@ pub fn init() {
     }
 }
 
-pub fn handle_mmu_pf(state: &mut State) {
+pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
     let (virt, perm) = if state.vec == Vector::DATA_ABORT.val {
         let dfar: usize;
         let dfsr: usize;
@@ -165,5 +166,5 @@ pub fn handle_mmu_pf(state: &mut State) {
         (ifar, PageFlags::RX)
     };
 
-    vma::handle_pf(state.came_from_user(), virt, perm, state.pc);
+    vma::handle_pf(state, virt, perm, state.pc)
 }

@@ -21,6 +21,9 @@ use base::errors::Error;
 use base::goff;
 use base::kif;
 use base::math;
+use base::util;
+
+use helper;
 
 extern "C" fn frame_allocator(vpe: u64) -> paging::MMUPTE {
     get_mut(vpe).unwrap().alloc_frame()
@@ -114,6 +117,10 @@ pub fn get_mut(id: u64) -> Option<&'static mut VPE> {
     None
 }
 
+pub fn have_vpe() -> bool {
+    (*CUR).is_some()
+}
+
 pub fn our() -> &'static mut VPE {
     OUR.get_mut().as_mut().unwrap()
 }
@@ -125,10 +132,31 @@ pub fn cur() -> &'static mut VPE {
     }
 }
 
-pub fn remove() {
+pub fn remove(status: u32, notify: bool) {
     if (*CUR).is_some() {
         let old = CUR.set(None).unwrap();
         log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
+
+        if notify {
+            // change to our VPE (no need to save old vpe_reg; VPE is dead)
+            dtu::DTU::xchg_vpe(our().vpe_reg());
+
+            // enable interrupts for address translations
+            let _guard = helper::IRQsOnGuard::new();
+            let msg = kif::pemux::Exit {
+                op: kif::pemux::Calls::EXIT.val as u64,
+                vpe_sel: old.id(),
+                code: status as u64,
+            };
+
+            let msg = &msg as *const _ as *const u8;
+            let size = util::size_of::<kif::pemux::Exit>();
+            dtu::DTU::send(dtu::KPEX_SEP, msg, size, 0, dtu::NO_REPLIES).unwrap();
+
+            // switch to idle
+            let old_vpe = dtu::DTU::xchg_vpe(cur().vpe_reg());
+            our().set_vpe_reg(old_vpe);
+        }
 
         if INFO.get().pe_desc.has_virtmem() {
             // switch back to our own address space

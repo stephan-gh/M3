@@ -27,6 +27,7 @@
 
 namespace kernel {
 
+class PEMux;
 class PEManager;
 class VPECapability;
 class VPEManager;
@@ -37,6 +38,7 @@ class VPEManager;
         nullptr
 
 class VPE : public SlabObject<VPE>, public m3::RefCounted {
+    friend class PEMux;
     friend class PEManager;
     friend class VPECapability;
     friend class VPEManager;

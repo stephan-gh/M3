@@ -18,6 +18,27 @@ use base::dtu;
 use core::intrinsics;
 
 use arch;
+use upcalls;
+
+pub struct UpcallsOffGuard {
+    prev: bool,
+}
+
+impl UpcallsOffGuard {
+    pub fn new() -> Self {
+        UpcallsOffGuard {
+            prev: upcalls::disable(),
+        }
+    }
+}
+
+impl Drop for UpcallsOffGuard {
+    fn drop(&mut self) {
+        if self.prev {
+            upcalls::enable();
+        }
+    }
+}
 
 pub struct IRQsOnGuard {
     prev: bool,

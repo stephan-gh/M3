@@ -301,14 +301,4 @@ void Syscalls::noop() {
     send_receive_throw(&req, sizeof(req));
 }
 
-// the USED seems to be necessary, because the libc calls it and LTO removes it otherwise
-USED void Syscalls::exit(int exitcode) {
-    KIF::Syscall::VPECtrl req;
-    req.opcode = KIF::Syscall::VPE_CTRL;
-    req.vpe_sel = KIF::SEL_VPE;
-    req.op = KIF::Syscall::VCTRL_STOP;
-    req.arg = static_cast<xfer_t>(exitcode);
-    DTUIf::send(_sendgate, &req, sizeof(req), 0, *_sendgate.reply_gate());
-}
-
 }

@@ -91,8 +91,6 @@ public:
 
     static void noop();
 
-    static void exit(int exitcode);
-
 private:
     template<class T>
     static SyscallReply<T> send_receive(const void *msg, size_t size) noexcept;

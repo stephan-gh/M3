@@ -78,7 +78,7 @@ fn vpe_ctrl(msg: &'static dtu::Message, state: &mut arch::State) -> Result<(), E
 
         kif::pemux::VPEOp::STOP | _ => {
             crate::stop_vpe(state);
-            vpe::remove();
+            vpe::remove(0, false);
         },
     }
 
@@ -150,10 +150,10 @@ pub fn check(state: &mut arch::State) {
         return;
     }
 
-    let _guard = helper::DTUGuard::new();
+    let _cmd_saved = helper::DTUGuard::new();
 
     // don't handle other upcalls in the meantime
-    disable();
+    let _upcalls_off = helper::UpcallsOffGuard::new();
 
     loop {
         // change to our VPE
@@ -173,6 +173,4 @@ pub fn check(state: &mut arch::State) {
             break;
         }
     }
-
-    enable();
 }

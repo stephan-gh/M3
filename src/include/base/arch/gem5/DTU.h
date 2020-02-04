@@ -31,6 +31,7 @@ class ISR;
 class SendQueue;
 class SyscallHandler;
 class VPE;
+class PEMux;
 class WorkLoop;
 }
 
@@ -46,6 +47,7 @@ class DTU {
     friend class kernel::SendQueue;
     friend class kernel::SyscallHandler;
     friend class kernel::VPE;
+    friend class kernel::PEMux;
     friend class kernel::WorkLoop;
     friend class DTUIf;
 

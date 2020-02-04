@@ -56,6 +56,23 @@ PEMux::PEMux(peid_t pe)
     #endif
 }
 
+void PEMux::handle_call(const m3::DTU::Message *msg) {
+    auto req = reinterpret_cast<const m3::KIF::PEXCalls::Exit*>(msg->data);
+    capsel_t vpe = req->vpe_sel;
+    int exitcode = req->code;
+
+    KLOG(PEXC, "PEMux[" << peid() << "] got exit(vpe=" << vpe << ", code=" << exitcode << ")");
+
+    auto vpecap = static_cast<VPECapability*>(_caps.get(vpe, Capability::VIRTPE));
+    if(vpecap != nullptr) {
+        vpecap->obj->_flags |= VPE::F_STOPPED;
+        vpecap->obj->stop_app(exitcode, true);
+    }
+
+    // give credits back
+    DTU::get().reply(SyscallHandler::pexep(), nullptr, 0, msg);
+}
+
 void PEMux::add_vpe(VPECapability *vpe) {
     assert(_vpes == 0);
     _caps.obtain(vpe->obj->id(), vpe);

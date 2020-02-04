@@ -32,7 +32,6 @@ pub extern "C" fn abort() -> ! {
 pub extern "C" fn exit(code: i32) -> ! {
     io::deinit();
     vfs::deinit();
-    syscalls::exit(code);
     arch::pexcalls::call1(pexif::Operation::EXIT, code as usize).ok();
     unreachable!();
 }

@@ -65,3 +65,18 @@ pub struct Map {
     pub pages: u64,
     pub perm: u64,
 }
+
+int_enum! {
+    /// The calls from PEMux to the kernel
+    pub struct Calls : u64 {
+        const EXIT           = 0x0;
+    }
+}
+
+/// The exit call
+#[repr(C, packed)]
+pub struct Exit {
+    pub op: u64,
+    pub vpe_sel: u64,
+    pub code: u64,
+}

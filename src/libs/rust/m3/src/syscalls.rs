@@ -23,7 +23,7 @@ use core::mem::MaybeUninit;
 use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
-use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL, SEL_VPE};
+use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 use util;
 
 static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(INVALID_SEL, SYSC_SEP));
@@ -37,16 +37,6 @@ impl<R: 'static> Drop for Reply<R> {
     fn drop(&mut self) {
         DTUIf::ack_msg(RecvGate::syscall(), self.msg);
     }
-}
-
-fn send<T>(msg: *const T) -> Result<(), Error> {
-    DTUIf::send(
-        &*SGATE,
-        msg as *const u8,
-        util::size_of::<T>(),
-        0,
-        RecvGate::syscall(),
-    )
 }
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
@@ -454,17 +444,6 @@ pub fn noop() -> Result<(), Error> {
         opcode: syscalls::Operation::NOOP.val,
     };
     send_receive_result(&req)
-}
-
-/// Stops the current VPE with given exitcode.
-pub fn exit(code: i32) {
-    let req = syscalls::VPECtrl {
-        opcode: syscalls::Operation::VPE_CTRL.val,
-        vpe_sel: SEL_VPE as u64,
-        op: syscalls::VPEOp::STOP.val,
-        arg: code as u64,
-    };
-    send(&req).unwrap();
 }
 
 pub(crate) fn init() {

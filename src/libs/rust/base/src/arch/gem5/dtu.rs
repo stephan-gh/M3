@@ -60,6 +60,9 @@ pub const PG_REP: EpId = 10;
 /// The first free EP id
 pub const FIRST_FREE_EP: EpId = 11;
 
+/// The reply EP for messages that want to disable replies
+pub const NO_REPLIES: EpId = 0xFFFF;
+
 /// The base address of the DTU's MMIO area
 pub const MMIO_ADDR: usize = 0xF000_0000;
 /// The size of the DTU's MMIO area
