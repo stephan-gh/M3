@@ -24,6 +24,8 @@
 
 namespace m3 {
 
+extern "C" void thread_switch(Regs *o, Regs *n);
+
 class ThreadManager {
     friend class Thread;
 
@@ -125,10 +127,9 @@ private:
 
     void switch_to(Thread *t) {
         LLOG(THREAD, "Switching from " << _current->id() << " to " << t->id());
-        if(!_current->save()) {
-            _current = t;
-            _current->resume();
-        }
+        auto old = _current;
+        _current = t;
+        thread_switch(&old->_regs, &t->_regs);
     }
 
     Thread *_current;

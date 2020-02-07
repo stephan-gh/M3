@@ -33,8 +33,6 @@ namespace m3 {
 typedef void (*thread_func)(void*);
 
 void thread_init(thread_func func, void *arg, Regs *regs, word_t *stack);
-extern "C"  bool thread_save(Regs *regs);
-extern "C" bool thread_resume(Regs *regs);
 
 class ThreadManager;
 
@@ -56,13 +54,6 @@ private:
           _stack(),
           _event(0),
           _content(false) {
-    }
-
-    bool save() {
-        return thread_save(&_regs);
-    }
-    bool resume() {
-        return thread_resume(&_regs);
     }
 
     void subscribe(event_t event) {

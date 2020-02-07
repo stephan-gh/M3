@@ -112,8 +112,7 @@ pub struct Thread {
 impl_boxitem!(Thread);
 
 extern "C" {
-    fn thread_save(regs: *mut Regs) -> bool;
-    fn thread_resume(regs: *mut Regs) -> bool;
+    fn thread_switch(o: *mut Regs, n: *mut Regs);
 }
 
 impl Thread {
@@ -171,16 +170,6 @@ impl Thread {
         else {
             None
         }
-    }
-
-    #[inline(always)]
-    unsafe fn save(&mut self) -> bool {
-        thread_save(&mut self.regs)
-    }
-
-    #[inline(always)]
-    unsafe fn resume(&mut self) -> bool {
-        thread_resume(&mut self.regs)
     }
 
     fn subscribe(&mut self, event: Event) {
@@ -304,10 +293,7 @@ impl ThreadManager {
         unsafe {
             let old = Box::into_raw(cur);
             self.block.push_back(Box::from_raw(old));
-            // we can't call a function between save and resume
-            if !(*old).save() {
-                self.cur_mut().resume();
-            }
+            thread_switch(&mut (*old).regs as *mut _, &mut self.cur_mut().regs as *mut _);
         }
     }
 
@@ -322,9 +308,7 @@ impl ThreadManager {
                 unsafe {
                     let old = Box::into_raw(cur);
                     self.sleep.push_back(Box::from_raw(old));
-                    if !(*old).save() {
-                        self.cur_mut().resume();
-                    }
+                    thread_switch(&mut (*old).regs as *mut _, &mut self.cur_mut().regs as *mut _);
                 }
             },
         }
@@ -355,9 +339,7 @@ impl ThreadManager {
             );
 
             unsafe {
-                if !cur.save() {
-                    self.cur_mut().resume();
-                }
+                thread_switch(&mut cur.regs as *mut _, &mut self.cur_mut().regs as *mut _);
             }
         }
     }

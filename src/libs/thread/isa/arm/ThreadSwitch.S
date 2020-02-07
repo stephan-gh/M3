@@ -16,22 +16,15 @@
 
 #include <base/Asm.h>
 
-# bool thread_save(m3::Thread::Regs *regs);
-BEGIN_FUNC(thread_save)
-    mov     r1, #1 // thread_resume's return value
-    stm     r0, {r1,r4-r11,r13,r14}
-    mrs     r1, CPSR
-    str     r1, [r0, #11 * 4]
+# void thread_switch(m3::Thread::Regs *old, m3::Thread::Regs *new)
+BEGIN_FUNC(thread_switch)
+    stm     r0, {r0,r4-r11,r13,r14}
+    mrs     r2, CPSR
+    str     r2, [r0, #11 * 4]
 
-    mov     r0, #0
-    mov     pc, lr
-END_FUNC(thread_save)
-
-# bool thread_resume(m3::Thread::Regs *regs);
-BEGIN_FUNC(thread_resume)
-    ldr     r1, [r0, #11 * 4]
-    msr     CPSR_f, r1
-    ldm     r0, {r0,r4-r11,r13,r14}
+    ldr     r2, [r1, #11 * 4]
+    msr     CPSR_f, r2
+    ldm     r1, {r0,r4-r11,r13,r14}
 
     mov     pc, lr
-END_FUNC(thread_resume)
+END_FUNC(thread_switch)

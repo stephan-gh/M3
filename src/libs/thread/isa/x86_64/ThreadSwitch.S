@@ -16,8 +16,8 @@
 
 #include <base/Asm.h>
 
-# bool thread_save(m3::Thread::Regs *regs);
-BEGIN_FUNC(thread_save)
+# void thread_switch(m3::Thread::Regs *old, m3::Thread::Regs *new)
+BEGIN_FUNC(thread_switch)
     # save registers
     mov     %rbx,  0(%rdi)
     mov     %rsp,  8(%rdi)
@@ -29,24 +29,17 @@ BEGIN_FUNC(thread_save)
     pushfq                              # load eflags
     popq    56(%rdi)                    # store
 
-    mov     $0, %rax                    # return 0
-    ret
-END_FUNC(thread_save)
-
-# bool thread_resume(m3::Thread::Regs *regs);
-BEGIN_FUNC(thread_resume)
     # restore registers
-    mov     48(%rdi), %r15
-    mov     40(%rdi), %r14
-    mov     32(%rdi), %r13
-    mov     24(%rdi), %r12
-    mov     16(%rdi), %rbp
-    mov      8(%rdi), %rsp
-    mov      0(%rdi), %rbx
-    pushq   56(%rdi)
+    mov     48(%rsi), %r15
+    mov     40(%rsi), %r14
+    mov     32(%rsi), %r13
+    mov     24(%rsi), %r12
+    mov     16(%rsi), %rbp
+    mov      8(%rsi), %rsp
+    mov      0(%rsi), %rbx
+    pushq   56(%rsi)
     popfq                               # load eflags
-    mov     64(%rdi), %rdi              # load rdi (necessary for startup)
+    mov     64(%rsi), %rdi              # load rdi (necessary for startup)
 
-    mov     $1, %rax                    # return 1
     ret
-END_FUNC(thread_resume)
+END_FUNC(thread_switch)

@@ -402,7 +402,7 @@ pub fn generate(
                 }
 
                 // detect thread switches
-                if sym.name == "thread_resume" && instr_is_sp_init(isa, &line) {
+                if sym.name == "thread_switch" && instr_is_sp_init(isa, &line) {
                     if let Some(pos) = line.find("D=") {
                         let mut tid = u64::from_str_radix(&line[(pos + 4)..(pos + 20)], 16)?;
                         if *isa == crate::ISA::ARM {
@@ -424,7 +424,7 @@ pub fn generate(
                     }
                     // otherwise it's a return
                     else {
-                        if sym.name != "thread_resume" && cur_thread.stack.is_empty() {
+                        if sym.name != "thread_switch" && cur_thread.stack.is_empty() {
                             warn!("{}: return with empty stack", time);
                         }
                         else {
