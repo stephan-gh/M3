@@ -71,6 +71,27 @@ pub struct Regs {
     cpsr: u32,
 }
 
+#[cfg(target_arch = "riscv64")]
+#[derive(Default)]
+#[repr(C, packed)]
+pub struct Regs {
+    a0: u64,
+    ra: u64,
+    sp: u64,
+    fp: u64,
+    s1: u64,
+    s2: u64,
+    s3: u64,
+    s4: u64,
+    s5: u64,
+    s6: u64,
+    s7: u64,
+    s8: u64,
+    s9: u64,
+    s10: u64,
+    s11: u64,
+}
+
 #[cfg(target_arch = "x86_64")]
 fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
     let top_idx = thread.stack.len() - 2;
@@ -90,6 +111,15 @@ fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
     thread.regs.r11 = 0; // fp
     thread.regs.r14 = func_addr as u32; // lr
     thread.regs.cpsr = 0x13; // supervisor mode
+}
+
+#[cfg(target_arch = "riscv64")]
+fn thread_init(thread: &mut Thread, func_addr: usize, arg: usize) {
+    let top_idx = thread.stack.len() - 2;
+    thread.regs.a0 = arg as u64;
+    thread.regs.sp = &thread.stack[top_idx] as *const usize as u64;
+    thread.regs.fp = 0;
+    thread.regs.ra = func_addr as u64;
 }
 
 fn alloc_id() -> u32 {

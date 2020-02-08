@@ -33,6 +33,10 @@ cfg_if! {
         #[path = "arm/mod.rs"]
         mod arch;
     }
+    else if #[cfg(target_arch = "riscv64")] {
+        #[path = "riscv/mod.rs"]
+        mod arch;
+    }
 }
 
 use base::cfg;

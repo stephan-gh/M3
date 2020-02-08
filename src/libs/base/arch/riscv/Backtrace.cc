@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,25 +14,16 @@
  * General Public License version 2 for more details.
  */
 
-#[cfg(target_os = "none")]
-#[path = "gem5/mod.rs"]
-mod inner;
+#include <base/util/Math.h>
+#include <base/Backtrace.h>
+#include <base/Config.h>
+#include <base/CPU.h>
 
-#[cfg(target_os = "linux")]
-#[path = "host/mod.rs"]
-mod inner;
+namespace m3 {
 
-#[cfg(target_arch = "x86_64")]
-#[path = "x86_64/mod.rs"]
-mod isa;
+size_t Backtrace::collect(UNUSED uintptr_t *addr, UNUSED size_t max) {
+    // TODO implement me
+    return 0;
+}
 
-#[cfg(target_arch = "arm")]
-#[path = "arm/mod.rs"]
-mod isa;
-
-#[cfg(target_arch = "riscv64")]
-#[path = "riscv/mod.rs"]
-mod isa;
-
-pub use self::inner::*;
-pub use self::isa::*;
+}

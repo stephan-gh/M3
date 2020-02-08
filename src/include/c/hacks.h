@@ -70,7 +70,14 @@ typedef ::mbstate_t mbstate_t;
 typedef int int_type;
 typedef int wint_t;
 
+#if defined(__arm__) || defined(__riscv)
+
 #if defined(__arm__)
+typedef unsigned int _usize_t;
+#else
+typedef unsigned long _usize_t;
+#endif
+
 EXTERN_C long int strtol(const char *nptr, char **endptr, int base);
 EXTERN_C long long int strtoll(const char *nptr, char **endptr, int base);
 
@@ -81,8 +88,8 @@ EXTERN_C double strtod(const char *nptr, char **endptr);
 EXTERN_C float strtof(const char *nptr, char **endptr);
 EXTERN_C long double strtold(const char *nptr, char **endptr);
 
-EXTERN_C int vsnprintf(char *str, unsigned int size, const char *format, va_list ap);
-EXTERN_C int vswprintf(wchar_t *wcs, unsigned int maxlen, const wchar_t *format, va_list args);
+EXTERN_C int vsnprintf(char *str, _usize_t size, const char *format, va_list ap);
+EXTERN_C int vswprintf(wchar_t *wcs, _usize_t maxlen, const wchar_t *format, va_list args);
 
 EXTERN_C long wcstol(const wchar_t *nptr, wchar_t **endptr, int base);
 EXTERN_C long long wcstoll(const wchar_t *nptr, wchar_t **endptr, int base);

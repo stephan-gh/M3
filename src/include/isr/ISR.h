@@ -24,6 +24,8 @@
 #   include "arch/x86_64/ISR.h"
 #elif defined(__arm__)
 #   include "arch/arm/ISR.h"
+#elif defined(__riscv)
+#   include "arch/riscv/ISR.h"
 #else
 #   error "Unsupported ISA"
 #endif

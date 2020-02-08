@@ -37,8 +37,8 @@ int_enum! {
         const X86           = 0x1;
         /// ARMv7 as supported by gem5
         const ARM           = 0x2;
-        /// Xtensa as on Tomahawk 2/4
-        const XTENSA        = 0x3;
+        /// RISCV as supported on gem5
+        const RISCV         = 0x3;
         /// Dummy ISA to represent the indirect-chaining fixed-function accelerator
         const ACCEL_INDIR   = 0x4;
         /// Dummy ISA to represent the COPY fixed-function accelerator
@@ -100,7 +100,7 @@ impl PEDesc {
     /// Returns whether the PE executes software
     pub fn is_programmable(self) -> bool {
         match self.isa() {
-            PEISA::X86 | PEISA::ARM | PEISA::XTENSA => true,
+            PEISA::X86 | PEISA::ARM | PEISA::RISCV => true,
             _ => false,
         }
     }

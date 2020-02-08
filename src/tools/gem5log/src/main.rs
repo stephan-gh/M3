@@ -49,11 +49,12 @@ pub enum Mode {
 pub enum ISA {
     X86_64,
     ARM,
+    RISCV,
 }
 
 fn usage(prog: &str) -> ! {
     eprintln!(
-        "Usage: {} (x86_64|arm) (trace|flamegraph|snapshot <time>) [<binary>...]",
+        "Usage: {} (x86_64|arm|riscv) (trace|flamegraph|snapshot <time>) [<binary>...]",
         prog
     );
     exit(1)
@@ -69,6 +70,7 @@ fn main() -> Result<(), error::Error> {
     let isa = match args.get(1) {
         Some(isa) if isa == "x86_64" => ISA::X86_64,
         Some(isa) if isa == "arm" => ISA::ARM,
+        Some(isa) if isa == "riscv" => ISA::RISCV,
         _ => usage(&args[0]),
     };
 

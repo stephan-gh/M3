@@ -39,7 +39,7 @@ enum class PEISA {
     NONE            = 0,
     X86             = 1,
     ARM             = 2,
-    XTENSA          = 3,
+    RISCV           = 3,
     ACCEL_INDIR     = 4,
     ACCEL_COPY      = 5,
     ACCEL_ROT13     = 6,

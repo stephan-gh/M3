@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016-2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
- * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ * This file is part of M3 (Microkernel for Minimalist Manycores).
  *
  * M3 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,12 +18,20 @@
 
 #include <base/Common.h>
 
-#if defined(__x86_64__)
-#   include "arch/x86_64/PEXCalls.h"
-#elif defined(__arm__)
-#   include "arch/arm/PEXCalls.h"
-#elif defined(__riscv)
-#   include "arch/riscv/PEXCalls.h"
-#else
-#   error "Unsupported ISA"
-#endif
+namespace m3 {
+
+/* the stack frame for the interrupt-handler */
+struct ExceptionState {
+    word_t regs[31];
+    word_t cause;
+    word_t sepc;
+} PACKED;
+
+class ISRBase {
+    ISRBase() = delete;
+
+public:
+    static const size_t ISR_COUNT       = 32;
+};
+
+}

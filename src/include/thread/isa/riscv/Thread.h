@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,25 +14,32 @@
  * General Public License version 2 for more details.
  */
 
-#[cfg(target_os = "none")]
-#[path = "gem5/mod.rs"]
-mod inner;
+#pragma once
 
-#[cfg(target_os = "linux")]
-#[path = "host/mod.rs"]
-mod inner;
+#include <base/Types.h>
 
-#[cfg(target_arch = "x86_64")]
-#[path = "x86_64/mod.rs"]
-mod isa;
+namespace m3 {
 
-#[cfg(target_arch = "arm")]
-#[path = "arm/mod.rs"]
-mod isa;
+struct Regs {
+    word_t a0;
+    word_t ra;
+    word_t sp;
+    word_t fp;
+    word_t s1;
+    word_t s2;
+    word_t s3;
+    word_t s4;
+    word_t s5;
+    word_t s6;
+    word_t s7;
+    word_t s8;
+    word_t s9;
+    word_t s10;
+    word_t s11;
+} PACKED;
 
-#[cfg(target_arch = "riscv64")]
-#[path = "riscv/mod.rs"]
-mod isa;
+enum {
+    T_STACK_WORDS = 4096
+};
 
-pub use self::inner::*;
-pub use self::isa::*;
+}

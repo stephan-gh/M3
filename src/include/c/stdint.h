@@ -27,7 +27,7 @@ typedef signed int int32_t;
 typedef unsigned long long uint64_t;
 typedef signed long long int64_t;
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__riscv)
 typedef signed long intptr_t;
 typedef unsigned long uintptr_t;
 #else

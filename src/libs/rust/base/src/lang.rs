@@ -116,3 +116,33 @@ def_testnset!(__sync_lock_test_and_set_2, u16);
 def_testnset!(__sync_lock_test_and_set_4, u32);
 def_testnset!(__sync_lock_test_and_set_8, u64);
 def_testnset!(__sync_lock_test_and_set_16, u128);
+
+macro_rules! def_atomic_load {
+    ($name:ident, $type:ty) => {
+        #[cfg(target_arch = "riscv64")]
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(ptr: *const $type, _model: i32) -> $type {
+            return *ptr;
+        }
+    };
+}
+
+macro_rules! def_atomic_store {
+    ($name:ident, $type:ty) => {
+        #[cfg(target_arch = "riscv64")]
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(ptr: *mut $type, val: $type, _model: i32) {
+            *ptr = val;
+        }
+    };
+}
+
+def_atomic_load!(__atomic_load_1, u8);
+def_atomic_load!(__atomic_load_2, u16);
+def_atomic_load!(__atomic_load_4, u32);
+def_atomic_load!(__atomic_load_8, u64);
+
+def_atomic_store!(__atomic_store_1, u8);
+def_atomic_store!(__atomic_store_2, u16);
+def_atomic_store!(__atomic_store_4, u32);
+def_atomic_store!(__atomic_store_8, u64);

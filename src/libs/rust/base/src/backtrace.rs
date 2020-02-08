@@ -27,6 +27,9 @@ use math;
 /// below or above the stack.
 pub fn collect(addrs: &mut [usize]) -> usize {
     let mut bp = cpu::get_bp();
+    if bp == 0 {
+        return 0;
+    }
 
     let base = math::round_dn(bp, cfg::STACK_SIZE);
     let end = math::round_up(bp, cfg::STACK_SIZE);

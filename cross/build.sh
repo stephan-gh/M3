@@ -8,7 +8,7 @@ BUILD_GDB=true
 MAKE_ARGS="-j"$(nproc)
 
 usage() {
-    echo "Usage: $1 (x86_64|arm) [--rebuild]" >&2
+    echo "Usage: $1 (x86_64|arm|riscv) [--rebuild]" >&2
     exit
 }
 
@@ -17,7 +17,7 @@ if [ $# -ne 1 ] && [ $# -ne 2 ]; then
 fi
 
 ARCH="$1"
-if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "arm" ]; then
+if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "arm" ] && [ "$ARCH" != "riscv" ]; then
     usage $0
 fi
 
@@ -37,7 +37,7 @@ fi
 
 BINVER=2.32
 GCCVER=9.1.0
-NEWLVER=1.20.0
+NEWLVER=3.1.0
 GDBVER=8.3
 
 BINARCH=binutils-$BINVER.tar.bz2
@@ -61,6 +61,9 @@ download https://ftp.gnu.org/gnu/gdb/ $GDBARCH
 export PREFIX=$DIST
 if [ "$ARCH" = "arm" ]; then
     export TARGET=arm-none-eabi
+elif [ "$ARCH" = "riscv" ]; then
+    export TARGET=riscv64-unknown-elf
+    BUILD_FLAGS="-g -O2 -march=rv64imafdc -mabi=lp64"
 else
     export TARGET=$ARCH-elf-m3
 fi
@@ -136,7 +139,7 @@ if $BUILD_GCC; then
     cd $BUILD/gcc
     if [ $REBUILD -eq 1 ] || [ ! -f $BUILD/gcc/Makefile ]; then
         /bin/echo -e "\e[1mConfiguring gcc...\e[0m"
-        CC=$BUILD_CC \
+        CC=$BUILD_CC CFLAGS_FOR_TARGET=$BUILD_FLAGS \
             $SRC/gcc/configure --target=$TARGET --prefix=$PREFIX --disable-nls \
               --enable-languages=c,c++ --disable-linker-build-id
         if [ $? -ne 0 ]; then
@@ -212,7 +215,7 @@ if $BUILD_CPP; then
     if [ $REBUILD -eq 1 ] || [ ! -f Makefile ]; then
         /bin/echo -e "\e[1mConfiguring libstdc++...\e[0m"
         # pretend that we're using newlib
-        CPP=$TARGET-cpp \
+        CPP=$TARGET-cpp CFLAGS=$BUILD_FLAGS CXXFLAGS=$BUILD_FLAGS \
             $SRC/gcc/libstdc++-v3/configure --host=$TARGET --prefix=$PREFIX \
             --disable-hosted-libstdcxx --disable-nls --with-newlib
         if [ $? -ne 0 ]; then
@@ -270,3 +273,7 @@ fi
 # create basic symlinks
 rm -Rf $DIST/$TARGET/include
 ln -sf $ROOT/../src/include $DIST/$TARGET/include
+
+if [ "$ARCH" = "riscv" ]; then
+    cp $DIST/lib/rv64imafdc/lp64d/libsupc++.* $DIST/lib
+fi

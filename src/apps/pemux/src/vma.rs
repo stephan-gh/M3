@@ -23,7 +23,6 @@ use base::util;
 use core::ptr;
 use paging;
 
-use arch;
 use helper;
 use vpe;
 
@@ -180,8 +179,9 @@ pub fn handle_xlate(mut xlate_req: dtu::Reg) {
     }
 }
 
+#[cfg(not(target_arch = "riscv64"))]
 pub fn handle_pf(
-    state: &arch::State,
+    state: &crate::arch::State,
     virt: usize,
     perm: PageFlags,
     ip: usize,

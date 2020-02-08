@@ -126,8 +126,13 @@ build_params_gem5() {
 
     if [ "$M3_ISA" = "x86_64" ]; then
         gem5build="X86"
-    else
+    elif [ "$M3_ISA" = "arm" ]; then
         gem5build="ARM"
+    elif [ "$M3_ISA" = "riscv" ]; then
+        gem5build="RISCV"
+    else
+        echo "Unsupported ISA: $M3_ISA" >&2
+        exit 1
     fi
 
     export M5_PATH=$build

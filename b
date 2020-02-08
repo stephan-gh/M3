@@ -21,7 +21,7 @@ fi
 
 # set target
 if [ "$M3_TARGET" = "gem5" ]; then
-    if [ "$M3_ISA" != "arm" ] && [ "$M3_ISA" != "x86_64" ]; then
+    if [ "$M3_ISA" != "arm" ] && [ "$M3_ISA" != "x86_64" ] && [ "$M3_ISA" != "riscv" ]; then
         echo "ISA $M3_ISA not supported for target gem5." >&2 && exit 1
     fi
 elif [ "$M3_TARGET" = "host" ]; then
@@ -39,11 +39,12 @@ export M3_BUILD M3_TARGET M3_ISA
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
 crossprefix=''
 if [ "$M3_TARGET" = "gem5" ]; then
+    crossdir="./build/cross-$M3_ISA/bin"
     if [ "$M3_ISA" = "arm" ]; then
-        crossdir="./build/cross-arm/bin"
         crossprefix="$crossdir/arm-none-eabi-"
+    elif [ "$M3_ISA" = "riscv" ]; then
+        crossprefix="$crossdir/riscv64-unknown-elf-"
     else
-        crossdir="./build/cross-x86_64/bin"
         crossprefix="$crossdir/x86_64-elf-m3-"
     fi
     export PATH=$crossdir:$PATH
@@ -69,7 +70,7 @@ help() {
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
     echo "variables that influence its behaviour are M3_TARGET=(host|gem5),"
-    echo "M3_ISA=(x86_64|arm) [on gem5 only], and M3_BUILD=(debug|release)."
+    echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and M3_BUILD=(debug|release)."
     echo ""
     echo "The flag -n skips the build and executes the given command directly. This"
     echo "can be handy if, for example, the build is currently broken."
@@ -110,8 +111,8 @@ help() {
     echo "    M3_TARGET:               the target. Either 'host' for using the Linux-based"
     echo "                             coarse-grained simulator, or 'gem5'. The default is"
     echo "                             'host'."
-    echo "    M3_ISA:                  the ISA to use. On gem5, 'arm' and 'x86_64' is"
-    echo "                             supported. On other targets, it is ignored."
+    echo "    M3_ISA:                  the ISA to use. On gem5, 'arm', 'riscv', and 'x86_64'"
+    echo "                             is supported. On other targets, it is ignored."
     echo "    M3_BUILD:                the build-type. Either debug or release. In debug"
     echo "                             mode optimizations are disabled, debug infos are"
     echo "                             available and assertions are active. In release"

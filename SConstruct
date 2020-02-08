@@ -7,9 +7,18 @@ target = os.environ.get('M3_TARGET')
 if target == 'gem5':
     isa = os.environ.get('M3_ISA', 'x86_64')
 
-    rustabi     = 'gnueabihf'       if isa == 'arm' else 'gnu'
-    cross       = 'arm-none-eabi-'  if isa == 'arm' else 'x86_64-elf-m3-'
-    crt1        = 'crti.o'          if isa == 'arm' else 'crt1.o'
+    if isa == 'arm':
+        rustabi = 'gnueabihf'
+        cross   = 'arm-none-eabi-'
+        crt1    = 'crti.o'
+    elif isa == 'riscv':
+        rustabi = 'gnu'
+        cross   = 'riscv64-unknown-elf-'
+        crt1    = 'crti.o'
+    else:
+        rustabi = 'gnu'
+        cross   = 'x86_64-elf-m3-'
+        crt1    = 'crt1.o'
     crossdir    = Dir('build/cross-' + isa).abspath
     crossver    = '9.1.0'
     configpath  = Dir('.')
@@ -76,11 +85,16 @@ if target == 'gem5':
         # IRQ handlers since applications run in privileged mode. TODO can we enable that now?
         env.Append(CFLAGS = ' -mno-red-zone')
         env.Append(CXXFLAGS = ' -mno-red-zone')
-    else:
+    elif isa == 'arm':
         env.Append(CFLAGS = ' -march=armv7-a')
         env.Append(CXXFLAGS = ' -march=armv7-a')
         env.Append(LINKFLAGS = ' -march=armv7-a')
         env.Append(ASFLAGS = ' -march=armv7-a')
+    elif isa == 'riscv':
+        env.Append(CFLAGS = ' -march=rv64imafdc -mabi=lp64')
+        env.Append(CXXFLAGS = ' -march=rv64imafdc -mabi=lp64')
+        env.Append(LINKFLAGS = ' -march=rv64imafdc -mabi=lp64')
+        env.Append(ASFLAGS = ' -march=rv64imafdc -mabi=lp64')
     env.Append(CPPPATH = [
         '#src/include/c',
         crossdir + '/include/c++/' + crossver,
@@ -222,7 +236,7 @@ def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, va
 
     if myenv['ARCH'] == 'gem5':
         if not NoSup:
-            baselibs = ['gcc', 'c', 'm', 'stdc++', 'supc++', 'heap']
+            baselibs = ['gcc', 'c', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
             if env['ISA'] == 'x86_64':
                 baselibs += ['gcc_eh']
             libs = baselibs + m3libs + libs
@@ -286,7 +300,11 @@ def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr
 
     if myenv['ARCH'] == 'gem5':
         sources = [myenv['SYSGCCLIBPATH'].abspath + '/crt0.o' if startup is None else startup]
-        libs    = ['c', 'm', 'heap', 'gcc', target] + libs
+        libs    = ['c', 'm', 'gloss', 'heap', 'gcc', target] + libs
+        # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
+        # compiler-builtins crate, because those are poor implementations
+        if myenv['ISA'] == 'riscv':
+            sources += myenv.Glob('$BUILDDIR/src/libs/c/string/*.o')
     else:
         sources = []
         # leave the host lib in here as well to let scons know about the dependency

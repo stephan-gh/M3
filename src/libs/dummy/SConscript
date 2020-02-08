@@ -5,3 +5,6 @@ if env['ARCH'] == 'gem5':
 
     lib = env.StaticLibrary(target = 'stdc++', source = env.Glob('*.cc'))
     env.Install(env['LIBDIR'], lib)
+
+    lib = env.StaticLibrary(target = 'gloss', source = env.Glob('*.cc'))
+    env.Install(env['LIBDIR'], lib)

@@ -26,13 +26,22 @@ static inline cycles_t gem5_debug(unsigned msg) {
         : "=a"(res) : "D"(msg)
     );
     return res;
-#else
+#elif defined(__arm__)
     register cycles_t r0 asm ("r0") = msg;
     asm volatile (
         ".long 0xEE630110"
         : "+r"(r0)
     );
     return r0;
+#elif defined(__riscv)
+    register cycles_t a0 asm ("a0") = msg;
+    asm volatile (
+        ".long 0xC600007B"
+        : "+r"(a0)
+    );
+    return a0;
+#else
+#   error "Unsupported ISA"
 #endif
 }
 

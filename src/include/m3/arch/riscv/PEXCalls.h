@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,25 +14,27 @@
  * General Public License version 2 for more details.
  */
 
-#[cfg(target_os = "none")]
-#[path = "gem5/mod.rs"]
-mod inner;
+#pragma once
 
-#[cfg(target_os = "linux")]
-#[path = "host/mod.rs"]
-mod inner;
+#include <base/Common.h>
+#include <base/Errors.h>
+#include <base/PEXIF.h>
 
-#[cfg(target_arch = "x86_64")]
-#[path = "x86_64/mod.rs"]
-mod isa;
+namespace m3 {
 
-#[cfg(target_arch = "arm")]
-#[path = "arm/mod.rs"]
-mod isa;
+class PEXCalls {
+public:
+    static word_t call1(Operation op, word_t arg1) {
+        register word_t a0 asm("a0") = op;
+        register word_t a1 asm("a1") = arg1;
+        asm volatile(
+            "ecall"
+            : "+r"(a0)
+            : "r"(a1)
+            : "memory"
+        );
+        return a0;
+    }
+};
 
-#[cfg(target_arch = "riscv64")]
-#[path = "riscv/mod.rs"]
-mod isa;
-
-pub use self::inner::*;
-pub use self::isa::*;
+}

@@ -151,7 +151,7 @@ pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
 pub extern "C" fn dtu_irq(state: &mut arch::State) -> *mut libc::c_void {
     enter();
 
-    #[cfg(target_arch = "arm")]
+    #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
     dtu::DTU::clear_irq();
 
     // core request from DTU?

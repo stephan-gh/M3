@@ -58,7 +58,7 @@ static m3::OStream &operator<<(m3::OStream &os, const m3::ISR::State &state) {
     return os;
 }
 
-#else
+#elif defined(__x86_64__)
 
 static word_t getCR2() {
     word_t res;
@@ -123,6 +123,68 @@ static m3::OStream &operator<<(m3::OStream &os, const m3::ISR::State &state) {
     return os;
 }
 
+#elif defined(__riscv)
+
+static const char *exNames[] = {
+    // exceptions
+    /* 0 */ "Instruction address misaligned",
+    /* 1 */ "Instruction access fault",
+    /* 2 */ "Illegal Instruction",
+    /* 3 */ "Breakpoint",
+    /* 4 */ "Load address misaligned",
+    /* 5 */ "Load access fault",
+    /* 6 */ "Store address misaligned",
+    /* 7 */ "Store access fault",
+    /* 8 */ "Environment call from U-mode",
+    /* 9 */ "Environment call from S-mode",
+    /* 10 */ "???",
+    /* 11 */ "Environment call from M-mode",
+    /* 12 */ "Instruction page fault",
+    /* 13 */ "Load page fault",
+    /* 14 */ "???",
+    /* 15 */ "Store/AMO page fault",
+
+    // interrupts
+    /* 16 */ "User software interrupt",
+    /* 17 */ "Supervisor software interrupt",
+    /* 18 */ "???",
+    /* 19 */ "Machine software interrupt",
+    /* 20 */ "User timer interrupt",
+    /* 21 */ "Supervisor timer interrupt",
+    /* 22 */ "???",
+    /* 23 */ "Machine timer interrupt",
+    /* 24 */ "User external interrupt",
+    /* 25 */ "Supervisor external interrupt",
+    /* 26 */ "???",
+    /* 27 */ "Machine external interrupt",
+};
+
+static m3::OStream &operator<<(m3::OStream &os, const m3::ISR::State &state) {
+    os << "Interruption @ " << m3::fmt(state.sepc, "p");
+    os << "\n  irq: ";
+
+    size_t vec = state.cause & 0xF;
+    if(state.cause & 0x80000000)
+        vec = 16 + (state.cause & 0xF);
+
+    if(vec < ARRAY_SIZE(exNames))
+        os << exNames[vec];
+    else
+        os << "<unknown> (" << vec << ")";
+    os << "\n";
+
+    m3::Backtrace::print(os);
+
+    os << "  sepc : " << m3::fmt(state.sepc, "#0x", 16) << "\n";
+    os << "  cause: " << state.cause << "\n";
+    for(size_t i = 1; i < 32; ++i)
+        os << "  r[" << m3::fmt(i, 2) << "]: " << m3::fmt(state.regs[i - 1], "#0x", 16) << "\n";
+
+    return os;
+}
+
+#else
+#   error "Unsupported ISA"
 #endif
 
 static void *irq_handler(m3::ISR::State *state) {
@@ -140,7 +202,7 @@ public:
             m3::ISR::reg(i, irq_handler);
 #if defined(__x86_64__)
         m3::ISR::reg(64, dtu_handler);
-#else
+#elif defined(__arm__)
         m3::ISR::reg(6, dtu_handler);
 #endif
         m3::ISR::enable_irqs();
@@ -164,7 +226,7 @@ public:
     static void *dtu_handler(m3::ISR::State *state) {
         m3::DTU &dtu = m3::DTU::get();
 
-#if defined(__arm__)
+#if defined(__arm__) || defined(__riscv)
         dtu.clear_irq();
 #endif
 
