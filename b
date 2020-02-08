@@ -64,12 +64,15 @@ build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin/
 
 help() {
-    echo "Usage: $1 [<cmd> <arg>]"
+    echo "Usage: $1 [-n] [<cmd> <arg>]"
     echo ""
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
     echo "variables that influence its behaviour are M3_TARGET=(host|gem5),"
     echo "M3_ISA=(x86_64|arm) [on gem5 only], and M3_BUILD=(debug|release)."
+    echo ""
+    echo "The flag -n skips the build and executes the given command directly. This"
+    echo "can be handy if, for example, the build is currently broken."
     echo ""
     echo "The following commands are available:"
     echo "    scons ...:               run scons with given arguments."
@@ -140,10 +143,13 @@ case "$1" in
         ;;
 esac
 
+skipbuild=0
 cmd=""
 script=""
 while [ $# -gt 0 ]; do
-    if [ "$cmd" = "" ]; then
+    if [ "$1" = "-n" ]; then
+        skipbuild=1
+    elif [ "$cmd" = "" ]; then
         cmd="$1"
     elif [ "$script" = "" ]; then
         script="$1"
@@ -159,15 +165,17 @@ if [ "$M3_VERBOSE" != "" ]; then
     ninjaargs="-v"
 fi
 
-rebuilt=false
-filesid=$build/.scons2ninja-files.id
-find src -type f > $filesid.new
-# redo the conversion from scons to ninja if any file was added/removed
-if [ ! -f $build/build.ninja ] || ! cmp $filesid.new $filesid &>/dev/null; then
-    echo "Configuring for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-    ./src/tools/scons2ninja.py --dir $build >&2 || exit 1
-    mv $filesid.new $filesid
-    rebuilt=true
+if [ $skipbuild -eq 0 ]; then
+    rebuilt=false
+    filesid=$build/.scons2ninja-files.id
+    find src -type f > $filesid.new
+    # redo the conversion from scons to ninja if any file was added/removed
+    if [ ! -f $build/build.ninja ] || ! cmp $filesid.new $filesid &>/dev/null; then
+        echo "Configuring for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+        ./src/tools/scons2ninja.py --dir $build >&2 || exit 1
+        mv $filesid.new $filesid
+        rebuilt=true
+    fi
 fi
 
 case "$cmd" in
@@ -182,19 +190,21 @@ case "$cmd" in
         ;;
 esac
 
-# build binaries etc.
-echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-ninja -f $build/build.ninja $ninjaargs >&2 || exit 1
+if [ $skipbuild -eq 0 ]; then
+    # build binaries etc.
+    echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+    ninja -f $build/build.ninja $ninjaargs >&2 || exit 1
 
-# redo conversion from scons to ninja for FS images
-if [ ! -f $build/fsdata/build.ninja ] || $rebuilt; then
-    echo "Configuring file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-    ./src/tools/scons2ninja.py --dir $build/fsdata build_fs=1 >&2 || exit 1
+    # redo conversion from scons to ninja for FS images
+    if [ ! -f $build/fsdata/build.ninja ] || $rebuilt; then
+        echo "Configuring file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+        ./src/tools/scons2ninja.py --dir $build/fsdata build_fs=1 >&2 || exit 1
+    fi
+
+    # now build the FS images
+    echo "Building file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
+    ninja -f $build/fsdata/build.ninja $ninjaargs >&2 || exit 1
 fi
-
-# now build the FS images
-echo "Building file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-ninja -f $build/fsdata/build.ninja $ninjaargs >&2 || exit 1
 
 run_on_host() {
     echo -n > run/log.txt
