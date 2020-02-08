@@ -14,6 +14,5 @@ if env['ARCH'] == 'gem5':
         target = 'pemux',
         libs = ['isr'],
         startup = entry,
-        ldscript = myenv.File('#src/apps/pemux/src/arch/$ISA/ld.conf'),
         varAddr = False,
     )
