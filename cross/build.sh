@@ -76,7 +76,7 @@ if [ $REBUILD -eq 1 ]; then
         rm -Rf $BUILD/gcc $SRC/gcc
     fi
     if $BUILD_CPP; then
-        rm -Rf $BUILD/newlib $SRC/newlib
+        rm -Rf $BUILD/newlib $BUILD/gcc/libstdc++-v3 $SRC/newlib
     fi
     if $BUILD_GDB; then
         rm -Rf $BUILD/gdb $SRC/gdb
