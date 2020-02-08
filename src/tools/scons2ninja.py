@@ -123,6 +123,14 @@ def get_dependencies(target, build_targets) :
       queue += list(dependencies.get(n, []))
   return result
 
+# TODO this is very specific for our usage of Depends in scons
+def get_m3_deps(target, build_targets):
+  result = []
+  for d in get_dependencies(out, ninja.targets):
+    if "/crt" in d or d.endswith(".conf") or d.endswith(".json") or d.endswith(".toml"):
+      result.append(d)
+  return result
+
 def get_built_libs(libs, libpaths, outputs) :
   canonical_outputs = [os.path.abspath(p) for p in outputs]
   result = []
@@ -466,9 +474,11 @@ for line in build_lines :
     libs = get_unary_flags('-l', flags)
     libpaths = get_unary_flags("-L", flags)
     deps = get_built_libs(libs, libpaths, ninja.targets)
+    for d in get_m3_deps(out, ninja.targets):
+      deps.append(d)
     for p in get_unary_flags('-Wl,-T,', flags):
       deps.append(p.replace(os.getcwd() + '/', ''))
-    ninja.build(out, 'link', files, deps = sorted(deps), linkflags = flags, cmd = command[0])
+    ninja.build(out, 'link', files, deps = sorted(list(dict.fromkeys(deps))), linkflags = flags, cmd = command[0])
 
   elif tool == 'ar':
     objects, flags = partition(flags, lambda x: x.endswith('.o'))
