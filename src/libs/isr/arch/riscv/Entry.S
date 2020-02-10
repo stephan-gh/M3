@@ -21,6 +21,47 @@
 
 .text
 
+BEGIN_FUNC(isr_enable)
+    // delegate all interrupts and exceptions to supervisor mode
+    li     a1, 0x333
+    csrw   mideleg, a1
+    li     a0, -1
+    csrw   medeleg, a0
+
+    // set stack pointer for exceptions
+    la      a0, isr_stack
+    csrw    sscratch, a0
+
+    // enable interrupts
+    csrr   a0, sie
+    or     a0, a0, a1
+    csrw   sie, a0
+
+    // return to supervisor mode
+    csrr    a0, mstatus
+    li      a1, 1 << 11
+    or      a0, a0, a1      # MPP = S
+    or      a0, a0, 1 << 1  # SIE = 1
+    csrw    mstatus, a0
+
+    // jump to 1:
+    la      a0, 1f
+    csrw    mepc, a0
+
+    // set vector address
+    la      a0, exc_common
+    slli    a0, a0, 2       # shift addr left; leave mode as direct
+    csrw    stvec, a0       # STVEC = exc_common
+
+    // we need a fence to ensure that the previous CSR accesses are recognized by mret
+    fence.i
+
+    // go!
+    mret
+1:
+    ret
+END_FUNC(isr_enable)
+
 BEGIN_FUNC(exc_common)
     # swap x31 with SSCRATCH to have a usable register
     csrrw   x31, sscratch, x31

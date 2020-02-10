@@ -21,9 +21,6 @@
 
 namespace m3 {
 
-EXTERN_C void *isr_stack;
-EXTERN_C void *exc_common;
-
 ISR::isr_func ISR::isrs[ISR_COUNT];
 
 void *ISR::handler(State *state) {
@@ -34,48 +31,6 @@ void *ISR::handler(State *state) {
     if(vec >= 8 && vec <= 10)
         state->sepc += 4;
     return isrs[vec](state);
-}
-
-void ISR::enable_irqs() {
-    asm volatile (
-        // delegate all interrupts and exceptions to supervisor mode
-        "li     a1, 0x333\n"
-        "csrw   mideleg, a1\n"
-        "li     a0, -1\n"
-        "csrw   medeleg, a0\n"
-
-        // set stack pointer for exceptions
-        "csrw    sscratch, %0\n"
-
-        // enable interrupts
-        "csrr   a0, sie\n"
-        "or     a0, a0, a1\n"
-        "csrw   sie, a0\n"
-
-        // return to supervisor mode
-        "csrr    a0, mstatus\n"
-        "li      a1, 1 << 11\n"
-        "or      a0, a0, a1      # MPP = S\n"
-        "or      a0, a0, 1 << 1  # SIE = 1\n"
-        "csrw    mstatus, a0\n"
-
-        // jump to 1:
-        "la      a0, 1f\n"
-        "csrw    mepc, a0\n"
-
-        // set vector address
-        "slli    a0, %1, 2       # shift addr left; leave mode as direct\n"
-        "csrw    stvec, a0       # STVEC = exc_common\n"
-
-        // we need a fence to ensure that the previous CSR accesses are recognized by mret
-        "fence.i\n"
-
-        // go!
-        "mret\n"
-
-        "1:\n"
-        : : "r"(&isr_stack), "r"(&exc_common) : "a0", "a1"
-    );
 }
 
 void ISR::init() {
