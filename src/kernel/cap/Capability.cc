@@ -193,8 +193,10 @@ void MapCapability::late_revoke() {
         auto pemux = PEManager::get().pemux(vpe->peid());
         pemux->map(vpe->id(), sel() << PAGE_BITS, 0, length(), 0);
     }
-    if(obj->attr & EXCL)
+    if(obj->attr & EXCL) {
         MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length() * PAGE_SIZE));
+        vpe->kmem()->free(*vpe, length() * PAGE_SIZE);
+    }
 }
 
 void SessCapability::revoke() {
