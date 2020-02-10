@@ -92,22 +92,17 @@ impl ExchangeArgs {
         self.count as usize
     }
 
-    // safety: with this call you guarantee that the values 0..count-1 are initialized
-    // has to be called before `set_ival`.
-    pub unsafe fn set_count(&mut self, count: usize) {
-        self.count = count as u64
-    }
-
     pub fn ival(&self, idx: usize) -> u64 {
         assert!(idx < self.count as usize);
         // safety: we guarantee that the values between 0 and count-1 are initialized
         unsafe { self.vals.i[idx] }
     }
 
-    pub fn set_ival(&mut self, idx: usize, val: u64) {
-        assert!(idx < self.count as usize);
-        // safety: the assert makes sure that it's within the range that's going to be initialized
-        unsafe { self.vals.i[idx] = val };
+    pub fn push_ival(&mut self, val: u64) {
+        assert!((self.count as usize) < MAX_EXCHG_ARGS);
+        // safety: we make sure that 0..self.count-1 is always initialized
+        unsafe { self.vals.i[self.count as usize] = val };
+        self.count += 1;
     }
 
     pub fn sval(&self, idx: usize) -> u64 {

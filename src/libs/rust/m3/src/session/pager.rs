@@ -90,10 +90,8 @@ impl Pager {
     /// Clones the session to be shared with the given VPE.
     pub fn new_clone(&self) -> Result<Self, Error> {
         let mut args = kif::syscalls::ExchangeArgs::default();
-        // safety: initialized below
-        unsafe { args.set_count(1) };
         // dummy arg to distinguish from the get_sgate operation
-        args.set_ival(0, 0);
+        args.push_ival(0);
         let res = self.sess.obtain(1, &mut args)?;
         let sess = ClientSession::new_bind(res.start());
 

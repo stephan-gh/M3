@@ -17,7 +17,6 @@
 //! The service interface
 
 use core::fmt;
-use core::mem::MaybeUninit;
 use kif::syscalls;
 use serialize::{Source, Unmarshallable};
 
@@ -105,13 +104,11 @@ impl Unmarshallable for ExchangeData {
         #[allow(clippy::uninit_assumed_init)]
         let mut res = ExchangeData {
             caps: s.pop_word(),
-            // safety: we initialize them below
-            args: unsafe { MaybeUninit::uninit().assume_init() },
+            args: syscalls::ExchangeArgs::default(),
         };
-        // safety: we initialize them below
-        unsafe { res.args.set_count(s.pop_word() as usize) };
-        for i in 0..res.args.count() {
-            res.args.set_ival(i, s.pop_word());
+        let count = s.pop_word() as usize;
+        for _ in 0..count {
+            res.args.push_ival(s.pop_word());
         }
         res
     }

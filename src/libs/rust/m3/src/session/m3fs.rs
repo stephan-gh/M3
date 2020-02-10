@@ -82,9 +82,7 @@ impl M3FS {
 
     pub fn get_mem(sess: &ClientSession, off: goff) -> Result<(goff, goff, Selector), Error> {
         let mut args = kif::syscalls::ExchangeArgs::default();
-        // safety: we initialize the value below
-        unsafe { args.set_count(1) };
-        args.set_ival(0, off as u64);
+        args.push_ival(off as u64);
         let crd = sess.obtain(1, &mut args)?;
         Ok((args.ival(0) as goff, args.ival(1) as goff, crd.start()))
     }

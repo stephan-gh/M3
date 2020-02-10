@@ -159,9 +159,7 @@ impl Handler for PagerReqHandler {
                 aspace.map_mem(&data.args)
             }?;
 
-            // safety: initialized below
-            unsafe { data.args.set_count(1) };
-            data.args.set_ival(0, virt);
+            data.args.push_ival(virt);
             sel
         };
 
