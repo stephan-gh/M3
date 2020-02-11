@@ -15,9 +15,25 @@
  */
 
 #include <base/Common.h>
+#include <base/CPU.h>
 #include <string.h>
 
 int memcmp(const void *mem1, const void *mem2, size_t count) {
+    size_t align1 = reinterpret_cast<uintptr_t>(mem1) % sizeof(word_t);
+    size_t align2 = reinterpret_cast<uintptr_t>(mem2) % sizeof(word_t);
+    if(!NEED_ALIGNED_MEMACC || align1 == align2) {
+        const word_t *m1 = reinterpret_cast<const word_t*>(mem1);
+        const word_t *m2 = reinterpret_cast<const word_t*>(mem2);
+        const word_t *end = m1 + (count / sizeof(word_t));
+        while(m1 < end && *m1 == *m2) {
+            m1++;
+            m2++;
+        }
+        count -= reinterpret_cast<uintptr_t>(m1) - reinterpret_cast<uintptr_t>(mem1);
+        mem1 = m1;
+        mem2 = m2;
+    }
+
     const uint8_t *bmem1 = static_cast<const uint8_t*>(mem1);
     const uint8_t *bmem2 = static_cast<const uint8_t*>(mem2);
     for(size_t i = 0; i < count; i++) {

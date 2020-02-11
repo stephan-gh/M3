@@ -34,3 +34,4 @@ void theap();
 void tsems();
 void tstream();
 void tpipe();
+void tstring();

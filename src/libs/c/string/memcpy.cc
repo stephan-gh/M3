@@ -15,6 +15,7 @@
  */
 
 #include <base/Common.h>
+#include <base/CPU.h>
 #include <string.h>
 
 /* this is necessary to prevent that gcc transforms a loop into library-calls
@@ -28,13 +29,7 @@ void *memcpy(void *dest, const void *src, size_t len) {
     /* are both aligned equally? */
     size_t dalign = reinterpret_cast<uintptr_t>(bdest) % sizeof(word_t);
     size_t salign = reinterpret_cast<uintptr_t>(bsrc) % sizeof(word_t);
-    if(dalign == salign) {
-        // align them to a word-boundary
-        while(len > 0 && reinterpret_cast<uintptr_t>(bdest) % sizeof(word_t)) {
-            *bdest++ = *bsrc++;
-            len--;
-        }
-
+    if(!NEED_ALIGNED_MEMACC || dalign == salign) {
         word_t *ddest = reinterpret_cast<word_t*>(bdest);
         const word_t *dsrc = reinterpret_cast<const word_t*>(bsrc);
         /* copy words with loop-unrolling */

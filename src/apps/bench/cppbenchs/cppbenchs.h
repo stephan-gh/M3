@@ -35,3 +35,4 @@ void bsyscall();
 void bpipe();
 void bvpe();
 void bpagefaults();
+void bstring();

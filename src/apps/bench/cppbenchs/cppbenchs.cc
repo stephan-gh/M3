@@ -18,6 +18,8 @@
 
 #include "cppbenchs.h"
 
+int failed;
+
 int main() {
     RUN_SUITE(bdlist);
     RUN_SUITE(bslist);
@@ -30,6 +32,7 @@ int main() {
     RUN_SUITE(bfsmeta);
     RUN_SUITE(bvpe);
     RUN_SUITE(bpagefaults);
+    RUN_SUITE(bstring);
 
     m3::cout << "\033[1;32mAll tests successful!\033[0;m\n";
     return 0;

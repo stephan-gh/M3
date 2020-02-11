@@ -15,6 +15,7 @@
  */
 
 #include <base/Common.h>
+#include <base/CPU.h>
 #include <string.h>
 
 /* this is necessary to prevent that gcc transforms a loop into library-calls
@@ -26,16 +27,39 @@ void *memmove(void *dest, const void *src, size_t count) {
     if(reinterpret_cast<uint8_t*>(dest) == reinterpret_cast<const uint8_t*>(src))
         return dest;
 
-    /* moving forward */
-    if(reinterpret_cast<uint8_t*>(dest) > reinterpret_cast<const uint8_t*>(src)) {
-        const uint8_t *s = reinterpret_cast<const uint8_t*>(src) + count - 1;
-        uint8_t *d = reinterpret_cast<uint8_t*>(dest) + count - 1;
+    const uint8_t *s = reinterpret_cast<const uint8_t*>(src);
+    uint8_t *d = reinterpret_cast<uint8_t*>(dest);
+
+    // move backwards if they overlap
+    if(s < d && d < s + count) {
+        s += count;
+        d += count;
+
+        // copy words, if possible
+        if(static_cast<size_t>(d - s) >= sizeof(word_t)) {
+            size_t dalign = reinterpret_cast<uintptr_t>(d) % sizeof(word_t);
+            size_t salign = reinterpret_cast<uintptr_t>(s) % sizeof(word_t);
+            if(!NEED_ALIGNED_MEMACC || dalign == salign) {
+                // copy words
+                word_t *ddest = reinterpret_cast<word_t*>(d);
+                const word_t *dsrc = reinterpret_cast<const word_t*>(s);
+                while(count >= sizeof(word_t)) {
+                    *--ddest = *--dsrc;
+                    count -= sizeof(word_t);
+                }
+
+                d = reinterpret_cast<uint8_t*>(ddest);
+                s = reinterpret_cast<const uint8_t*>(dsrc);
+            }
+        }
+
+        // copy remaining bytes
         while(count-- > 0)
-            *d-- = *s--;
+            *--d = *--s;
     }
-    /* moving backwards */
+    // move forward
     else
-        memcpy(dest,src,count);
+        memcpy(dest, src, count);
 
     return dest;
 }

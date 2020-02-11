@@ -19,6 +19,8 @@
 #include <base/Common.h>
 #include <base/CPU.h>
 
+#define NEED_ALIGNED_MEMACC     0
+
 namespace m3 {
 
 inline uint64_t CPU::read8b(uintptr_t addr) {
