@@ -50,11 +50,7 @@ BEGIN_FUNC(isr_enable)
 
     // set vector address
     la      a0, exc_common
-    slli    a0, a0, 2       # shift addr left; leave mode as direct
     csrw    stvec, a0       # STVEC = exc_common
-
-    // we need a fence to ensure that the previous CSR accesses are recognized by mret
-    fence.i
 
     // go!
     mret
@@ -62,6 +58,7 @@ BEGIN_FUNC(isr_enable)
     ret
 END_FUNC(isr_enable)
 
+.align 4
 BEGIN_FUNC(exc_common)
     # swap x31 with SSCRATCH to have a usable register
     csrrw   x31, sscratch, x31
