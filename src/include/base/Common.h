@@ -16,7 +16,7 @@
 
 #pragma once
 
-#if defined(__cplusplus)
+#if defined(__cplusplus) || defined(__STDC_VERSION__)
 
 #   include <base/Types.h>
 #   include <base/Compiler.h>
