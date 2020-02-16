@@ -126,9 +126,13 @@ def get_dependencies(target, build_targets) :
 # TODO this is very specific for our usage of Depends in scons
 def get_m3_deps(target, build_targets):
   result = []
-  for d in get_dependencies(out, ninja.targets):
-    if "/crt" in d or d.endswith(".conf") or d.endswith(".json") or d.endswith(".toml"):
-      result.append(d)
+  queue = list(dependencies.get(target, []))
+  while len(queue) > 0 :
+    n = queue.pop()
+    if "/crt" in n or n.endswith(".conf") or n.endswith(".json") or n.endswith(".toml"):
+      if n in build_targets or os.path.exists(n):
+        result.append(n)
+        queue += list(dependencies.get(n, []))
   return result
 
 def get_built_libs(libs, libpaths, outputs) :
