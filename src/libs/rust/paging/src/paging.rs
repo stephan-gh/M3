@@ -49,7 +49,10 @@ use core::fmt;
 
 use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK, PTE_REC_IDX};
 
-pub use arch::{enable_paging, noc_to_phys, phys_to_noc, to_page_flags, MMUFlags, MMUPTE};
+pub use arch::{
+    build_pte, enable_paging, noc_to_phys, phys_to_noc, pte_to_phys, to_page_flags, MMUFlags,
+    MMUPTE,
+};
 
 /// Logs mapping operations
 pub const LOG_MAP: bool = false;
@@ -66,6 +69,7 @@ pub extern "C" fn init_aspace(
     xlate_pt: XlatePtFunc,
     root: goff,
 ) {
+    // TODO don't flush TLB on destruction
     let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame);
     aspace.init();
 }
@@ -97,43 +101,23 @@ pub extern "C" fn set_addr_space(root: PTE, alloc_frame: AllocFrameFunc, xlate_p
     aspace.switch_to();
 }
 
-fn to_pte(pte: MMUPTE) -> PTE {
-    let res = phys_to_noc((pte & !MMUFlags::FLAGS.bits()) as u64);
+fn to_pte(level: usize, pte: MMUPTE) -> PTE {
+    let res = phys_to_noc(pte_to_phys(pte) as u64);
     let flags = MMUFlags::from_bits_truncate(pte);
-    res | to_page_flags(flags).bits()
-}
-
-fn get_pte_at(virt: usize, level: usize) -> MMUPTE {
-    let virt = arch::get_pte_addr(virt, level);
-    // safety: we can access that address because of our recursive entry
-    unsafe { *(virt as *const MMUPTE) }
-}
-
-fn in_pte_area(virt: usize) -> bool {
-    let pte_begin = PTE_REC_IDX << (cfg::PAGE_BITS + (LEVEL_CNT - 1) * LEVEL_BITS);
-    let pte_end = pte_begin + (1 << (cfg::PAGE_BITS + (LEVEL_CNT - 1) * LEVEL_BITS));
-    virt >= pte_begin && virt < pte_end
+    res | to_page_flags(level, flags).bits()
 }
 
 #[no_mangle]
-pub extern "C" fn translate(virt: usize, perm: PTE) -> PTE {
-    // translate to physical
-    if in_pte_area(virt) {
-        // in the PTE area, we can assume that all upper level PTEs are present
-        to_pte(get_pte_at(virt, 0))
-    }
-    else {
-        // otherwise, walk through all levels
-        let perm = arch::to_mmu_perms(PageFlags::from_bits_truncate(perm));
-        for lvl in (0..LEVEL_CNT).rev() {
-            let pte = get_pte_at(virt, lvl);
-            let pte_flags = MMUFlags::from_bits_truncate(pte);
-            if lvl == 0 || pte_flags.perms_missing(perm) || pte_flags.is_lpage() {
-                return to_pte(pte);
-            }
-        }
-        unreachable!();
-    }
+pub extern "C" fn translate(
+    id: u64,
+    root: PTE,
+    alloc_frame: AllocFrameFunc,
+    xlate_pt: XlatePtFunc,
+    virt: usize,
+    perm: PTE,
+) -> PTE {
+    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame);
+    aspace.translate(virt, perm)
 }
 
 pub struct AddrSpace {
@@ -147,7 +131,12 @@ impl AddrSpace {
     pub fn new(id: u64, root: goff, xlate_pt: XlatePtFunc, alloc_frame: AllocFrameFunc) -> Self {
         AddrSpace {
             id,
-            root: arch::noc_to_phys(root) as MMUPTE,
+            root: build_pte(
+                arch::noc_to_phys(root) as MMUPTE,
+                MMUFlags::empty(),
+                LEVEL_CNT,
+                false,
+            ),
             xlate_pt,
             alloc_frame,
         }
@@ -158,18 +147,40 @@ impl AddrSpace {
     }
 
     pub fn switch_to(&self) {
-        arch::set_root_pt(self.id, self.root);
+        arch::set_root_pt(self.id, pte_to_phys(self.root));
     }
 
     pub fn init(&self) {
-        let pt_virt = (self.xlate_pt)(self.id, self.root);
+        let root_phys = pte_to_phys(self.root);
+        let pt_virt = (self.xlate_pt)(self.id, root_phys);
         Self::clear_pt(pt_virt);
 
         // insert recursive entry
         let rec_idx_pte = pt_virt + PTE_REC_IDX * util::size_of::<MMUPTE>();
+        let new_pte = build_pte(root_phys, MMUFlags::empty(), LEVEL_CNT - 1, false);
         // safety: we can access that address because `xlate_pt` returns as a mapped page for the
         // whole page table
-        unsafe { *(rec_idx_pte as *mut MMUPTE) = self.root | MMUFlags::table_flags().bits() };
+        unsafe { *(rec_idx_pte as *mut MMUPTE) = new_pte };
+    }
+
+    pub fn translate(&self, virt: usize, perm: PTE) -> PTE {
+        // otherwise, walk through all levels
+        let perm = arch::to_mmu_perms(PageFlags::from_bits_truncate(perm));
+        let mut pte = self.root;
+        for lvl in (0..LEVEL_CNT).rev() {
+            let pt_virt = (self.xlate_pt)(self.id, pte_to_phys(pte));
+            let idx = (virt >> (cfg::PAGE_BITS + lvl * LEVEL_BITS)) & LEVEL_MASK;
+            let pte_addr = pt_virt + idx * util::size_of::<MMUPTE>();
+
+            // safety: as above
+            pte = unsafe { *(pte_addr as *const MMUPTE) };
+
+            let pte_flags = MMUFlags::from_bits_truncate(pte);
+            if pte_flags.is_leaf(lvl) || pte_flags.perms_missing(perm) {
+                return to_pte(lvl, pte);
+            }
+        }
+        unreachable!();
     }
 
     pub fn map_pages(
@@ -206,7 +217,7 @@ impl AddrSpace {
         level: usize,
     ) -> Result<(), Error> {
         // determine virtual address for page table
-        let pt_virt = (self.xlate_pt)(self.id, pte & !MMUFlags::FLAGS.bits());
+        let pt_virt = (self.xlate_pt)(self.id, pte_to_phys(pte));
 
         // start at the corresponding index
         let idx = (*virt >> (cfg::PAGE_BITS + level * LEVEL_BITS)) & LEVEL_MASK;
@@ -228,14 +239,14 @@ impl AddrSpace {
                     && math::is_aligned(*phys, cfg::LPAGE_SIZE as MMUPTE)
                     && *pages * cfg::PAGE_SIZE >= cfg::LPAGE_SIZE)
             {
-                let (psize, flags) = if level == 1 {
-                    (cfg::LPAGE_SIZE, MMUFlags::lpage_flags().bits())
+                let psize = if level == 1 {
+                    cfg::LPAGE_SIZE
                 }
                 else {
-                    (cfg::PAGE_SIZE, MMUFlags::page_flags().bits())
+                    cfg::PAGE_SIZE
                 };
 
-                let new_pte = *phys | perm.bits() | flags;
+                let new_pte = build_pte(*phys, perm, level, true);
 
                 // determine if we need to perform an TLB invalidate
                 let old_flags = MMUFlags::from_bits_truncate(pte);
@@ -287,7 +298,7 @@ impl AddrSpace {
         Self::clear_pt((self.xlate_pt)(self.id, frame));
 
         // insert PTE
-        let pte = frame | MMUFlags::table_flags().bits();
+        let pte = build_pte(frame, MMUFlags::empty(), level, false);
         // safety: as above
         unsafe { *(pte_addr as *mut MMUPTE) = pte };
 
@@ -332,8 +343,8 @@ impl AddrSpace {
                 if pte != 0 {
                     let w = (LEVEL_CNT - level - 1) * 2;
                     writeln!(f, "{:w$}0x{:0>16x}: 0x{:0>16x}", "", virt, pte, w = w)?;
-                    if level > 0 && !MMUFlags::from_bits_truncate(pte).is_lpage() {
-                        let pt = pte & !MMUFlags::FLAGS.bits();
+                    if !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
+                        let pt = pte_to_phys(pte);
                         self.print_as_rec(f, pt, virt, level - 1)?;
                     }
                 }
@@ -357,7 +368,7 @@ impl Drop for AddrSpace {
 
 impl fmt::Debug for AddrSpace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        writeln!(f, "Address space @ 0x{:0>16x}:", self.root)?;
+        writeln!(f, "Address space @ 0x{:0>16x}:", pte_to_phys(self.root))?;
         self.print_as_rec(f, self.root, 0, LEVEL_CNT - 1)
     }
 }

@@ -171,7 +171,7 @@ pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
 
     let perm = paging::MMUFlags::from_bits_truncate(state.error & PageFlags::RW.bits() as usize);
     // the access is implicitly no-exec
-    let perm = paging::to_page_flags(perm | paging::MMUFlags::NX);
+    let perm = paging::to_page_flags(0, perm | paging::MMUFlags::NX);
 
     vma::handle_pf(state, cr2, perm, state.rip)
 }

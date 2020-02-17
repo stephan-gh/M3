@@ -21,7 +21,6 @@ use base::errors::Error;
 use base::kif::{DefaultReply, PageFlags, PTE};
 use base::util;
 use core::ptr;
-use paging;
 
 use helper;
 use vpe;
@@ -126,7 +125,8 @@ fn translate_addr(req: dtu::Reg) {
     let xfer_buf = (req >> 5) & 0x7;
 
     // perform page table walk
-    let mut pte = paging::translate(virt, perm.bits());
+    let vpe = vpe::cur();
+    let mut pte = vpe.translate(virt, perm);
     let cmd_saved = STATE.cmd_saved;
 
     if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
@@ -139,7 +139,7 @@ fn translate_addr(req: dtu::Reg) {
             let pf_handled = STATE.get_mut().handle_pf(req, virt, perm);
             match pf_handled {
                 Err(_) => pte = cfg::PAGE_SIZE as PTE, // as above
-                Ok(true) => pte = paging::translate(virt, perm.bits()), // read PTE again
+                Ok(true) => pte = vpe.translate(virt, perm), // read PTE again
                 Ok(false) => return,
             }
         }
@@ -180,7 +180,6 @@ pub fn handle_xlate(mut xlate_req: dtu::Reg) {
     }
 }
 
-#[cfg(not(target_arch = "riscv64"))]
 pub fn handle_pf(
     state: &crate::arch::State,
     virt: usize,

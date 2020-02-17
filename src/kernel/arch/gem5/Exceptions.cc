@@ -200,10 +200,13 @@ public:
         m3::ISR::init();
         for(size_t i = 0; i < m3::ISR::ISR_COUNT; ++i)
             m3::ISR::reg(i, irq_handler);
+// TODO improve that
 #if defined(__x86_64__)
         m3::ISR::reg(64, dtu_handler);
 #elif defined(__arm__)
         m3::ISR::reg(6, dtu_handler);
+#elif defined(__riscv)
+        m3::ISR::reg(16 + 9, dtu_handler);
 #endif
         m3::ISR::enable_irqs();
     }

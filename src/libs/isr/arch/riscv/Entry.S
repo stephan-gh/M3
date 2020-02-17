@@ -62,9 +62,13 @@ END_FUNC(isr_enable)
 BEGIN_FUNC(exc_common)
     # swap x31 with SSCRATCH to have a usable register
     csrrw   x31, sscratch, x31
+    # 0 indicates that we come from privileged mode; keep the SP
+    bnez    x31, 1f
+    mv      x31, sp
 
     # calculate base address
-    addi    x31, x31, -(8*33)
+1:
+    addi    x31, x31, -(8*34)
 
     # save GPRs
     sd      x1, 8*0(x31)
@@ -98,9 +102,10 @@ BEGIN_FUNC(exc_common)
     sd      x29, 8*28(x31)
     sd      x30, 8*29(x31)
 
-    # swap SSCRATCH with GPR and save it
     mv      sp, x31
-    addi    x31, x31, 8*33
+    # replace SSCRATCH with 0 (see above)
+    mv      x31, x0
+    # swap SSCRATCH with GPR and save it
     csrrw   x31, sscratch, x31
     sd      x31, 8*30(sp)
     # save SCAUSE
@@ -110,14 +115,30 @@ BEGIN_FUNC(exc_common)
     csrr    s1, sepc
     sd      s1, 8*32(sp)
 
+    # save SSP
+    csrr    s1, sstatus
+    andi    s1, s1, 1 << 8
+    sd      s1, 8*33(sp)
+
     mv      a0, sp
     jal     irq_handler
     mv      x1, sp
+
+    # restore SSP
+    ld      s1, 8*33(x1)
+    csrs    sstatus, s1
 
     # restore SEPC
     ld      s1, 8*32(x1)
     csrw    sepc, s1
 
+    # restore SSCRATCH
+    la      a0, isr_stack
+    add     a1, x1, 8*34
+    bne     a0, a1, 1f
+    csrw    sscratch, a0
+
+1:
     # restore GPRs
     ld      x31, 8*30(x1)
     ld      x30, 8*29(x1)

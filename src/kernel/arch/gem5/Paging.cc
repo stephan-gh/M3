@@ -43,6 +43,8 @@ extern "C" void init_aspace(uint64_t vpe,
                             alloc_frame_func alloc_frame, xlate_pt_func xlate_pt, goff_t root);
 extern "C" void map_pages(uint64_t vpe, uintptr_t virt, goff_t phys, size_t pages, uint64_t perm,
                           alloc_frame_func alloc_frame, xlate_pt_func xlate_pt, goff_t root);
+extern "C" uint64_t translate(uint64_t vpe, goff_t root, alloc_frame_func alloc_frame,
+                              xlate_pt_func xlate_pt, uintptr_t virt, uint64_t perm);
 
 static goff_t kalloc_frame(uint64_t) {
     static size_t pos = m3::env()->pe_mem_size / 2 + PAGE_SIZE;
@@ -114,6 +116,11 @@ void init_paging() {
 void map_pages(uintptr_t virt, goff_t phys, size_t pages, uint64_t perm) {
     goff_t root = get_addr_space();
     map_pages(VPE::KERNEL_ID, virt, phys, pages, perm, kalloc_frame, kxlate_pt, root);
+}
+
+uint64_t translate(uintptr_t virt, uint64_t perm) {
+    goff_t root = get_addr_space();
+    return translate(VPE::KERNEL_ID, root, kalloc_frame, kxlate_pt, virt, perm);
 }
 
 }

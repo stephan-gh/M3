@@ -42,20 +42,8 @@ bitflags! {
 }
 
 impl MMUFlags {
-    pub fn table_flags() -> Self {
-        Self::RWX | Self::U
-    }
-
-    pub fn page_flags() -> Self {
-        Self::empty()
-    }
-
-    pub fn lpage_flags() -> Self {
-        Self::L
-    }
-
-    pub fn is_lpage(&self) -> bool {
-        self.contains(Self::L)
+    pub fn is_leaf(&self, level: usize) -> bool {
+        level == 0 || self.contains(Self::L)
     }
 
     pub fn perms_missing(&self, perms: Self) -> bool {
@@ -65,12 +53,31 @@ impl MMUFlags {
     }
 }
 
+pub fn build_pte(phys: MMUPTE, perm: MMUFlags, level: usize, leaf: bool) -> MMUPTE {
+    let pte = phys | perm.bits();
+    if leaf {
+        if level > 0 {
+            pte | MMUFlags::L.bits()
+        }
+        else {
+            pte
+        }
+    }
+    else {
+        pte | (MMUFlags::RWX | MMUFlags::U).bits()
+    }
+}
+
+pub fn pte_to_phys(pte: MMUPTE) -> MMUPTE {
+    (pte & !MMUFlags::FLAGS.bits())
+}
+
 pub fn needs_invalidate(new_flags: MMUFlags, old_flags: MMUFlags) -> bool {
     old_flags.bits() != 0 && new_flags.perms_missing(old_flags)
 }
 
 #[no_mangle]
-pub extern "C" fn to_page_flags(pte: MMUFlags) -> PageFlags {
+pub extern "C" fn to_page_flags(_level: usize, pte: MMUFlags) -> PageFlags {
     let mut res = PageFlags::empty();
     if pte.contains(MMUFlags::P) {
         res |= PageFlags::R;
@@ -154,27 +161,4 @@ pub extern "C" fn noc_to_phys(noc: u64) -> u64 {
 #[no_mangle]
 pub extern "C" fn phys_to_noc(phys: u64) -> u64 {
     (phys & !0x0000_FF00_0000_0000) | ((phys & 0x0000_FF00_0000_0000) << 16)
-}
-
-pub fn get_pte_addr(mut virt: usize, level: usize) -> usize {
-    #[allow(clippy::erasing_op)]
-    #[rustfmt::skip]
-    const REC_MASK: usize = ((PTE_REC_IDX << (cfg::PAGE_BITS + LEVEL_BITS * 3))
-                           | (PTE_REC_IDX << (cfg::PAGE_BITS + LEVEL_BITS * 2))
-                           | (PTE_REC_IDX << (cfg::PAGE_BITS + LEVEL_BITS * 1))
-                           | (PTE_REC_IDX << (cfg::PAGE_BITS + LEVEL_BITS * 0)));
-
-    // at first, just shift it accordingly.
-    virt >>= cfg::PAGE_BITS + level * LEVEL_BITS;
-    virt <<= PTE_BITS;
-
-    // now put in one PTE_REC_IDX's for each loop that we need to take
-    let shift = level + 1;
-    let rem_mask = (1 << (cfg::PAGE_BITS + LEVEL_BITS * (LEVEL_CNT - shift))) - 1;
-    virt |= REC_MASK & !rem_mask;
-
-    // finally, make sure that we stay within the bounds for virtual addresses
-    // this is because of recMask, that might actually have too many of those.
-    virt &= (1 << (LEVEL_CNT * LEVEL_BITS + cfg::PAGE_BITS)) - 1;
-    virt
 }

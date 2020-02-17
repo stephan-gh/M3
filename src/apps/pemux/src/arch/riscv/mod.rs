@@ -15,8 +15,11 @@
  */
 
 use base::errors::Error;
+use base::kif::PageFlags;
 use base::libc;
 use core::fmt;
+
+use vma;
 
 type IsrFunc = extern "C" fn(state: &mut State) -> *mut libc::c_void;
 
@@ -65,6 +68,7 @@ pub struct State {
     pub r: [usize; 31],
     pub cause: usize,
     pub sepc: usize,
+    pub ssp: usize,
 }
 
 pub const PEXC_ARG0: usize = 9; // a0 = x10
@@ -85,6 +89,8 @@ impl fmt::Debug for State {
             writeln!(fmt, "  r[{:02}]:  {:#x}", idx + 1, r)?;
         }
         writeln!(fmt, "  cause:  {:#x}", { self.cause })?;
+        writeln!(fmt, "  sepc:   {:#x}", { self.sepc })?;
+        writeln!(fmt, "  ssp:    {:#x}", { self.ssp })?;
         Ok(())
     }
 }
@@ -108,18 +114,20 @@ pub fn enable_ints() -> bool {
     let prev: u64;
     unsafe {
         asm!(
-            "csrr $0, sie; csrs sie, $1; fence.i"
-            : "=r"(prev)
-            : "r"(1 << 9)
+            "csrr $0, sstatus; csrs sstatus, $1; fence.i"
+            // specify registers explicitly; for some reason LLVM choses the same register for both
+            // is that even legal?
+            : "={x10}"(prev)
+            : "{x11}"(1 << 1)
             : "memory"
         );
     }
-    (prev & (1 << 9)) != 0
+    (prev & (1 << 1)) != 0
 }
 
 pub fn restore_ints(prev: bool) {
     if !prev {
-        unsafe { asm!("fence.i; csrc sie, $0" : : "r"(1 << 9)) };
+        unsafe { asm!("fence.i; csrc sstatus, $0" : : "r"(1 << 1)) };
     }
 }
 
@@ -129,8 +137,9 @@ pub fn init() {
         for i in 0..=31 {
             match Vector::from(i) {
                 Vector::ENV_SCALL => isr_reg(i, crate::pexcall),
-                // Vector::PREFETCH_ABORT => isr_reg(i, crate::mmu_pf),
-                // Vector::DATA_ABORT => isr_reg(i, crate::mmu_pf),
+                Vector::INSTR_PAGEFAULT => isr_reg(i, crate::mmu_pf),
+                Vector::LOAD_PAGEFAULT => isr_reg(i, crate::mmu_pf),
+                Vector::STORE_PAGEFAULT => isr_reg(i, crate::mmu_pf),
                 Vector::SUPER_EXT_IRQ => isr_reg(i, crate::dtu_irq),
                 _ => isr_reg(i, crate::unexpected_irq),
             }
@@ -139,6 +148,16 @@ pub fn init() {
     }
 }
 
-pub fn handle_mmu_pf(_state: &mut State) -> Result<(), Error> {
-    unimplemented!();
+pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
+    let virt: usize;
+    unsafe { asm!("csrr $0, stval" : "=r"(virt)) };
+
+    let perm = match Vector::from(state.cause & 0x1F) {
+        Vector::INSTR_PAGEFAULT => PageFlags::R | PageFlags::X,
+        Vector::LOAD_PAGEFAULT => PageFlags::R,
+        Vector::STORE_PAGEFAULT => PageFlags::R | PageFlags::W,
+        _ => unreachable!(),
+    };
+
+    vma::handle_pf(state, virt, perm, state.sepc)
 }

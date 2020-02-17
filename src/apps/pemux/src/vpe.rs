@@ -71,7 +71,7 @@ pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
 
     let root_pt = mem_start + cfg::PAGE_SIZE as u64;
     let pts_count = mem_size as usize / cfg::PAGE_SIZE;
-    IDLE.set(Some(VPE::new(kif::pemux::IDLE_ID, root_pt, 0, 0)));
+    IDLE.set(Some(VPE::new(kif::pemux::IDLE_ID, root_pt, mem_start, pts_count)));
     OUR.set(Some(VPE::new(
         kif::pemux::VPE_ID,
         root_pt,
@@ -187,6 +187,10 @@ impl VPE {
         self.aspace.map_pages(virt, phys, pages, perm)
     }
 
+    pub fn translate(&self, virt: usize, perm: kif::PageFlags) -> kif::PTE {
+        self.aspace.translate(virt, perm.bits())
+    }
+
     pub fn id(&self) -> u64 {
         self.aspace.id()
     }
@@ -268,7 +272,7 @@ impl VPE {
         }
         else {
             // map our own receive buffer again
-            let pte = paging::translate(cfg::PEMUX_RBUF_SPACE, kif::PageFlags::R.bits());
+            let pte = self.translate(cfg::PEMUX_RBUF_SPACE, kif::PageFlags::R);
             self.map(
                 cfg::PEMUX_RBUF_SPACE,
                 pte & !cfg::PAGE_MASK as goff,

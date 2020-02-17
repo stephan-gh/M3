@@ -25,6 +25,7 @@ struct ExceptionState {
     word_t regs[31];
     word_t cause;
     word_t sepc;
+    word_t ssp;
 } PACKED;
 
 class ISRBase {
