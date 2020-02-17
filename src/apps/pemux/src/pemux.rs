@@ -100,6 +100,10 @@ fn leave(state: &mut arch::State) -> *mut libc::c_void {
     state as *mut _ as *mut libc::c_void
 }
 
+pub fn nesting_level() -> u32 {
+    *NESTING_LEVEL
+}
+
 pub fn stop_vpe(state: &mut arch::State) {
     if *NESTING_LEVEL > 1 {
         // prevent us from sleeping by setting the user event

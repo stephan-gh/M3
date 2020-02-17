@@ -90,10 +90,6 @@ impl fmt::Debug for State {
 }
 
 impl State {
-    pub fn came_from_user(&self) -> bool {
-        unimplemented!();
-    }
-
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.r[9] = 0xDEADBEEF; // a0; don't set the stackpointer in crt0
         self.sepc = entry;

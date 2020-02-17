@@ -100,10 +100,6 @@ impl fmt::Debug for State {
 }
 
 impl State {
-    pub fn came_from_user(&self) -> bool {
-        (self.cs & DPL_USER as usize) == DPL_USER as usize
-    }
-
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.rip = entry;
         self.rsp = sp;

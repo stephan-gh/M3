@@ -188,7 +188,7 @@ pub fn handle_pf(
 ) -> Result<(), Error> {
     // PEMux isn't causing PFs
     assert!(
-        state.came_from_user(),
+        crate::nesting_level() == 1,
         "pagefault for {:#x} at {:#x}",
         virt,
         ip
