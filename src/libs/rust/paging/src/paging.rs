@@ -69,8 +69,7 @@ pub extern "C" fn init_aspace(
     xlate_pt: XlatePtFunc,
     root: goff,
 ) {
-    // TODO don't flush TLB on destruction
-    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame);
+    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame, true);
     aspace.init();
 }
 
@@ -85,7 +84,7 @@ pub extern "C" fn map_pages(
     xlate_pt: XlatePtFunc,
     root: goff,
 ) {
-    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame);
+    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame, true);
     let perm = PageFlags::from_bits_truncate(perm);
     aspace.map_pages(virt, noc, pages, perm).unwrap();
 }
@@ -97,7 +96,7 @@ pub extern "C" fn get_addr_space() -> PTE {
 
 #[no_mangle]
 pub extern "C" fn set_addr_space(root: PTE, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) {
-    let aspace = AddrSpace::new(0, root, xlate_pt, alloc_frame);
+    let aspace = AddrSpace::new(0, root, xlate_pt, alloc_frame, true);
     aspace.switch_to();
 }
 
@@ -116,7 +115,7 @@ pub extern "C" fn translate(
     virt: usize,
     perm: PTE,
 ) -> PTE {
-    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame);
+    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame, true);
     aspace.translate(virt, perm)
 }
 
@@ -125,10 +124,17 @@ pub struct AddrSpace {
     root: MMUPTE,
     xlate_pt: XlatePtFunc,
     alloc_frame: AllocFrameFunc,
+    is_temp: bool,
 }
 
 impl AddrSpace {
-    pub fn new(id: u64, root: goff, xlate_pt: XlatePtFunc, alloc_frame: AllocFrameFunc) -> Self {
+    pub fn new(
+        id: u64,
+        root: goff,
+        xlate_pt: XlatePtFunc,
+        alloc_frame: AllocFrameFunc,
+        is_temp: bool,
+    ) -> Self {
         AddrSpace {
             id,
             root: build_pte(
@@ -139,6 +145,7 @@ impl AddrSpace {
             ),
             xlate_pt,
             alloc_frame,
+            is_temp,
         }
     }
 
@@ -359,8 +366,10 @@ impl AddrSpace {
 
 impl Drop for AddrSpace {
     fn drop(&mut self) {
-        // invalidate entire TLB to allow us to reuse the VPE id
-        arch::invalidate_tlb();
+        if !self.is_temp {
+            // invalidate entire TLB to allow us to reuse the VPE id
+            arch::invalidate_tlb();
+        }
 
         // TODO free the page tables
     }

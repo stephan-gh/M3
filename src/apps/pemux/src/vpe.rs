@@ -168,7 +168,7 @@ pub fn remove(status: u32, notify: bool) {
 impl VPE {
     pub fn new(id: u64, root_pt: goff, pts_start: goff, pts_count: usize) -> Self {
         VPE {
-            aspace: paging::AddrSpace::new(id, root_pt, xlate_pt, frame_allocator),
+            aspace: paging::AddrSpace::new(id, root_pt, xlate_pt, frame_allocator, false),
             vpe_reg: id << 19,
             pts_start: paging::noc_to_phys(pts_start) as paging::MMUPTE,
             pts_count,
