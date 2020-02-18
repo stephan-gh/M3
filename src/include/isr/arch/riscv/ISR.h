@@ -33,6 +33,8 @@ class ISRBase {
 
 public:
     static const size_t ISR_COUNT       = 32;
+
+    static const size_t DTU_ISR         = 16 + 9;
 };
 
 }

@@ -103,10 +103,10 @@ void ISR::init() {
     for(size_t i = 17; i < 63; i++)
         set_idt(i, isr_null, Desc::DPL_KERNEL);
 
-    // exit "syscalls"
-    set_idt(63, isr_63, Desc::DPL_USER);
+    // PEMux calls
+    set_idt(PEX_ISR, isr_63, Desc::DPL_USER);
     // DTU interrupts
-    set_idt(64, isr_64, Desc::DPL_KERNEL);
+    set_idt(DTU_ISR, isr_64, Desc::DPL_KERNEL);
 
     for(size_t i = 0; i < ISR_COUNT; ++i)
         reg(i, null_handler);

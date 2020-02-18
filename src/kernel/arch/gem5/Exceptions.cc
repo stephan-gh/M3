@@ -93,7 +93,7 @@ static m3::OStream &operator<<(m3::OStream &os, const m3::ISR::State &state) {
     os << "\n  irq: ";
     if(state.intrptNo < ARRAY_SIZE(exNames))
         os << exNames[state.intrptNo];
-    else if(state.intrptNo == 64)
+    else if(state.intrptNo == m3::ISR::DTU_ISR)
         os << "DTU (" << state.intrptNo << ")";
     else
         os << "<unknown> (" << state.intrptNo << ")";
@@ -200,14 +200,7 @@ public:
         m3::ISR::init();
         for(size_t i = 0; i < m3::ISR::ISR_COUNT; ++i)
             m3::ISR::reg(i, irq_handler);
-// TODO improve that
-#if defined(__x86_64__)
-        m3::ISR::reg(64, dtu_handler);
-#elif defined(__arm__)
-        m3::ISR::reg(6, dtu_handler);
-#elif defined(__riscv)
-        m3::ISR::reg(16 + 9, dtu_handler);
-#endif
+        m3::ISR::reg(m3::ISR::DTU_ISR, dtu_handler);
         m3::ISR::enable_irqs();
     }
 
