@@ -250,14 +250,15 @@ def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, va
             myenv.Append(LINKFLAGS = ' -Wl,--section-start=.text=' + ("0x%x" % link_addr))
             link_addr += 0x40000
 
+        # search for crt* in our library dir
+        myenv.Append(LINKFLAGS = ' -B' + env['LIBDIR'].abspath)
+
         prog = myenv.Program(
             target, source,
             LIBS = libs,
             LIBPATH = [crossdir + '/lib', myenv['LIBDIR']]
         )
-        myenv.Depends(prog, myenv['SYSGCCLIBPATH'].abspath + '/crt0.o')
-        myenv.Depends(prog, myenv['SYSGCCLIBPATH'].abspath + '/' + crt1)
-        myenv.Depends(prog, myenv['SYSGCCLIBPATH'].abspath + '/crtn.o')
+        myenv.Depends(prog, myenv.Glob('$LIBDIR/crt*.o'))
         myenv.Depends(prog, ldscript)
     else:
         if not NoSup:
@@ -299,7 +300,7 @@ def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr
     stlib = RustLibrary(myenv, target)
 
     if myenv['ARCH'] == 'gem5':
-        sources = [myenv['SYSGCCLIBPATH'].abspath + '/crt0.o' if startup is None else startup]
+        sources = [myenv['LIBDIR'].abspath + '/crt0.o' if startup is None else startup]
         libs    = ['c', 'm', 'gloss', 'heap', 'gcc', target] + libs
         # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
         # compiler-builtins crate, because those are poor implementations
