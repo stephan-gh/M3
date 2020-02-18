@@ -75,7 +75,7 @@ pub fn build_pte(phys: MMUPTE, perm: MMUFlags, level: usize, leaf: bool) -> MMUP
 }
 
 pub fn pte_to_phys(pte: MMUPTE) -> MMUPTE {
-    (pte & !MMUFlags::FLAGS.bits())
+    pte & !MMUFlags::FLAGS.bits()
 }
 
 pub fn needs_invalidate(_new_flags: MMUFlags, old_flags: MMUFlags) -> bool {
