@@ -19,7 +19,7 @@
 #include <base/Common.h>
 #include <base/CPU.h>
 
-#define NEED_ALIGNED_MEMACC     1
+#define NEED_ALIGNED_MEMACC     0
 
 namespace m3 {
 
