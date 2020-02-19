@@ -331,7 +331,7 @@ impl AddrSpace {
         mut virt: usize,
         level: usize,
     ) -> Result<(), fmt::Error> {
-        let mut ptes = (self.xlate_pt)(self.id, pt);
+        let mut ptes = (self.xlate_pt)(self.id, pte_to_phys(pt));
         for _ in 0..1 << LEVEL_BITS {
             // safety: as above
             let pte = unsafe { *(ptes as *const MMUPTE) };
@@ -339,8 +339,7 @@ impl AddrSpace {
                 let w = (LEVEL_CNT - level - 1) * 2;
                 writeln!(f, "{:w$}0x{:0>16x}: 0x{:0>16x}", "", virt, pte, w = w)?;
                 if !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
-                    let pt = pte_to_phys(pte);
-                    self.print_as_rec(f, pt, virt, level - 1)?;
+                    self.print_as_rec(f, pte, virt, level - 1)?;
                 }
             }
 
