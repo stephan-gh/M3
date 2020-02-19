@@ -65,7 +65,7 @@ impl fmt::Debug for State {
         writeln!(fmt, "  sp:     {:#x}", { self.sp })?;
         writeln!(
             fmt,
-            "  vec: {:#x} ({})",
+            "  vec:    {:#x} ({})",
             { self.vec },
             Vector::from(self.vec)
         )?;
