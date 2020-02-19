@@ -243,6 +243,11 @@ pub fn main() -> i32 {
         let msg = DTUIf::fetch_msg(upcall_rg);
         if let Some(msg) = msg {
             let upcall = msg.get_data::<kif::upcalls::VPEWait>();
+            if upcall.exitcode != 0 {
+                println!("Child '{}' exited with exitcode {}", name, {
+                    upcall.exitcode
+                });
+            }
             assert!(upcall.vpe_sel as Selector == vpe_act.vpe().sel());
             return Err(Error::new(Code::VPEGone));
         }
