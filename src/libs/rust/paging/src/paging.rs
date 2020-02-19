@@ -47,7 +47,7 @@ use base::math;
 use base::util;
 use core::fmt;
 
-use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK, PTE_REC_IDX};
+use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};
 
 pub use arch::{
     build_pte, enable_paging, noc_to_phys, phys_to_noc, pte_to_phys, to_page_flags, MMUFlags,
@@ -161,13 +161,6 @@ impl AddrSpace {
         let root_phys = pte_to_phys(self.root);
         let pt_virt = (self.xlate_pt)(self.id, root_phys);
         Self::clear_pt(pt_virt);
-
-        // insert recursive entry
-        let rec_idx_pte = pt_virt + PTE_REC_IDX * util::size_of::<MMUPTE>();
-        let new_pte = build_pte(root_phys, MMUFlags::empty(), LEVEL_CNT - 1, false);
-        // safety: we can access that address because `xlate_pt` returns as a mapped page for the
-        // whole page table
-        unsafe { *(rec_idx_pte as *mut MMUPTE) = new_pte };
     }
 
     pub fn translate(&self, virt: usize, perm: PTE) -> PTE {
@@ -338,22 +331,16 @@ impl AddrSpace {
         mut virt: usize,
         level: usize,
     ) -> Result<(), fmt::Error> {
-        let pte_begin = PTE_REC_IDX << (cfg::PAGE_BITS + (LEVEL_CNT - 1) * LEVEL_BITS);
-        let pte_end = pte_begin + (1 << (cfg::PAGE_BITS + (LEVEL_CNT - 1) * LEVEL_BITS));
-
         let mut ptes = (self.xlate_pt)(self.id, pt);
         for _ in 0..1 << LEVEL_BITS {
-            // don't enter the MMUPTE area
-            if virt < pte_begin || virt >= pte_end {
-                // safety: as above
-                let pte = unsafe { *(ptes as *const MMUPTE) };
-                if pte != 0 {
-                    let w = (LEVEL_CNT - level - 1) * 2;
-                    writeln!(f, "{:w$}0x{:0>16x}: 0x{:0>16x}", "", virt, pte, w = w)?;
-                    if !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
-                        let pt = pte_to_phys(pte);
-                        self.print_as_rec(f, pt, virt, level - 1)?;
-                    }
+            // safety: as above
+            let pte = unsafe { *(ptes as *const MMUPTE) };
+            if pte != 0 {
+                let w = (LEVEL_CNT - level - 1) * 2;
+                writeln!(f, "{:w$}0x{:0>16x}: 0x{:0>16x}", "", virt, pte, w = w)?;
+                if !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
+                    let pt = pte_to_phys(pte);
+                    self.print_as_rec(f, pt, virt, level - 1)?;
                 }
             }
 

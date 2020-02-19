@@ -20,7 +20,6 @@ use base::kif::PageFlags;
 pub type MMUPTE = usize;
 
 pub const PTE_BITS: usize = 3;
-pub const PTE_REC_IDX: usize = 0x10;
 
 pub const LEVEL_CNT: usize = 4;
 pub const LEVEL_BITS: usize = cfg::PAGE_BITS - PTE_BITS;
