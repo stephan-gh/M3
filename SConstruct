@@ -291,8 +291,9 @@ def Cargo(env, target, source):
 
 def RustLibrary(env, target):
     rustdir = env['ENV']['CARGO_TARGET_DIR']
+    builddir = 'debug' if env['BUILD'] == 'debug' else 'release'
     stlib = env.Cargo(
-        target = rustdir + '/$TRIPLE/$BUILD/lib' + target + '.a',
+        target = rustdir + '/$TRIPLE/' + builddir + '/lib' + target + '.a',
         source = 'src/' + target + '.rs'
     )
     env.Install(env['LIBDIR'], stlib)

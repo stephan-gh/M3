@@ -14,11 +14,6 @@ if [ -z $M3_GEM5_OUT ]; then
     M3_GEM5_OUT="run"
 fi
 
-# set build mode
-if [ "$M3_BUILD" != "debug" ] && [ "$M3_BUILD" != "release" ]; then
-    echo "Build type $M3_BUILD not supported." >&2 && exit 1
-fi
-
 # set target
 if [ "$M3_TARGET" = "gem5" ]; then
     if [ "$M3_ISA" != "arm" ] && [ "$M3_ISA" != "x86_64" ] && [ "$M3_ISA" != "riscv" ]; then
