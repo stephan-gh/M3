@@ -257,7 +257,7 @@ def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, va
         # compiler-builtins crate, because those are poor implementations. Note that we do that for
         # all M3 programs, because for example the kernel links against a Rust library.
         sources = [source]
-        if myenv['ISA'] == 'riscv':
+        if myenv['ISA'] in ['riscv', 'arm']:
             sources += myenv.Glob('$BUILDDIR/src/libs/c/string/*.o')
 
         prog = myenv.Program(
