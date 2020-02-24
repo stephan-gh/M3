@@ -253,8 +253,15 @@ def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, va
         # search for crt* in our library dir
         myenv.Append(LINKFLAGS = ' -B' + env['LIBDIR'].abspath)
 
+        # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
+        # compiler-builtins crate, because those are poor implementations. Note that we do that for
+        # all M3 programs, because for example the kernel links against a Rust library.
+        sources = [source]
+        if myenv['ISA'] == 'riscv':
+            sources += myenv.Glob('$BUILDDIR/src/libs/c/string/*.o')
+
         prog = myenv.Program(
-            target, source,
+            target, sources,
             LIBS = libs,
             LIBPATH = [crossdir + '/lib', myenv['LIBDIR']]
         )
@@ -302,10 +309,6 @@ def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr
     if myenv['ARCH'] == 'gem5':
         sources = [myenv['LIBDIR'].abspath + '/crt0.o' if startup is None else startup]
         libs    = ['c', 'm', 'gloss', 'heap', 'gcc', target] + libs
-        # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
-        # compiler-builtins crate, because those are poor implementations
-        if myenv['ISA'] == 'riscv':
-            sources += myenv.Glob('$BUILDDIR/src/libs/c/string/*.o')
     else:
         sources = []
         # leave the host lib in here as well to let scons know about the dependency
