@@ -115,18 +115,17 @@ BEGIN_FUNC(exc_common)
     csrr    s1, sepc
     sd      s1, 8*32(sp)
 
-    # save SSP
+    # save SSTATUS
     csrr    s1, sstatus
-    andi    s1, s1, 1 << 8
     sd      s1, 8*33(sp)
 
     mv      a0, sp
     jal     irq_handler
     mv      x1, sp
 
-    # restore SSP
+    # restore SSTATUS
     ld      s1, 8*33(x1)
-    csrs    sstatus, s1
+    csrw    sstatus, s1
 
     # restore SEPC
     ld      s1, 8*32(x1)

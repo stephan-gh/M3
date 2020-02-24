@@ -68,7 +68,7 @@ pub struct State {
     pub r: [usize; 31],
     pub cause: usize,
     pub sepc: usize,
-    pub ssp: usize,
+    pub sstatus: usize,
 }
 
 pub const PEXC_ARG0: usize = 9; // a0 = x10
@@ -90,7 +90,7 @@ impl fmt::Debug for State {
         }
         writeln!(fmt, "  cause:  {:#x}", { self.cause })?;
         writeln!(fmt, "  sepc:   {:#x}", { self.sepc })?;
-        writeln!(fmt, "  ssp:    {:#x}", { self.ssp })?;
+        writeln!(fmt, "  status: {:#x}", { self.sstatus })?;
         Ok(())
     }
 }
