@@ -33,7 +33,7 @@ extern "C" fn xlate_pt(vpe: u64, phys: paging::MMUPTE) -> usize {
     let vpe = get_mut(vpe).unwrap();
     assert!(phys >= vpe.pts_start() && phys < vpe.pts_end());
     let off = phys - vpe.pts_start();
-    if vpe.id() == kif::pemux::VPE_ID {
+    if INFO.bootstrap {
         off as usize
     }
     else {
@@ -45,6 +45,7 @@ struct Info {
     pe_desc: kif::PEDesc,
     mem_start: u64,
     mem_end: u64,
+    bootstrap: bool,
 }
 
 pub struct VPE {
@@ -62,6 +63,7 @@ static INFO: StaticCell<Info> = StaticCell::new(Info {
     pe_desc: kif::PEDesc::new_from(0),
     mem_start: 0,
     mem_end: 0,
+    bootstrap: true,
 });
 
 pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
@@ -84,6 +86,8 @@ pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
         our().switch_to();
         paging::enable_paging();
     }
+
+    INFO.get_mut().bootstrap = false;
 }
 
 pub fn add(id: u64) {
