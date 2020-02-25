@@ -185,12 +185,11 @@ pub fn handle_pf(
     ip: usize,
 ) -> Result<(), Error> {
     // PEMux isn't causing PFs
-    assert!(
-        crate::nesting_level() == 1,
-        "pagefault for {:#x} at {:#x}",
-        virt,
-        ip
-    );
+    if crate::nesting_level() != 1 {
+        // save the current command to ensure that we can use the print command
+        let _cmd_saved = helper::DTUGuard::new();
+        panic!("pagefault for {:#x} at {:#x}", virt, ip);
+    }
 
     if let Err(e) = STATE.get_mut().handle_pf(0, virt, perm) {
         log!(crate::LOG_ERR, "Pagefault for {:#x} with {:?}", virt, state);
