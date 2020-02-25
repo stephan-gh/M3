@@ -88,6 +88,10 @@ impl ExchangeArgs {
         Self { count, vals }
     }
 
+    pub fn clear(&mut self) {
+        self.count = 0;
+    }
+
     pub fn count(&self) -> usize {
         self.count as usize
     }
