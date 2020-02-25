@@ -128,6 +128,7 @@ fn translate_addr(req: dtu::Reg) {
     let vpe = vpe::cur();
     let mut pte = vpe.translate(virt, perm);
     let cmd_saved = STATE.cmd_saved;
+    let mut aborted = false;
 
     if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
         // the first xfer buffer can't raise pagefaults
@@ -136,6 +137,7 @@ fn translate_addr(req: dtu::Reg) {
             pte = cfg::PAGE_SIZE as PTE;
         }
         else {
+            aborted = true;
             let pf_handled = STATE.get_mut().handle_pf(req, virt, perm);
             match pf_handled {
                 Err(_) => pte = cfg::PAGE_SIZE as PTE, // as above
@@ -147,10 +149,7 @@ fn translate_addr(req: dtu::Reg) {
 
     // tell DTU the result; but only if the command has not been aborted or the aborted command
     // did not trigger the translation (in this case, the translation is already aborted, too).
-    // TODO that means that aborted commands cause another TLB miss in the DTU, which can then
-    // (hopefully) be handled with a simple PT walk. we could improve that by setting the TLB entry
-    // right away without continuing the transfer (because that's aborted)
-    if cmd_saved != STATE.cmd_saved || !STATE.cmd.has_cmd() || STATE.cmd.xfer_buf() != xfer_buf {
+    if !aborted || STATE.cmd.xfer_buf() != xfer_buf {
         dtu::DTU::set_core_resp(pte | (xfer_buf << 5));
     }
 
