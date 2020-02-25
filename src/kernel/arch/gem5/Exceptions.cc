@@ -215,8 +215,7 @@ public:
         if(~(pte & 0xF) & perm)
             PANIC("Pagefault during PT walk for " << virt << " (PTE=" << m3::fmt(pte, "p") << ")");
 
-        // tell DTU the result (U because the entries are always accessible by the CU)
-        dtu.set_core_resp(m3::KIF::PageFlags::U | pte | (xferbuf << 5));
+        dtu.set_core_resp(pte | (xferbuf << 5));
     }
 
     static void *dtu_handler(m3::ISR::State *state) {

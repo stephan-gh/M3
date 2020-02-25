@@ -151,8 +151,7 @@ fn translate_addr(req: dtu::Reg) {
     // (hopefully) be handled with a simple PT walk. we could improve that by setting the TLB entry
     // right away without continuing the transfer (because that's aborted)
     if cmd_saved != STATE.cmd_saved || !STATE.cmd.has_cmd() || STATE.cmd.xfer_buf() != xfer_buf {
-        // the entries are always accessible by the CU
-        dtu::DTU::set_core_resp(PageFlags::U.bits() | pte | (xfer_buf << 5));
+        dtu::DTU::set_core_resp(pte | (xfer_buf << 5));
     }
 
     if cmd_saved != STATE.cmd_saved {
