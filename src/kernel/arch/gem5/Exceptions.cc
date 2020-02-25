@@ -22,6 +22,7 @@
 
 #include <isr/ISR.h>
 
+#include "pes/VPE.h"
 #include "Paging.h"
 
 namespace kernel {
@@ -207,7 +208,7 @@ public:
     static void handle_xlate(m3::DTU::reg_t xlate_req) {
         m3::DTU &dtu = m3::DTU::get();
 
-        uintptr_t virt = xlate_req & ~PAGE_MASK;
+        uintptr_t virt = (xlate_req & 0xFFFFFFFFFFFF) & ~PAGE_MASK;
         uint perm = (xlate_req >> 1) & 0x7;
         uint xferbuf = (xlate_req >> 5) & 0x7;
 

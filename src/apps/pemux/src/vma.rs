@@ -120,12 +120,13 @@ impl XlateState {
 static STATE: StaticCell<XlateState> = StaticCell::new(XlateState::new());
 
 fn translate_addr(req: dtu::Reg) {
-    let virt = req as usize & !cfg::PAGE_MASK as usize;
+    let asid = req >> 48;
+    let virt = ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize;
     let perm = PageFlags::from_bits_truncate((req >> 1) & PageFlags::RW.bits());
     let xfer_buf = (req >> 5) & 0x7;
 
     // perform page table walk
-    let vpe = vpe::cur();
+    let vpe = vpe::get_mut(asid).unwrap();
     let mut pte = vpe.translate(virt, perm);
     let cmd_saved = STATE.cmd_saved;
     let mut aborted = false;

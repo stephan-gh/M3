@@ -556,6 +556,11 @@ impl DTU {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::INV_TLB.val);
     }
 
+    pub fn invalidate_page(asid: u16, virt: usize) {
+        let val = ((asid as Reg) << 48) | ((virt as Reg) << 4) | PrivCmdOpCode::INV_PAGE.val;
+        Self::write_priv_reg(PrivReg::PRIV_CMD, val);
+    }
+
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {
         Self::read_reg(DTU_REGS + reg.val as usize)
     }

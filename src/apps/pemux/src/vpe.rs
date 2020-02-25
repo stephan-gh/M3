@@ -307,7 +307,6 @@ impl VPE {
 
     fn switch_to(&self) {
         self.aspace.switch_to();
-        dtu::DTU::invalidate_tlb();
     }
 
     fn map_rbuf(&mut self, addr: usize, size: usize, perm: kif::PageFlags) {
