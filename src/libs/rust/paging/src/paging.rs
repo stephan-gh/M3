@@ -63,6 +63,32 @@ pub const LOG_MAP_DETAIL: bool = false;
 pub type AllocFrameFunc = extern "C" fn(vpe: u64) -> MMUPTE;
 pub type XlatePtFunc = extern "C" fn(vpe: u64, phys: MMUPTE) -> usize;
 
+pub struct ExtAllocator {
+    vpe: u64,
+    alloc_frame: AllocFrameFunc,
+    xlate_pt: XlatePtFunc,
+}
+
+impl ExtAllocator {
+    pub fn new(vpe: u64, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) -> Self {
+        Self {
+            vpe,
+            alloc_frame,
+            xlate_pt,
+        }
+    }
+}
+
+impl Allocator for ExtAllocator {
+    fn allocate_pt(&mut self) -> MMUPTE {
+        (self.alloc_frame)(self.vpe)
+    }
+
+    fn translate_pt(&self, phys: MMUPTE) -> usize {
+        (self.xlate_pt)(self.vpe, phys)
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn init_aspace(
     id: u64,
@@ -70,7 +96,7 @@ pub extern "C" fn init_aspace(
     xlate_pt: XlatePtFunc,
     root: goff,
 ) {
-    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame, true);
+    let aspace = AddrSpace::new(id, root, ExtAllocator::new(id, alloc_frame, xlate_pt), true);
     aspace.init();
 }
 
@@ -85,7 +111,7 @@ pub extern "C" fn map_pages(
     xlate_pt: XlatePtFunc,
     root: goff,
 ) {
-    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame, true);
+    let mut aspace = AddrSpace::new(id, root, ExtAllocator::new(id, alloc_frame, xlate_pt), true);
     let perm = PageFlags::from_bits_truncate(perm);
     aspace.map_pages(virt, noc, pages, perm).unwrap();
 }
@@ -97,7 +123,7 @@ pub extern "C" fn get_addr_space() -> PTE {
 
 #[no_mangle]
 pub extern "C" fn set_addr_space(root: PTE, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) {
-    let aspace = AddrSpace::new(0, root, xlate_pt, alloc_frame, true);
+    let aspace = AddrSpace::new(0, root, ExtAllocator::new(0, alloc_frame, xlate_pt), true);
     aspace.switch_to();
 }
 
@@ -116,26 +142,24 @@ pub extern "C" fn translate(
     virt: usize,
     perm: PTE,
 ) -> PTE {
-    let aspace = AddrSpace::new(id, root, xlate_pt, alloc_frame, true);
+    let aspace = AddrSpace::new(id, root, ExtAllocator::new(id, alloc_frame, xlate_pt), true);
     aspace.translate(virt, perm)
 }
 
-pub struct AddrSpace {
+pub trait Allocator {
+    fn allocate_pt(&mut self) -> MMUPTE;
+    fn translate_pt(&self, phys: MMUPTE) -> usize;
+}
+
+pub struct AddrSpace<Allocator> {
     id: u64,
     root: MMUPTE,
-    xlate_pt: XlatePtFunc,
-    alloc_frame: AllocFrameFunc,
+    alloc: Allocator,
     is_temp: bool,
 }
 
-impl AddrSpace {
-    pub fn new(
-        id: u64,
-        root: goff,
-        xlate_pt: XlatePtFunc,
-        alloc_frame: AllocFrameFunc,
-        is_temp: bool,
-    ) -> Self {
+impl<A: Allocator> AddrSpace<A> {
+    pub fn new(id: u64, root: goff, alloc: A, is_temp: bool) -> Self {
         AddrSpace {
             id,
             root: build_pte(
@@ -144,8 +168,7 @@ impl AddrSpace {
                 LEVEL_CNT,
                 false,
             ),
-            xlate_pt,
-            alloc_frame,
+            alloc,
             is_temp,
         }
     }
@@ -154,13 +177,21 @@ impl AddrSpace {
         self.id
     }
 
+    pub fn allocator(&self) -> &A {
+        &self.alloc
+    }
+
+    pub fn allocator_mut(&mut self) -> &mut A {
+        &mut self.alloc
+    }
+
     pub fn switch_to(&self) {
         arch::set_root_pt(self.id, pte_to_phys(self.root));
     }
 
     pub fn init(&self) {
         let root_phys = pte_to_phys(self.root);
-        let pt_virt = (self.xlate_pt)(self.id, root_phys);
+        let pt_virt = self.alloc.translate_pt(root_phys);
         Self::clear_pt(pt_virt);
     }
 
@@ -169,7 +200,7 @@ impl AddrSpace {
         let perm = arch::to_mmu_perms(PageFlags::from_bits_truncate(perm));
         let mut pte = self.root;
         for lvl in (0..LEVEL_CNT).rev() {
-            let pt_virt = (self.xlate_pt)(self.id, pte_to_phys(pte));
+            let pt_virt = self.alloc.translate_pt(pte_to_phys(pte));
             let idx = (virt >> (cfg::PAGE_BITS + lvl * LEVEL_BITS)) & LEVEL_MASK;
             let pte_addr = pt_virt + idx * util::size_of::<MMUPTE>();
 
@@ -185,7 +216,7 @@ impl AddrSpace {
     }
 
     pub fn map_pages(
-        &self,
+        &mut self,
         mut virt: usize,
         noc: goff,
         mut pages: usize,
@@ -209,7 +240,7 @@ impl AddrSpace {
     }
 
     fn map_pages_rec(
-        &self,
+        &mut self,
         virt: &mut usize,
         phys: &mut MMUPTE,
         pages: &mut usize,
@@ -218,7 +249,7 @@ impl AddrSpace {
         level: usize,
     ) -> Result<(), Error> {
         // determine virtual address for page table
-        let pt_virt = (self.xlate_pt)(self.id, pte_to_phys(pte));
+        let pt_virt = self.alloc.translate_pt(pte_to_phys(pte));
 
         // start at the corresponding index
         let idx = (*virt >> (cfg::PAGE_BITS + level * LEVEL_BITS)) & LEVEL_MASK;
@@ -292,12 +323,12 @@ impl AddrSpace {
         Ok(())
     }
 
-    fn create_pt(&self, virt: usize, pte_addr: usize, level: usize) -> Result<MMUPTE, Error> {
-        let frame = (self.alloc_frame)(self.id);
+    fn create_pt(&mut self, virt: usize, pte_addr: usize, level: usize) -> Result<MMUPTE, Error> {
+        let frame = self.alloc.allocate_pt();
         if frame == 0 {
             return Err(Error::new(Code::NoSpace));
         }
-        Self::clear_pt((self.xlate_pt)(self.id, frame));
+        Self::clear_pt(self.alloc.translate_pt(frame));
 
         // insert PTE
         let pte = build_pte(frame, MMUFlags::empty(), level, false);
@@ -333,7 +364,7 @@ impl AddrSpace {
         mut virt: usize,
         level: usize,
     ) -> Result<(), fmt::Error> {
-        let mut ptes = (self.xlate_pt)(self.id, pte_to_phys(pt));
+        let mut ptes = self.alloc.translate_pt(pte_to_phys(pt));
         for _ in 0..1 << LEVEL_BITS {
             // safety: as above
             let pte = unsafe { *(ptes as *const MMUPTE) };
@@ -352,7 +383,7 @@ impl AddrSpace {
     }
 }
 
-impl Drop for AddrSpace {
+impl<A> Drop for AddrSpace<A> {
     fn drop(&mut self) {
         if !self.is_temp {
             // invalidate entire TLB to allow us to reuse the VPE id
@@ -364,7 +395,7 @@ impl Drop for AddrSpace {
     }
 }
 
-impl fmt::Debug for AddrSpace {
+impl<A: Allocator> fmt::Debug for AddrSpace<A> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         writeln!(f, "Address space @ 0x{:0>16x}:", pte_to_phys(self.root))?;
         self.print_as_rec(f, self.root, 0, LEVEL_CNT - 1)

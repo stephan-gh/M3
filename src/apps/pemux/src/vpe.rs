@@ -24,20 +24,38 @@ use base::math;
 use base::util;
 
 use helper;
+use paging::Allocator;
 
-extern "C" fn frame_allocator(vpe: u64) -> paging::MMUPTE {
-    get_mut(vpe).unwrap().alloc_frame()
+struct PTAllocator {
+    vpe: u64,
+    pts_start: paging::MMUPTE,
+    pts_count: usize,
+    pts_pos: usize,
 }
 
-extern "C" fn xlate_pt(vpe: u64, phys: paging::MMUPTE) -> usize {
-    let vpe = get_mut(vpe).unwrap();
-    assert!(phys >= vpe.pts_start() && phys < vpe.pts_end());
-    let off = phys - vpe.pts_start();
-    if INFO.bootstrap {
-        off as usize
+impl Allocator for PTAllocator {
+    fn allocate_pt(&mut self) -> paging::MMUPTE {
+        assert!(self.vpe != kif::pemux::IDLE_ID);
+        if self.pts_pos < self.pts_count {
+            let res = self.pts_start + (cfg::PAGE_SIZE * self.pts_pos) as paging::MMUPTE;
+            self.pts_pos += 1;
+            res
+        }
+        else {
+            0
+        }
     }
-    else {
-        cfg::PE_MEM_BASE + off as usize
+
+    fn translate_pt(&self, phys: paging::MMUPTE) -> usize {
+        let pts_end = self.pts_start + (self.pts_count * cfg::PAGE_SIZE) as paging::MMUPTE;
+        assert!(phys >= self.pts_start && phys < pts_end);
+        let off = phys - self.pts_start;
+        if INFO.bootstrap {
+            off as usize
+        }
+        else {
+            cfg::PE_MEM_BASE + off as usize
+        }
     }
 }
 
@@ -49,11 +67,8 @@ struct Info {
 }
 
 pub struct VPE {
-    aspace: paging::AddrSpace,
+    aspace: paging::AddrSpace<PTAllocator>,
     vpe_reg: dtu::Reg,
-    pts_start: paging::MMUPTE,
-    pts_count: usize,
-    pts_pos: usize,
 }
 
 static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
@@ -171,18 +186,22 @@ pub fn remove(status: u32, notify: bool) {
 
 impl VPE {
     pub fn new(id: u64, root_pt: goff, pts_start: goff, pts_count: usize) -> Self {
-        VPE {
-            aspace: paging::AddrSpace::new(id, root_pt, xlate_pt, frame_allocator, false),
-            vpe_reg: id << 19,
+        let allocator = PTAllocator {
+            vpe: id,
             pts_start: paging::noc_to_phys(pts_start) as paging::MMUPTE,
             pts_count,
             // + 1 to skip the root PT
             pts_pos: (root_pt - pts_start) as usize / cfg::PAGE_SIZE + 1,
+        };
+
+        VPE {
+            aspace: paging::AddrSpace::new(id, root_pt, allocator, false),
+            vpe_reg: id << 19,
         }
     }
 
     pub fn map(
-        &self,
+        &mut self,
         virt: usize,
         phys: goff,
         pages: usize,
@@ -217,14 +236,6 @@ impl VPE {
 
     pub fn add_msg(&mut self) {
         self.vpe_reg += 1 << 3;
-    }
-
-    fn pts_start(&self) -> paging::MMUPTE {
-        self.pts_start
-    }
-
-    fn pts_end(&self) -> paging::MMUPTE {
-        self.pts_start + (self.pts_count * cfg::PAGE_SIZE) as paging::MMUPTE
     }
 
     fn init(&mut self) {
@@ -291,11 +302,11 @@ impl VPE {
         }
 
         // map PTs
-        let noc_begin = paging::phys_to_noc(self.pts_start as u64);
+        let noc_begin = paging::phys_to_noc(self.aspace.allocator().pts_start as u64);
         self.map(
             cfg::PE_MEM_BASE,
             noc_begin,
-            self.pts_count,
+            self.aspace.allocator().pts_count,
             kif::PageFlags::RW,
         )
         .unwrap();
@@ -311,7 +322,7 @@ impl VPE {
 
     fn map_rbuf(&mut self, addr: usize, size: usize, perm: kif::PageFlags) {
         for i in 0..(size / cfg::PAGE_SIZE) {
-            let frame = self.alloc_frame();
+            let frame = self.aspace.allocator_mut().allocate_pt();
             assert!(frame != 0);
             self.map(
                 addr + i * cfg::PAGE_SIZE,
@@ -323,27 +334,16 @@ impl VPE {
         }
     }
 
-    fn map_segment(&self, start: *const u8, end: *const u8, perm: kif::PageFlags) {
+    fn map_segment(&mut self, start: *const u8, end: *const u8, perm: kif::PageFlags) {
         let start = math::round_dn(start as usize, cfg::PAGE_SIZE);
         let end = math::round_up(end as usize, cfg::PAGE_SIZE);
         let pages = (end - start) / cfg::PAGE_SIZE;
         self.map(
             start,
-            paging::phys_to_noc((self.pts_start as usize + start) as goff),
+            paging::phys_to_noc((self.aspace.allocator().pts_start as usize + start) as goff),
             pages,
             perm,
         )
         .unwrap();
-    }
-
-    fn alloc_frame(&mut self) -> paging::MMUPTE {
-        if self.pts_pos < self.pts_count {
-            let res = self.pts_start + (cfg::PAGE_SIZE * self.pts_pos) as paging::MMUPTE;
-            self.pts_pos += 1;
-            res
-        }
-        else {
-            0
-        }
     }
 }
