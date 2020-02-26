@@ -276,7 +276,7 @@ impl VPE {
         }
         else {
             // map our own receive buffer again
-            let pte = self.translate(cfg::PEMUX_RBUF_SPACE, kif::PageFlags::R);
+            let pte = our().translate(cfg::PEMUX_RBUF_SPACE, kif::PageFlags::R);
             self.map(
                 cfg::PEMUX_RBUF_SPACE,
                 pte & !cfg::PAGE_MASK as goff,
