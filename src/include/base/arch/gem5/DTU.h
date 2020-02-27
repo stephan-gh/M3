@@ -66,7 +66,7 @@ public:
 
 private:
     static const size_t DTU_REGS            = 4;
-    static const size_t PRIV_REGS           = 5;
+    static const size_t PRIV_REGS           = 6;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
 
@@ -84,8 +84,9 @@ private:
         CORE_REQ            = 0,
         CORE_RESP           = 1,
         PRIV_CMD            = 2,
-        CUR_VPE             = 3,
-        OLD_VPE             = 4,
+        EXT_CMD             = 3,
+        CUR_VPE             = 4,
+        OLD_VPE             = 5,
     };
 
     enum class CmdRegs {
@@ -122,13 +123,17 @@ private:
 
     enum class PrivCmdOpCode {
         IDLE                = 0,
+        INV_PAGE            = 1,
+        INV_TLB             = 2,
+        XCHG_VPE            = 3,
+    };
+
+    enum class ExtCmdOpCode {
+        IDLE                = 0,
         INV_EP              = 1,
-        INV_PAGE            = 2,
-        INV_TLB             = 3,
-        INV_REPLY           = 4,
-        RESET               = 5,
-        FLUSH_CACHE         = 6,
-        XCHG_VPE            = 7,
+        INV_REPLY           = 2,
+        RESET               = 3,
+        FLUSH_CACHE         = 4,
     };
 
 public:

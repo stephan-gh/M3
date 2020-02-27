@@ -109,10 +109,12 @@ int_enum! {
         const CORE_RESP     = 0x1;
         /// For privileged commands
         const PRIV_CMD      = 0x2;
+        /// For external commands
+        const EXT_CMD       = 0x3;
         /// The current VPE
-        const CUR_VPE       = 0x3;
+        const CUR_VPE       = 0x4;
         /// The old VPE (only set by XCHG_VPE command)
-        const OLD_VPE       = 0x4;
+        const OLD_VPE       = 0x5;
     }
 }
 
@@ -202,20 +204,28 @@ int_enum! {
     pub struct PrivCmdOpCode : Reg {
         /// The idle command has no effect
         const IDLE        = 0;
+        /// Invalidate a single TLB entry
+        const INV_PAGE    = 1;
+        /// Invalidate all TLB entries
+        const INV_TLB     = 2;
+        /// Changes the VPE
+        const XCHG_VPE    = 3;
+    }
+}
+
+int_enum! {
+    /// The external commands
+    pub struct ExtCmdOpCode : Reg {
+        /// The idle command has no effect
+        const IDLE        = 0;
         /// Invalidate and endpoint, if possible
         const INV_EP      = 1;
-        /// Invalidate a single TLB entry
-        const INV_PAGE    = 2;
-        /// Invalidate all TLB entries
-        const INV_TLB     = 3;
         /// Invalidate replies from a given sender
-        const INV_REPLY   = 4;
+        const INV_REPLY   = 2;
         /// Reset the CU
-        const RESET       = 5;
+        const RESET       = 3;
         /// Flushes the CU's cache
-        const FLUSH_CACHE = 6;
-        /// Changes the VPE
-        const XCHG_VPE    = 7;
+        const FLUSH_CACHE = 4;
     }
 }
 

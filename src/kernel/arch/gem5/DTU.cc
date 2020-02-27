@@ -30,16 +30,16 @@ namespace kernel {
 
 static char buffer[8192];
 
-void DTU::do_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
-    m3::Errors::Code res = try_priv_cmd(vpe, cmd);
+void DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
+    m3::Errors::Code res = try_ext_cmd(vpe, cmd);
     if(res != m3::Errors::NONE)
         PANIC("External command " << cmd << " failed: " << res);
 }
 
-m3::Errors::Code DTU::try_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
+m3::Errors::Code DTU::try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
     m3::DTU::reg_t reg = cmd;
     m3::CPU::compiler_barrier();
-    return try_write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::PRIV_CMD), &reg, sizeof(reg));
+    return try_write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
 }
 
 void DTU::deprivilege(peid_t pe) {
@@ -52,9 +52,9 @@ void DTU::deprivilege(peid_t pe) {
 }
 
 void DTU::init_vpe(const VPEDesc &vpe) {
-    m3::DTU::reg_t value = static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::RESET);
+    m3::DTU::reg_t value = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::RESET);
     value |= static_cast<m3::DTU::reg_t>(1) << 63;
-    DTU::get().do_priv_cmd(vpe, value);
+    DTU::get().do_ext_cmd(vpe, value);
 }
 
 void DTU::kill_vpe(const VPEDesc &vpe) {
@@ -67,21 +67,21 @@ void DTU::kill_vpe(const VPEDesc &vpe) {
 }
 
 void DTU::flush_cache(const VPEDesc &vpe) {
-    m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::FLUSH_CACHE);
-    do_priv_cmd(vpe, cmd);
+    m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::FLUSH_CACHE);
+    do_ext_cmd(vpe, cmd);
 }
 
 m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
-    m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::INV_REPLY);
+    m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_REPLY);
     cmd |= (rep << 4) | (pe << 20) | (sep << 28);
-    return try_priv_cmd(vpe, cmd);
+    return try_ext_cmd(vpe, cmd);
 }
 
 m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force) {
     m3::DTU::reg_t cmd =
-        static_cast<m3::DTU::reg_t>(m3::DTU::PrivCmdOpCode::INV_EP) | (ep << 4) |
+        static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 4) |
         (static_cast<m3::DTU::reg_t>(force) << 20);
-    return try_priv_cmd(vpe, cmd);
+    return try_ext_cmd(vpe, cmd);
 }
 
 void DTU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {

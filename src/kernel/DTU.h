@@ -80,8 +80,8 @@ public:
 
 private:
 #if defined(__gem5__)
-    void do_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
-    m3::Errors::Code try_priv_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
+    void do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
+    m3::Errors::Code try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd);
 #endif
 
     epid_t _ep;
