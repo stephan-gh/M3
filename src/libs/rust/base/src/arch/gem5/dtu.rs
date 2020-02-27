@@ -517,7 +517,11 @@ impl DTU {
     pub fn abort() -> (Reg, Reg) {
         // save the old value before aborting
         let mut cmd_reg = Self::read_cmd_reg(CmdReg::COMMAND);
+        // ensure that we read the command register before the abort has been executed
+        unsafe { intrinsics::atomic_fence() };
         Self::write_cmd_reg(CmdReg::ABORT, 1);
+        // ensure that we read the command register after the abort has been executed
+        unsafe { intrinsics::atomic_fence() };
 
         // wait until the abort is finished.
         match Self::get_error() {
