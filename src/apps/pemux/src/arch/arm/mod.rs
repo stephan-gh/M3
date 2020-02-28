@@ -96,28 +96,20 @@ impl State {
 }
 
 pub fn enable_ints() -> bool {
-    let enabled: u32;
+    let masked: u32;
     unsafe {
         asm!(
-            "mrs $0, cpsr; cpsie if; and $0, $0, #0xc0;"
-            : "=r"(enabled)
+            "mrs $0, cpsr; cpsie if; and $0, $0, #0x80;"
+            : "=r"(masked)
             : : "memory"
         );
     }
-    enabled != 0
+    masked == 0
 }
 
 pub fn restore_ints(prev: bool) {
-    let flags = match prev {
-        true => 0xc0,
-        false => 0,
-    };
-    unsafe {
-        asm!(
-            "mrs r1, cpsr; bic r1, r1, $0; msr cpsr_c, r1"
-            : : "r"(flags)
-            : "r1", "memory" : "volatile"
-        );
+    if !prev {
+        unsafe { asm!("cpsid if" : : : "memory" : "volatile"); }
     }
 }
 
