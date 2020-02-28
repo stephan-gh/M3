@@ -126,8 +126,7 @@ fn translate_addr(req: dtu::Reg) {
     let xfer_buf = (req >> 5) & 0x7;
 
     // perform page table walk
-    let vpe = vpe::get_mut(asid).unwrap();
-    let mut pte = vpe.translate(virt, perm);
+    let mut pte = vpe::get_mut(asid).map_or(0, |v| v.translate(virt, perm));
     let cmd_saved = STATE.cmd_saved;
     let mut aborted = false;
 
@@ -142,7 +141,8 @@ fn translate_addr(req: dtu::Reg) {
             let pf_handled = STATE.get_mut().handle_pf(req, virt, perm);
             match pf_handled {
                 Err(_) => pte = cfg::PAGE_SIZE as PTE, // as above
-                Ok(true) => pte = vpe.translate(virt, perm), // read PTE again
+                // read PTE again
+                Ok(true) => pte = vpe::get_mut(asid).map_or(0, |v| v.translate(virt, perm)),
                 Ok(false) => return,
             }
         }
