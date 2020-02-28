@@ -17,6 +17,7 @@
 //! Contains the serial struct
 
 use arch;
+use core::cmp;
 use core::fmt;
 use errors::Error;
 use io;
@@ -24,6 +25,8 @@ use io;
 /// The serial line
 #[derive(Default)]
 pub struct Serial {}
+
+const BUF_SIZE: usize = 256;
 
 impl io::Read for Serial {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
@@ -36,8 +39,16 @@ impl io::Write for Serial {
         Ok(())
     }
 
-    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        arch::serial::write(buf)
+    fn write(&mut self, mut buf: &[u8]) -> Result<usize, Error> {
+        let res = buf.len();
+        while !buf.is_empty() {
+            let amount = cmp::min(buf.len(), BUF_SIZE);
+            match arch::serial::write(&buf[0..amount]) {
+                Err(e) => return Err(e),
+                Ok(n) => buf = &buf[n..],
+            }
+        }
+        Ok(res)
     }
 }
 

@@ -27,6 +27,8 @@ class Machine {
     Machine() = delete;
 
 public:
+    static const size_t BUF_SIZE = 256;
+
     /**
      * Shuts down the machine
      */

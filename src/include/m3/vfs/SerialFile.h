@@ -46,10 +46,16 @@ public:
         return static_cast<size_t>(res);
     }
     virtual size_t write(const void *buffer, size_t count) override {
-        int res = Machine::write(reinterpret_cast<const char*>(buffer), count);
-        if(res < 0)
-            throw Exception(static_cast<Errors::Code>(-res));
-        return count;
+        auto buf = reinterpret_cast<const char*>(buffer);
+        while(count > 0) {
+            size_t amount = Math::min(Machine::BUF_SIZE, count);
+            int res = Machine::write(buf, amount);
+            if(res < 0)
+                throw Exception(static_cast<Errors::Code>(-res));
+            count -= amount;
+            buf += amount;
+        }
+        return static_cast<size_t>(buf - reinterpret_cast<const char*>(buffer));
     }
 
     virtual Reference<File> clone() const override {
