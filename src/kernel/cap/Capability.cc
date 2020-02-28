@@ -150,12 +150,15 @@ void SemObject::up() {
     counter++;
 }
 
-void SemCapability::revoke() {
-    if(obj->waiters > 0)
-        m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&*obj));
-    obj->waiters = -1;
+SemObject::~SemObject() {
+    if(waiters > 0)
+        m3::ThreadManager::get().notify(reinterpret_cast<event_t>(this));
+    waiters = -1;
 }
 
+// done in revoke instead of ~KMemObject, because we need access to the parent cap. this is okay,
+// because we only do that for the root capability, which makes it equivalent to performing the
+// action in ~KMemObject.
 void KMemCapability::revoke() {
     // grant the kernel memory back to our parent, if there is any
     if(is_root() && parent()) {
@@ -166,6 +169,7 @@ void KMemCapability::revoke() {
     }
 }
 
+// same as above
 void PECapability::revoke() {
     // grant the EPs back to our parent, if there is any
     if(is_root() && parent())
@@ -186,7 +190,9 @@ m3::Errors::Code MapCapability::remap(gaddr_t _phys, uint _attr) {
     return m3::Errors::NONE;
 }
 
-void MapCapability::late_revoke() {
+// done in revoke instead of ~MapObject, because we need access to the VPE. this is okay, because
+// MapCapability cannot be cloned anyway.
+void MapCapability::revoke() {
     VPE *vpe = table()->vpe();
     assert(vpe != nullptr);
     if(!vpe->is_stopped()) {
@@ -199,20 +205,27 @@ void MapCapability::late_revoke() {
     }
 }
 
+// done in revoke instead of in ~SessObject, because we want to perform the action as soon as the
+// client's session capability is revoked.
 void SessCapability::revoke() {
     // drop the queued messages for this session, because the server is not interested anymore
     if(parent()->type() == SERV)
         obj->drop_msgs();
 }
 
+// done in revoke instead of ~Service, because we hold another reference in the exchange_over_sess
+// syscall. this is okay, because we only do that for the root capability, which makes it equivalent
+// to performing the action in ~Service.
 void ServCapability::revoke() {
-    // first, reset the receive buffer: make all slots not-occupied
-    if(obj->rgate()->activated()) {
-        PEManager::get().pemux(obj->vpe().peid())->config_rcv_ep(
-          obj->rgate()->ep, obj->vpe().id(), 0, *obj->rgate());
+    if(is_root()) {
+        // first, reset the receive buffer: make all slots not-occupied
+        if(obj->rgate()->activated()) {
+            PEManager::get().pemux(obj->vpe().peid())->config_rcv_ep(
+              obj->rgate()->ep, obj->vpe().id(), 0, *obj->rgate());
+        }
+        // now, abort everything in the sendqueue
+        obj->abort();
     }
-    // now, abort everything in the sendqueue
-    obj->abort();
 }
 
 size_t VPECapability::obj_size() const {

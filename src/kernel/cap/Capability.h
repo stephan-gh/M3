@@ -147,8 +147,6 @@ private:
     }
     virtual void revoke() {
     }
-    virtual void late_revoke() {
-    }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) = 0;
 
     uint _type;
@@ -339,6 +337,7 @@ public:
           counter(_counter),
           waiters(0) {
     }
+    ~SemObject();
 
     m3::Errors::Code down();
     void up();
@@ -450,7 +449,7 @@ private:
     virtual bool can_revoke() override {
         return (obj->attr & KERNEL) == 0;
     }
-    virtual void late_revoke() override;
+    virtual void revoke() override;
     virtual Capability *clone(CapTable *, capsel_t) override {
         // not clonable
         return nullptr;
@@ -619,7 +618,6 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual void revoke() override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
         return do_clone(this, tbl, sel);
     }
