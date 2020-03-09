@@ -178,10 +178,8 @@ void VPE::wait_for_exit() {
 }
 
 void VPE::exit_app(int exitcode) {
-    auto pemux = PEManager::get().pemux(peid());
     for(auto ep = _eps.begin(); ep != _eps.end(); ++ep) {
         if(ep->gate != nullptr) {
-            pemux->invalidate_ep(ep->ep);
             if(ep->gate->type == Capability::SGATE)
                 static_cast<SGateObject*>(ep->gate)->activated = false;
             else if(ep->gate->type == Capability::RGATE) {
