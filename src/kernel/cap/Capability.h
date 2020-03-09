@@ -172,7 +172,6 @@ public:
         : type(_type),
           epuser() {
     }
-    ~GateObject();
 
     EPObject *ep_of_pe(peid_t pe);
 
@@ -182,6 +181,8 @@ public:
     void remove_ep(EPObject *ep) {
         delete epuser.remove_if([ep](EPUser *u) { return u->ep == ep; });
     }
+
+    void revoke();
 
     void print_eps(m3::OStream &os);
 
@@ -201,7 +202,6 @@ public:
           order(_order),
           msgorder(_msgorder) {
     }
-    ~RGateObject();
 
     bool activated() const {
         return addr != 0;
@@ -356,10 +356,6 @@ public:
     virtual size_t obj_size() const override {
         return sizeof(RGateObject);
     }
-    virtual void revoke() override {
-        // mark it as invalid to force-invalidate its send gates
-        obj->valid = false;
-    }
     virtual GateObject *as_gate() override {
         return &*obj;
     }
@@ -367,6 +363,7 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 protected:
+    virtual void revoke() override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
         return do_clone(this, tbl, sel);
     }
@@ -392,6 +389,10 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 protected:
+    virtual void revoke() override {
+        if(is_root())
+            obj->revoke();
+    }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
         return do_clone(this, tbl, sel);
     }
@@ -417,6 +418,10 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
+    virtual void revoke() override {
+        if(is_root())
+            obj->revoke();
+    }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
         return do_clone(this, tbl, sel);
     }

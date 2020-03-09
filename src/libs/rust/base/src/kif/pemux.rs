@@ -27,6 +27,7 @@ int_enum! {
         const INIT           = 0x0;
         const VPE_CTRL       = 0x1;
         const MAP            = 0x2;
+        const REM_MSGS       = 0x3;
     }
 }
 
@@ -64,6 +65,14 @@ pub struct Map {
     pub phys: u64,
     pub pages: u64,
     pub perm: u64,
+}
+
+/// The remove messages upcall
+#[repr(C, packed)]
+pub struct RemMsgs {
+    pub op: u64,
+    pub vpe_sel: u64,
+    pub unread_mask: u64,
 }
 
 int_enum! {

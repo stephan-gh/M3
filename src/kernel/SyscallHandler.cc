@@ -497,12 +497,16 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
 
     bool invalid = false;
     if(epcap->obj->gate) {
+        // the remote invalidation is only required for receive and send gates
+        if(epcap->obj->gate->type != Capability::MGATE) {
+            auto res = dst_pemux->invalidate_ep(epcap->obj->vpe->id(), epcap->obj->ep);
+            if(res != m3::Errors::NONE)
+                SYS_ERROR(vpe, msg, res, "EP invalidation failed");
+        }
+
         if(epcap->obj->gate->type == Capability::RGATE)
             static_cast<RGateObject*>(epcap->obj->gate)->addr = 0;
-        // the remote invalidation is only required for send gates
         else if(epcap->obj->gate->type == Capability::SGATE) {
-            if(!dst_pemux->invalidate_ep(epcap->obj->ep))
-                SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "EP invalidation failed");
             static_cast<SGateObject*>(epcap->obj->gate)->activated = false;
             invalid = true;
         }
@@ -582,8 +586,11 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
             gateobj->add_ep(&*epcap->obj);
     }
     else {
-        if(!invalid && !dst_pemux->invalidate_ep(epcap->obj->ep))
-            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "EP invalidation failed");
+        if(!invalid) {
+            auto res = dst_pemux->invalidate_ep(epcap->obj->vpe->id(), epcap->obj->ep);
+            if(res != m3::Errors::NONE)
+                SYS_ERROR(vpe, msg, res, "EP invalidation failed");
+        }
     }
 
     epcap->obj->gate = gateobj;

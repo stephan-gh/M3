@@ -114,6 +114,28 @@ fn map(msg: &'static dtu::Message) -> Result<(), Error> {
         .map(virt, phys, pages, perm | kif::PageFlags::U)
 }
 
+fn rem_msgs(msg: &'static dtu::Message) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::RemMsgs>();
+
+    let vpe_id = req.vpe_sel;
+    let unread = req.unread_mask as u32;
+
+    log!(
+        crate::LOG_UPCALLS,
+        "upcall::rem_msgs(vpe={}, unread={})",
+        vpe_id,
+        unread
+    );
+
+    // we know that this VPE is not currently running, because we changed the current VPE to ourself
+    // in check() below.
+    vpe::get_mut(vpe_id)
+        .unwrap()
+        .rem_msgs(unread.count_ones() as u16);
+
+    Ok(())
+}
+
 fn handle_upcall(msg: &'static dtu::Message, state: &mut arch::State) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
@@ -121,6 +143,7 @@ fn handle_upcall(msg: &'static dtu::Message, state: &mut arch::State) {
         kif::pemux::Upcalls::INIT => init(msg),
         kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg, state),
         kif::pemux::Upcalls::MAP => map(msg),
+        kif::pemux::Upcalls::REM_MSGS => rem_msgs(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 

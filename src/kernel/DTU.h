@@ -51,7 +51,7 @@ public:
 
     m3::Errors::Code inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
 
-    m3::Errors::Code inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool force);
+    m3::Errors::Code inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool force, uint32_t *unreadMask);
     void write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
     void write_ep_local(epid_t ep);
 

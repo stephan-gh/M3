@@ -238,6 +238,11 @@ impl VPE {
         self.vpe_reg += 1 << 3;
     }
 
+    pub fn rem_msgs(&mut self, count: u16) {
+        assert!(self.msgs() >= count);
+        self.vpe_reg -= (count as u64) << 3;
+    }
+
     fn init(&mut self) {
         extern "C" {
             static _text_start: u8;

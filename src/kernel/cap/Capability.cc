@@ -75,12 +75,12 @@ void PEObject::free(uint eps) {
     KLOG(PES, "PE[" << id << "]: freed " << eps << " EPs (" << this->eps << " total)");
 }
 
-GateObject::~GateObject() {
+void GateObject::revoke() {
     for(auto user = epuser.begin(); user != epuser.end(); ) {
         auto old = user++;
         PEMux *pemux = PEManager::get().pemux(old->ep->pe->id);
         // always force-invalidate send gates here
-        pemux->invalidate_ep(old->ep->ep, type == Capability::SGATE);
+        pemux->invalidate_ep(old->ep->vpe->id(), old->ep->ep, type == Capability::SGATE);
         // invalidate reply caps at receiver
         if(type == Capability::SGATE && static_cast<SGateObject*>(this)->rgate_valid()) {
             auto sgate = static_cast<SGateObject*>(this);
@@ -94,8 +94,14 @@ GateObject::~GateObject() {
     }
 }
 
-RGateObject::~RGateObject() {
-    m3::ThreadManager::get().notify(reinterpret_cast<event_t>(this));
+// done in revoke instead of ~RGateObject, because GateObject::revoke() needs to be interruptable.
+void RGateCapability::revoke() {
+    if(is_root()) {
+        // mark it as invalid to force-invalidate its send gates
+        obj->valid = false;
+        obj->revoke();
+        m3::ThreadManager::get().notify(reinterpret_cast<event_t>(this));
+    }
 }
 
 void SessObject::drop_msgs() {

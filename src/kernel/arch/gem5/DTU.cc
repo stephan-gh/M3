@@ -77,11 +77,15 @@ m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe
     return try_ext_cmd(vpe, cmd);
 }
 
-m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force) {
+m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force,
+                                      uint32_t *unreadMask) {
     m3::DTU::reg_t cmd =
         static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 4) |
         (static_cast<m3::DTU::reg_t>(force) << 20);
-    return try_ext_cmd(vpe, cmd);
+    m3::Errors::Code res = try_ext_cmd(vpe, cmd);
+    read_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_CMD), &cmd, sizeof(cmd));
+    *unreadMask = cmd >> 4;
+    return res;
 }
 
 void DTU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {

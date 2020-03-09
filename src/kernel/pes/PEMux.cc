@@ -175,11 +175,24 @@ m3::Errors::Code PEMux::upcall(void *req, size_t size) {
     return static_cast<m3::Errors::Code>(reply->error);
 }
 
-bool PEMux::invalidate_ep(epid_t ep, bool force) {
+m3::Errors::Code PEMux::invalidate_ep(vpeid_t vpe, epid_t ep, bool force) {
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = invalid");
 
     dtustate().invalidate_ep(ep);
-    return DTU::get().inval_ep_remote(desc(), ep, force) == m3::Errors::NONE;
+
+    uint32_t unread_mask;
+    m3::Errors::Code res = DTU::get().inval_ep_remote(desc(), ep, force, &unread_mask);
+    if(res != m3::Errors::NONE)
+        return res;
+
+    if(unread_mask != 0) {
+        m3::KIF::PEXUpcalls::RemMsgs req;
+        req.vpe_sel = vpe;
+        req.unread_mask = unread_mask;
+        return upcall(&req, sizeof(req));
+    }
+    else
+        return m3::Errors::NONE;
 }
 
 m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj) {
