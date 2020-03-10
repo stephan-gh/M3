@@ -30,16 +30,14 @@ namespace kernel {
 
 static char buffer[8192];
 
-void DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
-    m3::Errors::Code res = try_ext_cmd(vpe, cmd);
-    if(res != m3::Errors::NONE)
-        PANIC("External command " << cmd << " failed: " << res);
-}
-
-m3::Errors::Code DTU::try_ext_cmd(const VPEDesc &vpe, m3::DTU::reg_t cmd) {
-    m3::DTU::reg_t reg = cmd;
+m3::Errors::Code DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::ExtCmdOpCode op, m3::DTU::reg_t *arg) {
+    m3::DTU::reg_t reg = static_cast<m3::DTU::reg_t>(op) | *arg << 8;
     m3::CPU::compiler_barrier();
-    return try_write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
+    write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
+    read_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
+    if(arg)
+        *arg = reg >> 8;
+    return static_cast<m3::Errors::Code>((reg >> 4) & 0xF);
 }
 
 void DTU::deprivilege(peid_t pe) {
@@ -52,9 +50,12 @@ void DTU::deprivilege(peid_t pe) {
 }
 
 void DTU::init_vpe(const VPEDesc &vpe) {
-    m3::DTU::reg_t value = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::RESET);
-    value |= static_cast<m3::DTU::reg_t>(1) << 63;
-    DTU::get().do_ext_cmd(vpe, value);
+    // flush+invalidate caches to ensure that we have a fresh view on memory. this is required
+    // because of the way the pager handles copy-on-write: it reads the current copy from the owner
+    // and updates the version in DRAM. for that reason, the cache for new VPEs needs to be clear,
+    // so that the cache loads the current version from DRAM.
+    m3::DTU::reg_t arg = 1;
+    do_ext_cmd(vpe, m3::DTU::ExtCmdOpCode::RESET, &arg);
 }
 
 void DTU::kill_vpe(const VPEDesc &vpe) {
@@ -72,19 +73,15 @@ void DTU::flush_cache(const VPEDesc &vpe) {
 }
 
 m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
-    m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_REPLY);
-    cmd |= (rep << 4) | (pe << 20) | (sep << 28);
-    return try_ext_cmd(vpe, cmd);
+    m3::DTU::reg_t arg = rep | (pe << 16) | (sep << 24);
+    return do_ext_cmd(vpe, m3::DTU::ExtCmdOpCode::INV_REPLY, &arg);
 }
 
 m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force,
                                       uint32_t *unreadMask) {
-    m3::DTU::reg_t cmd =
-        static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::INV_EP) | (ep << 4) |
-        (static_cast<m3::DTU::reg_t>(force) << 20);
-    m3::Errors::Code res = try_ext_cmd(vpe, cmd);
-    read_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_CMD), &cmd, sizeof(cmd));
-    *unreadMask = cmd >> 4;
+    m3::DTU::reg_t arg = ep | (static_cast<m3::DTU::reg_t>(force) << 16);
+    m3::Errors::Code res = do_ext_cmd(vpe, m3::DTU::ExtCmdOpCode::INV_EP, &arg);
+    *unreadMask = arg;
     return res;
 }
 

@@ -48,9 +48,10 @@ m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &, epid_t, peid_t, epid_t) 
     return m3::Errors::NONE;
 }
 
-m3::Errors::Code DTU::inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool, uint32_t *) {
+m3::Errors::Code DTU::inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool, uint32_t *unreadMask) {
     word_t regs[m3::DTU::EPS_RCNT];
     memset(regs, 0, sizeof(regs));
+    *unreadMask = 0;
     // TODO detect if credits are outstanding
     write_ep_remote(vpe, ep, regs);
     return m3::Errors::NONE;
