@@ -101,14 +101,13 @@ impl fmt::Debug for ExchangeData {
 
 impl Unmarshallable for ExchangeData {
     fn unmarshall(s: &mut dyn Source) -> Self {
-        #[allow(clippy::uninit_assumed_init)]
         let mut res = ExchangeData {
             caps: s.pop_word(),
             args: syscalls::ExchangeArgs::default(),
         };
-        let count = s.pop_word() as usize;
-        for _ in 0..count {
-            res.args.push_ival(s.pop_word());
+        res.args.set_count(s.pop_word() as usize);
+        for i in 0..syscalls::MAX_EXCHG_ARGS {
+            res.args.set_ival(i, s.pop_word());
         }
         res
     }

@@ -96,10 +96,20 @@ impl ExchangeArgs {
         self.count as usize
     }
 
+    pub(crate) fn set_count(&mut self, count: usize) {
+        self.count = count as u64;
+    }
+
     pub fn ival(&self, idx: usize) -> u64 {
         assert!(idx < self.count as usize);
         // safety: we guarantee that the values between 0 and count-1 are initialized
         unsafe { self.vals.i[idx] }
+    }
+
+    pub(crate) fn set_ival(&mut self, idx: usize, val: u64) {
+        assert!((idx as usize) < MAX_EXCHG_ARGS);
+        // safety: we make sure that 0..self.count-1 is always initialized
+        unsafe { self.vals.i[idx] = val };
     }
 
     pub fn push_ival(&mut self, val: u64) {
