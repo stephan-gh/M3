@@ -19,6 +19,7 @@ members = [
     "src/server/disk",
     "src/server/pager",
     "src/server/pipes",
+    "src/server/m3fsrs",
     "src/server/root",
     "src/server/vterm",
 ]

@@ -2,219 +2,226 @@
 # It is not intended for manual editing.
 [[package]]
 name = "autocfg"
-version = "0.1.4"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
 name = "base"
 version = "0.1.0"
 dependencies = [
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
- "num-traits 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "static_assertions 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bitflags",
+ "cfg-if",
+ "libc",
+ "num-traits",
+ "static_assertions",
 ]
 
 [[package]]
 name = "bitflags"
-version = "1.1.0"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
 name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
 
 [[package]]
 name = "disk"
 version = "0.1.0"
 dependencies = [
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "m3 0.1.0",
- "pci 0.1.0",
+ "bitflags",
+ "m3",
+ "pci",
 ]
 
 [[package]]
 name = "disktest"
 version = "0.1.0"
 dependencies = [
- "m3 0.1.0",
+ "m3",
 ]
 
 [[package]]
 name = "heap"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base",
+ "bitflags",
 ]
 
 [[package]]
 name = "isr"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base",
+ "cfg-if",
 ]
 
 [[package]]
 name = "kernel"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "isr 0.1.0",
- "paging 0.1.0",
- "thread 0.1.0",
+ "base",
+ "bitflags",
+ "isr",
+ "paging",
+ "thread",
 ]
 
 [[package]]
 name = "libc"
-version = "0.2.58"
+version = "0.2.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "755456fae044e6fa1ebbbd1b3e902ae19e73097ed4ed87bb79934a867c007bc3"
 
 [[package]]
 name = "m3"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "heap 0.1.0",
+ "base",
+ "bitflags",
+ "heap",
+]
+
+[[package]]
+name = "m3fsrs"
+version = "0.1.0"
+dependencies = [
+ "base",
+ "m3",
+ "thread",
 ]
 
 [[package]]
 name = "num-traits"
-version = "0.2.8"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac267bcc07f48ee5f8935ab0d24f316fb722d7a1292e2913f0cc196b29ffd611"
 dependencies = [
- "autocfg 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "autocfg",
 ]
 
 [[package]]
 name = "pager"
 version = "0.1.0"
 dependencies = [
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "m3 0.1.0",
- "resmng 0.1.0",
- "thread 0.1.0",
+ "bitflags",
+ "m3",
+ "resmng",
+ "thread",
 ]
 
 [[package]]
 name = "paging"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base",
+ "bitflags",
+ "cfg-if",
 ]
 
 [[package]]
 name = "pci"
 version = "0.1.0"
 dependencies = [
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "m3 0.1.0",
+ "bitflags",
+ "m3",
 ]
 
 [[package]]
 name = "peidle"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
+ "base",
 ]
 
 [[package]]
 name = "pemux"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "heap 0.1.0",
- "isr 0.1.0",
- "paging 0.1.0",
+ "base",
+ "cfg-if",
+ "heap",
+ "isr",
+ "paging",
 ]
 
 [[package]]
 name = "pipes"
 version = "0.1.0"
 dependencies = [
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "m3 0.1.0",
+ "bitflags",
+ "m3",
 ]
 
 [[package]]
 name = "resmng"
 version = "0.1.0"
 dependencies = [
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "m3 0.1.0",
- "thread 0.1.0",
+ "bitflags",
+ "m3",
+ "thread",
 ]
 
 [[package]]
 name = "root"
 version = "0.1.0"
 dependencies = [
- "m3 0.1.0",
- "resmng 0.1.0",
- "thread 0.1.0",
+ "m3",
+ "resmng",
+ "thread",
 ]
 
 [[package]]
 name = "rustbenchs"
 version = "0.1.0"
 dependencies = [
- "m3 0.1.0",
+ "m3",
 ]
 
 [[package]]
 name = "rusthello"
 version = "0.1.0"
 dependencies = [
- "m3 0.1.0",
+ "m3",
 ]
 
 [[package]]
 name = "ruststandalone"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "heap 0.1.0",
+ "base",
+ "heap",
 ]
 
 [[package]]
 name = "rustunittests"
 version = "0.1.0"
 dependencies = [
- "m3 0.1.0",
+ "m3",
 ]
 
 [[package]]
 name = "static_assertions"
-version = "0.3.2"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f3eb36b47e512f8f1c9e3d10c2c1965bc992bd9cdb024fa581e2194501c83d3"
 
 [[package]]
 name = "thread"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base",
+ "bitflags",
 ]
 
 [[package]]
 name = "vterm"
 version = "0.1.0"
 dependencies = [
- "m3 0.1.0",
+ "m3",
 ]
-
-[metadata]
-"checksum autocfg 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "0e49efa51329a5fd37e7c79db4621af617cd4e3e5bc224939808d076077077bf"
-"checksum bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3d155346769a6855b86399e9bc3814ab343cd3d62c7e985113d46a0ec3c281fd"
-"checksum cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
-"checksum libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)" = "6281b86796ba5e4366000be6e9e18bf35580adf9e63fbe2294aadb587613a319"
-"checksum num-traits 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "6ba9a427cfca2be13aa6f6403b0b7e7368fe982bfa16fccc450ce74c46cd9b32"
-"checksum static_assertions 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "ec3c2cbd19f2033005f463529553273cdcb3e91b3281346007adc7967b6789af"

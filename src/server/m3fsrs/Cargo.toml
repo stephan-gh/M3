@@ -1,0 +1,14 @@
+[package]
+name = "m3fsrs"
+version = "0.1.0"
+authors = ["Tendsin Mende <tendsin@protonmail.com>"]
+edition = "2018"
+
+[lib]
+path = "src/m3fsrs.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+m3 = { path = "../../libs/rust/m3" }
+base = { path = "../../libs/rust/base"}
+thread = { path = "../../libs/rust/thread" }

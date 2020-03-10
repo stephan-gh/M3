@@ -22,6 +22,7 @@ mod pager;
 mod pipe;
 mod resmng;
 mod srvsession;
+mod disk;
 
 pub use self::clisession::ClientSession;
 pub use self::m3fs::{ExtId, M3FS};
@@ -29,3 +30,4 @@ pub use self::pager::{MapFlags, Pager, PagerOp};
 pub use self::pipe::{Pipe, Pipes};
 pub use self::resmng::{ResMng, ResMngOperation};
 pub use self::srvsession::ServerSession;
+pub use self::disk::Disk;
