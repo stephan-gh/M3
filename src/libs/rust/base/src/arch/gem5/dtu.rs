@@ -224,8 +224,6 @@ int_enum! {
         const INV_REPLY   = 2;
         /// Reset the CU
         const RESET       = 3;
-        /// Flushes the CU's cache
-        const FLUSH_CACHE = 4;
     }
 }
 

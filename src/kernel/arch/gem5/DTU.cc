@@ -67,11 +67,6 @@ void DTU::kill_vpe(const VPEDesc &vpe) {
     write_mem(vpe, m3::DTU::ep_regs_addr(m3::DTU::FIRST_USER_EP), buffer, regsSize);
 }
 
-void DTU::flush_cache(const VPEDesc &vpe) {
-    m3::DTU::reg_t cmd = static_cast<m3::DTU::reg_t>(m3::DTU::ExtCmdOpCode::FLUSH_CACHE);
-    do_ext_cmd(vpe, cmd);
-}
-
 m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
     m3::DTU::reg_t arg = rep | (pe << 16) | (sep << 24);
     return do_ext_cmd(vpe, m3::DTU::ExtCmdOpCode::INV_REPLY, &arg);

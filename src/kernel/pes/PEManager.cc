@@ -72,9 +72,6 @@ void PEManager::stop_vpe(VPE *vpe) {
     }
 #endif
 
-    // ensure that all PTEs are in memory
-    DTU::get().flush_cache(vpe->desc());
-
     DTU::get().kill_vpe(vpe->desc());
 }
 

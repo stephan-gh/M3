@@ -47,8 +47,6 @@ public:
     void init_vpe(const VPEDesc &vpe);
     void kill_vpe(const VPEDesc &vpe);
 
-    void flush_cache(const VPEDesc &vpe);
-
     m3::Errors::Code inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
 
     m3::Errors::Code inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool force, uint32_t *unreadMask);

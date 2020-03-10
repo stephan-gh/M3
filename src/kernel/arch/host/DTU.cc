@@ -39,10 +39,6 @@ void DTU::kill_vpe(const VPEDesc &vpe) {
         kill(pid, SIGKILL);
 }
 
-void DTU::flush_cache(const VPEDesc &) {
-    // nothing to do
-}
-
 m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &, epid_t, peid_t, epid_t) {
     // unused
     return m3::Errors::NONE;
