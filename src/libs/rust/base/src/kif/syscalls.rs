@@ -17,6 +17,7 @@
 //! The system call interface
 
 use core::mem::MaybeUninit;
+use util;
 
 /// The maximum message length that can be used
 pub const MAX_MSG_SIZE: usize = 440;
@@ -123,6 +124,12 @@ impl ExchangeArgs {
         assert!(idx < self.count as usize);
         // safety: we guarantee that the values between 0 and count-1 are initialized
         unsafe { self.vals.s.i[idx] }
+    }
+
+    pub fn str(&self) -> &str {
+        unsafe {
+            util::cstr_to_str(&self.vals.s.s as *const _ as *const i8)
+        }
     }
 
     pub fn set_str(&mut self, s: &str) {
