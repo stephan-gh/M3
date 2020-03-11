@@ -106,6 +106,7 @@ pub fn nesting_level() -> u32 {
 
 pub fn stop_vpe(state: &mut arch::State) {
     if *NESTING_LEVEL > 1 {
+        let _cmd_saved = helper::DTUGuard::new();
         // prevent us from sleeping by setting the user event
         dtu::DTU::set_event().ok();
 
