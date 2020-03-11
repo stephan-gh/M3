@@ -40,27 +40,17 @@ fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     .unwrap();
 }
 
-fn init(msg: &'static dtu::Message) -> Result<(), Error> {
-    let req = msg.get_data::<kif::pemux::Init>();
-
-    let pe_id = req.pe_id as u32;
-    let vpe_id = req.vpe_sel;
-
-    // do that here to get the color of the next print correct
-    io::init(pe_id, "pemux");
-
-    log!(crate::LOG_UPCALLS, "upcall::init(vpe={})", vpe_id,);
-
-    vpe::add(vpe_id);
-    Ok(())
-}
-
 fn vpe_ctrl(msg: &'static dtu::Message, state: &mut arch::State) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
     let pe_id = req.pe_id as u32;
     let vpe_id = req.vpe_sel;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
+
+    if op == kif::pemux::VPEOp::INIT {
+        // do that here to get the color of the next print correct
+        io::init(pe_id, "pemux");
+    }
 
     log!(
         crate::LOG_UPCALLS,
@@ -70,6 +60,10 @@ fn vpe_ctrl(msg: &'static dtu::Message, state: &mut arch::State) -> Result<(), E
     );
 
     match op {
+        kif::pemux::VPEOp::INIT => {
+            vpe::add(vpe_id);
+        },
+
         kif::pemux::VPEOp::START => {
             // remember the current PE
             ::env().pe_id = pe_id;
@@ -140,7 +134,6 @@ fn handle_upcall(msg: &'static dtu::Message, state: &mut arch::State) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::pemux::Upcalls::from(req.opcode) {
-        kif::pemux::Upcalls::INIT => init(msg),
         kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg, state),
         kif::pemux::Upcalls::MAP => map(msg),
         kif::pemux::Upcalls::REM_MSGS => rem_msgs(msg),

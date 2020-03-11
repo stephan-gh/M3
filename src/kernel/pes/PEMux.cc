@@ -120,17 +120,6 @@ void PEMux::free_eps(epid_t first, uint count) {
     }
 }
 
-m3::Errors::Code PEMux::init(vpeid_t vpe) {
-    m3::KIF::PEXUpcalls::Init req;
-    req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::INIT);
-    req.pe_id = _pe->id;
-    req.vpe_sel = vpe;
-
-    KLOG(PEXC, "PEMux[" << peid() << "] sending init(vpe=" << req.vpe_sel << ")");
-
-    return upcall(&req, sizeof(req));
-}
-
 m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, uint perm) {
     m3::KIF::PEXUpcalls::Map req;
     req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::MAP);
@@ -149,7 +138,7 @@ m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, 
 
 m3::Errors::Code PEMux::vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
     static const char *ctrls[] = {
-        "START", "STOP"
+        "INIT", "START", "STOP"
     };
 
     m3::KIF::PEXUpcalls::VPECtrl req;

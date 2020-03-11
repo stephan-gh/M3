@@ -198,7 +198,7 @@ void VPE::load_app() {
 void VPE::init_memory() {
     // let PEMux load the address space
     if(Platform::pe(peid()).supports_pemux())
-        PEManager::get().pemux(peid())->init(id());
+        PEManager::get().pemux(peid())->vpe_ctrl(id(), m3::KIF::PEXUpcalls::VCTRL_INIT);
 
     _state = VPE::RUNNING;
 

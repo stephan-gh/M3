@@ -81,7 +81,6 @@ public:
 
     void handle_call(const m3::DTU::Message *msg);
 
-    m3::Errors::Code init(vpeid_t vpe);
     m3::Errors::Code map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, uint perm);
     m3::Errors::Code vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
 

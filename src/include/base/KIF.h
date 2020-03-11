@@ -407,21 +407,16 @@ struct KIF {
      */
     struct PEXUpcalls {
         enum Operation {
-            INIT,
             VPE_CTRL,
             MAP,
             REM_MSGS,
         };
 
         enum VPEOp {
+            VCTRL_INIT,
             VCTRL_START,
             VCTRL_STOP,
         };
-
-        struct Init : public DefaultRequest {
-            xfer_t pe_id;
-            xfer_t vpe_sel;
-        } PACKED;
 
         struct VPECtrl : public DefaultRequest {
             xfer_t pe_id;

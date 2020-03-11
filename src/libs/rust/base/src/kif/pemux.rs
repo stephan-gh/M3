@@ -24,27 +24,19 @@ pub const IDLE_ID: u64 = 0xFFFE;
 int_enum! {
     /// The upcalls from the kernel to PEMux
     pub struct Upcalls : u64 {
-        const INIT           = 0x0;
-        const VPE_CTRL       = 0x1;
-        const MAP            = 0x2;
-        const REM_MSGS       = 0x3;
+        const VPE_CTRL       = 0x0;
+        const MAP            = 0x1;
+        const REM_MSGS       = 0x2;
     }
 }
 
 int_enum! {
     /// The operations for the `vpe_ctrl` upcall
     pub struct VPEOp : u64 {
-        const START = 0x0;
-        const STOP  = 0x1;
+        const INIT  = 0x0;
+        const START = 0x1;
+        const STOP  = 0x2;
     }
-}
-
-/// The init upcall
-#[repr(C, packed)]
-pub struct Init {
-    pub op: u64,
-    pub pe_id: u64,
-    pub vpe_sel: u64,
 }
 
 /// The VPE control upcall
