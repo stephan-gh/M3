@@ -83,21 +83,20 @@ void NetworkManager::close(int sd) {
 
 void m3::NetworkManager::as_file(int sd, int mode, MemGate& mem, size_t memsize, fd_t& fd) {
     // Create file session for socket
-    KIF::ExchangeArgs fs_args;
-    fs_args.count = 4;
-    fs_args.vals[0] = static_cast<xfer_t>(sd);
-    fs_args.vals[1] = static_cast<xfer_t>(mode);
-    fs_args.vals[2] = mode & FILE_R ? memsize : 0;
-    fs_args.vals[3] = mode & FILE_W ? memsize : 0;
-    KIF::CapRngDesc desc = obtain(2, &fs_args);
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << sd << mode << (mode & FILE_R ? memsize : 0) << (mode & FILE_W ? memsize : 0);
+    args.bytes = os.total();
+    KIF::CapRngDesc desc = obtain(2, &args);
 
     // Delegate shared memory to file session
     ClientSession fs(desc.start());
     KIF::CapRngDesc shm_crd(KIF::CapRngDesc::OBJ, mem.sel(), 1);
-    KIF::ExchangeArgs shm_args;
-    shm_args.count = 1;
-    shm_args.vals[0] = static_cast<xfer_t>(sd);
-    fs.delegate(shm_crd, &shm_args);
+
+    ExchangeOStream shm_os(args);
+    shm_os << sd;
+    args.bytes = shm_os.total();
+    fs.delegate(shm_crd, &args);
 
     fd = VPE::self().fds()->alloc(Reference<File>(new GenericFile(mode, desc.start())));
 }
@@ -109,10 +108,7 @@ void NetworkManager::ensure_channel_established() {
         return;
 
     // Obtain channel
-    KIF::ExchangeArgs args;
-    args.count = 0;
-    KIF::CapRngDesc caps = obtain(3, &args);
-
+    KIF::CapRngDesc caps = obtain(3);
     _channel = Reference<NetEventChannel>(new NetEventChannel(caps.start(), false));
 }
 

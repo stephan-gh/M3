@@ -21,6 +21,7 @@ use errors::Error;
 use goff;
 use kif;
 use pes::VPE;
+use serialize::{Sink, Source};
 use session::ClientSession;
 
 /// Represents a session at the pager.
@@ -89,10 +90,14 @@ impl Pager {
 
     /// Clones the session to be shared with the given VPE.
     pub fn new_clone(&self) -> Result<Self, Error> {
-        let mut args = kif::syscalls::ExchangeArgs::default();
-        // dummy arg to distinguish from the get_sgate operation
-        args.push_ival(0);
-        let res = self.sess.obtain(1, &mut args)?;
+        let res = self.sess.obtain(
+            1,
+            |os| {
+                // dummy arg to distinguish from the get_sgate operation
+                os.push_word(0);
+            },
+            |_| {},
+        )?;
         let sess = ClientSession::new_bind(res.start());
 
         // get send gates for us and our child
@@ -191,22 +196,24 @@ impl Pager {
         flags: MapFlags,
         sess: &ClientSession,
     ) -> Result<goff, Error> {
-        let mut args = kif::syscalls::ExchangeArgs::new(6, kif::syscalls::ExchangeUnion {
-            i: [
-                u64::from(PagerDelOp::DATASPACE.val),
-                addr as u64,
-                len as u64,
-                u64::from(prot.bits()),
-                u64::from(flags.bits()),
-                off as u64,
-                0,
-                0,
-            ],
-        });
-
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sess.sel(), 1);
-        self.sess.delegate(crd, &mut args)?;
-        Ok(args.ival(0) as goff)
+        let mut res = 0;
+        self.sess.delegate(
+            crd,
+            |os| {
+                os.push_word(u64::from(PagerDelOp::DATASPACE.val));
+                os.push_word(addr as u64);
+                os.push_word(len as u64);
+                os.push_word(u64::from(prot.bits()));
+                os.push_word(u64::from(flags.bits()));
+                os.push_word(off as u64);
+            },
+            |is| {
+                res = is.pop_word() as goff;
+            },
+        )?;
+
+        Ok(res)
     }
 
     /// Unaps the mapping at virtual address `addr`.

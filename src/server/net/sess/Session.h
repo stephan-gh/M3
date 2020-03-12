@@ -42,10 +42,10 @@ public:
 
     virtual Type type() const = 0;
 
-    virtual m3::Errors::Code obtain(capsel_t, m3::KIF::Service::ExchangeData &) {
+    virtual m3::Errors::Code obtain(capsel_t, m3::CapExchange &) {
         return m3::Errors::NOT_SUP;
     }
-    virtual m3::Errors::Code delegate(m3::KIF::Service::ExchangeData &) {
+    virtual m3::Errors::Code delegate(m3::CapExchange &) {
         return m3::Errors::NOT_SUP;
     }
 

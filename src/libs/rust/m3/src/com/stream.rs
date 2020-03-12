@@ -46,36 +46,61 @@ impl Default for ArraySink {
     }
 }
 
+macro_rules! impl_sink_for_array {
+    () => {
+        #[inline(always)]
+        fn size(&self) -> usize {
+            self.pos * util::size_of::<u64>()
+        }
+
+        #[inline(always)]
+        fn words(&self) -> &[u64] {
+            &self.arr[0..self.pos]
+        }
+
+        #[inline(always)]
+        fn push(&mut self, item: &dyn Marshallable) {
+            item.marshall(self);
+        }
+
+        #[inline(always)]
+        fn push_word(&mut self, word: u64) {
+            self.arr[self.pos] = word;
+            self.pos += 1;
+        }
+
+        fn push_str(&mut self, b: &str) {
+            let len = b.len() + 1;
+            self.push_word(len as u64);
+
+            // safety: we know the pointer and length are valid
+            unsafe { copy_from_str(&mut self.arr[self.pos..], b) };
+            self.pos += (len + 7) / 8;
+        }
+    };
+}
+
 impl Sink for ArraySink {
-    #[inline(always)]
-    fn size(&self) -> usize {
-        self.pos * util::size_of::<u64>()
-    }
+    impl_sink_for_array!();
+}
 
-    #[inline(always)]
-    fn words(&self) -> &[u64] {
-        &self.arr[0..self.pos]
-    }
+/// A sink for marshalling into a slice
+pub struct SliceSink<'s> {
+    arr: &'s mut[u64],
+    pos: usize,
+}
 
-    #[inline(always)]
-    fn push(&mut self, item: &dyn Marshallable) {
-        item.marshall(self);
+impl<'s> SliceSink<'s> {
+    pub fn new(slice: &'s mut[u64]) -> Self {
+        Self {
+            arr: slice,
+            pos: 0,
+        }
     }
+}
 
-    #[inline(always)]
-    fn push_word(&mut self, word: u64) {
-        self.arr[self.pos] = word;
-        self.pos += 1;
-    }
-
-    fn push_str(&mut self, b: &str) {
-        let len = b.len() + 1;
-        self.push_word(len as u64);
-
-        // safety: we know the pointer and length are valid
-        unsafe { copy_from_str(&mut self.arr[self.pos..], b) };
-        self.pos += (len + 7) / 8;
-    }
+impl<'s> Sink for SliceSink<'s> {
+    impl_sink_for_array!();
 }
 
 /// A sink for marshalling that uses a [`Vec`] internally.
@@ -176,6 +201,10 @@ unsafe fn str_slice_from(s: &[u64], len: usize) -> &'static str {
 }
 
 impl Source for MsgSource {
+    fn size(&self) -> usize {
+        self.msg.header.length as usize
+    }
+
     #[inline(always)]
     fn pop_word(&mut self) -> u64 {
         self.pos += 1;
@@ -218,6 +247,10 @@ impl<'s> SliceSource<'s> {
 }
 
 impl<'s> Source for SliceSource<'s> {
+    fn size(&self) -> usize {
+        self.slice.len()
+    }
+
     fn pop_word(&mut self) -> u64 {
         self.pos += 1;
         self.slice[self.pos - 1]
@@ -316,6 +349,11 @@ impl<'r> GateIStream<'r> {
     #[inline(always)]
     pub fn size(&self) -> usize {
         self.source.data().len() * util::size_of::<u64>()
+    }
+
+    /// Returns the message
+    pub fn msg(&self) -> &'static dtu::Message {
+        self.source.msg
     }
 
     /// Removes the message from this gate stream, so that no ACK will be performed on drop.

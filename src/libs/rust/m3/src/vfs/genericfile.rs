@@ -23,7 +23,7 @@ use core::fmt;
 use errors::Error;
 use goff;
 use io::{Read, Write};
-use kif::{syscalls, CapRngDesc, CapType, Perm, INVALID_SEL};
+use kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use pes::VPE;
 use rc::Rc;
 use serialize::Sink;
@@ -151,8 +151,7 @@ impl File for GenericFile {
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
-        let mut args = syscalls::ExchangeArgs::default();
-        self.sess.obtain_for(vpe, crd, &mut args)?;
+        self.sess.obtain_for(vpe, crd, |_| {}, |_| {})?;
         *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }

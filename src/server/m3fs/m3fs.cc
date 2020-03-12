@@ -79,27 +79,27 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code obtain(M3FSSession *sess, KIF::Service::ExchangeData &data) override {
+    virtual Errors::Code obtain(M3FSSession *sess, CapExchange &xchg) override {
         if(sess->type() == M3FSSession::META) {
             auto meta = static_cast<M3FSMetaSession *>(sess);
-            if(data.args.count == 0)
-                return meta->get_sgate(data);
-            return meta->open_file(srv->sel(), data);
+            if(xchg.in_args().length() == 0)
+                return meta->get_sgate(xchg);
+            return meta->open_file(srv->sel(), xchg);
         }
         else {
             auto file = static_cast<M3FSFileSession *>(sess);
-            if(data.args.count == 0)
-                return file->clone(srv->sel(), data);
-            return file->get_mem(data);
+            if(xchg.in_args().length() == 0)
+                return file->clone(srv->sel(), xchg);
+            return file->get_mem(xchg);
         }
     }
 
-    virtual Errors::Code delegate(M3FSSession *sess, KIF::Service::ExchangeData &data) override {
-        if(data.caps != 1 || data.args.count != 0 || sess->type() != M3FSSession::FILE)
+    virtual Errors::Code delegate(M3FSSession *sess, CapExchange &xchg) override {
+        if(xchg.in_caps() != 1 || sess->type() != M3FSSession::FILE)
             return Errors::NOT_SUP;
         capsel_t sel = VPE::self().alloc_sel();
         static_cast<M3FSFileSession *>(sess)->set_ep(sel);
-        data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, data.caps).value();
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1));
         return Errors::NONE;
     }
 

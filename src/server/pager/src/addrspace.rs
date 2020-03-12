@@ -19,14 +19,15 @@ use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::{GateIStream, MGateFlags, MemGate, SGateArgs, SendGate};
+use m3::com::{GateIStream, MGateFlags, MemGate, SGateArgs, SendGate, SliceSource};
 use m3::dtu::Label;
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::kif::{PageFlags, syscalls::ExchangeArgs, Perm};
+use m3::kif::{PageFlags, Perm};
 use m3::math;
 use m3::pes::VPE;
 use m3::rc::Rc;
+use m3::serialize::Source;
 use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
 
@@ -101,7 +102,12 @@ impl AddrSpace {
     }
 
     pub fn clone(&mut self, is: &mut GateIStream, parent: &mut AddrSpace) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] pager::clone(parent={})", self.id, parent.id);
+        log!(
+            crate::LOG_DEF,
+            "[{}] pager::clone(parent={})",
+            self.id,
+            parent.id
+        );
 
         for ds in &mut parent.ds {
             let mut ds_idx = if let Some(cur) = self.find_ds_idx(ds.virt()) {
@@ -180,16 +186,16 @@ impl AddrSpace {
         }
     }
 
-    pub fn map_ds(&mut self, args: &ExchangeArgs) -> Result<(Selector, goff), Error> {
-        if args.count() != 6 || !self.has_as_mem() {
+    pub fn map_ds(&mut self, args: &mut SliceSource) -> Result<(Selector, goff), Error> {
+        if !self.has_as_mem() {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let virt = args.ival(1) as goff;
-        let len = args.ival(2) as goff;
-        let perm = Perm::from_bits_truncate(args.ival(3) as u32);
-        let flags = MapFlags::from_bits_truncate(args.ival(4) as u32);
-        let off = args.ival(5) as goff;
+        let virt = args.pop_word() as goff;
+        let len = args.pop_word() as goff;
+        let perm = Perm::from_bits_truncate(args.pop_word() as u32);
+        let flags = MapFlags::from_bits_truncate(args.pop_word() as u32);
+        let off = args.pop_word() as goff;
 
         let sel = VPE::cur().alloc_sel();
         self.map_ds_with(virt, len, off, perm, flags, sel)
@@ -269,14 +275,14 @@ impl AddrSpace {
         Ok(())
     }
 
-    pub fn map_mem(&mut self, args: &ExchangeArgs) -> Result<(Selector, goff), Error> {
-        if args.count() != 4 || !self.has_as_mem() {
+    pub fn map_mem(&mut self, args: &mut SliceSource) -> Result<(Selector, goff), Error> {
+        if !self.has_as_mem() {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let virt = args.ival(1) as goff;
-        let len = args.ival(2) as goff;
-        let perm = Perm::from_bits_truncate(args.ival(3) as u32);
+        let virt = args.pop_word() as goff;
+        let len = args.pop_word() as goff;
+        let perm = Perm::from_bits_truncate(args.pop_word() as u32);
 
         log!(
             crate::LOG_DEF,
@@ -310,7 +316,12 @@ impl AddrSpace {
     pub fn unmap(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let virt: goff = is.pop();
 
-        log!(crate::LOG_DEF, "[{}] pager::unmap(virt={:#x})", self.id, virt,);
+        log!(
+            crate::LOG_DEF,
+            "[{}] pager::unmap(virt={:#x})",
+            self.id,
+            virt,
+        );
 
         if let Some(idx) = self.find_ds_idx(virt) {
             self.ds.remove(idx);

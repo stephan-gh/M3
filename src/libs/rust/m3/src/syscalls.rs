@@ -18,12 +18,13 @@
 
 use cap::Selector;
 use cell::StaticCell;
-use com::{RecvGate, SendGate};
+use com::{RecvGate, SendGate, SliceSink, SliceSource};
 use core::mem::MaybeUninit;
 use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
 use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
+use serialize::Sink;
 use util;
 
 static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(INVALID_SEL, SYSC_SEP));
@@ -365,48 +366,77 @@ pub fn exchange(
 /// Delegates the capabilities `crd` of VPE `vpe` via the session `sess` to the server managing the
 /// session.
 ///
-/// The arguments are passed to the server to provide further information for the capability
-/// delegation and back to the client to provide feedback to the client.
-pub fn delegate(
+/// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
+/// `SliceSink`, allowing to pass arguments to the server, whereas `post` is called with
+/// `SliceSource`, allowing to get arguments from the server.
+pub fn delegate<PRE, POST>(
     vpe: Selector,
     sess: Selector,
     crd: CapRngDesc,
-    args: &mut syscalls::ExchangeArgs,
-) -> Result<(), Error> {
-    exchange_sess(vpe, syscalls::Operation::DELEGATE, sess, crd, args)
+    pre: PRE,
+    post: POST,
+) -> Result<(), Error>
+where
+    PRE: Fn(&mut SliceSink),
+    POST: FnMut(&mut SliceSource),
+{
+    exchange_sess(vpe, syscalls::Operation::DELEGATE, sess, crd, pre, post)
 }
 
 /// Obtains `crd.count` capabilities via the session `sess` from the server managing the session
 /// into `crd` of VPE `vpe`.
 ///
-/// The arguments are passed to the server to provide further information for the capability
-/// delegation and back to the client to provide feedback to the client.
-pub fn obtain(
+/// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
+/// `SliceSink`, allowing to pass arguments to the server, whereas `post` is called with
+/// `SliceSource`, allowing to get arguments from the server.
+pub fn obtain<PRE, POST>(
     vpe: Selector,
     sess: Selector,
     crd: CapRngDesc,
-    args: &mut syscalls::ExchangeArgs,
-) -> Result<(), Error> {
-    exchange_sess(vpe, syscalls::Operation::OBTAIN, sess, crd, args)
+    pre: PRE,
+    post: POST,
+) -> Result<(), Error>
+where
+    PRE: Fn(&mut SliceSink),
+    POST: FnMut(&mut SliceSource),
+{
+    exchange_sess(vpe, syscalls::Operation::OBTAIN, sess, crd, pre, post)
 }
 
-fn exchange_sess(
+fn exchange_sess<PRE, POST>(
     vpe: Selector,
     op: syscalls::Operation,
     sess: Selector,
     crd: CapRngDesc,
-    args: &mut syscalls::ExchangeArgs,
-) -> Result<(), Error> {
-    let req = syscalls::ExchangeSess {
+    pre: PRE,
+    mut post: POST,
+) -> Result<(), Error>
+where
+    PRE: Fn(&mut SliceSink),
+    POST: FnMut(&mut SliceSource),
+{
+    let mut req = syscalls::ExchangeSess {
         opcode: op.val,
         vpe_sel: u64::from(vpe),
         sess_sel: u64::from(sess),
         crd: crd.value(),
-        args: *args,
+        args: syscalls::ExchangeArgs::default(),
     };
 
+    {
+        let mut sink = SliceSink::new(unsafe { &mut req.args.data });
+        pre(&mut sink);
+        req.args.bytes = sink.size() as u64;
+    }
+
     let reply: Reply<syscalls::ExchangeSessReply> = send_receive(&req)?;
-    *args = reply.data.args;
+
+    {
+        let words = (reply.data.args.bytes as usize + 7) / 8;
+        let mut src = SliceSource::new(unsafe { &reply.data.args.data[..words] });
+        post(&mut src);
+    }
+
     Ok(())
 }
 

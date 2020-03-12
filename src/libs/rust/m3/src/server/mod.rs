@@ -20,7 +20,7 @@
 mod server;
 mod sesscon;
 
-pub use self::server::{Handler, Server};
+pub use self::server::{CapExchange, Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
 use dtu::DTUIf;

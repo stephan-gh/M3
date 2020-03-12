@@ -21,13 +21,12 @@ use com::{RecvGate, SendGate, SliceSource, VecSink};
 use core::any::Any;
 use core::cmp;
 use core::fmt;
-use core::mem::MaybeUninit;
 use errors::Error;
 use goff;
 use kif;
 use pes::VPE;
 use rc::{Rc, Weak};
-use serialize::Sink;
+use serialize::{Sink, Source};
 use session::ClientSession;
 use vfs::{
     FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
@@ -61,8 +60,7 @@ impl M3FS {
         let sess = ClientSession::new_with_sel(name, sels + 1)?;
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 0, 1);
-        let mut args = kif::syscalls::ExchangeArgs::default();
-        sess.obtain_for(VPE::cur().sel(), crd, &mut args)?;
+        sess.obtain_for(VPE::cur().sel(), crd, |_| {}, |_| {})?;
         let sgate = SendGate::new_bind(sels + 0);
         Ok(Self::create(sess, sgate))
     }
@@ -81,10 +79,19 @@ impl M3FS {
     }
 
     pub fn get_mem(sess: &ClientSession, off: goff) -> Result<(goff, goff, Selector), Error> {
-        let mut args = kif::syscalls::ExchangeArgs::default();
-        args.push_ival(off as u64);
-        let crd = sess.obtain(1, &mut args)?;
-        Ok((args.ival(0) as goff, args.ival(1) as goff, crd.start()))
+        let mut offset = 0;
+        let mut len = 0;
+        let crd = sess.obtain(
+            1,
+            |os| {
+                os.push_word(off as u64);
+            },
+            |is| {
+                offset = is.pop_word();
+                len = is.pop_word();
+            },
+        )?;
+        Ok((offset, len, crd.start()))
     }
 }
 
@@ -94,17 +101,14 @@ impl FileSystem for M3FS {
     }
 
     fn open(&self, path: &str, flags: OpenFlags) -> Result<FileHandle, Error> {
-        #[allow(clippy::uninit_assumed_init)]
-        let mut args = kif::syscalls::ExchangeArgs::new(1, kif::syscalls::ExchangeUnion {
-            s: kif::syscalls::ExchangeUnionStr {
-                i: [u64::from(flags.bits()), 0],
-                // safety: will be initialized via set_str below
-                s: unsafe { MaybeUninit::uninit().assume_init() },
+        let crd = self.sess.obtain(
+            2,
+            |os| {
+                os.push_word(u64::from(flags.bits()));
+                os.push_str(path);
             },
-        });
-        args.set_str(path);
-
-        let crd = self.sess.obtain(2, &mut args)?;
+            |_| {},
+        )?;
         Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
     }
 
@@ -149,8 +153,7 @@ impl FileSystem for M3FS {
         dels.push(self.sess.sel());
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
-        let mut args = kif::syscalls::ExchangeArgs::default();
-        self.sess.obtain_for(vpe, crd, &mut args)?;
+        self.sess.obtain_for(vpe, crd, |_| {}, |_| {})?;
         *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }

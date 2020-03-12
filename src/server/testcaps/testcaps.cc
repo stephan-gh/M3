@@ -39,7 +39,7 @@ public:
         *sess = new ServerSession(srv_sel);
         return Errors::NONE;
     }
-    virtual Errors::Code obtain(ServerSession *, KIF::Service::ExchangeData &) override {
+    virtual Errors::Code obtain(ServerSession *, m3::CapExchange &) override {
         if(++_count == 5) {
             _selfstop = true;
             srv->shutdown();

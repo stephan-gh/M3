@@ -81,22 +81,19 @@ M3FSFileSession::~M3FSFileSession() {
         VPE::self().revoke(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _last, 1));
 }
 
-Errors::Code M3FSFileSession::clone(capsel_t srv, KIF::Service::ExchangeData &data) {
+Errors::Code M3FSFileSession::clone(capsel_t srv, m3::CapExchange &xchg) {
     PRINT(this, "file::clone(path=" << _filename << ")");
 
     auto nfile =  new M3FSFileSession(hdl(), srv, _meta, String(_filename), _oflags, _ino);
 
-    data.args.count = 0;
-    data.caps = nfile->caps().value();
+    xchg.out_caps(nfile->caps());
 
     return Errors::NONE;
 }
 
-Errors::Code M3FSFileSession::get_mem(KIF::Service::ExchangeData &data) {
-    if(data.args.count != 1)
-        return Errors::INV_ARGS;
-
-    size_t offset = data.args.vals[0];
+Errors::Code M3FSFileSession::get_mem(m3::CapExchange &xchg) {
+    size_t offset;
+    xchg.in_args() >> offset;
 
     Request r(hdl());
 
@@ -124,10 +121,8 @@ Errors::Code M3FSFileSession::get_mem(KIF::Service::ExchangeData &data) {
         return r.error();
     }
 
-    data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1).value();
-    data.args.count = 2;
-    data.args.vals[0] = 0;
-    data.args.vals[1] = len;
+    xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1));
+    xchg.out_args() << 0 << len;
 
     PRINT(this, "file::get_mem -> " << len);
 

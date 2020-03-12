@@ -58,8 +58,8 @@ public:
         return _rgate;
     }
 
-    m3::Errors::Code get_sgate(m3::KIF::Service::ExchangeData &data);
-    m3::Errors::Code open_file(capsel_t srv, m3::KIF::Service::ExchangeData &data);
+    m3::Errors::Code get_sgate(m3::CapExchange &xchg);
+    m3::Errors::Code open_file(capsel_t srv, m3::CapExchange &xchg);
     void remove_file(M3FSFileSession *file);
 
 private:

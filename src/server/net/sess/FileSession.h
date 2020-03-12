@@ -46,7 +46,7 @@ public:
         return FILE;
     }
 
-    virtual m3::Errors::Code delegate(m3::KIF::Service::ExchangeData &data) override;
+    virtual m3::Errors::Code delegate(m3::CapExchange &xchg) override;
 
     /**
      * @return Selectors for session and client send gate capabilities.

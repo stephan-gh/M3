@@ -114,6 +114,32 @@ public:
 };
 
 /**
+ * An output stream for the exchange arguments.
+ */
+class ExchangeOStream : public Marshaller {
+  public:
+    explicit ExchangeOStream(KIF::ExchangeArgs &args) noexcept
+        : Marshaller(args.data, sizeof(args.data)) {
+    }
+    ExchangeOStream(const ExchangeOStream &) = delete;
+    ExchangeOStream &operator=(const ExchangeOStream &) = delete;
+
+    using Marshaller::put;
+};
+
+/**
+ * An input stream for the exchange arguments.
+ */
+class ExchangeIStream : public Unmarshaller {
+  public:
+    explicit ExchangeIStream(const KIF::ExchangeArgs &args) noexcept
+        : Unmarshaller(args.data, args.bytes) {
+    }
+    ExchangeIStream(const ExchangeIStream &) = delete;
+    ExchangeIStream &operator=(const ExchangeIStream &) = delete;
+};
+
+/**
  * The gate stream to unmarshall values from a message. Thus, it "inputs" values from a message
  * into variables.
  */

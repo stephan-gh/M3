@@ -88,19 +88,19 @@ SocketSession::~SocketSession() {
     }
 }
 
-m3::Errors::Code SocketSession::obtain(capsel_t srv_sel, m3::KIF::Service::ExchangeData& data) {
-    if(data.caps == 1) {
-        return get_sgate(data);
-    } else if(data.caps == 3) {
-        return establish_channel(data);
-    } else if(data.caps == 2 && data.args.count == 4) {
-        return open_file(srv_sel, data);
+m3::Errors::Code SocketSession::obtain(capsel_t srv_sel, m3::CapExchange &xchg) {
+    if(xchg.in_caps() == 1) {
+        return get_sgate(xchg);
+    } else if(xchg.in_caps() == 3) {
+        return establish_channel(xchg);
+    } else if(xchg.in_caps() == 2) {
+        return open_file(srv_sel, xchg);
     } else {
         return Errors::INV_ARGS;
     }
 }
 
-m3::Errors::Code SocketSession::get_sgate(m3::KIF::Service::ExchangeData& data) {
+m3::Errors::Code SocketSession::get_sgate(m3::CapExchange &xchg) {
     if(_sgate)
         return Errors::INV_ARGS;
 
@@ -108,44 +108,37 @@ m3::Errors::Code SocketSession::get_sgate(m3::KIF::Service::ExchangeData& data) 
     _sgate = new SendGate(SendGate::create(&_rgate, SendGateArgs().label(label)
                                                                   .credits(1)));
 
-    data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate->sel()).value();
+    xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sgate->sel()));
     return Errors::NONE;
 }
 
-m3::Errors::Code SocketSession::establish_channel(m3::KIF::Service::ExchangeData& data) {
-    if(data.caps == 3) {
-        if(_channel_caps != ObjCap::INVALID) {
-            LOG_SESSION(this, "handle_obtain failed: data channel is already established");
-            return Errors::INV_ARGS;
-        }
-
-        // 0 - 2: Server
-        // 3 - 5: Client
-        _channel_caps = VPE::self().alloc_sels(6);
-        NetEventChannel::prepare_caps(_channel_caps, NetEventChannel::BUFFER_SIZE);
-        _channel = new NetEventChannel(_channel_caps, true);
-
-        _channelWorkItem = new NetEventChannelWorkItem(*_channel, *this);
-        _wl->add(_channelWorkItem, false);
-
-        // TODO: pass size as argument
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _channel_caps + 3, 3);
-        data.caps = crd.value();
-        data.args.count = 0;
-        return Errors::NONE;
-    }
-    else
+m3::Errors::Code SocketSession::establish_channel(m3::CapExchange &xchg) {
+    if(_channel_caps != ObjCap::INVALID) {
+        LOG_SESSION(this, "handle_obtain failed: data channel is already established");
         return Errors::INV_ARGS;
+    }
+
+    // 0 - 2: Server
+    // 3 - 5: Client
+    _channel_caps = VPE::self().alloc_sels(6);
+    NetEventChannel::prepare_caps(_channel_caps, NetEventChannel::BUFFER_SIZE);
+    _channel = new NetEventChannel(_channel_caps, true);
+
+    _channelWorkItem = new NetEventChannelWorkItem(*_channel, *this);
+    _wl->add(_channelWorkItem, false);
+
+    // TODO: pass size as argument
+    xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _channel_caps + 3, 3));
+    return Errors::NONE;
 }
 
-m3::Errors::Code SocketSession::open_file(capsel_t srv_sel, m3::KIF::Service::ExchangeData& data) {
-    if(data.caps != 2 || data.args.count != 4)
-        return Errors::INV_ARGS;
+m3::Errors::Code SocketSession::open_file(capsel_t srv_sel, m3::CapExchange &xchg) {
+    int sd, mode;
+    size_t rmemsize, smemsize;
+    xchg.in_args() >> sd >> mode >> rmemsize >> smemsize;
 
-    int sd = data.args.vals[0];
     LwipSocket *socket = get_socket(sd);
     if(socket) {
-        int mode = data.args.vals[1];
         if(!(mode & FILE_RW)) {
             LOG_SESSION(this, "open_file failed: invalid mode");
             return Errors::INV_ARGS;
@@ -156,16 +149,13 @@ m3::Errors::Code SocketSession::open_file(capsel_t srv_sel, m3::KIF::Service::Ex
             return Errors::INV_ARGS;
         }
 
-        size_t rmemsize = data.args.vals[2];
-        size_t smemsize = data.args.vals[3];
         FileSession *file = new FileSession(_wl, srv_sel, socket, mode, rmemsize, smemsize);
         if(file->is_recv())
             socket->_rfile = file;
         if(file->is_send())
             socket->_sfile = file;
         socket->_rgate = &_rgate;
-        data.args.count = 0;
-        data.caps = file->caps().value();
+        xchg.out_caps(file->caps());
         LOG_SESSION(this, "open_file: " << sd << "@" << (file->is_recv() ? "r" : "") << (file->is_send() ? "s" : ""));
         return Errors::NONE;
     } else {

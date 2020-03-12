@@ -22,7 +22,7 @@ use m3::dtu;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
-use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
+use m3::server::{CapExchange, server_loop, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
 use m3::test;
@@ -52,7 +52,7 @@ impl Handler for MyHandler {
         Ok((sel, 0))
     }
 
-    fn obtain(&mut self, _: SessId, _: &mut kif::service::ExchangeData) -> Result<(), Error> {
+    fn obtain(&mut self, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
         // don't respond, just exit
         m3::exit(1);
     }

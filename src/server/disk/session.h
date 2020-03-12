@@ -46,8 +46,8 @@ public:
         return *_rgate;
     }
 
-    m3::Errors::Code get_sgate(m3::KIF::Service::ExchangeData &data) {
-        if(data.caps != 1)
+    m3::Errors::Code get_sgate(m3::CapExchange &xchg) {
+        if(xchg.in_caps() != 1)
             return m3::Errors::INV_ARGS;
 
         label_t label       = ptr_to_label(this);
@@ -56,7 +56,7 @@ public:
         );
         _sgates.append(sgate);
 
-        data.caps = m3::KIF::CapRngDesc(m3::KIF::CapRngDesc::OBJ, sgate->sgate.sel()).value();
+        xchg.out_caps(m3::KIF::CapRngDesc(m3::KIF::CapRngDesc::OBJ, sgate->sgate.sel()));
         return m3::Errors::NONE;
     }
 

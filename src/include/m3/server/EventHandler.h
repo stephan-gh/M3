@@ -80,13 +80,12 @@ protected:
         return Errors::NONE;
     }
 
-    virtual Errors::Code delegate(SESS *sess, KIF::Service::ExchangeData &data) override {
-        if(sess->gate() || data.args.count != 0 || data.caps != 1)
+    virtual Errors::Code delegate(SESS *sess, CapExchange &xchg) override {
+        if(sess->gate() || xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
         sess->_sgate = std::make_unique<SendGate>(SendGate::bind(VPE::self().alloc_sel(), 0));
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, sess->gate()->sel());
-        data.caps = crd.value();
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->gate()->sel()));
         return Errors::NONE;
     }
 

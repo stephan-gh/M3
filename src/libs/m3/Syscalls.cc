@@ -265,7 +265,7 @@ void Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc 
     if(args)
         memcpy(&req.args, args, sizeof(*args));
     else
-        req.args.count = 0;
+        req.args.bytes = 0;
 
     auto reply = send_receive<KIF::Syscall::ExchangeSessReply>(&req, sizeof(req));
 

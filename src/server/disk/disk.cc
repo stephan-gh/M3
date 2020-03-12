@@ -76,11 +76,11 @@ public:
         _rgate.start(wl, std::bind(&DiskRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code obtain(DiskSrvSession *sess, KIF::Service::ExchangeData &data) override {
-        if(data.args.count != 0 || data.caps != 1)
+    virtual Errors::Code obtain(DiskSrvSession *sess, CapExchange &xchg) override {
+        if(xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
-        return sess->get_sgate(data);
+        return sess->get_sgate(xchg);
     }
 
     virtual Errors::Code open(DiskSrvSession **sess, capsel_t srv_sel, const StringRef &arg) override {
@@ -93,21 +93,25 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code delegate(DiskSrvSession *sess, KIF::Service::ExchangeData &data) override {
-        if(data.args.count != 2 || data.caps != 1)
+    virtual Errors::Code delegate(DiskSrvSession *sess, CapExchange &xchg) override {
+        if(xchg.in_caps() != 1)
             return Errors::NOT_SUP;
 
+        blockno_t bno;
+        size_t len;
+        xchg.in_args() >> bno >> len;
+
         capsel_t sel = VPE::self().alloc_sel();
-        data.caps    = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, data.caps).value();
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, xchg.in_caps()));
 
-        PRINT(sess, "received caps: bno=" << data.args.vals[0] << ", len=" << data.args.vals[1]);
+        PRINT(sess, "received caps: bno=" << bno << ", len=" << len);
 
-        CapNode *node = caps.find(data.args.vals[0]);
+        CapNode *node = caps.find(bno);
         if(node) {
             caps.remove(node);
             delete node;
         }
-        caps.insert(new CapNode(data.args.vals[0], sel, data.args.vals[1]));
+        caps.insert(new CapNode(bno, sel, len));
         return Errors::NONE;
     }
 

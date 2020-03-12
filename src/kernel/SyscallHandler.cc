@@ -951,7 +951,8 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     smsg.opcode = obtain ? m3::KIF::Service::OBTAIN : m3::KIF::Service::DELEGATE;
     smsg.sess = sesscap->obj->ident;
     smsg.data.caps = crd.count();
-    memcpy(&smsg.data.args, &req->args, sizeof(req->args));
+    smsg.data.args.bytes = req->args.bytes;
+    memcpy(&smsg.data.args.data, &req->args.data, req->args.bytes);
 
     const m3::DTU::Message *srvreply = rsrv->send_receive(smsg.sess, &smsg, sizeof(smsg), false);
     // if the VPE exited, we don't even want to reply
@@ -980,9 +981,12 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
 
     m3::KIF::Syscall::ExchangeSessReply kreply;
     kreply.error = static_cast<xfer_t>(res);
-    kreply.args.count = 0;
+    kreply.args.bytes = 0;
     if(res == m3::Errors::NONE)
-        memcpy(&kreply.args, &reply->data.args, sizeof(reply->data.args));
+    {
+        kreply.args.bytes = reply->data.args.bytes;
+        memcpy(&kreply.args.data, &reply->data.args.data, reply->data.args.bytes);
+    }
     reply_msg(vpe, msg, &kreply, sizeof(kreply));
 }
 

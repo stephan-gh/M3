@@ -16,9 +16,7 @@
 
 //! The service interface
 
-use core::fmt;
 use kif::syscalls;
-use serialize::{Source, Unmarshallable};
 
 /// The maximum size of strings in service calls
 pub const MAX_STR_SIZE: usize = 32;
@@ -72,6 +70,18 @@ pub struct ExchangeReply {
     pub data: ExchangeData,
 }
 
+impl Default for ExchangeReply {
+    fn default() -> Self {
+        Self {
+            res: 0,
+            data: ExchangeData {
+                caps: 0,
+                args: syscalls::ExchangeArgs::default(),
+            },
+        }
+    }
+}
+
 /// The close request message
 #[repr(C, packed)]
 pub struct Close {
@@ -83,32 +93,4 @@ pub struct Close {
 #[repr(C, packed)]
 pub struct Shutdown {
     pub opcode: u64,
-}
-
-impl fmt::Debug for ExchangeData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "ExchangeData[")?;
-        for i in 0..self.args.count() {
-            let arg = self.args.ival(i);
-            write!(f, "{}", arg)?;
-            if i + 1 < self.args.count() {
-                write!(f, ", ")?;
-            }
-        }
-        write!(f, "]")
-    }
-}
-
-impl Unmarshallable for ExchangeData {
-    fn unmarshall(s: &mut dyn Source) -> Self {
-        let mut res = ExchangeData {
-            caps: s.pop_word(),
-            args: syscalls::ExchangeArgs::default(),
-        };
-        res.args.set_count(s.pop_word() as usize);
-        for i in 0..syscalls::MAX_EXCHG_ARGS {
-            res.args.set_ival(i, s.pop_word());
-        }
-        res
-    }
 }

@@ -34,11 +34,12 @@ use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math;
 use m3::pes::VPE;
-use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
+use m3::serialize::Source;
+use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::vfs::GenFileOp;
 
-use sess::{Channel, ChanType, Meta, PipesSession, SessionData};
+use sess::{ChanType, Channel, Meta, PipesSession, SessionData};
 
 pub const LOG_DEF: bool = false;
 
@@ -102,8 +103,8 @@ impl Handler for PipesHandler {
         Ok((sel, sid))
     }
 
-    fn obtain(&mut self, sid: SessId, data: &mut kif::service::ExchangeData) -> Result<(), Error> {
-        if data.caps != 2 {
+    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        if xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -113,11 +114,8 @@ impl Handler for PipesHandler {
             match &mut sess.data_mut() {
                 // meta sessions allow to create new pipes
                 SessionData::Meta(ref mut m) => {
-                    if data.args.count() != 1 {
-                        return Err(Error::new(Code::InvArgs));
-                    }
                     let sel = VPE::cur().alloc_sel();
-                    let msize = data.args.ival(0);
+                    let msize = xchg.in_args().pop_word();
                     log!(
                         crate::LOG_DEF,
                         "[{}] pipes::new_pipe(sid={}, sel={}, size={:#x})",
@@ -133,12 +131,8 @@ impl Handler for PipesHandler {
 
                 // pipe sessions allow to create new channels
                 SessionData::Pipe(ref mut p) => {
-                    if data.args.count() != 1 {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-
                     let sel = VPE::cur().alloc_sels(2);
-                    let ty = match data.args.ival(0) {
+                    let ty = match xchg.in_args().pop_word() {
                         1 => ChanType::READ,
                         _ => ChanType::WRITE,
                     };
@@ -159,7 +153,13 @@ impl Handler for PipesHandler {
                 // channel sessions can be cloned
                 SessionData::Chan(ref mut c) => {
                     let sel = VPE::cur().alloc_sels(2);
-                    log!(crate::LOG_DEF, "[{}] pipes::clone(sid={}, sel={})", sid, nsid, sel);
+                    log!(
+                        crate::LOG_DEF,
+                        "[{}] pipes::clone(sid={}, sel={})",
+                        sid,
+                        nsid,
+                        sel
+                    );
 
                     let chan = c.clone(nsid, sel)?;
                     self.new_sess(nsid, self.sel, sel, SessionData::Chan(chan))
@@ -185,42 +185,38 @@ impl Handler for PipesHandler {
 
         self.sessions.add(nsid, nsess);
 
-        data.caps = crd.value();
+        xchg.out_caps(crd);
 
         Ok(())
     }
 
-    fn delegate(
-        &mut self,
-        sid: SessId,
-        data: &mut kif::service::ExchangeData,
-    ) -> Result<(), Error> {
+    fn delegate(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         let sess = self.sessions.get_mut(sid).unwrap();
         match &mut sess.data_mut() {
             // pipe sessions expect a memory cap for the shared memory of the pipe
             SessionData::Pipe(ref mut p) => {
-                if data.caps != 1 || data.args.count() != 0 || p.has_mem() {
+                if xchg.in_caps() != 1 || p.has_mem() {
                     return Err(Error::new(Code::InvArgs));
                 }
 
                 let sel = VPE::cur().alloc_sel();
                 log!(crate::LOG_DEF, "[{}] pipes::set_mem(sel={})", sid, sel);
                 p.set_mem(sel);
-                data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1).value();
+                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
 
                 Ok(())
             },
 
             // channel sessions expect an EP cap to get access to the data
             SessionData::Chan(ref mut c) => {
-                if data.caps != 1 || data.args.count() != 0 {
+                if xchg.in_caps() != 1 {
                     return Err(Error::new(Code::InvArgs));
                 }
 
                 let sel = VPE::cur().alloc_sel();
                 log!(crate::LOG_DEF, "[{}] pipes::set_ep(sel={})", sid, sel);
                 c.set_ep(sel);
-                data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1).value();
+                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
 
                 Ok(())
             },

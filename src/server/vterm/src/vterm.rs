@@ -29,7 +29,8 @@ use m3::io::{Read, Serial, Write};
 use m3::kif;
 use m3::math;
 use m3::pes::VPE;
-use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
+use m3::serialize::Source;
+use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::syscalls;
 use m3::vfs::GenFileOp;
@@ -144,7 +145,12 @@ impl Channel {
     fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let nbytes: usize = is.pop();
 
-        log!(crate::LOG_DEF, "[{}] vterm::commit(nbytes={})", self.id, nbytes);
+        log!(
+            crate::LOG_DEF,
+            "[{}] vterm::commit(nbytes={})",
+            self.id,
+            nbytes
+        );
 
         if nbytes > self.len - self.pos {
             return Err(Error::new(Code::InvArgs));
@@ -219,8 +225,8 @@ impl Handler for VTermHandler {
         Ok((sel, sid))
     }
 
-    fn obtain(&mut self, sid: SessId, data: &mut kif::service::ExchangeData) -> Result<(), Error> {
-        if data.caps != 2 {
+    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        if xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -229,20 +235,11 @@ impl Handler for VTermHandler {
             let nsid = sessions.next_id()?;
             let sess = sessions.get(sid).unwrap();
             match &sess.data {
-                SessionData::Meta => {
-                    if data.args.count() != 1 {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-                    self.new_chan(nsid, data.args.ival(0) == 1)
-                        .map(|s| (nsid, s))
-                },
+                SessionData::Meta => self
+                    .new_chan(nsid, xchg.in_args().pop_word() == 1)
+                    .map(|s| (nsid, s)),
 
-                SessionData::Chan(c) => {
-                    if data.args.count() != 0 {
-                        return Err(Error::new(Code::InvArgs));
-                    }
-                    self.new_chan(nsid, c.writing).map(|s| (nsid, s))
-                },
+                SessionData::Chan(c) => self.new_chan(nsid, c.writing).map(|s| (nsid, s)),
             }
         }?;
 
@@ -251,16 +248,12 @@ impl Handler for VTermHandler {
         let sel = nsess.sess.sel();
         self.sessions.add(nsid, nsess);
 
-        data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2).value();
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
         Ok(())
     }
 
-    fn delegate(
-        &mut self,
-        sid: SessId,
-        data: &mut kif::service::ExchangeData,
-    ) -> Result<(), Error> {
-        if data.caps != 1 || data.args.count() != 0 {
+    fn delegate(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -271,7 +264,7 @@ impl Handler for VTermHandler {
             SessionData::Chan(c) => {
                 let sel = VPE::cur().alloc_sel();
                 c.ep = Some(sel);
-                data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1).value();
+                xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
                 Ok(())
             },
         }

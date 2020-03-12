@@ -82,18 +82,18 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code obtain(LoadGenSession *sess, KIF::Service::ExchangeData &data) override {
-        if(data.caps != 1)
+    virtual Errors::Code obtain(LoadGenSession *sess, CapExchange &xchg) override {
+        if(xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
         SLOG(LOADGEN, fmt((word_t)sess, "#x") << ": mem::get_sgate()");
 
-        data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->clisgate.sel()).value();
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->clisgate.sel()));
         return Errors::NONE;
     }
 
-    virtual Errors::Code delegate(LoadGenSession *sess, KIF::Service::ExchangeData &data) override {
-        if(data.caps != 2 || data.args.count != 0 || sess->sgate)
+    virtual Errors::Code delegate(LoadGenSession *sess, CapExchange &xchg) override {
+        if(xchg.in_caps() != 2 || sess->sgate)
             return Errors::INV_ARGS;
 
         SLOG(LOADGEN, fmt((word_t)sess, "#x") << ": mem::create_chan()");
@@ -103,7 +103,7 @@ public:
         sess->sgate.reset(new SendGate(SendGate::bind(crd.start() + 0, &_rgate)));
         sess->mgate.reset(new MemGate(MemGate::bind(crd.start() + 1)));
 
-        data.caps = crd.value();
+        xchg.out_caps(crd);
         return Errors::NONE;
     }
 

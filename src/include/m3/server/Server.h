@@ -138,14 +138,15 @@ private:
         auto *req = reinterpret_cast<const KIF::Service::Exchange*>(is.message().data);
 
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": obtain(caps="
-            << req->data.caps << ", args=" << req->data.args.count << ")");
+            << req->data.caps << ", args=" << req->data.args.bytes << ")");
 
         KIF::Service::ExchangeReply reply;
-        memcpy(&reply.data, &req->data, sizeof(req->data));
+        CapExchange xchg(req->data, reply.data);
 
         typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
-        reply.error = _handler->obtain(sess, reply.data);
+        reply.error = _handler->obtain(sess, xchg);
 
+        reply.data.args.bytes = xchg.out_args().total();
         is.reply(&reply, sizeof(reply));
     }
 
@@ -153,14 +154,15 @@ private:
         auto *req = reinterpret_cast<const KIF::Service::Exchange*>(is.message().data);
 
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": delegate(caps="
-            << req->data.caps << ", args=" << req->data.args.count << ")");
+            << req->data.caps << ", args=" << req->data.args.bytes << ")");
 
         KIF::Service::ExchangeReply reply;
-        memcpy(&reply.data, &req->data, sizeof(req->data));
+        CapExchange xchg(req->data, reply.data);
 
         typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
-        reply.error = _handler->delegate(sess, reply.data);
+        reply.error = _handler->delegate(sess, xchg);
 
+        reply.data.args.bytes = xchg.out_args().total();
         is.reply(&reply, sizeof(reply));
     }
 

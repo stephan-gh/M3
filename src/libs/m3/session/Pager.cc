@@ -63,26 +63,26 @@ void Pager::map_anon(goff_t *virt, size_t len, int prot, int flags) {
 void Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSession &sess,
                    size_t offset) {
     KIF::ExchangeArgs args;
-    args.count = 6;
-    args.vals[0] = DelOp::DATASPACE;
-    args.vals[1] = *virt;
-    args.vals[2] = len;
-    args.vals[3] = static_cast<xfer_t>(prot);
-    args.vals[4] = static_cast<xfer_t>(flags);
-    args.vals[5] = offset;
+    ExchangeOStream os(args);
+    os << DelOp::DATASPACE << *virt << len << prot << flags << offset;
+    args.bytes = os.total();
+
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess.sel()), &args);
-    *virt = args.vals[0];
+
+    ExchangeIStream is(args);
+    is >> *virt;
 }
 
 void Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
     KIF::ExchangeArgs args;
-    args.count = 4;
-    args.vals[0] = DelOp::MEMGATE;
-    args.vals[1] = *virt;
-    args.vals[2] = len;
-    args.vals[3] = static_cast<xfer_t>(prot);
+    ExchangeOStream os(args);
+    os << DelOp::MEMGATE << *virt << len << prot;
+    args.bytes = os.total();
+
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, mem.sel()), &args);
-    *virt = args.vals[0];
+
+    ExchangeIStream is(args);
+    is >> *virt;
 }
 
 void Pager::unmap(goff_t virt) {
@@ -94,9 +94,10 @@ Reference<Pager> Pager::create_clone(VPE &vpe) {
     KIF::CapRngDesc caps;
     {
         KIF::ExchangeArgs args;
+        ExchangeOStream os(args);
         // dummy arg to distinguish from the get_sgate operation
-        args.count = 1;
-        args.vals[0] = 0;
+        os << 0;
+        args.bytes = os.total();
         caps = obtain(1, &args);
     }
 

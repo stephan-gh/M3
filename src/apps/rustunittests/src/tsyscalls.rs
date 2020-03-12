@@ -18,7 +18,7 @@ use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate};
 use m3::dtu::{EP_COUNT, FIRST_FREE_EP};
 use m3::errors::Code;
-use m3::kif::syscalls::{ExchangeArgs, SemOp, VPEOp};
+use m3::kif::syscalls::{SemOp, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_MEM, SEL_PE, SEL_VPE};
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::session::M3FS;
@@ -556,16 +556,15 @@ fn delegate() {
     let m3fs = m3fs.borrow();
     let sess = m3fs.as_any().downcast_ref::<M3FS>().unwrap().sess();
     let crd = CapRngDesc::new(CapType::OBJECT, SEL_VPE, 1);
-    let mut args = ExchangeArgs::default();
 
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::delegate(SEL_MEM, sess.sel(), crd, &mut args),
+        syscalls::delegate(SEL_MEM, sess.sel(), crd, |_| {}, |_| {}),
         Code::InvArgs
     );
     // invalid sess selector
     wv_assert_err!(
-        syscalls::delegate(VPE::cur().sel(), SEL_VPE, crd, &mut args),
+        syscalls::delegate(VPE::cur().sel(), SEL_VPE, crd, |_| {}, |_| {}),
         Code::InvArgs
     );
     // CRD can be anything (depends on server)
@@ -578,21 +577,20 @@ fn obtain() {
     let sel = VPE::cur().alloc_sel();
     let crd = CapRngDesc::new(CapType::OBJECT, sel, 1);
     let inval = CapRngDesc::new(CapType::OBJECT, SEL_VPE, 1);
-    let mut args = ExchangeArgs::default();
 
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::obtain(SEL_MEM, sess.sel(), crd, &mut args),
+        syscalls::obtain(SEL_MEM, sess.sel(), crd, |_| {}, |_| {}),
         Code::InvArgs
     );
     // invalid sess selector
     wv_assert_err!(
-        syscalls::obtain(VPE::cur().sel(), SEL_VPE, crd, &mut args),
+        syscalls::obtain(VPE::cur().sel(), SEL_VPE, crd, |_| {}, |_| {}),
         Code::InvArgs
     );
     // invalid CRD
     wv_assert_err!(
-        syscalls::obtain(VPE::cur().sel(), sess.sel(), inval, &mut args),
+        syscalls::obtain(VPE::cur().sel(), sess.sel(), inval, |_| {}, |_| {}),
         Code::InvArgs
     );
 }

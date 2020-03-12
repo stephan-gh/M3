@@ -86,12 +86,12 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code obtain(NMSession *sess, KIF::Service::ExchangeData &data) override {
-        return sess->obtain(srv->sel(), data);
+    virtual Errors::Code obtain(NMSession *sess, m3::CapExchange &xchg) override {
+        return sess->obtain(srv->sel(), xchg);
     }
 
-    virtual Errors::Code delegate(NMSession *sess, KIF::Service::ExchangeData &data) override {
-        return sess->delegate(data);
+    virtual Errors::Code delegate(NMSession *sess, m3::CapExchange &xchg) override {
+        return sess->delegate(xchg);
     }
 
     virtual Errors::Code close(NMSession *sess) override {

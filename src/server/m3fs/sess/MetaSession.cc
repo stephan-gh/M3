@@ -23,8 +23,8 @@
 
 using namespace m3;
 
-Errors::Code M3FSMetaSession::get_sgate(KIF::Service::ExchangeData &data) {
-    if(data.caps != 1)
+Errors::Code M3FSMetaSession::get_sgate(m3::CapExchange &xchg) {
+    if(xchg.in_caps() != 1)
         return Errors::INV_ARGS;
 
     label_t label = ptr_to_label(this);
@@ -32,25 +32,21 @@ Errors::Code M3FSMetaSession::get_sgate(KIF::Service::ExchangeData &data) {
                                                                              .credits(1)));
     _sgates.append(sgate);
 
-    data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sgate->sgate.sel()).value();
+    xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sgate->sgate.sel()));
     return Errors::NONE;
 }
 
-Errors::Code M3FSMetaSession::open_file(capsel_t srv, KIF::Service::ExchangeData &data) {
-    if(data.args.count != 1)
-        return Errors::INV_ARGS;
-
-    int flags = data.args.svals[0];
-    data.args.str[sizeof(data.args.str) - 1] = '\0';
-    const char *path = data.args.str;
+Errors::Code M3FSMetaSession::open_file(capsel_t srv, m3::CapExchange &xchg) {
+    int flags;
+    String path;
+    xchg.in_args() >> flags >> path;
 
     size_t id;
-    Errors::Code res = do_open(srv, path, flags, &id);
+    Errors::Code res = do_open(srv, std::move(path), flags, &id);
     if(res != Errors::NONE)
         return res;
 
-    data.args.count = 0;
-    data.caps       = _files[id]->caps().value();
+    xchg.out_caps(_files[id]->caps());
     return Errors::NONE;
 }
 

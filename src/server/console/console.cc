@@ -38,12 +38,11 @@ public:
         *sess = new ServerSession(srv_sel);
         return Errors::NONE;
     }
-    virtual Errors::Code obtain(ServerSession *, KIF::Service::ExchangeData &data) override {
-        if(data.caps != 1 || data.args.count != 0)
+    virtual Errors::Code obtain(ServerSession *, CapExchange &xchg) override {
+        if(xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
-        KIF::CapRngDesc crd(KIF::CapRngDesc::OBJ, _vgamem->sel());
-        data.caps = crd.value();
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _vgamem->sel()));
         return Errors::NONE;
     }
     virtual Errors::Code close(ServerSession *sess) override {

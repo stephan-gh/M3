@@ -83,12 +83,17 @@ public:
     // TODO wrong place. we should have a DataSpace session or something
     static size_t get_mem(ClientSession &sess, size_t *off, capsel_t *sel) {
         KIF::ExchangeArgs args;
-        args.count = 1;
-        args.vals[0] = *off;
+        ExchangeOStream os(args);
+        os << *off;
+        args.bytes = os.total();
+
         KIF::CapRngDesc crd = sess.obtain(1, &args);
-        *off = args.vals[0];
+
+        size_t size;
+        ExchangeIStream is(args);
+        is >> *off >> size;
         *sel = crd.start();
-        return args.vals[1];
+        return size;
     }
 
 private:

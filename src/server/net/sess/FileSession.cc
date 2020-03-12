@@ -65,18 +65,18 @@ FileSession::~FileSession() {
     delete _memory;
 }
 
-m3::Errors::Code FileSession::delegate(m3::KIF::Service::ExchangeData& data) {
+m3::Errors::Code FileSession::delegate(m3::CapExchange &xchg) {
     // Client delegates shared memory to us
-    if(data.caps == 1 && data.args.count == 1) {
+    if(xchg.in_caps() == 1 && xchg.in_args().length() > 0) {
         capsel_t sel = VPE::self().alloc_sel();
         _memory = new MemGate(MemGate::bind(sel));
-        data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, data.caps).value();
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1));
         return Errors::NONE;
     // Client delegates a memory endpoint to us for configuration
-    } else if(data.caps == 1 && data.args.count == 0) {
+    } else if(xchg.in_caps() == 1 && xchg.in_args().length() == 0) {
         capsel_t sel = VPE::self().alloc_sel();
         _client_memep = sel;
-        data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, data.caps).value();
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sel, 1));
         return Errors::NONE;
     } else
         return Errors::INV_ARGS;

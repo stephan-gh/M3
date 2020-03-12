@@ -17,7 +17,6 @@
 //! The system call interface
 
 use core::mem::MaybeUninit;
-use util;
 
 /// The maximum message length that can be used
 pub const MAX_MSG_SIZE: usize = 440;
@@ -65,91 +64,18 @@ int_enum! {
 
 #[repr(C, packed)]
 #[derive(Copy, Clone)]
-pub struct ExchangeUnionStr {
-    pub i: [u64; 2],
-    pub s: [u8; 48],
-}
-
-#[repr(C, packed)]
-#[derive(Copy, Clone)]
-pub union ExchangeUnion {
-    pub i: [u64; MAX_EXCHG_ARGS],
-    pub s: ExchangeUnionStr,
-}
-
-#[repr(C, packed)]
-#[derive(Copy, Clone)]
 pub struct ExchangeArgs {
-    count: u64,
-    vals: ExchangeUnion,
-}
-
-impl ExchangeArgs {
-    pub fn new(count: u64, vals: ExchangeUnion) -> Self {
-        Self { count, vals }
-    }
-
-    pub fn clear(&mut self) {
-        self.count = 0;
-    }
-
-    pub fn count(&self) -> usize {
-        self.count as usize
-    }
-
-    pub(crate) fn set_count(&mut self, count: usize) {
-        self.count = count as u64;
-    }
-
-    pub fn ival(&self, idx: usize) -> u64 {
-        assert!(idx < self.count as usize);
-        // safety: we guarantee that the values between 0 and count-1 are initialized
-        unsafe { self.vals.i[idx] }
-    }
-
-    pub(crate) fn set_ival(&mut self, idx: usize, val: u64) {
-        assert!((idx as usize) < MAX_EXCHG_ARGS);
-        // safety: we make sure that 0..self.count-1 is always initialized
-        unsafe { self.vals.i[idx] = val };
-    }
-
-    pub fn push_ival(&mut self, val: u64) {
-        assert!((self.count as usize) < MAX_EXCHG_ARGS);
-        // safety: we make sure that 0..self.count-1 is always initialized
-        unsafe { self.vals.i[self.count as usize] = val };
-        self.count += 1;
-    }
-
-    pub fn sval(&self, idx: usize) -> u64 {
-        assert!(idx < self.count as usize);
-        // safety: we guarantee that the values between 0 and count-1 are initialized
-        unsafe { self.vals.s.i[idx] }
-    }
-
-    pub fn str(&self) -> &str {
-        unsafe {
-            util::cstr_to_str(&self.vals.s.s as *const _ as *const i8)
-        }
-    }
-
-    pub fn set_str(&mut self, s: &str) {
-        // safety: initialization is okay
-        unsafe {
-            for (a, c) in self.vals.s.s.iter_mut().zip(s.bytes()) {
-                *a = c as u8;
-            }
-            self.vals.s.s[s.len()] = b'\0';
-        }
-    }
+    pub bytes: u64,
+    pub data: [u64; 8],
 }
 
 impl Default for ExchangeArgs {
     fn default() -> Self {
         #[allow(clippy::uninit_assumed_init)]
         ExchangeArgs {
-            count: 0,
+            bytes: 0,
             // safety: we will initialize the values between 0 and count-1
-            vals: unsafe { MaybeUninit::uninit().assume_init() },
+            data: unsafe { MaybeUninit::uninit().assume_init() },
         }
     }
 }

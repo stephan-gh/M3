@@ -23,9 +23,9 @@ namespace m3 {
 
 Reference<File> M3FS::open(const char *path, int perms) {
     KIF::ExchangeArgs args;
-    args.count = 1;
-    args.svals[0] = static_cast<xfer_t>(perms);
-    strncpy(args.str, path, sizeof(args.str));
+    ExchangeOStream os(args);
+    os << perms << String(path);
+    args.bytes = os.total();
     KIF::CapRngDesc crd = obtain(2, &args);
     return Reference<File>(new GenericFile(perms, crd.start()));
 }

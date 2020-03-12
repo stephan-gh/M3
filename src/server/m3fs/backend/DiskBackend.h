@@ -135,9 +135,9 @@ private:
     void delegate_mem(m3::MemGate &mem, m3::blockno_t bno, size_t len) {
         m3::KIF::CapRngDesc crd(m3::KIF::CapRngDesc::OBJ, mem.sel(), 1);
         m3::KIF::ExchangeArgs args;
-        args.count   = 2;
-        args.vals[0] = static_cast<xfer_t>(bno);
-        args.vals[1] = static_cast<xfer_t>(len);
+        m3::ExchangeOStream os(args);
+        os << bno << len;
+        args.bytes = os.total();
         _disk->delegate(crd, &args);
     }
 

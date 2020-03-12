@@ -104,9 +104,7 @@ public:
     Channel *create_channel(size_t memsize) {
         capsel_t sels = VPE::self().alloc_sels(2);
         auto chan = new Channel(sels, memsize);
-        KIF::ExchangeArgs args;
-        args.count = 0;
-        delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
+        delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2));
         return chan;
     }
 

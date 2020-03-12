@@ -46,6 +46,8 @@ pub trait Sink {
 
 /// A source allows to pop objects from it
 pub trait Source {
+    /// Returns the number of bytes in the source
+    fn size(&self) -> usize;
     /// Pops a word from this source
     fn pop_word(&mut self) -> u64;
     /// Pops a string from this source

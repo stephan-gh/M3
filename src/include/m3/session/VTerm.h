@@ -19,6 +19,7 @@
 #include <base/Errors.h>
 #include <base/KIF.h>
 
+#include <m3/com/GateStream.h>
 #include <m3/vfs/GenericFile.h>
 #include <m3/ObjCap.h>
 #include <m3/pes/VPE.h>
@@ -33,8 +34,9 @@ public:
     Reference<File> create_channel(bool read) {
         capsel_t sels = VPE::self().alloc_sels(2);
         KIF::ExchangeArgs args;
-        args.count = 1;
-        args.vals[0] = read ? 0 : 1;
+        ExchangeOStream os(args);
+        os << (read ? 0 : 1);
+        args.bytes = os.total();
         obtain_for(VPE::self(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sels, 2), &args);
         return Reference<File>(new GenericFile(read ? FILE_R : FILE_W, sels));
     }

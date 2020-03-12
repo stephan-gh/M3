@@ -86,8 +86,8 @@ public:
         _epcap = ep;
     }
 
-    m3::Errors::Code clone(capsel_t srv, m3::KIF::Service::ExchangeData &data);
-    m3::Errors::Code get_mem(m3::KIF::Service::ExchangeData &data);
+    m3::Errors::Code clone(capsel_t srv, m3::CapExchange &xchg);
+    m3::Errors::Code get_mem(m3::CapExchange &xchg);
 
 private:
     void next_in_out(m3::GateIStream &is, bool out);

@@ -53,10 +53,10 @@ public:
         return _rgate;
     }
 
-    m3::Errors::Code obtain(capsel_t srv_sel, m3::KIF::Service::ExchangeData &data) override;
-    m3::Errors::Code get_sgate(m3::KIF::Service::ExchangeData &data);
-    m3::Errors::Code establish_channel(m3::KIF::Service::ExchangeData &data);
-    m3::Errors::Code open_file(capsel_t srv_sel, m3::KIF::Service::ExchangeData &data);
+    m3::Errors::Code obtain(capsel_t srv_sel, m3::CapExchange &xchg) override;
+    m3::Errors::Code get_sgate(m3::CapExchange &xchg);
+    m3::Errors::Code establish_channel(m3::CapExchange &xchg);
+    m3::Errors::Code open_file(capsel_t srv_sel, m3::CapExchange &xchg);
 
     virtual void create(m3::GateIStream &is) override;
     virtual void bind(m3::GateIStream &is) override;

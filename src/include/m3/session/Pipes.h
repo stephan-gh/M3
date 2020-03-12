@@ -17,6 +17,7 @@
 #pragma once
 
 #include <m3/session/ClientSession.h>
+#include <m3/com/GateStream.h>
 #include <m3/com/SendGate.h>
 #include <m3/vfs/GenericFile.h>
 
@@ -36,8 +37,9 @@ public:
 
         Reference<File> create_channel(bool read, int flags = 0) {
             KIF::ExchangeArgs args;
-            args.count = 1;
-            args.vals[0] = read;
+            ExchangeOStream os(args);
+            os << read;
+            args.bytes = os.total();
             KIF::CapRngDesc desc = obtain(2, &args);
             return Reference<File>(new GenericFile(flags | (read ? FILE_R : FILE_W), desc.start()));
         }
@@ -49,8 +51,9 @@ public:
 
     Pipe create_pipe(MemGate &memory, size_t memsize) {
         KIF::ExchangeArgs args;
-        args.count = 1;
-        args.vals[0] = memsize;
+        ExchangeOStream os(args);
+        os << memsize;
+        args.bytes = os.total();
         KIF::CapRngDesc desc = obtain(2, &args);
         return Pipe(desc.start(), memory);
     }

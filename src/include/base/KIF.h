@@ -140,14 +140,8 @@ struct KIF {
     } PACKED;
 
     struct ExchangeArgs {
-        xfer_t count;
-        union {
-            xfer_t vals[8];
-            struct {
-                xfer_t svals[2];
-                char str[48];
-            } PACKED;
-        } PACKED;
+        xfer_t bytes;
+        unsigned char data[64];
     } PACKED;
 
     /**

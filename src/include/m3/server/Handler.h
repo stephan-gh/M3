@@ -20,7 +20,36 @@
 #include <base/Errors.h>
 #include <base/KIF.h>
 
+#include <m3/com/GateStream.h>
+
 namespace m3 {
+
+class CapExchange {
+public:
+    explicit CapExchange(const KIF::Service::ExchangeData &in, KIF::Service::ExchangeData &out)
+        : _in(in), _out(out), _is(in.args), _os(out.args) {
+    }
+
+    ExchangeIStream &in_args() {
+        return _is;
+    }
+    ExchangeOStream &out_args() {
+        return _os;
+    }
+
+    unsigned in_caps() const {
+        return _in.caps;
+    }
+    void out_caps(const KIF::CapRngDesc &crd) {
+        _out.caps = crd.value();
+    }
+
+private:
+    const KIF::Service::ExchangeData &_in;
+    KIF::Service::ExchangeData &_out;
+    ExchangeIStream _is;
+    ExchangeOStream _os;
+};
 
 template<class SESS>
 class Handler {
@@ -31,10 +60,10 @@ public:
     }
 
     virtual Errors::Code open(SESS **sess, capsel_t, const StringRef &) = 0;
-    virtual Errors::Code obtain(SESS *, KIF::Service::ExchangeData &) {
+    virtual Errors::Code obtain(SESS *, CapExchange &) {
         return Errors::NOT_SUP;
     }
-    virtual Errors::Code delegate(SESS *, KIF::Service::ExchangeData &) {
+    virtual Errors::Code delegate(SESS *, CapExchange &) {
         return Errors::NOT_SUP;
     }
     virtual Errors::Code close(SESS *sess) = 0;

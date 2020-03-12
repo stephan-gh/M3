@@ -37,7 +37,8 @@ use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
-use m3::server::{server_loop, Handler, Server, SessId, SessionContainer};
+use m3::serialize::{Sink, Source};
+use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, Pager, PagerDelOp, PagerOp};
 use m3::vfs;
 
@@ -114,13 +115,13 @@ impl Handler for PagerReqHandler {
         Ok((sel, sid))
     }
 
-    fn obtain(&mut self, sid: SessId, data: &mut kif::service::ExchangeData) -> Result<(), Error> {
-        if data.caps != 1 {
+    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
 
         let aspace = self.sessions.get_mut(sid).unwrap();
-        let sel = if data.args.count() == 0 {
+        let sel = if xchg.in_args().size() == 0 {
             aspace.add_sgate()
         }
         else {
@@ -132,16 +133,12 @@ impl Handler for PagerReqHandler {
             Ok(sel)
         }?;
 
-        data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1).value();
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
         Ok(())
     }
 
-    fn delegate(
-        &mut self,
-        sid: SessId,
-        data: &mut kif::service::ExchangeData,
-    ) -> Result<(), Error> {
-        if data.caps != 1 && data.caps != 2 {
+    fn delegate(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        if xchg.in_caps() != 1 && xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -152,19 +149,25 @@ impl Handler for PagerReqHandler {
             sels
         }
         else {
-            let (sel, virt) = if data.args.ival(0) as u32 == PagerDelOp::DATASPACE.val {
-                aspace.map_ds(&data.args)
+            let mut args = xchg.in_args();
+            let op = args.pop_word() as u32;
+
+            let (sel, virt) = if op == PagerDelOp::DATASPACE.val {
+                aspace.map_ds(&mut args)
             }
             else {
-                aspace.map_mem(&data.args)
+                aspace.map_mem(&mut args)
             }?;
 
-            data.args.clear();
-            data.args.push_ival(virt);
+            xchg.out_args().push_word(virt);
             sel
         };
 
-        data.caps = kif::CapRngDesc::new(kif::CapType::OBJECT, sel, data.caps as u32).value();
+        xchg.out_caps(kif::CapRngDesc::new(
+            kif::CapType::OBJECT,
+            sel,
+            xchg.in_caps() as u32,
+        ));
         Ok(())
     }
 

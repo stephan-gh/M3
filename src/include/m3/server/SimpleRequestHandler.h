@@ -49,8 +49,8 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code obtain(SimpleSession *sess, KIF::Service::ExchangeData &data) override {
-        if(sess->sgate || data.args.count != 0 || data.caps != 1)
+    virtual Errors::Code obtain(SimpleSession *sess, CapExchange &xchg) override {
+        if(sess->sgate || xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
         label_t label = ptr_to_label(sess);
@@ -59,7 +59,7 @@ public:
                                                     .credits(1))
         );
 
-        data.caps = KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->sgate->sel()).value();
+        xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess->sgate->sel()));
         return Errors::NONE;
     }
 

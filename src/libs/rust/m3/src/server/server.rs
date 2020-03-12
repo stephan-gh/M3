@@ -15,12 +15,14 @@
  */
 
 use cap::{CapFlags, Capability, Selector};
-use com::{GateIStream, RecvGate};
+use com::{GateIStream, RecvGate, SliceSink, SliceSource};
+use core::fmt;
 use dtu::EpId;
 use errors::{Code, Error};
-use kif::service;
+use kif::{service, CapRngDesc};
 use math;
 use pes::VPE;
+use serialize::Sink;
 use server::SessId;
 use syscalls;
 
@@ -31,6 +33,59 @@ pub struct Server {
     public: bool,
 }
 
+/// The struct to exchange capabilities with a client (obtain/delegate)
+pub struct CapExchange<'d> {
+    src: SliceSource<'d>,
+    sink: SliceSink<'d>,
+    input: &'d service::ExchangeData,
+    out_crd: CapRngDesc,
+}
+
+impl<'d> CapExchange<'d> {
+    /// Creates a new `CapExchange` object, taking input arguments from `input` and putting output
+    /// arguments into `output`.
+    pub fn new(input: &'d service::ExchangeData, output: &'d mut service::ExchangeData) -> Self {
+        let len = (input.args.bytes as usize + 7) / 8;
+        Self {
+            src: SliceSource::new(unsafe { &input.args.data[..len] }),
+            sink: SliceSink::new(unsafe { &mut output.args.data }),
+            input,
+            out_crd: CapRngDesc::default(),
+        }
+    }
+
+    /// Returns the input arguments
+    pub fn in_args(&mut self) -> &mut SliceSource<'d> {
+        &mut self.src
+    }
+
+    /// Returns the output arguments
+    pub fn out_args(&mut self) -> &mut SliceSink<'d> {
+        &mut self.sink
+    }
+
+    /// Returns the number of input capabilities
+    pub fn in_caps(&self) -> u32 {
+        self.input.caps as u32
+    }
+
+    /// Sets the output capabilities to given `CapRngDesc`
+    pub fn out_caps(&mut self, crd: CapRngDesc) {
+        self.out_crd = crd;
+    }
+}
+
+impl<'d> fmt::Debug for CapExchange<'d> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            fmt,
+            "CapExchange[in_caps={}, out_crd={}]",
+            self.in_caps(),
+            CapRngDesc::new_from(0/*self.output.caps*/)
+        )
+    }
+}
+
 /// The handler for a server that implements the service calls (session creations, cap exchange,
 /// ...).
 pub trait Handler {
@@ -39,11 +94,11 @@ pub trait Handler {
     fn open(&mut self, srv_sel: Selector, arg: &str) -> Result<(Selector, SessId), Error>;
 
     /// Let's the client obtain a capability from the server
-    fn obtain(&mut self, _sid: SessId, _data: &mut service::ExchangeData) -> Result<(), Error> {
+    fn obtain(&mut self, _sid: SessId, _xchg: &mut CapExchange) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
     /// Let's the client delegate a capability to the server
-    fn delegate(&mut self, _sid: SessId, _data: &mut service::ExchangeData) -> Result<(), Error> {
+    fn delegate(&mut self, _sid: SessId, _xchg: &mut CapExchange) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 
@@ -157,36 +212,52 @@ impl Server {
     }
 
     fn handle_obtain(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
-        let sid: u64 = is.pop();
-        let mut data: service::ExchangeData = is.pop();
-        let res = hdl.obtain(sid as SessId, &mut data);
+        let msg = is.msg().get_data::<service::Exchange>();
+        let sid = msg.sess;
 
-        llog!(SERV, "server::obtain({}, {:?}) -> {:?}", sid, data, res);
+        let mut reply = service::ExchangeReply::default();
 
-        let reply = service::ExchangeReply {
-            res: match res {
-                Ok(_) => 0,
-                Err(e) => e.code() as u64,
-            },
-            data,
+        let (res, args_size, crd) = {
+            let mut xchg = CapExchange::new(&msg.data, &mut reply.data);
+
+            let res = hdl.obtain(sid as SessId, &mut xchg);
+
+            llog!(SERV, "server::obtain({}, {:?}) -> {:?}", sid, xchg, res);
+
+            (res, xchg.out_args().size(), xchg.out_crd.value())
         };
+
+        reply.res = match res {
+            Ok(_) => 0,
+            Err(e) => e.code() as u64,
+        };
+        reply.data.args.bytes = args_size as u64;
+        reply.data.caps = crd;
         is.reply(&[reply])
     }
 
     fn handle_delegate(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
-        let sid: u64 = is.pop();
-        let mut data: service::ExchangeData = is.pop();
-        let res = hdl.delegate(sid as SessId, &mut data);
+        let msg = is.msg().get_data::<service::Exchange>();
+        let sid = msg.sess;
 
-        llog!(SERV, "server::delegate({}, {:?}) -> {:?}", sid, data, res);
+        let mut reply = service::ExchangeReply::default();
 
-        let reply = service::ExchangeReply {
-            res: match res {
-                Ok(_) => 0,
-                Err(e) => e.code() as u64,
-            },
-            data,
+        let (res, args_size, crd) = {
+            let mut xchg = CapExchange::new(&msg.data, &mut reply.data);
+
+            let res = hdl.delegate(sid as SessId, &mut xchg);
+
+            llog!(SERV, "server::delegate({}, {:?}) -> {:?}", sid, xchg, res);
+
+            (res, xchg.out_args().size(), xchg.out_crd.value())
         };
+
+        reply.res = match res {
+            Ok(_) => 0,
+            Err(e) => e.code() as u64,
+        };
+        reply.data.args.bytes = args_size as u64;
+        reply.data.caps = crd;
         is.reply(&[reply])
     }
 
