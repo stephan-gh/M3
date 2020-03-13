@@ -46,7 +46,7 @@ void Gate::activate_on(const EP &ep, uintptr_t addr) {
 }
 
 void Gate::release_ep(VPE &vpe) noexcept {
-    if(_ep && _ep->id() >= TCU::FIRST_FREE_EP) {
+    if(_ep && !_ep->is_standard()) {
         vpe.epmng().release(_ep, flags() & KEEP_CAP);
         _gates.remove(this);
         _ep = nullptr;

@@ -33,6 +33,7 @@ use pes::{ClosureActivity, DefaultMapper, ExecActivity, KMem, Mapper, PE};
 use rc::Rc;
 use session::{Pager, ResMng};
 use syscalls;
+use tcu::EpId;
 use vfs::{BufReader, FileRef, OpenFlags, VFS};
 use vfs::{FileTable, MountTable};
 
@@ -44,6 +45,7 @@ pub struct VPE {
     kmem: Rc<KMem>,
     mem: MemGate,
     next_sel: Selector,
+    eps_start: EpId,
     epmng: EpMng,
     rbufs: arch::rbufs::RBufSpace,
     pager: Option<Pager>,
@@ -101,6 +103,7 @@ impl VPE {
             mem: MemGate::new_bind(kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)), // invalid
             next_sel: kif::FIRST_FREE_SEL,
+            eps_start: 0,
             epmng: EpMng::new(),
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
@@ -114,6 +117,7 @@ impl VPE {
         let env = arch::env::get();
         self.pe = Rc::new(PE::new_bind(env.pe_desc(), kif::SEL_PE));
         self.next_sel = env.load_nextsel();
+        self.eps_start = env.std_eps_start();
         self.rmng = env.load_rmng();
         self.rbufs = env.load_rbufs();
         self.pager = env.load_pager();
@@ -151,6 +155,7 @@ impl VPE {
             mem: MemGate::new_bind(sels + kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
             next_sel: kif::FIRST_FREE_SEL,
+            eps_start: 0,
             epmng: EpMng::new(),
             rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
@@ -179,7 +184,7 @@ impl VPE {
             let rgate_sel = pg.child_rgate().sel();
 
             // now create VPE, which implicitly obtains the gate cap from us
-            syscalls::create_vpe(
+            vpe.eps_start = syscalls::create_vpe(
                 crd,
                 sgate_sel,
                 rgate_sel,
@@ -197,7 +202,7 @@ impl VPE {
             Some(pg)
         }
         else {
-            syscalls::create_vpe(
+            vpe.eps_start = syscalls::create_vpe(
                 crd,
                 INVALID_SEL,
                 INVALID_SEL,
@@ -430,6 +435,7 @@ impl VPE {
             senv.set_argc(env.argc());
             senv.set_argv(loader.write_arguments(&mut off, env::args())?);
 
+            senv.set_std_eps_start(self.eps_start);
             senv.set_shared(arch::env::get().shared());
             senv.set_pedesc(self.pe_desc());
 
@@ -472,9 +478,11 @@ impl VPE {
 
                 arch::env::reinit();
                 arch::env::get().set_vpe(&self);
-                ::io::reinit();
                 pes::reinit();
                 syscalls::reinit();
+                ::com::pre_init();
+                ::com::init();
+                ::io::reinit();
                 arch::tcu::init();
 
                 c2p.signal();
@@ -577,6 +585,7 @@ impl VPE {
                 senv.set_mounts(off, mounts.size());
             }
 
+            senv.set_std_eps_start(self.eps_start);
             senv.set_rmng(self.rmng.sel());
             senv.set_rbufs(&self.rbufs);
             senv.set_next_sel(self.next_sel);

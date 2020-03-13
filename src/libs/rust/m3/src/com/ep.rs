@@ -14,8 +14,9 @@
  * General Public License version 2 for more details.
  */
 
+use arch;
 use cap::{CapFlags, Capability, Selector};
-use tcu::{EpId, EP_COUNT};
+use tcu::{EpId, EP_COUNT, STD_EPS_COUNT};
 use errors::Error;
 use kif;
 use pes::VPE;
@@ -96,6 +97,12 @@ impl EP {
     /// Returns the number of reply slots
     pub fn replies(&self) -> u32 {
         self.replies
+    }
+
+    /// Returns if the EP is a standard EP
+    pub fn is_standard(&self) -> bool {
+        let eps_start = arch::env::get().std_eps_start();
+        self.id() >= eps_start && self.id() < eps_start + STD_EPS_COUNT
     }
 
     fn alloc_cap(epid: EpId, replies: u32) -> Result<(Selector, EpId), Error> {

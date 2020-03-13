@@ -74,6 +74,10 @@ impl EnvData {
         self.vpe = vpe as *const VPE as usize;
     }
 
+    pub fn std_eps_start(&self) -> EpId {
+        0
+    }
+
     pub fn load_pager(&self) -> Option<Pager> {
         None
     }

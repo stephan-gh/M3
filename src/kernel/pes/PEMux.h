@@ -82,7 +82,7 @@ public:
     void handle_call(const m3::TCU::Message *msg);
 
     m3::Errors::Code map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, uint perm);
-    m3::Errors::Code vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
+    m3::Errors::Code vpe_ctrl(VPE *vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
 
     m3::Errors::Code invalidate_ep(vpeid_t vpe, epid_t ep, bool force = false);
 

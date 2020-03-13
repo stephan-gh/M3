@@ -16,9 +16,9 @@
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::tcu;
 use base::errors::Error;
 use base::kif::{DefaultReply, PageFlags, PTE};
+use base::tcu;
 use base::util;
 use core::ptr;
 
@@ -66,6 +66,7 @@ impl XlateState {
         self.in_pf = true;
 
         // allow other translation requests in the meantime
+        let eps_start = vpe::cur().eps_start();
         let _irqs_on = helper::IRQsOnGuard::new();
 
         {
@@ -77,7 +78,13 @@ impl XlateState {
             self.pf_msg[2] = perm.bits();
             let msg = &self.pf_msg as *const u64 as *const u8;
             let size = util::size_of_val(&self.pf_msg);
-            tcu::TCU::send(tcu::PG_SEP, msg, size, 0, tcu::PG_REP)?;
+            tcu::TCU::send(
+                eps_start + tcu::PG_SEP_OFF,
+                msg,
+                size,
+                0,
+                eps_start + tcu::PG_REP_OFF,
+            )?;
         }
 
         // wait for reply
@@ -86,11 +93,11 @@ impl XlateState {
                 break Ok(true);
             }
 
-            if let Some(msg) = tcu::TCU::fetch_msg(tcu::PG_REP) {
+            if let Some(msg) = tcu::TCU::fetch_msg(eps_start + tcu::PG_REP_OFF) {
                 let err = {
                     let reply = msg.get_data::<DefaultReply>();
                     let err = reply.error as u32;
-                    tcu::TCU::ack_msg(tcu::PG_REP, msg);
+                    tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg);
                     err
                 };
 
@@ -102,7 +109,7 @@ impl XlateState {
                 }
             }
 
-            tcu::TCU::wait_for_msg(tcu::PG_REP, 0).ok();
+            tcu::TCU::wait_for_msg(eps_start + tcu::PG_REP_OFF, 0).ok();
         };
 
         self.in_pf = false;

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/col/SList.h>
+#include <base/Env.h>
 
 #include <m3/ObjCap.h>
 
@@ -78,6 +79,13 @@ public:
      */
     uint replies() const noexcept {
         return _replies;
+    }
+
+    /**
+     * @return if the EP is a standard EP
+     */
+    bool is_standard() const noexcept {
+        return id() >= env()->std_eps_start && id() < env()->std_eps_start + TCU::STD_EPS_COUNT;
     }
 
 private:

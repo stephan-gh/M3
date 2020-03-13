@@ -191,6 +191,7 @@ void VPE::load_app() {
     senv.heapsize = ROOT_HEAP_SIZE;
     senv.rmng_sel = m3::KIF::INV_SEL;
     senv.caps = _first_sel;
+    senv.std_eps_start = _eps_start;
 
     TCU::get().write_mem(desc(), ENV_START, &senv, sizeof(senv));
 }
@@ -198,7 +199,7 @@ void VPE::load_app() {
 void VPE::init_memory() {
     // let PEMux load the address space
     if(Platform::pe(peid()).supports_pemux())
-        PEManager::get().pemux(peid())->vpe_ctrl(id(), m3::KIF::PEXUpcalls::VCTRL_INIT);
+        PEManager::get().pemux(peid())->vpe_ctrl(this, m3::KIF::PEXUpcalls::VCTRL_INIT);
 
     _state = VPE::RUNNING;
 

@@ -16,11 +16,11 @@
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::tcu;
 use base::errors::Error;
 use base::goff;
 use base::kif;
 use base::math;
+use base::tcu;
 use base::util;
 
 use helper;
@@ -69,6 +69,7 @@ struct Info {
 pub struct VPE {
     aspace: paging::AddrSpace<PTAllocator>,
     vpe_reg: tcu::Reg,
+    eps_start: tcu::EpId,
 }
 
 static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
@@ -88,9 +89,16 @@ pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
 
     let root_pt = mem_start + cfg::PAGE_SIZE as u64;
     let pts_count = mem_size as usize / cfg::PAGE_SIZE;
-    IDLE.set(Some(VPE::new(kif::pemux::IDLE_ID, root_pt, mem_start, pts_count)));
+    IDLE.set(Some(VPE::new(
+        kif::pemux::IDLE_ID,
+        0,
+        root_pt,
+        mem_start,
+        pts_count,
+    )));
     OUR.set(Some(VPE::new(
         kif::pemux::VPE_ID,
+        0,
         root_pt,
         mem_start,
         pts_count,
@@ -105,7 +113,7 @@ pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     INFO.get_mut().bootstrap = false;
 }
 
-pub fn add(id: u64) {
+pub fn add(id: u64, eps_start: tcu::EpId) {
     assert!((*CUR).is_none());
 
     log!(crate::LOG_VPES, "Created VPE {}", id);
@@ -114,7 +122,7 @@ pub fn add(id: u64) {
     let pt_begin = INFO.get().mem_start + (INFO.get().mem_end - INFO.get().mem_start) / 2;
     let root_pt = pt_begin;
     let pts_count = (INFO.get().mem_end - INFO.get().mem_start) as usize / cfg::PAGE_SIZE;
-    CUR.set(Some(VPE::new(id, root_pt, INFO.get().mem_start, pts_count)));
+    CUR.set(Some(VPE::new(id, eps_start, root_pt, INFO.get().mem_start, pts_count)));
 
     let vpe = get_mut(id).unwrap();
     if INFO.get().pe_desc.has_virtmem() {
@@ -185,7 +193,13 @@ pub fn remove(status: u32, notify: bool) {
 }
 
 impl VPE {
-    pub fn new(id: u64, root_pt: goff, pts_start: goff, pts_count: usize) -> Self {
+    pub fn new(
+        id: u64,
+        eps_start: tcu::EpId,
+        root_pt: goff,
+        pts_start: goff,
+        pts_count: usize,
+    ) -> Self {
         let allocator = PTAllocator {
             vpe: id,
             pts_start: paging::noc_to_phys(pts_start) as paging::MMUPTE,
@@ -197,6 +211,7 @@ impl VPE {
         VPE {
             aspace: paging::AddrSpace::new(id, root_pt, allocator, false),
             vpe_reg: id << 19,
+            eps_start,
         }
     }
 
@@ -224,6 +239,10 @@ impl VPE {
 
     pub fn set_vpe_reg(&mut self, val: tcu::Reg) {
         self.vpe_reg = val;
+    }
+
+    pub fn eps_start(&self) -> tcu::EpId {
+        self.eps_start
     }
 
     pub fn msgs(&self) -> u16 {

@@ -326,6 +326,7 @@ private:
     capsel_t _next_sel;
     uint64_t _rbufcur;
     uint64_t _rbufend;
+    epid_t _eps_start;
     EPMng _epmng;
     Reference<Pager> _pager;
     std::unique_ptr<ResMng> _resmng;

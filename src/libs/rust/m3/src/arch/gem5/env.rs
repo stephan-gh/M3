@@ -21,6 +21,7 @@ use cfg;
 use com::{SendGate, SliceSource};
 use core::cmp;
 use core::intrinsics;
+use tcu;
 use env;
 use kif::{self, PEDesc};
 use pes::VPE;
@@ -85,6 +86,14 @@ impl EnvData {
 
     pub fn set_heap_size(&mut self, size: usize) {
         self.base.heap_size = size as u64;
+    }
+
+    pub fn std_eps_start(&self) -> tcu::EpId {
+        self.base.std_eps_start as tcu::EpId
+    }
+
+    pub fn set_std_eps_start(&mut self, start: tcu::EpId) {
+        self.base.std_eps_start = start as u64;
     }
 
     pub fn has_vpe(&self) -> bool {

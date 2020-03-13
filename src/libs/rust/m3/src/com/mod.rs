@@ -35,6 +35,10 @@ pub use self::sem::Semaphore;
 pub use self::sgate::{SGateArgs, SendGate};
 pub use self::stream::*;
 
+pub(crate) fn pre_init() {
+    rgate::pre_init();
+}
+
 pub(crate) fn init() {
     rgate::init();
 }

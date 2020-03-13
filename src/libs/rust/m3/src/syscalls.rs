@@ -16,18 +16,19 @@
 
 //! Contains the system call wrapper functions
 
+use arch;
 use cap::Selector;
 use cell::StaticCell;
 use com::{RecvGate, SendGate, SliceSink, SliceSource};
 use core::mem::MaybeUninit;
-use tcu::{TCUIf, EpId, Label, Message, SYSC_SEP};
+use tcu::{TCUIf, EpId, Label, Message, SYSC_SEP_OFF};
 use errors::Error;
 use goff;
 use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 use serialize::Sink;
 use util;
 
-static SGATE: StaticCell<SendGate> = StaticCell::new(SendGate::new_def(INVALID_SEL, SYSC_SEP));
+static SGATE: StaticCell<Option<SendGate>> = StaticCell::new(None);
 
 struct Reply<R: 'static> {
     msg: &'static Message,
@@ -42,7 +43,7 @@ impl<R: 'static> Drop for Reply<R> {
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
     let reply_raw = TCUIf::call(
-        &*SGATE,
+        send_gate(),
         msg as *const u8,
         util::size_of::<T>(),
         RecvGate::syscall(),
@@ -65,7 +66,7 @@ fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
 }
 
 pub fn send_gate() -> &'static SendGate {
-    &*SGATE
+    SGATE.get().as_ref().unwrap()
 }
 
 /// Creates a new service named `name` at selector `dst` for VPE `vpe`. The receive gate `rgate`
@@ -170,6 +171,8 @@ pub fn create_map(
 ///
 /// The argument `sgate` denotes the selector of the `SendGate` to the pager. `kmem` defines the
 /// kernel memory to assign to the VPE.
+///
+/// On success, the function returns the EP id of the first standard EP.
 #[allow(clippy::too_many_arguments)]
 pub fn create_vpe(
     dst: CapRngDesc,
@@ -178,7 +181,7 @@ pub fn create_vpe(
     name: &str,
     pe: Selector,
     kmem: Selector,
-) -> Result<(), Error> {
+) -> Result<EpId, Error> {
     #[allow(clippy::uninit_assumed_init)]
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
@@ -197,7 +200,8 @@ pub fn create_vpe(
         *a = c as u8;
     }
 
-    send_receive_result(&req)
+    let reply: Reply<syscalls::CreateVPEReply> = send_receive(&req)?;
+    Ok(reply.data.eps_start as EpId)
 }
 
 /// Creates a new semaphore at selector `dst` using `value` as the initial value.
@@ -477,7 +481,10 @@ pub fn noop() -> Result<(), Error> {
 }
 
 pub(crate) fn init() {
+    let env = arch::env::get();
+    SGATE.set(Some(SendGate::new_def(INVALID_SEL, env.std_eps_start() + SYSC_SEP_OFF)));
 }
 
 pub(crate) fn reinit() {
+    init();
 }

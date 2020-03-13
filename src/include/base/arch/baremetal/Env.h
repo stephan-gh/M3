@@ -51,6 +51,7 @@ public:
     uint64_t kenv;
     uint64_t pe_mem_base;
     uint64_t pe_mem_size;
+    uint64_t std_eps_start;
 
     uint64_t lambda;
     uint32_t pager_sess;

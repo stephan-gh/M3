@@ -46,6 +46,7 @@ fn vpe_ctrl(msg: &'static tcu::Message, state: &mut arch::State) -> Result<(), E
     let pe_id = req.pe_id as u32;
     let vpe_id = req.vpe_sel;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
+    let eps_start = req.eps_start as tcu::EpId;
 
     if op == kif::pemux::VPEOp::INIT {
         // do that here to get the color of the next print correct
@@ -61,7 +62,7 @@ fn vpe_ctrl(msg: &'static tcu::Message, state: &mut arch::State) -> Result<(), E
 
     match op {
         kif::pemux::VPEOp::INIT => {
-            vpe::add(vpe_id);
+            vpe::add(vpe_id, eps_start);
         },
 
         kif::pemux::VPEOp::START => {

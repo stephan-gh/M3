@@ -292,9 +292,10 @@ public:
 
 class EPObject : public SlabObject<EPObject>, public m3::RefCounted, public m3::DListItem {
 public:
-    explicit EPObject(PEObject *_pe, VPE *_vpe, epid_t _ep, uint _replies);
+    explicit EPObject(PEObject *_pe, bool _is_std, VPE *_vpe, epid_t _ep, uint _replies);
     ~EPObject();
 
+    bool is_std;
     VPE *vpe;
     epid_t ep;
     uint replies;

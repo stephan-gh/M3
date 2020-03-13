@@ -240,7 +240,7 @@ struct KIF {
         } PACKED;
 
         struct CreateVPEReply : public DefaultReply {
-            xfer_t pe;
+            xfer_t eps_start;
         } PACKED;
 
         struct CreateSem : public DefaultRequest {
@@ -416,6 +416,7 @@ struct KIF {
             xfer_t pe_id;
             xfer_t vpe_sel;
             xfer_t vpe_op;
+            xfer_t eps_start;
         } PACKED;
 
         struct Map : public DefaultRequest {

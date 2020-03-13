@@ -108,9 +108,10 @@ void SessObject::drop_msgs() {
     srv->drop_msgs(ident);
 }
 
-EPObject::EPObject(PEObject *_pe, VPE *_vpe, epid_t _ep, uint _replies)
+EPObject::EPObject(PEObject *_pe, bool _is_std, VPE *_vpe, epid_t _ep, uint _replies)
     : RefCounted(),
       DListItem(),
+      is_std(_is_std),
       vpe(_vpe),
       ep(_ep),
       replies(_replies),
@@ -127,7 +128,7 @@ EPObject::~EPObject() {
         vpe->remove_ep(this);
 
     // this check is necessary for the pager EP objects in the VPE
-    if(ep >= m3::TCU::FIRST_FREE_EP) {
+    if(!is_std) {
         // free EPs at PEMux
         auto pemux = PEManager::get().pemux(pe->id);
         pemux->free_eps(ep, 1 + replies);

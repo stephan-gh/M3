@@ -43,22 +43,26 @@ pub const KPEX_REP: EpId = 1;
 pub const PEXUP_REP: EpId = 2;
 /// The reply EP for upcalls from the kernel for PEMux
 pub const PEXUP_RPLEP: EpId = 3;
-/// The send EP for system calls
-pub const SYSC_SEP: EpId = 4;
-/// The receive EP for system calls
-pub const SYSC_REP: EpId = 5;
-/// The receive EP for upcalls from the kernel
-pub const UPCALL_REP: EpId = 6;
-/// The reply EP for upcalls from the kernel
-pub const UPCALL_RPLEP: EpId = 7;
-/// The default receive EP
-pub const DEF_REP: EpId = 8;
-/// The pager send EP
-pub const PG_SEP: EpId = 9;
-/// The pager receive EP
-pub const PG_REP: EpId = 10;
-/// The first free EP id
-pub const FIRST_FREE_EP: EpId = 11;
+
+/// The send EP offset for system calls
+pub const SYSC_SEP_OFF: EpId = 0;
+/// The receive EP offset for system calls
+pub const SYSC_REP_OFF: EpId = 1;
+/// The receive EP offset for upcalls from the kernel
+pub const UPCALL_REP_OFF: EpId = 2;
+/// The reply EP offset for upcalls from the kernel
+pub const UPCALL_RPLEP_OFF: EpId = 3;
+/// The default receive EP offset
+pub const DEF_REP_OFF: EpId = 4;
+/// The pager send EP offset
+pub const PG_SEP_OFF: EpId = 5;
+/// The pager receive EP offset
+pub const PG_REP_OFF: EpId = 6;
+
+/// The offset of the first user EP
+pub const FIRST_USER_EP: EpId = 4;
+/// The number of standard EPs
+pub const STD_EPS_COUNT: usize = 7;
 
 /// The reply EP for messages that want to disable replies
 pub const NO_REPLIES: EpId = 0xFFFF;

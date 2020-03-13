@@ -55,7 +55,7 @@ void VPEManager::start_root() {
             PANIC("Unable to find a free PE for root task");
     }
 
-    _vpes[id] = new VPE("root", nullptr, id, VPE::F_BOOTMOD, nullptr);
+    _vpes[id] = new VPE("root", nullptr, m3::TCU::FIRST_USER_EP, id, VPE::F_BOOTMOD, nullptr);
 
     capsel_t sel = m3::KIF::FIRST_FREE_SEL;
 
@@ -127,12 +127,13 @@ vpeid_t VPEManager::get_id() {
     return id;
 }
 
-VPE *VPEManager::create(m3::String &&name, PECapability *pecap, KMemCapability *kmemcap) {
+VPE *VPEManager::create(m3::String &&name, PECapability *pecap,
+                        KMemCapability *kmemcap, epid_t eps_start) {
     vpeid_t id = get_id();
     if(id == MAX_VPES)
         return nullptr;
 
-    VPE *vpe = new VPE(std::move(name), pecap, id, 0, kmemcap);
+    VPE *vpe = new VPE(std::move(name), pecap, eps_start, id, 0, kmemcap);
     assert(vpe == _vpes[id]);
 
     PEManager::get().init_vpe(vpe);

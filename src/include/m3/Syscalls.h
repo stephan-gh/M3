@@ -64,8 +64,8 @@ public:
     static void create_sess(capsel_t dst, capsel_t srv, word_t ident);
     static void create_rgate(capsel_t dst, uint order, uint msgorder);
     static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, uint credits);
-    static void create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
-                           const String &name, capsel_t pe, capsel_t kmem);
+    static epid_t create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
+                             const String &name, capsel_t pe, capsel_t kmem);
     static void create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                            capsel_t pages, int perms);
     static void create_sem(capsel_t dst, uint value);

@@ -34,8 +34,9 @@ pub fn exit(code: i32) -> ! {
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
     mem::heap::init();
     arch::env::init(argc, argv);
-    pes::init();
+    com::pre_init();
     syscalls::init();
+    pes::init();
     com::init();
     io::init();
     arch::tcu::init();

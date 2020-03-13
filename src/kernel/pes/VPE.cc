@@ -33,7 +33,8 @@
 
 namespace kernel {
 
-VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCapability *kmemcap)
+VPE::VPE(m3::String &&prog, PECapability *pecap, epid_t eps_start, vpeid_t id, uint flags,
+         KMemCapability *kmemcap)
     : SlabObject<VPE>(),
       RefCounted(),
       _desc(pecap ? pecap->obj->id : 1, id),
@@ -42,6 +43,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
       _state(DEAD),
       _exitcode(),
       _sysc_ep(SyscallHandler::alloc_ep()),
+      _eps_start(eps_start),
       _kmem(kmemcap ? kmemcap->obj : m3::Reference<KMemObject>()),
       _pe(pecap ? pecap->obj : m3::Reference<PEObject>()),
       _eps(),
@@ -60,9 +62,11 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
     auto vpecap = new VPECapability(&_objcaps, m3::KIF::SEL_VPE, this);
     _objcaps.set(m3::KIF::SEL_VPE, vpecap);
 
+    auto pemux = PEManager::get().pemux(peid());
+
     // allocate PE cap for root
     if(pecap == nullptr) {
-        pecap = new PECapability(&_objcaps, m3::KIF::SEL_PE, PEManager::get().pemux(peid())->pe());
+        pecap = new PECapability(&_objcaps, m3::KIF::SEL_PE, pemux->pe());
         _objcaps.set(m3::KIF::SEL_PE, pecap);
         _pe = pecap->obj;
 
@@ -86,6 +90,10 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCap
         _objcaps.inherit(kmemcap, nkmemcap);
         _objcaps.set(m3::KIF::SEL_KMEM, nkmemcap);
     }
+
+    // alloc standard EPs
+    pemux->alloc_eps(eps_start, m3::TCU::STD_EPS_COUNT);
+    _pe->alloc(m3::TCU::STD_EPS_COUNT);
 
     _kmem->alloc(*this, required_kmem());
 
@@ -114,6 +122,11 @@ VPE::~VPE() {
 
     // ensure that the VPE is stopped
     PEManager::get().stop_vpe(this);
+
+    // free standard EPs
+    auto pemux = PEManager::get().pemux(peid());
+    pemux->free_eps(_eps_start, m3::TCU::STD_EPS_COUNT);
+    _pe->free(m3::TCU::STD_EPS_COUNT);
 
     _objcaps.revoke_all();
     _mapcaps.revoke_all();

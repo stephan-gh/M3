@@ -77,7 +77,8 @@ public:
         F_STOPPED     = 1 << 2,
     };
 
-    explicit VPE(m3::String &&prog, PECapability *pecap, vpeid_t id, uint flags, KMemCapability *kmemcap);
+    explicit VPE(m3::String &&prog, PECapability *pecap, epid_t eps_start, vpeid_t id,
+                 uint flags, KMemCapability *kmemcap);
     VPE(const VPE &) = delete;
     VPE &operator=(const VPE &) = delete;
     ~VPE();
@@ -105,6 +106,9 @@ public:
         _desc.pe = pe;
     }
 
+    epid_t eps_start() const {
+        return _eps_start;
+    }
     epid_t syscall_ep() const {
         return _sysc_ep;
     }
@@ -159,7 +163,7 @@ public:
     }
 
     void upcall(const void *msg, size_t size, bool onheap) {
-        _upcqueue.send(m3::TCU::UPCALL_REP, 0, msg, size, onheap);
+        _upcqueue.send(_eps_start + m3::TCU::UPCALL_REP_OFF, 0, msg, size, onheap);
     }
     void upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply);
 
@@ -188,6 +192,7 @@ private:
     State _state;
     int _exitcode;
     epid_t _sysc_ep;
+    epid_t _eps_start;
     m3::Reference<KMemObject> _kmem;
     m3::Reference<PEObject> _pe;
     m3::DList<EPObject> _eps;

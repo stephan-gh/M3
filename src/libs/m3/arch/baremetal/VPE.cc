@@ -38,6 +38,7 @@ void VPE::init_state() {
     _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->caps);
     _rbufcur = env()->rbufcur;
     _rbufend = env()->rbufend;
+    _eps_start = env()->std_eps_start;
 }
 
 void VPE::init_fs() {
@@ -79,6 +80,7 @@ void VPE::run(void *lambda) {
     senv._backend = env()->_backend;
     senv.shared = env()->shared;
     senv.pedesc = _pe->desc();
+    senv.std_eps_start = _eps_start;
 
     senv.heapsize = env()->heapsize;
 
@@ -140,6 +142,7 @@ void VPE::exec(int argc, const char **argv) {
     senv.shared = env()->shared;
     senv.pedesc = _pe->desc();
     senv.heapsize = _pager ? APP_HEAP_SIZE : 0;
+    senv.std_eps_start = _eps_start;
 
     /* write start env to PE */
     _mem.write(&senv, sizeof(senv), ENV_START);

@@ -25,7 +25,7 @@
 namespace kernel {
 
 PEMux::PEMux(peid_t pe)
-    : _pe(new PEObject(pe, EP_COUNT - m3::TCU::FIRST_FREE_EP)),
+    : _pe(new PEObject(pe, EP_COUNT - m3::TCU::FIRST_USER_EP)),
       _caps(VPE::INVALID_ID),
       _vpes(),
       _rbufs_size(),
@@ -33,7 +33,7 @@ PEMux::PEMux(peid_t pe)
       _eps(),
       _tcustate(),
       _upcqueue(desc()) {
-    for(epid_t ep = 0; ep < m3::TCU::FIRST_FREE_EP; ++ep)
+    for(epid_t ep = 0; ep < m3::TCU::FIRST_USER_EP; ++ep)
         _eps.set(ep);
 
 #if defined(__gem5__)
@@ -136,7 +136,7 @@ m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, 
     return upcall(&req, sizeof(req));
 }
 
-m3::Errors::Code PEMux::vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
+m3::Errors::Code PEMux::vpe_ctrl(VPE *vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
     static const char *ctrls[] = {
         "INIT", "START", "STOP"
     };
@@ -144,8 +144,9 @@ m3::Errors::Code PEMux::vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
     m3::KIF::PEXUpcalls::VPECtrl req;
     req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::VPE_CTRL);
     req.pe_id = _pe->id;
-    req.vpe_sel = vpe;
+    req.vpe_sel = vpe->id();
     req.vpe_op = ctrl;
+    req.eps_start = vpe->eps_start();
 
     KLOG(PEXC, "PEMux[" << peid() << "] sending VPECtrl(vpe="
         << req.vpe_sel << ", ctrl=" << ctrls[req.vpe_op] << ")");

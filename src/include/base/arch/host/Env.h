@@ -138,6 +138,7 @@ public:
     peid_t pe;
     bool shared;
     PEDesc pedesc;
+    epid_t std_eps_start;
 
 private:
     EnvBackend *_backend;

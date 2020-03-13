@@ -144,6 +144,13 @@ pub struct CreateVPE {
     pub name: [u8; MAX_STR_SIZE],
 }
 
+/// The create VPE reply message
+#[repr(C, packed)]
+pub struct CreateVPEReply {
+    pub error: u64,
+    pub eps_start: u64,
+}
+
 /// The create semaphore request message
 #[repr(C, packed)]
 pub struct CreateSem {

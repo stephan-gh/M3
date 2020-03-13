@@ -96,18 +96,19 @@ PostInit::PostInit() {
 
 void Env::init_tcu() {
     RecvGate &sysc = RecvGate::syscall();
-    TCU::get().configure_recv(TCU::SYSC_REP, reinterpret_cast<uintptr_t>(sysc.addr()),
+    TCU::get().configure_recv(TCU::SYSC_REP_OFF, reinterpret_cast<uintptr_t>(sysc.addr()),
         SYSC_RBUF_ORDER, SYSC_RBUF_ORDER);
 
     RecvGate &upc = RecvGate::upcall();
-    TCU::get().configure_recv(TCU::UPCALL_REP, reinterpret_cast<uintptr_t>(upc.addr()),
+    TCU::get().configure_recv(TCU::UPCALL_REP_OFF, reinterpret_cast<uintptr_t>(upc.addr()),
         UPCALL_RBUF_ORDER, UPCALL_RBUF_ORDER);
 
     RecvGate &def = RecvGate::upcall();
-    TCU::get().configure_recv(TCU::DEF_REP, reinterpret_cast<uintptr_t>(def.addr()),
+    TCU::get().configure_recv(TCU::DEF_REP_OFF, reinterpret_cast<uintptr_t>(def.addr()),
         DEF_RBUF_ORDER, DEF_RBUF_ORDER);
 
-    TCU::get().configure(TCU::SYSC_SEP, _sysc_label, 0, 0, _sysc_epid, _sysc_credits, SYSC_RBUF_ORDER);
+    TCU::get().configure(TCU::SYSC_SEP_OFF, _sysc_label, 0, 0, _sysc_epid,
+        _sysc_credits, SYSC_RBUF_ORDER);
 
     TCU::get().start();
 }

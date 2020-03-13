@@ -60,7 +60,7 @@ void PEManager::start_vpe(VPE *vpe) {
     vpe->init_memory();
 #else
     if(Platform::pe(vpe->peid()).supports_pemux())
-        pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_START);
+        pemux(vpe->peid())->vpe_ctrl(vpe, m3::KIF::PEXUpcalls::VPEOp::VCTRL_START);
 #endif
 }
 
@@ -68,7 +68,7 @@ void PEManager::stop_vpe(VPE *vpe) {
 #if defined(__gem5__)
     if(Platform::pe(vpe->peid()).supports_pemux() && !(vpe->_flags & VPE::F_STOPPED)) {
         vpe->_flags |= VPE::F_STOPPED;
-        pemux(vpe->peid())->vpe_ctrl(vpe->id(), m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
+        pemux(vpe->peid())->vpe_ctrl(vpe, m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
     }
 #endif
 

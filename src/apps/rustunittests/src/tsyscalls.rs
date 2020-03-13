@@ -16,7 +16,7 @@
 
 use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate};
-use m3::tcu::{EP_COUNT, FIRST_FREE_EP};
+use m3::tcu::{EP_COUNT, FIRST_USER_EP};
 use m3::errors::Code;
 use m3::kif::syscalls::{SemOp, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_MEM, SEL_PE, SEL_VPE};
@@ -307,7 +307,7 @@ fn alloc_ep() {
 
     // any EP
     let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT, 1));
-    wv_assert!(ep >= FIRST_FREE_EP);
+    wv_assert!(ep >= FIRST_USER_EP);
     wv_assert!(ep < EP_COUNT);
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 

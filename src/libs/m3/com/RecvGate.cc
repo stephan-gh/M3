@@ -40,18 +40,33 @@ static void *get_rgate_buf(UNUSED size_t off) {
 }
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
-    VPE::self(), KIF::INV_SEL, TCU::SYSC_REP, get_rgate_buf(0),
-        m3::nextlog2<SYSC_RBUF_SIZE>::val, SYSC_RBUF_ORDER, KEEP_CAP
+    VPE::self(),
+    KIF::INV_SEL,
+    env()->std_eps_start + TCU::SYSC_REP_OFF,
+    get_rgate_buf(0),
+    m3::nextlog2<SYSC_RBUF_SIZE>::val,
+    SYSC_RBUF_ORDER,
+    KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
-    VPE::self(), KIF::INV_SEL, TCU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
-        m3::nextlog2<UPCALL_RBUF_SIZE>::val, UPCALL_RBUF_ORDER, KEEP_CAP
+    VPE::self(),
+    KIF::INV_SEL,
+    env()->std_eps_start + TCU::UPCALL_REP_OFF,
+    get_rgate_buf(SYSC_RBUF_SIZE),
+    m3::nextlog2<UPCALL_RBUF_SIZE>::val,
+    UPCALL_RBUF_ORDER,
+    KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
-    VPE::self(), KIF::INV_SEL, TCU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
-        m3::nextlog2<DEF_RBUF_SIZE>::val, DEF_RBUF_ORDER, KEEP_CAP
+    VPE::self(),
+    KIF::INV_SEL,
+    env()->std_eps_start + TCU::DEF_REP_OFF,
+    get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
+    m3::nextlog2<DEF_RBUF_SIZE>::val,
+    DEF_RBUF_ORDER,
+    KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_invalid (
@@ -145,9 +160,8 @@ void RecvGate::start(WorkLoop *wl, msghandler_t handler) {
     assert(!_workitem);
     _handler = handler;
 
-    bool permanent = ep()->id() < TCU::FIRST_FREE_EP;
     _workitem = std::make_unique<RecvGateWorkItem>(this);
-    wl->add(_workitem.get(), permanent);
+    wl->add(_workitem.get(), ep()->is_standard());
 }
 
 void RecvGate::stop() noexcept {

@@ -190,16 +190,17 @@ public:
     static const epid_t KPEX_REP            = 1;
     static const epid_t PEXUP_REP           = 2;
     static const epid_t PEXUP_RPLEP         = 3;
-    static const epid_t SYSC_SEP            = 4;
-    static const epid_t SYSC_REP            = 5;
-    static const epid_t UPCALL_REP          = 6;
-    static const epid_t UPCALL_RPLEP        = 7;
-    static const epid_t DEF_REP             = 8;
-    static const epid_t PG_SEP              = 9;
-    static const epid_t PG_REP              = 10;
+
+    static const epid_t SYSC_SEP_OFF        = 0;
+    static const epid_t SYSC_REP_OFF        = 1;
+    static const epid_t UPCALL_REP_OFF      = 2;
+    static const epid_t UPCALL_RPLEP_OFF    = 3;
+    static const epid_t DEF_REP_OFF         = 4;
+    static const epid_t PG_SEP_OFF          = 5;
+    static const epid_t PG_REP_OFF          = 6;
 
     static const epid_t FIRST_USER_EP       = 4;
-    static const epid_t FIRST_FREE_EP       = 11;
+    static const epid_t STD_EPS_COUNT       = 7;
 
     static TCU &get() {
         return inst;

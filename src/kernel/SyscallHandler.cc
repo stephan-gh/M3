@@ -277,6 +277,10 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
     // TODO later we will allow multiple VPEs on one PE
     if(pecap == nullptr || pecap->obj->vpes > 0)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid PE cap");
+    if(!pecap->obj->has_quota(m3::TCU::STD_EPS_COUNT)) {
+        SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "PE capability has insufficient EPs (have "
+            << pecap->obj->eps << ", need " << m3::TCU::STD_EPS_COUNT << ")");
+    }
 
     auto kmemcap = static_cast<KMemCapability*>(vpe->objcaps().get(kmem, Capability::KMEM));
     if(kmemcap == nullptr)
@@ -289,8 +293,14 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
     if(!kmemcap->obj->has_quota(VPE::required_kmem()))
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
+    // find contiguous space for standard EPs
+    auto pemux = PEManager::get().pemux(pecap->obj->id);
+    epid_t eps = pemux->find_eps(m3::TCU::STD_EPS_COUNT);
+    if(eps == EP_COUNT)
+        SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "No contiguous EPs for standard EPs");
+
     // create VPE
-    VPE *nvpe = VPEManager::get().create(std::move(name), pecap, kmemcap);
+    VPE *nvpe = VPEManager::get().create(std::move(name), pecap, kmemcap, eps);
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");
 
@@ -299,28 +309,28 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
         vpe->objcaps().obtain(dst.start() + i, nvpe->objcaps().get(i));
 
     // activate pager EPs
-    auto pemux = PEManager::get().pemux(nvpe->peid());
     if(pg_sg != m3::KIF::INV_SEL) {
         // workaround: remember the endpoint so that we invalidate it on gate destruction
-        auto sep = new EPObject(pemux->pe(), nvpe, m3::TCU::PG_SEP, 0);
+        auto sep = new EPObject(pemux->pe(), true, nvpe, eps + m3::TCU::PG_SEP_OFF, 0);
         nvpe->set_pg_sep(sep);
-        pemux->config_snd_ep(m3::TCU::PG_SEP, nvpe->id(), *sgatecap->obj);
+        pemux->config_snd_ep(eps + m3::TCU::PG_SEP_OFF, nvpe->id(), *sgatecap->obj);
         sgatecap->obj->add_ep(sep);
         sep->gate = &*sgatecap->obj;
     }
     if(pg_rg != m3::KIF::INV_SEL) {
-        auto rep = new EPObject(pemux->pe(), nvpe, m3::TCU::PG_REP, 1);
+        auto rep = new EPObject(pemux->pe(), true, nvpe, eps + m3::TCU::PG_REP_OFF, 1);
         nvpe->set_pg_rep(rep);
         rgatecap->obj->pe = nvpe->peid();
         rgatecap->obj->addr = VMA_RBUF;
-        pemux->config_rcv_ep(m3::TCU::PG_REP, nvpe->id(), m3::TCU::NO_REPLIES, *rgatecap->obj);
+        pemux->config_rcv_ep(eps + m3::TCU::PG_REP_OFF, nvpe->id(),
+                             m3::TCU::NO_REPLIES, *rgatecap->obj);
         rgatecap->obj->add_ep(rep);
         rep->gate = &*rgatecap->obj;
     }
 
     m3::KIF::Syscall::CreateVPEReply reply;
     reply.error = m3::Errors::NONE;
-    reply.pe = Platform::pe(nvpe->peid()).value();
+    reply.eps_start = eps;
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
@@ -439,7 +449,7 @@ void SyscallHandler::alloc_ep(VPE *vpe, const m3::TCU::Message *msg) {
     }
 
     auto epcap = SYS_CREATE_CAP(vpe, msg, EPCapability, EPObject,
-        &vpe->objcaps(), dst, pemux->pe(), &*vpecap->obj, epid, replies);
+        &vpe->objcaps(), dst, pemux->pe(), false, &*vpecap->obj, epid, replies);
     vpe->objcaps().set(dst, epcap);
     vpecap->obj->pe()->alloc(epcount);
     pemux->alloc_eps(epid, epcount);

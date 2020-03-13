@@ -46,6 +46,7 @@ pub struct VPECtrl {
     pub pe_id: u64,
     pub vpe_sel: u64,
     pub vpe_op: u64,
+    pub eps_start: u64,
 }
 
 /// The map upcall

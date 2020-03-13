@@ -46,6 +46,10 @@ impl EpMng {
 
     /// Frees the given endpoint
     pub fn release(&mut self, ep: EP, invalidate: bool) {
+        if ep.is_standard() {
+            return;
+        }
+
         if invalidate {
             syscalls::activate(ep.sel(), INVALID_SEL, 0).ok();
         }

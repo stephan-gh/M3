@@ -41,11 +41,13 @@ pub const HEADER_COUNT: usize = usize::max_value();
 
 pub const EP_COUNT: EpId = 128;
 
-pub const SYSC_SEP: EpId = 0;
-pub const SYSC_REP: EpId = 1;
-pub const UPCALL_REP: EpId = 2;
-pub const DEF_REP: EpId = 3;
-pub const FIRST_FREE_EP: EpId = 4;
+pub const SYSC_SEP_OFF: EpId = 0;
+pub const SYSC_REP_OFF: EpId = 1;
+pub const UPCALL_REP_OFF: EpId = 2;
+pub const DEF_REP_OFF: EpId = 3;
+
+pub const FIRST_USER_EP: EpId = 0;
+pub const STD_EPS_COUNT: usize = 4;
 
 int_enum! {
     struct CmdReg : Reg {

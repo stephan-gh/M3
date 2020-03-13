@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use arch;
 use cap::{CapFlags, Selector};
 use cell::StaticCell;
 use cfg;
@@ -31,12 +32,9 @@ use util;
 
 const DEF_MSG_ORD: u32 = 6;
 
-static SYS_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(INVALID_SEL, tcu::SYSC_REP));
-static UPC_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(INVALID_SEL, tcu::UPCALL_REP));
-static DEF_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(INVALID_SEL, tcu::DEF_REP));
+static SYS_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
+static UPC_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
+static DEF_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
 
 bitflags! {
     struct FreeFlags : u8 {
@@ -116,17 +114,17 @@ impl RGateArgs {
 impl RecvGate {
     /// Returns the receive gate to receive system call replies
     pub fn syscall() -> &'static mut RecvGate {
-        SYS_RGATE.get_mut()
+        SYS_RGATE.get_mut().as_mut().unwrap()
     }
 
     /// Returns the receive gate to receive upcalls from the kernel
     pub fn upcall() -> &'static mut RecvGate {
-        UPC_RGATE.get_mut()
+        UPC_RGATE.get_mut().as_mut().unwrap()
     }
 
     /// Returns the default receive gate
     pub fn def() -> &'static mut RecvGate {
-        DEF_RGATE.get_mut()
+        DEF_RGATE.get_mut().as_mut().unwrap()
     }
 
     const fn new_def(sel: Selector, ep: tcu::EpId) -> Self {
@@ -294,6 +292,13 @@ impl RecvGate {
     pub fn drop_msgs_with(&self, label: tcu::Label) {
         tcu::TCU::drop_msgs_with(self.ep().unwrap(), label);
     }
+}
+
+pub(crate) fn pre_init() {
+    let eps_start = arch::env::get().std_eps_start();
+    SYS_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::SYSC_REP_OFF)));
+    UPC_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::UPCALL_REP_OFF)));
+    DEF_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::DEF_REP_OFF)));
 }
 
 pub(crate) fn init() {

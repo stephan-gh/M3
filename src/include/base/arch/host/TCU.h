@@ -136,16 +136,17 @@ public:
         ACKMSG                                  = 7,
     };
 
-    static const epid_t SYSC_SEP                = 0;
-    static const epid_t SYSC_REP                = 1;
-    static const epid_t UPCALL_REP              = 2;
-    static const epid_t DEF_REP                 = 3;
-    static const epid_t FIRST_USER_EP           = 0;
-    static const epid_t FIRST_FREE_EP           = 4;
-
     static const epid_t PEXUP_REP               = 0;    // unused
-    static const epid_t PG_SEP                  = 0;    // unused
-    static const epid_t PG_REP                  = 0;    // unused
+
+    static const epid_t SYSC_SEP_OFF            = 0;
+    static const epid_t SYSC_REP_OFF            = 1;
+    static const epid_t UPCALL_REP_OFF          = 2;
+    static const epid_t DEF_REP_OFF             = 3;
+    static const epid_t PG_SEP_OFF              = 0;    // unused
+    static const epid_t PG_REP_OFF              = 0;    // unused
+
+    static const epid_t FIRST_USER_EP           = 0;
+    static const epid_t STD_EPS_COUNT           = 4;
 
     static TCU &get() {
         return inst;

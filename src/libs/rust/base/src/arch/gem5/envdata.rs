@@ -31,6 +31,7 @@ pub struct EnvData {
     pub kenv: u64,
     pub pe_mem_base: u64,
     pub pe_mem_size: u64,
+    pub std_eps_start: u64,
 
     pub lambda: u64,
     pub pager_sess: u32,

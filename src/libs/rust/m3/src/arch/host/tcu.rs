@@ -18,21 +18,29 @@ use arch::{env, loader};
 use base::envdata;
 use cfg;
 use com::RecvGate;
-use tcu;
 use kif;
 use libc;
 use pes::VPE;
 use syscalls;
+use tcu;
 
 pub fn init() {
     {
         let (ep, lbl, crd) = env::get().syscall_params();
-        tcu::TCU::configure(tcu::SYSC_SEP, lbl, kif::Perm::empty(), 0, ep, crd, cfg::SYSC_RBUF_ORD);
+        tcu::TCU::configure(
+            tcu::SYSC_SEP_OFF,
+            lbl,
+            kif::Perm::empty(),
+            0,
+            ep,
+            crd,
+            cfg::SYSC_RBUF_ORD,
+        );
     }
 
     let sysc = RecvGate::syscall();
     tcu::TCU::configure_recv(
-        tcu::SYSC_REP,
+        tcu::SYSC_REP_OFF,
         sysc.buffer(),
         cfg::SYSC_RBUF_ORD,
         cfg::SYSC_RBUF_ORD,
@@ -40,7 +48,7 @@ pub fn init() {
 
     let upc = RecvGate::upcall();
     tcu::TCU::configure_recv(
-        tcu::UPCALL_REP,
+        tcu::UPCALL_REP_OFF,
         upc.buffer(),
         cfg::UPCALL_RBUF_ORD,
         cfg::UPCALL_RBUF_ORD,
@@ -48,7 +56,7 @@ pub fn init() {
 
     let def = RecvGate::def();
     tcu::TCU::configure_recv(
-        tcu::DEF_REP,
+        tcu::DEF_REP_OFF,
         def.buffer(),
         cfg::DEF_RBUF_ORD,
         cfg::DEF_RBUF_ORD,

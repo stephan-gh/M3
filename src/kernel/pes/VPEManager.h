@@ -57,7 +57,7 @@ private:
 public:
     void start_root();
 
-    VPE *create(m3::String &&name, PECapability *pecap, KMemCapability *kmemcap);
+    VPE *create(m3::String &&name, PECapability *pecap, KMemCapability *kmemcap, epid_t eps_start);
 
     size_t used() const {
         return _count;

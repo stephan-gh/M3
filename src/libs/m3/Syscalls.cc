@@ -25,7 +25,8 @@
 namespace m3 {
 
 INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::INV_SEL, ObjCap::KEEP_CAP,
-                                                &RecvGate::syscall(), TCU::SYSC_SEP);
+                                                &RecvGate::syscall(),
+                                                env()->std_eps_start + TCU::SYSC_SEP_OFF);
 
 template<class T>
 Syscalls::SyscallReply<T> Syscalls::send_receive(const void *msg, size_t size) noexcept {
@@ -100,8 +101,8 @@ void Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t f
     send_receive_throw(&req, sizeof(req));
 }
 
-void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
-                          const String &name, capsel_t pe, capsel_t kmem) {
+epid_t Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
+                            const String &name, capsel_t pe, capsel_t kmem) {
     KIF::Syscall::CreateVPE req;
     req.opcode = KIF::Syscall::CREATE_VPE;
     req.dst_crd = dst.value();
@@ -113,7 +114,12 @@ void Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t p
     memcpy(req.name, name.c_str(), req.namelen);
 
     size_t msgsize = sizeof(req) - sizeof(req.name) + req.namelen;
-    send_receive_throw(&req, msgsize);
+    auto reply = send_receive<KIF::Syscall::CreateVPEReply>(&req, msgsize);
+
+    Errors::Code res = static_cast<Errors::Code>(reply.error());
+    if(res != Errors::NONE)
+        throw SyscallException(res, KIF::Syscall::CREATE_VPE);
+    return reply->eps_start;
 }
 
 void Syscalls::create_sem(capsel_t dst, uint value) {
