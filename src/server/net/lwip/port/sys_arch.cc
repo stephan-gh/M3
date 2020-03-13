@@ -15,7 +15,7 @@
  */
 
 #include <base/Config.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <thread/ThreadManager.h>
 
 #include "lwip/def.h"
@@ -23,5 +23,5 @@
 #include "lwip/sys.h"
 
 u32_t sys_now(void) {
-    return (u32_t)(m3::DTU::get().tsc() * 1000 / m3::DTU::get().clock());
+    return (u32_t)(m3::TCU::get().tsc() * 1000 / m3::TCU::get().clock());
 }

@@ -18,81 +18,81 @@
 #include <base/log/Kernel.h>
 #include <base/util/Math.h>
 #include <base/CPU.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 
 #include "mem/MainMemory.h"
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
-#include "DTU.h"
+#include "TCU.h"
 #include "Platform.h"
 
 namespace kernel {
 
 static char buffer[8192];
 
-m3::Errors::Code DTU::do_ext_cmd(const VPEDesc &vpe, m3::DTU::ExtCmdOpCode op, m3::DTU::reg_t *arg) {
-    m3::DTU::reg_t reg = static_cast<m3::DTU::reg_t>(op) | *arg << 8;
+m3::Errors::Code TCU::do_ext_cmd(const VPEDesc &vpe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg) {
+    m3::TCU::reg_t reg = static_cast<m3::TCU::reg_t>(op) | *arg << 8;
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
-    read_mem(vpe, m3::DTU::priv_reg_addr(m3::DTU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
+    write_mem(vpe, m3::TCU::priv_reg_addr(m3::TCU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
+    read_mem(vpe, m3::TCU::priv_reg_addr(m3::TCU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
     if(arg)
         *arg = reg >> 8;
     return static_cast<m3::Errors::Code>((reg >> 4) & 0xF);
 }
 
-void DTU::deprivilege(peid_t pe) {
+void TCU::deprivilege(peid_t pe) {
     VPEDesc vpe(pe, VPE::INVALID_ID);
 
     // unset the privileged flag
-    m3::DTU::reg_t features = 0;
+    m3::TCU::reg_t features = 0;
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::DTU::dtu_reg_addr(m3::DTU::DtuRegs::FEATURES), &features, sizeof(features));
+    write_mem(vpe, m3::TCU::tcu_reg_addr(m3::TCU::TCURegs::FEATURES), &features, sizeof(features));
 }
 
-void DTU::init_vpe(const VPEDesc &vpe) {
+void TCU::init_vpe(const VPEDesc &vpe) {
     // flush+invalidate caches to ensure that we have a fresh view on memory. this is required
     // because of the way the pager handles copy-on-write: it reads the current copy from the owner
     // and updates the version in DRAM. for that reason, the cache for new VPEs needs to be clear,
     // so that the cache loads the current version from DRAM.
-    m3::DTU::reg_t arg = 1;
-    do_ext_cmd(vpe, m3::DTU::ExtCmdOpCode::RESET, &arg);
+    m3::TCU::reg_t arg = 1;
+    do_ext_cmd(vpe, m3::TCU::ExtCmdOpCode::RESET, &arg);
 }
 
-void DTU::kill_vpe(const VPEDesc &vpe) {
+void TCU::kill_vpe(const VPEDesc &vpe) {
     // reset all EPs to remove unread messages
-    constexpr size_t userRegs = EP_COUNT - m3::DTU::FIRST_USER_EP;
-    constexpr size_t regsSize = (userRegs * m3::DTU::EP_REGS) * sizeof(m3::DTU::reg_t);
+    constexpr size_t userRegs = EP_COUNT - m3::TCU::FIRST_USER_EP;
+    constexpr size_t regsSize = (userRegs * m3::TCU::EP_REGS) * sizeof(m3::TCU::reg_t);
     static_assert(regsSize <= sizeof(buffer), "Buffer too small");
     memset(buffer, 0, regsSize);
-    write_mem(vpe, m3::DTU::ep_regs_addr(m3::DTU::FIRST_USER_EP), buffer, regsSize);
+    write_mem(vpe, m3::TCU::ep_regs_addr(m3::TCU::FIRST_USER_EP), buffer, regsSize);
 }
 
-m3::Errors::Code DTU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
-    m3::DTU::reg_t arg = rep | (pe << 16) | (sep << 24);
-    return do_ext_cmd(vpe, m3::DTU::ExtCmdOpCode::INV_REPLY, &arg);
+m3::Errors::Code TCU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
+    m3::TCU::reg_t arg = rep | (pe << 16) | (sep << 24);
+    return do_ext_cmd(vpe, m3::TCU::ExtCmdOpCode::INV_REPLY, &arg);
 }
 
-m3::Errors::Code DTU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force,
+m3::Errors::Code TCU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force,
                                       uint32_t *unreadMask) {
-    m3::DTU::reg_t arg = ep | (static_cast<m3::DTU::reg_t>(force) << 16);
-    m3::Errors::Code res = do_ext_cmd(vpe, m3::DTU::ExtCmdOpCode::INV_EP, &arg);
+    m3::TCU::reg_t arg = ep | (static_cast<m3::TCU::reg_t>(force) << 16);
+    m3::Errors::Code res = do_ext_cmd(vpe, m3::TCU::ExtCmdOpCode::INV_EP, &arg);
     *unreadMask = arg;
     return res;
 }
 
-void DTU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
+void TCU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::DTU::ep_regs_addr(ep), regs, sizeof(m3::DTU::reg_t) * m3::DTU::EP_REGS);
+    write_mem(vpe, m3::TCU::ep_regs_addr(ep), regs, sizeof(m3::TCU::reg_t) * m3::TCU::EP_REGS);
 }
 
-void DTU::write_ep_local(epid_t ep) {
-    m3::DTU::reg_t *src = reinterpret_cast<m3::DTU::reg_t*>(_state.get_ep(ep));
-    m3::DTU::reg_t *dst = reinterpret_cast<m3::DTU::reg_t*>(m3::DTU::ep_regs_addr(ep));
-    for(size_t i = 0; i < m3::DTU::EP_REGS; ++i)
+void TCU::write_ep_local(epid_t ep) {
+    m3::TCU::reg_t *src = reinterpret_cast<m3::TCU::reg_t*>(_state.get_ep(ep));
+    m3::TCU::reg_t *dst = reinterpret_cast<m3::TCU::reg_t*>(m3::TCU::ep_regs_addr(ep));
+    for(size_t i = 0; i < m3::TCU::EP_REGS; ++i)
         dst[i] = src[i];
 }
 
-void DTU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
+void TCU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     // TODO manage the kernel EPs properly
     static size_t reply_eps = 16;
 
@@ -102,36 +102,36 @@ void DTU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     reply_eps += 1UL << (order - msgorder);
 }
 
-m3::Errors::Code DTU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
+m3::Errors::Code TCU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
     _state.config_send(_ep, VPE::KERNEL_ID, label, vpe.pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
     write_ep_local(_ep);
 
-    return m3::DTU::get().send(_ep, msg, size, replylbl, replyep);
+    return m3::TCU::get().send(_ep, msg, size, replylbl, replyep);
 }
 
-void DTU::reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg) {
-    m3::Errors::Code res = m3::DTU::get().reply(ep, reply, size, msg);
+void TCU::reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Message *msg) {
+    m3::Errors::Code res = m3::TCU::get().reply(ep, reply, size, msg);
     if(res != m3::Errors::NONE)
         PANIC("Reply failed");
 }
 
-m3::Errors::Code DTU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
+m3::Errors::Code TCU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
     if(_state.config_mem_cached(_ep, vpe.pe))
         write_ep_local(_ep);
 
     // the kernel can never cause pagefaults with reads/writes
-    return m3::DTU::get().write(_ep, data, size, addr, m3::DTU::CmdFlags::NOPF);
+    return m3::TCU::get().write(_ep, data, size, addr, m3::TCU::CmdFlags::NOPF);
 }
 
-m3::Errors::Code DTU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
+m3::Errors::Code TCU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
     if(_state.config_mem_cached(_ep, vpe.pe))
         write_ep_local(_ep);
 
-    return m3::DTU::get().read(_ep, data, size, addr, m3::DTU::CmdFlags::NOPF);
+    return m3::TCU::get().read(_ep, data, size, addr, m3::TCU::CmdFlags::NOPF);
 }
 
-void DTU::copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,
+void TCU::copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,
                      const VPEDesc &srcvpe, goff_t srcaddr,
                      size_t size, bool clear) {
     if(clear)
@@ -142,8 +142,8 @@ void DTU::copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,
         size_t amount = m3::Math::min(rem, sizeof(buffer));
         // read it from src, if necessary
         if(!clear)
-            DTU::get().read_mem(srcvpe, srcaddr, buffer, amount);
-        DTU::get().write_mem(dstvpe, dstaddr, buffer, amount);
+            TCU::get().read_mem(srcvpe, srcaddr, buffer, amount);
+        TCU::get().write_mem(dstvpe, dstaddr, buffer, amount);
         srcaddr += amount;
         dstaddr += amount;
         rem -= amount;

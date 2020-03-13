@@ -18,12 +18,12 @@ use cap::{CapFlags, Capability, Selector};
 use cell::Cell;
 use com::EP;
 use core::ops;
-use dtu::EpId;
+use tcu::EpId;
 use errors::Error;
 use pes::VPE;
 use syscalls;
 
-/// A gate is one side of a DTU-based communication channel and exists in the variants [`MemGate`],
+/// A gate is one side of a TCU-based communication channel and exists in the variants [`MemGate`],
 /// [`SendGate`], and [`RecvGate`].
 pub struct Gate {
     cap: Capability,

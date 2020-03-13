@@ -21,7 +21,7 @@ while True:
     old_vpe = cur_vpe
 
     if "VPE_ID" in line:
-        m = re.match('.*(pe[0-9]+\.).*DTU\[VPE_ID\s*\]: 0x([0-9a-f]+).*', line)
+        m = re.match('.*(pe[0-9]+\.).*TCU\[VPE_ID\s*\]: 0x([0-9a-f]+).*', line)
         if m:
             next_vpe = int(m[2], 16)
             next_pe = m[1]

@@ -16,7 +16,7 @@
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::dtu;
+use base::tcu;
 use base::errors::{Code, Error};
 use base::goff;
 use base::io;
@@ -29,10 +29,10 @@ use vpe;
 
 static ENABLED: StaticCell<bool> = StaticCell::new(true);
 
-fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
+fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
     let _irqs = helper::IRQsOnGuard::new();
-    dtu::DTU::reply(
-        dtu::PEXUP_REP,
+    tcu::TCU::reply(
+        tcu::PEXUP_REP,
         reply as *const T as *const u8,
         util::size_of::<T>(),
         msg,
@@ -40,7 +40,7 @@ fn reply_msg<T>(msg: &'static dtu::Message, reply: &T) {
     .unwrap();
 }
 
-fn vpe_ctrl(msg: &'static dtu::Message, state: &mut arch::State) -> Result<(), Error> {
+fn vpe_ctrl(msg: &'static tcu::Message, state: &mut arch::State) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
     let pe_id = req.pe_id as u32;
@@ -79,7 +79,7 @@ fn vpe_ctrl(msg: &'static dtu::Message, state: &mut arch::State) -> Result<(), E
     Ok(())
 }
 
-fn map(msg: &'static dtu::Message) -> Result<(), Error> {
+fn map(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::Map>();
 
     let vpe_id = req.vpe_sel;
@@ -108,7 +108,7 @@ fn map(msg: &'static dtu::Message) -> Result<(), Error> {
         .map(virt, phys, pages, perm | kif::PageFlags::U)
 }
 
-fn rem_msgs(msg: &'static dtu::Message) -> Result<(), Error> {
+fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::RemMsgs>();
 
     let vpe_id = req.vpe_sel;
@@ -130,7 +130,7 @@ fn rem_msgs(msg: &'static dtu::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn handle_upcall(msg: &'static dtu::Message, state: &mut arch::State) {
+fn handle_upcall(msg: &'static tcu::Message, state: &mut arch::State) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::pemux::Upcalls::from(req.opcode) {
@@ -166,24 +166,24 @@ pub fn check(state: &mut arch::State) {
         return;
     }
 
-    let _cmd_saved = helper::DTUGuard::new();
+    let _cmd_saved = helper::TCUGuard::new();
 
     // don't handle other upcalls in the meantime
     let _upcalls_off = helper::UpcallsOffGuard::new();
 
     loop {
         // change to our VPE
-        let old_vpe = dtu::DTU::xchg_vpe(our.vpe_reg());
+        let old_vpe = tcu::TCU::xchg_vpe(our.vpe_reg());
         vpe::cur().set_vpe_reg(old_vpe);
 
-        let msg = dtu::DTU::fetch_msg(dtu::PEXUP_REP);
+        let msg = tcu::TCU::fetch_msg(tcu::PEXUP_REP);
         if let Some(m) = msg {
             handle_upcall(m, state);
         }
 
         // change back to old VPE
         let new_vpe = vpe::cur().vpe_reg();
-        our.set_vpe_reg(dtu::DTU::xchg_vpe(new_vpe));
+        our.set_vpe_reg(tcu::TCU::xchg_vpe(new_vpe));
         // if no events arrived in the meantime, we're done
         if !our.has_msgs() {
             break;

@@ -121,7 +121,7 @@ pub fn init() {
                 Vector::SWI => isr_reg(i, crate::pexcall),
                 Vector::PREFETCH_ABORT => isr_reg(i, crate::mmu_pf),
                 Vector::DATA_ABORT => isr_reg(i, crate::mmu_pf),
-                Vector::IRQ => isr_reg(i, crate::dtu_irq),
+                Vector::IRQ => isr_reg(i, crate::tcu_irq),
                 _ => isr_reg(i, crate::unexpected_irq),
             }
         }

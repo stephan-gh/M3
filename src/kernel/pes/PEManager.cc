@@ -18,7 +18,7 @@
 
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
-#include "DTU.h"
+#include "TCU.h"
 #include "Platform.h"
 
 namespace kernel {
@@ -43,11 +43,11 @@ void PEManager::remove_vpe(VPE *vpe) {
 void PEManager::init_vpe(UNUSED VPE *vpe) {
 #if defined(__gem5__)
     auto pex = pemux(vpe->peid());
-    auto dtustate = pex->dtustate();
+    auto tcustate = pex->tcustate();
     vpe->_state = VPE::RUNNING;
 
-    dtustate.restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
-    DTU::get().init_vpe(vpe->desc());
+    tcustate.restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
+    TCU::get().init_vpe(vpe->desc());
 
     vpe->init_memory();
 #endif
@@ -55,7 +55,7 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
 
 void PEManager::start_vpe(VPE *vpe) {
 #if defined(__host__)
-    pemux(vpe->peid())->dtustate().restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
+    pemux(vpe->peid())->tcustate().restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
     vpe->_state = VPE::RUNNING;
     vpe->init_memory();
 #else
@@ -72,7 +72,7 @@ void PEManager::stop_vpe(VPE *vpe) {
     }
 #endif
 
-    DTU::get().kill_vpe(vpe->desc());
+    TCU::get().kill_vpe(vpe->desc());
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe) {
@@ -86,7 +86,7 @@ peid_t PEManager::find_pe(const m3::PEDesc &pe) {
 
 void PEManager::deprivilege_pes() {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i)
-        DTU::get().deprivilege(i);
+        TCU::get().deprivilege(i);
 }
 
 }

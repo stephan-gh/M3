@@ -18,7 +18,7 @@
 
 #include <base/Common.h>
 #include <base/col/SList.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 
 #include "pes/VPEDesc.h"
 
@@ -61,7 +61,7 @@ public:
     }
 
     event_t send(epid_t dst_ep, label_t ident,const void *msg, size_t size, bool onheap);
-    void received_reply(epid_t ep, const m3::DTU::Message *msg);
+    void received_reply(epid_t ep, const m3::TCU::Message *msg);
     void drop_msgs(label_t ident);
     void abort();
 

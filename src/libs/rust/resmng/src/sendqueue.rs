@@ -17,7 +17,7 @@
 use m3::cell::StaticCell;
 use m3::col::{DList, String, Vec};
 use m3::com::{RGateArgs, RecvGate, SendGate};
-use m3::dtu;
+use m3::tcu;
 use m3::errors::Error;
 use thread;
 
@@ -72,12 +72,12 @@ pub fn init() {
 pub fn check_replies() {
     let rg = RGATE.get().as_ref().unwrap();
 
-    if let Some(msg) = dtu::DTUIf::fetch_msg(rg) {
+    if let Some(msg) = tcu::TCUIf::fetch_msg(rg) {
         if let Ok(serv) = services::get().get_by_id(msg.header.label as Id) {
             serv.queue().received_reply(rg, msg);
         }
         else {
-            dtu::DTUIf::ack_msg(rg, msg);
+            tcu::TCUIf::ack_msg(rg, msg);
         }
     }
 }
@@ -118,7 +118,7 @@ impl SendQueue {
         services::get().get_by_id(self.sid).unwrap().name()
     }
 
-    fn received_reply(&mut self, rg: &RecvGate, msg: &'static dtu::Message) {
+    fn received_reply(&mut self, rg: &RecvGate, msg: &'static tcu::Message) {
         log!(crate::LOG_SQUEUE, "{}:squeue: received reply", self.serv_name());
 
         assert!(self.state == QState::Waiting);
@@ -127,7 +127,7 @@ impl SendQueue {
         thread::ThreadManager::get().notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
-        dtu::DTUIf::ack_msg(rg, msg);
+        tcu::TCUIf::ack_msg(rg, msg);
 
         self.send_pending();
     }
@@ -160,7 +160,7 @@ impl SendQueue {
 
         let rgate = &RGATE.get().as_ref().unwrap();
         self.sgate
-            .send_with_rlabel(msg, rgate, dtu::Label::from(self.sid))?;
+            .send_with_rlabel(msg, rgate, tcu::Label::from(self.sid))?;
 
         Ok(self.cur_event)
     }

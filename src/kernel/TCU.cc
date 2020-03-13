@@ -17,10 +17,10 @@
 #include <base/Common.h>
 #include <base/Init.h>
 
-#include "DTU.h"
+#include "TCU.h"
 
 namespace kernel {
 
-DTU DTU::_inst;
+TCU TCU::_inst;
 
 }

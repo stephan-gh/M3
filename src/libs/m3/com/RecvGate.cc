@@ -40,17 +40,17 @@ static void *get_rgate_buf(UNUSED size_t off) {
 }
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
-    VPE::self(), KIF::INV_SEL, DTU::SYSC_REP, get_rgate_buf(0),
+    VPE::self(), KIF::INV_SEL, TCU::SYSC_REP, get_rgate_buf(0),
         m3::nextlog2<SYSC_RBUF_SIZE>::val, SYSC_RBUF_ORDER, KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
-    VPE::self(), KIF::INV_SEL, DTU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
+    VPE::self(), KIF::INV_SEL, TCU::UPCALL_REP, get_rgate_buf(SYSC_RBUF_SIZE),
         m3::nextlog2<UPCALL_RBUF_SIZE>::val, UPCALL_RBUF_ORDER, KEEP_CAP
 );
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
-    VPE::self(), KIF::INV_SEL, DTU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
+    VPE::self(), KIF::INV_SEL, TCU::DEF_REP, get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
         m3::nextlog2<DEF_RBUF_SIZE>::val, DEF_RBUF_ORDER, KEEP_CAP
 );
 
@@ -59,7 +59,7 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_invalid (
 );
 
 void RecvGate::RecvGateWorkItem::work() {
-    const DTU::Message *msg = DTUIf::fetch_msg(*_buf);
+    const TCU::Message *msg = TCUIf::fetch_msg(*_buf);
     if(msg) {
         LLOG(IPC, "Received msg @ " << (void*)msg << " over ep " << _buf->ep());
         GateIStream is(*_buf, msg);
@@ -145,7 +145,7 @@ void RecvGate::start(WorkLoop *wl, msghandler_t handler) {
     assert(!_workitem);
     _handler = handler;
 
-    bool permanent = ep()->id() < DTU::FIRST_FREE_EP;
+    bool permanent = ep()->id() < TCU::FIRST_FREE_EP;
     _workitem = std::make_unique<RecvGateWorkItem>(this);
     wl->add(_workitem.get(), permanent);
 }
@@ -154,32 +154,32 @@ void RecvGate::stop() noexcept {
     _workitem.reset();
 }
 
-const DTU::Message *RecvGate::fetch() {
+const TCU::Message *RecvGate::fetch() {
     activate();
-    return DTUIf::fetch_msg(*this);
+    return TCUIf::fetch_msg(*this);
 }
 
-void RecvGate::reply(const void *reply, size_t len, const DTU::Message *msg) {
-    Errors::Code res = DTUIf::reply(*this, reply, len, msg);
+void RecvGate::reply(const void *reply, size_t len, const TCU::Message *msg) {
+    Errors::Code res = TCUIf::reply(*this, reply, len, msg);
     if(EXPECT_FALSE(res != Errors::NONE))
-        throw DTUException(res);
+        throw TCUException(res);
 }
 
-const DTU::Message *RecvGate::receive(SendGate *sgate) {
+const TCU::Message *RecvGate::receive(SendGate *sgate) {
     activate();
-    const DTU::Message *reply = nullptr;
-    Errors::Code res = DTUIf::receive(*this, sgate, &reply);
+    const TCU::Message *reply = nullptr;
+    Errors::Code res = TCUIf::receive(*this, sgate, &reply);
     if(res != Errors::NONE)
         throw MessageException("SendGate became invalid while waiting for reply", res);
     return reply;
 }
 
-void RecvGate::ack_msg(const DTU::Message *msg) {
-    DTUIf::ack_msg(*this, msg);
+void RecvGate::ack_msg(const TCU::Message *msg) {
+    TCUIf::ack_msg(*this, msg);
 }
 
 void RecvGate::drop_msgs_with(label_t label) noexcept {
-    DTUIf::drop_msgs(ep()->id(), label);
+    TCUIf::drop_msgs(ep()->id(), label);
 }
 
 }

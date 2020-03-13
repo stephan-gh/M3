@@ -18,13 +18,13 @@ use arch::env;
 use arch::pexcalls;
 use base::pexif;
 use com::{MemGate, RecvGate, SendGate};
-use dtu::{self, CmdFlags, Label, Message};
+use tcu::{self, CmdFlags, Label, Message};
 use errors::{Code, Error};
 use goff;
 
-pub struct DTUIf {}
+pub struct TCUIf {}
 
-impl DTUIf {
+impl TCUIf {
     #[inline(always)]
     pub fn send(
         sg: &SendGate,
@@ -34,7 +34,7 @@ impl DTUIf {
         rg: &RecvGate,
     ) -> Result<(), Error> {
         let ep = sg.activate()?;
-        dtu::DTU::send(ep.id(), msg, size, reply_lbl, rg.ep().unwrap())
+        tcu::TCU::send(ep.id(), msg, size, reply_lbl, rg.ep().unwrap())
     }
 
     #[inline(always)]
@@ -44,7 +44,7 @@ impl DTUIf {
         size: usize,
         msg: &'static Message,
     ) -> Result<(), Error> {
-        dtu::DTU::reply(rg.ep().unwrap(), reply, size, msg)
+        tcu::TCU::reply(rg.ep().unwrap(), reply, size, msg)
     }
 
     #[inline(always)]
@@ -55,40 +55,40 @@ impl DTUIf {
         rg: &RecvGate,
     ) -> Result<&'static Message, Error> {
         let ep = sg.activate()?;
-        dtu::DTU::send(ep.id(), msg, size, 0, rg.ep().unwrap())?;
+        tcu::TCU::send(ep.id(), msg, size, 0, rg.ep().unwrap())?;
         Self::receive(rg, Some(sg))
     }
 
     #[inline(always)]
     pub fn fetch_msg(rg: &RecvGate) -> Option<&'static Message> {
-        dtu::DTU::fetch_msg(rg.ep().unwrap())
+        tcu::TCU::fetch_msg(rg.ep().unwrap())
     }
 
     #[inline(always)]
     pub fn ack_msg(rg: &RecvGate, msg: &Message) {
-        dtu::DTU::ack_msg(rg.ep().unwrap(), msg)
+        tcu::TCU::ack_msg(rg.ep().unwrap(), msg)
     }
 
     pub fn receive(rg: &RecvGate, sg: Option<&SendGate>) -> Result<&'static Message, Error> {
         loop {
-            let msg = dtu::DTU::fetch_msg(rg.ep().unwrap());
+            let msg = tcu::TCU::fetch_msg(rg.ep().unwrap());
             if let Some(m) = msg {
                 return Ok(m);
             }
 
             // fetch the events first
-            dtu::DTU::fetch_events();
+            tcu::TCU::fetch_events();
             if let Some(sg) = sg {
                 // now check whether the endpoint is still valid. if the EP has been invalidated
                 // before the line above, we'll notice that with this check. if the EP is
-                // invalidated between the line above and the sleep command, the DTU will refuse
+                // invalidated between the line above and the sleep command, the TCU will refuse
                 // to suspend the core.
-                if !dtu::DTU::is_valid(sg.ep().unwrap().id()) {
+                if !tcu::TCU::is_valid(sg.ep().unwrap().id()) {
                     return Err(Error::new(Code::InvEP));
                 }
             }
 
-            dtu::DTU::wait_for_msg(rg.ep().unwrap(), 0)?;
+            tcu::TCU::wait_for_msg(rg.ep().unwrap(), 0)?;
         }
     }
 
@@ -100,7 +100,7 @@ impl DTUIf {
         flags: CmdFlags,
     ) -> Result<(), Error> {
         let ep = mg.activate()?;
-        dtu::DTU::read(ep.id(), data, size, off, flags)
+        tcu::TCU::read(ep.id(), data, size, off, flags)
     }
 
     pub fn write(
@@ -111,7 +111,7 @@ impl DTUIf {
         flags: CmdFlags,
     ) -> Result<(), Error> {
         let ep = mg.activate()?;
-        dtu::DTU::write(ep.id(), data, size, off, flags)
+        tcu::TCU::write(ep.id(), data, size, off, flags)
     }
 
     #[inline(always)]
@@ -124,8 +124,8 @@ impl DTUIf {
         if env::get().shared() {
             pexcalls::call1(pexif::Operation::SLEEP, cycles as usize).map(|_| ())
         }
-        else if dtu::DTU::fetch_events() == 0 {
-            dtu::DTU::sleep_for(cycles)
+        else if tcu::TCU::fetch_events() == 0 {
+            tcu::TCU::sleep_for(cycles)
         }
         else {
             Ok(())

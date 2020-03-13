@@ -61,8 +61,8 @@ void VPEManager::start_root() {
 
     // boot info
     {
-        peid_t pe = m3::DTU::gaddr_to_pe(Platform::info_addr());
-        goff_t addr = m3::DTU::gaddr_to_virt(Platform::info_addr());
+        peid_t pe = m3::TCU::gaddr_to_pe(Platform::info_addr());
+        goff_t addr = m3::TCU::gaddr_to_virt(Platform::info_addr());
         auto memcap = CREATE_CAP(MGateCapability, MGateObject,
             &_vpes[id]->objcaps(), sel,
             pe, addr, Platform::info_size(), m3::KIF::Perm::R
@@ -73,8 +73,8 @@ void VPEManager::start_root() {
 
     // boot modules
     for(auto mod = Platform::mods_begin(); mod != Platform::mods_end(); ++mod, ++sel) {
-        peid_t pe = m3::DTU::gaddr_to_pe(mod->addr);
-        goff_t addr = m3::DTU::gaddr_to_virt(mod->addr);
+        peid_t pe = m3::TCU::gaddr_to_pe(mod->addr);
+        goff_t addr = m3::TCU::gaddr_to_virt(mod->addr);
         size_t size = m3::Math::round_up(static_cast<size_t>(mod->size),
                                          static_cast<size_t>(PAGE_SIZE));
         auto memcap = CREATE_CAP(MGateCapability, MGateObject,

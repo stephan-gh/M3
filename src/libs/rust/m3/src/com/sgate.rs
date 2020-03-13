@@ -20,14 +20,14 @@ use com::gate::Gate;
 use com::stream::GateIStream;
 use com::RecvGate;
 use core::fmt;
-use dtu;
+use tcu;
 use errors::Error;
 use kif::INVALID_SEL;
 use pes::VPE;
 use syscalls;
 use util;
 
-/// A send gate (`SendGate`) can send message via DTU to an associated `RecvGate`.
+/// A send gate (`SendGate`) can send message via TCU to an associated `RecvGate`.
 pub struct SendGate {
     gate: Gate,
 }
@@ -35,7 +35,7 @@ pub struct SendGate {
 /// The arguments for [`SendGate`] creations.
 pub struct SGateArgs {
     rgate_sel: Selector,
-    label: dtu::Label,
+    label: tcu::Label,
     credits: u32,
     sel: Selector,
     flags: CapFlags,
@@ -60,7 +60,7 @@ impl SGateArgs {
     }
 
     /// Sets the label to `label`.
-    pub fn label(mut self, label: dtu::Label) -> Self {
+    pub fn label(mut self, label: tcu::Label) -> Self {
         self.label = label;
         self
     }
@@ -74,7 +74,7 @@ impl SGateArgs {
 }
 
 impl SendGate {
-    pub(crate) const fn new_def(sel: Selector, ep: dtu::EpId) -> Self {
+    pub(crate) const fn new_def(sel: Selector, ep: tcu::EpId) -> Self {
         SendGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
         }
@@ -139,7 +139,7 @@ impl SendGate {
         &self,
         msg: &[T],
         reply_gate: &RecvGate,
-        rlabel: dtu::Label,
+        rlabel: tcu::Label,
     ) -> Result<(), Error> {
         self.send_bytes(
             msg.as_ptr() as *const u8,
@@ -156,7 +156,7 @@ impl SendGate {
         msg: &[T],
         reply_gate: &'r RecvGate,
     ) -> Result<GateIStream<'r>, Error> {
-        dtu::DTUIf::call(
+        tcu::TCUIf::call(
             self,
             msg.as_ptr() as *const u8,
             msg.len() * util::size_of::<T>(),
@@ -171,9 +171,9 @@ impl SendGate {
         msg: *const u8,
         size: usize,
         reply_gate: &RecvGate,
-        rlabel: dtu::Label,
+        rlabel: tcu::Label,
     ) -> Result<(), Error> {
-        dtu::DTUIf::send(self, msg, size, rlabel, reply_gate)
+        tcu::TCUIf::send(self, msg, size, rlabel, reply_gate)
     }
 
     pub(crate) fn activate(&self) -> Result<&EP, Error> {

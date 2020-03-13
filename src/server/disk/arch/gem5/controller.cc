@@ -22,7 +22,7 @@
 
 #include "controller.h"
 
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Heap.h>
 #include <base/Panic.h>
 
@@ -315,7 +315,7 @@ int ctrl_waitUntil(sATAController *ctrl, time_t timeout, time_t sleepTime, uint8
             return 0;
         SLOG(IDE_ALL, "Status %#x" << status);
         if(sleepTime) {
-            m3::DTUIf::sleep_for(1000 * sleepTime);
+            m3::TCUIf::sleep_for(1000 * sleepTime);
             elapsed += sleepTime;
         }
         else

@@ -17,28 +17,28 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 
 namespace kernel {
 
-class DTURegs {
+class TCURegs {
 public:
-    explicit DTURegs()
-        : _dtu(),
+    explicit TCURegs()
+        : _tcu(),
           _cmd(),
           _eps() {
     }
 
-    m3::DTU::reg_t get(m3::DTU::DtuRegs reg) const {
-        return _dtu[static_cast<size_t>(reg)];
+    m3::TCU::reg_t get(m3::TCU::TCURegs reg) const {
+        return _tcu[static_cast<size_t>(reg)];
     }
-    void set(m3::DTU::DtuRegs reg, m3::DTU::reg_t value) {
-        _dtu[static_cast<size_t>(reg)] = value;
+    void set(m3::TCU::TCURegs reg, m3::TCU::reg_t value) {
+        _tcu[static_cast<size_t>(reg)] = value;
     }
 
-    m3::DTU::reg_t _dtu[m3::DTU::DTU_REGS];
-    m3::DTU::reg_t _cmd[m3::DTU::CMD_REGS];
-    m3::DTU::reg_t _eps[m3::DTU::EP_REGS * EP_COUNT];
+    m3::TCU::reg_t _tcu[m3::TCU::TCU_REGS];
+    m3::TCU::reg_t _cmd[m3::TCU::CMD_REGS];
+    m3::TCU::reg_t _eps[m3::TCU::EP_REGS * EP_COUNT];
 } PACKED;
 
 }

@@ -18,19 +18,19 @@
 #include <base/Init.h>
 
 #include <m3/com/GateStream.h>
-#include <m3/DTUIf.h>
+#include <m3/TCUIf.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 
 namespace m3 {
 
 INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::INV_SEL, ObjCap::KEEP_CAP,
-                                                &RecvGate::syscall(), DTU::SYSC_SEP);
+                                                &RecvGate::syscall(), TCU::SYSC_SEP);
 
 template<class T>
 Syscalls::SyscallReply<T> Syscalls::send_receive(const void *msg, size_t size) noexcept {
-    const DTU::Message *reply = nullptr;
-    Errors::Code res = DTUIf::call(_sendgate, msg, size, *_sendgate.reply_gate(), &reply);
+    const TCU::Message *reply = nullptr;
+    Errors::Code res = TCUIf::call(_sendgate, msg, size, *_sendgate.reply_gate(), &reply);
     return SyscallReply<T>(res, reply);
 }
 

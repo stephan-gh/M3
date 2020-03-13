@@ -74,7 +74,7 @@ build_params_gem5() {
     mods="$M3_GEM5_OUT/boot.xml$mods,$bindir/pemux"
 
     if [ "$M3_GEM5_DBG" = "" ]; then
-        M3_GEM5_DBG="Dtu"
+        M3_GEM5_DBG="Tcu"
     fi
     if [ "$M3_GEM5_CPU" = "" ]; then
         if [ "$debug" != "" ]; then

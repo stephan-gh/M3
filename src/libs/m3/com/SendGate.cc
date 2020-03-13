@@ -15,7 +15,7 @@
  */
 
 #include <m3/com/SendGate.h>
-#include <m3/DTUIf.h>
+#include <m3/TCUIf.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/pes/VPE.h>
@@ -36,18 +36,18 @@ SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
 void SendGate::send(const void *msg, size_t len, label_t reply_label) {
     Errors::Code res = try_send(msg, len, reply_label);
     if(res != Errors::NONE)
-        throw DTUException(res);
+        throw TCUException(res);
 }
 
 Errors::Code SendGate::try_send(const void *msg, size_t len, label_t reply_label) {
-    return DTUIf::send(*this, msg, len, reply_label, *_replygate);
+    return TCUIf::send(*this, msg, len, reply_label, *_replygate);
 }
 
-const DTU::Message *SendGate::call(const void *msg, size_t len) {
-    const DTU::Message *reply = nullptr;
-    Errors::Code res = DTUIf::call(*this, msg, len, *_replygate, &reply);
+const TCU::Message *SendGate::call(const void *msg, size_t len) {
+    const TCU::Message *reply = nullptr;
+    Errors::Code res = TCUIf::call(*this, msg, len, *_replygate, &reply);
     if(res != Errors::NONE)
-        throw DTUException(res);
+        throw TCUException(res);
     return reply;
 }
 

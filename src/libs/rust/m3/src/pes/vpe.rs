@@ -475,7 +475,7 @@ impl VPE {
                 ::io::reinit();
                 pes::reinit();
                 syscalls::reinit();
-                arch::dtu::init();
+                arch::tcu::init();
 
                 c2p.signal();
 
@@ -488,7 +488,7 @@ impl VPE {
                 syscalls::vpe_ctrl(self.sel(), kif::syscalls::VPEOp::START, pid as u64).unwrap();
 
                 p2c.signal();
-                // wait until the DTU sockets have been binded
+                // wait until the TCU sockets have been binded
                 c2p.wait();
 
                 Ok(ClosureActivity::new(self, closure))
@@ -636,8 +636,8 @@ impl VPE {
 
                 let pid = unsafe { libc::getpid() };
 
-                // tell child about fd to notify parent if DTU is ready
-                arch::loader::write_env_value(pid, "dturdy", c2p.fds()[1] as u64);
+                // tell child about fd to notify parent if TCU is ready
+                arch::loader::write_env_value(pid, "tcurdy", c2p.fds()[1] as u64);
 
                 // write nextsel, eps, rmng, and kmem
                 arch::loader::write_env_value(pid, "nextsel", u64::from(self.next_sel));
@@ -668,7 +668,7 @@ impl VPE {
                 syscalls::vpe_ctrl(self.sel(), kif::syscalls::VPEOp::START, pid as u64).unwrap();
 
                 p2c.signal();
-                // wait until the DTU sockets have been binded
+                // wait until the TCU sockets have been binded
                 c2p.wait();
 
                 Ok(ExecActivity::new(self, BufReader::new(file)))

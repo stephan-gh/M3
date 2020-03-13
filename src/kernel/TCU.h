@@ -17,10 +17,10 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Panic.h>
 
-#include "DTUState.h"
+#include "TCUState.h"
 #include "SyscallHandler.h"
 
 namespace kernel {
@@ -29,16 +29,16 @@ class RGateObject;
 class VPE;
 class VPEDesc;
 
-class DTU {
-    explicit DTU() : _ep(SyscallHandler::memep()) {
+class TCU {
+    explicit TCU() : _ep(SyscallHandler::memep()) {
     }
 
 public:
-    static DTU &get() {
+    static TCU &get() {
         return _inst;
     }
 
-    DTUState &state() {
+    TCUState &state() {
         return _state;
     }
 
@@ -55,7 +55,7 @@ public:
 
     void recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder);
 
-    void reply(epid_t ep, const void *reply, size_t size, const m3::DTU::Message *msg);
+    void reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Message *msg);
 
     m3::Errors::Code send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                              size_t size, label_t replylbl, epid_t replyep);
@@ -78,12 +78,12 @@ public:
 
 private:
 #if defined(__gem5__)
-    m3::Errors::Code do_ext_cmd(const VPEDesc &vpe, m3::DTU::ExtCmdOpCode op, m3::DTU::reg_t *arg);
+    m3::Errors::Code do_ext_cmd(const VPEDesc &vpe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg);
 #endif
 
     epid_t _ep;
-    DTUState _state;
-    static DTU _inst;
+    TCUState _state;
+    static TCU _inst;
 };
 
 }

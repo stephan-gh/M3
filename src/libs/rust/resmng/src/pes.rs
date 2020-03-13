@@ -16,7 +16,7 @@
 
 use m3::cell::StaticCell;
 use m3::col::Vec;
-use m3::dtu::PEId;
+use m3::tcu::PEId;
 use m3::errors::{Code, Error};
 use m3::kif::PEDesc;
 use m3::pes::PE;

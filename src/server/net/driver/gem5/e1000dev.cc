@@ -16,7 +16,7 @@
 
 #include <base/log/Services.h>
 
-#include <m3/DTUIf.h>
+#include <m3/TCUIf.h>
 
 #include <assert.h>
 #include <cstddef>
@@ -187,14 +187,14 @@ void E1000::readEEPROM(uintptr_t address, uint8_t *dest, size_t len) {
 }
 
 void E1000::sleep(cycles_t usec) {
-    auto cycles_to_seep = usec * DTU::get().clock() / 1000000;
+    auto cycles_to_seep = usec * TCU::get().clock() / 1000000;
     SLOG(NIC, "sleep: " << usec << " usec -> " << cycles_to_seep << " cycles");
-    auto t = DTU::get().tsc();
+    auto t = TCU::get().tsc();
     do {
-        cycles_t sleep_time = (DTU::get().tsc() - t);
+        cycles_t sleep_time = (TCU::get().tsc() - t);
         if(cycles_to_seep > sleep_time)
-            DTUIf::sleep_for(cycles_to_seep - sleep_time);
-    } while ((DTU::get().tsc() - t) < cycles_to_seep);
+            TCUIf::sleep_for(cycles_to_seep - sleep_time);
+    } while ((TCU::get().tsc() - t) < cycles_to_seep);
 }
 
 bool E1000::send(const void* packet, size_t size) {
@@ -460,7 +460,7 @@ bool EEPROM::init() {
     // determine the done bit to test when reading REG_EERD and the shift value
     _dev.writeReg(E1000::REG_EERD, E1000::EERD_START);
 
-    auto t = DTU::get().tsc();
+    auto t = TCU::get().tsc();
     do {
         uint32_t value = _dev.readReg(E1000::REG_EERD);
         if(value & E1000::EERD_DONE_LARGE) {
@@ -476,7 +476,7 @@ bool EEPROM::init() {
             _shift = E1000::EERD_SHIFT_SMALL;
             return true;
         }
-    } while ((DTU::get().tsc() - t) < MAX_WAIT_CYCLES);
+    } while ((TCU::get().tsc() - t) < MAX_WAIT_CYCLES);
     return false;
 }
 
@@ -501,7 +501,7 @@ bool EEPROM::readWord(uintptr_t address, uint8_t* data) {
     _dev.writeReg(E1000::REG_EERD, E1000::EERD_START | (address << _shift));
 
     // wait for read to complete
-    auto t = DTU::get().tsc();
+    auto t = TCU::get().tsc();
     do {
         uint32_t value = _dev.readReg(E1000::REG_EERD);
         if(~value & _doneBit) {
@@ -510,7 +510,7 @@ bool EEPROM::readWord(uintptr_t address, uint8_t* data) {
 
         *data_word = value >> 16;
         return true;
-    } while ((DTU::get().tsc() - t) < MAX_WAIT_CYCLES);
+    } while ((TCU::get().tsc() - t) < MAX_WAIT_CYCLES);
     return false;
 }
 

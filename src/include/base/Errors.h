@@ -26,7 +26,7 @@ namespace m3 {
 struct Errors {
     enum Code : int32_t {
         NONE,
-        // DTU errors
+        // TCU errors
         MISS_CREDITS,
         NO_RING_SPACE,
         PAGEFAULT,

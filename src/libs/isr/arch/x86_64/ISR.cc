@@ -42,7 +42,7 @@ EXTERN_C void isr_15();
 EXTERN_C void isr_16();
 // for the exit "syscall"
 EXTERN_C void isr_63();
-// for the DTU
+// for the TCU
 EXTERN_C void isr_64();
 // the handler for a other interrupts
 EXTERN_C void isr_null();
@@ -105,8 +105,8 @@ void ISR::init() {
 
     // PEMux calls
     set_idt(PEX_ISR, isr_63, Desc::DPL_USER);
-    // DTU interrupts
-    set_idt(DTU_ISR, isr_64, Desc::DPL_KERNEL);
+    // TCU interrupts
+    set_idt(TCU_ISR, isr_64, Desc::DPL_KERNEL);
 
     for(size_t i = 0; i < ISR_COUNT; ++i)
         reg(i, null_handler);

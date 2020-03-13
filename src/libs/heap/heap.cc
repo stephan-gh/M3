@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/Config.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <heap/heap.h>
 #include <string.h>
 
@@ -78,7 +78,7 @@ USED void *heap_alloc(size_t size) {
     // assert(size < HEAP_USED_BITS);
 
     // align it to at least word-size (the fortran-runtime seems to expect that). 8 is even better
-    // because the DTU requires that.
+    // because the TCU requires that.
     size = (size + sizeof(HeapArea) + ALIGN - 1) & ~(ALIGN - 1);
 
     // find free area with enough space; start at the end, i.e. the large chunk of free memory

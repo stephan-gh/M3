@@ -29,7 +29,7 @@ use m3::cell::{RefCell, StaticCell};
 use m3::cfg;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
-use m3::dtu;
+use m3::tcu;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{self, boot, PEDesc};
@@ -197,7 +197,7 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
     let sgate = SendGate::new_with(
         SGateArgs::new(req_rgate())
             .credits(1)
-            .label(dtu::Label::from(child.id())),
+            .label(tcu::Label::from(child.id())),
     )?;
 
     let pe = pes::get().get(child.pe_id().unwrap());
@@ -254,14 +254,14 @@ fn workloop() {
     let upcall_rg = RecvGate::upcall();
 
     loop {
-        dtu::DTUIf::sleep().ok();
+        tcu::TCUIf::sleep().ok();
 
         let is = rgate.fetch();
         if let Some(is) = is {
             handle_request(is);
         }
 
-        let msg = dtu::DTUIf::fetch_msg(upcall_rg);
+        let msg = tcu::TCUIf::fetch_msg(upcall_rg);
         if let Some(msg) = msg {
             childs::get().handle_upcall(msg);
         }
@@ -469,7 +469,7 @@ pub fn main() -> i32 {
         );
         // skip kernel and our own PE
         if i > VPE::cur().pe_id() {
-            pes::get().add(i as dtu::PEId, Rc::new(PE::new_bind(pe, pe_sel + i - 1)));
+            pes::get().add(i as tcu::PEId, Rc::new(PE::new_bind(pe, pe_sel + i - 1)));
         }
         if i > 0 && pe.pe_type() != kif::PEType::MEM {
             user_pes += 1;

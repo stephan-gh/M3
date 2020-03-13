@@ -21,7 +21,7 @@
 #include "mem/MainMemory.h"
 #include "pes/PEManager.h"
 #include "pes/VPE.h"
-#include "DTU.h"
+#include "TCU.h"
 #include "Platform.h"
 
 namespace kernel {
@@ -46,22 +46,22 @@ static gaddr_t alloc_mem(size_t size, size_t align) {
     MainMemory::Allocation alloc = MainMemory::get().allocate(size, align);
     if(!alloc)
         PANIC("Not enough memory");
-    return m3::DTU::build_gaddr(alloc.pe(), alloc.addr);
+    return m3::TCU::build_gaddr(alloc.pe(), alloc.addr);
 }
 
 static void read_from_mod(const m3::BootInfo::Mod *mod, void *data, size_t size, size_t offset) {
     if(offset + size < offset || offset + size > mod->size)
         PANIC("Invalid ELF file: offset invalid");
 
-    goff_t addr = m3::DTU::gaddr_to_virt(mod->addr + offset);
-    peid_t pe = m3::DTU::gaddr_to_pe(mod->addr + offset);
-    DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, data, size);
+    goff_t addr = m3::TCU::gaddr_to_virt(mod->addr + offset);
+    peid_t pe = m3::TCU::gaddr_to_pe(mod->addr + offset);
+    TCU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, data, size);
 }
 
 static void copy_clear(const VPEDesc &vpe, uintptr_t virt, gaddr_t phys, size_t size, bool clear) {
-    DTU::get().copy_clear(vpe, virt,
-        VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID),
-        m3::DTU::gaddr_to_virt(phys),
+    TCU::get().copy_clear(vpe, virt,
+        VPEDesc(m3::TCU::gaddr_to_pe(phys), VPE::INVALID_ID),
+        m3::TCU::gaddr_to_virt(phys),
         size, clear);
 }
 
@@ -128,7 +128,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool t
             end = virt + size;
 
             // initialize it
-            VPEDesc tgt = to_mem ? VPEDesc(m3::DTU::gaddr_to_pe(phys), VPE::INVALID_ID) : vpe.desc();
+            VPEDesc tgt = to_mem ? VPEDesc(m3::TCU::gaddr_to_pe(phys), VPE::INVALID_ID) : vpe.desc();
             copy_clear(tgt, virt, mod->addr + offset, size, pheader.p_filesz == 0);
         }
         else {
@@ -176,7 +176,7 @@ void VPE::load_app() {
 
     // write buffer to the target PE
     size_t argssize = off + sizeof("root");
-    DTU::get().write_mem(desc(), ENV_SPACE_START, buffer, argssize);
+    TCU::get().write_mem(desc(), ENV_SPACE_START, buffer, argssize);
 
     // write env to targetPE
     m3::Env senv;
@@ -192,7 +192,7 @@ void VPE::load_app() {
     senv.rmng_sel = m3::KIF::INV_SEL;
     senv.caps = _first_sel;
 
-    DTU::get().write_mem(desc(), ENV_START, &senv, sizeof(senv));
+    TCU::get().write_mem(desc(), ENV_START, &senv, sizeof(senv));
 }
 
 void VPE::init_memory() {

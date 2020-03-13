@@ -34,9 +34,9 @@
 namespace m3 {
 
 class Gate;
-class DTUBackend;
+class TCUBackend;
 
-class DTU {
+class TCU {
     friend class Gate;
     friend class MsgBackend;
     friend class SocketBackend;
@@ -147,7 +147,7 @@ public:
     static const epid_t PG_SEP                  = 0;    // unused
     static const epid_t PG_REP                  = 0;    // unused
 
-    static DTU &get() {
+    static TCU &get() {
         return inst;
     }
 
@@ -161,7 +161,7 @@ public:
         return (static_cast<gaddr_t>(pe) << 48) | addr;
     }
 
-    explicit DTU();
+    explicit TCU();
 
     void reset();
 
@@ -303,13 +303,13 @@ public:
     void drop_msgs(epid_t ep, label_t label) {
         // we assume that the one that used the label can no longer send messages. thus, if there are
         // no messages yet, we are done.
-        if(get_ep(ep, m3::DTU::EP_BUF_MSGCNT) == 0)
+        if(get_ep(ep, m3::TCU::EP_BUF_MSGCNT) == 0)
             return;
 
-        goff_t base = get_ep(ep, m3::DTU::EP_BUF_ADDR);
-        int order = static_cast<int>(get_ep(ep, m3::DTU::EP_BUF_ORDER));
-        int msgorder = static_cast<int>(get_ep(ep, m3::DTU::EP_BUF_MSGORDER));
-        word_t unread = get_ep(ep, m3::DTU::EP_BUF_UNREAD);
+        goff_t base = get_ep(ep, m3::TCU::EP_BUF_ADDR);
+        int order = static_cast<int>(get_ep(ep, m3::TCU::EP_BUF_ORDER));
+        int msgorder = static_cast<int>(get_ep(ep, m3::TCU::EP_BUF_MSGORDER));
+        word_t unread = get_ep(ep, m3::TCU::EP_BUF_UNREAD);
         int max = 1 << (order - msgorder);
         for(int i = 0; i < max; ++i) {
             if(unread & (1UL << i)) {
@@ -353,10 +353,10 @@ private:
     volatile bool _run;
     volatile word_t _cmdregs[CMDS_RCNT];
     volatile word_t *_epregs;
-    DTUBackend *_backend;
+    TCUBackend *_backend;
     pthread_t _tid;
     static Buffer _buf;
-    static DTU inst;
+    static TCU inst;
 };
 
 }

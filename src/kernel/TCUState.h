@@ -17,9 +17,9 @@
 #pragma once
 
 #if defined(__gem5__)
-#   include "arch/gem5/DTURegs.h"
+#   include "arch/gem5/TCURegs.h"
 #elif defined(__host__)
-#   include "arch/host/DTURegs.h"
+#   include "arch/host/TCURegs.h"
 #endif
 
 #include "Types.h"
@@ -28,11 +28,11 @@ namespace kernel {
 
 class VPEDesc;
 
-class DTUState {
-    friend class DTU;
+class TCUState {
+    friend class TCU;
 
 public:
-    explicit DTUState() : _regs() {
+    explicit TCUState() : _regs() {
     }
 
     void *get_ep(epid_t ep);
@@ -50,7 +50,7 @@ public:
 #endif
 
 private:
-    DTURegs _regs;
+    TCURegs _regs;
 };
 
 }

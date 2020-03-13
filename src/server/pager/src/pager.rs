@@ -31,7 +31,7 @@ use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
-use m3::dtu::{DTUIf, Label};
+use m3::tcu::{TCUIf, Label};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
@@ -244,7 +244,7 @@ pub fn main() -> i32 {
     let upcall_rg = RecvGate::upcall();
     server_loop(|| {
         // fetch upcalls to see whether our child died
-        let msg = DTUIf::fetch_msg(upcall_rg);
+        let msg = TCUIf::fetch_msg(upcall_rg);
         if let Some(msg) = msg {
             let upcall = msg.get_data::<kif::upcalls::VPEWait>();
             if upcall.exitcode != 0 {

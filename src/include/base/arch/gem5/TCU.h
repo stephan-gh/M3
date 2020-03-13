@@ -24,9 +24,9 @@
 #include <assert.h>
 
 namespace kernel {
-class DTU;
-class DTURegs;
-class DTUState;
+class TCU;
+class TCURegs;
+class TCUState;
 class ISR;
 class SendQueue;
 class SyscallHandler;
@@ -37,21 +37,21 @@ class WorkLoop;
 
 namespace m3 {
 
-class DTUIf;
+class TCUIf;
 
-class DTU {
-    friend class kernel::DTU;
-    friend class kernel::DTURegs;
-    friend class kernel::DTUState;
+class TCU {
+    friend class kernel::TCU;
+    friend class kernel::TCURegs;
+    friend class kernel::TCUState;
     friend class kernel::ISR;
     friend class kernel::SendQueue;
     friend class kernel::SyscallHandler;
     friend class kernel::VPE;
     friend class kernel::PEMux;
     friend class kernel::WorkLoop;
-    friend class DTUIf;
+    friend class TCUIf;
 
-    explicit DTU() {
+    explicit TCU() {
     }
 
 public:
@@ -65,7 +65,7 @@ public:
     static const reg_t NO_REPLIES           = 0xFFFF;
 
 private:
-    static const size_t DTU_REGS            = 4;
+    static const size_t TCU_REGS            = 4;
     static const size_t PRIV_REGS           = 6;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
@@ -73,7 +73,7 @@ private:
     // actual max is 64k - 1; use less for better alignment
     static const size_t MAX_PKT_SIZE        = 60 * 1024;
 
-    enum class DtuRegs {
+    enum class TCURegs {
         FEATURES            = 0,
         CUR_TIME            = 1,
         CLEAR_IRQ           = 2,
@@ -90,10 +90,10 @@ private:
     };
 
     enum class CmdRegs {
-        COMMAND             = DTU_REGS + 0,
-        ABORT               = DTU_REGS + 1,
-        DATA                = DTU_REGS + 2,
-        ARG1                = DTU_REGS + 3,
+        COMMAND             = TCU_REGS + 0,
+        ABORT               = TCU_REGS + 1,
+        DATA                = TCU_REGS + 2,
+        ARG1                = TCU_REGS + 3,
     };
 
     enum StatusFlags : reg_t {
@@ -201,7 +201,7 @@ public:
     static const epid_t FIRST_USER_EP       = 4;
     static const epid_t FIRST_FREE_EP       = 11;
 
-    static DTU &get() {
+    static TCU &get() {
         return inst;
     }
 
@@ -234,10 +234,10 @@ public:
     }
 
     cycles_t tsc() const {
-        return read_reg(DtuRegs::CUR_TIME);
+        return read_reg(TCURegs::CUR_TIME);
     }
     cycles_t clock() const {
-        return read_reg(DtuRegs::CLOCK);
+        return read_reg(TCURegs::CLOCK);
     }
 
     void print(const char *str, size_t len);
@@ -295,7 +295,7 @@ private:
         size_t msgsize = (r0 >> 41) & 0x3F;
         for(size_t i = 0; i < bufsize; ++i) {
             if(unread & (static_cast<size_t>(1) << i)) {
-                m3::DTU::Message *msg = reinterpret_cast<m3::DTU::Message*>(base + (i << msgsize));
+                m3::TCU::Message *msg = reinterpret_cast<m3::TCU::Message*>(base + (i << msgsize));
                 if(msg->label == label)
                     ack_msg(ep, msg);
             }
@@ -313,7 +313,7 @@ private:
     }
 
     void clear_irq() {
-        write_reg(DtuRegs::CLEAR_IRQ, 1);
+        write_reg(TCURegs::CLEAR_IRQ, 1);
     }
 
     static Errors::Code get_error() {
@@ -325,7 +325,7 @@ private:
         UNREACHED;
     }
 
-    static reg_t read_reg(DtuRegs reg) {
+    static reg_t read_reg(TCURegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(PrivRegs reg) {
@@ -335,13 +335,13 @@ private:
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(epid_t ep, size_t idx) {
-        return read_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + idx);
+        return read_reg(TCU_REGS + CMD_REGS + EP_REGS * ep + idx);
     }
     static reg_t read_reg(size_t idx) {
         return CPU::read8b(MMIO_ADDR + idx * sizeof(reg_t));
     }
 
-    static void write_reg(DtuRegs reg, reg_t value) {
+    static void write_reg(TCURegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(PrivRegs reg, reg_t value) {
@@ -354,7 +354,7 @@ private:
         CPU::write8b(MMIO_ADDR + idx * sizeof(reg_t), value);
     }
 
-    static uintptr_t dtu_reg_addr(DtuRegs reg) {
+    static uintptr_t tcu_reg_addr(TCURegs reg) {
         return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t priv_reg_addr(PrivRegs reg) {
@@ -364,10 +364,10 @@ private:
         return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t ep_regs_addr(epid_t ep) {
-        return MMIO_ADDR + (DTU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
+        return MMIO_ADDR + (TCU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
     static uintptr_t buffer_addr() {
-        size_t regCount = DTU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
+        size_t regCount = TCU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
         return MMIO_ADDR + regCount * sizeof(reg_t);
     }
 
@@ -378,7 +378,7 @@ private:
                 arg << 25);
     }
 
-    static DTU inst;
+    static TCU inst;
 };
 
 }

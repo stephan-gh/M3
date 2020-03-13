@@ -27,11 +27,11 @@ static cycles_t next_tick = 0;
 
 struct TickWorkItem : public WorkItem {
     void work() override {
-        cycles_t tsc = DTU::get().tsc();
+        cycles_t tsc = TCU::get().tsc();
         if(tsc >= next_tick) {
             SLOG(TIMER, "Timer tick @ " << tsc);
             server->handler()->broadcast(0);
-            next_tick = DTU::get().tsc() + interval;
+            next_tick = TCU::get().tsc() + interval;
         }
     }
 };
@@ -47,7 +47,7 @@ int main() {
     wl.add(&wi, true);
 
     while(wl.has_items()) {
-        DTUIf::sleep_for(next_tick - DTU::get().tsc());
+        TCUIf::sleep_for(next_tick - TCU::get().tsc());
 
         wl.tick();
     }

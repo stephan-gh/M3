@@ -15,7 +15,7 @@
  */
 
 #include <base/Common.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Env.h>
 #include <base/EnvBackend.h>
 
@@ -53,7 +53,7 @@ EXTERN_C void init_env() {
     new m3::Env(new HostKEnvBackend(), logfd);
     m3::env()->set_params(0, gen_prefix(), 0, 0, 0, 0, 0);
 
-    m3::DTU::get().start();
+    m3::TCU::get().start();
 }
 
 }

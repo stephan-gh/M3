@@ -97,7 +97,7 @@ private:
     // Client is currently sending data (writing to _sbuf)
     bool _sending;
     // Pending recv/send request
-    m3::DTU::Message const * _pending;
+    m3::TCU::Message const * _pending;
     m3::RecvGate * _pending_gate;
     // Memory endpoint provided by client to us for configuration
     capsel_t _client_memep;

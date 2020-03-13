@@ -17,7 +17,7 @@
 #include <base/log/Lib.h>
 #include <base/Backtrace.h>
 #include <base/Env.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Init.h>
 #include <base/Panic.h>
 
@@ -40,9 +40,9 @@ struct PostInit {
 
 INIT_PRIO_ENV_POST PostInit postInit;
 
-static void stop_dtu() {
-    DTU::get().stop();
-    pthread_join(DTU::get().tid(), nullptr);
+static void stop_tcu() {
+    TCU::get().stop();
+    pthread_join(TCU::get().tid(), nullptr);
 }
 
 static void init_syscall() {
@@ -52,7 +52,7 @@ static void init_syscall() {
 
 void Env::on_exit_func(int status, void *) {
     Syscalls::vpe_ctrl(KIF::SEL_VPE, KIF::Syscall::VCTRL_STOP, static_cast<xfer_t>(status));
-    stop_dtu();
+    stop_tcu();
     // destroy the enviromment here, because on_exit functions are called last
     delete _inst;
     _inst = nullptr;
@@ -90,26 +90,26 @@ EXTERN_C WEAK void init_env() {
 }
 
 PostInit::PostInit() {
-    env()->init_dtu();
+    env()->init_tcu();
     init_syscall();
 }
 
-void Env::init_dtu() {
+void Env::init_tcu() {
     RecvGate &sysc = RecvGate::syscall();
-    DTU::get().configure_recv(DTU::SYSC_REP, reinterpret_cast<uintptr_t>(sysc.addr()),
+    TCU::get().configure_recv(TCU::SYSC_REP, reinterpret_cast<uintptr_t>(sysc.addr()),
         SYSC_RBUF_ORDER, SYSC_RBUF_ORDER);
 
     RecvGate &upc = RecvGate::upcall();
-    DTU::get().configure_recv(DTU::UPCALL_REP, reinterpret_cast<uintptr_t>(upc.addr()),
+    TCU::get().configure_recv(TCU::UPCALL_REP, reinterpret_cast<uintptr_t>(upc.addr()),
         UPCALL_RBUF_ORDER, UPCALL_RBUF_ORDER);
 
     RecvGate &def = RecvGate::upcall();
-    DTU::get().configure_recv(DTU::DEF_REP, reinterpret_cast<uintptr_t>(def.addr()),
+    TCU::get().configure_recv(TCU::DEF_REP, reinterpret_cast<uintptr_t>(def.addr()),
         DEF_RBUF_ORDER, DEF_RBUF_ORDER);
 
-    DTU::get().configure(DTU::SYSC_SEP, _sysc_label, 0, 0, _sysc_epid, _sysc_credits, SYSC_RBUF_ORDER);
+    TCU::get().configure(TCU::SYSC_SEP, _sysc_label, 0, 0, _sysc_epid, _sysc_credits, SYSC_RBUF_ORDER);
 
-    DTU::get().start();
+    TCU::get().start();
 }
 
 void Env::reset() {
@@ -117,9 +117,9 @@ void Env::reset() {
 
     Serial::init(executable(), env()->pe);
 
-    DTU::get().reset();
+    TCU::get().reset();
 
-    init_dtu();
+    init_tcu();
 
     // we have to call init for this VPE in case we hadn't done that yet
     init_syscall();

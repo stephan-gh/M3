@@ -16,7 +16,7 @@
 
 #[rustfmt::skip]
 pub mod cfg;
-pub mod dtu;
+pub mod tcu;
 pub mod envdata;
 pub mod libc;
 pub mod serial;

@@ -16,7 +16,7 @@
 
 use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate};
-use m3::dtu::{EP_COUNT, FIRST_FREE_EP};
+use m3::tcu::{EP_COUNT, FIRST_FREE_EP};
 use m3::errors::Code;
 use m3::kif::syscalls::{SemOp, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_MEM, SEL_PE, SEL_VPE};

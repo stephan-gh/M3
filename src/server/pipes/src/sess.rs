@@ -18,7 +18,7 @@ use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::{VarRingBuf, Vec};
 use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
-use m3::dtu::{Label, Message};
+use m3::tcu::{Label, Message};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::rc::Rc;

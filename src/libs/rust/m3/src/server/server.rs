@@ -17,7 +17,7 @@
 use cap::{CapFlags, Capability, Selector};
 use com::{GateIStream, RecvGate, SliceSink, SliceSource};
 use core::fmt;
-use dtu::EpId;
+use tcu::EpId;
 use errors::{Code, Error};
 use kif::{service, CapRngDesc};
 use math;

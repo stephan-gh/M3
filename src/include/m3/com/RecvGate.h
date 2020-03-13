@@ -221,7 +221,7 @@ public:
      *
      * @return the message or nullptr
      */
-    const DTU::Message *fetch();
+    const TCU::Message *fetch();
 
     /**
      * Waits until a message is received. If <sgate> is given, it will stop if as soon as <sgate>
@@ -230,7 +230,7 @@ public:
      * @param sgate the send gate (optional), if waiting for a reply
      * @return the fetched message
      */
-    const DTU::Message *receive(SendGate *sgate);
+    const TCU::Message *receive(SendGate *sgate);
 
     /**
      * Replies the <len> bytes at <reply> to the message <msg>.
@@ -239,14 +239,14 @@ public:
      * @param len the length of the data
      * @param msg the message to reply to
      */
-    void reply(const void *reply, size_t len, const DTU::Message *msg);
+    void reply(const void *reply, size_t len, const TCU::Message *msg);
 
     /**
-     * Marks the given message as 'read', allowing the DTU to overwrite it with a new message.
+     * Marks the given message as 'read', allowing the TCU to overwrite it with a new message.
      *
      * @param msg the message
      */
-    void ack_msg(const DTU::Message *msg);
+    void ack_msg(const TCU::Message *msg);
 
     /**
      * Drops all messages with given label. That is, these messages will be marked as read.

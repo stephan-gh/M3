@@ -16,7 +16,7 @@
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::dtu;
+use base::tcu;
 use base::errors::Error;
 use base::goff;
 use base::kif;
@@ -68,7 +68,7 @@ struct Info {
 
 pub struct VPE {
     aspace: paging::AddrSpace<PTAllocator>,
-    vpe_reg: dtu::Reg,
+    vpe_reg: tcu::Reg,
 }
 
 static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
@@ -158,7 +158,7 @@ pub fn remove(status: u32, notify: bool) {
 
         if notify {
             // change to our VPE (no need to save old vpe_reg; VPE is dead)
-            dtu::DTU::xchg_vpe(our().vpe_reg());
+            tcu::TCU::xchg_vpe(our().vpe_reg());
 
             // enable interrupts for address translations
             let _guard = helper::IRQsOnGuard::new();
@@ -170,10 +170,10 @@ pub fn remove(status: u32, notify: bool) {
 
             let msg = &msg as *const _ as *const u8;
             let size = util::size_of::<kif::pemux::Exit>();
-            dtu::DTU::send(dtu::KPEX_SEP, msg, size, 0, dtu::NO_REPLIES).unwrap();
+            tcu::TCU::send(tcu::KPEX_SEP, msg, size, 0, tcu::NO_REPLIES).unwrap();
 
             // switch to idle
-            let old_vpe = dtu::DTU::xchg_vpe(cur().vpe_reg());
+            let old_vpe = tcu::TCU::xchg_vpe(cur().vpe_reg());
             our().set_vpe_reg(old_vpe);
         }
 
@@ -218,11 +218,11 @@ impl VPE {
         self.aspace.id()
     }
 
-    pub fn vpe_reg(&self) -> dtu::Reg {
+    pub fn vpe_reg(&self) -> tcu::Reg {
         self.vpe_reg
     }
 
-    pub fn set_vpe_reg(&mut self, val: dtu::Reg) {
+    pub fn set_vpe_reg(&mut self, val: tcu::Reg) {
         self.vpe_reg = val;
     }
 
@@ -257,19 +257,19 @@ impl VPE {
         // needs to be accessible via get_mut().
         self.aspace.init();
 
-        // map DTU
+        // map TCU
         let rw = kif::PageFlags::RW;
         self.map(
-            dtu::MMIO_ADDR,
-            dtu::MMIO_ADDR as goff,
-            dtu::MMIO_SIZE / cfg::PAGE_SIZE,
+            tcu::MMIO_ADDR,
+            tcu::MMIO_ADDR as goff,
+            tcu::MMIO_SIZE / cfg::PAGE_SIZE,
             kif::PageFlags::U | rw,
         )
         .unwrap();
         self.map(
-            dtu::MMIO_PRIV_ADDR,
-            dtu::MMIO_PRIV_ADDR as goff,
-            dtu::MMIO_PRIV_SIZE / cfg::PAGE_SIZE,
+            tcu::MMIO_PRIV_ADDR,
+            tcu::MMIO_PRIV_ADDR as goff,
+            tcu::MMIO_PRIV_SIZE / cfg::PAGE_SIZE,
             rw,
         )
         .unwrap();

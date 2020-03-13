@@ -20,7 +20,7 @@ use core::intrinsics;
 use core::mem::MaybeUninit;
 use core::ops;
 use core::slice;
-use dtu;
+use tcu;
 use errors::{Code, Error};
 use libc;
 use mem::heap;
@@ -145,23 +145,23 @@ impl Sink for VecSink {
     }
 }
 
-/// A source for unmarshalling that uses a DTU message internally
+/// A source for unmarshalling that uses a TCU message internally
 #[derive(Debug)]
 pub struct MsgSource {
-    msg: &'static dtu::Message,
+    msg: &'static tcu::Message,
     pos: usize,
 }
 
 impl MsgSource {
-    /// Creates a new `MsgSource` for given DTU message.
-    pub fn new(msg: &'static dtu::Message) -> Self {
+    /// Creates a new `MsgSource` for given TCU message.
+    pub fn new(msg: &'static tcu::Message) -> Self {
         MsgSource { msg, pos: 0 }
     }
 
     /// Returns a slice to the message data.
     #[inline(always)]
     pub fn data(&self) -> &'static [u64] {
-        // safety: we trust the DTU
+        // safety: we trust the TCU
         unsafe {
             #[allow(clippy::cast_ptr_alignment)]
             let ptr = self.msg.data.as_ptr() as *const u64;
@@ -300,7 +300,7 @@ impl<'s> Source for SliceSource<'s> {
     }
 }
 
-/// An output stream for marshalling a DTU message and sending it via a [`SendGate`].
+/// An output stream for marshalling a TCU message and sending it via a [`SendGate`].
 pub struct GateOStream {
     buf: ArraySink,
 }
@@ -348,7 +348,7 @@ impl GateOStream {
     }
 }
 
-/// An input stream for unmarshalling a DTU message that has been received over a [`RecvGate`].
+/// An input stream for unmarshalling a TCU message that has been received over a [`RecvGate`].
 #[derive(Debug)]
 pub struct GateIStream<'r> {
     source: MsgSource,
@@ -358,7 +358,7 @@ pub struct GateIStream<'r> {
 
 impl<'r> GateIStream<'r> {
     /// Creates a new `GateIStream` for `msg` that has been received over `rgate`.
-    pub fn new(msg: &'static dtu::Message, rgate: &'r RecvGate) -> Self {
+    pub fn new(msg: &'static tcu::Message, rgate: &'r RecvGate) -> Self {
         GateIStream {
             source: MsgSource::new(msg),
             rgate,
@@ -368,7 +368,7 @@ impl<'r> GateIStream<'r> {
 
     /// Returns the label of the message
     #[inline(always)]
-    pub fn label(&self) -> dtu::Label {
+    pub fn label(&self) -> tcu::Label {
         self.source.msg.header.label
     }
 
@@ -379,12 +379,12 @@ impl<'r> GateIStream<'r> {
     }
 
     /// Returns the message
-    pub fn msg(&self) -> &'static dtu::Message {
+    pub fn msg(&self) -> &'static tcu::Message {
         self.source.msg
     }
 
     /// Removes the message from this gate stream, so that no ACK will be performed on drop.
-    pub fn take_msg(&mut self) -> &'static dtu::Message {
+    pub fn take_msg(&mut self) -> &'static tcu::Message {
         self.ack = false;
         self.source.msg
     }

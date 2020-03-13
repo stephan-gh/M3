@@ -1,7 +1,7 @@
 import os, sys
 
 sys.path.append(os.path.realpath('hw/gem5/configs/example'))
-from dtu_fs import *
+from tcu_fs import *
 
 options = getOptions()
 root = createRoot(options)
@@ -12,7 +12,7 @@ num_mem = 1
 num_pes = int(os.environ.get('M3_GEM5_PES'))
 fsimg = os.environ.get('M3_GEM5_FS')
 fsimgnum = os.environ.get('M3_GEM5_FSNUM', '1')
-dtupos = int(os.environ.get('M3_GEM5_DTUPOS', 0))
+tcupos = int(os.environ.get('M3_GEM5_TCUPOS', 0))
 accs = ['indir', 'indir', 'indir', 'indir', 'copy', 'copy', 'copy', 'copy', 'rot13']
 mem_pe = num_pes + len(accs)
 
@@ -27,7 +27,7 @@ for i in range(0, num_pes):
                       memPE=mem_pe,
                       l1size='32kB',
                       l2size='256kB',
-                      dtupos=dtupos)
+                      tcupos=tcupos)
     pes.append(pe)
 
 options.cpu_clock = '1GHz'

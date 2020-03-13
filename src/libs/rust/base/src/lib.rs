@@ -110,9 +110,9 @@ pub mod cfg {
 pub mod cpu {
     pub use arch::cpu::*;
 }
-/// The Data Transfer Unit interface
-pub mod dtu {
-    pub use arch::dtu::*;
+/// The Trusted Communication Unit interface
+pub mod tcu {
+    pub use arch::tcu::*;
 }
 /// The environment data
 pub mod envdata {

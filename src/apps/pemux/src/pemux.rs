@@ -33,7 +33,7 @@ mod vpe;
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::dtu;
+use base::tcu;
 use base::envdata;
 use base::io;
 use base::kif;
@@ -78,8 +78,8 @@ pub fn env() -> &'static mut envdata::EnvData {
 pub fn sleep() {
     loop {
         // ack events since to VPE is currently not running
-        dtu::DTU::fetch_events();
-        dtu::DTU::sleep().ok();
+        tcu::TCU::fetch_events();
+        tcu::TCU::sleep().ok();
     }
 }
 
@@ -106,9 +106,9 @@ pub fn nesting_level() -> u32 {
 
 pub fn stop_vpe(state: &mut arch::State) {
     if *NESTING_LEVEL > 1 {
-        let _cmd_saved = helper::DTUGuard::new();
+        let _cmd_saved = helper::TCUGuard::new();
         // prevent us from sleeping by setting the user event
-        dtu::DTU::set_event().ok();
+        tcu::TCU::set_event().ok();
 
         *STOPPED.get_mut() = true;
     }
@@ -153,17 +153,17 @@ pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
     leave(state)
 }
 
-pub extern "C" fn dtu_irq(state: &mut arch::State) -> *mut libc::c_void {
+pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
     enter();
 
     #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
-    dtu::DTU::clear_irq();
+    tcu::TCU::clear_irq();
 
-    // core request from DTU?
-    let core_req = dtu::DTU::get_core_req();
+    // core request from TCU?
+    let core_req = tcu::TCU::get_core_req();
     if core_req != 0 {
         // acknowledge the request
-        dtu::DTU::set_core_req(0);
+        tcu::TCU::set_core_req(0);
 
         if (core_req & 0x1) != 0 {
             corereq::handle_recv(core_req);
@@ -189,5 +189,5 @@ pub extern "C" fn init() {
 
     io::init(0, "pemux");
     vpe::init(kif::PEDesc::new_from(env().pe_desc), env().pe_mem_base, env().pe_mem_size);
-    dtu::DTU::xchg_vpe(vpe::cur().vpe_reg());
+    tcu::TCU::xchg_vpe(vpe::cur().vpe_reg());
 }

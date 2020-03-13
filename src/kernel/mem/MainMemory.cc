@@ -40,8 +40,8 @@ const MemoryModule &MainMemory::module(size_t id) const {
 }
 
 MainMemory::Allocation MainMemory::build_allocation(gaddr_t addr, size_t size) const {
-    peid_t pe = m3::DTU::gaddr_to_pe(addr);
-    goff_t off = m3::DTU::gaddr_to_virt(addr);
+    peid_t pe = m3::TCU::gaddr_to_pe(addr);
+    goff_t off = m3::TCU::gaddr_to_virt(addr);
     for(size_t i = 0; i < _count; ++i) {
         if(_mods[i]->pe() == pe && off >= _mods[i]->addr() && off < _mods[i]->addr() + _mods[i]->size())
             return Allocation(i, off, size);

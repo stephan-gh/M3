@@ -18,7 +18,7 @@ use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::col::String;
 use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
-use m3::dtu;
+use m3::tcu;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
@@ -144,7 +144,7 @@ pub fn testcliexit() {
         };
         let msg_ptr = &req as *const kif::syscalls::ExchangeSess as *const u8;
         let msg_size = m3::util::size_of::<kif::syscalls::ExchangeSess>();
-        wv_assert_ok!(dtu::DTUIf::send(
+        wv_assert_ok!(tcu::TCUIf::send(
             syscalls::send_gate(),
             msg_ptr,
             msg_size,

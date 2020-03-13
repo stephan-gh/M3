@@ -21,7 +21,7 @@ use com::gate::Gate;
 use com::{GateIStream, SendGate};
 use core::fmt;
 use core::ops;
-use dtu;
+use tcu;
 use errors::Error;
 use kif::INVALID_SEL;
 use math;
@@ -32,11 +32,11 @@ use util;
 const DEF_MSG_ORD: u32 = 6;
 
 static SYS_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(INVALID_SEL, dtu::SYSC_REP));
+    StaticCell::new(RecvGate::new_def(INVALID_SEL, tcu::SYSC_REP));
 static UPC_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(INVALID_SEL, dtu::UPCALL_REP));
+    StaticCell::new(RecvGate::new_def(INVALID_SEL, tcu::UPCALL_REP));
 static DEF_RGATE: StaticCell<RecvGate> =
-    StaticCell::new(RecvGate::new_def(INVALID_SEL, dtu::DEF_REP));
+    StaticCell::new(RecvGate::new_def(INVALID_SEL, tcu::DEF_REP));
 
 bitflags! {
     struct FreeFlags : u8 {
@@ -44,7 +44,7 @@ bitflags! {
     }
 }
 
-/// A receive gate (`RecvGate`) can receive messages via DTU from connected [`SendGate`]s and can
+/// A receive gate (`RecvGate`) can receive messages via TCU from connected [`SendGate`]s and can
 /// reply on the received messages.
 pub struct RecvGate {
     gate: Gate,
@@ -129,7 +129,7 @@ impl RecvGate {
         DEF_RGATE.get_mut()
     }
 
-    const fn new_def(sel: Selector, ep: dtu::EpId) -> Self {
+    const fn new_def(sel: Selector, ep: tcu::EpId) -> Self {
         RecvGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
             buf: 0,
@@ -185,12 +185,12 @@ impl RecvGate {
     }
 
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
-    pub(crate) fn ep(&self) -> Option<dtu::EpId> {
+    pub(crate) fn ep(&self) -> Option<tcu::EpId> {
         self.gate.ep().map(|ep| ep.id())
     }
 
     /// Sets the receive gate's endpoint
-    pub(crate) fn set_ep(&mut self, ep: dtu::EpId) {
+    pub(crate) fn set_ep(&mut self, ep: tcu::EpId) {
         self.gate.set_ep(ep);
     }
 
@@ -244,7 +244,7 @@ impl RecvGate {
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
     /// a [`GateIStream`] for the message. Otherwise it returns None.
     pub fn fetch(&self) -> Option<GateIStream> {
-        let msg = dtu::DTUIf::fetch_msg(self);
+        let msg = tcu::TCUIf::fetch_msg(self);
         if let Some(m) = msg {
             Some(GateIStream::new(m, self))
         }
@@ -255,7 +255,7 @@ impl RecvGate {
 
     /// Sends `reply` as a reply to the message `msg`.
     #[inline(always)]
-    pub fn reply<T>(&self, reply: &[T], msg: &'static dtu::Message) -> Result<(), Error> {
+    pub fn reply<T>(&self, reply: &[T], msg: &'static tcu::Message) -> Result<(), Error> {
         self.reply_bytes(
             reply.as_ptr() as *const u8,
             reply.len() * util::size_of::<T>(),
@@ -269,15 +269,15 @@ impl RecvGate {
         &self,
         reply: *const u8,
         size: usize,
-        msg: &'static dtu::Message,
+        msg: &'static tcu::Message,
     ) -> Result<(), Error> {
-        dtu::DTUIf::reply(self, reply, size, msg)
+        tcu::TCUIf::reply(self, reply, size, msg)
     }
 
-    /// Marks the given message as 'read', allowing the DTU to overwrite it with a new message.
+    /// Marks the given message as 'read', allowing the TCU to overwrite it with a new message.
     #[inline(always)]
-    pub fn ack_msg(&self, msg: &dtu::Message) {
-        dtu::DTUIf::ack_msg(self, msg);
+    pub fn ack_msg(&self, msg: &tcu::Message) {
+        tcu::TCUIf::ack_msg(self, msg);
     }
 
     /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,
@@ -287,12 +287,12 @@ impl RecvGate {
     /// communication partner is no longer interested in the communication.
     #[inline(always)]
     pub fn receive(&self, sgate: Option<&SendGate>) -> Result<GateIStream, Error> {
-        dtu::DTUIf::receive(self, sgate).map(|m| GateIStream::new(m, self))
+        tcu::TCUIf::receive(self, sgate).map(|m| GateIStream::new(m, self))
     }
 
     /// Drops all messages with given label. That is, these messages will be marked as read.
-    pub fn drop_msgs_with(&self, label: dtu::Label) {
-        dtu::DTU::drop_msgs_with(self.ep().unwrap(), label);
+    pub fn drop_msgs_with(&self, label: tcu::Label) {
+        tcu::TCU::drop_msgs_with(self.ep().unwrap(), label);
     }
 }
 

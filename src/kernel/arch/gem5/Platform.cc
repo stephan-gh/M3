@@ -20,7 +20,7 @@
 #include "mem/MemoryModule.h"
 #include "pes/VPE.h"
 #include "Args.h"
-#include "DTU.h"
+#include "TCU.h"
 #include "Platform.h"
 
 namespace kernel {
@@ -35,21 +35,21 @@ static peid_t last_pe_id;
 void Platform::init() {
     m3::BootInfo *info = &Platform::_info;
     // read kernel env
-    peid_t pe = m3::DTU::gaddr_to_pe(m3::env()->kenv);
-    goff_t addr = m3::DTU::gaddr_to_virt(m3::env()->kenv);
-    DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
+    peid_t pe = m3::TCU::gaddr_to_pe(m3::env()->kenv);
+    goff_t addr = m3::TCU::gaddr_to_virt(m3::env()->kenv);
+    TCU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
     addr += sizeof(*info);
 
     // read boot modules
     size_t total_mod_size = info->mod_size + sizeof(m3::BootInfo::Mod);
     Platform::_mods = reinterpret_cast<m3::BootInfo::Mod*>(malloc(total_mod_size));
-    DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_mods, info->mod_size);
+    TCU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_mods, info->mod_size);
     addr += info->mod_size;
 
     // read PE descriptions
     size_t pe_size = sizeof(m3::PEDesc) * info->pe_count;
     Platform::_pes = new m3::PEDesc[info->pe_count];
-    DTU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_pes, pe_size);
+    TCU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_pes, pe_size);
 
     // register memory modules
     size_t memidx = 0;
@@ -90,8 +90,8 @@ void Platform::init() {
         info->mems[memidx] = m3::BootInfo::Mem(0, 0, false);
 
     // write-back boot info (changes to mems)
-    addr = m3::DTU::gaddr_to_virt(m3::env()->kenv);
-    DTU::get().write_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
+    addr = m3::TCU::gaddr_to_virt(m3::env()->kenv);
+    TCU::get().write_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
 }
 
 void Platform::add_modules(int, char **) {

@@ -134,7 +134,7 @@ void NetworkManager::wait_sync() {
 
     while(1) {
         // This would be the place to implement timeouts.
-        DTUIf::sleep();
+        TCUIf::sleep();
 
         if(_channel->has_events(ev, crd))
             break;

@@ -17,27 +17,27 @@
 #pragma once
 
 #include <base/Config.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 
 #include <sys/un.h>
 #include <poll.h>
 
 namespace m3 {
 
-class DTUBackend {
+class TCUBackend {
 public:
     struct KNotifyData {
         pid_t pid;
         int status;
     } PACKED;
 
-    explicit DTUBackend();
-    ~DTUBackend();
+    explicit TCUBackend();
+    ~TCUBackend();
 
     void shutdown();
 
-    bool send(peid_t pe, epid_t ep, const DTU::Buffer *buf);
-    ssize_t recv(epid_t ep, DTU::Buffer *buf);
+    bool send(peid_t pe, epid_t ep, const TCU::Buffer *buf);
+    ssize_t recv(epid_t ep, TCU::Buffer *buf);
 
     void bind_knotify();
     void notify_kernel(pid_t pid, int status);

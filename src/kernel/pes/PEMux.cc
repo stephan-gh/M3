@@ -18,45 +18,45 @@
 
 #include "pes/PEMux.h"
 #include "pes/VPEManager.h"
-#include "DTU.h"
+#include "TCU.h"
 #include "Platform.h"
 #include "SyscallHandler.h"
 
 namespace kernel {
 
 PEMux::PEMux(peid_t pe)
-    : _pe(new PEObject(pe, EP_COUNT - m3::DTU::FIRST_FREE_EP)),
+    : _pe(new PEObject(pe, EP_COUNT - m3::TCU::FIRST_FREE_EP)),
       _caps(VPE::INVALID_ID),
       _vpes(),
       _rbufs_size(),
       _mem_base(),
       _eps(),
-      _dtustate(),
+      _tcustate(),
       _upcqueue(desc()) {
-    for(epid_t ep = 0; ep < m3::DTU::FIRST_FREE_EP; ++ep)
+    for(epid_t ep = 0; ep < m3::TCU::FIRST_FREE_EP; ++ep)
         _eps.set(ep);
 
 #if defined(__gem5__)
     if(Platform::pe(pe).supports_pemux()) {
         // configure send EP
-        _dtustate.config_send(m3::DTU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
+        _tcustate.config_send(m3::TCU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
                               Platform::kernel_pe(), SyscallHandler::pexep(),
                               KPEX_RBUF_ORDER, 1);
 
         // configure receive EP
         uintptr_t rbuf = PEMUX_RBUF_SPACE;
-        _dtustate.config_recv(m3::DTU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
-                              KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::DTU::NO_REPLIES);
+        _tcustate.config_recv(m3::TCU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
+                              KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::TCU::NO_REPLIES);
         rbuf += KPEX_RBUF_SIZE;
 
         // configure upcall receive EP
-        _dtustate.config_recv(m3::DTU::PEXUP_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
-                              PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::DTU::PEXUP_RPLEP);
+        _tcustate.config_recv(m3::TCU::PEXUP_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
+                              PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::TCU::PEXUP_RPLEP);
     }
     #endif
 }
 
-void PEMux::handle_call(const m3::DTU::Message *msg) {
+void PEMux::handle_call(const m3::TCU::Message *msg) {
     auto req = reinterpret_cast<const m3::KIF::PEXCalls::Exit*>(msg->data);
     capsel_t vpe = req->vpe_sel;
     int exitcode = req->code;
@@ -70,7 +70,7 @@ void PEMux::handle_call(const m3::DTU::Message *msg) {
     }
 
     // give credits back
-    DTU::get().reply(SyscallHandler::pexep(), nullptr, 0, msg);
+    TCU::get().reply(SyscallHandler::pexep(), nullptr, 0, msg);
 }
 
 void PEMux::add_vpe(VPECapability *vpe) {
@@ -155,11 +155,11 @@ m3::Errors::Code PEMux::vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
 
 m3::Errors::Code PEMux::upcall(void *req, size_t size) {
     // send upcall
-    event_t event = _upcqueue.send(m3::DTU::PEXUP_REP, 0, req, size, false);
+    event_t event = _upcqueue.send(m3::TCU::PEXUP_REP, 0, req, size, false);
     m3::ThreadManager::get().wait_for(event);
 
     // wait for reply
-    auto reply_msg = reinterpret_cast<const m3::DTU::Message*>(m3::ThreadManager::get().get_current_msg());
+    auto reply_msg = reinterpret_cast<const m3::TCU::Message*>(m3::ThreadManager::get().get_current_msg());
     auto reply = reinterpret_cast<const m3::KIF::DefaultReply*>(reply_msg->data);
     return static_cast<m3::Errors::Code>(reply->error);
 }
@@ -167,10 +167,10 @@ m3::Errors::Code PEMux::upcall(void *req, size_t size) {
 m3::Errors::Code PEMux::invalidate_ep(vpeid_t vpe, epid_t ep, bool force) {
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = invalid");
 
-    dtustate().invalidate_ep(ep);
+    tcustate().invalidate_ep(ep);
 
     uint32_t unread_mask;
-    m3::Errors::Code res = DTU::get().inval_ep_remote(desc(), ep, force, &unread_mask);
+    m3::Errors::Code res = TCU::get().inval_ep_remote(desc(), ep, force, &unread_mask);
     if(res != m3::Errors::NONE)
         return res;
 
@@ -203,7 +203,7 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGa
         << ", replyeps=" << rpleps
         << "]");
 
-    dtustate().config_recv(ep, vpe, rbuf_base() + obj.addr, obj.order, obj.msgorder, rpleps);
+    tcustate().config_recv(ep, vpe, rbuf_base() + obj.addr, obj.order, obj.msgorder, rpleps);
     update_ep(ep);
 
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&obj));
@@ -225,7 +225,7 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj) 
         << "]");
 
     obj.activated = true;
-    dtustate().config_send(ep, vpe, obj.label, obj.rgate->pe, obj.rgate->ep,
+    tcustate().config_send(ep, vpe, obj.label, obj.rgate->pe, obj.rgate->ep,
                            obj.rgate->msgorder, obj.credits);
     update_ep(ep);
     return m3::Errors::NONE;
@@ -243,13 +243,13 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject 
         << ", perms=#" << m3::fmt(obj.perms, "x")
         << "]");
 
-    dtustate().config_mem(ep, vpe, obj.pe, obj.addr + off, obj.size - off, obj.perms);
+    tcustate().config_mem(ep, vpe, obj.pe, obj.addr + off, obj.size - off, obj.perms);
     update_ep(ep);
     return m3::Errors::NONE;
 }
 
 void PEMux::update_ep(epid_t ep) {
-    DTU::get().write_ep_remote(desc(), ep, dtustate().get_ep(ep));
+    TCU::get().write_ep_remote(desc(), ep, tcustate().get_ep(ep));
 }
 
 }

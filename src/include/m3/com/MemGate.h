@@ -29,7 +29,7 @@ namespace m3 {
 class VPE;
 
 /**
- * A memory gate is used to access PE-external memory via the DTU. You can either create a MemGate
+ * A memory gate is used to access PE-external memory via the TCU. You can either create a MemGate
  * by requesting PE-external memory from the kernel or bind a MemGate to an existing capability.
  */
 class MemGate : public Gate {
@@ -56,7 +56,7 @@ public:
         /**
          * Pagefaults result in an abort
          */
-        CMD_NOPF = DTU::CmdFlags::NOPF,
+        CMD_NOPF = TCU::CmdFlags::NOPF,
     };
 
     /**

@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use arch::dtu::PEId;
+use arch::tcu::PEId;
 use core::fmt;
 use core::ops;
 use goff;

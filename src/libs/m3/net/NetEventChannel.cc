@@ -224,7 +224,7 @@ const NetEventChannel::ControlMessage* NetEventChannel::Event::get_message() noe
     return reinterpret_cast<const NetEventChannel::ControlMessage *>(_msg->data);
 }
 
-NetEventChannel::Event::Event(const DTU::Message *msg, NetEventChannel *channel) noexcept
+NetEventChannel::Event::Event(const TCU::Message *msg, NetEventChannel *channel) noexcept
     : _msg(msg),
       _channel(channel),
       _ack(true) {

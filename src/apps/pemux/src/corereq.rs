@@ -14,14 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-use base::dtu;
+use base::tcu;
 use base::kif;
 use core::intrinsics;
 
 use helper::{IRQsOnGuard, UpcallsOffGuard};
 use vpe;
 
-pub fn handle_recv(req: dtu::Reg) {
+pub fn handle_recv(req: tcu::Reg) {
     log!(crate::LOG_FOREIGN_MSG, "Got core request {:#x}", req);
 
     // add message to VPE
@@ -34,12 +34,12 @@ pub fn handle_recv(req: dtu::Reg) {
     // wait for the message if it's for us or for the current VPE
     if vpe_id == kif::pemux::VPE_ID || vpe_id == vpe::cur().id() {
         // get number of messages
-        let ep_id = (req >> 28) as dtu::EpId;
-        let unread_mask = dtu::DTU::unread_mask(ep_id);
+        let ep_id = (req >> 28) as tcu::EpId;
+        let unread_mask = tcu::TCU::unread_mask(ep_id);
         unsafe { intrinsics::atomic_fence() };
 
-        // let the DTU continue the message reception
-        dtu::DTU::set_core_resp(req);
+        // let the TCU continue the message reception
+        tcu::TCU::set_core_resp(req);
 
         // ignore upcalls during nested interrupts; we'll handle them as soon as we're done here
         // (otherwise this could steal the message that we're waiting on here)
@@ -51,10 +51,10 @@ pub fn handle_recv(req: dtu::Reg) {
 
         // wait here until the message has been received
         // (otherwise fetching it afterwards might fail)
-        while dtu::DTU::unread_mask(ep_id) == unread_mask {
+        while tcu::TCU::unread_mask(ep_id) == unread_mask {
         }
     }
     else {
-        dtu::DTU::set_core_resp(req);
+        tcu::TCU::set_core_resp(req);
     }
 }

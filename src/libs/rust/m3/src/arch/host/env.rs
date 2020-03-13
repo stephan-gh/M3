@@ -21,7 +21,7 @@ use cell::StaticCell;
 use col::{String, Vec};
 use com::{SendGate, SliceSource};
 use core::intrinsics;
-use dtu::{EpId, Label};
+use tcu::{EpId, Label};
 use kif::{self, PEDesc, PEType, PEISA};
 use libc;
 use pes::VPE;

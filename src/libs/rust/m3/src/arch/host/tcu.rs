@@ -18,7 +18,7 @@ use arch::{env, loader};
 use base::envdata;
 use cfg;
 use com::RecvGate;
-use dtu;
+use tcu;
 use kif;
 use libc;
 use pes::VPE;
@@ -27,39 +27,39 @@ use syscalls;
 pub fn init() {
     {
         let (ep, lbl, crd) = env::get().syscall_params();
-        dtu::DTU::configure(dtu::SYSC_SEP, lbl, kif::Perm::empty(), 0, ep, crd, cfg::SYSC_RBUF_ORD);
+        tcu::TCU::configure(tcu::SYSC_SEP, lbl, kif::Perm::empty(), 0, ep, crd, cfg::SYSC_RBUF_ORD);
     }
 
     let sysc = RecvGate::syscall();
-    dtu::DTU::configure_recv(
-        dtu::SYSC_REP,
+    tcu::TCU::configure_recv(
+        tcu::SYSC_REP,
         sysc.buffer(),
         cfg::SYSC_RBUF_ORD,
         cfg::SYSC_RBUF_ORD,
     );
 
     let upc = RecvGate::upcall();
-    dtu::DTU::configure_recv(
-        dtu::UPCALL_REP,
+    tcu::TCU::configure_recv(
+        tcu::UPCALL_REP,
         upc.buffer(),
         cfg::UPCALL_RBUF_ORD,
         cfg::UPCALL_RBUF_ORD,
     );
 
     let def = RecvGate::def();
-    dtu::DTU::configure_recv(
-        dtu::DEF_REP,
+    tcu::TCU::configure_recv(
+        tcu::DEF_REP,
         def.buffer(),
         cfg::DEF_RBUF_ORD,
         cfg::DEF_RBUF_ORD,
     );
 
-    dtu::init();
+    tcu::init();
 
     let addr = envdata::mem_start();
     syscalls::vpe_ctrl(VPE::cur().sel(), kif::syscalls::VPEOp::INIT, addr as u64).unwrap();
 
-    if let Some(vec) = loader::read_env_file("dturdy") {
+    if let Some(vec) = loader::read_env_file("tcurdy") {
         let fd = vec[0] as i32;
         unsafe {
             // notify parent; we are ready for communication now
@@ -70,5 +70,5 @@ pub fn init() {
 }
 
 pub fn deinit() {
-    dtu::deinit();
+    tcu::deinit();
 }

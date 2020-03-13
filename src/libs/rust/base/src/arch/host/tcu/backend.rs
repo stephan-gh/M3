@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use arch::dtu::{thread, EpId, Header, PEId, EP_COUNT, PE_COUNT};
+use arch::tcu::{thread, EpId, Header, PEId, EP_COUNT, PE_COUNT};
 use arch::envdata;
 use col::Vec;
 use core::ptr;

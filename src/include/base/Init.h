@@ -19,7 +19,7 @@
 #include <base/Compiler.h>
 
 #define INIT_PRIO_SENDQUEUE     INIT_PRIO(101)
-#define INIT_PRIO_DTU           INIT_PRIO(102)
+#define INIT_PRIO_TCU           INIT_PRIO(102)
 
 #define INIT_PRIO_RECVBUF       INIT_PRIO(104)
 #define INIT_PRIO_RECVGATE      INIT_PRIO(105)

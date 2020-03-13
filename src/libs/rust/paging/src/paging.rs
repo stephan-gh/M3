@@ -40,7 +40,7 @@ cfg_if! {
 }
 
 use base::cfg;
-use base::dtu::DTU;
+use base::tcu::TCU;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, PTE};
@@ -285,7 +285,7 @@ impl<A: Allocator> AddrSpace<A> {
                 let new_flags = MMUFlags::from_bits_truncate(new_pte);
                 let invalidate = arch::needs_invalidate(new_flags, old_flags);
                 if invalidate {
-                    DTU::invalidate_page(self.id as u16, *virt);
+                    TCU::invalidate_page(self.id as u16, *virt);
                     arch::invalidate_page(self.id, *virt);
                 }
 
@@ -388,7 +388,7 @@ impl<A> Drop for AddrSpace<A> {
         if !self.is_temp {
             // invalidate entire TLB to allow us to reuse the VPE id
             arch::invalidate_tlb();
-            DTU::invalidate_tlb();
+            TCU::invalidate_tlb();
         }
 
         // TODO free the page tables

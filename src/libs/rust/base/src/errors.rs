@@ -22,7 +22,7 @@ use core::intrinsics;
 /// The error codes
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Code {
-    // DTU errors
+    // TCU errors
     MissCredits = 1,
     NoRingSpace,
     Pagefault,

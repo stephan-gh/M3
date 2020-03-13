@@ -31,7 +31,7 @@ ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
       _sep(_vpe.epmng().acquire(EP_INT)),
       _mep(_vpe.epmng().acquire(EP_DMA)),
       _intgate(RecvGate::create(nextlog2<256>::val, nextlog2<32>::val)),
-      // TODO: Specify receive gate, grant it to nic dtu, send replies to give credits back
+      // TODO: Specify receive gate, grant it to nic tcu, send replies to give credits back
       _sintgate(SendGate::create(&_intgate)) {
     _intgate.activate();
 

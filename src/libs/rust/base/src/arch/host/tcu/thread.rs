@@ -14,8 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-use arch::dtu::{
-    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, DTU, EP_COUNT,
+use arch::tcu::{
+    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, TCU, EP_COUNT,
     MAX_MSG_SIZE,
 };
 use arch::envdata;
@@ -70,15 +70,15 @@ fn buffer() -> &'static mut Buffer {
     BUFFER.get_mut()
 }
 
-macro_rules! log_dtu {
-    ($fmt:expr)              => (log_dtu!(@log_impl concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (log_dtu!(@log_impl concat!($fmt, "\n"), $($arg)*));
+macro_rules! log_tcu {
+    ($fmt:expr)              => (log_tcu!(@log_impl concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (log_tcu!(@log_impl concat!($fmt, "\n"), $($arg)*));
 
     (@log_impl $($args:tt)*) => ({
-        if $crate::io::log::DTU {
+        if $crate::io::log::TCU {
             #[allow(unused_imports)]
             use $crate::io::Write;
-            $crate::arch::dtu::thread::log().write_fmt(format_args!($($args)*)).unwrap();
+            $crate::arch::tcu::thread::log().write_fmt(format_args!($($args)*)).unwrap();
         }
     });
 }
@@ -97,22 +97,22 @@ fn set_bit(mask: Reg, idx: u64, val: bool) -> Reg {
 }
 
 fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
-    let msg = DTU::get_cmd(CmdReg::ADDR);
-    let msg_size = DTU::get_cmd(CmdReg::SIZE) as usize;
-    let credits = DTU::get_ep(ep, EpReg::CREDITS) as usize;
+    let msg = TCU::get_cmd(CmdReg::ADDR);
+    let msg_size = TCU::get_cmd(CmdReg::SIZE) as usize;
+    let credits = TCU::get_ep(ep, EpReg::CREDITS) as usize;
 
     // check if we have enough credits
     if credits != !0 {
-        let msg_order = DTU::get_ep(ep, EpReg::MSGORDER);
+        let msg_order = TCU::get_ep(ep, EpReg::MSGORDER);
         if msg_order == 0 {
-            log_dtu!("DTU-error: invalid EP {}", ep);
+            log_tcu!("TCU-error: invalid EP {}", ep);
             return Err(Error::new(Code::InvEP));
         }
 
         let needed = 1 << msg_order;
         if needed > credits {
-            log_dtu!(
-                "DTU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
+            log_tcu!(
+                "TCU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
                 ep,
                 credits,
                 needed
@@ -120,12 +120,12 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
             return Err(Error::new(Code::MissCredits));
         }
 
-        DTU::set_ep(ep, EpReg::CREDITS, (credits - needed) as Reg);
+        TCU::set_ep(ep, EpReg::CREDITS, (credits - needed) as Reg);
     }
 
     let buf = buffer();
     buf.header.credits = 0;
-    buf.header.label = DTU::get_ep(ep, EpReg::LABEL);
+    buf.header.label = TCU::get_ep(ep, EpReg::LABEL);
 
     // message
     buf.header.length = msg_size;
@@ -134,37 +134,37 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
     }
 
     Ok((
-        DTU::get_ep(ep, EpReg::PE_ID) as PEId,
-        DTU::get_ep(ep, EpReg::EP_ID) as EpId,
+        TCU::get_ep(ep, EpReg::PE_ID) as PEId,
+        TCU::get_ep(ep, EpReg::EP_ID) as EpId,
     ))
 }
 
 fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
-    let src = DTU::get_cmd(CmdReg::ADDR);
-    let size = DTU::get_cmd(CmdReg::SIZE) as usize;
-    let reply = DTU::get_cmd(CmdReg::OFFSET) as usize;
-    let buf_addr = DTU::get_ep(ep, EpReg::BUF_ADDR) as usize;
-    let ord = DTU::get_ep(ep, EpReg::BUF_ORDER);
-    let msg_ord = DTU::get_ep(ep, EpReg::BUF_MSGORDER);
+    let src = TCU::get_cmd(CmdReg::ADDR);
+    let size = TCU::get_cmd(CmdReg::SIZE) as usize;
+    let reply = TCU::get_cmd(CmdReg::OFFSET) as usize;
+    let buf_addr = TCU::get_ep(ep, EpReg::BUF_ADDR) as usize;
+    let ord = TCU::get_ep(ep, EpReg::BUF_ORDER);
+    let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
 
     let idx = (reply - buf_addr) >> msg_ord;
     if idx >= (1 << (ord - msg_ord)) {
-        log_dtu!("DTU-error: EP{}: invalid message addr {:#x}", ep, reply);
+        log_tcu!("TCU-error: EP{}: invalid message addr {:#x}", ep, reply);
         return Err(Error::new(Code::InvArgs));
     }
 
     let reply_header: &Header = unsafe { intrinsics::transmute(reply) };
     if reply_header.has_replycap == 0 {
-        log_dtu!("DTU-error: EP{}: double-reply for msg {:#x}?", ep, reply);
+        log_tcu!("TCU-error: EP{}: double-reply for msg {:#x}?", ep, reply);
         return Err(Error::new(Code::InvArgs));
     }
 
     // ack message
-    let mut occupied = DTU::get_ep(ep, EpReg::BUF_OCCUPIED);
+    let mut occupied = TCU::get_ep(ep, EpReg::BUF_OCCUPIED);
     assert!(is_bit_set(occupied, idx as u64));
     occupied = set_bit(occupied, idx as u64, false);
-    DTU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
-    log_dtu!("EP{}: acked message at index {}", ep, idx);
+    TCU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
+    log_tcu!("EP{}: acked message at index {}", ep, idx);
 
     let buf = buffer();
     buf.header.label = reply_header.reply_label;
@@ -184,14 +184,14 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
 
 fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     let op = if read { 0 } else { 1 };
-    let perms = DTU::get_ep(ep, EpReg::PERM);
-    let credits = DTU::get_ep(ep, EpReg::CREDITS);
-    let offset = DTU::get_cmd(CmdReg::OFFSET);
-    let length = DTU::get_cmd(CmdReg::LENGTH);
+    let perms = TCU::get_ep(ep, EpReg::PERM);
+    let credits = TCU::get_ep(ep, EpReg::CREDITS);
+    let offset = TCU::get_cmd(CmdReg::OFFSET);
+    let length = TCU::get_cmd(CmdReg::LENGTH);
 
     if (perms & (1 << op)) == 0 {
-        log_dtu!(
-            "DTU-error: EP{}: operation not permitted (perms={}, op={})",
+        log_tcu!(
+            "TCU-error: EP{}: operation not permitted (perms={}, op={})",
             ep,
             perms,
             op
@@ -201,8 +201,8 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     else {
         let end = offset.overflowing_add(length);
         if end.1 || end.0 > credits {
-            log_dtu!(
-                "DTU-error: EP{}: invalid parameters (credits={}, offset={}, datalen={})",
+            log_tcu!(
+                "TCU-error: EP{}: invalid parameters (credits={}, offset={}, datalen={})",
                 ep,
                 credits,
                 offset,
@@ -222,17 +222,17 @@ fn prepare_read(ep: EpId) -> Result<(PEId, EpId), Error> {
     let buf = buffer();
 
     buf.header.credits = 0;
-    buf.header.label = DTU::get_ep(ep, EpReg::LABEL);
+    buf.header.label = TCU::get_ep(ep, EpReg::LABEL);
     buf.header.length = 3 * util::size_of::<u64>();
 
     let data = buf.as_words_mut();
-    data[0] = DTU::get_cmd(CmdReg::OFFSET);
-    data[1] = DTU::get_cmd(CmdReg::LENGTH);
-    data[2] = DTU::get_cmd(CmdReg::ADDR);
+    data[0] = TCU::get_cmd(CmdReg::OFFSET);
+    data[1] = TCU::get_cmd(CmdReg::LENGTH);
+    data[2] = TCU::get_cmd(CmdReg::ADDR);
 
     Ok((
-        DTU::get_ep(ep, EpReg::PE_ID) as PEId,
-        DTU::get_ep(ep, EpReg::EP_ID) as EpId,
+        TCU::get_ep(ep, EpReg::PE_ID) as PEId,
+        TCU::get_ep(ep, EpReg::EP_ID) as EpId,
     ))
 }
 
@@ -240,15 +240,15 @@ fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
     check_rdwr(ep, false)?;
 
     let buf = buffer();
-    let src = DTU::get_cmd(CmdReg::ADDR);
-    let size = DTU::get_cmd(CmdReg::SIZE) as usize;
+    let src = TCU::get_cmd(CmdReg::ADDR);
+    let size = TCU::get_cmd(CmdReg::SIZE) as usize;
 
     buf.header.credits = 0;
-    buf.header.label = DTU::get_ep(ep, EpReg::LABEL);
+    buf.header.label = TCU::get_ep(ep, EpReg::LABEL);
     buf.header.length = size + 2 * util::size_of::<u64>();
 
     let data = buf.as_words_mut();
-    data[0] = DTU::get_cmd(CmdReg::OFFSET);
+    data[0] = TCU::get_cmd(CmdReg::OFFSET);
     data[1] = size as u64;
 
     unsafe {
@@ -260,70 +260,70 @@ fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
     }
 
     Ok((
-        DTU::get_ep(ep, EpReg::PE_ID) as PEId,
-        DTU::get_ep(ep, EpReg::EP_ID) as EpId,
+        TCU::get_ep(ep, EpReg::PE_ID) as PEId,
+        TCU::get_ep(ep, EpReg::EP_ID) as EpId,
     ))
 }
 
 fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
-    let addr = DTU::get_cmd(CmdReg::OFFSET);
-    let buf_addr = DTU::get_ep(ep, EpReg::BUF_ADDR);
-    let msg_ord = DTU::get_ep(ep, EpReg::BUF_MSGORDER);
-    let ord = DTU::get_ep(ep, EpReg::BUF_ORDER);
+    let addr = TCU::get_cmd(CmdReg::OFFSET);
+    let buf_addr = TCU::get_ep(ep, EpReg::BUF_ADDR);
+    let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
+    let ord = TCU::get_ep(ep, EpReg::BUF_ORDER);
 
     let idx = (addr - buf_addr) >> msg_ord;
     if idx >= (1 << (ord - msg_ord)) {
-        log_dtu!("DTU-error: EP{}: invalid message addr {:#x}", ep, addr);
+        log_tcu!("TCU-error: EP{}: invalid message addr {:#x}", ep, addr);
         return Err(Error::new(Code::InvArgs));
     }
 
-    let mut occupied = DTU::get_ep(ep, EpReg::BUF_OCCUPIED);
-    let unread = DTU::get_ep(ep, EpReg::BUF_UNREAD);
+    let mut occupied = TCU::get_ep(ep, EpReg::BUF_OCCUPIED);
+    let unread = TCU::get_ep(ep, EpReg::BUF_UNREAD);
     assert!(is_bit_set(occupied, idx));
     occupied = set_bit(occupied, idx, false);
     if is_bit_set(unread, idx) {
         let unread = set_bit(unread, idx, false);
-        DTU::set_ep(ep, EpReg::BUF_UNREAD, unread);
-        DTU::set_ep(
+        TCU::set_ep(ep, EpReg::BUF_UNREAD, unread);
+        TCU::set_ep(
             ep,
             EpReg::BUF_MSG_CNT,
-            DTU::get_ep(ep, EpReg::BUF_MSG_CNT) - 1,
+            TCU::get_ep(ep, EpReg::BUF_MSG_CNT) - 1,
         );
     }
-    DTU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
+    TCU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
 
-    log_dtu!("EP{}: acked message at index {}", ep, idx);
+    log_tcu!("EP{}: acked message at index {}", ep, idx);
 
     Ok((0, EP_COUNT))
 }
 
 fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
-    let msgs = DTU::get_ep(ep, EpReg::BUF_MSG_CNT);
+    let msgs = TCU::get_ep(ep, EpReg::BUF_MSG_CNT);
     if msgs == 0 {
         return Ok((0, EP_COUNT));
     }
 
-    let unread = DTU::get_ep(ep, EpReg::BUF_UNREAD);
-    let roff = DTU::get_ep(ep, EpReg::BUF_ROFF);
-    let ord = DTU::get_ep(ep, EpReg::BUF_ORDER);
-    let msg_ord = DTU::get_ep(ep, EpReg::BUF_MSGORDER);
+    let unread = TCU::get_ep(ep, EpReg::BUF_UNREAD);
+    let roff = TCU::get_ep(ep, EpReg::BUF_ROFF);
+    let ord = TCU::get_ep(ep, EpReg::BUF_ORDER);
+    let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
     let size = 1 << (ord - msg_ord);
 
     let recv_msg = |idx| {
-        assert!(is_bit_set(DTU::get_ep(ep, EpReg::BUF_OCCUPIED), idx));
+        assert!(is_bit_set(TCU::get_ep(ep, EpReg::BUF_OCCUPIED), idx));
 
         let unread = set_bit(unread, idx, false);
         let msgs = msgs - 1;
         assert!(unread.count_ones() == msgs as u32);
 
-        log_dtu!("EP{}: fetched msg at index {} (count={})", ep, idx, msgs);
+        log_tcu!("EP{}: fetched msg at index {} (count={})", ep, idx, msgs);
 
-        DTU::set_ep(ep, EpReg::BUF_UNREAD, unread);
-        DTU::set_ep(ep, EpReg::BUF_ROFF, idx + 1);
-        DTU::set_ep(ep, EpReg::BUF_MSG_CNT, msgs);
+        TCU::set_ep(ep, EpReg::BUF_UNREAD, unread);
+        TCU::set_ep(ep, EpReg::BUF_ROFF, idx + 1);
+        TCU::set_ep(ep, EpReg::BUF_MSG_CNT, msgs);
 
-        let addr = DTU::get_ep(ep, EpReg::BUF_ADDR);
-        DTU::set_cmd(CmdReg::OFFSET, addr + idx * (1 << msg_ord));
+        let addr = TCU::get_ep(ep, EpReg::BUF_ADDR);
+        TCU::set_cmd(CmdReg::OFFSET, addr + idx * (1 << msg_ord));
 
         Ok((0, EP_COUNT))
     };
@@ -343,39 +343,39 @@ fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
 }
 
 fn handle_msg(ep: EpId, len: usize) {
-    let msg_ord = DTU::get_ep(ep, EpReg::BUF_MSGORDER);
+    let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
     let msg_size = 1 << msg_ord;
     if len > msg_size {
-        log_dtu!(
-            "DTU-error: dropping msg due to insufficient space (required: {}, available: {})",
+        log_tcu!(
+            "TCU-error: dropping msg due to insufficient space (required: {}, available: {})",
             len,
             msg_size
         );
         return;
     }
 
-    let occupied = DTU::get_ep(ep, EpReg::BUF_OCCUPIED);
-    let woff = DTU::get_ep(ep, EpReg::BUF_WOFF);
-    let ord = DTU::get_ep(ep, EpReg::BUF_ORDER);
+    let occupied = TCU::get_ep(ep, EpReg::BUF_OCCUPIED);
+    let woff = TCU::get_ep(ep, EpReg::BUF_WOFF);
+    let ord = TCU::get_ep(ep, EpReg::BUF_ORDER);
     let size = 1 << (ord - msg_ord);
 
     let place_msg = |idx, occupied| {
-        let unread = DTU::get_ep(ep, EpReg::BUF_UNREAD);
-        let msgs = DTU::get_ep(ep, EpReg::BUF_MSG_CNT);
+        let unread = TCU::get_ep(ep, EpReg::BUF_UNREAD);
+        let msgs = TCU::get_ep(ep, EpReg::BUF_MSG_CNT);
 
         let occupied = set_bit(occupied, idx, true);
         let unread = set_bit(unread, idx, true);
         let msgs = msgs + 1;
         assert!(unread.count_ones() == msgs as u32);
 
-        log_dtu!("EP{}: put msg at index {} (count={})", ep, idx, msgs);
+        log_tcu!("EP{}: put msg at index {} (count={})", ep, idx, msgs);
 
-        DTU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
-        DTU::set_ep(ep, EpReg::BUF_UNREAD, unread);
-        DTU::set_ep(ep, EpReg::BUF_MSG_CNT, msgs);
-        DTU::set_ep(ep, EpReg::BUF_WOFF, idx + 1);
+        TCU::set_ep(ep, EpReg::BUF_OCCUPIED, occupied);
+        TCU::set_ep(ep, EpReg::BUF_UNREAD, unread);
+        TCU::set_ep(ep, EpReg::BUF_MSG_CNT, msgs);
+        TCU::set_ep(ep, EpReg::BUF_WOFF, idx + 1);
 
-        let addr = DTU::get_ep(ep, EpReg::BUF_ADDR);
+        let addr = TCU::get_ep(ep, EpReg::BUF_ADDR);
         let dst = (addr + idx * (1 << msg_ord)) as *mut u8;
         let src = &buffer().header as *const Header as *const u8;
         unsafe {
@@ -396,7 +396,7 @@ fn handle_msg(ep: EpId, len: usize) {
         }
     }
 
-    log_dtu!("DTU-error: EP{}: dropping msg because no slot is free", ep);
+    log_tcu!("TCU-error: EP{}: dropping msg because no slot is free", ep);
 }
 
 fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
@@ -408,7 +408,7 @@ fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Er
         let offset = base + data[0];
         let length = data[1];
 
-        log_dtu!(
+        log_tcu!(
             "(write) {} bytes to {:#x}+{:#x}",
             length,
             base,
@@ -445,7 +445,7 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
         (base + data[0], data[1], data[2])
     };
 
-    log_dtu!(
+    log_tcu!(
         "(read) {} bytes from {:#x}+{:#x} -> {:#x}",
         length,
         base,
@@ -487,7 +487,7 @@ fn handle_resp_cmd() {
         let length = data[1];
         let resp = data[2];
 
-        log_dtu!(
+        log_tcu!(
             "(resp) {} bytes to {:#x}+{:#x} -> {:#x}",
             length,
             base,
@@ -510,7 +510,7 @@ fn handle_resp_cmd() {
     };
 
     // provide feedback to SW
-    DTU::set_cmd(CmdReg::CTRL, resp << 16);
+    TCU::set_cmd(CmdReg::CTRL, resp << 16);
 }
 
 #[rustfmt::skip]
@@ -522,7 +522,7 @@ fn send_msg(
 ) -> Result<(), Error> {
     let buf = buffer();
 
-    log_dtu!(
+    log_tcu!(
         "{} {:3}b lbl={:#016x} over {} to pe:ep={}:{} (crd={:#x} rep={})",
         if buf.header.opcode == Command::REPLY.val as u8 { ">>" } else { "->" },
         { buf.header.length },
@@ -530,7 +530,7 @@ fn send_msg(
         buf.header.snd_ep,
         dst_pe,
         dst_ep,
-        DTU::get_ep(ep, EpReg::CREDITS),
+        TCU::get_ep(ep, EpReg::CREDITS),
         buf.header.rpl_ep
     );
 
@@ -544,16 +544,16 @@ fn send_msg(
 
 fn handle_command(backend: &backend::SocketBackend) {
     // clear error
-    DTU::set_cmd(CmdReg::CTRL, DTU::get_cmd(CmdReg::CTRL) & 0xFFFF);
+    TCU::set_cmd(CmdReg::CTRL, TCU::get_cmd(CmdReg::CTRL) & 0xFFFF);
 
-    let ep = DTU::get_cmd(CmdReg::EPID) as EpId;
+    let ep = TCU::get_cmd(CmdReg::EPID) as EpId;
 
     let res = if ep >= EP_COUNT {
-        log_dtu!("DTU-error: invalid ep-id ({})", ep);
+        log_tcu!("TCU-error: invalid ep-id ({})", ep);
         Err(Error::new(Code::InvArgs))
     }
     else {
-        let ctrl = DTU::get_cmd(CmdReg::CTRL);
+        let ctrl = TCU::get_cmd(CmdReg::CTRL);
         let op: Command = Command::from((ctrl >> 3) & 0xF);
 
         let res = match op {
@@ -576,8 +576,8 @@ fn handle_command(backend: &backend::SocketBackend) {
                     buf.header.has_replycap = 1;
                     buf.header.pe = envdata::get().pe_id as u16;
                     buf.header.snd_ep = ep as u8;
-                    buf.header.rpl_ep = DTU::get_cmd(CmdReg::REPLY_EPID) as u8;
-                    buf.header.reply_label = DTU::get_cmd(CmdReg::REPLY_LBL);
+                    buf.header.rpl_ep = TCU::get_cmd(CmdReg::REPLY_EPID) as u8;
+                    buf.header.reply_label = TCU::get_cmd(CmdReg::REPLY_LBL);
                 }
 
                 match send_msg(backend, ep, dst_pe, dst_ep) {
@@ -599,8 +599,8 @@ fn handle_command(backend: &backend::SocketBackend) {
     };
 
     match res {
-        Ok(val) => DTU::set_cmd(CmdReg::CTRL, val),
-        Err(e) => DTU::set_cmd(CmdReg::CTRL, (e.code() as Reg) << 16),
+        Ok(val) => TCU::set_cmd(CmdReg::CTRL, val),
+        Err(e) => TCU::set_cmd(CmdReg::CTRL, (e.code() as Reg) << 16),
     };
 }
 
@@ -618,29 +618,29 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
         // refill credits
         let crd_ep = buf.header.crd_ep as EpId;
         if crd_ep >= EP_COUNT {
-            log_dtu!("DTU-error: should give credits to ep {}", crd_ep);
+            log_tcu!("TCU-error: should give credits to ep {}", crd_ep);
         }
         else {
-            let msg_ord = DTU::get_ep(crd_ep, EpReg::MSGORDER);
-            let credits = DTU::get_ep(crd_ep, EpReg::CREDITS);
+            let msg_ord = TCU::get_ep(crd_ep, EpReg::MSGORDER);
+            let credits = TCU::get_ep(crd_ep, EpReg::CREDITS);
             if buf.header.credits != 0 && credits != !0 {
-                log_dtu!(
+                log_tcu!(
                     "Refilling credits of ep {} from {:#x} to {:#x}",
                     crd_ep,
                     credits,
                     credits + (1 << msg_ord)
                 );
-                DTU::set_ep(crd_ep, EpReg::CREDITS, credits + (1 << msg_ord));
+                TCU::set_ep(crd_ep, EpReg::CREDITS, credits + (1 << msg_ord));
             }
         }
 
-        log_dtu!(
+        log_tcu!(
             "<- {:3}b lbl={:#016x} ep={} (cnt={:#x}, crd={:#x})",
             size - util::size_of::<Header>(),
             { buf.header.label },
             ep,
-            DTU::get_ep(ep, EpReg::BUF_MSG_CNT),
-            DTU::get_ep(ep, EpReg::CREDITS),
+            TCU::get_ep(ep, EpReg::BUF_MSG_CNT),
+            TCU::get_ep(ep, EpReg::CREDITS),
         );
         true
     }
@@ -674,7 +674,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
     }
 
     while RUN.load(atomic::Ordering::Relaxed) == 1 {
-        if (DTU::get_cmd(CmdReg::CTRL) & Control::START.bits()) != 0 {
+        if (TCU::get_cmd(CmdReg::CTRL) & Control::START.bits()) != 0 {
             handle_command(&backend);
         }
 
@@ -682,7 +682,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
             handle_receive(&backend, ep);
         }
 
-        DTU::sleep().unwrap();
+        TCU::sleep().unwrap();
     }
 
     // deny further receives
@@ -698,7 +698,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
             break;
         }
 
-        DTU::sleep().unwrap();
+        TCU::sleep().unwrap();
     }
 
     ptr::null_mut()
@@ -706,7 +706,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
 
 pub fn init() {
     LOG.set(Some(io::log::Log::default()));
-    log().init(envdata::get().pe_id, "DTU");
+    log().init(envdata::get().pe_id, "TCU");
 
     BACKEND.set(Some(backend::SocketBackend::new()));
 

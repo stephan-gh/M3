@@ -28,7 +28,7 @@ use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate};
-use m3::dtu::{EpId, Label};
+use m3::tcu::{EpId, Label};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;

@@ -342,16 +342,16 @@ int main(int argc, char **argv) {
         // Sleep according to sys_timeouts_sleeptime() if there is nothing to do.
         if(recvQueue.empty()) {
             if(auto sleep_ms = sys_timeouts_sleeptime()) {
-                cycles_t sleep_time = sleep_ms * (m3::DTU::get().clock() / 1000);
-                cycles_t start = m3::DTU::get().tsc();
+                cycles_t sleep_time = sleep_ms * (m3::TCU::get().clock() / 1000);
+                cycles_t start = m3::TCU::get().tsc();
                 SLOG(NET_ALL, "@" << start << " sleep: " << sleep_time << " cycles"
                     << " (" << sleep_ms << " ms)");
 
-                DTUIf::sleep_for(sleep_time);
+                TCUIf::sleep_for(sleep_time);
 
-                cycles_t stop = m3::DTU::get().tsc();
+                cycles_t stop = m3::TCU::get().tsc();
                 SLOG(NET_ALL, "@" << stop << " wakeup: " << stop - start << " cycles"
-                    << " (" << ((stop - start) * 1000 / m3::DTU::get().clock()) << " ms)");
+                    << " (" << ((stop - start) * 1000 / m3::TCU::get().clock()) << " ms)");
             }
         }
     }

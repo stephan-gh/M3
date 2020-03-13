@@ -23,7 +23,7 @@ extern crate base;
 use base::boxed::Box;
 use base::cell::StaticCell;
 use base::col::{BoxList, Vec};
-use base::dtu;
+use base::tcu;
 use base::libc;
 use base::util;
 use core::intrinsics;
@@ -188,11 +188,11 @@ impl Thread {
         self.id
     }
 
-    pub fn fetch_msg(&mut self) -> Option<&'static dtu::Message> {
+    pub fn fetch_msg(&mut self) -> Option<&'static tcu::Message> {
         if mem::replace(&mut self.has_msg, false) {
-            // safety: has_msg is true and we trust the DTU
+            // safety: has_msg is true and we trust the TCU
             unsafe {
-                let head = self.msg.as_ptr() as *const dtu::Header;
+                let head = self.msg.as_ptr() as *const tcu::Header;
                 let slice = [head as usize, (*head).length as usize];
                 Some(intrinsics::transmute(slice))
             }
@@ -217,14 +217,14 @@ impl Thread {
         }
     }
 
-    fn set_msg(&mut self, msg: &'static dtu::Message) {
-        let size = msg.header.length as usize + util::size_of::<dtu::Header>();
+    fn set_msg(&mut self, msg: &'static tcu::Message) {
+        let size = msg.header.length as usize + util::size_of::<tcu::Header>();
         self.has_msg = true;
-        // safety: we trust the DTU
+        // safety: we trust the TCU
         unsafe {
             libc::memcpy(
                 self.msg.as_ptr() as *mut libc::c_void,
-                msg as *const dtu::Message as *const libc::c_void,
+                msg as *const tcu::Message as *const libc::c_void,
                 size,
             );
         }
@@ -282,7 +282,7 @@ impl ThreadManager {
         self.sleep.len()
     }
 
-    pub fn fetch_msg(&mut self) -> Option<&'static dtu::Message> {
+    pub fn fetch_msg(&mut self) -> Option<&'static tcu::Message> {
         match self.current {
             Some(ref mut t) => t.fetch_msg(),
             None => None,
@@ -344,7 +344,7 @@ impl ThreadManager {
         }
     }
 
-    pub fn notify(&mut self, event: Event, msg: Option<&'static dtu::Message>) {
+    pub fn notify(&mut self, event: Event, msg: Option<&'static tcu::Message>) {
         let mut it = self.block.iter_mut();
         while let Some(t) = it.next() {
             if t.trigger_event(event) {

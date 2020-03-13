@@ -14,9 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/host/DTUBackend.h>
+#include <base/arch/host/TCUBackend.h>
 #include <base/log/Lib.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Panic.h>
 
 #include <sys/types.h>
@@ -31,7 +31,7 @@
 
 namespace m3 {
 
-DTUBackend::DTUBackend()
+TCUBackend::TCUBackend()
     : _sock(socket(AF_UNIX, SOCK_DGRAM, 0)),
       _knotify_sock(socket(AF_UNIX, SOCK_DGRAM, 0)),
       _knotify_addr(),
@@ -74,30 +74,30 @@ DTUBackend::DTUBackend()
     }
 }
 
-void DTUBackend::shutdown() {
+void TCUBackend::shutdown() {
     for(epid_t ep = 0; ep < ARRAY_SIZE(_localsocks); ++ep)
         ::shutdown(_localsocks[ep], SHUT_RD);
 }
 
-DTUBackend::~DTUBackend() {
+TCUBackend::~TCUBackend() {
     for(epid_t ep = 0; ep < ARRAY_SIZE(_localsocks); ++ep)
         close(_localsocks[ep]);
 }
 
-void DTUBackend::bind_knotify() {
+void TCUBackend::bind_knotify() {
     if(bind(_knotify_sock, (struct sockaddr*)&_knotify_addr, sizeof(_knotify_addr)) == -1)
         PANIC("Binding socket for kernel notifications failed: " << strerror(errno));
 }
 
-void DTUBackend::notify_kernel(pid_t pid, int status) {
+void TCUBackend::notify_kernel(pid_t pid, int status) {
     KNotifyData data = {.pid = pid, .status = status};
     int res = sendto(_knotify_sock, &data, sizeof(data), 0,
                      (struct sockaddr*)(&_knotify_addr), sizeof(_knotify_addr));
     if(res == -1)
-        LLOG(DTUERR, "Notifying kernel failed: " << strerror(errno));
+        LLOG(TCUERR, "Notifying kernel failed: " << strerror(errno));
 }
 
-bool DTUBackend::receive_knotify(pid_t *pid, int *status) {
+bool TCUBackend::receive_knotify(pid_t *pid, int *status) {
     KNotifyData data;
     ssize_t res = recvfrom(_knotify_sock, &data, sizeof(data), MSG_DONTWAIT, nullptr, nullptr);
     if(res <= 0)
@@ -107,17 +107,17 @@ bool DTUBackend::receive_knotify(pid_t *pid, int *status) {
     return true;
 }
 
-bool DTUBackend::send(peid_t pe, epid_t ep, const DTU::Buffer *buf) {
-    int res = sendto(_sock, buf, buf->length + DTU::HEADER_SIZE, 0,
+bool TCUBackend::send(peid_t pe, epid_t ep, const TCU::Buffer *buf) {
+    int res = sendto(_sock, buf, buf->length + TCU::HEADER_SIZE, 0,
                      (struct sockaddr*)(_endpoints + pe * EP_COUNT + ep), sizeof(sockaddr_un));
     if(res == -1) {
-        LLOG(DTUERR, "Sending message to EP " << pe << ":" << ep << " failed: " << strerror(errno));
+        LLOG(TCUERR, "Sending message to EP " << pe << ":" << ep << " failed: " << strerror(errno));
         return false;
     }
     return true;
 }
 
-ssize_t DTUBackend::recv(epid_t ep, DTU::Buffer *buf) {
+ssize_t TCUBackend::recv(epid_t ep, TCU::Buffer *buf) {
     ssize_t res = recvfrom(_localsocks[ep], buf, sizeof(*buf), MSG_DONTWAIT, nullptr, nullptr);
     if(res <= 0)
         return -1;

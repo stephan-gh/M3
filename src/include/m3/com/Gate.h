@@ -18,7 +18,7 @@
 
 #include <base/col/SList.h>
 #include <base/util/Util.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 
 #include <m3/com/EP.h>
 #include <m3/ObjCap.h>
@@ -31,7 +31,7 @@ class GenericFile;
 struct RemoteServer;
 
 /**
- * Gate is the base class of all gates. A gate is in general the software abstraction for DTU-based
+ * Gate is the base class of all gates. A gate is in general the software abstraction for TCU-based
  * communication. There are three different kinds of gates: SendGate, RecvGate and MemGate.
  * SendGate and RecvGate allow to perform message-based communication, while MemGate allows to
  * read/write from/to PE-external memory.
@@ -44,7 +44,7 @@ struct RemoteServer;
  */
 class Gate : public SListItem, public ObjCap {
     friend class EPMng;
-    friend class DTUIf;
+    friend class TCUIf;
     friend class GenericFile;
     friend struct RemoteServer;
     friend class VPE;

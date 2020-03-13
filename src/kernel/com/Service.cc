@@ -33,7 +33,7 @@ int Service::pending() const {
     return _squeue.inflight() + _squeue.pending();
 }
 
-const m3::DTU::Message *Service::send_receive(label_t ident, const void *msg, size_t size, bool free) {
+const m3::TCU::Message *Service::send_receive(label_t ident, const void *msg, size_t size, bool free) {
     if(!_rgate->activated())
         return nullptr;
 
@@ -41,7 +41,7 @@ const m3::DTU::Message *Service::send_receive(label_t ident, const void *msg, si
 
     m3::ThreadManager::get().wait_for(event);
 
-    return reinterpret_cast<const m3::DTU::Message*>(m3::ThreadManager::get().get_current_msg());
+    return reinterpret_cast<const m3::TCU::Message*>(m3::ThreadManager::get().get_current_msg());
 }
 
 }

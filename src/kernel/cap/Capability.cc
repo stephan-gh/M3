@@ -24,7 +24,7 @@
 #include "cap/Capability.h"
 #include "cap/CapTable.h"
 #include "mem/MainMemory.h"
-#include "DTU.h"
+#include "TCU.h"
 
 namespace kernel {
 
@@ -87,7 +87,7 @@ void GateObject::revoke() {
             PEMux *receiver = PEManager::get().pemux(sgate->rgate->pe);
             KLOG(EPS, "PE" << pemux->peid() << ":EP" << old->ep->ep << ": invalidating reply caps at "
                    << "PE" << receiver->peid() << ":EP" << sgate->rgate->ep);
-            DTU::get().inv_reply_remote(receiver->desc(), sgate->rgate->ep, pemux->peid(), old->ep->ep);
+            TCU::get().inv_reply_remote(receiver->desc(), sgate->rgate->ep, pemux->peid(), old->ep->ep);
         }
         old->ep->gate = nullptr;
         delete &*old;
@@ -127,7 +127,7 @@ EPObject::~EPObject() {
         vpe->remove_ep(this);
 
     // this check is necessary for the pager EP objects in the VPE
-    if(ep >= m3::DTU::FIRST_FREE_EP) {
+    if(ep >= m3::TCU::FIRST_FREE_EP) {
         // free EPs at PEMux
         auto pemux = PEManager::get().pemux(pe->id);
         pemux->free_eps(ep, 1 + replies);

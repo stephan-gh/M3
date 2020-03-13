@@ -14,10 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/arch/host/DTUBackend.h>
+#include <base/arch/host/TCUBackend.h>
 #include <base/log/Lib.h>
 #include <base/util/Math.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Env.h>
 #include <base/Init.h>
 #include <base/KIF.h>
@@ -33,10 +33,10 @@
 
 namespace m3 {
 
-INIT_PRIO_DTU DTU DTU::inst;
-INIT_PRIO_DTU DTU::Buffer DTU::_buf;
+INIT_PRIO_TCU TCU TCU::inst;
+INIT_PRIO_TCU TCU::Buffer TCU::_buf;
 
-DTU::DTU()
+TCU::TCU()
     : _run(true),
       _cmdregs(),
       _epregs(reinterpret_cast<word_t*>(Env::eps_start())),
@@ -46,19 +46,19 @@ DTU::DTU()
     memset(const_cast<word_t*>(_epregs), 0, epsize);
 }
 
-void DTU::start() {
-    _backend = new DTUBackend();
+void TCU::start() {
+    _backend = new TCUBackend();
 
     int res = pthread_create(&_tid, nullptr, thread, this);
     if(res != 0)
         PANIC("pthread_create");
 }
 
-void DTU::stop() {
+void TCU::stop() {
     _run = false;
 }
 
-void DTU::reset() {
+void TCU::reset() {
     // TODO this is a hack; we cannot leave the recv EPs here in all cases. sometimes the REPs are
     // not inherited so that the child might want to reuse the EP for something else, which does
     // not work, because the cmpxchg fails.
@@ -70,7 +70,7 @@ void DTU::reset() {
     delete _backend;
 }
 
-void DTU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
+void TCU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     set_ep(ep, EP_BUF_ADDR, buf);
     set_ep(ep, EP_BUF_ORDER, order);
     set_ep(ep, EP_BUF_MSGORDER, msgorder);
@@ -82,15 +82,15 @@ void DTU::configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     assert((1UL << (order - msgorder)) <= sizeof(word_t) * 8);
 }
 
-Errors::Code DTU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, size_t offset, size_t length) {
+Errors::Code TCU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, size_t offset, size_t length) {
     if(op == READ || op == WRITE) {
         if(!(perms & (1U << (op - 1)))) {
-            LLOG(DTUERR, "DMA-error: operation not permitted on ep " << ep << " (perms="
+            LLOG(TCUERR, "DMA-error: operation not permitted on ep " << ep << " (perms="
                     << perms << ", op=" << op << ")");
             return Errors::NO_PERM;
         }
         if(offset >= credits || offset + length < offset || offset + length > credits) {
-            LLOG(DTUERR, "DMA-error: invalid parameters (credits=" << credits
+            LLOG(TCUERR, "DMA-error: invalid parameters (credits=" << credits
                     << ", offset=" << offset << ", datalen=" << length << ")");
             return Errors::INV_ARGS;
         }
@@ -98,7 +98,7 @@ Errors::Code DTU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, siz
     return Errors::NONE;
 }
 
-Errors::Code DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
     const size_t reply = get_cmd(CMD_OFFSET);
@@ -108,13 +108,13 @@ Errors::Code DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
 
     size_t idx = (reply - bufaddr) >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(DTUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)reply);
+        LLOG(TCUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)reply);
         return Errors::INV_ARGS;
     }
 
     Buffer *buf = reinterpret_cast<Buffer*>(reply);
     if(!buf->has_replycap) {
-        LLOG(DTUERR, "DMA-error: EP" << ep << ": double-reply for msg " << (void*)reply);
+        LLOG(TCUERR, "DMA-error: EP" << ep << ": double-reply for msg " << (void*)reply);
         return Errors::INV_ARGS;
     }
 
@@ -123,10 +123,10 @@ Errors::Code DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     assert(bit_set(occupied, idx));
     set_bit(occupied, idx, false);
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
-    LLOG(DTU, "EP" << ep << ": acked message at index " << idx);
+    LLOG(TCU, "EP" << ep << ": acked message at index " << idx);
 
     dstpe = buf->pe;
-    dstep = buf->rpl_ep == DTU::NO_REPLIES ? SYSC_SEP : buf->rpl_ep;
+    dstep = buf->rpl_ep == TCU::NO_REPLIES ? SYSC_SEP : buf->rpl_ep;
     _buf.label = buf->replylabel;
     _buf.credits = 1;
     _buf.crd_ep = buf->snd_ep;
@@ -138,7 +138,7 @@ Errors::Code DTU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     return Errors::NONE;
 }
 
-Errors::Code DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code TCU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const word_t credits = get_ep(ep, EP_CREDITS);
     const word_t msg_order = get_ep(ep, EP_MSGORDER);
@@ -146,7 +146,7 @@ Errors::Code DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     if(credits != KIF::UNLIM_CREDITS) {
         const size_t size = 1UL << msg_order;
         if(size > credits) {
-            LLOG(DTUERR, "DMA-error: insufficient credits on ep " << ep
+            LLOG(TCUERR, "DMA-error: insufficient credits on ep " << ep
                     << " (have #" << fmt(credits, "x") << ", need #" << fmt(size, "x")
                     << ")." << " Ignoring send-command");
             return Errors::MISS_CREDITS;
@@ -165,7 +165,7 @@ Errors::Code DTU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     return Errors::NONE;
 }
 
-Errors::Code DTU::prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code TCU::prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     dstpe = get_ep(ep, EP_PEID);
     dstep = get_ep(ep, EP_EPID);
 
@@ -178,7 +178,7 @@ Errors::Code DTU::prepare_read(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     return Errors::NONE;
 }
 
-Errors::Code DTU::prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep) {
+Errors::Code TCU::prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
     dstpe = get_ep(ep, EP_PEID);
@@ -194,7 +194,7 @@ Errors::Code DTU::prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     return Errors::NONE;
 }
 
-Errors::Code DTU::prepare_ackmsg(epid_t ep) {
+Errors::Code TCU::prepare_ackmsg(epid_t ep) {
     const word_t addr = get_cmd(CMD_OFFSET);
     size_t bufaddr = get_ep(ep, EP_BUF_ADDR);
     size_t msgord = get_ep(ep, EP_BUF_MSGORDER);
@@ -202,13 +202,13 @@ Errors::Code DTU::prepare_ackmsg(epid_t ep) {
 
     size_t idx = static_cast<size_t>(addr - bufaddr) >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(DTUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)addr);
+        LLOG(TCUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)addr);
         return Errors::INV_ARGS;
     }
 
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
     if(!bit_set(occupied, idx)) {
-        LLOG(DTUERR, "DMA-error: EP" << ep << ": slot at " << (void*)addr << " not occupied");
+        LLOG(TCUERR, "DMA-error: EP" << ep << ": slot at " << (void*)addr << " not occupied");
         return Errors::INV_ARGS;
     }
 
@@ -221,11 +221,11 @@ Errors::Code DTU::prepare_ackmsg(epid_t ep) {
     }
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
 
-    LLOG(DTU, "EP" << ep << ": acked message at index " << idx);
+    LLOG(TCU, "EP" << ep << ": acked message at index " << idx);
     return Errors::NONE;
 }
 
-Errors::Code DTU::prepare_fetchmsg(epid_t ep) {
+Errors::Code TCU::prepare_fetchmsg(epid_t ep) {
     word_t msgs = get_ep(ep, EP_BUF_MSGCNT);
     if(msgs == 0)
         return Errors::NONE;
@@ -257,7 +257,7 @@ found:
     roff = i + 1;
     assert(Math::bits_set(unread) == msgs);
 
-    LLOG(DTU, "EP" << ep << ": fetched message at index " << i << " (count=" << msgs << ")");
+    LLOG(TCU, "EP" << ep << ": fetched message at index " << i << " (count=" << msgs << ")");
 
     set_ep(ep, EP_BUF_UNREAD, unread);
     set_ep(ep, EP_BUF_ROFF, roff);
@@ -269,7 +269,7 @@ found:
     return Errors::NONE;
 }
 
-void DTU::handle_command(peid_t pe) {
+void TCU::handle_command(peid_t pe) {
     Errors::Code res = Errors::NONE;
     word_t newctrl = 0;
     peid_t dstpe;
@@ -281,7 +281,7 @@ void DTU::handle_command(peid_t pe) {
     const word_t ctrl = get_cmd(CMD_CTRL);
     int op = (ctrl >> OPCODE_SHIFT) & 0xF;
     if(ep >= EP_COUNT) {
-        LLOG(DTUERR, "DMA-error: invalid ep-id (" << ep << ")");
+        LLOG(TCUERR, "DMA-error: invalid ep-id (" << ep << ")");
         res = Errors::INV_ARGS;
         goto done;
     }
@@ -342,8 +342,8 @@ done:
     set_cmd(CMD_CTRL, newctrl);
 }
 
-bool DTU::send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply) {
-    LLOG(DTU, (isreply ? ">> " : "-> ") << fmt(_buf.length, 3) << "b"
+bool TCU::send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply) {
+    LLOG(TCU, (isreply ? ">> " : "-> ") << fmt(_buf.length, 3) << "b"
             << " lbl=" << fmt(_buf.label, "#0x", sizeof(label_t) * 2)
             << " over " << ep << " to pe:ep=" << dstpe << ":" << dstep
             << " (crd=#" << fmt(get_ep(ep, EP_CREDITS), "x")
@@ -352,12 +352,12 @@ bool DTU::send_msg(epid_t ep, peid_t dstpe, epid_t dstep, bool isreply) {
     return _backend->send(dstpe, dstep, &_buf);
 }
 
-void DTU::handle_read_cmd(epid_t ep) {
+void TCU::handle_read_cmd(epid_t ep) {
     word_t base = _buf.label;
     word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
     word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
     word_t dest = reinterpret_cast<word_t*>(_buf.data)[2];
-    LLOG(DTU, "(read) " << length << " bytes from #" << fmt(base, "x")
+    LLOG(TCU, "(read) " << length << " bytes from #" << fmt(base, "x")
             << "+#" << fmt(offset - base, "x") << " -> " << fmt(dest, "p"));
     peid_t dstpe = _buf.pe;
     epid_t dstep = _buf.rpl_ep;
@@ -375,11 +375,11 @@ void DTU::handle_read_cmd(epid_t ep) {
     send_msg(ep, dstpe, dstep, true);
 }
 
-void DTU::handle_write_cmd(epid_t ep) {
+void TCU::handle_write_cmd(epid_t ep) {
     word_t base = _buf.label;
     word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
     word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
-    LLOG(DTU, "(write) " << length << " bytes to #" << fmt(base, "x")
+    LLOG(TCU, "(write) " << length << " bytes to #" << fmt(base, "x")
             << "+#" << fmt(offset - base, "x"));
     assert(length <= sizeof(_buf.data));
     peid_t dstpe = _buf.pe;
@@ -393,14 +393,14 @@ void DTU::handle_write_cmd(epid_t ep) {
     send_msg(ep, dstpe, dstep, true);
 }
 
-void DTU::handle_resp_cmd() {
+void TCU::handle_resp_cmd() {
     word_t base = _buf.label;
     word_t resp = 0;
     if(_buf.length > 0) {
         word_t offset = base + reinterpret_cast<word_t*>(_buf.data)[0];
         word_t length = reinterpret_cast<word_t*>(_buf.data)[1];
         resp = reinterpret_cast<word_t*>(_buf.data)[2];
-        LLOG(DTU, "(resp) " << length << " bytes to #" << fmt(base, "x")
+        LLOG(TCU, "(resp) " << length << " bytes to #" << fmt(base, "x")
                 << "+#" << fmt(offset - base, "x") << " -> " << resp);
         assert(length <= sizeof(_buf.data));
         memcpy(reinterpret_cast<void*>(offset), _buf.data + sizeof(word_t) * 3, length);
@@ -409,7 +409,7 @@ void DTU::handle_resp_cmd() {
     set_cmd(CMD_CTRL, resp);
 }
 
-void DTU::handle_msg(size_t len, epid_t ep) {
+void TCU::handle_msg(size_t len, epid_t ep) {
     // ignore message, if this is no receive EP (for credit-only replies)
     if(get_ep(ep, EP_BUF_ADDR) == 0)
         return;
@@ -417,7 +417,7 @@ void DTU::handle_msg(size_t len, epid_t ep) {
     const size_t msgord = get_ep(ep, EP_BUF_MSGORDER);
     const size_t msgsize = 1UL << msgord;
     if(len > msgsize) {
-        LLOG(DTUERR, "DMA-error: dropping message because space is not sufficient"
+        LLOG(TCUERR, "DMA-error: dropping message because space is not sufficient"
                 << " (required: " << len << ", available: " << msgsize << ")");
         return;
     }
@@ -441,7 +441,7 @@ void DTU::handle_msg(size_t len, epid_t ep) {
             goto found;
     }
 
-    LLOG(DTUERR, "EP" << ep << ": dropping message because no slot is free");
+    LLOG(TCUERR, "EP" << ep << ": dropping message because no slot is free");
     return;
 
 found:
@@ -451,7 +451,7 @@ found:
     woff = i + 1;
     assert(Math::bits_set(unread) == msgs);
 
-    LLOG(DTU, "EP" << ep << ": put message at index " << i << " (count=" << msgs << ")");
+    LLOG(TCU, "EP" << ep << ": put message at index " << i << " (count=" << msgs << ")");
 
     set_ep(ep, EP_BUF_OCCUPIED, occupied);
     set_ep(ep, EP_BUF_UNREAD, unread);
@@ -462,7 +462,7 @@ found:
     memcpy(reinterpret_cast<void*>(addr + i * (1UL << msgord)), &_buf, len);
 }
 
-bool DTU::handle_receive(epid_t ep) {
+bool TCU::handle_receive(epid_t ep) {
     ssize_t res = _backend->recv(ep, &_buf);
     if(res < 0)
         return false;
@@ -486,18 +486,18 @@ bool DTU::handle_receive(epid_t ep) {
 
     // refill credits
     if(_buf.crd_ep >= EP_COUNT)
-        LLOG(DTUERR, "DMA-error: should give credits to endpoint " << _buf.crd_ep);
+        LLOG(TCUERR, "DMA-error: should give credits to endpoint " << _buf.crd_ep);
     else {
         word_t credits = get_ep(_buf.crd_ep, EP_CREDITS);
         word_t msg_order = get_ep(_buf.crd_ep, EP_MSGORDER);
         if(_buf.credits && credits != KIF::UNLIM_CREDITS) {
-            LLOG(DTU, "Refilling credits of ep " << _buf.crd_ep
+            LLOG(TCU, "Refilling credits of ep " << _buf.crd_ep
                 << " from #" << fmt(credits, "x") << " to #" << fmt(credits + (1UL << msg_order), "x"));
             set_ep(_buf.crd_ep, EP_CREDITS, credits + (1UL << msg_order));
         }
     }
 
-    LLOG(DTU, "<- " << fmt(static_cast<size_t>(res) - HEADER_SIZE, 3)
+    LLOG(TCU, "<- " << fmt(static_cast<size_t>(res) - HEADER_SIZE, 3)
            << "b lbl=" << fmt(_buf.label, "#0x", sizeof(label_t) * 2)
            << " ep=" << ep
            << " (cnt=#" << fmt(get_ep(ep, EP_BUF_MSGCNT), "x") << ","
@@ -505,13 +505,13 @@ bool DTU::handle_receive(epid_t ep) {
     return true;
 }
 
-Errors::Code DTU::exec_command() {
+Errors::Code TCU::exec_command() {
     while(!is_ready())
         sleep();
     return static_cast<Errors::Code>(get_cmd(CMD_ERROR));
 }
 
-bool DTU::receive_knotify(int *pid, int *status) {
+bool TCU::receive_knotify(int *pid, int *status) {
     return _backend->receive_knotify(pid, status);
 }
 
@@ -522,8 +522,8 @@ static void sigchild(int) {
     signal(SIGCLD, sigchild);
 }
 
-void *DTU::thread(void *arg) {
-    DTU *dma = static_cast<DTU*>(arg);
+void *TCU::thread(void *arg) {
+    TCU *dma = static_cast<TCU*>(arg);
     peid_t pe = env()->pe;
 
     if(pe != 0)

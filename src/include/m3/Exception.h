@@ -128,17 +128,17 @@ private:
 };
 
 /**
- * An exception for DTU operations
+ * An exception for TCU operations
  */
-class DTUException : public Exception {
+class TCUException : public Exception {
 public:
-    explicit DTUException(Errors::Code code) noexcept
+    explicit TCUException(Errors::Code code) noexcept
         : Exception(code) {
     }
 
     const char *what() const noexcept override {
         OStringStream os(msg_buf, sizeof(msg_buf));
-        os << "DTU operation failed: " << Errors::to_string(code()) << " (" << code() << ")";
+        os << "TCU operation failed: " << Errors::to_string(code()) << " (" << code() << ")";
         return msg_buf;
     }
 };

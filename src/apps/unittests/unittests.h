@@ -25,7 +25,7 @@
     m3::cout << "\n";
 
 #if defined(__host__)
-void tdtu();
+void ttcu();
 #endif
 void tfsmeta();
 void tfs();

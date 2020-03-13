@@ -30,10 +30,10 @@ enum Error {
     NO_PERM,
 };
 
-class DTU {
+class TCU {
 public:
     static const uintptr_t BASE_ADDR        = 0xF0000000;
-    static const size_t DTU_REGS            = 4;
+    static const size_t TCU_REGS            = 4;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
 
@@ -42,7 +42,7 @@ public:
     static const reg_t INVALID_EP           = 0xFFFF;
     static const reg_t NO_REPLIES           = INVALID_EP;
 
-    enum class DtuRegs {
+    enum class TCURegs {
         FEATURES            = 0,
         CUR_TIME            = 1,
         CLEAR_IRQ           = 2,
@@ -50,10 +50,10 @@ public:
     };
 
     enum class CmdRegs {
-        COMMAND             = DTU_REGS + 0,
-        ABORT               = DTU_REGS + 1,
-        DATA                = DTU_REGS + 2,
-        ARG1                = DTU_REGS + 3,
+        COMMAND             = TCU_REGS + 0,
+        ABORT               = TCU_REGS + 1,
+        DATA                = TCU_REGS + 2,
+        ARG1                = TCU_REGS + 3,
     };
 
     enum MemFlags : reg_t {
@@ -220,27 +220,27 @@ public:
         UNREACHED;
     }
 
-    static reg_t read_reg(DtuRegs reg) {
+    static reg_t read_reg(TCURegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(CmdRegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(epid_t ep, size_t idx) {
-        return read_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + idx);
+        return read_reg(TCU_REGS + CMD_REGS + EP_REGS * ep + idx);
     }
     static reg_t read_reg(size_t idx) {
         return read8b(BASE_ADDR + idx * sizeof(reg_t));
     }
 
-    static void write_reg(DtuRegs reg, reg_t value) {
+    static void write_reg(TCURegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(CmdRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(epid_t ep, size_t idx, reg_t value) {
-        write_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + idx, value);
+        write_reg(TCU_REGS + CMD_REGS + EP_REGS * ep + idx, value);
     }
     static void write_reg(size_t idx, reg_t value) {
         write8b(BASE_ADDR + idx * sizeof(reg_t), value);

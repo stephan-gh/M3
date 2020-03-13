@@ -24,7 +24,7 @@
 using namespace m3;
 
 template<typename... Args>
-static void reply_vmsg_late(RecvGate &rgate, const DTU::Message *msg, const Args &... args) {
+static void reply_vmsg_late(RecvGate &rgate, const TCU::Message *msg, const Args &... args) {
     auto reply = create_vmsg(args...);
     rgate.reply(reply.bytes(), reply.total(), msg);
 }

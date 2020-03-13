@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::dtu;
+use base::tcu;
 use core::intrinsics;
 
 use arch;
@@ -58,14 +58,14 @@ impl Drop for IRQsOnGuard {
     }
 }
 
-pub struct DTUCmdState {
-    cmd_regs: [dtu::Reg; 3],
-    xfer_buf: dtu::Reg,
+pub struct TCUCmdState {
+    cmd_regs: [tcu::Reg; 3],
+    xfer_buf: tcu::Reg,
 }
 
-impl DTUCmdState {
+impl TCUCmdState {
     pub const fn new() -> Self {
-        DTUCmdState {
+        TCUCmdState {
             cmd_regs: [0; 3],
             xfer_buf: !0,
         }
@@ -77,47 +77,47 @@ impl DTUCmdState {
     }
 
     #[allow(dead_code)]
-    pub fn xfer_buf(&self) -> dtu::Reg {
+    pub fn xfer_buf(&self) -> tcu::Reg {
         self.xfer_buf
     }
 
     pub fn save(&mut self) {
         // abort the current command, if there is any
-        let (xfer_buf, old_cmd) = dtu::DTU::abort();
+        let (xfer_buf, old_cmd) = tcu::TCU::abort();
         self.xfer_buf = xfer_buf;
 
         self.cmd_regs[0] = old_cmd;
-        self.cmd_regs[1] = dtu::DTU::read_cmd_reg(dtu::CmdReg::ARG1);
-        self.cmd_regs[2] = dtu::DTU::read_cmd_reg(dtu::CmdReg::DATA);
+        self.cmd_regs[1] = tcu::TCU::read_cmd_reg(tcu::CmdReg::ARG1);
+        self.cmd_regs[2] = tcu::TCU::read_cmd_reg(tcu::CmdReg::DATA);
     }
 
     pub fn restore(&mut self) {
-        dtu::DTU::write_cmd_reg(dtu::CmdReg::ARG1, self.cmd_regs[1]);
-        dtu::DTU::write_cmd_reg(dtu::CmdReg::DATA, self.cmd_regs[2]);
+        tcu::TCU::write_cmd_reg(tcu::CmdReg::ARG1, self.cmd_regs[1]);
+        tcu::TCU::write_cmd_reg(tcu::CmdReg::DATA, self.cmd_regs[2]);
         if self.cmd_regs[0] != 0 {
             // if there was a command, retry command
             unsafe {
                 intrinsics::atomic_fence();
             }
-            dtu::DTU::retry(self.cmd_regs[0]);
+            tcu::TCU::retry(self.cmd_regs[0]);
             self.cmd_regs[0] = 0;
         }
     }
 }
 
-pub struct DTUGuard {
-    cmd: DTUCmdState,
+pub struct TCUGuard {
+    cmd: TCUCmdState,
 }
 
-impl DTUGuard {
+impl TCUGuard {
     pub fn new() -> Self {
-        let mut cmd = DTUCmdState::new();
+        let mut cmd = TCUCmdState::new();
         cmd.save();
-        DTUGuard { cmd }
+        TCUGuard { cmd }
     }
 }
 
-impl Drop for DTUGuard {
+impl Drop for TCUGuard {
     fn drop(&mut self) {
         self.cmd.restore();
     }

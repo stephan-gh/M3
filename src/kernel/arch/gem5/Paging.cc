@@ -77,11 +77,11 @@ void init_paging() {
     goff_t root = m3::env()->pe_mem_base + m3::env()->pe_mem_size / 2;
     init_aspace(0, kalloc_frame, kxlate_pt, root);
 
-    // map DTU
+    // map TCU
     const uint64_t rw = m3::KIF::PageFlags::RW;
-    map_init(m3::DTU::MMIO_ADDR, m3::DTU::MMIO_ADDR, m3::DTU::MMIO_SIZE / PAGE_SIZE, rw, root);
-    map_init(m3::DTU::MMIO_PRIV_ADDR, m3::DTU::MMIO_PRIV_ADDR,
-             m3::DTU::MMIO_PRIV_SIZE / PAGE_SIZE, m3::KIF::PageFlags::RW, root);
+    map_init(m3::TCU::MMIO_ADDR, m3::TCU::MMIO_ADDR, m3::TCU::MMIO_SIZE / PAGE_SIZE, rw, root);
+    map_init(m3::TCU::MMIO_PRIV_ADDR, m3::TCU::MMIO_PRIV_ADDR,
+             m3::TCU::MMIO_PRIV_SIZE / PAGE_SIZE, m3::KIF::PageFlags::RW, root);
 
     // map text, data, and bss
     map_segment(&_text_start, &_text_end, m3::KIF::PageFlags::RX, root);

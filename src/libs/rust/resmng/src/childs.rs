@@ -20,7 +20,7 @@ use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{RecvGate, SGateArgs, SendGate};
-use m3::dtu;
+use m3::tcu;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
@@ -113,7 +113,7 @@ pub trait Child {
         let sgate = SendGate::new_with(
             SGateArgs::new(&rgate)
                 .credits(1)
-                .label(dtu::Label::from(id)),
+                .label(tcu::Label::from(id)),
         )?;
         let our_sg_sel = sgate.sel();
         let child = Box::new(ForeignChild::new(
@@ -664,7 +664,7 @@ impl ChildManager {
         syscalls::vpe_wait(&sels, event).unwrap();
     }
 
-    pub fn handle_upcall(&mut self, msg: &'static dtu::Message) {
+    pub fn handle_upcall(&mut self, msg: &'static tcu::Message) {
         let upcall = msg.get_data::<kif::upcalls::VPEWait>();
 
         self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);

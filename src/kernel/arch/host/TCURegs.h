@@ -17,19 +17,19 @@
 #pragma once
 
 #include <base/Common.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 
 namespace kernel {
 
-class DTURegs {
+class TCURegs {
 public:
-    explicit DTURegs()
+    explicit TCURegs()
         : _cmd(),
           _eps() {
     }
 
-    word_t _cmd[m3::DTU::CMDS_RCNT];
-    word_t _eps[m3::DTU::EPS_RCNT * EP_COUNT];
+    word_t _cmd[m3::TCU::CMDS_RCNT];
+    word_t _eps[m3::TCU::EPS_RCNT * EP_COUNT];
 };
 
 }

@@ -159,7 +159,7 @@ public:
     }
 
     void upcall(const void *msg, size_t size, bool onheap) {
-        _upcqueue.send(m3::DTU::UPCALL_REP, 0, msg, size, onheap);
+        _upcqueue.send(m3::TCU::UPCALL_REP, 0, msg, size, onheap);
     }
     void upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply);
 

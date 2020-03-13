@@ -29,7 +29,7 @@ int failed;
 int main() {
     RUN_SUITE(tsems);
 #if defined(__host__)
-    RUN_SUITE(tdtu);
+    RUN_SUITE(ttcu);
 #endif
     RUN_SUITE(tfsmeta);
     RUN_SUITE(tfs);

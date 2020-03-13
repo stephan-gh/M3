@@ -118,7 +118,7 @@ pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
 
 #[no_mangle]
 pub extern "C" fn enable_paging() {
-    // set sstatus.SUM = 1 to allow accesses to user memory (required for DTU)
+    // set sstatus.SUM = 1 to allow accesses to user memory (required for TCU)
     unsafe {
         asm!(
             "csrs sstatus, $0"

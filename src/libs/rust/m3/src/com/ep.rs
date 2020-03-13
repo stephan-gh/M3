@@ -15,13 +15,13 @@
  */
 
 use cap::{CapFlags, Capability, Selector};
-use dtu::{EpId, EP_COUNT};
+use tcu::{EpId, EP_COUNT};
 use errors::Error;
 use kif;
 use pes::VPE;
 use syscalls;
 
-/// Represents a DTU endpoint that can be used for communication. This class only serves the purpose
+/// Represents a TCU endpoint that can be used for communication. This class only serves the purpose
 /// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
 /// be delegated to someone else.
 #[derive(Debug)]

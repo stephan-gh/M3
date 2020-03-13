@@ -16,15 +16,15 @@
 
 #include <base/util/Math.h>
 #include <base/CPU.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Init.h>
 #include <base/KIF.h>
 
 namespace m3 {
 
-INIT_PRIO_DTU DTU DTU::inst;
+INIT_PRIO_TCU TCU TCU::inst;
 
-void DTU::print(const char *str, size_t len) {
+void TCU::print(const char *str, size_t len) {
     uintptr_t buffer = buffer_addr();
     const reg_t *rstr = reinterpret_cast<const reg_t*>(str);
     const reg_t *end = reinterpret_cast<const reg_t*>(str + len);
@@ -37,7 +37,7 @@ void DTU::print(const char *str, size_t len) {
     write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::PRINT, 0, len));
 }
 
-Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
+Errors::Code TCU::send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
     write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
     if(replylbl)
         write_reg(CmdRegs::ARG1, replylbl);
@@ -47,7 +47,7 @@ Errors::Code DTU::send(epid_t ep, const void *msg, size_t size, label_t replylbl
     return get_error();
 }
 
-Errors::Code DTU::reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
+Errors::Code TCU::reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
     assert(size <= 0xFFFFFFFF);
     write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
     CPU::compiler_barrier();
@@ -56,7 +56,7 @@ Errors::Code DTU::reply(epid_t ep, const void *reply, size_t size, const Message
     return get_error();
 }
 
-Errors::Code DTU::read(epid_t ep, void *data, size_t size, goff_t off, uint flags) {
+Errors::Code TCU::read(epid_t ep, void *data, size_t size, goff_t off, uint flags) {
     assert(size <= 0xFFFFFFFF);
     write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
     write_reg(CmdRegs::ARG1, off);
@@ -67,7 +67,7 @@ Errors::Code DTU::read(epid_t ep, void *data, size_t size, goff_t off, uint flag
     return res;
 }
 
-Errors::Code DTU::write(epid_t ep, const void *data, size_t size, goff_t off, uint flags) {
+Errors::Code TCU::write(epid_t ep, const void *data, size_t size, goff_t off, uint flags) {
     write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
     write_reg(CmdRegs::ARG1, off);
     CPU::compiler_barrier();

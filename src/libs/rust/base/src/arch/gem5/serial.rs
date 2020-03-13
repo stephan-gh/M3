@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use arch::dtu;
+use arch::tcu;
 use errors::Error;
 
 extern "C" {
@@ -28,7 +28,7 @@ pub fn read(buf: &mut [u8]) -> Result<usize, Error> {
 }
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
-    dtu::DTU::print(buf);
+    tcu::TCU::print(buf);
     unsafe {
         // put the string on the stack to prevent that gem5_writefile causes a pagefault
         let file: [u8; 7] = *b"stdout\0";

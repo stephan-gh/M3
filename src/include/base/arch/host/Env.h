@@ -107,7 +107,7 @@ public:
     }
     void print() const;
 
-    void init_dtu();
+    void init_tcu();
     void set_params(peid_t _pe, const std::string &shmprefix, label_t sysc_label,
                     epid_t sysc_ep, word_t sysc_credits, capsel_t first_sel, capsel_t kmem_sel) {
         pe = _pe;

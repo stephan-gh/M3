@@ -16,7 +16,7 @@
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::dtu;
+use base::tcu;
 use base::errors::Error;
 use base::kif::{DefaultReply, PageFlags, PTE};
 use base::util;
@@ -29,8 +29,8 @@ struct XlateState {
     in_pf: bool,
     cmd_saved: bool,
     req_count: u32,
-    reqs: [dtu::Reg; 4],
-    cmd: helper::DTUCmdState,
+    reqs: [tcu::Reg; 4],
+    cmd: helper::TCUCmdState,
     // store messages in static data to ensure that we don't pagefault
     pf_msg: [u64; 3],
 }
@@ -42,12 +42,12 @@ impl XlateState {
             cmd_saved: false,
             req_count: 0,
             reqs: [0; 4],
-            cmd: helper::DTUCmdState::new(),
+            cmd: helper::TCUCmdState::new(),
             pf_msg: [/* PAGEFAULT */ 0, 0, 0],
         }
     }
 
-    fn handle_pf(&mut self, req: dtu::Reg, virt: usize, perm: PageFlags) -> Result<bool, Error> {
+    fn handle_pf(&mut self, req: tcu::Reg, virt: usize, perm: PageFlags) -> Result<bool, Error> {
         if self.in_pf {
             for r in &mut self.reqs {
                 if *r == 0 {
@@ -69,7 +69,7 @@ impl XlateState {
         let _irqs_on = helper::IRQsOnGuard::new();
 
         {
-            // disable upcalls during DTU::send, because don't want to abort this command
+            // disable upcalls during TCU::send, because don't want to abort this command
             let _upcalls_off = helper::UpcallsOffGuard::new();
 
             // send PF message
@@ -77,7 +77,7 @@ impl XlateState {
             self.pf_msg[2] = perm.bits();
             let msg = &self.pf_msg as *const u64 as *const u8;
             let size = util::size_of_val(&self.pf_msg);
-            dtu::DTU::send(dtu::PG_SEP, msg, size, 0, dtu::PG_REP)?;
+            tcu::TCU::send(tcu::PG_SEP, msg, size, 0, tcu::PG_REP)?;
         }
 
         // wait for reply
@@ -86,11 +86,11 @@ impl XlateState {
                 break Ok(true);
             }
 
-            if let Some(msg) = dtu::DTU::fetch_msg(dtu::PG_REP) {
+            if let Some(msg) = tcu::TCU::fetch_msg(tcu::PG_REP) {
                 let err = {
                     let reply = msg.get_data::<DefaultReply>();
                     let err = reply.error as u32;
-                    dtu::DTU::ack_msg(dtu::PG_REP, msg);
+                    tcu::TCU::ack_msg(tcu::PG_REP, msg);
                     err
                 };
 
@@ -102,7 +102,7 @@ impl XlateState {
                 }
             }
 
-            dtu::DTU::wait_for_msg(dtu::PG_REP, 0).ok();
+            tcu::TCU::wait_for_msg(tcu::PG_REP, 0).ok();
         };
 
         self.in_pf = false;
@@ -119,7 +119,7 @@ impl XlateState {
 
 static STATE: StaticCell<XlateState> = StaticCell::new(XlateState::new());
 
-fn translate_addr(req: dtu::Reg) {
+fn translate_addr(req: tcu::Reg) {
     let asid = req >> 48;
     let virt = ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize;
     let perm = PageFlags::from_bits_truncate((req >> 1) & PageFlags::RW.bits());
@@ -148,10 +148,10 @@ fn translate_addr(req: dtu::Reg) {
         }
     }
 
-    // tell DTU the result; but only if the command has not been aborted or the aborted command
+    // tell TCU the result; but only if the command has not been aborted or the aborted command
     // did not trigger the translation (in this case, the translation is already aborted, too).
     if !aborted || STATE.cmd.xfer_buf() != xfer_buf {
-        dtu::DTU::set_core_resp(pte | (xfer_buf << 5));
+        tcu::TCU::set_core_resp(pte | (xfer_buf << 5));
     }
 
     if cmd_saved != STATE.cmd_saved {
@@ -160,7 +160,7 @@ fn translate_addr(req: dtu::Reg) {
     }
 }
 
-pub fn handle_xlate(mut xlate_req: dtu::Reg) {
+pub fn handle_xlate(mut xlate_req: tcu::Reg) {
     translate_addr(xlate_req);
 
     if !STATE.in_pf {
@@ -188,7 +188,7 @@ pub fn handle_pf(
     // PEMux isn't causing PFs
     if crate::nesting_level() != 1 {
         // save the current command to ensure that we can use the print command
-        let _cmd_saved = helper::DTUGuard::new();
+        let _cmd_saved = helper::TCUGuard::new();
         panic!("pagefault for {:#x} at {:#x}", virt, ip);
     }
 

@@ -20,7 +20,7 @@ use cap::Selector;
 use cell::StaticCell;
 use com::{RecvGate, SendGate, SliceSink, SliceSource};
 use core::mem::MaybeUninit;
-use dtu::{DTUIf, EpId, Label, Message, SYSC_SEP};
+use tcu::{TCUIf, EpId, Label, Message, SYSC_SEP};
 use errors::Error;
 use goff;
 use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
@@ -36,12 +36,12 @@ struct Reply<R: 'static> {
 
 impl<R: 'static> Drop for Reply<R> {
     fn drop(&mut self) {
-        DTUIf::ack_msg(RecvGate::syscall(), self.msg);
+        TCUIf::ack_msg(RecvGate::syscall(), self.msg);
     }
 }
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
-    let reply_raw = DTUIf::call(
+    let reply_raw = TCUIf::call(
         &*SGATE,
         msg as *const u8,
         util::size_of::<T>(),
@@ -50,7 +50,7 @@ fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
 
     let reply = reply_raw.get_data::<kif::DefaultReply>();
     if reply.error != 0 {
-        DTUIf::ack_msg(RecvGate::syscall(), reply_raw);
+        TCUIf::ack_msg(RecvGate::syscall(), reply_raw);
         return Err(Error::from(reply.error as u32));
     }
 

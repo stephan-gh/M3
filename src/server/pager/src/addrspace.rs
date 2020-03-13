@@ -20,7 +20,7 @@ use m3::cell::RefCell;
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::{GateIStream, MGateFlags, MemGate, SGateArgs, SendGate, SliceSource};
-use m3::dtu::Label;
+use m3::tcu::Label;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};

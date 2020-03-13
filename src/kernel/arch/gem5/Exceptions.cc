@@ -94,8 +94,8 @@ static m3::OStream &operator<<(m3::OStream &os, const m3::ISR::State &state) {
     os << "\n  irq: ";
     if(state.intrptNo < ARRAY_SIZE(exNames))
         os << exNames[state.intrptNo];
-    else if(state.intrptNo == m3::ISR::DTU_ISR)
-        os << "DTU (" << state.intrptNo << ")";
+    else if(state.intrptNo == m3::ISR::TCU_ISR)
+        os << "TCU (" << state.intrptNo << ")";
     else
         os << "<unknown> (" << state.intrptNo << ")";
     os << "\n";
@@ -201,12 +201,12 @@ public:
         m3::ISR::init();
         for(size_t i = 0; i < m3::ISR::ISR_COUNT; ++i)
             m3::ISR::reg(i, irq_handler);
-        m3::ISR::reg(m3::ISR::DTU_ISR, dtu_handler);
+        m3::ISR::reg(m3::ISR::TCU_ISR, tcu_handler);
         m3::ISR::enable_irqs();
     }
 
-    static void handle_xlate(m3::DTU::reg_t xlate_req) {
-        m3::DTU &dtu = m3::DTU::get();
+    static void handle_xlate(m3::TCU::reg_t xlate_req) {
+        m3::TCU &tcu = m3::TCU::get();
 
         uintptr_t virt = (xlate_req & 0xFFFFFFFFFFFF) & ~PAGE_MASK;
         uint perm = (xlate_req >> 1) & 0x7;
@@ -216,23 +216,23 @@ public:
         if(~(pte & 0xF) & perm)
             PANIC("Pagefault during PT walk for " << virt << " (PTE=" << m3::fmt(pte, "p") << ")");
 
-        dtu.set_core_resp(pte | (xferbuf << 5));
+        tcu.set_core_resp(pte | (xferbuf << 5));
     }
 
-    static void *dtu_handler(m3::ISR::State *state) {
-        m3::DTU &dtu = m3::DTU::get();
+    static void *tcu_handler(m3::ISR::State *state) {
+        m3::TCU &tcu = m3::TCU::get();
 
 #if defined(__arm__) || defined(__riscv)
-        dtu.clear_irq();
+        tcu.clear_irq();
 #endif
 
-        // translation request from DTU?
-        m3::DTU::reg_t core_req = dtu.get_core_req();
+        // translation request from TCU?
+        m3::TCU::reg_t core_req = tcu.get_core_req();
         if(core_req) {
             if(core_req & 0x1)
                 PANIC("Unexpected foreign receive: " << m3::fmt(core_req, "x"));
             // acknowledge the translation
-            dtu.set_core_req(0);
+            tcu.set_core_req(0);
             handle_xlate(core_req);
         }
 

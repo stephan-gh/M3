@@ -44,7 +44,7 @@ public:
 
     int pending() const;
 
-    const m3::DTU::Message *send_receive(label_t ident, const void *msg, size_t size, bool free);
+    const m3::TCU::Message *send_receive(label_t ident, const void *msg, size_t size, bool free);
     void drop_msgs(label_t ident) {
         _squeue.drop_msgs(ident);
     }

@@ -26,7 +26,7 @@
 
 #include "mem/MainMemory.h"
 #include "Args.h"
-#include "DTU.h"
+#include "TCU.h"
 #include "Platform.h"
 
 namespace kernel {
@@ -164,7 +164,7 @@ void Platform::add_modules(int argc, char **argv) {
 }
 
 gaddr_t Platform::info_addr() {
-    return m3::DTU::build_gaddr(binfomem.pe(), binfomem.addr);
+    return m3::TCU::build_gaddr(binfomem.pe(), binfomem.addr);
 }
 
 peid_t Platform::kernel_pe() {

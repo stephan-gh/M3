@@ -359,10 +359,10 @@ pub fn generate(
 
             if maybe_addr.is_none() {
                 if let Some(cur_pe) = pes.get_mut(&pe) {
-                    if line.contains("dtu.connector: Suspending core") {
+                    if line.contains("tcu.connector: Suspending core") {
                         cur_pe.suspend(time);
                     }
-                    else if line.contains("dtu.connector: Waking up core") {
+                    else if line.contains("tcu.connector: Waking up core") {
                         cur_pe.resume(time);
                     }
                 }

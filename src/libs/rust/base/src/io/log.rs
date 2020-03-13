@@ -28,8 +28,8 @@ pub const HEAP: bool = false;
 pub const FS: bool = false;
 /// Logs server operations
 pub const SERV: bool = false;
-/// Logs DTU operations (only on host)
-pub const DTU: bool = false;
+/// Logs TCU operations (only on host)
+pub const TCU: bool = false;
 /// Logs file multiplexing
 pub const FILES: bool = false;
 

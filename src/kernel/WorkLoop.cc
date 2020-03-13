@@ -58,7 +58,7 @@ static void kill_vpe(int pid, int status) {
 static void check_childs() {
     int status;
     pid_t pid;
-    if(m3::DTU::get().receive_knotify(&pid, &status))
+    if(m3::TCU::get().receive_knotify(&pid, &status))
         kill_vpe(pid, status);
 
     for(; sigchilds > 0; sigchilds--) {
@@ -98,36 +98,36 @@ void WorkLoop::run() {
     }
 #endif
 
-    m3::DTU &dtu = m3::DTU::get();
+    m3::TCU &tcu = m3::TCU::get();
     static_assert(SyscallHandler::SYSC_REP_COUNT == 2, "Wrong SYSC_REP_COUNT");
     epid_t sysep0 = SyscallHandler::ep(0);
     epid_t sysep1 = SyscallHandler::ep(1);
     epid_t srvep = SyscallHandler::srvep();
     epid_t pexep = SyscallHandler::pexep();
-    const m3::DTU::Message *msg;
+    const m3::TCU::Message *msg;
     while(_run) {
-        m3::DTU::get().sleep();
+        m3::TCU::get().sleep();
 
-        msg = dtu.fetch_msg(sysep0);
+        msg = tcu.fetch_msg(sysep0);
         if(msg) {
             // we know the subscriber here, so optimize that a bit
             VPE *vpe = reinterpret_cast<VPE*>(msg->label);
             SyscallHandler::handle_message(vpe, msg);
         }
 
-        msg = dtu.fetch_msg(sysep1);
+        msg = tcu.fetch_msg(sysep1);
         if(msg) {
             VPE *vpe = reinterpret_cast<VPE*>(msg->label);
             SyscallHandler::handle_message(vpe, msg);
         }
 
-        msg = dtu.fetch_msg(srvep);
+        msg = tcu.fetch_msg(srvep);
         if(msg) {
             SendQueue *sq = reinterpret_cast<SendQueue*>(msg->label);
             sq->received_reply(srvep, msg);
         }
 
-        msg = dtu.fetch_msg(pexep);
+        msg = tcu.fetch_msg(pexep);
         if(msg) {
             PEMux *pemux = reinterpret_cast<PEMux*>(msg->label);
             pemux->handle_call(msg);

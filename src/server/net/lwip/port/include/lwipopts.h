@@ -60,7 +60,7 @@
 #define TCP_LISTEN_BACKLOG 1
 #define LWIP_NETIF_STATUS_CALLBACK 1
 
-// HACK: DirectPipe needs a DTU_PKG_SIZE aligned read buffer...
+// HACK: DirectPipe needs a TCU_PKG_SIZE aligned read buffer...
 #define MEM_ALIGNMENT 8u
 
 //#define LWIP_DEBUG

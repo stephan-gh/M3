@@ -150,7 +150,7 @@ public:
      * @return true if this SendGate can potentially send a message
      */
     bool can_send() const {
-        return !ep() || DTU::get().has_credits(ep()->id());
+        return !ep() || TCU::get().has_credits(ep()->id());
     }
 
     /**
@@ -181,7 +181,7 @@ public:
      * @param len the length of the message
      * @return the received reply
      */
-    const DTU::Message *call(const void *msg, size_t len);
+    const TCU::Message *call(const void *msg, size_t len);
 
 private:
     RecvGate *_replygate;

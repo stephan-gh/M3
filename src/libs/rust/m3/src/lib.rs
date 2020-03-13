@@ -35,11 +35,11 @@ pub use arch::init::{exit, rust_deinit, rust_init};
 pub mod io;
 #[macro_use]
 pub mod com;
-mod dtuif;
+mod tcuif;
 
-pub mod dtu {
-    pub use base::dtu::*;
-    pub use dtuif::*;
+pub mod tcu {
+    pub use base::tcu::*;
+    pub use tcuif::*;
 }
 
 pub use base::{

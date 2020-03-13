@@ -19,7 +19,7 @@ use com::ep::EP;
 use com::gate::Gate;
 use core::fmt;
 use core::mem::MaybeUninit;
-use dtu;
+use tcu;
 use errors::Error;
 use goff;
 use kif::INVALID_SEL;
@@ -32,14 +32,14 @@ pub use kif::Perm;
 bitflags! {
     pub struct MGateFlags : u64 {
         /// Pagefaults result in an abort
-        const NOPF = dtu::CmdFlags::NOPF.bits();
+        const NOPF = tcu::CmdFlags::NOPF.bits();
         /// revoke the `MemGate` on destruction
         const REVOKE = 0x80;
     }
 }
 
 /// A memory gate (`MemGate`) has access to a contiguous memory region and allows RDMA-like memory
-/// accesses via DTU.
+/// accesses via TCU.
 pub struct MemGate {
     gate: Gate,
     flags: MGateFlags,
@@ -162,7 +162,7 @@ impl MemGate {
         })
     }
 
-    /// Uses the DTU read command to read from the memory region at offset `off` and stores the read
+    /// Uses the TCU read command to read from the memory region at offset `off` and stores the read
     /// data into the slice `data`. The number of bytes to read is defined by `data`.
     pub fn read<T>(&self, data: &mut [T], off: goff) -> Result<(), Error> {
         self.read_bytes(
@@ -172,7 +172,7 @@ impl MemGate {
         )
     }
 
-    /// Reads `util::size_of::<T>()` bytes via the DTU read command from the memory region at offset
+    /// Reads `util::size_of::<T>()` bytes via the TCU read command from the memory region at offset
     /// `off` and returns the data as an object of `T`.
     pub fn read_obj<T>(&self, off: goff) -> Result<T, Error> {
         #[allow(clippy::uninit_assumed_init)]
@@ -182,13 +182,13 @@ impl MemGate {
         Ok(obj)
     }
 
-    /// Reads `size` bytes via the DTU read command from the memory region at offset `off` and
+    /// Reads `size` bytes via the TCU read command from the memory region at offset `off` and
     /// stores the read data into `data`.
     pub fn read_bytes(&self, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        dtu::DTUIf::read(self, data, size, off, self.cmd_flags())
+        tcu::TCUIf::read(self, data, size, off, self.cmd_flags())
     }
 
-    /// Writes `data` with the DTU write command to the memory region at offset `off`.
+    /// Writes `data` with the TCU write command to the memory region at offset `off`.
     pub fn write<T>(&self, data: &[T], off: goff) -> Result<(), Error> {
         self.write_bytes(
             data.as_ptr() as *const u8,
@@ -197,23 +197,23 @@ impl MemGate {
         )
     }
 
-    /// Writes `obj` via the DTU write command to the memory region at offset `off`.
+    /// Writes `obj` via the TCU write command to the memory region at offset `off`.
     pub fn write_obj<T>(&self, obj: &T, off: goff) -> Result<(), Error> {
         self.write_bytes(obj as *const T as *const u8, util::size_of::<T>(), off)
     }
 
-    /// Writes the `size` bytes at `data` via the DTU write command to the memory region at offset
+    /// Writes the `size` bytes at `data` via the TCU write command to the memory region at offset
     /// `off`.
     pub fn write_bytes(&self, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        dtu::DTUIf::write(self, data, size, off, self.cmd_flags())
+        tcu::TCUIf::write(self, data, size, off, self.cmd_flags())
     }
 
     pub(crate) fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }
 
-    fn cmd_flags(&self) -> dtu::CmdFlags {
-        dtu::CmdFlags::from_bits_truncate(self.flags.bits() & MGateFlags::NOPF.bits())
+    fn cmd_flags(&self) -> tcu::CmdFlags {
+        tcu::CmdFlags::from_bits_truncate(self.flags.bits() & MGateFlags::NOPF.bits())
     }
 }
 

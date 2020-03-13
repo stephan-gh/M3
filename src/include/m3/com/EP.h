@@ -29,7 +29,7 @@ class Gate;
 class RecvGate;
 
 /**
- * Represents a DTU endpoint that can be used for communication. This class only serves the purpose
+ * Represents a TCU endpoint that can be used for communication. This class only serves the purpose
  * to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
  * be delegated to someone else.
  */
@@ -67,7 +67,7 @@ public:
     }
 
     /**
-     * @return the EP id in the DTU
+     * @return the EP id in the TCU
      */
     epid_t id() const noexcept {
         return _id;

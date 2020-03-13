@@ -34,12 +34,12 @@ class Syscalls {
 
     template<class T>
     struct SyscallReply {
-        explicit SyscallReply(Errors::Code res, const DTU::Message *msg)
+        explicit SyscallReply(Errors::Code res, const TCU::Message *msg)
             : _res(res),
               _msg(msg) {
         }
         ~SyscallReply() {
-            DTUIf::ack_msg(RecvGate::syscall(), _msg);
+            TCUIf::ack_msg(RecvGate::syscall(), _msg);
         }
 
         Errors::Code error() const {
@@ -54,7 +54,7 @@ class Syscalls {
 
     private:
         Errors::Code _res;
-        const DTU::Message *_msg;
+        const TCU::Message *_msg;
     };
 
     Syscalls() = delete;

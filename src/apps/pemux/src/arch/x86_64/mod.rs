@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::dtu;
+use base::tcu;
 use base::errors::Error;
 use base::kif::PageFlags;
 use base::libc;
@@ -124,7 +124,7 @@ impl State {
 
         // remove user event again
         let our = vpe::our();
-        our.set_vpe_reg(our.vpe_reg() & !dtu::EventMask::USER.bits());
+        our.set_vpe_reg(our.vpe_reg() & !tcu::EventMask::USER.bits());
     }
 }
 
@@ -155,7 +155,7 @@ pub fn init() {
             match i {
                 14 => isr_reg(i, crate::mmu_pf),
                 63 => isr_reg(i, crate::pexcall),
-                64 => isr_reg(i, crate::dtu_irq),
+                64 => isr_reg(i, crate::tcu_irq),
                 i => isr_reg(i, crate::unexpected_irq),
             }
         }

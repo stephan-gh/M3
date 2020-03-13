@@ -19,7 +19,7 @@
 #include <base/stream/Serial.h>
 #include <base/Env.h>
 
-// on the host, we need a lock here because of a race between the DTU-thread and CPU-thread
+// on the host, we need a lock here because of a race between the TCU-thread and CPU-thread
 #if defined(__host__)
 #   define LOCK()     m3::env()->log_lock()
 #   define UNLOCK()   m3::env()->log_unlock()

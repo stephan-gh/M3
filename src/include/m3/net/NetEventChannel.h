@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/util/Reference.h>
 
 #include <m3/com/GateStream.h>
@@ -102,9 +102,9 @@ public:
         GateIStream to_stream() noexcept;
         const ControlMessage *get_message() noexcept;
     private:
-        explicit Event(const DTU::Message *msg, NetEventChannel *channel) noexcept;
+        explicit Event(const TCU::Message *msg, NetEventChannel *channel) noexcept;
 
-        const DTU::Message *_msg;
+        const TCU::Message *_msg;
         NetEventChannel *_channel;
         bool _ack;
     };

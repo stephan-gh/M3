@@ -20,7 +20,7 @@
 
 #include "cap/CapTable.h"
 #include "pes/VPE.h"
-#include "DTUState.h"
+#include "TCUState.h"
 #include "Platform.h"
 
 namespace kernel {
@@ -70,8 +70,8 @@ public:
         _rbufs_size = size;
     }
 
-    DTUState &dtustate() {
-        return _dtustate;
+    TCUState &tcustate() {
+        return _tcustate;
     }
 
     epid_t find_eps(uint count) const;
@@ -79,7 +79,7 @@ public:
     void alloc_eps(epid_t first, uint count);
     void free_eps(epid_t first, uint count);
 
-    void handle_call(const m3::DTU::Message *msg);
+    void handle_call(const m3::TCU::Message *msg);
 
     m3::Errors::Code map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, uint perm);
     m3::Errors::Code vpe_ctrl(vpeid_t vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
@@ -100,7 +100,7 @@ private:
     size_t _rbufs_size;
     goff_t _mem_base;
     m3::BitField<EP_COUNT> _eps;
-    DTUState _dtustate;
+    TCUState _tcustate;
     SendQueue _upcqueue;
 };
 

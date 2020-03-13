@@ -187,9 +187,9 @@ void VPE::init_fs() {
     if(read_from("fds", buf.get(), len))
         _fds.reset(FileTable::unserialize(buf.get(), len));
 
-    // DTU is ready now; notify parent
+    // TCU is ready now; notify parent
     int pipefd;
-    if(read_from("dturdy", &pipefd)) {
+    if(read_from("tcurdy", &pipefd)) {
         uint8_t dummy = 0;
         write(pipefd, &dummy, sizeof(dummy));
         close(pipefd);
@@ -223,7 +223,7 @@ void VPE::run(void *lambda) {
         write_state(pid, _next_sel, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
 
         p2c.signal();
-        // wait until the DTU sockets have been binded
+        // wait until the TCU sockets have been binded
         c2p.wait();
     }
 }
@@ -253,8 +253,8 @@ void VPE::exec(int argc, const char **argv) {
         // wait until the env file has been written by the kernel
         p2c.wait();
 
-        // tell child about fd to notify parent if DTU is ready
-        write_file(getpid(), "dturdy", static_cast<uint64_t>(c2p.fds[1]));
+        // tell child about fd to notify parent if TCU is ready
+        write_file(getpid(), "tcurdy", static_cast<uint64_t>(c2p.fds[1]));
         close(c2p.fds[0]);
 
         // copy args to null-terminate them
@@ -287,7 +287,7 @@ void VPE::exec(int argc, const char **argv) {
         write_state(pid, _next_sel, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
 
         p2c.signal();
-        // wait until the DTU sockets have been binded
+        // wait until the TCU sockets have been binded
         c2p.wait();
     }
 }

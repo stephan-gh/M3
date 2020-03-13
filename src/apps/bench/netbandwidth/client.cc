@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Env.h>
 #include <base/util/Time.h>
 
@@ -73,7 +73,7 @@ int main() {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
             failures = 0;
-            DTUIf::sleep();
+            TCUIf::sleep();
         }
 
         size_t send_count = burst_size;

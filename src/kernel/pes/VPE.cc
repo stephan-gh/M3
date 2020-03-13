@@ -27,7 +27,7 @@
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
 #include "Args.h"
-#include "DTU.h"
+#include "TCU.h"
 #include "Platform.h"
 #include "SyscallHandler.h"
 
@@ -119,7 +119,7 @@ VPE::~VPE() {
     _mapcaps.revoke_all();
 
     // ensure that there are no syscalls for this VPE anymore
-    m3::DTU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
+    m3::TCU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
     SyscallHandler::free_ep(syscall_ep());
 
     delete _pg_sep;
@@ -154,7 +154,7 @@ void VPE::stop_app(int exitcode, bool self) {
         exit_app(exitcode);
     else {
         // ensure that there are no pending system calls
-        m3::DTU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
+        m3::TCU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
         if(_state == RUNNING) {
             // device always exit successfully
             exitcode = Platform::pe(peid()).is_device() ? 0 : 1;
@@ -257,7 +257,7 @@ void VPE::set_mem_base(goff_t addr) {
 
 void VPE::update_ep(epid_t ep) {
     if(is_on_pe())
-        DTU::get().write_ep_remote(desc(), ep, PEManager::get().pemux(peid())->dtustate().get_ep(ep));
+        TCU::get().write_ep_remote(desc(), ep, PEManager::get().pemux(peid())->tcustate().get_ep(ep));
 }
 
 }

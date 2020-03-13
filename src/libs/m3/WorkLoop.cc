@@ -62,7 +62,7 @@ void WorkLoop::thread_shutdown() {
     // first wait until we have no threads left that wait for some event
     ThreadManager &tm = ThreadManager::get();
     while(tm.get().blocked_count() > 0) {
-        DTUIf::sleep();
+        TCUIf::sleep();
 
         tick();
 
@@ -102,7 +102,7 @@ void WorkLoop::tick() {
 
 void WorkLoop::run() {
     while(has_items()) {
-        DTUIf::sleep();
+        TCUIf::sleep();
 
         tick();
 

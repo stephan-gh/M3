@@ -20,7 +20,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
-#include <m3/DTUIf.h>
+#include <m3/TCUIf.h>
 #include <m3/Exception.h>
 
 #include <alloca.h>
@@ -150,7 +150,7 @@ public:
      *
      * @param rgate the receive gate
      */
-    explicit GateIStream(RecvGate &rgate, const DTU::Message *msg) noexcept
+    explicit GateIStream(RecvGate &rgate, const TCU::Message *msg) noexcept
         : Unmarshaller(msg->data, msg->length),
           _ack(true),
           _rgate(&rgate),
@@ -203,7 +203,7 @@ public:
     /**
      * @return the message (header + payload)
      */
-    const DTU::Message &message() const noexcept {
+    const TCU::Message &message() const noexcept {
         return *_msg;
     }
     /**
@@ -266,7 +266,7 @@ public:
 private:
     bool _ack;
     RecvGate *_rgate;
-    const DTU::Message *_msg;
+    const TCU::Message *_msg;
 };
 
 inline void GateOStream::put(const GateIStream &is) noexcept {
@@ -348,7 +348,7 @@ static inline void write_vmsg(MemGate &gate, size_t offset, const Args &... args
  * @return the GateIStream
  */
 static inline GateIStream receive_msg(RecvGate &rgate) {
-    const DTU::Message *msg = rgate.receive(nullptr);
+    const TCU::Message *msg = rgate.receive(nullptr);
     return GateIStream(rgate, msg);
 }
 /**
@@ -361,7 +361,7 @@ static inline GateIStream receive_msg(RecvGate &rgate) {
  */
 template<typename... Args>
 static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
-    const DTU::Message *msg = rgate.receive(nullptr);
+    const TCU::Message *msg = rgate.receive(nullptr);
     GateIStream is(rgate, msg);
     is.vpull(args...);
     return is;
@@ -376,7 +376,7 @@ static inline GateIStream receive_vmsg(RecvGate &rgate, Args &... args) {
  * @return the GateIStream
  */
 static inline GateIStream receive_reply(SendGate &gate) {
-    const DTU::Message *msg = gate.reply_gate()->receive(&gate);
+    const TCU::Message *msg = gate.reply_gate()->receive(&gate);
     return GateIStream(*gate.reply_gate(), msg);
 }
 
@@ -384,13 +384,13 @@ static inline GateIStream receive_reply(SendGate &gate) {
  * Convenience methods that combine send_msg()/send_vmsg() and receive_msg().
  */
 static inline GateIStream send_receive_msg(SendGate &gate, const void *data, size_t len) {
-    const DTU::Message *reply = gate.call(data, len);
+    const TCU::Message *reply = gate.call(data, len);
     return GateIStream(*gate.reply_gate(), reply);
 }
 template<typename... Args>
 static inline GateIStream send_receive_vmsg(SendGate &gate, const Args &... args) {
     auto msg = create_vmsg(args...);
-    const DTU::Message *reply = gate.call(msg.bytes(), msg.total());
+    const TCU::Message *reply = gate.call(msg.bytes(), msg.total());
     return GateIStream(*gate.reply_gate(), reply);
 }
 

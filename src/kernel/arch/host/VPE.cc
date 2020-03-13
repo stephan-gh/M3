@@ -51,10 +51,10 @@ void VPE::finish_start() {
     _state = VPE::RUNNING;
 
     // update all EPs (e.g., to allow parents to activate EPs for their childs)
-    for(epid_t ep = m3::DTU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
+    for(epid_t ep = m3::TCU::FIRST_FREE_EP; ep < EP_COUNT; ++ep) {
         auto pemux = PEManager::get().pemux(peid());
         // set base for all receive EPs (for do it for all, but it's just unused for the other types)
-        pemux->dtustate().update_recv(ep, pemux->rbuf_base());
+        pemux->tcustate().update_recv(ep, pemux->rbuf_base());
         update_ep(ep);
     }
 }

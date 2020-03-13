@@ -99,7 +99,7 @@ bitflags! {
         const I             = 0b0000_1000;
         /// Large page (2 MiB)
         const LARGE         = 0b0001_0000;
-        /// Unsupported by DTU, but used for MMU
+        /// Unsupported by TCU, but used for MMU
         const UNCACHED      = 0b0010_0000;
         /// Read+write
         const RW            = Self::R.bits | Self::W.bits;
@@ -197,9 +197,9 @@ pub const EPS_RCNT: usize = 16;
 
 static mut CMD_REGS: [Reg; CMD_RCNT] = [0; CMD_RCNT];
 
-pub struct DTU {}
+pub struct TCU {}
 
-impl DTU {
+impl TCU {
     pub fn send(
         ep: EpId,
         msg: *const u8,

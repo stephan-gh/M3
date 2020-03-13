@@ -23,16 +23,16 @@ use goff;
 use math;
 use util;
 
-/// A DTU register
+/// A TCU register
 pub type Reg = u64;
 /// An endpoint id
 pub type EpId = usize;
-/// A DTU label used in send EPs
+/// A TCU label used in send EPs
 pub type Label = u32;
 /// A PE id
 pub type PEId = usize;
 
-/// The number of endpoints in each DTU
+/// The number of endpoints in each TCU
 pub const EP_COUNT: EpId = 192;
 
 /// The send EP for kernel calls from PEMux
@@ -63,25 +63,25 @@ pub const FIRST_FREE_EP: EpId = 11;
 /// The reply EP for messages that want to disable replies
 pub const NO_REPLIES: EpId = 0xFFFF;
 
-/// The base address of the DTU's MMIO area
+/// The base address of the TCU's MMIO area
 pub const MMIO_ADDR: usize = 0xF000_0000;
-/// The size of the DTU's MMIO area
+/// The size of the TCU's MMIO area
 pub const MMIO_SIZE: usize = cfg::PAGE_SIZE * 2;
-/// The base address of the DTU's private MMIO area
+/// The base address of the TCU's private MMIO area
 pub const MMIO_PRIV_ADDR: usize = MMIO_ADDR + MMIO_SIZE;
-/// The size of the DTU's private MMIO area
+/// The size of the TCU's private MMIO area
 pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
 
-/// The number of DTU registers
-pub const DTU_REGS: usize = 4;
+/// The number of TCU registers
+pub const TCU_REGS: usize = 4;
 /// The number of command registers
 pub const CMD_REGS: usize = 4;
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
 
 int_enum! {
-    /// The DTU registers
-    pub struct DtuReg : Reg {
+    /// The TCU registers
+    pub struct TCUReg : Reg {
         /// Stores various status flags
         const STATUS        = 0;
         const CUR_TIME      = 1;
@@ -92,7 +92,7 @@ int_enum! {
 
 #[allow(dead_code)]
 bitflags! {
-    /// The status flag for the `DtuReg::STATUS` register
+    /// The status flag for the `TCUReg::STATUS` register
     pub struct StatusFlags : Reg {
         /// Whether the PE is privileged
         const PRIV          = 1 << 0;
@@ -227,7 +227,7 @@ int_enum! {
     }
 }
 
-/// The DTU header
+/// The TCU header
 #[repr(C, packed)]
 #[derive(Copy, Clone, Default, Debug)]
 pub struct Header {
@@ -242,7 +242,7 @@ pub struct Header {
     pub label: u32,
 }
 
-/// The DTU message consisting of the header and the payload
+/// The TCU message consisting of the header and the payload
 #[repr(C, packed)]
 #[derive(Debug)]
 pub struct Message {
@@ -261,10 +261,10 @@ impl Message {
     }
 }
 
-/// The DTU interface
-pub struct DTU {}
+/// The TCU interface
+pub struct TCU {}
 
-impl DTU {
+impl TCU {
     /// Sends `msg[0..size]` via given endpoint.
     ///
     /// The `reply_ep` specifies the endpoint the reply is sent to. The label of the reply will be
@@ -491,7 +491,7 @@ impl DTU {
 
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) {
-        let regs = DTU_REGS + CMD_REGS + EP_REGS * EP_COUNT;
+        let regs = TCU_REGS + CMD_REGS + EP_REGS * EP_COUNT;
         let mut buffer = MMIO_ADDR + regs * 8;
 
         #[allow(clippy::transmute_ptr_to_ptr)]
@@ -543,7 +543,7 @@ impl DTU {
     }
 
     pub fn clear_irq() {
-        Self::write_reg(DtuReg::CLEAR_IRQ.val as usize, 1);
+        Self::write_reg(TCUReg::CLEAR_IRQ.val as usize, 1);
     }
 
     pub fn get_core_req() -> Reg {
@@ -574,11 +574,11 @@ impl DTU {
     }
 
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {
-        Self::read_reg(DTU_REGS + reg.val as usize)
+        Self::read_reg(TCU_REGS + reg.val as usize)
     }
 
     pub fn write_cmd_reg(reg: CmdReg, val: Reg) {
-        Self::write_reg(DTU_REGS + reg.val as usize, val)
+        Self::write_reg(TCU_REGS + reg.val as usize, val)
     }
 
     fn read_priv_reg(reg: PrivReg) -> Reg {
@@ -586,7 +586,7 @@ impl DTU {
     }
 
     fn read_ep_reg(ep: EpId, reg: usize) -> Reg {
-        Self::read_reg(DTU_REGS + CMD_REGS + EP_REGS * ep + reg)
+        Self::read_reg(TCU_REGS + CMD_REGS + EP_REGS * ep + reg)
     }
 
     fn write_priv_reg(reg: PrivReg, val: Reg) {
@@ -597,7 +597,7 @@ impl DTU {
     }
 
     fn addr_to_msg(addr: Reg) -> &'static Message {
-        // safety: the cast is okay because we trust the DTU
+        // safety: the cast is okay because we trust the TCU
         unsafe {
             let head = addr as usize as *const Header;
             let slice = [addr as usize, (*head).length as usize];

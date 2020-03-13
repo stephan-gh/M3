@@ -17,9 +17,9 @@
 #pragma once
 
 #if defined(__host__)
-#   include <base/arch/host/DTU.h>
+#   include <base/arch/host/TCU.h>
 #elif defined(__gem5__)
-#   include <base/arch/gem5/DTU.h>
+#   include <base/arch/gem5/TCU.h>
 #else
 #   error "Unsupported target"
 #endif

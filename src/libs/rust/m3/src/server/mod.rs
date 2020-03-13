@@ -23,13 +23,13 @@ mod sesscon;
 pub use self::server::{CapExchange, Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
-use dtu::DTUIf;
+use tcu::TCUIf;
 use errors::Error;
 
 /// Executes the server loop, calling `func` in every iteration.
 pub fn server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
     loop {
-        DTUIf::sleep().ok();
+        TCUIf::sleep().ok();
 
         func()?;
     }

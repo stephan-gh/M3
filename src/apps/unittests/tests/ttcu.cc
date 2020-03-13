@@ -42,23 +42,23 @@ static void unmap_page(void *addr) {
 }
 
 static void dmacmd(const void *data, size_t len, epid_t ep, size_t offset, size_t length, int op) {
-    m3::DTU &dtu = m3::DTU::get();
-    dtu.set_cmd(m3::DTU::CMD_ADDR, reinterpret_cast<word_t>(data));
-    dtu.set_cmd(m3::DTU::CMD_SIZE, len);
-    dtu.set_cmd(m3::DTU::CMD_EPID, ep);
-    dtu.set_cmd(m3::DTU::CMD_OFFSET, offset);
-    dtu.set_cmd(m3::DTU::CMD_LENGTH, length);
-    dtu.set_cmd(m3::DTU::CMD_REPLYLBL, 0);
-    dtu.set_cmd(m3::DTU::CMD_REPLY_EPID, 0);
-    dtu.set_cmd(m3::DTU::CMD_CTRL, static_cast<word_t>(op << 3) | m3::DTU::CTRL_START |
-                                   m3::DTU::CTRL_DEL_REPLY_CAP);
-    dtu.exec_command();
+    m3::TCU &tcu = m3::TCU::get();
+    tcu.set_cmd(m3::TCU::CMD_ADDR, reinterpret_cast<word_t>(data));
+    tcu.set_cmd(m3::TCU::CMD_SIZE, len);
+    tcu.set_cmd(m3::TCU::CMD_EPID, ep);
+    tcu.set_cmd(m3::TCU::CMD_OFFSET, offset);
+    tcu.set_cmd(m3::TCU::CMD_LENGTH, length);
+    tcu.set_cmd(m3::TCU::CMD_REPLYLBL, 0);
+    tcu.set_cmd(m3::TCU::CMD_REPLY_EPID, 0);
+    tcu.set_cmd(m3::TCU::CMD_CTRL, static_cast<word_t>(op << 3) | m3::TCU::CTRL_START |
+                                   m3::TCU::CTRL_DEL_REPLY_CAP);
+    tcu.exec_command();
 }
 
 static void cmds_read() {
     EP *rcvep = VPE::self().epmng().acquire();
     EP *sndep = VPE::self().epmng().acquire();
-    DTU &dtu = DTU::get();
+    TCU &tcu = TCU::get();
 
     void *addr = map_page();
     if(!addr)
@@ -73,37 +73,37 @@ static void cmds_read() {
 
     cout << "-- Test errors --\n";
     {
-        dtu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->pe,
+        tcu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->pe,
             rcvep->id(), datasize, 0);
 
-        dmacmd(nullptr, 0, sndep->id(), 0, datasize, DTU::WRITE);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
+        dmacmd(nullptr, 0, sndep->id(), 0, datasize, TCU::WRITE);
+        WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
 
-        dmacmd(nullptr, 0, sndep->id(), 0, datasize + 1, DTU::READ);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
+        dmacmd(nullptr, 0, sndep->id(), 0, datasize + 1, TCU::READ);
+        WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
 
-        dmacmd(nullptr, 0, sndep->id(), datasize, 0, DTU::READ);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
+        dmacmd(nullptr, 0, sndep->id(), datasize, 0, TCU::READ);
+        WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
 
-        dmacmd(nullptr, 0, sndep->id(), sizeof(word_t), datasize, DTU::READ);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
+        dmacmd(nullptr, 0, sndep->id(), sizeof(word_t), datasize, TCU::READ);
+        WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::INV_ARGS));
     }
 
     cout << "-- Test reading --\n";
     {
-        dtu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->pe,
+        tcu.configure(sndep->id(), reinterpret_cast<word_t>(data), MemGate::R, env()->pe,
             rcvep->id(), datasize, 0);
 
         word_t buf[datasize / sizeof(word_t)];
 
-        dmacmd(buf, datasize, sndep->id(), 0, datasize, DTU::READ);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
+        dmacmd(buf, datasize, sndep->id(), 0, datasize, TCU::READ);
+        WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
         for(size_t i = 0; i < 4; ++i)
             WVASSERTEQ(buf[i], data[i]);
     }
 
     unmap_page(addr);
-    dtu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
+    tcu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
 
     VPE::self().epmng().release(sndep, true);
     VPE::self().epmng().release(rcvep, true);
@@ -112,7 +112,7 @@ static void cmds_read() {
 static void cmds_write() {
     EP *rcvep = VPE::self().epmng().acquire();
     EP *sndep = VPE::self().epmng().acquire();
-    DTU &dtu = DTU::get();
+    TCU &tcu = TCU::get();
 
     void *addr = map_page();
     if(!addr)
@@ -121,28 +121,28 @@ static void cmds_write() {
     cout << "-- Test errors --\n";
     {
         word_t data[] = {1234, 5678, 1122, 3344};
-        dtu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->pe,
+        tcu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->pe,
             rcvep->id(), sizeof(data), 0);
 
-        dmacmd(nullptr, 0, sndep->id(), 0, sizeof(data), DTU::READ);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
+        dmacmd(nullptr, 0, sndep->id(), 0, sizeof(data), TCU::READ);
+        WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::NO_PERM));
     }
 
     cout << "-- Test writing --\n";
     {
         word_t data[] = {1234, 5678, 1122, 3344};
-        dtu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->pe,
+        tcu.configure(sndep->id(), reinterpret_cast<word_t>(addr), MemGate::W, env()->pe,
             rcvep->id(), sizeof(data), 0);
 
-        dmacmd(data, sizeof(data), sndep->id(), 0, sizeof(data), DTU::WRITE);
-        WVASSERTEQ(dtu.get_cmd(DTU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
+        dmacmd(data, sizeof(data), sndep->id(), 0, sizeof(data), TCU::WRITE);
+        WVASSERTEQ(tcu.get_cmd(TCU::CMD_ERROR), static_cast<word_t>(Errors::NONE));
         volatile const word_t *words = reinterpret_cast<const word_t*>(addr);
         for(size_t i = 0; i < sizeof(data) / sizeof(data[0]); ++i)
             WVASSERTEQ(static_cast<word_t>(words[i]), data[i]);
     }
 
     unmap_page(addr);
-    dtu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
+    tcu.configure(sndep->id(), 0, 0, 0, 0, 0, 0);
 
     VPE::self().epmng().release(sndep, true);
     VPE::self().epmng().release(rcvep, true);
@@ -203,7 +203,7 @@ static void mem_derive() {
     }
 }
 
-void tdtu() {
+void ttcu() {
     RUN_TEST(cmds_read);
     RUN_TEST(cmds_write);
     RUN_TEST(mem_sync);

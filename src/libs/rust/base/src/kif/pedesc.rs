@@ -130,7 +130,7 @@ impl PEDesc {
         self.pe_type() == PEType::COMP_EMEM
     }
 
-    /// Returns whether the PE supports virtual memory (either by DTU or MMU)
+    /// Returns whether the PE supports virtual memory (either by TCU or MMU)
     pub fn has_virtmem(self) -> bool {
         self.has_cache()
     }

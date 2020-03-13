@@ -239,7 +239,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
         "(Suspending|Waking up) core"
     );
     std::regex setvpe_regex(
-        "^\\.regFile: (?:DTU|NOC)-> DTU\\[ROOT_PT     \\]: 0x([0-9a-f]+)"
+        "^\\.regFile: (?:TCU|NOC)-> TCU\\[ROOT_PT     \\]: 0x([0-9a-f]+)"
     );
     std::regex debug_regex(
         "^: DEBUG (?:0x)([0-9a-f]+)"
@@ -302,7 +302,7 @@ uint32_t read_trace_file(const char *path, Mode mode, std::vector<Event> &buf) {
             continue;
         }
 
-        if(sscanf(readbuf, "%Lu: pe%d.dtu%n", &timestamp, &pe, &numchars) != 2)
+        if(sscanf(readbuf, "%Lu: pe%d.tcu%n", &timestamp, &pe, &numchars) != 2)
             continue;
 
         std::string line(readbuf + numchars);
@@ -818,9 +818,9 @@ static void usage(const char *name) {
     fprintf(stderr, " and it is shown what they do.\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "The following gem5 flags (M3_GEM5_DBG) are used:\n");
-    fprintf(stderr, " - Dtu,DtuCmd    for messages and memory reads/writes\n");
-    fprintf(stderr, " - DtuConnector  for suspend/wakeup\n");
-    fprintf(stderr, " - DtuRegWrite   for the running VPE\n");
+    fprintf(stderr, " - Tcu,TcuCmd    for messages and memory reads/writes\n");
+    fprintf(stderr, " - TcuConnector  for suspend/wakeup\n");
+    fprintf(stderr, " - TcuRegWrite   for the running VPE\n");
     fprintf(stderr, " - Exec,ExecPC   for profiling (only in 'vpes' mode)\n");
     exit(EXIT_FAILURE);
 }

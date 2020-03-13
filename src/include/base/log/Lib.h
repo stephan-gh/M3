@@ -27,8 +27,8 @@ class LibLog {
 
 public:
     enum Level {
-        DTU         = 1 << 0,
-        DTUERR      = 1 << 1,
+        TCU         = 1 << 0,
+        TCUERR      = 1 << 1,
         IPC         = 1 << 2,
         TRACE       = 1 << 3,
         IRQS        = 1 << 4,
@@ -43,7 +43,7 @@ public:
         DIRPIPE     = 1 << 13,
     };
 
-    static const int level = DTUERR;
+    static const int level = TCUERR;
 };
 
 }

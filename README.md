@@ -9,15 +9,15 @@ The system architecture is based on a hardware/operating system co-design with t
 1) introduce a new hardware component next to each CU used by the OS as the CUs' common interface and
 2) let the OS kernel control applications remotely from a different CU.
 
-The new hardware component is called data transfer unit (DTU). Since not all CUs can be expected to offer the architectural features that are required to run an OS kernel, M³ runs the kernel on a dedicated CU and the  applications on the remaining CUs. To control an application, a kernel controls its DTU remotely, because CU-external resources (other CUs, memories, etc.) can only be accessed via the DTU.
+The new hardware component is called trusted communication unit (TCU). Since not all CUs can be expected to offer the architectural features that are required to run an OS kernel, M³ runs the kernel on a dedicated CU and the  applications on the remaining CUs. To control an application, a kernel controls its TCU remotely, because CU-external resources (other CUs, memories, etc.) can only be accessed via the TCU.
 
 Supported Platforms:
 --------------------
 
 Currently, M³ runs on the following platforms:
 
-- gem5, by adding a DTU model to gem5.
-- Linux, by using Linux' primitives to simulate the behavior of the DTU and the envisioned system architecture.
+- gem5, by adding a TCU model to gem5.
+- Linux, by using Linux' primitives to simulate the behavior of the TCU and the envisioned system architecture.
 
 Getting Started:
 ----------------

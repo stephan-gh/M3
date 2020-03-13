@@ -26,7 +26,7 @@
 #include "com/Service.h"
 #include "pes/PEManager.h"
 #include "pes/VPEManager.h"
-#include "DTU.h"
+#include "TCU.h"
 #include "Platform.h"
 #include "SyscallHandler.h"
 #include "WorkLoop.h"
@@ -62,7 +62,7 @@ SyscallHandler::handler_func SyscallHandler::_callbacks[m3::KIF::Syscall::COUNT]
     })
 
 template<typename T>
-static const T *get_message(const m3::DTU::Message *msg) {
+static const T *get_message(const m3::TCU::Message *msg) {
     return reinterpret_cast<const T*>(msg->data);
 }
 
@@ -72,20 +72,20 @@ void SyscallHandler::init() {
     for(size_t i = 0; i < SYSC_REP_COUNT; ++i) {
         uint buford = m3::getnextlog2(32) + VPE::SYSC_MSGSIZE_ORD;
         size_t bufsize = static_cast<size_t>(1) << buford;
-        DTU::get().recv_msgs(ep(i),reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+        TCU::get().recv_msgs(ep(i),reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
             buford, VPE::SYSC_MSGSIZE_ORD);
     }
 
     uint buford = m3::nextlog2<1024>::val;
     size_t bufsize = static_cast<size_t>(1) << buford;
-    DTU::get().recv_msgs(srvep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+    TCU::get().recv_msgs(srvep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, m3::nextlog2<256>::val);
 
     if(PEMux::total_instances() > 32)
         PANIC("At most 32 PEMux instances are supported");
     buford = m3::nextlog2<32>::val + PEMux::PEXC_MSGSIZE_ORD;
     bufsize = static_cast<size_t>(1) << buford;
-    DTU::get().recv_msgs(pexep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+    TCU::get().recv_msgs(pexep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, PEMux::PEXC_MSGSIZE_ORD);
 
     add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::create_srv);
@@ -112,18 +112,18 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::NOOP,           &SyscallHandler::noop);
 }
 
-void SyscallHandler::reply_msg(VPE *vpe, const m3::DTU::Message *msg, const void *reply, size_t size) {
+void SyscallHandler::reply_msg(VPE *vpe, const m3::TCU::Message *msg, const void *reply, size_t size) {
     epid_t ep = vpe->syscall_ep();
-    DTU::get().reply(ep, reply, size, msg);
+    TCU::get().reply(ep, reply, size, msg);
 }
 
-void SyscallHandler::reply_result(VPE *vpe, const m3::DTU::Message *msg, m3::Errors::Code code) {
+void SyscallHandler::reply_result(VPE *vpe, const m3::TCU::Message *msg, m3::Errors::Code code) {
     m3::KIF::DefaultReply reply;
     reply.error = static_cast<xfer_t>(code);
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
-void SyscallHandler::handle_message(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::handle_message(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::DefaultRequest>(msg);
     m3::KIF::Syscall::Operation op = static_cast<m3::KIF::Syscall::Operation>(req->opcode);
 
@@ -133,7 +133,7 @@ void SyscallHandler::handle_message(VPE *vpe, const m3::DTU::Message *msg) {
         reply_result(vpe, msg, m3::Errors::INV_ARGS);
 }
 
-void SyscallHandler::create_srv(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_srv(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateSrv>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t tvpe = req->vpe_sel;
@@ -166,7 +166,7 @@ void SyscallHandler::create_srv(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::create_sess(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_sess(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateSess>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t srv = req->srv_sel;
@@ -190,7 +190,7 @@ void SyscallHandler::create_sess(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::create_rgate(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_rgate(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateRGate>(msg);
     capsel_t dst = req->dst_sel;
     uint order = req->order;
@@ -215,7 +215,7 @@ void SyscallHandler::create_rgate(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::create_sgate(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_sgate(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateSGate>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t rgate = req->rgate_sel;
@@ -241,7 +241,7 @@ void SyscallHandler::create_sgate(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateVPE>(msg);
     m3::KIF::CapRngDesc dst(req->dst_crd);
     capsel_t pg_sg = req->pg_sg_sel;
@@ -302,18 +302,18 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     auto pemux = PEManager::get().pemux(nvpe->peid());
     if(pg_sg != m3::KIF::INV_SEL) {
         // workaround: remember the endpoint so that we invalidate it on gate destruction
-        auto sep = new EPObject(pemux->pe(), nvpe, m3::DTU::PG_SEP, 0);
+        auto sep = new EPObject(pemux->pe(), nvpe, m3::TCU::PG_SEP, 0);
         nvpe->set_pg_sep(sep);
-        pemux->config_snd_ep(m3::DTU::PG_SEP, nvpe->id(), *sgatecap->obj);
+        pemux->config_snd_ep(m3::TCU::PG_SEP, nvpe->id(), *sgatecap->obj);
         sgatecap->obj->add_ep(sep);
         sep->gate = &*sgatecap->obj;
     }
     if(pg_rg != m3::KIF::INV_SEL) {
-        auto rep = new EPObject(pemux->pe(), nvpe, m3::DTU::PG_REP, 1);
+        auto rep = new EPObject(pemux->pe(), nvpe, m3::TCU::PG_REP, 1);
         nvpe->set_pg_rep(rep);
         rgatecap->obj->pe = nvpe->peid();
         rgatecap->obj->addr = VMA_RBUF;
-        pemux->config_rcv_ep(m3::DTU::PG_REP, nvpe->id(), m3::DTU::NO_REPLIES, *rgatecap->obj);
+        pemux->config_rcv_ep(m3::TCU::PG_REP, nvpe->id(), m3::TCU::NO_REPLIES, *rgatecap->obj);
         rgatecap->obj->add_ep(rep);
         rep->gate = &*rgatecap->obj;
     }
@@ -324,7 +324,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::DTU::Message *msg) {
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
-void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_map(VPE *vpe, const m3::TCU::Message *msg) {
 
 #if defined(__gem5__)
     auto req = get_message<m3::KIF::Syscall::CreateMap>(msg);
@@ -354,7 +354,7 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
     if(first >= total || first + pages <= first || first + pages > total)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Region of memory capability is invalid");
 
-    gaddr_t phys = m3::DTU::build_gaddr(mgatecap->obj->pe, mgatecap->obj->addr + PAGE_SIZE * first);
+    gaddr_t phys = m3::TCU::build_gaddr(mgatecap->obj->pe, mgatecap->obj->addr + PAGE_SIZE * first);
     CapTable &mcaps = vpecap->obj->mapcaps();
 
     VPE &vpeobj = *vpecap->obj;
@@ -400,7 +400,7 @@ void SyscallHandler::create_map(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::alloc_ep(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::alloc_ep(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::AllocEP>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t tvpe = req->vpe_sel;
@@ -450,7 +450,7 @@ void SyscallHandler::alloc_ep(VPE *vpe, const m3::DTU::Message *msg) {
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
-void SyscallHandler::create_sem(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::create_sem(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateSem>(msg);
     capsel_t dst = req->dst_sel;
     uint value = req->value;
@@ -467,7 +467,7 @@ void SyscallHandler::create_sem(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::activate(VPE *vpe, const m3::TCU::Message *msg) {
     auto *req = get_message<m3::KIF::Syscall::Activate>(msg);
     capsel_t ep = req->ep_sel;
     capsel_t gate = req->gate_sel;
@@ -560,7 +560,7 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
             if(rgateobj->activated())
                 SYS_ERROR(vpe, msg, m3::Errors::EXISTS, "Receive gate already activated");
 
-            epid_t replies = m3::DTU::NO_REPLIES;
+            epid_t replies = m3::TCU::NO_REPLIES;
             if(epcap->obj->replies > 0) {
                 uint slots = 1U << (rgateobj->order - rgateobj->msgorder);
                 if(epcap->obj->replies != slots) {
@@ -597,7 +597,7 @@ void SyscallHandler::activate(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::VPECtrl>(msg);
     capsel_t tvpe = req->vpe_sel;
     m3::KIF::Syscall::VPEOp op = static_cast<m3::KIF::Syscall::VPEOp>(req->op);
@@ -631,7 +631,7 @@ void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
             vpecap->obj->stop_app(static_cast<int>(arg), self);
             if(self) {
                 // if we don't reply, we need to mark it read manually
-                m3::DTU::get().ack_msg(vpe->syscall_ep(), msg);
+                m3::TCU::get().ack_msg(vpe->syscall_ep(), msg);
                 return;
             }
             break;
@@ -641,7 +641,7 @@ void SyscallHandler::vpe_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::vpe_wait(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::vpe_wait(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::VPEWait>(msg);
     size_t count = req->vpe_count;
     event_t event = req->event;
@@ -680,7 +680,7 @@ void SyscallHandler::vpe_wait(VPE *vpe, const m3::DTU::Message *msg) {
     }
 }
 
-void SyscallHandler::derive_mem(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::derive_mem(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::DeriveMem>(msg);
     capsel_t tvpe = req->vpe_sel;
     capsel_t dst = req->dst_sel;
@@ -717,7 +717,7 @@ void SyscallHandler::derive_mem(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::derive_kmem(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::derive_kmem(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::DeriveKMem>(msg);
     capsel_t kmem = req->kmem_sel;
     capsel_t dst = req->dst_sel;
@@ -747,7 +747,7 @@ void SyscallHandler::derive_kmem(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::derive_pe(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::derive_pe(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::DerivePE>(msg);
     capsel_t pe = req->pe_sel;
     capsel_t dst = req->dst_sel;
@@ -777,7 +777,7 @@ void SyscallHandler::derive_pe(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
-void SyscallHandler::kmem_quota(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::kmem_quota(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::KMemQuota>(msg);
     capsel_t kmem = req->kmem_sel;
 
@@ -793,7 +793,7 @@ void SyscallHandler::kmem_quota(VPE *vpe, const m3::DTU::Message *msg) {
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
-void SyscallHandler::pe_quota(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::pe_quota(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::PEQuota>(msg);
     capsel_t pe = req->pe_sel;
 
@@ -809,7 +809,7 @@ void SyscallHandler::pe_quota(VPE *vpe, const m3::DTU::Message *msg) {
     reply_msg(vpe, msg, &reply, sizeof(reply));
 }
 
-void SyscallHandler::sem_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::sem_ctrl(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::SemCtrl>(msg);
     capsel_t sem = req->sem_sel;
     auto op = static_cast<m3::KIF::Syscall::SemOp>(req->op);
@@ -839,15 +839,15 @@ void SyscallHandler::sem_ctrl(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, res);
 }
 
-void SyscallHandler::delegate(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::delegate(VPE *vpe, const m3::TCU::Message *msg) {
     exchange_over_sess(vpe, msg, false);
 }
 
-void SyscallHandler::obtain(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::obtain(VPE *vpe, const m3::TCU::Message *msg) {
     exchange_over_sess(vpe, msg, true);
 }
 
-void SyscallHandler::exchange(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::exchange(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::Exchange>(msg);
     capsel_t tvpe = req->vpe_sel;
     m3::KIF::CapRngDesc own(req->own_crd);
@@ -866,7 +866,7 @@ void SyscallHandler::exchange(VPE *vpe, const m3::DTU::Message *msg) {
     reply_result(vpe, msg, res);
 }
 
-void SyscallHandler::revoke(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::revoke(VPE *vpe, const m3::TCU::Message *msg) {
     auto *req = get_message<m3::KIF::Syscall::Revoke>(msg);
     capsel_t tvpe = req->vpe_sel;
     m3::KIF::CapRngDesc crd(req->crd);
@@ -926,7 +926,7 @@ m3::Errors::Code SyscallHandler::do_exchange(VPE *v1, VPE *v2, const m3::KIF::Ca
     return m3::Errors::NONE;
 }
 
-void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, bool obtain) {
+void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, bool obtain) {
     auto req = get_message<m3::KIF::Syscall::ExchangeSess>(msg);
     capsel_t vpe_sel = req->vpe_sel;
     capsel_t sess = req->sess_sel;
@@ -954,11 +954,11 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     smsg.data.args.bytes = req->args.bytes;
     memcpy(&smsg.data.args.data, &req->args.data, req->args.bytes);
 
-    const m3::DTU::Message *srvreply = rsrv->send_receive(smsg.sess, &smsg, sizeof(smsg), false);
+    const m3::TCU::Message *srvreply = rsrv->send_receive(smsg.sess, &smsg, sizeof(smsg), false);
     // if the VPE exited, we don't even want to reply
     if(!vpe->has_app()) {
         // due to the missing reply, we need to ack the msg explicitly
-        m3::DTU::get().ack_msg(vpe->syscall_ep(), msg);
+        m3::TCU::get().ack_msg(vpe->syscall_ep(), msg);
         LOG_ERROR(vpe, m3::Errors::VPE_GONE, "Client died during cap exchange");
         return;
     }
@@ -990,7 +990,7 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::DTU::Message *msg, b
     reply_msg(vpe, msg, &kreply, sizeof(kreply));
 }
 
-void SyscallHandler::noop(VPE *vpe, const m3::DTU::Message *msg) {
+void SyscallHandler::noop(VPE *vpe, const m3::TCU::Message *msg) {
     LOG_SYS(vpe, ": syscall::noop", "()");
 
     reply_result(vpe, msg, m3::Errors::NONE);

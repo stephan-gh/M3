@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::dtu;
+use base::tcu;
 use base::errors::{Code, Error};
 use base::pexif;
 
@@ -27,9 +27,9 @@ fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
 
     log!(crate::LOG_CALLS, "pexcall::sleep(cycles={})", cycles);
 
-    if dtu::DTU::fetch_events() == 0 {
+    if tcu::TCU::fetch_events() == 0 {
         let _irqs = helper::IRQsOnGuard::new();
-        dtu::DTU::sleep_for(cycles as u64)
+        tcu::TCU::sleep_for(cycles as u64)
     }
     else {
         Ok(())

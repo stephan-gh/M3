@@ -15,7 +15,7 @@
  */
 
 #include <base/util/Time.h>
-#include <base/DTU.h>
+#include <base/TCU.h>
 
 static inline cycles_t gem5_debug(unsigned msg) {
 #if defined(__x86_64__)

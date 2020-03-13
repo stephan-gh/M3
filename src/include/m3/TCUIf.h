@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <base/DTU.h>
+#include <base/TCU.h>
 #include <base/Env.h>
 
 #include <m3/PEXCalls.h>
@@ -26,68 +26,68 @@
 
 namespace m3 {
 
-class DTUIf {
+class TCUIf {
 public:
     static Errors::Code send(SendGate &sg, const void *msg, size_t size,
                              label_t replylbl, RecvGate &rg) noexcept {
         const EP &sep = sg.activate();
-        epid_t rep = rg.ep() ? rg.ep()->id() : DTU::NO_REPLIES;
-        return DTU::get().send(sep.id(), msg, size, replylbl, rep);
+        epid_t rep = rg.ep() ? rg.ep()->id() : TCU::NO_REPLIES;
+        return TCU::get().send(sep.id(), msg, size, replylbl, rep);
     }
 
     static Errors::Code reply(RecvGate &rg, const void *reply, size_t size,
-                              const DTU::Message *msg) noexcept {
-        return DTU::get().reply(rg.ep()->id(), reply, size, msg);
+                              const TCU::Message *msg) noexcept {
+        return TCU::get().reply(rg.ep()->id(), reply, size, msg);
     }
 
     static Errors::Code call(SendGate &sg, const void *msg, size_t size,
-                             RecvGate &rg, const DTU::Message **reply) noexcept {
+                             RecvGate &rg, const TCU::Message **reply) noexcept {
         Errors::Code res = send(sg, msg, size, 0, rg);
         if(res != Errors::NONE)
             return res;
         return receive(rg, &sg, reply);
     }
 
-    static const DTU::Message *fetch_msg(RecvGate &rg) noexcept {
-        return DTU::get().fetch_msg(rg.ep()->id());
+    static const TCU::Message *fetch_msg(RecvGate &rg) noexcept {
+        return TCU::get().fetch_msg(rg.ep()->id());
     }
 
-    static void ack_msg(RecvGate &rg, const DTU::Message *msg) noexcept {
-        DTU::get().ack_msg(rg.ep()->id(), msg);
+    static void ack_msg(RecvGate &rg, const TCU::Message *msg) noexcept {
+        TCU::get().ack_msg(rg.ep()->id(), msg);
     }
 
-    static Errors::Code receive(RecvGate &rg, SendGate *sg, const DTU::Message **reply) noexcept {
+    static Errors::Code receive(RecvGate &rg, SendGate *sg, const TCU::Message **reply) noexcept {
         while(1) {
-            *reply = DTU::get().fetch_msg(rg.ep()->id());
+            *reply = TCU::get().fetch_msg(rg.ep()->id());
             if(*reply)
                 return Errors::NONE;
 
             // fetch the events first
-            DTU::get().fetch_events();
+            TCU::get().fetch_events();
             // now check whether the endpoint is still valid. if the EP has been invalidated before
             // the line above, we'll notice that with this check. if the EP is invalidated between
-            // the line above and the sleep command, the DTU will refuse to suspend the core.
-            if(sg && EXPECT_FALSE(!DTU::get().is_valid(sg->ep()->id())))
+            // the line above and the sleep command, the TCU will refuse to suspend the core.
+            if(sg && EXPECT_FALSE(!TCU::get().is_valid(sg->ep()->id())))
                 return Errors::EP_INVALID;
 
-            DTU::get().wait_for_msg(rg.ep()->id());
+            TCU::get().wait_for_msg(rg.ep()->id());
         }
         UNREACHED;
     }
 
     static Errors::Code read(MemGate &mg, void *data, size_t size, goff_t off, uint flags) noexcept {
         const EP &ep = mg.activate();
-        return DTU::get().read(ep.id(), data, size, off, flags);
+        return TCU::get().read(ep.id(), data, size, off, flags);
     }
 
     static Errors::Code write(MemGate &mg, const void *data, size_t size,
                               goff_t off, uint flags) noexcept {
         const EP &ep = mg.activate();
-        return DTU::get().write(ep.id(), data, size, off, flags);
+        return TCU::get().write(ep.id(), data, size, off, flags);
     }
 
     static void drop_msgs(epid_t ep, label_t label) noexcept {
-        DTU::get().drop_msgs(ep, label);
+        TCU::get().drop_msgs(ep, label);
     }
 
     static void sleep() noexcept {
@@ -97,8 +97,8 @@ public:
         if(env()->shared)
             PEXCalls::call1(Operation::SLEEP, cycles);
         else {
-            if(DTU::get().fetch_events() == 0)
-                DTU::get().sleep_for(cycles);
+            if(TCU::get().fetch_events() == 0)
+                TCU::get().sleep_for(cycles);
         }
     }
 };

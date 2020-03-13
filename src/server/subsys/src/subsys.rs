@@ -26,7 +26,7 @@ use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RGateArgs, RecvGate, SGateArgs, SendGate};
-use m3::dtu;
+use m3::tcu;
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::goff;
@@ -287,14 +287,14 @@ fn workloop() {
     let upcall_rg = RecvGate::upcall();
 
     loop {
-        dtu::DTUIf::sleep().ok();
+        tcu::TCUIf::sleep().ok();
 
         let is = rgate.fetch();
         if let Some(is) = is {
             handle_request(is);
         }
 
-        let msg = dtu::DTUIf::fetch_msg(upcall_rg);
+        let msg = tcu::TCUIf::fetch_msg(upcall_rg);
         if let Some(msg) = msg {
             childs::get().handle_upcall(msg);
         }

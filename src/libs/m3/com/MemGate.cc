@@ -19,7 +19,7 @@
 
 #include <m3/com/MemGate.h>
 #include <m3/session/ResMng.h>
-#include <m3/DTUIf.h>
+#include <m3/TCUIf.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/pes/VPE.h>
@@ -61,15 +61,15 @@ MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t si
 }
 
 void MemGate::read(void *data, size_t len, goff_t offset) {
-    Errors::Code res = DTUIf::read(*this, data, len, offset, _cmdflags);
+    Errors::Code res = TCUIf::read(*this, data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res != Errors::NONE))
-        throw DTUException(res);
+        throw TCUException(res);
 }
 
 void MemGate::write(const void *data, size_t len, goff_t offset) {
-    Errors::Code res = DTUIf::write(*this, data, len, offset, _cmdflags);
+    Errors::Code res = TCUIf::write(*this, data, len, offset, _cmdflags);
     if(EXPECT_FALSE(res != Errors::NONE))
-        throw DTUException(res);
+        throw TCUException(res);
 }
 
 }

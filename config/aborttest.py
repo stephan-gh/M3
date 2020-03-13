@@ -1,7 +1,7 @@
 import os, sys
 
 sys.path.append(os.path.realpath('hw/gem5/configs/example'))
-from dtu_fs import *
+from tcu_fs import *
 
 options = getOptions()
 root = createRoot(options)
