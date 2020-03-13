@@ -60,7 +60,7 @@ impl M3FS {
         let sess = ClientSession::new_with_sel(name, sels + 1)?;
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 0, 1);
-        sess.obtain_for(VPE::cur().sel(), crd, |_| {}, |_| {})?;
+        sess.obtain_for(VPE::cur().sel(), crd, |_| {}, |_| Ok(()))?;
         let sgate = SendGate::new_bind(sels + 0);
         Ok(Self::create(sess, sgate))
     }
@@ -87,8 +87,9 @@ impl M3FS {
                 os.push_word(off as u64);
             },
             |is| {
-                offset = is.pop_word();
-                len = is.pop_word();
+                offset = is.pop_word()?;
+                len = is.pop_word()?;
+                Ok(())
             },
         )?;
         Ok((offset, len, crd.start()))
@@ -107,14 +108,14 @@ impl FileSystem for M3FS {
                 os.push_word(u64::from(flags.bits()));
                 os.push_str(path);
             },
-            |_| {},
+            |_| Ok(()),
         )?;
         Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))
     }
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {
         let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::STAT, path)?;
-        Ok(reply.pop())
+        reply.pop()
     }
 
     fn mkdir(&self, path: &str, mode: FileMode) -> Result<(), Error> {
@@ -153,7 +154,7 @@ impl FileSystem for M3FS {
         dels.push(self.sess.sel());
 
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.sess.sel() + 1, 1);
-        self.sess.obtain_for(vpe, crd, |_| {}, |_| {})?;
+        self.sess.obtain_for(vpe, crd, |_| {}, |_| Ok(()))?;
         *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }
@@ -166,7 +167,7 @@ impl FileSystem for M3FS {
 
 impl M3FS {
     pub fn unserialize(s: &mut SliceSource) -> FSHandle {
-        let sels: Selector = s.pop();
+        let sels: Selector = s.pop().unwrap();
         M3FS::new_bind(sels)
     }
 }

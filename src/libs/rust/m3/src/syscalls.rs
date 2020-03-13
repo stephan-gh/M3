@@ -378,7 +378,7 @@ pub fn delegate<PRE, POST>(
 ) -> Result<(), Error>
 where
     PRE: Fn(&mut SliceSink),
-    POST: FnMut(&mut SliceSource),
+    POST: FnMut(&mut SliceSource) -> Result<(), Error>,
 {
     exchange_sess(vpe, syscalls::Operation::DELEGATE, sess, crd, pre, post)
 }
@@ -398,7 +398,7 @@ pub fn obtain<PRE, POST>(
 ) -> Result<(), Error>
 where
     PRE: Fn(&mut SliceSink),
-    POST: FnMut(&mut SliceSource),
+    POST: FnMut(&mut SliceSource) -> Result<(), Error>,
 {
     exchange_sess(vpe, syscalls::Operation::OBTAIN, sess, crd, pre, post)
 }
@@ -413,7 +413,7 @@ fn exchange_sess<PRE, POST>(
 ) -> Result<(), Error>
 where
     PRE: Fn(&mut SliceSink),
-    POST: FnMut(&mut SliceSource),
+    POST: FnMut(&mut SliceSource) -> Result<(), Error>,
 {
     let mut req = syscalls::ExchangeSess {
         opcode: op.val,
@@ -434,7 +434,7 @@ where
     {
         let words = (reply.data.args.bytes as usize + 7) / 8;
         let mut src = SliceSource::new(unsafe { &reply.data.args.data[..words] });
-        post(&mut src);
+        post(&mut src)?;
     }
 
     Ok(())

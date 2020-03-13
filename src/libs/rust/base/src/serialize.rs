@@ -17,6 +17,7 @@
 //! Contains the serializing basics, which is used for IPC
 
 use col::String;
+use errors::Error;
 
 /// For types that can be marshalled into a [`Sink`](trait.Sink.html).
 pub trait Marshallable {
@@ -27,7 +28,7 @@ pub trait Marshallable {
 /// For types that can be unmarshalled from a [`Source`](trait.Source.html).
 pub trait Unmarshallable: Sized {
     /// Reads an object from the given source and returns it
-    fn unmarshall(s: &mut dyn Source) -> Self;
+    fn unmarshall(s: &mut dyn Source) -> Result<Self, Error>;
 }
 
 /// A sink allows to push objects into it
@@ -49,11 +50,11 @@ pub trait Source {
     /// Returns the number of bytes in the source
     fn size(&self) -> usize;
     /// Pops a word from this source
-    fn pop_word(&mut self) -> u64;
+    fn pop_word(&mut self) -> Result<u64, Error>;
     /// Pops a string from this source
-    fn pop_str(&mut self) -> String;
+    fn pop_str(&mut self) -> Result<String, Error>;
     /// Pops a string slice from this source
-    fn pop_str_slice(&mut self) -> &'static str;
+    fn pop_str_slice(&mut self) -> Result<&'static str, Error>;
 }
 
 macro_rules! impl_xfer_prim {
@@ -64,8 +65,8 @@ macro_rules! impl_xfer_prim {
             }
         }
         impl Unmarshallable for $t {
-            fn unmarshall(s: &mut dyn Source) -> Self {
-                s.pop_word() as $t
+            fn unmarshall(s: &mut dyn Source) -> Result<Self, Error> {
+                s.pop_word().map(|v| v as $t)
             }
         }
     };
@@ -88,8 +89,8 @@ impl Marshallable for bool {
     }
 }
 impl Unmarshallable for bool {
-    fn unmarshall(s: &mut dyn Source) -> Self {
-        s.pop_word() == 1
+    fn unmarshall(s: &mut dyn Source) -> Result<Self, Error> {
+        s.pop_word().map(|v| v == 1)
     }
 }
 
@@ -99,7 +100,7 @@ impl<'a> Marshallable for &'a str {
     }
 }
 impl Unmarshallable for &'static str {
-    fn unmarshall(s: &mut dyn Source) -> Self {
+    fn unmarshall(s: &mut dyn Source) -> Result<Self, Error> {
         s.pop_str_slice()
     }
 }
@@ -110,7 +111,7 @@ impl Marshallable for String {
     }
 }
 impl Unmarshallable for String {
-    fn unmarshall(s: &mut dyn Source) -> Self {
+    fn unmarshall(s: &mut dyn Source) -> Result<Self, Error> {
         s.pop_str()
     }
 }

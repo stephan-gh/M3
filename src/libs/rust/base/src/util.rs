@@ -190,9 +190,9 @@ macro_rules! int_enum {
         }
 
         impl $crate::serialize::Unmarshallable for $Name {
-            fn unmarshall(s: &mut dyn $crate::serialize::Source) -> Self {
-                let val = s.pop_word() as $T;
-                $Name { val: val }
+            fn unmarshall(s: &mut dyn $crate::serialize::Source) -> Result<Self, $crate::errors::Error> {
+                let val = s.pop_word()? as $T;
+                Ok($Name { val: val })
             }
         }
 

@@ -77,10 +77,10 @@ impl GenericFile {
     }
 
     pub(crate) fn unserialize(s: &mut SliceSource) -> FileHandle {
-        let flags: u32 = s.pop();
+        let flags: u32 = s.pop().unwrap();
         Rc::new(RefCell::new(GenericFile::new(
             OpenFlags::from_bits_truncate(flags),
-            s.pop(),
+            s.pop().unwrap(),
         )))
     }
 
@@ -137,7 +137,7 @@ impl File for GenericFile {
 
     fn stat(&self) -> Result<FileInfo, Error> {
         let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::STAT)?;
-        Ok(reply.pop())
+        reply.pop()
     }
 
     fn file_type(&self) -> u8 {
@@ -151,7 +151,7 @@ impl File for GenericFile {
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, self.sess.sel(), 2);
-        self.sess.obtain_for(vpe, crd, |_| {}, |_| {})?;
+        self.sess.obtain_for(vpe, crd, |_| {}, |_| Ok(()))?;
         *max_sel = cmp::max(*max_sel, self.sess.sel() + 2);
         Ok(())
     }
@@ -183,8 +183,8 @@ impl Seek for GenericFile {
 
         let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::SEEK, off, whence)?;
 
-        self.goff = reply.pop();
-        let off: usize = reply.pop();
+        self.goff = reply.pop()?;
+        let off: usize = reply.pop()?;
         self.pos = 0;
         self.len = 0;
         Ok(self.goff + off)
@@ -201,8 +201,8 @@ impl Read for GenericFile {
             let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_IN)?;
             time::stop(0xbbbb);
             self.goff += self.len;
-            self.off = reply.pop();
-            self.len = reply.pop();
+            self.off = reply.pop()?;
+            self.len = reply.pop()?;
             self.pos = 0;
         }
 
@@ -232,8 +232,8 @@ impl Write for GenericFile {
             let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::NEXT_OUT)?;
             time::stop(0xbbbb);
             self.goff += self.len;
-            self.off = reply.pop();
-            self.len = reply.pop();
+            self.off = reply.pop()?;
+            self.len = reply.pop()?;
             self.pos = 0;
         }
 

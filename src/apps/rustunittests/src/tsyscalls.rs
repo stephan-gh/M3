@@ -559,12 +559,12 @@ fn delegate() {
 
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::delegate(SEL_MEM, sess.sel(), crd, |_| {}, |_| {}),
+        syscalls::delegate(SEL_MEM, sess.sel(), crd, |_| {}, |_| Ok(())),
         Code::InvArgs
     );
     // invalid sess selector
     wv_assert_err!(
-        syscalls::delegate(VPE::cur().sel(), SEL_VPE, crd, |_| {}, |_| {}),
+        syscalls::delegate(VPE::cur().sel(), SEL_VPE, crd, |_| {}, |_| Ok(())),
         Code::InvArgs
     );
     // CRD can be anything (depends on server)
@@ -580,17 +580,17 @@ fn obtain() {
 
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::obtain(SEL_MEM, sess.sel(), crd, |_| {}, |_| {}),
+        syscalls::obtain(SEL_MEM, sess.sel(), crd, |_| {}, |_| Ok(())),
         Code::InvArgs
     );
     // invalid sess selector
     wv_assert_err!(
-        syscalls::obtain(VPE::cur().sel(), SEL_VPE, crd, |_| {}, |_| {}),
+        syscalls::obtain(VPE::cur().sel(), SEL_VPE, crd, |_| {}, |_| Ok(())),
         Code::InvArgs
     );
     // invalid CRD
     wv_assert_err!(
-        syscalls::obtain(VPE::cur().sel(), sess.sel(), inval, |_| {}, |_| {}),
+        syscalls::obtain(VPE::cur().sel(), sess.sel(), inval, |_| {}, |_| Ok(())),
         Code::InvArgs
     );
 }

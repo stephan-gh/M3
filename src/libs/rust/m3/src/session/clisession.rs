@@ -66,7 +66,7 @@ impl ClientSession {
 
     /// Delegates the given capability range to the server.
     pub fn delegate_crd(&self, crd: kif::CapRngDesc) -> Result<(), Error> {
-        self.delegate(crd, |_| {}, |_| {})
+        self.delegate(crd, |_| {}, |_| Ok(()))
     }
 
     /// Delegates the given capability range to the server, using `pre` and `post` for input and
@@ -81,7 +81,7 @@ impl ClientSession {
     ) -> Result<(), Error>
     where
         PRE: Fn(&mut SliceSink),
-        POST: FnMut(&mut SliceSource),
+        POST: FnMut(&mut SliceSource) -> Result<(), Error>,
     {
         self.delegate_for(VPE::cur().sel(), crd, pre, post)
     }
@@ -99,7 +99,7 @@ impl ClientSession {
     ) -> Result<(), Error>
     where
         PRE: Fn(&mut SliceSink),
-        POST: FnMut(&mut SliceSource),
+        POST: FnMut(&mut SliceSource) -> Result<(), Error>,
     {
         syscalls::delegate(vpe, self.sel(), crd, pre, post)
     }
@@ -111,7 +111,7 @@ impl ClientSession {
 
     /// Obtains `count` capabilities from the server and returns the capability range descriptor.
     pub fn obtain_crd(&self, count: u32) -> Result<kif::CapRngDesc, Error> {
-        self.obtain(count, |_| {}, |_| {})
+        self.obtain(count, |_| {}, |_| Ok(()))
     }
 
     /// Obtains `count` capabilities from the server and returns the capability range descriptor,
@@ -126,7 +126,7 @@ impl ClientSession {
     ) -> Result<kif::CapRngDesc, Error>
     where
         PRE: Fn(&mut SliceSink),
-        POST: FnMut(&mut SliceSource),
+        POST: FnMut(&mut SliceSource) -> Result<(), Error>,
     {
         let caps = VPE::cur().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
@@ -147,7 +147,7 @@ impl ClientSession {
     ) -> Result<(), Error>
     where
         PRE: Fn(&mut SliceSink),
-        POST: FnMut(&mut SliceSource),
+        POST: FnMut(&mut SliceSource) -> Result<(), Error>,
     {
         syscalls::obtain(vpe, self.sel(), crd, pre, post)
     }

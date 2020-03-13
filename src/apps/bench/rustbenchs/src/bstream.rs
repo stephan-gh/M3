@@ -44,11 +44,11 @@ fn pingpong_1u64() {
                 wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 0u64));
 
                 let mut msg = wv_assert_ok!(recv_msg(&rgate));
-                wv_assert_eq!(msg.pop::<u64>(), 0);
+                wv_assert_eq!(msg.pop::<u64>(), Ok(0));
                 wv_assert_ok!(reply_vmsg!(msg, 0u64));
 
                 let mut reply = wv_assert_ok!(recv_msg(reply_gate));
-                wv_assert_eq!(reply.pop::<u64>(), 0);
+                wv_assert_eq!(reply.pop::<u64>(), Ok(0));
             },
             0x0
         )
@@ -70,13 +70,13 @@ fn pingpong_2u64() {
                 wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 23u64, 42u64));
 
                 let mut msg = wv_assert_ok!(recv_msg(&rgate));
-                wv_assert_eq!(msg.pop::<u64>(), 23);
-                wv_assert_eq!(msg.pop::<u64>(), 42);
+                wv_assert_eq!(msg.pop::<u64>(), Ok(23));
+                wv_assert_eq!(msg.pop::<u64>(), Ok(42));
                 wv_assert_ok!(reply_vmsg!(msg, 5u64, 6u64));
 
                 let mut reply = wv_assert_ok!(recv_msg(reply_gate));
-                wv_assert_eq!(reply.pop::<u64>(), 5);
-                wv_assert_eq!(reply.pop::<u64>(), 6);
+                wv_assert_eq!(reply.pop::<u64>(), Ok(5));
+                wv_assert_eq!(reply.pop::<u64>(), Ok(6));
             },
             0x1
         )
@@ -98,17 +98,17 @@ fn pingpong_4u64() {
                 wv_assert_ok!(send_vmsg!(&sgate, reply_gate, 23u64, 42u64, 10u64, 12u64));
 
                 let mut msg = wv_assert_ok!(recv_msg(&rgate));
-                wv_assert_eq!(msg.pop::<u64>(), 23);
-                wv_assert_eq!(msg.pop::<u64>(), 42);
-                wv_assert_eq!(msg.pop::<u64>(), 10);
-                wv_assert_eq!(msg.pop::<u64>(), 12);
+                wv_assert_eq!(msg.pop::<u64>(), Ok(23));
+                wv_assert_eq!(msg.pop::<u64>(), Ok(42));
+                wv_assert_eq!(msg.pop::<u64>(), Ok(10));
+                wv_assert_eq!(msg.pop::<u64>(), Ok(12));
                 wv_assert_ok!(reply_vmsg!(msg, 5u64, 6u64, 7u64, 8u64));
 
                 let mut reply = wv_assert_ok!(recv_msg(reply_gate));
-                wv_assert_eq!(reply.pop::<u64>(), 5);
-                wv_assert_eq!(reply.pop::<u64>(), 6);
-                wv_assert_eq!(reply.pop::<u64>(), 7);
-                wv_assert_eq!(reply.pop::<u64>(), 8);
+                wv_assert_eq!(reply.pop::<u64>(), Ok(5));
+                wv_assert_eq!(reply.pop::<u64>(), Ok(6));
+                wv_assert_eq!(reply.pop::<u64>(), Ok(7));
+                wv_assert_eq!(reply.pop::<u64>(), Ok(8));
             },
             0x2
         )
@@ -130,11 +130,11 @@ fn pingpong_str() {
                 wv_assert_ok!(send_vmsg!(&sgate, reply_gate, "test"));
 
                 let mut msg = wv_assert_ok!(recv_msg(&rgate));
-                wv_assert_eq!(msg.pop::<String>().len(), 4);
+                wv_assert_eq!(msg.pop::<String>().unwrap().len(), 4);
                 wv_assert_ok!(reply_vmsg!(msg, "foobar"));
 
                 let mut reply = wv_assert_ok!(recv_msg(reply_gate));
-                wv_assert_eq!(reply.pop::<String>().len(), 6);
+                wv_assert_eq!(reply.pop::<String>().unwrap().len(), 6);
             },
             0x3
         )
@@ -156,11 +156,11 @@ fn pingpong_strslice() {
                 wv_assert_ok!(send_vmsg!(&sgate, reply_gate, "test"));
 
                 let mut msg = wv_assert_ok!(recv_msg(&rgate));
-                wv_assert_eq!(msg.pop::<&str>().len(), 4);
+                wv_assert_eq!(msg.pop::<&str>().unwrap().len(), 4);
                 wv_assert_ok!(reply_vmsg!(msg, "foobar"));
 
                 let mut reply = wv_assert_ok!(recv_msg(reply_gate));
-                wv_assert_eq!(reply.pop::<&str>().len(), 6);
+                wv_assert_eq!(reply.pop::<&str>().unwrap().len(), 6);
             },
             0x4
         )

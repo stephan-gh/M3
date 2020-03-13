@@ -15,7 +15,7 @@
  */
 
 use m3::boxed::Box;
-use m3::com::{RecvGate, SGateArgs, SendGate};
+use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
 use m3::math;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
@@ -32,7 +32,6 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn run_stop() {
-    use m3::com::recv_msg;
     use m3::com::RGateArgs;
     use m3::dtu::DTUIf;
     use m3::vfs;
@@ -105,7 +104,9 @@ fn run_send_receive() {
 
     let act = wv_assert_ok!(vpe.run(Box::new(move || {
         wv_assert_ok!(rgate.activate());
-        let (i1, i2) = wv_assert_ok!(recv_vmsg!(&rgate, u32, u32));
+        let mut res = wv_assert_ok!(recv_msg(&rgate));
+        let i1 = wv_assert_ok!(res.pop::<u32>());
+        let i2 = wv_assert_ok!(res.pop::<u32>());
         wv_assert_eq!((i1, i2), (42, 23));
         (i1 + i2) as i32
     })));

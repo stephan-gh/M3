@@ -86,16 +86,13 @@ impl Sink for ArraySink {
 
 /// A sink for marshalling into a slice
 pub struct SliceSink<'s> {
-    arr: &'s mut[u64],
+    arr: &'s mut [u64],
     pos: usize,
 }
 
 impl<'s> SliceSink<'s> {
-    pub fn new(slice: &'s mut[u64]) -> Self {
-        Self {
-            arr: slice,
-            pos: 0,
-        }
+    pub fn new(slice: &'s mut [u64]) -> Self {
+        Self { arr: slice, pos: 0 }
     }
 }
 
@@ -171,6 +168,23 @@ impl MsgSource {
             slice::from_raw_parts(ptr, (self.msg.header.length / 8) as usize)
         }
     }
+
+    fn do_pop_str<T, F>(&mut self, f: F) -> Result<T, Error>
+    where
+        F: Fn(&'static [u64], usize, usize) -> T,
+    {
+        let len = self.pop_word()? as usize;
+
+        let data = self.data();
+        let npos = self.pos + (len + 7) / 8;
+        if npos > data.len() {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        let res = f(data, self.pos, len);
+        self.pos = npos;
+        Ok(res)
+    }
 }
 
 unsafe fn copy_from_str(words: &mut [u64], s: &str) {
@@ -206,25 +220,24 @@ impl Source for MsgSource {
     }
 
     #[inline(always)]
-    fn pop_word(&mut self) -> u64 {
+    fn pop_word(&mut self) -> Result<u64, Error> {
+        let data = self.data();
+        if self.pos >= data.len() {
+            return Err(Error::new(Code::InvArgs));
+        }
+
         self.pos += 1;
-        self.data()[self.pos - 1]
+        Ok(data[self.pos - 1])
     }
 
-    fn pop_str(&mut self) -> String {
-        let len = self.pop_word() as usize;
+    fn pop_str(&mut self) -> Result<String, Error> {
         // safety: we know that the pointer and length are okay
-        let res = unsafe { copy_str_from(&self.data()[self.pos..], len - 1) };
-        self.pos += (len + 7) / 8;
-        res
+        self.do_pop_str(|d, pos, len| unsafe { copy_str_from(&d[pos..], len - 1) })
     }
 
-    fn pop_str_slice(&mut self) -> &'static str {
-        let len = self.pop_word() as usize;
+    fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
         // safety: we know that the pointer and length are okay
-        let str = unsafe { str_slice_from(&self.data()[self.pos..], len - 1) };
-        self.pos += (len + 7) / 8;
-        str
+        self.do_pop_str(|d, pos, len| unsafe { str_slice_from(&d[pos..], len - 1) })
     }
 }
 
@@ -241,8 +254,24 @@ impl<'s> SliceSource<'s> {
     }
 
     /// Pops an object of type `T` from the source.
-    pub fn pop<T: Unmarshallable>(&mut self) -> T {
+    pub fn pop<T: Unmarshallable>(&mut self) -> Result<T, Error> {
         T::unmarshall(self)
+    }
+
+    fn do_pop_str<T, F>(&mut self, f: F) -> Result<T, Error>
+    where
+        F: Fn(&'s [u64], usize, usize) -> T,
+    {
+        let len = self.pop_word()? as usize;
+
+        let npos = self.pos + (len + 7) / 8;
+        if npos > self.slice.len() {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        let res = f(self.slice, self.pos, len);
+        self.pos = npos;
+        Ok(res)
     }
 }
 
@@ -251,25 +280,23 @@ impl<'s> Source for SliceSource<'s> {
         self.slice.len()
     }
 
-    fn pop_word(&mut self) -> u64 {
+    fn pop_word(&mut self) -> Result<u64, Error> {
+        if self.pos >= self.slice.len() {
+            return Err(Error::new(Code::InvArgs));
+        }
+
         self.pos += 1;
-        self.slice[self.pos - 1]
+        Ok(self.slice[self.pos - 1])
     }
 
-    fn pop_str(&mut self) -> String {
-        let len = self.pop_word() as usize;
+    fn pop_str(&mut self) -> Result<String, Error> {
         // safety: we know that the pointer and length are okay
-        let res = unsafe { copy_str_from(&self.slice[self.pos..], len - 1) };
-        self.pos += (len + 7) / 8;
-        res
+        self.do_pop_str(|slice, pos, len| unsafe { copy_str_from(&slice[pos..], len - 1) })
     }
 
-    fn pop_str_slice(&mut self) -> &'static str {
-        let len = self.pop_word() as usize;
+    fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
         // safety: we know that the pointer and length are okay
-        let str = unsafe { str_slice_from(&self.slice[self.pos..], len - 1) };
-        self.pos += (len + 7) / 8;
-        str
+        self.do_pop_str(|slice, pos, len| unsafe { str_slice_from(&slice[pos..], len - 1) })
     }
 }
 
@@ -364,7 +391,7 @@ impl<'r> GateIStream<'r> {
 
     /// Pops an object of type `T` from the message.
     #[inline(always)]
-    pub fn pop<T: Unmarshallable>(&mut self) -> T {
+    pub fn pop<T: Unmarshallable>(&mut self) -> Result<T, Error> {
         T::unmarshall(&mut self.source)
     }
 
@@ -439,24 +466,6 @@ pub fn recv_reply<'r>(
     rgate.receive(sgate)
 }
 
-/// Receives a message from `$rg` and unmarshalls the message into the given arguments.
-#[macro_export]
-macro_rules! recv_vmsg {
-    ( $rg:expr, $x:ty ) => ({
-        match $crate::com::recv_msg($rg) {
-            Err(e)      => Err(e),
-            Ok(mut is)  => Ok(( is.pop::<$x>(), )),
-        }
-    });
-
-    ( $rg:expr, $x1:ty, $($xs:ty),+ ) => ({
-        match $crate::com::recv_msg($rg) {
-            Err(e)      => Err(e),
-            Ok(mut is)  => Ok(( is.pop::<$x1>(), $( is.pop::<$xs>() ),+ )),
-        }
-    });
-}
-
 /// Receives a message from `rgate` as a reply to the message that has been sent over `sgate` and
 /// unmarshalls the result (error code). If the result is an error, it returns the error and
 /// otherwise the [`GateIStream`] for the message.
@@ -466,7 +475,7 @@ pub fn recv_result<'r>(
     sgate: Option<&SendGate>,
 ) -> Result<GateIStream<'r>, Error> {
     let mut reply = recv_reply(rgate, sgate)?;
-    let res: u32 = reply.pop();
+    let res: u32 = reply.pop()?;
     match res {
         0 => Ok(reply),
         e => Err(Error::from(e)),
@@ -491,7 +500,7 @@ macro_rules! send_recv {
 macro_rules! send_recv_res {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
         send_recv!($sg, $rg, $( $args ),* ).and_then(|mut reply| {
-            let res: u32 = reply.pop();
+            let res: u32 = reply.pop()?;
             match res {
                 0 => Ok(reply),
                 e => Err(Error::from(e)),

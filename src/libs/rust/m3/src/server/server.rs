@@ -169,7 +169,7 @@ impl Server {
     pub fn handle_ctrl_chan(&self, hdl: &mut dyn Handler) -> Result<(), Error> {
         let is = self.rgate.fetch();
         if let Some(mut is) = is {
-            let op: service::Operation = is.pop();
+            let op: service::Operation = is.pop()?;
             match op {
                 service::Operation::OPEN => Self::handle_open(hdl, self.sel(), is),
                 service::Operation::OBTAIN => Self::handle_obtain(hdl, is),
@@ -185,7 +185,7 @@ impl Server {
     }
 
     fn handle_open(hdl: &mut dyn Handler, sel: Selector, mut is: GateIStream) -> Result<(), Error> {
-        let arg: &str = is.pop();
+        let arg: &str = is.pop()?;
         let res = hdl.open(sel, arg);
 
         llog!(SERV, "server::open({}) -> {:?}", arg, res);
@@ -262,7 +262,7 @@ impl Server {
     }
 
     fn handle_close(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
-        let sid: u64 = is.pop();
+        let sid: u64 = is.pop()?;
 
         llog!(SERV, "server::close({})", sid);
 

@@ -95,7 +95,7 @@ impl EnvData {
         match arch::loader::read_env_file("rbufs") {
             Some(rbuf) => {
                 let mut ss = SliceSource::new(&rbuf);
-                arch::rbufs::RBufSpace::new_with(ss.pop(), ss.pop())
+                arch::rbufs::RBufSpace::new_with(ss.pop().unwrap(), ss.pop().unwrap())
             },
             None => arch::rbufs::RBufSpace::new(),
         }
@@ -117,7 +117,7 @@ impl EnvData {
 
     fn load_word(name: &str, default: u64) -> u64 {
         match arch::loader::read_env_file(name) {
-            Some(buf) => SliceSource::new(&buf).pop(),
+            Some(buf) => SliceSource::new(&buf).pop().unwrap(),
             None => default,
         }
     }

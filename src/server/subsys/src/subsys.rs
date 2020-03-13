@@ -95,24 +95,24 @@ fn xlate_sel(id: Id, sel: Selector) -> Result<Selector, Error> {
 }
 
 fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let child_sel: Selector = is.pop();
-    let dst_sel: Selector = is.pop();
-    let rgate_sel: Selector = is.pop();
-    let name: String = is.pop();
+    let child_sel: Selector = is.pop()?;
+    let dst_sel: Selector = is.pop()?;
+    let rgate_sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
 
     services::get().reg_serv(child, child_sel, dst_sel, rgate_sel, name)
 }
 
 fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop();
-    let notify: bool = is.pop();
+    let sel: Selector = is.pop()?;
+    let notify: bool = is.pop()?;
 
     services::get().unreg_serv(child, sel, notify)
 }
 
 fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let dst_sel: Selector = is.pop();
-    let name: String = is.pop();
+    let dst_sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
 
     // first check our service list
     let res = services::get().open_session(child, dst_sel, &name);
@@ -136,7 +136,7 @@ fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error
 }
 
 fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop();
+    let sel: Selector = is.pop()?;
 
     let res = services::get().close_session(child, sel);
     match res {
@@ -149,9 +149,9 @@ fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Erro
 }
 
 fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let vpe_sel: Selector = is.pop();
-    let sgate_sel: Selector = is.pop();
-    let name: String = is.pop();
+    let vpe_sel: Selector = is.pop()?;
+    let sgate_sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
 
     let id = CHILD_CAPS.get_mut().alloc()?;
     childs::get().set_next_id(id);
@@ -163,7 +163,7 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 }
 
 fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let vpe_sel: Selector = is.pop();
+    let vpe_sel: Selector = is.pop()?;
 
     let id = child.rem_child(vpe_sel)?;
     CHILD_CAPS.get_mut().free(id);
@@ -171,10 +171,10 @@ fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 }
 
 fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let dst_sel: Selector = is.pop();
-    let addr: goff = is.pop();
-    let size: usize = is.pop();
-    let perms = kif::Perm::from_bits_truncate(is.pop::<u32>());
+    let dst_sel: Selector = is.pop()?;
+    let addr: goff = is.pop()?;
+    let size: usize = is.pop()?;
+    let perms = kif::Perm::from_bits_truncate(is.pop::<u32>()?);
 
     log!(
         resmng::LOG_MEM,
@@ -199,7 +199,7 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 }
 
 fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop();
+    let sel: Selector = is.pop()?;
 
     log!(resmng::LOG_MEM, "{}: free_mem(sel={})", child.name(), sel);
 
@@ -208,8 +208,8 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 }
 
 fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let dst_sel: Selector = is.pop();
-    let desc = kif::PEDesc::new_from(is.pop());
+    let dst_sel: Selector = is.pop()?;
+    let desc = kif::PEDesc::new_from(is.pop()?);
 
     log!(
         resmng::LOG_PES,
@@ -243,7 +243,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 }
 
 fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop();
+    let sel: Selector = is.pop()?;
 
     log!(resmng::LOG_PES, "{}: free_pe(sel={})", child.name(), sel);
 
@@ -252,31 +252,31 @@ fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 }
 
 fn handle_request(mut is: GateIStream) {
-    let op: ResMngOperation = is.pop();
+    let op: Result<ResMngOperation, Error> = is.pop();
     let child = childs::get()
         .child_by_id_mut(is.label() as childs::Id)
         .unwrap();
 
     let res = match op {
-        ResMngOperation::REG_SERV => reg_serv(&mut is, child),
-        ResMngOperation::UNREG_SERV => unreg_serv(&mut is, child),
+        Ok(ResMngOperation::REG_SERV) => reg_serv(&mut is, child),
+        Ok(ResMngOperation::UNREG_SERV) => unreg_serv(&mut is, child),
 
-        ResMngOperation::OPEN_SESS => open_session(&mut is, child),
-        ResMngOperation::CLOSE_SESS => close_session(&mut is, child),
+        Ok(ResMngOperation::OPEN_SESS) => open_session(&mut is, child),
+        Ok(ResMngOperation::CLOSE_SESS) => close_session(&mut is, child),
 
-        ResMngOperation::ADD_CHILD => add_child(&mut is, child),
-        ResMngOperation::REM_CHILD => rem_child(&mut is, child),
+        Ok(ResMngOperation::ADD_CHILD) => add_child(&mut is, child),
+        Ok(ResMngOperation::REM_CHILD) => rem_child(&mut is, child),
 
-        ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
-        ResMngOperation::FREE_MEM => free_mem(&mut is, child),
+        Ok(ResMngOperation::ALLOC_MEM) => alloc_mem(&mut is, child),
+        Ok(ResMngOperation::FREE_MEM) => free_mem(&mut is, child),
 
-        ResMngOperation::ALLOC_PE => match alloc_pe(&mut is, child) {
+        Ok(ResMngOperation::ALLOC_PE) => match alloc_pe(&mut is, child) {
             Ok(_) => return,
             Err(e) => Err(e),
         },
-        ResMngOperation::FREE_PE => free_pe(&mut is, child),
+        Ok(ResMngOperation::FREE_PE) => free_pe(&mut is, child),
 
-        _ => unreachable!(),
+        _ => Err(Error::new(Code::InvArgs)),
     };
     reply_result(&mut is, res);
 }

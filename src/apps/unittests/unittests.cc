@@ -38,6 +38,7 @@ int main() {
     RUN_SUITE(tstream);
     RUN_SUITE(tpipe);
     RUN_SUITE(tstring);
+    RUN_SUITE(tsgate);
 
     if(failed > 0)
         cout << "\033[1;31m" << failed << " tests failed\033[0;m\n";

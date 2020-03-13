@@ -96,7 +96,7 @@ impl Pager {
                 // dummy arg to distinguish from the get_sgate operation
                 os.push_word(0);
             },
-            |_| {},
+            |_| Ok(()),
         )?;
         let sess = ClientSession::new_bind(res.start());
 
@@ -182,7 +182,7 @@ impl Pager {
             prot.bits(),
             flags.bits()
         )?;
-        Ok(reply.pop())
+        reply.pop()
     }
 
     /// Maps a dataspace of `len` bytes handled by given session to virtual address `addr` with
@@ -209,7 +209,8 @@ impl Pager {
                 os.push_word(off as u64);
             },
             |is| {
-                res = is.pop_word() as goff;
+                res = is.pop_word()? as goff;
+                Ok(())
             },
         )?;
 

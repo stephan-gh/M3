@@ -22,6 +22,7 @@ use m3::test;
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create);
+    wv_run_test!(t, send_errors);
     wv_run_test!(t, send_recv);
     wv_run_test!(t, send_reply);
 }
@@ -32,6 +33,30 @@ fn create() {
         SendGate::new_with(SGateArgs::new(&rgate).sel(1)),
         Code::InvArgs
     );
+}
+
+fn send_errors() {
+    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(512), math::next_log2(256)));
+    let sgate = wv_assert_ok!(SendGate::new_with(
+        SGateArgs::new(&rgate).credits(2).label(0x1234)
+    ));
+    wv_assert_ok!(rgate.activate());
+
+    {
+        wv_assert_ok!(send_vmsg!(&sgate, &rgate, 1, 2));
+
+        let mut is = wv_assert_ok!(rgate.receive(Some(&sgate)));
+        wv_assert_eq!(is.pop(), Ok(1));
+        wv_assert_eq!(is.pop(), Ok(2));
+        wv_assert_err!(is.pop::<u32>(), Code::InvArgs);
+    }
+
+    {
+        wv_assert_ok!(send_vmsg!(&sgate, &rgate, 4));
+
+        let mut is = wv_assert_ok!(rgate.receive(Some(&sgate)));
+        wv_assert_err!(is.pop::<String>(), Code::InvArgs);
+    }
 }
 
 fn send_recv() {
@@ -70,7 +95,8 @@ fn send_reply() {
     // sgate -> rgate
     {
         let mut msg = wv_assert_ok!(recv_msg(&rgate));
-        let (i1, i2, s): (i32, i32, String) = (msg.pop(), msg.pop(), msg.pop());
+        let (i1, i2, s): (i32, i32, String) =
+            (wv_assert_ok!(msg.pop()), wv_assert_ok!(msg.pop()), wv_assert_ok!(msg.pop()));
         wv_assert_eq!(i1, 0x123);
         wv_assert_eq!(i2, 12);
         wv_assert_eq!(s, "test");
@@ -81,7 +107,7 @@ fn send_reply() {
     // rgate -> reply_gate
     {
         let mut reply = wv_assert_ok!(recv_reply(&reply_gate, Some(&sgate)));
-        let (i1, i2): (i32, i32) = (reply.pop(), reply.pop());
+        let (i1, i2): (i32, i32) = (wv_assert_ok!(reply.pop()), wv_assert_ok!(reply.pop()));
         wv_assert_eq!(i1, 44);
         wv_assert_eq!(i2, 3);
     }

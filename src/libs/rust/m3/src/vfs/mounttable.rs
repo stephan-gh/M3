@@ -138,10 +138,10 @@ impl MountTable {
     pub(crate) fn unserialize(s: &mut SliceSource) -> MountTable {
         let mut mt = MountTable::default();
 
-        let count = s.pop();
+        let count = s.pop().unwrap();
         for _ in 0..count {
-            let path: String = s.pop();
-            let fs_type: u8 = s.pop();
+            let path: String = s.pop().unwrap();
+            let fs_type: u8 = s.pop().unwrap();
             mt.add(&path, match fs_type {
                 b'M' => M3FS::unserialize(s),
                 _ => panic!("Unexpected fs type {}", fs_type),

@@ -176,7 +176,7 @@ pub fn testmsgs() {
 
         for _ in 0..5 {
             let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));
-            let resp: String = reply.pop();
+            let resp: String = wv_assert_ok!(reply.pop());
             wv_assert_eq!(resp, "654321");
         }
     }
@@ -187,7 +187,7 @@ pub fn testmsgs() {
         let sgate = SendGate::new_bind(sel);
 
         let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));
-        let resp: String = reply.pop();
+        let resp: String = wv_assert_ok!(reply.pop());
         wv_assert_eq!(resp, "654321");
 
         wv_assert_err!(

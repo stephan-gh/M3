@@ -117,10 +117,10 @@ impl FileTable {
     pub(crate) fn unserialize(s: &mut SliceSource) -> FileTable {
         let mut ft = FileTable::default();
 
-        let count = s.pop();
+        let count = s.pop().unwrap();
         for _ in 0..count {
-            let fd: Fd = s.pop();
-            let file_type: u8 = s.pop();
+            let fd: Fd = s.pop().unwrap();
+            let file_type: u8 = s.pop().unwrap();
             ft.set(fd, match file_type {
                 b'F' => GenericFile::unserialize(s),
                 b'S' => Rc::new(RefCell::new(Serial::default())),

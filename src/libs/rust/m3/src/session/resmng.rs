@@ -183,7 +183,7 @@ impl ResMng {
             sel,
             desc.value()
         )?;
-        let raw: kif::PEDescRaw = reply.pop();
+        let raw: kif::PEDescRaw = reply.pop()?;
         Ok(kif::PEDesc::new_from(raw))
     }
 

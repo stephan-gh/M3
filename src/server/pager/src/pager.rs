@@ -69,7 +69,7 @@ impl PagerReqHandler {
     }
 
     pub fn handle(&mut self, mut is: &mut GateIStream) -> Result<(), Error> {
-        let op: PagerOp = is.pop();
+        let op: PagerOp = is.pop()?;
         let sid = is.label() as SessId;
 
         let res = if op == PagerOp::CLONE {
@@ -150,7 +150,7 @@ impl Handler for PagerReqHandler {
         }
         else {
             let mut args = xchg.in_args();
-            let op = args.pop_word() as u32;
+            let op = args.pop_word()? as u32;
 
             let (sel, virt) = if op == PagerDelOp::DATASPACE.val {
                 aspace.map_ds(&mut args)

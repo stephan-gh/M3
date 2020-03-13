@@ -19,6 +19,9 @@
 #include <base/util/String.h>
 #include <base/util/Math.h>
 #include <base/DTU.h>
+
+#include <m3/Exception.h>
+
 #include <assert.h>
 
 namespace m3 {
@@ -178,7 +181,7 @@ public:
      * @param args the other values to write to
      */
     template<typename T, typename... Args>
-    void vpull(T &val, Args &... args) noexcept {
+    void vpull(T &val, Args &... args) {
         *this >> val;
         vpull(args...);
     }
@@ -190,26 +193,31 @@ public:
      * @return *this
      */
     template<typename T>
-    Unmarshaller & operator>>(T &value) noexcept {
-        assert(_pos + sizeof(T) <= length());
+    Unmarshaller & operator>>(T &value) {
+        if(_pos + sizeof(T) > length())
+            throw Exception(Errors::INV_ARGS);
         value = (T)*reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += Math::round_up(sizeof(T), sizeof(xfer_t));
         return *this;
     }
-    Unmarshaller & operator>>(String &value) noexcept {
-        assert(_pos + sizeof(xfer_t) <= length());
+    Unmarshaller & operator>>(String &value) {
+        if(_pos + sizeof(xfer_t) > length())
+            throw Exception(Errors::INV_ARGS);
         size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += sizeof(xfer_t);
-        assert(_pos + len <= length());
+        if(_pos + len > length())
+            throw Exception(Errors::INV_ARGS);
         value.reset(reinterpret_cast<const char*>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;
     }
-    Unmarshaller & operator>>(StringRef &value) noexcept {
-        assert(_pos + sizeof(xfer_t) <= length());
+    Unmarshaller & operator>>(StringRef &value) {
+        if(_pos + sizeof(xfer_t) > length())
+            throw Exception(Errors::INV_ARGS);
         size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += sizeof(xfer_t);
-        assert(_pos + len <= length());
+        if(_pos + len > length())
+            throw Exception(Errors::INV_ARGS);
         value = StringRef(reinterpret_cast<const char*>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
         return *this;

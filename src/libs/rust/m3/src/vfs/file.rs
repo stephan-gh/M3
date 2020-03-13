@@ -95,19 +95,19 @@ impl Marshallable for FileInfo {
 }
 
 impl Unmarshallable for FileInfo {
-    fn unmarshall(s: &mut dyn Source) -> Self {
-        FileInfo {
-            devno: s.pop_word() as DevId,
-            inode: s.pop_word() as INodeId,
-            mode: s.pop_word() as FileMode,
-            links: s.pop_word() as u32,
-            size: s.pop_word() as usize,
-            lastaccess: s.pop_word() as u32,
-            lastmod: s.pop_word() as u32,
-            blocksize: s.pop_word() as u32,
-            extents: s.pop_word() as u32,
-            firstblock: s.pop_word() as BlockId,
-        }
+    fn unmarshall(s: &mut dyn Source) -> Result<Self, Error> {
+        Ok(FileInfo {
+            devno: s.pop_word()? as DevId,
+            inode: s.pop_word()? as INodeId,
+            mode: s.pop_word()? as FileMode,
+            links: s.pop_word()? as u32,
+            size: s.pop_word()? as usize,
+            lastaccess: s.pop_word()? as u32,
+            lastmod: s.pop_word()? as u32,
+            blocksize: s.pop_word()? as u32,
+            extents: s.pop_word()? as u32,
+            firstblock: s.pop_word()? as BlockId,
+        })
     }
 }
 

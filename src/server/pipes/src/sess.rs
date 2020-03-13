@@ -367,7 +367,7 @@ impl Channel {
     }
 
     pub fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        let nbytes: usize = is.pop();
+        let nbytes: usize = is.pop()?;
 
         log!(crate::LOG_DEF, "[{}] pipes::commit(nbytes={})", self.id, nbytes);
 

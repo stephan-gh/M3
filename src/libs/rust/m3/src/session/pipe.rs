@@ -42,7 +42,7 @@ impl Pipes {
             |os| {
                 os.push_word(mem_size as u64);
             },
-            |_| {},
+            |_| Ok(()),
         )?;
         Pipe::new(mem, crd.start())
     }
@@ -73,7 +73,7 @@ impl Pipe {
             |os| {
                 os.push_word(read as u64);
             },
-            |_| {},
+            |_| Ok(()),
         )?;
         let flags = if read { OpenFlags::R } else { OpenFlags::W };
         Ok(Rc::new(RefCell::new(GenericFile::new(flags, crd.start()))))

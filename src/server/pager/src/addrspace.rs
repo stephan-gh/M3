@@ -143,8 +143,8 @@ impl AddrSpace {
     }
 
     pub fn pagefault(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        let virt: goff = is.pop();
-        let access = PageFlags::from_bits_truncate(is.pop()) & !PageFlags::U;
+        let virt: goff = is.pop()?;
+        let access = PageFlags::from_bits_truncate(is.pop()?) & !PageFlags::U;
         let access = Perm::from_bits_truncate(access.bits() as u32);
 
         log!(
@@ -191,11 +191,11 @@ impl AddrSpace {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let virt = args.pop_word() as goff;
-        let len = args.pop_word() as goff;
-        let perm = Perm::from_bits_truncate(args.pop_word() as u32);
-        let flags = MapFlags::from_bits_truncate(args.pop_word() as u32);
-        let off = args.pop_word() as goff;
+        let virt = args.pop_word()? as goff;
+        let len = args.pop_word()? as goff;
+        let perm = Perm::from_bits_truncate(args.pop_word()? as u32);
+        let flags = MapFlags::from_bits_truncate(args.pop_word()? as u32);
+        let off = args.pop_word()? as goff;
 
         let sel = VPE::cur().alloc_sel();
         self.map_ds_with(virt, len, off, perm, flags, sel)
@@ -238,10 +238,10 @@ impl AddrSpace {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let virt: goff = is.pop();
-        let len: goff = is.pop();
-        let perm = Perm::from_bits_truncate(is.pop::<u32>());
-        let flags = MapFlags::from_bits_truncate(is.pop::<u32>());
+        let virt: goff = is.pop()?;
+        let len: goff = is.pop()?;
+        let perm = Perm::from_bits_truncate(is.pop::<u32>()?);
+        let flags = MapFlags::from_bits_truncate(is.pop::<u32>()?);
 
         self.map_anon_with(virt, len, perm, flags)?;
 
@@ -280,9 +280,9 @@ impl AddrSpace {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let virt = args.pop_word() as goff;
-        let len = args.pop_word() as goff;
-        let perm = Perm::from_bits_truncate(args.pop_word() as u32);
+        let virt = args.pop_word()? as goff;
+        let len = args.pop_word()? as goff;
+        let perm = Perm::from_bits_truncate(args.pop_word()? as u32);
 
         log!(
             crate::LOG_DEF,
@@ -314,7 +314,7 @@ impl AddrSpace {
     }
 
     pub fn unmap(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        let virt: goff = is.pop();
+        let virt: goff = is.pop()?;
 
         log!(
             crate::LOG_DEF,

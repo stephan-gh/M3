@@ -30,7 +30,7 @@ use m3::cfg;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::dtu;
-use m3::errors::Error;
+use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{self, boot, PEDesc};
 use m3::math;
@@ -70,84 +70,76 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     .expect("Unable to reply");
 }
 
-fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) {
-    let child_sel: Selector = is.pop();
-    let dst_sel: Selector = is.pop();
-    let rgate_sel: Selector = is.pop();
-    let name: String = is.pop();
+fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let child_sel: Selector = is.pop()?;
+    let dst_sel: Selector = is.pop()?;
+    let rgate_sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
 
     let res = services::get().reg_serv(child, child_sel, dst_sel, rgate_sel, name);
     if res.is_ok() && !DELAYED.get().is_empty() {
         start_delayed();
     }
-    reply_result(is, res);
+    res
 }
 
-fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) {
-    let sel: Selector = is.pop();
-    let notify: bool = is.pop();
+fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop()?;
+    let notify: bool = is.pop()?;
 
-    let res = services::get().unreg_serv(child, sel, notify);
-    reply_result(is, res);
+    services::get().unreg_serv(child, sel, notify)
 }
 
-fn open_session(is: &mut GateIStream, child: &mut dyn Child) {
-    let dst_sel: Selector = is.pop();
-    let name: String = is.pop();
+fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let dst_sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
 
-    let res = services::get().open_session(child, dst_sel, &name);
-    reply_result(is, res);
+    services::get().open_session(child, dst_sel, &name)
 }
 
-fn close_session(is: &mut GateIStream, child: &mut dyn Child) {
-    let sel: Selector = is.pop();
+fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop()?;
 
-    let res = services::get().close_session(child, sel);
-    reply_result(is, res);
+    services::get().close_session(child, sel)
 }
 
-fn add_child(is: &mut GateIStream, child: &mut dyn Child) {
-    let vpe_sel: Selector = is.pop();
-    let sgate_sel: Selector = is.pop();
-    let name: String = is.pop();
+fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let vpe_sel: Selector = is.pop()?;
+    let sgate_sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
 
-    let res = child.add_child(vpe_sel, req_rgate(), sgate_sel, name);
-    reply_result(is, res);
+    child.add_child(vpe_sel, req_rgate(), sgate_sel, name)
 }
 
-fn rem_child(is: &mut GateIStream, child: &mut dyn Child) {
-    let vpe_sel: Selector = is.pop();
+fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let vpe_sel: Selector = is.pop()?;
 
-    let res = child.rem_child(vpe_sel).map(|_| ());
-    reply_result(is, res);
+    child.rem_child(vpe_sel).map(|_| ())
 }
 
-fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) {
-    let dst_sel: Selector = is.pop();
-    let addr: goff = is.pop();
-    let size: goff = is.pop();
-    let perms = kif::Perm::from_bits_truncate(is.pop::<u32>());
+fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let dst_sel: Selector = is.pop()?;
+    let addr: goff = is.pop()?;
+    let size: goff = is.pop()?;
+    let perms = kif::Perm::from_bits_truncate(is.pop::<u32>()?);
 
-    let res = if addr == !0 {
+    if addr == !0 {
         child.alloc_mem(dst_sel, size, perms)
     }
     else {
         child.alloc_mem_at(dst_sel, addr, size, perms)
-    };
-
-    reply_result(is, res);
+    }
 }
 
-fn free_mem(is: &mut GateIStream, child: &mut dyn Child) {
-    let sel: Selector = is.pop();
+fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop()?;
 
-    let res = child.free_mem(sel);
-    reply_result(is, res);
+    child.free_mem(sel)
 }
 
-fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) {
-    let dst_sel: Selector = is.pop();
-    let desc = kif::PEDesc::new_from(is.pop());
+fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let dst_sel: Selector = is.pop()?;
+    let desc = kif::PEDesc::new_from(is.pop()?);
 
     let res = child.alloc_pe(dst_sel, desc);
     match res {
@@ -158,13 +150,54 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) {
         Ok(desc) => reply_vmsg!(is, 0 as u64, desc.value()),
     }
     .expect("Unable to reply");
+    Ok(())
 }
 
-fn free_pe(is: &mut GateIStream, child: &mut dyn Child) {
-    let sel: Selector = is.pop();
+fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop()?;
 
-    let res = child.free_pe(sel);
-    reply_result(is, res);
+    child.free_pe(sel)
+}
+
+fn use_sem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+    let sel: Selector = is.pop()?;
+    let name: String = is.pop()?;
+
+    child.use_sem(&name, sel)
+}
+
+fn handle_request(mut is: GateIStream) {
+    let op: Result<ResMngOperation, Error> = is.pop();
+    let child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
+
+    let res = match op {
+        Ok(ResMngOperation::REG_SERV) => reg_serv(&mut is, child),
+        Ok(ResMngOperation::UNREG_SERV) => unreg_serv(&mut is, child),
+
+        Ok(ResMngOperation::OPEN_SESS) => open_session(&mut is, child),
+        Ok(ResMngOperation::CLOSE_SESS) => close_session(&mut is, child),
+
+        Ok(ResMngOperation::ADD_CHILD) => add_child(&mut is, child),
+        Ok(ResMngOperation::REM_CHILD) => rem_child(&mut is, child),
+
+        Ok(ResMngOperation::ALLOC_MEM) => alloc_mem(&mut is, child),
+        Ok(ResMngOperation::FREE_MEM) => free_mem(&mut is, child),
+
+        Ok(ResMngOperation::ALLOC_PE) => {
+            let res = alloc_pe(&mut is, child);
+            if res.is_ok() {
+                return;
+            }
+            res
+        },
+        Ok(ResMngOperation::FREE_PE) => free_pe(&mut is, child),
+
+        Ok(ResMngOperation::USE_SEM) => use_sem(&mut is, child),
+
+        _ => Err(Error::new(Code::InvArgs)),
+    };
+
+    reply_result(&mut is, res);
 }
 
 fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
@@ -197,14 +230,6 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
     Ok(())
 }
 
-fn use_sem(is: &mut GateIStream, child: &mut dyn Child) {
-    let sel: Selector = is.pop();
-    let name: String = is.pop();
-
-    let res = child.use_sem(&name, sel);
-    reply_result(is, res);
-}
-
 fn start_delayed() {
     let mut new_wait = false;
     let mut idx = 0;
@@ -227,32 +252,6 @@ fn start_delayed() {
 
     if new_wait {
         childs::get().start_waiting(1);
-    }
-}
-
-fn handle_request(mut is: GateIStream) {
-    let op: ResMngOperation = is.pop();
-    let child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
-
-    match op {
-        ResMngOperation::REG_SERV => reg_serv(&mut is, child),
-        ResMngOperation::UNREG_SERV => unreg_serv(&mut is, child),
-
-        ResMngOperation::OPEN_SESS => open_session(&mut is, child),
-        ResMngOperation::CLOSE_SESS => close_session(&mut is, child),
-
-        ResMngOperation::ADD_CHILD => add_child(&mut is, child),
-        ResMngOperation::REM_CHILD => rem_child(&mut is, child),
-
-        ResMngOperation::ALLOC_MEM => alloc_mem(&mut is, child),
-        ResMngOperation::FREE_MEM => free_mem(&mut is, child),
-
-        ResMngOperation::ALLOC_PE => alloc_pe(&mut is, child),
-        ResMngOperation::FREE_PE => free_pe(&mut is, child),
-
-        ResMngOperation::USE_SEM => use_sem(&mut is, child),
-
-        _ => unreachable!(),
     }
 }
 

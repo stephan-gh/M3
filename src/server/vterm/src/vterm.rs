@@ -143,7 +143,7 @@ impl Channel {
     }
 
     fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        let nbytes: usize = is.pop();
+        let nbytes: usize = is.pop()?;
 
         log!(
             crate::LOG_DEF,
@@ -236,7 +236,7 @@ impl Handler for VTermHandler {
             let sess = sessions.get(sid).unwrap();
             match &sess.data {
                 SessionData::Meta => self
-                    .new_chan(nsid, xchg.in_args().pop_word() == 1)
+                    .new_chan(nsid, xchg.in_args().pop_word()? == 1)
                     .map(|s| (nsid, s)),
 
                 SessionData::Chan(c) => self.new_chan(nsid, c.writing).map(|s| (nsid, s)),
@@ -286,14 +286,14 @@ impl VTermHandler {
 
     pub fn handle(&mut self, mut is: &mut GateIStream) -> Result<(), Error> {
         let res = match is.pop() {
-            GenFileOp::NEXT_IN => {
+            Ok(GenFileOp::NEXT_IN) => {
                 Self::with_chan(&mut self.sessions, &mut is, |c, is| c.next_in(is))
             },
-            GenFileOp::NEXT_OUT => {
+            Ok(GenFileOp::NEXT_OUT) => {
                 Self::with_chan(&mut self.sessions, &mut is, |c, is| c.next_out(is))
             },
-            GenFileOp::COMMIT => Self::with_chan(&mut self.sessions, &mut is, |c, is| c.commit(is)),
-            GenFileOp::CLOSE => {
+            Ok(GenFileOp::COMMIT) => Self::with_chan(&mut self.sessions, &mut is, |c, is| c.commit(is)),
+            Ok(GenFileOp::CLOSE) => {
                 let sid = is.label() as SessId;
                 // reply before we destroy the client's sgate. otherwise the client might
                 // notice the invalidated sgate before getting the reply and therefore give
@@ -302,8 +302,8 @@ impl VTermHandler {
                 reply_vmsg!(is, 0).ok();
                 self.close_sess(sid)
             },
-            GenFileOp::STAT => Err(Error::new(Code::NotSup)),
-            GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
+            Ok(GenFileOp::STAT) => Err(Error::new(Code::NotSup)),
+            Ok(GenFileOp::SEEK) => Err(Error::new(Code::NotSup)),
             _ => Err(Error::new(Code::InvArgs)),
         };
 

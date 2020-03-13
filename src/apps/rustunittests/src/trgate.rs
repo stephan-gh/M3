@@ -69,7 +69,11 @@ fn destroy() {
 
         for i in 0..10 {
             let mut msg = wv_assert_ok!(recv_msg(&rg));
-            let (a1, a2, a3): (i32, i32, i32) = (msg.pop(), msg.pop(), msg.pop());
+            let (a1, a2, a3): (i32, i32, i32) = (
+                wv_assert_ok!(msg.pop()),
+                wv_assert_ok!(msg.pop()),
+                wv_assert_ok!(msg.pop()),
+            );
             wv_assert_eq!(a1, i * 3 + 0);
             wv_assert_eq!(a2, i * 3 + 1);
             wv_assert_eq!(a3, i * 3 + 2);
