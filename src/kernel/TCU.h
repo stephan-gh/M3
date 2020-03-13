@@ -21,7 +21,6 @@
 #include <base/Panic.h>
 
 #include "TCUState.h"
-#include "SyscallHandler.h"
 
 namespace kernel {
 
@@ -30,10 +29,18 @@ class VPE;
 class VPEDesc;
 
 class TCU {
-    explicit TCU() : _ep(SyscallHandler::memep()) {
+    explicit TCU() : _state() {
     }
 
 public:
+    static const size_t SYSC_REP_COUNT = 2;
+
+    static const epid_t SYSC_REPS = 0;
+    static const epid_t SERV_REP = SYSC_REPS + SYSC_REP_COUNT;
+    static const epid_t PEX_REP = SERV_REP + 1;
+    static const epid_t TMP_MEP = PEX_REP + 1;
+    static const epid_t TMP_SEP = TMP_MEP + 1;
+
     static TCU &get() {
         return _inst;
     }
@@ -81,7 +88,6 @@ private:
     m3::Errors::Code do_ext_cmd(const VPEDesc &vpe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg);
 #endif
 
-    epid_t _ep;
     TCUState _state;
     static TCU _inst;
 };

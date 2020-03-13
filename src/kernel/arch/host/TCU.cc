@@ -77,19 +77,19 @@ void TCU::reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Messag
 m3::Errors::Code TCU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
     const size_t msg_ord = static_cast<uint>(m3::getnextlog2(size + m3::TCU::HEADER_SIZE));
-    m3::TCU::get().configure(_ep, label, 0, vpe.pe, ep, 1UL << msg_ord, msg_ord);
-    return m3::TCU::get().send(_ep, msg, size, replylbl, replyep);
+    m3::TCU::get().configure(TMP_SEP, label, 0, vpe.pe, ep, 1UL << msg_ord, msg_ord);
+    return m3::TCU::get().send(TMP_SEP, msg, size, replylbl, replyep);
 }
 
 m3::Errors::Code TCU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
-    m3::TCU::get().configure(_ep, addr, m3::KIF::Perm::RWX, vpe.pe, 0, size, 0);
-    m3::TCU::get().write(_ep, data, size, 0, 0);
+    m3::TCU::get().configure(TMP_MEP, addr, m3::KIF::Perm::RWX, vpe.pe, 0, size, 0);
+    m3::TCU::get().write(TMP_MEP, data, size, 0, 0);
     return m3::Errors::NONE;
 }
 
 m3::Errors::Code TCU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
-    m3::TCU::get().configure(_ep, addr, m3::KIF::Perm::RWX, vpe.pe, 0, size, 0);
-    m3::TCU::get().read(_ep, data, size, 0, 0);
+    m3::TCU::get().configure(TMP_MEP, addr, m3::KIF::Perm::RWX, vpe.pe, 0, size, 0);
+    m3::TCU::get().read(TMP_MEP, data, size, 0, 0);
     return m3::Errors::NONE;
 }
 

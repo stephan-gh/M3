@@ -19,6 +19,8 @@
 #include <base/KIF.h>
 #include <base/TCU.h>
 
+#include "TCU.h"
+
 namespace kernel {
 
 class VPE;
@@ -29,26 +31,14 @@ class SyscallHandler {
     using handler_func = void (*)(VPE *vpe, const m3::TCU::Message *msg);
 
 public:
-    static const size_t SYSC_REP_COUNT = 2;
-
     static void init();
 
     static epid_t ep(size_t no) {
-        // we can use it here because we won't issue syscalls ourself
-        return m3::TCU::SYSC_SEP + no;
-    }
-    static epid_t srvep() {
-        return ep(SYSC_REP_COUNT);
-    }
-    static epid_t pexep() {
-        return ep(SYSC_REP_COUNT + 1);
-    }
-    static epid_t memep() {
-        return ep(SYSC_REP_COUNT + 2);
+        return TCU::SYSC_REPS + no;
     }
 
     static epid_t alloc_ep() {
-        for(size_t i = 0; i < SYSC_REP_COUNT; ++i) {
+        for(size_t i = 0; i < TCU::SYSC_REP_COUNT; ++i) {
             if(_vpes_per_ep[i] < 32) {
                 _vpes_per_ep[i]++;
                 return ep(i);
@@ -97,7 +87,7 @@ private:
                                         const m3::KIF::CapRngDesc &c2, bool obtain);
     static void exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, bool obtain);
 
-    static ulong _vpes_per_ep[SYSC_REP_COUNT];
+    static ulong _vpes_per_ep[TCU::SYSC_REP_COUNT];
     static handler_func _callbacks[];
 };
 

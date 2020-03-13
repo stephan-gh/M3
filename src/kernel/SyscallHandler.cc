@@ -33,7 +33,7 @@
 
 namespace kernel {
 
-ulong SyscallHandler::_vpes_per_ep[SyscallHandler::SYSC_REP_COUNT];
+ulong SyscallHandler::_vpes_per_ep[TCU::SYSC_REP_COUNT];
 SyscallHandler::handler_func SyscallHandler::_callbacks[m3::KIF::Syscall::COUNT];
 
 #define LOG_SYS(vpe, sysname, expr)                                                         \
@@ -69,7 +69,7 @@ static const T *get_message(const m3::TCU::Message *msg) {
 void SyscallHandler::init() {
     // configure both receive buffers (we need to do that manually in the kernel)
     // TODO we also need to make sure that a VPE's syscall slot isn't in use if we suspend it
-    for(size_t i = 0; i < SYSC_REP_COUNT; ++i) {
+    for(size_t i = 0; i < TCU::SYSC_REP_COUNT; ++i) {
         uint buford = m3::getnextlog2(32) + VPE::SYSC_MSGSIZE_ORD;
         size_t bufsize = static_cast<size_t>(1) << buford;
         TCU::get().recv_msgs(ep(i),reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
@@ -78,14 +78,14 @@ void SyscallHandler::init() {
 
     uint buford = m3::nextlog2<1024>::val;
     size_t bufsize = static_cast<size_t>(1) << buford;
-    TCU::get().recv_msgs(srvep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+    TCU::get().recv_msgs(TCU::SERV_REP, reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, m3::nextlog2<256>::val);
 
     if(PEMux::total_instances() > 32)
         PANIC("At most 32 PEMux instances are supported");
     buford = m3::nextlog2<32>::val + PEMux::PEXC_MSGSIZE_ORD;
     bufsize = static_cast<size_t>(1) << buford;
-    TCU::get().recv_msgs(pexep(), reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+    TCU::get().recv_msgs(TCU::PEX_REP, reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, PEMux::PEXC_MSGSIZE_ORD);
 
     add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::create_srv);

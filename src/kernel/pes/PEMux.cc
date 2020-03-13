@@ -40,7 +40,7 @@ PEMux::PEMux(peid_t pe)
     if(Platform::pe(pe).supports_pemux()) {
         // configure send EP
         _tcustate.config_send(m3::TCU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
-                              Platform::kernel_pe(), SyscallHandler::pexep(),
+                              Platform::kernel_pe(), TCU::PEX_REP,
                               KPEX_RBUF_ORDER, 1);
 
         // configure receive EP
@@ -70,7 +70,7 @@ void PEMux::handle_call(const m3::TCU::Message *msg) {
     }
 
     // give credits back
-    TCU::get().reply(SyscallHandler::pexep(), nullptr, 0, msg);
+    TCU::get().reply(TCU::PEX_REP, nullptr, 0, msg);
 }
 
 void PEMux::add_vpe(VPECapability *vpe) {

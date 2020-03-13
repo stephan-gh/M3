@@ -27,7 +27,7 @@ uint64_t SendQueue::_next_id = 0;
 
 SendQueue::~SendQueue() {
     // ensure that there are no messages left for this SendQueue in the receive buffer
-    m3::TCU::get().drop_msgs(SyscallHandler::srvep(), m3::ptr_to_label(this));
+    m3::TCU::get().drop_msgs(TCU::SERV_REP, m3::ptr_to_label(this));
 }
 
 event_t SendQueue::get_event(uint64_t id) {
@@ -100,7 +100,7 @@ event_t SendQueue::do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t s
     _inflight++;
 
     if(TCU::get().send_to(_desc, dst_ep, 0, msg, size, m3::ptr_to_label(this),
-                          SyscallHandler::srvep()) != m3::Errors::NONE) {
+                          TCU::SERV_REP) != m3::Errors::NONE) {
         PANIC("send failed");
     }
 

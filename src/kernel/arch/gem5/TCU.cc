@@ -104,10 +104,10 @@ void TCU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
 
 m3::Errors::Code TCU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
-    _state.config_send(_ep, VPE::KERNEL_ID, label, vpe.pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
-    write_ep_local(_ep);
+    _state.config_send(TMP_SEP, VPE::KERNEL_ID, label, vpe.pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
+    write_ep_local(TMP_SEP);
 
-    return m3::TCU::get().send(_ep, msg, size, replylbl, replyep);
+    return m3::TCU::get().send(TMP_SEP, msg, size, replylbl, replyep);
 }
 
 void TCU::reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Message *msg) {
@@ -117,18 +117,18 @@ void TCU::reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Messag
 }
 
 m3::Errors::Code TCU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
-    if(_state.config_mem_cached(_ep, vpe.pe))
-        write_ep_local(_ep);
+    if(_state.config_mem_cached(TMP_MEP, vpe.pe))
+        write_ep_local(TMP_MEP);
 
     // the kernel can never cause pagefaults with reads/writes
-    return m3::TCU::get().write(_ep, data, size, addr, m3::TCU::CmdFlags::NOPF);
+    return m3::TCU::get().write(TMP_MEP, data, size, addr, m3::TCU::CmdFlags::NOPF);
 }
 
 m3::Errors::Code TCU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
-    if(_state.config_mem_cached(_ep, vpe.pe))
-        write_ep_local(_ep);
+    if(_state.config_mem_cached(TMP_MEP, vpe.pe))
+        write_ep_local(TMP_MEP);
 
-    return m3::TCU::get().read(_ep, data, size, addr, m3::TCU::CmdFlags::NOPF);
+    return m3::TCU::get().read(TMP_MEP, data, size, addr, m3::TCU::CmdFlags::NOPF);
 }
 
 void TCU::copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,

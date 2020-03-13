@@ -99,11 +99,11 @@ void WorkLoop::run() {
 #endif
 
     m3::TCU &tcu = m3::TCU::get();
-    static_assert(SyscallHandler::SYSC_REP_COUNT == 2, "Wrong SYSC_REP_COUNT");
+    static_assert(TCU::SYSC_REP_COUNT == 2, "Wrong SYSC_REP_COUNT");
     epid_t sysep0 = SyscallHandler::ep(0);
     epid_t sysep1 = SyscallHandler::ep(1);
-    epid_t srvep = SyscallHandler::srvep();
-    epid_t pexep = SyscallHandler::pexep();
+    epid_t srvep = TCU::SERV_REP;
+    epid_t pexep = TCU::PEX_REP;
     const m3::TCU::Message *msg;
     while(_run) {
         m3::TCU::get().sleep();
