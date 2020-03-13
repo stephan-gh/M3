@@ -141,16 +141,9 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
     let desc = kif::PEDesc::new_from(is.pop()?);
 
-    let res = child.alloc_pe(dst_sel, desc);
-    match res {
-        Err(e) => {
-            log!(resmng::LOG_DEF, "request failed: {}", e);
-            reply_vmsg!(is, e.code() as u64)
-        },
-        Ok(desc) => reply_vmsg!(is, 0 as u64, desc.value()),
-    }
-    .expect("Unable to reply");
-    Ok(())
+    child
+        .alloc_pe(dst_sel, desc)
+        .and_then(|desc| reply_vmsg!(is, 0 as u64, desc.value()))
 }
 
 fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
