@@ -87,11 +87,16 @@ impl Gate {
     }
 
     /// Activates the gate. Returns the chosen endpoint number.
+    #[inline(always)]
     pub(crate) fn activate(&self) -> Result<&EP, Error> {
         if let Some(ep) = self.ep() {
             return Ok(ep);
         }
 
+        self.do_activate()
+    }
+
+    fn do_activate(&self) -> Result<&EP, Error> {
         let ep = VPE::cur().epmng().activate(self)?;
         self.ep.replace(Some(ep));
         Ok(self.ep().unwrap())

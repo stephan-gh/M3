@@ -60,11 +60,13 @@ pub trait Source {
 macro_rules! impl_xfer_prim {
     ( $t:ty ) => {
         impl Marshallable for $t {
+            #[inline(always)]
             fn marshall(&self, s: &mut dyn Sink) {
                 s.push_word(*self as u64);
             }
         }
         impl Unmarshallable for $t {
+            #[inline(always)]
             fn unmarshall(s: &mut dyn Source) -> Result<Self, Error> {
                 s.pop_word().map(|v| v as $t)
             }
@@ -84,11 +86,13 @@ impl_xfer_prim!(usize);
 impl_xfer_prim!(isize);
 
 impl Marshallable for bool {
+    #[inline(always)]
     fn marshall(&self, s: &mut dyn Sink) {
         s.push_word(*self as u64);
     }
 }
 impl Unmarshallable for bool {
+    #[inline(always)]
     fn unmarshall(s: &mut dyn Source) -> Result<Self, Error> {
         s.pop_word().map(|v| v == 1)
     }
