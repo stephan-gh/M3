@@ -413,17 +413,25 @@ fn derive_kmem() {
         Code::InvArgs
     );
 
-    // transfer memory
-    {
-        let kmem2 = wv_assert_ok!(VPE::cur().kmem().derive(quota / 2));
-        let quota2 = wv_assert_ok!(kmem2.quota());
-        let nquota = wv_assert_ok!(VPE::cur().kmem().quota());
-        wv_assert_eq!(quota2, quota / 2);
-        // we don't know exactly, because we have paid for the new cap and kobject too
-        wv_assert!(nquota <= quota / 2);
+    // do that test twice, because we might cause pagefaults during the first test, changing the
+    // kernel memory quota (our pager shares the kmem with us).
+    for i in 0..=1 {
+        let before = wv_assert_ok!(VPE::cur().kmem().quota());
+        // transfer memory
+        {
+            let kmem2 = wv_assert_ok!(VPE::cur().kmem().derive(before / 2));
+            let quota2 = wv_assert_ok!(kmem2.quota());
+            let nquota = wv_assert_ok!(VPE::cur().kmem().quota());
+            wv_assert_eq!(quota2, before / 2);
+            // we don't know exactly, because we have paid for the new cap and kobject too
+            wv_assert!(nquota <= before / 2);
+        }
+        // only do the check in the second test where no pagefaults should occur
+        if i == 1 {
+            let nquota = wv_assert_ok!(VPE::cur().kmem().quota());
+            wv_assert_eq!(nquota, before);
+        }
     }
-    let nquota = wv_assert_ok!(VPE::cur().kmem().quota());
-    wv_assert_eq!(nquota, quota);
 
     let kmem = wv_assert_ok!(VPE::cur().kmem().derive(quota / 2));
     {
