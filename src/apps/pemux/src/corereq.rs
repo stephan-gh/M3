@@ -27,7 +27,21 @@ pub fn handle_recv(req: tcu::Reg) {
     // add message to VPE
     let vpe_id = (req >> 12) & 0xFFFF;
     if let Some(v) = vpe::get_mut(vpe_id) {
-        v.add_msg();
+        // if this VPE is currently running, we have to update the CUR_VPE register
+        if tcu::TCU::get_cur_vpe() >> 19 == vpe_id {
+            // temporary switch to idle
+            let old_vpe = tcu::TCU::xchg_vpe(vpe::idle().vpe_reg());
+            // set user event
+            v.set_vpe_reg(old_vpe);
+            v.add_msg();
+            // switch back
+            tcu::TCU::xchg_vpe(v.vpe_reg());
+        }
+        // otherwise, just add it to our copy of CUR_VPE
+        else {
+            v.add_msg();
+        }
+
         log!(crate::LOG_FOREIGN_MSG, "Added message to VPE {} ({} msgs)", vpe_id, v.msgs());
     }
 
