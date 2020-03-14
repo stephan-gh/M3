@@ -78,13 +78,17 @@ impl XlateState {
             self.pf_msg[2] = perm.bits();
             let msg = &self.pf_msg as *const u64 as *const u8;
             let size = util::size_of_val(&self.pf_msg);
-            tcu::TCU::send(
+            let res = tcu::TCU::send(
                 eps_start + tcu::PG_SEP_OFF,
                 msg,
                 size,
                 0,
                 eps_start + tcu::PG_REP_OFF,
-            )?;
+            );
+            if let Err(e) = res {
+                self.in_pf = false;
+                return Err(e);
+            }
         }
 
         // wait for reply
