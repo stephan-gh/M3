@@ -100,15 +100,25 @@ fn leave(state: &mut arch::State) -> *mut libc::c_void {
     state as *mut _ as *mut libc::c_void
 }
 
+fn set_user_event() {
+    // we can assume here that we (PEMux) is the current VPE, because we call it only from stop_vpe
+    // with NESTING_LEVEL > 1.
+    let our = vpe::our();
+    let old_vpe = tcu::TCU::xchg_vpe(vpe::idle().vpe_reg());
+    // set user event
+    our.set_vpe_reg(old_vpe | tcu::EventMask::USER.bits());
+    // switch back; we don't need to restore the VPE reg of idle; it doesn't receive msgs anyway
+    tcu::TCU::xchg_vpe(our.vpe_reg());
+}
+
 pub fn nesting_level() -> u32 {
     *NESTING_LEVEL
 }
 
 pub fn stop_vpe(state: &mut arch::State) {
     if *NESTING_LEVEL > 1 {
-        let _cmd_saved = helper::TCUGuard::new();
         // prevent us from sleeping by setting the user event
-        tcu::TCU::set_event().ok();
+        set_user_event();
 
         *STOPPED.get_mut() = true;
     }

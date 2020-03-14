@@ -77,10 +77,9 @@ public:
         WRITE               = 4,
         FETCH_MSG           = 5,
         FETCH_EVENTS        = 6,
-        SET_EVENT           = 7,
-        ACK_MSG             = 8,
-        SLEEP               = 9,
-        PRINT               = 10,
+        ACK_MSG             = 7,
+        SLEEP               = 8,
+        PRINT               = 9,
     };
 
     enum {
