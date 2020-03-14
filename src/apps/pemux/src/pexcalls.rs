@@ -20,7 +20,6 @@ use base::pexif;
 
 use arch;
 use helper;
-use vpe;
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
     let cycles = state.r[arch::PEXC_ARG1];
@@ -41,8 +40,7 @@ fn pexcall_stop(state: &mut arch::State) -> Result<(), Error> {
 
     log!(crate::LOG_CALLS, "pexcall::stop(code={})", code);
 
-    crate::stop_vpe(state);
-    vpe::remove(code, true);
+    crate::stop_vpe(state, code, true, true);
 
     Ok(())
 }

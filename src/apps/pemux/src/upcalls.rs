@@ -72,8 +72,7 @@ fn vpe_ctrl(msg: &'static tcu::Message, state: &mut arch::State) -> Result<(), E
         },
 
         kif::pemux::VPEOp::STOP | _ => {
-            crate::stop_vpe(state);
-            vpe::remove(0, false);
+            crate::stop_vpe(state, 0, false, false);
         },
     }
 

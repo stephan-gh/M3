@@ -551,6 +551,10 @@ impl TCU {
         Self::write_priv_reg(PrivReg::CORE_RESP, val)
     }
 
+    pub fn get_cur_vpe() -> Reg {
+        Self::read_priv_reg(PrivReg::CUR_VPE)
+    }
+
     pub fn xchg_vpe(nvpe: Reg) -> Reg {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 4));
         unsafe { intrinsics::atomic_fence() };

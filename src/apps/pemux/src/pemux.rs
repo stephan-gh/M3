@@ -93,8 +93,10 @@ fn enter() {
 fn leave(state: &mut arch::State) -> *mut libc::c_void {
     upcalls::check(state);
 
-    if *STOPPED {
-        stop_vpe(state);
+    if *STOPPED && *NESTING_LEVEL == 1 {
+        // status and notify don't matter, because we've already called vpe::remove in a deeper
+        // nesting level and thus, the VPE is gone.
+        stop_vpe(state, 0, false, true);
     }
     *NESTING_LEVEL.get_mut() -= 1;
     state as *mut _ as *mut libc::c_void
@@ -115,7 +117,9 @@ pub fn nesting_level() -> u32 {
     *NESTING_LEVEL
 }
 
-pub fn stop_vpe(state: &mut arch::State) {
+pub fn stop_vpe(state: &mut arch::State, status: u32, notify: bool, to_idle: bool) {
+    vpe::remove(status, notify);
+
     if *NESTING_LEVEL > 1 {
         // prevent us from sleeping by setting the user event
         set_user_event();
@@ -124,6 +128,13 @@ pub fn stop_vpe(state: &mut arch::State) {
     }
     else {
         state.stop();
+
+        if to_idle {
+            // switch to idle
+            let old_vpe = tcu::TCU::xchg_vpe(vpe::idle().vpe_reg());
+            // remove user event again
+            vpe::our().set_vpe_reg(old_vpe & !tcu::EventMask::USER.bits());
+        }
 
         *STOPPED.get_mut() = false;
     }
@@ -138,8 +149,7 @@ pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
     enter();
 
     log!(LOG_ERR, "Unexpected IRQ with {:?}", state);
-    stop_vpe(state);
-    vpe::remove(1, true);
+    stop_vpe(state, 1, true, true);
 
     leave(state)
 }
@@ -148,8 +158,7 @@ pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
     enter();
 
     if arch::handle_mmu_pf(state).is_err() {
-        stop_vpe(state);
-        vpe::remove(1, true);
+        stop_vpe(state, 1, true, true);
     }
 
     leave(state)

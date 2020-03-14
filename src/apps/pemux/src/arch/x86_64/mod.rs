@@ -14,14 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use base::tcu;
 use base::errors::Error;
 use base::kif::PageFlags;
 use base::libc;
 use core::fmt;
 
 use vma;
-use vpe;
 
 type IsrFunc = extern "C" fn(state: &mut State) -> *mut libc::c_void;
 
@@ -121,10 +119,6 @@ impl State {
         // run in kernel mode
         self.cs = ((SEG_KCODE << 3) | DPL_KERNEL) as usize;
         self.ss = ((SEG_KDATA << 3) | DPL_KERNEL) as usize;
-
-        // remove user event again
-        let our = vpe::our();
-        our.set_vpe_reg(our.vpe_reg() & !tcu::EventMask::USER.bits());
     }
 }
 

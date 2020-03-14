@@ -152,6 +152,10 @@ pub fn our() -> &'static mut VPE {
     OUR.get_mut().as_mut().unwrap()
 }
 
+pub fn idle() -> &'static mut VPE {
+    IDLE.get_mut().as_mut().unwrap()
+}
+
 pub fn cur() -> &'static mut VPE {
     match CUR.get_mut() {
         Some(v) => v,
@@ -160,14 +164,16 @@ pub fn cur() -> &'static mut VPE {
 }
 
 pub fn remove(status: u32, notify: bool) {
+    if tcu::TCU::get_cur_vpe() >> 19 != kif::pemux::VPE_ID {
+        // change to our VPE (no need to save old vpe_reg; VPE is dead)
+        tcu::TCU::xchg_vpe(our().vpe_reg());
+    }
+
     if (*CUR).is_some() {
         let old = CUR.set(None).unwrap();
         log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
 
         if notify {
-            // change to our VPE (no need to save old vpe_reg; VPE is dead)
-            tcu::TCU::xchg_vpe(our().vpe_reg());
-
             // enable interrupts for address translations
             let _guard = helper::IRQsOnGuard::new();
             let msg = kif::pemux::Exit {
@@ -179,10 +185,6 @@ pub fn remove(status: u32, notify: bool) {
             let msg = &msg as *const _ as *const u8;
             let size = util::size_of::<kif::pemux::Exit>();
             tcu::TCU::send(tcu::KPEX_SEP, msg, size, 0, tcu::NO_REPLIES).unwrap();
-
-            // switch to idle
-            let old_vpe = tcu::TCU::xchg_vpe(cur().vpe_reg());
-            our().set_vpe_reg(old_vpe);
         }
 
         if INFO.get().pe_desc.has_virtmem() {
