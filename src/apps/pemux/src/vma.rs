@@ -76,12 +76,10 @@ impl XlateState {
             // send PF message
             self.pf_msg[1] = virt as u64;
             self.pf_msg[2] = perm.bits();
-            let msg = &self.pf_msg as *const u64 as *const u8;
-            let size = util::size_of_val(&self.pf_msg);
             let res = tcu::TCU::send(
                 eps_start + tcu::PG_SEP_OFF,
-                msg,
-                size,
+                &self.pf_msg as *const u64 as *const u8,
+                util::size_of_val(&self.pf_msg),
                 0,
                 eps_start + tcu::PG_REP_OFF,
             );
