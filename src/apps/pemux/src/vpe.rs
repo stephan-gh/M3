@@ -174,8 +174,12 @@ pub fn remove(status: u32, notify: bool) {
         log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
 
         if notify {
+            // disable upcalls, because we can't handle them if our own VPE is the current one
+            let _upcalls_off = helper::UpcallsOffGuard::new();
+
             // enable interrupts for address translations
             let _guard = helper::IRQsOnGuard::new();
+
             let msg = kif::pemux::Exit {
                 op: kif::pemux::Calls::EXIT.val as u64,
                 vpe_sel: old.id(),
