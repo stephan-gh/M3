@@ -49,8 +49,16 @@ inline word_t CPU::get_sp() {
     return val;
 }
 
-inline void CPU::compute(UNUSED cycles_t cycles) {
-    // TODO
+inline void CPU::compute(cycles_t cycles) {
+    cycles_t iterations = cycles / 2;
+    asm volatile (
+        ".align 4;"
+        "1: addi %0, %0, -1;"
+        "bnez %0, 1b;"
+        // let the compiler know that we change the value of cycles
+        // as it seems, inputs are not expected to change
+        : "=r"(iterations) : "0"(iterations)
+    );
 }
 
 inline void CPU::memory_barrier() {
