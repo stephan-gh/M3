@@ -39,8 +39,10 @@ BEGIN_FUNC(_start)
     orr     r0, r0, #0x10000000     // enable TEX remap
     mcr     p15, 0, r0, c1, c0, 0
 
-    // setup stack
+    // prevent linker from forgetting Entry.S from ISR lib
     ldr     sp, =isr_stack
+    // use idle stack during init and sleep to not interfere with ISRs
+    ldr     sp, =idle_stack
     mov     fp, #0
 
     // perform initialization

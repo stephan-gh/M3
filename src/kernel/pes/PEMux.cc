@@ -42,16 +42,27 @@ PEMux::PEMux(peid_t pe)
         _tcustate.config_send(m3::TCU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
                               Platform::kernel_pe(), TCU::PEX_REP,
                               KPEX_RBUF_ORDER, 1);
+        update_ep(m3::TCU::KPEX_SEP);
 
         // configure receive EP
         uintptr_t rbuf = PEMUX_RBUF_SPACE;
         _tcustate.config_recv(m3::TCU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
                               KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::TCU::NO_REPLIES);
+        update_ep(m3::TCU::KPEX_REP);
         rbuf += KPEX_RBUF_SIZE;
 
         // configure upcall receive EP
         _tcustate.config_recv(m3::TCU::PEXUP_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
                               PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::TCU::PEXUP_RPLEP);
+        update_ep(m3::TCU::PEXUP_REP);
+
+        if(Platform::pe(pe).is_programmable()) {
+            // send initial dummy upcall to PEMux
+            m3::KIF::PEXUpcalls::RemMsgs req;
+            req.vpe_sel = m3::KIF::PEMUX_VPE_ID;
+            req.unread_mask = 0;
+            upcall(&req, sizeof(req));
+        }
     }
     #endif
 }

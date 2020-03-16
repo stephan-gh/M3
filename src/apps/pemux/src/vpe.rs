@@ -23,7 +23,6 @@ use base::math;
 use base::tcu;
 use base::util;
 
-use helper;
 use paging::Allocator;
 
 struct PTAllocator {
@@ -174,12 +173,6 @@ pub fn remove(status: u32, notify: bool) {
         log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
 
         if notify {
-            // disable upcalls, because we can't handle them if our own VPE is the current one
-            let _upcalls_off = helper::UpcallsOffGuard::new();
-
-            // enable interrupts for address translations
-            let _guard = helper::IRQsOnGuard::new();
-
             let msg = &mut crate::msgs_mut().exit_notify;
             msg.op = kif::pemux::Calls::EXIT.val as u64;
             msg.vpe_sel = old.id();

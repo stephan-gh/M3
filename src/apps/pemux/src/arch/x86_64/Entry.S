@@ -23,7 +23,8 @@
 
 BEGIN_FUNC(_start)
     xor     %rax, %rax
-    mov     $isr_stack, %rsp
+    // use idle stack during init and sleep to not interfere with ISRs
+    mov     $idle_stack, %rsp
     mov     $0, %rbp
     call    init
 

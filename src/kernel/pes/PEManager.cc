@@ -27,9 +27,9 @@ PEManager *PEManager::_inst;
 
 PEManager::PEManager()
     : _muxes(new PEMux*[Platform::pe_count()]) {
+    deprivilege_pes();
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i)
         _muxes[i] = new PEMux(i);
-    deprivilege_pes();
 }
 
 void PEManager::add_vpe(VPECapability *vpe) {

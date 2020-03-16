@@ -133,12 +133,17 @@ fn translate_addr(req: tcu::Reg) {
     let asid = req >> 48;
     let virt = ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize;
     let perm = PageFlags::from_bits_truncate((req >> 1) & PageFlags::RW.bits());
-    let xfer_buf = (req >> 5) & 0x7;
+    let xfer_buf = (req >> 6) & 0x7;
 
     // perform page table walk
     let mut pte = vpe::get_mut(asid).map_or(0, |v| v.translate(virt, perm));
     let cmd_saved = STATE.cmd_saved;
     let mut aborted = false;
+
+    // the messages page is put as a fixed entry into the TLB
+    if (virt & !cfg::PAGE_BITS) == ((crate::msgs_mut() as *const _ as usize) & !cfg::PAGE_BITS) {
+        pte |= PageFlags::FIXED.bits();
+    }
 
     if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
         // the first xfer buffer can't raise pagefaults
@@ -161,7 +166,7 @@ fn translate_addr(req: tcu::Reg) {
     // tell TCU the result; but only if the command has not been aborted or the aborted command
     // did not trigger the translation (in this case, the translation is already aborted, too).
     if !aborted || STATE.cmd.xfer_buf() != xfer_buf {
-        tcu::TCU::set_core_resp(pte | (xfer_buf << 5));
+        tcu::TCU::set_core_resp(pte | (xfer_buf << 6));
     }
 
     if cmd_saved != STATE.cmd_saved {

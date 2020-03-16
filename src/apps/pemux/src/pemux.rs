@@ -246,5 +246,31 @@ pub extern "C" fn init() {
         env().pe_mem_base,
         env().pe_mem_size,
     );
+
+    // disable upcalls, because we can't handle them if our own VPE is the current one
+    let _upcalls_off = helper::UpcallsOffGuard::new();
+    // the kernel sends us an initial upcall, to which we reply to force an TLB miss in the TCU and
+    // put our "messages page" into the TLB as a fixed entry. afterwards, we can leave IRQs off when
+    // sending messages, because we know that the page is present in the TLB.
+    loop {
+        tcu::TCU::fetch_events();
+        tcu::TCU::sleep().ok();
+
+        if let Some(msg) = tcu::TCU::fetch_msg(tcu::PEXUP_REP) {
+            // enable interrupts for address translations
+            let _guard = helper::IRQsOnGuard::new();
+
+            let reply = &mut msgs_mut().upcall_reply;
+            reply.error = 0;
+            tcu::TCU::reply(
+                tcu::PEXUP_REP,
+                reply as *const _ as *const u8,
+                util::size_of::<kif::DefaultReply>(),
+                msg,
+            ).unwrap();
+            break;
+        }
+    }
+
     tcu::TCU::xchg_vpe(vpe::cur().vpe_reg());
 }

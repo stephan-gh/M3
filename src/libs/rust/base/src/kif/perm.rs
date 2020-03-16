@@ -44,8 +44,10 @@ bitflags! {
         const X             = 0b0000_0100;
         /// Large page
         const L             = 0b0000_1000;
+        /// Fixed entry in TCU TLB
+        const FIXED         = 0b0001_0000;
         /// User accessible
-        const U             = 0b0001_0000;
+        const U             = 0b0010_0000;
         /// Read+write
         const RW            = Self::R.bits | Self::W.bits;
         /// Read+execute

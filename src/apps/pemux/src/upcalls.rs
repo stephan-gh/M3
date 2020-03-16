@@ -30,7 +30,6 @@ use vpe;
 static ENABLED: StaticCell<bool> = StaticCell::new(true);
 
 fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
-    let _irqs = helper::IRQsOnGuard::new();
     tcu::TCU::reply(
         tcu::PEXUP_REP,
         reply as *const T as *const u8,
@@ -167,9 +166,6 @@ pub fn check(state: &mut arch::State) {
     }
 
     let _cmd_saved = helper::TCUGuard::new();
-
-    // don't handle other upcalls in the meantime
-    let _upcalls_off = helper::UpcallsOffGuard::new();
 
     loop {
         // change to our VPE

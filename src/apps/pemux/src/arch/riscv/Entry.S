@@ -22,10 +22,10 @@
 .global idle_stack
 
 BEGIN_FUNC(_start)
-    la      sp, isr_stack
+    # use idle stack during init and sleep to not interfere with ISRs
+    la      sp, idle_stack
     jal     init
 
-    la      sp, idle_stack  # stack for idle loop
     jal     sleep
 
     # just to be sure
