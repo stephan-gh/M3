@@ -100,13 +100,13 @@ impl State {
         self.r[9] = 0xDEADBEEF; // a0; don't set the stackpointer in crt0
         self.sepc = entry;
         self.r[1] = sp;
-        // TODO self.cpsr = 0x10; // user mode
+        self.sstatus &= !(1 << 8); // user mode
     }
 
     pub fn stop(&mut self) {
         self.sepc = crate::sleep as *const fn() as usize;
         self.r[1] = unsafe { &idle_stack as *const libc::c_void as usize };
-        // TODO self.cpsr = 0x13; // supervisor mode
+        self.sstatus |= 1 << 8; // super visor mode
     }
 }
 
@@ -136,7 +136,7 @@ pub fn init() {
         isr_init();
         for i in 0..=31 {
             match Vector::from(i) {
-                Vector::ENV_SCALL => isr_reg(i, crate::pexcall),
+                Vector::ENV_UCALL => isr_reg(i, crate::pexcall),
                 Vector::INSTR_PAGEFAULT => isr_reg(i, crate::mmu_pf),
                 Vector::LOAD_PAGEFAULT => isr_reg(i, crate::mmu_pf),
                 Vector::STORE_PAGEFAULT => isr_reg(i, crate::mmu_pf),
