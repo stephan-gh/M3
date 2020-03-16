@@ -140,12 +140,12 @@ fn handle_upcall(msg: &'static tcu::Message, state: &mut arch::State) {
         _ => Err(Error::new(Code::NotSup)),
     };
 
-    match res {
-        Ok(_) => reply_msg(msg, &kif::DefaultReply { error: 0 }),
-        Err(e) => reply_msg(msg, &kif::DefaultReply {
-            error: e.code() as u64,
-        }),
-    }
+    let reply = &mut crate::msgs_mut().upcall_reply;
+    reply.error = match res {
+        Ok(_) => 0,
+        Err(e) => e.code() as u64,
+    };
+    reply_msg(msg, reply);
 }
 
 pub fn disable() -> bool {

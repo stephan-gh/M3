@@ -33,11 +33,12 @@ mod vpe;
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::tcu;
 use base::envdata;
 use base::io;
 use base::kif;
 use base::libc;
+use base::tcu;
+use base::util;
 use core::intrinsics;
 use core::ptr;
 
@@ -59,6 +60,39 @@ extern "C" {
 
 #[used]
 static mut HEAP: [u64; 8 * 1024] = [0; 8 * 1024];
+
+pub struct PagefaultMessage {
+    pub op: u64,
+    pub virt: u64,
+    pub access: u64,
+}
+
+// ensure that there is no page-boundary within the messages
+#[repr(align(4096))]
+pub struct Messages {
+    pub pagefault: PagefaultMessage,
+    pub exit_notify: kif::pemux::Exit,
+    pub upcall_reply: kif::DefaultReply,
+}
+
+static MSGS: StaticCell<Messages> = StaticCell::new(Messages {
+    pagefault: PagefaultMessage {
+        op: 0,
+        virt: 0,
+        access: 0,
+    },
+    exit_notify: kif::pemux::Exit {
+        code: 0,
+        op: 0,
+        vpe_sel: 0,
+    },
+    upcall_reply: kif::DefaultReply { error: 0 },
+});
+
+pub fn msgs_mut() -> &'static mut Messages {
+    const_assert!(util::size_of::<Messages>() <= cfg::PAGE_SIZE);
+    MSGS.get_mut()
+}
 
 #[no_mangle]
 pub extern "C" fn abort() {
@@ -207,6 +241,10 @@ pub extern "C" fn init() {
     }
 
     io::init(0, "pemux");
-    vpe::init(kif::PEDesc::new_from(env().pe_desc), env().pe_mem_base, env().pe_mem_size);
+    vpe::init(
+        kif::PEDesc::new_from(env().pe_desc),
+        env().pe_mem_base,
+        env().pe_mem_size,
+    );
     tcu::TCU::xchg_vpe(vpe::cur().vpe_reg());
 }

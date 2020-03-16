@@ -180,15 +180,14 @@ pub fn remove(status: u32, notify: bool) {
             // enable interrupts for address translations
             let _guard = helper::IRQsOnGuard::new();
 
-            let msg = kif::pemux::Exit {
-                op: kif::pemux::Calls::EXIT.val as u64,
-                vpe_sel: old.id(),
-                code: status as u64,
-            };
+            let msg = &mut crate::msgs_mut().exit_notify;
+            msg.op = kif::pemux::Calls::EXIT.val as u64;
+            msg.vpe_sel = old.id();
+            msg.code = status as u64;
 
-            let msg = &msg as *const _ as *const u8;
+            let msg_addr = msg as *const _ as *const u8;
             let size = util::size_of::<kif::pemux::Exit>();
-            tcu::TCU::send(tcu::KPEX_SEP, msg, size, 0, tcu::NO_REPLIES).unwrap();
+            tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::NO_REPLIES).unwrap();
         }
 
         if INFO.get().pe_desc.has_virtmem() {

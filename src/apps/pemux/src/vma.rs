@@ -31,8 +31,6 @@ struct XlateState {
     req_count: u32,
     reqs: [tcu::Reg; 4],
     cmd: helper::TCUCmdState,
-    // store messages in static data to ensure that we don't pagefault
-    pf_msg: [u64; 3],
 }
 
 impl XlateState {
@@ -43,7 +41,6 @@ impl XlateState {
             req_count: 0,
             reqs: [0; 4],
             cmd: helper::TCUCmdState::new(),
-            pf_msg: [/* PAGEFAULT */ 0, 0, 0],
         }
     }
 
@@ -73,13 +70,17 @@ impl XlateState {
             // disable upcalls during TCU::send, because don't want to abort this command
             let _upcalls_off = helper::UpcallsOffGuard::new();
 
+            // build message
+            let msg = &mut crate::msgs_mut().pagefault;
+            msg.op = 0;
+            msg.virt = virt as u64;
+            msg.access = perm.bits();
+
             // send PF message
-            self.pf_msg[1] = virt as u64;
-            self.pf_msg[2] = perm.bits();
             let res = tcu::TCU::send(
                 eps_start + tcu::PG_SEP_OFF,
-                &self.pf_msg as *const u64 as *const u8,
-                util::size_of_val(&self.pf_msg),
+                msg as *const _ as *const u8,
+                util::size_of::<crate::PagefaultMessage>(),
                 0,
                 eps_start + tcu::PG_REP_OFF,
             );
