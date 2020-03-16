@@ -28,19 +28,28 @@ EXTERN_C int main(int argc, char **argv);
 namespace m3 {
 
 OStream &operator<<(OStream &os, const Env &senv) {
-    os << "pe    : " << senv.pe << "\n";
-    os << "argc  : " << senv.argc << "\n";
-    os << "argv  : " << fmt(senv.argv, "p") << "\n";
-    os << "sp    : " << fmt(senv.sp, "p") << "\n";
-    os << "entry : " << fmt(senv.entry, "p") << "\n";
-    os << "lambda: " << fmt(senv.lambda, "p") << "\n";
-    os << "pgsess: " << senv.pager_sess << "\n";
-    os << "mounts: " << senv.mounts << "\n";
-    os << "mntlen: " << senv.mounts_len << "\n";
-    os << "fds   : " << senv.fds << "\n";
-    os << "fdslen: " << senv.fds_len << "\n";
-    os << "mounts: " << fmt(senv.mounts, "p") << "\n";
-    os << "caps  : " << fmt(senv.caps, "p") << "\n";
+    os << "pe_id        : " << senv.pe_id << "\n";
+    os << "pe_desc      : " << fmt(senv.pe_desc, "#x") << "\n";
+    os << "argc         : " << senv.argc << "\n";
+    os << "argv         : " << fmt(senv.argv, "p") << "\n";
+    os << "heap_size    : " << fmt(senv.heap_size, "#x") << "\n";
+    os << "pe_mem_base  : " << fmt(senv.pe_mem_base, "p") << "\n";
+    os << "pe_mem_size  : " << fmt(senv.pe_mem_size, "#x") << "\n";
+    os << "sp           : " << fmt(senv.sp, "p") << "\n";
+    os << "entry        : " << fmt(senv.entry, "p") << "\n";
+    os << "shared       : " << senv.shared << "\n";
+    os << "first_std_ep : " << senv.first_std_ep << "\n";
+    os << "first_sel    : " << senv.first_sel << "\n";
+    os << "lambda       : " << fmt(senv.lambda, "p") << "\n";
+    os << "rmng_sel     : " << senv.rmng_sel << "\n";
+    os << "pager_sess   : " << senv.pager_sess << "\n";
+    os << "mounts_addr  : " << fmt(senv.mounts_addr, "p") << "\n";
+    os << "mounts_len   : " << senv.mounts_len << "\n";
+    os << "fds_addr     : " << senv.fds_addr << "\n";
+    os << "fds_len      : " << fmt(senv.fds_len, "p") << "\n";
+    os << "rbuf_cur     : " << fmt(senv.rbuf_cur, "p") << "\n";
+    os << "rbuf_end     : " << fmt(senv.rbuf_end, "p") << "\n";
+    os << "backend_addr : " << fmt(senv.backend_addr, "p") << "\n";
     return os;
 }
 

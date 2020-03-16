@@ -63,16 +63,16 @@ Env::Init::Init() {
     m3::Heap::init();
     init_env();
 
-    Serial::init(executable(), env()->pe);
+    Serial::init(executable(), env()->pe_id);
 }
 
 Env::Init::~Init() {
 }
 
 Env::Env(EnvBackend *backend, int logfd)
-    : pe(set_inst(this)),
+    : pe_id(set_inst(this)),
       shared(false),
-      std_eps_start(0),
+      first_std_ep(0),
       _backend(backend),
       _logfd(logfd),
       _shm_prefix(),

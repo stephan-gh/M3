@@ -68,7 +68,7 @@ TCUBackend::TCUBackend()
         if(fcntl(_localsocks[ep], F_SETFD, FD_CLOEXEC) == -1)
             PANIC("Setting FD_CLOEXEC failed: " << strerror(errno));
 
-        sockaddr_un *addr = _endpoints + env()->pe * EP_COUNT + ep;
+        sockaddr_un *addr = _endpoints + env()->pe_id * EP_COUNT + ep;
         if(bind(_localsocks[ep], (struct sockaddr*)addr, sizeof(*addr)) == -1)
             PANIC("Binding socket for ep " << ep << " failed: " << strerror(errno));
     }

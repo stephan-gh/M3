@@ -20,7 +20,7 @@ use core::ptr;
 use kif::{CapSel, PEDesc};
 
 pub struct EnvData {
-    pub pe_id: u32,
+    pub pe_id: u64,
     pub shared: u32,
     pub pe_desc: u32,
     pub argc: u32,
@@ -31,7 +31,7 @@ pub struct EnvData {
 
 impl EnvData {
     pub fn new(
-        pe_id: u32,
+        pe_id: u64,
         pe_desc: PEDesc,
         argc: i32,
         argv: *const *const i8,

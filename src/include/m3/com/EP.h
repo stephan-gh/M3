@@ -85,7 +85,7 @@ public:
      * @return if the EP is a standard EP
      */
     bool is_standard() const noexcept {
-        return id() >= env()->std_eps_start && id() < env()->std_eps_start + TCU::STD_EPS_COUNT;
+        return id() >= env()->first_std_ep && id() < env()->first_std_ep + TCU::STD_EPS_COUNT;
     }
 
 private:

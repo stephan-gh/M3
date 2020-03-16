@@ -116,8 +116,8 @@ impl VPE {
     fn init(&mut self) {
         let env = arch::env::get();
         self.pe = Rc::new(PE::new_bind(env.pe_desc(), kif::SEL_PE));
-        self.next_sel = env.load_nextsel();
-        self.eps_start = env.std_eps_start();
+        self.next_sel = env.load_first_sel();
+        self.eps_start = env.first_std_ep();
         self.rmng = env.load_rmng();
         self.rbufs = env.load_rbufs();
         self.pager = env.load_pager();
@@ -247,7 +247,7 @@ impl VPE {
 
     /// Returns the id of the PE the VPE has been assigned to.
     pub fn pe_id(&self) -> u32 {
-        arch::env::get().pe_id()
+        arch::env::get().pe_id() as u32
     }
 
     /// Returns the `MemGate` that refers to the VPE's address space.
@@ -435,7 +435,7 @@ impl VPE {
             senv.set_argc(env.argc());
             senv.set_argv(loader.write_arguments(&mut off, env::args())?);
 
-            senv.set_std_eps_start(self.eps_start);
+            senv.set_first_std_ep(self.eps_start);
             senv.set_shared(arch::env::get().shared());
             senv.set_pedesc(self.pe_desc());
 
@@ -585,10 +585,10 @@ impl VPE {
                 senv.set_mounts(off, mounts.size());
             }
 
-            senv.set_std_eps_start(self.eps_start);
+            senv.set_first_std_ep(self.eps_start);
             senv.set_rmng(self.rmng.sel());
             senv.set_rbufs(&self.rbufs);
-            senv.set_next_sel(self.next_sel);
+            senv.set_first_sel(self.next_sel);
             senv.set_shared(arch::env::get().shared());
             senv.set_pedesc(self.pe_desc());
 

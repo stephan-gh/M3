@@ -71,7 +71,7 @@ static void map_segment(void *start, void *end, uint64_t perm, goff_t root) {
 }
 
 void init_paging() {
-    if(!m3::env()->pedesc.has_virtmem())
+    if(!m3::PEDesc(m3::env()->pe_desc).has_virtmem())
         return;
 
     goff_t root = m3::env()->pe_mem_base + m3::env()->pe_mem_size / 2;

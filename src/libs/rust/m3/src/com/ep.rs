@@ -101,7 +101,7 @@ impl EP {
 
     /// Returns if the EP is a standard EP
     pub fn is_standard(&self) -> bool {
-        let eps_start = arch::env::get().std_eps_start();
+        let eps_start = arch::env::get().first_std_ep();
         self.id() >= eps_start && self.id() < eps_start + STD_EPS_COUNT
     }
 

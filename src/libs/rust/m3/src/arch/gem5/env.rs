@@ -36,7 +36,7 @@ pub struct EnvData {
 }
 
 impl EnvData {
-    pub fn pe_id(&self) -> u32 {
+    pub fn pe_id(&self) -> u64 {
         self.base.pe_id
     }
 
@@ -45,7 +45,7 @@ impl EnvData {
     }
 
     pub fn set_shared(&mut self, shared: bool) {
-        self.base.shared = shared as u32;
+        self.base.shared = shared as u64;
     }
 
     pub fn pe_desc(&self) -> PEDesc {
@@ -88,27 +88,27 @@ impl EnvData {
         self.base.heap_size = size as u64;
     }
 
-    pub fn std_eps_start(&self) -> tcu::EpId {
-        self.base.std_eps_start as tcu::EpId
+    pub fn first_std_ep(&self) -> tcu::EpId {
+        self.base.first_std_ep as tcu::EpId
     }
 
-    pub fn set_std_eps_start(&mut self, start: tcu::EpId) {
-        self.base.std_eps_start = start as u64;
+    pub fn set_first_std_ep(&mut self, start: tcu::EpId) {
+        self.base.first_std_ep = start as u64;
     }
 
     pub fn has_vpe(&self) -> bool {
-        self.base.vpe != 0
+        self.base.vpe_addr != 0
     }
 
     pub fn vpe(&self) -> &'static mut VPE {
         // safety: we trust our loader
-        unsafe { intrinsics::transmute(self.base.vpe as usize) }
+        unsafe { intrinsics::transmute(self.base.vpe_addr as usize) }
     }
 
     pub fn load_pager(&self) -> Option<Pager> {
         match self.base.pager_sess {
             0 => None,
-            s => Some(Pager::new_bind(s).unwrap()),
+            s => Some(Pager::new_bind(s as Selector).unwrap()),
         }
     }
 
@@ -116,9 +116,9 @@ impl EnvData {
         ResMng::new(SendGate::new_bind(self.base.rmng_sel as Selector))
     }
 
-    pub fn load_nextsel(&self) -> Selector {
+    pub fn load_first_sel(&self) -> Selector {
         // it's initially 0. make sure it's at least the first usable selector
-        cmp::max(kif::FIRST_FREE_SEL, self.base.caps as Selector)
+        cmp::max(kif::FIRST_FREE_SEL, self.base.first_sel as Selector)
     }
 
     pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
@@ -130,7 +130,7 @@ impl EnvData {
             // safety: we trust our loader
             let slice = unsafe {
                 util::slice_for(
-                    self.base.mounts as *const u64,
+                    self.base.mounts_addr as *const u64,
                     self.base.mounts_len as usize,
                 )
             };
@@ -145,7 +145,7 @@ impl EnvData {
         if self.base.fds_len != 0 {
             // safety: we trust our loader
             let slice =
-                unsafe { util::slice_for(self.base.fds as *const u64, self.base.fds_len as usize) };
+                unsafe { util::slice_for(self.base.fds_addr as *const u64, self.base.fds_len as usize) };
             FileTable::unserialize(&mut SliceSource::new(slice))
         }
         else {
@@ -156,7 +156,7 @@ impl EnvData {
     // --- gem5 specific API ---
 
     pub fn set_vpe(&mut self, vpe: &VPE) {
-        self.base.vpe = vpe as *const VPE as u64;
+        self.base.vpe_addr = vpe as *const VPE as u64;
     }
 
     pub fn has_lambda(&self) -> bool {
@@ -167,8 +167,8 @@ impl EnvData {
         self.base.lambda = lambda as u64;
     }
 
-    pub fn set_next_sel(&mut self, sel: Selector) {
-        self.base.caps = u64::from(sel);
+    pub fn set_first_sel(&mut self, sel: Selector) {
+        self.base.first_sel = u64::from(sel);
     }
 
     pub fn set_rmng(&mut self, sel: Selector) {
@@ -182,17 +182,17 @@ impl EnvData {
     }
 
     pub fn set_files(&mut self, off: usize, len: usize) {
-        self.base.fds = off as u64;
-        self.base.fds_len = len as u32;
+        self.base.fds_addr = off as u64;
+        self.base.fds_len = len as u64;
     }
 
     pub fn set_mounts(&mut self, off: usize, len: usize) {
-        self.base.mounts = off as u64;
-        self.base.mounts_len = len as u32;
+        self.base.mounts_addr = off as u64;
+        self.base.mounts_len = len as u64;
     }
 
     pub fn set_pager(&mut self, pager: &Pager) {
-        self.base.pager_sess = pager.sel();
+        self.base.pager_sess = pager.sel() as u64;
     }
 }
 

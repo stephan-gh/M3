@@ -47,7 +47,7 @@ VPEArgs &VPEArgs::pager(Reference<Pager> pager) noexcept {
 // don't revoke these. they kernel does so on exit
 VPE::VPE()
     : ObjCap(VIRTPE, KIF::SEL_VPE, KEEP_CAP),
-      _pe(PE::bind(KIF::SEL_PE, env()->pedesc)),
+      _pe(PE::bind(KIF::SEL_PE, PEDesc(env()->pe_desc))),
       _kmem(new KMem(KIF::SEL_KMEM)),
       _mem(MemGate::bind(KIF::SEL_MEM)),
       _next_sel(KIF::FIRST_FREE_SEL),

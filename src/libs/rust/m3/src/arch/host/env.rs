@@ -42,7 +42,7 @@ impl EnvData {
         base::envdata::get()
     }
 
-    pub fn pe_id(&self) -> u32 {
+    pub fn pe_id(&self) -> u64 {
         self.base().pe_id
     }
 
@@ -74,7 +74,7 @@ impl EnvData {
         self.vpe = vpe as *const VPE as usize;
     }
 
-    pub fn std_eps_start(&self) -> EpId {
+    pub fn first_std_ep(&self) -> EpId {
         0
     }
 
@@ -86,7 +86,7 @@ impl EnvData {
         ResMng::new(SendGate::new_bind(Self::load_word("rmng", 0) as Selector))
     }
 
-    pub fn load_nextsel(&self) -> Selector {
+    pub fn load_first_sel(&self) -> Selector {
         if self.base().first_sel != 0 {
             self.base().first_sel as Selector
         }
@@ -164,7 +164,7 @@ pub fn init(argc: i32, argv: *const *const i8) {
     let shm_prefix = read_line(fd);
 
     let base = base::envdata::EnvData::new(
-        read_line(fd).parse::<u32>().unwrap(),
+        read_line(fd).parse::<u64>().unwrap(),
         PEDesc::new(PEType::COMP_IMEM, PEISA::X86, 1024 * 1024),
         argc,
         argv,

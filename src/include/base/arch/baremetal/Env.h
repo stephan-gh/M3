@@ -36,37 +36,46 @@ public:
     virtual void reinit() = 0;
 };
 
-class Env {
+struct BootEnv {
+    uint64_t pe_id;
+    uint32_t pe_desc;
+    uint32_t argc;
+    uint64_t argv;
+    uint64_t heap_size;
+    uint64_t pe_mem_base;
+    uint64_t pe_mem_size;
+    uint64_t kenv;
+} PACKED;
+
+class Env : public BootEnv {
     friend OStream &operator<<(OStream &, const Env &senv);
 
 public:
-    uint32_t pe;
-    uint32_t shared;
-    PEDesc pedesc;
-    uint32_t argc;
-    uint64_t argv;
     uint64_t sp;
     uint64_t entry;
-    uint64_t heapsize;
-    uint64_t kenv;
-    uint64_t pe_mem_base;
-    uint64_t pe_mem_size;
-    uint64_t std_eps_start;
+    uint64_t shared;
+    uint64_t first_std_ep;
+    uint64_t first_sel;
 
     uint64_t lambda;
-    uint32_t pager_sess;
-    uint32_t mounts_len;
-    uint64_t mounts;
-    uint32_t fds_len;
-    uint64_t fds;
-    uint64_t rbufcur;
-    uint64_t rbufend;
+
     uint64_t rmng_sel;
-    uint64_t caps;
-    uint64_t _backend;
+    uint64_t pager_sess;
+
+    uint64_t mounts_addr;
+    uint64_t mounts_len;
+
+    uint64_t fds_addr;
+    uint64_t fds_len;
+
+    uint64_t rbuf_cur;
+    uint64_t rbuf_end;
+
+    uint64_t vpe_addr;
+    uint64_t backend_addr;
 
     BaremetalEnvBackend *backend() {
-        return reinterpret_cast<BaremetalEnvBackend*>(_backend);
+        return reinterpret_cast<BaremetalEnvBackend*>(backend_addr);
     }
 
     static void run() asm("env_run");

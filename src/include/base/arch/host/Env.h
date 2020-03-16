@@ -110,8 +110,8 @@ public:
     void init_tcu();
     void set_params(peid_t _pe, const std::string &shmprefix, label_t sysc_label,
                     epid_t sysc_ep, word_t sysc_credits, capsel_t first_sel, capsel_t kmem_sel) {
-        pe = _pe;
-        pedesc = PEDesc(PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
+        pe_id = _pe;
+        pe_desc = PEDesc(PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024).value();
         _shm_prefix = shmprefix.c_str();
         _sysc_label = sysc_label;
         _sysc_epid = sysc_ep;
@@ -135,10 +135,10 @@ private:
     static void init_executable();
 
 public:
-    peid_t pe;
+    peid_t pe_id;
     bool shared;
-    PEDesc pedesc;
-    epid_t std_eps_start;
+    uint32_t pe_desc;
+    epid_t first_std_ep;
 
 private:
     EnvBackend *_backend;

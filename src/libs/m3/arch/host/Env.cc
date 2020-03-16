@@ -116,7 +116,7 @@ void Env::init_tcu() {
 void Env::reset() {
     load_params(this);
 
-    Serial::init(executable(), env()->pe);
+    Serial::init(executable(), env()->pe_id);
 
     TCU::get().reset();
 

@@ -104,10 +104,10 @@ gaddr_t Platform::info_addr() {
 
 peid_t Platform::kernel_pe() {
     // gem5 initializes the peid for us
-    return m3::env()->pe;
+    return m3::env()->pe_id;
 }
 peid_t Platform::first_pe() {
-    return m3::env()->pe + 1;
+    return m3::env()->pe_id + 1;
 }
 peid_t Platform::last_pe() {
     return last_pe_id;

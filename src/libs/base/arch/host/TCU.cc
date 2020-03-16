@@ -524,7 +524,7 @@ static void sigchild(int) {
 
 void *TCU::thread(void *arg) {
     TCU *dma = static_cast<TCU*>(arg);
-    peid_t pe = env()->pe;
+    peid_t pe = env()->pe_id;
 
     if(pe != 0)
         signal(SIGCLD, sigchild);

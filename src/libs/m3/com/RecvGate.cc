@@ -29,7 +29,7 @@ namespace m3 {
 
 static void *get_rgate_buf(UNUSED size_t off) {
 #if defined(__gem5__)
-    PEDesc desc(env()->pe);
+    PEDesc desc(env()->pe_desc);
     if(desc.has_virtmem())
         return reinterpret_cast<void*>(RECVBUF_SPACE + off);
     else
@@ -42,7 +42,7 @@ static void *get_rgate_buf(UNUSED size_t off) {
 INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
     VPE::self(),
     KIF::INV_SEL,
-    env()->std_eps_start + TCU::SYSC_REP_OFF,
+    env()->first_std_ep + TCU::SYSC_REP_OFF,
     get_rgate_buf(0),
     m3::nextlog2<SYSC_RBUF_SIZE>::val,
     SYSC_RBUF_ORDER,
@@ -52,7 +52,7 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
 INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
     VPE::self(),
     KIF::INV_SEL,
-    env()->std_eps_start + TCU::UPCALL_REP_OFF,
+    env()->first_std_ep + TCU::UPCALL_REP_OFF,
     get_rgate_buf(SYSC_RBUF_SIZE),
     m3::nextlog2<UPCALL_RBUF_SIZE>::val,
     UPCALL_RBUF_ORDER,
@@ -62,7 +62,7 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
 INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
     VPE::self(),
     KIF::INV_SEL,
-    env()->std_eps_start + TCU::DEF_REP_OFF,
+    env()->first_std_ep + TCU::DEF_REP_OFF,
     get_rgate_buf(SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE),
     m3::nextlog2<DEF_RBUF_SIZE>::val,
     DEF_RBUF_ORDER,

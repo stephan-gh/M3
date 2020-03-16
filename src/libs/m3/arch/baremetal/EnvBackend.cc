@@ -33,25 +33,12 @@ public:
     }
 
     virtual void init() override {
-        // wait until the kernel has initialized our PE
-        volatile Env *senv = env();
-        while(senv->pe == 0)
-            ;
-
-        // TODO argv is always present, isn't it?
         uint64_t *argv = reinterpret_cast<uint64_t*>(env()->argv);
-        Serial::init(argv ? reinterpret_cast<char*>(argv[0]) : "Unknown", env()->pe);
+        Serial::init(reinterpret_cast<char*>(argv[0]), env()->pe_id);
     }
 
     virtual void reinit() override {
-        // wait until the kernel has initialized our PE
-        volatile Env *senv = env();
-        while(senv->pe == 0)
-            ;
-
-        uint64_t *argv = reinterpret_cast<uint64_t*>(env()->argv);
-        Serial::init(argv ? reinterpret_cast<char*>(argv[0]) : "Unknown", senv->pe);
-
+        init();
         VPE::reset();
     }
 
@@ -64,7 +51,7 @@ public:
 EXTERN_C void init_env(Env *e) {
     m3::Heap::init();
     std::set_terminate(Exception::terminate_handler);
-    e->_backend = reinterpret_cast<uint64_t>(new EnvUserBackend());
+    e->backend_addr = reinterpret_cast<uint64_t>(new EnvUserBackend());
 }
 
 }

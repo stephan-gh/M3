@@ -26,7 +26,7 @@ namespace m3 {
 
 INIT_PRIO_SYSCALLS SendGate Syscalls::_sendgate(KIF::INV_SEL, ObjCap::KEEP_CAP,
                                                 &RecvGate::syscall(),
-                                                env()->std_eps_start + TCU::SYSC_SEP_OFF);
+                                                env()->first_std_ep + TCU::SYSC_SEP_OFF);
 
 template<class T>
 Syscalls::SyscallReply<T> Syscalls::send_receive(const void *msg, size_t size) noexcept {

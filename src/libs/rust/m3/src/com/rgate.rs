@@ -295,7 +295,7 @@ impl RecvGate {
 }
 
 pub(crate) fn pre_init() {
-    let eps_start = arch::env::get().std_eps_start();
+    let eps_start = arch::env::get().first_std_ep();
     SYS_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::SYSC_REP_OFF)));
     UPC_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::UPCALL_REP_OFF)));
     DEF_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::DEF_REP_OFF)));

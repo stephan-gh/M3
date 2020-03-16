@@ -187,11 +187,11 @@ void VPE::load_app() {
     senv.sp = STACK_TOP - sizeof(word_t);
     senv.entry = entry;
     senv.shared = Platform::is_shared(peid());
-    senv.pedesc = Platform::pe(peid());
-    senv.heapsize = ROOT_HEAP_SIZE;
+    senv.pe_desc = Platform::pe(peid()).value();
+    senv.heap_size = ROOT_HEAP_SIZE;
     senv.rmng_sel = m3::KIF::INV_SEL;
-    senv.caps = _first_sel;
-    senv.std_eps_start = _eps_start;
+    senv.first_sel = _first_sel;
+    senv.first_std_ep = _eps_start;
 
     TCU::get().write_mem(desc(), ENV_START, &senv, sizeof(senv));
 }

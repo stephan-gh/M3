@@ -482,7 +482,7 @@ pub fn noop() -> Result<(), Error> {
 
 pub(crate) fn init() {
     let env = arch::env::get();
-    SGATE.set(Some(SendGate::new_def(INVALID_SEL, env.std_eps_start() + SYSC_SEP_OFF)));
+    SGATE.set(Some(SendGate::new_def(INVALID_SEL, env.first_std_ep() + SYSC_SEP_OFF)));
 }
 
 pub(crate) fn reinit() {

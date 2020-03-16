@@ -35,17 +35,19 @@ void VPE::init_state() {
     _resmng.reset(new ResMng(env()->rmng_sel));
 
     // it's initially 0. make sure it's at least the first usable selector
-    _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->caps);
-    _rbufcur = env()->rbufcur;
-    _rbufend = env()->rbufend;
-    _eps_start = env()->std_eps_start;
+    _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->first_sel);
+    _rbufcur = env()->rbuf_cur;
+    _rbufend = env()->rbuf_end;
+    _eps_start = env()->first_std_ep;
 }
 
 void VPE::init_fs() {
     if(env()->pager_sess)
         _pager = Reference<Pager>(new Pager(env()->pager_sess));
-    _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(env()->mounts), env()->mounts_len));
-    _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(env()->fds), env()->fds_len));
+    _ms.reset(MountTable::unserialize(reinterpret_cast<const void*>(
+        env()->mounts_addr), env()->mounts_len));
+    _fds.reset(FileTable::unserialize(reinterpret_cast<const void*>(
+        env()->fds_addr), env()->fds_len));
 }
 
 void VPE::reset() noexcept {
@@ -53,7 +55,7 @@ void VPE::reset() noexcept {
     _self_ptr->_fds.release();
     _self_ptr->_ms.release();
 
-    _self_ptr = reinterpret_cast<VPE*>(env()->mounts);
+    _self_ptr = reinterpret_cast<VPE*>(env()->vpe_addr);
     _self_ptr->_pe->sel(KIF::SEL_PE);
     _self_ptr->_kmem->sel(KIF::SEL_KMEM);
     _self_ptr->sel(KIF::SEL_VPE);
@@ -66,23 +68,32 @@ void VPE::run(void *lambda) {
     copy_sections();
 
     Env senv;
-    senv.pe = 0;
+    senv.pe_id = 0;
+    senv.pe_desc = _pe->desc().value();
     senv.argc = env()->argc;
     senv.argv = ENV_SPACE_START;
+    senv.heap_size = env()->heap_size;
+
     senv.sp = CPU::get_sp();
     senv.entry = get_entry();
-    senv.lambda = reinterpret_cast<uintptr_t>(lambda);
-    senv.rbufcur = _rbufcur;
-    senv.rbufend = _rbufend;
-
-    senv.mounts = reinterpret_cast<uint64_t>(this);
-
-    senv._backend = env()->_backend;
     senv.shared = env()->shared;
-    senv.pedesc = _pe->desc();
-    senv.std_eps_start = _eps_start;
+    senv.first_std_ep = _eps_start;
+    senv.first_sel = 0;
 
-    senv.heapsize = env()->heapsize;
+    senv.lambda = reinterpret_cast<uintptr_t>(lambda);
+
+    senv.rmng_sel = 0;
+    senv.pager_sess = 0;
+    senv.mounts_addr = 0;
+    senv.mounts_len = 0;
+    senv.fds_addr = 0;
+    senv.fds_len = 0;
+
+    senv.rbuf_cur = _rbufcur;
+    senv.rbuf_end = _rbufend;
+
+    senv.vpe_addr = reinterpret_cast<uint64_t>(this);
+    senv.backend_addr = env()->backend_addr;
 
     /* write start env to PE */
     _mem.write(&senv, sizeof(senv), ENV_START);
@@ -107,21 +118,32 @@ void VPE::exec(int argc, const char **argv) {
     size_t size;
     load(argc, argv, &entry, buffer.get(), &size);
 
+    senv.pe_id = 0;
+    senv.pe_desc = _pe->desc().value();
     senv.argc = static_cast<uint32_t>(argc);
     senv.argv = ENV_SPACE_START;
+    senv.heap_size = _pager ? APP_HEAP_SIZE : 0;
+
     senv.sp = STACK_TOP;
     senv.entry = entry;
+    senv.shared = env()->shared;
+    senv.first_std_ep = _eps_start;
+    senv.first_sel = _next_sel;
+
     senv.lambda = 0;
+
+    senv.rmng_sel = _resmng->sel();
+    senv.pager_sess = _pager ? _pager->sel() : 0;
 
     /* add mounts, fds, caps and eps */
     /* align it because we cannot necessarily read e.g. integers from unaligned addresses */
     size_t offset = Math::round_up(size, sizeof(word_t));
 
-    senv.mounts = ENV_SPACE_START + offset;
+    senv.mounts_addr = ENV_SPACE_START + offset;
     senv.mounts_len = _ms->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.mounts_len), sizeof(word_t));
 
-    senv.fds = ENV_SPACE_START + offset;
+    senv.fds_addr = ENV_SPACE_START + offset;
     senv.fds_len = _fds->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
@@ -133,16 +155,11 @@ void VPE::exec(int argc, const char **argv) {
     /* write entire runtime stuff */
     _mem.write(buffer.get(), offset, ENV_SPACE_START);
 
-    senv.caps = _next_sel;
-    senv.rbufcur = _rbufcur;
-    senv.rbufend = _rbufend;
-    senv.rmng_sel = _resmng->sel();
-    senv.pager_sess = _pager ? _pager->sel() : 0;
-    senv._backend = 0;
-    senv.shared = env()->shared;
-    senv.pedesc = _pe->desc();
-    senv.heapsize = _pager ? APP_HEAP_SIZE : 0;
-    senv.std_eps_start = _eps_start;
+    senv.rbuf_cur = _rbufcur;
+    senv.rbuf_end = _rbufend;
+
+    senv.backend_addr = 0;
+    senv.vpe_addr = 0;
 
     /* write start env to PE */
     _mem.write(&senv, sizeof(senv), ENV_START);

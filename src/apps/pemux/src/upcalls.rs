@@ -43,7 +43,7 @@ fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
 fn vpe_ctrl(msg: &'static tcu::Message, state: &mut arch::State) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
-    let pe_id = req.pe_id as u32;
+    let pe_id = req.pe_id;
     let vpe_id = req.vpe_sel;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
     let eps_start = req.eps_start as tcu::EpId;

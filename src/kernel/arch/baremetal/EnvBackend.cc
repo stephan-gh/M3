@@ -35,8 +35,8 @@ public:
     }
 
     virtual void init() override {
-        init_rust_io(m3::env()->pe, "kernel");
-        m3::Serial::init("kernel", m3::env()->pe);
+        init_rust_io(m3::env()->pe_id, "kernel");
+        m3::Serial::init("kernel", m3::env()->pe_id);
     }
 
     virtual void reinit() override {
@@ -75,7 +75,7 @@ public:
 
 EXTERN_C void init_env(m3::Env *e) {
     m3::Heap::init();
-    e->_backend = reinterpret_cast<uint64_t>(new BaremetalKEnvBackend());
+    e->backend_addr = reinterpret_cast<uint64_t>(new BaremetalKEnvBackend());
 }
 
 }

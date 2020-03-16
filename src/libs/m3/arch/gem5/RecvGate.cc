@@ -26,12 +26,12 @@ namespace m3 {
 
 void *RecvGate::allocate(VPE &vpe, size_t size) {
     // use values in env for VPE::self to work around initialization order problems
-    uint64_t *cur = vpe.sel() == 0 ? &env()->rbufcur : &vpe._rbufcur;
-    uint64_t *end = vpe.sel() == 0 ? &env()->rbufend : &vpe._rbufend;
+    uint64_t *cur = vpe.sel() == 0 ? &env()->rbuf_cur : &vpe._rbufcur;
+    uint64_t *end = vpe.sel() == 0 ? &env()->rbuf_end : &vpe._rbufend;
 
     // TODO this assumes that we don't VPE::run between SPM and non-SPM PEs
     if(*end == 0) {
-        PEDesc desc = vpe.sel() == 0 ? env()->pedesc : vpe.pe_desc();
+        PEDesc desc = vpe.sel() == 0 ? PEDesc(env()->pe_desc) : vpe.pe_desc();
         size_t buf_sizes = SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
         if(desc.has_virtmem()) {
             *cur = RECVBUF_SPACE;
