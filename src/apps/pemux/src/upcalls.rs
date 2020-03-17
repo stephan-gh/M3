@@ -19,7 +19,6 @@ use base::cfg;
 use base::tcu;
 use base::errors::{Code, Error};
 use base::goff;
-use base::io;
 use base::kif;
 use base::util;
 
@@ -46,11 +45,6 @@ fn vpe_ctrl(msg: &'static tcu::Message, state: &mut arch::State) -> Result<(), E
     let vpe_id = req.vpe_sel;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
     let eps_start = req.eps_start as tcu::EpId;
-
-    if op == kif::pemux::VPEOp::INIT {
-        // do that here to get the color of the next print correct
-        io::init(pe_id, "pemux");
-    }
 
     log!(
         crate::LOG_UPCALLS,

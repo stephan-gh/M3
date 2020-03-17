@@ -240,7 +240,7 @@ pub extern "C" fn init() {
         );
     }
 
-    io::init(0, "pemux");
+    io::init(env().pe_id, "pemux");
     vpe::init(
         kif::PEDesc::new_from(env().pe_desc),
         env().pe_mem_base,
