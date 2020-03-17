@@ -18,7 +18,7 @@
 
 namespace kernel {
 
-extern "C" void init_rust_io(uint pe_id, const char *name);
+extern "C" void init_rust_io(uint32_t pe_id, const char *name);
 
 uint64_t translate(uintptr_t virt, uint64_t perm);
 
