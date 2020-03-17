@@ -14,14 +14,17 @@
  * General Public License version 2 for more details.
  */
 
+use base::boxed::Box;
 use base::cell::StaticCell;
 use base::cfg;
+use base::col::BoxList;
 use base::errors::Error;
 use base::goff;
 use base::kif;
 use base::math;
 use base::tcu;
 use base::util;
+use core::ptr::NonNull;
 
 use paging::Allocator;
 
@@ -66,14 +69,21 @@ struct Info {
 }
 
 pub struct VPE {
+    prev: Option<NonNull<VPE>>,
+    next: Option<NonNull<VPE>>,
     aspace: paging::AddrSpace<PTAllocator>,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
 }
 
-static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
-static IDLE: StaticCell<Option<VPE>> = StaticCell::new(None);
-static OUR: StaticCell<Option<VPE>> = StaticCell::new(None);
+impl_boxitem!(VPE);
+
+static CUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
+static IDLE: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
+static OUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
+static RDY: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
+static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
+
 static INFO: StaticCell<Info> = StaticCell::new(Info {
     pe_desc: kif::PEDesc::new_from(0),
     mem_start: 0,
@@ -88,20 +98,24 @@ pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
 
     let root_pt = mem_start + cfg::PAGE_SIZE as u64;
     let pts_count = mem_size as usize / cfg::PAGE_SIZE;
-    IDLE.set(Some(VPE::new(
+    IDLE.set(Some(Box::new(VPE::new(
         kif::pemux::IDLE_ID,
         0,
         root_pt,
         mem_start,
         pts_count,
-    )));
-    OUR.set(Some(VPE::new(
+    ))));
+    OUR.set(Some(Box::new(VPE::new(
         kif::pemux::VPE_ID,
         0,
         root_pt,
         mem_start,
         pts_count,
-    )));
+    ))));
+
+    unsafe {
+        RDY.get_mut().push_back(Box::from_raw(idle()));
+    }
 
     if pe_desc.has_virtmem() {
         our().init();
@@ -113,21 +127,26 @@ pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
 }
 
 pub fn add(id: u64, eps_start: tcu::EpId) {
-    assert!((*CUR).is_none());
-
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
     // TODO temporary
     let pt_begin = INFO.get().mem_start + (INFO.get().mem_end - INFO.get().mem_start) / 2;
     let root_pt = pt_begin;
     let pts_count = (INFO.get().mem_end - INFO.get().mem_start) as usize / cfg::PAGE_SIZE;
-    CUR.set(Some(VPE::new(id, eps_start, root_pt, INFO.get().mem_start, pts_count)));
+    let mut vpe = Box::new(VPE::new(
+        id,
+        eps_start,
+        root_pt,
+        INFO.get().mem_start,
+        pts_count,
+    ));
 
-    let vpe = get_mut(id).unwrap();
     if INFO.get().pe_desc.has_virtmem() {
         vpe.init();
-        vpe.switch_to();
     }
+    RDY.get_mut().push_back(vpe);
+
+    crate::reg_scheduling();
 }
 
 pub fn get_mut(id: u64) -> Option<&'static mut VPE> {
@@ -156,23 +175,47 @@ pub fn idle() -> &'static mut VPE {
 }
 
 pub fn cur() -> &'static mut VPE {
-    match CUR.get_mut() {
-        Some(v) => v,
-        None => IDLE.get_mut().as_mut().unwrap(),
+    CUR.get_mut().as_mut().unwrap()
+}
+
+pub fn schedule(block: bool) {
+    let next = RDY.get_mut().pop_front().unwrap();
+
+    log!(crate::LOG_VPES, "Switching to VPE {}", next.id());
+
+    // make current
+    if INFO.get().pe_desc.has_virtmem() {
+        next.switch_to();
+    }
+    let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
+
+    // switch CUR_VPE reg
+    if let Some(mut old) = CUR.set(Some(next)) {
+        old.set_vpe_reg(old_id);
+
+        // append to ready/blocked list
+        let list = if block { BLK.get_mut() } else { RDY.get_mut() };
+        log!(
+            crate::LOG_VPES,
+            "Putting VPE {} to {} list",
+            old.id(),
+            if block { "blocked" } else { "ready" }
+        );
+        list.push_back(old);
     }
 }
 
 pub fn remove(status: u32, notify: bool) {
-    if tcu::TCU::get_cur_vpe() >> 19 != kif::pemux::VPE_ID {
-        // change to our VPE (no need to save old vpe_reg; VPE is dead)
-        tcu::TCU::xchg_vpe(our().vpe_reg());
-    }
-
-    if (*CUR).is_some() {
-        let old = CUR.set(None).unwrap();
+    if let Some(old) = CUR.set(None) {
         log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
 
         if notify {
+            // change to our VPE (no need to save old vpe_reg; VPE is dead)
+            let pex_is_running = tcu::TCU::get_cur_vpe() >> 19 == kif::pemux::VPE_ID;
+            if !pex_is_running {
+                tcu::TCU::xchg_vpe(our().vpe_reg());
+            }
+
             let msg = &mut crate::msgs_mut().exit_notify;
             msg.op = kif::pemux::Calls::EXIT.val as u64;
             msg.vpe_sel = old.id();
@@ -181,12 +224,15 @@ pub fn remove(status: u32, notify: bool) {
             let msg_addr = msg as *const _ as *const u8;
             let size = util::size_of::<kif::pemux::Exit>();
             tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::NO_REPLIES).unwrap();
+
+            // switch back to old VPE
+            if !pex_is_running {
+                let our_vpe = tcu::TCU::xchg_vpe(old.vpe_reg());
+                our().set_vpe_reg(our_vpe);
+            }
         }
 
-        if INFO.get().pe_desc.has_virtmem() {
-            // switch back to our own address space
-            our().switch_to();
-        }
+        crate::reg_scheduling();
     }
 }
 
@@ -207,6 +253,8 @@ impl VPE {
         };
 
         VPE {
+            prev: None,
+            next: None,
             aspace: paging::AddrSpace::new(id, root_pt, allocator, false),
             vpe_reg: id << 19,
             eps_start,

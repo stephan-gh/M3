@@ -170,7 +170,7 @@ pub struct BoxList<T: BoxItem> {
 
 impl<T: BoxItem> BoxList<T> {
     /// Creates an empty list
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         BoxList {
             head: None,
             tail: None,
