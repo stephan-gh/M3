@@ -15,10 +15,7 @@
  */
 
 use base::tcu;
-use base::kif;
-use core::intrinsics;
 
-use helper::{IRQsOnGuard, UpcallsOffGuard};
 use vpe;
 
 pub fn handle_recv(req: tcu::Reg) {
@@ -45,30 +42,5 @@ pub fn handle_recv(req: tcu::Reg) {
         log!(crate::LOG_FOREIGN_MSG, "Added message to VPE {} ({} msgs)", vpe_id, v.msgs());
     }
 
-    // wait for the message if it's for us or for the current VPE
-    if vpe_id == kif::pemux::VPE_ID || vpe_id == vpe::cur().id() {
-        // get number of messages
-        let ep_id = (req >> 28) as tcu::EpId;
-        let unread_mask = tcu::TCU::unread_mask(ep_id);
-        unsafe { intrinsics::atomic_fence() };
-
-        // let the TCU continue the message reception
-        tcu::TCU::set_core_resp(req);
-
-        // ignore upcalls during nested interrupts; we'll handle them as soon as we're done here
-        // (otherwise this could steal the message that we're waiting on here)
-        // TODO what about pagefaults in the meantime?
-        let _upcalls_off = UpcallsOffGuard::new();
-
-        // we need to enable interrupts to allow address translations for message reception
-        let _irqs_on = IRQsOnGuard::new();
-
-        // wait here until the message has been received
-        // (otherwise fetching it afterwards might fail)
-        while tcu::TCU::unread_mask(ep_id) == unread_mask {
-        }
-    }
-    else {
-        tcu::TCU::set_core_resp(req);
-    }
+    tcu::TCU::set_core_resp(req);
 }

@@ -401,13 +401,6 @@ impl TCU {
         cur < max
     }
 
-    /// Returns the unread mask for the given receive EP
-    #[inline(always)]
-    pub fn unread_mask(ep: EpId) -> Reg {
-        let r2 = Self::read_ep_reg(ep, 2);
-        r2 >> 32
-    }
-
     /// Marks the given message for receive endpoint `ep` as read
     #[inline(always)]
     pub fn ack_msg(ep: EpId, msg: &Message) {
