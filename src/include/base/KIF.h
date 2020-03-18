@@ -413,7 +413,6 @@ struct KIF {
         };
 
         struct VPECtrl : public DefaultRequest {
-            xfer_t pe_id;
             xfer_t vpe_sel;
             xfer_t vpe_op;
             xfer_t eps_start;

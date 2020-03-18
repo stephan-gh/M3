@@ -26,6 +26,7 @@ use base::tcu;
 use base::util;
 use core::ptr::NonNull;
 
+use arch::{set_entry_sp, State};
 use paging::Allocator;
 
 struct PTAllocator {
@@ -62,6 +63,7 @@ impl Allocator for PTAllocator {
 }
 
 struct Info {
+    pe_id: u64,
     pe_desc: kif::PEDesc,
     mem_start: u64,
     mem_end: u64,
@@ -72,26 +74,33 @@ pub struct VPE {
     prev: Option<NonNull<VPE>>,
     next: Option<NonNull<VPE>>,
     aspace: paging::AddrSpace<PTAllocator>,
+    state: State,
+    state_addr: usize,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
 }
 
 impl_boxitem!(VPE);
 
-static CUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
+static VPES: StaticCell<[Option<NonNull<VPE>>; 64]> = StaticCell::new([None; 64]);
+
 static IDLE: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
 static OUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
+
+static CUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
 static RDY: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 
 static INFO: StaticCell<Info> = StaticCell::new(Info {
+    pe_id: 0,
     pe_desc: kif::PEDesc::new_from(0),
     mem_start: 0,
     mem_end: 0,
     bootstrap: true,
 });
 
-pub fn init(pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
+pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
+    INFO.get_mut().pe_id = pe_id;
     INFO.get_mut().pe_desc = pe_desc;
     INFO.get_mut().mem_start = mem_start;
     INFO.get_mut().mem_end = mem_start + mem_size;
@@ -144,9 +153,10 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
     if INFO.get().pe_desc.has_virtmem() {
         vpe.init();
     }
-    RDY.get_mut().push_back(vpe);
-
-    crate::reg_scheduling();
+    unsafe {
+        VPES.get_mut()[id as usize] = Some(NonNull::new_unchecked(vpe.as_mut()));
+    }
+    BLK.get_mut().push_back(vpe);
 }
 
 pub fn get_mut(id: u64) -> Option<&'static mut VPE> {
@@ -154,12 +164,10 @@ pub fn get_mut(id: u64) -> Option<&'static mut VPE> {
         return Some(our());
     }
     else {
-        let c = cur();
-        if c.id() == id {
-            return Some(c);
-        }
+        VPES.get_mut()[id as usize]
+            .as_mut()
+            .map(|v| unsafe { v.as_mut() })
     }
-    None
 }
 
 pub fn have_vpe() -> bool {
@@ -178,8 +186,8 @@ pub fn cur() -> &'static mut VPE {
     CUR.get_mut().as_mut().unwrap()
 }
 
-pub fn schedule(block: bool) {
-    let next = RDY.get_mut().pop_front().unwrap();
+pub fn schedule(state_addr: usize, block: bool) -> usize {
+    let mut next = RDY.get_mut().pop_front().unwrap();
 
     log!(crate::LOG_VPES, "Switching to VPE {}", next.id());
 
@@ -189,8 +197,25 @@ pub fn schedule(block: bool) {
     }
     let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
 
+    // init state, if not already done (now that we've switched to the address space)
+    if next.state_addr == 0 {
+        if next.id() != kif::pemux::IDLE_ID {
+            // remember the current PE
+            crate::env().pe_id = INFO.pe_id;
+            next.state.init(::env().entry as usize, ::env().sp as usize);
+            next.state_addr = &next.state as *const _ as usize;
+        }
+        else {
+            next.state_addr = state_addr;
+        }
+    }
+
+    let new_state = next.state_addr;
+    set_entry_sp(new_state + util::size_of::<State>());
+
     // switch CUR_VPE reg
     if let Some(mut old) = CUR.set(Some(next)) {
+        old.state_addr = state_addr;
         old.set_vpe_reg(old_id);
 
         // append to ready/blocked list
@@ -203,11 +228,15 @@ pub fn schedule(block: bool) {
         );
         list.push_back(old);
     }
+
+    new_state
 }
 
 pub fn remove(status: u32, notify: bool) {
     if let Some(old) = CUR.set(None) {
         log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
+
+        VPES.get_mut()[old.id() as usize] = None;
 
         if notify {
             // change to our VPE (no need to save old vpe_reg; VPE is dead)
@@ -257,6 +286,8 @@ impl VPE {
             next: None,
             aspace: paging::AddrSpace::new(id, root_pt, allocator, false),
             vpe_reg: id << 19,
+            state: State::default(),
+            state_addr: 0,
             eps_start,
         }
     }
@@ -306,6 +337,18 @@ impl VPE {
     pub fn rem_msgs(&mut self, count: u16) {
         assert!(self.msgs() >= count);
         self.vpe_reg -= (count as u64) << 3;
+    }
+
+    pub fn start(&mut self) {
+        let mut it = BLK.get_mut().iter_mut();
+        while let Some(v) = it.next() {
+            if v.id() == self.id() {
+                let vpe = it.remove().unwrap();
+                RDY.get_mut().push_back(vpe);
+                crate::reg_scheduling();
+                return;
+            }
+        }
     }
 
     fn init(&mut self) {

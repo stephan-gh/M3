@@ -17,7 +17,7 @@
 #include <base/Asm.h>
 
 .extern irq_handler
-.global isr_stack
+.extern isr_stack
 
 .text
 
@@ -60,14 +60,10 @@ END_FUNC(isr_enable)
 
 .align 4
 BEGIN_FUNC(exc_common)
-    # swap x31 with SSCRATCH to have a usable register
+    # load initial SP from SSCRATCH by swapping it with x31
     csrrw   x31, sscratch, x31
-    # 0 indicates that we come from privileged mode; keep the SP
-    bnez    x31, 1f
-    mv      x31, sp
 
     # calculate base address
-1:
     addi    x31, x31, -(8*34)
 
     # save GPRs
@@ -102,42 +98,40 @@ BEGIN_FUNC(exc_common)
     sd      x29, 8*28(x31)
     sd      x30, 8*29(x31)
 
+    # swap old sp with x31 again and store x31
+    addi    s1, x31, 8*34
     mv      sp, x31
-    # replace SSCRATCH with 0 (see above)
-    mv      x31, x0
-    # swap SSCRATCH with GPR and save it
-    csrrw   x31, sscratch, x31
+    csrrw   x31, sscratch, s1
     sd      x31, 8*30(sp)
+
     # save SCAUSE
     csrr    s1, scause
     sd      s1, 8*31(sp)
     # save SEPC
     csrr    s1, sepc
     sd      s1, 8*32(sp)
-
     # save SSTATUS
     csrr    s1, sstatus
     sd      s1, 8*33(sp)
 
+    # remember state as argument for irq_handler
     mv      a0, sp
-    jal     irq_handler
-    mv      x1, sp
+
+    # start with a new stack?
+    la      s1, isr_stack
+    ble     sp, s1, 1f
+    mv      sp, s1
+
+1:  jal     irq_handler
+    mv      x1, a0
 
     # restore SSTATUS
     ld      s1, 8*33(x1)
     csrw    sstatus, s1
-
     # restore SEPC
     ld      s1, 8*32(x1)
     csrw    sepc, s1
 
-    # restore SSCRATCH
-    la      a0, isr_stack
-    add     a1, x1, 8*34
-    bne     a0, a1, 1f
-    csrw    sscratch, a0
-
-1:
     # restore GPRs
     ld      x31, 8*30(x1)
     ld      x30, 8*29(x1)
@@ -173,9 +167,3 @@ BEGIN_FUNC(exc_common)
 
     sret
 END_FUNC(exc_common)
-
-.bss
-
-    .align 16
-    .space 16384, 0
-isr_stack:

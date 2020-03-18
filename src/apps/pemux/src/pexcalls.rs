@@ -40,7 +40,7 @@ fn pexcall_stop(state: &mut arch::State) -> Result<(), Error> {
 
     log!(crate::LOG_CALLS, "pexcall::stop(code={})", code);
 
-    crate::stop_vpe(state, code, true);
+    crate::stop_vpe(code, true);
 
     Ok(())
 }

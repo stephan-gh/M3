@@ -118,6 +118,10 @@ void ISR::init() {
     load_idt(&tbl);
 }
 
+void ISR::set_sp(uintptr_t sp) {
+    tss.rsp0 = sp;
+}
+
 void ISRBase::set_desc(Desc *d, uintptr_t address, size_t limit, uint8_t granu,
                          uint8_t type, uint8_t dpl) {
     d->addrLow = address & 0xFFFF;

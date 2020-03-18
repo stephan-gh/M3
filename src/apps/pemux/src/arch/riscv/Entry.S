@@ -18,12 +18,11 @@
 
 .extern init
 .extern sleep
-.extern isr_stack
-.global idle_stack
+.extern isr_stack_low
 
 BEGIN_FUNC(_start)
-    # use idle stack during init and sleep to not interfere with ISRs
-    la      sp, idle_stack
+    # use separate stack during init and sleep to not interfere with ISRs
+    la      sp, isr_stack_low
     jal     init
 
     jal     sleep
@@ -31,8 +30,3 @@ BEGIN_FUNC(_start)
     # just to be sure
 1:  j       1b
 END_FUNC(_start)
-
-.bss
-
-    .space 16384
-idle_stack:

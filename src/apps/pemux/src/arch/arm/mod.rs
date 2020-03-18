@@ -27,8 +27,6 @@ extern "C" {
     fn isr_init();
     fn isr_reg(idx: usize, func: IsrFunc);
     fn isr_enable();
-
-    static idle_stack: libc::c_void;
 }
 
 int_enum! {
@@ -44,6 +42,7 @@ int_enum! {
     }
 }
 
+#[derive(Default)]
 #[repr(C, packed)]
 pub struct State {
     pub sp: usize,
@@ -87,12 +86,6 @@ impl State {
         self.cpsr = 0x10; // user mode
         self.lr = 0;
     }
-
-    pub fn stop(&mut self) {
-        self.pc = crate::sleep as *const fn() as usize;
-        self.sp = unsafe { &idle_stack as *const libc::c_void as usize };
-        self.cpsr = 0x13; // supervisor mode
-    }
 }
 
 pub fn enable_ints() -> bool {
@@ -111,6 +104,10 @@ pub fn restore_ints(prev: bool) {
     if !prev {
         unsafe { asm!("cpsid if" : : : "memory" : "volatile"); }
     }
+}
+
+pub fn set_entry_sp(_sp: usize) {
+    // nothing to do
 }
 
 pub fn init() {

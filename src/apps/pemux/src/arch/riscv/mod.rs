@@ -27,8 +27,6 @@ extern "C" {
     fn isr_init();
     fn isr_reg(idx: usize, func: IsrFunc);
     fn isr_enable();
-
-    static idle_stack: libc::c_void;
 }
 
 int_enum! {
@@ -62,6 +60,7 @@ int_enum! {
     }
 }
 
+#[derive(Default)]
 #[repr(C, packed)]
 pub struct State {
     // general purpose registers
@@ -100,13 +99,9 @@ impl State {
         self.r[9] = 0xDEADBEEF; // a0; don't set the stackpointer in crt0
         self.sepc = entry;
         self.r[1] = sp;
+        unsafe { asm!("csrr $0, sstatus" : "=r"(self.sstatus)) };
         self.sstatus &= !(1 << 8); // user mode
-    }
-
-    pub fn stop(&mut self) {
-        self.sepc = crate::sleep as *const fn() as usize;
-        self.r[1] = unsafe { &idle_stack as *const libc::c_void as usize };
-        self.sstatus |= 1 << 8; // super visor mode
+        self.sstatus |= 1 << 4; // interrupts enabled
     }
 }
 
@@ -129,6 +124,10 @@ pub fn restore_ints(prev: bool) {
     if !prev {
         unsafe { asm!("fence.i; csrc sstatus, $0" : : "r"(1 << 1)) };
     }
+}
+
+pub fn set_entry_sp(sp: usize) {
+    unsafe { asm!("csrw sscratch, $0" :  : "r"(sp) : "memory") };
 }
 
 pub fn init() {

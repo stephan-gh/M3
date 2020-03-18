@@ -17,7 +17,7 @@
 #include <base/Asm.h>
 
 .extern irq_handler
-.global isr_stack
+.extern isr_stack
 
 .text
 
@@ -38,9 +38,17 @@ BEGIN_FUNC(isr_common)
     push    %r14
     push    %r15
 
-    // call C++ routine
+    // state as argument for irq_handler
     mov     %rsp, %rdi
-    call    irq_handler
+
+    // start with a new stack?
+    mov     $isr_stack, %rax
+    cmp     %rax, %rsp
+    jle     1f
+    mov     %rax, %rsp
+
+    // call C++ routine
+1:  call    irq_handler
 
     // restore application state
     mov     %rax, %rsp
@@ -111,9 +119,3 @@ BEGIN_FUNC(isr_null)
     push    $32                     // the interrupt-number
     jmp     isr_common
 END_FUNC(isr_null)
-
-.bss
-
-    .align 16
-    .space 16384, 0
-isr_stack:

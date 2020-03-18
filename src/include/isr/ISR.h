@@ -54,6 +54,11 @@ public:
     static void enable_irqs() asm("isr_enable");
 
     /**
+     * Sets the stack pointer for ISRs to <sp>.
+     */
+    static void set_sp(uintptr_t sp) asm("isr_set_sp");
+
+    /**
      * Will handle an interrupt/exception based on the given state. Calls the registered function
      * for the vector in <state>.
      */

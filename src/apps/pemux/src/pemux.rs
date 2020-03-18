@@ -56,6 +56,8 @@ pub const LOG_FOREIGN_MSG: bool = false;
 extern "C" {
     fn heap_init(begin: usize, end: usize);
     fn gem5_shutdown(delay: u64);
+
+    static isr_stack_low: libc::c_void;
 }
 
 #[used]
@@ -126,20 +128,21 @@ fn enter() {
 }
 
 fn leave(state: &mut arch::State) -> *mut libc::c_void {
-    upcalls::check(state);
+    upcalls::check();
 
     if *STOPPED && *NESTING_LEVEL == 1 {
         // status and notify don't matter, because we've already called vpe::remove in a deeper
         // nesting level and thus, the VPE is gone.
-        stop_vpe(state, 0, false);
+        stop_vpe(0, false);
     }
     *NESTING_LEVEL.get_mut() -= 1;
 
     if SCHED.set(false) {
-        vpe::schedule(false);
+        vpe::schedule(state as *mut _ as usize, false) as *mut libc::c_void
     }
-
-    state as *mut _ as *mut libc::c_void
+    else {
+        state as *mut _ as *mut libc::c_void
+    }
 }
 
 fn set_user_event() {
@@ -161,7 +164,7 @@ pub fn nesting_level() -> u32 {
     *NESTING_LEVEL
 }
 
-pub fn stop_vpe(state: &mut arch::State, status: u32, notify: bool) {
+pub fn stop_vpe(status: u32, notify: bool) {
     vpe::remove(status, notify);
 
     if *NESTING_LEVEL > 1 {
@@ -171,8 +174,6 @@ pub fn stop_vpe(state: &mut arch::State, status: u32, notify: bool) {
         *STOPPED.get_mut() = true;
     }
     else {
-        state.stop();
-
         // TODO remove user event
 
         *STOPPED.get_mut() = false;
@@ -188,7 +189,7 @@ pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
     enter();
 
     log!(LOG_ERR, "Unexpected IRQ with {:?}", state);
-    stop_vpe(state, 1, true);
+    stop_vpe(1, true);
 
     leave(state)
 }
@@ -197,7 +198,7 @@ pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
     enter();
 
     if arch::handle_mmu_pf(state).is_err() {
-        stop_vpe(state, 1, true);
+        stop_vpe(1, true);
     }
 
     leave(state)
@@ -247,6 +248,7 @@ pub extern "C" fn init() {
 
     io::init(env().pe_id, "pemux");
     vpe::init(
+        env().pe_id,
         kif::PEDesc::new_from(env().pe_desc),
         env().pe_mem_base,
         env().pe_mem_size,
@@ -278,5 +280,6 @@ pub extern "C" fn init() {
     }
 
     // switch to idle
-    vpe::schedule(false);
+    let state_addr = unsafe { &isr_stack_low as *const _ as usize };
+    vpe::schedule(state_addr - util::size_of::<arch::State>(), false);
 }

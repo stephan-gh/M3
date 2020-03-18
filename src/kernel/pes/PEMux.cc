@@ -154,7 +154,6 @@ m3::Errors::Code PEMux::vpe_ctrl(VPE *vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
 
     m3::KIF::PEXUpcalls::VPECtrl req;
     req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::VPE_CTRL);
-    req.pe_id = _pe->id;
     req.vpe_sel = vpe->id();
     req.vpe_op = ctrl;
     req.eps_start = vpe->eps_start();

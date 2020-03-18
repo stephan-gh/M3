@@ -27,21 +27,18 @@ extern "C" {
     fn isr_init();
     fn isr_reg(idx: usize, func: IsrFunc);
     fn isr_enable();
-
-    static idle_stack: libc::c_void;
+    fn isr_set_sp(sp: usize);
 }
 
-pub const DPL_KERNEL: u64 = 0;
 pub const DPL_USER: u64 = 3;
 
-pub const SEG_KCODE: u64 = 1;
-pub const SEG_KDATA: u64 = 2;
 pub const SEG_UCODE: u64 = 3;
 pub const SEG_UDATA: u64 = 4;
 
 pub const PEXC_ARG0: usize = 14; // rax
 pub const PEXC_ARG1: usize = 12; // rcx
 
+#[derive(Default)]
 #[repr(C, packed)]
 pub struct State {
     // general purpose registers
@@ -110,16 +107,6 @@ impl State {
         self.cs = ((SEG_UCODE << 3) | DPL_USER) as usize;
         self.ss = ((SEG_UDATA << 3) | DPL_USER) as usize;
     }
-
-    pub fn stop(&mut self) {
-        self.rip = crate::sleep as *const fn() as usize;
-        self.rsp = unsafe { &idle_stack as *const libc::c_void as usize };
-        self.r[8] = self.rsp; // rbp and rsp
-
-        // run in kernel mode
-        self.cs = ((SEG_KCODE << 3) | DPL_KERNEL) as usize;
-        self.ss = ((SEG_KDATA << 3) | DPL_KERNEL) as usize;
-    }
 }
 
 pub fn enable_ints() -> bool {
@@ -140,6 +127,10 @@ pub fn restore_ints(prev: bool) {
     if !prev {
         unsafe { asm!("cli" : : : "memory" : "volatile") };
     }
+}
+
+pub fn set_entry_sp(sp: usize) {
+    unsafe { isr_set_sp(sp) };
 }
 
 pub fn init() {

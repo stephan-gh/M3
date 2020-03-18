@@ -43,7 +43,6 @@ int_enum! {
 #[repr(C, packed)]
 pub struct VPECtrl {
     pub op: u64,
-    pub pe_id: u64,
     pub vpe_sel: u64,
     pub vpe_op: u64,
     pub eps_start: u64,

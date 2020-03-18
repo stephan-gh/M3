@@ -18,26 +18,20 @@
 
 .extern init
 .extern sleep
-.extern isr_stack
-.global idle_stack
+.extern isr_stack_low
 
 BEGIN_FUNC(_start)
     xor     %rax, %rax
     // use idle stack during init and sleep to not interfere with ISRs
-    mov     $idle_stack, %rsp
+    mov     $isr_stack_low, %rsp
     mov     $0, %rbp
     call    init
 
     // return to idle code
     pushq   $(1 << 3) | 0   // ss
-    pushq   $idle_stack     // rsp
+    pushq   $isr_stack_low  // rsp
     pushq   $0x200          // rflags: interrupts enabled
     pushq   $(2 << 3) | 0   // cs
     pushq   $sleep          // rip
     iretq
 END_FUNC(_start)
-
-.bss
-
-    .space 16384
-idle_stack:

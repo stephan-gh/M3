@@ -18,12 +18,15 @@
 
 .extern init
 .extern sleep
-.extern isr_stack
-.global idle_stack
+.extern isr_stack_low
+.extern exc_common
 
 .text
 
 BEGIN_FUNC(_start)
+    // force the linker to keep the ISR Entry.S
+    ldr     r0, =exc_common
+
     mrc     p15, 0, r0, c10, c2, 0  // PRRR
     orr     r0, r0, #0x00000002     // set tr0 = 0x2 (normal memory)
     mcr     p15, 0, r0, c10, c2, 0
@@ -39,17 +42,13 @@ BEGIN_FUNC(_start)
     orr     r0, r0, #0x10000000     // enable TEX remap
     mcr     p15, 0, r0, c1, c0, 0
 
-    // prevent linker from forgetting Entry.S from ISR lib
-    ldr     sp, =isr_stack
     // use idle stack during init and sleep to not interfere with ISRs
-    ldr     sp, =idle_stack
+    ldr     sp, =isr_stack_low
     mov     fp, #0
 
     // perform initialization
     bl      init
 
-    // load sp
-    ldr     sp, =idle_stack
     // enable interrupts and supervisor mode
     mov     r0, #0x13
     msr     CPSR, r0
@@ -57,8 +56,3 @@ BEGIN_FUNC(_start)
     ldr     r0, =sleep
     mov     pc, r0
 END_FUNC(_start)
-
-.bss
-
-    .space 16384
-idle_stack:

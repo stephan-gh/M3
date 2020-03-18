@@ -16,13 +16,12 @@
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::tcu;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
+use base::tcu;
 use base::util;
 
-use arch;
 use helper;
 use vpe;
 
@@ -38,10 +37,9 @@ fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
     .unwrap();
 }
 
-fn vpe_ctrl(msg: &'static tcu::Message, state: &mut arch::State) -> Result<(), Error> {
+fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
-    let pe_id = req.pe_id;
     let vpe_id = req.vpe_sel;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
     let eps_start = req.eps_start as tcu::EpId;
@@ -59,13 +57,11 @@ fn vpe_ctrl(msg: &'static tcu::Message, state: &mut arch::State) -> Result<(), E
         },
 
         kif::pemux::VPEOp::START => {
-            // remember the current PE
-            ::env().pe_id = pe_id;
-            state.init(::env().entry as usize, ::env().sp as usize);
+            vpe::get_mut(vpe_id).unwrap().start();
         },
 
         kif::pemux::VPEOp::STOP | _ => {
-            crate::stop_vpe(state, 0, false);
+            crate::stop_vpe(0, false);
         },
     }
 
@@ -123,11 +119,11 @@ fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn handle_upcall(msg: &'static tcu::Message, state: &mut arch::State) {
+fn handle_upcall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::pemux::Upcalls::from(req.opcode) {
-        kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg, state),
+        kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg),
         kif::pemux::Upcalls::MAP => map(msg),
         kif::pemux::Upcalls::REM_MSGS => rem_msgs(msg),
         _ => Err(Error::new(Code::NotSup)),
@@ -149,7 +145,7 @@ pub fn enable() {
     ENABLED.set(true);
 }
 
-pub fn check(state: &mut arch::State) {
+pub fn check() {
     if !*ENABLED {
         return;
     }
@@ -168,7 +164,7 @@ pub fn check(state: &mut arch::State) {
 
         let msg = tcu::TCU::fetch_msg(tcu::PEXUP_REP);
         if let Some(m) = msg {
-            handle_upcall(m, state);
+            handle_upcall(m);
         }
 
         // change back to old VPE

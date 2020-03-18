@@ -17,8 +17,7 @@
 #include <base/Asm.h>
 
 .extern irq_handler
-
-.global isr_stack
+.extern isr_stack
 
 .text
 
@@ -54,14 +53,24 @@ BEGIN_FUNC(exc_common)
     sub     sp, #8
     stmia   sp, {r13, r14}^
 
-    // make sure the stack is aligned
+    // argument for irq_handler (saved state)
     mov     r0, sp
+
+    // make sure the stack is aligned
     tst     sp, #4
     subeq   sp, #4
     push    {r0}
 
-    // call handler (sp already in r0)
-    bl      irq_handler
+    // start with a new stack?
+    ldr     r1, =isr_stack
+    cmp     sp, r1
+    ble     1f
+    mov     sp, r1
+
+    // call handler
+1:  bl      irq_handler
+
+    // restore state from state given by irq_handler
     mov     sp, r0
 
     // restore user space sp/lr
@@ -74,9 +83,3 @@ BEGIN_FUNC(exc_common)
     // return to user
     rfe     sp!
 END_FUNC(exc_common)
-
-.bss
-
-    .align      2
-    .space 16384,0
-isr_stack:
