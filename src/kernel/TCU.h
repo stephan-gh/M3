@@ -51,13 +51,13 @@ public:
 
     void deprivilege(peid_t pe);
 
-    void init_vpe(const VPEDesc &vpe);
-    void kill_vpe(const VPEDesc &vpe);
+    void init_vpe(peid_t pe);
+    void kill_vpe(peid_t pe);
 
-    m3::Errors::Code inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep);
+    m3::Errors::Code inv_reply_remote(peid_t pe, epid_t rep, peid_t rpe, epid_t sep);
 
-    m3::Errors::Code inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool force, uint32_t *unreadMask);
-    void write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs);
+    m3::Errors::Code inval_ep_remote(peid_t pe, epid_t ep, bool force, uint32_t *unreadMask);
+    void write_ep_remote(peid_t pe, epid_t ep, void *regs);
     void write_ep_local(epid_t ep);
 
     void recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder);
@@ -85,7 +85,7 @@ public:
 
 private:
 #if defined(__gem5__)
-    m3::Errors::Code do_ext_cmd(const VPEDesc &vpe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg);
+    m3::Errors::Code do_ext_cmd(peid_t pe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg);
 #endif
 
     TCUState _state;

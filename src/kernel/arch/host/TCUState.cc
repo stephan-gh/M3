@@ -68,7 +68,7 @@ void TCUState::config_send(epid_t ep, vpeid_t, label_t lbl, peid_t pe, epid_t ds
     regs[m3::TCU::EP_PERM]          = 0;
 }
 
-void TCUState::config_mem(epid_t ep, vpeid_t, peid_t pe, goff_t addr, size_t size, uint perms) {
+void TCUState::config_mem(epid_t ep, vpeid_t, peid_t pe, vpeid_t, goff_t addr, size_t size, uint perms) {
     word_t *regs = reinterpret_cast<word_t*>(get_ep(ep));
     regs[m3::TCU::EP_VALID]         = 1;
     regs[m3::TCU::EP_LABEL]         = addr;
@@ -79,7 +79,7 @@ void TCUState::config_mem(epid_t ep, vpeid_t, peid_t pe, goff_t addr, size_t siz
     regs[m3::TCU::EP_MSGORDER]      = 0;
 }
 
-bool TCUState::config_mem_cached(epid_t, peid_t) {
+bool TCUState::config_mem_cached(epid_t, peid_t, vpeid_t) {
     // unused
     return true;
 }

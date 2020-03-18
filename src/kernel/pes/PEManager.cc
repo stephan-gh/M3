@@ -47,7 +47,7 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
     vpe->_state = VPE::RUNNING;
 
     tcustate.restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
-    TCU::get().init_vpe(vpe->desc());
+    TCU::get().init_vpe(vpe->peid());
 
     vpe->init_memory();
 #endif
@@ -72,7 +72,7 @@ void PEManager::stop_vpe(VPE *vpe) {
     }
 #endif
 
-    TCU::get().kill_vpe(vpe->desc());
+    TCU::get().kill_vpe(vpe->peid());
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe) {

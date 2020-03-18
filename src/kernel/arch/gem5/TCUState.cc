@@ -66,7 +66,8 @@ void TCUState::config_send(epid_t ep, vpeid_t vpe, label_t lbl, peid_t pe, epid_
     r[2] = lbl;
 }
 
-void TCUState::config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t size, uint perm) {
+void TCUState::config_mem(epid_t ep, vpeid_t vpe, peid_t pe, vpeid_t tvpe,
+                          goff_t addr, size_t size, uint perm) {
     static_assert(m3::KIF::Perm::R == m3::TCU::R, "TCU::R does not match KIF::Perm::R");
     static_assert(m3::KIF::Perm::W == m3::TCU::W, "TCU::W does not match KIF::Perm::W");
 
@@ -74,18 +75,20 @@ void TCUState::config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t
     r[0] = static_cast<m3::TCU::reg_t>(m3::TCU::EpType::MEMORY) |
             (static_cast<m3::TCU::reg_t>(vpe) << 3) |
             (static_cast<m3::TCU::reg_t>(perm) << 19) |
-            (static_cast<m3::TCU::reg_t>(pe) << 23);
+            (static_cast<m3::TCU::reg_t>(pe) << 23) |
+            (static_cast<m3::TCU::reg_t>(tvpe) << 31);
     r[1] = addr;
     r[2] = size;
 }
 
-bool TCUState::config_mem_cached(epid_t ep, peid_t pe) {
+bool TCUState::config_mem_cached(epid_t ep, peid_t pe, vpeid_t tvpe) {
     m3::TCU::reg_t *r = reinterpret_cast<m3::TCU::reg_t*>(get_ep(ep));
     m3::TCU::reg_t r0, r2;
     r0 = static_cast<m3::TCU::reg_t>(m3::TCU::EpType::MEMORY) |
-         (VPE::KERNEL_ID << 3) |
-         (pe << 23) |
-         (m3::KIF::Perm::RW << 19);
+         (static_cast<m3::TCU::reg_t>(VPE::KERNEL_ID) << 3) |
+         (static_cast<m3::TCU::reg_t>(m3::KIF::Perm::RW) << 19) |
+         (static_cast<m3::TCU::reg_t>(pe) << 23) |
+         (static_cast<m3::TCU::reg_t>(tvpe) << 31);
     r2 = 0xFFFFFFFFFFFFFFFF;
     bool res = false;
     if(r0 != r[0]) {

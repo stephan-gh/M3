@@ -78,6 +78,7 @@ public:
         return vpe(id).peid();
     }
 
+    int pid_by_pe(peid_t pe);
     VPE *vpe_by_pid(int pid);
 
 private:

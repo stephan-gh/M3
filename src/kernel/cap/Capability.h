@@ -241,16 +241,18 @@ public:
 
 class MGateObject : public SlabObject<MGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit MGateObject(peid_t _pe, goff_t _addr, size_t _size, uint _perms)
+    explicit MGateObject(peid_t _pe, vpeid_t _vpe, goff_t _addr, size_t _size, uint _perms)
         : GateObject(Capability::MGATE),
           RefCounted(),
           pe(_pe),
+          vpe(_vpe),
           addr(_addr),
           size(_size),
           perms(_perms) {
     }
 
     peid_t pe;
+    vpeid_t vpe;
     goff_t addr;
     size_t size;
     uint perms;

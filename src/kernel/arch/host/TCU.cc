@@ -28,34 +28,35 @@ void TCU::deprivilege(peid_t) {
     // unsupported
 }
 
-void TCU::init_vpe(const VPEDesc &) {
+void TCU::init_vpe(peid_t) {
     // nothing to do
 }
 
-void TCU::kill_vpe(const VPEDesc &vpe) {
-    pid_t pid = VPEManager::get().vpe(vpe.id).pid();
+void TCU::kill_vpe(peid_t pe) {
+    pid_t pid = VPEManager::get().pid_by_pe(pe);
     // if the VPE didn't run, it has no PID yet
     if(pid != 0)
         kill(pid, SIGKILL);
 }
 
-m3::Errors::Code TCU::inv_reply_remote(const VPEDesc &, epid_t, peid_t, epid_t) {
+m3::Errors::Code TCU::inv_reply_remote(peid_t, epid_t, peid_t, epid_t) {
     // unused
     return m3::Errors::NONE;
 }
 
-m3::Errors::Code TCU::inval_ep_remote(const VPEDesc &vpe, epid_t ep, bool, uint32_t *unreadMask) {
+m3::Errors::Code TCU::inval_ep_remote(peid_t pe, epid_t ep, bool, uint32_t *unreadMask) {
     word_t regs[m3::TCU::EPS_RCNT];
     memset(regs, 0, sizeof(regs));
     *unreadMask = 0;
     // TODO detect if credits are outstanding
-    write_ep_remote(vpe, ep, regs);
+    write_ep_remote(pe, ep, regs);
     return m3::Errors::NONE;
 }
 
-void TCU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
-    uintptr_t eps = static_cast<uintptr_t>(PEManager::get().pemux(vpe.pe)->eps_base());
+void TCU::write_ep_remote(peid_t pe, epid_t ep, void *regs) {
+    uintptr_t eps = static_cast<uintptr_t>(PEManager::get().pemux(pe)->eps_base());
     uintptr_t addr = eps + ep * m3::TCU::EPS_RCNT * sizeof(word_t);
+    VPEDesc vpe(pe, VPE::INVALID_ID);
     write_mem(vpe, addr, regs, m3::TCU::EPS_RCNT * sizeof(word_t));
 }
 

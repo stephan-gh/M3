@@ -30,7 +30,8 @@ namespace kernel {
 
 static char buffer[8192];
 
-m3::Errors::Code TCU::do_ext_cmd(const VPEDesc &vpe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg) {
+m3::Errors::Code TCU::do_ext_cmd(peid_t pe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg) {
+    VPEDesc vpe(pe, VPE::INVALID_ID);
     m3::TCU::reg_t reg = static_cast<m3::TCU::reg_t>(op) | *arg << 8;
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::TCU::priv_reg_addr(m3::TCU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
@@ -49,39 +50,41 @@ void TCU::deprivilege(peid_t pe) {
     write_mem(vpe, m3::TCU::tcu_reg_addr(m3::TCU::TCURegs::FEATURES), &features, sizeof(features));
 }
 
-void TCU::init_vpe(const VPEDesc &vpe) {
+void TCU::init_vpe(peid_t pe) {
     // flush+invalidate caches to ensure that we have a fresh view on memory. this is required
     // because of the way the pager handles copy-on-write: it reads the current copy from the owner
     // and updates the version in DRAM. for that reason, the cache for new VPEs needs to be clear,
     // so that the cache loads the current version from DRAM.
     m3::TCU::reg_t arg = 1;
-    do_ext_cmd(vpe, m3::TCU::ExtCmdOpCode::RESET, &arg);
+    do_ext_cmd(pe, m3::TCU::ExtCmdOpCode::RESET, &arg);
 }
 
-void TCU::kill_vpe(const VPEDesc &vpe) {
+void TCU::kill_vpe(peid_t pe) {
     // reset all EPs to remove unread messages
     constexpr size_t userRegs = EP_COUNT - m3::TCU::FIRST_USER_EP;
     constexpr size_t regsSize = (userRegs * m3::TCU::EP_REGS) * sizeof(m3::TCU::reg_t);
     static_assert(regsSize <= sizeof(buffer), "Buffer too small");
     memset(buffer, 0, regsSize);
+    VPEDesc vpe(pe, VPE::INVALID_ID);
     write_mem(vpe, m3::TCU::ep_regs_addr(m3::TCU::FIRST_USER_EP), buffer, regsSize);
 }
 
-m3::Errors::Code TCU::inv_reply_remote(const VPEDesc &vpe, epid_t rep, peid_t pe, epid_t sep) {
-    m3::TCU::reg_t arg = rep | (pe << 16) | (sep << 24);
-    return do_ext_cmd(vpe, m3::TCU::ExtCmdOpCode::INV_REPLY, &arg);
+m3::Errors::Code TCU::inv_reply_remote(peid_t pe, epid_t rep, peid_t rpe, epid_t sep) {
+    m3::TCU::reg_t arg = rep | (rpe << 16) | (sep << 24);
+    return do_ext_cmd(pe, m3::TCU::ExtCmdOpCode::INV_REPLY, &arg);
 }
 
-m3::Errors::Code TCU::inval_ep_remote(const kernel::VPEDesc &vpe, epid_t ep, bool force,
+m3::Errors::Code TCU::inval_ep_remote(peid_t pe, epid_t ep, bool force,
                                       uint32_t *unreadMask) {
     m3::TCU::reg_t arg = ep | (static_cast<m3::TCU::reg_t>(force) << 16);
-    m3::Errors::Code res = do_ext_cmd(vpe, m3::TCU::ExtCmdOpCode::INV_EP, &arg);
+    m3::Errors::Code res = do_ext_cmd(pe, m3::TCU::ExtCmdOpCode::INV_EP, &arg);
     *unreadMask = arg;
     return res;
 }
 
-void TCU::write_ep_remote(const VPEDesc &vpe, epid_t ep, void *regs) {
+void TCU::write_ep_remote(peid_t pe, epid_t ep, void *regs) {
     m3::CPU::compiler_barrier();
+    VPEDesc vpe(pe, VPE::INVALID_ID);
     write_mem(vpe, m3::TCU::ep_regs_addr(ep), regs, sizeof(m3::TCU::reg_t) * m3::TCU::EP_REGS);
 }
 
@@ -117,7 +120,7 @@ void TCU::reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Messag
 }
 
 m3::Errors::Code TCU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
-    if(_state.config_mem_cached(TMP_MEP, vpe.pe))
+    if(_state.config_mem_cached(TMP_MEP, vpe.pe, vpe.id))
         write_ep_local(TMP_MEP);
 
     // the kernel can never cause pagefaults with reads/writes
@@ -125,7 +128,7 @@ m3::Errors::Code TCU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void 
 }
 
 m3::Errors::Code TCU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
-    if(_state.config_mem_cached(TMP_MEP, vpe.pe))
+    if(_state.config_mem_cached(TMP_MEP, vpe.pe, vpe.id))
         write_ep_local(TMP_MEP);
 
     return m3::TCU::get().read(TMP_MEP, data, size, addr, m3::TCU::CmdFlags::NOPF);

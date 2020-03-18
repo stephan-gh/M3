@@ -182,7 +182,7 @@ m3::Errors::Code PEMux::invalidate_ep(vpeid_t vpe, epid_t ep, bool force) {
     tcustate().invalidate_ep(ep);
 
     uint32_t unread_mask;
-    m3::Errors::Code res = TCU::get().inval_ep_remote(desc(), ep, force, &unread_mask);
+    m3::Errors::Code res = TCU::get().inval_ep_remote(peid(), ep, force, &unread_mask);
     if(res != m3::Errors::NONE)
         return res;
 
@@ -255,13 +255,13 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject 
         << ", perms=#" << m3::fmt(obj.perms, "x")
         << "]");
 
-    tcustate().config_mem(ep, vpe, obj.pe, obj.addr + off, obj.size - off, obj.perms);
+    tcustate().config_mem(ep, vpe, obj.pe, obj.vpe, obj.addr + off, obj.size - off, obj.perms);
     update_ep(ep);
     return m3::Errors::NONE;
 }
 
 void PEMux::update_ep(epid_t ep) {
-    TCU::get().write_ep_remote(desc(), ep, tcustate().get_ep(ep));
+    TCU::get().write_ep_remote(peid(), ep, tcustate().get_ep(ep));
 }
 
 }

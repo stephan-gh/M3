@@ -42,8 +42,8 @@ public:
 
     void config_recv(epid_t ep, vpeid_t vpe, goff_t buf, uint order, uint msgorder, uint reply_eps);
     void config_send(epid_t ep, vpeid_t vpe, label_t lbl, peid_t pe, epid_t dstep, uint msgorder, uint crd);
-    void config_mem(epid_t ep, vpeid_t vpe, peid_t pe, goff_t addr, size_t size, uint perm);
-    bool config_mem_cached(epid_t ep, peid_t pe);
+    void config_mem(epid_t ep, vpeid_t vpe, peid_t pe, vpeid_t tvpe, goff_t addr, size_t size, uint perm);
+    bool config_mem_cached(epid_t ep, peid_t pe, vpeid_t tvpe);
 
 #if defined(__host__)
     void update_recv(epid_t ep, goff_t base);

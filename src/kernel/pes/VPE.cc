@@ -98,7 +98,9 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, epid_t eps_start, vpeid_t id, u
     _kmem->alloc(*this, required_kmem());
 
     _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
-        &_objcaps, m3::KIF::SEL_MEM, new MGateObject(peid(), 0, MEMCAP_END, m3::KIF::Perm::RWX)));
+        &_objcaps, m3::KIF::SEL_MEM,
+        new MGateObject(peid(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)
+    ));
 
     // let the VPEManager know about us before we continue with initialization
     VPEManager::get().add(vpecap);
@@ -270,7 +272,7 @@ void VPE::set_mem_base(goff_t addr) {
 
 void VPE::update_ep(epid_t ep) {
     if(is_on_pe())
-        TCU::get().write_ep_remote(desc(), ep, PEManager::get().pemux(peid())->tcustate().get_ep(ep));
+        TCU::get().write_ep_remote(peid(), ep, PEManager::get().pemux(peid())->tcustate().get_ep(ep));
 }
 
 }

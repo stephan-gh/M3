@@ -717,6 +717,7 @@ void SyscallHandler::derive_mem(VPE *vpe, const m3::TCU::Message *msg) {
     auto dercap = SYS_CREATE_CAP(vpe, msg, MGateCapability, MGateObject,
         &vpecap->obj->objcaps(), dst,
         srccap->obj->pe,
+        srccap->obj->vpe,
         srccap->obj->addr + offset,
         size,
         perms & srccap->obj->perms
