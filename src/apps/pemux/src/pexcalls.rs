@@ -19,20 +19,18 @@ use base::errors::{Code, Error};
 use base::pexif;
 
 use arch;
-use helper;
+use vpe;
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
     let cycles = state.r[arch::PEXC_ARG1];
 
     log!(crate::LOG_CALLS, "pexcall::sleep(cycles={})", cycles);
 
+    // TODO support waiting for a given time
     if tcu::TCU::fetch_events() == 0 {
-        let _irqs = helper::IRQsOnGuard::new();
-        tcu::TCU::sleep_for(cycles as u64)
+        vpe::cur().block(vpe::ScheduleAction::TryBlock, None);
     }
-    else {
-        Ok(())
-    }
+    Ok(())
 }
 
 fn pexcall_stop(state: &mut arch::State) -> Result<(), Error> {
@@ -40,7 +38,7 @@ fn pexcall_stop(state: &mut arch::State) -> Result<(), Error> {
 
     log!(crate::LOG_CALLS, "pexcall::stop(code={})", code);
 
-    crate::stop_vpe(code, true);
+    vpe::remove_cur(code);
 
     Ok(())
 }

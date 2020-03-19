@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
 use base::cfg;
 use base::errors::{Code, Error};
 use base::goff;
@@ -24,8 +23,6 @@ use base::util;
 
 use helper;
 use vpe;
-
-static ENABLED: StaticCell<bool> = StaticCell::new(true);
 
 fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
     tcu::TCU::reply(
@@ -57,11 +54,25 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
         },
 
         kif::pemux::VPEOp::START => {
-            vpe::get_mut(vpe_id).unwrap().start();
+            let cur = vpe::cur();
+            let vpe = vpe::get_mut(vpe_id).unwrap();
+            assert!(cur.id() != vpe.id());
+            // temporary switch to the VPE to access the environment
+            vpe.switch_to();
+            vpe.start(0);
+            vpe.unblock();
+            // now switch back
+            cur.switch_to();
         },
 
         kif::pemux::VPEOp::STOP | _ => {
-            crate::stop_vpe(0, false);
+            // we cannot remove the current VPE here; remove it via scheduling
+            if vpe::cur().id() == vpe_id {
+                crate::reg_scheduling(vpe::ScheduleAction::Kill);
+            }
+            else {
+                vpe::remove(vpe_id, 0, false);
+            }
         },
     }
 
@@ -137,19 +148,7 @@ fn handle_upcall(msg: &'static tcu::Message) {
     reply_msg(msg, reply);
 }
 
-pub fn disable() -> bool {
-    ENABLED.set(false)
-}
-
-pub fn enable() {
-    ENABLED.set(true);
-}
-
 pub fn check() {
-    if !*ENABLED {
-        return;
-    }
-
     let our = vpe::our();
     if !our.has_msgs() {
         return;

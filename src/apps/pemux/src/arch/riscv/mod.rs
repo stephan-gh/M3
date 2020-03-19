@@ -61,7 +61,8 @@ int_enum! {
 }
 
 #[derive(Default)]
-#[repr(C, packed)]
+// see comment in ARM code
+#[repr(C, align(8))]
 pub struct State {
     // general purpose registers
     pub r: [usize; 31],
@@ -95,6 +96,10 @@ impl fmt::Debug for State {
 }
 
 impl State {
+    pub fn came_from_user(&self) -> bool {
+        ((self.sstatus >> 8) & 1) == 0
+    }
+
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.r[9] = 0xDEADBEEF; // a0; don't set the stackpointer in crt0
         self.sepc = entry;
@@ -102,27 +107,6 @@ impl State {
         unsafe { asm!("csrr $0, sstatus" : "=r"(self.sstatus)) };
         self.sstatus &= !(1 << 8); // user mode
         self.sstatus |= 1 << 4; // interrupts enabled
-    }
-}
-
-pub fn enable_ints() -> bool {
-    let prev: u64;
-    unsafe {
-        asm!(
-            "csrr $0, sstatus; csrs sstatus, $1; fence.i"
-            // specify registers explicitly; for some reason LLVM choses the same register for both
-            // is that even legal?
-            : "={x10}"(prev)
-            : "{x11}"(1 << 1)
-            : "memory"
-        );
-    }
-    (prev & (1 << 1)) != 0
-}
-
-pub fn restore_ints(prev: bool) {
-    if !prev {
-        unsafe { asm!("fence.i; csrc sstatus, $0" : : "r"(1 << 1)) };
     }
 }
 

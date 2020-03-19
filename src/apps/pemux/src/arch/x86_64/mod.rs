@@ -39,7 +39,8 @@ pub const PEXC_ARG0: usize = 14; // rax
 pub const PEXC_ARG1: usize = 12; // rcx
 
 #[derive(Default)]
-#[repr(C, packed)]
+// see comment in ARM code
+#[repr(C, align(8))]
 pub struct State {
     // general purpose registers
     pub r: [usize; 15],
@@ -95,6 +96,10 @@ impl fmt::Debug for State {
 }
 
 impl State {
+    pub fn came_from_user(&self) -> bool {
+        (self.cs & DPL_USER as usize) == DPL_USER as usize
+    }
+
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.rip = entry;
         self.rsp = sp;
@@ -106,26 +111,6 @@ impl State {
         // run in user mode
         self.cs = ((SEG_UCODE << 3) | DPL_USER) as usize;
         self.ss = ((SEG_UDATA << 3) | DPL_USER) as usize;
-    }
-}
-
-pub fn enable_ints() -> bool {
-    let prev = unsafe {
-        let mut flags: usize;
-        asm!(
-            "pushf; pop $0"
-            : "=r"(flags)
-            : : "memory"
-        );
-        (flags & 0x200) != 0
-    };
-    unsafe { asm!("sti" : : : "memory" : "volatile") };
-    prev
-}
-
-pub fn restore_ints(prev: bool) {
-    if !prev {
-        unsafe { asm!("cli" : : : "memory" : "volatile") };
     }
 }
 

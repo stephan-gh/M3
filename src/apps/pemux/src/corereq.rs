@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::kif;
 use base::tcu;
 
 use vpe;
@@ -40,6 +41,10 @@ pub fn handle_recv(req: tcu::Reg) {
         }
 
         log!(crate::LOG_FOREIGN_MSG, "Added message to VPE {} ({} msgs)", vpe_id, v.msgs());
+
+        if v.id() != kif::pemux::VPE_ID {
+            v.unblock();
+        }
     }
 
     tcu::TCU::set_core_resp(req);

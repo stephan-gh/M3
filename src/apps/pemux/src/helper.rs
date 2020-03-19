@@ -17,47 +17,6 @@
 use base::tcu;
 use core::intrinsics;
 
-use arch;
-use upcalls;
-
-pub struct UpcallsOffGuard {
-    prev: bool,
-}
-
-impl UpcallsOffGuard {
-    pub fn new() -> Self {
-        UpcallsOffGuard {
-            prev: upcalls::disable(),
-        }
-    }
-}
-
-impl Drop for UpcallsOffGuard {
-    fn drop(&mut self) {
-        if self.prev {
-            upcalls::enable();
-        }
-    }
-}
-
-pub struct IRQsOnGuard {
-    prev: bool,
-}
-
-impl IRQsOnGuard {
-    pub fn new() -> Self {
-        IRQsOnGuard {
-            prev: arch::enable_ints(),
-        }
-    }
-}
-
-impl Drop for IRQsOnGuard {
-    fn drop(&mut self) {
-        arch::restore_ints(self.prev);
-    }
-}
-
 pub struct TCUCmdState {
     cmd_regs: [tcu::Reg; 3],
     xfer_buf: tcu::Reg,

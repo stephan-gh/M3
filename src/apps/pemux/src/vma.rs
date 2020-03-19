@@ -14,179 +14,125 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
 use base::cfg;
 use base::errors::Error;
-use base::kif::{DefaultReply, PageFlags, PTE};
+use base::kif::{DefaultReply, PageFlags};
 use base::tcu;
 use base::util;
-use core::ptr;
 
 use helper;
 use vpe;
 
-struct XlateState {
-    in_pf: bool,
-    cmd_saved: bool,
-    req_count: u32,
-    reqs: [tcu::Reg; 4],
-    cmd: helper::TCUCmdState,
+pub struct PfState {
+    buf: Option<u64>,
+    virt: usize,
+    perm: PageFlags,
 }
 
-impl XlateState {
-    const fn new() -> Self {
-        XlateState {
-            in_pf: false,
-            cmd_saved: false,
-            req_count: 0,
-            reqs: [0; 4],
-            cmd: helper::TCUCmdState::new(),
-        }
+fn send_pf(
+    vpe: &mut vpe::VPE,
+    buf: Option<u64>,
+    virt: usize,
+    perm: PageFlags,
+) -> Result<(), Error> {
+    // save command registers to be able to send a message
+    let _cmd_saved = helper::TCUGuard::new();
+
+    // change to the VPE, if required
+    let cur = vpe::cur();
+    if cur.id() != vpe.id() {
+        let old_vpe = tcu::TCU::xchg_vpe(vpe.vpe_reg());
+        cur.set_vpe_reg(old_vpe);
     }
 
-    fn handle_pf(&mut self, req: tcu::Reg, virt: usize, perm: PageFlags) -> Result<bool, Error> {
-        if self.in_pf {
-            for r in &mut self.reqs {
-                if *r == 0 {
-                    *r = req;
-                    break;
-                }
-            }
-            self.req_count += 1;
-            return Ok(false);
-        }
+    // build message
+    let msg = &mut crate::msgs_mut().pagefault;
+    msg.op = 0;
+    msg.virt = virt as u64;
+    msg.access = perm.bits();
 
-        // abort the current command, if there is any
-        self.cmd.save();
+    // send PF message
+    let eps_start = vpe.eps_start();
+    let res = tcu::TCU::send(
+        eps_start + tcu::PG_SEP_OFF,
+        msg as *const _ as *const u8,
+        util::size_of::<crate::PagefaultMessage>(),
+        0,
+        eps_start + tcu::PG_REP_OFF,
+    ).and_then(|_| {
+        // remember the page fault information to resume it later
+        vpe.start_pf(PfState { buf, virt, perm });
+        vpe.block(vpe::ScheduleAction::Block, Some(recv_pf_resp));
+        Ok(())
+    });
 
-        self.cmd_saved = true;
-        self.in_pf = true;
+    if cur.id() != vpe.id() {
+        vpe.set_vpe_reg(tcu::TCU::xchg_vpe(cur.vpe_reg()));
+    }
+    res
+}
 
-        // allow other translation requests in the meantime
-        let eps_start = vpe::cur().eps_start();
-        let _irqs_on = helper::IRQsOnGuard::new();
+fn recv_pf_resp() -> bool {
+    let vpe = vpe::cur();
+    let eps_start = vpe.eps_start();
 
-        {
-            // disable upcalls during TCU::send, because don't want to abort this command
-            let _upcalls_off = helper::UpcallsOffGuard::new();
+    if let Some(msg) = tcu::TCU::fetch_msg(eps_start + tcu::PG_REP_OFF) {
+        let reply = msg.get_data::<DefaultReply>();
+        let err = reply.error as u32;
+        tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg);
 
-            // build message
-            let msg = &mut crate::msgs_mut().pagefault;
-            msg.op = 0;
-            msg.virt = virt as u64;
-            msg.access = perm.bits();
-
-            // send PF message
-            let res = tcu::TCU::send(
-                eps_start + tcu::PG_SEP_OFF,
-                msg as *const _ as *const u8,
-                util::size_of::<crate::PagefaultMessage>(),
-                0,
-                eps_start + tcu::PG_REP_OFF,
-            );
-            if let Err(e) = res {
-                self.in_pf = false;
-                return Err(e);
-            }
-        }
-
-        // wait for reply
-        let res = loop {
-            if !vpe::have_vpe() {
-                break Ok(true);
-            }
-
-            if let Some(msg) = tcu::TCU::fetch_msg(eps_start + tcu::PG_REP_OFF) {
-                let err = {
-                    let reply = msg.get_data::<DefaultReply>();
-                    let err = reply.error as u32;
-                    tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg);
-                    err
-                };
-
-                if err != 0 {
-                    break Err(Error::from(err));
+        let (cmd_buf, pf_state) = vpe.finish_pf();
+        if let Some(buf) = pf_state.buf {
+            // if the page fault was raised by a different transfer buffer than the command,
+            // we haven't aborted the transfer yet and thus want to continue it now.
+            if cmd_buf != buf {
+                let pte = if err == 0 {
+                    vpe.translate(pf_state.virt, pf_state.perm)
                 }
                 else {
-                    break Ok(true);
-                }
+                    cfg::PAGE_SIZE as u64
+                };
+                tcu::TCU::set_core_resp(pte | (buf << 6));
             }
-
-            tcu::TCU::wait_for_msg(eps_start + tcu::PG_REP_OFF, 0).ok();
-        };
-
-        self.in_pf = false;
-        res
-    }
-
-    fn resume_cmd(&mut self) {
-        if self.cmd_saved {
-            self.cmd_saved = false;
-            self.cmd.restore();
         }
+        if err != 0 {
+            vpe::remove_cur(1);
+        }
+        true
+    }
+    else {
+        false
     }
 }
 
-static STATE: StaticCell<XlateState> = StaticCell::new(XlateState::new());
-
-fn translate_addr(req: tcu::Reg) {
+pub fn handle_xlate(req: tcu::Reg) {
     let asid = req >> 48;
     let virt = ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize;
     let perm = PageFlags::from_bits_truncate((req >> 1) & PageFlags::RW.bits());
     let xfer_buf = (req >> 6) & 0x7;
 
     // perform page table walk
-    let mut pte = vpe::get_mut(asid).map_or(0, |v| v.translate(virt, perm));
-    let cmd_saved = STATE.cmd_saved;
-    let mut aborted = false;
-
-    if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
-        // the first xfer buffer can't raise pagefaults
-        if xfer_buf == 0 {
-            // the xlate response has to be non-zero, but have no permission bits set
-            pte = cfg::PAGE_SIZE as PTE;
-        }
-        else {
-            aborted = true;
-            let pf_handled = STATE.get_mut().handle_pf(req, virt, perm);
-            match pf_handled {
-                Err(_) => pte = cfg::PAGE_SIZE as PTE, // as above
-                // read PTE again
-                Ok(true) => pte = vpe::get_mut(asid).map_or(0, |v| v.translate(virt, perm)),
-                Ok(false) => return,
-            }
-        }
-    }
-
-    // tell TCU the result; but only if the command has not been aborted or the aborted command
-    // did not trigger the translation (in this case, the translation is already aborted, too).
-    if !aborted || STATE.cmd.xfer_buf() != xfer_buf {
-        tcu::TCU::set_core_resp(pte | (xfer_buf << 6));
-    }
-
-    if cmd_saved != STATE.cmd_saved {
-        assert!(STATE.cmd_saved);
-        STATE.get_mut().resume_cmd();
-    }
-}
-
-pub fn handle_xlate(mut xlate_req: tcu::Reg) {
-    translate_addr(xlate_req);
-
-    if !STATE.in_pf {
-        // handle other requests that pagefaulted in the meantime. use volatile because STATE might
-        // have changed after the call to translate_addr through a nested IRQ.
-        while unsafe { ptr::read_volatile(&STATE.req_count) } > 0 {
-            for r in &mut STATE.get_mut().reqs {
-                xlate_req = *r;
-                if xlate_req != 0 {
-                    STATE.get_mut().req_count -= 1;
-                    *r = 0;
-                    translate_addr(xlate_req);
+    let vpe = vpe::get_mut(asid);
+    if let Some(vpe) = vpe {
+        let pte = vpe.translate(virt, perm);
+        // page fault?
+        if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
+            // the first xfer buffer can't raise pagefaults
+            if xfer_buf != 0 {
+                if send_pf(vpe, Some(xfer_buf), virt, perm).is_ok() {
+                    return;
                 }
             }
         }
+        // translation worked: let transfer continue
+        else {
+            tcu::TCU::set_core_resp(pte | (xfer_buf << 6));
+            return;
+        }
     }
+
+    // translation failed: set non-zero response, but have no permission bits set
+    tcu::TCU::set_core_resp(cfg::PAGE_SIZE as u64 | (xfer_buf << 6));
 }
 
 pub fn handle_pf(
@@ -196,18 +142,16 @@ pub fn handle_pf(
     ip: usize,
 ) -> Result<(), Error> {
     // PEMux isn't causing PFs
-    if crate::nesting_level() != 1 {
+    if !state.came_from_user() {
         // save the current command to ensure that we can use the print command
         let _cmd_saved = helper::TCUGuard::new();
         panic!("pagefault for {:#x} at {:#x}", virt, ip);
     }
 
-    if let Err(e) = STATE.get_mut().handle_pf(0, virt, perm) {
+    if let Err(e) = send_pf(vpe::cur(), None, virt, perm) {
         log!(crate::LOG_ERR, "Pagefault for {:#x} with {:?}", virt, state);
         return Err(e);
     }
-
-    STATE.get_mut().resume_cmd();
 
     Ok(())
 }

@@ -229,6 +229,20 @@ impl<T: BoxItem> BoxList<T> {
         }
     }
 
+    /// Removes the first item for which `predicate` is true.
+    pub fn remove_if<P>(&mut self, predicate: P) -> Option<Box<T>>
+    where
+        P: Fn(&T) -> bool,
+    {
+        let mut it = self.iter_mut();
+        while let Some(v) = it.next() {
+            if predicate(v) {
+                return it.remove();
+            }
+        }
+        None
+    }
+
     /// Inserts the given element at the front of the list
     pub fn push_front(&mut self, mut item: Box<T>) {
         unsafe {

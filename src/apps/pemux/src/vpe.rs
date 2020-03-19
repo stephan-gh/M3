@@ -27,7 +27,9 @@ use base::util;
 use core::ptr::NonNull;
 
 use arch::{set_entry_sp, State};
+use helper;
 use paging::Allocator;
+use vma::PfState;
 
 struct PTAllocator {
     vpe: u64,
@@ -53,7 +55,7 @@ impl Allocator for PTAllocator {
         let pts_end = self.pts_start + (self.pts_count * cfg::PAGE_SIZE) as paging::MMUPTE;
         assert!(phys >= self.pts_start && phys < pts_end);
         let off = phys - self.pts_start;
-        if INFO.bootstrap {
+        if *BOOTSTRAP {
             off as usize
         }
         else {
@@ -67,17 +69,35 @@ struct Info {
     pe_desc: kif::PEDesc,
     mem_start: u64,
     mem_end: u64,
-    bootstrap: bool,
+}
+
+#[derive(PartialEq, Eq)]
+enum VPEState {
+    Running,
+    Ready,
+    Blocked,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ScheduleAction {
+    TryBlock,
+    Block,
+    Preempt,
+    Kill,
 }
 
 pub struct VPE {
+    state: VPEState,
     prev: Option<NonNull<VPE>>,
     next: Option<NonNull<VPE>>,
     aspace: paging::AddrSpace<PTAllocator>,
-    state: State,
-    state_addr: usize,
+    user_state: State,
+    user_state_addr: usize,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
+    cmd: helper::TCUCmdState,
+    pf_state: Option<PfState>,
+    cont: Option<fn() -> bool>,
 }
 
 impl_boxitem!(VPE);
@@ -91,12 +111,14 @@ static CUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
 static RDY: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 
+// TODO for some reason, we need to put that in a separate struct than INFO, because otherwise
+// wrong code is generated for ARM.
+static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
 static INFO: StaticCell<Info> = StaticCell::new(Info {
     pe_id: 0,
     pe_desc: kif::PEDesc::new_from(0),
     mem_start: 0,
     mem_end: 0,
-    bootstrap: true,
 });
 
 pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
@@ -122,6 +144,7 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
         pts_count,
     ))));
 
+    idle().state = VPEState::Ready;
     unsafe {
         RDY.get_mut().push_back(Box::from_raw(idle()));
     }
@@ -132,7 +155,7 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
         paging::enable_paging();
     }
 
-    INFO.get_mut().bootstrap = false;
+    BOOTSTRAP.set(false);
 }
 
 pub fn add(id: u64, eps_start: tcu::EpId) {
@@ -153,6 +176,7 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
     if INFO.get().pe_desc.has_virtmem() {
         vpe.init();
     }
+
     unsafe {
         VPES.get_mut()[id as usize] = Some(NonNull::new_unchecked(vpe.as_mut()));
     }
@@ -170,10 +194,6 @@ pub fn get_mut(id: u64) -> Option<&'static mut VPE> {
     }
 }
 
-pub fn have_vpe() -> bool {
-    (*CUR).is_some()
-}
-
 pub fn our() -> &'static mut VPE {
     OUR.get_mut().as_mut().unwrap()
 }
@@ -182,61 +202,114 @@ pub fn idle() -> &'static mut VPE {
     IDLE.get_mut().as_mut().unwrap()
 }
 
-pub fn cur() -> &'static mut VPE {
-    CUR.get_mut().as_mut().unwrap()
+pub fn try_cur() -> Option<&'static mut Box<VPE>> {
+    CUR.get_mut().as_mut()
 }
 
-pub fn schedule(state_addr: usize, block: bool) -> usize {
-    let mut next = RDY.get_mut().pop_front().unwrap();
+pub fn cur() -> &'static mut VPE {
+    try_cur().unwrap()
+}
 
-    log!(crate::LOG_VPES, "Switching to VPE {}", next.id());
+pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
+    loop {
+        let mut next = RDY.get_mut().pop_front().unwrap();
 
-    // make current
-    if INFO.get().pe_desc.has_virtmem() {
+        log!(crate::LOG_VPES, "Switching to VPE {}", next.id());
+
+        // make current
+        let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
+        let old = try_cur();
+
+        // if there are messages left and we try to block the VPE, don't schedule
+        if action == ScheduleAction::TryBlock && (old_id >> 3) & 0xFFFF != 0 {
+            let next_id = tcu::TCU::xchg_vpe(old_id);
+            next.set_vpe_reg(next_id);
+            RDY.get_mut().push_back(next);
+            return state_addr;
+        }
+
+        if let Some(old) = old {
+            // don't do that if we're switching away from a continuation (see below)
+            if state_addr != 0 {
+                // save TCU command registers
+                old.cmd.save();
+                // remember state to resume for later
+                if old.user_state_addr != 0 {
+                    old.user_state_addr = state_addr;
+                }
+            }
+            old.set_vpe_reg(old_id);
+        }
+
+        // change address space
         next.switch_to();
-    }
-    let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
 
-    // init state, if not already done (now that we've switched to the address space)
-    if next.state_addr == 0 {
-        if next.id() != kif::pemux::IDLE_ID {
-            // remember the current PE
-            crate::env().pe_id = INFO.pe_id;
-            next.state.init(::env().entry as usize, ::env().sp as usize);
-            next.state_addr = &next.state as *const _ as usize;
+        // set SP for the next entry
+        let new_state = next.user_state_addr;
+        set_entry_sp(new_state + util::size_of::<State>());
+        let cont = next.cont.take();
+        next.state = VPEState::Running;
+
+        if cont.is_none() {
+            // restore TCU command registers
+            next.cmd.restore();
+        }
+
+        // exchange CUR
+        if let Some(mut old) = CUR.set(Some(next)) {
+            log!(crate::LOG_VPES, "{:?} VPE {}", action, old.id());
+
+            // block, preempt or kill VPE
+            match action {
+                ScheduleAction::TryBlock | ScheduleAction::Block => {
+                    old.state = VPEState::Blocked;
+                    BLK.get_mut().push_back(old);
+                },
+                ScheduleAction::Preempt => {
+                    old.state = VPEState::Ready;
+                    RDY.get_mut().push_back(old);
+                },
+                ScheduleAction::Kill => {
+                    VPES.get_mut()[old.id() as usize] = None;
+                },
+            }
+        }
+
+        // if there is a function to call, do that
+        if let Some(f) = cont {
+            // only resume this VPE if it has been initialized
+            let finished = f();
+            if finished && new_state != 0 {
+                cur().cmd.restore();
+                break new_state;
+            }
+            // in this case, the VPE is not ready, so block it and don't set the state addr again
+            action = ScheduleAction::Block;
+            state_addr = 0;
+            if !finished {
+                // set the continuation again
+                cur().cont = Some(f);
+            }
         }
         else {
-            next.state_addr = state_addr;
+            break new_state;
         }
     }
-
-    let new_state = next.state_addr;
-    set_entry_sp(new_state + util::size_of::<State>());
-
-    // switch CUR_VPE reg
-    if let Some(mut old) = CUR.set(Some(next)) {
-        old.state_addr = state_addr;
-        old.set_vpe_reg(old_id);
-
-        // append to ready/blocked list
-        let list = if block { BLK.get_mut() } else { RDY.get_mut() };
-        log!(
-            crate::LOG_VPES,
-            "Putting VPE {} to {} list",
-            old.id(),
-            if block { "blocked" } else { "ready" }
-        );
-        list.push_back(old);
-    }
-
-    new_state
 }
 
-pub fn remove(status: u32, notify: bool) {
-    if let Some(old) = CUR.set(None) {
-        log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
+pub fn remove_cur(status: u32) {
+    remove(cur().id(), status, true);
+}
 
-        VPES.get_mut()[old.id() as usize] = None;
+pub fn remove(id: u64, status: u32, notify: bool) {
+    if let Some(v) = VPES.get_mut()[id as usize].take() {
+        let old = match unsafe { &v.as_ref().state } {
+            VPEState::Running => CUR.set(None).unwrap(),
+            VPEState::Ready => RDY.get_mut().remove_if(|v| v.id() == id).unwrap(),
+            VPEState::Blocked => BLK.get_mut().remove_if(|v| v.id() == id).unwrap(),
+        };
+
+        log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
 
         if notify {
             // change to our VPE (no need to save old vpe_reg; VPE is dead)
@@ -261,7 +334,9 @@ pub fn remove(status: u32, notify: bool) {
             }
         }
 
-        crate::reg_scheduling();
+        if old.state == VPEState::Running {
+            crate::reg_scheduling(ScheduleAction::Kill);
+        }
     }
 }
 
@@ -286,9 +361,13 @@ impl VPE {
             next: None,
             aspace: paging::AddrSpace::new(id, root_pt, allocator, false),
             vpe_reg: id << 19,
-            state: State::default(),
-            state_addr: 0,
+            state: VPEState::Blocked,
+            user_state: State::default(),
+            user_state_addr: 0,
             eps_start,
+            cmd: helper::TCUCmdState::new(),
+            pf_state: None,
+            cont: None,
         }
     }
 
@@ -339,15 +418,47 @@ impl VPE {
         self.vpe_reg -= (count as u64) << 3;
     }
 
-    pub fn start(&mut self) {
-        let mut it = BLK.get_mut().iter_mut();
-        while let Some(v) = it.next() {
-            if v.id() == self.id() {
-                let vpe = it.remove().unwrap();
-                RDY.get_mut().push_back(vpe);
-                crate::reg_scheduling();
-                return;
-            }
+    pub fn block(&mut self, action: ScheduleAction, cont: Option<fn() -> bool>) {
+        self.cont = cont;
+        if self.state == VPEState::Running {
+            crate::reg_scheduling(action);
+        }
+    }
+
+    pub fn unblock(&mut self) {
+        if self.state == VPEState::Blocked {
+            let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
+            vpe.state = VPEState::Ready;
+            RDY.get_mut().push_back(vpe);
+            crate::reg_scheduling(ScheduleAction::Preempt);
+        }
+    }
+
+    pub fn start_pf(&mut self, pf_state: PfState) {
+        self.pf_state = Some(pf_state);
+    }
+
+    pub fn finish_pf(&mut self) -> (u64, PfState) {
+        (self.cmd.xfer_buf(), self.pf_state.take().unwrap())
+    }
+
+    pub fn start(&mut self, state_addr: usize) {
+        assert!(self.user_state_addr == 0);
+        if self.id() != kif::pemux::IDLE_ID {
+            // remember the current PE
+            crate::env().pe_id = INFO.pe_id;
+            self.user_state
+                .init(::env().entry as usize, ::env().sp as usize);
+            self.user_state_addr = &self.user_state as *const _ as usize;
+        }
+        else {
+            self.user_state_addr = state_addr;
+        }
+    }
+
+    pub fn switch_to(&self) {
+        if INFO.get().pe_desc.has_virtmem() {
+            self.aspace.switch_to();
         }
     }
 
@@ -435,10 +546,6 @@ impl VPE {
         let mut flags = kif::PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
         flags |= kif::PageFlags::FIXED;
         tcu::TCU::insert_tlb(self.id() as u16, virt, phys, flags);
-    }
-
-    fn switch_to(&self) {
-        self.aspace.switch_to();
     }
 
     fn map_rbuf(&mut self, addr: usize, size: usize, perm: kif::PageFlags) {

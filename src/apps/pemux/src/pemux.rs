@@ -40,7 +40,6 @@ use base::libc;
 use base::tcu;
 use base::util;
 use core::intrinsics;
-use core::ptr;
 
 /// Logs errors
 pub const LOG_ERR: bool = true;
@@ -119,102 +118,45 @@ pub fn sleep() {
     }
 }
 
-static SCHED: StaticCell<bool> = StaticCell::new(false);
-static STOPPED: StaticCell<bool> = StaticCell::new(false);
-static NESTING_LEVEL: StaticCell<u32> = StaticCell::new(0);
-
-fn enter() {
-    *NESTING_LEVEL.get_mut() += 1;
-}
+static SCHED: StaticCell<Option<vpe::ScheduleAction>> = StaticCell::new(None);
 
 fn leave(state: &mut arch::State) -> *mut libc::c_void {
     upcalls::check();
 
-    if *STOPPED && *NESTING_LEVEL == 1 {
-        // status and notify don't matter, because we've already called vpe::remove in a deeper
-        // nesting level and thus, the VPE is gone.
-        stop_vpe(0, false);
-    }
-    *NESTING_LEVEL.get_mut() -= 1;
-
-    if SCHED.set(false) {
-        vpe::schedule(state as *mut _ as usize, false) as *mut libc::c_void
+    if let Some(action) = SCHED.set(None) {
+        vpe::schedule(state as *mut _ as usize, action) as *mut libc::c_void
     }
     else {
         state as *mut _ as *mut libc::c_void
     }
 }
 
-fn set_user_event() {
-    // we can assume here that we (PEMux) is the current VPE, because we call it only from stop_vpe
-    // with NESTING_LEVEL > 1.
-    let our = vpe::our();
-    let old_vpe = tcu::TCU::xchg_vpe(vpe::idle().vpe_reg());
-    // set user event
-    our.set_vpe_reg(old_vpe | tcu::EventMask::USER.bits());
-    // switch back; we don't need to restore the VPE reg of idle; it doesn't receive msgs anyway
-    tcu::TCU::xchg_vpe(our.vpe_reg());
-}
-
-pub fn reg_scheduling() {
-    SCHED.set(true);
-}
-
-pub fn nesting_level() -> u32 {
-    *NESTING_LEVEL
-}
-
-pub fn stop_vpe(status: u32, notify: bool) {
-    vpe::remove(status, notify);
-
-    if *NESTING_LEVEL > 1 {
-        // prevent us from sleeping by setting the user event
-        set_user_event();
-
-        *STOPPED.get_mut() = true;
-    }
-    else {
-        // TODO remove user event
-
-        *STOPPED.get_mut() = false;
-    }
-}
-
-pub fn is_stopped() -> bool {
-    // use volatile because STOPPED may have changed via a nested IRQ
-    unsafe { ptr::read_volatile(STOPPED.get_mut()) }
+pub fn reg_scheduling(action: vpe::ScheduleAction) {
+    SCHED.set(Some(action));
 }
 
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
-    enter();
-
     log!(LOG_ERR, "Unexpected IRQ with {:?}", state);
-    stop_vpe(1, true);
+    vpe::remove_cur(1);
 
     leave(state)
 }
 
 pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
-    enter();
-
     if arch::handle_mmu_pf(state).is_err() {
-        stop_vpe(1, true);
+        vpe::remove_cur(1);
     }
 
     leave(state)
 }
 
 pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
-    enter();
-
     pexcalls::handle_call(state);
 
     leave(state)
 }
 
 pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
-    enter();
-
     #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
     tcu::TCU::clear_irq();
 
@@ -255,6 +197,8 @@ pub extern "C" fn init() {
     );
 
     // switch to idle
-    let state_addr = unsafe { &isr_stack_low as *const _ as usize };
-    vpe::schedule(state_addr - util::size_of::<arch::State>(), false);
+    let state_addr =
+        unsafe { &isr_stack_low as *const _ as usize } - util::size_of::<arch::State>();
+    vpe::idle().start(state_addr);
+    vpe::schedule(state_addr, vpe::ScheduleAction::Preempt);
 }

@@ -43,7 +43,10 @@ int_enum! {
 }
 
 #[derive(Default)]
-#[repr(C, packed)]
+// for some reason, we need to specify the alignment here. actually, this struct needs to be packed,
+// but unfortunately, we cannot specify both packed and align. but without packed seems to be fine,
+// because there are no holes between the fields.
+#[repr(C, align(4))]
 pub struct State {
     pub sp: usize,
     pub lr: usize,
@@ -79,30 +82,16 @@ impl fmt::Debug for State {
 }
 
 impl State {
+    pub fn came_from_user(&self) -> bool {
+        (self.cpsr & 0x0F) == 0x0
+    }
+
     pub fn init(&mut self, entry: usize, sp: usize) {
         self.r[1] = 0xDEADBEEF; // don't set the stackpointer in crt0
         self.pc = entry;
         self.sp = sp;
         self.cpsr = 0x10; // user mode
         self.lr = 0;
-    }
-}
-
-pub fn enable_ints() -> bool {
-    let masked: u32;
-    unsafe {
-        asm!(
-            "mrs $0, cpsr; cpsie if; and $0, $0, #0x80;"
-            : "=r"(masked)
-            : : "memory"
-        );
-    }
-    masked == 0
-}
-
-pub fn restore_ints(prev: bool) {
-    if !prev {
-        unsafe { asm!("cpsid if" : : : "memory" : "volatile"); }
     }
 }
 
