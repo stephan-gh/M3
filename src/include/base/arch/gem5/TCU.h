@@ -84,9 +84,10 @@ private:
         CORE_REQ            = 0,
         CORE_RESP           = 1,
         PRIV_CMD            = 2,
-        EXT_CMD             = 3,
-        CUR_VPE             = 4,
-        OLD_VPE             = 5,
+        PRIV_CMD_ARG        = 3,
+        EXT_CMD             = 4,
+        CUR_VPE             = 5,
+        OLD_VPE             = 6,
     };
 
     enum class CmdRegs {
@@ -124,7 +125,8 @@ private:
         IDLE                = 0,
         INV_PAGE            = 1,
         INV_TLB             = 2,
-        XCHG_VPE            = 3,
+        INS_TLB             = 3,
+        XCHG_VPE            = 4,
     };
 
     enum class ExtCmdOpCode {

@@ -140,11 +140,6 @@ fn translate_addr(req: tcu::Reg) {
     let cmd_saved = STATE.cmd_saved;
     let mut aborted = false;
 
-    // the messages page is put as a fixed entry into the TLB
-    if (virt & !cfg::PAGE_BITS) == ((crate::msgs_mut() as *const _ as usize) & !cfg::PAGE_BITS) {
-        pte |= PageFlags::FIXED.bits();
-    }
-
     if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
         // the first xfer buffer can't raise pagefaults
         if xfer_buf == 0 {

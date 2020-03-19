@@ -20,6 +20,7 @@ use core::intrinsics;
 use core::mem;
 use errors::{Code, Error};
 use goff;
+use kif::PageFlags;
 use math;
 use util;
 
@@ -113,12 +114,14 @@ int_enum! {
         const CORE_RESP     = 0x1;
         /// For privileged commands
         const PRIV_CMD      = 0x2;
+        /// The argument for privileged commands
+        const PRIV_CMD_ARG  = 0x3;
         /// For external commands
-        const EXT_CMD       = 0x3;
+        const EXT_CMD       = 0x4;
         /// The current VPE
-        const CUR_VPE       = 0x4;
+        const CUR_VPE       = 0x5;
         /// The old VPE (only set by XCHG_VPE command)
-        const OLD_VPE       = 0x5;
+        const OLD_VPE       = 0x6;
     }
 }
 
@@ -210,8 +213,10 @@ int_enum! {
         const INV_PAGE    = 1;
         /// Invalidate all TLB entries
         const INV_TLB     = 2;
+        /// Insert an entry into the TLB
+        const INS_TLB     = 3;
         /// Changes the VPE
-        const XCHG_VPE    = 3;
+        const XCHG_VPE    = 4;
     }
 }
 
@@ -445,10 +450,7 @@ impl TCU {
     #[inline(always)]
     pub fn wait_for_msg(ep: EpId, cycles: u64) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::ARG1, ((ep as Reg) << 48) | cycles as Reg);
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
-            Self::build_cmd(0, CmdOpCode::SLEEP, 0, 0),
-        );
+        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(0, CmdOpCode::SLEEP, 0, 0));
         Self::get_error()
     }
 
@@ -561,6 +563,16 @@ impl TCU {
     pub fn invalidate_page(asid: u16, virt: usize) {
         let val = ((asid as Reg) << 48) | ((virt as Reg) << 4) | PrivCmdOpCode::INV_PAGE.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, val);
+    }
+
+    pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) {
+        Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, phys);
+        unsafe { intrinsics::atomic_fence() };
+        let cmd = ((asid as Reg) << 48)
+            | (((virt & !cfg::PAGE_MASK) as Reg) << 4)
+            | ((flags.bits() as Reg) << 4)
+            | PrivCmdOpCode::INS_TLB.val;
+        Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
     }
 
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {

@@ -427,6 +427,14 @@ impl VPE {
         // map vectors
         #[cfg(target_arch = "arm")]
         self.map(0, noc_begin, 1, rx).unwrap();
+
+        // insert fixed entry for messages into TLB
+        let virt = crate::msgs_mut() as *mut _ as usize;
+        let pte = self.translate(virt, kif::PageFlags::R);
+        let phys = pte & !(cfg::PAGE_MASK as u64);
+        let mut flags = kif::PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
+        flags |= kif::PageFlags::FIXED;
+        tcu::TCU::insert_tlb(self.id() as u16, virt, phys, flags);
     }
 
     fn switch_to(&self) {

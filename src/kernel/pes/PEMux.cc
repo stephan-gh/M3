@@ -55,14 +55,6 @@ PEMux::PEMux(peid_t pe)
         _tcustate.config_recv(m3::TCU::PEXUP_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
                               PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::TCU::PEXUP_RPLEP);
         update_ep(m3::TCU::PEXUP_REP);
-
-        if(Platform::pe(pe).is_programmable()) {
-            // send initial dummy upcall to PEMux
-            m3::KIF::PEXUpcalls::RemMsgs req;
-            req.vpe_sel = m3::KIF::PEMUX_VPE_ID;
-            req.unread_mask = 0;
-            upcall(&req, sizeof(req));
-        }
     }
     #endif
 }
