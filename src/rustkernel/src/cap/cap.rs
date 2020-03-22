@@ -23,7 +23,7 @@ use core::cmp;
 use core::fmt;
 use core::ptr::{NonNull, Unique};
 
-use cap::KObject;
+use cap::{KObject, CommonGateProperties};
 use pes::{pemng, vpemng, VPE};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
@@ -338,17 +338,12 @@ impl Capability {
         unsafe { &*(self.table().vpe.unwrap().as_ptr()) }
     }
 
-    fn vpe_mut(&mut self) -> &mut VPE {
-        unsafe { &mut *(self.table_mut().vpe.unwrap().as_ptr()) }
-    }
-
-    fn invalidate_ep(&mut self, sel: CapSel) {
-        let vpe = self.vpe_mut();
-        if let Some(ep) = vpe.ep_with_sel(sel) {
-            vpe.set_ep_sel(ep, None);
-            let pemux = pemng::get().pemux(vpe.pe_id());
+    fn invalidate_ep(cgp: &mut CommonGateProperties) {
+        if let Some(ep) = cgp.get_ep() {
+            let pemux = pemng::get().pemux(ep.borrow().pe_id());
             // if that fails, just ignore it
-            pemux.invalidate_ep(ep, true).ok();
+            pemux.invalidate_ep(ep.borrow().ep(), true).ok();
+            cgp.remove_ep();
         }
     }
 
@@ -362,9 +357,16 @@ impl Capability {
                 }
             },
 
-            KObject::SGate(_) | KObject::RGate(_) | KObject::MGate(_) => {
-                let sel = self.sel();
-                self.invalidate_ep(sel)
+            KObject::SGate(ref mut o) => {
+                Self::invalidate_ep(o.borrow_mut().cgp());
+            },
+
+            KObject::RGate(ref mut o) => {
+                Self::invalidate_ep(o.borrow_mut().cgp());
+            },
+
+            KObject::MGate(ref mut o) => {
+                Self::invalidate_ep(o.borrow_mut().cgp());
             },
 
             KObject::Serv(ref s) => {

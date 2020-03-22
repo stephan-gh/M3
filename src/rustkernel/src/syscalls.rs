@@ -30,8 +30,8 @@ use thread;
 use arch::loader::Loader;
 use cap::{Capability, KObject, SelRange};
 use cap::{
-    EPObject, KMemObject, MGateObject, MapObject, PEObject, RGateObject, SGateObject, SemObject,
-    ServObject, SessObject,
+    EPObject, GateObject, KMemObject, MGateObject, MapObject, PEObject, RGateObject, SGateObject,
+    SemObject, ServObject, SessObject,
 };
 use com::Service;
 use ktcu;
@@ -1195,6 +1195,8 @@ fn activate(vpe: &Rc<RefCell<VPE>>, msg: &'static tcu::Message) -> Result<(), Sy
     );
 
     let ep: Rc<RefCell<EPObject>> = get_kobj!(vpe, ep_sel, EP);
+
+    // VPE that is currently active on the endpoint
     let vpe_ref = vpemng::get().vpe(ep.borrow().vpe()).unwrap();
 
     let epid = ep.borrow().ep();
@@ -1203,20 +1205,23 @@ fn activate(vpe: &Rc<RefCell<VPE>>, msg: &'static tcu::Message) -> Result<(), Sy
 
     let mut invalidated = false;
     {
-        let mut vpe_mut = vpe_ref.borrow_mut();
-        if let Some(old_sel) = vpe_mut.get_ep_sel(epid) {
-            if let Some(old_cap) = vpe_mut.obj_caps_mut().get_mut(old_sel) {
-                if let &mut KObject::RGate(ref mut rgate) = old_cap.get_mut() {
-                    rgate.borrow_mut().deactivate();
-                    pemux.invalidate_ep(epid, false)?;
-                    invalidated = true;
-                }
-                else if let &mut KObject::SGate(_) = old_cap.get_mut() {
-                    // TODO deactivate?
-                    pemux.invalidate_ep(epid, false)?;
-                    invalidated = true;
-                }
+        let mut ep_object = ep.borrow_mut();
+        // we get the gate_object that is currently active on the ep_object
+        if let Some(gate_object) = ep_object.get_gate() {
+            let gate_object = gate_object.borrow_mut();
+            if gate_object.is_r_gate() {
+                gate_object.get_r_gate().borrow_mut().deactivate();
             }
+            else if gate_object.is_s_gate() {
+                // TODO deactivate?
+                pemux.invalidate_ep(epid, false)?;
+                invalidated = true;
+            }
+
+            // we remove the gate currently active on this EP
+            ep_object.remove_gate();
+            // we tell the gate that it's ep is no longer valid
+            gate_object.remove_ep();
         }
     }
 
@@ -1322,13 +1327,21 @@ fn activate(vpe: &Rc<RefCell<VPE>>, msg: &'static tcu::Message) -> Result<(), Sy
                 sysc_err!(Code::InvArgs, "Invalid capability")
             },
         };
-        vpe_ref.borrow_mut().set_ep_sel(epid, Some(gate_sel));
+
+        // create a gate object from the kobj
+        let go = match kobj {
+            KObject::MGate(g) => GateObject::MGate(g.clone()),
+            KObject::RGate(g) => GateObject::RGate(g.clone()),
+            KObject::SGate(g) => GateObject::SGate(g.clone()),
+            _ => sysc_err!(Code::InvArgs, "Invalid capability"),
+        };
+        // we tell the gate object its gate object
+        go.set_ep(ep.clone());
+        // we tell the endpoint its current gate object
+        ep.borrow_mut().set_gate(go);
     }
-    else {
-        if !invalidated {
-            pemux.invalidate_ep(epid, true)?;
-        }
-        vpe_ref.borrow_mut().set_ep_sel(epid, None);
+    else if !invalidated {
+        pemux.invalidate_ep(epid, true)?;
     }
 
     reply_success(msg);

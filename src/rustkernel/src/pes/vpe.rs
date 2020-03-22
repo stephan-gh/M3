@@ -71,7 +71,6 @@ pub struct VPE {
     kmem: Rc<RefCell<KMemObject>>,
     rbuf_phys: goff,
     eps_start: EpId,
-    ep_caps: Vec<Option<CapSel>>,
     exit_code: Option<i32>,
     upcalls: SendQueue,
     wait_sels: Vec<u64>,
@@ -99,8 +98,6 @@ impl VPE {
             map_caps: CapTable::new(),
             rbuf_phys: 0,
             eps_start,
-            // ep_caps: vec![None; EP_COUNT - FIRST_FREE_EP],
-            ep_caps: vec![],
             exit_code: None,
             upcalls: SendQueue::new(id as u64, pe.borrow().pe()),
             wait_sels: Vec::new(),
@@ -500,29 +497,6 @@ impl VPE {
                 (*vpe.as_ptr()).map_caps_mut().revoke(crd, own);
             }
         }
-    }
-
-    pub fn ep_with_sel(&self, sel: CapSel) -> Option<EpId> {
-        // for ep in 0..EP_COUNT - FIRST_FREE_EP {
-        //     match self.ep_caps[ep] {
-        //         Some(s) => {
-        //             if s == sel {
-        //                 return Some(ep + FIRST_FREE_EP);
-        //             }
-        //         },
-        //         None => {},
-        //     }
-        // }
-        None
-    }
-
-    pub fn get_ep_sel(&self, ep: EpId) -> Option<CapSel> {
-        // self.ep_caps[ep - FIRST_FREE_EP].clone()
-        None
-    }
-
-    pub fn set_ep_sel(&mut self, ep: EpId, sel: Option<CapSel>) {
-        // self.ep_caps[ep - FIRST_FREE_EP] = sel;
     }
 }
 

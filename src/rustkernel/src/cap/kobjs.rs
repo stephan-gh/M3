@@ -62,7 +62,186 @@ impl fmt::Debug for KObject {
     }
 }
 
+pub struct CommonGateProperties {
+    /// The EP where this RGate could be attached to.
+    // be careful; we have Rc<> in both directions; reference and therefor memory
+    // leaks in drop() are possible; maybe use weak?
+    ep: Option<Rc<RefCell<EPObject>>>,
+}
+
+impl CommonGateProperties {
+    fn new() -> CommonGateProperties {
+        CommonGateProperties {
+            ep: None
+        }
+    }
+
+    pub fn get_ep(&self) -> Option<Rc<RefCell<EPObject>>> {
+        self.ep.clone()
+    }
+
+    pub fn set_ep(&mut self, o: Rc<RefCell<EPObject>>) {
+        self.ep = Some(o);
+    }
+
+    pub fn remove_ep(&mut self) {
+        self.ep = None
+    }
+
+    /// Convenient wrapper around Rc::strong_count for
+    /// the underlying EPObject. Returns 0 if there is none.
+    pub fn ep_reference_count(&self) -> usize {
+        if let Some(t) = &self.ep {
+            Rc::strong_count(&t)
+        } else {
+            0
+        }
+    }
+}
+
+/// Enum-Type that combines all GateObjects.
+pub enum GateObject {
+    // todo be careful! we have Rc<> in both directions
+    //  cycles in drop trait could happen.. maybe use Weak<> instead?
+    RGate(Rc<RefCell<RGateObject>>),
+    SGate(Rc<RefCell<SGateObject>>),
+    MGate(Rc<RefCell<MGateObject>>),
+}
+
+impl GateObject {
+
+    /// If self is a RGATE
+    pub fn is_r_gate(&self) -> bool {
+        match *self {
+            GateObject::RGate(_) => true,
+            _ => false,
+        }
+    }
+
+    /// If self is a SGATE
+    pub fn is_s_gate(&self) -> bool {
+        match *self {
+            GateObject::SGate(_) => true,
+            _ => false,
+        }
+    }
+
+    /// If self is a MGATE
+    pub fn is_m_gate(&self) -> bool {
+        match *self {
+            GateObject::MGate(_) => true,
+            _ => false,
+        }
+    }
+
+    // Returns RGATE if self is RGATE
+    pub fn get_r_gate(&self) -> Rc<RefCell<RGateObject>> {
+        if let GateObject::RGate(g) = self {
+            g.clone()
+        } else {
+            panic!("No RGate!");
+        }
+    }
+
+    // Returns RGATE if self is RGATE
+    pub fn get_s_gate(&self) -> Rc<RefCell<SGateObject>> {
+        if let GateObject::SGate(g) = self {
+            g.clone()
+        } else {
+            panic!("No SGate!");
+        }
+    }
+
+    // Returns MGATE if self is MGATE
+    pub fn get_m_gate(&self) -> Rc<RefCell<MGateObject>> {
+        if let GateObject::MGate(g) = self {
+            g.clone()
+        } else {
+            panic!("No MGate!");
+        }
+    }
+
+    /// Sets the endpoint on the gate. Delegates the action
+    /// from this enum to the actual gate.
+    pub fn set_ep(&self, ep: Rc<RefCell<EPObject>>) {
+        match self {
+            GateObject::RGate(g) => {
+                g.borrow_mut().cgp.set_ep(ep)
+            },
+            GateObject::SGate(g) => {
+                g.borrow_mut().cgp.set_ep(ep)
+            },
+            GateObject::MGate(g) => {
+                g.borrow_mut().cgp.set_ep(ep)
+            }
+        }
+    }
+
+    /// Check is the underlying gate object has an endpoint assigned.
+    pub fn has_ep(&self) -> bool {
+        match self {
+            GateObject::RGate(g) => {
+                g.borrow().cgp.get_ep().is_some()
+            },
+            GateObject::SGate(g) => {
+                g.borrow().cgp.get_ep().is_some()
+            },
+            GateObject::MGate(g) => {
+                g.borrow().cgp.get_ep().is_some()
+            }
+        }
+    }
+
+    /// Convenient function on the enum to get the EP of the gate.
+    pub fn get_ep(&self) -> Rc<RefCell<EPObject>> {
+        match self {
+            GateObject::RGate(g) => {
+                g.borrow().cgp.get_ep().unwrap_or_else(|| panic!("no ep!")).clone()
+            },
+            GateObject::SGate(g) => {
+                g.borrow().cgp.get_ep().unwrap_or_else(|| panic!("no ep!")).clone()
+            },
+            GateObject::MGate(g) => {
+                g.borrow().cgp.get_ep().unwrap_or_else(|| panic!("no ep!")).clone()
+            }
+        }
+    }
+
+    /// Convenient function that delegates this action
+    /// to the corresponding gate type.
+    pub fn remove_ep(&self) {
+        match self {
+            GateObject::RGate(g) => {
+                g.borrow_mut().cgp.remove_ep()
+            },
+            GateObject::SGate(g) => {
+                g.borrow_mut().cgp.remove_ep()
+            },
+            GateObject::MGate(g) => {
+                g.borrow_mut().cgp.remove_ep()
+            }
+        }
+    }
+
+    /// Convenient function to get the reference count of the underlying
+    /// EPObject. Returns 0 if there is none.
+    pub fn get_ep_reference_count(&self) -> usize {
+        match self {
+            GateObject::RGate(g) => {
+                g.borrow().cgp.ep_reference_count()
+            },
+            GateObject::SGate(g) => {
+                g.borrow().cgp.ep_reference_count()
+            },
+            GateObject::MGate(g) => {
+                g.borrow().cgp.ep_reference_count()
+            }
+        }
+    }
+}
+
 pub struct RGateObject {
+    cgp: CommonGateProperties,
     loc: Option<(PEId, EpId)>,
     addr: goff,
     order: u32,
@@ -72,11 +251,16 @@ pub struct RGateObject {
 impl RGateObject {
     pub fn new(order: u32, msg_order: u32) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(RGateObject {
+            cgp: CommonGateProperties::new(),
             loc: None,
             addr: 0,
             order,
             msg_order,
         }))
+    }
+
+    pub fn cgp(&mut self) -> &mut CommonGateProperties {
+        &mut self.cgp
     }
 
     pub fn pe(&self) -> Option<PEId> {
@@ -152,6 +336,7 @@ impl fmt::Debug for RGateObject {
 }
 
 pub struct SGateObject {
+    cgp: CommonGateProperties,
     rgate: Rc<RefCell<RGateObject>>,
     label: Label,
     credits: u32,
@@ -160,10 +345,15 @@ pub struct SGateObject {
 impl SGateObject {
     pub fn new(rgate: &Rc<RefCell<RGateObject>>, label: Label, credits: u32) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(SGateObject {
+            cgp: CommonGateProperties::new(),
             rgate: rgate.clone(),
             label,
             credits,
         }))
+    }
+
+    pub fn cgp(&mut self) -> &mut CommonGateProperties {
+        &mut self.cgp
     }
 
     pub fn rgate(&self) -> &Rc<RefCell<RGateObject>> {
@@ -188,6 +378,7 @@ impl fmt::Debug for SGateObject {
 }
 
 pub struct MGateObject {
+    cgp: CommonGateProperties,
     mem: mem::Allocation,
     perms: kif::Perm,
     derived: bool,
@@ -196,10 +387,15 @@ pub struct MGateObject {
 impl MGateObject {
     pub fn new(mem: mem::Allocation, perms: kif::Perm, derived: bool) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(MGateObject {
+            cgp: CommonGateProperties::new(),
             mem,
             perms,
             derived,
         }))
+    }
+
+    pub fn cgp(&mut self) -> &mut CommonGateProperties {
+        &mut self.cgp
     }
 
     pub fn pe_id(&self) -> PEId {
@@ -436,6 +632,8 @@ impl fmt::Debug for PEObject {
 
 pub struct EPObject {
     is_std: bool,
+    // wir können auf einem EP ein Gate "installieren"/zuweisen
+    gate: Option<Rc<RefCell<GateObject>>>,
     vpe: VPEId,
     ep: EpId,
     replies: u32,
@@ -453,6 +651,7 @@ impl EPObject {
         // TODO add to VPE
         Rc::new(RefCell::new(EPObject {
             is_std,
+            gate: None,
             vpe,
             ep,
             replies,
@@ -474,6 +673,18 @@ impl EPObject {
 
     pub fn replies(&self) -> u32 {
         self.replies
+    }
+
+    pub fn get_gate(&self) -> Option<Rc<RefCell<GateObject>>> {
+        self.gate.clone()
+    }
+
+    pub fn set_gate(&mut self, g: GateObject) {
+        self.gate = Some(Rc::from(RefCell::from(g)))
+    }
+
+    pub fn remove_gate(&mut self) {
+        self.gate = None
     }
 }
 
