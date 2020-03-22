@@ -40,7 +40,9 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create_srv);
     wv_run_test!(t, derive_mem);
     wv_run_test!(t, exchange);
-    wv_run_test!(t, revoke);
+    wv_run_test!(t, revoke_mem_gate);
+    wv_run_test!(t, revoke_recv_gate);
+    wv_run_test!(t, revoke_send_gate);
 }
 
 fn noop() {
@@ -337,7 +339,7 @@ fn exchange() {
     );
 }
 
-fn revoke() {
+fn revoke_mem_gate() {
     let mut prof = profile::Profiler::default().repeats(100).warmup(10);
 
     #[derive(Default)]
@@ -353,5 +355,66 @@ fn revoke() {
         }
     }
 
-    wv_perf!("revoke", prof.runner_with_id(&mut Tester::default(), 0x19));
+    wv_perf!(
+        "revoke_mem_gate",
+        prof.runner_with_id(&mut Tester::default(), 0x19)
+    );
+}
+
+fn revoke_recv_gate() {
+    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+
+    #[derive(Default)]
+    struct Tester();
+
+    impl profile::Runner for Tester {
+        fn pre(&mut self) {
+            wv_assert_ok!(syscalls::create_rgate(*SEL, 10, 10));
+        }
+
+        fn run(&mut self) {
+            wv_assert_ok!(syscalls::revoke(
+                VPE::cur().sel(),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                true
+            ));
+        }
+    }
+
+    wv_perf!(
+        "revoke_recv_gate",
+        prof.runner_with_id(&mut Tester::default(), 0x20)
+    );
+}
+
+fn revoke_send_gate() {
+    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+
+    #[derive(Default)]
+    struct Tester(Option<RecvGate>);
+
+    impl profile::Runner for Tester {
+        fn pre(&mut self) {
+            self.0 = Some(wv_assert_ok!(RecvGate::new(10, 10)));
+            wv_assert_ok!(syscalls::create_sgate(
+                *SEL,
+                self.0.as_ref().unwrap().sel(),
+                0x1234,
+                1024
+            ));
+        }
+
+        fn run(&mut self) {
+            wv_assert_ok!(syscalls::revoke(
+                VPE::cur().sel(),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                true
+            ));
+        }
+    }
+
+    wv_perf!(
+        "revoke_send_gate",
+        prof.runner_with_id(&mut Tester::default(), 0x21)
+    );
 }
