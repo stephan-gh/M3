@@ -46,19 +46,6 @@ static void write_env_file(capsel_t first_sel, epid_t ep, pid_t pid, peid_t pe, 
 void VPE::init_eps() {
 }
 
-void VPE::finish_start() {
-    // now all EPs are installed, sockets are created and so on; so the VPE is ready for communication
-    _state = VPE::RUNNING;
-
-    // update all EPs (e.g., to allow parents to activate EPs for their childs)
-    for(epid_t ep = m3::TCU::STD_EPS_COUNT; ep < EP_COUNT; ++ep) {
-        auto pemux = PEManager::get().pemux(peid());
-        // set base for all receive EPs (for do it for all, but it's just unused for the other types)
-        pemux->tcustate().update_recv(ep, pemux->rbuf_base());
-        update_ep(ep);
-    }
-}
-
 void VPE::load_app() {
     if(_pid == 0) {
         _pid = fork();

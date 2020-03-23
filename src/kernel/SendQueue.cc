@@ -99,8 +99,8 @@ event_t SendQueue::do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t s
     _cur_event = get_event(id);
     _inflight++;
 
-    if(TCU::get().send_to(_desc, dst_ep, 0, msg, size, m3::ptr_to_label(this),
-                          TCU::SERV_REP) != m3::Errors::NONE) {
+    if(TCU::send_to(_desc, dst_ep, 0, msg, size, m3::ptr_to_label(this),
+                    TCU::SERV_REP) != m3::Errors::NONE) {
         PANIC("send failed");
     }
 

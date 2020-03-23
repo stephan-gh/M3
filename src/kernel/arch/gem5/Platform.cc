@@ -37,19 +37,19 @@ void Platform::init() {
     // read kernel env
     peid_t pe = m3::TCU::gaddr_to_pe(m3::env()->kenv);
     goff_t addr = m3::TCU::gaddr_to_virt(m3::env()->kenv);
-    TCU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
+    TCU::read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
     addr += sizeof(*info);
 
     // read boot modules
     size_t total_mod_size = info->mod_size + sizeof(m3::BootInfo::Mod);
     Platform::_mods = reinterpret_cast<m3::BootInfo::Mod*>(malloc(total_mod_size));
-    TCU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_mods, info->mod_size);
+    TCU::read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_mods, info->mod_size);
     addr += info->mod_size;
 
     // read PE descriptions
     size_t pe_size = sizeof(m3::PEDesc) * info->pe_count;
     Platform::_pes = new m3::PEDesc[info->pe_count];
-    TCU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_pes, pe_size);
+    TCU::read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_pes, pe_size);
 
     // register memory modules
     size_t memidx = 0;
@@ -91,7 +91,7 @@ void Platform::init() {
 
     // write-back boot info (changes to mems)
     addr = m3::TCU::gaddr_to_virt(m3::env()->kenv);
-    TCU::get().write_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
+    TCU::write_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
 }
 
 void Platform::add_modules(int, char **) {

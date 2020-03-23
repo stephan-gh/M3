@@ -31,7 +31,6 @@ PEMux::PEMux(peid_t pe)
       _rbufs_size(),
       _mem_base(),
       _eps(),
-      _tcustate(),
       _upcqueue(desc()) {
     for(epid_t ep = 0; ep < m3::TCU::FIRST_USER_EP; ++ep)
         _eps.set(ep);
@@ -39,22 +38,24 @@ PEMux::PEMux(peid_t pe)
 #if defined(__gem5__)
     if(Platform::pe(pe).supports_pemux()) {
         // configure send EP
-        _tcustate.config_send(m3::TCU::KPEX_SEP, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
-                              Platform::kernel_pe(), TCU::PEX_REP,
-                              KPEX_RBUF_ORDER, 1);
-        update_ep(m3::TCU::KPEX_SEP);
+        TCU::config_remote_ep(0, pe, m3::TCU::KPEX_SEP, [this](m3::TCU::reg_t *ep_regs) {
+            TCU::config_send(ep_regs, m3::KIF::PEMUX_VPE_ID, m3::ptr_to_label(this),
+                             Platform::kernel_pe(), TCU::PEX_REP, KPEX_RBUF_ORDER, 1);
+        });
 
         // configure receive EP
         uintptr_t rbuf = PEMUX_RBUF_SPACE;
-        _tcustate.config_recv(m3::TCU::KPEX_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
-                              KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::TCU::NO_REPLIES);
-        update_ep(m3::TCU::KPEX_REP);
+        TCU::config_remote_ep(0, pe, m3::TCU::KPEX_REP, [rbuf](m3::TCU::reg_t *ep_regs) {
+            TCU::config_recv(ep_regs, m3::KIF::PEMUX_VPE_ID, rbuf,
+                             KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::TCU::NO_REPLIES);
+        });
         rbuf += KPEX_RBUF_SIZE;
 
         // configure upcall receive EP
-        _tcustate.config_recv(m3::TCU::PEXUP_REP, m3::KIF::PEMUX_VPE_ID, rbuf,
-                              PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::TCU::PEXUP_RPLEP);
-        update_ep(m3::TCU::PEXUP_REP);
+        TCU::config_remote_ep(0, pe, m3::TCU::PEXUP_REP, [rbuf](m3::TCU::reg_t *ep_regs) {
+            TCU::config_recv(ep_regs, m3::KIF::PEMUX_VPE_ID, rbuf,
+                             PEXUP_RBUF_ORDER, PEXUP_RBUF_ORDER, m3::TCU::PEXUP_RPLEP);
+        });
     }
     #endif
 }
@@ -73,7 +74,7 @@ void PEMux::handle_call(const m3::TCU::Message *msg) {
     }
 
     // give credits back
-    TCU::get().reply(TCU::PEX_REP, nullptr, 0, msg);
+    TCU::reply(TCU::PEX_REP, nullptr, 0, msg);
 }
 
 void PEMux::add_vpe(VPECapability *vpe) {
@@ -87,6 +88,7 @@ void PEMux::remove_vpe(UNUSED VPE *vpe) {
     assert(_caps.get(vpe->id(), Capability::VIRTPE) == nullptr);
     _vpes--;
     _rbufs_size = 0;
+    _mem_base = 0;
 }
 
 epid_t PEMux::find_eps(uint count) const {
@@ -170,10 +172,8 @@ m3::Errors::Code PEMux::upcall(void *req, size_t size) {
 m3::Errors::Code PEMux::invalidate_ep(vpeid_t vpe, epid_t ep, bool force) {
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = invalid");
 
-    tcustate().invalidate_ep(ep);
-
     uint32_t unread_mask;
-    m3::Errors::Code res = TCU::get().inval_ep_remote(peid(), ep, force, &unread_mask);
+    m3::Errors::Code res = TCU::inval_ep_remote(vpe, peid(), ep, force, &unread_mask);
     if(res != m3::Errors::NONE)
         return res;
 
@@ -198,16 +198,18 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGa
     if(obj.addr < addr + _rbufs_size)
         return m3::Errors::INV_ARGS;
 
-    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
+    vpeid_t ep_vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
-        "RGate[vpe=" << vpe << ", addr=#" << m3::fmt(obj.addr, "x")
+        "RGate[vpe=" << ep_vpe << ", addr=#" << m3::fmt(obj.addr, "x")
         << ", order=" << obj.order
         << ", msgorder=" << obj.msgorder
         << ", replyeps=" << rpleps
         << "]");
 
-    tcustate().config_recv(ep, vpe, rbuf_base() + obj.addr, obj.order, obj.msgorder, rpleps);
-    update_ep(ep);
+    TCU::config_remote_ep(vpe, peid(), ep, [this, &obj, rpleps, ep_vpe](m3::TCU::reg_t *ep_regs) {
+        TCU::config_recv(ep_regs, ep_vpe, rbuf_base() + obj.addr,
+                         obj.order, obj.msgorder, rpleps);
+    });
 
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&obj));
     return m3::Errors::NONE;
@@ -218,9 +220,9 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj) 
     if(obj.activated)
         return m3::Errors::EXISTS;
 
-    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
+    vpeid_t ep_vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
-        "Send[vpe=" << vpe << ", pe=" << obj.rgate->pe
+        "Send[vpe=" << ep_vpe << ", pe=" << obj.rgate->pe
         << ", ep=" << obj.rgate->ep
         << ", label=#" << m3::fmt(obj.label, "x")
         << ", msgsize=" << obj.rgate->msgorder
@@ -228,9 +230,11 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj) 
         << "]");
 
     obj.activated = true;
-    tcustate().config_send(ep, vpe, obj.label, obj.rgate->pe, obj.rgate->ep,
-                           obj.rgate->msgorder, obj.credits);
-    update_ep(ep);
+
+    TCU::config_remote_ep(vpe, peid(), ep, [&obj, ep_vpe](m3::TCU::reg_t *ep_regs) {
+        TCU::config_send(ep_regs, ep_vpe, obj.label, obj.rgate->pe, obj.rgate->ep,
+                         obj.rgate->msgorder, obj.credits);
+    });
     return m3::Errors::NONE;
 }
 
@@ -238,21 +242,19 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject 
     if(off >= obj.size || obj.addr + off < off)
         return m3::Errors::INV_ARGS;
 
-    vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
+    vpeid_t ep_vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
-        "Mem [vpe=" << vpe << ", pe=" << obj.pe
+        "Mem [vpe=" << ep_vpe << ", pe=" << obj.pe
         << ", addr=#" << m3::fmt(obj.addr + off, "x")
         << ", size=#" << m3::fmt(obj.size - off, "x")
         << ", perms=#" << m3::fmt(obj.perms, "x")
         << "]");
 
-    tcustate().config_mem(ep, vpe, obj.pe, obj.vpe, obj.addr + off, obj.size - off, obj.perms);
-    update_ep(ep);
+    TCU::config_remote_ep(vpe, peid(), ep, [&obj, ep_vpe, off](m3::TCU::reg_t *ep_regs) {
+        TCU::config_mem(ep_regs, ep_vpe, obj.pe, obj.vpe,
+                        obj.addr + off, obj.size - off, obj.perms);
+    });
     return m3::Errors::NONE;
-}
-
-void PEMux::update_ep(epid_t ep) {
-    TCU::get().write_ep_remote(peid(), ep, tcustate().get_ep(ep));
 }
 
 }

@@ -87,7 +87,7 @@ void GateObject::revoke() {
             PEMux *receiver = PEManager::get().pemux(sgate->rgate->pe);
             KLOG(EPS, "PE" << pemux->peid() << ":EP" << old->ep->ep << ": invalidating reply caps at "
                    << "PE" << receiver->peid() << ":EP" << sgate->rgate->ep);
-            TCU::get().inv_reply_remote(receiver->peid(), sgate->rgate->ep, pemux->peid(), old->ep->ep);
+            TCU::inv_reply_remote(receiver->peid(), sgate->rgate->ep, pemux->peid(), old->ep->ep);
         }
         old->ep->gate = nullptr;
         delete &*old;

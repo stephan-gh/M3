@@ -41,7 +41,7 @@ TCU::TCU()
       _cmdregs(),
       _epregs(reinterpret_cast<word_t*>(Env::eps_start())),
       _tid() {
-    const size_t epsize = EPS_RCNT * EP_COUNT * sizeof(word_t);
+    const size_t epsize = EP_REGS * EP_COUNT * sizeof(word_t);
     static_assert(epsize <= EPMEM_SIZE, "Not enough space for endpoints");
     memset(const_cast<word_t*>(_epregs), 0, epsize);
 }
@@ -64,7 +64,7 @@ void TCU::reset() {
     // not work, because the cmpxchg fails.
     for(epid_t i = 0; i < EP_COUNT; ++i) {
         if(get_ep(i, EP_BUF_ADDR) == 0)
-            memset(const_cast<word_t*>(_epregs) + i * EPS_RCNT, 0, EPS_RCNT * sizeof(word_t));
+            memset(const_cast<word_t*>(_epregs) + i * EP_REGS, 0, EP_REGS * sizeof(word_t));
     }
 
     delete _backend;

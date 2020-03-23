@@ -271,12 +271,8 @@ void VPE::upcall_vpewait(word_t event, m3::KIF::Syscall::VPEWaitReply &reply) {
 
 void VPE::set_mem_base(goff_t addr) {
     PEManager::get().pemux(peid())->set_mem_base(addr);
-    finish_start();
-}
-
-void VPE::update_ep(epid_t ep) {
-    if(is_on_pe())
-        TCU::get().write_ep_remote(peid(), ep, PEManager::get().pemux(peid())->tcustate().get_ep(ep));
+    _state = VPE::RUNNING;
+    TCU::update_eps(id(), peid());
 }
 
 }

@@ -20,7 +20,7 @@
 #include <base/TCU.h>
 #include <base/Panic.h>
 
-#include "TCUState.h"
+#include "Types.h"
 
 namespace kernel {
 
@@ -29,9 +29,6 @@ class VPE;
 class VPEDesc;
 
 class TCU {
-    explicit TCU() : _state() {
-    }
-
 public:
     static const size_t SYSC_REP_COUNT = 2;
 
@@ -41,55 +38,68 @@ public:
     static const epid_t TMP_MEP = PEX_REP + 1;
     static const epid_t TMP_SEP = TMP_MEP + 1;
 
-    static TCU &get() {
-        return _inst;
+    static void deprivilege(peid_t pe);
+
+    static void init_vpe(peid_t pe);
+    static void kill_vpe(peid_t pe);
+
+    static void config_recv(m3::TCU::reg_t *regs, vpeid_t vpe, goff_t buf, uint order,
+                            uint msgorder, uint reply_eps);
+    static void config_send(m3::TCU::reg_t *regs, vpeid_t vpe, label_t lbl, peid_t pe, epid_t dstep,
+                            uint msgorder, uint credits);
+    static void config_mem(m3::TCU::reg_t *regs, vpeid_t vpe, peid_t pe, vpeid_t tvpe, goff_t addr,
+                           size_t size, uint perm);
+
+    template<typename CFG>
+    static void config_remote_ep(vpeid_t vpe, peid_t pe, epid_t ep, CFG config) {
+        m3::TCU::reg_t ep_regs[m3::TCU::EP_REGS];
+        config(ep_regs);
+        write_ep_remote(vpe, pe, ep, ep_regs);
     }
 
-    TCUState &state() {
-        return _state;
-    }
+    static m3::Errors::Code inv_reply_remote(peid_t pe, epid_t rep, peid_t rpe, epid_t sep);
+    static m3::Errors::Code inval_ep_remote(vpeid_t vpe, peid_t pe, epid_t ep, bool force,
+                                            uint32_t *unreadMask);
 
-    void deprivilege(peid_t pe);
+    static void write_ep_remote(vpeid_t vpe, peid_t pe, epid_t ep, const void *regs);
+    static void write_ep_local(epid_t ep, const void *regs);
+    static void update_eps(vpeid_t vpe, peid_t pe);
 
-    void init_vpe(peid_t pe);
-    void kill_vpe(peid_t pe);
+    static void recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder);
 
-    m3::Errors::Code inv_reply_remote(peid_t pe, epid_t rep, peid_t rpe, epid_t sep);
+    static void reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Message *msg);
 
-    m3::Errors::Code inval_ep_remote(peid_t pe, epid_t ep, bool force, uint32_t *unreadMask);
-    void write_ep_remote(peid_t pe, epid_t ep, void *regs);
-    void write_ep_local(epid_t ep);
+    static m3::Errors::Code send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
+                                    size_t size, label_t replylbl, epid_t replyep);
 
-    void recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder);
+    static m3::Errors::Code try_write_mem(const VPEDesc &vpe, goff_t addr,
+                                          const void *data, size_t size);
+    static m3::Errors::Code try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size);
 
-    void reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Message *msg);
-
-    m3::Errors::Code send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
-                             size_t size, label_t replylbl, epid_t replyep);
-
-    m3::Errors::Code try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size);
-    m3::Errors::Code try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size);
-
-    void write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
+    static void write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
         if(try_write_mem(vpe, addr, data, size) != m3::Errors::NONE)
             PANIC("write failed");
     }
-    void read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
+    static void read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
         if(try_read_mem(vpe, addr, data, size) != m3::Errors::NONE)
             PANIC("read failed");
     }
 
-    void copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,
-                    const VPEDesc &srcvpe, goff_t srcaddr,
-                    size_t size, bool clear);
+    static void copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,
+                           const VPEDesc &srcvpe, goff_t srcaddr,
+                           size_t size, bool clear);
 
 private:
-#if defined(__gem5__)
-    m3::Errors::Code do_ext_cmd(peid_t pe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg);
-#endif
+    template<typename CFG>
+    static void config_local_ep(epid_t ep, CFG config) {
+        m3::TCU::reg_t ep_regs[m3::TCU::EP_REGS];
+        config(ep_regs);
+        write_ep_local(ep, ep_regs);
+    }
 
-    TCUState _state;
-    static TCU _inst;
+#if defined(__gem5__)
+    static m3::Errors::Code do_ext_cmd(peid_t pe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg);
+#endif
 };
 
 }

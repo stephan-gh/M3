@@ -43,6 +43,8 @@ class TCU {
 
     static constexpr size_t MAX_DATA_SIZE   = 1 * 1024 * 1024;
 public:
+    typedef word_t reg_t;
+
     struct Header {
         size_t length;          // = mtype -> has to be non-zero
         unsigned char opcode;   // should actually be part of length but causes trouble in msgsnd
@@ -120,7 +122,7 @@ public:
     static constexpr size_t OPCODE_SHIFT        = 3;
 
     // register counts (cont.)
-    static constexpr size_t EPS_RCNT            = 1 + EP_PERM;
+    static constexpr size_t EP_REGS            = 1 + EP_PERM;
 
     enum CmdFlags {
         NOPF                                    = 1,
@@ -178,10 +180,10 @@ public:
     }
 
     word_t get_ep(epid_t ep, size_t reg) const {
-        return _epregs[ep * EPS_RCNT + reg];
+        return _epregs[ep * EP_REGS + reg];
     }
     void set_ep(epid_t ep, size_t reg, word_t val) {
-        _epregs[ep * EPS_RCNT + reg] = val;
+        _epregs[ep * EP_REGS + reg] = val;
     }
 
     void configure(epid_t ep, label_t label, uint perms, peid_t pe, epid_t dstep,
@@ -190,13 +192,13 @@ public:
     }
     static void configure(word_t *eps, epid_t ep, label_t label, uint perms, peid_t pe,
                           epid_t dstep, word_t credits, uint msgorder) {
-        eps[ep * EPS_RCNT + EP_VALID] = 1;
-        eps[ep * EPS_RCNT + EP_LABEL] = label;
-        eps[ep * EPS_RCNT + EP_PEID] = pe;
-        eps[ep * EPS_RCNT + EP_EPID] = dstep;
-        eps[ep * EPS_RCNT + EP_CREDITS] = credits;
-        eps[ep * EPS_RCNT + EP_MSGORDER] = msgorder;
-        eps[ep * EPS_RCNT + EP_PERM] = perms;
+        eps[ep * EP_REGS + EP_VALID] = 1;
+        eps[ep * EP_REGS + EP_LABEL] = label;
+        eps[ep * EP_REGS + EP_PEID] = pe;
+        eps[ep * EP_REGS + EP_EPID] = dstep;
+        eps[ep * EP_REGS + EP_CREDITS] = credits;
+        eps[ep * EP_REGS + EP_MSGORDER] = msgorder;
+        eps[ep * EP_REGS + EP_PERM] = perms;
     }
 
     void configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder);

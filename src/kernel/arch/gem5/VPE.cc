@@ -55,11 +55,11 @@ static void read_from_mod(const m3::BootInfo::Mod *mod, void *data, size_t size,
 
     goff_t addr = m3::TCU::gaddr_to_virt(mod->addr + offset);
     peid_t pe = m3::TCU::gaddr_to_pe(mod->addr + offset);
-    TCU::get().read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, data, size);
+    TCU::read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, data, size);
 }
 
 static void copy_clear(const VPEDesc &vpe, uintptr_t virt, gaddr_t phys, size_t size, bool clear) {
-    TCU::get().copy_clear(vpe, virt,
+    TCU::copy_clear(vpe, virt,
         VPEDesc(m3::TCU::gaddr_to_pe(phys), VPE::INVALID_ID),
         m3::TCU::gaddr_to_virt(phys),
         size, clear);
@@ -176,7 +176,7 @@ void VPE::load_app() {
 
     // write buffer to the target PE
     size_t argssize = off + sizeof("root");
-    TCU::get().write_mem(desc(), ENV_SPACE_START, buffer, argssize);
+    TCU::write_mem(desc(), ENV_SPACE_START, buffer, argssize);
 
     // write env to targetPE
     m3::Env senv;
@@ -193,7 +193,7 @@ void VPE::load_app() {
     senv.first_sel = _first_sel;
     senv.first_std_ep = _eps_start;
 
-    TCU::get().write_mem(desc(), ENV_START, &senv, sizeof(senv));
+    TCU::write_mem(desc(), ENV_START, &senv, sizeof(senv));
 }
 
 void VPE::init_memory() {

@@ -72,20 +72,20 @@ void SyscallHandler::init() {
     for(size_t i = 0; i < TCU::SYSC_REP_COUNT; ++i) {
         uint buford = m3::getnextlog2(32) + VPE::SYSC_MSGSIZE_ORD;
         size_t bufsize = static_cast<size_t>(1) << buford;
-        TCU::get().recv_msgs(ep(i),reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+        TCU::recv_msgs(ep(i),reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
             buford, VPE::SYSC_MSGSIZE_ORD);
     }
 
     uint buford = m3::nextlog2<1024>::val;
     size_t bufsize = static_cast<size_t>(1) << buford;
-    TCU::get().recv_msgs(TCU::SERV_REP, reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+    TCU::recv_msgs(TCU::SERV_REP, reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, m3::nextlog2<256>::val);
 
     if(PEMux::total_instances() > 32)
         PANIC("At most 32 PEMux instances are supported");
     buford = m3::nextlog2<32>::val + PEMux::PEXC_MSGSIZE_ORD;
     bufsize = static_cast<size_t>(1) << buford;
-    TCU::get().recv_msgs(TCU::PEX_REP, reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
+    TCU::recv_msgs(TCU::PEX_REP, reinterpret_cast<uintptr_t>(new uint8_t[bufsize]),
         buford, PEMux::PEXC_MSGSIZE_ORD);
 
     add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::create_srv);
@@ -114,7 +114,7 @@ void SyscallHandler::init() {
 
 void SyscallHandler::reply_msg(VPE *vpe, const m3::TCU::Message *msg, const void *reply, size_t size) {
     epid_t ep = vpe->syscall_ep();
-    TCU::get().reply(ep, reply, size, msg);
+    TCU::reply(ep, reply, size, msg);
 }
 
 void SyscallHandler::reply_result(VPE *vpe, const m3::TCU::Message *msg, m3::Errors::Code code) {

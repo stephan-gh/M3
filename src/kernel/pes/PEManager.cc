@@ -42,12 +42,9 @@ void PEManager::remove_vpe(VPE *vpe) {
 
 void PEManager::init_vpe(UNUSED VPE *vpe) {
 #if defined(__gem5__)
-    auto pex = pemux(vpe->peid());
-    auto tcustate = pex->tcustate();
     vpe->_state = VPE::RUNNING;
 
-    tcustate.restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
-    TCU::get().init_vpe(vpe->peid());
+    TCU::init_vpe(vpe->peid());
 
     vpe->init_memory();
 #endif
@@ -55,7 +52,6 @@ void PEManager::init_vpe(UNUSED VPE *vpe) {
 
 void PEManager::start_vpe(VPE *vpe) {
 #if defined(__host__)
-    pemux(vpe->peid())->tcustate().restore(VPEDesc(vpe->peid(), VPE::INVALID_ID));
     vpe->_state = VPE::RUNNING;
     vpe->init_memory();
 #else
@@ -72,7 +68,7 @@ void PEManager::stop_vpe(VPE *vpe) {
     }
 #endif
 
-    TCU::get().kill_vpe(vpe->peid());
+    TCU::kill_vpe(vpe->peid());
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe) {
@@ -86,7 +82,7 @@ peid_t PEManager::find_pe(const m3::PEDesc &pe) {
 
 void PEManager::deprivilege_pes() {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i)
-        TCU::get().deprivilege(i);
+        TCU::deprivilege(i);
 }
 
 }

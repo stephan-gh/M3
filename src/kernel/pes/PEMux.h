@@ -20,8 +20,8 @@
 
 #include "cap/CapTable.h"
 #include "pes/VPE.h"
-#include "TCUState.h"
 #include "Platform.h"
+#include "TCU.h"
 
 namespace kernel {
 
@@ -70,10 +70,6 @@ public:
         _rbufs_size = size;
     }
 
-    TCUState &tcustate() {
-        return _tcustate;
-    }
-
     epid_t find_eps(uint count) const;
     bool eps_free(epid_t start, uint count) const;
     void alloc_eps(epid_t first, uint count);
@@ -89,7 +85,6 @@ public:
     m3::Errors::Code config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj);
     m3::Errors::Code config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj);
     m3::Errors::Code config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject &obj, goff_t off);
-    void update_ep(epid_t ep);
 
 private:
     m3::Errors::Code upcall(void *req, size_t size);
@@ -100,7 +95,6 @@ private:
     size_t _rbufs_size;
     goff_t _mem_base;
     m3::BitField<EP_COUNT> _eps;
-    TCUState _tcustate;
     SendQueue _upcqueue;
 };
 

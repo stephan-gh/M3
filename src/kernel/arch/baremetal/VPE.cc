@@ -65,7 +65,4 @@ void VPE::init_eps() {
     pemux->set_rbufsize(size);
 }
 
-void VPE::finish_start() {
-}
-
 }

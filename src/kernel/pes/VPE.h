@@ -123,9 +123,6 @@ public:
     bool is_stopped() const {
         return _flags & F_STOPPED;
     }
-    bool is_on_pe() const {
-        return state() == RUNNING;
-    }
     State state() const {
         return _state;
     }
@@ -178,13 +175,10 @@ public:
     }
 
 private:
-    void finish_start();
     void init_eps();
     void init_memory();
     void load_app();
     void exit_app(int exitcode);
-
-    void update_ep(epid_t ep);
 
     VPEDesc _desc;
     uint _flags;
