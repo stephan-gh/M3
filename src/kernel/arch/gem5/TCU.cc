@@ -84,9 +84,9 @@ void TCU::write_ep_remote(peid_t pe, epid_t ep, void *regs) {
 
 void TCU::write_ep_local(epid_t ep) {
     m3::TCU::reg_t *src = reinterpret_cast<m3::TCU::reg_t*>(_state.get_ep(ep));
-    m3::TCU::reg_t *dst = reinterpret_cast<m3::TCU::reg_t*>(m3::TCU::ep_regs_addr(ep));
+    uintptr_t base = m3::TCU::ep_regs_addr(ep);
     for(size_t i = 0; i < m3::TCU::EP_REGS; ++i)
-        dst[i] = src[i];
+        m3::CPU::write8b(base + i *sizeof(m3::TCU::reg_t), src[i]);
 }
 
 void TCU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
