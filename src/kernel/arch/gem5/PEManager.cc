@@ -21,7 +21,6 @@
 namespace kernel {
 
 void PEManager::init_vpe(VPE *vpe) {
-    TCU::init_vpe(vpe->peid());
     vpe->init_memory();
 }
 

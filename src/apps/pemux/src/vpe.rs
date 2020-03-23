@@ -575,3 +575,13 @@ impl VPE {
         .unwrap();
     }
 }
+
+impl Drop for VPE {
+    fn drop(&mut self) {
+        // flush+invalidate caches to ensure that we have a fresh view on memory. this is required
+        // because of the way the pager handles copy-on-write: it reads the current copy from the
+        // owner and updates the version in DRAM. for that reason, the cache for new VPEs needs to
+        // be clear, so that the cache loads the current version from DRAM.
+        tcu::TCU::flush_cache();
+    }
+}

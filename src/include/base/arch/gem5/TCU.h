@@ -127,6 +127,7 @@ private:
         INV_TLB             = 2,
         INS_TLB             = 3,
         XCHG_VPE            = 4,
+        FLUSH_CACHE         = 5,
     };
 
     enum class ExtCmdOpCode {

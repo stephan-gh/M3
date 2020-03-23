@@ -50,13 +50,8 @@ void TCU::deprivilege(peid_t pe) {
     write_mem(vpe, m3::TCU::tcu_reg_addr(m3::TCU::TCURegs::FEATURES), &features, sizeof(features));
 }
 
-void TCU::init_vpe(peid_t pe) {
-    // flush+invalidate caches to ensure that we have a fresh view on memory. this is required
-    // because of the way the pager handles copy-on-write: it reads the current copy from the owner
-    // and updates the version in DRAM. for that reason, the cache for new VPEs needs to be clear,
-    // so that the cache loads the current version from DRAM.
-    m3::TCU::reg_t arg = 1;
-    do_ext_cmd(pe, m3::TCU::ExtCmdOpCode::RESET, &arg);
+void TCU::init_vpe(peid_t) {
+    // nothing tod o
 }
 
 void TCU::kill_vpe(peid_t) {

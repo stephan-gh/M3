@@ -217,6 +217,8 @@ int_enum! {
         const INS_TLB     = 3;
         /// Changes the VPE
         const XCHG_VPE    = 4;
+        /// Flushes and invalidates the cache
+        const FLUSH_CACHE = 5;
     }
 }
 
@@ -573,6 +575,10 @@ impl TCU {
             | ((flags.bits() as Reg) << 4)
             | PrivCmdOpCode::INS_TLB.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
+    }
+
+    pub fn flush_cache() {
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::FLUSH_CACHE.val);
     }
 
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {
