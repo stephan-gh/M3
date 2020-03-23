@@ -14,10 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Kernel.h>
-
 #include "pes/PEManager.h"
-#include "pes/VPEManager.h"
 #include "TCU.h"
 #include "Platform.h"
 
@@ -38,37 +35,6 @@ void PEManager::add_vpe(VPECapability *vpe) {
 
 void PEManager::remove_vpe(VPE *vpe) {
     _muxes[vpe->peid()]->remove_vpe(vpe);
-}
-
-void PEManager::init_vpe(UNUSED VPE *vpe) {
-#if defined(__gem5__)
-    vpe->_state = VPE::RUNNING;
-
-    TCU::init_vpe(vpe->peid());
-
-    vpe->init_memory();
-#endif
-}
-
-void PEManager::start_vpe(VPE *vpe) {
-#if defined(__host__)
-    vpe->_state = VPE::RUNNING;
-    vpe->init_memory();
-#else
-    if(Platform::pe(vpe->peid()).supports_pemux())
-        pemux(vpe->peid())->vpe_ctrl(vpe, m3::KIF::PEXUpcalls::VPEOp::VCTRL_START);
-#endif
-}
-
-void PEManager::stop_vpe(VPE *vpe) {
-#if defined(__gem5__)
-    if(Platform::pe(vpe->peid()).supports_pemux() && !(vpe->_flags & VPE::F_STOPPED)) {
-        vpe->_flags |= VPE::F_STOPPED;
-        pemux(vpe->peid())->vpe_ctrl(vpe, m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
-    }
-#endif
-
-    TCU::kill_vpe(vpe->peid());
 }
 
 peid_t PEManager::find_pe(const m3::PEDesc &pe) {
