@@ -193,8 +193,12 @@ void VPE::wait_for_exit() {
 }
 
 void VPE::exit_app(int exitcode) {
+    auto pemux = PEManager::get().pemux(peid());
     for(auto ep = _eps.begin(); ep != _eps.end(); ++ep) {
         if(ep->gate != nullptr) {
+            // force-invalidate EP in TCU
+            pemux->invalidate_ep(id(), ep->ep, true);
+
             if(ep->gate->type == Capability::SGATE)
                 static_cast<SGateObject*>(ep->gate)->activated = false;
             else if(ep->gate->type == Capability::RGATE) {

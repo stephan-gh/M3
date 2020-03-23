@@ -59,14 +59,8 @@ void TCU::init_vpe(peid_t pe) {
     do_ext_cmd(pe, m3::TCU::ExtCmdOpCode::RESET, &arg);
 }
 
-void TCU::kill_vpe(peid_t pe) {
-    // reset all EPs to remove unread messages
-    constexpr size_t userRegs = EP_COUNT - m3::TCU::FIRST_USER_EP;
-    constexpr size_t regsSize = (userRegs * m3::TCU::EP_REGS) * sizeof(m3::TCU::reg_t);
-    static_assert(regsSize <= sizeof(buffer), "Buffer too small");
-    memset(buffer, 0, regsSize);
-    VPEDesc vpe(pe, VPE::INVALID_ID);
-    write_mem(vpe, m3::TCU::ep_regs_addr(m3::TCU::FIRST_USER_EP), buffer, regsSize);
+void TCU::kill_vpe(peid_t) {
+    // nothing to do
 }
 
 m3::Errors::Code TCU::inv_reply_remote(peid_t pe, epid_t rep, peid_t rpe, epid_t sep) {
