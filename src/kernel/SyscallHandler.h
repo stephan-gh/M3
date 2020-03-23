@@ -21,6 +21,8 @@
 
 #include "TCU.h"
 
+#include <memory>
+
 namespace kernel {
 
 class VPE;
@@ -87,6 +89,9 @@ private:
                                         const m3::KIF::CapRngDesc &c2, bool obtain);
     static void exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, bool obtain);
 
+    static std::unique_ptr<uint8_t[]> sysc_bufs[TCU::SYSC_REP_COUNT];
+    static std::unique_ptr<uint8_t[]> serv_buf;
+    static std::unique_ptr<uint8_t[]> pex_buf;
     static ulong _vpes_per_ep[TCU::SYSC_REP_COUNT];
     static handler_func _callbacks[];
 };
