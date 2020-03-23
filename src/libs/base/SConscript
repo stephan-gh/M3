@@ -10,8 +10,6 @@ sources = [
     myenv.Glob('arch/$ARCH/*.S'), myenv.Glob('arch/$ARCH/*.cc'),
     myenv.Glob('arch/$ISA/*.S'), myenv.Glob('arch/$ISA/*.cc')
 ]
-if myenv['ARCH'] != 'host':
-    sources += [myenv.Glob('arch/baremetal/*.cc')]
 
 lib = myenv.StaticLibrary(
     target = 'libbase',

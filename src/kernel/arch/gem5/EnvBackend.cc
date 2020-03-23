@@ -29,9 +29,9 @@
 
 namespace kernel {
 
-class BaremetalKEnvBackend : public m3::BaremetalEnvBackend {
+class Gem5KEnvBackend : public m3::Gem5EnvBackend {
 public:
-    explicit BaremetalKEnvBackend() {
+    explicit Gem5KEnvBackend() {
     }
 
     virtual void init() override {
@@ -75,7 +75,7 @@ public:
 
 EXTERN_C void init_env(m3::Env *e) {
     m3::Heap::init();
-    e->backend_addr = reinterpret_cast<uint64_t>(new BaremetalKEnvBackend());
+    e->backend_addr = reinterpret_cast<uint64_t>(new Gem5KEnvBackend());
 }
 
 }

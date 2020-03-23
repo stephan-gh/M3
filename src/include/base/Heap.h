@@ -20,7 +20,7 @@
 #include <heap/heap.h>
 
 namespace kernel {
-class BaremetalKEnvBackend;
+class Gem5KEnvBackend;
 }
 
 namespace m3 {
@@ -28,7 +28,7 @@ namespace m3 {
 class OStream;
 
 class Heap {
-    friend class kernel::BaremetalKEnvBackend;
+    friend class kernel::Gem5KEnvBackend;
 
 public:
     /**

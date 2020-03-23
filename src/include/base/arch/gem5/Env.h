@@ -28,7 +28,7 @@ class OStream;
 class Env;
 OStream &operator<<(OStream &, const Env &senv);
 
-class BaremetalEnvBackend : public EnvBackend {
+class Gem5EnvBackend : public EnvBackend {
     friend class Env;
 
 public:
@@ -74,8 +74,8 @@ public:
     uint64_t vpe_addr;
     uint64_t backend_addr;
 
-    BaremetalEnvBackend *backend() {
-        return reinterpret_cast<BaremetalEnvBackend*>(backend_addr);
+    Gem5EnvBackend *backend() {
+        return reinterpret_cast<Gem5EnvBackend*>(backend_addr);
     }
 
     static void run() asm("env_run");

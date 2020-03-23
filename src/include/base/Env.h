@@ -19,5 +19,5 @@
 #if defined(__host__)
 #   include <base/arch/host/Env.h>
 #else
-#   include <base/arch/baremetal/Env.h>
+#   include <base/arch/gem5/Env.h>
 #endif

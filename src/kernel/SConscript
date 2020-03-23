@@ -15,7 +15,6 @@ sources = [
     myenv.Glob('arch/$ARCH/*/*.cc')
 ]
 if env['ARCH'] != 'host':
-    sources += [env.Glob('arch/baremetal/*.cc')]
     # we need muldefs here, because libpaging.a and libgcc/libgcc_eh contain _Unwind_Resume
     myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs -Wl,--whole-archive -lisr -Wl,--no-whole-archive')
 

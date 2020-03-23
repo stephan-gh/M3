@@ -27,7 +27,7 @@
 
 namespace m3 {
 
-class EnvUserBackend : public BaremetalEnvBackend {
+class EnvUserBackend : public Gem5EnvBackend {
 public:
     explicit EnvUserBackend() {
     }
