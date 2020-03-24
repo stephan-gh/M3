@@ -188,8 +188,12 @@ pub fn set_root_pt(id: u64, root: MMUPTE) {
     let ttbr0_low: u32 = (root | 0b001001) as u32;
     let ttbr0_high: u32 = ((id as u32 & 0xFF) << 16) | (root >> 32) as u32;
     unsafe {
-        asm!(
-            "mcrr p15, 0, $0, $1, c2"
+        asm!("
+             mcrr p15, 0, $0, $1, c2;
+             // synchronize changes to control register
+             .arch armv7;
+             isb;
+             "
             : : "r"(ttbr0_low), "r"(ttbr0_high)
             : : "volatile"
         );
