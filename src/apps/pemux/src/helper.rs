@@ -30,12 +30,6 @@ impl TCUCmdState {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn has_cmd(&self) -> bool {
-        self.cmd_regs[0] != 0
-    }
-
-    #[allow(dead_code)]
     pub fn xfer_buf(&self) -> tcu::Reg {
         self.xfer_buf
     }
