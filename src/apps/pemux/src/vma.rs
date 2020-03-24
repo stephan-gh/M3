@@ -31,12 +31,20 @@ pub struct PfState {
 
 fn send_pf(
     vpe: &mut vpe::VPE,
-    buf: Option<u64>,
+    mut buf: Option<u64>,
     virt: usize,
     perm: PageFlags,
 ) -> Result<(), Error> {
     // save command registers to be able to send a message
-    let _cmd_saved = helper::TCUGuard::new();
+    let cmd_saved = helper::TCUGuard::new();
+
+    // if the command triggered the page fault, the core request has been aborted and we don't want
+    // to resume it later
+    if let Some(buf_id) = buf {
+        if cmd_saved.state().xfer_buf() == buf_id {
+            buf = None;
+        }
+    }
 
     // change to the VPE, if required
     let cur = vpe::cur();
@@ -81,19 +89,15 @@ fn recv_pf_resp() -> bool {
         let err = reply.error as u32;
         tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg);
 
-        let (cmd_buf, pf_state) = vpe.finish_pf();
+        let pf_state = vpe.finish_pf();
         if let Some(buf) = pf_state.buf {
-            // if the page fault was raised by a different transfer buffer than the command,
-            // we haven't aborted the transfer yet and thus want to continue it now.
-            if cmd_buf != buf {
-                let pte = if err == 0 {
-                    vpe.translate(pf_state.virt, pf_state.perm)
-                }
-                else {
-                    cfg::PAGE_SIZE as u64
-                };
-                tcu::TCU::set_core_resp(pte | (buf << 6));
+            let pte = if err == 0 {
+                vpe.translate(pf_state.virt, pf_state.perm)
             }
+            else {
+                cfg::PAGE_SIZE as u64
+            };
+            tcu::TCU::set_core_resp(pte | (buf << 6));
         }
         if err != 0 {
             vpe::remove_cur(1);

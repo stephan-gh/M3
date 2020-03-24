@@ -438,8 +438,8 @@ impl VPE {
         self.pf_state = Some(pf_state);
     }
 
-    pub fn finish_pf(&mut self) -> (u64, PfState) {
-        (self.cmd.xfer_buf(), self.pf_state.take().unwrap())
+    pub fn finish_pf(&mut self) -> PfState {
+        self.pf_state.take().unwrap()
     }
 
     pub fn start(&mut self, state_addr: usize) {

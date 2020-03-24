@@ -68,6 +68,10 @@ impl TCUGuard {
         cmd.save();
         TCUGuard { cmd }
     }
+
+    pub fn state(&self) -> &TCUCmdState {
+        &self.cmd
+    }
 }
 
 impl Drop for TCUGuard {
