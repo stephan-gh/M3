@@ -92,7 +92,7 @@ m3::Errors::Code TCU::inval_ep_remote(vpeid_t vpe, peid_t pe, epid_t ep, bool, u
 }
 
 void TCU::write_ep_remote(vpeid_t vpe, peid_t pe, epid_t ep, const void *regs) {
-    if(VPEManager::get().vpe(vpe).state() == VPE::RUNNING) {
+    if(VPEManager::get().vpe(vpe).is_running()) {
         uintptr_t eps = static_cast<uintptr_t>(PEManager::get().pemux(pe)->eps_base());
         uintptr_t addr = eps + ep * m3::TCU::EP_REGS * sizeof(word_t);
         VPEDesc vpe(pe, VPE::INVALID_ID);

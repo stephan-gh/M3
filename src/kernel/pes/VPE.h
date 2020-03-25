@@ -120,8 +120,8 @@ public:
     bool is_stopped() const {
         return _flags & F_STOPPED;
     }
-    State state() const {
-        return _state;
+    bool is_running() {
+        return _state == RUNNING;
     }
 
     void set_mem_base(goff_t addr);
@@ -163,11 +163,11 @@ public:
     bool check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
     void wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply);
 
+private:
     void set_first_sel(capsel_t sel) {
         _first_sel = sel;
     }
 
-private:
     void init_eps();
     void init_memory();
     void load_app();
