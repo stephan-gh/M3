@@ -21,6 +21,7 @@
 #include <unistd.h>
 
 #include "pes/VPEManager.h"
+#include "pes/VPE.h"
 
 namespace kernel {
 

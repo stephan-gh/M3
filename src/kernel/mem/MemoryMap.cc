@@ -16,7 +16,6 @@
 
 #include <base/log/Kernel.h>
 #include <base/util/Math.h>
-#include <base/Init.h>
 #include <base/Panic.h>
 
 #include "mem/MemoryMap.h"

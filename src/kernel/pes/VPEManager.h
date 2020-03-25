@@ -16,12 +16,17 @@
 
 #pragma once
 
-#include <base/PEDesc.h>
+#include <base/col/SList.h>
+#include <base/util/String.h>
 
-#include "pes/VPE.h"
-#include "Platform.h"
+#include "Types.h"
 
 namespace kernel {
+
+class KMemCapability;
+class PECapability;
+class VPE;
+class VPECapability;
 
 class VPEManager {
     friend class VPE;

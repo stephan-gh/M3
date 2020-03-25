@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Heap.h>
+#include <base/col/SList.h>
 #include <base/log/Kernel.h>
 
 #include "mem/Slab.h"

@@ -15,6 +15,8 @@
  */
 
 #include "pes/PEManager.h"
+#include "pes/PEMux.h"
+#include "pes/VPE.h"
 #include "TCU.h"
 #include "Platform.h"
 

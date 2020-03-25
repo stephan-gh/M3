@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <base/Common.h>
 #include <base/stream/OStream.h>
 
 namespace kernel {

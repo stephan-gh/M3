@@ -14,12 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
 #include <base/log/Kernel.h>
 
 #include <thread/ThreadManager.h>
 
 #include "pes/PEMux.h"
+#include "pes/VPE.h"
 #include "pes/VPEManager.h"
 #include "SyscallHandler.h"
 #include "WorkLoop.h"

@@ -16,17 +16,11 @@
 
 #pragma once
 
-#include <base/Common.h>
 #include <base/col/Treap.h>
-#include <base/TCU.h>
 
 #include "com/Service.h"
 #include "mem/SlabCache.h"
 #include "Types.h"
-
-namespace m3 {
-class OStream;
-}
 
 namespace kernel {
 

@@ -20,7 +20,7 @@
 
 #include "pes/PEMux.h"
 #include "pes/PEManager.h"
-#include "pes/VPEManager.h"
+#include "pes/VPE.h"
 #include "cap/Capability.h"
 #include "cap/CapTable.h"
 #include "mem/MainMemory.h"

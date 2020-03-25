@@ -16,10 +16,10 @@
 
 #include <base/log/Kernel.h>
 
-#include "pes/VPE.h"
+#include <thread/ThreadManager.h>
+
 #include "TCU.h"
 #include "SendQueue.h"
-#include "SyscallHandler.h"
 
 namespace kernel {
 

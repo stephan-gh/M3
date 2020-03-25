@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Init.h>
 #include <base/Panic.h>
 
 #include "mem/MainMemory.h"

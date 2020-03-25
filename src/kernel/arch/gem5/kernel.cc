@@ -16,12 +16,16 @@
 
 #include <base/log/Kernel.h>
 
+#include <thread/ThreadManager.h>
+
 #include "mem/MainMemory.h"
 #include "pes/PEManager.h"
+#include "pes/VPE.h"
 #include "pes/VPEManager.h"
 #include "Args.h"
 #include "SyscallHandler.h"
 #include "Paging.h"
+#include "Platform.h"
 #include "WorkLoop.h"
 
 using namespace kernel;

@@ -17,6 +17,7 @@
 #include <base/log/Kernel.h>
 
 #include "cap/CapTable.h"
+#include "pes/VPE.h"
 #include "pes/VPEManager.h"
 
 namespace kernel {

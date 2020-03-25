@@ -17,7 +17,9 @@
 #include <base/Common.h>
 
 #include "pes/PEManager.h"
+#include "pes/PEMux.h"
 #include "pes/VPEManager.h"
+#include "pes/VPE.h"
 #include "TCU.h"
 
 #include <signal.h>

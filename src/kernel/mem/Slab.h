@@ -16,10 +16,7 @@
 
 #pragma once
 
-#include <base/Common.h>
-#include <base/col/SList.h>
 #include <base/col/DList.h>
-#include <base/util/Util.h>
 
 namespace kernel {
 

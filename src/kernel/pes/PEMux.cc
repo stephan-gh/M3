@@ -16,11 +16,12 @@
 
 #include <base/log/Kernel.h>
 
+#include <thread/ThreadManager.h>
+
 #include "pes/PEMux.h"
-#include "pes/VPEManager.h"
+#include "pes/VPE.h"
 #include "TCU.h"
 #include "Platform.h"
-#include "SyscallHandler.h"
 
 namespace kernel {
 

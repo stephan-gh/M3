@@ -17,11 +17,10 @@
 #pragma once
 
 #include <base/util/BitField.h>
+#include <base/Config.h>
 
 #include "cap/CapTable.h"
-#include "pes/VPE.h"
 #include "Platform.h"
-#include "TCU.h"
 
 namespace kernel {
 

@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/stream/IStringStream.h>
 #include <base/stream/Serial.h>
 #include <base/CmdArgs.h>
 #include <base/Config.h>

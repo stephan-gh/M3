@@ -15,6 +15,7 @@
  */
 
 #include "pes/PEManager.h"
+#include "pes/VPE.h"
 #include "TCU.h"
 
 namespace kernel {

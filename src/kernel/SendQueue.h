@@ -16,15 +16,10 @@
 
 #pragma once
 
-#include <base/Common.h>
 #include <base/col/SList.h>
 #include <base/TCU.h>
 
-#include "pes/VPEDesc.h"
-
 namespace kernel {
-
-class VPE;
 
 class SendQueue {
     struct Entry : public m3::SListItem {

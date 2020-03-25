@@ -18,12 +18,11 @@
 
 #include <base/PEDesc.h>
 
-#include "PEMux.h"
-
 namespace kernel {
 
+class PEMux;
 class VPE;
-class KMemObject;
+class VPECapability;
 
 class PEManager {
 public:

@@ -14,13 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Config.h>
 #include <base/util/Math.h>
-#include <base/log/Kernel.h>
 
 #include "pes/VPE.h"
 #include "Paging.h"
-#include "Platform.h"
 
 namespace kernel {
 

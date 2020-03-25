@@ -20,6 +20,8 @@
 #include <base/TCU.h>
 #include <base/Panic.h>
 
+#include <thread/ThreadManager.h>
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -38,6 +40,7 @@
 #include "pes/VPE.h"
 #include "mem/MainMemory.h"
 #include "Args.h"
+#include "Platform.h"
 #include "SyscallHandler.h"
 #include "WorkLoop.h"
 

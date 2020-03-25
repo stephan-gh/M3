@@ -21,6 +21,8 @@
 #include <utility>
 
 #include "pes/PEManager.h"
+#include "pes/PEMux.h"
+#include "pes/VPE.h"
 #include "pes/VPEManager.h"
 #include "mem/MainMemory.h"
 #include "Args.h"

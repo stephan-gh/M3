@@ -16,13 +16,10 @@
 
 #include <base/stream/Serial.h>
 #include <base/Backtrace.h>
-#include <base/Init.h>
 #include <base/Panic.h>
-#include <base/KIF.h>
 
 #include <isr/ISR.h>
 
-#include "pes/VPE.h"
 #include "Paging.h"
 
 namespace kernel {

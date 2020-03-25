@@ -16,20 +16,21 @@
 
 #include <base/log/Kernel.h>
 #include <base/util/Math.h>
-#include <base/Init.h>
 #include <base/Panic.h>
 
 #include <thread/ThreadManager.h>
 
 #include <utility>
 
+#include "cap/Capability.h"
 #include "com/Service.h"
 #include "pes/PEManager.h"
+#include "pes/PEMux.h"
 #include "pes/VPEManager.h"
+#include "pes/VPE.h"
 #include "TCU.h"
 #include "Platform.h"
 #include "SyscallHandler.h"
-#include "WorkLoop.h"
 
 namespace kernel {
 

@@ -14,18 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Common.h>
-#include <base/util/Math.h>
 #include <base/Env.h>
 #include <base/Heap.h>
+#include <base/KIF.h>
+#include <base/stream/Serial.h>
+#include <base/util/Math.h>
 
 #include "mem/MainMemory.h"
-#include "pes/VPEManager.h"
-#include "pes/VPE.h"
-#include "TCU.h"
 #include "Paging.h"
 #include "Platform.h"
-#include "WorkLoop.h"
 
 namespace kernel {
 

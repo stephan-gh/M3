@@ -18,10 +18,7 @@
 
 #include <base/KIF.h>
 
-#include <thread/ThreadManager.h>
-
 #include "cap/CapTable.h"
-#include "mem/SlabCache.h"
 #include "pes/VPEDesc.h"
 #include "Types.h"
 

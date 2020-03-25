@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+#include "pes/VPE.h"
 #include "pes/VPEManager.h"
 
 namespace kernel {

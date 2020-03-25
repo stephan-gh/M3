@@ -16,6 +16,8 @@
 
 #include <base/Common.h>
 
+#include <thread/ThreadManager.h>
+
 #include "com/Service.h"
 #include "pes/VPE.h"
 

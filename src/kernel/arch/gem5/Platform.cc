@@ -14,8 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Init.h>
-
 #include "mem/MainMemory.h"
 #include "mem/MemoryModule.h"
 #include "pes/VPE.h"
