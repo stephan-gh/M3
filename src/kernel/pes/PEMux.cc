@@ -31,7 +31,7 @@ PEMux::PEMux(peid_t pe)
       _rbufs_size(),
       _mem_base(),
       _eps(),
-      _upcqueue(desc()) {
+      _upcqueue(pe, m3::TCU::PEXUP_REP) {
     for(epid_t ep = 0; ep < m3::TCU::FIRST_USER_EP; ++ep)
         _eps.set(ep);
 
@@ -160,7 +160,7 @@ m3::Errors::Code PEMux::vpe_ctrl(VPE *vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
 
 m3::Errors::Code PEMux::upcall(void *req, size_t size) {
     // send upcall
-    event_t event = _upcqueue.send(m3::TCU::PEXUP_REP, 0, req, size, false);
+    event_t event = _upcqueue.send(0, req, size, false);
     m3::ThreadManager::get().wait_for(event);
 
     // wait for reply

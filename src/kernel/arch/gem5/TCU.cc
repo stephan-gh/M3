@@ -137,10 +137,10 @@ void TCU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     reply_eps += 1UL << (order - msgorder);
 }
 
-m3::Errors::Code TCU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
+m3::Errors::Code TCU::send_to(peid_t pe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
-    config_local_ep(TMP_SEP, [vpe, ep, label](m3::TCU::reg_t *ep_regs) {
-        config_send(ep_regs, VPE::KERNEL_ID, label, vpe.pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
+    config_local_ep(TMP_SEP, [pe, ep, label](m3::TCU::reg_t *ep_regs) {
+        config_send(ep_regs, VPE::KERNEL_ID, label, pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
     });
     return m3::TCU::get().send(TMP_SEP, msg, size, replylbl, replyep);
 }

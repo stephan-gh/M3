@@ -69,7 +69,7 @@ public:
 
     static void reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Message *msg);
 
-    static m3::Errors::Code send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
+    static m3::Errors::Code send_to(peid_t pe, epid_t ep, label_t label, const void *msg,
                                     size_t size, label_t replylbl, epid_t replyep);
 
     static m3::Errors::Code try_write_mem(const VPEDesc &vpe, goff_t addr,

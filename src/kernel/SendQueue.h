@@ -28,25 +28,24 @@ class VPE;
 
 class SendQueue {
     struct Entry : public m3::SListItem {
-        explicit Entry(uint64_t _id, epid_t _dst_ep, label_t _ident, const void *_msg, size_t _size)
+        explicit Entry(uint64_t _id, label_t _ident, const void *_msg, size_t _size)
             : SListItem(),
               id(_id),
-              dst_ep(_dst_ep),
               ident(_ident),
               msg(_msg),
               size(_size) {
         }
 
         uint64_t id;
-        epid_t dst_ep;
         label_t ident;
         const void *msg;
         size_t size;
     };
 
 public:
-    explicit SendQueue(VPEDesc desc)
-        : _desc(desc),
+    explicit SendQueue(peid_t pe, epid_t ep)
+        : _pe(pe),
+          _ep(ep),
           _queue(),
           _cur_event(),
           _inflight(0) {
@@ -60,17 +59,19 @@ public:
         return static_cast<int>(_queue.length());
     }
 
-    event_t send(epid_t dst_ep, label_t ident,const void *msg, size_t size, bool onheap);
-    void received_reply(epid_t ep, const m3::TCU::Message *msg);
+    event_t send(label_t ident,const void *msg, size_t size, bool onheap);
+    void received_reply(const m3::TCU::Message *msg);
     void drop_msgs(label_t ident);
     void abort();
 
 private:
     void send_pending();
-    event_t get_event(uint64_t id);
-    event_t do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t size, bool onheap);
+    event_t do_send(uint64_t id, const void *msg, size_t size, bool onheap);
 
-    VPEDesc _desc;
+    static event_t get_event(uint64_t id);
+
+    peid_t _pe;
+    epid_t _ep;
     m3::SList<Entry> _queue;
     event_t _cur_event;
     int _inflight;

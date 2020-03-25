@@ -133,11 +133,11 @@ void TCU::reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Messag
     m3::TCU::get().reply(ep, reply, size, msg);
 }
 
-m3::Errors::Code TCU::send_to(const VPEDesc &vpe, epid_t ep, label_t label, const void *msg,
+m3::Errors::Code TCU::send_to(peid_t pe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
     const size_t msg_ord = static_cast<uint>(m3::getnextlog2(size + m3::TCU::HEADER_SIZE));
-    config_local_ep(TMP_SEP, [vpe, ep, label, msg_ord](m3::TCU::reg_t *ep_regs) {
-        config_send(ep_regs, 0, label, vpe.pe, ep, msg_ord, 1UL << msg_ord);
+    config_local_ep(TMP_SEP, [pe, ep, label, msg_ord](m3::TCU::reg_t *ep_regs) {
+        config_send(ep_regs, 0, label, pe, ep, msg_ord, 1UL << msg_ord);
     });
     return m3::TCU::get().send(TMP_SEP, msg, size, replylbl, replyep);
 }

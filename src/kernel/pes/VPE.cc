@@ -52,7 +52,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, epid_t eps_start, vpeid_t id, u
       _name(std::move(prog)),
       _objcaps(id),
       _mapcaps(id),
-      _upcqueue(desc()),
+      _upcqueue(peid(), eps_start + m3::TCU::UPCALL_REP_OFF),
       _vpe_wait_sels(),
       _vpe_wait_count(),
       _first_sel(m3::KIF::FIRST_FREE_SEL) {

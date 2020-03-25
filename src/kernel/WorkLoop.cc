@@ -124,7 +124,7 @@ void WorkLoop::run() {
         msg = tcu.fetch_msg(srvep);
         if(msg) {
             SendQueue *sq = reinterpret_cast<SendQueue*>(msg->label);
-            sq->received_reply(srvep, msg);
+            sq->received_reply(msg);
         }
 
         msg = tcu.fetch_msg(pexep);

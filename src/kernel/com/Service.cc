@@ -24,7 +24,7 @@ namespace kernel {
 Service::Service(VPE &vpe, const m3::String &name, const m3::Reference<RGateObject> &rgate)
     : RefCounted(),
       _vpe(vpe),
-      _squeue(vpe.desc()),
+      _squeue(vpe.peid(), rgate->ep),
       _name(name),
       _rgate(rgate) {
 }
@@ -37,7 +37,7 @@ const m3::TCU::Message *Service::send_receive(label_t ident, const void *msg, si
     if(!_rgate->activated())
         return nullptr;
 
-    event_t event = _squeue.send(_rgate->ep, ident, msg, size, free);
+    event_t event = _squeue.send(ident, msg, size, free);
 
     m3::ThreadManager::get().wait_for(event);
 

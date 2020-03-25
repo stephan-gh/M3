@@ -34,14 +34,14 @@ event_t SendQueue::get_event(uint64_t id) {
     return static_cast<event_t>(1) << (sizeof(event_t) * 8 - 1) | id;
 }
 
-event_t SendQueue::send(epid_t dst_ep, label_t ident, const void *msg, size_t size, bool onheap) {
-    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: trying to send message");
+event_t SendQueue::send(label_t ident, const void *msg, size_t size, bool onheap) {
+    KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: trying to send message");
 
     if(_inflight == -1)
         return 0;
 
     if(_inflight == 0)
-        return do_send(dst_ep, _next_id++, msg, size, onheap);
+        return do_send(_next_id++, msg, size, onheap);
 
     // if it's not already on the heap, put it there
     if(!onheap) {
@@ -50,9 +50,9 @@ event_t SendQueue::send(epid_t dst_ep, label_t ident, const void *msg, size_t si
         msg = nmsg;
     }
 
-    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: queuing message");
+    KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: queuing message");
 
-    Entry *e = new Entry(_next_id++, dst_ep, ident, msg, size);
+    Entry *e = new Entry(_next_id++, ident, msg, size);
     _queue.append(e);
     return get_event(e->id);
 }
@@ -63,27 +63,27 @@ void SendQueue::send_pending() {
 
     Entry *e = _queue.remove_first();
 
-    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: found pending message");
+    KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: found pending message");
 
     // it might happen that there is another message in flight now
     if(_inflight != 0) {
-        KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: queuing message");
+        KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: queuing message");
         _queue.append(e);
         return;
     }
 
     // pending messages have always been copied to the heap
-    do_send(e->dst_ep, e->id, e->msg, e->size, true);
+    do_send(e->id, e->msg, e->size, true);
     delete e;
 }
 
-void SendQueue::received_reply(epid_t ep, const m3::TCU::Message *msg) {
-    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: received reply");
+void SendQueue::received_reply(const m3::TCU::Message *msg) {
+    KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: received reply");
 
     m3::ThreadManager::get().notify(_cur_event, msg, msg->length + sizeof(m3::TCU::Message::Header));
 
     // now that we've copied the message, we can mark it read
-    m3::TCU::get().ack_msg(ep, msg);
+    m3::TCU::get().ack_msg(TCU::SERV_REP, msg);
 
     if(_inflight != -1) {
         assert(_inflight > 0);
@@ -93,13 +93,13 @@ void SendQueue::received_reply(epid_t ep, const m3::TCU::Message *msg) {
     }
 }
 
-event_t SendQueue::do_send(epid_t dst_ep, uint64_t id, const void *msg, size_t size, bool onheap) {
-    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: sending message");
+event_t SendQueue::do_send(uint64_t id, const void *msg, size_t size, bool onheap) {
+    KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: sending message");
 
     _cur_event = get_event(id);
     _inflight++;
 
-    if(TCU::send_to(_desc, dst_ep, 0, msg, size, m3::ptr_to_label(this),
+    if(TCU::send_to(_pe, _ep, 0, msg, size, m3::ptr_to_label(this),
                     TCU::SERV_REP) != m3::Errors::NONE) {
         PANIC("send failed");
     }
@@ -124,11 +124,12 @@ void SendQueue::drop_msgs(label_t ident) {
             prev = &*old;
     }
 
-    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: dropped " << n << " msgs for " << m3::fmt(ident, "p"));
+    KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: dropped "
+        << n << " msgs for " << m3::fmt(ident, "p"));
 }
 
 void SendQueue::abort() {
-    KLOG(SQUEUE, "SendQueue[" << _desc.id << "]: aborting");
+    KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: aborting");
 
     if(_inflight)
         m3::ThreadManager::get().notify(_cur_event);
