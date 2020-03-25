@@ -132,4 +132,9 @@ impl TCUIf {
             Ok(())
         }
     }
+
+    #[inline(always)]
+    pub fn noop() -> Result<(), Error> {
+        pexcalls::call1(pexif::Operation::NOOP, 0).map(|_| ())
+    }
 }

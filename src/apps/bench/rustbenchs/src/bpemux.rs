@@ -14,10 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-int_enum! {
-    pub struct Operation : isize {
-        const SLEEP         = 0x0;
-        const EXIT          = 0x1;
-        const NOOP          = 0x2;
-    }
+use m3::profile;
+use m3::tcu::TCUIf;
+use m3::test;
+
+pub fn run(t: &mut dyn test::WvTester) {
+    wv_run_test!(t, pexcalls);
+}
+
+fn pexcalls() {
+    let mut prof = profile::Profiler::default().repeats(100).warmup(30);
+    wv_perf!(
+        "noop pexcall",
+        prof.run_with_id(|| TCUIf::noop().unwrap(), 0x30)
+    );
 }

@@ -24,6 +24,8 @@ mod bboxlist;
 mod bdlist;
 mod bmemmap;
 mod bmgate;
+#[cfg(target_os = "none")]
+mod bpemux;
 mod bpipe;
 mod bregfile;
 mod bstream;
@@ -65,6 +67,8 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, bdlist::run);
     wv_run_suite!(tester, bmemmap::run);
     wv_run_suite!(tester, bmgate::run);
+    #[cfg(target_os = "none")]
+    wv_run_suite!(tester, bpemux::run);
     wv_run_suite!(tester, bpipe::run);
     wv_run_suite!(tester, bregfile::run);
     wv_run_suite!(tester, bstream::run);
