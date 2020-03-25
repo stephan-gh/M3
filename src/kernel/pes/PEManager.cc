@@ -37,7 +37,7 @@ void PEManager::remove_vpe(VPE *vpe) {
     _muxes[vpe->peid()]->remove_vpe(vpe);
 }
 
-peid_t PEManager::find_pe(const m3::PEDesc &pe) {
+peid_t PEManager::find_pe(const m3::PEDesc &pe) const {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i) {
         if(Platform::pe(i).isa() == pe.isa() &&
            Platform::pe(i).type() == pe.type())
@@ -46,7 +46,7 @@ peid_t PEManager::find_pe(const m3::PEDesc &pe) {
     return 0;
 }
 
-void PEManager::deprivilege_pes() {
+void PEManager::deprivilege_pes() const {
     for(peid_t i = Platform::first_pe(); i <= Platform::last_pe(); ++i)
         TCU::deprivilege(i);
 }

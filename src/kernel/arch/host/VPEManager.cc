@@ -35,7 +35,7 @@ VPEManager::~VPEManager() {
     delete[] _vpes;
 }
 
-int VPEManager::pid_by_pe(peid_t pe) {
+int VPEManager::pid_by_pe(peid_t pe) const {
     for(vpeid_t i = 0; i < MAX_VPES; ++i) {
         if(_vpes[i] && _vpes[i]->peid() == pe)
             return _vpes[i]->pid();

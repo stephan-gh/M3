@@ -89,10 +89,10 @@ public:
     const m3::String &name() const {
         return _name;
     }
-    const m3::Reference<KMemObject> &kmem() {
+    const m3::Reference<KMemObject> &kmem() const {
         return _kmem;
     }
-    const m3::Reference<PEObject> &pe() {
+    const m3::Reference<PEObject> &pe() const {
         return _pe;
     }
 
@@ -120,7 +120,7 @@ public:
     bool is_stopped() const {
         return _flags & F_STOPPED;
     }
-    bool is_running() {
+    bool is_running() const {
         return _state == RUNNING;
     }
 

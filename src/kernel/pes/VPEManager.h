@@ -59,7 +59,7 @@ public:
 
     VPE *create(m3::String &&name, PECapability *pecap, KMemCapability *kmemcap, epid_t eps_start);
 
-    bool exists(vpeid_t id) {
+    bool exists(vpeid_t id) const {
         return id < MAX_VPES && _vpes[id];
     }
 
@@ -69,17 +69,17 @@ public:
     }
 
 #if defined(__host__)
-    int pid_by_pe(peid_t pe);
+    int pid_by_pe(peid_t pe) const;
     VPE *vpe_by_pid(int pid);
 #endif
 
 private:
-    vpeid_t get_id();
+    vpeid_t get_id() const;
 
     void add(VPECapability *vpe);
     void remove(VPE *vpe);
 
-    vpeid_t _next_id;
+    mutable vpeid_t _next_id;
     VPE **_vpes;
     size_t _count;
     static VPEManager *_inst;

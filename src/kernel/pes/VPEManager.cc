@@ -113,7 +113,7 @@ void VPEManager::start_root() {
     _vpes[id]->start_app(_vpes[id]->pid());
 }
 
-vpeid_t VPEManager::get_id() {
+vpeid_t VPEManager::get_id() const {
     vpeid_t id = _next_id;
     for(; id < MAX_VPES && _vpes[id] != nullptr; ++id)
         ;

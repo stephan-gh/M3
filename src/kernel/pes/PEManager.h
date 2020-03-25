@@ -38,7 +38,7 @@ private:
     explicit PEManager();
 
 public:
-    peid_t find_pe(const m3::PEDesc &pe);
+    peid_t find_pe(const m3::PEDesc &pe) const;
 
     PEMux *pemux(peid_t pe) {
         return _muxes[pe];
@@ -52,7 +52,7 @@ public:
     void stop_vpe(VPE *vpe);
 
 private:
-    void deprivilege_pes();
+    void deprivilege_pes() const;
 
     PEMux **_muxes;
     static PEManager *_inst;

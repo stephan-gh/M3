@@ -131,7 +131,7 @@ public:
 
 protected:
     template<class T>
-    static T *do_clone(T *cap, CapTable *tbl, capsel_t sel) {
+    static T *do_clone(const T *cap, CapTable *tbl, capsel_t sel) {
         auto clone = new T(*cap);
         clone->_type |= CLONE;
         clone->put(tbl, sel);
@@ -142,12 +142,12 @@ protected:
     }
 
 private:
-    virtual bool can_revoke() {
+    virtual bool can_revoke() const {
         return true;
     }
     virtual void revoke() {
     }
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) = 0;
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const = 0;
 
     uint _type;
     uint _length;
@@ -184,7 +184,7 @@ public:
 
     void revoke();
 
-    void print_eps(m3::OStream &os);
+    void print_eps(m3::OStream &os) const;
 
     uint type;
     m3::SList<EPUser> epuser;
@@ -281,7 +281,7 @@ public:
           vpes() {
     }
 
-    bool has_quota(uint eps) {
+    bool has_quota(uint eps) const {
         return this->eps >= eps;
     }
     void alloc(uint eps);
@@ -367,7 +367,7 @@ public:
 
 protected:
     virtual void revoke() override;
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -396,7 +396,7 @@ protected:
         if(is_root())
             obj->revoke();
     }
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -425,7 +425,7 @@ private:
         if(is_root())
             obj->revoke();
     }
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -454,11 +454,11 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual bool can_revoke() override {
+    virtual bool can_revoke() const override {
         return (obj->attr & KERNEL) == 0;
     }
     virtual void revoke() override;
-    virtual Capability *clone(CapTable *, capsel_t) override {
+    virtual Capability *clone(CapTable *, capsel_t) const override {
         // not clonable
         return nullptr;
     }
@@ -482,7 +482,7 @@ public:
 
 private:
     virtual void revoke() override;
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -505,7 +505,7 @@ public:
 
 private:
     virtual void revoke() override;
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -528,12 +528,12 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual bool can_revoke() override {
+    virtual bool can_revoke() const override {
         // revoking with VPEs is considered a violation of the API.
         return obj->vpes == 0;
     }
     virtual void revoke() override;
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -555,7 +555,7 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -575,7 +575,7 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -598,13 +598,13 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual bool can_revoke() override {
+    virtual bool can_revoke() const override {
         // revoking with non-full quota is considered a violation of the API. this can only happen
         // if there are still VPEs using this quota, in which case it shouldn't be revoked
         return obj->left == obj->quota;
     }
     virtual void revoke() override;
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -626,7 +626,7 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual Capability *clone(CapTable *tbl, capsel_t sel) override {
+    virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
 
@@ -642,7 +642,7 @@ inline EPObject *GateObject::ep_of_pe(peid_t pe) {
     return nullptr;
 }
 
-inline void GateObject::print_eps(m3::OStream &os) {
+inline void GateObject::print_eps(m3::OStream &os) const {
     os << "[";
     for(auto u = epuser.begin(); u != epuser.end(); ) {
         os << "PE" << u->ep->pe->id
