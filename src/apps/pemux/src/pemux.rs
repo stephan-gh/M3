@@ -120,6 +120,7 @@ pub fn sleep() {
 
 static SCHED: StaticCell<Option<vpe::ScheduleAction>> = StaticCell::new(None);
 
+#[inline]
 fn leave(state: &mut arch::State) -> *mut libc::c_void {
     upcalls::check();
 

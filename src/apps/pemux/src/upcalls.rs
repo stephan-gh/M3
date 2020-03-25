@@ -148,12 +148,8 @@ fn handle_upcall(msg: &'static tcu::Message) {
     reply_msg(msg, reply);
 }
 
-pub fn check() {
-    let our = vpe::our();
-    if !our.has_msgs() {
-        return;
-    }
-
+#[inline(never)]
+fn handle_upcalls(our: &mut vpe::VPE) {
     let _cmd_saved = helper::TCUGuard::new();
 
     loop {
@@ -174,4 +170,14 @@ pub fn check() {
             break;
         }
     }
+}
+
+#[inline(always)]
+pub fn check() {
+    let our = vpe::our();
+    if !our.has_msgs() {
+        return;
+    }
+
+    handle_upcalls(our);
 }
