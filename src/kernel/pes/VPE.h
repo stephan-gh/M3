@@ -102,9 +102,6 @@ public:
     peid_t peid() const {
         return desc().pe;
     }
-    void set_pe(peid_t pe) {
-        _desc.pe = pe;
-    }
 
     epid_t eps_start() const {
         return _eps_start;
@@ -139,10 +136,6 @@ public:
     }
     CapTable &mapcaps() {
         return _mapcaps;
-    }
-
-    SendQueue &upcall_queue() {
-        return _upcqueue;
     }
 
     void add_ep(EPObject *ep) {

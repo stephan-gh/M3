@@ -46,9 +46,6 @@ public:
     peid_t peid() const {
         return _pe->id;
     }
-    VPEDesc desc() const {
-        return VPEDesc(peid(), VPE::INVALID_ID);
-    }
 
     void add_vpe(VPECapability *vpe);
     void remove_vpe(VPE *vpe);

@@ -59,10 +59,6 @@ public:
 
     VPE *create(m3::String &&name, PECapability *pecap, KMemCapability *kmemcap, epid_t eps_start);
 
-    size_t used() const {
-        return _count;
-    }
-
     bool exists(vpeid_t id) {
         return id < MAX_VPES && _vpes[id];
     }
@@ -72,14 +68,10 @@ public:
         return *_vpes[id];
     }
 
-    peid_t peof(vpeid_t id) {
-        if(id == MAX_VPES)
-            return Platform::kernel_pe();
-        return vpe(id).peid();
-    }
-
+#if defined(__host__)
     int pid_by_pe(peid_t pe);
     VPE *vpe_by_pid(int pid);
+#endif
 
 private:
     vpeid_t get_id();
