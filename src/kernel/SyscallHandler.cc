@@ -974,7 +974,12 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, b
     smsg.data.args.bytes = req->args.bytes;
     memcpy(&smsg.data.args.data, &req->args.data, req->args.bytes);
 
+    KLOG(SERV, "Sending " << (obtain ? "OBTAIN" : "DELEGATE")
+        << " request to service " << rsrv->name()
+        << " for sess " << m3::fmt(smsg.sess, "#x"));
+
     const m3::TCU::Message *srvreply = rsrv->send_receive(smsg.sess, &smsg, sizeof(smsg), false);
+
     // if the VPE exited, we don't even want to reply
     if(!vpe->has_app()) {
         // due to the missing reply, we need to ack the msg explicitly
@@ -987,6 +992,10 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, b
         SYS_ERROR(vpe, msg, m3::Errors::RECV_GONE, "Service unreachable");
 
     auto *reply = reinterpret_cast<const m3::KIF::Service::ExchangeReply*>(srvreply->data);
+
+    KLOG(SERV, "Received " << (obtain ? "OBTAIN" : "DELEGATE")
+        << " response from service " << rsrv->name()
+        << " for sess " << m3::fmt(smsg.sess, "#x") << ": " << reply->error);
 
     m3::Errors::Code res = static_cast<m3::Errors::Code>(reply->error);
 
