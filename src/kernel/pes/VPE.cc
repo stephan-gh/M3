@@ -225,6 +225,7 @@ void VPE::exit_app(int exitcode) {
 }
 
 bool VPE::check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply) {
+    size_t running = 0;
     for(size_t i = 0; i < count; ++i) {
         auto vpecap = static_cast<VPECapability*>(_objcaps.get(sels[i], Capability::VIRTPE));
         if(vpecap == nullptr || &*vpecap->obj == this)
@@ -235,10 +236,19 @@ bool VPE::check_exits(const xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWai
             reply.exitcode = static_cast<xfer_t>(vpecap->obj->exitcode());
             return true;
         }
+        running++;
     }
 
-    VPE::wait_for_exit();
-    return false;
+    if(running > 0) {
+        VPE::wait_for_exit();
+        return false;
+    }
+
+    // none of the VPEs still exists, report error
+    reply.vpe_sel = m3::KIF::INV_SEL;
+    reply.error = m3::Errors::VPE_GONE;
+    reply.exitcode = 0;
+    return true;
 }
 
 void VPE::wait_exit_async(xfer_t *sels, size_t count, m3::KIF::Syscall::VPEWaitReply &reply) {

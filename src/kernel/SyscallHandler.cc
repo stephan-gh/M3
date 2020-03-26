@@ -686,9 +686,11 @@ void SyscallHandler::vpe_wait(VPE *vpe, const m3::TCU::Message *msg) {
             ;
     }
 
-    if(reply.vpe_sel != m3::KIF::INV_SEL) {
+    if(reply.vpe_sel != m3::KIF::INV_SEL || reply.error != m3::Errors::NONE) {
         LOG_SYS(vpe, ": syscall::vpe_wait-cont",
             "(vpe=" << reply.vpe_sel << ", exitcode=" << reply.exitcode << ")");
+        if(reply.error != m3::Errors::NONE)
+            LOG_ERROR(vpe, (m3::Errors::Code)reply.error, "Waiting for VPEs failed");
 
         if(event)
             vpe->upcall_vpewait(event, reply);
