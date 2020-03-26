@@ -86,6 +86,13 @@ pub enum ScheduleAction {
     Kill,
 }
 
+#[derive(PartialEq, Eq)]
+pub enum ContResult {
+    Waiting,
+    Success,
+    Failure,
+}
+
 pub struct VPE {
     state: VPEState,
     prev: Option<NonNull<VPE>>,
@@ -97,7 +104,7 @@ pub struct VPE {
     eps_start: tcu::EpId,
     cmd: helper::TCUCmdState,
     pf_state: Option<PfState>,
-    cont: Option<fn() -> bool>,
+    cont: Option<fn() -> ContResult>,
 }
 
 impl_boxitem!(VPE);
@@ -277,18 +284,29 @@ pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
 
         // if there is a function to call, do that
         if let Some(f) = cont {
-            // only resume this VPE if it has been initialized
-            let finished = f();
-            if finished && new_state != 0 {
-                cur().cmd.restore();
-                break new_state;
-            }
-            // in this case, the VPE is not ready, so block it and don't set the state addr again
-            action = ScheduleAction::Block;
-            state_addr = 0;
-            if !finished {
-                // set the continuation again
-                cur().cont = Some(f);
+            let result = f();
+            match result {
+                // only resume this VPE if it has been initialized
+                ContResult::Success if new_state != 0 => {
+                    cur().cmd.restore();
+                    break new_state;
+                }
+                // failed, so remove VPE
+                ContResult::Failure => {
+                    remove(cur().id(), 1, true, false);
+                    // don't set state address and don't save command again
+                    state_addr = 0;
+                    action = ScheduleAction::Kill;
+                }
+                // still waiting or VPE not initialized
+                _ => {
+                    state_addr = 0;
+                    action = ScheduleAction::Block;
+                    if result == ContResult::Waiting {
+                        // set the continuation again
+                        cur().cont = Some(f);
+                    }
+                }
             }
         }
         else {
@@ -298,10 +316,10 @@ pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
 }
 
 pub fn remove_cur(status: u32) {
-    remove(cur().id(), status, true);
+    remove(cur().id(), status, true, true);
 }
 
-pub fn remove(id: u64, status: u32, notify: bool) {
+pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
     if let Some(v) = VPES.get_mut()[id as usize].take() {
         let old = match unsafe { &v.as_ref().state } {
             VPEState::Running => CUR.set(None).unwrap(),
@@ -334,7 +352,7 @@ pub fn remove(id: u64, status: u32, notify: bool) {
             }
         }
 
-        if old.state == VPEState::Running {
+        if sched && old.state == VPEState::Running {
             crate::reg_scheduling(ScheduleAction::Kill);
         }
     }
@@ -418,7 +436,11 @@ impl VPE {
         self.vpe_reg -= (count as u64) << 3;
     }
 
-    pub fn block(&mut self, action: ScheduleAction, cont: Option<fn() -> bool>) {
+    pub fn user_state(&self) -> &State {
+        &self.user_state
+    }
+
+    pub fn block(&mut self, action: ScheduleAction, cont: Option<fn() -> ContResult>) {
         self.cont = cont;
         if self.state == VPEState::Running {
             crate::reg_scheduling(action);

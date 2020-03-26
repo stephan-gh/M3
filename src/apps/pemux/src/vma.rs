@@ -67,7 +67,8 @@ fn send_pf(
         util::size_of::<crate::PagefaultMessage>(),
         0,
         eps_start + tcu::PG_REP_OFF,
-    ).and_then(|_| {
+    )
+    .and_then(|_| {
         // remember the page fault information to resume it later
         vpe.start_pf(PfState { buf, virt, perm });
         vpe.block(vpe::ScheduleAction::Block, Some(recv_pf_resp));
@@ -80,7 +81,7 @@ fn send_pf(
     res
 }
 
-fn recv_pf_resp() -> bool {
+fn recv_pf_resp() -> vpe::ContResult {
     let vpe = vpe::cur();
     let eps_start = vpe.eps_start();
 
@@ -100,12 +101,17 @@ fn recv_pf_resp() -> bool {
             tcu::TCU::set_core_resp(pte | (buf << 6));
         }
         if err != 0 {
-            vpe::remove_cur(1);
+            let virt = pf_state.virt;
+            let state = vpe.user_state();
+            log!(crate::LOG_ERR, "Pagefault for {:#x} with {:?}", virt, state);
+            vpe::ContResult::Failure
         }
-        true
+        else {
+            vpe::ContResult::Success
+        }
     }
     else {
-        false
+        vpe::ContResult::Waiting
     }
 }
 

@@ -71,7 +71,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
                 crate::reg_scheduling(vpe::ScheduleAction::Kill);
             }
             else {
-                vpe::remove(vpe_id, 0, false);
+                vpe::remove(vpe_id, 0, false, true);
             }
         },
     }
