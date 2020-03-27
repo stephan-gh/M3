@@ -131,9 +131,9 @@ fn create_sess() {
     let sel = VPE::cur().alloc_sel();
 
     // invalid dest selector
-    wv_assert_err!(syscalls::create_sess(SEL_VPE, srv, 0), Code::InvArgs);
+    wv_assert_err!(syscalls::create_sess(SEL_VPE, srv, 0, false), Code::InvArgs);
     // invalid service selector
-    wv_assert_err!(syscalls::create_sess(sel, SEL_VPE, 0), Code::InvArgs);
+    wv_assert_err!(syscalls::create_sess(sel, SEL_VPE, 0, false), Code::InvArgs);
 
     wv_assert_ok!(syscalls::revoke(
         VPE::cur().sel(),

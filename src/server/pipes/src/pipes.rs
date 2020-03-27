@@ -65,7 +65,9 @@ impl PipesHandler {
         sel: Selector,
         data: SessionData,
     ) -> Result<PipesSession, Error> {
-        let sess = ServerSession::new_with_sel(srv_sel, sel, sid as u64)?;
+        // let the kernel close the session as soon as the client dies or the session is revoked
+        // for some other reason. this is required to signal EOF to the other side of the pipe.
+        let sess = ServerSession::new_with_sel(srv_sel, sel, sid as u64, true)?;
 
         Ok(PipesSession::new(sess, data))
     }

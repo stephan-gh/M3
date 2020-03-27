@@ -35,11 +35,17 @@ int Service::pending() const {
     return _squeue.inflight() + _squeue.pending();
 }
 
-const m3::TCU::Message *Service::send_receive(label_t ident, const void *msg, size_t size, bool free) {
+event_t Service::send(label_t ident, const void *msg, size_t size, bool free) {
     if(!_rgate->activated())
-        return nullptr;
+        return 0;
 
-    event_t event = _squeue.send(ident, msg, size, free);
+    return _squeue.send(ident, msg, size, free);
+}
+
+const m3::TCU::Message *Service::send_receive(label_t ident, const void *msg, size_t size, bool free) {
+    event_t event = send(ident, msg, size, free);
+    if(event == 0)
+        return nullptr;
 
     m3::ThreadManager::get().wait_for(event);
 

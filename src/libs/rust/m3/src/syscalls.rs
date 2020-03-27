@@ -121,13 +121,16 @@ pub fn create_rgate(dst: Selector, order: u32, msgorder: u32) -> Result<(), Erro
     send_receive_result(&req)
 }
 
-/// Creates a new session at selector `dst` for service `srv` and given identifier.
-pub fn create_sess(dst: Selector, srv: Selector, ident: u64) -> Result<(), Error> {
+/// Creates a new session at selector `dst` for service `srv` and given identifier. `auto_close`
+/// specifies whether the CLOSE message should be sent to the server as soon as all derived session
+/// capabilities have been revoked.
+pub fn create_sess(dst: Selector, srv: Selector, ident: u64, auto_close: bool) -> Result<(), Error> {
     let req = syscalls::CreateSess {
         opcode: syscalls::Operation::CREATE_SESS.val,
         dst_sel: u64::from(dst),
         srv_sel: u64::from(srv),
         ident,
+        auto_close: u64::from(auto_close),
     };
     send_receive_result(&req)
 }

@@ -89,6 +89,9 @@ void CapTable::revoke_rec(Capability *c, bool revnext) {
             vpe->kmem()->free(*vpe, c->obj_size());
     }
 
+    // set that before we descent to childs and siblings
+    c->_type |= Capability::IN_REVOCATION;
+
     if(child)
         revoke_rec(child, true);
     // on the first level, we don't want to revoke siblings

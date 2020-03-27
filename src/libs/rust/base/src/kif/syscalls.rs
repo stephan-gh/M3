@@ -98,6 +98,7 @@ pub struct CreateSess {
     pub dst_sel: u64,
     pub srv_sel: u64,
     pub ident: u64,
+    pub auto_close: u64,
 }
 
 /// The create receive gate request message

@@ -218,6 +218,15 @@ void SessCapability::revoke() {
     // drop the queued messages for this session, because the server is not interested anymore
     if(parent()->type() == SERV)
         obj->drop_msgs();
+    else if(parent()->is_root() && !parent()->in_revocation() &&
+            static_cast<SessCapability*>(parent())->obj->auto_close) {
+        m3::KIF::Service::Close smsg;
+        smsg.opcode = m3::KIF::Service::CLOSE;
+        smsg.sess = obj->ident;
+        KLOG(SERV, "Sending CLOSE to service " << obj->srv->name()
+            << " for sess " << m3::fmt(obj->ident, "#x"));
+        obj->srv->send(smsg.sess, &smsg, sizeof(smsg), false);
+    }
 }
 
 // done in revoke instead of ~Service, because we hold another reference in the exchange_over_sess

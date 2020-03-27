@@ -34,7 +34,8 @@ m3::OStream &operator<<(m3::OStream &os, const Capability &cc);
 class Capability : public m3::TreapNode<Capability, capsel_t> {
     friend class CapTable;
 
-    static const uint CLONE   = 0x8000;
+    static const uint CLONE         = 0x8000;
+    static const uint IN_REVOCATION = 0x10000;
 
 public:
     typedef capsel_t key_t;
@@ -81,6 +82,9 @@ public:
 
     bool is_root() const {
         return (_type & CLONE) == 0;
+    }
+    bool in_revocation() const {
+        return (_type & IN_REVOCATION) != 0;
     }
 
     capsel_t sel() const {
@@ -254,15 +258,17 @@ public:
 
 class SessObject : public SlabObject<SessObject>, public m3::RefCounted {
 public:
-    explicit SessObject(Service *_srv, word_t _ident)
+    explicit SessObject(Service *_srv, word_t _ident, bool _auto_close)
         : RefCounted(),
           ident(_ident),
+          auto_close(_auto_close),
           srv(_srv) {
     }
 
     void drop_msgs();
 
     word_t ident;
+    bool auto_close;
     m3::Reference<Service> srv;
 };
 

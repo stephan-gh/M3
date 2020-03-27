@@ -193,7 +193,7 @@ impl VTermHandler {
         sel: Selector,
         data: SessionData,
     ) -> Result<VTermSession, Error> {
-        let sess = ServerSession::new_with_sel(srv_sel, sel, sid as u64)?;
+        let sess = ServerSession::new_with_sel(srv_sel, sel, sid as u64, false)?;
 
         Ok(VTermSession { sess, data })
     }

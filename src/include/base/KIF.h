@@ -205,6 +205,7 @@ struct KIF {
             xfer_t dst_sel;
             xfer_t srv_sel;
             xfer_t ident;
+            xfer_t auto_close;
         } PACKED;
 
         struct CreateRGate : public DefaultRequest {

@@ -45,6 +45,7 @@ public:
 
     int pending() const;
 
+    event_t send(label_t ident, const void *msg, size_t size, bool free);
     const m3::TCU::Message *send_receive(label_t ident, const void *msg, size_t size, bool free);
 
     void drop_msgs(label_t ident) {

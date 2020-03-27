@@ -178,9 +178,11 @@ void SyscallHandler::create_sess(VPE *vpe, const m3::TCU::Message *msg) {
     capsel_t dst = req->dst_sel;
     capsel_t srv = req->srv_sel;
     word_t ident = req->ident;
+    bool auto_close = req->auto_close != 0;
 
-    LOG_SYS(vpe, ": syscall::create_sess",
-        "(dst=" << dst << ", srv=" << srv << ", ident=#" << m3::fmt(ident, "0x") << ")");
+    LOG_SYS(vpe, ": syscall::create_sess", "(dst=" << dst
+        << ", srv=" << srv << ", ident=#" << m3::fmt(ident, "0x")
+        << ", auto_close=" << auto_close << ")");
 
     if(!vpe->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid session selector");
@@ -190,7 +192,7 @@ void SyscallHandler::create_sess(VPE *vpe, const m3::TCU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Service capability is invalid");
 
     auto sesscap = SYS_CREATE_CAP(vpe, msg, SessCapability, SessObject,
-        &vpe->objcaps(), dst, const_cast<Service*>(&*srvcap->obj), ident);
+        &vpe->objcaps(), dst, const_cast<Service*>(&*srvcap->obj), ident, auto_close);
     vpe->objcaps().inherit(srvcap, sesscap);
     vpe->objcaps().set(dst, sesscap);
 

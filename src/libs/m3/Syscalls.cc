@@ -60,12 +60,13 @@ void Syscalls::create_srv(capsel_t dst, capsel_t vpe, capsel_t rgate, const Stri
     send_receive_throw(&req, msgsize);
 }
 
-void Syscalls::create_sess(capsel_t dst, capsel_t srv, word_t ident) {
+void Syscalls::create_sess(capsel_t dst, capsel_t srv, word_t ident, bool auto_close) {
     KIF::Syscall::CreateSess req;
     req.opcode = KIF::Syscall::CREATE_SESS;
     req.dst_sel = dst;
     req.srv_sel = srv;
     req.ident = ident;
+    req.auto_close = auto_close;
     send_receive_throw(&req, sizeof(req));
 }
 

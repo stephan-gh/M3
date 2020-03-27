@@ -44,7 +44,7 @@ struct MyHandler {
 
 impl Handler for MyHandler {
     fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        let sess = ServerSession::new(srv_sel, 0)?;
+        let sess = ServerSession::new(srv_sel, 0, false)?;
 
         let sel = sess.sel();
         // keep the session to ensure that it's not destroyed

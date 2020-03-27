@@ -61,7 +61,7 @@ impl AddrSpace {
         Ok(AddrSpace {
             id,
             parent,
-            _sess: ServerSession::new_with_sel(srv_sel, sel, id as u64)?,
+            _sess: ServerSession::new_with_sel(srv_sel, sel, id as u64, false)?,
             as_mem: None,
             sgates: Vec::new(),
             ds: Vec::new(),
