@@ -658,7 +658,10 @@ impl ChildManager {
         let mut sels = Vec::new();
         for id in &self.ids {
             let child = self.child_by_id(*id).unwrap();
-            sels.push(child.vpe_sel());
+            // don't wait for foreign childs, because that's the responsibility of its parent
+            if !child.foreign() {
+                sels.push(child.vpe_sel());
+            }
         }
 
         syscalls::vpe_wait(&sels, event).unwrap();
