@@ -38,20 +38,31 @@ NOINLINE static void run() {
     const ulong warmup = 2;
     const ulong repeats = 4;
 
+    auto rgate = RecvGate::create(nextlog2<256>::val, nextlog2<256>::val);
+    rgate.activate();
+    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(SendGate::UNLIMITED));
+
     auto pe = PE::alloc(VPE::self().pe_desc());
     Results res(warmup + repeats);
     for(ulong i = 0; i < warmup + repeats; ++i) {
         VPE vpe(pe, "hello");
 
+        vpe.delegate_obj(sgate.sel());
+
         auto start = Time::start(0x91);
-        vpe.run([start]() {
+        vpe.run([start, &sgate]() {
             cycles_t end = Time::stop(0x91);
-            return end - start;
+            send_vmsg(sgate, end - start);
+            return 0;
         });
 
-        cycles_t time = static_cast<cycles_t>(vpe.wait());
-        if(i >= warmup)
-            res.push(time);
+        if(vpe.wait() == 0) {
+            auto reply = receive_msg(rgate);
+            cycles_t time;
+            reply >> time;
+            if(i >= warmup)
+                res.push(time);
+        }
     }
 
     WVPERF("VPE run", res);
