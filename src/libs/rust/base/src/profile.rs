@@ -45,7 +45,12 @@ impl Results {
         for t in &self.times {
             sum += t;
         }
-        sum / (self.times.len() as time::Time)
+        if self.times.len() == 0 {
+            0
+        }
+        else {
+            sum / (self.times.len() as time::Time)
+        }
     }
 
     /// Returns the standard deviation of the runtimes
@@ -61,7 +66,12 @@ impl Results {
             };
             sum += val * val;
         }
-        math::sqrt((sum as f32) / (self.times.len() as f32))
+        if self.times.len() == 0 {
+            0f32
+        }
+        else {
+            math::sqrt((sum as f32) / (self.times.len() as f32))
+        }
     }
 
     fn push(&mut self, time: time::Time) {

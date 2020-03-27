@@ -45,7 +45,7 @@ public:
         cycles_t sum = 0;
         for(size_t i = 0; i < _runs; ++i)
             sum += _times[i];
-        return sum / _runs;
+        return _runs == 0 ? 0 : sum / _runs;
     }
 
     float stddev() const {
@@ -59,7 +59,7 @@ public:
                 val = _times[i] - average;
             sum += val * val;
         }
-        return Math::sqrt((float)sum / _runs);
+        return _runs == 0 ? 0 : Math::sqrt((float)sum / _runs);
     }
 
     friend OStream &operator<<(OStream &os, const Results &r) {
