@@ -261,7 +261,9 @@ impl Map for GenericFile {
         flags: MapFlags,
     ) -> Result<(), Error> {
         // TODO maybe check here whether self is a pipe and return an error?
-        pager.map_ds(virt, len, off, prot, flags, &self.sess).map(|_| ())
+        pager
+            .map_ds(virt, len, off, prot, flags, &self.sess)
+            .map(|_| ())
     }
 }
 

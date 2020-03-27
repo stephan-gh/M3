@@ -40,11 +40,11 @@ cfg_if! {
 }
 
 use base::cfg;
-use base::tcu::TCU;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, PTE};
 use base::math;
+use base::tcu::TCU;
 use base::util;
 use core::fmt;
 

@@ -16,13 +16,13 @@
 
 use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate};
-use m3::tcu::{EP_COUNT, FIRST_USER_EP};
 use m3::errors::Code;
 use m3::kif::syscalls::{SemOp, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_MEM, SEL_PE, SEL_VPE};
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::session::M3FS;
 use m3::syscalls;
+use m3::tcu::{EP_COUNT, FIRST_USER_EP};
 use m3::test;
 
 pub fn run(t: &mut dyn test::WvTester) {

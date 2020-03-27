@@ -16,11 +16,11 @@
 
 use m3::cell::StaticCell;
 use m3::col::Vec;
-use m3::tcu::PEId;
 use m3::errors::{Code, Error};
 use m3::kif::PEDesc;
 use m3::pes::PE;
 use m3::rc::Rc;
+use m3::tcu::PEId;
 
 struct ManagedPE {
     id: PEId,

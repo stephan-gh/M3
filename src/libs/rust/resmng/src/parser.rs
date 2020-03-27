@@ -153,9 +153,7 @@ impl ConfigParser {
 
 pub(crate) fn parse(xml: &str, restrict: bool) -> Result<config::Config, Error> {
     let mut p = ConfigParser::new(xml);
-    let mut cfg = config::Config {
-        doms: Vec::new(),
-    };
+    let mut cfg = config::Config { doms: Vec::new() };
 
     parse_open_tag(&mut p, "config", |_| Err(Error::new(Code::InvArgs)))?;
 
@@ -205,19 +203,17 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
     loop {
         match p.parse_arg()? {
             None => break,
-            Some((n, v)) => {
-                match n.as_ref() {
-                    "args" => {
-                        for (i, a) in v.split_whitespace().enumerate() {
-                            if i == 0 {
-                                app.name = a.to_string();
-                            }
-                            app.args.push(a.to_string());
+            Some((n, v)) => match n.as_ref() {
+                "args" => {
+                    for (i, a) in v.split_whitespace().enumerate() {
+                        if i == 0 {
+                            app.name = a.to_string();
                         }
+                        app.args.push(a.to_string());
                     }
-                    "daemon" => app.daemon = parse_bool(&v)?,
-                    _ => return Err(Error::new(Code::InvArgs))
-                }
+                },
+                "daemon" => app.daemon = parse_bool(&v)?,
+                _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
@@ -256,12 +252,10 @@ fn parse_mem(p: &mut ConfigParser) -> Result<config::MemDesc, Error> {
     loop {
         match p.parse_arg()? {
             None => break,
-            Some((n, v)) => {
-                match n.as_ref() {
-                    "addr" => phys = Some(parse_addr(&v)?),
-                    "size" => size = parse_size(&v)? as goff,
-                    _ => return Err(Error::new(Code::InvArgs))
-                }
+            Some((n, v)) => match n.as_ref() {
+                "addr" => phys = Some(parse_addr(&v)?),
+                "size" => size = parse_size(&v)? as goff,
+                _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
@@ -272,11 +266,9 @@ fn parse_kmem(p: &mut ConfigParser) -> Result<usize, Error> {
     loop {
         match p.parse_arg()? {
             None => break Err(Error::new(Code::InvArgs)),
-            Some((n, v)) => {
-                match n.as_ref() {
-                    "size" => break Ok(parse_size(&v)?),
-                    _ => break Err(Error::new(Code::InvArgs))
-                }
+            Some((n, v)) => match n.as_ref() {
+                "size" => break Ok(parse_size(&v)?),
+                _ => break Err(Error::new(Code::InvArgs)),
             },
         }
     }
@@ -288,16 +280,14 @@ fn parse_service(p: &mut ConfigParser) -> Result<config::ServiceDesc, Error> {
     loop {
         match p.parse_arg()? {
             None => break,
-            Some((n, v)) => {
-                match n.as_ref() {
-                    "name" => {
-                        lname = v.clone();
-                        gname = v
-                    }
-                    "lname" => lname = v,
-                    "gname" => gname = v,
-                    _ => return Err(Error::new(Code::InvArgs))
-                }
+            Some((n, v)) => match n.as_ref() {
+                "name" => {
+                    lname = v.clone();
+                    gname = v
+                },
+                "lname" => lname = v,
+                "gname" => gname = v,
+                _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
@@ -311,17 +301,15 @@ fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
     loop {
         match p.parse_arg()? {
             None => break,
-            Some((n, v)) => {
-                match n.as_ref() {
-                    "name" => {
-                        lname = v.clone();
-                        serv = v
-                    }
-                    "lname" => lname = v,
-                    "gname" => serv = v,
-                    "args" => arg = v,
-                    _ => return Err(Error::new(Code::InvArgs))
-                }
+            Some((n, v)) => match n.as_ref() {
+                "name" => {
+                    lname = v.clone();
+                    serv = v
+                },
+                "lname" => lname = v,
+                "gname" => serv = v,
+                "args" => arg = v,
+                _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
@@ -335,13 +323,11 @@ fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
     loop {
         match p.parse_arg()? {
             None => break,
-            Some((n, v)) => {
-                match n.as_ref() {
-                    "type" => ty = v,
-                    "count" => count = v.parse::<u32>().map_err(|_| Error::new(Code::InvArgs))?,
-                    "optional" => optional = parse_bool(&v)?,
-                    _ => return Err(Error::new(Code::InvArgs))
-                }
+            Some((n, v)) => match n.as_ref() {
+                "type" => ty = v,
+                "count" => count = v.parse::<u32>().map_err(|_| Error::new(Code::InvArgs))?,
+                "optional" => optional = parse_bool(&v)?,
+                _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
@@ -354,16 +340,14 @@ fn parse_sem(p: &mut ConfigParser) -> Result<config::SemDesc, Error> {
     loop {
         match p.parse_arg()? {
             None => break,
-            Some((n, v)) => {
-                match n.as_ref() {
-                    "name" => {
-                        lname = v.clone();
-                        gname = v
-                    }
-                    "lname" => lname = v,
-                    "gname" => gname = v,
-                    _ => return Err(Error::new(Code::InvArgs))
-                }
+            Some((n, v)) => match n.as_ref() {
+                "name" => {
+                    lname = v.clone();
+                    gname = v
+                },
+                "lname" => lname = v,
+                "gname" => gname = v,
+                _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
@@ -463,6 +447,6 @@ fn parse_bool(s: &str) -> Result<bool, Error> {
         _ => {
             let val = s.parse::<u32>().map_err(|_| Error::new(Code::InvArgs))?;
             Ok(val == 1)
-        }
+        },
     }
 }

@@ -304,7 +304,15 @@ impl TCU {
         Self::sleep()
     }
 
-    pub fn configure(ep: EpId, lbl: Label, perm: kif::Perm, pe: PEId, dst_ep: EpId, crd: u64, msg_order: i32) {
+    pub fn configure(
+        ep: EpId,
+        lbl: Label,
+        perm: kif::Perm,
+        pe: PEId,
+        dst_ep: EpId,
+        crd: u64,
+        msg_order: i32,
+    ) {
         Self::set_ep(ep, EpReg::VALID, 1);
         Self::set_ep(ep, EpReg::LABEL, lbl);
         Self::set_ep(ep, EpReg::PE_ID, pe as Reg);

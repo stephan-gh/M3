@@ -14,9 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-use base::tcu;
 use base::errors::{Code, Error};
 use base::pexif;
+use base::tcu;
 
 use arch;
 use vpe;

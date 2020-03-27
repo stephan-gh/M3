@@ -14,8 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-pub mod tcu;
 pub mod env;
 pub mod init;
 pub mod loader;
 pub mod rbufs;
+pub mod tcu;

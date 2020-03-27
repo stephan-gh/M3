@@ -18,13 +18,13 @@ use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::col::String;
 use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
-use m3::tcu;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
-use m3::server::{CapExchange, server_loop, Handler, Server, SessId, SessionContainer};
+use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
+use m3::tcu;
 use m3::test;
 
 pub fn run(t: &mut dyn test::WvTester) {

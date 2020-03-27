@@ -17,8 +17,8 @@
 use m3::cell::StaticCell;
 use m3::col::{DList, String, Vec};
 use m3::com::{RGateArgs, RecvGate, SendGate};
-use m3::tcu;
 use m3::errors::Error;
+use m3::tcu;
 use thread;
 
 use childs::Id;
@@ -104,7 +104,11 @@ impl SendQueue {
             return self.do_send(alloc_qid(), msg);
         }
 
-        log!(crate::LOG_SQUEUE, "{}:squeue: queuing msg", self.serv_name());
+        log!(
+            crate::LOG_SQUEUE,
+            "{}:squeue: queuing msg",
+            self.serv_name()
+        );
 
         let qid = alloc_qid();
 
@@ -119,7 +123,11 @@ impl SendQueue {
     }
 
     fn received_reply(&mut self, rg: &RecvGate, msg: &'static tcu::Message) {
-        log!(crate::LOG_SQUEUE, "{}:squeue: received reply", self.serv_name());
+        log!(
+            crate::LOG_SQUEUE,
+            "{}:squeue: received reply",
+            self.serv_name()
+        );
 
         assert!(self.state == QState::Waiting);
         self.state = QState::Idle;
@@ -153,7 +161,11 @@ impl SendQueue {
     }
 
     fn do_send(&mut self, id: u64, msg: &[u8]) -> Result<thread::Event, Error> {
-        log!(crate::LOG_SQUEUE, "{}:squeue: sending msg", self.serv_name());
+        log!(
+            crate::LOG_SQUEUE,
+            "{}:squeue: sending msg",
+            self.serv_name()
+        );
 
         self.cur_event = get_event(id);
         self.state = QState::Waiting;

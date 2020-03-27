@@ -29,7 +29,6 @@ use m3::cell::{RefCell, StaticCell};
 use m3::cfg;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
-use m3::tcu;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{self, boot, PEDesc};
@@ -37,6 +36,7 @@ use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
+use m3::tcu;
 use m3::util;
 
 use resmng::childs::{self, Child, Id, OwnChild};

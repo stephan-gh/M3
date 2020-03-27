@@ -14,11 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use arch::tcu::{
-    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, TCU, EP_COUNT,
-    MAX_MSG_SIZE,
-};
 use arch::envdata;
+use arch::tcu::{
+    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, EP_COUNT, MAX_MSG_SIZE, TCU,
+};
 use cell::StaticCell;
 use core::{intrinsics, ptr, sync::atomic};
 use errors::{Code, Error};

@@ -40,7 +40,12 @@ pub fn handle_recv(req: tcu::Reg) {
             v.add_msg();
         }
 
-        log!(crate::LOG_FOREIGN_MSG, "Added message to VPE {} ({} msgs)", vpe_id, v.msgs());
+        log!(
+            crate::LOG_FOREIGN_MSG,
+            "Added message to VPE {} ({} msgs)",
+            vpe_id,
+            v.msgs()
+        );
 
         if v.id() != kif::pemux::VPE_ID {
             v.unblock();

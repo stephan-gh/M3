@@ -46,7 +46,7 @@ pub fn get_sp() -> usize {
             : "=r"(sp)
         )
     }
-    return sp
+    return sp;
 }
 
 pub fn get_bp() -> usize {

@@ -37,7 +37,12 @@ impl ServerSession {
     /// Creates a new session for server `srv` at selector `sel` using the given ident. `auto_close`
     /// specifies whether the CLOSE message should be sent to the server as soon as all derived
     /// session capabilities have been revoked.
-    pub fn new_with_sel(srv: Selector, sel: Selector, ident: u64, auto_close: bool) -> Result<Self, Error> {
+    pub fn new_with_sel(
+        srv: Selector,
+        sel: Selector,
+        ident: u64,
+        auto_close: bool,
+    ) -> Result<Self, Error> {
         syscalls::create_sess(sel, srv, ident, auto_close)?;
         Ok(ServerSession {
             cap: Capability::new(sel, CapFlags::empty()),

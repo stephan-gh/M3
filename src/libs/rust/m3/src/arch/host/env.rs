@@ -21,11 +21,11 @@ use cell::StaticCell;
 use col::{String, Vec};
 use com::{SendGate, SliceSource};
 use core::intrinsics;
-use tcu::{EpId, Label};
 use kif::{self, PEDesc, PEType, PEISA};
 use libc;
 use pes::VPE;
 use session::{Pager, ResMng};
+use tcu::{EpId, Label};
 use vfs::{FileTable, MountTable};
 
 pub struct EnvData {

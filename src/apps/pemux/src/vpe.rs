@@ -290,14 +290,14 @@ pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
                 ContResult::Success if new_state != 0 => {
                     cur().cmd.restore();
                     break new_state;
-                }
+                },
                 // failed, so remove VPE
                 ContResult::Failure => {
                     remove(cur().id(), 1, true, false);
                     // don't set state address and don't save command again
                     state_addr = 0;
                     action = ScheduleAction::Kill;
-                }
+                },
                 // still waiting or VPE not initialized
                 _ => {
                     state_addr = 0;
@@ -306,7 +306,7 @@ pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
                         // set the continuation again
                         cur().cont = Some(f);
                     }
-                }
+                },
             }
         }
         else {

@@ -87,7 +87,7 @@ pub fn is_aligned<T: PrimInt>(addr: T, align: T) -> bool {
 /// Assuming that `startx` < `endx` and `endx` is not included (that means with start=0 and end=10
 /// 0 .. 9 is used), the function determines whether the two ranges overlap anywhere.
 pub fn overlaps<T: Ord>(start1: T, end1: T, start2: T, end2: T) -> bool {
-    (start1 >= start2 && start1 < end2)     // start in range
-    || (end1 > start2 && end1 <= end2)      // end in range
-    || (start1 < start2 && end1 > end2)     // complete overlapped
+    (start1 >= start2 && start1 < end2) // start in range
+    || (end1 > start2 && end1 <= end2)  // end in range
+    || (start1 < start2 && end1 > end2) // complete overlapped
 }

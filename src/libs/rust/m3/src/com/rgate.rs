@@ -22,12 +22,12 @@ use com::gate::Gate;
 use com::{GateIStream, SendGate};
 use core::fmt;
 use core::ops;
-use tcu;
 use errors::Error;
 use kif::INVALID_SEL;
 use math;
 use pes::VPE;
 use syscalls;
+use tcu;
 use util;
 
 const DEF_MSG_ORD: u32 = 6;
@@ -296,9 +296,18 @@ impl RecvGate {
 
 pub(crate) fn pre_init() {
     let eps_start = arch::env::get().first_std_ep();
-    SYS_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::SYSC_REP_OFF)));
-    UPC_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::UPCALL_REP_OFF)));
-    DEF_RGATE.set(Some(RecvGate::new_def(INVALID_SEL, eps_start + tcu::DEF_REP_OFF)));
+    SYS_RGATE.set(Some(RecvGate::new_def(
+        INVALID_SEL,
+        eps_start + tcu::SYSC_REP_OFF,
+    )));
+    UPC_RGATE.set(Some(RecvGate::new_def(
+        INVALID_SEL,
+        eps_start + tcu::UPCALL_REP_OFF,
+    )));
+    DEF_RGATE.set(Some(RecvGate::new_def(
+        INVALID_SEL,
+        eps_start + tcu::DEF_REP_OFF,
+    )));
 }
 
 pub(crate) fn init() {

@@ -17,7 +17,6 @@
 use cap::{CapFlags, Capability, Selector};
 use com::{GateIStream, RecvGate, SliceSink, SliceSource};
 use core::fmt;
-use tcu::EpId;
 use errors::{Code, Error};
 use kif::{service, CapRngDesc};
 use math;
@@ -25,6 +24,7 @@ use pes::VPE;
 use serialize::Sink;
 use server::SessId;
 use syscalls;
+use tcu::EpId;
 
 /// Represents a server that provides a service for clients.
 pub struct Server {
@@ -81,7 +81,7 @@ impl<'d> fmt::Debug for CapExchange<'d> {
             fmt,
             "CapExchange[in_caps={}, out_crd={}]",
             self.in_caps(),
-            CapRngDesc::new_from(0/*self.output.caps*/)
+            CapRngDesc::new_from(0 /*self.output.caps*/)
         )
     }
 }

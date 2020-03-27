@@ -18,10 +18,10 @@ use cap::{CapFlags, Capability, Selector};
 use cell::Cell;
 use com::EP;
 use core::ops;
-use tcu::EpId;
 use errors::Error;
 use pes::VPE;
 use syscalls;
+use tcu::EpId;
 
 /// A gate is one side of a TCU-based communication channel and exists in the variants [`MemGate`],
 /// [`SendGate`], and [`RecvGate`].

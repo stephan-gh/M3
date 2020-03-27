@@ -16,11 +16,11 @@
 
 use arch;
 use cap::{CapFlags, Capability, Selector};
-use tcu::{EpId, EP_COUNT, STD_EPS_COUNT};
 use errors::Error;
 use kif;
 use pes::VPE;
 use syscalls;
+use tcu::{EpId, EP_COUNT, STD_EPS_COUNT};
 
 /// Represents a TCU endpoint that can be used for communication. This class only serves the purpose
 /// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can

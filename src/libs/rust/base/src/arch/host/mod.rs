@@ -16,7 +16,7 @@
 
 #[rustfmt::skip]
 pub mod cfg;
-pub mod tcu;
 pub mod envdata;
 pub mod serial;
+pub mod tcu;
 pub mod time;

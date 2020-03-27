@@ -18,13 +18,13 @@ use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::{VarRingBuf, Vec};
 use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
-use m3::tcu::{Label, Message};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::rc::Rc;
 use m3::server::SessId;
 use m3::session::ServerSession;
 use m3::syscalls;
+use m3::tcu::{Label, Message};
 
 use rgate;
 
@@ -369,7 +369,12 @@ impl Channel {
     pub fn commit(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         let nbytes: usize = is.pop()?;
 
-        log!(crate::LOG_DEF, "[{}] pipes::commit(nbytes={})", self.id, nbytes);
+        log!(
+            crate::LOG_DEF,
+            "[{}] pipes::commit(nbytes={})",
+            self.id,
+            nbytes
+        );
 
         let res = match self.i.ty {
             ChanType::READ => self.read(is, nbytes),
@@ -439,7 +444,13 @@ impl Channel {
         if let Some((pos, amount)) = state.rbuf.get_read_pos(amount) {
             // there is something to read; give client the position and size
             state.last_read = Some((self.id, amount));
-            log!(crate::LOG_DEF, "[{}] pipes::read(): {} @ {}", self.id, amount, pos);
+            log!(
+                crate::LOG_DEF,
+                "[{}] pipes::read(): {} @ {}",
+                self.id,
+                amount,
+                pos
+            );
             reply_vmsg!(is, 0, pos, amount)
         }
         else {
@@ -480,7 +491,12 @@ impl Channel {
 
             // this client is the current reader, so commit the write by pushing it to the ringbuf
             let amount = if commit == 0 { last_amount } else { commit };
-            log!(crate::LOG_DEF, "[{}] pipes::write_push({})", self.id, amount);
+            log!(
+                crate::LOG_DEF,
+                "[{}] pipes::write_push({})",
+                self.id,
+                amount
+            );
             state.rbuf.push(last_amount, amount);
             state.last_write = None;
         }
@@ -501,7 +517,13 @@ impl Channel {
         if let Some(pos) = state.rbuf.get_write_pos(amount) {
             // there is space to write; give client the position and size
             state.last_write = Some((self.id, amount));
-            log!(crate::LOG_DEF, "[{}] pipes::write(): {} @ {}", self.id, amount, pos);
+            log!(
+                crate::LOG_DEF,
+                "[{}] pipes::write(): {} @ {}",
+                self.id,
+                amount,
+                pos
+            );
             reply_vmsg!(is, 0, pos, amount)
         }
         else {
@@ -535,7 +557,12 @@ impl Channel {
         state.reader.remove_item(&(self.id as usize));
         let rd_left = state.reader.len();
         if rd_left > 0 {
-            log!(crate::LOG_DEF, "[{}] pipes::close(): rd-refs={}", self.id, rd_left);
+            log!(
+                crate::LOG_DEF,
+                "[{}] pipes::close(): rd-refs={}",
+                self.id,
+                rd_left
+            );
             return Ok(());
         }
 
@@ -569,7 +596,12 @@ impl Channel {
         state.writer.remove_item(&(self.id as usize));
         let wr_left = state.writer.len();
         if wr_left > 0 {
-            log!(crate::LOG_DEF, "[{}] pipes::close(): wr-refs={}", self.id, wr_left);
+            log!(
+                crate::LOG_DEF,
+                "[{}] pipes::close(): wr-refs={}",
+                self.id,
+                wr_left
+            );
             return Ok(());
         }
 

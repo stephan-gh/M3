@@ -23,7 +23,6 @@ use core::mem::MaybeUninit;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::com::{GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate};
-use m3::tcu::Label;
 use m3::errors::{Code, Error};
 use m3::io::{Read, Serial, Write};
 use m3::kif;
@@ -33,6 +32,7 @@ use m3::serialize::Source;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
 use m3::syscalls;
+use m3::tcu::Label;
 use m3::vfs::GenFileOp;
 
 pub const LOG_DEF: bool = false;
@@ -292,7 +292,9 @@ impl VTermHandler {
             Ok(GenFileOp::NEXT_OUT) => {
                 Self::with_chan(&mut self.sessions, &mut is, |c, is| c.next_out(is))
             },
-            Ok(GenFileOp::COMMIT) => Self::with_chan(&mut self.sessions, &mut is, |c, is| c.commit(is)),
+            Ok(GenFileOp::COMMIT) => {
+                Self::with_chan(&mut self.sessions, &mut is, |c, is| c.commit(is))
+            },
             Ok(GenFileOp::CLOSE) => {
                 let sid = is.label() as SessId;
                 // reply before we destroy the client's sgate. otherwise the client might

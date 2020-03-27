@@ -81,7 +81,11 @@ impl Service {
     }
 
     fn shutdown(&mut self) {
-        log!(crate::LOG_SERV, "Sending SHUTDOWN to service '{}'", self.name);
+        log!(
+            crate::LOG_SERV,
+            "Sending SHUTDOWN to service '{}'",
+            self.name
+        );
 
         let smsg = kif::service::Shutdown {
             opcode: kif::service::Operation::SHUTDOWN.val as u64,

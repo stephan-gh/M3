@@ -23,8 +23,8 @@ extern crate base;
 use base::boxed::Box;
 use base::cell::StaticCell;
 use base::col::{BoxList, Vec};
-use base::tcu;
 use base::libc;
+use base::tcu;
 use base::util;
 use core::intrinsics;
 use core::mem;
@@ -323,7 +323,10 @@ impl ThreadManager {
         unsafe {
             let old = Box::into_raw(cur);
             self.block.push_back(Box::from_raw(old));
-            thread_switch(&mut (*old).regs as *mut _, &mut self.cur_mut().regs as *mut _);
+            thread_switch(
+                &mut (*old).regs as *mut _,
+                &mut self.cur_mut().regs as *mut _,
+            );
         }
     }
 
@@ -338,7 +341,10 @@ impl ThreadManager {
                 unsafe {
                     let old = Box::into_raw(cur);
                     self.sleep.push_back(Box::from_raw(old));
-                    thread_switch(&mut (*old).regs as *mut _, &mut self.cur_mut().regs as *mut _);
+                    thread_switch(
+                        &mut (*old).regs as *mut _,
+                        &mut self.cur_mut().regs as *mut _,
+                    );
                 }
             },
         }

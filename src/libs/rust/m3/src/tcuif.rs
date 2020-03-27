@@ -18,9 +18,9 @@ use arch::env;
 use arch::pexcalls;
 use base::pexif;
 use com::{MemGate, RecvGate, SendGate};
-use tcu::{self, CmdFlags, Label, Message};
 use errors::{Code, Error};
 use goff;
+use tcu::{self, CmdFlags, Label, Message};
 
 pub struct TCUIf {}
 

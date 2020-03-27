@@ -95,8 +95,11 @@ fn send_reply() {
     // sgate -> rgate
     {
         let mut msg = wv_assert_ok!(recv_msg(&rgate));
-        let (i1, i2, s): (i32, i32, String) =
-            (wv_assert_ok!(msg.pop()), wv_assert_ok!(msg.pop()), wv_assert_ok!(msg.pop()));
+        let (i1, i2, s): (i32, i32, String) = (
+            wv_assert_ok!(msg.pop()),
+            wv_assert_ok!(msg.pop()),
+            wv_assert_ok!(msg.pop()),
+        );
         wv_assert_eq!(i1, 0x123);
         wv_assert_eq!(i2, 12);
         wv_assert_eq!(s, "test");

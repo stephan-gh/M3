@@ -19,12 +19,12 @@ use com::ep::EP;
 use com::gate::Gate;
 use core::fmt;
 use core::mem::MaybeUninit;
-use tcu;
 use errors::Error;
 use goff;
 use kif::INVALID_SEL;
 use pes::VPE;
 use syscalls;
+use tcu;
 use util;
 
 pub use kif::Perm;
@@ -220,7 +220,8 @@ impl MemGate {
 impl Drop for MemGate {
     fn drop(&mut self) {
         if !self.gate.flags().contains(CapFlags::KEEP_CAP)
-            && !self.flags.contains(MGateFlags::REVOKE) {
+            && !self.flags.contains(MGateFlags::REVOKE)
+        {
             VPE::cur().resmng().free_mem(self.sel()).ok();
             self.gate.set_flags(CapFlags::KEEP_CAP);
         }

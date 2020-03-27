@@ -20,11 +20,11 @@ use core::intrinsics;
 use core::mem::MaybeUninit;
 use core::ops;
 use core::slice;
-use tcu;
 use errors::{Code, Error};
 use libc;
 use mem::heap;
 use serialize::{Marshallable, Sink, Source, Unmarshallable};
+use tcu;
 use util;
 
 const MAX_MSG_SIZE: usize = 512;

@@ -62,8 +62,8 @@ pub use base::{
     kif,
     // modules
     libc,
-    log,
     llog,
+    log,
     math,
     mem,
     profile,

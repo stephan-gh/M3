@@ -14,8 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-use arch::tcu::{thread, EpId, Header, PEId, EP_COUNT, PE_COUNT};
 use arch::envdata;
+use arch::tcu::{thread, EpId, Header, PEId, EP_COUNT, PE_COUNT};
 use col::Vec;
 use core::ptr;
 use libc;

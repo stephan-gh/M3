@@ -20,11 +20,11 @@ use com::gate::Gate;
 use com::stream::GateIStream;
 use com::RecvGate;
 use core::fmt;
-use tcu;
 use errors::Error;
 use kif::INVALID_SEL;
 use pes::VPE;
 use syscalls;
+use tcu;
 use util;
 
 /// A send gate (`SendGate`) can send message via TCU to an associated `RecvGate`.

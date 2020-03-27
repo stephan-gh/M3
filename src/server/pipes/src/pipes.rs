@@ -28,7 +28,6 @@ use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate};
-use m3::tcu::{EpId, Label};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
@@ -37,6 +36,7 @@ use m3::pes::VPE;
 use m3::serialize::Source;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
+use m3::tcu::{EpId, Label};
 use m3::vfs::GenFileOp;
 
 use sess::{ChanType, Channel, Meta, PipesSession, SessionData};
@@ -248,7 +248,9 @@ impl PipesHandler {
             Ok(GenFileOp::NEXT_OUT) => {
                 Self::with_chan(&mut self.sessions, &mut is, |c, is| c.next_out(is))
             },
-            Ok(GenFileOp::COMMIT) => Self::with_chan(&mut self.sessions, &mut is, |c, is| c.commit(is)),
+            Ok(GenFileOp::COMMIT) => {
+                Self::with_chan(&mut self.sessions, &mut is, |c, is| c.commit(is))
+            },
             Ok(GenFileOp::CLOSE) => {
                 let sid = is.label() as SessId;
                 // reply before we destroy the client's sgate. otherwise the client might

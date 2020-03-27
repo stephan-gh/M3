@@ -21,11 +21,11 @@ use cfg;
 use com::{SendGate, SliceSource};
 use core::cmp;
 use core::intrinsics;
-use tcu;
 use env;
 use kif::{self, PEDesc};
 use pes::VPE;
 use session::{Pager, ResMng};
+use tcu;
 use util;
 use vfs::{FileTable, MountTable};
 
@@ -144,8 +144,9 @@ impl EnvData {
     pub fn load_fds(&self) -> FileTable {
         if self.base.fds_len != 0 {
             // safety: we trust our loader
-            let slice =
-                unsafe { util::slice_for(self.base.fds_addr as *const u64, self.base.fds_len as usize) };
+            let slice = unsafe {
+                util::slice_for(self.base.fds_addr as *const u64, self.base.fds_len as usize)
+            };
             FileTable::unserialize(&mut SliceSource::new(slice))
         }
         else {

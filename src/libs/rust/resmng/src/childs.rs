@@ -20,13 +20,13 @@ use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{RecvGate, SGateArgs, SendGate};
-use m3::tcu;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 use m3::rc::Rc;
 use m3::syscalls;
+use m3::tcu;
 use m3::vfs::FileRef;
 
 use config::AppConfig;
@@ -132,7 +132,12 @@ pub trait Child {
     }
 
     fn rem_child(&mut self, vpe_sel: Selector) -> Result<Id, Error> {
-        log!(crate::LOG_CHILD, "{}: rem_child(vpe={})", self.name(), vpe_sel);
+        log!(
+            crate::LOG_CHILD,
+            "{}: rem_child(vpe={})",
+            self.name(),
+            vpe_sel
+        );
 
         let idx = self
             .res()

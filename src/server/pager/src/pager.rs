@@ -31,7 +31,6 @@ use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
-use m3::tcu::{TCUIf, Label};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
@@ -40,6 +39,7 @@ use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::serialize::{Sink, Source};
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, Pager, PagerDelOp, PagerOp};
+use m3::tcu::{Label, TCUIf};
 use m3::vfs;
 
 use addrspace::AddrSpace;

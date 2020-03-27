@@ -46,6 +46,11 @@ pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
 pub extern "C" fn rust_deinit(status: i32, _arg: *const libc::c_void) {
     io::deinit();
     vfs::deinit();
-    syscalls::vpe_ctrl(pes::VPE::cur().sel(), kif::syscalls::VPEOp::STOP, status as u64).unwrap();
+    syscalls::vpe_ctrl(
+        pes::VPE::cur().sel(),
+        kif::syscalls::VPEOp::STOP,
+        status as u64,
+    )
+    .unwrap();
     arch::tcu::deinit();
 }

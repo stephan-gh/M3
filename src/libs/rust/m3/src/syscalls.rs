@@ -21,11 +21,11 @@ use cap::Selector;
 use cell::StaticCell;
 use com::{RecvGate, SendGate, SliceSink, SliceSource};
 use core::mem::MaybeUninit;
-use tcu::{TCUIf, EpId, Label, Message, SYSC_SEP_OFF};
 use errors::Error;
 use goff;
 use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 use serialize::Sink;
+use tcu::{EpId, Label, Message, TCUIf, SYSC_SEP_OFF};
 use util;
 
 static SGATE: StaticCell<Option<SendGate>> = StaticCell::new(None);
@@ -124,7 +124,12 @@ pub fn create_rgate(dst: Selector, order: u32, msgorder: u32) -> Result<(), Erro
 /// Creates a new session at selector `dst` for service `srv` and given identifier. `auto_close`
 /// specifies whether the CLOSE message should be sent to the server as soon as all derived session
 /// capabilities have been revoked.
-pub fn create_sess(dst: Selector, srv: Selector, ident: u64, auto_close: bool) -> Result<(), Error> {
+pub fn create_sess(
+    dst: Selector,
+    srv: Selector,
+    ident: u64,
+    auto_close: bool,
+) -> Result<(), Error> {
     let req = syscalls::CreateSess {
         opcode: syscalls::Operation::CREATE_SESS.val,
         dst_sel: u64::from(dst),
@@ -485,7 +490,10 @@ pub fn noop() -> Result<(), Error> {
 
 pub(crate) fn init() {
     let env = arch::env::get();
-    SGATE.set(Some(SendGate::new_def(INVALID_SEL, env.first_std_ep() + SYSC_SEP_OFF)));
+    SGATE.set(Some(SendGate::new_def(
+        INVALID_SEL,
+        env.first_std_ep() + SYSC_SEP_OFF,
+    )));
 }
 
 pub(crate) fn reinit() {

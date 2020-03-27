@@ -17,8 +17,8 @@
 use m3::cap::Selector;
 use m3::cell::{RefCell, StaticCell};
 use m3::cfg;
-use m3::errors::Error;
 use m3::com::MemGate;
+use m3::errors::Error;
 use m3::goff;
 use m3::kif;
 use m3::math;
@@ -26,8 +26,8 @@ use m3::rc::Rc;
 use m3::session::{ClientSession, MapFlags, M3FS};
 
 use addrspace::ASMem;
-use regions::RegionList;
 use physmem::{copy_block, PhysMem};
+use regions::RegionList;
 
 const MAX_ANON_PAGES: usize = 4;
 const MAX_EXT_PAGES: usize = 8;
@@ -58,7 +58,7 @@ impl Clone for FileMapping {
     fn clone(&self) -> Self {
         FileMapping {
             sess: ClientSession::new_bind(self.sess.sel()),
-            offset: self.offset
+            offset: self.offset,
         }
     }
 }
@@ -163,7 +163,9 @@ impl DataSpace {
     pub(crate) fn physmem_at(&self, virt: goff) -> Option<(goff, Rc<RefCell<PhysMem>>)> {
         let dist = virt - self.virt;
         let off = math::round_dn(dist, cfg::PAGE_SIZE as goff);
-        self.regions.physmem_at(off).map(|(roff, mem)| (roff + (dist - off), mem))
+        self.regions
+            .physmem_at(off)
+            .map(|(roff, mem)| (roff + (dist - off), mem))
     }
 
     pub fn handle_pf(&mut self, virt: goff) -> Result<(), Error> {
