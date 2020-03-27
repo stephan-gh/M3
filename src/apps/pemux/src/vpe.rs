@@ -327,7 +327,7 @@ pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
             VPEState::Blocked => BLK.get_mut().remove_if(|v| v.id() == id).unwrap(),
         };
 
-        log!(crate::LOG_VPES, "Destroyed VPE {}", old.id());
+        log!(crate::LOG_VPES, "Destroyed VPE {} with status {}", old.id(), status);
 
         if notify {
             // change to our VPE (no need to save old vpe_reg; VPE is dead)
