@@ -28,20 +28,31 @@ VPE *CapTable::vpe() const {
     return nullptr;
 }
 
-void CapTable::revoke_all() {
-    Capability *c;
+void CapTable::revoke_all(bool remove_vpe) {
+    m3::Treap<Capability> tmp;
+
     // TODO it might be better to do that in a different order, because it is more expensive to
     // remove a node that has two childs (it requires a rotate). Thus, it would be better to start
     // with leaf nodes.
-    while((c = static_cast<Capability*>(_caps.remove_root())) != nullptr) {
-        revoke(c, false);
-        // hack for self-referencing VPE capability. we can't dereference it here, because if we
-        // force-destruct a VPE, there might be other references, so that it breaks if we decrease
-        // the counter (the self-reference did not increase it).
-        if(c->sel() == m3::KIF::SEL_VPE)
-            static_cast<VPECapability*>(c)->obj.forget();
-        delete c;
+    Capability *c;
+    while((c = _caps.remove_root()) != nullptr) {
+        if(remove_vpe || c->sel() >= m3::KIF::FIRST_FREE_SEL) {
+            revoke(c, false);
+            // hack for self-referencing VPE capability. we can't dereference it here, because if we
+            // force-destruct a VPE, there might be other references, so that it breaks if we decrease
+            // the counter (the self-reference did not increase it).
+            if(c->sel() == m3::KIF::SEL_VPE)
+                static_cast<VPECapability*>(c)->obj.forget();
+            delete c;
+        }
+        // put the caps we don't want to delete now in a temporary treap
+        else
+            tmp.insert(c);
     }
+
+    // insert them again
+    while((c = tmp.remove_root()) != nullptr)
+        _caps.insert(c);
 }
 
 Capability *CapTable::obtain(capsel_t dst, Capability *c) {

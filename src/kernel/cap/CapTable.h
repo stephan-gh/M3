@@ -37,7 +37,7 @@ public:
           _caps() {
     }
     ~CapTable() {
-        revoke_all();
+        revoke_all(true);
     }
 
     vpeid_t vpeid() const {
@@ -102,7 +102,7 @@ public:
         return c != nullptr;
     }
 
-    void revoke_all();
+    void revoke_all(bool remove_vpe);
 
 private:
     static void revoke(Capability *c, bool revnext);

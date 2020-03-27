@@ -131,8 +131,8 @@ VPE::~VPE() {
     pemux->free_eps(_eps_start, m3::TCU::STD_EPS_COUNT);
     _pe->free(m3::TCU::STD_EPS_COUNT);
 
-    _objcaps.revoke_all();
-    _mapcaps.revoke_all();
+    _objcaps.revoke_all(true);
+    _mapcaps.revoke_all(true);
 
     // ensure that there are no syscalls for this VPE anymore
     m3::TCU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
@@ -194,6 +194,8 @@ void VPE::wait_for_exit() {
 }
 
 void VPE::exit_app(int exitcode) {
+    // force-invalidate all EPs of this VPE; note that these might be different EPs than the EP caps
+    // the VPE owns.
     auto pemux = PEManager::get().pemux(peid());
     for(auto ep = _eps.begin(); ep != _eps.end(); ++ep) {
         if(ep->gate != nullptr) {
@@ -220,6 +222,11 @@ void VPE::exit_app(int exitcode) {
     _flags ^= F_HASAPP;
 
     PEManager::get().stop_vpe(this);
+
+    // don't delete the initial caps of the VPE yet, because the parent might still need the VPE
+    // cap, the memory cap and so on.
+    _objcaps.revoke_all(false);
+    _mapcaps.revoke_all(true);
 
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&exit_event));
 }
