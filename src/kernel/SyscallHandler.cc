@@ -168,6 +168,7 @@ void SyscallHandler::create_srv(VPE *vpe, const m3::TCU::Message *msg) {
 
     auto servcap = SYS_CREATE_CAP(vpe, msg, ServCapability, Service,
         &vpe->objcaps(), dst, *vpecap->obj, name, rgatecap->obj);
+    vpe->objcaps().inherit(vpecap, servcap);
     vpe->objcaps().set(dst, servcap);
 
     reply_result(vpe, msg, m3::Errors::NONE);
