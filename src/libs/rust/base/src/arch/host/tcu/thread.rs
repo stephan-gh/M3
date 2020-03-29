@@ -70,11 +70,18 @@ fn buffer() -> &'static mut Buffer {
 }
 
 macro_rules! log_tcu {
-    ($fmt:expr)              => (log_tcu!(@log_impl concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (log_tcu!(@log_impl concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr)              => (log_tcu_impl!(TCU, concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (log_tcu_impl!(TCU, concat!($fmt, "\n"), $($arg)*));
+}
 
-    (@log_impl $($args:tt)*) => ({
-        if $crate::io::log::TCU {
+macro_rules! log_tcu_err {
+    ($fmt:expr)              => (log_tcu_impl!(TCU_ERR, concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (log_tcu_impl!(TCU_ERR, concat!($fmt, "\n"), $($arg)*));
+}
+
+macro_rules! log_tcu_impl {
+    ($flag:tt, $($args:tt)*) => ({
+        if $crate::io::log::$flag {
             #[allow(unused_imports)]
             use $crate::io::Write;
             $crate::arch::tcu::thread::log().write_fmt(format_args!($($args)*)).unwrap();
@@ -104,14 +111,13 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
     if credits != !0 {
         let msg_order = TCU::get_ep(ep, EpReg::MSGORDER);
         if msg_order == 0 {
-            log_tcu!("TCU-error: invalid EP {}", ep);
+            log_tcu_err!("TCU-error: invalid EP {}", ep);
             return Err(Error::new(Code::InvEP));
         }
 
         let needed = 1 << msg_order;
         if needed > credits {
-            log_tcu!(
-                "TCU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
+            log_tcu_err!("TCU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
                 ep,
                 credits,
                 needed
@@ -148,13 +154,13 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     let idx = (reply - buf_addr) >> msg_ord;
     if idx >= (1 << (ord - msg_ord)) {
-        log_tcu!("TCU-error: EP{}: invalid message addr {:#x}", ep, reply);
+        log_tcu_err!("TCU-error: EP{}: invalid message addr {:#x}", ep, reply);
         return Err(Error::new(Code::InvArgs));
     }
 
     let reply_header: &Header = unsafe { intrinsics::transmute(reply) };
     if reply_header.has_replycap == 0 {
-        log_tcu!("TCU-error: EP{}: double-reply for msg {:#x}?", ep, reply);
+        log_tcu_err!("TCU-error: EP{}: double-reply for msg {:#x}?", ep, reply);
         return Err(Error::new(Code::InvArgs));
     }
 
@@ -189,7 +195,7 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     let length = TCU::get_cmd(CmdReg::LENGTH);
 
     if (perms & (1 << op)) == 0 {
-        log_tcu!(
+        log_tcu_err!(
             "TCU-error: EP{}: operation not permitted (perms={}, op={})",
             ep,
             perms,
@@ -200,7 +206,7 @@ fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
     else {
         let end = offset.overflowing_add(length);
         if end.1 || end.0 > credits {
-            log_tcu!(
+            log_tcu_err!(
                 "TCU-error: EP{}: invalid parameters (credits={}, offset={}, datalen={})",
                 ep,
                 credits,
@@ -272,7 +278,7 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     let idx = (addr - buf_addr) >> msg_ord;
     if idx >= (1 << (ord - msg_ord)) {
-        log_tcu!("TCU-error: EP{}: invalid message addr {:#x}", ep, addr);
+        log_tcu_err!("TCU-error: EP{}: invalid message addr {:#x}", ep, addr);
         return Err(Error::new(Code::InvArgs));
     }
 
@@ -345,7 +351,7 @@ fn handle_msg(ep: EpId, len: usize) {
     let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
     let msg_size = 1 << msg_ord;
     if len > msg_size {
-        log_tcu!(
+        log_tcu_err!(
             "TCU-error: dropping msg due to insufficient space (required: {}, available: {})",
             len,
             msg_size
@@ -395,7 +401,7 @@ fn handle_msg(ep: EpId, len: usize) {
         }
     }
 
-    log_tcu!("TCU-error: EP{}: dropping msg because no slot is free", ep);
+    log_tcu_err!("TCU-error: EP{}: dropping msg because no slot is free", ep);
 }
 
 fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Error> {
@@ -548,7 +554,7 @@ fn handle_command(backend: &backend::SocketBackend) {
     let ep = TCU::get_cmd(CmdReg::EPID) as EpId;
 
     let res = if ep >= EP_COUNT {
-        log_tcu!("TCU-error: invalid ep-id ({})", ep);
+        log_tcu_err!("TCU-error: invalid ep-id ({})", ep);
         Err(Error::new(Code::InvArgs))
     }
     else {
@@ -617,7 +623,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
         // refill credits
         let crd_ep = buf.header.crd_ep as EpId;
         if crd_ep >= EP_COUNT {
-            log_tcu!("TCU-error: should give credits to ep {}", crd_ep);
+            log_tcu_err!("TCU-error: should give credits to ep {}", crd_ep);
         }
         else {
             let msg_ord = TCU::get_ep(crd_ep, EpReg::MSGORDER);
