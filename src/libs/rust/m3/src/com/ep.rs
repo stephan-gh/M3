@@ -35,6 +35,7 @@ pub struct EP {
 /// The arguments for [`EP`] creations.
 pub struct EPArgs {
     epid: EpId,
+    vpe: Selector,
     replies: u32,
 }
 
@@ -43,6 +44,7 @@ impl EPArgs {
     pub fn new() -> Self {
         EPArgs {
             epid: EP_COUNT,
+            vpe: VPE::cur().sel(),
             replies: 0,
         }
     }
@@ -50,6 +52,12 @@ impl EPArgs {
     /// Sets the endpoint id to `epid`.
     pub fn epid(mut self, epid: EpId) -> Self {
         self.epid = epid;
+        self
+    }
+
+    /// Sets the VPE to allocate the EP for.
+    pub fn vpe(mut self, vpe: Selector) -> Self {
+        self.vpe = vpe;
         self
     }
 
@@ -76,7 +84,7 @@ impl EP {
 
     /// Allocates a new endpoint with custom arguments
     pub(crate) fn new_with(args: EPArgs) -> Result<Self, Error> {
-        let (sel, id) = Self::alloc_cap(args.epid, args.replies)?;
+        let (sel, id) = Self::alloc_cap(args.epid, args.vpe, args.replies)?;
         return Ok(Self::create(sel, id, args.replies, CapFlags::empty()));
     }
 
@@ -105,9 +113,9 @@ impl EP {
         self.id() >= eps_start && self.id() < eps_start + STD_EPS_COUNT
     }
 
-    fn alloc_cap(epid: EpId, replies: u32) -> Result<(Selector, EpId), Error> {
+    fn alloc_cap(epid: EpId, vpe: Selector, replies: u32) -> Result<(Selector, EpId), Error> {
         let sel = VPE::cur().alloc_sel();
-        let id = syscalls::alloc_ep(sel, VPE::cur().sel(), epid, replies)?;
+        let id = syscalls::alloc_ep(sel, vpe, epid, replies)?;
         Ok((sel, id))
     }
 }

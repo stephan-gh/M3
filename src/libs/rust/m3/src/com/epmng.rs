@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+use base::tcu::EpId;
+use cap::Selector;
 use col::Vec;
 use com::gate::Gate;
 use com::{EPArgs, EP};
@@ -42,6 +44,11 @@ impl EpMng {
         else {
             EP::new()
         }
+    }
+
+    /// Allocates a specific endpoint for the given VPE.
+    pub fn acquire_for(&self, vpe: Selector, ep: EpId, replies: u32) -> Result<EP, Error> {
+        EP::new_with(EPArgs::new().epid(ep).vpe(vpe).replies(replies))
     }
 
     /// Frees the given endpoint
