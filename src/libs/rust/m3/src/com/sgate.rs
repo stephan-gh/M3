@@ -118,7 +118,7 @@ impl SendGate {
     }
 
     /// Activates this `SendGate` on the given endpoint.
-    pub fn activate_for(&self, ep: Selector) -> Result<(), Error> {
+    pub fn activate_on(&self, ep: Selector) -> Result<(), Error> {
         syscalls::activate(ep, self.sel(), 0)
     }
 
