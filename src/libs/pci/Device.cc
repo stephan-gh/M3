@@ -34,8 +34,6 @@ ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
       // TODO: Specify receive gate, grant it to nic tcu, send replies to give credits back
       _sintgate(SendGate::create(&_intgate)) {
     _intgate.activate();
-
-    _vpe.delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _sintgate.sel(), 1));
     _sintgate.activate_on(*_sep);
 
     _vpe.start();
