@@ -194,6 +194,20 @@ impl<K: Copy + Ord, V> Treap<K, V> {
         }
     }
 
+    /// Sets the given key to given value, either by inserting a new node or by updating the value
+    /// of the existing node. It returns a mutable reference to the stored value
+    pub fn set(&mut self, key: K, value: V) -> &mut V {
+        if let Some(n) = self.get_node(&key) {
+            unsafe {
+                (*n.as_ptr()).value = value;
+                &mut (*n.as_ptr()).value
+            }
+        }
+        else {
+            self.insert(key, value)
+        }
+    }
+
     /// Removes the root element of the treap and returns the value
     pub fn remove_root(&mut self) -> Option<V> {
         self.root.map(|r| {
