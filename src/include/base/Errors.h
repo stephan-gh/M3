@@ -57,6 +57,7 @@ struct Errors {
         NO_KMEM,
         NOT_FOUND,
         NOT_REVOCABLE,
+        TIMEOUT,
         // Socket
         IN_USE,
         INV_STATE,
@@ -68,7 +69,6 @@ struct Errors {
         CONN_ABORT,
         CONN_RESET,
         CONN_CLOSED,
-        TIMEOUT,
         NET_UNREACHABLE,
         SOCKET_CLOSED,
     };

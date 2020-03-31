@@ -1,0 +1,12 @@
+[package]
+name = "disk"
+version = "0.1.0"
+
+[lib]
+path = "src/disk.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+bitflags = "*"
+m3 = { path = "../../libs/rust/m3" }
+pci = { path = "../../libs/rust/pci" }

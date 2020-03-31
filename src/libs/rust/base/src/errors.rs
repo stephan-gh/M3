@@ -53,6 +53,7 @@ pub enum Code {
     NoKernMem,
     NotFound,
     NotRevocable,
+    Timeout,
     ReadFailed,
     WriteFailed,
     Utf8Error,

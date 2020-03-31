@@ -1,6 +1,2 @@
 Import('env')
-env.M3Program(
-    env, 'disk',
-    [env.Glob('*.cc'), env.Glob('arch/$ARCH/*.cc')],
-    libs = ['pci'] if env['ARCH'] == 'gem5' else []
-)
+env.RustProgram(env, target = 'disk')

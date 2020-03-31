@@ -57,6 +57,8 @@ static const char *errmsgs[] = {
     "Not revocable",
 
     /* 30 */
+    "Timeout",
+
     /* Socket */
     "In use",
     "Invalid state",
@@ -68,7 +70,6 @@ static const char *errmsgs[] = {
     "Connection aborted",
     "Connection reset/refused by peer",
     "Connection closed gracefully",
-    "Timeout",
     "Network is unreachable",
     "Socket closed"
 };
