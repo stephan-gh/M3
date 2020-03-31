@@ -318,8 +318,8 @@ fn alloc_ep() {
 }
 
 fn activate() {
-    let ep1 = wv_assert_ok!(VPE::cur().epmng().acquire(0));
-    let ep2 = wv_assert_ok!(VPE::cur().epmng().acquire(0));
+    let ep1 = wv_assert_ok!(VPE::cur().epmng_mut().acquire(0));
+    let ep2 = wv_assert_ok!(VPE::cur().epmng_mut().acquire(0));
     let sel = VPE::cur().alloc_sel();
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
 
@@ -341,8 +341,8 @@ fn activate() {
     wv_assert_ok!(syscalls::activate(ep1.sel(), mgate.sel(), 0));
     wv_assert_err!(syscalls::activate(ep2.sel(), mgate.sel(), 0), Code::Exists);
 
-    VPE::cur().epmng().release(ep2, true);
-    VPE::cur().epmng().release(ep1, true);
+    VPE::cur().epmng_mut().release(ep2, true);
+    VPE::cur().epmng_mut().release(ep1, true);
 }
 
 fn derive_mem() {

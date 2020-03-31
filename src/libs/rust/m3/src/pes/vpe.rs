@@ -274,8 +274,13 @@ impl VPE {
         &self.kmem
     }
 
+    /// Returns a reference to the endpoint manager
+    pub fn epmng(&self) -> &EpMng {
+        &self.epmng
+    }
+
     /// Returns a mutable reference to the endpoint manager
-    pub fn epmng(&mut self) -> &mut EpMng {
+    pub fn epmng_mut(&mut self) -> &mut EpMng {
         &mut self.epmng
     }
 
@@ -704,5 +709,5 @@ pub(crate) fn reinit() {
     VPE::cur().pe.set_sel(kif::SEL_PE);
     VPE::cur().mem = MemGate::new_bind(kif::SEL_MEM);
     VPE::cur().kmem = Rc::new(KMem::new(kif::SEL_KMEM));
-    VPE::cur().epmng().reset();
+    VPE::cur().epmng_mut().reset();
 }

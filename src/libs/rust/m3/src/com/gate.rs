@@ -80,7 +80,7 @@ impl Gate {
 
     /// Activates the gate. Returns the chosen endpoint number.
     pub(crate) fn activate_rgate(&self, addr: usize, replies: u32) -> Result<EpId, Error> {
-        let ep = VPE::cur().epmng().acquire(replies)?;
+        let ep = VPE::cur().epmng_mut().acquire(replies)?;
         syscalls::activate(ep.sel(), self.sel(), addr)?;
         self.ep.replace(Some(ep));
         Ok(self.ep_id().unwrap())
@@ -97,7 +97,7 @@ impl Gate {
     }
 
     fn do_activate(&self) -> Result<&EP, Error> {
-        let ep = VPE::cur().epmng().activate(self)?;
+        let ep = VPE::cur().epmng_mut().activate(self)?;
         self.ep.replace(Some(ep));
         Ok(self.ep().unwrap())
     }
@@ -106,7 +106,7 @@ impl Gate {
     pub(crate) fn release(&mut self) {
         if let Some(ep) = self.ep.replace(None) {
             VPE::cur()
-                .epmng()
+                .epmng_mut()
                 .release(ep, self.cap.flags().contains(CapFlags::KEEP_CAP));
         }
     }

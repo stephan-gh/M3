@@ -56,7 +56,7 @@ fn noop() {
 
 fn activate() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-    let ep = wv_assert_ok!(VPE::cur().epmng().acquire(0));
+    let ep = wv_assert_ok!(VPE::cur().epmng_mut().acquire(0));
 
     let mut prof = profile::Profiler::default();
 
@@ -70,7 +70,7 @@ fn activate() {
         )
     );
 
-    VPE::cur().epmng().release(ep, true);
+    VPE::cur().epmng_mut().release(ep, true);
 }
 
 fn create_rgate() {
