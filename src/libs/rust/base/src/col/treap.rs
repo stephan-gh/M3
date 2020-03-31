@@ -15,29 +15,11 @@
  */
 
 use boxed::Box;
-use core::cmp::Ordering;
+use core::cmp::{Ord, Ordering};
 use core::fmt;
 use core::mem;
 use core::num::Wrapping;
 use core::ptr::{read_volatile, NonNull};
-
-/// A trait for the comparison of keys
-pub trait KeyOrd {
-    /// Returns the relative order of `self` and `other`
-    fn compare(&self, other: &Self) -> Ordering;
-    /// Returns true if `self` is smaller than `other`
-    fn smaller(&self, other: &Self) -> bool;
-}
-
-impl KeyOrd for u32 {
-    fn compare(&self, other: &Self) -> Ordering {
-        self.cmp(other)
-    }
-
-    fn smaller(&self, other: &Self) -> bool {
-        self < other
-    }
-}
 
 struct Node<K, V> {
     left: Option<NonNull<Node<K, V>>>,
@@ -47,7 +29,7 @@ struct Node<K, V> {
     value: V,
 }
 
-impl<K: Copy + KeyOrd, V> Node<K, V> {
+impl<K: Copy + Ord, V> Node<K, V> {
     fn new(key: K, value: V, prio: Wrapping<u32>) -> Self {
         Node {
             left: None,
@@ -75,12 +57,12 @@ impl<K: Copy + KeyOrd, V> Node<K, V> {
 /// The idea and parts of the implementation are taken from the [MMIX](http://mmix.cs.hm.edu/)
 /// simulator, written by Donald Knuth
 #[derive(Default)]
-pub struct Treap<K: Copy + KeyOrd, V> {
+pub struct Treap<K: Copy + Ord, V> {
     root: Option<NonNull<Node<K, V>>>,
     prio: Wrapping<u32>,
 }
 
-impl<K: Copy + KeyOrd, V> Treap<K, V> {
+impl<K: Copy + Ord, V> Treap<K, V> {
     /// Creates an empty treap
     pub const fn new() -> Self {
         Treap {
@@ -144,7 +126,7 @@ impl<K: Copy + KeyOrd, V> Treap<K, V> {
         loop {
             match node {
                 Some(n) => unsafe {
-                    match key.compare(&(*n.as_ptr()).key) {
+                    match key.cmp(&(*n.as_ptr()).key) {
                         Ordering::Less => node = (*n.as_ptr()).left,
                         Ordering::Greater => node = (*n.as_ptr()).right,
                         Ordering::Equal => return Some(n),
@@ -155,7 +137,8 @@ impl<K: Copy + KeyOrd, V> Treap<K, V> {
         }
     }
 
-    /// Inserts the value `V` for the key `K` and returns a mutable reference to the stored value
+    /// Inserts the given value for given key, assuming that the key does not exist in the tree and
+    /// returns a mutable reference to the stored value
     pub fn insert(&mut self, key: K, value: V) -> &mut V {
         unsafe {
             let mut q = &mut self.root;
@@ -163,13 +146,10 @@ impl<K: Copy + KeyOrd, V> Treap<K, V> {
                 match *q {
                     None => break,
                     Some(n) if (*n.as_ptr()).prio >= self.prio => break,
-                    Some(n) => {
-                        if key.smaller(&(*n.as_ptr()).key) {
-                            q = &mut (*n.as_ptr()).left;
-                        }
-                        else {
-                            q = &mut (*n.as_ptr()).right;
-                        }
+                    Some(n) => match key.cmp(&(*n.as_ptr()).key) {
+                        Ordering::Less => q = &mut (*n.as_ptr()).left,
+                        Ordering::Greater => q = &mut (*n.as_ptr()).right,
+                        Ordering::Equal => panic!("Key does already exist"),
                     },
                 }
             }
@@ -186,16 +166,19 @@ impl<K: Copy + KeyOrd, V> Treap<K, V> {
                 loop {
                     match prev {
                         None => break,
-                        Some(p) if key.smaller(&(*p.as_ptr()).key) => {
-                            *r = Some(p);
-                            r = &mut (*p.as_ptr()).left;
-                            prev = *r;
-                        },
-                        Some(p) => {
-                            *l = Some(p);
-                            l = &mut (*p.as_ptr()).right;
-                            prev = *l;
-                        },
+                        Some(p) => match key.cmp(&(*p.as_ptr()).key) {
+                            Ordering::Less => {
+                                *r = Some(p);
+                                r = &mut (*p.as_ptr()).left;
+                                prev = *r;
+                            },
+                            Ordering::Greater => {
+                                *l = Some(p);
+                                l = &mut (*p.as_ptr()).right;
+                                prev = *l;
+                            },
+                            Ordering::Equal => panic!("Key does already exist"),
+                        }
                     }
                 }
                 *l = None;
@@ -225,7 +208,7 @@ impl<K: Copy + KeyOrd, V> Treap<K, V> {
         loop {
             match *p {
                 Some(n) => unsafe {
-                    match key.compare(&(*n.as_ptr()).key) {
+                    match key.cmp(&(*n.as_ptr()).key) {
                         Ordering::Less => p = &mut (*n.as_ptr()).left,
                         Ordering::Greater => p = &mut (*n.as_ptr()).right,
                         Ordering::Equal => break,
@@ -276,7 +259,7 @@ impl<K: Copy + KeyOrd, V> Treap<K, V> {
     }
 }
 
-impl<K: Copy + KeyOrd, V> Drop for Treap<K, V> {
+impl<K: Copy + Ord, V> Drop for Treap<K, V> {
     fn drop(&mut self) {
         self.clear();
     }
@@ -284,7 +267,7 @@ impl<K: Copy + KeyOrd, V> Drop for Treap<K, V> {
 
 fn print_rec<K, V>(node: NonNull<Node<K, V>>, f: &mut fmt::Formatter) -> fmt::Result
 where
-    K: Copy + KeyOrd + fmt::Debug,
+    K: Copy + Ord + fmt::Debug,
     V: fmt::Debug,
 {
     let node_ptr = node.as_ptr();
@@ -300,7 +283,7 @@ where
     }
 }
 
-impl<K: Copy + KeyOrd + fmt::Debug, V: fmt::Debug> fmt::Debug for Treap<K, V> {
+impl<K: Copy + Ord + fmt::Debug, V: fmt::Debug> fmt::Debug for Treap<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.root {
             Some(r) => print_rec(r, f),

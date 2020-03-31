@@ -24,7 +24,7 @@ mod treap;
 pub use self::boxlist::{BoxItem, BoxList, BoxListIter, BoxListIterMut, BoxRef};
 pub use self::dlist::{DList, DListIter, DListIterMut};
 pub use self::ringbuf::VarRingBuf;
-pub use self::treap::{KeyOrd, Treap};
+pub use self::treap::Treap;
 
 pub use ::alloc::collections::binary_heap::BinaryHeap;
 pub use ::alloc::collections::btree_map::BTreeMap;
