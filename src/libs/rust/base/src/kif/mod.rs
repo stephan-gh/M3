@@ -33,6 +33,9 @@ pub use self::perm::*;
 /// Represents an invalid capability selector
 pub const INVALID_SEL: CapSel = 0xFFFF;
 
+/// Represents unlimited credits for a SendGate
+pub const UNLIM_CREDITS: u32 = 0x3F;
+
 pub const SEL_PE: CapSel = 0;
 pub const SEL_KMEM: CapSel = 1;
 pub const SEL_VPE: CapSel = 2;

@@ -21,7 +21,7 @@ use com::stream::GateIStream;
 use com::RecvGate;
 use core::fmt;
 use errors::Error;
-use kif::INVALID_SEL;
+use kif::{INVALID_SEL, UNLIM_CREDITS};
 use pes::VPE;
 use syscalls;
 use tcu;
@@ -47,7 +47,7 @@ impl SGateArgs {
         SGateArgs {
             rgate_sel: rgate.sel(),
             label: 0,
-            credits: 0,
+            credits: UNLIM_CREDITS,
             sel: INVALID_SEL,
             flags: CapFlags::empty(),
         }
