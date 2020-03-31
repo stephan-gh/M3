@@ -6,6 +6,7 @@ members = [
     "src/apps/rustunittests",
     "src/libs/rust/base",
     "src/libs/rust/m3",
+    "src/libs/rust/pci",
     "src/libs/rust/resmng",
     "src/libs/rust/thread",
     "src/libs/rust/paging",

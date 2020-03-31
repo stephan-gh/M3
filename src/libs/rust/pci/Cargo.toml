@@ -1,0 +1,11 @@
+[package]
+name = "pci"
+version = "0.1.0"
+
+[lib]
+name = "pci"
+crate-type = ["rlib", "staticlib"]
+
+[dependencies]
+bitflags = "*"
+m3 = { path = "../m3" }
