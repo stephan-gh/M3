@@ -22,7 +22,7 @@ mod mapper;
 mod pe;
 mod vpe;
 
-pub use self::activity::{Activity, ClosureActivity, ExecActivity};
+pub use self::activity::{Activity, ClosureActivity, DeviceActivity, ExecActivity};
 pub use self::kmem::KMem;
 pub use self::mapper::{DefaultMapper, Mapper};
 pub use self::pe::PE;

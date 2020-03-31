@@ -51,6 +51,34 @@ pub trait Activity {
     }
 }
 
+/// The activity for [`VPE::start`].
+pub struct DeviceActivity {
+    vpe: VPE,
+}
+
+impl DeviceActivity {
+    /// Creates a new `DeviceActivity` for the given VPE.
+    pub fn new(vpe: VPE) -> Self {
+        Self { vpe }
+    }
+}
+
+impl Activity for DeviceActivity {
+    fn vpe(&self) -> &VPE {
+        &self.vpe
+    }
+
+    fn vpe_mut(&mut self) -> &mut VPE {
+        &mut self.vpe
+    }
+}
+
+impl Drop for DeviceActivity {
+    fn drop(&mut self) {
+        self.stop().ok();
+    }
+}
+
 /// The activity for [`VPE::run`].
 pub struct ClosureActivity {
     vpe: VPE,
@@ -59,8 +87,8 @@ pub struct ClosureActivity {
 
 impl ClosureActivity {
     /// Creates a new `ClosureActivity` for the given VPE and closure.
-    pub fn new(vpe: VPE, closure: env::Closure) -> ClosureActivity {
-        ClosureActivity {
+    pub fn new(vpe: VPE, closure: env::Closure) -> Self {
+        Self {
             vpe,
             _closure: closure,
         }
@@ -91,8 +119,8 @@ pub struct ExecActivity {
 
 impl ExecActivity {
     /// Creates a new `ExecActivity` for the given VPE and executable.
-    pub fn new(vpe: VPE, file: BufReader<FileRef>) -> ExecActivity {
-        ExecActivity { vpe, _file: file }
+    pub fn new(vpe: VPE, file: BufReader<FileRef>) -> Self {
+        Self { vpe, _file: file }
     }
 }
 

@@ -29,7 +29,7 @@ use env;
 use errors::Error;
 use kif;
 use kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
-use pes::{ClosureActivity, DefaultMapper, ExecActivity, KMem, Mapper, PE};
+use pes::{ClosureActivity, DeviceActivity, DefaultMapper, ExecActivity, KMem, Mapper, PE};
 use rc::Rc;
 use session::{Pager, ResMng};
 use syscalls;
@@ -388,6 +388,16 @@ impl VPE {
             self.delegate_obj(c)?;
         }
         Ok(())
+    }
+
+    /// Starts the VPE without running any code on it. This is intended for non-programmable
+    /// accelerators and devices that implement the PEMux protocol to get started, but don't execute
+    /// any code.
+    pub fn start(self) -> Result<DeviceActivity, Error> {
+        use pes::Activity;
+
+        let act = DeviceActivity::new(self);
+        act.start().map(|_| act)
     }
 
     /// Clones the program running on [`VPE::cur`] to `self` and lets `self` execute the given
