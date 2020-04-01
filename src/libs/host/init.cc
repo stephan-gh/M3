@@ -23,9 +23,15 @@ volatile int wait_for_debugger = 1;
 extern "C" void rust_init(int argc, char **argv);
 extern "C" void rust_deinit(int status, void *arg);
 
+static bool str_ends_with(const char *str, const char *end) {
+    size_t slen = strlen(str);
+    size_t elen = strlen(end);
+    return slen >= elen && strncmp(str + (slen - elen), end, elen) == 0;
+}
+
 extern "C" __attribute__((constructor)) void host_init(int argc, char **argv) {
     char *wait;
-    if((wait = getenv("M3_WAIT")) != 0 && argv[0] && strstr(argv[0], wait)) {
+    if((wait = getenv("M3_WAIT")) != 0 && argv[0] && str_ends_with(argv[0], wait)) {
         while(wait_for_debugger != 0) {
         }
     }
