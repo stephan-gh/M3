@@ -116,12 +116,9 @@ public:
     }
 
     void store_sb(m3::SuperBlock &sb) override {
-        m3::MemGate tmp = m3::MemGate::create_global(512 + Buffer::PRDT_SIZE, m3::MemGate::RW);
-        delegate_mem(tmp, 0, 1);
-
         // write back super block
         sb.checksum = sb.get_checksum();
-        tmp.write(&sb, sizeof(sb), 0);
+        _metabuf->write(&sb, sizeof(sb), 0);
         _disk->write(0, 0, 1, 512);
     }
 
