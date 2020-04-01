@@ -122,6 +122,11 @@ impl Write for BootFile {
         Ok(())
     }
 
+    fn sync(&mut self) -> Result<(), Error> {
+        // nothing to do
+        Ok(())
+    }
+
     fn write(&mut self, _buf: &[u8]) -> Result<usize, Error> {
         Err(Error::new(Code::NotSup))
     }

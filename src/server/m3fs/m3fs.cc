@@ -56,6 +56,7 @@ public:
         add_operation(M3FS::NEXT_IN, &M3FSRequestHandler::next_in);
         add_operation(M3FS::NEXT_OUT, &M3FSRequestHandler::next_out);
         add_operation(M3FS::COMMIT, &M3FSRequestHandler::commit);
+        add_operation(M3FS::SYNC, &M3FSRequestHandler::sync);
         add_operation(M3FS::CLOSE, &M3FSRequestHandler::close_sess);
         add_operation(M3FS::FSTAT, &M3FSRequestHandler::fstat);
         add_operation(M3FS::SEEK, &M3FSRequestHandler::seek);
@@ -128,6 +129,11 @@ public:
     void commit(GateIStream &is) {
         M3FSSession *sess = is.label<M3FSSession *>();
         sess->commit(is);
+    }
+
+    void sync(GateIStream &is) {
+        M3FSSession *sess = is.label<M3FSSession *>();
+        sess->sync(is);
     }
 
     void seek(GateIStream &is) {

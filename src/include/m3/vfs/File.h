@@ -186,9 +186,15 @@ public:
     }
 
     /**
-     * Performs a flush of the so far written data
+     * Flush the locally written data to the file system.
      */
     virtual void flush() {
+    }
+
+    /**
+     * Ensure that the file is made persistent.
+     */
+    virtual void sync() {
     }
 
     /**

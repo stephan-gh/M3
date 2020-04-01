@@ -39,6 +39,7 @@ public:
         NEXT_IN,
         NEXT_OUT,
         COMMIT,
+        SYNC,
         CLOSE,
         COUNT,
     };
@@ -71,8 +72,10 @@ public:
 
     virtual void flush() override {
         if(_writing)
-            submit();
+            commit();
     }
+
+    virtual void sync() override;
 
     virtual char type() const noexcept override {
         return 'F';
@@ -102,7 +105,7 @@ public:
 private:
     virtual void close() noexcept override;
 
-    void submit();
+    void commit();
     void delegate_ep();
 
     mutable ClientSession _sess;

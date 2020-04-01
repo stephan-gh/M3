@@ -295,6 +295,12 @@ void M3FSFileSession::commit(GateIStream &is) {
     reply_vmsg(is, res);
 }
 
+void M3FSFileSession::sync(m3::GateIStream &is) {
+    // TODO only flush this file, not everything
+    hdl().flush_buffer();
+    reply_vmsg(is, Errors::NONE);
+}
+
 void M3FSFileSession::seek(GateIStream &is) {
     int whence;
     size_t off;

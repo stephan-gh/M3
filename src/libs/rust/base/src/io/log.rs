@@ -115,6 +115,10 @@ impl Write for Log {
         Ok(())
     }
 
+    fn sync(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.write_bytes(buf);
         Ok(buf.len())

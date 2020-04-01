@@ -139,6 +139,9 @@ pub trait Write {
     /// Flushes the underlying buffer, if any
     fn flush(&mut self) -> Result<(), Error>;
 
+    /// Ensure that the file is made persistent.
+    fn sync(&mut self) -> Result<(), Error>;
+
     /// Writes all bytes of the given buffer to this sink
     ///
     /// # Errors

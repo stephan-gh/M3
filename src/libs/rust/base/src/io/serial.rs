@@ -39,6 +39,10 @@ impl io::Write for Serial {
         Ok(())
     }
 
+    fn sync(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+
     fn write(&mut self, mut buf: &[u8]) -> Result<usize, Error> {
         let res = buf.len();
         while !buf.is_empty() {

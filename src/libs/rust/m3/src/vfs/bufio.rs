@@ -196,6 +196,10 @@ impl<W: Write> Write for BufWriter<W> {
         self.do_flush()?;
         self.writer.flush()
     }
+
+    fn sync(&mut self) -> Result<(), Error> {
+        self.writer.sync()
+    }
 }
 
 impl<W: Write + Seek> Seek for BufWriter<W> {

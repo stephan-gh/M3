@@ -39,7 +39,8 @@ int_enum! {
         const NEXT_IN   = 2;
         const NEXT_OUT  = 3;
         const COMMIT    = 4;
-        const CLOSE     = 5;
+        const SYNC      = 5;
+        const CLOSE     = 6;
     }
 }
 
@@ -222,6 +223,11 @@ impl Read for GenericFile {
 impl Write for GenericFile {
     fn flush(&mut self) -> Result<(), Error> {
         self.submit(false)
+    }
+
+    fn sync(&mut self) -> Result<(), Error> {
+        self.flush()
+            .and_then(|_| send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::SYNC).map(|_| ()))
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {

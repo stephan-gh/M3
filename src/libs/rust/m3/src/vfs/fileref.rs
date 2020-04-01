@@ -74,6 +74,10 @@ impl Write for FileRef {
         self.file.borrow_mut().flush()
     }
 
+    fn sync(&mut self) -> Result<(), Error> {
+        self.file.borrow_mut().sync()
+    }
+
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.file.borrow_mut().write(buf)
     }

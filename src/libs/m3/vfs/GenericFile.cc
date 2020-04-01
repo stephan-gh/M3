@@ -42,10 +42,10 @@ GenericFile::GenericFile(int flags, capsel_t caps)
 void GenericFile::close() noexcept {
     LLOG(FS, "GenFile[" << fd() << "]::evict()");
 
-    // submit read/written data
+    // commit read/written data
     try {
         if(_writing)
-            submit();
+            commit();
     }
     catch(...) {
         // ignore
@@ -93,9 +93,9 @@ size_t GenericFile::seek(size_t offset, int whence) {
         if(offset == _goff + _pos)
             return offset;
 
-        // first submit the written data
+        // first commit the written data
         if(_writing)
-            submit();
+            commit();
 
         if(offset >= _goff && offset <= _goff + _len) {
             _pos = offset - _goff;
@@ -103,9 +103,9 @@ size_t GenericFile::seek(size_t offset, int whence) {
         }
     }
     else {
-        // first submit the written data
+        // first commit the written data
         if(_writing)
-            submit();
+            commit();
     }
 
     // now seek on the server side
@@ -121,7 +121,7 @@ size_t GenericFile::seek(size_t offset, int whence) {
 size_t GenericFile::read(void *buffer, size_t count) {
     delegate_ep();
     if(_writing)
-        submit();
+        commit();
 
     LLOG(FS, "GenFile[" << fd() << "]::read(" << count << ", pos=" << (_goff + _pos) << ")");
 
@@ -183,9 +183,9 @@ size_t GenericFile::write(const void *buffer, size_t count) {
     return amount;
 }
 
-void GenericFile::submit() {
+void GenericFile::commit() {
     if(_pos > 0) {
-        LLOG(FS, "GenFile[" << fd() << "]::submit("
+        LLOG(FS, "GenFile[" << fd() << "]::commit("
             << (_writing ? "write" : "read") << ", " << _pos << ")");
 
         GateIStream reply = send_receive_vmsg(_sg, COMMIT, _pos);
@@ -196,6 +196,14 @@ void GenericFile::submit() {
         _pos = _len = 0;
     }
     _writing = false;
+}
+
+void GenericFile::sync() {
+    commit();
+
+    LLOG(FS, "GenFile[" << fd() << "]::sync()");
+    GateIStream reply = send_receive_vmsg(_sg, SYNC);
+    reply.pull_result();
 }
 
 void GenericFile::delegate_ep() {

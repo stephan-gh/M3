@@ -57,6 +57,9 @@ public:
     virtual void commit(m3::GateIStream &is) {
         m3::reply_error(is, m3::Errors::NOT_SUP);
     }
+    virtual void sync(m3::GateIStream &is) {
+        m3::reply_error(is, m3::Errors::NOT_SUP);
+    }
     virtual void seek(m3::GateIStream &is) {
         m3::reply_error(is, m3::Errors::NOT_SUP);
     }

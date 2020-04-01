@@ -69,6 +69,7 @@ public:
     virtual void next_in(m3::GateIStream &is) override;
     virtual void next_out(m3::GateIStream &is) override;
     virtual void commit(m3::GateIStream &is) override;
+    virtual void sync(m3::GateIStream &is) override;
     virtual void seek(m3::GateIStream &is) override;
     virtual void fstat(m3::GateIStream &is) override;
 
