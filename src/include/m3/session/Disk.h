@@ -51,6 +51,7 @@ public:
           _sgate(obtain_sgate()) {
         _rgate.activate();
         _rgate.start(wl, [](GateIStream &is) {
+            is.pull_result();
             ThreadManager::get().notify(is.label<event_t>() & (std::numeric_limits<event_t>::max() >> 1));
         });
     };
@@ -63,12 +64,12 @@ public:
         return _sgate;
     }
 
-    Errors::Code read(blockno_t cap, blockno_t bno, size_t len, size_t blocksize, goff_t off = 0) {
-        return send_vmsg(_sgate, bno, READ, cap, bno, len, blocksize, off);
+    void read(blockno_t cap, blockno_t bno, size_t len, size_t blocksize, goff_t off = 0) {
+        send_vmsg(_sgate, bno, READ, cap, bno, len, blocksize, off);
     }
 
-    Errors::Code write(blockno_t cap, blockno_t bno, size_t len, size_t blocksize, goff_t off = 0) {
-        return send_vmsg(_sgate, bno, WRITE, cap, bno, len, blocksize, off);
+    void write(blockno_t cap, blockno_t bno, size_t len, size_t blocksize, goff_t off = 0) {
+        send_vmsg(_sgate, bno, WRITE, cap, bno, len, blocksize, off);
     }
 
 private:
@@ -79,12 +80,11 @@ private:
     }
 
     template<typename... Args>
-    static inline Errors::Code send_vmsg(SendGate &gate, blockno_t bno, const Args &... args) {
+    static inline void send_vmsg(SendGate &gate, blockno_t bno, const Args &... args) {
         auto msg = create_vmsg(args...);
         // just assume there won't be 2^31 previous wait events
         event_t label = bno | (1U << 31);
 
-        Errors::Code e = Errors::NONE;
         gate.send(msg.bytes(), msg.total(), label);
         if(ThreadManager::get().sleeping_count()) {
             ThreadManager::get().wait_for(label);
@@ -92,9 +92,8 @@ private:
         // if there are no sleeping threads just wait for the answer
         else {
             GateIStream reply = receive_reply(gate);
-            reply >> e;
+            reply.pull_result();
         }
-        return e;
     }
 
     RecvGate _rgate;
