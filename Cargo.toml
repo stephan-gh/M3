@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "src/apps/bench/rustbenchs",
+    "src/apps/disktest",
     "src/apps/pemux",
     "src/apps/rusthello",
     "src/apps/rustunittests",
