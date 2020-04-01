@@ -33,16 +33,17 @@ fi
 export M3_FS
 
 if [ "$M3_HDD" = "" ]; then
-    M3_HDD="disk.img"
+    M3_HDD_PATH="build/$M3_TARGET-$M3_ISA-$M3_BUILD/disk.img"
+else
+    M3_HDD_PATH=$M3_HDD
 fi
-export M3_HDD
 
 generate_config() {
     if [ ! -f $1 ]; then
         echo "error: '$1' is not a file" >&2 && exit 1
     fi
 
-    hd=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_HDD
+    hd=$M3_HDD_PATH
     fs=build/$M3_TARGET-$M3_ISA-$M3_BUILD/$M3_FS
     fssize=`stat --format="%s" $fs`
     sed "
@@ -93,8 +94,8 @@ build_params_gem5() {
         c=$((c + 1))
     done
 
-    if [[ $mods == *disk* ]]; then
-        ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
+    if [[ $mods == *disk* ]] && [ "$M3_HDD" = "" ]; then
+        ./src/tools/disk.py create $M3_HDD_PATH $build/$M3_FS
     fi
 
     M3_GEM5_CPUFREQ=${M3_GEM5_CPUFREQ:-1GHz}
@@ -102,7 +103,7 @@ build_params_gem5() {
     M3_GEM5_CFG=${M3_GEM5_CFG:-config/default.py}
     export M3_GEM5_PES=$M3_CORES
     export M3_GEM5_FS=$build/$M3_FS
-    export M3_GEM5_IDE_DRIVE=$build/$M3_HDD
+    export M3_GEM5_IDE_DRIVE=$M3_HDD_PATH
 
     params=$(mktemp)
     trap "rm -f $params" EXIT ERR INT TERM
@@ -155,7 +156,7 @@ build_params_gem5() {
 if [ "$M3_TARGET" = "host" ]; then
     params=$(build_params_host $script) || exit 1
 
-    if [[ $params == *disk* ]]; then
+    if [[ $params == *disk* ]] && [ "$M3_HDD" = "" ]; then
         ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
     fi
 
