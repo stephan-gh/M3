@@ -23,38 +23,42 @@
 
 BEGIN_FUNC(isr_enable)
     // delegate all interrupts and exceptions to supervisor mode
-    li     a1, 0x333
-    csrw   mideleg, a1
-    li     a0, -1
-    csrw   medeleg, a0
+    li     t1, 0x333
+    csrw   mideleg, t1
+    li     t0, -1
+    csrw   medeleg, t0
 
     // set stack pointer for exceptions
-    la      a0, isr_stack
-    csrw    sscratch, a0
+    la      t0, isr_stack
+    csrw    sscratch, t0
 
     // enable interrupts
-    csrr   a0, sie
-    or     a0, a0, a1
-    csrw   sie, a0
+    csrr   t0, sie
+    or     t0, t0, t1
+    csrw   sie, t0
 
     // return to supervisor mode
-    csrr    a0, mstatus
-    li      a1, 1 << 11
-    or      a0, a0, a1      # MPP = S
-    or      a0, a0, 1 << 1  # SIE = 1
-    csrw    mstatus, a0
+    csrr    t0, mstatus
+    li      t1, 1 << 11
+    or      t0, t0, t1      # MPP = S
+    csrw    mstatus, t0
 
     // jump to 1:
-    la      a0, 1f
-    csrw    mepc, a0
+    la      t0, 1f
+    csrw    mepc, t0
 
     // set vector address
-    la      a0, exc_common
-    csrw    stvec, a0       # STVEC = exc_common
+    la      t0, exc_common
+    csrw    stvec, t0       # STVEC = exc_common
 
     // go!
     mret
 1:
+    // enable interrupts
+    csrr    t0, sstatus
+    or      t0, t0, 1 << 1  # SIE = 1
+    csrw    sstatus, t0
+
     ret
 END_FUNC(isr_enable)
 

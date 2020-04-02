@@ -181,8 +181,6 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
 #[no_mangle]
 pub extern "C" fn init() {
     unsafe {
-        arch::init();
-
         heap_init(
             &HEAP as *const u64 as usize,
             &HEAP as *const u64 as usize + HEAP.len() * 8,
@@ -202,4 +200,6 @@ pub extern "C" fn init() {
         unsafe { &isr_stack_low as *const _ as usize } - util::size_of::<arch::State>();
     vpe::idle().start(state_addr);
     vpe::schedule(state_addr, vpe::ScheduleAction::Preempt);
+
+    arch::init();
 }
