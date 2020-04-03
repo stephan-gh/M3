@@ -54,6 +54,7 @@ const BOOT_MOD_SELS: Selector = kif::FIRST_FREE_SEL;
 static DELAYED: StaticCell<Vec<OwnChild>> = StaticCell::new(Vec::new());
 static MODS: StaticCell<(usize, usize)> = StaticCell::new((0, 0));
 static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
+static OUR_PE: StaticCell<Option<Rc<pes::PEUsage>>> = StaticCell::new(None);
 
 fn req_rgate() -> &'static RecvGate {
     RGATE.get().as_ref().unwrap()
@@ -319,7 +320,6 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
         .expect("Unable to determine own quota");
     let mut total_kparties = cfg.count_apps() + 1;
     let mut total_mparties = total_kparties;
-    let mut childs = Vec::new();
     for d in cfg.domains() {
         for a in d.apps() {
             if let Some(kmem) = a.kmem() {
@@ -346,82 +346,96 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
                     }
                 }
             }
-            else {
-                childs.push(a.clone());
-            }
         }
     }
     let def_kmem = total_kmem / total_kparties;
     let def_mem = math::round_dn(total_mem / total_mparties as goff, cfg::PAGE_SIZE as goff);
 
-    let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
-    for (id, m) in moditer.enumerate() {
-        if m.name() == "pemux" || m.name() == "boot.xml" || m.name().starts_with("root") {
-            continue;
-        }
-
-        let cfg = childs.remove(0);
-
-        // kernel memory for child
-        let kmem = if cfg.kmem().is_none() && same_kmem {
-            VPE::cur().kmem().clone()
-        }
-        else {
-            let kmem_bytes = cfg.kmem().unwrap_or(def_kmem);
-            VPE::cur()
-                .kmem()
-                .derive(kmem_bytes)
-                .expect("Unable to derive new kernel memory")
-        };
-
-        // memory pool for child
-        let child_mem = cfg.sum_mem();
-        let child_mem = if child_mem == 0 {
-            def_mem
-        }
-        else {
-            child_mem as goff
-        };
-        let mem_pool = Rc::new(RefCell::new(
-            mems.alloc_pool(child_mem)
-                .expect("Unable to allocate memory pool"),
-        ));
-        // add requested physical memory regions to pool
-        for mem in cfg.mems() {
-            if let Some(p) = mem.phys() {
-                let mslice = mems.find_mem(p, mem.size()).expect(&format!(
-                    "Unable to find memory {:#x}:{:#x}",
-                    p,
-                    mem.size()
-                ));
-                mem_pool.borrow_mut().add(mslice);
-            }
-        }
-
-        let pe = Rc::new(
+    let mut id = 0;
+    let mut moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
+    for d in cfg.domains().iter() {
+        let pe_usage = Rc::new(
             pes::get()
                 .find_and_alloc(VPE::cur().pe_desc())
                 .expect("Unable to allocate PE"),
         );
-        let mut child = OwnChild::new(
-            id as Id,
-            pe,
-            // TODO either remove args and daemon from config or remove the clones from OwnChild
-            cfg.args().clone(),
-            cfg.daemon(),
-            kmem,
-            mem_pool,
-            cfg,
-        );
-        log!(resmng::LOG_CHILD, "Created {:?}", child);
 
-        if child.has_unmet_reqs() {
-            DELAYED.get_mut().push(child);
+        // keep our own PE to make sure that we allocate a different one for the next domain in case
+        // our domain contains just ourself.
+        if pe_usage.pe_id() == VPE::cur().pe_id() {
+            OUR_PE.set(Some(pe_usage.clone()));
         }
-        else {
-            start_child(&mut child, BOOT_MOD_SELS + 1 + id as Id, &m)
-                .expect("Unable to start boot module");
-            childs::get().add(Box::new(child));
+
+        for cfg in d.apps() {
+            if cfg.name().starts_with("root") {
+                continue;
+            }
+
+            let m = loop {
+                let m = moditer.next().unwrap();
+                if m.name() != "pemux" && m.name() != "boot.xml" && !m.name().starts_with("root") {
+                    break m;
+                }
+                id += 1;
+            };
+
+            // kernel memory for child
+            let kmem = if cfg.kmem().is_none() && same_kmem {
+                VPE::cur().kmem().clone()
+            }
+            else {
+                let kmem_bytes = cfg.kmem().unwrap_or(def_kmem);
+                VPE::cur()
+                    .kmem()
+                    .derive(kmem_bytes)
+                    .expect("Unable to derive new kernel memory")
+            };
+
+            // memory pool for child
+            let child_mem = cfg.sum_mem();
+            let child_mem = if child_mem == 0 {
+                def_mem
+            }
+            else {
+                child_mem as goff
+            };
+            let mem_pool = Rc::new(RefCell::new(
+                mems.alloc_pool(child_mem)
+                    .expect("Unable to allocate memory pool"),
+            ));
+            // add requested physical memory regions to pool
+            for mem in cfg.mems() {
+                if let Some(p) = mem.phys() {
+                    let mslice = mems.find_mem(p, mem.size()).expect(&format!(
+                        "Unable to find memory {:#x}:{:#x}",
+                        p,
+                        mem.size()
+                    ));
+                    mem_pool.borrow_mut().add(mslice);
+                }
+            }
+
+            let mut child = OwnChild::new(
+                id as Id,
+                pe_usage.clone(),
+                // TODO either remove args and daemon from config or remove the clones from OwnChild
+                cfg.args().clone(),
+                cfg.daemon(),
+                kmem,
+                mem_pool,
+                cfg.clone(),
+            );
+            log!(resmng::LOG_CHILD, "Created {:?}", child);
+
+            if child.has_unmet_reqs() {
+                DELAYED.get_mut().push(child);
+            }
+            else {
+                start_child(&mut child, BOOT_MOD_SELS + 1 + id as Id, &m)
+                    .expect("Unable to start boot module");
+                childs::get().add(Box::new(child));
+            }
+            id += 1;
         }
     }
 }
@@ -468,8 +482,8 @@ pub fn main() -> i32 {
             pe.isa(),
             pe.mem_size() / 1024
         );
-        // skip kernel and our own PE
-        if i > VPE::cur().pe_id() {
+        // skip kernel
+        if i >= VPE::cur().pe_id() {
             pes::get().add(i as tcu::PEId, Rc::new(PE::new_bind(pe, pe_sel + i as Selector - 1)));
         }
         if i > 0 && pe.pe_type() != kif::PEType::MEM {
