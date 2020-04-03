@@ -429,6 +429,8 @@ impl VPE {
             let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
             vpe.state = VPEState::Ready;
             RDY.get_mut().push_back(vpe);
+        }
+        if self.state != VPEState::Running {
             crate::reg_scheduling(ScheduleAction::Preempt);
         }
     }
