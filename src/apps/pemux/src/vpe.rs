@@ -199,8 +199,6 @@ pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
             .pop_front()
             .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
 
-        log!(crate::LOG_VPES, "Switching to VPE {}", next.id());
-
         // make current
         let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
         let old = try_cur();
@@ -234,6 +232,7 @@ pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
         let new_state = next.user_state_addr;
         set_entry_sp(new_state + util::size_of::<State>());
         let cont = next.cont.take();
+        let next_id = next.id();
         next.state = VPEState::Running;
 
         if cont.is_none() {
@@ -243,9 +242,15 @@ pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
 
         // exchange CUR
         if let Some(mut old) = CUR.set(Some(next)) {
-            if old.id() != kif::pemux::IDLE_ID {
-                log!(crate::LOG_VPES, "{:?} VPE {}", action, old.id());
+            log!(
+                crate::LOG_VPES,
+                "Switching from {} to {} ({:?} old VPE)",
+                old.id(),
+                next_id,
+                action
+            );
 
+            if old.id() != kif::pemux::IDLE_ID {
                 // block, preempt or kill VPE
                 match action {
                     ScheduleAction::TryBlock | ScheduleAction::Block => {
@@ -266,6 +271,9 @@ pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
                 // don't drop the idle VPE
                 Box::into_raw(old);
             }
+        }
+        else {
+            log!(crate::LOG_VPES, "Switching to {}", next_id);
         }
 
         // if there is a function to call, do that
