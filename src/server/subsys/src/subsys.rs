@@ -345,9 +345,9 @@ pub fn main() -> i32 {
         PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE"),
     );
 
-    let peid = pes::get().find_and_alloc(VPE::cur().pe_desc()).unwrap();
+    let pe_usage = Rc::new(pes::get().find_and_alloc(VPE::cur().pe_desc()).unwrap());
     let mut vpe = VPE::new_with(
-        pes::get().get(peid),
+        pe_usage.pe_obj(),
         VPEArgs::new(&name).resmng(ResMng::new(sgate)),
     )
     .expect("Unable to create VPE");
@@ -358,7 +358,7 @@ pub fn main() -> i32 {
     let cfg = Rc::new(config::AppConfig::new(args, false));
     let mut child = childs::OwnChild::new(
         0,
-        peid,
+        pe_usage,
         cfg.args().clone(),
         false,
         VPE::cur().kmem().clone(),

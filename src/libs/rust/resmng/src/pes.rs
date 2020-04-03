@@ -28,6 +28,30 @@ struct ManagedPE {
     used: bool,
 }
 
+pub struct PEUsage {
+    idx: usize,
+}
+
+impl PEUsage {
+    fn new(idx: usize) -> Self {
+        Self { idx }
+    }
+
+    pub fn pe_id(&self) -> PEId {
+        get().pes[self.idx].id
+    }
+
+    pub fn pe_obj(&self) -> Rc<PE> {
+        get().get(self.idx)
+    }
+}
+
+impl Drop for PEUsage {
+    fn drop(&mut self) {
+        get().free(self.idx);
+    }
+}
+
 pub struct PEManager {
     pes: Vec<ManagedPE>,
 }
@@ -55,34 +79,24 @@ impl PEManager {
         self.pes.len()
     }
 
-    pub fn pe(&self, id: usize) -> PEId {
-        self.pes[id].id
-    }
-
     pub fn get(&self, id: usize) -> Rc<PE> {
         self.pes[id].pe.clone()
     }
 
-    pub fn find(&self, desc: PEDesc) -> Result<usize, Error> {
+    pub fn find_and_alloc(&mut self, desc: PEDesc) -> Result<PEUsage, Error> {
         for (id, pe) in self.pes.iter().enumerate() {
             if !pe.used
                 && pe.pe.desc().isa() == desc.isa()
                 && pe.pe.desc().pe_type() == desc.pe_type()
             {
-                return Ok(id);
+                self.alloc(id);
+                return Ok(PEUsage::new(id));
             }
         }
         Err(Error::new(Code::NoSpace))
     }
 
-    pub fn find_and_alloc(&mut self, desc: PEDesc) -> Result<usize, Error> {
-        self.find(desc).map(|id| {
-            self.alloc(id);
-            id
-        })
-    }
-
-    pub fn alloc(&mut self, id: usize) {
+    fn alloc(&mut self, id: usize) {
         log!(
             crate::LOG_PES,
             "Allocating PE{}: {:?}",
@@ -92,7 +106,7 @@ impl PEManager {
         self.pes[id].used = true;
     }
 
-    pub fn free(&mut self, id: usize) {
+    fn free(&mut self, id: usize) {
         let mut pe = &mut self.pes[id];
         log!(crate::LOG_PES, "Freeing PE{}: {:?}", pe.id, pe.pe.desc());
         pe.used = false;

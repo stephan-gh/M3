@@ -200,9 +200,8 @@ fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> R
             .label(tcu::Label::from(child.id())),
     )?;
 
-    let pe = pes::get().get(child.pe_id().unwrap());
     let vpe = VPE::new_with(
-        pe,
+        child.pe().unwrap().pe_obj(),
         VPEArgs::new(child.name())
             .resmng(ResMng::new(sgate))
             .kmem(child.kmem().clone()),
@@ -399,9 +398,11 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
             }
         }
 
-        let pe = pes::get()
-            .find_and_alloc(VPE::cur().pe_desc())
-            .expect("Unable to allocate PE");
+        let pe = Rc::new(
+            pes::get()
+                .find_and_alloc(VPE::cur().pe_desc())
+                .expect("Unable to allocate PE"),
+        );
         let mut child = OwnChild::new(
             id as Id,
             pe,

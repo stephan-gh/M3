@@ -42,7 +42,7 @@ pub struct Resources {
     services: Vec<(Id, Selector)>,
     sessions: Vec<Session>,
     mem: Vec<(Selector, Allocation)>,
-    pes: Vec<(usize, usize, Selector)>,
+    pes: Vec<(pes::PEUsage, usize, Selector)>,
 }
 
 impl Default for Resources {
@@ -63,7 +63,7 @@ pub trait Child {
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
 
-    fn pe_id(&self) -> Option<usize>;
+    fn pe(&self) -> Option<Rc<pes::PEUsage>>;
     fn vpe_sel(&self) -> Selector;
 
     fn mem(&mut self) -> &Rc<RefCell<MemPool>>;
@@ -304,15 +304,15 @@ pub trait Child {
 
         let cfg = self.cfg();
         let idx = cfg.get_pe_idx(desc)?;
-        let peid = pes::get().find(desc)?;
+        let pe_usage = pes::get().find_and_alloc(desc)?;
 
-        self.delegate(pes::get().get(peid).sel(), sel)?;
+        self.delegate(pe_usage.pe_obj().sel(), sel)?;
 
-        self.res_mut().pes.push((peid, idx, sel));
+        let desc = pe_usage.pe_obj().desc();
+        self.res_mut().pes.push((pe_usage, idx, sel));
         cfg.alloc_pe(idx);
-        pes::get().alloc(peid);
 
-        Ok(pes::get().get(peid).desc())
+        Ok(desc)
     }
 
     fn free_pe(&mut self, sel: Selector) -> Result<(), Error> {
@@ -330,12 +330,12 @@ pub trait Child {
     }
 
     fn remove_pe_by_idx(&mut self, idx: usize) -> Result<(), Error> {
-        let (id, idx, ep_sel) = self.res_mut().pes.remove(idx);
+        let (pe_usage, idx, ep_sel) = self.res_mut().pes.remove(idx);
         log!(
             crate::LOG_PES,
             "{}: removed PE (id={}, sel={})",
             self.name(),
-            id,
+            pe_usage.pe_id(),
             ep_sel
         );
 
@@ -343,7 +343,6 @@ pub trait Child {
         let crd = CapRngDesc::new(CapType::OBJECT, ep_sel, 1);
         // TODO if that fails, we need to kill this child because otherwise we don't get the PE back
         syscalls::revoke(self.vpe_sel(), crd, true).ok();
-        pes::get().free(id);
         cfg.free_pe(idx);
 
         Ok(())
@@ -377,7 +376,7 @@ pub trait Child {
 
 pub struct OwnChild {
     id: Id,
-    pe: usize,
+    pe: Rc<pes::PEUsage>,
     name: String,
     args: Vec<String>,
     cfg: Rc<AppConfig>,
@@ -391,7 +390,7 @@ pub struct OwnChild {
 impl OwnChild {
     pub fn new(
         id: Id,
-        pe: usize,
+        pe: Rc<pes::PEUsage>,
         args: Vec<String>,
         daemon: bool,
         kmem: Rc<KMem>,
@@ -456,8 +455,8 @@ impl Child for OwnChild {
         false
     }
 
-    fn pe_id(&self) -> Option<usize> {
-        Some(self.pe)
+    fn pe(&self) -> Option<Rc<pes::PEUsage>> {
+        Some(self.pe.clone())
     }
 
     fn vpe_sel(&self) -> Selector {
@@ -487,7 +486,7 @@ impl fmt::Debug for OwnChild {
             f,
             "OwnChild[id={}, pe={}, args={:?}, kmem=KMem[sel={}, quota={}], mem={:?}]",
             self.id,
-            pes::get().pe(self.pe),
+            self.pe.pe_id(),
             self.args,
             self.kmem.sel(),
             self.kmem.quota().unwrap(),
@@ -499,7 +498,6 @@ impl fmt::Debug for OwnChild {
 impl Drop for OwnChild {
     fn drop(&mut self) {
         self.remove_resources();
-        pes::get().free(self.pe);
     }
 }
 
@@ -551,7 +549,7 @@ impl Child for ForeignChild {
         true
     }
 
-    fn pe_id(&self) -> Option<usize> {
+    fn pe(&self) -> Option<Rc<pes::PEUsage>> {
         None
     }
 
