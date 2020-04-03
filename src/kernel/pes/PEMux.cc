@@ -29,7 +29,6 @@ PEMux::PEMux(peid_t pe)
     : _pe(new PEObject(pe, EP_COUNT - m3::TCU::FIRST_USER_EP)),
       _caps(VPE::INVALID_ID),
       _vpes(),
-      _rbufs_size(),
       _mem_base(),
       _eps(),
       _upcqueue(pe, m3::TCU::PEXUP_REP) {
@@ -79,7 +78,6 @@ void PEMux::handle_call(const m3::TCU::Message *msg) {
 }
 
 void PEMux::add_vpe(VPECapability *vpe) {
-    assert(_vpes == 0);
     _caps.obtain(vpe->obj->id(), vpe);
     _vpes++;
 }
@@ -88,7 +86,6 @@ void PEMux::remove_vpe(UNUSED VPE *vpe) {
     // has already been revoked
     assert(_caps.get(vpe->id(), Capability::VIRTPE) == nullptr);
     _vpes--;
-    _rbufs_size = 0;
     _mem_base = 0;
 }
 
@@ -188,7 +185,8 @@ m3::Errors::Code PEMux::invalidate_ep(vpeid_t vpe, epid_t ep, bool force) {
         return m3::Errors::NONE;
 }
 
-m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj) {
+m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps,
+                                      RGateObject &obj, bool std) {
     assert(obj.activated());
     // it needs to be in the receive buffer space
     const goff_t addr = Platform::def_recvbuf(peid());
@@ -196,7 +194,8 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGa
     // def_recvbuf() == 0 means that we do not validate it
     if(addr && (obj.addr < addr || obj.addr > addr + size || obj.addr + obj.size() > addr + size))
         return m3::Errors::INV_ARGS;
-    if(obj.addr < addr + _rbufs_size)
+    const size_t rbuf_size = SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
+    if(!std && obj.addr < addr + rbuf_size)
         return m3::Errors::INV_ARGS;
 
     vpeid_t ep_vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;

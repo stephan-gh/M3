@@ -284,8 +284,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
     }
 
     auto pecap = static_cast<PECapability*>(vpe->objcaps().get(pe, Capability::PE));
-    // TODO later we will allow multiple VPEs on one PE
-    if(pecap == nullptr || pecap->obj->vpes > 0)
+    if(pecap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid PE cap");
     if(!pecap->obj->has_quota(m3::TCU::STD_EPS_COUNT)) {
         SYS_ERROR(vpe, msg, m3::Errors::NO_SPACE, "PE capability has insufficient EPs (have "

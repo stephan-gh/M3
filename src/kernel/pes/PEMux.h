@@ -62,10 +62,6 @@ public:
         _mem_base = addr;
     }
 
-    void set_rbufsize(size_t size) {
-        _rbufs_size = size;
-    }
-
     epid_t find_eps(uint count) const;
     bool eps_free(epid_t start, uint count) const;
     void alloc_eps(epid_t first, uint count);
@@ -78,7 +74,8 @@ public:
 
     m3::Errors::Code invalidate_ep(vpeid_t vpe, epid_t ep, bool force = false);
 
-    m3::Errors::Code config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj);
+    m3::Errors::Code config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps,
+                                   RGateObject &obj, bool std = false);
     m3::Errors::Code config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj);
     m3::Errors::Code config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject &obj, goff_t off);
 
@@ -88,7 +85,6 @@ private:
     m3::Reference<PEObject> _pe;
     CapTable _caps;
     size_t _vpes;
-    size_t _rbufs_size;
     goff_t _mem_base;
     m3::BitField<EP_COUNT> _eps;
     SendQueue _upcqueue;
