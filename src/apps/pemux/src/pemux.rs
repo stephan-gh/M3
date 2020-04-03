@@ -59,8 +59,11 @@ extern "C" {
     static isr_stack_low: libc::c_void;
 }
 
+// the heap area needs to be 16-byte aligned
+#[repr(align(16))]
+struct Heap([u64; 8 * 1024]);
 #[used]
-static mut HEAP: [u64; 8 * 1024] = [0; 8 * 1024];
+static mut HEAP: Heap = Heap { 0: [0; 8 * 1024] };
 
 pub struct PagefaultMessage {
     pub op: u64,
@@ -182,8 +185,8 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
 pub extern "C" fn init() {
     unsafe {
         heap_init(
-            &HEAP as *const u64 as usize,
-            &HEAP as *const u64 as usize + HEAP.len() * 8,
+            &HEAP.0 as *const u64 as usize,
+            &HEAP.0 as *const u64 as usize + HEAP.0.len() * 8,
         );
     }
 
