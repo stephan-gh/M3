@@ -40,7 +40,7 @@ pub const PEXC_ARG1: usize = 12; // rcx
 
 #[derive(Default)]
 // see comment in ARM code
-#[repr(C, align(8))]
+#[repr(C, align(16))]
 pub struct State {
     // general purpose registers
     pub r: [usize; 15],
