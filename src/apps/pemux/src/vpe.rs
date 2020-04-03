@@ -17,7 +17,7 @@
 use base::boxed::Box;
 use base::cell::StaticCell;
 use base::cfg;
-use base::col::BoxList;
+use base::col::{BoxList, Vec};
 use base::errors::Error;
 use base::goff;
 use base::kif;
@@ -33,18 +33,13 @@ use vma::PfState;
 
 struct PTAllocator {
     vpe: u64,
-    pts_start: paging::MMUPTE,
-    pts_count: usize,
-    pts_pos: usize,
 }
 
 impl Allocator for PTAllocator {
     fn allocate_pt(&mut self) -> paging::MMUPTE {
         assert!(self.vpe != kif::pemux::IDLE_ID);
-        if self.pts_pos < self.pts_count {
-            let res = self.pts_start + (cfg::PAGE_SIZE * self.pts_pos) as paging::MMUPTE;
-            self.pts_pos += 1;
-            res
+        if let Some(pt) = PTS.get_mut().pop() {
+            pt as paging::MMUPTE
         }
         else {
             0
@@ -52,9 +47,8 @@ impl Allocator for PTAllocator {
     }
 
     fn translate_pt(&self, phys: paging::MMUPTE) -> usize {
-        let pts_end = self.pts_start + (self.pts_count * cfg::PAGE_SIZE) as paging::MMUPTE;
-        assert!(phys >= self.pts_start && phys < pts_end);
-        let off = phys - self.pts_start;
+        assert!(phys >= INFO.mem_start as paging::MMUPTE && phys < INFO.mem_end as paging::MMUPTE);
+        let off = phys - INFO.mem_start as paging::MMUPTE;
         if *BOOTSTRAP {
             off as usize
         }
@@ -127,6 +121,7 @@ static INFO: StaticCell<Info> = StaticCell::new(Info {
     mem_start: 0,
     mem_end: 0,
 });
+static PTS: StaticCell<Vec<u64>> = StaticCell::new(Vec::new());
 
 pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     INFO.get_mut().pe_id = pe_id;
@@ -134,22 +129,15 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     INFO.get_mut().mem_start = mem_start;
     INFO.get_mut().mem_end = mem_start + mem_size;
 
-    let root_pt = mem_start + cfg::PAGE_SIZE as u64;
-    let pts_count = mem_size as usize / cfg::PAGE_SIZE;
-    IDLE.set(Some(Box::new(VPE::new(
-        kif::pemux::IDLE_ID,
-        0,
-        root_pt,
-        mem_start,
-        pts_count,
-    ))));
-    OUR.set(Some(Box::new(VPE::new(
-        kif::pemux::VPE_ID,
-        0,
-        root_pt,
-        mem_start,
-        pts_count,
-    ))));
+    let pt_count = mem_size / cfg::PAGE_SIZE as u64;
+    PTS.get_mut().reserve(pt_count as usize);
+    for i in 0..pt_count {
+        PTS.get_mut().push(mem_start + i * cfg::PAGE_SIZE as u64);
+    }
+
+    let root_pt = PTS.get_mut().pop().unwrap();
+    IDLE.set(Some(Box::new(VPE::new(kif::pemux::IDLE_ID, 0, root_pt))));
+    OUR.set(Some(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt))));
 
     idle().state = VPEState::Ready;
     unsafe {
@@ -168,17 +156,8 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
 pub fn add(id: u64, eps_start: tcu::EpId) {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
-    // TODO temporary
-    let pt_begin = INFO.get().mem_start + (INFO.get().mem_end - INFO.get().mem_start) / 2;
-    let root_pt = pt_begin;
-    let pts_count = (INFO.get().mem_end - INFO.get().mem_start) as usize / cfg::PAGE_SIZE;
-    let mut vpe = Box::new(VPE::new(
-        id,
-        eps_start,
-        root_pt,
-        INFO.get().mem_start,
-        pts_count,
-    ));
+    let root_pt = PTS.get_mut().pop().unwrap();
+    let mut vpe = Box::new(VPE::new(id, eps_start, root_pt));
 
     if INFO.get().pe_desc.has_virtmem() {
         vpe.init();
@@ -359,25 +338,11 @@ pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
 }
 
 impl VPE {
-    pub fn new(
-        id: u64,
-        eps_start: tcu::EpId,
-        root_pt: goff,
-        pts_start: goff,
-        pts_count: usize,
-    ) -> Self {
-        let allocator = PTAllocator {
-            vpe: id,
-            pts_start: paging::noc_to_phys(pts_start) as paging::MMUPTE,
-            pts_count,
-            // + 1 to skip the root PT
-            pts_pos: (root_pt - pts_start) as usize / cfg::PAGE_SIZE + 1,
-        };
-
+    pub fn new(id: u64, eps_start: tcu::EpId, root_pt: goff) -> Self {
         VPE {
             prev: None,
             next: None,
-            aspace: paging::AddrSpace::new(id, root_pt, allocator, false),
+            aspace: paging::AddrSpace::new(id, root_pt, PTAllocator { vpe: id }, false),
             vpe_reg: id << 19,
             state: VPEState::Blocked,
             user_state: State::default(),
@@ -548,11 +513,11 @@ impl VPE {
         }
 
         // map PTs
-        let noc_begin = paging::phys_to_noc(self.aspace.allocator().pts_start as u64);
+        let noc_begin = paging::phys_to_noc(INFO.mem_start as u64);
         self.map(
             cfg::PE_MEM_BASE,
             noc_begin,
-            self.aspace.allocator().pts_count,
+            (INFO.mem_end - INFO.mem_start) as usize / cfg::PAGE_SIZE,
             kif::PageFlags::RW,
         )
         .unwrap();
@@ -590,7 +555,7 @@ impl VPE {
         let pages = (end - start) / cfg::PAGE_SIZE;
         self.map(
             start,
-            paging::phys_to_noc((self.aspace.allocator().pts_start as usize + start) as goff),
+            paging::phys_to_noc((INFO.mem_start as usize + start) as goff),
             pages,
             perm,
         )
