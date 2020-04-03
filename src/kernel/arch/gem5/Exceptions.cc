@@ -24,6 +24,8 @@
 
 namespace kernel {
 
+extern "C" void *isr_stack;
+
 #if defined(__arm__)
 
 static const char *exNames[] = {
@@ -195,7 +197,7 @@ static void *irq_handler(m3::ISR::State *state) {
 class ISR {
 public:
     explicit ISR() {
-        m3::ISR::init();
+        m3::ISR::init(reinterpret_cast<uintptr_t>(&isr_stack));
         for(size_t i = 0; i < m3::ISR::ISR_COUNT; ++i)
             m3::ISR::reg(i, irq_handler);
         m3::ISR::reg(m3::ISR::TCU_ISR, tcu_handler);

@@ -24,7 +24,7 @@ use vma;
 type IsrFunc = extern "C" fn(state: &mut State) -> *mut libc::c_void;
 
 extern "C" {
-    fn isr_init();
+    fn isr_init(stack: usize);
     fn isr_reg(idx: usize, func: IsrFunc);
     fn isr_enable();
 }
@@ -114,9 +114,9 @@ pub fn set_entry_sp(sp: usize) {
     unsafe { asm!("csrw sscratch, $0" :  : "r"(sp) : "memory") };
 }
 
-pub fn init() {
+pub fn init(stack: usize) {
     unsafe {
-        isr_init();
+        isr_init(stack);
         for i in 0..=31 {
             match Vector::from(i) {
                 Vector::ENV_UCALL => isr_reg(i, crate::pexcall),

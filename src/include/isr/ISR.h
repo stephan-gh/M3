@@ -41,7 +41,7 @@ public:
     /**
      * Initializes interrupt and exception handling
      */
-    static void init() asm("isr_init");
+    static void init(uintptr_t kstack) asm("isr_init");
 
     /**
      * Registers <func> for vector <idx>

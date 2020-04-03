@@ -24,7 +24,7 @@ use vma;
 type IsrFunc = extern "C" fn(state: &mut State) -> *mut libc::c_void;
 
 extern "C" {
-    fn isr_init();
+    fn isr_init(stack: usize);
     fn isr_reg(idx: usize, func: IsrFunc);
     fn isr_enable();
     fn isr_set_sp(sp: usize);
@@ -118,9 +118,9 @@ pub fn set_entry_sp(sp: usize) {
     unsafe { isr_set_sp(sp) };
 }
 
-pub fn init() {
+pub fn init(stack: usize) {
     unsafe {
-        isr_init();
+        isr_init(stack);
         for i in 0..=64 {
             match i {
                 14 => isr_reg(i, crate::mmu_pf),

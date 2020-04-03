@@ -41,7 +41,7 @@ void ISR::set_sp(uintptr_t) {
     // nothing to do
 }
 
-void ISR::init() {
+void ISR::init(uintptr_t) {
     for(size_t i = 0; i < ISR_COUNT; ++i)
         reg(i, null_handler);
 }

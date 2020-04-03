@@ -33,9 +33,12 @@ void *ISR::handler(State *state) {
     return isrs[vec](state);
 }
 
-void ISR::init() {
+void ISR::init(uintptr_t kstack) {
     for(size_t i = 0; i < ISR_COUNT; ++i)
         reg(i, null_handler);
+
+    // set stack pointer for exceptions
+    asm volatile ("csrw sscratch, %0" : : "r"(kstack));
 }
 
 }

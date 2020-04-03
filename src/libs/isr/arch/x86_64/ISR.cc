@@ -20,8 +20,6 @@
 
 #include <isr/ISR.h>
 
-EXTERN_C void *isr_stack;
-
 // Our ISRs
 EXTERN_C void isr_0();
 EXTERN_C void isr_1();
@@ -63,7 +61,7 @@ void ISR::enable_irqs() {
     asm volatile ("sti");
 }
 
-void ISR::init() {
+void ISR::init(uintptr_t kstack) {
     // setup GDT
     DescTable gdtTable;
     gdtTable.offset = reinterpret_cast<uintptr_t>(gdt);
@@ -74,7 +72,7 @@ void ISR::init() {
     set_desc(gdt + SEG_KDATA, 0, ~0UL >> PAGE_BITS, Desc::GRANU_PAGES, Desc::DATA_RW, Desc::DPL_KERNEL);
     set_desc(gdt + SEG_UCODE, 0, ~0UL >> PAGE_BITS, Desc::GRANU_PAGES, Desc::CODE_XR, Desc::DPL_USER);
     set_desc(gdt + SEG_UDATA, 0, ~0UL >> PAGE_BITS, Desc::GRANU_PAGES, Desc::DATA_RW, Desc::DPL_USER);
-    set_tss(gdt, &tss, reinterpret_cast<uintptr_t>(&isr_stack));
+    set_tss(gdt, &tss, kstack);
 
     // now load GDT and TSS
     load_gdt(&gdtTable);

@@ -28,10 +28,6 @@ BEGIN_FUNC(isr_enable)
     li     t0, -1
     csrw   medeleg, t0
 
-    // set stack pointer for exceptions
-    la      t0, isr_stack
-    csrw    sscratch, t0
-
     // enable interrupts
     csrr   t0, sie
     or     t0, t0, t1

@@ -200,9 +200,9 @@ pub extern "C" fn init() {
 
     // switch to idle
     let state_addr =
-        unsafe { &isr_stack_low as *const _ as usize } - util::size_of::<arch::State>();
-    vpe::idle().start(state_addr);
-    vpe::schedule(state_addr, vpe::ScheduleAction::Preempt);
+        unsafe { &isr_stack_low as *const _ as usize };
+    vpe::idle().start(state_addr - util::size_of::<arch::State>());
+    vpe::schedule(state_addr - util::size_of::<arch::State>(), vpe::ScheduleAction::Preempt);
 
-    arch::init();
+    arch::init(state_addr);
 }
