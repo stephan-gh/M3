@@ -106,7 +106,7 @@ impl State {
         self.r[1] = sp;
         unsafe { asm!("csrr $0, sstatus" : "=r"(self.sstatus)) };
         self.sstatus &= !(1 << 8); // user mode
-        self.sstatus |= 1 << 4; // interrupts enabled
+        self.sstatus |= 1 << 5; // interrupts enabled
     }
 }
 
