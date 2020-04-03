@@ -470,7 +470,7 @@ pub fn main() -> i32 {
         );
         // skip kernel and our own PE
         if i > VPE::cur().pe_id() {
-            pes::get().add(i as tcu::PEId, Rc::new(PE::new_bind(pe, pe_sel + i - 1)));
+            pes::get().add(i as tcu::PEId, Rc::new(PE::new_bind(pe, pe_sel + i as Selector - 1)));
         }
         if i > 0 && pe.pe_type() != kif::PEType::MEM {
             user_pes += 1;

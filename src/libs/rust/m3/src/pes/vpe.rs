@@ -33,7 +33,7 @@ use pes::{ClosureActivity, DeviceActivity, DefaultMapper, ExecActivity, KMem, Ma
 use rc::Rc;
 use session::{Pager, ResMng};
 use syscalls;
-use tcu::EpId;
+use tcu::{EpId, PEId};
 use vfs::{BufReader, FileRef, OpenFlags, VFS};
 use vfs::{FileTable, MountTable};
 
@@ -246,8 +246,8 @@ impl VPE {
     }
 
     /// Returns the id of the PE the VPE has been assigned to.
-    pub fn pe_id(&self) -> u32 {
-        arch::env::get().pe_id() as u32
+    pub fn pe_id(&self) -> PEId {
+        arch::env::get().pe_id() as PEId
     }
 
     /// Returns the `MemGate` that refers to the VPE's address space.
