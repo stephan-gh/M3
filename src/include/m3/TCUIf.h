@@ -70,7 +70,7 @@ public:
             if(sg && EXPECT_FALSE(!TCU::get().is_valid(sg->ep()->id())))
                 return Errors::EP_INVALID;
 
-            TCU::get().wait_for_msg(rg.ep()->id());
+            sleep();
         }
         UNREACHED;
     }

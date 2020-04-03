@@ -88,7 +88,7 @@ impl TCUIf {
                 }
             }
 
-            tcu::TCU::wait_for_msg(rg.ep().unwrap(), 0)?;
+            Self::sleep()?;
         }
     }
 
