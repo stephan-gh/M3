@@ -55,8 +55,6 @@ pub const LOG_FOREIGN_MSG: bool = false;
 extern "C" {
     fn heap_init(begin: usize, end: usize);
     fn gem5_shutdown(delay: u64);
-
-    static isr_stack_low: libc::c_void;
 }
 
 // the heap area needs to be 16-byte aligned
@@ -112,15 +110,6 @@ pub fn env() -> &'static mut envdata::EnvData {
     unsafe { intrinsics::transmute(cfg::ENV_START) }
 }
 
-#[no_mangle]
-pub fn sleep() {
-    loop {
-        // ack events since to VPE is currently not running
-        tcu::TCU::fetch_events();
-        tcu::TCU::sleep().ok();
-    }
-}
-
 static SCHED: StaticCell<Option<vpe::ScheduleAction>> = StaticCell::new(None);
 
 #[inline]
@@ -128,7 +117,7 @@ fn leave(state: &mut arch::State) -> *mut libc::c_void {
     upcalls::check();
 
     if let Some(action) = SCHED.set(None) {
-        vpe::schedule(state as *mut _ as usize, action) as *mut libc::c_void
+        vpe::schedule(action).unwrap_or_else(|| state as *mut _ as usize) as *mut libc::c_void
     }
     else {
         state as *mut _ as *mut libc::c_void
@@ -182,7 +171,7 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
 }
 
 #[no_mangle]
-pub extern "C" fn init() {
+pub extern "C" fn init() -> usize {
     unsafe {
         heap_init(
             &HEAP.0 as *const u64 as usize,
@@ -199,10 +188,10 @@ pub extern "C" fn init() {
     );
 
     // switch to idle
-    let state_addr =
-        unsafe { &isr_stack_low as *const _ as usize };
-    vpe::idle().start(state_addr - util::size_of::<arch::State>());
-    vpe::schedule(state_addr - util::size_of::<arch::State>(), vpe::ScheduleAction::Preempt);
+    vpe::idle().start();
+    vpe::schedule(vpe::ScheduleAction::Preempt);
 
-    arch::init(state_addr);
+    let stack_top = vpe::idle().user_state() as *const _ as usize + util::size_of::<arch::State>();
+    arch::init(stack_top);
+    stack_top
 }

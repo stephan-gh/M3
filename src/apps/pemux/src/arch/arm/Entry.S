@@ -17,8 +17,7 @@
 #include <base/Asm.h>
 
 .extern init
-.extern sleep
-.extern isr_stack_low
+.extern isr_stack
 .extern exc_common
 
 .text
@@ -42,17 +41,37 @@ BEGIN_FUNC(_start)
     orr     r0, r0, #0x10000000     // enable TEX remap
     mcr     p15, 0, r0, c1, c0, 0
 
-    // use idle stack during init and sleep to not interfere with ISRs
-    ldr     sp, =isr_stack_low
+    ldr     sp, =isr_stack
     mov     fp, #0
 
     // perform initialization
     bl      init
+    mov     sp, r0
 
-    // enable interrupts and supervisor mode
-    mov     r0, #0x13
-    msr     CPSR, r0
     // start idling
     ldr     r0, =sleep
     mov     pc, r0
 END_FUNC(_start)
+
+.section .user_text
+
+BEGIN_FUNC(sleep)
+    // enable interrupts and user mode
+    mov     r0, #0x10
+    msr     CPSR, r0
+
+1:  // write 0xFFFF to ARG_1
+    movw    r1, #0x0038
+    movt    r1, #0xF000
+    mov     r2, #0
+    movw    r3, #0x0000
+    movt    r3, #0xFFFF
+    strd    r2, [r1]
+    // write SLEEP to COMMAND
+    movw    r1, #0x0020
+    movt    r1, #0xF000
+    mov     r2, #0x8
+    mov     r3, #0
+    strd    r2, [r1]
+    b       1b
+END_FUNC(sleep)

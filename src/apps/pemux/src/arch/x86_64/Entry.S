@@ -17,21 +17,32 @@
 #include <base/Asm.h>
 
 .extern init
-.extern sleep
-.extern isr_stack_low
+.extern isr_stack
 
 BEGIN_FUNC(_start)
     xor     %rax, %rax
-    // use idle stack during init and sleep to not interfere with ISRs
-    mov     $isr_stack_low, %rsp
+    mov     $isr_stack, %rsp
     mov     $0, %rbp
     call    init
 
     // return to idle code
-    pushq   $(1 << 3) | 0   // ss
-    pushq   $isr_stack_low  // rsp
+    pushq   $(4 << 3) | 3   // ss
+    pushq   $isr_stack      // rsp
     pushq   $0x200          // rflags: interrupts enabled
-    pushq   $(2 << 3) | 0   // cs
+    pushq   $(3 << 3) | 3   // cs
     pushq   $sleep          // rip
     iretq
 END_FUNC(_start)
+
+.section .user_text
+
+BEGIN_FUNC(sleep)
+1:  // write 0xFFFF to ARG_1
+    mov     $0xF0000038, %rax
+    mov     $0xFFFF000000000000, %rcx
+    mov     %rcx, (%rax)
+    // write SLEEP to COMMAND
+    mov     $0xF0000020, %rax
+    movq    $0x8, (%rax)
+    jmp     1b
+END_FUNC(sleep)

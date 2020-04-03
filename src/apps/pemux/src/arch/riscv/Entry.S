@@ -17,16 +17,37 @@
 #include <base/Asm.h>
 
 .extern init
-.extern sleep
-.extern isr_stack_low
+.extern isr_stack
 
 BEGIN_FUNC(_start)
-    # use separate stack during init and sleep to not interfere with ISRs
-    la      sp, isr_stack_low
+    la      sp, isr_stack
     jal     init
 
-    jal     sleep
+    // return to user mode
+    li      a0, 1 << 8
+    csrc    sstatus, a0
+    // enable interrupts
+    li      a0, 1 << 5
+    csrs    sstatus, a0
 
-    # just to be sure
-1:  j       1b
+    // jump to sleep function
+    la      a0, sleep
+    csrw    sepc, a0
+
+    // go!
+    sret
 END_FUNC(_start)
+
+.section .user_text
+
+BEGIN_FUNC(sleep)
+1:  // write 0xFFFF to ARG_1
+    li      a0, 0xF0000038
+    li      a1, 0xFFFF000000000000
+    sd      a1, 0(a0)
+    // write SLEEP to COMMAND
+    li      a0, 0xF0000020
+    li      a1, 0x8
+    sd      a1, 0(a0)
+    j       1b
+END_FUNC(sleep)

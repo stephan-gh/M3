@@ -139,11 +139,6 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     IDLE.set(Some(Box::new(VPE::new(kif::pemux::IDLE_ID, 0, root_pt))));
     OUR.set(Some(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt))));
 
-    idle().state = VPEState::Ready;
-    unsafe {
-        RDY.get_mut().push_back(Box::from_raw(idle()));
-    }
-
     if pe_desc.has_virtmem() {
         our().init();
         our().switch_to();
@@ -196,9 +191,13 @@ pub fn cur() -> &'static mut VPE {
     try_cur().unwrap()
 }
 
-pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
+pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
+    let mut save_state = true;
     loop {
-        let mut next = RDY.get_mut().pop_front().unwrap();
+        let mut next = RDY
+            .get_mut()
+            .pop_front()
+            .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
 
         log!(crate::LOG_VPES, "Switching to VPE {}", next.id());
 
@@ -210,19 +209,20 @@ pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
         if action == ScheduleAction::TryBlock && (old_id >> 3) & 0xFFFF != 0 {
             let next_id = tcu::TCU::xchg_vpe(old_id);
             next.set_vpe_reg(next_id);
-            RDY.get_mut().push_back(next);
-            return state_addr;
+            if next.id() != kif::pemux::IDLE_ID {
+                RDY.get_mut().push_back(next);
+            }
+            else {
+                Box::into_raw(next);
+            }
+            return None;
         }
 
         if let Some(old) = old {
             // don't do that if we're switching away from a continuation (see below)
-            if state_addr != 0 {
+            if save_state {
                 // save TCU command registers
                 old.cmd.save();
-                // remember state to resume for later
-                if old.user_state_addr != 0 {
-                    old.user_state_addr = state_addr;
-                }
             }
             old.set_vpe_reg(old_id);
         }
@@ -243,21 +243,28 @@ pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
 
         // exchange CUR
         if let Some(mut old) = CUR.set(Some(next)) {
-            log!(crate::LOG_VPES, "{:?} VPE {}", action, old.id());
+            if old.id() != kif::pemux::IDLE_ID {
+                log!(crate::LOG_VPES, "{:?} VPE {}", action, old.id());
 
-            // block, preempt or kill VPE
-            match action {
-                ScheduleAction::TryBlock | ScheduleAction::Block => {
-                    old.state = VPEState::Blocked;
-                    BLK.get_mut().push_back(old);
-                },
-                ScheduleAction::Preempt => {
-                    old.state = VPEState::Ready;
-                    RDY.get_mut().push_back(old);
-                },
-                ScheduleAction::Kill => {
-                    VPES.get_mut()[old.id() as usize] = None;
-                },
+                // block, preempt or kill VPE
+                match action {
+                    ScheduleAction::TryBlock | ScheduleAction::Block => {
+                        old.state = VPEState::Blocked;
+                        BLK.get_mut().push_back(old);
+                    },
+                    ScheduleAction::Preempt => {
+                        old.state = VPEState::Ready;
+                        RDY.get_mut().push_back(old);
+                    },
+                    ScheduleAction::Kill => {
+                        VPES.get_mut()[old.id() as usize] = None;
+                    },
+                }
+            }
+            else {
+                old.state = VPEState::Blocked;
+                // don't drop the idle VPE
+                Box::into_raw(old);
             }
         }
 
@@ -268,18 +275,18 @@ pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
                 // only resume this VPE if it has been initialized
                 ContResult::Success if new_state != 0 => {
                     cur().cmd.restore();
-                    break new_state;
+                    break Some(new_state);
                 },
                 // failed, so remove VPE
                 ContResult::Failure => {
                     remove(cur().id(), 1, true, false);
-                    // don't set state address and don't save command again
-                    state_addr = 0;
+                    // don't save command again
+                    save_state = false;
                     action = ScheduleAction::Kill;
                 },
                 // still waiting or VPE not initialized
                 _ => {
-                    state_addr = 0;
+                    save_state = false;
                     action = ScheduleAction::Block;
                     if result == ContResult::Waiting {
                         // set the continuation again
@@ -289,7 +296,7 @@ pub fn schedule(mut state_addr: usize, mut action: ScheduleAction) -> usize {
             }
         }
         else {
-            break new_state;
+            break Some(new_state);
         }
     }
 }
@@ -306,7 +313,12 @@ pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
             VPEState::Blocked => BLK.get_mut().remove_if(|v| v.id() == id).unwrap(),
         };
 
-        log!(crate::LOG_VPES, "Destroyed VPE {} with status {}", old.id(), status);
+        log!(
+            crate::LOG_VPES,
+            "Destroyed VPE {} with status {}",
+            old.id(),
+            status
+        );
 
         if notify {
             // change to our VPE (no need to save old vpe_reg; VPE is dead)
@@ -429,18 +441,15 @@ impl VPE {
         self.pf_state.take().unwrap()
     }
 
-    pub fn start(&mut self, state_addr: usize) {
+    pub fn start(&mut self) {
         assert!(self.user_state_addr == 0);
         if self.id() != kif::pemux::IDLE_ID {
             // remember the current PE
             crate::env().pe_id = INFO.pe_id;
             self.user_state
                 .init(::env().entry as usize, ::env().sp as usize);
-            self.user_state_addr = &self.user_state as *const _ as usize;
         }
-        else {
-            self.user_state_addr = state_addr;
-        }
+        self.user_state_addr = &self.user_state as *const _ as usize;
     }
 
     pub fn switch_to(&self) {
@@ -451,6 +460,8 @@ impl VPE {
 
     fn init(&mut self) {
         extern "C" {
+            static _user_start: u8;
+            static _user_end: u8;
             static _text_start: u8;
             static _text_end: u8;
             static _data_start: u8;
@@ -495,6 +506,11 @@ impl VPE {
                 cfg::PEMUX_RBUF_SIZE,
                 kif::PageFlags::R,
             );
+
+            // map sleep function for user
+            unsafe {
+                self.map_segment(&_user_start, &_user_end, rx | kif::PageFlags::U);
+            }
         }
         else {
             // map our own receive buffer again

@@ -59,7 +59,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
             assert!(cur.id() != vpe.id());
             // temporary switch to the VPE to access the environment
             vpe.switch_to();
-            vpe.start(0);
+            vpe.start();
             vpe.unblock();
             // now switch back
             cur.switch_to();
