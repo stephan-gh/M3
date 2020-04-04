@@ -204,7 +204,7 @@ pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
         let old = try_cur();
 
         // if there are messages left and we try to block the VPE, don't schedule
-        if action == ScheduleAction::TryBlock && (old_id >> 3) & 0xFFFF != 0 {
+        if action == ScheduleAction::TryBlock && (old_id >> 16) != 0 {
             let next_id = tcu::TCU::xchg_vpe(old_id);
             next.set_vpe_reg(next_id);
             if next.id() != kif::pemux::IDLE_ID {
@@ -330,7 +330,7 @@ pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
 
         if notify {
             // change to our VPE (no need to save old vpe_reg; VPE is dead)
-            let pex_is_running = tcu::TCU::get_cur_vpe() >> 19 == kif::pemux::VPE_ID;
+            let pex_is_running = (tcu::TCU::get_cur_vpe() & 0xFFFF) == kif::pemux::VPE_ID;
             if !pex_is_running {
                 tcu::TCU::xchg_vpe(our().vpe_reg());
             }
@@ -342,7 +342,7 @@ pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
 
             let msg_addr = msg as *const _ as *const u8;
             let size = util::size_of::<kif::pemux::Exit>();
-            tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::NO_REPLIES).unwrap();
+            tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::KPEX_REP).unwrap();
 
             // switch back to old VPE
             if !pex_is_running {
@@ -363,7 +363,7 @@ impl VPE {
             prev: None,
             next: None,
             aspace: paging::AddrSpace::new(id, root_pt, PTAllocator { vpe: id }, false),
-            vpe_reg: id << 19,
+            vpe_reg: id,
             state: VPEState::Blocked,
             user_state: State::default(),
             user_state_addr: 0,
@@ -405,7 +405,7 @@ impl VPE {
     }
 
     pub fn msgs(&self) -> u16 {
-        ((self.vpe_reg >> 3) & 0xFFFF) as u16
+        (self.vpe_reg >> 16) as u16
     }
 
     pub fn has_msgs(&self) -> bool {
@@ -413,12 +413,12 @@ impl VPE {
     }
 
     pub fn add_msg(&mut self) {
-        self.vpe_reg += 1 << 3;
+        self.vpe_reg += 1 << 16;
     }
 
     pub fn rem_msgs(&mut self, count: u16) {
         assert!(self.msgs() >= count);
-        self.vpe_reg -= (count as u64) << 3;
+        self.vpe_reg -= (count as u64) << 16;
     }
 
     pub fn user_state(&self) -> &State {

@@ -16,7 +16,6 @@
 
 use base::errors::{Code, Error};
 use base::pexif;
-use base::tcu;
 
 use arch;
 use vpe;
@@ -27,9 +26,7 @@ fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::sleep(cycles={})", cycles);
 
     // TODO support waiting for a given time
-    if tcu::TCU::fetch_events() == 0 {
-        vpe::cur().block(vpe::ScheduleAction::TryBlock, None);
-    }
+    vpe::cur().block(vpe::ScheduleAction::TryBlock, None);
     Ok(())
 }
 

@@ -47,7 +47,7 @@ BEGIN_FUNC(sleep)
     sd      a1, 0(a0)
     // write SLEEP to COMMAND
     li      a0, 0xF0000020
-    li      a1, 0x8
+    li      a1, 0x7
     sd      a1, 0(a0)
     j       1b
 END_FUNC(sleep)

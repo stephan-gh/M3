@@ -115,10 +115,9 @@ private:
         READ                = 3,
         WRITE               = 4,
         FETCH_MSG           = 5,
-        FETCH_EVENTS        = 6,
-        ACK_MSG             = 7,
-        SLEEP               = 8,
-        PRINT               = 9,
+        ACK_MSG             = 6,
+        SLEEP               = 7,
+        PRINT               = 8,
     };
 
     enum class PrivCmdOpCode {
@@ -255,12 +254,6 @@ private:
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         CPU::memory_barrier();
         return reinterpret_cast<const Message*>(read_reg(CmdRegs::ARG1));
-    }
-
-    reg_t fetch_events() const {
-        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::FETCH_EVENTS));
-        CPU::memory_barrier();
-        return read_reg(CmdRegs::ARG1);
     }
 
     void ack_msg(epid_t ep, const Message *msg) {

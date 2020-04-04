@@ -242,10 +242,6 @@ public:
         return reinterpret_cast<const Message*>(get_cmd(CMD_OFFSET));
     }
 
-    word_t fetch_events() const {
-        return 0;
-    }
-
     void ack_msg(epid_t ep, const Message *msg) {
         set_cmd(CMD_EPID, ep);
         set_cmd(CMD_OFFSET, reinterpret_cast<size_t>(msg));

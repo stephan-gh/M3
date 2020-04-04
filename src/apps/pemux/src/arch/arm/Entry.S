@@ -70,7 +70,7 @@ BEGIN_FUNC(sleep)
     // write SLEEP to COMMAND
     movw    r1, #0x0020
     movt    r1, #0xF000
-    mov     r2, #0x8
+    mov     r2, #0x7
     mov     r3, #0
     strd    r2, [r1]
     b       1b

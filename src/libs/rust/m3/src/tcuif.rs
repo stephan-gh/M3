@@ -76,13 +76,7 @@ impl TCUIf {
                 return Ok(m);
             }
 
-            // fetch the events first
-            tcu::TCU::fetch_events();
             if let Some(sg) = sg {
-                // now check whether the endpoint is still valid. if the EP has been invalidated
-                // before the line above, we'll notice that with this check. if the EP is
-                // invalidated between the line above and the sleep command, the TCU will refuse
-                // to suspend the core.
                 if !tcu::TCU::is_valid(sg.ep().unwrap().id()) {
                     return Err(Error::new(Code::InvEP));
                 }
@@ -125,11 +119,8 @@ impl TCUIf {
         if env::get().shared() && cycles == 0 {
             pexcalls::call1(pexif::Operation::SLEEP, cycles as usize).map(|_| ())
         }
-        else if tcu::TCU::fetch_events() == 0 {
-            tcu::TCU::sleep_for(cycles)
-        }
         else {
-            Ok(())
+            tcu::TCU::sleep_for(cycles)
         }
     }
 

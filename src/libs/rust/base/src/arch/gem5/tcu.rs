@@ -155,14 +155,12 @@ int_enum! {
         const WRITE         = 0x4;
         /// Fetches a message
         const FETCH_MSG     = 0x5;
-        /// Fetches the events
-        const FETCH_EVENTS  = 0x6;
         /// Acknowledges a message
-        const ACK_MSG       = 0x7;
+        const ACK_MSG       = 0x6;
         /// Puts the CU to sleep
-        const SLEEP         = 0x8;
+        const SLEEP         = 0x7;
         /// Prints a message
-        const PRINT         = 0x9;
+        const PRINT         = 0x8;
     }
 }
 
@@ -377,16 +375,6 @@ impl TCU {
         else {
             None
         }
-    }
-
-    #[inline(always)]
-    pub fn fetch_events() -> Reg {
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
-            Self::build_cmd(0, CmdOpCode::FETCH_EVENTS, 0, 0),
-        );
-        unsafe { intrinsics::atomic_fence() };
-        Self::read_cmd_reg(CmdReg::ARG1)
     }
 
     /// Returns true if the given endpoint is valid, i.e., a SEND, RECEIVE, or MEMORY endpoint

@@ -265,10 +265,6 @@ impl TCU {
         }
     }
 
-    pub fn fetch_events() -> Reg {
-        0
-    }
-
     pub fn is_valid(ep: EpId) -> bool {
         Self::get_ep(ep, EpReg::VALID) == 1
     }

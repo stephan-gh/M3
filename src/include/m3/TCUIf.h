@@ -62,11 +62,6 @@ public:
             if(*reply)
                 return Errors::NONE;
 
-            // fetch the events first
-            TCU::get().fetch_events();
-            // now check whether the endpoint is still valid. if the EP has been invalidated before
-            // the line above, we'll notice that with this check. if the EP is invalidated between
-            // the line above and the sleep command, the TCU will refuse to suspend the core.
             if(sg && EXPECT_FALSE(!TCU::get().is_valid(sg->ep()->id())))
                 return Errors::EP_INVALID;
 
@@ -94,8 +89,7 @@ public:
         sleep_for(0);
     }
     static void sleep_with_tcu(uint64_t cycles) noexcept {
-        if(TCU::get().fetch_events() == 0)
-            TCU::get().sleep_for(cycles);
+        TCU::get().sleep_for(cycles);
     }
     static void sleep_for(uint64_t cycles) noexcept {
         // TODO PEMux does not support sleeps with timeout atm

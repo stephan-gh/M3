@@ -43,6 +43,6 @@ BEGIN_FUNC(sleep)
     mov     %rcx, (%rax)
     // write SLEEP to COMMAND
     mov     $0xF0000020, %rax
-    movq    $0x8, (%rax)
+    movq    $0x7, (%rax)
     jmp     1b
 END_FUNC(sleep)
