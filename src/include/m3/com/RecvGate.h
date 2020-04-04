@@ -101,14 +101,6 @@ public:
     }
 
     /**
-     * @return an invalid receive, which can be passed as reply gate to a send gate
-     *  that is not interested in actual replies, but only wants to get its credits back.
-     */
-    static RecvGate &invalid() noexcept {
-        return _invalid;
-    }
-
-    /**
      * Creates a new receive gate with given size.
      *
      * @param order the size of the buffer (2^<order> bytes)
@@ -273,7 +265,6 @@ private:
     static RecvGate _syscall;
     static RecvGate _upcall;
     static RecvGate _default;
-    static RecvGate _invalid;
 };
 
 }

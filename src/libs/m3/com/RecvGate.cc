@@ -69,10 +69,6 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
     KEEP_CAP
 );
 
-INIT_PRIO_RECVBUF RecvGate RecvGate::_invalid (
-    VPE::self(), ObjCap::INVALID, UNBOUND, nullptr, 0, 0, 0
-);
-
 void RecvGate::RecvGateWorkItem::work() {
     const TCU::Message *msg = TCUIf::fetch_msg(*_buf);
     if(msg) {
