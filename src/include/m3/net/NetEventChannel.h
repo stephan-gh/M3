@@ -35,6 +35,9 @@ public:
     static const size_t MSG_CREDITS             = 4;
     static const size_t MSG_BUF_SIZE            = MSG_SIZE * MSG_CREDITS;
 
+    static const size_t REPLY_SIZE              = 32;
+    static const size_t REPLY_BUF_SIZE          = REPLY_SIZE * MSG_CREDITS;
+
     static const size_t INBAND_DATA_SIZE        = 2048;
     static const size_t INBAND_DATA_CREDITS     = 4;
     static const size_t INBAND_DATA_BUF_SIZE    = INBAND_DATA_SIZE * INBAND_DATA_CREDITS;
@@ -167,9 +170,11 @@ public:
 
 private:
     void send_message(const void* msg, size_t size);
+    void fetch_replies();
 
     bool _ret_credits;
     RecvGate _rgate;
+    RecvGate _rplgate;
     SendGate _sgate;
     std::unique_ptr<EventWorkItem> _workitem;
     evhandler_t _evhandler;

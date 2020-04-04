@@ -39,7 +39,8 @@ void NetEventChannel::prepare_caps(capsel_t caps, size_t size) {
 NetEventChannel::NetEventChannel(capsel_t caps, bool ret_credits) noexcept
     : _ret_credits(ret_credits),
       _rgate(RecvGate::bind(caps + 0, nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
-      _sgate(SendGate::bind(caps + 1, &RecvGate::invalid())),
+      _rplgate(RecvGate::create(nextlog2<REPLY_BUF_SIZE>::val, nextlog2<REPLY_SIZE>::val)),
+      _sgate(SendGate::bind(caps + 1, &_rplgate)),
       _workitem(nullptr),_credit_event(0), _waiting_credit(0) {
 }
 
@@ -72,6 +73,8 @@ bool NetEventChannel::inband_data_transfer(int sd, size_t size, std::function<vo
     msg->sd = sd;
     msg->size = size;
     cb_data(msg->data);
+
+    fetch_replies();
 
     // TODO: Send via seperate send/receive gate?
     Errors::Code res = _sgate.try_send(msg_data, size + sizeof(InbandDataTransferMessage));
@@ -154,6 +157,8 @@ bool NetEventChannel::has_events(evhandler_t &evhandler, crdhandler_t &crdhandle
         res = true;
     }
 
+    fetch_replies();
+
     if(has_credits()) {
         if(crdhandler) {
             auto waiting_credit = _waiting_credit;
@@ -163,6 +168,14 @@ bool NetEventChannel::has_events(evhandler_t &evhandler, crdhandler_t &crdhandle
         res = true;
     }
     return res;
+}
+
+void NetEventChannel::fetch_replies() {
+    auto reply = _rplgate.fetch();
+    while(reply != nullptr) {
+        _rplgate.ack_msg(reply);
+        reply = _rplgate.fetch();
+    }
 }
 
 NetEventChannel::Event::Event() noexcept
