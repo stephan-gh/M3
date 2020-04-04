@@ -172,6 +172,10 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
 
 #[no_mangle]
 pub extern "C" fn init() -> usize {
+    // switch to a different VPE during the init phase to ensure that we don't miss messages for us
+    let old_id = tcu::TCU::xchg_vpe(0);
+    assert!((old_id >> 16) == 0);
+
     unsafe {
         heap_init(
             &HEAP.0 as *const u64 as usize,
