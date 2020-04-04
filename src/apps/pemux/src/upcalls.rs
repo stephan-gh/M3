@@ -157,9 +157,13 @@ fn handle_upcalls(our: &mut vpe::VPE) {
         let old_vpe = tcu::TCU::xchg_vpe(our.vpe_reg());
         vpe::cur().set_vpe_reg(old_vpe);
 
-        let msg = tcu::TCU::fetch_msg(tcu::PEXUP_REP);
-        if let Some(m) = msg {
+        if let Some(m) = tcu::TCU::fetch_msg(tcu::PEXUP_REP) {
             handle_upcall(m);
+        }
+
+        // just ACK replies from the kernel; we don't care about them
+        if let Some(m) = tcu::TCU::fetch_msg(tcu::KPEX_REP) {
+            tcu::TCU::ack_msg(tcu::KPEX_REP, &m);
         }
 
         // change back to old VPE

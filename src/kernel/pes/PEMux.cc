@@ -74,7 +74,9 @@ void PEMux::handle_call(const m3::TCU::Message *msg) {
     }
 
     // give credits back
-    TCU::reply(TCU::PEX_REP, nullptr, 0, msg);
+    auto reply = m3::KIF::DefaultReply();
+    reply.error = m3::Errors::NONE;
+    TCU::reply(TCU::PEX_REP, &reply, sizeof(reply), msg);
 }
 
 void PEMux::add_vpe(VPECapability *vpe) {
