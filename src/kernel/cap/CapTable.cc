@@ -112,7 +112,7 @@ void CapTable::revoke_rec(Capability *c, bool revnext) {
     // delete the object here to allow the child capabilities to use their parent pointer
     bool exists = c->table()->unset(c->sel());
     // and we want to give caps a chance to perform some actions after making the cap inaccessible
-    c->revoke();
+    c->revoke(revnext);
     if(exists)
         delete c;
 }

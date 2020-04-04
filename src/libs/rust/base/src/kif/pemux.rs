@@ -27,6 +27,7 @@ int_enum! {
         const VPE_CTRL       = 0x0;
         const MAP            = 0x1;
         const REM_MSGS       = 0x2;
+        const EP_INVAL       = 0x3;
     }
 }
 
@@ -65,6 +66,14 @@ pub struct RemMsgs {
     pub op: u64,
     pub vpe_sel: u64,
     pub unread_mask: u64,
+}
+
+/// The EP invalidation upcall
+#[repr(C, packed)]
+pub struct EpInval {
+    pub op: u64,
+    pub vpe_sel: u64,
+    pub ep: u64,
 }
 
 int_enum! {

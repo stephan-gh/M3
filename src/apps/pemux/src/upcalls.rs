@@ -130,6 +130,25 @@ fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
     Ok(())
 }
 
+fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
+    let req = msg.get_data::<kif::pemux::EpInval>();
+
+    let vpe_id = req.vpe_sel;
+    let ep = req.ep as tcu::EpId;
+
+    log!(
+        crate::LOG_UPCALLS,
+        "upcall::ep_inval(vpe={}, ep={})",
+        vpe_id,
+        ep
+    );
+
+    // just unblock the VPE in case it wants to do something on invalidated EPs
+    vpe::get_mut(vpe_id).unwrap().unblock();
+
+    Ok(())
+}
+
 fn handle_upcall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
@@ -137,6 +156,7 @@ fn handle_upcall(msg: &'static tcu::Message) {
         kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg),
         kif::pemux::Upcalls::MAP => map(msg),
         kif::pemux::Upcalls::REM_MSGS => rem_msgs(msg),
+        kif::pemux::Upcalls::EP_INVAL => ep_inval(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 

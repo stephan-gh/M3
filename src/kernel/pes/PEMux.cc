@@ -187,6 +187,14 @@ m3::Errors::Code PEMux::invalidate_ep(vpeid_t vpe, epid_t ep, bool force) {
         return m3::Errors::NONE;
 }
 
+void PEMux::notify_invalidate(vpeid_t vpe, epid_t ep) {
+    m3::KIF::PEXUpcalls::EPInval req;
+    req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::EP_INVAL);
+    req.vpe_sel = vpe;
+    req.ep = ep;
+    _upcqueue.send(0, &req, sizeof(req), false);
+}
+
 m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps,
                                       RGateObject &obj, bool std) {
     assert(obj.activated());

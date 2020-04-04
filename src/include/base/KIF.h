@@ -405,6 +405,7 @@ struct KIF {
             VPE_CTRL,
             MAP,
             REM_MSGS,
+            EP_INVAL,
         };
 
         enum VPEOp {
@@ -430,6 +431,11 @@ struct KIF {
         struct RemMsgs : public DefaultRequest {
             xfer_t vpe_sel;
             xfer_t unread_mask;
+        } PACKED;
+
+        struct EPInval : public DefaultRequest {
+            xfer_t vpe_sel;
+            xfer_t ep;
         } PACKED;
     };
 

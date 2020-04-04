@@ -75,12 +75,17 @@ void PEObject::free(uint eps) {
     KLOG(PES, "PE[" << id << "]: freed " << eps << " EPs (" << this->eps << " total)");
 }
 
-void GateObject::revoke() {
+void GateObject::revoke(bool foreign) {
     for(auto user = epuser.begin(); user != epuser.end(); ) {
         auto old = user++;
         PEMux *pemux = PEManager::get().pemux(old->ep->pe->id);
         // always force-invalidate send gates here
         pemux->invalidate_ep(old->ep->vpe->id(), old->ep->ep, type == Capability::SGATE);
+        // notify PEMux about the invalidation if it's not a self-invalidation (technically,
+        // <foreign> indicates whether we're in the first level of revoke, but since it is just a
+        // notification, we can ignore the case that someone delegated a cap to itself).
+        if(type == Capability::SGATE && foreign)
+            pemux->notify_invalidate(old->ep->vpe->id(), old->ep->ep);
         // invalidate reply caps at receiver
         if(type == Capability::SGATE && static_cast<SGateObject*>(this)->rgate_valid()) {
             auto sgate = static_cast<SGateObject*>(this);
@@ -95,11 +100,11 @@ void GateObject::revoke() {
 }
 
 // done in revoke instead of ~RGateObject, because GateObject::revoke() needs to be interruptable.
-void RGateCapability::revoke() {
+void RGateCapability::revoke(bool foreign) {
     if(is_root()) {
         // mark it as invalid to force-invalidate its send gates
         obj->valid = false;
-        obj->revoke();
+        obj->revoke(foreign);
         m3::ThreadManager::get().notify(reinterpret_cast<event_t>(this));
     }
 }
@@ -166,7 +171,7 @@ SemObject::~SemObject() {
 // done in revoke instead of ~KMemObject, because we need access to the parent cap. this is okay,
 // because we only do that for the root capability, which makes it equivalent to performing the
 // action in ~KMemObject.
-void KMemCapability::revoke() {
+void KMemCapability::revoke(bool) {
     // grant the kernel memory back to our parent, if there is any
     if(is_root() && parent()) {
         auto *vpe = table()->vpe();
@@ -177,7 +182,7 @@ void KMemCapability::revoke() {
 }
 
 // same as above
-void PECapability::revoke() {
+void PECapability::revoke(bool) {
     // grant the EPs back to our parent, if there is any
     if(is_root() && parent())
         static_cast<PECapability*>(parent())->obj->free(obj->eps);
@@ -199,7 +204,7 @@ m3::Errors::Code MapCapability::remap(gaddr_t _phys, uint _attr) {
 
 // done in revoke instead of ~MapObject, because we need access to the VPE. this is okay, because
 // MapCapability cannot be cloned anyway.
-void MapCapability::revoke() {
+void MapCapability::revoke(bool) {
     VPE *vpe = table()->vpe();
     assert(vpe != nullptr);
     if(!vpe->is_stopped()) {
@@ -214,7 +219,7 @@ void MapCapability::revoke() {
 
 // done in revoke instead of in ~SessObject, because we want to perform the action as soon as the
 // client's session capability is revoked.
-void SessCapability::revoke() {
+void SessCapability::revoke(bool) {
     // drop the queued messages for this session, because the server is not interested anymore
     if(parent()->type() == SERV)
         obj->drop_msgs();
@@ -232,7 +237,7 @@ void SessCapability::revoke() {
 // done in revoke instead of ~Service, because we hold another reference in the exchange_over_sess
 // syscall. this is okay, because we only do that for the root capability, which makes it equivalent
 // to performing the action in ~Service.
-void ServCapability::revoke() {
+void ServCapability::revoke(bool) {
     if(is_root()) {
         // first, reset the receive buffer: make all slots not-occupied
         if(obj->rgate()->activated()) {

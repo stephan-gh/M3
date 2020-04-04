@@ -143,7 +143,7 @@ private:
     virtual bool can_revoke() const {
         return true;
     }
-    virtual void revoke() {
+    virtual void revoke(bool) {
     }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) const = 0;
 
@@ -180,7 +180,7 @@ public:
         delete epuser.remove_if([ep](EPUser *u) { return u->ep == ep; });
     }
 
-    void revoke();
+    void revoke(bool foreign);
 
     void print_eps(m3::OStream &os) const;
 
@@ -366,7 +366,7 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 protected:
-    virtual void revoke() override;
+    virtual void revoke(bool foreign) override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
@@ -392,9 +392,9 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 protected:
-    virtual void revoke() override {
+    virtual void revoke(bool foreign) override {
         if(is_root())
-            obj->revoke();
+            obj->revoke(foreign);
     }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
@@ -421,9 +421,9 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual void revoke() override {
+    virtual void revoke(bool foreign) override {
         if(is_root())
-            obj->revoke();
+            obj->revoke(foreign);
     }
     virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
@@ -457,7 +457,7 @@ private:
     virtual bool can_revoke() const override {
         return (obj->attr & KERNEL) == 0;
     }
-    virtual void revoke() override;
+    virtual void revoke(bool foreign) override;
     virtual Capability *clone(CapTable *, capsel_t) const override {
         // not clonable
         return nullptr;
@@ -481,7 +481,7 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual void revoke() override;
+    virtual void revoke(bool foreign) override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
@@ -504,7 +504,7 @@ public:
     void printInfo(m3::OStream &os) const override;
 
 private:
-    virtual void revoke() override;
+    virtual void revoke(bool foreign) override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
@@ -532,7 +532,7 @@ private:
         // revoking with VPEs is considered a violation of the API.
         return obj->vpes == 0;
     }
-    virtual void revoke() override;
+    virtual void revoke(bool foreign) override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
@@ -603,7 +603,7 @@ private:
         // if there are still VPEs using this quota, in which case it shouldn't be revoked
         return obj->left == obj->quota;
     }
-    virtual void revoke() override;
+    virtual void revoke(bool foreign) override;
     virtual Capability *clone(CapTable *tbl, capsel_t sel) const override {
         return do_clone(this, tbl, sel);
     }
