@@ -129,13 +129,19 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     INFO.get_mut().mem_start = mem_start;
     INFO.get_mut().mem_end = mem_start + mem_size;
 
-    let pt_count = mem_size / cfg::PAGE_SIZE as u64;
-    PTS.get_mut().reserve(pt_count as usize);
-    for i in 0..pt_count {
-        PTS.get_mut().push(mem_start + i * cfg::PAGE_SIZE as u64);
-    }
+    let root_pt = if pe_desc.has_virtmem() {
+        let pt_count = mem_size / cfg::PAGE_SIZE as u64;
+        PTS.get_mut().reserve(pt_count as usize);
+        for i in 0..pt_count {
+            PTS.get_mut().push(mem_start + i * cfg::PAGE_SIZE as u64);
+        }
 
-    let root_pt = PTS.get_mut().pop().unwrap();
+        PTS.get_mut().pop().unwrap()
+    }
+    else {
+        0
+    };
+
     IDLE.set(Some(Box::new(VPE::new(kif::pemux::IDLE_ID, 0, root_pt))));
     OUR.set(Some(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt))));
 
@@ -151,7 +157,13 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
 pub fn add(id: u64, eps_start: tcu::EpId) {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
-    let root_pt = PTS.get_mut().pop().unwrap();
+    let root_pt = if INFO.pe_desc.has_virtmem() {
+        PTS.get_mut().pop().unwrap()
+    }
+    else {
+        0
+    };
+
     let mut vpe = Box::new(VPE::new(id, eps_start, root_pt));
 
     if INFO.get().pe_desc.has_virtmem() {
