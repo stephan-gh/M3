@@ -204,121 +204,96 @@ pub fn cur() -> &'static mut VPE {
 }
 
 pub fn schedule(mut action: ScheduleAction) -> usize {
-    let mut save_state = true;
     loop {
-        let mut next = RDY
-            .get_mut()
-            .pop_front()
-            .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
+        let new_state = do_schedule(action);
 
-        // make current
-        let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
-        let old = try_cur();
-
-        // if there are messages left and we try to block the VPE, don't schedule
-        if action == ScheduleAction::TryBlock && (old_id >> 16) != 0 {
-            let next_id = tcu::TCU::xchg_vpe(old_id);
-            next.set_vpe_reg(next_id);
-            if next.id() != kif::pemux::IDLE_ID {
-                RDY.get_mut().push_back(next);
-            }
-            else {
-                Box::into_raw(next);
-            }
-            return old.unwrap().user_state_addr;
+        if let Some(new_act) = cur().exec_cont() {
+            action = new_act;
+            continue;
         }
 
-        if let Some(old) = old {
-            // don't do that if we're switching away from a continuation (see below)
-            if save_state {
-                // save TCU command registers
-                old.cmd.save();
-            }
-            old.set_vpe_reg(old_id);
-        }
+        break new_state;
+    }
+}
 
-        // change address space
-        next.switch_to();
+fn do_schedule(action: ScheduleAction) -> usize {
+    let mut next = RDY
+        .get_mut()
+        .pop_front()
+        .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
 
-        // set SP for the next entry
-        let new_state = next.user_state_addr;
-        set_entry_sp(new_state + util::size_of::<State>());
-        let cont = next.cont.take();
-        let next_id = next.id();
-        next.state = VPEState::Running;
+    // make current
+    let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
+    let old = try_cur();
 
-        if cont.is_none() {
-            // restore TCU command registers
-            next.cmd.restore();
-        }
-
-        // exchange CUR
-        if let Some(mut old) = CUR.set(Some(next)) {
-            log!(
-                crate::LOG_VPES,
-                "Switching from {} to {} ({:?} old VPE)",
-                old.id(),
-                next_id,
-                action
-            );
-
-            if old.id() != kif::pemux::IDLE_ID {
-                // block, preempt or kill VPE
-                match action {
-                    ScheduleAction::TryBlock | ScheduleAction::Block => {
-                        old.state = VPEState::Blocked;
-                        BLK.get_mut().push_back(old);
-                    },
-                    ScheduleAction::Preempt => {
-                        old.state = VPEState::Ready;
-                        RDY.get_mut().push_back(old);
-                    },
-                    ScheduleAction::Kill => {
-                        VPES.get_mut()[old.id() as usize] = None;
-                    },
-                }
-            }
-            else {
-                old.state = VPEState::Blocked;
-                // don't drop the idle VPE
-                Box::into_raw(old);
-            }
+    // if there are messages left and we try to block the VPE, don't schedule
+    if action == ScheduleAction::TryBlock && (old_id >> 16) != 0 {
+        let next_id = tcu::TCU::xchg_vpe(old_id);
+        next.set_vpe_reg(next_id);
+        if next.id() != kif::pemux::IDLE_ID {
+            RDY.get_mut().push_back(next);
         }
         else {
-            log!(crate::LOG_VPES, "Switching to {}", next_id);
+            Box::into_raw(next);
         }
+        return old.unwrap().user_state_addr;
+    }
 
-        // if there is a function to call, do that
-        if let Some(f) = cont {
-            let result = f();
-            match result {
-                // only resume this VPE if it has been initialized
-                ContResult::Success if new_state != 0 => {
-                    cur().cmd.restore();
-                    break new_state;
+    if let Some(old) = old {
+        // save TCU command registers
+        old.cmd.save();
+        old.set_vpe_reg(old_id);
+    }
+
+    // change address space
+    next.switch_to();
+
+    // set SP for the next entry
+    let new_state = next.user_state_addr;
+    set_entry_sp(new_state + util::size_of::<State>());
+    let next_id = next.id();
+    next.state = VPEState::Running;
+
+    // restore TCU command registers
+    next.cmd.restore();
+
+    // exchange CUR
+    if let Some(mut old) = CUR.set(Some(next)) {
+        log!(
+            crate::LOG_VPES,
+            "Switching from {} to {} ({:?} old VPE)",
+            old.id(),
+            next_id,
+            action
+        );
+
+        if old.id() != kif::pemux::IDLE_ID {
+            // block, preempt or kill VPE
+            match action {
+                ScheduleAction::TryBlock | ScheduleAction::Block => {
+                    old.state = VPEState::Blocked;
+                    BLK.get_mut().push_back(old);
                 },
-                // failed, so remove VPE
-                ContResult::Failure => {
-                    remove(cur().id(), 1, true, false);
-                    // don't save command again
-                    save_state = false;
-                    action = ScheduleAction::Kill;
+                ScheduleAction::Preempt => {
+                    old.state = VPEState::Ready;
+                    RDY.get_mut().push_back(old);
                 },
-                // still waiting or VPE not initialized
-                _ => {
-                    save_state = false;
-                    action = ScheduleAction::Block;
-                    if result == ContResult::Waiting {
-                        // set the continuation again
-                        cur().cont = Some(f);
-                    }
+                ScheduleAction::Kill => {
+                    VPES.get_mut()[old.id() as usize] = None;
                 },
             }
         }
         else {
-            break new_state;
+            old.state = VPEState::Blocked;
+            // don't drop the idle VPE
+            Box::into_raw(old);
         }
     }
+    else {
+        log!(crate::LOG_VPES, "Switching to {}", next_id);
+    }
+
+    return new_state;
 }
 
 pub fn remove_cur(status: u32) {
@@ -477,6 +452,34 @@ impl VPE {
     pub fn switch_to(&self) {
         if INFO.get().pe_desc.has_virtmem() {
             self.aspace.switch_to();
+        }
+    }
+
+    fn exec_cont(&mut self) -> Option<ScheduleAction> {
+        if let Some(cont) = self.cont.take() {
+            let result = cont();
+            match result {
+                // only resume this VPE if it has been initialized
+                ContResult::Success if self.user_state_addr != 0 => {
+                    None
+                },
+                // failed, so remove VPE
+                ContResult::Failure => {
+                    remove(self.id(), 1, true, false);
+                    Some(ScheduleAction::Kill)
+                },
+                // still waiting or VPE not initialized
+                _ => {
+                    if result == ContResult::Waiting {
+                        // set the continuation again
+                        self.cont = Some(cont);
+                    }
+                    Some(ScheduleAction::Block)
+                },
+            }
+        }
+        else {
+            None
         }
     }
 

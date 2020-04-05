@@ -82,6 +82,9 @@ fn send_pf(
 }
 
 fn recv_pf_resp() -> vpe::ContResult {
+    // save command registers to be able to send a message
+    let _cmd_saved = helper::TCUGuard::new();
+
     let vpe = vpe::cur();
     let eps_start = vpe.eps_start();
 
