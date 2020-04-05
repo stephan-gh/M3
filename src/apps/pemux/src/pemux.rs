@@ -117,7 +117,7 @@ fn leave(state: &mut arch::State) -> *mut libc::c_void {
     upcalls::check();
 
     if let Some(action) = SCHED.set(None) {
-        vpe::schedule(action).unwrap_or_else(|| state as *mut _ as usize) as *mut libc::c_void
+        vpe::schedule(action) as *mut libc::c_void
     }
     else {
         state as *mut _ as *mut libc::c_void

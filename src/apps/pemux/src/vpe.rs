@@ -203,7 +203,7 @@ pub fn cur() -> &'static mut VPE {
     try_cur().unwrap()
 }
 
-pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
+pub fn schedule(mut action: ScheduleAction) -> usize {
     let mut save_state = true;
     loop {
         let mut next = RDY
@@ -225,7 +225,7 @@ pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
             else {
                 Box::into_raw(next);
             }
-            return None;
+            return old.unwrap().user_state_addr;
         }
 
         if let Some(old) = old {
@@ -295,7 +295,7 @@ pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
                 // only resume this VPE if it has been initialized
                 ContResult::Success if new_state != 0 => {
                     cur().cmd.restore();
-                    break Some(new_state);
+                    break new_state;
                 },
                 // failed, so remove VPE
                 ContResult::Failure => {
@@ -316,7 +316,7 @@ pub fn schedule(mut action: ScheduleAction) -> Option<usize> {
             }
         }
         else {
-            break Some(new_state);
+            break new_state;
         }
     }
 }
