@@ -74,7 +74,6 @@ enum VPEState {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ScheduleAction {
-    TryBlock,
     Block,
     Preempt,
     Kill,
@@ -94,6 +93,7 @@ pub struct VPE {
     aspace: paging::AddrSpace<PTAllocator>,
     user_state: State,
     user_state_addr: usize,
+    wait_ep: Option<tcu::EpId>,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
     cmd: helper::TCUCmdState,
@@ -209,10 +209,14 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
     let res = loop {
         let new_state = do_schedule(action);
 
-        if let Some(new_act) = cur().exec_cont() {
+        let vpe = cur();
+        if let Some(new_act) = vpe.exec_cont() {
             action = new_act;
             continue;
         }
+
+        // reset wait_ep here, now that we really run that VPE
+        vpe.wait_ep = None;
 
         break new_state;
     };
@@ -232,22 +236,21 @@ fn do_schedule(action: ScheduleAction) -> usize {
 
     // make current
     let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
-    let old = try_cur();
 
-    // if there are messages left and we try to block the VPE, don't schedule
-    if action == ScheduleAction::TryBlock && (old_id >> 16) != 0 {
-        let next_id = tcu::TCU::xchg_vpe(old_id);
-        next.set_vpe_reg(next_id);
-        if next.id() != kif::pemux::IDLE_ID {
-            RDY.get_mut().push_back(next);
+    if let Some(old) = try_cur() {
+        // if there are messages left and we care about them, don't schedule
+        if action == ScheduleAction::Block && !old.should_block((old_id >> 16) as u16) {
+            let next_id = tcu::TCU::xchg_vpe(old_id);
+            next.set_vpe_reg(next_id);
+            if next.id() != kif::pemux::IDLE_ID {
+                RDY.get_mut().push_back(next);
+            }
+            else {
+                Box::into_raw(next);
+            }
+            return old.user_state_addr;
         }
-        else {
-            Box::into_raw(next);
-        }
-        return old.unwrap().user_state_addr;
-    }
 
-    if let Some(old) = old {
         // save TCU command registers
         old.cmd.save();
         old.set_vpe_reg(old_id);
@@ -278,7 +281,7 @@ fn do_schedule(action: ScheduleAction) -> usize {
         if old.id() != kif::pemux::IDLE_ID {
             // block, preempt or kill VPE
             match action {
-                ScheduleAction::TryBlock | ScheduleAction::Block => {
+                ScheduleAction::Block => {
                     old.state = VPEState::Blocked;
                     BLK.get_mut().push_back(old);
                 },
@@ -363,6 +366,7 @@ impl VPE {
             state: VPEState::Blocked,
             user_state: State::default(),
             user_state_addr: 0,
+            wait_ep: None,
             eps_start,
             cmd: helper::TCUCmdState::new(),
             pf_state: None,
@@ -421,21 +425,60 @@ impl VPE {
         &self.user_state
     }
 
-    pub fn block(&mut self, action: ScheduleAction, cont: Option<fn() -> ContResult>) {
+    fn should_block(&self, msgs: u16) -> bool {
+        if msgs == 0 {
+            return true;
+        }
+
+        if let Some(wep) = self.wait_ep {
+            !tcu::TCU::has_msgs(wep)
+        }
+        else {
+            false
+        }
+    }
+
+    fn should_unblock(&self, ep: Option<tcu::EpId>) -> bool {
+        match (self.wait_ep, ep) {
+            (Some(wait_ep), Some(msg_ep)) => wait_ep == msg_ep,
+            // always unblock if the VPE either doesn't wait for a message on a specific EP or if
+            // it's a "invalidated EP" unblock.
+            _ => true,
+        }
+    }
+
+    pub fn block(
+        &mut self,
+        action: ScheduleAction,
+        cont: Option<fn() -> ContResult>,
+        ep: Option<tcu::EpId>,
+    ) {
+        log!(crate::LOG_VPES, "Block VPE {} for ep={:?}", self.id(), ep);
+
         self.cont = cont;
+        self.wait_ep = ep;
         if self.state == VPEState::Running {
             crate::reg_scheduling(action);
         }
     }
 
-    pub fn unblock(&mut self) {
-        if self.state == VPEState::Blocked {
-            let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
-            vpe.state = VPEState::Ready;
-            RDY.get_mut().push_back(vpe);
-        }
-        if self.state != VPEState::Running {
-            crate::reg_scheduling(ScheduleAction::Preempt);
+    pub fn unblock(&mut self, ep: Option<tcu::EpId>) {
+        log!(
+            crate::LOG_VPES,
+            "Trying to unblock VPE {} for ep={:?}",
+            self.id(),
+            ep
+        );
+
+        if self.should_unblock(ep) {
+            if self.state == VPEState::Blocked {
+                let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
+                vpe.state = VPEState::Ready;
+                RDY.get_mut().push_back(vpe);
+            }
+            if self.state != VPEState::Running {
+                crate::reg_scheduling(ScheduleAction::Preempt);
+            }
         }
     }
 
@@ -482,7 +525,7 @@ impl VPE {
                     self.cont = Some(cont);
                     // we might have got the PF reply after checking for it, so use TryBlock to not
                     // schedule in case we've received a message.
-                    Some(ScheduleAction::TryBlock)
+                    Some(ScheduleAction::Block)
                 },
             }
         })

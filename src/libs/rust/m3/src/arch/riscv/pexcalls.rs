@@ -18,12 +18,16 @@ use base::pexif::Operation;
 use errors::Error;
 
 pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
+    call2(op, arg1, 0)
+}
+
+pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
         asm!(
             "ecall"
             : "+{x10}"(res)
-            : "{x11}"(arg1)
+            : "{x11}"(arg1), "{x12}"(arg2)
             : "memory"
         );
     }

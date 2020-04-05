@@ -16,17 +16,20 @@
 
 use base::errors::{Code, Error};
 use base::pexif;
+use base::tcu;
 
 use arch;
 use vpe;
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
     let cycles = state.r[arch::PEXC_ARG1];
+    let ep = state.r[arch::PEXC_ARG2] as tcu::EpId;
 
-    log!(crate::LOG_CALLS, "pexcall::sleep(cycles={})", cycles);
+    log!(crate::LOG_CALLS, "pexcall::sleep(cycles={}, ep={})", cycles, ep);
 
     // TODO support waiting for a given time
-    vpe::cur().block(vpe::ScheduleAction::TryBlock, None);
+    let wait_ep = if ep == tcu::INVALID_EP { None } else { Some(ep) };
+    vpe::cur().block(vpe::ScheduleAction::Block, None, wait_ep);
     Ok(())
 }
 

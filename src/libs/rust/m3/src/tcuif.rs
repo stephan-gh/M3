@@ -82,7 +82,7 @@ impl TCUIf {
                 }
             }
 
-            Self::sleep()?;
+            Self::wait_for_msg(rg.ep().unwrap())?;
         }
     }
 
@@ -117,10 +117,19 @@ impl TCUIf {
     pub fn sleep_for(cycles: u64) -> Result<(), Error> {
         // TODO PEMux does not support sleeps with timeout atm
         if env::pe_shared() && cycles == 0 {
-            pexcalls::call1(pexif::Operation::SLEEP, cycles as usize).map(|_| ())
+            pexcalls::call2(pexif::Operation::SLEEP, cycles as usize, tcu::INVALID_EP).map(|_| ())
         }
         else {
             tcu::TCU::sleep_for(cycles)
+        }
+    }
+
+    pub fn wait_for_msg(ep: tcu::EpId) -> Result<(), Error> {
+        if env::pe_shared() {
+            pexcalls::call2(pexif::Operation::SLEEP, 0, ep).map(|_| ())
+        }
+        else {
+            tcu::TCU::wait_for_msg(ep, 0)
         }
     }
 

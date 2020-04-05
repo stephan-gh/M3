@@ -71,7 +71,11 @@ fn send_pf(
     .and_then(|_| {
         // remember the page fault information to resume it later
         vpe.start_pf(PfState { buf, virt, perm });
-        vpe.block(vpe::ScheduleAction::Block, Some(recv_pf_resp));
+        vpe.block(
+            vpe::ScheduleAction::Block,
+            Some(recv_pf_resp),
+            Some(eps_start + tcu::PG_REP_OFF),
+        );
         Ok(())
     });
 

@@ -62,7 +62,8 @@ public:
     static const uintptr_t MMIO_PRIV_ADDR   = MMIO_ADDR + MMIO_SIZE;
     static const size_t MMIO_PRIV_SIZE      = PAGE_SIZE;
 
-    static const reg_t NO_REPLIES           = 0xFFFF;
+    static const reg_t INVALID_EP           = 0xFFFF;
+    static const reg_t NO_REPLIES           = INVALID_EP;
 
 private:
     static const size_t TCU_REGS            = 4;
@@ -257,7 +258,7 @@ private:
         sleep_for(0);
     }
     void sleep_for(uint64_t cycles) {
-        wait_for_msg(0xFFFF, cycles);
+        wait_for_msg(INVALID_EP, cycles);
     }
     void wait_for_msg(epid_t ep, uint64_t timeout = 0) {
         write_reg(CmdRegs::ARG1, (static_cast<reg_t>(ep) << 48) | timeout);

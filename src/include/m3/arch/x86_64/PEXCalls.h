@@ -25,11 +25,15 @@ namespace m3 {
 class PEXCalls {
 public:
     static word_t call1(Operation op, word_t arg1) {
+        return call2(op, arg1, 0);
+    }
+
+    static word_t call2(Operation op, word_t arg1, word_t arg2) {
         word_t res = op;
         asm volatile(
             "int $63"
             : "+a"(res)
-            : "c"(arg1)
+            : "c"(arg1), "d"(arg2)
             : "memory"
         );
         return res;

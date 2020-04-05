@@ -18,12 +18,16 @@ use base::pexif::Operation;
 use errors::Error;
 
 pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
+    call2(op, arg1, 0)
+}
+
+pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
         asm!(
             "svc $$0"
             : "+{r0}"(res)
-            : "{r1}"(arg1)
+            : "{r1}"(arg1), "{r2}"(arg2)
             : "memory"
         );
     }

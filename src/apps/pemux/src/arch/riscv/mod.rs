@@ -73,6 +73,7 @@ pub struct State {
 
 pub const PEXC_ARG0: usize = 9; // a0 = x10
 pub const PEXC_ARG1: usize = 10; // a1 = x11
+pub const PEXC_ARG2: usize = 11; // a2 = x12
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {

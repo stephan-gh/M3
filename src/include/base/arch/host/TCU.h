@@ -78,7 +78,8 @@ public:
 
     static constexpr size_t MAX_MSGS            = sizeof(word_t) * 8;
 
-    static const size_t NO_REPLIES              = 0xFF;
+    static const reg_t INVALID_EP               = 0xFF;
+    static const size_t NO_REPLIES              = INVALID_EP;
 
     // command registers
     static constexpr size_t CMD_ADDR            = 0;

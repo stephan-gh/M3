@@ -65,8 +65,10 @@ pub const FIRST_USER_EP: EpId = 4;
 /// The number of standard EPs
 pub const STD_EPS_COUNT: usize = 7;
 
+/// An invalid endpoint ID
+pub const INVALID_EP: EpId = 0xFFFF;
 /// The reply EP for messages that want to disable replies
-pub const NO_REPLIES: EpId = 0xFFFF;
+pub const NO_REPLIES: EpId = INVALID_EP;
 
 /// The base address of the TCU's MMIO area
 pub const MMIO_ADDR: usize = 0xF000_0000;
@@ -361,6 +363,13 @@ impl TCU {
         }
     }
 
+    /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
+    #[inline(always)]
+    pub fn has_msgs(ep: EpId) -> bool {
+        let r2 = Self::read_ep_reg(ep, 2);
+        (r2 >> 32) != 0
+    }
+
     /// Returns true if the given endpoint is valid, i.e., a SEND, RECEIVE, or MEMORY endpoint
     #[inline(always)]
     pub fn is_valid(ep: EpId) -> bool {
@@ -416,7 +425,7 @@ impl TCU {
     /// reception).
     #[inline(always)]
     pub fn sleep_for(cycles: u64) -> Result<(), Error> {
-        Self::wait_for_msg(0xFFFF, cycles)
+        Self::wait_for_msg(INVALID_EP, cycles)
     }
 
     /// Puts the CU to sleep until a message arrives at receive EP `ep`, but at most for `cycles`.
