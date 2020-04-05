@@ -137,18 +137,6 @@ private:
     };
 
 public:
-    enum class EventType {
-        MSG_RECV,
-        CRD_RECV,
-        EP_INVAL,
-    };
-
-    enum EventMask : reg_t {
-        MSG_RECV    = 1 << static_cast<reg_t>(EventType::MSG_RECV),
-        CRD_RECV    = 1 << static_cast<reg_t>(EventType::CRD_RECV),
-        EP_INVAL    = 1 << static_cast<reg_t>(EventType::EP_INVAL),
-    };
-
     enum MemFlags : reg_t {
         R                   = 1 << 0,
         W                   = 1 << 1,

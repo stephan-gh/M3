@@ -164,22 +164,6 @@ int_enum! {
     }
 }
 
-int_enum! {
-    struct EventType : u64 {
-        const CRD_RECV      = 0x0;
-        const EP_INVAL      = 0x1;
-        const USER          = 0x2;
-    }
-}
-
-bitflags! {
-    pub struct EventMask : u64 {
-        const CRD_RECV      = 1 << EventType::CRD_RECV.val;
-        const EP_INVAL      = 1 << EventType::EP_INVAL.val;
-        const USER          = 1 << EventType::USER.val;
-    }
-}
-
 bitflags! {
     /// The command flags
     pub struct CmdFlags : u64 {
