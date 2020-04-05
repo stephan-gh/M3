@@ -456,31 +456,27 @@ impl VPE {
     }
 
     fn exec_cont(&mut self) -> Option<ScheduleAction> {
-        if let Some(cont) = self.cont.take() {
+        self.cont.take().and_then(|cont| {
             let result = cont();
             match result {
                 // only resume this VPE if it has been initialized
-                ContResult::Success if self.user_state_addr != 0 => {
-                    None
-                },
+                ContResult::Success if self.user_state_addr != 0 => None,
+                // not initialized yet
+                ContResult::Success => Some(ScheduleAction::Block),
                 // failed, so remove VPE
                 ContResult::Failure => {
                     remove(self.id(), 1, true, false);
                     Some(ScheduleAction::Kill)
                 },
-                // still waiting or VPE not initialized
-                _ => {
-                    if result == ContResult::Waiting {
-                        // set the continuation again
-                        self.cont = Some(cont);
-                    }
-                    Some(ScheduleAction::Block)
+                // set the continuation again to retry later
+                ContResult::Waiting => {
+                    self.cont = Some(cont);
+                    // we might have got the PF reply after checking for it, so use TryBlock to not
+                    // schedule in case we've received a message.
+                    Some(ScheduleAction::TryBlock)
                 },
             }
-        }
-        else {
-            None
-        }
+        })
     }
 
     fn init(&mut self) {
