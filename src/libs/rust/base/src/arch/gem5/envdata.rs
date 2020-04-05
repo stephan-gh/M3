@@ -33,7 +33,6 @@ pub struct EnvData {
     // m3 env
     pub sp: u64,
     pub entry: u64,
-    pub shared: u64,
     pub first_std_ep: u64,
     pub first_sel: u64,
 

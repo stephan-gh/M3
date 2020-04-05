@@ -46,10 +46,6 @@ impl EnvData {
         self.base().pe_id
     }
 
-    pub fn shared(&self) -> bool {
-        self.base().shared != 0
-    }
-
     pub fn pe_desc(&self) -> PEDesc {
         PEDesc::new_from(self.base().pe_desc)
     }
@@ -152,6 +148,10 @@ static ENV_DATA: StaticCell<Option<EnvData>> = StaticCell::new(None);
 
 pub fn get() -> &'static mut EnvData {
     ENV_DATA.get_mut().as_mut().unwrap()
+}
+
+pub fn pe_shared() -> bool {
+    false
 }
 
 pub fn init(argc: i32, argv: *const *const i8) {

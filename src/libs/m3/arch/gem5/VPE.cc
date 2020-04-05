@@ -81,7 +81,6 @@ void VPE::run(void *lambda) {
 
     senv.sp = CPU::get_sp();
     senv.entry = get_entry();
-    senv.shared = env()->shared;
     senv.first_std_ep = _eps_start;
     senv.first_sel = 0;
 
@@ -131,7 +130,6 @@ void VPE::exec(int argc, const char **argv) {
 
     senv.sp = STACK_TOP;
     senv.entry = entry;
-    senv.shared = env()->shared;
     senv.first_std_ep = _eps_start;
     senv.first_sel = _next_sel;
 

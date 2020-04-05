@@ -187,7 +187,6 @@ void VPE::load_app() {
     senv.argv = ENV_SPACE_START;
     senv.sp = STACK_TOP - sizeof(word_t);
     senv.entry = entry;
-    senv.shared = Platform::is_shared(peid());
     senv.pe_desc = Platform::pe(peid()).value();
     senv.heap_size = ROOT_HEAP_SIZE;
     senv.rmng_sel = m3::KIF::INV_SEL;

@@ -159,6 +159,10 @@ private:
     static Init _init;
 };
 
+static inline bool pe_shared() {
+    return false;
+}
+
 static inline Env *env() {
     return &Env::get();
 }

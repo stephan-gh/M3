@@ -451,7 +451,6 @@ impl VPE {
             senv.set_argv(loader.write_arguments(&mut off, env::args())?);
 
             senv.set_first_std_ep(self.eps_start);
-            senv.set_shared(arch::env::get().shared());
             senv.set_pedesc(self.pe_desc());
 
             // write start env to PE
@@ -604,7 +603,6 @@ impl VPE {
             senv.set_rmng(self.rmng.sel());
             senv.set_rbufs(&self.rbufs);
             senv.set_first_sel(self.next_sel);
-            senv.set_shared(arch::env::get().shared());
             senv.set_pedesc(self.pe_desc());
 
             if let Some(ref pg) = self.pager {

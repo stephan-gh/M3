@@ -104,6 +104,7 @@ pub struct VPE {
 impl_boxitem!(VPE);
 
 static VPES: StaticCell<[Option<NonNull<VPE>>; 64]> = StaticCell::new([None; 64]);
+static VPE_COUNT: StaticCell<usize> = StaticCell::new(0);
 
 static IDLE: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
 static OUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
@@ -173,6 +174,7 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
     unsafe {
         VPES.get_mut()[id as usize] = Some(NonNull::new_unchecked(vpe.as_mut()));
     }
+    *VPE_COUNT.get_mut() += 1;
     BLK.get_mut().push_back(vpe);
 }
 
@@ -204,7 +206,7 @@ pub fn cur() -> &'static mut VPE {
 }
 
 pub fn schedule(mut action: ScheduleAction) -> usize {
-    loop {
+    let res = loop {
         let new_state = do_schedule(action);
 
         if let Some(new_act) = cur().exec_cont() {
@@ -213,7 +215,13 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
         }
 
         break new_state;
-    }
+    };
+
+    // tell the application whether the PE is shared with others. if not, it can sleep via TCU
+    // without telling us.
+    unsafe { *(cfg::PE_INFO_ADDR as *mut u64) = (*VPE_COUNT > 1) as u64 };
+
+    res
 }
 
 fn do_schedule(action: ScheduleAction) -> usize {
@@ -280,6 +288,7 @@ fn do_schedule(action: ScheduleAction) -> usize {
                 },
                 ScheduleAction::Kill => {
                     VPES.get_mut()[old.id() as usize] = None;
+                    *VPE_COUNT.get_mut() += 1;
                 },
             }
         }
@@ -522,7 +531,7 @@ impl VPE {
 
         // map receive buffers
         if self.id() == kif::pemux::VPE_ID {
-            self.map_rbuf(
+            self.map_new_mem(
                 cfg::PEMUX_RBUF_SPACE,
                 cfg::PEMUX_RBUF_SIZE,
                 kif::PageFlags::R,
@@ -546,8 +555,15 @@ impl VPE {
 
             // map application receive buffer
             let perm = kif::PageFlags::R | kif::PageFlags::U;
-            self.map_rbuf(cfg::RECVBUF_SPACE, cfg::RECVBUF_SIZE, perm);
+            self.map_new_mem(cfg::RECVBUF_SPACE, cfg::RECVBUF_SIZE, perm);
         }
+
+        // map PE info area
+        self.map_new_mem(
+            cfg::PE_INFO_ADDR,
+            cfg::PE_INFO_SIZE,
+            kif::PageFlags::RW | kif::PageFlags::U,
+        );
 
         // map PTs
         let noc_begin = paging::phys_to_noc(INFO.mem_start as u64);
@@ -572,7 +588,7 @@ impl VPE {
         tcu::TCU::insert_tlb(self.id() as u16, virt, phys, flags);
     }
 
-    fn map_rbuf(&mut self, addr: usize, size: usize, perm: kif::PageFlags) {
+    fn map_new_mem(&mut self, addr: usize, size: usize, perm: kif::PageFlags) {
         for i in 0..(size / cfg::PAGE_SIZE) {
             let frame = self.aspace.allocator_mut().allocate_pt();
             assert!(frame != 0);

@@ -45,7 +45,6 @@ OStream &operator<<(OStream &os, const Env &senv) {
     os << "pe_mem_size  : " << fmt(senv.pe_mem_size, "#x") << "\n";
     os << "sp           : " << fmt(senv.sp, "p") << "\n";
     os << "entry        : " << fmt(senv.entry, "p") << "\n";
-    os << "shared       : " << senv.shared << "\n";
     os << "first_std_ep : " << senv.first_std_ep << "\n";
     os << "first_sel    : " << senv.first_sel << "\n";
     os << "lambda       : " << fmt(senv.lambda, "p") << "\n";
