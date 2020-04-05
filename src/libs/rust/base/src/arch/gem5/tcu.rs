@@ -374,7 +374,6 @@ impl TCU {
         if (r0 & 0x7) != EpType::SEND.val {
             return false;
         }
-        let r0 = Self::read_ep_reg(ep, 0);
         let cur = (r0 >> 19) & 0x3F;
         let max = (r0 >> 25) & 0x3F;
         cur < max
