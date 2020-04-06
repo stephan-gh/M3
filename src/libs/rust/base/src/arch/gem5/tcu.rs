@@ -80,7 +80,7 @@ pub const MMIO_PRIV_ADDR: usize = MMIO_ADDR + MMIO_SIZE;
 pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
 
 /// The number of TCU registers
-pub const TCU_REGS: usize = 4;
+pub const TCU_REGS: usize = 5;
 /// The number of command registers
 pub const CMD_REGS: usize = 4;
 /// The number of registers per EP
@@ -94,6 +94,7 @@ int_enum! {
         const CUR_TIME      = 1;
         const CLEAR_IRQ     = 2;
         const CLOCK         = 3;
+        const PRINT         = 4;
     }
 }
 
@@ -161,8 +162,6 @@ int_enum! {
         const ACK_MSG       = 0x6;
         /// Puts the CU to sleep
         const SLEEP         = 0x7;
-        /// Prints a message
-        const PRINT         = 0x8;
     }
 }
 
@@ -472,10 +471,7 @@ impl TCU {
             buffer += 8;
         }
 
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
-            Self::build_cmd(0, CmdOpCode::PRINT, 0, s.len() as u64),
-        );
+        Self::write_reg(TCUReg::PRINT.val as usize, s.len() as u64);
     }
 
     /// Aborts the current command or VPE, specified in `req`, and returns (`xfer_buf`, `cmd_reg`).

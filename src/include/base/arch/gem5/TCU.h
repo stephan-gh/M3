@@ -66,7 +66,7 @@ public:
     static const reg_t NO_REPLIES           = INVALID_EP;
 
 private:
-    static const size_t TCU_REGS            = 4;
+    static const size_t TCU_REGS            = 5;
     static const size_t PRIV_REGS           = 6;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
@@ -79,6 +79,7 @@ private:
         CUR_TIME            = 1,
         CLEAR_IRQ           = 2,
         CLOCK               = 3,
+        PRINT               = 4,
     };
 
     enum class PrivRegs {
@@ -118,7 +119,6 @@ private:
         FETCH_MSG           = 5,
         ACK_MSG             = 6,
         SLEEP               = 7,
-        PRINT               = 8,
     };
 
     enum class PrivCmdOpCode {

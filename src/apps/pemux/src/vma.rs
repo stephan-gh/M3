@@ -160,8 +160,6 @@ pub fn handle_pf(
 ) -> Result<(), Error> {
     // PEMux isn't causing PFs
     if !state.came_from_user() {
-        // save the current command to ensure that we can use the print command
-        let _cmd_saved = helper::TCUGuard::new();
         panic!("pagefault for {:#x} at {:#x}", virt, ip);
     }
 

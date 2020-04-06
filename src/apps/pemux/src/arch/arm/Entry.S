@@ -61,14 +61,14 @@ BEGIN_FUNC(sleep)
     msr     CPSR, r0
 
 1:  // write 0xFFFF to ARG_1
-    movw    r1, #0x0038
+    movw    r1, #0x0040
     movt    r1, #0xF000
     mov     r2, #0
     movw    r3, #0x0000
     movt    r3, #0xFFFF
     strd    r2, [r1]
     // write SLEEP to COMMAND
-    movw    r1, #0x0020
+    movw    r1, #0x0028
     movt    r1, #0xF000
     mov     r2, #0x7
     mov     r3, #0

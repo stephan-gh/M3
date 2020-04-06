@@ -34,7 +34,7 @@ void TCU::print(const char *str, size_t len) {
         rstr++;
     }
 
-    write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::PRINT, 0, len));
+    write_reg(TCURegs::PRINT, len);
 }
 
 Errors::Code TCU::send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
