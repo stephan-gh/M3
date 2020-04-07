@@ -43,6 +43,7 @@ use base::cfg;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, PTE};
+use base::libc;
 use base::math;
 use base::tcu::TCU;
 use base::util;
@@ -349,12 +350,8 @@ impl<A: Allocator> AddrSpace<A> {
         Ok(pte)
     }
 
-    fn clear_pt(mut pt_virt: usize) {
-        for _ in 0..1 << LEVEL_BITS {
-            // safety: as above
-            unsafe { *(pt_virt as *mut MMUPTE) = 0 };
-            pt_virt += util::size_of::<MMUPTE>();
-        }
+    fn clear_pt(pt_virt: usize) {
+        unsafe { libc::memset(pt_virt as *mut _, 0, cfg::PAGE_SIZE) };
     }
 
     fn print_as_rec(
