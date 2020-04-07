@@ -49,18 +49,6 @@ pub trait Mapper {
         flags: MapFlags,
     ) -> Result<bool, Error>;
 
-    /// Writes the given data to the given virtual address. `mem` refers to the VPE's virtual
-    /// address space.
-    fn write_bytes(
-        &mut self,
-        mem: &MemGate,
-        data: *const u8,
-        len: usize,
-        virt: goff,
-    ) -> Result<(), Error> {
-        mem.write_bytes(data, len, virt)
-    }
-
     /// Initializes the memory at `virt`..`memsize` by loading `fsize` bytes from the given file at
     /// `foff` and zero'ing the remaining space.
     ///

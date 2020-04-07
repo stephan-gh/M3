@@ -223,7 +223,7 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
 
     // tell the application whether the PE is shared with others. if not, it can sleep via TCU
     // without telling us.
-    unsafe { *(cfg::PE_INFO_ADDR as *mut u64) = (*VPE_COUNT > 1) as u64 };
+    ::env().shared = (*VPE_COUNT > 1) as u64;
 
     res
 }
@@ -601,10 +601,10 @@ impl VPE {
             self.map_new_mem(cfg::RECVBUF_SPACE, cfg::RECVBUF_SIZE, perm);
         }
 
-        // map PE info area
+        // map runtime environment
         self.map_new_mem(
-            cfg::PE_INFO_ADDR,
-            cfg::PE_INFO_SIZE,
+            cfg::ENV_START,
+            cfg::ENV_SIZE,
             kif::PageFlags::RW | kif::PageFlags::U,
         );
 

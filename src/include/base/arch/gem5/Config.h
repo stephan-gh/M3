@@ -51,8 +51,6 @@
 // |         app stack          |
 // +----------------------------+ 0x212000
 // |       app code+data        |
-// +----------------------------+ 0x3FBFF000
-// |        PE info space       |
 // +----------------------------+ 0x3FC00000
 // |        recv buffers        |
 // +----------------------------+ 0x3FC04000
@@ -73,8 +71,6 @@
 
 #define PEMUX_RBUF_SPACE    0x1FF000
 #define PEMUX_RBUF_SIZE     (1U * PAGE_SIZE)
-
-#define PE_INFO_ADDR        0x3FBFF000
 
 #define RECVBUF_SPACE       0x3FC00000
 #define RECVBUF_SIZE        (4U * PAGE_SIZE)

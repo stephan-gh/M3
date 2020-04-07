@@ -93,14 +93,14 @@ public:
     }
     static void sleep_for(uint64_t cycles) noexcept {
         // TODO PEMux does not support sleeps with timeout atm
-        if(pe_shared() && cycles == 0)
+        if(env()->shared && cycles == 0)
             PEXCalls::call2(Operation::SLEEP, cycles, TCU::INVALID_EP);
         else
             sleep_with_tcu(cycles);
     }
 
     static void wait_for_msg(epid_t ep) noexcept {
-        if(pe_shared())
+        if(env()->shared)
             PEXCalls::call2(Operation::SLEEP, 0, ep);
         else
             TCU::get().wait_for_msg(ep);

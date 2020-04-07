@@ -16,7 +16,6 @@
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::RefCell;
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::{GateIStream, MGateFlags, MemGate, SGateArgs, SendGate, SliceSource};
@@ -32,7 +31,6 @@ use m3::session::{MapFlags, ServerSession};
 use m3::tcu::Label;
 
 use dataspace::DataSpace;
-use physmem::PhysMem;
 use rgate;
 
 const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
@@ -136,10 +134,6 @@ impl AddrSpace {
         }
 
         reply_vmsg!(is, 0)
-    }
-
-    pub(crate) fn physmem_at(&self, virt: goff) -> Option<(goff, Rc<RefCell<PhysMem>>)> {
-        self.find_ds(virt).and_then(|ds| ds.physmem_at(virt))
     }
 
     pub fn pagefault(&mut self, is: &mut GateIStream) -> Result<(), Error> {
@@ -355,10 +349,6 @@ impl AddrSpace {
         }
 
         Ok(())
-    }
-
-    fn find_ds(&self, virt: goff) -> Option<&Box<DataSpace>> {
-        self.find_ds_idx(virt).map(move |idx| &self.ds[idx])
     }
 
     fn find_ds_mut(&mut self, virt: goff) -> Option<&mut Box<DataSpace>> {

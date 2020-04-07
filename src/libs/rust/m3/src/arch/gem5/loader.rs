@@ -181,15 +181,6 @@ impl<'l> Loader<'l> {
             end = phdr.vaddr + phdr.memsz as usize;
         }
 
-        // create area for boot/runtime stuff
-        self.mapper.map_anon(
-            self.pager,
-            cfg::ENV_START as goff,
-            cfg::ENV_SIZE,
-            kif::Perm::RW,
-            MapFlags::PRIVATE | MapFlags::UNINIT,
-        )?;
-
         // create area for stack
         self.mapper.map_anon(
             self.pager,
@@ -241,16 +232,11 @@ impl<'l> Loader<'l> {
             argoff += arg.len() + 1;
         }
 
-        self.mapper.write_bytes(
-            &self.mem,
-            argbuf.as_ptr() as *const _,
-            argbuf.len(),
-            *off as goff,
-        )?;
+        self.mem
+            .write_bytes(argbuf.as_ptr() as *const _, argbuf.len(), *off as goff)?;
 
         argoff = math::round_up(argoff, util::size_of::<u64>());
-        self.mapper.write_bytes(
-            &self.mem,
+        self.mem.write_bytes(
             argptr.as_ptr() as *const _,
             argptr.len() * util::size_of::<u64>(),
             argoff as goff,

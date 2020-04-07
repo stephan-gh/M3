@@ -21,6 +21,7 @@ use kif::{CapSel, PEDesc};
 
 pub struct EnvData {
     pub pe_id: u64,
+    pub shared: u32,
     pub pe_desc: u32,
     pub argc: u32,
     pub argv: u64,
@@ -39,6 +40,7 @@ impl EnvData {
     ) -> Self {
         EnvData {
             pe_id,
+            shared: 0,
             pe_desc: pe_desc.value(),
             argc: argc as u32,
             argv: argv as u64,

@@ -30,6 +30,9 @@ pub struct EnvData {
     pub pe_mem_size: u64,
     pub kenv: u64,
 
+    // set by PEMux
+    pub shared: u64,
+
     // m3 env
     pub sp: u64,
     pub entry: u64,

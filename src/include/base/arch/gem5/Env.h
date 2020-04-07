@@ -51,6 +51,9 @@ class Env : public BootEnv {
     friend OStream &operator<<(OStream &, const Env &senv);
 
 public:
+    // set by PEMux
+    uint64_t shared;
+
     uint64_t sp;
     uint64_t entry;
     uint64_t first_std_ep;
@@ -90,10 +93,6 @@ private:
 #define ENV_SPACE_SIZE           (ENV_SIZE - (sizeof(word_t) * 2 + sizeof(m3::Env)))
 #define ENV_SPACE_START          (ENV_START + sizeof(m3::Env))
 #define ENV_SPACE_END            (ENV_SPACE_START + ENV_SPACE_SIZE)
-
-static inline bool pe_shared() {
-    return *reinterpret_cast<uint64_t*>(PE_INFO_ADDR) != 0;
-}
 
 static inline Env *env() {
     return reinterpret_cast<Env*>(ENV_START);

@@ -40,6 +40,10 @@ impl EnvData {
         self.base.pe_id
     }
 
+    pub fn shared(&self) -> bool {
+        self.base.shared != 0
+    }
+
     pub fn pe_desc(&self) -> PEDesc {
         PEDesc::new_from(self.base.pe_desc)
     }
@@ -192,10 +196,6 @@ impl EnvData {
 pub fn get() -> &'static mut EnvData {
     // safety: we trust our loader
     unsafe { intrinsics::transmute(cfg::ENV_START) }
-}
-
-pub fn pe_shared() -> bool {
-    unsafe { *(cfg::PE_INFO_ADDR as *const u64) != 0 }
 }
 
 pub fn closure() -> &'static mut env::Closure {

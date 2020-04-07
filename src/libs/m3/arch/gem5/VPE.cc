@@ -150,11 +150,6 @@ void VPE::exec(int argc, const char **argv) {
     senv.fds_len = _fds->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
-    // map the memory first in case the VPE is not running and the kernel needs to forward the mem
-    // access (the kernel cannot cause a pagefault)
-    if(_pager)
-        _pager->pagefault(ENV_SPACE_START, MemGate::W);
-
     /* write entire runtime stuff */
     _mem.write(buffer.get(), offset, ENV_SPACE_START);
 
@@ -259,12 +254,8 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
     }
 
     if(_pager) {
-        // create area for boot/runtime stuff
-        goff_t virt = ENV_START;
-        _pager->map_anon(&virt, ENV_END - virt, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
-
         // create area for stack
-        virt = STACK_BOTTOM;
+        goff_t virt = STACK_BOTTOM;
         _pager->map_anon(&virt, STACK_TOP - virt, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
 
         // create heap

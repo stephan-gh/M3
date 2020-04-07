@@ -22,9 +22,6 @@ pub const LPAGE_BITS: usize         = 21;
 pub const LPAGE_SIZE: usize         = 1 << LPAGE_BITS;
 pub const LPAGE_MASK: usize         = LPAGE_SIZE - 1;
 
-pub const PE_INFO_ADDR: usize       = 0x3FBF_F000;
-pub const PE_INFO_SIZE: usize       = PAGE_SIZE;
-
 pub const RECVBUF_SPACE: usize      = 0x3FC0_0000;
 pub const RECVBUF_SIZE: usize       = 4 * PAGE_SIZE;
 pub const RECVBUF_SIZE_SPM: usize   = 16384;

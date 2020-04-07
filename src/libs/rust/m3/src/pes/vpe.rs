@@ -29,7 +29,7 @@ use env;
 use errors::Error;
 use kif;
 use kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
-use pes::{ClosureActivity, DeviceActivity, DefaultMapper, ExecActivity, KMem, Mapper, PE};
+use pes::{ClosureActivity, DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, PE};
 use rc::Rc;
 use session::{Pager, ResMng};
 use syscalls;
@@ -580,8 +580,7 @@ impl VPE {
                 let mut fds = VecSink::default();
                 self.files.serialize(&mut fds);
                 let words = fds.words();
-                mapper.write_bytes(
-                    &self.mem,
+                self.mem.write_bytes(
                     words.as_ptr() as *const u8,
                     words.len() * util::size_of::<u64>(),
                     off as goff,
@@ -595,8 +594,7 @@ impl VPE {
                 let mut mounts = VecSink::default();
                 self.mounts.serialize(&mut mounts);
                 let words = mounts.words();
-                mapper.write_bytes(
-                    &self.mem,
+                self.mem.write_bytes(
                     words.as_ptr() as *const u8,
                     words.len() * util::size_of::<u64>(),
                     off as goff,
@@ -619,8 +617,7 @@ impl VPE {
             }
 
             // write start env to PE
-            mapper.write_bytes(
-                &self.mem,
+            self.mem.write_bytes(
                 &senv as *const _ as *const u8,
                 util::size_of_val(&senv),
                 cfg::ENV_START as goff,

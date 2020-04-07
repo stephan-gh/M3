@@ -231,6 +231,12 @@ pub fn main() -> i32 {
         let file = vfs::VFS::open(&name, vfs::OpenFlags::RX).expect("Unable to open binary");
         let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
         vpe.exec_file(&mut mapper, file, &args)
+            .and_then(|mut act| {
+                // deactivate the memory gate again, because we will use another MemGate object to
+                // refer to the VPE's address space.
+                act.vpe_mut().mem_mut().deactivate();
+                Ok(act)
+            })
             .expect("Unable to execute child VPE")
     };
 

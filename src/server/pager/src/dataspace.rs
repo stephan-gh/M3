@@ -160,14 +160,6 @@ impl DataSpace {
         self.regions.populate(sel);
     }
 
-    pub(crate) fn physmem_at(&self, virt: goff) -> Option<(goff, Rc<RefCell<PhysMem>>)> {
-        let dist = virt - self.virt;
-        let off = math::round_dn(dist, cfg::PAGE_SIZE as goff);
-        self.regions
-            .physmem_at(off)
-            .map(|(roff, mem)| (roff + (dist - off), mem))
-    }
-
     pub fn handle_pf(&mut self, virt: goff) -> Result<(), Error> {
         let pf_off = math::round_dn(virt - self.virt, cfg::PAGE_SIZE as goff);
         let reg = self.regions.pagefault(pf_off);

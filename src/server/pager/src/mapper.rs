@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::MemGate;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::Perm;
@@ -77,24 +76,6 @@ impl<'a> Mapper for ChildMapper<'a> {
         else {
             // nothing to do
             Ok(true)
-        }
-    }
-
-    fn write_bytes(
-        &mut self,
-        mem: &MemGate,
-        data: *const u8,
-        len: usize,
-        virt: goff,
-    ) -> Result<(), Error> {
-        if self.has_virtmem {
-            self.aspace.pagefault_at(virt, Perm::W)?;
-            let (off, physmem) = self.aspace.physmem_at(virt).unwrap();
-            let physmem = physmem.borrow();
-            physmem.gate().write_bytes(data, len, off)
-        }
-        else {
-            mem.write_bytes(data, len, virt)
         }
     }
 }

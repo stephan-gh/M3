@@ -331,13 +331,6 @@ impl RegionList {
         &mut self.regs[idx]
     }
 
-    pub fn physmem_at(&self, off: goff) -> Option<(goff, Rc<RefCell<PhysMem>>)> {
-        self.regs
-            .iter()
-            .find(|r| off >= r.off && off < r.off + r.size)
-            .map(|r| (off - r.off, r.mem.as_ref().unwrap().clone()))
-    }
-
     pub fn kill(&mut self) {
         for r in &mut self.regs {
             r.kill();
