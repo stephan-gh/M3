@@ -250,9 +250,14 @@ impl VPE {
         arch::env::get().pe_id() as PEId
     }
 
-    /// Returns the `MemGate` that refers to the VPE's address space.
+    /// Returns an immutable reference to the `MemGate` that refers to the VPE's address space.
     pub fn mem(&self) -> &MemGate {
         &self.mem
+    }
+
+    /// Returns a mutable reference to the `MemGate` that refers to the VPE's address space.
+    pub fn mem_mut(&mut self) -> &mut MemGate {
+        &mut self.mem
     }
 
     pub(crate) fn rbufs(&mut self) -> &mut arch::rbufs::RBufSpace {

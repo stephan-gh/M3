@@ -122,6 +122,15 @@ impl SendGate {
         syscalls::activate(ep, self.sel(), 0)
     }
 
+    pub(crate) fn activate(&self) -> Result<&EP, Error> {
+        self.gate.activate()
+    }
+
+    /// Deactivates this `SendGate` in case it was already activated
+    pub fn deactivate(&mut self) {
+        self.gate.release();
+    }
+
     /// Sends `msg` to the associated [`RecvGate`] and uses `reply_gate` to receive a reply.
     #[inline(always)]
     pub fn send<T>(&self, msg: &[T], reply_gate: &RecvGate) -> Result<(), Error> {
@@ -174,10 +183,6 @@ impl SendGate {
         rlabel: tcu::Label,
     ) -> Result<(), Error> {
         tcu::TCUIf::send(self, msg, size, rlabel, reply_gate)
-    }
-
-    pub(crate) fn activate(&self) -> Result<&EP, Error> {
-        self.gate.activate()
     }
 }
 

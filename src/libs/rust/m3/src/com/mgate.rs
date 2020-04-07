@@ -212,6 +212,11 @@ impl MemGate {
         self.gate.activate()
     }
 
+    /// Deactivates this `MemGate` in case it was already activated
+    pub fn deactivate(&mut self) {
+        self.gate.release();
+    }
+
     fn cmd_flags(&self) -> tcu::CmdFlags {
         tcu::CmdFlags::from_bits_truncate(self.flags.bits() & MGateFlags::NOPF.bits())
     }
