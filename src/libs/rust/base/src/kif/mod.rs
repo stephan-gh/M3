@@ -30,11 +30,13 @@ pub use self::cap::*;
 pub use self::pedesc::*;
 pub use self::perm::*;
 
+use tcu;
+
 /// Represents an invalid capability selector
 pub const INVALID_SEL: CapSel = 0xFFFF;
 
 /// Represents unlimited credits for a SendGate
-pub const UNLIM_CREDITS: u32 = 0x3F;
+pub const UNLIM_CREDITS: u32 = tcu::UNLIM_CREDITS;
 
 pub const SEL_PE: CapSel = 0;
 pub const SEL_KMEM: CapSel = 1;

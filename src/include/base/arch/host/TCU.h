@@ -80,6 +80,7 @@ public:
 
     static const reg_t INVALID_EP               = 0xFF;
     static const size_t NO_REPLIES              = INVALID_EP;
+    static const reg_t UNLIM_CREDITS            = 0xFFFFFFFF;
 
     // command registers
     static constexpr size_t CMD_ADDR            = 0;

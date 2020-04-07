@@ -64,6 +64,7 @@ public:
 
     static const reg_t INVALID_EP           = 0xFFFF;
     static const reg_t NO_REPLIES           = INVALID_EP;
+    static const reg_t UNLIM_CREDITS        = 0x3F;
 
 private:
     static const size_t TCU_REGS            = 5;

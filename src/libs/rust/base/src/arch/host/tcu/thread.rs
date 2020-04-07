@@ -17,6 +17,7 @@
 use arch::envdata;
 use arch::tcu::{
     backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, EP_COUNT, MAX_MSG_SIZE, TCU,
+    UNLIM_CREDITS,
 };
 use cell::StaticCell;
 use core::{intrinsics, ptr, sync::atomic};
@@ -108,7 +109,7 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
     let credits = TCU::get_ep(ep, EpReg::CREDITS) as usize;
 
     // check if we have enough credits
-    if credits != !0 {
+    if credits != UNLIM_CREDITS as usize {
         let msg_order = TCU::get_ep(ep, EpReg::MSGORDER);
         if msg_order == 0 {
             log_tcu_err!("TCU-error: invalid EP {}", ep);
@@ -117,7 +118,8 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
 
         let needed = 1 << msg_order;
         if needed > credits {
-            log_tcu_err!("TCU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
+            log_tcu_err!(
+                "TCU-error: insufficient credits on ep {} (have {:#x}, need {:#x})",
                 ep,
                 credits,
                 needed
@@ -628,7 +630,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
         else {
             let msg_ord = TCU::get_ep(crd_ep, EpReg::MSGORDER);
             let credits = TCU::get_ep(crd_ep, EpReg::CREDITS);
-            if buf.header.credits != 0 && credits != !0 {
+            if buf.header.credits != 0 && credits != UNLIM_CREDITS as u64 {
                 log_tcu!(
                     "Refilling credits of ep {} from {:#x} to {:#x}",
                     crd_ep,

@@ -69,6 +69,8 @@ pub const STD_EPS_COUNT: usize = 7;
 pub const INVALID_EP: EpId = 0xFFFF;
 /// The reply EP for messages that want to disable replies
 pub const NO_REPLIES: EpId = INVALID_EP;
+/// Represents unlimited credits for send EPs
+pub const UNLIM_CREDITS: u32 = 0x3F;
 
 /// The base address of the TCU's MMIO area
 pub const MMIO_ADDR: usize = 0xF000_0000;

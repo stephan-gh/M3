@@ -37,7 +37,7 @@ struct KIF {
     /**
      * Represents unlimited credits
      */
-    static const uint UNLIM_CREDITS     = 0x3F;
+    static const uint UNLIM_CREDITS     = TCU::UNLIM_CREDITS;
 
     /**
      * The maximum message length that can be used
