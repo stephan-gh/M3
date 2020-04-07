@@ -36,9 +36,9 @@ fn create() {
 }
 
 fn send_errors() {
-    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(512), math::next_log2(256)));
+    let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
     let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).credits(2).label(0x1234)
+        SGateArgs::new(&rgate).label(0x1234)
     ));
     wv_assert_ok!(rgate.activate());
 
@@ -53,6 +53,13 @@ fn send_errors() {
 
     {
         wv_assert_ok!(send_vmsg!(&sgate, &rgate, 4));
+
+        let mut is = wv_assert_ok!(rgate.receive(Some(&sgate)));
+        wv_assert_err!(is.pop::<String>(), Code::InvArgs);
+    }
+
+    {
+        wv_assert_ok!(send_vmsg!(&sgate, &rgate, 0, "123"));
 
         let mut is = wv_assert_ok!(rgate.receive(Some(&sgate)));
         wv_assert_err!(is.pop::<String>(), Code::InvArgs);

@@ -27,9 +27,9 @@ using namespace m3;
 static const int msg_ord = nextlog2<256>::val;
 
 static void send_errors() {
-    auto rgate = RecvGate::create(msg_ord + 1, msg_ord);
+    auto rgate = RecvGate::create(msg_ord, msg_ord);
     rgate.activate();
-    auto sgate = SendGate::create(&rgate, SendGateArgs().credits(2));
+    auto sgate = SendGate::create(&rgate, SendGateArgs());
 
     {
         send_vmsg(sgate, 1, 2);
@@ -49,6 +49,21 @@ static void send_errors() {
 
     {
         send_vmsg(sgate, 1);
+
+        auto msg = receive_msg(rgate);
+
+        try {
+            String s;
+            msg >> s;
+            WVASSERT(false);
+        }
+        catch(const Exception &e) {
+            WVASSERTEQ(e.code(), Errors::INV_ARGS);
+        }
+    }
+
+    {
+        send_vmsg(sgate, 0, "123");
 
         auto msg = receive_msg(rgate);
 

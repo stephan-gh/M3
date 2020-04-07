@@ -177,7 +177,7 @@ impl MsgSource {
 
         let data = self.data();
         let npos = self.pos + (len + 7) / 8;
-        if npos > data.len() {
+        if len == 0 || npos > data.len() {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -265,7 +265,7 @@ impl<'s> SliceSource<'s> {
         let len = self.pop_word()? as usize;
 
         let npos = self.pos + (len + 7) / 8;
-        if npos > self.slice.len() {
+        if len == 0 || npos > self.slice.len() {
             return Err(Error::new(Code::InvArgs));
         }
 

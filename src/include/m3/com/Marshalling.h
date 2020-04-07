@@ -205,7 +205,7 @@ public:
             throw Exception(Errors::INV_ARGS);
         size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += sizeof(xfer_t);
-        if(_pos + len > length())
+        if(len == 0 || _pos + len > length())
             throw Exception(Errors::INV_ARGS);
         value.reset(reinterpret_cast<const char*>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
@@ -216,7 +216,7 @@ public:
             throw Exception(Errors::INV_ARGS);
         size_t len = *reinterpret_cast<const xfer_t*>(_data + _pos);
         _pos += sizeof(xfer_t);
-        if(_pos + len > length())
+        if(len == 0 || _pos + len > length())
             throw Exception(Errors::INV_ARGS);
         value = StringRef(reinterpret_cast<const char*>(_data + _pos), len - 1);
         _pos += Math::round_up(len, sizeof(xfer_t));
