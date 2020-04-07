@@ -16,10 +16,12 @@
 
 use m3::boxed::Box;
 use m3::cap::Selector;
+use m3::cell::StaticCell;
 use m3::col::String;
-use m3::com::{recv_msg, RGateArgs, RecvGate, SGateArgs, SendGate};
+use m3::com::{recv_msg, GateIStream, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::math::next_log2;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
@@ -34,21 +36,21 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, testcaps);
 }
 
-struct MySession {
+struct EmptySession {
     _sess: ServerSession,
 }
 
-struct MyHandler {
-    sessions: SessionContainer<MySession>,
+struct CrashHandler {
+    sessions: SessionContainer<EmptySession>,
 }
 
-impl Handler for MyHandler {
+impl Handler for CrashHandler {
     fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
         let sess = ServerSession::new(srv_sel, 0, false)?;
 
         let sel = sess.sel();
         // keep the session to ensure that it's not destroyed
-        self.sessions.add(0, MySession { _sess: sess });
+        self.sessions.add(0, EmptySession { _sess: sess });
         Ok((sel, 0))
     }
 
@@ -56,25 +58,27 @@ impl Handler for MyHandler {
         // don't respond, just exit
         m3::exit(1);
     }
-
-    fn close(&mut self, _: SessId) {
-    }
 }
 
-impl MyHandler {
-    pub fn new() -> Self {
-        MyHandler {
-            sessions: SessionContainer::new(1),
-        }
-    }
-}
-
-fn server_main() -> i32 {
+fn server_crash_main() -> i32 {
     let s = wv_assert_ok!(Server::new("test"));
-    let mut hdl = MyHandler::new();
+    let mut hdl = CrashHandler {
+        sessions: SessionContainer::new(1),
+    };
 
     server_loop(|| s.handle_ctrl_chan(&mut hdl)).ok();
     0
+}
+
+fn connect(name: &str) -> ClientSession {
+    // try to open a session until we succeed. this is required because we start the servers ourself
+    // and don't know when they register their service.
+    loop {
+        let sess_res = ClientSession::new(name);
+        if let Result::Ok(sess) = sess_res {
+            break sess;
+        }
+    }
 }
 
 pub fn testnoresp() {
@@ -85,14 +89,10 @@ pub fn testnoresp() {
     let cact = {
         let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
 
-        let sact = wv_assert_ok!(serv.run(Box::new(&server_main)));
+        let sact = wv_assert_ok!(serv.run(Box::new(&server_crash_main)));
 
         let cact = wv_assert_ok!(client.run(Box::new(|| {
-            let sess = loop {
-                if let Ok(s) = ClientSession::new("test") {
-                    break s;
-                }
-            };
+            let sess = connect("test");
             wv_assert_err!(sess.obtain_obj(), Code::RecvGone);
             0
         })));
@@ -114,7 +114,7 @@ pub fn testcliexit() {
     let server_pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
 
-    let sact = wv_assert_ok!(serv.run(Box::new(&server_main)));
+    let sact = wv_assert_ok!(serv.run(Box::new(&server_crash_main)));
 
     let mut rg = wv_assert_ok!(RecvGate::new_with(
         RGateArgs::default().order(7).msg_order(6)
@@ -168,51 +168,210 @@ pub fn testcliexit() {
     wv_assert_ok!(cact.stop());
 }
 
+struct MsgSession {
+    _sess: ServerSession,
+    sgate: SendGate,
+}
+
+struct MsgHandler {
+    sessions: SessionContainer<MsgSession>,
+    calls: u32,
+}
+
+static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
+
+impl Handler for MsgHandler {
+    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
+        let sess = ServerSession::new(srv_sel, 0, false)?;
+        let sel = sess.sel();
+        let sgate = wv_assert_ok!(SendGate::new(RGATE.as_ref().unwrap()));
+        self.sessions.add(0, MsgSession { _sess: sess, sgate });
+        Ok((sel, 0))
+    }
+
+    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+        let sess = self.sessions.get(sid).unwrap();
+        xchg.out_caps(kif::CapRngDesc::new(
+            kif::CapType::OBJECT,
+            sess.sgate.sel(),
+            1,
+        ));
+        Ok(())
+    }
+
+    fn close(&mut self, sid: SessId) {
+        self.sessions.remove(sid);
+    }
+}
+
+impl MsgHandler {
+    fn handle_msg(&mut self, is: &mut GateIStream) -> Result<(), Error> {
+        let s: &str = is.pop()?;
+        let mut res = String::new();
+        for c in s.chars().rev() {
+            res.push(c);
+        }
+        reply_vmsg!(is, res)?;
+
+        // pretend that we crash after some requests
+        self.calls += 1;
+        if self.calls == 6 {
+            m3::exit(1);
+        }
+        Ok(())
+    }
+}
+
+fn server_msgs_main() -> i32 {
+    let s = wv_assert_ok!(Server::new("testmsgs"));
+    let mut hdl = MsgHandler {
+        sessions: SessionContainer::new(1),
+        calls: 0,
+    };
+
+    let mut rgate = wv_assert_ok!(RecvGate::new(next_log2(256), next_log2(256)));
+    wv_assert_ok!(rgate.activate());
+    RGATE.set(Some(rgate));
+
+    server_loop(|| {
+        s.handle_ctrl_chan(&mut hdl)?;
+
+        if let Some(mut is) = RGATE.as_ref().unwrap().fetch() {
+            if let Err(e) = hdl.handle_msg(&mut is) {
+                is.reply_error(e.code()).ok();
+            }
+        }
+        Ok(())
+    })
+    .ok();
+
+    0
+}
+
 pub fn testmsgs() {
+    let server_pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+    let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
+    let sact = wv_assert_ok!(serv.run(Box::new(&server_msgs_main)));
+
     {
-        let sess = wv_assert_ok!(ClientSession::new("testmsgs"));
+        let sess = connect("testmsgs");
         let sel = wv_assert_ok!(sess.obtain_obj());
         let sgate = SendGate::new_bind(sel);
 
         for _ in 0..5 {
-            let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));
+            let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), "123456"));
             let resp: String = wv_assert_ok!(reply.pop());
             wv_assert_eq!(resp, "654321");
         }
     }
 
     {
-        let sess = wv_assert_ok!(ClientSession::new("testmsgs"));
+        let sess = connect("testmsgs");
         let sel = wv_assert_ok!(sess.obtain_obj());
         let sgate = SendGate::new_bind(sel);
 
-        let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), 0, "123456"));
+        let mut reply = wv_assert_ok!(send_recv!(&sgate, RecvGate::def(), "123456"));
         let resp: String = wv_assert_ok!(reply.pop());
         wv_assert_eq!(resp, "654321");
 
         wv_assert_err!(
-            send_recv!(&sgate, RecvGate::def(), 0, "123456"),
+            send_recv!(&sgate, RecvGate::def(), "123456"),
             Code::InvEP,
             Code::RecvGone
         );
     }
+
+    wv_assert_eq!(sact.wait(), Ok(1));
+}
+
+static STOP: StaticCell<bool> = StaticCell::new(false);
+
+struct NotSupHandler {
+    sessions: SessionContainer<EmptySession>,
+    calls: u32,
+}
+
+impl Handler for NotSupHandler {
+    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
+        let sess = ServerSession::new(srv_sel, 0, false)?;
+
+        let sel = sess.sel();
+        // keep the session to ensure that it's not destroyed
+        self.sessions.add(0, EmptySession { _sess: sess });
+        Ok((sel, 0))
+    }
+
+    fn obtain(&mut self, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
+        self.calls += 1;
+        // stop the service after 5 calls
+        if self.calls == 5 {
+            *STOP.get_mut() = true;
+        }
+        Err(Error::new(Code::NotSup))
+    }
+
+    fn delegate(&mut self, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
+        self.calls += 1;
+        if self.calls == 5 {
+            *STOP.get_mut() = true;
+        }
+        Err(Error::new(Code::NotSup))
+    }
+
+    fn close(&mut self, sid: SessId) {
+        self.sessions.remove(sid);
+    }
+}
+
+fn server_notsup_main() -> i32 {
+    for _ in 0..5 {
+        *STOP.get_mut() = false;
+
+        let s = wv_assert_ok!(Server::new("testcaps"));
+        let mut hdl = NotSupHandler {
+            sessions: SessionContainer::new(1),
+            calls: 0,
+        };
+
+        let res = server_loop(|| {
+            if *STOP {
+                return Err(Error::new(Code::VPEGone));
+            }
+            s.handle_ctrl_chan(&mut hdl)
+        });
+        match res {
+            // if there is any other error than our own stop signal, break
+            Err(e) if e.code() != Code::VPEGone => break,
+            _ => {},
+        }
+    }
+
+    0
 }
 
 pub fn testcaps() {
-    for _ in 0..10 {
-        let sess = loop {
-            let sess_res = ClientSession::new("testcaps");
-            if let Result::Ok(sess) = sess_res {
-                break sess;
+    let server_pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+    let serv = wv_assert_ok!(VPE::new_with(server_pe, VPEArgs::new("server")));
+    let sact = wv_assert_ok!(serv.run(Box::new(&server_notsup_main)));
+
+    for i in 0..5 {
+        let sess = connect("testcaps");
+
+        // test both obtain and delegate
+        if i % 2 == 0 {
+            for _ in 0..5 {
+                wv_assert_err!(sess.obtain_obj(), Code::NotSup);
             }
-        };
-
-        for _ in 0..5 {
-            wv_assert_err!(sess.obtain_obj(), Code::NotSup);
+            wv_assert_err!(sess.obtain_obj(), Code::InvArgs, Code::RecvGone);
         }
-
-        wv_assert_err!(sess.obtain_obj(), Code::InvArgs, Code::RecvGone);
+        else {
+            for _ in 0..5 {
+                wv_assert_err!(sess.delegate_obj(sess.sel()), Code::NotSup);
+            }
+            wv_assert_err!(sess.delegate_obj(sess.sel()), Code::InvArgs, Code::RecvGone);
+        }
     }
 
     wv_assert_err!(ClientSession::new("testcaps"), Code::InvArgs);
+    wv_assert_eq!(sact.wait(), Ok(0));
 }

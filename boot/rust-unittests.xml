@@ -15,22 +15,10 @@
         </app>
     </dom>
     <dom>
-        <app args="testmsgs" daemon="1">
-            <serv name="testmsgs" />
-        </app>
-    </dom>
-    <dom>
-        <app args="testcaps" daemon="1">
-            <serv name="testcaps" />
-        </app>
-    </dom>
-    <dom>
         <app args="pager /bin/subsys /bin/rustunittests">
             <sess name="m3fs" />
             <sess lname="m3fs-clone" gname="m3fs" />
             <sess name="pipes" />
-            <sess name="testmsgs" />
-            <sess name="testcaps" />
             <pes type="core" count="4" />
         </app>
     </dom>
