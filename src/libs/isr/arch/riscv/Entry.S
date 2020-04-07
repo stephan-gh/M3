@@ -22,22 +22,21 @@
 .text
 
 BEGIN_FUNC(isr_setup)
+    // set address to save the state on interrupts to
+    csrw    sscratch, a0
+
     // delegate all interrupts and exceptions to supervisor mode
-    li     t1, 0x333
-    csrw   mideleg, t1
-    li     t0, -1
-    csrw   medeleg, t0
+    li      t1, 0x333
+    csrw    mideleg, t1
+    li      t0, -1
+    csrw    medeleg, t0
 
     // unmask interrupts
-    csrr   t0, sie
-    or     t0, t0, t1
-    csrw   sie, t0
+    csrs    sie, t1
 
     // return to supervisor mode
-    csrr    t0, mstatus
-    li      t1, 1 << 11
-    or      t0, t0, t1      # MPP = S
-    csrw    mstatus, t0
+    li      t1, 1 << 11     # MPP = S
+    csrs    mstatus, t1
 
     // jump to 1:
     la      t0, 1f

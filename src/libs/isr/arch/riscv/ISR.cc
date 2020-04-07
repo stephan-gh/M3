@@ -19,7 +19,7 @@
 
 #include <isr/ISR.h>
 
-extern "C" void isr_setup();
+extern "C" void isr_setup(uintptr_t kstack);
 
 namespace m3 {
 
@@ -38,11 +38,7 @@ void *ISR::handler(State *state) {
 void ISR::init(uintptr_t kstack) {
     for(size_t i = 0; i < ISR_COUNT; ++i)
         reg(i, null_handler);
-
-    // set stack pointer for exceptions
-    asm volatile ("csrw sscratch, %0" : : "r"(kstack));
-
-    isr_setup();
+    isr_setup(kstack);
 }
 
 void ISR::enable_irqs() {
