@@ -34,7 +34,7 @@ void *ISR::handler(State *state) {
 }
 
 void ISR::enable_irqs() {
-    // not yet supported
+    asm volatile ("msr cpsr, %0" : : "r"(0x53));
 }
 
 void ISR::set_sp(uintptr_t) {

@@ -19,6 +19,8 @@
 
 #include <isr/ISR.h>
 
+extern "C" void isr_setup();
+
 namespace m3 {
 
 ISR::isr_func ISR::isrs[ISR_COUNT];
@@ -39,6 +41,13 @@ void ISR::init(uintptr_t kstack) {
 
     // set stack pointer for exceptions
     asm volatile ("csrw sscratch, %0" : : "r"(kstack));
+
+    isr_setup();
+}
+
+void ISR::enable_irqs() {
+    // set SIE to 1
+    asm volatile ("csrs sstatus, %0" : : "r"(1 << 1));
 }
 
 }

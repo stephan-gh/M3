@@ -137,8 +137,6 @@ pub extern "C" fn enable_paging() {
             mrc     p15, 0, r0, c1, c0, 0;   // SCTLR
             orr     r0, r0, #0x00000001;     // enable MMU
             mcr     p15, 0, r0, c1, c0, 0;
-            mov     r0, #0x53;               // enable IRQs
-            msr     CPSR, r0;
             "
             : : : : "volatile"
         );

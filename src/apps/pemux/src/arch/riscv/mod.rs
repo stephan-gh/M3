@@ -26,7 +26,6 @@ type IsrFunc = extern "C" fn(state: &mut State) -> *mut libc::c_void;
 extern "C" {
     fn isr_init(stack: usize);
     fn isr_reg(idx: usize, func: IsrFunc);
-    fn isr_enable();
 }
 
 int_enum! {
@@ -128,7 +127,6 @@ pub fn init(stack: usize) {
                 _ => isr_reg(i, crate::unexpected_irq),
             }
         }
-        isr_enable();
     }
 }
 

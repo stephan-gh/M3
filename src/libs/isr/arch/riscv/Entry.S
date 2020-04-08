@@ -21,14 +21,14 @@
 
 .text
 
-BEGIN_FUNC(isr_enable)
+BEGIN_FUNC(isr_setup)
     // delegate all interrupts and exceptions to supervisor mode
     li     t1, 0x333
     csrw   mideleg, t1
     li     t0, -1
     csrw   medeleg, t0
 
-    // enable interrupts
+    // unmask interrupts
     csrr   t0, sie
     or     t0, t0, t1
     csrw   sie, t0
@@ -50,13 +50,8 @@ BEGIN_FUNC(isr_enable)
     // go!
     mret
 1:
-    // enable interrupts
-    csrr    t0, sstatus
-    or      t0, t0, 1 << 1  # SIE = 1
-    csrw    sstatus, t0
-
     ret
-END_FUNC(isr_enable)
+END_FUNC(isr_setup)
 
 .align 4
 BEGIN_FUNC(exc_common)
