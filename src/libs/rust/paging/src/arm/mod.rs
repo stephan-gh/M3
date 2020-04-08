@@ -62,7 +62,7 @@ pub fn build_pte(phys: MMUPTE, perm: MMUFlags, level: usize, leaf: bool) -> MMUP
     let pte = phys | perm.bits();
     if leaf {
         if level > 0 {
-            pte | MMUFlags::BLK.bits()
+            pte | (MMUFlags::BLK | MMUFlags::NG).bits()
         }
         else {
             pte | (MMUFlags::PAGE | MMUFlags::NG).bits()
