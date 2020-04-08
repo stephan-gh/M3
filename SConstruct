@@ -256,9 +256,7 @@ def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, va
         # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
         # compiler-builtins crate, because those are poor implementations. Note that we do that for
         # all M3 programs, because for example the kernel links against a Rust library.
-        sources = [source]
-        if myenv['ISA'] in ['riscv', 'arm']:
-            sources += myenv.Glob('$BUILDDIR/src/libs/c/string/*.o')
+        sources = [source] + myenv.Glob('$BUILDDIR/src/libs/c/string/*.o')
 
         prog = myenv.Program(
             target, sources,
