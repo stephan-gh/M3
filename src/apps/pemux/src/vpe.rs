@@ -291,7 +291,6 @@ fn do_schedule(action: ScheduleAction) -> usize {
                 },
                 ScheduleAction::Kill => {
                     VPES.get_mut()[old.id() as usize] = None;
-                    *VPE_COUNT.get_mut() += 1;
                 },
             }
         }
@@ -319,6 +318,7 @@ pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
             VPEState::Ready => RDY.get_mut().remove_if(|v| v.id() == id).unwrap(),
             VPEState::Blocked => BLK.get_mut().remove_if(|v| v.id() == id).unwrap(),
         };
+        *VPE_COUNT.get_mut() -= 1;
 
         log!(
             crate::LOG_VPES,
