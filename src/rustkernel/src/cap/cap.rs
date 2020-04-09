@@ -14,11 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::StaticCell;
+use base::cell::{StaticCell, RefMut};
 use base::cfg;
 use base::col::Treap;
 use base::goff;
 use base::kif::{CapRngDesc, CapSel, FIRST_FREE_SEL};
+use base::rc::{Rc, Weak};
 use core::cmp;
 use core::fmt;
 use core::ptr::{NonNull, Unique};
@@ -64,7 +65,7 @@ impl cmp::Ord for SelRange {
 
 pub struct CapTable {
     caps: Treap<SelRange, Capability>,
-    vpe: Option<NonNull<VPE>>,
+    vpe: Weak<VPE>,
 }
 
 unsafe fn as_shared<T>(obj: &mut T) -> NonNull<T> {
@@ -75,12 +76,12 @@ impl CapTable {
     pub fn new() -> Self {
         CapTable {
             caps: Treap::new(),
-            vpe: None,
+            vpe: Weak::new(),
         }
     }
 
-    pub unsafe fn set_vpe(&mut self, vpe: *mut VPE) {
-        self.vpe = Some(NonNull::from(Unique::new_unchecked(vpe)));
+    pub fn set_vpe(&mut self, vpe: &Rc<VPE>) {
+        self.vpe = Rc::downgrade(vpe);
     }
 
     pub fn unused(&self, sel: CapSel) -> bool {
@@ -121,11 +122,11 @@ impl CapTable {
     pub fn insert_as_child_from(
         &mut self,
         cap: Capability,
-        par_tbl: &mut CapTable,
+        mut par_tbl: RefMut<CapTable>,
         par_sel: CapSel,
     ) {
         unsafe {
-            let parent: Option<NonNull<Capability>> = par_tbl.get_shared(par_sel);
+            let parent = par_tbl.get_shared(par_sel);
             self.do_insert(cap, parent);
         }
     }
@@ -334,15 +335,15 @@ impl Capability {
         unsafe { &mut *self.table.unwrap().as_ptr() }
     }
 
-    fn vpe(&self) -> &VPE {
-        unsafe { &*(self.table().vpe.unwrap().as_ptr()) }
+    fn vpe(&self) -> Rc<VPE> {
+        self.table().vpe.upgrade().unwrap()
     }
 
-    fn invalidate_ep(cgp: &mut CommonGateProperties) {
+    fn invalidate_ep(mut cgp: RefMut<CommonGateProperties>) {
         if let Some(ep) = cgp.get_ep() {
-            let pemux = pemng::get().pemux(ep.borrow().pe_id());
+            let pemux = pemng::get().pemux(ep.pe_id());
             // if that fails, just ignore it
-            pemux.invalidate_ep(ep.borrow().ep(), true).ok();
+            pemux.invalidate_ep(ep.ep(), true).ok();
             cgp.remove_ep();
         }
     }
@@ -351,26 +352,26 @@ impl Capability {
         match self.obj {
             KObject::VPE(ref v) => {
                 // remove VPE if we revoked the root capability
-                if self.parent.is_none() && !v.borrow().is_bootmod() {
-                    let id = v.borrow().id();
+                if self.parent.is_none() && !v.is_bootmod() {
+                    let id = v.id();
                     vpemng::get().remove(id);
                 }
             },
 
             KObject::SGate(ref mut o) => {
-                Self::invalidate_ep(o.borrow_mut().cgp());
+                Self::invalidate_ep(o.cgp_mut());
             },
 
             KObject::RGate(ref mut o) => {
-                Self::invalidate_ep(o.borrow_mut().cgp());
+                Self::invalidate_ep(o.cgp_mut());
             },
 
             KObject::MGate(ref mut o) => {
-                Self::invalidate_ep(o.borrow_mut().cgp());
+                Self::invalidate_ep(o.cgp_mut());
             },
 
             KObject::Serv(ref s) => {
-                s.borrow_mut().service().borrow_mut().abort();
+                s.service().abort();
             },
 
             KObject::Sess(ref _s) => {
@@ -379,11 +380,11 @@ impl Capability {
 
             KObject::Map(ref m) => {
                 let virt = (self.sel() as goff) << cfg::PAGE_BITS;
-                m.borrow().unmap(self.vpe(), virt, self.len() as usize);
+                m.unmap(&self.vpe(), virt, self.len() as usize);
             },
 
             KObject::Sem(ref s) => {
-                s.borrow_mut().revoke();
+                s.revoke();
             },
 
             _ => {},

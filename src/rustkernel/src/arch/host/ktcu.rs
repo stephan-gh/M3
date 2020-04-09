@@ -41,7 +41,7 @@ pub fn deprivilege_pe(_pe: PEId) -> Result<(), Error> {
 
 pub fn reset_pe(pe: PEId) -> Result<(), Error> {
     if let Some(v) = vpemng::get().find_vpe(|v| v.pe_id() == pe) {
-        unsafe { libc::kill(v.borrow().pid(), libc::SIGKILL); }
+        unsafe { libc::kill(v.pid(), libc::SIGKILL); }
     }
     Ok(())
 }
@@ -129,7 +129,7 @@ pub fn init() {
 
 pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
     let vpe = vpemng::get().find_vpe(|v| v.pe_id() == pe).unwrap();
-    if vpe.borrow().has_app() {
+    if vpe.has_app() {
         let eps = pemng::get().pemux(pe).eps_base() as usize;
         let addr = eps + ep * EP_REGS * util::size_of::<Reg>();
         let bytes = EP_REGS * util::size_of::<Reg>();

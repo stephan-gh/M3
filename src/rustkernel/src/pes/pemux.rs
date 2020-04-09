@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{Ref, RefCell, RefMut};
 use base::col::{BitVec, Vec};
 use base::errors::{Code, Error};
 use base::goff;
@@ -32,7 +31,7 @@ use platform;
 pub const MSG_ORD: u32 = 7;
 
 pub struct PEMux {
-    pe: Rc<RefCell<PEObject>>,
+    pe: Rc<PEObject>,
     vpes: Vec<VPEId>,
     queue: SendQueue,
     eps: BitVec,
@@ -127,12 +126,12 @@ impl PEMux {
         }
     }
 
-    pub fn pe(&self) -> Rc<RefCell<PEObject>> {
-        self.pe.clone()
+    pub fn pe(&self) -> &Rc<PEObject> {
+        &self.pe
     }
 
     pub fn pe_id(&self) -> PEId {
-        self.pe.borrow().pe()
+        self.pe.pe()
     }
 
     #[cfg(target_os = "linux")]
@@ -210,9 +209,9 @@ impl PEMux {
         &mut self,
         ep: EpId,
         vpe: VPEId,
-        obj: &Ref<SGateObject>,
+        obj: &Rc<SGateObject>,
     ) -> Result<(), Error> {
-        let rgate: Ref<RGateObject> = obj.rgate().borrow();
+        let rgate = obj.rgate();
         assert!(rgate.activated());
 
         klog!(EPS, "PE{}:EP{} = {:?}", self.pe_id(), ep, obj);
@@ -236,7 +235,7 @@ impl PEMux {
         ep: EpId,
         vpe: VPEId,
         reply_eps: Option<EpId>,
-        obj: &mut RefMut<RGateObject>,
+        obj: &Rc<RGateObject>,
     ) -> Result<(), Error> {
         klog!(EPS, "PE{}:EP{} = {:?}", self.pe_id(), ep, obj);
 
@@ -260,7 +259,7 @@ impl PEMux {
         &mut self,
         ep: EpId,
         vpe: VPEId,
-        obj: &Ref<MGateObject>,
+        obj: &Rc<MGateObject>,
         pe_id: PEId,
         off: goff,
     ) -> Result<(), Error> {
@@ -291,7 +290,7 @@ impl PEMux {
 
     #[cfg(target_os = "none")]
     pub fn handle_call(&mut self, msg: &tcu::Message) {
-        use pes::{VPE, vpemng};
+        use pes::{vpemng, VPE};
 
         let req = msg.get_data::<kif::pemux::Exit>();
         let vpe_id = req.vpe_sel as VPEId;
@@ -307,7 +306,7 @@ impl PEMux {
 
         if self.vpes.contains(&vpe_id) {
             let vpe = vpemng::get().vpe(vpe_id).unwrap();
-            VPE::stop_app(vpe, exitcode, true);
+            VPE::stop_app(&vpe, exitcode, true);
         }
 
         let reply = kif::DefaultReply { error: 0 };
@@ -315,8 +314,12 @@ impl PEMux {
     }
 
     #[cfg(target_os = "linux")]
-    pub fn vpe_ctrl(&mut self, vpe: VPEId,
-        eps_start: EpId,_ctrl: base::kif::pemux::VPEOp) -> Result<(), Error> {
+    pub fn vpe_ctrl(
+        &mut self,
+        _vpe: VPEId,
+        _eps_start: EpId,
+        _ctrl: base::kif::pemux::VPEOp,
+    ) -> Result<(), Error> {
         // nothing to do
         Ok(())
     }

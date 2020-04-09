@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{RefCell, StaticCell};
+use base::cell::StaticCell;
 use base::cfg;
 use base::col::Vec;
 use base::errors::{Code, Error};
@@ -35,7 +35,7 @@ use platform;
 pub const MAX_VPES: usize = 64;
 
 pub struct VPEMng {
-    vpes: Vec<Option<Rc<RefCell<VPE>>>>,
+    vpes: Vec<Option<Rc<VPE>>>,
     count: usize,
     next_id: usize,
 }
@@ -63,7 +63,7 @@ impl VPEMng {
         self.count
     }
 
-    pub fn vpe(&self, id: VPEId) -> Option<Rc<RefCell<VPE>>> {
+    pub fn vpe(&self, id: VPEId) -> Option<Rc<VPE>> {
         self.vpes[id].as_ref().map(|v| v.clone())
     }
 
@@ -88,15 +88,15 @@ impl VPEMng {
     pub fn create(
         &mut self,
         name: &str,
-        pe: Rc<RefCell<PEObject>>,
+        pe: Rc<PEObject>,
         eps_start: tcu::EpId,
-        kmem: Rc<RefCell<KMemObject>>,
+        kmem: Rc<KMemObject>,
         flags: VPEFlags,
-    ) -> Result<Rc<RefCell<VPE>>, Error> {
+    ) -> Result<Rc<VPE>, Error> {
         let id: VPEId = self.get_id()?;
-        let pe_id = pe.borrow().pe();
+        let pe_id = pe.pe();
 
-        let vpe: Rc<RefCell<VPE>> = VPE::new(name, id, pe, eps_start, kmem, flags);
+        let vpe: Rc<VPE> = VPE::new(name, id, pe, eps_start, kmem, flags);
 
         klog!(VPES, "Created VPE {} [id={}, pe={}]", name, id, pe_id);
 
@@ -126,7 +126,7 @@ impl VPEMng {
         let vpe = self
             .create(
                 "root",
-                pemux.pe(),
+                pemux.pe().clone(),
                 tcu::FIRST_USER_EP,
                 kmem,
                 VPEFlags::BOOTMOD,
@@ -143,7 +143,7 @@ impl VPEMng {
                 KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
             );
 
-            vpe.borrow_mut().obj_caps_mut().insert(cap);
+            vpe.obj_caps().borrow_mut().insert(cap);
             sel += 1;
         }
 
@@ -156,14 +156,15 @@ impl VPEMng {
                 KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
             );
 
-            vpe.borrow_mut().obj_caps_mut().insert(cap);
+            vpe.obj_caps().borrow_mut().insert(cap);
             sel += 1;
         }
 
         // PES
         for pe in platform::user_pes() {
-            let cap = Capability::new(sel, KObject::PE(pemng::get().pemux(pe).pe()));
-            vpe.borrow_mut().obj_caps_mut().insert(cap);
+            let pe_obj = pemng::get().pemux(pe).pe().clone();
+            let cap = Capability::new(sel, KObject::PE(pe_obj));
+            vpe.obj_caps().borrow_mut().insert(cap);
             sel += 1;
         }
 
@@ -176,13 +177,13 @@ impl VPEMng {
                     KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
                 );
 
-                vpe.borrow_mut().obj_caps_mut().insert(cap);
+                vpe.obj_caps().borrow_mut().insert(cap);
                 sel += 1;
             }
         }
 
         // let root know the first usable selector
-        vpe.borrow_mut().set_first_sel(sel);
+        vpe.set_first_sel(sel);
 
         // go!
         pemng::get().init_vpe(&vpe)?;
@@ -190,27 +191,29 @@ impl VPEMng {
     }
 
     pub fn remove(&mut self, id: VPEId) {
-        match self.vpes[id] {
-            Some(ref v) => unsafe {
-                let vpe: &mut VPE = &mut *v.as_ptr();
-                let pemux = pemng::get().pemux(vpe.pe_id());
-                pemux.rem_vpe(vpe.id());
-                Self::destroy_vpe(vpe);
+        // Replace item at position
+        // https://stackoverflow.com/questions/33204273/how-can-i-take-ownership-of-a-vec-element-and-replace-it-with-something-else
+        let vpe: Option<Rc<VPE>> = core::mem::replace(&mut self.vpes[id], None);
+
+        match vpe {
+            Some(ref v) => {
+                let pemux = pemng::get().pemux(v.pe_id());
+                pemux.rem_vpe(v.id());
+                Self::destroy_vpe(v);
                 self.count -= 1;
             },
-            None => panic!("Removing nonexisting VPE with id {}", id),
+            None => panic!("Removing nonexisting VPE with id {}", id)
         };
-        self.vpes[id] = None;
     }
 
     #[cfg(target_os = "linux")]
-    pub fn find_vpe<P>(&self, pred: P) -> Option<Rc<RefCell<VPE>>>
+    pub fn find_vpe<P>(&self, pred: P) -> Option<Rc<VPE>>
     where
-        P: Fn(&VPE) -> bool,
+        P: Fn(&Rc<VPE>) -> bool,
     {
         for v in &self.vpes {
             if let Some(vpe) = v.as_ref() {
-                if pred(&vpe.borrow()) {
+                if pred(&vpe) {
                     return Some(vpe.clone());
                 }
             }
@@ -218,8 +221,15 @@ impl VPEMng {
         None
     }
 
-    fn destroy_vpe(vpe: &mut VPE) {
+    fn destroy_vpe(vpe: &Rc<VPE>) {
         vpe.destroy();
+
+        // todo this panics all the time. Probably not a big probleme since
+        //  only some memory is probably not properly freed.. but anyway, should be investigated
+        /*if Rc::strong_count(&vpe) > 1 {
+            panic!("Strong count is > 1!")
+        }*/
+
         // TODO temporary
         ktcu::reset_pe(vpe.pe_id()).unwrap();
         klog!(
@@ -235,15 +245,11 @@ impl VPEMng {
 impl Drop for VPEMng {
     fn drop(&mut self) {
         for v in self.vpes.drain(0..) {
-            if let Some(vpe) = v {
-                unsafe {
-                    let vpe: &mut VPE = &mut *vpe.as_ptr();
+            if let Some(ref vpe) = v {
+                #[cfg(target_os = "linux")]
+                ::arch::childs::kill_child(vpe.pid());
 
-                    #[cfg(target_os = "linux")]
-                    ::arch::childs::kill_child(vpe.pid());
-
-                    Self::destroy_vpe(vpe);
-                }
+                Self::destroy_vpe(vpe);
             }
         }
     }

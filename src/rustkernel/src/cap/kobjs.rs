@@ -14,12 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::RefCell;
+use base::cell::{Cell, Ref, RefCell, RefMut};
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
 use base::mem::GlobAddr;
-use base::rc::Rc;
+use base::rc::{Rc, Weak};
 use base::tcu::{EpId, Label, PEId};
 use core::fmt;
 use core::ptr;
@@ -31,71 +31,57 @@ use pes::{pemng, VPEId, VPE};
 
 #[derive(Clone)]
 pub enum KObject {
-    RGate(Rc<RefCell<RGateObject>>),
-    SGate(Rc<RefCell<SGateObject>>),
-    MGate(Rc<RefCell<MGateObject>>),
-    Map(Rc<RefCell<MapObject>>),
-    Serv(Rc<RefCell<ServObject>>),
-    Sess(Rc<RefCell<SessObject>>),
-    Sem(Rc<RefCell<SemObject>>),
-    VPE(Rc<RefCell<VPE>>),
-    KMEM(Rc<RefCell<KMemObject>>),
-    PE(Rc<RefCell<PEObject>>),
-    EP(Rc<RefCell<EPObject>>),
+    RGate(Rc<RGateObject>),
+    SGate(Rc<SGateObject>),
+    MGate(Rc<MGateObject>),
+    Map(Rc<MapObject>),
+    Serv(Rc<ServObject>),
+    Sess(Rc<SessObject>),
+    Sem(Rc<SemObject>),
+    VPE(Rc<VPE>),
+    KMEM(Rc<KMemObject>),
+    PE(Rc<PEObject>),
+    EP(Rc<EPObject>),
 }
 
 impl fmt::Debug for KObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            KObject::SGate(ref s) => write!(f, "{:?}", s.borrow()),
-            KObject::RGate(ref r) => write!(f, "{:?}", r.borrow()),
-            KObject::MGate(ref m) => write!(f, "{:?}", m.borrow()),
-            KObject::Map(ref m) => write!(f, "{:?}", m.borrow()),
-            KObject::Serv(ref s) => write!(f, "{:?}", s.borrow()),
-            KObject::Sess(ref s) => write!(f, "{:?}", s.borrow()),
-            KObject::VPE(ref v) => write!(f, "{:?}", v.borrow()),
-            KObject::Sem(ref s) => write!(f, "{:?}", s.borrow()),
-            KObject::KMEM(ref k) => write!(f, "{:?}", k.borrow()),
-            KObject::PE(ref p) => write!(f, "{:?}", p.borrow()),
-            KObject::EP(ref e) => write!(f, "{:?}", e.borrow()),
+        match self {
+            KObject::SGate(s) => write!(f, "{:?}", s),
+            KObject::RGate(r) => write!(f, "{:?}", r),
+            KObject::MGate(m) => write!(f, "{:?}", m),
+            KObject::Map(m) => write!(f, "{:?}", m),
+            KObject::Serv(s) => write!(f, "{:?}", s),
+            KObject::Sess(s) => write!(f, "{:?}", s),
+            KObject::VPE(v) => write!(f, "{:?}", v),
+            KObject::Sem(s) => write!(f, "{:?}", s),
+            KObject::KMEM(k) => write!(f, "{:?}", k),
+            KObject::PE(p) => write!(f, "{:?}", p),
+            KObject::EP(e) => write!(f, "{:?}", e),
         }
     }
 }
 
 pub struct CommonGateProperties {
     /// The EP where this RGate could be attached to.
-    // be careful; we have Rc<> in both directions; reference and therefor memory
-    // leaks in drop() are possible; maybe use weak?
-    ep: Option<Rc<RefCell<EPObject>>>,
+    ep: Weak<EPObject>,
 }
 
 impl CommonGateProperties {
     fn new() -> CommonGateProperties {
-        CommonGateProperties {
-            ep: None
-        }
+        CommonGateProperties { ep: Weak::new() }
     }
 
-    pub fn get_ep(&self) -> Option<Rc<RefCell<EPObject>>> {
-        self.ep.clone()
+    pub fn get_ep(&self) -> Option<Rc<EPObject>> {
+        self.ep.upgrade()
     }
 
-    pub fn set_ep(&mut self, o: Rc<RefCell<EPObject>>) {
-        self.ep = Some(o);
+    pub fn set_ep(&mut self, o: &Rc<EPObject>) {
+        self.ep = Rc::downgrade(o);
     }
 
     pub fn remove_ep(&mut self) {
-        self.ep = None
-    }
-
-    /// Convenient wrapper around Rc::strong_count for
-    /// the underlying EPObject. Returns 0 if there is none.
-    pub fn ep_reference_count(&self) -> usize {
-        if let Some(t) = &self.ep {
-            Rc::strong_count(&t)
-        } else {
-            0
-        }
+        self.ep = Weak::new()
     }
 }
 
@@ -103,13 +89,12 @@ impl CommonGateProperties {
 pub enum GateObject {
     // todo be careful! we have Rc<> in both directions
     //  cycles in drop trait could happen.. maybe use Weak<> instead?
-    RGate(Rc<RefCell<RGateObject>>),
-    SGate(Rc<RefCell<SGateObject>>),
-    MGate(Rc<RefCell<MGateObject>>),
+    RGate(Rc<RGateObject>),
+    SGate(Rc<SGateObject>),
+    MGate(Rc<MGateObject>),
 }
 
 impl GateObject {
-
     /// If self is a RGATE
     pub fn is_r_gate(&self) -> bool {
         match *self {
@@ -135,75 +120,75 @@ impl GateObject {
     }
 
     // Returns RGATE if self is RGATE
-    pub fn get_r_gate(&self) -> Rc<RefCell<RGateObject>> {
+    pub fn get_r_gate(&self) -> &Rc<RGateObject> {
         if let GateObject::RGate(g) = self {
-            g.clone()
-        } else {
+            g
+        }
+        else {
             panic!("No RGate!");
         }
     }
 
     // Returns RGATE if self is RGATE
-    pub fn get_s_gate(&self) -> Rc<RefCell<SGateObject>> {
+    pub fn get_s_gate(&self) -> &Rc<SGateObject> {
         if let GateObject::SGate(g) = self {
-            g.clone()
-        } else {
+            g
+        }
+        else {
             panic!("No SGate!");
         }
     }
 
     // Returns MGATE if self is MGATE
-    pub fn get_m_gate(&self) -> Rc<RefCell<MGateObject>> {
+    pub fn get_m_gate(&self) -> &Rc<MGateObject> {
         if let GateObject::MGate(g) = self {
-            g.clone()
-        } else {
+            g
+        }
+        else {
             panic!("No MGate!");
         }
     }
 
     /// Sets the endpoint on the gate. Delegates the action
     /// from this enum to the actual gate.
-    pub fn set_ep(&self, ep: Rc<RefCell<EPObject>>) {
+    pub fn set_ep(&self, ep: Rc<EPObject>) {
         match self {
-            GateObject::RGate(g) => {
-                g.borrow_mut().cgp.set_ep(ep)
-            },
-            GateObject::SGate(g) => {
-                g.borrow_mut().cgp.set_ep(ep)
-            },
-            GateObject::MGate(g) => {
-                g.borrow_mut().cgp.set_ep(ep)
-            }
+            GateObject::RGate(g) => g.cgp.borrow_mut().set_ep(&ep),
+            GateObject::SGate(g) => g.cgp.borrow_mut().set_ep(&ep),
+            GateObject::MGate(g) => g.cgp.borrow_mut().set_ep(&ep),
         }
     }
 
     /// Check is the underlying gate object has an endpoint assigned.
     pub fn has_ep(&self) -> bool {
         match self {
-            GateObject::RGate(g) => {
-                g.borrow().cgp.get_ep().is_some()
-            },
-            GateObject::SGate(g) => {
-                g.borrow().cgp.get_ep().is_some()
-            },
-            GateObject::MGate(g) => {
-                g.borrow().cgp.get_ep().is_some()
-            }
+            GateObject::RGate(g) => g.cgp.borrow().get_ep().is_some(),
+            GateObject::SGate(g) => g.cgp.borrow().get_ep().is_some(),
+            GateObject::MGate(g) => g.cgp.borrow().get_ep().is_some(),
         }
     }
 
     /// Convenient function on the enum to get the EP of the gate.
-    pub fn get_ep(&self) -> Rc<RefCell<EPObject>> {
+    pub fn get_ep(&self) -> Rc<EPObject> {
         match self {
-            GateObject::RGate(g) => {
-                g.borrow().cgp.get_ep().unwrap_or_else(|| panic!("no ep!")).clone()
-            },
-            GateObject::SGate(g) => {
-                g.borrow().cgp.get_ep().unwrap_or_else(|| panic!("no ep!")).clone()
-            },
-            GateObject::MGate(g) => {
-                g.borrow().cgp.get_ep().unwrap_or_else(|| panic!("no ep!")).clone()
-            }
+            GateObject::RGate(g) => g
+                .cgp
+                .borrow()
+                .get_ep()
+                .unwrap_or_else(|| panic!("no ep!"))
+                .clone(),
+            GateObject::SGate(g) => g
+                .cgp
+                .borrow()
+                .get_ep()
+                .unwrap_or_else(|| panic!("no ep!"))
+                .clone(),
+            GateObject::MGate(g) => g
+                .cgp
+                .borrow()
+                .get_ep()
+                .unwrap_or_else(|| panic!("no ep!"))
+                .clone(),
         }
     }
 
@@ -211,68 +196,50 @@ impl GateObject {
     /// to the corresponding gate type.
     pub fn remove_ep(&self) {
         match self {
-            GateObject::RGate(g) => {
-                g.borrow_mut().cgp.remove_ep()
-            },
-            GateObject::SGate(g) => {
-                g.borrow_mut().cgp.remove_ep()
-            },
-            GateObject::MGate(g) => {
-                g.borrow_mut().cgp.remove_ep()
-            }
-        }
-    }
-
-    /// Convenient function to get the reference count of the underlying
-    /// EPObject. Returns 0 if there is none.
-    pub fn get_ep_reference_count(&self) -> usize {
-        match self {
-            GateObject::RGate(g) => {
-                g.borrow().cgp.ep_reference_count()
-            },
-            GateObject::SGate(g) => {
-                g.borrow().cgp.ep_reference_count()
-            },
-            GateObject::MGate(g) => {
-                g.borrow().cgp.ep_reference_count()
-            }
+            GateObject::RGate(g) => g.cgp.borrow_mut().remove_ep(),
+            GateObject::SGate(g) => g.cgp.borrow_mut().remove_ep(),
+            GateObject::MGate(g) => g.cgp.borrow_mut().remove_ep(),
         }
     }
 }
 
 pub struct RGateObject {
-    cgp: CommonGateProperties,
-    loc: Option<(PEId, EpId)>,
-    addr: goff,
+    cgp: RefCell<CommonGateProperties>,
+    loc: Cell<Option<(PEId, EpId)>>,
+    addr: Cell<goff>,
     order: u32,
     msg_order: u32,
 }
 
 impl RGateObject {
-    pub fn new(order: u32, msg_order: u32) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(RGateObject {
-            cgp: CommonGateProperties::new(),
-            loc: None,
-            addr: 0,
+    pub fn new(order: u32, msg_order: u32) -> Rc<Self> {
+        Rc::new(RGateObject {
+            cgp: RefCell::from(CommonGateProperties::new()),
+            loc: Cell::from(None),
+            addr: Cell::from(0),
             order,
             msg_order,
-        }))
+        })
     }
 
-    pub fn cgp(&mut self) -> &mut CommonGateProperties {
-        &mut self.cgp
+    pub fn cgp(&self) -> Ref<CommonGateProperties> {
+        self.cgp.borrow()
+    }
+
+    pub fn cgp_mut(&self) -> RefMut<CommonGateProperties> {
+        self.cgp.borrow_mut()
     }
 
     pub fn pe(&self) -> Option<PEId> {
-        self.loc.map(|(pe, _)| pe)
+        self.loc.get().map(|(pe, _)| pe)
     }
 
     pub fn ep(&self) -> Option<EpId> {
-        self.loc.map(|(_, ep)| ep)
+        self.loc.get().map(|(_, ep)| ep)
     }
 
     pub fn addr(&self) -> goff {
-        self.addr
+        self.addr.get()
     }
 
     pub fn order(&self) -> u32 {
@@ -292,21 +259,21 @@ impl RGateObject {
     }
 
     pub fn activated(&self) -> bool {
-        self.addr != 0
+        self.addr.get() != 0
     }
 
-    pub fn activate(&mut self, pe: PEId, ep: EpId, addr: goff) {
-        self.loc = Some((pe, ep));
-        self.addr = addr;
+    pub fn activate(&self, pe: PEId, ep: EpId, addr: goff) {
+        self.loc.replace(Some((pe, ep)));
+        self.addr.replace(addr);
     }
 
-    pub fn adjust_rbuf(&mut self, base: goff) {
-        self.addr += base;
+    pub fn adjust_rbuf(&self, base: goff) {
+        self.addr.set(self.addr() + base);
     }
 
-    pub fn deactivate(&mut self) {
-        self.addr = 0;
-        self.loc = None;
+    pub fn deactivate(&self) {
+        self.addr.set(0);
+        self.loc.set(None);
     }
 
     pub fn get_event(&self) -> thread::Event {
@@ -314,7 +281,7 @@ impl RGateObject {
     }
 
     pub fn print_loc(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.loc {
+        match self.loc.get() {
             Some((pe, ep)) => write!(f, "PE{}:EP{}", pe, ep),
             None => write!(f, "?"),
         }
@@ -328,7 +295,7 @@ impl fmt::Debug for RGateObject {
         write!(
             f,
             ", addr={:#x}, sz={:#x}, msz={:#x}]",
-            self.addr,
+            self.addr.get(),
             self.size(),
             self.msg_size()
         )
@@ -336,28 +303,32 @@ impl fmt::Debug for RGateObject {
 }
 
 pub struct SGateObject {
-    cgp: CommonGateProperties,
-    rgate: Rc<RefCell<RGateObject>>,
+    cgp: RefCell<CommonGateProperties>,
+    rgate: Weak<RGateObject>,
     label: Label,
     credits: u32,
 }
 
 impl SGateObject {
-    pub fn new(rgate: &Rc<RefCell<RGateObject>>, label: Label, credits: u32) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(SGateObject {
-            cgp: CommonGateProperties::new(),
-            rgate: rgate.clone(),
+    pub fn new(rgate: &Rc<RGateObject>, label: Label, credits: u32) -> Rc<Self> {
+        Rc::new(SGateObject {
+            cgp: RefCell::from(CommonGateProperties::new()),
+            rgate: Rc::downgrade(rgate),
             label,
             credits,
-        }))
+        })
     }
 
-    pub fn cgp(&mut self) -> &mut CommonGateProperties {
-        &mut self.cgp
+    pub fn cgp(&self) -> Ref<CommonGateProperties> {
+        self.cgp.borrow()
     }
 
-    pub fn rgate(&self) -> &Rc<RefCell<RGateObject>> {
-        &self.rgate
+    pub fn cgp_mut(&self) -> RefMut<CommonGateProperties> {
+        self.cgp.borrow_mut()
+    }
+
+    pub fn rgate(&self) -> Rc<RGateObject> {
+        self.rgate.upgrade().unwrap()
     }
 
     pub fn label(&self) -> Label {
@@ -372,30 +343,37 @@ impl SGateObject {
 impl fmt::Debug for SGateObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "SGate[rgate=")?;
-        self.rgate.borrow().print_loc(f)?;
+        self.rgate
+            .upgrade()
+            .unwrap()
+            .print_loc(f)?;
         write!(f, ", lbl={:#x}, crd={}]", self.label, self.credits)
     }
 }
 
 pub struct MGateObject {
-    cgp: CommonGateProperties,
+    cgp: RefCell<CommonGateProperties>,
     mem: mem::Allocation,
     perms: kif::Perm,
     derived: bool,
 }
 
 impl MGateObject {
-    pub fn new(mem: mem::Allocation, perms: kif::Perm, derived: bool) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(MGateObject {
-            cgp: CommonGateProperties::new(),
+    pub fn new(mem: mem::Allocation, perms: kif::Perm, derived: bool) -> Rc<Self> {
+        Rc::new(MGateObject {
+            cgp: RefCell::from(CommonGateProperties::new()),
             mem,
             perms,
             derived,
-        }))
+        })
     }
 
-    pub fn cgp(&mut self) -> &mut CommonGateProperties {
-        &mut self.cgp
+    pub fn cgp(&self) -> Ref<CommonGateProperties> {
+        self.cgp.borrow()
+    }
+
+    pub fn cgp_mut(&self) -> RefMut<CommonGateProperties> {
+        self.cgp.borrow_mut()
     }
 
     pub fn pe_id(&self) -> PEId {
@@ -443,21 +421,21 @@ impl fmt::Debug for MGateObject {
 }
 
 pub struct ServObject {
-    serv: Rc<RefCell<Service>>,
+    serv: Rc<Service>,
     owner: bool,
     creator: usize,
 }
 
 impl ServObject {
-    pub fn new(serv: Rc<RefCell<Service>>, owner: bool, creator: usize) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(ServObject {
+    pub fn new(serv: Rc<Service>, owner: bool, creator: usize) -> Rc<Self> {
+        Rc::new(ServObject {
             serv,
             owner,
             creator,
-        }))
+        })
     }
 
-    pub fn service(&self) -> &Rc<RefCell<Service>> {
+    pub fn service(&self) -> &Rc<Service> {
         &self.serv
     }
 
@@ -471,30 +449,28 @@ impl fmt::Debug for ServObject {
         write!(
             f,
             "Serv[srv={:?}, owner={}, creator={}]",
-            self.serv.borrow(),
-            self.owner,
-            self.creator
+            self.serv, self.owner, self.creator
         )
     }
 }
 
 pub struct SessObject {
-    srv: Rc<RefCell<ServObject>>,
+    srv: Weak<ServObject>,
     creator: usize,
     ident: u64,
 }
 
 impl SessObject {
-    pub fn new(srv: &Rc<RefCell<ServObject>>, creator: usize, ident: u64) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(SessObject {
-            srv: srv.clone(),
+    pub fn new(srv: &Rc<ServObject>, creator: usize, ident: u64) -> Rc<Self> {
+        Rc::new(SessObject {
+            srv: Rc::downgrade(srv),
             creator,
             ident,
-        }))
+        })
     }
 
-    pub fn service(&self) -> &Rc<RefCell<ServObject>> {
-        &self.srv
+    pub fn service(&self) -> Rc<ServObject> {
+        self.srv.upgrade().unwrap()
     }
 
     pub fn creator(&self) -> usize {
@@ -511,51 +487,51 @@ impl fmt::Debug for SessObject {
         write!(
             f,
             "Sess[service={}, ident={:#x}]",
-            self.srv.borrow().service().borrow().name(),
+            self.service().service().name(),
             self.ident
         )
     }
 }
 
 pub struct SemObject {
-    counter: u32,
-    waiters: i32,
+    counter: Cell<u32>,
+    waiters: Cell<i32>,
 }
 
 impl SemObject {
-    pub fn new(counter: u32) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(SemObject {
-            counter,
-            waiters: 0,
-        }))
+    pub fn new(counter: u32) -> Rc<Self> {
+        Rc::new(SemObject {
+            counter: Cell::from(counter),
+            waiters: Cell::from(0),
+        })
     }
 
-    pub fn down(sem: &Rc<RefCell<SemObject>>) -> Result<(), Error> {
-        while unsafe { ptr::read_volatile(&sem.borrow().counter) } == 0 {
-            sem.borrow_mut().waiters += 1;
-            let event = sem.borrow().get_event();
+    pub fn down(sem: &Rc<SemObject>) -> Result<(), Error> {
+        while unsafe { ptr::read_volatile(sem.counter.as_ptr()) } == 0 {
+            sem.waiters.set(sem.waiters.get() + 1);
+            let event = sem.get_event();
             thread::ThreadManager::get().wait_for(event);
-            if unsafe { ptr::read_volatile(&sem.borrow().waiters) } == -1 {
+            if unsafe { ptr::read_volatile(sem.waiters.as_ptr()) } == -1 {
                 return Err(Error::new(Code::RecvGone));
             }
-            sem.borrow_mut().waiters -= 1;
+            sem.waiters.set(sem.waiters.get() - 1);
         }
-        sem.borrow_mut().counter -= 1;
+        sem.counter.set(sem.counter.get() - 1);
         Ok(())
     }
 
-    pub fn up(&mut self) {
-        if self.waiters > 0 {
+    pub fn up(&self) {
+        if self.waiters.get() > 0 {
             thread::ThreadManager::get().notify(self.get_event(), None);
         }
-        self.counter += 1;
+        self.counter.set(self.counter.get() + 1);
     }
 
-    pub fn revoke(&mut self) {
-        if self.waiters > 0 {
+    pub fn revoke(&self) {
+        if self.waiters.get() > 0 {
             thread::ThreadManager::get().notify(self.get_event(), None);
         }
-        self.waiters = -1;
+        self.waiters.set(-1);
     }
 
     fn get_event(&self) -> thread::Event {
@@ -565,19 +541,28 @@ impl SemObject {
 
 impl fmt::Debug for SemObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Sem[counter={}, waiters={}]", self.counter, self.waiters)
+        write!(
+            f,
+            "Sem[counter={}, waiters={}]",
+            self.counter.get(),
+            self.waiters.get()
+        )
     }
 }
 
 pub struct PEObject {
     pe: PEId,
-    eps: u32,
+    eps: Cell<u32>,
     vpes: u32,
 }
 
 impl PEObject {
-    pub fn new(pe: PEId, eps: u32) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(PEObject { pe, eps, vpes: 0 }))
+    pub fn new(pe: PEId, eps: u32) -> Rc<Self> {
+        Rc::new(PEObject {
+            pe,
+            eps: Cell::from(eps),
+            vpes: 0,
+        })
     }
 
     pub fn pe(&self) -> PEId {
@@ -585,7 +570,7 @@ impl PEObject {
     }
 
     pub fn eps(&self) -> u32 {
-        self.eps
+        self.eps.get()
     }
 
     pub fn vpes(&self) -> u32 {
@@ -593,29 +578,29 @@ impl PEObject {
     }
 
     pub fn has_quota(&self, eps: u32) -> bool {
-        self.eps >= eps
+        self.eps.get() >= eps
     }
 
-    pub fn alloc(&mut self, eps: u32) {
+    pub fn alloc(&self, eps: u32) {
         klog!(
             PES,
             "PE[{}]: allocating {} EPs ({} total)",
             self.pe,
             eps,
-            self.eps
+            self.eps()
         );
-        assert!(self.eps >= eps);
-        self.eps -= eps;
+        assert!(self.eps.get() >= eps);
+        self.eps.set(self.eps.get() - eps);
     }
 
-    pub fn free(&mut self, eps: u32) {
-        self.eps += eps;
+    pub fn free(&self, eps: u32) {
+        self.eps.set(self.eps.get() + eps);
         klog!(
             PES,
             "PE[{}]: freed {} EPs ({} total)",
             self.pe,
             eps,
-            self.eps
+            self.eps()
         );
     }
 }
@@ -625,42 +610,35 @@ impl fmt::Debug for PEObject {
         write!(
             f,
             "PE[id={}, eps={}, vpes={}]",
-            self.pe, self.eps, self.vpes
+            self.pe, self.eps(), self.vpes
         )
     }
 }
 
 pub struct EPObject {
     is_std: bool,
-    // wir können auf einem EP ein Gate "installieren"/zuweisen
-    gate: Option<Rc<RefCell<GateObject>>>,
+    gate: RefCell<Option<GateObject>>,
     vpe: VPEId,
     ep: EpId,
     replies: u32,
-    pe: Rc<RefCell<PEObject>>,
+    pe: Weak<PEObject>,
 }
 
 impl EPObject {
-    pub fn new(
-        is_std: bool,
-        vpe: VPEId,
-        ep: EpId,
-        replies: u32,
-        pe: Rc<RefCell<PEObject>>,
-    ) -> Rc<RefCell<Self>> {
+    pub fn new(is_std: bool, vpe: VPEId, ep: EpId, replies: u32, pe: &Rc<PEObject>) -> Rc<Self> {
         // TODO add to VPE
-        Rc::new(RefCell::new(EPObject {
+        Rc::new(EPObject {
             is_std,
-            gate: None,
+            gate: RefCell::from(None),
             vpe,
             ep,
             replies,
-            pe,
-        }))
+            pe: Rc::downgrade(pe),
+        })
     }
 
     pub fn pe_id(&self) -> PEId {
-        self.pe.borrow().pe()
+        self.pe.upgrade().unwrap().pe()
     }
 
     pub fn vpe(&self) -> VPEId {
@@ -675,16 +653,20 @@ impl EPObject {
         self.replies
     }
 
-    pub fn get_gate(&self) -> Option<Rc<RefCell<GateObject>>> {
-        self.gate.clone()
+    pub fn get_gate(&self) -> Ref<Option<GateObject>> {
+        self.gate.borrow()
     }
 
-    pub fn set_gate(&mut self, g: GateObject) {
-        self.gate = Some(Rc::from(RefCell::from(g)))
+    pub fn has_gate(&self) -> bool {
+        self.gate.borrow().is_some()
     }
 
-    pub fn remove_gate(&mut self) {
-        self.gate = None
+    pub fn set_gate(&self, g: GateObject) {
+        self.gate.replace(Some(g));
+    }
+
+    pub fn remove_gate(&self) {
+        self.gate.replace(None);
     }
 }
 
@@ -693,10 +675,12 @@ impl Drop for EPObject {
         // TODO remove from VPE
 
         if !self.is_std {
-            let pemux = pemng::get().pemux(self.pe.borrow().pe);
+            let pe = self.pe.upgrade().unwrap();
+
+            let pemux = pemng::get().pemux(pe.pe);
             pemux.free_eps(self.ep, 1 + self.replies);
 
-            self.pe.borrow_mut().free(1 + self.replies);
+            pe.free(1 + self.replies);
         }
     }
 }
@@ -716,8 +700,8 @@ pub struct KMemObject {
 }
 
 impl KMemObject {
-    pub fn new(quota: usize) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(KMemObject { quota, left: quota }))
+    pub fn new(quota: usize) -> Rc<Self> {
+        Rc::new(KMemObject { quota, left: quota })
     }
 
     pub fn left(&self) -> usize {
@@ -728,10 +712,10 @@ impl KMemObject {
         self.left >= size
     }
 
-    pub fn alloc(&mut self, _size: usize) {
+    pub fn alloc(&self, _size: usize) {
     }
 
-    pub fn free(&mut self, _size: usize) {
+    pub fn free(&self, _size: usize) {
     }
 }
 
@@ -742,51 +726,67 @@ impl fmt::Debug for KMemObject {
 }
 
 pub struct MapObject {
-    glob: GlobAddr,
-    flags: kif::PageFlags,
+    glob: Cell<GlobAddr>,
+    flags: Cell<kif::PageFlags>,
 }
 
 impl MapObject {
-    pub fn new(glob: GlobAddr, flags: kif::PageFlags) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(MapObject { glob, flags }))
+    pub fn new(glob: GlobAddr, flags: kif::PageFlags) -> Rc<Self> {
+        Rc::new(MapObject {
+            glob: Cell::from(glob),
+            flags: Cell::from(flags),
+        })
     }
 
     pub fn global(&self) -> GlobAddr {
-        self.glob
+        self.glob.get()
     }
 
     pub fn flags(&self) -> kif::PageFlags {
-        self.flags
+        self.flags.get()
     }
 
     pub fn remap(
-        &mut self,
-        vpe: &VPE,
+        &self,
+        vpe: &Rc<VPE>,
         virt: goff,
         pages: usize,
         glob: GlobAddr,
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
-        self.glob = glob;
-        self.flags = flags;
+        self.glob.replace(glob);
+        self.flags.replace(flags);
         self.map(vpe, virt, pages)
     }
 
-    pub fn map(&self, vpe: &VPE, virt: goff, pages: usize) -> Result<(), Error> {
+    pub fn map(&self, vpe: &Rc<VPE>, virt: goff, pages: usize) -> Result<(), Error> {
         let pemux = pemng::get().pemux(vpe.pe_id());
-        pemux.map(vpe.id(), virt, self.glob, pages, self.flags)
+        pemux.map(vpe.id(), virt, self.global(), pages, self.flags())
     }
 
-    pub fn unmap(&self, vpe: &VPE, virt: goff, pages: usize) {
+    pub fn unmap(&self, vpe: &Rc<VPE>, virt: goff, pages: usize) {
         if vpe.has_app() {
             let pemux = pemng::get().pemux(vpe.pe_id());
-            pemux.map(vpe.id(), virt, self.glob, pages, kif::PageFlags::empty()).unwrap();
+            pemux
+                .map(
+                    vpe.id(),
+                    virt,
+                    self.global(),
+                    pages,
+                    kif::PageFlags::empty(),
+                )
+                .unwrap();
         }
     }
 }
 
 impl fmt::Debug for MapObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Map[glob={:?}, flags={:#x}]", self.glob, self.flags)
+        write!(
+            f,
+            "Map[glob={:?}, flags={:#x}]",
+            self.global(),
+            self.flags()
+        )
     }
 }

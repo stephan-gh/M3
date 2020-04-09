@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{RefCell, StaticCell};
+use base::cell::StaticCell;
 use base::col::Vec;
 use base::errors::Error;
 use base::kif;
@@ -67,46 +67,35 @@ impl PEMng {
         None
     }
 
-    pub fn init_vpe(&mut self, vpe: &Rc<RefCell<VPE>>) -> Result<(), Error> {
-        let pe_id = vpe.borrow().pe_id();
-        if platform::pe_desc(pe_id).supports_pemux() {
-            let vpe_id = vpe.borrow().id();
-            let eps_start = vpe.borrow().eps_start();
-            self.pemux(pe_id)
-                .vpe_ctrl(vpe_id, eps_start, kif::pemux::VPEOp::INIT)?;
+    pub fn init_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
+        if platform::pe_desc(vpe.pe_id()).supports_pemux() {
+            self.pemux(vpe.pe_id())
+                .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::INIT)?;
         }
 
-        VPE::init(&vpe)
+        VPE::init(vpe)
     }
 
-    pub fn start_vpe(&mut self, vpe: &Rc<RefCell<VPE>>) -> Result<(), Error> {
-        let pe_id = vpe.borrow().pe_id();
-        if platform::pe_desc(pe_id).supports_pemux() {
-            let vpe_id = vpe.borrow().id();
-            let eps_start = vpe.borrow().eps_start();
-            self.pemux(pe_id)
-                .vpe_ctrl(vpe_id, eps_start, kif::pemux::VPEOp::START)?;
+    pub fn start_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
+        if platform::pe_desc(vpe.pe_id()).supports_pemux() {
+            self.pemux(vpe.pe_id()).vpe_ctrl(
+                vpe.id(),
+                vpe.eps_start(),
+                kif::pemux::VPEOp::START,
+            )?;
         }
 
         VPE::start(&vpe)
     }
 
-    pub fn stop_vpe(
-        &mut self,
-        vpe: &Rc<RefCell<VPE>>,
-        stop: bool,
-        reset: bool,
-    ) -> Result<(), Error> {
-        let pe_id = vpe.borrow().pe_id();
-        if stop && platform::pe_desc(pe_id).supports_pemux() {
-            let vpe_id = vpe.borrow().id();
-            let eps_start = vpe.borrow().eps_start();
-            self.pemux(pe_id)
-                .vpe_ctrl(vpe_id, eps_start, kif::pemux::VPEOp::STOP)?;
+    pub fn stop_vpe(&mut self, vpe: &Rc<VPE>, stop: bool, reset: bool) -> Result<(), Error> {
+        if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
+            self.pemux(vpe.pe_id())
+                .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::STOP)?;
         }
 
-        if reset && !platform::pe_desc(pe_id).is_programmable() {
-            ktcu::reset_pe(pe_id)
+        if reset && !platform::pe_desc(vpe.pe_id()).is_programmable() {
+            ktcu::reset_pe(vpe.pe_id())
         }
         else {
             Ok(())

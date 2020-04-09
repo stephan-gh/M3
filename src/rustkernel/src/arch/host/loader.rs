@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{RefCell, StaticCell};
+use base::cell::StaticCell;
 use base::cfg;
 use base::col::{String, ToString, Vec};
 use base::tcu::PEId;
@@ -47,11 +47,11 @@ impl Loader {
         LOADER.get_mut().as_mut().unwrap()
     }
 
-    pub fn init_memory(&mut self, _vpe: &mut VPE) -> Result<(), Error> {
+    pub fn init_memory(&mut self, _vpe: &Rc<VPE>) -> Result<(), Error> {
         Ok(())
     }
 
-    pub fn start(&mut self, vpe: &mut VPE) -> Result<i32, Error> {
+    pub fn start(&mut self, vpe: &Rc<VPE>) -> Result<i32, Error> {
         if vpe.pid() != 0 {
             vpe.set_state(State::RUNNING);
             Self::write_env_file(vpe.pid(), vpe.id(), vpe.pe_id(), 0);
@@ -89,8 +89,8 @@ impl Loader {
         }
     }
 
-    pub fn finish_start(&self, vpe: &Rc<RefCell<VPE>>) -> Result<(), Error> {
-        let pemux = pemng::get().pemux(vpe.borrow().pe_id());
+    pub fn finish_start(&self, vpe: &Rc<VPE>) -> Result<(), Error> {
+        let pemux = pemng::get().pemux(vpe.pe_id());
         // update all EPs (e.g., to allow parents to activate EPs for their childs)
         // set base for all receive EPs (do it for all, but it's just unused for the other types)
         pemux.update_eps()

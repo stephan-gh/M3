@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{Cell, RefCell, StaticCell};
+use base::cell::{Cell, StaticCell};
 use base::cfg::{
     ENV_START, LPAGE_SIZE, MOD_HEAP_SIZE, PAGE_BITS, PAGE_MASK, PAGE_SIZE, STACK_BOTTOM, STACK_TOP,
 };
@@ -53,7 +53,7 @@ impl Loader {
         LOADER.get_mut().as_mut().unwrap()
     }
 
-    pub fn init_memory(&mut self, vpe: &mut VPE) -> Result<i32, Error> {
+    pub fn init_memory(&mut self, vpe: &Rc<VPE>) -> Result<i32, Error> {
         // put mapping for env into cap table (so that we can access it in create_mgate later)
         let env_addr = if platform::pe_desc(vpe.pe_id()).has_virtmem() {
             let pemux = pemng::get().pemux(vpe.pe_id());
@@ -74,17 +74,17 @@ impl Loader {
         Ok(0)
     }
 
-    pub fn start(&mut self, _vpe: &mut VPE) -> Result<i32, Error> {
+    pub fn start(&mut self, _vpe: &Rc<VPE>) -> Result<i32, Error> {
         // nothing to do
         Ok(0)
     }
 
-    pub fn finish_start(&self, _vpe: &Rc<RefCell<VPE>>) -> Result<(), Error> {
+    pub fn finish_start(&self, _vpe: &Rc<VPE>) -> Result<(), Error> {
         // nothing to do
         Ok(())
     }
 
-    fn load_root(&mut self, env_addr: GlobAddr, vpe: &mut VPE) -> Result<(), Error> {
+    fn load_root(&mut self, env_addr: GlobAddr, vpe: &Rc<VPE>) -> Result<(), Error> {
         // map stack
         if vpe.pe_desc().has_virtmem() {
             let virt = STACK_BOTTOM;
@@ -143,7 +143,7 @@ impl Loader {
     }
 
     fn load_segment(
-        vpe: &mut VPE,
+        vpe: &Rc<VPE>,
         phys: GlobAddr,
         virt: goff,
         size: usize,
@@ -156,10 +156,10 @@ impl Loader {
 
             let map_obj = MapObject::new(phys, flags);
             if map {
-                map_obj.borrow().map(vpe, virt, pages)?;
+                map_obj.map(vpe, virt, pages)?;
             }
 
-            vpe.map_caps_mut().insert(Capability::new_range(
+            vpe.map_caps().borrow_mut().insert(Capability::new_range(
                 SelRange::new_range(dst_sel as kif::CapSel, pages as kif::CapSel),
                 KObject::Map(map_obj),
             ));
@@ -178,7 +178,7 @@ impl Loader {
         }
     }
 
-    fn load_mod(&self, vpe: &mut VPE, bm: &kif::boot::Mod, copy: bool) -> Result<usize, Error> {
+    fn load_mod(&self, vpe: &Rc<VPE>, bm: &kif::boot::Mod, copy: bool) -> Result<usize, Error> {
         let mod_addr = GlobAddr::new(bm.addr);
         let hdr: elf::Ehdr = Self::read_from_mod(bm, 0)?;
 
