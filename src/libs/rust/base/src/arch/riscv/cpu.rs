@@ -16,6 +16,29 @@
 
 use time;
 
+#[macro_export]
+macro_rules! read_csr {
+    ($reg_name:tt) => {{
+        let res: usize;
+        unsafe { asm!(concat!("csrr $0, ", $reg_name) : "=r"(res)) };
+        res
+    }}
+}
+
+#[macro_export]
+macro_rules! write_csr {
+    ($reg_name:tt, $val:expr) => {{
+        unsafe { asm!(concat!("csrw ", $reg_name, ", $0") : : "r"($val) : : "volatile") };
+    }};
+}
+
+#[macro_export]
+macro_rules! set_csr_bits {
+    ($reg_name:tt, $bits:expr) => {{
+        unsafe { asm!(concat!("csrs ", $reg_name, ", $0") : : "r"($bits) : : "volatile") };
+    }};
+}
+
 pub fn read8b(addr: usize) -> u64 {
     let res: u64;
     unsafe {

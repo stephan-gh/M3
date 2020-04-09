@@ -119,13 +119,7 @@ pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
 #[no_mangle]
 pub extern "C" fn enable_paging() {
     // set sstatus.SUM = 1 to allow accesses to user memory (required for TCU)
-    unsafe {
-        asm!(
-            "csrs sstatus, $0"
-            : : "r"(1 << 18)
-            : : "volatile"
-        );
-    }
+    set_csr_bits!("sstatus", 1 << 18);
 }
 
 pub fn invalidate_page(id: u64, virt: usize) {
@@ -143,14 +137,13 @@ pub fn invalidate_tlb() {
 }
 
 pub fn get_root_pt() -> MMUPTE {
-    let satp: u64;
-    unsafe { asm!("csrr $0, satp" : "=r"(satp)); }
+    let satp = read_csr!("satp") as MMUPTE;
     (satp & 0xFFF_FFFF_FFFF) << cfg::PAGE_BITS
 }
 
 pub fn set_root_pt(id: u64, root: MMUPTE) {
     let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
-    unsafe { asm!("csrw satp, $0" : : "r"(satp)); }
+    write_csr!("satp", satp);
 }
 
 #[no_mangle]

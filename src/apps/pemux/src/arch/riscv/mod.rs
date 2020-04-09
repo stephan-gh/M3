@@ -104,14 +104,14 @@ impl State {
         self.r[9] = 0xDEADBEEF; // a0; don't set the stackpointer in crt0
         self.sepc = entry;
         self.r[1] = sp;
-        unsafe { asm!("csrr $0, sstatus" : "=r"(self.sstatus)) };
+        self.sstatus = read_csr!("sstatus");
         self.sstatus &= !(1 << 8); // user mode
         self.sstatus |= 1 << 5; // interrupts enabled
     }
 }
 
 pub fn set_entry_sp(sp: usize) {
-    unsafe { asm!("csrw sscratch, $0" :  : "r"(sp) : "memory") };
+    write_csr!("sscratch", sp);
 }
 
 pub fn init(stack: usize) {
@@ -130,9 +130,9 @@ pub fn init(stack: usize) {
     }
 }
 
+
 pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
-    let virt: usize;
-    unsafe { asm!("csrr $0, stval" : "=r"(virt)) };
+    let virt = read_csr!("stval");
 
     let perm = match Vector::from(state.cause & 0x1F) {
         Vector::INSTR_PAGEFAULT => PageFlags::R | PageFlags::X,
