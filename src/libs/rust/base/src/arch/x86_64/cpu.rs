@@ -16,6 +16,36 @@
 
 use time;
 
+macro_rules! impl_read_reg {
+    ($func_name:tt, $reg_name:tt) => {
+        pub fn $func_name() -> usize {
+            let res: usize;
+            unsafe { asm!(concat!("mov %", $reg_name, ", $0") : "=r"(res)) };
+            res
+        }
+    };
+}
+
+macro_rules! impl_write_reg {
+    ($func_name:tt, $reg_name:tt) => {
+        pub fn $func_name(val: usize) {
+            unsafe { asm!(concat!("mov $0, %", $reg_name) : : "r"(val) : : "volatile") };
+        }
+    };
+}
+
+impl_read_reg!(read_cr0, "cr0");
+impl_read_reg!(read_cr2, "cr2");
+impl_read_reg!(read_cr3, "cr3");
+impl_read_reg!(read_cr4, "cr4");
+
+impl_write_reg!(write_cr0, "cr0");
+impl_write_reg!(write_cr3, "cr3");
+impl_write_reg!(write_cr4, "cr4");
+
+impl_read_reg!(get_sp, "rsp");
+impl_read_reg!(get_bp, "rbp");
+
 pub fn read8b(addr: usize) -> u64 {
     let res: u64;
     unsafe {
@@ -37,28 +67,6 @@ pub fn write8b(addr: usize, val: u64) {
             : : "volatile"
         );
     }
-}
-
-pub fn get_sp() -> usize {
-    let res: usize;
-    unsafe {
-        asm!(
-            "mov %rsp, $0"
-            : "=r"(res)
-        );
-    }
-    res
-}
-
-pub fn get_bp() -> usize {
-    let val: usize;
-    unsafe {
-        asm!(
-            "mov %rbp, $0"
-            : "=r"(val)
-        );
-    }
-    val
 }
 
 pub fn gem5_debug(msg: usize) -> time::Time {

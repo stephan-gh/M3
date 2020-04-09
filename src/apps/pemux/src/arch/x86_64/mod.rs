@@ -133,10 +133,7 @@ pub fn init(stack: usize) {
 }
 
 pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
-    let cr2: usize;
-    unsafe {
-        asm!("mov %cr2, $0" : "=r"(cr2));
-    }
+    let cr2 = cpu::read_cr2();
 
     let perm = paging::MMUFlags::from_bits_truncate(state.error & PageFlags::RW.bits() as usize);
     // the access is implicitly no-exec

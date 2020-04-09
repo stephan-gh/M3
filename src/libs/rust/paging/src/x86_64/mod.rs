@@ -15,6 +15,7 @@
  */
 
 use base::cfg;
+use base::cpu;
 use base::kif::PageFlags;
 
 pub type MMUPTE = usize;
@@ -133,23 +134,11 @@ pub fn invalidate_tlb() {
 }
 
 pub fn get_root_pt() -> MMUPTE {
-    let addr: MMUPTE;
-    unsafe {
-        asm!(
-            "mov %cr3, $0" : "=r"(addr)
-        )
-    };
-    addr
+    cpu::read_cr3()
 }
 
 pub fn set_root_pt(_id: u64, root: MMUPTE) {
-    unsafe {
-        asm!(
-            "mov $0, %cr3"
-            : : "r"(root)
-            : : "volatile"
-        );
-    }
+    cpu::write_cr3(root);
 }
 
 #[no_mangle]
