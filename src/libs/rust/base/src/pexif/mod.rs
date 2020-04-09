@@ -18,6 +18,7 @@ int_enum! {
     pub struct Operation : isize {
         const SLEEP         = 0x0;
         const EXIT          = 0x1;
-        const NOOP          = 0x2;
+        const YIELD         = 0x2;
+        const NOOP          = 0x3;
     }
 }

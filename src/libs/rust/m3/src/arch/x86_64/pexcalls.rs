@@ -21,6 +21,7 @@ pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
     call2(op, arg1, 0)
 }
 
+#[cfg(target_os = "none")]
 pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
@@ -32,4 +33,9 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
         );
     }
     crate::arch::get_result(res)
+}
+
+#[cfg(target_os = "linux")]
+pub fn call2(_op: Operation, _arg1: usize, _arg2: usize) -> Result<usize, Error> {
+    Ok(0)
 }

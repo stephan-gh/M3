@@ -37,11 +37,10 @@ mod isa;
 pub use self::inner::*;
 pub use self::isa::*;
 
-use base::errors::Error;
-
-pub(crate) fn get_result(res: isize) -> Result<usize, Error> {
+#[cfg(target_os = "none")]
+pub(crate) fn get_result(res: isize) -> Result<usize, base::errors::Error> {
     match res {
-        e if e < 0 => Err(Error::from(-e as u32)),
+        e if e < 0 => Err(base::errors::Error::from(-e as u32)),
         val => Ok(val as usize),
     }
 }

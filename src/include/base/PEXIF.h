@@ -23,6 +23,7 @@ namespace m3 {
 enum Operation : word_t {
     SLEEP,
     EXIT,
+    YIELD,
     NOOP,
 };
 

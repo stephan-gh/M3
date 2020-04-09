@@ -43,6 +43,15 @@ fn pexcall_stop(state: &mut arch::State) -> Result<(), Error> {
     Ok(())
 }
 
+fn pexcall_yield(_state: &mut arch::State) -> Result<(), Error> {
+    log!(crate::LOG_CALLS, "pexcall::yield()");
+
+    if vpe::has_ready() {
+        crate::reg_scheduling(vpe::ScheduleAction::Preempt);
+    }
+    Ok(())
+}
+
 fn pexcall_noop(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::noop()");
 
@@ -55,6 +64,7 @@ pub fn handle_call(state: &mut arch::State) {
     let res = match call {
         pexif::Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
         pexif::Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
+        pexif::Operation::YIELD => pexcall_yield(state).map(|_| 0isize),
         pexif::Operation::NOOP => pexcall_noop(state).map(|_| 0isize),
 
         _ => Err(Error::new(Code::NotSup)),
