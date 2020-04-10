@@ -14,18 +14,24 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::StaticCell;
 use base::errors::Error;
-use base::kif::PageFlags;
+use base::kif::{pemux, PageFlags};
 use base::libc;
 use core::fmt;
+use core::mem::MaybeUninit;
 
 use vma;
+use vpe;
 
 type IsrFunc = extern "C" fn(state: &mut State) -> *mut libc::c_void;
 
 extern "C" {
     fn isr_init(stack: usize);
     fn isr_reg(idx: usize, func: IsrFunc);
+
+    fn save_fpu(state: &mut FPUState);
+    fn restore_fpu(state: &FPUState);
 }
 
 int_enum! {
@@ -70,9 +76,38 @@ pub struct State {
     pub sstatus: usize,
 }
 
+#[repr(C, align(8))]
+pub struct FPUState {
+    r: [usize; 32],
+    fcsr: usize,
+    init: bool,
+}
+
+impl Default for FPUState {
+    fn default() -> Self {
+        Self {
+            // we init that lazy on the first use of the FPU
+            r: unsafe { MaybeUninit::uninit().assume_init() },
+            fcsr: unsafe { MaybeUninit::uninit().assume_init() },
+            init: false,
+        }
+    }
+}
+
+int_enum! {
+    struct FSMode : usize {
+        const OFF = 0;
+        const INITIAL = 1;
+        const CLEAN = 2;
+        const DIRTY = 3;
+    }
+}
+
 pub const PEXC_ARG0: usize = 9; // a0 = x10
 pub const PEXC_ARG1: usize = 10; // a1 = x11
 pub const PEXC_ARG2: usize = 11; // a2 = x12
+
+static FPU_OWNER: StaticCell<u64> = StaticCell::new(pemux::VPE_ID);
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -107,7 +142,17 @@ impl State {
         self.sstatus = read_csr!("sstatus");
         self.sstatus &= !(1 << 8); // user mode
         self.sstatus |= 1 << 5; // interrupts enabled
+        self.sstatus = set_fpu_mode(self.sstatus, FSMode::OFF);
     }
+}
+
+fn get_fpu_mode(sstatus: usize) -> FSMode {
+    FSMode::from((sstatus >> 13) & 0x3)
+}
+
+fn set_fpu_mode(mut sstatus: usize, mode: FSMode) -> usize {
+    sstatus &= !(0x3 << 13);
+    sstatus | (mode.val << 13)
 }
 
 pub fn set_entry_sp(sp: usize) {
@@ -119,6 +164,7 @@ pub fn init(stack: usize) {
         isr_init(stack);
         for i in 0..=31 {
             match Vector::from(i) {
+                Vector::ILLEGAL_INSTR => isr_reg(i, crate::fpu_ex),
                 Vector::ENV_UCALL => isr_reg(i, crate::pexcall),
                 Vector::INSTR_PAGEFAULT => isr_reg(i, crate::mmu_pf),
                 Vector::LOAD_PAGEFAULT => isr_reg(i, crate::mmu_pf),
@@ -130,6 +176,57 @@ pub fn init(stack: usize) {
     }
 }
 
+pub fn forget_fpu(vpe_id: u64) {
+    if *FPU_OWNER == vpe_id {
+        FPU_OWNER.set(pemux::VPE_ID);
+    }
+}
+
+pub fn disable_fpu() {
+    let cur = vpe::cur();
+    if cur.id() != *FPU_OWNER {
+        cur.user_state().sstatus = set_fpu_mode(cur.user_state().sstatus, FSMode::OFF);
+    }
+}
+
+pub fn handle_fpu_ex(state: &mut State) {
+    let cur = vpe::cur();
+
+    // if the FPU is enabled and we receive an illegal instruction exception, kill VPE
+    if get_fpu_mode(state.sstatus) != FSMode::OFF {
+        log!(crate::LOG_ERR, "Illegal instruction with {:?}", state);
+        vpe::remove_cur(1);
+        return;
+    }
+
+    // enable FPU
+    state.sstatus = set_fpu_mode(state.sstatus, FSMode::CLEAN);
+
+    let old_id = *FPU_OWNER & 0xFFFF;
+    if old_id != cur.id() {
+        // enable FPU so that we can save/restore the FPU registers
+        write_csr!("sstatus", set_fpu_mode(read_csr!("sstatus"), FSMode::CLEAN));
+
+        // need to save old state?
+        if old_id != pemux::VPE_ID {
+            let old_vpe = vpe::get_mut(old_id).unwrap();
+            unsafe { save_fpu(old_vpe.fpu_state()) };
+        }
+
+        // restore new state
+        let fpu_state = cur.fpu_state();
+        if fpu_state.init {
+            unsafe { restore_fpu(fpu_state) };
+        }
+        else {
+            unsafe { libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33) };
+            fpu_state.init = true;
+        }
+
+        // we are owner now
+        FPU_OWNER.set(cur.id());
+    }
+}
 
 pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
     let virt = read_csr!("stval");

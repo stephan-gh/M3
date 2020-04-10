@@ -135,6 +135,12 @@ pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
     leave(state)
 }
 
+#[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
+pub extern "C" fn fpu_ex(state: &mut arch::State) -> *mut libc::c_void {
+    arch::handle_fpu_ex(state);
+    leave(state)
+}
+
 pub extern "C" fn mmu_pf(state: &mut arch::State) -> *mut libc::c_void {
     if arch::handle_mmu_pf(state).is_err() {
         vpe::remove_cur(1);

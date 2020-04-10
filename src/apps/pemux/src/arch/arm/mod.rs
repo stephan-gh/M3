@@ -114,6 +114,14 @@ pub fn init(stack: usize) {
     }
 }
 
+pub fn forget_fpu(_vpe_id: u64) {
+    // no FPU support
+}
+
+pub fn disable_fpu() {
+    // no FPU support
+}
+
 pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
     let (virt, perm) = if state.vec == Vector::DATA_ABORT.val {
         let dfar: usize;

@@ -26,7 +26,7 @@ use base::tcu;
 use base::util;
 use core::ptr::NonNull;
 
-use arch::{set_entry_sp, State};
+use arch;
 use helper;
 use paging::Allocator;
 use vma::PfState;
@@ -91,7 +91,9 @@ pub struct VPE {
     prev: Option<NonNull<VPE>>,
     next: Option<NonNull<VPE>>,
     aspace: paging::AddrSpace<PTAllocator>,
-    user_state: State,
+    #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
+    fpu_state: arch::FPUState,
+    user_state: arch::State,
     user_state_addr: usize,
     wait_ep: Option<tcu::EpId>,
     vpe_reg: tcu::Reg,
@@ -205,6 +207,10 @@ pub fn cur() -> &'static mut VPE {
     try_cur().unwrap()
 }
 
+pub fn has_ready() -> bool {
+    !RDY.is_empty()
+}
+
 pub fn schedule(mut action: ScheduleAction) -> usize {
     let res = loop {
         let new_state = do_schedule(action);
@@ -224,6 +230,9 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
     // tell the application whether the PE is shared with others. if not, it can sleep via TCU
     // without telling us.
     ::env().shared = (*VPE_COUNT > 1) as u64;
+
+    // disable FPU to raise an exception if the app tries to use FPU instructions
+    arch::disable_fpu();
 
     res
 }
@@ -261,7 +270,7 @@ fn do_schedule(action: ScheduleAction) -> usize {
 
     // set SP for the next entry
     let new_state = next.user_state_addr;
-    set_entry_sp(new_state + util::size_of::<State>());
+    arch::set_entry_sp(new_state + util::size_of::<arch::State>());
     let next_id = next.id();
     next.state = VPEState::Running;
 
@@ -364,7 +373,9 @@ impl VPE {
             aspace: paging::AddrSpace::new(id, root_pt, PTAllocator { vpe: id }, false),
             vpe_reg: id,
             state: VPEState::Blocked,
-            user_state: State::default(),
+            #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
+            fpu_state: arch::FPUState::default(),
+            user_state: arch::State::default(),
             user_state_addr: 0,
             wait_ep: None,
             eps_start,
@@ -400,6 +411,11 @@ impl VPE {
         self.vpe_reg = val;
     }
 
+    #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
+    pub fn fpu_state(&mut self) -> &mut arch::FPUState {
+        &mut self.fpu_state
+    }
+
     pub fn eps_start(&self) -> tcu::EpId {
         self.eps_start
     }
@@ -421,8 +437,8 @@ impl VPE {
         self.vpe_reg -= (count as u64) << 16;
     }
 
-    pub fn user_state(&self) -> &State {
-        &self.user_state
+    pub fn user_state(&mut self) -> &mut arch::State {
+        &mut self.user_state
     }
 
     fn should_block(&self, msgs: u16) -> bool {
@@ -666,5 +682,8 @@ impl Drop for VPE {
         // owner and updates the version in DRAM. for that reason, the cache for new VPEs needs to
         // be clear, so that the cache loads the current version from DRAM.
         tcu::TCU::flush_cache();
+
+        // in case this VPE had the FPU, forget the state
+        arch::forget_fpu(self.id());
     }
 }

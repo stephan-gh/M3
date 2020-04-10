@@ -14,12 +14,16 @@
  * General Public License version 2 for more details.
  */
 
+use base::cell::StaticCell;
+use base::cpu;
 use base::errors::Error;
-use base::kif::PageFlags;
+use base::kif::{pemux, PageFlags};
 use base::libc;
 use core::fmt;
+use core::mem::MaybeUninit;
 
 use vma;
+use vpe;
 
 type IsrFunc = extern "C" fn(state: &mut State) -> *mut libc::c_void;
 
@@ -38,6 +42,10 @@ pub const PEXC_ARG0: usize = 14; // rax
 pub const PEXC_ARG1: usize = 12; // rcx
 pub const PEXC_ARG2: usize = 11; // rdx
 
+const CR0_TASK_SWITCHED: usize = 1 << 3;
+
+static FPU_OWNER: StaticCell<u64> = StaticCell::new(pemux::VPE_ID);
+
 #[derive(Default)]
 // see comment in ARM code
 #[repr(C, align(16))]
@@ -54,6 +62,22 @@ pub struct State {
     pub rflags: usize,
     pub rsp: usize,
     pub ss: usize,
+}
+
+#[repr(C, packed)]
+pub struct FPUState {
+    data: [u8; 512],
+    init: bool,
+}
+
+impl Default for FPUState {
+    fn default() -> Self {
+        Self {
+            // we init that lazy on the first use of the FPU
+            data: unsafe { MaybeUninit::uninit().assume_init() },
+            init: false,
+        }
+    }
 }
 
 fn vec_name(vec: usize) -> &'static str {
@@ -123,12 +147,54 @@ pub fn init(stack: usize) {
         isr_init(stack);
         for i in 0..=64 {
             match i {
+                7 => isr_reg(i, crate::fpu_ex),
                 14 => isr_reg(i, crate::mmu_pf),
                 63 => isr_reg(i, crate::pexcall),
                 64 => isr_reg(i, crate::tcu_irq),
                 i => isr_reg(i, crate::unexpected_irq),
             }
         }
+    }
+}
+
+pub fn forget_fpu(vpe_id: u64) {
+    if *FPU_OWNER == vpe_id {
+        FPU_OWNER.set(pemux::VPE_ID);
+    }
+}
+
+pub fn disable_fpu() {
+    if vpe::cur().id() != *FPU_OWNER {
+        cpu::write_cr0(cpu::read_cr0() | CR0_TASK_SWITCHED);
+    }
+}
+
+pub fn handle_fpu_ex(_state: &mut State) {
+    let cur = vpe::cur();
+
+    cpu::write_cr0(cpu::read_cr0() & !CR0_TASK_SWITCHED);
+
+    let old_id = *FPU_OWNER & 0xFFFF;
+    if old_id != cur.id() {
+        // need to save old state?
+        if old_id != pemux::VPE_ID {
+            let old_vpe = vpe::get_mut(old_id).unwrap();
+            let fpu_state = old_vpe.fpu_state();
+            unsafe { asm!("fxsave ($0)" : : "r"(&fpu_state.data)) };
+        }
+
+        // restore new state
+        let fpu_state = cur.fpu_state();
+        if fpu_state.init {
+            unsafe { asm!("fxrstor ($0)" : : "r"(&fpu_state.data)) };
+        }
+        else {
+            unsafe { asm!("fninit") };
+            fpu_state.init = true;
+        }
+
+        // we are owner now
+        FPU_OWNER.set(cur.id());
     }
 }
 
