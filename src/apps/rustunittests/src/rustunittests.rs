@@ -27,6 +27,7 @@ mod tbufio;
 mod tdir;
 mod tdlist;
 mod tfilemux;
+mod tfloat;
 mod tgenfile;
 mod tm3fs;
 mod tmemmap;
@@ -72,6 +73,7 @@ pub fn main() -> i32 {
     wv_run_suite!(tester, tdir::run);
     wv_run_suite!(tester, tdlist::run);
     wv_run_suite!(tester, tfilemux::run);
+    wv_run_suite!(tester, tfloat::run);
     wv_run_suite!(tester, tgenfile::run);
     wv_run_suite!(tester, tm3fs::run);
     wv_run_suite!(tester, tmemmap::run);
