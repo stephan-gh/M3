@@ -261,7 +261,7 @@ class NinjaBuilder :
 
 ninja_post = None
 scons_cmd = "scons"
-scons_dependencies = ['SConstruct'] + rglob('SConscript')
+scons_dependencies = ['SConstruct'] + rglob('SConscript', 'src')
 
 def ninja_custom_command(ninja, line) :
   return False
