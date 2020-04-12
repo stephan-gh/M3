@@ -51,6 +51,8 @@ pub const LOG_VPES: bool = false;
 pub const LOG_UPCALLS: bool = false;
 /// Logs foreign messages
 pub const LOG_FOREIGN_MSG: bool = false;
+/// Logs page table allocations/frees
+pub const LOG_PTS: bool = false;
 
 extern "C" {
     fn heap_init(begin: usize, end: usize);

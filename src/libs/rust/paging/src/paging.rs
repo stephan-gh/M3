@@ -88,6 +88,9 @@ impl Allocator for ExtAllocator {
     fn translate_pt(&self, phys: MMUPTE) -> usize {
         (self.xlate_pt)(self.vpe, phys)
     }
+
+    fn free_pt(&mut self, _phys: MMUPTE) {
+    }
 }
 
 #[no_mangle]
@@ -150,12 +153,13 @@ pub extern "C" fn translate(
 pub trait Allocator {
     fn allocate_pt(&mut self) -> MMUPTE;
     fn translate_pt(&self, phys: MMUPTE) -> usize;
+    fn free_pt(&mut self, phys: MMUPTE);
 }
 
-pub struct AddrSpace<Allocator> {
+pub struct AddrSpace<A: Allocator> {
     id: u64,
     root: MMUPTE,
-    alloc: Allocator,
+    alloc: A,
     is_temp: bool,
 }
 
@@ -354,6 +358,26 @@ impl<A: Allocator> AddrSpace<A> {
         unsafe { libc::memset(pt_virt as *mut _, 0, cfg::PAGE_SIZE) };
     }
 
+    fn free_pts_rec(&mut self, pt: MMUPTE, level: usize) {
+        let mut ptes = self.alloc.translate_pt(pte_to_phys(pt));
+        for _ in 0..1 << LEVEL_BITS {
+            // safety: as above
+            let pte = unsafe { *(ptes as *const MMUPTE) };
+            if pte != 0 {
+                // refers the PTE to a PT?
+                if !MMUFlags::from_bits_truncate(pte).is_leaf(level) {
+                    // there are no PTEs refering to PTs at level 0
+                    if level > 1 {
+                        self.free_pts_rec(pte, level - 1);
+                    }
+                    self.alloc.free_pt(pte_to_phys(pte));
+                }
+            }
+
+            ptes += util::size_of::<MMUPTE>();
+        }
+    }
+
     fn print_as_rec(
         &self,
         f: &mut fmt::Formatter<'_>,
@@ -380,15 +404,15 @@ impl<A: Allocator> AddrSpace<A> {
     }
 }
 
-impl<A> Drop for AddrSpace<A> {
+impl<A: Allocator> Drop for AddrSpace<A> {
     fn drop(&mut self) {
         if !self.is_temp {
+            self.free_pts_rec(self.root, LEVEL_CNT - 1);
+
             // invalidate entire TLB to allow us to reuse the VPE id
             arch::invalidate_tlb();
             TCU::invalidate_tlb();
         }
-
-        // TODO free the page tables
     }
 }
 

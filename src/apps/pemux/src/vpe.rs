@@ -39,6 +39,7 @@ impl Allocator for PTAllocator {
     fn allocate_pt(&mut self) -> paging::MMUPTE {
         assert!(self.vpe != kif::pemux::IDLE_ID);
         if let Some(pt) = PTS.get_mut().pop() {
+            log!(crate::LOG_PTS, "Alloc PT {:#x} (free: {})", pt, PTS.len());
             pt as paging::MMUPTE
         }
         else {
@@ -55,6 +56,11 @@ impl Allocator for PTAllocator {
         else {
             cfg::PE_MEM_BASE + off as usize
         }
+    }
+
+    fn free_pt(&mut self, phys: paging::MMUPTE) {
+        log!(crate::LOG_PTS, "Free PT {:#x} (free: {})", phys, PTS.len());
+        PTS.get_mut().push(phys as u64);
     }
 }
 
@@ -91,6 +97,7 @@ pub struct VPE {
     prev: Option<NonNull<VPE>>,
     next: Option<NonNull<VPE>>,
     aspace: paging::AddrSpace<PTAllocator>,
+    frames: Vec<u64>,
     #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
     fpu_state: arch::FPUState,
     user_state: arch::State,
@@ -139,7 +146,10 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
             PTS.get_mut().push(mem_start + i * cfg::PAGE_SIZE as u64);
         }
 
-        PTS.get_mut().pop().unwrap()
+        PTAllocator {
+            vpe: kif::pemux::VPE_ID,
+        }
+        .allocate_pt() as goff
     }
     else {
         0
@@ -149,6 +159,7 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     OUR.set(Some(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt))));
 
     if pe_desc.has_virtmem() {
+        our().frames.push(root_pt as u64);
         our().init();
         our().switch_to();
         paging::enable_paging();
@@ -161,7 +172,7 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
     let root_pt = if INFO.pe_desc.has_virtmem() {
-        PTS.get_mut().pop().unwrap()
+        PTAllocator { vpe: id }.allocate_pt() as goff
     }
     else {
         0
@@ -170,6 +181,7 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
     let mut vpe = Box::new(VPE::new(id, eps_start, root_pt));
 
     if INFO.get().pe_desc.has_virtmem() {
+        vpe.frames.push(root_pt as u64);
         vpe.init();
     }
 
@@ -371,6 +383,7 @@ impl VPE {
             prev: None,
             next: None,
             aspace: paging::AddrSpace::new(id, root_pt, PTAllocator { vpe: id }, false),
+            frames: Vec::new(),
             vpe_reg: id,
             state: VPEState::Blocked,
             #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
@@ -651,6 +664,7 @@ impl VPE {
         for i in 0..(size / cfg::PAGE_SIZE) {
             let frame = self.aspace.allocator_mut().allocate_pt();
             assert!(frame != 0);
+            self.frames.push(frame as u64);
             self.map(
                 addr + i * cfg::PAGE_SIZE,
                 paging::phys_to_noc(frame as u64),
@@ -682,6 +696,11 @@ impl Drop for VPE {
         // owner and updates the version in DRAM. for that reason, the cache for new VPEs needs to
         // be clear, so that the cache loads the current version from DRAM.
         tcu::TCU::flush_cache();
+
+        // free frames we allocated for env, receive buffers etc.
+        for f in &self.frames {
+            self.aspace.allocator_mut().free_pt(*f as paging::MMUPTE);
+        }
 
         // in case this VPE had the FPU, forget the state
         arch::forget_fpu(self.id());
