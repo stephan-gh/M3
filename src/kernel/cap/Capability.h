@@ -171,7 +171,7 @@ public:
           epuser() {
     }
 
-    EPObject *ep_of_pe(peid_t pe);
+    EPObject *ep_of_vpe(VPE *vpe);
 
     void add_ep(EPObject *ep) {
         epuser.append(new EPUser(ep));
@@ -634,9 +634,9 @@ public:
     m3::Reference<SemObject> obj;
 };
 
-inline EPObject *GateObject::ep_of_pe(peid_t pe) {
+inline EPObject *GateObject::ep_of_vpe(VPE *vpe) {
     for(auto u = epuser.begin(); u != epuser.end(); ++u) {
-        if(u->ep->pe->id == pe)
+        if(u->ep->vpe == vpe)
             return u->ep;
     }
     return nullptr;

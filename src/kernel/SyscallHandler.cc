@@ -539,7 +539,7 @@ void SyscallHandler::activate(VPE *vpe, const m3::TCU::Message *msg) {
     }
 
     if(gateobj) {
-        EPObject *oldep = gateobj->ep_of_pe(dst_pe);
+        EPObject *oldep = gateobj->ep_of_vpe(epcap->obj->vpe);
         if(oldep && oldep->ep != epcap->obj->ep) {
             SYS_ERROR(vpe, msg, m3::Errors::EXISTS,
                 "Gate is already activated on PE" << oldep->pe->id << ":EP " << oldep->ep);
