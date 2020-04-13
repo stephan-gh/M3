@@ -210,8 +210,10 @@ public:
         uint xferbuf = (xlate_req >> 5) & 0x7;
 
         uint64_t pte = translate(virt, perm);
-        if(~(pte & 0xF) & perm)
-            PANIC("Pagefault during PT walk for " << virt << " (PTE=" << m3::fmt(pte, "p") << ")");
+        if(~(pte & 0xF) & perm) {
+            PANIC("Pagefault during PT walk for "
+                << m3::fmt(virt, "#0x") << " (PTE=" << m3::fmt(pte, "p") << ")");
+        }
 
         tcu.set_core_resp(pte | (xferbuf << 5));
     }
