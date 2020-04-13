@@ -31,7 +31,7 @@ use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::kif::{self, boot, PEDesc};
+use m3::kif::{self, boot, PEDesc, PEType};
 use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::rc::Rc;
@@ -353,11 +353,22 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
 
     let mut id = 0;
     let mut moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
-    for d in cfg.domains().iter() {
+    for (dom, d) in cfg.domains().iter().enumerate() {
+        // we need virtual memory support for multiple apps per domain
+        let cur_desc = VPE::cur().pe_desc();
+        let pe_desc = if d.apps().len() > 1 {
+            if dom == 0 && !cur_desc.has_virtmem() {
+                panic!("Can't share root's PE without VM support");
+            }
+            PEDesc::new(PEType::COMP_EMEM, cur_desc.isa(), 0)
+        }
+        else {
+            cur_desc
+        };
         let pe_usage = Rc::new(
             pes::get()
-                .find_and_alloc(VPE::cur().pe_desc())
-                .expect("Unable to allocate PE"),
+                .find_and_alloc(pe_desc)
+                .expect("Unable to find free and suitable PE"),
         );
 
         // keep our own PE to make sure that we allocate a different one for the next domain in case
