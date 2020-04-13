@@ -27,6 +27,7 @@ pub const RECVBUF_SIZE: usize       = 4 * PAGE_SIZE;
 pub const RECVBUF_SIZE_SPM: usize   = 16384;
 pub const MAX_RB_SIZE: usize        = 32;
 
+pub const PEMUX_START: usize        = 0x100000;
 pub const PEMUX_RBUF_SPACE: usize   = 0x1FF000;
 pub const PEMUX_RBUF_SIZE: usize    = 1 * PAGE_SIZE;
 

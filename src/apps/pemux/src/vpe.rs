@@ -137,10 +137,13 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     INFO.get_mut().pe_id = pe_id;
     INFO.get_mut().pe_desc = pe_desc;
     INFO.get_mut().mem_start = mem_start;
-    INFO.get_mut().mem_end = mem_start + mem_size;
+    INFO.get_mut().mem_end = mem_start + cfg::PEMUX_START as u64;
+    assert!(mem_size >= cfg::PEMUX_START as u64);
 
     let root_pt = if pe_desc.has_virtmem() {
-        let pt_count = mem_size / cfg::PAGE_SIZE as u64;
+        // only use the memory up to ourself for page tables. we could use the memory behind ourself
+        // as well, but currently the 1 MiB before us is sufficient.
+        let pt_count = (cfg::PEMUX_START / cfg::PAGE_SIZE) as u64;
         PTS.get_mut().reserve(pt_count as usize);
         for i in 0..pt_count {
             PTS.get_mut().push(mem_start + i * cfg::PAGE_SIZE as u64);
