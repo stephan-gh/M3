@@ -46,6 +46,10 @@ public:
         return _pe->id;
     }
 
+    size_t vpe_count() const {
+        return _vpes;
+    }
+
     void add_vpe(VPECapability *vpe);
     void remove_vpe(VPE *vpe);
 

@@ -307,6 +307,8 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
     epid_t eps = pemux->find_eps(m3::TCU::STD_EPS_COUNT);
     if(eps == EP_COUNT)
         SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "No contiguous EPs for standard EPs");
+    if(pemux->vpe_count() > 0 && !Platform::pe(pecap->obj->id).has_virtmem())
+        SYS_ERROR(vpe, msg, m3::Errors::NOT_SUP, "Virtual memory is required for PE sharing");
 
     // create VPE
     VPE *nvpe = VPEManager::get().create(std::move(name), pecap, kmemcap, eps);
