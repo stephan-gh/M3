@@ -94,26 +94,24 @@ BEGIN_FUNC(exc_common)
 
     # swap old sp with x31 again and store x31
     addi    s1, x31, 8*34
-    mv      sp, x31
+    mv      a0, x31
     csrrw   x31, sscratch, s1
-    sd      x31, 8*30(sp)
+    sd      x31, 8*30(a0)
 
     # save SCAUSE
     csrr    s1, scause
-    sd      s1, 8*31(sp)
+    sd      s1, 8*31(a0)
     # save SEPC
     csrr    s1, sepc
-    sd      s1, 8*32(sp)
+    sd      s1, 8*32(a0)
     # save SSTATUS
     csrr    s1, sstatus
-    sd      s1, 8*33(sp)
-
-    # remember state as argument for irq_handler
-    mv      a0, sp
+    sd      s1, 8*33(a0)
 
     # start with a new stack
     la      sp, isr_stack
 
+    # call irq_handler (state address is already in a0)
     jal     irq_handler
     mv      x1, a0
 
