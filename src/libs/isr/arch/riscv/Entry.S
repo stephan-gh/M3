@@ -111,12 +111,10 @@ BEGIN_FUNC(exc_common)
     # remember state as argument for irq_handler
     mv      a0, sp
 
-    # start with a new stack?
-    la      s1, isr_stack
-    ble     sp, s1, 1f
-    mv      sp, s1
+    # start with a new stack
+    la      sp, isr_stack
 
-1:  jal     irq_handler
+    jal     irq_handler
     mv      x1, a0
 
     # restore SSTATUS

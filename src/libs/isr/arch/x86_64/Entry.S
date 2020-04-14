@@ -41,14 +41,11 @@ BEGIN_FUNC(isr_common)
     // state as argument for irq_handler
     mov     %rsp, %rdi
 
-    // start with a new stack?
-    mov     $isr_stack, %rax
-    cmp     %rax, %rsp
-    jle     1f
-    mov     %rax, %rsp
+    // start with a new stack
+    mov     $isr_stack, %rsp
 
     // call C++ routine
-1:  call    irq_handler
+    call    irq_handler
 
     // restore application state
     mov     %rax, %rsp

@@ -56,19 +56,11 @@ BEGIN_FUNC(exc_common)
     // argument for irq_handler (saved state)
     mov     r0, sp
 
-    // make sure the stack is aligned
-    tst     sp, #4
-    subeq   sp, #4
-    push    {r0}
-
-    // start with a new stack?
-    ldr     r1, =isr_stack
-    cmp     sp, r1
-    ble     1f
-    mov     sp, r1
+    // start with a new stack
+    ldr     sp, =isr_stack
 
     // call handler
-1:  bl      irq_handler
+    bl      irq_handler
 
     // restore state from state given by irq_handler
     mov     sp, r0
