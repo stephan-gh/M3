@@ -29,6 +29,7 @@ use core::ptr::NonNull;
 use arch;
 use helper;
 use paging::Allocator;
+use timer;
 use vma::PfState;
 
 struct PTAllocator {
@@ -494,7 +495,7 @@ impl VPE {
         }
     }
 
-    pub fn unblock(&mut self, ep: Option<tcu::EpId>) {
+    pub fn unblock(&mut self, ep: Option<tcu::EpId>, timer: bool) {
         log!(
             crate::LOG_VPES,
             "Trying to unblock VPE {} for ep={:?}",
@@ -505,6 +506,9 @@ impl VPE {
         if self.should_unblock(ep) {
             if self.state == VPEState::Blocked {
                 let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
+                if !timer {
+                    timer::remove(vpe.id());
+                }
                 vpe.state = VPEState::Ready;
                 RDY.get_mut().push_back(vpe);
             }
@@ -706,6 +710,7 @@ impl Drop for VPE {
         }
 
         // in case this VPE had the FPU, forget the state
+        timer::remove(self.id());
         arch::forget_fpu(self.id());
     }
 }

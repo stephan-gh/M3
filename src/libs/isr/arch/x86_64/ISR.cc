@@ -42,6 +42,7 @@ EXTERN_C void isr_16();
 EXTERN_C void isr_63();
 // for the TCU
 EXTERN_C void isr_64();
+EXTERN_C void isr_65();
 // the handler for a other interrupts
 EXTERN_C void isr_null();
 
@@ -105,6 +106,8 @@ void ISR::init(uintptr_t kstack) {
     set_idt(PEX_ISR, isr_63, Desc::DPL_USER);
     // TCU interrupts
     set_idt(TCU_ISR, isr_64, Desc::DPL_KERNEL);
+    // Timer interrupts
+    set_idt(TIMER_ISR, isr_65, Desc::DPL_KERNEL);
 
     for(size_t i = 0; i < ISR_COUNT; ++i)
         reg(i, null_handler);

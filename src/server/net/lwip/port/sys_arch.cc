@@ -23,5 +23,5 @@
 #include "lwip/sys.h"
 
 u32_t sys_now(void) {
-    return (u32_t)(m3::TCU::get().tsc() * 1000 / m3::TCU::get().clock());
+    return m3::TCU::get().nanotime() / 1000000;
 }

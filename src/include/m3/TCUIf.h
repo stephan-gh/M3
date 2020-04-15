@@ -88,9 +88,10 @@ public:
     static void sleep() noexcept {
         sleep_for(0);
     }
-    static void sleep_for(uint64_t cycles) noexcept {
-        if(env()->shared)
-            PEXCalls::call2(Operation::SLEEP, cycles, TCU::INVALID_EP);
+
+    static void sleep_for(uint64_t nanos) noexcept {
+        if(env()->shared || nanos != 0)
+            PEXCalls::call2(Operation::SLEEP, nanos, TCU::INVALID_EP);
         else
             TCU::get().wait_for_msg(TCU::INVALID_EP);
     }

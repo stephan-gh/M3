@@ -153,6 +153,7 @@ public:
 
     static const size_t PEX_ISR         = 63;
     static const size_t TCU_ISR         = 64;
+    static const size_t TIMER_ISR       = 65;
 
     /* segments numbers */
     enum {

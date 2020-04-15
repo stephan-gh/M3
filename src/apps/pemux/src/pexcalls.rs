@@ -19,17 +19,22 @@ use base::pexif;
 use base::tcu;
 
 use arch;
+use timer;
 use vpe;
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
-    let cycles = state.r[arch::PEXC_ARG1];
+    let delay_ns = state.r[arch::PEXC_ARG1] as u64;
     let ep = state.r[arch::PEXC_ARG2] as tcu::EpId;
 
-    log!(crate::LOG_CALLS, "pexcall::sleep(cycles={}, ep={})", cycles, ep);
+    log!(crate::LOG_CALLS, "pexcall::sleep(delay_ns={}, ep={})", delay_ns, ep);
 
-    // TODO support waiting for a given time
+    let cur = vpe::cur();
+    if delay_ns != 0 {
+        timer::add(cur.id(), delay_ns);
+    }
     let wait_ep = if ep == tcu::INVALID_EP { None } else { Some(ep) };
-    vpe::cur().block(vpe::ScheduleAction::Block, None, wait_ep);
+    cur.block(vpe::ScheduleAction::Block, None, wait_ep);
+
     Ok(())
 }
 

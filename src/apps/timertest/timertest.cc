@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2015-2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,32 +14,21 @@
  * General Public License version 2 for more details.
  */
 
-#pragma once
+#include <m3/session/Timer.h>
+#include <m3/stream/Standard.h>
 
-#include <base/Common.h>
-#include <base/Errors.h>
-#include <base/PEXIF.h>
+using namespace m3;
 
-namespace m3 {
+static void timer_event(GateIStream &) {
+    cout << "Timer tick @ " << TCU::get().nanotime() << "\n";
+}
 
-class PEXCalls {
-public:
-    static word_t call1(Operation op, word_t arg1) {
-        return call2(op, arg1, 0);
-    }
+int main() {
+    WorkLoop wl;
 
-    static word_t call2(Operation op, UNUSED word_t arg1, UNUSED word_t arg2) {
-        word_t res = op;
-#if defined(__gem5__)
-        asm volatile(
-            "int $63"
-            : "+a"(res)
-            : "c"(arg1), "d"(arg2)
-            : "memory"
-        );
-#endif
-        return res;
-    }
-};
+    Timer timer("timer");
+    timer.rgate().start(&wl, timer_event);
 
+    wl.run();
+    return 0;
 }

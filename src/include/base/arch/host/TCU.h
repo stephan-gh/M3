@@ -281,14 +281,10 @@ public:
         return _tid;
     }
 
-    cycles_t tsc() const {
+    uint64_t nanotime() const {
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
         return static_cast<cycles_t>(ts.tv_sec) * 1000000000 + static_cast<cycles_t>(ts.tv_nsec);
-    }
-
-    cycles_t clock() const {
-        return 1000000000;
     }
 
     void sleep() const {

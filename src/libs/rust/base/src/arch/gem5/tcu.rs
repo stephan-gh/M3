@@ -82,7 +82,7 @@ pub const MMIO_PRIV_ADDR: usize = MMIO_ADDR + MMIO_SIZE;
 pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
 
 /// The number of TCU registers
-pub const TCU_REGS: usize = 5;
+pub const TCU_REGS: usize = 4;
 /// The number of command registers
 pub const CMD_REGS: usize = 4;
 /// The number of registers per EP
@@ -95,8 +95,7 @@ int_enum! {
         const STATUS        = 0;
         const CUR_TIME      = 1;
         const CLEAR_IRQ     = 2;
-        const CLOCK         = 3;
-        const PRINT         = 4;
+        const PRINT         = 3;
     }
 }
 
@@ -204,6 +203,8 @@ int_enum! {
         const XCHG_VPE    = 4;
         /// Flushes and invalidates the cache
         const FLUSH_CACHE = 5;
+        /// Sets the timer
+        const SET_TIMER   = 6;
     }
 }
 
@@ -218,6 +219,16 @@ int_enum! {
         const INV_REPLY   = 2;
         /// Reset the CU
         const RESET       = 3;
+    }
+}
+
+int_enum! {
+    /// The TCU-internal IRQ ids to clear IRQs
+    pub struct IRQ : Reg {
+        /// The core request IRQ
+        const CORE_REQ  = 0;
+        /// The timer IRQ
+        const TIMER     = 1;
     }
 }
 
@@ -416,6 +427,12 @@ impl TCU {
         }
     }
 
+    /// Returns the time in nanoseconds since boot
+    #[inline(always)]
+    pub fn nanotime() -> u64 {
+        Self::read_reg(TCUReg::CUR_TIME.val as usize)
+    }
+
     /// Puts the CU to sleep until the CU is woken up (e.g., by a message reception).
     #[inline(always)]
     pub fn sleep() -> Result<(), Error> {
@@ -502,8 +519,8 @@ impl TCU {
         Self::write_cmd_reg(CmdReg::COMMAND, cmd)
     }
 
-    pub fn clear_irq() {
-        Self::write_reg(TCUReg::CLEAR_IRQ.val as usize, 1);
+    pub fn clear_irq(irq: IRQ) {
+        Self::write_reg(TCUReg::CLEAR_IRQ.val as usize, irq.val);
     }
 
     pub fn get_core_req() -> Reg {
@@ -549,6 +566,10 @@ impl TCU {
 
     pub fn flush_cache() {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::FLUSH_CACHE.val);
+    }
+
+    pub fn set_timer(delay_ns: u64) {
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::SET_TIMER.val | (delay_ns << 4));
     }
 
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {

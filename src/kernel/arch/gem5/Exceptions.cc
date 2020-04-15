@@ -222,7 +222,7 @@ public:
         m3::TCU &tcu = m3::TCU::get();
 
 #if defined(__arm__) || defined(__riscv)
-        tcu.clear_irq();
+        tcu.clear_irq(m3::TCU::IRQ::CORE_REQ);
 #endif
 
         // translation request from TCU?

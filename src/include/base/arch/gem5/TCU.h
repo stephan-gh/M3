@@ -67,7 +67,7 @@ public:
     static const reg_t UNLIM_CREDITS        = 0x3F;
 
 private:
-    static const size_t TCU_REGS            = 5;
+    static const size_t TCU_REGS            = 4;
     static const size_t PRIV_REGS           = 6;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
@@ -79,8 +79,7 @@ private:
         FEATURES            = 0,
         CUR_TIME            = 1,
         CLEAR_IRQ           = 2,
-        CLOCK               = 3,
-        PRINT               = 4,
+        PRINT               = 3,
     };
 
     enum class PrivRegs {
@@ -129,6 +128,7 @@ private:
         INS_TLB             = 3,
         XCHG_VPE            = 4,
         FLUSH_CACHE         = 5,
+        SET_TIMER           = 6,
     };
 
     enum class ExtCmdOpCode {
@@ -136,6 +136,11 @@ private:
         INV_EP              = 1,
         INV_REPLY           = 2,
         RESET               = 3,
+    };
+
+    enum class IRQ {
+        CORE_REQ            = 0,
+        TIMER               = 1,
     };
 
 public:
@@ -225,11 +230,8 @@ public:
         return static_cast<EpType>(r0 & 0x7) != EpType::INVALID;
     }
 
-    cycles_t tsc() const {
+    uint64_t nanotime() const {
         return read_reg(TCURegs::CUR_TIME);
-    }
-    cycles_t clock() const {
-        return read_reg(TCURegs::CLOCK);
     }
 
     void print(const char *str, size_t len);
@@ -293,8 +295,8 @@ private:
         write_reg(PrivRegs::CORE_RESP, val);
     }
 
-    void clear_irq() {
-        write_reg(TCURegs::CLEAR_IRQ, 1);
+    void clear_irq(IRQ irq) {
+        write_reg(TCURegs::CLEAR_IRQ, static_cast<reg_t>(irq));
     }
 
     static Errors::Code get_error() {

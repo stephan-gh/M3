@@ -145,12 +145,13 @@ pub fn set_entry_sp(sp: usize) {
 pub fn init(stack: usize) {
     unsafe {
         isr_init(stack);
-        for i in 0..=64 {
+        for i in 0..=65 {
             match i {
                 7 => isr_reg(i, crate::fpu_ex),
                 14 => isr_reg(i, crate::mmu_pf),
                 63 => isr_reg(i, crate::pexcall),
                 64 => isr_reg(i, crate::tcu_irq),
+                65 => isr_reg(i, crate::timer_irq),
                 i => isr_reg(i, crate::unexpected_irq),
             }
         }

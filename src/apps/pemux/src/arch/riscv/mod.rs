@@ -170,6 +170,7 @@ pub fn init(stack: usize) {
                 Vector::LOAD_PAGEFAULT => isr_reg(i, crate::mmu_pf),
                 Vector::STORE_PAGEFAULT => isr_reg(i, crate::mmu_pf),
                 Vector::SUPER_EXT_IRQ => isr_reg(i, crate::tcu_irq),
+                Vector::SUPER_TIMER_IRQ => isr_reg(i, crate::timer_irq),
                 _ => isr_reg(i, crate::unexpected_irq),
             }
         }

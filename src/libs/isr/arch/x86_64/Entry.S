@@ -110,6 +110,7 @@ BUILD_DEF_ISR 15
 BUILD_DEF_ISR 16
 BUILD_DEF_ISR 63
 BUILD_DEF_ISR 64
+BUILD_DEF_ISR 65
 
 BEGIN_FUNC(isr_null)
     push    $0                      // error-code (no error here)

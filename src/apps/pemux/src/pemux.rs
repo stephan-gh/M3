@@ -27,6 +27,7 @@ mod arch;
 mod corereq;
 mod helper;
 mod pexcalls;
+mod timer;
 mod upcalls;
 mod vma;
 mod vpe;
@@ -53,6 +54,8 @@ pub const LOG_UPCALLS: bool = false;
 pub const LOG_FOREIGN_MSG: bool = false;
 /// Logs page table allocations/frees
 pub const LOG_PTS: bool = false;
+/// Logs timer IRQs
+pub const LOG_TIMER: bool = false;
 
 extern "C" {
     fn heap_init(begin: usize, end: usize);
@@ -159,7 +162,7 @@ pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
 
 pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
     #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
-    tcu::TCU::clear_irq();
+    tcu::TCU::clear_irq(tcu::IRQ::CORE_REQ);
 
     // core request from TCU?
     let core_req = tcu::TCU::get_core_req();
@@ -174,6 +177,15 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
             vma::handle_xlate(core_req)
         }
     }
+
+    leave(state)
+}
+
+pub extern "C" fn timer_irq(state: &mut arch::State) -> *mut libc::c_void {
+    #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
+    tcu::TCU::clear_irq(tcu::IRQ::TIMER);
+
+    timer::trigger();
 
     leave(state)
 }

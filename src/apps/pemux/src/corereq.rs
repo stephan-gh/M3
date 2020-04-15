@@ -49,7 +49,7 @@ pub fn handle_recv(req: tcu::Reg) {
 
         if v.id() != kif::pemux::VPE_ID {
             let ep_id = ((req >> 28) & 0xFFFF) as tcu::EpId;
-            v.unblock(Some(ep_id));
+            v.unblock(Some(ep_id), false);
         }
     }
 

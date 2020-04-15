@@ -21,17 +21,17 @@
 
 using namespace m3;
 
-static const cycles_t interval = 20000000;
+static const uint64_t interval = 20000000;
 static Server<EventHandler<>> *server;
-static cycles_t next_tick = 0;
+static uint64_t next_tick = 0;
 
 struct TickWorkItem : public WorkItem {
     void work() override {
-        cycles_t tsc = TCU::get().tsc();
-        if(tsc >= next_tick) {
-            SLOG(TIMER, "Timer tick @ " << tsc);
+        uint64_t cur = TCU::get().nanotime();
+        if(cur >= next_tick) {
+            SLOG(TIMER, "Timer tick @ " << cur);
             server->handler()->broadcast(0);
-            next_tick = TCU::get().tsc() + interval;
+            next_tick = TCU::get().nanotime() + interval;
         }
     }
 };
@@ -47,7 +47,7 @@ int main() {
     wl.add(&wi, true);
 
     while(wl.has_items()) {
-        TCUIf::sleep_for(next_tick - TCU::get().tsc());
+        TCUIf::sleep_for(next_tick - TCU::get().nanotime());
 
         wl.tick();
     }

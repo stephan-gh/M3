@@ -38,7 +38,7 @@ END_FUNC(_start)
 
 BEGIN_FUNC(sleep)
 1:  // write SLEEP to COMMAND
-    mov     $0xF0000028, %rax
+    mov     $0xF0000020, %rax
     mov     $(0x7 | (0xFFFF << 25)), %rcx
     mov     %rcx, (%rax)
     jmp     1b

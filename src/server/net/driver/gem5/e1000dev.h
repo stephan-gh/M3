@@ -39,7 +39,7 @@ class E1000;
 class EEPROM {
     static const size_t WORD_LEN_LOG2    = 1;
     // TODO: Use a sensible value, the current one is chosen arbitrarily
-    static const cycles_t MAX_WAIT_CYCLES = 100000;
+    static const cycles_t MAX_WAIT_NANOS = 100000;
 
 public:
     EEPROM(E1000 & dev);

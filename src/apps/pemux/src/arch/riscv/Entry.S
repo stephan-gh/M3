@@ -120,7 +120,7 @@ END_FUNC(restore_fpu)
 
 BEGIN_FUNC(sleep)
 1:  // write SLEEP to COMMAND
-    li      a0, 0xF0000028
+    li      a0, 0xF0000020
     li      a1, (0x7 | (0xFFFF << 25))
     sd      a1, 0(a0)
     j       1b
