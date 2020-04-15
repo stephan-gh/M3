@@ -119,13 +119,9 @@ END_FUNC(restore_fpu)
 .section .user_text
 
 BEGIN_FUNC(sleep)
-1:  // write 0xFFFF to ARG_1
-    li      a0, 0xF0000040
-    li      a1, 0xFFFF000000000000
-    sd      a1, 0(a0)
-    // write SLEEP to COMMAND
+1:  // write SLEEP to COMMAND
     li      a0, 0xF0000028
-    li      a1, 0x7
+    li      a1, (0x7 | (0xFFFF << 25))
     sd      a1, 0(a0)
     j       1b
 END_FUNC(sleep)

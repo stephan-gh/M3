@@ -284,14 +284,9 @@ impl TCU {
     }
 
     pub fn sleep() -> Result<(), Error> {
-        Self::sleep_for(300_000)
-    }
-
-    pub fn sleep_for(cycles: u64) -> Result<(), Error> {
         let time = libc::timespec {
-            // just a rough estimate, based on a 3GHz CPU
-            tv_nsec: (cycles / 3) as i64,
-            tv_sec: (cycles / 3_000_000_000) as i64,
+            tv_nsec: 1000,
+            tv_sec: 0,
         };
         unsafe {
             libc::nanosleep(&time, ptr::null_mut());
@@ -299,7 +294,7 @@ impl TCU {
         Ok(())
     }
 
-    pub fn wait_for_msg(_ep: EpId, _timeout: u64) -> Result<(), Error> {
+    pub fn wait_for_msg(_ep: EpId) -> Result<(), Error> {
         Self::sleep()
     }
 

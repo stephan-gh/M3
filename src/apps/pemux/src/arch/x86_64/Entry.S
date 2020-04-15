@@ -37,12 +37,9 @@ END_FUNC(_start)
 .section .user_text
 
 BEGIN_FUNC(sleep)
-1:  // write 0xFFFF to ARG_1
-    mov     $0xF0000040, %rax
-    mov     $0xFFFF000000000000, %rcx
-    mov     %rcx, (%rax)
-    // write SLEEP to COMMAND
+1:  // write SLEEP to COMMAND
     mov     $0xF0000028, %rax
-    movq    $0x7, (%rax)
+    mov     $(0x7 | (0xFFFF << 25)), %rcx
+    mov     %rcx, (%rax)
     jmp     1b
 END_FUNC(sleep)

@@ -419,21 +419,13 @@ impl TCU {
     /// Puts the CU to sleep until the CU is woken up (e.g., by a message reception).
     #[inline(always)]
     pub fn sleep() -> Result<(), Error> {
-        Self::sleep_for(0)
+        Self::wait_for_msg(INVALID_EP)
     }
 
-    /// Puts the CU to sleep for at most `cycles` or until the CU is woken up (e.g., by a message
-    /// reception).
+    /// Puts the CU to sleep until a message arrives at receive EP `ep`.
     #[inline(always)]
-    pub fn sleep_for(cycles: u64) -> Result<(), Error> {
-        Self::wait_for_msg(INVALID_EP, cycles)
-    }
-
-    /// Puts the CU to sleep until a message arrives at receive EP `ep`, but at most for `cycles`.
-    #[inline(always)]
-    pub fn wait_for_msg(ep: EpId, cycles: u64) -> Result<(), Error> {
-        Self::write_cmd_reg(CmdReg::ARG1, ((ep as Reg) << 48) | cycles as Reg);
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(0, CmdOpCode::SLEEP, 0, 0));
+    pub fn wait_for_msg(ep: EpId) -> Result<(), Error> {
+        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(0, CmdOpCode::SLEEP, 0, ep as u64));
         Self::get_error()
     }
 

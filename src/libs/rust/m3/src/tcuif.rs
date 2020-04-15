@@ -115,12 +115,11 @@ impl TCUIf {
 
     #[inline(always)]
     pub fn sleep_for(cycles: u64) -> Result<(), Error> {
-        // TODO PEMux does not support sleeps with timeout atm
-        if env::get().shared() && cycles == 0 {
+        if env::get().shared() {
             pexcalls::call2(pexif::Operation::SLEEP, cycles as usize, tcu::INVALID_EP).map(|_| ())
         }
         else {
-            tcu::TCU::sleep_for(cycles)
+            tcu::TCU::wait_for_msg(tcu::INVALID_EP)
         }
     }
 
@@ -129,7 +128,7 @@ impl TCUIf {
             pexcalls::call2(pexif::Operation::SLEEP, 0, ep).map(|_| ())
         }
         else {
-            tcu::TCU::wait_for_msg(ep, 0)
+            tcu::TCU::wait_for_msg(ep)
         }
     }
 

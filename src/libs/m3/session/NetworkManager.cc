@@ -134,9 +134,7 @@ void NetworkManager::wait_sync() {
 
     while(1) {
         // This would be the place to implement timeouts.
-        // TODO access TCU directly for now, because PEMux doesn't support unblock on credit
-        // receive yet.
-        TCUIf::sleep_with_tcu(0);
+        TCUIf::sleep();
 
         if(_channel->has_events(ev, crd))
             break;

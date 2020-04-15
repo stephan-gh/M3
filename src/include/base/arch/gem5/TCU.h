@@ -256,15 +256,10 @@ private:
     }
 
     void sleep() {
-        sleep_for(0);
+        wait_for_msg(INVALID_EP);
     }
-    void sleep_for(uint64_t cycles) {
-        wait_for_msg(INVALID_EP, cycles);
-    }
-    void wait_for_msg(epid_t ep, uint64_t timeout = 0) {
-        write_reg(CmdRegs::ARG1, (static_cast<reg_t>(ep) << 48) | timeout);
-        CPU::compiler_barrier();
-        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP));
+    void wait_for_msg(epid_t ep) {
+        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, ep));
         get_error();
     }
 

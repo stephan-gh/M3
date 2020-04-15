@@ -294,10 +294,7 @@ public:
     void sleep() const {
         usleep(1);
     }
-    void sleep_for(uint64_t) const {
-        usleep(1);
-    }
-    void wait_for_msg(epid_t, uint64_t = 0) const {
+    void wait_for_msg(epid_t) const {
         sleep();
     }
 
