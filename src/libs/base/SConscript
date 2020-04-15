@@ -8,7 +8,6 @@ myenv.Append(CXXFLAGS = ' -fno-exceptions')
 sources = [
     myenv.Glob('*.cc'), myenv.Glob('*/*.cc'),
     myenv.Glob('arch/$ARCH/*.S'), myenv.Glob('arch/$ARCH/*.cc'),
-    myenv.Glob('arch/$ISA/*.S'), myenv.Glob('arch/$ISA/*.cc')
 ]
 
 lib = myenv.StaticLibrary(

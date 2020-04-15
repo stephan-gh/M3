@@ -49,7 +49,7 @@
 // |         environment        |
 // +----------------------------+ 0x202000
 // |         app stack          |
-// +----------------------------+ 0x212000
+// +----------------------------+ 0x220000
 // |       app code+data        |
 // +----------------------------+ 0x3FC00000
 // |        recv buffers        |
@@ -65,8 +65,8 @@
 #define ENV_SIZE            0x2000
 #define ENV_END             (ENV_START + ENV_SIZE)
 
-#define STACK_SIZE          0xF000
-#define STACK_BOTTOM        (ENV_END + 0x1000)
+#define STACK_SIZE          0x10000
+#define STACK_BOTTOM        0x210000
 #define STACK_TOP           (STACK_BOTTOM + STACK_SIZE)
 
 #define PEMUX_RBUF_SPACE    0x1FF000

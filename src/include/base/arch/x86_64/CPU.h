@@ -41,7 +41,16 @@ inline void CPU::write8b(uintptr_t addr, uint64_t val) {
     );
 }
 
-inline word_t CPU::get_sp() {
+ALWAYS_INLINE word_t CPU::get_bp() {
+    word_t val;
+    asm volatile (
+          "mov %%rbp, %0;"
+          : "=r" (val)
+    );
+    return val;
+}
+
+ALWAYS_INLINE word_t CPU::get_sp() {
     word_t val;
     asm volatile (
           "mov %%rsp, %0;"
@@ -50,7 +59,12 @@ inline word_t CPU::get_sp() {
     return val;
 }
 
-void CPU::compute(cycles_t cycles) {
+inline uintptr_t CPU::backtrace_step(uintptr_t bp, uintptr_t *func) {
+    *func = reinterpret_cast<uintptr_t*>(bp)[1];
+    return reinterpret_cast<uintptr_t*>(bp)[0];
+}
+
+inline void CPU::compute(cycles_t cycles) {
     cycles_t iterations = cycles / 2;
     asm volatile (
         ".align 16;"

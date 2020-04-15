@@ -39,6 +39,7 @@ pub fn write8b(addr: usize, val: u64) {
     }
 }
 
+#[inline(always)]
 pub fn get_sp() -> usize {
     let res: usize;
     unsafe {
@@ -50,6 +51,7 @@ pub fn get_sp() -> usize {
     res
 }
 
+#[inline(always)]
 pub fn get_bp() -> usize {
     let val: usize;
     unsafe {
@@ -59,6 +61,12 @@ pub fn get_bp() -> usize {
         );
     }
     val
+}
+
+pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
+    let bp_ptr = bp as *const usize;
+    *func = *bp_ptr.offset(1);
+    *bp_ptr
 }
 
 pub fn gem5_debug(msg: usize) -> time::Time {

@@ -18,6 +18,7 @@ use time;
 
 macro_rules! impl_read_reg {
     ($func_name:tt, $reg_name:tt) => {
+        #[inline(always)]
         pub fn $func_name() -> usize {
             let res: usize;
             unsafe { asm!(concat!("mov %", $reg_name, ", $0") : "=r"(res)) };
@@ -28,6 +29,7 @@ macro_rules! impl_read_reg {
 
 macro_rules! impl_write_reg {
     ($func_name:tt, $reg_name:tt) => {
+        #[inline(always)]
         pub fn $func_name(val: usize) {
             unsafe { asm!(concat!("mov $0, %", $reg_name) : : "r"(val) : : "volatile") };
         }
@@ -67,6 +69,12 @@ pub fn write8b(addr: usize, val: u64) {
             : : "volatile"
         );
     }
+}
+
+pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
+    let bp_ptr = bp as *const usize;
+    *func = *bp_ptr.offset(1);
+    *bp_ptr
 }
 
 pub fn gem5_debug(msg: usize) -> time::Time {

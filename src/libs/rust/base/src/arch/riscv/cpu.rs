@@ -61,6 +61,7 @@ pub fn write8b(addr: usize, val: u64) {
     }
 }
 
+#[inline(always)]
 pub fn get_sp() -> usize {
     let sp: usize;
     unsafe {
@@ -72,9 +73,22 @@ pub fn get_sp() -> usize {
     return sp;
 }
 
+#[inline(always)]
 pub fn get_bp() -> usize {
-    // TODO we have no base pointer
-    0
+    let fp: usize;
+    unsafe {
+        asm!(
+            "mv $0, fp"
+            : "=r"(fp)
+        )
+    }
+    return fp;
+}
+
+pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
+    let bp_ptr = bp as *const usize;
+    *func = *bp_ptr.offset(-1);
+    *bp_ptr.offset(-2)
 }
 
 pub fn gem5_debug(msg: usize) -> time::Time {
