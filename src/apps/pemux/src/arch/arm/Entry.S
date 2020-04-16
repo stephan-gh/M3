@@ -67,5 +67,9 @@ BEGIN_FUNC(sleep)
     movt    r2, #0xFE00
     mov     r3, #0x01FF
     strd    r2, [r1]
+2:  ldrd    r2, [r1]
+    and     r2, r2, #0xF
+    cmp     r2, #0
+    bne     2b
     b       1b
 END_FUNC(sleep)
