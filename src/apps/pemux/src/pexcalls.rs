@@ -52,7 +52,7 @@ fn pexcall_yield(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::yield()");
 
     if vpe::has_ready() {
-        crate::reg_scheduling(vpe::ScheduleAction::Preempt);
+        crate::reg_scheduling(vpe::ScheduleAction::Yield);
     }
     Ok(())
 }

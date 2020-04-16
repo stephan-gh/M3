@@ -84,6 +84,7 @@ enum VPEState {
 #[derive(Debug, PartialEq, Eq)]
 pub enum ScheduleAction {
     Block,
+    Yield,
     Preempt,
     Kill,
 }
@@ -330,7 +331,7 @@ fn do_schedule(action: ScheduleAction) -> usize {
                 ScheduleAction::Block => {
                     make_blocked(old);
                 },
-                ScheduleAction::Preempt => {
+                ScheduleAction::Preempt | ScheduleAction::Yield => {
                     make_ready(old);
                 },
                 ScheduleAction::Kill => {
@@ -559,7 +560,7 @@ impl VPE {
                 make_ready(vpe);
             }
             if self.state != VPEState::Running {
-                crate::reg_scheduling(ScheduleAction::Preempt);
+                crate::reg_scheduling(ScheduleAction::Yield);
             }
         }
     }

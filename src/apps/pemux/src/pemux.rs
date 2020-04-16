@@ -232,7 +232,7 @@ pub extern "C" fn init() -> usize {
 
     // switch to idle
     vpe::idle().start();
-    vpe::schedule(vpe::ScheduleAction::Preempt);
+    vpe::schedule(vpe::ScheduleAction::Yield);
 
     let stack_top = vpe::idle().user_state() as *const _ as usize + util::size_of::<arch::State>();
     arch::init(stack_top);
