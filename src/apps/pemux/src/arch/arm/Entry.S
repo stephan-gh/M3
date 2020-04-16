@@ -60,16 +60,6 @@ BEGIN_FUNC(sleep)
     mov     r0, #0x10
     msr     CPSR, r0
 
-1:  // write SLEEP and (0xFFFF << 25) to COMMAND
-    movw    r1, #0x0020
-    movt    r1, #0xF000
-    movw    r2, #0x0007
-    movt    r2, #0xFE00
-    mov     r3, #0x01FF
-    strd    r2, [r1]
-2:  ldrd    r2, [r1]
-    and     r2, r2, #0xF
-    cmp     r2, #0
-    bne     2b
+1:  wfi
     b       1b
 END_FUNC(sleep)

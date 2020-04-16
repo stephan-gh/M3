@@ -37,12 +37,6 @@ END_FUNC(_start)
 .section .user_text
 
 BEGIN_FUNC(sleep)
-1:  // write SLEEP to COMMAND
-    mov     $0xF0000020, %rax
-    mov     $(0x7 | (0xFFFF << 25)), %rcx
-    mov     %rcx, (%rax)
-2:  mov     (%rax), %rcx
-    and     $0xF, %rcx
-    jne     2b
+1:  hlt
     jmp     1b
 END_FUNC(sleep)

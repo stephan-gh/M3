@@ -119,12 +119,6 @@ END_FUNC(restore_fpu)
 .section .user_text
 
 BEGIN_FUNC(sleep)
-1:  // write SLEEP to COMMAND
-    li      a0, 0xF0000020
-    li      a1, (0x7 | (0xFFFF << 25))
-    sd      a1, 0(a0)
-2:  ld      a1, 0(a0)
-    andi    a1, a1, 0xF
-    bne     a1, x0, 2b
+1:  wfi
     j       1b
 END_FUNC(sleep)
