@@ -7,5 +7,6 @@ path = "src/pemux.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
+cfg-if = "*"
 base = { path = "../../libs/rust/base" }
 paging = { path = "../../libs/rust/paging" }

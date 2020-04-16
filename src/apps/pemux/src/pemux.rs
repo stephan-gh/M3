@@ -21,6 +21,8 @@
 
 #[macro_use]
 extern crate base;
+#[macro_use]
+extern crate cfg_if;
 extern crate paging;
 
 mod arch;
@@ -165,6 +167,18 @@ pub extern "C" fn pexcall(state: &mut arch::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
+    // on ARM, we use the same IRQ for both core requests and the timer
+    cfg_if! {
+        if #[cfg(target_arch = "arm")] {
+            if tcu::TCU::get_irq() == tcu::IRQ::TIMER {
+                tcu::TCU::clear_irq(tcu::IRQ::TIMER);
+                vpe::cur().consume_time();
+                timer::trigger();
+                return leave(state);
+            }
+        }
+    }
+
     #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
     tcu::TCU::clear_irq(tcu::IRQ::CORE_REQ);
 

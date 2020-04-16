@@ -108,7 +108,6 @@ pub fn init(stack: usize) {
                 Vector::PREFETCH_ABORT => isr_reg(i, crate::mmu_pf),
                 Vector::DATA_ABORT => isr_reg(i, crate::mmu_pf),
                 Vector::IRQ => isr_reg(i, crate::tcu_irq),
-                Vector::FIQ => isr_reg(i, crate::timer_irq),
                 _ => isr_reg(i, crate::unexpected_irq),
             }
         }

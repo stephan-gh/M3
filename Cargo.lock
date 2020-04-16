@@ -93,6 +93,7 @@ name = "pemux"
 version = "0.1.0"
 dependencies = [
  "base 0.1.0",
+ "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "paging 0.1.0",
 ]
 

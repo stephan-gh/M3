@@ -519,6 +519,10 @@ impl TCU {
         Self::write_cmd_reg(CmdReg::COMMAND, cmd)
     }
 
+    pub fn get_irq() -> IRQ {
+        IRQ::from(Self::read_reg(TCUReg::CLEAR_IRQ.val as usize))
+    }
+
     pub fn clear_irq(irq: IRQ) {
         Self::write_reg(TCUReg::CLEAR_IRQ.val as usize, irq.val);
     }
