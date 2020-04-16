@@ -32,6 +32,8 @@ use paging::Allocator;
 use timer;
 use vma::PfState;
 
+const TIME_SLICE: u64 = 1000000; // nanoseconds
+
 struct PTAllocator {
     vpe: u64,
 }
@@ -103,6 +105,9 @@ pub struct VPE {
     fpu_state: arch::FPUState,
     user_state: arch::State,
     user_state_addr: usize,
+    scheduled: u64,
+    budget_total: u64,
+    budget_left: u64,
     wait_ep: Option<tcu::EpId>,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
@@ -193,7 +198,8 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
         VPES.get_mut()[id as usize] = Some(NonNull::new_unchecked(vpe.as_mut()));
     }
     *VPE_COUNT.get_mut() += 1;
-    BLK.get_mut().push_back(vpe);
+
+    make_blocked(vpe);
 }
 
 pub fn get_mut(id: u64) -> Option<&'static mut VPE> {
@@ -250,6 +256,9 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
     // disable FPU to raise an exception if the app tries to use FPU instructions
     arch::disable_fpu();
 
+    // reprogram timer to consider budget_left of current VPE
+    timer::reprogram();
+
     res
 }
 
@@ -268,7 +277,7 @@ fn do_schedule(action: ScheduleAction) -> usize {
             let next_id = tcu::TCU::xchg_vpe(old_id);
             next.set_vpe_reg(next_id);
             if next.id() != kif::pemux::IDLE_ID {
-                RDY.get_mut().push_back(next);
+                make_ready(next);
             }
             else {
                 Box::into_raw(next);
@@ -290,16 +299,28 @@ fn do_schedule(action: ScheduleAction) -> usize {
     let next_id = next.id();
     next.state = VPEState::Running;
 
+    let now = tcu::TCU::nanotime();
+    next.scheduled = now;
+    // budget is immediately refilled but we prefer other VPEs while a budget is 0 (see make_ready)
+    if next.budget_left == 0 {
+        next.budget_left = next.budget_total;
+    }
+    let next_budget = next.budget_left;
+
     // restore TCU command registers
     next.cmd.restore();
 
     // exchange CUR
     if let Some(mut old) = CUR.set(Some(next)) {
+        old.budget_left = old.budget_left.saturating_sub(now - old.scheduled);
+
         log!(
             crate::LOG_VPES,
-            "Switching from {} to {} ({:?} old VPE)",
+            "Switching from {} (budget {}) to {} (budget {}): {:?} old VPE",
             old.id(),
+            old.budget_left,
             next_id,
+            next_budget,
             action
         );
 
@@ -307,12 +328,10 @@ fn do_schedule(action: ScheduleAction) -> usize {
             // block, preempt or kill VPE
             match action {
                 ScheduleAction::Block => {
-                    old.state = VPEState::Blocked;
-                    BLK.get_mut().push_back(old);
+                    make_blocked(old);
                 },
                 ScheduleAction::Preempt => {
-                    old.state = VPEState::Ready;
-                    RDY.get_mut().push_back(old);
+                    make_ready(old);
                 },
                 ScheduleAction::Kill => {
                     VPES.get_mut()[old.id() as usize] = None;
@@ -326,10 +345,31 @@ fn do_schedule(action: ScheduleAction) -> usize {
         }
     }
     else {
-        log!(crate::LOG_VPES, "Switching to {}", next_id);
+        log!(
+            crate::LOG_VPES,
+            "Switching to {} (budget {})",
+            next_id,
+            next_budget
+        );
     }
 
     return new_state;
+}
+
+fn make_blocked(mut vpe: Box<VPE>) {
+    vpe.state = VPEState::Blocked;
+    BLK.get_mut().push_back(vpe);
+}
+
+fn make_ready(mut vpe: Box<VPE>) {
+    vpe.state = VPEState::Ready;
+    // prefer VPEs with budget
+    if vpe.budget_left > 0 {
+        RDY.get_mut().push_front(vpe);
+    }
+    else {
+        RDY.get_mut().push_back(vpe);
+    }
 }
 
 pub fn remove_cur(status: u32) {
@@ -394,6 +434,9 @@ impl VPE {
             fpu_state: arch::FPUState::default(),
             user_state: arch::State::default(),
             user_state_addr: 0,
+            budget_total: TIME_SLICE,
+            budget_left: TIME_SLICE,
+            scheduled: 0,
             wait_ep: None,
             eps_start,
             cmd: helper::TCUCmdState::new(),
@@ -454,6 +497,10 @@ impl VPE {
         self.vpe_reg -= (count as u64) << 16;
     }
 
+    pub fn budget_left(&self) -> u64 {
+        self.budget_left
+    }
+
     pub fn user_state(&mut self) -> &mut arch::State {
         &mut self.user_state
     }
@@ -505,16 +552,24 @@ impl VPE {
 
         if self.should_unblock(ep) {
             if self.state == VPEState::Blocked {
-                let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
+                let vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
                 if !timer {
                     timer::remove(vpe.id());
                 }
-                vpe.state = VPEState::Ready;
-                RDY.get_mut().push_back(vpe);
+                make_ready(vpe);
             }
             if self.state != VPEState::Running {
                 crate::reg_scheduling(ScheduleAction::Preempt);
             }
+        }
+    }
+
+    pub fn consume_time(&mut self) {
+        let now = tcu::TCU::nanotime();
+        let duration = now - self.scheduled;
+        self.budget_left = self.budget_left.saturating_sub(duration);
+        if self.budget_left == 0 && has_ready() {
+            crate::reg_scheduling(ScheduleAction::Preempt);
         }
     }
 
@@ -709,7 +764,7 @@ impl Drop for VPE {
             self.aspace.allocator_mut().free_pt(*f as paging::MMUPTE);
         }
 
-        // in case this VPE had the FPU, forget the state
+        // remove VPE from other modules
         timer::remove(self.id());
         arch::forget_fpu(self.id());
     }

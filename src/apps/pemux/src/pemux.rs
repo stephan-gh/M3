@@ -133,6 +133,10 @@ pub fn reg_scheduling(action: vpe::ScheduleAction) {
     SCHED.set(Some(action));
 }
 
+pub fn scheduling_pending() -> bool {
+    SCHED.is_some()
+}
+
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
     log!(LOG_ERR, "Unexpected IRQ with {:?}", state);
     vpe::remove_cur(1);
@@ -185,6 +189,7 @@ pub extern "C" fn timer_irq(state: &mut arch::State) -> *mut libc::c_void {
     #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
     tcu::TCU::clear_irq(tcu::IRQ::TIMER);
 
+    vpe::cur().consume_time();
     timer::trigger();
 
     leave(state)
