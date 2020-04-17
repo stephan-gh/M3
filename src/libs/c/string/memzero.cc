@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2015-2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,19 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-#[repr(u8)]
-#[allow(non_camel_case_types)]
-pub enum c_void {
-    // Two dummy variants so the #[repr] attribute can be used.
-    #[doc(hidden)]
-    __variant1,
-    #[doc(hidden)]
-    __variant2,
-}
+#include <base/Common.h>
+#include <string.h>
 
-extern "C" {
-    pub fn memcpy(dst: *mut c_void, src: *const c_void, len: usize) -> *mut c_void;
-    pub fn memset(dst: *mut c_void, val: i32, len: usize) -> *mut c_void;
-    pub fn memzero(dst: *mut c_void, len: usize);
-    pub fn strlen(s: *const i8) -> usize;
+void memzero(void *addr, size_t count) {
+    memset(addr, 0, count);
 }

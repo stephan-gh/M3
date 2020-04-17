@@ -23,6 +23,7 @@ EXTERN_C int memcmp(const void *mem1, const void *mem2, size_t count);
 EXTERN_C void *memcpy(void *dest, const void *src, size_t len);
 EXTERN_C void *memmove(void *dest, const void *src, size_t count);
 EXTERN_C void *memset(void *addr, int value, size_t count);
+EXTERN_C void memzero(void *addr, size_t count);
 
 EXTERN_C char *strchr(const char *str, int ch);
 EXTERN_C int strcmp(const char *str1, const char *str2);

@@ -94,6 +94,18 @@ macro_rules! def_cmpswap {
     };
 }
 
+#[cfg(target_arch = "arm")]
+#[no_mangle]
+pub unsafe extern "C" fn __aeabi_memclr(dest: *mut crate::libc::c_void, size: usize) {
+    crate::libc::memzero(dest, size);
+}
+
+#[cfg(target_arch = "arm")]
+#[no_mangle]
+pub unsafe extern "C" fn __aeabi_memclr4(dest: *mut crate::libc::c_void, size: usize) {
+    crate::libc::memzero(dest, size);
+}
+
 def_cmpswap!(__sync_val_compare_and_swap_1, u8);
 def_cmpswap!(__sync_val_compare_and_swap_2, u16);
 def_cmpswap!(__sync_val_compare_and_swap_4, u32);
