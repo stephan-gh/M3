@@ -10,10 +10,9 @@
         </app>
     </dom>
     <dom>
-        <app args="pager /bin/subsys /bin/bench-scale -i 4 -s 1 -r 1 empty $fs.size">
+        <app args="pager /bin/subsys /bin/bench-scale -i 4 -s 1 -r 1 empty">
             <sess name="m3fs" />
-            <pes type="core" count="7" />
-            <mem addr="0" size="$fs.size" />
+            <pes type="core" count="6" />
         </app>
     </dom>
 </config>

@@ -20,7 +20,6 @@
 #include <base/CmdArgs.h>
 #include <base/Panic.h>
 
-#include <m3/server/RemoteServer.h>
 #include <m3/stream/Standard.h>
 #include <m3/vfs/Dir.h>
 #include <m3/vfs/VFS.h>
@@ -51,13 +50,12 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-l] [-i <instances>] [-s <servers>] [-r <repeats>] <name> <fssize>\n";
+    cerr << "Usage: " << name << " [-l] [-i <instances>] [-s <servers>] [-r <repeats>] <name>\n";
     cerr << "  -l enables the load generator\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
     cerr << "  <servers> specifies the number of m3fs instances\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
     cerr << "  <name> specifies the name of the application trace\n";
-    cerr << "  <fssize> specifies the size of the file system\n";
     exit(1);
 }
 
@@ -78,58 +76,22 @@ int main(int argc, char **argv) {
                 usage(argv[0]);
         }
     }
-    if(CmdArgs::ind + 1 >= argc)
+    if(CmdArgs::ind >= argc)
         usage(argv[0]);
 
     const char *name = argv[CmdArgs::ind + 0];
-    size_t fssize = IStringStream::read_from<size_t>(argv[CmdArgs::ind + 1]);
 
     App *apps[instances];
-    RemoteServer *srv[servers];
     Reference<PE> srvpes[servers];
-    VPE *srvvpes[servers];
-    char srvnames[servers][16];
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
-    const size_t ARG_COUNT = loadgen ? 11 : 9;
+    const size_t ARG_COUNT = loadgen ? 9 : 7;
     for(size_t i = 0; i < instances; ++i) {
         const char **args = new const char *[ARG_COUNT];
         args[0] = "/bin/fstrace-m3fs";
 
         apps[i] = new App(ARG_COUNT, args);
-    }
-
-    if(VERBOSE) cout << "Creating servers...\n";
-
-    for(size_t i = 0; i < servers; ++i) {
-        srvpes[i] = PE::alloc(VPE::self().pe_desc());
-        srvvpes[i] = new VPE(srvpes[i], "m3fs");
-        OStringStream m3fs_name(srvnames[i], sizeof(srvnames[i]));
-        m3fs_name << "m3fs" << i;
-        srv[i] = new RemoteServer(*srvvpes[i], m3fs_name.str());
-
-        String m3fsarg = srv[i]->sel_arg();
-        OStringStream fs_off_str(new char[16], 16);
-        fs_off_str << (fssize * i);
-        OStringStream fs_size_str(new char[16], 16);
-        fs_size_str << fssize;
-        const char *m3fs_args[] = {
-            "/bin/m3fs",
-            "-n", srvnames[i],
-            "-s", m3fsarg.c_str(),
-            "-o", fs_off_str.str(),
-            "-e", "512",
-            "mem",
-            fs_size_str.str()
-        };
-        if(VERBOSE) {
-            cout << "Creating ";
-            for(size_t x = 0; x < ARRAY_SIZE(m3fs_args); ++x)
-                cout << m3fs_args[x] << " ";
-            cout << "\n";
-        }
-        srvvpes[i]->exec(ARRAY_SIZE(m3fs_args), m3fs_args);
     }
 
     if(VERBOSE) cout << "Starting VPEs...\n";
@@ -149,22 +111,20 @@ int main(int argc, char **argv) {
             args[2] = tmpdir.str();
         }
         args[3] = "-w";
-        args[4] = "-f";
-        args[5] = srvnames[i % servers];
-        args[6] = "-g";
+        args[4] = "-g";
 
         OStringStream rgatesel(new char[11], 11);
         rgatesel << apps[i]->rgate.sel();
-        args[7] = rgatesel.str();
+        args[5] = rgatesel.str();
         if(loadgen) {
-            args[8] = "-l";
+            args[6] = "-l";
             OStringStream loadgen(new char[16], 16);
             loadgen << "loadgen" << (i % 8);
-            args[9] = loadgen.str();
-            args[10] = name;
+            args[7] = loadgen.str();
+            args[8] = name;
         }
         else
-            args[8] = name;
+            args[6] = name;
 
         if(VERBOSE) {
             cout << "Starting ";
@@ -205,22 +165,6 @@ int main(int argc, char **argv) {
 
     for(size_t i = 0; i < instances; ++i)
         delete apps[i];
-
-    if(VERBOSE) cout << "Stopping servers...\n";
-
-    for(size_t i = 0; i < servers; ++i) {
-        if(!srv[i])
-            continue;
-        srv[i]->request_shutdown();
-        int res = srvvpes[i]->wait();
-        if(res != 0)
-            exitcode = 1;
-        if(VERBOSE) cout << srvnames[i] << " exited with " << res << "\n";
-    }
-    for(size_t i = 0; i < servers; ++i) {
-        delete srv[i];
-        delete srvvpes[i];
-    }
 
     if(VERBOSE) cout << "Done\n";
     return exitcode;

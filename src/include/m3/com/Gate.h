@@ -28,7 +28,6 @@
 namespace m3 {
 
 class GenericFile;
-struct RemoteServer;
 
 /**
  * Gate is the base class of all gates. A gate is in general the software abstraction for TCU-based
@@ -46,7 +45,6 @@ class Gate : public SListItem, public ObjCap {
     friend class EPMng;
     friend class TCUIf;
     friend class GenericFile;
-    friend struct RemoteServer;
     friend class VPE;
 
 public:

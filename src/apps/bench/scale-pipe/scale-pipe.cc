@@ -21,7 +21,6 @@
 #include <base/CmdArgs.h>
 #include <base/Panic.h>
 
-#include <m3/server/RemoteServer.h>
 #include <m3/stream/Standard.h>
 #include <m3/pipe/IndirectPipe.h>
 #include <m3/vfs/Dir.h>
@@ -54,7 +53,7 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name> <fssize>\n";
+    cerr << "Usage: " << name << " [-d] [-i <instances>] [-r <repeats>] [-w <warmup>] <wr_name> <rd_name>\n";
     cerr << "  -d enables data transfers (otherwise the same time is spent locally)\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
@@ -81,17 +80,15 @@ int main(int argc, char **argv) {
                 usage(argv[0]);
         }
     }
-    if(CmdArgs::ind + 2 >= argc)
+    if(CmdArgs::ind + 1 >= argc)
         usage(argv[0]);
 
     const char *wr_name = argv[CmdArgs::ind + 0];
     const char *rd_name = argv[CmdArgs::ind + 1];
-    const char *fs_size = argv[CmdArgs::ind + 2];
 
     App *apps[instances * 2];
-    RemoteServer *srvs[2];
     Reference<PE> srv_pes[2];
-    VPE *srv_vpes[2];
+    Pipes pipesrv("pipes");
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
@@ -99,7 +96,7 @@ int main(int argc, char **argv) {
 
     int exitcode = 0;
     for(int j = 0; j < warmup + repeats; ++j) {
-        const size_t ARG_COUNT = 11;
+        const size_t ARG_COUNT = 9;
         for(size_t i = 0; i < instances * 2; ++i) {
             const char **args = new const char *[ARG_COUNT];
             args[0] = "/bin/fstrace-m3fs";
@@ -107,33 +104,10 @@ int main(int argc, char **argv) {
             apps[i] = new App(ARG_COUNT, args);
         }
 
-        if(j == 0 && VERBOSE) cout << "Creating servers...\n";
-
-        if(j == 0) {
-            srv_pes[0] = PE::alloc(VPE::self().pe_desc());
-            srv_vpes[0] = new VPE(srv_pes[0], "m3fs");
-            srvs[0] = new RemoteServer(*srv_vpes[0], "mym3fs");
-
-            String srv_arg = srvs[0]->sel_arg();
-            const char *args[] = {"/bin/m3fs", "-s", srv_arg.c_str(), "mem", fs_size};
-            srv_vpes[0]->exec(ARRAY_SIZE(args), args);
-        }
-
-        if(j == 0) {
-            srv_pes[1] = PE::alloc(VPE::self().pe_desc());
-            srv_vpes[1] = new VPE(srv_pes[1], "pipes");
-            srvs[1] = new RemoteServer(*srv_vpes[1], "mypipe");
-
-            String srv_arg = srvs[1]->sel_arg();
-            const char *args[] = {"/bin/pipes", "-s", srv_arg.c_str()};
-            srv_vpes[1]->exec(ARRAY_SIZE(args), args);
-        }
-
         if(VERBOSE) cout << "Starting VPEs...\n";
 
         cycles_t overall_start = Time::start(0x1235);
 
-        Pipes pipesrv("mypipe");
         constexpr size_t PIPE_SHM_SIZE   = 512 * 1024;
         MemGate *mems[instances];
         IndirectPipe *pipes[instances];
@@ -147,14 +121,12 @@ int main(int argc, char **argv) {
             args[3] = instances > 1 ? "-w" : "-i";
             args[4] = "-i";
             args[5] = data ? "-d" : "-i";
-            args[6] = "-f";
-            args[7] = "mym3fs";
-            args[8] = "-g";
+            args[6] = "-g";
 
             OStringStream rgatesel(new char[11], 11);
             rgatesel << apps[i]->rgate.sel();
-            args[9] = rgatesel.str();
-            args[10] = (i % 2 == 0) ? wr_name : rd_name;
+            args[7] = rgatesel.str();
+            args[8] = (i % 2 == 0) ? wr_name : rd_name;
 
             if(VERBOSE) {
                 cout << "Starting ";
@@ -233,25 +205,6 @@ int main(int argc, char **argv) {
         s++;
     }
     WVPERF(name.str(), res);
-
-    if(VERBOSE) cout << "Stopping servers...\n";
-
-    for(size_t i = 0; i < ARRAY_SIZE(srvs); ++i) {
-        if(srvs[i])
-            srvs[i]->request_shutdown();
-    }
-
-    for(size_t i = 0; i < ARRAY_SIZE(srvs); ++i) {
-        if(!srv_vpes[i])
-            continue;
-
-        int res = srv_vpes[i]->wait();
-        if(res != 0)
-            exitcode = 1;
-        if(VERBOSE) cout << "server " << i << " exited with " << res << "\n";
-        delete srvs[i];
-        delete srv_vpes[i];
-    }
 
     if(VERBOSE) cout << "Done\n";
     return exitcode;

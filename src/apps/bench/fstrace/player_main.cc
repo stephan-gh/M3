@@ -92,7 +92,7 @@ static void cleanup() {
 }
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-f <fs>] [-t] [-v] [-u <warmup>]"
+    cerr << "Usage: " << name << " [-p <prefix>] [-n <iterations>] [-w] [-t] [-v] [-u <warmup>]"
                               << " [-g <rgate selector>] [-l <loadgen>] [-i] [-d] <name>\n";
     exit(1);
 }
@@ -106,18 +106,16 @@ int main(int argc, char **argv) {
     bool data           = false;
     bool wvtest         = false;
     bool verbose        = false;
-    const char *fs      = "m3fs";
     const char *prefix  = "";
     const char *loadgen = "";
     capsel_t rgate      = ObjCap::INVALID;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "p:n:wf:g:l:idtu:v")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "p:n:wg:l:idtu:v")) != -1) {
         switch(opt) {
             case 'p': prefix = CmdArgs::arg; break;
             case 'n': iters = IStringStream::read_from<ulong>(CmdArgs::arg); break;
             case 'w': keep_time = true; break;
-            case 'f': fs = CmdArgs::arg; break;
             case 'l': loadgen = CmdArgs::arg; break;
             case 'i': stdio = true; break;
             case 'd': data = true; break;
@@ -188,7 +186,6 @@ int main(int argc, char **argv) {
          << "data=" << (data ? "yes" : "no") << ","
          << "stdio=" << (stdio ? "yes" : "no") << ","
          << "prefix=" << prefix << ","
-         << "fs=" << fs << ","
          << "loadgen=" << loadgen << ","
          << "ops=" << numTraceOps
          << "]\n";

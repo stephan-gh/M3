@@ -10,10 +10,15 @@
         </app>
     </dom>
     <dom>
-        <app args="pager /bin/subsys /bin/bench-scale-pipe -i 1 -r 1 cat_wc_cat cat_wc_wc $fs.size">
+        <app args="pipes" daemon="1">
+            <serv name="pipes" />
+        </app>
+    </dom>
+    <dom>
+        <app args="pager /bin/subsys /bin/bench-scale-pipe -i 1 -r 1 cat_wc_cat cat_wc_wc">
             <sess name="m3fs" />
-            <pes type="core" count="6" />
-            <mem addr="0" size="$fs.size" />
+            <sess name="pipes" />
+            <pes type="core" count="4" />
         </app>
     </dom>
 </config>
