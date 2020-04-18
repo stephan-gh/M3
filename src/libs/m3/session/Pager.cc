@@ -20,10 +20,10 @@
 
 namespace m3 {
 
-Pager::Pager(VPE &vpe, capsel_t sess) noexcept
+Pager::Pager(capsel_t sess, bool) noexcept
     : RefCounted(),
       ClientSession(sess),
-      _rgate(RecvGate::create_for(vpe, nextlog2<64>::val, nextlog2<64>::val)),
+      _rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
       _own_sgate(SendGate::bind(obtain(1).start())),
       _child_sgate(SendGate::bind(obtain(1).start())),
       _close(true) {
@@ -90,7 +90,7 @@ void Pager::unmap(goff_t virt) {
     reply.pull_result();
 }
 
-Reference<Pager> Pager::create_clone(VPE &vpe) {
+Reference<Pager> Pager::create_clone() {
     KIF::CapRngDesc caps;
     {
         KIF::ExchangeArgs args;
@@ -101,7 +101,7 @@ Reference<Pager> Pager::create_clone(VPE &vpe) {
         caps = obtain(1, &args);
     }
 
-    return Reference<Pager>(new Pager(vpe, caps.start()));
+    return Reference<Pager>(new Pager(caps.start(), true));
 }
 
 void Pager::delegate_caps(VPE &vpe) {

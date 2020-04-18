@@ -21,9 +21,9 @@
 namespace m3 {
 
 void NetEventChannel::prepare_caps(capsel_t caps, size_t size) {
-    RecvGate rgate_srv(RecvGate::create_for(VPE::self(), caps + 0, nextlog2<MSG_BUF_SIZE>::val,
+    RecvGate rgate_srv(RecvGate::create(caps + 0, nextlog2<MSG_BUF_SIZE>::val,
             nextlog2<MSG_SIZE>::val, RecvGate::KEEP_CAP));
-    RecvGate rgate_cli(RecvGate::create_for(VPE::self(), caps + 3, nextlog2<MSG_BUF_SIZE>::val,
+    RecvGate rgate_cli(RecvGate::create(caps + 3, nextlog2<MSG_BUF_SIZE>::val,
                 nextlog2<MSG_SIZE>::val, RecvGate::KEEP_CAP));
     SendGate sgate_srv(SendGate::create(&rgate_cli, SendGateArgs().reply_gate(&rgate_srv)
                                                                   .sel(caps + 1)

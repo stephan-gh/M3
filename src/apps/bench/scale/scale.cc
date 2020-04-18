@@ -36,7 +36,7 @@ struct App {
           argv(argv),
           pe(PE::alloc(VPE::self().pe_desc())),
           vpe(pe, argv[0]),
-          rgate(RecvGate::create_for(vpe, 6, 6)),
+          rgate(RecvGate::create(6, 6)),
           sgate(SendGate::create(&rgate)) {
         vpe.delegate_obj(rgate.sel());
     }

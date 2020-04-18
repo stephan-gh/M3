@@ -70,7 +70,7 @@ public:
         : _sgate_in(),
           _sgate_out(),
           _mgate_out(),
-          _rgate(RecvGate::create_for(*vpe, getnextlog2(RB_SIZE), getnextlog2(MSG_SIZE))),
+          _rgate(RecvGate::create(getnextlog2(RB_SIZE), getnextlog2(MSG_SIZE))),
           _in_sep(vpe->epmng().acquire(EP_IN_SEND)),
           _in_mep(vpe->epmng().acquire(EP_IN_MEM)),
           _out_sep(vpe->epmng().acquire(EP_OUT_SEND)),

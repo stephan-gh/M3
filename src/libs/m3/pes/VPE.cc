@@ -92,7 +92,7 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
         if(args._pager)
             _pager = args._pager;
         else if(VPE::self().pager())
-            _pager = VPE::self().pager()->create_clone(*this);
+            _pager = VPE::self().pager()->create_clone();
         // we need a pager on VM PEs
         else
             throw Exception(Errors::NOT_SUP);

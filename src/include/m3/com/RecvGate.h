@@ -65,9 +65,8 @@ class RecvGate : public Gate {
         RecvGate *_buf;
     };
 
-    explicit RecvGate(VPE &vpe, capsel_t cap, uint order, uint msgorder, uint flags) noexcept
+    explicit RecvGate(capsel_t cap, uint order, uint msgorder, uint flags) noexcept
         : Gate(RECV_GATE, cap, flags),
-          _vpe(vpe),
           _buf(),
           _order(order),
           _msgorder(msgorder),
@@ -75,7 +74,7 @@ class RecvGate : public Gate {
           _handler(),
           _workitem() {
     }
-    explicit RecvGate(VPE &vpe, capsel_t cap, epid_t ep, void *buf, uint order, uint msgorder, uint flags);
+    explicit RecvGate(capsel_t cap, epid_t ep, void *buf, uint order, uint msgorder, uint flags);
 
 public:
     using msghandler_t = std::function<void(GateIStream&)>;
@@ -114,29 +113,10 @@ public:
      * @param sel the capability selector to use
      * @param order the size of the buffer (2^<order> bytes)
      * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
+     * @param flags the flags to control whether the cap is kept
      * @return the receive gate
      */
-    static RecvGate create(capsel_t sel, uint order, uint msgorder);
-
-    /**
-     * Creates a new receive gate that should be activated for <vpe>.
-     *
-     * @param vpe the VPE that should activate the receive gate
-     * @param order the size of the buffer (2^<order> bytes)
-     * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
-     * @return the receive gate
-     */
-    static RecvGate create_for(VPE &vpe, uint order, uint msgorder);
-    /**
-     * Creates a new receive gate at selector <sel> that should be activated for <vpe>.
-     *
-     * @param vpe the VPE that should activate the receive gate
-     * @param sel the capability selector to use
-     * @param order the size of the buffer (2^<order> bytes)
-     * @param msgorder the size of messages within the buffer (2^<msgorder> bytes)
-     * @return the receive gate
-     */
-    static RecvGate create_for(VPE &vpe, capsel_t sel, uint order, uint msgorder, uint flags = 0);
+    static RecvGate create(capsel_t sel, uint order, uint msgorder, uint flags = 0);
 
     /**
      * Binds the receive gate at selector <sel>.
@@ -152,7 +132,6 @@ public:
     RecvGate &operator=(const RecvGate&) = delete;
     RecvGate(RecvGate &&r) noexcept
             : Gate(std::move(r)),
-              _vpe(r._vpe),
               _buf(r._buf),
               _order(r._order),
               _free(r._free),
@@ -255,7 +234,6 @@ private:
     static void *allocate(VPE &vpe, size_t size);
     static void free(void *);
 
-    VPE &_vpe;
     void *_buf;
     uint _order;
     uint _msgorder;

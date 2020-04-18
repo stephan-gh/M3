@@ -30,7 +30,7 @@ class VPE;
 
 class Pager : public RefCounted, public ClientSession {
 private:
-    explicit Pager(VPE &vpe, capsel_t sess) noexcept;
+    explicit Pager(capsel_t sess, bool) noexcept;
 
 public:
     enum DelOp {
@@ -78,7 +78,7 @@ public:
 
     void delegate_caps(VPE &vpe);
 
-    Reference<Pager> create_clone(VPE &vpe);
+    Reference<Pager> create_clone();
     void clone();
     void pagefault(goff_t addr, uint access);
     void map_anon(goff_t *virt, size_t len, int prot, int flags);
