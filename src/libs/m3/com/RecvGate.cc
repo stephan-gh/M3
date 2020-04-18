@@ -67,11 +67,11 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
 );
 
 void RecvGate::RecvGateWorkItem::work() {
-    const TCU::Message *msg = TCUIf::fetch_msg(*_buf);
+    const TCU::Message *msg = TCUIf::fetch_msg(*_gate);
     if(msg) {
-        LLOG(IPC, "Received msg @ " << (void*)msg << " over ep " << _buf->ep());
-        GateIStream is(*_buf, msg);
-        _buf->_handler(is);
+        LLOG(IPC, "Received msg @ " << (void*)msg << " over ep " << _gate->ep());
+        GateIStream is(*_gate, msg);
+        _gate->_handler(is);
     }
 }
 
@@ -80,7 +80,7 @@ RecvGate::RecvGate(capsel_t cap, epid_t ep, void *buf, uint order, uint msgorder
       _buf(buf),
       _order(order),
       _msgorder(msgorder),
-      _free(0),
+      _free_buf(),
       _handler(),
       _workitem() {
     if(sel() != ObjCap::INVALID && sel() >= KIF::FIRST_FREE_SEL)
@@ -103,7 +103,7 @@ RecvGate RecvGate::bind(capsel_t cap, uint order, uint msgorder) noexcept {
 }
 
 RecvGate::~RecvGate() {
-    if(_free & FREE_BUF)
+    if(_free_buf)
         free(_buf);
     deactivate();
 }
@@ -113,10 +113,10 @@ void RecvGate::activate() {
         uintptr_t addr = reinterpret_cast<uintptr_t>(_buf);
         if(_buf == nullptr) {
             addr = reinterpret_cast<uintptr_t>(_buf = allocate(VPE::self(), 1UL << _order));
-            _free |= FREE_BUF;
+            _free_buf = true;
         }
 
-        auto rep = _vpe.epmng().acquire(EP_COUNT, slots());
+        auto rep = VPE::self().epmng().acquire(EP_COUNT, slots());
         Gate::activate_on(*rep, addr);
         Gate::set_ep(rep);
     }

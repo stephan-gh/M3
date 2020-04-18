@@ -50,19 +50,15 @@ class RecvGate : public Gate {
     friend class InDirAccel;
     friend class StreamAccel;
 
-    enum {
-        FREE_BUF    = 1,
-    };
-
     class RecvGateWorkItem : public WorkItem {
     public:
-        explicit RecvGateWorkItem(RecvGate *buf) noexcept : _buf(buf) {
+        explicit RecvGateWorkItem(RecvGate *gate) noexcept : _gate(gate) {
         }
 
         virtual void work() override;
 
     protected:
-        RecvGate *_buf;
+        RecvGate *_gate;
     };
 
     explicit RecvGate(capsel_t cap, uint order, uint msgorder, uint flags) noexcept
@@ -70,7 +66,7 @@ class RecvGate : public Gate {
           _buf(),
           _order(order),
           _msgorder(msgorder),
-          _free(FREE_BUF),
+          _free_buf(),
           _handler(),
           _workitem() {
     }
@@ -134,10 +130,10 @@ public:
             : Gate(std::move(r)),
               _buf(r._buf),
               _order(r._order),
-              _free(r._free),
+              _free_buf(r._free_buf),
               _handler(r._handler),
               _workitem(std::move(r._workitem)) {
-        r._free = 0;
+        r._free_buf = false;
         r._workitem = nullptr;
     }
     ~RecvGate();
@@ -162,12 +158,14 @@ public:
     void activate();
 
     /**
-     * Activates this receive gate on the given endpoint with given receive buffer address.
+     * Activates this receive gate on the given endpoint with given receive buffer address. This
+     * call is intended for CUs that don't manage their own receive buffer space. For that reason,
+     * the receive buffer addresses needs to be chosen externally.
      *
      * @param ep the endpoint
-     * @param addr the receive buffer address (0 = automatic)
+     * @param addr the receive buffer address
      */
-    void activate_on(const EP &ep, uintptr_t addr = 0);
+    void activate_on(const EP &ep, uintptr_t addr);
 
     /**
      * Deactivates and stops the receive gate.
@@ -237,7 +235,7 @@ private:
     void *_buf;
     uint _order;
     uint _msgorder;
-    uint _free;
+    bool _free_buf;
     msghandler_t _handler;
     std::unique_ptr<RecvGateWorkItem> _workitem;
     static RecvGate _syscall;

@@ -36,12 +36,6 @@ static SYS_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
 static UPC_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
 static DEF_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
 
-bitflags! {
-    struct FreeFlags : u8 {
-        const FREE_BUF  = 0x1;
-    }
-}
-
 /// A receive gate (`RecvGate`) can receive messages via TCU from connected [`SendGate`]s and can
 /// reply on the received messages.
 pub struct RecvGate {
@@ -49,7 +43,7 @@ pub struct RecvGate {
     buf: usize,
     order: u32,
     msg_order: u32,
-    free: FreeFlags,
+    free_buf: bool,
     // TODO this is a workaround for a code-generation bug for arm, which generates
     // "ldm r8!,{r2,r4,r6,r8}" with the EP id loaded into r8 and afterwards increased by 16 because
     // of the "!".
@@ -133,7 +127,7 @@ impl RecvGate {
             buf: 0,
             order: 0,
             msg_order: 0,
-            free: FreeFlags { bits: 0 },
+            free_buf: false,
             _dummy: 0,
         }
     }
@@ -159,7 +153,7 @@ impl RecvGate {
             buf: 0,
             order: args.order,
             msg_order: args.msg_order,
-            free: FreeFlags::empty(),
+            free_buf: false,
             _dummy: 0,
         })
     }
@@ -172,7 +166,7 @@ impl RecvGate {
             buf: 0,
             order,
             msg_order,
-            free: FreeFlags::empty(),
+            free_buf: false,
             _dummy: 0,
         }
     }
@@ -214,7 +208,7 @@ impl RecvGate {
                 Ok(_) => {
                     if self.buf == 0 {
                         self.buf = buf;
-                        self.free |= FreeFlags::FREE_BUF;
+                        self.free_buf = true;
                     }
                 },
                 Err(e) => {
@@ -323,7 +317,7 @@ pub(crate) fn init() {
 
 impl ops::Drop for RecvGate {
     fn drop(&mut self) {
-        if !(self.free & FreeFlags::FREE_BUF).is_empty() {
+        if self.free_buf {
             VPE::cur().free_rbuf(self.buf, 1 << self.order);
         }
         self.deactivate();

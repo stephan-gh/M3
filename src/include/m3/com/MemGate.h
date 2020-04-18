@@ -66,6 +66,7 @@ public:
      * @param size the memory size
      * @param perms the permissions (see MemGate::RWX)
      * @param sel the selector to use (if != INVALID, the selector is NOT freed on destruction)
+     * @param flags the flags to control whether the cap is kept
      * @return the memory gate
      */
     static MemGate create_global(size_t size, int perms, capsel_t sel = INVALID, uint flags = 0) {
@@ -79,16 +80,18 @@ public:
      * @param size the memory size
      * @param perms the permissions (see MemGate::RWX)
      * @param sel the selector to use (if != INVALID, the selector is NOT freed on destruction)
+     * @param flags the flags to control whether the cap is kept
      * @return the memory gate
      */
-    static MemGate create_global_for(goff_t addr, size_t size, int perms, capsel_t sel = INVALID, uint flags = 0);
+    static MemGate create_global_for(goff_t addr, size_t size, int perms,
+                                     capsel_t sel = INVALID, uint flags = 0);
 
     /**
      * Binds this gate for read/write/cmpxchg to the given memory capability. That is, the
      * capability should be a memory capability you've received from somebody else.
      *
      * @param sel the capability selector
-     * @param flags the flags to control whether cap/selector are kept (default: both)
+     * @param flags the flags to control whether the cap is kept
      */
     static MemGate bind(capsel_t sel, uint flags = ObjCap::KEEP_CAP) noexcept {
         return MemGate(flags, sel, true);
