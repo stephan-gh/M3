@@ -72,12 +72,11 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
 }
 
 fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let child_sel: Selector = is.pop()?;
     let dst_sel: Selector = is.pop()?;
     let rgate_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    let res = services::get().reg_serv(child, child_sel, dst_sel, rgate_sel, name);
+    let res = services::get().reg_serv(child, dst_sel, rgate_sel, name);
     if res.is_ok() && !DELAYED.get().is_empty() {
         start_delayed();
     }

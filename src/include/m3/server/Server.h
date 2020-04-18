@@ -45,7 +45,7 @@ public:
         init(wl);
 
         LLOG(SERV, "create(" << name << ")");
-        VPE::self().resmng()->reg_service(0, sel(), _rgate.sel(), name);
+        VPE::self().resmng()->reg_service(sel(), _rgate.sel(), name);
     }
 
     ~Server() {

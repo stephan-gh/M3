@@ -88,23 +88,10 @@ impl ResMng {
     /// Registers a service with given name at selector `dst`, using `rgate` to receive service
     /// calls.
     pub fn reg_service(&self, dst: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
-        self.reg_child_service(0, dst, rgate, name)
-    }
-
-    /// Registers a service for the child VPE `child` with given name at selector `dst`, using
-    /// `rgate` to receive service calls.
-    pub fn reg_child_service(
-        &self,
-        child: Selector,
-        dst: Selector,
-        rgate: Selector,
-        name: &str,
-    ) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
             ResMngOperation::REG_SERV,
-            child,
             dst,
             rgate,
             name

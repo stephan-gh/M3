@@ -207,16 +207,14 @@ impl ServiceManager {
     pub fn reg_serv(
         &mut self,
         child: &mut dyn Child,
-        child_sel: Selector,
         dst_sel: Selector,
         rgate_sel: Selector,
         name: String,
     ) -> Result<(), Error> {
         log!(
             crate::LOG_SERV,
-            "{}: reg_serv(child_sel={}, dst_sel={}, rgate_sel={}, name={})",
+            "{}: reg_serv(dst_sel={}, rgate_sel={}, name={})",
             child.name(),
-            child_sel,
             dst_sel,
             rgate_sel,
             name
@@ -239,15 +237,7 @@ impl ServiceManager {
             None
         };
 
-        let serv = if child_sel == 0 {
-            Service::new(self.next_id, child, dst_sel, rgate_sel, name)
-        }
-        else {
-            let server = child
-                .child_mut(child_sel)
-                .ok_or_else(|| Error::new(Code::InvArgs))?;
-            Service::new(self.next_id, server, dst_sel, rgate_sel, name)
-        }?;
+        let serv = Service::new(self.next_id, child, dst_sel, rgate_sel, name)?;
         self.next_id += 1;
 
         if let Some(sd) = sdesc {
