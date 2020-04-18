@@ -32,6 +32,7 @@ class SendGate;
 class VPE;
 template<class HDL>
 class Server;
+class RecvBuf;
 
 /**
  * A receive gate is used to receive messages from send gates. To this end, it has a receive buffer
@@ -66,11 +67,10 @@ class RecvGate : public Gate {
           _buf(),
           _order(order),
           _msgorder(msgorder),
-          _free_buf(),
           _handler(),
           _workitem() {
     }
-    explicit RecvGate(capsel_t cap, epid_t ep, void *buf, uint order, uint msgorder, uint flags);
+    explicit RecvGate(capsel_t cap, epid_t ep, uint order, uint msgorder, uint flags);
 
 public:
     using msghandler_t = std::function<void(GateIStream&)>;
@@ -130,20 +130,12 @@ public:
             : Gate(std::move(r)),
               _buf(r._buf),
               _order(r._order),
-              _free_buf(r._free_buf),
               _handler(r._handler),
               _workitem(std::move(r._workitem)) {
-        r._free_buf = false;
+        r._buf = nullptr;
         r._workitem = nullptr;
     }
     ~RecvGate();
-
-    /**
-     * @return the buffer address
-     */
-    const void *addr() const noexcept {
-        return _buf;
-    }
 
     /**
      * @return the number of slots in the receive buffer
@@ -229,13 +221,9 @@ private:
         Gate::set_ep(new EP(EP::bind(ep)));
     }
 
-    static void *allocate(VPE &vpe, size_t size);
-    static void free(void *);
-
-    void *_buf;
+    RecvBuf *_buf;
     uint _order;
     uint _msgorder;
-    bool _free_buf;
     msghandler_t _handler;
     std::unique_ptr<RecvGateWorkItem> _workitem;
     static RecvGate _syscall;

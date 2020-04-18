@@ -70,7 +70,7 @@ pub fn rbuf_start() -> usize {
 }
 
 pub fn heap_start() -> usize {
-    mem_start() + cfg::EPMEM_SIZE + cfg::RECVBUF_SIZE
+    mem_start() + cfg::EPMEM_SIZE + cfg::RBUF_SIZE
 }
 
 pub fn mem_start() -> usize {

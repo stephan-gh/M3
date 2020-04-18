@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
 use base;
 use cap::Selector;
 use cfg;
@@ -117,10 +116,6 @@ impl EnvData {
         cmp::max(kif::FIRST_FREE_SEL, self.base.first_sel as Selector)
     }
 
-    pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
-        arch::rbufs::RBufSpace::new_with(self.base.rbuf_cur as usize, self.base.rbuf_end as usize)
-    }
-
     pub fn load_mounts(&self) -> MountTable {
         if self.base.mounts_len != 0 {
             // safety: we trust our loader
@@ -170,12 +165,6 @@ impl EnvData {
 
     pub fn set_rmng(&mut self, sel: Selector) {
         self.base.rmng_sel = u64::from(sel);
-    }
-
-    #[allow(clippy::trivially_copy_pass_by_ref)] // only <= 8 bytes on 32-bit architectures
-    pub fn set_rbufs(&mut self, rbufs: &arch::rbufs::RBufSpace) {
-        self.base.rbuf_cur = rbufs.cur as u64;
-        self.base.rbuf_end = rbufs.end as u64;
     }
 
     pub fn set_files(&mut self, off: usize, len: usize) {

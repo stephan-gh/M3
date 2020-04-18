@@ -227,7 +227,7 @@ void VPE::init_eps() {
     // attach syscall receive endpoint
     rgate.order = m3::nextlog2<SYSC_RBUF_SIZE>::val;
     rgate.msgorder = SYSC_RBUF_ORDER;
-    rgate.addr = Platform::def_recvbuf(peid());
+    rgate.addr = Platform::pe(peid()).rbuf_std_space().first;
     res = pemux->config_rcv_ep(_eps_start + m3::TCU::SYSC_REP_OFF, vpe,
                                m3::TCU::NO_REPLIES, rgate, true);
     assert(res == m3::Errors::NONE);

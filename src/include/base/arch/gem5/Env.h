@@ -70,9 +70,6 @@ public:
     uint64_t fds_addr;
     uint64_t fds_len;
 
-    uint64_t rbuf_cur;
-    uint64_t rbuf_end;
-
     uint64_t vpe_addr;
     uint64_t backend_addr;
 

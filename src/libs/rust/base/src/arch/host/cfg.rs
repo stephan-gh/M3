@@ -28,11 +28,16 @@ pub const PE_COUNT: usize           = 18;
 pub const TOTAL_MEM_SIZE: usize     = 1024 * 1024 * 1024;
 pub const FS_MAX_SIZE: usize        = 512 * 1024 * 1024;
 pub const STACK_SIZE: usize         = 0x8000;
-pub const RECVBUF_SIZE: usize       = 16 * 1024;
+
+pub const RBUF_STD_ADDR: usize      = 0;
+pub const RBUF_STD_SIZE: usize      = PAGE_SIZE;
+pub const RBUF_ADDR: usize          = RBUF_STD_ADDR + RBUF_STD_SIZE;
+pub const RBUF_SIZE: usize          = 16384;
+pub const RBUF_SIZE_SPM: usize      = 16384;
 
 pub const LOCAL_MEM_SIZE: usize     = 512 * 1024 * 1024;
 pub const EPMEM_SIZE: usize         = 1 * 1024 * 1024;
-pub const APP_HEAP_SIZE: usize      = LOCAL_MEM_SIZE - RECVBUF_SIZE - EPMEM_SIZE;
+pub const APP_HEAP_SIZE: usize      = LOCAL_MEM_SIZE - RBUF_SIZE - EPMEM_SIZE;
 
 pub const KPEX_RBUF_ORD: i32        = 6;
 pub const SYSC_RBUF_ORD: i32        = 9;

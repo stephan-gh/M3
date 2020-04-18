@@ -214,7 +214,7 @@ impl MemGate {
 
     /// Deactivates this `MemGate` in case it was already activated
     pub fn deactivate(&mut self) {
-        self.gate.release();
+        self.gate.release(false);
     }
 
     fn cmd_flags(&self) -> tcu::CmdFlags {

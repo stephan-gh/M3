@@ -95,16 +95,6 @@ impl EnvData {
         }
     }
 
-    pub fn load_rbufs(&self) -> arch::rbufs::RBufSpace {
-        match arch::loader::read_env_file("rbufs") {
-            Some(rbuf) => {
-                let mut ss = SliceSource::new(&rbuf);
-                arch::rbufs::RBufSpace::new_with(ss.pop().unwrap(), ss.pop().unwrap())
-            },
-            None => arch::rbufs::RBufSpace::new(),
-        }
-    }
-
     pub fn load_mounts(&self) -> MountTable {
         match arch::loader::read_env_file("ms") {
             Some(ms) => MountTable::unserialize(&mut SliceSource::new(&ms)),

@@ -18,11 +18,15 @@ use m3::cell::StaticCell;
 use m3::col::{DList, String, Vec};
 use m3::com::{RGateArgs, RecvGate, SendGate};
 use m3::errors::Error;
+use m3::math;
 use m3::tcu;
 use thread;
 
 use childs::Id;
 use services;
+
+pub const RBUF_SIZE: usize = 1 << 11;
+const RBUF_MSG_SIZE: usize = 1 << 6;
 
 struct Entry {
     id: u64,
@@ -61,10 +65,20 @@ fn get_event(id: u64) -> thread::Event {
     0x8000_0000_0000_0000 | id
 }
 
-pub fn init() {
-    let mut rgate = RecvGate::new_with(RGateArgs::default().order(11).msg_order(6))
-        .expect("Unable to create service rgate");
-    rgate.activate().expect("Unable to activate service rgate");
+pub fn init(addr: Option<usize>) {
+    let mut rgate = RecvGate::new_with(
+        RGateArgs::default()
+            .order(math::next_log2(RBUF_SIZE))
+            .msg_order(math::next_log2(RBUF_MSG_SIZE)),
+    )
+    .expect("Unable to create service rgate");
+    if let Some(a) = addr {
+        rgate.activate_on(a)
+    }
+    else {
+        rgate.activate()
+    }
+    .expect("Unable to activate service rgate");
 
     RGATE.set(Some(rgate));
 }

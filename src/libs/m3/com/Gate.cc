@@ -45,9 +45,9 @@ void Gate::activate_on(const EP &ep, uintptr_t addr) {
     _gates.append(this);
 }
 
-void Gate::release_ep(VPE &vpe) noexcept {
+void Gate::release_ep(VPE &vpe, bool force_inval) noexcept {
     if(_ep && !_ep->is_standard()) {
-        vpe.epmng().release(_ep, flags() & KEEP_CAP);
+        vpe.epmng().release(_ep, force_inval || (flags() & KEEP_CAP));
         _gates.remove(this);
         _ep = nullptr;
     }

@@ -22,9 +22,11 @@ pub const LPAGE_BITS: usize         = 21;
 pub const LPAGE_SIZE: usize         = 1 << LPAGE_BITS;
 pub const LPAGE_MASK: usize         = LPAGE_SIZE - 1;
 
-pub const RECVBUF_SPACE: usize      = 0x3FC0_0000;
-pub const RECVBUF_SIZE: usize       = 4 * PAGE_SIZE;
-pub const RECVBUF_SIZE_SPM: usize   = 16384;
+pub const RBUF_STD_ADDR: usize      = 0xD000_0000;
+pub const RBUF_STD_SIZE: usize      = PAGE_SIZE;
+pub const RBUF_ADDR: usize          = RBUF_STD_ADDR + RBUF_STD_SIZE;
+pub const RBUF_SIZE: usize          = 0x1000_0000 - RBUF_STD_SIZE;
+pub const RBUF_SIZE_SPM: usize      = 16384;
 pub const MAX_RB_SIZE: usize        = 32;
 
 pub const PEMUX_START: usize        = 0x100000;
@@ -33,7 +35,7 @@ pub const PEMUX_RBUF_SIZE: usize    = 1 * PAGE_SIZE;
 
 pub const PE_MEM_BASE: usize        = 0xE000_0000;
 
-pub const MEM_CAP_END: usize        = RECVBUF_SPACE;
+pub const MEM_CAP_END: usize        = RBUF_STD_ADDR;
 
 pub const ENV_START: usize          = 0x0020_0000;
 pub const ENV_SIZE: usize           = 0x2000;

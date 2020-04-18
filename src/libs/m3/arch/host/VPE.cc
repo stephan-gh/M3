@@ -129,17 +129,12 @@ static bool read_from(const char *suffix, T *val) {
 }
 
 static void write_state(pid_t pid, capsel_t nextsel, capsel_t rmng,
-                        uint64_t rbufcur, uint64_t rbufend,
                         FileTable &files, MountTable &mounts) {
     size_t len = STATE_BUF_SIZE;
     std::unique_ptr<unsigned char[]> buf(new unsigned char[len]);
 
     write_file(pid, "nextsel", nextsel);
     write_file(pid, "rmng", rmng);
-
-    Marshaller m(buf.get(), len);
-    m << rbufcur << rbufend;
-    write_file(pid, "rbufs", buf.get(), m.total());
 
     len = mounts.serialize(buf.get(), STATE_BUF_SIZE);
     write_file(pid, "ms", buf.get(), len);
@@ -159,13 +154,6 @@ void VPE::init_state() {
         _resmng.reset(new ResMng(rmng_sel));
     else if(_resmng == nullptr)
         _resmng.reset(new ResMng(ObjCap::INVALID));
-
-    size_t len = sizeof(uint64_t) * 2;
-    uint8_t buf[len];
-    if(read_from("rbufs", buf, len)) {
-        Unmarshaller um(buf, len);
-        um >> _rbufcur >> _rbufend;
-    }
 
     _epmng.reset();
 }
@@ -220,7 +208,7 @@ void VPE::run(void *lambda) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
+        write_state(pid, _next_sel, _resmng->sel(), *_fds, *_ms);
 
         p2c.signal();
         // wait until the TCU sockets have been binded
@@ -284,7 +272,7 @@ void VPE::exec(int argc, const char **argv) {
         xfer_t arg = static_cast<xfer_t>(pid);
         Syscalls::vpe_ctrl(sel(), KIF::Syscall::VCTRL_START, arg);
 
-        write_state(pid, _next_sel, _resmng->sel(), _rbufcur, _rbufend, *_fds, *_ms);
+        write_state(pid, _next_sel, _resmng->sel(), *_fds, *_ms);
 
         p2c.signal();
         // wait until the TCU sockets have been binded

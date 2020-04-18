@@ -55,8 +55,6 @@ OStream &operator<<(OStream &os, const Env &senv) {
     os << "mounts_len   : " << senv.mounts_len << "\n";
     os << "fds_addr     : " << senv.fds_addr << "\n";
     os << "fds_len      : " << fmt(senv.fds_len, "p") << "\n";
-    os << "rbuf_cur     : " << fmt(senv.rbuf_cur, "p") << "\n";
-    os << "rbuf_end     : " << fmt(senv.rbuf_end, "p") << "\n";
     os << "backend_addr : " << fmt(senv.backend_addr, "p") << "\n";
     return os;
 }

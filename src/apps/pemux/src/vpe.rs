@@ -690,7 +690,7 @@ impl VPE {
 
             // map application receive buffer
             let perm = kif::PageFlags::R | kif::PageFlags::U;
-            self.map_new_mem(cfg::RECVBUF_SPACE, cfg::RECVBUF_SIZE, perm);
+            self.map_new_mem(cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE, perm);
         }
 
         // map runtime environment

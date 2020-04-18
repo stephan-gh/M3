@@ -54,8 +54,6 @@ public:
 
     static bool is_shared(peid_t no);
 
-    static goff_t def_recvbuf(peid_t no);
-
 private:
     static m3::PEDesc *_pes;
     static m3::BootInfo::Mod *_mods;

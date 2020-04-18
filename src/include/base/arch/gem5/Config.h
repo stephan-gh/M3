@@ -51,9 +51,10 @@
 // |         app stack          |
 // +----------------------------+ 0x220000
 // |       app code+data        |
-// +----------------------------+ 0x3FC00000
+// +----------------------------+ 0xD0000000
+// |      std recv buffers      |
+// +----------------------------+ 0xD0001000
 // |        recv buffers        |
-// +----------------------------+ 0x3FC04000
 // |            ...             |
 // +----------------------------+ 0xE0000000
 // |      PE's own phys mem     |
@@ -72,9 +73,11 @@
 #define PEMUX_RBUF_SPACE    0x1FF000
 #define PEMUX_RBUF_SIZE     (1U * PAGE_SIZE)
 
-#define RECVBUF_SPACE       0x3FC00000
-#define RECVBUF_SIZE        (4U * PAGE_SIZE)
-#define RECVBUF_SIZE_SPM    16384U
+#define RBUF_STD_ADDR       0xD0000000
+#define RBUF_STD_SIZE       PAGE_SIZE
+#define RBUF_ADDR           (RBUF_STD_ADDR + RBUF_STD_SIZE)
+#define RBUF_SIZE           (0x10000000 - RBUF_STD_SIZE)
+#define RBUF_SIZE_SPM       16384U
 
 #define PE_MEM_BASE         0xE0000000
 
@@ -88,18 +91,14 @@
 
 #define SYSC_RBUF_ORDER     9
 #define SYSC_RBUF_SIZE      (1 << SYSC_RBUF_ORDER)
-#define SYSC_RBUF           RECVBUF_SPACE
 
 #define UPCALL_RBUF_ORDER   6
 #define UPCALL_RBUF_SIZE    (1 << UPCALL_RBUF_ORDER)
-#define UPCALL_RBUF         (SYSC_RBUF + SYSC_RBUF_SIZE)
 
 #define DEF_RBUF_ORDER      8
 #define DEF_RBUF_SIZE       (1 << DEF_RBUF_ORDER)
-#define DEF_RBUF            (UPCALL_RBUF + UPCALL_RBUF_SIZE)
 
 #define VMA_RBUF_ORDER      6
 #define VMA_RBUF_SIZE       (1 << VMA_RBUF_ORDER)
-#define VMA_RBUF            (DEF_RBUF + DEF_RBUF_SIZE)
 
-#define MEMCAP_END          RECVBUF_SPACE
+#define MEMCAP_END          RBUF_STD_ADDR

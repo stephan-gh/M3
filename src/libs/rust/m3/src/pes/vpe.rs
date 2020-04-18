@@ -47,7 +47,6 @@ pub struct VPE {
     next_sel: Selector,
     eps_start: EpId,
     epmng: EpMng,
-    rbufs: arch::rbufs::RBufSpace,
     pager: Option<Pager>,
     files: FileTable,
     mounts: MountTable,
@@ -105,7 +104,6 @@ impl VPE {
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
             epmng: EpMng::new(),
-            rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
             kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             files: FileTable::default(),
@@ -119,7 +117,6 @@ impl VPE {
         self.next_sel = env.load_first_sel();
         self.eps_start = env.first_std_ep();
         self.rmng = env.load_rmng();
-        self.rbufs = env.load_rbufs();
         self.pager = env.load_pager();
         // mounts first; files depend on mounts
         self.mounts = env.load_mounts();
@@ -157,7 +154,6 @@ impl VPE {
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
             epmng: EpMng::new(),
-            rbufs: arch::rbufs::RBufSpace::new(),
             pager: None,
             files: FileTable::default(),
             mounts: MountTable::default(),
@@ -260,10 +256,6 @@ impl VPE {
         &mut self.mem
     }
 
-    pub(crate) fn rbufs(&mut self) -> &mut arch::rbufs::RBufSpace {
-        &mut self.rbufs
-    }
-
     /// Returns a mutable reference to the file table of this VPE.
     pub fn files(&mut self) -> &mut FileTable {
         &mut self.files
@@ -308,16 +300,6 @@ impl VPE {
     pub fn alloc_sels(&mut self, count: u32) -> Selector {
         self.next_sel += count;
         self.next_sel - count
-    }
-
-    /// Allocates `size` bytes from the VPE's receive buffer space and returns the address.
-    pub fn alloc_rbuf(&mut self, size: usize) -> Result<usize, Error> {
-        self.rbufs.alloc(self.pe_desc(), size)
-    }
-
-    /// Free's the area at `addr` of `size` bytes that had been allocated via [`VPE::alloc_rbuf`].
-    pub fn free_rbuf(&mut self, addr: usize, size: usize) {
-        self.rbufs.free(addr, size)
     }
 
     /// Delegates the object capability with selector `sel` of [`VPE::cur`] to `self`.
@@ -604,7 +586,6 @@ impl VPE {
 
             senv.set_first_std_ep(self.eps_start);
             senv.set_rmng(self.rmng.sel());
-            senv.set_rbufs(&self.rbufs);
             senv.set_first_sel(self.next_sel);
             senv.set_pedesc(self.pe_desc());
 
@@ -667,12 +648,6 @@ impl VPE {
                 arch::loader::write_env_value(pid, "nextsel", u64::from(self.next_sel));
                 arch::loader::write_env_value(pid, "rmng", u64::from(self.rmng.sel()));
                 arch::loader::write_env_value(pid, "kmem", u64::from(self.kmem.sel()));
-
-                // write rbufs
-                let mut rbufs = VecSink::default();
-                rbufs.push(&self.rbufs.cur);
-                rbufs.push(&self.rbufs.end);
-                arch::loader::write_env_file(pid, "rbufs", rbufs.words());
 
                 // write file table
                 let mut fds = VecSink::default();

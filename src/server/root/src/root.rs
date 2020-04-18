@@ -36,6 +36,7 @@ use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::rc::Rc;
 use m3::session::{ResMng, ResMngOperation};
+use m3::syscalls;
 use m3::tcu;
 use m3::util;
 
@@ -524,12 +525,41 @@ pub fn main() -> i32 {
         mem_sel += 1;
     }
 
-    let mut rgate = RecvGate::new_with(RGateArgs::default().order(12).msg_order(8))
-        .expect("Unable to create RecvGate");
-    rgate.activate().expect("Unable to activate RecvGate");
+    // allocate and map memory for receive buffers. note that we need to do that manually here,
+    // because RecvBufs allocate new physical memory via the resource manager and root does not have
+    // a resource manager.
+    let rgate_size = 1 << 12;
+    let buf_mem = memcon
+        .alloc_mem((rgate_size + sendqueue::RBUF_SIZE) as u64)
+        .expect("Unable to allocate mem for receive buffers");
+    let (mut rbuf_addr, _) = VPE::cur().pe_desc().rbuf_space();
+    if VPE::cur().pe_desc().has_virtmem() {
+        let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
+        syscalls::create_map(
+            (rbuf_addr / cfg::PAGE_SIZE) as Selector,
+            VPE::cur().sel(),
+            buf_mem.sel(),
+            0,
+            pages as Selector,
+            kif::Perm::R,
+        )
+        .expect("Unable to map receive buffer");
+    }
+
+    let mut rgate = RecvGate::new_with(
+        RGateArgs::default()
+            .order(math::next_log2(rgate_size))
+            .msg_order(8),
+    )
+    .expect("Unable to create RecvGate");
+    rgate
+        .activate_on(rbuf_addr)
+        .expect("Unable to activate RecvGate");
     RGATE.set(Some(rgate));
 
-    sendqueue::init();
+    rbuf_addr += rgate_size;
+    sendqueue::init(Some(rbuf_addr));
+
     thread::init();
     // TODO calculate the number of threads we need (one per child?)
     for _ in 0..8 {

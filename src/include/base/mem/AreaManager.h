@@ -19,6 +19,8 @@
 #include <base/stream/OStream.h>
 #include <base/util/Math.h>
 
+#include <utility>
+
 namespace m3 {
 
 struct Area {
@@ -30,6 +32,14 @@ struct Area {
 template<class A = Area>
 class AreaManager {
 public:
+    /**
+     * Creates a memory-map for given area
+     *
+     * @param area the area of address and size
+     */
+    explicit AreaManager(std::pair<goff_t, size_t> area) : AreaManager(area.first, area.second) {
+    }
+
     /**
      * Creates a memory-map of <size> bytes.
      *

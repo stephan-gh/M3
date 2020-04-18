@@ -17,7 +17,6 @@
 use arch::{env, loader};
 use base::envdata;
 use cfg;
-use com::RecvGate;
 use kif;
 use libc;
 use pes::VPE;
@@ -38,26 +37,26 @@ pub fn init() {
         );
     }
 
-    let sysc = RecvGate::syscall();
+    let mut addr = envdata::rbuf_start();
     tcu::TCU::configure_recv(
         tcu::SYSC_REP_OFF,
-        sysc.buffer(),
+        addr,
         cfg::SYSC_RBUF_ORD,
         cfg::SYSC_RBUF_ORD,
     );
+    addr += cfg::SYSC_RBUF_SIZE;
 
-    let upc = RecvGate::upcall();
     tcu::TCU::configure_recv(
         tcu::UPCALL_REP_OFF,
-        upc.buffer(),
+        addr,
         cfg::UPCALL_RBUF_ORD,
         cfg::UPCALL_RBUF_ORD,
     );
+    addr += cfg::UPCALL_RBUF_SIZE;
 
-    let def = RecvGate::def();
     tcu::TCU::configure_recv(
         tcu::DEF_REP_OFF,
-        def.buffer(),
+        addr,
         cfg::DEF_RBUF_ORD,
         cfg::DEF_RBUF_ORD,
     );

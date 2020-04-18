@@ -94,7 +94,7 @@ fn heap_bounds() -> (usize, usize) {
 
         let env = arch::envdata::get();
         let end = if env.heap_size == 0 {
-            PEDesc::new_from(env.pe_desc).mem_size() - cfg::RECVBUF_SIZE_SPM
+            PEDesc::new_from(env.pe_desc).rbuf_std_space().0
         }
         else if env.pe_id == 0 {
             begin + (4096 + 2048) * 1024

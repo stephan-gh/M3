@@ -41,8 +41,6 @@ void VPE::init_state() {
 
     // it's initially 0. make sure it's at least the first usable selector
     _next_sel = Math::max<uint64_t>(KIF::FIRST_FREE_SEL, env()->first_sel);
-    _rbufcur = env()->rbuf_cur;
-    _rbufend = env()->rbuf_end;
     _eps_start = env()->first_std_ep;
 }
 
@@ -92,9 +90,6 @@ void VPE::run(void *lambda) {
     senv.mounts_len = 0;
     senv.fds_addr = 0;
     senv.fds_len = 0;
-
-    senv.rbuf_cur = _rbufcur;
-    senv.rbuf_end = _rbufend;
 
     senv.vpe_addr = reinterpret_cast<uint64_t>(this);
     senv.backend_addr = env()->backend_addr;
@@ -152,9 +147,6 @@ void VPE::exec(int argc, const char **argv) {
 
     /* write entire runtime stuff */
     _mem.write(buffer.get(), offset, ENV_SPACE_START);
-
-    senv.rbuf_cur = _rbufcur;
-    senv.rbuf_end = _rbufend;
 
     senv.backend_addr = 0;
     senv.vpe_addr = 0;

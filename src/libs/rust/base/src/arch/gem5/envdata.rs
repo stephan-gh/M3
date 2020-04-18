@@ -50,9 +50,6 @@ pub struct EnvData {
     pub fds_addr: u64,
     pub fds_len: u64,
 
-    pub rbuf_cur: u64,
-    pub rbuf_end: u64,
-
     pub vpe_addr: u64,
     pub backend_addr: u64,
 }

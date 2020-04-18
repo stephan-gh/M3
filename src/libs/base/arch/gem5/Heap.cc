@@ -30,7 +30,7 @@ void Heap::init_arch() {
     uintptr_t end;
     if(env()->heap_size == 0) {
         if(PEDesc(env()->pe_desc).has_memory())
-            end = PEDesc(env()->pe_desc).mem_size() - RECVBUF_SIZE_SPM;
+            end = PEDesc(env()->pe_desc).rbuf_std_space().first;
         // this does only exist so that we can still run scenarios on cache-PEs without pager
         else
             end = begin + ROOT_HEAP_SIZE;

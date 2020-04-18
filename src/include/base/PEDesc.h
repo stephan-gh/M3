@@ -17,6 +17,9 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/Config.h>
+
+#include <utility>
 
 namespace m3 {
 
@@ -145,6 +148,24 @@ struct PEDesc {
      */
     bool has_virtmem() const {
         return has_cache();
+    }
+
+    /**
+     * @return the starting address and size of the standard receive buffer space
+     */
+    std::pair<uintptr_t, size_t> rbuf_std_space() const {
+        if(has_virtmem())
+            return std::make_pair(RBUF_STD_ADDR, RBUF_STD_SIZE);
+        return std::make_pair(mem_size() - RBUF_SIZE_SPM - RBUF_STD_SIZE, RBUF_STD_SIZE);
+    }
+
+    /**
+     * @return the starting address and size of the receive buffer space
+     */
+    std::pair<uintptr_t, size_t> rbuf_space() const {
+        if(has_virtmem())
+            return std::make_pair(RBUF_ADDR, RBUF_SIZE);
+        return std::make_pair(mem_size() - RBUF_SIZE_SPM, RBUF_SIZE_SPM);
     }
 
 private:

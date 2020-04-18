@@ -78,7 +78,7 @@ protected:
     }
 
     const EP &acquire_ep();
-    void release_ep(VPE &vpe) noexcept;
+    void release_ep(VPE &vpe, bool force_inval = false) noexcept;
 
     static void reset();
 

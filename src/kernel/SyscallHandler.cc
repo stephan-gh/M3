@@ -332,9 +332,9 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
         auto rep = new EPObject(pemux->pe(), true, nvpe, eps + m3::TCU::PG_REP_OFF, 1);
         nvpe->set_pg_rep(rep);
         rgatecap->obj->pe = nvpe->peid();
-        rgatecap->obj->addr = VMA_RBUF;
+        rgatecap->obj->addr = RBUF_STD_ADDR + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
         pemux->config_rcv_ep(eps + m3::TCU::PG_REP_OFF, nvpe->id(),
-                             m3::TCU::NO_REPLIES, *rgatecap->obj);
+                             m3::TCU::NO_REPLIES, *rgatecap->obj, true);
         rgatecap->obj->add_ep(rep);
         rep->gate = &*rgatecap->obj;
     }

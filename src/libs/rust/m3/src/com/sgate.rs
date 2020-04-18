@@ -128,7 +128,7 @@ impl SendGate {
 
     /// Deactivates this `SendGate` in case it was already activated
     pub fn deactivate(&mut self) {
-        self.gate.release();
+        self.gate.release(false);
     }
 
     /// Sends `msg` to the associated [`RecvGate`] and uses `reply_gate` to receive a reply.

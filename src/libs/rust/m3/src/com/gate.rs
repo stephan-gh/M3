@@ -97,17 +97,17 @@ impl Gate {
     }
 
     /// Releases the EP that is used by this gate
-    pub(crate) fn release(&mut self) {
+    pub(crate) fn release(&mut self, force_inval: bool) {
         if let Some(ep) = self.ep.replace(None) {
             VPE::cur()
                 .epmng_mut()
-                .release(ep, self.cap.flags().contains(CapFlags::KEEP_CAP));
+                .release(ep, force_inval || self.cap.flags().contains(CapFlags::KEEP_CAP));
         }
     }
 }
 
 impl ops::Drop for Gate {
     fn drop(&mut self) {
-        self.release();
+        self.release(false);
     }
 }

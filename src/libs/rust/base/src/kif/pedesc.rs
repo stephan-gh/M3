@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use cfg;
 use core::fmt;
 
 int_enum! {
@@ -133,6 +134,26 @@ impl PEDesc {
     /// Returns whether the PE supports virtual memory (either by TCU or MMU)
     pub fn has_virtmem(self) -> bool {
         self.has_cache()
+    }
+
+    /// Returns the starting address and size of the standard receive buffer space
+    pub fn rbuf_std_space(self) -> (usize, usize) {
+        if self.has_virtmem() {
+            (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
+        }
+        else {
+            (self.mem_size() - cfg::RBUF_SIZE_SPM - cfg::RBUF_STD_SIZE, cfg::RBUF_STD_SIZE)
+        }
+    }
+
+    /// Returns the starting address and size of the receive buffer space
+    pub fn rbuf_space(self) -> (usize, usize) {
+        if self.has_virtmem() {
+            (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
+        }
+        else {
+            (self.mem_size() - cfg::RBUF_SIZE_SPM, cfg::RBUF_SIZE_SPM)
+        }
     }
 }
 

@@ -199,14 +199,13 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps,
                                       RGateObject &obj, bool std) {
     assert(obj.activated());
     // it needs to be in the receive buffer space
-    const goff_t addr = Platform::def_recvbuf(peid());
-    const size_t size = Platform::pe(peid()).has_virtmem() ? RECVBUF_SIZE : RECVBUF_SIZE_SPM;
-    // def_recvbuf() == 0 means that we do not validate it
-    if(addr && (obj.addr < addr || obj.addr > addr + size || obj.addr + obj.size() > addr + size))
-        return m3::Errors::INV_ARGS;
-    const size_t rbuf_size = SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
-    if(!std && obj.addr < addr + rbuf_size)
-        return m3::Errors::INV_ARGS;
+    if(!std) {
+        auto rbuf_space = Platform::pe(peid()).rbuf_space();
+        const goff_t addr = rbuf_space.first;
+        const size_t size = rbuf_space.second;
+        if(obj.addr < addr || obj.addr > addr + size || obj.addr + obj.size() > addr + size)
+            return m3::Errors::INV_ARGS;
+    }
 
     vpeid_t ep_vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "

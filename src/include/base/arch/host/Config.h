@@ -23,20 +23,22 @@
 #define FS_IMG_OFFSET       0
 
 #define PAGE_BITS           12
-#define PAGE_SIZE           4096
+#define PAGE_SIZE           (static_cast<size_t>(4096))
 #define PAGE_MASK           (PAGE_SIZE - 1)
 
 #define FIXED_KMEM          (2 * 1024 * 1024)
 
 #define LOCAL_MEM_SIZE      (512 * 1024 * 1024)
 #define EPMEM_SIZE          (1 * 1024 * 1024)
-#define HEAP_SIZE           (LOCAL_MEM_SIZE - RECVBUF_SIZE - EPMEM_SIZE)
+#define HEAP_SIZE           (LOCAL_MEM_SIZE - RBUF_SIZE - EPMEM_SIZE)
 
 #define STACK_SIZE          0x1000
 
-#define RECVBUF_SPACE       1   // no limit here
-#define RECVBUF_SIZE        16384U
-#define RECVBUF_SIZE_SPM    16384U
+#define RBUF_STD_ADDR       0
+#define RBUF_STD_SIZE       PAGE_SIZE
+#define RBUF_ADDR           (RBUF_STD_ADDR + RBUF_STD_SIZE)
+#define RBUF_SIZE           16384U
+#define RBUF_SIZE_SPM       16384U
 
 #define MAX_RB_SIZE         32
 
@@ -52,7 +54,5 @@
 
 #define DEF_RBUF_ORDER      8
 #define DEF_RBUF_SIZE       (1 << DEF_RBUF_ORDER)
-
-#define VMA_RBUF            0   // unused
 
 #define MEMCAP_END          (~0UL)

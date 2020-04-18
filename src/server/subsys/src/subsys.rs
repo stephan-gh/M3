@@ -318,7 +318,7 @@ fn workloop() {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    sendqueue::init();
+    sendqueue::init(None);
     thread::init();
     // TODO calculate the number of threads we need (one per child?)
     for _ in 0..8 {

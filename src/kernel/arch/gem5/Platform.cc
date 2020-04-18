@@ -115,10 +115,4 @@ bool Platform::is_shared(peid_t no) {
     return pe(no).is_programmable();
 }
 
-goff_t Platform::def_recvbuf(peid_t no) {
-    if(pe(no).has_virtmem())
-        return RECVBUF_SPACE;
-    return pe(no).mem_size() - RECVBUF_SIZE_SPM;
-}
-
 }

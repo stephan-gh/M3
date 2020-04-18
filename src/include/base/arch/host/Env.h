@@ -64,7 +64,7 @@ public:
         return reinterpret_cast<uintptr_t>(mem()) + EPMEM_SIZE;
     }
     static uintptr_t heap_start() {
-        return reinterpret_cast<uintptr_t>(mem()) + EPMEM_SIZE + RECVBUF_SIZE;
+        return reinterpret_cast<uintptr_t>(mem()) + EPMEM_SIZE + RBUF_SIZE;
     }
 
     static const char *executable_path() {

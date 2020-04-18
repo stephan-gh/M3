@@ -23,6 +23,7 @@ mod ep;
 mod epmng;
 mod gate;
 mod mgate;
+mod rbufs;
 mod rgate;
 mod sem;
 mod sgate;
@@ -30,6 +31,7 @@ mod sgate;
 pub use self::ep::{EPArgs, EP};
 pub use self::epmng::EpMng;
 pub use self::mgate::{MGateArgs, MGateFlags, MemGate, Perm};
+pub use self::rbufs::{RecvBuf, alloc_rbuf, free_rbuf};
 pub use self::rgate::{RGateArgs, RecvGate};
 pub use self::sem::Semaphore;
 pub use self::sgate::{SGateArgs, SendGate};
@@ -40,5 +42,5 @@ pub(crate) fn pre_init() {
 }
 
 pub(crate) fn init() {
-    rgate::init();
+    rbufs::init();
 }

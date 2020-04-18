@@ -89,7 +89,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
     let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
 
     // ensure that we don't overmap critical areas
-    if virt < cfg::ENV_START || virt + pages * cfg::PAGE_SIZE > cfg::RECVBUF_SPACE {
+    if virt < cfg::ENV_START || virt + pages * cfg::PAGE_SIZE > cfg::PE_MEM_BASE {
         return Err(Error::new(Code::InvArgs));
     }
 

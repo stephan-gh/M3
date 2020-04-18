@@ -181,9 +181,4 @@ bool Platform::is_shared(peid_t) {
     return false;
 }
 
-goff_t Platform::def_recvbuf(peid_t) {
-    // unused
-    return 0;
-}
-
 }

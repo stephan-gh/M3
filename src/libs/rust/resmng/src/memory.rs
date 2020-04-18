@@ -92,22 +92,23 @@ impl MemModCon {
         Err(Error::new(Code::InvArgs))
     }
 
+    pub fn alloc_mem(&mut self, size: goff) -> Result<MemSlice, Error> {
+        while self.cur_mod < self.mods.len() {
+            if let Some(sl) = self.get_slice(size) {
+                return Ok(sl);
+            }
+        }
+        Err(Error::new(Code::NoSpace))
+    }
+
     pub fn alloc_pool(&mut self, mut size: goff) -> Result<MemPool, Error> {
         let mut res = MemPool::default();
         while size > 0 && self.cur_mod < self.mods.len() {
-            let m = &self.mods[self.cur_mod];
-            if m.reserved || self.cur_off == m.capacity() {
-                self.cur_mod += 1;
-                self.cur_off = 0;
-                continue;
+            if let Some(sl) = self.get_slice(size) {
+                size -= sl.size;
+                self.cur_off += sl.size;
+                res.add(sl);
             }
-
-            let avail = m.capacity() - self.cur_off;
-            let amount = cmp::min(avail, size);
-            res.add(MemSlice::new(m.clone(), self.cur_off, amount));
-
-            size -= amount;
-            self.cur_off += amount;
         }
 
         if size == 0 {
@@ -116,6 +117,19 @@ impl MemModCon {
         else {
             Err(Error::new(Code::NoSpace))
         }
+    }
+
+    fn get_slice(&mut self, size: goff) -> Option<MemSlice> {
+        let m = &self.mods[self.cur_mod];
+        if m.reserved || self.cur_off == m.capacity() {
+            self.cur_mod += 1;
+            self.cur_off = 0;
+            return None;
+        }
+
+        let avail = m.capacity() - self.cur_off;
+        let amount = cmp::min(avail, size);
+        Some(MemSlice::new(m.clone(), self.cur_off, amount))
     }
 }
 
@@ -132,6 +146,10 @@ impl MemSlice {
             size,
             map: MemMap::new(offset, size),
         }
+    }
+
+    pub fn sel(&self) -> Selector {
+        self.mem.gate.sel()
     }
 
     pub fn capacity(&self) -> goff {
