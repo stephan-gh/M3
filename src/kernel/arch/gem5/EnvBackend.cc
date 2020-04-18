@@ -15,7 +15,7 @@
  */
 
 #include <base/Env.h>
-#include <base/Heap.h>
+#include <base/mem/Heap.h>
 #include <base/KIF.h>
 #include <base/stream/Serial.h>
 #include <base/util/Math.h>

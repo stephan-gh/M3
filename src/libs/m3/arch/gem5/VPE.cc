@@ -17,7 +17,7 @@
 #include <base/Common.h>
 #include <base/util/Math.h>
 #include <base/Config.h>
-#include <base/Heap.h>
+#include <base/mem/Heap.h>
 
 #include <m3/session/Pager.h>
 #include <m3/session/ResMng.h>

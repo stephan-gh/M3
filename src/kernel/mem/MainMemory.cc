@@ -15,6 +15,7 @@
  */
 
 #include <base/Panic.h>
+#include <base/log/Kernel.h>
 
 #include "mem/MainMemory.h"
 
@@ -53,6 +54,7 @@ MainMemory::Allocation MainMemory::allocate(size_t size, size_t align) {
         if(_mods[i]->type() != MemoryModule::KERNEL)
             continue;
         goff_t res = _mods[i]->map().allocate(size, align);
+        KLOG(MEM, "Requested " << (size / 1024) << " KiB of memory @ " << m3::fmt(res, "p"));
         if(res != static_cast<goff_t>(-1))
             return Allocation(i, res, size);
     }
@@ -62,7 +64,7 @@ MainMemory::Allocation MainMemory::allocate(size_t size, size_t align) {
 void MainMemory::free(peid_t pe, goff_t addr, size_t size) {
     for(size_t i = 0; i < _count; ++i) {
         if(_mods[i]->pe() == pe) {
-            _mods[i]->map().free(addr, size);
+            free(Allocation(i, addr, size));
             break;
         }
     }
@@ -70,6 +72,7 @@ void MainMemory::free(peid_t pe, goff_t addr, size_t size) {
 
 void MainMemory::free(const Allocation &alloc) {
     assert(_mods[alloc.mod] != nullptr);
+    KLOG(MEM, "Free'd " << (alloc.size / 1024) << " KiB of memory @ " << m3::fmt(alloc.addr, "p"));
     _mods[alloc.mod]->map().free(alloc.addr, alloc.size);
 }
 

@@ -55,7 +55,7 @@ public:
     };
 
     static void init() {
-        MemoryMap::init();
+        MemoryArea::init();
     }
 
     static MainMemory &get() {

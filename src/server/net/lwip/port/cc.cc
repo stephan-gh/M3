@@ -16,7 +16,7 @@
 
 #include "arch/cc.h"
 
-#include <base/Heap.h>
+#include <base/mem/Heap.h>
 #include <base/Panic.h>
 #include <base/stream/Serial.h>
 

@@ -17,7 +17,7 @@
 
 #include <thread/Thread.h>
 #include <thread/ThreadManager.h>
-#include <base/Heap.h>
+#include <base/mem/Heap.h>
 #include <base/Panic.h>
 
 namespace m3 {

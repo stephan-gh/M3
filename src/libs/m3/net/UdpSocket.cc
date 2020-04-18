@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/Heap.h>
+#include <base/mem/Heap.h>
 
 #include <m3/net/UdpSocket.h>
 #include <m3/session/NetworkManager.h>

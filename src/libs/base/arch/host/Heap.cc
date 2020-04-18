@@ -16,7 +16,7 @@
 
 #include <base/Common.h>
 #include <base/Config.h>
-#include <base/Heap.h>
+#include <base/mem/Heap.h>
 #include <base/Panic.h>
 
 #include <malloc.h>

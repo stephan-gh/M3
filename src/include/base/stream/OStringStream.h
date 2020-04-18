@@ -17,7 +17,7 @@
 #pragma once
 
 #include <base/stream/OStream.h>
-#include <base/Heap.h>
+#include <base/mem/Heap.h>
 
 namespace m3 {
 

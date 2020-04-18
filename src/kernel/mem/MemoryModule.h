@@ -16,10 +16,23 @@
 
 #pragma once
 
-#include "mem/MemoryMap.h"
+#include <base/mem/AreaManager.h>
+
 #include "Types.h"
 
 namespace kernel {
+
+struct MemoryArea : public m3::Area {
+    static const size_t MAX_AREAS   = 4096;
+
+    static void init();
+
+    static void *operator new(size_t);
+    static void operator delete(void *ptr);
+
+    static MemoryArea *freelist;
+    static MemoryArea areas[MAX_AREAS];
+};
 
 class MemoryModule {
 public:
@@ -49,7 +62,7 @@ public:
     size_t size() const {
         return _size;
     }
-    MemoryMap &map() {
+    m3::AreaManager<MemoryArea> &map() {
         return _map;
     }
 
@@ -58,7 +71,7 @@ private:
     peid_t _pe;
     goff_t _addr;
     size_t _size;
-    MemoryMap _map;
+    m3::AreaManager<MemoryArea> _map;
 };
 
 }

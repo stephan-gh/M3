@@ -17,7 +17,7 @@
 #include <base/Common.h>
 #include <base/stream/OStream.h>
 #include <base/log/Lib.h>
-#include <base/Heap.h>
+#include <base/mem/Heap.h>
 #include <base/TCU.h>
 #include <base/Panic.h>
 
