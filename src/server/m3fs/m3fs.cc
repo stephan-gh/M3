@@ -198,7 +198,6 @@ NORETURN static void usage(const char *name) {
 }
 
 int main(int argc, char *argv[]) {
-    const char *name  = "m3fs";
     size_t extend     = 128;
     size_t max_load   = 128;
     bool clear        = false;
@@ -206,9 +205,8 @@ int main(int argc, char *argv[]) {
     goff_t fs_offset  = FS_IMG_OFFSET;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "n:e:crb:o:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "e:crb:o:")) != -1) {
         switch(opt) {
-            case 'n': name = CmdArgs::arg; break;
             case 'e': extend = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'c': clear = true; break;
             case 'r': revoke_first = true; break;
@@ -237,7 +235,7 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
 
     auto hdl = std::make_unique<M3FSRequestHandler>(&wl, backend, extend, clear, revoke_first, max_load);
-    srv = new Server<M3FSRequestHandler>(name, &wl, std::move(hdl));
+    srv = new Server<M3FSRequestHandler>("m3fs", &wl, std::move(hdl));
 
     wl.multithreaded(16);
     wl.run();
