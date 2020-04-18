@@ -67,12 +67,6 @@ impl Gate {
         unsafe { (*self.ep.as_ptr()).as_ref() }
     }
 
-    /// Sets the gate's endpoint, assuming that it hasn't been set yet
-    pub(crate) fn set_ep(&mut self, ep: EpId) {
-        assert!(self.ep().is_none());
-        self.ep.replace(Some(EP::new_def_bind(ep)));
-    }
-
     /// Returns the endpoint. If the gate is not activated, it returns `None`.
     pub(crate) fn ep_id(&self) -> Option<EpId> {
         self.ep().map(|ep| ep.id())

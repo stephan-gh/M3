@@ -26,9 +26,7 @@ mod sess;
 
 use m3::cap::Selector;
 use m3::cell::StaticCell;
-use m3::col::Vec;
 use m3::com::{GateIStream, RecvGate};
-use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math;
@@ -36,7 +34,7 @@ use m3::pes::VPE;
 use m3::serialize::Source;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::ServerSession;
-use m3::tcu::{EpId, Label};
+use m3::tcu::Label;
 use m3::vfs::GenFileOp;
 
 use sess::{ChanType, Channel, Meta, PipesSession, SessionData};
@@ -290,25 +288,7 @@ impl PipesHandler {
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let mut sel_ep = None;
-
-    let args: Vec<&str> = env::args().collect();
-    for i in 1..args.len() {
-        if args[i] == "-s" {
-            let mut parts = args[i + 1].split_whitespace();
-            let sel = parts.next().unwrap().parse::<Selector>().unwrap();
-            let ep = parts.next().unwrap().parse::<EpId>().unwrap();
-            sel_ep = Some((sel, ep));
-        }
-    }
-
-    let s = if let Some(sel_ep) = sel_ep {
-        Server::new_bind(sel_ep.0, sel_ep.1)
-    }
-    else {
-        Server::new("pipes").expect("Unable to create service 'pipes'")
-    };
-
+    let s = Server::new("pipes").expect("Unable to create service 'pipes'");
     let mut hdl = PipesHandler::new(s.sel()).expect("Unable to create handler");
 
     let mut rg = RecvGate::new(

@@ -203,19 +203,12 @@ int main(int argc, char *argv[]) {
     size_t max_load   = 128;
     bool clear        = false;
     bool revoke_first = false;
-    capsel_t sels     = ObjCap::INVALID;
-    epid_t ep         = EP_COUNT;
     goff_t fs_offset  = FS_IMG_OFFSET;
 
     int opt;
-    while((opt = CmdArgs::get(argc, argv, "n:s:e:crb:o:")) != -1) {
+    while((opt = CmdArgs::get(argc, argv, "n:e:crb:o:")) != -1) {
         switch(opt) {
             case 'n': name = CmdArgs::arg; break;
-            case 's': {
-                IStringStream is(CmdArgs::arg);
-                is >> sels >> ep;
-                break;
-            }
             case 'e': extend = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'c': clear = true; break;
             case 'r': revoke_first = true; break;
@@ -244,10 +237,7 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
 
     auto hdl = std::make_unique<M3FSRequestHandler>(&wl, backend, extend, clear, revoke_first, max_load);
-    if(sels != ObjCap::INVALID)
-        srv = new Server<M3FSRequestHandler>(sels, ep, &wl, std::move(hdl));
-    else
-        srv = new Server<M3FSRequestHandler>(name, &wl, std::move(hdl));
+    srv = new Server<M3FSRequestHandler>(name, &wl, std::move(hdl));
 
     wl.multithreaded(16);
     wl.run();

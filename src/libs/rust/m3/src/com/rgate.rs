@@ -187,11 +187,6 @@ impl RecvGate {
         self.gate.ep().map(|ep| ep.id())
     }
 
-    /// Sets the receive gate's endpoint
-    pub(crate) fn set_ep(&mut self, ep: tcu::EpId) {
-        self.gate.set_ep(ep);
-    }
-
     /// Returns the address of the receive buffer
     pub fn buffer(&self) -> usize {
         self.buf

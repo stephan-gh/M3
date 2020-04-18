@@ -48,15 +48,6 @@ public:
         VPE::self().resmng()->reg_service(0, sel(), _rgate.sel(), name);
     }
 
-    explicit Server(capsel_t caps, epid_t ep, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
-        : ObjCap(SERVICE, caps + 0, KEEP_CAP),
-          _handler(std::move(handler)),
-          _ctrl_handler(),
-          _rgate(RecvGate::bind(caps + 1, nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
-        _rgate.set_ep(ep);
-        init(wl);
-    }
-
     ~Server() {
         if(!(flags() & KEEP_CAP)) {
             try {

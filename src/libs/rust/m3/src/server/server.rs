@@ -24,7 +24,6 @@ use pes::VPE;
 use serialize::Sink;
 use server::SessId;
 use syscalls;
-use tcu::EpId;
 
 /// Represents a server that provides a service for clients.
 pub struct Server {
@@ -142,22 +141,6 @@ impl Server {
             rgate,
             public,
         })
-    }
-
-    /// Binds a new server to given selector and receive EP.
-    pub fn new_bind(caps: Selector, ep: EpId) -> Self {
-        let mut rgate = RecvGate::new_bind(
-            caps + 1,
-            math::next_log2(BUF_SIZE),
-            math::next_log2(MSG_SIZE),
-        );
-        rgate.set_ep(ep);
-
-        Server {
-            cap: Capability::new(caps + 0, CapFlags::KEEP_CAP),
-            rgate,
-            public: false,
-        }
     }
 
     /// Returns the capability selector of the service
