@@ -105,8 +105,8 @@ public:
     void revoke_all(bool remove_vpe);
 
 private:
-    static void revoke(Capability *c, bool revnext);
-    static void revoke_rec(Capability *c, bool revnext);
+    static void revoke(Capability *c, bool revnext, bool foreign);
+    static void revoke_rec(Capability *c, bool revnext, bool foreign);
     bool range_valid(const m3::KIF::CapRngDesc &crd) const {
         return crd.count() == 0 || crd.start() + crd.count() > crd.start();
     }

@@ -37,7 +37,9 @@ void CapTable::revoke_all(bool remove_vpe) {
     Capability *c;
     while((c = _caps.remove_root()) != nullptr) {
         if(remove_vpe || c->sel() >= m3::KIF::FIRST_FREE_SEL) {
-            revoke(c, false);
+            // on revoke_all, we consider all revokes foreign to notify about invalidate send gates
+            // in any case. on explicit revokes, we only do that if it's a derived cap.
+            revoke(c, false, true);
             // hack for self-referencing VPE capability. we can't dereference it here, because if we
             // force-destruct a VPE, there might be other references, so that it breaks if we decrease
             // the counter (the self-reference did not increase it).
@@ -89,7 +91,7 @@ void CapTable::inherit(Capability *parent, Capability *child) {
     parent->_child = child;
 }
 
-void CapTable::revoke_rec(Capability *c, bool revnext) {
+void CapTable::revoke_rec(Capability *c, bool revnext, bool foreign) {
     Capability *child = c->child();
     Capability *next = c->next();
 
@@ -104,27 +106,27 @@ void CapTable::revoke_rec(Capability *c, bool revnext) {
     c->_type |= Capability::IN_REVOCATION;
 
     if(child)
-        revoke_rec(child, true);
+        revoke_rec(child, true, true);
     // on the first level, we don't want to revoke siblings
     if(revnext && next)
-        revoke_rec(next, true);
+        revoke_rec(next, true, true);
 
     // delete the object here to allow the child capabilities to use their parent pointer
     bool exists = c->table()->unset(c->sel());
     // and we want to give caps a chance to perform some actions after making the cap inaccessible
-    c->revoke(revnext);
+    c->revoke(foreign);
     if(exists)
         delete c;
 }
 
-void CapTable::revoke(Capability *c, bool revnext) {
+void CapTable::revoke(Capability *c, bool revnext, bool foreign) {
     if(c->_next)
         c->_next->_prev = c->_prev;
     if(c->_prev)
         c->_prev->_next = c->_next;
     if(c->_parent && c->_parent->_child == c)
         c->_parent->_child = revnext ? nullptr : c->_next;
-    revoke_rec(c, revnext);
+    revoke_rec(c, revnext, foreign);
 }
 
 m3::Errors::Code CapTable::revoke(const m3::KIF::CapRngDesc &crd, bool own) {
@@ -140,9 +142,9 @@ m3::Errors::Code CapTable::revoke(const m3::KIF::CapRngDesc &crd, bool own) {
             }
 
             if(own)
-                revoke(c, false);
+                revoke(c, false, false);
             else
-                revoke(c->_child, true);
+                revoke(c->_child, true, true);
         }
     }
     return res;
