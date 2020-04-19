@@ -304,13 +304,12 @@ impl TCU {
         ep: EpId,
         reply: *const u8,
         size: usize,
-        msg: &'static Message,
+        msg_off: usize,
     ) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(reply, size));
-        let msg_addr = msg as *const Message as *const u8 as usize;
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::REPLY, 0, msg_addr as Reg),
+            Self::build_cmd(ep, CmdOpCode::REPLY, 0, msg_off as Reg),
         );
 
         Self::get_error()
@@ -360,15 +359,15 @@ impl TCU {
 
     /// Tries to fetch a new message from the given endpoint.
     #[inline(always)]
-    pub fn fetch_msg(ep: EpId) -> Option<&'static Message> {
+    pub fn fetch_msg(ep: EpId) -> Option<usize> {
         Self::write_cmd_reg(
             CmdReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0, 0),
         );
         unsafe { intrinsics::atomic_fence() };
         let msg = Self::read_cmd_reg(CmdReg::ARG1);
-        if msg != 0 {
-            Some(Self::addr_to_msg(msg))
+        if msg != !0 {
+            Some(msg as usize)
         }
         else {
             None
@@ -402,11 +401,10 @@ impl TCU {
 
     /// Marks the given message for receive endpoint `ep` as read
     #[inline(always)]
-    pub fn ack_msg(ep: EpId, msg: &Message) {
-        let off = (msg as *const Message) as *const u8 as usize as Reg;
+    pub fn ack_msg(ep: EpId, msg_off: usize) {
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::ACK_MSG, 0, off),
+            Self::build_cmd(ep, CmdOpCode::ACK_MSG, 0, msg_off as Reg),
         );
     }
 
@@ -447,7 +445,7 @@ impl TCU {
     }
 
     /// Drops all messages in the receive buffer of given receive EP that have the given label.
-    pub fn drop_msgs_with(ep: EpId, label: Label) {
+    pub fn drop_msgs_with(buf_addr: usize, ep: EpId, label: Label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
         let unread = Self::read_ep_reg(ep, 2) >> 32;
@@ -456,14 +454,13 @@ impl TCU {
         }
 
         let r0 = Self::read_ep_reg(ep, 0);
-        let base = Self::read_ep_reg(ep, 1);
         let buf_size = 1 << ((r0 >> 35) & 0x3F);
         let msg_size = (r0 >> 41) & 0x3F;
         for i in 0..buf_size {
             if (unread & (1 << i)) != 0 {
-                let msg = Self::addr_to_msg(base + (i << msg_size));
+                let msg = Self::offset_to_msg(buf_addr, i << msg_size);
                 if msg.header.label == label {
-                    Self::ack_msg(ep, msg);
+                    Self::ack_msg(ep, (i << msg_size) as usize);
                 }
             }
         }
@@ -513,6 +510,20 @@ impl TCU {
         }
 
         (Self::read_cmd_reg(CmdReg::ABORT), cmd_reg)
+    }
+
+    pub fn offset_to_msg(base: usize, off: usize) -> &'static Message {
+        // safety: the cast is okay because we trust the TCU
+        unsafe {
+            let head = (base + off) as *const Header;
+            let slice = [base + off, (*head).length as usize];
+            intrinsics::transmute(slice)
+        }
+    }
+
+    pub fn msg_to_offset(base: usize, msg: &Message) -> usize {
+        let addr = msg as *const _ as *const u8 as usize;
+        addr - base
     }
 
     pub fn retry(cmd: Reg) {
@@ -597,15 +608,6 @@ impl TCU {
             ((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize,
             val,
         )
-    }
-
-    fn addr_to_msg(addr: Reg) -> &'static Message {
-        // safety: the cast is okay because we trust the TCU
-        unsafe {
-            let head = addr as usize as *const Header;
-            let slice = [addr as usize, (*head).length as usize];
-            intrinsics::transmute(slice)
-        }
     }
 
     fn read_reg(idx: usize) -> Reg {

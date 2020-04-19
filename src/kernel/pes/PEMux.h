@@ -59,9 +59,6 @@ public:
     goff_t eps_base() const {
         return mem_base();
     }
-    goff_t rbuf_base() const {
-        return mem_base() + EPMEM_SIZE;
-    }
     void set_mem_base(goff_t addr) {
         _mem_base = addr;
     }

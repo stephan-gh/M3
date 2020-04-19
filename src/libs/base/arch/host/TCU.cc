@@ -101,20 +101,20 @@ Errors::Code TCU::check_cmd(epid_t ep, int op, word_t perms, word_t credits, siz
 Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     const void *src = reinterpret_cast<const void*>(get_cmd(CMD_ADDR));
     const size_t size = get_cmd(CMD_SIZE);
-    const size_t reply = get_cmd(CMD_OFFSET);
+    const size_t reply_off = get_cmd(CMD_OFFSET);
     const word_t bufaddr = get_ep(ep, EP_BUF_ADDR);
     const word_t ord = get_ep(ep, EP_BUF_ORDER);
     const word_t msgord = get_ep(ep, EP_BUF_MSGORDER);
 
-    size_t idx = (reply - bufaddr) >> msgord;
+    size_t idx = reply_off >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(TCUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)reply);
+        LLOG(TCUERR, "DMA-error: EP" << ep << ": invalid message offset " << (void*)reply_off);
         return Errors::INV_ARGS;
     }
 
-    Buffer *buf = reinterpret_cast<Buffer*>(reply);
-    if(!buf->has_replycap) {
-        LLOG(TCUERR, "DMA-error: EP" << ep << ": double-reply for msg " << (void*)reply);
+    Buffer *buf = reinterpret_cast<Buffer*>(const_cast<Message*>(offset_to_msg(bufaddr, reply_off)));
+    if(!buf->has_replycap || buf->rpl_ep == TCU::NO_REPLIES) {
+        LLOG(TCUERR, "DMA-error: EP" << ep << ": double-reply for msg " << (void*)reply_off);
         return Errors::INV_ARGS;
     }
 
@@ -195,20 +195,20 @@ Errors::Code TCU::prepare_write(epid_t ep, peid_t &dstpe, epid_t &dstep) {
 }
 
 Errors::Code TCU::prepare_ackmsg(epid_t ep) {
-    const word_t addr = get_cmd(CMD_OFFSET);
+    const word_t msgoff = get_cmd(CMD_OFFSET);
     size_t bufaddr = get_ep(ep, EP_BUF_ADDR);
     size_t msgord = get_ep(ep, EP_BUF_MSGORDER);
     size_t ord = get_ep(ep, EP_BUF_ORDER);
 
-    size_t idx = static_cast<size_t>(addr - bufaddr) >> msgord;
+    size_t idx = msgoff >> msgord;
     if(idx >= (1UL << (ord - msgord))) {
-        LLOG(TCUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)addr);
+        LLOG(TCUERR, "DMA-error: EP" << ep << ": invalid message addr " << (void*)(bufaddr + msgoff));
         return Errors::INV_ARGS;
     }
 
     word_t occupied = get_ep(ep, EP_BUF_OCCUPIED);
     if(!bit_set(occupied, idx)) {
-        LLOG(TCUERR, "DMA-error: EP" << ep << ": slot at " << (void*)addr << " not occupied");
+        LLOG(TCUERR, "DMA-error: EP" << ep << ": slot at " << (void*)(bufaddr + msgoff) << " not occupied");
         return Errors::INV_ARGS;
     }
 
@@ -227,8 +227,10 @@ Errors::Code TCU::prepare_ackmsg(epid_t ep) {
 
 Errors::Code TCU::prepare_fetchmsg(epid_t ep) {
     word_t msgs = get_ep(ep, EP_BUF_MSGCNT);
-    if(msgs == 0)
+    if(msgs == 0) {
+        set_cmd(CMD_OFFSET, static_cast<word_t>(-1));
         return Errors::NONE;
+    }
 
     size_t roff = get_ep(ep, EP_BUF_ROFF);
     word_t unread = get_ep(ep, EP_BUF_UNREAD);
@@ -263,8 +265,7 @@ found:
     set_ep(ep, EP_BUF_ROFF, roff);
     set_ep(ep, EP_BUF_MSGCNT, msgs);
 
-    size_t addr = get_ep(ep, EP_BUF_ADDR);
-    set_cmd(CMD_OFFSET, addr + i * (1UL << msgord));
+    set_cmd(CMD_OFFSET, i * (1UL << msgord));
 
     return Errors::NONE;
 }
@@ -454,8 +455,8 @@ found:
     set_ep(ep, EP_BUF_MSGCNT, msgs);
     set_ep(ep, EP_BUF_WOFF, woff);
 
-    size_t addr = get_ep(ep, EP_BUF_ADDR);
-    memcpy(reinterpret_cast<void*>(addr + i * (1UL << msgord)), &_buf, len);
+    auto msg = const_cast<Message*>(offset_to_msg(get_ep(ep, EP_BUF_ADDR), i * (1UL << msgord)));
+    memcpy(msg, &_buf, len);
 }
 
 bool TCU::handle_receive(epid_t ep) {

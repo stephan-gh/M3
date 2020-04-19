@@ -135,7 +135,7 @@ VPE::~VPE() {
     _mapcaps.revoke_all(true);
 
     // ensure that there are no syscalls for this VPE anymore
-    m3::TCU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
+    TCU::drop_msgs(syscall_ep(), m3::ptr_to_label(this));
     SyscallHandler::free_ep(syscall_ep());
 
     delete _pg_sep;
@@ -170,7 +170,7 @@ void VPE::stop_app(int exitcode, bool self) {
         exit_app(exitcode);
     else {
         // ensure that there are no pending system calls
-        m3::TCU::get().drop_msgs(syscall_ep(), m3::ptr_to_label(this));
+        TCU::drop_msgs(syscall_ep(), m3::ptr_to_label(this));
         if(_state == RUNNING) {
             // device always exit successfully
             exitcode = Platform::pe(peid()).is_device() ? 0 : 1;

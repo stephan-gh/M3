@@ -95,6 +95,7 @@ impl MemModCon {
     pub fn alloc_mem(&mut self, size: goff) -> Result<MemSlice, Error> {
         while self.cur_mod < self.mods.len() {
             if let Some(sl) = self.get_slice(size) {
+                self.cur_off += sl.size;
                 return Ok(sl);
             }
         }

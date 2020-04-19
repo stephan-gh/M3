@@ -47,11 +47,11 @@ Errors::Code TCU::send(epid_t ep, const void *msg, size_t size, label_t replylbl
     return get_error();
 }
 
-Errors::Code TCU::reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
+Errors::Code TCU::reply(epid_t ep, const void *reply, size_t size, size_t msg_off) {
     assert(size <= 0xFFFFFFFF);
     write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
     CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, 0, reinterpret_cast<reg_t>(msg)));
+    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, 0, msg_off));
 
     return get_error();
 }

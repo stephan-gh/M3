@@ -27,7 +27,7 @@ uint64_t SendQueue::_next_id = 0;
 
 SendQueue::~SendQueue() {
     // ensure that there are no messages left for this SendQueue in the receive buffer
-    m3::TCU::get().drop_msgs(TCU::SERV_REP, m3::ptr_to_label(this));
+    TCU::drop_msgs(TCU::SERV_REP, m3::ptr_to_label(this));
 }
 
 event_t SendQueue::get_event(uint64_t id) {
@@ -83,7 +83,7 @@ void SendQueue::received_reply(const m3::TCU::Message *msg) {
     m3::ThreadManager::get().notify(_cur_event, msg, msg->length + sizeof(m3::TCU::Message::Header));
 
     // now that we've copied the message, we can mark it read
-    m3::TCU::get().ack_msg(TCU::SERV_REP, msg);
+    TCU::ack_msg(TCU::SERV_REP, msg);
 
     if(_inflight != -1) {
         assert(_inflight > 0);

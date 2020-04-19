@@ -215,9 +215,8 @@ m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps,
         << ", replyeps=" << rpleps
         << "]");
 
-    TCU::config_remote_ep(vpe, peid(), ep, [this, &obj, rpleps, ep_vpe](m3::TCU::reg_t *ep_regs) {
-        TCU::config_recv(ep_regs, ep_vpe, rbuf_base() + obj.addr,
-                         obj.order, obj.msgorder, rpleps);
+    TCU::config_remote_ep(vpe, peid(), ep, [&obj, rpleps, ep_vpe](m3::TCU::reg_t *ep_regs) {
+        TCU::config_recv(ep_regs, ep_vpe, obj.addr, obj.order, obj.msgorder, rpleps);
     });
 
     m3::ThreadManager::get().notify(reinterpret_cast<event_t>(&obj));

@@ -20,7 +20,7 @@ use arch::tcu::{
     UNLIM_CREDITS,
 };
 use cell::StaticCell;
-use core::{intrinsics, ptr, sync::atomic};
+use core::{ptr, sync::atomic};
 use errors::{Code, Error};
 use io;
 use util;
@@ -149,20 +149,28 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
 fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
     let src = TCU::get_cmd(CmdReg::ADDR);
     let size = TCU::get_cmd(CmdReg::SIZE) as usize;
-    let reply = TCU::get_cmd(CmdReg::OFFSET) as usize;
+    let reply_off = TCU::get_cmd(CmdReg::OFFSET) as usize;
     let buf_addr = TCU::get_ep(ep, EpReg::BUF_ADDR) as usize;
     let ord = TCU::get_ep(ep, EpReg::BUF_ORDER);
     let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
 
-    let idx = (reply - buf_addr) >> msg_ord;
+    let idx = reply_off >> msg_ord;
     if idx >= (1 << (ord - msg_ord)) {
-        log_tcu_err!("TCU-error: EP{}: invalid message addr {:#x}", ep, reply);
+        log_tcu_err!(
+            "TCU-error: EP{}: invalid message offset {:#x}",
+            ep,
+            reply_off
+        );
         return Err(Error::new(Code::InvArgs));
     }
 
-    let reply_header: &Header = unsafe { intrinsics::transmute(reply) };
-    if reply_header.has_replycap == 0 {
-        log_tcu_err!("TCU-error: EP{}: double-reply for msg {:#x}?", ep, reply);
+    let reply_msg = TCU::offset_to_msg(buf_addr, reply_off);
+    if reply_msg.header.has_replycap == 0 {
+        log_tcu_err!(
+            "TCU-error: EP{}: double-reply for msg offset {:#x}?",
+            ep,
+            reply_off
+        );
         return Err(Error::new(Code::InvArgs));
     }
 
@@ -174,9 +182,9 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
     log_tcu!("EP{}: acked message at index {}", ep, idx);
 
     let buf = buffer();
-    buf.header.label = reply_header.reply_label;
+    buf.header.label = reply_msg.header.reply_label;
     buf.header.credits = 1;
-    buf.header.crd_ep = reply_header.snd_ep;
+    buf.header.crd_ep = reply_msg.header.snd_ep;
     // invalidate message for replying
     buf.header.has_replycap = 0;
 
@@ -186,7 +194,7 @@ fn prepare_reply(ep: EpId) -> Result<(PEId, EpId), Error> {
         buf.data[0..size].copy_from_slice(util::slice_for(src as *const u8, size));
     }
 
-    Ok((reply_header.pe as PEId, reply_header.rpl_ep as EpId))
+    Ok((reply_msg.header.pe as PEId, reply_msg.header.rpl_ep as EpId))
 }
 
 fn check_rdwr(ep: EpId, read: bool) -> Result<(), Error> {
@@ -273,14 +281,13 @@ fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
 }
 
 fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
-    let addr = TCU::get_cmd(CmdReg::OFFSET);
-    let buf_addr = TCU::get_ep(ep, EpReg::BUF_ADDR);
+    let msg_off = TCU::get_cmd(CmdReg::OFFSET);
     let msg_ord = TCU::get_ep(ep, EpReg::BUF_MSGORDER);
     let ord = TCU::get_ep(ep, EpReg::BUF_ORDER);
 
-    let idx = (addr - buf_addr) >> msg_ord;
+    let idx = msg_off >> msg_ord;
     if idx >= (1 << (ord - msg_ord)) {
-        log_tcu_err!("TCU-error: EP{}: invalid message addr {:#x}", ep, addr);
+        log_tcu_err!("TCU-error: EP{}: invalid message offset {:#x}", ep, msg_off);
         return Err(Error::new(Code::InvArgs));
     }
 
@@ -307,6 +314,7 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
 fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
     let msgs = TCU::get_ep(ep, EpReg::BUF_MSG_CNT);
     if msgs == 0 {
+        TCU::set_cmd(CmdReg::OFFSET, !0);
         return Ok((0, EP_COUNT));
     }
 
@@ -329,8 +337,7 @@ fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
         TCU::set_ep(ep, EpReg::BUF_ROFF, idx + 1);
         TCU::set_ep(ep, EpReg::BUF_MSG_CNT, msgs);
 
-        let addr = TCU::get_ep(ep, EpReg::BUF_ADDR);
-        TCU::set_cmd(CmdReg::OFFSET, addr + idx * (1 << msg_ord));
+        TCU::set_cmd(CmdReg::OFFSET, idx * (1 << msg_ord));
 
         Ok((0, EP_COUNT))
     };
@@ -383,7 +390,7 @@ fn handle_msg(ep: EpId, len: usize) {
         TCU::set_ep(ep, EpReg::BUF_WOFF, idx + 1);
 
         let addr = TCU::get_ep(ep, EpReg::BUF_ADDR);
-        let dst = (addr + idx * (1 << msg_ord)) as *mut u8;
+        let dst = (envdata::rbuf_start() as u64 + addr + idx * (1 << msg_ord)) as *mut u8;
         let src = &buffer().header as *const Header as *const u8;
         unsafe {
             util::slice_for_mut(dst, len).copy_from_slice(util::slice_for(src, len));

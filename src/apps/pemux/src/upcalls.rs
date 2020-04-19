@@ -24,12 +24,15 @@ use base::util;
 use helper;
 use vpe;
 
+const UPC_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
+
 fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
+    let msg_off = tcu::TCU::msg_to_offset(UPC_RBUF_ADDR, msg);
     tcu::TCU::reply(
         tcu::PEXUP_REP,
         reply as *const T as *const u8,
         util::size_of::<T>(),
-        msg,
+        msg_off,
     )
     .unwrap();
 }
@@ -177,13 +180,14 @@ fn handle_upcalls(our: &mut vpe::VPE) {
         let old_vpe = tcu::TCU::xchg_vpe(our.vpe_reg());
         vpe::cur().set_vpe_reg(old_vpe);
 
-        if let Some(m) = tcu::TCU::fetch_msg(tcu::PEXUP_REP) {
-            handle_upcall(m);
+        if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::PEXUP_REP) {
+            let msg = tcu::TCU::offset_to_msg(UPC_RBUF_ADDR, msg_off);
+            handle_upcall(msg);
         }
 
         // just ACK replies from the kernel; we don't care about them
-        if let Some(m) = tcu::TCU::fetch_msg(tcu::KPEX_REP) {
-            tcu::TCU::ack_msg(tcu::KPEX_REP, &m);
+        if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::KPEX_REP) {
+            tcu::TCU::ack_msg(tcu::KPEX_REP, msg_off);
         }
 
         // change back to old VPE

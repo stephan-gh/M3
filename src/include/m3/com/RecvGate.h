@@ -62,15 +62,16 @@ class RecvGate : public Gate {
         RecvGate *_gate;
     };
 
-    explicit RecvGate(capsel_t cap, uint order, uint msgorder, uint flags) noexcept
+    explicit RecvGate(capsel_t cap, size_t addr, uint order, uint msgorder, uint flags) noexcept
         : Gate(RECV_GATE, cap, flags),
           _buf(),
+          _buf_addr(addr),
           _order(order),
           _msgorder(msgorder),
           _handler(),
           _workitem() {
     }
-    explicit RecvGate(capsel_t cap, epid_t ep, uint order, uint msgorder, uint flags);
+    explicit RecvGate(capsel_t cap, size_t addr, epid_t ep, uint order, uint msgorder, uint flags);
 
 public:
     using msghandler_t = std::function<void(GateIStream&)>;
@@ -129,6 +130,7 @@ public:
     RecvGate(RecvGate &&r) noexcept
             : Gate(std::move(r)),
               _buf(r._buf),
+              _buf_addr(r._buf_addr),
               _order(r._order),
               _handler(r._handler),
               _workitem(std::move(r._workitem)) {
@@ -136,6 +138,11 @@ public:
         r._workitem = nullptr;
     }
     ~RecvGate();
+
+    /**
+     * @return the address of the receive buffer (or 0 if not activated)
+     */
+    uintptr_t address() const noexcept;
 
     /**
      * @return the number of slots in the receive buffer
@@ -222,6 +229,7 @@ private:
     }
 
     RecvBuf *_buf;
+    size_t _buf_addr;
     uint _order;
     uint _msgorder;
     msghandler_t _handler;

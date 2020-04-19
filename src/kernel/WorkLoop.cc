@@ -98,7 +98,6 @@ void WorkLoop::run() {
     }
 #endif
 
-    m3::TCU &tcu = m3::TCU::get();
     static_assert(TCU::SYSC_REP_COUNT == 2, "Wrong SYSC_REP_COUNT");
     epid_t sysep0 = SyscallHandler::ep(0);
     epid_t sysep1 = SyscallHandler::ep(1);
@@ -108,26 +107,26 @@ void WorkLoop::run() {
     while(_run) {
         m3::TCU::get().sleep();
 
-        msg = tcu.fetch_msg(sysep0);
+        msg = TCU::fetch_msg(sysep0);
         if(msg) {
             // we know the subscriber here, so optimize that a bit
             VPE *vpe = reinterpret_cast<VPE*>(msg->label);
             SyscallHandler::handle_message(vpe, msg);
         }
 
-        msg = tcu.fetch_msg(sysep1);
+        msg = TCU::fetch_msg(sysep1);
         if(msg) {
             VPE *vpe = reinterpret_cast<VPE*>(msg->label);
             SyscallHandler::handle_message(vpe, msg);
         }
 
-        msg = tcu.fetch_msg(srvep);
+        msg = TCU::fetch_msg(srvep);
         if(msg) {
             SendQueue *sq = reinterpret_cast<SendQueue*>(msg->label);
             sq->received_reply(msg);
         }
 
-        msg = tcu.fetch_msg(pexep);
+        msg = TCU::fetch_msg(pexep);
         if(msg) {
             PEMux *pemux = reinterpret_cast<PEMux*>(msg->label);
             pemux->handle_call(msg);

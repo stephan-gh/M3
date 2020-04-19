@@ -37,7 +37,8 @@ public:
 
     static Errors::Code reply(RecvGate &rg, const void *reply, size_t size,
                               const TCU::Message *msg) noexcept {
-        return TCU::get().reply(rg.ep()->id(), reply, size, msg);
+        size_t msg_off = TCU::msg_to_offset(rg.address(), msg);
+        return TCU::get().reply(rg.ep()->id(), reply, size, msg_off);
     }
 
     static Errors::Code call(SendGate &sg, const void *msg, size_t size,
@@ -49,16 +50,20 @@ public:
     }
 
     static const TCU::Message *fetch_msg(RecvGate &rg) noexcept {
-        return TCU::get().fetch_msg(rg.ep()->id());
+        size_t msg_off = TCU::get().fetch_msg(rg.ep()->id());
+        if(msg_off != static_cast<size_t>(-1))
+            return TCU::offset_to_msg(rg.address(), msg_off);
+        return nullptr;
     }
 
     static void ack_msg(RecvGate &rg, const TCU::Message *msg) noexcept {
-        TCU::get().ack_msg(rg.ep()->id(), msg);
+        size_t msg_off = TCU::msg_to_offset(rg.address(), msg);
+        TCU::get().ack_msg(rg.ep()->id(), msg_off);
     }
 
     static Errors::Code receive(RecvGate &rg, SendGate *sg, const TCU::Message **reply) noexcept {
         while(1) {
-            *reply = TCU::get().fetch_msg(rg.ep()->id());
+            *reply = fetch_msg(rg);
             if(*reply)
                 return Errors::NONE;
 
@@ -81,8 +86,8 @@ public:
         return TCU::get().write(ep.id(), data, size, off, flags);
     }
 
-    static void drop_msgs(epid_t ep, label_t label) noexcept {
-        TCU::get().drop_msgs(ep, label);
+    static void drop_msgs(RecvGate &rg, label_t label) noexcept {
+        TCU::get().drop_msgs(rg.address(), rg.ep()->id(), label);
     }
 
     static void sleep() noexcept {

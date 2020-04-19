@@ -219,10 +219,9 @@ impl TCU {
         ep: EpId,
         reply: *const u8,
         size: usize,
-        msg: &'static Message,
+        msg_off: usize,
     ) -> Result<(), Error> {
-        let msg_addr = msg as *const Message as *const u8 as usize;
-        Self::exec_command(ep, Command::REPLY, reply, size, msg_addr, 0, 0, 0)
+        Self::exec_command(ep, Command::REPLY, reply, size, msg_off, 0, 0, 0)
     }
 
     pub fn read(
@@ -245,7 +244,7 @@ impl TCU {
         Self::exec_command(ep, Command::WRITE, data, size, off as usize, size, 0, 0)
     }
 
-    pub fn fetch_msg(ep: EpId) -> Option<&'static Message> {
+    pub fn fetch_msg(ep: EpId) -> Option<usize> {
         if Self::get_ep(ep, EpReg::BUF_MSG_CNT) == 0 {
             return None;
         }
@@ -260,8 +259,8 @@ impl TCU {
         }
 
         let msg = Self::get_cmd(CmdReg::OFFSET);
-        if msg != 0 {
-            Some(Self::addr_to_msg(msg))
+        if msg != !0 {
+            Some(msg as usize)
         }
         else {
             None
@@ -272,10 +271,9 @@ impl TCU {
         Self::get_ep(ep, EpReg::VALID) == 1
     }
 
-    pub fn ack_msg(ep: EpId, msg: &Message) {
-        let msg_addr = msg as *const Message as *const u8 as usize;
+    pub fn ack_msg(ep: EpId, msg_off: usize) {
         Self::set_cmd(CmdReg::EPID, ep as Reg);
-        Self::set_cmd(CmdReg::OFFSET, msg_addr as Reg);
+        Self::set_cmd(CmdReg::OFFSET, msg_off as Reg);
         Self::set_cmd(
             CmdReg::CTRL,
             (Command::ACK_MSG.val << 3) | Control::START.bits,
@@ -328,34 +326,39 @@ impl TCU {
         Self::set_ep(ep, EpReg::BUF_OCCUPIED, 0);
     }
 
-    pub fn drop_msgs_with(ep: EpId, label: Label) {
+    pub fn drop_msgs_with(buf_addr: usize, ep: EpId, label: Label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
         if Self::get_ep(ep, EpReg::BUF_MSG_CNT) == 0 {
             return;
         }
 
-        let base = Self::get_ep(ep, EpReg::BUF_ADDR);
         let order = Self::get_ep(ep, EpReg::BUF_ORDER);
         let msg_order = Self::get_ep(ep, EpReg::BUF_MSGORDER);
         let unread = Self::get_ep(ep, EpReg::BUF_UNREAD);
         let max = 1 << (order - msg_order);
         for i in 0..max {
             if (unread & (1 << i)) != 0 {
-                let msg = Self::addr_to_msg(base + (i << msg_order));
+                let msg = Self::offset_to_msg(buf_addr, i << msg_order);
                 if msg.header.label == label {
-                    Self::ack_msg(ep, msg);
+                    Self::ack_msg(ep, (i << msg_order) as usize);
                 }
             }
         }
     }
 
-    fn addr_to_msg(addr: Reg) -> &'static Message {
+    pub fn offset_to_msg(base: usize, off: usize) -> &'static Message {
         unsafe {
-            let head = addr as *const Header;
-            let slice = [addr as usize, (*head).length as usize];
+            let msg_addr = arch::envdata::rbuf_start() + base + off;
+            let head = msg_addr as *const Header;
+            let slice = [msg_addr, (*head).length as usize];
             intrinsics::transmute(slice)
         }
+    }
+
+    pub fn msg_to_offset(base: usize, msg: &Message) -> usize {
+        let addr = msg as *const _ as *const u8 as usize;
+        addr - (arch::envdata::rbuf_start() + base)
     }
 
     #[allow(clippy::too_many_arguments)]

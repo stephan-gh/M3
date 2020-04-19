@@ -37,7 +37,7 @@ pub fn init() {
         );
     }
 
-    let mut addr = envdata::rbuf_start();
+    let mut addr = 0;
     tcu::TCU::configure_recv(
         tcu::SYSC_REP_OFF,
         addr,

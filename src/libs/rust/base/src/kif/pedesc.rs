@@ -142,7 +142,14 @@ impl PEDesc {
             (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
         }
         else {
-            (self.mem_size() - cfg::RBUF_SIZE_SPM - cfg::RBUF_STD_SIZE, cfg::RBUF_STD_SIZE)
+            cfg_if! {
+                if #[cfg(target_os = "none")] {
+                    (self.mem_size() - cfg::RBUF_SIZE_SPM - cfg::RBUF_STD_SIZE, cfg::RBUF_STD_SIZE)
+                }
+                else {
+                    (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
+                }
+            }
         }
     }
 
@@ -152,7 +159,14 @@ impl PEDesc {
             (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
         }
         else {
-            (self.mem_size() - cfg::RBUF_SIZE_SPM, cfg::RBUF_SIZE_SPM)
+            cfg_if! {
+                if #[cfg(target_os = "none")] {
+                    (self.mem_size() - cfg::RBUF_SIZE_SPM, cfg::RBUF_SIZE_SPM)
+                }
+                else {
+                    (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
+                }
+            }
         }
     }
 }

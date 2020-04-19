@@ -30,6 +30,7 @@ namespace m3 {
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
     KIF::INV_SEL,
+    PEDesc(env()->pe_desc).rbuf_std_space().first,
     env()->first_std_ep + TCU::SYSC_REP_OFF,
     m3::nextlog2<SYSC_RBUF_SIZE>::val,
     SYSC_RBUF_ORDER,
@@ -38,6 +39,7 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_syscall (
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
     KIF::INV_SEL,
+    PEDesc(env()->pe_desc).rbuf_std_space().first + SYSC_RBUF_SIZE,
     env()->first_std_ep + TCU::UPCALL_REP_OFF,
     m3::nextlog2<UPCALL_RBUF_SIZE>::val,
     UPCALL_RBUF_ORDER,
@@ -46,6 +48,7 @@ INIT_PRIO_RECVBUF RecvGate RecvGate::_upcall (
 
 INIT_PRIO_RECVBUF RecvGate RecvGate::_default (
     KIF::INV_SEL,
+    PEDesc(env()->pe_desc).rbuf_std_space().first + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE,
     env()->first_std_ep + TCU::DEF_REP_OFF,
     m3::nextlog2<DEF_RBUF_SIZE>::val,
     DEF_RBUF_ORDER,
@@ -61,9 +64,10 @@ void RecvGate::RecvGateWorkItem::work() {
     }
 }
 
-RecvGate::RecvGate(capsel_t cap, epid_t ep, uint order, uint msgorder, uint flags)
+RecvGate::RecvGate(capsel_t cap, size_t addr, epid_t ep, uint order, uint msgorder, uint flags)
     : Gate(RECV_GATE, cap, flags),
       _buf(),
+      _buf_addr(addr),
       _order(order),
       _msgorder(msgorder),
       _handler(),
@@ -76,15 +80,15 @@ RecvGate::RecvGate(capsel_t cap, epid_t ep, uint order, uint msgorder, uint flag
 }
 
 RecvGate RecvGate::create(uint order, uint msgorder) {
-    return RecvGate(VPE::self().alloc_sel(), UNBOUND, order, msgorder, 0);
+    return RecvGate(VPE::self().alloc_sel(), 0, UNBOUND, order, msgorder, 0);
 }
 
 RecvGate RecvGate::create(capsel_t cap, uint order, uint msgorder, uint flags) {
-    return RecvGate(cap, UNBOUND, order, msgorder, flags);
+    return RecvGate(cap, 0, UNBOUND, order, msgorder, flags);
 }
 
 RecvGate RecvGate::bind(capsel_t cap, uint order, uint msgorder) noexcept {
-    return RecvGate(cap, order, msgorder, KEEP_CAP);
+    return RecvGate(cap, 0, order, msgorder, KEEP_CAP);
 }
 
 RecvGate::~RecvGate() {
@@ -93,10 +97,16 @@ RecvGate::~RecvGate() {
         RecvBufs::get().free(_buf);
 }
 
+uintptr_t RecvGate::address() const noexcept {
+    return _buf_addr;
+}
+
 void RecvGate::activate() {
     if(!this->ep()) {
-        if(_buf == nullptr)
+        if(_buf == nullptr) {
             _buf = RecvBufs::get().alloc(1UL << _order);
+            _buf_addr = _buf->addr();
+        }
 
         auto rep = VPE::self().epmng().acquire(EP_COUNT, slots());
         Gate::activate_on(*rep, _buf->addr());
@@ -153,7 +163,7 @@ void RecvGate::ack_msg(const TCU::Message *msg) {
 }
 
 void RecvGate::drop_msgs_with(label_t label) noexcept {
-    TCUIf::drop_msgs(ep()->id(), label);
+    TCUIf::drop_msgs(*this, label);
 }
 
 }

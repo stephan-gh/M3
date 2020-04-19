@@ -113,51 +113,13 @@ void TCU::write_ep_local(epid_t ep, const void *regs) {
 }
 
 void TCU::update_eps(vpeid_t vpe, peid_t pe) {
-    auto rbuf_base = PEManager::get().pemux(pe)->rbuf_base();
     for(epid_t ep = 0; ep < EP_COUNT; ++ep) {
         if(dirty_eps[pe][ep]) {
-            // update base address, now that we now the base
-            all_eps[pe][ep][m3::TCU::EP_BUF_ADDR] += rbuf_base;
             // update EP
             write_ep_remote(vpe, pe, ep, all_eps[pe][ep]);
             dirty_eps[pe][ep] = false;
         }
     }
-}
-
-void TCU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
-    config_local_ep(ep, [buf, order, msgorder](m3::TCU::reg_t *ep_regs) {
-        config_recv(ep_regs, VPE::KERNEL_ID, buf, order, msgorder, 0);
-    });
-}
-
-void TCU::reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Message *msg) {
-    m3::TCU::get().reply(ep, reply, size, msg);
-}
-
-m3::Errors::Code TCU::send_to(peid_t pe, epid_t ep, label_t label, const void *msg,
-                              size_t size, label_t replylbl, epid_t replyep) {
-    const size_t msg_ord = static_cast<uint>(m3::getnextlog2(size + m3::TCU::HEADER_SIZE));
-    config_local_ep(TMP_SEP, [pe, ep, label, msg_ord](m3::TCU::reg_t *ep_regs) {
-        config_send(ep_regs, 0, label, pe, ep, msg_ord, 1UL << msg_ord);
-    });
-    return m3::TCU::get().send(TMP_SEP, msg, size, replylbl, replyep);
-}
-
-m3::Errors::Code TCU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
-    config_local_ep(TMP_MEP, [vpe, addr, size](m3::TCU::reg_t *ep_regs) {
-        config_mem(ep_regs, 0, vpe.pe, 0, addr, size, m3::KIF::Perm::W);
-    });
-    m3::TCU::get().write(TMP_MEP, data, size, 0, 0);
-    return m3::Errors::NONE;
-}
-
-m3::Errors::Code TCU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
-    config_local_ep(TMP_MEP, [vpe, addr, size](m3::TCU::reg_t *ep_regs) {
-        config_mem(ep_regs, 0, vpe.pe, 0, addr, size, m3::KIF::Perm::R);
-    });
-    m3::TCU::get().read(TMP_MEP, data, size, 0, 0);
-    return m3::Errors::NONE;
 }
 
 void TCU::copy_clear(const VPEDesc &, goff_t, const VPEDesc &, goff_t, size_t, bool) {

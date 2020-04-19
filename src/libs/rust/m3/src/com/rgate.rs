@@ -41,6 +41,7 @@ static DEF_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
 pub struct RecvGate {
     gate: Gate,
     buf: Option<RecvBuf>,
+    buf_addr: Option<usize>,
     order: u32,
     msg_order: u32,
     // TODO this is a workaround for a code-generation bug for arm, which generates
@@ -120,10 +121,11 @@ impl RecvGate {
         DEF_RGATE.get_mut().as_mut().unwrap()
     }
 
-    const fn new_def(sel: Selector, ep: tcu::EpId, order: u32) -> Self {
+    const fn new_def(sel: Selector, ep: tcu::EpId, addr: usize, order: u32) -> Self {
         RecvGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
             buf: None,
+            buf_addr: Some(addr),
             order: order,
             msg_order: order,
             _dummy: 0,
@@ -149,6 +151,7 @@ impl RecvGate {
         Ok(RecvGate {
             gate: Gate::new(sel, args.flags),
             buf: None,
+            buf_addr: None,
             order: args.order,
             msg_order: args.msg_order,
             _dummy: 0,
@@ -161,6 +164,7 @@ impl RecvGate {
         RecvGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
             buf: None,
+            buf_addr: None,
             order,
             msg_order,
             _dummy: 0,
@@ -182,12 +186,19 @@ impl RecvGate {
         1 << self.order
     }
 
+    /// Returns the address of the receive buffer
+    pub fn address(&self) -> Option<usize> {
+        self.buf_addr
+    }
+
     /// Activates this receive gate. Activation is required before [`SendGate`]s connected to this
     /// `RecvGate` can be activated.
     pub fn activate(&mut self) -> Result<(), Error> {
         if self.ep().is_none() {
             if self.buf.is_none() {
-                self.buf = Some(alloc_rbuf(1 << self.order)?);
+                let buf = alloc_rbuf(1 << self.order)?;
+                self.buf_addr = Some(buf.addr());
+                self.buf = Some(buf);
             }
 
             let buf = self.buf.as_ref().unwrap();
@@ -203,7 +214,10 @@ impl RecvGate {
     /// addresses needs to be chosen externally.
     pub fn activate_on(&mut self, addr: usize) -> Result<(), Error> {
         let replies = 1 << (self.order - self.msg_order);
-        self.gate.activate_rgate(addr, replies).map(|_| ())
+        self.gate.activate_rgate(addr, replies).map(|_| {
+            self.buf_addr = Some(addr);
+            ()
+        })
     }
 
     /// Deactivates this gate.
@@ -262,25 +276,33 @@ impl RecvGate {
 
     /// Drops all messages with given label. That is, these messages will be marked as read.
     pub fn drop_msgs_with(&self, label: tcu::Label) {
-        tcu::TCU::drop_msgs_with(self.ep().unwrap(), label);
+        tcu::TCU::drop_msgs_with(self.address().unwrap(), self.ep().unwrap(), label);
     }
 }
 
 pub(crate) fn pre_init() {
     let eps_start = arch::env::get().first_std_ep();
+    let mut rbuf = arch::env::get().pe_desc().rbuf_std_space().0;
     SYS_RGATE.set(Some(RecvGate::new_def(
         INVALID_SEL,
         eps_start + tcu::SYSC_REP_OFF,
+        rbuf,
         math::next_log2(cfg::SYSC_RBUF_SIZE),
     )));
+    rbuf += cfg::SYSC_RBUF_SIZE;
+
     UPC_RGATE.set(Some(RecvGate::new_def(
         INVALID_SEL,
         eps_start + tcu::UPCALL_REP_OFF,
+        rbuf,
         math::next_log2(cfg::UPCALL_RBUF_SIZE),
     )));
+    rbuf += cfg::UPCALL_RBUF_SIZE;
+
     DEF_RGATE.set(Some(RecvGate::new_def(
         INVALID_SEL,
         eps_start + tcu::DEF_REP_OFF,
+        rbuf,
         math::next_log2(cfg::DEF_RBUF_SIZE),
     )));
 }

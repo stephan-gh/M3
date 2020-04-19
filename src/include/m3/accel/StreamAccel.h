@@ -65,6 +65,7 @@ public:
 
     static const size_t BUF_ADDR    = 0x8000;
     static const size_t BUF_SIZE    = 8192;
+    static const size_t RECV_ADDR   = 0x1FFF00;
 
     explicit StreamAccel(std::unique_ptr<VPE> &vpe, cycles_t /* TODO */)
         : _sgate_in(),
@@ -78,7 +79,7 @@ public:
           _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
           _vpe(vpe) {
         // activate EPs
-        _rgate.activate_on(*_rep, vpe->pe_desc().mem_size() - RB_SIZE);
+        _rgate.activate_on(*_rep, RECV_ADDR);
     }
 
     void connect_input(GenericFile *file) {

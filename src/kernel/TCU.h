@@ -69,6 +69,10 @@ public:
 
     static void reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Message *msg);
 
+    static void drop_msgs(epid_t rep, label_t label);
+    static const m3::TCU::Message *fetch_msg(epid_t rep);
+    static void ack_msg(epid_t rep, const m3::TCU::Message *msg);
+
     static m3::Errors::Code send_to(peid_t pe, epid_t ep, label_t label, const void *msg,
                                     size_t size, label_t replylbl, epid_t replyep);
 

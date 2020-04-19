@@ -238,21 +238,20 @@ public:
 
 private:
     Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep);
-    Errors::Code reply(epid_t ep, const void *reply, size_t size, const Message *msg);
+    Errors::Code reply(epid_t ep, const void *reply, size_t size, size_t msg_off);
     Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off, uint flags);
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off, uint flags);
 
-    const Message *fetch_msg(epid_t ep) const {
+    size_t fetch_msg(epid_t ep) const {
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         CPU::memory_barrier();
-        return reinterpret_cast<const Message*>(read_reg(CmdRegs::ARG1));
+        return read_reg(CmdRegs::ARG1);
     }
 
-    void ack_msg(epid_t ep, const Message *msg) {
+    void ack_msg(epid_t ep, size_t msg_off) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
-        reg_t off = reinterpret_cast<reg_t>(msg);
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, 0, off));
+        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, 0, msg_off));
         // ensure that we don't do something else before the ack
         CPU::memory_barrier();
     }
@@ -265,7 +264,7 @@ private:
         get_error();
     }
 
-    void drop_msgs(epid_t ep, label_t label) {
+    void drop_msgs(size_t buf_addr, epid_t ep, label_t label) {
         // we assume that the one that used the label can no longer send messages. thus, if there
         // are no messages yet, we are done.
         word_t unread = read_reg(ep, 2) >> 32;
@@ -273,16 +272,22 @@ private:
             return;
 
         reg_t r0 = read_reg(ep, 0);
-        goff_t base = read_reg(ep, 1);
         size_t bufsize = static_cast<size_t>(1) << ((r0 >> 35) & 0x3F);
         size_t msgsize = (r0 >> 41) & 0x3F;
         for(size_t i = 0; i < bufsize; ++i) {
             if(unread & (static_cast<size_t>(1) << i)) {
-                m3::TCU::Message *msg = reinterpret_cast<m3::TCU::Message*>(base + (i << msgsize));
+                const m3::TCU::Message *msg = offset_to_msg(buf_addr, i << msgsize);
                 if(msg->label == label)
-                    ack_msg(ep, msg);
+                    ack_msg(ep, i << msgsize);
             }
         }
+    }
+
+    static size_t msg_to_offset(size_t base, const Message *msg) {
+        return reinterpret_cast<uintptr_t>(msg) - base;
+    }
+    static const Message *offset_to_msg(size_t base, size_t msg_off) {
+        return reinterpret_cast<const Message*>(base + msg_off);
     }
 
     reg_t get_core_req() const {

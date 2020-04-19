@@ -95,7 +95,7 @@ PostInit::PostInit() {
 }
 
 void Env::init_tcu() {
-    uintptr_t addr = rbuf_start();
+    uintptr_t addr = 0;
     TCU::get().configure_recv(TCU::SYSC_REP_OFF, addr, SYSC_RBUF_ORDER, SYSC_RBUF_ORDER);
     addr += SYSC_RBUF_SIZE;
 

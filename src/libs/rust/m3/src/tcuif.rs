@@ -44,7 +44,8 @@ impl TCUIf {
         size: usize,
         msg: &'static Message,
     ) -> Result<(), Error> {
-        tcu::TCU::reply(rg.ep().unwrap(), reply, size, msg)
+        let off = tcu::TCU::msg_to_offset(rg.address().unwrap(), msg);
+        tcu::TCU::reply(rg.ep().unwrap(), reply, size, off)
     }
 
     #[inline(always)]
@@ -62,18 +63,21 @@ impl TCUIf {
     #[inline(always)]
     pub fn fetch_msg(rg: &RecvGate) -> Option<&'static Message> {
         tcu::TCU::fetch_msg(rg.ep().unwrap())
+            .map(|off| tcu::TCU::offset_to_msg(rg.address().unwrap(), off))
     }
 
     #[inline(always)]
     pub fn ack_msg(rg: &RecvGate, msg: &Message) {
-        tcu::TCU::ack_msg(rg.ep().unwrap(), msg)
+        let off = tcu::TCU::msg_to_offset(rg.address().unwrap(), msg);
+        tcu::TCU::ack_msg(rg.ep().unwrap(), off)
     }
 
     pub fn receive(rg: &RecvGate, sg: Option<&SendGate>) -> Result<&'static Message, Error> {
+        let rep = rg.ep().unwrap();
         loop {
-            let msg = tcu::TCU::fetch_msg(rg.ep().unwrap());
-            if let Some(m) = msg {
-                return Ok(m);
+            let msg_off = tcu::TCU::fetch_msg(rep);
+            if let Some(off) = msg_off {
+                return Ok(tcu::TCU::offset_to_msg(rg.address().unwrap(), off));
             }
 
             if let Some(sg) = sg {
@@ -82,7 +86,7 @@ impl TCUIf {
                 }
             }
 
-            Self::wait_for_msg(rg.ep().unwrap())?;
+            Self::wait_for_msg(rep)?;
         }
     }
 

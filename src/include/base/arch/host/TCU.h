@@ -20,6 +20,7 @@
 #include <base/util/String.h>
 #include <base/util/Util.h>
 #include <base/Errors.h>
+#include <base/Env.h>
 
 #include <assert.h>
 #include <iomanip>
@@ -209,8 +210,8 @@ public:
         setup_command(ep, SEND, msg, size, 0, 0, replylbl, replyep);
         return exec_command();
     }
-    Errors::Code reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
-        setup_command(ep, REPLY, reply, size, reinterpret_cast<size_t>(msg), 0, label_t(), 0);
+    Errors::Code reply(epid_t ep, const void *reply, size_t size, size_t msg_off) {
+        setup_command(ep, REPLY, reply, size, msg_off, 0, label_t(), 0);
         return exec_command();
     }
     Errors::Code read(epid_t ep, void *msg, size_t size, size_t off, uint) {
@@ -234,19 +235,19 @@ public:
         return get_ep(ep, EP_CREDITS) > 0;
     }
 
-    const Message *fetch_msg(epid_t ep) {
+    size_t fetch_msg(epid_t ep) {
         if(get_ep(ep, EP_BUF_MSGCNT) == 0)
-            return nullptr;
+            return static_cast<size_t>(-1);
 
         set_cmd(CMD_EPID, ep);
         set_cmd(CMD_CTRL, (FETCHMSG << OPCODE_SHIFT) | CTRL_START);
         exec_command();
-        return reinterpret_cast<const Message*>(get_cmd(CMD_OFFSET));
+        return get_cmd(CMD_OFFSET);
     }
 
-    void ack_msg(epid_t ep, const Message *msg) {
+    void ack_msg(epid_t ep, size_t msg_off) {
         set_cmd(CMD_EPID, ep);
-        set_cmd(CMD_OFFSET, reinterpret_cast<size_t>(msg));
+        set_cmd(CMD_OFFSET, msg_off);
         set_cmd(CMD_CTRL, (ACKMSG << OPCODE_SHIFT) | CTRL_START);
         exec_command();
     }
@@ -294,24 +295,31 @@ public:
         sleep();
     }
 
-    void drop_msgs(epid_t ep, label_t label) {
+    void drop_msgs(size_t buf_addr, epid_t ep, label_t label) {
         // we assume that the one that used the label can no longer send messages. thus, if there are
         // no messages yet, we are done.
         if(get_ep(ep, m3::TCU::EP_BUF_MSGCNT) == 0)
             return;
 
-        goff_t base = get_ep(ep, m3::TCU::EP_BUF_ADDR);
         int order = static_cast<int>(get_ep(ep, m3::TCU::EP_BUF_ORDER));
         int msgorder = static_cast<int>(get_ep(ep, m3::TCU::EP_BUF_MSGORDER));
         word_t unread = get_ep(ep, m3::TCU::EP_BUF_UNREAD);
         int max = 1 << (order - msgorder);
         for(int i = 0; i < max; ++i) {
             if(unread & (1UL << i)) {
-                Message *msg = reinterpret_cast<Message*>(base + (static_cast<size_t>(i) << msgorder));
+                size_t msg_off = static_cast<size_t>(i) << msgorder;
+                const Message *msg = offset_to_msg(buf_addr, msg_off);
                 if(msg->label == label)
-                    ack_msg(ep, msg);
+                    ack_msg(ep, msg_off);
             }
         }
+    }
+
+    static size_t msg_to_offset(size_t base, const Message *msg) {
+        return reinterpret_cast<uintptr_t>(msg) - (base + env()->rbuf_start());
+    }
+    static const Message *offset_to_msg(size_t base, size_t msg_off) {
+        return reinterpret_cast<const Message*>(base + env()->rbuf_start() + msg_off);
     }
 
 private:

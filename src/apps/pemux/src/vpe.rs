@@ -140,6 +140,10 @@ static INFO: StaticCell<Info> = StaticCell::new(Info {
 });
 static PTS: StaticCell<Vec<u64>> = StaticCell::new(Vec::new());
 
+pub fn pe_desc() -> kif::PEDesc {
+    INFO.pe_desc
+}
+
 pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     INFO.get_mut().pe_id = pe_id;
     INFO.get_mut().pe_desc = pe_desc;

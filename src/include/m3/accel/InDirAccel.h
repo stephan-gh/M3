@@ -34,6 +34,7 @@ public:
     static const size_t EP_RECV         = 17;
 
     static const size_t BUF_ADDR        = 0x8000;
+    static const size_t RECV_ADDR       = 0x1FFF00;
     static const size_t MAX_BUF_SIZE    = 32768;
 
     enum Operation {
@@ -57,7 +58,7 @@ public:
           _mep(vpe->epmng().acquire(EP_OUT)),
           _vpe(vpe) {
         // activate EP
-        _rgate.activate_on(*_rep, vpe->pe_desc().mem_size() - MSG_SIZE);
+        _rgate.activate_on(*_rep, RECV_ADDR);
     }
 
     void connect_output(InDirAccel *accel) {
