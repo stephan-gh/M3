@@ -126,7 +126,7 @@ Errors::Code TCU::prepare_reply(epid_t ep, peid_t &dstpe, epid_t &dstep) {
     LLOG(TCU, "EP" << ep << ": acked message at index " << idx);
 
     dstpe = buf->pe;
-    dstep = buf->rpl_ep == TCU::NO_REPLIES ? SYSC_SEP_OFF : buf->rpl_ep;
+    dstep = buf->rpl_ep;
     _buf.label = buf->replylabel;
     _buf.credits = 1;
     _buf.crd_ep = buf->snd_ep;
@@ -410,10 +410,6 @@ void TCU::handle_resp_cmd() {
 }
 
 void TCU::handle_msg(size_t len, epid_t ep) {
-    // ignore message, if this is no receive EP (for credit-only replies)
-    if(get_ep(ep, EP_BUF_ADDR) == 0)
-        return;
-
     const size_t msgord = get_ep(ep, EP_BUF_MSGORDER);
     const size_t msgsize = 1UL << msgord;
     if(len > msgsize) {
