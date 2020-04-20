@@ -74,8 +74,9 @@ void TCU::reply(epid_t ep, const void *reply, size_t size, const m3::TCU::Messag
 
 m3::Errors::Code TCU::send_to(peid_t pe, epid_t ep, label_t label, const void *msg,
                               size_t size, label_t replylbl, epid_t replyep) {
-    config_local_ep(TMP_SEP, [pe, ep, label](m3::TCU::reg_t *ep_regs) {
-        config_send(ep_regs, VPE::KERNEL_ID, label, pe, ep, 0xFFFF, m3::KIF::UNLIM_CREDITS);
+    const size_t msg_ord = static_cast<uint>(m3::getnextlog2(size + sizeof(m3::TCU::Header)));
+    config_local_ep(TMP_SEP, [pe, ep, label, msg_ord](m3::TCU::reg_t *ep_regs) {
+        config_send(ep_regs, VPE::KERNEL_ID, label, pe, ep, msg_ord, m3::KIF::UNLIM_CREDITS);
     });
     return m3::TCU::get().send(TMP_SEP, msg, size, replylbl, replyep);
 }
