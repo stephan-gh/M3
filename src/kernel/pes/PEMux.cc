@@ -179,6 +179,7 @@ m3::Errors::Code PEMux::invalidate_ep(vpeid_t vpe, epid_t ep, bool force) {
 
     if(unread_mask != 0) {
         m3::KIF::PEXUpcalls::RemMsgs req;
+        req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::REM_MSGS);
         req.vpe_sel = vpe;
         req.unread_mask = unread_mask;
         return upcall(&req, sizeof(req));
