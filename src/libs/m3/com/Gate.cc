@@ -32,16 +32,16 @@ const EP &Gate::acquire_ep() {
     return *_ep;
 }
 
-const EP &Gate::activate(uintptr_t addr) {
+const EP &Gate::activate(capsel_t rbuf_mem, goff_t rbuf_off) {
     if(!_ep) {
         _ep = VPE::self().epmng().acquire();
-        activate_on(*_ep, addr);
+        activate_on(*_ep, rbuf_mem, rbuf_off);
     }
     return *_ep;
 }
 
-void Gate::activate_on(const EP &ep, uintptr_t addr) {
-    Syscalls::activate(ep.sel(), sel(), addr);
+void Gate::activate_on(const EP &ep, capsel_t rbuf_mem, goff_t rbuf_off) {
+    Syscalls::activate(ep.sel(), sel(), rbuf_mem, rbuf_off);
     _gates.append(this);
 }
 

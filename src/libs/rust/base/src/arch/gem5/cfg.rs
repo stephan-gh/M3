@@ -22,6 +22,9 @@ pub const LPAGE_BITS: usize         = 21;
 pub const LPAGE_SIZE: usize         = 1 << LPAGE_BITS;
 pub const LPAGE_MASK: usize         = LPAGE_SIZE - 1;
 
+pub const MAX_VPES: usize           = 64;
+pub const FIRST_RBUF_FRAME: usize   = 2;
+
 pub const RBUF_STD_ADDR: usize      = 0xD000_0000;
 pub const RBUF_STD_SIZE: usize      = PAGE_SIZE;
 pub const RBUF_ADDR: usize          = RBUF_STD_ADDR + RBUF_STD_SIZE;

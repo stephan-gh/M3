@@ -58,7 +58,7 @@ public:
           _mep(vpe->epmng().acquire(EP_OUT)),
           _vpe(vpe) {
         // activate EP
-        _rgate.activate_on(*_rep, RECV_ADDR);
+        _rgate.activate_on(*_rep, vpe->mem(), RECV_ADDR);
     }
 
     void connect_output(InDirAccel *accel) {

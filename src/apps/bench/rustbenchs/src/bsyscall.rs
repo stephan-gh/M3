@@ -64,7 +64,7 @@ fn activate() {
         "activate",
         prof.run_with_id(
             || {
-                wv_assert_ok!(syscalls::activate(ep.sel(), mgate.sel(), 0));
+                wv_assert_ok!(syscalls::activate(ep.sel(), mgate.sel(), kif::INVALID_SEL, 0));
             },
             0x11
         )

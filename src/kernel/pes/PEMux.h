@@ -76,8 +76,7 @@ public:
     m3::Errors::Code invalidate_ep(vpeid_t vpe, epid_t ep, bool force = false);
     void notify_invalidate(vpeid_t vpe, epid_t ep);
 
-    m3::Errors::Code config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps,
-                                   RGateObject &obj, bool std = false);
+    m3::Errors::Code config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj);
     m3::Errors::Code config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj);
     m3::Errors::Code config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject &obj, goff_t off);
 

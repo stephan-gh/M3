@@ -73,9 +73,14 @@ impl Gate {
     }
 
     /// Activates the gate. Returns the chosen endpoint number.
-    pub(crate) fn activate_rgate(&self, addr: usize, replies: u32) -> Result<EpId, Error> {
+    pub(crate) fn activate_rgate(
+        &self,
+        mem: Selector,
+        addr: usize,
+        replies: u32,
+    ) -> Result<EpId, Error> {
         let ep = VPE::cur().epmng_mut().acquire(replies)?;
-        syscalls::activate(ep.sel(), self.sel(), addr)?;
+        syscalls::activate(ep.sel(), self.sel(), mem, addr)?;
         self.ep.replace(Some(ep));
         Ok(self.ep_id().unwrap())
     }

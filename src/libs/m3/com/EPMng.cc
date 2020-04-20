@@ -33,7 +33,7 @@ void EPMng::release(EP *ep, bool invalidate) noexcept {
     if(invalidate) {
         try {
             // invalidate our endpoint to be able to reuse it for something else later
-            Syscalls::activate(ep->sel(), ObjCap::INVALID, 0);
+            Syscalls::activate(ep->sel(), ObjCap::INVALID, ObjCap::INVALID, 0);
         }
         catch(...) {
             // ignore errors here

@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::col::{DList, String, Vec};
 use m3::com::{RGateArgs, RecvGate, SendGate};
@@ -65,15 +66,15 @@ fn get_event(id: u64) -> thread::Event {
     0x8000_0000_0000_0000 | id
 }
 
-pub fn init(addr: Option<usize>) {
+pub fn init(rbuf: Option<(Selector, usize, usize)>) {
     let mut rgate = RecvGate::new_with(
         RGateArgs::default()
             .order(math::next_log2(RBUF_SIZE))
             .msg_order(math::next_log2(RBUF_MSG_SIZE)),
     )
     .expect("Unable to create service rgate");
-    if let Some(a) = addr {
-        rgate.activate_on(a)
+    if let Some((mem, off, addr)) = rbuf {
+        rgate.activate_with(mem, off, addr)
     }
     else {
         rgate.activate()

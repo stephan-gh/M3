@@ -533,7 +533,7 @@ pub fn main() -> i32 {
         .alloc_mem((rgate_size + sendqueue::RBUF_SIZE) as u64)
         .expect("Unable to allocate mem for receive buffers");
     let (mut rbuf_addr, _) = VPE::cur().pe_desc().rbuf_space();
-    if VPE::cur().pe_desc().has_virtmem() {
+    let (mut rbuf_off, rbuf_mem) = if VPE::cur().pe_desc().has_virtmem() {
         let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
         syscalls::create_map(
             (rbuf_addr / cfg::PAGE_SIZE) as Selector,
@@ -544,7 +544,11 @@ pub fn main() -> i32 {
             kif::Perm::R,
         )
         .expect("Unable to map receive buffer");
+        (0, buf_mem.sel())
     }
+    else {
+        (rbuf_addr, VPE::cur().mem().sel())
+    };
 
     let mut rgate = RecvGate::new_with(
         RGateArgs::default()
@@ -553,12 +557,13 @@ pub fn main() -> i32 {
     )
     .expect("Unable to create RecvGate");
     rgate
-        .activate_on(rbuf_addr)
+        .activate_with(rbuf_mem, rbuf_off, rbuf_addr)
         .expect("Unable to activate RecvGate");
     RGATE.set(Some(rgate));
 
     rbuf_addr += rgate_size;
-    sendqueue::init(Some(rbuf_addr));
+    rbuf_off += rgate_size;
+    sendqueue::init(Some((rbuf_mem, rbuf_off, rbuf_addr)));
 
     thread::init();
     // TODO calculate the number of threads we need (one per child?)

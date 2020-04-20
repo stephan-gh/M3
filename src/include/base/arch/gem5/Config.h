@@ -32,6 +32,9 @@
 #define ROOT_HEAP_SIZE      (2 * 1024 * 1024)
 #define EPMEM_SIZE          0
 
+#define MAX_VPES            64
+#define FIRST_RBUF_FRAME    2
+
 #define EP_COUNT            192
 
 // Application memory layout:

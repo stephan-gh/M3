@@ -35,7 +35,7 @@ fn buffers() -> &'static mut MemMap {
 pub struct RecvBuf {
     addr: usize,
     size: usize,
-    _mgate: Option<MemGate>,
+    mgate: Option<MemGate>,
 }
 
 impl RecvBuf {
@@ -46,11 +46,31 @@ impl RecvBuf {
     pub fn size(&self) -> usize {
         self.size
     }
+
+    pub fn off(&self) -> usize {
+        match self.mgate {
+            Some(_) => 0,
+            None => self.addr,
+        }
+    }
+
+    pub fn mem(&self) -> Selector {
+        match self.mgate {
+            Some(ref mg) => mg.sel(),
+            None => VPE::cur().mem().sel(),
+        }
+    }
 }
 
 impl fmt::Debug for RecvBuf {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "RecvBuf[addr={}, size={}]", self.addr, self.size,)
+        write!(
+            f,
+            "RecvBuf[addr={}, size={}, sel={}]",
+            self.addr,
+            self.size,
+            self.mem()
+        )
     }
 }
 
@@ -59,7 +79,7 @@ pub fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
     let align = if vm { cfg::PAGE_SIZE as u64 } else { 1 };
     let addr = buffers().allocate(size as u64, align)? as usize;
 
-    let _mgate = if vm {
+    let mgate = if vm {
         match map_rbuf(addr, size) {
             Ok(mgate) => Some(mgate),
             Err(e) => {
@@ -72,7 +92,7 @@ pub fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
         None
     };
 
-    Ok(RecvBuf { addr, size, _mgate })
+    Ok(RecvBuf { addr, size, mgate })
 }
 
 fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {

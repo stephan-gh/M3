@@ -41,6 +41,9 @@ public:
     size_t size() const {
         return _size;
     }
+    goff_t off() const {
+        return _mem ? 0 : _addr;
+    }
     capsel_t mem() const {
         return _mem ? _mem->sel() : VPE::self().mem().sel();
     }

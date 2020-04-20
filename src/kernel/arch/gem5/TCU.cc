@@ -67,7 +67,7 @@ void TCU::config_recv(m3::TCU::reg_t *r, vpeid_t vpe, goff_t buf, uint order,
             (static_cast<m3::TCU::reg_t>(reply_eps) << 19) |
             (static_cast<m3::TCU::reg_t>(bufSize) << 35) |
             (static_cast<m3::TCU::reg_t>(msgSize) << 41);
-    r[1] = buf & 0xFFFFFFFF;
+    r[1] = buf;
     r[2] = 0;
 }
 

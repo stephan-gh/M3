@@ -18,6 +18,7 @@
 #include <base/Env.h>
 
 #include "pes/VPE.h"
+#include "Paging.h"
 #include "TCU.h"
 
 namespace kernel {
@@ -42,12 +43,18 @@ void TCU::recv_msgs(epid_t ep, uintptr_t buf, uint order, uint msgorder) {
     assert(ep < MAX_RBUFS);
     rbufs[ep] = buf;
 
+    goff_t phys = buf;
 #if defined(__host__)
-    buf -= m3::env()->rbuf_start();
+    phys -= m3::env()->rbuf_start();
+#else
+    if(m3::PEDesc(m3::env()->pe_desc).has_virtmem()) {
+        uint64_t pte = translate(buf, m3::KIF::Perm::R);
+        phys = (pte & ~static_cast<uint64_t>(PAGE_MASK)) | (buf & PAGE_MASK);
+    }
 #endif
 
-    config_local_ep(ep, [buf, order, msgorder](m3::TCU::reg_t *ep_regs) {
-        config_recv(ep_regs, VPE::KERNEL_ID, buf, order, msgorder, reply_eps);
+    config_local_ep(ep, [phys, order, msgorder](m3::TCU::reg_t *ep_regs) {
+        config_recv(ep_regs, VPE::KERNEL_ID, phys, order, msgorder, reply_eps);
     });
 
     reply_eps += 1UL << (order - msgorder);

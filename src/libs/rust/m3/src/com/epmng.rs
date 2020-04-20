@@ -58,7 +58,7 @@ impl EpMng {
         }
 
         if invalidate {
-            syscalls::activate(ep.sel(), INVALID_SEL, 0).ok();
+            syscalls::activate(ep.sel(), INVALID_SEL, INVALID_SEL, 0).ok();
         }
 
         if ep.replies() == 0 {
@@ -69,7 +69,7 @@ impl EpMng {
     /// Allocates a new endpoint for the given gate and activates the gate. Returns the endpoint.
     pub(crate) fn activate(&mut self, gate: &Gate) -> Result<EP, Error> {
         let ep = self.acquire(0)?;
-        syscalls::activate(ep.sel(), gate.sel(), 0).map(|_| ep)
+        syscalls::activate(ep.sel(), gate.sel(), INVALID_SEL, 0).map(|_| ep)
     }
 
     pub(crate) fn reset(&mut self) {

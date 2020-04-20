@@ -207,7 +207,7 @@ void M3FSFileSession::next_in_out(GateIStream &is, bool out) {
     if(len > 0) {
         // activate mem cap for client
         try {
-            Syscalls::activate(_epcap, sel, 0);
+            Syscalls::activate(_epcap, sel, KIF::INV_SEL, 0);
         }
         catch(const Exception &e) {
             PRINT(this, "activate failed: " << e.what());

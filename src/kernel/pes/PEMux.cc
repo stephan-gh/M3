@@ -44,7 +44,7 @@ PEMux::PEMux(peid_t pe)
         });
 
         // configure receive EP
-        uintptr_t rbuf = PEMUX_RBUF_SPACE;
+        uintptr_t rbuf = Platform::rbuf_pemux(pe);
         TCU::config_remote_ep(0, pe, m3::TCU::KPEX_REP, [rbuf](m3::TCU::reg_t *ep_regs) {
             TCU::config_recv(ep_regs, m3::KIF::PEMUX_VPE_ID, rbuf,
                              KPEX_RBUF_ORDER, KPEX_RBUF_ORDER, m3::TCU::NO_REPLIES);
@@ -196,17 +196,8 @@ void PEMux::notify_invalidate(vpeid_t vpe, epid_t ep) {
     _upcqueue.send(0, &req, sizeof(req), false);
 }
 
-m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps,
-                                      RGateObject &obj, bool std) {
+m3::Errors::Code PEMux::config_rcv_ep(epid_t ep, vpeid_t vpe, epid_t rpleps, RGateObject &obj) {
     assert(obj.activated());
-    // it needs to be in the receive buffer space
-    if(!std) {
-        auto rbuf_space = Platform::pe(peid()).rbuf_space();
-        const goff_t addr = rbuf_space.first;
-        const size_t size = rbuf_space.second;
-        if(obj.addr < addr || obj.addr > addr + size || obj.addr + obj.size() > addr + size)
-            return m3::Errors::INV_ARGS;
-    }
 
     vpeid_t ep_vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "

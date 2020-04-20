@@ -42,7 +42,7 @@ NOINLINE static void activate() {
 
     Profile pr;
     WVPERF(__func__, pr.run_with_id([&ep, &mgate] {
-        Syscalls::activate(ep.sel(), mgate.sel(), 0);
+        Syscalls::activate(ep.sel(), mgate.sel(), KIF::INV_SEL, 0);
     }, 0x51));
 }
 

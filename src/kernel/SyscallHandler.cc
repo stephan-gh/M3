@@ -332,9 +332,10 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
         auto rep = new EPObject(pemux->pe(), true, nvpe, eps + m3::TCU::PG_REP_OFF, 1);
         nvpe->set_pg_rep(rep);
         rgatecap->obj->pe = nvpe->peid();
-        rgatecap->obj->addr = RBUF_STD_ADDR + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
+        uintptr_t rbuf = Platform::rbuf_std(pecap->obj->id, nvpe->id());
+        rgatecap->obj->addr = rbuf + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
         pemux->config_rcv_ep(eps + m3::TCU::PG_REP_OFF, nvpe->id(),
-                             m3::TCU::NO_REPLIES, *rgatecap->obj, true);
+                             m3::TCU::NO_REPLIES, *rgatecap->obj);
         rgatecap->obj->add_ep(rep);
         rep->gate = &*rgatecap->obj;
     }
@@ -492,10 +493,11 @@ void SyscallHandler::activate(VPE *vpe, const m3::TCU::Message *msg) {
     auto *req = get_message<m3::KIF::Syscall::Activate>(msg);
     capsel_t ep = req->ep_sel;
     capsel_t gate = req->gate_sel;
-    goff_t addr = req->addr;
+    capsel_t rbuf_mem = req->rbuf_mem;
+    goff_t rbuf_off = req->rbuf_off;
 
     LOG_SYS(vpe, ": syscall::activate", "(ep=" << ep << ", gate=" << gate
-        << ", addr=#" << m3::fmt(addr, "x") << ")");
+        << ", rbuf_mem=" << rbuf_mem << ", rbuf_off=#" << m3::fmt(rbuf_off, "x") << ")");
 
     auto epcap = static_cast<EPCapability*>(vpe->objcaps().get(ep, Capability::EP));
     if(epcap == nullptr)
@@ -548,7 +550,7 @@ void SyscallHandler::activate(VPE *vpe, const m3::TCU::Message *msg) {
         if(gateobj->type == Capability::MGATE) {
             auto mgateobj = static_cast<MGateObject*>(gateobj);
             m3::Errors::Code res = dst_pemux->config_mem_ep(
-                epcap->obj->ep, epcap->obj->vpe->id(), *mgateobj, addr);
+                epcap->obj->ep, epcap->obj->vpe->id(), *mgateobj, rbuf_off);
             if(res != m3::Errors::NONE)
                 SYS_ERROR(vpe, msg, res, "Memory EP configuration failed");
         }
@@ -581,6 +583,27 @@ void SyscallHandler::activate(VPE *vpe, const m3::TCU::Message *msg) {
             if(rgateobj->activated())
                 SYS_ERROR(vpe, msg, m3::Errors::EXISTS, "Receive gate already activated");
 
+            auto rbuf = static_cast<MGateCapability*>(vpe->objcaps().get(rbuf_mem, Capability::MGATE));
+            if(rbuf == nullptr || rbuf_off >= rbuf->obj->size ||
+                rbuf_off + rgateobj->size() > rbuf->obj->size) {
+                SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid receive buffer memory");
+            }
+
+            // determine receive buffer address
+            rgateobj->pe = dst_pe;
+            if(Platform::pe(dst_pe).has_virtmem()) {
+                if(rbuf->obj->vpe != VPE::INVALID_ID)
+                    SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "rbuffer not in physical memory");
+                rgateobj->addr = m3::TCU::build_gaddr(rbuf->obj->pe, rbuf->obj->addr) + rbuf_off;
+            }
+            else {
+                if(rbuf->obj->vpe != epcap->obj->vpe->id())
+                    SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "rbuffer not in own SPM");
+                rgateobj->addr = rbuf_off;
+            }
+            rgateobj->ep = epcap->obj->ep;
+
+            // determine number of reply EPs
             epid_t replies = m3::TCU::NO_REPLIES;
             if(epcap->obj->replies > 0) {
                 uint slots = 1U << (rgateobj->order - rgateobj->msgorder);
@@ -590,10 +613,6 @@ void SyscallHandler::activate(VPE *vpe, const m3::TCU::Message *msg) {
                 }
                 replies = epcap->obj->ep + 1;
             }
-
-            rgateobj->pe = dst_pe;
-            rgateobj->addr = addr;
-            rgateobj->ep = epcap->obj->ep;
 
             m3::Errors::Code res = dst_pemux->config_rcv_ep(
                 epcap->obj->ep, epcap->obj->vpe->id(), replies, *rgateobj);

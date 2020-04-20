@@ -147,12 +147,13 @@ epid_t Syscalls::alloc_ep(capsel_t dst, capsel_t vpe, epid_t ep, uint replies) {
     return reply->ep;
 }
 
-void Syscalls::activate(capsel_t ep, capsel_t gate, goff_t addr) {
+void Syscalls::activate(capsel_t ep, capsel_t gate, capsel_t rbuf_mem, goff_t rbuf_off) {
     KIF::Syscall::Activate req;
     req.opcode = KIF::Syscall::ACTIVATE;
     req.ep_sel = ep;
     req.gate_sel = gate;
-    req.addr = addr;
+    req.rbuf_mem = rbuf_mem;
+    req.rbuf_off = rbuf_off;
     send_receive_throw(&req, sizeof(req));
 }
 

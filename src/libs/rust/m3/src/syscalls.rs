@@ -454,14 +454,20 @@ where
 
 /// Activates the given gate on given endpoint.
 ///
-/// When activating a receive gate, the address of the receive buffer has to be specified via
-/// `addr`.
-pub fn activate(ep: Selector, gate: Selector, addr: usize) -> Result<(), Error> {
+/// When activating a receive gate, the physical memory of the receive buffer and its offset needs
+/// to be specified via `rbuf_mem` and `rbuf_off`.
+pub fn activate(
+    ep: Selector,
+    gate: Selector,
+    rbuf_mem: Selector,
+    rbuf_off: usize,
+) -> Result<(), Error> {
     let req = syscalls::Activate {
         opcode: syscalls::Operation::ACTIVATE.val,
         ep_sel: u64::from(ep),
         gate_sel: u64::from(gate),
-        addr: addr as u64,
+        rbuf_mem: u64::from(rbuf_mem),
+        rbuf_off: rbuf_off as u64,
     };
     send_receive_result(&req)
 }

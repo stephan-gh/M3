@@ -140,6 +140,15 @@ static INFO: StaticCell<Info> = StaticCell::new(Info {
 });
 static PTS: StaticCell<Vec<u64>> = StaticCell::new(Vec::new());
 
+fn rbuf_frame(id: u64) -> u64 {
+    if id == kif::pemux::VPE_ID {
+        INFO.mem_start + cfg::PAGE_SIZE as u64 * cfg::FIRST_RBUF_FRAME as u64
+    }
+    else {
+        INFO.mem_start + cfg::PAGE_SIZE as u64 * (cfg::FIRST_RBUF_FRAME as u64 + 1 + id)
+    }
+}
+
 pub fn pe_desc() -> kif::PEDesc {
     INFO.pe_desc
 }
@@ -155,8 +164,9 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
         // only use the memory up to ourself for page tables. we could use the memory behind ourself
         // as well, but currently the 1 MiB before us is sufficient.
         let pt_count = (cfg::PEMUX_START / cfg::PAGE_SIZE) as u64;
+        let first_pt = (cfg::FIRST_RBUF_FRAME + cfg::MAX_VPES + 1) as u64;
         PTS.get_mut().reserve(pt_count as usize);
-        for i in 0..pt_count {
+        for i in first_pt..pt_count {
             PTS.get_mut().push(mem_start + i * cfg::PAGE_SIZE as u64);
         }
 
@@ -668,33 +678,23 @@ impl VPE {
             self.map_segment(&_bss_start, &_bss_end, rw);
         }
 
-        // map receive buffers
-        if self.id() == kif::pemux::VPE_ID {
-            self.map_new_mem(
-                cfg::PEMUX_RBUF_SPACE,
-                cfg::PEMUX_RBUF_SIZE,
-                kif::PageFlags::R,
-            );
+        // map own receive buffer
+        let own_rbuf = paging::phys_to_noc(rbuf_frame(kif::pemux::VPE_ID));
+        assert!(cfg::PEMUX_RBUF_SIZE == cfg::PAGE_SIZE);
+        self.map(cfg::PEMUX_RBUF_SPACE, own_rbuf, 1, kif::PageFlags::R).unwrap();
 
+        if self.id() == kif::pemux::VPE_ID {
             // map sleep function for user
             unsafe {
                 self.map_segment(&_user_start, &_user_end, rx | kif::PageFlags::U);
             }
         }
         else {
-            // map our own receive buffer again
-            let pte = our().translate(cfg::PEMUX_RBUF_SPACE, kif::PageFlags::R);
-            self.map(
-                cfg::PEMUX_RBUF_SPACE,
-                pte & !cfg::PAGE_MASK as goff,
-                cfg::PEMUX_RBUF_SIZE / cfg::PAGE_SIZE,
-                kif::PageFlags::R,
-            )
-            .unwrap();
-
             // map application receive buffer
+            let app_rbuf = paging::phys_to_noc(rbuf_frame(self.id()));
             let perm = kif::PageFlags::R | kif::PageFlags::U;
-            self.map_new_mem(cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE, perm);
+            assert!(cfg::RBUF_STD_SIZE == cfg::PAGE_SIZE);
+            self.map(cfg::RBUF_STD_ADDR, app_rbuf, 1, perm).unwrap();
         }
 
         // map runtime environment

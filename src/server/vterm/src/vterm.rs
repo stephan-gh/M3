@@ -96,7 +96,7 @@ impl Channel {
     fn activate(&mut self) -> Result<(), Error> {
         if !self.active {
             let ep = self.ep.ok_or_else(|| Error::new(Code::InvArgs))?;
-            syscalls::activate(ep, self.mem.sel(), 0)?;
+            syscalls::activate(ep, self.mem.sel(), kif::INVALID_SEL, 0)?;
             self.active = true;
         }
         Ok(())

@@ -227,9 +227,9 @@ void VPE::init_eps() {
     // attach syscall receive endpoint
     rgate.order = m3::nextlog2<SYSC_RBUF_SIZE>::val;
     rgate.msgorder = SYSC_RBUF_ORDER;
-    rgate.addr = Platform::pe(peid()).rbuf_std_space().first;
+    rgate.addr = Platform::rbuf_std(peid(), id());
     res = pemux->config_rcv_ep(_eps_start + m3::TCU::SYSC_REP_OFF, vpe,
-                               m3::TCU::NO_REPLIES, rgate, true);
+                               m3::TCU::NO_REPLIES, rgate);
     assert(res == m3::Errors::NONE);
 
     // attach upcall receive endpoint
@@ -237,7 +237,7 @@ void VPE::init_eps() {
     rgate.msgorder = UPCALL_RBUF_ORDER;
     rgate.addr += SYSC_RBUF_SIZE;
     res = pemux->config_rcv_ep(_eps_start + m3::TCU::UPCALL_REP_OFF, vpe,
-                               _eps_start + m3::TCU::UPCALL_RPLEP_OFF, rgate, true);
+                               _eps_start + m3::TCU::UPCALL_RPLEP_OFF, rgate);
     assert(res == m3::Errors::NONE);
 
     // attach default receive endpoint
@@ -245,7 +245,7 @@ void VPE::init_eps() {
     rgate.msgorder = DEF_RBUF_ORDER;
     rgate.addr += UPCALL_RBUF_SIZE;
     res = pemux->config_rcv_ep(_eps_start + m3::TCU::DEF_REP_OFF, vpe,
-                               m3::TCU::NO_REPLIES, rgate, true);
+                               m3::TCU::NO_REPLIES, rgate);
     assert(res == m3::Errors::NONE);
 }
 

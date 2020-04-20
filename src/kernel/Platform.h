@@ -19,6 +19,8 @@
 #include <base/BootInfo.h>
 #include <base/PEDesc.h>
 
+#include "Types.h"
+
 namespace kernel {
 
 class Platform {
@@ -51,6 +53,9 @@ public:
     static m3::PEDesc pe(peid_t no) {
         return _pes[no];
     }
+
+    static goff_t rbuf_pemux(peid_t no);
+    static goff_t rbuf_std(peid_t no, vpeid_t vpe);
 
     static bool is_shared(peid_t no);
 

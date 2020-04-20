@@ -635,7 +635,7 @@ impl Channel {
                     cap,
                     cmem.sel()
                 );
-                syscalls::activate(cap, cmem.sel(), 0)?;
+                syscalls::activate(cap, cmem.sel(), kif::INVALID_SEL, 0)?;
                 self.i.mem = Some(cmem);
             }
             else {

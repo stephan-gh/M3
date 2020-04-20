@@ -263,7 +263,8 @@ struct KIF {
         struct Activate : public DefaultRequest {
             xfer_t ep_sel;
             xfer_t gate_sel;
-            xfer_t addr;
+            xfer_t rbuf_mem;
+            xfer_t rbuf_off;
         } PACKED;
 
         struct VPECtrl : public DefaultRequest {

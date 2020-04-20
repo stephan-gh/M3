@@ -24,7 +24,7 @@ extern crate m3;
 use m3::com::{MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
-use m3::kif::{PEDesc, PEType, PEISA};
+use m3::kif::{INVALID_SEL, PEDesc, PEType, PEISA};
 use m3::math;
 use m3::pes::Activity;
 use m3::pes::{DeviceActivity, PE, VPE};
@@ -140,7 +140,7 @@ impl Device {
     }
 
     pub fn set_dma_buffer(&self, mgate: &MemGate) -> Result<(), Error> {
-        syscalls::activate(self.mep.sel(), mgate.sel(), 0)
+        syscalls::activate(self.mep.sel(), mgate.sel(), INVALID_SEL, 0)
     }
 
     pub fn check_for_irq(&self) -> bool {

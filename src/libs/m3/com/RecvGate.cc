@@ -109,13 +109,13 @@ void RecvGate::activate() {
         }
 
         auto rep = VPE::self().epmng().acquire(EP_COUNT, slots());
-        Gate::activate_on(*rep, _buf->addr());
+        Gate::activate_on(*rep, _buf->mem(), _buf->off());
         Gate::set_ep(rep);
     }
 }
 
-void RecvGate::activate_on(const EP &ep, uintptr_t addr) {
-    Gate::activate_on(ep, addr);
+void RecvGate::activate_on(const EP &ep, MemGate &mem, size_t off) {
+    Gate::activate_on(ep, mem.sel(), off);
 }
 
 void RecvGate::deactivate() noexcept {

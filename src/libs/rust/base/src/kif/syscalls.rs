@@ -183,7 +183,8 @@ pub struct Activate {
     pub opcode: u64,
     pub ep_sel: u64,
     pub gate_sel: u64,
-    pub addr: u64,
+    pub rbuf_mem: u64,
+    pub rbuf_off: u64,
 }
 
 int_enum! {

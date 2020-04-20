@@ -18,6 +18,7 @@
 
 #include <base/col/SList.h>
 #include <base/util/String.h>
+#include <base/Config.h>
 
 #include "Types.h"
 
@@ -40,8 +41,6 @@ class VPEManager {
     };
 
 public:
-    static const size_t MAX_VPES    = 64;
-
     static void create() {
         _inst = new VPEManager();
     }

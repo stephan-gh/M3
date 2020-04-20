@@ -66,8 +66,8 @@ public:
     }
     ~Gate();
 
-    const EP &activate(uintptr_t addr = 0);
-    void activate_on(const EP &ep, uintptr_t addr = 0);
+    const EP &activate(capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
+    void activate_on(const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
 
 protected:
     const EP *ep() const noexcept {

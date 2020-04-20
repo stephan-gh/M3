@@ -203,18 +203,16 @@ impl RecvGate {
 
             let buf = self.buf.as_ref().unwrap();
             let replies = 1 << (self.order - self.msg_order);
-            self.gate.activate_rgate(buf.addr(), replies)?;
+            self.gate.activate_rgate(buf.mem(), buf.off(), replies)?;
         }
 
         Ok(())
     }
 
-    /// Activates this receive gate with given receive buffer address. This call is intended for CUs
-    /// that don't manage their own receive buffer space. For that reason, the receive buffer
-    /// addresses needs to be chosen externally.
-    pub fn activate_on(&mut self, addr: usize) -> Result<(), Error> {
+    /// Activates this receive gate with given receive buffer
+    pub fn activate_with(&mut self, mem: Selector, off: usize, addr: usize) -> Result<(), Error> {
         let replies = 1 << (self.order - self.msg_order);
-        self.gate.activate_rgate(addr, replies).map(|_| {
+        self.gate.activate_rgate(mem, off, replies).map(|_| {
             self.buf_addr = Some(addr);
             ()
         })

@@ -79,7 +79,7 @@ public:
           _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
           _vpe(vpe) {
         // activate EPs
-        _rgate.activate_on(*_rep, RECV_ADDR);
+        _rgate.activate_on(*_rep, vpe->mem(), RECV_ADDR);
     }
 
     void connect_input(GenericFile *file) {
