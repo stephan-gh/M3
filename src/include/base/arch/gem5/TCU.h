@@ -68,7 +68,7 @@ public:
 
 private:
     static const size_t TCU_REGS            = 4;
-    static const size_t PRIV_REGS           = 6;
+    static const size_t PRIV_REGS           = 5;
     static const size_t CMD_REGS            = 4;
     static const size_t EP_REGS             = 3;
 
@@ -84,12 +84,11 @@ private:
 
     enum class PrivRegs {
         CORE_REQ            = 0,
-        CORE_RESP           = 1,
-        PRIV_CMD            = 2,
-        PRIV_CMD_ARG        = 3,
-        EXT_CMD             = 4,
-        CUR_VPE             = 5,
-        OLD_VPE             = 6,
+        PRIV_CMD            = 1,
+        PRIV_CMD_ARG        = 2,
+        EXT_CMD             = 3,
+        CUR_VPE             = 4,
+        OLD_VPE             = 5,
     };
 
     enum class CmdRegs {
@@ -295,9 +294,6 @@ private:
     }
     void set_core_req(reg_t val) {
         write_reg(PrivRegs::CORE_REQ, val);
-    }
-    void set_core_resp(reg_t val) {
-        write_reg(PrivRegs::CORE_RESP, val);
     }
 
     void clear_irq(IRQ irq) {

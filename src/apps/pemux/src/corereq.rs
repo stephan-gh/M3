@@ -53,5 +53,5 @@ pub fn handle_recv(req: tcu::Reg) {
         }
     }
 
-    tcu::TCU::set_core_resp(req);
+    tcu::TCU::set_core_req(req);
 }

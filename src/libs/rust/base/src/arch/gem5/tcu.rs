@@ -114,18 +114,16 @@ int_enum! {
     pub struct PrivReg : Reg {
         /// For core requests
         const CORE_REQ      = 0x0;
-        /// For core responses
-        const CORE_RESP     = 0x1;
         /// For privileged commands
-        const PRIV_CMD      = 0x2;
+        const PRIV_CMD      = 0x1;
         /// The argument for privileged commands
-        const PRIV_CMD_ARG  = 0x3;
+        const PRIV_CMD_ARG  = 0x2;
         /// For external commands
-        const EXT_CMD       = 0x4;
+        const EXT_CMD       = 0x3;
         /// The current VPE
-        const CUR_VPE       = 0x5;
+        const CUR_VPE       = 0x4;
         /// The old VPE (only set by XCHG_VPE command)
-        const OLD_VPE       = 0x6;
+        const OLD_VPE       = 0x5;
     }
 }
 
@@ -544,10 +542,6 @@ impl TCU {
 
     pub fn set_core_req(val: Reg) {
         Self::write_priv_reg(PrivReg::CORE_REQ, val)
-    }
-
-    pub fn set_core_resp(val: Reg) {
-        Self::write_priv_reg(PrivReg::CORE_RESP, val)
     }
 
     pub fn get_cur_vpe() -> Reg {

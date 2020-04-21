@@ -207,7 +207,6 @@ public:
 
         uintptr_t virt = (xlate_req & 0xFFFFFFFFFFFF) & ~PAGE_MASK;
         uint perm = (xlate_req >> 1) & 0x7;
-        uint xferbuf = (xlate_req >> 5) & 0x7;
 
         uint64_t pte = translate(virt, perm);
         if(~(pte & 0xF) & perm) {
@@ -215,7 +214,7 @@ public:
                 << m3::fmt(virt, "#0x") << " (PTE=" << m3::fmt(pte, "p") << ")");
         }
 
-        tcu.set_core_resp(pte | (xferbuf << 5));
+        tcu.set_core_req(pte);
     }
 
     static void *tcu_handler(m3::ISR::State *state) {
@@ -228,8 +227,6 @@ public:
         if(core_req) {
             if(core_req & 0x1)
                 PANIC("Unexpected foreign receive: " << m3::fmt(core_req, "x"));
-            // acknowledge the translation
-            tcu.set_core_req(0);
             handle_xlate(core_req);
         }
 

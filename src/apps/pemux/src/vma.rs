@@ -102,14 +102,14 @@ fn recv_pf_resp() -> vpe::ContResult {
         tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg_off);
 
         let pf_state = vpe.finish_pf();
-        if let Some(buf) = pf_state.buf {
+        if let Some(_) = pf_state.buf {
             let pte = if err == 0 {
                 vpe.translate(pf_state.virt, pf_state.perm)
             }
             else {
                 cfg::PAGE_SIZE as u64
             };
-            tcu::TCU::set_core_resp(pte | (buf << 6));
+            tcu::TCU::set_core_req(pte);
         }
         if err != 0 {
             let virt = pf_state.virt;
@@ -147,13 +147,13 @@ pub fn handle_xlate(req: tcu::Reg) {
         }
         // translation worked: let transfer continue
         else {
-            tcu::TCU::set_core_resp(pte | (xfer_buf << 6));
+            tcu::TCU::set_core_req(pte);
             return;
         }
     }
 
     // translation failed: set non-zero response, but have no permission bits set
-    tcu::TCU::set_core_resp(cfg::PAGE_SIZE as u64 | (xfer_buf << 6));
+    tcu::TCU::set_core_req(cfg::PAGE_SIZE as u64);
 }
 
 pub fn handle_pf(

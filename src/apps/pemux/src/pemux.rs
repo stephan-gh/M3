@@ -181,9 +181,6 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
     // core request from TCU?
     let core_req = tcu::TCU::get_core_req();
     if core_req != 0 {
-        // acknowledge the request
-        tcu::TCU::set_core_req(0);
-
         if (core_req & 0x1) != 0 {
             corereq::handle_recv(core_req);
         }
