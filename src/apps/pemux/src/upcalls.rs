@@ -70,11 +70,9 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
 
         kif::pemux::VPEOp::STOP | _ => {
             // we cannot remove the current VPE here; remove it via scheduling
-            if vpe::cur().id() == vpe_id {
-                crate::reg_scheduling(vpe::ScheduleAction::Kill);
-            }
-            else {
-                vpe::remove(vpe_id, 0, false, true);
+            match vpe::try_cur() {
+                Some(cur) if cur.id() == vpe_id => crate::reg_scheduling(vpe::ScheduleAction::Kill),
+                _ => vpe::remove(vpe_id, 0, false, true),
             }
         },
     }
@@ -178,7 +176,7 @@ fn handle_upcalls(our: &mut vpe::VPE) {
     loop {
         // change to our VPE
         let old_vpe = tcu::TCU::xchg_vpe(our.vpe_reg());
-        vpe::cur().set_vpe_reg(old_vpe);
+        vpe::try_cur().map(|old| old.set_vpe_reg(old_vpe));
 
         if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::PEXUP_REP) {
             let msg = tcu::TCU::offset_to_msg(UPC_RBUF_ADDR, msg_off);
@@ -191,7 +189,7 @@ fn handle_upcalls(our: &mut vpe::VPE) {
         }
 
         // change back to old VPE
-        let new_vpe = vpe::cur().vpe_reg();
+        let new_vpe = vpe::try_cur().map_or(old_vpe, |new| new.vpe_reg());
         our.set_vpe_reg(tcu::TCU::xchg_vpe(new_vpe));
         // if no events arrived in the meantime, we're done
         if !our.has_msgs() {
