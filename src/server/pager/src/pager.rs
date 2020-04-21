@@ -183,10 +183,21 @@ impl Handler for PagerReqHandler {
 pub fn main() -> i32 {
     vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
 
+    let mut skip = 0;
+    let mut share_pe = false;
     let args = env::args()
         .skip(1)
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
+    for a in &args {
+        if a == "-s" {
+            share_pe = true;
+            skip += 1;
+            break;
+        }
+    }
+
+    let args = &args[skip..];
     let name = args[0].clone();
 
     let s = Server::new_private("pager").expect("Unable to create service");
@@ -210,8 +221,15 @@ pub fn main() -> i32 {
     )
     .expect("Unable to create SendGate");
 
+    // determine PE for child
+    let pe = if !share_pe || !VPE::cur().pe_desc().has_virtmem() {
+        PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE")
+    }
+    else {
+        VPE::cur().pe().clone()
+    };
+
     // create child VPE
-    let pe = PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE");
     let pager = Pager::new(sess, sgate).expect("Unable to create pager");
     let mut vpe =
         VPE::new_with(pe, VPEArgs::new(&name).pager(pager)).expect("Unable to create VPE");

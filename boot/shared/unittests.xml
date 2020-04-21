@@ -13,11 +13,11 @@
         </app>
     </dom>
     <dom>
-        <app args="pager /bin/unittests">
+        <app args="pager -s /bin/unittests">
             <sess name="m3fs" />
             <sess lname="m3fs-clone" gname="m3fs" />
             <sess name="pipes" />
-            <pes type="core" count="3" />
+            <pes type="core" count="2" />
         </app>
     </dom>
 </config>

@@ -13,10 +13,10 @@
         </app>
     </dom>
     <dom>
-        <app args="pager /bin/rustbenchs">
+        <app args="pager -s /bin/rustbenchs">
             <sess name="m3fs" />
             <sess name="pipes" />
-            <pes type="core" count="2" />
+            <pes type="core" count="1" />
         </app>
     </dom>
 </config>

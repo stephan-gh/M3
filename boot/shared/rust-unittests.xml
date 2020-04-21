@@ -13,11 +13,11 @@
         </app>
     </dom>
     <dom>
-        <app args="pager /bin/subsys /bin/rustunittests">
+        <app args="pager -s /bin/subsys -s /bin/rustunittests">
             <sess name="m3fs" />
             <sess lname="m3fs-clone" gname="m3fs" />
             <sess name="pipes" />
-            <pes type="core" count="4" />
+            <pes type="core" count="2" />
         </app>
     </dom>
 </config>

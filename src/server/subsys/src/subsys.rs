@@ -333,18 +333,35 @@ pub fn main() -> i32 {
         SendGate::new_with(SGateArgs::new(&rgate).credits(1)).expect("Unable to create SendGate");
     RGATE.set(Some(rgate));
 
+    let mut skip = 0;
+    let mut share_pe = false;
     let args = env::args()
         .skip(1)
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
+    for a in &args {
+        if a == "-s" {
+            share_pe = true;
+            skip += 1;
+            break;
+        }
+    }
+
+    let args = &args[skip..];
     let name = args[0].clone();
 
+    // determine PE for child
     pes::get().add(
         0,
-        PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE"),
+        if !share_pe || !VPE::cur().pe_desc().has_virtmem() {
+            PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE")
+        }
+        else {
+            VPE::cur().pe().clone()
+        },
     );
-
     let pe_usage = Rc::new(pes::get().find_and_alloc(VPE::cur().pe_desc()).unwrap());
+
     let mut vpe = VPE::new_with(
         pe_usage.pe_obj(),
         VPEArgs::new(&name).resmng(ResMng::new(sgate)),
@@ -354,7 +371,7 @@ pub fn main() -> i32 {
     // we don't use the memory pool
     let mem_pool = Rc::new(RefCell::new(memory::MemPool::default()));
 
-    let cfg = Rc::new(config::AppConfig::new(args, false));
+    let cfg = Rc::new(config::AppConfig::new(args.to_vec(), false));
     let mut child = childs::OwnChild::new(
         0,
         pe_usage,
