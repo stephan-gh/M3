@@ -221,9 +221,7 @@ public:
     static void *tcu_handler(m3::ISR::State *state) {
         m3::TCU &tcu = m3::TCU::get();
 
-#if defined(__arm__) || defined(__riscv)
         tcu.clear_irq(m3::TCU::IRQ::CORE_REQ);
-#endif
 
         // translation request from TCU?
         m3::TCU::reg_t core_req = tcu.get_core_req();

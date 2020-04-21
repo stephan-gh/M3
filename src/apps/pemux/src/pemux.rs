@@ -171,15 +171,11 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
     cfg_if! {
         if #[cfg(target_arch = "arm")] {
             if tcu::TCU::get_irq() == tcu::IRQ::TIMER {
-                tcu::TCU::clear_irq(tcu::IRQ::TIMER);
-                vpe::cur().consume_time();
-                timer::trigger();
-                return leave(state);
+                return timer_irq(state);
             }
         }
     }
 
-    #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
     tcu::TCU::clear_irq(tcu::IRQ::CORE_REQ);
 
     // core request from TCU?
@@ -200,7 +196,6 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn timer_irq(state: &mut arch::State) -> *mut libc::c_void {
-    #[cfg(any(target_arch = "arm", target_arch = "riscv64"))]
     tcu::TCU::clear_irq(tcu::IRQ::TIMER);
 
     vpe::cur().consume_time();
