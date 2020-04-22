@@ -27,10 +27,12 @@
 namespace m3 {
 
 class Env;
+class EnvUserBackend;
 class RecvGate;
 
 class Syscalls {
     friend class Env;
+    friend class EnvUserBackend;
 
     template<class T>
     struct SyscallReply {
@@ -98,6 +100,8 @@ private:
     static void send_receive_throw(const void *msg, size_t size);
     static void exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                               KIF::ExchangeArgs *args, bool obtain);
+
+    static void reinit();
 
     static SendGate _sendgate;
 };

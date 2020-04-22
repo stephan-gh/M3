@@ -34,6 +34,7 @@ class VPE;
 template<class HDL>
 class Server;
 class RecvBuf;
+class EnvUserBackend;
 
 /**
  * A receive gate is used to receive messages from send gates. To this end, it has a receive buffer
@@ -51,6 +52,7 @@ class RecvGate : public Gate {
     friend class AladdinAccel;
     friend class InDirAccel;
     friend class StreamAccel;
+    friend class EnvUserBackend;
 
     class RecvGateWorkItem : public WorkItem {
     public:
@@ -226,6 +228,8 @@ public:
     void drop_msgs_with(label_t label) noexcept;
 
 private:
+    static void reinit();
+
     void set_ep(epid_t ep) {
         Gate::set_ep(new EP(EP::bind(ep)));
     }

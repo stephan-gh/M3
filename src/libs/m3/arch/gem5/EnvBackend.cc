@@ -39,6 +39,8 @@ public:
 
     virtual void reinit() override {
         init();
+        Syscalls::reinit();
+        RecvGate::reinit();
         VPE::reset();
     }
 

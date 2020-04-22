@@ -28,6 +28,7 @@
 namespace m3 {
 
 class GenericFile;
+class Syscalls;
 
 /**
  * Gate is the base class of all gates. A gate is in general the software abstraction for TCU-based
@@ -45,6 +46,7 @@ class Gate : public SListItem, public ObjCap {
     friend class EPMng;
     friend class TCUIf;
     friend class GenericFile;
+    friend class Syscalls;
     friend class VPE;
 
 public:
@@ -75,6 +77,9 @@ protected:
     }
     void set_ep(EP *ep) noexcept {
         _ep = ep;
+    }
+    void reset_ep(epid_t ep) noexcept {
+        _ep->set_id(ep);
     }
 
     const EP &acquire_ep();
