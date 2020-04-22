@@ -224,11 +224,7 @@ impl VPEMng {
     fn destroy_vpe(vpe: &Rc<VPE>) {
         vpe.destroy();
 
-        // todo this panics all the time. Probably not a big probleme since
-        //  only some memory is probably not properly freed.. but anyway, should be investigated
-        /*if Rc::strong_count(&vpe) > 1 {
-            panic!("Strong count is > 1!")
-        }*/
+        // assert!(Rc::strong_count(&vpe) == 1);
 
         // TODO temporary
         ktcu::reset_pe(vpe.pe_id()).unwrap();

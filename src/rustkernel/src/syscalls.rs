@@ -1295,13 +1295,13 @@ fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
 
         // create a gate object from the kobj
         let go = match kobj {
-            KObject::MGate(g) => GateObject::MGate(g.clone()),
-            KObject::RGate(g) => GateObject::RGate(g.clone()),
-            KObject::SGate(g) => GateObject::SGate(g.clone()),
+            KObject::MGate(g) => GateObject::MGate(Rc::downgrade(&g)),
+            KObject::RGate(g) => GateObject::RGate(Rc::downgrade(&g)),
+            KObject::SGate(g) => GateObject::SGate(Rc::downgrade(&g)),
             _ => sysc_err!(Code::InvArgs, "Invalid capability"),
         };
         // we tell the gate object its gate object
-        go.set_ep(ep.clone());
+        go.set_ep(&ep);
         // we tell the endpoint its current gate object
         ep.set_gate(go);
     }

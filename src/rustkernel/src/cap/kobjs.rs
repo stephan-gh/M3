@@ -87,11 +87,9 @@ impl CommonGateProperties {
 
 /// Enum-Type that combines all GateObjects.
 pub enum GateObject {
-    // todo be careful! we have Rc<> in both directions
-    //  cycles in drop trait could happen.. maybe use Weak<> instead?
-    RGate(Rc<RGateObject>),
-    SGate(Rc<SGateObject>),
-    MGate(Rc<MGateObject>),
+    RGate(Weak<RGateObject>),
+    SGate(Weak<SGateObject>),
+    MGate(Weak<MGateObject>),
 }
 
 impl GateObject {
@@ -120,75 +118,60 @@ impl GateObject {
     }
 
     // Returns RGATE if self is RGATE
-    pub fn get_r_gate(&self) -> &Rc<RGateObject> {
+    pub fn get_r_gate(&self) -> Rc<RGateObject> {
         if let GateObject::RGate(g) = self {
-            g
+            g.upgrade().unwrap()
         }
         else {
-            panic!("No RGate!");
+            panic!("No RGateObject!");
         }
     }
 
     // Returns RGATE if self is RGATE
-    pub fn get_s_gate(&self) -> &Rc<SGateObject> {
+    pub fn get_s_gate(&self) -> Rc<SGateObject> {
         if let GateObject::SGate(g) = self {
-            g
+            g.upgrade().unwrap()
         }
         else {
-            panic!("No SGate!");
+            panic!("No SGateObject!");
         }
     }
 
     // Returns MGATE if self is MGATE
-    pub fn get_m_gate(&self) -> &Rc<MGateObject> {
+    pub fn get_m_gate(&self) -> Rc<MGateObject> {
         if let GateObject::MGate(g) = self {
-            g
+            g.upgrade().unwrap()
         }
         else {
-            panic!("No MGate!");
+            panic!("No MGateObject!");
         }
     }
 
     /// Sets the endpoint on the gate. Delegates the action
     /// from this enum to the actual gate.
-    pub fn set_ep(&self, ep: Rc<EPObject>) {
+    pub fn set_ep(&self, ep: &Rc<EPObject>) {
         match self {
-            GateObject::RGate(g) => g.cgp.borrow_mut().set_ep(&ep),
-            GateObject::SGate(g) => g.cgp.borrow_mut().set_ep(&ep),
-            GateObject::MGate(g) => g.cgp.borrow_mut().set_ep(&ep),
+            GateObject::RGate(g) => g.upgrade().unwrap().cgp.borrow_mut().set_ep(ep),
+            GateObject::SGate(g) => g.upgrade().unwrap().cgp.borrow_mut().set_ep(ep),
+            GateObject::MGate(g) => g.upgrade().unwrap().cgp.borrow_mut().set_ep(ep),
         }
     }
 
     /// Check is the underlying gate object has an endpoint assigned.
     pub fn has_ep(&self) -> bool {
         match self {
-            GateObject::RGate(g) => g.cgp.borrow().get_ep().is_some(),
-            GateObject::SGate(g) => g.cgp.borrow().get_ep().is_some(),
-            GateObject::MGate(g) => g.cgp.borrow().get_ep().is_some(),
+            GateObject::RGate(g) => g.upgrade().unwrap().cgp.borrow().get_ep().is_some(),
+            GateObject::SGate(g) => g.upgrade().unwrap().cgp.borrow().get_ep().is_some(),
+            GateObject::MGate(g) => g.upgrade().unwrap().cgp.borrow().get_ep().is_some(),
         }
     }
 
     /// Convenient function on the enum to get the EP of the gate.
     pub fn get_ep(&self) -> Rc<EPObject> {
         match self {
-            GateObject::RGate(g) => g
-                .cgp
-                .borrow()
-                .get_ep()
-                .unwrap_or_else(|| panic!("no ep!"))
-                .clone(),
-            GateObject::SGate(g) => g
-                .cgp
-                .borrow()
-                .get_ep()
-                .unwrap_or_else(|| panic!("no ep!"))
-                .clone(),
-            GateObject::MGate(g) => g
-                .cgp
-                .borrow()
-                .get_ep()
-                .unwrap_or_else(|| panic!("no ep!"))
-                .clone(),
+            GateObject::RGate(g) => g.upgrade().unwrap().cgp.borrow().get_ep().unwrap().clone(),
+            GateObject::SGate(g) => g.upgrade().unwrap().cgp.borrow().get_ep().unwrap().clone(),
+            GateObject::MGate(g) => g.upgrade().unwrap().cgp.borrow().get_ep().unwrap().clone(),
         }
     }
 
@@ -196,9 +179,9 @@ impl GateObject {
     /// to the corresponding gate type.
     pub fn remove_ep(&self) {
         match self {
-            GateObject::RGate(g) => g.cgp.borrow_mut().remove_ep(),
-            GateObject::SGate(g) => g.cgp.borrow_mut().remove_ep(),
-            GateObject::MGate(g) => g.cgp.borrow_mut().remove_ep(),
+            GateObject::RGate(g) => g.upgrade().unwrap().cgp.borrow_mut().remove_ep(),
+            GateObject::SGate(g) => g.upgrade().unwrap().cgp.borrow_mut().remove_ep(),
+            GateObject::MGate(g) => g.upgrade().unwrap().cgp.borrow_mut().remove_ep(),
         }
     }
 }
@@ -343,10 +326,7 @@ impl SGateObject {
 impl fmt::Debug for SGateObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "SGate[rgate=")?;
-        self.rgate
-            .upgrade()
-            .unwrap()
-            .print_loc(f)?;
+        self.rgate.upgrade().unwrap().print_loc(f)?;
         write!(f, ", lbl={:#x}, crd={}]", self.label, self.credits)
     }
 }
@@ -610,7 +590,9 @@ impl fmt::Debug for PEObject {
         write!(
             f,
             "PE[id={}, eps={}, vpes={}]",
-            self.pe, self.eps(), self.vpes
+            self.pe,
+            self.eps(),
+            self.vpes
         )
     }
 }
