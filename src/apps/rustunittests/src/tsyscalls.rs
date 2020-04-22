@@ -312,8 +312,8 @@ fn alloc_ep() {
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 
     // specific EP
-    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT / 2, 1));
-    wv_assert_eq!(ep, EP_COUNT / 2);
+    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, 1));
+    wv_assert_eq!(ep, EP_COUNT - 2);
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 }
 
