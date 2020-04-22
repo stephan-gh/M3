@@ -120,7 +120,6 @@ pub struct VPE {
 impl_boxitem!(VPE);
 
 static VPES: StaticCell<[Option<NonNull<VPE>>; 64]> = StaticCell::new([None; 64]);
-static VPE_COUNT: StaticCell<usize> = StaticCell::new(0);
 
 static IDLE: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
 static OUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
@@ -212,7 +211,6 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
     unsafe {
         VPES.get_mut()[id as usize] = Some(NonNull::new_unchecked(vpe.as_mut()));
     }
-    *VPE_COUNT.get_mut() += 1;
 
     make_blocked(vpe);
 }
@@ -264,9 +262,9 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
         break new_state;
     };
 
-    // tell the application whether the PE is shared with others. if not, it can sleep via TCU
-    // without telling us.
-    ::env().shared = (*VPE_COUNT > 1) as u64;
+    // tell the application whether there are other VPEs ready. if not, it can sleep via TCU without
+    // telling us.
+    ::env().shared = has_ready() as u64;
 
     // disable FPU to raise an exception if the app tries to use FPU instructions
     arch::disable_fpu();
@@ -398,7 +396,6 @@ pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
             VPEState::Ready => RDY.get_mut().remove_if(|v| v.id() == id).unwrap(),
             VPEState::Blocked => BLK.get_mut().remove_if(|v| v.id() == id).unwrap(),
         };
-        *VPE_COUNT.get_mut() -= 1;
 
         log!(
             crate::LOG_VPES,
