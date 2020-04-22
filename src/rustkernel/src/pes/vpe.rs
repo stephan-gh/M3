@@ -119,7 +119,7 @@ impl VPE {
             // cap for own VPE
             vpe.obj_caps()
                 .borrow_mut()
-                .insert(Capability::new(kif::SEL_VPE, KObject::VPE(vpe.clone())));
+                .insert(Capability::new(kif::SEL_VPE, KObject::VPE(Rc::downgrade(&vpe))));
 
             // alloc standard EPs
             let pemux = pemng::get().pemux(vpe.pe_id());
@@ -317,6 +317,7 @@ impl VPE {
                     .map(|c| c.get().clone());
                 match wvpe {
                     Some(KObject::VPE(wv)) => {
+                        let wv = wv.upgrade().unwrap();
                         if wv.id() == vpe.id() {
                             continue;
                         }
@@ -444,12 +445,6 @@ impl VPE {
         }
     }
 
-    pub fn destroy(&self) {
-        self.state.set(State::DEAD);
-
-        self.revoke_caps(true);
-    }
-
     fn revoke_caps(&self, all: bool) {
         self.obj_caps.borrow_mut().revoke_all(all);
         self.map_caps.borrow_mut().revoke_all(true);
@@ -463,6 +458,25 @@ impl VPE {
         else {
             vpe.map_caps().borrow_mut().revoke(crd, own);
         }
+    }
+}
+
+impl Drop for VPE {
+    fn drop(&mut self) {
+        self.state.set(State::DEAD);
+
+        self.revoke_caps(true);
+
+        // TODO temporary
+        ktcu::reset_pe(self.pe_id()).unwrap();
+
+        klog!(
+            VPES,
+            "Removed VPE {} [id={}, pe={}]",
+            self.name(),
+            self.id(),
+            self.pe_id()
+        );
     }
 }
 

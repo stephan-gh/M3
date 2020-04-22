@@ -38,7 +38,8 @@ pub enum KObject {
     Serv(Rc<ServObject>),
     Sess(Rc<SessObject>),
     Sem(Rc<SemObject>),
-    VPE(Rc<VPE>),
+    // Only VPEManager owns a VPE (Rc<VPE>). Break cycle here by using Weak
+    VPE(Weak<VPE>),
     KMEM(Rc<KMemObject>),
     PE(Rc<PEObject>),
     EP(Rc<EPObject>),
@@ -179,9 +180,21 @@ impl GateObject {
     /// to the corresponding gate type.
     pub fn remove_ep(&self) {
         match self {
-            GateObject::RGate(g) => g.upgrade().unwrap().cgp.borrow_mut().remove_ep(),
-            GateObject::SGate(g) => g.upgrade().unwrap().cgp.borrow_mut().remove_ep(),
-            GateObject::MGate(g) => g.upgrade().unwrap().cgp.borrow_mut().remove_ep(),
+            GateObject::RGate(g) => {
+                if let Some(g) = g.upgrade() {
+                    g.cgp.borrow_mut().remove_ep()
+                }
+            },
+            GateObject::SGate(g) => {
+                if let Some(g) = g.upgrade() {
+                    g.cgp.borrow_mut().remove_ep()
+                }
+            },
+            GateObject::MGate(g) => {
+                if let Some(g) = g.upgrade() {
+                    g.cgp.borrow_mut().remove_ep()
+                }
+            },
         }
     }
 }

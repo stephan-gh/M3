@@ -20,7 +20,7 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType};
 use base::mem::GlobAddr;
-use base::rc::Rc;
+use base::rc::{Rc, Weak};
 use base::tcu;
 use base::util;
 use core::intrinsics;
@@ -208,7 +208,8 @@ fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let tgt_vpe: Rc<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let tgt_vpe: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let tgt_vpe = tgt_vpe.upgrade().unwrap();
 
     let glob = if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
         let sel = (addr / cfg::PAGE_SIZE as goff) as CapSel;
@@ -560,7 +561,8 @@ fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
         perms
     );
 
-    let dst_vpe: Rc<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let dst_vpe: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let dst_vpe = dst_vpe.upgrade().unwrap();
     let mgate: Rc<MGateObject> = get_kobj!(vpe, mgate_sel, MGate);
 
     if (mgate.addr().raw() & cfg::PAGE_MASK as goff) != 0
@@ -656,7 +658,8 @@ fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
     }
 
     let ep_count = 1 + replies;
-    let dst_vpe: Rc<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let dst_vpe: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let dst_vpe = dst_vpe.upgrade().unwrap();
     if !dst_vpe.pe().has_quota(ep_count) {
         sysc_err!(
             Code::NoSpace,
@@ -821,6 +824,7 @@ fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
     );
 
     let tvpe = get_kobj!(vpe, vpe_sel, VPE);
+    let tvpe = tvpe.upgrade().expect("Should be valid");
     if !tvpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
@@ -951,7 +955,8 @@ fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
         sid
     );
 
-    let vpecap: Rc<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let vpecap: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let vpecap = vpecap.upgrade().unwrap();
     if !vpecap.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
@@ -1043,9 +1048,10 @@ fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
         obtain
     );
 
-    let vpe_ref: Rc<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let vpecap: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let vpecap = vpecap.upgrade().unwrap();
 
-    do_exchange(vpe, &vpe_ref, &own_crd, &other_crd, obtain)?;
+    do_exchange(vpe, &vpecap, &own_crd, &other_crd, obtain)?;
 
     reply_success(msg);
     Ok(())
@@ -1071,7 +1077,8 @@ fn exchange_over_sess(
         crd
     );
 
-    let vpecap: Rc<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let vpecap: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let vpecap = vpecap.upgrade().unwrap();
     let sess: Rc<SessObject> = get_kobj!(vpe, sess_sel, Sess);
 
     let smsg = kif::service::Exchange {
@@ -1358,25 +1365,26 @@ fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
         arg
     );
 
-    let vpe_ref: Rc<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let vpecap: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
+    let vpecap = vpecap.upgrade().unwrap();
 
     match op {
         kif::syscalls::VPEOp::INIT => {
-            vpe_ref.set_mem_base(arg as goff);
-            Loader::get().finish_start(&vpe_ref)?;
+            vpecap.set_mem_base(arg as goff);
+            Loader::get().finish_start(&vpecap)?;
         },
 
         kif::syscalls::VPEOp::START => {
-            if Rc::ptr_eq(&vpe, &vpe_ref) {
+            if Rc::ptr_eq(&vpe, &vpecap) {
                 sysc_err!(Code::InvArgs, "VPE can't start itself");
             }
 
-            VPE::start_app(&vpe_ref, arg as i32)?;
+            VPE::start_app(&vpecap, arg as i32)?;
         },
 
         kif::syscalls::VPEOp::STOP => {
             let is_self = vpe_sel == kif::SEL_VPE;
-            VPE::stop_app(&vpe_ref, arg as i32, is_self);
+            VPE::stop_app(&vpecap, arg as i32, is_self);
             if is_self {
                 ktcu::ack_msg(ktcu::KSYS_EP, msg);
                 return Ok(());
@@ -1457,7 +1465,8 @@ fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     };
 
     if let KObject::VPE(ref v) = kobj {
-        VPE::revoke(v, crd, own);
+        let v = v.upgrade().unwrap();
+        VPE::revoke(&v, crd, own);
     }
     else {
         sysc_err!(Code::InvArgs, "Invalid capability");

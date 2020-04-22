@@ -25,7 +25,6 @@ use base::mem::GlobAddr;
 use base::rc::Rc;
 use base::tcu;
 
-use arch::ktcu;
 use cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
 use mem::{self, Allocation};
 use pes::pemng;
@@ -199,7 +198,6 @@ impl VPEMng {
             Some(ref v) => {
                 let pemux = pemng::get().pemux(v.pe_id());
                 pemux.rem_vpe(v.id());
-                Self::destroy_vpe(v);
                 self.count -= 1;
             },
             None => panic!("Removing nonexisting VPE with id {}", id)
@@ -220,32 +218,14 @@ impl VPEMng {
         }
         None
     }
-
-    fn destroy_vpe(vpe: &Rc<VPE>) {
-        vpe.destroy();
-
-        // assert!(Rc::strong_count(&vpe) == 1);
-
-        // TODO temporary
-        ktcu::reset_pe(vpe.pe_id()).unwrap();
-        klog!(
-            VPES,
-            "Removed VPE {} [id={}, pe={}]",
-            vpe.name(),
-            vpe.id(),
-            vpe.pe_id()
-        );
-    }
 }
 
 impl Drop for VPEMng {
     fn drop(&mut self) {
         for v in self.vpes.drain(0..) {
-            if let Some(ref vpe) = v {
+            if let Some(ref _vpe) = v {
                 #[cfg(target_os = "linux")]
-                ::arch::childs::kill_child(vpe.pid());
-
-                Self::destroy_vpe(vpe);
+                ::arch::childs::kill_child(_vpe.pid());
             }
         }
     }
