@@ -29,6 +29,7 @@ use core::ptr::NonNull;
 use arch;
 use helper;
 use paging::Allocator;
+use pex_env;
 use timer;
 use vma::PfState;
 
@@ -51,8 +52,11 @@ impl Allocator for PTAllocator {
     }
 
     fn translate_pt(&self, phys: paging::MMUPTE) -> usize {
-        assert!(phys >= INFO.mem_start as paging::MMUPTE && phys < INFO.mem_end as paging::MMUPTE);
-        let off = phys - INFO.mem_start as paging::MMUPTE;
+        assert!(
+            phys >= pex_env().mem_start as paging::MMUPTE
+                && phys < pex_env().mem_end as paging::MMUPTE
+        );
+        let off = phys - pex_env().mem_start as paging::MMUPTE;
         if *BOOTSTRAP {
             off as usize
         }
@@ -65,13 +69,6 @@ impl Allocator for PTAllocator {
         log!(crate::LOG_PTS, "Free PT {:#x} (free: {})", phys, PTS.len());
         PTS.get_mut().push(phys as u64);
     }
-}
-
-struct Info {
-    pe_id: u64,
-    pe_desc: kif::PEDesc,
-    mem_start: u64,
-    mem_end: u64,
 }
 
 #[derive(PartialEq, Eq)]
@@ -131,42 +128,27 @@ static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 // TODO for some reason, we need to put that in a separate struct than INFO, because otherwise
 // wrong code is generated for ARM.
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
-static INFO: StaticCell<Info> = StaticCell::new(Info {
-    pe_id: 0,
-    pe_desc: kif::PEDesc::new_from(0),
-    mem_start: 0,
-    mem_end: 0,
-});
 static PTS: StaticCell<Vec<u64>> = StaticCell::new(Vec::new());
 
 fn rbuf_frame(id: u64) -> u64 {
     if id == kif::pemux::VPE_ID {
-        INFO.mem_start + cfg::PAGE_SIZE as u64 * cfg::FIRST_RBUF_FRAME as u64
+        pex_env().mem_start + cfg::PAGE_SIZE as u64 * cfg::FIRST_RBUF_FRAME as u64
     }
     else {
-        INFO.mem_start + cfg::PAGE_SIZE as u64 * (cfg::FIRST_RBUF_FRAME as u64 + 1 + id)
+        pex_env().mem_start + cfg::PAGE_SIZE as u64 * (cfg::FIRST_RBUF_FRAME as u64 + 1 + id)
     }
 }
 
-pub fn pe_desc() -> kif::PEDesc {
-    INFO.pe_desc
-}
-
-pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
-    INFO.get_mut().pe_id = pe_id;
-    INFO.get_mut().pe_desc = pe_desc;
-    INFO.get_mut().mem_start = mem_start;
-    INFO.get_mut().mem_end = mem_start + cfg::PEMUX_START as u64;
-    assert!(mem_size >= cfg::PEMUX_START as u64);
-
-    let root_pt = if pe_desc.has_virtmem() {
+pub fn init() {
+    let root_pt = if pex_env().pe_desc.has_virtmem() {
         // only use the memory up to ourself for page tables. we could use the memory behind ourself
         // as well, but currently the 1 MiB before us is sufficient.
         let pt_count = (cfg::PEMUX_START / cfg::PAGE_SIZE) as u64;
         let first_pt = (cfg::FIRST_RBUF_FRAME + cfg::MAX_VPES + 1) as u64;
         PTS.get_mut().reserve(pt_count as usize);
         for i in first_pt..pt_count {
-            PTS.get_mut().push(mem_start + i * cfg::PAGE_SIZE as u64);
+            PTS.get_mut()
+                .push(pex_env().mem_start + i * cfg::PAGE_SIZE as u64);
         }
 
         PTAllocator {
@@ -181,7 +163,7 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
     IDLE.set(Some(Box::new(VPE::new(kif::pemux::IDLE_ID, 0, root_pt))));
     OUR.set(Some(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt))));
 
-    if pe_desc.has_virtmem() {
+    if pex_env().pe_desc.has_virtmem() {
         our().frames.push(root_pt as u64);
         our().init();
         our().switch_to();
@@ -194,7 +176,7 @@ pub fn init(pe_id: u64, pe_desc: kif::PEDesc, mem_start: u64, mem_size: u64) {
 pub fn add(id: u64, eps_start: tcu::EpId) {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
-    let root_pt = if INFO.pe_desc.has_virtmem() {
+    let root_pt = if pex_env().pe_desc.has_virtmem() {
         PTAllocator { vpe: id }.allocate_pt() as goff
     }
     else {
@@ -203,7 +185,7 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
 
     let mut vpe = Box::new(VPE::new(id, eps_start, root_pt));
 
-    if INFO.get().pe_desc.has_virtmem() {
+    if pex_env().pe_desc.has_virtmem() {
         vpe.frames.push(root_pt as u64);
         vpe.init();
     }
@@ -264,7 +246,7 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
 
     // tell the application whether there are other VPEs ready. if not, it can sleep via TCU without
     // telling us.
-    ::env().shared = has_ready() as u64;
+    ::app_env().shared = has_ready() as u64;
 
     // disable FPU to raise an exception if the app tries to use FPU instructions
     arch::disable_fpu();
@@ -597,15 +579,15 @@ impl VPE {
         assert!(self.user_state_addr == 0);
         if self.id() != kif::pemux::IDLE_ID {
             // remember the current PE
-            crate::env().pe_id = INFO.pe_id;
+            ::app_env().pe_id = pex_env().pe_id;
             self.user_state
-                .init(::env().entry as usize, ::env().sp as usize);
+                .init(::app_env().entry as usize, ::app_env().sp as usize);
         }
         self.user_state_addr = &self.user_state as *const _ as usize;
     }
 
     pub fn switch_to(&self) {
-        if INFO.get().pe_desc.has_virtmem() {
+        if pex_env().pe_desc.has_virtmem() {
             self.aspace.switch_to();
         }
     }
@@ -678,7 +660,8 @@ impl VPE {
         // map own receive buffer
         let own_rbuf = paging::phys_to_noc(rbuf_frame(kif::pemux::VPE_ID));
         assert!(cfg::PEMUX_RBUF_SIZE == cfg::PAGE_SIZE);
-        self.map(cfg::PEMUX_RBUF_SPACE, own_rbuf, 1, kif::PageFlags::R).unwrap();
+        self.map(cfg::PEMUX_RBUF_SPACE, own_rbuf, 1, kif::PageFlags::R)
+            .unwrap();
 
         if self.id() == kif::pemux::VPE_ID {
             // map sleep function for user
@@ -702,11 +685,11 @@ impl VPE {
         );
 
         // map PTs
-        let noc_begin = paging::phys_to_noc(INFO.mem_start as u64);
+        let noc_begin = paging::phys_to_noc(pex_env().mem_start as u64);
         self.map(
             cfg::PE_MEM_BASE,
             noc_begin,
-            (INFO.mem_end - INFO.mem_start) as usize / cfg::PAGE_SIZE,
+            (pex_env().mem_end - pex_env().mem_start) as usize / cfg::PAGE_SIZE,
             kif::PageFlags::RW,
         )
         .unwrap();
@@ -745,7 +728,7 @@ impl VPE {
         let pages = (end - start) / cfg::PAGE_SIZE;
         self.map(
             start,
-            paging::phys_to_noc((INFO.mem_start as usize + start) as goff),
+            paging::phys_to_noc((pex_env().mem_start as usize + start) as goff),
             pages,
             perm,
         )

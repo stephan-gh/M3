@@ -70,6 +70,28 @@ struct Heap([u64; 8 * 1024]);
 #[used]
 static mut HEAP: Heap = Heap { 0: [0; 8 * 1024] };
 
+pub struct PEXEnv {
+    pe_id: u64,
+    pe_desc: kif::PEDesc,
+    mem_start: u64,
+    mem_end: u64,
+}
+
+static PEX_ENV: StaticCell<PEXEnv> = StaticCell::new(PEXEnv {
+    pe_id: 0,
+    pe_desc: kif::PEDesc::new_from(0),
+    mem_start: 0,
+    mem_end: 0,
+});
+
+pub fn pex_env() -> &'static PEXEnv {
+    PEX_ENV.get()
+}
+
+pub fn app_env() -> &'static mut envdata::EnvData {
+    unsafe { intrinsics::transmute(cfg::ENV_START) }
+}
+
 pub struct PagefaultMessage {
     pub op: u64,
     pub virt: u64,
@@ -111,10 +133,6 @@ pub extern "C" fn abort() {
 #[no_mangle]
 pub extern "C" fn exit(_code: i32) {
     unsafe { gem5_shutdown(0) };
-}
-
-pub fn env() -> &'static mut envdata::EnvData {
-    unsafe { intrinsics::transmute(cfg::ENV_START) }
 }
 
 static SCHED: StaticCell<Option<vpe::ScheduleAction>> = StaticCell::new(None);
@@ -207,6 +225,14 @@ pub extern "C" fn init() -> usize {
     let old_id = tcu::TCU::xchg_vpe(0);
     assert!((old_id >> 16) == 0);
 
+    // init our own environment; at this point we can still access app_env, because it is mapped by
+    // the gem5 loader for us. afterwards, our address space does not contain that anymore.s
+    PEX_ENV.get_mut().pe_id = app_env().pe_id;
+    PEX_ENV.get_mut().pe_desc = kif::PEDesc::new_from(app_env().pe_desc);
+    PEX_ENV.get_mut().mem_start = app_env().pe_mem_base;
+    PEX_ENV.get_mut().mem_end = app_env().pe_mem_base + cfg::PEMUX_START as u64;
+    assert!(app_env().pe_mem_size >= cfg::PEMUX_START as u64);
+
     unsafe {
         heap_init(
             &HEAP.0 as *const u64 as usize,
@@ -214,13 +240,8 @@ pub extern "C" fn init() -> usize {
         );
     }
 
-    io::init(env().pe_id, "pemux");
-    vpe::init(
-        env().pe_id,
-        kif::PEDesc::new_from(env().pe_desc),
-        env().pe_mem_base,
-        env().pe_mem_size,
-    );
+    io::init(pex_env().pe_id, "pemux");
+    vpe::init();
 
     // switch to idle
     vpe::idle().start();
