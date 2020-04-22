@@ -19,7 +19,6 @@ use base::pexif;
 use base::tcu;
 
 use arch;
-use timer;
 use vpe;
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
@@ -28,12 +27,9 @@ fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
 
     log!(crate::LOG_CALLS, "pexcall::sleep(delay_ns={}, ep={})", delay_ns, ep);
 
-    let cur = vpe::cur();
-    if delay_ns != 0 {
-        timer::add(cur.id(), delay_ns);
-    }
     let wait_ep = if ep == tcu::INVALID_EP { None } else { Some(ep) };
-    cur.block(vpe::ScheduleAction::Block, None, wait_ep);
+    let sleep = if delay_ns == 0 { None } else { Some(delay_ns) };
+    vpe::cur().block(vpe::ScheduleAction::Block, None, wait_ep, sleep);
 
     Ok(())
 }

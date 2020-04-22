@@ -103,6 +103,7 @@ pub struct VPE {
     fpu_state: arch::FPUState,
     user_state: arch::State,
     user_state_addr: usize,
+    sleeping: bool,
     scheduled: u64,
     budget_total: u64,
     budget_left: u64,
@@ -432,6 +433,7 @@ impl VPE {
             fpu_state: arch::FPUState::default(),
             user_state: arch::State::default(),
             user_state_addr: 0,
+            sleeping: false,
             budget_total: TIME_SLICE,
             budget_left: TIME_SLICE,
             scheduled: 0,
@@ -530,11 +532,16 @@ impl VPE {
         action: ScheduleAction,
         cont: Option<fn() -> ContResult>,
         ep: Option<tcu::EpId>,
+        sleep: Option<u64>,
     ) {
         log!(crate::LOG_VPES, "Block VPE {} for ep={:?}", self.id(), ep);
 
         self.cont = cont;
         self.wait_ep = ep;
+        if let Some(nanos) = sleep {
+            timer::add(self.id(), nanos);
+            self.sleeping = true;
+        }
         if self.state == VPEState::Running {
             crate::reg_scheduling(action);
         }
@@ -550,10 +557,11 @@ impl VPE {
 
         if self.should_unblock(ep) {
             if self.state == VPEState::Blocked {
-                let vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
-                if !timer {
+                let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
+                if !timer && vpe.sleeping {
                     timer::remove(vpe.id());
                 }
+                vpe.sleeping = false;
                 make_ready(vpe);
             }
             if self.state != VPEState::Running {
@@ -754,7 +762,9 @@ impl Drop for VPE {
         }
 
         // remove VPE from other modules
-        timer::remove(self.id());
+        if self.sleeping {
+            timer::remove(self.id());
+        }
         arch::forget_fpu(self.id());
     }
 }
