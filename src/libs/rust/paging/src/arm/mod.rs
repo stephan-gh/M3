@@ -138,7 +138,7 @@ pub extern "C" fn enable_paging() {
             orr     r0, r0, #0x00000001;     // enable MMU
             mcr     p15, 0, r0, c1, c0, 0;
             "
-            : : : : "volatile"
+            : : : "r0" : "volatile"
         );
     }
 }
