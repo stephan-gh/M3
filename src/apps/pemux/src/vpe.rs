@@ -263,10 +263,13 @@ fn do_schedule(action: ScheduleAction) -> usize {
         .pop_front()
         .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
 
-    // make current
-    let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
-
     if let Some(old) = try_cur() {
+        // save TCU command registers; do that first while still running with that VPE
+        old.cmd.save();
+
+        // now change VPE
+        let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
+
         // if there are messages left and we care about them, don't schedule
         if action == ScheduleAction::Block && !old.should_block((old_id >> 16) as u16) {
             let next_id = tcu::TCU::xchg_vpe(old_id);
@@ -280,9 +283,10 @@ fn do_schedule(action: ScheduleAction) -> usize {
             return old.user_state_addr;
         }
 
-        // save TCU command registers
-        old.cmd.save();
         old.set_vpe_reg(old_id);
+    }
+    else {
+        tcu::TCU::xchg_vpe(next.vpe_reg());
     }
 
     // change address space
