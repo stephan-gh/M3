@@ -74,10 +74,15 @@ impl TCUIf {
 
     pub fn receive(rg: &RecvGate, sg: Option<&SendGate>) -> Result<&'static Message, Error> {
         let rep = rg.ep().unwrap();
+        // if the PE is shared with someone else that wants to run, poll a couple of times to
+        // prevent too frequent/unnecessary switches.
+        let polling = if env::get().shared() { 200 } else { 1 };
         loop {
-            let msg_off = tcu::TCU::fetch_msg(rep);
-            if let Some(off) = msg_off {
-                return Ok(tcu::TCU::offset_to_msg(rg.address().unwrap(), off));
+            for _ in 0..polling {
+                let msg_off = tcu::TCU::fetch_msg(rep);
+                if let Some(off) = msg_off {
+                    return Ok(tcu::TCU::offset_to_msg(rg.address().unwrap(), off));
+                }
             }
 
             if let Some(sg) = sg {

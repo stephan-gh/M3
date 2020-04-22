@@ -62,10 +62,15 @@ public:
     }
 
     static Errors::Code receive(RecvGate &rg, SendGate *sg, const TCU::Message **reply) noexcept {
+        // if the PE is shared with someone else that wants to run, poll a couple of times to
+        // prevent too frequent/unnecessary switches.
+        int polling = env()->shared ? 200 : 1;
         while(1) {
-            *reply = fetch_msg(rg);
-            if(*reply)
-                return Errors::NONE;
+            for(int i = 0; i < polling; ++i) {
+                *reply = fetch_msg(rg);
+                if(*reply)
+                    return Errors::NONE;
+            }
 
             if(sg && EXPECT_FALSE(!TCU::get().is_valid(sg->ep()->id())))
                 return Errors::EP_INVALID;
