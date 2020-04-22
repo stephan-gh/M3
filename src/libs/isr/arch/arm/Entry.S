@@ -22,7 +22,7 @@
 .text
 
 .macro BUILD_ENTRY, no
-BEGIN_FUNC(entry_\no)
+BEGIN_FUNC(isr_\no)
     // save spsr and r14 onto the supervisor stack
     srsdb   #0x13!
 
@@ -32,12 +32,12 @@ BEGIN_FUNC(entry_\no)
     // save all regs
     push    {r0-r12, lr}
 
-    // remember entry
+    // remember isr number
     mov     r0, #\no
     push    {r0}
 
-    b       exc_common
-END_FUNC(entry_\no)
+    b       isr_common
+END_FUNC(isr_\no)
 .endm
 
 BUILD_ENTRY 0
@@ -48,7 +48,7 @@ BUILD_ENTRY 4
 BUILD_ENTRY 6
 BUILD_ENTRY 7
 
-BEGIN_FUNC(exc_common)
+BEGIN_FUNC(isr_common)
     // save user space sp/lr
     sub     sp, #8
     stmia   sp, {r13, r14}^
@@ -74,4 +74,4 @@ BEGIN_FUNC(exc_common)
 
     // return to user
     rfe     sp!
-END_FUNC(exc_common)
+END_FUNC(isr_common)

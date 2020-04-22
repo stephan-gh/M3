@@ -43,8 +43,8 @@ BEGIN_FUNC(isr_setup)
     csrw    mepc, t0
 
     // set vector address
-    la      t0, exc_common
-    csrw    stvec, t0       # STVEC = exc_common
+    la      t0, isr_common
+    csrw    stvec, t0       # STVEC = isr_common
 
     // go!
     mret
@@ -53,7 +53,7 @@ BEGIN_FUNC(isr_setup)
 END_FUNC(isr_setup)
 
 .align 4
-BEGIN_FUNC(exc_common)
+BEGIN_FUNC(isr_common)
     # load initial SP from SSCRATCH by swapping it with x31
     csrrw   x31, sscratch, x31
 
@@ -156,4 +156,4 @@ BEGIN_FUNC(exc_common)
     ld      x1, 8*0(x1)
 
     sret
-END_FUNC(exc_common)
+END_FUNC(isr_common)
