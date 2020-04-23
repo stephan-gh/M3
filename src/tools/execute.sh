@@ -121,9 +121,6 @@ build_params_gem5() {
     if [ "$M3_GEM5_PAUSE" != "" ]; then
         echo -n " --pausepe=$M3_GEM5_PAUSE" >> $params
     fi
-    if [ "$M3_GEM5_CC" != "" ]; then
-        echo -n " --coherent" >> $params
-    fi
 
     if [ "$M3_ISA" = "x86_64" ]; then
         gem5build="X86"
