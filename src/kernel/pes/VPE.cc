@@ -100,7 +100,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, epid_t eps_start, vpeid_t id, u
 
     _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
         &_objcaps, m3::KIF::SEL_MEM,
-        new MGateObject(peid(), id, 0, MEMCAP_END, m3::KIF::Perm::RWX)
+        new MGateObject(id, m3::GlobAddr(peid(), 0), MEMCAP_END, m3::KIF::Perm::RWX)
     ));
 
     // let the VPEManager know about us before we continue with initialization

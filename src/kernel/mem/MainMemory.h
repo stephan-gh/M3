@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <base/GlobAddr.h>
+
 #include "mem/MemoryModule.h"
 
 namespace m3 {
@@ -33,24 +35,24 @@ public:
     struct Allocation {
         explicit Allocation()
             : mod(),
-              addr(),
+              offset(),
               size() {
         }
-        explicit Allocation(size_t _mod, goff_t _addr, size_t _size)
+        explicit Allocation(size_t _mod, goff_t _offset, size_t _size)
             : mod(_mod),
-              addr(_addr),
+              offset(_offset),
               size(_size) {
         }
 
         operator bool() const {
             return size > 0;
         }
-        peid_t pe() const {
-            return MainMemory::get().module(mod).pe();
+        m3::GlobAddr addr() const {
+            return m3::GlobAddr(get().module(mod).pe(), offset);
         }
 
         size_t mod;
-        goff_t addr;
+        goff_t offset;
         size_t size;
     };
 
@@ -68,11 +70,11 @@ public:
         return _count;
     }
     const MemoryModule &module(size_t id) const;
-    Allocation build_allocation(gaddr_t addr, size_t size) const;
+    Allocation build_allocation(m3::GlobAddr global, size_t size) const;
 
     Allocation allocate(size_t size, size_t align);
 
-    void free(peid_t pe, goff_t addr, size_t size);
+    void free(m3::GlobAddr global, size_t size);
     void free(const Allocation &alloc);
 
     size_t size() const;

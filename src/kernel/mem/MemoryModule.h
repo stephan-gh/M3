@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/mem/AreaManager.h>
+#include <base/GlobAddr.h>
 
 #include "Types.h"
 
@@ -42,21 +43,20 @@ public:
         OCCUPIED,
     };
 
-    explicit MemoryModule(Type type, peid_t pe, goff_t addr, size_t size)
+    explicit MemoryModule(Type type, m3::GlobAddr addr, size_t size)
         : _type(type),
-           _pe(pe),
            _addr(addr),
            _size(size),
-           _map(addr, size) {
+           _map(addr.offset(), size) {
     }
 
     Type type() const {
         return _type;
     }
     peid_t pe() const {
-        return _pe;
+        return _addr.pe();
     }
-    goff_t addr() const {
+    m3::GlobAddr addr() const {
         return _addr;
     }
     size_t size() const {
@@ -68,8 +68,7 @@ public:
 
 private:
     Type _type;
-    peid_t _pe;
-    goff_t _addr;
+    m3::GlobAddr _addr;
     size_t _size;
     m3::AreaManager<MemoryArea> _map;
 };

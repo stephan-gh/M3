@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/col/Treap.h>
+#include <base/GlobAddr.h>
 
 #include "com/Service.h"
 #include "mem/SlabCache.h"
@@ -239,19 +240,17 @@ public:
 
 class MGateObject : public SlabObject<MGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit MGateObject(peid_t _pe, vpeid_t _vpe, goff_t _addr, size_t _size, uint _perms)
+    explicit MGateObject(vpeid_t _vpe, m3::GlobAddr _addr, size_t _size, uint _perms)
         : GateObject(Capability::MGATE),
           RefCounted(),
-          pe(_pe),
           vpe(_vpe),
           addr(_addr),
           size(_size),
           perms(_perms) {
     }
 
-    peid_t pe;
     vpeid_t vpe;
-    goff_t addr;
+    m3::GlobAddr addr;
     size_t size;
     uint perms;
 };
@@ -307,13 +306,13 @@ public:
 
 class MapObject : public SlabObject<MapObject>, public m3::RefCounted {
 public:
-    explicit MapObject(gaddr_t _phys, uint _attr)
+    explicit MapObject(m3::GlobAddr _global, uint _attr)
         : RefCounted(),
-          phys(_phys),
+          global(_global),
           attr(_attr) {
     }
 
-    gaddr_t phys;
+    m3::GlobAddr global;
     uint attr;
 };
 
@@ -449,7 +448,7 @@ public:
         return sizeof(MapObject);
     }
 
-    m3::Errors::Code remap(gaddr_t _phys, uint _attr);
+    m3::Errors::Code remap(m3::GlobAddr global, uint attr);
 
     void printInfo(m3::OStream &os) const override;
 

@@ -43,30 +43,27 @@ static const m3::BootInfo::Mod *get_mod(const char *name, bool *first) {
     return nullptr;
 }
 
-static gaddr_t alloc_mem(size_t size, size_t align) {
+static m3::GlobAddr alloc_mem(size_t size, size_t align) {
     MainMemory::Allocation alloc = MainMemory::get().allocate(size, align);
     if(!alloc)
         PANIC("Not enough memory");
-    return m3::TCU::build_gaddr(alloc.pe(), alloc.addr);
+    return alloc.addr();
 }
 
 static void read_from_mod(const m3::BootInfo::Mod *mod, void *data, size_t size, size_t offset) {
     if(offset + size < offset || offset + size > mod->size)
         PANIC("Invalid ELF file: offset invalid");
 
-    goff_t addr = m3::TCU::gaddr_to_virt(mod->addr + offset);
-    peid_t pe = m3::TCU::gaddr_to_pe(mod->addr + offset);
-    TCU::read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, data, size);
+    m3::GlobAddr global(mod->addr + offset);
+    TCU::read_mem(VPEDesc(global.pe(), VPE::INVALID_ID), global.offset(), data, size);
 }
 
-static void copy_clear(const VPEDesc &vpe, uintptr_t virt, gaddr_t phys, size_t size, bool clear) {
-    TCU::copy_clear(vpe, virt,
-        VPEDesc(m3::TCU::gaddr_to_pe(phys), VPE::INVALID_ID),
-        m3::TCU::gaddr_to_virt(phys),
-        size, clear);
+static void copy_clear(const VPEDesc &vpe, uintptr_t virt, m3::GlobAddr global,
+                       size_t size, bool clear) {
+    TCU::copy_clear(vpe, virt, VPEDesc(global.pe(), VPE::INVALID_ID), global.offset(), size, clear);
 }
 
-static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, uint perms) {
+static void map_segment(VPE &vpe, goff_t virt, m3::GlobAddr global, size_t size, uint perms) {
     if(Platform::pe(vpe.peid()).has_virtmem() || (perms & MapCapability::EXCL)) {
         capsel_t dst = virt >> PAGE_BITS;
         size_t pages = m3::Math::round_up(size, PAGE_SIZE) >> PAGE_BITS;
@@ -75,14 +72,14 @@ static void map_segment(VPE &vpe, gaddr_t phys, goff_t virt, size_t size, uint p
             vpe.kmem()->alloc(vpe, pages * PAGE_SIZE);
         // these mappings cannot be changed or revoked by applications
         perms |= MapCapability::KERNEL;
-        auto mapcap = new MapCapability(&vpe.mapcaps(), dst, pages, new MapObject(phys, perms));
+        auto mapcap = new MapCapability(&vpe.mapcaps(), dst, pages, new MapObject(global, perms));
         if(Platform::pe(vpe.peid()).has_virtmem())
-            mapcap->remap(phys, perms);
+            mapcap->remap(global, perms);
         vpe.mapcaps().set(dst, mapcap);
     }
 
     if(!Platform::pe(vpe.peid()).has_virtmem())
-        copy_clear(vpe.desc(), static_cast<uintptr_t>(virt), phys, size, false);
+        copy_clear(vpe.desc(), static_cast<uintptr_t>(virt), global, size, false);
 }
 
 static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool to_mem) {
@@ -122,28 +119,28 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool t
             // allocate memory
             size_t size = static_cast<size_t>((pheader.p_vaddr & PAGE_BITS) + pheader.p_memsz);
             size = m3::Math::round_up(size, PAGE_SIZE);
-            gaddr_t phys = alloc_mem(size, PAGE_SIZE);
+            m3::GlobAddr global = alloc_mem(size, PAGE_SIZE);
 
             // map it
-            map_segment(vpe, phys, virt, size, perms | MapCapability::EXCL);
+            map_segment(vpe, virt, global, size, perms | MapCapability::EXCL);
             end = virt + size;
 
             // initialize it
-            VPEDesc tgt = to_mem ? VPEDesc(m3::TCU::gaddr_to_pe(phys), VPE::INVALID_ID) : vpe.desc();
-            copy_clear(tgt, virt, mod->addr + offset, size, pheader.p_filesz == 0);
+            VPEDesc tgt = to_mem ? VPEDesc(global.pe(), VPE::INVALID_ID) : vpe.desc();
+            copy_clear(tgt, virt, m3::GlobAddr(mod->addr + offset), size, pheader.p_filesz == 0);
         }
         else {
             assert(pheader.p_memsz == pheader.p_filesz);
             size_t size = (pheader.p_offset & PAGE_BITS) + pheader.p_filesz;
-            map_segment(vpe, mod->addr + offset, virt, size, perms);
+            map_segment(vpe, virt, m3::GlobAddr(mod->addr + offset), size, perms);
             end = virt + size;
         }
     }
 
     // create initial heap
-    gaddr_t phys = alloc_mem(ROOT_HEAP_SIZE, LPAGE_SIZE);
+    m3::GlobAddr global = alloc_mem(ROOT_HEAP_SIZE, LPAGE_SIZE);
     goff_t virt = m3::Math::round_up(end, static_cast<goff_t>(LPAGE_SIZE));
-    map_segment(vpe, phys, virt, ROOT_HEAP_SIZE, m3::KIF::PageFlags::RW | MapCapability::EXCL);
+    map_segment(vpe, virt, global, ROOT_HEAP_SIZE, m3::KIF::PageFlags::RW | MapCapability::EXCL);
 
     return header.e_entry;
 }
@@ -159,8 +156,9 @@ void VPE::load_app() {
     if(Platform::pe(peid()).has_virtmem()) {
         // map runtime space
         goff_t virt = ENV_START;
-        gaddr_t phys = alloc_mem(STACK_TOP - virt, PAGE_SIZE);
-        map_segment(*this, phys, virt, STACK_TOP - virt, m3::KIF::PageFlags::RW | MapCapability::EXCL);
+        m3::GlobAddr global = alloc_mem(STACK_TOP - virt, PAGE_SIZE);
+        map_segment(*this, virt, global, STACK_TOP - virt,
+                    m3::KIF::PageFlags::RW | MapCapability::EXCL);
     }
 
     // load app

@@ -79,7 +79,7 @@ static void copyfromfs(MainMemory &mem, const char *file) {
          " (max=" << FS_MAX_SIZE << ", size=" << info.st_size << ")");
     }
 
-    goff_t fs_addr = mem.module(0).addr() + FS_IMG_OFFSET;
+    goff_t fs_addr = mem.module(0).addr().offset() + FS_IMG_OFFSET;
     ssize_t res = read(fd, reinterpret_cast<void*>(fs_addr), FS_MAX_SIZE);
     if(res == -1)
         PANIC("Reading from '" << file << "' failed");
@@ -96,7 +96,7 @@ static void copytofs(MainMemory &mem, const char *file) {
     if(fd < 0)
         PANIC("Opening '" << name << "' for writing failed");
 
-    goff_t fs_addr = mem.module(0).addr() + FS_IMG_OFFSET;
+    goff_t fs_addr = mem.module(0).addr().offset() + FS_IMG_OFFSET;
     write(fd, reinterpret_cast<void*>(fs_addr), fssize);
     close(fd);
 

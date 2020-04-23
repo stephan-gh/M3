@@ -33,21 +33,21 @@ static peid_t last_pe_id;
 void Platform::init() {
     m3::BootInfo *info = &Platform::_info;
     // read kernel env
-    peid_t pe = m3::TCU::gaddr_to_pe(m3::env()->kenv);
-    goff_t addr = m3::TCU::gaddr_to_virt(m3::env()->kenv);
-    TCU::read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
-    addr += sizeof(*info);
+    m3::GlobAddr kenv(m3::env()->kenv);
+    TCU::read_mem(VPEDesc(kenv.pe(), VPE::INVALID_ID), kenv.offset(), info, sizeof(*info));
 
     // read boot modules
+    m3::GlobAddr kenvmods(kenv + sizeof(*info));
     size_t total_mod_size = info->mod_size + sizeof(m3::BootInfo::Mod);
     Platform::_mods = reinterpret_cast<m3::BootInfo::Mod*>(malloc(total_mod_size));
-    TCU::read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_mods, info->mod_size);
-    addr += info->mod_size;
+    TCU::read_mem(VPEDesc(kenvmods.pe(), VPE::INVALID_ID), kenvmods.offset(),
+                  Platform::_mods, info->mod_size);
 
     // read PE descriptions
+    m3::GlobAddr kenvpes(kenvmods + info->mod_size);
     size_t pe_size = sizeof(m3::PEDesc) * info->pe_count;
     Platform::_pes = new m3::PEDesc[info->pe_count];
-    TCU::read_mem(VPEDesc(pe, VPE::INVALID_ID), addr, Platform::_pes, pe_size);
+    TCU::read_mem(VPEDesc(kenvpes.pe(), VPE::INVALID_ID), kenvpes.offset(), Platform::_pes, pe_size);
 
     // register memory modules
     size_t memidx = 0;
@@ -61,20 +61,20 @@ void Platform::init() {
                 if(avail <= Args::kmem)
                     PANIC("Not enough DRAM for kernel memory (" << Args::kmem << ")");
                 size_t used = pedesc.mem_size() - avail;
-                mem.add(new MemoryModule(MemoryModule::OCCUPIED, i, 0, used));
+                mem.add(new MemoryModule(MemoryModule::OCCUPIED, m3::GlobAddr(i, 0), used));
                 info->mems[memidx++] = m3::BootInfo::Mem(0, used, true);
                 memidx++;
 
-                mem.add(new MemoryModule(MemoryModule::KERNEL, i, used, Args::kmem));
+                mem.add(new MemoryModule(MemoryModule::KERNEL, m3::GlobAddr(i, used), Args::kmem));
 
-                mem.add(new MemoryModule(MemoryModule::USER, i, used + Args::kmem, avail));
+                mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(i, used + Args::kmem), avail));
                 info->mems[memidx++] = m3::BootInfo::Mem(used + Args::kmem, avail, false);
             }
             else {
                 if(memidx >= ARRAY_SIZE(info->mems))
                     PANIC("Not enough memory slots in boot info");
 
-                mem.add(new MemoryModule(MemoryModule::USER, i, 0, pedesc.mem_size()));
+                mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(i, 0), pedesc.mem_size()));
                 info->mems[memidx++] = m3::BootInfo::Mem(0, pedesc.mem_size(), false);
             }
         }
@@ -88,16 +88,15 @@ void Platform::init() {
         info->mems[memidx] = m3::BootInfo::Mem(0, 0, false);
 
     // write-back boot info (changes to mems)
-    addr = m3::TCU::gaddr_to_virt(m3::env()->kenv);
-    TCU::write_mem(VPEDesc(pe, VPE::INVALID_ID), addr, info, sizeof(*info));
+    TCU::write_mem(VPEDesc(kenv.pe(), VPE::INVALID_ID), kenv.offset(), info, sizeof(*info));
 }
 
 void Platform::add_modules(int, char **) {
     // unused
 }
 
-gaddr_t Platform::info_addr() {
-    return m3::env()->kenv;
+m3::GlobAddr Platform::info_addr() {
+    return m3::GlobAddr(m3::env()->kenv);
 }
 
 peid_t Platform::kernel_pe() {

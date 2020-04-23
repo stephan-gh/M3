@@ -81,10 +81,10 @@ void Platform::init() {
         PANIC("Not enough DRAM");
 
     MainMemory &mem = MainMemory::get();
-    mem.add(new MemoryModule(MemoryModule::OCCUPIED, 0, base, FS_MAX_SIZE));
-    mem.add(new MemoryModule(MemoryModule::KERNEL, 0, base + FS_MAX_SIZE, Args::kmem));
+    mem.add(new MemoryModule(MemoryModule::OCCUPIED, m3::GlobAddr(0, base), FS_MAX_SIZE));
+    mem.add(new MemoryModule(MemoryModule::KERNEL, m3::GlobAddr(0, base + FS_MAX_SIZE), Args::kmem));
     size_t usize = TOTAL_MEM_SIZE - (FS_MAX_SIZE + Args::kmem);
-    mem.add(new MemoryModule(MemoryModule::USER, 0, base + FS_MAX_SIZE + Args::kmem, usize));
+    mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(0, base + FS_MAX_SIZE + Args::kmem), usize));
 
     // set memories
     _info.mems[0] = m3::BootInfo::Mem(0, FS_MAX_SIZE, true);
@@ -119,12 +119,12 @@ void Platform::add_modules(int argc, char **argv) {
             MainMemory::Allocation alloc = mem.allocate(static_cast<size_t>(info.st_size), 1);
             if(!alloc)
                 PANIC("Not enough memory for boot module '" << argv[i] << "'");
-            ssize_t res = read(fd, reinterpret_cast<void*>(alloc.addr), alloc.size);
+            ssize_t res = read(fd, reinterpret_cast<void*>(alloc.addr().offset()), alloc.size);
             if(res == -1)
                 PANIC("Reading from '" << argv[i] << "' failed");
             close(fd);
 
-            mod->addr = alloc.addr;
+            mod->addr = alloc.addr().offset();
             mod->size = alloc.size;
         }
 
@@ -140,11 +140,11 @@ void Platform::add_modules(int argc, char **argv) {
     binfomem = mem.allocate(bsize, 1);
     if(!binfomem)
         PANIC("Not enough memory for boot info");
-    m3::BootInfo *binfo = reinterpret_cast<m3::BootInfo*>(binfomem.addr);
+    m3::BootInfo *binfo = reinterpret_cast<m3::BootInfo*>(binfomem.addr().offset());
     memcpy(binfo, &_info, sizeof(_info));
 
     // add modules to info
-    uintptr_t mod_addr = binfomem.addr + sizeof(_info);
+    uintptr_t mod_addr = binfomem.addr().offset() + sizeof(_info);
     _mods = reinterpret_cast<m3::BootInfo::Mod*>(mod_addr);
     for(auto mod : mods) {
         size_t size = sizeof(*mod) + mod->namelen;
@@ -163,8 +163,8 @@ void Platform::add_modules(int argc, char **argv) {
         free(&*mod);
 }
 
-gaddr_t Platform::info_addr() {
-    return m3::TCU::build_gaddr(binfomem.pe(), binfomem.addr);
+m3::GlobAddr Platform::info_addr() {
+    return binfomem.addr();
 }
 
 peid_t Platform::kernel_pe() {

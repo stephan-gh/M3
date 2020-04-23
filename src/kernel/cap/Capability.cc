@@ -188,16 +188,16 @@ void PECapability::revoke(bool) {
         static_cast<PECapability*>(parent())->obj->free(obj->eps);
 }
 
-m3::Errors::Code MapCapability::remap(gaddr_t _phys, uint _attr) {
+m3::Errors::Code MapCapability::remap(m3::GlobAddr _global, uint _attr) {
     VPE *vpe = table()->vpe();
     assert(vpe != nullptr);
     auto pemux = PEManager::get().pemux(vpe->peid());
     auto perms = _attr & ~(EXCL | KERNEL);
-    m3::Errors::Code res = pemux->map(vpe->id(), sel() << PAGE_BITS, _phys, length(), perms);
+    m3::Errors::Code res = pemux->map(vpe->id(), sel() << PAGE_BITS, _global, length(), perms);
     if(res != m3::Errors::NONE)
       return res;
 
-    obj->phys = _phys;
+    obj->global = _global;
     obj->attr = _attr;
     return m3::Errors::NONE;
 }
@@ -209,10 +209,10 @@ void MapCapability::revoke(bool) {
     assert(vpe != nullptr);
     if(!vpe->is_stopped()) {
         auto pemux = PEManager::get().pemux(vpe->peid());
-        pemux->map(vpe->id(), sel() << PAGE_BITS, 0, length(), 0);
+        pemux->map(vpe->id(), sel() << PAGE_BITS, m3::GlobAddr(), length(), 0);
     }
     if(obj->attr & EXCL) {
-        MainMemory::get().free(MainMemory::get().build_allocation(obj->phys, length() * PAGE_SIZE));
+        MainMemory::get().free(MainMemory::get().build_allocation(obj->global, length() * PAGE_SIZE));
         vpe->kmem()->free(*vpe, length() * PAGE_SIZE);
     }
 }
@@ -263,7 +263,7 @@ void Capability::print(m3::OStream &os) const {
 void RGateCapability::printInfo(m3::OStream &os) const {
     os << ": rgate[refs=" << obj->refcount()
        << ", ep=" << obj->ep
-       << ", addr=#" << m3::fmt(obj->addr, "0x", sizeof(label_t) * 2)
+       << ", addr=#" << obj->addr
        << ", order=" << obj->order
        << ", msgorder=" << obj->msgorder
        << ", eps=";
@@ -283,8 +283,7 @@ void SGateCapability::printInfo(m3::OStream &os) const {
 
 void MGateCapability::printInfo(m3::OStream &os) const {
     os << ": mgate[refs=" << obj->refcount()
-       << ", dst=" << obj->pe
-       << ", addr=" << m3::fmt(obj->addr, "#0x", sizeof(label_t) * 2)
+       << ", addr=" << obj->addr
        << ", size=" << m3::fmt(obj->size, "#0x", sizeof(label_t) * 2)
        << ", perms=#" << m3::fmt(obj->perms, "x")
        << ", eps=";
@@ -295,7 +294,7 @@ void MGateCapability::printInfo(m3::OStream &os) const {
 void MapCapability::printInfo(m3::OStream &os) const {
     os << ": map  [refs=" << obj->refcount()
        << ", virt=#" << m3::fmt(sel() << PAGE_BITS, "x")
-       << ", phys=#" << m3::fmt(obj->phys, "x")
+       << ", global=#" << obj->global
        << ", pages=" << length()
        << ", attr=#" << m3::fmt(obj->attr, "x") << "]";
 }

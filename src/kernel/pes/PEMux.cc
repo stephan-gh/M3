@@ -125,18 +125,18 @@ void PEMux::free_eps(epid_t first, uint count) {
     }
 }
 
-m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, gaddr_t phys, uint pages, uint perm) {
+m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, m3::GlobAddr global, uint pages, uint perm) {
     m3::KIF::PEXUpcalls::Map req;
     req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::MAP);
     req.vpe_sel = vpe;
     req.virt = virt;
-    req.phys = phys;
+    req.phys = global.raw();
     req.pages = pages;
     req.perm = static_cast<xfer_t>(perm);
 
     KLOG(PEXC, "PEMux[" << peid() << "] sending map(vpe=" << req.vpe_sel
-        << ", virt=" << m3::fmt((void*)req.virt, "p") << ", phys=" << m3::fmt((void*)req.phys, "p")
-        << ", pages=" << req.pages << ", perm=" << req.perm << ")");
+        << ", virt=" << m3::fmt((void*)req.virt, "p")
+        << ", global=" << global << ", pages=" << req.pages << ", perm=" << req.perm << ")");
 
     return upcall(&req, sizeof(req));
 }
@@ -239,20 +239,20 @@ m3::Errors::Code PEMux::config_snd_ep(epid_t ep, vpeid_t vpe, SGateObject &obj) 
 }
 
 m3::Errors::Code PEMux::config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject &obj, goff_t off) {
-    if(off >= obj.size || obj.addr + off < off)
+    if(off >= obj.size || obj.addr.raw() + off < off)
         return m3::Errors::INV_ARGS;
 
     vpeid_t ep_vpe = Platform::is_shared(peid()) ? vpe : VPE::INVALID_ID;
     KLOG(EPS, "PE" << peid() << ":EP" << ep << " = "
-        "Mem [vpe=" << ep_vpe << ", pe=" << obj.pe
-        << ", addr=#" << m3::fmt(obj.addr + off, "x")
+        "Mem [vpe=" << ep_vpe
+        << ", addr=#" << (obj.addr + off)
         << ", size=#" << m3::fmt(obj.size - off, "x")
         << ", perms=#" << m3::fmt(obj.perms, "x")
         << "]");
 
     TCU::config_remote_ep(vpe, peid(), ep, [&obj, ep_vpe, off](m3::TCU::reg_t *ep_regs) {
-        TCU::config_mem(ep_regs, ep_vpe, obj.pe, obj.vpe,
-                        obj.addr + off, obj.size - off, obj.perms);
+        TCU::config_mem(ep_regs, ep_vpe, obj.addr.pe(), obj.vpe,
+                        obj.addr.offset() + off, obj.size - off, obj.perms);
     });
     return m3::Errors::NONE;
 }

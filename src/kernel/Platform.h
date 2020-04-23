@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/BootInfo.h>
+#include <base/GlobAddr.h>
 #include <base/PEDesc.h>
 
 #include "Types.h"
@@ -40,7 +41,7 @@ public:
         return m3::BootInfo::ModIterator(reinterpret_cast<m3::BootInfo::Mod*>(last));
     }
 
-    static gaddr_t info_addr();
+    static m3::GlobAddr info_addr();
     static size_t info_size() {
         return sizeof(_info) + _info.mod_size + _info.pe_count * sizeof(m3::PEDesc);
     }

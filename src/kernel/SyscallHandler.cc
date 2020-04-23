@@ -367,7 +367,7 @@ void SyscallHandler::create_map(VPE *vpe, const m3::TCU::Message *msg) {
     if(mgatecap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Memory capability is invalid");
 
-    if((mgatecap->obj->addr & PAGE_MASK) || (mgatecap->obj->size & PAGE_MASK))
+    if((mgatecap->obj->addr.raw() & PAGE_MASK) || (mgatecap->obj->size & PAGE_MASK))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Memory capability is not page aligned");
     if(perms & ~mgatecap->obj->perms)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid permissions");
@@ -376,7 +376,7 @@ void SyscallHandler::create_map(VPE *vpe, const m3::TCU::Message *msg) {
     if(first >= total || first + pages <= first || first + pages > total)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Region of memory capability is invalid");
 
-    gaddr_t phys = m3::TCU::build_gaddr(mgatecap->obj->pe, mgatecap->obj->addr + PAGE_SIZE * first);
+    m3::GlobAddr addr = mgatecap->obj->addr + PAGE_SIZE * first;
     CapTable &mcaps = vpecap->obj->mapcaps();
 
     VPE &vpeobj = *vpecap->obj;
@@ -394,8 +394,8 @@ void SyscallHandler::create_map(VPE *vpe, const m3::TCU::Message *msg) {
         if(!vpeobj.kmem()->alloc(vpeobj, sizeof(MapObject) + sizeof(MapCapability)))
             SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");
 
-        auto mapcap = new MapCapability(&mcaps, dst, pages, new MapObject(phys, perms));
-        auto res = mapcap->remap(phys, perms);
+        auto mapcap = new MapCapability(&mcaps, dst, pages, new MapObject(addr, perms));
+        auto res = mapcap->remap(addr, perms);
         if(res != m3::Errors::NONE) {
             delete mapcap;
             SYS_ERROR(vpe, msg, res, "Map failed at PEMux");
@@ -413,7 +413,7 @@ void SyscallHandler::create_map(VPE *vpe, const m3::TCU::Message *msg) {
                     << mapcap->length() << " vs. " << pages << ")");
         }
 
-        auto res = mapcap->remap(phys, perms);
+        auto res = mapcap->remap(addr, perms);
         if(res != m3::Errors::NONE)
             SYS_ERROR(vpe, msg, res, "Map failed at PEMux");
     }
@@ -594,7 +594,7 @@ void SyscallHandler::activate(VPE *vpe, const m3::TCU::Message *msg) {
             if(Platform::pe(dst_pe).has_virtmem()) {
                 if(rbuf->obj->vpe != VPE::INVALID_ID)
                     SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "rbuffer not in physical memory");
-                rgateobj->addr = m3::TCU::build_gaddr(rbuf->obj->pe, rbuf->obj->addr) + rbuf_off;
+                rgateobj->addr = rbuf->obj->addr.raw() + rbuf_off;
             }
             else {
                 if(rbuf->obj->vpe != epcap->obj->vpe->id())
@@ -748,7 +748,6 @@ void SyscallHandler::derive_mem(VPE *vpe, const m3::TCU::Message *msg) {
 
     auto dercap = SYS_CREATE_CAP(vpe, msg, MGateCapability, MGateObject,
         &vpecap->obj->objcaps(), dst,
-        srccap->obj->pe,
         srccap->obj->vpe,
         srccap->obj->addr + offset,
         size,

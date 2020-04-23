@@ -39,12 +39,11 @@ const MemoryModule &MainMemory::module(size_t id) const {
     return *_mods[id];
 }
 
-MainMemory::Allocation MainMemory::build_allocation(gaddr_t addr, size_t size) const {
-    peid_t pe = m3::TCU::gaddr_to_pe(addr);
-    goff_t off = m3::TCU::gaddr_to_virt(addr);
+MainMemory::Allocation MainMemory::build_allocation(m3::GlobAddr global, size_t size) const {
     for(size_t i = 0; i < _count; ++i) {
-        if(_mods[i]->pe() == pe && off >= _mods[i]->addr() && off < _mods[i]->addr() + _mods[i]->size())
-            return Allocation(i, off, size);
+        if(_mods[i]->pe() == global.pe() && global.offset() >= _mods[i]->addr().offset() &&
+           global.offset() < _mods[i]->addr().offset() + _mods[i]->size())
+            return Allocation(i, global.offset(), size);
     }
     return Allocation();
 }
@@ -61,10 +60,10 @@ MainMemory::Allocation MainMemory::allocate(size_t size, size_t align) {
     return Allocation();
 }
 
-void MainMemory::free(peid_t pe, goff_t addr, size_t size) {
+void MainMemory::free(m3::GlobAddr global, size_t size) {
     for(size_t i = 0; i < _count; ++i) {
-        if(_mods[i]->pe() == pe) {
-            free(Allocation(i, addr, size));
+        if(_mods[i]->pe() == global.pe()) {
+            free(Allocation(i, global.offset(), size));
             break;
         }
     }
@@ -72,8 +71,8 @@ void MainMemory::free(peid_t pe, goff_t addr, size_t size) {
 
 void MainMemory::free(const Allocation &alloc) {
     assert(_mods[alloc.mod] != nullptr);
-    KLOG(MEM, "Free'd " << (alloc.size / 1024) << " KiB of memory @ " << m3::fmt(alloc.addr, "p"));
-    _mods[alloc.mod]->map().free(alloc.addr, alloc.size);
+    KLOG(MEM, "Free'd " << (alloc.size / 1024) << " KiB of memory @ " << m3::fmt(alloc.offset, "p"));
+    _mods[alloc.mod]->map().free(alloc.offset, alloc.size);
 }
 
 size_t MainMemory::size() const {
@@ -99,7 +98,7 @@ m3::OStream &operator<<(m3::OStream &os, const MainMemory &mem) {
        << " free=" << (mem.available() / 1024) << " KiB]:\n";
     for(size_t i = 0; i < mem._count; ++i) {
         os << " type=" << mem._mods[i]->type();
-        os << " pe=" << mem._mods[i]->pe() << " addr=" << m3::fmt(mem._mods[i]->addr(), "p");
+        os << " addr=" << mem._mods[i]->addr();
         os << " size=" << m3::fmt(mem._mods[i]->size(), "p") << "\n";
     }
     return os;

@@ -55,8 +55,7 @@ public:
         // map the memory
         uintptr_t virt = m3::Math::round_up<uintptr_t>(
             reinterpret_cast<uintptr_t>(heap_end), PAGE_SIZE);
-        gaddr_t phys = m3::TCU::build_gaddr(alloc.pe(), alloc.addr);
-        map_pages(virt, phys, pages, m3::KIF::PageFlags::RW);
+        map_pages(virt, alloc.addr().raw(), pages, m3::KIF::PageFlags::RW);
 
         // ensure that Heap::append is not done before all PTEs have been created
         m3::CPU::memory_barrier();

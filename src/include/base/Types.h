@@ -45,7 +45,6 @@ typedef uint64_t cycles_t;
 
 typedef ulong epid_t;
 typedef ulong peid_t;
-typedef uint64_t gaddr_t;
 typedef uint64_t goff_t;
 typedef uint64_t event_t;
 typedef uint64_t xfer_t;

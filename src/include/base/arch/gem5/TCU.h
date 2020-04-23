@@ -201,16 +201,6 @@ public:
         return inst;
     }
 
-    static peid_t gaddr_to_pe(gaddr_t noc) {
-        return (noc >> 56) - 0x80;
-    }
-    static gaddr_t gaddr_to_virt(gaddr_t noc) {
-        return noc & ((static_cast<gaddr_t>(1) << 56) - 1);
-    }
-    static gaddr_t build_gaddr(peid_t pe, gaddr_t virt) {
-        return (static_cast<gaddr_t>(0x80 + pe) << 56) | virt;
-    }
-
     bool has_missing_credits(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
         uint16_t cur = (r0 >> 19) & 0x3F;
