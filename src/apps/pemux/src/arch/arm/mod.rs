@@ -20,6 +20,7 @@ use base::libc;
 use core::fmt;
 
 use vma;
+use vpe;
 
 type IsrFunc = extern "C" fn(state: &mut State) -> *mut libc::c_void;
 
@@ -114,7 +115,7 @@ pub fn init(stack: usize) {
     }
 }
 
-pub fn forget_fpu(_vpe_id: u64) {
+pub fn forget_fpu(_vpe_id: vpe::Id) {
     // no FPU support
 }
 

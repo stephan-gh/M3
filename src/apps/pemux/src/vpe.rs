@@ -33,10 +33,12 @@ use pex_env;
 use timer::{self, Nanos};
 use vma::PfState;
 
+pub type Id = u64;
+
 const TIME_SLICE: Nanos = 1000000;
 
 struct PTAllocator {
-    vpe: u64,
+    vpe: Id,
 }
 
 impl Allocator for PTAllocator {
@@ -131,7 +133,7 @@ static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
 static PTS: StaticCell<Vec<u64>> = StaticCell::new(Vec::new());
 
-fn rbuf_frame(id: u64) -> u64 {
+fn rbuf_frame(id: Id) -> u64 {
     if id == kif::pemux::VPE_ID {
         pex_env().mem_start + cfg::PAGE_SIZE as u64 * cfg::FIRST_RBUF_FRAME as u64
     }
@@ -174,7 +176,7 @@ pub fn init() {
     BOOTSTRAP.set(false);
 }
 
-pub fn add(id: u64, eps_start: tcu::EpId) {
+pub fn add(id: Id, eps_start: tcu::EpId) {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
     let root_pt = if pex_env().pe_desc.has_virtmem() {
@@ -198,7 +200,7 @@ pub fn add(id: u64, eps_start: tcu::EpId) {
     make_blocked(vpe);
 }
 
-pub fn get_mut(id: u64) -> Option<&'static mut VPE> {
+pub fn get_mut(id: Id) -> Option<&'static mut VPE> {
     if id == kif::pemux::VPE_ID {
         return Some(our());
     }
@@ -376,7 +378,7 @@ pub fn remove_cur(status: u32) {
     remove(cur().id(), status, true, true);
 }
 
-pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
+pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
     if let Some(v) = VPES.get_mut()[id as usize].take() {
         let old = match unsafe { &v.as_ref().state } {
             VPEState::Running => CUR.set(None).unwrap(),
@@ -421,7 +423,7 @@ pub fn remove(id: u64, status: u32, notify: bool, sched: bool) {
 }
 
 impl VPE {
-    pub fn new(id: u64, eps_start: tcu::EpId, root_pt: goff) -> Self {
+    pub fn new(id: Id, eps_start: tcu::EpId, root_pt: goff) -> Self {
         VPE {
             prev: None,
             next: None,
@@ -459,7 +461,7 @@ impl VPE {
         self.aspace.translate(virt, perm.bits())
     }
 
-    pub fn id(&self) -> u64 {
+    pub fn id(&self) -> Id {
         self.aspace.id()
     }
 

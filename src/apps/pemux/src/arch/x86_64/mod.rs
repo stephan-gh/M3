@@ -44,7 +44,7 @@ pub const PEXC_ARG2: usize = 11; // rdx
 
 const CR0_TASK_SWITCHED: usize = 1 << 3;
 
-static FPU_OWNER: StaticCell<u64> = StaticCell::new(pemux::VPE_ID);
+static FPU_OWNER: StaticCell<vpe::Id> = StaticCell::new(pemux::VPE_ID);
 
 #[derive(Default)]
 // see comment in ARM code
@@ -158,7 +158,7 @@ pub fn init(stack: usize) {
     }
 }
 
-pub fn forget_fpu(vpe_id: u64) {
+pub fn forget_fpu(vpe_id: vpe::Id) {
     if *FPU_OWNER == vpe_id {
         FPU_OWNER.set(pemux::VPE_ID);
     }

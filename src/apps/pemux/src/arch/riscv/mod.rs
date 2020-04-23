@@ -107,7 +107,7 @@ pub const PEXC_ARG0: usize = 9; // a0 = x10
 pub const PEXC_ARG1: usize = 10; // a1 = x11
 pub const PEXC_ARG2: usize = 11; // a2 = x12
 
-static FPU_OWNER: StaticCell<u64> = StaticCell::new(pemux::VPE_ID);
+static FPU_OWNER: StaticCell<vpe::Id> = StaticCell::new(pemux::VPE_ID);
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
@@ -177,7 +177,7 @@ pub fn init(stack: usize) {
     }
 }
 
-pub fn forget_fpu(vpe_id: u64) {
+pub fn forget_fpu(vpe_id: vpe::Id) {
     if *FPU_OWNER == vpe_id {
         FPU_OWNER.set(pemux::VPE_ID);
     }

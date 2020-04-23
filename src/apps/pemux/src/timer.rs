@@ -26,12 +26,12 @@ pub type Nanos = u64;
 
 struct Timeout {
     time: Nanos,
-    vpe: u64,
+    vpe: vpe::Id,
 }
 
 static LIST: StaticCell<Vec<Timeout>> = StaticCell::new(Vec::new());
 
-pub fn add(vpe: u64, duration: Nanos) {
+pub fn add(vpe: vpe::Id, duration: Nanos) {
     let timeout = Timeout {
         time: tcu::TCU::nanotime() + duration,
         vpe,
@@ -55,7 +55,7 @@ pub fn add(vpe: u64, duration: Nanos) {
     }
 }
 
-pub fn remove(vpe: u64) {
+pub fn remove(vpe: vpe::Id) {
     log!(crate::LOG_TIMER, "timer: removing VPE {}", vpe);
     LIST.get_mut().retain(|t| t.vpe != vpe);
     reprogram();

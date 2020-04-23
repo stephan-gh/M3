@@ -40,7 +40,7 @@ fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
 fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::VPECtrl>();
 
-    let vpe_id = req.vpe_sel;
+    let vpe_id = req.vpe_sel as vpe::Id;
     let op = kif::pemux::VPEOp::from(req.vpe_op);
     let eps_start = req.eps_start as tcu::EpId;
 
@@ -83,7 +83,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
 fn map(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::Map>();
 
-    let vpe_id = req.vpe_sel;
+    let vpe_id = req.vpe_sel as vpe::Id;
     let virt = req.virt as usize;
     let phys = req.phys as goff;
     let pages = req.pages as usize;
@@ -112,7 +112,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
 fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::RemMsgs>();
 
-    let vpe_id = req.vpe_sel;
+    let vpe_id = req.vpe_sel as vpe::Id;
     let unread = req.unread_mask as u32;
 
     log!(
@@ -134,7 +134,7 @@ fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
 fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::EpInval>();
 
-    let vpe_id = req.vpe_sel;
+    let vpe_id = req.vpe_sel as vpe::Id;
     let ep = req.ep as tcu::EpId;
 
     log!(
