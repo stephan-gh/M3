@@ -30,10 +30,10 @@ use arch;
 use helper;
 use paging::Allocator;
 use pex_env;
-use timer;
+use timer::{self, Nanos};
 use vma::PfState;
 
-const TIME_SLICE: u64 = 1000000; // nanoseconds
+const TIME_SLICE: Nanos = 1000000;
 
 struct PTAllocator {
     vpe: u64,
@@ -104,9 +104,9 @@ pub struct VPE {
     user_state: arch::State,
     user_state_addr: usize,
     sleeping: bool,
-    scheduled: u64,
-    budget_total: u64,
-    budget_left: u64,
+    scheduled: Nanos,
+    budget_total: Nanos,
+    budget_left: Nanos,
     wait_ep: Option<tcu::EpId>,
     vpe_reg: tcu::Reg,
     eps_start: tcu::EpId,
@@ -497,7 +497,7 @@ impl VPE {
         self.vpe_reg -= (count as u64) << 16;
     }
 
-    pub fn budget_left(&self) -> u64 {
+    pub fn budget_left(&self) -> Nanos {
         self.budget_left
     }
 
@@ -532,7 +532,7 @@ impl VPE {
         action: ScheduleAction,
         cont: Option<fn() -> ContResult>,
         ep: Option<tcu::EpId>,
-        sleep: Option<u64>,
+        sleep: Option<Nanos>,
     ) {
         log!(crate::LOG_VPES, "Block VPE {} for ep={:?}", self.id(), ep);
 

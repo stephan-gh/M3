@@ -22,16 +22,18 @@ use core::cmp;
 
 use vpe;
 
+pub type Nanos = u64;
+
 struct Timeout {
-    time: u64,
+    time: Nanos,
     vpe: u64,
 }
 
 static LIST: StaticCell<Vec<Timeout>> = StaticCell::new(Vec::new());
 
-pub fn add(vpe: u64, delay_ns: u64) {
+pub fn add(vpe: u64, duration: Nanos) {
     let timeout = Timeout {
-        time: tcu::TCU::nanotime() + delay_ns,
+        time: tcu::TCU::nanotime() + duration,
         vpe,
     };
 
@@ -39,7 +41,7 @@ pub fn add(vpe: u64, delay_ns: u64) {
         crate::LOG_TIMER,
         "timer: blocking VPE {} for {} ns (until {} ns)",
         vpe,
-        delay_ns,
+        duration,
         timeout.time
     );
 
@@ -80,7 +82,7 @@ pub fn reprogram() {
         // timeout: program the earlier point in time
         (false, _) => {
             let timeout = LIST[LIST.len() - 1].time - tcu::TCU::nanotime();
-            cmp::min(timeout, budget.unwrap_or(u64::max_value()))
+            cmp::min(timeout, budget.unwrap_or(Nanos::max_value()))
         }
     };
 

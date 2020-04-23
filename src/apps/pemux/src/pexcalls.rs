@@ -19,16 +19,17 @@ use base::pexif;
 use base::tcu;
 
 use arch;
+use timer::Nanos;
 use vpe;
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
-    let delay_ns = state.r[arch::PEXC_ARG1] as u64;
+    let duration = state.r[arch::PEXC_ARG1] as Nanos;
     let ep = state.r[arch::PEXC_ARG2] as tcu::EpId;
 
-    log!(crate::LOG_CALLS, "pexcall::sleep(delay_ns={}, ep={})", delay_ns, ep);
+    log!(crate::LOG_CALLS, "pexcall::sleep(duration={}, ep={})", duration, ep);
 
     let wait_ep = if ep == tcu::INVALID_EP { None } else { Some(ep) };
-    let sleep = if delay_ns == 0 { None } else { Some(delay_ns) };
+    let sleep = if duration == 0 { None } else { Some(duration) };
     vpe::cur().block(vpe::ScheduleAction::Block, None, wait_ep, sleep);
 
     Ok(())
