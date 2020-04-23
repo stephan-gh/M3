@@ -33,7 +33,7 @@ use pex_env;
 use timer::{self, Nanos};
 use vma::PfState;
 
-pub type Id = u64;
+pub type Id = paging::VPEId;
 
 const TIME_SLICE: Nanos = 1000000;
 

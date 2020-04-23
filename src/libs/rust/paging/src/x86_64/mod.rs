@@ -119,7 +119,7 @@ pub extern "C" fn enable_paging() {
     // already enabled by gem5
 }
 
-pub fn invalidate_page(_id: u64, virt: usize) {
+pub fn invalidate_page(_id: ::VPEId, virt: usize) {
     unsafe {
         asm!(
             "invlpg ($0)"
@@ -137,7 +137,7 @@ pub fn get_root_pt() -> MMUPTE {
     cpu::read_cr3()
 }
 
-pub fn set_root_pt(_id: u64, root: MMUPTE) {
+pub fn set_root_pt(_id: ::VPEId, root: MMUPTE) {
     cpu::write_cr3(root);
 }
 

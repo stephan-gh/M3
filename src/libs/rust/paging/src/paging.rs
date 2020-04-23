@@ -51,6 +51,8 @@ use core::fmt;
 
 use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};
 
+pub type VPEId = u64;
+
 pub use arch::{
     build_pte, enable_paging, noc_to_phys, phys_to_noc, pte_to_phys, to_page_flags, MMUFlags,
     MMUPTE,
@@ -61,17 +63,17 @@ pub const LOG_MAP: bool = false;
 /// Logs detailed mapping operations
 pub const LOG_MAP_DETAIL: bool = false;
 
-pub type AllocFrameFunc = extern "C" fn(vpe: u64) -> MMUPTE;
-pub type XlatePtFunc = extern "C" fn(vpe: u64, phys: MMUPTE) -> usize;
+pub type AllocFrameFunc = extern "C" fn(vpe: VPEId) -> MMUPTE;
+pub type XlatePtFunc = extern "C" fn(vpe: VPEId, phys: MMUPTE) -> usize;
 
 pub struct ExtAllocator {
-    vpe: u64,
+    vpe: VPEId,
     alloc_frame: AllocFrameFunc,
     xlate_pt: XlatePtFunc,
 }
 
 impl ExtAllocator {
-    pub fn new(vpe: u64, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) -> Self {
+    pub fn new(vpe: VPEId, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) -> Self {
         Self {
             vpe,
             alloc_frame,
@@ -95,7 +97,7 @@ impl Allocator for ExtAllocator {
 
 #[no_mangle]
 pub extern "C" fn init_aspace(
-    id: u64,
+    id: VPEId,
     alloc_frame: AllocFrameFunc,
     xlate_pt: XlatePtFunc,
     root: goff,
@@ -106,7 +108,7 @@ pub extern "C" fn init_aspace(
 
 #[no_mangle]
 pub extern "C" fn map_pages(
-    id: u64,
+    id: VPEId,
     virt: usize,
     noc: goff,
     pages: usize,
@@ -139,7 +141,7 @@ fn to_pte(level: usize, pte: MMUPTE) -> PTE {
 
 #[no_mangle]
 pub extern "C" fn translate(
-    id: u64,
+    id: VPEId,
     root: PTE,
     alloc_frame: AllocFrameFunc,
     xlate_pt: XlatePtFunc,
@@ -157,14 +159,14 @@ pub trait Allocator {
 }
 
 pub struct AddrSpace<A: Allocator> {
-    id: u64,
+    id: VPEId,
     root: MMUPTE,
     alloc: A,
     is_temp: bool,
 }
 
 impl<A: Allocator> AddrSpace<A> {
-    pub fn new(id: u64, root: goff, alloc: A, is_temp: bool) -> Self {
+    pub fn new(id: VPEId, root: goff, alloc: A, is_temp: bool) -> Self {
         AddrSpace {
             id,
             root: build_pte(
@@ -178,7 +180,7 @@ impl<A: Allocator> AddrSpace<A> {
         }
     }
 
-    pub fn id(&self) -> u64 {
+    pub fn id(&self) -> VPEId {
         self.id
     }
 

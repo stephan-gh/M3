@@ -143,7 +143,7 @@ pub extern "C" fn enable_paging() {
     }
 }
 
-pub fn invalidate_page(id: u64, virt: usize) {
+pub fn invalidate_page(id: ::VPEId, virt: usize) {
     unsafe {
         asm!(
             "mcr p15, 0, $0, c8, c7, 1"
@@ -175,7 +175,7 @@ pub fn get_root_pt() -> MMUPTE {
     (ttbr0_high as u64) << 32 | (ttbr0_low as u64 & !cfg::PAGE_MASK as u64)
 }
 
-pub fn set_root_pt(id: u64, root: MMUPTE) {
+pub fn set_root_pt(id: ::VPEId, root: MMUPTE) {
     // the ASID is 8 bit; make sure that we stay in that space
     assert!(
         id == pemux::VPE_ID
