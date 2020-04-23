@@ -82,7 +82,7 @@ static void map_segment(VPE &vpe, goff_t virt, m3::GlobAddr global, size_t size,
         copy_clear(vpe.desc(), static_cast<uintptr_t>(virt), global, size, false);
 }
 
-static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool to_mem) {
+static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy) {
     // load and check ELF header
     m3::ElfEh header;
     read_from_mod(mod, &header, sizeof(header), 0);
@@ -126,8 +126,8 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy, bool t
             end = virt + size;
 
             // initialize it
-            VPEDesc tgt = to_mem ? VPEDesc(global.pe(), VPE::INVALID_ID) : vpe.desc();
-            copy_clear(tgt, virt, m3::GlobAddr(mod->addr + offset), size, pheader.p_filesz == 0);
+            copy_clear(vpe.desc(), virt, m3::GlobAddr(mod->addr + offset),
+                       size, pheader.p_filesz == 0);
         }
         else {
             assert(pheader.p_memsz == pheader.p_filesz);
@@ -154,15 +154,15 @@ void VPE::load_app() {
         PANIC("Unable to find boot module 'root'");
 
     if(Platform::pe(peid()).has_virtmem()) {
-        // map runtime space
-        goff_t virt = ENV_START;
+        // map stack for root
+        goff_t virt = STACK_BOTTOM;
         m3::GlobAddr global = alloc_mem(STACK_TOP - virt, PAGE_SIZE);
         map_segment(*this, virt, global, STACK_TOP - virt,
                     m3::KIF::PageFlags::RW | MapCapability::EXCL);
     }
 
     // load app
-    goff_t entry = load_mod(*this, mod, !appFirst, false);
+    goff_t entry = load_mod(*this, mod, !appFirst);
 
     // copy arguments and arg pointers to buffer
     static const char *uargv[] = {"root"};
