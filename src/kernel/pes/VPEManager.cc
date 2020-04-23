@@ -57,7 +57,7 @@ void VPEManager::start_root() {
             PANIC("Unable to find a free PE for root task");
     }
 
-    _vpes[id] = new VPE("root", nullptr, m3::TCU::FIRST_USER_EP, id, VPE::F_BOOTMOD, nullptr);
+    _vpes[id] = new VPE("root", nullptr, m3::TCU::FIRST_USER_EP, id, VPE::F_ROOT, nullptr);
 
     capsel_t sel = m3::KIF::FIRST_FREE_SEL;
 

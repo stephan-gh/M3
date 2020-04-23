@@ -145,9 +145,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy) {
     return header.e_entry;
 }
 
-void VPE::load_app() {
-    assert(_flags & F_BOOTMOD);
-
+void VPE::load_root() {
     bool appFirst;
     const m3::BootInfo::Mod *mod = get_mod("root", &appFirst);
     if(!mod)
@@ -201,9 +199,9 @@ void VPE::init_memory() {
 
     _state = VPE::RUNNING;
 
-    // boot modules are started implicitly
-    if(_flags & F_BOOTMOD)
-        load_app();
+    // root is loaded by us
+    if(_flags & F_ROOT)
+        load_root();
 }
 
 void VPE::init_eps() {

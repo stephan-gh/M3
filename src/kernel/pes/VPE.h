@@ -69,7 +69,7 @@ public:
     };
 
     enum Flags {
-        F_BOOTMOD     = 1 << 0,
+        F_ROOT        = 1 << 0,
         F_HASAPP      = 1 << 1,
         F_STOPPED     = 1 << 2,
     };
@@ -167,7 +167,7 @@ private:
 
     void init_eps();
     void init_memory();
-    void load_app();
+    void load_root();
     void exit_app(int exitcode);
 
     VPEDesc _desc;
