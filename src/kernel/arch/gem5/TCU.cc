@@ -32,7 +32,7 @@ static char buffer[8192];
 
 m3::Errors::Code TCU::do_ext_cmd(peid_t pe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg) {
     VPEDesc vpe(pe, VPE::INVALID_ID);
-    m3::TCU::reg_t reg = static_cast<m3::TCU::reg_t>(op) | *arg << 8;
+    m3::TCU::reg_t reg = static_cast<m3::TCU::reg_t>(op) | (arg ? (*arg << 8) : 0);
     m3::CPU::compiler_barrier();
     write_mem(vpe, m3::TCU::priv_reg_addr(m3::TCU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
     read_mem(vpe, m3::TCU::priv_reg_addr(m3::TCU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
@@ -54,8 +54,8 @@ void TCU::init_vpe(peid_t) {
     // nothing tod o
 }
 
-void TCU::kill_vpe(peid_t) {
-    // nothing to do
+void TCU::reset_pe(peid_t pe) {
+    do_ext_cmd(pe, m3::TCU::ExtCmdOpCode::RESET, nullptr);
 }
 
 void TCU::config_recv(m3::TCU::reg_t *r, vpeid_t vpe, goff_t buf, uint order,

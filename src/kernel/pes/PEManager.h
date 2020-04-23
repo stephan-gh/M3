@@ -48,7 +48,7 @@ public:
 
     void init_vpe(VPE *vpe);
     void start_vpe(VPE *vpe);
-    void stop_vpe(VPE *vpe);
+    void stop_vpe(VPE *vpe, bool reset);
 
 private:
     void deprivilege_pes() const;

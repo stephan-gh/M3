@@ -41,7 +41,7 @@ public:
     static void deprivilege(peid_t pe);
 
     static void init_vpe(peid_t pe);
-    static void kill_vpe(peid_t pe);
+    static void reset_pe(peid_t pe);
 
     static void config_recv(m3::TCU::reg_t *regs, vpeid_t vpe, goff_t buf, uint order,
                             uint msgorder, uint reply_eps);

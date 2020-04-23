@@ -37,7 +37,7 @@ void TCU::init_vpe(peid_t) {
     // nothing to do
 }
 
-void TCU::kill_vpe(peid_t pe) {
+void TCU::reset_pe(peid_t pe) {
     pid_t pid = VPEManager::get().pid_by_pe(pe);
     // if the VPE didn't run, it has no PID yet
     if(pid != 0)

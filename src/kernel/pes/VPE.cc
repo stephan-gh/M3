@@ -124,7 +124,7 @@ VPE::~VPE() {
     _state = DEAD;
 
     // ensure that the VPE is stopped
-    PEManager::get().stop_vpe(this);
+    PEManager::get().stop_vpe(this, true);
 
     // free standard EPs
     auto pemux = PEManager::get().pemux(peid());
@@ -178,7 +178,7 @@ void VPE::stop_app(int exitcode, bool self) {
         }
         else {
             _flags ^= F_HASAPP;
-            PEManager::get().stop_vpe(this);
+            PEManager::get().stop_vpe(this, false);
         }
     }
 
@@ -221,7 +221,7 @@ void VPE::exit_app(int exitcode) {
 
     _flags ^= F_HASAPP;
 
-    PEManager::get().stop_vpe(this);
+    PEManager::get().stop_vpe(this, false);
 
     // don't delete the initial caps of the VPE yet, because the parent might still need the VPE
     // cap, the memory cap and so on.

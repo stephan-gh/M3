@@ -27,8 +27,8 @@ void PEManager::start_vpe(VPE *vpe) {
     vpe->init_memory();
 }
 
-void PEManager::stop_vpe(VPE *vpe) {
-    TCU::kill_vpe(vpe->peid());
+void PEManager::stop_vpe(VPE *vpe, bool) {
+    TCU::reset_pe(vpe->peid());
 }
 
 }

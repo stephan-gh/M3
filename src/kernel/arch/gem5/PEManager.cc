@@ -31,11 +31,15 @@ void PEManager::start_vpe(VPE *vpe) {
         pemux(vpe->peid())->vpe_ctrl(vpe, m3::KIF::PEXUpcalls::VPEOp::VCTRL_START);
 }
 
-void PEManager::stop_vpe(VPE *vpe) {
+void PEManager::stop_vpe(VPE *vpe, bool reset) {
     if(Platform::pe(vpe->peid()).supports_pemux() && !(vpe->_flags & VPE::F_STOPPED)) {
         vpe->_flags |= VPE::F_STOPPED;
         pemux(vpe->peid())->vpe_ctrl(vpe, m3::KIF::PEXUpcalls::VPEOp::VCTRL_STOP);
     }
+
+    // reset accelerators to clearly end one run and don't interfere with the next one.
+    if(reset && !Platform::pe(vpe->peid()).is_programmable())
+        TCU::reset_pe(vpe->peid());
 }
 
 }
