@@ -58,7 +58,11 @@ public:
     }
 
     friend OStream &operator<<(OStream &os, const GlobAddr &ga) {
-        os << "Glob[pe=" << ga.pe() << ", off=" << fmt(ga.offset(), "#x") << "]";
+        if (ga._raw >= (PE_OFFSET << PE_SHIFT))
+            os << "G[PE" << ga.pe() << "+" << fmt(ga.offset(), "#x") << "]";
+        // for bootstrap purposes, we need to use global addresses without PE prefix
+        else
+            os << "G[" << fmt(ga.raw(), "#x") << "]";
         return os;
     }
 

@@ -63,7 +63,13 @@ impl GlobAddr {
 
 impl fmt::Debug for GlobAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "GlobAddr[pe: {}, off: {:#x}]", self.pe(), self.offset())
+        if self.val >= (PE_OFFSET << PE_SHIFT) {
+            write!(f, "G[PE{}+{:#x}]", self.pe(), self.offset())
+        }
+        // for bootstrap purposes, we need to use global addresses without PE prefix
+        else {
+            write!(f, "G[{:#x}]", self.raw())
+        }
     }
 }
 
