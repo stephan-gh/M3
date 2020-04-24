@@ -16,20 +16,20 @@
 
 use base::errors::{Code, Error};
 use base::pexif;
-use base::tcu;
+use base::tcu::{EpId, INVALID_EP};
 
 use arch;
 use timer::Nanos;
 use vpe;
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
-    let duration = state.r[arch::PEXC_ARG1] as Nanos;
-    let ep = state.r[arch::PEXC_ARG2] as tcu::EpId;
+    let dur = state.r[arch::PEXC_ARG1] as Nanos;
+    let ep = state.r[arch::PEXC_ARG2] as EpId;
 
-    log!(crate::LOG_CALLS, "pexcall::sleep(duration={}, ep={})", duration, ep);
+    log!(crate::LOG_CALLS, "pexcall::sleep(dur={}, ep={})", dur, ep);
 
-    let wait_ep = if ep == tcu::INVALID_EP { None } else { Some(ep) };
-    let sleep = if duration == 0 { None } else { Some(duration) };
+    let wait_ep = if ep == INVALID_EP { None } else { Some(ep) };
+    let sleep = if dur == 0 { None } else { Some(dur) };
     vpe::cur().block(vpe::ScheduleAction::Block, None, wait_ep, sleep);
 
     Ok(())

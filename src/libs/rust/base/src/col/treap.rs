@@ -178,7 +178,7 @@ impl<K: Copy + Ord, V> Treap<K, V> {
                                 prev = *l;
                             },
                             Ordering::Equal => panic!("Key does already exist"),
-                        }
+                        },
                     }
                 }
                 *l = None;

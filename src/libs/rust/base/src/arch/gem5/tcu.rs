@@ -298,12 +298,7 @@ impl TCU {
 
     /// Sends `reply[0..size]` as reply to `msg`.
     #[inline(always)]
-    pub fn reply(
-        ep: EpId,
-        reply: *const u8,
-        size: usize,
-        msg_off: usize,
-    ) -> Result<(), Error> {
+    pub fn reply(ep: EpId, reply: *const u8, size: usize, msg_off: usize) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(reply, size));
         Self::write_cmd_reg(
             CmdReg::COMMAND,
@@ -438,7 +433,10 @@ impl TCU {
     /// Puts the CU to sleep until a message arrives at receive EP `ep`.
     #[inline(always)]
     pub fn wait_for_msg(ep: EpId) -> Result<(), Error> {
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(0, CmdOpCode::SLEEP, 0, ep as u64));
+        Self::write_cmd_reg(
+            CmdReg::COMMAND,
+            Self::build_cmd(0, CmdOpCode::SLEEP, 0, ep as u64),
+        );
         Self::get_error()
     }
 
@@ -578,7 +576,10 @@ impl TCU {
     }
 
     pub fn set_timer(delay_ns: u64) {
-        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::SET_TIMER.val | (delay_ns << 4));
+        Self::write_priv_reg(
+            PrivReg::PRIV_CMD,
+            PrivCmdOpCode::SET_TIMER.val | (delay_ns << 4),
+        );
     }
 
     pub fn read_cmd_reg(reg: CmdReg) -> Reg {

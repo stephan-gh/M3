@@ -215,12 +215,7 @@ impl TCU {
         Self::exec_command(ep, Command::SEND, msg, size, 0, 0, reply_lbl, reply_ep)
     }
 
-    pub fn reply(
-        ep: EpId,
-        reply: *const u8,
-        size: usize,
-        msg_off: usize,
-    ) -> Result<(), Error> {
+    pub fn reply(ep: EpId, reply: *const u8, size: usize, msg_off: usize) -> Result<(), Error> {
         Self::exec_command(ep, Command::REPLY, reply, size, msg_off, 0, 0, 0)
     }
 

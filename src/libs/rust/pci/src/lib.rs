@@ -24,7 +24,7 @@ extern crate m3;
 use m3::com::{MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
-use m3::kif::{INVALID_SEL, PEDesc, PEType, PEISA};
+use m3::kif::{PEDesc, PEType, INVALID_SEL, PEISA};
 use m3::math;
 use m3::pes::Activity;
 use m3::pes::{DeviceActivity, PE, VPE};
@@ -160,11 +160,17 @@ impl Device {
     }
 
     pub fn read_config<T>(&self, off: goff) -> Result<T, Error> {
-        self.activity.vpe().mem().read_obj(REG_ADDR + PCI_CFG_ADDR + off)
+        self.activity
+            .vpe()
+            .mem()
+            .read_obj(REG_ADDR + PCI_CFG_ADDR + off)
     }
 
     pub fn write_config<T>(&self, off: goff, val: T) -> Result<(), Error> {
-        self.activity.vpe().mem().write_obj(&val, REG_ADDR + PCI_CFG_ADDR + off)
+        self.activity
+            .vpe()
+            .mem()
+            .write_obj(&val, REG_ADDR + PCI_CFG_ADDR + off)
     }
 
     pub fn get_info(&self) -> Result<Info, Error> {
@@ -207,7 +213,7 @@ impl Device {
                 match (val >> 1) & 0x3 {
                     0 => flags |= BarFlags::MEM_32,
                     2 => flags |= BarFlags::MEM_64,
-                    _ => panic!("Unexpected BAR value {:x}", val)
+                    _ => panic!("Unexpected BAR value {:x}", val),
                 }
                 if ((val >> 3) & 0x1) != 0 {
                     flags |= BarFlags::MEM_PREFETCH;
@@ -226,7 +232,7 @@ impl Device {
             ty: (val & 0x1) as u8,
             addr: (val & !0xF) as usize,
             size: size as usize,
-            flags: flags,
+            flags,
         })
     }
 }

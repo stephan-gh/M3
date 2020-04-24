@@ -50,7 +50,10 @@ fn pat_file() {
 fn write_file() {
     // create new file
     {
-        let mut file = wv_assert_ok!(VFS::open("/newfile", OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC));
+        let mut file = wv_assert_ok!(VFS::open(
+            "/newfile",
+            OpenFlags::W | OpenFlags::CREATE | OpenFlags::TRUNC
+        ));
         wv_assert_ok!(write!(file, "my content is {:#x}", 0x1234));
         // ensure it's written to disk
         wv_assert_ok!(file.sync());

@@ -83,7 +83,7 @@ pub fn reprogram() {
         (false, _) => {
             let timeout = LIST[LIST.len() - 1].time - tcu::TCU::nanotime();
             cmp::min(timeout, budget.unwrap_or(Nanos::max_value()))
-        }
+        },
     };
 
     log!(crate::LOG_TIMER, "timer: setting timer to {}", timeout);

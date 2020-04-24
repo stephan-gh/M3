@@ -22,9 +22,9 @@ extern crate m3;
 
 mod bboxlist;
 mod bdlist;
+mod bipc;
 mod bmemmap;
 mod bmgate;
-mod bipc;
 #[cfg(target_os = "none")]
 mod bpemux;
 mod bpipe;

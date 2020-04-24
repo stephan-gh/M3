@@ -54,12 +54,7 @@ pub fn init() {
     );
     addr += cfg::UPCALL_RBUF_SIZE;
 
-    tcu::TCU::configure_recv(
-        tcu::DEF_REP_OFF,
-        addr,
-        cfg::DEF_RBUF_ORD,
-        cfg::DEF_RBUF_ORD,
-    );
+    tcu::TCU::configure_recv(tcu::DEF_REP_OFF, addr, cfg::DEF_RBUF_ORD, cfg::DEF_RBUF_ORD);
 
     tcu::init();
 

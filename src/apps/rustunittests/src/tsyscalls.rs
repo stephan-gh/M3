@@ -324,10 +324,19 @@ fn activate() {
     let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
 
     // invalid EP sel
-    wv_assert_err!(syscalls::activate(SEL_VPE, mgate.sel(), INVALID_SEL, 0), Code::InvArgs);
-    wv_assert_err!(syscalls::activate(sel, mgate.sel(), INVALID_SEL, 0), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::activate(SEL_VPE, mgate.sel(), INVALID_SEL, 0),
+        Code::InvArgs
+    );
+    wv_assert_err!(
+        syscalls::activate(sel, mgate.sel(), INVALID_SEL, 0),
+        Code::InvArgs
+    );
     // invalid mgate sel
-    wv_assert_err!(syscalls::activate(ep1.sel(), SEL_VPE, INVALID_SEL, 0), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::activate(ep1.sel(), SEL_VPE, INVALID_SEL, 0),
+        Code::InvArgs
+    );
     // invalid address
     wv_assert_err!(
         syscalls::activate(ep1.sel(), mgate.sel(), INVALID_SEL, 0x1000),
@@ -339,7 +348,10 @@ fn activate() {
     );
     // already activated
     wv_assert_ok!(syscalls::activate(ep1.sel(), mgate.sel(), INVALID_SEL, 0));
-    wv_assert_err!(syscalls::activate(ep2.sel(), mgate.sel(), INVALID_SEL, 0), Code::Exists);
+    wv_assert_err!(
+        syscalls::activate(ep2.sel(), mgate.sel(), INVALID_SEL, 0),
+        Code::Exists
+    );
 
     VPE::cur().epmng_mut().release(ep2, true);
     VPE::cur().epmng_mut().release(ep1, true);

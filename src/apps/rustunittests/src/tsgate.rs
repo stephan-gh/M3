@@ -37,9 +37,7 @@ fn create() {
 
 fn send_errors() {
     let mut rgate = wv_assert_ok!(RecvGate::new(math::next_log2(256), math::next_log2(256)));
-    let sgate = wv_assert_ok!(SendGate::new_with(
-        SGateArgs::new(&rgate).label(0x1234)
-    ));
+    let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).label(0x1234)));
     wv_assert_ok!(rgate.activate());
 
     {

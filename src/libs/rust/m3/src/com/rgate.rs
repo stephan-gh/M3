@@ -18,8 +18,8 @@ use arch;
 use cap::{CapFlags, Selector};
 use cell::StaticCell;
 use cfg;
-use com::{gate::Gate, GateIStream, SendGate, RecvBuf};
 use com::rbufs::{alloc_rbuf, free_rbuf};
+use com::{gate::Gate, GateIStream, RecvBuf, SendGate};
 use core::fmt;
 use core::ops;
 use errors::Error;
@@ -126,7 +126,7 @@ impl RecvGate {
             gate: Gate::new_with_ep(sel, CapFlags::KEEP_CAP, ep),
             buf: None,
             buf_addr: Some(addr),
-            order: order,
+            order,
             msg_order: order,
             _dummy: 0,
         }

@@ -31,7 +31,7 @@ mod sgate;
 pub use self::ep::{EPArgs, EP};
 pub use self::epmng::EpMng;
 pub use self::mgate::{MGateArgs, MGateFlags, MemGate, Perm};
-pub use self::rbufs::{RecvBuf, alloc_rbuf, free_rbuf};
+pub use self::rbufs::{alloc_rbuf, free_rbuf, RecvBuf};
 pub use self::rgate::{RGateArgs, RecvGate};
 pub use self::sem::Semaphore;
 pub use self::sgate::{SGateArgs, SendGate};
