@@ -82,13 +82,13 @@ impl IDEController {
         );
 
         // ensure that the I/O space is enabled and bus mastering is enabled
-        let status_cmd: u32 = pci_dev.read_config(pci::REG_COMMAND)?;
-        pci_dev.write_config(pci::REG_COMMAND, (status_cmd & !0x400) | 0x01 | 0x04)?;
+        let status_cmd: u32 = pci_dev.read_config(pci::Reg::COMMAND.val)?;
+        pci_dev.write_config(pci::Reg::COMMAND.val, (status_cmd & !0x400) | 0x01 | 0x04)?;
 
         // request I/O ports for bus mastering
         if use_dma {
             if ide_ctrl.bars[IDE_CTRL_BAR].addr == 0 {
-                pci_dev.write_config(pci::TYPE0_BASE_ADDR4, 0x400)?;
+                pci_dev.write_config(pci::Type0::BASE_ADDR4.val, 0x400)?;
                 ide_ctrl.bars[IDE_CTRL_BAR].addr = 0x400;
             }
         }

@@ -42,36 +42,44 @@ const MSG_SIZE: usize = 32;
 const BUF_SIZE: usize = MSG_SIZE * 8;
 
 // Common PCI offsets
-pub const REG_VENDOR_ID: goff = 0x00;       // Vendor ID                    ro
-pub const REG_DEVICE_ID: goff = 0x02;       // Device ID                    ro
-pub const REG_COMMAND: goff = 0x04;         // Command                      rw
-pub const REG_STATUS: goff = 0x06;          // Status                       rw
-pub const REG_REVISION_ID: goff = 0x08;     // Revision ID                  ro
-pub const REG_CLASS_CODE: goff = 0x09;      // Class Code                   ro
-pub const REG_SUB_CLASS_CODE: goff = 0x0A;  // Sub Class Code               ro
-pub const REG_BASE_CLASS_CODE: goff = 0x0B; // Base Class Code              ro
-pub const REG_CACHE_LINE_SIZE: goff = 0x0C; // Cache Line Size              ro+
-pub const REG_LATENCY_TIMER: goff = 0x0D;   // Latency Timer                ro+
-pub const REG_HEADER_TYPE: goff = 0x0E;     // Header Type                  ro
-pub const REG_BIST: goff = 0x0F;            // Built in self test           rw
+int_enum! {
+    pub struct Reg : goff {
+        const VENDOR_ID = 0x00;       // Vendor ID                    ro
+        const DEVICE_ID = 0x02;       // Device ID                    ro
+        const COMMAND = 0x04;         // Command                      rw
+        const STATUS = 0x06;          // Status                       rw
+        const REVISION_ID = 0x08;     // Revision ID                  ro
+        const CLASS_CODE = 0x09;      // Class Code                   ro
+        const SUB_CLASS_CODE = 0x0A;  // Sub Class Code               ro
+        const BASE_CLASS_CODE = 0x0B; // Base Class Code              ro
+        const CACHE_LINE_SIZE = 0x0C; // Cache Line Size              ro+
+        const LATENCY_TIMER = 0x0D;   // Latency Timer                ro+
+        const HEADER_TYPE = 0x0E;     // Header Type                  ro
+        const BIST = 0x0F;            // Built in self test           rw
+    }
+}
 
 // Type 0 PCI offsets
-pub const TYPE0_BASE_ADDR0: goff = 0x10;     // Base Address 0              rw
-pub const TYPE0_BASE_ADDR1: goff = 0x14;     // Base Address 1              rw
-pub const TYPE0_BASE_ADDR2: goff = 0x18;     // Base Address 2              rw
-pub const TYPE0_BASE_ADDR3: goff = 0x1C;     // Base Address 3              rw
-pub const TYPE0_BASE_ADDR4: goff = 0x20;     // Base Address 4              rw
-pub const TYPE0_BASE_ADDR5: goff = 0x24;     // Base Address 5              rw
-pub const TYPE0_CIS: goff = 0x28;            // CardBus CIS Pointer         ro
-pub const TYPE0_SUB_VENDOR_ID: goff = 0x2C;  // Sub-Vendor ID               ro
-pub const TYPE0_SUB_SYSTEM_ID: goff = 0x2E;  // Sub-System ID               ro
-pub const TYPE0_ROM_BASE_ADDR: goff = 0x30;  // Expansion ROM Base Address  rw
-pub const TYPE0_CAP_PTR: goff = 0x34;        // Capability list pointer     ro
-pub const TYPE0_RESERVED: goff = 0x35;
-pub const TYPE0_INTERRUPT_LINE: goff = 0x3C; // Interrupt Line              rw
-pub const TYPE0_INTERRUPT_PIN: goff = 0x3D;  // Interrupt Pin               ro
-pub const TYPE0_MIN_GRANT: goff = 0x3E;      // Maximum Grant               ro
-pub const TYPE0_MAX_LATENCY: goff = 0x3F;    // Maximum Latency             ro
+int_enum! {
+    pub struct Type0 : goff {
+        const BASE_ADDR0 = 0x10;      // Base Address 0               rw
+        const BASE_ADDR1 = 0x14;      // Base Address 1               rw
+        const BASE_ADDR2 = 0x18;      // Base Address 2               rw
+        const BASE_ADDR3 = 0x1C;      // Base Address 3               rw
+        const BASE_ADDR4 = 0x20;      // Base Address 4               rw
+        const BASE_ADDR5 = 0x24;      // Base Address 5               rw
+        const CIS = 0x28;             // CardBus CIS Pointer          ro
+        const SUB_VENDOR_ID = 0x2C;   // Sub-Vendor ID                ro
+        const SUB_SYSTEM_ID = 0x2E;   // Sub-System ID                ro
+        const ROM_BASE_ADDR = 0x30;   // Expansion ROM Base Address   rw
+        const CAP_PTR = 0x34;         // Capability list pointer      ro
+        const RESERVED = 0x35;
+        const INTERRUPT_LINE = 0x3C;  // Interrupt Line               rw
+        const INTERRUPT_PIN = 0x3D;   // Interrupt Pin                ro
+        const MIN_GRANT = 0x3E;       // Maximum Grant                ro
+        const MAX_LATENCY = 0x3F;     // Maximum Latency              ro
+    }
+}
 
 pub struct Device {
     activity: DeviceActivity,
@@ -179,13 +187,13 @@ impl Device {
             bus: 0,
             dev: 0,
             func: 0,
-            vendor_id: self.read_config(REG_VENDOR_ID)?,
-            dev_id: self.read_config(REG_DEVICE_ID)?,
-            ty: self.read_config(REG_HEADER_TYPE)?,
-            rev_id: self.read_config(REG_REVISION_ID)?,
-            prog_if: self.read_config(REG_CLASS_CODE)?,
-            base_class: self.read_config(REG_BASE_CLASS_CODE)?,
-            sub_class: self.read_config(REG_SUB_CLASS_CODE)?,
+            vendor_id: self.read_config(Reg::VENDOR_ID.val)?,
+            dev_id: self.read_config(Reg::DEVICE_ID.val)?,
+            ty: self.read_config(Reg::HEADER_TYPE.val)?,
+            rev_id: self.read_config(Reg::REVISION_ID.val)?,
+            prog_if: self.read_config(Reg::CLASS_CODE.val)?,
+            base_class: self.read_config(Reg::BASE_CLASS_CODE.val)?,
+            sub_class: self.read_config(Reg::SUB_CLASS_CODE.val)?,
             irq: 0,
             bars: [
                 self.read_bar(0)?,
@@ -199,11 +207,14 @@ impl Device {
     }
 
     fn read_bar(&self, idx: usize) -> Result<Bar, Error> {
-        let val: u32 = self.read_config(TYPE0_BASE_ADDR0 + idx as goff * 4)?;
-        self.write_config(TYPE0_BASE_ADDR0 + idx as goff * 4, 0xFFFFFFF0 | (val & 0x1))?;
+        let val: u32 = self.read_config(Type0::BASE_ADDR0.val + idx as goff * 4)?;
+        self.write_config(
+            Type0::BASE_ADDR0.val + idx as goff * 4,
+            0xFFFFFFF0 | (val & 0x1),
+        )?;
 
         let mut flags = BarFlags::empty();
-        let mut size: u32 = self.read_config(TYPE0_BASE_ADDR0 + idx as goff * 4)?;
+        let mut size: u32 = self.read_config(Type0::BASE_ADDR0.val + idx as goff * 4)?;
         let size = if size == 0 || size == 0xFFFFFFFF {
             0
         }
