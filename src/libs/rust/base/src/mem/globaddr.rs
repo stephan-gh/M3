@@ -29,10 +29,16 @@ pub struct GlobAddr {
     val: u64,
 }
 
-#[cfg(target_os = "none")]
-const PE_SHIFT: u32 = 56;
-#[cfg(target_os = "linux")]
-const PE_SHIFT: u32 = 48;
+cfg_if! {
+    if #[cfg(target_os = "none")] {
+        const PE_SHIFT: u64 = 56;
+        const PE_OFFSET: u64 = 0x80;
+    }
+    else {
+        const PE_SHIFT: u64 = 48;
+        const PE_OFFSET: u64 = 0x0;
+    }
+}
 
 impl GlobAddr {
     /// Creates a new global address from the given raw value
