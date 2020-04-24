@@ -52,7 +52,7 @@ impl PE {
         syscalls::derive_pe(self.sel(), sel, eps)?;
         Ok(Rc::new(PE {
             cap: Capability::new(sel, CapFlags::empty()),
-            desc: self.desc().clone(),
+            desc: self.desc(),
             free: false,
         }))
     }

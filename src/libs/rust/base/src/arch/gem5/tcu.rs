@@ -318,7 +318,6 @@ impl TCU {
         off: goff,
         flags: CmdFlags,
     ) -> Result<(), Error> {
-        assert!(size <= 0xFFFFFFFF);
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
         Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
         Self::write_cmd_reg(
@@ -340,7 +339,6 @@ impl TCU {
         off: goff,
         flags: CmdFlags,
     ) -> Result<(), Error> {
-        assert!(size <= 0xFFFFFFFF);
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
         Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
         Self::write_cmd_reg(

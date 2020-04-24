@@ -54,12 +54,12 @@ impl BlockDevice {
             }
 
             // determine image size
-            let mut info: libc::stat = MaybeUninit::uninit().assume_init();
-            if libc::fstat(disk_fd, &mut info) == -1 {
+            let mut info: MaybeUninit<libc::stat> = MaybeUninit::uninit().assume_init();
+            if libc::fstat(disk_fd, info.as_mut_ptr()) == -1 {
                 return Err(Error::new(Code::InvArgs));
             }
 
-            let disk_size = info.st_size;
+            let disk_size = (*info.as_ptr()).st_size;
 
             log!(crate::LOG_DEF, "Found disk device ({} MiB)", disk_size);
 

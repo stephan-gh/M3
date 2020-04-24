@@ -83,12 +83,13 @@ impl fmt::Debug for State {
 }
 
 impl State {
+    #[allow(clippy::verbose_bit_mask)]
     pub fn came_from_user(&self) -> bool {
         (self.cpsr & 0x0F) == 0x0
     }
 
     pub fn init(&mut self, entry: usize, sp: usize) {
-        self.r[1] = 0xDEADBEEF; // don't set the stackpointer in crt0
+        self.r[1] = 0xDEAD_BEEF; // don't set the stackpointer in crt0
         self.pc = entry;
         self.sp = sp;
         self.cpsr = 0x10; // user mode

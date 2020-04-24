@@ -85,8 +85,8 @@ fn run_arguments() {
 
     let act = wv_assert_ok!(vpe.run(Box::new(|| {
         wv_assert_eq!(env::args().count(), 1);
-        assert!(env::args().nth(0).is_some());
-        assert!(env::args().nth(0).unwrap().ends_with("rustunittests"));
+        assert!(env::args().next().is_some());
+        assert!(env::args().next().unwrap().ends_with("rustunittests"));
         0
     })));
 

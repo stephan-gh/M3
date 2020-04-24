@@ -268,6 +268,7 @@ pub struct RegionList {
     ds_off: goff,
     size: goff,
     // put regions in Boxes to cheaply move them around
+    #[allow(clippy::vec_box)]
     regs: Vec<Box<Region>>,
 }
 

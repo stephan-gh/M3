@@ -32,8 +32,8 @@ pub const RBUF_SIZE: usize          = 0x1000_0000 - RBUF_STD_SIZE;
 pub const RBUF_SIZE_SPM: usize      = 16384;
 pub const MAX_RB_SIZE: usize        = 32;
 
-pub const PEMUX_START: usize        = 0x100000;
-pub const PEMUX_RBUF_SPACE: usize   = 0x1FF000;
+pub const PEMUX_START: usize        = 0x10_0000;
+pub const PEMUX_RBUF_SPACE: usize   = 0x1F_F000;
 pub const PEMUX_RBUF_SIZE: usize    = 1 * PAGE_SIZE;
 
 pub const PE_MEM_BASE: usize        = 0xE000_0000;

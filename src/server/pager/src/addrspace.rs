@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cfg;
 use m3::col::Vec;
@@ -46,7 +45,7 @@ pub struct AddrSpace {
     _sess: ServerSession,
     as_mem: Option<Rc<ASMem>>,
     sgates: Vec<SendGate>,
-    ds: Vec<Box<DataSpace>>,
+    ds: Vec<DataSpace>,
 }
 
 impl AddrSpace {
@@ -125,8 +124,7 @@ impl AddrSpace {
 
             if ds_idx.is_none() {
                 let as_mem = self.as_mem.as_ref().unwrap().clone();
-                let nds = Box::new(ds.clone_for(as_mem));
-                self.ds.push(nds);
+                self.ds.push(ds.clone_for(as_mem));
                 ds_idx.replace(self.ds.len() - 1);
             }
 
@@ -219,10 +217,9 @@ impl AddrSpace {
         self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
-        let ds = Box::new(DataSpace::new_extern(
+        self.ds.push(DataSpace::new_extern(
             as_mem, virt, len, perm, flags, off, sess,
         ));
-        self.ds.push(ds);
 
         Ok(virt)
     }
@@ -262,9 +259,9 @@ impl AddrSpace {
         self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
-        self.ds.push(Box::new(DataSpace::new_anon(
+        self.ds.push(DataSpace::new_anon(
             as_mem, virt, len, perm, flags,
-        )));
+        ));
 
         Ok(())
     }
@@ -290,13 +287,13 @@ impl AddrSpace {
         self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
-        let mut ds = Box::new(DataSpace::new_anon(
+        let mut ds = DataSpace::new_anon(
             as_mem,
             virt,
             len,
             perm,
             MapFlags::empty(),
-        ));
+        );
 
         // immediately insert a region, so that we don't allocate new memory on PFs
         let sel = VPE::cur().alloc_sel();
@@ -351,7 +348,7 @@ impl AddrSpace {
         Ok(())
     }
 
-    fn find_ds_mut(&mut self, virt: goff) -> Option<&mut Box<DataSpace>> {
+    fn find_ds_mut(&mut self, virt: goff) -> Option<&mut DataSpace> {
         self.find_ds_idx(virt).map(move |idx| &mut self.ds[idx])
     }
 

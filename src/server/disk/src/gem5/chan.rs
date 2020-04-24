@@ -157,7 +157,7 @@ impl Channel {
 
         let dev_op = match op {
             Operation::READ => DevOp::READ,
-            Operation::WRITE | _ => DevOp::WRITE,
+            _ => DevOp::WRITE,
         };
 
         log!(
@@ -187,7 +187,10 @@ impl Channel {
             extra
         );
         self.write_pio(ATAReg::DRIVE_SELECT, extra | ((id & 0x1) << 4))
-            .and_then(|_| Ok(self.wait()))
+            .and_then(|_| {
+                self.wait();
+                Ok(())
+            })
     }
 
     pub fn wait(&self) {
@@ -227,8 +230,8 @@ impl Channel {
         while elapsed < timeout {
             let status: u8 = self.read_pio(ATAReg::STATUS)?;
             if (status & CommandStatus::ERROR.bits()) != 0 {
-                let _code = self.read_pio(ATAReg::ERROR)?;
                 // TODO convert error code
+                self.read_pio(ATAReg::ERROR)?;
                 return Err(Error::new(Code::InvArgs));
             }
             if (status & set.bits()) == set.bits() && (status & unset.bits()) == 0 {
@@ -256,15 +259,15 @@ impl Channel {
     }
 
     pub fn read_pio_words(&self, reg: ATAReg, buf: &mut [u16]) -> Result<(), Error> {
-        for i in 0..buf.len() {
-            buf[i] = self.read_pio(reg)?;
+        for b in buf.iter_mut() {
+            *b = self.read_pio(reg)?;
         }
         Ok(())
     }
 
     pub fn write_pio_words(&self, reg: ATAReg, buf: &[u16]) -> Result<(), Error> {
-        for i in 0..buf.len() {
-            self.write_pio(reg, buf[i])?;
+        for b in buf.iter() {
+            self.write_pio(reg, b)?;
         }
         Ok(())
     }

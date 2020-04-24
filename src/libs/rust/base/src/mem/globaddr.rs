@@ -68,6 +68,7 @@ impl GlobAddr {
 }
 
 impl fmt::Debug for GlobAddr {
+    #[allow(clippy::absurd_extreme_comparisons)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.val >= (PE_OFFSET << PE_SHIFT) {
             write!(f, "G[PE{}+{:#x}]", self.pe(), self.offset())

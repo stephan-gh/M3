@@ -263,14 +263,12 @@ fn parse_mem(p: &mut ConfigParser) -> Result<config::MemDesc, Error> {
 }
 
 fn parse_kmem(p: &mut ConfigParser) -> Result<usize, Error> {
-    loop {
-        match p.parse_arg()? {
-            None => break Err(Error::new(Code::InvArgs)),
-            Some((n, v)) => match n.as_ref() {
-                "size" => break Ok(parse_size(&v)?),
-                _ => break Err(Error::new(Code::InvArgs)),
-            },
-        }
+    match p.parse_arg()? {
+        None => Err(Error::new(Code::InvArgs)),
+        Some((n, v)) => match n.as_ref() {
+            "size" => Ok(parse_size(&v)?),
+            _ => Err(Error::new(Code::InvArgs)),
+        },
     }
 }
 

@@ -71,6 +71,7 @@ pub fn write8b(addr: usize, val: u64) {
     }
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     let bp_ptr = bp as *const usize;
     *func = *bp_ptr.offset(1);

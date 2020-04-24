@@ -70,8 +70,9 @@ macro_rules! llog {
 }
 
 #[no_mangle]
-pub extern "C" fn init_rust_io(pe_id: u32, name: *const i8) {
-    init(pe_id as u64, unsafe { util::cstr_to_str(name) });
+#[allow(clippy::missing_safety_doc)]
+pub unsafe extern "C" fn init_rust_io(pe_id: u32, name: *const i8) {
+    init(pe_id as u64, util::cstr_to_str(name));
 }
 
 /// Initializes the I/O module

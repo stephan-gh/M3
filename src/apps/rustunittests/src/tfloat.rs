@@ -39,6 +39,11 @@ fn calc_pi_remote() {
     calc_pi(&pe);
 }
 
+#[allow(clippy::approx_constant)]
+const PI_MIN: f64 = 3.141;
+#[allow(clippy::approx_constant)]
+const PI_MAX: f64 = 3.143;
+
 fn calc_pi(pe: &Rc<PE>) {
     let vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("t1")));
 
@@ -63,8 +68,8 @@ fn calc_pi(pe: &Rc<PE>) {
             div += 2.0;
         }
 
-        wv_assert!(pi >= 3.141);
-        wv_assert!(pi <= 3.143);
+        wv_assert!(pi >= PI_MIN);
+        wv_assert!(pi <= PI_MAX);
         println!("PI (Somayaji) on PE{} = {}", VPE::cur().pe_id(), pi);
         0
     })));
@@ -88,8 +93,8 @@ fn calc_pi(pe: &Rc<PE>) {
     }
 
     let pi = res * 4.0;
-    wv_assert!(pi >= 3.141);
-    wv_assert!(pi <= 3.143);
+    wv_assert!(pi >= PI_MIN);
+    wv_assert!(pi <= PI_MAX);
     println!("PI (Leibniz) on PE{} = {}", VPE::cur().pe_id(), pi);
 
     wv_assert_ok!(act.wait());

@@ -86,11 +86,9 @@ impl IDEController {
         pci_dev.write_config(pci::Reg::COMMAND.val, (status_cmd & !0x400) | 0x01 | 0x04)?;
 
         // request I/O ports for bus mastering
-        if use_dma {
-            if ide_ctrl.bars[IDE_CTRL_BAR].addr == 0 {
-                pci_dev.write_config(pci::Type0::BASE_ADDR4.val, 0x400)?;
-                ide_ctrl.bars[IDE_CTRL_BAR].addr = 0x400;
-            }
+        if use_dma && ide_ctrl.bars[IDE_CTRL_BAR].addr == 0 {
+            pci_dev.write_config(pci::Type0::BASE_ADDR4.val, 0x400)?;
+            ide_ctrl.bars[IDE_CTRL_BAR].addr = 0x400;
         }
 
         // detect channels and devices

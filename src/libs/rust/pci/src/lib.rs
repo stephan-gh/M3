@@ -36,7 +36,7 @@ const EP_DMA: EpId = 17;
 
 // hardcoded for now
 const REG_ADDR: goff = 0x4000;
-const PCI_CFG_ADDR: goff = 0xF000000;
+const PCI_CFG_ADDR: goff = 0x0F00_0000;
 
 const MSG_SIZE: usize = 32;
 const BUF_SIZE: usize = MSG_SIZE * 8;
@@ -210,12 +210,12 @@ impl Device {
         let val: u32 = self.read_config(Type0::BASE_ADDR0.val + idx as goff * 4)?;
         self.write_config(
             Type0::BASE_ADDR0.val + idx as goff * 4,
-            0xFFFFFFF0 | (val & 0x1),
+            0xFFFF_FFF0 | (val & 0x1),
         )?;
 
         let mut flags = BarFlags::empty();
         let mut size: u32 = self.read_config(Type0::BASE_ADDR0.val + idx as goff * 4)?;
-        let size = if size == 0 || size == 0xFFFFFFFF {
+        let size = if size == 0 || size == 0xFFFF_FFFF {
             0
         }
         else {
@@ -229,11 +229,11 @@ impl Device {
                 if ((val >> 3) & 0x1) != 0 {
                     flags |= BarFlags::MEM_PREFETCH;
                 }
-                size &= 0xFFFFFFFC;
+                size &= 0xFFFF_FFFC;
             }
             // IO bar
             else {
-                size &= 0xFFFFFFF0;
+                size &= 0xFFFF_FFF0;
             }
             size & (size - 1)
         };

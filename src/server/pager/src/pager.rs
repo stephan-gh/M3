@@ -90,9 +90,10 @@ impl PagerReqHandler {
                 PagerOp::PAGEFAULT => aspace.pagefault(&mut is),
                 PagerOp::MAP_ANON => aspace.map_anon(&mut is),
                 PagerOp::UNMAP => aspace.unmap(&mut is),
-                PagerOp::CLOSE => aspace
-                    .close(&mut is)
-                    .and_then(|_| Ok(self.close(is.label() as SessId))),
+                PagerOp::CLOSE => aspace.close(&mut is).and_then(|_| {
+                    self.close(is.label() as SessId);
+                    Ok(())
+                }),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         };
@@ -214,6 +215,7 @@ pub fn main() -> i32 {
     // create session for child
     let (sel, sid) = hdl.open(s.sel(), "").expect("Session creation failed");
     let sess = ClientSession::new_bind(sel);
+    #[allow(clippy::identity_conversion)]
     let sgate = SendGate::new_with(
         SGateArgs::new(&rg)
             .credits(1)

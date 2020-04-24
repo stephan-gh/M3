@@ -66,7 +66,7 @@ pub struct State {
 
 #[repr(C, packed)]
 pub struct FPUState {
-    data: [u8; 512],
+    data: [MaybeUninit<u8>; 512],
     init: bool,
 }
 
@@ -74,6 +74,7 @@ impl Default for FPUState {
     fn default() -> Self {
         Self {
             // we init that lazy on the first use of the FPU
+            #[allow(clippy::uninit_assumed_init)]
             data: unsafe { MaybeUninit::uninit().assume_init() },
             init: false,
         }

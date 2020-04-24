@@ -49,11 +49,11 @@ bitflags! {
 }
 
 impl MMUFlags {
-    pub fn is_leaf(&self, level: usize) -> bool {
+    pub fn is_leaf(self, level: usize) -> bool {
         level == 0 || (self.bits() & Self::TYPE.bits()) != Self::TBL.bits()
     }
 
-    pub fn perms_missing(&self, perms: Self) -> bool {
+    pub fn perms_missing(self, perms: Self) -> bool {
         !self.contains(Self::P)
             || (self.contains(Self::NW) && !perms.contains(Self::NW))
             || (self.contains(Self::NX) && !perms.contains(Self::NX))
@@ -185,7 +185,7 @@ pub fn set_root_pt(id: ::VPEId, root: Phys) {
             || (id != pemux::VPE_ID & 0xFF && id != pemux::IDLE_ID & 0xFF)
     );
     // cacheable table walk, non-shareable, outer write-back write-allocate cacheable
-    let ttbr0_low: u32 = (root | 0b001001) as u32;
+    let ttbr0_low: u32 = (root | 0b00_1001) as u32;
     let ttbr0_high: u32 = ((id as u32 & 0xFF) << 16) | (root >> 32) as u32;
     unsafe {
         asm!("
@@ -202,7 +202,7 @@ pub fn set_root_pt(id: ::VPEId, root: Phys) {
 
 #[no_mangle]
 pub extern "C" fn glob_to_phys(glob: goff) -> Phys {
-    (glob & !0xFF00000000000000) | ((glob & 0xFF00000000000000) >> 24)
+    (glob & !0xFF00_0000_0000_0000) | ((glob & 0xFF00_0000_0000_0000) >> 24)
 }
 
 #[no_mangle]

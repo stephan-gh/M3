@@ -138,16 +138,16 @@ impl PEDesc {
 
     /// Returns the starting address and size of the standard receive buffer space
     pub fn rbuf_std_space(self) -> (usize, usize) {
-        if self.has_virtmem() {
-            (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
-        }
-        else {
-            cfg_if! {
-                if #[cfg(target_os = "none")] {
-                    (self.mem_size() - cfg::RBUF_SIZE_SPM - cfg::RBUF_STD_SIZE, cfg::RBUF_STD_SIZE)
+        cfg_if! {
+            if #[cfg(target_os = "linux")] {
+                (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
+            }
+            else {
+                if self.has_virtmem() {
+                    (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
                 }
                 else {
-                    (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
+                    (self.mem_size() - cfg::RBUF_SIZE_SPM - cfg::RBUF_STD_SIZE, cfg::RBUF_STD_SIZE)
                 }
             }
         }
@@ -155,16 +155,16 @@ impl PEDesc {
 
     /// Returns the starting address and size of the receive buffer space
     pub fn rbuf_space(self) -> (usize, usize) {
-        if self.has_virtmem() {
-            (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
-        }
-        else {
-            cfg_if! {
-                if #[cfg(target_os = "none")] {
-                    (self.mem_size() - cfg::RBUF_SIZE_SPM, cfg::RBUF_SIZE_SPM)
+        cfg_if! {
+            if #[cfg(target_os = "linux")] {
+                (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
+            }
+            else {
+                if self.has_virtmem() {
+                    (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
                 }
                 else {
-                    (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
+                    (self.mem_size() - cfg::RBUF_SIZE_SPM, cfg::RBUF_SIZE_SPM)
                 }
             }
         }

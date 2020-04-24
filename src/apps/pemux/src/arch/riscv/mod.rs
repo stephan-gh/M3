@@ -78,8 +78,8 @@ pub struct State {
 
 #[repr(C, align(8))]
 pub struct FPUState {
-    r: [usize; 32],
-    fcsr: usize,
+    r: [MaybeUninit<usize>; 32],
+    fcsr: MaybeUninit<usize>,
     init: bool,
 }
 
@@ -111,7 +111,7 @@ static FPU_OWNER: StaticCell<vpe::Id> = StaticCell::new(pemux::VPE_ID);
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let vec = if (self.cause & 0x80000000) != 0 {
+        let vec = if (self.cause & 0x8000_0000) != 0 {
             16 + (self.cause & 0xF)
         }
         else {
@@ -136,7 +136,7 @@ impl State {
     }
 
     pub fn init(&mut self, entry: usize, sp: usize) {
-        self.r[9] = 0xDEADBEEF; // a0; don't set the stackpointer in crt0
+        self.r[9] = 0xDEAD_BEEF; // a0; don't set the stackpointer in crt0
         self.sepc = entry;
         self.r[1] = sp;
         self.sstatus = read_csr!("sstatus");

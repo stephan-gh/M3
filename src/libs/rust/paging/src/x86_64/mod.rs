@@ -44,11 +44,11 @@ bitflags! {
 }
 
 impl MMUFlags {
-    pub fn is_leaf(&self, level: usize) -> bool {
+    pub fn is_leaf(self, level: usize) -> bool {
         level == 0 || self.contains(Self::L)
     }
 
-    pub fn perms_missing(&self, perms: Self) -> bool {
+    pub fn perms_missing(self, perms: Self) -> bool {
         !self.contains(Self::P)
             || (!self.contains(Self::W) && perms.contains(Self::W))
             || (self.contains(Self::NX) && !perms.contains(Self::NX))
@@ -145,7 +145,7 @@ pub fn set_root_pt(_id: ::VPEId, root: Phys) {
 
 #[no_mangle]
 pub extern "C" fn glob_to_phys(glob: goff) -> Phys {
-    (glob & !0xFF00000000000000) | ((glob & 0xFF00000000000000) >> 16)
+    (glob & !0xFF00_0000_0000_0000) | ((glob & 0xFF00_0000_0000_0000) >> 16)
 }
 
 #[no_mangle]

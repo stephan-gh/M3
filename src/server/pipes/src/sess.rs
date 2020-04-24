@@ -130,12 +130,12 @@ impl State {
     }
 
     fn get_read_size(&self) -> usize {
-        assert!(self.reader.len() > 0);
+        assert!(!self.reader.is_empty());
         self.rbuf.size() / (4 * self.reader.len())
     }
 
     fn get_write_size(&self) -> usize {
-        assert!(self.writer.len() > 0);
+        assert!(!self.writer.is_empty());
         self.rbuf.size() / (4 * self.writer.len())
     }
 
@@ -431,7 +431,7 @@ impl Channel {
         }
 
         // if there are already queued read requests, just append this request
-        if state.pending_reads.len() > 0 {
+        if !state.pending_reads.is_empty() {
             // only queue the request if we still have writers
             if !state.flags.contains(Flags::WRITE_EOF) {
                 state.append_request(self.id, is, true);
@@ -507,7 +507,7 @@ impl Channel {
         }
 
         // if there are already queued write requests, just append this request
-        if state.pending_writes.len() > 0 {
+        if !state.pending_writes.is_empty() {
             state.append_request(self.id, is, false);
             return Ok(());
         }

@@ -213,7 +213,7 @@ impl Config {
 
     fn count_pes(pe: &PEDesc) -> u32 {
         let mut count = 0;
-        for i in 0..pes::get().len() {
+        for i in 0..pes::get().count() {
             if pe.matches(pes::get().get(i).desc()) {
                 count += 1;
             }

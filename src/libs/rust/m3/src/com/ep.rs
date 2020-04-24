@@ -39,16 +39,18 @@ pub struct EPArgs {
     replies: u32,
 }
 
-impl EPArgs {
+impl Default for EPArgs {
     /// Creates a new `EPArgs` with default arguments (any EP and no reply slots)
-    pub fn new() -> Self {
-        EPArgs {
+    fn default() -> Self {
+        Self {
             epid: EP_COUNT,
             vpe: VPE::cur().sel(),
             replies: 0,
         }
     }
+}
 
+impl EPArgs {
     /// Sets the endpoint id to `epid`.
     pub fn epid(mut self, epid: EpId) -> Self {
         self.epid = epid;
@@ -79,13 +81,13 @@ impl EP {
 
     /// Allocates a new endpoint.
     pub(crate) fn new() -> Result<Self, Error> {
-        Self::new_with(EPArgs::new())
+        Self::new_with(EPArgs::default())
     }
 
     /// Allocates a new endpoint with custom arguments
     pub(crate) fn new_with(args: EPArgs) -> Result<Self, Error> {
         let (sel, id) = Self::alloc_cap(args.epid, args.vpe, args.replies)?;
-        return Ok(Self::create(sel, id, args.replies, CapFlags::empty()));
+        Ok(Self::create(sel, id, args.replies, CapFlags::empty()))
     }
 
     pub(crate) const fn new_def_bind(ep: EpId) -> Self {

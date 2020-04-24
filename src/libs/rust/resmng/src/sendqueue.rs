@@ -186,6 +186,7 @@ impl SendQueue {
         self.state = QState::Waiting;
 
         let rgate = &RGATE.get().as_ref().unwrap();
+        #[allow(clippy::identity_conversion)]
         self.sgate
             .send_with_rlabel(msg, rgate, tcu::Label::from(self.sid))?;
 

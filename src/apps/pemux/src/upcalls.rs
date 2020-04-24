@@ -68,7 +68,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
             cur.switch_to();
         },
 
-        kif::pemux::VPEOp::STOP | _ => {
+        _ => {
             // we cannot remove the current VPE here; remove it via scheduling
             match vpe::try_cur() {
                 Some(cur) if cur.id() == vpe_id => crate::reg_scheduling(vpe::ScheduleAction::Kill),
@@ -176,7 +176,9 @@ fn handle_upcalls(our: &mut vpe::VPE) {
     loop {
         // change to our VPE
         let old_vpe = tcu::TCU::xchg_vpe(our.vpe_reg());
-        vpe::try_cur().map(|old| old.set_vpe_reg(old_vpe));
+        if let Some(old) = vpe::try_cur() {
+            old.set_vpe_reg(old_vpe);
+        }
 
         if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::PEXUP_REP) {
             let msg = tcu::TCU::offset_to_msg(UPC_RBUF_ADDR, msg_off);

@@ -75,7 +75,7 @@ impl PEManager {
         });
     }
 
-    pub fn len(&self) -> usize {
+    pub fn count(&self) -> usize {
         self.pes.len()
     }
 

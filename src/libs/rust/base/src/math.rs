@@ -16,7 +16,6 @@
 
 //! Contains math functions
 
-use core::intrinsics;
 use num_traits::PrimInt;
 use util;
 
@@ -24,7 +23,7 @@ use util;
 ///
 /// Source: [Wikipedia](https://en.wikipedia.org/wiki/Methods_of_computing_square_roots)
 pub fn sqrt(n: f32) -> f32 {
-    let mut val_int: u32 = unsafe { intrinsics::transmute(n) };
+    let mut val_int: u32 = n.to_bits();
 
     val_int = val_int.wrapping_sub(1 << 23); /* Subtract 2^m. */
     val_int >>= 1; /* Divide by 2. */

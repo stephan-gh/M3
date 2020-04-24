@@ -426,13 +426,11 @@ pub fn generate(
                         cur_thread.call(&sym, time, cur_tid);
                     }
                     // otherwise it's a return
+                    else if sym.name != "thread_switch" && cur_thread.stack.is_empty() {
+                        warn!("{}: return with empty stack", time);
+                    }
                     else {
-                        if sym.name != "thread_switch" && cur_thread.stack.is_empty() {
-                            warn!("{}: return with empty stack", time);
-                        }
-                        else {
-                            handle_return(mode, &mut wr, time, pe, sym, cur_thread, cur_tid, true)?;
-                        }
+                        handle_return(mode, &mut wr, time, pe, sym, cur_thread, cur_tid, true)?;
                     }
                 }
 

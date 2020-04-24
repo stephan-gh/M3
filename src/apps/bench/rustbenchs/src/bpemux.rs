@@ -15,7 +15,6 @@
  */
 
 use core::fmt;
-use core::intrinsics;
 use m3::cfg;
 use m3::com::MemGate;
 use m3::goff;
@@ -46,7 +45,7 @@ fn translates() {
         return;
     }
 
-    const VIRT: goff = 0x30000000;
+    const VIRT: goff = 0x3000_0000;
     const PAGES: usize = 16;
 
     struct Tester {
@@ -64,17 +63,17 @@ fn translates() {
                 .unwrap() as usize;
 
             // touch all pages to map them
-            let buf: *mut u8 = unsafe { intrinsics::transmute(self.virt) };
+            let buf: *mut u8 = self.virt as *mut u8;
             for p in 0..PAGES {
-                let _byte = unsafe { buf.offset((p * cfg::PAGE_SIZE) as isize).read_volatile() };
+                let _byte = unsafe { buf.add(p * cfg::PAGE_SIZE).read_volatile() };
             }
         }
 
         fn run(&mut self) {
             // now access every page via TCU transfer, which triggers a TLB miss in the TCU
-            let buf: *mut u8 = unsafe { intrinsics::transmute(self.virt) };
+            let buf: *mut u8 = self.virt as *mut u8;
             for p in 0..PAGES {
-                let page_buf = unsafe { buf.offset((p * cfg::PAGE_SIZE) as isize) };
+                let page_buf = unsafe { buf.add(p * cfg::PAGE_SIZE) };
                 self.mgate
                     .read_bytes(page_buf, 1, (p * cfg::PAGE_SIZE) as goff)
                     .unwrap();

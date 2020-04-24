@@ -195,6 +195,7 @@ fn handle_request(mut is: GateIStream) {
 }
 
 fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
+    #[allow(clippy::identity_conversion)]
     let sgate = SendGate::new_with(
         SGateArgs::new(req_rgate())
             .credits(1)
@@ -284,40 +285,14 @@ fn workloop() {
     }
 }
 
-fn start_boot_mods(mut mems: memory::MemModCon) {
+fn split_mem(cfg: &config::Config, mems: &memory::MemModCon) -> (bool, usize, goff) {
     let mut same_kmem = false;
-    let mut cfg_mem: Option<(Id, goff)> = None;
-
-    // find boot config
-    let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
-    for (id, m) in moditer.enumerate() {
-        if m.name() == "boot.xml" {
-            cfg_mem = Some((BOOT_MOD_SELS + 1 + id as Id, m.size));
-            continue;
-        }
-    }
-
-    // read boot config
-    let cfg_mem = cfg_mem.unwrap();
-    let mgate = MemGate::new_bind(cfg_mem.0 as Id);
-    let mut xml: Vec<u8> = Vec::with_capacity(cfg_mem.1 as usize);
-
-    // safety: will be initialized by read below
-    unsafe { xml.set_len(cfg_mem.1 as usize) };
-    mgate.read(&mut xml, 0).expect("Unable to read boot config");
-
-    // parse boot config
-    let xml_str = String::from_utf8(xml).expect("Unable to convert boot config to UTF-8 string");
-    let cfg = config::Config::parse(&xml_str, true).expect("Unable to parse boot config");
-    log!(resmng::LOG_CFG, "Parsed {:?}", cfg);
-    cfg.check();
-
-    // determine default mem and kmem per child
     let mut total_mem = mems.capacity();
     let mut total_kmem = VPE::cur()
         .kmem()
         .quota()
         .expect("Unable to determine own quota");
+
     let mut total_kparties = cfg.count_apps() + 1;
     let mut total_mparties = total_kparties;
     for d in cfg.domains() {
@@ -348,8 +323,41 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
             }
         }
     }
+
     let def_kmem = total_kmem / total_kparties;
     let def_mem = math::round_dn(total_mem / total_mparties as goff, cfg::PAGE_SIZE as goff);
+    (same_kmem, def_kmem, def_mem)
+}
+
+fn start_boot_mods(mut mems: memory::MemModCon) {
+    let mut cfg_mem: Option<(Id, goff)> = None;
+
+    // find boot config
+    let moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
+    for (id, m) in moditer.enumerate() {
+        if m.name() == "boot.xml" {
+            cfg_mem = Some((BOOT_MOD_SELS + 1 + id as Id, m.size));
+            continue;
+        }
+    }
+
+    // read boot config
+    let cfg_mem = cfg_mem.unwrap();
+    let mgate = MemGate::new_bind(cfg_mem.0 as Id);
+    let mut xml: Vec<u8> = Vec::with_capacity(cfg_mem.1 as usize);
+
+    // safety: will be initialized by read below
+    unsafe { xml.set_len(cfg_mem.1 as usize) };
+    mgate.read(&mut xml, 0).expect("Unable to read boot config");
+
+    // parse boot config
+    let xml_str = String::from_utf8(xml).expect("Unable to convert boot config to UTF-8 string");
+    let cfg = config::Config::parse(&xml_str, true).expect("Unable to parse boot config");
+    log!(resmng::LOG_CFG, "Parsed {:?}", cfg);
+    cfg.check();
+
+    // determine default mem and kmem per child
+    let (same_kmem, def_kmem, def_mem) = split_mem(&cfg, &mems);
 
     let mut id = 0;
     let mut moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
@@ -417,11 +425,9 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
             // add requested physical memory regions to pool
             for mem in cfg.mems() {
                 if let Some(p) = mem.phys() {
-                    let mslice = mems.find_mem(p, mem.size()).expect(&format!(
-                        "Unable to find memory {:#x}:{:#x}",
-                        p,
-                        mem.size()
-                    ));
+                    let mslice = mems.find_mem(p, mem.size()).unwrap_or_else(|_| {
+                        panic!("Unable to find memory {:#x}:{:#x}", p, mem.size())
+                    });
                     mem_pool.borrow_mut().add(mslice);
                 }
             }

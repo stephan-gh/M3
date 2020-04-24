@@ -48,7 +48,7 @@ macro_rules! println {
 pub(crate) fn init() {
     ::base::io::init(
         envdata::get().pe_id,
-        env::args().nth(0).unwrap_or("Unknown"),
+        env::args().next().unwrap_or("Unknown"),
     );
     std::init();
 }
@@ -56,7 +56,7 @@ pub(crate) fn init() {
 pub(crate) fn reinit() {
     ::base::io::reinit(
         envdata::get().pe_id,
-        env::args().nth(0).unwrap_or("Unknown"),
+        env::args().next().unwrap_or("Unknown"),
     );
     std::reinit();
 }

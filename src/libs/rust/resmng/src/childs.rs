@@ -102,14 +102,13 @@ pub trait Child {
             child_name
         );
 
-        let cfg = self.cfg();
         // TODO support different child configs
-        let child_cfg = cfg.clone();
 
         if self.res().childs.iter().any(|c| c.1 == vpe_sel) {
             return Err(Error::new(Code::Exists));
         }
 
+        #[allow(clippy::identity_conversion)]
         let sgate = SendGate::new_with(
             SGateArgs::new(&rgate)
                 .credits(1)
@@ -121,7 +120,7 @@ pub trait Child {
             child_name,
             our_sel,
             sgate,
-            child_cfg,
+            self.cfg(),
             self.mem().clone(),
         ));
         child.delegate(our_sg_sel, sgate_sel)?;

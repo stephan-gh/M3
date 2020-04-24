@@ -36,7 +36,7 @@ use vma::PfState;
 
 pub type Id = paging::VPEId;
 
-const TIME_SLICE: Nanos = 1000000;
+const TIME_SLICE: Nanos = 1_000_000;
 
 struct PTAllocator {
     vpe: Id,
@@ -200,7 +200,7 @@ pub fn add(id: Id, eps_start: tcu::EpId) {
 
 pub fn get_mut(id: Id) -> Option<&'static mut VPE> {
     if id == kif::pemux::VPE_ID {
-        return Some(our());
+        Some(our())
     }
     else {
         VPES.get_mut()[id as usize]
@@ -217,6 +217,7 @@ pub fn idle() -> &'static mut VPE {
     IDLE.get_mut().as_mut().unwrap()
 }
 
+#[allow(clippy::borrowed_box)]
 pub fn try_cur() -> Option<&'static mut Box<VPE>> {
     CUR.get_mut().as_mut()
 }
@@ -353,7 +354,7 @@ fn do_schedule(action: ScheduleAction) -> usize {
         );
     }
 
-    return new_state;
+    new_state
 }
 
 fn make_blocked(mut vpe: Box<VPE>) {

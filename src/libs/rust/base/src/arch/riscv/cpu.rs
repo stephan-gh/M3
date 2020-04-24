@@ -70,7 +70,7 @@ pub fn get_sp() -> usize {
             : "=r"(sp)
         )
     }
-    return sp;
+    sp
 }
 
 #[inline(always)]
@@ -82,9 +82,10 @@ pub fn get_bp() -> usize {
             : "=r"(fp)
         )
     }
-    return fp;
+    fp
 }
 
+#[allow(clippy::missing_safety_doc)]
 pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     let bp_ptr = bp as *const usize;
     *func = *bp_ptr.offset(-1);

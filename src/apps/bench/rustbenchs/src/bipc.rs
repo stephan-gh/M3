@@ -43,7 +43,7 @@ fn pingpong_local() {
 }
 
 fn pingpong_with_pe(name: &str, pe: Rc<PE>) {
-    let mut vpe = wv_assert_ok!(VPE::new_with(pe.clone(), VPEArgs::new("sender")));
+    let mut vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("sender")));
 
     let mut rgate = wv_assert_ok!(RecvGate::new(MSG_ORD, MSG_ORD));
     let sgate = wv_assert_ok!(SendGate::new_with(SGateArgs::new(&rgate).credits(1)));

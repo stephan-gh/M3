@@ -42,7 +42,7 @@ pub const HEADER_COUNT: usize = usize::max_value();
 pub const EP_COUNT: EpId = 128;
 
 pub const INVALID_EP: EpId = 0xFF;
-pub const UNLIM_CREDITS: u32 = 0xFFFFFFFF;
+pub const UNLIM_CREDITS: u32 = 0xFFFF_FFFF;
 
 pub const SYSC_SEP_OFF: EpId = 0;
 pub const SYSC_REP_OFF: EpId = 1;

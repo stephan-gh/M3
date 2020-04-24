@@ -103,7 +103,7 @@ impl VPE {
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)), // invalid
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
-            epmng: EpMng::new(),
+            epmng: EpMng::default(),
             pager: None,
             kmem: Rc::new(KMem::new(kif::SEL_KMEM)),
             files: FileTable::default(),
@@ -153,7 +153,7 @@ impl VPE {
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
-            epmng: EpMng::new(),
+            epmng: EpMng::default(),
             pager: None,
             files: FileTable::default(),
             mounts: MountTable::default(),

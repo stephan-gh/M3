@@ -24,19 +24,16 @@ use kif::INVALID_SEL;
 use syscalls;
 
 /// The endpoint manager (`EpMng`) multiplexes all non-reserved endpoints among the gates.
+#[derive(Default)]
 pub struct EpMng {
     eps: Vec<EP>,
 }
 
 impl EpMng {
-    pub fn new() -> Self {
-        EpMng { eps: Vec::new() }
-    }
-
     /// Allocates a new endpoint.
     pub fn acquire(&mut self, replies: u32) -> Result<EP, Error> {
         if replies > 0 {
-            EP::new_with(EPArgs::new().replies(replies))
+            EP::new_with(EPArgs::default().replies(replies))
         }
         else if let Some(ep) = self.eps.pop() {
             Ok(ep)
@@ -48,7 +45,7 @@ impl EpMng {
 
     /// Allocates a specific endpoint for the given VPE.
     pub fn acquire_for(&self, vpe: Selector, ep: EpId, replies: u32) -> Result<EP, Error> {
-        EP::new_with(EPArgs::new().epid(ep).vpe(vpe).replies(replies))
+        EP::new_with(EPArgs::default().epid(ep).vpe(vpe).replies(replies))
     }
 
     /// Frees the given endpoint

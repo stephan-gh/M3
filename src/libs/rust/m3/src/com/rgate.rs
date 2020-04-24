@@ -214,7 +214,6 @@ impl RecvGate {
         let replies = 1 << (self.order - self.msg_order);
         self.gate.activate_rgate(mem, off, replies).map(|_| {
             self.buf_addr = Some(addr);
-            ()
         })
     }
 

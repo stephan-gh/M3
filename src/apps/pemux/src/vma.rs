@@ -103,7 +103,7 @@ fn recv_pf_resp() -> vpe::ContResult {
         tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg_off);
 
         let pf_state = vpe.finish_pf();
-        if let Some(_) = pf_state.buf {
+        if pf_state.buf.is_some() {
             let pte = if err == 0 {
                 vpe.translate(pf_state.virt, pf_state.perm)
             }
@@ -140,10 +140,8 @@ pub fn handle_xlate(req: tcu::Reg) {
         // page fault?
         if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
             // the first xfer buffer can't raise pagefaults
-            if xfer_buf != 0 {
-                if send_pf(vpe, Some(xfer_buf), virt, perm).is_ok() {
-                    return;
-                }
+            if xfer_buf != 0 && send_pf(vpe, Some(xfer_buf), virt, perm).is_ok() {
+                return;
             }
         }
         // translation worked: let transfer continue

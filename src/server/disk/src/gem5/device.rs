@@ -269,6 +269,7 @@ impl Device {
         &self.parts
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn read_write(
         &self,
         chan: &Channel,
@@ -305,6 +306,7 @@ impl Device {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn transfer_pio(
         &self,
         chan: &Channel,
@@ -417,7 +419,7 @@ impl Device {
             chan.select(self.id, 0x40)?;
         }
         else {
-            if (lba & 0xFFFFFFFFF0000000) != 0 || (sec_count & 0xFF00) != 0 {
+            if (lba & 0xFFFF_FFFF_F000_0000) != 0 || (sec_count & 0xFF00) != 0 {
                 return Err(Error::new(Code::NotSup));
             }
             // for LBA28, the lowest 4 bits are bits 27-24 of LBA
@@ -522,7 +524,7 @@ impl Device {
 
         let status: u8 = chan.read_pio(ATAReg::STATUS)?;
         if status == 0 {
-            return Err(Error::new(Code::NotFound));
+            Err(Error::new(Code::NotFound))
         }
         else {
             // TODO from the osdev wiki: Because of some ATAPI drives that do not follow spec, at

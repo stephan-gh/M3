@@ -45,7 +45,7 @@ impl Results {
         for t in &self.times {
             sum += t;
         }
-        if self.times.len() == 0 {
+        if self.times.is_empty() {
             0
         }
         else {
@@ -66,7 +66,7 @@ impl Results {
             };
             sum += val * val;
         }
-        if self.times.len() == 0 {
+        if self.times.is_empty() {
             0f32
         }
         else {

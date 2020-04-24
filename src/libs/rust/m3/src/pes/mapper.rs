@@ -28,6 +28,7 @@ use vfs::{BufReader, FileRef, Map, Seek, SeekMode};
 /// The mapper trait is used to map the memory of an activity before running it.
 pub trait Mapper {
     /// Maps the given file to `virt`..`virt`+`len` with given permissions.
+    #[allow(clippy::too_many_arguments)]
     fn map_file<'l>(
         &mut self,
         pager: Option<&'l Pager>,
