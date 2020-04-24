@@ -15,9 +15,11 @@
  */
 
 use base::cfg;
+use base::goff;
 use base::kif::{pemux, PageFlags};
 
 pub type MMUPTE = u64;
+pub type Phys = u64;
 
 pub const PTE_BITS: usize = 3;
 
@@ -58,7 +60,7 @@ impl MMUFlags {
     }
 }
 
-pub fn build_pte(phys: MMUPTE, perm: MMUFlags, level: usize, leaf: bool) -> MMUPTE {
+pub fn build_pte(phys: Phys, perm: MMUFlags, level: usize, leaf: bool) -> MMUPTE {
     let pte = phys | perm.bits();
     if leaf {
         if level > 0 {
@@ -73,7 +75,7 @@ pub fn build_pte(phys: MMUPTE, perm: MMUFlags, level: usize, leaf: bool) -> MMUP
     }
 }
 
-pub fn pte_to_phys(pte: MMUPTE) -> MMUPTE {
+pub fn pte_to_phys(pte: MMUPTE) -> Phys {
     pte & !MMUFlags::FLAGS.bits()
 }
 
@@ -163,7 +165,7 @@ pub fn invalidate_tlb() {
     }
 }
 
-pub fn get_root_pt() -> MMUPTE {
+pub fn get_root_pt() -> Phys {
     let ttbr0_low: u32;
     let ttbr0_high: u32;
     unsafe {
@@ -175,7 +177,7 @@ pub fn get_root_pt() -> MMUPTE {
     (ttbr0_high as u64) << 32 | (ttbr0_low as u64 & !cfg::PAGE_MASK as u64)
 }
 
-pub fn set_root_pt(id: ::VPEId, root: MMUPTE) {
+pub fn set_root_pt(id: ::VPEId, root: Phys) {
     // the ASID is 8 bit; make sure that we stay in that space
     assert!(
         id == pemux::VPE_ID
@@ -199,11 +201,11 @@ pub fn set_root_pt(id: ::VPEId, root: MMUPTE) {
 }
 
 #[no_mangle]
-pub extern "C" fn noc_to_phys(noc: u64) -> u64 {
+pub extern "C" fn glob_to_phys(noc: goff) -> Phys {
     (noc & !0xFF00000000000000) | ((noc & 0xFF00000000000000) >> 24)
 }
 
 #[no_mangle]
-pub extern "C" fn phys_to_noc(phys: u64) -> u64 {
+pub extern "C" fn phys_to_glob(phys: Phys) -> goff {
     (phys & !0x0000_00FF_0000_0000) | ((phys & 0x0000_00FF_0000_0000) << 24)
 }

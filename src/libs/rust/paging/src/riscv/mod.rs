@@ -15,9 +15,11 @@
  */
 
 use base::cfg;
+use base::goff;
 use base::kif::PageFlags;
 
 pub type MMUPTE = u64;
+pub type Phys = u64;
 
 pub const PTE_BITS: usize = 3;
 
@@ -58,11 +60,11 @@ impl MMUFlags {
     }
 }
 
-pub fn build_pte(phys: MMUPTE, perm: MMUFlags, _level: usize, _leaf: bool) -> MMUPTE {
+pub fn build_pte(phys: Phys, perm: MMUFlags, _level: usize, _leaf: bool) -> MMUPTE {
     (phys >> 2) | (MMUFlags::V | perm).bits()
 }
 
-pub fn pte_to_phys(pte: MMUPTE) -> MMUPTE {
+pub fn pte_to_phys(pte: MMUPTE) -> Phys {
     (pte & !MMUFlags::FLAGS.bits()) << 2
 }
 
@@ -133,25 +135,27 @@ pub fn invalidate_page(id: ::VPEId, virt: usize) {
 }
 
 pub fn invalidate_tlb() {
-    unsafe { asm!("sfence.vma" : : : : "volatile"); }
+    unsafe {
+        asm!("sfence.vma" : : : : "volatile");
+    }
 }
 
-pub fn get_root_pt() -> MMUPTE {
-    let satp = read_csr!("satp") as MMUPTE;
+pub fn get_root_pt() -> Phys {
+    let satp = read_csr!("satp") as Phys;
     (satp & 0xFFF_FFFF_FFFF) << cfg::PAGE_BITS
 }
 
-pub fn set_root_pt(id: ::VPEId, root: MMUPTE) {
+pub fn set_root_pt(id: ::VPEId, root: Phys) {
     let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
     write_csr!("satp", satp);
 }
 
 #[no_mangle]
-pub extern "C" fn noc_to_phys(noc: u64) -> u64 {
-    (noc & !0xFF00000000000000) | ((noc & 0xFF00000000000000) >> 8)
+pub extern "C" fn glob_to_phys(global: goff) -> Phys {
+    (global & !0xFF00000000000000) | ((global & 0xFF00000000000000) >> 8)
 }
 
 #[no_mangle]
-pub extern "C" fn phys_to_noc(phys: u64) -> u64 {
+pub extern "C" fn phys_to_glob(phys: Phys) -> goff {
     (phys & !0x00FF_0000_0000_0000) | ((phys & 0x00FF_0000_0000_0000) << 8)
 }

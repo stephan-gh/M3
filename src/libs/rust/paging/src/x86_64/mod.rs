@@ -16,9 +16,11 @@
 
 use base::cfg;
 use base::cpu;
+use base::goff;
 use base::kif::PageFlags;
 
-pub type MMUPTE = usize;
+pub type MMUPTE = u64;
+pub type Phys = u64;
 
 pub const PTE_BITS: usize = 3;
 
@@ -37,7 +39,7 @@ bitflags! {
         const RW    = Self::P.bits | Self::W.bits | Self::NX.bits;
         const RWX   = Self::P.bits | Self::W.bits;
 
-        const FLAGS = cfg::PAGE_MASK | Self::NX.bits;
+        const FLAGS = cfg::PAGE_MASK as MMUPTE | Self::NX.bits;
     }
 }
 
@@ -68,7 +70,7 @@ pub fn build_pte(phys: MMUPTE, perm: MMUFlags, level: usize, leaf: bool) -> MMUP
     }
 }
 
-pub fn pte_to_phys(pte: MMUPTE) -> MMUPTE {
+pub fn pte_to_phys(pte: MMUPTE) -> Phys {
     pte & !MMUFlags::FLAGS.bits()
 }
 
@@ -133,20 +135,20 @@ pub fn invalidate_tlb() {
     // nothing to do
 }
 
-pub fn get_root_pt() -> MMUPTE {
-    cpu::read_cr3()
+pub fn get_root_pt() -> Phys {
+    cpu::read_cr3() as Phys
 }
 
-pub fn set_root_pt(_id: ::VPEId, root: MMUPTE) {
-    cpu::write_cr3(root);
+pub fn set_root_pt(_id: ::VPEId, root: Phys) {
+    cpu::write_cr3(root as usize);
 }
 
 #[no_mangle]
-pub extern "C" fn noc_to_phys(noc: u64) -> u64 {
+pub extern "C" fn glob_to_phys(noc: goff) -> Phys {
     (noc & !0xFF00000000000000) | ((noc & 0xFF00000000000000) >> 16)
 }
 
 #[no_mangle]
-pub extern "C" fn phys_to_noc(phys: u64) -> u64 {
+pub extern "C" fn phys_to_glob(phys: Phys) -> goff {
     (phys & !0x0000_FF00_0000_0000) | ((phys & 0x0000_FF00_0000_0000) << 16)
 }

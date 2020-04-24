@@ -202,7 +202,8 @@ pub fn handle_fpu_ex(_state: &mut State) {
 pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
     let cr2 = cpu::read_cr2();
 
-    let perm = paging::MMUFlags::from_bits_truncate(state.error & PageFlags::RW.bits() as usize);
+    let perm =
+        paging::MMUFlags::from_bits_truncate(state.error as paging::MMUPTE & PageFlags::RW.bits());
     // the access is implicitly no-exec
     let perm = paging::to_page_flags(0, perm | paging::MMUFlags::NX);
 

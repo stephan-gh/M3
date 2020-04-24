@@ -33,38 +33,38 @@ extern "C" void *_bss_end;
 
 extern "C" goff_t get_addr_space();
 extern "C" void set_addr_space(goff_t root, alloc_frame_func alloc_frame, xlate_pt_func xlate_pt);
-extern "C" uint64_t noc_to_phys(uint64_t noc);
-extern "C" uint64_t phys_to_noc(uint64_t phys);
+extern "C" uint64_t glob_to_phys(uint64_t global);
+extern "C" uint64_t phys_to_glob(uint64_t phys);
 extern "C" void enable_paging();
 extern "C" void init_aspace(uint64_t vpe,
                             alloc_frame_func alloc_frame, xlate_pt_func xlate_pt, goff_t root);
-extern "C" void map_pages(uint64_t vpe, uintptr_t virt, goff_t phys, size_t pages, uint64_t perm,
+extern "C" void map_pages(uint64_t vpe, uintptr_t virt, goff_t global, size_t pages, uint64_t perm,
                           alloc_frame_func alloc_frame, xlate_pt_func xlate_pt, goff_t root);
 extern "C" uint64_t translate(uint64_t vpe, goff_t root, alloc_frame_func alloc_frame,
                               xlate_pt_func xlate_pt, uintptr_t virt, uint64_t perm);
 
 static goff_t kalloc_frame(uint64_t) {
     static size_t pos = m3::env()->pe_mem_size / 2 + PAGE_SIZE;
-    goff_t phys_begin = noc_to_phys(m3::env()->pe_mem_base);
+    goff_t phys_begin = glob_to_phys(m3::env()->pe_mem_base);
     pos += PAGE_SIZE;
     return phys_begin + pos - PAGE_SIZE;
 }
 
 static uintptr_t kxlate_pt(uint64_t vpe, goff_t phys) {
-    goff_t phys_begin = noc_to_phys(m3::env()->pe_mem_base);
+    goff_t phys_begin = glob_to_phys(m3::env()->pe_mem_base);
     goff_t off = phys - phys_begin;
     return vpe == 0 ? off : PE_MEM_BASE + off;
 }
 
-static void map_init(uintptr_t virt, goff_t phys, size_t pages, uint64_t perm, goff_t root) {
-    map_pages(0, virt, phys, pages, perm, kalloc_frame, kxlate_pt, root);
+static void map_init(uintptr_t virt, goff_t global, size_t pages, uint64_t perm, goff_t root) {
+    map_pages(0, virt, global, pages, perm, kalloc_frame, kxlate_pt, root);
 }
 
 static void map_segment(void *start, void *end, uint64_t perm, goff_t root) {
     uintptr_t start_addr = m3::Math::round_dn(reinterpret_cast<uintptr_t>(start), PAGE_SIZE);
     uintptr_t end_addr = m3::Math::round_up(reinterpret_cast<uintptr_t>(end), PAGE_SIZE);
     size_t pages = (end_addr - start_addr) / PAGE_SIZE;
-    map_init(start_addr, phys_to_noc(m3::env()->pe_mem_base + start_addr), pages, perm, root);
+    map_init(start_addr, phys_to_glob(m3::env()->pe_mem_base + start_addr), pages, perm, root);
 }
 
 void init_paging() {
@@ -87,13 +87,13 @@ void init_paging() {
 
     // map initial heap
     uintptr_t heap_start = m3::Math::round_up(reinterpret_cast<uintptr_t>(&_bss_end), LPAGE_SIZE);
-    map_init(heap_start, phys_to_noc(m3::env()->pe_mem_base + heap_start), 4, rw, root);
+    map_init(heap_start, phys_to_glob(m3::env()->pe_mem_base + heap_start), 4, rw, root);
 
     // map stack
-    map_init(STACK_BOTTOM, phys_to_noc(m3::env()->pe_mem_base + STACK_BOTTOM),
+    map_init(STACK_BOTTOM, phys_to_glob(m3::env()->pe_mem_base + STACK_BOTTOM),
              STACK_SIZE / PAGE_SIZE, rw, root);
     // map env
-    map_init(ENV_START, phys_to_noc(m3::env()->pe_mem_base + ENV_START),
+    map_init(ENV_START, phys_to_glob(m3::env()->pe_mem_base + ENV_START),
              ENV_SIZE / PAGE_SIZE, rw, root);
 
     // map PTs
@@ -110,9 +110,9 @@ void init_paging() {
     enable_paging();
 }
 
-void map_pages(uintptr_t virt, goff_t phys, size_t pages, uint64_t perm) {
+void map_pages(uintptr_t virt, goff_t global, size_t pages, uint64_t perm) {
     goff_t root = get_addr_space();
-    map_pages(VPE::KERNEL_ID, virt, phys, pages, perm, kalloc_frame, kxlate_pt, root);
+    map_pages(VPE::KERNEL_ID, virt, global, pages, perm, kalloc_frame, kxlate_pt, root);
 }
 
 uint64_t translate(uintptr_t virt, uint64_t perm) {

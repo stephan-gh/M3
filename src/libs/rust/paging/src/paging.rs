@@ -54,8 +54,8 @@ use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};
 pub type VPEId = u64;
 
 pub use arch::{
-    build_pte, enable_paging, noc_to_phys, phys_to_noc, pte_to_phys, to_page_flags, MMUFlags,
-    MMUPTE,
+    build_pte, enable_paging, glob_to_phys, phys_to_glob, pte_to_phys, to_page_flags, MMUFlags,
+    Phys, MMUPTE,
 };
 
 /// Logs mapping operations
@@ -63,8 +63,8 @@ pub const LOG_MAP: bool = false;
 /// Logs detailed mapping operations
 pub const LOG_MAP_DETAIL: bool = false;
 
-pub type AllocFrameFunc = extern "C" fn(vpe: VPEId) -> MMUPTE;
-pub type XlatePtFunc = extern "C" fn(vpe: VPEId, phys: MMUPTE) -> usize;
+pub type AllocFrameFunc = extern "C" fn(vpe: VPEId) -> Phys;
+pub type XlatePtFunc = extern "C" fn(vpe: VPEId, phys: Phys) -> usize;
 
 pub struct ExtAllocator {
     vpe: VPEId,
@@ -87,11 +87,11 @@ impl Allocator for ExtAllocator {
         (self.alloc_frame)(self.vpe)
     }
 
-    fn translate_pt(&self, phys: MMUPTE) -> usize {
+    fn translate_pt(&self, phys: Phys) -> usize {
         (self.xlate_pt)(self.vpe, phys)
     }
 
-    fn free_pt(&mut self, _phys: MMUPTE) {
+    fn free_pt(&mut self, _phys: Phys) {
     }
 }
 
@@ -110,7 +110,7 @@ pub extern "C" fn init_aspace(
 pub extern "C" fn map_pages(
     id: VPEId,
     virt: usize,
-    noc: goff,
+    global: goff,
     pages: usize,
     perm: PTE,
     alloc_frame: AllocFrameFunc,
@@ -119,30 +119,24 @@ pub extern "C" fn map_pages(
 ) {
     let mut aspace = AddrSpace::new(id, root, ExtAllocator::new(id, alloc_frame, xlate_pt), true);
     let perm = PageFlags::from_bits_truncate(perm);
-    aspace.map_pages(virt, noc, pages, perm).unwrap();
+    aspace.map_pages(virt, global, pages, perm).unwrap();
 }
 
 #[no_mangle]
-pub extern "C" fn get_addr_space() -> PTE {
-    arch::phys_to_noc(arch::get_root_pt() as u64)
+pub extern "C" fn get_addr_space() -> goff {
+    arch::phys_to_glob(arch::get_root_pt())
 }
 
 #[no_mangle]
-pub extern "C" fn set_addr_space(root: PTE, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) {
+pub extern "C" fn set_addr_space(root: goff, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) {
     let aspace = AddrSpace::new(0, root, ExtAllocator::new(0, alloc_frame, xlate_pt), true);
     aspace.switch_to();
-}
-
-fn to_pte(level: usize, pte: MMUPTE) -> PTE {
-    let res = phys_to_noc(pte_to_phys(pte) as u64);
-    let flags = MMUFlags::from_bits_truncate(pte);
-    res | to_page_flags(level, flags).bits()
 }
 
 #[no_mangle]
 pub extern "C" fn translate(
     id: VPEId,
-    root: PTE,
+    root: goff,
     alloc_frame: AllocFrameFunc,
     xlate_pt: XlatePtFunc,
     virt: usize,
@@ -153,14 +147,19 @@ pub extern "C" fn translate(
 }
 
 pub trait Allocator {
-    fn allocate_pt(&mut self) -> MMUPTE;
-    fn translate_pt(&self, phys: MMUPTE) -> usize;
-    fn free_pt(&mut self, phys: MMUPTE);
+    /// Allocates a new page table and returns its physical addres
+    fn allocate_pt(&mut self) -> Phys;
+
+    /// Translates the given physical address of a page table to a virtual address
+    fn translate_pt(&self, phys: Phys) -> usize;
+
+    /// Frees the given page table
+    fn free_pt(&mut self, phys: Phys);
 }
 
 pub struct AddrSpace<A: Allocator> {
     id: VPEId,
-    root: MMUPTE,
+    root: Phys,
     alloc: A,
     is_temp: bool,
 }
@@ -170,7 +169,7 @@ impl<A: Allocator> AddrSpace<A> {
         AddrSpace {
             id,
             root: build_pte(
-                arch::noc_to_phys(root) as MMUPTE,
+                arch::glob_to_phys(root),
                 MMUFlags::empty(),
                 LEVEL_CNT,
                 false,
@@ -216,7 +215,9 @@ impl<A: Allocator> AddrSpace<A> {
 
             let pte_flags = MMUFlags::from_bits_truncate(pte);
             if pte_flags.is_leaf(lvl) || pte_flags.perms_missing(perm) {
-                return to_pte(lvl, pte);
+                let res = phys_to_glob(pte_to_phys(pte));
+                let flags = MMUFlags::from_bits_truncate(pte);
+                return res | to_page_flags(lvl, flags).bits();
             }
         }
         unreachable!();
@@ -225,7 +226,7 @@ impl<A: Allocator> AddrSpace<A> {
     pub fn map_pages(
         &mut self,
         mut virt: usize,
-        noc: goff,
+        global: goff,
         mut pages: usize,
         perm: PageFlags,
     ) -> Result<(), Error> {
@@ -235,13 +236,13 @@ impl<A: Allocator> AddrSpace<A> {
             self.id,
             virt,
             virt + pages * cfg::PAGE_SIZE - 1,
-            noc,
-            noc + (pages * cfg::PAGE_SIZE) as goff - 1,
+            global,
+            global + (pages * cfg::PAGE_SIZE) as goff - 1,
             perm
         );
 
         let lvl = LEVEL_CNT - 1;
-        let mut phys = arch::noc_to_phys(noc) as MMUPTE;
+        let mut phys = arch::glob_to_phys(global);
         let perm = arch::to_mmu_perms(perm);
         self.map_pages_rec(&mut virt, &mut phys, &mut pages, perm, self.root, lvl)
     }
@@ -249,7 +250,7 @@ impl<A: Allocator> AddrSpace<A> {
     fn map_pages_rec(
         &mut self,
         virt: &mut usize,
-        phys: &mut MMUPTE,
+        phys: &mut Phys,
         pages: &mut usize,
         perm: MMUFlags,
         pte: MMUPTE,

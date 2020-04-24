@@ -672,7 +672,7 @@ impl VPE {
         }
 
         // map own receive buffer
-        let own_rbuf = paging::phys_to_noc(rbuf_frame(kif::pemux::VPE_ID));
+        let own_rbuf = paging::phys_to_glob(rbuf_frame(kif::pemux::VPE_ID));
         assert!(cfg::PEMUX_RBUF_SIZE == cfg::PAGE_SIZE);
         self.map(cfg::PEMUX_RBUF_SPACE, own_rbuf, 1, kif::PageFlags::R)
             .unwrap();
@@ -685,7 +685,7 @@ impl VPE {
         }
         else {
             // map application receive buffer
-            let app_rbuf = paging::phys_to_noc(rbuf_frame(self.id()));
+            let app_rbuf = paging::phys_to_glob(rbuf_frame(self.id()));
             let perm = kif::PageFlags::R | kif::PageFlags::U;
             assert!(cfg::RBUF_STD_SIZE == cfg::PAGE_SIZE);
             self.map(cfg::RBUF_STD_ADDR, app_rbuf, 1, perm).unwrap();
@@ -699,7 +699,7 @@ impl VPE {
         );
 
         // map PTs
-        let noc_begin = paging::phys_to_noc(pex_env().mem_start as u64);
+        let noc_begin = paging::phys_to_glob(pex_env().mem_start as u64);
         self.map(
             cfg::PE_MEM_BASE,
             noc_begin,
@@ -728,7 +728,7 @@ impl VPE {
             self.frames.push(frame as u64);
             self.map(
                 addr + i * cfg::PAGE_SIZE,
-                paging::phys_to_noc(frame as u64),
+                paging::phys_to_glob(frame as u64),
                 1,
                 perm,
             )
@@ -742,7 +742,7 @@ impl VPE {
         let pages = (end - start) / cfg::PAGE_SIZE;
         self.map(
             start,
-            paging::phys_to_noc((pex_env().mem_start as usize + start) as goff),
+            paging::phys_to_glob((pex_env().mem_start as usize + start) as goff),
             pages,
             perm,
         )
