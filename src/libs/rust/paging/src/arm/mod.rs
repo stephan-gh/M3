@@ -201,8 +201,8 @@ pub fn set_root_pt(id: ::VPEId, root: Phys) {
 }
 
 #[no_mangle]
-pub extern "C" fn glob_to_phys(noc: goff) -> Phys {
-    (noc & !0xFF00000000000000) | ((noc & 0xFF00000000000000) >> 24)
+pub extern "C" fn glob_to_phys(glob: goff) -> Phys {
+    (glob & !0xFF00000000000000) | ((glob & 0xFF00000000000000) >> 24)
 }
 
 #[no_mangle]

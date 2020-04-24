@@ -55,7 +55,7 @@ pub struct Map {
     pub op: u64,
     pub vpe_sel: u64,
     pub virt: u64,
-    pub phys: u64,
+    pub global: u64,
     pub pages: u64,
     pub perm: u64,
 }

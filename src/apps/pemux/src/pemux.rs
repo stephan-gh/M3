@@ -37,6 +37,7 @@ mod vpe;
 use base::cell::StaticCell;
 use base::cfg;
 use base::envdata;
+use base::goff;
 use base::io;
 use base::kif;
 use base::libc;
@@ -73,8 +74,8 @@ static mut HEAP: Heap = Heap { 0: [0; 8 * 1024] };
 pub struct PEXEnv {
     pe_id: u64,
     pe_desc: kif::PEDesc,
-    mem_start: u64,
-    mem_end: u64,
+    mem_start: goff,
+    mem_end: goff,
 }
 
 static PEX_ENV: StaticCell<PEXEnv> = StaticCell::new(PEXEnv {

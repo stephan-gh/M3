@@ -16,8 +16,8 @@
 
 use base::cfg;
 use base::errors::{Code, Error};
-use base::goff;
 use base::kif;
+use base::mem::GlobAddr;
 use base::tcu;
 use base::util;
 
@@ -85,7 +85,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
 
     let vpe_id = req.vpe_sel as vpe::Id;
     let virt = req.virt as usize;
-    let phys = req.phys as goff;
+    let global = GlobAddr::new(req.global);
     let pages = req.pages as usize;
     let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
 
@@ -96,17 +96,17 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
 
     log!(
         crate::LOG_UPCALLS,
-        "upcall::map(vpe={}, virt={:#x}, phys={:#x}, pages={}, perm={:?})",
+        "upcall::map(vpe={}, virt={:#x}, global={:?}, pages={}, perm={:?})",
         vpe_id,
         virt,
-        phys,
+        global,
         pages,
         perm
     );
 
     vpe::get_mut(vpe_id)
         .unwrap()
-        .map(virt, phys, pages, perm | kif::PageFlags::U)
+        .map(virt, global, pages, perm | kif::PageFlags::U)
 }
 
 fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {

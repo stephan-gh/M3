@@ -424,7 +424,7 @@ struct KIF {
         struct Map : public DefaultRequest {
             xfer_t vpe_sel;
             xfer_t virt;
-            xfer_t phys;
+            xfer_t global;
             xfer_t pages;
             xfer_t perm;
         } PACKED;

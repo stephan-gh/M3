@@ -22,13 +22,14 @@ use base::errors::Error;
 use base::goff;
 use base::kif;
 use base::math;
+use base::mem::GlobAddr;
 use base::tcu;
 use base::util;
 use core::ptr::NonNull;
 
 use arch;
 use helper;
-use paging::Allocator;
+use paging::{Allocator, Phys};
 use pex_env;
 use timer::{self, Nanos};
 use vma::PfState;
@@ -42,23 +43,20 @@ struct PTAllocator {
 }
 
 impl Allocator for PTAllocator {
-    fn allocate_pt(&mut self) -> paging::MMUPTE {
+    fn allocate_pt(&mut self) -> Phys {
         assert!(self.vpe != kif::pemux::IDLE_ID);
         if let Some(pt) = PTS.get_mut().pop() {
             log!(crate::LOG_PTS, "Alloc PT {:#x} (free: {})", pt, PTS.len());
-            pt as paging::MMUPTE
+            pt
         }
         else {
             0
         }
     }
 
-    fn translate_pt(&self, phys: paging::MMUPTE) -> usize {
-        assert!(
-            phys >= pex_env().mem_start as paging::MMUPTE
-                && phys < pex_env().mem_end as paging::MMUPTE
-        );
-        let off = phys - pex_env().mem_start as paging::MMUPTE;
+    fn translate_pt(&self, phys: Phys) -> usize {
+        assert!(phys >= pex_env().mem_start as Phys && phys < pex_env().mem_end as Phys);
+        let off = phys - pex_env().mem_start as Phys;
         if *BOOTSTRAP {
             off as usize
         }
@@ -67,9 +65,9 @@ impl Allocator for PTAllocator {
         }
     }
 
-    fn free_pt(&mut self, phys: paging::MMUPTE) {
+    fn free_pt(&mut self, phys: Phys) {
         log!(crate::LOG_PTS, "Free PT {:#x} (free: {})", phys, PTS.len());
-        PTS.get_mut().push(phys as u64);
+        PTS.get_mut().push(phys);
     }
 }
 
@@ -100,7 +98,7 @@ pub struct VPE {
     prev: Option<NonNull<VPE>>,
     next: Option<NonNull<VPE>>,
     aspace: paging::AddrSpace<PTAllocator>,
-    frames: Vec<u64>,
+    frames: Vec<Phys>,
     #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
     fpu_state: arch::FPUState,
     user_state: arch::State,
@@ -131,14 +129,14 @@ static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 // TODO for some reason, we need to put that in a separate struct than INFO, because otherwise
 // wrong code is generated for ARM.
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
-static PTS: StaticCell<Vec<u64>> = StaticCell::new(Vec::new());
+static PTS: StaticCell<Vec<Phys>> = StaticCell::new(Vec::new());
 
-fn rbuf_frame(id: Id) -> u64 {
+fn rbuf_frame(id: Id) -> Phys {
     if id == kif::pemux::VPE_ID {
-        pex_env().mem_start + cfg::PAGE_SIZE as u64 * cfg::FIRST_RBUF_FRAME as u64
+        pex_env().mem_start + cfg::PAGE_SIZE as Phys * cfg::FIRST_RBUF_FRAME as Phys
     }
     else {
-        pex_env().mem_start + cfg::PAGE_SIZE as u64 * (cfg::FIRST_RBUF_FRAME as u64 + 1 + id)
+        pex_env().mem_start + cfg::PAGE_SIZE as Phys * (cfg::FIRST_RBUF_FRAME as Phys + 1 + id)
     }
 }
 
@@ -146,18 +144,18 @@ pub fn init() {
     let root_pt = if pex_env().pe_desc.has_virtmem() {
         // only use the memory up to ourself for page tables. we could use the memory behind ourself
         // as well, but currently the 1 MiB before us is sufficient.
-        let pt_count = (cfg::PEMUX_START / cfg::PAGE_SIZE) as u64;
-        let first_pt = (cfg::FIRST_RBUF_FRAME + cfg::MAX_VPES + 1) as u64;
+        let pt_count = (cfg::PEMUX_START / cfg::PAGE_SIZE) as Phys;
+        let first_pt = (cfg::FIRST_RBUF_FRAME + cfg::MAX_VPES + 1) as Phys;
         PTS.get_mut().reserve(pt_count as usize);
         for i in first_pt..pt_count {
             PTS.get_mut()
-                .push(pex_env().mem_start + i * cfg::PAGE_SIZE as u64);
+                .push(pex_env().mem_start + i * cfg::PAGE_SIZE as Phys);
         }
 
         PTAllocator {
             vpe: kif::pemux::VPE_ID,
         }
-        .allocate_pt() as goff
+        .allocate_pt()
     }
     else {
         0
@@ -167,7 +165,7 @@ pub fn init() {
     OUR.set(Some(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt))));
 
     if pex_env().pe_desc.has_virtmem() {
-        our().frames.push(root_pt as u64);
+        our().frames.push(root_pt);
         our().init();
         our().switch_to();
         paging::enable_paging();
@@ -180,7 +178,7 @@ pub fn add(id: Id, eps_start: tcu::EpId) {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
     let root_pt = if pex_env().pe_desc.has_virtmem() {
-        PTAllocator { vpe: id }.allocate_pt() as goff
+        PTAllocator { vpe: id }.allocate_pt()
     }
     else {
         0
@@ -189,7 +187,7 @@ pub fn add(id: Id, eps_start: tcu::EpId) {
     let mut vpe = Box::new(VPE::new(id, eps_start, root_pt));
 
     if pex_env().pe_desc.has_virtmem() {
-        vpe.frames.push(root_pt as u64);
+        vpe.frames.push(root_pt);
         vpe.init();
     }
 
@@ -423,11 +421,16 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
 }
 
 impl VPE {
-    pub fn new(id: Id, eps_start: tcu::EpId, root_pt: goff) -> Self {
+    pub fn new(id: Id, eps_start: tcu::EpId, root_pt: Phys) -> Self {
         VPE {
             prev: None,
             next: None,
-            aspace: paging::AddrSpace::new(id, root_pt, PTAllocator { vpe: id }, false),
+            aspace: paging::AddrSpace::new(
+                id,
+                GlobAddr::new(root_pt),
+                PTAllocator { vpe: id },
+                false,
+            ),
             frames: Vec::new(),
             vpe_reg: id,
             state: VPEState::Blocked,
@@ -450,11 +453,11 @@ impl VPE {
     pub fn map(
         &mut self,
         virt: usize,
-        phys: goff,
+        global: GlobAddr,
         pages: usize,
         perm: kif::PageFlags,
     ) -> Result<(), Error> {
-        self.aspace.map_pages(virt, phys, pages, perm)
+        self.aspace.map_pages(virt, global, pages, perm)
     }
 
     pub fn translate(&self, virt: usize, perm: kif::PageFlags) -> kif::PTE {
@@ -650,14 +653,14 @@ impl VPE {
         let rw = kif::PageFlags::RW;
         self.map(
             tcu::MMIO_ADDR,
-            tcu::MMIO_ADDR as goff,
+            GlobAddr::new(tcu::MMIO_ADDR as goff),
             tcu::MMIO_SIZE / cfg::PAGE_SIZE,
             kif::PageFlags::U | rw,
         )
         .unwrap();
         self.map(
             tcu::MMIO_PRIV_ADDR,
-            tcu::MMIO_PRIV_ADDR as goff,
+            GlobAddr::new(tcu::MMIO_PRIV_ADDR as goff),
             tcu::MMIO_PRIV_SIZE / cfg::PAGE_SIZE,
             rw,
         )
@@ -672,7 +675,7 @@ impl VPE {
         }
 
         // map own receive buffer
-        let own_rbuf = paging::phys_to_glob(rbuf_frame(kif::pemux::VPE_ID));
+        let own_rbuf = GlobAddr::new(paging::phys_to_glob(rbuf_frame(kif::pemux::VPE_ID)));
         assert!(cfg::PEMUX_RBUF_SIZE == cfg::PAGE_SIZE);
         self.map(cfg::PEMUX_RBUF_SPACE, own_rbuf, 1, kif::PageFlags::R)
             .unwrap();
@@ -685,7 +688,7 @@ impl VPE {
         }
         else {
             // map application receive buffer
-            let app_rbuf = paging::phys_to_glob(rbuf_frame(self.id()));
+            let app_rbuf = GlobAddr::new(paging::phys_to_glob(rbuf_frame(self.id())));
             let perm = kif::PageFlags::R | kif::PageFlags::U;
             assert!(cfg::RBUF_STD_SIZE == cfg::PAGE_SIZE);
             self.map(cfg::RBUF_STD_ADDR, app_rbuf, 1, perm).unwrap();
@@ -699,10 +702,10 @@ impl VPE {
         );
 
         // map PTs
-        let noc_begin = paging::phys_to_glob(pex_env().mem_start as u64);
+        let glob_begin = GlobAddr::new(paging::phys_to_glob(pex_env().mem_start as u64));
         self.map(
             cfg::PE_MEM_BASE,
-            noc_begin,
+            glob_begin,
             (pex_env().mem_end - pex_env().mem_start) as usize / cfg::PAGE_SIZE,
             kif::PageFlags::RW,
         )
@@ -710,7 +713,7 @@ impl VPE {
 
         // map vectors
         #[cfg(target_arch = "arm")]
-        self.map(0, noc_begin, 1, rx).unwrap();
+        self.map(0, glob_begin, 1, rx).unwrap();
 
         // insert fixed entry for messages into TLB
         let virt = crate::msgs_mut() as *mut _ as usize;
@@ -725,10 +728,10 @@ impl VPE {
         for i in 0..(size / cfg::PAGE_SIZE) {
             let frame = self.aspace.allocator_mut().allocate_pt();
             assert!(frame != 0);
-            self.frames.push(frame as u64);
+            self.frames.push(frame);
             self.map(
                 addr + i * cfg::PAGE_SIZE,
-                paging::phys_to_glob(frame as u64),
+                GlobAddr::new(paging::phys_to_glob(frame)),
                 1,
                 perm,
             )
@@ -742,7 +745,9 @@ impl VPE {
         let pages = (end - start) / cfg::PAGE_SIZE;
         self.map(
             start,
-            paging::phys_to_glob((pex_env().mem_start as usize + start) as goff),
+            GlobAddr::new(paging::phys_to_glob(
+                (pex_env().mem_start as usize + start) as goff,
+            )),
             pages,
             perm,
         )

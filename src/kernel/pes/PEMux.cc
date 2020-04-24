@@ -130,7 +130,7 @@ m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, m3::GlobAddr global, uint 
     req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::MAP);
     req.vpe_sel = vpe;
     req.virt = virt;
-    req.phys = global.raw();
+    req.global = global.raw();
     req.pages = pages;
     req.perm = static_cast<xfer_t>(perm);
 
