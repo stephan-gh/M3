@@ -154,7 +154,7 @@ if [ "$M3_TARGET" = "host" ]; then
     params=$(build_params_host $script) || exit 1
 
     if [[ $params == *disk* ]] && [ "$M3_HDD" = "" ]; then
-        ./src/tools/disk.py create $build/$M3_HDD $build/$M3_FS
+        ./src/tools/disk.py create $M3_HDD_PATH $build/$M3_FS
     fi
 
     if [ "$M3_VALGRIND" != "" ]; then
