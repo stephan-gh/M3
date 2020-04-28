@@ -17,7 +17,7 @@
 use arch;
 use base;
 use cap::Selector;
-use cell::StaticCell;
+use cell::LazyStaticCell;
 use col::{String, Vec};
 use com::{SendGate, SliceSource};
 use core::intrinsics;
@@ -138,10 +138,10 @@ fn read_line(fd: i32) -> String {
     unsafe { String::from_utf8_unchecked(vec) }
 }
 
-static ENV_DATA: StaticCell<Option<EnvData>> = StaticCell::new(None);
+static ENV_DATA: LazyStaticCell<EnvData> = LazyStaticCell::default();
 
 pub fn get() -> &'static mut EnvData {
-    ENV_DATA.get_mut().as_mut().unwrap()
+    ENV_DATA.get_mut()
 }
 
 pub fn init(argc: i32, argv: *const *const i8) {
@@ -163,14 +163,14 @@ pub fn init(argc: i32, argv: *const *const i8) {
     );
     base::envdata::set(base);
 
-    ENV_DATA.set(Some(EnvData {
+    ENV_DATA.set(EnvData {
         sysc_lbl: read_line(fd).parse::<Label>().unwrap(),
         sysc_ep: read_line(fd).parse::<EpId>().unwrap(),
         sysc_crd: read_line(fd).parse::<u64>().unwrap(),
         _shm_prefix: shm_prefix,
 
         vpe: 0,
-    }));
+    });
 
     unsafe {
         libc::close(fd);

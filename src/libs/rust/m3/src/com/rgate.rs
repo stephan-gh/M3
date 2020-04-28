@@ -16,7 +16,7 @@
 
 use arch;
 use cap::{CapFlags, Selector};
-use cell::StaticCell;
+use cell::LazyStaticCell;
 use cfg;
 use com::rbufs::{alloc_rbuf, free_rbuf};
 use com::{gate::Gate, GateIStream, RecvBuf, SendGate};
@@ -32,9 +32,9 @@ use util;
 
 const DEF_MSG_ORD: u32 = 6;
 
-static SYS_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
-static UPC_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
-static DEF_RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
+static SYS_RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static UPC_RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static DEF_RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 
 /// A receive gate (`RecvGate`) can receive messages via TCU from connected [`SendGate`]s and can
 /// reply on the received messages.
@@ -108,17 +108,17 @@ impl RGateArgs {
 impl RecvGate {
     /// Returns the receive gate to receive system call replies
     pub fn syscall() -> &'static mut RecvGate {
-        SYS_RGATE.get_mut().as_mut().unwrap()
+        SYS_RGATE.get_mut()
     }
 
     /// Returns the receive gate to receive upcalls from the kernel
     pub fn upcall() -> &'static mut RecvGate {
-        UPC_RGATE.get_mut().as_mut().unwrap()
+        UPC_RGATE.get_mut()
     }
 
     /// Returns the default receive gate
     pub fn def() -> &'static mut RecvGate {
-        DEF_RGATE.get_mut().as_mut().unwrap()
+        DEF_RGATE.get_mut()
     }
 
     const fn new_def(sel: Selector, ep: tcu::EpId, addr: usize, order: u32) -> Self {
@@ -280,28 +280,28 @@ impl RecvGate {
 pub(crate) fn pre_init() {
     let eps_start = arch::env::get().first_std_ep();
     let mut rbuf = arch::env::get().pe_desc().rbuf_std_space().0;
-    SYS_RGATE.set(Some(RecvGate::new_def(
+    SYS_RGATE.set(RecvGate::new_def(
         INVALID_SEL,
         eps_start + tcu::SYSC_REP_OFF,
         rbuf,
         math::next_log2(cfg::SYSC_RBUF_SIZE),
-    )));
+    ));
     rbuf += cfg::SYSC_RBUF_SIZE;
 
-    UPC_RGATE.set(Some(RecvGate::new_def(
+    UPC_RGATE.set(RecvGate::new_def(
         INVALID_SEL,
         eps_start + tcu::UPCALL_REP_OFF,
         rbuf,
         math::next_log2(cfg::UPCALL_RBUF_SIZE),
-    )));
+    ));
     rbuf += cfg::UPCALL_RBUF_SIZE;
 
-    DEF_RGATE.set(Some(RecvGate::new_def(
+    DEF_RGATE.set(RecvGate::new_def(
         INVALID_SEL,
         eps_start + tcu::DEF_REP_OFF,
         rbuf,
         math::next_log2(cfg::DEF_RBUF_SIZE),
-    )));
+    ));
 }
 
 impl ops::Drop for RecvGate {

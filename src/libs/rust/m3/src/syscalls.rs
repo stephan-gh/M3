@@ -18,7 +18,7 @@
 
 use arch;
 use cap::Selector;
-use cell::StaticCell;
+use cell::LazyStaticCell;
 use com::{RecvGate, SendGate, SliceSink, SliceSource};
 use core::mem::MaybeUninit;
 use errors::Error;
@@ -28,7 +28,7 @@ use serialize::Sink;
 use tcu::{EpId, Label, Message, TCUIf, SYSC_SEP_OFF};
 use util;
 
-static SGATE: StaticCell<Option<SendGate>> = StaticCell::new(None);
+static SGATE: LazyStaticCell<SendGate> = LazyStaticCell::default();
 
 struct Reply<R: 'static> {
     msg: &'static Message,
@@ -43,7 +43,7 @@ impl<R: 'static> Drop for Reply<R> {
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
     let reply_raw = TCUIf::call(
-        send_gate(),
+        &SGATE,
         msg as *const u8,
         util::size_of::<T>(),
         RecvGate::syscall(),
@@ -66,7 +66,7 @@ fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
 }
 
 pub fn send_gate() -> &'static SendGate {
-    SGATE.get().as_ref().unwrap()
+    SGATE.get()
 }
 
 /// Creates a new service named `name` at selector `dst` for VPE `vpe`. The receive gate `rgate`
@@ -496,10 +496,10 @@ pub fn noop() -> Result<(), Error> {
 
 pub(crate) fn init() {
     let env = arch::env::get();
-    SGATE.set(Some(SendGate::new_def(
+    SGATE.set(SendGate::new_def(
         INVALID_SEL,
         env.first_std_ep() + SYSC_SEP_OFF,
-    )));
+    ));
 }
 
 pub(crate) fn reinit() {

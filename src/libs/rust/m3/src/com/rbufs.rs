@@ -15,7 +15,7 @@
  */
 
 use cap::Selector;
-use cell::StaticCell;
+use cell::LazyStaticCell;
 use cfg;
 use com::MemGate;
 use core::fmt;
@@ -26,11 +26,7 @@ use mem::MemMap;
 use pes::VPE;
 use syscalls;
 
-static BUFS: StaticCell<Option<MemMap>> = StaticCell::new(None);
-
-fn buffers() -> &'static mut MemMap {
-    BUFS.get_mut().as_mut().unwrap()
-}
+static BUFS: LazyStaticCell<MemMap> = LazyStaticCell::default();
 
 pub struct RecvBuf {
     addr: usize,
@@ -77,13 +73,13 @@ impl fmt::Debug for RecvBuf {
 pub fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
     let vm = VPE::cur().pe_desc().has_virtmem();
     let align = if vm { cfg::PAGE_SIZE as u64 } else { 1 };
-    let addr = buffers().allocate(size as u64, align)? as usize;
+    let addr = BUFS.get_mut().allocate(size as u64, align)? as usize;
 
     let mgate = if vm {
         match map_rbuf(addr, size) {
             Ok(mgate) => Some(mgate),
             Err(e) => {
-                buffers().free(addr as u64, size as u64);
+                BUFS.get_mut().free(addr as u64, size as u64);
                 return Err(e);
             },
         }
@@ -110,10 +106,10 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
 }
 
 pub fn free_rbuf(rbuf: RecvBuf) {
-    buffers().free(rbuf.addr as u64, rbuf.size as u64);
+    BUFS.get_mut().free(rbuf.addr as u64, rbuf.size as u64);
 }
 
 pub(crate) fn init() {
     let (addr, size) = VPE::cur().pe_desc().rbuf_space();
-    BUFS.set(Some(MemMap::new(addr as u64, size as u64)));
+    BUFS.set(MemMap::new(addr as u64, size as u64));
 }

@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use cell::StaticCell;
+use cell::{LazyStaticCell, StaticCell};
 use cfg;
 use core::ptr;
 use kif::{CapSel, PEDesc};
@@ -50,15 +50,15 @@ impl EnvData {
     }
 }
 
-static ENV_DATA: StaticCell<Option<EnvData>> = StaticCell::new(None);
+static ENV_DATA: LazyStaticCell<EnvData> = LazyStaticCell::default();
 static MEM: StaticCell<Option<usize>> = StaticCell::new(None);
 
 pub fn get() -> &'static mut EnvData {
-    ENV_DATA.get_mut().as_mut().unwrap()
+    ENV_DATA.get_mut()
 }
 
 pub fn set(data: EnvData) {
-    ENV_DATA.set(Some(data));
+    ENV_DATA.set(data);
 }
 
 pub fn eps_start() -> usize {

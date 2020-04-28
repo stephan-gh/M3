@@ -17,7 +17,7 @@
 use m3::cap::Selector;
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::{GateIStream, MGateFlags, MemGate, SGateArgs, SendGate, SliceSource};
+use m3::com::{GateIStream, MGateFlags, MemGate, RecvGate, SGateArgs, SendGate, SliceSource};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};
@@ -30,7 +30,6 @@ use m3::session::{MapFlags, ServerSession};
 use m3::tcu::Label;
 
 use dataspace::DataSpace;
-use rgate;
 
 const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 
@@ -85,10 +84,10 @@ impl AddrSpace {
         }));
     }
 
-    pub fn add_sgate(&mut self) -> Result<Selector, Error> {
+    pub fn add_sgate(&mut self, rgate: &RecvGate) -> Result<Selector, Error> {
         log!(crate::LOG_DEF, "[{}] pager::add_sgate()", self.id());
 
-        let sgate = SendGate::new_with(SGateArgs::new(rgate()).label(self.id() as Label).credits(1))?;
+        let sgate = SendGate::new_with(SGateArgs::new(rgate).label(self.id() as Label).credits(1))?;
         let sel = sgate.sel();
         self.sgates.push(sgate);
 

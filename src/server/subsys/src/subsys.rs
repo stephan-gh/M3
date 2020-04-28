@@ -23,7 +23,7 @@ extern crate resmng;
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{RefCell, StaticCell};
+use m3::cell::{RefCell, LazyStaticCell, StaticCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -68,11 +68,7 @@ impl ChildCaps {
 
 static CHILD_CAPS: StaticCell<ChildCaps> = StaticCell::new(ChildCaps::new());
 static BASE_SEL: StaticCell<Selector> = StaticCell::new(0);
-static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
-
-fn req_rgate() -> &'static RecvGate {
-    RGATE.get().as_ref().unwrap()
-}
+static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
@@ -154,7 +150,7 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 
     let id = CHILD_CAPS.get_mut().alloc()?;
     childs::get().set_next_id(id);
-    let res = child.add_child(vpe_sel, req_rgate(), sgate_sel, name);
+    let res = child.add_child(vpe_sel, &RGATE, sgate_sel, name);
     if res.is_err() {
         CHILD_CAPS.get_mut().free(id);
     }
@@ -282,13 +278,12 @@ fn handle_request(mut is: GateIStream) {
 
 fn workloop() {
     let thmng = thread::ThreadManager::get();
-    let rgate = req_rgate();
     let upcall_rg = RecvGate::upcall();
 
     loop {
         tcu::TCUIf::sleep().ok();
 
-        let is = rgate.fetch();
+        let is = RGATE.fetch();
         if let Some(is) = is {
             handle_request(is);
         }
@@ -331,7 +326,7 @@ pub fn main() -> i32 {
 
     let sgate =
         SendGate::new_with(SGateArgs::new(&rgate).credits(1)).expect("Unable to create SendGate");
-    RGATE.set(Some(rgate));
+    RGATE.set(rgate);
 
     let mut skip = 0;
     let mut share_pe = false;

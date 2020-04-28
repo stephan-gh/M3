@@ -15,7 +15,7 @@
  */
 
 use base::boxed::Box;
-use base::cell::StaticCell;
+use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
 use base::col::{BoxList, Vec};
 use base::errors::Error;
@@ -119,8 +119,8 @@ impl_boxitem!(VPE);
 
 static VPES: StaticCell<[Option<NonNull<VPE>>; 64]> = StaticCell::new([None; 64]);
 
-static IDLE: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
-static OUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
+static IDLE: LazyStaticCell<Box<VPE>> = LazyStaticCell::default();
+static OUR: LazyStaticCell<Box<VPE>> = LazyStaticCell::default();
 
 static CUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
 static RDY: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
@@ -161,8 +161,8 @@ pub fn init() {
         0
     };
 
-    IDLE.set(Some(Box::new(VPE::new(kif::pemux::IDLE_ID, 0, root_pt))));
-    OUR.set(Some(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt))));
+    IDLE.set(Box::new(VPE::new(kif::pemux::IDLE_ID, 0, root_pt)));
+    OUR.set(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt)));
 
     if pex_env().pe_desc.has_virtmem() {
         our().frames.push(root_pt);
@@ -210,11 +210,11 @@ pub fn get_mut(id: Id) -> Option<&'static mut VPE> {
 }
 
 pub fn our() -> &'static mut VPE {
-    OUR.get_mut().as_mut().unwrap()
+    OUR.get_mut()
 }
 
 pub fn idle() -> &'static mut VPE {
-    IDLE.get_mut().as_mut().unwrap()
+    IDLE.get_mut()
 }
 
 #[allow(clippy::borrowed_box)]

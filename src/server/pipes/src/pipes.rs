@@ -25,7 +25,7 @@ extern crate bitflags;
 mod sess;
 
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::LazyStaticCell;
 use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error};
 use m3::kif;
@@ -44,11 +44,7 @@ pub const LOG_DEF: bool = false;
 const MSG_SIZE: usize = 64;
 const MAX_CLIENTS: usize = 32;
 
-static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
-
-fn rgate() -> &'static RecvGate {
-    RGATE.get().as_ref().unwrap()
-}
+static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 
 struct PipesHandler {
     sel: Selector,
@@ -86,7 +82,7 @@ impl PipesHandler {
 
                 self.sessions.remove(id);
                 // ignore all potentially outstanding messages of this session
-                rgate().drop_msgs_with(id as Label);
+                RGATE.drop_msgs_with(id as Label);
             }
         }
         Ok(())
@@ -296,12 +292,12 @@ pub fn main() -> i32 {
     )
     .expect("Unable to create rgate");
     rg.activate().expect("Unable to activate rgate");
-    RGATE.set(Some(rg));
+    RGATE.set(rg);
 
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(mut is) = rgate().fetch() {
+        if let Some(mut is) = RGATE.fetch() {
             hdl.handle(&mut is)
         }
         else {

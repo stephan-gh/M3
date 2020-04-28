@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use cell::{RefCell, StaticCell};
+use cell::{RefCell, LazyStaticCell};
 use core::mem;
 use io::Serial;
 use pes::VPE;
@@ -28,21 +28,21 @@ pub const STDOUT_FILENO: Fd = 1;
 /// The file descriptor for the stanard error stream
 pub const STDERR_FILENO: Fd = 2;
 
-static STDIN: StaticCell<Option<BufReader<FileRef>>> = StaticCell::new(None);
-static STDOUT: StaticCell<Option<BufWriter<FileRef>>> = StaticCell::new(None);
-static STDERR: StaticCell<Option<BufWriter<FileRef>>> = StaticCell::new(None);
+static STDIN: LazyStaticCell<BufReader<FileRef>> = LazyStaticCell::default();
+static STDOUT: LazyStaticCell<BufWriter<FileRef>> = LazyStaticCell::default();
+static STDERR: LazyStaticCell<BufWriter<FileRef>> = LazyStaticCell::default();
 
 /// The standard input stream
 pub fn stdin() -> &'static mut BufReader<FileRef> {
-    STDIN.get_mut().as_mut().unwrap()
+    STDIN.get_mut()
 }
 /// The standard output stream
 pub fn stdout() -> &'static mut BufWriter<FileRef> {
-    STDOUT.get_mut().as_mut().unwrap()
+    STDOUT.get_mut()
 }
 /// The standard error stream
 pub fn stderr() -> &'static mut BufWriter<FileRef> {
-    STDERR.get_mut().as_mut().unwrap()
+    STDERR.get_mut()
 }
 
 pub(crate) fn init() {
@@ -56,11 +56,11 @@ pub(crate) fn init() {
 
     let create_in = |fd| {
         let f = VPE::cur().files().get(fd).unwrap();
-        Some(BufReader::new(FileRef::new(f, fd)))
+        BufReader::new(FileRef::new(f, fd))
     };
     let create_out = |fd| {
         let f = VPE::cur().files().get(fd).unwrap();
-        Some(BufWriter::new(FileRef::new(f, fd)))
+        BufWriter::new(FileRef::new(f, fd))
     };
 
     STDIN.set(create_in(STDIN_FILENO));
@@ -69,14 +69,14 @@ pub(crate) fn init() {
 }
 
 pub(crate) fn reinit() {
-    mem::forget(STDIN.set(None));
-    mem::forget(STDOUT.set(None));
-    mem::forget(STDERR.set(None));
+    mem::forget(STDIN.unset());
+    mem::forget(STDOUT.unset());
+    mem::forget(STDERR.unset());
     init();
 }
 
 pub(crate) fn deinit() {
-    STDIN.set(None);
-    STDOUT.set(None);
-    STDERR.set(None);
+    STDIN.unset();
+    STDOUT.unset();
+    STDERR.unset();
 }

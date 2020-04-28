@@ -28,7 +28,7 @@ mod physmem;
 mod regions;
 
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::LazyStaticCell;
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
 use m3::env;
@@ -49,11 +49,7 @@ pub const LOG_DEF: bool = false;
 const MSG_SIZE: usize = 64;
 const MAX_CLIENTS: usize = 32;
 
-static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
-
-fn rgate() -> &'static RecvGate {
-    RGATE.get().as_ref().unwrap()
-}
+static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 
 struct PagerReqHandler {
     sel: Selector,
@@ -121,7 +117,7 @@ impl Handler for PagerReqHandler {
 
         let aspace = self.sessions.get_mut(sid).unwrap();
         let sel = if xchg.in_args().size() == 0 {
-            aspace.add_sgate()
+            aspace.add_sgate(&RGATE)
         }
         else {
             let sid = aspace.id();
@@ -176,7 +172,7 @@ impl Handler for PagerReqHandler {
         log!(crate::LOG_DEF, "[{}] pager::close()", sid);
         self.sessions.remove(sid);
         // ignore all potentially outstanding messages of this session
-        rgate().drop_msgs_with(sid as Label);
+        RGATE.drop_msgs_with(sid as Label);
     }
 }
 
@@ -260,7 +256,7 @@ pub fn main() -> i32 {
             .expect("Unable to execute child VPE")
     };
 
-    RGATE.set(Some(rg));
+    RGATE.set(rg);
 
     // start waiting for the child
     vpe_act
@@ -284,7 +280,7 @@ pub fn main() -> i32 {
 
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(mut is) = rgate().fetch() {
+        if let Some(mut is) = RGATE.fetch() {
             hdl.handle(&mut is)
         }
         else {

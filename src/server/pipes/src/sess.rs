@@ -26,8 +26,6 @@ use m3::session::ServerSession;
 use m3::syscalls;
 use m3::tcu::{Label, Message};
 
-use rgate;
-
 macro_rules! reply_vmsg_late {
     ( $rgate:expr, $msg:expr, $( $args:expr ),* ) => ({
         let mut os = m3::com::GateOStream::default();
@@ -171,7 +169,7 @@ impl State {
                     amount,
                     pos
                 );
-                reply_vmsg_late!(rgate(), req.msg, 0, pos, amount).ok();
+                reply_vmsg_late!(crate::RGATE, req.msg, 0, pos, amount).ok();
 
                 // remove write request
                 self.pending_reads.pop();
@@ -181,7 +179,7 @@ impl State {
             else if self.flags.contains(Flags::WRITE_EOF) {
                 // report EOF
                 log!(crate::LOG_DEF, "[{}] pipes::late_read(): EOF", req.chan);
-                reply_vmsg_late!(rgate(), req.msg, 0, 0usize, 0usize).ok();
+                reply_vmsg_late!(crate::RGATE, req.msg, 0, 0usize, 0usize).ok();
 
                 // remove write request
                 self.pending_reads.pop();
@@ -203,7 +201,7 @@ impl State {
         if self.flags.contains(Flags::READ_EOF) {
             while let Some(req) = self.pending_writes.pop() {
                 log!(crate::LOG_DEF, "[{}] pipes::late_write(): EOF", req.chan);
-                reply_vmsg_late!(rgate(), req.msg, Code::EndOfFile as u32).ok();
+                reply_vmsg_late!(crate::RGATE, req.msg, Code::EndOfFile as u32).ok();
             }
         }
         // is there a pending write request?
@@ -220,7 +218,7 @@ impl State {
                     amount,
                     pos
                 );
-                reply_vmsg_late!(rgate(), req.msg, 0, pos, amount).ok();
+                reply_vmsg_late!(crate::RGATE, req.msg, 0, pos, amount).ok();
 
                 // remove write request
                 self.pending_writes.pop();
@@ -311,7 +309,7 @@ impl Channel {
         state: Rc<RefCell<State>>,
     ) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
-            SGateArgs::new(rgate())
+            SGateArgs::new(&crate::RGATE)
                 .label(id as Label)
                 .credits(1)
                 .sel(sel + 1),

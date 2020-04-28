@@ -19,7 +19,7 @@ use arch::tcu::{
     backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, EP_COUNT, MAX_MSG_SIZE, TCU,
     UNLIM_CREDITS,
 };
-use cell::StaticCell;
+use cell::{LazyStaticCell, StaticCell};
 use core::{ptr, sync::atomic};
 use errors::{Code, Error};
 use io;
@@ -59,12 +59,8 @@ impl Buffer {
     }
 }
 
-static LOG: StaticCell<Option<io::log::Log>> = StaticCell::new(None);
+static LOG: LazyStaticCell<io::log::Log> = LazyStaticCell::default();
 static BUFFER: StaticCell<Buffer> = StaticCell::new(Buffer::new());
-
-fn log() -> &'static mut io::log::Log {
-    LOG.get_mut().as_mut().unwrap()
-}
 
 fn buffer() -> &'static mut Buffer {
     BUFFER.get_mut()
@@ -85,7 +81,7 @@ macro_rules! log_tcu_impl {
         if $crate::io::log::$flag {
             #[allow(unused_imports)]
             use $crate::io::Write;
-            $crate::arch::tcu::thread::log().write_fmt(format_args!($($args)*)).unwrap();
+            $crate::arch::tcu::thread::LOG.get_mut().write_fmt(format_args!($($args)*)).unwrap();
         }
     });
 }
@@ -719,8 +715,8 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
 }
 
 pub fn init() {
-    LOG.set(Some(io::log::Log::default()));
-    log().init(envdata::get().pe_id, "TCU");
+    LOG.set(io::log::Log::default());
+    LOG.get_mut().init(envdata::get().pe_id, "TCU");
 
     BACKEND.set(Some(backend::SocketBackend::new()));
 

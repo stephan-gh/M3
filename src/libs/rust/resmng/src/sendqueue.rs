@@ -15,7 +15,7 @@
  */
 
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::{LazyStaticCell, StaticCell};
 use m3::col::{DList, String, Vec};
 use m3::com::{RGateArgs, RecvGate, SendGate};
 use m3::errors::Error;
@@ -54,7 +54,7 @@ pub struct SendQueue {
     state: QState,
 }
 
-static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
+static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 
 fn alloc_qid() -> u64 {
     static NEXT_ID: StaticCell<u64> = StaticCell::new(0);
@@ -81,18 +81,16 @@ pub fn init(rbuf: Option<(Selector, usize, usize)>) {
     }
     .expect("Unable to activate service rgate");
 
-    RGATE.set(Some(rgate));
+    RGATE.set(rgate);
 }
 
 pub fn check_replies() {
-    let rg = RGATE.get().as_ref().unwrap();
-
-    if let Some(msg) = tcu::TCUIf::fetch_msg(rg) {
+    if let Some(msg) = tcu::TCUIf::fetch_msg(&RGATE) {
         if let Ok(serv) = services::get().get_by_id(msg.header.label as Id) {
-            serv.queue().received_reply(rg, msg);
+            serv.queue().received_reply(&RGATE, msg);
         }
         else {
-            tcu::TCUIf::ack_msg(rg, msg);
+            tcu::TCUIf::ack_msg(&RGATE, msg);
         }
     }
 }
@@ -185,10 +183,9 @@ impl SendQueue {
         self.cur_event = get_event(id);
         self.state = QState::Waiting;
 
-        let rgate = &RGATE.get().as_ref().unwrap();
         #[allow(clippy::identity_conversion)]
         self.sgate
-            .send_with_rlabel(msg, rgate, tcu::Label::from(self.sid))?;
+            .send_with_rlabel(msg, &RGATE, tcu::Label::from(self.sid))?;
 
         Ok(self.cur_event)
     }

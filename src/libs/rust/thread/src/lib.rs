@@ -21,7 +21,7 @@
 extern crate base;
 
 use base::boxed::Box;
-use base::cell::StaticCell;
+use base::cell::{LazyStaticCell, StaticCell};
 use base::col::{BoxList, Vec};
 use base::libc;
 use base::tcu;
@@ -238,10 +238,10 @@ pub struct ThreadManager {
     sleep: BoxList<Thread>,
 }
 
-static TMNG: StaticCell<Option<ThreadManager>> = StaticCell::new(None);
+static TMNG: LazyStaticCell<ThreadManager> = LazyStaticCell::default();
 
 pub fn init() {
-    TMNG.set(Some(ThreadManager::new()));
+    TMNG.set(ThreadManager::new());
 }
 
 impl ThreadManager {
@@ -255,7 +255,7 @@ impl ThreadManager {
     }
 
     pub fn get() -> &'static mut ThreadManager {
-        TMNG.get_mut().as_mut().unwrap()
+        TMNG.get_mut()
     }
 
     pub fn cur(&self) -> &Thread {

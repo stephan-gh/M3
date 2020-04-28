@@ -19,7 +19,7 @@
 use arch;
 use boxed::Box;
 use cap::{CapFlags, Capability, Selector};
-use cell::StaticCell;
+use cell::LazyStaticCell;
 use col::Vec;
 use com::{EpMng, MemGate, SendGate};
 use core::cmp;
@@ -92,7 +92,7 @@ impl<'n> VPEArgs<'n> {
     }
 }
 
-static CUR: StaticCell<Option<VPE>> = StaticCell::new(None);
+static CUR: LazyStaticCell<VPE> = LazyStaticCell::default();
 
 impl VPE {
     fn new_cur() -> Self {
@@ -130,7 +130,7 @@ impl VPE {
             arch::env::get().vpe()
         }
         else {
-            CUR.get_mut().as_mut().unwrap()
+            CUR.get_mut()
         }
     }
 
@@ -683,7 +683,7 @@ impl fmt::Debug for VPE {
 }
 
 pub(crate) fn init() {
-    CUR.set(Some(VPE::new_cur()));
+    CUR.set(VPE::new_cur());
     VPE::cur().init();
 }
 

@@ -21,7 +21,7 @@ extern crate m3;
 
 use core::mem::MaybeUninit;
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::LazyStaticCell;
 use m3::com::{GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::io::{Read, Serial, Write};
@@ -41,11 +41,7 @@ const MSG_SIZE: usize = 64;
 const BUF_SIZE: usize = 256;
 const MAX_CLIENTS: usize = 32;
 
-static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
-
-fn rgate() -> &'static RecvGate {
-    RGATE.get().as_ref().unwrap()
-}
+static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 
 #[derive(Debug)]
 struct VTermSession {
@@ -74,7 +70,7 @@ struct Channel {
 impl Channel {
     fn new(id: SessId, mem: &MemGate, caps: Selector, writing: bool) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
-            SGateArgs::new(rgate())
+            SGateArgs::new(&RGATE)
                 .label(id as Label)
                 .credits(1)
                 .sel(caps + 1),
@@ -333,12 +329,12 @@ pub fn main() -> i32 {
     )
     .expect("Unable to create rgate");
     rg.activate().expect("Unable to activate rgate");
-    RGATE.set(Some(rg));
+    RGATE.set(rg);
 
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(mut is) = rgate().fetch() {
+        if let Some(mut is) = RGATE.fetch() {
             hdl.handle(&mut is)
         }
         else {

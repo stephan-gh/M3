@@ -31,7 +31,7 @@ mod partition;
 
 use core::cmp;
 use m3::cap::Selector;
-use m3::cell::StaticCell;
+use m3::cell::LazyStaticCell;
 use m3::col::Treap;
 use m3::col::Vec;
 use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
@@ -68,16 +68,8 @@ const MIN_SEC_SIZE: usize = 512;
 const MSG_SIZE: usize = 256;
 const MAX_CLIENTS: usize = 32;
 
-static RGATE: StaticCell<Option<RecvGate>> = StaticCell::new(None);
-static DEVICE: StaticCell<Option<BlockDevice>> = StaticCell::new(None);
-
-fn device() -> &'static mut BlockDevice {
-    DEVICE.get_mut().as_mut().unwrap()
-}
-
-fn rgate() -> &'static RecvGate {
-    RGATE.get().as_ref().unwrap()
-}
+static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static DEVICE: LazyStaticCell<BlockDevice> = LazyStaticCell::default();
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 struct BlockRange {
@@ -115,13 +107,13 @@ struct DiskSession {
 impl DiskSession {
     fn read(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         self.read_write(is, "read", |part, mgate, off, start, count| {
-            device().read(part, &mgate, off, start, count)
+            DEVICE.get_mut().read(part, &mgate, off, start, count)
         })
     }
 
     fn write(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         self.read_write(is, "write", |part, mgate, off, start, count| {
-            device().write(part, &mgate, off, start, count)
+            DEVICE.get_mut().write(part, &mgate, off, start, count)
         })
     }
 
@@ -186,7 +178,7 @@ impl Handler for DiskHandler {
         let dev = arg
             .parse::<usize>()
             .map_err(|_| Error::new(Code::InvArgs))?;
-        if !device().partition_exists(dev) {
+        if !DEVICE.partition_exists(dev) {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -209,7 +201,7 @@ impl Handler for DiskHandler {
         log!(crate::LOG_DEF, "[{}] disk::get_sgate()", sid);
 
         let sess = self.sessions.get_mut(sid).unwrap();
-        let sgate = SendGate::new_with(SGateArgs::new(rgate()).label(sid as Label).credits(1))?;
+        let sgate = SendGate::new_with(SGateArgs::new(&RGATE).label(sid as Label).credits(1))?;
         let sel = sgate.sel();
         sess.sgates.push(sgate);
 
@@ -284,7 +276,7 @@ pub fn main() -> i32 {
     let mut hdl = DiskHandler::new();
 
     let device = BlockDevice::new(env::args().collect()).expect("Unable to create block device");
-    DEVICE.set(Some(device));
+    DEVICE.set(device);
 
     let mut rg = RecvGate::new(
         math::next_log2(MAX_CLIENTS * MSG_SIZE),
@@ -292,12 +284,12 @@ pub fn main() -> i32 {
     )
     .expect("Unable to create rgate");
     rg.activate().expect("Unable to activate rgate");
-    RGATE.set(Some(rg));
+    RGATE.set(rg);
 
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(mut is) = rgate().fetch() {
+        if let Some(mut is) = RGATE.fetch() {
             hdl.handle(&mut is)
         }
         else {
@@ -307,7 +299,7 @@ pub fn main() -> i32 {
     .ok();
 
     // delete device
-    DEVICE.set(None);
+    DEVICE.unset();
 
     0
 }
