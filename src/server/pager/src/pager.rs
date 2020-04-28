@@ -30,14 +30,16 @@ mod regions;
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::col::{String, ToString, Vec};
-use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
+use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
-use m3::math;
-use m3::pes::{Activity, VPEArgs, PE, VPE};
+use m3::pes::{Activity, ExecActivity, VPEArgs, PE, VPE};
 use m3::serialize::{Sink, Source};
-use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
+use m3::server::{
+    server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
+    DEF_MAX_CLIENTS,
+};
 use m3::session::{ClientSession, Pager, PagerDelOp, PagerOp};
 use m3::tcu::{Label, TCUIf};
 use m3::vfs;
@@ -46,60 +48,11 @@ use addrspace::AddrSpace;
 
 pub const LOG_DEF: bool = false;
 
-const MSG_SIZE: usize = 64;
-const MAX_CLIENTS: usize = 32;
-
-static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 
 struct PagerReqHandler {
     sel: Selector,
     sessions: SessionContainer<AddrSpace>,
-}
-
-impl PagerReqHandler {
-    pub fn new(sel: Selector) -> Result<Self, Error> {
-        Ok(PagerReqHandler {
-            sel,
-            sessions: SessionContainer::new(MAX_CLIENTS),
-        })
-    }
-
-    pub fn handle(&mut self, mut is: &mut GateIStream) -> Result<(), Error> {
-        let op: PagerOp = is.pop()?;
-        let sid = is.label() as SessId;
-
-        let res = if op == PagerOp::CLONE {
-            let pid = self.sessions.get(sid).unwrap().parent();
-            if let Some(pid) = pid {
-                let (sess, psess) = self.sessions.get_two_mut(sid, pid);
-                let sess = sess.unwrap();
-                sess.clone(is, psess.unwrap())
-            }
-            else {
-                Err(Error::new(Code::InvArgs))
-            }
-        }
-        else {
-            let aspace = self.sessions.get_mut(sid).unwrap();
-
-            match op {
-                PagerOp::PAGEFAULT => aspace.pagefault(&mut is),
-                PagerOp::MAP_ANON => aspace.map_anon(&mut is),
-                PagerOp::UNMAP => aspace.unmap(&mut is),
-                PagerOp::CLOSE => aspace.close(&mut is).and_then(|_| {
-                    self.close(is.label() as SessId);
-                    Ok(())
-                }),
-                _ => Err(Error::new(Code::InvArgs)),
-            }
-        };
-
-        if let Err(e) = res {
-            is.reply_error(e.code()).ok();
-        }
-
-        Ok(())
-    }
 }
 
 impl Handler for PagerReqHandler {
@@ -117,7 +70,7 @@ impl Handler for PagerReqHandler {
 
         let aspace = self.sessions.get_mut(sid).unwrap();
         let sel = if xchg.in_args().size() == 0 {
-            aspace.add_sgate(&RGATE)
+            aspace.add_sgate(REQHDL.recv_gate())
         }
         else {
             let sid = aspace.id();
@@ -172,8 +125,56 @@ impl Handler for PagerReqHandler {
         log!(crate::LOG_DEF, "[{}] pager::close()", sid);
         self.sessions.remove(sid);
         // ignore all potentially outstanding messages of this session
-        RGATE.drop_msgs_with(sid as Label);
+        REQHDL.recv_gate().drop_msgs_with(sid as Label);
     }
+}
+
+fn start_child(hdl: &mut PagerReqHandler, args: &[String], share_pe: bool) -> ExecActivity {
+    // create session for child
+    let (sel, sid) = hdl.open(hdl.sel, "").expect("Session creation failed");
+    let sess = ClientSession::new_bind(sel);
+    #[allow(clippy::identity_conversion)]
+    let sgate = SendGate::new_with(
+        SGateArgs::new(REQHDL.recv_gate())
+            .credits(1)
+            .label(Label::from(sid as u32)),
+    )
+    .expect("Unable to create SendGate");
+
+    // determine PE for child
+    let pe = if !share_pe || !VPE::cur().pe_desc().has_virtmem() {
+        PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE")
+    }
+    else {
+        VPE::cur().pe().clone()
+    };
+
+    // create child VPE
+    let pager = Pager::new(sess, sgate).expect("Unable to create pager");
+    let mut vpe =
+        VPE::new_with(pe, VPEArgs::new(&args[0]).pager(pager)).expect("Unable to create VPE");
+
+    // pass root FS to child
+    vpe.mounts()
+        .add("/", VPE::cur().mounts().get_by_path("/").unwrap())
+        .unwrap();
+    vpe.obtain_mounts().unwrap();
+
+    // init address space (give it VPE and mgate selector)
+    let mut aspace = hdl.sessions.get_mut(sid).unwrap();
+    aspace.init(vpe.sel());
+
+    // start VPE
+    let file = vfs::VFS::open(&args[0], vfs::OpenFlags::RX).expect("Unable to open binary");
+    let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
+    vpe.exec_file(&mut mapper, file, &args)
+        .and_then(|mut act| {
+            // deactivate the memory gate again, because we will use another MemGate object to
+            // refer to the VPE's address space.
+            act.vpe_mut().mem_mut().deactivate();
+            Ok(act)
+        })
+        .expect("Unable to execute child VPE")
 }
 
 #[no_mangle]
@@ -195,68 +196,17 @@ pub fn main() -> i32 {
     }
 
     let args = &args[skip..];
-    let name = args[0].clone();
 
+    // create server
     let s = Server::new_private("pager").expect("Unable to create service");
-
-    let mut rg = RecvGate::new(
-        math::next_log2(MAX_CLIENTS * MSG_SIZE),
-        math::next_log2(MSG_SIZE),
-    )
-    .expect("Unable to create rgate");
-    rg.activate().expect("Unable to activate rgate");
-
-    let mut hdl = PagerReqHandler::new(s.sel()).expect("Unable to create handler");
-
-    // create session for child
-    let (sel, sid) = hdl.open(s.sel(), "").expect("Session creation failed");
-    let sess = ClientSession::new_bind(sel);
-    #[allow(clippy::identity_conversion)]
-    let sgate = SendGate::new_with(
-        SGateArgs::new(&rg)
-            .credits(1)
-            .label(Label::from(sid as u32)),
-    )
-    .expect("Unable to create SendGate");
-
-    // determine PE for child
-    let pe = if !share_pe || !VPE::cur().pe_desc().has_virtmem() {
-        PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE")
-    }
-    else {
-        VPE::cur().pe().clone()
+    let mut hdl = PagerReqHandler {
+        sel: s.sel(),
+        sessions: SessionContainer::new(DEF_MAX_CLIENTS),
     };
+    REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
-    // create child VPE
-    let pager = Pager::new(sess, sgate).expect("Unable to create pager");
-    let mut vpe =
-        VPE::new_with(pe, VPEArgs::new(&name).pager(pager)).expect("Unable to create VPE");
-
-    // pass root FS to child
-    vpe.mounts()
-        .add("/", VPE::cur().mounts().get_by_path("/").unwrap())
-        .unwrap();
-    vpe.obtain_mounts().unwrap();
-
-    let vpe_act = {
-        // init address space (give it VPE and mgate selector)
-        let mut aspace = hdl.sessions.get_mut(sid).unwrap();
-        aspace.init(vpe.sel());
-
-        // start VPE
-        let file = vfs::VFS::open(&name, vfs::OpenFlags::RX).expect("Unable to open binary");
-        let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
-        vpe.exec_file(&mut mapper, file, &args)
-            .and_then(|mut act| {
-                // deactivate the memory gate again, because we will use another MemGate object to
-                // refer to the VPE's address space.
-                act.vpe_mut().mem_mut().deactivate();
-                Ok(act)
-            })
-            .expect("Unable to execute child VPE")
-    };
-
-    RGATE.set(rg);
+    // start child
+    let vpe_act = start_child(&mut hdl, args, share_pe);
 
     // start waiting for the child
     vpe_act
@@ -270,7 +220,7 @@ pub fn main() -> i32 {
         if let Some(msg) = msg {
             let upcall = msg.get_data::<kif::upcalls::VPEWait>();
             if upcall.exitcode != 0 {
-                println!("Child '{}' exited with exitcode {}", name, {
+                println!("Child '{}' exited with exitcode {}", &args[0], {
                     upcall.exitcode
                 });
             }
@@ -280,12 +230,36 @@ pub fn main() -> i32 {
 
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(mut is) = RGATE.fetch() {
-            hdl.handle(&mut is)
-        }
-        else {
-            Ok(())
-        }
+        REQHDL.get_mut().handle(|op, mut is| {
+            let sid = is.label() as SessId;
+
+            // clone is special, because we need two sessions
+            if op == PagerOp::CLONE {
+                let pid = hdl.sessions.get(sid).unwrap().parent();
+                if let Some(pid) = pid {
+                    let (sess, psess) = hdl.sessions.get_two_mut(sid, pid);
+                    let sess = sess.unwrap();
+                    sess.clone(is, psess.unwrap())
+                }
+                else {
+                    Err(Error::new(Code::InvArgs))
+                }
+            }
+            else {
+                let aspace = hdl.sessions.get_mut(sid).unwrap();
+
+                match op {
+                    PagerOp::PAGEFAULT => aspace.pagefault(&mut is),
+                    PagerOp::MAP_ANON => aspace.map_anon(&mut is),
+                    PagerOp::UNMAP => aspace.unmap(&mut is),
+                    PagerOp::CLOSE => aspace.close(&mut is).and_then(|_| {
+                        hdl.close(is.label() as SessId);
+                        Ok(())
+                    }),
+                    _ => Err(Error::new(Code::InvArgs)),
+                }
+            }
+        })
     })
     .ok();
 

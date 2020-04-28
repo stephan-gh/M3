@@ -34,13 +34,15 @@ use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::col::Treap;
 use m3::col::Vec;
-use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate};
+use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
 use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
-use m3::math;
 use m3::pes::VPE;
-use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
+use m3::server::{
+    server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
+    DEF_MAX_CLIENTS,
+};
 use m3::session::ServerSession;
 use m3::tcu::Label;
 
@@ -65,10 +67,7 @@ const MAX_DMA_SIZE: usize = 0x10000;
 
 const MIN_SEC_SIZE: usize = 512;
 
-const MSG_SIZE: usize = 256;
-const MAX_CLIENTS: usize = 32;
-
-static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 static DEVICE: LazyStaticCell<BlockDevice> = LazyStaticCell::default();
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
@@ -165,7 +164,7 @@ impl DiskSession {
             func(self.part, &mgate, off, start, len)?;
         }
 
-        Ok(())
+        reply_vmsg!(is, 0)
     }
 }
 
@@ -201,7 +200,11 @@ impl Handler for DiskHandler {
         log!(crate::LOG_DEF, "[{}] disk::get_sgate()", sid);
 
         let sess = self.sessions.get_mut(sid).unwrap();
-        let sgate = SendGate::new_with(SGateArgs::new(&RGATE).label(sid as Label).credits(1))?;
+        let sgate = SendGate::new_with(
+            SGateArgs::new(REQHDL.recv_gate())
+                .label(sid as Label)
+                .credits(1),
+        )?;
         let sel = sgate.sel();
         sess.sgates.push(sgate);
 
@@ -241,60 +244,34 @@ impl Handler for DiskHandler {
     }
 }
 
-impl DiskHandler {
-    fn new() -> Self {
-        Self {
-            sessions: SessionContainer::new(MAX_CLIENTS),
-        }
-    }
-
-    fn handle(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        let sess = self
-            .sessions
-            .get_mut(is.label() as usize)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-
-        let res = match is.pop::<Operation>()? {
-            Operation::READ => sess.read(is),
-            Operation::WRITE => sess.write(is),
-            _ => Err(Error::new(Code::InvArgs)),
-        };
-
-        if let Err(e) = res {
-            is.reply_error(e.code()).ok();
-        }
-        else {
-            reply_vmsg!(is, 0).ok();
-        }
-        Ok(())
-    }
-}
-
 #[no_mangle]
 pub fn main() -> i32 {
     let s = Server::new("disk").expect("Unable to create service 'disk'");
-    let mut hdl = DiskHandler::new();
+    let mut hdl = DiskHandler {
+        sessions: SessionContainer::new(DEF_MAX_CLIENTS),
+    };
 
-    let device = BlockDevice::new(env::args().collect()).expect("Unable to create block device");
-    DEVICE.set(device);
-
-    let mut rg = RecvGate::new(
-        math::next_log2(MAX_CLIENTS * MSG_SIZE),
-        math::next_log2(MSG_SIZE),
-    )
-    .expect("Unable to create rgate");
-    rg.activate().expect("Unable to activate rgate");
-    RGATE.set(rg);
+    DEVICE.set(BlockDevice::new(env::args().collect()).expect("Unable to create block device"));
+    REQHDL.set(
+        RequestHandler::new_with(DEF_MAX_CLIENTS, 256)
+            .expect("Unable to create request handler"),
+    );
 
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(mut is) = RGATE.fetch() {
-            hdl.handle(&mut is)
-        }
-        else {
-            Ok(())
-        }
+        REQHDL.get_mut().handle(|op, is| {
+            let sess = hdl
+                .sessions
+                .get_mut(is.label() as usize)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
+
+            match op {
+                Operation::READ => sess.read(is),
+                Operation::WRITE => sess.write(is),
+                _ => Err(Error::new(Code::InvArgs)),
+            }
+        })
     })
     .ok();
 

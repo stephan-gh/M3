@@ -22,14 +22,16 @@ extern crate m3;
 use core::mem::MaybeUninit;
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
-use m3::com::{GateIStream, MemGate, Perm, RecvGate, SGateArgs, SendGate};
+use m3::com::{GateIStream, MemGate, Perm, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::io::{Read, Serial, Write};
 use m3::kif;
-use m3::math;
 use m3::pes::VPE;
 use m3::serialize::Source;
-use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
+use m3::server::{
+    server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
+    DEF_MAX_CLIENTS,
+};
 use m3::session::ServerSession;
 use m3::syscalls;
 use m3::tcu::Label;
@@ -37,11 +39,9 @@ use m3::vfs::GenFileOp;
 
 pub const LOG_DEF: bool = false;
 
-const MSG_SIZE: usize = 64;
 const BUF_SIZE: usize = 256;
-const MAX_CLIENTS: usize = 32;
 
-static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 
 #[derive(Debug)]
 struct VTermSession {
@@ -70,7 +70,7 @@ struct Channel {
 impl Channel {
     fn new(id: SessId, mem: &MemGate, caps: Selector, writing: bool) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
-            SGateArgs::new(&RGATE)
+            SGateArgs::new(REQHDL.recv_gate())
                 .label(id as Label)
                 .credits(1)
                 .sel(caps + 1),
@@ -204,6 +204,17 @@ impl VTermHandler {
         self.sessions.remove(sid);
         Ok(())
     }
+
+    fn with_chan<F, R>(&mut self, is: &mut GateIStream, func: F) -> Result<R, Error>
+    where
+        F: Fn(&mut Channel, &mut GateIStream) -> Result<R, Error>,
+    {
+        let sess = self.sessions.get_mut(is.label() as SessId).unwrap();
+        match &mut sess.data {
+            SessionData::Meta => Err(Error::new(Code::InvArgs)),
+            SessionData::Chan(c) => func(c, is),
+        }
+    }
 }
 
 impl Handler for VTermHandler {
@@ -260,86 +271,40 @@ impl Handler for VTermHandler {
     }
 }
 
-impl VTermHandler {
-    pub fn new(sel: Selector) -> Result<Self, Error> {
-        Ok(VTermHandler {
-            sel,
-            sessions: SessionContainer::new(MAX_CLIENTS),
-            mem: MemGate::new(MAX_CLIENTS * BUF_SIZE, Perm::RW)?,
-        })
-    }
-
-    pub fn handle(&mut self, mut is: &mut GateIStream) -> Result<(), Error> {
-        let res = match is.pop() {
-            Ok(GenFileOp::NEXT_IN) => {
-                Self::with_chan(&mut self.sessions, &mut is, |c, is| c.next_in(is))
-            },
-            Ok(GenFileOp::NEXT_OUT) => {
-                Self::with_chan(&mut self.sessions, &mut is, |c, is| c.next_out(is))
-            },
-            Ok(GenFileOp::COMMIT) => {
-                Self::with_chan(&mut self.sessions, &mut is, |c, is| c.commit(is))
-            },
-            Ok(GenFileOp::CLOSE) => {
-                let sid = is.label() as SessId;
-                // reply before we destroy the client's sgate. otherwise the client might
-                // notice the invalidated sgate before getting the reply and therefore give
-                // up before receiving the reply a bit later anyway. this in turn causes
-                // trouble if the receive gate (with the reply) is reused for something else.
-                reply_vmsg!(is, 0).ok();
-                self.close_sess(sid)
-            },
-            Ok(GenFileOp::STAT) => Err(Error::new(Code::NotSup)),
-            Ok(GenFileOp::SEEK) => Err(Error::new(Code::NotSup)),
-            _ => Err(Error::new(Code::InvArgs)),
-        };
-
-        if let Err(e) = res {
-            is.reply_error(e.code()).ok();
-        }
-
-        Ok(())
-    }
-
-    fn with_chan<F, R>(
-        sessions: &mut SessionContainer<VTermSession>,
-        is: &mut GateIStream,
-        func: F,
-    ) -> Result<R, Error>
-    where
-        F: Fn(&mut Channel, &mut GateIStream) -> Result<R, Error>,
-    {
-        let sess = sessions.get_mut(is.label() as SessId).unwrap();
-        match &mut sess.data {
-            SessionData::Meta => Err(Error::new(Code::InvArgs)),
-            SessionData::Chan(c) => func(c, is),
-        }
-    }
-}
-
 #[no_mangle]
 pub fn main() -> i32 {
     let s = Server::new("vterm").expect("Unable to create service 'vterm'");
 
-    let mut hdl = VTermHandler::new(s.sel()).expect("Unable to create handler");
+    let mut hdl = VTermHandler {
+        sel: s.sel(),
+        sessions: SessionContainer::new(DEF_MAX_CLIENTS),
+        mem: MemGate::new(DEF_MAX_CLIENTS * BUF_SIZE, Perm::RW).expect("Unable to alloc memory"),
+    };
 
-    let mut rg = RecvGate::new(
-        math::next_log2(MAX_CLIENTS * MSG_SIZE),
-        math::next_log2(MSG_SIZE),
-    )
-    .expect("Unable to create rgate");
-    rg.activate().expect("Unable to activate rgate");
-    RGATE.set(rg);
+    REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(mut is) = RGATE.fetch() {
-            hdl.handle(&mut is)
-        }
-        else {
-            Ok(())
-        }
+        REQHDL.get_mut().handle(|op, mut is| {
+            match op {
+                GenFileOp::NEXT_IN => hdl.with_chan(&mut is, |c, is| c.next_in(is)),
+                GenFileOp::NEXT_OUT => hdl.with_chan(&mut is, |c, is| c.next_out(is)),
+                GenFileOp::COMMIT => hdl.with_chan(&mut is, |c, is| c.commit(is)),
+                GenFileOp::CLOSE => {
+                    let sid = is.label() as SessId;
+                    // reply before we destroy the client's sgate. otherwise the client might
+                    // notice the invalidated sgate before getting the reply and therefore give
+                    // up before receiving the reply a bit later anyway. this in turn causes
+                    // trouble if the receive gate (with the reply) is reused for something else.
+                    reply_vmsg!(is, 0).ok();
+                    hdl.close_sess(sid)
+                },
+                GenFileOp::STAT => Err(Error::new(Code::NotSup)),
+                GenFileOp::SEEK => Err(Error::new(Code::NotSup)),
+                _ => Err(Error::new(Code::InvArgs)),
+            }
+        })
     })
     .ok();
 

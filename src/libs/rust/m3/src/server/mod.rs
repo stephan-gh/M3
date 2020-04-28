@@ -16,10 +16,12 @@
 
 //! Contains server-related abstractions.
 
+mod reqhdl;
 #[allow(clippy::module_inception)]
 mod server;
 mod sesscon;
 
+pub use self::reqhdl::{RequestHandler, DEF_MAX_CLIENTS, DEF_MSG_SIZE};
 pub use self::server::{CapExchange, Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
