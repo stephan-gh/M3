@@ -2,7 +2,6 @@
 members = [
     "src/apps/bench/rustbenchs",
     "src/apps/disktest",
-    "src/apps/pemux",
     "src/apps/rusthello",
     "src/apps/rustunittests",
     "src/libs/rust/base",
@@ -11,6 +10,7 @@ members = [
     "src/libs/rust/pci",
     "src/libs/rust/resmng",
     "src/libs/rust/thread",
+    "src/pemux",
     "src/server/disk",
     "src/server/pager",
     "src/server/pipes",

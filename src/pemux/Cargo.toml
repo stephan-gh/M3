@@ -8,5 +8,5 @@ crate-type = ["staticlib"]
 
 [dependencies]
 cfg-if = "*"
-base = { path = "../../libs/rust/base" }
-paging = { path = "../../libs/rust/paging" }
+base = { path = "../libs/rust/base" }
+paging = { path = "../libs/rust/paging" }
