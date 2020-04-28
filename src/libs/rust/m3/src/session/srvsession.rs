@@ -23,6 +23,7 @@ use syscalls;
 /// Represents a session at the server-side.
 pub struct ServerSession {
     cap: Capability,
+    ident: u64,
 }
 
 impl ServerSession {
@@ -46,12 +47,18 @@ impl ServerSession {
         syscalls::create_sess(sel, srv, ident, auto_close)?;
         Ok(ServerSession {
             cap: Capability::new(sel, CapFlags::empty()),
+            ident,
         })
     }
 
     /// Returns the session's capability selector.
     pub fn sel(&self) -> Selector {
         self.cap.sel()
+    }
+
+    /// Returns the ident of the session
+    pub fn ident(&self) -> u64 {
+        self.ident
     }
 }
 

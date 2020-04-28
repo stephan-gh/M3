@@ -108,12 +108,10 @@ impl PagerReqHandler {
 
 impl Handler for PagerReqHandler {
     fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        let sid = self.sessions.next_id()?;
-        let sel = VPE::cur().alloc_sel();
-        let aspace = AddrSpace::new(sid, None, srv_sel, sel)?;
-        self.sessions.add(sid, aspace);
-        log!(crate::LOG_DEF, "[{}] pager::open()", sid);
-        Ok((sel, sid))
+        self.sessions.add_next(srv_sel, false, |sess| {
+            log!(crate::LOG_DEF, "[{}] pager::open()", sess.ident());
+            Ok(AddrSpace::new(sess, None))
+        })
     }
 
     fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
@@ -126,12 +124,14 @@ impl Handler for PagerReqHandler {
             aspace.add_sgate()
         }
         else {
-            let nsid = self.sessions.next_id()?;
-            let sel = VPE::cur().alloc_sel();
-            log!(crate::LOG_DEF, "[{}] pager::new_sess(nsid={})", sid, nsid);
-            let aspace = AddrSpace::new(nsid, Some(sid), self.sel, sel)?;
-            self.sessions.add(nsid, aspace);
-            Ok(sel)
+            let sid = aspace.id();
+            self.sessions
+                .add_next(self.sel, false, |sess| {
+                    let nsid = sess.ident();
+                    log!(crate::LOG_DEF, "[{}] pager::new_sess(nsid={})", sid, nsid);
+                    Ok(AddrSpace::new(sess, Some(sid)))
+                })
+                .and_then(|(sel, _)| Ok(sel))
         }?;
 
         xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));

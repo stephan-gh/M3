@@ -40,29 +40,26 @@ pub struct ASMem {
 }
 
 pub struct AddrSpace {
-    id: SessId,
     parent: Option<SessId>,
-    _sess: ServerSession,
+    sess: ServerSession,
     as_mem: Option<Rc<ASMem>>,
     sgates: Vec<SendGate>,
     ds: Vec<DataSpace>,
 }
 
 impl AddrSpace {
-    pub fn new(
-        id: SessId,
-        parent: Option<SessId>,
-        srv_sel: Selector,
-        sel: Selector,
-    ) -> Result<Self, Error> {
-        Ok(AddrSpace {
-            id,
+    pub fn new(sess: ServerSession, parent: Option<SessId>) -> Self {
+        AddrSpace {
             parent,
-            _sess: ServerSession::new_with_sel(srv_sel, sel, id as u64, false)?,
+            sess,
             as_mem: None,
             sgates: Vec::new(),
             ds: Vec::new(),
-        })
+        }
+    }
+
+    pub fn id(&self) -> SessId {
+        self.sess.ident() as SessId
     }
 
     pub fn parent(&self) -> Option<SessId> {
@@ -74,7 +71,7 @@ impl AddrSpace {
     }
 
     pub fn init(&mut self, sels: Selector) {
-        log!(crate::LOG_DEF, "[{}] pager::init(sels={})", self.id, sels);
+        log!(crate::LOG_DEF, "[{}] pager::init(sels={})", self.id(), sels);
 
         let mut mem = MemGate::new_bind(sels + 1);
         // we don't want to cause pagefault with this, because we are the one that handles them. we
@@ -89,9 +86,9 @@ impl AddrSpace {
     }
 
     pub fn add_sgate(&mut self) -> Result<Selector, Error> {
-        log!(crate::LOG_DEF, "[{}] pager::add_sgate()", self.id);
+        log!(crate::LOG_DEF, "[{}] pager::add_sgate()", self.id());
 
-        let sgate = SendGate::new_with(SGateArgs::new(rgate()).label(self.id as Label).credits(1))?;
+        let sgate = SendGate::new_with(SGateArgs::new(rgate()).label(self.id() as Label).credits(1))?;
         let sel = sgate.sel();
         self.sgates.push(sgate);
 
@@ -102,8 +99,8 @@ impl AddrSpace {
         log!(
             crate::LOG_DEF,
             "[{}] pager::clone(parent={})",
-            self.id,
-            parent.id
+            self.id(),
+            parent.id()
         );
 
         for ds in &mut parent.ds {
@@ -142,7 +139,7 @@ impl AddrSpace {
         log!(
             crate::LOG_DEF,
             "[{}] pager::pagefault(virt={:#x}, access={:#x})",
-            self.id,
+            self.id(),
             virt,
             access
         );
@@ -206,7 +203,7 @@ impl AddrSpace {
         log!(
             crate::LOG_DEF,
             "[{}] pager::map_ds(virt={:#x}, len={:#x}, perm={:?}, off={:#x}, flags={:?})",
-            self.id,
+            self.id(),
             virt,
             len,
             perm,
@@ -249,7 +246,7 @@ impl AddrSpace {
         log!(
             crate::LOG_DEF,
             "[{}] pager::map_anon(virt={:#x}, len={:#x}, perm={:?}, flags={:?})",
-            self.id,
+            self.id(),
             virt,
             len,
             perm,
@@ -259,9 +256,8 @@ impl AddrSpace {
         self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
-        self.ds.push(DataSpace::new_anon(
-            as_mem, virt, len, perm, flags,
-        ));
+        self.ds
+            .push(DataSpace::new_anon(as_mem, virt, len, perm, flags));
 
         Ok(())
     }
@@ -278,7 +274,7 @@ impl AddrSpace {
         log!(
             crate::LOG_DEF,
             "[{}] pager::map_mem(virt={:#x}, len={:#x}, perm={:?})",
-            self.id,
+            self.id(),
             virt,
             len,
             perm,
@@ -287,13 +283,7 @@ impl AddrSpace {
         self.check_map_args(virt, len, perm)?;
 
         let as_mem = self.as_mem.as_ref().unwrap().clone();
-        let mut ds = DataSpace::new_anon(
-            as_mem,
-            virt,
-            len,
-            perm,
-            MapFlags::empty(),
-        );
+        let mut ds = DataSpace::new_anon(as_mem, virt, len, perm, MapFlags::empty());
 
         // immediately insert a region, so that we don't allocate new memory on PFs
         let sel = VPE::cur().alloc_sel();
@@ -310,7 +300,7 @@ impl AddrSpace {
         log!(
             crate::LOG_DEF,
             "[{}] pager::unmap(virt={:#x})",
-            self.id,
+            self.id(),
             virt,
         );
 
@@ -326,7 +316,7 @@ impl AddrSpace {
     }
 
     pub fn close(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "[{}] pager::close()", self.id);
+        log!(crate::LOG_DEF, "[{}] pager::close()", self.id());
 
         reply_vmsg!(is, 0)
     }

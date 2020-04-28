@@ -14,8 +14,11 @@
  * General Public License version 2 for more details.
  */
 
+use cap::Selector;
 use col::Vec;
 use errors::{Code, Error};
+use pes::VPE;
+use session::ServerSession;
 
 /// Used as session identifier
 pub type SessId = usize;
@@ -78,6 +81,28 @@ impl<S> SessionContainer<S> {
         assert!(self.used & (1 << sid) == 0);
         self.con[sid] = Some(sess);
         self.used |= 1 << sid;
+    }
+
+    /// Adds a new session with the next available id and a selector allocated from `VPE::cur()`.
+    /// The session is created by `create_sess`, which takes a new `ServerSession` object for the
+    /// service denoted by `srv_sel`. The parameter `auto_close` is passed to `ServerSession` on
+    /// creation.
+    pub fn add_next<F>(
+        &mut self,
+        srv_sel: Selector,
+        auto_close: bool,
+        create_sess: F,
+    ) -> Result<(Selector, SessId), Error>
+    where
+        F: Fn(ServerSession) -> Result<S, Error>,
+    {
+        let sid = self.next_id()?;
+        let sel = VPE::cur().alloc_sel();
+        let sess = create_sess(ServerSession::new_with_sel(
+            srv_sel, sel, sid as u64, auto_close,
+        )?)?;
+        self.add(sid, sess);
+        Ok((sel, sid))
     }
 
     /// Removes the session with given id, assuming that the session exists.

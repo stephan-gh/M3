@@ -56,18 +56,18 @@ struct PipesHandler {
 }
 
 impl PipesHandler {
-    fn new_sess(
+    fn new_sub_sess(
         &self,
-        sid: SessId,
-        srv_sel: Selector,
         sel: Selector,
+        nsid: SessId,
         data: SessionData,
     ) -> Result<PipesSession, Error> {
         // let the kernel close the session as soon as the client dies or the session is revoked
         // for some other reason. this is required to signal EOF to the other side of the pipe.
-        let sess = ServerSession::new_with_sel(srv_sel, sel, sid as u64, true)?;
-
-        Ok(PipesSession::new(sess, data))
+        Ok(PipesSession::new(
+            ServerSession::new_with_sel(self.sel, sel, nsid as u64, true)?,
+            data,
+        ))
     }
 
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
@@ -95,12 +95,10 @@ impl PipesHandler {
 
 impl Handler for PipesHandler {
     fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        let sid = self.sessions.next_id()?;
-        let sel = VPE::cur().alloc_sel();
-        let sess = self.new_sess(sid, srv_sel, sel, SessionData::Meta(Meta::default()))?;
-        self.sessions.add(sid, sess);
-        log!(crate::LOG_DEF, "[{}] pipes::new_meta()", sid);
-        Ok((sel, sid))
+        self.sessions.add_next(srv_sel, true, |sess| {
+            log!(crate::LOG_DEF, "[{}] pipes::new_meta()", sess.ident());
+            Ok(PipesSession::new(sess, SessionData::Meta(Meta::default())))
+        })
     }
 
     fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
@@ -108,10 +106,10 @@ impl Handler for PipesHandler {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let (nsid, nsess, attach_pipe) = {
+        let res: Result<_, Error> = {
             let nsid = self.sessions.next_id()?;
-            let sess = self.sessions.get_mut(sid).unwrap();
-            match &mut sess.data_mut() {
+            let osess = self.sessions.get_mut(sid).unwrap();
+            match &mut osess.data_mut() {
                 // meta sessions allow to create new pipes
                 SessionData::Meta(ref mut m) => {
                     let sel = VPE::cur().alloc_sel();
@@ -125,8 +123,8 @@ impl Handler for PipesHandler {
                         msize
                     );
                     let pipe = m.create_pipe(nsid, msize as usize);
-                    self.new_sess(nsid, self.sel, sel, SessionData::Pipe(pipe))
-                        .map(|s| (nsid, s, false))
+                    let nsess = self.new_sub_sess(sel, nsid, SessionData::Pipe(pipe))?;
+                    Ok((nsid, nsess, false))
                 },
 
                 // pipe sessions allow to create new channels
@@ -146,8 +144,8 @@ impl Handler for PipesHandler {
                     );
                     let chan = p.new_chan(nsid, sel, ty)?;
                     p.attach(&chan);
-                    self.new_sess(nsid, self.sel, sel, SessionData::Chan(chan))
-                        .map(|s| (nsid, s, false))
+                    let nsess = self.new_sub_sess(sel, nsid, SessionData::Chan(chan))?;
+                    Ok((nsid, nsess, false))
                 },
 
                 // channel sessions can be cloned
@@ -162,11 +160,12 @@ impl Handler for PipesHandler {
                     );
 
                     let chan = c.clone(nsid, sel)?;
-                    self.new_sess(nsid, self.sel, sel, SessionData::Chan(chan))
-                        .map(|s| (nsid, s, true))
+                    let nsess = self.new_sub_sess(sel, nsid, SessionData::Chan(chan))?;
+                    Ok((nsid, nsess, true))
                 },
             }
-        }?;
+        };
+        let (nsid, nsess, attach_pipe) = res?;
 
         let crd = if let SessionData::Chan(ref c) = nsess.data() {
             // workaround because we cannot borrow self.sessions again inside the above match

@@ -106,8 +106,7 @@ impl cmp::Ord for BlockRange {
 }
 
 struct DiskSession {
-    sid: usize,
-    _sess: ServerSession,
+    sess: ServerSession,
     part: usize,
     sgates: Vec<SendGate>,
     blocks: Treap<BlockRange, Selector>,
@@ -139,7 +138,7 @@ impl DiskSession {
         log!(
             crate::LOG_DEF,
             "[{}] disk::{}(cap={}, start={}, len={}, block_size={}, off={})",
-            self.sid,
+            self.sess.ident(),
             name,
             cap,
             start,
@@ -187,24 +186,19 @@ impl Handler for DiskHandler {
         let dev = arg
             .parse::<usize>()
             .map_err(|_| Error::new(Code::InvArgs))?;
-        let sid = self.sessions.next_id()?;
-
-        log!(crate::LOG_DEF, "[{}] disk::open(dev={})", sid, dev);
-
         if !device().partition_exists(dev) {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let sel = VPE::cur().alloc_sel();
-        let sess = DiskSession {
-            sid,
-            _sess: ServerSession::new_with_sel(srv_sel, sel, sid as u64, false)?,
-            part: dev,
-            sgates: Vec::new(),
-            blocks: Treap::new(),
-        };
-        self.sessions.add(sid, sess);
-        Ok((sel, sid))
+        self.sessions.add_next(srv_sel, false, |sess| {
+            log!(crate::LOG_DEF, "[{}] disk::open(dev={})", sess.ident(), dev);
+            Ok(DiskSession {
+                sess,
+                part: dev,
+                sgates: Vec::new(),
+                blocks: Treap::new(),
+            })
+        })
     }
 
     fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {

@@ -186,26 +186,21 @@ struct VTermHandler {
 }
 
 impl VTermHandler {
-    fn new_sess(
-        &self,
-        sid: SessId,
-        srv_sel: Selector,
-        sel: Selector,
-        data: SessionData,
-    ) -> Result<VTermSession, Error> {
-        let sess = ServerSession::new_with_sel(srv_sel, sel, sid as u64, false)?;
-
-        Ok(VTermSession { sess, data })
+    fn new_sess(sess: ServerSession) -> VTermSession {
+        log!(crate::LOG_DEF, "[{}] vterm::new_meta()", sess.ident());
+        VTermSession {
+            sess,
+            data: SessionData::Meta,
+        }
     }
 
     fn new_chan(&self, sid: SessId, writing: bool) -> Result<VTermSession, Error> {
+        log!(crate::LOG_DEF, "[{}] vterm::new_chan()", sid);
         let sels = VPE::cur().alloc_sels(2);
-        self.new_sess(
-            sid,
-            self.sel,
-            sels,
-            SessionData::Chan(Channel::new(sid, &self.mem, sels, writing)?),
-        )
+        Ok(VTermSession {
+            sess: ServerSession::new_with_sel(self.sel, sels, sid as u64, false)?,
+            data: SessionData::Chan(Channel::new(sid, &self.mem, sels, writing)?),
+        })
     }
 
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
@@ -217,12 +212,8 @@ impl VTermHandler {
 
 impl Handler for VTermHandler {
     fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        let sid = self.sessions.next_id()?;
-        let sel = VPE::cur().alloc_sel();
-        let sess = self.new_sess(sid, srv_sel, sel, SessionData::Meta)?;
-        self.sessions.add(sid, sess);
-        log!(crate::LOG_DEF, "[{}] vterm::new_meta()", sid);
-        Ok((sel, sid))
+        self.sessions
+            .add_next(srv_sel, false, |sess| Ok(Self::new_sess(sess)))
     }
 
     fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
@@ -242,8 +233,6 @@ impl Handler for VTermHandler {
                 SessionData::Chan(c) => self.new_chan(nsid, c.writing).map(|s| (nsid, s)),
             }
         }?;
-
-        log!(crate::LOG_DEF, "[{}] vterm::new_chan()", nsid);
 
         let sel = nsess.sess.sel();
         self.sessions.add(nsid, nsess);
