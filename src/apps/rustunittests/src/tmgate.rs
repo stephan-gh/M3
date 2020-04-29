@@ -14,8 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use m3::com::{MGateArgs, MemGate, Perm};
+use m3::boxed::Box;
+use m3::cfg;
+use m3::com::{MGateArgs, MemGate, Perm, Semaphore};
 use m3::errors::Code;
+use m3::goff;
+use m3::pes::{Activity, PE, VPE};
+use m3::session::MapFlags;
 use m3::test;
 
 pub fn run(t: &mut dyn test::WvTester) {
@@ -25,6 +30,7 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, derive);
     wv_run_test!(t, read_write);
     wv_run_test!(t, read_write_object);
+    wv_run_test!(t, remote_access);
 }
 
 fn create() {
@@ -91,4 +97,69 @@ fn read_write_object() {
     let obj: Test = wv_assert_ok!(mgate.read_obj(0));
 
     wv_assert_eq!(refobj, obj);
+}
+
+fn remote_access() {
+    let mut _obj: u64 = 0;
+    let sem = wv_assert_ok!(Semaphore::create(0));
+
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+    let mut child = wv_assert_ok!(VPE::new(pe, "child"));
+
+    let virt = if child.pe_desc().has_virtmem() {
+        let virt: goff = 0x30000000;
+        // creating mapping in the child
+        wv_assert_ok!(child.pager().unwrap().map_anon(
+            virt,
+            cfg::PAGE_SIZE,
+            Perm::RW,
+            MapFlags::PRIVATE
+        ));
+        // another mapping that is not touched by the child
+        wv_assert_ok!(child.pager().unwrap().map_anon(
+            virt + cfg::PAGE_SIZE as goff,
+            cfg::PAGE_SIZE,
+            Perm::RW,
+            MapFlags::PRIVATE
+        ));
+        virt
+    }
+    else {
+        &_obj as *const _ as goff
+    };
+
+    wv_assert_ok!(child.delegate_obj(sem.sel()));
+
+    let sem_sel = sem.sel();
+    let act = wv_assert_ok!(child.run(Box::new(move || {
+        let sem = Semaphore::bind(sem_sel);
+        // write value to own address space
+        let obj_addr = virt as *mut u64;
+        unsafe { *obj_addr = 0xDEAD_BEEF };
+        //  notify parent that we're ready
+        wv_assert_ok!(sem.up());
+        // wait for parent
+        wv_assert_ok!(sem.down());
+        0
+    })));
+
+    // wait until child is ready
+    wv_assert_ok!(sem.down());
+
+    // read object from his address space
+    let obj: u64 = wv_assert_ok!(act.vpe().mem().read_obj(virt));
+    wv_assert_eq!(obj, 0xDEAD_BEEF);
+
+    // try to access unmapped pages
+    if act.vpe().pe_desc().has_virtmem() {
+        wv_assert_err!(
+            act.vpe().mem().read_obj::<u64>(virt + cfg::PAGE_SIZE as goff),
+            Code::Pagefault
+        );
+    }
+
+    // notify child that we're done
+    wv_assert_ok!(sem.up());
+
+    wv_assert_ok!(act.wait());
 }
