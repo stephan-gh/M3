@@ -24,27 +24,13 @@ use helper;
 use vpe;
 
 pub struct PfState {
-    buf: Option<u64>,
     virt: usize,
     perm: PageFlags,
 }
 
-fn send_pf(
-    vpe: &mut vpe::VPE,
-    mut buf: Option<u64>,
-    virt: usize,
-    perm: PageFlags,
-) -> Result<(), Error> {
+fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error> {
     // save command registers to be able to send a message
-    let cmd_saved = helper::TCUGuard::new();
-
-    // if the command triggered the page fault, the core request has been aborted and we don't want
-    // to resume it later
-    if let Some(buf_id) = buf {
-        if cmd_saved.state().xfer_buf() == buf_id {
-            buf = None;
-        }
-    }
+    let _cmd_saved = helper::TCUGuard::new();
 
     // change to the VPE, if required
     let cur = vpe::cur();
@@ -70,7 +56,7 @@ fn send_pf(
     )
     .and_then(|_| {
         // remember the page fault information to resume it later
-        vpe.start_pf(PfState { buf, virt, perm });
+        vpe.start_pf(PfState { virt, perm });
         vpe.block(
             vpe::ScheduleAction::Block,
             Some(recv_pf_resp),
@@ -103,19 +89,14 @@ fn recv_pf_resp() -> vpe::ContResult {
         tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg_off);
 
         let pf_state = vpe.finish_pf();
-        if pf_state.buf.is_some() {
-            let pte = if err == 0 {
-                vpe.translate(pf_state.virt, pf_state.perm)
-            }
-            else {
-                cfg::PAGE_SIZE as u64
-            };
-            tcu::TCU::set_core_req(pte);
-        }
         if err != 0 {
-            let virt = pf_state.virt;
-            let state = vpe.user_state();
-            log!(crate::LOG_ERR, "Pagefault for {:#x} with {:?}", virt, state);
+            log!(
+                crate::LOG_ERR,
+                "Pagefault for {:#x} (perm: {:?}) with {:?}",
+                pf_state.virt,
+                pf_state.perm,
+                vpe.user_state()
+            );
             vpe::ContResult::Failure
         }
         else {
@@ -132,7 +113,6 @@ pub fn handle_xlate(req: tcu::Reg) {
     let virt = ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize;
     let can_pf = ((req >> 1) & 0x1) != 0;
     let perm = PageFlags::from_bits_truncate((req >> 2) & PageFlags::RW.bits());
-    let xfer_buf = (req >> 6) & 0x7;
 
     // perform page table walk
     let vpe = vpe::get_mut(asid);
@@ -140,7 +120,7 @@ pub fn handle_xlate(req: tcu::Reg) {
         let pte = vpe.translate(virt, perm);
         // page fault?
         if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
-            if can_pf && send_pf(vpe, Some(xfer_buf), virt, perm).is_ok() {
+            if can_pf && send_pf(vpe, virt, perm).is_ok() {
                 return;
             }
         }
@@ -166,7 +146,7 @@ pub fn handle_pf(
         panic!("pagefault for {:#x} at {:#x}", virt, ip);
     }
 
-    if let Err(e) = send_pf(vpe::cur(), None, virt, perm) {
+    if let Err(e) = send_pf(vpe::cur(), virt, perm) {
         log!(crate::LOG_ERR, "Pagefault for {:#x} with {:?}", virt, state);
         return Err(e);
     }

@@ -19,25 +19,18 @@ use core::intrinsics;
 
 pub struct TCUCmdState {
     cmd_regs: [tcu::Reg; 3],
-    xfer_buf: tcu::Reg,
 }
 
 impl TCUCmdState {
     pub const fn new() -> Self {
         TCUCmdState {
             cmd_regs: [0; 3],
-            xfer_buf: !0,
         }
-    }
-
-    pub fn xfer_buf(&self) -> tcu::Reg {
-        self.xfer_buf
     }
 
     pub fn save(&mut self) {
         // abort the current command, if there is any
-        let (xfer_buf, old_cmd) = tcu::TCU::abort();
-        self.xfer_buf = xfer_buf;
+        let (_, old_cmd) = tcu::TCU::abort();
 
         self.cmd_regs[0] = old_cmd;
         self.cmd_regs[1] = tcu::TCU::read_cmd_reg(tcu::CmdReg::ARG1);
@@ -67,10 +60,6 @@ impl TCUGuard {
         let mut cmd = TCUCmdState::new();
         cmd.save();
         TCUGuard { cmd }
-    }
-
-    pub fn state(&self) -> &TCUCmdState {
-        &self.cmd
     }
 }
 
