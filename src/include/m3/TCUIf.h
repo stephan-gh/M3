@@ -80,15 +80,14 @@ public:
         UNREACHED;
     }
 
-    static Errors::Code read(MemGate &mg, void *data, size_t size, goff_t off, uint flags) noexcept {
+    static Errors::Code read(MemGate &mg, void *data, size_t size, goff_t off) noexcept {
         const EP &ep = mg.activate();
-        return TCU::get().read(ep.id(), data, size, off, flags);
+        return TCU::get().read(ep.id(), data, size, off);
     }
 
-    static Errors::Code write(MemGate &mg, const void *data, size_t size,
-                              goff_t off, uint flags) noexcept {
+    static Errors::Code write(MemGate &mg, const void *data, size_t size, goff_t off) noexcept {
         const EP &ep = mg.activate();
-        return TCU::get().write(ep.id(), data, size, off, flags);
+        return TCU::get().write(ep.id(), data, size, off);
     }
 
     static void drop_msgs(RecvGate &rg, label_t label) noexcept {

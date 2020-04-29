@@ -40,8 +40,7 @@ class MemGate : public Gate {
 
     explicit MemGate(uint flags, capsel_t cap, bool revoke) noexcept
         : Gate(MEM_GATE, cap, flags),
-          _revoke(revoke),
-          _cmdflags() {
+          _revoke(revoke) {
     }
 
 public:
@@ -51,13 +50,6 @@ public:
     static const int RW = R | W;
     static const int RWX = R | W | X;
     static const int PERM_BITS = 3;
-
-    enum CmdFlags {
-        /**
-         * Pagefaults result in an abort
-         */
-        CMD_NOPF = TCU::CmdFlags::NOPF,
-    };
 
     /**
      * Creates a new memory gate for global memory. That is, it requests <size> bytes of global
@@ -99,24 +91,10 @@ public:
 
     MemGate(MemGate &&m) noexcept
         : Gate(std::move(m)),
-          _revoke(m._revoke),
-          _cmdflags(m._cmdflags) {
+          _revoke(m._revoke) {
     }
 
     ~MemGate();
-
-    /**
-     * @return the command flags
-     */
-    uint cmdflags() const noexcept {
-        return _cmdflags;
-    }
-    /**
-     * Sets the given command flags
-     */
-    void cmdflags(uint flags) noexcept {
-        _cmdflags = flags;
-    }
 
     /**
      * Derives memory from this memory gate. That is, it creates a new memory capability that is
@@ -163,7 +141,6 @@ public:
 
 private:
     bool _revoke;
-    uint _cmdflags;
 };
 
 }

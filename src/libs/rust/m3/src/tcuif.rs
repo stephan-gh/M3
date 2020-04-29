@@ -20,7 +20,7 @@ use base::pexif;
 use com::{MemGate, RecvGate, SendGate};
 use errors::{Code, Error};
 use goff;
-use tcu::{self, CmdFlags, Label, Message};
+use tcu::{self, Label, Message};
 
 pub struct TCUIf {}
 
@@ -100,10 +100,9 @@ impl TCUIf {
         data: *mut u8,
         size: usize,
         off: goff,
-        flags: CmdFlags,
     ) -> Result<(), Error> {
         let ep = mg.activate()?;
-        tcu::TCU::read(ep.id(), data, size, off, flags)
+        tcu::TCU::read(ep.id(), data, size, off)
     }
 
     pub fn write(
@@ -111,10 +110,9 @@ impl TCUIf {
         data: *const u8,
         size: usize,
         off: goff,
-        flags: CmdFlags,
     ) -> Result<(), Error> {
         let ep = mg.activate()?;
-        tcu::TCU::write(ep.id(), data, size, off, flags)
+        tcu::TCU::write(ep.id(), data, size, off)
     }
 
     #[inline(always)]

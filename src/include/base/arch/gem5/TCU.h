@@ -148,10 +148,6 @@ public:
         W                   = 1 << 1,
     };
 
-    enum CmdFlags {
-        NOPF                = 1,
-    };
-
     struct Header {
         enum {
             FL_REPLY            = 1 << 0,
@@ -228,8 +224,8 @@ public:
 private:
     Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep);
     Errors::Code reply(epid_t ep, const void *reply, size_t size, size_t msg_off);
-    Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off, uint flags);
-    Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off, uint flags);
+    Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off);
+    Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off);
 
     size_t fetch_msg(epid_t ep) const {
         write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
@@ -240,7 +236,7 @@ private:
     void ack_msg(epid_t ep, size_t msg_off) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, 0, msg_off));
+        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, msg_off));
         // ensure that we don't do something else before the ack
         CPU::memory_barrier();
     }
@@ -249,7 +245,7 @@ private:
         wait_for_msg(INVALID_EP);
     }
     void wait_for_msg(epid_t ep) {
-        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, 0, ep));
+        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, ep));
         get_error();
     }
 
@@ -294,7 +290,7 @@ private:
         while(true) {
             reg_t cmd = read_reg(CmdRegs::COMMAND);
             if(static_cast<CmdOpCode>(cmd & 0xF) == CmdOpCode::IDLE)
-                return static_cast<Errors::Code>((cmd >> 21) & 0xF);
+                return static_cast<Errors::Code>((cmd >> 20) & 0xF);
         }
         UNREACHED;
     }
@@ -345,11 +341,8 @@ private:
         return MMIO_ADDR + regCount * sizeof(reg_t);
     }
 
-    static reg_t build_command(epid_t ep, CmdOpCode c, uint flags = 0, reg_t arg = 0) {
-        return static_cast<reg_t>(c) |
-                (static_cast<reg_t>(ep) << 4) |
-                (static_cast<reg_t>(flags) << 20 |
-                arg << 25);
+    static reg_t build_command(epid_t ep, CmdOpCode c, reg_t arg = 0) {
+        return static_cast<reg_t>(c) | (static_cast<reg_t>(ep) << 4) | (arg << 24);
     }
 
     static TCU inst;

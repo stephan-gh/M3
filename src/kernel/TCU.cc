@@ -93,8 +93,7 @@ m3::Errors::Code TCU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void 
         config_mem(ep_regs, VPE::KERNEL_ID, vpe.pe, vpe.id, addr, size, m3::KIF::Perm::W);
     });
 
-    // the kernel can never cause pagefaults with reads/writes
-    return m3::TCU::get().write(TMP_MEP, data, size, 0, m3::TCU::CmdFlags::NOPF);
+    return m3::TCU::get().write(TMP_MEP, data, size, 0);
 }
 
 m3::Errors::Code TCU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
@@ -102,7 +101,7 @@ m3::Errors::Code TCU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, 
         config_mem(ep_regs, VPE::KERNEL_ID, vpe.pe, vpe.id, addr, size, m3::KIF::Perm::R);
     });
 
-    return m3::TCU::get().read(TMP_MEP, data, size, 0, m3::TCU::CmdFlags::NOPF);
+    return m3::TCU::get().read(TMP_MEP, data, size, 0);
 }
 
 }

@@ -61,13 +61,13 @@ MemGate MemGate::derive_for(capsel_t vpe, capsel_t cap, goff_t offset, size_t si
 }
 
 void MemGate::read(void *data, size_t len, goff_t offset) {
-    Errors::Code res = TCUIf::read(*this, data, len, offset, _cmdflags);
+    Errors::Code res = TCUIf::read(*this, data, len, offset);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw TCUException(res);
 }
 
 void MemGate::write(const void *data, size_t len, goff_t offset) {
-    Errors::Code res = TCUIf::write(*this, data, len, offset, _cmdflags);
+    Errors::Code res = TCUIf::write(*this, data, len, offset);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw TCUException(res);
 }

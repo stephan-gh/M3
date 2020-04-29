@@ -17,7 +17,7 @@
 use m3::cap::Selector;
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::{GateIStream, MGateFlags, MemGate, RecvGate, SGateArgs, SendGate, SliceSource};
+use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate, SliceSource};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};
@@ -72,15 +72,9 @@ impl AddrSpace {
     pub fn init(&mut self, sels: Selector) {
         log!(crate::LOG_DEF, "[{}] pager::init(sels={})", self.id(), sels);
 
-        let mut mem = MemGate::new_bind(sels + 1);
-        // we don't want to cause pagefault with this, because we are the one that handles them. we
-        // will make sure that this doesn't happen by only accessing memory where we are sure that
-        // we have mapped it.
-        mem.set_flags(MGateFlags::NOPF);
-
         self.as_mem = Some(Rc::new(ASMem {
             vpe: sels + 0,
-            mgate: mem,
+            mgate: MemGate::new_bind(sels + 1),
         }));
     }
 

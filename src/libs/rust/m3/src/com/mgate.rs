@@ -31,8 +31,6 @@ pub use kif::Perm;
 
 bitflags! {
     pub struct MGateFlags : u64 {
-        /// Pagefaults result in an abort
-        const NOPF = tcu::CmdFlags::NOPF.bits();
         /// revoke the `MemGate` on destruction
         const REVOKE = 0x80;
     }
@@ -185,7 +183,7 @@ impl MemGate {
     /// Reads `size` bytes via the TCU read command from the memory region at offset `off` and
     /// stores the read data into `data`.
     pub fn read_bytes(&self, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        tcu::TCUIf::read(self, data, size, off, self.cmd_flags())
+        tcu::TCUIf::read(self, data, size, off)
     }
 
     /// Writes `data` with the TCU write command to the memory region at offset `off`.
@@ -205,7 +203,7 @@ impl MemGate {
     /// Writes the `size` bytes at `data` via the TCU write command to the memory region at offset
     /// `off`.
     pub fn write_bytes(&self, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        tcu::TCUIf::write(self, data, size, off, self.cmd_flags())
+        tcu::TCUIf::write(self, data, size, off)
     }
 
     pub(crate) fn activate(&self) -> Result<&EP, Error> {
@@ -215,10 +213,6 @@ impl MemGate {
     /// Deactivates this `MemGate` in case it was already activated
     pub fn deactivate(&mut self) {
         self.gate.release(false);
-    }
-
-    fn cmd_flags(&self) -> tcu::CmdFlags {
-        tcu::CmdFlags::from_bits_truncate(self.flags.bits() & MGateFlags::NOPF.bits())
     }
 }
 

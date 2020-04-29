@@ -164,14 +164,6 @@ int_enum! {
     }
 }
 
-bitflags! {
-    /// The command flags
-    pub struct CmdFlags : u64 {
-        /// Specifies that a page fault should abort the command with an error
-        const NOPF        = 0x1;
-    }
-}
-
 int_enum! {
     /// The different endpoint types
     pub struct EpType : u64 {
@@ -290,7 +282,7 @@ impl TCU {
         }
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::SEND, 0, reply_ep as Reg),
+            Self::build_cmd(ep, CmdOpCode::SEND, reply_ep as Reg),
         );
 
         Self::get_error()
@@ -302,27 +294,24 @@ impl TCU {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(reply, size));
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::REPLY, 0, msg_off as Reg),
+            Self::build_cmd(ep, CmdOpCode::REPLY, msg_off as Reg),
         );
 
         Self::get_error()
     }
 
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
-    ///
-    /// The `flags` can be used to control whether page faults should abort the command.
     pub fn read(
         ep: EpId,
         data: *mut u8,
         size: usize,
         off: goff,
-        flags: CmdFlags,
     ) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
         Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::READ, flags.bits(), 0),
+            Self::build_cmd(ep, CmdOpCode::READ, 0),
         );
         let res = Self::get_error();
         unsafe { intrinsics::atomic_fence() };
@@ -330,20 +319,17 @@ impl TCU {
     }
 
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
-    ///
-    /// The `flags` can be used to control whether page faults should abort the command.
     pub fn write(
         ep: EpId,
         data: *const u8,
         size: usize,
         off: goff,
-        flags: CmdFlags,
     ) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
         Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::WRITE, flags.bits(), 0),
+            Self::build_cmd(ep, CmdOpCode::WRITE, 0),
         );
         Self::get_error()
     }
@@ -353,7 +339,7 @@ impl TCU {
     pub fn fetch_msg(ep: EpId) -> Option<usize> {
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0, 0),
+            Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0),
         );
         unsafe { intrinsics::atomic_fence() };
         let msg = Self::read_cmd_reg(CmdReg::ARG1);
@@ -395,7 +381,7 @@ impl TCU {
     pub fn ack_msg(ep: EpId, msg_off: usize) {
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::ACK_MSG, 0, msg_off as Reg),
+            Self::build_cmd(ep, CmdOpCode::ACK_MSG, msg_off as Reg),
         );
     }
 
@@ -405,7 +391,7 @@ impl TCU {
         loop {
             let cmd = Self::read_cmd_reg(CmdReg::COMMAND);
             if (cmd & 0xF) == CmdOpCode::IDLE.val {
-                let err = (cmd >> 21) & 0xF;
+                let err = (cmd >> 20) & 0xF;
                 return if err == 0 {
                     Ok(())
                 }
@@ -433,7 +419,7 @@ impl TCU {
     pub fn wait_for_msg(ep: EpId) -> Result<(), Error> {
         Self::write_cmd_reg(
             CmdReg::COMMAND,
-            Self::build_cmd(0, CmdOpCode::SLEEP, 0, ep as u64),
+            Self::build_cmd(0, CmdOpCode::SLEEP, ep as u64),
         );
         Self::get_error()
     }
@@ -615,7 +601,7 @@ impl TCU {
         addr as Reg | (size as Reg) << 32
     }
 
-    fn build_cmd(ep: EpId, c: CmdOpCode, flags: Reg, arg: Reg) -> Reg {
-        c.val as Reg | ((ep as Reg) << 4) | (flags << 20) | (arg << 25)
+    fn build_cmd(ep: EpId, c: CmdOpCode, arg: Reg) -> Reg {
+        c.val as Reg | ((ep as Reg) << 4) | (arg << 24)
     }
 }

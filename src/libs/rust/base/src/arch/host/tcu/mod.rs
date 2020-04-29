@@ -224,7 +224,6 @@ impl TCU {
         data: *mut u8,
         size: usize,
         off: goff,
-        _flags: CmdFlags,
     ) -> Result<(), Error> {
         Self::exec_command(ep, Command::READ, data, size, off as usize, size, 0, 0)
     }
@@ -234,7 +233,6 @@ impl TCU {
         data: *const u8,
         size: usize,
         off: goff,
-        _flags: CmdFlags,
     ) -> Result<(), Error> {
         Self::exec_command(ep, Command::WRITE, data, size, off as usize, size, 0, 0)
     }

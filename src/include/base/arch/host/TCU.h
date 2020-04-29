@@ -204,11 +204,11 @@ public:
         setup_command(ep, REPLY, reply, size, msg_off, 0, label_t(), 0);
         return exec_command();
     }
-    Errors::Code read(epid_t ep, void *msg, size_t size, size_t off, uint) {
+    Errors::Code read(epid_t ep, void *msg, size_t size, size_t off) {
         setup_command(ep, READ, msg, size, off, size, label_t(), 0);
         return exec_command();
     }
-    Errors::Code write(epid_t ep, const void *msg, size_t size, size_t off, uint) {
+    Errors::Code write(epid_t ep, const void *msg, size_t size, size_t off) {
         setup_command(ep, WRITE, msg, size, off, size, label_t(), 0);
         return exec_command();
     }
