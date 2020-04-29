@@ -206,7 +206,7 @@ public:
         m3::TCU &tcu = m3::TCU::get();
 
         uintptr_t virt = (xlate_req & 0xFFFFFFFFFFFF) & ~PAGE_MASK;
-        uint perm = (xlate_req >> 1) & 0x7;
+        uint perm = (xlate_req >> 2) & 0x7;
 
         uint64_t pte = translate(virt, perm);
         if(~(pte & 0xF) & perm) {

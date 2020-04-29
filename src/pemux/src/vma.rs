@@ -130,7 +130,8 @@ fn recv_pf_resp() -> vpe::ContResult {
 pub fn handle_xlate(req: tcu::Reg) {
     let asid = req >> 48;
     let virt = ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize;
-    let perm = PageFlags::from_bits_truncate((req >> 1) & PageFlags::RW.bits());
+    let can_pf = ((req >> 1) & 0x1) != 0;
+    let perm = PageFlags::from_bits_truncate((req >> 2) & PageFlags::RW.bits());
     let xfer_buf = (req >> 6) & 0x7;
 
     // perform page table walk
@@ -139,8 +140,7 @@ pub fn handle_xlate(req: tcu::Reg) {
         let pte = vpe.translate(virt, perm);
         // page fault?
         if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
-            // the first xfer buffer can't raise pagefaults
-            if xfer_buf != 0 && send_pf(vpe, Some(xfer_buf), virt, perm).is_ok() {
+            if can_pf && send_pf(vpe, Some(xfer_buf), virt, perm).is_ok() {
                 return;
             }
         }
