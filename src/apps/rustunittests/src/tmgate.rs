@@ -153,7 +153,9 @@ fn remote_access() {
     // try to access unmapped pages
     if act.vpe().pe_desc().has_virtmem() {
         wv_assert_err!(
-            act.vpe().mem().read_obj::<u64>(virt + cfg::PAGE_SIZE as goff),
+            act.vpe()
+                .mem()
+                .read_obj::<u64>(virt + cfg::PAGE_SIZE as goff),
             Code::Pagefault
         );
     }

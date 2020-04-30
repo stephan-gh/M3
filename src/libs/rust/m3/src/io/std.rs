@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use cell::{RefCell, LazyStaticCell};
+use cell::{LazyStaticCell, RefCell};
 use core::mem;
 use io::Serial;
 use pes::VPE;

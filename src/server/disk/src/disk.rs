@@ -253,8 +253,7 @@ pub fn main() -> i32 {
 
     DEVICE.set(BlockDevice::new(env::args().collect()).expect("Unable to create block device"));
     REQHDL.set(
-        RequestHandler::new_with(DEF_MAX_CLIENTS, 256)
-            .expect("Unable to create request handler"),
+        RequestHandler::new_with(DEF_MAX_CLIENTS, 256).expect("Unable to create request handler"),
     );
 
     server_loop(|| {

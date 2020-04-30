@@ -23,9 +23,7 @@ pub struct TCUCmdState {
 
 impl TCUCmdState {
     pub const fn new() -> Self {
-        TCUCmdState {
-            cmd_regs: [0; 3],
-        }
+        TCUCmdState { cmd_regs: [0; 3] }
     }
 
     pub fn save(&mut self) {

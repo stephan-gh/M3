@@ -301,36 +301,20 @@ impl TCU {
     }
 
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
-    pub fn read(
-        ep: EpId,
-        data: *mut u8,
-        size: usize,
-        off: goff,
-    ) -> Result<(), Error> {
+    pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
         Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::READ, 0),
-        );
+        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
         let res = Self::get_error();
         unsafe { intrinsics::atomic_fence() };
         res
     }
 
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
-    pub fn write(
-        ep: EpId,
-        data: *const u8,
-        size: usize,
-        off: goff,
-    ) -> Result<(), Error> {
+    pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
         Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
         Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::WRITE, 0),
-        );
+        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(ep, CmdOpCode::WRITE, 0));
         Self::get_error()
     }
 

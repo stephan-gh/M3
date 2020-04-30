@@ -23,7 +23,7 @@ extern crate resmng;
 
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{RefCell, LazyStaticCell, StaticCell};
+use m3::cell::{LazyStaticCell, RefCell, StaticCell};
 use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::env;

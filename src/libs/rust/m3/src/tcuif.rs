@@ -95,22 +95,12 @@ impl TCUIf {
         }
     }
 
-    pub fn read(
-        mg: &MemGate,
-        data: *mut u8,
-        size: usize,
-        off: goff,
-    ) -> Result<(), Error> {
+    pub fn read(mg: &MemGate, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
         let ep = mg.activate()?;
         tcu::TCU::read(ep.id(), data, size, off)
     }
 
-    pub fn write(
-        mg: &MemGate,
-        data: *const u8,
-        size: usize,
-        off: goff,
-    ) -> Result<(), Error> {
+    pub fn write(mg: &MemGate, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
         let ep = mg.activate()?;
         tcu::TCU::write(ep.id(), data, size, off)
     }
