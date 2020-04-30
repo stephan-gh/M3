@@ -38,14 +38,10 @@ impl TCUCmdState {
     pub fn restore(&mut self) {
         tcu::TCU::write_cmd_reg(tcu::CmdReg::ARG1, self.cmd_regs[1]);
         tcu::TCU::write_cmd_reg(tcu::CmdReg::DATA, self.cmd_regs[2]);
-        if self.cmd_regs[0] != 0 {
-            // if there was a command, retry command
-            unsafe {
-                intrinsics::atomic_fence();
-            }
-            tcu::TCU::retry_cmd(self.cmd_regs[0]);
-            self.cmd_regs[0] = 0;
-        }
+        // always restore the command register, because the previous VPE might have an error code
+        // in the command register or similar.
+        unsafe { intrinsics::atomic_fence() };
+        tcu::TCU::retry_cmd(self.cmd_regs[0]);
     }
 }
 
