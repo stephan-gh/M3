@@ -15,8 +15,9 @@ for i in range(0, num_pes):
                            options=options,
                            no=i,
                            memPE=mem_pe,
-                           l1size='32kB',
-                           l2size='256kB')
+                           spmsize='32MB')
+    # use 64 bytes as the block size here to test whether it works with multiple memory accesses
+    pe.tcu.block_size = "64B"
     pes.append(pe)
 
 pe = createMemPE(noc=root.noc,

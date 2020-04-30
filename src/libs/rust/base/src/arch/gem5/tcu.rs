@@ -18,7 +18,7 @@ use arch;
 use cfg;
 use core::intrinsics;
 use core::mem;
-use errors::{Code, Error};
+use errors::Error;
 use goff;
 use kif::PageFlags;
 use math;
@@ -84,7 +84,7 @@ pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
 /// The number of TCU registers
 pub const TCU_REGS: usize = 4;
 /// The number of command registers
-pub const CMD_REGS: usize = 4;
+pub const CMD_REGS: usize = 3;
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
 
@@ -133,12 +133,10 @@ int_enum! {
     pub struct CmdReg : Reg {
         /// Starts commands and signals their completion
         const COMMAND       = 0x0;
-        /// Aborts commands
-        const ABORT         = 0x1;
         /// Specifies the data address and size
-        const DATA          = 0x2;
+        const DATA          = 0x1;
         /// Specifies an additional argument
-        const ARG1          = 0x3;
+        const ARG1          = 0x2;
     }
 }
 
@@ -195,6 +193,8 @@ int_enum! {
         const FLUSH_CACHE = 5;
         /// Sets the timer
         const SET_TIMER   = 6;
+        /// Abort the current command
+        const ABORT_CMD   = 7;
     }
 }
 
@@ -462,34 +462,33 @@ impl TCU {
         Self::write_reg(TCUReg::PRINT.val as usize, s.len() as u64);
     }
 
-    /// Aborts the current command or VPE, specified in `req`, and returns (`xfer_buf`, `cmd_reg`).
-    ///
-    /// The `xfer_buf` indicates the transfer buffer that was used by the aborted command
-    /// The `cmd_reg` contains the value of the command register before the abort
-    pub fn abort() -> (Reg, Reg) {
+    /// Aborts the current command or VPE, specified in `req`, and returns the command register to
+    /// use for a retry later.
+    pub fn abort_cmd() -> Reg {
         // save the old value before aborting
-        let mut cmd_reg = Self::read_cmd_reg(CmdReg::COMMAND);
+        let cmd_reg = Self::read_cmd_reg(CmdReg::COMMAND);
         // ensure that we read the command register before the abort has been executed
         unsafe { intrinsics::atomic_fence() };
-        Self::write_cmd_reg(CmdReg::ABORT, 1);
-        // ensure that we read the command register after the abort has been executed
-        unsafe { intrinsics::atomic_fence() };
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::ABORT_CMD.val);
 
-        // wait until the abort is finished.
-        match Self::get_error() {
-            // command aborted; we'll retry it later
-            Err(ref e) if e.code() == Code::Abort => {},
-            // keep error code
-            _ => {
-                // if there was something running which finished after the read_cmd_reg above,
-                // reset the cmd register to idle.
-                if (cmd_reg & 0xF) != CmdOpCode::IDLE.val {
-                    cmd_reg = CmdOpCode::IDLE.val;
+        loop {
+            let cmd = Self::read_priv_reg(PrivReg::PRIV_CMD);
+            if (cmd & 0xF) == PrivCmdOpCode::IDLE.val {
+                return if (cmd >> 4) == 0 {
+                    // if the command was finished successfully, use the current command register
+                    // to ensure that we don't forget the error code
+                    Self::read_cmd_reg(CmdReg::COMMAND)
                 }
-            },
+                else {
+                    // otherwise use the old one to repeat it later
+                    cmd_reg
+                };
+            }
         }
+    }
 
-        (Self::read_cmd_reg(CmdReg::ABORT), cmd_reg)
+    pub fn retry_cmd(cmd: Reg) {
+        Self::write_cmd_reg(CmdReg::COMMAND, cmd)
     }
 
     pub fn offset_to_msg(base: usize, off: usize) -> &'static Message {
@@ -504,10 +503,6 @@ impl TCU {
     pub fn msg_to_offset(base: usize, msg: &Message) -> usize {
         let addr = msg as *const _ as *const u8 as usize;
         addr - base
-    }
-
-    pub fn retry(cmd: Reg) {
-        Self::write_cmd_reg(CmdReg::COMMAND, cmd)
     }
 
     pub fn get_irq() -> IRQ {

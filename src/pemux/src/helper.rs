@@ -30,7 +30,7 @@ impl TCUCmdState {
 
     pub fn save(&mut self) {
         // abort the current command, if there is any
-        let (_, old_cmd) = tcu::TCU::abort();
+        let old_cmd = tcu::TCU::abort_cmd();
 
         self.cmd_regs[0] = old_cmd;
         self.cmd_regs[1] = tcu::TCU::read_cmd_reg(tcu::CmdReg::ARG1);
@@ -45,7 +45,7 @@ impl TCUCmdState {
             unsafe {
                 intrinsics::atomic_fence();
             }
-            tcu::TCU::retry(self.cmd_regs[0]);
+            tcu::TCU::retry_cmd(self.cmd_regs[0]);
             self.cmd_regs[0] = 0;
         }
     }

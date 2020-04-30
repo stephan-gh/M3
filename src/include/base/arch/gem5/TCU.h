@@ -69,7 +69,7 @@ public:
 private:
     static const size_t TCU_REGS            = 4;
     static const size_t PRIV_REGS           = 5;
-    static const size_t CMD_REGS            = 4;
+    static const size_t CMD_REGS            = 3;
     static const size_t EP_REGS             = 3;
 
     // actual max is 64k - 1; use less for better alignment
@@ -93,9 +93,8 @@ private:
 
     enum class CmdRegs {
         COMMAND             = TCU_REGS + 0,
-        ABORT               = TCU_REGS + 1,
-        DATA                = TCU_REGS + 2,
-        ARG1                = TCU_REGS + 3,
+        DATA                = TCU_REGS + 1,
+        ARG1                = TCU_REGS + 2,
     };
 
     enum StatusFlags : reg_t {
