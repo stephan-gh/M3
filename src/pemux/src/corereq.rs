@@ -23,7 +23,7 @@ pub fn handle_recv(req: tcu::Reg) {
     log!(crate::LOG_FOREIGN_MSG, "Got core request {:#x}", req);
 
     // add message to VPE
-    let vpe_id = (req >> 12) & 0xFFFF;
+    let vpe_id = req >> 48;
     if let Some(v) = vpe::get_mut(vpe_id) {
         // if this VPE is currently running, we have to update the CUR_VPE register
         if (tcu::TCU::get_cur_vpe() & 0xFFFF) == vpe_id {
@@ -48,7 +48,7 @@ pub fn handle_recv(req: tcu::Reg) {
         );
 
         if v.id() != kif::pemux::VPE_ID {
-            let ep_id = ((req >> 28) & 0xFFFF) as tcu::EpId;
+            let ep_id = ((req >> 1) & 0xFFFF) as tcu::EpId;
             v.unblock(Some(ep_id), false);
         }
     }
