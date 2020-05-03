@@ -107,7 +107,7 @@ fn remote_access() {
     let mut child = wv_assert_ok!(VPE::new(pe, "child"));
 
     let virt = if child.pe_desc().has_virtmem() {
-        let virt: goff = 0x30000000;
+        let virt: goff = 0x3000_0000;
         // creating mapping in the child
         wv_assert_ok!(child.pager().unwrap().map_anon(
             virt,

@@ -219,21 +219,11 @@ impl TCU {
         Self::exec_command(ep, Command::REPLY, reply, size, msg_off, 0, 0, 0)
     }
 
-    pub fn read(
-        ep: EpId,
-        data: *mut u8,
-        size: usize,
-        off: goff,
-    ) -> Result<(), Error> {
+    pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
         Self::exec_command(ep, Command::READ, data, size, off as usize, size, 0, 0)
     }
 
-    pub fn write(
-        ep: EpId,
-        data: *const u8,
-        size: usize,
-        off: goff,
-    ) -> Result<(), Error> {
+    pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
         Self::exec_command(ep, Command::WRITE, data, size, off as usize, size, 0, 0)
     }
 
