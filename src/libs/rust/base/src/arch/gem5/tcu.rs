@@ -439,7 +439,8 @@ impl TCU {
         let rstr: &[u64] = unsafe { intrinsics::transmute(s) };
         let num = math::round_up(s.len(), 8) / 8;
         for c in rstr.iter().take(num) {
-            arch::cpu::write8b(buffer, *c);
+            // safety: we know that the address is within the MMIO region of the TCU
+            unsafe { arch::cpu::write8b(buffer, *c) };
             buffer += 8;
         }
 
@@ -569,11 +570,13 @@ impl TCU {
     }
 
     fn read_reg(idx: usize) -> Reg {
-        arch::cpu::read8b(MMIO_ADDR + idx * 8)
+        // safety: we know that the address is within the MMIO region of the TCU
+        unsafe { arch::cpu::read8b(MMIO_ADDR + idx * 8) }
     }
 
     fn write_reg(idx: usize, val: Reg) {
-        arch::cpu::write8b(MMIO_ADDR + idx * 8, val);
+        // safety: as above
+        unsafe { arch::cpu::write8b(MMIO_ADDR + idx * 8, val) };
     }
 
     fn build_data(addr: *const u8, size: usize) -> Reg {

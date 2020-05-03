@@ -39,26 +39,24 @@ macro_rules! set_csr_bits {
     }};
 }
 
-pub fn read8b(addr: usize) -> u64 {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe fn read8b(addr: usize) -> u64 {
     let res: u64;
-    unsafe {
-        asm!(
-            "ld $0, ($1)"
-            : "=r"(res)
-            : "r"(addr)
-            : : "volatile"
-        );
-    }
+    asm!(
+        "ld $0, ($1)"
+        : "=r"(res)
+        : "r"(addr)
+        : : "volatile"
+    );
     res
 }
 
-pub fn write8b(addr: usize, val: u64) {
-    unsafe {
-        asm!(
-            "sd $0, ($1)"
-            : : "r"(val), "r"(addr)
-        )
-    }
+#[allow(clippy::missing_safety_doc)]
+pub unsafe fn write8b(addr: usize, val: u64) {
+    asm!(
+        "sd $0, ($1)"
+        : : "r"(val), "r"(addr)
+    )
 }
 
 #[inline(always)]

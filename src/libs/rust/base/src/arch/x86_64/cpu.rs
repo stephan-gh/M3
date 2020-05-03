@@ -48,27 +48,25 @@ impl_write_reg!(write_cr4, "cr4");
 impl_read_reg!(get_sp, "rsp");
 impl_read_reg!(get_bp, "rbp");
 
-pub fn read8b(addr: usize) -> u64 {
+#[allow(clippy::missing_safety_doc)]
+pub unsafe fn read8b(addr: usize) -> u64 {
     let res: u64;
-    unsafe {
-        asm!(
-            "mov ($1), $0"
-            : "=r"(res)
-            : "r"(addr)
-            : : "volatile"
-        );
-    }
+    asm!(
+        "mov ($1), $0"
+        : "=r"(res)
+        : "r"(addr)
+        : : "volatile"
+    );
     res
 }
 
-pub fn write8b(addr: usize, val: u64) {
-    unsafe {
-        asm!(
-            "mov $0, ($1)"
-            : : "r"(val), "r"(addr)
-            : : "volatile"
-        );
-    }
+#[allow(clippy::missing_safety_doc)]
+pub unsafe fn write8b(addr: usize, val: u64) {
+    asm!(
+        "mov $0, ($1)"
+        : : "r"(val), "r"(addr)
+        : : "volatile"
+    );
 }
 
 #[allow(clippy::missing_safety_doc)]
