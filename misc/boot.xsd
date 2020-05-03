@@ -59,6 +59,7 @@
                                     <xs:attribute name="daemon" type="xs:int"></xs:attribute>
                                     <xs:attribute name="usermem" type="xs:string"></xs:attribute>
                                     <xs:attribute name="kernmem" type="xs:string"></xs:attribute>
+                                    <xs:attribute name="eps" type="xs:int"></xs:attribute>
                                 </xs:complexType>
                             </xs:element>
                         </xs:sequence>

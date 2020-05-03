@@ -25,16 +25,17 @@ use m3::tcu::PEId;
 struct ManagedPE {
     id: PEId,
     pe: Rc<PE>,
-    used: bool,
+    users: u32,
 }
 
 pub struct PEUsage {
     idx: usize,
+    pe: Option<Rc<PE>>,
 }
 
 impl PEUsage {
     fn new(idx: usize) -> Self {
-        Self { idx }
+        Self { idx, pe: None }
     }
 
     pub fn pe_id(&self) -> PEId {
@@ -42,7 +43,25 @@ impl PEUsage {
     }
 
     pub fn pe_obj(&self) -> Rc<PE> {
-        get().get(self.idx)
+        match self.pe {
+            Some(ref p) => p.clone(),
+            None => get().get(self.idx),
+        }
+    }
+
+    pub fn derive(&self, eps: u32) -> Result<PEUsage, Error> {
+        let pe = self.pe_obj().derive(eps)?;
+        get().pes[self.idx].users += 1;
+        log!(
+            crate::LOG_PES,
+            "Deriving PE{}: (eps={})",
+            get().pes[self.idx].id,
+            pe.quota().unwrap(),
+        );
+        Ok(PEUsage {
+            idx: self.idx,
+            pe: Some(pe),
+        })
     }
 }
 
@@ -68,11 +87,7 @@ impl PEManager {
     }
 
     pub fn add(&mut self, id: PEId, pe: Rc<PE>) {
-        self.pes.push(ManagedPE {
-            id,
-            pe,
-            used: false,
-        });
+        self.pes.push(ManagedPE { id, pe, users: 0 });
     }
 
     pub fn count(&self) -> usize {
@@ -85,7 +100,7 @@ impl PEManager {
 
     pub fn find_and_alloc(&mut self, desc: PEDesc) -> Result<PEUsage, Error> {
         for (id, pe) in self.pes.iter().enumerate() {
-            if !pe.used
+            if pe.users == 0
                 && pe.pe.desc().isa() == desc.isa()
                 && pe.pe.desc().pe_type() == desc.pe_type()
             {
@@ -99,16 +114,19 @@ impl PEManager {
     fn alloc(&mut self, id: usize) {
         log!(
             crate::LOG_PES,
-            "Allocating PE{}: {:?}",
+            "Allocating PE{}: {:?} (eps={})",
             self.pes[id].id,
-            self.pes[id].pe.desc()
+            self.pes[id].pe.desc(),
+            self.get(id).quota().unwrap(),
         );
-        self.pes[id].used = true;
+        self.pes[id].users += 1;
     }
 
     fn free(&mut self, id: usize) {
         let mut pe = &mut self.pes[id];
-        log!(crate::LOG_PES, "Freeing PE{}: {:?}", pe.id, pe.pe.desc());
-        pe.used = false;
+        pe.users -= 1;
+        if pe.users == 0 {
+            log!(crate::LOG_PES, "Freeing PE{}: {:?}", pe.id, pe.pe.desc());
+        }
     }
 }

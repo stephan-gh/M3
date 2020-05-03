@@ -323,6 +323,19 @@ fn split_mem(cfg: &config::Config, mems: &memory::MemModCon) -> (bool, usize, go
     (same_kmem, def_kmem, def_umem)
 }
 
+fn split_eps(pe: &Rc<PE>, d: &config::Domain) -> Result<u32, Error> {
+    let mut total_eps = pe.quota()?;
+    let mut total_parties = d.apps().len();
+    for cfg in d.apps() {
+        if let Some(eps) = cfg.eps() {
+            total_eps -= eps;
+            total_parties -= 1;
+        }
+    }
+
+    Ok(total_eps.checked_div(total_parties as u32).unwrap_or(0))
+}
+
 fn start_boot_mods(mut mems: memory::MemModCon) {
     let mut cfg_mem: Option<(Id, goff)> = None;
 
@@ -379,6 +392,8 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
             OUR_PE.set(Some(pe_usage.clone()));
         }
 
+        let def_eps = split_eps(&pe_usage.pe_obj(), &d).expect("Unable to split EPs");
+
         for cfg in d.apps() {
             if cfg.name().starts_with("root") {
                 continue;
@@ -390,6 +405,18 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
                     break m;
                 }
                 id += 1;
+            };
+
+            // determine PE object with potentially reduced number of EPs
+            let pe_usage = if cfg.eps().is_none() {
+                pe_usage.clone()
+            }
+            else {
+                Rc::new(
+                    pe_usage
+                        .derive(cfg.eps().unwrap_or(def_eps))
+                        .expect("Unable to derive new PE"),
+                )
             };
 
             // kernel memory for child
@@ -420,7 +447,7 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
 
             let mut child = OwnChild::new(
                 id as Id,
-                pe_usage.clone(),
+                pe_usage,
                 // TODO either remove args and daemon from config or remove the clones from OwnChild
                 cfg.args().clone(),
                 cfg.daemon(),

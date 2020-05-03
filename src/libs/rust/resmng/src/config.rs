@@ -281,6 +281,7 @@ pub struct AppConfig {
     pub(crate) args: Vec<String>,
     pub(crate) restrict: bool,
     pub(crate) daemon: bool,
+    pub(crate) eps: Option<u32>,
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
     pub(crate) phys_mems: Vec<PhysMemDesc>,
@@ -306,6 +307,10 @@ impl AppConfig {
 
     pub fn restrict(&self) -> bool {
         self.restrict
+    }
+
+    pub fn eps(&self) -> Option<u32> {
+        self.eps
     }
 
     pub fn user_mem(&self) -> Option<usize> {
@@ -412,6 +417,9 @@ impl AppConfig {
         writeln!(f, "[")?;
         if self.daemon {
             writeln!(f, "{:0w$}Daemon,", "", w = layer + 2)?;
+        }
+        if let Some(eps) = self.eps {
+            writeln!(f, "{:0w$}Endpoints[count={}],", "", eps, w = layer + 2)?;
         }
         if let Some(umem) = self.user_mem {
             writeln!(
