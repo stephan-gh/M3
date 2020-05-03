@@ -282,7 +282,7 @@ fn workloop() {
 
 fn split_mem(cfg: &config::Config, mems: &memory::MemModCon) -> (bool, usize, goff) {
     let mut same_kmem = false;
-    let mut total_mem = mems.capacity();
+    let mut total_umem = mems.capacity();
     let mut total_kmem = VPE::cur()
         .kmem()
         .quota()
@@ -292,14 +292,13 @@ fn split_mem(cfg: &config::Config, mems: &memory::MemModCon) -> (bool, usize, go
     let mut total_mparties = total_kparties;
     for d in cfg.domains() {
         for a in d.apps() {
-            if let Some(kmem) = a.kmem() {
+            if let Some(kmem) = a.kernel_mem() {
                 total_kmem -= kmem;
                 total_kparties -= 1;
             }
 
-            let app_mem = a.sum_mem();
-            if app_mem != 0 {
-                total_mem -= app_mem as goff;
+            if let Some(amem) = a.user_mem() {
+                total_umem -= amem as goff;
                 total_mparties -= 1;
             }
 
@@ -320,8 +319,8 @@ fn split_mem(cfg: &config::Config, mems: &memory::MemModCon) -> (bool, usize, go
     }
 
     let def_kmem = total_kmem / total_kparties;
-    let def_mem = math::round_dn(total_mem / total_mparties as goff, cfg::PAGE_SIZE as goff);
-    (same_kmem, def_kmem, def_mem)
+    let def_umem = math::round_dn(total_umem / total_mparties as goff, cfg::PAGE_SIZE as goff);
+    (same_kmem, def_kmem, def_umem)
 }
 
 fn start_boot_mods(mut mems: memory::MemModCon) {
@@ -352,7 +351,7 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
     cfg.check();
 
     // determine default mem and kmem per child
-    let (same_kmem, def_kmem, def_mem) = split_mem(&cfg, &mems);
+    let (same_kmem, def_kmem, def_umem) = split_mem(&cfg, &mems);
 
     let mut id = 0;
     let mut moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
@@ -394,11 +393,11 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
             };
 
             // kernel memory for child
-            let kmem = if cfg.kmem().is_none() && same_kmem {
+            let kmem = if cfg.kernel_mem().is_none() && same_kmem {
                 VPE::cur().kmem().clone()
             }
             else {
-                let kmem_bytes = cfg.kmem().unwrap_or(def_kmem);
+                let kmem_bytes = cfg.kernel_mem().unwrap_or(def_kmem);
                 VPE::cur()
                     .kmem()
                     .derive(kmem_bytes)
@@ -406,25 +405,17 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
             };
 
             // memory pool for child
-            let child_mem = cfg.sum_mem();
-            let child_mem = if child_mem == 0 {
-                def_mem
-            }
-            else {
-                child_mem as goff
-            };
+            let user_mem = cfg.user_mem().unwrap_or(def_umem as usize) as goff;
             let mem_pool = Rc::new(RefCell::new(
-                mems.alloc_pool(child_mem)
+                mems.alloc_pool(user_mem)
                     .expect("Unable to allocate memory pool"),
             ));
             // add requested physical memory regions to pool
-            for mem in cfg.mems() {
-                if let Some(p) = mem.phys() {
-                    let mslice = mems.find_mem(p, mem.size()).unwrap_or_else(|_| {
-                        panic!("Unable to find memory {:#x}:{:#x}", p, mem.size())
-                    });
-                    mem_pool.borrow_mut().add(mslice);
-                }
+            for mem in cfg.phys_mems() {
+                let mslice = mems.find_mem(mem.phys(), mem.size()).unwrap_or_else(|_| {
+                    panic!("Unable to find memory {:#x}:{:#x}", mem.phys(), mem.size())
+                });
+                mem_pool.borrow_mut().add(mslice);
             }
 
             let mut child = OwnChild::new(

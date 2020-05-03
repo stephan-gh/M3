@@ -4,9 +4,7 @@
         <app args="root samekmem" />
     </dom>
     <dom>
-        <app args="dosattack">
-            <kmem size="128K" />
-        </app>
+        <app args="dosattack" kernmem="128K" />
     </dom>
     <dom>
         <app args="allocator" />

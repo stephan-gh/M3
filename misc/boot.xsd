@@ -15,15 +15,9 @@
                             <xs:element name="app" minOccurs="1" maxOccurs="unbounded">
                                 <xs:complexType>
                                     <xs:choice minOccurs="0" maxOccurs="unbounded">
-                                        <xs:element name="mem">
+                                        <xs:element name="physmem">
                                             <xs:complexType>
-                                                <xs:attribute name="addr" type="xs:int"></xs:attribute>
-                                                <xs:attribute name="size" type="xs:string" use="required"></xs:attribute>
-                                            </xs:complexType>
-                                        </xs:element>
-
-                                        <xs:element name="kmem">
-                                            <xs:complexType>
+                                                <xs:attribute name="addr" type="xs:int" use="required"></xs:attribute>
                                                 <xs:attribute name="size" type="xs:string" use="required"></xs:attribute>
                                             </xs:complexType>
                                         </xs:element>
@@ -63,6 +57,8 @@
                                     </xs:choice>
                                     <xs:attribute name="args" type="xs:string" use="required"></xs:attribute>
                                     <xs:attribute name="daemon" type="xs:int"></xs:attribute>
+                                    <xs:attribute name="usermem" type="xs:string"></xs:attribute>
+                                    <xs:attribute name="kernmem" type="xs:string"></xs:attribute>
                                 </xs:complexType>
                             </xs:element>
                         </xs:sequence>

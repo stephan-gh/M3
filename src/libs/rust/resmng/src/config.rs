@@ -28,17 +28,17 @@ use parser;
 use pes;
 
 #[derive(Default)]
-pub struct MemDesc {
-    phys: Option<goff>,
+pub struct PhysMemDesc {
+    phys: goff,
     size: goff,
 }
 
-impl MemDesc {
-    pub(crate) fn new(phys: Option<goff>, size: goff) -> Self {
-        MemDesc { phys, size }
+impl PhysMemDesc {
+    pub(crate) fn new(phys: goff, size: goff) -> Self {
+        PhysMemDesc { phys, size }
     }
 
-    pub fn phys(&self) -> Option<goff> {
+    pub fn phys(&self) -> goff {
         self.phys
     }
 
@@ -281,8 +281,9 @@ pub struct AppConfig {
     pub(crate) args: Vec<String>,
     pub(crate) restrict: bool,
     pub(crate) daemon: bool,
-    pub(crate) kmem: Option<usize>,
-    pub(crate) mems: Vec<MemDesc>,
+    pub(crate) user_mem: Option<usize>,
+    pub(crate) kern_mem: Option<usize>,
+    pub(crate) phys_mems: Vec<PhysMemDesc>,
     pub(crate) services: Vec<ServiceDesc>,
     pub(crate) sessions: Vec<SessionDesc>,
     pub(crate) sems: Vec<SemDesc>,
@@ -307,19 +308,12 @@ impl AppConfig {
         self.restrict
     }
 
-    pub fn kmem(&self) -> Option<usize> {
-        self.kmem
+    pub fn user_mem(&self) -> Option<usize> {
+        self.user_mem
     }
 
-    pub fn sum_mem(&self) -> goff {
-        self.mems.iter().fold(0, |sum, m| {
-            if m.phys().is_none() {
-                sum + m.size()
-            }
-            else {
-                sum
-            }
-        })
+    pub fn kernel_mem(&self) -> Option<usize> {
+        self.kern_mem
     }
 
     pub fn name(&self) -> &str {
@@ -330,8 +324,8 @@ impl AppConfig {
         &self.args
     }
 
-    pub fn mems(&self) -> &Vec<MemDesc> {
-        &self.mems
+    pub fn phys_mems(&self) -> &Vec<PhysMemDesc> {
+        &self.phys_mems
     }
 
     pub fn services(&self) -> &Vec<ServiceDesc> {
@@ -419,7 +413,16 @@ impl AppConfig {
         if self.daemon {
             writeln!(f, "{:0w$}Daemon,", "", w = layer + 2)?;
         }
-        if let Some(kmem) = self.kmem {
+        if let Some(umem) = self.user_mem {
+            writeln!(
+                f,
+                "{:0w$}UserMem[size={} KiB],",
+                "",
+                umem / 1024,
+                w = layer + 2
+            )?;
+        }
+        if let Some(kmem) = self.kern_mem {
             writeln!(
                 f,
                 "{:0w$}KernelMem[size={} KiB],",
@@ -428,26 +431,15 @@ impl AppConfig {
                 w = layer + 2
             )?;
         }
-        for m in &self.mems {
-            if let Some(p) = m.phys() {
-                writeln!(
-                    f,
-                    "{:0w$}Memory[phys={:#x}, size={:#x} KiB],",
-                    "",
-                    p,
-                    m.size() / 1024,
-                    w = layer + 2
-                )?;
-            }
-            else {
-                writeln!(
-                    f,
-                    "{:0w$}Memory[size={} KiB],",
-                    "",
-                    m.size() / 1024,
-                    w = layer + 2
-                )?;
-            }
+        for m in &self.phys_mems {
+            writeln!(
+                f,
+                "{:0w$}PhysMem[addr={:#x}, size={:#x} KiB],",
+                "",
+                m.phys(),
+                m.size() / 1024,
+                w = layer + 2
+            )?;
         }
         for s in &self.services {
             writeln!(

@@ -212,6 +212,8 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
                         app.args.push(a.to_string());
                     }
                 },
+                "usermem" => app.user_mem = Some(parse_size(&v)?),
+                "kernmem" => app.kern_mem = Some(parse_size(&v)?),
                 "daemon" => app.daemon = parse_bool(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
@@ -228,8 +230,7 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
             match tag.as_ref() {
                 "sess" => app.sessions.push(parse_session(p)?),
                 "serv" => app.services.push(parse_service(p)?),
-                "mem" => app.mems.push(parse_mem(p)?),
-                "kmem" => app.kmem = Some(parse_kmem(p)?),
+                "physmem" => app.phys_mems.push(parse_physmem(p)?),
                 "pes" => app.pes.push(parse_pe(p)?),
                 "sem" => app.sems.push(parse_sem(p)?),
                 _ => return Err(Error::new(Code::InvArgs)),
@@ -246,30 +247,20 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
     }
 }
 
-fn parse_mem(p: &mut ConfigParser) -> Result<config::MemDesc, Error> {
-    let mut phys = None;
+fn parse_physmem(p: &mut ConfigParser) -> Result<config::PhysMemDesc, Error> {
+    let mut phys = 0;
     let mut size = 0;
     loop {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => match n.as_ref() {
-                "addr" => phys = Some(parse_addr(&v)?),
+                "addr" => phys = parse_addr(&v)?,
                 "size" => size = parse_size(&v)? as goff,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
-    Ok(config::MemDesc::new(phys, size))
-}
-
-fn parse_kmem(p: &mut ConfigParser) -> Result<usize, Error> {
-    match p.parse_arg()? {
-        None => Err(Error::new(Code::InvArgs)),
-        Some((n, v)) => match n.as_ref() {
-            "size" => Ok(parse_size(&v)?),
-            _ => Err(Error::new(Code::InvArgs)),
-        },
-    }
+    Ok(config::PhysMemDesc::new(phys, size))
 }
 
 fn parse_service(p: &mut ConfigParser) -> Result<config::ServiceDesc, Error> {

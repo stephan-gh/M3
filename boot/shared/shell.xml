@@ -12,15 +12,14 @@
     <dom>
         <app args="m3fs mem $fs.size" daemon="1">
             <serv name="m3fs" />
-            <mem addr="0" size="$fs.size" />
+            <physmem addr="0" size="$fs.size" />
         </app>
     </dom>
     <dom>
-        <app args="pager -s /bin/shell">
+        <app args="pager -s /bin/shell" usermem="128M">
             <sess name="m3fs" />
             <sess name="pipes" />
             <sess name="vterm" />
-            <mem size="128M" />
             <pes type="core" count="3" />
             <pes type="rot13" count="2" optional="1" />
         </app>
