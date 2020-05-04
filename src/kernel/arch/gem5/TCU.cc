@@ -34,8 +34,8 @@ m3::Errors::Code TCU::do_ext_cmd(peid_t pe, m3::TCU::ExtCmdOpCode op, m3::TCU::r
     VPEDesc vpe(pe, VPE::INVALID_ID);
     m3::TCU::reg_t reg = static_cast<m3::TCU::reg_t>(op) | (arg ? (*arg << 8) : 0);
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::TCU::priv_reg_addr(m3::TCU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
-    read_mem(vpe, m3::TCU::priv_reg_addr(m3::TCU::PrivRegs::EXT_CMD), &reg, sizeof(reg));
+    write_mem(vpe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD), &reg, sizeof(reg));
+    read_mem(vpe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD), &reg, sizeof(reg));
     if(arg)
         *arg = reg >> 8;
     return static_cast<m3::Errors::Code>((reg >> 4) & 0xF);
@@ -47,7 +47,7 @@ void TCU::deprivilege(peid_t pe) {
     // unset the privileged flag
     m3::TCU::reg_t features = 0;
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::TCU::tcu_reg_addr(m3::TCU::TCURegs::FEATURES), &features, sizeof(features));
+    write_mem(vpe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::FEATURES), &features, sizeof(features));
 }
 
 void TCU::init_vpe(peid_t) {

@@ -67,34 +67,34 @@ public:
     static const reg_t UNLIM_CREDITS        = 0x3F;
 
 private:
-    static const size_t TCU_REGS            = 4;
-    static const size_t PRIV_REGS           = 5;
-    static const size_t CMD_REGS            = 3;
+    static const size_t EXT_REGS            = 2;
+    static const size_t PRIV_REGS           = 6;
+    static const size_t UNPRIV_REGS         = 5;
     static const size_t EP_REGS             = 3;
 
     // actual max is 64k - 1; use less for better alignment
     static const size_t MAX_PKT_SIZE        = 60 * 1024;
 
-    enum class TCURegs {
+    enum class ExtRegs {
         FEATURES            = 0,
-        CUR_TIME            = 1,
-        CLEAR_IRQ           = 2,
-        PRINT               = 3,
+        EXT_CMD             = 1,
     };
 
     enum class PrivRegs {
         CORE_REQ            = 0,
         PRIV_CMD            = 1,
         PRIV_CMD_ARG        = 2,
-        EXT_CMD             = 3,
-        CUR_VPE             = 4,
-        OLD_VPE             = 5,
+        CUR_VPE             = 3,
+        OLD_VPE             = 4,
+        CLEAR_IRQ           = 5,
     };
 
-    enum class CmdRegs {
-        COMMAND             = TCU_REGS + 0,
-        DATA                = TCU_REGS + 1,
-        ARG1                = TCU_REGS + 2,
+    enum class UnprivRegs {
+        COMMAND             = EXT_REGS + 0,
+        DATA                = EXT_REGS + 1,
+        ARG1                = EXT_REGS + 2,
+        CUR_TIME            = EXT_REGS + 3,
+        PRINT               = EXT_REGS + 4,
     };
 
     enum StatusFlags : reg_t {
@@ -125,8 +125,9 @@ private:
         INV_TLB             = 2,
         INS_TLB             = 3,
         XCHG_VPE            = 4,
-        FLUSH_CACHE         = 5,
-        SET_TIMER           = 6,
+        SET_TIMER           = 5,
+        ABORT_CMD           = 6,
+        FLUSH_CACHE         = 7,
     };
 
     enum class ExtCmdOpCode {
@@ -215,7 +216,7 @@ public:
     }
 
     uint64_t nanotime() const {
-        return read_reg(TCURegs::CUR_TIME);
+        return read_reg(UnprivRegs::CUR_TIME);
     }
 
     void print(const char *str, size_t len);
@@ -227,15 +228,15 @@ private:
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off);
 
     size_t fetch_msg(epid_t ep) const {
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
+        write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         CPU::memory_barrier();
-        return read_reg(CmdRegs::ARG1);
+        return read_reg(UnprivRegs::ARG1);
     }
 
     void ack_msg(epid_t ep, size_t msg_off) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, msg_off));
+        write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, msg_off));
         // ensure that we don't do something else before the ack
         CPU::memory_barrier();
     }
@@ -244,7 +245,7 @@ private:
         wait_for_msg(INVALID_EP);
     }
     void wait_for_msg(epid_t ep) {
-        write_reg(CmdRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, ep));
+        write_reg(UnprivRegs::COMMAND, build_command(0, CmdOpCode::SLEEP, ep));
         get_error();
     }
 
@@ -282,61 +283,61 @@ private:
     }
 
     void clear_irq(IRQ irq) {
-        write_reg(TCURegs::CLEAR_IRQ, static_cast<reg_t>(irq));
+        write_reg(PrivRegs::CLEAR_IRQ, static_cast<reg_t>(irq));
     }
 
     static Errors::Code get_error() {
         while(true) {
-            reg_t cmd = read_reg(CmdRegs::COMMAND);
+            reg_t cmd = read_reg(UnprivRegs::COMMAND);
             if(static_cast<CmdOpCode>(cmd & 0xF) == CmdOpCode::IDLE)
                 return static_cast<Errors::Code>((cmd >> 20) & 0xF);
         }
         UNREACHED;
     }
 
-    static reg_t read_reg(TCURegs reg) {
+    static reg_t read_reg(ExtRegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(PrivRegs reg) {
         return read_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg));
     }
-    static reg_t read_reg(CmdRegs reg) {
+    static reg_t read_reg(UnprivRegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(epid_t ep, size_t idx) {
-        return read_reg(TCU_REGS + CMD_REGS + EP_REGS * ep + idx);
+        return read_reg(EXT_REGS + UNPRIV_REGS + EP_REGS * ep + idx);
     }
     static reg_t read_reg(size_t idx) {
         return CPU::read8b(MMIO_ADDR + idx * sizeof(reg_t));
     }
 
-    static void write_reg(TCURegs reg, reg_t value) {
+    static void write_reg(ExtRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(PrivRegs reg, reg_t value) {
         write_reg(((PAGE_SIZE * 2) / sizeof(reg_t)) + static_cast<size_t>(reg), value);
     }
-    static void write_reg(CmdRegs reg, reg_t value) {
+    static void write_reg(UnprivRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(size_t idx, reg_t value) {
         CPU::write8b(MMIO_ADDR + idx * sizeof(reg_t), value);
     }
 
-    static uintptr_t tcu_reg_addr(TCURegs reg) {
+    static uintptr_t ext_reg_addr(ExtRegs reg) {
         return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t priv_reg_addr(PrivRegs reg) {
         return MMIO_ADDR + (PAGE_SIZE * 2) + static_cast<size_t>(reg) * sizeof(reg_t);
     }
-    static uintptr_t cmd_reg_addr(CmdRegs reg) {
+    static uintptr_t unpriv_reg_addr(UnprivRegs reg) {
         return MMIO_ADDR + static_cast<size_t>(reg) * sizeof(reg_t);
     }
     static uintptr_t ep_regs_addr(epid_t ep) {
-        return MMIO_ADDR + (TCU_REGS + CMD_REGS + ep * EP_REGS) * sizeof(reg_t);
+        return MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
     static uintptr_t buffer_addr() {
-        size_t regCount = TCU_REGS + CMD_REGS + EP_COUNT * EP_REGS;
+        size_t regCount = EXT_REGS + UNPRIV_REGS + EP_COUNT * EP_REGS;
         return MMIO_ADDR + regCount * sizeof(reg_t);
     }
 

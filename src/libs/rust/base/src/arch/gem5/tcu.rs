@@ -81,21 +81,20 @@ pub const MMIO_PRIV_ADDR: usize = MMIO_ADDR + MMIO_SIZE;
 /// The size of the TCU's private MMIO area
 pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
 
-/// The number of TCU registers
-pub const TCU_REGS: usize = 4;
-/// The number of command registers
-pub const CMD_REGS: usize = 3;
+/// The number of external registers
+pub const EXT_REGS: usize = 2;
+/// The number of unprivileged registers
+pub const UNPRIV_REGS: usize = 5;
 /// The number of registers per EP
 pub const EP_REGS: usize = 3;
 
 int_enum! {
-    /// The TCU registers
-    pub struct TCUReg : Reg {
-        /// Stores various status flags
-        const STATUS        = 0;
-        const CUR_TIME      = 1;
-        const CLEAR_IRQ     = 2;
-        const PRINT         = 3;
+    /// The external registers
+    pub struct ExtReg : Reg {
+        /// Stores the privileged flag (for now)
+        const FEATURES      = 0x0;
+        /// For external commands
+        const EXT_CMD       = 0x1;
     }
 }
 
@@ -118,25 +117,43 @@ int_enum! {
         const PRIV_CMD      = 0x1;
         /// The argument for privileged commands
         const PRIV_CMD_ARG  = 0x2;
-        /// For external commands
-        const EXT_CMD       = 0x3;
         /// The current VPE
-        const CUR_VPE       = 0x4;
+        const CUR_VPE       = 0x3;
         /// The old VPE (only set by XCHG_VPE command)
-        const OLD_VPE       = 0x5;
+        const OLD_VPE       = 0x4;
+        /// Used to ack IRQ requests
+        const CLEAR_IRQ     = 0x5;
     }
 }
 
 #[allow(dead_code)]
 int_enum! {
-    /// The command registers
-    pub struct CmdReg : Reg {
+    /// The unprivileged registers
+    pub struct UnprivReg : Reg {
         /// Starts commands and signals their completion
         const COMMAND       = 0x0;
         /// Specifies the data address and size
         const DATA          = 0x1;
         /// Specifies an additional argument
         const ARG1          = 0x2;
+        /// The current time in nanoseconds
+        const CUR_TIME      = 0x3;
+        /// Prints a line into the gem5 log
+        const PRINT         = 0x4;
+    }
+}
+
+int_enum! {
+    /// The different endpoint types
+    pub struct EpType : u64 {
+        /// Invalid endpoint (unusable)
+        const INVALID     = 0x0;
+        /// Send endpoint
+        const SEND        = 0x1;
+        /// Receive endpoint
+        const RECEIVE     = 0x2;
+        /// Memory endpoint
+        const MEMORY      = 0x3;
     }
 }
 
@@ -163,20 +180,6 @@ int_enum! {
 }
 
 int_enum! {
-    /// The different endpoint types
-    pub struct EpType : u64 {
-        /// Invalid endpoint (unusable)
-        const INVALID     = 0x0;
-        /// Send endpoint
-        const SEND        = 0x1;
-        /// Receive endpoint
-        const RECEIVE     = 0x2;
-        /// Memory endpoint
-        const MEMORY      = 0x3;
-    }
-}
-
-int_enum! {
     /// The privileged commands
     pub struct PrivCmdOpCode : Reg {
         /// The idle command has no effect
@@ -189,12 +192,12 @@ int_enum! {
         const INS_TLB     = 3;
         /// Changes the VPE
         const XCHG_VPE    = 4;
-        /// Flushes and invalidates the cache
-        const FLUSH_CACHE = 5;
         /// Sets the timer
-        const SET_TIMER   = 6;
+        const SET_TIMER   = 5;
         /// Abort the current command
-        const ABORT_CMD   = 7;
+        const ABORT_CMD   = 6;
+        /// Flushes and invalidates the cache
+        const FLUSH_CACHE = 7;
     }
 }
 
@@ -276,12 +279,12 @@ impl TCU {
         reply_lbl: Label,
         reply_ep: EpId,
     ) -> Result<(), Error> {
-        Self::write_cmd_reg(CmdReg::DATA, Self::build_data(msg, size));
+        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(msg, size));
         if reply_lbl != 0 {
-            Self::write_cmd_reg(CmdReg::ARG1, reply_lbl as Reg);
+            Self::write_unpriv_reg(UnprivReg::ARG1, reply_lbl as Reg);
         }
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
+        Self::write_unpriv_reg(
+            UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::SEND, reply_ep as Reg),
         );
 
@@ -291,9 +294,9 @@ impl TCU {
     /// Sends `reply[0..size]` as reply to `msg`.
     #[inline(always)]
     pub fn reply(ep: EpId, reply: *const u8, size: usize, msg_off: usize) -> Result<(), Error> {
-        Self::write_cmd_reg(CmdReg::DATA, Self::build_data(reply, size));
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
+        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(reply, size));
+        Self::write_unpriv_reg(
+            UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::REPLY, msg_off as Reg),
         );
 
@@ -302,9 +305,9 @@ impl TCU {
 
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
-        Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
+        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, size));
+        Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
+        Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
         let res = Self::get_error();
         unsafe { intrinsics::atomic_fence() };
         res
@@ -312,21 +315,21 @@ impl TCU {
 
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        Self::write_cmd_reg(CmdReg::DATA, Self::build_data(data, size));
-        Self::write_cmd_reg(CmdReg::ARG1, off as Reg);
-        Self::write_cmd_reg(CmdReg::COMMAND, Self::build_cmd(ep, CmdOpCode::WRITE, 0));
+        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, size));
+        Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
+        Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::WRITE, 0));
         Self::get_error()
     }
 
     /// Tries to fetch a new message from the given endpoint.
     #[inline(always)]
     pub fn fetch_msg(ep: EpId) -> Option<usize> {
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
+        Self::write_unpriv_reg(
+            UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0),
         );
         unsafe { intrinsics::atomic_fence() };
-        let msg = Self::read_cmd_reg(CmdReg::ARG1);
+        let msg = Self::read_unpriv_reg(UnprivReg::ARG1);
         if msg != !0 {
             Some(msg as usize)
         }
@@ -363,8 +366,8 @@ impl TCU {
     /// Marks the given message for receive endpoint `ep` as read
     #[inline(always)]
     pub fn ack_msg(ep: EpId, msg_off: usize) {
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
+        Self::write_unpriv_reg(
+            UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::ACK_MSG, msg_off as Reg),
         );
     }
@@ -373,7 +376,7 @@ impl TCU {
     #[inline(always)]
     pub fn get_error() -> Result<(), Error> {
         loop {
-            let cmd = Self::read_cmd_reg(CmdReg::COMMAND);
+            let cmd = Self::read_unpriv_reg(UnprivReg::COMMAND);
             if (cmd & 0xF) == CmdOpCode::IDLE.val {
                 let err = (cmd >> 20) & 0xF;
                 return if err == 0 {
@@ -389,7 +392,7 @@ impl TCU {
     /// Returns the time in nanoseconds since boot
     #[inline(always)]
     pub fn nanotime() -> u64 {
-        Self::read_reg(TCUReg::CUR_TIME.val as usize)
+        Self::read_unpriv_reg(UnprivReg::CUR_TIME)
     }
 
     /// Puts the CU to sleep until the CU is woken up (e.g., by a message reception).
@@ -401,8 +404,8 @@ impl TCU {
     /// Puts the CU to sleep until a message arrives at receive EP `ep`.
     #[inline(always)]
     pub fn wait_for_msg(ep: EpId) -> Result<(), Error> {
-        Self::write_cmd_reg(
-            CmdReg::COMMAND,
+        Self::write_unpriv_reg(
+            UnprivReg::COMMAND,
             Self::build_cmd(0, CmdOpCode::SLEEP, ep as u64),
         );
         Self::get_error()
@@ -432,7 +435,7 @@ impl TCU {
 
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) {
-        let regs = TCU_REGS + CMD_REGS + EP_REGS * EP_COUNT;
+        let regs = EXT_REGS + UNPRIV_REGS + EP_REGS * EP_COUNT;
         let mut buffer = MMIO_ADDR + regs * 8;
 
         #[allow(clippy::transmute_ptr_to_ptr)]
@@ -444,14 +447,14 @@ impl TCU {
             buffer += 8;
         }
 
-        Self::write_reg(TCUReg::PRINT.val as usize, s.len() as u64);
+        Self::write_unpriv_reg(UnprivReg::PRINT, s.len() as u64);
     }
 
     /// Aborts the current command or VPE, specified in `req`, and returns the command register to
     /// use for a retry later.
     pub fn abort_cmd() -> Reg {
         // save the old value before aborting
-        let cmd_reg = Self::read_cmd_reg(CmdReg::COMMAND);
+        let cmd_reg = Self::read_unpriv_reg(UnprivReg::COMMAND);
         // ensure that we read the command register before the abort has been executed
         unsafe { intrinsics::atomic_fence() };
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::ABORT_CMD.val);
@@ -462,7 +465,7 @@ impl TCU {
                 return if (cmd >> 4) == 0 {
                     // if the command was finished successfully, use the current command register
                     // to ensure that we don't forget the error code
-                    Self::read_cmd_reg(CmdReg::COMMAND)
+                    Self::read_unpriv_reg(UnprivReg::COMMAND)
                 }
                 else {
                     // otherwise use the old one to repeat it later
@@ -470,10 +473,6 @@ impl TCU {
                 };
             }
         }
-    }
-
-    pub fn retry_cmd(cmd: Reg) {
-        Self::write_cmd_reg(CmdReg::COMMAND, cmd)
     }
 
     pub fn offset_to_msg(base: usize, off: usize) -> &'static Message {
@@ -491,11 +490,11 @@ impl TCU {
     }
 
     pub fn get_irq() -> IRQ {
-        IRQ::from(Self::read_reg(TCUReg::CLEAR_IRQ.val as usize))
+        IRQ::from(Self::read_priv_reg(PrivReg::CLEAR_IRQ))
     }
 
     pub fn clear_irq(irq: IRQ) {
-        Self::write_reg(TCUReg::CLEAR_IRQ.val as usize, irq.val);
+        Self::write_priv_reg(PrivReg::CLEAR_IRQ, irq.val);
     }
 
     pub fn get_core_req() -> Reg {
@@ -546,20 +545,20 @@ impl TCU {
         );
     }
 
-    pub fn read_cmd_reg(reg: CmdReg) -> Reg {
-        Self::read_reg(TCU_REGS + reg.val as usize)
+    pub fn read_unpriv_reg(reg: UnprivReg) -> Reg {
+        Self::read_reg(EXT_REGS + reg.val as usize)
     }
 
-    pub fn write_cmd_reg(reg: CmdReg, val: Reg) {
-        Self::write_reg(TCU_REGS + reg.val as usize, val)
+    pub fn write_unpriv_reg(reg: UnprivReg, val: Reg) {
+        Self::write_reg(EXT_REGS + reg.val as usize, val)
+    }
+
+    fn read_ep_reg(ep: EpId, reg: usize) -> Reg {
+        Self::read_reg(EXT_REGS + UNPRIV_REGS + EP_REGS * ep + reg)
     }
 
     fn read_priv_reg(reg: PrivReg) -> Reg {
         Self::read_reg(((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize)
-    }
-
-    fn read_ep_reg(ep: EpId, reg: usize) -> Reg {
-        Self::read_reg(TCU_REGS + CMD_REGS + EP_REGS * ep + reg)
     }
 
     fn write_priv_reg(reg: PrivReg, val: Reg) {

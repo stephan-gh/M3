@@ -31,17 +31,17 @@ impl TCUCmdState {
         let old_cmd = tcu::TCU::abort_cmd();
 
         self.cmd_regs[0] = old_cmd;
-        self.cmd_regs[1] = tcu::TCU::read_cmd_reg(tcu::CmdReg::ARG1);
-        self.cmd_regs[2] = tcu::TCU::read_cmd_reg(tcu::CmdReg::DATA);
+        self.cmd_regs[1] = tcu::TCU::read_unpriv_reg(tcu::UnprivReg::ARG1);
+        self.cmd_regs[2] = tcu::TCU::read_unpriv_reg(tcu::UnprivReg::DATA);
     }
 
     pub fn restore(&mut self) {
-        tcu::TCU::write_cmd_reg(tcu::CmdReg::ARG1, self.cmd_regs[1]);
-        tcu::TCU::write_cmd_reg(tcu::CmdReg::DATA, self.cmd_regs[2]);
+        tcu::TCU::write_unpriv_reg(tcu::UnprivReg::ARG1, self.cmd_regs[1]);
+        tcu::TCU::write_unpriv_reg(tcu::UnprivReg::DATA, self.cmd_regs[2]);
         // always restore the command register, because the previous VPE might have an error code
         // in the command register or similar.
         unsafe { intrinsics::atomic_fence() };
-        tcu::TCU::retry_cmd(self.cmd_regs[0]);
+        tcu::TCU::write_unpriv_reg(tcu::UnprivReg::COMMAND, self.cmd_regs[0]);
     }
 }
 

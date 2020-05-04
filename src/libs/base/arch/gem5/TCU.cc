@@ -34,44 +34,44 @@ void TCU::print(const char *str, size_t len) {
         rstr++;
     }
 
-    write_reg(TCURegs::PRINT, len);
+    write_reg(UnprivRegs::PRINT, len);
 }
 
 Errors::Code TCU::send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
-    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
+    write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
     if(replylbl)
-        write_reg(CmdRegs::ARG1, replylbl);
+        write_reg(UnprivRegs::ARG1, replylbl);
     CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::SEND, reply_ep));
+    write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::SEND, reply_ep));
 
     return get_error();
 }
 
 Errors::Code TCU::reply(epid_t ep, const void *reply, size_t size, size_t msg_off) {
     assert(size <= 0xFFFFFFFF);
-    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
+    write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
     CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, msg_off));
+    write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, msg_off));
 
     return get_error();
 }
 
 Errors::Code TCU::read(epid_t ep, void *data, size_t size, goff_t off) {
     assert(size <= 0xFFFFFFFF);
-    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
-    write_reg(CmdRegs::ARG1, off);
+    write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
+    write_reg(UnprivRegs::ARG1, off);
     CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::READ));
+    write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::READ));
     Errors::Code res = get_error();
     CPU::memory_barrier();
     return res;
 }
 
 Errors::Code TCU::write(epid_t ep, const void *data, size_t size, goff_t off) {
-    write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
-    write_reg(CmdRegs::ARG1, off);
+    write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
+    write_reg(UnprivRegs::ARG1, off);
     CPU::compiler_barrier();
-    write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::WRITE));
+    write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::WRITE));
     return get_error();
 }
 
