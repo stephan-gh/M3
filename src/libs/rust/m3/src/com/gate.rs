@@ -19,6 +19,7 @@ use cell::Cell;
 use com::EP;
 use core::ops;
 use errors::Error;
+use kif;
 use pes::VPE;
 use syscalls;
 use tcu::EpId;
@@ -75,12 +76,12 @@ impl Gate {
     /// Activates the gate. Returns the chosen endpoint number.
     pub(crate) fn activate_rgate(
         &self,
-        mem: Selector,
+        mem: Option<Selector>,
         addr: usize,
         replies: u32,
     ) -> Result<EpId, Error> {
         let ep = VPE::cur().epmng_mut().acquire(replies)?;
-        syscalls::activate(ep.sel(), self.sel(), mem, addr)?;
+        syscalls::activate(ep.sel(), self.sel(), mem.unwrap_or(kif::INVALID_SEL), addr)?;
         self.ep.replace(Some(ep));
         Ok(self.ep_id().unwrap())
     }

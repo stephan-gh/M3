@@ -583,22 +583,21 @@ void SyscallHandler::activate(VPE *vpe, const m3::TCU::Message *msg) {
             if(rgateobj->activated())
                 SYS_ERROR(vpe, msg, m3::Errors::EXISTS, "Receive gate already activated");
 
-            auto rbuf = static_cast<MGateCapability*>(vpe->objcaps().get(rbuf_mem, Capability::MGATE));
-            if(rbuf == nullptr || rbuf_off >= rbuf->obj->size ||
-                rbuf_off + rgateobj->size() > rbuf->obj->size) {
-                SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid receive buffer memory");
-            }
-
             // determine receive buffer address
             rgateobj->pe = dst_pe;
             if(Platform::pe(dst_pe).has_virtmem()) {
-                if(rbuf->obj->vpe != VPE::INVALID_ID)
+                auto rbuf = static_cast<MGateCapability*>(vpe->objcaps().get(rbuf_mem, Capability::MGATE));
+                if(rbuf == nullptr || rbuf_off >= rbuf->obj->size ||
+                    rbuf_off + rgateobj->size() > rbuf->obj->size) {
+                    SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid receive buffer memory");
+                }
+                if(Platform::pe(rbuf->obj->addr.pe()).type() != m3::PEType::MEM)
                     SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "rbuffer not in physical memory");
                 rgateobj->addr = rbuf->obj->addr.raw() + rbuf_off;
             }
             else {
-                if(rbuf->obj->vpe != epcap->obj->vpe->id())
-                    SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "rbuffer not in own SPM");
+                if(rbuf_mem != m3::KIF::INV_SEL)
+                    SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "rbuffer mem cap given for SPM PE");
                 rgateobj->addr = rbuf_off;
             }
             rgateobj->ep = epcap->obj->ep;

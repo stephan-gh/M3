@@ -50,11 +50,8 @@ impl RecvBuf {
         }
     }
 
-    pub fn mem(&self) -> Selector {
-        match self.mgate {
-            Some(ref mg) => mg.sel(),
-            None => VPE::cur().mem().sel(),
-        }
+    pub fn mem(&self) -> Option<Selector> {
+        self.mgate.as_ref().map(|mg| mg.sel())
     }
 }
 
@@ -62,7 +59,7 @@ impl fmt::Debug for RecvBuf {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             f,
-            "RecvBuf[addr={}, size={}, sel={}]",
+            "RecvBuf[addr={}, size={}, sel={:?}]",
             self.addr,
             self.size,
             self.mem()

@@ -165,10 +165,10 @@ public:
      * the receive buffer addresses needs to be chosen externally.
      *
      * @param ep the endpoint
-     * @param mem the receive buffer
+     * @param mem the receive buffer (nullptr for SPM)
      * @param off the offset within the buffer
      */
-    void activate_on(const EP &ep, MemGate &mem, size_t off);
+    void activate_on(const EP &ep, MemGate *mem, size_t off);
 
     /**
      * Deactivates and stops the receive gate.

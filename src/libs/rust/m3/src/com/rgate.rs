@@ -210,7 +210,7 @@ impl RecvGate {
     }
 
     /// Activates this receive gate with given receive buffer
-    pub fn activate_with(&mut self, mem: Selector, off: usize, addr: usize) -> Result<(), Error> {
+    pub fn activate_with(&mut self, mem: Option<Selector>, off: usize, addr: usize) -> Result<(), Error> {
         let replies = 1 << (self.order - self.msg_order);
         self.gate.activate_rgate(mem, off, replies).map(|_| {
             self.buf_addr = Some(addr);

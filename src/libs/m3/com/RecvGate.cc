@@ -120,8 +120,8 @@ void RecvGate::activate() {
     }
 }
 
-void RecvGate::activate_on(const EP &ep, MemGate &mem, size_t off) {
-    Gate::activate_on(ep, mem.sel(), off);
+void RecvGate::activate_on(const EP &ep, MemGate *mem, size_t off) {
+    Gate::activate_on(ep, mem ? mem->sel() : KIF::INV_SEL, off);
 }
 
 void RecvGate::deactivate() noexcept {

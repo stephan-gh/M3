@@ -45,7 +45,7 @@ public:
         return _mem ? 0 : _addr;
     }
     capsel_t mem() const {
-        return _mem ? _mem->sel() : VPE::self().mem().sel();
+        return _mem ? _mem->sel() : KIF::INV_SEL;
     }
 
 private:

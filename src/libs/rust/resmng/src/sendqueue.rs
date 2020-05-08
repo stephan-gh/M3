@@ -66,7 +66,7 @@ fn get_event(id: u64) -> thread::Event {
     0x8000_0000_0000_0000 | id
 }
 
-pub fn init(rbuf: Option<(Selector, usize, usize)>) {
+pub fn init(rbuf: Option<(Option<Selector>, usize, usize)>) {
     let mut rgate = RecvGate::new_with(
         RGateArgs::default()
             .order(math::next_log2(RBUF_SIZE))

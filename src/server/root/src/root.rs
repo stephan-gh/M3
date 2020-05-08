@@ -563,10 +563,10 @@ pub fn main() -> i32 {
             kif::Perm::R,
         )
         .expect("Unable to map receive buffer");
-        (0, buf_mem.sel())
+        (0, Some(buf_mem.sel()))
     }
     else {
-        (rbuf_addr, VPE::cur().mem().sel())
+        (rbuf_addr, None)
     };
 
     let mut rgate = RecvGate::new_with(
