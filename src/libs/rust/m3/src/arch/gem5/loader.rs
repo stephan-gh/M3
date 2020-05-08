@@ -18,11 +18,11 @@ use cap::Selector;
 use cfg;
 use col::Vec;
 use com::MemGate;
-use core::iter;
+use core::{cmp, iter};
 use elf;
 use errors::{Code, Error};
 use goff;
-use io::read_object;
+use io::{read_object, Read};
 use kif;
 use math;
 use mem::heap;
@@ -145,7 +145,7 @@ impl<'l> Loader<'l> {
 
         if needs_init {
             let mem = self.get_mem(phdr.vaddr as goff, math::round_up(size, cfg::PAGE_SIZE))?;
-            let res = self.mapper.init_mem(
+            let res = Self::init_mem(
                 buf,
                 &mem,
                 file,
@@ -163,13 +163,7 @@ impl<'l> Loader<'l> {
     }
 
     fn get_mem(&self, addr: goff, size: usize) -> Result<MemGate, Error> {
-        syscalls::create_mgate(
-            self.mem_sel,
-            self.vpe,
-            addr,
-            size,
-            kif::Perm::W,
-        )?;
+        syscalls::create_mgate(self.mem_sel, self.vpe, addr, size, kif::Perm::W)?;
         Ok(MemGate::new_owned_bind(self.mem_sel))
     }
 
@@ -232,6 +226,55 @@ impl<'l> Loader<'l> {
         Ok(hdr.entry)
     }
 
+    fn init_mem(
+        buf: &mut [u8],
+        mem: &MemGate,
+        file: &mut BufReader<FileRef>,
+        foff: usize,
+        fsize: usize,
+        memsize: usize,
+    ) -> Result<(), Error> {
+        file.seek(foff, SeekMode::SET)?;
+
+        let mut count = fsize;
+        let mut segoff = 0;
+        while count > 0 {
+            let amount = cmp::min(count, buf.len());
+            let amount = file.read(&mut buf[0..amount])?;
+
+            mem.write(&buf[0..amount], segoff as goff)?;
+
+            count -= amount;
+            segoff += amount;
+        }
+
+        Self::clear_mem(buf, mem, segoff, (memsize - fsize) as usize)
+    }
+
+    fn clear_mem(
+        buf: &mut [u8],
+        mem: &MemGate,
+        mut virt: usize,
+        mut len: usize,
+    ) -> Result<(), Error> {
+        if len == 0 {
+            return Ok(());
+        }
+
+        for it in buf.iter_mut() {
+            *it = 0;
+        }
+
+        while len > 0 {
+            let amount = cmp::min(len, buf.len());
+            mem.write(&buf[0..amount], virt as goff)?;
+            len -= amount;
+            virt += amount;
+        }
+
+        Ok(())
+    }
+
     pub fn write_arguments<I, S>(
         &mut self,
         mem: &MemGate,
@@ -260,7 +303,11 @@ impl<'l> Loader<'l> {
             argoff += arg.len() + 1;
         }
 
-        mem.write_bytes(argbuf.as_ptr() as *const _, argbuf.len(), (*off - cfg::ENV_START) as goff)?;
+        mem.write_bytes(
+            argbuf.as_ptr() as *const _,
+            argbuf.len(),
+            (*off - cfg::ENV_START) as goff,
+        )?;
 
         argoff = math::round_up(argoff, util::size_of::<u64>());
         mem.write_bytes(

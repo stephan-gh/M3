@@ -16,14 +16,11 @@
 
 //! The mapper types that are used to init the memory of an activity.
 
-use com::MemGate;
-use core::cmp;
 use errors::Error;
 use goff;
-use io::Read;
 use kif;
 use session::{MapFlags, Pager};
-use vfs::{BufReader, FileRef, Map, Seek, SeekMode};
+use vfs::{BufReader, FileRef, Map};
 
 /// The mapper trait is used to map the memory of an activity before running it.
 pub trait Mapper {
@@ -49,65 +46,6 @@ pub trait Mapper {
         perm: kif::Perm,
         flags: MapFlags,
     ) -> Result<bool, Error>;
-
-    /// Initializes the given by loading `fsize` bytes from the given file at `foff` and zero'ing
-    /// the remaining space until `memsize`.
-    ///
-    /// The argument `buf` can be used as a buffer and `mem` refers to the address space of the VPE.
-    #[allow(clippy::too_many_arguments)]
-    fn init_mem(
-        &self,
-        buf: &mut [u8],
-        mem: &MemGate,
-        file: &mut BufReader<FileRef>,
-        foff: usize,
-        fsize: usize,
-        memsize: usize,
-    ) -> Result<(), Error> {
-        file.seek(foff, SeekMode::SET)?;
-
-        let mut count = fsize;
-        let mut segoff = 0;
-        while count > 0 {
-            let amount = cmp::min(count, buf.len());
-            let amount = file.read(&mut buf[0..amount])?;
-
-            mem.write(&buf[0..amount], segoff as goff)?;
-
-            count -= amount;
-            segoff += amount;
-        }
-
-        self.clear_mem(buf, mem, segoff, (memsize - fsize) as usize)
-    }
-
-    /// Overwrites `virt`..`virt`+`len` with zeros in the address space given by `mem`.
-    ///
-    /// The argument `buf` can be used as a buffer.
-    fn clear_mem(
-        &self,
-        buf: &mut [u8],
-        mem: &MemGate,
-        mut virt: usize,
-        mut len: usize,
-    ) -> Result<(), Error> {
-        if len == 0 {
-            return Ok(());
-        }
-
-        for it in buf.iter_mut() {
-            *it = 0;
-        }
-
-        while len > 0 {
-            let amount = cmp::min(len, buf.len());
-            mem.write(&buf[0..amount], virt as goff)?;
-            len -= amount;
-            virt += amount;
-        }
-
-        Ok(())
-    }
 }
 
 /// The default implementation of the [`Mapper`] trait.
