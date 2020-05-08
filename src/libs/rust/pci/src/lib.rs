@@ -130,7 +130,7 @@ pub struct Info {
 impl Device {
     pub fn new(name: &str, isa: PEISA) -> Result<Self, Error> {
         let pe = PE::new(PEDesc::new(PEType::COMP_IMEM, isa, 0))?;
-        let mut vpe = VPE::new(pe, name)?;
+        let vpe = VPE::new(pe, name)?;
         let vpe_sel = vpe.sel();
         let mem = vpe.get_mem(0, (PCI_CFG_ADDR + REG_ADDR) as usize + cfg::PAGE_SIZE, Perm::RW)?;
         let sep = vpe.epmng().acquire_for(vpe_sel, EP_INT, 0)?;

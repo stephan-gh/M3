@@ -367,7 +367,7 @@ impl VPE {
 
     /// Creates a new memory gate that refers to the address region `addr`..`addr`+`size` in the
     /// address space of this VPE. The `addr` and `size` needs to be page aligned.
-    pub fn get_mem(&mut self, addr: goff, size: usize, perms: kif::Perm) -> Result<MemGate, Error> {
+    pub fn get_mem(&self, addr: goff, size: usize, perms: kif::Perm) -> Result<MemGate, Error> {
         let sel = VPE::cur().alloc_sel();
         syscalls::create_mgate(sel, self.sel(), addr, size, perms)?;
         Ok(MemGate::new_owned_bind(sel))
@@ -389,7 +389,7 @@ impl VPE {
     /// The method returns the `ClosureActivity` on success that can be used to wait for the
     /// functions completeness or to stop it.
     #[cfg(target_os = "none")]
-    pub fn run<F>(mut self, func: Box<F>) -> Result<ClosureActivity, Error>
+    pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
     where
         F: FnOnce() -> i32 + Send + 'static,
     {
@@ -404,19 +404,16 @@ impl VPE {
         let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE, kif::Perm::W)?;
 
         let closure = {
-            let mut mapper = DefaultMapper::new(self.pe_desc().has_virtmem());
-            let mut loader = arch::loader::Loader::new(
-                self.sel(),
-                VPE::cur().alloc_sel(),
-                self.pe_desc(),
-                self.pager.as_ref(),
-                Self::cur().pager().is_some(),
-                &mut mapper,
-            );
-
-            // copy all regions to child
             senv.set_sp(cpu::get_sp());
-            let entry = loader.copy_regions(senv.sp())?;
+            let entry = match self.pager {
+                // clone via copy-on-write
+                Some(ref pg) => arch::loader::clone_vpe(pg),
+                // copy all regions to child
+                None => arch::loader::copy_vpe(
+                    senv.sp(),
+                    self.get_mem(0, self.pe_desc().mem_size(), kif::Perm::W)?,
+                ),
+            }?;
             senv.set_entry(entry);
             senv.set_heap_size(env.heap_size());
             senv.set_lambda(true);
@@ -434,7 +431,7 @@ impl VPE {
 
             // write args
             senv.set_argc(env.argc());
-            senv.set_argv(loader.write_arguments(&mem, &mut off, env::args())?);
+            senv.set_argv(arch::loader::write_arguments(&mem, &mut off, env::args())?);
 
             senv.set_first_std_ep(self.eps_start);
             senv.set_pedesc(self.pe_desc());
@@ -541,23 +538,14 @@ impl VPE {
         let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE, kif::Perm::W)?;
 
         {
-            let mut loader = arch::loader::Loader::new(
-                self.sel(),
-                VPE::cur().alloc_sel(),
-                self.pe_desc(),
-                self.pager.as_ref(),
-                Self::cur().pager().is_some(),
-                mapper,
-            );
-
             // load program segments
             senv.set_sp(cfg::STACK_TOP);
-            senv.set_entry(loader.load_program(&mut file)?);
+            senv.set_entry(arch::loader::load_program(&self, mapper, &mut file)?);
 
             // write args
             let mut off = cfg::ENV_START + util::size_of_val(&senv);
             senv.set_argc(args.len());
-            senv.set_argv(loader.write_arguments(&mem, &mut off, args)?);
+            senv.set_argv(arch::loader::write_arguments(&mem, &mut off, args)?);
 
             // write file table
             {
