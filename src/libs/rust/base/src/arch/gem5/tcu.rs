@@ -520,14 +520,14 @@ impl TCU {
     }
 
     pub fn invalidate_page(asid: u16, virt: usize) {
-        let val = ((asid as Reg) << 48) | ((virt as Reg) << 4) | PrivCmdOpCode::INV_PAGE.val;
+        let val = ((asid as Reg) << 36) | ((virt as Reg) << 4) | PrivCmdOpCode::INV_PAGE.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, val);
     }
 
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) {
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, phys);
         unsafe { intrinsics::atomic_fence() };
-        let cmd = ((asid as Reg) << 48)
+        let cmd = ((asid as Reg) << 36)
             | (((virt & !cfg::PAGE_MASK) as Reg) << 4)
             | ((flags.bits() as Reg) << 4)
             | PrivCmdOpCode::INS_TLB.val;
