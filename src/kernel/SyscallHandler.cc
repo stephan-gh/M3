@@ -29,6 +29,7 @@
 #include "pes/VPEManager.h"
 #include "pes/VPE.h"
 #include "TCU.h"
+#include "Paging.h"
 #include "Platform.h"
 #include "SyscallHandler.h"
 
@@ -97,6 +98,7 @@ void SyscallHandler::init() {
 
     add_operation(m3::KIF::Syscall::CREATE_SRV,     &SyscallHandler::create_srv);
     add_operation(m3::KIF::Syscall::CREATE_SESS,    &SyscallHandler::create_sess);
+    add_operation(m3::KIF::Syscall::CREATE_MGATE,   &SyscallHandler::create_mgate);
     add_operation(m3::KIF::Syscall::CREATE_RGATE,   &SyscallHandler::create_rgate);
     add_operation(m3::KIF::Syscall::CREATE_SGATE,   &SyscallHandler::create_sgate);
     add_operation(m3::KIF::Syscall::CREATE_VPE,     &SyscallHandler::create_vpe);
@@ -196,6 +198,66 @@ void SyscallHandler::create_sess(VPE *vpe, const m3::TCU::Message *msg) {
         &vpe->objcaps(), dst, const_cast<Service*>(&*srvcap->obj), ident, auto_close);
     vpe->objcaps().inherit(srvcap, sesscap);
     vpe->objcaps().set(dst, sesscap);
+
+    reply_result(vpe, msg, m3::Errors::NONE);
+}
+
+void SyscallHandler::create_mgate(VPE *vpe, const m3::TCU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::CreateMGate>(msg);
+    capsel_t dst = req->dst_sel;
+    capsel_t tvpe = req->vpe_sel;
+    goff_t addr = req->addr;
+    size_t size = req->size;
+    uint perms = req->perms;
+
+    LOG_SYS(vpe, ": syscall::create_mgate", "(dst=" << dst
+        << ", vpe=" << tvpe << ", addr=" << m3::fmt(addr, "p")
+        << ", size=" << m3::fmt(size, "#x") << ", perms=" << perms << ")");
+
+    if(!vpe->objcaps().unused(dst))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid mgate selector");
+    if((addr & PAGE_MASK) != 0 || (size & PAGE_MASK) != 0)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Virt address and size need to be page-aligned");
+
+    auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
+    if(vpecap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE capability is invalid");
+
+    m3::GlobAddr glob;
+    MapCapability *mapcap = nullptr;
+    if(Platform::pe(vpecap->obj->peid()).has_virtmem()) {
+        mapcap = static_cast<MapCapability*>(
+            vpecap->obj->mapcaps().get(addr >> PAGE_BITS, Capability::MAP));
+        if(mapcap == nullptr)
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Mapping not found");
+        if((perms & ~m3::KIF::Perm::RWX) || (perms & ~mapcap->obj->attr))
+            SYS_ERROR(vpe, msg, m3::Errors::NO_PERM, "Invalid permissions");
+
+        size_t pages = size >> PAGE_BITS;
+        size_t off = (addr >> PAGE_BITS) - mapcap->sel();
+        if(pages == 0 || off + pages < off || off + pages > mapcap->length())
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid length");
+
+        glob = m3::GlobAddr(vpecap->obj->peid(), glob_to_phys(mapcap->obj->global.raw()));
+    }
+    else {
+        // note that we don't check whether it's within bounds of the SPM; the PE might allow
+        // accesses outside that region (e.g., a device that allows MMIO accesses). However, it is
+        // not allowed to access the TCU range.
+        if(size == 0 || addr + size >= MEMCAP_END)
+            SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Region empty");
+
+        glob = m3::GlobAddr(vpecap->obj->peid(), addr);
+    }
+
+    auto mgatecap = SYS_CREATE_CAP(vpe, msg, MGateCapability, MGateObject,
+        &vpe->objcaps(), dst, glob, size, perms
+    );
+    if(mapcap)
+        vpe->objcaps().inherit(mapcap, mgatecap);
+    else
+        vpe->objcaps().inherit(vpecap, mgatecap);
+    vpe->objcaps().set(dst, mgatecap);
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }
@@ -747,7 +809,6 @@ void SyscallHandler::derive_mem(VPE *vpe, const m3::TCU::Message *msg) {
 
     auto dercap = SYS_CREATE_CAP(vpe, msg, MGateCapability, MGateObject,
         &vpecap->obj->objcaps(), dst,
-        srccap->obj->vpe,
         srccap->obj->addr + offset,
         size,
         perms & srccap->obj->perms
@@ -919,7 +980,7 @@ void SyscallHandler::revoke(VPE *vpe, const m3::TCU::Message *msg) {
     if(vpecap == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
-    if(crd.type() == m3::KIF::CapRngDesc::OBJ && crd.start() <= m3::KIF::SEL_MEM)
+    if(crd.type() == m3::KIF::CapRngDesc::OBJ && crd.start() <= m3::KIF::SEL_VPE)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps 0, 1, 2, and 3 are not revocable");
 
     m3::Errors::Code res;

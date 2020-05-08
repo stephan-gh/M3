@@ -46,7 +46,7 @@ static void write_env_file(capsel_t first_sel, epid_t ep, pid_t pid, peid_t pe, 
 void VPE::init_eps() {
 }
 
-void VPE::load_root() {
+void VPE::load_root(m3::GlobAddr) {
     if(_pid == 0) {
         _pid = fork();
         if(_pid < 0)
@@ -68,7 +68,7 @@ void VPE::load_root() {
 }
 
 void VPE::init_memory() {
-    load_root();
+    load_root(m3::GlobAddr());
 }
 
 }

@@ -20,6 +20,12 @@ namespace kernel {
 
 extern "C" void init_rust_io(uint32_t pe_id, const char *name);
 
+#if defined(__gem5__)
+extern "C" uint64_t glob_to_phys(uint64_t global);
+#else
+#   define glob_to_phys(g) (g)
+#endif
+
 uint64_t translate(uintptr_t virt, uint64_t perm);
 
 void init_paging();

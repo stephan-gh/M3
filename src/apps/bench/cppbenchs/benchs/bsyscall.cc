@@ -162,7 +162,7 @@ NOINLINE static void exchange() {
 
         void run() override {
             Syscalls::exchange(vpe.sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, KIF::SEL_MEM, 1), selector, false);
+                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, KIF::SEL_VPE, 1), selector, false);
         }
         void post() override {
             Syscalls::revoke(vpe.sel(), KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);

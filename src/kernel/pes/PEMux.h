@@ -71,6 +71,7 @@ public:
     void handle_call(const m3::TCU::Message *msg);
 
     m3::Errors::Code map(vpeid_t vpe, goff_t virt, m3::GlobAddr global, uint pages, uint perm);
+    m3::Errors::Code translate(vpeid_t vpe, goff_t virt, uint perm, m3::GlobAddr *global);
     m3::Errors::Code vpe_ctrl(VPE *vpe, m3::KIF::PEXUpcalls::VPEOp ctrl);
 
     m3::Errors::Code invalidate_ep(vpeid_t vpe, epid_t ep, bool force = false);
@@ -81,7 +82,7 @@ public:
     m3::Errors::Code config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject &obj, goff_t off);
 
 private:
-    m3::Errors::Code upcall(void *req, size_t size);
+    m3::Errors::Code upcall(void *req, size_t size, xfer_t *val = nullptr);
 
     m3::Reference<PEObject> _pe;
     CapTable _caps;

@@ -17,13 +17,12 @@
 use m3::cap::Selector;
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::{GateIStream, MemGate, RecvGate, SGateArgs, SendGate, SliceSource};
+use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate, SliceSource};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};
 use m3::math;
 use m3::pes::VPE;
-use m3::rc::Rc;
 use m3::serialize::Source;
 use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
@@ -33,15 +32,10 @@ use dataspace::DataSpace;
 
 const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 
-pub struct ASMem {
-    pub vpe: Selector,
-    pub mgate: MemGate,
-}
-
 pub struct AddrSpace {
     parent: Option<SessId>,
     sess: ServerSession,
-    as_mem: Option<Rc<ASMem>>,
+    owner: Option<Selector>,
     sgates: Vec<SendGate>,
     ds: Vec<DataSpace>,
 }
@@ -51,7 +45,7 @@ impl AddrSpace {
         AddrSpace {
             parent,
             sess,
-            as_mem: None,
+            owner: None,
             sgates: Vec::new(),
             ds: Vec::new(),
         }
@@ -65,17 +59,14 @@ impl AddrSpace {
         self.parent
     }
 
-    pub fn has_as_mem(&self) -> bool {
-        self.as_mem.is_some()
+    pub fn has_owner(&self) -> bool {
+        self.owner.is_some()
     }
 
-    pub fn init(&mut self, sels: Selector) {
-        log!(crate::LOG_DEF, "[{}] pager::init(sels={})", self.id(), sels);
+    pub fn init(&mut self, vpe: Selector) {
+        log!(crate::LOG_DEF, "[{}] pager::init(vpe={})", self.id(), vpe);
 
-        self.as_mem = Some(Rc::new(ASMem {
-            vpe: sels + 0,
-            mgate: MemGate::new_bind(sels + 1),
-        }));
+        self.owner = Some(vpe);
     }
 
     pub fn add_sgate(&mut self, rgate: &RecvGate) -> Result<Selector, Error> {
@@ -113,8 +104,7 @@ impl AddrSpace {
             };
 
             if ds_idx.is_none() {
-                let as_mem = self.as_mem.as_ref().unwrap().clone();
-                self.ds.push(ds.clone_for(as_mem));
+                self.ds.push(ds.clone_for(self.owner.unwrap()));
                 ds_idx.replace(self.ds.len() - 1);
             }
 
@@ -137,7 +127,7 @@ impl AddrSpace {
             access
         );
 
-        if !self.has_as_mem() {
+        if !self.has_owner() {
             log!(crate::LOG_DEF, "Invalid session");
             return Err(Error::new(Code::InvArgs));
         }
@@ -169,7 +159,7 @@ impl AddrSpace {
     }
 
     pub fn map_ds(&mut self, args: &mut SliceSource) -> Result<(Selector, goff), Error> {
-        if !self.has_as_mem() {
+        if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -206,16 +196,15 @@ impl AddrSpace {
 
         self.check_map_args(virt, len, perm)?;
 
-        let as_mem = self.as_mem.as_ref().unwrap().clone();
         self.ds.push(DataSpace::new_extern(
-            as_mem, virt, len, perm, flags, off, sess,
+            self.owner.unwrap(), virt, len, perm, flags, off, sess,
         ));
 
         Ok(virt)
     }
 
     pub fn map_anon(&mut self, is: &mut GateIStream) -> Result<(), Error> {
-        if !self.has_as_mem() {
+        if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -248,15 +237,14 @@ impl AddrSpace {
 
         self.check_map_args(virt, len, perm)?;
 
-        let as_mem = self.as_mem.as_ref().unwrap().clone();
         self.ds
-            .push(DataSpace::new_anon(as_mem, virt, len, perm, flags));
+            .push(DataSpace::new_anon(self.owner.unwrap(), virt, len, perm, flags));
 
         Ok(())
     }
 
     pub fn map_mem(&mut self, args: &mut SliceSource) -> Result<(Selector, goff), Error> {
-        if !self.has_as_mem() {
+        if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -275,8 +263,7 @@ impl AddrSpace {
 
         self.check_map_args(virt, len, perm)?;
 
-        let as_mem = self.as_mem.as_ref().unwrap().clone();
-        let mut ds = DataSpace::new_anon(as_mem, virt, len, perm, MapFlags::empty());
+        let mut ds = DataSpace::new_anon(self.owner.unwrap(), virt, len, perm, MapFlags::empty());
 
         // immediately insert a region, so that we don't allocate new memory on PFs
         let sel = VPE::cur().alloc_sel();

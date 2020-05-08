@@ -27,6 +27,7 @@ use core::fmt;
 use core::ops::FnOnce;
 use env;
 use errors::Error;
+use goff;
 use kif;
 use kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
 use pes::{ClosureActivity, DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, PE};
@@ -43,7 +44,6 @@ pub struct VPE {
     rmng: ResMng, // close the connection resource manager at last
     pe: Rc<PE>,
     kmem: Rc<KMem>,
-    mem: MemGate,
     next_sel: Selector,
     eps_start: EpId,
     epmng: EpMng,
@@ -99,7 +99,6 @@ impl VPE {
         VPE {
             cap: Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP),
             pe: Rc::new(PE::new_bind(PEDesc::new_from(0), kif::SEL_PE)),
-            mem: MemGate::new_bind(kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)), // invalid
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
@@ -149,7 +148,6 @@ impl VPE {
             cap: Capability::new(sels + kif::SEL_VPE, CapFlags::empty()),
             pe: pe.clone(),
             kmem: args.kmem.unwrap_or_else(|| VPE::cur().kmem.clone()),
-            mem: MemGate::new_bind(sels + kif::SEL_MEM),
             rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
@@ -244,16 +242,6 @@ impl VPE {
     /// Returns the id of the PE the VPE has been assigned to.
     pub fn pe_id(&self) -> PEId {
         arch::env::get().pe_id() as PEId
-    }
-
-    /// Returns an immutable reference to the `MemGate` that refers to the VPE's address space.
-    pub fn mem(&self) -> &MemGate {
-        &self.mem
-    }
-
-    /// Returns a mutable reference to the `MemGate` that refers to the VPE's address space.
-    pub fn mem_mut(&mut self) -> &mut MemGate {
-        &mut self.mem
     }
 
     /// Returns a mutable reference to the file table of this VPE.
@@ -377,6 +365,14 @@ impl VPE {
         Ok(())
     }
 
+    /// Creates a new memory gate that refers to the address region `addr`..`addr`+`size` in the
+    /// address space of this VPE. The `addr` and `size` needs to be page aligned.
+    pub fn get_mem(&mut self, addr: goff, size: usize, perms: kif::Perm) -> Result<MemGate, Error> {
+        let sel = VPE::cur().alloc_sel();
+        syscalls::create_mgate(sel, self.sel(), addr, size, perms)?;
+        Ok(MemGate::new_owned_bind(sel))
+    }
+
     /// Starts the VPE without running any code on it. This is intended for non-programmable
     /// accelerators and devices that implement the PEMux protocol to get started, but don't execute
     /// any code.
@@ -393,26 +389,29 @@ impl VPE {
     /// The method returns the `ClosureActivity` on success that can be used to wait for the
     /// functions completeness or to stop it.
     #[cfg(target_os = "none")]
-    pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
+    pub fn run<F>(mut self, func: Box<F>) -> Result<ClosureActivity, Error>
     where
         F: FnOnce() -> i32 + Send + 'static,
     {
         use cfg;
         use cpu;
-        use goff;
         use pes::Activity;
         use util;
 
         let env = arch::env::get();
         let mut senv = arch::env::EnvData::default();
 
+        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE, kif::Perm::W)?;
+
         let closure = {
             let mut mapper = DefaultMapper::new(self.pe_desc().has_virtmem());
             let mut loader = arch::loader::Loader::new(
+                self.sel(),
+                VPE::cur().alloc_sel(),
+                self.pe_desc(),
                 self.pager.as_ref(),
                 Self::cur().pager().is_some(),
                 &mut mapper,
-                &self.mem,
             );
 
             // copy all regions to child
@@ -430,18 +429,18 @@ impl VPE {
 
             // create and write closure
             let closure = env::Closure::new(func);
-            self.mem.write_obj(&closure, off as goff)?;
+            mem.write_obj(&closure, (off - cfg::ENV_START) as goff)?;
             off += util::size_of_val(&closure);
 
             // write args
             senv.set_argc(env.argc());
-            senv.set_argv(loader.write_arguments(&mut off, env::args())?);
+            senv.set_argv(loader.write_arguments(&mem, &mut off, env::args())?);
 
             senv.set_first_std_ep(self.eps_start);
             senv.set_pedesc(self.pe_desc());
 
             // write start env to PE
-            self.mem.write_obj(&senv, cfg::ENV_START as goff)?;
+            mem.write_obj(&senv, 0)?;
 
             closure
         };
@@ -531,7 +530,6 @@ impl VPE {
     ) -> Result<ExecActivity, Error> {
         use cfg;
         use com::VecSink;
-        use goff;
         use pes::Activity;
         use serialize::Sink;
         use util;
@@ -540,12 +538,16 @@ impl VPE {
 
         let mut senv = arch::env::EnvData::default();
 
+        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE, kif::Perm::W)?;
+
         {
             let mut loader = arch::loader::Loader::new(
+                self.sel(),
+                VPE::cur().alloc_sel(),
+                self.pe_desc(),
                 self.pager.as_ref(),
                 Self::cur().pager().is_some(),
                 mapper,
-                &self.mem,
             );
 
             // load program segments
@@ -555,17 +557,17 @@ impl VPE {
             // write args
             let mut off = cfg::ENV_START + util::size_of_val(&senv);
             senv.set_argc(args.len());
-            senv.set_argv(loader.write_arguments(&mut off, args)?);
+            senv.set_argv(loader.write_arguments(&mem, &mut off, args)?);
 
             // write file table
             {
                 let mut fds = VecSink::default();
                 self.files.serialize(&mut fds);
                 let words = fds.words();
-                self.mem.write_bytes(
+                mem.write_bytes(
                     words.as_ptr() as *const u8,
                     words.len() * util::size_of::<u64>(),
-                    off as goff,
+                    (off - cfg::ENV_START) as goff,
                 )?;
                 senv.set_files(off, fds.size());
                 off += fds.size();
@@ -576,10 +578,10 @@ impl VPE {
                 let mut mounts = VecSink::default();
                 self.mounts.serialize(&mut mounts);
                 let words = mounts.words();
-                self.mem.write_bytes(
+                mem.write_bytes(
                     words.as_ptr() as *const u8,
                     words.len() * util::size_of::<u64>(),
-                    off as goff,
+                    (off - cfg::ENV_START) as goff,
                 )?;
                 senv.set_mounts(off, mounts.size());
             }
@@ -598,11 +600,7 @@ impl VPE {
             }
 
             // write start env to PE
-            self.mem.write_bytes(
-                &senv as *const _ as *const u8,
-                util::size_of_val(&senv),
-                cfg::ENV_START as goff,
-            )?;
+            mem.write_bytes(&senv as *const _ as *const u8, util::size_of_val(&senv), 0)?;
         }
 
         // go!
@@ -692,7 +690,6 @@ pub(crate) fn reinit() {
     VPE::cur().cap = Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP);
     // be careful not to destruct the object
     VPE::cur().pe.set_sel(kif::SEL_PE);
-    VPE::cur().mem = MemGate::new_bind(kif::SEL_MEM);
     VPE::cur().kmem = Rc::new(KMem::new(kif::SEL_KMEM));
     VPE::cur().epmng_mut().reset();
 }

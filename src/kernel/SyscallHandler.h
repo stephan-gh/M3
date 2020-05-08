@@ -56,6 +56,7 @@ public:
 private:
     static void create_srv(VPE *vpe, const m3::TCU::Message *msg);
     static void create_sess(VPE *vpe, const m3::TCU::Message *msg);
+    static void create_mgate(VPE *vpe, const m3::TCU::Message *msg);
     static void create_rgate(VPE *vpe, const m3::TCU::Message *msg);
     static void create_sgate(VPE *vpe, const m3::TCU::Message *msg);
     static void create_vpe(VPE *vpe, const m3::TCU::Message *msg);

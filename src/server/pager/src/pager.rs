@@ -88,13 +88,13 @@ impl Handler for PagerReqHandler {
     }
 
     fn delegate(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
-        if xchg.in_caps() != 1 && xchg.in_caps() != 2 {
+        if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
 
         let aspace = self.sessions.get_mut(sid).unwrap();
-        let sel = if !aspace.has_as_mem() {
-            let sels = VPE::cur().alloc_sels(2);
+        let sel = if !aspace.has_owner() {
+            let sels = VPE::cur().alloc_sel();
             aspace.init(sels);
             sels
         }
@@ -167,14 +167,7 @@ fn start_child(hdl: &mut PagerReqHandler, args: &[String], share_pe: bool) -> Ex
     // start VPE
     let file = vfs::VFS::open(&args[0], vfs::OpenFlags::RX).expect("Unable to open binary");
     let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
-    vpe.exec_file(&mut mapper, file, &args)
-        .and_then(|mut act| {
-            // deactivate the memory gate again, because we will use another MemGate object to
-            // refer to the VPE's address space.
-            act.vpe_mut().mem_mut().deactivate();
-            Ok(act)
-        })
-        .expect("Unable to execute child VPE")
+    vpe.exec_file(&mut mapper, file, &args).expect("Unable to execute child VPE")
 }
 
 #[no_mangle]

@@ -91,6 +91,27 @@ pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> 
     send_receive_result(&req)
 }
 
+/// Creates a new memory gate at selector `dst` that refers to the address region
+/// `addr`..`addr`+`size` in the address space of `vpe`. The `addr` and `size` needs to be page
+/// aligned.
+pub fn create_mgate(
+    dst: Selector,
+    vpe: Selector,
+    addr: goff,
+    size: usize,
+    perms: Perm,
+) -> Result<(), Error> {
+    let req = syscalls::CreateMGate {
+        opcode: syscalls::Operation::CREATE_MGATE.val,
+        dst_sel: u64::from(dst),
+        vpe_sel: u64::from(vpe),
+        addr: addr as u64,
+        size: size as u64,
+        perms: u64::from(perms.bits()),
+    };
+    send_receive_result(&req)
+}
+
 /// Creates a new send gate at selector `dst` for receive gate `rgate` using the given label and
 /// credit amount.
 pub fn create_sgate(

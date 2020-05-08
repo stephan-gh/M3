@@ -107,9 +107,8 @@ Reference<Pager> Pager::create_clone() {
 void Pager::delegate_caps(VPE &vpe) {
     // we only need to do that for clones
     if(_close) {
-        // now delegate our VPE cap and memory cap to the pager
-        static_assert(KIF::SEL_VPE + 1 == KIF::SEL_MEM, "Selectors wrong");
-        delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, vpe.sel(), 2));
+        // now delegate our VPE cap to the pager
+        delegate_obj(vpe.sel());
     }
 }
 

@@ -141,6 +141,24 @@ m3::Errors::Code PEMux::map(vpeid_t vpe, goff_t virt, m3::GlobAddr global, uint 
     return upcall(&req, sizeof(req));
 }
 
+m3::Errors::Code PEMux::translate(vpeid_t vpe, goff_t virt, uint perm, m3::GlobAddr *global) {
+    m3::KIF::PEXUpcalls::Translate req;
+    req.opcode = static_cast<xfer_t>(m3::KIF::PEXUpcalls::TRANSLATE);
+    req.vpe_sel = vpe;
+    req.virt = virt;
+    req.perm = perm;
+
+    KLOG(PEXC, "PEMux[" << peid() << "] sending translate(vpe=" << req.vpe_sel
+        << ", virt=" << m3::fmt((void*)req.virt, "p") << ")");
+
+    xfer_t val;
+    m3::Errors::Code res = upcall(&req, sizeof(req), &val);
+    if(res != m3::Errors::NONE)
+        return res;
+    *global = m3::GlobAddr(val & ~PAGE_MASK);
+    return m3::Errors::NONE;
+}
+
 m3::Errors::Code PEMux::vpe_ctrl(VPE *vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
     static const char *ctrls[] = {
         "INIT", "START", "STOP"
@@ -158,14 +176,16 @@ m3::Errors::Code PEMux::vpe_ctrl(VPE *vpe, m3::KIF::PEXUpcalls::VPEOp ctrl) {
     return upcall(&req, sizeof(req));
 }
 
-m3::Errors::Code PEMux::upcall(void *req, size_t size) {
+m3::Errors::Code PEMux::upcall(void *req, size_t size, xfer_t *val) {
     // send upcall
     event_t event = _upcqueue.send(0, req, size, false);
     m3::ThreadManager::get().wait_for(event);
 
     // wait for reply
     auto reply_msg = reinterpret_cast<const m3::TCU::Message*>(m3::ThreadManager::get().get_current_msg());
-    auto reply = reinterpret_cast<const m3::KIF::DefaultReply*>(reply_msg->data);
+    auto reply = reinterpret_cast<const m3::KIF::PEXUpcalls::Response*>(reply_msg->data);
+    if(val)
+        *val = reply->val;
     return static_cast<m3::Errors::Code>(reply->error);
 }
 
@@ -251,7 +271,7 @@ m3::Errors::Code PEMux::config_mem_ep(epid_t ep, vpeid_t vpe, const MGateObject 
         << "]");
 
     TCU::config_remote_ep(vpe, peid(), ep, [&obj, ep_vpe, off](m3::TCU::reg_t *ep_regs) {
-        TCU::config_mem(ep_regs, ep_vpe, obj.addr.pe(), obj.vpe,
+        TCU::config_mem(ep_regs, ep_vpe, obj.addr.pe(),
                         obj.addr.offset() + off, obj.size - off, obj.perms);
     });
     return m3::Errors::NONE;

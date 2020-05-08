@@ -41,23 +41,23 @@ public:
     template<typename T>
     T readReg(size_t offset) {
         T val;
-        _vpe.mem().read(&val, sizeof(T), REG_ADDR + offset);
+        _mem.read(&val, sizeof(T), REG_ADDR + offset);
         return val;
     }
     template<typename T>
     void writeReg(size_t offset, T val) {
-        _vpe.mem().write(&val, sizeof(T), REG_ADDR + offset);
+        _mem.write(&val, sizeof(T), REG_ADDR + offset);
     }
 
     template<typename T>
     T readConfig(uintptr_t offset) {
         T val;
-        _vpe.mem().read(&val, sizeof(val), REG_ADDR + PCI_CFG_ADDR + offset);
+        _mem.read(&val, sizeof(val), REG_ADDR + PCI_CFG_ADDR + offset);
         return val;
     }
     template<typename T>
     void writeConfig(uintptr_t offset, T val) {
-        _vpe.mem().write(&val, sizeof(val), REG_ADDR + PCI_CFG_ADDR + offset);
+        _mem.write(&val, sizeof(val), REG_ADDR + PCI_CFG_ADDR + offset);
     }
 
     void setDmaEp(m3::MemGate &memgate);
@@ -82,6 +82,7 @@ private:
 
     m3::Reference<m3::PE> _pe;
     m3::VPE _vpe;
+    m3::MemGate _mem;
     std::unique_ptr<m3::EP> _sep;
     std::unique_ptr<m3::EP> _mep;
     m3::RecvGate _intgate;  // receives interrupts from the proxied pci device

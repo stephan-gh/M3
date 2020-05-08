@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use cap::Selector;
 use cfg;
 use col::Vec;
 use com::MemGate;
@@ -27,28 +28,39 @@ use math;
 use mem::heap;
 use pes::Mapper;
 use session::{MapFlags, Pager};
+use syscalls;
 use util;
 use vfs::{BufReader, FileRef, Seek, SeekMode};
 
 pub struct Loader<'l> {
+    vpe: Selector,
+    mem_sel: Selector,
+    pe_desc: kif::PEDesc,
     pager: Option<&'l Pager>,
     pager_inherited: bool,
     mapper: &'l mut dyn Mapper,
-    mem: &'l MemGate,
+}
+
+fn sym_addr(sym: &u8) -> usize {
+    sym as *const u8 as usize
 }
 
 impl<'l> Loader<'l> {
     pub fn new(
+        vpe: Selector,
+        mem_sel: Selector,
+        pe_desc: kif::PEDesc,
         pager: Option<&'l Pager>,
         pager_inherited: bool,
         mapper: &'l mut dyn Mapper,
-        mem: &'l MemGate,
     ) -> Loader<'l> {
         Loader {
+            vpe,
+            mem_sel,
+            pe_desc,
             pager,
             pager_inherited,
             mapper,
-            mem,
         }
     }
 
@@ -61,27 +73,25 @@ impl<'l> Loader<'l> {
             static _bss_end: u8;
         }
 
-        let addr = |sym: &u8| (sym as *const u8) as usize;
-
-        // use COW if both have a pager
         if let Some(pg) = self.pager {
             if self.pager_inherited {
-                return pg.clone().map(|_| unsafe { addr(&_start) });
+                return pg.clone().map(|_| unsafe { sym_addr(&_start) });
             }
             // TODO handle that case
             unimplemented!();
         }
 
+        let mem = self.get_mem(0, self.pe_desc.mem_size())?;
+
         unsafe {
             // copy text
-            let text_start = addr(&_text_start);
-            let text_end = addr(&_text_end);
-            self.mem
-                .write_bytes(&_text_start, text_end - text_start, text_start as goff)?;
+            let text_start = sym_addr(&_text_start);
+            let text_end = sym_addr(&_text_end);
+            mem.write_bytes(&_text_start, text_end - text_start, text_start as goff)?;
 
             // copy data and heap
-            let data_start = addr(&_data_start);
-            self.mem.write_bytes(
+            let data_start = sym_addr(&_data_start);
+            mem.write_bytes(
                 &_data_start,
                 heap::used_end() - data_start,
                 data_start as goff,
@@ -89,17 +99,16 @@ impl<'l> Loader<'l> {
 
             // copy end-area of heap
             let heap_area_size = util::size_of::<heap::HeapArea>();
-            self.mem.write_bytes(
+            mem.write_bytes(
                 heap::end() as *const u8,
                 heap_area_size,
                 heap::end() as goff,
             )?;
 
             // copy stack
-            self.mem
-                .write_bytes(sp as *const u8, cfg::STACK_TOP - sp, sp as goff)?;
+            mem.write_bytes(sp as *const u8, cfg::STACK_TOP - sp, sp as goff)?;
 
-            Ok(addr(&_start))
+            Ok(sym_addr(&_start))
         }
     }
 
@@ -135,19 +144,33 @@ impl<'l> Loader<'l> {
         }?;
 
         if needs_init {
-            self.mapper.init_mem(
+            let mem = self.get_mem(phdr.vaddr as goff, math::round_up(size, cfg::PAGE_SIZE))?;
+            let res = self.mapper.init_mem(
                 buf,
-                &self.mem,
+                &mem,
                 file,
                 phdr.offset as usize,
                 phdr.filesz as usize,
-                phdr.vaddr as goff,
                 phdr.memsz as usize,
-            )
+            );
+            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, self.mem_sel, 1);
+            syscalls::revoke(kif::SEL_VPE, crd, true).ok();
+            res
         }
         else {
             Ok(())
         }
+    }
+
+    fn get_mem(&self, addr: goff, size: usize) -> Result<MemGate, Error> {
+        syscalls::create_mgate(
+            self.mem_sel,
+            self.vpe,
+            addr,
+            size,
+            kif::Perm::W,
+        )?;
+        Ok(MemGate::new_owned_bind(self.mem_sel))
     }
 
     pub fn load_program(&mut self, file: &mut BufReader<FileRef>) -> Result<usize, Error> {
@@ -209,7 +232,12 @@ impl<'l> Loader<'l> {
         Ok(hdr.entry)
     }
 
-    pub fn write_arguments<I, S>(&mut self, off: &mut usize, args: I) -> Result<usize, Error>
+    pub fn write_arguments<I, S>(
+        &mut self,
+        mem: &MemGate,
+        off: &mut usize,
+        args: I,
+    ) -> Result<usize, Error>
     where
         I: iter::IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -232,14 +260,13 @@ impl<'l> Loader<'l> {
             argoff += arg.len() + 1;
         }
 
-        self.mem
-            .write_bytes(argbuf.as_ptr() as *const _, argbuf.len(), *off as goff)?;
+        mem.write_bytes(argbuf.as_ptr() as *const _, argbuf.len(), (*off - cfg::ENV_START) as goff)?;
 
         argoff = math::round_up(argoff, util::size_of::<u64>());
-        self.mem.write_bytes(
+        mem.write_bytes(
             argptr.as_ptr() as *const _,
             argptr.len() * util::size_of::<u64>(),
-            argoff as goff,
+            (argoff - cfg::ENV_START) as goff,
         )?;
 
         *off = argoff + argptr.len() * util::size_of::<u64>();

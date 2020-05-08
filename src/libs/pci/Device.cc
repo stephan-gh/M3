@@ -28,6 +28,7 @@ namespace pci {
 ProxiedPciDevice::ProxiedPciDevice(const char *name, PEISA isa)
     : _pe(PE::alloc(PEDesc(PEType::COMP_IMEM, isa))),
       _vpe(_pe, name),
+      _mem(_vpe.get_mem(0, PCI_CFG_ADDR + REG_ADDR + PAGE_SIZE, MemGate::RW)),
       _sep(_vpe.epmng().acquire(EP_INT)),
       _mep(_vpe.epmng().acquire(EP_DMA)),
       _intgate(RecvGate::create(nextlog2<256>::val, nextlog2<32>::val)),

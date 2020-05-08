@@ -25,10 +25,10 @@ use m3::com::MemGate;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
+use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::syscalls;
 
-use addrspace::ASMem;
 use physmem::{copy_block, PhysMem};
 
 bitflags! {
@@ -39,7 +39,7 @@ bitflags! {
 }
 
 pub struct Region {
-    as_mem: Rc<ASMem>,
+    owner: Selector,
     mem: Option<Rc<RefCell<PhysMem>>>,
     mem_off: goff,
     ds_off: goff,
@@ -50,9 +50,9 @@ pub struct Region {
 }
 
 impl Region {
-    pub fn new(as_mem: Rc<ASMem>, ds_off: goff, off: goff, size: goff) -> Self {
+    pub fn new(owner: Selector, ds_off: goff, off: goff, size: goff) -> Self {
         Region {
-            as_mem,
+            owner,
             mem: None,
             mem_off: 0,
             ds_off,
@@ -63,9 +63,9 @@ impl Region {
         }
     }
 
-    pub fn clone_for(&self, as_mem: Rc<ASMem>) -> Self {
+    pub fn clone_for(&self, owner: Selector) -> Self {
         Region {
-            as_mem,
+            owner,
             mem: self.mem.clone(),
             mem_off: self.mem_off,
             ds_off: self.ds_off,
@@ -131,18 +131,18 @@ impl Region {
                 // if we are the last one, we can just take the memory
                 if Rc::strong_count(&mem) == 1 {
                     // we are the owner now
-                    mem.borrow_mut().set_owner(self.as_mem.clone(), self.ds_off);
+                    mem.borrow_mut().set_owner(self.owner, self.ds_off);
                     return Ok(());
                 }
 
                 let mut mem = mem.borrow_mut();
 
                 // either copy from owner memory or the physical memory
-                let (ogate, off, osel) = if let Some(omem) = mem.owner_mem() {
-                    (&omem.mgate, mem.owner_virt() + self.off, omem.mgate.sel())
+                let (off, osel) = if let Some((ovpe, ovirt)) = mem.owner_mem() {
+                    (ovirt + self.off, ovpe)
                 }
                 else {
-                    (mem.gate(), self.mem_off, INVALID_SEL)
+                    (self.mem_off, INVALID_SEL)
                 };
 
                 // allocate new memory for our copy
@@ -159,7 +159,7 @@ impl Region {
                     else {
                         "origin"
                     },
-                    if self.as_mem.mgate.sel() == osel {
+                    if self.owner == osel {
                         "owner"
                     }
                     else {
@@ -167,26 +167,33 @@ impl Region {
                     },
                 );
 
-                copy_block(ogate, &ngate, off, self.size);
+                if osel == INVALID_SEL {
+                    copy_block(&mem.gate(), &ngate, off, self.size);
+                }
+                else {
+                    let nsel = VPE::cur().alloc_sel();
+                    syscalls::create_mgate(nsel, osel, off, self.size as usize, Perm::R)?;
+                    let omem = MemGate::new_owned_bind(nsel);
+                    copy_block(&omem, &ngate, 0, self.size);
+                }
 
                 // are we the owner?
-                if self.as_mem.mgate.sel() == osel {
+                if self.owner == osel {
                     // give the others the new memory gate
                     let old = mem.replace_gate(ngate);
+                    let owner_virt = mem.owner_mem().unwrap().1;
                     // there is no owner anymore
                     mem.remove_owner();
                     // give us the old memory with a new PhysMem object
                     Rc::new(RefCell::new(PhysMem::new_with_mem(
-                        self.as_mem.clone(),
-                        mem.owner_virt(),
+                        (self.owner, owner_virt),
                         old,
                     )))
                 }
                 else {
                     // the others keep the old mem; we take the new one
                     Rc::new(RefCell::new(PhysMem::new_with_mem(
-                        self.as_mem.clone(),
-                        self.ds_off,
+                        (self.owner, self.ds_off),
                         ngate,
                     )))
                 }
@@ -216,7 +223,7 @@ impl Region {
         if let Some(ref mem) = self.mem {
             syscalls::create_map(
                 (self.virt() >> cfg::PAGE_BITS as goff) as Selector,
-                self.as_mem.vpe,
+                self.owner,
                 mem.borrow().gate().sel(),
                 (self.mem_off >> cfg::PAGE_BITS as goff) as Selector,
                 (self.size >> cfg::PAGE_BITS as goff) as Selector,
@@ -238,7 +245,7 @@ impl Drop for Region {
     fn drop(&mut self) {
         if self.mem.is_some() && self.flags.contains(RegionFlags::MAPPED) {
             syscalls::revoke(
-                self.as_mem.vpe,
+                self.owner,
                 CapRngDesc::new(
                     CapType::MAPPING,
                     (self.virt() >> cfg::PAGE_BITS as goff) as Selector,
@@ -264,7 +271,7 @@ impl fmt::Debug for Region {
 }
 
 pub struct RegionList {
-    as_mem: Rc<ASMem>,
+    owner: Selector,
     ds_off: goff,
     size: goff,
     // put regions in Boxes to cheaply move them around
@@ -273,9 +280,9 @@ pub struct RegionList {
 }
 
 impl RegionList {
-    pub fn new(as_mem: Rc<ASMem>, ds_off: goff, size: goff) -> Self {
+    pub fn new(owner: Selector, ds_off: goff, size: goff) -> Self {
         RegionList {
-            as_mem,
+            owner,
             ds_off,
             size,
             regs: Vec::new(),
@@ -303,7 +310,7 @@ impl RegionList {
                 r.map(ds_perms ^ Perm::W)?;
             }
 
-            let mut nreg = Box::new(r.clone_for(self.as_mem.clone()));
+            let mut nreg = Box::new(r.clone_for(self.owner));
 
             // adjust flags
             if ds_perms.contains(Perm::W) {
@@ -318,10 +325,9 @@ impl RegionList {
 
     pub fn populate(&mut self, sel: Selector) {
         assert!(self.regs.is_empty());
-        let mut r = Box::new(Region::new(self.as_mem.clone(), self.ds_off, 0, self.size));
+        let mut r = Box::new(Region::new(self.owner, self.ds_off, 0, self.size));
         r.set_mem(Rc::new(RefCell::new(PhysMem::new_bind(
-            self.as_mem.clone(),
-            self.ds_off,
+            (self.owner, self.ds_off),
             sel,
         ))));
         self.regs.push(r);
@@ -373,12 +379,7 @@ impl RegionList {
         };
 
         // insert region
-        let r = Box::new(Region::new(
-            self.as_mem.clone(),
-            self.ds_off,
-            start,
-            end - start,
-        ));
+        let r = Box::new(Region::new(self.owner, self.ds_off, start, end - start));
         let nidx = match last {
             Some(n) => n + 1,
             None => 0,

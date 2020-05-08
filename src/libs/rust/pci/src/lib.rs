@@ -21,12 +21,12 @@ extern crate bitflags;
 #[macro_use]
 extern crate m3;
 
+use m3::cfg;
 use m3::com::{MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
-use m3::kif::{PEDesc, PEType, INVALID_SEL, PEISA};
+use m3::kif::{PEDesc, PEType, Perm, INVALID_SEL, PEISA};
 use m3::math;
-use m3::pes::Activity;
 use m3::pes::{DeviceActivity, PE, VPE};
 use m3::syscalls;
 use m3::tcu::EpId;
@@ -82,7 +82,8 @@ int_enum! {
 }
 
 pub struct Device {
-    activity: DeviceActivity,
+    _activity: DeviceActivity,
+    mem: MemGate,
     _sep: EP,
     mep: EP,
     rgate: RecvGate,
@@ -129,8 +130,9 @@ pub struct Info {
 impl Device {
     pub fn new(name: &str, isa: PEISA) -> Result<Self, Error> {
         let pe = PE::new(PEDesc::new(PEType::COMP_IMEM, isa, 0))?;
-        let vpe = VPE::new(pe, name)?;
+        let mut vpe = VPE::new(pe, name)?;
         let vpe_sel = vpe.sel();
+        let mem = vpe.get_mem(0, (PCI_CFG_ADDR + REG_ADDR) as usize + cfg::PAGE_SIZE, Perm::RW)?;
         let sep = vpe.epmng().acquire_for(vpe_sel, EP_INT, 0)?;
         let mep = vpe.epmng().acquire_for(vpe_sel, EP_DMA, 0)?;
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
@@ -139,7 +141,8 @@ impl Device {
         sgate.activate_on(sep.sel())?;
 
         Ok(Self {
-            activity: vpe.start()?,
+            _activity: vpe.start()?,
+            mem,
             _sep: sep,
             mep,
             rgate,
@@ -160,25 +163,19 @@ impl Device {
     }
 
     pub fn read_reg<T>(&self, off: goff) -> Result<T, Error> {
-        self.activity.vpe().mem().read_obj(REG_ADDR + off)
+        self.mem.read_obj(REG_ADDR + off)
     }
 
     pub fn write_reg<T>(&self, off: goff, val: T) -> Result<(), Error> {
-        self.activity.vpe().mem().write_obj(&val, REG_ADDR + off)
+        self.mem.write_obj(&val, REG_ADDR + off)
     }
 
     pub fn read_config<T>(&self, off: goff) -> Result<T, Error> {
-        self.activity
-            .vpe()
-            .mem()
-            .read_obj(REG_ADDR + PCI_CFG_ADDR + off)
+        self.mem.read_obj(REG_ADDR + PCI_CFG_ADDR + off)
     }
 
     pub fn write_config<T>(&self, off: goff, val: T) -> Result<(), Error> {
-        self.activity
-            .vpe()
-            .mem()
-            .write_obj(&val, REG_ADDR + PCI_CFG_ADDR + off)
+        self.mem.write_obj(&val, REG_ADDR + PCI_CFG_ADDR + off)
     }
 
     pub fn get_info(&self) -> Result<Info, Error> {

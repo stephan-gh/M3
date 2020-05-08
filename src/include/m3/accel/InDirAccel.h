@@ -56,24 +56,25 @@ public:
                                                          .reply_gate(&reply_gate))),
           _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
           _mep(vpe->epmng().acquire(EP_OUT)),
-          _vpe(vpe) {
+          _vpe(vpe),
+          _mem(_vpe->get_mem(0, vpe->pe_desc().mem_size(), MemGate::RW)) {
         // activate EP
-        _rgate.activate_on(*_rep, vpe->mem(), RECV_ADDR);
+        _rgate.activate_on(*_rep, nullptr, RECV_ADDR);
     }
 
     void connect_output(InDirAccel *accel) {
-        _mgate = std::make_unique<MemGate>(accel->_vpe->mem().derive(BUF_ADDR, MAX_BUF_SIZE));
+        _mgate = std::make_unique<MemGate>(accel->_mem.derive(BUF_ADDR, MAX_BUF_SIZE));
         _mgate->activate_on(*_mep);
     }
 
     void read(void *data, size_t size) {
         assert(size <= MAX_BUF_SIZE);
-        _vpe->mem().read(data, size, BUF_ADDR);
+        _mem.read(data, size, BUF_ADDR);
     }
 
     void write(const void *data, size_t size) {
         assert(size <= MAX_BUF_SIZE);
-        _vpe->mem().write(data, size, BUF_ADDR);
+        _mem.write(data, size, BUF_ADDR);
     }
 
     void start(Operation op, size_t dataSize, cycles_t compTime, label_t reply_label) {
@@ -91,6 +92,7 @@ private:
     std::unique_ptr<EP> _rep;
     std::unique_ptr<EP> _mep;
     std::unique_ptr<VPE> &_vpe;
+    MemGate _mem;
 };
 
 }

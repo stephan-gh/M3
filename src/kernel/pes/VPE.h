@@ -58,9 +58,7 @@ public:
         // the child pays for the VPE, because it owns the root cap, i.e., free's the memory later
         return sizeof(VPE) +
                // PE cap, VPE cap, and kmem cap
-               sizeof(PECapability) + sizeof(VPECapability) + sizeof(KMemCapability) +
-               // memory gate and cap
-               sizeof(MGateCapability) + sizeof(MGateObject);
+               sizeof(PECapability) + sizeof(VPECapability) + sizeof(KMemCapability);
     }
 
     enum State {
@@ -167,7 +165,7 @@ private:
 
     void init_eps();
     void init_memory();
-    void load_root();
+    void load_root(m3::GlobAddr env_phys);
     void exit_app(int exitcode);
 
     VPEDesc _desc;

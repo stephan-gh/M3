@@ -33,32 +33,33 @@ int_enum! {
         // capability creations
         const CREATE_SRV        = 0;
         const CREATE_SESS       = 1;
-        const CREATE_RGATE      = 2;
-        const CREATE_SGATE      = 3;
-        const CREATE_MAP        = 4;
-        const CREATE_VPE        = 5;
-        const CREATE_SEM        = 6;
-        const ALLOC_EP          = 7;
+        const CREATE_MGATE      = 2;
+        const CREATE_RGATE      = 3;
+        const CREATE_SGATE      = 4;
+        const CREATE_MAP        = 5;
+        const CREATE_VPE        = 6;
+        const CREATE_SEM        = 7;
+        const ALLOC_EP          = 8;
 
         // capability operations
-        const ACTIVATE          = 8;
-        const VPE_CTRL          = 9;
-        const VPE_WAIT          = 10;
-        const DERIVE_MEM        = 11;
-        const DERIVE_KMEM       = 12;
-        const DERIVE_PE         = 13;
-        const KMEM_QUOTA        = 14;
-        const PE_QUOTA          = 15;
-        const SEM_CTRL          = 16;
+        const ACTIVATE          = 9;
+        const VPE_CTRL          = 10;
+        const VPE_WAIT          = 11;
+        const DERIVE_MEM        = 12;
+        const DERIVE_KMEM       = 13;
+        const DERIVE_PE         = 14;
+        const KMEM_QUOTA        = 15;
+        const PE_QUOTA          = 16;
+        const SEM_CTRL          = 17;
 
         // capability exchange
-        const DELEGATE          = 17;
-        const OBTAIN            = 18;
-        const EXCHANGE          = 19;
-        const REVOKE            = 20;
+        const DELEGATE          = 18;
+        const OBTAIN            = 19;
+        const EXCHANGE          = 20;
+        const REVOKE            = 21;
 
         // misc
-        const NOOP              = 21;
+        const NOOP              = 22;
     }
 }
 
@@ -99,6 +100,17 @@ pub struct CreateSess {
     pub srv_sel: u64,
     pub ident: u64,
     pub auto_close: u64,
+}
+
+/// The create memory gate request message
+#[repr(C, packed)]
+pub struct CreateMGate {
+    pub opcode: u64,
+    pub dst_sel: u64,
+    pub vpe_sel: u64,
+    pub addr: u64,
+    pub size: u64,
+    pub perms: u64,
 }
 
 /// The create receive gate request message

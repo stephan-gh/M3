@@ -23,6 +23,7 @@
 #include "pes/PEMux.h"
 #include "pes/VPE.h"
 #include "TCU.h"
+#include "Paging.h"
 #include "Platform.h"
 
 namespace kernel {
@@ -55,12 +56,7 @@ static void read_from_mod(const m3::BootInfo::Mod *mod, void *data, size_t size,
         PANIC("Invalid ELF file: offset invalid");
 
     m3::GlobAddr global(mod->addr + offset);
-    TCU::read_mem(VPEDesc(global.pe(), VPE::INVALID_ID), global.offset(), data, size);
-}
-
-static void copy_clear(const VPEDesc &vpe, uintptr_t virt, m3::GlobAddr global,
-                       size_t size, bool clear) {
-    TCU::copy_clear(vpe, virt, VPEDesc(global.pe(), VPE::INVALID_ID), global.offset(), size, clear);
+    TCU::read_mem(global.pe(), global.offset(), data, size);
 }
 
 static void map_segment(VPE &vpe, goff_t virt, m3::GlobAddr global, size_t size, uint perms) {
@@ -79,7 +75,7 @@ static void map_segment(VPE &vpe, goff_t virt, m3::GlobAddr global, size_t size,
     }
 
     if(!Platform::pe(vpe.peid()).has_virtmem())
-        copy_clear(vpe.desc(), static_cast<uintptr_t>(virt), global, size, false);
+        TCU::copy_clear(vpe.peid(), virt, global.pe(), global.offset(), size, false);
 }
 
 static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy) {
@@ -126,8 +122,9 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy) {
             end = virt + size;
 
             // initialize it
-            copy_clear(vpe.desc(), virt, m3::GlobAddr(mod->addr + offset),
-                       size, pheader.p_filesz == 0);
+            m3::GlobAddr src(mod->addr + offset);
+            TCU::copy_clear(vpe.peid(), glob_to_phys(global.raw()),
+                            src.pe(), src.offset(), size, pheader.p_filesz == 0);
         }
         else {
             assert(pheader.p_memsz == pheader.p_filesz);
@@ -145,7 +142,7 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy) {
     return header.e_entry;
 }
 
-void VPE::load_root() {
+void VPE::load_root(m3::GlobAddr env_phys) {
     bool appFirst;
     const m3::BootInfo::Mod *mod = get_mod("root", &appFirst);
     if(!mod)
@@ -173,7 +170,7 @@ void VPE::load_root() {
 
     // write buffer to the target PE
     size_t argssize = off + sizeof("root");
-    TCU::write_mem(desc(), ENV_SPACE_START, buffer, argssize);
+    TCU::write_mem(peid(), glob_to_phys(env_phys.raw()) + sizeof(m3::Env), buffer, argssize);
 
     // write env to targetPE
     m3::Env senv;
@@ -189,7 +186,7 @@ void VPE::load_root() {
     senv.first_sel = _first_sel;
     senv.first_std_ep = _eps_start;
 
-    TCU::write_mem(desc(), ENV_START, &senv, sizeof(senv));
+    TCU::write_mem(peid(), glob_to_phys(env_phys.raw()), &senv, sizeof(senv));
 }
 
 void VPE::init_memory() {
@@ -197,11 +194,25 @@ void VPE::init_memory() {
     if(Platform::pe(peid()).supports_pemux())
         PEManager::get().pemux(peid())->vpe_ctrl(this, m3::KIF::PEXUpcalls::VCTRL_INIT);
 
+    // put mapping for env into cap table (so that we can access it in create_mgate later)
+    m3::GlobAddr env(ENV_START);
+    if(Platform::pe(peid()).has_virtmem()) {
+        auto pemux = PEManager::get().pemux(peid());
+        auto err = pemux->translate(id(), ENV_START, m3::KIF::Perm::RW, &env);
+        if(err != m3::Errors::NONE)
+            PANIC("Unable to translate env page");
+
+        capsel_t dst = ENV_START >> PAGE_BITS;
+        uint perms = m3::KIF::Perm::RW | MapCapability::KERNEL;
+        mapcaps().set(dst, new MapCapability(&mapcaps(), dst, 1, new MapObject(env, perms)));
+        kmem()->alloc(*this, sizeof(MapObject) + sizeof(MapCapability));
+    }
+
     _state = VPE::RUNNING;
 
     // root is loaded by us
     if(_flags & F_ROOT)
-        load_root();
+        load_root(env);
 }
 
 void VPE::init_eps() {

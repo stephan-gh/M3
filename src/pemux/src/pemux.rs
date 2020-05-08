@@ -104,7 +104,7 @@ pub struct PagefaultMessage {
 pub struct Messages {
     pub pagefault: PagefaultMessage,
     pub exit_notify: kif::pemux::Exit,
-    pub upcall_reply: kif::DefaultReply,
+    pub upcall_reply: kif::pemux::Response,
 }
 
 static MSGS: StaticCell<Messages> = StaticCell::new(Messages {
@@ -118,7 +118,10 @@ static MSGS: StaticCell<Messages> = StaticCell::new(Messages {
         op: 0,
         vpe_sel: 0,
     },
-    upcall_reply: kif::DefaultReply { error: 0 },
+    upcall_reply: kif::pemux::Response {
+        error: 0,
+        val: 0,
+    },
 });
 
 pub fn msgs_mut() -> &'static mut Messages {

@@ -40,10 +40,12 @@ int main() {
             virt / PAGE_SIZE, VPE::self().sel(), mgate.sel(), 0, PAGES, MemGate::RW
         );
 
+        MemGate mapped_mem = VPE::self().get_mem(virt, PAGES * PAGE_SIZE, MemGate::R);
+
         alignas(8) char buf[8];
         for(size_t p = 0; p < PAGES; ++p) {
             cycles_t start = Time::start(0);
-            VPE::self().mem().read(buf, sizeof(buf), virt + p * PAGE_SIZE);
+            mapped_mem.read(buf, sizeof(buf), p * PAGE_SIZE);
             cycles_t end = Time::stop(0);
             xfer += end - start;
         }

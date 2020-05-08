@@ -75,8 +75,8 @@ int main() {
 
     WorkLoop wl;
 
-    MemGate memgate = VPE::self().mem().derive(
-        reinterpret_cast<uintptr_t>(vgamem), VGA::SIZE, MemGate::RW);
+    MemGate memgate = VPE::self().get_mem(reinterpret_cast<uintptr_t>(vgamem),
+                                          VGA::SIZE, MemGate::RW);
     Server<VGAHandler> vgasrv("vga", &wl, std::make_unique<VGAHandler>(&memgate));
 
     kbserver = new Server<EventHandler<>>("keyb", &wl, std::make_unique<EventHandler<>>());

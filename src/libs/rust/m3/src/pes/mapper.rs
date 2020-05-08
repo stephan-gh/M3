@@ -50,8 +50,8 @@ pub trait Mapper {
         flags: MapFlags,
     ) -> Result<bool, Error>;
 
-    /// Initializes the memory at `virt`..`memsize` by loading `fsize` bytes from the given file at
-    /// `foff` and zero'ing the remaining space.
+    /// Initializes the given by loading `fsize` bytes from the given file at `foff` and zero'ing
+    /// the remaining space until `memsize`.
     ///
     /// The argument `buf` can be used as a buffer and `mem` refers to the address space of the VPE.
     #[allow(clippy::too_many_arguments)]
@@ -62,13 +62,12 @@ pub trait Mapper {
         file: &mut BufReader<FileRef>,
         foff: usize,
         fsize: usize,
-        virt: goff,
         memsize: usize,
     ) -> Result<(), Error> {
         file.seek(foff, SeekMode::SET)?;
 
         let mut count = fsize;
-        let mut segoff = virt as usize;
+        let mut segoff = 0;
         while count > 0 {
             let amount = cmp::min(count, buf.len());
             let amount = file.read(&mut buf[0..amount])?;

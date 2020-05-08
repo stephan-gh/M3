@@ -41,7 +41,7 @@ pub const PE_MEM_BASE: usize        = 0xE000_0000;
 pub const MEM_CAP_END: usize        = RBUF_STD_ADDR;
 
 pub const ENV_START: usize          = 0x0020_0000;
-pub const ENV_SIZE: usize           = 0x2000;
+pub const ENV_SIZE: usize           = PAGE_SIZE;
 pub const STACK_SIZE: usize         = 0x10000;
 pub const STACK_BOTTOM: usize       = 0x0021_0000;
 pub const STACK_TOP: usize          = STACK_BOTTOM + STACK_SIZE;

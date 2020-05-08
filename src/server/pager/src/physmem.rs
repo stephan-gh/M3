@@ -22,9 +22,6 @@ use m3::com::MemGate;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::Perm;
-use m3::rc::Rc;
-
-use addrspace::ASMem;
 
 static ZEROS: [u8; cfg::PAGE_SIZE] = [0u8; cfg::PAGE_SIZE];
 static BUF: StaticCell<[u8; cfg::PAGE_SIZE]> = StaticCell::new([0u8; cfg::PAGE_SIZE]);
@@ -47,37 +44,32 @@ fn clear_block(mem: &MemGate, size: goff) {
 
 pub struct PhysMem {
     mgate: MemGate,
-    owner_mem: Option<Rc<ASMem>>,
-    owner_virt: goff,
+    owner_mem: Option<(Selector, goff)>,
 }
 
 impl PhysMem {
     pub fn new(
-        owner_mem: Rc<ASMem>,
-        owner_virt: goff,
+        owner_mem: (Selector, goff),
         size: goff,
         perm: Perm,
     ) -> Result<Self, Error> {
         Ok(PhysMem {
             mgate: MemGate::new(size as usize, perm)?,
             owner_mem: Some(owner_mem),
-            owner_virt,
         })
     }
 
-    pub fn new_with_mem(owner_mem: Rc<ASMem>, owner_virt: goff, mem: MemGate) -> Self {
+    pub fn new_with_mem(owner_mem: (Selector, goff), mem: MemGate) -> Self {
         PhysMem {
             mgate: mem,
             owner_mem: Some(owner_mem),
-            owner_virt,
         }
     }
 
-    pub fn new_bind(owner_mem: Rc<ASMem>, owner_virt: goff, sel: Selector) -> Self {
+    pub fn new_bind(owner_mem: (Selector, goff), sel: Selector) -> Self {
         PhysMem {
             mgate: MemGate::new_bind(sel),
             owner_mem: Some(owner_mem),
-            owner_virt,
         }
     }
 
@@ -89,17 +81,12 @@ impl PhysMem {
         mem::replace(&mut self.mgate, mem)
     }
 
-    pub fn owner_mem(&self) -> Option<&Rc<ASMem>> {
-        self.owner_mem.as_ref()
+    pub fn owner_mem(&self) -> Option<(Selector, goff)> {
+        self.owner_mem
     }
 
-    pub fn owner_virt(&self) -> goff {
-        self.owner_virt
-    }
-
-    pub fn set_owner(&mut self, mem: Rc<ASMem>, virt: goff) {
-        self.owner_mem = Some(mem);
-        self.owner_virt = virt;
+    pub fn set_owner(&mut self, vpe: Selector, virt: goff) {
+        self.owner_mem = Some((vpe, virt));
     }
 
     pub fn remove_owner(&mut self) {

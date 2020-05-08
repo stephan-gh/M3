@@ -25,7 +25,6 @@ use m3::math;
 use m3::rc::Rc;
 use m3::session::{ClientSession, MapFlags, M3FS};
 
-use addrspace::ASMem;
 use physmem::{copy_block, PhysMem};
 use regions::RegionList;
 
@@ -70,13 +69,13 @@ pub struct DataSpace {
     perms: kif::Perm,
     flags: MapFlags,
     regions: RegionList,
-    as_mem: Rc<ASMem>,
+    owner: Selector,
     file: Option<FileMapping>,
 }
 
 impl DataSpace {
     pub fn new_extern(
-        as_mem: Rc<ASMem>,
+        owner: Selector,
         virt: goff,
         size: goff,
         perms: kif::Perm,
@@ -90,14 +89,14 @@ impl DataSpace {
             size,
             perms,
             flags,
-            as_mem: as_mem.clone(),
-            regions: RegionList::new(as_mem, virt, size),
+            owner,
+            regions: RegionList::new(owner, virt, size),
             file: Some(FileMapping::new(sel, off)),
         }
     }
 
     pub fn new_anon(
-        as_mem: Rc<ASMem>,
+        owner: Selector,
         virt: goff,
         size: goff,
         perms: kif::Perm,
@@ -109,21 +108,21 @@ impl DataSpace {
             size,
             perms,
             flags,
-            as_mem: as_mem.clone(),
-            regions: RegionList::new(as_mem, virt, size),
+            owner,
+            regions: RegionList::new(owner, virt, size),
             file: None,
         }
     }
 
-    pub fn clone_for(&self, as_mem: Rc<ASMem>) -> Self {
+    pub fn clone_for(&self, owner: Selector) -> Self {
         DataSpace {
             id: self.id,
             virt: self.virt,
             size: self.size,
             perms: self.perms,
             flags: self.flags,
-            as_mem: as_mem.clone(),
-            regions: RegionList::new(as_mem, self.virt, self.size),
+            owner,
+            regions: RegionList::new(owner, self.virt, self.size),
             file: self.file.clone(),
         }
     }
@@ -196,8 +195,7 @@ impl DataSpace {
                 if !self.flags.contains(MapFlags::SHARED) && self.perms.contains(kif::Perm::W) {
                     let src = MemGate::new_owned_bind(sel);
                     let mem = Rc::new(RefCell::new(PhysMem::new(
-                        self.as_mem.clone(),
-                        self.virt,
+                        (self.owner, self.virt),
                         reg.size(),
                         kif::Perm::RWX,
                     )?));
@@ -207,8 +205,7 @@ impl DataSpace {
                 }
                 else {
                     reg.set_mem(Rc::new(RefCell::new(PhysMem::new_bind(
-                        self.as_mem.clone(),
-                        self.virt,
+                        (self.owner, self.virt),
                         sel,
                     ))));
                 }
@@ -242,8 +239,7 @@ impl DataSpace {
                 );
 
                 reg.set_mem(Rc::new(RefCell::new(PhysMem::new(
-                    self.as_mem.clone(),
-                    self.virt,
+                    (self.owner, self.virt),
                     reg.size(),
                     kif::Perm::RWX,
                 )?)));

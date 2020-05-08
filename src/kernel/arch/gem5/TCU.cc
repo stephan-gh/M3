@@ -16,7 +16,6 @@
 
 #include <base/Common.h>
 #include <base/log/Kernel.h>
-#include <base/util/Math.h>
 #include <base/CPU.h>
 #include <base/TCU.h>
 
@@ -28,26 +27,21 @@
 
 namespace kernel {
 
-static char buffer[8192];
-
 m3::Errors::Code TCU::do_ext_cmd(peid_t pe, m3::TCU::ExtCmdOpCode op, m3::TCU::reg_t *arg) {
-    VPEDesc vpe(pe, VPE::INVALID_ID);
     m3::TCU::reg_t reg = static_cast<m3::TCU::reg_t>(op) | (arg ? (*arg << 8) : 0);
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD), &reg, sizeof(reg));
-    read_mem(vpe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD), &reg, sizeof(reg));
+    write_mem(pe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD), &reg, sizeof(reg));
+    read_mem(pe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD), &reg, sizeof(reg));
     if(arg)
         *arg = reg >> 8;
     return static_cast<m3::Errors::Code>((reg >> 4) & 0xF);
 }
 
 void TCU::deprivilege(peid_t pe) {
-    VPEDesc vpe(pe, VPE::INVALID_ID);
-
     // unset the privileged flag
     m3::TCU::reg_t features = 0;
     m3::CPU::compiler_barrier();
-    write_mem(vpe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::FEATURES), &features, sizeof(features));
+    write_mem(pe, m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::FEATURES), &features, sizeof(features));
 }
 
 void TCU::init_vpe(peid_t) {
@@ -83,7 +77,7 @@ void TCU::config_send(m3::TCU::reg_t *r, vpeid_t vpe, label_t lbl, peid_t pe, ep
     r[2] = lbl;
 }
 
-void TCU::config_mem(m3::TCU::reg_t *r, vpeid_t vpe, peid_t pe, vpeid_t tvpe, goff_t addr,
+void TCU::config_mem(m3::TCU::reg_t *r, vpeid_t vpe, peid_t pe, goff_t addr,
                      size_t size, uint perm) {
     static_assert(m3::KIF::Perm::R == m3::TCU::R, "TCU::R does not match KIF::Perm::R");
     static_assert(m3::KIF::Perm::W == m3::TCU::W, "TCU::W does not match KIF::Perm::W");
@@ -91,8 +85,7 @@ void TCU::config_mem(m3::TCU::reg_t *r, vpeid_t vpe, peid_t pe, vpeid_t tvpe, go
     r[0] = static_cast<m3::TCU::reg_t>(m3::TCU::EpType::MEMORY) |
             (static_cast<m3::TCU::reg_t>(vpe) << 3) |
             (static_cast<m3::TCU::reg_t>(perm) << 19) |
-            (static_cast<m3::TCU::reg_t>(pe) << 23) |
-            (static_cast<m3::TCU::reg_t>(tvpe) << 31);
+            (static_cast<m3::TCU::reg_t>(pe) << 23);
     r[1] = addr;
     r[2] = size;
 }
@@ -111,8 +104,7 @@ m3::Errors::Code TCU::inval_ep_remote(vpeid_t, peid_t pe, epid_t ep, bool force,
 
 void TCU::write_ep_remote(vpeid_t, peid_t pe, epid_t ep, const void *regs) {
     m3::CPU::compiler_barrier();
-    VPEDesc vpe(pe, VPE::INVALID_ID);
-    write_mem(vpe, m3::TCU::ep_regs_addr(ep), regs, sizeof(m3::TCU::reg_t) * m3::TCU::EP_REGS);
+    write_mem(pe, m3::TCU::ep_regs_addr(ep), regs, sizeof(m3::TCU::reg_t) * m3::TCU::EP_REGS);
 }
 
 void TCU::write_ep_local(epid_t ep, const void *regs) {
@@ -124,25 +116,6 @@ void TCU::write_ep_local(epid_t ep, const void *regs) {
 
 void TCU::update_eps(vpeid_t, peid_t) {
     // nothing to do
-}
-
-void TCU::copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,
-                     const VPEDesc &srcvpe, goff_t srcaddr,
-                     size_t size, bool clear) {
-    if(clear)
-        memset(buffer, 0, sizeof(buffer));
-
-    size_t rem = size;
-    while(rem > 0) {
-        size_t amount = m3::Math::min(rem, sizeof(buffer));
-        // read it from src, if necessary
-        if(!clear)
-            read_mem(srcvpe, srcaddr, buffer, amount);
-        write_mem(dstvpe, dstaddr, buffer, amount);
-        srcaddr += amount;
-        dstaddr += amount;
-        rem -= amount;
-    }
 }
 
 }

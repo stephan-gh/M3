@@ -33,7 +33,6 @@ extern "C" void *_bss_end;
 
 extern "C" goff_t get_addr_space();
 extern "C" void set_addr_space(goff_t root, alloc_frame_func alloc_frame, xlate_pt_func xlate_pt);
-extern "C" uint64_t glob_to_phys(uint64_t global);
 extern "C" uint64_t phys_to_glob(uint64_t phys);
 extern "C" void enable_paging();
 extern "C" void init_aspace(uint64_t vpe,

@@ -98,11 +98,6 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, epid_t eps_start, vpeid_t id, u
 
     _kmem->alloc(*this, required_kmem());
 
-    _objcaps.set(m3::KIF::SEL_MEM, new MGateCapability(
-        &_objcaps, m3::KIF::SEL_MEM,
-        new MGateObject(id, m3::GlobAddr(peid(), 0), MEMCAP_END, m3::KIF::Perm::RWX)
-    ));
-
     // let the VPEManager know about us before we continue with initialization
     VPEManager::get().add(vpecap);
     _pe->vpes++;

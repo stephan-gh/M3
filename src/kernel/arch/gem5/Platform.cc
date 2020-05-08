@@ -34,20 +34,19 @@ void Platform::init() {
     m3::BootInfo *info = &Platform::_info;
     // read kernel env
     m3::GlobAddr kenv(m3::env()->kenv);
-    TCU::read_mem(VPEDesc(kenv.pe(), VPE::INVALID_ID), kenv.offset(), info, sizeof(*info));
+    TCU::read_mem(kenv.pe(), kenv.offset(), info, sizeof(*info));
 
     // read boot modules
     m3::GlobAddr kenvmods(kenv + sizeof(*info));
     size_t total_mod_size = info->mod_size + sizeof(m3::BootInfo::Mod);
     Platform::_mods = reinterpret_cast<m3::BootInfo::Mod*>(malloc(total_mod_size));
-    TCU::read_mem(VPEDesc(kenvmods.pe(), VPE::INVALID_ID), kenvmods.offset(),
-                  Platform::_mods, info->mod_size);
+    TCU::read_mem(kenvmods.pe(), kenvmods.offset(), Platform::_mods, info->mod_size);
 
     // read PE descriptions
     m3::GlobAddr kenvpes(kenvmods + info->mod_size);
     size_t pe_size = sizeof(m3::PEDesc) * info->pe_count;
     Platform::_pes = new m3::PEDesc[info->pe_count];
-    TCU::read_mem(VPEDesc(kenvpes.pe(), VPE::INVALID_ID), kenvpes.offset(), Platform::_pes, pe_size);
+    TCU::read_mem(kenvpes.pe(), kenvpes.offset(), Platform::_pes, pe_size);
 
     // register memory modules
     size_t memidx = 0;
@@ -88,7 +87,7 @@ void Platform::init() {
         info->mems[memidx] = m3::BootInfo::Mem(0, 0, false);
 
     // write-back boot info (changes to mems)
-    TCU::write_mem(VPEDesc(kenv.pe(), VPE::INVALID_ID), kenv.offset(), info, sizeof(*info));
+    TCU::write_mem(kenv.pe(), kenv.offset(), info, sizeof(*info));
 }
 
 void Platform::add_modules(int, char **) {

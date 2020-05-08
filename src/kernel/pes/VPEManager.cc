@@ -65,7 +65,7 @@ void VPEManager::start_root() {
     {
         auto memcap = CREATE_CAP(MGateCapability, MGateObject,
             &_vpes[id]->objcaps(), sel,
-            VPE::INVALID_ID, Platform::info_addr(), Platform::info_size(), m3::KIF::Perm::R
+            Platform::info_addr(), Platform::info_size(), m3::KIF::Perm::R
         );
         _vpes[id]->objcaps().set(sel, memcap);
         sel++;
@@ -77,7 +77,7 @@ void VPEManager::start_root() {
                                          static_cast<size_t>(PAGE_SIZE));
         auto memcap = CREATE_CAP(MGateCapability, MGateObject,
             &_vpes[id]->objcaps(), sel,
-            VPE::INVALID_ID, m3::GlobAddr(mod->addr), size, m3::KIF::Perm::R | m3::KIF::Perm::X
+            m3::GlobAddr(mod->addr), size, m3::KIF::Perm::R | m3::KIF::Perm::X
         );
         _vpes[id]->objcaps().set(sel, memcap);
     }
@@ -96,7 +96,7 @@ void VPEManager::start_root() {
         if(mod.type() != MemoryModule::KERNEL) {
             auto memcap = CREATE_CAP(MGateCapability, MGateObject,
                 &_vpes[id]->objcaps(), sel,
-                VPE::INVALID_ID, mod.addr(), mod.size(), m3::KIF::Perm::RWX
+                mod.addr(), mod.size(), m3::KIF::Perm::RWX
             );
             _vpes[id]->objcaps().set(sel, memcap);
             sel++;

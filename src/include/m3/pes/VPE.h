@@ -198,16 +198,6 @@ public:
     }
 
     /**
-     * @return the local memory of the PE this VPE is attached to
-     */
-    MemGate &mem() noexcept {
-        return _mem;
-    }
-    const MemGate &mem() const noexcept {
-        return _mem;
-    }
-
-    /**
      * Delegates the given object capability to this VPE.
      *
      * @param sel the selector
@@ -256,6 +246,18 @@ public:
      * @param delonly whether to revoke delegations only
      */
     void revoke(const KIF::CapRngDesc &crd, bool delonly = false);
+
+    /**
+     * Creates a new memory-gate for the memory region [addr..addr+size) of this VPE's address
+     * space with given permissions.
+     *
+     * @param vpe the VPE
+     * @param addr the address (page aligned)
+     * @param size the memory size (page aligned)
+     * @param perms the permissions (see MemGate::RWX)
+     * @return the memory gate
+     */
+    MemGate get_mem(goff_t addr, size_t size, int perms);
 
     /**
      * Starts the VPE, i.e., prepares the PE for execution and wakes it up.
@@ -313,7 +315,7 @@ private:
     void run(void *lambda);
     void load_segment(ElfPh &pheader, char *buffer);
     void load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size);
-    void clear_mem(char *buffer, size_t count, uintptr_t dest);
+    void clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest);
     size_t store_arguments(char *buffer, int argc, const char **argv);
 
     uintptr_t get_entry();
@@ -322,7 +324,6 @@ private:
 
     Reference<class PE> _pe;
     Reference<KMem> _kmem;
-    MemGate _mem;
     capsel_t _next_sel;
     epid_t _eps_start;
     EPMng _epmng;

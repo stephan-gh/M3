@@ -47,12 +47,11 @@ struct KIF {
     static const capsel_t SEL_PE        = 0;
     static const capsel_t SEL_KMEM      = 1;
     static const capsel_t SEL_VPE       = 2;
-    static const capsel_t SEL_MEM       = 3;
 
     /**
      * The first selector for the endpoint capabilities
      */
-    static const uint FIRST_FREE_SEL    = SEL_MEM + 1;
+    static const uint FIRST_FREE_SEL    = SEL_VPE + 1;
 
     /**
      * The VPE id of PEMux
@@ -152,6 +151,7 @@ struct KIF {
             // capability creations
             CREATE_SRV,
             CREATE_SESS,
+            CREATE_MGATE,
             CREATE_RGATE,
             CREATE_SGATE,
             CREATE_MAP,
@@ -206,6 +206,14 @@ struct KIF {
             xfer_t srv_sel;
             xfer_t ident;
             xfer_t auto_close;
+        } PACKED;
+
+        struct CreateMGate : public DefaultRequest {
+            xfer_t dst_sel;
+            xfer_t vpe_sel;
+            xfer_t addr;
+            xfer_t size;
+            xfer_t perms;
         } PACKED;
 
         struct CreateRGate : public DefaultRequest {
@@ -405,6 +413,7 @@ struct KIF {
         enum Operation {
             VPE_CTRL,
             MAP,
+            TRANSLATE,
             REM_MSGS,
             EP_INVAL,
         };
@@ -429,6 +438,12 @@ struct KIF {
             xfer_t perm;
         } PACKED;
 
+        struct Translate : public DefaultRequest {
+            xfer_t vpe_sel;
+            xfer_t virt;
+            xfer_t perm;
+        } PACKED;
+
         struct RemMsgs : public DefaultRequest {
             xfer_t vpe_sel;
             xfer_t unread_mask;
@@ -437,6 +452,10 @@ struct KIF {
         struct EPInval : public DefaultRequest {
             xfer_t vpe_sel;
             xfer_t ep;
+        } PACKED;
+
+        struct Response : public DefaultReply {
+            xfer_t val;
         } PACKED;
     };
 

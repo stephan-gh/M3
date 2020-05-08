@@ -69,7 +69,7 @@ void TCU::config_send(m3::TCU::reg_t *regs, vpeid_t, label_t lbl, peid_t pe, epi
     regs[m3::TCU::EP_PERM]          = 0;
 }
 
-void TCU::config_mem(m3::TCU::reg_t *regs, vpeid_t, peid_t pe, vpeid_t, goff_t addr, size_t size, uint perms) {
+void TCU::config_mem(m3::TCU::reg_t *regs, vpeid_t, peid_t pe, goff_t addr, size_t size, uint perms) {
     regs[m3::TCU::EP_VALID]         = 1;
     regs[m3::TCU::EP_LABEL]         = addr;
     regs[m3::TCU::EP_PERM]          = static_cast<word_t>(perms);
@@ -97,8 +97,7 @@ void TCU::write_ep_remote(vpeid_t vpe, peid_t pe, epid_t ep, const void *regs) {
     if(VPEManager::get().vpe(vpe).is_running()) {
         uintptr_t eps = static_cast<uintptr_t>(PEManager::get().pemux(pe)->eps_base());
         uintptr_t addr = eps + ep * m3::TCU::EP_REGS * sizeof(word_t);
-        VPEDesc vpe(pe, VPE::INVALID_ID);
-        write_mem(vpe, addr, regs, m3::TCU::EP_REGS * sizeof(word_t));
+        write_mem(pe, addr, regs, m3::TCU::EP_REGS * sizeof(word_t));
     }
     else {
         memcpy(all_eps[pe][ep], regs, m3::TCU::EP_REGS * sizeof(word_t));
@@ -120,10 +119,6 @@ void TCU::update_eps(vpeid_t vpe, peid_t pe) {
             dirty_eps[pe][ep] = false;
         }
     }
-}
-
-void TCU::copy_clear(const VPEDesc &, goff_t, const VPEDesc &, goff_t, size_t, bool) {
-    // not supported
 }
 
 }

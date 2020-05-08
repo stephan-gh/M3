@@ -62,7 +62,7 @@
 // +----------------------------+ 0xF0002000
 
 #define ENV_START           0x200000
-#define ENV_SIZE            0x2000
+#define ENV_SIZE            PAGE_SIZE
 #define ENV_END             (ENV_START + ENV_SIZE)
 
 #define STACK_SIZE          0x10000

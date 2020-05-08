@@ -74,6 +74,17 @@ void Syscalls::create_sess(capsel_t dst, capsel_t srv, word_t ident, bool auto_c
     send_receive_throw(&req, sizeof(req));
 }
 
+void Syscalls::create_mgate(capsel_t dst, capsel_t vpe, goff_t addr, size_t size, int perms) {
+    KIF::Syscall::CreateMGate req;
+    req.opcode = KIF::Syscall::CREATE_MGATE;
+    req.dst_sel = dst;
+    req.vpe_sel = vpe;
+    req.addr = addr;
+    req.size = size;
+    req.perms = static_cast<xfer_t>(perms);
+    send_receive_throw(&req, sizeof(req));
+}
+
 void Syscalls::create_rgate(capsel_t dst, uint order, uint msgorder) {
     KIF::Syscall::CreateRGate req;
     req.opcode = KIF::Syscall::CREATE_RGATE;

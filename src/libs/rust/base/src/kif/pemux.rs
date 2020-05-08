@@ -26,8 +26,9 @@ int_enum! {
     pub struct Upcalls : u64 {
         const VPE_CTRL       = 0x0;
         const MAP            = 0x1;
-        const REM_MSGS       = 0x2;
-        const EP_INVAL       = 0x3;
+        const TRANSLATE      = 0x2;
+        const REM_MSGS       = 0x3;
+        const EP_INVAL       = 0x4;
     }
 }
 
@@ -60,6 +61,15 @@ pub struct Map {
     pub perm: u64,
 }
 
+/// The translate upcall
+#[repr(C, packed)]
+pub struct Translate {
+    pub op: u64,
+    pub vpe_sel: u64,
+    pub virt: u64,
+    pub perm: u64,
+}
+
 /// The remove messages upcall
 #[repr(C, packed)]
 pub struct RemMsgs {
@@ -74,6 +84,13 @@ pub struct EpInval {
     pub op: u64,
     pub vpe_sel: u64,
     pub ep: u64,
+}
+
+/// The upcall response
+#[repr(C, packed)]
+pub struct Response {
+    pub error: u64,
+    pub val: u64,
 }
 
 int_enum! {

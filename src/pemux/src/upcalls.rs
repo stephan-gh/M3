@@ -109,6 +109,31 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
         .map(virt, global, pages, perm | kif::PageFlags::U)
 }
 
+fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
+    let req = msg.get_data::<kif::pemux::Translate>();
+
+    let vpe_id = req.vpe_sel as vpe::Id;
+    let virt = req.virt as usize;
+    let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
+
+    log!(
+        crate::LOG_UPCALLS,
+        "upcall::translate(vpe={}, virt={:#x}, perm={:?})",
+        vpe_id,
+        virt, perm
+    );
+
+    let pte = vpe::get_mut(vpe_id)
+        .unwrap()
+        .translate(virt, perm | kif::PageFlags::U);
+    if (pte & perm.bits()) == 0 {
+        Err(Error::new(Code::NoPerm))
+    }
+    else {
+        Ok(pte)
+    }
+}
+
 fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
     let req = msg.get_data::<kif::pemux::RemMsgs>();
 
@@ -153,15 +178,21 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
 fn handle_upcall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
+    let reply = &mut crate::msgs_mut().upcall_reply;
+    reply.val = 0;
+
     let res = match kif::pemux::Upcalls::from(req.opcode) {
         kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg),
         kif::pemux::Upcalls::MAP => map(msg),
+        kif::pemux::Upcalls::TRANSLATE => translate(msg).and_then(|pte| {
+            reply.val = pte;
+            Ok(())
+        }),
         kif::pemux::Upcalls::REM_MSGS => rem_msgs(msg),
         kif::pemux::Upcalls::EP_INVAL => ep_inval(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 
-    let reply = &mut crate::msgs_mut().upcall_reply;
     reply.error = match res {
         Ok(_) => 0,
         Err(e) => e.code() as u64,

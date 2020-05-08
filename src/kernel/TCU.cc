@@ -15,6 +15,7 @@
  */
 
 #include <base/log/Kernel.h>
+#include <base/util/Math.h>
 #include <base/Env.h>
 
 #include "pes/VPE.h"
@@ -25,6 +26,7 @@ namespace kernel {
 
 static const size_t MAX_RBUFS = 8;
 
+static char buffer[8192];
 static uintptr_t rbufs[MAX_RBUFS];
 
 void TCU::drop_msgs(epid_t ep, label_t label) {
@@ -88,20 +90,39 @@ m3::Errors::Code TCU::send_to(peid_t pe, epid_t ep, label_t label, const void *m
     return m3::TCU::get().send(TMP_SEP, msg, size, replylbl, replyep);
 }
 
-m3::Errors::Code TCU::try_write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
-    config_local_ep(TMP_MEP, [vpe, addr, size](m3::TCU::reg_t *ep_regs) {
-        config_mem(ep_regs, VPE::KERNEL_ID, vpe.pe, vpe.id, addr, size, m3::KIF::Perm::W);
+m3::Errors::Code TCU::try_write_mem(peid_t pe, goff_t phys, const void *data, size_t size) {
+    config_local_ep(TMP_MEP, [pe, phys, size](m3::TCU::reg_t *ep_regs) {
+        config_mem(ep_regs, VPE::KERNEL_ID, pe, phys, size, m3::KIF::Perm::W);
     });
 
     return m3::TCU::get().write(TMP_MEP, data, size, 0);
 }
 
-m3::Errors::Code TCU::try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
-    config_local_ep(TMP_MEP, [vpe, addr, size](m3::TCU::reg_t *ep_regs) {
-        config_mem(ep_regs, VPE::KERNEL_ID, vpe.pe, vpe.id, addr, size, m3::KIF::Perm::R);
+m3::Errors::Code TCU::try_read_mem(peid_t pe, goff_t phys, void *data, size_t size) {
+    config_local_ep(TMP_MEP, [pe, phys, size](m3::TCU::reg_t *ep_regs) {
+        config_mem(ep_regs, VPE::KERNEL_ID, pe, phys, size, m3::KIF::Perm::R);
     });
 
     return m3::TCU::get().read(TMP_MEP, data, size, 0);
+}
+
+void TCU::copy_clear(peid_t dstpe, goff_t dstaddr,
+                     peid_t srcpe, goff_t srcaddr,
+                     size_t size, bool clear) {
+    if(clear)
+        memset(buffer, 0, sizeof(buffer));
+
+    size_t rem = size;
+    while(rem > 0) {
+        size_t amount = m3::Math::min(rem, sizeof(buffer));
+        // read it from src, if necessary
+        if(!clear)
+            read_mem(srcpe, srcaddr, buffer, amount);
+        write_mem(dstpe, dstaddr, buffer, amount);
+        srcaddr += amount;
+        dstaddr += amount;
+        rem -= amount;
+    }
 }
 
 }

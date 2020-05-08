@@ -138,9 +138,7 @@ impl Pager {
     pub fn delegate_caps(&mut self, vpe: &VPE) -> Result<(), Error> {
         // we only need to do that for clones
         if self.close {
-            const_assert!(kif::SEL_VPE + 1 == kif::SEL_MEM);
-            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 2);
-            self.sess.delegate_crd(crd)
+            self.sess.delegate_obj(vpe.sel())
         }
         else {
             Ok(())

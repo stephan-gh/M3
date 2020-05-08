@@ -47,7 +47,7 @@ public:
                             uint msgorder, uint reply_eps);
     static void config_send(m3::TCU::reg_t *regs, vpeid_t vpe, label_t lbl, peid_t pe, epid_t dstep,
                             uint msgorder, uint credits);
-    static void config_mem(m3::TCU::reg_t *regs, vpeid_t vpe, peid_t pe, vpeid_t tvpe, goff_t addr,
+    static void config_mem(m3::TCU::reg_t *regs, vpeid_t vpe, peid_t pe, goff_t addr,
                            size_t size, uint perm);
 
     template<typename CFG>
@@ -76,21 +76,21 @@ public:
     static m3::Errors::Code send_to(peid_t pe, epid_t ep, label_t label, const void *msg,
                                     size_t size, label_t replylbl, epid_t replyep);
 
-    static m3::Errors::Code try_write_mem(const VPEDesc &vpe, goff_t addr,
+    static m3::Errors::Code try_write_mem(peid_t pe, goff_t phys,
                                           const void *data, size_t size);
-    static m3::Errors::Code try_read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size);
+    static m3::Errors::Code try_read_mem(peid_t pe, goff_t phys, void *data, size_t size);
 
-    static void write_mem(const VPEDesc &vpe, goff_t addr, const void *data, size_t size) {
-        if(try_write_mem(vpe, addr, data, size) != m3::Errors::NONE)
+    static void write_mem(peid_t pe, goff_t phys, const void *data, size_t size) {
+        if(try_write_mem(pe, phys, data, size) != m3::Errors::NONE)
             PANIC("write failed");
     }
-    static void read_mem(const VPEDesc &vpe, goff_t addr, void *data, size_t size) {
-        if(try_read_mem(vpe, addr, data, size) != m3::Errors::NONE)
+    static void read_mem(peid_t pe, goff_t phys, void *data, size_t size) {
+        if(try_read_mem(pe, phys, data, size) != m3::Errors::NONE)
             PANIC("read failed");
     }
 
-    static void copy_clear(const VPEDesc &dstvpe, goff_t dstaddr,
-                           const VPEDesc &srcvpe, goff_t srcaddr,
+    static void copy_clear(peid_t dstpe, goff_t dstaddr,
+                           peid_t srcpe, goff_t srcaddr,
                            size_t size, bool clear);
 
 private:

@@ -19,6 +19,7 @@ use m3::cfg;
 use m3::com::{MGateArgs, MemGate, Perm, Semaphore};
 use m3::errors::Code;
 use m3::goff;
+use m3::math;
 use m3::pes::{Activity, PE, VPE};
 use m3::session::MapFlags;
 use m3::test;
@@ -131,7 +132,7 @@ fn remote_access() {
     wv_assert_ok!(child.delegate_obj(sem.sel()));
 
     let sem_sel = sem.sel();
-    let act = wv_assert_ok!(child.run(Box::new(move || {
+    let mut act = wv_assert_ok!(child.run(Box::new(move || {
         let sem = Semaphore::bind(sem_sel);
         // write value to own address space
         let obj_addr = virt as *mut u64;
@@ -147,18 +148,14 @@ fn remote_access() {
     wv_assert_ok!(sem.down());
 
     // read object from his address space
-    let obj: u64 = wv_assert_ok!(act.vpe().mem().read_obj(virt));
+    let obj_mem = wv_assert_ok!(act.vpe_mut().get_mem(
+        math::round_dn(virt, cfg::PAGE_SIZE as goff),
+        cfg::PAGE_SIZE,
+        Perm::R
+    ));
+    let obj: u64 =
+        wv_assert_ok!(obj_mem.read_obj(virt - math::round_dn(virt, cfg::PAGE_SIZE as goff)));
     wv_assert_eq!(obj, 0xDEAD_BEEF);
-
-    // try to access unmapped pages
-    if act.vpe().pe_desc().has_virtmem() {
-        wv_assert_err!(
-            act.vpe()
-                .mem()
-                .read_obj::<u64>(virt + cfg::PAGE_SIZE as goff),
-            Code::Pagefault
-        );
-    }
 
     // notify child that we're done
     wv_assert_ok!(sem.up());

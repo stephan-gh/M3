@@ -240,16 +240,14 @@ public:
 
 class MGateObject : public SlabObject<MGateObject>, public GateObject, public m3::RefCounted {
 public:
-    explicit MGateObject(vpeid_t _vpe, m3::GlobAddr _addr, size_t _size, uint _perms)
+    explicit MGateObject(m3::GlobAddr _addr, size_t _size, uint _perms)
         : GateObject(Capability::MGATE),
           RefCounted(),
-          vpe(_vpe),
           addr(_addr),
           size(_size),
           perms(_perms) {
     }
 
-    vpeid_t vpe;
     m3::GlobAddr addr;
     size_t size;
     uint perms;

@@ -62,7 +62,6 @@ void VPE::reset() noexcept {
     _self_ptr->_pe->sel(KIF::SEL_PE);
     _self_ptr->_kmem->sel(KIF::SEL_KMEM);
     _self_ptr->sel(KIF::SEL_VPE);
-    _self_ptr->_mem.sel(KIF::SEL_MEM);
     _self_ptr->epmng().reset();
     Gate::reset();
 }
@@ -94,14 +93,16 @@ void VPE::run(void *lambda) {
     senv.vpe_addr = reinterpret_cast<uint64_t>(this);
     senv.backend_addr = env()->backend_addr;
 
+    MemGate env_mem = get_mem(ENV_START, ENV_SIZE, MemGate::W);
+
     /* write start env to PE */
-    _mem.write(&senv, sizeof(senv), ENV_START);
+    env_mem.write(&senv, sizeof(senv), 0);
 
     /* write args */
     std::unique_ptr<char[]> buffer(new char[BUF_SIZE]);
     size_t size = store_arguments(buffer.get(), static_cast<int>(env()->argc),
         reinterpret_cast<const char**>(env()->argv));
-    _mem.write(buffer.get(), size, ENV_SPACE_START);
+    env_mem.write(buffer.get(), size, sizeof(m3::Env));
 
     /* go! */
     start();
@@ -145,24 +146,26 @@ void VPE::exec(int argc, const char **argv) {
     senv.fds_len = _fds->serialize(buffer.get() + offset, ENV_SPACE_SIZE - offset);
     offset = Math::round_up(offset + static_cast<size_t>(senv.fds_len), sizeof(word_t));
 
+    MemGate env_mem = get_mem(ENV_START, ENV_SIZE, MemGate::W);
+
     /* write entire runtime stuff */
-    _mem.write(buffer.get(), offset, ENV_SPACE_START);
+    env_mem.write(buffer.get(), offset, sizeof(senv));
 
     senv.backend_addr = 0;
     senv.vpe_addr = 0;
 
     /* write start env to PE */
-    _mem.write(&senv, sizeof(senv), ENV_START);
+    env_mem.write(&senv, sizeof(senv), 0);
 
     /* go! */
     start();
 }
 
-void VPE::clear_mem(char *buffer, size_t count, uintptr_t dest) {
+void VPE::clear_mem(MemGate &mem, char *buffer, size_t count, uintptr_t dest) {
     memset(buffer, 0, BUF_SIZE);
     while(count > 0) {
         size_t amount = std::min(count, BUF_SIZE);
-        _mem.write(buffer, amount, dest);
+        mem.write(buffer, amount, dest);
         count -= amount;
         dest += amount;
     }
@@ -192,6 +195,11 @@ void VPE::load_segment(ElfPh &pheader, char *buffer) {
         return;
     }
 
+    if(pe_desc().has_virtmem())
+        VTHROW(Errors::NOT_SUP, "Exec with VM needs a pager");
+
+    MemGate mem = get_mem(0, pe_desc().mem_size(), MemGate::W);
+
     size_t segoff = pheader.p_vaddr;
     size_t count = pheader.p_filesz;
     /* the offset might be beyond EOF if count is 0 */
@@ -206,14 +214,14 @@ void VPE::load_segment(ElfPh &pheader, char *buffer) {
             if(_exec->read(buffer, amount) != amount)
                 VTHROW(Errors::INVALID_ELF, "Unable to read " << amount << " bytes");
 
-            _mem.write(buffer, amount, segoff);
+            mem.write(buffer, amount, segoff);
             count -= amount;
             segoff += amount;
         }
     }
 
     /* zero the rest */
-    clear_mem(buffer, pheader.p_memsz - pheader.p_filesz, segoff);
+    clear_mem(mem, buffer, pheader.p_memsz - pheader.p_filesz, segoff);
 }
 
 void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size_t *size) {
@@ -307,24 +315,29 @@ void VPE::copy_sections() {
                          Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
     }
 
+    if(pe_desc().has_virtmem())
+        VTHROW(Errors::NOT_SUP, "Clone with VM needs a pager");
+
+    MemGate mem = get_mem(0, pe_desc().mem_size(), MemGate::W);
+
     /* copy text */
     start_addr = reinterpret_cast<uintptr_t>(&_text_start);
     end_addr = reinterpret_cast<uintptr_t>(&_text_end);
-    _mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
+    mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 
     /* copy data and heap */
     start_addr = reinterpret_cast<uintptr_t>(&_data_start);
     end_addr = Heap::used_end();
-    _mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
+    mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 
     /* copy end-area of heap */
     start_addr = Heap::end_area();
-    _mem.write(reinterpret_cast<void*>(start_addr), Heap::end_area_size(), start_addr);
+    mem.write(reinterpret_cast<void*>(start_addr), Heap::end_area_size(), start_addr);
 
     /* copy stack */
     start_addr = CPU::get_sp();
     end_addr = STACK_TOP;
-    _mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
+    mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 }
 
 bool VPE::skip_section(ElfPh *) {

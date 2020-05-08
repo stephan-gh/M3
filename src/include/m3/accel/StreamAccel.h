@@ -77,9 +77,10 @@ public:
           _out_sep(vpe->epmng().acquire(EP_OUT_SEND)),
           _out_mep(vpe->epmng().acquire(EP_OUT_MEM)),
           _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
-          _vpe(vpe) {
+          _vpe(vpe),
+          _mem(_vpe->get_mem(0, vpe->pe_desc().mem_size(), MemGate::RW)) {
         // activate EPs
-        _rgate.activate_on(*_rep, vpe->mem(), RECV_ADDR);
+        _rgate.activate_on(*_rep, nullptr, RECV_ADDR);
     }
 
     void connect_input(GenericFile *file) {
@@ -102,7 +103,7 @@ public:
                                                           .credits(1))
         );
         _sgate_out->activate_on(*_out_sep);
-        _mgate_out = std::make_unique<MemGate>(next->_vpe->mem().derive(BUF_ADDR, BUF_SIZE));
+        _mgate_out = std::make_unique<MemGate>(next->_mem.derive(BUF_ADDR, BUF_SIZE));
         _mgate_out->activate_on(*_out_mep);
     }
 
@@ -122,6 +123,7 @@ private:
     std::unique_ptr<EP> _out_mep;
     std::unique_ptr<EP> _rep;
     std::unique_ptr<VPE> &_vpe;
+    MemGate _mem;
 };
 
 }

@@ -49,7 +49,6 @@ VPE::VPE()
     : ObjCap(VIRTPE, KIF::SEL_VPE, KEEP_CAP),
       _pe(PE::bind(KIF::SEL_PE, PEDesc(env()->pe_desc))),
       _kmem(new KMem(KIF::SEL_KMEM)),
-      _mem(MemGate::bind(KIF::SEL_MEM)),
       _next_sel(KIF::FIRST_FREE_SEL),
       _eps_start(),
       _epmng(*this),
@@ -74,7 +73,6 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
     : ObjCap(VIRTPE, VPE::self().alloc_sels(KIF::FIRST_FREE_SEL) + KIF::SEL_VPE),
       _pe(pe),
       _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
-      _mem(MemGate::bind((sel() - KIF::SEL_VPE) + KIF::SEL_MEM, 0)),
       _next_sel(KIF::FIRST_FREE_SEL),
       _eps_start(),
       _epmng(*this),
@@ -166,6 +164,12 @@ void VPE::obtain(const KIF::CapRngDesc &crd, capsel_t dest) {
 
 void VPE::revoke(const KIF::CapRngDesc &crd, bool delonly) {
     Syscalls::revoke(sel(), crd, !delonly);
+}
+
+MemGate VPE::get_mem(goff_t addr, size_t size, int perms) {
+    capsel_t nsel = VPE::self().alloc_sel();
+    Syscalls::create_mgate(nsel, sel(), addr, size, perms);
+    return MemGate::bind(nsel, 0);
 }
 
 void VPE::start() {
