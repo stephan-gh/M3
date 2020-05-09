@@ -25,7 +25,7 @@ typedef uint64_t goff_t;
 #   include "x86_64/asm.h"
 #elif defined(__arm__)
 #   include "arm/asm.h"
-#elif defined(__riscv)
+#elif defined(__riscv__) || defined(__riscv)
 #   include "riscv/asm.h"
 #else
 #   error "Unsupported ISA"

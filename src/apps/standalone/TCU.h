@@ -33,27 +33,27 @@ enum Error {
 class TCU {
 public:
     static const uintptr_t BASE_ADDR        = 0xF0000000;
-    static const size_t TCU_REGS            = 4;
-    static const size_t CMD_REGS            = 4;
+    static const size_t EXT_REGS            = 2;
+    static const size_t UNPRIV_REGS         = 5;
     static const size_t EP_REGS             = 3;
 
     static const vpeid_t INVALID_VPE        = 0xFFFF;
 
     static const reg_t INVALID_EP           = 0xFFFF;
     static const reg_t NO_REPLIES           = INVALID_EP;
+    static const reg_t UNLIM_CREDITS        = 0x3F;
 
-    enum class TCURegs {
+    enum class ExtRegs {
         FEATURES            = 0,
-        CUR_TIME            = 1,
-        CLEAR_IRQ           = 2,
-        CLOCK               = 3,
+        EXT_CMD             = 1,
     };
 
-    enum class CmdRegs {
-        COMMAND             = TCU_REGS + 0,
-        ABORT               = TCU_REGS + 1,
-        DATA                = TCU_REGS + 2,
-        ARG1                = TCU_REGS + 3,
+    enum class UnprivRegs {
+        COMMAND             = EXT_REGS + 0,
+        DATA                = EXT_REGS + 1,
+        ARG1                = EXT_REGS + 2,
+        CUR_TIME            = EXT_REGS + 3,
+        PRINT               = EXT_REGS + 4,
     };
 
     enum MemFlags : reg_t {
@@ -76,15 +76,8 @@ public:
         READ                = 3,
         WRITE               = 4,
         FETCH_MSG           = 5,
-        FETCH_EVENTS        = 6,
-        ACK_MSG             = 7,
-        SLEEP               = 8,
-        PRINT               = 9,
-    };
-
-    enum {
-        ABORT_VPE           = 1,
-        ABORT_CMD           = 2,
+        ACK_MSG             = 6,
+        SLEEP               = 7,
     };
 
     struct alignas(8) Header {
@@ -160,95 +153,98 @@ public:
     }
 
     static Error send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
-        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
+        write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(msg) | (static_cast<reg_t>(size) << 32));
         if(replylbl)
-            write_reg(CmdRegs::ARG1, replylbl);
+            write_reg(UnprivRegs::ARG1, replylbl);
         compiler_barrier();
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::SEND, 0, reply_ep));
+        write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::SEND, reply_ep));
 
         return get_error();
     }
 
-    static Error reply(epid_t ep, const void *reply, size_t size, const Message *msg) {
-        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
+    static Error reply(epid_t ep, const void *reply, size_t size, uintptr_t base, const Message *msg) {
+        write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
         compiler_barrier();
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, 0, reinterpret_cast<reg_t>(msg)));
+        reg_t off = reinterpret_cast<reg_t>(msg) - base;
+        write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, off));
 
         return get_error();
     }
 
-    static Error read(epid_t ep, void *data, size_t size, goff_t off, unsigned flags) {
-        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
-        write_reg(CmdRegs::ARG1, off);
+    static Error read(epid_t ep, void *data, size_t size, goff_t off) {
+        write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
+        write_reg(UnprivRegs::ARG1, off);
         compiler_barrier();
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::READ, flags));
+        write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::READ));
         Error res = get_error();
         memory_barrier();
         return res;
     }
 
-    static Error write(epid_t ep, const void *data, size_t size, goff_t off, unsigned flags) {
-        write_reg(CmdRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
-        write_reg(CmdRegs::ARG1, off);
+    static Error write(epid_t ep, const void *data, size_t size, goff_t off) {
+        write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
+        write_reg(UnprivRegs::ARG1, off);
         compiler_barrier();
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::WRITE, flags));
+        write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::WRITE));
         return get_error();
     }
 
-    static const Message *fetch_msg(epid_t ep) {
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
+    static const Message *fetch_msg(epid_t ep, uintptr_t base) {
+        write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         memory_barrier();
-        return reinterpret_cast<const Message*>(read_reg(CmdRegs::ARG1));
+        reg_t off = read_reg(UnprivRegs::ARG1);
+        if(off == static_cast<reg_t>(-1))
+            return nullptr;
+        return reinterpret_cast<const Message*>(base + off);
     }
 
-    static Error ack_msg(epid_t ep, const Message *msg) {
+    static Error ack_msg(epid_t ep, uintptr_t base, const Message *msg) {
         // ensure that we are really done with the message before acking it
         memory_barrier();
-        reg_t off = reinterpret_cast<reg_t>(msg);
-        write_reg(CmdRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, 0, off));
+        reg_t off = reinterpret_cast<reg_t>(msg) - base;
+        write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, off));
         // ensure that we don't do something else before the ack
         return get_error();
     }
 
     static Error get_error() {
         while(true) {
-            reg_t cmd = read_reg(CmdRegs::COMMAND);
+            reg_t cmd = read_reg(UnprivRegs::COMMAND);
             if(static_cast<CmdOpCode>(cmd & 0xF) == CmdOpCode::IDLE)
-                return static_cast<Error>((cmd >> 21) & 0xF);
+                return static_cast<Error>((cmd >> 20) & 0xF);
         }
         UNREACHED;
     }
 
-    static reg_t read_reg(TCURegs reg) {
+    static reg_t read_reg(ExtRegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
-    static reg_t read_reg(CmdRegs reg) {
+    static reg_t read_reg(UnprivRegs reg) {
         return read_reg(static_cast<size_t>(reg));
     }
     static reg_t read_reg(epid_t ep, size_t idx) {
-        return read_reg(TCU_REGS + CMD_REGS + EP_REGS * ep + idx);
+        return read_reg(EXT_REGS + UNPRIV_REGS + EP_REGS * ep + idx);
     }
     static reg_t read_reg(size_t idx) {
         return read8b(BASE_ADDR + idx * sizeof(reg_t));
     }
 
-    static void write_reg(TCURegs reg, reg_t value) {
+    static void write_reg(ExtRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
-    static void write_reg(CmdRegs reg, reg_t value) {
+    static void write_reg(UnprivRegs reg, reg_t value) {
         write_reg(static_cast<size_t>(reg), value);
     }
     static void write_reg(epid_t ep, size_t idx, reg_t value) {
-        write_reg(TCU_REGS + CMD_REGS + EP_REGS * ep + idx, value);
+        write_reg(EXT_REGS + UNPRIV_REGS + EP_REGS * ep + idx, value);
     }
     static void write_reg(size_t idx, reg_t value) {
         write8b(BASE_ADDR + idx * sizeof(reg_t), value);
     }
 
-    static reg_t build_command(epid_t ep, CmdOpCode c, unsigned flags = 0, reg_t arg = 0) {
+    static reg_t build_command(epid_t ep, CmdOpCode c, reg_t arg = 0) {
         return static_cast<reg_t>(c) |
                 (static_cast<reg_t>(ep) << 4) |
-                (static_cast<reg_t>(flags) << 20 |
-                arg << 25);
+                arg << 24;
     }
 };

@@ -12,6 +12,7 @@ volatile uint32_t *ui32_ptr = (uintptr_t*)TESTCASE_RESULT_ADDR;
 
 void init() {
     ui64_ptr[0] = TESTCASE_FAILED;
+    ui64_ptr[1] = 0;
 }
 
 void deinit() {
