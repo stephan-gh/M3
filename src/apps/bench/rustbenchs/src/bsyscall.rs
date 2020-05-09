@@ -17,7 +17,9 @@
 use m3::cell::StaticCell;
 use m3::cfg;
 use m3::com::{MemGate, Perm, RecvGate};
+use m3::goff;
 use m3::kif;
+use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::profile;
 use m3::rc::Rc;
@@ -31,6 +33,7 @@ pub fn run(t: &mut dyn test::WvTester) {
 
     wv_run_test!(t, noop);
     wv_run_test!(t, activate);
+    wv_run_test!(t, create_mgate);
     wv_run_test!(t, create_rgate);
     wv_run_test!(t, create_sgate);
     wv_run_test!(t, create_map);
@@ -76,6 +79,39 @@ fn activate() {
     );
 
     VPE::cur().epmng_mut().release(ep, true);
+}
+
+fn create_mgate() {
+    let mut prof = profile::Profiler::default().repeats(100).warmup(10);
+
+    #[derive(Default)]
+    struct Tester(usize);
+
+    impl profile::Runner for Tester {
+        fn run(&mut self) {
+            wv_assert_ok!(syscalls::create_mgate(
+                *SEL,
+                VPE::cur().sel(),
+                self.0 as goff,
+                cfg::PAGE_SIZE,
+                Perm::R
+            ));
+        }
+
+        fn post(&mut self) {
+            wv_assert_ok!(syscalls::revoke(
+                VPE::cur().sel(),
+                kif::CapRngDesc::new(kif::CapType::OBJECT, *SEL, 1),
+                true
+            ));
+        }
+    }
+
+    let addr: usize = math::round_dn(&create_mgate as *const _ as usize, cfg::PAGE_SIZE);
+    wv_perf!(
+        "create_mgate",
+        prof.runner_with_id(&mut Tester(addr), 0x12)
+    );
 }
 
 fn create_rgate() {

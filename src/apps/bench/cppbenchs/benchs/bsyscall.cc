@@ -46,6 +46,24 @@ NOINLINE static void activate() {
     }, 0x51));
 }
 
+NOINLINE static void create_mgate() {
+    static uintptr_t addr = Math::round_dn(reinterpret_cast<uintptr_t>(&create_mgate), PAGE_SIZE);
+
+    struct SyscallMGateRunner : public Runner {
+        void run() override {
+            Syscalls::create_mgate(selector, VPE::self().sel(), addr, PAGE_SIZE, KIF::Perm::R);
+        }
+        void post() override {
+            Syscalls::revoke(VPE::self().sel(),
+                KIF::CapRngDesc(KIF::CapRngDesc::OBJ, selector, 1), true);
+        }
+    };
+
+    Profile pr;
+    SyscallMGateRunner runner;
+    WVPERF(__func__, pr.runner_with_id(runner, 0x52));
+}
+
 NOINLINE static void create_rgate() {
     struct SyscallRGateRunner : public Runner {
         void run() override {
@@ -59,7 +77,7 @@ NOINLINE static void create_rgate() {
 
     Profile pr;
     SyscallRGateRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x52));
+    WVPERF(__func__, pr.runner_with_id(runner, 0x53));
 }
 
 NOINLINE static void create_sgate() {
@@ -79,7 +97,7 @@ NOINLINE static void create_sgate() {
 
     Profile pr;
     SyscallSGateRunner runner;
-    WVPERF(__func__, pr.runner_with_id(runner, 0x53));
+    WVPERF(__func__, pr.runner_with_id(runner, 0x54));
 }
 
 NOINLINE static void create_map() {
@@ -200,6 +218,7 @@ void bsyscall() {
 
     RUN_BENCH(noop);
     RUN_BENCH(activate);
+    RUN_BENCH(create_mgate);
     RUN_BENCH(create_rgate);
     RUN_BENCH(create_sgate);
     RUN_BENCH(create_map);
