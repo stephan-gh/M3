@@ -102,7 +102,8 @@ fn read_write_object() {
 
 fn remote_access() {
     let mut _obj: u64 = 0;
-    let sem = wv_assert_ok!(Semaphore::create(0));
+    let sem1 = wv_assert_ok!(Semaphore::create(0));
+    let sem2 = wv_assert_ok!(Semaphore::create(0));
 
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut child = wv_assert_ok!(VPE::new(pe, "child"));
@@ -129,23 +130,26 @@ fn remote_access() {
         &_obj as *const _ as goff
     };
 
-    wv_assert_ok!(child.delegate_obj(sem.sel()));
+    wv_assert_ok!(child.delegate_obj(sem1.sel()));
+    wv_assert_ok!(child.delegate_obj(sem2.sel()));
 
-    let sem_sel = sem.sel();
+    let sem1_sel = sem1.sel();
+    let sem2_sel = sem2.sel();
     let mut act = wv_assert_ok!(child.run(Box::new(move || {
-        let sem = Semaphore::bind(sem_sel);
+        let sem1 = Semaphore::bind(sem1_sel);
+        let sem2 = Semaphore::bind(sem2_sel);
         // write value to own address space
         let obj_addr = virt as *mut u64;
         unsafe { *obj_addr = 0xDEAD_BEEF };
         //  notify parent that we're ready
-        wv_assert_ok!(sem.up());
+        wv_assert_ok!(sem1.up());
         // wait for parent
-        wv_assert_ok!(sem.down());
+        wv_assert_ok!(sem2.down());
         0
     })));
 
     // wait until child is ready
-    wv_assert_ok!(sem.down());
+    wv_assert_ok!(sem1.down());
 
     // read object from his address space
     let obj_mem = wv_assert_ok!(act.vpe_mut().get_mem(
@@ -158,7 +162,7 @@ fn remote_access() {
     wv_assert_eq!(obj, 0xDEAD_BEEF);
 
     // notify child that we're done
-    wv_assert_ok!(sem.up());
+    wv_assert_ok!(sem2.up());
 
     wv_assert_ok!(act.wait());
 }
