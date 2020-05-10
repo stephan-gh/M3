@@ -41,6 +41,8 @@ class VPEManager {
     };
 
 public:
+    static const size_t MAX_VPES = 64;
+
     static void create() {
         _inst = new VPEManager();
     }

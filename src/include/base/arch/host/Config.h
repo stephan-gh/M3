@@ -32,8 +32,6 @@
 #define EPMEM_SIZE          (1 * 1024 * 1024)
 #define HEAP_SIZE           (LOCAL_MEM_SIZE - RBUF_SIZE - EPMEM_SIZE)
 
-#define MAX_VPES            64
-
 #define STACK_SIZE          0x1000
 
 #define RBUF_STD_ADDR       0

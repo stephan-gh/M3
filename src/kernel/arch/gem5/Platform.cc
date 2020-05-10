@@ -115,16 +115,9 @@ bool Platform::is_shared(peid_t no) {
 
 goff_t Platform::rbuf_pemux(peid_t no) {
     if(pe(no).has_virtmem())
-        return FIRST_RBUF_FRAME * PAGE_SIZE;
+        return PEMUX_RBUF_PHYS;
     else
         return PEMUX_RBUF_SPACE;
-}
-
-goff_t Platform::rbuf_std(peid_t no, vpeid_t vpe) {
-    if(pe(no).has_virtmem())
-        return (FIRST_RBUF_FRAME + 1 + vpe) * PAGE_SIZE;
-    else
-        return pe(no).rbuf_std_space().first;
 }
 
 }

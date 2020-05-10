@@ -394,7 +394,7 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
         auto rep = new EPObject(pemux->pe(), true, nvpe, eps + m3::TCU::PG_REP_OFF, 1);
         nvpe->set_pg_rep(rep);
         rgatecap->obj->pe = nvpe->peid();
-        uintptr_t rbuf = Platform::rbuf_std(pecap->obj->id, nvpe->id());
+        goff_t rbuf = nvpe->rbuf_phys().raw();
         rgatecap->obj->addr = rbuf + SYSC_RBUF_SIZE + UPCALL_RBUF_SIZE + DEF_RBUF_SIZE;
         pemux->config_rcv_ep(eps + m3::TCU::PG_REP_OFF, nvpe->id(),
                              m3::TCU::NO_REPLIES, *rgatecap->obj);

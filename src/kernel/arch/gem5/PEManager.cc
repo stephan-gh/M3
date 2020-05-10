@@ -24,6 +24,8 @@ namespace kernel {
 
 void PEManager::init_vpe(VPE *vpe) {
     vpe->init_memory();
+    if(!Platform::pe(vpe->peid()).is_device())
+        vpe->init_eps();
 }
 
 void PEManager::start_vpe(VPE *vpe) {

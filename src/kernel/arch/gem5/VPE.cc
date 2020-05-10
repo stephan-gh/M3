@@ -219,6 +219,15 @@ void VPE::init_eps() {
     auto pemux = PEManager::get().pemux(peid());
     vpeid_t vpe = Platform::is_shared(peid()) ? id() : VPE::INVALID_ID;
 
+    // get physical address of receive buffer
+    uintptr_t rbuf_virt = Platform::pe(peid()).rbuf_std_space().first;
+    _rbuf_phys = m3::GlobAddr(rbuf_virt);
+    if(Platform::pe(peid()).has_virtmem()) {
+        auto err = pemux->translate(id(), rbuf_virt, m3::KIF::Perm::RW, &_rbuf_phys);
+        if(err != m3::Errors::NONE)
+            PANIC("Unable to translate rbuf page");
+    }
+
     RGateObject rgate(SYSC_MSGSIZE_ORD, SYSC_MSGSIZE_ORD);
     rgate.pe = Platform::kernel_pe();
     rgate.addr = 1;  // has to be non-zero
@@ -234,7 +243,7 @@ void VPE::init_eps() {
     // attach syscall receive endpoint
     rgate.order = m3::nextlog2<SYSC_RBUF_SIZE>::val;
     rgate.msgorder = SYSC_RBUF_ORDER;
-    rgate.addr = Platform::rbuf_std(peid(), id());
+    rgate.addr = _rbuf_phys.raw();
     res = pemux->config_rcv_ep(_eps_start + m3::TCU::SYSC_REP_OFF, vpe,
                                m3::TCU::NO_REPLIES, rgate);
     assert(res == m3::Errors::NONE);

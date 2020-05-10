@@ -43,9 +43,6 @@ static void write_env_file(capsel_t first_sel, epid_t ep, pid_t pid, peid_t pe, 
     of << (1 << VPE::SYSC_CREDIT_ORD) << "\n";
 }
 
-void VPE::init_eps() {
-}
-
 void VPE::load_root(m3::GlobAddr) {
     if(_pid == 0) {
         _pid = fork();

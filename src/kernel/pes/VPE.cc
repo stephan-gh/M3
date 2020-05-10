@@ -45,6 +45,7 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, epid_t eps_start, vpeid_t id, u
       _exitcode(),
       _sysc_ep(SyscallHandler::alloc_ep()),
       _eps_start(eps_start),
+      _rbuf_phys(),
       _kmem(kmemcap ? kmemcap->obj : m3::Reference<KMemObject>()),
       _pe(pecap ? pecap->obj : m3::Reference<PEObject>()),
       _eps(),
@@ -106,9 +107,6 @@ VPE::VPE(m3::String &&prog, PECapability *pecap, epid_t eps_start, vpeid_t id, u
     rem_ref();
     // and PEMux has one reference to us
     rem_ref();
-
-    if(!Platform::pe(peid()).is_device())
-        init_eps();
 
     KLOG(VPES, "Created VPE '" << _name << "' [id=" << id << ", pe=" << peid() << "]");
 }

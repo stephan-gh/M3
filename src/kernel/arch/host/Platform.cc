@@ -186,9 +186,4 @@ goff_t Platform::rbuf_pemux(peid_t) {
     return 0;
 }
 
-goff_t Platform::rbuf_std(peid_t, vpeid_t) {
-    // unused
-    return 0;
-}
-
 }

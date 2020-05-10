@@ -32,9 +32,6 @@
 #define ROOT_HEAP_SIZE      (2 * 1024 * 1024)
 #define EPMEM_SIZE          0
 
-#define MAX_VPES            64
-#define FIRST_RBUF_FRAME    2
-
 #define EP_COUNT            192
 
 // Application memory layout:
@@ -69,6 +66,7 @@
 #define STACK_BOTTOM        0x210000
 #define STACK_TOP           (STACK_BOTTOM + STACK_SIZE)
 
+#define PEMUX_RBUF_PHYS     0x2000
 #define PEMUX_RBUF_SPACE    0x1FF000
 #define PEMUX_RBUF_SIZE     (1U * PAGE_SIZE)
 

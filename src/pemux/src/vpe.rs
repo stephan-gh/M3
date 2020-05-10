@@ -131,21 +131,12 @@ static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
 static PTS: StaticCell<Vec<Phys>> = StaticCell::new(Vec::new());
 
-fn rbuf_frame(id: Id) -> Phys {
-    if id == kif::pemux::VPE_ID {
-        pex_env().mem_start + cfg::PAGE_SIZE as Phys * cfg::FIRST_RBUF_FRAME as Phys
-    }
-    else {
-        pex_env().mem_start + cfg::PAGE_SIZE as Phys * (cfg::FIRST_RBUF_FRAME as Phys + 1 + id)
-    }
-}
-
 pub fn init() {
     let root_pt = if pex_env().pe_desc.has_virtmem() {
         // only use the memory up to ourself for page tables. we could use the memory behind ourself
         // as well, but currently the 1 MiB before us is sufficient.
         let pt_count = (cfg::PEMUX_START / cfg::PAGE_SIZE) as Phys;
-        let first_pt = (cfg::FIRST_RBUF_FRAME + cfg::MAX_VPES + 1) as Phys;
+        let first_pt = (cfg::PEMUX_RBUF_PHYS / cfg::PAGE_SIZE + 1) as Phys;
         PTS.get_mut().reserve(pt_count as usize);
         for i in first_pt..pt_count {
             PTS.get_mut()
@@ -676,7 +667,9 @@ impl VPE {
         }
 
         // map own receive buffer
-        let own_rbuf = GlobAddr::new(paging::phys_to_glob(rbuf_frame(kif::pemux::VPE_ID)));
+        let own_rbuf = GlobAddr::new(paging::phys_to_glob(
+            pex_env().mem_start + cfg::PEMUX_RBUF_PHYS as goff,
+        ));
         assert!(cfg::PEMUX_RBUF_SIZE == cfg::PAGE_SIZE);
         self.map(cfg::PEMUX_RBUF_SPACE, own_rbuf, 1, kif::PageFlags::R)
             .unwrap();
@@ -689,10 +682,8 @@ impl VPE {
         }
         else {
             // map application receive buffer
-            let app_rbuf = GlobAddr::new(paging::phys_to_glob(rbuf_frame(self.id())));
             let perm = kif::PageFlags::R | kif::PageFlags::U;
-            assert!(cfg::RBUF_STD_SIZE == cfg::PAGE_SIZE);
-            self.map(cfg::RBUF_STD_ADDR, app_rbuf, 1, perm).unwrap();
+            self.map_new_mem(cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE, perm);
         }
 
         // map runtime environment

@@ -56,7 +56,6 @@ public:
     }
 
     static goff_t rbuf_pemux(peid_t no);
-    static goff_t rbuf_std(peid_t no, vpeid_t vpe);
 
     static bool is_shared(peid_t no);
 

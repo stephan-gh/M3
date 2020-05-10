@@ -98,6 +98,9 @@ public:
         return desc().pe;
     }
 
+    m3::GlobAddr rbuf_phys() const {
+        return _rbuf_phys;
+    }
     epid_t eps_start() const {
         return _eps_start;
     }
@@ -175,6 +178,7 @@ private:
     int _exitcode;
     epid_t _sysc_ep;
     epid_t _eps_start;
+    m3::GlobAddr _rbuf_phys;
     m3::Reference<KMemObject> _kmem;
     m3::Reference<PEObject> _pe;
     m3::DList<EPObject> _eps;
