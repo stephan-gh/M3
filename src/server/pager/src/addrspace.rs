@@ -196,9 +196,8 @@ impl AddrSpace {
 
         self.check_map_args(virt, len, perm)?;
 
-        self.ds.push(DataSpace::new_extern(
-            self.owner.unwrap(), virt, len, perm, flags, off, sess,
-        ));
+        let ds = DataSpace::new_extern(self.owner.unwrap(), virt, len, perm, flags, off, sess);
+        self.ds.push(ds);
 
         Ok(virt)
     }
@@ -237,8 +236,8 @@ impl AddrSpace {
 
         self.check_map_args(virt, len, perm)?;
 
-        self.ds
-            .push(DataSpace::new_anon(self.owner.unwrap(), virt, len, perm, flags));
+        let ds = DataSpace::new_anon(self.owner.unwrap(), virt, len, perm, flags);
+        self.ds.push(ds);
 
         Ok(())
     }

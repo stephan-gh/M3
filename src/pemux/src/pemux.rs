@@ -118,10 +118,7 @@ static MSGS: StaticCell<Messages> = StaticCell::new(Messages {
         op: 0,
         vpe_sel: 0,
     },
-    upcall_reply: kif::pemux::Response {
-        error: 0,
-        val: 0,
-    },
+    upcall_reply: kif::pemux::Response { error: 0, val: 0 },
 });
 
 pub fn msgs_mut() -> &'static mut Messages {

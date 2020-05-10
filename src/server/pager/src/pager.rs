@@ -167,7 +167,8 @@ fn start_child(hdl: &mut PagerReqHandler, args: &[String], share_pe: bool) -> Ex
     // start VPE
     let file = vfs::VFS::open(&args[0], vfs::OpenFlags::RX).expect("Unable to open binary");
     let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
-    vpe.exec_file(&mut mapper, file, &args).expect("Unable to execute child VPE")
+    vpe.exec_file(&mut mapper, file, &args)
+        .expect("Unable to execute child VPE")
 }
 
 #[no_mangle]

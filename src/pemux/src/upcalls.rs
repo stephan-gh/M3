@@ -120,7 +120,8 @@ fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
         crate::LOG_UPCALLS,
         "upcall::translate(vpe={}, virt={:#x}, perm={:?})",
         vpe_id,
-        virt, perm
+        virt,
+        perm
     );
 
     let pte = vpe::get_mut(vpe_id)

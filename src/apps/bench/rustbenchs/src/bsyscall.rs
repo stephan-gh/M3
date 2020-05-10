@@ -108,10 +108,7 @@ fn create_mgate() {
     }
 
     let addr: usize = math::round_dn(&create_mgate as *const _ as usize, cfg::PAGE_SIZE);
-    wv_perf!(
-        "create_mgate",
-        prof.runner_with_id(&mut Tester(addr), 0x12)
-    );
+    wv_perf!("create_mgate", prof.runner_with_id(&mut Tester(addr), 0x12));
 }
 
 fn create_rgate() {

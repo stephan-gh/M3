@@ -48,11 +48,7 @@ pub struct PhysMem {
 }
 
 impl PhysMem {
-    pub fn new(
-        owner_mem: (Selector, goff),
-        size: goff,
-        perm: Perm,
-    ) -> Result<Self, Error> {
+    pub fn new(owner_mem: (Selector, goff), size: goff, perm: Perm) -> Result<Self, Error> {
         Ok(PhysMem {
             mgate: MemGate::new(size as usize, perm)?,
             owner_mem: Some(owner_mem),

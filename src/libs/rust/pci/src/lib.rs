@@ -132,7 +132,11 @@ impl Device {
         let pe = PE::new(PEDesc::new(PEType::COMP_IMEM, isa, 0))?;
         let vpe = VPE::new(pe, name)?;
         let vpe_sel = vpe.sel();
-        let mem = vpe.get_mem(0, (PCI_CFG_ADDR + REG_ADDR) as usize + cfg::PAGE_SIZE, Perm::RW)?;
+        let mem = vpe.get_mem(
+            0,
+            (PCI_CFG_ADDR + REG_ADDR) as usize + cfg::PAGE_SIZE,
+            Perm::RW,
+        )?;
         let sep = vpe.epmng().acquire_for(vpe_sel, EP_INT, 0)?;
         let mep = vpe.epmng().acquire_for(vpe_sel, EP_DMA, 0)?;
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
