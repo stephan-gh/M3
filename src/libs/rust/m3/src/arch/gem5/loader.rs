@@ -38,8 +38,8 @@ extern "C" {
     static _bss_end: u8;
 }
 
-fn sym_addr(sym: &u8) -> usize {
-    sym as *const u8 as usize
+fn sym_addr<T>(sym: &T) -> usize {
+    sym as *const _ as usize
 }
 
 pub fn copy_vpe(sp: usize, mem: MemGate) -> Result<usize, Error> {
