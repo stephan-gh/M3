@@ -144,11 +144,11 @@ impl<'a, T> DListIterMut<'a, T> {
                 Some(prev) => prev,
             };
 
-            let new = Some(Box::into_raw_non_null(Box::new(Node {
+            let new = Some(NonNull::from(Box::leak(Box::new(Node {
                 next: Some(node),
                 prev: Some(prev),
                 data,
-            })));
+            }))));
 
             prev.as_mut().next = new;
             node.as_mut().prev = new;
@@ -279,7 +279,7 @@ impl<T> DList<T> {
             let mut node = Box::new(Node::new(data));
             node.next = self.head;
             node.prev = None;
-            let node = Some(Box::into_raw_non_null(node));
+            let node = Some(NonNull::from(Box::leak(node)));
 
             match self.head {
                 None => self.tail = node,
@@ -313,7 +313,7 @@ impl<T> DList<T> {
             let mut node = Box::new(Node::new(data));
             node.next = None;
             node.prev = self.tail;
-            let node = Some(Box::into_raw_non_null(node));
+            let node = Some(NonNull::from(Box::leak(node)));
 
             match self.tail {
                 None => self.head = node,

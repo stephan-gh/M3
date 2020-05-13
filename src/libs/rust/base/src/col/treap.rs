@@ -185,7 +185,7 @@ impl<K: Copy + Ord, V> Treap<K, V> {
                 *r = None;
             }
 
-            *q = Some(Box::into_raw_non_null(Box::new(node)));
+            *q = Some(NonNull::from(Box::leak(Box::new(node))));
 
             // fibonacci hashing to spread the priorities very even in the 32-bit room
             self.prio += Wrapping(0x9e37_79b9); // floor(2^32 / phi), with phi = golden ratio
