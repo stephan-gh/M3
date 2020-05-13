@@ -1,28 +1,20 @@
 <config>
     <kernel args="kernel -f $fs.path" />
-    <app args="root">
+    <app args="root sharepe">
         <dom>
             <app args="m3fs mem $fs.size" daemon="1">
                 <serv name="m3fs" />
                 <physmem addr="0" size="$fs.size" />
             </app>
-        </dom>
-        <dom>
             <app args="pipes" daemon="1">
                 <serv name="pipes" />
             </app>
         </dom>
         <dom>
-            <app args="vterm" daemon="1">
-                <serv name="vterm" />
-            </app>
-        </dom>
-        <dom>
-            <app args="pager /bin/shell cat /test.txt | wc">
+            <app args="pager -s /bin/subsys -s /bin/bench-scale-pipe -d -i 1 -r 4 -w 1 grep_wc_grep grep_wc_wc $fs.size">
                 <sess name="m3fs" />
                 <sess name="pipes" />
-                <sess name="vterm" />
-                <pes type="core" count="3" />
+                <pes type="core" count="2" />
             </app>
         </dom>
     </app>

@@ -1,18 +1,17 @@
 <config>
     <kernel args="kernel -f $fs.path" />
-    <dom>
-        <app args="root" />
-    </dom>
-    <dom>
-        <app args="m3fs mem $fs.size" daemon="1">
-            <serv name="m3fs" />
-            <physmem addr="0" size="$fs.size" />
-        </app>
-    </dom>
-    <dom>
-        <app args="pager /bin/subsys /bin/bench-scale -i 4 -s 1 -r 1 empty">
-            <sess name="m3fs" />
-            <pes type="core" count="6" />
-        </app>
-    </dom>
+    <app args="root">
+        <dom>
+            <app args="m3fs mem $fs.size" daemon="1">
+                <serv name="m3fs" />
+                <physmem addr="0" size="$fs.size" />
+            </app>
+        </dom>
+        <dom>
+            <app args="pager /bin/subsys /bin/bench-scale -i 4 -s 1 -r 1 empty">
+                <sess name="m3fs" />
+                <pes type="core" count="6" />
+            </app>
+        </dom>
+    </app>
 </config>

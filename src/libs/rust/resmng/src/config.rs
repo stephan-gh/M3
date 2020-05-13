@@ -173,97 +173,6 @@ impl SemDesc {
     }
 }
 
-pub struct Config {
-    pub(crate) doms: Vec<Domain>,
-}
-
-impl Config {
-    pub fn parse(xml: &str, restrict: bool) -> Result<Self, Error> {
-        parser::parse(xml, restrict)
-    }
-
-    pub fn domains(&self) -> &Vec<Domain> {
-        &self.doms
-    }
-
-    pub fn count_apps(&self) -> usize {
-        self.doms.iter().fold(0, |total, d| total + d.apps.len())
-    }
-
-    pub fn check(&self) {
-        let mut services = BTreeSet::new();
-        for d in &self.doms {
-            for a in &d.apps {
-                Self::collect_services(&mut services, a);
-            }
-        }
-
-        for d in &self.doms {
-            for a in &d.apps {
-                Self::check_services(&services, a);
-            }
-        }
-
-        for d in &self.doms {
-            for a in &d.apps {
-                Self::check_pes(a);
-            }
-        }
-    }
-
-    fn count_pes(pe: &PEDesc) -> u32 {
-        let mut count = 0;
-        for i in 0..pes::get().count() {
-            if pe.matches(pes::get().get(i).desc()) {
-                count += 1;
-            }
-        }
-        count
-    }
-
-    fn check_pes(app: &AppConfig) {
-        for pe in &app.pes {
-            if !pe.optional {
-                let available = Self::count_pes(&pe);
-                if available < pe.count.get() {
-                    panic!(
-                        "AppConfig '{}' needs PE type '{}' {} times, but {} are available",
-                        app.name(),
-                        pe.ty,
-                        pe.count.get(),
-                        available
-                    );
-                }
-            }
-        }
-    }
-
-    fn collect_services(set: &mut BTreeSet<String>, app: &AppConfig) {
-        for serv in app.services() {
-            if set.contains(serv.global_name()) {
-                panic!(
-                    "config '{}': service '{}' does already exist",
-                    app.name(),
-                    serv.global_name()
-                );
-            }
-            set.insert(serv.global_name().clone());
-        }
-    }
-
-    fn check_services(set: &BTreeSet<String>, app: &AppConfig) {
-        for sess in app.sessions() {
-            if !set.contains(sess.serv_name()) {
-                panic!(
-                    "config '{}': service '{}' does not exist",
-                    app.name(),
-                    sess.serv_name()
-                );
-            }
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct Domain {
     pub(crate) apps: Vec<Rc<AppConfig>>,
@@ -284,6 +193,7 @@ pub struct AppConfig {
     pub(crate) eps: Option<u32>,
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
+    pub(crate) domains: Vec<Domain>,
     pub(crate) phys_mems: Vec<PhysMemDesc>,
     pub(crate) services: Vec<ServiceDesc>,
     pub(crate) sessions: Vec<SessionDesc>,
@@ -292,6 +202,10 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
+    pub fn parse(xml: &str, restrict: bool) -> Result<Self, Error> {
+        parser::parse(xml, restrict)
+    }
+
     pub fn new(args: Vec<String>, restrict: bool) -> Self {
         assert!(!args.is_empty());
         let mut cfg = AppConfig::default();
@@ -327,6 +241,10 @@ impl AppConfig {
 
     pub fn args(&self) -> &Vec<String> {
         &self.args
+    }
+
+    pub fn domains(&self) -> &Vec<Domain> {
+        &self.domains
     }
 
     pub fn phys_mems(&self) -> &Vec<PhysMemDesc> {
@@ -409,6 +327,88 @@ impl AppConfig {
         self.pes[idx].free();
     }
 
+    pub fn count_apps(&self) -> usize {
+        self.domains.iter().fold(0, |total, d| total + d.apps.len())
+    }
+
+    pub fn check(&self) {
+        self.check_services(&BTreeSet::new());
+        self.check_pes();
+    }
+
+    fn count_pes(pe: &PEDesc) -> u32 {
+        let mut count = 0;
+        for i in 0..pes::get().count() {
+            if pe.matches(pes::get().get(i).desc()) {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    fn check_pes(&self) {
+        for d in &self.domains {
+            for a in &d.apps {
+                a.check_pes();
+            }
+        }
+
+        for pe in &self.pes {
+            if !pe.optional {
+                let available = Self::count_pes(&pe);
+                if available < pe.count.get() {
+                    panic!(
+                        "AppConfig '{}' needs PE type '{}' {} times, but {} are available",
+                        self.name(),
+                        pe.ty,
+                        pe.count.get(),
+                        available
+                    );
+                }
+            }
+        }
+    }
+
+    fn check_services(&self, parent_set: &BTreeSet<String>) {
+        let mut set = BTreeSet::new();
+        for d in &self.domains {
+            for a in &d.apps {
+                for serv in a.services() {
+                    if set.contains(serv.global_name()) {
+                        panic!(
+                            "config '{}': service '{}' does already exist",
+                            a.name(),
+                            serv.global_name()
+                        );
+                    }
+                    set.insert(serv.global_name().clone());
+                }
+            }
+        }
+
+        let mut subset = set.clone();
+        for s in parent_set.iter() {
+            if !subset.contains(s) {
+                subset.insert(s.clone());
+            }
+        }
+        for d in &self.domains {
+            for a in &d.apps {
+                a.check_services(&subset);
+            }
+        }
+
+        for sess in self.sessions() {
+            if !set.contains(sess.serv_name()) && !parent_set.contains(sess.serv_name()) {
+                panic!(
+                    "config '{}': service '{}' does not exist",
+                    self.name(),
+                    sess.serv_name()
+                );
+            }
+        }
+    }
+
     fn print_rec(&self, f: &mut fmt::Formatter, layer: usize) -> Result<(), fmt::Error> {
         write!(f, "{:0w$}", "", w = layer)?;
         for a in &self.args {
@@ -481,32 +481,21 @@ impl AppConfig {
                 w = layer + 2
             )?;
         }
-        write!(f, "{:0w$}]", "", w = layer)
-    }
-}
-
-impl fmt::Debug for Config {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        writeln!(f, "Config [")?;
-        for d in &self.doms {
-            writeln!(f, "{:?}", d)?;
+        for d in &self.domains {
+            writeln!(f, "{:0w$}Domain[", "", w = layer + 2)?;
+            for a in &d.apps {
+                a.print_rec(f, layer + 4)?;
+            }
+            writeln!(f, "{:0w$}]", "", w = layer + 2)?;
         }
-        write!(f, "]")
-    }
-}
-
-impl fmt::Debug for Domain {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        writeln!(f, "  Domain [")?;
-        for a in &self.apps {
-            writeln!(f, "{:?}", a)?;
-        }
-        write!(f, "  ]")
+        writeln!(f, "{:0w$}]", "", w = layer)
     }
 }
 
 impl fmt::Debug for AppConfig {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        self.print_rec(f, 4)
+        writeln!(f, "Config [")?;
+        self.print_rec(f, 2)?;
+        writeln!(f, "]")
     }
 }

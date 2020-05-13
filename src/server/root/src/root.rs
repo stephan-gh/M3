@@ -21,27 +21,30 @@ extern crate m3;
 extern crate resmng;
 extern crate thread;
 
+mod config;
 mod loader;
+mod requests;
 
 use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, RefCell, StaticCell};
 use m3::cfg;
-use m3::col::{String, ToString, Vec};
-use m3::com::{GateIStream, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
-use m3::errors::{Code, Error};
+use m3::col::{String, Vec};
+use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
+use m3::errors::Error;
 use m3::goff;
 use m3::kif::{self, boot, PEDesc, PEType};
 use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::rc::Rc;
-use m3::session::{ResMng, ResMngOperation};
+use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
 use m3::util;
 
+use config::Config;
 use resmng::childs::{self, Child, Id, OwnChild};
-use resmng::{config, memory, pes, sems, sendqueue, services};
+use resmng::{memory, pes, sendqueue};
 
 //
 // The kernel initializes our cap space as follows:
@@ -56,139 +59,6 @@ static DELAYED: StaticCell<Vec<OwnChild>> = StaticCell::new(Vec::new());
 static MODS: StaticCell<(usize, usize)> = StaticCell::new((0, 0));
 static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 static OUR_PE: StaticCell<Option<Rc<pes::PEUsage>>> = StaticCell::new(None);
-
-fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
-    match res {
-        Err(e) => {
-            log!(resmng::LOG_DEF, "request failed: {}", e);
-            reply_vmsg!(is, e.code() as u64)
-        },
-        Ok(_) => reply_vmsg!(is, 0 as u64),
-    }
-    .expect("Unable to reply");
-}
-
-fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let dst_sel: Selector = is.pop()?;
-    let rgate_sel: Selector = is.pop()?;
-    let name: String = is.pop()?;
-
-    let res = services::get().reg_serv(child, dst_sel, rgate_sel, name);
-    if res.is_ok() && !DELAYED.get().is_empty() {
-        start_delayed();
-    }
-    res
-}
-
-fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop()?;
-    let notify: bool = is.pop()?;
-
-    services::get().unreg_serv(child, sel, notify)
-}
-
-fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let dst_sel: Selector = is.pop()?;
-    let name: String = is.pop()?;
-
-    services::get().open_session(child, dst_sel, &name)
-}
-
-fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop()?;
-
-    services::get().close_session(child, sel)
-}
-
-fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let vpe_sel: Selector = is.pop()?;
-    let sgate_sel: Selector = is.pop()?;
-    let name: String = is.pop()?;
-
-    child.add_child(vpe_sel, &RGATE, sgate_sel, name)
-}
-
-fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let vpe_sel: Selector = is.pop()?;
-
-    child.rem_child(vpe_sel).map(|_| ())
-}
-
-fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let dst_sel: Selector = is.pop()?;
-    let addr: goff = is.pop()?;
-    let size: goff = is.pop()?;
-    let perms = kif::Perm::from_bits_truncate(is.pop::<u32>()?);
-
-    if addr == !0 {
-        child.alloc_mem(dst_sel, size, perms)
-    }
-    else {
-        child.alloc_mem_at(dst_sel, addr, size, perms)
-    }
-}
-
-fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop()?;
-
-    child.free_mem(sel)
-}
-
-fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let dst_sel: Selector = is.pop()?;
-    let desc = kif::PEDesc::new_from(is.pop()?);
-
-    child
-        .alloc_pe(dst_sel, desc)
-        .and_then(|desc| reply_vmsg!(is, 0 as u64, desc.value()))
-}
-
-fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop()?;
-
-    child.free_pe(sel)
-}
-
-fn use_sem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
-    let sel: Selector = is.pop()?;
-    let name: String = is.pop()?;
-
-    child.use_sem(&name, sel)
-}
-
-fn handle_request(mut is: GateIStream) {
-    let op: Result<ResMngOperation, Error> = is.pop();
-    let child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
-
-    let res = match op {
-        Ok(ResMngOperation::REG_SERV) => reg_serv(&mut is, child),
-        Ok(ResMngOperation::UNREG_SERV) => unreg_serv(&mut is, child),
-
-        Ok(ResMngOperation::OPEN_SESS) => open_session(&mut is, child),
-        Ok(ResMngOperation::CLOSE_SESS) => close_session(&mut is, child),
-
-        Ok(ResMngOperation::ADD_CHILD) => add_child(&mut is, child),
-        Ok(ResMngOperation::REM_CHILD) => rem_child(&mut is, child),
-
-        Ok(ResMngOperation::ALLOC_MEM) => alloc_mem(&mut is, child),
-        Ok(ResMngOperation::FREE_MEM) => free_mem(&mut is, child),
-
-        Ok(ResMngOperation::ALLOC_PE) => {
-            let res = alloc_pe(&mut is, child);
-            if res.is_ok() {
-                return;
-            }
-            res
-        },
-        Ok(ResMngOperation::FREE_PE) => free_pe(&mut is, child),
-
-        Ok(ResMngOperation::USE_SEM) => use_sem(&mut is, child),
-
-        _ => Err(Error::new(Code::InvArgs)),
-    };
-
-    reply_result(&mut is, res);
-}
 
 fn start_child(child: &mut OwnChild, bsel: Selector, m: &'static boot::Mod) -> Result<(), Error> {
     #[allow(clippy::identity_conversion)]
@@ -245,97 +115,6 @@ fn start_delayed() {
     }
 }
 
-fn workloop() {
-    let thmng = thread::ThreadManager::get();
-    let upcall_rg = RecvGate::upcall();
-
-    loop {
-        tcu::TCUIf::sleep().ok();
-
-        let is = RGATE.fetch();
-        if let Some(is) = is {
-            handle_request(is);
-        }
-
-        let msg = tcu::TCUIf::fetch_msg(upcall_rg);
-        if let Some(msg) = msg {
-            childs::get().handle_upcall(msg);
-        }
-
-        sendqueue::check_replies();
-
-        if thmng.ready_count() > 0 {
-            thmng.try_yield();
-        }
-
-        if childs::get().is_empty() {
-            break;
-        }
-    }
-
-    if !thmng.cur().is_main() {
-        thmng.stop();
-        // just in case there is no ready thread
-        m3::exit(0);
-    }
-}
-
-fn split_mem(cfg: &config::Config, mems: &memory::MemModCon) -> (bool, usize, goff) {
-    let mut same_kmem = false;
-    let mut total_umem = mems.capacity();
-    let mut total_kmem = VPE::cur()
-        .kmem()
-        .quota()
-        .expect("Unable to determine own quota");
-
-    let mut total_kparties = cfg.count_apps() + 1;
-    let mut total_mparties = total_kparties;
-    for d in cfg.domains() {
-        for a in d.apps() {
-            if let Some(kmem) = a.kernel_mem() {
-                total_kmem -= kmem;
-                total_kparties -= 1;
-            }
-
-            if let Some(amem) = a.user_mem() {
-                total_umem -= amem as goff;
-                total_mparties -= 1;
-            }
-
-            if a.name().starts_with("root") {
-                // parse our own arguments
-                for arg in a.args() {
-                    if arg == "samekmem" {
-                        same_kmem = true;
-                    }
-                    else if arg.starts_with("sem=") {
-                        sems::get()
-                            .add_sem(arg[4..].to_string())
-                            .expect("Unable to add semaphore");
-                    }
-                }
-            }
-        }
-    }
-
-    let def_kmem = total_kmem / total_kparties;
-    let def_umem = math::round_dn(total_umem / total_mparties as goff, cfg::PAGE_SIZE as goff);
-    (same_kmem, def_kmem, def_umem)
-}
-
-fn split_eps(pe: &Rc<PE>, d: &config::Domain) -> Result<u32, Error> {
-    let mut total_eps = pe.quota()?;
-    let mut total_parties = d.apps().len();
-    for cfg in d.apps() {
-        if let Some(eps) = cfg.eps() {
-            total_eps -= eps;
-            total_parties -= 1;
-        }
-    }
-
-    Ok(total_eps.checked_div(total_parties as u32).unwrap_or(0))
-}
-
 fn start_boot_mods(mut mems: memory::MemModCon) {
     let mut cfg_mem: Option<(Id, goff)> = None;
 
@@ -359,22 +138,36 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
 
     // parse boot config
     let xml_str = String::from_utf8(xml).expect("Unable to convert boot config to UTF-8 string");
-    let cfg = config::Config::parse(&xml_str, true).expect("Unable to parse boot config");
+    let cfg = Config::parse(&xml_str, true).expect("Unable to parse boot config");
     log!(resmng::LOG_CFG, "Parsed {:?}", cfg);
     cfg.check();
 
+    let args = cfg.parse_args();
+
+    // keep our own PE to make sure that we allocate a different one for the next domain in case
+    // our domain contains just ourself.
+    if !args.share_pe {
+        OUR_PE.set(Some(Rc::new(
+            pes::get()
+                .find_and_alloc(VPE::cur().pe_desc())
+                .expect("Unable to find own PE"),
+        )));
+    }
+    else {
+        if !VPE::cur().pe_desc().has_virtmem() {
+            panic!("Can't share root's PE without VM support");
+        }
+    }
+
     // determine default mem and kmem per child
-    let (same_kmem, def_kmem, def_umem) = split_mem(&cfg, &mems);
+    let (def_kmem, def_umem) = cfg.split_mem(&mems);
 
     let mut id = 0;
     let mut moditer = boot::ModIterator::new(MODS.get().0, MODS.get().1);
-    for (dom, d) in cfg.domains().iter().enumerate() {
+    for d in cfg.root().domains().iter() {
         // we need virtual memory support for multiple apps per domain
         let cur_desc = VPE::cur().pe_desc();
         let pe_desc = if d.apps().len() > 1 {
-            if dom == 0 && !cur_desc.has_virtmem() {
-                panic!("Can't share root's PE without VM support");
-            }
             PEDesc::new(PEType::COMP_EMEM, cur_desc.isa(), 0)
         }
         else {
@@ -386,19 +179,9 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
                 .expect("Unable to find free and suitable PE"),
         );
 
-        // keep our own PE to make sure that we allocate a different one for the next domain in case
-        // our domain contains just ourself.
-        if pe_usage.pe_id() == VPE::cur().pe_id() {
-            OUR_PE.set(Some(pe_usage.clone()));
-        }
-
-        let def_eps = split_eps(&pe_usage.pe_obj(), &d).expect("Unable to split EPs");
+        let def_eps = Config::split_eps(&pe_usage.pe_obj(), &d).expect("Unable to split EPs");
 
         for cfg in d.apps() {
-            if cfg.name().starts_with("root") {
-                continue;
-            }
-
             let m = loop {
                 let m = moditer.next().unwrap();
                 if m.name() != "pemux" && m.name() != "boot.xml" && !m.name().starts_with("root") {
@@ -420,7 +203,7 @@ fn start_boot_mods(mut mems: memory::MemModCon) {
             };
 
             // kernel memory for child
-            let kmem = if cfg.kernel_mem().is_none() && same_kmem {
+            let kmem = if cfg.kernel_mem().is_none() && args.share_kmem {
                 VPE::cur().kmem().clone()
             }
             else {
@@ -587,7 +370,7 @@ pub fn main() -> i32 {
     thread::init();
     // TODO calculate the number of threads we need (one per child?)
     for _ in 0..8 {
-        thread::ThreadManager::get().add_thread(workloop as *const () as usize, 0);
+        thread::ThreadManager::get().add_thread(requests::workloop as *const () as usize, 0);
     }
 
     start_boot_mods(memcon);
@@ -597,7 +380,7 @@ pub fn main() -> i32 {
 
     childs::get().start_waiting(1);
 
-    workloop();
+    requests::workloop();
 
     log!(resmng::LOG_DEF, "All childs gone. Exiting.");
 

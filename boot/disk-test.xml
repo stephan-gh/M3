@@ -1,23 +1,22 @@
 <config>
     <kernel args="kernel -d" />
-    <dom>
-        <app args="root" />
-    </dom>
-    <dom>
-        <app args="disk -d -i -f $hd.path" daemon="1">
-            <serv name="disk" />
-            <pes type="ide" />
-        </app>
-    </dom>
-    <dom>
-        <app args="m3fs -b 2 disk" daemon="1">
-            <sess name="disk" args="0" />
-            <serv name="m3fs" />
-        </app>
-    </dom>
-    <dom>
-        <app args="disktest">
-            <sess name="m3fs" args="files=4" />
-        </app>
-    </dom>
+    <app args="root">
+        <dom>
+            <app args="disk -d -i -f $hd.path" daemon="1">
+                <serv name="disk" />
+                <pes type="ide" />
+            </app>
+        </dom>
+        <dom>
+            <app args="m3fs -b 2 disk" daemon="1">
+                <sess name="disk" args="0" />
+                <serv name="m3fs" />
+            </app>
+        </dom>
+        <dom>
+            <app args="disktest">
+                <sess name="m3fs" args="files=4" />
+            </app>
+        </dom>
+    </app>
 </config>

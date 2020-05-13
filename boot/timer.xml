@@ -1,16 +1,15 @@
 <config>
     <kernel args="kernel -f $fs.path" />
-    <dom>
-        <app args="root" />
-    </dom>
-    <dom>
-        <app args="timer" daemon="1">
-            <serv name="timer" />
-        </app>
-    </dom>
-    <dom>
-        <app args="timertest">
-            <sess name="timer" />
-        </app>
-    </dom>
+    <app args="root">
+        <dom>
+            <app args="timer" daemon="1">
+                <serv name="timer" />
+            </app>
+        </dom>
+        <dom>
+            <app args="timertest">
+                <sess name="timer" />
+            </app>
+        </dom>
+    </app>
 </config>

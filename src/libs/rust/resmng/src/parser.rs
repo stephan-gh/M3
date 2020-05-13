@@ -111,15 +111,6 @@ impl ConfigParser {
         Ok(Some((name, val_buf)))
     }
 
-    fn ignore_args(&mut self) -> Result<(), Error> {
-        loop {
-            match self.parse_arg()? {
-                None => break Ok(()),
-                Some(_) => continue,
-            }
-        }
-    }
-
     fn parse_tag_name(&mut self) -> Result<Option<String>, Error> {
         self.consume('<')?;
 
@@ -151,49 +142,13 @@ impl ConfigParser {
     }
 }
 
-pub(crate) fn parse(xml: &str, restrict: bool) -> Result<config::Config, Error> {
+pub(crate) fn parse(xml: &str, restrict: bool) -> Result<config::AppConfig, Error> {
     let mut p = ConfigParser::new(xml);
-    let mut cfg = config::Config { doms: Vec::new() };
 
-    parse_open_tag(&mut p, "config", |_| Err(Error::new(Code::InvArgs)))?;
-
-    parse_simple_element(&mut p, "kernel", |p| p.ignore_args())?;
-
-    parse_domains(&mut p, &mut cfg, restrict)?;
-
-    parse_close_tag(&mut p, "config")?;
-    Ok(cfg)
-}
-
-fn parse_domains(
-    p: &mut ConfigParser,
-    cfg: &mut config::Config,
-    restrict: bool,
-) -> Result<(), Error> {
-    while let Some(tag) = p.parse_tag_name()? {
-        if tag != "dom" {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        p.consume('>')?;
-
-        cfg.doms.push(parse_domain(p, restrict)?);
-
-        parse_close_tag(p, "dom")?;
+    match p.parse_tag_name()? {
+        Some(tag) if tag == "app" => parse_app(&mut p, restrict),
+        _ => Err(Error::new(Code::InvArgs)),
     }
-    Ok(())
-}
-
-fn parse_domain(p: &mut ConfigParser, restrict: bool) -> Result<config::Domain, Error> {
-    let mut group = config::Domain::default();
-    while let Some(tag) = p.parse_tag_name()? {
-        if tag != "app" {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        group.apps.push(Rc::new(parse_app(p, restrict)?));
-    }
-    Ok(group)
 }
 
 fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, Error> {
@@ -229,6 +184,7 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
     else if nc == '>' {
         while let Some(tag) = p.parse_tag_name()? {
             match tag.as_ref() {
+                "dom" => app.domains.push(parse_domain(p, restrict)?),
                 "sess" => app.sessions.push(parse_session(p)?),
                 "serv" => app.services.push(parse_service(p)?),
                 "physmem" => app.phys_mems.push(parse_physmem(p)?),
@@ -237,8 +193,10 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
                 _ => return Err(Error::new(Code::InvArgs)),
             }
 
-            p.consume('/')?;
-            p.consume('>')?;
+            if tag != "dom" {
+                p.consume('/')?;
+                p.consume('>')?;
+            }
         }
         parse_close_tag(p, "app")?;
         Ok(app)
@@ -246,6 +204,22 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
     else {
         Err(Error::new(Code::InvArgs))
     }
+}
+
+fn parse_domain(p: &mut ConfigParser, restrict: bool) -> Result<config::Domain, Error> {
+    p.consume('>')?;
+
+    let mut dom = config::Domain::default();
+    while let Some(tag) = p.parse_tag_name()? {
+        if tag != "app" {
+            return Err(Error::new(Code::InvArgs));
+        }
+
+        dom.apps.push(Rc::new(parse_app(p, restrict)?));
+    }
+
+    parse_close_tag(p, "dom")?;
+    Ok(dom)
 }
 
 fn parse_physmem(p: &mut ConfigParser) -> Result<config::PhysMemDesc, Error> {
@@ -344,41 +318,6 @@ fn parse_sem(p: &mut ConfigParser) -> Result<config::SemDesc, Error> {
     Ok(config::SemDesc::new(lname, gname))
 }
 
-fn parse_open_tag<A>(p: &mut ConfigParser, name: &str, mut args: A) -> Result<bool, Error>
-where
-    A: FnMut(&mut ConfigParser) -> Result<(), Error>,
-{
-    p.consume('<')?;
-
-    let mut name_buf = String::new();
-    let first = p.get_no_ws()?;
-    name_buf.push(first);
-
-    let closed = loop {
-        let mut c = p.get()?;
-        if c == '>' || c == '/' || c.is_whitespace() {
-            if name_buf != name {
-                return Err(Error::new(Code::InvArgs));
-            }
-            if c.is_whitespace() {
-                args(p)?;
-                c = p.get_no_ws()?;
-            }
-            break c == '/';
-        }
-
-        name_buf.push(c);
-    };
-
-    if closed {
-        p.consume('>')?;
-        Ok(false)
-    }
-    else {
-        Ok(true)
-    }
-}
-
 fn parse_close_tag(p: &mut ConfigParser, name: &str) -> Result<(), Error> {
     p.consume('<')?;
     p.consume('/')?;
@@ -386,18 +325,6 @@ fn parse_close_tag(p: &mut ConfigParser, name: &str) -> Result<(), Error> {
     let tname = p.parse_ident('>')?;
     if tname != name {
         Err(Error::new(Code::InvArgs))
-    }
-    else {
-        Ok(())
-    }
-}
-
-fn parse_simple_element<A>(p: &mut ConfigParser, name: &str, args: A) -> Result<(), Error>
-where
-    A: FnMut(&mut ConfigParser) -> Result<(), Error>,
-{
-    if parse_open_tag(p, name, args)? {
-        parse_close_tag(p, name)
     }
     else {
         Ok(())

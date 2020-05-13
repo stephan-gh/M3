@@ -1,13 +1,12 @@
 <config>
     <kernel args="kernel -m 4m" />
-    <dom>
-        <app args="root samekmem" />
-    </dom>
-    <dom>
-        <app args="dosattack" kernmem="128K" />
-        <app args="dosattack" eps="8" />
-    </dom>
-    <dom>
-        <app args="allocator" />
-    </dom>
+    <app args="root sharekmem">
+        <dom>
+            <app args="dosattack" kernmem="128K" />
+            <app args="dosattack" eps="8" />
+        </dom>
+        <dom>
+            <app args="allocator" />
+        </dom>
+    </app>
 </config>

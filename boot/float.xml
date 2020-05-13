@@ -1,9 +1,8 @@
 <config>
     <kernel args="kernel" />
-    <dom>
-        <app args="root" />
-    </dom>
-    <dom>
-        <app args="float" />
-    </dom>
+    <app args="root">
+        <dom>
+            <app args="float" />
+        </dom>
+    </app>
 </config>

@@ -50,18 +50,18 @@ generate_config() {
         s#\$fs.path#$fs#g;
         s#\$fs.size#$fssize#g;
         s#\$hd.path#$hd#g;
-    " < $1 > $2/boot.xml
+    " < $1 > $2/boot-all.xml
 
-    if type xmllint &> /dev/null; then
-        xmllint --schema misc/boot.xsd --noout $2/boot.xml > /dev/null || exit 1
-    fi
+    xmllint --schema misc/boot.xsd --noout $2/boot-all.xml > /dev/null || exit 1
+    # this can fail if there is no app element (e.g., standalone.xml)
+    xmllint --xpath /config/app $2/boot-all.xml > $2/boot.xml || true
 }
 
 build_params_host() {
     generate_config $1 run || exit 1
 
-    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < run/boot.xml)
-    mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^"\s]+).*"/' < run/boot.xml)
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < run/boot-all.xml)
+    mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < run/boot-all.xml)
     echo "$bindir/$kargs run/boot.xml$mods"
 }
 
@@ -70,8 +70,8 @@ build_params_gem5() {
 
     generate_config $1 $M3_GEM5_OUT || exit 1
 
-    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $M3_GEM5_OUT/boot.xml)
-    mods=$(perl -ne 'printf(",'$bindir'/%s", $1) if /app\s.*args="([^"\s]+).*"/' < $M3_GEM5_OUT/boot.xml)
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $M3_GEM5_OUT/boot-all.xml)
+    mods=$(perl -ne 'printf(",'$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_GEM5_OUT/boot-all.xml)
     mods="$M3_GEM5_OUT/boot.xml$mods,$bindir/pemux"
 
     if [ "$M3_GEM5_DBG" = "" ]; then
