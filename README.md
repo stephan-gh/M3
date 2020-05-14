@@ -44,7 +44,7 @@ The submodule in `hw/gem5` needs to be pulled in and built:
 Additionally, you need to build a cross compiler for the desired ISA:
 
     $ cd cross
-    $ ./build.sh (x86_64|arm)
+    $ ./build.sh (x86_64|arm|riscv)
 
 The cross compiler will be installed to ``<m3-root>/build/cross-<ISA>``.
 
