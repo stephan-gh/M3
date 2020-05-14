@@ -73,10 +73,6 @@ pub struct Info {
     pub mod_size: u64,
     /// The number of PEs
     pub pe_count: u64,
-    /// the base address of the memory areas for PEs
-    pub pe_mem_base: u64,
-    /// the size of the memory area per PE
-    pub pe_mem_size: u64,
     /// The memory regions
     pub mems: [Mem; MAX_MEMS],
 }
