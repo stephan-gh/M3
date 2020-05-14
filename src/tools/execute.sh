@@ -72,7 +72,7 @@ build_params_gem5() {
 
     kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $M3_GEM5_OUT/boot-all.xml)
     mods=$(perl -ne 'printf(",'$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_GEM5_OUT/boot-all.xml)
-    mods="$M3_GEM5_OUT/boot.xml$mods,$bindir/pemux"
+    mods="$M3_GEM5_OUT/boot.xml$mods"
 
     if [ "$M3_GEM5_DBG" = "" ]; then
         M3_GEM5_DBG="Tcu"

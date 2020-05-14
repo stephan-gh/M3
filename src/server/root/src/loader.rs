@@ -40,9 +40,9 @@ pub struct BootFile {
 }
 
 impl BootFile {
-    pub fn new(sel: Selector, size: usize) -> Self {
+    pub fn new(mgate: MemGate, size: usize) -> Self {
         BootFile {
-            mgate: MemGate::new_bind(sel),
+            mgate,
             size,
             pos: 0,
         }

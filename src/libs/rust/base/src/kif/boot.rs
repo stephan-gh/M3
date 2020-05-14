@@ -19,9 +19,16 @@
 use core::fmt;
 use core::intrinsics;
 use core::iter;
+use kif;
 use util;
 
 const MAX_MEMS: usize = 4;
+
+/// A processing element
+pub struct PE {
+    pub id: u32,
+    pub desc: kif::PEDesc,
+}
 
 /// A memory region
 #[repr(C, packed)]

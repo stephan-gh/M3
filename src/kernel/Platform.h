@@ -43,7 +43,7 @@ public:
 
     static m3::GlobAddr info_addr();
     static size_t info_size() {
-        return sizeof(_info) + _info.mod_size + _info.pe_count * sizeof(m3::PEDesc);
+        return sizeof(_info) + _info.mod_size + _info.pe_count * sizeof(m3::BootInfo::PE);
     }
     static size_t pe_count() {
         return _info.pe_count;

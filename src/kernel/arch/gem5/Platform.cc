@@ -48,8 +48,14 @@ void Platform::init() {
     Platform::_pes = new m3::PEDesc[info->pe_count];
     TCU::read_mem(kenvpes.pe(), kenvpes.offset(), Platform::_pes, pe_size);
 
+    // build new info for user PEs
+    m3::BootInfo uinfo;
+    memcpy(&uinfo, info, sizeof(uinfo));
+    auto upes = new m3::BootInfo::PE[info->pe_count - 1];
+
     // register memory modules
     size_t memidx = 0;
+    size_t peidx = 0;
     MainMemory &mem = MainMemory::get();
     for(size_t i = 0; i < info->pe_count; ++i) {
         m3::PEDesc pedesc = Platform::_pes[i];
@@ -61,33 +67,44 @@ void Platform::init() {
                     PANIC("Not enough DRAM for kernel memory (" << Args::kmem << ")");
                 size_t used = pedesc.mem_size() - avail;
                 mem.add(new MemoryModule(MemoryModule::OCCUPIED, m3::GlobAddr(i, 0), used));
-                info->mems[memidx++] = m3::BootInfo::Mem(0, used, true);
-                memidx++;
+                uinfo.mems[memidx++] = m3::BootInfo::Mem(0, used, true);
 
                 mem.add(new MemoryModule(MemoryModule::KERNEL, m3::GlobAddr(i, used), Args::kmem));
 
                 mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(i, used + Args::kmem), avail));
-                info->mems[memidx++] = m3::BootInfo::Mem(used + Args::kmem, avail, false);
+                uinfo.mems[memidx++] = m3::BootInfo::Mem(used + Args::kmem, avail, false);
             }
             else {
                 if(memidx >= ARRAY_SIZE(info->mems))
                     PANIC("Not enough memory slots in boot info");
 
                 mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(i, 0), pedesc.mem_size()));
-                info->mems[memidx++] = m3::BootInfo::Mem(0, pedesc.mem_size(), false);
+                uinfo.mems[memidx++] = m3::BootInfo::Mem(0, pedesc.mem_size(), false);
             }
         }
         else {
             if(memidx > 0)
                 PANIC("All memory PEs have to be last");
             last_pe_id = i;
+
+            // don't hand out the kernel PE
+            if(i > 0) {
+                assert(kernel_pe() == 0);
+                upes[peidx].id = i;
+                upes[peidx].desc = pedesc;
+                peidx++;
+            }
         }
     }
     for(; memidx < m3::BootInfo::MAX_MEMS; ++memidx)
-        info->mems[memidx] = m3::BootInfo::Mem(0, 0, false);
+        uinfo.mems[memidx] = m3::BootInfo::Mem(0, 0, false);
 
-    // write-back boot info (changes to mems)
-    TCU::write_mem(kenv.pe(), kenv.offset(), info, sizeof(*info));
+    // write-back boot info
+    uinfo.pe_count = peidx;
+    TCU::write_mem(kenv.pe(), kenv.offset(), &uinfo, sizeof(uinfo));
+    // write-back user PEs
+    TCU::write_mem(kenv.pe(), kenvpes.offset(), upes, sizeof(m3::BootInfo::PE) * uinfo.pe_count);
+    delete[] upes;
 }
 
 void Platform::add_modules(int, char **) {

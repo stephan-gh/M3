@@ -136,12 +136,13 @@ void Platform::add_modules(int argc, char **argv) {
     _info.mod_size = bmodsize;
 
     // build kinfo page
-    size_t bsize = sizeof(m3::BootInfo) + bmodsize + sizeof(m3::PEDesc) * PE_COUNT;
+    size_t bsize = sizeof(m3::BootInfo) + bmodsize + sizeof(m3::BootInfo::PE) * PE_COUNT;
     binfomem = mem.allocate(bsize, 1);
     if(!binfomem)
         PANIC("Not enough memory for boot info");
     m3::BootInfo *binfo = reinterpret_cast<m3::BootInfo*>(binfomem.addr().offset());
     memcpy(binfo, &_info, sizeof(_info));
+    binfo->pe_count -= 2;
 
     // add modules to info
     uintptr_t mod_addr = binfomem.addr().offset() + sizeof(_info);
@@ -153,9 +154,12 @@ void Platform::add_modules(int argc, char **argv) {
     }
 
     // add PEs to info
-    for(uint64_t i = 0; i < _info.pe_count; ++i) {
-        memcpy(reinterpret_cast<void*>(mod_addr), Platform::_pes + i, sizeof(m3::PEDesc));
-        mod_addr += sizeof(m3::PEDesc);
+    for(uint64_t i = 1; i < _info.pe_count - 1; ++i) {
+        m3::BootInfo::PE pe;
+        pe.id = i;
+        pe.desc = Platform::_pes[i];
+        memcpy(reinterpret_cast<void*>(mod_addr), &pe, sizeof(pe));
+        mod_addr += sizeof(m3::BootInfo::PE);
     }
 
     // free memory

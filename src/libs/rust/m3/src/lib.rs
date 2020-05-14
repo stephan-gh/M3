@@ -90,6 +90,7 @@ pub mod cap;
 pub mod pes;
 pub mod server;
 pub mod session;
+pub mod subsys;
 pub mod syscalls;
 pub mod vfs;
 

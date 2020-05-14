@@ -17,6 +17,7 @@
 #pragma once
 
 #include <base/Common.h>
+#include <base/PEDesc.h>
 
 #include <assert.h>
 
@@ -25,6 +26,11 @@ namespace m3 {
 class BootInfo {
 public:
     static const size_t MAX_MEMS = 4;
+
+    struct PE {
+        uint32_t id;
+        PEDesc desc;
+    } PACKED;
 
     struct Mod {
         uint64_t addr;

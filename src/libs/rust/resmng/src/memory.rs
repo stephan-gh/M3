@@ -33,9 +33,9 @@ pub struct MemMod {
 }
 
 impl MemMod {
-    pub fn new(sel: Selector, addr: goff, size: goff, reserved: bool) -> Self {
+    pub fn new(gate: MemGate, addr: goff, size: goff, reserved: bool) -> Self {
         MemMod {
-            gate: MemGate::new_bind(sel),
+            gate,
             addr,
             size,
             reserved,
