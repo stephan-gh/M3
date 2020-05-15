@@ -35,8 +35,9 @@ const SUBSYS_SELS: Selector = FIRST_FREE_SEL;
 
 pub struct Subsystem {
     info: boot::Info,
-    mods: Vec<u8>,
+    mods: Vec<boot::Mod>,
     pes: Vec<boot::PE>,
+    mems: Vec<boot::Mem>,
 }
 
 impl Subsystem {
@@ -47,33 +48,40 @@ impl Subsystem {
         let info: boot::Info = mgate.read_obj(0)?;
         off += util::size_of::<boot::Info>() as goff;
 
-        let mut mods = Vec::<u8>::with_capacity(info.mod_size as usize);
+        let mut mods = Vec::<boot::Mod>::with_capacity(info.mod_count as usize);
         // safety: will be initialized by read below
-        unsafe { mods.set_len(info.mod_size as usize) };
+        unsafe { mods.set_len(info.mod_count as usize) };
         mgate.read(&mut mods, off)?;
-        off += info.mod_size;
+        off += util::size_of::<boot::Mod>() as goff * info.mod_count;
 
         let mut pes = Vec::<boot::PE>::with_capacity(info.pe_count as usize);
         // safety: will be initialized by read below
         unsafe { pes.set_len(info.pe_count as usize) };
         mgate.read(&mut pes, off)?;
+        off += util::size_of::<boot::PE>() as goff * info.pe_count;
 
-        Ok(Self { info, mods, pes })
+        let mut mems = Vec::<boot::Mem>::with_capacity(info.mem_count as usize);
+        // safety: will be initialized by read below
+        unsafe { mems.set_len(info.mem_count as usize) };
+        mgate.read(&mut mems, off)?;
+
+        Ok(Self { info, mods, pes, mems })
     }
 
     pub fn info(&self) -> &boot::Info {
         &self.info
     }
 
-    pub fn mods(&self) -> boot::ModIterator {
-        boot::ModIterator::new(
-            self.mods.as_slice().as_ptr() as usize,
-            self.info.mod_size as usize,
-        )
+    pub fn mods(&self) -> &Vec<boot::Mod> {
+        &self.mods
     }
 
     pub fn pes(&self) -> &Vec<boot::PE> {
         &self.pes
+    }
+
+    pub fn mems(&self) -> &Vec<boot::Mem> {
+        &self.mems
     }
 
     pub fn get_mod(&self, idx: usize) -> MemGate {

@@ -31,17 +31,14 @@
 
 namespace kernel {
 
-m3::PEDesc *Platform::_pes;
 m3::BootInfo::Mod *Platform::_mods;
+m3::PEDesc *Platform::_pes;
+m3::BootInfo::Mem *Platform::_mems;
 m3::BootInfo Platform::_info;
 
 static MainMemory::Allocation binfomem;
 
 void Platform::init() {
-    // no modules
-    Platform::_info.mod_count = 0;
-    Platform::_info.mod_size = 0;
-
     size_t cores = PE_COUNT;
     const char *cores_str = getenv("M3_CORES");
     if(cores_str) {
@@ -56,22 +53,22 @@ void Platform::init() {
         total_pes += 2;
     if(Args::disk)
         total_pes++;
-    Platform::_info.pe_count = total_pes;
-    Platform::_pes = new m3::PEDesc[total_pes];
+    _info.pe_count = total_pes;
+    _pes = new m3::PEDesc[total_pes];
     size_t i = 0;
     for(; i < cores; ++i)
-        Platform::_pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
+        _pes[i] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::X86, 1024 * 1024);
 
     // these are dummy PEs; they do not really exist, but serve the purpose to let root not
     // complain that the IDE/NIC PE isn't present.
     if(Args::bridge) {
-        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::NIC, 0);
-        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::NIC, 0);
+        _pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::NIC, 0);
+        _pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::NIC, 0);
     }
     if(Args::disk)
-        Platform::_pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::IDE_DEV, 0);
+        _pes[i++] = m3::PEDesc(m3::PEType::COMP_IMEM, m3::PEISA::IDE_DEV, 0);
 
-    Platform::_pes[i++] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
+    _pes[i++] = m3::PEDesc(m3::PEType::MEM, m3::PEISA::NONE, TOTAL_MEM_SIZE);
 
     // create memory
     uintptr_t base = reinterpret_cast<uintptr_t>(
@@ -87,23 +84,23 @@ void Platform::init() {
     mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(0, base + FS_MAX_SIZE + Args::kmem), usize));
 
     // set memories
-    _info.mems[0] = m3::BootInfo::Mem(0, FS_MAX_SIZE, true);
-    _info.mems[1] = m3::BootInfo::Mem(FS_MAX_SIZE + Args::kmem, usize, false);
+    _info.mem_count = 2;
+    _mems = new m3::BootInfo::Mem[2];
+    _mems[0] = m3::BootInfo::Mem(0, FS_MAX_SIZE, true);
+    _mems[1] = m3::BootInfo::Mem(FS_MAX_SIZE + Args::kmem, usize, false);
 }
 
 void Platform::add_modules(int argc, char **argv) {
     MainMemory &mem = MainMemory::get();
 
-    std::vector<m3::BootInfo::Mod*> mods;
+    _mods = new m3::BootInfo::Mod[argc];
+
     size_t bmodsize = 0;
     for(int i = 0; i < argc; ++i) {
         m3::OStringStream args;
         args << basename(argv[i]);
 
-        m3::BootInfo::Mod *mod = reinterpret_cast<m3::BootInfo::Mod*>(
-            malloc(sizeof(m3::BootInfo::Mod) + args.length() + 1));
-        mod->namelen = args.length() + 1;
-        strcpy(mod->name, args.str());
+        strcpy(_mods[i].name, args.str());
 
         bmodsize += sizeof(m3::BootInfo::Mod) + args.length() + 1;
 
@@ -124,19 +121,18 @@ void Platform::add_modules(int argc, char **argv) {
                 PANIC("Reading from '" << argv[i] << "' failed");
             close(fd);
 
-            mod->addr = alloc.addr().offset();
-            mod->size = alloc.size;
+            _mods[i].addr = alloc.addr().offset();
+            _mods[i].size = alloc.size;
         }
-
-        mods.push_back(mod);
     }
 
     // set modules
-    _info.mod_count = mods.size();
-    _info.mod_size = bmodsize;
+    _info.mod_count = static_cast<uint64_t>(argc);
 
     // build kinfo page
-    size_t bsize = sizeof(m3::BootInfo) + bmodsize + sizeof(m3::BootInfo::PE) * PE_COUNT;
+    size_t bsize = sizeof(m3::BootInfo) + _info.mod_count * sizeof(m3::BootInfo::Mod)
+                                        + _info.pe_count * sizeof(m3::BootInfo::PE)
+                                        + _info.mem_count * sizeof(m3::BootInfo::Mem);
     binfomem = mem.allocate(bsize, 1);
     if(!binfomem)
         PANIC("Not enough memory for boot info");
@@ -144,27 +140,27 @@ void Platform::add_modules(int argc, char **argv) {
     memcpy(binfo, &_info, sizeof(_info));
     binfo->pe_count -= 2;
 
-    // add modules to info
+    // add modules
     uintptr_t mod_addr = binfomem.addr().offset() + sizeof(_info);
-    _mods = reinterpret_cast<m3::BootInfo::Mod*>(mod_addr);
-    for(auto mod : mods) {
-        size_t size = sizeof(*mod) + mod->namelen;
-        memcpy(reinterpret_cast<void*>(mod_addr), &*mod, size);
-        mod_addr += size;
+    for(uint64_t i = 0; i < _info.mod_count; ++i) {
+        memcpy(reinterpret_cast<void*>(mod_addr), _mods + i, sizeof(_mods[i]));
+        mod_addr += sizeof(_mods[i]);
     }
 
-    // add PEs to info
+    // add PEs
     for(uint64_t i = 1; i < _info.pe_count - 1; ++i) {
         m3::BootInfo::PE pe;
         pe.id = i;
         pe.desc = Platform::_pes[i];
         memcpy(reinterpret_cast<void*>(mod_addr), &pe, sizeof(pe));
-        mod_addr += sizeof(m3::BootInfo::PE);
+        mod_addr += sizeof(pe);
     }
 
-    // free memory
-    for(auto mod : mods)
-        free(&*mod);
+    // add memory regions
+    for(uint64_t i = 0; i < _info.mem_count; ++i) {
+        memcpy(reinterpret_cast<void*>(mod_addr), _mems + i, sizeof(_mems[i]));
+        mod_addr += sizeof(_mems[i]);
+    }
 }
 
 m3::GlobAddr Platform::info_addr() {

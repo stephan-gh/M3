@@ -45,6 +45,7 @@ struct BootEnv {
     uint64_t pe_mem_base;
     uint64_t pe_mem_size;
     uint64_t kenv;
+    uint64_t lambda;
 } PACKED;
 
 class Env : public BootEnv {
@@ -58,8 +59,6 @@ public:
     uint64_t entry;
     uint64_t first_std_ep;
     uint64_t first_sel;
-
-    uint64_t lambda;
 
     uint64_t rmng_sel;
     uint64_t pager_sess;

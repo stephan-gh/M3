@@ -114,7 +114,7 @@ fn start_boot_mods(subsys: &subsys::Subsystem, mut mems: memory::MemModCon) {
     let mut cfg_mem: Option<(MemGate, goff)> = None;
 
     // find boot config
-    for (id, m) in subsys.mods().enumerate() {
+    for (id, m) in subsys.mods().iter().enumerate() {
         if m.name() == "boot.xml" {
             cfg_mem = Some((subsys.get_mod(id), m.size));
             continue;
@@ -156,7 +156,7 @@ fn start_boot_mods(subsys: &subsys::Subsystem, mut mems: memory::MemModCon) {
     let (def_kmem, def_umem) = cfg.split_mem(&mems);
 
     let mut id = 0;
-    let mut moditer = subsys.mods();
+    let mut moditer = subsys.mods().iter();
     for d in cfg.root().domains().iter() {
         // we need virtual memory support for multiple apps per domain
         let cur_desc = VPE::cur().pe_desc();
@@ -260,25 +260,13 @@ pub fn main() -> i32 {
 
     log!(resmng::LOG_DEF, "Available PEs:");
     for (i, pe) in subsys.pes().iter().enumerate() {
-        log!(
-            resmng::LOG_DEF,
-            "  PE{:02}: {} {} {} KiB memory",
-            pe.id,
-            pe.desc.pe_type(),
-            pe.desc.isa(),
-            pe.desc.mem_size() / 1024
-        );
+        log!(resmng::LOG_DEF, "  {:?}", pe);
         pes::get().add(pe.id as tcu::PEId, subsys.get_pe(i));
     }
 
     log!(resmng::LOG_DEF, "Available memory:");
     let mut memcon = memory::MemModCon::default();
-    for i in 0..subsys.info().mems.len() {
-        let mem = &subsys.info().mems[i];
-        if mem.size() == 0 {
-            continue;
-        }
-
+    for (i, mem) in subsys.mems().iter().enumerate() {
         let mem_mod = Rc::new(memory::MemMod::new(
             subsys.get_mem(i),
             mem.addr(),

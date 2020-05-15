@@ -29,6 +29,7 @@ pub struct EnvData {
     pub pe_mem_base: u64,
     pub pe_mem_size: u64,
     pub kenv: u64,
+    pub lambda: u64,
 
     // set by PEMux
     pub shared: u64,
@@ -38,8 +39,6 @@ pub struct EnvData {
     pub entry: u64,
     pub first_std_ep: u64,
     pub first_sel: u64,
-
-    pub lambda: u64,
 
     pub rmng_sel: u64,
     pub pager_sess: u64,

@@ -21,10 +21,13 @@
 #include "TCU.h"
 #include "Platform.h"
 
+#include <memory>
+
 namespace kernel {
 
-m3::PEDesc *Platform::_pes;
 m3::BootInfo::Mod *Platform::_mods;
+m3::PEDesc *Platform::_pes;
+m3::BootInfo::Mem *Platform::_mems;
 m3::BootInfo Platform::_info;
 
 // note that we currently assume here, that compute PEs and memory PEs are not mixed
@@ -38,52 +41,60 @@ void Platform::init() {
 
     // read boot modules
     m3::GlobAddr kenvmods(kenv + sizeof(*info));
-    size_t total_mod_size = info->mod_size + sizeof(m3::BootInfo::Mod);
-    Platform::_mods = reinterpret_cast<m3::BootInfo::Mod*>(malloc(total_mod_size));
-    TCU::read_mem(kenvmods.pe(), kenvmods.offset(), Platform::_mods, info->mod_size);
+    size_t mod_size = info->mod_count * sizeof(m3::BootInfo::Mod);
+    Platform::_mods = new m3::BootInfo::Mod[info->mod_count];
+    TCU::read_mem(kenvmods.pe(), kenvmods.offset(), Platform::_mods, mod_size);
 
     // read PE descriptions
-    m3::GlobAddr kenvpes(kenvmods + info->mod_size);
+    m3::GlobAddr kenvpes(kenvmods + mod_size);
     size_t pe_size = sizeof(m3::PEDesc) * info->pe_count;
     Platform::_pes = new m3::PEDesc[info->pe_count];
     TCU::read_mem(kenvpes.pe(), kenvpes.offset(), Platform::_pes, pe_size);
 
+    // read memory regions
+    m3::GlobAddr kenvmems(kenvpes + pe_size);
+    size_t mem_size = sizeof(m3::BootInfo::Mem) * info->mem_count;
+    Platform::_mems = new m3::BootInfo::Mem[info->mem_count];
+    TCU::read_mem(kenvmems.pe(), kenvmems.offset(), Platform::_mems, mem_size);
+
     // build new info for user PEs
     m3::BootInfo uinfo;
     memcpy(&uinfo, info, sizeof(uinfo));
-    auto upes = new m3::BootInfo::PE[info->pe_count - 1];
+    auto umems = std::make_unique<m3::BootInfo::Mem[]>(info->mem_count);
+    auto upes = std::make_unique<m3::BootInfo::PE[]>(info->pe_count - 1);
 
     // register memory modules
-    size_t memidx = 0;
+    size_t umemidx = 0, kmemidx = 0;
     size_t peidx = 0;
     MainMemory &mem = MainMemory::get();
     for(size_t i = 0; i < info->pe_count; ++i) {
         m3::PEDesc pedesc = Platform::_pes[i];
         if(pedesc.type() == m3::PEType::MEM) {
             // the first memory module hosts the FS image and other stuff
-            if(memidx == 0) {
-                size_t avail = info->mems[memidx].size();
+            if(umemidx == 0) {
+                size_t avail = _mems[kmemidx].size();
                 if(avail <= Args::kmem)
                     PANIC("Not enough DRAM for kernel memory (" << Args::kmem << ")");
                 size_t used = pedesc.mem_size() - avail;
                 mem.add(new MemoryModule(MemoryModule::OCCUPIED, m3::GlobAddr(i, 0), used));
-                uinfo.mems[memidx++] = m3::BootInfo::Mem(0, used, true);
+                umems[umemidx++] = m3::BootInfo::Mem(0, used, true);
 
                 mem.add(new MemoryModule(MemoryModule::KERNEL, m3::GlobAddr(i, used), Args::kmem));
 
                 mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(i, used + Args::kmem), avail));
-                uinfo.mems[memidx++] = m3::BootInfo::Mem(used + Args::kmem, avail, false);
+                umems[umemidx++] = m3::BootInfo::Mem(used + Args::kmem, avail, false);
             }
             else {
-                if(memidx >= ARRAY_SIZE(info->mems))
+                if(umemidx >= info->mem_count)
                     PANIC("Not enough memory slots in boot info");
 
                 mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(i, 0), pedesc.mem_size()));
-                uinfo.mems[memidx++] = m3::BootInfo::Mem(0, pedesc.mem_size(), false);
+                umems[umemidx++] = m3::BootInfo::Mem(0, pedesc.mem_size(), false);
             }
+            kmemidx++;
         }
         else {
-            if(memidx > 0)
+            if(kmemidx > 0)
                 PANIC("All memory PEs have to be last");
             last_pe_id = i;
 
@@ -96,15 +107,17 @@ void Platform::init() {
             }
         }
     }
-    for(; memidx < m3::BootInfo::MAX_MEMS; ++memidx)
-        uinfo.mems[memidx] = m3::BootInfo::Mem(0, 0, false);
 
     // write-back boot info
     uinfo.pe_count = peidx;
+    uinfo.mem_count = umemidx;
     TCU::write_mem(kenv.pe(), kenv.offset(), &uinfo, sizeof(uinfo));
     // write-back user PEs
-    TCU::write_mem(kenv.pe(), kenvpes.offset(), upes, sizeof(m3::BootInfo::PE) * uinfo.pe_count);
-    delete[] upes;
+    TCU::write_mem(kenv.pe(), kenvpes.offset(),
+                   upes.get(), sizeof(m3::BootInfo::PE) * uinfo.pe_count);
+    // write-back user memory regions
+    TCU::write_mem(kenv.pe(), kenvpes.offset() + sizeof(m3::BootInfo::PE) * uinfo.pe_count,
+                   umems.get(), sizeof(m3::BootInfo::Mem) * uinfo.mem_count);
 }
 
 void Platform::add_modules(int, char **) {

@@ -33,26 +33,25 @@ public:
     static peid_t first_pe();
     static peid_t last_pe();
 
-    static m3::BootInfo::ModIterator mods_begin() {
-        return m3::BootInfo::ModIterator(_mods);
-    }
-    static m3::BootInfo::ModIterator mods_end() {
-        uintptr_t last = reinterpret_cast<uintptr_t>(_mods) + _info.mod_size;
-        return m3::BootInfo::ModIterator(reinterpret_cast<m3::BootInfo::Mod*>(last));
-    }
-
     static m3::GlobAddr info_addr();
     static size_t info_size() {
-        return sizeof(_info) + _info.mod_size + _info.pe_count * sizeof(m3::BootInfo::PE);
+        return sizeof(_info) + _info.mod_count * sizeof(m3::BootInfo::Mod)
+                             + _info.pe_count * sizeof(m3::BootInfo::PE)
+                             + _info.mem_count * sizeof(m3::BootInfo::Mem);
     }
+
     static size_t pe_count() {
         return _info.pe_count;
     }
-    static size_t mod_count() {
-        return _info.mod_count;
-    }
     static m3::PEDesc pe(peid_t no) {
         return _pes[no];
+    }
+
+    static m3::BootInfo::Mod *mods_begin() {
+        return _mods;
+    }
+    static m3::BootInfo::Mod *mods_end() {
+        return _mods + _info.mod_count;
     }
 
     static goff_t rbuf_pemux(peid_t no);
@@ -60,8 +59,9 @@ public:
     static bool is_shared(peid_t no);
 
 private:
-    static m3::PEDesc *_pes;
     static m3::BootInfo::Mod *_mods;
+    static m3::PEDesc *_pes;
+    static m3::BootInfo::Mem *_mems;
     static m3::BootInfo _info;
 };
 
