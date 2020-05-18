@@ -196,7 +196,7 @@ impl Drop for ResMng {
     fn drop(&mut self) {
         if self.vpe_sel != kif::INVALID_SEL {
             send_recv_res!(
-                &VPE::cur().resmng().sgate,
+                &VPE::cur().resmng().unwrap().sgate,
                 RecvGate::def(),
                 ResMngOperation::REM_CHILD,
                 self.vpe_sel

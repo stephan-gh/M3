@@ -116,11 +116,11 @@ fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error
         Err(_) => {
             // if that failed, ask our resource manager
             let our_sel = xlate_sel(child.id(), dst_sel)?;
-            VPE::cur().resmng().open_sess(our_sel, &name)?;
+            VPE::cur().resmng().unwrap().open_sess(our_sel, &name)?;
 
             if let Err(e) = child.delegate(our_sel, dst_sel) {
                 // if that failed, close it at our parent; ignore failures here
-                VPE::cur().resmng().close_sess(our_sel).ok();
+                VPE::cur().resmng().unwrap().close_sess(our_sel).ok();
                 Err(e)
             }
             else {
@@ -138,7 +138,7 @@ fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Erro
         Ok(_) => Ok(()),
         Err(_) => {
             let our_sel = xlate_sel(child.id(), sel)?;
-            VPE::cur().resmng().close_sess(our_sel)
+            VPE::cur().resmng().unwrap().close_sess(our_sel)
         },
     }
 }
@@ -183,12 +183,12 @@ fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 
     // forward memory requests to our resource manager
     let our_sel = xlate_sel(child.id(), dst_sel)?;
-    VPE::cur().resmng().alloc_mem(our_sel, addr, size, perms)?;
+    VPE::cur().resmng().unwrap().alloc_mem(our_sel, addr, size, perms)?;
 
     // delegate memory to our child
     child.delegate(our_sel, dst_sel).or_else(|e| {
         // if that failed, free it at our parent; ignore failures here
-        VPE::cur().resmng().free_mem(our_sel).ok();
+        VPE::cur().resmng().unwrap().free_mem(our_sel).ok();
         Err(e)
     })
 }
@@ -199,7 +199,7 @@ fn free_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     log!(resmng::LOG_MEM, "{}: free_mem(sel={})", child.name(), sel);
 
     let our_sel = xlate_sel(child.id(), sel)?;
-    VPE::cur().resmng().free_mem(our_sel)
+    VPE::cur().resmng().unwrap().free_mem(our_sel)
 }
 
 fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
@@ -215,7 +215,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     );
 
     let our_sel = xlate_sel(child.id(), dst_sel)?;
-    let res = VPE::cur().resmng().alloc_pe(our_sel, desc);
+    let res = VPE::cur().resmng().unwrap().alloc_pe(our_sel, desc);
     match res {
         Err(e) => {
             log!(resmng::LOG_DEF, "request failed: {}", e);
@@ -225,7 +225,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
             // delegate PE to our child
             if let Err(e) = child.delegate(our_sel, dst_sel) {
                 // if that failed, free it at our parent; ignore failures here
-                VPE::cur().resmng().free_pe(our_sel).ok();
+                VPE::cur().resmng().unwrap().free_pe(our_sel).ok();
                 reply_vmsg!(is, e.code() as u64)
             }
             else {
@@ -243,7 +243,7 @@ fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     log!(resmng::LOG_PES, "{}: free_pe(sel={})", child.name(), sel);
 
     let our_sel = xlate_sel(child.id(), sel)?;
-    VPE::cur().resmng().free_pe(our_sel)
+    VPE::cur().resmng().unwrap().free_pe(our_sel)
 }
 
 fn handle_request(mut is: GateIStream) {

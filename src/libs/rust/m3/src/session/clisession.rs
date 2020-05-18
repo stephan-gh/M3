@@ -37,7 +37,7 @@ impl ClientSession {
     /// Creates a new `ClientSession` by connecting to the service with given name, using the given
     /// capability selector for the session.
     pub fn new_with_sel(name: &str, sel: Selector) -> Result<Self, Error> {
-        VPE::cur().resmng().open_sess(sel, name)?;
+        VPE::cur().resmng().unwrap().open_sess(sel, name)?;
 
         Ok(ClientSession {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
@@ -156,7 +156,7 @@ impl ClientSession {
 impl Drop for ClientSession {
     fn drop(&mut self) {
         if self.close {
-            VPE::cur().resmng().close_sess(self.sel()).ok();
+            VPE::cur().resmng().unwrap().close_sess(self.sel()).ok();
         }
     }
 }

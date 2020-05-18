@@ -107,8 +107,11 @@ impl EnvData {
         }
     }
 
-    pub fn load_rmng(&self) -> ResMng {
-        ResMng::new(SendGate::new_bind(self.base.rmng_sel as Selector))
+    pub fn load_rmng(&self) -> Option<ResMng> {
+        match self.base.rmng_sel as Selector {
+            kif::INVALID_SEL => None,
+            s => Some(ResMng::new(SendGate::new_bind(s)))
+        }
     }
 
     pub fn load_first_sel(&self) -> Selector {

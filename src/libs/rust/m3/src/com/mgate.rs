@@ -94,6 +94,7 @@ impl MemGate {
 
         VPE::cur()
             .resmng()
+            .unwrap()
             .alloc_mem(sel, args.addr, args.size, args.perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
@@ -221,7 +222,7 @@ impl Drop for MemGate {
         if !self.gate.flags().contains(CapFlags::KEEP_CAP)
             && !self.flags.contains(MGateFlags::REVOKE)
         {
-            VPE::cur().resmng().free_mem(self.sel()).ok();
+            VPE::cur().resmng().unwrap().free_mem(self.sel()).ok();
             self.gate.set_flags(CapFlags::KEEP_CAP);
         }
     }

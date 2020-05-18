@@ -130,7 +130,7 @@ impl Server {
         rgate.activate()?;
 
         if public {
-            VPE::cur().resmng().reg_service(sel, rgate.sel(), name)?;
+            VPE::cur().resmng().unwrap().reg_service(sel, rgate.sel(), name)?;
         }
         else {
             syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), name)?;
@@ -267,7 +267,7 @@ impl Server {
 impl Drop for Server {
     fn drop(&mut self) {
         if self.public && !self.cap.flags().contains(CapFlags::KEEP_CAP) {
-            VPE::cur().resmng().unreg_service(self.sel(), false).ok();
+            VPE::cur().resmng().unwrap().unreg_service(self.sel(), false).ok();
             self.cap.set_flags(CapFlags::KEEP_CAP);
         }
     }

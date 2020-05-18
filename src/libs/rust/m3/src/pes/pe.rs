@@ -31,7 +31,7 @@ pub struct PE {
 impl PE {
     pub fn new(desc: PEDesc) -> Result<Rc<Self>, Error> {
         let sel = VPE::cur().alloc_sel();
-        let ndesc = VPE::cur().resmng().alloc_pe(sel, desc)?;
+        let ndesc = VPE::cur().resmng().unwrap().alloc_pe(sel, desc)?;
         Ok(Rc::new(PE {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
             desc: ndesc,
@@ -77,7 +77,7 @@ impl PE {
 impl Drop for PE {
     fn drop(&mut self) {
         if self.free {
-            VPE::cur().resmng().free_pe(self.sel()).ok();
+            VPE::cur().resmng().unwrap().free_pe(self.sel()).ok();
         }
     }
 }

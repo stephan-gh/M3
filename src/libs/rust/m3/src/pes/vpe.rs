@@ -21,7 +21,7 @@ use boxed::Box;
 use cap::{CapFlags, Capability, Selector};
 use cell::LazyStaticCell;
 use col::Vec;
-use com::{EpMng, MemGate, SendGate};
+use com::{EpMng, MemGate};
 use core::cmp;
 use core::fmt;
 use core::ops::FnOnce;
@@ -41,7 +41,7 @@ use vfs::{FileTable, MountTable};
 /// A virtual processing element is used to run an activity on a PE.
 pub struct VPE {
     cap: Capability,
-    rmng: ResMng, // close the connection resource manager at last
+    rmng: Option<ResMng>, // close the connection resource manager at last
     pe: Rc<PE>,
     kmem: Rc<KMem>,
     next_sel: Selector,
@@ -99,7 +99,7 @@ impl VPE {
         VPE {
             cap: Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP),
             pe: Rc::new(PE::new_bind(PEDesc::new_from(0), kif::SEL_PE)),
-            rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)), // invalid
+            rmng: None,
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
             epmng: EpMng::default(),
@@ -148,7 +148,7 @@ impl VPE {
             cap: Capability::new(sels + kif::SEL_VPE, CapFlags::empty()),
             pe: pe.clone(),
             kmem: args.kmem.unwrap_or_else(|| VPE::cur().kmem.clone()),
-            rmng: ResMng::new(SendGate::new_bind(kif::INVALID_SEL)),
+            rmng: None,
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
             epmng: EpMng::default(),
@@ -214,9 +214,9 @@ impl VPE {
             rmng
         }
         else {
-            VPE::cur().resmng().clone(&mut vpe, &args.name)?
+            VPE::cur().resmng().unwrap().clone(&mut vpe, &args.name)?
         };
-        vpe.rmng = resmng;
+        vpe.rmng = Some(resmng);
         // ensure that the child's cap space is not further ahead than ours
         // TODO improve that
         VPE::cur().next_sel = cmp::max(vpe.next_sel, VPE::cur().next_sel);
@@ -270,8 +270,8 @@ impl VPE {
     }
 
     /// Returns a reference to the VPE's resource manager.
-    pub fn resmng(&self) -> &ResMng {
-        &self.rmng
+    pub fn resmng(&self) -> Option<&ResMng> {
+        self.rmng.as_ref()
     }
 
     /// Returns a reference to the VPE's pager.
@@ -575,7 +575,7 @@ impl VPE {
             }
 
             senv.set_first_std_ep(self.eps_start);
-            senv.set_rmng(self.rmng.sel());
+            senv.set_rmng(self.resmng().unwrap().sel());
             senv.set_first_sel(self.next_sel);
             senv.set_pedesc(self.pe_desc());
 
@@ -632,7 +632,7 @@ impl VPE {
 
                 // write nextsel, eps, rmng, and kmem
                 arch::loader::write_env_value(pid, "nextsel", u64::from(self.next_sel));
-                arch::loader::write_env_value(pid, "rmng", u64::from(self.rmng.sel()));
+                arch::loader::write_env_value(pid, "rmng", u64::from(self.resmng().unwrap().sel()));
                 arch::loader::write_env_value(pid, "kmem", u64::from(self.kmem.sel()));
 
                 // write file table

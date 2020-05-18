@@ -30,7 +30,7 @@ impl Semaphore {
     /// Creates a new object that is attached to the global semaphore `name`.
     pub fn attach(name: &str) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
-        VPE::cur().resmng().use_sem(sel, name)?;
+        VPE::cur().resmng().unwrap().use_sem(sel, name)?;
 
         Ok(Semaphore {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),

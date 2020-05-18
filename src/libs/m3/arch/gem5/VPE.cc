@@ -83,7 +83,7 @@ void VPE::run(void *lambda) {
 
     senv.lambda = reinterpret_cast<uintptr_t>(lambda);
 
-    senv.rmng_sel = 0;
+    senv.rmng_sel = KIF::INV_SEL;
     senv.pager_sess = 0;
     senv.mounts_addr = 0;
     senv.mounts_len = 0;

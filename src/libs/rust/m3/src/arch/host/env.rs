@@ -82,8 +82,11 @@ impl EnvData {
         None
     }
 
-    pub fn load_rmng(&self) -> ResMng {
-        ResMng::new(SendGate::new_bind(Self::load_word("rmng", 0) as Selector))
+    pub fn load_rmng(&self) -> Option<ResMng> {
+        match Self::load_word("rmng", 0) as Selector {
+            0 => None,
+            s => Some(ResMng::new(SendGate::new_bind(s))),
+        }
     }
 
     pub fn load_first_sel(&self) -> Selector {
