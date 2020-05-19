@@ -22,7 +22,7 @@ use core::mem::MaybeUninit;
 pub const MAX_MSG_SIZE: usize = 440;
 
 /// The maximum size of strings in system calls
-pub const MAX_STR_SIZE: usize = 32;
+pub const MAX_STR_SIZE: usize = 64;
 
 /// The maximum number of arguments for the exchange syscalls
 pub const MAX_EXCHG_ARGS: usize = 8;

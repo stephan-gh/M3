@@ -19,7 +19,7 @@
 use kif::syscalls;
 
 /// The maximum size of strings in service calls
-pub const MAX_STR_SIZE: usize = 32;
+pub const MAX_STR_SIZE: usize = super::syscalls::MAX_STR_SIZE;
 
 int_enum! {
     /// The service calls

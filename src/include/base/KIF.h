@@ -44,6 +44,11 @@ struct KIF {
      */
     static const size_t MAX_MSG_SIZE    = 440;
 
+    /**
+     * The maximum string length in messages
+     */
+    static const size_t MAX_STR_SIZE    = 64;
+
     static const capsel_t SEL_PE        = 0;
     static const capsel_t SEL_KMEM      = 1;
     static const capsel_t SEL_VPE       = 2;
@@ -198,7 +203,7 @@ struct KIF {
             xfer_t vpe_sel;
             xfer_t rgate_sel;
             xfer_t namelen;
-            char name[32];
+            char name[MAX_STR_SIZE];
         } PACKED;
 
         struct CreateSess : public DefaultRequest {
@@ -245,7 +250,7 @@ struct KIF {
             xfer_t pe_sel;
             xfer_t kmem_sel;
             xfer_t namelen;
-            char name[32];
+            char name[MAX_STR_SIZE];
         } PACKED;
 
         struct CreateVPEReply : public DefaultReply {
@@ -376,7 +381,7 @@ struct KIF {
 
         struct Open : public DefaultRequest {
             xfer_t arglen;
-            char arg[MAX_MSG_SIZE];
+            char arg[MAX_STR_SIZE];
         } PACKED;
 
         struct OpenReply : public DefaultReply {
