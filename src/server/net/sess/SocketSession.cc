@@ -62,8 +62,8 @@ void NetEventChannelWorkItem::work() {
     }
 }
 
-SocketSession::SocketSession(m3::WorkLoop *wl, capsel_t srv_sel, m3::RecvGate& rgate)
-    : NMSession(srv_sel),
+SocketSession::SocketSession(m3::WorkLoop *wl, size_t crt, capsel_t srv_sel, m3::RecvGate& rgate)
+    : NMSession(crt, srv_sel),
       _wl(wl),
       _sgate(nullptr),
       _rgate(rgate),
@@ -88,13 +88,13 @@ SocketSession::~SocketSession() {
     }
 }
 
-m3::Errors::Code SocketSession::obtain(capsel_t srv_sel, m3::CapExchange &xchg) {
+m3::Errors::Code SocketSession::obtain(capsel_t srv_sel, size_t crt, m3::CapExchange &xchg) {
     if(xchg.in_caps() == 1) {
         return get_sgate(xchg);
     } else if(xchg.in_caps() == 3) {
         return establish_channel(xchg);
     } else if(xchg.in_caps() == 2) {
-        return open_file(srv_sel, xchg);
+        return open_file(crt, srv_sel, xchg);
     } else {
         return Errors::INV_ARGS;
     }
@@ -132,7 +132,7 @@ m3::Errors::Code SocketSession::establish_channel(m3::CapExchange &xchg) {
     return Errors::NONE;
 }
 
-m3::Errors::Code SocketSession::open_file(capsel_t srv_sel, m3::CapExchange &xchg) {
+m3::Errors::Code SocketSession::open_file(size_t crt, capsel_t srv_sel, m3::CapExchange &xchg) {
     int sd, mode;
     size_t rmemsize, smemsize;
     xchg.in_args() >> sd >> mode >> rmemsize >> smemsize;
@@ -149,7 +149,7 @@ m3::Errors::Code SocketSession::open_file(capsel_t srv_sel, m3::CapExchange &xch
             return Errors::INV_ARGS;
         }
 
-        FileSession *file = new FileSession(_wl, srv_sel, socket, mode, rmemsize, smemsize);
+        FileSession *file = new FileSession(_wl, crt, srv_sel, socket, mode, rmemsize, smemsize);
         if(file->is_recv())
             socket->_rfile = file;
         if(file->is_send())

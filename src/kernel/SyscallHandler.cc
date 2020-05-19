@@ -59,8 +59,12 @@ SyscallHandler::handler_func SyscallHandler::_callbacks[m3::KIF::Syscall::COUNT]
         return;                                                                             \
     }
 
-#define SYS_CREATE_CAP(vpe, msg, CAP, KOBJ, tbl, sel, ...) ({                               \
-        auto cap = CREATE_CAP(CAP, KOBJ, tbl, sel, ##__VA_ARGS__);                          \
+#define SYS_CREATE_CAP(vpe, msg, CAP, KOBJ, tbl, sel, ...)                                  \
+    SYS_CREATE_CAP_SIZE(vpe, msg, CAP, KOBJ, sizeof(CAP) + sizeof(KOBJ),                    \
+                        tbl, sel, ##__VA_ARGS__)
+
+#define SYS_CREATE_CAP_SIZE(vpe, msg, CAP, KOBJ, size, tbl, sel, ...) ({                    \
+        auto cap = CREATE_CAP_SIZE(CAP, KOBJ, size, tbl, sel, ##__VA_ARGS__);               \
         if(cap == nullptr)                                                                  \
             SYS_ERROR(vpe, msg, m3::Errors::NO_KMEM, "Out of kernel memory");               \
         cap;                                                                                \
@@ -111,6 +115,7 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::DERIVE_MEM,     &SyscallHandler::derive_mem);
     add_operation(m3::KIF::Syscall::DERIVE_KMEM,    &SyscallHandler::derive_kmem);
     add_operation(m3::KIF::Syscall::DERIVE_PE,      &SyscallHandler::derive_pe);
+    add_operation(m3::KIF::Syscall::DERIVE_SRV,     &SyscallHandler::derive_srv);
     add_operation(m3::KIF::Syscall::KMEM_QUOTA,     &SyscallHandler::kmem_quota);
     add_operation(m3::KIF::Syscall::PE_QUOTA,       &SyscallHandler::pe_quota);
     add_operation(m3::KIF::Syscall::SEM_CTRL,       &SyscallHandler::sem_ctrl);
@@ -145,12 +150,12 @@ void SyscallHandler::handle_message(VPE *vpe, const m3::TCU::Message *msg) {
 void SyscallHandler::create_srv(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateSrv>(msg);
     capsel_t dst = req->dst_sel;
-    capsel_t tvpe = req->vpe_sel;
     capsel_t rgate = req->rgate_sel;
+    word_t creator = req->creator;
     m3::String name(req->name, m3::Math::min(static_cast<size_t>(req->namelen), sizeof(req->name)));
 
-    LOG_SYS(vpe, ": syscall::create_srv", "(dst=" << dst << ", vpe=" << tvpe
-        << ", rgate=" << rgate << ", name=" << name << ")");
+    LOG_SYS(vpe, ": syscall::create_srv", "(dst=" << dst << ", rgate=" << rgate
+        << ", name=" << name << ", creator=" << creator << ")");
 
     if(!vpe->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid server selector");
@@ -161,16 +166,12 @@ void SyscallHandler::create_srv(VPE *vpe, const m3::TCU::Message *msg) {
     if(!rgatecap->obj->activated())
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "RGate capability not activated");
 
-    auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
-    if(vpecap == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE capability invalid");
-
     if(name.length() == 0)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid server name");
 
-    auto servcap = SYS_CREATE_CAP(vpe, msg, ServCapability, Service,
-        &vpe->objcaps(), dst, *vpecap->obj, name, rgatecap->obj);
-    vpe->objcaps().inherit(vpecap, servcap);
+    auto servcap = SYS_CREATE_CAP_SIZE(vpe, msg, ServCapability, ServObject,
+        sizeof(ServCapability) + sizeof(ServObject) + sizeof(Service),
+        &vpe->objcaps(), dst, new Service(*vpe, name, rgatecap->obj), true, creator);
     vpe->objcaps().set(dst, servcap);
 
     reply_result(vpe, msg, m3::Errors::NONE);
@@ -180,22 +181,24 @@ void SyscallHandler::create_sess(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateSess>(msg);
     capsel_t dst = req->dst_sel;
     capsel_t srv = req->srv_sel;
+    word_t creator = req->creator;
     word_t ident = req->ident;
     bool auto_close = req->auto_close != 0;
 
     LOG_SYS(vpe, ": syscall::create_sess", "(dst=" << dst
-        << ", srv=" << srv << ", ident=#" << m3::fmt(ident, "0x")
+        << ", srv=" << srv << ", creator=" << creator << ", ident=#" << m3::fmt(ident, "0x")
         << ", auto_close=" << auto_close << ")");
 
     if(!vpe->objcaps().unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid session selector");
 
     auto srvcap = static_cast<ServCapability*>(vpe->objcaps().get(srv, Capability::SERV));
-    if(srvcap == nullptr)
+    // only the VPE that created the service can create sessions
+    if(srvcap == nullptr || srvcap->parent() != nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Service capability is invalid");
 
     auto sesscap = SYS_CREATE_CAP(vpe, msg, SessCapability, SessObject,
-        &vpe->objcaps(), dst, const_cast<Service*>(&*srvcap->obj), ident, auto_close);
+        &vpe->objcaps(), dst, &*srvcap->obj, creator, ident, auto_close);
     vpe->objcaps().inherit(srvcap, sesscap);
     vpe->objcaps().set(dst, sesscap);
 
@@ -879,6 +882,70 @@ void SyscallHandler::derive_pe(VPE *vpe, const m3::TCU::Message *msg) {
     reply_result(vpe, msg, m3::Errors::NONE);
 }
 
+void SyscallHandler::derive_srv(VPE *vpe, const m3::TCU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::DeriveSrv>(msg);
+    m3::KIF::CapRngDesc dst(req->dst_crd);
+    capsel_t srv = req->srv_sel;
+    uint sessions = req->sessions;
+
+    LOG_SYS(vpe, ": syscall::derive_srv", "(dst=" << dst << ", srv=" << srv << ")");
+
+    if(dst.count() != 2 || !vpe->objcaps().range_unused(dst))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid destination selectors");
+
+    auto srvcap = static_cast<ServCapability*>(vpe->objcaps().get(srv, Capability::SERV));
+    if(srvcap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Service capability is invalid");
+
+    // we can't be sure that the session and the VPE still exist when we receive the reply
+    m3::Reference<Service> rsrv(srvcap->obj->srv);
+    m3::Reference<VPE> rvpe(vpe);
+
+    m3::KIF::Service::DeriveCreator smsg;
+    smsg.opcode = m3::KIF::Service::DERIVE_CRT;
+    smsg.sessions = sessions;
+
+    auto creator = srvcap->obj->creator;
+    KLOG(SERV, "Sending DERIVE_CRT request to service " << rsrv->name()
+        << " with creator=" << creator);
+
+    const m3::TCU::Message *srvreply = rsrv->send_receive(creator, &smsg, sizeof(smsg), false);
+
+    // if the VPE exited, we don't even want to reply
+    if(!vpe->has_app()) {
+        // due to the missing reply, we need to ack the msg explicitly
+        TCU::ack_msg(vpe->syscall_ep(), msg);
+        LOG_ERROR(vpe, m3::Errors::VPE_GONE, "Client died during cap exchange");
+        return;
+    }
+
+    if(srvreply == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::RECV_GONE, "Service unreachable");
+
+    auto *reply = reinterpret_cast<const m3::KIF::Service::DeriveCreatorReply*>(srvreply->data);
+
+    KLOG(SERV, "Received DERIVE_CRT response from service " << rsrv->name()
+        << " with creator=" << reply->creator << ": " << reply->error);
+
+    m3::Errors::Code res = static_cast<m3::Errors::Code>(reply->error);
+    if(res != m3::Errors::NONE)
+        SYS_ERROR(vpe, msg, res, "Service denied session open");
+
+    auto sgate = static_cast<SGateCapability*>(
+        rsrv->vpe().objcaps().get(reply->sgate_sel, Capability::SGATE));
+    if(sgate == nullptr)
+        SYS_ERROR(vpe, msg, res, "Service gave invalid SendGate cap");
+
+    auto nsrvcap = SYS_CREATE_CAP(vpe, msg, ServCapability, ServObject,
+        &vpe->objcaps(), dst.start() + 0, &*rsrv, false, reply->creator);
+    vpe->objcaps().inherit(srvcap, nsrvcap);
+    vpe->objcaps().set(dst.start() + 0, nsrvcap);
+
+    vpe->objcaps().obtain(dst.start() + 1, sgate);
+
+    reply_result(vpe, msg, m3::Errors::NONE);
+}
+
 void SyscallHandler::kmem_quota(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::KMemQuota>(msg);
     capsel_t kmem = req->kmem_sel;
@@ -1046,7 +1113,7 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, b
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid session cap");
 
     // we can't be sure that the session and the VPE still exist when we receive the reply
-    m3::Reference<Service> rsrv(sesscap->obj->srv);
+    m3::Reference<Service> rsrv(sesscap->obj->srv->srv);
     m3::Reference<VPE> rvpe(vpe);
 
     m3::KIF::Service::Exchange smsg;
@@ -1056,12 +1123,13 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, b
     smsg.data.args.bytes = m3::Math::min(sizeof(smsg.data.args.data),
                                          static_cast<size_t>(req->args.bytes));
     memcpy(&smsg.data.args.data, &req->args.data, smsg.data.args.bytes);
+    label_t creator = sesscap->obj->creator;
 
     KLOG(SERV, "Sending " << (obtain ? "OBTAIN" : "DELEGATE")
-        << " request to service " << rsrv->name()
+        << " request to service " << rsrv->name() << " with creator " << creator
         << " for sess " << m3::fmt(smsg.sess, "#x"));
 
-    const m3::TCU::Message *srvreply = rsrv->send_receive(smsg.sess, &smsg, sizeof(smsg), false);
+    const m3::TCU::Message *srvreply = rsrv->send_receive(creator, &smsg, sizeof(smsg), false);
 
     // if the VPE exited, we don't even want to reply
     if(!vpe->has_app()) {

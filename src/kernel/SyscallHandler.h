@@ -69,6 +69,7 @@ private:
     static void derive_mem(VPE *vpe, const m3::TCU::Message *msg);
     static void derive_kmem(VPE *vpe, const m3::TCU::Message *msg);
     static void derive_pe(VPE *vpe, const m3::TCU::Message *msg);
+    static void derive_srv(VPE *vpe, const m3::TCU::Message *msg);
     static void kmem_quota(VPE *vpe, const m3::TCU::Message *msg);
     static void pe_quota(VPE *vpe, const m3::TCU::Message *msg);
     static void sem_ctrl(VPE *vpe, const m3::TCU::Message *msg);

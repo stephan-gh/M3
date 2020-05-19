@@ -171,6 +171,7 @@ struct KIF {
             DERIVE_MEM,
             DERIVE_KMEM,
             DERIVE_PE,
+            DERIVE_SRV,
             KMEM_QUOTA,
             PE_QUOTA,
             SEM_CTRL,
@@ -200,8 +201,8 @@ struct KIF {
 
         struct CreateSrv : public DefaultRequest {
             xfer_t dst_sel;
-            xfer_t vpe_sel;
             xfer_t rgate_sel;
+            xfer_t creator;
             xfer_t namelen;
             char name[MAX_STR_SIZE];
         } PACKED;
@@ -209,6 +210,7 @@ struct KIF {
         struct CreateSess : public DefaultRequest {
             xfer_t dst_sel;
             xfer_t srv_sel;
+            xfer_t creator;
             xfer_t ident;
             xfer_t auto_close;
         } PACKED;
@@ -318,6 +320,12 @@ struct KIF {
             xfer_t eps;
         } PACKED;
 
+        struct DeriveSrv : public DefaultRequest {
+            xfer_t dst_crd;
+            xfer_t srv_sel;
+            xfer_t sessions;
+        } PACKED;
+
         struct KMemQuota : public DefaultRequest {
             xfer_t kmem_sel;
         } PACKED;
@@ -373,6 +381,7 @@ struct KIF {
     struct Service {
         enum Operation {
             OPEN,
+            DERIVE_CRT,
             OBTAIN,
             DELEGATE,
             CLOSE,
@@ -387,6 +396,15 @@ struct KIF {
         struct OpenReply : public DefaultReply {
             xfer_t sess;
             xfer_t ident;
+        } PACKED;
+
+        struct DeriveCreator : public DefaultRequest {
+            xfer_t sessions;
+        } PACKED;
+
+        struct DeriveCreatorReply : public DefaultReply {
+            xfer_t creator;
+            xfer_t sgate_sel;
         } PACKED;
 
         struct ExchangeData {

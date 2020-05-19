@@ -29,9 +29,12 @@ class PEManager;
 class VPECapability;
 class VPEManager;
 
-#define CREATE_CAP(CAP, KOBJ, tbl, sel, ...)                                 \
-    (tbl)->vpe()->kmem()->alloc(*(tbl)->vpe(), sizeof(CAP) + sizeof(KOBJ)) ? \
-        new CAP(tbl, sel, new KOBJ(__VA_ARGS__))                           : \
+#define CREATE_CAP(CAP, KOBJ, tbl, sel, ...) \
+    CREATE_CAP_SIZE(CAP, KOBJ, sizeof(CAP) + sizeof(KOBJ), tbl, sel, ##__VA_ARGS__)
+
+#define CREATE_CAP_SIZE(CAP, KOBJ, size, tbl, sel, ...) \
+    (tbl)->vpe()->kmem()->alloc(*(tbl)->vpe(), size) ?  \
+        new CAP(tbl, sel, new KOBJ(__VA_ARGS__))     :  \
         nullptr
 
 class VPE : public SlabObject<VPE>, public m3::RefCounted {

@@ -33,6 +33,7 @@ use dataspace::DataSpace;
 const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 
 pub struct AddrSpace {
+    crt: usize,
     parent: Option<SessId>,
     sess: ServerSession,
     owner: Option<Selector>,
@@ -41,14 +42,19 @@ pub struct AddrSpace {
 }
 
 impl AddrSpace {
-    pub fn new(sess: ServerSession, parent: Option<SessId>) -> Self {
+    pub fn new(crt: usize, sess: ServerSession, parent: Option<SessId>) -> Self {
         AddrSpace {
+            crt,
             parent,
             sess,
             owner: None,
             sgates: Vec::new(),
             ds: Vec::new(),
         }
+    }
+
+    pub fn creator(&self) -> usize {
+        self.crt
     }
 
     pub fn id(&self) -> SessId {

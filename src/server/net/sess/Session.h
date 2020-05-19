@@ -34,15 +34,15 @@ public:
         FILE,
     };
 
-    explicit NMSession(capsel_t srv_sel, capsel_t sel = m3::ObjCap::INVALID)
-        : m3::ServerSession(srv_sel, sel), m3::SListItem() {
+    explicit NMSession(size_t crt, capsel_t srv_sel, capsel_t sel = m3::ObjCap::INVALID)
+        : m3::ServerSession(crt, srv_sel, sel), m3::SListItem() {
     }
     virtual ~NMSession() {
     }
 
     virtual Type type() const = 0;
 
-    virtual m3::Errors::Code obtain(capsel_t, m3::CapExchange &) {
+    virtual m3::Errors::Code obtain(capsel_t, size_t, m3::CapExchange &) {
         return m3::Errors::NOT_SUP;
     }
     virtual m3::Errors::Code delegate(m3::CapExchange &) {

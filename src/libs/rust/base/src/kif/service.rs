@@ -25,10 +25,11 @@ int_enum! {
     /// The service calls
     pub struct Operation : u64 {
         const OPEN          = 0x0;
-        const OBTAIN        = 0x1;
-        const DELEGATE      = 0x2;
-        const CLOSE         = 0x3;
-        const SHUTDOWN      = 0x4;
+        const DERIVE_CRT    = 0x1;
+        const OBTAIN        = 0x2;
+        const DELEGATE      = 0x3;
+        const CLOSE         = 0x4;
+        const SHUTDOWN      = 0x5;
     }
 }
 
@@ -46,6 +47,21 @@ pub struct OpenReply {
     pub res: u64,
     pub sess: u64,
     pub ident: u64,
+}
+
+/// The derive-creator request message
+#[repr(C, packed)]
+pub struct DeriveCreator {
+    pub opcode: u64,
+    pub sessions: u64,
+}
+
+/// The open reply message
+#[repr(C, packed)]
+pub struct DeriveCreatorReply {
+    pub res: u64,
+    pub creator: u64,
+    pub sgate_sel: u64,
 }
 
 /// The data part of the delegate/obtain request messages

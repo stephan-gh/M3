@@ -366,6 +366,11 @@ impl<'r> GateIStream<'r> {
         }
     }
 
+    /// Returns the receive gate this message was received with
+    pub fn rgate(&self) -> &RecvGate {
+        self.rgate
+    }
+
     /// Returns the label of the message
     #[inline(always)]
     pub fn label(&self) -> tcu::Label {

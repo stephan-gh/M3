@@ -58,7 +58,7 @@ struct CapContainer {
 
 class M3FSFileSession : public M3FSSession, public m3::SListItem {
 public:
-    explicit M3FSFileSession(FSHandle &handle, capsel_t srv_sel, M3FSMetaSession *meta,
+    explicit M3FSFileSession(FSHandle &handle, size_t crt, capsel_t srv_sel, M3FSMetaSession *meta,
                              m3::String &&filename, int flags, m3::inodeno_t ino);
     virtual ~M3FSFileSession();
 
@@ -87,7 +87,7 @@ public:
         _epcap = ep;
     }
 
-    m3::Errors::Code clone(capsel_t srv, m3::CapExchange &xchg);
+    m3::Errors::Code clone(size_t crt, capsel_t srv, m3::CapExchange &xchg);
     m3::Errors::Code get_mem(m3::CapExchange &xchg);
 
 private:

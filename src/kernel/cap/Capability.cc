@@ -110,7 +110,7 @@ void RGateCapability::revoke(bool foreign) {
 }
 
 void SessObject::drop_msgs() {
-    srv->drop_msgs(ident);
+    srv->srv->drop_msgs(ident);
 }
 
 EPObject::EPObject(PEObject *_pe, bool _is_std, VPE *_vpe, epid_t _ep, uint _replies)
@@ -228,9 +228,9 @@ void SessCapability::revoke(bool) {
         m3::KIF::Service::Close smsg;
         smsg.opcode = m3::KIF::Service::CLOSE;
         smsg.sess = obj->ident;
-        KLOG(SERV, "Sending CLOSE to service " << obj->srv->name()
+        KLOG(SERV, "Sending CLOSE to service " << obj->srv->srv->name()
             << " for sess " << m3::fmt(obj->ident, "#x"));
-        obj->srv->send(smsg.sess, &smsg, sizeof(smsg), false);
+        obj->srv->srv->send(obj->creator, &smsg, sizeof(smsg), false);
     }
 }
 
@@ -238,14 +238,14 @@ void SessCapability::revoke(bool) {
 // syscall. this is okay, because we only do that for the root capability, which makes it equivalent
 // to performing the action in ~Service.
 void ServCapability::revoke(bool) {
-    if(is_root()) {
+    if(parent() == nullptr) {
         // first, reset the receive buffer: make all slots not-occupied
-        if(obj->rgate()->activated()) {
-            PEManager::get().pemux(obj->vpe().peid())->config_rcv_ep(
-              obj->rgate()->ep, obj->vpe().id(), 0, *obj->rgate());
+        if(obj->srv->rgate()->activated()) {
+            PEManager::get().pemux(obj->srv->vpe().peid())->config_rcv_ep(
+              obj->srv->rgate()->ep, obj->srv->vpe().id(), 0, *obj->srv->rgate());
         }
         // now, abort everything in the sendqueue
-        obj->abort();
+        obj->srv->abort();
     }
 }
 
@@ -301,27 +301,29 @@ void MapCapability::printInfo(m3::OStream &os) const {
 
 void ServCapability::printInfo(m3::OStream &os) const {
     os << ": serv [refs=" << obj->refcount()
-       << ", name=" << obj->name() << "]";
+       << ", creator=" << obj->creator
+       << ", name=" << obj->srv->name() << "]";
 }
 
 void SessCapability::printInfo(m3::OStream &os) const {
     os << ": sess [refs=" << obj->refcount()
-        << ", serv=" << obj->srv->name()
-        << ", ident=#" << m3::fmt(obj->ident, "x") << "]";
+       << ", serv=" << obj->srv->srv->name()
+       << ", creator=" << obj->creator
+       << ", ident=#" << m3::fmt(obj->ident, "x") << "]";
 }
 
 void PECapability::printInfo(m3::OStream &os) const {
     os << ": pe  [refs=" << obj->refcount()
-        << ", pe=" << obj->id
-        << ", eps=" << obj->eps
-        << ", vpes=" << obj->vpes << "]";
+       << ", pe=" << obj->id
+       << ", eps=" << obj->eps
+       << ", vpes=" << obj->vpes << "]";
 }
 
 void EPCapability::printInfo(m3::OStream &os) const {
     os << ": ep  [refs=" << obj->refcount()
-        << ", pe=" << obj->pe->id
-        << ", ep=" << obj->ep
-        << ", replies=" << obj->replies << "]";
+       << ", pe=" << obj->pe->id
+       << ", ep=" << obj->ep
+       << ", replies=" << obj->replies << "]";
 }
 
 void VPECapability::printInfo(m3::OStream &os) const {

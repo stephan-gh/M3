@@ -253,10 +253,25 @@ public:
     uint perms;
 };
 
+class ServObject : public SlabObject<ServObject>, public m3::RefCounted {
+public:
+    explicit ServObject(Service *_srv, bool _owner, word_t _creator)
+        : RefCounted(),
+          owner(_owner),
+          creator(_creator),
+          srv(_srv) {
+    }
+
+    bool owner;
+    word_t creator;
+    m3::Reference<Service> srv;
+};
+
 class SessObject : public SlabObject<SessObject>, public m3::RefCounted {
 public:
-    explicit SessObject(Service *_srv, word_t _ident, bool _auto_close)
+    explicit SessObject(ServObject *_srv, word_t _creator,word_t _ident, bool _auto_close)
         : RefCounted(),
+          creator(_creator),
           ident(_ident),
           auto_close(_auto_close),
           srv(_srv) {
@@ -264,9 +279,10 @@ public:
 
     void drop_msgs();
 
+    word_t creator;
     word_t ident;
     bool auto_close;
-    m3::Reference<Service> srv;
+    m3::Reference<ServObject> srv;
 };
 
 class PEObject : public SlabObject<PEObject>, public m3::RefCounted {
@@ -466,13 +482,15 @@ public:
 
 class ServCapability : public SlabObject<ServCapability>, public Capability {
 public:
-    explicit ServCapability(CapTable *tbl, capsel_t sel, Service *_obj)
+    explicit ServCapability(CapTable *tbl, capsel_t sel, ServObject *_obj)
         : Capability(tbl, sel, SERV),
           obj(_obj) {
     }
 
     virtual size_t obj_size() const override {
-        return sizeof(Service);
+        if(obj->owner)
+            return sizeof(ServObject) + sizeof(Service);
+        return sizeof(ServObject);
     }
 
     void printInfo(m3::OStream &os) const override;
@@ -484,7 +502,7 @@ private:
     }
 
 public:
-    m3::Reference<Service> obj;
+    m3::Reference<ServObject> obj;
 };
 
 class SessCapability : public SlabObject<SessCapability>, public Capability {

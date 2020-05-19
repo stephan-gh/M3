@@ -69,15 +69,15 @@ pub fn send_gate() -> &'static SendGate {
     SGATE.get()
 }
 
-/// Creates a new service named `name` at selector `dst` for VPE `vpe`. The receive gate `rgate`
-/// will be used for service calls from the kernel to the server.
-pub fn create_srv(dst: Selector, vpe: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
+/// Creates a new service named `name` at selector `dst`. The receive gate `rgate` will be used for
+/// service calls from the kernel to the server.
+pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: Label) -> Result<(), Error> {
     #[allow(clippy::uninit_assumed_init)]
     let mut req = syscalls::CreateSrv {
         opcode: syscalls::Operation::CREATE_SRV.val,
         dst_sel: u64::from(dst),
-        vpe_sel: u64::from(vpe),
         rgate_sel: u64::from(rgate),
+        creator: u64::from(creator),
         namelen: name.len() as u64,
         // safety: will be initialized below
         name: unsafe { MaybeUninit::uninit().assume_init() },
@@ -148,6 +148,7 @@ pub fn create_rgate(dst: Selector, order: u32, msgorder: u32) -> Result<(), Erro
 pub fn create_sess(
     dst: Selector,
     srv: Selector,
+    creator: usize,
     ident: u64,
     auto_close: bool,
 ) -> Result<(), Error> {
@@ -155,6 +156,7 @@ pub fn create_sess(
         opcode: syscalls::Operation::CREATE_SESS.val,
         dst_sel: u64::from(dst),
         srv_sel: u64::from(srv),
+        creator: creator as u64,
         ident,
         auto_close: u64::from(auto_close),
     };
@@ -301,6 +303,18 @@ pub fn derive_pe(pe: Selector, dst: Selector, eps: u32) -> Result<(), Error> {
         pe_sel: u64::from(pe),
         dst_sel: u64::from(dst),
         eps: eps as u64,
+    };
+    send_receive_result(&req)
+}
+
+/// Derives a new service object at `dst` + 0 and a send gate to create sessions at `dst` + 1 from
+/// existing service `srv`, transferring `sessions` sessions to the new service object.
+pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32) -> Result<(), Error> {
+    let req = syscalls::DeriveSrv {
+        opcode: syscalls::Operation::DERIVE_SRV.val,
+        dst_crd: dst.value(),
+        srv_sel: u64::from(srv),
+        sessions: sessions as u64,
     };
     send_receive_result(&req)
 }

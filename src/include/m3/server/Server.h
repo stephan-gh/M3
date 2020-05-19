@@ -27,36 +27,51 @@
 #include <m3/Syscalls.h>
 #include <m3/pes/VPE.h>
 
+#include <memory>
+
 namespace m3 {
 
 template<class HDL>
 class Server : public ObjCap {
     using handler_func = void (Server::*)(GateIStream &is);
 
-    static constexpr size_t MSG_SIZE = 256;
-    static constexpr size_t BUF_SIZE = MSG_SIZE * 2;
+    static constexpr size_t MAX_SESSIONS = 32;
+    static constexpr size_t MAX_CREATORS = 3;
+    static constexpr size_t MSG_SIZE = 128;
+    static constexpr size_t BUF_SIZE = MSG_SIZE * (MAX_CREATORS + 1);
+
+    struct Creator {
+        explicit Creator(SendGate &&_sgate, size_t _sessions)
+            : sgate(std::move(_sgate)),
+              sessions(_sessions) {
+        }
+
+        SendGate sgate;
+        size_t sessions;
+    };
 
 public:
     explicit Server(const String &name, WorkLoop *wl, std::unique_ptr<HDL> &&handler)
         : ObjCap(SERVICE, VPE::self().alloc_sel()),
           _handler(std::move(handler)),
           _ctrl_handler(),
+          _creators(),
           _rgate(RecvGate::create(nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
+
         init(wl);
 
-        LLOG(SERV, "create(" << name << ")");
-        VPE::self().resmng()->reg_service(sel(), _rgate.sel(), name);
+        LLOG(SERV, "create(name=" << name << ")");
+        size_t crt = add_creator(MAX_SESSIONS);
+        Syscalls::create_srv(sel(), _rgate.sel(), name, crt);
+        VPE::self().resmng()->reg_service(sel(), _creators[crt]->sgate.sel(), name);
     }
 
     ~Server() {
-        if(!(flags() & KEEP_CAP)) {
-            try {
-                VPE::self().resmng()->unreg_service(sel(), false);
-            }
-            catch(...) {
-                // ignore
-            }
-            flags(KEEP_CAP);
+        try {
+            VPE::self().resmng()->unreg_service(sel(), false);
+        }
+        catch(...) {
+            // ignore
         }
     }
 
@@ -75,6 +90,7 @@ private:
         _rgate.start(wl, std::bind(&Server::handle_message, this, _1));
 
         _ctrl_handler[KIF::Service::OPEN] = &Server::handle_open;
+        _ctrl_handler[KIF::Service::DERIVE_CRT] = &Server::handle_derive_crt;
         _ctrl_handler[KIF::Service::OBTAIN] = &Server::handle_obtain;
         _ctrl_handler[KIF::Service::DELEGATE] = &Server::handle_delegate;
         _ctrl_handler[KIF::Service::CLOSE] = &Server::handle_close;
@@ -112,11 +128,19 @@ private:
     void handle_open(GateIStream &is) {
         auto *req = reinterpret_cast<const KIF::Service::Open*>(is.message().data);
 
+        // check and reduce session quota
+        label_t crt = is.message().label;
+        if(crt >= MAX_CREATORS || !_creators[crt] || _creators[crt]->sessions == 0) {
+            reply_error(is, Errors::NO_SPACE);
+            return;
+        }
+        _creators[crt]->sessions--;
+
         KIF::Service::OpenReply reply;
 
         typename HDL::session_type *sess = nullptr;
         StringRef arg(req->arg, Math::min(static_cast<size_t>(req->arglen - 1), sizeof(req->arg)));
-        reply.error = _handler->open(&sess, sel(), arg);
+        reply.error = _handler->open(&sess, crt, sel(), arg);
         if(sess)
             LLOG(SERV, fmt((word_t)sess, "#x") << ": open()");
 
@@ -125,8 +149,34 @@ private:
         is.reply(&reply, sizeof(reply));
     }
 
+    void handle_derive_crt(GateIStream &is) {
+        auto *req = reinterpret_cast<const KIF::Service::DeriveCreator*>(is.message().data);
+
+        size_t crt = is.label<size_t>();
+        size_t sessions = req->sessions;
+        assert(crt < MAX_CREATORS && _creators[crt] != nullptr);
+
+        LLOG(SERV, "derive_crt(creator=" << crt << ", sessions=" << sessions << ")");
+
+        KIF::Service::DeriveCreatorReply reply;
+        reply.error = 0;
+
+        if(!_creators[crt] || sessions > _creators[crt]->sessions)
+            reply.error = Errors::NO_SPACE;
+        else {
+            size_t ncrt = add_creator(sessions);
+            _creators[crt]->sessions -= sessions;
+            reply.sgate_sel = _creators[ncrt]->sgate.sel();
+            reply.creator = ncrt;
+        }
+
+        is.reply(&reply, sizeof(reply));
+    }
+
     void handle_obtain(GateIStream &is) {
         auto *req = reinterpret_cast<const KIF::Service::Exchange*>(is.message().data);
+        // TODO isolate creators from each other
+        label_t crt = is.message().label;
 
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": obtain(caps="
             << req->data.caps << ", args=" << req->data.args.bytes << ")");
@@ -135,7 +185,7 @@ private:
         CapExchange xchg(req->data, reply.data);
 
         typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
-        reply.error = _handler->obtain(sess, xchg);
+        reply.error = _handler->obtain(sess, crt, xchg);
 
         reply.data.args.bytes = xchg.out_args().total();
         is.reply(&reply, sizeof(reply));
@@ -143,6 +193,7 @@ private:
 
     void handle_delegate(GateIStream &is) {
         auto *req = reinterpret_cast<const KIF::Service::Exchange*>(is.message().data);
+        label_t crt = is.message().label;
 
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": delegate(caps="
             << req->data.caps << ", args=" << req->data.args.bytes << ")");
@@ -151,7 +202,7 @@ private:
         CapExchange xchg(req->data, reply.data);
 
         typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
-        reply.error = _handler->delegate(sess, xchg);
+        reply.error = _handler->delegate(sess, crt, xchg);
 
         reply.data.args.bytes = xchg.out_args().total();
         is.reply(&reply, sizeof(reply));
@@ -160,10 +211,15 @@ private:
     void handle_close(GateIStream &is) {
         auto *req = reinterpret_cast<const KIF::Service::Close*>(is.message().data);
 
+        // increase session quota
+        label_t crt = is.message().label;
+        assert(crt < MAX_CREATORS && _creators[crt] != nullptr);
+        _creators[crt]->sessions++;
+
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": close()");
 
         typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
-        Errors::Code res = _handler->close(sess);
+        Errors::Code res = _handler->close(sess, crt);
 
         reply_error(is, res);
     }
@@ -176,9 +232,23 @@ private:
         reply_error(is, Errors::NONE);
     }
 
+    size_t add_creator(size_t sessions) {
+        for(size_t i = 0; i < MAX_CREATORS; ++i) {
+            if(_creators[i] == nullptr) {
+                _creators[i] = std::make_unique<Creator>(
+                    SendGate::create(&_rgate, SendGateArgs().credits(1).label(i)),
+                    sessions
+                );
+                return i;
+            }
+        }
+        return MAX_CREATORS;
+    }
+
 protected:
     std::unique_ptr<HDL> _handler;
-    handler_func _ctrl_handler[5];
+    handler_func _ctrl_handler[6];
+    std::unique_ptr<Creator> _creators[MAX_CREATORS];
     RecvGate _rgate;
 };
 

@@ -53,6 +53,7 @@ struct PipesHandler {
 impl PipesHandler {
     fn new_sub_sess(
         &self,
+        crt: usize,
         sel: Selector,
         nsid: SessId,
         data: SessionData,
@@ -60,7 +61,8 @@ impl PipesHandler {
         // let the kernel close the session as soon as the client dies or the session is revoked
         // for some other reason. this is required to signal EOF to the other side of the pipe.
         Ok(PipesSession::new(
-            ServerSession::new_with_sel(self.sel, sel, nsid as u64, true)?,
+            crt,
+            ServerSession::new_with_sel(self.sel, sel, crt, nsid as u64, true)?,
             data,
         ))
     }
@@ -79,7 +81,8 @@ impl PipesHandler {
                     SessionData::Chan(ref mut c) => c.close(&mut sids),
                 };
 
-                self.sessions.remove(id);
+                let crt = sess.creator();
+                self.sessions.remove(crt, id);
                 // ignore all potentially outstanding messages of this session
                 REQHDL.recv_gate().drop_msgs_with(id as Label);
             }
@@ -99,17 +102,33 @@ impl PipesHandler {
     }
 }
 
-impl Handler for PipesHandler {
-    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        self.sessions.add_next(srv_sel, true, |sess| {
+impl Handler<PipesSession> for PipesHandler {
+    fn sessions(&mut self) -> &mut m3::server::SessionContainer<PipesSession> {
+        &mut self.sessions
+    }
+
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        _arg: &str,
+    ) -> Result<(Selector, SessId), Error> {
+        self.sessions.add_next(crt, srv_sel, true, |sess| {
             log!(crate::LOG_DEF, "[{}] pipes::new_meta()", sess.ident());
-            Ok(PipesSession::new(sess, SessionData::Meta(Meta::default())))
+            Ok(PipesSession::new(
+                crt,
+                sess,
+                SessionData::Meta(Meta::default()),
+            ))
         })
     }
 
-    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         if xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
+        }
+        if !self.sessions.can_add(crt) {
+            return Err(Error::new(Code::NoSpace));
         }
 
         let res: Result<_, Error> = {
@@ -129,7 +148,7 @@ impl Handler for PipesHandler {
                         msize
                     );
                     let pipe = m.create_pipe(nsid, msize as usize);
-                    let nsess = self.new_sub_sess(sel, nsid, SessionData::Pipe(pipe))?;
+                    let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Pipe(pipe))?;
                     Ok((nsid, nsess, false))
                 },
 
@@ -150,7 +169,7 @@ impl Handler for PipesHandler {
                     );
                     let chan = p.new_chan(nsid, sel, ty)?;
                     p.attach(&chan);
-                    let nsess = self.new_sub_sess(sel, nsid, SessionData::Chan(chan))?;
+                    let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Chan(chan))?;
                     Ok((nsid, nsess, false))
                 },
 
@@ -166,7 +185,7 @@ impl Handler for PipesHandler {
                     );
 
                     let chan = c.clone(nsid, sel)?;
-                    let nsess = self.new_sub_sess(sel, nsid, SessionData::Chan(chan))?;
+                    let nsess = self.new_sub_sess(crt, sel, nsid, SessionData::Chan(chan))?;
                     Ok((nsid, nsess, true))
                 },
             }
@@ -188,14 +207,15 @@ impl Handler for PipesHandler {
             kif::CapRngDesc::new(kif::CapType::OBJECT, nsess.sel(), 1)
         };
 
-        self.sessions.add(nsid, nsess);
+        // cannot fail because of the check above
+        self.sessions.add(crt, nsid, nsess).unwrap();
 
         xchg.out_caps(crd);
 
         Ok(())
     }
 
-    fn delegate(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         let sess = self.sessions.get_mut(sid).unwrap();
         match &mut sess.data_mut() {
             // pipe sessions expect a memory cap for the shared memory of the pipe
@@ -230,18 +250,19 @@ impl Handler for PipesHandler {
         }
     }
 
-    fn close(&mut self, sid: SessId) {
+    fn close(&mut self, _crt: usize, sid: SessId) {
         self.close_sess(sid).ok();
     }
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let s = Server::new("pipes").expect("Unable to create service 'pipes'");
     let mut hdl = PipesHandler {
-        sel: s.sel(),
+        sel: 0,
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
     };
+    let s = Server::new("pipes", &mut hdl).expect("Unable to create service 'pipes'");
+    hdl.sel = s.sel();
 
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 

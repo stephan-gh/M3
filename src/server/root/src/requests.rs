@@ -108,10 +108,10 @@ fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
 
 fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
-    let rgate_sel: Selector = is.pop()?;
+    let sgate_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    let res = services::get().reg_serv(child, dst_sel, rgate_sel, name);
+    let res = services::get().reg_serv(child, dst_sel, sgate_sel, name);
     if res.is_ok() && !crate::DELAYED.get().is_empty() {
         crate::start_delayed();
     }

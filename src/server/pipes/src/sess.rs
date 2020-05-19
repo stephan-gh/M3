@@ -35,13 +35,18 @@ macro_rules! reply_vmsg_late {
 }
 
 pub struct PipesSession {
+    crt: usize,
     sess: ServerSession,
     data: SessionData,
 }
 
 impl PipesSession {
-    pub fn new(sess: ServerSession, data: SessionData) -> Self {
-        PipesSession { sess, data }
+    pub fn new(crt: usize, sess: ServerSession, data: SessionData) -> Self {
+        PipesSession { crt, sess, data }
+    }
+
+    pub fn creator(&self) -> usize {
+        self.crt
     }
 
     pub fn sel(&self) -> Selector {

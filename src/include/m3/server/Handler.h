@@ -59,14 +59,14 @@ public:
     virtual ~Handler() {
     }
 
-    virtual Errors::Code open(SESS **sess, capsel_t, const StringRef &) = 0;
-    virtual Errors::Code obtain(SESS *, CapExchange &) {
+    virtual Errors::Code open(SESS **sess, size_t crt, capsel_t, const StringRef &) = 0;
+    virtual Errors::Code obtain(SESS *, size_t, CapExchange &) {
         return Errors::NOT_SUP;
     }
-    virtual Errors::Code delegate(SESS *, CapExchange &) {
+    virtual Errors::Code delegate(SESS *, size_t, CapExchange &) {
         return Errors::NOT_SUP;
     }
-    virtual Errors::Code close(SESS *sess) = 0;
+    virtual Errors::Code close(SESS *sess, size_t crt) = 0;
     virtual void shutdown() {
     }
 };

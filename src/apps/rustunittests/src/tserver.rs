@@ -44,27 +44,37 @@ struct CrashHandler {
     sessions: SessionContainer<EmptySession>,
 }
 
-impl Handler for CrashHandler {
-    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        let sess = ServerSession::new(srv_sel, 0, false)?;
+impl Handler<EmptySession> for CrashHandler {
+    fn sessions(&mut self) -> &mut SessionContainer<EmptySession> {
+        &mut self.sessions
+    }
+
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        _arg: &str,
+    ) -> Result<(Selector, SessId), Error> {
+        let sess = ServerSession::new(srv_sel, crt, 0, false)?;
 
         let sel = sess.sel();
         // keep the session to ensure that it's not destroyed
-        self.sessions.add(0, EmptySession { _sess: sess });
-        Ok((sel, 0))
+        self.sessions
+            .add(crt, 0, EmptySession { _sess: sess })
+            .map(|_| (sel, 0))
     }
 
-    fn obtain(&mut self, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
         // don't respond, just exit
         m3::exit(1);
     }
 }
 
 fn server_crash_main() -> i32 {
-    let s = wv_assert_ok!(Server::new("test"));
     let mut hdl = CrashHandler {
         sessions: SessionContainer::new(1),
     };
+    let s = wv_assert_ok!(Server::new("test", &mut hdl));
 
     server_loop(|| s.handle_ctrl_chan(&mut hdl)).ok();
     0
@@ -180,16 +190,26 @@ struct MsgHandler {
 
 static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 
-impl Handler for MsgHandler {
-    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        let sess = ServerSession::new(srv_sel, 0, false)?;
-        let sel = sess.sel();
-        let sgate = wv_assert_ok!(SendGate::new(&RGATE));
-        self.sessions.add(0, MsgSession { _sess: sess, sgate });
-        Ok((sel, 0))
+impl Handler<MsgSession> for MsgHandler {
+    fn sessions(&mut self) -> &mut SessionContainer<MsgSession> {
+        &mut self.sessions
     }
 
-    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        _arg: &str,
+    ) -> Result<(Selector, SessId), Error> {
+        let sess = ServerSession::new(srv_sel, crt, 0, false)?;
+        let sel = sess.sel();
+        let sgate = wv_assert_ok!(SendGate::new(&RGATE));
+        self.sessions
+            .add(crt, 0, MsgSession { _sess: sess, sgate })
+            .map(|_| (sel, 0))
+    }
+
+    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         let sess = self.sessions.get(sid).unwrap();
         xchg.out_caps(kif::CapRngDesc::new(
             kif::CapType::OBJECT,
@@ -199,8 +219,8 @@ impl Handler for MsgHandler {
         Ok(())
     }
 
-    fn close(&mut self, sid: SessId) {
-        self.sessions.remove(sid);
+    fn close(&mut self, crt: usize, sid: SessId) {
+        self.sessions.remove(crt, sid);
     }
 }
 
@@ -223,11 +243,11 @@ impl MsgHandler {
 }
 
 fn server_msgs_main() -> i32 {
-    let s = wv_assert_ok!(Server::new("testmsgs"));
     let mut hdl = MsgHandler {
         sessions: SessionContainer::new(1),
         calls: 0,
     };
+    let s = wv_assert_ok!(Server::new("testmsgs", &mut hdl));
 
     let mut rgate = wv_assert_ok!(RecvGate::new(next_log2(256), next_log2(256)));
     wv_assert_ok!(rgate.activate());
@@ -291,17 +311,27 @@ struct NotSupHandler {
     calls: u32,
 }
 
-impl Handler for NotSupHandler {
-    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        let sess = ServerSession::new(srv_sel, 0, false)?;
+impl Handler<EmptySession> for NotSupHandler {
+    fn sessions(&mut self) -> &mut SessionContainer<EmptySession> {
+        &mut self.sessions
+    }
+
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        _arg: &str,
+    ) -> Result<(Selector, SessId), Error> {
+        let sess = ServerSession::new(srv_sel, crt, 0, false)?;
 
         let sel = sess.sel();
         // keep the session to ensure that it's not destroyed
-        self.sessions.add(0, EmptySession { _sess: sess });
-        Ok((sel, 0))
+        self.sessions
+            .add(crt, 0, EmptySession { _sess: sess })
+            .map(|_| (sel, 0))
     }
 
-    fn obtain(&mut self, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _: usize, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
         self.calls += 1;
         // stop the service after 5 calls
         if self.calls == 5 {
@@ -310,7 +340,7 @@ impl Handler for NotSupHandler {
         Err(Error::new(Code::NotSup))
     }
 
-    fn delegate(&mut self, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _: usize, _: SessId, _: &mut CapExchange) -> Result<(), Error> {
         self.calls += 1;
         if self.calls == 5 {
             *STOP.get_mut() = true;
@@ -318,8 +348,8 @@ impl Handler for NotSupHandler {
         Err(Error::new(Code::NotSup))
     }
 
-    fn close(&mut self, sid: SessId) {
-        self.sessions.remove(sid);
+    fn close(&mut self, crt: usize, sid: SessId) {
+        self.sessions.remove(crt, sid);
     }
 }
 
@@ -327,11 +357,11 @@ fn server_notsup_main() -> i32 {
     for _ in 0..5 {
         *STOP.get_mut() = false;
 
-        let s = wv_assert_ok!(Server::new("testcaps"));
         let mut hdl = NotSupHandler {
             sessions: SessionContainer::new(1),
             calls: 0,
         };
+        let s = wv_assert_ok!(Server::new("testcaps", &mut hdl));
 
         let res = server_loop(|| {
             if *STOP {

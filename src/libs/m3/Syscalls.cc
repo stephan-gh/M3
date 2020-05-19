@@ -52,23 +52,24 @@ void Syscalls::send_receive_throw(const void *msg, size_t size) {
     }
 }
 
-void Syscalls::create_srv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name) {
+void Syscalls::create_srv(capsel_t dst, capsel_t rgate, const String &name, label_t creator) {
     KIF::Syscall::CreateSrv req;
     req.opcode = KIF::Syscall::CREATE_SRV;
     req.dst_sel = dst;
-    req.vpe_sel = vpe;
     req.rgate_sel = rgate;
+    req.creator = creator;
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
     size_t msgsize = sizeof(req) - sizeof(req.name) + req.namelen;
     send_receive_throw(&req, msgsize);
 }
 
-void Syscalls::create_sess(capsel_t dst, capsel_t srv, word_t ident, bool auto_close) {
+void Syscalls::create_sess(capsel_t dst, capsel_t srv, size_t crt, word_t ident, bool auto_close) {
     KIF::Syscall::CreateSess req;
     req.opcode = KIF::Syscall::CREATE_SESS;
     req.dst_sel = dst;
     req.srv_sel = srv;
+    req.creator = crt;
     req.ident = ident;
     req.auto_close = auto_close;
     send_receive_throw(&req, sizeof(req));
@@ -231,6 +232,15 @@ void Syscalls::derive_pe(capsel_t pe, capsel_t dst, uint eps) {
     req.pe_sel = pe;
     req.dst_sel = dst;
     req.eps = eps;
+    send_receive_throw(&req, sizeof(req));
+}
+
+void Syscalls::derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions) {
+    KIF::Syscall::DeriveSrv req;
+    req.opcode = KIF::Syscall::DERIVE_SRV;
+    req.srv_sel = srv;
+    req.dst_crd = dst.value();
+    req.sessions = sessions;
     send_receive_throw(&req, sizeof(req));
 }
 

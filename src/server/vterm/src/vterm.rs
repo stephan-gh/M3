@@ -45,6 +45,7 @@ static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 
 #[derive(Debug)]
 struct VTermSession {
+    crt: usize,
     sess: ServerSession,
     data: SessionData,
 }
@@ -182,26 +183,29 @@ struct VTermHandler {
 }
 
 impl VTermHandler {
-    fn new_sess(sess: ServerSession) -> VTermSession {
+    fn new_sess(crt: usize, sess: ServerSession) -> VTermSession {
         log!(crate::LOG_DEF, "[{}] vterm::new_meta()", sess.ident());
         VTermSession {
+            crt,
             sess,
             data: SessionData::Meta,
         }
     }
 
-    fn new_chan(&self, sid: SessId, writing: bool) -> Result<VTermSession, Error> {
+    fn new_chan(&self, crt: usize, sid: SessId, writing: bool) -> Result<VTermSession, Error> {
         log!(crate::LOG_DEF, "[{}] vterm::new_chan()", sid);
         let sels = VPE::cur().alloc_sels(2);
         Ok(VTermSession {
-            sess: ServerSession::new_with_sel(self.sel, sels, sid as u64, false)?,
+            crt,
+            sess: ServerSession::new_with_sel(self.sel, sels, crt, sid as u64, false)?,
             data: SessionData::Chan(Channel::new(sid, &self.mem, sels, writing)?),
         })
     }
 
     fn close_sess(&mut self, sid: SessId) -> Result<(), Error> {
         log!(crate::LOG_DEF, "[{}] vterm::close()", sid);
-        self.sessions.remove(sid);
+        let crt = self.sessions.get(sid).unwrap().crt;
+        self.sessions.remove(crt, sid);
         Ok(())
     }
 
@@ -217,13 +221,22 @@ impl VTermHandler {
     }
 }
 
-impl Handler for VTermHandler {
-    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        self.sessions
-            .add_next(srv_sel, false, |sess| Ok(Self::new_sess(sess)))
+impl Handler<VTermSession> for VTermHandler {
+    fn sessions(&mut self) -> &mut m3::server::SessionContainer<VTermSession> {
+        &mut self.sessions
     }
 
-    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        _arg: &str,
+    ) -> Result<(Selector, SessId), Error> {
+        self.sessions
+            .add_next(crt, srv_sel, false, |sess| Ok(Self::new_sess(crt, sess)))
+    }
+
+    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         if xchg.in_caps() != 2 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -234,21 +247,21 @@ impl Handler for VTermHandler {
             let sess = sessions.get(sid).unwrap();
             match &sess.data {
                 SessionData::Meta => self
-                    .new_chan(nsid, xchg.in_args().pop_word()? == 1)
+                    .new_chan(crt, nsid, xchg.in_args().pop_word()? == 1)
                     .map(|s| (nsid, s)),
 
-                SessionData::Chan(c) => self.new_chan(nsid, c.writing).map(|s| (nsid, s)),
+                SessionData::Chan(c) => self.new_chan(crt, nsid, c.writing).map(|s| (nsid, s)),
             }
         }?;
 
         let sel = nsess.sess.sel();
-        self.sessions.add(nsid, nsess);
+        self.sessions.add(crt, nsid, nsess)?;
 
         xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 2));
         Ok(())
     }
 
-    fn delegate(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -266,20 +279,21 @@ impl Handler for VTermHandler {
         }
     }
 
-    fn close(&mut self, sid: SessId) {
+    fn close(&mut self, _crt: usize, sid: SessId) {
         self.close_sess(sid).ok();
     }
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let s = Server::new("vterm").expect("Unable to create service 'vterm'");
-
     let mut hdl = VTermHandler {
-        sel: s.sel(),
+        sel: 0,
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
         mem: MemGate::new(DEF_MAX_CLIENTS * BUF_SIZE, Perm::RW).expect("Unable to alloc memory"),
     };
+
+    let s = Server::new("vterm", &mut hdl).expect("Unable to create service 'vterm'");
+    hdl.sel = s.sel();
 
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 

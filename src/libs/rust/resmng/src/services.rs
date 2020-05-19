@@ -18,12 +18,9 @@ use core::mem::MaybeUninit;
 use m3::cap::{CapFlags, Capability, Selector};
 use m3::cell::StaticCell;
 use m3::col::{String, Vec};
-use m3::com::{RecvGate, SGateArgs, SendGate};
+use m3::com::SendGate;
 use m3::errors::{Code, Error};
 use m3::kif;
-use m3::math;
-use m3::pes::VPE;
-use m3::syscalls;
 use m3::util;
 use thread;
 
@@ -35,7 +32,6 @@ pub struct Service {
     id: Id,
     _cap: Capability,
     queue: SendQueue,
-    _rgate: RecvGate,
     name: String,
     child: Id,
 }
@@ -44,25 +40,17 @@ impl Service {
     pub fn new(
         id: Id,
         child: &mut dyn Child,
-        dst_sel: Selector,
-        rgate_sel: Selector,
+        srv_sel: Selector,
+        sgate_sel: Selector,
         name: String,
     ) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
-        let rgate = RecvGate::new_bind(
-            child.obtain(rgate_sel)?,
-            math::next_log2(512),
-            math::next_log2(512),
-        );
-        let sgate = SendGate::new_with(SGateArgs::new(&rgate).credits(1))?;
-        syscalls::create_srv(sel, child.vpe_sel(), rgate.sel(), &name)?;
-        child.delegate(sel, dst_sel)?;
+        let our_srv = child.obtain(srv_sel)?;
+        let our_sgate = child.obtain(sgate_sel)?;
 
         Ok(Service {
             id,
-            _cap: Capability::new(sel, CapFlags::empty()),
-            queue: SendQueue::new(id, sgate),
-            _rgate: rgate,
+            _cap: Capability::new(our_srv, CapFlags::empty()),
+            queue: SendQueue::new(id, SendGate::new_bind(our_sgate)),
             name,
             child: child.id(),
         })
@@ -207,16 +195,16 @@ impl ServiceManager {
     pub fn reg_serv(
         &mut self,
         child: &mut dyn Child,
-        dst_sel: Selector,
-        rgate_sel: Selector,
+        srv_sel: Selector,
+        sgate_sel: Selector,
         name: String,
     ) -> Result<(), Error> {
         log!(
             crate::LOG_SERV,
-            "{}: reg_serv(dst_sel={}, rgate_sel={}, name={})",
+            "{}: reg_serv(srv_sel={}, sgate_sel={}, name={})",
             child.name(),
-            dst_sel,
-            rgate_sel,
+            srv_sel,
+            sgate_sel,
             name
         );
 
@@ -237,13 +225,13 @@ impl ServiceManager {
             None
         };
 
-        let serv = Service::new(self.next_id, child, dst_sel, rgate_sel, name)?;
+        let serv = Service::new(self.next_id, child, srv_sel, sgate_sel, name)?;
         self.next_id += 1;
 
         if let Some(sd) = sdesc {
             sd.mark_used();
         }
-        child.add_service(serv.id, dst_sel);
+        child.add_service(serv.id, srv_sel);
         self.add_service(serv);
 
         Ok(())

@@ -55,15 +55,24 @@ struct PagerReqHandler {
     sessions: SessionContainer<AddrSpace>,
 }
 
-impl Handler for PagerReqHandler {
-    fn open(&mut self, srv_sel: Selector, _arg: &str) -> Result<(Selector, SessId), Error> {
-        self.sessions.add_next(srv_sel, false, |sess| {
+impl Handler<AddrSpace> for PagerReqHandler {
+    fn sessions(&mut self) -> &mut m3::server::SessionContainer<AddrSpace> {
+        &mut self.sessions
+    }
+
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        _arg: &str,
+    ) -> Result<(Selector, SessId), Error> {
+        self.sessions.add_next(crt, srv_sel, false, |sess| {
             log!(crate::LOG_DEF, "[{}] pager::open()", sess.ident());
-            Ok(AddrSpace::new(sess, None))
+            Ok(AddrSpace::new(crt, sess, None))
         })
     }
 
-    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -75,10 +84,10 @@ impl Handler for PagerReqHandler {
         else {
             let sid = aspace.id();
             self.sessions
-                .add_next(self.sel, false, |sess| {
+                .add_next(crt, self.sel, false, |sess| {
                     let nsid = sess.ident();
                     log!(crate::LOG_DEF, "[{}] pager::new_sess(nsid={})", sid, nsid);
-                    Ok(AddrSpace::new(sess, Some(sid)))
+                    Ok(AddrSpace::new(crt, sess, Some(sid)))
                 })
                 .and_then(|(sel, _)| Ok(sel))
         }?;
@@ -87,7 +96,7 @@ impl Handler for PagerReqHandler {
         Ok(())
     }
 
-    fn delegate(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -121,9 +130,10 @@ impl Handler for PagerReqHandler {
         Ok(())
     }
 
-    fn close(&mut self, sid: SessId) {
+    fn close(&mut self, _crt: usize, sid: SessId) {
         log!(crate::LOG_DEF, "[{}] pager::close()", sid);
-        self.sessions.remove(sid);
+        let crt = self.sessions.get(sid).unwrap().creator();
+        self.sessions.remove(crt, sid);
         // ignore all potentially outstanding messages of this session
         REQHDL.recv_gate().drop_msgs_with(sid as Label);
     }
@@ -131,7 +141,7 @@ impl Handler for PagerReqHandler {
 
 fn start_child(hdl: &mut PagerReqHandler, args: &[String], share_pe: bool) -> ExecActivity {
     // create session for child
-    let (sel, sid) = hdl.open(hdl.sel, "").expect("Session creation failed");
+    let (sel, sid) = hdl.open(0, hdl.sel, "").expect("Session creation failed");
     let sess = ClientSession::new_bind(sel);
     #[allow(clippy::identity_conversion)]
     let sgate = SendGate::new_with(
@@ -192,11 +202,12 @@ pub fn main() -> i32 {
     let args = &args[skip..];
 
     // create server
-    let s = Server::new_private("pager").expect("Unable to create service");
     let mut hdl = PagerReqHandler {
-        sel: s.sel(),
+        sel: 0,
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
     };
+    let s = Server::new_private("pager", &mut hdl).expect("Unable to create service");
+    hdl.sel = s.sel();
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
     // start child
@@ -247,7 +258,7 @@ pub fn main() -> i32 {
                     PagerOp::MAP_ANON => aspace.map_anon(&mut is),
                     PagerOp::UNMAP => aspace.unmap(&mut is),
                     PagerOp::CLOSE => aspace.close(&mut is).and_then(|_| {
-                        hdl.close(is.label() as SessId);
+                        hdl.close(0, is.label() as SessId);
                         Ok(())
                     }),
                     _ => Err(Error::new(Code::InvArgs)),

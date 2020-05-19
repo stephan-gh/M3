@@ -61,33 +61,21 @@ fn create_srv() {
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::create_srv(SEL_VPE, VPE::cur().sel(), rgate.sel(), "test"),
+        syscalls::create_srv(SEL_VPE, rgate.sel(), "test", 0),
         Code::InvArgs
     );
 
     // invalid rgate selector
-    wv_assert_err!(
-        syscalls::create_srv(sel, VPE::cur().sel(), SEL_VPE, "test"),
-        Code::InvArgs
-    );
+    wv_assert_err!(syscalls::create_srv(sel, SEL_VPE, "test", 0), Code::InvArgs);
     // again, with real rgate, but not activated
     wv_assert_err!(
-        syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), "test"),
+        syscalls::create_srv(sel, rgate.sel(), "test", 0),
         Code::InvArgs
     );
     wv_assert_ok!(rgate.activate());
 
-    // invalid VPE selector
-    wv_assert_err!(
-        syscalls::create_srv(sel, SEL_KMEM, rgate.sel(), "test"),
-        Code::InvArgs
-    );
-
     // invalid name
-    wv_assert_err!(
-        syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), ""),
-        Code::InvArgs
-    );
+    wv_assert_err!(syscalls::create_srv(sel, rgate.sel(), "", 0), Code::InvArgs);
 }
 
 fn create_sgate() {
@@ -209,19 +197,14 @@ fn create_sess() {
     let srv = VPE::cur().alloc_sel();
     let mut rgate = wv_assert_ok!(RecvGate::new(10, 10));
     wv_assert_ok!(rgate.activate());
-    wv_assert_ok!(syscalls::create_srv(
-        srv,
-        VPE::cur().sel(),
-        rgate.sel(),
-        "test"
-    ));
+    wv_assert_ok!(syscalls::create_srv(srv, rgate.sel(), "test", 0,));
 
     let sel = VPE::cur().alloc_sel();
 
     // invalid dest selector
-    wv_assert_err!(syscalls::create_sess(SEL_VPE, srv, 0, false), Code::InvArgs);
+    wv_assert_err!(syscalls::create_sess(SEL_VPE, srv, 0, 0, false), Code::InvArgs);
     // invalid service selector
-    wv_assert_err!(syscalls::create_sess(sel, SEL_VPE, 0, false), Code::InvArgs);
+    wv_assert_err!(syscalls::create_sess(sel, SEL_VPE, 0, 0, false), Code::InvArgs);
 
     wv_assert_ok!(syscalls::revoke(
         VPE::cur().sel(),

@@ -22,7 +22,7 @@ use kif::{service, CapRngDesc};
 use math;
 use pes::VPE;
 use serialize::Sink;
-use server::SessId;
+use server::{SessId, SessionContainer};
 use syscalls;
 
 /// Represents a server that provides a service for clients.
@@ -87,22 +87,35 @@ impl<'d> fmt::Debug for CapExchange<'d> {
 
 /// The handler for a server that implements the service calls (session creations, cap exchange,
 /// ...).
-pub trait Handler {
+pub trait Handler<S> {
+    /// Returns the session container
+    fn sessions(&mut self) -> &mut SessionContainer<S>;
+
     /// Creates a new session with `arg` as an argument for the service with selector `srv_sel`.
     /// Returns the session selector and the session identifier.
-    fn open(&mut self, srv_sel: Selector, arg: &str) -> Result<(Selector, SessId), Error>;
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        arg: &str,
+    ) -> Result<(Selector, SessId), Error>;
 
     /// Let's the client obtain a capability from the server
-    fn obtain(&mut self, _sid: SessId, _xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _crt: usize, _sid: SessId, _xchg: &mut CapExchange) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
     /// Let's the client delegate a capability to the server
-    fn delegate(&mut self, _sid: SessId, _xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(
+        &mut self,
+        _crt: usize,
+        _sid: SessId,
+        _xchg: &mut CapExchange,
+    ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 
     /// Closes the given session
-    fn close(&mut self, _sid: SessId) {
+    fn close(&mut self, _crt: usize, _sid: SessId) {
     }
 
     /// Performs cleanup actions before shutdown
@@ -110,30 +123,32 @@ pub trait Handler {
     }
 }
 
-const MSG_SIZE: usize = 256;
-const BUF_SIZE: usize = MSG_SIZE * 2;
+const MSG_SIZE: usize = 128;
+const BUF_SIZE: usize = MSG_SIZE * (1 + super::sesscon::MAX_CREATORS);
 
 impl Server {
     /// Creates a new server with given service name.
-    pub fn new(name: &str) -> Result<Self, Error> {
-        Self::create(name, true)
+    pub fn new<S>(name: &str, hdl: &mut dyn Handler<S>) -> Result<Self, Error> {
+        Self::create(name, hdl, true)
     }
 
     /// Creates a new private server that is not visible to anyone
-    pub fn new_private(name: &str) -> Result<Self, Error> {
-        Self::create(name, false)
+    pub fn new_private<S>(name: &str, hdl: &mut dyn Handler<S>) -> Result<Self, Error> {
+        Self::create(name, hdl, false)
     }
 
-    fn create(name: &str, public: bool) -> Result<Self, Error> {
+    fn create<S>(name: &str, hdl: &mut dyn Handler<S>, public: bool) -> Result<Self, Error> {
         let sel = VPE::cur().alloc_sel();
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         rgate.activate()?;
 
+        syscalls::create_srv(sel, rgate.sel(), name, 0)?;
+
+        let max = hdl.sessions().capacity();
+        let (_, sgate) = hdl.sessions().add_creator(&rgate, max)?;
+
         if public {
-            VPE::cur().resmng().unwrap().reg_service(sel, rgate.sel(), name)?;
-        }
-        else {
-            syscalls::create_srv(sel, VPE::cur().sel(), rgate.sel(), name)?;
+            VPE::cur().resmng().unwrap().reg_service(sel, sgate, name)?;
         }
 
         Ok(Server {
@@ -148,13 +163,20 @@ impl Server {
         self.cap.sel()
     }
 
+    /// Returns the receive gate that is used for the service protocol
+    pub fn rgate(&self) -> &RecvGate {
+        &self.rgate
+    }
+
     /// Fetches a message from the control channel and handles it if so.
-    pub fn handle_ctrl_chan(&self, hdl: &mut dyn Handler) -> Result<(), Error> {
+    pub fn handle_ctrl_chan<S>(&self, hdl: &mut dyn Handler<S>) -> Result<(), Error> {
         let is = self.rgate.fetch();
         if let Some(mut is) = is {
+            let sel = self.sel();
             let op: service::Operation = is.pop()?;
             match op {
-                service::Operation::OPEN => Self::handle_open(hdl, self.sel(), is),
+                service::Operation::OPEN => Self::handle_open(hdl, sel, is),
+                service::Operation::DERIVE_CRT => Self::handle_derive_crt(hdl, is),
                 service::Operation::OBTAIN => Self::handle_obtain(hdl, is),
                 service::Operation::DELEGATE => Self::handle_delegate(hdl, is),
                 service::Operation::CLOSE => Self::handle_close(hdl, is),
@@ -167,11 +189,17 @@ impl Server {
         }
     }
 
-    fn handle_open(hdl: &mut dyn Handler, sel: Selector, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_open<S>(
+        hdl: &mut dyn Handler<S>,
+        sel: Selector,
+        mut is: GateIStream,
+    ) -> Result<(), Error> {
         let arg: &str = is.pop()?;
-        let res = hdl.open(sel, arg);
 
-        llog!(SERV, "server::open({}) -> {:?}", arg, res);
+        let crt = is.label() as usize;
+        let res = hdl.open(crt, sel, arg);
+
+        llog!(SERV, "server::open(crt={}, arg={}) -> {:?}", crt, arg, res);
 
         match res {
             Ok((sel, ident)) => {
@@ -180,7 +208,7 @@ impl Server {
                     sess: u64::from(sel),
                     ident: ident as u64,
                 };
-                is.reply(&[reply])?
+                is.reply(&[reply])
             },
             Err(e) => {
                 let reply = service::OpenReply {
@@ -188,24 +216,60 @@ impl Server {
                     sess: 0,
                     ident: 0,
                 };
-                is.reply(&[reply])?
+                is.reply(&[reply])
             },
-        };
-        Ok(())
+        }
     }
 
-    fn handle_obtain(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_derive_crt<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
+        let msg = is.msg().get_data::<service::DeriveCreator>();
+
+        let crt = is.label() as usize;
+        let sessions = msg.sessions as usize;
+
+        llog!(
+            SERV,
+            "server::derive_crt(crt={}, sessions={})",
+            crt,
+            sessions
+        );
+
+        let (nid, sgate) = hdl.sessions().derive_creator(is.rgate(), crt, sessions)?;
+
+        let reply = service::DeriveCreatorReply {
+            res: 0,
+            creator: nid as u64,
+            sgate_sel: sgate as u64,
+        };
+        is.reply(&[reply])
+    }
+
+    fn handle_obtain<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::Exchange>();
-        let sid = msg.sess;
+        let sid = msg.sess as SessId;
+        let crt = is.label() as usize;
+
+        llog!(SERV, "server::obtain(crt={}, sid={})", crt, sid);
+
+        if !hdl.sessions().creator_owns(crt, sid) {
+            return Err(Error::new(Code::NoPerm));
+        }
 
         let mut reply = service::ExchangeReply::default();
 
         let (res, args_size, crd) = {
             let mut xchg = CapExchange::new(&msg.data, &mut reply.data);
 
-            let res = hdl.obtain(sid as SessId, &mut xchg);
+            let res = hdl.obtain(crt, sid, &mut xchg);
 
-            llog!(SERV, "server::obtain({}, {:?}) -> {:?}", sid, xchg, res);
+            llog!(
+                SERV,
+                "server::obtain(crt={}, sid={}) -> xchg={:?}), res={:?}",
+                crt,
+                sid,
+                xchg,
+                res
+            );
 
             (res, xchg.out_args().size(), xchg.out_crd.value())
         };
@@ -219,18 +283,32 @@ impl Server {
         is.reply(&[reply])
     }
 
-    fn handle_delegate(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_delegate<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::Exchange>();
-        let sid = msg.sess;
+        let sid = msg.sess as SessId;
+        let crt = is.label() as usize;
+
+        llog!(SERV, "server::delegate(crt={}, sid={})", crt, sid);
+
+        if !hdl.sessions().creator_owns(crt, sid) {
+            return Err(Error::new(Code::NoPerm));
+        }
 
         let mut reply = service::ExchangeReply::default();
 
         let (res, args_size, crd) = {
             let mut xchg = CapExchange::new(&msg.data, &mut reply.data);
 
-            let res = hdl.delegate(sid as SessId, &mut xchg);
+            let res = hdl.delegate(crt, sid, &mut xchg);
 
-            llog!(SERV, "server::delegate({}, {:?}) -> {:?}", sid, xchg, res);
+            llog!(
+                SERV,
+                "server::delegate(crt={}, sid={}) -> xchg={:?}), res={:?}",
+                crt,
+                sid,
+                xchg,
+                res
+            );
 
             (res, xchg.out_args().size(), xchg.out_crd.value())
         };
@@ -244,18 +322,29 @@ impl Server {
         is.reply(&[reply])
     }
 
-    fn handle_close(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
-        let sid: u64 = is.pop()?;
+    fn handle_close<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
+        let sid = is.pop::<SessId>()?;
+        let crt = is.label() as usize;
 
-        llog!(SERV, "server::close({})", sid);
+        llog!(SERV, "server::close(crt={}, sid={})", crt, sid);
 
-        hdl.close(sid as SessId);
+        if !hdl.sessions().creator_owns(crt, sid) {
+            return Err(Error::new(Code::NoPerm));
+        }
+
+        hdl.close(crt, sid as SessId);
 
         reply_vmsg!(is, 0)
     }
 
-    fn handle_shutdown(hdl: &mut dyn Handler, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
         llog!(SERV, "server::shutdown()");
+
+        // only the first creator is allowed to shut us down
+        let crt = is.label() as usize;
+        if crt != 0 {
+            return Err(Error::new(Code::NoPerm));
+        }
 
         hdl.shutdown();
 
@@ -266,9 +355,12 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        if self.public && !self.cap.flags().contains(CapFlags::KEEP_CAP) {
-            VPE::cur().resmng().unwrap().unreg_service(self.sel(), false).ok();
-            self.cap.set_flags(CapFlags::KEEP_CAP);
+        if self.public {
+            VPE::cur()
+                .resmng()
+                .unwrap()
+                .unreg_service(self.sel(), false)
+                .ok();
         }
     }
 }

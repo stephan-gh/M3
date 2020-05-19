@@ -229,9 +229,9 @@ fn create_srv() {
         fn run(&mut self) {
             wv_assert_ok!(syscalls::create_srv(
                 *SEL,
-                VPE::cur().sel(),
                 self.0.as_ref().unwrap().sel(),
-                "test"
+                "test",
+                0
             ));
         }
 

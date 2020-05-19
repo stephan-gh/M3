@@ -92,10 +92,10 @@ fn xlate_sel(id: Id, sel: Selector) -> Result<Selector, Error> {
 
 fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
-    let rgate_sel: Selector = is.pop()?;
+    let sgate_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    services::get().reg_serv(child, dst_sel, rgate_sel, name)
+    services::get().reg_serv(child, dst_sel, sgate_sel, name)
 }
 
 fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {

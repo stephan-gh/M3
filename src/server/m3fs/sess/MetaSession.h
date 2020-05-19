@@ -28,8 +28,9 @@ class M3FSMetaSession : public M3FSSession {
     };
 
 public:
-    explicit M3FSMetaSession(FSHandle &handle, capsel_t srv_sel, m3::RecvGate &rgate, size_t max_files)
-        : M3FSSession(handle, srv_sel),
+    explicit M3FSMetaSession(FSHandle &handle, size_t crt, capsel_t srv_sel,
+                             m3::RecvGate &rgate, size_t max_files)
+        : M3FSSession(handle, crt, srv_sel),
           _sgates(),
           _rgate(rgate),
           _max_files(max_files),
@@ -59,12 +60,12 @@ public:
     }
 
     m3::Errors::Code get_sgate(m3::CapExchange &xchg);
-    m3::Errors::Code open_file(capsel_t srv, m3::CapExchange &xchg);
+    m3::Errors::Code open_file(size_t crt, capsel_t srv, m3::CapExchange &xchg);
     void remove_file(M3FSFileSession *file);
 
 private:
-    m3::Errors::Code do_open(capsel_t srv, m3::String &&path, int flags, size_t *id);
-    ssize_t alloc_file(capsel_t srv, m3::String &&path, int flags, m3::inodeno_t ino);
+    m3::Errors::Code do_open(size_t crt, capsel_t srv, m3::String &&path, int flags, size_t *id);
+    ssize_t alloc_file(size_t crt, capsel_t srv, m3::String &&path, int flags, m3::inodeno_t ino);
 
     m3::SList<MetaSGate> _sgates;
     m3::RecvGate &_rgate;

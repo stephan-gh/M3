@@ -35,8 +35,9 @@ public:
         FILE,
     };
 
-    explicit M3FSSession(FSHandle &handle, capsel_t srv_sel, capsel_t sel = m3::ObjCap::INVALID)
-        : m3::ServerSession(srv_sel, sel),
+    explicit M3FSSession(FSHandle &handle, size_t crt,
+                         capsel_t srv_sel, capsel_t sel = m3::ObjCap::INVALID)
+        : m3::ServerSession(crt, srv_sel, sel),
           _handle(handle) {
     }
     virtual ~M3FSSession() {

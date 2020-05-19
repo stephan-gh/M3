@@ -34,18 +34,18 @@ public:
     explicit VGAHandler(MemGate *vgamem) : _vgamem(vgamem) {
     }
 
-    virtual Errors::Code open(ServerSession **sess, capsel_t srv_sel, const StringRef &) override {
-        *sess = new ServerSession(srv_sel);
+    virtual Errors::Code open(ServerSession **sess, size_t crt, capsel_t srv_sel, const StringRef &) override {
+        *sess = new ServerSession(crt, srv_sel);
         return Errors::NONE;
     }
-    virtual Errors::Code obtain(ServerSession *, CapExchange &xchg) override {
+    virtual Errors::Code obtain(ServerSession *, size_t, CapExchange &xchg) override {
         if(xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
         xchg.out_caps(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, _vgamem->sel()));
         return Errors::NONE;
     }
-    virtual Errors::Code close(ServerSession *sess) override {
+    virtual Errors::Code close(ServerSession *sess, size_t) override {
         delete sess;
         return Errors::NONE;
     }

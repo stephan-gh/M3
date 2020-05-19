@@ -27,24 +27,25 @@ pub struct ServerSession {
 }
 
 impl ServerSession {
-    /// Creates a new session for server `srv` using the given ident. `auto_close` specifies whether
-    /// the CLOSE message should be sent to the server as soon as all derived session capabilities
-    /// have been revoked.
-    pub fn new(srv: Selector, ident: u64, auto_close: bool) -> Result<Self, Error> {
-        let sel = VPE::cur().alloc_sel();
-        Self::new_with_sel(srv, sel, ident, auto_close)
-    }
-
-    /// Creates a new session for server `srv` at selector `sel` using the given ident. `auto_close`
+    /// Creates a new session for server `srv` and given creator using the given ident. `auto_close`
     /// specifies whether the CLOSE message should be sent to the server as soon as all derived
     /// session capabilities have been revoked.
+    pub fn new(srv: Selector, creator: usize, ident: u64, auto_close: bool) -> Result<Self, Error> {
+        let sel = VPE::cur().alloc_sel();
+        Self::new_with_sel(srv, sel, creator, ident, auto_close)
+    }
+
+    /// Creates a new session for server `srv` and given creator at selector `sel` using the given
+    /// ident. `auto_close` specifies whether the CLOSE message should be sent to the server as soon
+    /// as all derived session capabilities have been revoked.
     pub fn new_with_sel(
         srv: Selector,
         sel: Selector,
+        creator: usize,
         ident: u64,
         auto_close: bool,
     ) -> Result<Self, Error> {
-        syscalls::create_sess(sel, srv, ident, auto_close)?;
+        syscalls::create_sess(sel, srv, creator, ident, auto_close)?;
         Ok(ServerSession {
             cap: Capability::new(sel, CapFlags::empty()),
             ident,

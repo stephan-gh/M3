@@ -42,7 +42,7 @@ public:
     static constexpr size_t MAX_SEND_RECEIVE_BATCH_SIZE = 5;
     static constexpr size_t MAX_SOCKETS                 = 16;
 
-    explicit SocketSession(m3::WorkLoop *wl, capsel_t srv_sel, m3::RecvGate &rgate);
+    explicit SocketSession(m3::WorkLoop *wl, size_t crt, capsel_t srv_sel, m3::RecvGate &rgate);
     ~SocketSession();
 
     virtual Type type() const override {
@@ -53,10 +53,10 @@ public:
         return _rgate;
     }
 
-    m3::Errors::Code obtain(capsel_t srv_sel, m3::CapExchange &xchg) override;
+    m3::Errors::Code obtain(capsel_t srv_sel, size_t crt, m3::CapExchange &xchg) override;
     m3::Errors::Code get_sgate(m3::CapExchange &xchg);
     m3::Errors::Code establish_channel(m3::CapExchange &xchg);
-    m3::Errors::Code open_file(capsel_t srv_sel, m3::CapExchange &xchg);
+    m3::Errors::Code open_file(size_t crt, capsel_t srv_sel, m3::CapExchange &xchg);
 
     virtual void create(m3::GateIStream &is) override;
     virtual void bind(m3::GateIStream &is) override;

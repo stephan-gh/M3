@@ -85,15 +85,14 @@ impl ResMng {
         })
     }
 
-    /// Registers a service with given name at selector `dst`, using `rgate` to receive service
-    /// calls.
-    pub fn reg_service(&self, dst: Selector, rgate: Selector, name: &str) -> Result<(), Error> {
+    /// Registers a service with given name at selector `dst`, using `sgate` for session creations.
+    pub fn reg_service(&self, dst: Selector, sgate: Selector, name: &str) -> Result<(), Error> {
         send_recv_res!(
             &self.sgate,
             RecvGate::def(),
             ResMngOperation::REG_SERV,
             dst,
-            rgate,
+            sgate,
             name
         )
         .map(|_| ())

@@ -62,8 +62,8 @@ class Syscalls {
     Syscalls() = delete;
 
 public:
-    static void create_srv(capsel_t dst, capsel_t vpe, capsel_t rgate, const String &name);
-    static void create_sess(capsel_t dst, capsel_t srv, word_t ident, bool auto_close);
+    static void create_srv(capsel_t dst, capsel_t rgate, const String &name, label_t creator);
+    static void create_sess(capsel_t dst, capsel_t srv, size_t crt, word_t ident, bool auto_close);
     static void create_mgate(capsel_t dst, capsel_t vpe, goff_t addr, size_t size, int perms);
     static void create_rgate(capsel_t dst, uint order, uint msgorder);
     static void create_sgate(capsel_t dst, capsel_t rgate, label_t label, uint credits);
@@ -81,6 +81,7 @@ public:
                            size_t size, int perms);
     static void derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);
     static void derive_pe(capsel_t pe, capsel_t dst, uint eps);
+    static void derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions);
     static size_t kmem_quota(capsel_t kmem);
     static uint pe_quota(capsel_t pe);
     static void sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);

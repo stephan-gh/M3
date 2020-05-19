@@ -172,8 +172,17 @@ struct DiskHandler {
     sessions: SessionContainer<DiskSession>,
 }
 
-impl Handler for DiskHandler {
-    fn open(&mut self, srv_sel: Selector, arg: &str) -> Result<(Selector, SessId), Error> {
+impl Handler<DiskSession> for DiskHandler {
+    fn sessions(&mut self) -> &mut m3::server::SessionContainer<DiskSession> {
+        &mut self.sessions
+    }
+
+    fn open(
+        &mut self,
+        crt: usize,
+        srv_sel: Selector,
+        arg: &str,
+    ) -> Result<(Selector, SessId), Error> {
         let dev = arg
             .parse::<usize>()
             .map_err(|_| Error::new(Code::InvArgs))?;
@@ -181,7 +190,7 @@ impl Handler for DiskHandler {
             return Err(Error::new(Code::InvArgs));
         }
 
-        self.sessions.add_next(srv_sel, false, |sess| {
+        self.sessions.add_next(crt, srv_sel, false, |sess| {
             log!(crate::LOG_DEF, "[{}] disk::open(dev={})", sess.ident(), dev);
             Ok(DiskSession {
                 sess,
@@ -192,7 +201,7 @@ impl Handler for DiskHandler {
         })
     }
 
-    fn obtain(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn obtain(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -212,7 +221,7 @@ impl Handler for DiskHandler {
         Ok(())
     }
 
-    fn delegate(&mut self, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, xchg: &mut CapExchange) -> Result<(), Error> {
         if xchg.in_caps() != 1 {
             return Err(Error::new(Code::InvArgs));
         }
@@ -238,18 +247,18 @@ impl Handler for DiskHandler {
         Ok(())
     }
 
-    fn close(&mut self, sid: SessId) {
+    fn close(&mut self, crt: usize, sid: SessId) {
         log!(crate::LOG_DEF, "[{}] disk::close()", sid);
-        self.sessions.remove(sid);
+        self.sessions.remove(crt, sid);
     }
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let s = Server::new("disk").expect("Unable to create service 'disk'");
     let mut hdl = DiskHandler {
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
     };
+    let s = Server::new("disk", &mut hdl).expect("Unable to create service 'disk'");
 
     DEVICE.set(BlockDevice::new(env::args().collect()).expect("Unable to create block device"));
     REQHDL.set(

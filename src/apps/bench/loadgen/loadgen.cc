@@ -36,8 +36,8 @@ static char http_req[] =
 
 class LoadGenSession : public m3::ServerSession {
 public:
-    explicit LoadGenSession(RecvGate *rgate, capsel_t srv_sel)
-       : m3::ServerSession(srv_sel),
+    explicit LoadGenSession(RecvGate *rgate, size_t crt, capsel_t srv_sel)
+       : m3::ServerSession(crt, srv_sel),
          rem_req(),
          clisgate(SendGate::create(rgate, SendGateArgs().label(ptr_to_label(this))
                                                         .credits(1))),
@@ -77,12 +77,13 @@ public:
         _rgate.start(wl, std::bind(&ReqHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(LoadGenSession **sess, capsel_t srv_sel, const StringRef &) override {
-        *sess = new LoadGenSession(&_rgate, srv_sel);
+    virtual Errors::Code open(LoadGenSession **sess, size_t crt,
+                              capsel_t srv_sel, const StringRef &) override {
+        *sess = new LoadGenSession(&_rgate, crt, srv_sel);
         return Errors::NONE;
     }
 
-    virtual Errors::Code obtain(LoadGenSession *sess, CapExchange &xchg) override {
+    virtual Errors::Code obtain(LoadGenSession *sess, size_t, CapExchange &xchg) override {
         if(xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
@@ -92,7 +93,7 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code delegate(LoadGenSession *sess, CapExchange &xchg) override {
+    virtual Errors::Code delegate(LoadGenSession *sess, size_t, CapExchange &xchg) override {
         if(xchg.in_caps() != 2 || sess->sgate)
             return Errors::INV_ARGS;
 
@@ -107,7 +108,7 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code close(LoadGenSession *sess) override {
+    virtual Errors::Code close(LoadGenSession *sess, size_t) override {
         delete sess;
         return Errors::NONE;
     }

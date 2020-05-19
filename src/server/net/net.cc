@@ -80,21 +80,21 @@ public:
         _rgate.start(wl, std::bind(&NMRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(NMSession **sess, capsel_t srv_sel, const StringRef &) override {
-        *sess = new SocketSession(_wl, srv_sel, _rgate);
+    virtual Errors::Code open(NMSession **sess, size_t crt, capsel_t srv_sel, const StringRef &) override {
+        *sess = new SocketSession(_wl, crt, srv_sel, _rgate);
         _sessions.append(*sess);
         return Errors::NONE;
     }
 
-    virtual Errors::Code obtain(NMSession *sess, m3::CapExchange &xchg) override {
-        return sess->obtain(srv->sel(), xchg);
+    virtual Errors::Code obtain(NMSession *sess, size_t crt, m3::CapExchange &xchg) override {
+        return sess->obtain(crt, srv->sel(), xchg);
     }
 
-    virtual Errors::Code delegate(NMSession *sess, m3::CapExchange &xchg) override {
+    virtual Errors::Code delegate(NMSession *sess, size_t, m3::CapExchange &xchg) override {
         return sess->delegate(xchg);
     }
 
-    virtual Errors::Code close(NMSession *sess) override {
+    virtual Errors::Code close(NMSession *sess, size_t) override {
         if(sess->type() == NMSession::SOCKET)
             _sessions.remove(sess);
         delete sess;
@@ -138,7 +138,7 @@ public:
         sess->close(is);
         // we don't get the close call from our resource manager for files (child sessions)
         if(sess->type() == NMSession::FILE)
-            close(sess);
+            close(sess, 0);
     }
 
     void next_in(GateIStream &is) {

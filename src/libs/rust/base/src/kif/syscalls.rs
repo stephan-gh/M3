@@ -48,18 +48,19 @@ int_enum! {
         const DERIVE_MEM        = 12;
         const DERIVE_KMEM       = 13;
         const DERIVE_PE         = 14;
-        const KMEM_QUOTA        = 15;
-        const PE_QUOTA          = 16;
-        const SEM_CTRL          = 17;
+        const DERIVE_SRV        = 15;
+        const KMEM_QUOTA        = 16;
+        const PE_QUOTA          = 17;
+        const SEM_CTRL          = 18;
 
         // capability exchange
-        const DELEGATE          = 18;
-        const OBTAIN            = 19;
-        const EXCHANGE          = 20;
-        const REVOKE            = 21;
+        const DELEGATE          = 19;
+        const OBTAIN            = 20;
+        const EXCHANGE          = 21;
+        const REVOKE            = 22;
 
         // misc
-        const NOOP              = 22;
+        const NOOP              = 23;
     }
 }
 
@@ -86,8 +87,8 @@ impl Default for ExchangeArgs {
 pub struct CreateSrv {
     pub opcode: u64,
     pub dst_sel: u64,
-    pub vpe_sel: u64,
     pub rgate_sel: u64,
+    pub creator: u64,
     pub namelen: u64,
     pub name: [u8; MAX_STR_SIZE],
 }
@@ -98,6 +99,7 @@ pub struct CreateSess {
     pub opcode: u64,
     pub dst_sel: u64,
     pub srv_sel: u64,
+    pub creator: u64,
     pub ident: u64,
     pub auto_close: u64,
 }
@@ -262,6 +264,15 @@ pub struct DerivePE {
     pub pe_sel: u64,
     pub dst_sel: u64,
     pub eps: u64,
+}
+
+/// The derive service request message
+#[repr(C, packed)]
+pub struct DeriveSrv {
+    pub opcode: u64,
+    pub dst_crd: u64,
+    pub srv_sel: u64,
+    pub sessions: u64,
 }
 
 /// The kernel memory quota request message

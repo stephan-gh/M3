@@ -135,7 +135,7 @@ NOINLINE static void create_srv() {
         }
 
         void run() override {
-            Syscalls::create_srv(selector, VPE::self().sel(), rgate.sel(), "test");
+            Syscalls::create_srv(selector, rgate.sel(), "test", 0);
         }
         void post() override {
             Syscalls::revoke(VPE::self().sel(),

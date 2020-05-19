@@ -70,32 +70,33 @@ public:
         _rgate.start(wl, std::bind(&M3FSRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(M3FSSession **sess, capsel_t srv_sel, const StringRef &args) override {
+    virtual Errors::Code open(M3FSSession **sess, size_t crt,
+                              capsel_t srv_sel, const StringRef &args) override {
         size_t max_files = 64;
         if(args.length() > 0) {
             if(strncmp(args.c_str(), "files=", 6) == 0)
                 max_files = IStringStream::read_from<size_t>(args.c_str() + 6);
         }
-        *sess = new M3FSMetaSession(_handle, srv_sel, _rgate, max_files);
+        *sess = new M3FSMetaSession(_handle, crt, srv_sel, _rgate, max_files);
         return Errors::NONE;
     }
 
-    virtual Errors::Code obtain(M3FSSession *sess, CapExchange &xchg) override {
+    virtual Errors::Code obtain(M3FSSession *sess, size_t crt, CapExchange &xchg) override {
         if(sess->type() == M3FSSession::META) {
             auto meta = static_cast<M3FSMetaSession *>(sess);
             if(xchg.in_args().length() == 0)
                 return meta->get_sgate(xchg);
-            return meta->open_file(srv->sel(), xchg);
+            return meta->open_file(crt, srv->sel(), xchg);
         }
         else {
             auto file = static_cast<M3FSFileSession *>(sess);
             if(xchg.in_args().length() == 0)
-                return file->clone(srv->sel(), xchg);
+                return file->clone(crt, srv->sel(), xchg);
             return file->get_mem(xchg);
         }
     }
 
-    virtual Errors::Code delegate(M3FSSession *sess, CapExchange &xchg) override {
+    virtual Errors::Code delegate(M3FSSession *sess, size_t, CapExchange &xchg) override {
         if(xchg.in_caps() != 1 || sess->type() != M3FSSession::FILE)
             return Errors::NOT_SUP;
         capsel_t sel = VPE::self().alloc_sel();
@@ -104,7 +105,7 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code close(M3FSSession *sess) override {
+    virtual Errors::Code close(M3FSSession *sess, size_t) override {
         delete sess;
         _rgate.drop_msgs_with(ptr_to_label(sess));
         return Errors::NONE;
@@ -175,7 +176,7 @@ public:
         M3FSSession *sess = is.label<M3FSSession*>();
         // reply first to prevent that we drop this message
         reply_vmsg(is, Errors::NONE);
-        close(sess);
+        close(sess, 0);
     }
 
 private:

@@ -26,8 +26,8 @@
 namespace m3 {
 
 struct SimpleSession : public ServerSession {
-    explicit SimpleSession(capsel_t srv_sel) noexcept
-        : ServerSession(srv_sel),
+    explicit SimpleSession(size_t crt, capsel_t srv_sel) noexcept
+        : ServerSession(crt, srv_sel),
           sgate() {
     }
 
@@ -44,12 +44,12 @@ public:
         _rgate.start(wl, std::bind(&SimpleRequestHandler::handle_message, this, _1));
     }
 
-    virtual Errors::Code open(SimpleSession **sess, capsel_t srv_sel, const StringRef&) override {
-        *sess = new SimpleSession(srv_sel);
+    virtual Errors::Code open(SimpleSession **sess, size_t crt, capsel_t srv_sel, const StringRef&) override {
+        *sess = new SimpleSession(crt, srv_sel);
         return Errors::NONE;
     }
 
-    virtual Errors::Code obtain(SimpleSession *sess, CapExchange &xchg) override {
+    virtual Errors::Code obtain(SimpleSession *sess, size_t, CapExchange &xchg) override {
         if(sess->sgate || xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
@@ -63,7 +63,7 @@ public:
         return Errors::NONE;
     }
 
-    virtual Errors::Code close(SimpleSession *sess) override {
+    virtual Errors::Code close(SimpleSession *sess, size_t) override {
         delete sess;
         _rgate.drop_msgs_with(ptr_to_label(sess));
         return Errors::NONE;

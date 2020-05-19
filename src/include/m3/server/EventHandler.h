@@ -35,8 +35,8 @@ class EventSessionData : public ServerSession, public SListItem {
     friend class EventHandler;
 
 public:
-    explicit EventSessionData(capsel_t srv_sel) noexcept
-        : ServerSession(srv_sel),
+    explicit EventSessionData(size_t crt, capsel_t srv_sel) noexcept
+        : ServerSession(crt, srv_sel),
           SListItem(),
           _sgate() {
     }
@@ -74,13 +74,13 @@ public:
     }
 
 protected:
-    virtual Errors::Code open(SESS **sess, capsel_t srv_sel, const StringRef &) override {
-        *sess = new SESS(srv_sel);
+    virtual Errors::Code open(SESS **sess, size_t crt, capsel_t srv_sel, const StringRef &) override {
+        *sess = new SESS(crt, srv_sel);
         _sessions.append(*sess);
         return Errors::NONE;
     }
 
-    virtual Errors::Code delegate(SESS *sess, CapExchange &xchg) override {
+    virtual Errors::Code delegate(SESS *sess, size_t, CapExchange &xchg) override {
         if(sess->gate() || xchg.in_caps() != 1)
             return Errors::INV_ARGS;
 
@@ -89,7 +89,7 @@ protected:
         return Errors::NONE;
     }
 
-    virtual Errors::Code close(SESS *sess) override {
+    virtual Errors::Code close(SESS *sess, size_t) override {
         _sessions.remove(sess);
         delete sess;
         return Errors::NONE;
