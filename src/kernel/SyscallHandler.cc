@@ -1053,8 +1053,9 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, b
     smsg.opcode = obtain ? m3::KIF::Service::OBTAIN : m3::KIF::Service::DELEGATE;
     smsg.sess = sesscap->obj->ident;
     smsg.data.caps = crd.count();
-    smsg.data.args.bytes = req->args.bytes;
-    memcpy(&smsg.data.args.data, &req->args.data, req->args.bytes);
+    smsg.data.args.bytes = m3::Math::min(sizeof(smsg.data.args.data),
+                                         static_cast<size_t>(req->args.bytes));
+    memcpy(&smsg.data.args.data, &req->args.data, smsg.data.args.bytes);
 
     KLOG(SERV, "Sending " << (obtain ? "OBTAIN" : "DELEGATE")
         << " request to service " << rsrv->name()
