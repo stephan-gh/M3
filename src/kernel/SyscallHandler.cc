@@ -116,6 +116,7 @@ void SyscallHandler::init() {
     add_operation(m3::KIF::Syscall::DERIVE_KMEM,    &SyscallHandler::derive_kmem);
     add_operation(m3::KIF::Syscall::DERIVE_PE,      &SyscallHandler::derive_pe);
     add_operation(m3::KIF::Syscall::DERIVE_SRV,     &SyscallHandler::derive_srv);
+    add_operation(m3::KIF::Syscall::GET_SESS,       &SyscallHandler::get_sess);
     add_operation(m3::KIF::Syscall::KMEM_QUOTA,     &SyscallHandler::kmem_quota);
     add_operation(m3::KIF::Syscall::PE_QUOTA,       &SyscallHandler::pe_quota);
     add_operation(m3::KIF::Syscall::SEM_CTRL,       &SyscallHandler::sem_ctrl);
@@ -942,6 +943,52 @@ void SyscallHandler::derive_srv(VPE *vpe, const m3::TCU::Message *msg) {
     vpe->objcaps().set(dst.start() + 0, nsrvcap);
 
     vpe->objcaps().obtain(dst.start() + 1, sgate);
+
+    reply_result(vpe, msg, m3::Errors::NONE);
+}
+
+void SyscallHandler::get_sess(VPE *vpe, const m3::TCU::Message *msg) {
+    auto req = get_message<m3::KIF::Syscall::GetSession>(msg);
+    capsel_t dst = req->dst_sel;
+    capsel_t srv = req->srv_sel;
+    capsel_t tvpe = req->vpe_sel;
+    word_t sid = req->sid;
+
+    LOG_SYS(vpe, ": syscall::get_sess", "(dst=" << dst << ", srv=" << srv
+        << ", vpe=" << tvpe << ", sid=#" << m3::fmt(sid, "x") << ")");
+
+    auto srvcap = static_cast<ServCapability*>(vpe->objcaps().get(srv, Capability::SERV));
+    if(srvcap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Service capability is invalid");
+
+    auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
+    if(vpecap == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid VPE cap");
+
+    if(!vpecap->obj->objcaps().unused(dst))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid destination selector");
+
+    // find root service cap
+    Capability *srvroot = srvcap;
+    while(srvroot->parent())
+        srvroot = srvroot->parent();
+
+    // walk through childs to find session with given session id (only root cap can create sessions)
+    SessCapability *csess = nullptr;
+    for(Capability *child = srvroot->child(); child != nullptr; child = child->next()) {
+        if(child->type() == Capability::SESS) {
+            csess = static_cast<SessCapability*>(child);
+            if(csess->obj->ident == sid)
+                break;
+        }
+    }
+
+    if(csess == nullptr)
+        SYS_ERROR(vpe, msg, m3::Errors::NO_PERM, "Unknown session id");
+    if(csess->obj->creator != srvcap->obj->creator)
+        SYS_ERROR(vpe, msg, m3::Errors::NO_PERM, "Cannot get access to foreign session");
+
+    vpecap->obj->objcaps().obtain(dst, csess);
 
     reply_result(vpe, msg, m3::Errors::NONE);
 }

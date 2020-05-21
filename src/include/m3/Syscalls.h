@@ -82,6 +82,7 @@ public:
     static void derive_kmem(capsel_t kmem, capsel_t dst, size_t quota);
     static void derive_pe(capsel_t pe, capsel_t dst, uint eps);
     static void derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions);
+    static void get_sess(capsel_t srv, capsel_t vpe, capsel_t dst, word_t sid);
     static size_t kmem_quota(capsel_t kmem);
     static uint pe_quota(capsel_t pe);
     static void sem_ctrl(capsel_t sem, KIF::Syscall::SemOp);

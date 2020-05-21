@@ -319,6 +319,18 @@ pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32) -> Result<(), E
     send_receive_result(&req)
 }
 
+/// Obtains the session capability from service `srv` with session id `sid` to the given VPE.
+pub fn get_sess(srv: Selector, vpe: Selector, dst: Selector, sid: Label) -> Result<(), Error> {
+    let req = syscalls::GetSession {
+        opcode: syscalls::Operation::GET_SESS.val,
+        dst_sel: u64::from(dst),
+        srv_sel: u64::from(srv),
+        vpe_sel: u64::from(vpe),
+        sid: sid as u64,
+    };
+    send_receive_result(&req)
+}
+
 /// Returns the remaining quota in bytes for the kernel memory object at `kmem`.
 pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
     let req = syscalls::KMemQuota {

@@ -244,6 +244,16 @@ void Syscalls::derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint session
     send_receive_throw(&req, sizeof(req));
 }
 
+void Syscalls::get_sess(capsel_t srv, capsel_t vpe, capsel_t dst, word_t sid) {
+    KIF::Syscall::GetSession req;
+    req.opcode = KIF::Syscall::GET_SESS;
+    req.srv_sel = srv;
+    req.vpe_sel = vpe;
+    req.dst_sel = dst;
+    req.sid = sid;
+    send_receive_throw(&req, sizeof(req));
+}
+
 size_t Syscalls::kmem_quota(capsel_t kmem) {
     KIF::Syscall::KMemQuota req;
     req.opcode = KIF::Syscall::KMEM_QUOTA;

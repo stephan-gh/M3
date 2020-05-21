@@ -49,18 +49,19 @@ int_enum! {
         const DERIVE_KMEM       = 13;
         const DERIVE_PE         = 14;
         const DERIVE_SRV        = 15;
-        const KMEM_QUOTA        = 16;
-        const PE_QUOTA          = 17;
-        const SEM_CTRL          = 18;
+        const GET_SESS          = 16;
+        const KMEM_QUOTA        = 17;
+        const PE_QUOTA          = 18;
+        const SEM_CTRL          = 19;
 
         // capability exchange
-        const DELEGATE          = 19;
-        const OBTAIN            = 20;
-        const EXCHANGE          = 21;
-        const REVOKE            = 22;
+        const DELEGATE          = 20;
+        const OBTAIN            = 21;
+        const EXCHANGE          = 22;
+        const REVOKE            = 23;
 
         // misc
-        const NOOP              = 23;
+        const NOOP              = 24;
     }
 }
 
@@ -273,6 +274,16 @@ pub struct DeriveSrv {
     pub dst_crd: u64,
     pub srv_sel: u64,
     pub sessions: u64,
+}
+
+/// The get sesion message
+#[repr(C, packed)]
+pub struct GetSession {
+    pub opcode: u64,
+    pub dst_sel: u64,
+    pub srv_sel: u64,
+    pub vpe_sel: u64,
+    pub sid: u64,
 }
 
 /// The kernel memory quota request message

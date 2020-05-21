@@ -172,6 +172,7 @@ struct KIF {
             DERIVE_KMEM,
             DERIVE_PE,
             DERIVE_SRV,
+            GET_SESS,
             KMEM_QUOTA,
             PE_QUOTA,
             SEM_CTRL,
@@ -324,6 +325,13 @@ struct KIF {
             xfer_t dst_crd;
             xfer_t srv_sel;
             xfer_t sessions;
+        } PACKED;
+
+        struct GetSession : public DefaultRequest {
+            xfer_t dst_sel;
+            xfer_t srv_sel;
+            xfer_t vpe_sel;
+            xfer_t sid;
         } PACKED;
 
         struct KMemQuota : public DefaultRequest {
