@@ -36,3 +36,17 @@ pub fn server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), E
         func()?;
     }
 }
+
+#[macro_export]
+macro_rules! handle_ctrl_chan {
+    ($serv:expr, $hdl:expr) => {
+        match $serv.handle_ctrl_chan($hdl) {
+            Ok(true) => Err(Error::new(Code::EndOfFile)),
+            Ok(_) => Ok(()),
+            Err(e) => {
+                llog!(SERV, "Control channel request failed: {:?}", e);
+                Ok(())
+            }
+        }
+    };
+}

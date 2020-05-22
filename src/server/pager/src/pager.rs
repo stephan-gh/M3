@@ -224,9 +224,7 @@ fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
 fn workloop(serv: &Server) {
     requests::workloop(
         || {
-            if let Err(e) = serv.handle_ctrl_chan(PGHDL.get_mut()) {
-                log!(LOG_DEF, "Error during control channel request: {:?}", e);
-            }
+            handle_ctrl_chan!(serv, PGHDL.get_mut()).ok();
 
             REQHDL.get_mut().handle(handle_request).ok();
         },

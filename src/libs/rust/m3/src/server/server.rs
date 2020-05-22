@@ -169,7 +169,7 @@ impl Server {
     }
 
     /// Fetches a message from the control channel and handles it if so.
-    pub fn handle_ctrl_chan<S>(&self, hdl: &mut dyn Handler<S>) -> Result<(), Error> {
+    pub fn handle_ctrl_chan<S>(&self, hdl: &mut dyn Handler<S>) -> Result<bool, Error> {
         let is = self.rgate.fetch();
         if let Some(mut is) = is {
             let sel = self.sel();
@@ -181,12 +181,16 @@ impl Server {
                 service::Operation::OBTAIN => Self::handle_obtain(hdl, is),
                 service::Operation::DELEGATE => Self::handle_delegate(hdl, is),
                 service::Operation::CLOSE => Self::handle_close(hdl, is),
-                service::Operation::SHUTDOWN => Self::handle_shutdown(hdl, is),
-                _ => unreachable!(),
+                service::Operation::SHUTDOWN => match Self::handle_shutdown(hdl, is) {
+                    Ok(_) => return Ok(true),
+                    Err(e) => Err(e),
+                },
+                _ => is.reply_error(Code::InvArgs),
             }
+            .map(|_| false)
         }
         else {
-            Ok(())
+            Ok(false)
         }
     }
 
@@ -363,8 +367,7 @@ impl Server {
 
         hdl.shutdown();
 
-        reply_vmsg!(is, 0)?;
-        Err(Error::new(Code::EndOfFile))
+        reply_vmsg!(is, 0)
     }
 }
 
