@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/log/Lib.h>
 #include <base/stream/IStringStream.h>
 #include <base/util/Time.h>
 
