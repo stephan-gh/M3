@@ -61,7 +61,7 @@ public:
 
 private:
     void send_pending();
-    event_t do_send(uint64_t id, const void *msg, size_t size, bool onheap);
+    event_t do_send(uint64_t id, label_t ident, const void *msg, size_t size, bool onheap);
 
     static event_t get_event(uint64_t id);
 

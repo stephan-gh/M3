@@ -41,7 +41,7 @@ event_t SendQueue::send(label_t ident, const void *msg, size_t size, bool onheap
         return 0;
 
     if(_inflight == 0)
-        return do_send(_next_id++, msg, size, onheap);
+        return do_send(_next_id++, ident, msg, size, onheap);
 
     // if it's not already on the heap, put it there
     if(!onheap) {
@@ -73,7 +73,7 @@ void SendQueue::send_pending() {
     }
 
     // pending messages have always been copied to the heap
-    do_send(e->id, e->msg, e->size, true);
+    do_send(e->id, e->ident, e->msg, e->size, true);
     delete e;
 }
 
@@ -93,13 +93,13 @@ void SendQueue::received_reply(const m3::TCU::Message *msg) {
     }
 }
 
-event_t SendQueue::do_send(uint64_t id, const void *msg, size_t size, bool onheap) {
+event_t SendQueue::do_send(uint64_t id, label_t ident, const void *msg, size_t size, bool onheap) {
     KLOG(SQUEUE, "SendQueue[" << _pe << ":" << _ep << "]: sending message");
 
     _cur_event = get_event(id);
     _inflight++;
 
-    if(TCU::send_to(_pe, _ep, 0, msg, size, m3::ptr_to_label(this),
+    if(TCU::send_to(_pe, _ep, ident, msg, size, m3::ptr_to_label(this),
                     TCU::SERV_REP) != m3::Errors::NONE) {
         PANIC("send failed");
     }
