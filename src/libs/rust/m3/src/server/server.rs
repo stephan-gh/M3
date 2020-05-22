@@ -176,6 +176,7 @@ impl Server {
             let op: service::Operation = is.pop()?;
             match op {
                 service::Operation::OPEN => Self::handle_open(hdl, sel, is),
+                service::Operation::SESS_QUOTA => Self::handle_sess_quota(hdl, is),
                 service::Operation::DERIVE_CRT => Self::handle_derive_crt(hdl, is),
                 service::Operation::OBTAIN => Self::handle_obtain(hdl, is),
                 service::Operation::DELEGATE => Self::handle_delegate(hdl, is),
@@ -219,6 +220,20 @@ impl Server {
                 is.reply(&[reply])
             },
         }
+    }
+
+    fn handle_sess_quota<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
+        let crt = is.label() as usize;
+
+        llog!(SERV, "server::sess_quota(crt={})", crt);
+
+        let sessions = hdl.sessions().sess_quota(crt);
+
+        let reply = service::SessQuotaReply {
+            res: 0,
+            sessions: sessions as u64,
+        };
+        is.reply(&[reply])
     }
 
     fn handle_derive_crt<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {

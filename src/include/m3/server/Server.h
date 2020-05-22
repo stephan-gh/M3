@@ -90,6 +90,7 @@ private:
         _rgate.start(wl, std::bind(&Server::handle_message, this, _1));
 
         _ctrl_handler[KIF::Service::OPEN] = &Server::handle_open;
+        _ctrl_handler[KIF::Service::SESS_QUOTA] = &Server::handle_sess_quota;
         _ctrl_handler[KIF::Service::DERIVE_CRT] = &Server::handle_derive_crt;
         _ctrl_handler[KIF::Service::OBTAIN] = &Server::handle_obtain;
         _ctrl_handler[KIF::Service::DELEGATE] = &Server::handle_delegate;
@@ -146,6 +147,18 @@ private:
 
         reply.sess = sess ? sess->sel() : KIF::INV_SEL;
         reply.ident = reinterpret_cast<uintptr_t>(sess);
+        is.reply(&reply, sizeof(reply));
+    }
+
+    void handle_sess_quota(GateIStream &is) {
+        size_t crt = is.label<size_t>();
+        assert(crt < MAX_CREATORS && _creators[crt] != nullptr);
+
+        LLOG(SERV, "sess_quota(creator=" << crt << ")");
+
+        KIF::Service::SessQuotaReply reply;
+        reply.error = 0;
+        reply.sessions = _creators[crt]->sessions;
         is.reply(&reply, sizeof(reply));
     }
 
@@ -247,7 +260,7 @@ private:
 
 protected:
     std::unique_ptr<HDL> _handler;
-    handler_func _ctrl_handler[6];
+    handler_func _ctrl_handler[KIF::Service::SHUTDOWN + 1];
     std::unique_ptr<Creator> _creators[MAX_CREATORS];
     RecvGate _rgate;
 };

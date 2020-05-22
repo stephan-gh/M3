@@ -389,6 +389,7 @@ struct KIF {
     struct Service {
         enum Operation {
             OPEN,
+            SESS_QUOTA,
             DERIVE_CRT,
             OBTAIN,
             DELEGATE,
@@ -404,6 +405,13 @@ struct KIF {
         struct OpenReply : public DefaultReply {
             xfer_t sess;
             xfer_t ident;
+        } PACKED;
+
+        struct SessQuota : public DefaultRequest {
+        } PACKED;
+
+        struct SessQuotaReply : public DefaultReply {
+            xfer_t sessions;
         } PACKED;
 
         struct DeriveCreator : public DefaultRequest {
