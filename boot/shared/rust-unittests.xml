@@ -13,11 +13,19 @@
             </app>
         </dom>
         <dom>
-            <app args="pager -s /bin/subsys -s /bin/rustunittests">
+            <app args="pager sharepe">
                 <sess name="m3fs" />
-                <sess lname="m3fs-clone" gname="m3fs" />
-                <sess name="pipes" />
-                <pes type="core" count="2" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/rustunittests">
+                        <sess name="m3fs" />
+                        <sess lname="m3fs-clone" gname="m3fs" />
+                        <sess name="pipes" />
+                        <serv name="test" />
+                        <sess name="test" dep="false" />
+                        <pes type="core" count="2" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

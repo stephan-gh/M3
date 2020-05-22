@@ -34,6 +34,7 @@ use memory::{Allocation, MemPool};
 use pes;
 use sems;
 use services::{self, Session};
+use subsys::SubsystemBuilder;
 
 pub type Id = u32;
 
@@ -161,34 +162,126 @@ pub trait Child {
         Ok(dst)
     }
 
-    fn add_service(&mut self, id: Id, sel: Selector) {
-        self.res_mut().services.push((id, sel));
-    }
     fn has_service(&self, sel: Selector) -> bool {
         self.res().services.iter().any(|t| t.1 == sel)
     }
-    fn remove_service(&mut self, sel: Selector) -> Result<Id, Error> {
-        let serv = &mut self.res_mut().services;
-        let idx = serv
-            .iter()
-            .position(|t| t.1 == sel)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        Ok(serv.remove(idx).0)
+
+    fn reg_service(
+        &mut self,
+        srv_sel: Selector,
+        sgate_sel: Selector,
+        name: String,
+    ) -> Result<(), Error> {
+        log!(
+            crate::LOG_SERV,
+            "{}: reg_serv(srv_sel={}, sgate_sel={}, name={})",
+            self.name(),
+            srv_sel,
+            sgate_sel,
+            name
+        );
+
+        let cfg = self.cfg();
+        let sdesc = if cfg.restrict() {
+            let sdesc = cfg
+                .get_service(&name)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
+            if sdesc.is_used() {
+                return Err(Error::new(Code::Exists));
+            }
+            Some(sdesc)
+        }
+        else {
+            None
+        };
+
+        let our_srv = self.obtain(srv_sel)?;
+        let our_sgate = self.obtain(sgate_sel)?;
+        let id = services::get().add_service(our_srv, our_sgate, name, true)?;
+
+        if let Some(sd) = sdesc {
+            sd.mark_used();
+        }
+        self.res_mut().services.push((id, srv_sel));
+
+        Ok(())
     }
 
-    fn add_session(&mut self, sess: Session) {
-        self.res_mut().sessions.push(sess);
+    fn unreg_service(&mut self, sel: Selector, notify: bool) -> Result<(), Error> {
+        log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", self.name(), sel);
+
+        let id = {
+            let serv = &mut self.res_mut().services;
+            serv.iter()
+                .position(|t| t.1 == sel)
+                .ok_or_else(|| Error::new(Code::InvArgs))
+                .and_then(|idx| Ok(serv.remove(idx).0))
+        }?;
+
+        let serv = services::get().remove_service(id, notify);
+        self.cfg().unreg_service(serv.name());
+
+        Ok(())
     }
+
     fn get_session(&self, sel: Selector) -> Option<&Session> {
         self.res().sessions.iter().find(|s| s.sel() == sel)
     }
-    fn remove_session(&mut self, sel: Selector) -> Result<Session, Error> {
-        let sessions = &mut self.res_mut().sessions;
-        let idx = sessions
-            .iter()
-            .position(|s| s.sel() == sel)
-            .ok_or_else(|| Error::new(Code::InvArgs))?;
-        Ok(sessions.remove(idx))
+
+    #[allow(clippy::ptr_arg)] // &String is preferable here, because we &String in the if-else
+    fn open_session(&mut self, dst_sel: Selector, name: &String) -> Result<(), Error> {
+        log!(
+            crate::LOG_SERV,
+            "{}: open_sess(dst_sel={}, name={})",
+            self.name(),
+            dst_sel,
+            name
+        );
+
+        let cfg = self.cfg();
+        let empty_arg = String::new();
+        // TODO "restrict=0" shouldn't prevent us from passing arguments on session creation
+        let (sdesc, sname, arg) = if cfg.restrict() {
+            let sdesc = cfg
+                .get_session(name)
+                .ok_or_else(|| Error::new(Code::InvArgs))?;
+            if sdesc.is_used() {
+                return Err(Error::new(Code::Exists));
+            }
+            (Some(sdesc), sdesc.serv_name(), sdesc.arg())
+        }
+        else {
+            (None, name, &empty_arg)
+        };
+
+        let serv = services::get().get(sname)?;
+        // TODO don't return first tuple argument
+        let (_, sess) = Session::new(dst_sel, serv, arg)?;
+
+        syscalls::get_sess(serv.sel(), self.vpe_sel(), dst_sel, sess.ident())?;
+
+        if let Some(sd) = sdesc {
+            sd.mark_used(dst_sel);
+        }
+        self.res_mut().sessions.push(sess);
+
+        Ok(())
+    }
+
+    fn close_session(&mut self, sel: Selector) -> Result<(), Error> {
+        log!(crate::LOG_SERV, "{}: close_sess(sel={})", self.name(), sel);
+
+        let sess = {
+            let sessions = &mut self.res_mut().sessions;
+            sessions
+                .iter()
+                .position(|s| s.sel() == sel)
+                .ok_or_else(|| Error::new(Code::InvArgs))
+                .and_then(|idx| Ok(sessions.remove(idx)))
+        }?;
+
+        self.cfg().close_session(sel);
+        sess.close()
     }
 
     fn alloc_mem(&mut self, dst_sel: Selector, size: goff, perm: Perm) -> Result<(), Error> {
@@ -359,7 +452,7 @@ pub trait Child {
 
         while !self.res().services.is_empty() {
             let (id, _) = self.res_mut().services.remove(0);
-            let serv = services::get().remove_service(id);
+            let serv = services::get().remove_service(id, false);
             self.cfg().unreg_service(serv.name());
         }
 
@@ -381,6 +474,7 @@ pub struct OwnChild {
     cfg: Rc<AppConfig>,
     mem: Rc<RefCell<MemPool>>,
     res: Resources,
+    sub: Option<SubsystemBuilder>,
     daemon: bool,
     activity: Option<ExecActivity>,
     kmem: Rc<KMem>,
@@ -395,6 +489,7 @@ impl OwnChild {
         kmem: Rc<KMem>,
         mem: Rc<RefCell<MemPool>>,
         cfg: Rc<AppConfig>,
+        sub: Option<SubsystemBuilder>,
     ) -> Self {
         OwnChild {
             id,
@@ -404,6 +499,7 @@ impl OwnChild {
             cfg,
             mem,
             res: Resources::default(),
+            sub,
             daemon,
             activity: None,
             kmem,
@@ -412,6 +508,10 @@ impl OwnChild {
 
     pub fn kmem(&self) -> &Rc<KMem> {
         &self.kmem
+    }
+
+    pub fn subsys(&mut self) -> Option<&mut SubsystemBuilder> {
+        self.sub.as_mut()
     }
 
     pub fn start(&mut self, vpe: VPE, mapper: &mut dyn Mapper, file: FileRef) -> Result<(), Error> {
@@ -429,7 +529,12 @@ impl OwnChild {
 
     pub fn has_unmet_reqs(&self) -> bool {
         for sess in self.cfg().sessions() {
-            if services::get().get(sess.serv_name()).is_err() {
+            if sess.is_dep() && services::get().get(sess.serv_name()).is_err() {
+                return true;
+            }
+        }
+        for serv in self.cfg().dependencies() {
+            if services::get().get(serv).is_err() {
                 return true;
             }
         }
@@ -628,12 +733,14 @@ impl ChildManager {
         self.foreigns
     }
 
-    pub fn next_id(&self) -> Id {
+    pub fn next_id(&mut self) -> Id {
         self.next_id
     }
 
-    pub fn set_next_id(&mut self, id: Id) {
-        self.next_id = id;
+    pub fn alloc_id(&mut self) -> Id {
+        let id = self.next_id;
+        self.next_id += 1;
+        id
     }
 
     pub fn add(&mut self, child: Box<dyn Child>) {

@@ -17,9 +17,8 @@
 use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, StaticCell};
 use m3::col::{DList, String, Vec};
-use m3::com::{RGateArgs, RecvGate, SendGate};
+use m3::com::{RecvGate, SendGate};
 use m3::errors::Error;
-use m3::math;
 use m3::tcu;
 use thread;
 
@@ -27,7 +26,7 @@ use childs::Id;
 use services;
 
 pub const RBUF_SIZE: usize = 1 << 11;
-const RBUF_MSG_SIZE: usize = 1 << 6;
+pub const RBUF_MSG_SIZE: usize = 1 << 6;
 
 struct Entry {
     id: u64,
@@ -66,21 +65,7 @@ fn get_event(id: u64) -> thread::Event {
     0x8000_0000_0000_0000 | id
 }
 
-pub fn init(rbuf: Option<(Option<Selector>, usize, usize)>) {
-    let mut rgate = RecvGate::new_with(
-        RGateArgs::default()
-            .order(math::next_log2(RBUF_SIZE))
-            .msg_order(math::next_log2(RBUF_MSG_SIZE)),
-    )
-    .expect("Unable to create service rgate");
-    if let Some((mem, off, addr)) = rbuf {
-        rgate.activate_with(mem, off, addr)
-    }
-    else {
-        rgate.activate()
-    }
-    .expect("Unable to activate service rgate");
-
+pub fn init(rgate: RecvGate) {
     RGATE.set(rgate);
 }
 
@@ -104,6 +89,10 @@ impl SendQueue {
             cur_event: 0,
             state: QState::Idle,
         }
+    }
+
+    pub fn sgate_sel(&self) -> Selector {
+        self.sgate.sel()
     }
 
     pub fn send(&mut self, msg: &[u8]) -> Result<thread::Event, Error> {

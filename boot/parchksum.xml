@@ -8,9 +8,14 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/parchksum 4 131072">
+            <app args="pager">
                 <sess name="m3fs" />
-                <pes type="core" count="5" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/parchksum 4 131072">
+                        <pes type="core" count="4" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

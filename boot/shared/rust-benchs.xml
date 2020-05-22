@@ -13,10 +13,16 @@
             </app>
         </dom>
         <dom>
-            <app args="pager -s /bin/rustbenchs">
+            <app args="pager sharepe">
                 <sess name="m3fs" />
-                <sess name="pipes" />
                 <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/rustbenchs">
+                        <sess name="m3fs" />
+                        <sess name="pipes" />
+                        <pes type="core" count="1" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

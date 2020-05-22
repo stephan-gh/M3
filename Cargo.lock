@@ -69,6 +69,8 @@ version = "0.1.0"
 dependencies = [
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "m3 0.1.0",
+ "resmng 0.1.0",
+ "thread 0.1.0",
 ]
 
 [[package]]
@@ -148,15 +150,6 @@ dependencies = [
 name = "static_assertions"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "subsys"
-version = "0.1.0"
-dependencies = [
- "m3 0.1.0",
- "resmng 0.1.0",
- "thread 0.1.0",
-]
 
 [[package]]
 name = "thread"

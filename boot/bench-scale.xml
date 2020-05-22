@@ -8,9 +8,15 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/subsys /bin/bench-scale -i 4 -s 1 -r 1 empty">
+            <app args="pager">
                 <sess name="m3fs" />
-                <pes type="core" count="6" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/bench-scale -i 4 -s 1 -r 1 empty">
+                        <sess name="m3fs" />
+                        <pes type="core" count="4" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

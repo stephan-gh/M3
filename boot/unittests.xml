@@ -13,11 +13,17 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/unittests">
+            <app args="pager">
                 <sess name="m3fs" />
-                <sess lname="m3fs-clone" gname="m3fs" />
-                <sess name="pipes" />
-                <pes type="core" count="3" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/unittests">
+                        <sess name="m3fs" />
+                        <sess lname="m3fs-clone" gname="m3fs" />
+                        <sess name="pipes" />
+                        <pes type="core" count="2" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

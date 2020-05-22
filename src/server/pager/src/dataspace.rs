@@ -197,7 +197,6 @@ impl DataSpace {
                     let mem = Rc::new(RefCell::new(PhysMem::new(
                         (self.owner, self.virt),
                         reg.size(),
-                        kif::Perm::RWX,
                     )?));
                     reg.set_mem(mem.clone());
                     copy_block(&src, mem.borrow().gate(), reg.mem_off(), reg.size());
@@ -241,7 +240,6 @@ impl DataSpace {
                 reg.set_mem(Rc::new(RefCell::new(PhysMem::new(
                     (self.owner, self.virt),
                     reg.size(),
-                    kif::Perm::RWX,
                 )?)));
 
                 if !self.flags.contains(MapFlags::UNINIT) {

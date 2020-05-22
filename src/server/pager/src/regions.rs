@@ -146,6 +146,7 @@ impl Region {
                 };
 
                 // allocate new memory for our copy
+                // TODO allocate from child memory
                 let ngate = MemGate::new(self.size as usize, Perm::RWX)?;
 
                 log!(

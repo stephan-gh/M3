@@ -31,6 +31,7 @@
                     <xs:attribute name="lname" type="xs:string"/>
                     <xs:attribute name="gname" type="xs:string"/>
                     <xs:attribute name="args" type="xs:string"/>
+                    <xs:attribute name="dep" type="xs:string"/>
                 </xs:complexType>
             </xs:element>
 

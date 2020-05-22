@@ -21,39 +21,41 @@ use m3::col::{String, Vec};
 use m3::com::SendGate;
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::pes::VPE;
+use m3::syscalls;
+use m3::tcu::Label;
 use m3::util;
 use thread;
 
-use childs;
-use childs::{Child, Id};
 use sendqueue::SendQueue;
+
+pub type Id = u32;
 
 pub struct Service {
     id: Id,
-    _cap: Capability,
+    cap: Capability,
     queue: SendQueue,
     name: String,
-    child: Id,
+    owned: bool,
 }
 
 impl Service {
-    pub fn new(
-        id: Id,
-        child: &mut dyn Child,
-        srv_sel: Selector,
-        sgate_sel: Selector,
-        name: String,
-    ) -> Result<Self, Error> {
-        let our_srv = child.obtain(srv_sel)?;
-        let our_sgate = child.obtain(sgate_sel)?;
-
-        Ok(Service {
+    pub fn new(id: Id, srv_sel: Selector, sgate_sel: Selector, name: String, owned: bool) -> Self {
+        Service {
             id,
-            _cap: Capability::new(our_srv, CapFlags::empty()),
-            queue: SendQueue::new(id, SendGate::new_bind(our_sgate)),
+            cap: Capability::new(srv_sel, CapFlags::empty()),
+            queue: SendQueue::new(id, SendGate::new_bind(sgate_sel)),
             name,
-            child: child.id(),
-        })
+            owned,
+        }
+    }
+
+    pub fn sel(&self) -> Selector {
+        self.cap.sel()
+    }
+
+    pub fn sgate_sel(&self) -> Selector {
+        self.queue.sgate_sel()
     }
 
     pub fn name(&self) -> &String {
@@ -64,8 +66,34 @@ impl Service {
         &mut self.queue
     }
 
-    fn child(&mut self) -> &mut dyn Child {
-        childs::get().child_by_id_mut(self.child).unwrap()
+    pub fn session_quota(&mut self) -> Result<u32, Error> {
+        let smsg = kif::service::SessQuota {
+            opcode: kif::service::Operation::SESS_QUOTA.val as u64,
+        };
+        let event = self.queue.send(util::object_to_bytes(&smsg));
+
+        event.and_then(|event| {
+            thread::ThreadManager::get().wait_for(event);
+
+            let reply = thread::ThreadManager::get()
+                .fetch_msg()
+                .ok_or_else(|| Error::new(Code::RecvGone))?;
+            let reply = reply.get_data::<kif::service::SessQuotaReply>();
+            match reply.res {
+                0 => Ok(reply.sessions as u32),
+                e => Err(Error::from(e as u32)),
+            }
+        })
+    }
+
+    pub fn derive(&self, sessions: u32) -> Result<Self, Error> {
+        let dst = VPE::cur().alloc_sels(2);
+        syscalls::derive_srv(
+            self.sel(),
+            kif::CapRngDesc::new(kif::CapType::OBJECT, dst, 2),
+            sessions,
+        )?;
+        Ok(Self::new(self.id, dst, dst + 1, self.name.clone(), false))
     }
 
     fn shutdown(&mut self) {
@@ -88,7 +116,7 @@ impl Service {
 
 pub struct Session {
     sel: Selector,
-    ident: u64,
+    ident: Label,
     serv: Id,
 }
 
@@ -123,7 +151,7 @@ impl Session {
 
             Ok((reply.sess as Selector, Session {
                 sel,
-                ident: reply.ident,
+                ident: reply.ident as Label,
                 serv: serv.id,
             }))
         })
@@ -133,12 +161,16 @@ impl Session {
         self.sel
     }
 
+    pub fn ident(&self) -> Label {
+        self.ident
+    }
+
     pub fn close(&self) -> Result<(), Error> {
         let serv = get().get_by_id(self.serv)?;
 
         let smsg = kif::service::Close {
             opcode: kif::service::Operation::CLOSE.val as u64,
-            sess: self.ident,
+            sess: self.ident as u64,
         };
         let event = serv.queue.send(util::object_to_bytes(&smsg));
 
@@ -180,140 +212,49 @@ impl ServiceManager {
             .ok_or_else(|| Error::new(Code::InvArgs))
     }
 
-    fn add_service(&mut self, serv: Service) {
-        log!(crate::LOG_SERV, "Adding service '{}'", serv.name());
-        self.servs.push(serv);
-    }
-
-    pub fn remove_service(&mut self, id: Id) -> Service {
-        let idx = self.servs.iter().position(|s| s.id == id).unwrap();
-        let serv = self.servs.remove(idx);
-        log!(crate::LOG_SERV, "Removing service '{}'", serv.name());
-        serv
-    }
-
-    pub fn reg_serv(
+    pub fn add_service(
         &mut self,
-        child: &mut dyn Child,
         srv_sel: Selector,
         sgate_sel: Selector,
         name: String,
-    ) -> Result<(), Error> {
-        log!(
-            crate::LOG_SERV,
-            "{}: reg_serv(srv_sel={}, sgate_sel={}, name={})",
-            child.name(),
-            srv_sel,
-            sgate_sel,
-            name
-        );
-
-        let cfg = child.cfg();
-        let sdesc = if cfg.restrict() {
-            let sdesc = cfg
-                .get_service(&name)
-                .ok_or_else(|| Error::new(Code::InvArgs))?;
-            if sdesc.is_used() {
-                return Err(Error::new(Code::Exists));
-            }
-            Some(sdesc)
+        owned: bool,
+    ) -> Result<Id, Error> {
+        if self.get(&name).is_ok() {
+            return Err(Error::new(Code::Exists));
         }
-        else {
-            if self.get(&name).is_ok() {
-                return Err(Error::new(Code::Exists));
-            }
-            None
-        };
 
-        let serv = Service::new(self.next_id, child, srv_sel, sgate_sel, name)?;
+        let serv = Service::new(self.next_id, srv_sel, sgate_sel, name, owned);
+        self.servs.push(serv);
         self.next_id += 1;
 
-        if let Some(sd) = sdesc {
-            sd.mark_used();
-        }
-        child.add_service(serv.id, srv_sel);
-        self.add_service(serv);
-
-        Ok(())
+        Ok(self.next_id - 1)
     }
 
-    pub fn unreg_serv(
-        &mut self,
-        child: &mut dyn Child,
-        sel: Selector,
-        notify: bool,
-    ) -> Result<(), Error> {
-        log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", child.name(), sel);
+    pub fn remove_service(&mut self, id: Id, notify: bool) -> Service {
+        let idx = self.servs.iter().position(|s| s.id == id).unwrap();
 
-        let id = child.remove_service(sel)?;
+        log!(
+            crate::LOG_SERV,
+            "Removing service {}",
+            self.get_by_id(id).unwrap().name
+        );
+
         if notify {
             // we need to do that before we remove the service
             let serv = self.get_by_id(id).unwrap();
             serv.shutdown();
         }
-        let serv = self.remove_service(id);
-        child.cfg().unreg_service(serv.name());
 
-        Ok(())
-    }
-
-    #[allow(clippy::ptr_arg)] // &String is preferable here, because we &String in the if-else
-    pub fn open_session(
-        &mut self,
-        child: &mut dyn Child,
-        dst_sel: Selector,
-        name: &String,
-    ) -> Result<(), Error> {
-        log!(
-            crate::LOG_SERV,
-            "{}: open_sess(dst_sel={}, name={})",
-            child.name(),
-            dst_sel,
-            name
-        );
-
-        let cfg = child.cfg();
-        let empty_arg = String::new();
-        // TODO "restrict=0" shouldn't prevent us from passing arguments on session creation
-        let (sdesc, sname, arg) = if cfg.restrict() {
-            let sdesc = cfg
-                .get_session(name)
-                .ok_or_else(|| Error::new(Code::InvArgs))?;
-            if sdesc.is_used() {
-                return Err(Error::new(Code::Exists));
-            }
-            (Some(sdesc), sdesc.serv_name(), sdesc.arg())
-        }
-        else {
-            (None, name, &empty_arg)
-        };
-
-        let serv = self.get(sname)?;
-        let (srv_sel, sess) = Session::new(dst_sel, serv, arg)?;
-
-        let our_sel = serv.child().obtain(srv_sel)?;
-        child.delegate(our_sel, dst_sel)?;
-        if let Some(sd) = sdesc {
-            sd.mark_used(dst_sel);
-        }
-        child.add_session(sess);
-
-        Ok(())
-    }
-
-    pub fn close_session(&mut self, child: &mut dyn Child, sel: Selector) -> Result<(), Error> {
-        log!(crate::LOG_SERV, "{}: close_sess(sel={})", child.name(), sel);
-
-        let sess = child.remove_session(sel)?;
-        child.cfg().close_session(sel);
-        sess.close()
+        self.servs.remove(idx)
     }
 
     pub fn shutdown(&mut self) {
         // first collect the ids
         let mut ids = Vec::new();
         for s in &self.servs {
-            ids.push(s.id);
+            if s.owned {
+                ids.push(s.id);
+            }
         }
         // reverse sort to shutdown the services in reverse order
         ids.sort_by(|a, b| b.cmp(a));

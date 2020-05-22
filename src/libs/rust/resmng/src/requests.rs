@@ -15,6 +15,7 @@
  */
 
 use m3::cap::Selector;
+use m3::cell::LazyStaticCell;
 use m3::col::String;
 use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error};
@@ -23,19 +24,35 @@ use m3::kif;
 use m3::session::ResMngOperation;
 use m3::tcu;
 
-use resmng::childs::{self, Child, Id};
-use resmng::{sendqueue, services};
+use childs::{self, Child, Id};
+use sendqueue;
+use subsys;
 
-pub fn workloop() {
+static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
+
+pub fn init(rgate: RecvGate) {
+    RGATE.set(rgate);
+}
+
+pub fn rgate() -> &'static RecvGate {
+    &RGATE
+}
+
+pub fn workloop<F, S>(mut func: F, mut spawn: S) -> Result<(), Error>
+where
+    F: FnMut(),
+    S: FnMut(&mut childs::OwnChild) -> Result<(), Error>,
+{
     let thmng = thread::ThreadManager::get();
     let upcall_rg = RecvGate::upcall();
 
     loop {
         tcu::TCUIf::sleep().ok();
 
-        let is = crate::RGATE.fetch();
+        let is = RGATE.fetch();
         if let Some(is) = is {
             handle_request(is);
+            subsys::start_delayed(&mut spawn)?;
         }
 
         let msg = tcu::TCUIf::fetch_msg(upcall_rg);
@@ -44,6 +61,8 @@ pub fn workloop() {
         }
 
         sendqueue::check_replies();
+
+        func();
 
         if thmng.ready_count() > 0 {
             thmng.try_yield();
@@ -59,6 +78,7 @@ pub fn workloop() {
         // just in case there is no ready thread
         m3::exit(0);
     }
+    Ok(())
 }
 
 fn handle_request(mut is: GateIStream) {
@@ -98,7 +118,7 @@ fn handle_request(mut is: GateIStream) {
 fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
         Err(e) => {
-            log!(resmng::LOG_DEF, "request failed: {}", e);
+            log!(crate::LOG_DEF, "request failed: {}", e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(_) => reply_vmsg!(is, 0 as u64),
@@ -111,31 +131,27 @@ fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sgate_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    let res = services::get().reg_serv(child, dst_sel, sgate_sel, name);
-    if res.is_ok() && !crate::DELAYED.get().is_empty() {
-        crate::start_delayed();
-    }
-    res
+    child.reg_service(dst_sel, sgate_sel, name)
 }
 
 fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
     let notify: bool = is.pop()?;
 
-    services::get().unreg_serv(child, sel, notify)
+    child.unreg_service(sel, notify)
 }
 
 fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    services::get().open_session(child, dst_sel, &name)
+    child.open_session(dst_sel, &name)
 }
 
 fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
-    services::get().close_session(child, sel)
+    child.close_session(sel)
 }
 
 fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
@@ -143,12 +159,13 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sgate_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    child.add_child(vpe_sel, &crate::RGATE, sgate_sel, name)
+    child.add_child(vpe_sel, &RGATE, sgate_sel, name)
 }
 
 fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let vpe_sel: Selector = is.pop()?;
 
+    // TODO don't return id
     child.rem_child(vpe_sel).map(|_| ())
 }
 

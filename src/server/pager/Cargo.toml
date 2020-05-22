@@ -7,5 +7,7 @@ path = "src/pager.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
-m3 = { path = "../../libs/rust/m3" }
 bitflags = "*"
+m3 = { path = "../../libs/rust/m3" }
+resmng = { path = "../../libs/rust/resmng" }
+thread = { path = "../../libs/rust/thread" }

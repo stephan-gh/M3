@@ -11,10 +11,16 @@
             </app>
         </dom>
         <dom>
-            <app args="pager -s /bin/cppbenchs">
+            <app args="pager sharepe">
                 <sess name="m3fs" />
-                <sess name="pipes" />
-                <pes type="core" count="2" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/cppbenchs">
+                        <sess name="m3fs" />
+                        <sess name="pipes" />
+                        <pes type="core" count="2" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

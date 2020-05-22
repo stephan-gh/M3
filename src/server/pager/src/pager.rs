@@ -20,6 +20,8 @@
 extern crate m3;
 #[macro_use]
 extern crate bitflags;
+extern crate resmng;
+extern crate thread;
 
 mod addrspace;
 mod dataspace;
@@ -29,25 +31,26 @@ mod regions;
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
-use m3::col::{String, ToString, Vec};
-use m3::com::{RecvGate, SGateArgs, SendGate};
-use m3::env;
+use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
-use m3::pes::{Activity, ExecActivity, VPEArgs, PE, VPE};
+use m3::math;
+use m3::pes::{VPEArgs, VPE};
 use m3::serialize::{Sink, Source};
 use m3::server::{
-    server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
-    DEF_MAX_CLIENTS,
+    CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
-use m3::session::{ClientSession, Pager, PagerDelOp, PagerOp};
-use m3::tcu::{Label, TCUIf};
+use m3::session::{ClientSession, Pager, PagerDelOp, PagerOp, ResMng};
+use m3::tcu::Label;
 use m3::vfs;
 
 use addrspace::AddrSpace;
+use resmng::childs::{self, Child, OwnChild};
+use resmng::{requests, sendqueue, subsys};
 
 pub const LOG_DEF: bool = false;
 
+static PGHDL: LazyStaticCell<PagerReqHandler> = LazyStaticCell::default();
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 
 struct PagerReqHandler {
@@ -139,134 +142,144 @@ impl Handler<AddrSpace> for PagerReqHandler {
     }
 }
 
-fn start_child(hdl: &mut PagerReqHandler, args: &[String], share_pe: bool) -> ExecActivity {
-    // create session for child
-    let (sel, sid) = hdl.open(0, hdl.sel, "").expect("Session creation failed");
+fn start_child(child: &mut OwnChild) -> Result<(), Error> {
+    // send gate for resmng
+    #[allow(clippy::identity_conversion)]
+    let resmng_sgate = SendGate::new_with(
+        SGateArgs::new(requests::rgate())
+            .credits(1)
+            .label(Label::from(child.id())),
+    )?;
+
+    // create pager session for child (creator=0 here because we create all sessions ourself)
+    let (sel, sid) = PGHDL.get_mut().open(0, PGHDL.sel, "")?;
     let sess = ClientSession::new_bind(sel);
     #[allow(clippy::identity_conversion)]
-    let sgate = SendGate::new_with(
+    let pager_sgate = SendGate::new_with(
         SGateArgs::new(REQHDL.recv_gate())
             .credits(1)
             .label(Label::from(sid as u32)),
-    )
-    .expect("Unable to create SendGate");
-
-    // determine PE for child
-    let pe = if !share_pe || !VPE::cur().pe_desc().has_virtmem() {
-        PE::new(VPE::cur().pe_desc()).expect("Unable to allocate PE")
-    }
-    else {
-        VPE::cur().pe().clone()
-    };
+    )?;
 
     // create child VPE
-    let pager = Pager::new(sess, sgate).expect("Unable to create pager");
-    let mut vpe =
-        VPE::new_with(pe, VPEArgs::new(&args[0]).pager(pager)).expect("Unable to create VPE");
+    let mut vpe = VPE::new_with(
+        child.pe().unwrap().pe_obj(),
+        VPEArgs::new(child.name())
+            .resmng(ResMng::new(resmng_sgate))
+            .pager(Pager::new(sess, pager_sgate)?)
+            .kmem(child.kmem().clone()),
+    )?;
+
+    // pass subsystem info to child, if it's a subsystem
+    if let Some(sub) = child.subsys() {
+        sub.finalize(&mut vpe)?;
+    }
 
     // pass root FS to child
     vpe.mounts()
-        .add("/", VPE::cur().mounts().get_by_path("/").unwrap())
-        .unwrap();
+        .add("/", VPE::cur().mounts().get_by_path("/").unwrap())?;
     vpe.obtain_mounts().unwrap();
 
     // init address space (give it VPE and mgate selector)
-    let mut aspace = hdl.sessions.get_mut(sid).unwrap();
+    let mut aspace = PGHDL.get_mut().sessions.get_mut(sid).unwrap();
     aspace.init(vpe.sel());
 
     // start VPE
-    let file = vfs::VFS::open(&args[0], vfs::OpenFlags::RX).expect("Unable to open binary");
+    let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX)?;
     let mut mapper = mapper::ChildMapper::new(&mut aspace, vpe.pe_desc().has_virtmem());
-    vpe.exec_file(&mut mapper, file, &args)
-        .expect("Unable to execute child VPE")
+    child.start(vpe, &mut mapper, file)
+}
+
+fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
+    let sid = is.label() as SessId;
+
+    // clone is special, because we need two sessions
+    if op == PagerOp::CLONE {
+        let pid = PGHDL.sessions.get(sid).unwrap().parent();
+        if let Some(pid) = pid {
+            let (sess, psess) = PGHDL.get_mut().sessions.get_two_mut(sid, pid);
+            let sess = sess.unwrap();
+            sess.clone(is, psess.unwrap())
+        }
+        else {
+            Err(Error::new(Code::InvArgs))
+        }
+    }
+    else {
+        let aspace = PGHDL.get_mut().sessions.get_mut(sid).unwrap();
+
+        match op {
+            PagerOp::PAGEFAULT => aspace.pagefault(is),
+            PagerOp::MAP_ANON => aspace.map_anon(is),
+            PagerOp::UNMAP => aspace.unmap(is),
+            PagerOp::CLOSE => aspace.close(is).and_then(|_| {
+                PGHDL.get_mut().close(0, is.label() as SessId);
+                Ok(())
+            }),
+            _ => Err(Error::new(Code::InvArgs)),
+        }
+    }
+}
+
+fn workloop(serv: &Server) {
+    requests::workloop(
+        || {
+            if let Err(e) = serv.handle_ctrl_chan(PGHDL.get_mut()) {
+                log!(LOG_DEF, "Error during control channel request: {:?}", e);
+            }
+
+            REQHDL.get_mut().handle(handle_request).ok();
+        },
+        start_child,
+    )
+    .expect("Unable to run workloop");
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
+    let subsys = subsys::Subsystem::new().expect("Unable to read subsystem info");
+
     vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
 
-    let mut skip = 0;
-    let mut share_pe = false;
-    let args = env::args()
-        .skip(1)
-        .map(|s| s.to_string())
-        .collect::<Vec<String>>();
-    for a in &args {
-        if a == "-s" {
-            share_pe = true;
-            skip += 1;
-            break;
-        }
-    }
-
-    let args = &args[skip..];
-
     // create server
-    let mut hdl = PagerReqHandler {
+    PGHDL.set(PagerReqHandler {
         sel: 0,
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
-    };
-    let s = Server::new_private("pager", &mut hdl).expect("Unable to create service");
-    hdl.sel = s.sel();
+    });
+    let serv = Server::new_private("pager", PGHDL.get_mut()).expect("Unable to create service");
+    PGHDL.get_mut().sel = serv.sel();
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
-    // start child
-    let vpe_act = start_child(&mut hdl, args, share_pe);
+    let mut req_rgate = RecvGate::new(12, 8).expect("Unable to create resmng RecvGate");
+    req_rgate
+        .activate()
+        .expect("Unable to activate resmng RecvGate");
+    requests::init(req_rgate);
 
-    // start waiting for the child
-    vpe_act
-        .wait_async(1)
-        .expect("Unable to start waiting for child VPE");
+    let mut squeue_rgate = RecvGate::new(
+        math::next_log2(sendqueue::RBUF_SIZE),
+        math::next_log2(sendqueue::RBUF_MSG_SIZE),
+    )
+    .expect("Unable to create sendqueue RecvGate");
+    squeue_rgate
+        .activate()
+        .expect("Unable to activate sendqueue RecvGate");
+    sendqueue::init(squeue_rgate);
 
-    let upcall_rg = RecvGate::upcall();
-    server_loop(|| {
-        // fetch upcalls to see whether our child died
-        let msg = TCUIf::fetch_msg(upcall_rg);
-        if let Some(msg) = msg {
-            let upcall = msg.get_data::<kif::upcalls::VPEWait>();
-            if upcall.exitcode != 0 {
-                println!("Child '{}' exited with exitcode {}", &args[0], {
-                    upcall.exitcode
-                });
-            }
-            assert!(upcall.vpe_sel as Selector == vpe_act.vpe().sel());
-            return Err(Error::new(Code::VPEGone));
-        }
+    thread::init();
+    // TODO calculate the number of threads we need (one per child?)
+    for _ in 0..8 {
+        thread::ThreadManager::get()
+            .add_thread(workloop as *const () as usize, &serv as *const _ as usize);
+    }
 
-        s.handle_ctrl_chan(&mut hdl)?;
+    subsys
+        .start(start_child)
+        .expect("Unable to start subsystem");
 
-        REQHDL.get_mut().handle(|op, mut is| {
-            let sid = is.label() as SessId;
+    childs::get().start_waiting(1);
 
-            // clone is special, because we need two sessions
-            if op == PagerOp::CLONE {
-                let pid = hdl.sessions.get(sid).unwrap().parent();
-                if let Some(pid) = pid {
-                    let (sess, psess) = hdl.sessions.get_two_mut(sid, pid);
-                    let sess = sess.unwrap();
-                    sess.clone(is, psess.unwrap())
-                }
-                else {
-                    Err(Error::new(Code::InvArgs))
-                }
-            }
-            else {
-                let aspace = hdl.sessions.get_mut(sid).unwrap();
-
-                match op {
-                    PagerOp::PAGEFAULT => aspace.pagefault(&mut is),
-                    PagerOp::MAP_ANON => aspace.map_anon(&mut is),
-                    PagerOp::UNMAP => aspace.unmap(&mut is),
-                    PagerOp::CLOSE => aspace.close(&mut is).and_then(|_| {
-                        hdl.close(0, is.label() as SessId);
-                        Ok(())
-                    }),
-                    _ => Err(Error::new(Code::InvArgs)),
-                }
-            }
-        })
-    })
-    .ok();
+    workloop(&serv);
 
     0
 }

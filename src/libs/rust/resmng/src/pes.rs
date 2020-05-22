@@ -29,33 +29,48 @@ struct ManagedPE {
 }
 
 pub struct PEUsage {
-    idx: usize,
+    idx: Option<usize>,
     pe: Option<Rc<PE>>,
 }
 
 impl PEUsage {
     fn new(idx: usize) -> Self {
-        Self { idx, pe: None }
+        Self {
+            idx: Some(idx),
+            pe: None,
+        }
+    }
+
+    pub fn new_obj(pe: Rc<PE>) -> Self {
+        Self {
+            idx: None,
+            pe: Some(pe),
+        }
     }
 
     pub fn pe_id(&self) -> PEId {
-        get().pes[self.idx].id
+        match self.idx {
+            Some(idx) => get().pes[idx].id,
+            None => 0,
+        }
     }
 
     pub fn pe_obj(&self) -> Rc<PE> {
         match self.pe {
             Some(ref p) => p.clone(),
-            None => get().get(self.idx),
+            None => get().get(self.idx.unwrap()),
         }
     }
 
     pub fn derive(&self, eps: u32) -> Result<PEUsage, Error> {
         let pe = self.pe_obj().derive(eps)?;
-        get().pes[self.idx].users += 1;
+        if let Some(idx) = self.idx {
+            get().pes[idx].users += 1;
+        }
         log!(
             crate::LOG_PES,
             "Deriving PE{}: (eps={})",
-            get().pes[self.idx].id,
+            self.pe_id(),
             pe.quota().unwrap(),
         );
         Ok(PEUsage {
@@ -67,7 +82,9 @@ impl PEUsage {
 
 impl Drop for PEUsage {
     fn drop(&mut self) {
-        get().free(self.idx);
+        if let Some(idx) = self.idx {
+            get().free(idx);
+        }
     }
 }
 
@@ -94,8 +111,19 @@ impl PEManager {
         self.pes.len()
     }
 
-    pub fn get(&self, id: usize) -> Rc<PE> {
-        self.pes[id].pe.clone()
+    pub fn id(&self, idx: usize) -> PEId {
+        self.pes[idx].id
+    }
+
+    pub fn get(&self, idx: usize) -> Rc<PE> {
+        self.pes[idx].pe.clone()
+    }
+
+    pub fn find<F>(&self, f: F) -> Option<usize>
+    where
+        F: Fn(&Rc<PE>) -> bool,
+    {
+        self.pes.iter().position(|p| p.users == 0 && f(&p.pe))
     }
 
     pub fn find_and_alloc(&mut self, desc: PEDesc) -> Result<PEUsage, Error> {
@@ -111,19 +139,19 @@ impl PEManager {
         Err(Error::new(Code::NoSpace))
     }
 
-    fn alloc(&mut self, id: usize) {
+    pub fn alloc(&mut self, idx: usize) {
         log!(
             crate::LOG_PES,
             "Allocating PE{}: {:?} (eps={})",
-            self.pes[id].id,
-            self.pes[id].pe.desc(),
-            self.get(id).quota().unwrap(),
+            self.pes[idx].id,
+            self.pes[idx].pe.desc(),
+            self.get(idx).quota().unwrap(),
         );
-        self.pes[id].users += 1;
+        self.pes[idx].users += 1;
     }
 
-    fn free(&mut self, id: usize) {
-        let mut pe = &mut self.pes[id];
+    fn free(&mut self, idx: usize) {
+        let mut pe = &mut self.pes[idx];
         pe.users -= 1;
         if pe.users == 0 {
             log!(crate::LOG_PES, "Freeing PE{}: {:?}", pe.id, pe.pe.desc());

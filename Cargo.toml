@@ -15,7 +15,6 @@ members = [
     "src/server/pager",
     "src/server/pipes",
     "src/server/root",
-    "src/server/subsys",
     "src/server/vterm",
 ]
 

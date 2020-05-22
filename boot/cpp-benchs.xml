@@ -13,10 +13,16 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/cppbenchs">
+            <app args="pager">
                 <sess name="m3fs" />
-                <sess name="pipes" />
-                <pes type="core" count="3" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/cppbenchs">
+                        <sess name="m3fs" />
+                        <sess name="pipes" />
+                        <pes type="core" count="2" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

@@ -17,13 +17,22 @@
 use core::cmp;
 use core::fmt;
 use m3::cap::Selector;
+use m3::cell::StaticCell;
 use m3::cfg;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::kif::Perm;
+use m3::math;
 use m3::mem::MemMap;
 use m3::rc::Rc;
+
+static CON: StaticCell<MemModCon> = StaticCell::new(MemModCon::default());
+
+pub fn container() -> &'static mut MemModCon {
+    CON.get_mut()
+}
 
 pub struct MemMod {
     gate: MemGate,
@@ -60,7 +69,6 @@ impl fmt::Debug for MemMod {
     }
 }
 
-#[derive(Default)]
 pub struct MemModCon {
     mods: Vec<Rc<MemMod>>,
     cur_mod: usize,
@@ -68,6 +76,14 @@ pub struct MemModCon {
 }
 
 impl MemModCon {
+    const fn default() -> Self {
+        Self {
+            mods: Vec::new(),
+            cur_mod: 0,
+            cur_off: 0,
+        }
+    }
+
     pub fn add(&mut self, m: Rc<MemMod>) {
         self.mods.push(m);
     }
@@ -92,7 +108,8 @@ impl MemModCon {
         Err(Error::new(Code::InvArgs))
     }
 
-    pub fn alloc_mem(&mut self, size: goff) -> Result<MemSlice, Error> {
+    pub fn alloc_mem(&mut self, mut size: goff) -> Result<MemSlice, Error> {
+        size = math::round_up(size, cfg::PAGE_SIZE as goff);
         while self.cur_mod < self.mods.len() {
             if let Some(sl) = self.get_slice(size) {
                 self.cur_off += sl.size;
@@ -104,6 +121,7 @@ impl MemModCon {
 
     pub fn alloc_pool(&mut self, mut size: goff) -> Result<MemPool, Error> {
         let mut res = MemPool::default();
+        size = math::round_up(size, cfg::PAGE_SIZE as goff);
         while size > 0 && self.cur_mod < self.mods.len() {
             if let Some(sl) = self.get_slice(size) {
                 size -= sl.size;
@@ -136,6 +154,7 @@ impl MemModCon {
 
 pub struct MemSlice {
     mem: Rc<MemMod>,
+    offset: goff,
     size: goff,
     map: MemMap,
 }
@@ -144,9 +163,20 @@ impl MemSlice {
     pub fn new(mem: Rc<MemMod>, offset: goff, size: goff) -> Self {
         MemSlice {
             mem,
+            offset,
             size,
             map: MemMap::new(offset, size),
         }
+    }
+
+    pub fn derive(&self) -> Result<MemGate, Error> {
+        self.mem
+            .gate
+            .derive(self.offset, self.size as usize, Perm::RW)
+    }
+
+    pub fn allocate(&mut self, size: goff, align: goff) -> Result<goff, Error> {
+        self.map.allocate(size, align)
     }
 
     pub fn sel(&self) -> Selector {
@@ -219,6 +249,10 @@ pub struct MemPool {
 }
 
 impl MemPool {
+    pub fn slices_mut(&mut self) -> &mut Vec<MemSlice> {
+        &mut self.slices
+    }
+
     pub fn capacity(&self) -> goff {
         self.slices
             .iter()
@@ -252,7 +286,7 @@ impl MemPool {
                 continue;
             }
 
-            if let Ok(addr) = s.map.allocate(size, align) {
+            if let Ok(addr) = s.allocate(size, align) {
                 let alloc = Allocation::new(id, addr, size);
                 log!(crate::LOG_MEM, "Allocated {:?}", alloc);
                 return Ok(alloc);

@@ -146,12 +146,16 @@ pub(crate) fn parse(xml: &str, restrict: bool) -> Result<config::AppConfig, Erro
     let mut p = ConfigParser::new(xml);
 
     match p.parse_tag_name()? {
-        Some(tag) if tag == "app" => parse_app(&mut p, restrict),
+        Some(tag) if tag == "app" => parse_app(&mut p, 0, restrict),
         _ => Err(Error::new(Code::InvArgs)),
     }
 }
 
-fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, Error> {
+fn parse_app(
+    p: &mut ConfigParser,
+    start: usize,
+    restrict: bool,
+) -> Result<config::AppConfig, Error> {
     let mut app = config::AppConfig::default();
     app.restrict = restrict;
 
@@ -199,6 +203,15 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
             }
         }
         parse_close_tag(p, "app")?;
+
+        app.cfg_range = (start, p.pos);
+        // don't collect dependencies for root
+        if start != 0 {
+            let mut deps = Vec::new();
+            add_deps(&app, &mut deps);
+            app.deps = deps;
+        }
+
         Ok(app)
     }
     else {
@@ -206,16 +219,31 @@ fn parse_app(p: &mut ConfigParser, restrict: bool) -> Result<config::AppConfig, 
     }
 }
 
+fn add_deps(app: &config::AppConfig, deps: &mut Vec<String>) {
+    for d in app.domains() {
+        for a in d.apps() {
+            for s in a.sessions() {
+                if s.is_dep() && deps.iter().find(|d| *d == s.serv_name()).is_none() {
+                    deps.push(s.serv_name().clone());
+                }
+            }
+            add_deps(a, deps);
+        }
+    }
+}
+
 fn parse_domain(p: &mut ConfigParser, restrict: bool) -> Result<config::Domain, Error> {
     p.consume('>')?;
 
+    let mut app_start = p.pos;
     let mut dom = config::Domain::default();
     while let Some(tag) = p.parse_tag_name()? {
         if tag != "app" {
             return Err(Error::new(Code::InvArgs));
         }
 
-        dom.apps.push(Rc::new(parse_app(p, restrict)?));
+        dom.apps.push(Rc::new(parse_app(p, app_start, restrict)?));
+        app_start = p.pos;
     }
 
     parse_close_tag(p, "dom")?;
@@ -262,6 +290,7 @@ fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
     let mut lname = String::new();
     let mut serv = String::new();
     let mut arg = String::new();
+    let mut dep = true;
     loop {
         match p.parse_arg()? {
             None => break,
@@ -273,11 +302,12 @@ fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {
                 "lname" => lname = v,
                 "gname" => serv = v,
                 "args" => arg = v,
+                "dep" => dep = parse_bool(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
-    Ok(config::SessionDesc::new(lname, serv, arg))
+    Ok(config::SessionDesc::new(lname, serv, arg, dep))
 }
 
 fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {

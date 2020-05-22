@@ -8,9 +8,14 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/filterchain 16384">
+            <app args="pager">
                 <sess name="m3fs" />
-                <pes type="core" count="3" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/filterchain 16384">
+                        <pes type="core" count="2" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

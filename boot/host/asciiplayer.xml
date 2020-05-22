@@ -19,7 +19,7 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/asciiplay /movies/starwars.txt">
+            <app args="/bin/asciiplay /movies/starwars.txt">
                 <sess name="timer" />
                 <sess name="vga" />
                 <sess name="keyb" />

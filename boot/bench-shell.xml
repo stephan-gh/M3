@@ -18,11 +18,17 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/shell cat /test.txt | wc">
+            <app args="pager">
                 <sess name="m3fs" />
-                <sess name="pipes" />
-                <sess name="vterm" />
-                <pes type="core" count="3" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/shell cat /test.txt | wc">
+                        <sess name="m3fs" />
+                        <sess name="pipes" />
+                        <sess name="vterm" />
+                        <pes type="core" count="2" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

@@ -17,7 +17,6 @@
 use core::fmt;
 use m3::cap::Selector;
 use m3::cell::Cell;
-use m3::cell::RefCell;
 use m3::col::{BTreeSet, String, Vec};
 use m3::errors::{Code, Error};
 use m3::goff;
@@ -51,7 +50,7 @@ impl PhysMemDesc {
 pub struct ServiceDesc {
     local_name: String,
     global_name: String,
-    used: RefCell<bool>,
+    used: Cell<bool>,
 }
 
 impl ServiceDesc {
@@ -59,7 +58,7 @@ impl ServiceDesc {
         ServiceDesc {
             local_name,
             global_name,
-            used: RefCell::new(false),
+            used: Cell::new(false),
         }
     }
 
@@ -68,7 +67,7 @@ impl ServiceDesc {
     }
 
     pub fn is_used(&self) -> bool {
-        *self.used.borrow()
+        self.used.get()
     }
 
     pub fn mark_used(&self) {
@@ -81,17 +80,23 @@ pub struct SessionDesc {
     local_name: String,
     serv: String,
     arg: String,
-    usage: RefCell<Option<Selector>>,
+    dep: bool,
+    usage: Cell<Option<Selector>>,
 }
 
 impl SessionDesc {
-    pub(crate) fn new(local_name: String, serv: String, arg: String) -> Self {
+    pub(crate) fn new(local_name: String, serv: String, arg: String, dep: bool) -> Self {
         SessionDesc {
             local_name,
             serv,
             arg,
-            usage: RefCell::new(None),
+            dep,
+            usage: Cell::new(None),
         }
+    }
+
+    pub fn is_dep(&self) -> bool {
+        self.dep
     }
 
     pub fn serv_name(&self) -> &String {
@@ -103,7 +108,7 @@ impl SessionDesc {
     }
 
     pub fn is_used(&self) -> bool {
-        self.usage.borrow().is_some()
+        self.usage.get().is_some()
     }
 
     pub fn mark_used(&self, sel: Selector) {
@@ -129,6 +134,10 @@ impl PEDesc {
 
     pub fn pe_type(&self) -> &String {
         &self.ty
+    }
+
+    pub fn count(&self) -> u32 {
+        self.count.get()
     }
 
     pub fn matches(&self, desc: kif::PEDesc) -> bool {
@@ -188,6 +197,7 @@ impl Domain {
 pub struct AppConfig {
     pub(crate) name: String,
     pub(crate) args: Vec<String>,
+    pub(crate) cfg_range: (usize, usize),
     pub(crate) restrict: bool,
     pub(crate) daemon: bool,
     pub(crate) eps: Option<u32>,
@@ -197,6 +207,7 @@ pub struct AppConfig {
     pub(crate) phys_mems: Vec<PhysMemDesc>,
     pub(crate) services: Vec<ServiceDesc>,
     pub(crate) sessions: Vec<SessionDesc>,
+    pub(crate) deps: Vec<String>,
     pub(crate) sems: Vec<SemDesc>,
     pub(crate) pes: Vec<PEDesc>,
 }
@@ -213,6 +224,10 @@ impl AppConfig {
         cfg.args = args;
         cfg.restrict = restrict;
         cfg
+    }
+
+    pub fn cfg_range(&self) -> (usize, usize) {
+        self.cfg_range
     }
 
     pub fn daemon(&self) -> bool {
@@ -259,6 +274,14 @@ impl AppConfig {
         &self.sessions
     }
 
+    pub fn pes(&self) -> &Vec<PEDesc> {
+        &self.pes
+    }
+
+    pub fn dependencies(&self) -> &Vec<String> {
+        &self.deps
+    }
+
     pub fn get_sem(&self, lname: &str) -> Option<&SemDesc> {
         self.sems.iter().find(|s| s.local_name == *lname)
     }
@@ -284,6 +307,18 @@ impl AppConfig {
         self.sessions.iter().find(|s| s.local_name == *lname)
     }
 
+    pub fn count_sessions(&self, name: &str) -> u32 {
+        let mut num = 0;
+        for d in self.domains() {
+            for a in d.apps() {
+                if a.sessions().iter().find(|s| s.serv_name() == name).is_some() {
+                    num += 1;
+                }
+            }
+        }
+        num
+    }
+
     pub fn close_session(&self, sel: Selector) {
         if !self.restrict {
             return;
@@ -293,7 +328,7 @@ impl AppConfig {
             .sessions
             .iter()
             .find(|s| {
-                if let Some(s) = *s.usage.borrow() {
+                if let Some(s) = s.usage.get() {
                     s == sel
                 }
                 else {
@@ -329,6 +364,29 @@ impl AppConfig {
 
     pub fn count_apps(&self) -> usize {
         self.domains.iter().fold(0, |total, d| total + d.apps.len())
+    }
+
+    pub fn split_child_mem(&self, user_mem: &mut goff) -> goff {
+        if !self.domains().is_empty() {
+            let old_user_mem = *user_mem;
+            let mut def_childs = 0;
+            for d in self.domains() {
+                for a in d.apps() {
+                    if let Some(cmem) = a.user_mem() {
+                        *user_mem -= cmem as goff;
+                    }
+                    else {
+                        def_childs += 1;
+                    }
+                }
+            }
+            let per_child = *user_mem / (def_childs + 1);
+            *user_mem -= per_child * def_childs;
+            old_user_mem - *user_mem
+        }
+        else {
+            0
+        }
     }
 
     pub fn check(&self) {
@@ -462,11 +520,12 @@ impl AppConfig {
         for s in &self.sessions {
             writeln!(
                 f,
-                "{:0w$}Session[lname={}, gname={}, arg={}],",
+                "{:0w$}Session[lname={}, gname={}, arg={}, dep={}],",
                 "",
                 s.local_name,
                 s.serv,
                 s.arg,
+                s.dep,
                 w = layer + 2
             )?;
         }
@@ -480,6 +539,9 @@ impl AppConfig {
                 pe.optional,
                 w = layer + 2
             )?;
+        }
+        for s in &self.deps {
+            writeln!(f, "{:0w$}Dependency[service={}],", "", s, w = layer + 2)?;
         }
         for d in &self.domains {
             writeln!(f, "{:0w$}Domain[", "", w = layer + 2)?;

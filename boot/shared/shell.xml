@@ -16,12 +16,18 @@
             </app>
         </dom>
         <dom>
-            <app args="pager -s /bin/shell" usermem="128M">
+            <app args="pager sharepe" usermem="256M">
                 <sess name="m3fs" />
-                <sess name="pipes" />
-                <sess name="vterm" />
-                <pes type="core" count="3" />
-                <pes type="rot13" count="2" optional="1" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/shell">
+                        <sess name="m3fs" />
+                        <sess name="pipes" />
+                        <sess name="vterm" />
+                        <pes type="core" count="3" />
+                        <pes type="rot13" count="2" optional="1" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

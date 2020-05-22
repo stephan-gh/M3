@@ -266,7 +266,9 @@ pub fn main() -> i32 {
     );
 
     server_loop(|| {
-        s.handle_ctrl_chan(&mut hdl)?;
+        if let Err(e) = s.handle_ctrl_chan(&mut hdl) {
+            log!(LOG_DEF, "Error during control channel request: {:?}", e);
+        }
 
         REQHDL.get_mut().handle(|op, is| {
             let sess = hdl

@@ -8,9 +8,15 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/bench-apps -r 1 4 /bin/fstrace-m3fs -p /tmp/1/ empty /bin/fstrace-m3fs -p /tmp/2/ empty">
+            <app args="pager">
                 <sess name="m3fs" />
-                <pes type="core" count="3" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/bench-apps -r 1 4 /bin/fstrace-m3fs -p /tmp/1/ empty /bin/fstrace-m3fs -p /tmp/2/ empty">
+                        <sess name="m3fs" />
+                        <pes type="core" count="2" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

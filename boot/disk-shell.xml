@@ -19,10 +19,16 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/shell">
-                <sess name="m3fs" args="files=4" />
-                <sess name="pipes" />
-                <pes type="core" count="4" />
+            <app args="pager">
+                <sess name="m3fs" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/shell">
+                        <sess name="m3fs" args="files=4" />
+                        <sess name="pipes" />
+                        <pes type="core" count="3" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

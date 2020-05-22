@@ -8,9 +8,15 @@
             </app>
         </dom>
         <dom>
-            <app args="pager /bin/fstrace-m3fs leveldb">
+            <app args="pager">
                 <sess name="m3fs" />
-                <pes type="core" count="2" />
+                <pes type="core" count="1" />
+                <dom>
+                    <app args="/bin/fstrace-m3fs leveldb">
+                        <sess name="m3fs" />
+                        <pes type="core" count="1" />
+                    </app>
+                </dom>
             </app>
         </dom>
     </app>

@@ -247,7 +247,7 @@ fn server_msgs_main() -> i32 {
         sessions: SessionContainer::new(1),
         calls: 0,
     };
-    let s = wv_assert_ok!(Server::new("testmsgs", &mut hdl));
+    let s = wv_assert_ok!(Server::new("test", &mut hdl));
 
     let mut rgate = wv_assert_ok!(RecvGate::new(next_log2(256), next_log2(256)));
     wv_assert_ok!(rgate.activate());
@@ -274,7 +274,7 @@ pub fn testmsgs() {
     let sact = wv_assert_ok!(serv.run(Box::new(&server_msgs_main)));
 
     {
-        let sess = connect("testmsgs");
+        let sess = connect("test");
         let sel = wv_assert_ok!(sess.obtain_obj());
         let sgate = SendGate::new_bind(sel);
 
@@ -286,7 +286,7 @@ pub fn testmsgs() {
     }
 
     {
-        let sess = connect("testmsgs");
+        let sess = connect("test");
         let sel = wv_assert_ok!(sess.obtain_obj());
         let sgate = SendGate::new_bind(sel);
 
@@ -361,7 +361,7 @@ fn server_notsup_main() -> i32 {
             sessions: SessionContainer::new(1),
             calls: 0,
         };
-        let s = wv_assert_ok!(Server::new("testcaps", &mut hdl));
+        let s = wv_assert_ok!(Server::new("test", &mut hdl));
 
         let res = server_loop(|| {
             if *STOP {
@@ -385,7 +385,7 @@ pub fn testcaps() {
     let sact = wv_assert_ok!(serv.run(Box::new(&server_notsup_main)));
 
     for i in 0..5 {
-        let sess = connect("testcaps");
+        let sess = connect("test");
 
         // test both obtain and delegate
         if i % 2 == 0 {
@@ -402,6 +402,6 @@ pub fn testcaps() {
         }
     }
 
-    wv_assert_err!(ClientSession::new("testcaps"), Code::InvArgs);
+    wv_assert_err!(ClientSession::new("test"), Code::InvArgs);
     wv_assert_eq!(sact.wait(), Ok(0));
 }
