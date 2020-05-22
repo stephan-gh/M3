@@ -80,7 +80,7 @@ impl<'d> fmt::Debug for CapExchange<'d> {
             fmt,
             "CapExchange[in_caps={}, out_crd={}]",
             self.in_caps(),
-            CapRngDesc::new_from(0 /*self.output.caps*/)
+            self.out_crd,
         )
     }
 }
