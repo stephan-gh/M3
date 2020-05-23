@@ -121,7 +121,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(sel: Selector, serv: &mut Service, arg: &str) -> Result<(Selector, Self), Error> {
+    pub fn new(sel: Selector, serv: &mut Service, arg: &str) -> Result<Self, Error> {
         #[allow(clippy::uninit_assumed_init)]
         let mut smsg = kif::service::Open {
             opcode: kif::service::Operation::OPEN.val as u64,
@@ -149,11 +149,11 @@ impl Session {
                 return Err(Error::from(reply.res as u32));
             }
 
-            Ok((reply.sess as Selector, Session {
+            Ok(Session {
                 sel,
                 ident: reply.ident as Label,
                 serv: serv.id,
-            }))
+            })
         })
     }
 

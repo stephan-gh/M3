@@ -131,7 +131,7 @@ pub trait Child {
         Ok(())
     }
 
-    fn rem_child(&mut self, vpe_sel: Selector) -> Result<Id, Error> {
+    fn rem_child(&mut self, vpe_sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_CHILD,
             "{}: rem_child(vpe={})",
@@ -148,7 +148,7 @@ pub trait Child {
         let id = self.res().childs[idx].0;
         get().remove_rec(id);
         self.res_mut().childs.remove(idx);
-        Ok(id)
+        Ok(())
     }
 
     fn delegate(&self, src: Selector, dst: Selector) -> Result<(), Error> {
@@ -238,8 +238,7 @@ pub trait Child {
         }
 
         let serv = services::get().get(sdesc.serv_name())?;
-        // TODO don't return first tuple argument
-        let (_, sess) = Session::new(dst_sel, serv, sdesc.arg())?;
+        let sess = Session::new(dst_sel, serv, sdesc.arg())?;
 
         syscalls::get_sess(serv.sel(), self.vpe_sel(), dst_sel, sess.ident())?;
 

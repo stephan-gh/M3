@@ -165,8 +165,7 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let vpe_sel: Selector = is.pop()?;
 
-    // TODO don't return id
-    child.rem_child(vpe_sel).map(|_| ())
+    child.rem_child(vpe_sel)
 }
 
 fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
