@@ -182,26 +182,18 @@ pub trait Child {
         );
 
         let cfg = self.cfg();
-        let sdesc = if cfg.restrict() {
-            let sdesc = cfg
-                .get_service(&name)
-                .ok_or_else(|| Error::new(Code::InvArgs))?;
-            if sdesc.is_used() {
-                return Err(Error::new(Code::Exists));
-            }
-            Some(sdesc)
+        let sdesc = cfg
+            .get_service(&name)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+        if sdesc.is_used() {
+            return Err(Error::new(Code::Exists));
         }
-        else {
-            None
-        };
 
         let our_srv = self.obtain(srv_sel)?;
         let our_sgate = self.obtain(sgate_sel)?;
         let id = services::get().add_service(our_srv, our_sgate, name, true)?;
 
-        if let Some(sd) = sdesc {
-            sd.mark_used();
-        }
+        sdesc.mark_used();
         self.res_mut().services.push((id, srv_sel));
 
         Ok(())
@@ -228,8 +220,7 @@ pub trait Child {
         self.res().sessions.iter().find(|s| s.sel() == sel)
     }
 
-    #[allow(clippy::ptr_arg)] // &String is preferable here, because we &String in the if-else
-    fn open_session(&mut self, dst_sel: Selector, name: &String) -> Result<(), Error> {
+    fn open_session(&mut self, dst_sel: Selector, name: &str) -> Result<(), Error> {
         log!(
             crate::LOG_SERV,
             "{}: open_sess(dst_sel={}, name={})",
@@ -239,30 +230,20 @@ pub trait Child {
         );
 
         let cfg = self.cfg();
-        let empty_arg = String::new();
-        // TODO "restrict=0" shouldn't prevent us from passing arguments on session creation
-        let (sdesc, sname, arg) = if cfg.restrict() {
-            let sdesc = cfg
-                .get_session(name)
-                .ok_or_else(|| Error::new(Code::InvArgs))?;
-            if sdesc.is_used() {
-                return Err(Error::new(Code::Exists));
-            }
-            (Some(sdesc), sdesc.serv_name(), sdesc.arg())
+        let sdesc = cfg
+            .get_session(name)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
+        if sdesc.is_used() {
+            return Err(Error::new(Code::Exists));
         }
-        else {
-            (None, name, &empty_arg)
-        };
 
-        let serv = services::get().get(sname)?;
+        let serv = services::get().get(sdesc.serv_name())?;
         // TODO don't return first tuple argument
-        let (_, sess) = Session::new(dst_sel, serv, arg)?;
+        let (_, sess) = Session::new(dst_sel, serv, sdesc.arg())?;
 
         syscalls::get_sess(serv.sel(), self.vpe_sel(), dst_sel, sess.ident())?;
 
-        if let Some(sd) = sdesc {
-            sd.mark_used(dst_sel);
-        }
+        sdesc.mark_used(dst_sel);
         self.res_mut().sessions.push(sess);
 
         Ok(())

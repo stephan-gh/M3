@@ -142,22 +142,17 @@ impl ConfigParser {
     }
 }
 
-pub(crate) fn parse(xml: &str, restrict: bool) -> Result<config::AppConfig, Error> {
+pub(crate) fn parse(xml: &str) -> Result<config::AppConfig, Error> {
     let mut p = ConfigParser::new(xml);
 
     match p.parse_tag_name()? {
-        Some(tag) if tag == "app" => parse_app(&mut p, 0, restrict),
+        Some(tag) if tag == "app" => parse_app(&mut p, 0),
         _ => Err(Error::new(Code::InvArgs)),
     }
 }
 
-fn parse_app(
-    p: &mut ConfigParser,
-    start: usize,
-    restrict: bool,
-) -> Result<config::AppConfig, Error> {
+fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Error> {
     let mut app = config::AppConfig::default();
-    app.restrict = restrict;
 
     loop {
         match p.parse_arg()? {
@@ -188,7 +183,7 @@ fn parse_app(
     else if nc == '>' {
         while let Some(tag) = p.parse_tag_name()? {
             match tag.as_ref() {
-                "dom" => app.domains.push(parse_domain(p, restrict)?),
+                "dom" => app.domains.push(parse_domain(p)?),
                 "sess" => app.sessions.push(parse_session(p)?),
                 "serv" => app.services.push(parse_service(p)?),
                 "physmem" => app.phys_mems.push(parse_physmem(p)?),
@@ -232,7 +227,7 @@ fn add_deps(app: &config::AppConfig, deps: &mut Vec<String>) {
     }
 }
 
-fn parse_domain(p: &mut ConfigParser, restrict: bool) -> Result<config::Domain, Error> {
+fn parse_domain(p: &mut ConfigParser) -> Result<config::Domain, Error> {
     p.consume('>')?;
 
     let mut app_start = p.pos;
@@ -242,7 +237,7 @@ fn parse_domain(p: &mut ConfigParser, restrict: bool) -> Result<config::Domain, 
             return Err(Error::new(Code::InvArgs));
         }
 
-        dom.apps.push(Rc::new(parse_app(p, app_start, restrict)?));
+        dom.apps.push(Rc::new(parse_app(p, app_start)?));
         app_start = p.pos;
     }
 

@@ -198,7 +198,6 @@ pub struct AppConfig {
     pub(crate) name: String,
     pub(crate) args: Vec<String>,
     pub(crate) cfg_range: (usize, usize),
-    pub(crate) restrict: bool,
     pub(crate) daemon: bool,
     pub(crate) eps: Option<u32>,
     pub(crate) user_mem: Option<usize>,
@@ -213,16 +212,15 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    pub fn parse(xml: &str, restrict: bool) -> Result<Self, Error> {
-        parser::parse(xml, restrict)
+    pub fn parse(xml: &str) -> Result<Self, Error> {
+        parser::parse(xml)
     }
 
-    pub fn new(args: Vec<String>, restrict: bool) -> Self {
+    pub fn new(args: Vec<String>) -> Self {
         assert!(!args.is_empty());
         let mut cfg = AppConfig::default();
         cfg.name = args[0].clone();
         cfg.args = args;
-        cfg.restrict = restrict;
         cfg
     }
 
@@ -232,10 +230,6 @@ impl AppConfig {
 
     pub fn daemon(&self) -> bool {
         self.daemon
-    }
-
-    pub fn restrict(&self) -> bool {
-        self.restrict
     }
 
     pub fn eps(&self) -> Option<u32> {
@@ -291,10 +285,6 @@ impl AppConfig {
     }
 
     pub fn unreg_service(&self, gname: &str) {
-        if !self.restrict {
-            return;
-        }
-
         let serv = self
             .services
             .iter()
@@ -320,10 +310,6 @@ impl AppConfig {
     }
 
     pub fn close_session(&self, sel: Selector) {
-        if !self.restrict {
-            return;
-        }
-
         let sess = self
             .sessions
             .iter()
