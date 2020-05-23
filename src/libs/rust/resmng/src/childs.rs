@@ -103,8 +103,6 @@ pub trait Child {
             child_name
         );
 
-        // TODO support different child configs
-
         if self.res().childs.iter().any(|c| c.1 == vpe_sel) {
             return Err(Error::new(Code::Exists));
         }
