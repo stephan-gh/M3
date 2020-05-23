@@ -751,14 +751,14 @@ void SyscallHandler::vpe_wait(VPE *vpe, const m3::TCU::Message *msg) {
     size_t count = req->vpe_count;
     event_t event = req->event;
 
+    LOG_SYS(vpe, ": syscall::vpe_wait", "(vpes=" << count << ", event=" << event << ")");
+
     if(count == 0 || count > ARRAY_SIZE(req->sels))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "VPE count is invalid");
 
     m3::KIF::Syscall::VPEWaitReply reply;
     reply.error = m3::Errors::NONE;
     reply.vpe_sel = m3::KIF::INV_SEL;
-
-    LOG_SYS(vpe, ": syscall::vpe_wait", "(vpes=" << count << ", event=" << event << ")");
 
     if(event) {
         // first copy the selectors from the message to the stack
