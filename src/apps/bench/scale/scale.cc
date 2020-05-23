@@ -50,10 +50,9 @@ struct App {
 };
 
 static void usage(const char *name) {
-    cerr << "Usage: " << name << " [-l] [-i <instances>] [-s <servers>] [-r <repeats>] <name>\n";
+    cerr << "Usage: " << name << " [-l] [-i <instances>] [-r <repeats>] <name>\n";
     cerr << "  -l enables the load generator\n";
     cerr << "  <instances> specifies the number of application (<name>) instances\n";
-    cerr << "  <servers> specifies the number of m3fs instances\n";
     cerr << "  <repeats> specifies the number of repetitions of the benchmark\n";
     cerr << "  <name> specifies the name of the application trace\n";
     exit(1);
@@ -62,7 +61,6 @@ static void usage(const char *name) {
 int main(int argc, char **argv) {
     bool loadgen = false;
     size_t instances = 1;
-    size_t servers = 1;
     int repeats = 1;
 
     int opt;
@@ -70,7 +68,6 @@ int main(int argc, char **argv) {
         switch(opt) {
             case 'l': loadgen = true; break;
             case 'i': instances = IStringStream::read_from<size_t>(CmdArgs::arg); break;
-            case 's': servers = IStringStream::read_from<size_t>(CmdArgs::arg); break;
             case 'r': repeats = IStringStream::read_from<int>(CmdArgs::arg); break;
             default:
                 usage(argv[0]);
@@ -82,7 +79,6 @@ int main(int argc, char **argv) {
     const char *name = argv[CmdArgs::ind + 0];
 
     App *apps[instances];
-    Reference<PE> srvpes[servers];
 
     if(VERBOSE) cout << "Creating application VPEs...\n";
 
