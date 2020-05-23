@@ -98,12 +98,10 @@ fn handle_request(mut is: GateIStream) {
         Ok(ResMngOperation::ALLOC_MEM) => alloc_mem(&mut is, child),
         Ok(ResMngOperation::FREE_MEM) => free_mem(&mut is, child),
 
-        Ok(ResMngOperation::ALLOC_PE) => {
-            let res = alloc_pe(&mut is, child);
-            if res.is_ok() {
-                return;
-            }
-            res
+        Ok(ResMngOperation::ALLOC_PE) => match alloc_pe(&mut is, child) {
+            // reply already done
+            Ok(_) => return,
+            Err(e) => Err(e),
         },
         Ok(ResMngOperation::FREE_PE) => free_pe(&mut is, child),
 
