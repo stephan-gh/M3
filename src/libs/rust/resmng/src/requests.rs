@@ -112,13 +112,9 @@ fn handle_request(mut is: GateIStream) {
         _ => Err(Error::new(Code::InvArgs)),
     };
 
-    reply_result(&mut is, res);
-}
-
-fn reply_result(is: &mut GateIStream, res: Result<(), Error>) {
     match res {
         Err(e) => {
-            log!(crate::LOG_DEF, "request failed: {}", e);
+            log!(crate::LOG_DEF, "{}: {:?} failed: {}", child.name(), op, e);
             reply_vmsg!(is, e.code() as u64)
         },
         Ok(_) => reply_vmsg!(is, 0 as u64),
