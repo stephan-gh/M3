@@ -15,6 +15,7 @@
  */
 
 use cap::{CapFlags, Selector};
+use col::Vec;
 use com::ep::EP;
 use com::gate::Gate;
 use core::fmt;
@@ -159,6 +160,17 @@ impl MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
             flags: MGateFlags::REVOKE,
         })
+    }
+
+    /// Uses the TCU read command to read from the memory region at offset `off` and stores the read
+    /// data into a vector. The number of bytes to read is defined by the number of items and the
+    /// size of `T`.
+    pub fn read_into_vec<T>(&self, items: usize, off: goff) -> Result<Vec<T>, Error> {
+        let mut vec = Vec::<T>::with_capacity(items);
+        // safety: will be initialized by read below
+        unsafe { vec.set_len(items) };
+        self.read(&mut vec, off)?;
+        Ok(vec)
     }
 
     /// Uses the TCU read command to read from the memory region at offset `off` and stores the read

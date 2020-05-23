@@ -72,25 +72,16 @@ impl Subsystem {
         let info: boot::Info = mgate.read_obj(0)?;
         off += util::size_of::<boot::Info>() as goff;
 
-        let mut mods = Vec::<boot::Mod>::with_capacity(info.mod_count as usize);
-        // safety: will be initialized by read below
-        unsafe { mods.set_len(info.mod_count as usize) };
-        mgate.read(&mut mods, off)?;
+        let mods = mgate.read_into_vec::<boot::Mod>(info.mod_count as usize, off)?;
         off += util::size_of::<boot::Mod>() as goff * info.mod_count;
 
-        let mut pes = Vec::<boot::PE>::with_capacity(info.pe_count as usize);
-        unsafe { pes.set_len(info.pe_count as usize) };
-        mgate.read(&mut pes, off)?;
+        let pes = mgate.read_into_vec::<boot::PE>(info.pe_count as usize, off)?;
         off += util::size_of::<boot::PE>() as goff * info.pe_count;
 
-        let mut mems = Vec::<boot::Mem>::with_capacity(info.mem_count as usize);
-        unsafe { mems.set_len(info.mem_count as usize) };
-        mgate.read(&mut mems, off)?;
+        let mems = mgate.read_into_vec::<boot::Mem>(info.mem_count as usize, off)?;
         off += util::size_of::<boot::Mem>() as goff * info.mem_count;
 
-        let mut servs = Vec::<boot::Service>::with_capacity(info.serv_count as usize);
-        unsafe { servs.set_len(info.serv_count as usize) };
-        mgate.read(&mut servs, off)?;
+        let servs = mgate.read_into_vec::<boot::Service>(info.serv_count as usize, off)?;
 
         let cfg = Self::parse_config(&mods)?;
 
@@ -165,12 +156,8 @@ impl Subsystem {
 
         // read boot config
         let cfg_mem = cfg_mem.unwrap();
-        let mut xml: Vec<u8> = Vec::with_capacity(cfg_mem.1 as usize);
-
-        // safety: will be initialized by read below
         let memgate = MemGate::new_bind(SUBSYS_SELS + 1 + cfg_mem.0 as Selector);
-        unsafe { xml.set_len(cfg_mem.1 as usize) };
-        memgate.read(&mut xml, 0)?;
+        let xml = memgate.read_into_vec::<u8>(cfg_mem.1 as usize, 0)?;
 
         // parse boot config
         let xml_str = String::from_utf8(xml).map_err(|_| Error::new(Code::InvArgs))?;
