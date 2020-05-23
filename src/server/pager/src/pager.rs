@@ -237,7 +237,12 @@ fn workloop(serv: &Server) {
 pub fn main() -> i32 {
     let subsys = subsys::Subsystem::new().expect("Unable to read subsystem info");
 
-    vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
+    // mount root FS if we haven't done that yet
+    if let Err(e) = vfs::VFS::mount("/", "m3fs", "m3fs") {
+        if e.code() != Code::Exists {
+            panic!("Unable to mount root filesystem: {:?}", e);
+        }
+    }
 
     // create server
     PGHDL.set(PagerReqHandler {
