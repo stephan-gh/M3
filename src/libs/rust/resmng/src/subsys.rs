@@ -143,7 +143,7 @@ impl Subsystem {
         }
     }
 
-    fn parse_config(mods: &Vec<boot::Mod>) -> Result<(String, config::AppConfig), Error> {
+    fn parse_config(mods: &[boot::Mod]) -> Result<(String, config::AppConfig), Error> {
         let mut cfg_mem: Option<(usize, goff)> = None;
 
         // find boot config
@@ -230,10 +230,8 @@ impl Subsystem {
                 pes::get().find_and_alloc(VPE::cur().pe_desc())?,
             )));
         }
-        else {
-            if !VPE::cur().pe_desc().has_virtmem() {
-                panic!("Can't share root's PE without VM support");
-            }
+        else if !VPE::cur().pe_desc().has_virtmem() {
+            panic!("Can't share root's PE without VM support");
         }
 
         // determine default mem and kmem per child

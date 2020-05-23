@@ -459,6 +459,7 @@ pub struct OwnChild {
 }
 
 impl OwnChild {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Id,
         pe: Rc<pes::PEUsage>,

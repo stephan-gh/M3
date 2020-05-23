@@ -18,10 +18,10 @@ use core::mem;
 use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::cfg;
-use m3::kif::Perm;
 use m3::com::MemGate;
 use m3::errors::Error;
 use m3::goff;
+use m3::kif::Perm;
 
 static ZEROS: [u8; cfg::PAGE_SIZE] = [0u8; cfg::PAGE_SIZE];
 static BUF: StaticCell<[u8; cfg::PAGE_SIZE]> = StaticCell::new([0u8; cfg::PAGE_SIZE]);

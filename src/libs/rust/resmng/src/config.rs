@@ -301,7 +301,7 @@ impl AppConfig {
         let mut num = 0;
         for d in self.domains() {
             for a in d.apps() {
-                if a.sessions().iter().find(|s| s.serv_name() == name).is_some() {
+                if a.sessions().iter().any(|s| s.serv_name() == name) {
                     num += 1;
                 }
             }

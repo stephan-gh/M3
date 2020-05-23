@@ -52,6 +52,7 @@ impl Mod {
     /// Creates a new boot module
     pub fn new(addr: u64, size: u64, name: &str) -> Self {
         assert!(name.len() < MAX_MODNAME_LEN);
+        #[allow(clippy::uninit_assumed_init)]
         let mut m = Self {
             addr,
             size,
@@ -167,6 +168,7 @@ impl Service {
     /// Creates a new service
     pub fn new(name: &str, sessions: u32) -> Self {
         assert!(name.len() < MAX_SERVNAME_LEN);
+        #[allow(clippy::uninit_assumed_init)]
         let mut m = Self {
             sessions,
             name: unsafe { MaybeUninit::uninit().assume_init() },

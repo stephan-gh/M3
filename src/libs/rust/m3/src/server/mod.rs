@@ -46,7 +46,7 @@ macro_rules! handle_ctrl_chan {
             Err(e) => {
                 llog!(SERV, "Control channel request failed: {:?}", e);
                 Ok(())
-            }
+            },
         }
     };
 }
