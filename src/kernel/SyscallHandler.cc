@@ -894,6 +894,8 @@ void SyscallHandler::derive_srv(VPE *vpe, const m3::TCU::Message *msg) {
 
     if(dst.count() != 2 || !vpe->objcaps().range_unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid destination selectors");
+    if(sessions == 0)
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid session count");
 
     auto srvcap = static_cast<ServCapability*>(vpe->objcaps().get(srv, Capability::SERV));
     if(srvcap == nullptr)
@@ -978,14 +980,16 @@ void SyscallHandler::get_sess(VPE *vpe, const m3::TCU::Message *msg) {
     SessCapability *csess = nullptr;
     for(Capability *child = srvroot->child(); child != nullptr; child = child->next()) {
         if(child->type() == Capability::SESS) {
-            csess = static_cast<SessCapability*>(child);
-            if(csess->obj->ident == sid)
+            SessCapability *s = static_cast<SessCapability*>(child);
+            if(s->obj->ident == sid) {
+                csess = s;
                 break;
+            }
         }
     }
 
     if(csess == nullptr)
-        SYS_ERROR(vpe, msg, m3::Errors::NO_PERM, "Unknown session id");
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Unknown session id");
     if(csess->obj->creator != srvcap->obj->creator)
         SYS_ERROR(vpe, msg, m3::Errors::NO_PERM, "Cannot get access to foreign session");
 
