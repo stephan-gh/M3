@@ -92,7 +92,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
                     log!(crate::LOG_DEF, "[{}] pager::new_sess(nsid={})", sid, nsid);
                     Ok(AddrSpace::new(crt, sess, Some(sid)))
                 })
-                .and_then(|(sel, _)| Ok(sel))
+                .map(|(sel, _)| sel)
         }?;
 
         xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
@@ -144,7 +144,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
 
 fn start_child(child: &mut OwnChild) -> Result<(), Error> {
     // send gate for resmng
-    #[allow(clippy::identity_conversion)]
+    #[allow(clippy::useless_conversion)]
     let resmng_sgate = SendGate::new_with(
         SGateArgs::new(requests::rgate())
             .credits(1)
@@ -154,7 +154,7 @@ fn start_child(child: &mut OwnChild) -> Result<(), Error> {
     // create pager session for child (creator=0 here because we create all sessions ourself)
     let (sel, sid) = PGHDL.get_mut().open(0, PGHDL.sel, "")?;
     let sess = ClientSession::new_bind(sel);
-    #[allow(clippy::identity_conversion)]
+    #[allow(clippy::useless_conversion)]
     let pager_sgate = SendGate::new_with(
         SGateArgs::new(REQHDL.recv_gate())
             .credits(1)
@@ -212,10 +212,9 @@ fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
             PagerOp::PAGEFAULT => aspace.pagefault(is),
             PagerOp::MAP_ANON => aspace.map_anon(is),
             PagerOp::UNMAP => aspace.unmap(is),
-            PagerOp::CLOSE => aspace.close(is).and_then(|_| {
-                PGHDL.get_mut().close(0, is.label() as SessId);
-                Ok(())
-            }),
+            PagerOp::CLOSE => aspace
+                .close(is)
+                .map(|_| PGHDL.get_mut().close(0, is.label() as SessId)),
             _ => Err(Error::new(Code::InvArgs)),
         }
     }

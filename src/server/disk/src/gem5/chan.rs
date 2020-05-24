@@ -187,10 +187,7 @@ impl Channel {
             extra
         );
         self.write_pio(ATAReg::DRIVE_SELECT, extra | ((id & 0x1) << 4))
-            .and_then(|_| {
-                self.wait();
-                Ok(())
-            })
+            .map(|_| self.wait())
     }
 
     pub fn wait(&self) {

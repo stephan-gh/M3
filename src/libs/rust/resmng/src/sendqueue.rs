@@ -172,7 +172,7 @@ impl SendQueue {
         self.cur_event = get_event(id);
         self.state = QState::Waiting;
 
-        #[allow(clippy::identity_conversion)]
+        #[allow(clippy::useless_conversion)]
         self.sgate
             .send_with_rlabel(msg, &RGATE, tcu::Label::from(self.sid))?;
 

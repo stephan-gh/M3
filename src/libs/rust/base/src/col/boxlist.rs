@@ -314,7 +314,7 @@ impl<T: BoxItem> BoxList<T> {
 
 impl<T: BoxItem> Drop for BoxList<T> {
     fn drop(&mut self) {
-        while let Some(_) = self.pop_front() {}
+        while self.pop_front().is_some() {}
     }
 }
 

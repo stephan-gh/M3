@@ -50,12 +50,12 @@ fn test_add_modify_and_rem(vals: &[u32]) {
 
     // create
     for v in vals {
-        treap.insert(v.clone(), v);
+        treap.insert(*v, v);
     }
 
     // modify
     for (i, v) in vals.iter().enumerate() {
-        treap.set(v.clone(), &plus_one[i]);
+        treap.set(*v, &plus_one[i]);
     }
 
     // find all

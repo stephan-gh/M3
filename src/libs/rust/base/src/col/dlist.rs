@@ -344,7 +344,7 @@ impl<T> DList<T> {
 
 impl<T> Drop for DList<T> {
     fn drop(&mut self) {
-        while let Some(_) = self.pop_front() {}
+        while self.pop_front().is_some() {}
     }
 }
 

@@ -107,7 +107,7 @@ pub trait Child {
             return Err(Error::new(Code::Exists));
         }
 
-        #[allow(clippy::identity_conversion)]
+        #[allow(clippy::useless_conversion)]
         let sgate = SendGate::new_with(
             SGateArgs::new(&rgate)
                 .credits(1)
@@ -205,7 +205,7 @@ pub trait Child {
             serv.iter()
                 .position(|t| t.1 == sel)
                 .ok_or_else(|| Error::new(Code::InvArgs))
-                .and_then(|idx| Ok(serv.remove(idx).0))
+                .map(|idx| serv.remove(idx).0)
         }?;
 
         let serv = services::get().remove_service(id, notify);
@@ -255,7 +255,7 @@ pub trait Child {
                 .iter()
                 .position(|s| s.sel() == sel)
                 .ok_or_else(|| Error::new(Code::InvArgs))
-                .and_then(|idx| Ok(sessions.remove(idx)))
+                .map(|idx| sessions.remove(idx))
         }?;
 
         self.cfg().close_session(sel);
@@ -312,9 +312,9 @@ pub trait Child {
             alloc.size() as usize,
             perm,
         )
-        .or_else(|e| {
+        .map_err(|e| {
             self.mem().borrow_mut().free(alloc);
-            Err(e)
+            e
         })?;
 
         self.add_mem(alloc, Some(dst_sel));

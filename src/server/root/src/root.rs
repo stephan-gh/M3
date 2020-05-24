@@ -58,7 +58,7 @@ fn find_mod(name: &str) -> Option<(MemGate, usize)> {
 fn start_child(child: &mut OwnChild) -> Result<(), Error> {
     let bmod = find_mod(child.cfg().name()).ok_or_else(|| Error::new(Code::NotFound))?;
 
-    #[allow(clippy::identity_conversion)]
+    #[allow(clippy::useless_conversion)]
     let sgate = SendGate::new_with(
         SGateArgs::new(requests::rgate())
             .credits(1)

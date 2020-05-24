@@ -185,10 +185,7 @@ fn handle_upcall(msg: &'static tcu::Message) {
     let res = match kif::pemux::Upcalls::from(req.opcode) {
         kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg),
         kif::pemux::Upcalls::MAP => map(msg),
-        kif::pemux::Upcalls::TRANSLATE => translate(msg).and_then(|pte| {
-            reply.val = pte;
-            Ok(())
-        }),
+        kif::pemux::Upcalls::TRANSLATE => translate(msg).map(|pte| reply.val = pte),
         kif::pemux::Upcalls::REM_MSGS => rem_msgs(msg),
         kif::pemux::Upcalls::EP_INVAL => ep_inval(msg),
         _ => Err(Error::new(Code::NotSup)),
