@@ -20,7 +20,7 @@ use time;
 macro_rules! read_csr {
     ($reg_name:tt) => {{
         let res: usize;
-        unsafe { asm!(concat!("csrr $0, ", $reg_name) : "=r"(res)) };
+        unsafe { llvm_asm!(concat!("csrr $0, ", $reg_name) : "=r"(res)) };
         res
     }}
 }
@@ -28,21 +28,21 @@ macro_rules! read_csr {
 #[macro_export]
 macro_rules! write_csr {
     ($reg_name:tt, $val:expr) => {{
-        unsafe { asm!(concat!("csrw ", $reg_name, ", $0") : : "r"($val) : : "volatile") };
+        unsafe { llvm_asm!(concat!("csrw ", $reg_name, ", $0") : : "r"($val) : : "volatile") };
     }};
 }
 
 #[macro_export]
 macro_rules! set_csr_bits {
     ($reg_name:tt, $bits:expr) => {{
-        unsafe { asm!(concat!("csrs ", $reg_name, ", $0") : : "r"($bits) : : "volatile") };
+        unsafe { llvm_asm!(concat!("csrs ", $reg_name, ", $0") : : "r"($bits) : : "volatile") };
     }};
 }
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
     let res: u64;
-    asm!(
+    llvm_asm!(
         "ld $0, ($1)"
         : "=r"(res)
         : "r"(addr)
@@ -53,7 +53,7 @@ pub unsafe fn read8b(addr: usize) -> u64 {
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn write8b(addr: usize, val: u64) {
-    asm!(
+    llvm_asm!(
         "sd $0, ($1)"
         : : "r"(val), "r"(addr)
     )
@@ -63,7 +63,7 @@ pub unsafe fn write8b(addr: usize, val: u64) {
 pub fn get_sp() -> usize {
     let sp: usize;
     unsafe {
-        asm!(
+        llvm_asm!(
             "mv $0, sp"
             : "=r"(sp)
         )
@@ -75,7 +75,7 @@ pub fn get_sp() -> usize {
 pub fn get_bp() -> usize {
     let fp: usize;
     unsafe {
-        asm!(
+        llvm_asm!(
             "mv $0, fp"
             : "=r"(fp)
         )
@@ -93,7 +93,7 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
 pub fn gem5_debug(msg: usize) -> time::Time {
     let mut res = msg as time::Time;
     unsafe {
-        asm!(
+        llvm_asm!(
             ".long 0xC600007B"
             : "+{x10}"(res)
             : : : "volatile"

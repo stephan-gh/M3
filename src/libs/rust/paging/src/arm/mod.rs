@@ -128,7 +128,7 @@ pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
 #[no_mangle]
 pub extern "C" fn enable_paging() {
     unsafe {
-        asm!("
+        llvm_asm!("
             mrc     p15, 0, r0, c2, c0, 2;   // TTBCR
             orr     r0, r0, #0x80000000;     // EAE = 1 (40-bit translation system with long table format)
             orr     r0, r0, #0x00000500;     // ORGN0 = IRGN0 = 1 (write-back write-allocate cacheable)
@@ -147,7 +147,7 @@ pub extern "C" fn enable_paging() {
 
 pub fn invalidate_page(id: ::VPEId, virt: usize) {
     unsafe {
-        asm!(
+        llvm_asm!(
             "mcr p15, 0, $0, c8, c7, 1"
             : : "r"(virt | (id as usize & 0xFF))
             : : "volatile"
@@ -158,7 +158,7 @@ pub fn invalidate_page(id: ::VPEId, virt: usize) {
 pub fn invalidate_tlb() {
     // note that r0 is ignored
     unsafe {
-        asm!(
+        llvm_asm!(
             "mcr p15, 0, r0, c8, c7, 0"
             : : : : "volatile"
         );
@@ -169,7 +169,7 @@ pub fn get_root_pt() -> Phys {
     let ttbr0_low: u32;
     let ttbr0_high: u32;
     unsafe {
-        asm!(
+        llvm_asm!(
             "mrrc p15, 0, $0, $1, c2"
             : "=r"(ttbr0_low), "=r"(ttbr0_high)
         );
@@ -188,7 +188,7 @@ pub fn set_root_pt(id: ::VPEId, root: Phys) {
     let ttbr0_low: u32 = (root | 0b00_1001) as u32;
     let ttbr0_high: u32 = ((id as u32 & 0xFF) << 16) | (root >> 32) as u32;
     unsafe {
-        asm!("
+        llvm_asm!("
              mcrr p15, 0, $0, $1, c2;
              // synchronize changes to control register
              .arch armv7;

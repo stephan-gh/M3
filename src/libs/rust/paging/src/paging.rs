@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(asm)]
+#![feature(llvm_asm)]
 #![no_std]
 
 #[macro_use]

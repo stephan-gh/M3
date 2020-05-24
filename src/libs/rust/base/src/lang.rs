@@ -51,10 +51,8 @@ fn panic(info: &PanicInfo) -> ! {
         }
     }
 
-    unsafe {
-        exit(1);
-        intrinsics::abort();
-    }
+    unsafe { exit(1) };
+    intrinsics::abort();
 }
 
 #[alloc_error_handler]
@@ -65,20 +63,20 @@ fn alloc_error(_: core::alloc::Layout) -> ! {
 #[lang = "eh_personality"]
 #[no_mangle]
 pub extern "C" fn rust_eh_personality() {
-    unsafe { intrinsics::abort() }
+    intrinsics::abort()
 }
 
 #[allow(non_snake_case)]
 #[no_mangle]
 pub extern "C" fn _Unwind_Resume() -> ! {
-    unsafe { intrinsics::abort() }
+    intrinsics::abort()
 }
 
 #[cfg(target_arch = "arm")]
 #[no_mangle]
 pub extern "C" fn __sync_synchronize() {
     // TODO memory barrier
-    // unsafe { asm!("dmb"); }
+    // unsafe { llvm_asm!("dmb"); }
 }
 
 macro_rules! def_cmpswap {

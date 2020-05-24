@@ -21,7 +21,7 @@ macro_rules! impl_read_reg {
         #[inline(always)]
         pub fn $func_name() -> usize {
             let res: usize;
-            unsafe { asm!(concat!("mov %", $reg_name, ", $0") : "=r"(res)) };
+            unsafe { llvm_asm!(concat!("mov %", $reg_name, ", $0") : "=r"(res)) };
             res
         }
     };
@@ -31,7 +31,7 @@ macro_rules! impl_write_reg {
     ($func_name:tt, $reg_name:tt) => {
         #[inline(always)]
         pub fn $func_name(val: usize) {
-            unsafe { asm!(concat!("mov $0, %", $reg_name) : : "r"(val) : : "volatile") };
+            unsafe { llvm_asm!(concat!("mov $0, %", $reg_name) : : "r"(val) : : "volatile") };
         }
     };
 }
@@ -51,7 +51,7 @@ impl_read_reg!(get_bp, "rbp");
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
     let res: u64;
-    asm!(
+    llvm_asm!(
         "mov ($1), $0"
         : "=r"(res)
         : "r"(addr)
@@ -62,7 +62,7 @@ pub unsafe fn read8b(addr: usize) -> u64 {
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn write8b(addr: usize, val: u64) {
-    asm!(
+    llvm_asm!(
         "mov $0, ($1)"
         : : "r"(val), "r"(addr)
         : : "volatile"
@@ -79,7 +79,7 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
 pub fn gem5_debug(msg: usize) -> time::Time {
     let res: time::Time;
     unsafe {
-        asm!(
+        llvm_asm!(
             ".byte 0x0F, 0x04;
              .word 0x63"
             : "={rax}"(res)

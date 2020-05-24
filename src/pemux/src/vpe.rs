@@ -126,8 +126,6 @@ static CUR: StaticCell<Option<Box<VPE>>> = StaticCell::new(None);
 static RDY: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 static BLK: StaticCell<BoxList<VPE>> = StaticCell::new(BoxList::new());
 
-// TODO for some reason, we need to put that in a separate struct than INFO, because otherwise
-// wrong code is generated for ARM.
 static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
 static PTS: StaticCell<Vec<Phys>> = StaticCell::new(Vec::new());
 

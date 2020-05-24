@@ -182,16 +182,16 @@ pub fn handle_fpu_ex(_state: &mut State) {
         if old_id != pemux::VPE_ID {
             let old_vpe = vpe::get_mut(old_id).unwrap();
             let fpu_state = old_vpe.fpu_state();
-            unsafe { asm!("fxsave ($0)" : : "r"(&fpu_state.data)) };
+            unsafe { llvm_asm!("fxsave ($0)" : : "r"(&fpu_state.data)) };
         }
 
         // restore new state
         let fpu_state = cur.fpu_state();
         if fpu_state.init {
-            unsafe { asm!("fxrstor ($0)" : : "r"(&fpu_state.data)) };
+            unsafe { llvm_asm!("fxrstor ($0)" : : "r"(&fpu_state.data)) };
         }
         else {
-            unsafe { asm!("fninit") };
+            unsafe { llvm_asm!("fninit") };
             fpu_state.init = true;
         }
 

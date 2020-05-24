@@ -126,7 +126,7 @@ pub extern "C" fn enable_paging() {
 
 pub fn invalidate_page(id: ::VPEId, virt: usize) {
     unsafe {
-        asm!(
+        llvm_asm!(
             "sfence.vma $0, $1"
             : : "r"(virt), "r"(id)
             : : "volatile"
@@ -136,7 +136,7 @@ pub fn invalidate_page(id: ::VPEId, virt: usize) {
 
 pub fn invalidate_tlb() {
     unsafe {
-        asm!("sfence.vma" : : : : "volatile");
+        llvm_asm!("sfence.vma" : : : : "volatile");
     }
 }
 

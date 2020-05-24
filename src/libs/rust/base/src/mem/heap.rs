@@ -230,7 +230,7 @@ extern "C" fn __rdl_alloc_zeroed(size: usize, _align: usize, _err: *mut u8) -> *
 
 #[no_mangle]
 extern "C" fn __rdl_oom(_err: *const u8) -> ! {
-    unsafe { intrinsics::abort() };
+    intrinsics::abort();
 }
 
 #[no_mangle]

@@ -269,7 +269,7 @@ impl Pipe {
 
     pub fn attach(&mut self, chan: &Channel) {
         assert!(chan.pipe == self.id);
-        match chan.i.ty {
+        match chan.ty {
             ChanType::READ => self.state.borrow_mut().reader.push(chan.id),
             ChanType::WRITE => self.state.borrow_mut().writer.push(chan.id),
         }
@@ -289,18 +289,12 @@ pub enum ChanType {
     WRITE,
 }
 
-// TODO this struct is packed atm to avoid a code generation bug on ARM (as far as I can see)
-#[repr(C, packed)]
-struct ChanIntern {
-    ty: ChanType,
-    mem: Option<MemGate>,
-}
-
 pub struct Channel {
-    i: ChanIntern,
+    ty: ChanType,
     id: SessId,
     pipe: SessId,
     state: Rc<RefCell<State>>,
+    mem: Option<MemGate>,
     sgate: SendGate,
     ep_cap: Option<Selector>,
 }
@@ -320,10 +314,11 @@ impl Channel {
                 .sel(sel + 1),
         )?;
         Ok(Channel {
-            i: ChanIntern { ty, mem: None },
+            ty,
             id,
             pipe,
             state,
+            mem: None,
             sgate,
             ep_cap: None,
         })
@@ -338,7 +333,7 @@ impl Channel {
     }
 
     pub fn clone(&self, id: SessId, sel: Selector) -> Result<Channel, Error> {
-        Channel::new(id, sel, self.i.ty, self.pipe, self.state.clone())
+        Channel::new(id, sel, self.ty, self.pipe, self.state.clone())
     }
 
     pub fn set_ep(&mut self, ep: Selector) {
@@ -348,7 +343,7 @@ impl Channel {
     pub fn next_in(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         log!(crate::LOG_DEF, "[{}] pipes::next_in()", self.id);
 
-        let res = match self.i.ty {
+        let res = match self.ty {
             ChanType::READ => self.read(is, 0),
             ChanType::WRITE => Err(Error::new(Code::InvArgs)),
         };
@@ -360,7 +355,7 @@ impl Channel {
     pub fn next_out(&mut self, is: &mut GateIStream) -> Result<(), Error> {
         log!(crate::LOG_DEF, "[{}] pipes::next_out()", self.id);
 
-        let res = match self.i.ty {
+        let res = match self.ty {
             ChanType::READ => Err(Error::new(Code::InvArgs)),
             ChanType::WRITE => self.write(is, 0),
         };
@@ -379,7 +374,7 @@ impl Channel {
             nbytes
         );
 
-        let res = match self.i.ty {
+        let res = match self.ty {
             ChanType::READ => self.read(is, nbytes),
             ChanType::WRITE => self.write(is, nbytes),
         };
@@ -389,7 +384,7 @@ impl Channel {
     }
 
     pub fn close(&mut self, _sids: &mut Vec<SessId>) -> Result<(), Error> {
-        let res = match self.i.ty {
+        let res = match self.ty {
             ChanType::READ => self.close_reader(),
             ChanType::WRITE => self.close_writer(),
         };
@@ -399,7 +394,7 @@ impl Channel {
     }
 
     fn handle_pending(&mut self) {
-        match self.i.ty {
+        match self.ty {
             ChanType::READ => self.state.borrow_mut().handle_pending_writes(),
             ChanType::WRITE => self.state.borrow_mut().handle_pending_reads(),
         }
@@ -617,15 +612,13 @@ impl Channel {
     fn activate(&mut self) -> Result<(), Error> {
         // did we get an EP cap from the client?
         if let Some(cap) = self.ep_cap.take() {
-            unsafe {
-                assert!(self.i.mem.is_none());
-            }
+            assert!(self.mem.is_none());
 
             // did we get a memory cap from the client?
             let state = self.state.borrow();
             if let Some(mem) = &state.mem {
                 // derive read-only/write-only mem cap
-                let perm = match self.i.ty {
+                let perm = match self.ty {
                     ChanType::READ => kif::Perm::R,
                     ChanType::WRITE => kif::Perm::W,
                 };
@@ -639,7 +632,7 @@ impl Channel {
                     cmem.sel()
                 );
                 syscalls::activate(cap, cmem.sel(), kif::INVALID_SEL, 0)?;
-                self.i.mem = Some(cmem);
+                self.mem = Some(cmem);
             }
             else {
                 return Err(Error::new(Code::InvArgs));

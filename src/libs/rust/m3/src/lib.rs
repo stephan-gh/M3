@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-#![feature(asm)]
+#![feature(llvm_asm)]
 #![feature(const_fn)]
 #![feature(core_intrinsics)]
 #![feature(trace_macros)]

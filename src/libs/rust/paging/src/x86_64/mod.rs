@@ -123,7 +123,7 @@ pub extern "C" fn enable_paging() {
 
 pub fn invalidate_page(_id: ::VPEId, virt: usize) {
     unsafe {
-        asm!(
+        llvm_asm!(
             "invlpg ($0)"
             : : "r"(virt)
             : : "volatile"

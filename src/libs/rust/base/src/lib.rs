@@ -15,7 +15,7 @@
  */
 
 #![feature(alloc_error_handler, allocator_internals)]
-#![feature(asm)]
+#![feature(llvm_asm)]
 #![feature(box_into_raw_non_null)]
 #![feature(const_fn)]
 #![feature(core_intrinsics)]

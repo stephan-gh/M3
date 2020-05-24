@@ -19,7 +19,7 @@ use time;
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
     let res: u64;
-    asm!(
+    llvm_asm!(
         "ldrd $0, [$1]"
         : "=r"(res)
         : "r"(addr)
@@ -30,7 +30,7 @@ pub unsafe fn read8b(addr: usize) -> u64 {
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn write8b(addr: usize, val: u64) {
-    asm!(
+    llvm_asm!(
         "strd $0, [$1]"
         : : "r"(val), "r"(addr)
         : : "volatile"
@@ -41,7 +41,7 @@ pub unsafe fn write8b(addr: usize, val: u64) {
 pub fn get_sp() -> usize {
     let res: usize;
     unsafe {
-        asm!(
+        llvm_asm!(
             "mov $0, r13;"
             : "=r"(res)
         );
@@ -53,7 +53,7 @@ pub fn get_sp() -> usize {
 pub fn get_bp() -> usize {
     let val: usize;
     unsafe {
-        asm!(
+        llvm_asm!(
             "mov $0, r11;"
             : "=r"(val)
         );
@@ -71,7 +71,7 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
 pub fn gem5_debug(msg: usize) -> time::Time {
     let mut res = msg as time::Time;
     unsafe {
-        asm!(
+        llvm_asm!(
             ".long 0xEE630110"
             : "+{r0}"(res)
             : : : "volatile"

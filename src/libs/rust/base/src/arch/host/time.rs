@@ -20,7 +20,7 @@ fn rdtsc() -> time::Time {
     let u: u32;
     let l: u32;
     unsafe {
-        asm!(
+        llvm_asm!(
             "rdtsc"
             : "={rax}"(l), "={rdx}"(u)
         );

@@ -24,7 +24,7 @@ pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
 pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
-        asm!(
+        llvm_asm!(
             "ecall"
             : "+{x10}"(res)
             : "{x11}"(arg1), "{x12}"(arg2)

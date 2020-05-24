@@ -129,7 +129,7 @@ pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
         let dfar: usize;
         let dfsr: usize;
         unsafe {
-            asm!("mrc p15, 0, $0, c6, c0, 0; mrc p15, 0, $1, c5, c0, 0" : "=r"(dfar), "=r"(dfsr));
+            llvm_asm!("mrc p15, 0, $0, c6, c0, 0; mrc p15, 0, $1, c5, c0, 0" : "=r"(dfar), "=r"(dfsr));
         }
         (
             dfar,
@@ -144,7 +144,7 @@ pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
     else {
         let ifar: usize;
         unsafe {
-            asm!("mrc p15, 0, $0, c6, c0, 2" : "=r"(ifar));
+            llvm_asm!("mrc p15, 0, $0, c6, c0, 2" : "=r"(ifar));
         }
         (ifar, PageFlags::RX)
     };
