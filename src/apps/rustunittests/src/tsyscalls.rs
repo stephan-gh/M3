@@ -17,13 +17,14 @@
 use m3::cap::Selector;
 use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate};
-use m3::errors::Code;
+use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::syscalls::{SemOp, VPEOp};
 use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_KMEM, SEL_PE, SEL_VPE};
 use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
-use m3::session::M3FS;
+use m3::server::{Handler, Server, SessId, SessionContainer};
+use m3::session::{ServerSession, M3FS};
 use m3::syscalls;
 use m3::tcu::{EP_COUNT, FIRST_USER_EP};
 use m3::test;
@@ -45,6 +46,8 @@ pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, derive_mem);
     wv_run_test!(t, derive_kmem);
     wv_run_test!(t, derive_pe);
+    wv_run_test!(t, derive_srv);
+    wv_run_test!(t, get_sess);
     wv_run_test!(t, kmem_quota);
     wv_run_test!(t, pe_quota);
     wv_run_test!(t, sem_ctrl);
@@ -574,6 +577,87 @@ fn derive_pe() {
 
     // now we can revoke it
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, pe.sel(), 1), false));
+}
+
+struct DummyHandler {
+    sessions: SessionContainer<()>,
+}
+
+impl Handler<()> for DummyHandler {
+    fn sessions(&mut self) -> &mut SessionContainer<()> {
+        &mut self.sessions
+    }
+
+    fn open(&mut self, _: usize, _: Selector, _: &str) -> Result<(Selector, SessId), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+}
+
+fn derive_srv() {
+    let crd = CapRngDesc::new(CapType::OBJECT, VPE::cur().alloc_sels(2), 2);
+    let mut hdl = DummyHandler {
+        sessions: SessionContainer::new(16),
+    };
+    let srv = wv_assert_ok!(Server::new_private("test", &mut hdl));
+
+    // invalid service selector
+    wv_assert_err!(syscalls::derive_srv(SEL_KMEM, crd, 1), Code::InvArgs);
+    // invalid dest selector
+    wv_assert_err!(
+        syscalls::derive_srv(srv.sel(), CapRngDesc::new(CapType::OBJECT, SEL_KMEM, 1), 1),
+        Code::InvArgs
+    );
+    wv_assert_err!(
+        syscalls::derive_srv(srv.sel(), CapRngDesc::new(CapType::OBJECT, SEL_KMEM, 2), 1),
+        Code::InvArgs
+    );
+    // invalid session count
+    wv_assert_err!(syscalls::derive_srv(srv.sel(), crd, 0), Code::InvArgs);
+}
+
+fn get_sess() {
+    let sel = VPE::cur().alloc_sel();
+    let mut hdl = DummyHandler {
+        sessions: SessionContainer::new(16),
+    };
+    let srv = wv_assert_ok!(Server::new_private("test", &mut hdl));
+
+    let _sess1 = wv_assert_ok!(ServerSession::new(srv.sel(), 0, 0xDEAD_BEEF, false));
+    let _sess2 = wv_assert_ok!(ServerSession::new(srv.sel(), 1, 0x1234, false));
+
+    // invalid service selector
+    wv_assert_err!(
+        syscalls::get_sess(SEL_KMEM, VPE::cur().sel(), sel, 0xDEAD_BEEF),
+        Code::InvArgs
+    );
+    // invalid VPE selector
+    wv_assert_err!(
+        syscalls::get_sess(srv.sel(), SEL_KMEM, sel, 0xDEAD_BEEF),
+        Code::InvArgs
+    );
+    // invalid destination selector
+    wv_assert_err!(
+        syscalls::get_sess(srv.sel(), VPE::cur().sel(), SEL_KMEM, 0xDEAD_BEEF),
+        Code::InvArgs
+    );
+    // unknown session
+    wv_assert_err!(
+        syscalls::get_sess(srv.sel(), VPE::cur().sel(), sel, 0x2222),
+        Code::InvArgs
+    );
+    // not our session
+    wv_assert_err!(
+        syscalls::get_sess(srv.sel(), VPE::cur().sel(), sel, 0x1234),
+        Code::NoPerm
+    );
+
+    // success
+    wv_assert_ok!(syscalls::get_sess(
+        srv.sel(),
+        VPE::cur().sel(),
+        sel,
+        0xDEAD_BEEF
+    ));
 }
 
 fn kmem_quota() {
