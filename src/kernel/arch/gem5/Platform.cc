@@ -82,7 +82,7 @@ void Platform::init() {
                 mem.add(new MemoryModule(MemoryModule::KERNEL, m3::GlobAddr(i, used), Args::kmem));
 
                 mem.add(new MemoryModule(MemoryModule::USER, m3::GlobAddr(i, used + Args::kmem), avail));
-                umems[umemidx++] = m3::BootInfo::Mem(used + Args::kmem, avail, false);
+                umems[umemidx++] = m3::BootInfo::Mem(used + Args::kmem, avail - Args::kmem, false);
             }
             else {
                 if(umemidx >= info->mem_count)
