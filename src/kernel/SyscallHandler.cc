@@ -797,7 +797,8 @@ void SyscallHandler::derive_mem(VPE *vpe, const m3::TCU::Message *msg) {
     uint perms = req->perms;
 
     LOG_SYS(vpe, ": syscall::derive_mem", "(vpe=" << tvpe << ", src=" << src << ", dst=" << dst
-        << ", size=" << size << ", off=" << offset << ", perms=" << perms << ")");
+        << ", size=" << m3::fmt(size, "#x") << ", off=" << m3::fmt(offset, "#x")
+        << ", perms=" << perms << ")");
 
     auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
     if(vpecap == nullptr)
