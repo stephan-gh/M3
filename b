@@ -282,8 +282,10 @@ case "$cmd" in
     doc)
         export RUSTFLAGS="--sysroot $XBUILD_SYSROOT_PATH"
         export RUSTDOCFLAGS=$RUSTFLAGS
-        for lib in rustm3 rustthread rustresmng; do
-            ( cd src/libs/$lib && cargo doc --target $RUST_TARGET )
+        for lib in src/libs/rust/*; do
+            if [ -d $lib ]; then
+                ( cd $lib && cargo doc --target $RUST_TARGET )
+            fi
         done
         ;;
 
