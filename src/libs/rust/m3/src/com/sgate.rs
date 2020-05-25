@@ -66,7 +66,7 @@ impl SGateArgs {
     }
 
     /// Sets the capability selector to use for the [`SendGate`]. Otherwise and by default,
-    /// [`vpe::VPE::alloc_sel`] will be used.
+    /// [`VPE::alloc_sel`] will be used.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
         self
