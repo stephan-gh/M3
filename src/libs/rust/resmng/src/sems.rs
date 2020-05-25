@@ -14,15 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cap::Selector;
 use m3::cell::StaticCell;
 use m3::col::{String, Vec};
+use m3::com::Semaphore;
 use m3::errors::{Code, Error};
-use m3::pes::VPE;
-use m3::syscalls;
 
 pub struct SemManager {
-    sems: Vec<(String, Selector)>,
+    sems: Vec<(String, Semaphore)>,
 }
 
 static MNG: StaticCell<SemManager> = StaticCell::new(SemManager::new());
@@ -41,18 +39,16 @@ impl SemManager {
             return Err(Error::new(Code::Exists));
         }
 
-        let sel = VPE::cur().alloc_sel();
-        syscalls::create_sem(sel, 0)?;
-
-        log!(crate::LOG_SEM, "Created semaphore {} @ {}", name, sel);
-        self.sems.push((name, sel));
+        let sem = Semaphore::create(0)?;
+        log!(crate::LOG_SEM, "Created semaphore {} @ {}", name, sem.sel());
+        self.sems.push((name, sem));
         Ok(())
     }
 
-    pub fn get(&self, name: &str) -> Option<Selector> {
-        for (sname, sel) in &self.sems {
+    pub fn get(&self, name: &str) -> Option<&Semaphore> {
+        for (sname, sem) in &self.sems {
             if sname == name {
-                return Some(*sel);
+                return Some(sem);
             }
         }
         None

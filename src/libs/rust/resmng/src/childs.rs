@@ -359,8 +359,8 @@ pub trait Child {
         let cfg = self.cfg();
         let sdesc = cfg.get_sem(name).ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        let our_sel = sems::get().get(sdesc.global_name()).unwrap();
-        self.delegate(our_sel, sel)
+        let sem = sems::get().get(sdesc.global_name()).unwrap();
+        self.delegate(sem.sel(), sel)
     }
 
     fn alloc_pe(&mut self, sel: Selector, desc: kif::PEDesc) -> Result<kif::PEDesc, Error> {
