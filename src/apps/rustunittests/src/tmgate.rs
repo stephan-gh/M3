@@ -156,7 +156,7 @@ fn remote_access() {
     // read object from his address space
     let obj_mem = wv_assert_ok!(act.vpe_mut().get_mem(
         math::round_dn(virt, cfg::PAGE_SIZE as goff),
-        cfg::PAGE_SIZE,
+        cfg::PAGE_SIZE as goff,
         Perm::R
     ));
     let obj: u64 =

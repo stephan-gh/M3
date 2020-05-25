@@ -106,22 +106,22 @@ fn create_mgate() {
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::create_mgate(SEL_VPE, SEL_VPE, 0, PAGE_SIZE, Perm::R),
+        syscalls::create_mgate(SEL_VPE, SEL_VPE, 0, PAGE_SIZE as goff, Perm::R),
         Code::InvArgs
     );
     // invalid VPE selector
     wv_assert_err!(
-        syscalls::create_mgate(sel, SEL_KMEM, 0, PAGE_SIZE, Perm::R),
+        syscalls::create_mgate(sel, SEL_KMEM, 0, PAGE_SIZE as goff, Perm::R),
         Code::InvArgs
     );
     // unaligned virtual address
     wv_assert_err!(
-        syscalls::create_mgate(sel, SEL_VPE, 0xFF, PAGE_SIZE, Perm::R),
+        syscalls::create_mgate(sel, SEL_VPE, 0xFF, PAGE_SIZE as goff, Perm::R),
         Code::InvArgs
     );
     // unaligned size
     wv_assert_err!(
-        syscalls::create_mgate(sel, SEL_VPE, 0, PAGE_SIZE - 1, Perm::R),
+        syscalls::create_mgate(sel, SEL_VPE, 0, PAGE_SIZE as goff - 1, Perm::R),
         Code::InvArgs
     );
     // size is 0
@@ -133,14 +133,14 @@ fn create_mgate() {
     if VPE::cur().pe_desc().has_virtmem() {
         // it has to be mapped
         wv_assert_err!(
-            syscalls::create_mgate(sel, SEL_VPE, 0, PAGE_SIZE, Perm::R),
+            syscalls::create_mgate(sel, SEL_VPE, 0, PAGE_SIZE as goff, Perm::R),
             Code::InvArgs
         );
         // and respect the permissions
         let addr = &create_mgate as *const _ as goff;
         let addr = math::round_dn(addr, PAGE_SIZE as goff);
         wv_assert_err!(
-            syscalls::create_mgate(sel, SEL_VPE, addr, PAGE_SIZE, Perm::W),
+            syscalls::create_mgate(sel, SEL_VPE, addr, PAGE_SIZE as goff, Perm::W),
             Code::NoPerm
         );
 
@@ -158,7 +158,7 @@ fn create_mgate() {
 
         // it has to be within bounds
         wv_assert_err!(
-            syscalls::create_mgate(sel, SEL_VPE, virt, PAGE_SIZE * 5, Perm::W),
+            syscalls::create_mgate(sel, SEL_VPE, virt, PAGE_SIZE as goff * 5, Perm::W),
             Code::InvArgs
         );
         wv_assert_err!(
@@ -166,7 +166,7 @@ fn create_mgate() {
                 sel,
                 SEL_VPE,
                 virt + PAGE_SIZE as goff,
-                PAGE_SIZE * 4,
+                PAGE_SIZE as goff * 4,
                 Perm::W
             ),
             Code::InvArgs
@@ -176,7 +176,13 @@ fn create_mgate() {
     // the TCU region is off limits
     #[cfg(target_os = "none")]
     wv_assert_err!(
-        syscalls::create_mgate(sel, SEL_VPE, m3::tcu::MMIO_ADDR as goff, PAGE_SIZE, Perm::R),
+        syscalls::create_mgate(
+            sel,
+            SEL_VPE,
+            m3::tcu::MMIO_ADDR as goff,
+            PAGE_SIZE as goff,
+            Perm::R
+        ),
         Code::InvArgs
     );
 }

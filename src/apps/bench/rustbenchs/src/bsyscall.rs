@@ -93,7 +93,7 @@ fn create_mgate() {
                 *SEL,
                 VPE::cur().sel(),
                 self.0 as goff,
-                cfg::PAGE_SIZE,
+                cfg::PAGE_SIZE as goff,
                 Perm::R
             ));
         }

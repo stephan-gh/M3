@@ -219,7 +219,7 @@ fn load_segment(
     if needs_init {
         let mem = vpe.get_mem(
             phdr.vaddr as goff,
-            math::round_up(size, cfg::PAGE_SIZE),
+            math::round_up(size, cfg::PAGE_SIZE) as goff,
             kif::Perm::W,
         )?;
         init_mem(

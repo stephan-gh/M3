@@ -103,6 +103,14 @@ impl MemGate {
         })
     }
 
+    /// Creates a new `MemGate` for the region `off`..`off`+`size` in the address space of the given
+    /// VPE. The region must be physically contiguous and page aligned.
+    pub fn new_foreign(vpe: Selector, off: goff, size: goff, perm: Perm) -> Result<Self, Error> {
+        let sel = VPE::cur().alloc_sel();
+        syscalls::create_mgate(sel, vpe, off, size, perm)?;
+        Ok(MemGate::new_owned_bind(sel))
+    }
+
     /// Binds a new `MemGate` to the given selector.
     pub fn new_bind(sel: Selector) -> Self {
         MemGate {

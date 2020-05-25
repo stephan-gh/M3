@@ -366,11 +366,9 @@ impl VPE {
     }
 
     /// Creates a new memory gate that refers to the address region `addr`..`addr`+`size` in the
-    /// address space of this VPE. The `addr` and `size` needs to be page aligned.
-    pub fn get_mem(&self, addr: goff, size: usize, perms: kif::Perm) -> Result<MemGate, Error> {
-        let sel = VPE::cur().alloc_sel();
-        syscalls::create_mgate(sel, self.sel(), addr, size, perms)?;
-        Ok(MemGate::new_owned_bind(sel))
+    /// address space of this VPE. The region must be physically contiguous and page aligned.
+    pub fn get_mem(&self, addr: goff, size: goff, perms: kif::Perm) -> Result<MemGate, Error> {
+        MemGate::new_foreign(self.sel(), addr, size, perms)
     }
 
     /// Starts the VPE without running any code on it. This is intended for non-programmable
@@ -401,7 +399,7 @@ impl VPE {
         let env = arch::env::get();
         let mut senv = arch::env::EnvData::default();
 
-        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE, kif::Perm::W)?;
+        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::W)?;
 
         let closure = {
             senv.set_sp(cpu::get_sp());
@@ -411,7 +409,7 @@ impl VPE {
                 // copy all regions to child
                 None => arch::loader::copy_vpe(
                     senv.sp(),
-                    self.get_mem(0, self.pe_desc().mem_size(), kif::Perm::W)?,
+                    self.get_mem(0, self.pe_desc().mem_size() as goff, kif::Perm::W)?,
                 ),
             }?;
             senv.set_entry(entry);
@@ -535,7 +533,7 @@ impl VPE {
 
         let mut senv = arch::env::EnvData::default();
 
-        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE, kif::Perm::W)?;
+        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::W)?;
 
         {
             // load program segments

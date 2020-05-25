@@ -25,7 +25,6 @@ use m3::com::MemGate;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
-use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::syscalls;
 
@@ -172,9 +171,7 @@ impl Region {
                     copy_block(&mem.gate(), &ngate, off, self.size);
                 }
                 else {
-                    let nsel = VPE::cur().alloc_sel();
-                    syscalls::create_mgate(nsel, osel, off, self.size as usize, Perm::R)?;
-                    let omem = MemGate::new_owned_bind(nsel);
+                    let omem = MemGate::new_foreign(osel, off, self.size, Perm::R)?;
                     copy_block(&omem, &ngate, 0, self.size);
                 }
 

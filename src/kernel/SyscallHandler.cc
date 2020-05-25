@@ -211,7 +211,7 @@ void SyscallHandler::create_mgate(VPE *vpe, const m3::TCU::Message *msg) {
     capsel_t dst = req->dst_sel;
     capsel_t tvpe = req->vpe_sel;
     goff_t addr = req->addr;
-    size_t size = req->size;
+    goff_t size = req->size;
     uint perms = req->perms;
 
     LOG_SYS(vpe, ": syscall::create_mgate", "(dst=" << dst
@@ -237,8 +237,8 @@ void SyscallHandler::create_mgate(VPE *vpe, const m3::TCU::Message *msg) {
         if((perms & ~m3::KIF::Perm::RWX) || (perms & ~mapcap->obj->attr))
             SYS_ERROR(vpe, msg, m3::Errors::NO_PERM, "Invalid permissions");
 
-        size_t pages = size >> PAGE_BITS;
-        size_t off = (addr >> PAGE_BITS) - mapcap->sel();
+        uint pages = size >> PAGE_BITS;
+        goff_t off = (addr >> PAGE_BITS) - mapcap->sel();
         if(pages == 0 || off + pages < off || off + pages > mapcap->length())
             SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid length");
 

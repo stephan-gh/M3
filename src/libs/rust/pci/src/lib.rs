@@ -134,7 +134,7 @@ impl Device {
         let vpe_sel = vpe.sel();
         let mem = vpe.get_mem(
             0,
-            (PCI_CFG_ADDR + REG_ADDR) as usize + cfg::PAGE_SIZE,
+            (PCI_CFG_ADDR + REG_ADDR) + cfg::PAGE_SIZE as goff,
             Perm::RW,
         )?;
         let sep = vpe.epmng().acquire_for(vpe_sel, EP_INT, 0)?;

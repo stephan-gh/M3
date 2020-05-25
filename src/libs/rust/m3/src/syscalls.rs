@@ -98,7 +98,7 @@ pub fn create_mgate(
     dst: Selector,
     vpe: Selector,
     addr: goff,
-    size: usize,
+    size: goff,
     perms: Perm,
 ) -> Result<(), Error> {
     let req = syscalls::CreateMGate {
