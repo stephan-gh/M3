@@ -168,7 +168,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
                 },
                 "usermem" => app.user_mem = Some(parse_size(&v)?),
                 "kernmem" => app.kern_mem = Some(parse_size(&v)?),
-                "eps" => app.eps = Some(v.parse::<u32>().map_err(|_| Error::new(Code::InvArgs))?),
+                "eps" => app.eps = Some(parse_int(&v)? as u32),
                 "daemon" => app.daemon = parse_bool(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
@@ -314,7 +314,7 @@ fn parse_pe(p: &mut ConfigParser) -> Result<config::PEDesc, Error> {
             None => break,
             Some((n, v)) => match n.as_ref() {
                 "type" => ty = v,
-                "count" => count = v.parse::<u32>().map_err(|_| Error::new(Code::InvArgs))?,
+                "count" => count = parse_int(&v)? as u32,
                 "optional" => optional = parse_bool(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
@@ -374,21 +374,20 @@ fn parse_size(s: &str) -> Result<usize, Error> {
         Some('g') | Some('G') => 1024 * 1024 * 1024,
         _ => return Err(Error::new(Code::InvArgs)),
     };
-    let num = match mul {
-        1 => s.parse::<usize>(),
-        _ => s[0..s.len() - 1].parse::<usize>(),
-    }
-    .map_err(|_| Error::new(Code::InvArgs))?;
-    Ok(num * mul)
+    Ok(match mul {
+        1 => parse_int(s)? as usize,
+        m => m * parse_int(&s[0..s.len() - 1])? as usize,
+    })
+}
+
+fn parse_int(s: &str) -> Result<u64, Error> {
+    s.parse::<u64>().map_err(|_| Error::new(Code::InvArgs))
 }
 
 fn parse_bool(s: &str) -> Result<bool, Error> {
     match s {
         "true" => Ok(true),
         "false" => Ok(false),
-        _ => {
-            let val = s.parse::<u32>().map_err(|_| Error::new(Code::InvArgs))?;
-            Ok(val == 1)
-        },
+        _ => Ok(parse_int(s)? == 1),
     }
 }
