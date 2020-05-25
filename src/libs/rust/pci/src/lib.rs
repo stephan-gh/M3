@@ -25,10 +25,9 @@ use m3::cfg;
 use m3::com::{MemGate, RecvGate, SendGate, EP};
 use m3::errors::Error;
 use m3::goff;
-use m3::kif::{PEDesc, PEType, Perm, INVALID_SEL, PEISA};
+use m3::kif::{PEDesc, PEType, Perm, PEISA};
 use m3::math;
 use m3::pes::{DeviceActivity, PE, VPE};
-use m3::syscalls;
 use m3::tcu::EpId;
 
 const EP_INT: EpId = 16;
@@ -155,7 +154,7 @@ impl Device {
     }
 
     pub fn set_dma_buffer(&self, mgate: &MemGate) -> Result<(), Error> {
-        syscalls::activate(self.mep.sel(), mgate.sel(), INVALID_SEL, 0)
+        mgate.activate_on(&self.mep)
     }
 
     pub fn check_for_irq(&self) -> bool {

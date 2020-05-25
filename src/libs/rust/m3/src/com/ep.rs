@@ -90,6 +90,11 @@ impl EP {
         Ok(Self::create(sel, id, args.replies, CapFlags::empty()))
     }
 
+    /// Binds the given selector to a new EP object
+    pub fn new_bind(ep: EpId, sel: Selector) -> Self {
+        Self::create(sel, ep, 0, CapFlags::KEEP_CAP)
+    }
+
     pub(crate) const fn new_def_bind(ep: EpId) -> Self {
         Self::create(kif::INVALID_SEL, ep, 0, CapFlags::KEEP_CAP)
     }

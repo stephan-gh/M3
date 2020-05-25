@@ -22,7 +22,7 @@ extern crate m3;
 use core::mem::MaybeUninit;
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
-use m3::com::{GateIStream, MemGate, Perm, SGateArgs, SendGate};
+use m3::com::{GateIStream, MemGate, Perm, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::io::{Read, Serial, Write};
 use m3::kif;
@@ -33,7 +33,6 @@ use m3::server::{
     DEF_MAX_CLIENTS,
 };
 use m3::session::ServerSession;
-use m3::syscalls;
 use m3::tcu::Label;
 use m3::vfs::GenFileOp;
 
@@ -92,8 +91,8 @@ impl Channel {
 
     fn activate(&mut self) -> Result<(), Error> {
         if !self.active {
-            let ep = self.ep.ok_or_else(|| Error::new(Code::InvArgs))?;
-            syscalls::activate(ep, self.mem.sel(), kif::INVALID_SEL, 0)?;
+            let sel = self.ep.ok_or_else(|| Error::new(Code::InvArgs))?;
+            self.mem.activate_on(&EP::new_bind(0, sel))?;
             self.active = true;
         }
         Ok(())

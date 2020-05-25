@@ -17,13 +17,12 @@
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::{VarRingBuf, Vec};
-use m3::com::{GateIStream, MemGate, SGateArgs, SendGate};
+use m3::com::{GateIStream, MemGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::rc::Rc;
 use m3::server::SessId;
 use m3::session::ServerSession;
-use m3::syscalls;
 use m3::tcu::{Label, Message};
 
 macro_rules! reply_vmsg_late {
@@ -611,7 +610,7 @@ impl Channel {
 
     fn activate(&mut self) -> Result<(), Error> {
         // did we get an EP cap from the client?
-        if let Some(cap) = self.ep_cap.take() {
+        if let Some(ep_sel) = self.ep_cap.take() {
             assert!(self.mem.is_none());
 
             // did we get a memory cap from the client?
@@ -628,10 +627,10 @@ impl Channel {
                     crate::LOG_DEF,
                     "[{}] pipes::activate(ep={}, gate={})",
                     self.id,
-                    cap,
+                    ep_sel,
                     cmem.sel()
                 );
-                syscalls::activate(cap, cmem.sel(), kif::INVALID_SEL, 0)?;
+                cmem.activate_on(&EP::new_bind(0, ep_sel))?;
                 self.mem = Some(cmem);
             }
             else {
