@@ -30,21 +30,14 @@ use util;
 
 pub use kif::Perm;
 
-bitflags! {
-    pub struct MGateFlags : u64 {
-        /// revoke the `MemGate` on destruction
-        const REVOKE = 0x80;
-    }
-}
-
 /// A memory gate (`MemGate`) has access to a contiguous memory region and allows RDMA-like memory
 /// accesses via TCU.
 pub struct MemGate {
     gate: Gate,
-    flags: MGateFlags,
+    resmng: bool,
 }
 
-/// The arguments for `MemGate` creations.
+/// The arguments for [`MemGate`] creations.
 pub struct MGateArgs {
     size: usize,
     addr: goff,
@@ -99,7 +92,7 @@ impl MemGate {
             .alloc_mem(sel, args.addr, args.size, args.perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
-            flags: MGateFlags::empty(),
+            resmng: true,
         })
     }
 
@@ -115,7 +108,7 @@ impl MemGate {
     pub fn new_bind(sel: Selector) -> Self {
         MemGate {
             gate: Gate::new(sel, CapFlags::KEEP_CAP),
-            flags: MGateFlags::REVOKE,
+            resmng: false,
         }
     }
 
@@ -123,7 +116,7 @@ impl MemGate {
     pub fn new_owned_bind(sel: Selector) -> Self {
         MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
-            flags: MGateFlags::REVOKE,
+            resmng: false,
         }
     }
 
@@ -135,11 +128,6 @@ impl MemGate {
     /// Returns the endpoint of the gate. If the gate is not activated, `None` is returned.
     pub(crate) fn ep(&self) -> Option<&EP> {
         self.gate.ep()
-    }
-
-    /// Sets the flags to use for memory requests.
-    pub fn set_flags(&mut self, flags: MGateFlags) {
-        self.flags = flags | (self.flags & MGateFlags::REVOKE);
     }
 
     /// Derives a new `MemGate` from `self` that has access to a subset of `self`'s the memory
@@ -166,7 +154,7 @@ impl MemGate {
         syscalls::derive_mem(vpe, sel, self.sel(), offset, size, perm)?;
         Ok(MemGate {
             gate: Gate::new(sel, CapFlags::empty()),
-            flags: MGateFlags::REVOKE,
+            resmng: false,
         })
     }
 
@@ -244,9 +232,7 @@ impl MemGate {
 
 impl Drop for MemGate {
     fn drop(&mut self) {
-        if !self.gate.flags().contains(CapFlags::KEEP_CAP)
-            && !self.flags.contains(MGateFlags::REVOKE)
-        {
+        if !self.gate.flags().contains(CapFlags::KEEP_CAP) && self.resmng {
             VPE::cur().resmng().unwrap().free_mem(self.sel()).ok();
             self.gate.set_flags(CapFlags::KEEP_CAP);
         }
