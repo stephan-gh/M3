@@ -38,8 +38,11 @@ pub const INVALID_SEL: CapSel = 0xFFFF;
 /// Represents unlimited credits for a SendGate
 pub const UNLIM_CREDITS: u32 = tcu::UNLIM_CREDITS;
 
+/// The selector for the own PE capability
 pub const SEL_PE: CapSel = 0;
+/// The selector for the own kernel memory capability
 pub const SEL_KMEM: CapSel = 1;
+/// The selector for the own VPE
 pub const SEL_VPE: CapSel = 2;
 
 /// The first free selector

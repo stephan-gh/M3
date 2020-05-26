@@ -100,8 +100,8 @@ int_enum! {
 
 #[allow(dead_code)]
 bitflags! {
-    /// The status flag for the `TCUReg::STATUS` register
-    pub struct StatusFlags : Reg {
+    /// The status flag for the [`ExtReg::FEATURES`] register
+    pub struct FeatureFlags : Reg {
         /// Whether the PE is privileged
         const PRIV          = 1 << 0;
     }
@@ -270,7 +270,8 @@ impl TCU {
     ///
     /// # Errors
     ///
-    /// If the number of left credits is not sufficient, the function returns (`Code::MISS_CREDITS`).
+    /// If the number of left credits is not sufficient, the function returns
+    /// [`MissCredits`](::errors::Code::MissCredits).
     #[inline(always)]
     pub fn send(
         ep: EpId,
@@ -475,6 +476,8 @@ impl TCU {
         }
     }
 
+    /// Translates the offset `off` to the message address, using `base` as the base address of the
+    /// message's receive buffer
     pub fn offset_to_msg(base: usize, off: usize) -> &'static Message {
         // safety: the cast is okay because we trust the TCU
         unsafe {
@@ -484,49 +487,62 @@ impl TCU {
         }
     }
 
+    /// Translates the message address `msg` to the offset within its receive buffer, using `base`
+    /// as the base address of the receive buffer
     pub fn msg_to_offset(base: usize, msg: &Message) -> usize {
         let addr = msg as *const _ as *const u8 as usize;
         addr - base
     }
 
+    /// Returns the injected IRQ (assuming that a IRQ has been injected and was not cleared yet)
     pub fn get_irq() -> IRQ {
         IRQ::from(Self::read_priv_reg(PrivReg::CLEAR_IRQ))
     }
 
+    /// Clears the given IRQ to notify the TCU that the IRQ has been accepted
     pub fn clear_irq(irq: IRQ) {
         Self::write_priv_reg(PrivReg::CLEAR_IRQ, irq.val);
     }
 
+    /// Returns the current core request
     pub fn get_core_req() -> Reg {
         Self::read_priv_reg(PrivReg::CORE_REQ)
     }
 
+    /// Sets the response for the current core request to `val`
     pub fn set_core_req(val: Reg) {
         Self::write_priv_reg(PrivReg::CORE_REQ, val)
     }
 
+    /// Returns the current VPE with its id and message count
     pub fn get_cur_vpe() -> Reg {
         Self::read_priv_reg(PrivReg::CUR_VPE)
     }
 
+    /// Switches to the given VPE and returns the old VPE
     pub fn xchg_vpe(nvpe: Reg) -> Reg {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 4));
         unsafe { intrinsics::atomic_fence() };
         Self::read_priv_reg(PrivReg::OLD_VPE)
     }
 
+    /// Invalidates the TCU's TLB
     pub fn invalidate_tlb() {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::INV_TLB.val);
     }
 
+    /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
     pub fn invalidate_page(asid: u16, virt: usize) {
         let val = ((asid as Reg) << 36) | ((virt as Reg) << 4) | PrivCmdOpCode::INV_PAGE.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, val);
     }
 
+    /// Inserts the given entry into the TCU's TLB
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) {
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, phys);
-        unsafe { intrinsics::atomic_fence() };
+        unsafe {
+            intrinsics::atomic_fence()
+        };
         let cmd = ((asid as Reg) << 36)
             | (((virt & !cfg::PAGE_MASK) as Reg) << 4)
             | ((flags.bits() as Reg) << 4)
@@ -534,10 +550,13 @@ impl TCU {
         Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
     }
 
+    /// Flushes and invalidates the CPU caches
     pub fn flush_cache() {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::FLUSH_CACHE.val);
     }
 
+    /// Sets the timer to fire in `delay_ns` nanoseconds if `delay_ns` is nonzero. Otherwise, unsets
+    /// the timer.
     pub fn set_timer(delay_ns: u64) {
         Self::write_priv_reg(
             PrivReg::PRIV_CMD,
@@ -545,10 +564,12 @@ impl TCU {
         );
     }
 
+    /// Returns the value of the given unprivileged register
     pub fn read_unpriv_reg(reg: UnprivReg) -> Reg {
         Self::read_reg(EXT_REGS + reg.val as usize)
     }
 
+    /// Sets the value of the given unprivileged register to `val`
     pub fn write_unpriv_reg(reg: UnprivReg, val: Reg) {
         Self::write_reg(EXT_REGS + reg.val as usize, val)
     }

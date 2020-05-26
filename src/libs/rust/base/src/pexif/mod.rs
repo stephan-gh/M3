@@ -14,11 +14,18 @@
  * General Public License version 2 for more details.
  */
 
+//! Contains the interface between applications and PEMux
+
 int_enum! {
+    /// The operations PEMux supports
     pub struct Operation : isize {
+        /// Sleep for a given duration or until an event occurs
         const SLEEP         = 0x0;
+        /// Exit the application
         const EXIT          = 0x1;
+        /// Switch to the next ready VPE
         const YIELD         = 0x2;
+        /// Noop operation for testing purposes
         const NOOP          = 0x3;
     }
 }

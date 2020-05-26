@@ -99,6 +99,7 @@ pub mod time;
 
 mod arch;
 
+/// An offset in a [`GlobAddr`](mem::GlobAddr)
 #[allow(non_camel_case_types)]
 pub type goff = u64;
 

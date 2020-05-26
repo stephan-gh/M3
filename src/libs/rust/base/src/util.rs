@@ -105,8 +105,9 @@ macro_rules! function {
 /// ```
 ///
 /// Each struct member has the field `val`, which corresponds to its value. The macro implements the
-/// traits `Debug`, `Display`, `Marshallable`, and `Unmarshallable`. Furthermore, it allows to
-/// convert from the underlying type (here `u8`) to the struct.
+/// traits [`Debug`](core::fmt::Debug), [`Display`](core::fmt::Display),
+/// [`Marshallable`](serialize::Marshallable), and [`Unmarshallable`](serialize::Unmarshallable).
+/// Furthermore, it allows to convert from the underlying type (here [`u8`]) to the struct.
 #[macro_export]
 macro_rules! int_enum {
     (

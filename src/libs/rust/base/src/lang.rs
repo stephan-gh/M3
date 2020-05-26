@@ -64,18 +64,21 @@ fn alloc_error(_: core::alloc::Layout) -> ! {
 
 #[lang = "eh_personality"]
 #[no_mangle]
+#[doc(hidden)]
 pub extern "C" fn rust_eh_personality() {
     intrinsics::abort()
 }
 
 #[allow(non_snake_case)]
 #[no_mangle]
+#[doc(hidden)]
 pub extern "C" fn _Unwind_Resume() -> ! {
     intrinsics::abort()
 }
 
 #[cfg(target_arch = "arm")]
 #[no_mangle]
+#[doc(hidden)]
 pub extern "C" fn __sync_synchronize() {
     // TODO memory barrier
     // unsafe { llvm_asm!("dmb"); }
@@ -84,7 +87,7 @@ pub extern "C" fn __sync_synchronize() {
 macro_rules! def_cmpswap {
     ($name:ident, $type:ty) => {
         #[no_mangle]
-        #[allow(clippy::missing_safety_doc)]
+        #[doc(hidden)]
         pub unsafe extern "C" fn $name(ptr: *mut $type, oldval: $type, newval: $type) -> $type {
             let old = *ptr;
             if old == oldval {
@@ -97,14 +100,14 @@ macro_rules! def_cmpswap {
 
 #[cfg(target_arch = "arm")]
 #[no_mangle]
-#[allow(clippy::missing_safety_doc)]
+#[doc(hidden)]
 pub unsafe extern "C" fn __aeabi_memclr(dest: *mut crate::libc::c_void, size: usize) {
     crate::libc::memzero(dest, size);
 }
 
 #[cfg(target_arch = "arm")]
 #[no_mangle]
-#[allow(clippy::missing_safety_doc)]
+#[doc(hidden)]
 pub unsafe extern "C" fn __aeabi_memclr4(dest: *mut crate::libc::c_void, size: usize) {
     crate::libc::memzero(dest, size);
 }
@@ -118,7 +121,7 @@ def_cmpswap!(__sync_val_compare_and_swap_16, u128);
 macro_rules! def_testnset {
     ($name:ident, $type:ty) => {
         #[no_mangle]
-        #[allow(clippy::missing_safety_doc)]
+        #[doc(hidden)]
         pub unsafe extern "C" fn $name(ptr: *mut $type, val: $type) -> $type {
             let old = *ptr;
             *ptr = val;
@@ -137,7 +140,7 @@ macro_rules! def_atomic_load {
     ($name:ident, $type:ty) => {
         #[cfg(target_arch = "riscv64")]
         #[no_mangle]
-        #[allow(clippy::missing_safety_doc)]
+        #[doc(hidden)]
         pub unsafe extern "C" fn $name(ptr: *const $type, _model: i32) -> $type {
             return *ptr;
         }
@@ -148,7 +151,7 @@ macro_rules! def_atomic_store {
     ($name:ident, $type:ty) => {
         #[cfg(target_arch = "riscv64")]
         #[no_mangle]
-        #[allow(clippy::missing_safety_doc)]
+        #[doc(hidden)]
         pub unsafe extern "C" fn $name(ptr: *mut $type, val: $type, _model: i32) {
             *ptr = val;
         }

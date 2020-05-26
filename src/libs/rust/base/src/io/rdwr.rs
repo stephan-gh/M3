@@ -108,8 +108,8 @@ pub trait Read {
     ///
     /// # Errors
     ///
-    /// If any I/O error occurs, `Err` will be returned. If less bytes are available, `Err` will be
-    /// returned with `EndOfFile` as the error code.
+    /// If any I/O error occurs, [`Err`] will be returned. If less bytes are available, [`Err`] will
+    /// be returned with [`EndOfFile`](Code::EndOfFile) as the error code.
     fn read_exact(&mut self, mut buf: &mut [u8]) -> Result<(), Error> {
         while !buf.is_empty() {
             match self.read(buf) {
@@ -146,8 +146,8 @@ pub trait Write {
     ///
     /// # Errors
     ///
-    /// If any I/O error occurs, `Err` will be returned. If less bytes can be written, `Err` will be
-    /// returned with `WriteFailed` as the error code.
+    /// If any I/O error occurs, [`Err`] will be returned. If less bytes can be written, [`Err`]
+    /// will be returned with [`WriteFailed`](Code::WriteFailed) as the error code.
     fn write_all(&mut self, mut buf: &[u8]) -> Result<(), Error> {
         while !buf.is_empty() {
             match self.write(buf) {

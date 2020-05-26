@@ -39,7 +39,7 @@ impl<T> Node<T> {
     }
 }
 
-/// The iterator for `DList`
+/// The iterator for [`DList`]
 pub struct DListIter<'a, T: 'a> {
     head: Option<NonNull<Node<T>>>,
     marker: PhantomData<&'a Node<T>>,
@@ -57,7 +57,7 @@ impl<'a, T> Iterator for DListIter<'a, T> {
     }
 }
 
-/// The mutable iterator for `DList`
+/// The mutable iterator for [`DList`]
 pub struct DListIterMut<'a, T: 'a> {
     list: &'a mut DList<T>,
     head: Option<NonNull<Node<T>>>,
@@ -202,8 +202,8 @@ pub struct DListIntoIter<T> {
 
 /// A doubly-linked list
 ///
-/// In contrast to `col::LinkedList`, it supports the insertion (before and after the current
-/// element) and removal of elements during iteration.
+/// In contrast to [`LinkedList`](::col::LinkedList), it supports the insertion (before and after
+/// the current element) and removal of elements during iteration.
 pub struct DList<T> {
     head: Option<NonNull<Node<T>>>,
     tail: Option<NonNull<Node<T>>>,

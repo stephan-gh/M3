@@ -19,13 +19,13 @@
 use col::String;
 use errors::Error;
 
-/// For types that can be marshalled into a [`Sink`](trait.Sink.html).
+/// For types that can be marshalled into a [`Sink`].
 pub trait Marshallable {
     /// Writes this object into the given sink
     fn marshall(&self, s: &mut dyn Sink);
 }
 
-/// For types that can be unmarshalled from a [`Source`](trait.Source.html).
+/// For types that can be unmarshalled from a [`Source`].
 pub trait Unmarshallable: Sized {
     /// Reads an object from the given source and returns it
     fn unmarshall(s: &mut dyn Source) -> Result<Self, Error>;

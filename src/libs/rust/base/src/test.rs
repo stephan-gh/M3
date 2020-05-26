@@ -24,7 +24,8 @@ pub trait WvTester {
     fn run_test(&mut self, name: &str, file: &str, f: &dyn Fn());
 }
 
-/// Convenience macro that calls `Tester::run_suite` and uses the function name as suite name
+/// Convenience macro that calls [`WvTester::run_suite`](::test::WvTester::run_suite) and uses
+/// the function name as suite name
 #[macro_export]
 macro_rules! wv_run_suite {
     ($t:expr, $func:path) => {
@@ -32,7 +33,8 @@ macro_rules! wv_run_suite {
     };
 }
 
-/// Convenience macro that calls `Tester::run_test` and uses the function name as test name
+/// Convenience macro that calls [`WvTester::run_test`](::test::WvTester::run_test) and uses
+/// the function name as test name
 #[macro_export]
 macro_rules! wv_run_test {
     ($t:expr, $func:path) => {
@@ -94,7 +96,7 @@ macro_rules! wv_assert_eq {
     });
 }
 
-/// Convenience macro that tests whether the argument is `Ok`, returns the inner value if so, and
+/// Convenience macro that tests whether the argument is [`Ok`], returns the inner value if so, and
 /// panics otherwise
 #[macro_export]
 macro_rules! wv_assert_ok {
@@ -115,8 +117,8 @@ macro_rules! wv_assert_ok {
     }};
 }
 
-/// Convenience macro that tests whether the argument is `Some`, returns the inner value if so, and
-/// panics otherwise
+/// Convenience macro that tests whether the argument is [`Some`], returns the inner value if so,
+/// and panics otherwise
 #[macro_export]
 macro_rules! wv_assert_some {
     ($res:expr) => {{
@@ -135,7 +137,7 @@ macro_rules! wv_assert_some {
     }};
 }
 
-/// Convenience macro that tests whether the argument is `Err` with the given error code
+/// Convenience macro that tests whether the argument is [`Err`] with the given error code
 #[macro_export]
 macro_rules! wv_assert_err {
     ($res:expr, $err:expr) => {{

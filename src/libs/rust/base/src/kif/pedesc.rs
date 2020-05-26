@@ -53,6 +53,7 @@ int_enum! {
     }
 }
 
+/// The underlying type of [`PEDesc`]
 pub type PEDescRaw = u32;
 
 /// Describes a processing element (PE).

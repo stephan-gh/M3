@@ -16,6 +16,7 @@
 
 use core::cmp;
 
+/// A ringbuffer with variably-sized items
 #[derive(Debug)]
 pub struct VarRingBuf {
     size: usize,
@@ -25,6 +26,7 @@ pub struct VarRingBuf {
 }
 
 impl VarRingBuf {
+    /// Creates a new ringbuffer with `size` bytes capacity.
     pub fn new(size: usize) -> Self {
         VarRingBuf {
             size,
@@ -34,10 +36,12 @@ impl VarRingBuf {
         }
     }
 
+    /// Returns true if the ringbuffer is empty, i.e., no items can be read
     pub fn empty(&self) -> bool {
         self.rd_pos == self.wr_pos
     }
 
+    /// Returns the ringbuffer's size in bytes
     pub fn size(&self) -> usize {
         self.size
     }
