@@ -14,13 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-/// Represents kernel memory
 use cap::{CapFlags, Capability, Selector};
 use errors::Error;
 use pes::VPE;
 use rc::Rc;
 use syscalls;
 
+/// Represents a certain amount of kernel memory.
 pub struct KMem {
     cap: Capability,
 }

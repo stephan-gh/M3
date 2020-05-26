@@ -65,6 +65,7 @@ fn send_receive_result<T>(msg: *const T) -> Result<(), Error> {
     send_receive::<T, kif::DefaultReply>(msg).map(|_| ())
 }
 
+#[doc(hidden)]
 pub fn send_gate() -> &'static SendGate {
     SGATE.get()
 }
@@ -426,8 +427,8 @@ pub fn exchange(
 /// session.
 ///
 /// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
-/// `SliceSink`, allowing to pass arguments to the server, whereas `post` is called with
-/// `SliceSource`, allowing to get arguments from the server.
+/// [`SliceSink`], allowing to pass arguments to the server, whereas `post` is called with
+/// [`SliceSource`], allowing to get arguments from the server.
 pub fn delegate<PRE, POST>(
     vpe: Selector,
     sess: Selector,
@@ -446,8 +447,8 @@ where
 /// into `crd` of VPE `vpe`.
 ///
 /// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
-/// `SliceSink`, allowing to pass arguments to the server, whereas `post` is called with
-/// `SliceSource`, allowing to get arguments from the server.
+/// [`SliceSink`], allowing to pass arguments to the server, whereas `post` is called with
+/// [`SliceSource`], allowing to get arguments from the server.
 pub fn obtain<PRE, POST>(
     vpe: Selector,
     sess: Selector,

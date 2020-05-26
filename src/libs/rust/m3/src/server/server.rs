@@ -68,7 +68,7 @@ impl<'d> CapExchange<'d> {
         self.input.caps as u32
     }
 
-    /// Sets the output capabilities to given `CapRngDesc`
+    /// Sets the output capabilities to given [`CapRngDesc`]
     pub fn out_caps(&mut self, crd: CapRngDesc) {
         self.out_crd = crd;
     }

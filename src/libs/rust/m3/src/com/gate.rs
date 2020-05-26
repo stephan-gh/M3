@@ -62,13 +62,13 @@ impl Gate {
         self.cap.set_flags(flags);
     }
 
-    /// Returns the endpoint. If the gate is not activated, it returns `None`.
+    /// Returns the endpoint. If the gate is not activated, it returns [`None`].
     pub(crate) fn ep(&self) -> Option<&EP> {
         // why is there no method that gives us a immutable reference to the Cell's inner value?
         unsafe { (*self.ep.as_ptr()).as_ref() }
     }
 
-    /// Returns the endpoint. If the gate is not activated, it returns `None`.
+    /// Returns the endpoint. If the gate is not activated, it returns [`None`].
     pub(crate) fn ep_id(&self) -> Option<EpId> {
         self.ep().map(|ep| ep.id())
     }

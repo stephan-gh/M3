@@ -123,7 +123,7 @@ impl VPE {
         self.epmng.reset();
     }
 
-    /// Returns the currently running `VPE`.
+    /// Returns the currently running [`VPE`].
     pub fn cur() -> &'static mut VPE {
         if arch::env::get().has_vpe() {
             arch::env::get().vpe()
@@ -384,7 +384,7 @@ impl VPE {
     /// Clones the program running on [`VPE::cur`] to `self` and lets `self` execute the given
     /// function.
     ///
-    /// The method returns the `ClosureActivity` on success that can be used to wait for the
+    /// The method returns the [`ClosureActivity`] on success that can be used to wait for the
     /// functions completeness or to stop it.
     #[cfg(target_os = "none")]
     pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
@@ -448,7 +448,7 @@ impl VPE {
     /// Clones the program running on [`VPE::cur`] to `self` and lets `self` execute the given
     /// function.
     ///
-    /// The method returns the `ClosureActivity` on success that can be used to wait for the
+    /// The method returns the [`ClosureActivity`] on success that can be used to wait for the
     /// functions completeness or to stop it.
     #[cfg(target_os = "linux")]
     pub fn run<F>(self, func: Box<F>) -> Result<ClosureActivity, Error>
@@ -501,7 +501,7 @@ impl VPE {
 
     /// Executes the given program and arguments on `self`.
     ///
-    /// The method returns the `ExecActivity` on success that can be used to wait for the
+    /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// program completeness or to stop it.
     pub fn exec<S: AsRef<str>>(self, args: &[S]) -> Result<ExecActivity, Error> {
         let file = VFS::open(args[0].as_ref(), OpenFlags::RX)?;
@@ -513,7 +513,7 @@ impl VPE {
     /// Executes the program given as a [`FileRef`] on `self`, using `mapper` to initiate the
     /// address space and `args` as the arguments.
     ///
-    /// The method returns the `ExecActivity` on success that can be used to wait for the
+    /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// program completeness or to stop it.
     #[cfg(target_os = "none")]
     #[allow(unused_mut)]
@@ -597,7 +597,7 @@ impl VPE {
     /// Executes the program given as a [`FileRef`] on `self`, using `mapper` to initiate the
     /// address space and `args` as the arguments.
     ///
-    /// The method returns the `ExecActivity` on success that can be used to wait for the
+    /// The method returns the [`ExecActivity`] on success that can be used to wait for the
     /// program completeness or to stop it.
     #[cfg(target_os = "linux")]
     pub fn exec_file<S: AsRef<str>>(

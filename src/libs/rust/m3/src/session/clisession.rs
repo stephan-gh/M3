@@ -70,8 +70,8 @@ impl ClientSession {
     }
 
     /// Delegates the given capability range to the server, using `pre` and `post` for input and
-    /// output arguments. `pre` is called with a `SliceSink` before the delegation operation,
-    /// allowing to pass arguments to the server. `post` is called with a `SliceSource` after the
+    /// output arguments. `pre` is called with a [`SliceSink`] before the delegation operation,
+    /// allowing to pass arguments to the server. `post` is called with a [`SliceSource`] after the
     /// delegation operation, allowing to get arguments from the server.
     pub fn delegate<PRE, POST>(
         &self,
@@ -87,8 +87,8 @@ impl ClientSession {
     }
 
     /// Delegates the given capability range from `vpe` to the server, using `pre` and `post` for
-    /// input and output arguments. `pre` is called with a `SliceSink` before the delegation
-    /// operation, allowing to pass arguments to the server. `post` is called with a `SliceSource`
+    /// input and output arguments. `pre` is called with a [`SliceSink`] before the delegation
+    /// operation, allowing to pass arguments to the server. `post` is called with a [`SliceSource`]
     /// after the delegation operation, allowing to get arguments from the server.
     pub fn delegate_for<PRE, POST>(
         &self,
@@ -115,9 +115,9 @@ impl ClientSession {
     }
 
     /// Obtains `count` capabilities from the server and returns the capability range descriptor,
-    /// using `pre` and `post` for input and output arguments. `pre` is called with a `SliceSink`
+    /// using `pre` and `post` for input and output arguments. `pre` is called with a [`SliceSink`]
     /// before the obtain operation, allowing to pass arguments to the server. `post` is called with
-    /// a `SliceSource` after the obtain operation, allowing to get arguments from the server.
+    /// a [`SliceSource`] after the obtain operation, allowing to get arguments from the server.
     pub fn obtain<PRE, POST>(
         &self,
         count: u32,
@@ -135,8 +135,8 @@ impl ClientSession {
     }
 
     /// Obtains `count` capabilities from the server for VPE `vpe`, using `pre` and `post` for input
-    /// and output arguments. `pre` is called with a `SliceSink` before the obtain operation,
-    /// allowing to pass arguments to the server. `post` is called with a `SliceSource` after the
+    /// and output arguments. `pre` is called with a [`SliceSink`] before the obtain operation,
+    /// allowing to pass arguments to the server. `post` is called with a [`SliceSource`] after the
     /// obtain operation, allowing to get arguments from the server.
     pub fn obtain_for<PRE, POST>(
         &self,

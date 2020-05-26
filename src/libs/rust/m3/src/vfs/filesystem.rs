@@ -35,7 +35,7 @@ int_enum! {
 
 /// Trait for file systems.
 pub trait FileSystem: fmt::Debug {
-    /// Returns an [`Any`] reference to downcast to the actual implementation of `FileSystem`.
+    /// Returns an [`Any`] reference to downcast to the actual implementation of [`FileSystem`].
     fn as_any(&self) -> &dyn Any;
 
     /// Opens the file at `path` with given flags.

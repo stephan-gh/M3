@@ -28,6 +28,10 @@ use syscalls;
 
 static BUFS: LazyStaticCell<MemMap> = LazyStaticCell::default();
 
+/// A buffer to receive messages from a [`RecvGate`](::com::RecvGate).
+///
+/// For SPM PEs, the receive buffer will always be in the local SPM and thus there is no [`MemGate`]
+/// used. For cache PEs, we allocate physical memory and map it into our address space.
 pub struct RecvBuf {
     addr: usize,
     size: usize,
@@ -35,14 +39,17 @@ pub struct RecvBuf {
 }
 
 impl RecvBuf {
+    /// Returns the base address of the receive buffer
     pub fn addr(&self) -> usize {
         self.addr
     }
 
+    /// Returns the size of the receive buffer
     pub fn size(&self) -> usize {
         self.size
     }
 
+    /// Returns the offset to specify on [`RecvGate`](::com::RecvGate) activation
     pub fn off(&self) -> usize {
         match self.mgate {
             Some(_) => 0,
@@ -50,6 +57,7 @@ impl RecvBuf {
         }
     }
 
+    /// Returns the selector to specify on [`RecvGate`](::com::RecvGate) activation
     pub fn mem(&self) -> Option<Selector> {
         self.mgate.as_ref().map(|mg| mg.sel())
     }
@@ -67,6 +75,7 @@ impl fmt::Debug for RecvBuf {
     }
 }
 
+/// Allocates a new receive buffer with given size
 pub fn alloc_rbuf(size: usize) -> Result<RecvBuf, Error> {
     let vm = VPE::cur().pe_desc().has_virtmem();
     let align = if vm { cfg::PAGE_SIZE as u64 } else { 1 };
@@ -102,6 +111,7 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
     Ok(mgate)
 }
 
+/// Frees the given receive buffer
 pub fn free_rbuf(rbuf: RecvBuf) {
     BUFS.get_mut().free(rbuf.addr as u64, rbuf.size as u64);
 }

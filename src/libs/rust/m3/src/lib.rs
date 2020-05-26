@@ -37,6 +37,7 @@ pub mod io;
 pub mod com;
 mod tcuif;
 
+/// The interface to the trusted communication unit
 pub mod tcu {
     pub use base::tcu::*;
     pub use tcuif::*;

@@ -36,27 +36,41 @@ pub struct Pager {
 }
 
 int_enum! {
+    /// The pager's delegation operations
     pub struct PagerDelOp : u32 {
+        /// Add a new data space mapping (e.g., a file)
         const DATASPACE = 0x0;
+        /// Add a new mapping for a given memory capability
         const MEMGATE   = 0x1;
     }
 }
 
 int_enum! {
+    /// The pager's operations
     pub struct PagerOp : u32 {
+        /// A page fault
         const PAGEFAULT = 0x0;
+        /// Clone the address space for a new VPE
         const CLONE     = 0x1;
+        /// Add a new mapping with anonymous memory
         const MAP_ANON  = 0x2;
+        /// Remove an existing mapping
         const UNMAP     = 0x3;
+        /// Close the pager session
         const CLOSE     = 0x4;
     }
 }
 
 bitflags! {
+    /// The mapping flags
     pub struct MapFlags : u32 {
+        /// A private mapping, not shared with anyone else
         const PRIVATE = 0x0;
+        /// A shared mapping
         const SHARED  = 0x2000;
+        /// Do not initialize the memory
         const UNINIT  = 0x4000;
+        /// Do not use a large page, even if possible
         const NOLPAGE = 0x8000;
     }
 }

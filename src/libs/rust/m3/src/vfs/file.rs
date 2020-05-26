@@ -62,7 +62,7 @@ bitflags! {
     }
 }
 
-/// The file information that can be retrieved via `VFS::stat`.
+/// The file information that can be retrieved via [`VFS::stat`](::vfs::VFS::stat).
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C, packed)]
 pub struct FileInfo {
@@ -146,9 +146,9 @@ pub trait File: Read + Write + Seek + Map + Debug {
 pub trait Seek {
     /// Seeks to position `off`, using the given seek mode.
     ///
-    /// If `whence` == SeekMode::SET, the position is set to `off`.
-    /// If `whence` == SeekMode::CUR, the position is increased by `off`.
-    /// If `whence` == SeekMode::END, the position is set to the end of the file.
+    /// If `whence` == [`SeekMode::SET`], the position is set to `off`.
+    /// If `whence` == [`SeekMode::CUR`], the position is increased by `off`.
+    /// If `whence` == [`SeekMode::END`], the position is set to the end of the file.
     fn seek(&mut self, off: usize, whence: SeekMode) -> Result<usize, Error>;
 }
 

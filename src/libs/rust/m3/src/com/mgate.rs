@@ -63,7 +63,7 @@ impl MGateArgs {
         self
     }
 
-    /// Sets the capability selector that should be used for this `MemGate`. Otherwise and by
+    /// Sets the capability selector that should be used for this [`MemGate`]. Otherwise and by
     /// default, [`VPE::alloc_sel`] will be used to choose a free selector.
     pub fn sel(mut self, sel: Selector) -> Self {
         self.sel = sel;
