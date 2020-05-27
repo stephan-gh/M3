@@ -76,6 +76,26 @@ impl ServiceDesc {
 }
 
 #[derive(Default)]
+pub struct SessCrtDesc {
+    name: String,
+    count: Option<u32>,
+}
+
+impl SessCrtDesc {
+    pub(crate) fn new(name: String, count: Option<u32>) -> Self {
+        SessCrtDesc { name, count }
+    }
+
+    pub fn serv_name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn sess_count(&self) -> Option<u32> {
+        self.count
+    }
+}
+
+#[derive(Default)]
 pub struct SessionDesc {
     local_name: String,
     serv: String,
@@ -205,8 +225,8 @@ pub struct AppConfig {
     pub(crate) domains: Vec<Domain>,
     pub(crate) phys_mems: Vec<PhysMemDesc>,
     pub(crate) services: Vec<ServiceDesc>,
+    pub(crate) sesscrt: Vec<SessCrtDesc>,
     pub(crate) sessions: Vec<SessionDesc>,
-    pub(crate) deps: Vec<String>,
     pub(crate) sems: Vec<SemDesc>,
     pub(crate) pes: Vec<PEDesc>,
 }
@@ -272,8 +292,8 @@ impl AppConfig {
         &self.pes
     }
 
-    pub fn dependencies(&self) -> &Vec<String> {
-        &self.deps
+    pub fn sess_creators(&self) -> &Vec<SessCrtDesc> {
+        &self.sesscrt
     }
 
     pub fn get_sem(&self, lname: &str) -> Option<&SemDesc> {
@@ -300,16 +320,29 @@ impl AppConfig {
             .map(|idx| (idx, &self.sessions[idx]))
     }
 
-    pub fn count_sessions(&self, name: &str) -> u32 {
-        let mut num = 0;
+    pub fn count_sessions(&self, name: &str) -> (u32, u32) {
+        let mut frac = 0;
+        let mut fixed = 0;
         for d in self.domains() {
             for a in d.apps() {
-                if a.sessions().iter().any(|s| s.serv_name() == name) {
-                    num += 1;
+                for sess in a.sessions() {
+                    if sess.serv_name() == name {
+                        frac += 1;
+                    }
+                }
+                for sess in a.sess_creators() {
+                    if sess.serv_name() == name {
+                        if let Some(n) = sess.sess_count() {
+                            fixed += n;
+                        }
+                        else {
+                            frac += 1;
+                        }
+                    }
                 }
             }
         }
-        num
+        (frac, fixed)
     }
 
     pub fn close_session(&self, idx: usize) {
@@ -494,6 +527,16 @@ impl AppConfig {
                 w = layer + 2
             )?;
         }
+        for s in &self.sesscrt {
+            writeln!(
+                f,
+                "{:0w$}SessCreator[service={}, count={:?}],",
+                "",
+                s.serv_name(),
+                s.sess_count(),
+                w = layer + 2
+            )?;
+        }
         for s in &self.sessions {
             writeln!(
                 f,
@@ -516,9 +559,6 @@ impl AppConfig {
                 pe.optional,
                 w = layer + 2
             )?;
-        }
-        for s in &self.deps {
-            writeln!(f, "{:0w$}Dependency[service={}],", "", s, w = layer + 2)?;
         }
         for d in &self.domains {
             writeln!(f, "{:0w$}Domain[", "", w = layer + 2)?;

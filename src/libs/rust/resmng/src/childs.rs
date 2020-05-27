@@ -510,8 +510,8 @@ impl OwnChild {
                 return true;
             }
         }
-        for serv in self.cfg().dependencies() {
-            if services::get().get(serv).is_err() {
+        for scrt in self.cfg().sess_creators() {
+            if services::get().get(scrt.serv_name()).is_err() {
                 return true;
             }
         }

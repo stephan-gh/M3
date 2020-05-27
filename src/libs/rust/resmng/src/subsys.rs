@@ -312,9 +312,9 @@ impl Subsystem {
                     pass_down_mem(&mut sub, &cfg)?;
 
                     // add services
-                    for d in cfg.dependencies() {
-                        let count = 1 + root.count_sessions(d);
-                        sub.add_serv(d.clone(), count);
+                    for s in cfg.sess_creators() {
+                        let (sess_frac, sess_fixed) = root.count_sessions(s.serv_name());
+                        sub.add_serv(s.serv_name().clone(), sess_frac, sess_fixed, s.sess_count());
                     }
 
                     Some(sub)
@@ -354,7 +354,7 @@ pub struct SubsystemBuilder {
     cfg: (MemGate, usize),
     pes: Vec<(PEId, Rc<PE>)>,
     mems: Vec<(MemGate, goff, goff)>,
-    servs: Vec<(String, u32)>,
+    servs: Vec<(String, u32, u32, Option<u32>)>,
     serv_objs: Vec<services::Service>,
 }
 
@@ -378,9 +378,9 @@ impl SubsystemBuilder {
         self.mems.push((mem, addr, size));
     }
 
-    pub fn add_serv(&mut self, name: String, sessions: u32) {
+    pub fn add_serv(&mut self, name: String, sess_frac: u32, sess_fixed: u32, quota: Option<u32>) {
         if self.servs.iter().find(|s| s.0 == name).is_none() {
-            self.servs.push((name, sessions));
+            self.servs.push((name, sess_frac, sess_fixed, quota));
         }
     }
 
@@ -442,9 +442,17 @@ impl SubsystemBuilder {
         }
 
         // services
-        for (name, quota) in &self.servs {
+        for (name, sess_frac, sess_fixed, sess_quota) in &self.servs {
             let serv = services::get().get(name).unwrap();
-            let sessions = serv.sessions() / *quota;
+            let sessions = if let Some(quota) = sess_quota {
+                *quota
+            }
+            else {
+                if *sess_frac > (serv.sessions() - sess_fixed) {
+                    return Err(Error::new(Code::NoSpace));
+                }
+                (serv.sessions() - sess_fixed) / sess_frac
+            };
             let subserv = serv.derive(sessions)?;
             let boot_serv = boot::Service::new(name, sessions);
             mem.write_obj(&boot_serv, off)?;

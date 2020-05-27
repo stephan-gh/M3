@@ -185,6 +185,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
             match tag.as_ref() {
                 "dom" => app.domains.push(parse_domain(p)?),
                 "sess" => app.sessions.push(parse_session(p)?),
+                "sesscrt" => app.sesscrt.push(parse_sesscrt(p)?),
                 "serv" => app.services.push(parse_service(p)?),
                 "physmem" => app.phys_mems.push(parse_physmem(p)?),
                 "pes" => app.pes.push(parse_pe(p)?),
@@ -200,11 +201,20 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
         parse_close_tag(p, "app")?;
 
         app.cfg_range = (start, p.pos);
-        // don't collect dependencies for root
+        // don't collect session creators for root
         if start != 0 {
-            let mut deps = Vec::new();
-            add_deps(&app, &mut deps);
-            app.deps = deps;
+            let mut crts = Vec::new();
+            add_sess_crts(&app, &mut crts);
+            for c in crts {
+                if app
+                    .sesscrt
+                    .iter()
+                    .find(|sc| sc.serv_name() == c.serv_name())
+                    .is_none()
+                {
+                    app.sesscrt.push(c);
+                }
+            }
         }
 
         Ok(app)
@@ -214,15 +224,15 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
     }
 }
 
-fn add_deps(app: &config::AppConfig, deps: &mut Vec<String>) {
+fn add_sess_crts(app: &config::AppConfig, crts: &mut Vec<config::SessCrtDesc>) {
     for d in app.domains() {
         for a in d.apps() {
             for s in a.sessions() {
-                if s.is_dep() && deps.iter().find(|d| *d == s.serv_name()).is_none() {
-                    deps.push(s.serv_name().clone());
+                if s.is_dep() {
+                    crts.push(config::SessCrtDesc::new(s.serv_name().clone(), None));
                 }
             }
-            add_deps(a, deps);
+            add_sess_crts(a, crts);
         }
     }
 }
@@ -279,6 +289,22 @@ fn parse_service(p: &mut ConfigParser) -> Result<config::ServiceDesc, Error> {
         }
     }
     Ok(config::ServiceDesc::new(lname, gname))
+}
+
+fn parse_sesscrt(p: &mut ConfigParser) -> Result<config::SessCrtDesc, Error> {
+    let mut name = String::new();
+    let mut count = None;
+    loop {
+        match p.parse_arg()? {
+            None => break,
+            Some((n, v)) => match n.as_ref() {
+                "name" => name = v,
+                "count" => count = Some(parse_int(&v)? as u32),
+                _ => return Err(Error::new(Code::InvArgs)),
+            },
+        }
+    }
+    Ok(config::SessCrtDesc::new(name, count))
 }
 
 fn parse_session(p: &mut ConfigParser) -> Result<config::SessionDesc, Error> {

@@ -86,7 +86,14 @@ impl Service {
             kif::CapRngDesc::new(kif::CapType::OBJECT, dst, 2),
             sessions,
         )?;
-        Ok(Self::new(self.id, dst, dst + 1, self.name.clone(), sessions, false))
+        Ok(Self::new(
+            self.id,
+            dst,
+            dst + 1,
+            self.name.clone(),
+            sessions,
+            false,
+        ))
     }
 
     fn shutdown(&mut self) {
