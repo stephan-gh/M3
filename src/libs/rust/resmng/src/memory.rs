@@ -179,6 +179,10 @@ impl MemSlice {
         self.map.allocate(size, align)
     }
 
+    pub fn offset(&self) -> goff {
+        self.offset
+    }
+
     pub fn sel(&self) -> Selector {
         self.mem.gate.sel()
     }
@@ -271,6 +275,12 @@ impl MemPool {
 
     pub fn add(&mut self, s: MemSlice) {
         self.slices.push(s)
+    }
+
+    pub fn allocate_slice(&mut self, size: goff) -> Result<MemSlice, Error> {
+        let alloc = self.allocate(size)?;
+        let slice = &self.slices[alloc.slice_id];
+        Ok(MemSlice::new(slice.mem.clone(), alloc.addr, alloc.size))
     }
 
     pub fn allocate(&mut self, size: goff) -> Result<Allocation, Error> {

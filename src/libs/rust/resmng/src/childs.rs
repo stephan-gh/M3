@@ -17,7 +17,7 @@
 use core::fmt;
 use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::{RefCell, StaticCell};
+use m3::cell::{Cell, RefCell, StaticCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
@@ -37,6 +37,43 @@ use services::{self, Session};
 use subsys::SubsystemBuilder;
 
 pub type Id = u32;
+
+pub struct ChildMem {
+    pool: Rc<RefCell<MemPool>>,
+    quota: Cell<goff>,
+}
+
+impl ChildMem {
+    pub fn new(pool: Rc<RefCell<MemPool>>, quota: goff) -> Rc<Self> {
+        Rc::new(Self {
+            pool,
+            quota: Cell::new(quota),
+        })
+    }
+
+    pub fn pool(&self) -> &Rc<RefCell<MemPool>> {
+        &self.pool
+    }
+
+    fn have_quota(&self, size: goff) -> bool {
+        self.quota.get() > size
+    }
+
+    fn alloc_mem(&self, size: goff) {
+        assert!(self.have_quota(size));
+        self.quota.replace(self.quota.get() - size);
+    }
+
+    fn free_mem(&self, size: goff) {
+        self.quota.replace(self.quota.get() + size);
+    }
+}
+
+impl fmt::Debug for ChildMem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "ChildMem[quota={}]", self.quota.get(),)
+    }
+}
 
 pub struct Resources {
     childs: Vec<(Id, Selector)>,
@@ -67,7 +104,7 @@ pub trait Child {
     fn pe(&self) -> Option<Rc<pes::PEUsage>>;
     fn vpe_sel(&self) -> Selector;
 
-    fn mem(&mut self) -> &Rc<RefCell<MemPool>>;
+    fn mem(&self) -> &Rc<ChildMem>;
     fn cfg(&self) -> Rc<AppConfig>;
     fn res(&self) -> &Resources;
     fn res_mut(&mut self) -> &mut Resources;
@@ -270,8 +307,12 @@ pub trait Child {
             perm
         );
 
-        let alloc = self.mem().borrow_mut().allocate(size)?;
-        let mem_sel = self.mem().borrow().mem_cap(alloc.slice_id());
+        if !self.mem().have_quota(size) {
+            return Err(Error::new(Code::NoSpace));
+        }
+
+        let alloc = self.mem().pool.borrow_mut().allocate(size)?;
+        let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
         self.add_child_mem(alloc, mem_sel, dst_sel, perm)
     }
     fn alloc_mem_at(
@@ -291,8 +332,8 @@ pub trait Child {
             perm
         );
 
-        let alloc = self.mem().borrow_mut().allocate_at(offset, size)?;
-        let mem_sel = self.mem().borrow().mem_cap(alloc.slice_id());
+        let alloc = self.mem().pool.borrow_mut().allocate_at(offset, size)?;
+        let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
         self.add_child_mem(alloc, mem_sel, dst_sel, perm)
     }
     fn add_child_mem(
@@ -311,7 +352,7 @@ pub trait Child {
             perm,
         )
         .map_err(|e| {
-            self.mem().borrow_mut().free(alloc);
+            self.mem().pool.borrow_mut().free(alloc);
             e
         })?;
 
@@ -319,8 +360,15 @@ pub trait Child {
         Ok(())
     }
     fn add_mem(&mut self, alloc: Allocation, dst_sel: Option<Selector>) {
-        log!(crate::LOG_MEM, "{}: added {:?}", self.name(), alloc);
         self.res_mut().mem.push((dst_sel.unwrap_or(0), alloc));
+        self.mem().alloc_mem(alloc.size());
+        log!(
+            crate::LOG_MEM,
+            "{}: added {:?} (quota left: {})",
+            self.name(),
+            alloc,
+            self.mem().quota.get(),
+        );
     }
 
     fn free_mem(&mut self, sel: Selector) -> Result<(), Error> {
@@ -341,8 +389,15 @@ pub trait Child {
             syscalls::revoke(self.vpe_sel(), crd, true).ok();
         }
 
-        log!(crate::LOG_MEM, "{}: removed {:?}", self.name(), alloc);
-        self.mem().borrow_mut().free(alloc);
+        log!(
+            crate::LOG_MEM,
+            "{}: removed {:?} (quota left: {})",
+            self.name(),
+            alloc,
+            self.mem().quota.get()
+        );
+        self.mem().pool.borrow_mut().free(alloc);
+        self.mem().free_mem(alloc.size());
     }
 
     fn use_sem(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
@@ -448,7 +503,7 @@ pub struct OwnChild {
     name: String,
     args: Vec<String>,
     cfg: Rc<AppConfig>,
-    mem: Rc<RefCell<MemPool>>,
+    mem: Rc<ChildMem>,
     res: Resources,
     sub: Option<SubsystemBuilder>,
     daemon: bool,
@@ -464,7 +519,7 @@ impl OwnChild {
         args: Vec<String>,
         daemon: bool,
         kmem: Rc<KMem>,
-        mem: Rc<RefCell<MemPool>>,
+        mem: Rc<ChildMem>,
         cfg: Rc<AppConfig>,
         sub: Option<SubsystemBuilder>,
     ) -> Self {
@@ -544,7 +599,7 @@ impl Child for OwnChild {
         self.activity.as_ref().unwrap().vpe().sel()
     }
 
-    fn mem(&mut self) -> &Rc<RefCell<MemPool>> {
+    fn mem(&self) -> &Rc<ChildMem> {
         &self.mem
     }
 
@@ -571,7 +626,7 @@ impl fmt::Debug for OwnChild {
             self.args,
             self.kmem.sel(),
             self.kmem.quota().unwrap(),
-            self.mem.borrow()
+            self.mem,
         )
     }
 }
@@ -586,7 +641,7 @@ pub struct ForeignChild {
     id: Id,
     name: String,
     cfg: Rc<AppConfig>,
-    mem: Rc<RefCell<MemPool>>,
+    mem: Rc<ChildMem>,
     res: Resources,
     vpe: Selector,
     _sgate: SendGate,
@@ -599,7 +654,7 @@ impl ForeignChild {
         vpe: Selector,
         sgate: SendGate,
         cfg: Rc<AppConfig>,
-        mem: Rc<RefCell<MemPool>>,
+        mem: Rc<ChildMem>,
     ) -> Self {
         ForeignChild {
             id,
@@ -638,7 +693,7 @@ impl Child for ForeignChild {
         self.vpe
     }
 
-    fn mem(&mut self) -> &Rc<RefCell<MemPool>> {
+    fn mem(&self) -> &Rc<ChildMem> {
         &self.mem
     }
 

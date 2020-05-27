@@ -257,6 +257,19 @@ impl Subsystem {
 
             let def_eps = split_eps(&pe_usage.pe_obj(), &d)?;
 
+            // memory pool for the domain
+            let dom_mem = d.apps().iter().fold(0, |sum, a| {
+                sum + a.user_mem().unwrap_or(def_umem as usize) as goff
+            });
+            let mem_pool = Rc::new(RefCell::new(memory::container().alloc_pool(dom_mem)?));
+            // add requested physical memory regions to pool
+            for cfg in d.apps() {
+                for mem in cfg.phys_mems() {
+                    let mslice = memory::container().find_mem(mem.phys(), mem.size())?;
+                    mem_pool.borrow_mut().add(mslice);
+                }
+            }
+
             for cfg in d.apps() {
                 // determine PE object with potentially reduced number of EPs
                 let pe_usage = if cfg.eps().is_none() {
@@ -277,15 +290,8 @@ impl Subsystem {
 
                 // determine user and child memory
                 let mut user_mem = cfg.user_mem().unwrap_or(def_umem as usize) as goff;
-                let child_mem = cfg.split_child_mem(&mut user_mem);
-
-                // memory pool for child
-                let mem_pool = Rc::new(RefCell::new(memory::container().alloc_pool(user_mem)?));
-                // add requested physical memory regions to pool
-                for mem in cfg.phys_mems() {
-                    let mslice = memory::container().find_mem(mem.phys(), mem.size())?;
-                    mem_pool.borrow_mut().add(mslice);
-                }
+                let sub_mem = cfg.split_child_mem(&mut user_mem);
+                let child_mem = childs::ChildMem::new(mem_pool.clone(), user_mem);
 
                 let sub = if !cfg.domains().is_empty() {
                     // create MemGate for config substring
@@ -302,13 +308,8 @@ impl Subsystem {
                     pass_down_pes(&mut sub, &cfg);
 
                     // add memory
-                    let mut sub_pool = memory::container().alloc_pool(child_mem)?;
-                    for s in sub_pool.slices_mut() {
-                        let size = s.available();
-                        let addr = s.allocate(size, 1)?;
-                        let mgate = s.derive()?;
-                        sub.add_mem(mgate, addr, size);
-                    }
+                    let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem)?;
+                    sub.add_mem(sub_slice.derive()?, sub_slice.offset(), sub_slice.capacity());
                     pass_down_mem(&mut sub, &cfg)?;
 
                     // add services
@@ -330,7 +331,7 @@ impl Subsystem {
                     cfg.args().clone(),
                     cfg.daemon(),
                     kmem,
-                    mem_pool,
+                    child_mem,
                     cfg.clone(),
                     sub,
                 ));

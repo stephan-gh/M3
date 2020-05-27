@@ -86,7 +86,7 @@ fn start_child(child: &mut OwnChild) -> Result<(), Error> {
         vpe.sel(),
         bmod.0.sel(),
         vpe.pe_desc().has_virtmem(),
-        child.mem().clone(),
+        child.mem().pool().clone(),
     );
     let bfile = loader::BootFile::new(bmod.0, bmod.1);
     let bfileref = VPE::cur().files().add(Rc::new(RefCell::new(bfile)))?;
