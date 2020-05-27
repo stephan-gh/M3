@@ -204,7 +204,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
         // don't collect session creators for root
         if start != 0 {
             let mut crts = Vec::new();
-            add_sess_crts(&app, &mut crts);
+            collect_sess_crts(&app, &mut crts);
             for c in crts {
                 if app
                     .sesscrt
@@ -224,7 +224,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
     }
 }
 
-fn add_sess_crts(app: &config::AppConfig, crts: &mut Vec<config::SessCrtDesc>) {
+fn collect_sess_crts(app: &config::AppConfig, crts: &mut Vec<config::SessCrtDesc>) {
     for d in app.domains() {
         for a in d.apps() {
             for s in a.sessions() {
@@ -232,7 +232,7 @@ fn add_sess_crts(app: &config::AppConfig, crts: &mut Vec<config::SessCrtDesc>) {
                     crts.push(config::SessCrtDesc::new(s.serv_name().clone(), None));
                 }
             }
-            add_sess_crts(a, crts);
+            collect_sess_crts(a, crts);
         }
     }
 }
