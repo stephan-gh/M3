@@ -41,7 +41,7 @@ pub type Id = u32;
 pub struct Resources {
     childs: Vec<(Id, Selector)>,
     services: Vec<(Id, Selector)>,
-    sessions: Vec<Session>,
+    sessions: Vec<(usize, Session)>,
     mem: Vec<(Selector, Allocation)>,
     pes: Vec<(pes::PEUsage, usize, Selector)>,
 }
@@ -226,7 +226,7 @@ pub trait Child {
         );
 
         let cfg = self.cfg();
-        let sdesc = cfg
+        let (idx, sdesc) = cfg
             .get_session(name)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         if sdesc.is_used() {
@@ -239,7 +239,7 @@ pub trait Child {
         syscalls::get_sess(serv.sel(), self.vpe_sel(), dst_sel, sess.ident())?;
 
         sdesc.mark_used(dst_sel);
-        self.res_mut().sessions.push(sess);
+        self.res_mut().sessions.push((idx, sess));
 
         Ok(())
     }
@@ -247,16 +247,16 @@ pub trait Child {
     fn close_session(&mut self, sel: Selector) -> Result<(), Error> {
         log!(crate::LOG_SERV, "{}: close_sess(sel={})", self.name(), sel);
 
-        let sess = {
+        let (cfg_idx, sess) = {
             let sessions = &mut self.res_mut().sessions;
             sessions
                 .iter()
-                .position(|s| s.sel() == sel)
+                .position(|(_, s)| s.sel() == sel)
                 .ok_or_else(|| Error::new(Code::InvArgs))
-                .map(|idx| sessions.remove(idx))
+                .map(|res_idx| sessions.remove(res_idx))
         }?;
 
-        self.cfg().close_session(sel);
+        self.cfg().close_session(cfg_idx);
         sess.close()
     }
 
@@ -421,8 +421,8 @@ pub trait Child {
         Self: Sized,
     {
         while !self.res().sessions.is_empty() {
-            let sess = self.res_mut().sessions.remove(0);
-            self.cfg().close_session(sess.sel());
+            let (idx, sess) = self.res_mut().sessions.remove(0);
+            self.cfg().close_session(idx);
             sess.close().ok();
         }
 

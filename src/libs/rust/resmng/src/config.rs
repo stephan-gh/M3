@@ -293,8 +293,11 @@ impl AppConfig {
         serv.used.replace(false);
     }
 
-    pub fn get_session(&self, lname: &str) -> Option<&SessionDesc> {
-        self.sessions.iter().find(|s| s.local_name == *lname)
+    pub fn get_session(&self, lname: &str) -> Option<(usize, &SessionDesc)> {
+        self.sessions
+            .iter()
+            .position(|s| s.local_name == *lname)
+            .map(|idx| (idx, &self.sessions[idx]))
     }
 
     pub fn count_sessions(&self, name: &str) -> u32 {
@@ -309,20 +312,8 @@ impl AppConfig {
         num
     }
 
-    pub fn close_session(&self, sel: Selector) {
-        let sess = self
-            .sessions
-            .iter()
-            .find(|s| {
-                if let Some(s) = s.usage.get() {
-                    s == sel
-                }
-                else {
-                    false
-                }
-            })
-            .unwrap();
-        sess.usage.replace(None);
+    pub fn close_session(&self, idx: usize) {
+        self.sessions[idx].usage.replace(None);
     }
 
     pub fn get_pe_idx(&self, desc: kif::PEDesc) -> Result<usize, Error> {
