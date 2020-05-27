@@ -216,10 +216,6 @@ pub trait Child {
         Ok(())
     }
 
-    fn get_session(&self, sel: Selector) -> Option<&Session> {
-        self.res().sessions.iter().find(|s| s.sel() == sel)
-    }
-
     fn open_session(&mut self, dst_sel: Selector, name: &str) -> Result<(), Error> {
         log!(
             crate::LOG_SERV,
