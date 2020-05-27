@@ -320,31 +320,6 @@ impl AppConfig {
             .map(|idx| (idx, &self.sessions[idx]))
     }
 
-    pub fn count_sessions(&self, name: &str) -> (u32, u32) {
-        let mut frac = 0;
-        let mut fixed = 0;
-        for d in self.domains() {
-            for a in d.apps() {
-                for sess in a.sessions() {
-                    if sess.serv_name() == name {
-                        frac += 1;
-                    }
-                }
-                for sess in a.sess_creators() {
-                    if sess.serv_name() == name {
-                        if let Some(n) = sess.sess_count() {
-                            fixed += n;
-                        }
-                        else {
-                            frac += 1;
-                        }
-                    }
-                }
-            }
-        }
-        (frac, fixed)
-    }
-
     pub fn close_session(&self, idx: usize) {
         self.sessions[idx].usage.replace(None);
     }

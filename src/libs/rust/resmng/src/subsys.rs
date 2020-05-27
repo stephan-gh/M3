@@ -313,7 +313,7 @@ impl Subsystem {
 
                     // add services
                     for s in cfg.sess_creators() {
-                        let (sess_frac, sess_fixed) = root.count_sessions(s.serv_name());
+                        let (sess_frac, sess_fixed) = split_sessions(root, s.serv_name());
                         sub.add_serv(s.serv_name().clone(), sess_frac, sess_fixed, s.sess_count());
                     }
 
@@ -572,6 +572,31 @@ fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), Error> {
     let def_kmem = total_kmem / total_kparties;
     let def_umem = math::round_dn(total_umem / total_mparties as goff, PAGE_SIZE as goff);
     Ok((def_kmem, def_umem))
+}
+
+fn split_sessions(cfg: &config::AppConfig, name: &str) -> (u32, u32) {
+    let mut frac = 0;
+    let mut fixed = 0;
+    for d in cfg.domains() {
+        for a in d.apps() {
+            for sess in a.sessions() {
+                if sess.serv_name() == name {
+                    frac += 1;
+                }
+            }
+            for sess in a.sess_creators() {
+                if sess.serv_name() == name {
+                    if let Some(n) = sess.sess_count() {
+                        fixed += n;
+                    }
+                    else {
+                        frac += 1;
+                    }
+                }
+            }
+        }
+    }
+    (frac, fixed)
 }
 
 fn split_eps(pe: &Rc<PE>, d: &config::Domain) -> Result<u32, Error> {
