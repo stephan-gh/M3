@@ -36,16 +36,25 @@ pub struct Service {
     cap: Capability,
     queue: SendQueue,
     name: String,
+    sessions: u32,
     owned: bool,
 }
 
 impl Service {
-    pub fn new(id: Id, srv_sel: Selector, sgate_sel: Selector, name: String, owned: bool) -> Self {
+    pub fn new(
+        id: Id,
+        srv_sel: Selector,
+        sgate_sel: Selector,
+        name: String,
+        sessions: u32,
+        owned: bool,
+    ) -> Self {
         Service {
             id,
             cap: Capability::new(srv_sel, CapFlags::empty()),
             queue: SendQueue::new(id, SendGate::new_bind(sgate_sel)),
             name,
+            sessions,
             owned,
         }
     }
@@ -66,24 +75,8 @@ impl Service {
         &mut self.queue
     }
 
-    pub fn session_quota(&mut self) -> Result<u32, Error> {
-        let smsg = kif::service::SessQuota {
-            opcode: kif::service::Operation::SESS_QUOTA.val as u64,
-        };
-        let event = self.queue.send(util::object_to_bytes(&smsg));
-
-        event.and_then(|event| {
-            thread::ThreadManager::get().wait_for(event);
-
-            let reply = thread::ThreadManager::get()
-                .fetch_msg()
-                .ok_or_else(|| Error::new(Code::RecvGone))?;
-            let reply = reply.get_data::<kif::service::SessQuotaReply>();
-            match reply.res {
-                0 => Ok(reply.sessions as u32),
-                e => Err(Error::from(e as u32)),
-            }
-        })
+    pub fn sessions(&self) -> u32 {
+        self.sessions
     }
 
     pub fn derive(&self, sessions: u32) -> Result<Self, Error> {
@@ -93,7 +86,7 @@ impl Service {
             kif::CapRngDesc::new(kif::CapType::OBJECT, dst, 2),
             sessions,
         )?;
-        Ok(Self::new(self.id, dst, dst + 1, self.name.clone(), false))
+        Ok(Self::new(self.id, dst, dst + 1, self.name.clone(), sessions, false))
     }
 
     fn shutdown(&mut self) {
@@ -217,13 +210,14 @@ impl ServiceManager {
         srv_sel: Selector,
         sgate_sel: Selector,
         name: String,
+        sessions: u32,
         owned: bool,
     ) -> Result<Id, Error> {
         if self.get(&name).is_ok() {
             return Err(Error::new(Code::Exists));
         }
 
-        let serv = Service::new(self.next_id, srv_sel, sgate_sel, name, owned);
+        let serv = Service::new(self.next_id, srv_sel, sgate_sel, name, sessions, owned);
         self.servs.push(serv);
         self.next_id += 1;
 

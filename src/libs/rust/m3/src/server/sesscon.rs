@@ -108,11 +108,6 @@ impl<S> SessionContainer<S> {
         Ok((nid, sel))
     }
 
-    /// Returns the session quota for the given creator
-    pub fn sess_quota(&self, idx: usize) -> usize {
-        self.creators[idx].sessions
-    }
-
     /// Returns true if the given creator owns the given session
     pub fn creator_owns(&self, idx: usize, sid: SessId) -> bool {
         (self.creators[idx].sids & (1 << sid)) != 0

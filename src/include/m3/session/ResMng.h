@@ -110,8 +110,8 @@ public:
         return std::unique_ptr<ResMng>(new ResMng(sgate_sel, vpe.sel()));
     }
 
-    void reg_service(capsel_t dst, capsel_t sgate, const String &name) {
-        GateIStream reply = send_receive_vmsg(_sgate, REG_SERV, dst, sgate, name);
+    void reg_service(capsel_t dst, capsel_t sgate, const String &name, size_t sessions) {
+        GateIStream reply = send_receive_vmsg(_sgate, REG_SERV, dst, sgate, sessions, name);
         retrieve_result(REG_SERV, reply);
     }
 

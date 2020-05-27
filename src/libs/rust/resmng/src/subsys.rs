@@ -133,7 +133,7 @@ impl Subsystem {
                     s.sessions()
                 );
                 services::get()
-                    .add_service(sel, sel + 1, s.name().to_string(), false)
+                    .add_service(sel, sel + 1, s.name().to_string(), s.sessions(), false)
                     .unwrap();
             }
         }
@@ -444,7 +444,7 @@ impl SubsystemBuilder {
         // services
         for (name, quota) in &self.servs {
             let serv = services::get().get(name).unwrap();
-            let sessions = serv.session_quota()? / *quota;
+            let sessions = serv.sessions() / *quota;
             let subserv = serv.derive(sessions)?;
             let boot_serv = boot::Service::new(name, sessions);
             mem.write_obj(&boot_serv, off)?;

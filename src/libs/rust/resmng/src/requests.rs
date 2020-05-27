@@ -123,9 +123,10 @@ fn handle_request(mut is: GateIStream) {
 fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
     let sgate_sel: Selector = is.pop()?;
+    let sessions: u32 = is.pop()?;
     let name: String = is.pop()?;
 
-    child.reg_service(dst_sel, sgate_sel, name)
+    child.reg_service(dst_sel, sgate_sel, name, sessions)
 }
 
 fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {

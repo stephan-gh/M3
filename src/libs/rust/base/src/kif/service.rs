@@ -25,12 +25,11 @@ int_enum! {
     /// The service calls
     pub struct Operation : u64 {
         const OPEN          = 0x0;
-        const SESS_QUOTA    = 0x1;
-        const DERIVE_CRT    = 0x2;
-        const OBTAIN        = 0x3;
-        const DELEGATE      = 0x4;
-        const CLOSE         = 0x5;
-        const SHUTDOWN      = 0x6;
+        const DERIVE_CRT    = 0x1;
+        const OBTAIN        = 0x2;
+        const DELEGATE      = 0x3;
+        const CLOSE         = 0x4;
+        const SHUTDOWN      = 0x5;
     }
 }
 
@@ -48,19 +47,6 @@ pub struct OpenReply {
     pub res: u64,
     pub sess: u64,
     pub ident: u64,
-}
-
-/// The session quota request message
-#[repr(C, packed)]
-pub struct SessQuota {
-    pub opcode: u64,
-}
-
-/// The session quota reply message
-#[repr(C, packed)]
-pub struct SessQuotaReply {
-    pub res: u64,
-    pub sessions: u64,
 }
 
 /// The derive-creator request message

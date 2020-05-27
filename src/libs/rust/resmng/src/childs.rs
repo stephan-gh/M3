@@ -169,14 +169,16 @@ pub trait Child {
         srv_sel: Selector,
         sgate_sel: Selector,
         name: String,
+        sessions: u32,
     ) -> Result<(), Error> {
         log!(
             crate::LOG_SERV,
-            "{}: reg_serv(srv_sel={}, sgate_sel={}, name={})",
+            "{}: reg_serv(srv_sel={}, sgate_sel={}, name={}, sessions={})",
             self.name(),
             srv_sel,
             sgate_sel,
-            name
+            name,
+            sessions,
         );
 
         let cfg = self.cfg();
@@ -189,7 +191,7 @@ pub trait Child {
 
         let our_srv = self.obtain(srv_sel)?;
         let our_sgate = self.obtain(sgate_sel)?;
-        let id = services::get().add_service(our_srv, our_sgate, name, true)?;
+        let id = services::get().add_service(our_srv, our_sgate, name, sessions, true)?;
 
         sdesc.mark_used();
         self.res_mut().services.push((id, srv_sel));
