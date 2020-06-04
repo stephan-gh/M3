@@ -1,6 +1,9 @@
 #pragma once
 
-//MODIDs
+#include <base/Common.h>
+#include <base/Env.h>
+
+// MODIDs
 #define MODID_PM0         0x04
 #define MODID_PM1         0x05
 #define MODID_PM2         0x24
@@ -20,5 +23,18 @@
 #define MODID_ROUTER2     0x23
 #define MODID_ROUTER3     0x03
 
-#define OWN_MODID         MODID_PM6
-#define MEM_MODID         MODID_DRAM1
+enum class PE {
+    OWN,
+    MEM,
+};
+
+static uint PE_IDS[][2] = {
+    // platform = gem5
+    { 0, 1 },
+    // platform = hw
+    { MODID_PM6, MODID_DRAM1 },
+};
+
+static inline uint pe_id(PE pe) {
+    return PE_IDS[m3::env()->platform][static_cast<size_t>(pe)];
+}

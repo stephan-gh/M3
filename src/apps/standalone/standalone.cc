@@ -19,16 +19,9 @@
 #include <heap/heap.h>
 #include <string.h>
 
-#include "tcuif.h"
 #include "assert.h"
-
-#if defined(__hw__)
-#   include "hw/platform.h"
-#elif defined(__gem5__)
-#   include "gem5/platform.h"
-#else
-#   error "Unsupported platform"
-#endif
+#include "tcuif.h"
+#include "pes.h"
 
 // msg size in number of 64-bit elements (max: 100)
 #define MSG_SIZE   80
@@ -36,11 +29,11 @@
 using namespace m3;
 
 static void test_mem_short() {
-    kernel::TCU::config_mem(0, MEM_MODID, 0x1000, sizeof(uint64_t), TCU::R | TCU::W);
-    kernel::TCU::config_mem(1, MEM_MODID, 0x1000, sizeof(uint64_t), TCU::R);
-    kernel::TCU::config_mem(2, MEM_MODID, 0x1000, sizeof(uint64_t), TCU::W);
-    kernel::TCU::config_mem(3, MEM_MODID, 0x2000, sizeof(uint64_t) * 2, TCU::R| TCU::W);
-    kernel::TCU::config_send(4, 0x1234, OWN_MODID, 1, 6 /* 64 */, 2);
+    kernel::TCU::config_mem(0, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::R | TCU::W);
+    kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::R);
+    kernel::TCU::config_mem(2, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::W);
+    kernel::TCU::config_mem(3, pe_id(PE::MEM), 0x2000, sizeof(uint64_t) * 2, TCU::R| TCU::W);
+    kernel::TCU::config_send(4, 0x1234, pe_id(PE::OWN), 1, 6 /* 64 */, 2);
 
     uint64_t data = 1234;
 
@@ -92,7 +85,7 @@ static void test_mem(size_t size_in) {
     for(size_t i = 0; i < size_in; ++i)
         msg[i] = i + 1;
 
-    kernel::TCU::config_mem(0, MEM_MODID, 0x1000, size_in * sizeof(DATA), TCU::R | TCU::W);
+    kernel::TCU::config_mem(0, pe_id(PE::MEM), 0x1000, size_in * sizeof(DATA), TCU::R | TCU::W);
 
     // test write + read
     {
@@ -116,9 +109,9 @@ static void test_msg_short() {
     kernel::TCU::config_recv(1, buf1, 7 /* 128 */, 6 /* 64 */, 3);
     kernel::TCU::config_recv(2, buf2, 7 /* 128 */, 6 /* 64 */, TCU::NO_REPLIES);
 
-    kernel::TCU::config_send(0, 0x1234, OWN_MODID, 1, 6 /* 64 */, 2);
-    kernel::TCU::config_send(5, 0x1234, OWN_MODID, 1, 6 /* 64 */, TCU::UNLIM_CREDITS);
-    kernel::TCU::config_send(6, 0x5678, OWN_MODID, 1, 4 /* 16 */, 1);
+    kernel::TCU::config_send(0, 0x1234, pe_id(PE::OWN), 1, 6 /* 64 */, 2);
+    kernel::TCU::config_send(5, 0x1234, pe_id(PE::OWN), 1, 6 /* 64 */, TCU::UNLIM_CREDITS);
+    kernel::TCU::config_send(6, 0x5678, pe_id(PE::OWN), 1, 4 /* 16 */, 1);
 
     // test errors
     {
@@ -148,7 +141,7 @@ static void test_msg_short() {
         ASSERT_EQ(rmsg->senderEp, 6);
         ASSERT_EQ(rmsg->replySize, 4 /* log2(TCU::Message::Header) */);
         ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
-        ASSERT_EQ(rmsg->senderPe, OWN_MODID);
+        ASSERT_EQ(rmsg->senderPe, pe_id(PE::OWN));
         ASSERT_EQ(rmsg->flags, 0);
 
         ASSERT_EQ(kernel::TCU::ack_msg(1, buf1, rmsg), Errors::NONE);
@@ -171,7 +164,7 @@ static void test_msg_short() {
         ASSERT_EQ(rmsg->senderEp, 0);
         ASSERT_EQ(rmsg->replySize, 4 /* log2(TCU::Message::Header) */);
         ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
-        ASSERT_EQ(rmsg->senderPe, OWN_MODID);
+        ASSERT_EQ(rmsg->senderPe, pe_id(PE::OWN));
         ASSERT_EQ(rmsg->flags, 0);
         const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
         ASSERT_EQ(*msg_ctrl, msg);
@@ -184,7 +177,7 @@ static void test_msg_short() {
         ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::INV_ARGS);
         ASSERT_EQ(kernel::TCU::ack_msg(1, buf1, rmsg), Errors::NONE);
         // reconfigure EP to get credits "back"
-        kernel::TCU::config_send(0, 0x1234, OWN_MODID, 1, 6 /* 64 */, 2);
+        kernel::TCU::config_send(0, 0x1234, pe_id(PE::OWN), 1, 6 /* 64 */, 2);
     }
 
     // send + reply without credits
@@ -208,7 +201,7 @@ static void test_msg_short() {
         ASSERT_EQ(rmsg->senderEp, TCU::INVALID_EP);
         ASSERT_EQ(rmsg->replySize, 4 /* log2(TCU::Message::Header) */);
         ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
-        ASSERT_EQ(rmsg->senderPe, OWN_MODID);
+        ASSERT_EQ(rmsg->senderPe, pe_id(PE::OWN));
         ASSERT_EQ(rmsg->flags, 0);
         const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
         ASSERT_EQ(*msg_ctrl, msg);
@@ -246,7 +239,7 @@ static void test_msg_short() {
             ASSERT_EQ(rmsg->senderEp, 0);
             ASSERT_EQ(rmsg->replySize, 6);
             ASSERT_EQ(rmsg->replyEp, 2);
-            ASSERT_EQ(rmsg->senderPe, OWN_MODID);
+            ASSERT_EQ(rmsg->senderPe, pe_id(PE::OWN));
             ASSERT_EQ(rmsg->flags, 0);
             const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
             ASSERT_EQ(*msg_ctrl, msg);
@@ -269,7 +262,7 @@ static void test_msg_short() {
             ASSERT_EQ(rmsg->senderEp, 1);
             ASSERT_EQ(rmsg->replySize, 0);
             ASSERT_EQ(rmsg->replyEp, 0);
-            ASSERT_EQ(rmsg->senderPe, OWN_MODID);
+            ASSERT_EQ(rmsg->senderPe, pe_id(PE::OWN));
             ASSERT_EQ(rmsg->flags, TCU::Header::FL_REPLY);
             const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
             ASSERT_EQ(*msg_ctrl, reply);
@@ -305,7 +298,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
 
     // send + recv + reply
     {
-        kernel::TCU::config_send(0, 0x1234, OWN_MODID, 1, slot_msgsize, 1);
+        kernel::TCU::config_send(0, 0x1234, pe_id(PE::OWN), 1, slot_msgsize, 1);
 
         ASSERT_EQ(kernel::TCU::send(0, msg, msg_size_in * sizeof(DATA), 0x1111, 2), Errors::NONE);
 
@@ -319,7 +312,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
         ASSERT_EQ(rmsg->length, msg_size_in * sizeof(DATA));
         ASSERT_EQ(rmsg->senderEp, 0);
         ASSERT_EQ(rmsg->replyEp, 2);
-        ASSERT_EQ(rmsg->senderPe, OWN_MODID);
+        ASSERT_EQ(rmsg->senderPe, pe_id(PE::OWN));
         ASSERT_EQ(rmsg->flags, 0);
         const DATA *msg_ctrl = reinterpret_cast<const DATA*>(rmsg->data);
         for(size_t i = 0; i < msg_size_in; ++i)
@@ -339,7 +332,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
         ASSERT_EQ(rmsg->length, reply_size_in * sizeof(DATA));
         ASSERT_EQ(rmsg->senderEp, 1);
         ASSERT_EQ(rmsg->replyEp, 0);
-        ASSERT_EQ(rmsg->senderPe, OWN_MODID);
+        ASSERT_EQ(rmsg->senderPe, pe_id(PE::OWN));
         ASSERT_EQ(rmsg->flags, TCU::Header::FL_REPLY);
         msg_ctrl = reinterpret_cast<const DATA*>(rmsg->data);
         for(size_t i = 0; i < reply_size_in; ++i)
