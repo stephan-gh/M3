@@ -76,6 +76,7 @@ help() {
     echo "    scons ...:               run scons with given arguments."
     echo "    ninja ...:               run ninja with given arguments."
     echo "    run <script>:            run the specified <script>. See directory boot."
+    echo "    rungem5 <script>:        run the specified <script> on gem5. See directory boot."
     echo "    runvalgrind <script>:    run the specified script in valgrind."
     echo "    clippy:                  run clippy for rust code."
     echo "    doc:                     generate rust documentation."
@@ -252,6 +253,12 @@ case "$cmd" in
             else
                 ./src/tools/execute.sh $script 2>&1 | tee $M3_GEM5_OUT/log.txt
             fi
+        fi
+        ;;
+
+    rungem5)
+        if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
+            M3_RUN_GEM5=1 ./src/tools/execute.sh $script 2>&1 | tee $M3_GEM5_OUT/log.txt
         fi
         ;;
 

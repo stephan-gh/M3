@@ -184,10 +184,9 @@ if [ "$M3_TARGET" = "host" ]; then
     else
         setarch $(uname -m) -R $params
     fi
-elif [ "$M3_TARGET" = "gem5" ]; then
+elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
     build_params_gem5 $script
 elif [ "$M3_TARGET" = "hw" ]; then
-    # build_params_gem5 $script
     build_params_hw $script
 else
     echo "Unknown target '$M3_TARGET'"
