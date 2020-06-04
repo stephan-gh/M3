@@ -329,7 +329,7 @@ impl TCU {
             UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::FETCH_MSG, 0),
         );
-        unsafe { intrinsics::atomic_fence() };
+        Self::get_error().ok()?;
         let msg = Self::read_unpriv_reg(UnprivReg::ARG1);
         if msg != !0 {
             Some(msg as usize)

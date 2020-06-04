@@ -229,7 +229,7 @@ private:
 
     size_t fetch_msg(epid_t ep) const {
         write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
-        CPU::memory_barrier();
+        get_error();
         return read_reg(UnprivRegs::ARG1);
     }
 
