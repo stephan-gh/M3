@@ -123,8 +123,14 @@ static goff_t load_mod(VPE &vpe, const m3::BootInfo::Mod *mod, bool copy) {
 
             // initialize it
             m3::GlobAddr src(mod->addr + offset);
-            TCU::copy_clear(vpe.peid(), glob_to_phys(global.raw()),
-                            src.pe(), src.offset(), size, pheader.p_filesz == 0);
+            if(!Platform::pe(vpe.peid()).has_virtmem()) {
+                TCU::copy_clear(vpe.peid(), virt,
+                                src.pe(), src.offset(), size, pheader.p_filesz == 0);
+            }
+            else {
+                TCU::copy_clear(vpe.peid(), glob_to_phys(global.raw()),
+                                src.pe(), src.offset(), size, pheader.p_filesz == 0);
+            }
         }
         else {
             assert(pheader.p_memsz == pheader.p_filesz);
