@@ -235,11 +235,11 @@ public:
         return get_cmd(CMD_OFFSET);
     }
 
-    void ack_msg(epid_t ep, size_t msg_off) {
+    Errors::Code ack_msg(epid_t ep, size_t msg_off) {
         set_cmd(CMD_EPID, ep);
         set_cmd(CMD_OFFSET, msg_off);
         set_cmd(CMD_CTRL, (ACKMSG << OPCODE_SHIFT) | CTRL_START);
-        exec_command();
+        return exec_command();
     }
 
     bool is_ready() const {

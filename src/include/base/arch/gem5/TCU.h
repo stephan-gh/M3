@@ -233,12 +233,11 @@ private:
         return read_reg(UnprivRegs::ARG1);
     }
 
-    void ack_msg(epid_t ep, size_t msg_off) {
+    Errors::Code ack_msg(epid_t ep, size_t msg_off) {
         // ensure that we are really done with the message before acking it
         CPU::memory_barrier();
         write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::ACK_MSG, msg_off));
-        // ensure that we don't do something else before the ack
-        CPU::memory_barrier();
+        return get_error();
     }
 
     void sleep() {
