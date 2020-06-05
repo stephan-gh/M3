@@ -4,23 +4,29 @@ myenv = env.Clone()
 
 myenv.Append(
     CPPPATH = '.',
-    CXXFLAGS = ' -fno-exceptions',
-    LINKFLAGS = ' -fno-exceptions',
+    CXXFLAGS = ' -fno-exceptions -fno-rtti',
+    LINKFLAGS = ' -fno-exceptions -fno-rtti',
 )
 
 sources = [
     myenv.Glob('*.cc'),
     myenv.Glob('*/*.cc'),
     myenv.Glob('arch/$ARCH/*.cc'),
-    myenv.Glob('arch/$ARCH/*/*.cc')
 ]
-if env['ARCH'] != 'host':
-    # we need muldefs here, because libpaging.a and libgcc/libgcc_eh contain _Unwind_Resume
+
+# we need muldefs here, because libpaging.a and libgcc/libgcc_eh contain _Unwind_Resume
+if myenv['ISA'] == 'arm':
     myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs -Wl,--whole-archive -lisr -Wl,--no-whole-archive')
+
+if myenv['ARCH'] == 'host':
+    libs = ['c', 'base', 'heap', 'thread', 'pthread']
+else:
+    libs = ['c', 'base', 'heap', 'thread', 'isr', 'paging']
 
 myenv.M3Program(
     myenv,
     target = 'kernel',
     source = sources,
-    libs = [] if myenv['ARCH'] == 'host' else ['isr', 'paging'],
+    libs = libs,
+    NoSup = True,
 )

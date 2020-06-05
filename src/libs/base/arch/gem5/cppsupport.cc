@@ -55,7 +55,35 @@ void __throw_bad_function_call() {
 }
 }
 
-EXTERN_C int __cxa_atexit(void (*f)(void *),void *p,void *d) {
+WEAK void *operator new(size_t size) {
+    return malloc(size);
+}
+
+WEAK void *operator new[](size_t size) {
+    return malloc(size);
+}
+
+WEAK void operator delete(void *p) noexcept {
+    free(p);
+}
+
+WEAK void operator delete[](void *p) noexcept {
+    free(p);
+}
+
+WEAK void operator delete(void *p, size_t) noexcept {
+    free(p);
+}
+
+WEAK void operator delete[](void *p, size_t) noexcept {
+    free(p);
+}
+
+EXTERN_C WEAK void __cxa_pure_virtual() {
+    abort();
+}
+
+EXTERN_C int __cxa_atexit(void (*f)(void *), void *p, void *d) {
     if(exit_count >= MAX_EXIT_FUNCS)
         return -1;
 
@@ -70,6 +98,12 @@ EXTERN_C void __cxa_finalize(void *) {
     for(ssize_t i = static_cast<ssize_t>(exit_count) - 1; i >= 0; i--)
         exit_funcs[i].f(exit_funcs[i].p);
 }
+
+#if defined(__arm__)
+EXTERN_C WEAK int __aeabi_atexit(void *arg, void (*func) (void *), void *d) {
+    return __cxa_atexit(func, arg, d);
+}
+#endif
 
 #ifndef NDEBUG
 void __assert_failed(const char *expr, const char *file, const char *func, int line) {

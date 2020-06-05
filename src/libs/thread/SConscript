@@ -1,4 +1,11 @@
 Import('env')
+
+env = env.Clone()
+env.Append(
+    CXXFLAGS = ' -fno-exceptions -fno-rtti',
+    LINKFLAGS = ' -fno-exceptions -fno-rtti',
+)
+
 sources = [
     env.Glob('*.cc'), env.Glob('*/*.cc'),
     env.Glob('isa/$ISA/*.S'), env.Glob('isa/$ISA/*.cc')

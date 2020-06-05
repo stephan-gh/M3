@@ -232,7 +232,7 @@ link_addr = 0x220000
 def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, varAddr = True):
     myenv = env.Clone()
 
-    m3libs = ['base', 'thread'] if target == 'kernel' else ['base', 'm3', 'thread']
+    m3libs = ['base', 'm3', 'thread']
 
     if myenv['ARCH'] == 'gem5':
         if not NoSup:
