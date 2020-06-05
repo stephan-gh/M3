@@ -438,7 +438,7 @@ impl<A: Allocator> AddrSpace<A> {
 
 impl<A: Allocator> Drop for AddrSpace<A> {
     fn drop(&mut self) {
-        if !self.is_temp {
+        if !self.is_temp && pte_to_phys(self.root) != 0 {
             self.free_pts_rec(self.root, LEVEL_CNT - 1);
 
             // invalidate entire TLB to allow us to reuse the VPE id
