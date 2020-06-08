@@ -24,15 +24,18 @@
 #define MODID_ROUTER3     0x03
 
 enum class PE {
-    OWN,
+    PE0,
+    PE1,
+    PE2,
+    PE3,
     MEM,
 };
 
-static uint PE_IDS[][2] = {
+static uint PE_IDS[][5] = {
     // platform = gem5
-    { 0, 1 },
+    { 0, 1, 2, 3, 4 },
     // platform = hw
-    { MODID_PM6, MODID_DRAM1 },
+    { MODID_PM6, MODID_PM7, MODID_PM3, MODID_PM5, MODID_DRAM1 },
 };
 
 static inline uint pe_id(PE pe) {
