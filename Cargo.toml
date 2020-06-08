@@ -12,6 +12,7 @@ members = [
     "src/libs/rust/pci",
     "src/libs/rust/resmng",
     "src/libs/rust/thread",
+    "src/peidle",
     "src/pemux",
     "src/kernel",
     "src/server/disk",

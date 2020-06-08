@@ -28,6 +28,11 @@ class OStream;
 class Env;
 OStream &operator<<(OStream &, const Env &senv);
 
+enum Platform {
+    GEM5,
+    HW
+};
+
 class Gem5EnvBackend : public EnvBackend {
     friend class Env;
 
@@ -37,6 +42,7 @@ public:
 };
 
 struct BootEnv {
+    uint64_t platform;
     uint64_t pe_id;
     uint64_t pe_desc;
     uint64_t argc;

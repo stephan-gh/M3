@@ -10,8 +10,7 @@ if env['TGT'] != 'host':
         target = 'libc',
         source = [
             myenv.Glob('*/*.cc'),
-            myenv.Glob('arch/$TGT-$ISA/*.S'),
-            myenv.Glob('arch/$TGT/*.cc'),
+            myenv.Glob('arch/$ISA/*.S'),
         ]
     )
     myenv.Install(myenv['LIBDIR'], lib)

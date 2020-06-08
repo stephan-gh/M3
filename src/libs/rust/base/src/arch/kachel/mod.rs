@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,10 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-#pragma once
-
-#if defined(__host__)
-#   include <base/arch/host/Env.h>
-#else
-#   include <base/arch/kachel/Env.h>
-#endif
+#[rustfmt::skip]
+pub mod cfg;
+pub mod envdata;
+pub mod libc;
+pub mod machine;
+pub mod serial;
+pub mod tcu;
+pub mod time;

@@ -16,6 +16,7 @@
 
 #include <base/Machine.h>
 #include <base/TCU.h>
+#include <string.h>
 
 EXTERN_C void gem5_shutdown(uint64_t delay);
 EXTERN_C void gem5_writefile(const char *str, uint64_t len, uint64_t offset, uint64_t file);
@@ -26,28 +27,48 @@ EXTERN_C void gem5_dumpstats(uint64_t delay, uint64_t period);
 namespace m3 {
 
 void Machine::shutdown() {
-    gem5_shutdown(0);
+    if(env()->platform == Platform::GEM5)
+        gem5_shutdown(0);
+    else {
+        while(1)
+            ;
+    }
     UNREACHED;
 }
 
 int Machine::write(const char *str, size_t len) {
-    TCU::get().print(str, len);
+    if(env()->platform == Platform::GEM5) {
+        TCU::get().print(str, len);
 
-    static const char *fileAddr = "stdout";
-    gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
+        static const char *fileAddr = "stdout";
+        gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
+    }
+    else {
+        static volatile uint64_t *signal    = reinterpret_cast<uint64_t*>(SERIAL_SIGNAL);
+
+        strcpy(reinterpret_cast<char*>(SERIAL_BUF), str);
+        *signal = len;
+        while(*signal != 0)
+            ;
+    }
     return 0;
 }
 
 ssize_t Machine::read(char *dst, size_t max) {
-    return gem5_readfile(dst, max, 0);
+    if(env()->platform == Platform::GEM5)
+        return gem5_readfile(dst, max, 0);
+    // TODO
+    return 0;
 }
 
 void Machine::reset_stats() {
-    gem5_resetstats(0, 0);
+    if(env()->platform == Platform::GEM5)
+        gem5_resetstats(0, 0);
 }
 
 void Machine::dump_stats() {
-    gem5_dumpstats(0, 0);
+    if(env()->platform == Platform::GEM5)
+        gem5_dumpstats(0, 0);
 }
 
 }

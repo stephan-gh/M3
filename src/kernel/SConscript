@@ -2,5 +2,5 @@ Import('env')
 env = env.Clone()
 if env['ISA'] == 'arm':
     env.Append(LINKFLAGS = ' -Wl,--whole-archive -lisr -Wl,--no-whole-archive')
-libs = ['isr', 'thread'] if env['TGT'] == 'gem5' else ['thread']
-env.RustProgram(env, target = 'kernel', libs = libs)
+libs = ['isr', 'thread'] if env['PLATF'] == 'kachel' else ['thread']
+env.RustProgram(env, target = 'kernel', libs = libs, ldscript = 'isr')

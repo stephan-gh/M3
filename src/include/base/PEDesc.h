@@ -156,8 +156,9 @@ struct PEDesc {
     std::pair<uintptr_t, size_t> rbuf_std_space() const {
         if(has_virtmem())
             return std::make_pair(RBUF_STD_ADDR, RBUF_STD_SIZE);
-#if defined(__gem5__)
-        return std::make_pair(mem_size() - RBUF_SIZE_SPM - RBUF_STD_SIZE, RBUF_STD_SIZE);
+#if defined(__kachel__)
+        size_t rbufs = PEMUX_RBUF_SIZE + RBUF_SIZE_SPM + RBUF_STD_SIZE;
+        return std::make_pair(MEM_OFFSET + mem_size() - rbufs, RBUF_STD_SIZE);
 #else
         return std::make_pair(RBUF_STD_ADDR, RBUF_STD_SIZE);
 #endif
@@ -169,8 +170,9 @@ struct PEDesc {
     std::pair<uintptr_t, size_t> rbuf_space() const {
         if(has_virtmem())
             return std::make_pair(RBUF_ADDR, RBUF_SIZE);
-#if defined(__gem5__)
-        return std::make_pair(mem_size() - RBUF_SIZE_SPM, RBUF_SIZE_SPM);
+#if defined(__kachel__)
+        size_t rbufs = PEMUX_RBUF_SIZE + RBUF_SIZE_SPM;
+        return std::make_pair(MEM_OFFSET + mem_size() - rbufs, RBUF_SIZE_SPM);
 #else
         return std::make_pair(RBUF_ADDR, RBUF_SIZE);
 #endif

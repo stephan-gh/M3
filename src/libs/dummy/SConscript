@@ -1,5 +1,5 @@
 Import('env')
-if env['TGT'] == 'gem5':
+if env['PLATF'] == 'kachel':
     lib = env.StaticLibrary(target = 'm', source = env.Glob('*.cc'))
     env.Install(env['LIBDIR'], lib)
 

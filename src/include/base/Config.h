@@ -16,12 +16,10 @@
 
 #pragma once
 
-#include <base/Common.h>
-
 #if defined(__host__)
 #   include <base/arch/host/Config.h>
-#elif defined(__gem5__)
-#   include <base/arch/gem5/Config.h>
+#elif defined(__kachel__)
+#   include <base/arch/kachel/Config.h>
 #else
-#   error "Unsupported target"
+#   error "Unsupported platform"
 #endif

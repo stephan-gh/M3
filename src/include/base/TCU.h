@@ -18,8 +18,8 @@
 
 #if defined(__host__)
 #   include <base/arch/host/TCU.h>
-#elif defined(__gem5__)
-#   include <base/arch/gem5/TCU.h>
+#elif defined(__kachel__)
+#   include <base/arch/kachel/TCU.h>
 #else
-#   error "Unsupported target"
+#   error "Unsupported platform"
 #endif

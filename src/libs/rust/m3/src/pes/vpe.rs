@@ -401,6 +401,7 @@ impl VPE {
         let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::W)?;
 
         let closure = {
+            senv.set_platform(arch::env::get().platform());
             senv.set_sp(cpu::get_sp());
             let entry = match self.pager {
                 // clone via copy-on-write
@@ -408,7 +409,11 @@ impl VPE {
                 // copy all regions to child
                 None => arch::loader::copy_vpe(
                     senv.sp(),
-                    self.get_mem(0, self.pe_desc().mem_size() as goff, kif::Perm::W)?,
+                    self.get_mem(
+                        0,
+                        (cfg::MEM_OFFSET + self.pe_desc().mem_size()) as goff,
+                        kif::Perm::W,
+                    )?,
                 ),
             }?;
             senv.set_entry(entry);
@@ -482,7 +487,9 @@ impl VPE {
                 c2p.signal();
 
                 let res = closure.call();
-                unsafe { libc::exit(res) };
+                unsafe {
+                    libc::exit(res)
+                };
             },
 
             pid => {
@@ -536,6 +543,7 @@ impl VPE {
 
         {
             // load program segments
+            senv.set_platform(arch::env::get().platform());
             senv.set_sp(cfg::STACK_TOP);
             senv.set_entry(arch::loader::load_program(&self, mapper, &mut file)?);
 

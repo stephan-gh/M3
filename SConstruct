@@ -4,8 +4,10 @@ import install
 import SCons
 
 target = os.environ.get('M3_TARGET')
-if target == 'gem5':
+if target == 'gem5' or target == 'hw':
     isa = os.environ.get('M3_ISA', 'x86_64')
+    if target == 'hw' and isa != 'riscv':
+        exit('Unsupport ISA "' + isa + '" for hw')
 
     if isa == 'arm':
         rustabi = 'gnueabihf'
@@ -22,6 +24,7 @@ if target == 'gem5':
     crossdir    = Dir('build/cross-' + isa).abspath
     crossver    = '9.1.0'
     configpath  = Dir('.')
+    platform    = 'kachel'
 else:
     # build for host by default
     isa = os.popen("uname -m").read().strip()
@@ -32,10 +35,11 @@ else:
     rustabi     = 'gnu'
     cross       = ''
     configpath  = Dir('.')
+    platform    = 'host'
 
 # build basic environment
 baseenv = Environment(
-    CPPFLAGS = '-D__' + target + '__',
+    CPPFLAGS = '-D__' + target + '__ -D__' + platform + '__',
     CXXFLAGS = ' -std=c++14 -Wall -Wextra -Wsign-conversion -fdiagnostics-color=always',
     CFLAGS   = ' -std=c99 -Wall -Wextra -Wsign-conversion',
     CPPPATH  = ['#src/include'],
@@ -78,8 +82,8 @@ env.Append(
     CRGFLAGS = '',
 )
 
-# add target-dependent stuff to env
-if target == 'gem5':
+# add platform-dependent stuff to env
+if platform == 'kachel':
     if isa == 'x86_64':
         # disable red-zone for all applications, because we used the application's stack in rctmux's
         # IRQ handlers since applications run in privileged mode. TODO can we enable that now?
@@ -130,9 +134,14 @@ if btype == 'debug':
     hostenv.Append(CFLAGS = ' -O0 -g')
 else:
     env.Append(CRGFLAGS = ' --release')
-    env.Append(CXXFLAGS = ' -O2 -DNDEBUG -flto')
-    env.Append(CFLAGS = ' -O2 -DNDEBUG -flto')
-    env.Append(LINKFLAGS = ' -O2 -flto')
+    if target == 'hw':
+        env.Append(CXXFLAGS = ' -Os -DNDEBUG -flto')
+        env.Append(CFLAGS = ' -Os -DNDEBUG -flto')
+        env.Append(LINKFLAGS = ' -Os -flto')
+    else:
+        env.Append(CXXFLAGS = ' -O2 -DNDEBUG -flto')
+        env.Append(CFLAGS = ' -O2 -DNDEBUG -flto')
+        env.Append(LINKFLAGS = ' -O2 -flto')
 builddir = 'build/' + target + '-' + isa + '-' + btype
 
 env.Append(CPPFLAGS = ' -DBUILD_DIR=' + builddir)
@@ -140,6 +149,7 @@ env.Append(CPPFLAGS = ' -DBUILD_DIR=' + builddir)
 # add some important paths
 env.Append(
     TGT = target,
+    PLATF = platform,
     ISA = isa,
     BUILD = btype,
     CFGS = configpath,
@@ -210,6 +220,17 @@ def M3Strip(env, target, source):
         )
     )
 
+def M3Hex(env, target, source):
+    hex = env.Command(
+        target, source,
+        Action(
+            '$BUILDDIR/tools/elf2hex $SOURCE > $TARGET',
+            '$HEXCOMSTR'
+        )
+    )
+    env.Depends(hex, '$BUILDDIR/tools/elf2hex')
+    return hex
+
 def M3CPP(env, target, source):
     env.Command(
         target, source,
@@ -219,39 +240,50 @@ def M3CPP(env, target, source):
         )
     )
 
-def_ldscript = env.File('$BUILDDIR/ld-default.conf')
-M3CPP(env, def_ldscript, '#src/toolchain/gem5/ld.conf')
+if env['PLATF'] == 'kachel':
+    def_ldscript = env.File('$BUILDDIR/ld-default.conf')
+    M3CPP(env, def_ldscript, '#src/toolchain/$TGT/ld.conf')
 
-isr_ldscript = env.File('$BUILDDIR/ld-isr.conf')
-myenv = env.Clone()
-myenv.Append(CPPFLAGS = ' -D__isr__=1')
-M3CPP(myenv, isr_ldscript, '#src/toolchain/gem5/ld.conf')
+    pemux_ldscript = env.File('$BUILDDIR/ld-pemux.conf')
+    myenv = env.Clone()
+    myenv.Append(CPPFLAGS = ' -D__isr__=1 -D__pemux__=1')
+    M3CPP(myenv, pemux_ldscript, '#src/toolchain/$TGT/ld.conf')
 
-link_addr = 0x220000
+    isr_ldscript = env.File('$BUILDDIR/ld-isr.conf')
+    myenv = env.Clone()
+    myenv.Append(CPPFLAGS = ' -D__isr__=1')
+    M3CPP(myenv, isr_ldscript, '#src/toolchain/$TGT/ld.conf')
 
-def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, varAddr = True):
+    ldscripts = {
+        'default': def_ldscript,
+        'pemux': pemux_ldscript,
+        'isr': isr_ldscript,
+    }
+
+link_addr = 0x10310000
+
+def M3Program(env, target, source, libs = [], NoSup = False, ldscript = 'default', varAddr = True):
     myenv = env.Clone()
 
     m3libs = ['base', 'm3', 'thread']
 
-    if myenv['TGT'] == 'gem5':
+    if myenv['PLATF'] == 'kachel':
         if not NoSup:
             baselibs = ['gcc', 'c', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
-            if env['ISA'] == 'x86_64':
+            if myenv['ISA'] == 'x86_64':
                 baselibs += ['gcc_eh']
             libs = baselibs + m3libs + libs
 
-        if ldscript is None:
-            ldscript = isr_ldscript if 'isr' in libs else def_ldscript
+        ldscript = ldscripts[ldscript]
         myenv.Append(LINKFLAGS = ' -Wl,-T,' + ldscript.abspath)
 
-        if varAddr:
+        if myenv['TGT'] == 'gem5' and varAddr:
             global link_addr
             myenv.Append(LINKFLAGS = ' -Wl,--section-start=.text=' + ("0x%x" % link_addr))
             link_addr += 0x40000
 
         # search for crt* in our library dir
-        myenv.Append(LINKFLAGS = ' -B' + env['LIBDIR'].abspath)
+        myenv.Append(LINKFLAGS = ' -B' + myenv['LIBDIR'].abspath)
 
         # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
         # compiler-builtins crate, because those are poor implementations. Note that we do that for
@@ -263,6 +295,9 @@ def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, va
             LIBS = libs,
             LIBPATH = [crossdir + '/lib', myenv['LIBDIR']]
         )
+        if myenv['TGT'] == 'hw':
+            hex = myenv.M3Hex(source = prog, target = target + '.hex')
+            myenv.Install(myenv['MEMDIR'], hex)
         myenv.Depends(prog, myenv.Glob('$LIBDIR/crt*.o'))
         myenv.Depends(prog, ldscript)
     else:
@@ -300,14 +335,14 @@ def RustLibrary(env, target):
     env.Depends(stlib, env.File('#src/toolchain/rust/' + env['TRIPLE'] + '.json'))
     return stlib
 
-def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr = True):
+def RustProgram(env, target, libs = [], startup = None, ldscript = 'default', varAddr = True):
     myenv = env.Clone()
     myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs')
     stlib = RustLibrary(myenv, target)
 
-    if myenv['TGT'] == 'gem5':
+    if myenv['PLATF'] == 'kachel':
         sources = [myenv['LIBDIR'].abspath + '/crt0.o' if startup is None else startup]
-        libs    = ['c', 'm', 'gloss', 'heap', 'gcc', target] + libs
+        libs    = ['c', 'm', 'gloss', 'stdc++', 'heap', 'gcc', target] + libs
     else:
         sources = []
         # leave the host lib in here as well to let scons know about the dependency
@@ -331,6 +366,7 @@ def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr
 env.AddMethod(Cargo)
 env.AddMethod(M3Mkfs)
 env.AddMethod(M3Strip)
+env.AddMethod(M3Hex)
 env.AddMethod(M3CPP)
 env.AddMethod(install.InstallFiles)
 env.M3Program = M3Program

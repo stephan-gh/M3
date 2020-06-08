@@ -133,7 +133,7 @@ pub fn init() {
     let root_pt = if pex_env().pe_desc.has_virtmem() {
         // only use the memory up to ourself for page tables. we could use the memory behind ourself
         // as well, but currently the 1 MiB before us is sufficient.
-        let pt_count = (cfg::PEMUX_START / cfg::PAGE_SIZE) as Phys;
+        let pt_count = ((pex_env().mem_end - pex_env().mem_start) as usize / cfg::PAGE_SIZE) as Phys;
         let first_pt = (cfg::PEMUX_RBUF_PHYS / cfg::PAGE_SIZE + 1) as Phys;
         PTS.get_mut().reserve(pt_count as usize);
         for i in first_pt..pt_count {

@@ -63,9 +63,9 @@ public:
     static const uint64_t LBL_OUT_REQ   = 3;
     static const uint64_t LBL_OUT_REPLY = 4;
 
-    static const size_t BUF_ADDR    = 0x8000;
+    static const size_t BUF_ADDR    = MEM_OFFSET + 0x8000;
     static const size_t BUF_SIZE    = 8192;
-    static const size_t RECV_ADDR   = 0x1FFF00;
+    static const size_t RECV_ADDR   = MEM_OFFSET + 0x2FFF00;
 
     explicit StreamAccel(std::unique_ptr<VPE> &vpe, cycles_t /* TODO */)
         : _sgate_in(),
@@ -78,7 +78,7 @@ public:
           _out_mep(vpe->epmng().acquire(EP_OUT_MEM)),
           _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
           _vpe(vpe),
-          _mem(_vpe->get_mem(0, vpe->pe_desc().mem_size(), MemGate::RW)) {
+          _mem(_vpe->get_mem(MEM_OFFSET, vpe->pe_desc().mem_size(), MemGate::RW)) {
         // activate EPs
         _rgate.activate_on(*_rep, nullptr, RECV_ADDR);
     }
@@ -103,7 +103,7 @@ public:
                                                           .credits(1))
         );
         _sgate_out->activate_on(*_out_sep);
-        _mgate_out = std::make_unique<MemGate>(next->_mem.derive(BUF_ADDR, BUF_SIZE));
+        _mgate_out = std::make_unique<MemGate>(next->_mem.derive(BUF_ADDR - MEM_OFFSET, BUF_SIZE));
         _mgate_out->activate_on(*_out_mep);
     }
 

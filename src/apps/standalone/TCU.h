@@ -192,6 +192,8 @@ public:
     static const Message *fetch_msg(epid_t ep, uintptr_t base) {
         write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         memory_barrier();
+        // ensure that the command has finished before reading the arg1 reg
+        get_error();
         reg_t off = read_reg(UnprivRegs::ARG1);
         if(off == static_cast<reg_t>(-1))
             return nullptr;

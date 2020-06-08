@@ -99,6 +99,12 @@ mod arch;
 #[allow(non_camel_case_types)]
 pub type goff = u64;
 
+/// Machine-specific functions
+#[cfg(target_os = "none")]
+pub mod machine {
+    pub use arch::machine::*;
+}
+
 /// The target-dependent configuration
 pub mod cfg {
     pub use arch::cfg::*;

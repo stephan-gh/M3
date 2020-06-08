@@ -43,6 +43,7 @@ use base::goff;
 use base::io;
 use base::kif;
 use base::libc;
+use base::machine;
 use base::tcu;
 use base::util;
 use core::intrinsics;
@@ -64,7 +65,6 @@ pub const LOG_TIMER: bool = false;
 
 extern "C" {
     fn heap_init(begin: usize, end: usize);
-    fn gem5_shutdown(delay: u64);
 }
 
 // the heap area needs to be 16-byte aligned
@@ -135,9 +135,7 @@ pub extern "C" fn abort() {
 
 #[no_mangle]
 pub extern "C" fn exit(_code: i32) {
-    unsafe {
-        gem5_shutdown(0)
-    };
+    machine::shutdown();
 }
 
 static SCHED: StaticCell<Option<vpe::ScheduleAction>> = StaticCell::new(None);
@@ -235,8 +233,8 @@ pub extern "C" fn init() -> usize {
     PEX_ENV.get_mut().pe_id = app_env().pe_id;
     PEX_ENV.get_mut().pe_desc = kif::PEDesc::new_from(app_env().pe_desc);
     PEX_ENV.get_mut().mem_start = app_env().pe_mem_base;
-    PEX_ENV.get_mut().mem_end = app_env().pe_mem_base + cfg::PEMUX_START as u64;
-    assert!(app_env().pe_mem_size >= cfg::PEMUX_START as u64);
+    PEX_ENV.get_mut().mem_end = app_env().pe_mem_base + 1024 * 1024;
+    assert!((cfg::PEMUX_START as u64) >= PEX_ENV.mem_end);
 
     unsafe {
         heap_init(

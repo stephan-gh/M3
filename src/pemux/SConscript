@@ -13,6 +13,7 @@ if env['TGT'] == 'gem5':
         myenv,
         target = 'pemux',
         libs = ['isr'],
+        ldscript = 'pemux',
         startup = entry,
         varAddr = False,
     )

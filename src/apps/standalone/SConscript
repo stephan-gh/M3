@@ -1,11 +1,11 @@
 Import('env')
-if env['TGT'] == 'gem5':
+if env['PLATF'] == 'kachel':
     env = env.Clone()
     env["CXXFLAGS"] = env["CXXFLAGS"].replace('-flto','')
     env.M3Program(
         env,
         'standalone',
-        [env.Glob('*.cc'), env.Glob('gem5/*.cc')],
+        [env.Glob('*.cc'), env.Glob('$ARCH/*.cc')],
         NoSup = True,
         libs = ["c"]
     )

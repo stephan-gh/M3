@@ -34,6 +34,8 @@
 
 #define STACK_SIZE          0x1000
 
+#define MEM_OFFSET          0
+
 #define RBUF_STD_ADDR       0
 #define RBUF_STD_SIZE       PAGE_SIZE
 #define RBUF_ADDR           (RBUF_STD_ADDR + RBUF_STD_SIZE)

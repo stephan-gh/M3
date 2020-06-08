@@ -148,7 +148,8 @@ impl PEDesc {
                     (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
                 }
                 else {
-                    (self.mem_size() - cfg::RBUF_SIZE_SPM - cfg::RBUF_STD_SIZE, cfg::RBUF_STD_SIZE)
+                    let rbufs = cfg::PEMUX_RBUF_SIZE + cfg::RBUF_SIZE_SPM + cfg::RBUF_STD_SIZE;
+                    (cfg::MEM_OFFSET + self.mem_size() - rbufs, cfg::RBUF_STD_SIZE)
                 }
             }
         }
@@ -165,7 +166,8 @@ impl PEDesc {
                     (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
                 }
                 else {
-                    (self.mem_size() - cfg::RBUF_SIZE_SPM, cfg::RBUF_SIZE_SPM)
+                    let rbufs = cfg::PEMUX_RBUF_SIZE + cfg::RBUF_SIZE_SPM;
+                    (cfg::MEM_OFFSET + self.mem_size() - rbufs, cfg::RBUF_SIZE_SPM)
                 }
             }
         }

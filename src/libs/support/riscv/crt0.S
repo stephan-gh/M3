@@ -23,7 +23,7 @@ BEGIN_FUNC(_start)
     beq     t0, a0, 1f
 
     # set default stack pointer
-    li      sp, (STACK_TOP - 4)
+    li      sp, (STACK_TOP - 16)
 
 1:
     jal     env_run

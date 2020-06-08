@@ -19,6 +19,8 @@ if [ "$M3_TARGET" = "gem5" ]; then
     if [ "$M3_ISA" != "arm" ] && [ "$M3_ISA" != "x86_64" ] && [ "$M3_ISA" != "riscv" ]; then
         echo "ISA $M3_ISA not supported for target gem5." >&2 && exit 1
     fi
+elif [ "$M3_TARGET" = "hw" ]; then
+    M3_ISA="riscv"
 elif [ "$M3_TARGET" = "host" ]; then
     M3_ISA=`uname -m`
     if [ "$M3_ISA" = "armv7l" ]; then
@@ -33,7 +35,7 @@ export M3_BUILD M3_TARGET M3_ISA
 # determine cross compiler and rust ABI based on target and ISA
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
 crossprefix=''
-if [ "$M3_TARGET" = "gem5" ]; then
+if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
     crossdir="./build/cross-$M3_ISA/bin"
     if [ "$M3_ISA" = "arm" ]; then
         crossprefix="$crossdir/arm-none-eabi-"
@@ -64,7 +66,7 @@ help() {
     echo ""
     echo "This is a convenience script that is responsible for building everything"
     echo "and running the specified command afterwards. The most important environment"
-    echo "variables that influence its behaviour are M3_TARGET=(host|gem5),"
+    echo "variables that influence its behaviour are M3_TARGET=(host|gem5|hw),"
     echo "M3_ISA=(x86_64|arm|riscv) [on gem5 only], and M3_BUILD=(debug|release)."
     echo ""
     echo "The flag -n skips the build and executes the given command directly. This"

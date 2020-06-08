@@ -14,10 +14,23 @@
  * General Public License version 2 for more details.
  */
 
-#[rustfmt::skip]
-pub mod cfg;
-pub mod envdata;
-pub mod libc;
-pub mod serial;
-pub mod tcu;
-pub mod time;
+use envdata;
+
+extern "C" {
+    pub fn gem5_shutdown(delay: u64);
+}
+
+pub fn shutdown() -> ! {
+    if envdata::get().platform == envdata::Platform::GEM5.val {
+        unsafe {
+            gem5_shutdown(0)
+        };
+    }
+    else {
+        #[cfg(target_arch = "riscv64")]
+        unsafe {
+            llvm_asm!("1: j 1b")
+        };
+    }
+    unreachable!();
+}

@@ -1,0 +1,5 @@
+Import('env')
+
+if env['TGT'] == 'hw':
+    prog = env.RustProgram(env, target = 'peidle')
+    env.InstallAs(source = prog, target = env['BINARYDIR'].abspath + '/pemux')

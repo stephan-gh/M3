@@ -7,6 +7,7 @@
 #   define UNREACHED   __builtin_unreachable()
 #endif
 
+#if !defined(__hw__)
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
@@ -14,12 +15,16 @@ typedef unsigned long long uint64_t;
 
 typedef unsigned long epid_t;
 typedef unsigned long peid_t;
-typedef unsigned vpeid_t;
 typedef unsigned long word_t;
 typedef uint32_t label_t;
 typedef uint16_t crd_t;
-typedef uint64_t reg_t;
 typedef uint64_t goff_t;
+#else
+#   include <stdlib.h>
+#endif
+
+typedef unsigned vpeid_t;
+typedef uint64_t reg_t;
 
 #if defined(__x86_64__)
 #   include "x86_64/asm.h"

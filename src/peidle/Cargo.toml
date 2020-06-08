@@ -1,0 +1,10 @@
+[package]
+name = "peidle"
+version = "0.1.0"
+
+[lib]
+path = "src/peidle.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+base = { path = "../libs/rust/base" }

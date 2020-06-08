@@ -39,7 +39,7 @@ for i in range(0, len(accs)):
                        no=num_pes + i,
                        accel=accs[i],
                        memPE=mem_pe,
-                       spmsize='2MB')
+                       spmsize='4MB')
     pes.append(pe)
 
 # create the memory PEs

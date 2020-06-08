@@ -11,6 +11,7 @@ fi
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin
+hwssh=syn
 
 if [ $# -lt 1 ]; then
     usage $0
@@ -150,6 +151,27 @@ build_params_gem5() {
     fi
 }
 
+build_params_hw() {
+    generate_config $1 run || exit 1
+
+    kargs=$(perl -ne 'printf("%s.hex ", $1) if /<kernel\s.*args="(.*?)"/' < run/boot-all.xml)
+
+    args=""
+    files=""
+    for karg in $kargs; do
+        args="$args $karg"
+        files="$files $build/mem/$karg"
+    done
+
+    scp src/tools/fpga.py $files $hwssh:m3
+
+    # ignore ^C here to pass that to the remote-side
+    trap "" INT
+
+    ssh -t $hwssh "cd m3 && source setup.sh && ./fpga.py $args | tee log.txt"
+    scp $hwssh:m3/log.txt run
+}
+
 if [ "$M3_TARGET" = "host" ]; then
     params=$(build_params_host $script) || exit 1
 
@@ -164,6 +186,9 @@ if [ "$M3_TARGET" = "host" ]; then
     fi
 elif [ "$M3_TARGET" = "gem5" ]; then
     build_params_gem5 $script
+elif [ "$M3_TARGET" = "hw" ]; then
+    # build_params_gem5 $script
+    build_params_hw $script
 else
     echo "Unknown target '$M3_TARGET'"
 fi

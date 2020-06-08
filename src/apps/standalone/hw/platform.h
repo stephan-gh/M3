@@ -25,6 +25,8 @@
 #define OWN_MODID         MODID_PM6
 #define MEM_MODID         MODID_DRAM1
 
+#define exit(c)           while(1)
+
 #define ASSERT(a) ASSERT_EQ(a, true)
 #define ASSERT_EQ(a, b) do { \
         if((a) != (b)) { \

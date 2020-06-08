@@ -25,12 +25,20 @@ extern void *_bss_end;
 namespace m3 {
 
 void Heap::init_arch() {
+#if defined(__gem5__)
     uintptr_t begin = Math::round_up<uintptr_t>(reinterpret_cast<uintptr_t>(&_bss_end), LPAGE_SIZE);
+#else
+    uintptr_t begin = Math::round_up<uintptr_t>(reinterpret_cast<uintptr_t>(&_bss_end), PAGE_SIZE);
+#endif
 
     uintptr_t end;
     if(env()->heap_size == 0) {
         if(PEDesc(env()->pe_desc).has_memory())
+#if defined(__gem5__)
             end = PEDesc(env()->pe_desc).rbuf_std_space().first;
+#else
+            end = STACK_BOTTOM;
+#endif
         // this does only exist so that we can still run scenarios on cache-PEs without pager
         else
             end = begin + ROOT_HEAP_SIZE;

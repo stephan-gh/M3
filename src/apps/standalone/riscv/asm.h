@@ -4,6 +4,7 @@ typedef unsigned long size_t;
 typedef unsigned long uintptr_t;
 
 inline void memory_barrier() {
+    asm volatile ("fence");
 }
 
 inline uint64_t read8b(uintptr_t addr) {

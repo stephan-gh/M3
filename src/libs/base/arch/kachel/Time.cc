@@ -49,11 +49,17 @@ namespace m3 {
 
 cycles_t Time::start(unsigned msg) {
     CPU::compiler_barrier();
-    return gem5_debug(START_TSC | msg);
+    if(env()->platform == Platform::GEM5)
+        return gem5_debug(START_TSC | msg);
+    return CPU::rdtsc();
 }
 
 cycles_t Time::stop(unsigned msg) {
-    cycles_t res = gem5_debug(STOP_TSC | msg);
+    cycles_t res;
+    if(env()->platform == Platform::GEM5)
+        res = gem5_debug(STOP_TSC | msg);
+    else
+        res = CPU::rdtsc();
     CPU::compiler_barrier();
     return res;
 }

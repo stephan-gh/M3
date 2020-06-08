@@ -16,6 +16,7 @@
 
 use base::goff;
 use base::io;
+use base::machine;
 use base::math;
 use base::mem::heap;
 use thread;
@@ -28,10 +29,6 @@ use pes;
 use platform;
 use workloop::{thread_startup, workloop};
 
-extern "C" {
-    pub fn gem5_shutdown(delay: u64);
-}
-
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
     exit(1);
@@ -39,10 +36,7 @@ pub extern "C" fn abort() -> ! {
 
 #[no_mangle]
 pub extern "C" fn exit(_code: i32) -> ! {
-    unsafe {
-        gem5_shutdown(0);
-    }
-    unreachable!();
+    machine::shutdown();
 }
 
 #[no_mangle]

@@ -70,6 +70,7 @@ void VPE::run(void *lambda) {
     copy_sections();
 
     Env senv;
+    senv.platform = env()->platform;
     senv.pe_id = 0;
     senv.pe_desc = _pe->desc().value();
     senv.argc = env()->argc;
@@ -118,6 +119,7 @@ void VPE::exec(int argc, const char **argv) {
     size_t size;
     load(argc, argv, &entry, buffer.get(), &size);
 
+    senv.platform = env()->platform;
     senv.pe_id = 0;
     senv.pe_desc = _pe->desc().value();
     senv.argc = static_cast<uint32_t>(argc);
@@ -197,7 +199,7 @@ void VPE::load_segment(ElfPh &pheader, char *buffer) {
     if(pe_desc().has_virtmem())
         VTHROW(Errors::NOT_SUP, "Exec with VM needs a pager");
 
-    MemGate mem = get_mem(0, pe_desc().mem_size(), MemGate::W);
+    MemGate mem = get_mem(0, MEM_OFFSET + pe_desc().mem_size(), MemGate::W);
 
     size_t segoff = pheader.p_vaddr;
     size_t count = pheader.p_filesz;
@@ -321,7 +323,7 @@ void VPE::copy_sections() {
     if(pe_desc().has_virtmem())
         VTHROW(Errors::NOT_SUP, "Clone with VM needs a pager");
 
-    MemGate mem = get_mem(0, pe_desc().mem_size(), MemGate::W);
+    MemGate mem = get_mem(0, MEM_OFFSET + pe_desc().mem_size(), MemGate::W);
 
     /* copy text */
     start_addr = reinterpret_cast<uintptr_t>(&_text_start);

@@ -33,8 +33,8 @@ public:
     static const size_t EP_OUT          = 16;
     static const size_t EP_RECV         = 17;
 
-    static const size_t BUF_ADDR        = 0x8000;
-    static const size_t RECV_ADDR       = 0x1FFF00;
+    static const size_t BUF_ADDR        = MEM_OFFSET + 0x8000;
+    static const size_t RECV_ADDR       = MEM_OFFSET + 0x2FFF00;
     static const size_t MAX_BUF_SIZE    = 32768;
 
     enum Operation {
@@ -57,24 +57,24 @@ public:
           _rep(vpe->epmng().acquire(EP_RECV, _rgate.slots())),
           _mep(vpe->epmng().acquire(EP_OUT)),
           _vpe(vpe),
-          _mem(_vpe->get_mem(0, vpe->pe_desc().mem_size(), MemGate::RW)) {
+          _mem(_vpe->get_mem(MEM_OFFSET, vpe->pe_desc().mem_size(), MemGate::RW)) {
         // activate EP
         _rgate.activate_on(*_rep, nullptr, RECV_ADDR);
     }
 
     void connect_output(InDirAccel *accel) {
-        _mgate = std::make_unique<MemGate>(accel->_mem.derive(BUF_ADDR, MAX_BUF_SIZE));
+        _mgate = std::make_unique<MemGate>(accel->_mem.derive(BUF_ADDR - MEM_OFFSET, MAX_BUF_SIZE));
         _mgate->activate_on(*_mep);
     }
 
     void read(void *data, size_t size) {
         assert(size <= MAX_BUF_SIZE);
-        _mem.read(data, size, BUF_ADDR);
+        _mem.read(data, size, BUF_ADDR - MEM_OFFSET);
     }
 
     void write(const void *data, size_t size) {
         assert(size <= MAX_BUF_SIZE);
-        _mem.write(data, size, BUF_ADDR);
+        _mem.write(data, size, BUF_ADDR - MEM_OFFSET);
     }
 
     void start(Operation op, size_t dataSize, cycles_t compTime, label_t reply_label) {

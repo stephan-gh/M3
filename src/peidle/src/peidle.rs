@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
  * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
@@ -14,10 +14,32 @@
  * General Public License version 2 for more details.
  */
 
-#pragma once
+#![feature(llvm_asm)]
+#![no_std]
 
-#if defined(__host__)
-#   include <base/arch/host/Env.h>
-#else
-#   include <base/arch/kachel/Env.h>
-#endif
+extern crate base;
+
+use base::machine;
+use base::envdata;
+
+#[no_mangle]
+pub extern "C" fn abort() -> ! {
+    exit(1);
+}
+
+#[no_mangle]
+pub extern "C" fn exit(_code: i32) -> ! {
+    machine::shutdown();
+}
+
+#[no_mangle]
+pub extern "C" fn env_run() {
+    loop {
+        if envdata::get().platform == envdata::Platform::GEM5.val {
+            base::tcu::TCU::sleep().ok();
+        }
+        else {
+            unsafe { llvm_asm!("nop"); }
+        }
+    }
+}

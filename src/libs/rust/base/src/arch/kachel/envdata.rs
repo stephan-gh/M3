@@ -17,10 +17,18 @@
 use cfg;
 use core::intrinsics;
 
+int_enum! {
+    pub struct Platform : u64 {
+        const GEM5 = 0;
+        const HW = 1;
+    }
+}
+
 #[derive(Default, Copy, Clone)]
 #[repr(C)]
 pub struct EnvData {
     // boot env
+    pub platform: u64,
     pub pe_id: u64,
     pub pe_desc: u64,
     pub argc: u64,

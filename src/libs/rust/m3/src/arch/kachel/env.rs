@@ -35,6 +35,14 @@ pub struct EnvData {
 }
 
 impl EnvData {
+    pub fn platform(&self) -> base::envdata::Platform {
+        base::envdata::Platform::from(self.base.platform)
+    }
+
+    pub fn set_platform(&mut self, platform: base::envdata::Platform) {
+        self.base.platform = platform.val as u64
+    }
+
     pub fn pe_id(&self) -> u64 {
         self.base.pe_id
     }
