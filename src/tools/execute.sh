@@ -141,12 +141,12 @@ build_params_gem5() {
         echo -n "run " >> $tmp
         cat $params >> $tmp
         echo >> $tmp
-        gdb --tui hw/gem5/build/$gem5build/gem5.debug --command=$tmp
+        gdb --tui platform/gem5/build/$gem5build/gem5.debug --command=$tmp
     else
         if [ "$debug" != "" ]; then
             params="$params $build/tools/ignoreint"
         fi
-        xargs -a $params hw/gem5/build/$gem5build/gem5.opt
+        xargs -a $params platform/gem5/build/$gem5build/gem5.opt
     fi
 }
 

@@ -1,4 +1,3 @@
-
 M³
 ==
 
@@ -33,12 +32,12 @@ If you setup the project on a new (ubuntu) machine make sure to have at least th
 
 ### Preparations for gem5:
 
-The submodule in `hw/gem5` needs to be pulled in and built: \
+The submodule in `platform/gem5` needs to be pulled in and built: \
 _(__Hint__: you need username/password-authentication. SSH-authentication won't work due to the submodule git urls)_
-The submodule in `hw/gem5` needs to be pulled in and built:
+The submodule in `platform/gem5` needs to be pulled in and built:
 
     $ git submodule update --init --recursive
-    $ cd hw/gem5
+    $ cd platform/gem5
     $ scons build/X86/gem5.opt build/X86/gem5.debug [-j 4]
 
 Additionally, you need to build a cross compiler for the desired ISA:

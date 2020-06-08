@@ -1,3 +1,6 @@
 [submodule "hw/gem5"]
-	path = hw/gem5
+	path = platform/gem5
 	url = https://gitlab.com/Nils-TUD/gem5-DTU.git
+[submodule "platform/hw"]
+	path = platform/hw
+	url = git@gitlab.com:Nils-TUD/tcu.git

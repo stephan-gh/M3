@@ -1,6 +1,6 @@
 import os, sys
 
-sys.path.append(os.path.realpath('hw/gem5/configs/example'))
+sys.path.append(os.path.realpath('platform/gem5/configs/example'))
 from tcu_fs import *
 
 options = getOptions()
