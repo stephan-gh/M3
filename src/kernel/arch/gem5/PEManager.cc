@@ -23,6 +23,9 @@
 namespace kernel {
 
 void PEManager::init_vpe(VPE *vpe) {
+    if(Platform::pe(vpe->peid()).supports_pemux())
+        pemux(vpe->peid())->vpe_ctrl(vpe, m3::KIF::PEXUpcalls::VCTRL_INIT);
+
     vpe->init_memory();
     if(!Platform::pe(vpe->peid()).is_device())
         vpe->init_eps();

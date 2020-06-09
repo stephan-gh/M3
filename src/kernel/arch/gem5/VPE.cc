@@ -196,10 +196,6 @@ void VPE::load_root(m3::GlobAddr env_phys) {
 }
 
 void VPE::init_memory() {
-    // let PEMux load the address space
-    if(Platform::pe(peid()).supports_pemux())
-        PEManager::get().pemux(peid())->vpe_ctrl(this, m3::KIF::PEXUpcalls::VCTRL_INIT);
-
     // put mapping for env into cap table (so that we can access it in create_mgate later)
     m3::GlobAddr env(ENV_START);
     if(Platform::pe(peid()).has_virtmem()) {
