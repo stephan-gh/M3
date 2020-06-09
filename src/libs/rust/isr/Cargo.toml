@@ -1,0 +1,11 @@
+[package]
+name = "isr"
+version = "0.1.0"
+
+[lib]
+path = "src/isr.rs"
+crate-type = ["rlib", "staticlib"]
+
+[dependencies]
+base = { path = "../base" }
+cfg-if = "*"

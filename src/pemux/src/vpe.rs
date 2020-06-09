@@ -285,7 +285,7 @@ fn do_schedule(action: ScheduleAction) -> usize {
 
     // set SP for the next entry
     let new_state = next.user_state_addr;
-    arch::set_entry_sp(new_state + util::size_of::<arch::State>());
+    isr::set_entry_sp(new_state + util::size_of::<arch::State>());
     let next_id = next.id();
     next.state = VPEState::Running;
 
@@ -587,8 +587,11 @@ impl VPE {
         if self.id() != kif::pemux::IDLE_ID {
             // remember the current PE
             ::app_env().pe_id = pex_env().pe_id;
-            self.user_state
-                .init(::app_env().entry as usize, ::app_env().sp as usize);
+            arch::init_state(
+                &mut self.user_state,
+                ::app_env().entry as usize,
+                ::app_env().sp as usize,
+            );
         }
         self.user_state_addr = &self.user_state as *const _ as usize;
     }
