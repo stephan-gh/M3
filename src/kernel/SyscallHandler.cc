@@ -1100,7 +1100,7 @@ void SyscallHandler::revoke(VPE *vpe, const m3::TCU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid cap");
 
     if(crd.type() == m3::KIF::CapRngDesc::OBJ && crd.start() <= m3::KIF::SEL_VPE)
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps 0, 1, 2, and 3 are not revocable");
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Caps 0, 1, and 2 are not revocable");
 
     m3::Errors::Code res;
     if(crd.type() == m3::KIF::CapRngDesc::OBJ)
