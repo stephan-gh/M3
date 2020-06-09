@@ -266,7 +266,7 @@ pub fn main() -> i32 {
     );
 
     server_loop(|| {
-        handle_ctrl_chan!(s, &mut hdl)?;
+        s.handle_ctrl_chan(&mut hdl)?;
 
         REQHDL.get_mut().handle(|op, is| {
             let sess = hdl

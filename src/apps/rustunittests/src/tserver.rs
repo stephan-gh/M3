@@ -76,7 +76,7 @@ fn server_crash_main() -> i32 {
     };
     let s = wv_assert_ok!(Server::new("test", &mut hdl));
 
-    server_loop(|| handle_ctrl_chan!(s, &mut hdl)).ok();
+    server_loop(|| s.handle_ctrl_chan(&mut hdl)).ok();
     0
 }
 
@@ -254,7 +254,7 @@ fn server_msgs_main() -> i32 {
     RGATE.set(rgate);
 
     server_loop(|| {
-        handle_ctrl_chan!(s, &mut hdl)?;
+        s.handle_ctrl_chan(&mut hdl)?;
 
         if let Some(mut is) = RGATE.fetch() {
             if let Err(e) = hdl.handle_msg(&mut is) {
@@ -367,7 +367,7 @@ fn server_notsup_main() -> i32 {
             if *STOP {
                 return Err(Error::new(Code::VPEGone));
             }
-            handle_ctrl_chan!(s, &mut hdl)
+            s.handle_ctrl_chan(&mut hdl)
         });
         match res {
             // if there is any other error than our own stop signal, break

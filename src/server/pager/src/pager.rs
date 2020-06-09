@@ -223,7 +223,7 @@ fn handle_request(op: PagerOp, is: &mut GateIStream) -> Result<(), Error> {
 fn workloop(serv: &Server) {
     requests::workloop(
         || {
-            handle_ctrl_chan!(serv, PGHDL.get_mut()).ok();
+            serv.handle_ctrl_chan(PGHDL.get_mut()).ok();
 
             REQHDL.get_mut().handle(handle_request).ok();
         },

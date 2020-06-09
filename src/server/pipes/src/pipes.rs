@@ -267,7 +267,7 @@ pub fn main() -> i32 {
     REQHDL.set(RequestHandler::default().expect("Unable to create request handler"));
 
     server_loop(|| {
-        handle_ctrl_chan!(s, &mut hdl)?;
+        s.handle_ctrl_chan(&mut hdl)?;
 
         REQHDL.get_mut().handle(|op, mut is| {
             match op {

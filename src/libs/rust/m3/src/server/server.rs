@@ -148,7 +148,10 @@ impl Server {
         let (_, sgate) = hdl.sessions().add_creator(&rgate, max)?;
 
         if public {
-            VPE::cur().resmng().unwrap().reg_service(sel, sgate, name, max)?;
+            VPE::cur()
+                .resmng()
+                .unwrap()
+                .reg_service(sel, sgate, name, max)?;
         }
 
         Ok(Server {
@@ -169,34 +172,49 @@ impl Server {
     }
 
     /// Fetches a message from the control channel and handles it if so.
-    pub fn handle_ctrl_chan<S>(&self, hdl: &mut dyn Handler<S>) -> Result<bool, Error> {
+    pub fn handle_ctrl_chan<S>(&self, hdl: &mut dyn Handler<S>) -> Result<(), Error> {
         let is = self.rgate.fetch();
         if let Some(mut is) = is {
-            let sel = self.sel();
-            let op: service::Operation = is.pop()?;
-            match op {
-                service::Operation::OPEN => Self::handle_open(hdl, sel, is),
-                service::Operation::DERIVE_CRT => Self::handle_derive_crt(hdl, is),
-                service::Operation::OBTAIN => Self::handle_obtain(hdl, is),
-                service::Operation::DELEGATE => Self::handle_delegate(hdl, is),
-                service::Operation::CLOSE => Self::handle_close(hdl, is),
-                service::Operation::SHUTDOWN => match Self::handle_shutdown(hdl, is) {
-                    Ok(_) => return Ok(true),
-                    Err(e) => Err(e),
+            match self.handle_ctrl_msg(hdl, &mut is) {
+                // should the server terminate?
+                Ok(true) => return Err(Error::new(Code::EndOfFile)),
+                // everything okay
+                Ok(_) => (),
+                // error, reply error code
+                Err(e) => {
+                    llog!(SERV, "Control channel request failed: {:?}", e);
+                    is.reply_error(e.code()).ok();
                 },
-                _ => is.reply_error(Code::InvArgs),
             }
-            .map(|_| false)
         }
-        else {
-            Ok(false)
+        Ok(())
+    }
+
+    fn handle_ctrl_msg<S>(
+        &self,
+        hdl: &mut dyn Handler<S>,
+        is: &mut GateIStream,
+    ) -> Result<bool, Error> {
+        let op: service::Operation = is.pop()?;
+        match op {
+            service::Operation::OPEN => Self::handle_open(hdl, self.sel(), is),
+            service::Operation::DERIVE_CRT => Self::handle_derive_crt(hdl, is),
+            service::Operation::OBTAIN => Self::handle_obtain(hdl, is),
+            service::Operation::DELEGATE => Self::handle_delegate(hdl, is),
+            service::Operation::CLOSE => Self::handle_close(hdl, is),
+            service::Operation::SHUTDOWN => match Self::handle_shutdown(hdl, is) {
+                Ok(_) => return Ok(true),
+                Err(e) => Err(e),
+            },
+            _ => is.reply_error(Code::InvArgs),
         }
+        .map(|_| false)
     }
 
     fn handle_open<S>(
         hdl: &mut dyn Handler<S>,
         sel: Selector,
-        mut is: GateIStream,
+        is: &mut GateIStream,
     ) -> Result<(), Error> {
         let arg: &str = is.pop()?;
 
@@ -225,7 +243,7 @@ impl Server {
         }
     }
 
-    fn handle_derive_crt<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_derive_crt<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::DeriveCreator>();
 
         let crt = is.label() as usize;
@@ -248,7 +266,7 @@ impl Server {
         is.reply(&[reply])
     }
 
-    fn handle_obtain<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_obtain<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::Exchange>();
         let sid = msg.sess as SessId;
         let crt = is.label() as usize;
@@ -287,7 +305,7 @@ impl Server {
         is.reply(&[reply])
     }
 
-    fn handle_delegate<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_delegate<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
         let msg = is.msg().get_data::<service::Exchange>();
         let sid = msg.sess as SessId;
         let crt = is.label() as usize;
@@ -326,7 +344,7 @@ impl Server {
         is.reply(&[reply])
     }
 
-    fn handle_close<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_close<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
         let sid = is.pop::<SessId>()?;
         let crt = is.label() as usize;
 
@@ -341,7 +359,7 @@ impl Server {
         reply_vmsg!(is, 0)
     }
 
-    fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, mut is: GateIStream) -> Result<(), Error> {
+    fn handle_shutdown<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
         llog!(SERV, "server::shutdown()");
 
         // only the first creator is allowed to shut us down
