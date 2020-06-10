@@ -21,7 +21,7 @@ use core::mem::MaybeUninit;
 use kif;
 use util;
 
-const MAX_MODNAME_LEN: usize = 32;
+const MAX_MODNAME_LEN: usize = 64;
 const MAX_SERVNAME_LEN: usize = 32;
 
 /// The boot information

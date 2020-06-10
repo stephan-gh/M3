@@ -25,7 +25,7 @@ namespace m3 {
 
 class BootInfo {
 public:
-    static const size_t MAX_MODNAME_LEN     = 32;
+    static const size_t MAX_MODNAME_LEN     = 64;
     static const size_t MAX_SERVNAME_LEN    = 32;
 
     struct PE {
