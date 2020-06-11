@@ -169,6 +169,10 @@ impl MemSlice {
         }
     }
 
+    pub fn in_reserved_mem(&self) -> bool {
+        self.mem.reserved
+    }
+
     pub fn derive(&self) -> Result<MemGate, Error> {
         self.mem
             .gate
@@ -253,8 +257,8 @@ pub struct MemPool {
 }
 
 impl MemPool {
-    pub fn slices_mut(&mut self) -> &mut Vec<MemSlice> {
-        &mut self.slices
+    pub fn slices(&self) -> &Vec<MemSlice> {
+        &self.slices
     }
 
     pub fn capacity(&self) -> goff {

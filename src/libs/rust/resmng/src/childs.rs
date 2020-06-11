@@ -361,7 +361,9 @@ pub trait Child {
     }
     fn add_mem(&mut self, alloc: Allocation, dst_sel: Option<Selector>) {
         self.res_mut().mem.push((dst_sel.unwrap_or(0), alloc));
-        self.mem().alloc_mem(alloc.size());
+        if !self.mem().pool.borrow().slices()[alloc.slice_id()].in_reserved_mem() {
+            self.mem().alloc_mem(alloc.size());
+        }
         log!(
             crate::LOG_MEM,
             "{}: added {:?} (quota left: {})",
@@ -397,7 +399,9 @@ pub trait Child {
             self.mem().quota.get()
         );
         self.mem().pool.borrow_mut().free(alloc);
-        self.mem().free_mem(alloc.size());
+        if !self.mem().pool.borrow().slices()[alloc.slice_id()].in_reserved_mem() {
+            self.mem().free_mem(alloc.size());
+        }
     }
 
     fn use_sem(&mut self, name: &str, sel: Selector) -> Result<(), Error> {
