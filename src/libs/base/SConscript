@@ -3,7 +3,7 @@ import os
 Import('env')
 
 myenv = env.Clone()
-myenv.Append(CXXFLAGS = ' -fno-rtti -fno-exceptions')
+myenv.Append(CXXFLAGS = ' -fno-exceptions')
 
 sources = [
     myenv.Glob('*.cc'), myenv.Glob('*/*.cc'),

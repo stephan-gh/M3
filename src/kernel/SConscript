@@ -4,8 +4,8 @@ myenv = env.Clone()
 
 myenv.Append(
     CPPPATH = '.',
-    CXXFLAGS = ' -fno-exceptions -fno-rtti',
-    LINKFLAGS = ' -fno-exceptions -fno-rtti',
+    CXXFLAGS = ' -fno-exceptions',
+    LINKFLAGS = ' -fno-exceptions',
 )
 
 sources = [
@@ -21,7 +21,7 @@ if myenv['ISA'] == 'arm':
 if myenv['ARCH'] == 'host':
     libs = ['c', 'base', 'heap', 'thread', 'pthread']
 else:
-    libs = ['c', 'base', 'heap', 'thread', 'isr', 'paging']
+    libs = ['c', 'base', 'heap', 'thread', 'isr', 'paging', 'supc++']
 
 myenv.M3Program(
     myenv,
