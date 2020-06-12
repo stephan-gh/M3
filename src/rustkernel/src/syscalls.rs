@@ -101,12 +101,6 @@ impl From<Error> for SyscError {
     }
 }
 
-fn get_message<R: 'static>(msg: &'static tcu::Message) -> &'static R {
-    // TODO use Message::get_data instead
-    let data: &[R] = unsafe { intrinsics::transmute(&msg.data) };
-    &data[0]
-}
-
 fn send_reply<T>(msg: &'static tcu::Message, rep: &T) {
     ktcu::reply(ktcu::KSYS_EP, rep, msg).ok();
 }
@@ -122,9 +116,9 @@ fn reply_success(msg: &'static tcu::Message) {
 
 pub fn handle(msg: &'static tcu::Message) {
     let vpe: Rc<VPE> = vpemng::get().vpe(msg.header.label as usize).unwrap();
-    let opcode: &u64 = get_message(msg);
+    let req = msg.get_data::<kif::DefaultRequest>();
 
-    let res = match kif::syscalls::Operation::from(*opcode) {
+    let res = match kif::syscalls::Operation::from(req.opcode) {
         kif::syscalls::Operation::CREATE_MGATE => create_mgate(&vpe, msg),
         kif::syscalls::Operation::CREATE_RGATE => create_rgate(&vpe, msg),
         kif::syscalls::Operation::CREATE_SGATE => create_sgate(&vpe, msg),
@@ -153,7 +147,7 @@ pub fn handle(msg: &'static tcu::Message) {
         kif::syscalls::Operation::REVOKE => revoke(&vpe, msg),
 
         kif::syscalls::Operation::NOOP => noop(&vpe, msg),
-        _ => panic!("Unexpected operation: {}", opcode),
+        _ => panic!("Unexpected operation: {}", { req.opcode }),
     };
 
     if let Err(e) = res {
@@ -164,7 +158,7 @@ pub fn handle(msg: &'static tcu::Message) {
                 vpe.id(),
                 vpe.name(),
                 vpe.pe_id(),
-                kif::syscalls::Operation::from(*opcode),
+                kif::syscalls::Operation::from(req.opcode),
                 e.code
             );
         }
@@ -175,7 +169,7 @@ pub fn handle(msg: &'static tcu::Message) {
                 vpe.id(),
                 vpe.name(),
                 vpe.pe_id(),
-                kif::syscalls::Operation::from(*opcode),
+                kif::syscalls::Operation::from(req.opcode),
                 e.msg,
                 e.code
             );
@@ -187,7 +181,7 @@ pub fn handle(msg: &'static tcu::Message) {
 
 #[inline(never)]
 fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateMGate = get_message(msg);
+    let req: &kif::syscalls::CreateMGate = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
     let addr = req.addr as goff;
@@ -258,7 +252,7 @@ fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateRGate = get_message(msg);
+    let req: &kif::syscalls::CreateRGate = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let order = req.order as u32;
     let msg_order = req.msgorder as u32;
@@ -295,7 +289,7 @@ fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSGate = get_message(msg);
+    let req: &kif::syscalls::CreateSGate = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
     let label = req.label as tcu::Label;
@@ -330,7 +324,7 @@ fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSrv = get_message(msg);
+    let req: &kif::syscalls::CreateSrv = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
     let creator = req.creator as usize;
@@ -367,7 +361,7 @@ fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
 
 #[inline(never)]
 fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSess = get_message(msg);
+    let req: &kif::syscalls::CreateSess = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let srv_sel = req.srv_sel as CapSel;
     let creator = req.creator as usize;
@@ -402,7 +396,7 @@ fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErro
 
 #[inline(never)]
 fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateVPE = get_message(msg);
+    let req: &kif::syscalls::CreateVPE = msg.get_data();
     let dst_crd = CapRngDesc::new_from(req.dst_crd);
     let pg_sg_sel = req.pg_sg_sel as CapSel;
     let pg_rg_sel = req.pg_rg_sel as CapSel;
@@ -523,7 +517,7 @@ fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
 
 #[inline(never)]
 fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSem = get_message(msg);
+    let req: &kif::syscalls::CreateSem = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let value = req.value as u32;
 
@@ -542,7 +536,7 @@ fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
 
 #[inline(never)]
 fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateMap = get_message(msg);
+    let req: &kif::syscalls::CreateMap = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let mgate_sel = req.mgate_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
@@ -638,7 +632,7 @@ fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
 
 #[inline(never)]
 fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::AllocEP = get_message(msg);
+    let req: &kif::syscalls::AllocEP = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
     let mut epid = req.epid as tcu::EpId;
@@ -705,7 +699,7 @@ fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
 
 #[inline(never)]
 fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::KMemQuota = get_message(msg);
+    let req: &kif::syscalls::KMemQuota = msg.get_data();
     let kmem_sel = req.kmem_sel as CapSel;
 
     sysc_log!(vpe, "kmem_quota(kmem={})", kmem_sel);
@@ -722,7 +716,7 @@ fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
 
 #[inline(never)]
 fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::PEQuota = get_message(msg);
+    let req: &kif::syscalls::PEQuota = msg.get_data();
     let pe_sel = req.pe_sel as CapSel;
 
     sysc_log!(vpe, "pe_quota(pe={})", pe_sel);
@@ -739,7 +733,7 @@ fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
 
 #[inline(never)]
 fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::DerivePE = get_message(msg);
+    let req: &kif::syscalls::DerivePE = msg.get_data();
     let pe_sel = req.pe_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
     let eps = req.eps as u32;
@@ -771,7 +765,7 @@ fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError>
 
 #[inline(never)]
 fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::DeriveKMem = get_message(msg);
+    let req: &kif::syscalls::DeriveKMem = msg.get_data();
     let kmem_sel = req.kmem_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
     let quota = req.quota as usize;
@@ -804,7 +798,7 @@ fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErro
 
 #[inline(never)]
 fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::DeriveMem = get_message(msg);
+    let req: &kif::syscalls::DeriveMem = msg.get_data();
     let vpe_sel = req.vpe_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
     let src_sel = req.src_sel as CapSel;
@@ -850,7 +844,7 @@ fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
 
 #[inline(never)]
 fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::DeriveSrv = get_message(msg);
+    let req: &kif::syscalls::DeriveSrv = msg.get_data();
     let dst_crd = CapRngDesc::new_from(req.dst_crd);
     let srv_sel = req.srv_sel as CapSel;
     let sessions = req.sessions as u32;
@@ -893,7 +887,7 @@ fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", srvcap.service().name()),
 
         Ok(rmsg) => {
-            let reply: &kif::service::DeriveCreatorReply = get_message(rmsg);
+            let reply: &kif::service::DeriveCreatorReply = rmsg.get_data();
             let res = reply.res;
             let creator = reply.creator as usize;
             let sgate_sel = reply.sgate_sel as CapSel;
@@ -940,7 +934,7 @@ fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
 
 #[inline(never)]
 fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::GetSession = get_message(msg);
+    let req: &kif::syscalls::GetSession = msg.get_data();
     let dst_sel = req.dst_sel as CapSel;
     let srv_sel = req.srv_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
@@ -1033,7 +1027,7 @@ fn do_exchange(
 
 #[inline(never)]
 fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::Exchange = get_message(msg);
+    let req: &kif::syscalls::Exchange = msg.get_data();
     let vpe_sel = req.vpe_sel as CapSel;
     let own_crd = CapRngDesc::new_from(req.own_crd);
     let other_crd = CapRngDesc::new(own_crd.cap_type(), req.other_sel as CapSel, own_crd.count());
@@ -1063,7 +1057,7 @@ fn exchange_over_sess(
     msg: &'static tcu::Message,
     obtain: bool,
 ) -> Result<(), SyscError> {
-    let req: &kif::syscalls::ExchangeSess = get_message(msg);
+    let req: &kif::syscalls::ExchangeSess = msg.get_data();
     let vpe_sel = req.vpe_sel as CapSel;
     let sess_sel = req.sess_sel as CapSel;
     let crd = CapRngDesc::new_from(req.crd);
@@ -1114,7 +1108,7 @@ fn exchange_over_sess(
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
 
         Ok(rmsg) => {
-            let reply: &kif::service::ExchangeReply = get_message(rmsg);
+            let reply: &kif::service::ExchangeReply = rmsg.get_data();
 
             sysc_log!(
                 vpe,
@@ -1153,7 +1147,7 @@ fn exchange_over_sess(
 
 #[inline(never)]
 fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::Activate = get_message(msg);
+    let req: &kif::syscalls::Activate = msg.get_data();
     let ep_sel = req.ep_sel as CapSel;
     let gate_sel = req.gate_sel as CapSel;
     let rbuf_mem = req.rbuf_mem as CapSel;
@@ -1322,7 +1316,7 @@ fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
 
 #[inline(never)]
 fn sem_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::SemCtrl = get_message(msg);
+    let req: &kif::syscalls::SemCtrl = msg.get_data();
     let sem_sel = req.sem_sel as CapSel;
     let op = kif::syscalls::SemOp::from(req.op);
 
@@ -1352,7 +1346,7 @@ fn sem_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
 
 #[inline(never)]
 fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::VPECtrl = get_message(msg);
+    let req: &kif::syscalls::VPECtrl = msg.get_data();
     let vpe_sel = req.vpe_sel as CapSel;
     let op = kif::syscalls::VPEOp::from(req.op);
     let arg = req.arg;
@@ -1400,7 +1394,7 @@ fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
 
 #[inline(never)]
 fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::VPEWait = get_message(msg);
+    let req: &kif::syscalls::VPEWait = msg.get_data();
     let count = req.vpe_count as usize;
     let event = req.event;
     let sels = &{ req.sels };
@@ -1448,7 +1442,7 @@ fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> 
 
 #[inline(never)]
 fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::Revoke = get_message(msg);
+    let req: &kif::syscalls::Revoke = msg.get_data();
     let vpe_sel = req.vpe_sel as CapSel;
     let crd = CapRngDesc::new_from(req.crd);
     let own = req.own == 1;
