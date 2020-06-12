@@ -749,14 +749,23 @@ impl MapObject {
         glob: GlobAddr,
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
-        self.glob.replace(glob);
-        self.flags.replace(flags);
-        self.map(vpe, virt, pages)
+        self.map(vpe, virt, glob, pages, flags).and_then(|_| {
+            self.glob.replace(glob);
+            self.flags.replace(flags);
+            Ok(())
+        })
     }
 
-    pub fn map(&self, vpe: &Rc<VPE>, virt: goff, pages: usize) -> Result<(), Error> {
+    pub fn map(
+        &self,
+        vpe: &Rc<VPE>,
+        virt: goff,
+        glob: GlobAddr,
+        pages: usize,
+        flags: kif::PageFlags,
+    ) -> Result<(), Error> {
         let pemux = pemng::get().pemux(vpe.pe_id());
-        pemux.map(vpe.id(), virt, self.global(), pages, self.flags())
+        pemux.map(vpe.id(), virt, glob, pages, flags)
     }
 
     pub fn unmap(&self, vpe: &Rc<VPE>, virt: goff, pages: usize) {

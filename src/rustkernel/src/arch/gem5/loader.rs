@@ -156,7 +156,7 @@ impl Loader {
 
             let map_obj = MapObject::new(phys, flags);
             if map {
-                map_obj.map(vpe, virt, pages)?;
+                map_obj.map(vpe, virt, phys, pages, flags)?;
             }
 
             vpe.map_caps().borrow_mut().insert(Capability::new_range(
