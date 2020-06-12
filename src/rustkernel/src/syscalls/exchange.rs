@@ -25,7 +25,7 @@ use cap::KObject;
 use cap::{ServObject, SessObject};
 use com::Service;
 use pes::VPE;
-use syscalls::{reply_success, send_reply, SyscError};
+use syscalls::{get_request, reply_success, send_reply, SyscError};
 
 fn do_exchange(
     vpe1: &Rc<VPE>,
@@ -65,7 +65,7 @@ fn do_exchange(
 
 #[inline(never)]
 pub fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::Exchange = msg.get_data();
+    let req: &kif::syscalls::Exchange = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let own_crd = CapRngDesc::new_from(req.own_crd);
     let other_crd = CapRngDesc::new(own_crd.cap_type(), req.other_sel as CapSel, own_crd.count());
@@ -95,7 +95,7 @@ pub fn exchange_over_sess(
     msg: &'static tcu::Message,
     obtain: bool,
 ) -> Result<(), SyscError> {
-    let req: &kif::syscalls::ExchangeSess = msg.get_data();
+    let req: &kif::syscalls::ExchangeSess = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let sess_sel = req.sess_sel as CapSel;
     let crd = CapRngDesc::new_from(req.crd);
@@ -146,7 +146,7 @@ pub fn exchange_over_sess(
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
 
         Ok(rmsg) => {
-            let reply: &kif::service::ExchangeReply = rmsg.get_data();
+            let reply: &kif::service::ExchangeReply = get_request(rmsg)?;
 
             sysc_log!(
                 vpe,
@@ -185,7 +185,7 @@ pub fn exchange_over_sess(
 
 #[inline(never)]
 pub fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::Revoke = msg.get_data();
+    let req: &kif::syscalls::Revoke = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let crd = CapRngDesc::new_from(req.crd);
     let own = req.own == 1;

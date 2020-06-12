@@ -19,6 +19,7 @@ use base::errors::{Code, Error};
 use base::kif::{self};
 use base::rc::Rc;
 use base::tcu;
+use base::util;
 
 use ktcu;
 
@@ -105,6 +106,15 @@ fn reply_result(msg: &'static tcu::Message, code: u64) {
 
 fn reply_success(msg: &'static tcu::Message) {
     reply_result(msg, 0);
+}
+
+fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
+    if msg.data.len() < util::size_of::<R>() {
+        Err(Error::new(Code::InvArgs))
+    }
+    else {
+        Ok(msg.get_data())
+    }
 }
 
 pub fn handle(msg: &'static tcu::Message) {

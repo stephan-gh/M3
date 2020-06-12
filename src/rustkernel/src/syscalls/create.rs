@@ -31,11 +31,11 @@ use mem;
 use pes::{pemng, vpemng};
 use pes::{VPEFlags, VPE};
 use platform;
-use syscalls::{reply_success, send_reply, SyscError};
+use syscalls::{get_request, reply_success, send_reply, SyscError};
 
 #[inline(never)]
 pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateMGate = msg.get_data();
+    let req: &kif::syscalls::CreateMGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
     let addr = req.addr as goff;
@@ -106,7 +106,7 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
 #[inline(never)]
 pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateRGate = msg.get_data();
+    let req: &kif::syscalls::CreateRGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let order = req.order as u32;
     let msg_order = req.msgorder as u32;
@@ -143,7 +143,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
 #[inline(never)]
 pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSGate = msg.get_data();
+    let req: &kif::syscalls::CreateSGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
     let label = req.label as tcu::Label;
@@ -178,7 +178,7 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
 #[inline(never)]
 pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSrv = msg.get_data();
+    let req: &kif::syscalls::CreateSrv = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
     let creator = req.creator as usize;
@@ -215,7 +215,7 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
 #[inline(never)]
 pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSess = msg.get_data();
+    let req: &kif::syscalls::CreateSess = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let srv_sel = req.srv_sel as CapSel;
     let creator = req.creator as usize;
@@ -250,7 +250,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
 
 #[inline(never)]
 pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateVPE = msg.get_data();
+    let req: &kif::syscalls::CreateVPE = get_request(msg)?;
     let dst_crd = CapRngDesc::new_from(req.dst_crd);
     let pg_sg_sel = req.pg_sg_sel as CapSel;
     let pg_rg_sel = req.pg_rg_sel as CapSel;
@@ -371,7 +371,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
 #[inline(never)]
 pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSem = msg.get_data();
+    let req: &kif::syscalls::CreateSem = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let value = req.value as u32;
 
@@ -390,7 +390,7 @@ pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
 #[inline(never)]
 pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateMap = msg.get_data();
+    let req: &kif::syscalls::CreateMap = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let mgate_sel = req.mgate_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;

@@ -30,11 +30,11 @@ use cap::{
 use com::Service;
 use mem;
 use pes::{VPE};
-use syscalls::{reply_success, SyscError};
+use syscalls::{get_request, reply_success, SyscError};
 
 #[inline(never)]
 pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::DerivePE = msg.get_data();
+    let req: &kif::syscalls::DerivePE = get_request(msg)?;
     let pe_sel = req.pe_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
     let eps = req.eps as u32;
@@ -66,7 +66,7 @@ pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscEr
 
 #[inline(never)]
 pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::DeriveKMem = msg.get_data();
+    let req: &kif::syscalls::DeriveKMem = get_request(msg)?;
     let kmem_sel = req.kmem_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
     let quota = req.quota as usize;
@@ -99,7 +99,7 @@ pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
 
 #[inline(never)]
 pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::DeriveMem = msg.get_data();
+    let req: &kif::syscalls::DeriveMem = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let dst_sel = req.dst_sel as CapSel;
     let src_sel = req.src_sel as CapSel;
@@ -145,7 +145,7 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
 #[inline(never)]
 pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::DeriveSrv = msg.get_data();
+    let req: &kif::syscalls::DeriveSrv = get_request(msg)?;
     let dst_crd = CapRngDesc::new_from(req.dst_crd);
     let srv_sel = req.srv_sel as CapSel;
     let sessions = req.sessions as u32;
@@ -188,7 +188,7 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", srvcap.service().name()),
 
         Ok(rmsg) => {
-            let reply: &kif::service::DeriveCreatorReply = rmsg.get_data();
+            let reply: &kif::service::DeriveCreatorReply = get_request(rmsg)?;
             let res = reply.res;
             let creator = reply.creator as usize;
             let sgate_sel = reply.sgate_sel as CapSel;

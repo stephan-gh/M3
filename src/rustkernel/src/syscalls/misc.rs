@@ -29,11 +29,11 @@ use ktcu;
 use pes::VPE;
 use pes::{pemng, vpemng};
 use platform;
-use syscalls::{reply_success, send_reply, SyscError};
+use syscalls::{get_request, reply_success, send_reply, SyscError};
 
 #[inline(never)]
 pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::AllocEP = msg.get_data();
+    let req: &kif::syscalls::AllocEP = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
     let mut epid = req.epid as tcu::EpId;
@@ -100,7 +100,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::KMemQuota = msg.get_data();
+    let req: &kif::syscalls::KMemQuota = get_request(msg)?;
     let kmem_sel = req.kmem_sel as CapSel;
 
     sysc_log!(vpe, "kmem_quota(kmem={})", kmem_sel);
@@ -117,7 +117,7 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
 #[inline(never)]
 pub fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::PEQuota = msg.get_data();
+    let req: &kif::syscalls::PEQuota = get_request(msg)?;
     let pe_sel = req.pe_sel as CapSel;
 
     sysc_log!(vpe, "pe_quota(pe={})", pe_sel);
@@ -134,7 +134,7 @@ pub fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::GetSession = msg.get_data();
+    let req: &kif::syscalls::GetSession = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let srv_sel = req.srv_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
@@ -191,7 +191,7 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::Activate = msg.get_data();
+    let req: &kif::syscalls::Activate = get_request(msg)?;
     let ep_sel = req.ep_sel as CapSel;
     let gate_sel = req.gate_sel as CapSel;
     let rbuf_mem = req.rbuf_mem as CapSel;
@@ -365,7 +365,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 pub fn sem_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::SemCtrl = msg.get_data();
+    let req: &kif::syscalls::SemCtrl = get_request(msg)?;
     let sem_sel = req.sem_sel as CapSel;
     let op = kif::syscalls::SemOp::from(req.op);
 
@@ -395,7 +395,7 @@ pub fn sem_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::VPECtrl = msg.get_data();
+    let req: &kif::syscalls::VPECtrl = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let op = kif::syscalls::VPEOp::from(req.op);
     let arg = req.arg;
@@ -443,7 +443,7 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
 #[inline(never)]
 pub fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::VPEWait = msg.get_data();
+    let req: &kif::syscalls::VPEWait = get_request(msg)?;
     let count = req.vpe_count as usize;
     let event = req.event;
     let sels = &{ req.sels };

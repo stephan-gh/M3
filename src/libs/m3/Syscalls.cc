@@ -60,8 +60,7 @@ void Syscalls::create_srv(capsel_t dst, capsel_t rgate, const String &name, labe
     req.creator = creator;
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
-    size_t msgsize = sizeof(req) - sizeof(req.name) + req.namelen;
-    send_receive_throw(&req, msgsize);
+    send_receive_throw(&req, sizeof(req));
 }
 
 void Syscalls::create_sess(capsel_t dst, capsel_t srv, size_t crt, word_t ident, bool auto_close) {
@@ -130,8 +129,7 @@ epid_t Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
 
-    size_t msgsize = sizeof(req) - sizeof(req.name) + req.namelen;
-    auto reply = send_receive<KIF::Syscall::CreateVPEReply>(&req, msgsize);
+    auto reply = send_receive<KIF::Syscall::CreateVPEReply>(&req, sizeof(req));
 
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
