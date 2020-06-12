@@ -397,7 +397,7 @@ impl SubsystemBuilder {
         let mut sel = SUBSYS_SELS;
         let mut off: goff = 0;
 
-        let mem = memory::container()
+        let mut mem = memory::container()
             .alloc_mem(self.desc_size() as goff)?
             .derive()?;
 
@@ -469,6 +469,10 @@ impl SubsystemBuilder {
 
             self.serv_objs.push(subserv);
         }
+
+        // deactivate the memory gates so that the child can activate them for itself
+        self.cfg.0.deactivate();
+        mem.deactivate();
 
         self.desc = Some(mem);
         Ok(())

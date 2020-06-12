@@ -25,9 +25,10 @@ DirectPipe::DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size)
     : _rd(rd),
       _wr(wr),
       _size(size),
-      _rgate(RecvGate::create(VPE::self().alloc_sels(3), nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
-      _mem(mem.derive_for(VPE::self().sel(), _rgate.sel() + 1, 0, size)),
-      _sgate(SendGate::create(&_rgate, SendGateArgs().credits(CREDITS).sel(_rgate.sel() + 2))),
+      _rgate(RecvGate::create(VPE::self().alloc_sels(4), nextlog2<MSG_BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)),
+      _rmem(mem.derive_for(VPE::self().sel(), _rgate.sel() + 1, 0, size, MemGate::R)),
+      _wmem(mem.derive_for(VPE::self().sel(), _rgate.sel() + 2, 0, size, MemGate::W)),
+      _sgate(SendGate::create(&_rgate, SendGateArgs().credits(CREDITS).sel(_rgate.sel() + 3))),
       _rdfd(),
       _wrfd() {
     std::unique_ptr<DirectPipeReader::State> rstate(
@@ -36,9 +37,9 @@ DirectPipe::DirectPipe(VPE &rd, VPE &wr, MemGate &mem, size_t size)
         new DirectPipeReader(caps(), std::move(rstate))));
 
     std::unique_ptr<DirectPipeWriter::State> wstate(
-        &wr == &VPE::self() ? new DirectPipeWriter::State(caps() + 1, _size) : nullptr);
+        &wr == &VPE::self() ? new DirectPipeWriter::State(caps() + 2, _size) : nullptr);
     _wrfd = VPE::self().fds()->alloc(Reference<File>(
-        new DirectPipeWriter(caps() + 1, _size, std::move(wstate))));
+        new DirectPipeWriter(caps() + 2, _size, std::move(wstate))));
 }
 
 DirectPipe::~DirectPipe() {

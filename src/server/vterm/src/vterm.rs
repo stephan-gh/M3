@@ -24,9 +24,11 @@ use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::com::{GateIStream, MemGate, Perm, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
+use m3::goff;
 use m3::io::{Read, Serial, Write};
 use m3::kif;
 use m3::pes::VPE;
+use m3::rc::Rc;
 use m3::serialize::Source;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
@@ -62,20 +64,25 @@ struct Channel {
     writing: bool,
     ep: Option<Selector>,
     sgate: SendGate,
+    our_mem: Rc<MemGate>,
     mem: MemGate,
     pos: usize,
     len: usize,
 }
 
+fn mem_off(id: SessId) -> goff {
+    id as goff * BUF_SIZE as goff
+}
+
 impl Channel {
-    fn new(id: SessId, mem: &MemGate, caps: Selector, writing: bool) -> Result<Self, Error> {
+    fn new(id: SessId, mem: Rc<MemGate>, caps: Selector, writing: bool) -> Result<Self, Error> {
         let sgate = SendGate::new_with(
             SGateArgs::new(REQHDL.recv_gate())
                 .label(id as Label)
                 .credits(1)
                 .sel(caps + 1),
         )?;
-        let cmem = mem.derive(id as u64 * BUF_SIZE as u64, BUF_SIZE, kif::Perm::RW)?;
+        let cmem = mem.derive(mem_off(id), BUF_SIZE, kif::Perm::RW)?;
 
         Ok(Channel {
             id,
@@ -83,6 +90,7 @@ impl Channel {
             writing,
             ep: None,
             sgate,
+            our_mem: mem,
             mem: cmem,
             pos: 0,
             len: 0,
@@ -112,7 +120,7 @@ impl Channel {
             #[allow(clippy::uninit_assumed_init)]
             let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
             let len = Serial::default().read(&mut buf)?;
-            self.mem.write(&buf[0..len], 0)?;
+            self.our_mem.write(&buf[0..len], mem_off(self.id))?;
             self.len = len;
             self.pos = 0;
         }
@@ -167,7 +175,7 @@ impl Channel {
             // safety: will be initialized by read below
             #[allow(clippy::uninit_assumed_init)]
             let mut buf: [u8; 256] = unsafe { MaybeUninit::uninit().assume_init() };
-            self.mem.read(&mut buf[0..nbytes], 0)?;
+            self.our_mem.read(&mut buf[0..nbytes], mem_off(self.id))?;
             Serial::default().write(&buf[0..nbytes])?;
         }
         self.len = 0;
@@ -178,7 +186,7 @@ impl Channel {
 struct VTermHandler {
     sel: Selector,
     sessions: SessionContainer<VTermSession>,
-    mem: MemGate,
+    mem: Rc<MemGate>,
 }
 
 impl VTermHandler {
@@ -197,7 +205,7 @@ impl VTermHandler {
         Ok(VTermSession {
             crt,
             sess: ServerSession::new_with_sel(self.sel, sels, crt, sid as u64, false)?,
-            data: SessionData::Chan(Channel::new(sid, &self.mem, sels, writing)?),
+            data: SessionData::Chan(Channel::new(sid, self.mem.clone(), sels, writing)?),
         })
     }
 
@@ -288,7 +296,9 @@ pub fn main() -> i32 {
     let mut hdl = VTermHandler {
         sel: 0,
         sessions: SessionContainer::new(DEF_MAX_CLIENTS),
-        mem: MemGate::new(DEF_MAX_CLIENTS * BUF_SIZE, Perm::RW).expect("Unable to alloc memory"),
+        mem: Rc::new(
+            MemGate::new(DEF_MAX_CLIENTS * BUF_SIZE, Perm::RW).expect("Unable to alloc memory"),
+        ),
     };
 
     let s = Server::new("vterm", &mut hdl).expect("Unable to create service 'vterm'");

@@ -132,7 +132,8 @@ private:
     VPE &_wr;
     size_t _size;
     RecvGate _rgate;
-    MemGate _mem;
+    MemGate _rmem;
+    MemGate _wmem;
     SendGate _sgate;
     fd_t _rdfd;
     fd_t _wrfd;
