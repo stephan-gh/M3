@@ -66,13 +66,13 @@ pub extern "C" fn env_run() {
     ktcu::recv_msgs(ktcu::KSRV_EP, serv_rbuf.as_ptr() as goff, 10, 8)
         .expect("Unable to config service REP");
 
-    let pex_rbuf_ord = math::next_log2(32) + pes::MSG_ORD;
+    let pex_rbuf_ord = math::next_log2(32) + 7;
     let pex_rbuf = vec![0u8; 1 << pex_rbuf_ord];
     ktcu::recv_msgs(
         ktcu::KPEX_EP,
         pex_rbuf.as_ptr() as goff,
         pex_rbuf_ord,
-        pes::MSG_ORD,
+        7,
     )
     .expect("Unable to config pemux REP");
 

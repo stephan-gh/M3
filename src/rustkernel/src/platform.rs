@@ -17,12 +17,14 @@
 use arch;
 use base::cell::StaticCell;
 use base::col::Vec;
-use base::goff;
 use base::kif::{boot, PEDesc};
 use base::mem::GlobAddr;
 use base::tcu::PEId;
 use base::util;
 use core::iter;
+
+#[cfg(target_os = "none")]
+pub use arch::platform::rbuf_pemux;
 
 pub struct KEnv {
     info: boot::Info,
@@ -106,10 +108,6 @@ pub fn pe_desc(pe: PEId) -> PEDesc {
 
 pub fn is_shared(pe: PEId) -> bool {
     arch::platform::is_shared(pe)
-}
-
-pub fn rbuf_pemux(pe: PEId) -> goff {
-    arch::platform::rbuf_pemux(pe)
 }
 
 pub fn mods() -> &'static [boot::Mod] {

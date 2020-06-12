@@ -20,6 +20,6 @@ mod vpe;
 pub mod vpemng;
 
 pub use self::pemng::PEMng;
-pub use self::pemux::{PEMux, MSG_ORD};
+pub use self::pemux::PEMux;
 pub use self::vpe::*;
 pub use self::vpemng::VPEMng;

@@ -23,17 +23,15 @@ use base::rc::Rc;
 use base::tcu::{self, EpId, PEId};
 
 use cap::{MGateObject, PEObject, RGateObject, SGateObject};
-use com::SendQueue;
 use ktcu;
 use pes::{VPEId, INVAL_ID};
 use platform;
 
-pub const MSG_ORD: u32 = 7;
-
 pub struct PEMux {
     pe: Rc<PEObject>,
     vpes: Vec<VPEId>,
-    queue: SendQueue,
+    #[cfg(target_os = "none")]
+    queue: crate::com::SendQueue,
     eps: BitVec,
     mem_base: goff,
 }
@@ -43,7 +41,8 @@ impl PEMux {
         let mut pemux = PEMux {
             pe: PEObject::new(pe, (tcu::EP_COUNT - tcu::FIRST_USER_EP) as u32),
             vpes: Vec::new(),
-            queue: SendQueue::new(pe as u64, pe),
+            #[cfg(target_os = "none")]
+            queue: crate::com::SendQueue::new(pe as u64, pe),
             eps: BitVec::new(tcu::EP_COUNT),
             mem_base: 0,
         };

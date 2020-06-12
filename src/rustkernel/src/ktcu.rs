@@ -18,12 +18,9 @@ use base::cell::StaticCell;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
-use base::libc;
 use base::math;
 use base::tcu::{EpId, Header, Label, Message, PEId, Reg, EP_COUNT, EP_REGS, TCU};
 use base::util;
-use core::cmp;
-use core::mem::MaybeUninit;
 
 use pes::KERNEL_ID;
 
@@ -32,9 +29,7 @@ pub use arch::ktcu::*;
 pub const KSYS_EP: EpId = 0;
 pub const KSRV_EP: EpId = 1;
 pub const KTMP_EP: EpId = 2;
-pub const KPEX_EP: EpId = 3;
 
-static BUF: StaticCell<[u8; 8192]> = StaticCell::new([0u8; 8192]);
 static RBUFS: StaticCell<[usize; 8]> = StaticCell::new([0usize; 8]);
 
 pub fn config_local_ep<CFG>(ep: EpId, cfg: CFG)
@@ -110,93 +105,9 @@ pub fn send_to(
     TCU::send(KTMP_EP, msg, size, rpl_lbl, rpl_ep)
 }
 
-pub fn read_obj<T>(pe: PEId, addr: goff) -> T {
-    try_read_obj(pe, addr).unwrap()
-}
-
-pub fn try_read_obj<T>(pe: PEId, addr: goff) -> Result<T, Error> {
-    let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
-    let obj_addr = &mut obj as *mut T as *mut u8;
-    try_read_mem(pe, addr, obj_addr, util::size_of::<T>())?;
-    Ok(obj)
-}
-
-pub fn read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) {
-    try_read_slice(pe, addr, data).unwrap();
-}
-
-pub fn try_read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) -> Result<(), Error> {
-    try_read_mem(
-        pe,
-        addr,
-        data.as_mut_ptr() as *mut _ as *mut u8,
-        data.len() * util::size_of::<T>(),
-    )
-}
-
-pub fn read_mem(pe: PEId, addr: goff, data: *mut u8, size: usize) {
-    try_read_mem(pe, addr, data, size).unwrap();
-}
-
-pub fn try_read_mem(pe: PEId, addr: goff, data: *mut u8, size: usize) -> Result<(), Error> {
-    config_local_ep(KTMP_EP, |regs| {
-        config_mem(regs, KERNEL_ID, pe, addr, size, kif::Perm::R);
-    });
-    TCU::read(KTMP_EP, data, size, 0)
-}
-
-pub fn write_slice<T>(pe: PEId, addr: goff, sl: &[T]) {
-    let sl_addr = sl.as_ptr() as *const u8;
-    write_mem(pe, addr, sl_addr, sl.len() * util::size_of::<T>());
-}
-
-pub fn try_write_slice<T>(pe: PEId, addr: goff, sl: &[T]) -> Result<(), Error> {
-    let sl_addr = sl.as_ptr() as *const u8;
-    try_write_mem(pe, addr, sl_addr, sl.len() * util::size_of::<T>())
-}
-
-pub fn write_mem(pe: PEId, addr: goff, data: *const u8, size: usize) {
-    try_write_mem(pe, addr, data, size).unwrap();
-}
-
 pub fn try_write_mem(pe: PEId, addr: goff, data: *const u8, size: usize) -> Result<(), Error> {
     config_local_ep(KTMP_EP, |regs| {
         config_mem(regs, KERNEL_ID, pe, addr, size, kif::Perm::W);
     });
     TCU::write(KTMP_EP, data, size, 0)
-}
-
-pub fn clear(dst_pe: PEId, mut dst_addr: goff, size: usize) -> Result<(), Error> {
-    let clear_size = cmp::min(size, BUF.len());
-    unsafe {
-        libc::memset(BUF.get_mut() as *mut _ as *mut libc::c_void, 0, clear_size);
-    }
-
-    let mut rem = size;
-    while rem > 0 {
-        let amount = cmp::min(rem, BUF.len());
-        try_write_slice(dst_pe, dst_addr, &BUF[0..amount])?;
-        dst_addr += amount as goff;
-        rem -= amount;
-    }
-    Ok(())
-}
-
-pub fn copy(
-    dst_pe: PEId,
-    mut dst_addr: goff,
-    src_pe: PEId,
-    mut src_addr: goff,
-    size: usize,
-) -> Result<(), Error> {
-    let mut rem = size;
-    while rem > 0 {
-        let amount = cmp::min(rem, BUF.len());
-        try_read_slice(src_pe, src_addr, &mut BUF.get_mut()[0..amount])?;
-        try_write_slice(dst_pe, dst_addr, &BUF[0..amount])?;
-        src_addr += amount as goff;
-        dst_addr += amount as goff;
-        rem -= amount;
-    }
-    Ok(())
 }
