@@ -186,7 +186,7 @@ impl VPEMng {
 
         // go!
         pemng::get().init_vpe(&vpe)?;
-        VPE::start_app(&vpe, 0)
+        VPE::start_app(&vpe, None)
     }
 
     pub fn remove(&mut self, id: VPEId) {
@@ -225,7 +225,9 @@ impl Drop for VPEMng {
         for v in self.vpes.drain(0..) {
             if let Some(ref _vpe) = v {
                 #[cfg(target_os = "linux")]
-                ::arch::childs::kill_child(_vpe.pid());
+                if let Some(pid) = _vpe.pid() {
+                    ::arch::childs::kill_child(pid);
+                }
             }
         }
     }

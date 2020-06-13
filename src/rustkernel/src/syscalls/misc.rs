@@ -437,7 +437,7 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 sysc_err!(Code::InvArgs, "VPE can't start itself");
             }
 
-            VPE::start_app(&vpecap, arg as i32)
+            VPE::start_app(&vpecap, Some(arg as i32))
                 .map_err(|e| SyscError::new(e.code(), "Unable to start VPE".to_string()))?;
         },
 

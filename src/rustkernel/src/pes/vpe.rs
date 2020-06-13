@@ -60,7 +60,7 @@ static EXIT_EVENT: i32 = 0;
 
 pub struct VPE {
     id: VPEId,
-    pid: Cell<i32>,
+    pid: Cell<Option<i32>>,
     state: Cell<State>,
     name: String,
     flags: Cell<VPEFlags>,
@@ -88,7 +88,7 @@ impl VPE {
         let vpe = Rc::new(VPE {
             id,
             kmem,
-            pid: Cell::from(0),
+            pid: Cell::from(None),
             state: Cell::from(State::DEAD),
             name: name.to_string(),
             flags: Cell::from(flags),
@@ -146,7 +146,7 @@ impl VPE {
     pub fn start(vpe: &Rc<Self>) -> Result<(), Error> {
         let loader = Loader::get();
         let pid = loader.start(&vpe)?;
-        vpe.set_pid(pid);
+        vpe.pid.set(Some(pid));
         Ok(())
     }
 
@@ -290,12 +290,8 @@ impl VPE {
         self.first_sel.set(sel);
     }
 
-    pub fn pid(&self) -> i32 {
+    pub fn pid(&self) -> Option<i32> {
         self.pid.get()
-    }
-
-    pub fn set_pid(&self, pid: i32) {
-        self.pid.set(pid);
     }
 
     pub fn fetch_exit_code(&self) -> Option<i32> {
@@ -391,12 +387,12 @@ impl VPE {
             .unwrap();
     }
 
-    pub fn start_app(vpe: &Rc<Self>, pid: i32) -> Result<(), Error> {
+    pub fn start_app(vpe: &Rc<Self>, pid: Option<i32>) -> Result<(), Error> {
         if !vpe.flags.get().contains(VPEFlags::HASAPP) {
             return Ok(());
         }
 
-        vpe.set_pid(pid);
+        vpe.pid.set(pid);
         vpe.flags.set(vpe.flags.get() | VPEFlags::HASAPP);
 
         pemng::get().start_vpe(&vpe)
@@ -468,7 +464,9 @@ impl Drop for VPE {
         self.revoke_caps(true);
 
         // TODO temporary
-        ktcu::reset_pe(self.pe_id(), self.pid()).unwrap();
+        if let Some(pid) = self.pid() {
+            ktcu::reset_pe(self.pe_id(), pid).unwrap();
+        }
 
         klog!(
             VPES,

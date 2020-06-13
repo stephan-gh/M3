@@ -57,7 +57,7 @@ pub fn check_childs() {
 }
 
 fn kill_vpe(pid: libc::pid_t, status: i32) {
-    let (vpe_id, vpe_name) = match vpemng::get().find_vpe(|v| v.pid() == pid) {
+    let (vpe_id, vpe_name) = match vpemng::get().find_vpe(|v| v.pid().unwrap_or(0) == pid) {
         Some(v) => {
             let id = v.id();
             (Some(id), format!("{}:{}", id, v.name()))
