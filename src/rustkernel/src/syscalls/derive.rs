@@ -14,22 +14,20 @@
  * General Public License version 2 for more details.
  */
 
-use base::col::{ToString};
-use base::errors::{Code};
+use base::col::ToString;
+use base::errors::Code;
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel};
 use base::mem::GlobAddr;
-use base::rc::{Rc};
+use base::rc::Rc;
 use base::tcu;
 use base::util;
 
 use cap::{Capability, KObject};
-use cap::{
-    KMemObject, MGateObject, PEObject, ServObject,
-};
+use cap::{KMemObject, MGateObject, PEObject, ServObject};
 use com::Service;
 use mem;
-use pes::{VPE};
+use pes::VPE;
 use syscalls::{get_request, reply_success, SyscError};
 
 #[inline(never)]
@@ -84,7 +82,6 @@ pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
     }
 
     let kmem: Rc<KMemObject> = get_kobj!(vpe, kmem_sel, KMEM);
-
     if !kmem.has_quota(quota) {
         sysc_err!(Code::NoSpace, "Insufficient quota");
     }
@@ -124,18 +121,15 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let cap = {
-        let mgate: Rc<MGateObject> = get_kobj!(vpe, src_sel, MGate);
+    let mgate: Rc<MGateObject> = get_kobj!(vpe, src_sel, MGate);
+    if offset + size < offset || offset + size > mgate.size() || size == 0 {
+        sysc_err!(Code::InvArgs, "Size or offset invalid");
+    }
 
-        if offset + size < offset || offset + size > mgate.size() || size == 0 {
-            sysc_err!(Code::InvArgs, "Size or offset invalid");
-        }
-
-        let addr = mgate.addr().raw() + offset as u64;
-        let new_mem = mem::Allocation::new(GlobAddr::new(addr), size);
-        let mgate_obj = MGateObject::new(new_mem, perms & mgate.perms(), true);
-        Capability::new(dst_sel, KObject::MGate(mgate_obj))
-    };
+    let addr = mgate.addr().raw() + offset as u64;
+    let new_mem = mem::Allocation::new(GlobAddr::new(addr), size);
+    let mgate_obj = MGateObject::new(new_mem, perms & mgate.perms(), true);
+    let cap = Capability::new(dst_sel, KObject::MGate(mgate_obj));
 
     tvpe.obj_caps().borrow_mut().insert_as_child(cap, src_sel);
 
@@ -172,17 +166,15 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         sessions: sessions as u64,
     };
 
-    let res = {
-        let label = srvcap.creator() as tcu::Label;
-        klog!(
-            SERV,
-            "Sending DERIVE_CRT(sessions={}) to service {} with creator {}",
-            sessions,
-            srvcap.service().name(),
-            label,
-        );
-        Service::send_receive(srvcap.service(), label, util::object_to_bytes(&smsg))
-    };
+    let label = srvcap.creator() as tcu::Label;
+    klog!(
+        SERV,
+        "Sending DERIVE_CRT(sessions={}) to service {} with creator {}",
+        sessions,
+        srvcap.service().name(),
+        label,
+    );
+    let res = Service::send_receive(srvcap.service(), label, util::object_to_bytes(&smsg));
 
     match res {
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", srvcap.service().name()),
@@ -205,26 +197,22 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
             }
 
             // derive new service object
-            {
-                let cap = Capability::new(
-                    dst_crd.start() + 0,
-                    KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
-                );
-                vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel);
-            }
+            let cap = Capability::new(
+                dst_crd.start() + 0,
+                KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
+            );
+            vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel);
 
             // obtain SendGate from server
-            {
-                let serv_vpe = srvcap.service().vpe();
-                let mut serv_caps = serv_vpe.obj_caps().borrow_mut();
-                let src_cap = serv_caps.get_mut(sgate_sel);
-                match src_cap {
-                    None => sysc_err!(Code::InvArgs, "Service gave invalid SendGate cap"),
-                    Some(c) => vpe
-                        .obj_caps()
-                        .borrow_mut()
-                        .obtain(dst_crd.start() + 1, c, true),
-                }
+            let serv_vpe = srvcap.service().vpe();
+            let mut serv_caps = serv_vpe.obj_caps().borrow_mut();
+            let src_cap = serv_caps.get_mut(sgate_sel);
+            match src_cap {
+                None => sysc_err!(Code::InvArgs, "Service gave invalid SendGate cap"),
+                Some(c) => vpe
+                    .obj_caps()
+                    .borrow_mut()
+                    .obtain(dst_crd.start() + 1, c, true),
             }
         },
     }

@@ -93,12 +93,10 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         GlobAddr::new_with(tgt_vpe.pe_id(), addr)
     };
 
-    {
-        let mem = mem::Allocation::new(glob, size);
-        let cap = Capability::new(dst_sel, KObject::MGate(MGateObject::new(mem, perms, true)));
+    let mem = mem::Allocation::new(glob, size);
+    let cap = Capability::new(dst_sel, KObject::MGate(MGateObject::new(mem, perms, true)));
 
-        vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel);
-    }
+    vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel);
 
     reply_success(msg);
     Ok(())
@@ -162,15 +160,13 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    {
-        let rgate: Rc<RGateObject> = get_kobj!(vpe, rgate_sel, RGate);
-        let cap = Capability::new(
-            dst_sel,
-            KObject::SGate(SGateObject::new(&rgate, label, credits)),
-        );
+    let rgate: Rc<RGateObject> = get_kobj!(vpe, rgate_sel, RGate);
+    let cap = Capability::new(
+        dst_sel,
+        KObject::SGate(SGateObject::new(&rgate, label, credits)),
+    );
 
-        vpe.obj_caps().borrow_mut().insert_as_child(cap, rgate_sel);
-    }
+    vpe.obj_caps().borrow_mut().insert_as_child(cap, rgate_sel);
 
     reply_success(msg);
     Ok(())
@@ -234,13 +230,11 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let cap = {
-        let serv: Rc<ServObject> = get_kobj!(vpe, srv_sel, Serv);
-        Capability::new(
-            dst_sel,
-            KObject::Sess(SessObject::new(&serv, creator, ident)),
-        )
-    };
+    let serv: Rc<ServObject> = get_kobj!(vpe, srv_sel, Serv);
+    let cap = Capability::new(
+        dst_sel,
+        KObject::Sess(SessObject::new(&serv, creator, ident)),
+    );
 
     vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel);
 
@@ -327,16 +321,14 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     let nvpe: Rc<VPE> = vpemng::get().create(name, pe, eps, kmem, VPEFlags::empty())?;
 
     // inherit VPE and EP caps to the parent
-    {
-        for sel in kif::SEL_VPE..cap_count {
-            let mut obj_caps = nvpe.obj_caps().borrow_mut();
-            let cap: Option<&mut Capability> = obj_caps.get_mut(sel);
-            cap.map(|c| {
-                vpe.obj_caps()
-                    .borrow_mut()
-                    .obtain(dst_crd.start() + sel, c, false)
-            });
-        }
+    for sel in kif::SEL_VPE..cap_count {
+        let mut obj_caps = nvpe.obj_caps().borrow_mut();
+        let cap: Option<&mut Capability> = obj_caps.get_mut(sel);
+        cap.map(|c| {
+            vpe.obj_caps()
+                .borrow_mut()
+                .obtain(dst_crd.start() + sel, c, false)
+        });
     }
 
     // activate pager EPs
