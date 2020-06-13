@@ -15,7 +15,7 @@
  */
 
 use base::col::ToString;
-use base::errors::{Code, Error};
+use base::errors::Code;
 use base::goff;
 use base::kif::{self, CapSel};
 use base::rc::{Rc, Weak};
@@ -66,7 +66,9 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
     let pemux = pemng::get().pemux(dst_vpe.pe_id());
     if epid == tcu::EP_COUNT {
-        epid = pemux.find_eps(ep_count)?;
+        epid = pemux.find_eps(ep_count).map_err(|e| {
+            SyscError::new(e.code(), format!("No free EP range for {} EPs", ep_count))
+        })?;
     }
     else {
         if epid > tcu::EP_COUNT || epid as u32 + ep_count > tcu::EP_COUNT as u32 {
@@ -157,10 +159,12 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
     // get service cap
     let mut vpe_caps = vpe.obj_caps().borrow_mut();
-    let srvcap = vpe_caps.get_mut(srv_sel).ok_or(Error::new(Code::InvArgs))?;
+    let srvcap = vpe_caps
+        .get_mut(srv_sel)
+        .ok_or_else(|| SyscError::new(Code::InvArgs, "Invalid capability".to_string()))?;
     let creator = match srvcap.get() {
         KObject::Serv(s) => s.creator(),
-        _ => sysc_err!(Code::InvArgs, "Expected Serv cap"),
+        _ => sysc_err!(Code::InvArgs, "Expected Serv capability"),
     };
 
     // find root service cap
@@ -224,7 +228,12 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             }
             else if gate_object.is_s_gate() {
                 // TODO deactivate?
-                pemux.invalidate_ep(epid, false)?;
+                pemux.invalidate_ep(epid, false).map_err(|e| {
+                    SyscError::new(
+                        e.code(),
+                        format!("Invalidation of EP {}:{} failed", dst_pe, epid),
+                    )
+                })?;
                 invalidated = true;
             }
             // we tell the gate that it's ep is no longer valid
@@ -356,7 +365,12 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         ep.set_gate(go);
     }
     else if !invalidated {
-        pemux.invalidate_ep(epid, true)?;
+        pemux.invalidate_ep(epid, true).map_err(|e| {
+            SyscError::new(
+                e.code(),
+                format!("Invalidation of EP {}:{} failed", dst_pe, epid),
+            )
+        })?;
     }
 
     reply_success(msg);
@@ -414,7 +428,8 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     match op {
         kif::syscalls::VPEOp::INIT => {
             vpecap.set_mem_base(arg as goff);
-            Loader::get().finish_start(&vpecap)?;
+            Loader::get().finish_start(&vpecap)
+                .map_err(|e| SyscError::new(e.code(), "Unable to finish init".to_string()))?;
         },
 
         kif::syscalls::VPEOp::START => {
@@ -422,7 +437,8 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 sysc_err!(Code::InvArgs, "VPE can't start itself");
             }
 
-            VPE::start_app(&vpecap, arg as i32)?;
+            VPE::start_app(&vpecap, arg as i32)
+                .map_err(|e| SyscError::new(e.code(), "Unable to start VPE".to_string()))?;
         },
 
         kif::syscalls::VPEOp::STOP => {

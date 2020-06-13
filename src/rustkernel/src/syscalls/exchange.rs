@@ -15,7 +15,7 @@
  */
 
 use base::col::ToString;
-use base::errors::{Code, Error};
+use base::errors::Code;
 use base::kif::{self, CapRngDesc, CapSel, CapType};
 use base::rc::{Rc, Weak};
 use base::tcu;
@@ -33,23 +33,35 @@ fn do_exchange(
     c1: &kif::CapRngDesc,
     c2: &kif::CapRngDesc,
     obtain: bool,
-) -> Result<(), Error> {
+) -> Result<(), SyscError> {
     let src = if obtain { vpe2 } else { vpe1 };
     let dst = if obtain { vpe1 } else { vpe2 };
     let src_rng = if obtain { c2 } else { c1 };
     let dst_rng = if obtain { c1 } else { c2 };
 
     if vpe1.id() == vpe2.id() {
-        return Err(Error::new(Code::InvArgs));
+        return Err(SyscError::new(
+            Code::InvArgs,
+            "Cannot exchange with same VPE".to_string(),
+        ));
     }
     if c1.cap_type() != c2.cap_type() {
-        return Err(Error::new(Code::InvArgs));
+        return Err(SyscError::new(
+            Code::InvArgs,
+            format!("Cap types differ ({} vs {})", c1.cap_type(), c2.cap_type()),
+        ));
     }
     if (obtain && c2.count() > c1.count()) || (!obtain && c2.count() != c1.count()) {
-        return Err(Error::new(Code::InvArgs));
+        return Err(SyscError::new(
+            Code::InvArgs,
+            format!("Cap counts differ ({} vs {})", c2.count(), c1.count()),
+        ));
     }
     if !dst.obj_caps().borrow().range_unused(dst_rng) {
-        return Err(Error::new(Code::InvArgs));
+        return Err(SyscError::new(
+            Code::InvArgs,
+            "Destination selectors already in use".to_string(),
+        ));
     }
 
     for i in 0..c2.count() {
@@ -140,45 +152,42 @@ pub fn exchange_over_sess(
         serv.service().name(),
         label,
     );
-    let res = Service::send_receive(serv.service(), label, util::object_to_bytes(&smsg));
-
-    match res {
-        Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
-
-        Ok(rmsg) => {
-            let reply: &kif::service::ExchangeReply = get_request(rmsg)?;
-
-            sysc_log!(
-                vpe,
-                "{} continue with res={}",
-                if obtain { "obtain" } else { "delegate" },
-                { reply.res }
-            );
-
-            if reply.res != 0 {
-                sysc_err!(Code::from(reply.res as u32), "Server denied cap exchange");
-            }
-            else {
-                let err = do_exchange(
-                    &vpecap,
-                    &serv.service().vpe(),
-                    &crd,
-                    &CapRngDesc::new_from(reply.data.caps),
-                    obtain,
-                );
-                // TODO improve that
-                if let Err(e) = err {
-                    sysc_err!(e.code(), "Cap exchange failed");
-                }
-            }
-
-            let kreply = kif::syscalls::ExchangeSessReply {
-                error: 0,
-                args: reply.data.args.clone(),
-            };
-            send_reply(msg, &kreply);
+    let rmsg = Service::send_receive(serv.service(), label, util::object_to_bytes(&smsg)).map_err(
+        |e| {
+            SyscError::new(
+                e.code(),
+                format!("Service {} unreachable", serv.service().name()),
+            )
         },
+    )?;
+
+    let reply: &kif::service::ExchangeReply = get_request(rmsg)?;
+
+    sysc_log!(
+        vpe,
+        "{} continue with res={}",
+        if obtain { "obtain" } else { "delegate" },
+        { reply.res }
+    );
+
+    if reply.res != 0 {
+        sysc_err!(Code::from(reply.res as u32), "Server denied cap exchange");
     }
+    else {
+        do_exchange(
+            &vpecap,
+            &serv.service().vpe(),
+            &crd,
+            &CapRngDesc::new_from(reply.data.caps),
+            obtain,
+        )?;
+    }
+
+    let kreply = kif::syscalls::ExchangeSessReply {
+        error: 0,
+        args: reply.data.args.clone(),
+    };
+    send_reply(msg, &kreply);
 
     Ok(())
 }

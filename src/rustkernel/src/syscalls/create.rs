@@ -312,13 +312,17 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // find contiguous space for standard EPs
     let pemux = pemng::get().pemux(pe.pe());
-    let eps = pemux.find_eps(tcu::STD_EPS_COUNT as u32)?;
+    let eps = pemux
+        .find_eps(tcu::STD_EPS_COUNT as u32)
+        .map_err(|e| SyscError::new(e.code(), "No free range for standard EPs".to_string()))?;
     if pemux.has_vpes() && !pe_desc.has_virtmem() {
         sysc_err!(Code::NotSup, "Virtual memory is required for PE sharing");
     }
 
     // create VPE
-    let nvpe: Rc<VPE> = vpemng::get().create(name, pe, eps, kmem, VPEFlags::empty())?;
+    let nvpe: Rc<VPE> = vpemng::get()
+        .create(name, pe, eps, kmem, VPEFlags::empty())
+        .map_err(|e| SyscError::new(e.code(), "Unable to create VPE".to_string()))?;
 
     // inherit VPE and EP caps to the parent
     for sel in kif::SEL_VPE..cap_count {
@@ -454,7 +458,8 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
             pages as usize,
             phys,
             kif::PageFlags::from(perms),
-        )?;
+        )
+        .map_err(|e| SyscError::new(e.code(), "Unable to map memory".to_string()))?;
     }
 
     // create map cap, if not yet existing
