@@ -633,9 +633,13 @@ fn get_sess() {
     let _sess1 = wv_assert_ok!(ServerSession::new(srv.sel(), 0, 0xDEAD_BEEF, false));
     let _sess2 = wv_assert_ok!(ServerSession::new(srv.sel(), 1, 0x1234, false));
 
+    // dummy VPE that should receive the session
+    let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+    let vpe = wv_assert_ok!(VPE::new(pe.clone(), "test"));
+
     // invalid service selector
     wv_assert_err!(
-        syscalls::get_sess(SEL_KMEM, VPE::cur().sel(), sel, 0xDEAD_BEEF),
+        syscalls::get_sess(SEL_KMEM, vpe.sel(), sel, 0xDEAD_BEEF),
         Code::InvArgs
     );
     // invalid VPE selector
@@ -643,26 +647,31 @@ fn get_sess() {
         syscalls::get_sess(srv.sel(), SEL_KMEM, sel, 0xDEAD_BEEF),
         Code::InvArgs
     );
+    // own VPE selector
+    wv_assert_err!(
+        syscalls::get_sess(srv.sel(), VPE::cur().sel(), sel, 0xDEAD_BEEF),
+        Code::InvArgs
+    );
     // invalid destination selector
     wv_assert_err!(
-        syscalls::get_sess(srv.sel(), VPE::cur().sel(), SEL_KMEM, 0xDEAD_BEEF),
+        syscalls::get_sess(srv.sel(), vpe.sel(), SEL_KMEM, 0xDEAD_BEEF),
         Code::InvArgs
     );
     // unknown session
     wv_assert_err!(
-        syscalls::get_sess(srv.sel(), VPE::cur().sel(), sel, 0x2222),
+        syscalls::get_sess(srv.sel(), vpe.sel(), sel, 0x2222),
         Code::InvArgs
     );
     // not our session
     wv_assert_err!(
-        syscalls::get_sess(srv.sel(), VPE::cur().sel(), sel, 0x1234),
+        syscalls::get_sess(srv.sel(), vpe.sel(), sel, 0x1234),
         Code::NoPerm
     );
 
     // success
     wv_assert_ok!(syscalls::get_sess(
         srv.sel(),
-        VPE::cur().sel(),
+        vpe.sel(),
         sel,
         0xDEAD_BEEF
     ));

@@ -965,7 +965,7 @@ void SyscallHandler::get_sess(VPE *vpe, const m3::TCU::Message *msg) {
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Service capability is invalid");
 
     auto vpecap = static_cast<VPECapability*>(vpe->objcaps().get(tvpe, Capability::VIRTPE));
-    if(vpecap == nullptr)
+    if(vpecap == nullptr || vpe == &*vpecap->obj)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid VPE cap");
 
     if(!vpecap->obj->objcaps().unused(dst))

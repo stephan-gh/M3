@@ -156,6 +156,9 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     if !vpecap.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
+    if Rc::ptr_eq(vpe, &vpecap) {
+        sysc_err!(Code::InvArgs, "Cannot get session for own VPE");
+    }
 
     // get service cap
     let mut vpe_caps = vpe.obj_caps().borrow_mut();
