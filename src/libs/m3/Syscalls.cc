@@ -177,7 +177,10 @@ void Syscalls::vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg) {
     req.vpe_sel = vpe;
     req.op = static_cast<xfer_t>(op);
     req.arg = arg;
-    send_receive_throw(&req, sizeof(req));
+    if(vpe == KIF::SEL_VPE && op == KIF::Syscall::VCTRL_STOP)
+        TCUIf::send(_sendgate, &req, sizeof(req), 0, *_sendgate.reply_gate());
+    else
+        send_receive_throw(&req, sizeof(req));
 }
 
 int Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel_t *vpe) {

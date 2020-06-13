@@ -362,7 +362,18 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
         op: op.val,
         arg,
     };
-    send_receive_result(&req)
+    if vpe == kif::SEL_VPE && op == syscalls::VPEOp::STOP {
+        TCUIf::send(
+            &SGATE,
+            &req as *const _ as *const u8,
+            util::size_of_val(&req),
+            0,
+            RecvGate::syscall(),
+        )
+    }
+    else {
+        send_receive_result(&req)
+    }
 }
 
 /// Waits until any of the given VPEs exits.
