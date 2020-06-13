@@ -39,10 +39,8 @@ pub fn deprivilege_pe(_pe: PEId) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn reset_pe(pe: PEId) -> Result<(), Error> {
-    if let Some(v) = vpemng::get().find_vpe(|v| v.pe_id() == pe) {
-        unsafe { libc::kill(v.pid(), libc::SIGKILL); }
-    }
+pub fn reset_pe(_pe: PEId, pid: i32) -> Result<(), Error> {
+    unsafe { libc::kill(pid, libc::SIGKILL); }
     Ok(())
 }
 

@@ -57,7 +57,7 @@ pub fn deprivilege_pe(pe: PEId) -> Result<(), Error> {
     )
 }
 
-pub fn reset_pe(pe: PEId) -> Result<(), Error> {
+pub fn reset_pe(pe: PEId, _pid: i32) -> Result<(), Error> {
     let value = ExtCmdOpCode::RESET.val as Reg;
     do_ext_cmd(pe, value)
 }

@@ -95,7 +95,7 @@ impl PEMng {
         }
 
         if reset && !platform::pe_desc(vpe.pe_id()).is_programmable() {
-            ktcu::reset_pe(vpe.pe_id())
+            ktcu::reset_pe(vpe.pe_id(), vpe.pid())
         }
         else {
             Ok(())

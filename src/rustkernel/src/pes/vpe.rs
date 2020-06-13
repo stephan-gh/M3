@@ -468,7 +468,7 @@ impl Drop for VPE {
         self.revoke_caps(true);
 
         // TODO temporary
-        ktcu::reset_pe(self.pe_id()).unwrap();
+        ktcu::reset_pe(self.pe_id(), self.pid()).unwrap();
 
         klog!(
             VPES,
