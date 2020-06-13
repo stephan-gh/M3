@@ -347,7 +347,6 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             },
 
             _ => {
-                klog!(DEF, "caps={:?}", vpe.obj_caps());
                 sysc_err!(Code::InvArgs, "Invalid capability")
             },
         };
