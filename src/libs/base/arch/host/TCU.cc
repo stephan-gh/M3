@@ -414,7 +414,8 @@ void TCU::handle_msg(size_t len, epid_t ep) {
     const size_t msgord = get_ep(ep, EP_BUF_MSGORDER);
     const size_t msgsize = 1UL << msgord;
     if(len > msgsize) {
-        LLOG(TCUERR, "DMA-error: dropping message because space is not sufficient"
+        LLOG(TCUERR, "DMA-error: dropping message for EP " << ep
+                << " because space is not sufficient"
                 << " (required: " << len << ", available: " << msgsize << ")");
         return;
     }
