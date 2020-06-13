@@ -113,8 +113,8 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         vpe,
         "create_rgate(dst={}, size={:#x}, msg_size={:#x})",
         dst_sel,
-        1 << order,
-        1 << msg_order
+        1u32.checked_shl(order).unwrap_or(0),
+        1u32.checked_shl(msg_order).unwrap_or(0)
     );
 
     if !vpe.obj_caps().borrow().unused(dst_sel) {
