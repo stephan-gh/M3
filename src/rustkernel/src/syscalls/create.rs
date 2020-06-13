@@ -149,7 +149,7 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
     sysc_log!(
         vpe,
-        "create_sgate(dst={}, rgate={}, label={:#x}, credits={:#x})",
+        "create_sgate(dst={}, rgate={}, label={:#x}, credits={})",
         dst_sel,
         rgate_sel,
         label,
