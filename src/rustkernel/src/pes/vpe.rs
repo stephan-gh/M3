@@ -461,6 +461,11 @@ impl Drop for VPE {
     fn drop(&mut self) {
         self.state.set(State::DEAD);
 
+        // free standard EPs
+        let pemux = pemng::get().pemux(self.pe_id());
+        pemux.free_eps(self.eps_start, STD_EPS_COUNT as u32);
+        self.pe.free(STD_EPS_COUNT as u32);
+
         self.revoke_caps(true);
 
         // TODO temporary
