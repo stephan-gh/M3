@@ -177,7 +177,7 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     });
     if let Some(KObject::Sess(s)) = csess.as_mut().map(|c| c.get()) {
         if s.creator() != creator {
-            sysc_err!(Code::InvArgs, "Cannot get access to foreign session");
+            sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
         vpecap
@@ -268,7 +268,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         match kobj {
             KObject::MGate(ref m) => {
                 if m.cgp().get_ep().is_some() {
-                    sysc_err!(Code::InvArgs, "MemGate is already activated");
+                    sysc_err!(Code::Exists, "MemGate is already activated");
                 }
 
                 let pe_id = m.pe_id();
@@ -279,7 +279,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
             KObject::SGate(ref s) => {
                 if s.cgp().get_ep().is_some() {
-                    sysc_err!(Code::InvArgs, "SendGate is already activated");
+                    sysc_err!(Code::Exists, "SendGate is already activated");
                 }
 
                 let rgate: Rc<RGateObject> = s.rgate().clone();
@@ -300,7 +300,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
             KObject::RGate(ref r) => {
                 if r.activated() {
-                    sysc_err!(Code::InvArgs, "RecvGate is already activated");
+                    sysc_err!(Code::Exists, "RecvGate is already activated");
                 }
 
                 // determine receive buffer address
