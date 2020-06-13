@@ -345,11 +345,13 @@ fn create_vpe() {
         Code::InvArgs
     );
 
-    // invalid sgate
-    wv_assert_err!(
-        syscalls::create_vpe(crd, SEL_VPE, INVALID_SEL, "test", pe.sel(), kmem),
-        Code::InvArgs
-    );
+    if VPE::cur().pe_desc().has_virtmem() {
+        // invalid sgate
+        wv_assert_err!(
+            syscalls::create_vpe(crd, SEL_VPE, INVALID_SEL, "test", pe.sel(), kmem),
+            Code::InvArgs
+        );
+    }
 
     // invalid name
     wv_assert_err!(
