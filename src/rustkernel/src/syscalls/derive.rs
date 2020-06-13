@@ -122,7 +122,7 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     }
 
     let mgate: Rc<MGateObject> = get_kobj!(vpe, src_sel, MGate);
-    if offset + size < offset || offset + size > mgate.size() || size == 0 {
+    if offset.checked_add(size).is_none() || offset + size > mgate.size() || size == 0 {
         sysc_err!(Code::InvArgs, "Size or offset invalid");
     }
 

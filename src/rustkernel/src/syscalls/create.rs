@@ -122,7 +122,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
     }
     if order <= 0
         || msg_order <= 0
-        || msg_order + order < msg_order
+        || msg_order.checked_add(order).is_none()
         || msg_order > order
         || order - msg_order >= 32
         || (1 << (order - msg_order)) > cfg::MAX_RB_SIZE
@@ -424,7 +424,11 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     }
 
     let total_pages = (mgate.size() >> cfg::PAGE_BITS) as CapSel;
-    if first + pages <= first || first >= total_pages || first + pages > total_pages {
+    if first.checked_add(pages).is_none()
+        || pages == 0
+        || first >= total_pages
+        || first + pages > total_pages
+    {
         sysc_err!(Code::InvArgs, "Region of memory cap is invalid");
     }
 
