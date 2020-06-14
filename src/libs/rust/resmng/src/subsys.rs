@@ -309,7 +309,11 @@ impl Subsystem {
 
                     // add memory
                     let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem)?;
-                    sub.add_mem(sub_slice.derive()?, sub_slice.offset(), sub_slice.capacity());
+                    sub.add_mem(
+                        sub_slice.derive()?,
+                        sub_slice.offset(),
+                        sub_slice.capacity(),
+                    );
                     pass_down_mem(&mut sub, &cfg)?;
 
                     // add services

@@ -300,14 +300,7 @@ fn create_vpe() {
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::create_vpe(
-            SEL_KMEM,
-            INVALID_SEL,
-            INVALID_SEL,
-            "test",
-            pe.sel(),
-            kmem
-        ),
+        syscalls::create_vpe(SEL_KMEM, INVALID_SEL, INVALID_SEL, "test", pe.sel(), kmem),
         Code::InvArgs
     );
 
@@ -359,8 +352,14 @@ fn alloc_ep() {
     // invalid VPE selector
     wv_assert_err!(syscalls::alloc_ep(sel, SEL_PE, EP_COUNT, 1), Code::InvArgs);
     // invalid reply count
-    wv_assert_err!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, !0), Code::InvArgs);
-    wv_assert_err!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, EP_COUNT as u32), Code::InvArgs);
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, !0),
+        Code::InvArgs
+    );
+    wv_assert_err!(
+        syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, EP_COUNT as u32),
+        Code::InvArgs
+    );
 
     // any EP
     let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT, 1));
@@ -638,12 +637,7 @@ fn get_sess() {
     );
 
     // success
-    wv_assert_ok!(syscalls::get_sess(
-        srv.sel(),
-        vpe.sel(),
-        sel,
-        0xDEAD_BEEF
-    ));
+    wv_assert_ok!(syscalls::get_sess(srv.sel(), vpe.sel(), sel, 0xDEAD_BEEF));
 }
 
 fn kmem_quota() {
