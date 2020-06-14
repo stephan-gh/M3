@@ -18,7 +18,7 @@ use base::cfg;
 use base::col::ToString;
 use base::errors::Code;
 use base::goff;
-use base::kif::{self, CapRngDesc, CapSel};
+use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm, INVALID_SEL, SEL_VPE};
 use base::mem::GlobAddr;
 use base::rc::{Rc, Weak};
 use base::tcu;
@@ -35,12 +35,12 @@ use syscalls::{get_request, reply_success, send_reply, SyscError};
 
 #[inline(never)]
 pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateMGate = get_request(msg)?;
+    let req: &syscalls::CreateMGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
     let addr = req.addr as goff;
     let size = req.size as goff;
-    let perms = kif::Perm::from_bits_truncate(req.perms as u32);
+    let perms = Perm::from_bits_truncate(req.perms as u32);
 
     sysc_log!(
         vpe,
@@ -55,16 +55,22 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
     if !vpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
+    if (addr & cfg::PAGE_MASK as goff) != 0 || (size & cfg::PAGE_MASK as goff) != 0 {
+        sysc_err!(
+            Code::InvArgs,
+            "Virt address and size need to be page-aligned"
+        );
+    }
 
     let tgt_vpe: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
     let tgt_vpe = tgt_vpe.upgrade().unwrap();
 
+    let sel = (addr / cfg::PAGE_SIZE as goff) as CapSel;
     let glob = if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
-        let sel = (addr / cfg::PAGE_SIZE as goff) as CapSel;
         let mapobj = get_mobj!(tgt_vpe, sel, Map);
         // TODO think about the flags in MapObject again
-        let map_perms = kif::Perm::from_bits_truncate(mapobj.flags().bits() as u32);
-        if !(perms & !kif::Perm::RWX).is_empty() || !(perms & !map_perms).is_empty() {
+        let map_perms = Perm::from_bits_truncate(mapobj.flags().bits() as u32);
+        if !(perms & !Perm::RWX).is_empty() || !(perms & !map_perms).is_empty() {
             sysc_err!(Code::NoPerm, "Invalid permissions");
         }
 
@@ -96,7 +102,15 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
     let mem = mem::Allocation::new(glob, size);
     let cap = Capability::new(dst_sel, KObject::MGate(MGateObject::new(mem, perms, true)));
 
-    vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel);
+    if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
+        let map_caps = tgt_vpe.map_caps().borrow_mut();
+        vpe.obj_caps()
+            .borrow_mut()
+            .insert_as_child_from(cap, map_caps, sel);
+    }
+    else {
+        vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel);
+    }
 
     reply_success(msg);
     Ok(())
@@ -104,7 +118,7 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
 #[inline(never)]
 pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateRGate = get_request(msg)?;
+    let req: &syscalls::CreateRGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let order = req.order as u32;
     let msg_order = req.msgorder as u32;
@@ -120,9 +134,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
     if !vpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
-    if order <= 0
-        || msg_order <= 0
-        || msg_order.checked_add(order).is_none()
+    if msg_order.checked_add(order).is_none()
         || msg_order > order
         || order - msg_order >= 32
         || (1 << (order - msg_order)) > cfg::MAX_RB_SIZE
@@ -141,7 +153,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
 #[inline(never)]
 pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSGate = get_request(msg)?;
+    let req: &syscalls::CreateSGate = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
     let label = req.label as tcu::Label;
@@ -174,7 +186,7 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
 #[inline(never)]
 pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSrv = get_request(msg)?;
+    let req: &syscalls::CreateSrv = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
     let creator = req.creator as usize;
@@ -211,19 +223,21 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
 #[inline(never)]
 pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSess = get_request(msg)?;
+    let req: &syscalls::CreateSess = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let srv_sel = req.srv_sel as CapSel;
     let creator = req.creator as usize;
     let ident = req.ident;
+    let auto_close = req.auto_close != 0;
 
     sysc_log!(
         vpe,
-        "create_sess(dst={}, srv={}, creator={}, ident={:#x})",
+        "create_sess(dst={}, srv={}, creator={}, ident={:#x}, auto_close={})",
         dst_sel,
         srv_sel,
         creator,
-        ident
+        ident,
+        auto_close
     );
 
     if !vpe.obj_caps().borrow().unused(dst_sel) {
@@ -231,6 +245,8 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
     }
 
     let serv: Rc<ServObject> = get_kobj!(vpe, srv_sel, Serv);
+    // TODO ensure that only the VPE that created the service can create sessions
+    // TODO implement auto_close
     let cap = Capability::new(
         dst_sel,
         KObject::Sess(SessObject::new(&serv, creator, ident)),
@@ -244,7 +260,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
 
 #[inline(never)]
 pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateVPE = get_request(msg)?;
+    let req: &syscalls::CreateVPE = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let pg_sg_sel = req.pg_sg_sel as CapSel;
     let pg_rg_sel = req.pg_rg_sel as CapSel;
@@ -283,14 +299,14 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     // on VM PEs, we need sgate/rgate caps
     let pe_desc = platform::pe_desc(pe.pe());
     let (_sgate, _rgate) = if pe_desc.has_virtmem() {
-        let sgate = if pg_sg_sel != kif::INVALID_SEL {
+        let sgate = if pg_sg_sel != INVALID_SEL {
             Some(get_kobj!(vpe, pg_sg_sel, SGate))
         }
         else {
             None
         };
 
-        let rgate = if pg_rg_sel != kif::INVALID_SEL {
+        let rgate = if pg_rg_sel != INVALID_SEL {
             let rgate = get_kobj!(vpe, pg_rg_sel, RGate);
             if rgate.activated() {
                 sysc_err!(Code::InvArgs, "Pager rgate already activated");
@@ -326,7 +342,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     // inherit VPE cap to the parent
     {
         let mut nvpe_caps = nvpe.obj_caps().borrow_mut();
-        let cap: Option<&mut Capability> = nvpe_caps.get_mut(kif::SEL_VPE);
+        let cap: Option<&mut Capability> = nvpe_caps.get_mut(SEL_VPE);
         cap.map(|c| vpe.obj_caps().borrow_mut().obtain(dst_sel, c, false));
     }
 
@@ -351,7 +367,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         }
     }
 
-    let kreply = kif::syscalls::CreateVPEReply {
+    let kreply = syscalls::CreateVPEReply {
         error: 0,
         eps_start: eps as u64,
     };
@@ -362,7 +378,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
 #[inline(never)]
 pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateSem = get_request(msg)?;
+    let req: &syscalls::CreateSem = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let value = req.value as u32;
 
@@ -381,13 +397,13 @@ pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
 #[inline(never)]
 pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::CreateMap = get_request(msg)?;
+    let req: &syscalls::CreateMap = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let mgate_sel = req.mgate_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
     let first = req.first as CapSel;
     let pages = req.pages as CapSel;
-    let perms = kif::Perm::from_bits_truncate(req.perms as u32);
+    let perms = Perm::from_bits_truncate(req.perms as u32);
 
     sysc_log!(
         vpe,
@@ -402,8 +418,11 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     let dst_vpe: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
     let dst_vpe = dst_vpe.upgrade().unwrap();
-    let mgate: Rc<MGateObject> = get_kobj!(vpe, mgate_sel, MGate);
+    if !platform::pe_desc(dst_vpe.pe_id()).has_virtmem() {
+        sysc_err!(Code::InvArgs, "PE has no virtual-memory support");
+    }
 
+    let mgate: Rc<MGateObject> = get_kobj!(vpe, mgate_sel, MGate);
     if (mgate.addr().raw() & cfg::PAGE_MASK as goff) != 0
         || (mgate.size() & cfg::PAGE_MASK as goff) != 0
     {
@@ -437,43 +456,39 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         let map_cap: Option<&Capability> = map_caps.get(dst_sel);
         match map_cap {
             Some(c) => {
+                // TODO check for kernel-created caps
                 if c.len() != pages {
                     sysc_err!(Code::InvArgs, "Map cap exists with different page count");
                 }
+
                 (c.get().clone(), true)
             },
-            None => (
-                KObject::Map(MapObject::new(phys, kif::PageFlags::from(perms))),
-                false,
-            ),
+            None => {
+                let range = CapRngDesc::new(CapType::MAPPING, dst_sel, pages);
+                if !map_caps.range_unused(&range) {
+                    sysc_err!(Code::InvArgs, "Capability range {} already in use", range);
+                }
+
+                let kobj = KObject::Map(MapObject::new(phys, PageFlags::from(perms)));
+                (kobj, false)
+            },
         }
     };
 
     // create/update the PTEs
     if let KObject::Map(m) = &map_obj {
-        m.remap(
-            &dst_vpe,
-            virt,
-            phys,
-            pages as usize,
-            kif::PageFlags::from(perms),
-        )
-        .map_err(|e| SyscError::new(e.code(), "Unable to map memory".to_string()))?;
+        m.remap(&dst_vpe, virt, phys, pages as usize, PageFlags::from(perms))
+            .map_err(|e| SyscError::new(e.code(), "Unable to map memory".to_string()))?;
     }
 
     // create map cap, if not yet existing
     if !exists {
         let cap = Capability::new_range(SelRange::new_range(dst_sel, pages), map_obj.clone());
-        if vpe_sel == kif::SEL_VPE {
-            vpe.map_caps().borrow_mut().insert_as_child(cap, mgate_sel);
-        }
-        else {
-            dst_vpe.map_caps().borrow_mut().insert_as_child_from(
-                cap,
-                vpe.obj_caps().borrow_mut(),
-                mgate_sel,
-            );
-        }
+        dst_vpe.map_caps().borrow_mut().insert_as_child_from(
+            cap,
+            vpe.obj_caps().borrow_mut(),
+            mgate_sel,
+        );
     }
 
     reply_success(msg);
