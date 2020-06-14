@@ -231,7 +231,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             }
             else if gate_object.is_s_gate() {
                 // TODO deactivate?
-                pemux.invalidate_ep(epid, false).map_err(|e| {
+                pemux.invalidate_ep(ep.vpe(), epid, false, false).map_err(|e| {
                     SyscError::new(
                         e.code(),
                         format!("Invalidation of EP {}:{} failed", dst_pe, epid),
@@ -367,7 +367,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         ep.set_gate(go);
     }
     else if !invalidated {
-        pemux.invalidate_ep(epid, true).map_err(|e| {
+        pemux.invalidate_ep(ep.vpe(), epid, true, false).map_err(|e| {
             SyscError::new(
                 e.code(),
                 format!("Invalidation of EP {}:{} failed", dst_pe, epid),

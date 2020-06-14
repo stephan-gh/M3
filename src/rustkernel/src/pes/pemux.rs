@@ -281,10 +281,37 @@ impl PEMux {
         })
     }
 
-    pub fn invalidate_ep(&mut self, ep: EpId, force: bool) -> Result<(), Error> {
+    pub fn invalidate_ep(
+        &mut self,
+        vpe: VPEId,
+        ep: EpId,
+        force: bool,
+        notify: bool,
+    ) -> Result<(), Error> {
         klog!(EPS, "PE{}:EP{} = invalid", self.pe_id(), ep);
 
-        ktcu::invalidate_ep_remote(self.pe_id(), ep, force)
+        let unread = ktcu::invalidate_ep_remote(self.pe_id(), ep, force)?;
+        if unread != 0 && notify {
+            let req = kif::pemux::RemMsgs {
+                op: kif::pemux::Upcalls::REM_MSGS.val as u64,
+                vpe_sel: vpe as u64,
+                unread_mask: unread as u64,
+            };
+
+            #[cfg(target_os = "none")]
+            klog!(
+                PEXC,
+                "PEMux[{}] sending RemMsgs(vpe={}, unread={:#x})",
+                self.pe_id(),
+                vpe,
+                unread
+            );
+
+            self.upcall(&req).map(|_| ())
+        }
+        else {
+            Ok(())
+        }
     }
 
     #[cfg(target_os = "none")]

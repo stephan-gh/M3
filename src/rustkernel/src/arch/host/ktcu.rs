@@ -95,9 +95,9 @@ pub fn config_mem(regs: &mut [Reg], _vpe: VPEId, pe: PEId, addr: goff, size: usi
     regs[EpReg::MSGORDER.val as usize] = 0;
 }
 
-pub fn invalidate_ep_remote(pe: PEId, ep: EpId, _force: bool) -> Result<(), Error> {
+pub fn invalidate_ep_remote(pe: PEId, ep: EpId, _force: bool) -> Result<u32, Error> {
     let regs = [0 as Reg; EP_REGS];
-    write_ep_remote(pe, ep, &regs)
+    write_ep_remote(pe, ep, &regs).map(|_| 0)
 }
 
 #[derive(Default)]

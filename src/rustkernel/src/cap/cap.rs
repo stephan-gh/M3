@@ -343,7 +343,7 @@ impl Capability {
         if let Some(ep) = cgp.get_ep() {
             let pemux = pemng::get().pemux(ep.pe_id());
             // if that fails, just ignore it
-            pemux.invalidate_ep(ep.ep(), true).ok();
+            pemux.invalidate_ep(ep.vpe(), ep.ep(), true, true).ok();
             cgp.remove_ep();
         }
     }

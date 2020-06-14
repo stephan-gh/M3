@@ -59,7 +59,7 @@ pub fn deprivilege_pe(pe: PEId) -> Result<(), Error> {
 
 pub fn reset_pe(pe: PEId, _pid: i32) -> Result<(), Error> {
     let value = ExtCmdOpCode::RESET.val as Reg;
-    do_ext_cmd(pe, value)
+    do_ext_cmd(pe, value).map(|_| ())
 }
 
 pub fn config_recv(
@@ -110,9 +110,9 @@ pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
     ktcu::try_write_slice(pe, TCU::ep_regs_addr(ep) as goff, &regs)
 }
 
-pub fn invalidate_ep_remote(pe: PEId, ep: EpId, force: bool) -> Result<(), Error> {
+pub fn invalidate_ep_remote(pe: PEId, ep: EpId, force: bool) -> Result<u32, Error> {
     let reg = ExtCmdOpCode::INV_EP.val | (ep << 8) as Reg | ((force as Reg) << 24);
-    do_ext_cmd(pe, reg)
+    do_ext_cmd(pe, reg).map(|unread| unread as u32)
 }
 
 pub fn read_obj<T>(pe: PEId, addr: goff) -> T {
@@ -195,6 +195,12 @@ pub fn copy(
     Ok(())
 }
 
-fn do_ext_cmd(pe: PEId, cmd: Reg) -> Result<(), Error> {
-    ktcu::try_write_slice(pe, TCU::ext_reg_addr(ExtReg::EXT_CMD) as goff, &[cmd])
+fn do_ext_cmd(pe: PEId, cmd: Reg) -> Result<Reg, Error> {
+    let addr = TCU::ext_reg_addr(ExtReg::EXT_CMD) as goff;
+    ktcu::try_write_slice(pe, addr, &[cmd])?;
+    let res: Reg = ktcu::try_read_obj(pe, addr)?;
+    match (res >> 4) & 0xF {
+        0 => Ok(res >> 8),
+        e => Err(Error::from(e as u32))
+    }
 }
