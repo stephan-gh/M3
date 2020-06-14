@@ -17,6 +17,7 @@
 use m3::cap::Selector;
 use m3::cfg::PAGE_SIZE;
 use m3::com::{MemGate, RecvGate, SendGate};
+use m3::cpu;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::syscalls::{SemOp, VPEOp};
@@ -137,10 +138,10 @@ fn create_mgate() {
             Code::InvArgs
         );
         // and respect the permissions
-        let addr = &create_mgate as *const _ as goff;
+        let addr = cpu::get_sp() as goff;
         let addr = math::round_dn(addr, PAGE_SIZE as goff);
         wv_assert_err!(
-            syscalls::create_mgate(sel, SEL_VPE, addr, PAGE_SIZE as goff, Perm::W),
+            syscalls::create_mgate(sel, SEL_VPE, addr, PAGE_SIZE as goff, Perm::X),
             Code::NoPerm
         );
 
