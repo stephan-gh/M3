@@ -151,7 +151,7 @@ pub struct CreateMap {
 #[repr(C, packed)]
 pub struct CreateVPE {
     pub opcode: u64,
-    pub dst_crd: u64,
+    pub dst_sel: u64,
     pub pg_sg_sel: u64,
     pub pg_rg_sel: u64,
     pub pe_sel: u64,

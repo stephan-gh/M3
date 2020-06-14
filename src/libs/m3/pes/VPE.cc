@@ -70,7 +70,7 @@ VPE::VPE()
 }
 
 VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
-    : ObjCap(VIRTPE, VPE::self().alloc_sels(KIF::FIRST_FREE_SEL) + KIF::SEL_VPE),
+    : ObjCap(VIRTPE, VPE::self().alloc_sel()),
       _pe(pe),
       _kmem(args._kmem ? args._kmem : VPE::self().kmem()),
       _next_sel(KIF::FIRST_FREE_SEL),
@@ -92,10 +92,9 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
             throw Exception(Errors::NOT_SUP);
     }
 
-    KIF::CapRngDesc dst(KIF::CapRngDesc::OBJ, sel() - KIF::SEL_VPE, KIF::FIRST_FREE_SEL);
     if(_pager) {
         // now create VPE, which implicitly obtains the gate cap from us
-        _eps_start = Syscalls::create_vpe(dst, _pager->child_sgate().sel(),
+        _eps_start = Syscalls::create_vpe(sel(), _pager->child_sgate().sel(),
                                           _pager->child_rgate().sel(),
                                           name, pe->sel(), _kmem->sel());
         // mark the send gate cap allocated
@@ -106,7 +105,7 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
         delegate_obj(_pager->sel());
     }
     else {
-        _eps_start = Syscalls::create_vpe(dst, ObjCap::INVALID, ObjCap::INVALID,
+        _eps_start = Syscalls::create_vpe(sel(), ObjCap::INVALID, ObjCap::INVALID,
                                           name, pe->sel(), _kmem->sel());
     }
     _next_sel = Math::max(_kmem->sel() + 1, _next_sel);

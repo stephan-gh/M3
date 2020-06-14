@@ -20,7 +20,7 @@ use m3::com::{MemGate, RecvGate, SendGate};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::syscalls::{SemOp, VPEOp};
-use m3::kif::{CapRngDesc, CapType, Perm, FIRST_FREE_SEL, INVALID_SEL, SEL_KMEM, SEL_PE, SEL_VPE};
+use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL, SEL_KMEM, SEL_PE, SEL_VPE};
 use m3::math;
 use m3::pes::{VPEArgs, PE, VPE};
 use m3::server::{Handler, Server, SessId, SessionContainer};
@@ -290,52 +290,17 @@ fn create_map() {
 
 #[allow(clippy::cognitive_complexity)]
 fn create_vpe() {
-    let cap_count = FIRST_FREE_SEL;
-    let sels = VPE::cur().alloc_sels(cap_count);
-    let crd = CapRngDesc::new(CapType::OBJECT, sels, cap_count);
+    let sel = VPE::cur().alloc_sel();
     let rgate = wv_assert_ok!(RecvGate::new(10, 10));
     let sgate = wv_assert_ok!(SendGate::new(&rgate));
     let kmem = VPE::cur().kmem().sel();
 
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
 
-    // invalid dest caps
+    // invalid dest selector
     wv_assert_err!(
         syscalls::create_vpe(
-            CapRngDesc::new(CapType::OBJECT, SEL_VPE, cap_count),
-            INVALID_SEL,
-            INVALID_SEL,
-            "test",
-            pe.sel(),
-            kmem
-        ),
-        Code::InvArgs
-    );
-    wv_assert_err!(
-        syscalls::create_vpe(
-            CapRngDesc::new(CapType::OBJECT, sels, 0),
-            INVALID_SEL,
-            INVALID_SEL,
-            "test",
-            pe.sel(),
-            kmem
-        ),
-        Code::InvArgs
-    );
-    wv_assert_err!(
-        syscalls::create_vpe(
-            CapRngDesc::new(CapType::OBJECT, sels, cap_count - 1),
-            INVALID_SEL,
-            INVALID_SEL,
-            "test",
-            pe.sel(),
-            kmem
-        ),
-        Code::InvArgs
-    );
-    wv_assert_err!(
-        syscalls::create_vpe(
-            CapRngDesc::new(CapType::OBJECT, sels, !0),
+            SEL_KMEM,
             INVALID_SEL,
             INVALID_SEL,
             "test",
@@ -348,24 +313,24 @@ fn create_vpe() {
     if VPE::cur().pe_desc().has_virtmem() {
         // invalid sgate
         wv_assert_err!(
-            syscalls::create_vpe(crd, SEL_VPE, INVALID_SEL, "test", pe.sel(), kmem),
+            syscalls::create_vpe(sel, SEL_VPE, INVALID_SEL, "test", pe.sel(), kmem),
             Code::InvArgs
         );
     }
 
     // invalid name
     wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "", pe.sel(), kmem),
+        syscalls::create_vpe(sel, sgate.sel(), INVALID_SEL, "", pe.sel(), kmem),
         Code::InvArgs
     );
 
     // invalid kmem
     wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pe.sel(), INVALID_SEL),
+        syscalls::create_vpe(sel, sgate.sel(), INVALID_SEL, "test", pe.sel(), INVALID_SEL),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::create_vpe(crd, sgate.sel(), INVALID_SEL, "test", pe.sel(), SEL_VPE),
+        syscalls::create_vpe(sel, sgate.sel(), INVALID_SEL, "test", pe.sel(), SEL_VPE),
         Code::InvArgs
     );
 }

@@ -207,7 +207,7 @@ pub fn create_map(
 /// On success, the function returns the EP id of the first standard EP.
 #[allow(clippy::too_many_arguments)]
 pub fn create_vpe(
-    dst: CapRngDesc,
+    dst: Selector,
     pg_sg: Selector,
     pg_rg: Selector,
     name: &str,
@@ -217,7 +217,7 @@ pub fn create_vpe(
     #[allow(clippy::uninit_assumed_init)]
     let mut req = syscalls::CreateVPE {
         opcode: syscalls::Operation::CREATE_VPE.val,
-        dst_crd: dst.value(),
+        dst_sel: u64::from(dst),
         pg_sg_sel: u64::from(pg_sg),
         pg_rg_sel: u64::from(pg_rg),
         pe_sel: u64::from(pe),

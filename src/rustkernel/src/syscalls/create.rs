@@ -245,7 +245,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
 #[inline(never)]
 pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &kif::syscalls::CreateVPE = get_request(msg)?;
-    let dst_crd = CapRngDesc::new_from(req.dst_crd);
+    let dst_sel = req.dst_sel as CapSel;
     let pg_sg_sel = req.pg_sg_sel as CapSel;
     let pg_rg_sel = req.pg_rg_sel as CapSel;
     let pe_sel = req.pe_sel as CapSel;
@@ -255,7 +255,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     sysc_log!(
         vpe,
         "create_vpe(dst={}, pg_sg={}, pg_rg={}, name={}, pe={}, kmem={})",
-        dst_crd,
+        dst_sel,
         pg_sg_sel,
         pg_rg_sel,
         name,
@@ -263,9 +263,8 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         kmem_sel
     );
 
-    let cap_count = kif::FIRST_FREE_SEL;
-    if dst_crd.count() != cap_count || !vpe.obj_caps().borrow().range_unused(&dst_crd) {
-        sysc_err!(Code::InvArgs, "Selectors {} already in use", dst_crd);
+    if !vpe.obj_caps().borrow().unused(dst_sel) {
+        sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
     if name.len() == 0 {
         sysc_err!(Code::InvArgs, "Invalid name");
@@ -324,15 +323,11 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         .create_vpe(name, pe, eps, kmem, VPEFlags::empty())
         .map_err(|e| SyscError::new(e.code(), "Unable to create VPE".to_string()))?;
 
-    // inherit VPE and EP caps to the parent
-    for sel in kif::SEL_VPE..cap_count {
-        let mut obj_caps = nvpe.obj_caps().borrow_mut();
-        let cap: Option<&mut Capability> = obj_caps.get_mut(sel);
-        cap.map(|c| {
-            vpe.obj_caps()
-                .borrow_mut()
-                .obtain(dst_crd.start() + sel, c, false)
-        });
+    // inherit VPE cap to the parent
+    {
+        let mut nvpe_caps = nvpe.obj_caps().borrow_mut();
+        let cap: Option<&mut Capability> = nvpe_caps.get_mut(kif::SEL_VPE);
+        cap.map(|c| vpe.obj_caps().borrow_mut().obtain(dst_sel, c, false));
     }
 
     // activate pager EPs

@@ -319,7 +319,7 @@ void SyscallHandler::create_sgate(VPE *vpe, const m3::TCU::Message *msg) {
 
 void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::CreateVPE>(msg);
-    m3::KIF::CapRngDesc dst(req->dst_crd);
+    capsel_t dst = req->dst_sel;
     capsel_t pg_sg = req->pg_sg_sel;
     capsel_t pg_rg = req->pg_rg_sel;
     capsel_t pe = req->pe_sel;
@@ -330,8 +330,8 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
         << ", pg_rg=" << pg_rg << ", name=" << name << ", pe=" << pe << ", kmem=" << kmem << ")");
 
     capsel_t capnum = m3::KIF::FIRST_FREE_SEL;
-    if(dst.count() != capnum || !vpe->objcaps().range_unused(dst))
-        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid destination CRD");
+    if(!vpe->objcaps().unused(dst))
+        SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid destination selector");
     if(name.length() == 0)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid name");
 
@@ -381,9 +381,8 @@ void SyscallHandler::create_vpe(VPE *vpe, const m3::TCU::Message *msg) {
     if(nvpe == nullptr)
         SYS_ERROR(vpe, msg, m3::Errors::NO_FREE_PE, "No free and suitable PE found");
 
-    // inherit VPE, mem, and EP caps to the parent
-    for(capsel_t i = m3::KIF::SEL_VPE; i < capnum; ++i)
-        vpe->objcaps().obtain(dst.start() + i, nvpe->objcaps().get(i));
+    // inherit VPE cap to the parent
+    vpe->objcaps().obtain(dst, nvpe->objcaps().get(m3::KIF::SEL_VPE));
 
     // activate pager EPs
     if(pg_sg != m3::KIF::INV_SEL) {

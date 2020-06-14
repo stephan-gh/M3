@@ -247,7 +247,7 @@ struct KIF {
         } PACKED;
 
         struct CreateVPE : public DefaultRequest {
-            xfer_t dst_crd;
+            xfer_t dst_sel;
             xfer_t pg_sg_sel;
             xfer_t pg_rg_sel;
             xfer_t pe_sel;

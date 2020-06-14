@@ -142,10 +142,10 @@ impl VPE {
     /// Creates a new `VPE` on PE `pe` with given arguments. The VPE provides access to the PE and
     /// allows to run an activity on the PE.
     pub fn new_with(pe: Rc<PE>, args: VPEArgs) -> Result<Self, Error> {
-        let sels = VPE::cur().alloc_sels(kif::FIRST_FREE_SEL);
+        let sel = VPE::cur().alloc_sel();
 
         let mut vpe = VPE {
-            cap: Capability::new(sels + kif::SEL_VPE, CapFlags::empty()),
+            cap: Capability::new(sel, CapFlags::empty()),
             pe: pe.clone(),
             kmem: args.kmem.unwrap_or_else(|| VPE::cur().kmem.clone()),
             rmng: None,
@@ -172,14 +172,13 @@ impl VPE {
             None
         };
 
-        let crd = CapRngDesc::new(CapType::OBJECT, sels, kif::FIRST_FREE_SEL);
         vpe.pager = if let Some(mut pg) = pager {
             let sgate_sel = pg.child_sgate().sel();
             let rgate_sel = pg.child_rgate().sel();
 
             // now create VPE, which implicitly obtains the gate cap from us
             vpe.eps_start = syscalls::create_vpe(
-                crd,
+                sel,
                 sgate_sel,
                 rgate_sel,
                 args.name,
@@ -197,7 +196,7 @@ impl VPE {
         }
         else {
             vpe.eps_start = syscalls::create_vpe(
-                crd,
+                sel,
                 INVALID_SEL,
                 INVALID_SEL,
                 args.name,

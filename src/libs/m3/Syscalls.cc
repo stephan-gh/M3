@@ -117,11 +117,11 @@ void Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t f
     send_receive_throw(&req, sizeof(req));
 }
 
-epid_t Syscalls::create_vpe(const KIF::CapRngDesc &dst, capsel_t pg_sg, capsel_t pg_rg,
+epid_t Syscalls::create_vpe(capsel_t dst, capsel_t pg_sg, capsel_t pg_rg,
                             const String &name, capsel_t pe, capsel_t kmem) {
     KIF::Syscall::CreateVPE req;
     req.opcode = KIF::Syscall::CREATE_VPE;
-    req.dst_crd = dst.value();
+    req.dst_sel = dst;
     req.pg_sg_sel = pg_sg;
     req.pg_rg_sel = pg_rg;
     req.pe_sel = pe;
