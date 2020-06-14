@@ -156,29 +156,16 @@ pub fn handle(msg: &'static tcu::Message) {
     };
 
     if let Err(e) = res {
-        if e.msg.len() == 0 {
-            klog!(
-                ERR,
-                "\x1B[37;41m{}:{}@{}: {:?} failed: {:?}\x1B[0m",
-                vpe.id(),
-                vpe.name(),
-                vpe.pe_id(),
-                kif::syscalls::Operation::from(req.opcode),
-                e.code
-            );
-        }
-        else {
-            klog!(
-                ERR,
-                "\x1B[37;41m{}:{}@{}: {:?} failed: {} ({:?})\x1B[0m",
-                vpe.id(),
-                vpe.name(),
-                vpe.pe_id(),
-                kif::syscalls::Operation::from(req.opcode),
-                e.msg,
-                e.code
-            );
-        }
+        klog!(
+            ERR,
+            "\x1B[37;41m{}:{}@{}: {:?} failed: {} ({:?})\x1B[0m",
+            vpe.id(),
+            vpe.name(),
+            vpe.pe_id(),
+            kif::syscalls::Operation::from(req.opcode),
+            e.msg,
+            e.code
+        );
 
         reply_result(msg, e.code as u64);
     }
