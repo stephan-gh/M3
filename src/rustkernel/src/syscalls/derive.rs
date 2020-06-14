@@ -116,7 +116,7 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     );
 
     let tvpe = get_kobj!(vpe, vpe_sel, VPE);
-    let tvpe = tvpe.upgrade().expect("Should be valid");
+    let tvpe = tvpe.upgrade().unwrap();
     if !tvpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
@@ -196,14 +196,7 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
                 sysc_err!(Code::from(res as u32), "Server denied session derivation");
             }
 
-            // derive new service object
-            let cap = Capability::new(
-                dst_crd.start() + 0,
-                KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
-            );
-            vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel);
-
-            // obtain SendGate from server
+            // obtain SendGate from server (do that first because it can fail)
             let serv_vpe = srvcap.service().vpe();
             let mut serv_caps = serv_vpe.obj_caps().borrow_mut();
             let src_cap = serv_caps.get_mut(sgate_sel);
@@ -214,6 +207,13 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
                     .borrow_mut()
                     .obtain(dst_crd.start() + 1, c, true),
             }
+
+            // derive new service object
+            let cap = Capability::new(
+                dst_crd.start() + 0,
+                KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
+            );
+            vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel);
         },
     }
 
