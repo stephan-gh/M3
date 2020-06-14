@@ -17,12 +17,12 @@
 use base::col::ToString;
 use base::errors::Code;
 use base::kif::{service, syscalls, CapRngDesc, CapSel, CapType, SEL_VPE};
-use base::rc::{Rc, Weak};
+use base::rc::Rc;
 use base::tcu;
 use base::util;
 
 use cap::KObject;
-use cap::{ServObject, SessObject};
+use cap::ServObject;
 use com::Service;
 use pes::VPE;
 use syscalls::{get_request, reply_success, send_reply, SyscError};
@@ -92,9 +92,7 @@ pub fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         obtain
     );
 
-    let vpecap: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
-    let vpecap = vpecap.upgrade().unwrap();
-
+    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
     do_exchange(vpe, &vpecap, &own_crd, &other_crd, obtain)?;
 
     reply_success(msg);
@@ -128,9 +126,8 @@ pub fn exchange_over_sess(
         crd
     );
 
-    let vpecap: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
-    let vpecap = vpecap.upgrade().unwrap();
-    let sess: Rc<SessObject> = get_kobj!(vpe, sess_sel, Sess);
+    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
+    let sess = get_kobj!(vpe, sess_sel, Sess);
 
     let smsg = service::Exchange {
         opcode,
@@ -197,18 +194,8 @@ pub fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
         sysc_err!(Code::InvArgs, "Cap 0, 1, and 2 are not revokeable");
     }
 
-    let kobj = match vpe.obj_caps().borrow().get(vpe_sel) {
-        Some(c) => c.get().clone(),
-        None => sysc_err!(Code::InvArgs, "Invalid capability"),
-    };
-
-    if let KObject::VPE(ref v) = kobj {
-        let v = v.upgrade().unwrap();
-        VPE::revoke(&v, crd, own);
-    }
-    else {
-        sysc_err!(Code::InvArgs, "Invalid capability");
-    }
+    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
+    VPE::revoke(&vpecap, crd, own);
 
     reply_success(msg);
     Ok(())

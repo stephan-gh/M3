@@ -81,7 +81,7 @@ pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let kmem: Rc<KMemObject> = get_kobj!(vpe, kmem_sel, KMEM);
+    let kmem = get_kobj!(vpe, kmem_sel, KMEM);
     if !kmem.has_quota(quota) {
         sysc_err!(Code::NoSpace, "Insufficient quota");
     }
@@ -115,13 +115,12 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         perms
     );
 
-    let tvpe = get_kobj!(vpe, vpe_sel, VPE);
-    let tvpe = tvpe.upgrade().unwrap();
+    let tvpe = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
     if !tvpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let mgate: Rc<MGateObject> = get_kobj!(vpe, src_sel, MGate);
+    let mgate = get_kobj!(vpe, src_sel, MGate);
     if offset.checked_add(size).is_none() || offset + size > mgate.size() || size == 0 {
         sysc_err!(Code::InvArgs, "Size or offset invalid");
     }
@@ -159,7 +158,7 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         sysc_err!(Code::InvArgs, "Invalid session count");
     }
 
-    let srvcap: Rc<ServObject> = get_kobj!(vpe, srv_sel, Serv);
+    let srvcap = get_kobj!(vpe, srv_sel, Serv);
 
     let smsg = kif::service::DeriveCreator {
         opcode: kif::service::Operation::DERIVE_CRT.val as u64,

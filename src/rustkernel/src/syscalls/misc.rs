@@ -18,14 +18,14 @@ use base::col::ToString;
 use base::errors::Code;
 use base::goff;
 use base::kif::{self, CapSel};
-use base::rc::{Rc, Weak};
+use base::rc::Rc;
 use base::tcu;
 use core::mem::MaybeUninit;
 use thread;
 
 use arch::loader::Loader;
 use cap::{Capability, KObject};
-use cap::{EPObject, GateObject, KMemObject, RGateObject, SemObject};
+use cap::{EPObject, GateObject, RGateObject, SemObject};
 use ktcu;
 use pes::VPE;
 use pes::{pemng, vpemng};
@@ -57,8 +57,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     }
 
     let ep_count = 1 + replies;
-    let dst_vpe: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
-    let dst_vpe = dst_vpe.upgrade().unwrap();
+    let dst_vpe = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
     if !dst_vpe.pe().has_quota(ep_count) {
         sysc_err!(
             Code::NoSpace,
@@ -111,7 +110,7 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     sysc_log!(vpe, "kmem_quota(kmem={})", kmem_sel);
 
-    let kmem: Rc<KMemObject> = get_kobj!(vpe, kmem_sel, KMEM);
+    let kmem = get_kobj!(vpe, kmem_sel, KMEM);
 
     let kreply = kif::syscalls::KMemQuotaReply {
         error: 0,
@@ -155,8 +154,7 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         sid
     );
 
-    let vpecap: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
-    let vpecap = vpecap.upgrade().unwrap();
+    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
     if !vpecap.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
@@ -217,7 +215,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         rbuf_off,
     );
 
-    let ep: Rc<EPObject> = get_kobj!(vpe, ep_sel, EP);
+    let ep = get_kobj!(vpe, ep_sel, EP);
 
     // VPE that is currently active on the endpoint
     let vpe_ref = vpemng::get().vpe(ep.vpe()).unwrap();
@@ -426,8 +424,7 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         arg
     );
 
-    let vpecap: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
-    let vpecap = vpecap.upgrade().unwrap();
+    let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
 
     match op {
         kif::syscalls::VPEOp::INIT => {

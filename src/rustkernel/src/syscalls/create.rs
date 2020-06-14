@@ -20,7 +20,7 @@ use base::errors::Code;
 use base::goff;
 use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm, INVALID_SEL, SEL_VPE};
 use base::mem::GlobAddr;
-use base::rc::{Rc, Weak};
+use base::rc::Rc;
 use base::tcu;
 use core::intrinsics;
 
@@ -62,8 +62,7 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         );
     }
 
-    let tgt_vpe: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
-    let tgt_vpe = tgt_vpe.upgrade().unwrap();
+    let tgt_vpe = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
 
     let sel = (addr / cfg::PAGE_SIZE as goff) as CapSel;
     let glob = if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
@@ -172,7 +171,7 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let rgate: Rc<RGateObject> = get_kobj!(vpe, rgate_sel, RGate);
+    let rgate = get_kobj!(vpe, rgate_sel, RGate);
     let cap = Capability::new(
         dst_sel,
         KObject::SGate(SGateObject::new(&rgate, label, credits)),
@@ -208,7 +207,7 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         sysc_err!(Code::InvArgs, "Invalid server name");
     }
 
-    let rgate: Rc<RGateObject> = get_kobj!(vpe, rgate_sel, RGate);
+    let rgate = get_kobj!(vpe, rgate_sel, RGate);
     if !rgate.activated() {
         sysc_err!(Code::InvArgs, "RGate is not activated");
     }
@@ -244,7 +243,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let serv: Rc<ServObject> = get_kobj!(vpe, srv_sel, Serv);
+    let serv = get_kobj!(vpe, srv_sel, Serv);
     // TODO ensure that only the VPE that created the service can create sessions
     // TODO implement auto_close
     let cap = Capability::new(
@@ -416,13 +415,12 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         perms
     );
 
-    let dst_vpe: Weak<VPE> = get_kobj!(vpe, vpe_sel, VPE);
-    let dst_vpe = dst_vpe.upgrade().unwrap();
+    let dst_vpe = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
     if !platform::pe_desc(dst_vpe.pe_id()).has_virtmem() {
         sysc_err!(Code::InvArgs, "PE has no virtual-memory support");
     }
 
-    let mgate: Rc<MGateObject> = get_kobj!(vpe, mgate_sel, MGate);
+    let mgate = get_kobj!(vpe, mgate_sel, MGate);
     if (mgate.addr().raw() & cfg::PAGE_MASK as goff) != 0
         || (mgate.size() & cfg::PAGE_MASK as goff) != 0
     {
