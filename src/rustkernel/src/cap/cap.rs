@@ -248,6 +248,10 @@ impl Capability {
         &mut self.obj
     }
 
+    pub fn has_parent(&self) -> bool {
+        self.parent.is_some()
+    }
+
     pub fn inherit(&mut self, child: &mut Capability) {
         unsafe {
             child.parent = Some(as_shared(self));

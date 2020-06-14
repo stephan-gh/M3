@@ -241,19 +241,26 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
         auto_close
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    let mut obj_caps = vpe.obj_caps().borrow_mut();
+    if !obj_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let serv = get_kobj!(vpe, srv_sel, Serv);
-    // TODO ensure that only the VPE that created the service can create sessions
+    let serv_cap = obj_caps
+        .get(srv_sel)
+        .ok_or_else(|| SyscError::new(Code::InvArgs, "Invalid capability".to_string()))?;
+    if serv_cap.has_parent() {
+        sysc_err!(Code::InvArgs, "Only the service owner can create sessions");
+    }
+
+    let serv = as_obj!(serv_cap.get(), Serv);
     // TODO implement auto_close
     let cap = Capability::new(
         dst_sel,
         KObject::Sess(SessObject::new(&serv, creator, ident)),
     );
 
-    vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel);
+    obj_caps.insert_as_child(cap, srv_sel);
 
     reply_success(msg);
     Ok(())
