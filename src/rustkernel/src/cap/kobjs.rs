@@ -69,8 +69,8 @@ pub struct CommonGateProperties {
 }
 
 impl CommonGateProperties {
-    fn new() -> CommonGateProperties {
-        CommonGateProperties { ep: Weak::new() }
+    fn new() -> Self {
+        Self { ep: Weak::new() }
     }
 
     pub fn get_ep(&self) -> Option<Rc<EPObject>> {
@@ -180,17 +180,17 @@ impl GateObject {
     /// to the corresponding gate type.
     pub fn remove_ep(&self) {
         match self {
-            GateObject::RGate(g) => {
+            Self::RGate(g) => {
                 if let Some(g) = g.upgrade() {
                     g.cgp.borrow_mut().remove_ep()
                 }
             },
-            GateObject::SGate(g) => {
+            Self::SGate(g) => {
                 if let Some(g) = g.upgrade() {
                     g.cgp.borrow_mut().remove_ep()
                 }
             },
-            GateObject::MGate(g) => {
+            Self::MGate(g) => {
                 if let Some(g) = g.upgrade() {
                     g.cgp.borrow_mut().remove_ep()
                 }
@@ -209,7 +209,7 @@ pub struct RGateObject {
 
 impl RGateObject {
     pub fn new(order: u32, msg_order: u32) -> Rc<Self> {
-        Rc::new(RGateObject {
+        Rc::new(Self {
             cgp: RefCell::from(CommonGateProperties::new()),
             loc: Cell::from(None),
             addr: Cell::from(0),
@@ -307,7 +307,7 @@ pub struct SGateObject {
 
 impl SGateObject {
     pub fn new(rgate: &Rc<RGateObject>, label: Label, credits: u32) -> Rc<Self> {
-        Rc::new(SGateObject {
+        Rc::new(Self {
             cgp: RefCell::from(CommonGateProperties::new()),
             rgate: Rc::downgrade(rgate),
             label,
@@ -353,7 +353,7 @@ pub struct MGateObject {
 
 impl MGateObject {
     pub fn new(mem: mem::Allocation, perms: kif::Perm, derived: bool) -> Rc<Self> {
-        Rc::new(MGateObject {
+        Rc::new(Self {
             cgp: RefCell::from(CommonGateProperties::new()),
             mem,
             perms,
@@ -421,7 +421,7 @@ pub struct ServObject {
 
 impl ServObject {
     pub fn new(serv: Rc<Service>, owner: bool, creator: usize) -> Rc<Self> {
-        Rc::new(ServObject {
+        Rc::new(Self {
             serv,
             owner,
             creator,
@@ -455,7 +455,7 @@ pub struct SessObject {
 
 impl SessObject {
     pub fn new(srv: &Rc<ServObject>, creator: usize, ident: u64) -> Rc<Self> {
-        Rc::new(SessObject {
+        Rc::new(Self {
             srv: Rc::downgrade(srv),
             creator,
             ident,
@@ -493,13 +493,13 @@ pub struct SemObject {
 
 impl SemObject {
     pub fn new(counter: u32) -> Rc<Self> {
-        Rc::new(SemObject {
+        Rc::new(Self {
             counter: Cell::from(counter),
             waiters: Cell::from(0),
         })
     }
 
-    pub fn down(sem: &Rc<SemObject>) -> Result<(), Error> {
+    pub fn down(sem: &Rc<Self>) -> Result<(), Error> {
         while unsafe { ptr::read_volatile(sem.counter.as_ptr()) } == 0 {
             sem.waiters.set(sem.waiters.get() + 1);
             let event = sem.get_event();
@@ -551,7 +551,7 @@ pub struct PEObject {
 
 impl PEObject {
     pub fn new(pe: PEId, eps: u32) -> Rc<Self> {
-        Rc::new(PEObject {
+        Rc::new(Self {
             pe,
             eps: Cell::from(eps),
             vpes: 0,
@@ -622,7 +622,7 @@ pub struct EPObject {
 impl EPObject {
     pub fn new(is_std: bool, vpe: VPEId, ep: EpId, replies: u32, pe: &Rc<PEObject>) -> Rc<Self> {
         // TODO add to VPE
-        Rc::new(EPObject {
+        Rc::new(Self {
             is_std,
             gate: RefCell::from(None),
             vpe,
@@ -696,7 +696,7 @@ pub struct KMemObject {
 
 impl KMemObject {
     pub fn new(quota: usize) -> Rc<Self> {
-        Rc::new(KMemObject { quota, left: quota })
+        Rc::new(Self { quota, left: quota })
     }
 
     pub fn left(&self) -> usize {
@@ -728,7 +728,7 @@ pub struct MapObject {
 
 impl MapObject {
     pub fn new(glob: GlobAddr, flags: kif::PageFlags) -> Rc<Self> {
-        Rc::new(MapObject {
+        Rc::new(Self {
             glob: Cell::from(glob),
             flags: Cell::from(flags),
             mapped: Cell::from(false),
