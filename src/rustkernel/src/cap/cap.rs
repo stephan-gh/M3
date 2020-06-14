@@ -337,8 +337,8 @@ impl Capability {
         unsafe { &mut *self.table.unwrap().as_ptr() }
     }
 
-    fn vpe(&self) -> Rc<VPE> {
-        self.table().vpe.upgrade().unwrap()
+    fn vpe(&self) -> Option<Rc<VPE>> {
+        self.table().vpe.upgrade()
     }
 
     fn invalidate_ep(mut cgp: RefMut<CommonGateProperties>, foreign: bool) {
@@ -393,7 +393,12 @@ impl Capability {
             KObject::Map(ref m) => {
                 if m.mapped() {
                     let virt = (self.sel() as goff) << cfg::PAGE_BITS;
-                    m.unmap(&self.vpe(), virt, self.len() as usize);
+                    // TODO currently, it can happen that we've already stopped the VPE, but still
+                    // accept/continue a syscall that inserts something into the VPE's table. So,
+                    // be careful here that the VPE can be None.
+                    if let Some(vpe) = self.vpe() {
+                        m.unmap(&vpe, virt, self.len() as usize);
+                    }
                 }
             },
 
@@ -433,7 +438,7 @@ impl fmt::Debug for Capability {
         write!(
             f,
             "Cap[vpe={}, sel={}, len={}, obj={:?}]",
-            self.vpe().id(),
+            self.vpe().unwrap().id(),
             self.sel(),
             self.len(),
             self.obj
