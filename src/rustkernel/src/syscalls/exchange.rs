@@ -16,7 +16,7 @@
 
 use base::col::ToString;
 use base::errors::Code;
-use base::kif::{self, CapRngDesc, CapSel, CapType};
+use base::kif::{service, syscalls, CapRngDesc, CapSel, CapType, SEL_VPE};
 use base::rc::{Rc, Weak};
 use base::tcu;
 use base::util;
@@ -30,8 +30,8 @@ use syscalls::{get_request, reply_success, send_reply, SyscError};
 fn do_exchange(
     vpe1: &Rc<VPE>,
     vpe2: &Rc<VPE>,
-    c1: &kif::CapRngDesc,
-    c2: &kif::CapRngDesc,
+    c1: &CapRngDesc,
+    c2: &CapRngDesc,
     obtain: bool,
 ) -> Result<(), SyscError> {
     let src = if obtain { vpe2 } else { vpe1 };
@@ -77,7 +77,7 @@ fn do_exchange(
 
 #[inline(never)]
 pub fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::Exchange = get_request(msg)?;
+    let req: &syscalls::Exchange = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let own_crd = CapRngDesc::new_from(req.own_crd);
     let other_crd = CapRngDesc::new(own_crd.cap_type(), req.other_sel as CapSel, own_crd.count());
@@ -107,15 +107,22 @@ pub fn exchange_over_sess(
     msg: &'static tcu::Message,
     obtain: bool,
 ) -> Result<(), SyscError> {
-    let req: &kif::syscalls::ExchangeSess = get_request(msg)?;
+    let req: &syscalls::ExchangeSess = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let sess_sel = req.sess_sel as CapSel;
     let crd = CapRngDesc::new_from(req.crd);
 
+    let (name, opcode) = if obtain {
+        ("obtain", service::Operation::OBTAIN.val as u64)
+    }
+    else {
+        ("delegate", service::Operation::DELEGATE.val as u64)
+    };
+
     sysc_log!(
         vpe,
         "{}(vpe={}, sess={}, crd={})",
-        if obtain { "obtain" } else { "delegate" },
+        name,
         vpe_sel,
         sess_sel,
         crd
@@ -125,15 +132,10 @@ pub fn exchange_over_sess(
     let vpecap = vpecap.upgrade().unwrap();
     let sess: Rc<SessObject> = get_kobj!(vpe, sess_sel, Sess);
 
-    let smsg = kif::service::Exchange {
-        opcode: if obtain {
-            kif::service::Operation::OBTAIN.val as u64
-        }
-        else {
-            kif::service::Operation::DELEGATE.val as u64
-        },
+    let smsg = service::Exchange {
+        opcode,
         sess: sess.ident(),
-        data: kif::service::ExchangeData {
+        data: service::ExchangeData {
             caps: crd.count() as u64,
             args: req.args.clone(),
         },
@@ -145,7 +147,7 @@ pub fn exchange_over_sess(
     klog!(
         SERV,
         "Sending {}(sess={:#x}, caps={}, args={}B) to service {} with creator {}",
-        if obtain { "OBTAIN" } else { "DELEGATE" },
+        name,
         sess.ident(),
         crd.count(),
         { req.args.bytes },
@@ -161,29 +163,19 @@ pub fn exchange_over_sess(
         },
     )?;
 
-    let reply: &kif::service::ExchangeReply = get_request(rmsg)?;
+    let reply: &service::ExchangeReply = get_request(rmsg)?;
 
-    sysc_log!(
-        vpe,
-        "{} continue with res={}",
-        if obtain { "obtain" } else { "delegate" },
-        { reply.res }
-    );
+    sysc_log!(vpe, "{} continue with res={}", name, { reply.res });
 
     if reply.res != 0 {
         sysc_err!(Code::from(reply.res as u32), "Server denied cap exchange");
     }
     else {
-        do_exchange(
-            &vpecap,
-            &serv.service().vpe(),
-            &crd,
-            &CapRngDesc::new_from(reply.data.caps),
-            obtain,
-        )?;
+        let srv_crd = CapRngDesc::new_from(reply.data.caps);
+        do_exchange(&vpecap, &serv.service().vpe(), &crd, &srv_crd, obtain)?;
     }
 
-    let kreply = kif::syscalls::ExchangeSessReply {
+    let kreply = syscalls::ExchangeSessReply {
         error: 0,
         args: reply.data.args.clone(),
     };
@@ -194,14 +186,14 @@ pub fn exchange_over_sess(
 
 #[inline(never)]
 pub fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
-    let req: &kif::syscalls::Revoke = get_request(msg)?;
+    let req: &syscalls::Revoke = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let crd = CapRngDesc::new_from(req.crd);
     let own = req.own == 1;
 
     sysc_log!(vpe, "revoke(vpe={}, crd={}, own={})", vpe_sel, crd, own);
 
-    if crd.cap_type() == CapType::OBJECT && crd.start() <= kif::SEL_VPE {
+    if crd.cap_type() == CapType::OBJECT && crd.start() <= SEL_VPE {
         sysc_err!(Code::InvArgs, "Cap 0, 1, and 2 are not revokeable");
     }
 
