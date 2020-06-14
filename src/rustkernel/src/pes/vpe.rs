@@ -417,8 +417,8 @@ impl VPE {
             else {
                 vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
                 pemng::get().stop_vpe(&vpe, false, true).unwrap();
+                ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
             }
-            ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
         }
     }
 
@@ -430,6 +430,19 @@ impl VPE {
         }
 
         // TODO force-invalidate all EPs of this VPE
+
+        #[cfg(target_os = "none")]
+        {
+            let pemux = pemng::get().pemux(vpe.pe_id());
+            // TODO force-invalidate *all* EPs of this VPE
+            for ep in vpe.eps_start..vpe.eps_start + STD_EPS_COUNT {
+                // ignore failures
+                pemux.invalidate_ep(vpe.id(), ep, true, false).ok();
+            }
+        }
+
+        // make sure that we don't get further syscalls by this VPE
+        ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
 
         vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
         vpe.exit_code.set(Some(exit_code));
