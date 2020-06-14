@@ -485,7 +485,7 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // create/update the PTEs
     if let KObject::Map(m) = &map_obj {
-        m.remap(&dst_vpe, virt, phys, pages as usize, PageFlags::from(perms))
+        m.map(&dst_vpe, virt, phys, pages as usize, PageFlags::from(perms))
             .map_err(|e| SyscError::new(e.code(), "Unable to map memory".to_string()))?;
     }
 

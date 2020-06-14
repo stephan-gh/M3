@@ -185,10 +185,6 @@ impl RGateObject {
         self.addr.replace(addr);
     }
 
-    pub fn adjust_rbuf(&self, base: goff) {
-        self.addr.set(self.addr() + base);
-    }
-
     pub fn deactivate(&self) {
         self.addr.set(0);
         self.loc.set(None);
@@ -669,23 +665,7 @@ impl MapObject {
         self.flags.get()
     }
 
-    pub fn remap(
-        &self,
-        vpe: &Rc<VPE>,
-        virt: goff,
-        glob: GlobAddr,
-        pages: usize,
-        flags: kif::PageFlags,
-    ) -> Result<(), Error> {
-        self.map(vpe, virt, glob, pages, flags).and_then(|_| {
-            self.glob.replace(glob);
-            self.flags.replace(flags);
-            self.mapped.set(true);
-            Ok(())
-        })
-    }
-
-    fn map(
+    pub fn map(
         &self,
         vpe: &Rc<VPE>,
         virt: goff,
@@ -694,7 +674,12 @@ impl MapObject {
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
         let pemux = pemng::get().pemux(vpe.pe_id());
-        pemux.map(vpe.id(), virt, glob, pages, flags)
+        pemux.map(vpe.id(), virt, glob, pages, flags).and_then(|_| {
+            self.glob.replace(glob);
+            self.flags.replace(flags);
+            self.mapped.set(true);
+            Ok(())
+        })
     }
 
     pub fn unmap(&self, vpe: &Rc<VPE>, virt: goff, pages: usize) {
