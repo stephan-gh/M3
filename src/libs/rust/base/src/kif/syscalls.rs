@@ -27,6 +27,9 @@ pub const MAX_STR_SIZE: usize = 64;
 /// The maximum number of arguments for the exchange syscalls
 pub const MAX_EXCHG_ARGS: usize = 8;
 
+/// The maximum number of VPEs one can wait for
+pub const MAX_WAIT_VPES: usize = 48;
+
 int_enum! {
     /// The system calls
     pub struct Operation : u64 {
@@ -226,7 +229,7 @@ pub struct VPEWait {
     pub opcode: u64,
     pub vpe_count: u64,
     pub event: u64,
-    pub sels: [u64; 48],
+    pub sels: [u64; MAX_WAIT_VPES],
 }
 
 /// The VPE wait reply message

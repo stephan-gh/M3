@@ -357,6 +357,9 @@ fn alloc_ep() {
     );
     // invalid VPE selector
     wv_assert_err!(syscalls::alloc_ep(sel, SEL_PE, EP_COUNT, 1), Code::InvArgs);
+    // invalid reply count
+    wv_assert_err!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, !0), Code::InvArgs);
+    wv_assert_err!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, EP_COUNT as u32), Code::InvArgs);
 
     // any EP
     let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT, 1));

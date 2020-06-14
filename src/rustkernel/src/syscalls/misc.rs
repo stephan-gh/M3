@@ -20,6 +20,7 @@ use base::goff;
 use base::kif::{self, CapSel};
 use base::rc::{Rc, Weak};
 use base::tcu;
+use core::mem::MaybeUninit;
 use thread;
 
 use arch::loader::Loader;
@@ -50,6 +51,9 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
     if !vpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
+    }
+    if replies >= tcu::EP_COUNT as u32 {
+        sysc_err!(Code::InvArgs, "Invalid reply count ({})", replies);
     }
 
     let ep_count = 1 + replies;
@@ -226,27 +230,27 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     if ep.has_gate() {
         // we get the gate_object that is currently active on the ep_object
         if let Some(gate_object) = &*ep.get_gate() {
+            if !gate_object.is_m_gate() {
+                pemux
+                    .invalidate_ep(ep.vpe(), epid, false, false)
+                    .map_err(|e| {
+                        SyscError::new(
+                            e.code(),
+                            format!("Invalidation of EP {}:{} failed", dst_pe, epid),
+                        )
+                    })?;
+                invalidated = true;
+            }
+
             if gate_object.is_r_gate() {
                 gate_object.get_r_gate().deactivate();
             }
-            else if gate_object.is_s_gate() {
-                // TODO deactivate?
-                pemux.invalidate_ep(ep.vpe(), epid, false, false).map_err(|e| {
-                    SyscError::new(
-                        e.code(),
-                        format!("Invalidation of EP {}:{} failed", dst_pe, epid),
-                    )
-                })?;
-                invalidated = true;
-            }
+
             // we tell the gate that it's ep is no longer valid
             gate_object.remove_ep();
         }
 
-        // to this after gate_object (a Ref<>) is dead! Otherwise can't delete this
-        // because it is already borrowed!
-
-        // we remove the gate currently active on this EP
+        // remove the currently active gate from this EP
         ep.remove_gate();
     }
 
@@ -349,9 +353,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 }
             },
 
-            _ => {
-                sysc_err!(Code::InvArgs, "Invalid capability")
-            },
+            _ => sysc_err!(Code::InvArgs, "Invalid capability"),
         };
 
         // create a gate object from the kobj
@@ -367,12 +369,14 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         ep.set_gate(go);
     }
     else if !invalidated {
-        pemux.invalidate_ep(ep.vpe(), epid, true, false).map_err(|e| {
-            SyscError::new(
-                e.code(),
-                format!("Invalidation of EP {}:{} failed", dst_pe, epid),
-            )
-        })?;
+        pemux
+            .invalidate_ep(ep.vpe(), epid, true, false)
+            .map_err(|e| {
+                SyscError::new(
+                    e.code(),
+                    format!("Invalidation of EP {}:{} failed", dst_pe, epid),
+                )
+            })?;
     }
 
     reply_success(msg);
@@ -402,7 +406,7 @@ pub fn sem_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             }
         },
 
-        _ => panic!("VPEOp unsupported: {:?}", op),
+        _ => sysc_err!(Code::InvArgs, "VPEOp unsupported: {:?}", op),
     }
 
     reply_success(msg);
@@ -430,7 +434,8 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     match op {
         kif::syscalls::VPEOp::INIT => {
             vpecap.set_mem_base(arg as goff);
-            Loader::get().finish_start(&vpecap)
+            Loader::get()
+                .finish_start(&vpecap)
                 .map_err(|e| SyscError::new(e.code(), "Unable to finish init".to_string()))?;
         },
 
@@ -452,7 +457,7 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             }
         },
 
-        _ => panic!("VPEOp unsupported: {:?}", op),
+        _ => sysc_err!(Code::InvArgs, "VPEOp unsupported: {:?}", op),
     };
 
     reply_success(msg);
@@ -478,13 +483,17 @@ pub fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         exitcode: 0,
     };
 
+    // copy the message to somewhere else to ensure that we can still access it after reply
+    let mut sels_cpy: [u64; kif::syscalls::MAX_WAIT_VPES] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+    sels_cpy.copy_from_slice(sels);
+
     if event != 0 {
         // early-reply to the application; we'll notify it later via upcall
         send_reply(msg, &reply);
     }
 
-    // TODO copy the message to somewhere else to ensure that we can still access it after reply
-    if !VPE::wait_exit_async(vpe, sels, &mut reply) && event == 0 {
+    if !VPE::wait_exit_async(vpe, &sels_cpy, &mut reply) && event == 0 {
         sysc_err!(Code::InvArgs, "Sync wait while async wait in progress");
     }
 
