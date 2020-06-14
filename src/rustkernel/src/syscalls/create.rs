@@ -321,7 +321,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // create VPE
     let nvpe: Rc<VPE> = vpemng::get()
-        .create(name, pe, eps, kmem, VPEFlags::empty())
+        .create_vpe(name, pe, eps, kmem, VPEFlags::empty())
         .map_err(|e| SyscError::new(e.code(), "Unable to create VPE".to_string()))?;
 
     // inherit VPE and EP caps to the parent

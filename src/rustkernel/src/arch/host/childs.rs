@@ -88,7 +88,7 @@ fn kill_vpe(pid: libc::pid_t, status: i32) {
             if let Some(v) = vpe {
                 // only remove the VPE if it has an app; otherwise the kernel sent the signal
                 if v.has_app() {
-                    vpemng::get().remove(v.id());
+                    vpemng::get().remove_vpe(v.id());
                 }
             }
         }

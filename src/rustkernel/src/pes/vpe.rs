@@ -395,7 +395,7 @@ impl VPE {
         vpe.pid.set(pid);
         vpe.flags.set(vpe.flags.get() | VPEFlags::HASAPP);
 
-        pemng::get().start_vpe(&vpe)
+        vpemng::get().start_vpe(&vpe)
     }
 
     pub fn stop_app(vpe: &Rc<Self>, exit_code: i32, is_self: bool) {
@@ -416,7 +416,7 @@ impl VPE {
             }
             else {
                 vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
-                pemng::get().stop_vpe(&vpe, false, true).unwrap();
+                vpemng::get().stop_vpe(&vpe, false, true).unwrap();
                 ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
             }
         }
@@ -447,7 +447,7 @@ impl VPE {
         vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
         vpe.exit_code.set(Some(exit_code));
 
-        pemng::get().stop_vpe(&vpe, false, false).unwrap();
+        vpemng::get().stop_vpe(&vpe, false, false).unwrap();
 
         vpe.revoke_caps(false);
 
@@ -456,7 +456,7 @@ impl VPE {
 
         // if it's a boot module, there is nobody waiting for it; just remove it
         if vpe.is_bootmod() {
-            vpemng::get().remove(vpe.id());
+            vpemng::get().remove_vpe(vpe.id());
         }
     }
 

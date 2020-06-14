@@ -365,7 +365,7 @@ impl Capability {
                 if let Some(v) = v.upgrade() {
                     if self.parent.is_none() && !v.is_bootmod() {
                         let id = v.id();
-                        vpemng::get().remove(id);
+                        vpemng::get().remove_vpe(id);
                     }
                 }
             },

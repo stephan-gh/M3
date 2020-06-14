@@ -26,6 +26,7 @@ use base::rc::Rc;
 use base::tcu;
 
 use cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
+use ktcu;
 use mem::{self, Allocation};
 use pes::pemng;
 use pes::{VPEFlags, VPEId, VPE};
@@ -66,7 +67,7 @@ impl VPEMng {
         self.vpes[id].as_ref().map(|v| v.clone())
     }
 
-    pub fn get_id(&mut self) -> Result<usize, Error> {
+    fn get_id(&mut self) -> Result<usize, Error> {
         for id in self.next_id..MAX_VPES {
             if self.vpes[id].is_none() {
                 self.next_id = id + 1;
@@ -84,7 +85,7 @@ impl VPEMng {
         Err(Error::new(Code::NoSpace))
     }
 
-    pub fn create(
+    pub fn create_vpe(
         &mut self,
         name: &str,
         pe: Rc<PEObject>,
@@ -101,13 +102,48 @@ impl VPEMng {
 
         pemng::get().pemux(pe_id).add_vpe(id);
         if flags.is_empty() {
-            pemng::get().init_vpe(&vpe).unwrap();
+            self.init_vpe(&vpe).unwrap();
         }
 
         let res = vpe.clone();
         self.vpes[id] = Some(vpe);
         self.count += 1;
         Ok(res)
+    }
+
+    fn init_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
+        if platform::pe_desc(vpe.pe_id()).supports_pemux() {
+            pemng::get().pemux(vpe.pe_id())
+                .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::INIT)?;
+        }
+
+        VPE::init(vpe)
+    }
+
+    pub fn start_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
+        if platform::pe_desc(vpe.pe_id()).supports_pemux() {
+            pemng::get().pemux(vpe.pe_id()).vpe_ctrl(
+                vpe.id(),
+                vpe.eps_start(),
+                kif::pemux::VPEOp::START,
+            )?;
+        }
+
+        VPE::start(&vpe)
+    }
+
+    pub fn stop_vpe(&mut self, vpe: &Rc<VPE>, stop: bool, reset: bool) -> Result<(), Error> {
+        if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
+            pemng::get().pemux(vpe.pe_id())
+                .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::STOP)?;
+        }
+
+        if reset && !platform::pe_desc(vpe.pe_id()).is_programmable() {
+            ktcu::reset_pe(vpe.pe_id(), vpe.pid().unwrap_or(0))
+        }
+        else {
+            Ok(())
+        }
     }
 
     pub fn start_root(&mut self) -> Result<(), Error> {
@@ -123,7 +159,7 @@ impl VPEMng {
 
         let kmem = KMemObject::new(mem::KERNEL_MEM - cfg::FIXED_KMEM);
         let vpe = self
-            .create(
+            .create_vpe(
                 "root",
                 pemux.pe().clone(),
                 tcu::FIRST_USER_EP,
@@ -185,11 +221,11 @@ impl VPEMng {
         vpe.set_first_sel(sel);
 
         // go!
-        pemng::get().init_vpe(&vpe)?;
+        self.init_vpe(&vpe)?;
         VPE::start_app(&vpe, None)
     }
 
-    pub fn remove(&mut self, id: VPEId) {
+    pub fn remove_vpe(&mut self, id: VPEId) {
         // Replace item at position
         // https://stackoverflow.com/questions/33204273/how-can-i-take-ownership-of-a-vec-element-and-replace-it-with-something-else
         let vpe: Option<Rc<VPE>> = core::mem::replace(&mut self.vpes[id], None);

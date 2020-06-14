@@ -16,13 +16,11 @@
 
 use base::cell::StaticCell;
 use base::col::Vec;
-use base::errors::Error;
 use base::kif;
-use base::rc::Rc;
 use base::tcu::PEId;
 
 use arch::ktcu;
-use pes::{PEMux, VPE};
+use pes::PEMux;
 use platform;
 
 pub struct PEMng {
@@ -65,41 +63,6 @@ impl PEMng {
         }
 
         None
-    }
-
-    pub fn init_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
-        if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            self.pemux(vpe.pe_id())
-                .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::INIT)?;
-        }
-
-        VPE::init(vpe)
-    }
-
-    pub fn start_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
-        if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            self.pemux(vpe.pe_id()).vpe_ctrl(
-                vpe.id(),
-                vpe.eps_start(),
-                kif::pemux::VPEOp::START,
-            )?;
-        }
-
-        VPE::start(&vpe)
-    }
-
-    pub fn stop_vpe(&mut self, vpe: &Rc<VPE>, stop: bool, reset: bool) -> Result<(), Error> {
-        if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            self.pemux(vpe.pe_id())
-                .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::STOP)?;
-        }
-
-        if reset && !platform::pe_desc(vpe.pe_id()).is_programmable() {
-            ktcu::reset_pe(vpe.pe_id(), vpe.pid().unwrap_or(0))
-        }
-        else {
-            Ok(())
-        }
     }
 
     fn deprivilege_pes() {
