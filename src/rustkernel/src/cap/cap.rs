@@ -381,8 +381,10 @@ impl Capability {
             },
 
             KObject::Map(ref m) => {
-                let virt = (self.sel() as goff) << cfg::PAGE_BITS;
-                m.unmap(&self.vpe(), virt, self.len() as usize);
+                if m.mapped() {
+                    let virt = (self.sel() as goff) << cfg::PAGE_BITS;
+                    m.unmap(&self.vpe(), virt, self.len() as usize);
+                }
             },
 
             KObject::Sem(ref s) => {

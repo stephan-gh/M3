@@ -723,6 +723,7 @@ impl fmt::Debug for KMemObject {
 pub struct MapObject {
     glob: Cell<GlobAddr>,
     flags: Cell<kif::PageFlags>,
+    mapped: Cell<bool>,
 }
 
 impl MapObject {
@@ -730,7 +731,12 @@ impl MapObject {
         Rc::new(MapObject {
             glob: Cell::from(glob),
             flags: Cell::from(flags),
+            mapped: Cell::from(false),
         })
+    }
+
+    pub fn mapped(&self) -> bool {
+        self.mapped.get()
     }
 
     pub fn global(&self) -> GlobAddr {
@@ -745,18 +751,19 @@ impl MapObject {
         &self,
         vpe: &Rc<VPE>,
         virt: goff,
-        pages: usize,
         glob: GlobAddr,
+        pages: usize,
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
         self.map(vpe, virt, glob, pages, flags).and_then(|_| {
             self.glob.replace(glob);
             self.flags.replace(flags);
+            self.mapped.set(true);
             Ok(())
         })
     }
 
-    pub fn map(
+    fn map(
         &self,
         vpe: &Rc<VPE>,
         virt: goff,

@@ -459,8 +459,8 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         m.remap(
             &dst_vpe,
             virt,
-            pages as usize,
             phys,
+            pages as usize,
             kif::PageFlags::from(perms),
         )
         .map_err(|e| SyscError::new(e.code(), "Unable to map memory".to_string()))?;
