@@ -65,7 +65,6 @@ macro_rules! get_obj {
             Some(c) => c.get().clone(),
             None => sysc_err!(Code::InvArgs, "Invalid capability"),
         };
-        // TODO wasn't there a crate that allows to use just "if" for that?
         match kobj {
             KObject::$ty(k) => k,
             _ => sysc_err!(Code::InvArgs, "Expected {:?} cap", stringify!($ty)),
