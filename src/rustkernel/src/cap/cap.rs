@@ -159,11 +159,11 @@ impl CapTable {
         for sel in crd.start()..crd.start() + crd.count() {
             self.get_mut(sel).map(|cap| {
                 if own {
-                    cap.revoke(false);
+                    cap.revoke(false, false);
                 }
                 else {
                     unsafe {
-                        cap.child.map(|child| (*child.as_ptr()).revoke(true));
+                        cap.child.map(|child| (*child.as_ptr()).revoke(true, true));
                     }
                 }
             });
@@ -175,7 +175,9 @@ impl CapTable {
 
         while let Some(cap) = self.caps.get_root_mut() {
             if all || cap.sel() >= FIRST_FREE_SEL {
-                cap.revoke(false);
+                // on revoke_all, we consider all revokes foreign to notify about invalidate send gates
+                // in any case. on explicit revokes, we only do that if it's a derived cap.
+                cap.revoke(false, true);
             }
             else {
                 // remove from tree and insert them later
@@ -289,7 +291,7 @@ impl Capability {
         None
     }
 
-    fn revoke(&mut self, rev_next: bool) {
+    fn revoke(&mut self, rev_next: bool, foreign: bool) {
         unsafe {
             if let Some(n) = self.next {
                 (*n.as_ptr()).prev = self.prev;
@@ -303,12 +305,12 @@ impl Capability {
                     *child = self.next;
                 }
             }
-            self.revoke_rec(rev_next);
+            self.revoke_rec(rev_next, foreign);
         }
     }
 
-    fn revoke_rec(&mut self, rev_next: bool) {
-        self.release();
+    fn revoke_rec(&mut self, rev_next: bool, foreign: bool) {
+        self.release(foreign);
 
         unsafe {
             // remove it from the table
@@ -316,12 +318,12 @@ impl Capability {
             let cap = self.table_mut().caps.remove(&sels).unwrap();
 
             if let Some(c) = cap.child {
-                (*c.as_ptr()).revoke_rec(true);
+                (*c.as_ptr()).revoke_rec(true, true);
             }
             // on the first level, we don't want to revoke siblings
             if rev_next {
                 if let Some(n) = cap.next {
-                    (*n.as_ptr()).revoke_rec(true);
+                    (*n.as_ptr()).revoke_rec(true, true);
                 }
             }
         }
@@ -339,16 +341,24 @@ impl Capability {
         self.table().vpe.upgrade().unwrap()
     }
 
-    fn invalidate_ep(mut cgp: RefMut<CommonGateProperties>) {
+    fn invalidate_ep(mut cgp: RefMut<CommonGateProperties>, foreign: bool) {
         if let Some(ep) = cgp.get_ep() {
             let pemux = pemng::get().pemux(ep.pe_id());
             // if that fails, just ignore it
             pemux.invalidate_ep(ep.vpe(), ep.ep(), true, true).ok();
+
+            // notify PEMux about the invalidation if it's not a self-invalidation (technically,
+            // <foreign> indicates whether we're in the first level of revoke, but since it is just a
+            // notification, we can ignore the case that someone delegated a cap to itself).
+            if foreign {
+                pemux.notify_invalidate(ep.vpe(), ep.ep()).ok();
+            }
+
             cgp.remove_ep();
         }
     }
 
-    fn release(&mut self) {
+    fn release(&mut self, foreign: bool) {
         match self.obj {
             KObject::VPE(ref v) => {
                 // remove VPE if we revoked the root capability
@@ -361,15 +371,15 @@ impl Capability {
             },
 
             KObject::SGate(ref mut o) => {
-                Self::invalidate_ep(o.cgp_mut());
+                Self::invalidate_ep(o.cgp_mut(), foreign);
             },
 
             KObject::RGate(ref mut o) => {
-                Self::invalidate_ep(o.cgp_mut());
+                Self::invalidate_ep(o.cgp_mut(), false);
             },
 
             KObject::MGate(ref mut o) => {
-                Self::invalidate_ep(o.cgp_mut());
+                Self::invalidate_ep(o.cgp_mut(), false);
             },
 
             KObject::Serv(ref s) => {

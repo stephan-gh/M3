@@ -448,6 +448,40 @@ impl PEMux {
     }
 
     #[cfg(target_os = "none")]
+    pub fn notify_invalidate(&mut self, vpe: VPEId, ep: EpId) -> Result<(), Error> {
+        use base::util;
+        use pes::vpemng;
+
+        // if the VPE has no app anymore, don't send the notify
+        if !vpemng::get().vpe(vpe).map(|v| v.has_app()).unwrap_or(false) {
+            return Ok(());
+        }
+
+        let req = kif::pemux::EpInval {
+            op: kif::pemux::Upcalls::EP_INVAL.val as u64,
+            vpe_sel: vpe as u64,
+            ep: ep as u64,
+        };
+
+        klog!(
+            PEXC,
+            "PEMux[{}] sending EpInval(vpe={}, ep={})",
+            self.pe_id(),
+            vpe,
+            ep
+        );
+
+        self.queue
+            .send(tcu::PEXUP_REP, 0, util::object_to_bytes(&req))
+            .map(|_| ())
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn notify_invalidate(&mut self, _vpe: VPEId, _ep: EpId) -> Result<(), Error> {
+        Ok(())
+    }
+
+    #[cfg(target_os = "none")]
     fn upcall<R>(&mut self, req: &R) -> Result<&'static kif::pemux::Response, Error> {
         use base::util;
 
@@ -464,6 +498,11 @@ impl PEMux {
         else {
             Err(Error::new(Code::from(reply.error as u32)))
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn upcall<R>(&mut self, _req: &R) -> Result<&'static kif::pemux::Response, Error> {
+        Err(Error::new(Code::NotSup))
     }
 
     #[cfg(target_os = "linux")]
