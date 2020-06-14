@@ -167,10 +167,7 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let srvcap = vpe_caps
         .get_mut(srv_sel)
         .ok_or_else(|| SyscError::new(Code::InvArgs, "Invalid capability".to_string()))?;
-    let creator = match srvcap.get() {
-        KObject::Serv(s) => s.creator(),
-        _ => sysc_err!(Code::InvArgs, "Expected Serv capability"),
-    };
+    let creator = as_obj!(srvcap.get(), Serv).creator();
 
     // find root service cap
     let srv_root = srvcap.get_root();

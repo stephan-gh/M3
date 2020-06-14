@@ -59,16 +59,22 @@ macro_rules! get_kobj {
         get_obj!($vpe, $sel, $ty, obj_caps)
     };
 }
+#[macro_export]
+macro_rules! as_obj {
+    ($kobj:expr, $ty:ident) => {
+        match $kobj {
+            KObject::$ty(k) => k,
+            _ => sysc_err!(Code::InvArgs, "Expected {:?} cap", stringify!($ty)),
+        }
+    }
+}
 macro_rules! get_obj {
     ($vpe:expr, $sel:expr, $ty:ident, $table:tt) => {{
         let kobj = match $vpe.$table().borrow().get($sel) {
             Some(c) => c.get().clone(),
             None => sysc_err!(Code::InvArgs, "Invalid capability"),
         };
-        match kobj {
-            KObject::$ty(k) => k,
-            _ => sysc_err!(Code::InvArgs, "Expected {:?} cap", stringify!($ty)),
-        }
+        as_obj!(kobj, $ty)
     }};
 }
 

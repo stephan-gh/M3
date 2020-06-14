@@ -66,25 +66,27 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
     let sel = (addr / cfg::PAGE_SIZE as goff) as CapSel;
     let glob = if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
-        let mapobj = get_mobj!(tgt_vpe, sel, Map);
+        let map_caps = tgt_vpe.map_caps().borrow();
+        let map_cap = map_caps
+            .get(sel)
+            .ok_or_else(|| SyscError::new(Code::InvArgs, "Invalid capability".to_string()))?;
+        let map_obj = as_obj!(map_cap.get(), Map);
+
         // TODO think about the flags in MapObject again
-        let map_perms = Perm::from_bits_truncate(mapobj.flags().bits() as u32);
+        let map_perms = Perm::from_bits_truncate(map_obj.flags().bits() as u32);
         if !(perms & !Perm::RWX).is_empty() || !(perms & !map_perms).is_empty() {
             sysc_err!(Code::NoPerm, "Invalid permissions");
         }
 
-        let pages = size / cfg::PAGE_SIZE as goff;
-        // TODO validate whether the MapObject starts at sel
-        // let off = (addr / cfg::PAGE_SIZE as goff) as CapSel - sel;
-        if pages == 0
-        /*|| off + pages > mapobj.len()*/
-        {
+        let pages = (size / cfg::PAGE_SIZE as goff) as CapSel;
+        let off = (addr / cfg::PAGE_SIZE as goff) as CapSel - map_cap.sel();
+        if pages == 0 || off + pages > map_cap.len() {
             sysc_err!(Code::InvArgs, "Invalid length");
         }
 
         #[cfg(target_os = "none")]
         {
-            let off = paging::glob_to_phys(mapobj.global().raw());
+            let off = paging::glob_to_phys(map_obj.global().raw());
             GlobAddr::new_with(tgt_vpe.pe_id(), off)
         }
         #[cfg(target_os = "linux")]
@@ -455,6 +457,7 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         match map_cap {
             Some(c) => {
                 // TODO check for kernel-created caps
+                // TODO we have to update MemGates that are childs of this cap
                 if c.len() != pages {
                     sysc_err!(Code::InvArgs, "Map cap exists with different page count");
                 }
