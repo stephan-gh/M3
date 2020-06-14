@@ -409,7 +409,6 @@ impl VPE {
             Self::exit_app(vpe, exit_code);
         }
         else {
-            ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
             if vpe.state.get() == State::RUNNING {
                 // devices always exit successfully
                 let exit_code = if vpe.pe_desc().is_device() { 0 } else { 1 };
@@ -419,10 +418,17 @@ impl VPE {
                 vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
                 pemng::get().stop_vpe(&vpe, false, true).unwrap();
             }
+            ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
         }
     }
 
     fn exit_app(vpe: &Rc<Self>, exit_code: i32) {
+        #[cfg(target_os = "linux")]
+        if let Some(pid) = vpe.pid() {
+            // first kill the process to ensure that it cannot use EPs anymore
+            ktcu::reset_pe(vpe.pe_id(), pid).unwrap();
+        }
+
         // TODO force-invalidate all EPs of this VPE
 
         vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);

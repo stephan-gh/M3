@@ -57,10 +57,11 @@ pub fn check_childs() {
 }
 
 fn kill_vpe(pid: libc::pid_t, status: i32) {
-    let (vpe_id, vpe_name) = match vpemng::get().find_vpe(|v| v.pid().unwrap_or(0) == pid) {
+    let (vpe, vpe_name) = match vpemng::get().find_vpe(|v| v.pid().unwrap_or(0) == pid) {
         Some(v) => {
             let id = v.id();
-            (Some(id), format!("{}:{}", id, v.name()))
+            let name = format!("{}:{}", id, v.name());
+            (Some(v), name)
         },
         None => (None, format!("??")),
     };
@@ -84,8 +85,11 @@ fn kill_vpe(pid: libc::pid_t, status: i32) {
         }
 
         if libc::WIFSIGNALED(status) || libc::WEXITSTATUS(status) == 255 {
-            if let Some(vid) = vpe_id {
-                vpemng::get().remove(vid);
+            if let Some(v) = vpe {
+                // only remove the VPE if it has an app; otherwise the kernel sent the signal
+                if v.has_app() {
+                    vpemng::get().remove(v.id());
+                }
             }
         }
     }
