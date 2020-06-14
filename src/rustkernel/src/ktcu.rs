@@ -19,7 +19,7 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
 use base::math;
-use base::tcu::{EpId, Header, Label, Message, PEId, Reg, EP_COUNT, EP_REGS, TCU};
+use base::tcu::{EpId, Header, Label, Message, PEId, Reg, EP_COUNT, EP_REGS, TCU, UNLIM_CREDITS};
 use base::util;
 
 use pes::KERNEL_ID;
@@ -100,7 +100,7 @@ pub fn send_to(
 ) -> Result<(), Error> {
     config_local_ep(KTMP_EP, |regs| {
         let msg_ord = math::next_log2(size + util::size_of::<Header>());
-        config_send(regs, KERNEL_ID, lbl, pe, ep, msg_ord, 1);
+        config_send(regs, KERNEL_ID, lbl, pe, ep, msg_ord, UNLIM_CREDITS);
     });
     TCU::send(KTMP_EP, msg, size, rpl_lbl, rpl_ep)
 }
