@@ -227,31 +227,29 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let pemux = pemng::get().pemux(dst_pe);
 
     let mut invalidated = false;
-    if ep.has_gate() {
-        // we get the gate_object that is currently active on the ep_object
-        if let Some(gate_object) = &*ep.get_gate() {
-            if !gate_object.is_m_gate() {
+    if let Some(ref gate) = &*ep.get_gate() {
+        // invalidate receive and send EPs
+        match gate {
+            GateObject::RGate(_) | GateObject::SGate(_) => {
                 pemux
                     .invalidate_ep(ep.vpe(), epid, false, false)
                     .map_err(|e| {
-                        SyscError::new(
-                            e.code(),
-                            format!("Invalidation of EP {}:{} failed", dst_pe, epid),
-                        )
+                        let msg = format!("Invalidation of EP {}:{} failed", dst_pe, epid);
+                        SyscError::new(e.code(), msg)
                     })?;
                 invalidated = true;
-            }
-
-            if gate_object.is_r_gate() {
-                gate_object.get_r_gate().deactivate();
-            }
-
-            // we tell the gate that it's ep is no longer valid
-            gate_object.remove_ep();
+            },
+            _ => {},
         }
 
-        // remove the currently active gate from this EP
-        ep.remove_gate();
+        // deactivate receive gate
+        match gate {
+            GateObject::RGate(r) => r.upgrade().unwrap().deactivate(),
+            _ => {},
+        }
+
+        // we tell the gate that it's ep is no longer valid
+        gate.remove_ep();
     }
 
     let maybe_kobj = vpe
@@ -274,7 +272,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
         match kobj {
             KObject::MGate(ref m) => {
-                if m.cgp().get_ep().is_some() {
+                if m.gate_ep().get_ep().is_some() {
                     sysc_err!(Code::Exists, "MemGate is already activated");
                 }
 
@@ -285,7 +283,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             },
 
             KObject::SGate(ref s) => {
-                if s.cgp().get_ep().is_some() {
+                if s.gate_ep().get_ep().is_some() {
                     sysc_err!(Code::Exists, "SendGate is already activated");
                 }
 

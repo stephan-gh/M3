@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{StaticCell, RefMut};
+use base::cell::{RefMut, StaticCell};
 use base::cfg;
 use base::col::Treap;
 use base::goff;
@@ -24,7 +24,7 @@ use core::cmp;
 use core::fmt;
 use core::ptr::{NonNull, Unique};
 
-use cap::{KObject, CommonGateProperties};
+use cap::{GateEP, KObject};
 use pes::{pemng, vpemng, VPE};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
@@ -341,7 +341,7 @@ impl Capability {
         self.table().vpe.upgrade()
     }
 
-    fn invalidate_ep(mut cgp: RefMut<CommonGateProperties>, foreign: bool) {
+    fn invalidate_ep(mut cgp: RefMut<GateEP>, foreign: bool) {
         if let Some(ep) = cgp.get_ep() {
             let pemux = pemng::get().pemux(ep.pe_id());
             // if that fails, just ignore it
@@ -371,15 +371,15 @@ impl Capability {
             },
 
             KObject::SGate(ref mut o) => {
-                Self::invalidate_ep(o.cgp_mut(), foreign);
+                Self::invalidate_ep(o.gate_ep_mut(), foreign);
             },
 
             KObject::RGate(ref mut o) => {
-                Self::invalidate_ep(o.cgp_mut(), false);
+                Self::invalidate_ep(o.gate_ep_mut(), false);
             },
 
             KObject::MGate(ref mut o) => {
-                Self::invalidate_ep(o.cgp_mut(), false);
+                Self::invalidate_ep(o.gate_ep_mut(), false);
             },
 
             KObject::Serv(ref s) => {
