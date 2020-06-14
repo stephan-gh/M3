@@ -43,6 +43,7 @@ int_enum! {
 
 /// The VPE control upcall
 #[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
 pub struct VPECtrl {
     pub op: u64,
     pub vpe_sel: u64,
@@ -52,6 +53,7 @@ pub struct VPECtrl {
 
 /// The map upcall
 #[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
 pub struct Map {
     pub op: u64,
     pub vpe_sel: u64,
@@ -63,6 +65,7 @@ pub struct Map {
 
 /// The translate upcall
 #[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
 pub struct Translate {
     pub op: u64,
     pub vpe_sel: u64,
@@ -72,6 +75,7 @@ pub struct Translate {
 
 /// The remove messages upcall
 #[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
 pub struct RemMsgs {
     pub op: u64,
     pub vpe_sel: u64,
@@ -80,6 +84,7 @@ pub struct RemMsgs {
 
 /// The EP invalidation upcall
 #[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
 pub struct EpInval {
     pub op: u64,
     pub vpe_sel: u64,
@@ -102,6 +107,7 @@ int_enum! {
 
 /// The exit call
 #[repr(C, packed)]
+#[derive(Debug, Copy, Clone)]
 pub struct Exit {
     pub op: u64,
     pub vpe_sel: u64,

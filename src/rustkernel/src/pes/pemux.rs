@@ -298,23 +298,16 @@ impl PEMux {
                 unread_mask: unread as u64,
             };
 
-            #[cfg(target_os = "none")]
-            klog!(
-                PEXC,
-                "PEMux[{}] sending RemMsgs(vpe={}, unread={:#x})",
-                self.pe_id(),
-                vpe,
-                unread
-            );
-
             self.upcall(&req).map(|_| ())
         }
         else {
             Ok(())
         }
     }
+}
 
-    #[cfg(target_os = "none")]
+#[cfg(target_os = "none")]
+impl PEMux {
     pub fn handle_call(&mut self, msg: &tcu::Message) {
         use pes::{vpemng, VPE};
 
@@ -322,13 +315,7 @@ impl PEMux {
         let vpe_id = req.vpe_sel as VPEId;
         let exitcode = req.code as i32;
 
-        klog!(
-            PEXC,
-            "PEMux[{}] got exit(vpe={}, code={})",
-            self.pe_id(),
-            vpe_id,
-            exitcode
-        );
+        klog!(PEXC, "PEMux[{}] received {:?}", self.pe_id(), req);
 
         if self.vpes.contains(&vpe_id) {
             let vpe = vpemng::get().vpe(vpe_id).unwrap();
@@ -339,18 +326,6 @@ impl PEMux {
         ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
     }
 
-    #[cfg(target_os = "linux")]
-    pub fn vpe_ctrl(
-        &mut self,
-        _vpe: VPEId,
-        _eps_start: EpId,
-        _ctrl: base::kif::pemux::VPEOp,
-    ) -> Result<(), Error> {
-        // nothing to do
-        Ok(())
-    }
-
-    #[cfg(target_os = "none")]
     pub fn vpe_ctrl(
         &mut self,
         vpe: VPEId,
@@ -364,30 +339,9 @@ impl PEMux {
             eps_start: eps_start as u64,
         };
 
-        klog!(
-            PEXC,
-            "PEMux[{}] sending VPECtrl(vpe={}, ctrl={:?})",
-            self.pe_id(),
-            vpe,
-            ctrl
-        );
-
         self.upcall(&req).map(|_| ())
     }
 
-    #[cfg(target_os = "linux")]
-    pub fn map(
-        &mut self,
-        _vpe: VPEId,
-        _virt: goff,
-        _glob: GlobAddr,
-        _pages: usize,
-        _perm: kif::PageFlags,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-
-    #[cfg(target_os = "none")]
     pub fn map(
         &mut self,
         vpe: VPEId,
@@ -405,21 +359,13 @@ impl PEMux {
             perm: perm.bits() as u64,
         };
 
-        klog!(
-            PEXC,
-            "PEMux[{}] sending Map(vpe={}, virt={:#x}, glob={:?}, pages={}, perm={:?})",
-            self.pe_id(),
-            vpe,
-            virt,
-            glob,
-            pages,
-            perm
-        );
-
         self.upcall(&req).map(|_| ())
     }
 
-    #[cfg(target_os = "none")]
+    pub fn unmap(&mut self, vpe: VPEId, virt: goff, pages: usize) -> Result<(), Error> {
+        self.map(vpe, virt, GlobAddr::new(0), pages, kif::PageFlags::empty())
+    }
+
     pub fn translate(
         &mut self,
         vpe: VPEId,
@@ -435,19 +381,10 @@ impl PEMux {
             perm: perm.bits() as u64,
         };
 
-        klog!(
-            PEXC,
-            "PEMux[{}] sending Translate(vpe={}, virt={:#x})",
-            self.pe_id(),
-            vpe,
-            virt
-        );
-
         self.upcall(&req)
             .map(|reply| GlobAddr::new(reply.val & !PAGE_MASK as goff))
     }
 
-    #[cfg(target_os = "none")]
     pub fn notify_invalidate(&mut self, vpe: VPEId, ep: EpId) -> Result<(), Error> {
         use base::util;
         use pes::vpemng;
@@ -463,27 +400,20 @@ impl PEMux {
             ep: ep as u64,
         };
 
-        klog!(
-            PEXC,
-            "PEMux[{}] sending EpInval(vpe={}, ep={})",
-            self.pe_id(),
-            vpe,
-            ep
-        );
+        klog!(PEXC, "PEMux[{}] sending {:?}", self.pe_id(), req);
 
         self.queue
             .send(tcu::PEXUP_REP, 0, util::object_to_bytes(&req))
             .map(|_| ())
     }
 
-    #[cfg(target_os = "linux")]
-    pub fn notify_invalidate(&mut self, _vpe: VPEId, _ep: EpId) -> Result<(), Error> {
-        Ok(())
-    }
-
-    #[cfg(target_os = "none")]
-    fn upcall<R>(&mut self, req: &R) -> Result<&'static kif::pemux::Response, Error> {
+    fn upcall<R: core::fmt::Debug>(
+        &mut self,
+        req: &R,
+    ) -> Result<&'static kif::pemux::Response, Error> {
         use base::util;
+
+        klog!(PEXC, "PEMux[{}] sending {:?}", self.pe_id(), req);
 
         let event = self
             .queue
@@ -499,14 +429,43 @@ impl PEMux {
             Err(Error::new(Code::from(reply.error as u32)))
         }
     }
+}
 
-    #[cfg(target_os = "linux")]
-    fn upcall<R>(&mut self, _req: &R) -> Result<&'static kif::pemux::Response, Error> {
-        Err(Error::new(Code::NotSup))
-    }
-
-    #[cfg(target_os = "linux")]
+#[cfg(target_os = "linux")]
+impl PEMux {
     pub fn update_eps(&mut self) -> Result<(), Error> {
         ktcu::update_eps(self.pe_id(), self.mem_base)
+    }
+
+    pub fn vpe_ctrl(
+        &mut self,
+        _vpe: VPEId,
+        _eps_start: EpId,
+        _ctrl: base::kif::pemux::VPEOp,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn map(
+        &mut self,
+        _vpe: VPEId,
+        _virt: goff,
+        _glob: GlobAddr,
+        _pages: usize,
+        _perm: kif::PageFlags,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn unmap(&mut self, _vpe: VPEId, _virt: goff, _pages: usize) -> Result<(), Error> {
+        Ok(())
+    }
+
+    pub fn notify_invalidate(&mut self, _vpe: VPEId, _ep: EpId) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn upcall<R>(&mut self, _req: &R) -> Result<&'static kif::pemux::Response, Error> {
+        Err(Error::new(Code::NotSup))
     }
 }

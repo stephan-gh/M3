@@ -778,15 +778,7 @@ impl MapObject {
     pub fn unmap(&self, vpe: &Rc<VPE>, virt: goff, pages: usize) {
         if vpe.has_app() {
             let pemux = pemng::get().pemux(vpe.pe_id());
-            pemux
-                .map(
-                    vpe.id(),
-                    virt,
-                    self.global(),
-                    pages,
-                    kif::PageFlags::empty(),
-                )
-                .unwrap();
+            pemux.unmap(vpe.id(), virt, pages).unwrap();
         }
     }
 }
