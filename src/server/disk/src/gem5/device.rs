@@ -167,7 +167,7 @@ bitflags! {
 
 /// physical region descriptor
 #[repr(C, packed)]
-struct PRD {
+pub struct PRD {
     buffer: u32,
     bytes: u16,
     last: u16,
@@ -223,11 +223,10 @@ impl Device {
 
         // read MBR from disk
         let mut buffer = [0u8; 512];
-        let mg_buf = MemGate::new(
-            util::size_of_val(&buffer) + util::size_of::<PRD>(),
-            Perm::RW,
-        )?;
-        chan.set_dma_buffer(&mg_buf)?;
+        let size = util::size_of_val(&buffer) + util::size_of::<PRD>();
+        let mg_buf = MemGate::new(size, Perm::RW)?;
+        let dev_buf = mg_buf.derive(0, size, Perm::RW)?;
+        chan.set_dma_buffer(&dev_buf)?;
         dev.read_write(chan, DevOp::READ, &mg_buf, 0, 0, dev.sec_size, 1)?;
 
         // parse partition table
@@ -359,7 +358,7 @@ impl Device {
     ) -> Result<(), Error> {
         // setup PRDT
         let prdt = PRD {
-            buffer: off as u32,
+            buffer: 0,
             bytes: (sec_count * sec_size) as u16,
             last: 1 << 15,
         };
@@ -375,7 +374,7 @@ impl Device {
         )?;
 
         // set PRDT
-        chan.write_bmr::<u32>(BMIReg::PRDT, (off + sec_size * sec_count) as u32)?;
+        chan.write_bmr::<u32>(BMIReg::PRDT, (sec_size * sec_count) as u32)?;
 
         // it seems to be necessary to read those ports here
         chan.read_bmr::<u8>(BMIReg::COMMAND)?;
