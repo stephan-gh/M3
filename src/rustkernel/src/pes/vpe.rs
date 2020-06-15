@@ -406,13 +406,13 @@ impl VPE {
         klog!(VPES, "Stopping VPE {} [id={}]", vpe.name(), vpe.id());
 
         if is_self {
-            Self::exit_app(vpe, exit_code);
+            Self::exit_app(vpe, exit_code, false);
         }
         else {
             if vpe.state.get() == State::RUNNING {
                 // devices always exit successfully
                 let exit_code = if vpe.pe_desc().is_device() { 0 } else { 1 };
-                Self::exit_app(vpe, exit_code);
+                Self::exit_app(vpe, exit_code, true);
             }
             else {
                 vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
@@ -422,7 +422,7 @@ impl VPE {
         }
     }
 
-    fn exit_app(vpe: &Rc<Self>, exit_code: i32) {
+    fn exit_app(vpe: &Rc<Self>, exit_code: i32, stop: bool) {
         #[cfg(target_os = "linux")]
         if let Some(pid) = vpe.pid() {
             // first kill the process to ensure that it cannot use EPs anymore
@@ -447,7 +447,7 @@ impl VPE {
         vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
         vpe.exit_code.set(Some(exit_code));
 
-        vpemng::get().stop_vpe(&vpe, false, false).unwrap();
+        vpemng::get().stop_vpe(&vpe, stop, false).unwrap();
 
         vpe.revoke_caps(false);
 
