@@ -16,6 +16,7 @@
 
 //! The service interface
 
+use core::mem::MaybeUninit;
 use kif::syscalls;
 
 /// The maximum size of strings in service calls
@@ -39,6 +40,25 @@ pub struct Open {
     pub opcode: u64,
     pub arglen: u64,
     pub arg: [u8; MAX_STR_SIZE],
+}
+
+impl Open {
+    /// Creates a new open message with given argument
+    pub fn new(arg: &str) -> Self {
+        #[allow(clippy::uninit_assumed_init)]
+        let mut msg = Self {
+            opcode: Operation::OPEN.val as u64,
+            arglen: (arg.len() + 1) as u64,
+            // safety: will be initialized below
+            arg: unsafe { MaybeUninit::uninit().assume_init() },
+        };
+        // copy arg
+        for (a, c) in msg.arg.iter_mut().zip(arg.bytes()) {
+            *a = c as u8;
+        }
+        msg.arg[arg.len()] = 0u8;
+        msg
+    }
 }
 
 /// The open reply message

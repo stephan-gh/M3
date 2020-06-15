@@ -16,6 +16,8 @@
 
 //! The system call interface
 
+use super::cap::CapSel;
+use arch::tcu::Label;
 use core::mem::MaybeUninit;
 
 /// The maximum message length that can be used
@@ -97,6 +99,28 @@ pub struct CreateSrv {
     pub name: [u8; MAX_STR_SIZE],
 }
 
+impl CreateSrv {
+    /// Creates a new `CreateSrv` message with given content
+    pub fn new(dst: CapSel, rgate: CapSel, name: &str, creator: Label) -> Self {
+        #[allow(clippy::uninit_assumed_init)]
+        let mut msg = Self {
+            opcode: Operation::CREATE_SRV.val,
+            dst_sel: u64::from(dst),
+            rgate_sel: u64::from(rgate),
+            creator: u64::from(creator),
+            namelen: name.len() as u64,
+            // safety: will be initialized below
+            name: unsafe { MaybeUninit::uninit().assume_init() },
+        };
+
+        // copy name
+        for (a, c) in msg.name.iter_mut().zip(name.bytes()) {
+            *a = c as u8;
+        }
+        msg
+    }
+}
+
 /// The create session request message
 #[repr(C, packed)]
 pub struct CreateSess {
@@ -161,6 +185,37 @@ pub struct CreateVPE {
     pub kmem_sel: u64,
     pub namelen: u64,
     pub name: [u8; MAX_STR_SIZE],
+}
+
+impl CreateVPE {
+    /// Creates a new `CreateVPE` message with given content
+    pub fn new(
+        dst: CapSel,
+        pg_sg: CapSel,
+        pg_rg: CapSel,
+        name: &str,
+        pe: CapSel,
+        kmem: CapSel,
+    ) -> Self {
+        #[allow(clippy::uninit_assumed_init)]
+        let mut msg = Self {
+            opcode: Operation::CREATE_VPE.val,
+            dst_sel: u64::from(dst),
+            pg_sg_sel: u64::from(pg_sg),
+            pg_rg_sel: u64::from(pg_rg),
+            pe_sel: u64::from(pe),
+            kmem_sel: u64::from(kmem),
+            namelen: name.len() as u64,
+            // safety: will be initialized below
+            name: unsafe { MaybeUninit::uninit().assume_init() },
+        };
+
+        // copy name
+        for (a, c) in msg.name.iter_mut().zip(name.bytes()) {
+            *a = c as u8;
+        }
+        msg
+    }
 }
 
 /// The create VPE reply message
@@ -230,6 +285,24 @@ pub struct VPEWait {
     pub vpe_count: u64,
     pub event: u64,
     pub sels: [u64; MAX_WAIT_VPES],
+}
+
+impl VPEWait {
+    /// Creates a new `VPEWait` message with given content
+    pub fn new(vpes: &[CapSel], event: u64) -> Self {
+        #[allow(clippy::uninit_assumed_init)]
+        let mut msg = Self {
+            opcode: Operation::VPE_WAIT.val,
+            event,
+            vpe_count: vpes.len() as u64,
+            // safety: will be initialized below
+            sels: unsafe { MaybeUninit::uninit().assume_init() },
+        };
+        for (i, sel) in vpes.iter().enumerate() {
+            msg.sels[i] = u64::from(*sel);
+        }
+        msg
+    }
 }
 
 /// The VPE wait reply message

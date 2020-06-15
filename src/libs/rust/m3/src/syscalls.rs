@@ -20,7 +20,6 @@ use arch;
 use cap::Selector;
 use cell::LazyStaticCell;
 use com::{RecvGate, SendGate, SliceSink, SliceSource};
-use core::mem::MaybeUninit;
 use errors::Error;
 use goff;
 use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
@@ -73,22 +72,7 @@ pub fn send_gate() -> &'static SendGate {
 /// Creates a new service named `name` at selector `dst`. The receive gate `rgate` will be used for
 /// service calls from the kernel to the server.
 pub fn create_srv(dst: Selector, rgate: Selector, name: &str, creator: Label) -> Result<(), Error> {
-    #[allow(clippy::uninit_assumed_init)]
-    let mut req = syscalls::CreateSrv {
-        opcode: syscalls::Operation::CREATE_SRV.val,
-        dst_sel: u64::from(dst),
-        rgate_sel: u64::from(rgate),
-        creator: u64::from(creator),
-        namelen: name.len() as u64,
-        // safety: will be initialized below
-        name: unsafe { MaybeUninit::uninit().assume_init() },
-    };
-
-    // copy name
-    for (a, c) in req.name.iter_mut().zip(name.bytes()) {
-        *a = c as u8;
-    }
-
+    let req = syscalls::CreateSrv::new(dst, rgate, name, creator);
     send_receive_result(&req)
 }
 
@@ -214,24 +198,7 @@ pub fn create_vpe(
     pe: Selector,
     kmem: Selector,
 ) -> Result<EpId, Error> {
-    #[allow(clippy::uninit_assumed_init)]
-    let mut req = syscalls::CreateVPE {
-        opcode: syscalls::Operation::CREATE_VPE.val,
-        dst_sel: u64::from(dst),
-        pg_sg_sel: u64::from(pg_sg),
-        pg_rg_sel: u64::from(pg_rg),
-        pe_sel: u64::from(pe),
-        kmem_sel: u64::from(kmem),
-        namelen: name.len() as u64,
-        // safety: will be initialized below
-        name: unsafe { MaybeUninit::uninit().assume_init() },
-    };
-
-    // copy name
-    for (a, c) in req.name.iter_mut().zip(name.bytes()) {
-        *a = c as u8;
-    }
-
+    let req = syscalls::CreateVPE::new(dst, pg_sg, pg_rg, name, pe, kmem);
     let reply: Reply<syscalls::CreateVPEReply> = send_receive(&req)?;
     Ok(reply.data.eps_start as EpId)
 }
@@ -383,18 +350,7 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
 /// as a VPE exists. In both cases, the kernel returns the selector of the VPE that exited and the
 /// exitcode given by the VPE.
 pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error> {
-    #[allow(clippy::uninit_assumed_init)]
-    let mut req = syscalls::VPEWait {
-        opcode: syscalls::Operation::VPE_WAIT.val,
-        event,
-        vpe_count: vpes.len() as u64,
-        // safety: will be initialized below
-        sels: unsafe { MaybeUninit::uninit().assume_init() },
-    };
-    for (i, sel) in vpes.iter().enumerate() {
-        req.sels[i] = u64::from(*sel);
-    }
-
+    let req = syscalls::VPEWait::new(vpes, event);
     let reply: Reply<syscalls::VPEWaitReply> = send_receive(&req)?;
     if event != 0 {
         Ok((0, 0))

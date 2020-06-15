@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use core::mem::MaybeUninit;
 use m3::cap::{CapFlags, Capability, Selector};
 use m3::cell::StaticCell;
 use m3::col::{String, Vec};
@@ -122,19 +121,7 @@ pub struct Session {
 
 impl Session {
     pub fn new(sel: Selector, serv: &mut Service, arg: &str) -> Result<Self, Error> {
-        #[allow(clippy::uninit_assumed_init)]
-        let mut smsg = kif::service::Open {
-            opcode: kif::service::Operation::OPEN.val as u64,
-            arglen: (arg.len() + 1) as u64,
-            // safety: will be initialized below
-            arg: unsafe { MaybeUninit::uninit().assume_init() },
-        };
-        // copy arg
-        for (a, c) in smsg.arg.iter_mut().zip(arg.bytes()) {
-            *a = c as u8;
-        }
-        smsg.arg[arg.len()] = 0u8;
-
+        let smsg = kif::service::Open::new(arg);
         let event = serv.queue.send(util::object_to_bytes(&smsg));
 
         event.and_then(|event| {
