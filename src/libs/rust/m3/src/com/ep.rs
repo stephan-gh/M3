@@ -120,6 +120,17 @@ impl EP {
         self.id() >= eps_start && self.id() < eps_start + STD_EPS_COUNT
     }
 
+    /// Configures this endpoint for the given gate for a different VPE. Note that this call
+    /// deliberately bypasses the gate object.
+    pub fn configure(&self, gate: Selector) -> Result<(), Error> {
+        syscalls::activate(self.sel(), gate, kif::INVALID_SEL, 0)
+    }
+
+    /// Invalidates this endpoint
+    pub fn invalidate(&self) -> Result<(), Error> {
+        syscalls::activate(self.sel(), kif::INVALID_SEL, kif::INVALID_SEL, 0)
+    }
+
     fn alloc_cap(epid: EpId, vpe: Selector, replies: u32) -> Result<(Selector, EpId), Error> {
         let sel = VPE::cur().alloc_sel();
         let id = syscalls::alloc_ep(sel, vpe, epid, replies)?;

@@ -117,11 +117,6 @@ impl SendGate {
         self.gate.ep()
     }
 
-    /// Activates this `SendGate` on the given endpoint.
-    pub fn activate_on(&self, ep: Selector) -> Result<(), Error> {
-        syscalls::activate(ep, self.sel(), INVALID_SEL, 0)
-    }
-
     pub(crate) fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }

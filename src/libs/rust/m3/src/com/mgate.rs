@@ -215,11 +215,6 @@ impl MemGate {
         tcu::TCUIf::write(self, data, size, off)
     }
 
-    /// Activates this `MemGate` on the given foreign EP
-    pub fn activate_on(&self, ep: &EP) -> Result<(), Error> {
-        syscalls::activate(ep.sel(), self.sel(), INVALID_SEL, 0)
-    }
-
     pub(crate) fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }

@@ -630,7 +630,7 @@ impl Channel {
                     ep_sel,
                     cmem.sel()
                 );
-                cmem.activate_on(&EP::new_bind(0, ep_sel))?;
+                EP::new_bind(0, ep_sel).configure(cmem.sel())?;
                 self.mem = Some(cmem);
             }
             else {

@@ -141,7 +141,7 @@ impl Device {
         let mut rgate = RecvGate::new(math::next_log2(BUF_SIZE), math::next_log2(MSG_SIZE))?;
         let sgate = SendGate::new(&rgate)?;
         rgate.activate()?;
-        sgate.activate_on(sep.sel())?;
+        sep.configure(sgate.sel())?;
 
         Ok(Self {
             _activity: vpe.start()?,
@@ -154,7 +154,7 @@ impl Device {
     }
 
     pub fn set_dma_buffer(&self, mgate: &MemGate) -> Result<(), Error> {
-        mgate.activate_on(&self.mep)
+        self.mep.configure(mgate.sel())
     }
 
     pub fn check_for_irq(&self) -> bool {
