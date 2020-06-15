@@ -297,8 +297,7 @@ impl PEMux {
                 vpe_sel: vpe as u64,
                 unread_mask: unread as u64,
             };
-
-            self.upcall(&req).map(|_| ())
+            self.upcall(Some(vpe), &req).map(|_| ())
         }
         else {
             Ok(())
@@ -338,8 +337,7 @@ impl PEMux {
             vpe_op: ctrl.val as u64,
             eps_start: eps_start as u64,
         };
-
-        self.upcall(&req).map(|_| ())
+        self.upcall(None, &req).map(|_| ())
     }
 
     pub fn map(
@@ -358,8 +356,7 @@ impl PEMux {
             pages: pages as u64,
             perm: perm.bits() as u64,
         };
-
-        self.upcall(&req).map(|_| ())
+        self.upcall(Some(vpe), &req).map(|_| ())
     }
 
     pub fn unmap(&mut self, vpe: VPEId, virt: goff, pages: usize) -> Result<(), Error> {
@@ -380,44 +377,25 @@ impl PEMux {
             virt: virt as u64,
             perm: perm.bits() as u64,
         };
-
-        self.upcall(&req)
+        self.upcall(Some(vpe), &req)
             .map(|reply| GlobAddr::new(reply.val & !PAGE_MASK as goff))
     }
 
     pub fn notify_invalidate(&mut self, vpe: VPEId, ep: EpId) -> Result<(), Error> {
-        use base::util;
-        use pes::vpemng;
-
-        // if the VPE has no app anymore, don't send the notify
-        if !vpemng::get().vpe(vpe).map(|v| v.has_app()).unwrap_or(false) {
-            return Ok(());
-        }
-
         let req = kif::pemux::EpInval {
             op: kif::pemux::Upcalls::EP_INVAL.val as u64,
             vpe_sel: vpe as u64,
             ep: ep as u64,
         };
-
-        klog!(PEXC, "PEMux[{}] sending {:?}", self.pe_id(), req);
-
-        self.queue
-            .send(tcu::PEXUP_REP, 0, util::object_to_bytes(&req))
-            .map(|_| ())
+        self.send_upcall(Some(vpe), &req).map(|_| ())
     }
 
     fn upcall<R: core::fmt::Debug>(
         &mut self,
+        vpe: Option<VPEId>,
         req: &R,
     ) -> Result<&'static kif::pemux::Response, Error> {
-        use base::util;
-
-        klog!(PEXC, "PEMux[{}] sending {:?}", self.pe_id(), req);
-
-        let event = self
-            .queue
-            .send(tcu::PEXUP_REP, 0, util::object_to_bytes(req))?;
+        let event = self.send_upcall(vpe, req)?;
         thread::ThreadManager::get().wait_for(event);
 
         let reply = thread::ThreadManager::get().fetch_msg().unwrap();
@@ -428,6 +406,31 @@ impl PEMux {
         else {
             Err(Error::new(Code::from(reply.error as u32)))
         }
+    }
+
+    fn send_upcall<R: core::fmt::Debug>(
+        &mut self,
+        vpe: Option<VPEId>,
+        req: &R,
+    ) -> Result<thread::Event, Error> {
+        use base::util;
+        use pes::{vpemng, State};
+
+        // if the VPE has no app anymore, don't send the notify
+        if let Some(id) = vpe {
+            if !vpemng::get()
+                .vpe(id)
+                .map(|v| v.state() != State::DEAD)
+                .unwrap_or(false)
+            {
+                return Err(Error::new(Code::VPEGone));
+            }
+        }
+
+        klog!(PEXC, "PEMux[{}] sending {:?}", self.pe_id(), req);
+
+        self.queue
+            .send(tcu::PEXUP_REP, 0, util::object_to_bytes(req))
     }
 }
 
@@ -465,7 +468,11 @@ impl PEMux {
         Ok(())
     }
 
-    fn upcall<R>(&mut self, _req: &R) -> Result<&'static kif::pemux::Response, Error> {
+    fn upcall<R>(
+        &mut self,
+        _vpe: Option<VPEId>,
+        _req: &R,
+    ) -> Result<&'static kif::pemux::Response, Error> {
         Err(Error::new(Code::NotSup))
     }
 }

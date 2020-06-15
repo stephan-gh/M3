@@ -27,7 +27,7 @@ use base::util;
 
 use ktcu;
 use pes::VPEId;
-use pes::{pemng, vpemng};
+use pes::{pemng, vpemng, State};
 
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
     let off = virt - envdata::rbuf_start() as goff;
@@ -127,7 +127,7 @@ pub fn init() {
 
 pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
     let vpe = vpemng::get().find_vpe(|v| v.pe_id() == pe).unwrap();
-    if vpe.has_app() {
+    if vpe.state() == State::RUNNING {
         let eps = pemng::get().pemux(pe).eps_base() as usize;
         let addr = eps + ep * EP_REGS * util::size_of::<Reg>();
         let bytes = EP_REGS * util::size_of::<Reg>();

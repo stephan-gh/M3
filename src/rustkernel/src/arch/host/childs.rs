@@ -19,7 +19,7 @@ use base::tcu::TCU;
 use core::ptr;
 use core::sync::atomic;
 
-use pes::vpemng;
+use pes::{vpemng, State};
 
 static mut SIGCHLDS: atomic::AtomicUsize = atomic::AtomicUsize::new(0);
 
@@ -87,7 +87,7 @@ fn kill_vpe(pid: libc::pid_t, status: i32) {
         if libc::WIFSIGNALED(status) || libc::WEXITSTATUS(status) == 255 {
             if let Some(v) = vpe {
                 // only remove the VPE if it has an app; otherwise the kernel sent the signal
-                if v.has_app() {
+                if v.state() == State::RUNNING {
                     vpemng::get().remove_vpe(v.id());
                 }
             }

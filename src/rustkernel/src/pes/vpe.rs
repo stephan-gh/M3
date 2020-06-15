@@ -37,18 +37,13 @@ pub type VPEId = usize;
 
 bitflags! {
     pub struct VPEFlags : u32 {
-        const BOOTMOD     = 0b00000001;
-        const IDLE        = 0b00000010;
-        const INIT        = 0b00000100;
-        const HASAPP      = 0b00001000;
-        const READY       = 0b00010000;
-        const WAITING     = 0b00100000;
-        const STOPPED     = 0b01000000;
+        const IS_ROOT     = 1;
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum State {
+    INIT,
     RUNNING,
     DEAD,
 }
@@ -89,7 +84,7 @@ impl VPE {
             id,
             kmem,
             pid: Cell::from(None),
-            state: Cell::from(State::DEAD),
+            state: Cell::from(State::INIT),
             name: name.to_string(),
             flags: Cell::from(flags),
             obj_caps: RefCell::from(CapTable::new()),
@@ -133,7 +128,6 @@ impl VPE {
     pub fn init(vpe: &Rc<Self>) -> Result<(), Error> {
         let loader = Loader::get();
         loader.init_memory(vpe)?;
-        vpe.flags.set(vpe.flags.get() | VPEFlags::HASAPP);
 
         if !platform::pe_desc(vpe.pe_id()).is_device() {
             vpe.init_eps()
@@ -266,16 +260,8 @@ impl VPE {
         self.state.get()
     }
 
-    pub fn set_state(&self, state: State) {
-        self.state.set(state);
-    }
-
-    pub fn has_app(&self) -> bool {
-        self.flags.get().contains(VPEFlags::HASAPP)
-    }
-
-    pub fn is_bootmod(&self) -> bool {
-        self.flags.get().contains(VPEFlags::BOOTMOD)
+    pub fn is_root(&self) -> bool {
+        self.flags.get().contains(VPEFlags::IS_ROOT)
     }
 
     pub fn set_mem_base(&self, addr: goff) {
@@ -388,18 +374,18 @@ impl VPE {
     }
 
     pub fn start_app(vpe: &Rc<Self>, pid: Option<i32>) -> Result<(), Error> {
-        if !vpe.flags.get().contains(VPEFlags::HASAPP) {
+        if vpe.state.get() != State::INIT {
             return Ok(());
         }
 
         vpe.pid.set(pid);
-        vpe.flags.set(vpe.flags.get() | VPEFlags::HASAPP);
+        vpe.state.set(State::RUNNING);
 
         vpemng::get().start_vpe(&vpe)
     }
 
     pub fn stop_app(vpe: &Rc<Self>, exit_code: i32, is_self: bool) {
-        if !vpe.flags.get().contains(VPEFlags::HASAPP) {
+        if vpe.state.get() == State::DEAD {
             return;
         }
 
@@ -415,7 +401,7 @@ impl VPE {
                 Self::exit_app(vpe, exit_code, true);
             }
             else {
-                vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
+                vpe.state.set(State::DEAD);
                 vpemng::get().stop_vpe(&vpe, false, true).unwrap();
                 ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
             }
@@ -444,7 +430,7 @@ impl VPE {
         // make sure that we don't get further syscalls by this VPE
         ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
 
-        vpe.flags.set(vpe.flags.get() & !VPEFlags::HASAPP);
+        vpe.state.set(State::DEAD);
         vpe.exit_code.set(Some(exit_code));
 
         vpemng::get().stop_vpe(&vpe, stop, false).unwrap();
@@ -454,8 +440,8 @@ impl VPE {
         let event = &EXIT_EVENT as *const _ as thread::Event;
         thread::ThreadManager::get().notify(event, None);
 
-        // if it's a boot module, there is nobody waiting for it; just remove it
-        if vpe.is_bootmod() {
+        // if it's root, there is nobody waiting for it; just remove it
+        if vpe.is_root() {
             vpemng::get().remove_vpe(vpe.id());
         }
     }

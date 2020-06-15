@@ -100,15 +100,16 @@ impl VPEMng {
 
         klog!(VPES, "Created VPE {} [id={}, pe={}]", name, id, pe_id);
 
-        pemng::get().pemux(pe_id).add_vpe(id);
-        if flags.is_empty() {
-            self.init_vpe(&vpe).unwrap();
-        }
-
-        let res = vpe.clone();
+        let clone = vpe.clone();
         self.vpes[id] = Some(vpe);
         self.count += 1;
-        Ok(res)
+
+        pemng::get().pemux(pe_id).add_vpe(id);
+        if flags.is_empty() {
+            self.init_vpe(&clone).unwrap();
+        }
+
+        Ok(clone)
     }
 
     fn init_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
@@ -164,7 +165,7 @@ impl VPEMng {
                 pemux.pe().clone(),
                 tcu::FIRST_USER_EP,
                 kmem,
-                VPEFlags::BOOTMOD,
+                VPEFlags::IS_ROOT,
             )
             .expect("Unable to create VPE for root");
 

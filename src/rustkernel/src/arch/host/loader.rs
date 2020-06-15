@@ -24,7 +24,7 @@ use base::libc;
 use base::rc::Rc;
 
 use ktcu;
-use pes::{pemng, State, VPEId, VPE};
+use pes::{pemng, VPEId, VPE};
 
 pub fn init(build_dir: &str) {
     LOADER.set(Some(Loader::new(build_dir)));
@@ -53,7 +53,6 @@ impl Loader {
 
     pub fn start(&mut self, vpe: &Rc<VPE>) -> Result<i32, Error> {
         if let Some(pid) = vpe.pid() {
-            vpe.set_state(State::RUNNING);
             Self::write_env_file(pid, vpe.id(), vpe.pe_id(), 0);
             return Ok(pid);
         }
@@ -83,7 +82,6 @@ impl Loader {
                 }
             },
             pid => {
-                vpe.set_state(State::RUNNING);
                 Ok(pid)
             },
         }

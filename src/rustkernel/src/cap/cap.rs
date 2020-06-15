@@ -367,7 +367,7 @@ impl Capability {
             KObject::VPE(ref v) => {
                 // remove VPE if we revoked the root capability
                 if let Some(v) = v.upgrade() {
-                    if self.parent.is_none() && !v.is_bootmod() {
+                    if self.parent.is_none() && !v.is_root() {
                         let id = v.id();
                         vpemng::get().remove_vpe(id);
                     }

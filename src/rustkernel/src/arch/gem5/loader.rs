@@ -33,7 +33,7 @@ use base::util;
 use cap::{Capability, KObject, MapObject, SelRange};
 use ktcu;
 use mem;
-use pes::{pemng, State, VPE};
+use pes::{pemng, VPE};
 use platform;
 
 pub struct Loader {
@@ -66,9 +66,7 @@ impl Loader {
             GlobAddr::new(ENV_START as goff)
         };
 
-        vpe.set_state(State::RUNNING);
-
-        if vpe.is_bootmod() {
+        if vpe.is_root() {
             self.load_root(env_addr, vpe)?;
         }
         Ok(0)

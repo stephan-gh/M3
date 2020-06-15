@@ -27,7 +27,7 @@ use thread;
 
 use com::Service;
 use mem;
-use pes::{pemng, VPEId, VPE};
+use pes::{pemng, State, VPEId, VPE};
 
 #[derive(Clone)]
 pub enum KObject {
@@ -683,7 +683,7 @@ impl MapObject {
     }
 
     pub fn unmap(&self, vpe: &Rc<VPE>, virt: goff, pages: usize) {
-        if vpe.has_app() {
+        if vpe.state() != State::DEAD {
             let pemux = pemng::get().pemux(vpe.pe_id());
             pemux.unmap(vpe.id(), virt, pages).unwrap();
         }
