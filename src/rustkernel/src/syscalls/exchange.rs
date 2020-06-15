@@ -162,13 +162,19 @@ pub fn exchange_over_sess(
 
     let reply: &service::ExchangeReply = get_request(rmsg)?;
 
-    sysc_log!(vpe, "{} continue with res={}", name, { reply.res });
+    let srv_crd = CapRngDesc::new_from(reply.data.caps);
+    sysc_log!(
+        vpe,
+        "{} continue with res={}, srv_crd={}",
+        name,
+        { reply.res },
+        srv_crd
+    );
 
     if reply.res != 0 {
         sysc_err!(Code::from(reply.res as u32), "Server denied cap exchange");
     }
     else {
-        let srv_crd = CapRngDesc::new_from(reply.data.caps);
         do_exchange(&vpecap, &serv.service().vpe(), &crd, &srv_crd, obtain)?;
     }
 
