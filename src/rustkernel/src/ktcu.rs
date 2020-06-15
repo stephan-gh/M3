@@ -18,7 +18,6 @@ use base::cell::StaticCell;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
-use base::math;
 use base::tcu::{EpId, Header, Label, Message, PEId, Reg, EP_COUNT, EP_REGS, TCU, UNLIM_CREDITS};
 use base::util;
 
@@ -99,8 +98,10 @@ pub fn send_to(
     rpl_ep: EpId,
 ) -> Result<(), Error> {
     config_local_ep(KTMP_EP, |regs| {
-        let msg_ord = math::next_log2(size + util::size_of::<Header>());
-        config_send(regs, KERNEL_ID, lbl, pe, ep, msg_ord, UNLIM_CREDITS);
+        // don't calculate the msg order here, because it can take some time and it doesn't really
+        // matter what we set here assuming that it's large enough.
+        assert!(size + util::size_of::<Header>() <= 1 << 8);
+        config_send(regs, KERNEL_ID, lbl, pe, ep, 8, UNLIM_CREDITS);
     });
     TCU::send(KTMP_EP, msg, size, rpl_lbl, rpl_ep)
 }
