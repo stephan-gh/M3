@@ -20,7 +20,6 @@ use base::goff;
 use base::kif::{self, CapSel};
 use base::rc::Rc;
 use base::tcu;
-use core::mem::MaybeUninit;
 use thread;
 
 use arch::loader::Loader;
@@ -475,19 +474,17 @@ pub fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         exitcode: 0,
     };
 
-    // copy the message to somewhere else to ensure that we can still access it after reply
-    let mut sels_cpy: [u64; kif::syscalls::MAX_WAIT_VPES] =
-        unsafe { MaybeUninit::uninit().assume_init() };
-    sels_cpy.copy_from_slice(sels);
+    // copy the message to the VPE to ensure that we can still access it after reply
+    if !VPE::start_wait(vpe, &sels[0..count]) && event == 0 {
+        sysc_err!(Code::InvArgs, "Sync wait while async wait in progress");
+    }
 
     if event != 0 {
         // early-reply to the application; we'll notify it later via upcall
         send_reply(msg, &reply);
     }
 
-    if !VPE::wait_exit_async(vpe, &sels_cpy, &mut reply) && event == 0 {
-        sysc_err!(Code::InvArgs, "Sync wait while async wait in progress");
-    }
+    VPE::wait_exit_async(vpe, &mut reply);
 
     if reply.vpe_sel != kif::INVALID_SEL as u64 {
         sysc_log!(

@@ -315,23 +315,26 @@ impl VPE {
             }
         }
 
-        Self::wait();
-        false
+        if vpe.state() == State::RUNNING {
+            Self::wait();
+            false
+        }
+        else {
+            true
+        }
     }
 
-    pub fn wait_exit_async(
-        vpe: &Rc<Self>,
-        sels: &[u64],
-        reply: &mut kif::syscalls::VPEWaitReply,
-    ) -> bool {
+    pub fn start_wait(vpe: &Rc<Self>, sels: &[u64]) -> bool {
         let was_empty = vpe.wait_sels.borrow().len() == 0;
 
         vpe.wait_sels.borrow_mut().clear();
         vpe.wait_sels.borrow_mut().extend_from_slice(sels);
 
-        if !was_empty {
-            return false;
-        }
+        was_empty
+    }
+
+    pub fn wait_exit_async(vpe: &Rc<Self>, reply: &mut kif::syscalls::VPEWaitReply) {
+        assert!(vpe.wait_sels.borrow().len() > 0);
 
         loop {
             if Self::check_exits(vpe, reply) {
@@ -340,7 +343,6 @@ impl VPE {
         }
 
         vpe.wait_sels.borrow_mut().clear();
-        true
     }
 
     pub fn upcall_vpewait(&self, event: u64, reply: &kif::syscalls::VPEWaitReply) {
