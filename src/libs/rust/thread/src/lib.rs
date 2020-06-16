@@ -365,18 +365,17 @@ impl ThreadManager {
     }
 
     pub fn stop(&mut self) {
-        if let Some(t) = self.ready.pop_front() {
-            let mut cur = mem::replace(&mut self.current, Some(t)).unwrap();
-            log!(
-                LOG_DEF,
-                "Stopping thread {}, switching to {}",
-                cur.id,
-                self.cur().id
-            );
+        let next = self.get_next();
+        let mut cur = mem::replace(&mut self.current, Some(next)).unwrap();
+        log!(
+            LOG_DEF,
+            "Stopping thread {}, switching to {}",
+            cur.id,
+            self.cur().id
+        );
 
-            unsafe {
-                thread_switch(&mut cur.regs as *mut _, &mut self.cur_mut().regs as *mut _);
-            }
+        unsafe {
+            thread_switch(&mut cur.regs as *mut _, &mut self.cur_mut().regs as *mut _);
         }
     }
 
