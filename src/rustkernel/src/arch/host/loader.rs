@@ -21,7 +21,6 @@ use base::tcu::PEId;
 use base::errors::{Code, Error};
 use base::kif;
 use base::libc;
-use base::rc::Rc;
 
 use ktcu;
 use pes::{pemng, VPEId, VPE};
@@ -47,11 +46,11 @@ impl Loader {
         LOADER.get_mut().as_mut().unwrap()
     }
 
-    pub fn init_memory(&mut self, _vpe: &Rc<VPE>) -> Result<(), Error> {
+    pub fn init_memory(&mut self, _vpe: &VPE) -> Result<(), Error> {
         Ok(())
     }
 
-    pub fn start(&mut self, vpe: &Rc<VPE>) -> Result<i32, Error> {
+    pub fn start(&mut self, vpe: &VPE) -> Result<i32, Error> {
         if let Some(pid) = vpe.pid() {
             Self::write_env_file(pid, vpe.id(), vpe.pe_id(), 0);
             return Ok(pid);
@@ -87,7 +86,7 @@ impl Loader {
         }
     }
 
-    pub fn finish_start(&self, vpe: &Rc<VPE>) -> Result<(), Error> {
+    pub fn finish_start(&self, vpe: &VPE) -> Result<(), Error> {
         let pemux = pemng::get().pemux(vpe.pe_id());
         // update all EPs (e.g., to allow parents to activate EPs for their childs)
         // set base for all receive EPs (do it for all, but it's just unused for the other types)

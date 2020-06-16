@@ -435,13 +435,13 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 sysc_err!(Code::InvArgs, "VPE can't start itself");
             }
 
-            VPE::start_app(&vpecap, Some(arg as i32))
+            vpecap.start_app(Some(arg as i32))
                 .map_err(|e| SyscError::new(e.code(), "Unable to start VPE".to_string()))?;
         },
 
         kif::syscalls::VPEOp::STOP => {
             let is_self = vpe_sel == kif::SEL_VPE;
-            VPE::stop_app(&vpecap, arg as i32, is_self);
+            vpecap.stop_app(arg as i32, is_self);
             if is_self {
                 ktcu::ack_msg(ktcu::KSYS_EP, msg);
                 return Ok(());
@@ -475,7 +475,7 @@ pub fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     };
 
     // copy the message to the VPE to ensure that we can still access it after reply
-    if !VPE::start_wait(vpe, &sels[0..count]) && event == 0 {
+    if !vpe.start_wait(&sels[0..count]) && event == 0 {
         sysc_err!(Code::InvArgs, "Sync wait while async wait in progress");
     }
 
@@ -484,7 +484,7 @@ pub fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         send_reply(msg, &reply);
     }
 
-    VPE::wait_exit_async(vpe, &mut reply);
+    vpe.wait_exit_async(&mut reply);
 
     if reply.vpe_sel != kif::INVALID_SEL as u64 {
         sysc_log!(

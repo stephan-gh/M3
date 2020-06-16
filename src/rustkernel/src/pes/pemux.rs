@@ -308,7 +308,7 @@ impl PEMux {
 #[cfg(target_os = "none")]
 impl PEMux {
     pub fn handle_call(&mut self, msg: &tcu::Message) {
-        use pes::{vpemng, VPE};
+        use pes::vpemng;
 
         let req = msg.get_data::<kif::pemux::Exit>();
         let vpe_id = req.vpe_sel as VPEId;
@@ -318,7 +318,7 @@ impl PEMux {
 
         if self.vpes.contains(&vpe_id) {
             let vpe = vpemng::get().vpe(vpe_id).unwrap();
-            VPE::stop_app(&vpe, exitcode, true);
+            vpe.stop_app(exitcode, true);
         }
 
         let reply = kif::DefaultReply { error: 0 };

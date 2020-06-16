@@ -112,16 +112,16 @@ impl VPEMng {
         Ok(clone)
     }
 
-    fn init_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
+    fn init_vpe(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
             pemng::get().pemux(vpe.pe_id())
                 .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::INIT)?;
         }
 
-        VPE::init(vpe)
+        vpe.init()
     }
 
-    pub fn start_vpe(&mut self, vpe: &Rc<VPE>) -> Result<(), Error> {
+    pub fn start_vpe(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
             pemng::get().pemux(vpe.pe_id()).vpe_ctrl(
                 vpe.id(),
@@ -130,10 +130,10 @@ impl VPEMng {
             )?;
         }
 
-        VPE::start(&vpe)
+        vpe.start()
     }
 
-    pub fn stop_vpe(&mut self, vpe: &Rc<VPE>, stop: bool, reset: bool) -> Result<(), Error> {
+    pub fn stop_vpe(&mut self, vpe: &VPE, stop: bool, reset: bool) -> Result<(), Error> {
         if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
             pemng::get().pemux(vpe.pe_id())
                 .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::STOP)?;
@@ -223,7 +223,7 @@ impl VPEMng {
 
         // go!
         self.init_vpe(&vpe)?;
-        VPE::start_app(&vpe, None)
+        vpe.start_app(None)
     }
 
     pub fn remove_vpe(&mut self, id: VPEId) {

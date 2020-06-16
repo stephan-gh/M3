@@ -125,22 +125,22 @@ impl VPE {
         vpe
     }
 
-    pub fn init(vpe: &Rc<Self>) -> Result<(), Error> {
+    pub fn init(&self) -> Result<(), Error> {
         let loader = Loader::get();
-        loader.init_memory(vpe)?;
+        loader.init_memory(self)?;
 
-        if !platform::pe_desc(vpe.pe_id()).is_device() {
-            vpe.init_eps()
+        if !platform::pe_desc(self.pe_id()).is_device() {
+            self.init_eps()
         }
         else {
             Ok(())
         }
     }
 
-    pub fn start(vpe: &Rc<Self>) -> Result<(), Error> {
+    pub fn start(&self) -> Result<(), Error> {
         let loader = Loader::get();
-        let pid = loader.start(&vpe)?;
-        vpe.pid.set(Some(pid));
+        let pid = loader.start(self)?;
+        self.pid.set(Some(pid));
         Ok(())
     }
 
@@ -289,10 +289,10 @@ impl VPE {
         thread::ThreadManager::get().wait_for(event);
     }
 
-    fn check_exits(vpe: &Rc<Self>, reply: &mut kif::syscalls::VPEWaitReply) -> bool {
+    fn check_exits(&self, reply: &mut kif::syscalls::VPEWaitReply) -> bool {
         {
-            for sel in &*vpe.wait_sels.borrow() {
-                let wvpe = vpe
+            for sel in &*self.wait_sels.borrow() {
+                let wvpe = self
                     .obj_caps()
                     .borrow()
                     .get(*sel as CapSel)
@@ -300,7 +300,7 @@ impl VPE {
                 match wvpe {
                     Some(KObject::VPE(wv)) => {
                         let wv = wv.upgrade().unwrap();
-                        if wv.id() == vpe.id() {
+                        if wv.id() == self.id() {
                             continue;
                         }
 
@@ -315,7 +315,7 @@ impl VPE {
             }
         }
 
-        if vpe.state() == State::RUNNING {
+        if self.state() == State::RUNNING {
             Self::wait();
             false
         }
@@ -324,25 +324,25 @@ impl VPE {
         }
     }
 
-    pub fn start_wait(vpe: &Rc<Self>, sels: &[u64]) -> bool {
-        let was_empty = vpe.wait_sels.borrow().len() == 0;
+    pub fn start_wait(&self, sels: &[u64]) -> bool {
+        let was_empty = self.wait_sels.borrow().len() == 0;
 
-        vpe.wait_sels.borrow_mut().clear();
-        vpe.wait_sels.borrow_mut().extend_from_slice(sels);
+        self.wait_sels.borrow_mut().clear();
+        self.wait_sels.borrow_mut().extend_from_slice(sels);
 
         was_empty
     }
 
-    pub fn wait_exit_async(vpe: &Rc<Self>, reply: &mut kif::syscalls::VPEWaitReply) {
-        assert!(vpe.wait_sels.borrow().len() > 0);
+    pub fn wait_exit_async(&self, reply: &mut kif::syscalls::VPEWaitReply) {
+        assert!(self.wait_sels.borrow().len() > 0);
 
         loop {
-            if Self::check_exits(vpe, reply) {
+            if self.check_exits(reply) {
                 break;
             }
         }
 
-        vpe.wait_sels.borrow_mut().clear();
+        self.wait_sels.borrow_mut().clear();
     }
 
     pub fn upcall_vpewait(&self, event: u64, reply: &kif::syscalls::VPEWaitReply) {
@@ -375,76 +375,76 @@ impl VPE {
             .unwrap();
     }
 
-    pub fn start_app(vpe: &Rc<Self>, pid: Option<i32>) -> Result<(), Error> {
-        if vpe.state.get() != State::INIT {
+    pub fn start_app(&self, pid: Option<i32>) -> Result<(), Error> {
+        if self.state.get() != State::INIT {
             return Ok(());
         }
 
-        vpe.pid.set(pid);
-        vpe.state.set(State::RUNNING);
+        self.pid.set(pid);
+        self.state.set(State::RUNNING);
 
-        vpemng::get().start_vpe(&vpe)
+        vpemng::get().start_vpe(self)
     }
 
-    pub fn stop_app(vpe: &Rc<Self>, exit_code: i32, is_self: bool) {
-        if vpe.state.get() == State::DEAD {
+    pub fn stop_app(&self, exit_code: i32, is_self: bool) {
+        if self.state.get() == State::DEAD {
             return;
         }
 
-        klog!(VPES, "Stopping VPE {} [id={}]", vpe.name(), vpe.id());
+        klog!(VPES, "Stopping VPE {} [id={}]", self.name(), self.id());
 
         if is_self {
-            Self::exit_app(vpe, exit_code, false);
+            self.exit_app(exit_code, false);
         }
         else {
-            if vpe.state.get() == State::RUNNING {
+            if self.state.get() == State::RUNNING {
                 // devices always exit successfully
-                let exit_code = if vpe.pe_desc().is_device() { 0 } else { 1 };
-                Self::exit_app(vpe, exit_code, true);
+                let exit_code = if self.pe_desc().is_device() { 0 } else { 1 };
+                self.exit_app(exit_code, true);
             }
             else {
-                vpe.state.set(State::DEAD);
-                vpemng::get().stop_vpe(&vpe, false, true).unwrap();
-                ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
+                self.state.set(State::DEAD);
+                vpemng::get().stop_vpe(self, false, true).unwrap();
+                ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
             }
         }
     }
 
-    fn exit_app(vpe: &Rc<Self>, exit_code: i32, stop: bool) {
+    fn exit_app(&self, exit_code: i32, stop: bool) {
         #[cfg(target_os = "linux")]
-        if let Some(pid) = vpe.pid() {
+        if let Some(pid) = self.pid() {
             // first kill the process to ensure that it cannot use EPs anymore
-            ktcu::reset_pe(vpe.pe_id(), pid).unwrap();
+            ktcu::reset_pe(self.pe_id(), pid).unwrap();
         }
 
         // TODO force-invalidate all EPs of this VPE
 
         #[cfg(target_os = "none")]
         {
-            let pemux = pemng::get().pemux(vpe.pe_id());
+            let pemux = pemng::get().pemux(self.pe_id());
             // TODO force-invalidate *all* EPs of this VPE
-            for ep in vpe.eps_start..vpe.eps_start + STD_EPS_COUNT {
+            for ep in self.eps_start..self.eps_start + STD_EPS_COUNT {
                 // ignore failures
-                pemux.invalidate_ep(vpe.id(), ep, true, false).ok();
+                pemux.invalidate_ep(self.id(), ep, true, false).ok();
             }
         }
 
         // make sure that we don't get further syscalls by this VPE
-        ktcu::drop_msgs(ktcu::KSYS_EP, vpe.id() as Label);
+        ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
 
-        vpe.state.set(State::DEAD);
-        vpe.exit_code.set(Some(exit_code));
+        self.state.set(State::DEAD);
+        self.exit_code.set(Some(exit_code));
 
-        vpemng::get().stop_vpe(&vpe, stop, false).unwrap();
+        vpemng::get().stop_vpe(self, stop, false).unwrap();
 
-        vpe.revoke_caps(false);
+        self.revoke_caps(false);
 
         let event = &EXIT_EVENT as *const _ as thread::Event;
         thread::ThreadManager::get().notify(event, None);
 
         // if it's root, there is nobody waiting for it; just remove it
-        if vpe.is_root() {
-            vpemng::get().remove_vpe(vpe.id());
+        if self.is_root() {
+            vpemng::get().remove_vpe(self.id());
         }
     }
 
@@ -453,13 +453,13 @@ impl VPE {
         self.map_caps.borrow_mut().revoke_all(true);
     }
 
-    pub fn revoke(vpe: &Rc<Self>, crd: CapRngDesc, own: bool) {
+    pub fn revoke(&self, crd: CapRngDesc, own: bool) {
         // we can't use borrow_mut() here, because revoke might need to use borrow as well.
         if crd.cap_type() == CapType::OBJECT {
-            vpe.obj_caps().borrow_mut().revoke(crd, own);
+            self.obj_caps().borrow_mut().revoke(crd, own);
         }
         else {
-            vpe.map_caps().borrow_mut().revoke(crd, own);
+            self.map_caps().borrow_mut().revoke(crd, own);
         }
     }
 }

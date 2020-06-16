@@ -667,7 +667,7 @@ impl MapObject {
 
     pub fn map(
         &self,
-        vpe: &Rc<VPE>,
+        vpe: &VPE,
         virt: goff,
         glob: GlobAddr,
         pages: usize,

@@ -201,7 +201,7 @@ pub fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
     }
 
     let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
-    VPE::revoke(&vpecap, crd, own);
+    vpecap.revoke(crd, own);
 
     reply_success(msg);
     Ok(())
