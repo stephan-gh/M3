@@ -55,20 +55,24 @@ static EXIT_EVENT: i32 = 0;
 
 pub struct VPE {
     id: VPEId,
-    pid: Cell<Option<i32>>,
-    state: Cell<State>,
     name: String,
     flags: VPEFlags,
-    obj_caps: RefCell<CapTable>,
-    map_caps: RefCell<CapTable>,
+    eps_start: EpId,
+
     pe: Rc<PEObject>,
     kmem: Rc<KMemObject>,
-    rbuf_phys: Cell<goff>,
-    eps_start: EpId,
+
+    state: Cell<State>,
+    pid: Cell<Option<i32>>,
     exit_code: Cell<Option<i32>>,
+    first_sel: Cell<CapSel>,
+
+    obj_caps: RefCell<CapTable>,
+    map_caps: RefCell<CapTable>,
+
+    rbuf_phys: Cell<goff>,
     upcalls: RefCell<SendQueue>,
     wait_sels: RefCell<Vec<u64>>,
-    first_sel: Cell<CapSel>,
 }
 
 impl VPE {
@@ -82,20 +86,20 @@ impl VPE {
     ) -> Rc<Self> {
         let vpe = Rc::new(VPE {
             id,
-            kmem,
-            pid: Cell::from(None),
-            state: Cell::from(State::INIT),
             name: name.to_string(),
             flags,
+            eps_start,
+            kmem,
+            state: Cell::from(State::INIT),
+            pid: Cell::from(None),
+            exit_code: Cell::from(None),
+            first_sel: Cell::from(kif::FIRST_FREE_SEL),
             obj_caps: RefCell::from(CapTable::new()),
             map_caps: RefCell::from(CapTable::new()),
             rbuf_phys: Cell::from(0),
-            eps_start,
-            exit_code: Cell::from(None),
             upcalls: RefCell::from(SendQueue::new(id as u64, pe.pe())),
-            pe,
             wait_sels: RefCell::from(Vec::new()),
-            first_sel: Cell::from(kif::FIRST_FREE_SEL),
+            pe,
         });
 
         {
