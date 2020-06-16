@@ -58,7 +58,7 @@ pub struct VPE {
     pid: Cell<Option<i32>>,
     state: Cell<State>,
     name: String,
-    flags: Cell<VPEFlags>,
+    flags: VPEFlags,
     obj_caps: RefCell<CapTable>,
     map_caps: RefCell<CapTable>,
     pe: Rc<PEObject>,
@@ -86,7 +86,7 @@ impl VPE {
             pid: Cell::from(None),
             state: Cell::from(State::INIT),
             name: name.to_string(),
-            flags: Cell::from(flags),
+            flags,
             obj_caps: RefCell::from(CapTable::new()),
             map_caps: RefCell::from(CapTable::new()),
             rbuf_phys: Cell::from(0),
@@ -261,7 +261,7 @@ impl VPE {
     }
 
     pub fn is_root(&self) -> bool {
-        self.flags.get().contains(VPEFlags::IS_ROOT)
+        self.flags.contains(VPEFlags::IS_ROOT)
     }
 
     pub fn set_mem_base(&self, addr: goff) {
