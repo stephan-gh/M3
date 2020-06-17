@@ -27,7 +27,7 @@ use cap::{Capability, KObject};
 use cap::{EPObject, GateObject, RGateObject, SemObject};
 use ktcu;
 use pes::VPE;
-use pes::{pemng, vpemng};
+use pes::pemng;
 use platform;
 use syscalls::{get_request, reply_success, send_reply, SyscError};
 
@@ -214,7 +214,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let ep = get_kobj!(vpe, ep_sel, EP);
 
     // VPE that is currently active on the endpoint
-    let vpe_ref = vpemng::get().vpe(ep.vpe()).unwrap();
+    let ep_vpe = ep.vpe();
 
     let epid = ep.ep();
     let dst_pe = ep.pe_id();
@@ -226,7 +226,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         match gate {
             GateObject::RGate(_) | GateObject::SGate(_) => {
                 pemux
-                    .invalidate_ep(ep.vpe(), epid, false, false)
+                    .invalidate_ep(ep_vpe.id(), epid, false, false)
                     .map_err(|e| {
                         let msg = format!("Invalidation of EP {}:{} failed", dst_pe, epid);
                         SyscError::new(e.code(), msg)
@@ -271,7 +271,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 }
 
                 let pe_id = m.pe_id();
-                if let Err(e) = pemux.config_mem_ep(epid, vpe_ref.id(), &m, pe_id, rbuf_off) {
+                if let Err(e) = pemux.config_mem_ep(epid, ep_vpe.id(), &m, pe_id, rbuf_off) {
                     sysc_err!(e.code(), "Unable to configure mem EP");
                 }
             },
@@ -292,7 +292,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                     sysc_log!(vpe, "activate: rgate {:?} is activated", rgate);
                 }
 
-                if let Err(e) = pemux.config_snd_ep(epid, vpe_ref.id(), &s) {
+                if let Err(e) = pemux.config_snd_ep(epid, ep_vpe.id(), &s) {
                     sysc_err!(e.code(), "Unable to configure send EP");
                 }
             },
@@ -337,9 +337,9 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                     None
                 };
 
-                r.activate(vpe_ref.pe_id(), epid, rbuf_addr);
+                r.activate(ep_vpe.pe_id(), epid, rbuf_addr);
 
-                if let Err(e) = pemux.config_rcv_ep(epid, vpe_ref.id(), replies, r) {
+                if let Err(e) = pemux.config_rcv_ep(epid, ep_vpe.id(), replies, r) {
                     r.deactivate();
                     sysc_err!(e.code(), "Unable to configure recv EP");
                 }
@@ -362,7 +362,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     }
     else if !invalidated {
         pemux
-            .invalidate_ep(ep.vpe(), epid, true, false)
+            .invalidate_ep(ep_vpe.id(), epid, true, false)
             .map_err(|e| {
                 SyscError::new(
                     e.code(),

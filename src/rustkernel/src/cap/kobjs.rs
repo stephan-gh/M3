@@ -27,7 +27,7 @@ use thread;
 
 use com::Service;
 use mem;
-use pes::{pemng, State, VPEId, VPE};
+use pes::{pemng, State, VPE};
 
 #[derive(Clone)]
 pub enum KObject {
@@ -531,19 +531,19 @@ impl fmt::Debug for PEObject {
 pub struct EPObject {
     is_std: bool,
     gate: RefCell<Option<GateObject>>,
-    vpe: VPEId,
+    vpe: Weak<VPE>,
     ep: EpId,
     replies: u32,
     pe: Weak<PEObject>,
 }
 
 impl EPObject {
-    pub fn new(is_std: bool, vpe: VPEId, ep: EpId, replies: u32, pe: &Rc<PEObject>) -> Rc<Self> {
+    pub fn new(is_std: bool, vpe: &Rc<VPE>, ep: EpId, replies: u32, pe: &Rc<PEObject>) -> Rc<Self> {
         // TODO add to VPE
         Rc::new(Self {
             is_std,
             gate: RefCell::from(None),
-            vpe,
+            vpe: Rc::downgrade(vpe),
             ep,
             replies,
             pe: Rc::downgrade(pe),
@@ -554,8 +554,8 @@ impl EPObject {
         self.pe.upgrade().unwrap().pe()
     }
 
-    pub fn vpe(&self) -> VPEId {
-        self.vpe
+    pub fn vpe(&self) -> Rc<VPE> {
+        self.vpe.upgrade().unwrap()
     }
 
     pub fn ep(&self) -> EpId {
@@ -603,7 +603,7 @@ impl fmt::Debug for EPObject {
         write!(
             f,
             "EPMask[vpe={}, ep={}, replies={}, pe={:?}]",
-            self.vpe, self.ep, self.replies, self.pe
+            self.vpe().id(), self.ep, self.replies, self.pe
         )
     }
 }
