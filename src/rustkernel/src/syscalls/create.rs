@@ -18,7 +18,7 @@ use base::cfg;
 use base::col::ToString;
 use base::errors::Code;
 use base::goff;
-use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm, INVALID_SEL, SEL_VPE};
+use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm, INVALID_SEL};
 use base::mem::GlobAddr;
 use base::rc::Rc;
 use base::tcu;
@@ -347,12 +347,9 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         .create_vpe(name, pe, eps, kmem, VPEFlags::empty())
         .map_err(|e| SyscError::new(e.code(), "Unable to create VPE".to_string()))?;
 
-    // inherit VPE cap to the parent
-    {
-        let mut nvpe_caps = nvpe.obj_caps().borrow_mut();
-        let cap: Option<&mut Capability> = nvpe_caps.get_mut(SEL_VPE);
-        cap.map(|c| vpe.obj_caps().borrow_mut().obtain(dst_sel, c, false));
-    }
+    // give VPE cap to the parent
+    let cap = Capability::new(dst_sel, KObject::VPE(Rc::downgrade(&nvpe)));
+    vpe.obj_caps().borrow_mut().insert(cap);
 
     // activate pager EPs
     #[cfg(target_os = "none")]

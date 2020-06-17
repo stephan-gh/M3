@@ -18,7 +18,7 @@ use base::cell::{RefMut, StaticCell};
 use base::cfg;
 use base::col::Treap;
 use base::goff;
-use base::kif::{CapRngDesc, CapSel, FIRST_FREE_SEL};
+use base::kif::{CapRngDesc, CapSel, SEL_VPE};
 use base::rc::{Rc, Weak};
 use core::cmp;
 use core::fmt;
@@ -170,26 +170,11 @@ impl CapTable {
         }
     }
 
-    pub fn revoke_all(&mut self, all: bool) {
-        let mut tmp = Treap::new();
-
+    pub fn revoke_all(&mut self) {
         while let Some(cap) = self.caps.get_root_mut() {
-            if all || cap.sel() >= FIRST_FREE_SEL {
-                // on revoke_all, we consider all revokes foreign to notify about invalidate send gates
-                // in any case. on explicit revokes, we only do that if it's a derived cap.
-                cap.revoke(false, true);
-            }
-            else {
-                // remove from tree and insert them later
-                let sels = *cap.sel_range();
-                let cap = self.caps.remove(&sels).unwrap();
-                tmp.insert(cap.sel(), cap);
-            }
-        }
-
-        // insert them again
-        while let Some(cap) = tmp.remove_root() {
-            self.caps.insert(*cap.sel_range(), cap);
+            // on revoke_all, we consider all revokes foreign to notify about invalidate send gates
+            // in any case. on explicit revokes, we only do that if it's a derived cap.
+            cap.revoke(false, true);
         }
     }
 }
@@ -366,9 +351,9 @@ impl Capability {
     fn release(&mut self, foreign: bool) {
         match self.obj {
             KObject::VPE(ref v) => {
-                // remove VPE if we revoked the root capability
+                // remove VPE if we revoked the root capability and if it's not the own VPE
                 if let Some(v) = v.upgrade() {
-                    if self.parent.is_none() && !v.is_root() {
+                    if self.sel() != SEL_VPE && self.parent.is_none() && !v.is_root() {
                         let id = v.id();
                         vpemng::get().remove_vpe(id);
                     }

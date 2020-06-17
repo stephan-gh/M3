@@ -116,9 +116,10 @@ impl VPE {
                 .borrow_mut()
                 .insert(Capability::new(kif::SEL_PE, KObject::PE(vpe.pe.clone())));
             // cap for own VPE
-            vpe.obj_caps()
-                .borrow_mut()
-                .insert(Capability::new(kif::SEL_VPE, KObject::VPE(Rc::downgrade(&vpe))));
+            vpe.obj_caps().borrow_mut().insert(Capability::new(
+                kif::SEL_VPE,
+                KObject::VPE(Rc::downgrade(&vpe)),
+            ));
 
             // alloc standard EPs
             let pemux = pemng::get().pemux(vpe.pe_id());
@@ -441,7 +442,7 @@ impl VPE {
 
         vpemng::get().stop_vpe(self, stop, false).unwrap();
 
-        self.revoke_caps(false);
+        self.revoke_caps();
 
         let event = &EXIT_EVENT as *const _ as thread::Event;
         thread::ThreadManager::get().notify(event, None);
@@ -452,9 +453,9 @@ impl VPE {
         }
     }
 
-    fn revoke_caps(&self, all: bool) {
-        self.obj_caps.borrow_mut().revoke_all(all);
-        self.map_caps.borrow_mut().revoke_all(true);
+    fn revoke_caps(&self) {
+        self.obj_caps.borrow_mut().revoke_all();
+        self.map_caps.borrow_mut().revoke_all();
     }
 
     pub fn revoke(&self, crd: CapRngDesc, own: bool) {
@@ -477,7 +478,7 @@ impl Drop for VPE {
         pemux.free_eps(self.eps_start, STD_EPS_COUNT as u32);
         self.pe.free(STD_EPS_COUNT as u32);
 
-        self.revoke_caps(true);
+        self.revoke_caps();
 
         // TODO temporary
         if let Some(pid) = self.pid() {
