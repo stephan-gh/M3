@@ -344,6 +344,18 @@ fn create_sem() {
 fn alloc_ep() {
     let sel = VPE::cur().alloc_sel();
 
+    // try to use the EP object after the VPE we allocated it for is gone
+    {
+        {
+            let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
+            let vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
+            wv_assert_ok!(syscalls::alloc_ep(sel, vpe.sel(), EP_COUNT, 1));
+        }
+
+        let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
+        wv_assert_err!(syscalls::activate(sel, mgate.sel(), INVALID_SEL, 0), Code::InvArgs);
+    }
+
     // invalid dest selector
     wv_assert_err!(
         syscalls::alloc_ep(SEL_VPE, VPE::cur().pe().sel(), EP_COUNT, 1),

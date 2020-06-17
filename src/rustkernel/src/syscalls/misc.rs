@@ -86,11 +86,12 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         }
     }
 
-    let vpeid = dst_vpe.id();
-    vpe.obj_caps().borrow_mut().insert(Capability::new(
+    let cap = Capability::new(
         dst_sel,
-        KObject::EP(EPObject::new(false, vpeid, epid, replies, pemux.pe())),
-    ));
+        KObject::EP(EPObject::new(false, &dst_vpe, epid, replies, pemux.pe())),
+    );
+    vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel);
+
     dst_vpe.pe().alloc(ep_count);
     pemux.alloc_eps(epid, ep_count);
 
