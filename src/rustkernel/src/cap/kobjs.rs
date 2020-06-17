@@ -539,15 +539,16 @@ pub struct EPObject {
 
 impl EPObject {
     pub fn new(is_std: bool, vpe: &Rc<VPE>, ep: EpId, replies: u32, pe: &Rc<PEObject>) -> Rc<Self> {
-        // TODO add to VPE
-        Rc::new(Self {
+        let ep = Rc::new(Self {
             is_std,
             gate: RefCell::from(None),
             vpe: Rc::downgrade(vpe),
             ep,
             replies,
             pe: Rc::downgrade(pe),
-        })
+        });
+        vpe.add_ep(ep.clone());
+        ep
     }
 
     pub fn pe_id(&self) -> PEId {
@@ -566,27 +567,46 @@ impl EPObject {
         self.replies
     }
 
-    pub fn get_gate(&self) -> Ref<Option<GateObject>> {
-        self.gate.borrow()
-    }
-
-    pub fn has_gate(&self) -> bool {
-        self.gate.borrow().is_some()
-    }
-
     pub fn set_gate(&self, g: GateObject) {
         self.gate.replace(Some(g));
     }
 
-    pub fn remove_gate(&self) {
-        self.gate.replace(None);
+    pub fn revoke(ep: &Rc<Self>) {
+        if let Some(v) = ep.vpe.upgrade() {
+            v.rem_ep(ep);
+        }
+    }
+
+    pub fn deconfigure(&self, force: bool) -> Result<bool, Error> {
+        let mut invalidated = false;
+        if let Some(ref gate) = &*self.gate.borrow() {
+            let pe_id = self.pe_id();
+            let pemux = pemng::get().pemux(pe_id);
+
+            // invalidate receive and send EPs
+            match gate {
+                GateObject::RGate(_) | GateObject::SGate(_) => {
+                    pemux.invalidate_ep(self.vpe().id(), self.ep, force, false)?;
+                    invalidated = true;
+                },
+                _ => {},
+            }
+
+            // deactivate receive gate
+            match gate {
+                GateObject::RGate(r) => r.upgrade().unwrap().deactivate(),
+                _ => {},
+            }
+
+            // we tell the gate that it's ep is no longer valid
+            gate.remove_ep();
+        }
+        Ok(invalidated)
     }
 }
 
 impl Drop for EPObject {
     fn drop(&mut self) {
-        // TODO remove from VPE
-
         if !self.is_std {
             let pe = self.pe.upgrade().unwrap();
 
@@ -603,7 +623,10 @@ impl fmt::Debug for EPObject {
         write!(
             f,
             "EPMask[vpe={}, ep={}, replies={}, pe={:?}]",
-            self.vpe().id(), self.ep, self.replies, self.pe
+            self.vpe().id(),
+            self.ep,
+            self.replies,
+            self.pe
         )
     }
 }

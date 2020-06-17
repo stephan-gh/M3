@@ -27,7 +27,7 @@ use core::fmt;
 use thread;
 
 use arch::loader::Loader;
-use cap::{CapTable, Capability, KMemObject, KObject, PEObject};
+use cap::{CapTable, Capability, EPObject, KMemObject, KObject, PEObject};
 use com::SendQueue;
 use ktcu;
 use pes::{pemng, vpemng};
@@ -70,6 +70,7 @@ pub struct VPE {
     obj_caps: RefCell<CapTable>,
     map_caps: RefCell<CapTable>,
 
+    eps: RefCell<Vec<Rc<EPObject>>>,
     rbuf_phys: Cell<goff>,
     upcalls: RefCell<SendQueue>,
     wait_sels: RefCell<Vec<u64>>,
@@ -96,6 +97,7 @@ impl VPE {
             first_sel: Cell::from(kif::FIRST_FREE_SEL),
             obj_caps: RefCell::from(CapTable::new()),
             map_caps: RefCell::from(CapTable::new()),
+            eps: RefCell::from(Vec::new()),
             rbuf_phys: Cell::from(0),
             upcalls: RefCell::from(SendQueue::new(id as u64, pe.pe())),
             wait_sels: RefCell::from(Vec::new()),
@@ -289,6 +291,14 @@ impl VPE {
         self.exit_code.replace(None)
     }
 
+    pub fn add_ep(&self, ep: Rc<EPObject>) {
+        self.eps.borrow_mut().push(ep);
+    }
+
+    pub fn rem_ep(&self, ep: &Rc<EPObject>) {
+        self.eps.borrow_mut().retain(|e| e.ep() != ep.ep());
+    }
+
     pub fn wait() {
         let event = &EXIT_EVENT as *const _ as thread::Event;
         thread::ThreadManager::get().wait_for(event);
@@ -422,15 +432,19 @@ impl VPE {
             ktcu::reset_pe(self.pe_id(), pid).unwrap();
         }
 
-        // TODO force-invalidate all EPs of this VPE
-
         #[cfg(target_os = "none")]
         {
             let pemux = pemng::get().pemux(self.pe_id());
-            // TODO force-invalidate *all* EPs of this VPE
+            // force-invalidate standard EPs
             for ep in self.eps_start..self.eps_start + STD_EPS_COUNT {
                 // ignore failures
                 pemux.invalidate_ep(self.id(), ep, true, false).ok();
+            }
+
+            // force-invalidate all other EPs of this VPE
+            for ep in &*self.eps.borrow_mut() {
+                // ignore failures here
+                ep.deconfigure(true).ok();
             }
         }
 

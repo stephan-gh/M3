@@ -26,8 +26,8 @@ use arch::loader::Loader;
 use cap::{Capability, KObject};
 use cap::{EPObject, GateObject, RGateObject, SemObject};
 use ktcu;
-use pes::VPE;
 use pes::pemng;
+use pes::VPE;
 use platform;
 use syscalls::{get_request, reply_success, send_reply, SyscError};
 
@@ -221,31 +221,10 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let dst_pe = ep.pe_id();
     let pemux = pemng::get().pemux(dst_pe);
 
-    let mut invalidated = false;
-    if let Some(ref gate) = &*ep.get_gate() {
-        // invalidate receive and send EPs
-        match gate {
-            GateObject::RGate(_) | GateObject::SGate(_) => {
-                pemux
-                    .invalidate_ep(ep_vpe.id(), epid, false, false)
-                    .map_err(|e| {
-                        let msg = format!("Invalidation of EP {}:{} failed", dst_pe, epid);
-                        SyscError::new(e.code(), msg)
-                    })?;
-                invalidated = true;
-            },
-            _ => {},
-        }
-
-        // deactivate receive gate
-        match gate {
-            GateObject::RGate(r) => r.upgrade().unwrap().deactivate(),
-            _ => {},
-        }
-
-        // we tell the gate that it's ep is no longer valid
-        gate.remove_ep();
-    }
+    let invalidated = ep.deconfigure(false).map_err(|e| {
+        let msg = format!("Invalidation of EP {}:{} failed", dst_pe, epid);
+        SyscError::new(e.code(), msg)
+    })?;
 
     let maybe_kobj = vpe
         .obj_caps()
@@ -436,7 +415,8 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 sysc_err!(Code::InvArgs, "VPE can't start itself");
             }
 
-            vpecap.start_app(Some(arg as i32))
+            vpecap
+                .start_app(Some(arg as i32))
                 .map_err(|e| SyscError::new(e.code(), "Unable to start VPE".to_string()))?;
         },
 

@@ -24,7 +24,7 @@ use core::cmp;
 use core::fmt;
 use core::ptr::{NonNull, Unique};
 
-use cap::{GateEP, KObject};
+use cap::{EPObject, GateEP, KObject};
 use pes::{pemng, vpemng, VPE};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
@@ -344,6 +344,7 @@ impl Capability {
                 pemux.notify_invalidate(vpe_id, ep.ep()).ok();
             }
 
+            EPObject::revoke(&ep);
             cgp.remove_ep();
         }
     }
@@ -358,6 +359,10 @@ impl Capability {
                         vpemng::get().remove_vpe(id);
                     }
                 }
+            },
+
+            KObject::EP(ref mut e) => {
+                EPObject::revoke(e);
             },
 
             KObject::SGate(ref mut o) => {
