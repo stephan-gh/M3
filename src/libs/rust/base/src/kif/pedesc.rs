@@ -119,7 +119,7 @@ impl PEDesc {
 
     /// Return if the PE supports the context switching protocol
     pub fn supports_pemux(self) -> bool {
-        self.supports_vpes() && self.isa() != PEISA::IDE_DEV
+        self.supports_vpes() && !self.is_device()
     }
 
     /// Returns whether the PE has an internal memory (SPM, DRAM, ...)
