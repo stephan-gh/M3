@@ -303,6 +303,7 @@ private:
     uint32_t _curTxDesc;
     uint32_t _curTxBuf;
     m3::MemGate _bufs;
+    m3::MemGate _devbufs;
     alloc_cb_func _allocCallback;
     next_buf_cb_func _nextBufCallback;
     recv_cb_func _recvCallback;

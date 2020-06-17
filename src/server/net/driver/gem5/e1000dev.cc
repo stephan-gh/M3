@@ -51,6 +51,7 @@ E1000::E1000(WorkLoop *wl, alloc_cb_func allocCallback, next_buf_cb_func nextBuf
       _curTxDesc(0),
       _curTxBuf(0),
       _bufs(MemGate::create_global(sizeof(Buffers), MemGate::RW)),
+      _devbufs(_bufs.derive(0, sizeof(Buffers), MemGate::RW)),
       _allocCallback(allocCallback),
       _nextBufCallback(nextBufCallback),
       _recvCallback(recvCallback),
@@ -62,7 +63,7 @@ E1000::E1000(WorkLoop *wl, alloc_cb_func allocCallback, next_buf_cb_func nextBuf
     }
 
     // configure dma endpoint to access descriptor buffers
-    _nic.setDmaEp(_bufs);
+    _nic.setDmaEp(_devbufs);
 
     // register interrupt callback
     _nic.listenForIRQs(wl, std::bind(&E1000::receiveInterrupt, this));
