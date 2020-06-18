@@ -313,6 +313,7 @@ impl Subsystem {
                         sub_slice.derive()?,
                         sub_slice.offset(),
                         sub_slice.capacity(),
+                        sub_slice.in_reserved_mem(),
                     );
                     pass_down_mem(&mut sub, &cfg)?;
 
@@ -358,7 +359,7 @@ pub struct SubsystemBuilder {
     desc: Option<MemGate>,
     cfg: (MemGate, usize),
     pes: Vec<(PEId, Rc<PE>)>,
-    mems: Vec<(MemGate, goff, goff)>,
+    mems: Vec<(MemGate, goff, goff, bool)>,
     servs: Vec<(String, u32, u32, Option<u32>)>,
     serv_objs: Vec<services::Service>,
 }
@@ -379,8 +380,8 @@ impl SubsystemBuilder {
         self.pes.push((id, pe));
     }
 
-    pub fn add_mem(&mut self, mem: MemGate, addr: goff, size: goff) {
-        self.mems.push((mem, addr, size));
+    pub fn add_mem(&mut self, mem: MemGate, addr: goff, size: goff, reserved: bool) {
+        self.mems.push((mem, addr, size, reserved));
     }
 
     pub fn add_serv(&mut self, name: String, sess_frac: u32, sess_fixed: u32, quota: Option<u32>) {
@@ -436,8 +437,8 @@ impl SubsystemBuilder {
         }
 
         // memory regions
-        for (mgate, addr, size) in &self.mems {
-            let boot_mem = boot::Mem::new(*addr, *size, false);
+        for (mgate, addr, size, reserved) in &self.mems {
+            let boot_mem = boot::Mem::new(*addr, *size, *reserved);
             mem.write_obj(&boot_mem, off)?;
 
             vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, mgate.sel(), 1), sel)?;
@@ -531,7 +532,7 @@ fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<
             for pmem in child.phys_mems() {
                 let slice = memory::container().find_mem(pmem.phys(), pmem.size())?;
                 let mgate = slice.derive()?;
-                sub.add_mem(mgate, pmem.phys(), pmem.size());
+                sub.add_mem(mgate, pmem.phys(), pmem.size(), true);
             }
 
             pass_down_mem(sub, child)?;
