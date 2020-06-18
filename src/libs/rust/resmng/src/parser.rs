@@ -205,13 +205,14 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
         if start != 0 {
             let mut crts = Vec::new();
             collect_sess_crts(&app, &mut crts);
+
             for c in crts {
-                if app
+                let duplicate = app
                     .sesscrt
                     .iter()
                     .find(|sc| sc.serv_name() == c.serv_name())
-                    .is_none()
-                {
+                    .is_some();
+                if !duplicate && !hosts_service(&app, c.serv_name()) {
                     app.sesscrt.push(c);
                 }
             }
@@ -222,6 +223,17 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
     else {
         Err(Error::new(Code::InvArgs))
     }
+}
+
+fn hosts_service(app: &config::AppConfig, name: &str) -> bool {
+    for d in app.domains() {
+        for a in d.apps() {
+            if hosts_service(a, name) || a.services().iter().any(|s| s.global_name() == name) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn collect_sess_crts(app: &config::AppConfig, crts: &mut Vec<config::SessCrtDesc>) {
