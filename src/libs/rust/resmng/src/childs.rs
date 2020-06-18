@@ -228,7 +228,13 @@ pub trait Child {
 
         let our_srv = self.obtain(srv_sel)?;
         let our_sgate = self.obtain(sgate_sel)?;
-        let id = services::get().add_service(our_srv, our_sgate, name, sessions, true)?;
+        let id = services::get().add_service(
+            our_srv,
+            our_sgate,
+            sdesc.global_name().to_string(),
+            sessions,
+            true,
+        )?;
 
         sdesc.mark_used();
         self.res_mut().services.push((id, srv_sel));
