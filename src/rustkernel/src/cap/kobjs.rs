@@ -577,6 +577,20 @@ impl EPObject {
         }
     }
 
+    pub fn configure(ep: &Rc<Self>, gate: &KObject) {
+        // create a gate object from the kobj
+        let go = match gate {
+            KObject::MGate(g) => GateObject::MGate(Rc::downgrade(&g)),
+            KObject::RGate(g) => GateObject::RGate(Rc::downgrade(&g)),
+            KObject::SGate(g) => GateObject::SGate(Rc::downgrade(&g)),
+            _ => unreachable!(),
+        };
+        // we tell the gate object its gate object
+        go.set_ep(ep);
+        // we tell the endpoint its current gate object
+        ep.set_gate(go);
+    }
+
     pub fn deconfigure(&self, force: bool) -> Result<bool, Error> {
         let mut invalidated = false;
         if let Some(ref gate) = &*self.gate.borrow() {

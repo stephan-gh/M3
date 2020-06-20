@@ -354,11 +354,17 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     // activate pager EPs
     #[cfg(target_os = "none")]
     {
+        use cap::EPObject;
+
         if let Some(sg) = _sgate {
-            // TODO remember the EP to invalidate it on gate destruction
             pemux
                 .config_snd_ep(eps + tcu::PG_SEP_OFF, nvpe.id(), &sg)
                 .unwrap();
+
+            // remember the activation
+            let sep = EPObject::new(true, &nvpe, eps + tcu::PG_SEP_OFF, 0, pemux.pe());
+            EPObject::configure(&sep, &KObject::SGate(sg.clone()));
+            nvpe.add_ep(sep);
         }
         if let Some(mut rg) = _rgate {
             let rbuf = nvpe.rbuf_addr()
@@ -366,9 +372,15 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
                 + cfg::UPCALL_RBUF_SIZE as goff
                 + cfg::DEF_RBUF_SIZE as goff;
             rg.activate(nvpe.pe_id(), eps + tcu::PG_REP_OFF, rbuf);
+
             pemux
                 .config_rcv_ep(eps + tcu::PG_REP_OFF, nvpe.id(), None, &mut rg)
                 .unwrap();
+
+            // remember the activation
+            let rep = EPObject::new(true, &nvpe, eps + tcu::PG_REP_OFF, 0, pemux.pe());
+            EPObject::configure(&rep, &KObject::RGate(rg.clone()));
+            nvpe.add_ep(rep);
         }
     }
 

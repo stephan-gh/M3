@@ -24,7 +24,7 @@ use thread;
 
 use arch::loader::Loader;
 use cap::{Capability, KObject};
-use cap::{EPObject, GateObject, RGateObject, SemObject};
+use cap::{EPObject, RGateObject, SemObject};
 use ktcu;
 use pes::pemng;
 use pes::VPE;
@@ -331,17 +331,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             _ => sysc_err!(Code::InvArgs, "Invalid capability"),
         };
 
-        // create a gate object from the kobj
-        let go = match kobj {
-            KObject::MGate(g) => GateObject::MGate(Rc::downgrade(&g)),
-            KObject::RGate(g) => GateObject::RGate(Rc::downgrade(&g)),
-            KObject::SGate(g) => GateObject::SGate(Rc::downgrade(&g)),
-            _ => sysc_err!(Code::InvArgs, "Invalid capability"),
-        };
-        // we tell the gate object its gate object
-        go.set_ep(&ep);
-        // we tell the endpoint its current gate object
-        ep.set_gate(go);
+        EPObject::configure(&ep, &kobj);
     }
     else if !invalidated {
         pemux
