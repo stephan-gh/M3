@@ -233,8 +233,6 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         .map(|cap| cap.get().clone());
 
     if let Some(kobj) = maybe_kobj {
-        // TODO check whether the gate is already activated?
-
         match kobj {
             KObject::MGate(_) | KObject::SGate(_) => {
                 if ep.replies() != 0 {
