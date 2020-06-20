@@ -240,6 +240,9 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 if ep.replies() != 0 {
                     sysc_err!(Code::InvArgs, "Only rgates use EP caps with reply slots");
                 }
+                if rbuf_off != 0 || rbuf_mem != kif::INVALID_SEL {
+                    sysc_err!(Code::InvArgs, "Only rgates specify receive buffers");
+                }
             },
             _ => {},
         }
@@ -251,7 +254,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 }
 
                 let pe_id = m.pe_id();
-                if let Err(e) = pemux.config_mem_ep(epid, ep_vpe.id(), &m, pe_id, rbuf_off) {
+                if let Err(e) = pemux.config_mem_ep(epid, ep_vpe.id(), &m, pe_id) {
                     sysc_err!(e.code(), "Unable to configure mem EP");
                 }
             },

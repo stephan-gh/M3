@@ -405,13 +405,13 @@ fn activate() {
         syscalls::activate(ep1.sel(), SEL_VPE, INVALID_SEL, 0),
         Code::InvArgs
     );
-    // invalid address
+    // receive buffer specified for MemGate
     wv_assert_err!(
-        syscalls::activate(ep1.sel(), mgate.sel(), INVALID_SEL, 0x1000),
+        syscalls::activate(ep1.sel(), mgate.sel(), mgate.sel(), 0),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::activate(ep1.sel(), mgate.sel(), INVALID_SEL, !0),
+        syscalls::activate(ep1.sel(), mgate.sel(), INVALID_SEL, 1),
         Code::InvArgs
     );
     // already activated

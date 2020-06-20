@@ -254,12 +254,7 @@ impl PEMux {
         vpe: VPEId,
         obj: &Rc<MGateObject>,
         pe_id: PEId,
-        off: goff,
     ) -> Result<(), Error> {
-        if off >= obj.size() as goff || obj.addr().raw().checked_add(off).is_none() {
-            return Err(Error::new(Code::InvArgs));
-        }
-
         klog!(EPS, "PE{}:EP{} = {:?}", self.pe_id(), ep, obj);
 
         ktcu::config_remote_ep(self.pe_id(), ep, |regs| {
@@ -268,8 +263,8 @@ impl PEMux {
                 regs,
                 vpe,
                 pe_id,
-                obj.offset() + off,
-                (obj.size() - off) as usize,
+                obj.offset(),
+                obj.size() as usize,
                 obj.perms(),
             );
         })
