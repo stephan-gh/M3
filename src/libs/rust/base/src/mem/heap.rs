@@ -17,9 +17,7 @@
 //! Contains the malloc implementation
 
 use arch::cfg;
-use core::intrinsics;
 use io;
-use libc;
 use util;
 
 const HEAP_USED_BITS: usize = 0x5 << (8 * util::size_of::<usize>() - 3);
@@ -55,21 +53,6 @@ extern "C" {
 
     /// Initializes the heap
     fn heap_init(begin: usize, end: usize);
-
-    /// Allocates `size` bytes on the heap
-    fn heap_alloc(size: usize) -> *mut libc::c_void;
-
-    /// Allocates `n * size` on the heap and initializes it to 0
-    fn heap_calloc(n: usize, size: usize) -> *mut libc::c_void;
-
-    /// Reallocates `n` to be `size` bytes large
-    ///
-    /// This implementation might increase the size of the area or shink it. It might also free the
-    /// current area and allocate a new area of `size` bytes.
-    fn heap_realloc(p: *mut libc::c_void, size: usize) -> *mut libc::c_void;
-
-    /// Frees the area at `p`
-    fn heap_free(p: *mut libc::c_void);
 
     fn heap_append(pages: usize);
 
@@ -191,90 +174,4 @@ extern "C" fn heap_oom_callback(size: usize) -> bool {
         "Unable to allocate {} bytes on the heap: out of memory",
         size
     );
-}
-
-#[no_mangle]
-extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    unsafe { heap_alloc(size) }
-}
-
-#[no_mangle]
-extern "C" fn __rdl_dealloc(ptr: *mut libc::c_void, _size: usize, _align: usize) {
-    unsafe { heap_free(ptr) };
-}
-
-#[no_mangle]
-extern "C" fn __rdl_realloc(
-    ptr: *mut libc::c_void,
-    _old_size: usize,
-    _old_align: usize,
-    new_size: usize,
-    _new_align: usize,
-    _err: *mut u8,
-) -> *mut libc::c_void {
-    unsafe { heap_realloc(ptr, new_size) }
-}
-
-#[no_mangle]
-extern "C" fn __rdl_alloc_zeroed(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    unsafe { heap_calloc(size, 1) }
-}
-
-#[no_mangle]
-extern "C" fn __rdl_oom(_err: *const u8) -> ! {
-    intrinsics::abort();
-}
-
-#[no_mangle]
-extern "C" fn __rdl_usable_size(_layout: *const u8, _min: *mut usize, _max: *mut usize) {
-    // TODO implement me
-}
-
-#[no_mangle]
-extern "C" fn __rdl_alloc_excess(
-    size: usize,
-    _align: usize,
-    _excess: *mut usize,
-    _err: *mut u8,
-) -> *mut libc::c_void {
-    // TODO is that correct?
-    unsafe { heap_alloc(size) }
-}
-
-#[no_mangle]
-extern "C" fn __rdl_realloc_excess(
-    ptr: *mut libc::c_void,
-    _old_size: usize,
-    _old_align: usize,
-    new_size: usize,
-    _new_align: usize,
-    _excess: *mut usize,
-    _err: *mut u8,
-) -> *mut libc::c_void {
-    // TODO is that correct?
-    unsafe { heap_realloc(ptr, new_size) }
-}
-
-#[no_mangle]
-extern "C" fn __rdl_grow_in_place(
-    _ptr: *mut libc::c_void,
-    _old_size: usize,
-    _old_align: usize,
-    _new_size: usize,
-    _new_align: usize,
-) -> u8 {
-    // TODO implement me
-    0
-}
-
-#[no_mangle]
-extern "C" fn __rdl_shrink_in_place(
-    _ptr: *mut libc::c_void,
-    _old_size: usize,
-    _old_align: usize,
-    _new_size: usize,
-    _new_align: usize,
-) -> u8 {
-    // TODO implement me
-    0
 }

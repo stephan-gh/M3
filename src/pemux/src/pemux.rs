@@ -23,6 +23,7 @@
 extern crate base;
 #[macro_use]
 extern crate cfg_if;
+extern crate heap;
 extern crate isr;
 extern crate paging;
 

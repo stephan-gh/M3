@@ -23,6 +23,8 @@ extern crate base;
 extern crate bitflags;
 #[macro_use]
 extern crate cfg_if;
+#[cfg(feature = "heap")]
+extern crate heap;
 
 cfg_if! {
     if #[cfg(target_arch = "x86_64")] {

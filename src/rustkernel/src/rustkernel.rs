@@ -22,6 +22,7 @@
 extern crate base;
 #[macro_use]
 extern crate bitflags;
+extern crate heap;
 extern crate thread;
 
 #[cfg(target_os = "none")]

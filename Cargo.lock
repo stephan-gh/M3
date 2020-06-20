@@ -43,6 +43,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "heap"
+version = "0.1.0"
+dependencies = [
+ "base 0.1.0",
+ "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "isr"
 version = "0.1.0"
 dependencies = [
@@ -61,6 +69,7 @@ version = "0.1.0"
 dependencies = [
  "base 0.1.0",
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heap 0.1.0",
 ]
 
 [[package]]
@@ -88,6 +97,7 @@ dependencies = [
  "base 0.1.0",
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heap 0.1.0",
 ]
 
 [[package]]
@@ -104,6 +114,7 @@ version = "0.1.0"
 dependencies = [
  "base 0.1.0",
  "cfg-if 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heap 0.1.0",
  "isr 0.1.0",
  "paging 0.1.0",
 ]
@@ -154,6 +165,7 @@ version = "0.1.0"
 dependencies = [
  "base 0.1.0",
  "bitflags 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heap 0.1.0",
  "isr 0.1.0",
  "paging 0.1.0",
  "thread 0.1.0",

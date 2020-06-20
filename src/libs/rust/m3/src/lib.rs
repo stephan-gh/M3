@@ -24,6 +24,7 @@
 extern crate base;
 #[macro_use]
 extern crate bitflags;
+extern crate heap;
 
 // init stuff
 #[cfg(target_os = "none")]

@@ -5,6 +5,7 @@ members = [
     "src/apps/rusthello",
     "src/apps/rustunittests",
     "src/libs/rust/base",
+    "src/libs/rust/heap",
     "src/libs/rust/isr",
     "src/libs/rust/m3",
     "src/libs/rust/paging",

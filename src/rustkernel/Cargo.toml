@@ -10,7 +10,8 @@ crate-type = ["staticlib"]
 base = { path = "../libs/rust/base", features = ["kernel"] }
 bitflags = "*"
 thread = { path = "../libs/rust/thread" }
+heap = { path = "../libs/rust/heap" }
 
 [target.'cfg(target_os = "none")'.dependencies]
 isr = { path = "../libs/rust/isr" }
-paging = { path = "../libs/rust/paging" }
+paging = { path = "../libs/rust/paging", default-features = false, features = [] }

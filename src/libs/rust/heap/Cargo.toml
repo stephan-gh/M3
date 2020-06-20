@@ -1,12 +1,11 @@
 [package]
-name = "m3"
+name = "heap"
 version = "0.1.0"
 
 [lib]
-name = "m3"
+name = "heap"
 crate-type = ["rlib", "staticlib"]
 
 [dependencies]
 bitflags = "*"
 base = { path = "../base" }
-heap = { path = "../heap" }
