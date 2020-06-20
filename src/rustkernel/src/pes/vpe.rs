@@ -144,13 +144,6 @@ impl VPE {
         }
     }
 
-    pub fn start(&self) -> Result<(), Error> {
-        let loader = Loader::get();
-        let pid = loader.start(self)?;
-        self.pid.set(Some(pid));
-        Ok(())
-    }
-
     #[cfg(target_os = "linux")]
     fn init_eps(&self) -> Result<(), Error> {
         Ok(())
@@ -398,7 +391,13 @@ impl VPE {
         self.pid.set(pid);
         self.state.set(State::RUNNING);
 
-        vpemng::get().start_vpe(self)
+        vpemng::get().start_vpe(self)?;
+
+        let loader = Loader::get();
+        let pid = loader.start(self)?;
+        self.pid.set(Some(pid));
+
+        Ok(())
     }
 
     pub fn stop_app(&self, exit_code: i32, is_self: bool) {

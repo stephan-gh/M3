@@ -127,10 +127,11 @@ impl VPEMng {
                 vpe.id(),
                 vpe.eps_start(),
                 kif::pemux::VPEOp::START,
-            )?;
+            )
         }
-
-        vpe.start()
+        else {
+            Ok(())
+        }
     }
 
     pub fn stop_vpe(&mut self, vpe: &VPE, stop: bool, reset: bool) -> Result<(), Error> {
