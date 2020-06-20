@@ -25,6 +25,7 @@ use base::mem::GlobAddr;
 use base::rc::Rc;
 use base::tcu;
 
+use args;
 use cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
 use ktcu;
 use mem::{self, Allocation};
@@ -159,7 +160,7 @@ impl VPEMng {
             .unwrap_or_else(|| pemng::get().find_pe(&pe_imem).unwrap());
         let pemux = pemng::get().pemux(pe_id);
 
-        let kmem = KMemObject::new(mem::KERNEL_MEM - cfg::FIXED_KMEM);
+        let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
         let vpe = self
             .create_vpe(
                 "root",

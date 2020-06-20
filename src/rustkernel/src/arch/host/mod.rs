@@ -15,7 +15,9 @@
  */
 
 pub mod childs;
-pub mod ktcu;
+mod fs;
 pub mod kernel;
+pub mod ktcu;
 pub mod loader;
+pub mod net;
 pub mod platform;

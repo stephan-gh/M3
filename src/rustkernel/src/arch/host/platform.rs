@@ -15,25 +15,33 @@
  */
 
 use base::cfg;
-use base::col::Vec;
-use base::tcu::PEId;
+use base::col::{String, Vec};
 use base::goff;
 use base::kif::{boot, PEDesc, PEType, PEISA};
 use base::libc;
+use base::tcu::PEId;
 use base::util;
 use core::mem::MaybeUninit;
 use core::ptr;
 
+use args;
 use mem;
 use platform;
 
-pub fn init(args: &[&str]) -> platform::KEnv {
+pub fn init(args: &[String]) -> platform::KEnv {
     let mut info = boot::Info::default();
 
     // PEs
     let mut pes = Vec::new();
     for _ in 0..cfg::PE_COUNT {
         pes.push(PEDesc::new(PEType::COMP_IMEM, PEISA::X86, 1024 * 1024));
+    }
+    if args::get().disk {
+        pes.push(PEDesc::new(PEType::COMP_IMEM, PEISA::IDE_DEV, 0));
+    }
+    if args::get().net_bridge.is_some() {
+        pes.push(PEDesc::new(PEType::COMP_IMEM, PEISA::NIC_DEV, 0));
+        pes.push(PEDesc::new(PEType::COMP_IMEM, PEISA::NIC_DEV, 0));
     }
     let mut upes = Vec::new();
     for (i, pe) in pes[1..].iter().enumerate() {
@@ -123,12 +131,12 @@ fn build_mems() -> Vec<boot::Mem> {
         mem::MemType::KERNEL,
         kernel_pe(),
         off,
-        mem::KERNEL_MEM as goff,
+        args::get().kmem as goff,
     ));
-    off += mem::KERNEL_MEM as goff;
+    off += args::get().kmem as goff;
 
     // user memory
-    let user_size = cfg::TOTAL_MEM_SIZE - (cfg::FS_MAX_SIZE + mem::KERNEL_MEM);
+    let user_size = cfg::TOTAL_MEM_SIZE - (cfg::FS_MAX_SIZE + args::get().kmem);
     mem::get().add(mem::MemMod::new(
         mem::MemType::USER,
         kernel_pe(),
@@ -143,7 +151,7 @@ fn build_mems() -> Vec<boot::Mem> {
     mems
 }
 
-fn build_modules(args: &[&str]) -> Vec<boot::Mod> {
+fn build_modules(args: &[String]) -> Vec<boot::Mod> {
     let mut mods = Vec::new();
 
     for arg in args {
@@ -181,11 +189,8 @@ fn build_modules(args: &[&str]) -> Vec<boot::Mod> {
 pub fn kernel_pe() -> PEId {
     0
 }
-pub fn first_user_pe() -> PEId {
-    kernel_pe() + 1
-}
-pub fn last_user_pe() -> PEId {
-    cfg::PE_COUNT - 1
+pub fn user_pes() -> platform::PEIterator {
+    platform::PEIterator::new(1, platform::pes().len() - 1)
 }
 
 pub fn is_shared(_pe: PEId) -> bool {

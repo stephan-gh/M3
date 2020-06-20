@@ -33,6 +33,7 @@ extern crate paging;
 mod log;
 
 pub mod arch;
+mod args;
 mod cap;
 mod com;
 mod ktcu;

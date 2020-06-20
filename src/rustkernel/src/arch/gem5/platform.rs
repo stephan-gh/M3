@@ -15,7 +15,7 @@
  */
 
 use base::cell::StaticCell;
-use base::col::Vec;
+use base::col::{String, Vec};
 use base::cfg;
 use base::tcu::PEId;
 use base::envdata;
@@ -24,13 +24,14 @@ use base::kif::{boot, PEDesc, PEType};
 use base::mem::GlobAddr;
 use base::util;
 
+use args;
 use ktcu;
 use mem::{self, MemMod, MemType};
 use platform;
 
 static LAST_PE: StaticCell<PEId> = StaticCell::new(0);
 
-pub fn init(_args: &[&str]) -> platform::KEnv {
+pub fn init(_args: &[String]) -> platform::KEnv {
     // read kernel env
     let addr = GlobAddr::new(envdata::get().kenv);
     let mut offset = addr.offset();
@@ -72,8 +73,8 @@ pub fn init(_args: &[&str]) -> platform::KEnv {
             // the first memory module hosts the FS image and other stuff
             if kmem_idx == 0 {
                 let avail = mems[kmem_idx].size();
-                if avail <= mem::KERNEL_MEM as goff {
-                    panic!("Not enough DRAM for kernel memory ({})", mem::KERNEL_MEM);
+                if avail <= args::get().kmem as goff {
+                    panic!("Not enough DRAM for kernel memory ({})", args::get().kmem);
                 }
 
                 // file system image
@@ -86,13 +87,13 @@ pub fn init(_args: &[&str]) -> platform::KEnv {
                     MemType::KERNEL,
                     i,
                     used,
-                    mem::KERNEL_MEM as goff,
+                    args::get().kmem as goff,
                 ));
 
                 // user memory
-                let user = used + mem::KERNEL_MEM as goff;
+                let user = used + args::get().kmem as goff;
                 mem.add(MemMod::new(MemType::USER, i, user, avail));
-                umems.push(boot::Mem::new(user, avail - mem::KERNEL_MEM as goff, false));
+                umems.push(boot::Mem::new(user, avail - args::get().kmem as goff, false));
             }
             else {
                 mem.add(MemMod::new(MemType::USER, i, 0, pe.mem_size() as goff));
@@ -135,11 +136,8 @@ pub fn init(_args: &[&str]) -> platform::KEnv {
 pub fn kernel_pe() -> PEId {
     envdata::get().pe_id as PEId
 }
-pub fn first_user_pe() -> PEId {
-    kernel_pe() + 1
-}
-pub fn last_user_pe() -> PEId {
-    *LAST_PE
+pub fn user_pes() -> platform::PEIterator {
+    platform::PEIterator::new(kernel_pe() + 1, *LAST_PE)
 }
 
 pub fn is_shared(pe: PEId) -> bool {

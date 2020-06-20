@@ -21,6 +21,7 @@ use base::mem::heap;
 use thread;
 
 use arch::{exceptions, loader, paging};
+use args;
 use ktcu;
 use mem;
 use pes;
@@ -46,6 +47,8 @@ pub extern "C" fn env_run() {
     paging::init();
     mem::init();
 
+    args::parse();
+
     platform::init(&[]);
     loader::init();
 
@@ -68,13 +71,8 @@ pub extern "C" fn env_run() {
 
     let pex_rbuf_ord = math::next_log2(32) + 7;
     let pex_rbuf = vec![0u8; 1 << pex_rbuf_ord];
-    ktcu::recv_msgs(
-        ktcu::KPEX_EP,
-        pex_rbuf.as_ptr() as goff,
-        pex_rbuf_ord,
-        7,
-    )
-    .expect("Unable to config pemux REP");
+    ktcu::recv_msgs(ktcu::KPEX_EP, pex_rbuf.as_ptr() as goff, pex_rbuf_ord, 7)
+        .expect("Unable to config pemux REP");
 
     let vpemng = pes::vpemng::get();
     vpemng.start_root().expect("starting root failed");

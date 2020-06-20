@@ -57,5 +57,7 @@ pub fn workloop() {
 
         #[cfg(target_os = "linux")]
         ::arch::childs::check_childs();
+        #[cfg(target_os = "linux")]
+        ::arch::net::check();
     }
 }

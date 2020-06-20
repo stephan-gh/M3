@@ -17,9 +17,6 @@
 mod main;
 mod module;
 
-// TODO make that a kernel argument
-pub const KERNEL_MEM: usize = 64 * 1024 * 1024;
-
 pub use self::main::{Allocation, MainMemory};
 pub use self::module::*;
 

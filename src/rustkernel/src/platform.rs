@@ -16,7 +16,7 @@
 
 use arch;
 use base::cell::StaticCell;
-use base::col::Vec;
+use base::col::{String, Vec};
 use base::kif::{boot, PEDesc};
 use base::mem::GlobAddr;
 use base::tcu::PEId;
@@ -54,6 +54,12 @@ pub struct PEIterator {
     last: PEId,
 }
 
+impl PEIterator {
+    pub fn new(id: PEId, last: PEId) -> Self {
+        Self { id, last }
+    }
+}
+
 impl iter::Iterator for PEIterator {
     type Item = PEId;
 
@@ -70,7 +76,7 @@ impl iter::Iterator for PEIterator {
 
 static KENV: StaticCell<Option<KEnv>> = StaticCell::new(None);
 
-pub fn init(args: &[&str]) {
+pub fn init(args: &[String]) {
     KENV.set(Some(arch::platform::init(args)));
 }
 
@@ -95,11 +101,12 @@ pub fn info_size() -> usize {
 pub fn kernel_pe() -> PEId {
     arch::platform::kernel_pe()
 }
+#[cfg(target_os = "linux")]
+pub fn pes() -> &'static [PEDesc] {
+    &get().pes
+}
 pub fn user_pes() -> PEIterator {
-    PEIterator {
-        id: arch::platform::first_user_pe(),
-        last: arch::platform::last_user_pe(),
-    }
+    arch::platform::user_pes()
 }
 
 pub fn pe_desc(pe: PEId) -> PEDesc {
