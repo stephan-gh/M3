@@ -77,52 +77,46 @@ impl PEMux {
         use base::cfg;
 
         // configure send EP
-        {
-            ktcu::config_remote_ep(self.pe_id(), tcu::KPEX_SEP, |regs| {
-                ktcu::config_send(
-                    regs,
-                    kif::pemux::VPE_ID as VPEId,
-                    self.pe_id() as tcu::Label,
-                    platform::kernel_pe(),
-                    ktcu::KPEX_EP,
-                    cfg::KPEX_RBUF_ORD,
-                    1,
-                );
-            })
-            .unwrap();
-        }
+        ktcu::config_remote_ep(self.pe_id(), tcu::KPEX_SEP, |regs| {
+            ktcu::config_send(
+                regs,
+                kif::pemux::VPE_ID as VPEId,
+                self.pe_id() as tcu::Label,
+                platform::kernel_pe(),
+                ktcu::KPEX_EP,
+                cfg::KPEX_RBUF_ORD,
+                1,
+            );
+        })
+        .unwrap();
 
         // configure receive EP
         let mut rbuf = platform::rbuf_pemux(self.pe_id());
-        {
-            ktcu::config_remote_ep(self.pe_id(), tcu::KPEX_REP, |regs| {
-                ktcu::config_recv(
-                    regs,
-                    kif::pemux::VPE_ID as VPEId,
-                    rbuf,
-                    cfg::KPEX_RBUF_ORD,
-                    cfg::KPEX_RBUF_ORD,
-                    None,
-                );
-            })
-            .unwrap();
-            rbuf += 1 << cfg::KPEX_RBUF_ORD;
-        }
+        ktcu::config_remote_ep(self.pe_id(), tcu::KPEX_REP, |regs| {
+            ktcu::config_recv(
+                regs,
+                kif::pemux::VPE_ID as VPEId,
+                rbuf,
+                cfg::KPEX_RBUF_ORD,
+                cfg::KPEX_RBUF_ORD,
+                None,
+            );
+        })
+        .unwrap();
+        rbuf += 1 << cfg::KPEX_RBUF_ORD;
 
         // configure upcall EP
-        {
-            ktcu::config_remote_ep(self.pe_id(), tcu::PEXUP_REP, |regs| {
-                ktcu::config_recv(
-                    regs,
-                    kif::pemux::VPE_ID as VPEId,
-                    rbuf,
-                    cfg::PEXUP_RBUF_ORD,
-                    cfg::PEXUP_RBUF_ORD,
-                    Some(tcu::PEXUP_RPLEP),
-                );
-            })
-            .unwrap();
-        }
+        ktcu::config_remote_ep(self.pe_id(), tcu::PEXUP_REP, |regs| {
+            ktcu::config_recv(
+                regs,
+                kif::pemux::VPE_ID as VPEId,
+                rbuf,
+                cfg::PEXUP_RBUF_ORD,
+                cfg::PEXUP_RBUF_ORD,
+                Some(tcu::PEXUP_RPLEP),
+            );
+        })
+        .unwrap();
     }
 
     pub fn pe(&self) -> &Rc<PEObject> {
