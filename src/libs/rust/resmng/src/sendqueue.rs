@@ -75,7 +75,7 @@ pub fn check_replies() {
             serv.queue().received_reply(&RGATE, msg);
         }
         else {
-            tcu::TCUIf::ack_msg(&RGATE, msg);
+            tcu::TCUIf::ack_msg(&RGATE, msg).unwrap();
         }
     }
 }
@@ -137,7 +137,7 @@ impl SendQueue {
         thread::ThreadManager::get().notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
-        tcu::TCUIf::ack_msg(rg, msg);
+        tcu::TCUIf::ack_msg(rg, msg).unwrap();
 
         self.send_pending();
     }

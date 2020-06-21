@@ -36,7 +36,7 @@ struct Reply<R: 'static> {
 
 impl<R: 'static> Drop for Reply<R> {
     fn drop(&mut self) {
-        TCUIf::ack_msg(RecvGate::syscall(), self.msg);
+        TCUIf::ack_msg(RecvGate::syscall(), self.msg).ok();
     }
 }
 
@@ -50,7 +50,7 @@ fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
 
     let reply = reply_raw.get_data::<kif::DefaultReply>();
     if reply.error != 0 {
-        TCUIf::ack_msg(RecvGate::syscall(), reply_raw);
+        TCUIf::ack_msg(RecvGate::syscall(), reply_raw)?;
         return Err(Error::from(reply.error as u32));
     }
 

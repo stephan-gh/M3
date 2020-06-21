@@ -255,8 +255,8 @@ impl RecvGate {
 
     /// Marks the given message as 'read', allowing the TCU to overwrite it with a new message.
     #[inline(always)]
-    pub fn ack_msg(&self, msg: &tcu::Message) {
-        tcu::TCUIf::ack_msg(self, msg);
+    pub fn ack_msg(&self, msg: &tcu::Message) -> Result<(), Error> {
+        tcu::TCUIf::ack_msg(self, msg)
     }
 
     /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,

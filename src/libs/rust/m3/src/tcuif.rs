@@ -67,7 +67,7 @@ impl TCUIf {
     }
 
     #[inline(always)]
-    pub fn ack_msg(rg: &RecvGate, msg: &Message) {
+    pub fn ack_msg(rg: &RecvGate, msg: &Message) -> Result<(), Error> {
         let off = tcu::TCU::msg_to_offset(rg.address().unwrap(), msg);
         tcu::TCU::ack_msg(rg.ep().unwrap(), off)
     }

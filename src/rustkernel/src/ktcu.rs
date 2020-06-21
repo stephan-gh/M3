@@ -85,7 +85,7 @@ pub fn fetch_msg(rep: EpId) -> Option<&'static Message> {
 
 pub fn ack_msg(rep: EpId, msg: &Message) {
     let off = TCU::msg_to_offset(RBUFS[rep], msg);
-    TCU::ack_msg(rep, off);
+    TCU::ack_msg(rep, off).unwrap();
 }
 
 pub fn send_to(

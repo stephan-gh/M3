@@ -366,11 +366,14 @@ impl TCU {
 
     /// Marks the given message for receive endpoint `ep` as read
     #[inline(always)]
-    pub fn ack_msg(ep: EpId, msg_off: usize) {
+    pub fn ack_msg(ep: EpId, msg_off: usize) -> Result<(), Error> {
+        // ensure that we are really done with the message before acking it
+        unsafe { intrinsics::atomic_fence() };
         Self::write_unpriv_reg(
             UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::ACK_MSG, msg_off as Reg),
         );
+        Self::get_error()
     }
 
     /// Waits until the current command is completed and returns the error, if any occurred
@@ -428,7 +431,7 @@ impl TCU {
             if (unread & (1 << i)) != 0 {
                 let msg = Self::offset_to_msg(buf_addr, i << msg_size);
                 if msg.header.label == label {
-                    Self::ack_msg(ep, (i << msg_size) as usize);
+                    Self::ack_msg(ep, (i << msg_size) as usize).ok();
                 }
             }
         }

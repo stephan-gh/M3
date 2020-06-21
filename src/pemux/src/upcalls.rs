@@ -216,7 +216,7 @@ fn handle_upcalls(our: &mut vpe::VPE) {
 
         // just ACK replies from the kernel; we don't care about them
         if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::KPEX_REP) {
-            tcu::TCU::ack_msg(tcu::KPEX_REP, msg_off);
+            tcu::TCU::ack_msg(tcu::KPEX_REP, msg_off).unwrap();
         }
 
         // change back to old VPE

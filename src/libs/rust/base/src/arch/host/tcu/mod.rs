@@ -254,14 +254,14 @@ impl TCU {
         Self::get_ep(ep, EpReg::VALID) == 1
     }
 
-    pub fn ack_msg(ep: EpId, msg_off: usize) {
+    pub fn ack_msg(ep: EpId, msg_off: usize) -> Result<(), Error> {
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::OFFSET, msg_off as Reg);
         Self::set_cmd(
             CmdReg::CTRL,
             (Command::ACK_MSG.val << 3) | Control::START.bits,
         );
-        Self::get_command_result().unwrap();
+        Self::get_command_result()
     }
 
     pub fn sleep() -> Result<(), Error> {
@@ -324,7 +324,7 @@ impl TCU {
             if (unread & (1 << i)) != 0 {
                 let msg = Self::offset_to_msg(buf_addr, i << msg_order);
                 if msg.header.label == label {
-                    Self::ack_msg(ep, (i << msg_order) as usize);
+                    Self::ack_msg(ep, (i << msg_order) as usize).ok();
                 }
             }
         }
