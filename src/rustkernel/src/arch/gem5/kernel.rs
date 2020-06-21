@@ -44,6 +44,7 @@ pub extern "C" fn env_run() {
     exceptions::init();
     heap::init();
     io::init(0, "rkernel");
+    crate::slab::init();
     paging::init();
     mem::init();
 

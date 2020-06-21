@@ -45,6 +45,7 @@ pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
     ));
     heap::init();
     io::init(0, "rkernel");
+    crate::slab::init();
     tcu::init();
 }
 

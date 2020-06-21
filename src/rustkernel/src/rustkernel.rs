@@ -22,7 +22,6 @@
 extern crate base;
 #[macro_use]
 extern crate bitflags;
-extern crate heap;
 extern crate thread;
 
 #[cfg(target_os = "none")]
@@ -37,6 +36,7 @@ pub mod arch;
 mod args;
 mod cap;
 mod com;
+mod slab;
 mod ktcu;
 mod mem;
 mod pes;
