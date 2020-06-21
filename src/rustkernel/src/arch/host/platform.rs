@@ -157,7 +157,8 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
     for arg in args {
         // copy boot module into memory
         unsafe {
-            let fd = libc::open(arg.as_ptr() as *const libc::c_char, libc::O_RDONLY);
+            let path = format!("{}\0", arg);
+            let fd = libc::open(path.as_ptr() as *const libc::c_char, libc::O_RDONLY);
             if fd == -1 {
                 panic!("Opening {} for reading failed", arg);
             }
