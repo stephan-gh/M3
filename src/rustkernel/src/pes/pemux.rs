@@ -19,7 +19,7 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
 use base::mem::GlobAddr;
-use base::rc::Rc;
+use base::rc::SRc;
 use base::tcu::{self, EpId, PEId};
 
 use cap::{MGateObject, PEObject, RGateObject, SGateObject};
@@ -28,7 +28,7 @@ use pes::{VPEId, INVAL_ID};
 use platform;
 
 pub struct PEMux {
-    pe: Rc<PEObject>,
+    pe: SRc<PEObject>,
     vpes: Vec<VPEId>,
     #[cfg(target_os = "none")]
     queue: crate::com::SendQueue,
@@ -119,7 +119,7 @@ impl PEMux {
         .unwrap();
     }
 
-    pub fn pe(&self) -> &Rc<PEObject> {
+    pub fn pe(&self) -> &SRc<PEObject> {
         &self.pe
     }
 
@@ -202,7 +202,7 @@ impl PEMux {
         &mut self,
         ep: EpId,
         vpe: VPEId,
-        obj: &Rc<SGateObject>,
+        obj: &SRc<SGateObject>,
     ) -> Result<(), Error> {
         let rgate = obj.rgate();
         assert!(rgate.activated());
@@ -228,7 +228,7 @@ impl PEMux {
         ep: EpId,
         vpe: VPEId,
         reply_eps: Option<EpId>,
-        obj: &Rc<RGateObject>,
+        obj: &SRc<RGateObject>,
     ) -> Result<(), Error> {
         klog!(EPS, "PE{}:EP{} = {:?}", self.pe_id(), ep, obj);
 
@@ -252,7 +252,7 @@ impl PEMux {
         &mut self,
         ep: EpId,
         vpe: VPEId,
-        obj: &Rc<MGateObject>,
+        obj: &SRc<MGateObject>,
         pe_id: PEId,
     ) -> Result<(), Error> {
         klog!(EPS, "PE{}:EP{} = {:?}", self.pe_id(), ep, obj);

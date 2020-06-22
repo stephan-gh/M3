@@ -66,11 +66,6 @@ pub mod boxed {
     pub use alloc::boxed::Box;
 }
 
-/// Single-threaded reference-counting pointers
-pub mod rc {
-    pub use alloc::rc::{Rc, Weak};
-}
-
 /// Thread-safe reference-counting pointers
 pub mod sync {
     pub use alloc::sync::{Arc, Weak};
@@ -94,6 +89,7 @@ pub mod math;
 pub mod mem;
 pub mod pexif;
 pub mod profile;
+pub mod rc;
 pub mod serialize;
 pub mod time;
 

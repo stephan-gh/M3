@@ -22,7 +22,7 @@ use base::goff;
 use base::kif;
 use base::math;
 use base::mem::GlobAddr;
-use base::rc::Rc;
+use base::rc::{Rc, SRc};
 use base::tcu;
 
 use args;
@@ -89,9 +89,9 @@ impl VPEMng {
     pub fn create_vpe(
         &mut self,
         name: &str,
-        pe: Rc<PEObject>,
+        pe: SRc<PEObject>,
         eps_start: tcu::EpId,
-        kmem: Rc<KMemObject>,
+        kmem: SRc<KMemObject>,
         flags: VPEFlags,
     ) -> Result<Rc<VPE>, Error> {
         let id: VPEId = self.get_id()?;

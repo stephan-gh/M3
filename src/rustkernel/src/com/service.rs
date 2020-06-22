@@ -17,7 +17,7 @@
 use base::cell::RefCell;
 use base::col::String;
 use base::errors::{Code, Error};
-use base::rc::{Rc, Weak};
+use base::rc::{Rc, SRc, Weak};
 use base::tcu;
 use core::fmt;
 
@@ -28,13 +28,13 @@ use pes::VPE;
 pub struct Service {
     vpe: Weak<VPE>,
     name: String,
-    rgate: Rc<RGateObject>,
+    rgate: SRc<RGateObject>,
     queue: RefCell<SendQueue>,
 }
 
 impl Service {
-    pub fn new(vpe: &Rc<VPE>, name: String, rgate: Rc<RGateObject>) -> Rc<Self> {
-        Rc::new(Service {
+    pub fn new(vpe: &Rc<VPE>, name: String, rgate: SRc<RGateObject>) -> SRc<Self> {
+        SRc::new(Service {
             vpe: Rc::downgrade(vpe),
             name,
             rgate: rgate.clone(),
@@ -56,7 +56,7 @@ impl Service {
     }
 
     pub fn send_receive(
-        serv: &Rc<Service>,
+        serv: &SRc<Service>,
         lbl: tcu::Label,
         msg: &[u8],
     ) -> Result<&'static tcu::Message, Error> {

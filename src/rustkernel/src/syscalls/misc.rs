@@ -24,7 +24,7 @@ use thread;
 
 use arch::loader::Loader;
 use cap::{Capability, KObject};
-use cap::{EPObject, RGateObject, SemObject};
+use cap::{EPObject, SemObject};
 use ktcu;
 use pes::pemng;
 use pes::VPE;
@@ -262,7 +262,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                     sysc_err!(Code::Exists, "SendGate is already activated");
                 }
 
-                let rgate: Rc<RGateObject> = s.rgate().clone();
+                let rgate = s.rgate().clone();
 
                 if !rgate.activated() {
                     sysc_log!(vpe, "activate: waiting for rgate {:?}", rgate);

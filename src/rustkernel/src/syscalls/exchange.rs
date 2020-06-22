@@ -22,7 +22,6 @@ use base::tcu;
 use base::util;
 
 use cap::KObject;
-use cap::ServObject;
 use com::Service;
 use pes::VPE;
 use syscalls::{get_request, reply_success, send_reply, SyscError};
@@ -138,7 +137,7 @@ pub fn exchange_over_sess(
         },
     };
 
-    let serv: Rc<ServObject> = sess.service().clone();
+    let serv = sess.service().clone();
     let label = sess.creator() as tcu::Label;
 
     klog!(

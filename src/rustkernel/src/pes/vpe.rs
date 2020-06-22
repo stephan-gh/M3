@@ -19,7 +19,7 @@ use base::col::{String, ToString, Vec};
 use base::errors::Error;
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType, PEDesc};
-use base::rc::Rc;
+use base::rc::{Rc, SRc};
 use base::tcu::Label;
 use base::tcu::{EpId, PEId, STD_EPS_COUNT, UPCALL_REP_OFF};
 use base::util;
@@ -59,8 +59,8 @@ pub struct VPE {
     flags: VPEFlags,
     eps_start: EpId,
 
-    pe: Rc<PEObject>,
-    kmem: Rc<KMemObject>,
+    pe: SRc<PEObject>,
+    kmem: SRc<KMemObject>,
 
     state: Cell<State>,
     pid: Cell<Option<i32>>,
@@ -80,9 +80,9 @@ impl VPE {
     pub fn new(
         name: &str,
         id: VPEId,
-        pe: Rc<PEObject>,
+        pe: SRc<PEObject>,
         eps_start: EpId,
-        kmem: Rc<KMemObject>,
+        kmem: SRc<KMemObject>,
         flags: VPEFlags,
     ) -> Rc<Self> {
         let vpe = Rc::new(VPE {
@@ -224,7 +224,7 @@ impl VPE {
         self.id
     }
 
-    pub fn pe(&self) -> &Rc<PEObject> {
+    pub fn pe(&self) -> &SRc<PEObject> {
         &self.pe
     }
 
