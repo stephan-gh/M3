@@ -366,7 +366,7 @@ impl fmt::Debug for ServObject {
 }
 
 pub struct SessObject {
-    srv: Weak<ServObject>,
+    srv: Rc<ServObject>,
     creator: usize,
     ident: u64,
 }
@@ -374,14 +374,14 @@ pub struct SessObject {
 impl SessObject {
     pub fn new(srv: &Rc<ServObject>, creator: usize, ident: u64) -> Rc<Self> {
         Rc::new(Self {
-            srv: Rc::downgrade(srv),
+            srv: srv.clone(),
             creator,
             ident,
         })
     }
 
-    pub fn service(&self) -> Rc<ServObject> {
-        self.srv.upgrade().unwrap()
+    pub fn service(&self) -> &Rc<ServObject> {
+        &self.srv
     }
 
     pub fn creator(&self) -> usize {
