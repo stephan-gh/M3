@@ -206,7 +206,7 @@ impl fmt::Debug for RGateObject {
 
 pub struct SGateObject {
     gep: RefCell<GateEP>,
-    rgate: Weak<RGateObject>,
+    rgate: Rc<RGateObject>,
     label: Label,
     credits: u32,
 }
@@ -215,7 +215,7 @@ impl SGateObject {
     pub fn new(rgate: &Rc<RGateObject>, label: Label, credits: u32) -> Rc<Self> {
         Rc::new(Self {
             gep: RefCell::from(GateEP::new()),
-            rgate: Rc::downgrade(rgate),
+            rgate: rgate.clone(),
             label,
             credits,
         })
@@ -229,8 +229,8 @@ impl SGateObject {
         self.gep.borrow_mut()
     }
 
-    pub fn rgate(&self) -> Rc<RGateObject> {
-        self.rgate.upgrade().unwrap()
+    pub fn rgate(&self) -> &Rc<RGateObject> {
+        &self.rgate
     }
 
     pub fn label(&self) -> Label {
@@ -245,7 +245,7 @@ impl SGateObject {
 impl fmt::Debug for SGateObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "SGate[rgate=")?;
-        self.rgate.upgrade().unwrap().print_loc(f)?;
+        self.rgate.print_loc(f)?;
         write!(f, ", lbl={:#x}, crd={}]", self.label, self.credits)
     }
 }
