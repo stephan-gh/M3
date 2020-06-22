@@ -522,7 +522,7 @@ pub struct EPObject {
     vpe: Weak<VPE>,
     ep: EpId,
     replies: u32,
-    pe: Weak<PEObject>,
+    pe: Rc<PEObject>,
 }
 
 impl EPObject {
@@ -533,14 +533,14 @@ impl EPObject {
             vpe: Rc::downgrade(vpe),
             ep,
             replies,
-            pe: Rc::downgrade(pe),
+            pe: pe.clone(),
         });
         vpe.add_ep(ep.clone());
         ep
     }
 
     pub fn pe_id(&self) -> PEId {
-        self.pe.upgrade().unwrap().pe()
+        self.pe.pe()
     }
 
     pub fn vpe(&self) -> Rc<VPE> {
@@ -610,12 +610,10 @@ impl EPObject {
 impl Drop for EPObject {
     fn drop(&mut self) {
         if !self.is_std {
-            let pe = self.pe.upgrade().unwrap();
-
-            let pemux = pemng::get().pemux(pe.pe);
+            let pemux = pemng::get().pemux(self.pe.pe);
             pemux.free_eps(self.ep, 1 + self.replies);
 
-            pe.free(1 + self.replies);
+            self.pe.free(1 + self.replies);
         }
     }
 }
