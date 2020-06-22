@@ -86,37 +86,25 @@ impl GateEP {
 }
 
 pub enum GateObject {
-    RGate(Weak<RGateObject>),
-    SGate(Weak<SGateObject>),
-    MGate(Weak<MGateObject>),
+    RGate(Rc<RGateObject>),
+    SGate(Rc<SGateObject>),
+    MGate(Rc<MGateObject>),
 }
 
 impl GateObject {
     pub fn set_ep(&self, ep: &Rc<EPObject>) {
         match self {
-            Self::RGate(g) => g.upgrade().unwrap().gep.borrow_mut().set_ep(ep),
-            Self::SGate(g) => g.upgrade().unwrap().gep.borrow_mut().set_ep(ep),
-            Self::MGate(g) => g.upgrade().unwrap().gep.borrow_mut().set_ep(ep),
+            Self::RGate(g) => g.gep.borrow_mut().set_ep(ep),
+            Self::SGate(g) => g.gep.borrow_mut().set_ep(ep),
+            Self::MGate(g) => g.gep.borrow_mut().set_ep(ep),
         }
     }
 
     pub fn remove_ep(&self) {
         match self {
-            Self::RGate(g) => {
-                if let Some(g) = g.upgrade() {
-                    g.gep.borrow_mut().remove_ep()
-                }
-            },
-            Self::SGate(g) => {
-                if let Some(g) = g.upgrade() {
-                    g.gep.borrow_mut().remove_ep()
-                }
-            },
-            Self::MGate(g) => {
-                if let Some(g) = g.upgrade() {
-                    g.gep.borrow_mut().remove_ep()
-                }
-            },
+            Self::RGate(g) => g.gep.borrow_mut().remove_ep(),
+            Self::SGate(g) => g.gep.borrow_mut().remove_ep(),
+            Self::MGate(g) => g.gep.borrow_mut().remove_ep(),
         }
     }
 }
@@ -580,9 +568,9 @@ impl EPObject {
     pub fn configure(ep: &Rc<Self>, gate: &KObject) {
         // create a gate object from the kobj
         let go = match gate {
-            KObject::MGate(g) => GateObject::MGate(Rc::downgrade(&g)),
-            KObject::RGate(g) => GateObject::RGate(Rc::downgrade(&g)),
-            KObject::SGate(g) => GateObject::SGate(Rc::downgrade(&g)),
+            KObject::MGate(g) => GateObject::MGate(g.clone()),
+            KObject::RGate(g) => GateObject::RGate(g.clone()),
+            KObject::SGate(g) => GateObject::SGate(g.clone()),
             _ => unreachable!(),
         };
         // we tell the gate object its gate object
@@ -608,7 +596,7 @@ impl EPObject {
 
             // deactivate receive gate
             match gate {
-                GateObject::RGate(r) => r.upgrade().unwrap().deactivate(),
+                GateObject::RGate(r) => r.deactivate(),
                 _ => {},
             }
 
