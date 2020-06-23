@@ -123,7 +123,7 @@ pub trait Handler<S> {
     }
 }
 
-const MSG_SIZE: usize = 128;
+const MSG_SIZE: usize = 256;
 const BUF_SIZE: usize = MSG_SIZE * (1 + super::sesscon::MAX_CREATORS);
 
 impl Server {

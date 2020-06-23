@@ -37,7 +37,7 @@ class Server : public ObjCap {
 
     static constexpr size_t MAX_SESSIONS = 32;
     static constexpr size_t MAX_CREATORS = 3;
-    static constexpr size_t MSG_SIZE = 128;
+    static constexpr size_t MSG_SIZE = 256;
     static constexpr size_t BUF_SIZE = MSG_SIZE * (MAX_CREATORS + 1);
 
     struct Creator {
