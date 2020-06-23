@@ -14,13 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
 use cap::{CapFlags, Capability, Selector};
 use errors::Error;
 use kif;
 use pes::VPE;
 use syscalls;
-use tcu::{EpId, EP_COUNT, STD_EPS_COUNT};
+use tcu::{EpId, EP_COUNT};
 
 /// Represents a TCU endpoint that can be used for communication. This class only serves the purpose
 /// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
@@ -30,6 +29,7 @@ pub struct EP {
     cap: Capability,
     ep: EpId,
     replies: u32,
+    std: bool,
 }
 
 /// The arguments for [`EP`] creations.
@@ -71,11 +71,12 @@ impl EPArgs {
 }
 
 impl EP {
-    const fn create(sel: Selector, ep: EpId, replies: u32, flags: CapFlags) -> Self {
+    const fn create(sel: Selector, ep: EpId, replies: u32, flags: CapFlags, std: bool) -> Self {
         EP {
             cap: Capability::new(sel, flags),
             ep,
             replies,
+            std,
         }
     }
 
@@ -87,16 +88,16 @@ impl EP {
     /// Allocates a new endpoint with custom arguments
     pub(crate) fn new_with(args: EPArgs) -> Result<Self, Error> {
         let (sel, id) = Self::alloc_cap(args.epid, args.vpe, args.replies)?;
-        Ok(Self::create(sel, id, args.replies, CapFlags::empty()))
+        Ok(Self::create(sel, id, args.replies, CapFlags::empty(), false))
     }
 
     /// Binds the given selector to a new EP object
     pub fn new_bind(ep: EpId, sel: Selector) -> Self {
-        Self::create(sel, ep, 0, CapFlags::KEEP_CAP)
+        Self::create(sel, ep, 0, CapFlags::KEEP_CAP, false)
     }
 
     pub(crate) const fn new_def_bind(ep: EpId) -> Self {
-        Self::create(kif::INVALID_SEL, ep, 0, CapFlags::KEEP_CAP)
+        Self::create(kif::INVALID_SEL, ep, 0, CapFlags::KEEP_CAP, true)
     }
 
     /// Returns the endpoint id
@@ -116,8 +117,7 @@ impl EP {
 
     /// Returns if the EP is a standard EP
     pub fn is_standard(&self) -> bool {
-        let eps_start = arch::env::get().first_std_ep();
-        self.id() >= eps_start && self.id() < eps_start + STD_EPS_COUNT
+        self.std
     }
 
     /// Configures this endpoint for the given gate for a different VPE. Note that this call
