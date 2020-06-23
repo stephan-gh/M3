@@ -22,7 +22,6 @@ use core::ops;
 use core::slice;
 use errors::{Code, Error};
 use libc;
-use mem::heap;
 use serialize::{Marshallable, Sink, Source, Unmarshallable};
 use tcu;
 use util;
@@ -200,12 +199,11 @@ unsafe fn copy_from_str(words: &mut [u64], s: &str) {
 }
 
 unsafe fn copy_str_from(s: &[u64], len: usize) -> String {
-    let bytes: *mut libc::c_void = s.as_ptr() as *mut libc::c_void;
-    let copy = heap::alloc(len);
-    libc::memcpy(copy, bytes, len);
-    // we need to make sure that `copy` is properly allocated and aligned and that the capacity is
-    // correct for Vec::from_raw_parts.
-    let v = Vec::from_raw_parts(copy as *mut u8, len, len);
+    let mut v = Vec::<u8>::with_capacity(len);
+    v.set_len(len);
+    let src = s.as_ptr() as *mut libc::c_void;
+    let dst = v.as_mut_ptr() as *mut _ as *mut libc::c_void;
+    libc::memcpy(dst, src, len);
     String::from_utf8(v).unwrap()
 }
 

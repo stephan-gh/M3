@@ -114,11 +114,6 @@ fn heap_bounds() -> (usize, usize) {
     )
 }
 
-/// Allocates `size` bytes from the heap.
-pub fn alloc(size: usize) -> *mut libc::c_void {
-    unsafe { heap_alloc(size) }
-}
-
 pub fn init() {
     let (begin, end) = heap_bounds();
 
@@ -200,7 +195,7 @@ extern "C" fn heap_oom_callback(size: usize) -> bool {
 
 #[no_mangle]
 extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
-    alloc(size)
+    unsafe { heap_alloc(size) }
 }
 
 #[no_mangle]
@@ -243,7 +238,7 @@ extern "C" fn __rdl_alloc_excess(
     _err: *mut u8,
 ) -> *mut libc::c_void {
     // TODO is that correct?
-    alloc(size)
+    unsafe { heap_alloc(size) }
 }
 
 #[no_mangle]
