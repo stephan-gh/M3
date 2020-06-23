@@ -342,23 +342,28 @@ fn exchange() {
 fn revoke_mem_gate() {
     let mut prof = profile::Profiler::default().repeats(100).warmup(10);
 
-    #[derive(Default)]
-    struct Tester(Option<MemGate>);
+    let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
+
+    struct Tester {
+        mgate: MemGate,
+        derived: Option<MemGate>,
+    }
 
     impl profile::Runner for Tester {
         fn pre(&mut self) {
-            self.0 = Some(wv_assert_ok!(MemGate::new(0x1000, Perm::RW)));
+            self.derived = Some(wv_assert_ok!(self.mgate.derive(0, 0x1000, Perm::RW)));
         }
 
         fn run(&mut self) {
-            self.0 = None;
+            self.derived = None;
         }
     }
 
-    wv_perf!(
-        "revoke_mem_gate",
-        prof.runner_with_id(&mut Tester::default(), 0x19)
-    );
+    let mut tester = Tester {
+        mgate,
+        derived: None,
+    };
+    wv_perf!("revoke_mem_gate", prof.runner_with_id(&mut tester, 0x19));
 }
 
 fn revoke_recv_gate() {
