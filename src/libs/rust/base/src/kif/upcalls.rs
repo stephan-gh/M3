@@ -28,7 +28,7 @@ int_enum! {
 }
 
 /// The default upcall, containing the opcode and event
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct DefaultUpcall {
     pub opcode: u64,
@@ -36,7 +36,7 @@ pub struct DefaultUpcall {
 }
 
 /// The forward upcall that is sent upon finished forwardings
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct Forward {
     pub def: DefaultUpcall,
@@ -44,7 +44,7 @@ pub struct Forward {
 }
 
 /// The VPE-wait upcall that is sent upon a VPE-exit
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct VPEWait {
     pub def: DefaultUpcall,

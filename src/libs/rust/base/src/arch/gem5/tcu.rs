@@ -241,7 +241,7 @@ pub struct Header {
 }
 
 /// The TCU message consisting of the header and the payload
-#[repr(C, packed)]
+#[repr(C, align(8))]
 #[derive(Debug)]
 pub struct Message {
     pub header: Header,
@@ -251,7 +251,7 @@ pub struct Message {
 impl Message {
     /// Returns the message data as a reference to `T`.
     pub fn get_data<T>(&self) -> &T {
-        assert!(mem::align_of_val(&self.data) >= mem::align_of::<T>());
+        assert!(mem::align_of_val(self) >= mem::align_of::<T>());
         assert!(self.data.len() >= util::size_of::<T>());
         // safety: assuming that the size and alignment checks above works, the cast below is safe
         let slice = unsafe { &*(&self.data as *const [u8] as *const [T]) };

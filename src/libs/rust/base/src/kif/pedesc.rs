@@ -54,7 +54,7 @@ int_enum! {
 }
 
 /// The underlying type of [`PEDesc`]
-pub type PEDescRaw = u32;
+pub type PEDescRaw = u64;
 
 /// Describes a processing element (PE).
 ///
@@ -63,7 +63,7 @@ pub type PEDescRaw = u32;
 /// to.
 ///
 /// [`create_vpe`]: ../../m3/syscalls/fn.create_vpe.html
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct PEDesc {
     val: PEDescRaw,

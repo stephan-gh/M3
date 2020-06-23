@@ -18,12 +18,12 @@ use cfg;
 use core::intrinsics;
 
 #[derive(Default, Copy, Clone)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct EnvData {
     // boot env
     pub pe_id: u64,
-    pub pe_desc: u32,
-    pub argc: u32,
+    pub pe_desc: u64,
+    pub argc: u64,
     pub argv: u64,
     pub heap_size: u64,
     pub pe_mem_base: u64,

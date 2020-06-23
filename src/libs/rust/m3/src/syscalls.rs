@@ -451,7 +451,7 @@ where
     };
 
     {
-        let mut sink = SliceSink::new(unsafe { &mut req.args.data });
+        let mut sink = SliceSink::new(&mut req.args.data);
         pre(&mut sink);
         req.args.bytes = sink.size() as u64;
     }
@@ -460,7 +460,7 @@ where
 
     {
         let words = (reply.data.args.bytes as usize + 7) / 8;
-        let mut src = SliceSource::new(unsafe { &reply.data.args.data[..words] });
+        let mut src = SliceSource::new(&reply.data.args.data[..words]);
         post(&mut src)?;
     }
 

@@ -49,13 +49,13 @@ pub const SEL_VPE: CapSel = 2;
 pub const FIRST_FREE_SEL: CapSel = SEL_VPE + 1;
 
 /// The default request message that only contains the opcode
-#[repr(C, packed)]
+#[repr(C)]
 pub struct DefaultRequest {
     pub opcode: u64,
 }
 
 /// The default reply message that only contains the error code
-#[repr(C, packed)]
+#[repr(C)]
 pub struct DefaultReply {
     pub error: u64,
 }

@@ -70,7 +70,7 @@ int_enum! {
     }
 }
 
-#[repr(C, packed)]
+#[repr(C)]
 #[derive(Copy, Clone)]
 pub struct ExchangeArgs {
     pub bytes: u64,
@@ -89,7 +89,7 @@ impl Default for ExchangeArgs {
 }
 
 /// The create service request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateSrv {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -122,7 +122,7 @@ impl CreateSrv {
 }
 
 /// The create session request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateSess {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -133,7 +133,7 @@ pub struct CreateSess {
 }
 
 /// The create memory gate request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateMGate {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -144,7 +144,7 @@ pub struct CreateMGate {
 }
 
 /// The create receive gate request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateRGate {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -153,7 +153,7 @@ pub struct CreateRGate {
 }
 
 /// The create send gate request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateSGate {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -163,7 +163,7 @@ pub struct CreateSGate {
 }
 
 /// The create mapping request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateMap {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -175,7 +175,7 @@ pub struct CreateMap {
 }
 
 /// The create VPE request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateVPE {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -219,14 +219,14 @@ impl CreateVPE {
 }
 
 /// The create VPE reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateVPEReply {
     pub error: u64,
     pub eps_start: u64,
 }
 
 /// The create semaphore request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct CreateSem {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -234,7 +234,7 @@ pub struct CreateSem {
 }
 
 /// The alloc endpoints request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct AllocEP {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -244,14 +244,14 @@ pub struct AllocEP {
 }
 
 /// The alloc endpoints reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct AllocEPReply {
     pub error: u64,
     pub ep: u64,
 }
 
 /// The activate request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Activate {
     pub opcode: u64,
     pub ep_sel: u64,
@@ -270,7 +270,7 @@ int_enum! {
 }
 
 /// The VPE control request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct VPECtrl {
     pub opcode: u64,
     pub vpe_sel: u64,
@@ -279,7 +279,7 @@ pub struct VPECtrl {
 }
 
 /// The VPE wait request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct VPEWait {
     pub opcode: u64,
     pub vpe_count: u64,
@@ -306,7 +306,7 @@ impl VPEWait {
 }
 
 /// The VPE wait reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct VPEWaitReply {
     pub error: u64,
     pub vpe_sel: u64,
@@ -314,7 +314,7 @@ pub struct VPEWaitReply {
 }
 
 /// The derive memory request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct DeriveMem {
     pub opcode: u64,
     pub vpe_sel: u64,
@@ -326,7 +326,7 @@ pub struct DeriveMem {
 }
 
 /// The derive kernel memory request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct DeriveKMem {
     pub opcode: u64,
     pub kmem_sel: u64,
@@ -335,7 +335,7 @@ pub struct DeriveKMem {
 }
 
 /// The derive PE request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct DerivePE {
     pub opcode: u64,
     pub pe_sel: u64,
@@ -344,7 +344,7 @@ pub struct DerivePE {
 }
 
 /// The derive service request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct DeriveSrv {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -353,7 +353,7 @@ pub struct DeriveSrv {
 }
 
 /// The get sesion message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct GetSession {
     pub opcode: u64,
     pub dst_sel: u64,
@@ -363,28 +363,28 @@ pub struct GetSession {
 }
 
 /// The kernel memory quota request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct KMemQuota {
     pub opcode: u64,
     pub kmem_sel: u64,
 }
 
 /// The kernel memory quota reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct KMemQuotaReply {
     pub error: u64,
     pub amount: u64,
 }
 
 /// The PE quota request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct PEQuota {
     pub opcode: u64,
     pub pe_sel: u64,
 }
 
 /// The PE quota reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct PEQuotaReply {
     pub error: u64,
     pub amount: u64,
@@ -399,7 +399,7 @@ int_enum! {
 }
 
 /// The semaphore control request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct SemCtrl {
     pub opcode: u64,
     pub sem_sel: u64,
@@ -407,7 +407,7 @@ pub struct SemCtrl {
 }
 
 /// The exchange request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Exchange {
     pub opcode: u64,
     pub vpe_sel: u64,
@@ -417,7 +417,7 @@ pub struct Exchange {
 }
 
 /// The delegate/obtain request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct ExchangeSess {
     pub opcode: u64,
     pub vpe_sel: u64,
@@ -427,14 +427,14 @@ pub struct ExchangeSess {
 }
 
 /// The delegate/obtain reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct ExchangeSessReply {
     pub error: u64,
     pub args: ExchangeArgs,
 }
 
 /// The revoke request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Revoke {
     pub opcode: u64,
     pub vpe_sel: u64,
@@ -443,7 +443,7 @@ pub struct Revoke {
 }
 
 /// The noop request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Noop {
     pub opcode: u64,
 }

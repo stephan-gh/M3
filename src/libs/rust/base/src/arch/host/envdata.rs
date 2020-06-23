@@ -17,12 +17,12 @@
 use cell::{LazyStaticCell, StaticCell};
 use cfg;
 use core::ptr;
-use kif::{CapSel, PEDesc};
+use kif::{CapSel, PEDesc, PEDescRaw};
 
 pub struct EnvData {
     pub pe_id: u64,
     pub shared: u32,
-    pub pe_desc: u32,
+    pub pe_desc: PEDescRaw,
     pub argc: u32,
     pub argv: u64,
     pub first_sel: u32,

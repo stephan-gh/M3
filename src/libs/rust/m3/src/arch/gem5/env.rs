@@ -29,7 +29,7 @@ use util;
 use vfs::{FileTable, MountTable};
 
 #[derive(Default, Copy, Clone)]
-#[repr(C, packed)]
+#[repr(C)]
 pub struct EnvData {
     base: base::envdata::EnvData,
 }
@@ -56,7 +56,7 @@ impl EnvData {
     }
 
     pub fn set_argc(&mut self, argc: usize) {
-        self.base.argc = argc as u32;
+        self.base.argc = argc as u64;
     }
 
     pub fn set_argv(&mut self, argv: usize) {

@@ -61,7 +61,7 @@ static constexpr size_t isa_count() {
  * Describes a PE
  */
 struct PEDesc {
-    typedef uint32_t value_t;
+    typedef uint64_t value_t;
 
     /**
      * Default constructor

@@ -35,7 +35,7 @@ int_enum! {
 }
 
 /// The open request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Open {
     pub opcode: u64,
     pub arglen: u64,
@@ -62,7 +62,7 @@ impl Open {
 }
 
 /// The open reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct OpenReply {
     pub res: u64,
     pub sess: u64,
@@ -70,14 +70,14 @@ pub struct OpenReply {
 }
 
 /// The derive-creator request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct DeriveCreator {
     pub opcode: u64,
     pub sessions: u64,
 }
 
 /// The open reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct DeriveCreatorReply {
     pub res: u64,
     pub creator: u64,
@@ -85,14 +85,14 @@ pub struct DeriveCreatorReply {
 }
 
 /// The data part of the delegate/obtain request messages
-#[repr(C, packed)]
+#[repr(C)]
 pub struct ExchangeData {
     pub caps: [u64; 2],
     pub args: syscalls::ExchangeArgs,
 }
 
 /// The delegate/obtain request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Exchange {
     pub opcode: u64,
     pub sess: u64,
@@ -100,7 +100,7 @@ pub struct Exchange {
 }
 
 /// The delegate/obtain reply message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct ExchangeReply {
     pub res: u64,
     pub data: ExchangeData,
@@ -119,14 +119,14 @@ impl Default for ExchangeReply {
 }
 
 /// The close request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Close {
     pub opcode: u64,
     pub sess: u64,
 }
 
 /// The shutdown request message
-#[repr(C, packed)]
+#[repr(C)]
 pub struct Shutdown {
     pub opcode: u64,
 }

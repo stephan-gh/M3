@@ -24,7 +24,6 @@ use goff;
 /// If the PE supports virtual memory, the offset is a virtual address. Otherwise, it is a physical
 /// address (the offset in the PE-internal memory).
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-#[repr(packed)]
 pub struct GlobAddr {
     val: u64,
 }

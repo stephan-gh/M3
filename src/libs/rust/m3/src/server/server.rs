@@ -46,8 +46,8 @@ impl<'d> CapExchange<'d> {
     pub fn new(input: &'d service::ExchangeData, output: &'d mut service::ExchangeData) -> Self {
         let len = (input.args.bytes as usize + 7) / 8;
         Self {
-            src: SliceSource::new(unsafe { &input.args.data[..len] }),
-            sink: SliceSink::new(unsafe { &mut output.args.data }),
+            src: SliceSource::new(&input.args.data[..len]),
+            sink: SliceSink::new(&mut output.args.data),
             input,
             out_crd: CapRngDesc::default(),
         }
