@@ -139,14 +139,20 @@ impl<K: Copy + Ord, V> Treap<K, V> {
 
     /// Inserts the given value for given key, assuming that the key does not exist in the tree and
     /// returns a mutable reference to the stored value
+    #[inline(always)]
     pub fn insert(&mut self, key: K, value: V) -> &mut V {
+        let node = Box::new(Node::new(key, value, self.prio));
+        self.do_insert(node)
+    }
+
+    fn do_insert(&mut self, mut node: Box<Node<K, V>>) -> &mut V {
         unsafe {
             let mut q = &mut self.root;
             loop {
                 match *q {
                     None => break,
                     Some(n) if (*n.as_ptr()).prio >= self.prio => break,
-                    Some(n) => match key.cmp(&(*n.as_ptr()).key) {
+                    Some(n) => match node.key.cmp(&(*n.as_ptr()).key) {
                         Ordering::Less => q = &mut (*n.as_ptr()).left,
                         Ordering::Greater => q = &mut (*n.as_ptr()).right,
                         Ordering::Equal => panic!("Key does already exist"),
@@ -155,7 +161,6 @@ impl<K: Copy + Ord, V> Treap<K, V> {
             }
 
             let mut prev = *q;
-            let mut node = Node::new(key, value, self.prio);
 
             {
                 // At this point we want to split the binary search tree p into two parts based on the
@@ -166,7 +171,7 @@ impl<K: Copy + Ord, V> Treap<K, V> {
                 loop {
                     match prev {
                         None => break,
-                        Some(p) => match key.cmp(&(*p.as_ptr()).key) {
+                        Some(p) => match node.key.cmp(&(*p.as_ptr()).key) {
                             Ordering::Less => {
                                 *r = Some(p);
                                 r = &mut (*p.as_ptr()).left;
@@ -185,7 +190,7 @@ impl<K: Copy + Ord, V> Treap<K, V> {
                 *r = None;
             }
 
-            *q = Some(NonNull::from(Box::leak(Box::new(node))));
+            *q = Some(NonNull::from(Box::leak(node)));
 
             // fibonacci hashing to spread the priorities very even in the 32-bit room
             self.prio += Wrapping(0x9e37_79b9); // floor(2^32 / phi), with phi = golden ratio
