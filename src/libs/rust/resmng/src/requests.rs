@@ -47,8 +47,6 @@ where
     let upcall_rg = RecvGate::upcall();
 
     loop {
-        tcu::TCUIf::sleep().ok();
-
         let is = RGATE.fetch();
         if let Some(is) = is {
             handle_request(is);
@@ -71,6 +69,8 @@ where
         if childs::get().is_empty() {
             break;
         }
+
+        tcu::TCUIf::sleep().ok();
     }
 
     if !thmng.cur().is_main() {
