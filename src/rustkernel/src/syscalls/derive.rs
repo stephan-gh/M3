@@ -17,7 +17,7 @@
 use base::col::ToString;
 use base::errors::Code;
 use base::goff;
-use base::kif::{self, CapRngDesc, CapSel};
+use base::kif::{self, CapRngDesc, CapSel, CapType};
 use base::mem::GlobAddr;
 use base::rc::Rc;
 use base::tcu;
@@ -139,7 +139,7 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 #[inline(never)]
 pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &kif::syscalls::DeriveSrv = get_request(msg)?;
-    let dst_crd = CapRngDesc::new_from(req.dst_crd);
+    let dst_crd = CapRngDesc::new(CapType::OBJECT, req.dst_sel, 2);
     let srv_sel = req.srv_sel as CapSel;
     let sessions = req.sessions as u32;
 
@@ -151,7 +151,7 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         sessions
     );
 
-    if dst_crd.count() != 2 || !vpe.obj_caps().borrow().range_unused(&dst_crd) {
+    if !vpe.obj_caps().borrow().range_unused(&dst_crd) {
         sysc_err!(Code::InvArgs, "Selectors {} already in use", dst_crd);
     }
     if sessions == 0 {

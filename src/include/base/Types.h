@@ -39,7 +39,7 @@ typedef uint32_t label_t;
 #else
 typedef uint64_t label_t;
 #endif
-typedef unsigned capsel_t;
+typedef uint64_t capsel_t;
 typedef int fd_t;
 typedef uint64_t cycles_t;
 

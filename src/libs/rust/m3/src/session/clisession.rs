@@ -110,7 +110,7 @@ impl ClientSession {
     }
 
     /// Obtains `count` capabilities from the server and returns the capability range descriptor.
-    pub fn obtain_crd(&self, count: u32) -> Result<kif::CapRngDesc, Error> {
+    pub fn obtain_crd(&self, count: u64) -> Result<kif::CapRngDesc, Error> {
         self.obtain(count, |_| {}, |_| Ok(()))
     }
 
@@ -120,7 +120,7 @@ impl ClientSession {
     /// a [`SliceSource`] after the obtain operation, allowing to get arguments from the server.
     pub fn obtain<PRE, POST>(
         &self,
-        count: u32,
+        count: u64,
         pre: PRE,
         post: POST,
     ) -> Result<kif::CapRngDesc, Error>

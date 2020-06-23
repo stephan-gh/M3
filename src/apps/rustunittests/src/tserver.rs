@@ -149,7 +149,7 @@ pub fn testcliexit() {
             opcode: kif::syscalls::Operation::OBTAIN.val,
             vpe_sel: u64::from(VPE::cur().sel()),
             sess_sel: u64::from(sess.sel()),
-            crd: 0,
+            caps: [0; 2],
             args: kif::syscalls::ExchangeArgs::default(),
         };
         let msg_ptr = &req as *const kif::syscalls::ExchangeSess as *const u8;

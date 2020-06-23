@@ -284,7 +284,7 @@ impl VPE {
     }
 
     /// Allocates `count` new and contiguous capability selectors and returns the first one.
-    pub fn alloc_sels(&mut self, count: u32) -> Selector {
+    pub fn alloc_sels(&mut self, count: u64) -> Selector {
         self.next_sel += count;
         self.next_sel - count
     }

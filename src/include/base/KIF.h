@@ -21,6 +21,8 @@
 #include <base/TCU.h>
 #include <base/Errors.h>
 
+#include <utility>
+
 namespace m3 {
 
 /**
@@ -103,26 +105,28 @@ struct KIF {
 
         explicit CapRngDesc() : CapRngDesc(OBJ, 0, 0) {
         }
-        explicit CapRngDesc(value_type value)
-            : _value(value) {
+        explicit CapRngDesc(const value_type raw[2])
+            : _start(raw[0]),
+              _count(raw[1]) {
         }
         explicit CapRngDesc(Type type, capsel_t start, capsel_t count = 1)
-            : _value(static_cast<value_type>(type) |
-                    (static_cast<value_type>(start) << 33) |
-                    (static_cast<value_type>(count) << 1)) {
+            : _start(start),
+              _count(static_cast<value_type>(type) | (count << 1)) {
         }
 
-        value_type value() const {
-            return _value;
-        }
         Type type() const {
-            return static_cast<Type>(_value & 1);
+            return static_cast<Type>(_count & 1);
         }
         capsel_t start() const {
-            return _value >> 33;
+            return _start;
         }
         capsel_t count() const {
-            return (_value >> 1) & 0xFFFFFFFF;
+            return _count >> 1;
+        }
+
+        void to_raw(value_type *raw) const {
+            raw[0] = _start;
+            raw[1] = _count;
         }
 
         friend OStream &operator <<(OStream &os, const CapRngDesc &crd) {
@@ -132,7 +136,8 @@ struct KIF {
         }
 
     private:
-        value_type _value;
+        value_type _start;
+        value_type _count;
     };
 
     struct DefaultReply {
@@ -322,7 +327,7 @@ struct KIF {
         } PACKED;
 
         struct DeriveSrv : public DefaultRequest {
-            xfer_t dst_crd;
+            xfer_t dst_sel;
             xfer_t srv_sel;
             xfer_t sessions;
         } PACKED;
@@ -357,7 +362,7 @@ struct KIF {
 
         struct Exchange : public DefaultRequest {
             xfer_t vpe_sel;
-            xfer_t own_crd;
+            xfer_t own_caps[2];
             xfer_t other_sel;
             xfer_t obtain;
         } PACKED;
@@ -365,7 +370,7 @@ struct KIF {
         struct ExchangeSess : public DefaultRequest {
             xfer_t vpe_sel;
             xfer_t sess_sel;
-            xfer_t crd;
+            xfer_t caps[2];
             ExchangeArgs args;
         } PACKED;
 
@@ -375,7 +380,7 @@ struct KIF {
 
         struct Revoke : public DefaultRequest {
             xfer_t vpe_sel;
-            xfer_t crd;
+            xfer_t caps[2];
             xfer_t own;
         } PACKED;
 
@@ -416,7 +421,7 @@ struct KIF {
         } PACKED;
 
         struct ExchangeData {
-            xfer_t caps;
+            xfer_t caps[2];
             ExchangeArgs args;
         } PACKED;
 

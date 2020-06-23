@@ -112,7 +112,7 @@ fn create_rgate(buf_size: usize, msg_size: usize) -> Result<RecvGate, Error> {
             VPE::cur().sel(),
             buf_mem.sel(),
             0,
-            pages as Selector,
+            pages,
             kif::Perm::R,
         )?;
         (0, Some(buf_mem.sel()))

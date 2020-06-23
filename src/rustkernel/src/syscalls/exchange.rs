@@ -78,7 +78,7 @@ fn do_exchange(
 pub fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &syscalls::Exchange = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
-    let own_crd = CapRngDesc::new_from(req.own_crd);
+    let own_crd = CapRngDesc::new_from(req.own_caps);
     let other_crd = CapRngDesc::new(own_crd.cap_type(), req.other_sel as CapSel, own_crd.count());
     let obtain = req.obtain == 1;
 
@@ -107,7 +107,7 @@ pub fn exchange_over_sess(
     let req: &syscalls::ExchangeSess = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let sess_sel = req.sess_sel as CapSel;
-    let crd = CapRngDesc::new_from(req.crd);
+    let crd = CapRngDesc::new_from(req.caps);
 
     let (name, opcode) = if obtain {
         ("obtain", service::Operation::OBTAIN.val as u64)
@@ -132,7 +132,7 @@ pub fn exchange_over_sess(
         opcode,
         sess: sess.ident(),
         data: service::ExchangeData {
-            caps: crd.count() as u64,
+            caps: crd.raw(),
             args: req.args.clone(),
         },
     };
@@ -190,7 +190,7 @@ pub fn exchange_over_sess(
 pub fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &syscalls::Revoke = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
-    let crd = CapRngDesc::new_from(req.crd);
+    let crd = CapRngDesc::new_from(req.caps);
     let own = req.own == 1;
 
     sysc_log!(vpe, "revoke(vpe={}, crd={}, own={})", vpe_sel, crd, own);

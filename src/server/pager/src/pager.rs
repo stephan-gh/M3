@@ -128,7 +128,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
         xchg.out_caps(kif::CapRngDesc::new(
             kif::CapType::OBJECT,
             sel,
-            xchg.in_caps() as u32,
+            xchg.in_caps(),
         ));
         Ok(())
     }

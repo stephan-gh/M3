@@ -240,7 +240,7 @@ void Syscalls::derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint session
     KIF::Syscall::DeriveSrv req;
     req.opcode = KIF::Syscall::DERIVE_SRV;
     req.srv_sel = srv;
-    req.dst_crd = dst.value();
+    req.dst_sel = dst.start();
     req.sessions = sessions;
     send_receive_throw(&req, sizeof(req));
 }
@@ -293,7 +293,7 @@ void Syscalls::exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other
     KIF::Syscall::Exchange req;
     req.opcode = KIF::Syscall::EXCHANGE;
     req.vpe_sel = vpe;
-    req.own_crd = own.value();
+    own.to_raw(req.own_caps);
     req.other_sel = other;
     req.obtain = obtain;
     send_receive_throw(&req, sizeof(req));
@@ -305,7 +305,7 @@ void Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc 
     req.opcode = obtain ? KIF::Syscall::OBTAIN : KIF::Syscall::DELEGATE;
     req.vpe_sel = vpe;
     req.sess_sel = sess;
-    req.crd = crd.value();
+    crd.to_raw(req.caps);
     if(args)
         memcpy(&req.args, args, sizeof(*args));
     else
@@ -334,7 +334,7 @@ void Syscalls::revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own) {
     KIF::Syscall::Revoke req;
     req.opcode = KIF::Syscall::REVOKE;
     req.vpe_sel = vpe;
-    req.crd = crd.value();
+    crd.to_raw(req.caps);
     req.own = own;
     send_receive_throw(&req, sizeof(req));
 }

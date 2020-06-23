@@ -592,10 +592,6 @@ fn derive_srv() {
     wv_assert_err!(syscalls::derive_srv(SEL_KMEM, crd, 1), Code::InvArgs);
     // invalid dest selector
     wv_assert_err!(
-        syscalls::derive_srv(srv.sel(), CapRngDesc::new(CapType::OBJECT, SEL_KMEM, 1), 1),
-        Code::InvArgs
-    );
-    wv_assert_err!(
         syscalls::derive_srv(srv.sel(), CapRngDesc::new(CapType::OBJECT, SEL_KMEM, 2), 1),
         Code::InvArgs
     );

@@ -885,13 +885,13 @@ void SyscallHandler::derive_pe(VPE *vpe, const m3::TCU::Message *msg) {
 
 void SyscallHandler::derive_srv(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::DeriveSrv>(msg);
-    m3::KIF::CapRngDesc dst(req->dst_crd);
+    m3::KIF::CapRngDesc dst(m3::KIF::CapRngDesc::OBJ, req->dst_sel, 2);
     capsel_t srv = req->srv_sel;
     uint sessions = req->sessions;
 
     LOG_SYS(vpe, ": syscall::derive_srv", "(dst=" << dst << ", srv=" << srv << ")");
 
-    if(dst.count() != 2 || !vpe->objcaps().range_unused(dst))
+    if(!vpe->objcaps().range_unused(dst))
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid destination selectors");
     if(sessions == 0)
         SYS_ERROR(vpe, msg, m3::Errors::INV_ARGS, "Invalid session count");
@@ -1070,7 +1070,7 @@ void SyscallHandler::obtain(VPE *vpe, const m3::TCU::Message *msg) {
 void SyscallHandler::exchange(VPE *vpe, const m3::TCU::Message *msg) {
     auto req = get_message<m3::KIF::Syscall::Exchange>(msg);
     capsel_t tvpe = req->vpe_sel;
-    m3::KIF::CapRngDesc own(req->own_crd);
+    m3::KIF::CapRngDesc own(req->own_caps);
     m3::KIF::CapRngDesc other(own.type(), req->other_sel, own.count());
     bool obtain = req->obtain;
 
@@ -1089,7 +1089,7 @@ void SyscallHandler::exchange(VPE *vpe, const m3::TCU::Message *msg) {
 void SyscallHandler::revoke(VPE *vpe, const m3::TCU::Message *msg) {
     auto *req = get_message<m3::KIF::Syscall::Revoke>(msg);
     capsel_t tvpe = req->vpe_sel;
-    m3::KIF::CapRngDesc crd(req->crd);
+    m3::KIF::CapRngDesc crd(req->caps);
     bool own = req->own;
 
     LOG_SYS(vpe, ": syscall::revoke", "(vpe=" << tvpe << ", crd=" << crd << ", own=" << own << ")");
@@ -1150,7 +1150,7 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, b
     auto req = get_message<m3::KIF::Syscall::ExchangeSess>(msg);
     capsel_t vpe_sel = req->vpe_sel;
     capsel_t sess = req->sess_sel;
-    m3::KIF::CapRngDesc crd(req->crd);
+    m3::KIF::CapRngDesc crd(req->caps);
 
     LOG_SYS(vpe, (obtain ? ": syscall::obtain" : ": syscall::delegate"),
             "(vpe=" << vpe_sel << ", sess=" << sess << ", crd=" << crd << ")");
@@ -1170,7 +1170,7 @@ void SyscallHandler::exchange_over_sess(VPE *vpe, const m3::TCU::Message *msg, b
     m3::KIF::Service::Exchange smsg;
     smsg.opcode = obtain ? m3::KIF::Service::OBTAIN : m3::KIF::Service::DELEGATE;
     smsg.sess = sesscap->obj->ident;
-    smsg.data.caps = crd.count();
+    crd.to_raw(smsg.data.caps);
     smsg.data.args.bytes = m3::Math::min(sizeof(smsg.data.args.data),
                                          static_cast<size_t>(req->args.bytes));
     memcpy(&smsg.data.args.data, &req->args.data, smsg.data.args.bytes);

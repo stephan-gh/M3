@@ -64,8 +64,8 @@ impl<'d> CapExchange<'d> {
     }
 
     /// Returns the number of input capabilities
-    pub fn in_caps(&self) -> u32 {
-        self.input.caps as u32
+    pub fn in_caps(&self) -> u64 {
+        CapRngDesc::new_from(self.input.caps).count()
     }
 
     /// Sets the output capabilities to given [`CapRngDesc`]
@@ -293,7 +293,7 @@ impl Server {
                 res
             );
 
-            (res, xchg.out_args().size(), xchg.out_crd.value())
+            (res, xchg.out_args().size(), xchg.out_crd)
         };
 
         reply.res = match res {
@@ -301,7 +301,7 @@ impl Server {
             Err(e) => e.code() as u64,
         };
         reply.data.args.bytes = args_size as u64;
-        reply.data.caps = crd;
+        reply.data.caps = crd.raw();
         is.reply(&[reply])
     }
 
@@ -332,7 +332,7 @@ impl Server {
                 res
             );
 
-            (res, xchg.out_args().size(), xchg.out_crd.value())
+            (res, xchg.out_args().size(), xchg.out_crd)
         };
 
         reply.res = match res {
@@ -340,7 +340,7 @@ impl Server {
             Err(e) => e.code() as u64,
         };
         reply.data.args.bytes = args_size as u64;
-        reply.data.caps = crd;
+        reply.data.caps = crd.raw();
         is.reply(&[reply])
     }
 

@@ -38,10 +38,10 @@ public:
     }
 
     unsigned in_caps() const {
-        return _in.caps;
+        return KIF::CapRngDesc(_in.caps).count();
     }
     void out_caps(const KIF::CapRngDesc &crd) {
-        _out.caps = crd.value();
+        crd.to_raw(_out.caps);
     }
 
 private:

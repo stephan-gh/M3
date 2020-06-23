@@ -105,7 +105,7 @@ fn map_rbuf(addr: usize, size: usize) -> Result<MemGate, Error> {
         VPE::cur().sel(),
         mgate.sel(),
         0,
-        (size / cfg::PAGE_SIZE) as Selector,
+        size / cfg::PAGE_SIZE,
         Perm::R,
     )?;
     Ok(mgate)

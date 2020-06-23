@@ -168,7 +168,7 @@ pub fn create_map(
     vpe: Selector,
     mgate: Selector,
     first: Selector,
-    pages: u32,
+    pages: usize,
     perms: Perm,
 ) -> Result<(), Error> {
     let req = syscalls::CreateMap {
@@ -177,7 +177,7 @@ pub fn create_map(
         vpe_sel: u64::from(vpe),
         mgate_sel: u64::from(mgate),
         first: u64::from(first),
-        pages: u64::from(pages),
+        pages: pages as u64,
         perms: u64::from(perms.bits()),
     };
     send_receive_result(&req)
@@ -280,7 +280,7 @@ pub fn derive_pe(pe: Selector, dst: Selector, eps: u32) -> Result<(), Error> {
 pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32) -> Result<(), Error> {
     let req = syscalls::DeriveSrv {
         opcode: syscalls::Operation::DERIVE_SRV.val,
-        dst_crd: dst.value(),
+        dst_sel: dst.start(),
         srv_sel: u64::from(srv),
         sessions: sessions as u64,
     };
@@ -383,7 +383,7 @@ pub fn exchange(
     let req = syscalls::Exchange {
         opcode: syscalls::Operation::EXCHANGE.val,
         vpe_sel: u64::from(vpe),
-        own_crd: own.value(),
+        own_caps: own.raw(),
         other_sel: u64::from(other),
         obtain: u64::from(obtain),
     };
@@ -446,7 +446,7 @@ where
         opcode: op.val,
         vpe_sel: u64::from(vpe),
         sess_sel: u64::from(sess),
-        crd: crd.value(),
+        caps: crd.raw(),
         args: syscalls::ExchangeArgs::default(),
     };
 
@@ -495,7 +495,7 @@ pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
     let req = syscalls::Revoke {
         opcode: syscalls::Operation::REVOKE.val,
         vpe_sel: u64::from(vpe),
-        crd: crd.value(),
+        caps: crd.raw(),
         own: u64::from(own),
     };
     send_receive_result(&req)

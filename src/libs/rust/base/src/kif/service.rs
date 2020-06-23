@@ -87,7 +87,7 @@ pub struct DeriveCreatorReply {
 /// The data part of the delegate/obtain request messages
 #[repr(C, packed)]
 pub struct ExchangeData {
-    pub caps: u64,
+    pub caps: [u64; 2],
     pub args: syscalls::ExchangeArgs,
 }
 
@@ -111,7 +111,7 @@ impl Default for ExchangeReply {
         Self {
             res: 0,
             data: ExchangeData {
-                caps: 0,
+                caps: [0; 2],
                 args: syscalls::ExchangeArgs::default(),
             },
         }

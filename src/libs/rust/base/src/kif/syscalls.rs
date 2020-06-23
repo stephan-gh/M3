@@ -347,7 +347,7 @@ pub struct DerivePE {
 #[repr(C, packed)]
 pub struct DeriveSrv {
     pub opcode: u64,
-    pub dst_crd: u64,
+    pub dst_sel: u64,
     pub srv_sel: u64,
     pub sessions: u64,
 }
@@ -411,7 +411,7 @@ pub struct SemCtrl {
 pub struct Exchange {
     pub opcode: u64,
     pub vpe_sel: u64,
-    pub own_crd: u64,
+    pub own_caps: [u64; 2],
     pub other_sel: u64,
     pub obtain: u64,
 }
@@ -422,7 +422,7 @@ pub struct ExchangeSess {
     pub opcode: u64,
     pub vpe_sel: u64,
     pub sess_sel: u64,
-    pub crd: u64,
+    pub caps: [u64; 2],
     pub args: ExchangeArgs,
 }
 
@@ -438,7 +438,7 @@ pub struct ExchangeSessReply {
 pub struct Revoke {
     pub opcode: u64,
     pub vpe_sel: u64,
-    pub crd: u64,
+    pub caps: [u64; 2],
     pub own: u64,
 }
 

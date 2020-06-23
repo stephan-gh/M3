@@ -17,12 +17,13 @@
 use core::fmt;
 
 /// A capability selector
-pub type CapSel = u32;
+pub type CapSel = u64;
 
 /// A capability range descriptor, which describes a continuous range of capabilities
 #[derive(Copy, Clone, Default)]
 pub struct CapRngDesc {
-    value: u64,
+    start: u64,
+    count: u64,
 }
 
 int_enum! {
@@ -40,33 +41,37 @@ impl CapRngDesc {
     /// `start + count - 1` is the last one.
     pub fn new(ty: CapType, start: CapSel, count: CapSel) -> CapRngDesc {
         CapRngDesc {
-            value: ty.val | (u64::from(start) << 33) | (u64::from(count) << 1),
+            start,
+            count: count << 1 | ty.val,
         }
     }
 
     /// Creates a new capability range descriptor from the given raw value
-    pub fn new_from(val: u64) -> CapRngDesc {
-        CapRngDesc { value: val }
+    pub fn new_from(raw: [u64; 2]) -> CapRngDesc {
+        CapRngDesc {
+            start: raw[0],
+            count: raw[1],
+        }
     }
 
     /// Returns the raw value
-    pub fn value(self) -> u64 {
-        self.value
+    pub fn raw(self) -> [u64; 2] {
+        [self.start, self.count]
     }
 
     /// Returns the capability type
     pub fn cap_type(self) -> CapType {
-        CapType::from(self.value & 0x1)
+        CapType::from(self.count & 0x1)
     }
 
     /// Returns the first capability selector
     pub fn start(self) -> CapSel {
-        (self.value >> 33) as CapSel
+        self.start
     }
 
     /// Returns the number of capability selectors
     pub fn count(self) -> CapSel {
-        ((self.value >> 1) & 0xFFFF_FFFF) as CapSel
+        self.count >> 1
     }
 }
 
