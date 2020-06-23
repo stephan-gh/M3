@@ -493,9 +493,8 @@ impl Drop for VPE {
 
         self.revoke_caps();
 
-        // TODO temporary
-        if let Some(pid) = self.pid() {
-            ktcu::reset_pe(self.pe_id(), pid).unwrap();
+        if !platform::pe_desc(self.pe_id()).is_programmable() {
+            ktcu::reset_pe(self.pe_id(), 0).unwrap();
         }
 
         klog!(
