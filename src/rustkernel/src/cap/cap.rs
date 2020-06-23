@@ -105,6 +105,7 @@ impl CapTable {
         self.caps.get_mut(&SelRange::new(sel))
     }
 
+    #[inline(always)]
     pub fn insert(&mut self, mut cap: Capability) -> &mut Capability {
         unsafe {
             cap.table = Some(as_shared(self));
@@ -112,6 +113,7 @@ impl CapTable {
         self.caps.insert(cap.sel_range().clone(), cap)
     }
 
+    #[inline(always)]
     pub fn insert_as_child(&mut self, cap: Capability, parent_sel: CapSel) {
         unsafe {
             let parent: Option<NonNull<Capability>> = self.get_shared(parent_sel);
@@ -119,6 +121,7 @@ impl CapTable {
         }
     }
 
+    #[inline(always)]
     pub fn insert_as_child_from(
         &mut self,
         cap: Capability,
@@ -131,12 +134,14 @@ impl CapTable {
         }
     }
 
+    #[inline(always)]
     unsafe fn get_shared(&mut self, sel: CapSel) -> Option<NonNull<Capability>> {
         self.caps
             .get_mut(&SelRange::new(sel))
             .map(|cap| NonNull::new_unchecked(cap))
     }
 
+    #[inline(always)]
     unsafe fn do_insert(&mut self, child: Capability, parent: Option<NonNull<Capability>>) {
         let mut child_cap = self.insert(child);
         if let Some(parent_cap) = parent {
