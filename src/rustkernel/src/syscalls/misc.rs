@@ -68,9 +68,10 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
     let pemux = pemng::get().pemux(dst_vpe.pe_id());
     if epid == tcu::EP_COUNT {
-        epid = pemux.find_eps(ep_count).map_err(|e| {
-            SyscError::new(e.code(), format!("No free EP range for {} EPs", ep_count))
-        })?;
+        epid = match pemux.find_eps(ep_count) {
+            Ok(epid) => epid,
+            Err(e) => sysc_err!(e.code(), "No free EP range for {} EPs", ep_count),
+        };
     }
     else {
         if epid > tcu::EP_COUNT || epid as u32 + ep_count > tcu::EP_COUNT as u32 {
@@ -221,10 +222,10 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let dst_pe = ep.pe_id();
     let pemux = pemng::get().pemux(dst_pe);
 
-    let invalidated = ep.deconfigure(false).map_err(|e| {
-        let msg = format!("Invalidation of EP {}:{} failed", dst_pe, epid);
-        SyscError::new(e.code(), msg)
-    })?;
+    let invalidated = match ep.deconfigure(false) {
+        Ok(inv) => inv,
+        Err(e) => sysc_err!(e.code(), "Invalidation of EP {}:{} failed", dst_pe, epid),
+    };
 
     let maybe_kobj = vpe
         .obj_caps()
@@ -332,14 +333,9 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         EPObject::configure(&ep, &kobj);
     }
     else if !invalidated {
-        pemux
-            .invalidate_ep(ep_vpe.id(), epid, true, false)
-            .map_err(|e| {
-                SyscError::new(
-                    e.code(),
-                    format!("Invalidation of EP {}:{} failed", dst_pe, epid),
-                )
-            })?;
+        if let Err(e) = pemux.invalidate_ep(ep_vpe.id(), epid, true, false) {
+            sysc_err!(e.code(), "Invalidation of EP {}:{} failed", dst_pe, epid);
+        }
     }
 
     reply_success(msg);
@@ -396,9 +392,9 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     match op {
         kif::syscalls::VPEOp::INIT => {
             vpecap.set_mem_base(arg as goff);
-            Loader::get()
-                .finish_start(&vpecap)
-                .map_err(|e| SyscError::new(e.code(), "Unable to finish init".to_string()))?;
+            if let Err(e) = Loader::get().finish_start(&vpecap) {
+                sysc_err!(e.code(), "Unable to finish init");
+            }
         },
 
         kif::syscalls::VPEOp::START => {
@@ -406,9 +402,9 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 sysc_err!(Code::InvArgs, "VPE can't start itself");
             }
 
-            vpecap
-                .start_app(Some(arg as i32))
-                .map_err(|e| SyscError::new(e.code(), "Unable to start VPE".to_string()))?;
+            if let Err(e) = vpecap.start_app(Some(arg as i32)) {
+                sysc_err!(e.code(), "Unable to start VPE");
+            }
         },
 
         kif::syscalls::VPEOp::STOP => {

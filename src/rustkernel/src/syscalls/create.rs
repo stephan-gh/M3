@@ -335,17 +335,19 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // find contiguous space for standard EPs
     let pemux = pemng::get().pemux(pe.pe());
-    let eps = pemux
-        .find_eps(tcu::STD_EPS_COUNT as u32)
-        .map_err(|e| SyscError::new(e.code(), "No free range for standard EPs".to_string()))?;
+    let eps = match pemux.find_eps(tcu::STD_EPS_COUNT as u32) {
+        Ok(eps) => eps,
+        Err(e) => sysc_err!(e.code(), "No free range for standard EPs"),
+    };
     if pemux.has_vpes() && !pe_desc.has_virtmem() {
         sysc_err!(Code::NotSup, "Virtual memory is required for PE sharing");
     }
 
     // create VPE
-    let nvpe: Rc<VPE> = vpemng::get()
-        .create_vpe(name, pe, eps, kmem, VPEFlags::empty())
-        .map_err(|e| SyscError::new(e.code(), "Unable to create VPE".to_string()))?;
+    let nvpe = match vpemng::get().create_vpe(name, pe, eps, kmem, VPEFlags::empty()) {
+        Ok(nvpe) => nvpe,
+        Err(e) => sysc_err!(e.code(), "Unable to create VPE"),
+    };
 
     // give VPE cap to the parent
     let cap = Capability::new(dst_sel, KObject::VPE(Rc::downgrade(&nvpe)));
@@ -494,8 +496,9 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // create/update the PTEs
     if let KObject::Map(m) = &map_obj {
-        m.map(&dst_vpe, virt, phys, pages as usize, PageFlags::from(perms))
-            .map_err(|e| SyscError::new(e.code(), "Unable to map memory".to_string()))?;
+        if let Err(e) = m.map(&dst_vpe, virt, phys, pages as usize, PageFlags::from(perms)) {
+            sysc_err!(e.code(), "Unable to map memory");
+        }
     }
 
     // create map cap, if not yet existing

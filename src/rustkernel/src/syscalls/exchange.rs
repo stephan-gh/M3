@@ -150,14 +150,10 @@ pub fn exchange_over_sess(
         serv.service().name(),
         label,
     );
-    let rmsg = Service::send_receive(serv.service(), label, util::object_to_bytes(&smsg)).map_err(
-        |e| {
-            SyscError::new(
-                e.code(),
-                format!("Service {} unreachable", serv.service().name()),
-            )
-        },
-    )?;
+    let rmsg = match Service::send_receive(serv.service(), label, util::object_to_bytes(&smsg)) {
+        Ok(rmsg) => rmsg,
+        Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
+    };
 
     let reply: &service::ExchangeReply = get_request(rmsg)?;
 
