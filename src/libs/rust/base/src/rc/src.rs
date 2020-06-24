@@ -44,7 +44,7 @@ impl<T> SRc<T> {
     }
 }
 
-impl<T> Deref for SRc<T> {
+impl<T: ?Sized> Deref for SRc<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -80,6 +80,6 @@ impl<T: ?Sized> Drop for SRc<T> {
 
 impl<T: ?Sized + fmt::Debug> fmt::Debug for SRc<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.deref(), f)
+        fmt::Debug::fmt(&**self, f)
     }
 }
