@@ -23,11 +23,6 @@ use core::mem::MaybeUninit;
 use vma;
 use vpe;
 
-extern "C" {
-    fn save_fpu(state: &mut FPUState);
-    fn restore_fpu(state: &FPUState);
-}
-
 pub type State = isr::State;
 
 #[repr(C, align(8))]
@@ -62,6 +57,36 @@ pub const PEXC_ARG1: usize = 10; // a1 = x11
 pub const PEXC_ARG2: usize = 11; // a2 = x12
 
 static FPU_OWNER: StaticCell<vpe::Id> = StaticCell::new(pemux::VPE_ID);
+
+macro_rules! ldst_fpu_regs {
+    ($ins:tt, $base:expr, $($no:tt)*) => {
+        $(
+            llvm_asm!(concat!($ins, " f", $no, ", 8*", $no, "($0)") : : "r"($base) : : "volatile");
+        )*
+    };
+}
+
+fn save_fpu(state: &mut FPUState) {
+    unsafe {
+        ldst_fpu_regs!(
+            "fsd",
+            state as *mut _ as usize,
+            0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
+        );
+        llvm_asm!("csrr t0, fcsr; sd t0, 8*32($0)" : : "r"(state) : "t0");
+    }
+}
+
+fn restore_fpu(state: &FPUState) {
+    unsafe {
+        ldst_fpu_regs!(
+            "fld",
+            state as *const _ as usize,
+            0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
+        );
+        llvm_asm!("ld t0, 8*32($0); csrw fcsr, t0" : : "r"(state) : "t0");
+    }
+}
 
 fn get_fpu_mode(sstatus: usize) -> FSMode {
     FSMode::from((sstatus >> 13) & 0x3)
@@ -132,17 +157,13 @@ pub fn handle_fpu_ex(state: &mut State) {
         // need to save old state?
         if old_id != pemux::VPE_ID {
             let old_vpe = vpe::get_mut(old_id).unwrap();
-            unsafe {
-                save_fpu(old_vpe.fpu_state())
-            };
+            save_fpu(old_vpe.fpu_state());
         }
 
         // restore new state
         let fpu_state = cur.fpu_state();
         if fpu_state.init {
-            unsafe {
-                restore_fpu(fpu_state)
-            };
+            restore_fpu(fpu_state);
         }
         else {
             unsafe {
