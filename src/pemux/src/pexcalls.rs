@@ -16,7 +16,7 @@
 
 use base::errors::{Code, Error};
 use base::pexif;
-use base::tcu::{EpId, INVALID_EP};
+use base::tcu::{TCU, EpId, INVALID_EP};
 
 use arch;
 use timer::Nanos;
@@ -54,6 +54,14 @@ fn pexcall_yield(_state: &mut arch::State) -> Result<(), Error> {
     Ok(())
 }
 
+fn pexcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
+    log!(crate::LOG_CALLS, "pexcall::flush_inv()");
+
+    TCU::flush_cache();
+
+    Ok(())
+}
+
 fn pexcall_noop(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::noop()");
 
@@ -67,6 +75,7 @@ pub fn handle_call(state: &mut arch::State) {
         pexif::Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
         pexif::Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
         pexif::Operation::YIELD => pexcall_yield(state).map(|_| 0isize),
+        pexif::Operation::FLUSH_INV => pexcall_flush_inv(state).map(|_| 0isize),
         pexif::Operation::NOOP => pexcall_noop(state).map(|_| 0isize),
 
         _ => Err(Error::new(Code::NotSup)),

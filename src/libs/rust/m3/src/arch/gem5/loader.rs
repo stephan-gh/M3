@@ -27,6 +27,7 @@ use math;
 use mem::heap;
 use pes::{Mapper, VPE};
 use session::{MapFlags, Pager};
+use tcuif;
 use util;
 use vfs::{BufReader, FileRef, Seek, SeekMode};
 
@@ -74,7 +75,12 @@ pub fn copy_vpe(sp: usize, mem: MemGate) -> Result<usize, Error> {
 
 pub fn clone_vpe(pager: &Pager) -> Result<usize, Error> {
     if VPE::cur().pager().is_some() {
-        return pager.clone().map(|_| unsafe { sym_addr(&_start) });
+        let entry = pager.clone().map(|_| unsafe { sym_addr(&_start) })?;
+        // after cloning the address space we have to make sure that we don't have dirty cache lines
+        // anymore. otherwise, if our child takes over a frame from us later and we writeback such
+        // a cacheline afterwards, things break.
+        tcuif::TCUIf::flush_invalidate()?;
+        return Ok(entry);
     }
 
     // TODO handle that case

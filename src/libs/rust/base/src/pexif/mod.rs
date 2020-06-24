@@ -25,7 +25,9 @@ int_enum! {
         const EXIT          = 0x1;
         /// Switch to the next ready VPE
         const YIELD         = 0x2;
+        /// Flush and invalidate cache
+        const FLUSH_INV     = 0x3;
         /// Noop operation for testing purposes
-        const NOOP          = 0x3;
+        const NOOP          = 0x4;
     }
 }

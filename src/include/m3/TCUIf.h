@@ -111,6 +111,10 @@ public:
         else
             TCU::get().wait_for_msg(ep);
     }
+
+    static void flush_invalidate() noexcept {
+        PEXCalls::call2(Operation::FLUSH_INV, 0, 0);
+    }
 };
 
 }
