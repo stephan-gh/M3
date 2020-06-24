@@ -30,10 +30,12 @@ public:
     explicit DiskBackend(m3::WorkLoop *wl)
         : _blocksize(),
           _disk(new m3::Disk(wl, "disk")),
-          _metabuf() {
+          _metabuf(),
+          _metabuf_disk() {
     }
     ~DiskBackend() {
         delete _metabuf;
+        delete _metabuf_disk;
         delete _disk;
     }
 
@@ -101,7 +103,8 @@ public:
 
     void load_sb(m3::SuperBlock &sb) override {
         m3::MemGate tmp = m3::MemGate::create_global(512 + Buffer::PRDT_SIZE, m3::MemGate::RW);
-        delegate_mem(tmp, 0, 1);
+        m3::MemGate tmp_disk = tmp.derive(0, 512 + Buffer::PRDT_SIZE, m3::MemGate::RW);
+        delegate_mem(tmp_disk, 0, 1);
 
         // read super block
         _disk->read(0, 0, 1, 512);
@@ -111,8 +114,9 @@ public:
         _blocksize = sb.blocksize;
         size_t size = (_blocksize + MetaBuffer::PRDT_SIZE) * MetaBuffer::META_BUFFER_SIZE;
         _metabuf = new m3::MemGate(m3::MemGate::create_global(size, m3::MemGate::RW));
+        _metabuf_disk = new m3::MemGate(_metabuf->derive(0, size, m3::MemGate::RW));
         // store the MemCap as blockno 0, bc we won't load the superblock again
-        delegate_mem(*_metabuf, 0, 1);
+        delegate_mem(*_metabuf_disk, 0, 1);
     }
 
     void store_sb(m3::SuperBlock &sb) override {
@@ -141,4 +145,5 @@ private:
     size_t _blocksize;
     m3::Disk *_disk;
     m3::MemGate *_metabuf;
+    m3::MemGate *_metabuf_disk;
 };
