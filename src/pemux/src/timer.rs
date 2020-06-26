@@ -81,7 +81,16 @@ pub fn reprogram() {
         (true, None) => 0,
         // timeout: program the earlier point in time
         (false, _) => {
-            let timeout = LIST[LIST.len() - 1].time - tcu::TCU::nanotime();
+            let now = tcu::TCU::nanotime();
+            let next_timeout = LIST[LIST.len() - 1].time;
+            // if the timeout is in the future, program the timer for the difference
+            let timeout = if next_timeout > now {
+                next_timeout - now
+            }
+            // otherwise, program the timer for "the earliest point in time in the future"
+            else {
+                1
+            };
             cmp::min(timeout, budget.unwrap_or(Nanos::max_value()))
         },
     };
