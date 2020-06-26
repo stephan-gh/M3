@@ -29,6 +29,7 @@ extern "C" {
 const ALIGN: usize = 16;
 const NEW_AREA_COUNT: usize = 64;
 
+#[repr(C)]
 struct Area {
     slab: NonNull<Slab>,
     next: Option<NonNull<Area>>,
