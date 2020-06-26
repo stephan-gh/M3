@@ -248,30 +248,42 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
     res
 }
 
-fn do_schedule(action: ScheduleAction) -> usize {
+fn do_schedule(mut action: ScheduleAction) -> usize {
+    let now = tcu::TCU::nanotime();
     let mut next = RDY
         .get_mut()
         .pop_front()
         .unwrap_or_else(|| unsafe { Box::from_raw(idle()) });
 
     if let Some(old) = try_cur() {
+        // reduce budget now in case we decide not to switch below
+        old.budget_left = old.budget_left.saturating_sub(now - old.scheduled);
+
         // save TCU command registers; do that first while still running with that VPE
         old.cmd.save();
 
         // now change VPE
         let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
 
-        // if there are messages left and we care about them, don't schedule
-        if action == ScheduleAction::Block && !old.should_block((old_id >> 16) as u16) {
-            let next_id = tcu::TCU::xchg_vpe(old_id);
-            next.set_vpe_reg(next_id);
-            if next.id() != kif::pemux::IDLE_ID {
-                make_ready(next);
+        // are there messages left we care about?
+        if action == ScheduleAction::Block && !old.can_block((old_id >> 16) as u16) {
+            // if the VPE has budget left, continue with it
+            if old.budget_left > 0 {
+                let next_id = tcu::TCU::xchg_vpe(old_id);
+                next.set_vpe_reg(next_id);
+                if next.id() != kif::pemux::IDLE_ID {
+                    make_ready(next);
+                }
+                else {
+                    Box::into_raw(next);
+                }
+                old.scheduled = now;
+                return old.user_state_addr;
             }
+            // otherwise, preempt it
             else {
-                Box::into_raw(next);
+                action = ScheduleAction::Preempt;
             }
-            return old.user_state_addr;
         }
 
         old.set_vpe_reg(old_id);
@@ -289,7 +301,6 @@ fn do_schedule(action: ScheduleAction) -> usize {
     let next_id = next.id();
     next.state = VPEState::Running;
 
-    let now = tcu::TCU::nanotime();
     next.scheduled = now;
     // budget is immediately refilled but we prefer other VPEs while a budget is 0 (see make_ready)
     if next.budget_left == 0 {
@@ -302,8 +313,6 @@ fn do_schedule(action: ScheduleAction) -> usize {
 
     // exchange CUR
     if let Some(mut old) = CUR.set(Some(next)) {
-        old.budget_left = old.budget_left.saturating_sub(now - old.scheduled);
-
         log!(
             crate::LOG_VPES,
             "Switching from {} (budget {}) to {} (budget {}): {:?} old VPE",
@@ -500,16 +509,12 @@ impl VPE {
         &mut self.user_state
     }
 
-    fn should_block(&self, msgs: u16) -> bool {
-        if msgs == 0 {
-            return true;
-        }
-
+    fn can_block(&self, msgs: u16) -> bool {
         if let Some(wep) = self.wait_ep {
             !tcu::TCU::has_msgs(wep)
         }
         else {
-            false
+            msgs == 0
         }
     }
 
