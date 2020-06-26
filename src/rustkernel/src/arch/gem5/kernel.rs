@@ -33,10 +33,16 @@ extern "C" {
 }
 
 #[no_mangle]
-pub extern "C" fn exit(_code: i32) {
+pub extern "C" fn abort() -> ! {
+    exit(1);
+}
+
+#[no_mangle]
+pub extern "C" fn exit(_code: i32) -> ! {
     unsafe {
         gem5_shutdown(0);
     }
+    unreachable!();
 }
 
 #[no_mangle]
