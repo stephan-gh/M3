@@ -30,7 +30,7 @@ fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
 
     let wait_ep = if ep == INVALID_EP { None } else { Some(ep) };
     let sleep = if dur == 0 { None } else { Some(dur) };
-    vpe::cur().block(vpe::ScheduleAction::Block, None, wait_ep, sleep);
+    vpe::cur().block(None, wait_ep, sleep);
 
     Ok(())
 }

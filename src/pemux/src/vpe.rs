@@ -524,7 +524,6 @@ impl VPE {
 
     pub fn block(
         &mut self,
-        action: ScheduleAction,
         cont: Option<fn() -> ContResult>,
         ep: Option<tcu::EpId>,
         sleep: Option<Nanos>,
@@ -538,7 +537,7 @@ impl VPE {
             self.sleeping = true;
         }
         if self.state == VPEState::Running {
-            crate::reg_scheduling(action);
+            crate::reg_scheduling(ScheduleAction::Block);
         }
     }
 

@@ -57,12 +57,7 @@ fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error
     .map(|_| {
         // remember the page fault information to resume it later
         vpe.start_pf(PfState { virt, perm });
-        vpe.block(
-            vpe::ScheduleAction::Block,
-            Some(recv_pf_resp),
-            Some(eps_start + tcu::PG_REP_OFF),
-            None,
-        );
+        vpe.block(Some(recv_pf_resp), Some(eps_start + tcu::PG_REP_OFF), None);
     });
 
     if cur.id() != vpe.id() {
