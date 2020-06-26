@@ -56,8 +56,11 @@ where
         let (size, name) = if parts[1].len() == 1 {
             (0, parts[2].to_string())
         }
-        else {
+        else if parts.len() > 3 {
             (usize::from_str_radix(parts[1], 16)?, parts[3].to_string())
+        }
+        else {
+            continue;
         };
 
         if size != 0 {
