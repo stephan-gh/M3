@@ -543,8 +543,8 @@ impl EPObject {
         self.pe.pe()
     }
 
-    pub fn vpe(&self) -> Rc<VPE> {
-        self.vpe.upgrade().unwrap()
+    pub fn vpe(&self) -> Option<Rc<VPE>> {
+        self.vpe.upgrade()
     }
 
     pub fn ep(&self) -> EpId {
@@ -588,7 +588,7 @@ impl EPObject {
             // invalidate receive and send EPs
             match gate {
                 GateObject::RGate(_) | GateObject::SGate(_) => {
-                    pemux.invalidate_ep(self.vpe().id(), self.ep, force, false)?;
+                    pemux.invalidate_ep(self.vpe().unwrap().id(), self.ep, force, false)?;
                     invalidated = true;
                 },
                 _ => {},
@@ -623,7 +623,7 @@ impl fmt::Debug for EPObject {
         write!(
             f,
             "EPMask[vpe={}, ep={}, replies={}, pe={:?}]",
-            self.vpe().id(),
+            self.vpe().unwrap().id(),
             self.ep,
             self.replies,
             self.pe

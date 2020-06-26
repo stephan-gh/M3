@@ -338,18 +338,20 @@ impl Capability {
     fn invalidate_ep(mut cgp: RefMut<GateEP>, foreign: bool) {
         if let Some(ep) = cgp.get_ep() {
             let pemux = pemng::get().pemux(ep.pe_id());
-            let vpe_id = ep.vpe().id();
-            // if that fails, just ignore it
-            pemux.invalidate_ep(vpe_id, ep.ep(), true, true).ok();
+            if let Some(vpe) = ep.vpe() {
+                // if that fails, just ignore it
+                pemux.invalidate_ep(vpe.id(), ep.ep(), true, true).ok();
 
-            // notify PEMux about the invalidation if it's not a self-invalidation (technically,
-            // <foreign> indicates whether we're in the first level of revoke, but since it is just a
-            // notification, we can ignore the case that someone delegated a cap to itself).
-            if foreign {
-                pemux.notify_invalidate(vpe_id, ep.ep()).ok();
+                // notify PEMux about the invalidation if it's not a self-invalidation (technically,
+                // <foreign> indicates whether we're in the first level of revoke, but since it is just a
+                // notification, we can ignore the case that someone delegated a cap to itself).
+                if foreign {
+                    pemux.notify_invalidate(vpe.id(), ep.ep()).ok();
+                }
+
+                EPObject::revoke(&ep);
             }
 
-            EPObject::revoke(&ep);
             cgp.remove_ep();
         }
     }

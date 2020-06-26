@@ -216,7 +216,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let ep = get_kobj!(vpe, ep_sel, EP);
 
     // VPE that is currently active on the endpoint
-    let ep_vpe = ep.vpe();
+    let ep_vpe = ep.vpe().unwrap();
 
     let epid = ep.ep();
     let dst_pe = ep.pe_id();
