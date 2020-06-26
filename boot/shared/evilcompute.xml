@@ -1,0 +1,9 @@
+<config>
+    <kernel args="kernel" />
+    <app args="root">
+        <dom>
+            <app args="evilcompute 1" />
+            <app args="evilcompute 2" />
+        </dom>
+    </app>
+</config>
