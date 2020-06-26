@@ -136,7 +136,7 @@ pub struct Thread {
     stack: Vec<usize>,
     event: Event,
     has_msg: bool,
-    msg: [u8; MAX_MSG_SIZE],
+    msg: [u64; MAX_MSG_SIZE / 8],
 }
 
 impl_boxitem!(Thread);
