@@ -1,6 +1,6 @@
 Import('env')
 
-if env['ARCH'] != 'host':
+if env['TGT'] != 'host':
     myenv = env.Clone()
     myenv.Append(CXXFLAGS = ' -fno-exceptions')
     # disable lto for gem5 for now, since it doesn't workhere ("plugin needed to handle lto object")
@@ -10,8 +10,8 @@ if env['ARCH'] != 'host':
         target = 'libc',
         source = [
             myenv.Glob('*/*.cc'),
-            myenv.Glob('arch/$ARCH-$ISA/*.S'),
-            myenv.Glob('arch/$ARCH/*.cc'),
+            myenv.Glob('arch/$TGT-$ISA/*.S'),
+            myenv.Glob('arch/$TGT/*.cc'),
         ]
     )
     myenv.Install(myenv['LIBDIR'], lib)

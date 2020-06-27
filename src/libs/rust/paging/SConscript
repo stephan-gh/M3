@@ -1,3 +1,3 @@
 Import('env')
-if env['ARCH'] == 'gem5':
+if env['TGT'] == 'gem5':
     env.RustLibrary(env, target = 'paging')

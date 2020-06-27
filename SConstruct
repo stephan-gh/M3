@@ -139,7 +139,7 @@ env.Append(CPPFLAGS = ' -DBUILD_DIR=' + builddir)
 
 # add some important paths
 env.Append(
-    ARCH = target,
+    TGT = target,
     ISA = isa,
     BUILD = btype,
     CFGS = configpath,
@@ -234,7 +234,7 @@ def M3Program(env, target, source, libs = [], NoSup = False, ldscript = None, va
 
     m3libs = ['base', 'm3', 'thread']
 
-    if myenv['ARCH'] == 'gem5':
+    if myenv['TGT'] == 'gem5':
         if not NoSup:
             baselibs = ['gcc', 'c', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
             if env['ISA'] == 'x86_64':
@@ -305,7 +305,7 @@ def RustProgram(env, target, libs = [], startup = None, ldscript = None, varAddr
     myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs')
     stlib = RustLibrary(myenv, target)
 
-    if myenv['ARCH'] == 'gem5':
+    if myenv['TGT'] == 'gem5':
         sources = [myenv['LIBDIR'].abspath + '/crt0.o' if startup is None else startup]
         libs    = ['c', 'm', 'gloss', 'heap', 'gcc', target] + libs
     else:

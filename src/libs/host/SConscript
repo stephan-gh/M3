@@ -1,5 +1,5 @@
 Import('env')
-if env['ARCH'] == 'host':
+if env['TGT'] == 'host':
     myenv = env.Clone()
     myenv.Append(CXXFLAGS = ' -fno-exceptions')
     myenv['CXXFLAGS'] = str(myenv['CXXFLAGS']).replace('-flto', '')

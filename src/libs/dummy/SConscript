@@ -1,5 +1,5 @@
 Import('env')
-if env['ARCH'] == 'gem5':
+if env['TGT'] == 'gem5':
     lib = env.StaticLibrary(target = 'm', source = env.Glob('*.cc'))
     env.Install(env['LIBDIR'], lib)
 

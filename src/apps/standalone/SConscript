@@ -1,5 +1,5 @@
 Import('env')
-if env['ARCH'] == 'gem5':
+if env['TGT'] == 'gem5':
     env = env.Clone()
     env["CXXFLAGS"] = env["CXXFLAGS"].replace('-flto','')
     env.M3Program(

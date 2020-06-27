@@ -1,5 +1,5 @@
 Import('env')
-if env['ARCH'] == 'host':
+if env['TGT'] == 'host':
     conf = env.M3Config()
     if conf.CheckCXXHeader('X11/Xlib.h'):
         env.M3Program(env, 'console', env.Glob('*.cc'), libs = ['X11', 'rt'])

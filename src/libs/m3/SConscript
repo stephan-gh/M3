@@ -4,7 +4,7 @@ Import('env')
 
 sources = [
     env.Glob('*.cc'), env.Glob('*/*.cc'),
-    env.Glob('arch/$ARCH/*.cc')
+    env.Glob('arch/$TGT/*.cc')
 ]
 
 lib = env.StaticLibrary(

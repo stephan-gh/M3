@@ -1,6 +1,6 @@
 Import('env')
 
-if env['ARCH'] == 'gem5':
+if env['TGT'] == 'gem5':
     myenv = env.Clone()
     myenv.Append(
         LINKFLAGS = ' -nostartfiles',

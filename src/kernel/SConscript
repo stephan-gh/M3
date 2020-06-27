@@ -11,14 +11,14 @@ myenv.Append(
 sources = [
     myenv.Glob('*.cc'),
     myenv.Glob('*/*.cc'),
-    myenv.Glob('arch/$ARCH/*.cc'),
+    myenv.Glob('arch/$TGT/*.cc'),
 ]
 
 # we need muldefs here, because libpaging.a and libgcc/libgcc_eh contain _Unwind_Resume
 if myenv['ISA'] == 'arm':
     myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs -Wl,--whole-archive -lisr -Wl,--no-whole-archive')
 
-if myenv['ARCH'] == 'host':
+if myenv['TGT'] == 'host':
     libs = ['c', 'base', 'heap', 'thread', 'pthread']
 else:
     libs = ['c', 'base', 'heap', 'thread', 'isr', 'paging', 'supc++']

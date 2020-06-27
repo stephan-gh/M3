@@ -2,7 +2,7 @@ Import('env')
 if not ARGUMENTS.get('build_fs', 0):
     env.InstallFiles('$FSDIR/default', '.', scan=1, exclude=['SConscript'])
 
-if env['ARCH'] == 'host':
+if env['TGT'] == 'host':
     blocks = 160 * 1024
 else:
     blocks = 16 * 1024

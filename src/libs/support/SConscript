@@ -1,7 +1,7 @@
 Import('env')
 
-if env['ARCH'] != 'host':
-    for f in [env.Glob('$ARCH/*.S'), env.Glob('$ARCH-$ISA/*.S')]:
+if env['TGT'] != 'host':
+    for f in [env.Glob('$TGT/*.S'), env.Glob('$TGT-$ISA/*.S')]:
         obj = env.Object(source = f)
         env.Install(env['LIBDIR'], obj)
     for f in env.Glob('$SYSGCCLIBPATH/crt*'):

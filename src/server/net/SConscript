@@ -21,9 +21,9 @@ myenv.M3Program(
     target = 'net',
     source = [
         Glob('*.cc'),
-        myenv.Glob('driver/$ARCH/*.cc'),
+        myenv.Glob('driver/$TGT/*.cc'),
         Glob('sess/*.cc'),
         Glob('sess/socket/*.cc'),
     ] + lwobj,
-    libs = ['pci'] if myenv['ARCH'] == 'gem5' else []
+    libs = ['pci'] if myenv['TGT'] == 'gem5' else []
 )
