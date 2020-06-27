@@ -47,19 +47,6 @@ macro_rules! sysc_err {
     });
 }
 
-#[macro_export]
-macro_rules! get_mobj {
-    ($vpe:expr, $sel:expr, $ty:ident) => {
-        get_obj!($vpe, $sel, $ty, map_caps)
-    };
-}
-#[macro_export]
-macro_rules! get_kobj {
-    ($vpe:expr, $sel:expr, $ty:ident) => {
-        get_obj!($vpe, $sel, $ty, obj_caps)
-    };
-}
-#[macro_export]
 macro_rules! as_obj {
     ($kobj:expr, $ty:ident) => {
         match $kobj {
@@ -68,13 +55,25 @@ macro_rules! as_obj {
         }
     }
 }
-macro_rules! get_obj {
-    ($vpe:expr, $sel:expr, $ty:ident, $table:tt) => {{
-        let kobj = match $vpe.$table().borrow().get($sel) {
-            Some(c) => c.get().clone(),
+macro_rules! get_cap {
+    ($table:expr, $sel:expr) => {{
+        // note that we deliberately use match here, because ok_or_else(...)? results in worse code
+        match $table.get($sel) {
+            Some(c) => c,
             None => sysc_err!(Code::InvArgs, "Invalid capability"),
-        };
+        }
+    }};
+}
+macro_rules! get_kobj {
+    ($vpe:expr, $sel:expr, $ty:ident) => {{
+        let kobj = get_cap!($vpe.obj_caps().borrow(), $sel).get().clone();
         as_obj!(kobj, $ty)
+    }};
+}
+macro_rules! get_kobj_ref {
+    ($table:expr, $sel:expr, $ty:ident) => {{
+        let cap = get_cap!($table, $sel);
+        as_obj!(cap.get(), $ty)
     }};
 }
 

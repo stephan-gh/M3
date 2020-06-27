@@ -45,18 +45,23 @@ pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscEr
         eps
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    let mut vpe_caps = vpe.obj_caps().borrow_mut();
+
+    if !vpe_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let pe = get_kobj!(vpe, pe_sel, PE);
-    if !pe.has_quota(eps) {
-        sysc_err!(Code::NoSpace, "Insufficient EPs");
-    }
+    let cap = {
+        let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
+        if !pe.has_quota(eps) {
+            sysc_err!(Code::NoSpace, "Insufficient EPs");
+        }
 
-    let cap = Capability::new(dst_sel, KObject::PE(PEObject::new(pe.pe(), eps)));
-    vpe.obj_caps().borrow_mut().insert_as_child(cap, pe_sel);
-    pe.alloc(eps);
+        pe.alloc(eps);
+        Capability::new(dst_sel, KObject::PE(PEObject::new(pe.pe(), eps)))
+    };
+
+    vpe_caps.insert_as_child(cap, pe_sel);
 
     reply_success(msg);
     Ok(())
@@ -77,18 +82,23 @@ pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
         quota
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    let mut vpe_caps = vpe.obj_caps().borrow_mut();
+
+    if !vpe_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let kmem = get_kobj!(vpe, kmem_sel, KMEM);
-    if !kmem.has_quota(quota) {
-        sysc_err!(Code::NoSpace, "Insufficient quota");
-    }
+    let cap = {
+        let kmem = get_kobj_ref!(vpe_caps, kmem_sel, KMEM);
+        if !kmem.has_quota(quota) {
+            sysc_err!(Code::NoSpace, "Insufficient quota");
+        }
 
-    let cap = Capability::new(dst_sel, KObject::KMEM(KMemObject::new(quota)));
-    vpe.obj_caps().borrow_mut().insert_as_child(cap, kmem_sel);
-    kmem.alloc(quota);
+        kmem.alloc(quota);
+        Capability::new(dst_sel, KObject::KMEM(KMemObject::new(quota)))
+    };
+
+    vpe_caps.insert_as_child(cap, kmem_sel);
 
     reply_success(msg);
     Ok(())
@@ -120,15 +130,18 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let mgate = get_kobj!(vpe, src_sel, MGate);
-    if offset.checked_add(size).is_none() || offset + size > mgate.size() || size == 0 {
-        sysc_err!(Code::InvArgs, "Size or offset invalid");
-    }
+    let cap = {
+        let vpe_caps = vpe.obj_caps().borrow();
+        let mgate = get_kobj_ref!(vpe_caps, src_sel, MGate);
+        if offset.checked_add(size).is_none() || offset + size > mgate.size() || size == 0 {
+            sysc_err!(Code::InvArgs, "Size or offset invalid");
+        }
 
-    let addr = mgate.addr().raw() + offset as u64;
-    let new_mem = mem::Allocation::new(GlobAddr::new(addr), size);
-    let mgate_obj = MGateObject::new(new_mem, perms & mgate.perms(), true);
-    let cap = Capability::new(dst_sel, KObject::MGate(mgate_obj));
+        let addr = mgate.addr().raw() + offset as u64;
+        let new_mem = mem::Allocation::new(GlobAddr::new(addr), size);
+        let mgate_obj = MGateObject::new(new_mem, perms & mgate.perms(), true);
+        Capability::new(dst_sel, KObject::MGate(mgate_obj))
+    };
 
     tvpe.obj_caps().borrow_mut().insert_as_child(cap, src_sel);
 

@@ -111,7 +111,8 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     sysc_log!(vpe, "kmem_quota(kmem={})", kmem_sel);
 
-    let kmem = get_kobj!(vpe, kmem_sel, KMEM);
+    let vpe_caps = vpe.obj_caps().borrow();
+    let kmem = get_kobj_ref!(vpe_caps, kmem_sel, KMEM);
 
     let kreply = kif::syscalls::KMemQuotaReply {
         error: 0,
@@ -128,7 +129,8 @@ pub fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
     sysc_log!(vpe, "pe_quota(pe={})", pe_sel);
 
-    let pe = get_kobj!(vpe, pe_sel, PE);
+    let vpe_caps = vpe.obj_caps().borrow();
+    let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
 
     let kreply = kif::syscalls::PEQuotaReply {
         error: 0,

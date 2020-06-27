@@ -132,7 +132,9 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         1u32.checked_shl(msg_order).unwrap_or(0)
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    let mut vpe_caps = vpe.obj_caps().borrow_mut();
+
+    if !vpe_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
     if msg_order.checked_add(order).is_none()
@@ -143,7 +145,7 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         sysc_err!(Code::InvArgs, "Invalid size");
     }
 
-    vpe.obj_caps().borrow_mut().insert(Capability::new(
+    vpe_caps.insert(Capability::new(
         dst_sel,
         KObject::RGate(RGateObject::new(order, msg_order)),
     ));
@@ -169,17 +171,21 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         credits
     );
 
-    if !vpe.obj_caps().borrow().unused(dst_sel) {
+    let mut vpe_caps = vpe.obj_caps().borrow_mut();
+
+    if !vpe_caps.unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let rgate = get_kobj!(vpe, rgate_sel, RGate);
-    let cap = Capability::new(
-        dst_sel,
-        KObject::SGate(SGateObject::new(&rgate, label, credits)),
-    );
+    let cap = {
+        let rgate = get_kobj_ref!(vpe_caps, rgate_sel, RGate);
+        Capability::new(
+            dst_sel,
+            KObject::SGate(SGateObject::new(&rgate, label, credits)),
+        )
+    };
 
-    vpe.obj_caps().borrow_mut().insert_as_child(cap, rgate_sel);
+    vpe_caps.insert_as_child(cap, rgate_sel);
 
     reply_success(msg);
     Ok(())
@@ -209,14 +215,19 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         sysc_err!(Code::InvArgs, "Invalid server name");
     }
 
-    let rgate = get_kobj!(vpe, rgate_sel, RGate);
-    if !rgate.activated() {
-        sysc_err!(Code::InvArgs, "RGate is not activated");
-    }
+    let mut vpe_caps = vpe.obj_caps().borrow_mut();
 
-    let serv = Service::new(vpe, name.to_string(), rgate);
-    let cap = Capability::new(dst_sel, KObject::Serv(ServObject::new(serv, true, creator)));
-    vpe.obj_caps().borrow_mut().insert(cap);
+    let cap = {
+        let rgate = get_kobj_ref!(vpe_caps, rgate_sel, RGate);
+        if !rgate.activated() {
+            sysc_err!(Code::InvArgs, "RGate is not activated");
+        }
+
+        let serv = Service::new(vpe, name.to_string(), rgate.clone());
+        Capability::new(dst_sel, KObject::Serv(ServObject::new(serv, true, creator)))
+    };
+
+    vpe_caps.insert(cap);
 
     reply_success(msg);
     Ok(())
@@ -246,9 +257,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let serv_cap = obj_caps
-        .get(srv_sel)
-        .ok_or_else(|| SyscError::new(Code::InvArgs, "Invalid capability".to_string()))?;
+    let serv_cap = get_cap!(obj_caps, srv_sel);
     if serv_cap.has_parent() {
         sysc_err!(Code::InvArgs, "Only the service owner can create sessions");
     }
