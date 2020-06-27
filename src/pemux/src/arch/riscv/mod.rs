@@ -28,7 +28,7 @@ pub type State = isr::State;
 #[repr(C, align(8))]
 pub struct FPUState {
     r: [MaybeUninit<usize>; 32],
-    fcsr: MaybeUninit<usize>,
+    fcsr: usize,
     init: bool,
 }
 
@@ -37,7 +37,7 @@ impl Default for FPUState {
         Self {
             // we init that lazy on the first use of the FPU
             r: unsafe { MaybeUninit::uninit().assume_init() },
-            fcsr: unsafe { MaybeUninit::uninit().assume_init() },
+            fcsr: 0,
             init: false,
         }
     }
