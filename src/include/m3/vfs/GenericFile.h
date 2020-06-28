@@ -46,16 +46,6 @@ public:
 
     explicit GenericFile(int flags, capsel_t caps);
 
-    SendGate &sgate() noexcept {
-        return _sg;
-    }
-    ClientSession &sess() noexcept {
-        return _sess;
-    }
-    const ClientSession &sess() const noexcept {
-        return _sess;
-    }
-
     /**
      * @return true if there is still data to read or write without contacting the server
      */
@@ -82,6 +72,11 @@ public:
 
     virtual char type() const noexcept override {
         return 'F';
+    }
+
+    void connect(EP &sep, EP &mep) const {
+        _sg.activate_on(sep);
+        _sess.delegate_obj(mep.sel());
     }
 
     virtual Reference<File> clone() const override {

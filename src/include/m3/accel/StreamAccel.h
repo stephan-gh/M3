@@ -84,7 +84,7 @@ public:
     }
 
     void connect_input(GenericFile *file) {
-        connect_file(file, *_in_sep, *_in_mep);
+        file->connect(*_in_sep, *_in_mep);
     }
     void connect_input(StreamAccel *prev) {
         _sgate_in = std::make_unique<SendGate>(
@@ -95,7 +95,7 @@ public:
     }
 
     void connect_output(GenericFile *file) {
-        connect_file(file, *_out_sep, *_out_mep);
+        file->connect(*_out_sep, *_out_mep);
     }
     void connect_output(StreamAccel *next) {
         _sgate_out = std::make_unique<SendGate>(
@@ -108,11 +108,6 @@ public:
     }
 
 private:
-    void connect_file(GenericFile *file, EP &sep, EP &mep) {
-        file->sgate().activate_on(sep);
-        file->sess().delegate_obj(mep.sel());
-    }
-
     std::unique_ptr<SendGate> _sgate_in;
     std::unique_ptr<SendGate> _sgate_out;
     std::unique_ptr<MemGate> _mgate_out;
