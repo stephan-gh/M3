@@ -103,17 +103,13 @@ Errors::Code M3FSFileSession::get_mem(m3::CapExchange &xchg) {
     assert(inode != nullptr);
 
     // determine extent from byte offset
-    size_t firstOff = offset;
+    size_t ext_idx;
     size_t ext_off;
-    {
-        size_t tmp_extent;
-        INodes::seek(r, inode, firstOff, M3FS_SEEK_SET, tmp_extent, ext_off);
-        offset = tmp_extent;
-    }
+    INodes::seek(r, inode, offset, M3FS_SEEK_SET, ext_idx, ext_off);
 
     capsel_t sel = VPE::self().alloc_sel();
     size_t extlen = 0;
-    size_t len = INodes::get_extent_mem(r, inode, offset, ext_off, &extlen,
+    size_t len = INodes::get_extent_mem(r, inode, ext_idx, ext_off, &extlen,
                                         _oflags & MemGate::RWX, sel, true, _accessed);
     if(r.has_error()) {
         PRINT(this, "getting extent memory failed: " << Errors::to_string(r.error()));
