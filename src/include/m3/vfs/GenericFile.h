@@ -77,6 +77,9 @@ public:
 
     virtual void sync() override;
 
+    virtual void map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
+                     int prot, int flags) const override;
+
     virtual char type() const noexcept override {
         return 'F';
     }

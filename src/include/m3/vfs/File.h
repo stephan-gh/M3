@@ -30,6 +30,7 @@ namespace m3 {
 class VFS;
 class FStream;
 class FileTable;
+class Pager;
 
 /**
  * The base-class of all files. Can't be instantiated.
@@ -196,6 +197,19 @@ public:
      */
     virtual void sync() {
     }
+
+    /**
+     * Maps the range <fileoff>..<fileoff>+<len> to *<virt> with given flags.
+     *
+     * @param pager the pager to use
+     * @param virt the virtual address (0 = automatic); will be set to the chosen address
+     * @param fileoff the file offset to start the mapping at
+     * @param len the number of bytes to map
+     * @param prot the protection flags (see Pager::Prot::*)
+     * @param flags the mapping flags (see Pager::Flags::*)
+     */
+    virtual void map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
+                     int prot, int flags) const = 0;
 
     /**
      * @return the unique character for serialization

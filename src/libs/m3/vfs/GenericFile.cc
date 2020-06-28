@@ -206,6 +206,11 @@ void GenericFile::sync() {
     reply.pull_result();
 }
 
+void GenericFile::map(Reference<Pager> &pager, goff_t *virt, size_t fileoff, size_t len,
+                      int prot, int flags) const {
+    pager->map_ds(virt, len, prot, flags, _sess, fileoff);
+}
+
 void GenericFile::delegate_ep() {
     if(!_mg.ep()) {
         const EP &ep = _mg.acquire_ep();

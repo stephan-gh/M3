@@ -46,10 +46,9 @@ NOINLINE static void file() {
     Profile pr(4, 4);
     WVPERF("file mapping (64 pages)", pr.run_with_id([] {
         FileRef f("/large.bin", FILE_RW);
-        const GenericFile *rfile = static_cast<const GenericFile*>(&*f);
+
         goff_t virt = 0x31000000;
-        VPE::self().pager()->map_ds(&virt, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0,
-                                    rfile->sess(), 0);
+        f->map(VPE::self().pager(), &virt, 0, PAGES * PAGE_SIZE, Pager::READ | Pager::WRITE, 0);
 
         auto data = reinterpret_cast<char*>(virt);
         for(size_t i = 0; i < PAGES; ++i)

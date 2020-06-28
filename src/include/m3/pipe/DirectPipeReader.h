@@ -56,6 +56,9 @@ public:
     virtual size_t seek(size_t, int) override {
         throw Exception(Errors::NOT_SUP);
     }
+    virtual void map(Reference<Pager> &, goff_t *, size_t, size_t, int, int) const override {
+        throw Exception(Errors::NOT_SUP);
+    }
 
     virtual size_t read(void *buffer, size_t count) override {
         return static_cast<size_t>(read(buffer, count, true));
