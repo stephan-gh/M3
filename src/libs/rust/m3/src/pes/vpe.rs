@@ -188,8 +188,8 @@ impl VPE {
 
             // mark the pager caps allocated
             vpe.next_sel = cmp::max(sgate_sel + 1, vpe.next_sel);
-            // delegate VPE and memory cap to pager
-            pg.delegate_caps(&vpe)?;
+            // delegate VPE cap to pager
+            pg.init(&vpe)?;
             // and delegate the pager cap to the VPE
             vpe.delegate_obj(pg.sel())?;
             Some(pg)

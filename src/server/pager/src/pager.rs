@@ -40,7 +40,7 @@ use m3::serialize::{Sink, Source};
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
-use m3::session::{ClientSession, Pager, PagerDelOp, PagerOp, ResMng};
+use m3::session::{ClientSession, Pager, PagerOp, ResMng};
 use m3::tcu::Label;
 use m3::vfs;
 
@@ -81,18 +81,21 @@ impl Handler<AddrSpace> for PagerReqHandler {
         }
 
         let aspace = self.sessions.get_mut(sid).unwrap();
-        let sel = if xchg.in_args().size() == 0 {
-            aspace.add_sgate(REQHDL.recv_gate())
-        }
-        else {
-            let sid = aspace.id();
-            self.sessions
-                .add_next(crt, self.sel, false, |sess| {
-                    let nsid = sess.ident();
-                    log!(crate::LOG_DEF, "[{}] pager::new_sess(nsid={})", sid, nsid);
-                    Ok(AddrSpace::new(crt, sess, Some(sid)))
-                })
-                .map(|(sel, _)| sel)
+
+        let op = xchg.in_args().pop_word()? as u32;
+        let sel = match PagerOp::from(op) {
+            PagerOp::ADD_CHILD => {
+                let sid = aspace.id();
+                self.sessions
+                    .add_next(crt, self.sel, false, |sess| {
+                        let nsid = sess.ident();
+                        log!(crate::LOG_DEF, "[{}] pager::add_child(nsid={})", sid, nsid);
+                        Ok(AddrSpace::new(crt, sess, Some(sid)))
+                    })
+                    .map(|(sel, _)| sel)
+            },
+            PagerOp::ADD_SGATE => aspace.add_sgate(REQHDL.recv_gate()),
+            _ => Err(Error::new(Code::InvArgs)),
         }?;
 
         xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
@@ -105,31 +108,21 @@ impl Handler<AddrSpace> for PagerReqHandler {
         }
 
         let aspace = self.sessions.get_mut(sid).unwrap();
-        let sel = if !aspace.has_owner() {
-            let sels = VPE::cur().alloc_sel();
-            aspace.init(sels);
-            sels
-        }
-        else {
-            let mut args = xchg.in_args();
-            let op = args.pop_word()? as u32;
 
-            let (sel, virt) = if op == PagerDelOp::DATASPACE.val {
-                aspace.map_ds(&mut args)
-            }
-            else {
-                aspace.map_mem(&mut args)
-            }?;
+        let mut args = xchg.in_args();
+        let op = args.pop_word()? as u32;
+        let (sel, virt) = match PagerOp::from(op) {
+            PagerOp::INIT => aspace.init(None).map(|sel| (sel, 0)),
+            PagerOp::MAP_DS => aspace.map_ds(&mut args),
+            PagerOp::MAP_MEM => aspace.map_mem(&mut args),
+            _ => Err(Error::new(Code::InvArgs)),
+        }?;
 
+        if virt != 0 {
             xchg.out_args().push_word(virt);
-            sel
-        };
+        }
 
-        xchg.out_caps(kif::CapRngDesc::new(
-            kif::CapType::OBJECT,
-            sel,
-            xchg.in_caps(),
-        ));
+        xchg.out_caps(kif::CapRngDesc::new(kif::CapType::OBJECT, sel, 1));
         Ok(())
     }
 
@@ -182,7 +175,7 @@ fn start_child(child: &mut OwnChild) -> Result<(), Error> {
 
     // init address space (give it VPE and mgate selector)
     let mut aspace = PGHDL.get_mut().sessions.get_mut(sid).unwrap();
-    aspace.init(vpe.sel());
+    aspace.init(Some(vpe.sel())).unwrap();
 
     // start VPE
     let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX)?;

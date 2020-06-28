@@ -20,20 +20,20 @@
 
 namespace m3 {
 
-Pager::Pager(capsel_t sess, bool) noexcept
+Pager::Pager(capsel_t sess, bool)
     : RefCounted(),
       ClientSession(sess),
       _rgate(RecvGate::create(nextlog2<64>::val, nextlog2<64>::val)),
-      _own_sgate(SendGate::bind(obtain(1).start())),
-      _child_sgate(SendGate::bind(obtain(1).start())),
+      _own_sgate(SendGate::bind(get_sgate())),
+      _child_sgate(SendGate::bind(get_sgate())),
       _close(true) {
 }
 
-Pager::Pager(capsel_t sess) noexcept
+Pager::Pager(capsel_t sess)
     : RefCounted(),
       ClientSession(sess),
       _rgate(RecvGate::bind(ObjCap::INVALID, nextlog2<64>::val, nextlog2<64>::val)),
-      _own_sgate(SendGate::bind(obtain(1).start())),
+      _own_sgate(SendGate::bind(get_sgate())),
       _child_sgate(SendGate::bind(ObjCap::INVALID)),
       _close(false) {
 }
@@ -47,6 +47,14 @@ Pager::~Pager() {
             // ignore
         }
     }
+}
+
+capsel_t Pager::get_sgate() {
+    KIF::ExchangeArgs args;
+    ExchangeOStream os(args);
+    os << Operation::ADD_SGATE;
+    args.bytes = os.total();
+    return obtain(1, &args).start();
 }
 
 void Pager::pagefault(goff_t addr, uint access) {
@@ -64,7 +72,7 @@ void Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSe
                    size_t offset) {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << DelOp::DATASPACE << *virt << len << prot << flags << offset;
+    os << Operation::MAP_DS << *virt << len << prot << flags << offset;
     args.bytes = os.total();
 
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, sess.sel()), &args);
@@ -76,7 +84,7 @@ void Pager::map_ds(goff_t *virt, size_t len, int prot, int flags, const ClientSe
 void Pager::map_mem(goff_t *virt, MemGate &mem, size_t len, int prot) {
     KIF::ExchangeArgs args;
     ExchangeOStream os(args);
-    os << DelOp::MEMGATE << *virt << len << prot;
+    os << Operation::MAP_MEM << *virt << len << prot;
     args.bytes = os.total();
 
     delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, mem.sel()), &args);
@@ -95,8 +103,7 @@ Reference<Pager> Pager::create_clone() {
     {
         KIF::ExchangeArgs args;
         ExchangeOStream os(args);
-        // dummy arg to distinguish from the get_sgate operation
-        os << 0;
+        os << Operation::ADD_CHILD;
         args.bytes = os.total();
         caps = obtain(1, &args);
     }
@@ -104,11 +111,14 @@ Reference<Pager> Pager::create_clone() {
     return Reference<Pager>(new Pager(caps.start(), true));
 }
 
-void Pager::delegate_caps(VPE &vpe) {
+void Pager::init(VPE &vpe) {
     // we only need to do that for clones
     if(_close) {
-        // now delegate our VPE cap to the pager
-        delegate_obj(vpe.sel());
+        KIF::ExchangeArgs args;
+        ExchangeOStream os(args);
+        os << Operation::INIT;
+        args.bytes = os.total();
+        delegate(KIF::CapRngDesc(KIF::CapRngDesc::OBJ, vpe.sel()), &args);
     }
 }
 

@@ -41,7 +41,7 @@ fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error
 
     // build message
     let msg = &mut crate::msgs_mut().pagefault;
-    msg.op = 0;
+    msg.op = 0; // PagerOp::PAGEFAULT
     msg.virt = virt as u64;
     msg.access = perm.bits();
 

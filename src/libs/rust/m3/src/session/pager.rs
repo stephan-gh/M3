@@ -36,28 +36,28 @@ pub struct Pager {
 }
 
 int_enum! {
-    /// The pager's delegation operations
-    pub struct PagerDelOp : u32 {
-        /// Add a new data space mapping (e.g., a file)
-        const DATASPACE = 0x0;
-        /// Add a new mapping for a given memory capability
-        const MEMGATE   = 0x1;
-    }
-}
-
-int_enum! {
     /// The pager's operations
     pub struct PagerOp : u32 {
         /// A page fault
         const PAGEFAULT = 0x0;
-        /// Clone the address space for a new VPE
-        const CLONE     = 0x1;
+        /// Initializes the pager session
+        const INIT      = 0x1;
+        /// Adds a child VPE to the pager session
+        const ADD_CHILD = 0x2;
+        /// Adds a new send gate to the pager session
+        const ADD_SGATE = 0x3;
+        /// Clone the address space of a child VPE (see `ADD_CHILD`) from the parent
+        const CLONE     = 0x4;
         /// Add a new mapping with anonymous memory
-        const MAP_ANON  = 0x2;
+        const MAP_ANON  = 0x5;
+        /// Add a new data space mapping (e.g., a file)
+        const MAP_DS    = 0x6;
+        /// Add a new mapping for a given memory capability
+        const MAP_MEM   = 0x7;
         /// Remove an existing mapping
-        const UNMAP     = 0x3;
+        const UNMAP     = 0x8;
         /// Close the pager session
-        const CLOSE     = 0x4;
+        const CLOSE     = 0x9;
     }
 }
 
@@ -76,6 +76,15 @@ bitflags! {
 }
 
 impl Pager {
+    fn get_sgate(sess: &ClientSession) -> Result<cap::Selector, Error> {
+        sess.obtain(
+            1,
+            |os| os.push_word(u64::from(PagerOp::ADD_SGATE.val)),
+            |_| Ok(()),
+        )
+        .map(|crd| crd.start())
+    }
+
     /// Creates a new session with given `SendGate` (for the pager).
     pub fn new(sess: ClientSession, sgate: SendGate) -> Result<Self, Error> {
         let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
@@ -92,7 +101,7 @@ impl Pager {
     /// Binds a new pager-session to given selector (for childs).
     pub fn new_bind(sess_sel: cap::Selector) -> Result<Self, Error> {
         let sess = ClientSession::new_bind(sess_sel);
-        let sgate = SendGate::new_bind(sess.obtain_obj()?);
+        let sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
         Ok(Pager {
             sess,
             rgate: RecvGate::new_bind(kif::INVALID_SEL, 6, 6),
@@ -106,17 +115,14 @@ impl Pager {
     pub fn new_clone(&self) -> Result<Self, Error> {
         let res = self.sess.obtain(
             1,
-            |os| {
-                // dummy arg to distinguish from the get_sgate operation
-                os.push_word(0);
-            },
+            |os| os.push_word(u64::from(PagerOp::ADD_CHILD.val)),
             |_| Ok(()),
         )?;
         let sess = ClientSession::new_bind(res.start());
 
         // get send gates for us and our child
-        let parent_sgate = SendGate::new_bind(sess.obtain_obj()?);
-        let child_sgate = SendGate::new_bind(sess.obtain_obj()?);
+        let parent_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
+        let child_sgate = SendGate::new_bind(Self::get_sgate(&sess)?);
 
         let rgate = RecvGate::new_with(RGateArgs::default().order(6).msg_order(6))?;
         Ok(Pager {
@@ -148,11 +154,16 @@ impl Pager {
         &self.rgate
     }
 
-    /// Delegates the required capabilities from `vpe` to the server.
-    pub fn delegate_caps(&mut self, vpe: &VPE) -> Result<(), Error> {
+    /// Initializes this pager session by delegating the VPE cap to the server.
+    pub fn init(&mut self, vpe: &VPE) -> Result<(), Error> {
         // we only need to do that for clones
         if self.close {
-            self.sess.delegate_obj(vpe.sel())
+            let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, vpe.sel(), 1);
+            self.sess.delegate(
+                crd,
+                |os| os.push_word(u64::from(PagerOp::INIT.val)),
+                |_| Ok(()),
+            )
         }
         else {
             Ok(())
@@ -213,7 +224,7 @@ impl Pager {
         self.sess.delegate(
             crd,
             |os| {
-                os.push_word(u64::from(PagerDelOp::DATASPACE.val));
+                os.push_word(u64::from(PagerOp::MAP_DS.val));
                 os.push_word(addr as u64);
                 os.push_word(len as u64);
                 os.push_word(u64::from(prot.bits()));

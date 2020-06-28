@@ -30,18 +30,18 @@ class VPE;
 
 class Pager : public RefCounted, public ClientSession {
 private:
-    explicit Pager(capsel_t sess, bool) noexcept;
+    explicit Pager(capsel_t sess, bool);
 
 public:
-    enum DelOp {
-        DATASPACE,
-        MEMGATE,
-    };
-
     enum Operation {
         PAGEFAULT,
+        INIT,
+        ADD_CHILD,
+        ADD_SGATE,
         CLONE,
         MAP_ANON,
+        MAP_DS,
+        MAP_MEM,
         UNMAP,
         CLOSE,
         COUNT,
@@ -62,7 +62,7 @@ public:
         RWX     = READ | WRITE | EXEC,
     };
 
-    explicit Pager(capsel_t sess) noexcept;
+    explicit Pager(capsel_t sess);
     ~Pager();
 
     const SendGate &own_sgate() const noexcept {
@@ -76,7 +76,7 @@ public:
         return _rgate;
     }
 
-    void delegate_caps(VPE &vpe);
+    void init(VPE &vpe);
 
     Reference<Pager> create_clone();
     void clone();
@@ -88,6 +88,8 @@ public:
     void unmap(goff_t virt);
 
 private:
+    capsel_t get_sgate();
+
     RecvGate _rgate;
     SendGate _own_sgate;
     SendGate _child_sgate;

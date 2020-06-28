@@ -69,10 +69,16 @@ impl AddrSpace {
         self.owner.is_some()
     }
 
-    pub fn init(&mut self, vpe: Selector) {
-        log!(crate::LOG_DEF, "[{}] pager::init(vpe={})", self.id(), vpe);
-
-        self.owner = Some(vpe);
+    pub fn init(&mut self, vpe: Option<Selector>) -> Result<Selector, Error> {
+        if self.owner.is_some() {
+            Err(Error::new(Code::InvArgs))
+        }
+        else {
+            let vpe = vpe.unwrap_or(VPE::cur().alloc_sel());
+            log!(crate::LOG_DEF, "[{}] pager::init(vpe={})", self.id(), vpe);
+            self.owner = Some(vpe);
+            Ok(vpe)
+        }
     }
 
     pub fn add_sgate(&mut self, rgate: &RecvGate) -> Result<Selector, Error> {

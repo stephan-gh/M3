@@ -99,8 +99,8 @@ VPE::VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args)
                                           name, pe->sel(), _kmem->sel());
         // mark the send gate cap allocated
         _next_sel = Math::max(_pager->child_sgate().sel() + 1, _next_sel);
-        // delegate VPE and memory cap to pager
-        _pager->delegate_caps(*this);
+        // delegate VPE cap to pager
+        _pager->init(*this);
         // and delegate the pager cap to the VPE
         delegate_obj(_pager->sel());
     }
