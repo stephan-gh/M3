@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
         offset += BUF_SIZE;
         rem -= BUF_SIZE;
     }
+    mem.deactivate();
 
     cout << "Starting filter chain...\n";
 
