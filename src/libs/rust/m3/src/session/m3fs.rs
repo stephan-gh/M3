@@ -57,11 +57,11 @@ impl M3FS {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(name: &str) -> Result<FSHandle, Error> {
         let sels = VPE::cur().alloc_sels(2);
-        let sess = ClientSession::new_with_sel(name, sels + 1)?;
+        let sess = ClientSession::new_with_sel(name, sels + 0)?;
 
-        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 0, 1);
+        let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, sels + 1, 1);
         sess.obtain_for(VPE::cur().sel(), crd, |_| {}, |_| Ok(()))?;
-        let sgate = SendGate::new_bind(sels + 0);
+        let sgate = SendGate::new_bind(sels + 1);
         Ok(Self::create(sess, sgate))
     }
 
@@ -161,7 +161,6 @@ impl FileSystem for M3FS {
 
     fn serialize(&self, s: &mut VecSink) {
         s.push(&self.sess.sel());
-        s.push(&self.sgate.sel());
     }
 }
 
