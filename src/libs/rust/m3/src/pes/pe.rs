@@ -21,10 +21,12 @@ use kif::PEDesc;
 use pes::VPE;
 use rc::Rc;
 use syscalls;
+use tcu::PEId;
 
 /// Represents a processing element.
 pub struct PE {
     cap: Capability,
+    id: PEId,
     desc: PEDesc,
     free: bool,
 }
@@ -33,18 +35,20 @@ impl PE {
     /// Allocates a new PE from the resource manager with given description
     pub fn new(desc: PEDesc) -> Result<Rc<Self>, Error> {
         let sel = VPE::cur().alloc_sel();
-        let ndesc = VPE::cur().resmng().unwrap().alloc_pe(sel, desc)?;
+        let (id, ndesc) = VPE::cur().resmng().unwrap().alloc_pe(sel, desc)?;
         Ok(Rc::new(PE {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
+            id,
             desc: ndesc,
             free: true,
         }))
     }
 
     /// Binds a new PE object to given selector
-    pub fn new_bind(desc: PEDesc, sel: Selector) -> Self {
+    pub fn new_bind(id: PEId, desc: PEDesc, sel: Selector) -> Self {
         PE {
             cap: Capability::new(sel, CapFlags::KEEP_CAP),
+            id,
             desc,
             free: false,
         }
@@ -57,6 +61,7 @@ impl PE {
         Ok(Rc::new(PE {
             cap: Capability::new(sel, CapFlags::empty()),
             desc: self.desc(),
+            id: self.id(),
             free: false,
         }))
     }
@@ -64,6 +69,11 @@ impl PE {
     /// Returns the selector
     pub fn sel(&self) -> Selector {
         self.cap.sel()
+    }
+
+    /// Returns the PE id
+    pub fn id(&self) -> PEId {
+        self.id
     }
 
     /// Returns the PE description
@@ -91,6 +101,6 @@ impl Drop for PE {
 
 impl fmt::Debug for PE {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "PE[sel: {}, desc: {:?}]", self.sel(), self.desc())
+        write!(f, "PE{}[sel: {}, desc: {:?}]", self.id(), self.sel(), self.desc())
     }
 }

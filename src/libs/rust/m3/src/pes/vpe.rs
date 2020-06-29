@@ -98,7 +98,7 @@ impl VPE {
     fn new_cur() -> Self {
         VPE {
             cap: Capability::new(kif::SEL_VPE, CapFlags::KEEP_CAP),
-            pe: Rc::new(PE::new_bind(PEDesc::new_from(0), kif::SEL_PE)),
+            pe: Rc::new(PE::new_bind(0, PEDesc::new_from(0), kif::SEL_PE)),
             rmng: None,
             next_sel: kif::FIRST_FREE_SEL,
             eps_start: 0,
@@ -112,7 +112,7 @@ impl VPE {
 
     fn init(&mut self) {
         let env = arch::env::get();
-        self.pe = Rc::new(PE::new_bind(env.pe_desc(), kif::SEL_PE));
+        self.pe = Rc::new(PE::new_bind(env.pe_id() as PEId, env.pe_desc(), kif::SEL_PE));
         self.next_sel = env.load_first_sel();
         self.eps_start = env.first_std_ep();
         self.rmng = env.load_rmng();

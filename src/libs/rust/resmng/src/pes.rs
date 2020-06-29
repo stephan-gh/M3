@@ -30,36 +30,27 @@ struct ManagedPE {
 
 pub struct PEUsage {
     idx: Option<usize>,
-    pe: Option<Rc<PE>>,
+    pe: Rc<PE>,
 }
 
 impl PEUsage {
     fn new(idx: usize) -> Self {
         Self {
             idx: Some(idx),
-            pe: None,
+            pe: get().get(idx),
         }
     }
 
     pub fn new_obj(pe: Rc<PE>) -> Self {
-        Self {
-            idx: None,
-            pe: Some(pe),
-        }
+        Self { idx: None, pe }
     }
 
     pub fn pe_id(&self) -> PEId {
-        match self.idx {
-            Some(idx) => get().pes[idx].id,
-            None => 0,
-        }
+        self.pe.id()
     }
 
-    pub fn pe_obj(&self) -> Rc<PE> {
-        match self.pe {
-            Some(ref p) => p.clone(),
-            None => get().get(self.idx.unwrap()),
-        }
+    pub fn pe_obj(&self) -> &Rc<PE> {
+        &self.pe
     }
 
     pub fn derive(&self, eps: u32) -> Result<PEUsage, Error> {
@@ -73,10 +64,7 @@ impl PEUsage {
             self.pe_id(),
             pe.quota().unwrap(),
         );
-        Ok(PEUsage {
-            idx: self.idx,
-            pe: Some(pe),
-        })
+        Ok(PEUsage { idx: self.idx, pe })
     }
 }
 

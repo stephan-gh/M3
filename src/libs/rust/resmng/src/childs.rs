@@ -426,7 +426,11 @@ pub trait Child {
         self.delegate(sem.sel(), sel)
     }
 
-    fn alloc_pe(&mut self, sel: Selector, desc: kif::PEDesc) -> Result<kif::PEDesc, Error> {
+    fn alloc_pe(
+        &mut self,
+        sel: Selector,
+        desc: kif::PEDesc,
+    ) -> Result<(tcu::PEId, kif::PEDesc), Error> {
         log!(
             crate::LOG_PES,
             "{}: alloc_pe(sel={}, desc={:?})",
@@ -441,11 +445,12 @@ pub trait Child {
 
         self.delegate(pe_usage.pe_obj().sel(), sel)?;
 
+        let pe_id = pe_usage.pe_id();
         let desc = pe_usage.pe_obj().desc();
         self.res_mut().pes.push((pe_usage, idx, sel));
         cfg.alloc_pe(idx);
 
-        Ok(desc)
+        Ok((pe_id, desc))
     }
 
     fn free_pe(&mut self, sel: Selector) -> Result<(), Error> {
@@ -559,8 +564,9 @@ impl OwnChild {
     pub fn start(&mut self, vpe: VPE, mapper: &mut dyn Mapper, file: FileRef) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
-            "Starting boot module '{}' with arguments {:?}",
+            "Starting boot module '{}' on PE{} with arguments {:?}",
             self.name(),
+            self.pe().unwrap().pe_id(),
             &self.args[1..]
         );
 

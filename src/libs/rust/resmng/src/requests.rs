@@ -189,7 +189,7 @@ fn alloc_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
 
     child
         .alloc_pe(dst_sel, desc)
-        .and_then(|desc| reply_vmsg!(is, 0 as u64, desc.value()))
+        .and_then(|(id, desc)| reply_vmsg!(is, 0 as u64, id, desc.value()))
 }
 
 fn free_pe(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {

@@ -144,7 +144,8 @@ public:
         GateIStream reply = send_receive_vmsg(_sgate, ALLOC_PE, sel, desc.value());
         retrieve_result(ALLOC_PE, reply);
         PEDesc::value_t res;
-        reply >> res;
+        peid_t peid;
+        reply >> peid >> res;
         return PEDesc(res);
     }
 

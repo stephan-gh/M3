@@ -156,7 +156,7 @@ fn start_child(child: &mut OwnChild) -> Result<(), Error> {
 
     // create child VPE
     let mut vpe = VPE::new_with(
-        child.pe().unwrap().pe_obj(),
+        child.pe().unwrap().pe_obj().clone(),
         VPEArgs::new(child.name())
             .resmng(ResMng::new(resmng_sgate))
             .pager(Pager::new(sess, pager_sgate)?)

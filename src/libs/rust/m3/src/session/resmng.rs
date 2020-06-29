@@ -20,6 +20,7 @@ use errors::Error;
 use goff;
 use kif;
 use pes::VPE;
+use tcu::PEId;
 
 int_enum! {
     /// The resource manager calls
@@ -168,7 +169,7 @@ impl ResMng {
     }
 
     /// Allocates a new processing element of given type and assigns it to selector `sel`.
-    pub fn alloc_pe(&self, sel: Selector, desc: kif::PEDesc) -> Result<kif::PEDesc, Error> {
+    pub fn alloc_pe(&self, sel: Selector, desc: kif::PEDesc) -> Result<(PEId, kif::PEDesc), Error> {
         let mut reply = send_recv_res!(
             &self.sgate,
             RecvGate::def(),
@@ -176,8 +177,9 @@ impl ResMng {
             sel,
             desc.value()
         )?;
+        let pe_id: PEId = reply.pop()?;
         let raw: kif::PEDescRaw = reply.pop()?;
-        Ok(kif::PEDesc::new_from(raw))
+        Ok((pe_id, kif::PEDesc::new_from(raw)))
     }
 
     /// Free's the processing element with given selector

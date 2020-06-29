@@ -199,6 +199,7 @@ impl Subsystem {
 
     pub fn get_pe(&self, idx: usize) -> Rc<PE> {
         Rc::new(PE::new_bind(
+            self.pes[idx].id as PEId,
             self.pes[idx].desc,
             SUBSYS_SELS + 1 + (self.mods.len() + idx) as Selector,
         ))
@@ -304,7 +305,7 @@ impl Subsystem {
                     let mut sub = SubsystemBuilder::new((cfg_mem, cfg_len));
 
                     // add PEs
-                    sub.add_pe(pe_usage.pe_id(), pe_usage.pe_obj());
+                    sub.add_pe(pe_usage.pe_id(), pe_usage.pe_obj().clone());
                     pass_down_pes(&mut sub, &cfg);
 
                     // add memory
