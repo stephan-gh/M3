@@ -65,6 +65,7 @@ impl<T> Clone for SRc<T> {
 }
 
 impl<T: ?Sized> Drop for SRc<T> {
+    #[inline(always)]
     fn drop(&mut self) {
         let inner = self.ptr.as_ptr();
         unsafe {
