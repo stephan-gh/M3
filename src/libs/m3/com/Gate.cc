@@ -45,6 +45,10 @@ void Gate::activate_on(const EP &ep, capsel_t rbuf_mem, goff_t rbuf_off) {
     _gates.append(this);
 }
 
+void Gate::deactivate() {
+    release_ep(VPE::self(), true);
+}
+
 void Gate::release_ep(VPE &vpe, bool force_inval) noexcept {
     if(_ep && !_ep->is_standard()) {
         vpe.epmng().release(_ep, force_inval || (flags() & KEEP_CAP));

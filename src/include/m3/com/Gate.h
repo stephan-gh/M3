@@ -70,6 +70,7 @@ public:
 
     const EP &activate(capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
     void activate_on(const EP &ep, capsel_t rbuf_mem = KIF::INV_SEL, goff_t rbuf_off = 0);
+    void deactivate();
 
 protected:
     const EP *ep() const noexcept {
