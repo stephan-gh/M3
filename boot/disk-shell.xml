@@ -20,11 +20,11 @@
         </dom>
         <dom>
             <app args="pager">
-                <sess name="m3fs" />
+                <sess name="m3fs" args="files=4" />
                 <pes type="core" count="1" />
                 <dom>
                     <app args="/bin/shell">
-                        <sess name="m3fs" args="files=4" />
+                        <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <pes type="core" count="3" />
                     </app>

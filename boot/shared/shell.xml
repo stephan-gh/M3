@@ -21,7 +21,7 @@
                 <pes type="core" count="1" />
                 <dom>
                     <app args="/bin/shell">
-                        <sess name="m3fs" />
+                        <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <sess name="vterm" />
                         <pes type="core" count="3" />

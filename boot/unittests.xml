@@ -18,7 +18,7 @@
                 <pes type="core" count="1" />
                 <dom>
                     <app args="/bin/unittests">
-                        <sess name="m3fs" />
+                        <mount fs="m3fs" path="/" />
                         <sess lname="m3fs-clone" gname="m3fs" />
                         <sess name="pipes" />
                         <pes type="core" count="2" />

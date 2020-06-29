@@ -18,7 +18,7 @@
                 <pes type="core" count="1" />
                 <dom>
                     <app args="/bin/bench-scale-pipe -i 1 -r 1 cat_wc_cat cat_wc_wc">
-                        <sess name="m3fs" />
+                        <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <pes type="core" count="2" />
                     </app>

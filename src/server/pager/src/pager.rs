@@ -32,6 +32,7 @@ mod regions;
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
+use m3::col::{String, ToString, Vec};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math;
@@ -40,7 +41,7 @@ use m3::serialize::{Sink, Source};
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
-use m3::session::{ClientSession, Pager, PagerOp, ResMng};
+use m3::session::{ClientSession, M3FS, Pager, PagerOp, ResMng};
 use m3::tcu::Label;
 use m3::vfs;
 
@@ -52,6 +53,7 @@ pub const LOG_DEF: bool = false;
 
 static PGHDL: LazyStaticCell<PagerReqHandler> = LazyStaticCell::default();
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
+static MOUNTS: LazyStaticCell<Vec<(String, vfs::FSHandle)>> = LazyStaticCell::default();
 
 struct PagerReqHandler {
     sel: Selector,
@@ -135,6 +137,20 @@ impl Handler<AddrSpace> for PagerReqHandler {
     }
 }
 
+fn get_mount(name: &str) -> Result<vfs::FSHandle, Error> {
+    log!(crate::LOG_DEF, "Have {} FSs", MOUNTS.len());
+    for (n, fs) in MOUNTS.iter() {
+        log!(crate::LOG_DEF, "Testing {} .. {}", n, name);
+        if n == name {
+            return Ok(fs.clone());
+        }
+    }
+
+    let fs = M3FS::new(name)?;
+    MOUNTS.get_mut().push((name.to_string(), fs.clone()));
+    Ok(fs)
+}
+
 fn start_child(child: &mut OwnChild) -> Result<(), Error> {
     // send gate for resmng
     #[allow(clippy::useless_conversion)]
@@ -168,9 +184,11 @@ fn start_child(child: &mut OwnChild) -> Result<(), Error> {
         sub.finalize(&mut vpe)?;
     }
 
-    // pass root FS to child
-    vpe.mounts()
-        .add("/", VPE::cur().mounts().get_by_path("/").unwrap())?;
+    // mount file systems for childs
+    for m in child.cfg().mounts() {
+        let fs = get_mount(m.fs())?;
+        vpe.mounts().add(m.path(), fs)?;
+    }
     vpe.obtain_mounts().unwrap();
 
     // init address space (give it VPE and mgate selector)
@@ -230,11 +248,11 @@ pub fn main() -> i32 {
     let subsys = subsys::Subsystem::new().expect("Unable to read subsystem info");
 
     // mount root FS if we haven't done that yet
-    if let Err(e) = vfs::VFS::mount("/", "m3fs", "m3fs") {
-        if e.code() != Code::Exists {
-            panic!("Unable to mount root filesystem: {:?}", e);
-        }
+    MOUNTS.set(Vec::new());
+    if vfs::VFS::stat("/").is_err() {
+        vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
     }
+    MOUNTS.get_mut().push(("m3fs".to_string(), VPE::cur().mounts().get_by_path("/").unwrap()));
 
     // create server
     PGHDL.set(PagerReqHandler {

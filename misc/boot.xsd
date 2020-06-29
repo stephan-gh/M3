@@ -10,6 +10,13 @@
                 </xs:complexType>
             </xs:element>
 
+            <xs:element name="mount">
+                <xs:complexType>
+                    <xs:attribute name="fs" type="xs:string" use="required"/>
+                    <xs:attribute name="path" type="xs:string" use="required"/>
+                </xs:complexType>
+            </xs:element>
+
             <xs:element name="physmem">
                 <xs:complexType>
                     <xs:attribute name="addr" type="xs:int" use="required"/>

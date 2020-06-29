@@ -184,6 +184,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
         while let Some(tag) = p.parse_tag_name()? {
             match tag.as_ref() {
                 "dom" => app.domains.push(parse_domain(p)?),
+                "mount" => app.mounts.push(parse_mount(p)?),
                 "sess" => app.sessions.push(parse_session(p)?),
                 "sesscrt" => app.sesscrt.push(parse_sesscrt(p)?),
                 "serv" => app.services.push(parse_service(p)?),
@@ -265,6 +266,29 @@ fn parse_domain(p: &mut ConfigParser) -> Result<config::Domain, Error> {
 
     parse_close_tag(p, "dom")?;
     Ok(dom)
+}
+
+fn parse_mount(p: &mut ConfigParser) -> Result<config::MountDesc, Error> {
+    let mut fs = String::new();
+    let mut path = String::new();
+    loop {
+        match p.parse_arg()? {
+            None => break,
+            Some((n, v)) => match n.as_ref() {
+                "fs" => fs = v.clone(),
+                "path" => {
+                    if v.ends_with("/") {
+                        path = v.clone();
+                    }
+                    else {
+                        path = format!("{}/", v);
+                    }
+                },
+                _ => return Err(Error::new(Code::InvArgs)),
+            },
+        }
+    }
+    Ok(config::MountDesc::new(fs, path))
 }
 
 fn parse_physmem(p: &mut ConfigParser) -> Result<config::PhysMemDesc, Error> {

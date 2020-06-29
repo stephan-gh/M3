@@ -13,7 +13,7 @@
                 <pes type="core" count="1" />
                 <dom>
                     <app args="/bin/bench-scale -i 4 -r 1 empty">
-                        <sess name="m3fs" />
+                        <mount fs="m3fs" path="/" />
                         <pes type="core" count="4" />
                     </app>
                 </dom>

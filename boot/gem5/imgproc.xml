@@ -18,7 +18,7 @@
                 <pes type="core" />
                 <dom>
                     <app args="/bin/imgproc -m dir -n 1 -r 8 /large.txt">
-                        <sess name="m3fs" />
+                        <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <pes type="copy" count="3" />
                     </app>

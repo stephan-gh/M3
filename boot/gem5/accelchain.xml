@@ -18,7 +18,7 @@
                 <pes type="core" count="1" />
                 <dom>
                     <app args="/bin/accelchain -m dir -n 3 -c 1024 -r 1 /medium.bin /tmp/out1.txt">
-                        <sess name="m3fs" />
+                        <mount fs="m3fs" path="/" />
                         <sess name="pipes" />
                         <pes type="copy" count="3" />
                     </app>

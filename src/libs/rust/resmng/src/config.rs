@@ -47,6 +47,26 @@ impl PhysMemDesc {
 }
 
 #[derive(Default)]
+pub struct MountDesc {
+    fs: String,
+    path: String,
+}
+
+impl MountDesc {
+    pub(crate) fn new(fs: String, path: String) -> Self {
+        MountDesc { fs, path }
+    }
+
+    pub fn fs(&self) -> &String {
+        &self.fs
+    }
+
+    pub fn path(&self) -> &String {
+        &self.path
+    }
+}
+
+#[derive(Default)]
 pub struct ServiceDesc {
     local_name: String,
     global_name: String,
@@ -223,6 +243,7 @@ pub struct AppConfig {
     pub(crate) user_mem: Option<usize>,
     pub(crate) kern_mem: Option<usize>,
     pub(crate) domains: Vec<Domain>,
+    pub(crate) mounts: Vec<MountDesc>,
     pub(crate) phys_mems: Vec<PhysMemDesc>,
     pub(crate) services: Vec<ServiceDesc>,
     pub(crate) sesscrt: Vec<SessCrtDesc>,
@@ -274,6 +295,10 @@ impl AppConfig {
 
     pub fn domains(&self) -> &Vec<Domain> {
         &self.domains
+    }
+
+    pub fn mounts(&self) -> &Vec<MountDesc> {
+        &self.mounts
     }
 
     pub fn phys_mems(&self) -> &Vec<PhysMemDesc> {
@@ -521,6 +546,16 @@ impl AppConfig {
                 s.serv,
                 s.arg,
                 s.dep,
+                w = layer + 2
+            )?;
+        }
+        for m in &self.mounts {
+            writeln!(
+                f,
+                "{:0w$}Mount[fs={}, path={}],",
+                "",
+                m.fs,
+                m.path,
                 w = layer + 2
             )?;
         }
