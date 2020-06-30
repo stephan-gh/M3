@@ -97,7 +97,7 @@ impl VPEMng {
         let id: VPEId = self.get_id()?;
         let pe_id = pe.pe();
 
-        let vpe: Rc<VPE> = VPE::new(name, id, pe, eps_start, kmem, flags);
+        let vpe = VPE::new(name, id, pe, eps_start, kmem, flags)?;
 
         klog!(VPES, "Created VPE {} [id={}, pe={}]", name, id, pe_id);
 
@@ -181,7 +181,7 @@ impl VPEMng {
                 KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
             );
 
-            vpe.obj_caps().borrow_mut().insert(cap);
+            vpe.obj_caps().borrow_mut().insert(cap).unwrap();
             sel += 1;
         }
 
@@ -194,7 +194,7 @@ impl VPEMng {
                 KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
             );
 
-            vpe.obj_caps().borrow_mut().insert(cap);
+            vpe.obj_caps().borrow_mut().insert(cap).unwrap();
             sel += 1;
         }
 
@@ -202,7 +202,7 @@ impl VPEMng {
         for pe in platform::user_pes() {
             let pe_obj = pemng::get().pemux(pe).pe().clone();
             let cap = Capability::new(sel, KObject::PE(pe_obj));
-            vpe.obj_caps().borrow_mut().insert(cap);
+            vpe.obj_caps().borrow_mut().insert(cap).unwrap();
             sel += 1;
         }
 
@@ -215,7 +215,7 @@ impl VPEMng {
                     KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
                 );
 
-                vpe.obj_caps().borrow_mut().insert(cap);
+                vpe.obj_caps().borrow_mut().insert(cap).unwrap();
                 sel += 1;
             }
         }

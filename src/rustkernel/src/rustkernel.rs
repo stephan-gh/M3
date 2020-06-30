@@ -15,6 +15,8 @@
  */
 
 #![feature(core_intrinsics)]
+#![feature(const_if_match)]
+#![feature(weak_into_raw)]
 #![feature(ptr_internals)]
 #![no_std]
 

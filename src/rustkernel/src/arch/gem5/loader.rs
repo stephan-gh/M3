@@ -159,8 +159,7 @@ impl Loader {
             vpe.map_caps().borrow_mut().insert(Capability::new_range(
                 SelRange::new_range(dst_sel as kif::CapSel, pages as kif::CapSel),
                 KObject::Map(map_obj),
-            ));
-            Ok(())
+            ))
         }
         else {
             ktcu::copy(

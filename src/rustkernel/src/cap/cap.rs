@@ -17,15 +17,17 @@
 use base::cell::{RefMut, StaticCell};
 use base::cfg;
 use base::col::Treap;
+use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{CapRngDesc, CapSel, SEL_VPE};
-use base::rc::{Rc, Weak};
+use base::rc::Rc;
+use base::util;
 use core::cmp;
 use core::fmt;
 use core::ptr::{NonNull, Unique};
 
 use cap::{EPObject, GateEP, KObject};
-use pes::{pemng, vpemng, VPE};
+use pes::{pemng, vpemng, State, VPE};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
 pub struct SelRange {
@@ -65,7 +67,7 @@ impl cmp::Ord for SelRange {
 
 pub struct CapTable {
     caps: Treap<SelRange, Capability>,
-    vpe: Weak<VPE>,
+    vpe: Option<NonNull<VPE>>,
 }
 
 unsafe fn as_shared<T>(obj: &mut T) -> NonNull<T> {
@@ -76,12 +78,17 @@ impl CapTable {
     pub fn new() -> Self {
         CapTable {
             caps: Treap::new(),
-            vpe: Weak::new(),
+            vpe: None,
         }
     }
 
+    fn vpe(&self) -> &VPE {
+        unsafe { &(*self.vpe.unwrap().as_ptr()) }
+    }
+
     pub fn set_vpe(&mut self, vpe: &Rc<VPE>) {
-        self.vpe = Rc::downgrade(vpe);
+        let vpe_ptr = unsafe { NonNull::new_unchecked(Rc::as_ptr(vpe) as *mut _) };
+        self.vpe = Some(vpe_ptr);
     }
 
     pub fn unused(&self, sel: CapSel) -> bool {
@@ -106,18 +113,15 @@ impl CapTable {
     }
 
     #[inline(always)]
-    pub fn insert(&mut self, mut cap: Capability) -> &mut Capability {
-        unsafe {
-            cap.table = Some(as_shared(self));
-        }
-        self.caps.insert(cap.sel_range().clone(), cap)
+    pub fn insert(&mut self, cap: Capability) -> Result<(), Error> {
+        self.insert_new(cap, None)
     }
 
     #[inline(always)]
-    pub fn insert_as_child(&mut self, cap: Capability, parent_sel: CapSel) {
+    pub fn insert_as_child(&mut self, cap: Capability, parent_sel: CapSel) -> Result<(), Error> {
         unsafe {
-            let parent: Option<NonNull<Capability>> = self.get_shared(parent_sel);
-            self.do_insert(cap, parent);
+            let parent = self.get_shared(parent_sel);
+            self.insert_new(cap, parent)
         }
     }
 
@@ -127,10 +131,10 @@ impl CapTable {
         cap: Capability,
         mut par_tbl: RefMut<CapTable>,
         par_sel: CapSel,
-    ) {
+    ) -> Result<(), Error> {
         unsafe {
             let parent = par_tbl.get_shared(par_sel);
-            self.do_insert(cap, parent);
+            self.insert_new(cap, parent)
         }
     }
 
@@ -142,27 +146,62 @@ impl CapTable {
     }
 
     #[inline(always)]
-    unsafe fn do_insert(&mut self, child: Capability, parent: Option<NonNull<Capability>>) {
-        let mut child_cap = self.insert(child);
-        if let Some(parent_cap) = parent {
-            (*parent_cap.as_ptr()).inherit(&mut child_cap);
+    fn insert_new(
+        &mut self,
+        cap: Capability,
+        parent: Option<NonNull<Capability>>,
+    ) -> Result<(), Error> {
+        let vpe = self.vpe();
+        if !vpe
+            .kmem()
+            .alloc(&vpe, cap.sel(), cap.obj.size() + Capability::size())
+        {
+            return Err(Error::new(Code::NoSpace));
         }
+
+        unsafe {
+            let mut child_cap = self.do_insert(cap);
+            if let Some(parent) = parent {
+                (*parent.as_ptr()).inherit(&mut child_cap);
+            }
+        }
+        Ok(())
     }
 
-    pub fn obtain(&mut self, sel: CapSel, cap: &mut Capability, child: bool) {
+    pub fn obtain(&mut self, sel: CapSel, cap: &mut Capability, child: bool) -> Result<(), Error> {
+        let vpe = self.vpe();
+        if !vpe.kmem().alloc(&vpe, sel, Capability::size()) {
+            return Err(Error::new(Code::NoSpace));
+        }
+
         let mut nc: Capability = (*cap).clone();
         nc.sels = SelRange::new(sel);
+        nc.derived = true;
+
+        let nc = self.do_insert(nc);
         if child {
-            cap.inherit(self.insert(nc));
+            cap.inherit(nc);
         }
         else {
-            self.insert(nc).inherit(cap);
+            nc.inherit(cap);
         }
+        Ok(())
     }
 
-    pub fn revoke(&mut self, crd: CapRngDesc, own: bool) {
+    fn do_insert(&mut self, mut cap: Capability) -> &mut Capability {
+        unsafe {
+            cap.table = Some(as_shared(self));
+        }
+        self.caps.insert(cap.sel_range().clone(), cap)
+    }
+
+    pub fn revoke(&mut self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
         for sel in crd.start()..crd.start() + crd.count() {
-            self.get_mut(sel).map(|cap| {
+            if let Some(cap) = self.get_mut(sel) {
+                if !cap.can_revoke() {
+                    return Err(Error::new(Code::NotRevocable));
+                }
+
                 if own {
                     cap.revoke(false, false);
                 }
@@ -171,8 +210,9 @@ impl CapTable {
                         cap.child.map(|child| (*child.as_ptr()).revoke(true, true));
                     }
                 }
-            });
+            }
         }
+        Ok(())
     }
 
     pub fn revoke_all(&mut self) {
@@ -199,9 +239,15 @@ pub struct Capability {
     parent: Option<NonNull<Capability>>,
     next: Option<NonNull<Capability>>,
     prev: Option<NonNull<Capability>>,
+    derived: bool,
 }
 
 impl Capability {
+    const fn size() -> usize {
+        const_assert!(util::size_of::<Capability>() <= 128);
+        128 + crate::slab::HEADER_SIZE
+    }
+
     pub fn new(sel: CapSel, obj: KObject) -> Self {
         Self::new_range(SelRange::new(sel), obj)
     }
@@ -215,6 +261,7 @@ impl Capability {
             parent: None,
             next: None,
             prev: None,
+            derived: false,
         }
     }
 
@@ -333,8 +380,8 @@ impl Capability {
         unsafe { &mut *self.table.unwrap().as_ptr() }
     }
 
-    fn vpe(&self) -> Option<Rc<VPE>> {
-        self.table().vpe.upgrade()
+    fn vpe(&self) -> &VPE {
+        self.table().vpe()
     }
 
     fn invalidate_ep(mut cgp: RefMut<GateEP>, foreign: bool) {
@@ -358,20 +405,46 @@ impl Capability {
         }
     }
 
+    fn can_revoke(&self) -> bool {
+        match self.obj {
+            KObject::KMem(ref k) => k.left() == k.quota(),
+            _ => true,
+        }
+    }
+
     fn release(&mut self, foreign: bool) {
+        let vpe = self.vpe();
+        if !self.derived {
+            // if it's not derived, we created the cap and thus will also free the kobject
+            vpe.kmem().free(&vpe, self.sel(), Capability::size() + self.obj.size());
+        }
+        else {
+            // give quota for cap back in every case
+            vpe.kmem().free(&vpe, self.sel(), Capability::size());
+        }
+
         match self.obj {
             KObject::VPE(ref v) => {
                 // remove VPE if we revoked the root capability and if it's not the own VPE
                 if let Some(v) = v.upgrade() {
                     if self.sel() != SEL_VPE && self.parent.is_none() && !v.is_root() {
-                        let id = v.id();
-                        vpemng::get().remove_vpe(id);
+                        vpemng::get().remove_vpe(v.id());
                     }
                 }
             },
 
             KObject::EP(ref mut e) => {
                 EPObject::revoke(e);
+            },
+
+            KObject::KMem(ref k) => {
+                if let Some(parent) = self.parent {
+                    let parent = unsafe { &(*parent.as_ptr()) };
+                    match parent.get() {
+                        KObject::KMem(p) => k.revoke(parent.vpe(), parent.sel(), p),
+                        _ => {},
+                    }
+                }
             },
 
             KObject::SGate(ref mut o) => {
@@ -396,12 +469,11 @@ impl Capability {
 
             KObject::Map(ref m) => {
                 if m.mapped() {
-                    let virt = (self.sel() as goff) << cfg::PAGE_BITS;
                     // TODO currently, it can happen that we've already stopped the VPE, but still
-                    // accept/continue a syscall that inserts something into the VPE's table. So,
-                    // be careful here that the VPE can be None.
-                    if let Some(vpe) = self.vpe() {
-                        m.unmap(&vpe, virt, self.len() as usize);
+                    // accept/continue a syscall that inserts something into the VPE's table.
+                    if vpe.state() != State::DEAD {
+                        let virt = (self.sel() as goff) << cfg::PAGE_BITS;
+                        m.unmap(vpe, virt, self.len() as usize);
                     }
                 }
             },
@@ -409,8 +481,6 @@ impl Capability {
             KObject::Sem(ref s) => {
                 s.revoke();
             },
-
-            _ => {},
         }
     }
 }
@@ -442,7 +512,7 @@ impl fmt::Debug for Capability {
         write!(
             f,
             "Cap[vpe={}, sel={}, len={}, obj={:?}]",
-            self.vpe().unwrap().id(),
+            self.vpe().id(),
             self.sel(),
             self.len(),
             self.obj

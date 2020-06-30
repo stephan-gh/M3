@@ -26,7 +26,7 @@ extern "C" {
     fn heap_free(p: *mut libc::c_void);
 }
 
-const ALIGN: usize = 16;
+pub const HEADER_SIZE: usize = 16;
 const NEW_AREA_COUNT: usize = 64;
 
 #[repr(C)]
@@ -45,7 +45,7 @@ struct Slab {
 
 impl Slab {
     fn new(size: Option<usize>) -> Self {
-        const_assert!(util::size_of::<Area>() == ALIGN + 8);
+        const_assert!(util::size_of::<Area>() == HEADER_SIZE + 8);
         Self { free: None, size }
     }
 
@@ -61,7 +61,7 @@ impl Slab {
 
     #[inline(never)]
     unsafe fn extend(&mut self, objsize: usize) {
-        let area_size = objsize + ALIGN;
+        let area_size = objsize + HEADER_SIZE;
         let mut a = heap_alloc(area_size * NEW_AREA_COUNT) as *mut Area;
         for _ in 0..NEW_AREA_COUNT {
             (*a).next = self.free;
@@ -84,7 +84,7 @@ impl Slab {
             },
 
             #[cold]
-            None => self.heap_to_area(heap_alloc(size + ALIGN)),
+            None => self.heap_to_area(heap_alloc(size + HEADER_SIZE)),
         };
 
         Self::user_addr(area)
@@ -95,7 +95,7 @@ impl Slab {
             Some(_) => unimplemented!(),
 
             None => {
-                let ptr = heap_calloc(size + ALIGN, 1);
+                let ptr = heap_calloc(size + HEADER_SIZE, 1);
                 Self::user_addr(self.heap_to_area(ptr))
             },
         }
@@ -121,7 +121,7 @@ impl Slab {
     ) -> *mut libc::c_void {
         match self.size {
             Some(_) => {
-                let nptr = heap_alloc(new_size + ALIGN);
+                let nptr = heap_alloc(new_size + HEADER_SIZE);
                 let narea = SLAB_ALL.get_mut().heap_to_area(nptr);
                 let res = Self::user_addr(narea);
                 libc::memcpy(res, Self::user_addr(area), old_size);
@@ -130,7 +130,7 @@ impl Slab {
             },
 
             None => {
-                let ptr = heap_realloc(area as *mut libc::c_void, new_size + ALIGN);
+                let ptr = heap_realloc(area as *mut libc::c_void, new_size + HEADER_SIZE);
                 Self::user_addr(self.heap_to_area(ptr))
             },
         }
@@ -148,7 +148,7 @@ pub fn init() {
 }
 
 unsafe fn get_area(ptr: *mut libc::c_void) -> *mut Area {
-    (ptr as usize - ALIGN) as *mut Area
+    (ptr as usize - HEADER_SIZE) as *mut Area
 }
 
 #[no_mangle]

@@ -47,6 +47,14 @@ macro_rules! sysc_err {
     });
 }
 
+macro_rules! try_kmem_quota {
+    ($e:expr) => {
+        if let Err(e) = $e {
+            sysc_err!(e.code(), "Insufficient kernel memory quota");
+        }
+    };
+}
+
 macro_rules! as_obj {
     ($kobj:expr, $ty:ident) => {
         match $kobj {

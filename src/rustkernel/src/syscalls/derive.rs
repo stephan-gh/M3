@@ -45,23 +45,18 @@ pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscEr
         eps
     );
 
-    let mut vpe_caps = vpe.obj_caps().borrow_mut();
-
-    if !vpe_caps.unused(dst_sel) {
+    if !vpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let cap = {
-        let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
-        if !pe.has_quota(eps) {
-            sysc_err!(Code::NoSpace, "Insufficient EPs");
-        }
+    let pe = get_kobj!(vpe, pe_sel, PE);
+    if !pe.has_quota(eps) {
+        sysc_err!(Code::NoSpace, "Insufficient EPs");
+    }
 
-        pe.alloc(eps);
-        Capability::new(dst_sel, KObject::PE(PEObject::new(pe.pe(), eps)))
-    };
-
-    vpe_caps.insert_as_child(cap, pe_sel);
+    let cap = Capability::new(dst_sel, KObject::PE(PEObject::new(pe.pe(), eps)));
+    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, pe_sel));
+    pe.alloc(eps);
 
     reply_success(msg);
     Ok(())
@@ -82,23 +77,18 @@ pub fn derive_kmem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
         quota
     );
 
-    let mut vpe_caps = vpe.obj_caps().borrow_mut();
-
-    if !vpe_caps.unused(dst_sel) {
+    if !vpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
 
-    let cap = {
-        let kmem = get_kobj_ref!(vpe_caps, kmem_sel, KMEM);
-        if !kmem.has_quota(quota) {
-            sysc_err!(Code::NoSpace, "Insufficient quota");
-        }
+    let kmem = get_kobj!(vpe, kmem_sel, KMem);
+    if !kmem.has_quota(quota) {
+        sysc_err!(Code::NoSpace, "Insufficient quota");
+    }
 
-        kmem.alloc(quota);
-        Capability::new(dst_sel, KObject::KMEM(KMemObject::new(quota)))
-    };
-
-    vpe_caps.insert_as_child(cap, kmem_sel);
+    let cap = Capability::new(dst_sel, KObject::KMem(KMemObject::new(quota)));
+    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, kmem_sel));
+    assert!(kmem.alloc(vpe, kmem_sel, quota));
 
     reply_success(msg);
     Ok(())
@@ -143,7 +133,7 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         Capability::new(dst_sel, KObject::MGate(mgate_obj))
     };
 
-    tvpe.obj_caps().borrow_mut().insert_as_child(cap, src_sel);
+    try_kmem_quota!(tvpe.obj_caps().borrow_mut().insert_as_child(cap, src_sel));
 
     reply_success(msg);
     Ok(())
@@ -214,10 +204,11 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
             let src_cap = serv_caps.get_mut(sgate_sel);
             match src_cap {
                 None => sysc_err!(Code::InvArgs, "Service gave invalid SendGate cap"),
-                Some(c) => vpe
-                    .obj_caps()
-                    .borrow_mut()
-                    .obtain(dst_crd.start() + 1, c, true),
+                Some(c) => try_kmem_quota!(vpe.obj_caps().borrow_mut().obtain(
+                    dst_crd.start() + 1,
+                    c,
+                    true
+                )),
             }
 
             // derive new service object
@@ -225,7 +216,7 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
                 dst_crd.start() + 0,
                 KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
             );
-            vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel);
+            try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel));
         },
     }
 

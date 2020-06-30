@@ -84,7 +84,7 @@ impl VPE {
         eps_start: EpId,
         kmem: SRc<KMemObject>,
         flags: VPEFlags,
-    ) -> Rc<Self> {
+    ) -> Result<Rc<Self>, Error> {
         let vpe = Rc::new(VPE {
             id,
             name: name.to_string(),
@@ -111,17 +111,17 @@ impl VPE {
             // kmem cap
             vpe.obj_caps().borrow_mut().insert(Capability::new(
                 kif::SEL_KMEM,
-                KObject::KMEM(vpe.kmem.clone()),
-            ));
+                KObject::KMem(vpe.kmem.clone()),
+            ))?;
             // PE cap
             vpe.obj_caps()
                 .borrow_mut()
-                .insert(Capability::new(kif::SEL_PE, KObject::PE(vpe.pe.clone())));
+                .insert(Capability::new(kif::SEL_PE, KObject::PE(vpe.pe.clone())))?;
             // cap for own VPE
             vpe.obj_caps().borrow_mut().insert(Capability::new(
                 kif::SEL_VPE,
                 KObject::VPE(Rc::downgrade(&vpe)),
-            ));
+            ))?;
 
             // alloc standard EPs
             let pemux = pemng::get().pemux(vpe.pe_id());
@@ -129,7 +129,7 @@ impl VPE {
             vpe.pe.alloc(STD_EPS_COUNT as u32);
         }
 
-        vpe
+        Ok(vpe)
     }
 
     pub fn init(&self) -> Result<(), Error> {
@@ -234,6 +234,10 @@ impl VPE {
 
     pub fn pe_desc(&self) -> PEDesc {
         platform::pe_desc(self.pe_id())
+    }
+
+    pub fn kmem(&self) -> &SRc<KMemObject> {
+        &self.kmem
     }
 
     pub fn rbuf_addr(&self) -> goff {
@@ -471,13 +475,13 @@ impl VPE {
         self.map_caps.borrow_mut().revoke_all();
     }
 
-    pub fn revoke(&self, crd: CapRngDesc, own: bool) {
+    pub fn revoke(&self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
         // we can't use borrow_mut() here, because revoke might need to use borrow as well.
         if crd.cap_type() == CapType::OBJECT {
-            self.obj_caps().borrow_mut().revoke(crd, own);
+            self.obj_caps().borrow_mut().revoke(crd, own)
         }
         else {
-            self.map_caps().borrow_mut().revoke(crd, own);
+            self.map_caps().borrow_mut().revoke(crd, own)
         }
     }
 }

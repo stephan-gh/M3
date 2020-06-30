@@ -91,7 +91,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         dst_sel,
         KObject::EP(EPObject::new(false, &dst_vpe, epid, replies, pemux.pe())),
     );
-    vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel);
+    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));
 
     dst_vpe.pe().alloc(ep_count);
     pemux.alloc_eps(epid, ep_count);
@@ -112,7 +112,7 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     sysc_log!(vpe, "kmem_quota(kmem={})", kmem_sel);
 
     let vpe_caps = vpe.obj_caps().borrow();
-    let kmem = get_kobj_ref!(vpe_caps, kmem_sel, KMEM);
+    let kmem = get_kobj_ref!(vpe_caps, kmem_sel, KMem);
 
     let kreply = kif::syscalls::KMemQuotaReply {
         error: 0,
@@ -185,10 +185,12 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
-        vpecap
-            .obj_caps()
-            .borrow_mut()
-            .obtain(dst_sel, csess.unwrap(), true);
+        try_kmem_quota!(
+            vpecap
+                .obj_caps()
+                .borrow_mut()
+                .obtain(dst_sel, csess.unwrap(), true)
+        );
     }
     else {
         sysc_err!(Code::InvArgs, "Unknown session id {}", sid);

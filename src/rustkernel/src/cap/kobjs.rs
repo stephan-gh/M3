@@ -14,13 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-use base::cell::{Cell, Ref, RefCell, RefMut};
+use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
 use base::mem::GlobAddr;
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{EpId, Label, PEId};
+use base::util;
 use core::fmt;
 use core::ptr;
 use thread;
@@ -40,9 +41,44 @@ pub enum KObject {
     Sem(SRc<SemObject>),
     // Only VPEManager owns a VPE (Rc<VPE>). Break cycle here by using Weak
     VPE(Weak<VPE>),
-    KMEM(SRc<KMemObject>),
+    KMem(SRc<KMemObject>),
     PE(SRc<PEObject>),
     EP(Rc<EPObject>),
+}
+
+const fn kobj_size<T>() -> usize {
+    let size = util::size_of::<T>();
+    if size <= 64 {
+        64 + crate::slab::HEADER_SIZE
+    }
+    else if size <= 128 {
+        128 + crate::slab::HEADER_SIZE
+    }
+    else {
+        size + util::size_of::<base::mem::heap::HeapArea>()
+    }
+}
+
+static KOBJ_SIZES: [usize; 11] = [
+    kobj_size::<SGateObject>(),
+    kobj_size::<RGateObject>(),
+    kobj_size::<MGateObject>(),
+    kobj_size::<MapObject>(),
+    kobj_size::<ServObject>(),
+    kobj_size::<SessObject>(),
+    kobj_size::<VPE>(),
+    kobj_size::<SemObject>(),
+    kobj_size::<KMemObject>(),
+    kobj_size::<PEObject>(),
+    kobj_size::<EPObject>(),
+];
+
+impl KObject {
+    pub fn size(&self) -> usize {
+        // get the index in the enum
+        let idx: usize = unsafe { *(self as *const _ as *const usize) };
+        KOBJ_SIZES[idx]
+    }
 }
 
 impl fmt::Debug for KObject {
@@ -56,7 +92,7 @@ impl fmt::Debug for KObject {
             KObject::Sess(s) => write!(f, "{:?}", s),
             KObject::VPE(v) => write!(f, "{:?}", v),
             KObject::Sem(s) => write!(f, "{:?}", s),
-            KObject::KMEM(k) => write!(f, "{:?}", k),
+            KObject::KMem(k) => write!(f, "{:?}", k),
             KObject::PE(p) => write!(f, "{:?}", p),
             KObject::EP(e) => write!(f, "{:?}", e),
         }
@@ -526,7 +562,13 @@ pub struct EPObject {
 }
 
 impl EPObject {
-    pub fn new(is_std: bool, vpe: &Rc<VPE>, ep: EpId, replies: u32, pe: &SRc<PEObject>) -> Rc<Self> {
+    pub fn new(
+        is_std: bool,
+        vpe: &Rc<VPE>,
+        ep: EpId,
+        replies: u32,
+        pe: &SRc<PEObject>,
+    ) -> Rc<Self> {
         let ep = Rc::new(Self {
             is_std,
             gate: RefCell::from(None),
@@ -630,34 +672,99 @@ impl fmt::Debug for EPObject {
         )
     }
 }
+
+static NEXT_KMEM_ID: StaticCell<usize> = StaticCell::new(0);
+
 pub struct KMemObject {
+    id: usize,
     quota: usize,
-    left: usize,
+    left: Cell<usize>,
 }
 
 impl KMemObject {
     pub fn new(quota: usize) -> SRc<Self> {
-        SRc::new(Self { quota, left: quota })
+        let id = *NEXT_KMEM_ID;
+        *NEXT_KMEM_ID.get_mut() += 1;
+
+        let kmem = SRc::new(Self {
+            id,
+            quota,
+            left: Cell::from(quota),
+        });
+        klog!(KMEM, "{:?} created", kmem);
+        kmem
+    }
+
+    pub fn quota(&self) -> usize {
+        self.quota
     }
 
     pub fn left(&self) -> usize {
-        self.left
+        self.left.get()
     }
 
     pub fn has_quota(&self, size: usize) -> bool {
-        self.left >= size
+        self.left.get() >= size
     }
 
-    pub fn alloc(&self, _size: usize) {
+    pub fn alloc(&self, vpe: &VPE, sel: kif::CapSel, size: usize) -> bool {
+        klog!(
+            KMEM,
+            "{:?} VPE{}:{} allocates {}b (sel={})",
+            self,
+            vpe.id(),
+            vpe.name(),
+            size,
+            sel,
+        );
+
+        if self.has_quota(size) {
+            self.left.set(self.left() - size);
+            true
+        }
+        else {
+            false
+        }
     }
 
-    pub fn free(&self, _size: usize) {
+    pub fn free(&self, vpe: &VPE, sel: kif::CapSel, size: usize) {
+        assert!(self.left() + size <= self.quota);
+        self.left.set(self.left() + size);
+
+        klog!(
+            KMEM,
+            "{:?} VPE{}:{} freed {}b (sel={})",
+            self,
+            vpe.id(),
+            vpe.name(),
+            size,
+            sel
+        );
+    }
+
+    pub fn revoke(&self, vpe: &VPE, sel: kif::CapSel, parent: &KMemObject) {
+        // grant the kernel memory back to our parent
+        parent.free(vpe, sel, self.left());
+        assert!(self.left() == self.quota);
     }
 }
 
 impl fmt::Debug for KMemObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "KMem[quota={:#x}, left={:#x}]", self.quota, self.left)
+        write!(
+            f,
+            "KMem[id={}, quota={}, left={}]",
+            self.id,
+            self.quota,
+            self.left()
+        )
+    }
+}
+
+impl Drop for KMemObject {
+    fn drop(&mut self) {
+        klog!(KMEM, "{:?} dropped", self);
+        assert!(self.left() == self.quota);
     }
 }
 
@@ -705,7 +812,7 @@ impl MapObject {
         })
     }
 
-    pub fn unmap(&self, vpe: &Rc<VPE>, virt: goff, pages: usize) {
+    pub fn unmap(&self, vpe: &VPE, virt: goff, pages: usize) {
         if vpe.state() != State::DEAD {
             let pemux = pemng::get().pemux(vpe.pe_id());
             pemux.unmap(vpe.id(), virt, pages).unwrap();

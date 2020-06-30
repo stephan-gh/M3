@@ -105,12 +105,14 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
     if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
         let map_caps = tgt_vpe.map_caps().borrow_mut();
-        vpe.obj_caps()
-            .borrow_mut()
-            .insert_as_child_from(cap, map_caps, sel);
+        try_kmem_quota!(
+            vpe.obj_caps()
+                .borrow_mut()
+                .insert_as_child_from(cap, map_caps, sel)
+        );
     }
     else {
-        vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel);
+        try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));
     }
 
     reply_success(msg);
@@ -145,10 +147,10 @@ pub fn create_rgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         sysc_err!(Code::InvArgs, "Invalid size");
     }
 
-    vpe_caps.insert(Capability::new(
+    try_kmem_quota!(vpe_caps.insert(Capability::new(
         dst_sel,
         KObject::RGate(RGateObject::new(order, msg_order)),
-    ));
+    )));
 
     reply_success(msg);
     Ok(())
@@ -185,7 +187,7 @@ pub fn create_sgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
         )
     };
 
-    vpe_caps.insert_as_child(cap, rgate_sel);
+    try_kmem_quota!(vpe_caps.insert_as_child(cap, rgate_sel));
 
     reply_success(msg);
     Ok(())
@@ -227,7 +229,7 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         Capability::new(dst_sel, KObject::Serv(ServObject::new(serv, true, creator)))
     };
 
-    vpe_caps.insert(cap);
+    try_kmem_quota!(vpe_caps.insert(cap));
 
     reply_success(msg);
     Ok(())
@@ -269,7 +271,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
         KObject::Sess(SessObject::new(&serv, creator, ident)),
     );
 
-    obj_caps.insert_as_child(cap, srv_sel);
+    try_kmem_quota!(obj_caps.insert_as_child(cap, srv_sel));
 
     reply_success(msg);
     Ok(())
@@ -339,7 +341,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         (None, None)
     };
 
-    let kmem = get_kobj!(vpe, kmem_sel, KMEM);
+    let kmem = get_kobj!(vpe, kmem_sel, KMem);
     // TODO kmem quota stuff
 
     // find contiguous space for standard EPs
@@ -360,7 +362,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // give VPE cap to the parent
     let cap = Capability::new(dst_sel, KObject::VPE(Rc::downgrade(&nvpe)));
-    vpe.obj_caps().borrow_mut().insert(cap);
+    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert(cap));
 
     // activate pager EPs
     #[cfg(target_os = "none")]
@@ -417,7 +419,7 @@ pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     }
 
     let cap = Capability::new(dst_sel, KObject::Sem(SemObject::new(value)));
-    vpe.obj_caps().borrow_mut().insert(cap);
+    try_kmem_quota!(vpe.obj_caps().borrow_mut().insert(cap));
 
     reply_success(msg);
     Ok(())
@@ -513,11 +515,11 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     // create map cap, if not yet existing
     if !exists {
         let cap = Capability::new_range(SelRange::new_range(dst_sel, pages), map_obj.clone());
-        dst_vpe.map_caps().borrow_mut().insert_as_child_from(
+        try_kmem_quota!(dst_vpe.map_caps().borrow_mut().insert_as_child_from(
             cap,
             vpe.obj_caps().borrow_mut(),
             mgate_sel,
-        );
+        ));
     }
 
     reply_success(msg);
