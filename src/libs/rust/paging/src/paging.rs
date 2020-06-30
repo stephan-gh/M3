@@ -66,111 +66,6 @@ pub const LOG_MAP: bool = false;
 /// Logs detailed mapping operations
 pub const LOG_MAP_DETAIL: bool = false;
 
-pub type AllocFrameFunc = extern "C" fn(vpe: VPEId) -> Phys;
-pub type XlatePtFunc = extern "C" fn(vpe: VPEId, phys: Phys) -> usize;
-
-pub struct ExtAllocator {
-    vpe: VPEId,
-    alloc_frame: AllocFrameFunc,
-    xlate_pt: XlatePtFunc,
-}
-
-impl ExtAllocator {
-    pub fn new(vpe: VPEId, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) -> Self {
-        Self {
-            vpe,
-            alloc_frame,
-            xlate_pt,
-        }
-    }
-}
-
-impl Allocator for ExtAllocator {
-    fn allocate_pt(&mut self) -> MMUPTE {
-        (self.alloc_frame)(self.vpe)
-    }
-
-    fn translate_pt(&self, phys: Phys) -> usize {
-        (self.xlate_pt)(self.vpe, phys)
-    }
-
-    fn free_pt(&mut self, _phys: Phys) {
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn init_aspace(
-    id: VPEId,
-    alloc_frame: AllocFrameFunc,
-    xlate_pt: XlatePtFunc,
-    root: goff,
-) {
-    let aspace = AddrSpace::new(
-        id,
-        GlobAddr::new(root),
-        ExtAllocator::new(id, alloc_frame, xlate_pt),
-        true,
-    );
-    aspace.init();
-}
-
-#[no_mangle]
-pub extern "C" fn map_pages(
-    id: VPEId,
-    virt: usize,
-    global: goff,
-    pages: usize,
-    perm: PTE,
-    alloc_frame: AllocFrameFunc,
-    xlate_pt: XlatePtFunc,
-    root: goff,
-) {
-    let mut aspace = AddrSpace::new(
-        id,
-        GlobAddr::new(root),
-        ExtAllocator::new(id, alloc_frame, xlate_pt),
-        true,
-    );
-    let perm = PageFlags::from_bits_truncate(perm);
-    aspace
-        .map_pages(virt, GlobAddr::new(global), pages, perm)
-        .unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn get_addr_space() -> goff {
-    arch::phys_to_glob(arch::get_root_pt())
-}
-
-#[no_mangle]
-pub extern "C" fn set_addr_space(root: goff, alloc_frame: AllocFrameFunc, xlate_pt: XlatePtFunc) {
-    let aspace = AddrSpace::new(
-        0,
-        GlobAddr::new(root),
-        ExtAllocator::new(0, alloc_frame, xlate_pt),
-        true,
-    );
-    aspace.switch_to();
-}
-
-#[no_mangle]
-pub extern "C" fn translate(
-    id: VPEId,
-    root: goff,
-    alloc_frame: AllocFrameFunc,
-    xlate_pt: XlatePtFunc,
-    virt: usize,
-    perm: PTE,
-) -> PTE {
-    let aspace = AddrSpace::new(
-        id,
-        GlobAddr::new(root),
-        ExtAllocator::new(id, alloc_frame, xlate_pt),
-        true,
-    );
-    aspace.translate(virt, perm)
-}
-
 pub trait Allocator {
     /// Allocates a new page table and returns its physical addres
     fn allocate_pt(&mut self) -> Phys;
@@ -186,11 +81,10 @@ pub struct AddrSpace<A: Allocator> {
     id: VPEId,
     root: Phys,
     alloc: A,
-    is_temp: bool,
 }
 
 impl<A: Allocator> AddrSpace<A> {
-    pub fn new(id: VPEId, root: GlobAddr, alloc: A, is_temp: bool) -> Self {
+    pub fn new(id: VPEId, root: GlobAddr, alloc: A) -> Self {
         AddrSpace {
             id,
             root: build_pte(
@@ -200,7 +94,6 @@ impl<A: Allocator> AddrSpace<A> {
                 false,
             ),
             alloc,
-            is_temp,
         }
     }
 
@@ -440,7 +333,7 @@ impl<A: Allocator> AddrSpace<A> {
 
 impl<A: Allocator> Drop for AddrSpace<A> {
     fn drop(&mut self) {
-        if !self.is_temp && pte_to_phys(self.root) != 0 {
+        if pte_to_phys(self.root) != 0 {
             self.free_pts_rec(self.root, LEVEL_CNT - 1);
 
             // invalidate entire TLB to allow us to reuse the VPE id

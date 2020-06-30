@@ -82,12 +82,7 @@ pub fn init() {
 
     let root = envdata::get().pe_mem_base + envdata::get().pe_mem_size / 2;
     PT_POS.set(root + cfg::PAGE_SIZE as goff);
-    let mut aspace = AddrSpace::new(
-        pes::KERNEL_ID as u64,
-        GlobAddr::new(root),
-        PTAllocator {},
-        false,
-    );
+    let mut aspace = AddrSpace::new(pes::KERNEL_ID as u64, GlobAddr::new(root), PTAllocator {});
     aspace.init();
 
     // map TCU

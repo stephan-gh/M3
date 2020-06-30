@@ -424,12 +424,7 @@ impl VPE {
         VPE {
             prev: None,
             next: None,
-            aspace: paging::AddrSpace::new(
-                id,
-                GlobAddr::new(root_pt),
-                PTAllocator { vpe: id },
-                false,
-            ),
+            aspace: paging::AddrSpace::new(id, GlobAddr::new(root_pt), PTAllocator { vpe: id }),
             frames: Vec::new(),
             vpe_reg: id,
             state: VPEState::Blocked,

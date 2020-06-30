@@ -73,8 +73,7 @@ pub fn needs_invalidate(_new_flags: MMUFlags, old_flags: MMUFlags) -> bool {
     old_flags.bits() != 0
 }
 
-#[no_mangle]
-pub extern "C" fn to_page_flags(level: usize, pte: MMUFlags) -> PageFlags {
+pub fn to_page_flags(level: usize, pte: MMUFlags) -> PageFlags {
     let mut res = PageFlags::empty();
     if pte.contains(MMUFlags::V) {
         res |= PageFlags::R;
@@ -118,8 +117,7 @@ pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
     res
 }
 
-#[no_mangle]
-pub extern "C" fn enable_paging() {
+pub fn enable_paging() {
     // set sstatus.SUM = 1 to allow accesses to user memory (required for TCU)
     set_csr_bits!("sstatus", 1 << 18);
 }
@@ -140,22 +138,15 @@ pub fn invalidate_tlb() {
     }
 }
 
-pub fn get_root_pt() -> Phys {
-    let satp = read_csr!("satp") as Phys;
-    (satp & 0xFFF_FFFF_FFFF) << cfg::PAGE_BITS
-}
-
 pub fn set_root_pt(id: ::VPEId, root: Phys) {
     let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
     write_csr!("satp", satp);
 }
 
-#[no_mangle]
-pub extern "C" fn glob_to_phys(global: goff) -> Phys {
+pub fn glob_to_phys(global: goff) -> Phys {
     (global & !0xFF00_0000_0000_0000) | ((global & 0xFF00_0000_0000_0000) >> 8)
 }
 
-#[no_mangle]
-pub extern "C" fn phys_to_glob(phys: Phys) -> goff {
+pub fn phys_to_glob(phys: Phys) -> goff {
     (phys & !0x00FF_0000_0000_0000) | ((phys & 0x00FF_0000_0000_0000) << 8)
 }

@@ -78,8 +78,7 @@ pub fn needs_invalidate(new_flags: MMUFlags, old_flags: MMUFlags) -> bool {
     old_flags.bits() != 0 && new_flags.perms_missing(old_flags)
 }
 
-#[no_mangle]
-pub extern "C" fn to_page_flags(_level: usize, pte: MMUFlags) -> PageFlags {
+pub fn to_page_flags(_level: usize, pte: MMUFlags) -> PageFlags {
     let mut res = PageFlags::empty();
     if pte.contains(MMUFlags::P) {
         res |= PageFlags::R;
@@ -116,8 +115,7 @@ pub fn to_mmu_perms(flags: PageFlags) -> MMUFlags {
     res
 }
 
-#[no_mangle]
-pub extern "C" fn enable_paging() {
+pub fn enable_paging() {
     // already enabled by gem5
 }
 
@@ -135,20 +133,14 @@ pub fn invalidate_tlb() {
     // nothing to do
 }
 
-pub fn get_root_pt() -> Phys {
-    cpu::read_cr3() as Phys
-}
-
 pub fn set_root_pt(_id: ::VPEId, root: Phys) {
     cpu::write_cr3(root as usize);
 }
 
-#[no_mangle]
-pub extern "C" fn glob_to_phys(glob: goff) -> Phys {
+pub fn glob_to_phys(glob: goff) -> Phys {
     (glob & !0xFF00_0000_0000_0000) | ((glob & 0xFF00_0000_0000_0000) >> 16)
 }
 
-#[no_mangle]
-pub extern "C" fn phys_to_glob(phys: Phys) -> goff {
+pub fn phys_to_glob(phys: Phys) -> goff {
     (phys & !0x0000_FF00_0000_0000) | ((phys & 0x0000_FF00_0000_0000) << 16)
 }
