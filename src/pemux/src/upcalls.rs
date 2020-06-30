@@ -104,9 +104,12 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
         perm
     );
 
-    vpe::get_mut(vpe_id)
-        .unwrap()
-        .map(virt, global, pages, perm | kif::PageFlags::U)
+    if let Some(vpe) = vpe::get_mut(vpe_id) {
+        vpe.map(virt, global, pages, perm | kif::PageFlags::U)
+    }
+    else {
+        Ok(())
+    }
 }
 
 fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
@@ -150,9 +153,7 @@ fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
 
     // we know that this VPE is not currently running, because we changed the current VPE to ourself
     // in check() below.
-    vpe::get_mut(vpe_id)
-        .unwrap()
-        .rem_msgs(unread.count_ones() as u16);
+    vpe::get_mut(vpe_id).map(|v| v.rem_msgs(unread.count_ones() as u16));
 
     Ok(())
 }
@@ -171,7 +172,7 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     );
 
     // just unblock the VPE in case it wants to do something on invalidated EPs
-    vpe::get_mut(vpe_id).unwrap().unblock(None, false);
+    vpe::get_mut(vpe_id).map(|v| v.unblock(None, false));
 
     Ok(())
 }
