@@ -12,3 +12,12 @@ if env['PLATF'] == 'kachel':
         NoSup = True,
         libs = ["c", "heap", "base", "supc++"]
     )
+
+    for s in ["sender", "receiver"]:
+        env.M3Program(
+            env,
+            "standalone-" + s,
+            [env.Glob("env.cc"), env.Glob(s + '/*.cc')],
+            NoSup = True,
+            libs = ["c", "heap", "base", "supc++"]
+        )
