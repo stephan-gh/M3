@@ -70,7 +70,7 @@ build_params_gem5() {
 
     generate_config $1 $M3_GEM5_OUT || exit 1
 
-    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $M3_GEM5_OUT/boot-all.xml)
+    kargs=$(perl -ne 'printf("'$bindir/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < $M3_GEM5_OUT/boot-all.xml)
     mods=$(perl -ne 'printf(",'$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_GEM5_OUT/boot-all.xml)
     mods="$M3_GEM5_OUT/boot.xml$mods"
 
@@ -87,8 +87,8 @@ build_params_gem5() {
 
     M3_CORES=${M3_CORES:-16}
 
-    cmd="$cmd$bindir/$kargs,"
-    c=0
+    cmd=$kargs
+    c=$(echo -n $cmd | sed 's/[^,]//g' | wc -c)
     while [ $c -lt $M3_CORES ]; do
         cmd="$cmd$bindir/pemux,"
         c=$((c + 1))

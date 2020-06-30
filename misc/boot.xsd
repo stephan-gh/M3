@@ -75,7 +75,7 @@
     <xs:element name="config">
         <xs:complexType>
             <xs:sequence>
-                <xs:element name="kernel">
+                <xs:element name="kernel" minOccurs="1" maxOccurs="unbounded">
                     <xs:complexType>
                         <xs:attribute name="args" type="xs:string"/>
                     </xs:complexType>
