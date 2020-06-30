@@ -408,6 +408,7 @@ impl Capability {
     fn can_revoke(&self) -> bool {
         match self.obj {
             KObject::KMem(ref k) => k.left() == k.quota(),
+            KObject::PE(ref pe) => pe.vpes() == 0,
             _ => true,
         }
     }
@@ -435,6 +436,15 @@ impl Capability {
 
             KObject::EP(ref mut e) => {
                 EPObject::revoke(e);
+            },
+
+            KObject::PE(ref mut pe) => {
+                if let Some(parent) = self.parent {
+                    match unsafe { (*parent.as_ptr()).get() } {
+                        KObject::PE(p) => pe.revoke(p),
+                        _ => {},
+                    }
+                }
             },
 
             KObject::KMem(ref k) => {

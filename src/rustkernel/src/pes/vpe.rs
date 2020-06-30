@@ -127,6 +127,9 @@ impl VPE {
             let pemux = pemng::get().pemux(vpe.pe_id());
             pemux.alloc_eps(eps_start, STD_EPS_COUNT as u32);
             vpe.pe.alloc(STD_EPS_COUNT as u32);
+
+            // add us to PE
+            vpe.pe.add_vpe();
         }
 
         Ok(vpe)
@@ -494,6 +497,9 @@ impl Drop for VPE {
         let pemux = pemng::get().pemux(self.pe_id());
         pemux.free_eps(self.eps_start, STD_EPS_COUNT as u32);
         self.pe.free(STD_EPS_COUNT as u32);
+
+        // remove us from PE
+        self.pe.rem_vpe();
 
         self.revoke_caps();
 

@@ -488,7 +488,7 @@ impl fmt::Debug for SemObject {
 pub struct PEObject {
     pe: PEId,
     eps: Cell<u32>,
-    vpes: u32,
+    vpes: Cell<u32>,
 }
 
 impl PEObject {
@@ -496,7 +496,7 @@ impl PEObject {
         SRc::new(Self {
             pe,
             eps: Cell::from(eps),
-            vpes: 0,
+            vpes: Cell::from(0),
         })
     }
 
@@ -509,11 +509,19 @@ impl PEObject {
     }
 
     pub fn vpes(&self) -> u32 {
-        self.vpes
+        self.vpes.get()
     }
 
     pub fn has_quota(&self, eps: u32) -> bool {
         self.eps.get() >= eps
+    }
+
+    pub fn add_vpe(&self) {
+        self.vpes.set(self.vpes() + 1);
+    }
+
+    pub fn rem_vpe(&self) {
+        self.vpes.set(self.vpes() - 1);
     }
 
     pub fn alloc(&self, eps: u32) {
@@ -538,6 +546,11 @@ impl PEObject {
             self.eps()
         );
     }
+
+    pub fn revoke(&self, parent: &PEObject) {
+        // grant the EPs back to our parent
+        parent.free(self.eps());
+    }
 }
 
 impl fmt::Debug for PEObject {
@@ -547,7 +560,7 @@ impl fmt::Debug for PEObject {
             "PE[id={}, eps={}, vpes={}]",
             self.pe,
             self.eps(),
-            self.vpes
+            self.vpes()
         )
     }
 }
