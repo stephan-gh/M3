@@ -33,6 +33,9 @@ int main() {
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
     kernel::TCU::config_recv(1, rbuf_addr, size, size, TCU::NO_REPLIES);
 
+    for(volatile int i = 0; i < 1000; ++i)
+        ;
+
     Serial::get() << "Hello World from sender!\n";
 
     uint64_t msg = 0xDEADBEEF;
