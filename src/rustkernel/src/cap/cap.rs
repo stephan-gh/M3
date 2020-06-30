@@ -164,6 +164,7 @@ impl CapTable {
             if let Some(parent) = parent {
                 (*parent.as_ptr()).inherit(&mut child_cap);
             }
+            klog!(CAPS, "Creating cap {:?}", child_cap);
         }
         Ok(())
     }
@@ -179,6 +180,7 @@ impl CapTable {
         nc.derived = true;
 
         let nc = self.do_insert(nc);
+        klog!(CAPS, "Cloning cap {:?}", nc);
         if child {
             cap.inherit(nc);
         }
@@ -414,6 +416,8 @@ impl Capability {
     }
 
     fn release(&mut self, foreign: bool) {
+        klog!(CAPS, "Freeing cap {:?}", self);
+
         let vpe = self.vpe();
         if !self.derived {
             // if it's not derived, we created the cap and thus will also free the kobject
