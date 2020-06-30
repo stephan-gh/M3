@@ -14,13 +14,18 @@
  * General Public License version 2 for more details.
  */
 
+use base::env;
+use base::envdata;
 use base::goff;
 use base::io;
-use base::math;
+use base::kif;
+use base::libc;
 use base::mem::heap;
+use base::tcu;
 use thread;
 
-use arch::{exceptions, loader, paging};
+use super::{fs, net};
+use arch::loader;
 use args;
 use ktcu;
 use mem;
@@ -28,36 +33,42 @@ use pes;
 use platform;
 use workloop::{thread_startup, workloop};
 
-extern "C" {
-    pub fn gem5_shutdown(delay: u64);
-}
-
 #[no_mangle]
-pub extern "C" fn abort() -> ! {
-    exit(1);
-}
-
-#[no_mangle]
-pub extern "C" fn exit(_code: i32) -> ! {
-    unsafe {
-        gem5_shutdown(0);
-    }
-    unreachable!();
-}
-
-#[no_mangle]
-pub extern "C" fn env_run() {
-    exceptions::init();
+pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
+    envdata::set(envdata::EnvData::new(
+        0,
+        kif::PEDesc::new(kif::PEType::COMP_IMEM, kif::PEISA::X86, 1024 * 1024),
+        argc,
+        argv,
+        0,
+        0,
+    ));
     heap::init();
-    io::init(0, "rkernel");
+    io::init(0, "kernel");
     crate::slab::init();
-    paging::init();
-    mem::init();
+    tcu::init();
+}
 
+#[no_mangle]
+pub extern "C" fn rust_deinit(_status: i32, _arg: *const libc::c_void) {
+    tcu::deinit();
+}
+
+#[no_mangle]
+pub fn main() -> i32 {
     args::parse();
 
-    platform::init(&[]);
-    loader::init();
+    unsafe {
+        libc::mkdir("/tmp/m3\0".as_ptr() as *const i8, 0o755);
+    }
+
+    mem::init();
+    ktcu::init();
+    platform::init(&args::get().free);
+    let kernel = env::args().next().unwrap();
+    let builddir = kernel.rsplitn(2, '/').nth(1).unwrap();
+    loader::init(&builddir);
+    ::arch::childs::init();
 
     thread::init();
     for _ in 0..8 {
@@ -67,7 +78,16 @@ pub extern "C" fn env_run() {
     pes::pemng::init();
     pes::vpemng::init();
 
-    // TODO add second syscall REP
+    let fs_size = if let Some(ref path) = args::get().fs_image {
+        fs::copy_from_fs(path)
+    }
+    else {
+        0
+    };
+    if let Some(bname) = args::get().net_bridge.as_ref() {
+        net::create_bridge(bname);
+    }
+
     let sysc_rbuf = vec![0u8; 512 * 32];
     ktcu::recv_msgs(ktcu::KSYS_EP, sysc_rbuf.as_ptr() as goff, 14, 9)
         .expect("Unable to config syscall REP");
@@ -75,11 +95,6 @@ pub extern "C" fn env_run() {
     let serv_rbuf = vec![0u8; 1024];
     ktcu::recv_msgs(ktcu::KSRV_EP, serv_rbuf.as_ptr() as goff, 10, 8)
         .expect("Unable to config service REP");
-
-    let pex_rbuf_ord = math::next_log2(32) + 7;
-    let pex_rbuf = vec![0u8; 1 << pex_rbuf_ord];
-    ktcu::recv_msgs(ktcu::KPEX_EP, pex_rbuf.as_ptr() as goff, pex_rbuf_ord, 7)
-        .expect("Unable to config pemux REP");
 
     let vpemng = pes::vpemng::get();
     vpemng.start_root().expect("starting root failed");
@@ -89,6 +104,10 @@ pub extern "C" fn env_run() {
     workloop();
 
     pes::vpemng::deinit();
+    if let Some(ref path) = args::get().fs_image {
+        fs::copy_to_fs(path, fs_size);
+    }
+
     klog!(DEF, "Shutting down");
-    exit(0);
+    0
 }

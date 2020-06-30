@@ -1,32 +1,6 @@
 Import('env')
-
-myenv = env.Clone()
-
-myenv.Append(
-    CPPPATH = '.',
-    CXXFLAGS = ' -fno-exceptions',
-    LINKFLAGS = ' -fno-exceptions',
-)
-
-sources = [
-    myenv.Glob('*.cc'),
-    myenv.Glob('*/*.cc'),
-    myenv.Glob('arch/$TGT/*.cc'),
-]
-
-# we need muldefs here, because libpaging.a and libgcc/libgcc_eh contain _Unwind_Resume
-if myenv['ISA'] == 'arm':
-    myenv.Append(LINKFLAGS = ' -Wl,-z,muldefs -Wl,--whole-archive -lisr -Wl,--no-whole-archive')
-
-if myenv['TGT'] == 'host':
-    libs = ['c', 'base', 'heap', 'thread', 'pthread']
-else:
-    libs = ['c', 'base', 'heap', 'thread', 'isr', 'paging', 'supc++']
-
-myenv.M3Program(
-    myenv,
-    target = 'kernel',
-    source = sources,
-    libs = libs,
-    NoSup = True,
-)
+env = env.Clone()
+if env['ISA'] == 'arm':
+    env.Append(LINKFLAGS = ' -Wl,--whole-archive -lisr -Wl,--no-whole-archive')
+libs = ['isr', 'thread'] if env['TGT'] == 'gem5' else ['thread']
+env.RustProgram(env, target = 'kernel', libs = libs)

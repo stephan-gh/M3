@@ -1,9 +1,9 @@
 [package]
-name = "rustkernel"
+name = "kernel"
 version = "0.1.0"
 
 [lib]
-path = "src/rustkernel.rs"
+path = "src/kernel.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
