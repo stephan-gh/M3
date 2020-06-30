@@ -1,11 +1,14 @@
 Import('env')
 if env['PLATF'] == 'kachel':
     env = env.Clone()
-    env["CXXFLAGS"] = env["CXXFLAGS"].replace('-flto','')
+    env.Append(
+        CXXFLAGS = ' -fno-exceptions',
+        LINKFLAGS = ' -fno-exceptions',
+    )
     env.M3Program(
         env,
         'standalone',
-        [env.Glob('*.cc'), env.Glob('$ARCH/*.cc')],
+        env.Glob('*.cc'),
         NoSup = True,
-        libs = ["c"]
+        libs = ["c", "heap", "base", "supc++"]
     )
