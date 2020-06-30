@@ -304,8 +304,6 @@ impl Capability {
     }
 
     fn revoke_rec(&mut self, rev_next: bool, foreign: bool) {
-        self.release(foreign);
-
         unsafe {
             // remove it from the table
             let sels = SelRange::new(self.sel());
@@ -321,6 +319,10 @@ impl Capability {
                 }
             }
         }
+
+        // do that after making the cap inaccessible to make sure that no one can still access it,
+        // because we might do a thread switch in release().
+        self.release(foreign);
     }
 
     fn table(&self) -> &CapTable {
