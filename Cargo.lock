@@ -178,6 +178,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruststandalone"
+version = "0.1.0"
+dependencies = [
+ "base 0.1.0",
+ "heap 0.1.0",
+]
+
+[[package]]
 name = "rustunittests"
 version = "0.1.0"
 dependencies = [

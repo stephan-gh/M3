@@ -3,6 +3,7 @@ members = [
     "src/apps/bench/rustbenchs",
     "src/apps/disktest",
     "src/apps/rusthello",
+    "src/apps/ruststandalone",
     "src/apps/rustunittests",
     "src/libs/rust/base",
     "src/libs/rust/heap",

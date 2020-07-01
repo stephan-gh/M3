@@ -1,0 +1,11 @@
+[package]
+name = "ruststandalone"
+version = "0.1.0"
+
+[lib]
+path = "src/ruststandalone.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+base = { path = "../../libs/rust/base" }
+heap = { path = "../../libs/rust/heap" }
