@@ -83,6 +83,18 @@ pub fn get_bp() -> usize {
     fp
 }
 
+pub fn rdtsc() -> time::Time {
+    let mut res: time::Time;
+    unsafe {
+        llvm_asm!(
+            "rdcycle $0"
+            : "=r"(res)
+            : : : "volatile"
+        );
+    }
+    res
+}
+
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     let bp_ptr = bp as *const usize;

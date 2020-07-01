@@ -32,6 +32,8 @@ public:
 
     static uintptr_t backtrace_step(uintptr_t bp, uintptr_t *func);
 
+    static cycles_t rdtsc();
+
     static inline void compute(cycles_t cycles);
 
     /**

@@ -26,9 +26,7 @@ cycles_t Time::start(unsigned u) {
 
 cycles_t Time::stop(unsigned) {
 #if defined(__i386__) or defined(__x86_64__)
-    uint32_t u, l;
-    asm volatile ("rdtsc" : "=a" (l), "=d" (u) : : "memory");
-    return static_cast<cycles_t>(u) << 32 | l;
+    return CPU::rdtsc();
 #elif defined(__arm__)
     struct timeval tv;
     gettimeofday(&tv,nullptr);

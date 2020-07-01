@@ -76,6 +76,18 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     *bp_ptr
 }
 
+pub fn rdtsc() -> time::Time {
+    let u: u32;
+    let l: u32;
+    unsafe {
+        llvm_asm!(
+            "rdtsc"
+            : "={rax}"(l), "={rdx}"(u)
+        );
+    }
+    time::Time::from(u) << 32 | time::Time::from(l)
+}
+
 pub fn gem5_debug(msg: usize) -> time::Time {
     let res: time::Time;
     unsafe {

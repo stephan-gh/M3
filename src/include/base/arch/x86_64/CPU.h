@@ -59,6 +59,12 @@ ALWAYS_INLINE word_t CPU::get_sp() {
     return val;
 }
 
+inline cycles_t CPU::rdtsc() {
+    uint32_t u, l;
+    asm volatile ("rdtsc" : "=a" (l), "=d" (u) : : "memory");
+    return static_cast<cycles_t>(u) << 32 | l;
+}
+
 inline uintptr_t CPU::backtrace_step(uintptr_t bp, uintptr_t *func) {
     *func = reinterpret_cast<uintptr_t*>(bp)[1];
     return reinterpret_cast<uintptr_t*>(bp)[0];

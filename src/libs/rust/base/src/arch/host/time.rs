@@ -14,24 +14,13 @@
  * General Public License version 2 for more details.
  */
 
+use arch::cpu;
 use time;
 
-fn rdtsc() -> time::Time {
-    let u: u32;
-    let l: u32;
-    unsafe {
-        llvm_asm!(
-            "rdtsc"
-            : "={rax}"(l), "={rdx}"(u)
-        );
-    }
-    time::Time::from(u) << 32 | time::Time::from(l)
-}
-
 pub fn start(_msg: usize) -> time::Time {
-    rdtsc()
+    cpu::rdtsc()
 }
 
 pub fn stop(_msg: usize) -> time::Time {
-    rdtsc()
+    cpu::rdtsc()
 }

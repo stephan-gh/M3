@@ -58,6 +58,11 @@ ALWAYS_INLINE word_t CPU::get_sp() {
     return val;
 }
 
+inline cycles_t CPU::rdtsc() {
+    // TODO implement me
+    return 0;
+}
+
 inline uintptr_t CPU::backtrace_step(uintptr_t bp, uintptr_t *func) {
     *func = reinterpret_cast<uintptr_t*>(bp)[0];
     return reinterpret_cast<uintptr_t*>(bp)[-1];
