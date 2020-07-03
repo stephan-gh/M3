@@ -1,2 +1,3 @@
 Import('env')
-env.SConscript(env.Glob('*/SConscript'), 'env')
+env.M3Program(env, 'queuecli', 'client.cc')
+env.M3Program(env, 'queuesrv', 'server.cc')
