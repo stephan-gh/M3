@@ -73,7 +73,6 @@ help() {
     echo "can be handy if, for example, the build is currently broken."
     echo ""
     echo "The following commands are available:"
-    echo "    scons ...:               run scons with given arguments."
     echo "    ninja ...:               run ninja with given arguments."
     echo "    run <script>:            run the specified <script>. See directory boot."
     echo "    rungem5 <script>:        run the specified <script> on gem5. See directory boot."
@@ -158,31 +157,24 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-mkdir -p $build/fsdata run
+mkdir -p $build run
 
 if [ "$M3_VERBOSE" != "" ]; then
     ninjaargs="-v"
 fi
 
 if [ $skipbuild -eq 0 ]; then
-    rebuilt=false
-    filesid=$build/.scons2ninja-files.id
+    filesid=$build/.all-files.id
     find src -type f > $filesid.new
-    # redo the conversion from scons to ninja if any file was added/removed
+    # redo the configuration if any file was added/removed
     if [ ! -f $build/build.ninja ] || ! cmp $filesid.new $filesid &>/dev/null; then
         echo "Configuring for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-        ./src/tools/scons2ninja.py --dir $build >&2 || exit 1
+        ./configure.py || exit 1
         mv $filesid.new $filesid
-        rebuilt=true
     fi
 fi
 
 case "$cmd" in
-    scons)
-        scons $script $@
-        exit $?
-        ;;
-
     ninja)
         ninja -f $build/build.ninja $ninjaargs $script $@
         exit $?
@@ -190,19 +182,8 @@ case "$cmd" in
 esac
 
 if [ $skipbuild -eq 0 ]; then
-    # build binaries etc.
     echo "Building for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
     ninja -f $build/build.ninja $ninjaargs >&2 || exit 1
-
-    # redo conversion from scons to ninja for FS images
-    if [ ! -f $build/fsdata/build.ninja ] || $rebuilt; then
-        echo "Configuring file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-        ./src/tools/scons2ninja.py --dir $build/fsdata build_fs=1 >&2 || exit 1
-    fi
-
-    # now build the FS images
-    echo "Building file system for $M3_TARGET-$M3_ISA-$M3_BUILD..." >&2
-    ninja -f $build/fsdata/build.ninja $ninjaargs >&2 || exit 1
 fi
 
 run_on_host() {

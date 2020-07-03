@@ -1,0 +1,360 @@
+#!/usr/bin/env -S python3 -B
+
+import copy
+import src.tools.ninjagen as ninjagen
+import os, sys
+from glob import glob
+
+target = os.environ.get('M3_TARGET')
+if target == 'gem5' or target == 'hw':
+    isa = os.environ.get('M3_ISA', 'x86_64')
+    if target == 'hw' and isa != 'riscv':
+        exit('Unsupport ISA "' + isa + '" for hw')
+
+    if isa == 'arm':
+        rustabi = 'gnueabihf'
+        cross   = 'arm-none-eabi-'
+    elif isa == 'riscv':
+        rustabi = 'gnu'
+        cross   = 'riscv64-unknown-elf-'
+    else:
+        rustabi = 'gnu'
+        cross   = 'x86_64-elf-m3-'
+    crossdir    = os.path.abspath('build/cross-' + isa)
+    crossver    = '9.1.0'
+    platform    = 'kachel'
+else:
+    # build for host by default
+    isa = os.popen('uname -m').read().strip()
+    if isa == 'armv7l':
+        isa = 'arm'
+
+    target      = 'host'
+    rustabi     = 'gnu'
+    cross       = ''
+    platform    = 'host'
+
+bins = []
+ldscripts = {}
+if isa == 'riscv':
+    link_addr = 0x10310000
+else:
+    link_addr = 0x310000
+
+class M3Env(ninjagen.Env):
+    def clone(self):
+        env = M3Env()
+        env.cwd = self.cwd
+        env.vars = copy.deepcopy(self.vars)
+        if hasattr(self, 'hostenv'):
+            env.hostenv = self.hostenv
+        return env
+
+    def m3_hex(self, gen, out, input):
+        out = ninjagen.BuildPath.new(self, out)
+        gen.add_build(ninjagen.BuildEdge(
+            'elf2hex',
+            outs = [out],
+            ins = [ninjagen.SourcePath.new(self, input)],
+            deps = [ninjagen.BuildPath(self['TOOLDIR'] + '/elf2hex')],
+        ))
+        return out
+
+    def m3_exe(self, gen, out, ins, libs = [], NoSup = False, ldscript = 'default', varAddr = True):
+        env = self.clone()
+
+        m3libs = ['base', 'm3', 'thread']
+
+        if env['PLATF'] == 'kachel':
+            if not NoSup:
+                baselibs = ['gcc', 'c', 'm', 'gloss', 'stdc++', 'supc++', 'heap']
+                if env['ISA'] == 'x86_64':
+                    baselibs += ['gcc_eh']
+                libs = baselibs + m3libs + libs
+
+            global ldscripts
+            env['LINKFLAGS'] += ['-Wl,-T,' + ldscripts[ldscript]]
+            deps = [ldscripts[ldscript]] + env.glob(env['LIBDIR'] + '/crt*.o')
+
+            if env['TGT'] == 'gem5' and varAddr:
+                global link_addr
+                env['LINKFLAGS'] += ['-Wl,--section-start=.text=' + ('0x%x' % link_addr)]
+                link_addr += 0x40000
+
+            # search for crt* in our library dir
+            env['LINKFLAGS'] += ['-B' + os.path.abspath(env['LIBDIR'])]
+
+            # TODO workaround to ensure that our memcpy, etc. is used instead of the one from Rust's
+            # compiler-builtins crate, because those are poor implementations.
+            for cc in glob('src/libs/c/string/*.cc'):
+                ins.append(ninjagen.BuildPath.with_ending(env, ninjagen.SourcePath(cc), '.o'))
+
+            bin = env.cxx_exe(gen, out, ins, libs, deps)
+            if env['TGT'] == 'hw':
+                hex = env.m3_hex(gen, out + '.hex', bin)
+                env.install(gen, env['MEMDIR'], hex)
+        else:
+            if not NoSup:
+                libs = m3libs + ['heap', 'pthread'] + libs
+            bin = env.cxx_exe(gen, out, ins, libs)
+
+        env.install(gen, env['BINDIR'], bin)
+        bins.append(bin)
+        return bin
+
+    def m3_rust_exe(self, gen, out, libs = [], startup = None, ldscript = 'default', varAddr = True):
+        env = self.clone()
+        env['LINKFLAGS'] += ['-Wl,-z,muldefs']
+        env['LIBPATH']   += [env['RUSTBINS']]
+
+        if env['PLATF'] == 'kachel':
+            ins     = [] if startup is None else [startup]
+            libs    = ['c', 'm', 'gloss', 'stdc++', 'heap', 'gcc', out] + libs
+        else:
+            ins     = []
+            # leave the host lib in here as well to make it a dependency
+            libs    = ['c', 'heap', 'host', 'gcc', 'pthread', out] + libs
+            # ensure that the host library gets linked in
+            env['LINKFLAGS'] += ['-Wl,--whole-archive', '-lhost', '-Wl,--no-whole-archive']
+
+        return env.m3_exe(gen, out, ins, libs, True, ldscript, varAddr)
+
+    def cargo_ws(self, gen):
+        outs = []
+        deps = []
+        crates = [
+            'src/apps/bench/rustbenchs',
+            'src/apps/disktest',
+            'src/apps/rusthello',
+            'src/apps/rustunittests',
+            'src/libs/rust/base',
+            'src/libs/rust/heap',
+            'src/libs/rust/isr',
+            'src/libs/rust/m3',
+            'src/libs/rust/pci',
+            'src/libs/rust/resmng',
+            'src/libs/rust/thread',
+            'src/kernel',
+            'src/server/disk',
+            'src/server/pager',
+            'src/server/pipes',
+            'src/server/root',
+            'src/server/vterm',
+        ]
+        if self['PLATF'] == 'kachel':
+            crates += [
+                'src/apps/ruststandalone',
+                'src/libs/rust/paging',
+                'src/peidle',
+                'src/pemux',
+            ]
+
+        env = self.clone()
+        for cr in crates:
+            crate_name = os.path.basename(cr)
+            out = ninjagen.BuildPath(env['RUSTBINS'] + '/lib' + crate_name + '.a')
+            outs.append(out)
+            deps += [cr + '/Cargo.toml']
+            deps += env.glob(cr + '/**/*.rs', recursive = True)
+            deps += ['src/toolchain/rust/' + env['TRIPLE'] + '.json']
+            # some crates can't be build for host; only built the supported crates in the workspace
+            if env['PLATF'] == 'host':
+                env['CRGFLAGS'] += ['-p', crate_name]
+
+        # we need the touch here, because cargo does sometimes not rebuild a crate even if a rust
+        # file is more recent than the output
+        gen.add_rule('cargo_ws', ninjagen.Rule(
+            cmd = 'cargo $cargoflags --color=always && touch $out',
+            desc = 'CARGO Cargo.toml',
+        ))
+        gen.add_build(ninjagen.BuildEdge(
+            'cargo_ws',
+            outs = outs,
+            ins = [],
+            deps = deps,
+            vars = { 'cargoflags' : 'xbuild --target ' + env['TRIPLE'] + ' ' + ' '.join(env['CRGFLAGS']) }
+        ))
+
+    def build_fs(self, gen, out, dir, blocks, inodes):
+        deps = [ninjagen.BuildPath(env['TOOLDIR'] + '/mkm3fs')]
+
+        global bins
+        for b in bins:
+            dst = ninjagen.BuildPath.new(self, 'bin/' + os.path.basename(b))
+            self.strip(gen, out = dst, input = b)
+            deps += [dst]
+        for f in glob(ninjagen.SourcePath.new(self, dir + '/**/*'), recursive = True):
+            src = ninjagen.SourcePath(f)
+            dst = ninjagen.BuildPath.new(self, src)
+            if os.path.isfile(src):
+                self.install_as(gen, dst, src, flags = '-m 0644')
+            elif os.path.isdir(src):
+                self.install_as(gen, dst, src, flags = '-d')
+            deps += [dst]
+
+        out = ninjagen.BuildPath(env['BUILDDIR'] + '/' + out)
+        gen.add_build(ninjagen.BuildEdge(
+            'mkm3fs',
+            outs = [out],
+            ins = [],
+            deps = deps,
+            vars = {
+                'dir' : ninjagen.BuildPath.new(self, dir),
+                'blocks' : blocks,
+                'inodes' : inodes
+            }
+        ))
+        return out
+
+# build basic environment
+env = M3Env()
+
+env['CPPFLAGS'] += ['-D__' + target + '__', '-D__' + platform + '__']
+env['CPPPATH']  += ['src/include']
+env['CFLAGS']   += ['-std=c99', '-Wall', '-Wextra', '-Wsign-conversion']
+env['CXXFLAGS'] += ['-std=c++14', '-Wall', '-Wextra', '-Wsign-conversion', '-fdiagnostics-color=always']
+
+# for host compilation
+hostenv = env.clone()
+hostenv['CPPFLAGS'] += [' -D__tools__']
+hostenv['TRIPLE']   = 'x86_64-unknown-linux-gnu'    # TODO don't hardcode that
+
+env.hostenv = hostenv
+
+# for target compilation
+env['CXX']          = cross + 'g++'
+env['CPP']          = cross + 'cpp'
+env['AS']           = cross + 'gcc'
+env['CC']           = cross + 'gcc'
+env['AR']           = cross + 'gcc-ar'
+env['RANLIB']       = cross + 'gcc-ranlib'
+env['STRIP']        = cross + 'strip'
+
+env['CXXFLAGS']     += [
+    '-ffreestanding', '-fno-strict-aliasing', '-gdwarf-2', '-fno-omit-frame-pointer',
+    '-fno-threadsafe-statics', '-fno-stack-protector', '-Wno-address-of-packed-member'
+]
+env['CPPFLAGS']     += ['-U_FORTIFY_SOURCE']
+env['CFLAGS']       += ['-gdwarf-2', '-fno-stack-protector']
+env['ASFLAGS']      += ['-Wl,-W', '-Wall', '-Wextra']
+env['LINKFLAGS']    += ['-Wl,--no-gc-sections', '-Wno-lto-type-mismatch', '-fno-stack-protector']
+env['TRIPLE']       = isa + '-unknown-' + target + '-' + rustabi
+if os.environ.get('M3_VERBOSE', 0) != 0:
+    env['CRGFLAGS'] += ['-v']
+else:
+    env['CRGFLAGS'] += ['-q']
+
+# add build-dependent flags (debug/release)
+btype = os.environ.get('M3_BUILD')
+if btype == 'debug':
+    env['CXXFLAGS']         += ['-O0', '-g']
+    env['CFLAGS']           += ['-O0', '-g']
+    if target == 'host':
+        env['CXXFLAGS']     += ['-fsanitize=address', '-fsanitize=undefined']
+        env['CFLAGS']       += ['-fsanitize=address', '-fsanitize=undefined']
+        env['LINKFLAGS']    += ['-fsanitize=address', '-fsanitize=undefined', '-lasan', '-lubsan']
+    env['ASFLAGS']          += ['-g']
+    hostenv['CXXFLAGS']     += ['-O0', '-g']
+    hostenv['CFLAGS']       += ['-O0', '-g']
+else:
+    env['CRGFLAGS']         += ['--release']
+    hostenv['CRGFLAGS']     += ['--release']
+    if target == 'hw':
+        env['CXXFLAGS']     += ['-Os', '-DNDEBUG', '-flto']
+        env['CFLAGS']       += ['-Os', '-DNDEBUG', '-flto']
+        env['LINKFLAGS']    += ['-Os', '-flto']
+    else:
+        env['CXXFLAGS']     += ['-O2', '-DNDEBUG', '-flto']
+        env['CFLAGS']       += ['-O2', '-DNDEBUG', '-flto']
+        env['LINKFLAGS']    += ['-O2', '-flto']
+builddir = 'build/' + target + '-' + isa + '-' + btype
+
+# add some important paths
+env['TGT']          = target
+env['PLATF']        = platform
+env['ISA']          = isa
+env['BUILDDIR']     = builddir
+env['BINDIR']       = builddir + '/bin'
+env['LIBDIR']       = builddir + '/bin'
+env['MEMDIR']       = builddir + '/mem'
+env['TOOLDIR']      = builddir + '/tools'
+env['RUSTBINS']     = 'build/rust/' + env['TRIPLE'] + '/' + btype
+hostenv['TOOLDIR']  = env['TOOLDIR']
+hostenv['BINDIR']   = env['BINDIR']
+hostenv['BUILDDIR'] = env['BUILDDIR']
+hostenv['RUSTBINS'] = 'build/rust/' + hostenv['TRIPLE'] + '/' + btype
+
+# add platform-dependent stuff to env
+if platform == 'kachel':
+    if isa == 'x86_64':
+        # disable red-zone for all applications, because we used the application's stack in rctmux's
+        # IRQ handlers since applications run in privileged mode. TODO can we enable that now?
+        env['CFLAGS']       += ['-mno-red-zone']
+        env['CXXFLAGS']     += ['-mno-red-zone']
+    elif isa == 'arm':
+        env['CFLAGS']       += ['-march=armv7-a']
+        env['CXXFLAGS']     += ['-march=armv7-a']
+        env['LINKFLAGS']    += ['-march=armv7-a']
+        env['ASFLAGS']      += ['-march=armv7-a']
+    elif isa == 'riscv':
+        env['CFLAGS']       += ['-march=rv64imafdc', '-mabi=lp64']
+        env['CXXFLAGS']     += ['-march=rv64imafdc', '-mabi=lp64']
+        env['LINKFLAGS']    += ['-march=rv64imafdc', '-mabi=lp64']
+        env['ASFLAGS']      += ['-march=rv64imafdc', '-mabi=lp64']
+    env['CPPPATH']          += [
+        'src/include/c',
+        crossdir + '/include/c++/' + crossver,
+        crossdir + '/include/c++/' + crossver + '/' + cross[:-1],
+    ]
+    # we install the crt* files to that directory
+    env['SYSGCCLIBPATH']    = crossdir + '/lib/gcc/' + cross[:-1] + '/' + crossver
+    # no build-id because it confuses gem5
+    env['LINKFLAGS']        += ['-static', '-Wl,--build-id=none']
+    # binaries get very large otherwise
+    env['LINKFLAGS']        += ['-Wl,-z,max-page-size=4096', '-Wl,-z,common-page-size=4096']
+    env['LIBPATH']          += [crossdir + '/lib', env['LIBDIR']]
+else:
+    env['LIBPATH']          += [env['LIBDIR']]
+
+# start the generation
+gen = ninjagen.Generator()
+
+gen.add_rule('mkm3fs', ninjagen.Rule(
+    cmd = env['TOOLDIR'] + '/mkm3fs $out $dir $blocks $inodes 0',
+    desc = 'MKFS $out',
+))
+gen.add_rule('elf2hex', ninjagen.Rule(
+    cmd = env['TOOLDIR'] + '/elf2hex $in > $out',
+    desc = 'ELF2HEX $out',
+))
+
+# by default, use the cross toolchain
+gen.add_var('cc', env['CC'])
+gen.add_var('cxx', env['CXX'])
+gen.add_var('cpp', env['CPP'])
+gen.add_var('link', env['CXX'])
+gen.add_var('ar', env['AR'])
+gen.add_var('ranlib', env['RANLIB'])
+gen.add_var('strip', env['STRIP'])
+
+# generate linker scripts
+if env['PLATF'] == 'kachel':
+    ldscript = 'src/toolchain/' + env['TGT'] + '/ld.conf'
+    ldscripts['default'] = env.cpp(gen, out = 'ld-default.conf', ins = [ldscript])
+
+    pemux_env = env.clone()
+    pemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__pemux__=1']
+    ldscripts['pemux'] = pemux_env.cpp(gen, out = 'ld-pemux.conf', ins = [ldscript])
+
+    isr_env = env.clone()
+    isr_env['CPPFLAGS'] += ['-D__isr__=1']
+    ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', ins = [ldscript])
+
+# generate build edge to build the workspace with cargo
+env.cargo_ws(gen)
+
+# generate everything else
+env.sub_build(gen, 'src')
+
+# finally, write it to file
+gen.write_to_file(env)

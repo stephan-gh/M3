@@ -1,5 +1,0 @@
-Import('env')
-env.M3Program(env,
-    target = 'unittests',
-    source = ['unittests.cc', env.Glob('tests/*.cc')]
-)

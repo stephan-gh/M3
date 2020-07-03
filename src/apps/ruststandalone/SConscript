@@ -1,3 +1,0 @@
-Import('env')
-if env['PLATF'] == 'kachel':
-    env.RustProgram(env, target = 'ruststandalone')

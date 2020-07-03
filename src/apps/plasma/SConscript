@@ -1,4 +1,0 @@
-Import('env')
-if env['TGT'] == 'host':
-    env.M3Program(env, 'plasma-server', 'server.cc')
-    env.M3Program(env, 'plasma-client', 'client.cc')

@@ -1,2 +1,0 @@
-Import('env')
-env.RustProgram(env, target = 'pipes')

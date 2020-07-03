@@ -1,3 +1,0 @@
-Import('env')
-if env['TGT'] == 'gem5' or env['TGT'] == 'host':
-    env.RustProgram(env, target = 'disk')

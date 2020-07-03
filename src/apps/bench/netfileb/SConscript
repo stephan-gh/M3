@@ -1,3 +1,0 @@
-Import('env')
-env.M3Program(env, 'netfileb-client', 'client.cc')
-env.M3Program(env, 'netfileb-server', 'server.cc')

@@ -1,3 +1,0 @@
-Import('env')
-if env['TGT'] == 'gem5':
-    env.M3Program(env, 'imgproc', ['direct.cc', 'indirect.cc', 'imgproc.cc'])

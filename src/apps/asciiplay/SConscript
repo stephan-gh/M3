@@ -1,3 +1,0 @@
-Import('env')
-if env['TGT'] == 'host':
-    env.M3Program(env, 'asciiplay', env.Glob('*.cc'))

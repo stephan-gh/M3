@@ -1,5 +1,0 @@
-Import('env')
-if not ARGUMENTS.get('build_fs', 0):
-    env.InstallFiles('$FSDIR/test', '.', scan=1, exclude=['SConscript'])
-else:
-    env.M3Mkfs(target = 'test.img', source = '$FSDIR/test', blocks = 1024, inodes = 512)

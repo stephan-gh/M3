@@ -1,8 +1,0 @@
-Import('env', 'hostenv')
-
-if ARGUMENTS.get('build_fs', 0):
-    env.SConscript('fs/SConscript', exports = ['env', 'hostenv'])
-else:
-    for d in ['kernel', 'peidle', 'pemux', 'rustkernel', 'server', 'libs', 'apps', 'fs']:
-        env.SConscript(d + '/SConscript', exports = ['env', 'hostenv'])
-    hostenv.SConscript('tools/SConscript', exports = 'hostenv')

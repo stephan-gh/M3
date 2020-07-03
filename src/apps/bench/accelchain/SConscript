@@ -1,3 +1,0 @@
-Import('env')
-if env['TGT'] == 'gem5':
-    env.M3Program(env, 'accelchain', ['direct.cc', 'indirect.cc', 'accelchain.cc'])

@@ -91,5 +91,3 @@ Troubleshooting:
     - `pip3 install --ignore-installed six`
   - "pid_t getpid() was declared 'extern' and later 'static'":
     - on newer versions of e.g. ubuntu (19.10) the declaration of `pid_t getpid()` in `unistd_ext.h` changed; just remove the old declaration in `src/cpu/kvm/timer.cc` at the beginning of the file and build again
-- M³ / `./b`
-  - when `$ ./b` exits with _".. takes exactly 3 arguments (4 given)"_ then make sure __scons__ is at version `3.0.x` and not newer. (`3.1.x` and above uses Python 3.)

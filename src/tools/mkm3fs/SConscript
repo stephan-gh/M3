@@ -1,3 +1,0 @@
-Import('hostenv')
-prog = hostenv.Program(target = 'mkm3fs', source = hostenv.Glob('*.cc'))
-hostenv.Install(hostenv['TOOLDIR'], prog)

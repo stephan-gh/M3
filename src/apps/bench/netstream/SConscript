@@ -1,3 +1,0 @@
-Import('env')
-env.M3Program(env, 'netstream-client', 'client.cc')
-env.M3Program(env, 'netstream-server', 'server.cc')

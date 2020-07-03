@@ -1,3 +1,0 @@
-Import('env')
-if env['PLATF'] == 'kachel':
-    env.RustLibrary(env, target = 'paging')

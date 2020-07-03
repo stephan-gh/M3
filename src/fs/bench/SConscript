@@ -1,9 +1,0 @@
-Import('env')
-if not ARGUMENTS.get('build_fs', 0):
-    env.InstallFiles('$FSDIR/bench', '.', scan=1, exclude=['SConscript'])
-
-if env['TGT'] == 'host':
-    blocks = 160 * 1024
-else:
-    blocks = 64 * 1024
-env.BuildFSImage(target = 'bench.img', source = '$FSDIR/bench', blocks = blocks, inodes = 4096)

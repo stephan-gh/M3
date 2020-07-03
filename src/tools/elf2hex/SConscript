@@ -1,3 +1,0 @@
-Import('hostenv')
-prog = hostenv.Program(target = 'elf2hex', source = hostenv.Glob('*.cc'))
-hostenv.Install(hostenv['TOOLDIR'], prog)
