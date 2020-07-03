@@ -13,14 +13,14 @@
             </app>
         </dom>
         <dom>
-            <app args="plasma" daemon="1">
+            <app args="plasma-server" daemon="1">
                 <sess name="vga" />
                 <sess name="timer" />
                 <serv name="plasma" />
             </app>
         </dom>
         <dom>
-            <app args="plasmactrl">
+            <app args="plasma-client">
                 <sess name="keyb" />
                 <sess name="plasma" />
             </app>
