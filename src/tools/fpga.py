@@ -76,8 +76,7 @@ def load_prog(pm, i, memfile):
     pm.mem[ENV + 64] = 0 # lambda
 
     # start core (via interrupt 0)
-    pm.rocket_setInt(0, 1)
-    pm.rocket_setInt(0, 0)
+    pm.start_rocket()
 
 def main():
     # get connection to FPGA, SW12=0000b -> chipid=0
