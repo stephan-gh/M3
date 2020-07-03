@@ -6,12 +6,7 @@ version = "0.1.0"
 path = "src/paging.rs"
 crate-type = ["rlib", "staticlib"]
 
-[features]
-default = ["heap_impl"]
-heap_impl = ["heap"]
-
 [dependencies]
 bitflags = "*"
 cfg-if = "*"
 base = { path = "../base" }
-heap = { path = "../heap", optional = true }
