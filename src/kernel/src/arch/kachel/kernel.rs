@@ -36,14 +36,15 @@ pub extern "C" fn abort() -> ! {
 
 #[no_mangle]
 pub extern "C" fn exit(_code: i32) -> ! {
+    klog!(DEF, "Shutting down");
     machine::shutdown();
 }
 
 #[no_mangle]
 pub extern "C" fn env_run() {
     exceptions::init();
-    heap::init();
     io::init(0, "kernel");
+    heap::init();
     crate::slab::init();
     paging::init();
     mem::init();
@@ -85,7 +86,5 @@ pub extern "C" fn env_run() {
     workloop();
 
     pes::deinit();
-
-    klog!(DEF, "Shutting down");
     exit(0);
 }

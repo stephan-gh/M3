@@ -152,14 +152,26 @@ build_params_gem5() {
 build_params_hw() {
     generate_config $1 $M3_OUT || exit 1
 
-    kargs=$(perl -ne 'printf("%s.hex ", $1) if /<kernel\s.*args="(.*?)"/' < $M3_OUT/boot-all.xml)
+    kargs=$(perl -ne 'printf("%s;", $1) if /<kernel\s.*args="(.*?)"/' < $M3_OUT/boot-all.xml)
 
     args=""
-    files=""
+    files="run/boot.xml $build/mem/peidle.hex"
+    IFS=';'
+    c=0
     for karg in $kargs; do
-        args="$args $karg"
-        files="$files $build/mem/$karg"
+        if [ "$args" = "" ]; then
+            args="$karg"
+        else
+            args="$args -- $karg"
+        fi
+        files="$files $build/mem/"${karg%% *}.hex
+        c=$((c + 1))
     done
+    while [ $c -lt 4 ]; do
+        args="$args -- peidle"
+        c=$((c + 1))
+    done
+    unset IFS
 
     scp src/tools/fpga.py $files $hwssh:m3
 
