@@ -738,13 +738,20 @@ impl Drop for ForeignChild {
     }
 }
 
+bitflags! {
+    struct Flags : u64 {
+        const STARTING = 1;
+        const SHUTDOWN = 2;
+    }
+}
+
 pub struct ChildManager {
+    flags: Flags,
     childs: Treap<Id, Box<dyn Child>>,
     ids: Vec<Id>,
     next_id: Id,
     daemons: usize,
     foreigns: usize,
-    shutdown: bool,
 }
 
 static MNG: StaticCell<ChildManager> = StaticCell::new(ChildManager::new());
@@ -756,17 +763,20 @@ pub fn get() -> &'static mut ChildManager {
 impl ChildManager {
     pub const fn new() -> Self {
         ChildManager {
+            flags: Flags::STARTING,
             childs: Treap::new(),
             ids: Vec::new(),
             next_id: 0,
             daemons: 0,
             foreigns: 0,
-            shutdown: false,
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+    pub fn should_stop(&self) -> bool {
+        // don't stop if we didn't have a child yet. this is necessary, because we use derive_srv
+        // asynchronously and thus switch to a different thread while starting a subsystem. thus, if
+        // the subsystem is the first child, we would stop without waiting without this workaround.
+        !self.flags.contains(Flags::STARTING) && self.len() == 0
     }
 
     pub fn len(&self) -> usize {
@@ -801,6 +811,8 @@ impl ChildManager {
         }
         self.ids.push(child.id());
         self.childs.insert(child.id(), child);
+        // now that we have a child, we want to stop as soon as we've no childs anymore
+        self.flags.remove(Flags::STARTING);
     }
 
     pub fn child_by_id(&self, id: Id) -> Option<&dyn Child> {
@@ -825,25 +837,41 @@ impl ChildManager {
     }
 
     pub fn handle_upcall(&mut self, msg: &'static tcu::Message) {
-        let upcall = msg.get_data::<kif::upcalls::VPEWait>();
+        let upcall = msg.get_data::<kif::upcalls::DefaultUpcall>();
 
-        self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
+        match kif::upcalls::Operation::from(upcall.opcode) {
+            kif::upcalls::Operation::VPE_WAIT => self.upcall_wait_vpe(msg),
+            kif::upcalls::Operation::DERIVE_SRV => self.upcall_derive_srv(msg),
+            _ => panic!("Unexpected upcall {}", upcall.opcode),
+        }
 
         let reply = kif::DefaultReply { error: 0u64 };
         RecvGate::upcall()
             .reply(&[reply], msg)
             .expect("Upcall reply failed");
+    }
+
+    fn upcall_wait_vpe(&mut self, msg: &'static tcu::Message) {
+        let upcall = msg.get_data::<kif::upcalls::VPEWait>();
+
+        self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
 
         // wait for the next
         let no_wait_childs = self.daemons() + self.foreigns();
-        if !self.shutdown && self.len() == no_wait_childs {
-            self.shutdown = true;
+        if !self.flags.contains(Flags::SHUTDOWN) && self.len() == no_wait_childs {
+            self.flags.set(Flags::SHUTDOWN, true);
             self.kill_daemons();
             services::get().shutdown();
         }
-        if !self.is_empty() {
+        if !self.should_stop() {
             self.start_waiting(1);
         }
+    }
+
+    fn upcall_derive_srv(&mut self, msg: &'static tcu::Message) {
+        let upcall = msg.get_data::<kif::upcalls::DeriveSrv>();
+
+        thread::ThreadManager::get().notify(upcall.def.event, Some(msg));
     }
 
     pub fn kill_child(&mut self, sel: Selector, exitcode: i32) {

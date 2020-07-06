@@ -330,6 +330,7 @@ struct KIF {
             xfer_t dst_sel;
             xfer_t srv_sel;
             xfer_t sessions;
+            xfer_t event;
         } PACKED;
 
         struct GetSession : public DefaultRequest {
@@ -514,6 +515,7 @@ struct KIF {
      */
     struct Upcall {
         enum Operation {
+            DERIVE_SRV,
             VPEWAIT,
         };
 

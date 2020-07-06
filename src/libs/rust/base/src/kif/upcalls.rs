@@ -19,36 +19,36 @@
 int_enum! {
     /// The upcalls
     pub struct Operation : u64 {
-        /// forwarding of sends, replies, and data transfers
-        const FORWARD           = 0;
+        /// completions of the derive-srv syscall
+        const DERIVE_SRV        = 0;
 
         /// waits for VPE exits
-        const VPEWAIT           = 1;
+        const VPE_WAIT          = 1;
     }
 }
 
 /// The default upcall, containing the opcode and event
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct DefaultUpcall {
     pub opcode: u64,
     pub event: u64,
 }
 
-/// The forward upcall that is sent upon finished forwardings
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct Forward {
-    pub def: DefaultUpcall,
-    pub error: u64,
-}
-
 /// The VPE-wait upcall that is sent upon a VPE-exit
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct VPEWait {
     pub def: DefaultUpcall,
     pub error: u64,
     pub vpe_sel: u64,
     pub exitcode: u64,
+}
+
+/// The derive-srv upcall that is sent upon completion
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct DeriveSrv {
+    pub def: DefaultUpcall,
+    pub error: u64,
 }

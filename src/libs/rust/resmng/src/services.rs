@@ -26,6 +26,7 @@ use m3::tcu::Label;
 use m3::util;
 use thread;
 
+use events;
 use sendqueue::SendQueue;
 
 pub type Id = u32;
@@ -80,11 +81,22 @@ impl Service {
 
     pub fn derive(&self, sessions: u32) -> Result<Self, Error> {
         let dst = VPE::cur().alloc_sels(2);
+        let event = events::uid_to_event(events::alloc_unique_id());
         syscalls::derive_srv(
             self.sel(),
             kif::CapRngDesc::new(kif::CapType::OBJECT, dst, 2),
             sessions,
+            event,
         )?;
+
+        thread::ThreadManager::get().wait_for(event);
+
+        let reply = thread::ThreadManager::get()
+            .fetch_msg()
+            .ok_or_else(|| Error::new(Code::RecvGone))?;
+        let reply = reply.get_data::<kif::upcalls::DeriveSrv>();
+        Result::from(Code::from(reply.error as u32))?;
+
         Ok(Self::new(
             self.id,
             dst,

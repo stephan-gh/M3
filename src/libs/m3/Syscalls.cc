@@ -236,12 +236,13 @@ void Syscalls::derive_pe(capsel_t pe, capsel_t dst, uint eps) {
     send_receive_throw(&req, sizeof(req));
 }
 
-void Syscalls::derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions) {
+void Syscalls::derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions, event_t event) {
     KIF::Syscall::DeriveSrv req;
     req.opcode = KIF::Syscall::DERIVE_SRV;
     req.srv_sel = srv;
     req.dst_sel = dst.start();
     req.sessions = sessions;
+    req.event = event;
     send_receive_throw(&req, sizeof(req));
 }
 

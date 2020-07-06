@@ -350,6 +350,7 @@ pub struct DeriveSrv {
     pub dst_sel: u64,
     pub srv_sel: u64,
     pub sessions: u64,
+    pub event: u64,
 }
 
 /// The get sesion message

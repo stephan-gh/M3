@@ -467,7 +467,7 @@ pub fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         );
 
         if event != 0 {
-            vpe.upcall_vpewait(event, &reply);
+            vpe.upcall_vpe_wait(event, &reply);
         }
         else {
             send_reply(msg, &reply);

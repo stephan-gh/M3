@@ -66,7 +66,7 @@ where
             thmng.try_yield();
         }
 
-        if childs::get().is_empty() {
+        if childs::get().should_stop() {
             break;
         }
 

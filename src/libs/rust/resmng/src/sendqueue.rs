@@ -15,7 +15,7 @@
  */
 
 use m3::cap::Selector;
-use m3::cell::{LazyStaticCell, StaticCell};
+use m3::cell::LazyStaticCell;
 use m3::col::{DList, String, Vec};
 use m3::com::{RecvGate, SendGate};
 use m3::errors::Error;
@@ -23,6 +23,7 @@ use m3::tcu;
 use thread;
 
 use childs::Id;
+use events;
 use services;
 
 pub const RBUF_SIZE: usize = 1 << 11;
@@ -54,16 +55,6 @@ pub struct SendQueue {
 }
 
 static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
-
-fn alloc_qid() -> u64 {
-    static NEXT_ID: StaticCell<u64> = StaticCell::new(0);
-    NEXT_ID.set(*NEXT_ID + 1);
-    *NEXT_ID
-}
-
-fn get_event(id: u64) -> thread::Event {
-    0x8000_0000_0000_0000 | id
-}
 
 pub fn init(rgate: RecvGate) {
     RGATE.set(rgate);
@@ -103,7 +94,7 @@ impl SendQueue {
         );
 
         if self.state == QState::Idle {
-            return self.do_send(alloc_qid(), msg);
+            return self.do_send(events::alloc_unique_id(), msg);
         }
 
         log!(
@@ -112,12 +103,12 @@ impl SendQueue {
             self.serv_name()
         );
 
-        let qid = alloc_qid();
+        let qid = events::alloc_unique_id();
 
         // copy message to heap
         let vec = msg.to_vec();
         self.queue.push_back(Entry::new(qid, vec));
-        Ok(get_event(qid))
+        Ok(events::uid_to_event(qid))
     }
 
     fn serv_name(&self) -> &String {
@@ -169,7 +160,7 @@ impl SendQueue {
             self.serv_name()
         );
 
-        self.cur_event = get_event(id);
+        self.cur_event = events::uid_to_event(id);
         self.state = QState::Waiting;
 
         #[allow(clippy::useless_conversion)]

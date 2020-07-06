@@ -19,12 +19,14 @@
 #![feature(core_intrinsics)]
 
 #[macro_use]
+extern crate bitflags;
+#[macro_use]
 extern crate m3;
-
 extern crate thread;
 
 pub mod childs;
 pub mod config;
+mod events;
 pub mod memory;
 mod parser;
 pub mod pes;

@@ -16,7 +16,7 @@
 
 use base::cell::{Cell, RefCell};
 use base::col::{String, ToString, Vec};
-use base::errors::Error;
+use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType, PEDesc};
 use base::rc::{Rc, SRc};
@@ -360,10 +360,10 @@ impl VPE {
         self.wait_sels.borrow_mut().clear();
     }
 
-    pub fn upcall_vpewait(&self, event: u64, reply: &kif::syscalls::VPEWaitReply) {
+    pub fn upcall_vpe_wait(&self, event: u64, reply: &kif::syscalls::VPEWaitReply) {
         let msg = kif::upcalls::VPEWait {
             def: kif::upcalls::DefaultUpcall {
-                opcode: kif::upcalls::Operation::VPEWAIT.val,
+                opcode: kif::upcalls::Operation::VPE_WAIT.val,
                 event,
             },
             error: reply.error,
@@ -371,21 +371,30 @@ impl VPE {
             exitcode: reply.exitcode,
         };
 
-        klog!(
-            UPCALLS,
-            "Sending upcall VPEWAIT (error={}, event={}, vpe={}, exitcode={}) to VPE {}",
-            { msg.error },
-            { msg.def.event },
-            { msg.vpe_sel },
-            { msg.exitcode },
-            self.id()
-        );
+        self.send_upcall(&msg);
+    }
+
+    pub fn upcall_derive_srv(&self, event: u64, result: Result<(), Error>) {
+        let msg = kif::upcalls::DeriveSrv {
+            def: kif::upcalls::DefaultUpcall {
+                opcode: kif::upcalls::Operation::DERIVE_SRV.val,
+                event,
+            },
+            error: Code::from(result) as u64,
+        };
+
+        self.send_upcall(&msg);
+    }
+
+    fn send_upcall<M: fmt::Debug>(&self, msg: &M) {
+        klog!(UPCALLS, "Sending upcall {:?} to VPE {}", msg, self.id());
+
         self.upcalls
             .borrow_mut()
             .send(
                 self.eps_start + UPCALL_REP_OFF,
                 0,
-                util::object_to_bytes(&msg),
+                util::object_to_bytes(msg),
             )
             .unwrap();
     }

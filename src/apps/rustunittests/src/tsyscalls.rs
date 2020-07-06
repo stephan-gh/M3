@@ -589,14 +589,14 @@ fn derive_srv() {
     let srv = wv_assert_ok!(Server::new_private("test", &mut hdl));
 
     // invalid service selector
-    wv_assert_err!(syscalls::derive_srv(SEL_KMEM, crd, 1), Code::InvArgs);
+    wv_assert_err!(syscalls::derive_srv(SEL_KMEM, crd, 1, 0), Code::InvArgs);
     // invalid dest selector
     wv_assert_err!(
-        syscalls::derive_srv(srv.sel(), CapRngDesc::new(CapType::OBJECT, SEL_KMEM, 2), 1),
+        syscalls::derive_srv(srv.sel(), CapRngDesc::new(CapType::OBJECT, SEL_KMEM, 2), 1, 0),
         Code::InvArgs
     );
     // invalid session count
-    wv_assert_err!(syscalls::derive_srv(srv.sel(), crd, 0), Code::InvArgs);
+    wv_assert_err!(syscalls::derive_srv(srv.sel(), crd, 0, 0), Code::InvArgs);
 }
 
 fn get_sess() {

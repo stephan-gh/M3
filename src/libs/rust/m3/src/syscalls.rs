@@ -278,12 +278,15 @@ pub fn derive_pe(pe: Selector, dst: Selector, eps: u32) -> Result<(), Error> {
 
 /// Derives a new service object at `dst` + 0 and a send gate to create sessions at `dst` + 1 from
 /// existing service `srv`, transferring `sessions` sessions to the new service object.
-pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32) -> Result<(), Error> {
+/// A non-error reply just acknowledges that the request has been sent to the service. Upon the
+/// completion of the request, you will receive an upcall containing `event`.
+pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> Result<(), Error> {
     let req = syscalls::DeriveSrv {
         opcode: syscalls::Operation::DERIVE_SRV.val,
         dst_sel: dst.start(),
         srv_sel: u64::from(srv),
         sessions: sessions as u64,
+        event: event,
     };
     send_receive_result(&req)
 }

@@ -145,13 +145,15 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     let dst_crd = CapRngDesc::new(CapType::OBJECT, req.dst_sel, 2);
     let srv_sel = req.srv_sel as CapSel;
     let sessions = req.sessions as u32;
+    let event = req.event;
 
     sysc_log!(
         vpe,
-        "derive_srv(dst={}, srv={}, sessions={})",
+        "derive_srv(dst={}, srv={}, sessions={}, event={})",
         dst_crd,
         srv_sel,
-        sessions
+        sessions,
+        event
     );
 
     if !vpe.obj_caps().borrow().range_unused(&dst_crd) {
@@ -168,6 +170,11 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         sessions: sessions as u64,
     };
 
+    // everything worked, send the reply
+    reply_success(msg);
+    drop(req);
+    drop(msg);
+
     let label = srvcap.creator() as tcu::Label;
     klog!(
         SERV,
@@ -178,48 +185,58 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     );
     let res = Service::send_receive(srvcap.service(), label, util::object_to_bytes(&smsg));
 
-    match res {
-        Err(e) => sysc_err!(e.code(), "Service {} unreachable", srvcap.service().name()),
+    let res = match res {
+        Err(e) => {
+            sysc_log!(
+                vpe,
+                "Service {} unreachable: {:?}",
+                srvcap.service().name(),
+                e.code()
+            );
+            Err(e)
+        },
 
         Ok(rmsg) => {
             let reply: &kif::service::DeriveCreatorReply = get_request(rmsg)?;
-            let res = reply.res;
+            let res = Result::from(Code::from(reply.res as u32));
             let creator = reply.creator as usize;
             let sgate_sel = reply.sgate_sel as CapSel;
 
             sysc_log!(
                 vpe,
-                "derive_srv continue with res={}, creator={}",
+                "derive_srv continue with res={:?}, creator={}",
                 res,
                 creator
             );
 
-            if res != 0 {
-                sysc_err!(Code::from(res as u32), "Server denied session derivation");
-            }
+            if let Ok(_) = res {
+                // obtain SendGate from server (do that first because it can fail)
+                let serv_vpe = srvcap.service().vpe();
+                let mut serv_caps = serv_vpe.obj_caps().borrow_mut();
+                let src_cap = serv_caps.get_mut(sgate_sel);
+                match src_cap {
+                    None => sysc_log!(vpe, "Service gave invalid SendGate cap {}", sgate_sel),
+                    Some(c) => try_kmem_quota!(vpe.obj_caps().borrow_mut().obtain(
+                        dst_crd.start() + 1,
+                        c,
+                        true
+                    )),
+                }
 
-            // obtain SendGate from server (do that first because it can fail)
-            let serv_vpe = srvcap.service().vpe();
-            let mut serv_caps = serv_vpe.obj_caps().borrow_mut();
-            let src_cap = serv_caps.get_mut(sgate_sel);
-            match src_cap {
-                None => sysc_err!(Code::InvArgs, "Service gave invalid SendGate cap"),
-                Some(c) => try_kmem_quota!(vpe.obj_caps().borrow_mut().obtain(
-                    dst_crd.start() + 1,
-                    c,
-                    true
-                )),
+                // derive new service object
+                let cap = Capability::new(
+                    dst_crd.start() + 0,
+                    KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
+                );
+                try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel));
+                Ok(())
             }
-
-            // derive new service object
-            let cap = Capability::new(
-                dst_crd.start() + 0,
-                KObject::Serv(ServObject::new(srvcap.service().clone(), false, creator)),
-            );
-            try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, srv_sel));
+            else {
+                res
+            }
         },
-    }
+    };
 
-    reply_success(msg);
+    vpe.upcall_derive_srv(event, res);
     Ok(())
 }
