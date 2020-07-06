@@ -351,6 +351,9 @@ impl TCU {
 
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
+        if size == 0 {
+            return Ok(());
+        }
         Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, size));
         Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
         Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
@@ -361,6 +364,9 @@ impl TCU {
 
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
+        if size == 0 {
+            return Ok(());
+        }
         Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, size));
         Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
         Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::WRITE, 0));
