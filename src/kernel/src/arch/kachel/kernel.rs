@@ -47,6 +47,7 @@ pub extern "C" fn env_run() {
     crate::slab::init();
     paging::init();
     mem::init();
+    ktcu::init();
 
     args::parse();
 

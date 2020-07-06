@@ -16,6 +16,7 @@
 
 use base::cell::StaticCell;
 use base::cfg;
+use base::envdata;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, Perm};
@@ -33,6 +34,23 @@ use crate::platform;
 pub const KPEX_EP: EpId = 3;
 
 static BUF: StaticCell<[u8; 8192]> = StaticCell::new([0u8; 8192]);
+static PE_IDS: StaticCell<[PEId; cfg::MAX_PES]> = StaticCell::new([0; cfg::MAX_PES]);
+
+pub fn init() {
+    if envdata::get().platform == envdata::Platform::GEM5.val {
+        for i in 0..cfg::MAX_PES {
+            PE_IDS.get_mut()[i] = i as PEId;
+        }
+    }
+    else {
+        let pes = PE_IDS.get_mut();
+        pes[0] = 0x00; // PM6
+        pes[1] = 0x01; // PM7
+        pes[2] = 0x25; // PM3
+        pes[3] = 0x21; // PM5
+        pes[4] = 0x24; // DRAM1
+    }
+}
 
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
     if platform::pe_desc(platform::kernel_pe()).has_virtmem() {
@@ -82,11 +100,11 @@ pub fn config_send(
     msg_order: u32,
     credits: u32,
 ) {
-    TCU::config_send(regs, vpe, lbl, pe, dst_ep, msg_order, credits);
+    TCU::config_send(regs, vpe, lbl, PE_IDS[pe as usize], dst_ep, msg_order, credits);
 }
 
 pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usize, perm: Perm) {
-    TCU::config_mem(regs, vpe, pe, addr, size, perm);
+    TCU::config_mem(regs, vpe, PE_IDS[pe as usize], addr, size, perm);
 }
 
 pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
