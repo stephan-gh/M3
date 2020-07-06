@@ -15,7 +15,7 @@
  */
 
 #[cfg(target_os = "none")]
-#[path = "gem5/mod.rs"]
+#[path = "kachel/mod.rs"]
 mod inner;
 
 #[cfg(target_os = "linux")]
