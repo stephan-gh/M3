@@ -132,8 +132,9 @@ impl Session {
                 .ok_or_else(|| Error::new(Code::RecvGone))?;
             let reply = reply.get_data::<kif::service::OpenReply>();
 
-            if reply.res != 0 {
-                return Err(Error::from(reply.res as u32));
+            let res = Code::from(reply.res as u32);
+            if res != Code::None {
+                return Err(Error::new(res));
             }
 
             Ok(Session {

@@ -22,8 +22,11 @@ use core::intrinsics;
 /// The error codes
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Code {
+    // success
+    None = 0,
+
     // TCU errors
-    MissCredits = 1,
+    MissCredits,
     NoRingSpace,
     Pagefault,
     InvEP,
@@ -161,6 +164,24 @@ impl Error {
     }
 }
 
+impl From<Code> for Result<(), Error> {
+    fn from(code: Code) -> Self {
+        match code {
+            Code::None => Ok(()),
+            e => Err(Error::new(e)),
+        }
+    }
+}
+
+impl<T> From<Result<T, Error>> for Code {
+    fn from(res: Result<T, Error>) -> Self {
+        match res {
+            Ok(_) => Code::None,
+            Err(e) => e.code(),
+        }
+    }
+}
+
 impl From<u32> for Error {
     fn from(error: u32) -> Self {
         Self::new(Code::from(error))
@@ -169,7 +190,7 @@ impl From<u32> for Error {
 
 impl From<u32> for Code {
     fn from(error: u32) -> Self {
-        assert!(error > 0 && error < Code::Utf8Error as u32);
+        assert!(error < Code::Utf8Error as u32);
         // safety: assuming that the assert above doesn't fail, the conversion is safe
         // TODO better way?
         unsafe { intrinsics::transmute(error as u8) }

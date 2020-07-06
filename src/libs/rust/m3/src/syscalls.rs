@@ -20,7 +20,7 @@ use arch;
 use cap::Selector;
 use cell::LazyStaticCell;
 use com::{RecvGate, SendGate, SliceSink, SliceSource};
-use errors::Error;
+use errors::{Code, Error};
 use goff;
 use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 use serialize::Sink;
@@ -49,9 +49,10 @@ fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
     )?;
 
     let reply = reply_raw.get_data::<kif::DefaultReply>();
-    if reply.error != 0 {
+    let res = Code::from(reply.error as u32);
+    if res != Code::None {
         TCUIf::ack_msg(RecvGate::syscall(), reply_raw)?;
-        return Err(Error::from(reply.error as u32));
+        return Err(Error::new(res));
     }
 
     Ok(Reply {

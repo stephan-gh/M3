@@ -480,10 +480,10 @@ pub fn recv_result<'r>(
     sgate: Option<&SendGate>,
 ) -> Result<GateIStream<'r>, Error> {
     let mut reply = recv_reply(rgate, sgate)?;
-    let res: u32 = reply.pop()?;
+    let res = Code::from(reply.pop::<u32>()?);
     match res {
-        0 => Ok(reply),
-        e => Err(Error::from(e)),
+        Code::None => Ok(reply),
+        e => Err(Error::new(e)),
     }
 }
 
@@ -506,10 +506,10 @@ macro_rules! send_recv {
 macro_rules! send_recv_res {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
         send_recv!($sg, $rg, $( $args ),* ).and_then(|mut reply| {
-            let res: u32 = reply.pop()?;
+            let res = base::errors::Code::from(reply.pop::<u32>()?);
             match res {
-                0 => Ok(reply),
-                e => Err(Error::from(e)),
+                base::errors::Code::None => Ok(reply),
+                e => Err(Error::new(e)),
             }
         })
     });

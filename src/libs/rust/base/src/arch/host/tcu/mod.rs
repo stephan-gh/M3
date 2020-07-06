@@ -20,7 +20,7 @@ use const_assert;
 use core::intrinsics;
 use core::mem;
 use core::ptr;
-use errors::Error;
+use errors::{Code, Error};
 use goff;
 use kif;
 use libc;
@@ -387,10 +387,7 @@ impl TCU {
     }
 
     fn get_result() -> Result<(), Error> {
-        match Self::get_cmd(CmdReg::CTRL) >> 16 {
-            0 => Ok(()),
-            e => Err(Error::from(e as u32)),
-        }
+        Result::from(Code::from((Self::get_cmd(CmdReg::CTRL) >> 16) as u32))
     }
 
     fn get_cmd(cmd: CmdReg) -> Reg {

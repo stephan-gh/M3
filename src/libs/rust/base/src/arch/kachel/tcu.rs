@@ -18,7 +18,7 @@ use arch;
 use cfg;
 use core::intrinsics;
 use core::mem;
-use errors::Error;
+use errors::{Code, Error};
 use goff;
 use kif::PageFlags;
 use math;
@@ -383,12 +383,7 @@ impl TCU {
             let cmd = Self::read_unpriv_reg(UnprivReg::COMMAND);
             if (cmd & 0xF) == CmdOpCode::IDLE.val {
                 let err = (cmd >> 20) & 0xF;
-                return if err == 0 {
-                    Ok(())
-                }
-                else {
-                    Err(Error::from(err as u32))
-                };
+                return Result::from(Code::from(err as u32));
             }
         }
     }

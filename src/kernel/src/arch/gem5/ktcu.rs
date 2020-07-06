@@ -16,7 +16,7 @@
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::errors::Error;
+use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, Perm};
 use base::libc;
@@ -199,8 +199,8 @@ fn do_ext_cmd(pe: PEId, cmd: Reg) -> Result<Reg, Error> {
     let addr = TCU::ext_reg_addr(ExtReg::EXT_CMD) as goff;
     ktcu::try_write_slice(pe, addr, &[cmd])?;
     let res: Reg = ktcu::try_read_obj(pe, addr)?;
-    match (res >> 4) & 0xF {
-        0 => Ok(res >> 8),
-        e => Err(Error::from(e as u32))
+    match Code::from(((res >> 4) & 0xF) as u32) {
+        Code::None => Ok(res >> 8),
+        e => Err(Error::new(e))
     }
 }
