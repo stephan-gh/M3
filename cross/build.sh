@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 BUILD_BINUTILS=true
 BUILD_GCC=true
@@ -126,7 +127,7 @@ if $BUILD_GCC || $BUILD_CPP; then
 fi
 
 # gcc
-export PATH=$PATH:$PREFIX/bin
+export PATH=$PREFIX/bin:$PATH
 if $BUILD_GCC; then
     if [ $REBUILD -eq 1 ] || [ ! -d $SRC/gcc ]; then
         /bin/echo -e "\e[1mUnpacking gcc...\e[0m"
