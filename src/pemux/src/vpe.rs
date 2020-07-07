@@ -385,7 +385,7 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
 
         log!(
             crate::LOG_VPES,
-            "Destroyed VPE {} with status {}",
+            "Removed VPE {} with status {}",
             old.id(),
             status
         );
@@ -749,6 +749,8 @@ impl VPE {
 
 impl Drop for VPE {
     fn drop(&mut self) {
+        log!(crate::LOG_VPES, "Destroyed VPE {}", self.id());
+
         // flush+invalidate caches to ensure that we have a fresh view on memory. this is required
         // because of the way the pager handles copy-on-write: it reads the current copy from the
         // owner and updates the version in DRAM. for that reason, the cache for new VPEs needs to
