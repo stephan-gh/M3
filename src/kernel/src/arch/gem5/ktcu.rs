@@ -115,6 +115,40 @@ pub fn invalidate_ep_remote(pe: PEId, ep: EpId, force: bool) -> Result<u32, Erro
     do_ext_cmd(pe, reg).map(|unread| unread as u32)
 }
 
+pub fn inv_reply_remote(
+    recv_pe: PEId,
+    recv_ep: EpId,
+    send_pe: PEId,
+    send_ep: EpId,
+) -> Result<(), Error> {
+    let mut regs = [0 as Reg; EP_REGS];
+    ktcu::try_read_slice(recv_pe, TCU::ep_regs_addr(recv_ep) as goff, &mut regs)?;
+
+    // if there is no occupied slot, there can't be any reply EP we have to invalidate
+    let occupied = regs[2] & 0xFFFF_FFFF;
+    if occupied == 0 {
+        return Ok(());
+    }
+
+    let buf_size = 1 << ((regs[0] >> 35) & 0x3F);
+    let reply_eps = ((regs[0] >> 19) & 0xFFFF) as usize;
+    for i in 0..buf_size {
+        if (occupied & (1 << i)) != 0 {
+            // load the reply EP
+            ktcu::try_read_slice(recv_pe, TCU::ep_regs_addr(reply_eps + i) as goff, &mut regs)?;
+
+            // is that replying to the sender?
+            let tgt_pe = ((regs[1] >> 16) & 0xFFFF) as PEId;
+            let crd_ep = ((regs[0] >> 37) & 0xFFFF) as EpId;
+            if crd_ep == send_ep && tgt_pe == send_pe {
+                ktcu::invalidate_ep_remote(recv_pe, reply_eps + i, true)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub fn read_obj<T>(pe: PEId, addr: goff) -> T {
     try_read_obj(pe, addr).unwrap()
 }
@@ -201,6 +235,6 @@ fn do_ext_cmd(pe: PEId, cmd: Reg) -> Result<Reg, Error> {
     let res: Reg = ktcu::try_read_obj(pe, addr)?;
     match Code::from(((res >> 4) & 0xF) as u32) {
         Code::None => Ok(res >> 8),
-        e => Err(Error::new(e))
+        e => Err(Error::new(e)),
     }
 }

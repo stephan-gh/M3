@@ -172,12 +172,8 @@ impl RGateObject {
         self.gep.borrow_mut()
     }
 
-    pub fn pe(&self) -> Option<PEId> {
-        self.loc.get().map(|(pe, _)| pe)
-    }
-
-    pub fn ep(&self) -> Option<EpId> {
-        self.loc.get().map(|(_, ep)| ep)
+    pub fn location(&self) -> Option<(PEId, EpId)> {
+        self.loc.get()
     }
 
     pub fn addr(&self) -> goff {
@@ -275,6 +271,17 @@ impl SGateObject {
 
     pub fn credits(&self) -> u32 {
         self.credits
+    }
+
+    pub fn invalidate_reply_eps(&self) {
+        // is the send gate activated?
+        if let Some(sep) = self.gate_ep().get_ep() {
+            // is the associated receive gate activated?
+            if let Some((recv_pe, recv_ep)) = self.rgate().location() {
+                let pemux = pemng::get().pemux(sep.pe_id());
+                pemux.invalidate_reply_eps(recv_pe, recv_ep, sep.ep()).unwrap();
+            }
+        }
     }
 }
 
@@ -649,8 +656,10 @@ impl EPObject {
                 _ => {},
             }
 
-            // deactivate receive gate
             match gate {
+                // invalidate reply EPs
+                GateObject::SGate(s) => s.invalidate_reply_eps(),
+                // deactivate receive gate
                 GateObject::RGate(r) => r.deactivate(),
                 _ => {},
             }

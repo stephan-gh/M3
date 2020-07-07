@@ -51,7 +51,7 @@ impl Service {
     }
 
     pub fn send(&self, lbl: tcu::Label, msg: &[u8]) -> Result<thread::Event, Error> {
-        let rep = self.rgate.ep().unwrap();
+        let (_, rep) = self.rgate.location().unwrap();
         self.queue.borrow_mut().send(rep, lbl, msg)
     }
 

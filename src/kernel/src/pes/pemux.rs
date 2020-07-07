@@ -211,12 +211,13 @@ impl PEMux {
 
         ktcu::config_remote_ep(self.pe_id(), ep, |regs| {
             let vpe = self.ep_vpe_id(vpe);
+            let (rpe, rep) = rgate.location().unwrap();
             ktcu::config_send(
                 regs,
                 vpe,
                 obj.label(),
-                rgate.pe().unwrap(),
-                rgate.ep().unwrap(),
+                rpe,
+                rep,
                 rgate.msg_order(),
                 obj.credits(),
             );
@@ -291,6 +292,24 @@ impl PEMux {
         else {
             Ok(())
         }
+    }
+
+    pub fn invalidate_reply_eps(
+        &self,
+        recv_pe: PEId,
+        recv_ep: EpId,
+        send_ep: EpId,
+    ) -> Result<(), Error> {
+        klog!(
+            EPS,
+            "PE{}:EP{} = invalid reply EPs at PE{}:EP{}",
+            self.pe_id(),
+            send_ep,
+            recv_pe,
+            recv_ep
+        );
+
+        ktcu::inv_reply_remote(recv_pe, recv_ep, self.pe_id(), send_ep)
     }
 }
 

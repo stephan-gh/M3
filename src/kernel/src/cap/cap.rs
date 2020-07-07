@@ -462,6 +462,7 @@ impl Capability {
             },
 
             KObject::SGate(ref mut o) => {
+                o.invalidate_reply_eps();
                 Self::invalidate_ep(o.gate_ep_mut(), foreign);
             },
 

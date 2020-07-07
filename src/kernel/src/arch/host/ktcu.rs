@@ -100,6 +100,16 @@ pub fn invalidate_ep_remote(pe: PEId, ep: EpId, _force: bool) -> Result<u32, Err
     write_ep_remote(pe, ep, &regs).map(|_| 0)
 }
 
+pub fn inv_reply_remote(
+    _recv_pe: PEId,
+    _recv_ep: EpId,
+    _send_pe: PEId,
+    _send_ep: EpId,
+) -> Result<(), Error> {
+    // nothing to do
+    Ok(())
+}
+
 #[derive(Default)]
 struct EP {
     regs: Vec<Reg>,
