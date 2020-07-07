@@ -494,16 +494,18 @@ impl fmt::Debug for SemObject {
 
 pub struct PEObject {
     pe: PEId,
-    eps: Cell<u32>,
-    vpes: Cell<u32>,
+    total_eps: u32,
+    cur_eps: Cell<u32>,
+    cur_vpes: Cell<u32>,
 }
 
 impl PEObject {
     pub fn new(pe: PEId, eps: u32) -> SRc<Self> {
         SRc::new(Self {
             pe,
-            eps: Cell::from(eps),
-            vpes: Cell::from(0),
+            total_eps: eps,
+            cur_eps: Cell::from(eps),
+            cur_vpes: Cell::from(0),
         })
     }
 
@@ -512,23 +514,24 @@ impl PEObject {
     }
 
     pub fn eps(&self) -> u32 {
-        self.eps.get()
+        self.cur_eps.get()
     }
 
     pub fn vpes(&self) -> u32 {
-        self.vpes.get()
+        self.cur_vpes.get()
     }
 
     pub fn has_quota(&self, eps: u32) -> bool {
-        self.eps.get() >= eps
+        self.eps() >= eps
     }
 
     pub fn add_vpe(&self) {
-        self.vpes.set(self.vpes() + 1);
+        self.cur_vpes.set(self.vpes() + 1);
     }
 
     pub fn rem_vpe(&self) {
-        self.vpes.set(self.vpes() - 1);
+        assert!(self.vpes() > 0);
+        self.cur_vpes.set(self.vpes() - 1);
     }
 
     pub fn alloc(&self, eps: u32) {
@@ -539,12 +542,13 @@ impl PEObject {
             eps,
             self.eps()
         );
-        assert!(self.eps.get() >= eps);
-        self.eps.set(self.eps.get() - eps);
+        assert!(self.eps() >= eps);
+        self.cur_eps.set(self.eps() - eps);
     }
 
     pub fn free(&self, eps: u32) {
-        self.eps.set(self.eps.get() + eps);
+        assert!(self.eps() + eps <= self.total_eps);
+        self.cur_eps.set(self.eps() + eps);
         klog!(
             PES,
             "PE[{}]: freed {} EPs ({} total)",
@@ -557,6 +561,7 @@ impl PEObject {
     pub fn revoke(&self, parent: &PEObject) {
         // grant the EPs back to our parent
         parent.free(self.eps());
+        assert!(self.eps() == self.total_eps);
     }
 }
 
