@@ -19,7 +19,7 @@ use base::cfg;
 use base::col::Treap;
 use base::errors::{Code, Error};
 use base::goff;
-use base::kif::{CapRngDesc, CapSel, SEL_VPE};
+use base::kif::{CapRngDesc, CapSel, SEL_KMEM, SEL_PE, SEL_VPE};
 use base::rc::Rc;
 use base::util;
 use core::cmp;
@@ -421,21 +421,22 @@ impl Capability {
         klog!(CAPS, "Freeing cap {:?}", self);
 
         let vpe = self.vpe();
+        let sel = self.sel();
         if !self.derived {
             // if it's not derived, we created the cap and thus will also free the kobject
             vpe.kmem()
-                .free(&vpe, self.sel(), Capability::size() + self.obj.size());
+                .free(&vpe, sel, Capability::size() + self.obj.size());
         }
         else {
             // give quota for cap back in every case
-            vpe.kmem().free(&vpe, self.sel(), Capability::size());
+            vpe.kmem().free(&vpe, sel, Capability::size());
         }
 
         match self.obj {
             KObject::VPE(ref v) => {
                 // remove VPE if we revoked the root capability and if it's not the own VPE
                 if let Some(v) = v.upgrade() {
-                    if self.sel() != SEL_VPE && self.parent.is_none() && !v.is_root() {
+                    if sel != SEL_VPE && self.parent.is_none() && !v.is_root() {
                         vpemng::get().remove_vpe(v.id());
                     }
                 }
@@ -446,19 +447,26 @@ impl Capability {
             },
 
             KObject::PE(ref mut pe) => {
-                if let Some(parent) = self.parent {
-                    let parent = unsafe { &(*parent.as_ptr()) };
-                    if let KObject::PE(p) = parent.get() {
-                        pe.revoke(p);
+                // if the cap is derived, it doesn't own the kobj. if it's the VPE's own PE, the
+                // kobj always belongs to the parent (but derived is false).
+                if !self.derived && sel != SEL_PE {
+                    if let Some(parent) = self.parent {
+                        let parent = unsafe { &(*parent.as_ptr()) };
+                        if let KObject::PE(p) = parent.get() {
+                            pe.revoke(p);
+                        }
                     }
                 }
             },
 
             KObject::KMem(ref k) => {
-                if let Some(parent) = self.parent {
-                    let parent = unsafe { &(*parent.as_ptr()) };
-                    if let KObject::KMem(p) = parent.get() {
-                        k.revoke(parent.vpe(), parent.sel(), p);
+                // see above
+                if !self.derived && sel != SEL_KMEM {
+                    if let Some(parent) = self.parent {
+                        let parent = unsafe { &(*parent.as_ptr()) };
+                        if let KObject::KMem(p) = parent.get() {
+                            k.revoke(parent.vpe(), parent.sel(), p);
+                        }
                     }
                 }
             },
