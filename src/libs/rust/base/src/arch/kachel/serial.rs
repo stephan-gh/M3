@@ -53,7 +53,7 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
                 buf.as_ptr() as *const libc::c_void,
                 buf.len(),
             );
-            *serbuf.offset(buf.len() as isize) = 0;
+            *serbuf.add(buf.len()) = 0;
             *signal = buf.len() as u64;
             while ptr::read_volatile(signal) != 0 {}
         }

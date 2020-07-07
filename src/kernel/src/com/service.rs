@@ -37,7 +37,7 @@ impl Service {
         SRc::new(Service {
             vpe: Rc::downgrade(vpe),
             name,
-            rgate: rgate.clone(),
+            rgate,
             queue: RefCell::from(SendQueue::new(vpe.id() as u64, vpe.pe_id())),
         })
     }
@@ -66,7 +66,7 @@ impl Service {
             thread::ThreadManager::get().wait_for(event);
             thread::ThreadManager::get()
                 .fetch_msg()
-                .ok_or(Error::new(Code::RecvGone))
+                .ok_or_else(|| Error::new(Code::RecvGone))
         })
     }
 

@@ -74,7 +74,7 @@ impl AddrSpace {
             Err(Error::new(Code::InvArgs))
         }
         else {
-            let vpe = vpe.unwrap_or(VPE::cur().alloc_sel());
+            let vpe = vpe.unwrap_or_else(|| VPE::cur().alloc_sel());
             log!(crate::LOG_DEF, "[{}] pager::init(vpe={})", self.id(), vpe);
             self.owner = Some(vpe);
             Ok(vpe)

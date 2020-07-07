@@ -171,11 +171,11 @@ impl EnvData {
     }
 
     pub fn set_first_sel(&mut self, sel: Selector) {
-        self.base.first_sel = u64::from(sel);
+        self.base.first_sel = sel;
     }
 
     pub fn set_rmng(&mut self, sel: Selector) {
-        self.base.rmng_sel = u64::from(sel);
+        self.base.rmng_sel = sel;
     }
 
     pub fn set_files(&mut self, off: usize, len: usize) {

@@ -147,8 +147,8 @@ pub fn testcliexit() {
         // perform the obtain syscall
         let req = kif::syscalls::ExchangeSess {
             opcode: kif::syscalls::Operation::OBTAIN.val,
-            vpe_sel: u64::from(VPE::cur().sel()),
-            sess_sel: u64::from(sess.sel()),
+            vpe_sel: VPE::cur().sel(),
+            sess_sel: sess.sel(),
             caps: [0; 2],
             args: kif::syscalls::ExchangeArgs::default(),
         };

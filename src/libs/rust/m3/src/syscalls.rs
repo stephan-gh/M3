@@ -89,8 +89,8 @@ pub fn create_mgate(
 ) -> Result<(), Error> {
     let req = syscalls::CreateMGate {
         opcode: syscalls::Operation::CREATE_MGATE.val,
-        dst_sel: u64::from(dst),
-        vpe_sel: u64::from(vpe),
+        dst_sel: dst,
+        vpe_sel: vpe,
         addr: addr as u64,
         size: size as u64,
         perms: u64::from(perms.bits()),
@@ -108,8 +108,8 @@ pub fn create_sgate(
 ) -> Result<(), Error> {
     let req = syscalls::CreateSGate {
         opcode: syscalls::Operation::CREATE_SGATE.val,
-        dst_sel: u64::from(dst),
-        rgate_sel: u64::from(rgate),
+        dst_sel: dst,
+        rgate_sel: rgate,
         label: label as u64,
         credits: u64::from(credits),
     };
@@ -121,7 +121,7 @@ pub fn create_sgate(
 pub fn create_rgate(dst: Selector, order: u32, msgorder: u32) -> Result<(), Error> {
     let req = syscalls::CreateRGate {
         opcode: syscalls::Operation::CREATE_RGATE.val,
-        dst_sel: u64::from(dst),
+        dst_sel: dst,
         order: order as u64,
         msgorder: msgorder as u64,
     };
@@ -140,8 +140,8 @@ pub fn create_sess(
 ) -> Result<(), Error> {
     let req = syscalls::CreateSess {
         opcode: syscalls::Operation::CREATE_SESS.val,
-        dst_sel: u64::from(dst),
-        srv_sel: u64::from(srv),
+        dst_sel: dst,
+        srv_sel: srv,
         creator: creator as u64,
         ident,
         auto_close: u64::from(auto_close),
@@ -174,10 +174,10 @@ pub fn create_map(
 ) -> Result<(), Error> {
     let req = syscalls::CreateMap {
         opcode: syscalls::Operation::CREATE_MAP.val,
-        dst_sel: u64::from(dst),
-        vpe_sel: u64::from(vpe),
-        mgate_sel: u64::from(mgate),
-        first: u64::from(first),
+        dst_sel: dst,
+        vpe_sel: vpe,
+        mgate_sel: mgate,
+        first,
         pages: pages as u64,
         perms: u64::from(perms.bits()),
     };
@@ -208,7 +208,7 @@ pub fn create_vpe(
 pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
     let req = syscalls::CreateSem {
         opcode: syscalls::Operation::CREATE_SEM.val,
-        dst_sel: u64::from(dst),
+        dst_sel: dst,
         value: u64::from(value),
     };
     send_receive_result(&req)
@@ -219,8 +219,8 @@ pub fn create_sem(dst: Selector, value: u32) -> Result<(), Error> {
 pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Result<EpId, Error> {
     let req = syscalls::AllocEP {
         opcode: syscalls::Operation::ALLOC_EP.val,
-        dst_sel: u64::from(dst),
-        vpe_sel: u64::from(vpe),
+        dst_sel: dst,
+        vpe_sel: vpe,
         epid: epid as u64,
         replies: u64::from(replies),
     };
@@ -243,9 +243,9 @@ pub fn derive_mem(
 ) -> Result<(), Error> {
     let req = syscalls::DeriveMem {
         opcode: syscalls::Operation::DERIVE_MEM.val,
-        vpe_sel: u64::from(vpe),
-        dst_sel: u64::from(dst),
-        src_sel: u64::from(src),
+        vpe_sel: vpe,
+        dst_sel: dst,
+        src_sel: src,
         offset,
         size: size as u64,
         perms: u64::from(perms.bits()),
@@ -258,8 +258,8 @@ pub fn derive_mem(
 pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Error> {
     let req = syscalls::DeriveKMem {
         opcode: syscalls::Operation::DERIVE_KMEM.val,
-        kmem_sel: u64::from(kmem),
-        dst_sel: u64::from(dst),
+        kmem_sel: kmem,
+        dst_sel: dst,
         quota: quota as u64,
     };
     send_receive_result(&req)
@@ -269,8 +269,8 @@ pub fn derive_kmem(kmem: Selector, dst: Selector, quota: usize) -> Result<(), Er
 pub fn derive_pe(pe: Selector, dst: Selector, eps: u32) -> Result<(), Error> {
     let req = syscalls::DerivePE {
         opcode: syscalls::Operation::DERIVE_PE.val,
-        pe_sel: u64::from(pe),
-        dst_sel: u64::from(dst),
+        pe_sel: pe,
+        dst_sel: dst,
         eps: eps as u64,
     };
     send_receive_result(&req)
@@ -284,7 +284,7 @@ pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> 
     let req = syscalls::DeriveSrv {
         opcode: syscalls::Operation::DERIVE_SRV.val,
         dst_sel: dst.start(),
-        srv_sel: u64::from(srv),
+        srv_sel: srv,
         sessions: sessions as u64,
         event,
     };
@@ -295,9 +295,9 @@ pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> 
 pub fn get_sess(srv: Selector, vpe: Selector, dst: Selector, sid: Label) -> Result<(), Error> {
     let req = syscalls::GetSession {
         opcode: syscalls::Operation::GET_SESS.val,
-        dst_sel: u64::from(dst),
-        srv_sel: u64::from(srv),
-        vpe_sel: u64::from(vpe),
+        dst_sel: dst,
+        srv_sel: srv,
+        vpe_sel: vpe,
         sid: sid as u64,
     };
     send_receive_result(&req)
@@ -307,7 +307,7 @@ pub fn get_sess(srv: Selector, vpe: Selector, dst: Selector, sid: Label) -> Resu
 pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
     let req = syscalls::KMemQuota {
         opcode: syscalls::Operation::KMEM_QUOTA.val,
-        kmem_sel: u64::from(kmem),
+        kmem_sel: kmem,
     };
 
     let reply: Reply<syscalls::KMemQuotaReply> = send_receive(&req)?;
@@ -318,7 +318,7 @@ pub fn kmem_quota(kmem: Selector) -> Result<usize, Error> {
 pub fn pe_quota(pe: Selector) -> Result<u32, Error> {
     let req = syscalls::PEQuota {
         opcode: syscalls::Operation::PE_QUOTA.val,
-        pe_sel: u64::from(pe),
+        pe_sel: pe,
     };
 
     let reply: Reply<syscalls::PEQuotaReply> = send_receive(&req)?;
@@ -329,7 +329,7 @@ pub fn pe_quota(pe: Selector) -> Result<u32, Error> {
 pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Error> {
     let req = syscalls::VPECtrl {
         opcode: syscalls::Operation::VPE_CTRL.val,
-        vpe_sel: u64::from(vpe),
+        vpe_sel: vpe,
         op: op.val,
         arg,
     };
@@ -368,7 +368,7 @@ pub fn vpe_wait(vpes: &[Selector], event: u64) -> Result<(Selector, i32), Error>
 pub fn sem_ctrl(sem: Selector, op: syscalls::SemOp) -> Result<(), Error> {
     let req = syscalls::SemCtrl {
         opcode: syscalls::Operation::SEM_CTRL.val,
-        sem_sel: u64::from(sem),
+        sem_sel: sem,
         op: op.val,
     };
     send_receive_result(&req)
@@ -386,9 +386,9 @@ pub fn exchange(
 ) -> Result<(), Error> {
     let req = syscalls::Exchange {
         opcode: syscalls::Operation::EXCHANGE.val,
-        vpe_sel: u64::from(vpe),
+        vpe_sel: vpe,
         own_caps: own.raw(),
-        other_sel: u64::from(other),
+        other_sel: other,
         obtain: u64::from(obtain),
     };
     send_receive_result(&req)
@@ -448,8 +448,8 @@ where
 {
     let mut req = syscalls::ExchangeSess {
         opcode: op.val,
-        vpe_sel: u64::from(vpe),
-        sess_sel: u64::from(sess),
+        vpe_sel: vpe,
+        sess_sel: sess,
         caps: crd.raw(),
         args: syscalls::ExchangeArgs::default(),
     };
@@ -483,9 +483,9 @@ pub fn activate(
 ) -> Result<(), Error> {
     let req = syscalls::Activate {
         opcode: syscalls::Operation::ACTIVATE.val,
-        ep_sel: u64::from(ep),
-        gate_sel: u64::from(gate),
-        rbuf_mem: u64::from(rbuf_mem),
+        ep_sel: ep,
+        gate_sel: gate,
+        rbuf_mem,
         rbuf_off: rbuf_off as u64,
     };
     send_receive_result(&req)
@@ -498,7 +498,7 @@ pub fn activate(
 pub fn revoke(vpe: Selector, crd: CapRngDesc, own: bool) -> Result<(), Error> {
     let req = syscalls::Revoke {
         opcode: syscalls::Operation::REVOKE.val,
-        vpe_sel: u64::from(vpe),
+        vpe_sel: vpe,
         caps: crd.raw(),
         own: u64::from(own),
     };

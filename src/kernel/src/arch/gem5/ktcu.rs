@@ -154,6 +154,7 @@ pub fn read_obj<T>(pe: PEId, addr: goff) -> T {
 }
 
 pub fn try_read_obj<T>(pe: PEId, addr: goff) -> Result<T, Error> {
+    #[allow(clippy::uninit_assumed_init)]
     let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
     let obj_addr = &mut obj as *mut T as *mut u8;
     try_read_mem(pe, addr, obj_addr, util::size_of::<T>())?;

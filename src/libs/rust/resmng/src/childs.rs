@@ -776,10 +776,10 @@ impl ChildManager {
         // don't stop if we didn't have a child yet. this is necessary, because we use derive_srv
         // asynchronously and thus switch to a different thread while starting a subsystem. thus, if
         // the subsystem is the first child, we would stop without waiting without this workaround.
-        !self.flags.contains(Flags::STARTING) && self.len() == 0
+        !self.flags.contains(Flags::STARTING) && self.children() == 0
     }
 
-    pub fn len(&self) -> usize {
+    pub fn children(&self) -> usize {
         self.ids.len()
     }
 
@@ -858,7 +858,7 @@ impl ChildManager {
 
         // wait for the next
         let no_wait_childs = self.daemons() + self.foreigns();
-        if !self.flags.contains(Flags::SHUTDOWN) && self.len() == no_wait_childs {
+        if !self.flags.contains(Flags::SHUTDOWN) && self.children() == no_wait_childs {
             self.flags.set(Flags::SHUTDOWN, true);
             self.kill_daemons();
             services::get().shutdown();

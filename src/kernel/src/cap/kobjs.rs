@@ -826,11 +826,10 @@ impl MapObject {
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
         let pemux = pemng::get().pemux(vpe.pe_id());
-        pemux.map(vpe.id(), virt, glob, pages, flags).and_then(|_| {
+        pemux.map(vpe.id(), virt, glob, pages, flags).map(|_| {
             self.glob.replace(glob);
             self.flags.replace(flags);
             self.mapped.set(true);
-            Ok(())
         })
     }
 

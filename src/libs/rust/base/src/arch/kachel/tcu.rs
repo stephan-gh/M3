@@ -612,9 +612,9 @@ impl TCU {
     pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
         let off = EXT_REGS + UNPRIV_REGS + EP_REGS * ep;
         let addr = MMIO_ADDR + off * 8;
-        for i in 0..EP_REGS {
+        for (i, r) in regs.iter().enumerate() {
             unsafe {
-                arch::cpu::write8b(addr + i * util::size_of::<Reg>(), regs[i]);
+                arch::cpu::write8b(addr + i * util::size_of::<Reg>(), *r);
             }
         }
     }

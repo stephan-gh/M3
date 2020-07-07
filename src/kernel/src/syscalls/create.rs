@@ -22,7 +22,6 @@ use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm, INVALID_
 use base::mem::GlobAddr;
 use base::rc::Rc;
 use base::tcu;
-use core::intrinsics;
 
 use cap::{Capability, KObject, SelRange};
 use cap::{MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject};
@@ -199,7 +198,8 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     let dst_sel = req.dst_sel as CapSel;
     let rgate_sel = req.rgate_sel as CapSel;
     let creator = req.creator as usize;
-    let name: &str = unsafe { intrinsics::transmute(&req.name[0..req.namelen as usize]) };
+    let name = core::str::from_utf8(&req.name[0..req.namelen as usize])
+        .map_err(|_| SyscError::new(Code::InvArgs, "Invalid name".to_string()))?;
 
     sysc_log!(
         vpe,
@@ -213,7 +213,7 @@ pub fn create_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     if !vpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
-    if name.len() == 0 {
+    if name.is_empty() {
         sysc_err!(Code::InvArgs, "Invalid server name");
     }
 
@@ -285,7 +285,8 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     let pg_rg_sel = req.pg_rg_sel as CapSel;
     let pe_sel = req.pe_sel as CapSel;
     let kmem_sel = req.kmem_sel as CapSel;
-    let name: &str = unsafe { intrinsics::transmute(&req.name[0..req.namelen as usize]) };
+    let name = core::str::from_utf8(&req.name[0..req.namelen as usize])
+        .map_err(|_| SyscError::new(Code::InvArgs, "Invalid name".to_string()))?;
 
     sysc_log!(
         vpe,
@@ -301,7 +302,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     if !vpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
-    if name.len() == 0 {
+    if name.is_empty() {
         sysc_err!(Code::InvArgs, "Invalid name");
     }
 
@@ -376,10 +377,10 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
             // remember the activation
             let sep = EPObject::new(true, &nvpe, eps + tcu::PG_SEP_OFF, 0, pemux.pe());
-            EPObject::configure(&sep, &KObject::SGate(sg.clone()));
+            EPObject::configure(&sep, &KObject::SGate(sg));
             nvpe.add_ep(sep);
         }
-        if let Some(mut rg) = _rgate {
+        if let Some(rg) = _rgate {
             let rbuf = nvpe.rbuf_addr()
                 + cfg::SYSC_RBUF_SIZE as goff
                 + cfg::UPCALL_RBUF_SIZE as goff
@@ -387,12 +388,12 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
             rg.activate(nvpe.pe_id(), eps + tcu::PG_REP_OFF, rbuf);
 
             pemux
-                .config_rcv_ep(eps + tcu::PG_REP_OFF, nvpe.id(), None, &mut rg)
+                .config_rcv_ep(eps + tcu::PG_REP_OFF, nvpe.id(), None, &rg)
                 .unwrap();
 
             // remember the activation
             let rep = EPObject::new(true, &nvpe, eps + tcu::PG_REP_OFF, 0, pemux.pe());
-            EPObject::configure(&rep, &KObject::RGate(rg.clone()));
+            EPObject::configure(&rep, &KObject::RGate(rg));
             nvpe.add_ep(rep);
         }
     }
@@ -514,7 +515,7 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // create map cap, if not yet existing
     if !exists {
-        let cap = Capability::new_range(SelRange::new_range(dst_sel, pages), map_obj.clone());
+        let cap = Capability::new_range(SelRange::new_range(dst_sel, pages), map_obj);
         try_kmem_quota!(dst_vpe.map_caps().borrow_mut().insert_as_child_from(
             cap,
             vpe.obj_caps().borrow_mut(),

@@ -74,14 +74,16 @@ unsafe fn as_shared<T>(obj: &mut T) -> NonNull<T> {
     NonNull::from(Unique::new_unchecked(obj as *mut T))
 }
 
-impl CapTable {
-    pub fn new() -> Self {
-        CapTable {
+impl Default for CapTable {
+    fn default() -> Self {
+        Self {
             caps: Treap::new(),
             vpe: None,
         }
     }
+}
 
+impl CapTable {
     fn vpe(&self) -> &VPE {
         unsafe { &(*self.vpe.unwrap().as_ptr()) }
     }
@@ -101,7 +103,7 @@ impl CapTable {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     pub fn get(&self, sel: CapSel) -> Option<&Capability> {
@@ -194,7 +196,7 @@ impl CapTable {
         unsafe {
             cap.table = Some(as_shared(self));
         }
-        self.caps.insert(cap.sel_range().clone(), cap)
+        self.caps.insert(*cap.sel_range(), cap)
     }
 
     pub fn revoke(&mut self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
@@ -207,9 +209,9 @@ impl CapTable {
                 if own {
                     cap.revoke(false, false);
                 }
-                else {
+                else if let Some(child) = cap.child {
                     unsafe {
-                        cap.child.map(|child| (*child.as_ptr()).revoke(true, true));
+                        (*child.as_ptr()).revoke(true, true);
                     }
                 }
             }
@@ -421,7 +423,8 @@ impl Capability {
         let vpe = self.vpe();
         if !self.derived {
             // if it's not derived, we created the cap and thus will also free the kobject
-            vpe.kmem().free(&vpe, self.sel(), Capability::size() + self.obj.size());
+            vpe.kmem()
+                .free(&vpe, self.sel(), Capability::size() + self.obj.size());
         }
         else {
             // give quota for cap back in every case
@@ -444,9 +447,9 @@ impl Capability {
 
             KObject::PE(ref mut pe) => {
                 if let Some(parent) = self.parent {
-                    match unsafe { (*parent.as_ptr()).get() } {
-                        KObject::PE(p) => pe.revoke(p),
-                        _ => {},
+                    let parent = unsafe { &(*parent.as_ptr()) };
+                    if let KObject::PE(p) = parent.get() {
+                        pe.revoke(p);
                     }
                 }
             },
@@ -454,9 +457,8 @@ impl Capability {
             KObject::KMem(ref k) => {
                 if let Some(parent) = self.parent {
                     let parent = unsafe { &(*parent.as_ptr()) };
-                    match parent.get() {
-                        KObject::KMem(p) => k.revoke(parent.vpe(), parent.sel(), p),
-                        _ => {},
+                    if let KObject::KMem(p) = parent.get() {
+                        k.revoke(parent.vpe(), parent.sel(), p);
                     }
                 }
             },

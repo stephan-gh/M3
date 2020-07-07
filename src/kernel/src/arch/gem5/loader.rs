@@ -92,7 +92,9 @@ impl Loader {
         }
 
         let entry: usize = {
-            let (app, first) = self.get_mod("root").ok_or(Error::new(Code::NoSuchFile))?;
+            let (app, first) = self
+                .get_mod("root")
+                .ok_or_else(|| Error::new(Code::NoSuchFile))?;
             klog!(VPES, "Loading mod '{}':", app.name());
             self.load_mod(vpe, app, !first)?
         };
@@ -178,10 +180,10 @@ impl Loader {
         let mod_addr = GlobAddr::new(bm.addr);
         let hdr: elf::Ehdr = Self::read_from_mod(bm, 0)?;
 
-        if hdr.ident[0] != '\x7F' as u8
-            || hdr.ident[1] != 'E' as u8
-            || hdr.ident[2] != 'L' as u8
-            || hdr.ident[3] != 'F' as u8
+        if hdr.ident[0] != b'\x7F'
+            || hdr.ident[1] != b'E'
+            || hdr.ident[2] != b'L'
+            || hdr.ident[3] != b'F'
         {
             return Err(Error::new(Code::InvalidElf));
         }
@@ -277,7 +279,7 @@ impl Loader {
             argbuf.extend_from_slice(arg);
 
             // 0-terminate it
-            argbuf.push('\0' as u8);
+            argbuf.push(b'\0');
 
             argoff += arg.len() + 1;
         }

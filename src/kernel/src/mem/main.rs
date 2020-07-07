@@ -130,14 +130,14 @@ impl MainMemory {
 
 impl fmt::Debug for MainMemory {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "size: {} MiB, available: {} MiB, mods: [\n",
+            "size: {} MiB, available: {} MiB, mods: [",
             self.capacity() / (1024 * 1024),
             self.available() / (1024 * 1024)
         )?;
         for m in &self.mods {
-            write!(f, "  {:?}\n", m)?;
+            writeln!(f, "  {:?}", m)?;
         }
         write!(f, "]")
     }

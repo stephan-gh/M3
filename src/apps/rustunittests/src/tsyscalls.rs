@@ -619,7 +619,7 @@ fn get_sess() {
 
     // dummy VPE that should receive the session
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
-    let vpe = wv_assert_ok!(VPE::new(pe.clone(), "test"));
+    let vpe = wv_assert_ok!(VPE::new(pe, "test"));
 
     // invalid service selector
     wv_assert_err!(

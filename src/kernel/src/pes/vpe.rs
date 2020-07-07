@@ -95,8 +95,8 @@ impl VPE {
             pid: Cell::from(None),
             exit_code: Cell::from(None),
             first_sel: Cell::from(kif::FIRST_FREE_SEL),
-            obj_caps: RefCell::from(CapTable::new()),
-            map_caps: RefCell::from(CapTable::new()),
+            obj_caps: RefCell::from(CapTable::default()),
+            map_caps: RefCell::from(CapTable::default()),
             eps: RefCell::from(Vec::new()),
             rbuf_phys: Cell::from(0),
             upcalls: RefCell::from(SendQueue::new(id as u64, pe.pe())),
@@ -426,17 +426,15 @@ impl VPE {
         if is_self {
             self.exit_app(exit_code, false);
         }
-        else {
-            if self.state.get() == State::RUNNING {
+        else if self.state.get() == State::RUNNING {
                 // devices always exit successfully
                 let exit_code = if self.pe_desc().is_device() { 0 } else { 1 };
                 self.exit_app(exit_code, true);
-            }
-            else {
-                self.state.set(State::DEAD);
-                vpemng::get().stop_vpe(self, true, true).unwrap();
-                ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
-            }
+        }
+        else {
+            self.state.set(State::DEAD);
+            vpemng::get().stop_vpe(self, true, true).unwrap();
+            ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
         }
     }
 

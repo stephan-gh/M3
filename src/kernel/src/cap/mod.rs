@@ -14,8 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-mod cap;
+mod caps;
 mod kobjs;
 
-pub use self::cap::*;
+pub use self::caps::*;
 pub use self::kobjs::*;

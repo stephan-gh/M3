@@ -133,7 +133,7 @@ pub fn exchange_over_sess(
         sess: sess.ident(),
         data: service::ExchangeData {
             caps: crd.raw(),
-            args: req.args.clone(),
+            args: req.args,
         },
     };
 
@@ -175,7 +175,7 @@ pub fn exchange_over_sess(
 
     let kreply = syscalls::ExchangeSessReply {
         error: 0,
-        args: reply.data.args.clone(),
+        args: reply.data.args,
     };
     send_reply(msg, &kreply);
 

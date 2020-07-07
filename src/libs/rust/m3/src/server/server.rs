@@ -227,7 +227,7 @@ impl Server {
             Ok((sel, ident)) => {
                 let reply = service::OpenReply {
                     res: 0,
-                    sess: u64::from(sel),
+                    sess: sel,
                     ident: ident as u64,
                 };
                 is.reply(&[reply])

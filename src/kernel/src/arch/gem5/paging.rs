@@ -175,5 +175,5 @@ extern "C" fn kernel_oom_callback(size: usize) -> bool {
 
     // append to heap
     heap::append(pages);
-    return true;
+    true
 }

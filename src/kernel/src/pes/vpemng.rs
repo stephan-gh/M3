@@ -65,7 +65,7 @@ impl VPEMng {
     }
 
     pub fn vpe(&self, id: VPEId) -> Option<Rc<VPE>> {
-        self.vpes[id].as_ref().map(|v| v.clone())
+        self.vpes[id].as_ref().cloned()
     }
 
     fn get_id(&mut self) -> Result<usize, Error> {

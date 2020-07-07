@@ -172,8 +172,6 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // everything worked, send the reply
     reply_success(msg);
-    drop(req);
-    drop(msg);
 
     let label = srvcap.creator() as tcu::Label;
     klog!(
@@ -209,7 +207,7 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
                 creator
             );
 
-            if let Ok(_) = res {
+            if res.is_ok() {
                 // obtain SendGate from server (do that first because it can fail)
                 let serv_vpe = srvcap.service().vpe();
                 let mut serv_caps = serv_vpe.obj_caps().borrow_mut();

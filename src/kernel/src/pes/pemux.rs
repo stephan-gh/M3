@@ -68,7 +68,7 @@ impl PEMux {
     }
 
     pub fn rem_vpe(&mut self, vpe: VPEId) {
-        assert!(self.vpes.len() > 0);
+        assert!(!self.vpes.is_empty());
         self.vpes.retain(|id| *id != vpe);
     }
 

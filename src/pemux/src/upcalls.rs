@@ -153,7 +153,9 @@ fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
 
     // we know that this VPE is not currently running, because we changed the current VPE to ourself
     // in check() below.
-    vpe::get_mut(vpe_id).map(|v| v.rem_msgs(unread.count_ones() as u16));
+    if let Some(vpe) = vpe::get_mut(vpe_id) {
+        vpe.rem_msgs(unread.count_ones() as u16);
+    }
 
     Ok(())
 }
@@ -172,7 +174,9 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     );
 
     // just unblock the VPE in case it wants to do something on invalidated EPs
-    vpe::get_mut(vpe_id).map(|v| v.unblock(None, false));
+    if let Some(vpe) = vpe::get_mut(vpe_id) {
+        vpe.unblock(None, false);
+    }
 
     Ok(())
 }

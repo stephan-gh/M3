@@ -105,8 +105,8 @@ impl CreateSrv {
         #[allow(clippy::uninit_assumed_init)]
         let mut msg = Self {
             opcode: Operation::CREATE_SRV.val,
-            dst_sel: u64::from(dst),
-            rgate_sel: u64::from(rgate),
+            dst_sel: dst,
+            rgate_sel: rgate,
             creator: u64::from(creator),
             namelen: name.len() as u64,
             // safety: will be initialized below
@@ -200,11 +200,11 @@ impl CreateVPE {
         #[allow(clippy::uninit_assumed_init)]
         let mut msg = Self {
             opcode: Operation::CREATE_VPE.val,
-            dst_sel: u64::from(dst),
-            pg_sg_sel: u64::from(pg_sg),
-            pg_rg_sel: u64::from(pg_rg),
-            pe_sel: u64::from(pe),
-            kmem_sel: u64::from(kmem),
+            dst_sel: dst,
+            pg_sg_sel: pg_sg,
+            pg_rg_sel: pg_rg,
+            pe_sel: pe,
+            kmem_sel: kmem,
             namelen: name.len() as u64,
             // safety: will be initialized below
             name: unsafe { MaybeUninit::uninit().assume_init() },
@@ -299,7 +299,7 @@ impl VPEWait {
             sels: unsafe { MaybeUninit::uninit().assume_init() },
         };
         for (i, sel) in vpes.iter().enumerate() {
-            msg.sels[i] = u64::from(*sel);
+            msg.sels[i] = *sel;
         }
         msg
     }

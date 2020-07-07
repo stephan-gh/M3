@@ -208,11 +208,7 @@ fn parse_app(p: &mut ConfigParser, start: usize) -> Result<config::AppConfig, Er
             collect_sess_crts(&app, &mut crts);
 
             for c in crts {
-                let duplicate = app
-                    .sesscrt
-                    .iter()
-                    .find(|sc| sc.serv_name() == c.serv_name())
-                    .is_some();
+                let duplicate = app.sesscrt.iter().any(|sc| sc.serv_name() == c.serv_name());
                 if !duplicate && !hosts_service(&app, c.serv_name()) {
                     app.sesscrt.push(c);
                 }
@@ -277,7 +273,7 @@ fn parse_mount(p: &mut ConfigParser) -> Result<config::MountDesc, Error> {
             Some((n, v)) => match n.as_ref() {
                 "fs" => fs = v.clone(),
                 "path" => {
-                    if v.ends_with("/") {
+                    if v.ends_with('/') {
                         path = v.clone();
                     }
                     else {
