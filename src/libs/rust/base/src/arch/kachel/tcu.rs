@@ -208,10 +208,8 @@ int_enum! {
         const IDLE        = 0;
         /// Invalidate and endpoint, if possible
         const INV_EP      = 1;
-        /// Invalidate replies from a given sender
-        const INV_REPLY   = 2;
         /// Reset the CU
-        const RESET       = 3;
+        const RESET       = 2;
     }
 }
 
