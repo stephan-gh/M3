@@ -73,6 +73,12 @@ static void test_mem_short() {
         ASSERT_EQ(kernel::TCU::read(3, &data_ctrl, sizeof(data), 4), Errors::NONE);
         ASSERT_EQ(data, data_ctrl);
     }
+
+    // test 0-byte transfers
+    {
+        ASSERT_EQ(kernel::TCU::write(3, nullptr, 0, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(3, nullptr, 0, 0), Errors::NONE);
+    }
 }
 
 
