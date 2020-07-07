@@ -549,7 +549,7 @@ impl VPE {
             ep
         );
 
-        if self.should_unblock(ep) {
+        if self.user_state_addr != 0 && self.should_unblock(ep) {
             if self.state == VPEState::Blocked {
                 let mut vpe = BLK.get_mut().remove_if(|v| v.id() == self.id()).unwrap();
                 if !timer && vpe.sleeping {
