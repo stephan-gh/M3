@@ -147,6 +147,44 @@ static void test_msg_short() {
         ASSERT_EQ(kernel::TCU::ack_msg(1, buf1, rmsg), Errors::NONE);
     }
 
+    // send empty message and reply empty message
+    {
+        ASSERT_EQ(kernel::TCU::credits(0), 2);
+        ASSERT_EQ(kernel::TCU::send(0, nullptr, 0, 0x1111, 2), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::credits(0), 1);
+
+        // fetch message
+        const TCU::Message *rmsg;
+        while((rmsg = kernel::TCU::fetch_msg(1, buf1)) == nullptr)
+            ;
+        // validate contents
+        ASSERT_EQ(rmsg->label, 0x1234);
+        ASSERT_EQ(rmsg->replylabel, 0x1111);
+        ASSERT_EQ(rmsg->length, 0);
+        ASSERT_EQ(rmsg->senderEp, 0);
+        ASSERT_EQ(rmsg->replySize, 6);
+        ASSERT_EQ(rmsg->replyEp, 2);
+        ASSERT_EQ(rmsg->senderPe, pe_id(PE::PE0));
+        ASSERT_EQ(rmsg->flags, 0);
+
+        // send empty reply
+        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::NONE);
+
+        // fetch reply
+        while((rmsg = kernel::TCU::fetch_msg(2, buf2)) == nullptr)
+            ;
+        // validate contents
+        ASSERT_EQ(rmsg->label, 0x1111);
+        ASSERT_EQ(rmsg->length, 0);
+        ASSERT_EQ(rmsg->senderEp, 1);
+        ASSERT_EQ(rmsg->replySize, 0);
+        ASSERT_EQ(rmsg->replyEp, 0);
+        ASSERT_EQ(rmsg->senderPe, pe_id(PE::PE0));
+        ASSERT_EQ(rmsg->flags, TCU::Header::FL_REPLY);
+        // free slot
+        ASSERT_EQ(kernel::TCU::ack_msg(2, buf2, rmsg), Errors::NONE);
+    }
+
     // send without reply
     {
         ASSERT_EQ(kernel::TCU::credits(0), 2);
