@@ -286,7 +286,7 @@ pub fn derive_srv(srv: Selector, dst: CapRngDesc, sessions: u32, event: u64) -> 
         dst_sel: dst.start(),
         srv_sel: u64::from(srv),
         sessions: sessions as u64,
-        event: event,
+        event,
     };
     send_receive_result(&req)
 }

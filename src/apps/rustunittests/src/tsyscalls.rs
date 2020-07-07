@@ -353,7 +353,10 @@ fn alloc_ep() {
         }
 
         let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
-        wv_assert_err!(syscalls::activate(sel, mgate.sel(), INVALID_SEL, 0), Code::InvArgs);
+        wv_assert_err!(
+            syscalls::activate(sel, mgate.sel(), INVALID_SEL, 0),
+            Code::InvArgs
+        );
     }
 
     // invalid dest selector
@@ -592,7 +595,12 @@ fn derive_srv() {
     wv_assert_err!(syscalls::derive_srv(SEL_KMEM, crd, 1, 0), Code::InvArgs);
     // invalid dest selector
     wv_assert_err!(
-        syscalls::derive_srv(srv.sel(), CapRngDesc::new(CapType::OBJECT, SEL_KMEM, 2), 1, 0),
+        syscalls::derive_srv(
+            srv.sel(),
+            CapRngDesc::new(CapType::OBJECT, SEL_KMEM, 2),
+            1,
+            0
+        ),
         Code::InvArgs
     );
     // invalid session count

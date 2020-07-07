@@ -16,7 +16,7 @@
 
 use base::errors::{Code, Error};
 use base::pexif;
-use base::tcu::{TCU, EpId, INVALID_EP};
+use base::tcu::{EpId, INVALID_EP, TCU};
 
 use arch;
 use timer::Nanos;

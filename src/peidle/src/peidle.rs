@@ -19,8 +19,8 @@
 
 extern crate base;
 
-use base::machine;
 use base::envdata;
+use base::machine;
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
@@ -39,7 +39,9 @@ pub extern "C" fn env_run() {
             base::tcu::TCU::sleep().ok();
         }
         else {
-            unsafe { llvm_asm!("nop"); }
+            unsafe {
+                llvm_asm!("nop");
+            }
         }
     }
 }

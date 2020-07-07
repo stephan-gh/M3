@@ -163,7 +163,13 @@ extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut lib
         SLAB_ALL.get_mut()
     };
     let res = unsafe { slab.alloc(size) };
-    klog!(SLAB, "alloc(sz={}, s={:?}) -> {:#x}", size, slab.size, res as usize);
+    klog!(
+        SLAB,
+        "alloc(sz={}, s={:?}) -> {:#x}",
+        size,
+        slab.size,
+        res as usize
+    );
     res
 }
 
@@ -193,6 +199,12 @@ unsafe extern "C" fn __rdl_realloc(
 #[no_mangle]
 extern "C" fn __rdl_alloc_zeroed(size: usize, _align: usize, _err: *mut u8) -> *mut libc::c_void {
     let res = unsafe { SLAB_ALL.get_mut().calloc(size) };
-    klog!(SLAB, "calloc(sz={}, s={:?}) -> {:#x}", size, SLAB_ALL.size, res as usize);
+    klog!(
+        SLAB,
+        "calloc(sz={}, s={:?}) -> {:#x}",
+        size,
+        SLAB_ALL.size,
+        res as usize
+    );
     res
 }

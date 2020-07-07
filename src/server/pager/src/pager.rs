@@ -31,8 +31,8 @@ mod regions;
 
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
-use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
 use m3::col::{String, ToString, Vec};
+use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math;
@@ -41,7 +41,7 @@ use m3::serialize::{Sink, Source};
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };
-use m3::session::{ClientSession, M3FS, Pager, PagerOp, ResMng};
+use m3::session::{ClientSession, Pager, PagerOp, ResMng, M3FS};
 use m3::tcu::Label;
 use m3::vfs;
 
@@ -252,7 +252,10 @@ pub fn main() -> i32 {
     if vfs::VFS::stat("/").is_err() {
         vfs::VFS::mount("/", "m3fs", "m3fs").expect("Unable to mount root filesystem");
     }
-    MOUNTS.get_mut().push(("m3fs".to_string(), VPE::cur().mounts().get_by_path("/").unwrap()));
+    MOUNTS.get_mut().push((
+        "m3fs".to_string(),
+        VPE::cur().mounts().get_by_path("/").unwrap(),
+    ));
 
     // create server
     PGHDL.set(PagerReqHandler {
