@@ -434,7 +434,7 @@ impl VPE {
             }
             else {
                 self.state.set(State::DEAD);
-                vpemng::get().stop_vpe(self, false, true).unwrap();
+                vpemng::get().stop_vpe(self, true, true).unwrap();
                 ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
             }
         }
@@ -500,6 +500,7 @@ impl VPE {
 
 impl Drop for VPE {
     fn drop(&mut self) {
+        let called_stop = self.state() == State::DEAD;
         self.state.set(State::DEAD);
 
         // free standard EPs
@@ -512,9 +513,7 @@ impl Drop for VPE {
 
         self.revoke_caps();
 
-        if !platform::pe_desc(self.pe_id()).is_programmable() {
-            ktcu::reset_pe(self.pe_id(), 0).unwrap();
-        }
+        vpemng::get().stop_vpe(self, !called_stop, true).unwrap();
 
         klog!(
             VPES,
