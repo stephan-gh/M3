@@ -293,19 +293,6 @@ impl Capability {
         self.parent.is_some()
     }
 
-    pub fn inherit(&mut self, child: &mut Capability) {
-        unsafe {
-            child.parent = Some(as_shared(self));
-            child.child = None;
-            child.next = self.child;
-            child.prev = None;
-            if let Some(n) = child.next {
-                (*n.as_ptr()).prev = Some(as_shared(child));
-            }
-            self.child = Some(as_shared(child));
-        }
-    }
-
     pub fn get_root(&mut self) -> &mut Capability {
         if let Some(mut cap) = self.parent {
             unsafe {
@@ -334,6 +321,19 @@ impl Capability {
             }
         }
         None
+    }
+
+    fn inherit(&mut self, child: &mut Capability) {
+        unsafe {
+            child.parent = Some(as_shared(self));
+            child.child = None;
+            child.next = self.child;
+            child.prev = None;
+            if let Some(n) = child.next {
+                (*n.as_ptr()).prev = Some(as_shared(child));
+            }
+            self.child = Some(as_shared(child));
+        }
     }
 
     fn revoke(&mut self, rev_next: bool, foreign: bool) {
