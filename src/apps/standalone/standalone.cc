@@ -104,8 +104,8 @@ static void test_mem(size_t size_in) {
 
 
 static void test_msg_short() {
-    char buffer[2 * 64];
-    char buffer2[2 * 64];
+    ALIGNED(8) char buffer[2 * 64];
+    ALIGNED(8) char buffer2[2 * 64];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&buffer);
     uintptr_t buf2 = reinterpret_cast<uintptr_t>(&buffer2);
 
@@ -334,8 +334,8 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
     const size_t TOTAL_MSG_SIZE = msg_size_in * sizeof(DATA) + sizeof(TCU::Header);
     const size_t TOTAL_REPLY_SIZE = reply_size_in * sizeof(DATA) + sizeof(TCU::Header);
 
-    char rbuffer[2 * TOTAL_MSG_SIZE];
-    char rbuffer2[2 * TOTAL_REPLY_SIZE];
+    ALIGNED(8) char rbuffer[2 * TOTAL_MSG_SIZE];
+    ALIGNED(8) char rbuffer2[2 * TOTAL_REPLY_SIZE];
     uintptr_t buf1 = reinterpret_cast<uintptr_t>(&rbuffer);
     uintptr_t buf2 = reinterpret_cast<uintptr_t>(&rbuffer2);
 
