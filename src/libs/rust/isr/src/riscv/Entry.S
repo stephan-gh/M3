@@ -16,6 +16,12 @@
 
 #include <base/Asm.h>
 
+#if defined(__hw__)
+#   define MODE_REG(name)   m ## name
+#else
+#   define MODE_REG(name)   s ## name
+#endif
+
 .extern isr_handler
 .extern isr_stack
 
@@ -25,17 +31,23 @@ BEGIN_FUNC(isr_setup)
     // set address to save the state on interrupts to
     csrw    sscratch, a0
 
+#if defined(__gem5__)
     // delegate all interrupts and exceptions to supervisor mode
     li      t1, 0x333
     csrw    mideleg, t1
     li      t0, -1
     csrw    medeleg, t0
+#endif
 
     // unmask interrupts
     csrs    sie, t1
 
     // return to supervisor mode
+#if defined(__gem5__)
     li      t1, 1 << 11     # MPP = S
+#else
+    li      t1, 3 << 11     # MPP = M
+#endif
     csrs    mstatus, t1
 
     // jump to 1:
@@ -45,6 +57,7 @@ BEGIN_FUNC(isr_setup)
     // set vector address
     la      t0, isr_common
     csrw    stvec, t0       # STVEC = isr_common
+    csrw    mtvec, t0       # MTVEC = isr_common
 
     // go!
     mret
@@ -99,13 +112,13 @@ BEGIN_FUNC(isr_common)
     sd      x31, 8*30(a0)
 
     # save SCAUSE
-    csrr    s1, scause
+    csrr    s1, MODE_REG(cause)
     sd      s1, 8*31(a0)
     # save SEPC
-    csrr    s1, sepc
+    csrr    s1, MODE_REG(epc)
     sd      s1, 8*32(a0)
     # save SSTATUS
-    csrr    s1, sstatus
+    csrr    s1, MODE_REG(status)
     sd      s1, 8*33(a0)
 
     # start with a new stack
