@@ -122,6 +122,7 @@ static void test_msg_short() {
     kernel::TCU::config_recv(7, buf2, 6 /* 64 */, 6 /* 64 */, 8,
                              1 /* make msg 0 (EP 8) occupied */, 0);
     kernel::TCU::config_send(8, 0x5678, pe_id(PE::PE0), 1, 4 /* 16 */, 1);
+    kernel::TCU::config_send(9, 0x5678, pe_id(PE::PE0), 10 /* invalid REP */, 4 /* 16 */, 1);
 
     // test errors
     {
@@ -138,6 +139,9 @@ static void test_msg_short() {
         // replying with a normal send EP is not allowed
         const TCU::Message *rmsg = reinterpret_cast<const TCU::Message*>(buf2);
         ASSERT_EQ(kernel::TCU::reply(7, nullptr, 0, buf2, rmsg), Errors::SEND_REPLY_EP);
+
+        // receive EP invalid
+        ASSERT_EQ(kernel::TCU::send(9, nullptr, 0, 0x1111, 2), Errors::RECV_GONE);
     }
 
     // send empty message
