@@ -40,7 +40,7 @@ const STACK_SIZE: usize = 16 * 1024;
 
 #[cfg(target_arch = "x86_64")]
 #[derive(Default)]
-#[repr(C, packed)]
+#[repr(C, align(8))]
 pub struct Regs {
     rbx: u64,
     rsp: u64,
@@ -55,7 +55,7 @@ pub struct Regs {
 
 #[cfg(target_arch = "arm")]
 #[derive(Default)]
-#[repr(C, packed)]
+#[repr(C, align(4))]
 pub struct Regs {
     r0: u32,
     r4: u32,
@@ -73,7 +73,7 @@ pub struct Regs {
 
 #[cfg(target_arch = "riscv64")]
 #[derive(Default)]
-#[repr(C, packed)]
+#[repr(C, align(8))]
 pub struct Regs {
     a0: u64,
     ra: u64,
