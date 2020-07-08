@@ -124,6 +124,9 @@ static void test_msg_short() {
     kernel::TCU::config_send(8, 0x5678, pe_id(PE::PE0), 1, 4 /* 16 */, 1);
     kernel::TCU::config_send(9, 0x5678, pe_id(PE::PE0), 10 /* invalid REP */, 4 /* 16 */, 1);
 
+    kernel::TCU::config_recv(11, buf2 + 1 /* misaligned */, 6 /* 64 */, 6 /* 64 */, TCU::NO_REPLIES);
+    kernel::TCU::config_send(12, 0x5678, pe_id(PE::PE0), 11, 4 /* 16 */, 1);
+
     // test errors
     {
         // not a send EP
@@ -142,6 +145,8 @@ static void test_msg_short() {
 
         // receive EP invalid
         ASSERT_EQ(kernel::TCU::send(9, nullptr, 0, 0x1111, 2), Errors::RECV_GONE);
+        // receive buffer misaligned
+        ASSERT_EQ(kernel::TCU::send(12, nullptr, 0, 0x1111, 2), Errors::RECV_MISALIGN);
     }
 
     // send empty message
