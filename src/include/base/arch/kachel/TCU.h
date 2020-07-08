@@ -68,7 +68,7 @@ public:
 
 private:
     static const size_t EXT_REGS            = 2;
-    static const size_t PRIV_REGS           = 6;
+    static const size_t PRIV_REGS           = 5;
     static const size_t UNPRIV_REGS         = 5;
     static const size_t EP_REGS             = 3;
 
@@ -85,8 +85,7 @@ private:
         PRIV_CMD            = 1,
         PRIV_CMD_ARG        = 2,
         CUR_VPE             = 3,
-        OLD_VPE             = 4,
-        CLEAR_IRQ           = 5,
+        CLEAR_IRQ           = 4,
     };
 
     enum class UnprivRegs {

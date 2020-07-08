@@ -119,10 +119,8 @@ int_enum! {
         const PRIV_CMD_ARG  = 0x2;
         /// The current VPE
         const CUR_VPE       = 0x3;
-        /// The old VPE (only set by XCHG_VPE command)
-        const OLD_VPE       = 0x4;
         /// Used to ack IRQ requests
-        const CLEAR_IRQ     = 0x5;
+        const CLEAR_IRQ     = 0x4;
     }
 }
 
@@ -519,7 +517,7 @@ impl TCU {
     pub fn xchg_vpe(nvpe: Reg) -> Reg {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 4));
         unsafe { intrinsics::atomic_fence() };
-        Self::read_priv_reg(PrivReg::OLD_VPE)
+        Self::read_priv_reg(PrivReg::PRIV_CMD_ARG)
     }
 
     /// Invalidates the TCU's TLB
