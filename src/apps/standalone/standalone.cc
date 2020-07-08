@@ -147,6 +147,9 @@ static void test_msg_short() {
         ASSERT_EQ(kernel::TCU::send(9, nullptr, 0, 0x1111, 2), Errors::RECV_GONE);
         // receive buffer misaligned
         ASSERT_EQ(kernel::TCU::send(12, nullptr, 0, 0x1111, 2), Errors::RECV_MISALIGN);
+
+        // no replies allowed for this receive EP
+        ASSERT_EQ(kernel::TCU::reply(2, nullptr, 0, buf2, rmsg), Errors::REPLIES_DISABLED);
     }
 
     // send empty message
