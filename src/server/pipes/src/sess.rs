@@ -551,7 +551,9 @@ impl Channel {
         }
 
         // remove client
-        state.reader.remove_item(&(self.id as usize));
+        let pos = state.reader.iter().position(|x| *x == self.id).unwrap();
+        state.reader.remove(pos);
+
         let rd_left = state.reader.len();
         if rd_left > 0 {
             log!(
@@ -590,7 +592,9 @@ impl Channel {
         }
 
         // remove client
-        state.writer.remove_item(&(self.id as usize));
+        let pos = state.writer.iter().position(|x| *x == self.id).unwrap();
+        state.writer.remove(pos);
+
         let wr_left = state.writer.len();
         if wr_left > 0 {
             log!(

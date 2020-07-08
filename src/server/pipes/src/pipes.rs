@@ -15,7 +15,6 @@
  */
 
 #![no_std]
-#![feature(vec_remove_item)]
 
 #[macro_use]
 extern crate m3;
