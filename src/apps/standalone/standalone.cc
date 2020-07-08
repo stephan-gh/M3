@@ -150,6 +150,11 @@ static void test_msg_short() {
 
         // no replies allowed for this receive EP
         ASSERT_EQ(kernel::TCU::reply(2, nullptr, 0, buf2, rmsg), Errors::REPLIES_DISABLED);
+        // reply on message that's out of bounds
+        rmsg = reinterpret_cast<const TCU::Message*>(buf1 + (1 << 6) * 2);
+        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::INV_MSG_OFF);
+        // ack message that's out of bounds
+        ASSERT_EQ(kernel::TCU::ack_msg(1, buf1, rmsg), Errors::INV_MSG_OFF);
     }
 
     // send empty message
