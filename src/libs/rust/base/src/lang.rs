@@ -79,28 +79,6 @@ pub extern "C" fn _Unwind_Resume() -> ! {
 #[cfg(target_arch = "arm")]
 #[no_mangle]
 #[doc(hidden)]
-pub extern "C" fn __sync_synchronize() {
-    // TODO memory barrier
-    // unsafe { llvm_asm!("dmb"); }
-}
-
-macro_rules! def_cmpswap {
-    ($name:ident, $type:ty) => {
-        #[no_mangle]
-        #[doc(hidden)]
-        pub unsafe extern "C" fn $name(ptr: *mut $type, oldval: $type, newval: $type) -> $type {
-            let old = *ptr;
-            if old == oldval {
-                *ptr = newval
-            }
-            return old;
-        }
-    };
-}
-
-#[cfg(target_arch = "arm")]
-#[no_mangle]
-#[doc(hidden)]
 pub unsafe extern "C" fn __aeabi_memclr(dest: *mut crate::libc::c_void, size: usize) {
     crate::libc::memzero(dest, size);
 }
@@ -111,59 +89,3 @@ pub unsafe extern "C" fn __aeabi_memclr(dest: *mut crate::libc::c_void, size: us
 pub unsafe extern "C" fn __aeabi_memclr4(dest: *mut crate::libc::c_void, size: usize) {
     crate::libc::memzero(dest, size);
 }
-
-def_cmpswap!(__sync_val_compare_and_swap_1, u8);
-def_cmpswap!(__sync_val_compare_and_swap_2, u16);
-def_cmpswap!(__sync_val_compare_and_swap_4, u32);
-def_cmpswap!(__sync_val_compare_and_swap_8, u64);
-def_cmpswap!(__sync_val_compare_and_swap_16, u128);
-
-macro_rules! def_testnset {
-    ($name:ident, $type:ty) => {
-        #[no_mangle]
-        #[doc(hidden)]
-        pub unsafe extern "C" fn $name(ptr: *mut $type, val: $type) -> $type {
-            let old = *ptr;
-            *ptr = val;
-            return old;
-        }
-    };
-}
-
-def_testnset!(__sync_lock_test_and_set_1, u8);
-def_testnset!(__sync_lock_test_and_set_2, u16);
-def_testnset!(__sync_lock_test_and_set_4, u32);
-def_testnset!(__sync_lock_test_and_set_8, u64);
-def_testnset!(__sync_lock_test_and_set_16, u128);
-
-macro_rules! def_atomic_load {
-    ($name:ident, $type:ty) => {
-        #[cfg(target_arch = "riscv64")]
-        #[no_mangle]
-        #[doc(hidden)]
-        pub unsafe extern "C" fn $name(ptr: *const $type, _model: i32) -> $type {
-            return *ptr;
-        }
-    };
-}
-
-macro_rules! def_atomic_store {
-    ($name:ident, $type:ty) => {
-        #[cfg(target_arch = "riscv64")]
-        #[no_mangle]
-        #[doc(hidden)]
-        pub unsafe extern "C" fn $name(ptr: *mut $type, val: $type, _model: i32) {
-            *ptr = val;
-        }
-    };
-}
-
-def_atomic_load!(__atomic_load_1, u8);
-def_atomic_load!(__atomic_load_2, u16);
-def_atomic_load!(__atomic_load_4, u32);
-def_atomic_load!(__atomic_load_8, u64);
-
-def_atomic_store!(__atomic_store_1, u8);
-def_atomic_store!(__atomic_store_2, u16);
-def_atomic_store!(__atomic_store_4, u32);
-def_atomic_store!(__atomic_store_8, u64);
