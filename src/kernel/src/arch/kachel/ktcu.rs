@@ -189,6 +189,7 @@ pub fn try_read_mem(pe: PEId, addr: goff, data: *mut u8, size: usize) -> Result<
     ktcu::config_local_ep(ktcu::KTMP_EP, |regs| {
         config_mem(regs, KERNEL_ID, pe, addr, size, Perm::R);
     });
+    klog!(KTCU, "reading {} bytes from {}:{:#x}", size, pe, addr);
     TCU::read(ktcu::KTMP_EP, data, size, 0)
 }
 

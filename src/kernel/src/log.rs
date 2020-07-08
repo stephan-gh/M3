@@ -29,6 +29,7 @@ pub static PEXC: bool = false;
 pub static PES: bool = false;
 pub static UPCALLS: bool = false;
 pub static SLAB: bool = false;
+pub static KTCU: bool = false;
 
 #[macro_export]
 macro_rules! klog {

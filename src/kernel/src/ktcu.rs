@@ -103,6 +103,7 @@ pub fn send_to(
         assert!(size + util::size_of::<Header>() <= 1 << 8);
         config_send(regs, KERNEL_ID, lbl, pe, ep, 8, UNLIM_CREDITS);
     });
+    klog!(KTCU, "sending {}-bytes from {:#x} to {}:{}", size, msg as usize, pe, ep);
     TCU::send(KTMP_EP, msg, size, rpl_lbl, rpl_ep)
 }
 
@@ -110,5 +111,6 @@ pub fn try_write_mem(pe: PEId, addr: goff, data: *const u8, size: usize) -> Resu
     config_local_ep(KTMP_EP, |regs| {
         config_mem(regs, KERNEL_ID, pe, addr, size, kif::Perm::W);
     });
+    klog!(KTCU, "writing {} bytes to {}:{:#x}", size, pe, addr);
     TCU::write(KTMP_EP, data, size, 0)
 }
