@@ -60,7 +60,7 @@ fn destroy() {
             }
             wv_assert_err!(
                 send_recv!(&sg, RecvGate::def(), i, i + 1, i + 2),
-                Code::InvEP
+                Code::NoSEP
             );
             0
         })));

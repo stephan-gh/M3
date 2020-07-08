@@ -109,7 +109,7 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
         let msg_order = TCU::get_ep(ep, EpReg::MSGORDER);
         if msg_order == 0 {
             log_tcu_err!("TCU-error: invalid EP {}", ep);
-            return Err(Error::new(Code::InvEP));
+            return Err(Error::new(Code::NoSEP));
         }
 
         let needed = 1 << msg_order;
@@ -120,7 +120,7 @@ fn prepare_send(ep: EpId) -> Result<(PEId, EpId), Error> {
                 credits,
                 needed
             );
-            return Err(Error::new(Code::MissCredits));
+            return Err(Error::new(Code::NoCredits));
         }
 
         TCU::set_ep(ep, EpReg::CREDITS, (credits - needed) as Reg);

@@ -263,7 +263,7 @@ err_t LwipTcpSocket::tcp_recv_cb(void* arg, struct tcp_pcb* tpcb, struct pbuf* p
         bool success = socket->_channel->inband_data_transfer(socket->_sd, p->tot_len, [&](uchar * buf) {
             pbuf_copy_partial(p, buf, p->tot_len, 0);
         });
-        res = success ? Errors::NONE : Errors::MISS_CREDITS;
+        res = success ? Errors::NONE : Errors::NO_CREDITS;
     }
 
     if(res == Errors::NONE) {

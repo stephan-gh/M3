@@ -296,7 +296,7 @@ pub fn testmsgs() {
 
         wv_assert_err!(
             send_recv!(&sgate, RecvGate::def(), "123456"),
-            Code::InvEP,
+            Code::NoSEP,
             Code::RecvGone
         );
     }

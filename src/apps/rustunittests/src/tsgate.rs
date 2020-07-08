@@ -74,7 +74,7 @@ fn send_recv() {
     let data = [0u8; 16];
     wv_assert_ok!(sgate.send(&data, RecvGate::def()));
     wv_assert_ok!(sgate.send(&data, RecvGate::def()));
-    wv_assert_err!(sgate.send(&data, RecvGate::def()), Code::MissCredits);
+    wv_assert_err!(sgate.send(&data, RecvGate::def()), Code::NoCredits);
 
     {
         let is = wv_assert_ok!(rgate.receive(Some(&sgate)));

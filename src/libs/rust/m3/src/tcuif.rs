@@ -87,7 +87,7 @@ impl TCUIf {
 
             if let Some(sg) = sg {
                 if !tcu::TCU::is_valid(sg.ep().unwrap().id()) {
-                    return Err(Error::new(Code::InvEP));
+                    return Err(Error::new(Code::NoSEP));
                 }
             }
 

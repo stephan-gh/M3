@@ -22,19 +22,27 @@ namespace m3 {
 static const char *errmsgs[] = {
     /* 0 */
     "No error",
-    "Not enough credits",
-    "Not enough ringbuffer space",
-    "Pagefault",
-    "Invalid endpoint",
-    "Abort",
-    "Invalid message",
-    "Invalid arguments",
-    "No permissions",
-    "VPE gone",
-
+    "No memory endpoint",
+    "No send endpoint",
+    "No receive endpoint",
+    "Foreign endpoint",
+    "SEND/REPLY with wrong endpoint",
+    "Receiver gone",
+    "Receive buffer misaligned",
+    "Receive buffer full",
+    "Replies disabled",
     /* 10 */
+    "Out of bounds",
+    "No credits",
+    "No permission",
+    "Invalid message offset",
+    "Pagefault",
+    "Command aborted",
+    "Invalid arguments",
+    "VPE gone",
     "Out of memory",
     "No such file or directory",
+    /* 20 */
     "Not supported",
     "No free/suitable PE",
     "Invalid ELF file",
@@ -43,11 +51,9 @@ static const char *errmsgs[] = {
     "Cross-filesystem link not possible",
     "Directory not empty",
     "Is a directory",
-
-    /* 20 */
     "Is no directory",
     "Endpoint is invalid",
-    "Receive buffer gone",
+    /* 30 */
     "End of file",
     "Messages are waiting to be handled",
     "Reply will be sent via upcall",
@@ -55,8 +61,6 @@ static const char *errmsgs[] = {
     "Out of kernel memory",
     "Not found",
     "Not revocable",
-
-    /* 30 */
     "Timeout",
 
     /* Socket */

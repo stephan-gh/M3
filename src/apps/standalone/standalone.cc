@@ -40,20 +40,20 @@ static void test_mem_short() {
     // test errors
     {
         // not a memory EP
-        ASSERT_EQ(kernel::TCU::write(4, &data, sizeof(data), 0), Errors::INV_EP);
+        ASSERT_EQ(kernel::TCU::write(4, &data, sizeof(data), 0), Errors::NO_MEP);
         // offset out of bounds
-        ASSERT_EQ(kernel::TCU::write(0, &data, sizeof(data), 1), Errors::INV_ARGS);
+        ASSERT_EQ(kernel::TCU::write(0, &data, sizeof(data), 1), Errors::OUT_OF_BOUNDS);
         // size out of bounds
-        ASSERT_EQ(kernel::TCU::write(0, &data, sizeof(data) + 1, 0), Errors::INV_ARGS);
+        ASSERT_EQ(kernel::TCU::write(0, &data, sizeof(data) + 1, 0), Errors::OUT_OF_BOUNDS);
         // no write permission
         ASSERT_EQ(kernel::TCU::write(1, &data, sizeof(data), 0), Errors::NO_PERM);
 
         // not a memory EP
-        ASSERT_EQ(kernel::TCU::read(4, &data, sizeof(data), 0), Errors::INV_EP);
+        ASSERT_EQ(kernel::TCU::read(4, &data, sizeof(data), 0), Errors::NO_MEP);
         // offset out of bounds
-        ASSERT_EQ(kernel::TCU::read(0, &data, sizeof(data), 1), Errors::INV_ARGS);
+        ASSERT_EQ(kernel::TCU::read(0, &data, sizeof(data), 1), Errors::OUT_OF_BOUNDS);
         // size out of bounds
-        ASSERT_EQ(kernel::TCU::read(0, &data, sizeof(data) + 1, 0), Errors::INV_ARGS);
+        ASSERT_EQ(kernel::TCU::read(0, &data, sizeof(data) + 1, 0), Errors::OUT_OF_BOUNDS);
         // no read permission
         ASSERT_EQ(kernel::TCU::read(2, &data, sizeof(data), 0), Errors::NO_PERM);
     }
@@ -122,14 +122,14 @@ static void test_msg_short() {
     // test errors
     {
         // not a send EP
-        ASSERT_EQ(kernel::TCU::send(1, &msg, sizeof(msg), 0x1111, 2), Errors::INV_EP);
+        ASSERT_EQ(kernel::TCU::send(1, &msg, sizeof(msg), 0x1111, 2), Errors::NO_SEP);
         // message too large
         size_t msg_size = 1 + 64 - sizeof(TCU::Message::Header);
-        ASSERT_EQ(kernel::TCU::send(0, &msg, msg_size, 0x1111, 2), Errors::INV_ARGS);
+        ASSERT_EQ(kernel::TCU::send(0, &msg, msg_size, 0x1111, 2), Errors::OUT_OF_BOUNDS);
         // invalid reply EP
-        ASSERT_EQ(kernel::TCU::send(0, &msg, sizeof(msg), 0x1111, 0), Errors::INV_EP);
-        // not a reply EP
-        ASSERT_EQ(kernel::TCU::ack_msg(0, 0, nullptr), Errors::INV_EP);
+        ASSERT_EQ(kernel::TCU::send(0, &msg, sizeof(msg), 0x1111, 0), Errors::NO_REP);
+        // not a receive EP
+        ASSERT_EQ(kernel::TCU::ack_msg(0, 0, nullptr), Errors::NO_REP);
     }
 
     // send empty message
@@ -173,6 +173,9 @@ static void test_msg_short() {
         ASSERT_EQ(rmsg->senderPe, pe_id(PE::PE0));
         ASSERT_EQ(rmsg->flags, 0);
 
+        // sending with the use-once send EP is not allowed
+        epid_t rep = reinterpret_cast<const char*>(rmsg) == buffer ? 3 : 4;
+        ASSERT_EQ(kernel::TCU::send(rep, nullptr, 0, 0x1111, TCU::NO_REPLIES), Errors::SEND_REPLY_EP);
         // send empty reply
         ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::NONE);
 
@@ -214,11 +217,9 @@ static void test_msg_short() {
         ASSERT_EQ(*msg_ctrl, msg);
 
         // reply with data not allowed
-        ASSERT_EQ(kernel::TCU::reply(1, &reply, sizeof(reply), buf1, rmsg), Errors::INV_ARGS);
-        // sending with the use-once send EP is not allowed
-        ASSERT_EQ(kernel::TCU::send(3, nullptr, 0, 0x1111, TCU::NO_REPLIES), Errors::INV_EP);
+        ASSERT_EQ(kernel::TCU::reply(1, &reply, sizeof(reply), buf1, rmsg), Errors::NO_SEP);
         // empty reply is NOT allowed
-        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::INV_ARGS);
+        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::NO_SEP);
         ASSERT_EQ(kernel::TCU::ack_msg(1, buf1, rmsg), Errors::NONE);
         // reconfigure EP to get credits "back"
         kernel::TCU::config_send(0, 0x1234, pe_id(PE::PE0), 1, 6 /* 64 */, 2);
@@ -230,7 +231,7 @@ static void test_msg_short() {
         ASSERT_EQ(kernel::TCU::send(5, &msg, sizeof(msg), 0x1111, TCU::NO_REPLIES), Errors::NONE);
         ASSERT_EQ(kernel::TCU::send(5, &msg, sizeof(msg), 0x1111, TCU::NO_REPLIES), Errors::NONE);
         // receive buffer full
-        ASSERT_EQ(kernel::TCU::send(5, &msg, sizeof(msg), 0x1111, TCU::NO_REPLIES), Errors::NO_RING_SPACE);
+        ASSERT_EQ(kernel::TCU::send(5, &msg, sizeof(msg), 0x1111, TCU::NO_REPLIES), Errors::RECV_NO_SPACE);
         // no credits lost
         ASSERT_EQ(kernel::TCU::credits(5), TCU::UNLIM_CREDITS);
 
@@ -251,9 +252,9 @@ static void test_msg_short() {
         ASSERT_EQ(*msg_ctrl, msg);
 
         // reply with data not allowed
-        ASSERT_EQ(kernel::TCU::reply(1, &reply, sizeof(reply), buf1, rmsg), Errors::INV_ARGS);
+        ASSERT_EQ(kernel::TCU::reply(1, &reply, sizeof(reply), buf1, rmsg), Errors::NO_SEP);
         // empty reply is NOT allowed
-        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::INV_ARGS);
+        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::NO_SEP);
         ASSERT_EQ(kernel::TCU::ack_msg(1, buf1, rmsg), Errors::NONE);
         // credits are still the same
         ASSERT_EQ(kernel::TCU::credits(5), TCU::UNLIM_CREDITS);
@@ -269,7 +270,7 @@ static void test_msg_short() {
         ASSERT_EQ(kernel::TCU::send(0, &msg, sizeof(msg), 0x1111, 2), Errors::NONE);
         ASSERT_EQ(kernel::TCU::send(0, &msg, sizeof(msg), 0x2222, 2), Errors::NONE);
         // we need the reply to get our credits back
-        ASSERT_EQ(kernel::TCU::send(0, &msg, sizeof(msg), 0, 2), Errors::MISS_CREDITS);
+        ASSERT_EQ(kernel::TCU::send(0, &msg, sizeof(msg), 0, 2), Errors::NO_CREDITS);
 
         for(int i = 0; i < 2; ++i) {
             // fetch message
@@ -290,7 +291,7 @@ static void test_msg_short() {
 
             // message too large
             size_t msg_size = 1 + 64 - sizeof(TCU::Message::Header);
-            ASSERT_EQ(kernel::TCU::reply(1, &reply, msg_size, buf1, rmsg), Errors::INV_ARGS);
+            ASSERT_EQ(kernel::TCU::reply(1, &reply, msg_size, buf1, rmsg), Errors::OUT_OF_BOUNDS);
             // send reply
             ASSERT_EQ(kernel::TCU::reply(1, &reply, sizeof(reply), buf1, rmsg), Errors::NONE);
         }
@@ -363,7 +364,7 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
             ASSERT_EQ(msg_ctrl[i], msg[i]);
 
         // we need the reply to get our credits back
-        ASSERT_EQ(kernel::TCU::send(0, msg, msg_size_in * sizeof(DATA), 0, 2), Errors::MISS_CREDITS);
+        ASSERT_EQ(kernel::TCU::send(0, msg, msg_size_in * sizeof(DATA), 0, 2), Errors::NO_CREDITS);
 
         // send reply
         ASSERT_EQ(kernel::TCU::reply(1, reply, reply_size_in * sizeof(DATA), buf1, rmsg), Errors::NONE);

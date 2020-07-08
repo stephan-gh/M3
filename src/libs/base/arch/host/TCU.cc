@@ -149,7 +149,7 @@ Errors::Code TCU::prepare_send(epid_t ep, peid_t &dstpe, epid_t &dstep) {
             LLOG(TCUERR, "DMA-error: insufficient credits on ep " << ep
                     << " (have #" << fmt(credits, "x") << ", need #" << fmt(size, "x")
                     << ")." << " Ignoring send-command");
-            return Errors::MISS_CREDITS;
+            return Errors::NO_CREDITS;
         }
         set_ep(ep, EP_CREDITS, credits - size);
     }
@@ -335,7 +335,7 @@ void TCU::handle_command(peid_t pe) {
     if(!send_msg(ep, dstpe, dstep, op == REPLY)) {
         // in case we are doing READ/WRITE, mark the command as finished
         newctrl = 0;
-        res = Errors::INV_EP;
+        res = Errors::RECV_GONE;
     }
 
 done:
