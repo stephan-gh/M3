@@ -90,8 +90,7 @@ def main():
 
     # wait for prints
     run = True
-    start = datetime.now()
-    while run and (datetime.now() - start).seconds < 1:
+    while run:
         counter = 0
         for pm in pms:
             res = fetchPrint(pm)
@@ -99,10 +98,6 @@ def main():
                 run = False
             else:
                 counter += res
-
-        # if nobody wanted to print something, take a break
-        if counter == 0:
-            sleep(0.01)
 
     # stop all PEs
     for pm in pms:

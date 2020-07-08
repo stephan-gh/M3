@@ -165,9 +165,6 @@ build_params_hw() {
 
     scp src/tools/fpga.py $files $hwssh:m3
 
-    # ignore ^C here to pass that to the remote-side
-    trap "" INT
-
     ssh -t $hwssh "cd m3 && source setup.sh && ./fpga.py $args | tee log.txt"
     scp $hwssh:m3/log.txt run
 }
