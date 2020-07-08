@@ -107,8 +107,18 @@ pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usiz
     TCU::config_mem(regs, vpe, PE_IDS[pe as usize], addr, size, perm);
 }
 
+pub fn read_ep_remote(pe: PEId, ep: EpId, regs: &mut [Reg]) -> Result<(), Error> {
+    for i in 0..regs.len() {
+        ktcu::try_read_slice(pe, (TCU::ep_regs_addr(ep) + i * 8) as goff, &mut regs[i..i+1])?;
+    }
+    Ok(())
+}
+
 pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
-    ktcu::try_write_slice(pe, TCU::ep_regs_addr(ep) as goff, &regs)
+    for (i, r) in regs.iter().enumerate() {
+        ktcu::try_write_slice(pe, (TCU::ep_regs_addr(ep) + i * 8) as goff, &[*r])?;
+    }
+    Ok(())
 }
 
 pub fn invalidate_ep_remote(pe: PEId, ep: EpId, force: bool) -> Result<u32, Error> {
@@ -123,7 +133,7 @@ pub fn inv_reply_remote(
     send_ep: EpId,
 ) -> Result<(), Error> {
     let mut regs = [0 as Reg; EP_REGS];
-    ktcu::try_read_slice(recv_pe, TCU::ep_regs_addr(recv_ep) as goff, &mut regs)?;
+    read_ep_remote(recv_pe, recv_ep, &mut regs)?;
 
     // if there is no occupied slot, there can't be any reply EP we have to invalidate
     let occupied = regs[2] & 0xFFFF_FFFF;
@@ -136,7 +146,7 @@ pub fn inv_reply_remote(
     for i in 0..buf_size {
         if (occupied & (1 << i)) != 0 {
             // load the reply EP
-            ktcu::try_read_slice(recv_pe, TCU::ep_regs_addr(reply_eps + i) as goff, &mut regs)?;
+            read_ep_remote(recv_pe, reply_eps + i, &mut regs)?;
 
             // is that replying to the sender?
             let tgt_pe = ((regs[1] >> 16) & 0xFFFF) as PEId;
