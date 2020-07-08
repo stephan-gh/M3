@@ -60,7 +60,8 @@ public:
     }
 
     static void config_recv(epid_t ep, goff_t buf, unsigned order,
-                            unsigned msgorder, unsigned reply_eps) {
+                            unsigned msgorder, unsigned reply_eps,
+                            uint32_t occupied = 0, uint32_t unread = 0) {
         reg_t bufSize = static_cast<reg_t>(order - msgorder);
         reg_t msgSize = static_cast<reg_t>(msgorder);
         write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::RECEIVE) |
@@ -69,7 +70,7 @@ public:
                         (static_cast<reg_t>(bufSize) << 35) |
                         (static_cast<reg_t>(msgSize) << 41));
         write_reg(ep, 1, buf);
-        write_reg(ep, 2, 0);
+        write_reg(ep, 2, static_cast<reg_t>(unread) << 32 | occupied);
     }
 
     static void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
