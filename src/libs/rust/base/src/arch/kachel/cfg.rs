@@ -61,7 +61,7 @@ cfg_if! {
     if #[cfg(target_vendor = "hw")] {
         pub const STACK_BOTTOM: usize       = MEM_OFFSET + 0x1E_0000;
 
-        pub const PEMUX_START: usize        = MEM_OFFSET + 0x0F_0000;
+        pub const PEMUX_START: usize        = MEM_OFFSET;
         pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x1F_F000;
     }
     else {

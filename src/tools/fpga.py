@@ -146,7 +146,7 @@ def load_prog(pm, i, dram, args):
         kenv = 0
 
     # init environment
-    argv = ENV + 0x800
+    argv = ENV + 0x400
     pm.mem[ENV + 0] = 1 # platform = HW
     pm.mem[ENV + 8] = i # pe_id
     pm.mem[ENV + 16] = MEM_SIZE | (3 << 3) | 0 # pe_desc
@@ -163,7 +163,9 @@ def load_prog(pm, i, dram, args):
     for (i, a) in enumerate(args, 0):
         pm.mem[argv + i * 8] = args_addr
         write_str(pm, a, args_addr)
-        args_addr += (len(a) + 7) & ~7
+        args_addr += (len(a) + 1 + 7) & ~7
+        if args_addr > ENV + 0x800:
+            sys.exit("Not enough space for arguments")
 
     # start core (via interrupt 0)
     pm.rocket_start()

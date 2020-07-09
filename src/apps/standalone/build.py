@@ -10,6 +10,7 @@ def build(gen, env):
             out = 'standalone',
             ins = [env_obj, 'standalone.cc'],
             libs = ['c', 'heap', 'base', 'supc++'],
+            ldscript = 'isr',
             NoSup = True
         )
 
@@ -19,5 +20,6 @@ def build(gen, env):
                 out = 'standalone-' + s,
                 ins = [env_obj, s + '/' + s + '.cc'],
                 NoSup = True,
+                ldscript = 'isr',
                 libs = ['c', 'heap', 'base', 'supc++']
             )
