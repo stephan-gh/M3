@@ -25,7 +25,7 @@ using namespace m3;
 
 static constexpr size_t MSG_SIZE = 256;
 
-static uint8_t rbuf[64];
+static ALIGNED(8) uint8_t rbuf[64];
 
 int main() {
     kernel::TCU::config_send(0, 0x1234, pe_id(PE::PE1), 0, nextlog2<MSG_SIZE>::val, 1);
