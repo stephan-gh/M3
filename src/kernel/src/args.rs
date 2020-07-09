@@ -58,6 +58,7 @@ pub fn parse() {
                 usage();
             }
             args.kmem = size;
+            i += 1;
         }
         else if argv[i] == "-d" {
             args.disk = true;
