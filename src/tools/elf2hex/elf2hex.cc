@@ -64,7 +64,8 @@ int main(int argc, char **argv) {
         if(phdr.p_type != PT_LOAD)
             continue;
 
-        dumpSection(f, phdr.p_paddr, phdr.p_offset, phdr.p_filesz);
+        if(phdr.p_filesz > 0)
+            dumpSection(f, phdr.p_paddr, phdr.p_offset, phdr.p_filesz);
         if(phdr.p_memsz > phdr.p_filesz)
             printf("z%08lx:%08lx\n",
                 (phdr.p_paddr + phdr.p_filesz) / BYTES_PER_LINE,
