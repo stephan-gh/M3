@@ -111,7 +111,7 @@ pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
 }
 
 pub fn invalidate_ep_remote(pe: PEId, ep: EpId, force: bool) -> Result<u32, Error> {
-    let reg = ExtCmdOpCode::INV_EP.val | (ep << 8) as Reg | ((force as Reg) << 24);
+    let reg = ExtCmdOpCode::INV_EP.val | (ep << 9) as Reg | ((force as Reg) << 25);
     do_ext_cmd(pe, reg).map(|unread| unread as u32)
 }
 
@@ -234,8 +234,8 @@ fn do_ext_cmd(pe: PEId, cmd: Reg) -> Result<Reg, Error> {
     let addr = TCU::ext_reg_addr(ExtReg::EXT_CMD) as goff;
     ktcu::try_write_slice(pe, addr, &[cmd])?;
     let res: Reg = ktcu::try_read_obj(pe, addr)?;
-    match Code::from(((res >> 4) & 0xF) as u32) {
-        Code::None => Ok(res >> 8),
+    match Code::from(((res >> 4) & 0x1F) as u32) {
+        Code::None => Ok(res >> 9),
         e => Err(Error::new(e)),
     }
 }

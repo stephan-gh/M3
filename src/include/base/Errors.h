@@ -42,6 +42,7 @@ struct Errors {
         INV_MSG_OFF,
         PAGEFAULT,
         ABORT,
+        SELF_READ,
         // SW errors
         INV_ARGS,
         VPE_GONE,

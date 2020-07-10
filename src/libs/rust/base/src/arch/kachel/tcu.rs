@@ -378,7 +378,7 @@ impl TCU {
         loop {
             let cmd = Self::read_unpriv_reg(UnprivReg::COMMAND);
             if (cmd & 0xF) == CmdOpCode::IDLE.val {
-                let err = (cmd >> 20) & 0xF;
+                let err = (cmd >> 20) & 0x1F;
                 return Result::from(Code::from(err as u32));
             }
         }
@@ -598,7 +598,7 @@ impl TCU {
     }
 
     fn build_cmd(ep: EpId, c: CmdOpCode, arg: Reg) -> Reg {
-        c.val as Reg | ((ep as Reg) << 4) | (arg << 24)
+        c.val as Reg | ((ep as Reg) << 4) | (arg << 25)
     }
 }
 

@@ -38,11 +38,12 @@ static const char *errmsgs[] = {
     "Invalid message offset",
     "Pagefault",
     "Command aborted",
+    "READ from own PE",
     "Invalid arguments",
     "VPE gone",
     "Out of memory",
-    "No such file or directory",
     /* 20 */
+    "No such file or directory",
     "Not supported",
     "No free/suitable PE",
     "Invalid ELF file",
@@ -52,8 +53,8 @@ static const char *errmsgs[] = {
     "Directory not empty",
     "Is a directory",
     "Is no directory",
-    "Endpoint is invalid",
     /* 30 */
+    "Endpoint is invalid",
     "End of file",
     "Messages are waiting to be handled",
     "Reply will be sent via upcall",
