@@ -31,18 +31,16 @@ BEGIN_FUNC(isr_setup)
     // set address to save the state on interrupts to
     csrw    sscratch, a0
 
-#if defined(__gem5__)
     // delegate all interrupts and exceptions to supervisor mode
     li      t1, 0x333
     csrw    mideleg, t1
     li      t0, -1
     csrw    medeleg, t0
-#endif
 
     // unmask interrupts
     csrs    sie, t1
 
-    // return to supervisor mode
+    // return to supervisor mode (for some reason we get an instruction access fault on hw)
 #if defined(__gem5__)
     li      t1, 1 << 11     # MPP = S
 #else
