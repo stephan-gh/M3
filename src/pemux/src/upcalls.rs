@@ -46,9 +46,10 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
 
     log!(
         crate::LOG_UPCALLS,
-        "upcall::vpe_ctrl(vpe={}, op={:?})",
+        "upcall::vpe_ctrl(vpe={}, op={:?}, eps_start={})",
         vpe_id,
-        op
+        op,
+        eps_start
     );
 
     match op {
