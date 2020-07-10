@@ -412,7 +412,6 @@ impl TCU {
     }
 }
 
-#[cfg(feature = "kernel")]
 impl TCU {
     /// Configures the given endpoint
     pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {

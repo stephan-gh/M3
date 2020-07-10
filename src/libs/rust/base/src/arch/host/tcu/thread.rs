@@ -680,12 +680,10 @@ extern "C" fn sigchild(_: i32) {
     }
 }
 
-#[cfg(feature = "kernel")]
 pub fn bind_knotify() {
     get_backend().bind_knotify();
 }
 
-#[cfg(feature = "kernel")]
 pub fn receive_knotify() -> Option<(libc::pid_t, i32)> {
     get_backend().receive_knotify()
 }

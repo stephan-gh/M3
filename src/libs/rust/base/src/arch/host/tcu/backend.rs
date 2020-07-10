@@ -146,7 +146,6 @@ impl SocketBackend {
         }
     }
 
-    #[cfg(feature = "kernel")]
     pub fn bind_knotify(&self) {
         unsafe {
             assert!(
@@ -159,7 +158,6 @@ impl SocketBackend {
         }
     }
 
-    #[cfg(feature = "kernel")]
     pub fn receive_knotify(&self) -> Option<(libc::pid_t, i32)> {
         let mut data = KNotifyData::default();
 

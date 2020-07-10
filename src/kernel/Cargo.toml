@@ -7,7 +7,7 @@ path = "src/kernel.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
-base = { path = "../libs/rust/base", features = ["kernel"] }
+base = { path = "../libs/rust/base" }
 bitflags = "*"
 thread = { path = "../libs/rust/thread" }
 
