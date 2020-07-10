@@ -45,7 +45,7 @@
 // |         devices etc.       |
 // +----------------------------+ 0x10000000
 // |          PEMux code        |
-// +----------------------------+ 0x10010000
+// +----------------------------+ 0x10040000
 // |           App code         |
 // +----------------------------+ 0x10100000
 // |       env + PEMux data     |
@@ -115,7 +115,7 @@
 #define PE_MEM_BASE         0xE0000000
 
 #if defined(__hw__)
-#   define APP_CODE_START   (MEM_OFFSET + 0x10000)
+#   define APP_CODE_START   (MEM_OFFSET + 0x40000)
 #   define APP_CODE_SIZE    (ENV_START - APP_CODE_START)
 #   define APP_DATA_START   (MEM_OFFSET + 0x104000)
 #   define APP_DATA_SIZE    (STACK_BOTTOM - APP_DATA_START)
