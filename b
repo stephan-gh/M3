@@ -333,7 +333,7 @@ case "$cmd" in
 
             kill_m3_procs 2>/dev/null
             rm $tmp
-        elif [ "$M3_TARGET" = "gem5" ]; then
+        elif [ "$M3_TARGET" = "gem5" ] || [ "$M3_RUN_GEM5" = "1" ]; then
             truncate --size 0 $M3_OUT/log.txt
             ./src/tools/execute.sh $script --debug=${cmd#dbg=} 1>$M3_OUT/log.txt 2>&1 &
 
