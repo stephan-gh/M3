@@ -21,7 +21,7 @@
 int memcmp(const void *mem1, const void *mem2, size_t count) {
     size_t align1 = reinterpret_cast<uintptr_t>(mem1) % sizeof(word_t);
     size_t align2 = reinterpret_cast<uintptr_t>(mem2) % sizeof(word_t);
-    if(!NEED_ALIGNED_MEMACC || align1 == align2) {
+    if(!NEED_ALIGNED_MEMACC || (align1 == 0 && align2 == 0)) {
         const word_t *m1 = reinterpret_cast<const word_t*>(mem1);
         const word_t *m2 = reinterpret_cast<const word_t*>(mem2);
         const word_t *end = m1 + (count / sizeof(word_t));

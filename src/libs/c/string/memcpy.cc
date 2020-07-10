@@ -29,7 +29,7 @@ void *memcpy(void *dest, const void *src, size_t len) {
     /* are both aligned equally? */
     size_t dalign = reinterpret_cast<uintptr_t>(bdest) % sizeof(word_t);
     size_t salign = reinterpret_cast<uintptr_t>(bsrc) % sizeof(word_t);
-    if(!NEED_ALIGNED_MEMACC || dalign == salign) {
+    if(!NEED_ALIGNED_MEMACC || (dalign == 0 && salign == 0)) {
         word_t *ddest = reinterpret_cast<word_t*>(bdest);
         const word_t *dsrc = reinterpret_cast<const word_t*>(bsrc);
         /* copy words with loop-unrolling */

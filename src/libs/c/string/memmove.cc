@@ -39,7 +39,7 @@ void *memmove(void *dest, const void *src, size_t count) {
         if(static_cast<size_t>(d - s) >= sizeof(word_t)) {
             size_t dalign = reinterpret_cast<uintptr_t>(d) % sizeof(word_t);
             size_t salign = reinterpret_cast<uintptr_t>(s) % sizeof(word_t);
-            if(!NEED_ALIGNED_MEMACC || dalign == salign) {
+            if(!NEED_ALIGNED_MEMACC || (dalign == 0 && salign == 0)) {
                 // copy words
                 word_t *ddest = reinterpret_cast<word_t*>(d);
                 const word_t *dsrc = reinterpret_cast<const word_t*>(s);
