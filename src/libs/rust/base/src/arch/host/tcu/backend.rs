@@ -47,6 +47,10 @@ impl SocketBackend {
         sockaddr
     }
 
+    fn ep_idx(pe: PEId, ep: EpId) -> usize {
+        pe as usize * EP_COUNT as usize + ep as usize
+    }
+
     pub fn new() -> SocketBackend {
         let sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0) };
         assert!(sock != -1);
@@ -78,7 +82,7 @@ impl SocketBackend {
                 assert!(
                     libc::bind(
                         epsock,
-                        &eps[pe as usize * EP_COUNT + ep] as *const libc::sockaddr_un
+                        &eps[Self::ep_idx(pe, ep)] as *const libc::sockaddr_un
                             as *const libc::sockaddr,
                         util::size_of::<libc::sockaddr_un>() as u32
                     ) == 0
@@ -98,7 +102,7 @@ impl SocketBackend {
     }
 
     pub fn send(&self, pe: PEId, ep: EpId, buf: &thread::Buffer) -> bool {
-        let sock = &self.eps[pe * EP_COUNT + ep];
+        let sock = &self.eps[Self::ep_idx(pe, ep)];
         let res = unsafe {
             libc::sendto(
                 self.sock,
@@ -115,7 +119,7 @@ impl SocketBackend {
     pub fn receive(&self, ep: EpId, buf: &mut thread::Buffer) -> Option<usize> {
         let res = unsafe {
             libc::recvfrom(
-                self.localsock[ep],
+                self.localsock[ep as usize],
                 buf as *mut thread::Buffer as *mut libc::c_void,
                 util::size_of::<thread::Buffer>(),
                 libc::MSG_DONTWAIT,
@@ -181,7 +185,7 @@ impl SocketBackend {
 
     pub fn shutdown(&self) {
         for ep in 0..EP_COUNT {
-            unsafe { libc::shutdown(self.localsock[ep], libc::SHUT_RD) };
+            unsafe { libc::shutdown(self.localsock[ep as usize], libc::SHUT_RD) };
         }
     }
 }
@@ -189,7 +193,7 @@ impl SocketBackend {
 impl Drop for SocketBackend {
     fn drop(&mut self) {
         for ep in 0..EP_COUNT {
-            unsafe { libc::close(self.localsock[ep]) };
+            unsafe { libc::close(self.localsock[ep as usize]) };
         }
     }
 }

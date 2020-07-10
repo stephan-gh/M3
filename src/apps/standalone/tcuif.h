@@ -23,8 +23,6 @@ class TCU {
 public:
     typedef m3::TCU::reg_t reg_t;
 
-    static const reg_t INVALID_VPE = 0xFFFF;
-
     static int credits(epid_t ep) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
         return (r0 >> 19) & 0x3F;
@@ -62,41 +60,16 @@ public:
     static void config_recv(epid_t ep, goff_t buf, unsigned order,
                             unsigned msgorder, unsigned reply_eps,
                             uint32_t occupied = 0, uint32_t unread = 0) {
-        reg_t bufSize = static_cast<reg_t>(order - msgorder);
-        reg_t msgSize = static_cast<reg_t>(msgorder);
-        write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::RECEIVE) |
-                        (static_cast<reg_t>(INVALID_VPE) << 3) |
-                        (static_cast<reg_t>(reply_eps) << 19) |
-                        (static_cast<reg_t>(bufSize) << 35) |
-                        (static_cast<reg_t>(msgSize) << 41));
-        write_reg(ep, 1, buf);
-        write_reg(ep, 2, static_cast<reg_t>(unread) << 32 | occupied);
+        m3::TCU::config_recv(ep, buf, order, msgorder, reply_eps, occupied, unread);
     }
 
     static void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
                             unsigned msgorder, unsigned credits) {
-        write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::SEND) |
-                        (static_cast<reg_t>(INVALID_VPE) << 3) |
-                        (static_cast<reg_t>(credits) << 19) |
-                        (static_cast<reg_t>(credits) << 25) |
-                        (static_cast<reg_t>(msgorder) << 31));
-        write_reg(ep, 1, (static_cast<reg_t>(pe) << 16) |
-                         (static_cast<reg_t>(dstep) << 0));
-        write_reg(ep, 2, lbl);
+        m3::TCU::config_send(ep, lbl, pe, dstep, msgorder, credits);
     }
 
     static void config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm) {
-        write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::MEMORY) |
-                        (static_cast<reg_t>(INVALID_VPE) << 3) |
-                        (static_cast<reg_t>(perm) << 19) |
-                        (static_cast<reg_t>(pe) << 23));
-        write_reg(ep, 1, addr);
-        write_reg(ep, 2, size);
-    }
-
-    static void write_reg(epid_t ep, size_t idx, reg_t value) {
-        size_t off = m3::TCU::EXT_REGS + m3::TCU::UNPRIV_REGS + m3::TCU::EP_REGS * ep + idx;
-        m3::TCU::write_reg(off, value);
+        m3::TCU::config_mem(ep, pe, addr, size, perm);
     }
 };
 

@@ -20,18 +20,20 @@ use core::intrinsics;
 use core::mem;
 use errors::{Code, Error};
 use goff;
-use kif::PageFlags;
+use kif::{PageFlags, Perm};
 use math;
 use util;
 
 /// A TCU register
 pub type Reg = u64;
 /// An endpoint id
-pub type EpId = usize;
+pub type EpId = u16;
 /// A TCU label used in send EPs
 pub type Label = u32;
 /// A PE id
-pub type PEId = usize;
+pub type PEId = u8;
+/// A VPE id
+pub type VPEId = u16;
 
 /// The number of endpoints in each TCU
 pub const EP_COUNT: EpId = 192;
@@ -430,7 +432,7 @@ impl TCU {
 
     /// Prints the given message into the gem5 log
     pub fn print(s: &[u8]) {
-        let regs = EXT_REGS + UNPRIV_REGS + EP_REGS * EP_COUNT;
+        let regs = EXT_REGS + UNPRIV_REGS + EP_REGS * EP_COUNT as usize;
         let mut buffer = MMIO_ADDR + regs * 8;
 
         #[allow(clippy::transmute_ptr_to_ptr)]
@@ -534,9 +536,7 @@ impl TCU {
     /// Inserts the given entry into the TCU's TLB
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) {
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, phys);
-        unsafe {
-            intrinsics::atomic_fence()
-        };
+        unsafe { intrinsics::atomic_fence() };
         let cmd = ((asid as Reg) << 36)
             | (((virt & !cfg::PAGE_MASK) as Reg) << 4)
             | ((flags.bits() as Reg) << 4)
@@ -569,7 +569,7 @@ impl TCU {
     }
 
     fn read_ep_reg(ep: EpId, reg: usize) -> Reg {
-        Self::read_reg(EXT_REGS + UNPRIV_REGS + EP_REGS * ep + reg)
+        Self::read_reg(EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize + reg)
     }
 
     fn read_priv_reg(reg: PrivReg) -> Reg {
@@ -603,9 +603,53 @@ impl TCU {
 }
 
 impl TCU {
+    pub fn config_recv(
+        regs: &mut [Reg],
+        vpe: VPEId,
+        buf: goff,
+        buf_ord: u32,
+        msg_ord: u32,
+        reply_eps: Option<EpId>,
+    ) {
+        regs[0] = EpType::RECEIVE.val
+            | ((vpe as Reg) << 3)
+            | ((reply_eps.unwrap_or(NO_REPLIES) as Reg) << 19)
+            | (((buf_ord - msg_ord) as Reg) << 35)
+            | ((msg_ord as Reg) << 41);
+        regs[1] = buf as Reg;
+        regs[2] = 0;
+    }
+
+    pub fn config_send(
+        regs: &mut [Reg],
+        vpe: VPEId,
+        lbl: Label,
+        pe: PEId,
+        dst_ep: EpId,
+        msg_order: u32,
+        credits: u32,
+    ) {
+        regs[0] = EpType::SEND.val
+            | ((vpe as Reg) << 3)
+            | ((credits as Reg) << 19)
+            | ((credits as Reg) << 25)
+            | ((msg_order as Reg) << 31);
+        regs[1] = ((pe as Reg) << 16) | (dst_ep as Reg);
+        regs[2] = lbl as Reg;
+    }
+
+    pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usize, perm: Perm) {
+        regs[0] = EpType::MEMORY.val
+            | ((vpe as Reg) << 3)
+            | ((perm.bits() as Reg) << 19)
+            | ((pe as Reg) << 23);
+        regs[1] = addr as Reg;
+        regs[2] = size as Reg;
+    }
+
     /// Configures the given endpoint
     pub fn set_ep_regs(ep: EpId, regs: &[Reg]) {
-        let off = EXT_REGS + UNPRIV_REGS + EP_REGS * ep;
+        let off = EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize;
         let addr = MMIO_ADDR + off * 8;
         for (i, r) in regs.iter().enumerate() {
             unsafe {
@@ -621,6 +665,6 @@ impl TCU {
 
     /// Returns the MMIO address of the given endpoint registers
     pub fn ep_regs_addr(ep: EpId) -> usize {
-        MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + EP_REGS * ep) * 8
+        MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + EP_REGS * ep as usize) * 8
     }
 }

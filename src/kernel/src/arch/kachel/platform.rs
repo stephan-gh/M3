@@ -79,24 +79,24 @@ pub fn init(_args: &[String]) -> platform::KEnv {
 
                 // file system image
                 let used = pe.mem_size() as goff - avail;
-                mem.add(MemMod::new(MemType::OCCUPIED, i, 0, used));
+                mem.add(MemMod::new(MemType::OCCUPIED, i as PEId, 0, used));
                 umems.push(boot::Mem::new(0, used, true));
 
                 // kernel memory
                 mem.add(MemMod::new(
                     MemType::KERNEL,
-                    i,
+                    i as PEId,
                     used,
                     args::get().kmem as goff,
                 ));
 
                 // user memory
                 let user = used + args::get().kmem as goff;
-                mem.add(MemMod::new(MemType::USER, i, user, avail));
+                mem.add(MemMod::new(MemType::USER, i as PEId, user, avail));
                 umems.push(boot::Mem::new(user, avail - args::get().kmem as goff, false));
             }
             else {
-                mem.add(MemMod::new(MemType::USER, i, 0, pe.mem_size() as goff));
+                mem.add(MemMod::new(MemType::USER, i as PEId, 0, pe.mem_size() as goff));
                 umems.push(boot::Mem::new(0, pe.mem_size() as goff, false));
             }
             kmem_idx += 1;
@@ -106,7 +106,7 @@ pub fn init(_args: &[String]) -> platform::KEnv {
                 panic!("All memory PEs have to be last");
             }
 
-            LAST_PE.set(i);
+            LAST_PE.set(i as PEId);
 
             if i > 0 {
                 assert!(kernel_pe() == 0);

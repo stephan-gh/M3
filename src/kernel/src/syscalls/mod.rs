@@ -130,7 +130,7 @@ fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
 }
 
 pub fn handle(msg: &'static tcu::Message) {
-    let vpe: Rc<VPE> = vpemng::get().vpe(msg.header.label as usize).unwrap();
+    let vpe: Rc<VPE> = vpemng::get().vpe(msg.header.label as tcu::VPEId).unwrap();
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::syscalls::Operation::from(req.opcode) {

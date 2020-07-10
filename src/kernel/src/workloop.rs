@@ -49,7 +49,7 @@ pub fn workloop() {
 
         #[cfg(target_os = "none")]
         if let Some(msg) = ktcu::fetch_msg(ktcu::KPEX_EP) {
-            let pe = msg.header.label as usize;
+            let pe = msg.header.label as tcu::PEId;
             pes::pemng::get().pemux(pe).handle_call(msg);
         }
 

@@ -21,7 +21,7 @@ use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType, PEDesc};
 use base::rc::{Rc, SRc};
 use base::tcu::Label;
-use base::tcu::{EpId, PEId, STD_EPS_COUNT, UPCALL_REP_OFF};
+use base::tcu::{EpId, PEId, VPEId, STD_EPS_COUNT, UPCALL_REP_OFF};
 use base::util;
 use core::fmt;
 use thread;
@@ -32,8 +32,6 @@ use com::SendQueue;
 use ktcu;
 use pes::{pemng, vpemng};
 use platform;
-
-pub type VPEId = usize;
 
 bitflags! {
     pub struct VPEFlags : u32 {
@@ -449,7 +447,7 @@ impl VPE {
         {
             let pemux = pemng::get().pemux(self.pe_id());
             // force-invalidate standard EPs
-            for ep in self.eps_start..self.eps_start + STD_EPS_COUNT {
+            for ep in self.eps_start..self.eps_start + STD_EPS_COUNT as EpId {
                 // ignore failures
                 pemux.invalidate_ep(self.id(), ep, true, false).ok();
             }

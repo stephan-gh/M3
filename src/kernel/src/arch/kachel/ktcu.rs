@@ -27,7 +27,7 @@ use core::mem::MaybeUninit;
 
 use arch;
 use ktcu;
-use pes::{VPEId, KERNEL_ID};
+use pes::KERNEL_ID;
 use platform;
 
 pub const KPEX_EP: EpId = 3;
@@ -70,13 +70,7 @@ pub fn config_recv(
     msg_ord: u32,
     reply_eps: Option<EpId>,
 ) {
-    regs[0] = EpType::RECEIVE.val
-        | ((vpe as Reg) << 3)
-        | ((reply_eps.unwrap_or(NO_REPLIES) as Reg) << 19)
-        | (((buf_ord - msg_ord) as Reg) << 35)
-        | ((msg_ord as Reg) << 41);
-    regs[1] = buf as Reg;
-    regs[2] = 0;
+    TCU::config_recv(regs, vpe, buf, buf_ord, msg_ord, reply_eps);
 }
 
 pub fn config_send(
@@ -88,22 +82,11 @@ pub fn config_send(
     msg_order: u32,
     credits: u32,
 ) {
-    regs[0] = EpType::SEND.val
-        | ((vpe as Reg) << 3)
-        | ((credits as Reg) << 19)
-        | ((credits as Reg) << 25)
-        | ((msg_order as Reg) << 31);
-    regs[1] = ((pe as Reg) << 16) | (dst_ep as Reg);
-    regs[2] = lbl as Reg;
+    TCU::config_send(regs, vpe, lbl, pe, dst_ep, msg_order, credits);
 }
 
 pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usize, perm: Perm) {
-    regs[0] = EpType::MEMORY.val
-        | ((vpe as Reg) << 3)
-        | ((perm.bits() as Reg) << 19)
-        | ((pe as Reg) << 23);
-    regs[1] = addr as Reg;
-    regs[2] = size as Reg;
+    TCU::config_mem(regs, vpe, pe, addr, size, perm);
 }
 
 pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
@@ -111,7 +94,7 @@ pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
 }
 
 pub fn invalidate_ep_remote(pe: PEId, ep: EpId, force: bool) -> Result<u32, Error> {
-    let reg = ExtCmdOpCode::INV_EP.val | (ep << 9) as Reg | ((force as Reg) << 25);
+    let reg = ExtCmdOpCode::INV_EP.val | ((ep as Reg) << 9) as Reg | ((force as Reg) << 25);
     do_ext_cmd(pe, reg).map(|unread| unread as u32)
 }
 
@@ -131,7 +114,7 @@ pub fn inv_reply_remote(
     }
 
     let buf_size = 1 << ((regs[0] >> 35) & 0x3F);
-    let reply_eps = ((regs[0] >> 19) & 0xFFFF) as usize;
+    let reply_eps = ((regs[0] >> 19) & 0xFFFF) as EpId;
     for i in 0..buf_size {
         if (occupied & (1 << i)) != 0 {
             // load the reply EP

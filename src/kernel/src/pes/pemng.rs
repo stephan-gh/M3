@@ -50,7 +50,7 @@ impl PEMng {
 
     pub fn pemux(&mut self, pe: PEId) -> &mut PEMux {
         assert!(pe > 0);
-        &mut self.muxes[pe - 1]
+        &mut self.muxes[pe as usize - 1]
     }
 
     pub fn find_pe(&mut self, pedesc: &kif::PEDesc) -> Option<PEId> {

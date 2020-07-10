@@ -61,12 +61,12 @@ pub fn recv_msgs(ep: EpId, buf: goff, ord: u32, msg_ord: u32) -> Result<(), Erro
         config_recv(regs, KERNEL_ID, phys, ord, msg_ord, Some(*REPS));
         *REPS.get_mut() += 1 << (ord - msg_ord);
     });
-    RBUFS.get_mut()[ep] = buf as usize;
+    RBUFS.get_mut()[ep as usize] = buf as usize;
     Ok(())
 }
 
 pub fn reply<R>(ep: EpId, reply: &R, msg: &Message) -> Result<(), Error> {
-    let msg_off = TCU::msg_to_offset(RBUFS[ep], msg);
+    let msg_off = TCU::msg_to_offset(RBUFS[ep as usize], msg);
     TCU::reply(
         ep,
         reply as *const _ as *const u8,
@@ -76,15 +76,15 @@ pub fn reply<R>(ep: EpId, reply: &R, msg: &Message) -> Result<(), Error> {
 }
 
 pub fn drop_msgs(rep: EpId, label: Label) {
-    TCU::drop_msgs_with(RBUFS[rep], rep, label);
+    TCU::drop_msgs_with(RBUFS[rep as usize], rep, label);
 }
 
 pub fn fetch_msg(rep: EpId) -> Option<&'static Message> {
-    TCU::fetch_msg(rep).map(|off| TCU::offset_to_msg(RBUFS[rep], off))
+    TCU::fetch_msg(rep).map(|off| TCU::offset_to_msg(RBUFS[rep as usize], off))
 }
 
 pub fn ack_msg(rep: EpId, msg: &Message) {
-    let off = TCU::msg_to_offset(RBUFS[rep], msg);
+    let off = TCU::msg_to_offset(RBUFS[rep as usize], msg);
     TCU::ack_msg(rep, off).unwrap();
 }
 

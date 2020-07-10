@@ -30,7 +30,7 @@ use cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
 use ktcu;
 use mem::{self, Allocation};
 use pes::pemng;
-use pes::{VPEFlags, VPEId, VPE};
+use pes::{VPEFlags, VPE};
 use platform;
 
 pub const MAX_VPES: usize = 64;
@@ -38,7 +38,7 @@ pub const MAX_VPES: usize = 64;
 pub struct VPEMng {
     vpes: Vec<Option<Rc<VPE>>>,
     count: usize,
-    next_id: usize,
+    next_id: tcu::VPEId,
 }
 
 static INST: StaticCell<Option<VPEMng>> = StaticCell::new(None);
@@ -64,20 +64,20 @@ impl VPEMng {
         self.count
     }
 
-    pub fn vpe(&self, id: VPEId) -> Option<Rc<VPE>> {
-        self.vpes[id].as_ref().cloned()
+    pub fn vpe(&self, id: tcu::VPEId) -> Option<Rc<VPE>> {
+        self.vpes[id as usize].as_ref().cloned()
     }
 
-    fn get_id(&mut self) -> Result<usize, Error> {
-        for id in self.next_id..MAX_VPES {
-            if self.vpes[id].is_none() {
+    fn get_id(&mut self) -> Result<tcu::VPEId, Error> {
+        for id in self.next_id..MAX_VPES as tcu::VPEId {
+            if self.vpes[id as usize].is_none() {
                 self.next_id = id + 1;
                 return Ok(id);
             }
         }
 
         for id in 0..self.next_id {
-            if self.vpes[id].is_none() {
+            if self.vpes[id as usize].is_none() {
                 self.next_id = id + 1;
                 return Ok(id);
             }
@@ -94,7 +94,7 @@ impl VPEMng {
         kmem: SRc<KMemObject>,
         flags: VPEFlags,
     ) -> Result<Rc<VPE>, Error> {
-        let id: VPEId = self.get_id()?;
+        let id: tcu::VPEId = self.get_id()?;
         let pe_id = pe.pe();
 
         let vpe = VPE::new(name, id, pe, eps_start, kmem, flags)?;
@@ -102,7 +102,7 @@ impl VPEMng {
         klog!(VPES, "Created VPE {} [id={}, pe={}]", name, id, pe_id);
 
         let clone = vpe.clone();
-        self.vpes[id] = Some(vpe);
+        self.vpes[id as usize] = Some(vpe);
         self.count += 1;
 
         pemng::get().pemux(pe_id).add_vpe(id);
@@ -228,10 +228,10 @@ impl VPEMng {
         vpe.start_app(None)
     }
 
-    pub fn remove_vpe(&mut self, id: VPEId) {
+    pub fn remove_vpe(&mut self, id: tcu::VPEId) {
         // Replace item at position
         // https://stackoverflow.com/questions/33204273/how-can-i-take-ownership-of-a-vec-element-and-replace-it-with-something-else
-        let vpe: Option<Rc<VPE>> = core::mem::replace(&mut self.vpes[id], None);
+        let vpe: Option<Rc<VPE>> = core::mem::replace(&mut self.vpes[id as usize], None);
 
         match vpe {
             Some(ref v) => {

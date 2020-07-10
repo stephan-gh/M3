@@ -20,11 +20,11 @@ use base::goff;
 use base::kif;
 use base::mem::GlobAddr;
 use base::rc::SRc;
-use base::tcu::{self, EpId, PEId};
+use base::tcu::{self, EpId, PEId, VPEId};
 
 use cap::{MGateObject, PEObject, RGateObject, SGateObject};
 use ktcu;
-use pes::{VPEId, INVAL_ID};
+use pes::INVAL_ID;
 use platform;
 
 pub struct PEMux {
@@ -43,12 +43,12 @@ impl PEMux {
             vpes: Vec::new(),
             #[cfg(target_os = "none")]
             queue: crate::com::SendQueue::new(pe as u64, pe),
-            eps: BitVec::new(tcu::EP_COUNT),
+            eps: BitVec::new(tcu::EP_COUNT as usize),
             mem_base: 0,
         };
 
         for ep in 0..tcu::FIRST_USER_EP {
-            pemux.eps.set(ep);
+            pemux.eps.set(ep as usize);
         }
 
         #[cfg(target_os = "none")]
@@ -136,10 +136,10 @@ impl PEMux {
         self.mem_base = addr;
     }
 
-    pub fn find_eps(&self, count: u32) -> Result<tcu::EpId, Error> {
+    pub fn find_eps(&self, count: u32) -> Result<EpId, Error> {
         let mut start = self.eps.first_clear();
         let mut bit = start;
-        while bit < start + count as usize && bit < tcu::EP_COUNT {
+        while bit < start + count as usize && bit < tcu::EP_COUNT as usize {
             if self.eps.is_set(bit) {
                 start = bit + 1;
             }
@@ -150,20 +150,20 @@ impl PEMux {
             Err(Error::new(Code::NoSpace))
         }
         else {
-            Ok(start)
+            Ok(start as EpId)
         }
     }
 
-    pub fn eps_free(&self, start: tcu::EpId, count: u32) -> bool {
-        for ep in start..start + count as usize {
-            if self.eps.is_set(ep) {
+    pub fn eps_free(&self, start: EpId, count: u32) -> bool {
+        for ep in start..start + count as EpId {
+            if self.eps.is_set(ep as usize) {
                 return false;
             }
         }
         true
     }
 
-    pub fn alloc_eps(&mut self, start: tcu::EpId, count: u32) {
+    pub fn alloc_eps(&mut self, start: EpId, count: u32) {
         klog!(
             EPS,
             "PEMux[{}] allocating EPS {}..{}",
@@ -171,13 +171,13 @@ impl PEMux {
             start,
             start as u32 + count - 1
         );
-        for bit in start..start + count as usize {
-            assert!(!self.eps.is_set(bit));
-            self.eps.set(bit);
+        for bit in start..start + count as EpId {
+            assert!(!self.eps.is_set(bit as usize));
+            self.eps.set(bit as usize);
         }
     }
 
-    pub fn free_eps(&mut self, start: tcu::EpId, count: u32) {
+    pub fn free_eps(&mut self, start: EpId, count: u32) {
         klog!(
             EPS,
             "PEMux[{}] freeing EPS {}..{}",
@@ -185,9 +185,9 @@ impl PEMux {
             start,
             start as u32 + count - 1
         );
-        for bit in start..start + count as usize {
-            assert!(self.eps.is_set(bit));
-            self.eps.clear(bit);
+        for bit in start..start + count as EpId {
+            assert!(self.eps.is_set(bit as usize));
+            self.eps.clear(bit as usize);
         }
     }
 

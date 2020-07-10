@@ -110,7 +110,7 @@ pub fn user_pes() -> PEIterator {
 }
 
 pub fn pe_desc(pe: PEId) -> PEDesc {
-    get().pes[pe]
+    get().pes[pe as usize]
 }
 
 pub fn is_shared(pe: PEId) -> bool {

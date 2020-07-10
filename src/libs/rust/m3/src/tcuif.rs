@@ -113,7 +113,12 @@ impl TCUIf {
     #[inline(always)]
     pub fn sleep_for(nanos: u64) -> Result<(), Error> {
         if env::get().shared() || nanos != 0 {
-            pexcalls::call2(pexif::Operation::SLEEP, nanos as usize, tcu::INVALID_EP).map(|_| ())
+            pexcalls::call2(
+                pexif::Operation::SLEEP,
+                nanos as usize,
+                tcu::INVALID_EP as usize,
+            )
+            .map(|_| ())
         }
         else {
             tcu::TCU::wait_for_msg(tcu::INVALID_EP)
@@ -122,7 +127,7 @@ impl TCUIf {
 
     pub fn wait_for_msg(ep: tcu::EpId) -> Result<(), Error> {
         if env::get().shared() {
-            pexcalls::call2(pexif::Operation::SLEEP, 0, ep).map(|_| ())
+            pexcalls::call2(pexif::Operation::SLEEP, 0, ep as usize).map(|_| ())
         }
         else {
             tcu::TCU::wait_for_msg(ep)

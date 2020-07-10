@@ -26,7 +26,6 @@ use base::libc;
 use base::util;
 
 use ktcu;
-use pes::VPEId;
 use pes::{pemng, vpemng, State};
 
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
@@ -127,6 +126,10 @@ impl EP {
 
 static ALL_EPS: StaticCell<Vec<EP>> = StaticCell::new(Vec::new());
 
+fn ep_idx(pe: PEId, ep: EpId) -> usize {
+    pe as usize * EP_COUNT as usize + ep as usize
+}
+
 pub fn init() {
     for _ in 0..PE_COUNT {
         for _ in 0..EP_COUNT {
@@ -139,19 +142,19 @@ pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
     let vpe = vpemng::get().find_vpe(|v| v.pe_id() == pe).unwrap();
     if vpe.state() == State::RUNNING {
         let eps = pemng::get().pemux(pe).eps_base() as usize;
-        let addr = eps + ep * EP_REGS * util::size_of::<Reg>();
+        let addr = eps + ep as usize * EP_REGS * util::size_of::<Reg>();
         let bytes = EP_REGS * util::size_of::<Reg>();
         ktcu::try_write_mem(pe, addr as goff, regs.as_ptr() as *const u8, bytes)
     }
     else {
-        ALL_EPS.get_mut()[pe * EP_COUNT + ep] = EP::new(regs, true);
+        ALL_EPS.get_mut()[ep_idx(pe, ep)] = EP::new(regs, true);
         Ok(())
     }
 }
 
 pub fn update_eps(pe: PEId, base: goff) -> Result<(), Error> {
     for ep in FIRST_USER_EP..EP_COUNT {
-        let mut ep_obj = &mut ALL_EPS.get_mut()[pe * EP_COUNT + ep];
+        let mut ep_obj = &mut ALL_EPS.get_mut()[ep_idx(pe, ep)];
         if ep_obj.dirty {
             ep_obj.regs[EpReg::BUF_ADDR.val as usize] += base;
             write_ep_remote(pe, ep, &ep_obj.regs)?;

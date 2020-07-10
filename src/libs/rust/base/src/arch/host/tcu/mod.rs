@@ -30,9 +30,10 @@ mod backend;
 mod thread;
 
 pub type Reg = u64;
-pub type EpId = usize;
+pub type EpId = u16;
 pub type Label = u64;
-pub type PEId = usize;
+pub type PEId = u8;
+pub type VPEId = u16;
 
 const PE_COUNT: usize = 16;
 const MAX_MSG_SIZE: usize = 16 * 1024;
@@ -407,7 +408,7 @@ impl TCU {
     }
 
     fn ep_addr(ep: EpId, reg: usize) -> &'static mut Reg {
-        let off = (ep * EP_REGS + reg as usize) * util::size_of::<Reg>();
+        let off = (ep as usize * EP_REGS + reg as usize) * util::size_of::<Reg>();
         unsafe { intrinsics::transmute(arch::envdata::eps_start() + off) }
     }
 }
@@ -435,7 +436,7 @@ impl TCU {
 }
 
 pub fn init() {
-    const EP_SIZE: usize = (EP_COUNT * EP_REGS) * util::size_of::<Reg>();
+    const EP_SIZE: usize = (EP_COUNT as usize * EP_REGS) * util::size_of::<Reg>();
     const_assert!(EP_SIZE <= cfg::EPMEM_SIZE);
 
     thread::init();

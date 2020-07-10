@@ -17,13 +17,13 @@
 use base::cell::StaticCell;
 use base::cfg;
 use base::col::{String, ToString, Vec};
-use base::tcu::PEId;
 use base::errors::{Code, Error};
 use base::kif;
 use base::libc;
+use base::tcu::{PEId, VPEId};
 
 use ktcu;
-use pes::{pemng, VPEId, VPE};
+use pes::{pemng, VPE};
 
 pub fn init(build_dir: &str) {
     LOADER.set(Some(Loader::new(build_dir)));
@@ -80,9 +80,7 @@ impl Loader {
                     libc::exit(255);
                 }
             },
-            pid => {
-                Ok(pid)
-            },
+            pid => Ok(pid),
         }
     }
 

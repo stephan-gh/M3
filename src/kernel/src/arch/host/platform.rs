@@ -191,7 +191,7 @@ pub fn kernel_pe() -> PEId {
     0
 }
 pub fn user_pes() -> platform::PEIterator {
-    platform::PEIterator::new(1, platform::pes().len() - 1)
+    platform::PEIterator::new(1, (platform::pes().len() - 1) as PEId)
 }
 
 pub fn is_shared(_pe: PEId) -> bool {
