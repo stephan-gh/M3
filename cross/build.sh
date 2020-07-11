@@ -37,9 +37,9 @@ fi
 /bin/echo -e "\e[1mDownloading binutils, gcc, newlib, and gdb...\e[0m"
 
 BINVER=2.32
-GCCVER=9.1.0
+GCCVER=10.1.0
 NEWLVER=3.1.0
-GDBVER=8.3
+GDBVER=9.2
 
 BINARCH=binutils-$BINVER.tar.bz2
 GCCARCH=gcc-$GCCVER.tar.gz

@@ -30,7 +30,7 @@
 #define alloca __builtin_alloca
 
 #if defined(__x86_64__)
-typedef uintptr_t __UINTPTR_TYPE__;
+typedef __UINTPTR_TYPE__ uintptr_t;
 #endif
 
 typedef int mbstate_t;

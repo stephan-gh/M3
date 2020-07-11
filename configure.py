@@ -24,7 +24,7 @@ if target == 'gem5' or target == 'hw':
         cross   = 'x86_64-elf-m3-'
         crts    = ['crt0.o', 'crt1.o', 'crtbegin.o', 'crtend.o', 'crtn.o']
     crossdir    = os.path.abspath('build/cross-' + isa)
-    crossver    = '9.1.0'
+    crossver    = '10.1.0'
     platform    = 'kachel'
 else:
     # build for host by default
