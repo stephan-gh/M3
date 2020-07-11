@@ -14,12 +14,15 @@ if target == 'gem5' or target == 'hw':
     if isa == 'arm':
         rustabi = 'gnueabihf'
         cross   = 'arm-none-eabi-'
+        crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crtfastmath.o', 'crti.o', 'crtn.o']
     elif isa == 'riscv':
         rustabi = 'gnu'
         cross   = 'riscv64-unknown-elf-'
+        crts    = ['crt0.o', 'crtbegin.o', 'crtend.o', 'crti.o', 'crtn.o']
     else:
         rustabi = 'gnu'
         cross   = 'x86_64-elf-m3-'
+        crts    = ['crt0.o', 'crt1.o', 'crtbegin.o', 'crtend.o', 'crtn.o']
     crossdir    = os.path.abspath('build/cross-' + isa)
     crossver    = '9.1.0'
     platform    = 'kachel'
@@ -74,7 +77,7 @@ class M3Env(ninjagen.Env):
 
             global ldscripts
             env['LINKFLAGS'] += ['-Wl,-T,' + ldscripts[ldscript]]
-            deps = [ldscripts[ldscript]] + env.glob(env['LIBDIR'] + '/crt*.o')
+            deps = [ldscripts[ldscript]] + [env['LIBDIR'] + '/' + crt for crt in crts]
 
             if env['TGT'] == 'gem5' and varAddr:
                 global link_addr
