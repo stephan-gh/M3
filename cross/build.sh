@@ -103,15 +103,9 @@ if $BUILD_BINUTILS; then
     if [ $REBUILD -eq 1 ] || [ ! -f $BUILD/binutils/Makefile ]; then
         /bin/echo -e "\e[1mConfiguring binutils...\e[0m"
         CC=$BUILD_CC $SRC/binutils/configure --target=$TARGET --prefix=$PREFIX --disable-nls --disable-werror
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
     fi
     /bin/echo -e "\e[1mBuilding binutils...\e[0m"
     make $MAKE_ARGS all && make install
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
     cd $ROOT
 fi
 
@@ -143,15 +137,9 @@ if $BUILD_GCC; then
         CC=$BUILD_CC CFLAGS_FOR_TARGET=$BUILD_FLAGS \
             $SRC/gcc/configure --target=$TARGET --prefix=$PREFIX --disable-nls \
               --enable-languages=c,c++ --disable-linker-build-id
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
     fi
     /bin/echo -e "\e[1mBuilding gcc...\e[0m"
     make $MAKE_ARGS all-gcc && make install-gcc
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
     ln -sf $DIST/bin/$TARGET-gcc $DIST/bin/$TARGET-cc
 
     # libgcc (only i586 supports dynamic linking)
@@ -199,9 +187,6 @@ if $BUILD_GCC; then
     # now build libgcc
     /bin/echo -e "\e[1mBuilding libgcc...\e[0m"
     make $MAKE_ARGS all-target-libgcc && make install-target-libgcc
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
     cd $ROOT
 
     # copy crt* to basic gcc-stuff
@@ -219,24 +204,15 @@ if $BUILD_CPP; then
         CPP=$TARGET-cpp CFLAGS=$BUILD_FLAGS CXXFLAGS=$BUILD_FLAGS \
             $SRC/gcc/libstdc++-v3/configure --host=$TARGET --prefix=$PREFIX \
             --disable-hosted-libstdcxx --disable-nls --with-newlib
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
     fi
 
     /bin/echo -e "\e[1mBuilding libsupc++...\e[0m"
     cd include
     make $MAKE_ARGS && make install-headers
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
 
     /bin/echo -e "\e[1mBuilding libstdc++...\e[0m"
     cd ../libsupc++
     make $MAKE_ARGS && make install
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
     cd $ROOT
 fi
 
@@ -259,16 +235,10 @@ if $BUILD_GDB; then
           --disable-nls --disable-werror --disable-gas --disable-binutils \
           --disable-ld --disable-gprof \
           --enable-tui
-        if [ $? -ne 0 ]; then
-            exit 1
-        fi
     fi
 
     /bin/echo -e "\e[1mBuilding gdb...\e[0m"
     make $MAKE_ARGS && make install
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
 fi
 
 # create basic symlinks
