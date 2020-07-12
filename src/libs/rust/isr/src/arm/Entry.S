@@ -16,7 +16,7 @@
 
 #include <base/Asm.h>
 
-.extern irq_handler
+.extern isr_handler
 .extern isr_stack
 
 .text
@@ -53,16 +53,16 @@ BEGIN_FUNC(isr_common)
     sub     sp, #8
     stmia   sp, {r13, r14}^
 
-    // argument for irq_handler (saved state)
+    // argument for isr_handler (saved state)
     mov     r0, sp
 
     // start with a new stack
     ldr     sp, =isr_stack
 
     // call handler
-    bl      irq_handler
+    bl      isr_handler
 
-    // restore state from state given by irq_handler
+    // restore state from state given by isr_handler
     mov     sp, r0
 
     // restore user space sp/lr

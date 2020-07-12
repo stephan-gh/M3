@@ -14,10 +14,11 @@
  * General Public License version 2 for more details.
  */
 
+use base::libc;
 use core::fmt;
 
 pub const ISR_COUNT: usize = 8;
-pub const TCU_IRQ: usize = Vector::IRQ.val;
+pub const TCU_ISR: usize = Vector::IRQ.val;
 
 #[derive(Default)]
 // for some reason, we need to specify the alignment here. actually, this struct needs to be packed,
@@ -73,4 +74,30 @@ impl fmt::Debug for State {
         writeln!(fmt, "  cpsr:   {:#x}", { self.cpsr })?;
         Ok(())
     }
+}
+
+#[no_mangle]
+pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
+    // repeat last instruction
+    if state.vec == 4 {
+        state.pc -= 8;
+    }
+    // repeat last instruction, except for SWIs
+    else if state.vec != 2 {
+        state.pc -= 4;
+    }
+
+    crate::ISRS[state.vec](state)
+}
+
+pub fn init(_stack: usize) {
+    // nothing to do
+}
+
+pub fn set_entry_sp(_sp: usize) {
+    // nothing to do
+}
+
+pub fn enable_irqs() {
+    unsafe { llvm_asm!("msr cpsr, $0" : : "r"(0x53)) };
 }

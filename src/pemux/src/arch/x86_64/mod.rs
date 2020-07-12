@@ -29,9 +29,6 @@ pub const PEXC_ARG0: usize = 14; // rax
 pub const PEXC_ARG1: usize = 12; // rcx
 pub const PEXC_ARG2: usize = 11; // rdx
 
-const SEG_UCODE: u64 = 3;
-const SEG_UDATA: u64 = 4;
-
 const CR0_TASK_SWITCHED: usize = 1 << 3;
 
 static FPU_OWNER: StaticCell<vpe::Id> = StaticCell::new(pemux::VPE_ID);
@@ -76,8 +73,8 @@ pub fn init_state(state: &mut State, entry: usize, sp: usize) {
     state.rflags = 0x200; // enable interrupts
 
     // run in user mode
-    state.cs = ((SEG_UCODE << 3) | isr::DPL_USER) as usize;
-    state.ss = ((SEG_UDATA << 3) | isr::DPL_USER) as usize;
+    state.cs = ((isr::Segment::UCODE.val << 3) | isr::DPL::USER.val) as usize;
+    state.ss = ((isr::Segment::UDATA.val << 3) | isr::DPL::USER.val) as usize;
 }
 
 pub fn forget_fpu(vpe_id: vpe::Id) {

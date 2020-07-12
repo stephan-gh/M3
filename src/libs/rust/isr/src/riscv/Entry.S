@@ -16,7 +16,7 @@
 
 #include <base/Asm.h>
 
-.extern irq_handler
+.extern isr_handler
 .extern isr_stack
 
 .text
@@ -111,8 +111,8 @@ BEGIN_FUNC(isr_common)
     # start with a new stack
     la      sp, isr_stack
 
-    # call irq_handler (state address is already in a0)
-    jal     irq_handler
+    # call isr_handler (state address is already in a0)
+    jal     isr_handler
     mv      x1, a0
 
     # restore SSTATUS

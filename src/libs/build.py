@@ -4,9 +4,9 @@ dirs = [
     'dummy',
     'heap',
     'host',
-    'isr',
     'm3',
     'pci',
+    'rust',
     'support',
     'thread',
 ]

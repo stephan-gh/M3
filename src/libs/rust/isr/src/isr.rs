@@ -18,26 +18,20 @@
 #![no_std]
 
 #[macro_use]
+extern crate base;
+#[macro_use]
 extern crate cfg_if;
 
 cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
-        extern crate base;
-
         #[path = "x86_64/mod.rs"]
         mod isa;
     }
     else if #[cfg(target_arch = "arm")] {
-        #[macro_use]
-        extern crate base;
-
         #[path = "arm/mod.rs"]
         mod isa;
     }
     else {
-        #[macro_use]
-        extern crate base;
-
         #[path = "riscv/mod.rs"]
         mod isa;
     }
@@ -45,46 +39,16 @@ cfg_if! {
 
 pub use self::isa::*;
 
-type IsrFunc = extern "C" fn(state: &mut isa::State) -> *mut base::libc::c_void;
+use base::cell::StaticCell;
 
-extern "C" {
-    fn isr_init(stack: usize);
-    fn isr_enable();
-    fn isr_reg(idx: usize, func: IsrFunc);
-    #[cfg(target_arch = "x86_64")]
-    fn isr_set_sp(sp: usize);
-}
+pub type IsrFunc = extern "C" fn(state: &mut State) -> *mut base::libc::c_void;
 
-pub fn init(stack: usize) {
-    unsafe {
-        isr_init(stack);
-        for i in 0..isa::ISR_COUNT {
-            isr_reg(i, unexpected_irq);
-        }
-    }
-}
-
-pub fn enable() {
-    unsafe {
-        isr_enable();
-    }
-}
-
-pub fn reg(idx: usize, func: IsrFunc) {
-    unsafe {
-        isr_reg(idx, func);
-    }
-}
-
-pub fn set_entry_sp(_sp: usize) {
-    #[cfg(target_arch = "x86_64")]
-    unsafe {
-        isr_set_sp(_sp)
-    };
-    #[cfg(target_arch = "riscv64")]
-    write_csr!("sscratch", _sp);
-}
+static ISRS: StaticCell<[IsrFunc; ISR_COUNT]> = StaticCell::new([unexpected_irq; ISR_COUNT]);
 
 pub extern "C" fn unexpected_irq(state: &mut State) -> *mut base::libc::c_void {
     panic!("Unexpected IRQ with {:?}", state);
+}
+
+pub fn reg(idx: usize, func: IsrFunc) {
+    ISRS.get_mut()[idx] = func;
 }

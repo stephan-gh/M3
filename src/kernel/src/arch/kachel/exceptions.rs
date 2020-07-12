@@ -23,8 +23,8 @@ use arch::paging;
 
 pub fn init() {
     isr::init(cfg::STACK_BOTTOM + cfg::STACK_SIZE / 2);
-    isr::reg(isr::TCU_IRQ, tcu_irq);
-    isr::enable();
+    isr::reg(isr::TCU_ISR, tcu_irq);
+    isr::enable_irqs();
 }
 
 fn handle_xlate(xlate_req: tcu::Reg) {

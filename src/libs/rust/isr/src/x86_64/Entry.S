@@ -16,7 +16,7 @@
 
 #include <base/Asm.h>
 
-.extern irq_handler
+.extern isr_handler
 .extern isr_stack
 
 .text
@@ -38,14 +38,14 @@ BEGIN_FUNC(isr_common)
     push    %r14
     push    %r15
 
-    // state as argument for irq_handler
+    // state as argument for isr_handler
     mov     %rsp, %rdi
 
     // start with a new stack
     mov     $isr_stack, %rsp
 
     // call C++ routine
-    call    irq_handler
+    call    isr_handler
 
     // restore application state
     mov     %rax, %rsp
