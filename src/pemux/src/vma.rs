@@ -80,7 +80,8 @@ fn recv_pf_resp() -> vpe::ContResult {
         let msg = tcu::TCU::offset_to_msg(rbuf_addr, msg_off);
         let reply = msg.get_data::<DefaultReply>();
         let err = reply.error as u32;
-        tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg_off).unwrap();
+        // deliberately ignore errors here; the kernel can invalidate the pager EPs at any time
+        tcu::TCU::ack_msg(eps_start + tcu::PG_REP_OFF, msg_off).ok();
 
         let pf_state = vpe.finish_pf();
         if err != 0 {
