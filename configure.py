@@ -3,6 +3,7 @@
 import copy
 import src.tools.ninjagen as ninjagen
 import os, sys
+from subprocess import check_output
 from glob import glob
 
 target = os.environ.get('M3_TARGET')
@@ -36,6 +37,18 @@ else:
     rustabi     = 'gnu'
     cross       = ''
     platform    = 'host'
+
+# ensure that the cross compiler is installed and up to date
+if cross != '':
+    crossgcc = crossdir + '/bin/' + cross + 'g++'
+    if not os.path.isfile(crossgcc):
+        sys.exit('Please install the ' + isa + ' cross compiler first ' \
+            + '(cd cross && ./build.sh ' + isa + ').')
+    else:
+        ver = check_output([crossgcc, '-dumpversion']).decode().strip()
+        if ver != crossver:
+            sys.exit('Please update the ' + isa + ' cross compiler from ' \
+                + ver + ' to ' + crossver + ' (cd cross && ./build.sh ' + isa + ' --rebuild).')
 
 bins = []
 ldscripts = {}
