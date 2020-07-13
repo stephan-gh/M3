@@ -397,6 +397,8 @@ static void test_msg_2send_2reply() {
         ASSERT_EQ(kernel::TCU::reply(1, &reply, msg_size, buf1, rmsg), Errors::OUT_OF_BOUNDS);
         // send reply
         ASSERT_EQ(kernel::TCU::reply(1, &reply, sizeof(reply), buf1, rmsg), Errors::NONE);
+        // can't reply again (SEP invalid)
+        ASSERT_EQ(kernel::TCU::reply(1, &reply, sizeof(reply), buf1, rmsg), Errors::NO_SEP);
     }
 
     for(int i = 0; i < 2; ++i) {
