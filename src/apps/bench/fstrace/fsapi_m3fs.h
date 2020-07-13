@@ -44,6 +44,7 @@ public:
           _prefix(prefix),
           _fdMap(),
           _dirMap(),
+          _lgchan_fd(-1),
           _lgchan(lgchan) {
         for(size_t i = 0; i < ARRAY_SIZE(_fdMap); ++i)
             _fdMap[i] = -1;
