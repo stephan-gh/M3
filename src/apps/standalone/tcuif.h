@@ -57,6 +57,10 @@ public:
         return m3::TCU::get().write(ep, data, size, off);
     }
 
+    static void config_invalid(epid_t ep) {
+        m3::TCU::config_invalid(ep);
+    }
+
     static void config_recv(epid_t ep, goff_t buf, unsigned order,
                             unsigned msgorder, unsigned reply_eps,
                             uint32_t occupied = 0, uint32_t unread = 0) {
