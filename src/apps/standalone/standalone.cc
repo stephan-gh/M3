@@ -515,5 +515,7 @@ int main() {
     }
 
     Serial::get() << "\x1B[1;32mAll tests successful!\x1B[0;m\n";
+    // for the test infrastructure
+    Serial::get() << "Shutting down\n";
     return 0;
 }
