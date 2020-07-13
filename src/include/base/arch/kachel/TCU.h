@@ -327,6 +327,12 @@ private:
         return static_cast<reg_t>(c) | (static_cast<reg_t>(ep) << 4) | (arg << 25);
     }
 
+    static void config_invalid(epid_t ep) {
+        write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::INVALID));
+        write_reg(ep, 1, 0);
+        write_reg(ep, 2, 0);
+    }
+
     static void config_recv(epid_t ep, goff_t buf, unsigned order,
                             unsigned msgorder, unsigned reply_eps,
                             uint32_t occupied = 0, uint32_t unread = 0) {
