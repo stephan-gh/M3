@@ -45,7 +45,7 @@ def fetchPrint(pm):
         sys.stdout.flush()
 
         write64bit(pm, SERIAL_ACK, 0)
-        if "kernel" in line and "Shutting down" in line:
+        if "Shutting down" in line:
             return 2
         return 1
     elif length != 0:
@@ -76,7 +76,7 @@ def load_prog(pm, i, memfile):
     pm.mem[ENV + 64] = 0 # lambda
 
     # start core (via interrupt 0)
-    pm.start_rocket()
+    pm.rocket_start()
 
 def main():
     # get connection to FPGA, SW12=0000b -> chipid=0
