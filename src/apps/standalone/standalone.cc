@@ -92,6 +92,8 @@ static void test_mem_short() {
 
 template<typename DATA>
 static void test_mem(size_t size_in) {
+    Serial::get() << "READ+WRITE with " << size_in << " " << sizeof(DATA) << "B words\n";
+
     DATA buffer[size_in];
 
     // prepare test data
@@ -426,6 +428,8 @@ static void test_msg_2send_2reply() {
 
 template<typename DATA>
 static void test_msg(size_t msg_size_in, size_t reply_size_in) {
+    Serial::get() << "SEND+REPLY with " << msg_size_in << " " << sizeof(DATA) << "B words\n";
+
     const size_t TOTAL_MSG_SIZE = msg_size_in * sizeof(DATA) + sizeof(TCU::Header);
     const size_t TOTAL_REPLY_SIZE = reply_size_in * sizeof(DATA) + sizeof(TCU::Header);
 
