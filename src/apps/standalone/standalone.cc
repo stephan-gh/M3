@@ -494,6 +494,71 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
     ASSERT_EQ(kernel::TCU::ack_msg(2, buf2, rmsg), Errors::NONE);
 }
 
+template<size_t PAD>
+struct UnalignedData {
+    uint8_t _pad[PAD];
+    uint64_t data[2];
+} PACKED ALIGNED(16);
+
+template<size_t PAD>
+static void test_unaligned_msg(size_t nwords) {
+    Serial::get() << "SEND with " << PAD << "B padding and " << nwords << " words payload\n";
+
+    const size_t TOTAL_MSG_ORD = m3::nextlog2<sizeof(UnalignedData<PAD>)>::val;
+
+    ALIGNED(8) char rbuffer[1 << TOTAL_MSG_ORD];
+    uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
+
+    // prepare test data
+    UnalignedData<PAD> msg;
+    for(size_t i = 0; i < nwords; ++i)
+        msg.data[i] = i + 1;
+
+    kernel::TCU::config_recv(1, buf, TOTAL_MSG_ORD, TOTAL_MSG_ORD, TCU::NO_REPLIES);
+    kernel::TCU::config_send(2, 0x1234, pe_id(PE::PE0), 1, TOTAL_MSG_ORD, 1);
+
+    ASSERT_EQ(kernel::TCU::send(2, msg.data, nwords * sizeof(uint64_t), 0x5678, TCU::NO_REPLIES),
+              Errors::NONE);
+
+    // fetch message
+    const TCU::Message *rmsg;
+    while((rmsg = kernel::TCU::fetch_msg(1, buf)) == nullptr)
+        ;
+
+    // validate contents
+    ASSERT_EQ(rmsg->label, 0x1234);
+    ASSERT_EQ(rmsg->replylabel, 0x5678);
+    ASSERT_EQ(rmsg->length, nwords * sizeof(uint64_t));
+    ASSERT_EQ(rmsg->senderEp, 2);
+    ASSERT_EQ(rmsg->replyEp, TCU::INVALID_EP);
+    ASSERT_EQ(rmsg->senderPe, pe_id(PE::PE0));
+    ASSERT_EQ(rmsg->flags, 0);
+    const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
+    for(size_t i = 0; i < nwords; ++i)
+        ASSERT_EQ(msg_ctrl[i], i + 1);
+
+    // free slot
+    ASSERT_EQ(kernel::TCU::ack_msg(1, buf, rmsg), Errors::NONE);
+}
+
+template<size_t PAD>
+static void test_unaligned_rdwr(size_t nwords) {
+    Serial::get() << "READ+WRITE with " << PAD << "B padding and " << nwords << " words data\n";
+
+    // prepare test data
+    UnalignedData<PAD> msg;
+    for(size_t i = 0; i < nwords; ++i)
+        msg.data[i] = i + 1;
+
+    kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, 0x1000, TCU::R | TCU::W);
+
+    ASSERT_EQ(kernel::TCU::write(1, msg.data, nwords * sizeof(uint64_t), 0), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::read(1, msg.data, nwords * sizeof(uint64_t), 0), Errors::NONE);
+
+    for(size_t i = 0; i < nwords; ++i)
+        ASSERT_EQ(msg.data[i], i + 1);
+}
+
 int main() {
     Serial::get() << "Starting TCU tests\n";
 
@@ -516,6 +581,41 @@ int main() {
         test_msg<uint16_t>(i, i);
         test_msg<uint32_t>(i, i);
         test_msg<uint64_t>(i, i);
+    }
+
+    // test different alignments
+    for(size_t i = 1; i <= 2; ++i) {
+        test_unaligned_msg<1>(i);
+        test_unaligned_msg<2>(i);
+        test_unaligned_msg<3>(i);
+        test_unaligned_msg<4>(i);
+        test_unaligned_msg<5>(i);
+        test_unaligned_msg<6>(i);
+        test_unaligned_msg<7>(i);
+        test_unaligned_msg<8>(i);
+        test_unaligned_msg<9>(i);
+        test_unaligned_msg<10>(i);
+        test_unaligned_msg<11>(i);
+        test_unaligned_msg<12>(i);
+        test_unaligned_msg<13>(i);
+        test_unaligned_msg<14>(i);
+        test_unaligned_msg<15>(i);
+
+        test_unaligned_rdwr<1>(i);
+        test_unaligned_rdwr<2>(i);
+        test_unaligned_rdwr<3>(i);
+        test_unaligned_rdwr<4>(i);
+        test_unaligned_rdwr<5>(i);
+        test_unaligned_rdwr<6>(i);
+        test_unaligned_rdwr<7>(i);
+        test_unaligned_rdwr<8>(i);
+        test_unaligned_rdwr<9>(i);
+        test_unaligned_rdwr<10>(i);
+        test_unaligned_rdwr<11>(i);
+        test_unaligned_rdwr<12>(i);
+        test_unaligned_rdwr<13>(i);
+        test_unaligned_rdwr<14>(i);
+        test_unaligned_rdwr<15>(i);
     }
 
     Serial::get() << "\x1B[1;32mAll tests successful!\x1B[0;m\n";
