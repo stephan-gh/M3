@@ -41,6 +41,7 @@ pub enum Code {
     Pagefault,
     Abort,
     SelfRead,
+    UnknownCmd,
     // SW Errors
     InvArgs,
     VPEGone,

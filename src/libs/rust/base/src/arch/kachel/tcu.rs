@@ -459,7 +459,7 @@ impl TCU {
         loop {
             let cmd = Self::read_priv_reg(PrivReg::PRIV_CMD);
             if (cmd & 0xF) == PrivCmdOpCode::IDLE.val {
-                return if (cmd >> 4) == 0 {
+                return if (cmd >> 9) == 0 {
                     // if the command was finished successfully, use the current command register
                     // to ensure that we don't forget the error code
                     Self::read_unpriv_reg(UnprivReg::COMMAND)
@@ -517,7 +517,7 @@ impl TCU {
 
     /// Switches to the given VPE and returns the old VPE
     pub fn xchg_vpe(nvpe: Reg) -> Reg {
-        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 4));
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 9));
         unsafe { intrinsics::atomic_fence() };
         Self::read_priv_reg(PrivReg::PRIV_CMD_ARG)
     }
@@ -529,7 +529,7 @@ impl TCU {
 
     /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
     pub fn invalidate_page(asid: u16, virt: usize) {
-        let val = ((asid as Reg) << 36) | ((virt as Reg) << 4) | PrivCmdOpCode::INV_PAGE.val;
+        let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, val);
     }
 
@@ -537,9 +537,9 @@ impl TCU {
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) {
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, phys);
         unsafe { intrinsics::atomic_fence() };
-        let cmd = ((asid as Reg) << 36)
-            | (((virt & !cfg::PAGE_MASK) as Reg) << 4)
-            | ((flags.bits() as Reg) << 4)
+        let cmd = ((asid as Reg) << 41)
+            | (((virt & !cfg::PAGE_MASK) as Reg) << 9)
+            | ((flags.bits() as Reg) << 9)
             | PrivCmdOpCode::INS_TLB.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
     }
@@ -554,7 +554,7 @@ impl TCU {
     pub fn set_timer(delay_ns: u64) {
         Self::write_priv_reg(
             PrivReg::PRIV_CMD,
-            PrivCmdOpCode::SET_TIMER.val | (delay_ns << 4),
+            PrivCmdOpCode::SET_TIMER.val | (delay_ns << 9),
         );
     }
 

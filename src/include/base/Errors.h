@@ -43,6 +43,7 @@ struct Errors {
         PAGEFAULT,
         ABORT,
         SELF_READ,
+        UNKNOWN_CMD,
         // SW errors
         INV_ARGS,
         VPE_GONE,
