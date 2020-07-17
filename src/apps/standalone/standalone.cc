@@ -31,6 +31,8 @@ using namespace m3;
 static void test_mem_short() {
     uint64_t data = 1234;
 
+    ASSERT_EQ(kernel::TCU::unknown_cmd(), Errors::UNKNOWN_CMD);
+
     kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, sizeof(uint64_t), TCU::R | TCU::W);
 
     // test write
