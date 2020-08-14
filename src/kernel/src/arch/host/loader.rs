@@ -22,8 +22,8 @@ use base::kif;
 use base::libc;
 use base::tcu::{PEId, VPEId};
 
-use ktcu;
-use pes::{pemng, VPE};
+use crate::ktcu;
+use crate::pes::{pemng, VPE};
 
 pub fn init(build_dir: &str) {
     LOADER.set(Some(Loader::new(build_dir)));

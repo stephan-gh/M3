@@ -16,7 +16,9 @@
 
 //! Contains the basics of the ELF interface
 
-use kif;
+use bitflags::bitflags;
+
+use crate::kif;
 
 const EI_NIDENT: usize = 16;
 

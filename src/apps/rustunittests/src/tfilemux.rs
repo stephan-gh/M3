@@ -22,6 +22,7 @@ use m3::pes::VPE;
 use m3::session::Pipes;
 use m3::test;
 use m3::vfs::{BufReader, FileHandle, IndirectPipe, OpenFlags, VFS};
+use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, genfile_mux);

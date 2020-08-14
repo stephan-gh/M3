@@ -16,16 +16,17 @@
 
 //! Contains the system call wrapper functions
 
-use arch;
-use cap::Selector;
-use cell::LazyStaticCell;
-use com::{RecvGate, SendGate, SliceSink, SliceSource};
-use errors::{Code, Error};
-use goff;
-use kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
-use serialize::Sink;
-use tcu::{EpId, Label, Message, TCUIf, SYSC_SEP_OFF};
-use util;
+use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
+
+use crate::arch;
+use crate::cap::Selector;
+use crate::cell::LazyStaticCell;
+use crate::com::{RecvGate, SendGate, SliceSink, SliceSource};
+use crate::errors::{Code, Error};
+use crate::goff;
+use crate::serialize::Sink;
+use crate::tcu::{EpId, Label, Message, TCUIf, SYSC_SEP_OFF};
+use crate::util;
 
 static SGATE: LazyStaticCell<SendGate> = LazyStaticCell::default();
 

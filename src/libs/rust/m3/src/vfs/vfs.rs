@@ -14,11 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use errors::{Code, Error};
-use pes::VPE;
-use rc::Rc;
-use session::M3FS;
-use vfs::{FSHandle, FileInfo, FileMode, FileRef, OpenFlags};
+use crate::errors::{Code, Error};
+use crate::pes::VPE;
+use crate::rc::Rc;
+use crate::session::M3FS;
+use crate::vfs::{FSHandle, FileInfo, FileMode, FileRef, OpenFlags};
 
 /// Mounts the file system of type `fstype` at `path`, creating a session at `service`.
 pub fn mount(path: &str, fstype: &str, service: &str) -> Result<(), Error> {

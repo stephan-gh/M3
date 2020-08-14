@@ -14,13 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use col::Vec;
-use com::VecSink;
 use core::any::Any;
 use core::fmt;
-use errors::Error;
-use vfs::{FileHandle, FileInfo, FileMode, OpenFlags};
+
+use crate::cap::Selector;
+use crate::col::Vec;
+use crate::com::VecSink;
+use crate::errors::Error;
+use crate::int_enum;
+use crate::vfs::{FileHandle, FileInfo, FileMode, OpenFlags};
 
 int_enum! {
     /// The file system operations.

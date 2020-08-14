@@ -19,6 +19,7 @@ use m3::errors::Code;
 use m3::io::{Read, Write};
 use m3::test;
 use m3::vfs::{FileRef, OpenFlags, Seek, SeekMode, VFS};
+use m3::{vec, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, permissions);

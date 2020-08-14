@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use time;
+use crate::time;
 
 #[macro_export]
 macro_rules! read_csr {

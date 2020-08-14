@@ -25,13 +25,13 @@ use base::mem::GlobAddr;
 use base::rc::{Rc, SRc};
 use base::tcu;
 
-use args;
-use cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
-use ktcu;
-use mem::{self, Allocation};
-use pes::pemng;
-use pes::{VPEFlags, VPE};
-use platform;
+use crate::args;
+use crate::cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
+use crate::ktcu;
+use crate::mem::{self, Allocation};
+use crate::pes::pemng;
+use crate::pes::{VPEFlags, VPE};
+use crate::platform;
 
 pub const MAX_VPES: usize = 64;
 
@@ -265,7 +265,7 @@ impl Drop for VPEMng {
             if let Some(ref _vpe) = v {
                 #[cfg(target_os = "linux")]
                 if let Some(pid) = _vpe.pid() {
-                    ::arch::childs::kill_child(pid);
+                    crate::arch::childs::kill_child(pid);
                 }
             }
         }

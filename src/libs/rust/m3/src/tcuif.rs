@@ -14,13 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-use arch::env;
-use arch::pexcalls;
 use base::pexif;
-use com::{MemGate, RecvGate, SendGate};
-use errors::{Code, Error};
-use goff;
-use tcu::{self, Label, Message};
+
+use crate::arch::env;
+use crate::arch::pexcalls;
+use crate::com::{MemGate, RecvGate, SendGate};
+use crate::errors::{Code, Error};
+use crate::goff;
+use crate::tcu::{self, Label, Message};
 
 pub struct TCUIf {}
 

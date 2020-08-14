@@ -19,6 +19,7 @@ use core::fmt;
 use m3::boxed::Box;
 use m3::col::{BoxList, BoxRef};
 use m3::test;
+use m3::{impl_boxitem, wv_assert_eq, wv_run_test};
 
 struct TestItem {
     data: u32,

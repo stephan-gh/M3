@@ -14,17 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use cell::LazyStaticCell;
-use cfg;
-use com::MemGate;
 use core::fmt;
-use errors::Error;
-use kif::Perm;
-use math;
-use mem::MemMap;
-use pes::VPE;
-use syscalls;
+
+use crate::cap::Selector;
+use crate::cell::LazyStaticCell;
+use crate::cfg;
+use crate::com::MemGate;
+use crate::errors::Error;
+use crate::kif::Perm;
+use crate::math;
+use crate::mem::MemMap;
+use crate::pes::VPE;
+use crate::syscalls;
 
 static BUFS: LazyStaticCell<MemMap> = LazyStaticCell::default();
 

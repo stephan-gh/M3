@@ -16,8 +16,7 @@
 
 #![no_std]
 
-#[macro_use]
-extern crate m3;
+use m3::println;
 
 #[no_mangle]
 pub fn main() -> i32 {

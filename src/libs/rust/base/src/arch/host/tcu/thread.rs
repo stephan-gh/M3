@@ -14,16 +14,17 @@
  * General Public License version 2 for more details.
  */
 
-use arch::envdata;
-use arch::tcu::{
+use core::{ptr, sync::atomic};
+
+use crate::arch::envdata;
+use crate::arch::tcu::{
     backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, EP_COUNT, MAX_MSG_SIZE, TCU,
     UNLIM_CREDITS,
 };
-use cell::{LazyStaticCell, StaticCell};
-use core::{ptr, sync::atomic};
-use errors::{Code, Error};
-use io;
-use util;
+use crate::cell::{LazyStaticCell, StaticCell};
+use crate::errors::{Code, Error};
+use crate::io;
+use crate::util;
 
 pub(crate) struct Buffer {
     pub header: Header,

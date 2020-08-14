@@ -16,16 +16,6 @@
 
 #![no_std]
 
-#[macro_use]
-extern crate m3;
-
-#[cfg(target_os = "none")]
-extern crate pci;
-
-#[cfg(target_os = "none")]
-#[macro_use]
-extern crate bitflags;
-
 mod backend;
 mod partition;
 
@@ -45,6 +35,7 @@ use m3::server::{
 };
 use m3::session::ServerSession;
 use m3::tcu::Label;
+use m3::{int_enum, log, reply_vmsg};
 
 use backend::BlockDevice;
 use backend::BlockDeviceTrait;

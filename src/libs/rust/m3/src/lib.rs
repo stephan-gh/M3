@@ -20,10 +20,6 @@
 #![feature(trace_macros)]
 #![no_std]
 
-#[macro_use]
-extern crate base;
-#[macro_use]
-extern crate bitflags;
 extern crate heap;
 
 // init stuff
@@ -41,7 +37,7 @@ mod tcuif;
 /// The interface to the trusted communication unit
 pub mod tcu {
     pub use base::tcu::*;
-    pub use tcuif::*;
+    pub use crate::tcuif::*;
 }
 
 pub use base::{

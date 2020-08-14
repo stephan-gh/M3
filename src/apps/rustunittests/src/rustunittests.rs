@@ -16,11 +16,9 @@
 
 #![no_std]
 
-#[macro_use]
-extern crate m3;
-
 use m3::cell::StaticCell;
 use m3::test::WvTester;
+use m3::{println, wv_run_suite};
 
 mod tboxlist;
 mod tbufio;

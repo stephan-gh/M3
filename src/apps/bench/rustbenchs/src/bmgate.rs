@@ -18,6 +18,7 @@ use m3::com::MemGate;
 use m3::kif;
 use m3::profile;
 use m3::test;
+use m3::{vec, wv_perf, wv_run_test};
 
 const SIZE: usize = 2 * 1024 * 1024;
 

@@ -15,11 +15,12 @@
  */
 
 use base::libc;
+use base::rc::Rc;
 use base::tcu::TCU;
 use core::ptr;
 use core::sync::atomic;
 
-use pes::{vpemng, State};
+use crate::pes::{vpemng, State, VPE};
 
 static mut SIGCHLDS: atomic::AtomicUsize = atomic::AtomicUsize::new(0);
 
@@ -57,7 +58,7 @@ pub fn check_childs() {
 }
 
 fn kill_vpe(pid: libc::pid_t, status: i32) {
-    let (vpe, vpe_name) = match vpemng::get().find_vpe(|v| v.pid().unwrap_or(0) == pid) {
+    let (vpe, vpe_name) = match vpemng::get().find_vpe(|v: &Rc<VPE>| v.pid().unwrap_or(0) == pid) {
         Some(v) => {
             let id = v.id();
             let name = format!("{}:{}", id, v.name());

@@ -14,21 +14,22 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use cell::RefCell;
-use col::Vec;
-use com::{RecvGate, SendGate, SliceSource, VecSink};
 use core::any::Any;
 use core::cmp;
 use core::fmt;
-use errors::Error;
-use goff;
-use kif;
-use pes::VPE;
-use rc::{Rc, Weak};
-use serialize::{Sink, Source};
-use session::ClientSession;
-use vfs::{
+
+use crate::cap::Selector;
+use crate::cell::RefCell;
+use crate::col::Vec;
+use crate::com::{RecvGate, SendGate, SliceSource, VecSink};
+use crate::errors::Error;
+use crate::goff;
+use crate::kif;
+use crate::pes::VPE;
+use crate::rc::{Rc, Weak};
+use crate::serialize::{Sink, Source};
+use crate::session::ClientSession;
+use crate::vfs::{
     FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
 };
 

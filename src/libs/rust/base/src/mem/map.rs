@@ -14,11 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use col::DList;
 use core::fmt;
-use errors::{Code, Error};
-use goff;
-use math;
+
+use crate::col::DList;
+use crate::errors::{Code, Error};
+use crate::goff;
+use crate::math;
 
 struct Area {
     addr: goff,

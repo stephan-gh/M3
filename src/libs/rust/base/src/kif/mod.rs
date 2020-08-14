@@ -30,7 +30,7 @@ pub use self::cap::*;
 pub use self::pedesc::*;
 pub use self::perm::*;
 
-use tcu;
+use crate::tcu;
 
 /// Represents an invalid capability selector
 pub const INVALID_SEL: CapSel = 0xFFFF;

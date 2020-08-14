@@ -17,11 +17,10 @@
 #![feature(llvm_asm)]
 #![no_std]
 
-#[macro_use]
-extern crate base;
 extern crate heap;
 
 use base::io;
+use base::log;
 use base::machine;
 use base::mem;
 

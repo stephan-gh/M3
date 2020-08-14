@@ -14,17 +14,20 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use col::Vec;
-use com::VecSink;
+use bitflags::bitflags;
 use core::fmt::Debug;
-use errors::Error;
-use goff;
-use io::{Read, Write};
-use kif;
-use serialize::{Marshallable, Sink, Source, Unmarshallable};
-use session::{MapFlags, Pager};
-use vfs::{BlockId, DevId, Fd, FileMode, INodeId};
+
+use crate::cap::Selector;
+use crate::col::Vec;
+use crate::com::VecSink;
+use crate::errors::Error;
+use crate::goff;
+use crate::int_enum;
+use crate::io::{Read, Write};
+use crate::kif;
+use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
+use crate::session::{MapFlags, Pager};
+use crate::vfs::{BlockId, DevId, Fd, FileMode, INodeId};
 
 int_enum! {
     /// The different seek modes.

@@ -15,12 +15,13 @@
  */
 
 use base::errors::{Code, Error};
+use base::log;
 use base::pexif;
 use base::tcu::{EpId, INVALID_EP, TCU};
 
-use arch;
-use timer::Nanos;
-use vpe;
+use crate::arch;
+use crate::timer::Nanos;
+use crate::vpe;
 
 fn pexcall_sleep(state: &mut arch::State) -> Result<(), Error> {
     let dur = state.r[arch::PEXC_ARG1] as Nanos;

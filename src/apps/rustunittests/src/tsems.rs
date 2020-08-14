@@ -20,6 +20,7 @@ use m3::io::{Read, Write};
 use m3::pes::{Activity, PE, VPE};
 use m3::test;
 use m3::vfs::{OpenFlags, VFS};
+use m3::{wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, taking_turns);

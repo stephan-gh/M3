@@ -16,11 +16,12 @@
 
 //! Contains the serial struct
 
-use arch;
 use core::cmp;
 use core::fmt;
-use errors::Error;
-use io;
+
+use crate::arch;
+use crate::errors::Error;
+use crate::io;
 
 /// The serial line
 #[derive(Default)]

@@ -16,7 +16,7 @@
 
 //! Contains time measurement functions
 
-use arch::time;
+use crate::arch::time;
 
 /// A timestamp
 pub type Time = u64;

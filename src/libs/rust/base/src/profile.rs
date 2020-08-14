@@ -16,10 +16,11 @@
 
 //! Contains types to simplify profiling
 
-use col::Vec;
 use core::fmt;
-use math;
-use time;
+
+use crate::col::Vec;
+use crate::math;
+use crate::time;
 
 /// A container for the measured execution times
 pub struct Results {

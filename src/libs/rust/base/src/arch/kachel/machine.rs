@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use envdata;
+use crate::envdata;
 
 extern "C" {
     pub fn gem5_shutdown(delay: u64);

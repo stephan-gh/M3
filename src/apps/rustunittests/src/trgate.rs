@@ -17,6 +17,7 @@
 use m3::com::{RGateArgs, RecvGate};
 use m3::errors::Code;
 use m3::test;
+use m3::{wv_assert_err, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create);
@@ -38,6 +39,7 @@ fn destroy() {
     use m3::boxed::Box;
     use m3::com::{recv_msg, SGateArgs, SendGate};
     use m3::pes::{Activity, PE, VPE};
+    use m3::{reply_vmsg, send_recv, wv_assert_eq, wv_assert_ok};
 
     let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut child = wv_assert_ok!(VPE::new(pe, "test"));

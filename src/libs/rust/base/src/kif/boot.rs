@@ -18,8 +18,9 @@
 
 use core::fmt;
 use core::mem::MaybeUninit;
-use kif;
-use util;
+
+use crate::kif;
+use crate::util;
 
 const MAX_MODNAME_LEN: usize = 64;
 const MAX_SERVNAME_LEN: usize = 32;

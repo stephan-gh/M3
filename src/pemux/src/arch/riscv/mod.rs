@@ -18,10 +18,11 @@ use base::cell::StaticCell;
 use base::errors::Error;
 use base::kif::{pemux, PageFlags};
 use base::libc;
+use base::{int_enum, log, read_csr, write_csr};
 use core::mem::MaybeUninit;
 
-use vma;
-use vpe;
+use crate::vma;
+use crate::vpe;
 
 pub type State = isr::State;
 
@@ -166,9 +167,7 @@ pub fn handle_fpu_ex(state: &mut State) {
             restore_fpu(fpu_state);
         }
         else {
-            unsafe {
-                libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33)
-            };
+            unsafe { libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33) };
             fpu_state.init = true;
         }
 

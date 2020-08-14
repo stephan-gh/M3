@@ -18,10 +18,10 @@ use base::tcu;
 use core::intrinsics;
 use thread;
 
-use com;
-use ktcu;
-use pes;
-use syscalls;
+use crate::com;
+use crate::ktcu;
+use crate::pes;
+use crate::syscalls;
 
 pub fn thread_startup() {
     workloop();
@@ -56,8 +56,8 @@ pub fn workloop() {
         thmng.try_yield();
 
         #[cfg(target_os = "linux")]
-        ::arch::childs::check_childs();
+        crate::arch::childs::check_childs();
         #[cfg(target_os = "linux")]
-        ::arch::net::check();
+        crate::arch::net::check();
     }
 }

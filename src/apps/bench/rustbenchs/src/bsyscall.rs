@@ -25,6 +25,7 @@ use m3::profile;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::test;
+use m3::{println, wv_assert_ok, wv_perf, wv_run_test};
 
 static SEL: StaticCell<kif::CapSel> = StaticCell::new(0);
 

@@ -14,8 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-use errors::{Code, Error};
 use libc;
+
+use crate::errors::{Code, Error};
 
 static mut LOG_FD: i32 = -1;
 

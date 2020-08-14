@@ -22,9 +22,10 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::libc;
+use m3::log;
 
-use backend::BlockDeviceTrait;
-use partition::{parse_partitions, Partition};
+use crate::backend::BlockDeviceTrait;
+use crate::partition::{parse_partitions, Partition};
 
 static TMP_BUF: StaticCell<[u8; 4096]> = StaticCell::new([0; 4096]);
 

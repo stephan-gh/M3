@@ -14,10 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use backtrace;
 use core::intrinsics;
 use core::panic::PanicInfo;
-use io::{log, Write};
+
+use crate::backtrace;
+use crate::io::{log, Write};
 
 extern "C" {
     fn exit(code: i32);

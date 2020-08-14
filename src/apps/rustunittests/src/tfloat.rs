@@ -19,6 +19,7 @@ use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::rc::Rc;
 use m3::tcu;
 use m3::test;
+use m3::{println, wv_assert, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, calc_pi_local);

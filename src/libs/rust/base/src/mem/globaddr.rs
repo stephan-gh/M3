@@ -14,10 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use arch::tcu::PEId;
+use cfg_if::cfg_if;
 use core::fmt;
 use core::ops;
-use goff;
+
+use crate::arch::tcu::PEId;
+use crate::goff;
 
 /// Represents a global address, which is a combination of a PE id and an offset within the PE.
 ///

@@ -19,9 +19,9 @@ use base::col::Vec;
 use base::kif;
 use base::tcu::PEId;
 
-use arch::ktcu;
-use pes::PEMux;
-use platform;
+use crate::arch::ktcu;
+use crate::pes::PEMux;
+use crate::platform;
 
 pub struct PEMng {
     muxes: Vec<PEMux>,

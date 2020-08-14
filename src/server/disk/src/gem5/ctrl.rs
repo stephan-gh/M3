@@ -17,13 +17,15 @@
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::Error;
+use m3::int_enum;
 use m3::kif;
+use m3::log;
 use m3::rc::Rc;
 use pci;
 
 use super::chan::Channel;
 use super::PartDesc;
-use Operation;
+use crate::Operation;
 
 const PORTBASE_PRIMARY: u16 = 0x1F0;
 const PORTBASE_SECONDARY: u16 = 0x170;

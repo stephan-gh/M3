@@ -14,19 +14,20 @@
  * General Public License version 2 for more details.
  */
 
-use base::col::Vec;
 use base::cell::StaticCell;
 use base::cfg::PE_COUNT;
+use base::col::Vec;
 use base::envdata;
 use base::errors::Error;
 use base::goff;
 use base::kif::Perm;
-use base::tcu::*;
 use base::libc;
+use base::rc::Rc;
+use base::tcu::*;
 use base::util;
 
-use ktcu;
-use pes::{pemng, vpemng, State};
+use crate::ktcu;
+use crate::pes::{pemng, vpemng, State, VPE};
 
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
     let off = virt - envdata::rbuf_start() as goff;
@@ -39,7 +40,9 @@ pub fn deprivilege_pe(_pe: PEId) -> Result<(), Error> {
 }
 
 pub fn reset_pe(_pe: PEId, pid: i32) -> Result<(), Error> {
-    unsafe { libc::kill(pid, libc::SIGKILL); }
+    unsafe {
+        libc::kill(pid, libc::SIGKILL);
+    }
     Ok(())
 }
 
@@ -139,7 +142,9 @@ pub fn init() {
 }
 
 pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
-    let vpe = vpemng::get().find_vpe(|v| v.pe_id() == pe).unwrap();
+    let vpe = vpemng::get()
+        .find_vpe(|v: &Rc<VPE>| v.pe_id() == pe)
+        .unwrap();
     if vpe.state() == State::RUNNING {
         let eps = pemng::get().pemux(pe).eps_base() as usize;
         let addr = eps + ep as usize * EP_REGS * util::size_of::<Reg>();

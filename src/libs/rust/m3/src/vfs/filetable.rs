@@ -14,17 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use cell::RefCell;
-use col::Vec;
-use com::{SliceSource, VecSink};
 use core::{fmt, mem};
-use errors::{Code, Error};
-use io::Serial;
-use pes::VPE;
-use rc::Rc;
-use serialize::Sink;
-use vfs::{File, FileRef, GenericFile};
+
+use crate::cap::Selector;
+use crate::cell::RefCell;
+use crate::col::Vec;
+use crate::com::{SliceSource, VecSink};
+use crate::errors::{Code, Error};
+use crate::io::Serial;
+use crate::pes::VPE;
+use crate::rc::Rc;
+use crate::serialize::Sink;
+use crate::vfs::{File, FileRef, GenericFile};
 
 /// A file descriptor
 pub type Fd = usize;

@@ -20,7 +20,7 @@ use base::mem::GlobAddr;
 use base::goff;
 use core::fmt;
 
-use mem::{MemMod, MemType};
+use crate::mem::{MemMod, MemType};
 
 pub struct MainMemory {
     mods: Vec<MemMod>,

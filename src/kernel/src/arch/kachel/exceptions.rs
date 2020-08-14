@@ -19,7 +19,7 @@ use base::libc;
 use base::kif::PageFlags;
 use base::tcu;
 
-use arch::paging;
+use crate::arch::paging;
 
 pub fn init() {
     isr::init(cfg::STACK_BOTTOM + cfg::STACK_SIZE / 2);

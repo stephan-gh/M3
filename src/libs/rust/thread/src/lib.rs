@@ -17,15 +17,15 @@
 #![feature(core_intrinsics)]
 #![no_std]
 
-#[macro_use]
-extern crate base;
-
 use base::boxed::Box;
 use base::cell::{LazyStaticCell, StaticCell};
 use base::col::{BoxList, Vec};
+use base::impl_boxitem;
 use base::libc;
+use base::log;
 use base::tcu;
 use base::util;
+use base::vec;
 use core::intrinsics;
 use core::mem;
 use core::ptr::NonNull;

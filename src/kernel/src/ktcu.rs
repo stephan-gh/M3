@@ -21,9 +21,9 @@ use base::kif;
 use base::tcu::{EpId, Header, Label, Message, PEId, Reg, EP_COUNT, EP_REGS, TCU, UNLIM_CREDITS};
 use base::util;
 
-use pes::KERNEL_ID;
+use crate::pes::KERNEL_ID;
 
-pub use arch::ktcu::*;
+pub use crate::arch::ktcu::*;
 
 pub const KSYS_EP: EpId = 0;
 pub const KSRV_EP: EpId = 1;

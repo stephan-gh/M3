@@ -16,12 +16,13 @@
 
 //! Provides access to the program environment
 
-use arch;
-use boxed::Box;
 use core::iter;
 use core::mem;
 use core::ops::FnOnce;
-use util;
+
+use crate::arch;
+use crate::boxed::Box;
+use crate::util;
 
 /// The closure used by `VPE::run`
 pub struct Closure {

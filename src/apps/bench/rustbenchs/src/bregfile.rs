@@ -18,6 +18,7 @@ use m3::io::Read;
 use m3::profile;
 use m3::test;
 use m3::vfs::{OpenFlags, VFS};
+use m3::{vec, wv_assert_ok, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, open_close);

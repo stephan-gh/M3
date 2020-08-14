@@ -16,13 +16,6 @@
 
 #![no_std]
 
-#[macro_use]
-extern crate m3;
-#[macro_use]
-extern crate bitflags;
-extern crate resmng;
-extern crate thread;
-
 mod addrspace;
 mod dataspace;
 mod mapper;
@@ -35,6 +28,7 @@ use m3::col::{String, ToString, Vec};
 use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::log;
 use m3::math;
 use m3::pes::{VPEArgs, VPE};
 use m3::serialize::{Sink, Source};

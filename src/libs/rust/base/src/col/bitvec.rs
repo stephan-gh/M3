@@ -14,8 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-use col::Vec;
-use util;
+use crate::col::Vec;
+use crate::util;
 
 pub struct BitVec {
     bits: usize,

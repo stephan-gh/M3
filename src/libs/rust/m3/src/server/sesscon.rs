@@ -14,13 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use col::Vec;
-use com::{RecvGate, SGateArgs, SendGate};
-use errors::{Code, Error};
-use pes::VPE;
-use session::ServerSession;
-use tcu::Label;
+use crate::cap::Selector;
+use crate::col::Vec;
+use crate::com::{RecvGate, SGateArgs, SendGate};
+use crate::errors::{Code, Error};
+use crate::pes::VPE;
+use crate::session::ServerSession;
+use crate::tcu::Label;
 
 pub(crate) const MAX_CREATORS: usize = 3;
 

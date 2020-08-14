@@ -14,15 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
-use com;
-use io;
-use kif;
-use libc;
-use mem;
-use pes;
-use syscalls;
-use vfs;
+use crate::arch;
+use crate::com;
+use crate::io;
+use crate::kif;
+use crate::libc;
+use crate::mem;
+use crate::pes;
+use crate::syscalls;
+use crate::vfs;
 
 pub fn exit(code: i32) -> ! {
     unsafe {

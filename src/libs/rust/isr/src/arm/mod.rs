@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::int_enum;
 use base::libc;
 use core::fmt;
 

@@ -21,13 +21,13 @@ use base::math;
 use base::mem::heap;
 use thread;
 
-use arch::{exceptions, loader, paging};
-use args;
-use ktcu;
-use mem;
-use pes;
-use platform;
-use workloop::{thread_startup, workloop};
+use crate::arch::{exceptions, loader, paging};
+use crate::args;
+use crate::ktcu;
+use crate::mem;
+use crate::pes;
+use crate::platform;
+use crate::workloop::{thread_startup, workloop};
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {

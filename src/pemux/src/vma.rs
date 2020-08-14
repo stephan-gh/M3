@@ -17,11 +17,12 @@
 use base::cfg;
 use base::errors::Error;
 use base::kif::{DefaultReply, PageFlags};
+use base::log;
 use base::tcu;
 use base::util;
 
-use helper;
-use vpe;
+use crate::helper;
+use crate::vpe;
 
 pub struct PfState {
     virt: usize,
@@ -74,7 +75,7 @@ fn recv_pf_resp() -> vpe::ContResult {
     let eps_start = vpe.eps_start();
 
     if let Some(msg_off) = tcu::TCU::fetch_msg(eps_start + tcu::PG_REP_OFF) {
-        let rbuf_space = ::pex_env().pe_desc.rbuf_std_space();
+        let rbuf_space = crate::pex_env().pe_desc.rbuf_std_space();
         let rbuf_addr =
             rbuf_space.0 + cfg::SYSC_RBUF_SIZE + cfg::UPCALL_RBUF_SIZE + cfg::DEF_RBUF_SIZE;
         let msg = tcu::TCU::offset_to_msg(rbuf_addr, msg_off);

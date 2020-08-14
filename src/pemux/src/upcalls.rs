@@ -17,12 +17,13 @@
 use base::cfg;
 use base::errors::{Code, Error};
 use base::kif;
+use base::log;
 use base::mem::GlobAddr;
 use base::tcu;
 use base::util;
 
-use helper;
-use vpe;
+use crate::helper;
+use crate::vpe;
 
 const UPC_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 

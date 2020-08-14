@@ -14,12 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use arch::envdata;
-use arch::tcu::{thread, EpId, Header, PEId, EP_COUNT, PE_COUNT};
-use col::Vec;
 use core::ptr;
 use libc;
-use util;
+
+use crate::arch::envdata;
+use crate::arch::tcu::{thread, EpId, Header, PEId, EP_COUNT, PE_COUNT};
+use crate::col::Vec;
+use crate::util;
 
 pub(crate) struct SocketBackend {
     sock: i32,

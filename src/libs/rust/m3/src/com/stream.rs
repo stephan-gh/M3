@@ -14,17 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-use col::{String, Vec};
-use com::{RecvGate, SendGate};
 use core::intrinsics;
 use core::mem::MaybeUninit;
 use core::ops;
 use core::slice;
-use errors::{Code, Error};
-use libc;
-use serialize::{Marshallable, Sink, Source, Unmarshallable};
-use tcu;
-use util;
+
+use crate::col::{String, Vec};
+use crate::com::{RecvGate, SendGate};
+use crate::errors::{Code, Error};
+use crate::libc;
+use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
+use crate::tcu;
+use crate::util;
 
 const MAX_MSG_SIZE: usize = 512;
 

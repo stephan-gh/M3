@@ -17,6 +17,7 @@
 use m3::io::{Read, Write};
 use m3::test;
 use m3::vfs::{BufReader, BufWriter, OpenFlags, VFS};
+use m3::{wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, read_write);

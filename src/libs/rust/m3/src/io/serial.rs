@@ -14,15 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use col::Vec;
-use com::VecSink;
-use errors::{Code, Error};
-use goff;
-use io;
-use kif;
-use session::{MapFlags, Pager};
-use vfs;
+use crate::cap::Selector;
+use crate::col::Vec;
+use crate::com::VecSink;
+use crate::errors::{Code, Error};
+use crate::goff;
+use crate::io;
+use crate::kif;
+use crate::session::{MapFlags, Pager};
+use crate::vfs;
 
 impl vfs::Seek for io::Serial {
     fn seek(&mut self, _off: usize, _whence: vfs::SeekMode) -> Result<usize, Error> {

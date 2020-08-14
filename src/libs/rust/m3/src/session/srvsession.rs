@@ -14,11 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Capability, Selector};
 use core::fmt;
-use errors::Error;
-use pes::VPE;
-use syscalls;
+
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::errors::Error;
+use crate::pes::VPE;
+use crate::syscalls;
 
 /// Represents a session at the server-side.
 pub struct ServerSession {

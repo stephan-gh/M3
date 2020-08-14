@@ -17,7 +17,8 @@
 //! The service interface
 
 use core::mem::MaybeUninit;
-use kif::syscalls;
+
+use crate::kif::syscalls;
 
 /// The maximum size of strings in service calls
 pub const MAX_STR_SIZE: usize = super::syscalls::MAX_STR_SIZE;

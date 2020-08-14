@@ -14,10 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use cell::{LazyStaticCell, StaticCell};
-use cfg;
 use core::ptr;
-use kif::{CapSel, PEDesc, PEDescRaw};
+
+use crate::cell::{LazyStaticCell, StaticCell};
+use crate::cfg;
+use crate::kif::{CapSel, PEDesc, PEDescRaw};
 
 pub struct EnvData {
     pub pe_id: u64,

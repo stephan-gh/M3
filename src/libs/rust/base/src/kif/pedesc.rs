@@ -14,8 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use cfg;
+use cfg_if::cfg_if;
 use core::fmt;
+
+use crate::cfg;
 
 int_enum! {
     /// The different types of PEs

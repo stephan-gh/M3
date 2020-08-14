@@ -14,13 +14,16 @@
  * General Public License version 2 for more details.
  */
 
+use bitflags::bitflags;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::{VarRingBuf, Vec};
 use m3::com::{GateIStream, MemGate, SGateArgs, SendGate, EP};
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::log;
 use m3::rc::Rc;
+use m3::reply_vmsg;
 use m3::server::SessId;
 use m3::session::ServerSession;
 use m3::tcu::{Label, Message};

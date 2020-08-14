@@ -22,8 +22,9 @@ mod serial;
 
 pub use self::rdwr::{read_object, Read, Write};
 pub use self::serial::Serial;
-use arch;
-use util;
+
+use crate::arch;
+use crate::util;
 
 /// Macro for logging (includes a trailing newline)
 ///
@@ -37,11 +38,11 @@ use util;
 #[macro_export]
 macro_rules! log {
     ($type:expr, $fmt:expr)                   => (
-        llog!(@log_impl $type, concat!($fmt, "\n"))
+        $crate::llog!(@log_impl $type, concat!($fmt, "\n"))
     );
 
     ($type:expr, $fmt:expr, $($arg:tt)*)      => (
-        llog!(@log_impl $type, concat!($fmt, "\n"), $($arg)*)
+        $crate::llog!(@log_impl $type, concat!($fmt, "\n"), $($arg)*)
     );
 }
 

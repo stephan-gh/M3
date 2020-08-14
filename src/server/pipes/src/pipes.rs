@@ -16,11 +16,6 @@
 
 #![no_std]
 
-#[macro_use]
-extern crate m3;
-#[macro_use]
-extern crate bitflags;
-
 mod sess;
 
 use m3::cap::Selector;
@@ -28,7 +23,9 @@ use m3::cell::LazyStaticCell;
 use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::log;
 use m3::pes::VPE;
+use m3::reply_vmsg;
 use m3::serialize::Source;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
@@ -36,6 +33,7 @@ use m3::server::{
 };
 use m3::session::ServerSession;
 use m3::tcu::Label;
+use m3::vec;
 use m3::vfs::GenFileOp;
 
 use sess::{ChanType, Channel, Meta, PipesSession, SessionData};

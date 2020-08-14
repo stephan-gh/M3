@@ -16,27 +16,28 @@
 
 //! Contains the VPE abstraction
 
-use arch;
-use boxed::Box;
-use cap::{CapFlags, Capability, Selector};
-use cell::LazyStaticCell;
-use col::Vec;
-use com::{EpMng, MemGate};
 use core::cmp;
 use core::fmt;
 use core::ops::FnOnce;
-use env;
-use errors::Error;
-use goff;
-use kif;
-use kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
-use pes::{ClosureActivity, DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, PE};
-use rc::Rc;
-use session::{Pager, ResMng};
-use syscalls;
-use tcu::{EpId, PEId};
-use vfs::{BufReader, FileRef, OpenFlags, VFS};
-use vfs::{FileTable, MountTable};
+
+use crate::arch;
+use crate::boxed::Box;
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::cell::LazyStaticCell;
+use crate::col::Vec;
+use crate::com::{EpMng, MemGate};
+use crate::env;
+use crate::errors::Error;
+use crate::goff;
+use crate::kif;
+use crate::kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
+use crate::pes::{ClosureActivity, DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, PE};
+use crate::rc::Rc;
+use crate::session::{Pager, ResMng};
+use crate::syscalls;
+use crate::tcu::{EpId, PEId};
+use crate::vfs::{BufReader, FileRef, OpenFlags, VFS};
+use crate::vfs::{FileTable, MountTable};
 
 /// A virtual processing element is used to run an activity on a PE.
 pub struct VPE {
@@ -374,7 +375,7 @@ impl VPE {
     /// accelerators and devices that implement the PEMux protocol to get started, but don't execute
     /// any code.
     pub fn start(self) -> Result<DeviceActivity, Error> {
-        use pes::Activity;
+        use crate::pes::Activity;
 
         let act = DeviceActivity::new(self);
         act.start().map(|_| act)
@@ -390,10 +391,10 @@ impl VPE {
     where
         F: FnOnce() -> i32 + Send + 'static,
     {
-        use cfg;
-        use cpu;
-        use pes::Activity;
-        use util;
+        use crate::cfg;
+        use crate::cpu;
+        use crate::pes::Activity;
+        use crate::util;
 
         let env = arch::env::get();
         let mut senv = arch::env::EnvData::default();
@@ -459,9 +460,9 @@ impl VPE {
     where
         F: FnOnce() -> i32 + Send + 'static,
     {
-        use errors::Code;
-        use libc;
-        use pes;
+        use crate::errors::Code;
+        use crate::libc;
+        use crate::pes;
 
         let mut closure = env::Closure::new(func);
 
@@ -479,9 +480,9 @@ impl VPE {
                 arch::env::get().set_vpe(&self);
                 pes::reinit();
                 syscalls::reinit();
-                ::com::pre_init();
-                ::com::init();
-                ::io::reinit();
+                crate::com::pre_init();
+                crate::com::init();
+                crate::io::reinit();
                 arch::tcu::init();
 
                 c2p.signal();
@@ -529,11 +530,11 @@ impl VPE {
         mut file: FileRef,
         args: &[S],
     ) -> Result<ExecActivity, Error> {
-        use cfg;
-        use com::VecSink;
-        use pes::Activity;
-        use serialize::Sink;
-        use util;
+        use crate::cfg;
+        use crate::com::VecSink;
+        use crate::pes::Activity;
+        use crate::serialize::Sink;
+        use crate::util;
 
         let mut file = BufReader::new(file);
 
@@ -613,10 +614,10 @@ impl VPE {
         mut file: FileRef,
         args: &[S],
     ) -> Result<ExecActivity, Error> {
-        use com::VecSink;
-        use errors::Code;
-        use libc;
-        use serialize::Sink;
+        use crate::com::VecSink;
+        use crate::errors::Code;
+        use crate::libc;
+        use crate::serialize::Sink;
 
         let path = arch::loader::copy_file(&mut file)?;
 

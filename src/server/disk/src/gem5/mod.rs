@@ -23,9 +23,9 @@ use m3::com::MemGate;
 use m3::errors::Error;
 
 use self::ctrl::DEVICE_COUNT;
-use backend::BlockDeviceTrait;
-use partition::{Partition, PART_COUNT};
-use Operation;
+use crate::backend::BlockDeviceTrait;
+use crate::partition::{Partition, PART_COUNT};
+use crate::Operation;
 
 #[derive(Clone, Copy)]
 pub struct PartDesc {

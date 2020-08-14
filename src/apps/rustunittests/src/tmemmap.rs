@@ -17,6 +17,7 @@
 use m3::errors::Code;
 use m3::mem::MemMap;
 use m3::test;
+use m3::{wv_assert_eq, wv_assert_err, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, basics);

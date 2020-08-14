@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use time;
+use crate::time;
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {

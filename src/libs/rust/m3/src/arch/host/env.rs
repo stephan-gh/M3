@@ -14,19 +14,21 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
 use base;
-use cap::Selector;
-use cell::LazyStaticCell;
-use col::{String, Vec};
-use com::{SendGate, SliceSource};
+use base::format;
 use core::intrinsics;
-use kif::{self, PEDesc, PEType, PEISA};
-use libc;
-use pes::VPE;
-use session::{Pager, ResMng};
-use tcu::{EpId, Label};
-use vfs::{FileTable, MountTable};
+
+use crate::arch;
+use crate::cap::Selector;
+use crate::cell::LazyStaticCell;
+use crate::col::{String, Vec};
+use crate::com::{SendGate, SliceSource};
+use crate::kif::{self, PEDesc, PEType, PEISA};
+use crate::libc;
+use crate::pes::VPE;
+use crate::session::{Pager, ResMng};
+use crate::tcu::{EpId, Label};
+use crate::vfs::{FileTable, MountTable};
 
 pub struct EnvData {
     sysc_crd: u64,

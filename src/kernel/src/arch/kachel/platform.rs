@@ -24,10 +24,10 @@ use base::kif::{boot, PEDesc, PEType};
 use base::mem::GlobAddr;
 use base::util;
 
-use args;
-use ktcu;
-use mem::{self, MemMod, MemType};
-use platform;
+use crate::args;
+use crate::ktcu;
+use crate::mem::{self, MemMod, MemType};
+use crate::platform;
 
 static LAST_PE: StaticCell<PEId> = StaticCell::new(0);
 

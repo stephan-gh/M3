@@ -20,6 +20,7 @@ use m3::boxed::Box;
 use m3::col::{BoxList, BoxRef};
 use m3::profile;
 use m3::test;
+use m3::{impl_boxitem, wv_assert_eq, wv_perf, wv_run_test};
 
 #[derive(Default, Clone)]
 struct TestItem {

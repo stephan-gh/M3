@@ -23,18 +23,19 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{boot, CapRngDesc, CapType, PEDesc, PEType, FIRST_FREE_SEL};
+use m3::log;
 use m3::math;
 use m3::pes::{PE, VPE};
 use m3::rc::Rc;
 use m3::tcu::PEId;
 use m3::util;
 
-use childs;
-use config;
-use memory;
-use pes;
-use sems;
-use services;
+use crate::childs;
+use crate::config;
+use crate::memory;
+use crate::pes;
+use crate::sems;
+use crate::services;
 
 //
 // Our parent/kernel initializes our cap space as follows:

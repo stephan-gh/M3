@@ -15,9 +15,10 @@
  */
 
 use base::kif;
+use base::log;
 use base::tcu;
 
-use vpe;
+use crate::vpe;
 
 pub fn handle_recv(req: tcu::Reg) {
     log!(crate::LOG_FOREIGN_MSG, "Got core request {:#x}", req);

@@ -14,12 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use boxed::Box;
-use cell::Cell;
 use core::fmt;
 use core::ops::Deref;
 use core::ptr;
 use core::ptr::NonNull;
+
+use crate::boxed::Box;
+use crate::cell::Cell;
 
 struct SRcBox<T: ?Sized> {
     refs: Cell<usize>,

@@ -21,12 +21,14 @@ use m3::com::{GateIStream, RecvGate};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
+use m3::log;
+use m3::reply_vmsg;
 use m3::session::ResMngOperation;
 use m3::tcu;
 
-use childs::{self, Child, Id};
-use sendqueue;
-use subsys;
+use crate::childs::{self, Child, Id};
+use crate::sendqueue;
+use crate::subsys;
 
 static RGATE: LazyStaticCell<RecvGate> = LazyStaticCell::default();
 

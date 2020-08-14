@@ -14,16 +14,19 @@
  * General Public License version 2 for more details.
  */
 
-use col::{String, ToString, Vec};
-use com::VecSink;
 use core::mem::MaybeUninit;
 use core::ptr;
-use errors::{Code, Error};
-use io::Read;
-use libc;
-use serialize::Sink;
-use util;
-use vfs::FileRef;
+
+use crate::col::{String, ToString, Vec};
+use crate::com::VecSink;
+use crate::errors::{Code, Error};
+use crate::format;
+use crate::io::Read;
+use crate::libc;
+use crate::serialize::Sink;
+use crate::util;
+use crate::vec;
+use crate::vfs::FileRef;
 
 pub struct Channel {
     fds: [i32; 2],

@@ -25,6 +25,7 @@ use m3::session::MapFlags;
 use m3::tcu::TCUIf;
 use m3::test;
 use m3::time;
+use m3::{println, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, pexcalls);

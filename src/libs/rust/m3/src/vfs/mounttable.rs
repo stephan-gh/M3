@@ -14,16 +14,17 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use cell::RefCell;
-use col::{String, ToString, Vec};
-use com::{SliceSource, VecSink};
 use core::fmt;
-use errors::{Code, Error};
-use rc::Rc;
-use serialize::Sink;
-use session::M3FS;
-use vfs::FileSystem;
+
+use crate::cap::Selector;
+use crate::cell::RefCell;
+use crate::col::{String, ToString, Vec};
+use crate::com::{SliceSource, VecSink};
+use crate::errors::{Code, Error};
+use crate::rc::Rc;
+use crate::serialize::Sink;
+use crate::session::M3FS;
+use crate::vfs::FileSystem;
 
 /// A reference to a file system.
 pub type FSHandle = Rc<RefCell<dyn FileSystem>>;

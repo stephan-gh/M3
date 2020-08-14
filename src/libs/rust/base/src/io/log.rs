@@ -16,9 +16,9 @@
 
 //! Contains the logger
 
-use cell::StaticCell;
-use errors::Error;
-use io::{Serial, Write};
+use crate::cell::StaticCell;
+use crate::errors::Error;
+use crate::io::{Serial, Write};
 
 /// Default log message type
 pub const DEF: bool = true;

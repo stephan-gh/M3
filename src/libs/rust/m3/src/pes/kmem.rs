@@ -14,11 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Capability, Selector};
-use errors::Error;
-use pes::VPE;
-use rc::Rc;
-use syscalls;
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::errors::Error;
+use crate::pes::VPE;
+use crate::rc::Rc;
+use crate::syscalls;
 
 /// Represents a certain amount of kernel memory.
 pub struct KMem {

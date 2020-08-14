@@ -14,21 +14,22 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Selector};
-use col::Vec;
-use com::ep::EP;
-use com::gate::Gate;
 use core::fmt;
 use core::mem::MaybeUninit;
-use errors::Error;
-use goff;
-use kif::INVALID_SEL;
-use pes::VPE;
-use syscalls;
-use tcu;
-use util;
 
-pub use kif::Perm;
+use crate::cap::{CapFlags, Selector};
+use crate::col::Vec;
+use crate::com::ep::EP;
+use crate::com::gate::Gate;
+use crate::errors::Error;
+use crate::goff;
+use crate::kif::INVALID_SEL;
+use crate::pes::VPE;
+use crate::syscalls;
+use crate::tcu;
+use crate::util;
+
+pub use crate::kif::Perm;
 
 /// A memory gate (`MemGate`) has access to a contiguous memory region and allows RDMA-like memory
 /// accesses via TCU.

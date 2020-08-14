@@ -14,8 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-use cell::StaticCell;
 use core::ops::Deref;
+
+use crate::cell::StaticCell;
 
 /// A `LazyStaticCell` is the same as the [`StaticCell`](::cell::StaticCell), but contains an
 /// [`Option<T>`](Option). At construction, the value is `None` and it needs to be set before other

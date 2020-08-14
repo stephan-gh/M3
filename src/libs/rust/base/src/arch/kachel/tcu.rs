@@ -14,15 +14,17 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
-use cfg;
+use bitflags::bitflags;
 use core::intrinsics;
 use core::mem;
-use errors::{Code, Error};
-use goff;
-use kif::{PageFlags, Perm};
-use math;
-use util;
+
+use crate::arch;
+use crate::cfg;
+use crate::errors::{Code, Error};
+use crate::goff;
+use crate::kif::{PageFlags, Perm};
+use crate::math;
+use crate::util;
 
 /// A TCU register
 pub type Reg = u64;

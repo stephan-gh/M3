@@ -14,12 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use boxed::Box;
 use core::cmp::{Ord, Ordering};
 use core::fmt;
 use core::mem;
 use core::num::Wrapping;
 use core::ptr::{read_volatile, NonNull};
+
+use crate::boxed::Box;
 
 struct Node<K, V> {
     left: Option<NonNull<Node<K, V>>>,

@@ -18,6 +18,7 @@ use m3::cell::StaticCell;
 use m3::col::{String, Vec};
 use m3::com::Semaphore;
 use m3::errors::{Code, Error};
+use m3::log;
 
 pub struct SemManager {
     sems: Vec<(String, Semaphore)>,

@@ -14,16 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Capability, Selector};
-use com::{GateIStream, RecvGate, SliceSink, SliceSource};
 use core::fmt;
-use errors::{Code, Error};
-use kif::{service, CapRngDesc};
-use math;
-use pes::VPE;
-use serialize::Sink;
-use server::{SessId, SessionContainer};
-use syscalls;
+
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::com::{GateIStream, RecvGate, SliceSink, SliceSource};
+use crate::errors::{Code, Error};
+use crate::kif::{service, CapRngDesc};
+use crate::llog;
+use crate::math;
+use crate::pes::VPE;
+use crate::serialize::Sink;
+use crate::server::{SessId, SessionContainer};
+use crate::syscalls;
 
 /// Represents a server that provides a service for clients.
 pub struct Server {

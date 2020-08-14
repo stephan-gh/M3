@@ -21,10 +21,9 @@ use base::rc::Rc;
 use base::tcu;
 use base::util;
 
-use ktcu;
-
-use pes::vpemng;
-use pes::VPE;
+use crate::ktcu;
+use crate::pes::vpemng;
+use crate::pes::VPE;
 
 #[macro_export]
 macro_rules! sysc_log {

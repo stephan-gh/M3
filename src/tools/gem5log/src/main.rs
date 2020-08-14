@@ -1,5 +1,3 @@
-extern crate log;
-
 mod error;
 mod flamegraph;
 mod symbols;

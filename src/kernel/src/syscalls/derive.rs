@@ -23,12 +23,12 @@ use base::rc::Rc;
 use base::tcu;
 use base::util;
 
-use cap::{Capability, KObject};
-use cap::{KMemObject, MGateObject, PEObject, ServObject};
-use com::Service;
-use mem;
-use pes::VPE;
-use syscalls::{get_request, reply_success, SyscError};
+use crate::cap::{Capability, KObject};
+use crate::cap::{KMemObject, MGateObject, PEObject, ServObject};
+use crate::com::Service;
+use crate::mem;
+use crate::pes::VPE;
+use crate::syscalls::{get_request, reply_success, SyscError};
 
 #[inline(never)]
 pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {

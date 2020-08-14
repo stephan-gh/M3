@@ -14,14 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Capability, Selector};
 use core::fmt;
-use errors::Error;
-use kif::PEDesc;
-use pes::VPE;
-use rc::Rc;
-use syscalls;
-use tcu::PEId;
+
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::errors::Error;
+use crate::kif::PEDesc;
+use crate::pes::VPE;
+use crate::rc::Rc;
+use crate::syscalls;
+use crate::tcu::PEId;
 
 /// Represents a processing element.
 pub struct PE {

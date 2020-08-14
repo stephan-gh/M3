@@ -17,6 +17,7 @@
 use m3::col::BTreeMap;
 use m3::profile;
 use m3::test;
+use m3::{wv_assert_eq, wv_perf, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, insert);

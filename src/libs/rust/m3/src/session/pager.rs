@@ -14,15 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-use cap;
-use com::{RGateArgs, RecvGate, SendGate};
+use bitflags::bitflags;
 use core::fmt;
-use errors::Error;
-use goff;
-use kif;
-use pes::VPE;
-use serialize::{Sink, Source};
-use session::ClientSession;
+
+use crate::cap;
+use crate::com::{RGateArgs, RecvGate, SendGate};
+use crate::errors::Error;
+use crate::goff;
+use crate::int_enum;
+use crate::kif;
+use crate::pes::VPE;
+use crate::serialize::{Sink, Source};
+use crate::session::ClientSession;
 
 /// Represents a session at the pager.
 ///

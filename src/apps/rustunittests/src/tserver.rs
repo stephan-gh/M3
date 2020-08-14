@@ -28,6 +28,9 @@ use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
 use m3::tcu;
 use m3::test;
+use m3::{
+    reply_vmsg, send_recv, send_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test,
+};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, testnoresp);

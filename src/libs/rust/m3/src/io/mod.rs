@@ -25,7 +25,7 @@ pub use self::std::{STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO};
 pub use base::io::{read_object, Read, Serial, Write};
 
 use base::envdata;
-use env;
+use crate::env;
 
 /// Uses stdout to print `$fmt` with given arguments.
 #[macro_export]
@@ -40,9 +40,9 @@ macro_rules! print {
 /// Uses stdout to print `$fmt` with given arguments and a newline.
 #[macro_export]
 macro_rules! println {
-    ()                       => (print!("\n"));
-    ($fmt:expr)              => (print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+    ()                       => ($crate::print!("\n"));
+    ($fmt:expr)              => ($crate::print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::print!(concat!($fmt, "\n"), $($arg)*));
 }
 
 pub(crate) fn init() {

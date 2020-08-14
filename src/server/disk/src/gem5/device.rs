@@ -14,19 +14,22 @@
  * General Public License version 2 for more details.
  */
 
+use bitflags::bitflags;
 use m3::cell::StaticCell;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
+use m3::int_enum;
 use m3::kif::Perm;
+use m3::log;
 use m3::tcu;
 use m3::time::Time;
 use m3::util;
 
 use super::chan::Channel;
 use super::ctrl::ControlFlag;
-use partition::{parse_partitions, Partition};
+use crate::partition::{parse_partitions, Partition};
 
 const ATA_WAIT_TIMEOUT: Time = 500 * 1000; // cycles
 

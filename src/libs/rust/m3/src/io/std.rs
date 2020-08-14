@@ -14,12 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use cell::{LazyStaticCell, RefCell};
 use core::mem;
-use io::Serial;
-use pes::VPE;
-use rc::Rc;
-use vfs::{BufReader, BufWriter, Fd, FileRef};
+
+use crate::cell::{LazyStaticCell, RefCell};
+use crate::io::Serial;
+use crate::pes::VPE;
+use crate::rc::Rc;
+use crate::vfs::{BufReader, BufWriter, Fd, FileRef};
 
 /// The file descriptor for the stanard input stream
 pub const STDIN_FILENO: Fd = 0;

@@ -14,21 +14,22 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
-use cap::{CapFlags, Selector};
-use cell::LazyStaticCell;
-use cfg;
-use com::rbufs::{alloc_rbuf, free_rbuf};
-use com::{gate::Gate, GateIStream, RecvBuf, SendGate};
 use core::fmt;
 use core::ops;
-use errors::Error;
-use kif::INVALID_SEL;
-use math;
-use pes::VPE;
-use syscalls;
-use tcu;
-use util;
+
+use crate::arch;
+use crate::cap::{CapFlags, Selector};
+use crate::cell::LazyStaticCell;
+use crate::cfg;
+use crate::com::rbufs::{alloc_rbuf, free_rbuf};
+use crate::com::{gate::Gate, GateIStream, RecvBuf, SendGate};
+use crate::errors::Error;
+use crate::kif::INVALID_SEL;
+use crate::math;
+use crate::pes::VPE;
+use crate::syscalls;
+use crate::tcu;
+use crate::util;
 
 const DEF_MSG_ORD: u32 = 6;
 

@@ -14,14 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
 use base::pexif;
-use com;
-use io;
-use mem;
-use pes;
-use syscalls;
-use vfs;
+
+use crate::arch;
+use crate::com;
+use crate::io;
+use crate::mem;
+use crate::pes;
+use crate::syscalls;
+use crate::vfs;
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {

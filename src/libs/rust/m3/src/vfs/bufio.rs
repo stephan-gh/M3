@@ -14,12 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use col::{String, Vec};
 use core::cmp;
 use core::fmt;
-use errors::Error;
-use io::{Read, Write};
-use vfs::{Seek, SeekMode};
+
+use crate::col::{String, Vec};
+use crate::errors::Error;
+use crate::io::{Read, Write};
+use crate::vfs::{Seek, SeekMode};
 
 /// A reader implementation with an internal buffer.
 pub struct BufReader<R: Read> {

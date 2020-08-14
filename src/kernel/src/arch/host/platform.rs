@@ -24,9 +24,9 @@ use base::util;
 use core::mem::MaybeUninit;
 use core::ptr;
 
-use args;
-use mem;
-use platform;
+use crate::args;
+use crate::mem;
+use crate::platform;
 
 pub fn init(args: &[String]) -> platform::KEnv {
     let mut info = boot::Info::default();

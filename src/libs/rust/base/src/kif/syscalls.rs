@@ -16,9 +16,10 @@
 
 //! The system call interface
 
-use super::cap::CapSel;
-use arch::tcu::Label;
 use core::mem::MaybeUninit;
+
+use crate::arch::tcu::Label;
+use super::cap::CapSel;
 
 /// The maximum message length that can be used
 pub const MAX_MSG_SIZE: usize = 440;

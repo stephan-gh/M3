@@ -17,8 +17,6 @@
 #![feature(llvm_asm)]
 #![no_std]
 
-extern crate base;
-
 use base::envdata;
 use base::machine;
 

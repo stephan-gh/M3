@@ -26,12 +26,12 @@ use base::util;
 use core::fmt;
 use thread;
 
-use arch::loader::Loader;
-use cap::{CapTable, Capability, EPObject, KMemObject, KObject, PEObject};
-use com::SendQueue;
-use ktcu;
-use pes::{pemng, vpemng};
-use platform;
+use crate::arch::loader::Loader;
+use crate::cap::{CapTable, Capability, EPObject, KMemObject, KObject, PEObject};
+use crate::com::SendQueue;
+use crate::ktcu;
+use crate::pes::{pemng, vpemng};
+use crate::platform;
 
 bitflags! {
     pub struct VPEFlags : u32 {
@@ -155,7 +155,7 @@ impl VPE {
         use base::cfg;
         use base::kif::Perm;
         use base::tcu;
-        use cap::{RGateObject, SGateObject};
+        use crate::cap::{RGateObject, SGateObject};
 
         let pemux = pemng::get().pemux(self.pe_id());
         let vpe = if platform::is_shared(self.pe_id()) {

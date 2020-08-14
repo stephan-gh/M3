@@ -18,6 +18,7 @@ use m3::errors::Code;
 use m3::io::Write;
 use m3::test;
 use m3::vfs::{OpenFlags, VFS};
+use m3::{wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, meta_ops);

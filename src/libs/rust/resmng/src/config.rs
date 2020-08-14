@@ -23,8 +23,8 @@ use m3::goff;
 use m3::kif;
 use m3::rc::Rc;
 
-use parser;
-use pes;
+use crate::parser;
+use crate::pes;
 
 #[derive(Default)]
 pub struct PhysMemDesc {

@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use bitflags::bitflags;
 use core::fmt;
 use m3::boxed::Box;
 use m3::cap::Selector;
@@ -21,20 +22,23 @@ use m3::cell::{Cell, RefCell, StaticCell};
 use m3::col::{String, ToString, Treap, Vec};
 use m3::com::{RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
+use m3::format;
 use m3::goff;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
+use m3::log;
 use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
+use m3::println;
 use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu;
 use m3::vfs::FileRef;
 
-use config::AppConfig;
-use memory::{Allocation, MemPool};
-use pes;
-use sems;
-use services::{self, Session};
-use subsys::SubsystemBuilder;
+use crate::config::AppConfig;
+use crate::memory::{Allocation, MemPool};
+use crate::pes;
+use crate::sems;
+use crate::services::{self, Session};
+use crate::subsys::SubsystemBuilder;
 
 pub type Id = u32;
 

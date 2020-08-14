@@ -19,13 +19,7 @@
 #![feature(core_intrinsics)]
 #![no_std]
 
-#[macro_use]
-extern crate base;
-#[macro_use]
-extern crate cfg_if;
 extern crate heap;
-extern crate isr;
-extern crate paging;
 
 mod arch;
 mod corereq;
@@ -38,14 +32,17 @@ mod vpe;
 
 use base::cell::StaticCell;
 use base::cfg;
+use base::const_assert;
 use base::envdata;
 use base::goff;
 use base::io;
 use base::kif;
 use base::libc;
+use base::log;
 use base::machine;
 use base::tcu;
 use base::util;
+use cfg_if::cfg_if;
 use core::intrinsics;
 
 /// Logs errors

@@ -16,11 +16,11 @@
 
 //! The mapper types that are used to init the memory of an activity.
 
-use errors::Error;
-use goff;
-use kif;
-use session::{MapFlags, Pager};
-use vfs::{BufReader, FileRef, Map};
+use crate::errors::Error;
+use crate::goff;
+use crate::kif;
+use crate::session::{MapFlags, Pager};
+use crate::vfs::{BufReader, FileRef, Map};
 
 /// The mapper trait is used to map the memory of an activity before running it.
 pub trait Mapper {

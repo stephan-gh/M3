@@ -19,6 +19,7 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::Perm;
+use m3::log;
 use m3::rc::Rc;
 use m3::tcu;
 use m3::time::Time;
@@ -28,7 +29,7 @@ use pci;
 use super::ctrl::IDE_CTRL_BAR;
 use super::device::{ATAReg, BMIReg, CommandStatus, DevOp, Device, PRD};
 use super::PartDesc;
-use Operation;
+use crate::Operation;
 
 pub struct Channel {
     id: u8,

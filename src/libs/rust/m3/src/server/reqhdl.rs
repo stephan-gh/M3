@@ -14,10 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use base::errors::Error;
-use com::{GateIStream, RecvGate};
-use math;
-use serialize::Unmarshallable;
+use crate::com::{GateIStream, RecvGate};
+use crate::errors::Error;
+use crate::math;
+use crate::serialize::Unmarshallable;
 
 /// The default maximum number of clients a service supports
 pub const DEF_MAX_CLIENTS: usize = 32;

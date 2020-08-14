@@ -75,7 +75,7 @@ pub enum Code {
 // in debug mode anyway.
 
 #[cfg(debug_assertions)]
-use boxed::Box;
+use crate::boxed::Box;
 
 #[cfg(debug_assertions)]
 const MAX_BT_LEN: usize = 16;
@@ -96,7 +96,7 @@ impl ErrorInfo {
     /// Note that this gathers and stores the backtrace
     #[inline(never)]
     pub fn new(code: Code) -> Self {
-        use backtrace;
+        use crate::backtrace;
 
         let mut bt = [0usize; MAX_BT_LEN];
         let count = backtrace::collect(bt.as_mut());

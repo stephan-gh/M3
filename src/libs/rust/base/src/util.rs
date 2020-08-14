@@ -18,7 +18,8 @@
 
 use core::intrinsics;
 use core::slice;
-use libc;
+
+use crate::libc;
 
 /// Returns the size of `T`
 pub const fn size_of<T>() -> usize {

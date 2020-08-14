@@ -17,7 +17,8 @@
 //! Contains math functions
 
 use num_traits::PrimInt;
-use util;
+
+use crate::util;
 
 /// Computes the square root of `n`.
 ///

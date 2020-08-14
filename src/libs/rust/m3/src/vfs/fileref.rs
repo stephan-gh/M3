@@ -16,14 +16,15 @@
 
 use core::fmt;
 use core::ops::Deref;
-use errors::Error;
-use goff;
-use io::{Read, Write};
-use kif;
-use pes::VPE;
-use session::{MapFlags, Pager};
-use vfs::filetable::Fd;
-use vfs::{FileHandle, Map, Seek, SeekMode};
+
+use crate::errors::Error;
+use crate::goff;
+use crate::io::{Read, Write};
+use crate::kif;
+use crate::pes::VPE;
+use crate::session::{MapFlags, Pager};
+use crate::vfs::filetable::Fd;
+use crate::vfs::{FileHandle, Map, Seek, SeekMode};
 
 /// A reference to an open file that is closed on drop.
 #[derive(Clone)]

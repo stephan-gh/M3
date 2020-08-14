@@ -20,19 +20,21 @@ use base::cfg;
 use base::col::{BoxList, Vec};
 use base::errors::Error;
 use base::goff;
+use base::impl_boxitem;
 use base::kif;
+use base::log;
 use base::math;
 use base::mem::GlobAddr;
 use base::tcu;
 use base::util;
 use core::ptr::NonNull;
-
-use arch;
-use helper;
 use paging::{Allocator, Phys};
-use pex_env;
-use timer::{self, Nanos};
-use vma::PfState;
+
+use crate::arch;
+use crate::helper;
+use crate::pex_env;
+use crate::timer::{self, Nanos};
+use crate::vma::PfState;
 
 pub type Id = paging::VPEId;
 
@@ -238,7 +240,7 @@ pub fn schedule(mut action: ScheduleAction) -> usize {
 
     // tell the application whether there are other VPEs ready. if not, it can sleep via TCU without
     // telling us.
-    ::app_env().shared = has_ready() as u64;
+    crate::app_env().shared = has_ready() as u64;
 
     // disable FPU to raise an exception if the app tries to use FPU instructions
     arch::disable_fpu();
@@ -586,11 +588,11 @@ impl VPE {
         assert!(self.user_state_addr == 0);
         if self.id() != kif::pemux::IDLE_ID {
             // remember the current PE
-            ::app_env().pe_id = pex_env().pe_id;
+            crate::app_env().pe_id = pex_env().pe_id;
             arch::init_state(
                 &mut self.user_state,
-                ::app_env().entry as usize,
-                ::app_env().sp as usize,
+                crate::app_env().entry as usize,
+                crate::app_env().sp as usize,
             );
         }
         self.user_state_addr = &self.user_state as *const _ as usize;

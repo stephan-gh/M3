@@ -21,10 +21,10 @@ use base::rc::Rc;
 use base::tcu;
 use base::util;
 
-use cap::KObject;
-use com::Service;
-use pes::VPE;
-use syscalls::{get_request, reply_success, send_reply, SyscError};
+use crate::cap::KObject;
+use crate::com::Service;
+use crate::pes::VPE;
+use crate::syscalls::{get_request, reply_success, send_reply, SyscError};
 
 fn do_exchange(
     vpe1: &Rc<VPE>,

@@ -21,12 +21,13 @@ use m3::com::MemGate;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif;
+use m3::log;
 use m3::math;
 use m3::rc::Rc;
 use m3::session::{ClientSession, MapFlags, M3FS};
 
-use physmem::{copy_block, PhysMem};
-use regions::RegionList;
+use crate::physmem::{copy_block, PhysMem};
+use crate::regions::RegionList;
 
 const MAX_ANON_PAGES: usize = 4;
 const MAX_EXT_PAGES: usize = 8;

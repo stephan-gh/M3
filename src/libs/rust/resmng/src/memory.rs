@@ -24,6 +24,7 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::Perm;
+use m3::log;
 use m3::math;
 use m3::mem::MemMap;
 use m3::rc::Rc;

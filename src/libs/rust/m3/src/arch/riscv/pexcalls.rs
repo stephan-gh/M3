@@ -15,7 +15,8 @@
  */
 
 use base::pexif::Operation;
-use errors::Error;
+
+use crate::errors::Error;
 
 pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
     call2(op, arg1, 0)

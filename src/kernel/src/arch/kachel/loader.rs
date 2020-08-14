@@ -29,11 +29,11 @@ use base::mem::GlobAddr;
 use base::tcu;
 use base::util;
 
-use cap::{Capability, KObject, MapObject, SelRange};
-use ktcu;
-use mem;
-use pes::{pemng, VPE};
-use platform;
+use crate::cap::{Capability, KObject, MapObject, SelRange};
+use crate::ktcu;
+use crate::mem;
+use crate::pes::{pemng, VPE};
+use crate::platform;
 
 pub struct Loader {
     loaded: Cell<u64>,

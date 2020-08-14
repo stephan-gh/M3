@@ -14,12 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use com::MemGate;
-use errors::Error;
-use pes::VPE;
-use rc::Rc;
-use session::{Pipe, Pipes};
-use vfs::Fd;
+use crate::com::MemGate;
+use crate::errors::Error;
+use crate::pes::VPE;
+use crate::rc::Rc;
+use crate::session::{Pipe, Pipes};
+use crate::vfs::Fd;
 
 /// A uni-directional channel between potentially multiple readers and writers.
 pub struct IndirectPipe {

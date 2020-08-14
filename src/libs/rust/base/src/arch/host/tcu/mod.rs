@@ -14,17 +14,19 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
-use cfg;
-use const_assert;
+use bitflags::bitflags;
 use core::intrinsics;
 use core::mem;
 use core::ptr;
-use errors::{Code, Error};
-use goff;
-use kif;
 use libc;
-use util;
+
+use crate::arch;
+use crate::cfg;
+use crate::const_assert;
+use crate::errors::{Code, Error};
+use crate::goff;
+use crate::kif;
+use crate::util;
 
 mod backend;
 mod thread;

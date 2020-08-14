@@ -26,8 +26,8 @@ use core::cmp;
 use core::fmt;
 use core::ptr::{NonNull, Unique};
 
-use cap::{EPObject, GateEP, KObject};
-use pes::{pemng, vpemng, State, VPE};
+use crate::cap::{EPObject, GateEP, KObject};
+use crate::pes::{pemng, vpemng, State, VPE};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
 pub struct SelRange {

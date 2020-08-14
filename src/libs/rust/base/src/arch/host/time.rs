@@ -14,8 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-use arch::cpu;
-use time;
+use crate::arch::cpu;
+use crate::time;
 
 pub fn start(_msg: usize) -> time::Time {
     cpu::rdtsc()

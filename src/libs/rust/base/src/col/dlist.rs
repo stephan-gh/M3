@@ -14,10 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use boxed::Box;
 use core::fmt;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
+
+use crate::boxed::Box;
 
 struct Node<T> {
     next: Option<NonNull<Node<T>>>,

@@ -18,6 +18,7 @@ use core::cmp;
 use m3::col::{ToString, Vec};
 use m3::test;
 use m3::vfs::read_dir;
+use m3::{wv_assert_eq, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, list_dir);

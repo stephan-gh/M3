@@ -14,22 +14,24 @@
  * General Public License version 2 for more details.
  */
 
-use cfg;
-use col::Vec;
-use com::MemGate;
 use core::{cmp, iter};
-use elf;
-use errors::{Code, Error};
-use goff;
-use io::{read_object, Read};
-use kif;
-use math;
-use mem::heap;
-use pes::{Mapper, VPE};
-use session::{MapFlags, Pager};
-use tcuif;
-use util;
-use vfs::{BufReader, FileRef, Seek, SeekMode};
+
+use crate::cfg;
+use crate::col::Vec;
+use crate::com::MemGate;
+use crate::elf;
+use crate::errors::{Code, Error};
+use crate::goff;
+use crate::io::{read_object, Read};
+use crate::kif;
+use crate::math;
+use crate::mem::heap;
+use crate::pes::{Mapper, VPE};
+use crate::session::{MapFlags, Pager};
+use crate::tcuif;
+use crate::util;
+use crate::vec;
+use crate::vfs::{BufReader, FileRef, Seek, SeekMode};
 
 extern "C" {
     static _start: u8;

@@ -14,15 +14,16 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Capability, Selector};
-use cell::Cell;
-use com::EP;
 use core::ops;
-use errors::Error;
-use kif;
-use pes::VPE;
-use syscalls;
-use tcu::EpId;
+
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::cell::Cell;
+use crate::com::EP;
+use crate::errors::Error;
+use crate::kif;
+use crate::pes::VPE;
+use crate::syscalls;
+use crate::tcu::EpId;
 
 /// A gate is one side of a TCU-based communication channel and exists in the variants [`MemGate`],
 /// [`SendGate`], and [`RecvGate`].

@@ -14,19 +14,20 @@
  * General Public License version 2 for more details.
  */
 
-use base;
-use cap::Selector;
-use cfg;
-use com::{SendGate, SliceSource};
 use core::cmp;
 use core::intrinsics;
-use env;
-use kif::{self, PEDesc};
-use pes::VPE;
-use session::{Pager, ResMng};
-use tcu;
-use util;
-use vfs::{FileTable, MountTable};
+use base;
+
+use crate::cap::Selector;
+use crate::cfg;
+use crate::com::{SendGate, SliceSource};
+use crate::env;
+use crate::kif::{self, PEDesc};
+use crate::pes::VPE;
+use crate::session::{Pager, ResMng};
+use crate::tcu;
+use crate::util;
+use crate::vfs::{FileTable, MountTable};
 
 #[derive(Default, Copy, Clone)]
 #[repr(C)]

@@ -14,13 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use com::{RecvGate, SendGate};
-use errors::Error;
-use goff;
-use kif;
-use pes::VPE;
-use tcu::PEId;
+use crate::cap::Selector;
+use crate::com::{RecvGate, SendGate};
+use crate::errors::Error;
+use crate::goff;
+use crate::int_enum;
+use crate::kif;
+use crate::pes::VPE;
+use crate::tcu::PEId;
 
 int_enum! {
     /// The resource manager calls

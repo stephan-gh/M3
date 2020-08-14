@@ -14,7 +14,7 @@
  * General Public License version 2 for more details.
  */
 
-use time;
+use crate::time;
 
 macro_rules! impl_read_reg {
     ($func_name:tt, $reg_name:tt) => {

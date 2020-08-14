@@ -17,9 +17,6 @@
 #![no_std]
 #![feature(core_intrinsics)]
 
-#[macro_use]
-extern crate m3;
-
 mod bboxlist;
 mod bdlist;
 mod bipc;
@@ -36,6 +33,7 @@ mod btreemap;
 
 use m3::cell::StaticCell;
 use m3::test::WvTester;
+use m3::{println, wv_run_suite};
 
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
 // test case and every single wv_assert_* call, which is quite inconvenient.

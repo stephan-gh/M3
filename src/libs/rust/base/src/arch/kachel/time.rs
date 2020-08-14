@@ -14,9 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-use arch::cpu;
-use arch::envdata;
-use time;
+use crate::arch::{cpu, envdata};
+use crate::time;
 
 const START_TSC: usize = 0x1FF1_0000;
 const STOP_TSC: usize = 0x1FF2_0000;

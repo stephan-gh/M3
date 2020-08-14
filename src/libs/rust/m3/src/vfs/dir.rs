@@ -14,12 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use col::String;
 use core::iter;
-use errors::Error;
-use io::{read_object, Read};
-use util;
-use vfs::{BufReader, FileRef, INodeId, OpenFlags, Seek, SeekMode, VFS};
+
+use crate::col::String;
+use crate::errors::Error;
+use crate::io::{read_object, Read};
+use crate::util;
+use crate::vfs::{BufReader, FileRef, INodeId, OpenFlags, Seek, SeekMode, VFS};
 
 /// Represents a directory entry.
 #[derive(Debug)]

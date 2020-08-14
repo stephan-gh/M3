@@ -29,6 +29,7 @@ use m3::session::{ServerSession, M3FS};
 use m3::syscalls;
 use m3::tcu::{EP_COUNT, FIRST_USER_EP};
 use m3::test;
+use m3::{wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create_srv);

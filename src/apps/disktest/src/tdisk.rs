@@ -15,10 +15,11 @@
  */
 
 use m3::io::{Read, Write};
-use m3::test;
+use m3::test::WvTester;
 use m3::vfs::{FileRef, OpenFlags, VFS};
+use m3::{vec, wv_assert_eq, wv_assert_ok, wv_run_test};
 
-pub fn run(t: &mut dyn test::WvTester) {
+pub fn run(t: &mut dyn WvTester) {
     wv_assert_ok!(VFS::mount("/", "m3fs", "m3fs"));
 
     wv_run_test!(t, text_files);

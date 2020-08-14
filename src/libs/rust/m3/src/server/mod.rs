@@ -25,8 +25,8 @@ pub use self::reqhdl::{RequestHandler, DEF_MAX_CLIENTS, DEF_MSG_SIZE};
 pub use self::server::{CapExchange, Handler, Server};
 pub use self::sesscon::{SessId, SessionContainer};
 
-use errors::Error;
-use tcu::TCUIf;
+use crate::errors::Error;
+use crate::tcu::TCUIf;
 
 /// Executes the server loop, calling `func` in every iteration.
 pub fn server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {

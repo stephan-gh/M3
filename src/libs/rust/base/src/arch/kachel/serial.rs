@@ -14,12 +14,13 @@
  * General Public License version 2 for more details.
  */
 
-use arch::envdata;
-use arch::tcu;
-use cfg;
 use core::ptr;
-use errors::Error;
-use libc;
+
+use crate::arch::envdata;
+use crate::arch::tcu;
+use crate::cfg;
+use crate::errors::Error;
+use crate::libc;
 
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);

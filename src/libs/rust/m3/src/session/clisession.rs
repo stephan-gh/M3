@@ -14,13 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Capability, Selector};
-use com::{SliceSink, SliceSource};
 use core::fmt;
-use errors::Error;
-use kif;
-use pes::VPE;
-use syscalls;
+
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::com::{SliceSink, SliceSource};
+use crate::errors::Error;
+use crate::kif;
+use crate::pes::VPE;
+use crate::syscalls;
 
 /// Represents an established connection to a server that can be used to exchange capabilities.
 pub struct ClientSession {

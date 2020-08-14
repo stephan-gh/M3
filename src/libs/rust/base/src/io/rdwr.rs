@@ -16,12 +16,13 @@
 
 //! Contains the read and write traits
 
-use col::{String, Vec};
 use core::cmp;
 use core::fmt;
 use core::mem::MaybeUninit;
-use errors::{Code, Error};
-use util;
+
+use crate::col::{String, Vec};
+use crate::errors::{Code, Error};
+use crate::util;
 
 // this is inspired from std::io::{Read, Write}
 

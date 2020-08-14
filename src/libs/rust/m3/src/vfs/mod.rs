@@ -49,7 +49,7 @@ pub use self::mounttable::{FSHandle, MountTable};
 
 #[allow(non_snake_case)]
 pub mod VFS {
-    pub use vfs::vfs::*;
+    pub use crate::vfs::vfs::*;
 }
 
 pub(crate) fn deinit() {

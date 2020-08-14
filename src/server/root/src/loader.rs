@@ -31,7 +31,7 @@ use m3::session::{MapFlags, Pager};
 use m3::syscalls;
 use m3::vfs;
 
-use memory;
+use crate::memory;
 
 pub struct BootFile {
     mgate: MemGate,

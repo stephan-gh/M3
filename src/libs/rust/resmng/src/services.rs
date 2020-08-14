@@ -20,14 +20,15 @@ use m3::col::{String, Vec};
 use m3::com::SendGate;
 use m3::errors::{Code, Error};
 use m3::kif;
+use m3::log;
 use m3::pes::VPE;
 use m3::syscalls;
 use m3::tcu::Label;
 use m3::util;
 use thread;
 
-use events;
-use sendqueue::SendQueue;
+use crate::events;
+use crate::sendqueue::SendQueue;
 
 pub type Id = u32;
 

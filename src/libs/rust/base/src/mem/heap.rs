@@ -16,9 +16,9 @@
 
 //! Contains the malloc implementation
 
-use arch::cfg;
-use io;
-use util;
+use crate::arch::cfg;
+use crate::io;
+use crate::util;
 
 const HEAP_USED_BITS: usize = 0x5 << (8 * util::size_of::<usize>() - 3);
 
@@ -68,9 +68,9 @@ extern "C" {
 
 #[cfg(target_os = "none")]
 fn heap_bounds() -> (usize, usize) {
-    use arch;
-    use kif::PEDesc;
-    use math;
+    use crate::arch;
+    use crate::kif::PEDesc;
+    use crate::math;
 
     unsafe {
         let begin = math::round_up(&_bss_end as *const u8 as usize, cfg::LPAGE_SIZE);
@@ -89,7 +89,7 @@ fn heap_bounds() -> (usize, usize) {
 
 #[cfg(target_os = "linux")]
 fn heap_bounds() -> (usize, usize) {
-    use arch::envdata;
+    use crate::arch::envdata;
 
     (
         envdata::heap_start(),

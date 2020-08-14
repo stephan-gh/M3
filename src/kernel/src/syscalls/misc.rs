@@ -22,14 +22,14 @@ use base::rc::Rc;
 use base::tcu;
 use thread;
 
-use arch::loader::Loader;
-use cap::{Capability, KObject};
-use cap::{EPObject, SemObject};
-use ktcu;
-use pes::pemng;
-use pes::VPE;
-use platform;
-use syscalls::{get_request, reply_success, send_reply, SyscError};
+use crate::arch::loader::Loader;
+use crate::cap::{Capability, KObject};
+use crate::cap::{EPObject, SemObject};
+use crate::ktcu;
+use crate::pes::pemng;
+use crate::pes::VPE;
+use crate::platform;
+use crate::syscalls::{get_request, reply_success, send_reply, SyscError};
 
 #[inline(never)]
 pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {

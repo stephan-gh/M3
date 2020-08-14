@@ -14,14 +14,14 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use cell::RefCell;
-use com::MemGate;
-use errors::Error;
-use rc::Rc;
-use serialize::Sink;
-use session::ClientSession;
-use vfs::{FileHandle, GenericFile, OpenFlags};
+use crate::cap::Selector;
+use crate::cell::RefCell;
+use crate::com::MemGate;
+use crate::errors::Error;
+use crate::rc::Rc;
+use crate::serialize::Sink;
+use crate::session::ClientSession;
+use crate::vfs::{FileHandle, GenericFile, OpenFlags};
 
 /// Represents a session at the pipes server.
 pub struct Pipes {

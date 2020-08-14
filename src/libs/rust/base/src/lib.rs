@@ -24,16 +24,11 @@
 #![default_lib_allocator]
 #![no_std]
 
-#[macro_use]
-extern crate cfg_if;
-
-extern crate num_traits;
-
-#[macro_use]
-extern crate bitflags;
 // for int_enum!
 pub extern crate core as _core;
 pub extern crate static_assertions;
+
+use cfg_if::cfg_if;
 
 cfg_if! {
     if #[cfg(target_os = "none")] {
@@ -41,7 +36,7 @@ cfg_if! {
 
         /// The C library
         pub mod libc {
-            pub use arch::libc::*;
+            pub use crate::arch::libc::*;
         }
     }
     else if #[cfg(target_os = "linux")] {
@@ -102,22 +97,22 @@ pub type goff = u64;
 /// Machine-specific functions
 #[cfg(target_os = "none")]
 pub mod machine {
-    pub use arch::machine::*;
+    pub use crate::arch::machine::*;
 }
 
 /// The target-dependent configuration
 pub mod cfg {
-    pub use arch::cfg::*;
+    pub use crate::arch::cfg::*;
 }
 /// CPU-specific functions
 pub mod cpu {
-    pub use arch::cpu::*;
+    pub use crate::arch::cpu::*;
 }
 /// The Trusted Communication Unit interface
 pub mod tcu {
-    pub use arch::tcu::*;
+    pub use crate::arch::tcu::*;
 }
 /// The environment data
 pub mod envdata {
-    pub use arch::envdata::*;
+    pub use crate::arch::envdata::*;
 }

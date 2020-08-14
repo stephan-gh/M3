@@ -23,14 +23,14 @@ use base::mem::GlobAddr;
 use base::rc::Rc;
 use base::tcu;
 
-use cap::{Capability, KObject, SelRange};
-use cap::{MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject};
-use com::Service;
-use mem;
-use pes::{pemng, vpemng};
-use pes::{VPEFlags, VPE};
-use platform;
-use syscalls::{get_request, reply_success, send_reply, SyscError};
+use crate::cap::{Capability, KObject, SelRange};
+use crate::cap::{MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject};
+use crate::com::Service;
+use crate::mem;
+use crate::pes::{pemng, vpemng};
+use crate::pes::{VPEFlags, VPE};
+use crate::platform;
+use crate::syscalls::{get_request, reply_success, send_reply, SyscError};
 
 #[inline(never)]
 pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
@@ -368,7 +368,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     // activate pager EPs
     #[cfg(target_os = "none")]
     {
-        use cap::EPObject;
+        use crate::cap::EPObject;
 
         if let Some(sg) = _sgate {
             pemux

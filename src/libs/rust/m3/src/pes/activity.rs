@@ -16,12 +16,12 @@
 
 //! The different types that are used to hold the current activity running on a VPE.
 
-use env;
-use errors::Error;
-use kif;
-use pes::VPE;
-use syscalls;
-use vfs::{BufReader, FileRef};
+use crate::env;
+use crate::errors::Error;
+use crate::kif;
+use crate::pes::VPE;
+use crate::syscalls;
+use crate::vfs::{BufReader, FileRef};
 
 /// Represents an activity that is run on a [`VPE`].
 pub trait Activity {

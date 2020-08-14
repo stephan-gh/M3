@@ -17,8 +17,8 @@
 use base::errors::Error;
 use base::kif::PageFlags;
 
-use vma;
-use vpe;
+use crate::vma;
+use crate::vpe;
 
 pub type State = isr::State;
 

@@ -21,9 +21,9 @@ use base::rc::{Rc, SRc, Weak};
 use base::tcu;
 use core::fmt;
 
-use cap::RGateObject;
-use com::SendQueue;
-use pes::VPE;
+use crate::cap::RGateObject;
+use crate::com::SendQueue;
+use crate::pes::VPE;
 
 pub struct Service {
     vpe: Weak<VPE>,

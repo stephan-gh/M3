@@ -25,10 +25,10 @@ use base::util;
 use core::cmp;
 use core::mem::MaybeUninit;
 
-use arch;
-use ktcu;
-use pes::KERNEL_ID;
-use platform;
+use crate::arch;
+use crate::ktcu;
+use crate::pes::KERNEL_ID;
+use crate::platform;
 
 pub const KPEX_EP: EpId = 3;
 

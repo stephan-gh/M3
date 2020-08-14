@@ -21,14 +21,16 @@ use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate, SliceSource};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};
+use m3::log;
 use m3::math;
 use m3::pes::VPE;
+use m3::reply_vmsg;
 use m3::serialize::Source;
 use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
 use m3::tcu::Label;
 
-use dataspace::DataSpace;
+use crate::dataspace::DataSpace;
 
 const MAX_VIRT_ADDR: goff = cfg::MEM_CAP_END as goff - 1;
 

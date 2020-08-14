@@ -20,8 +20,8 @@ use base::errors::Error;
 use base::kif::{pemux, PageFlags};
 use core::mem::MaybeUninit;
 
-use vma;
-use vpe;
+use crate::vma;
+use crate::vpe;
 
 pub type State = isr::State;
 

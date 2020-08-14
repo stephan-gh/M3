@@ -24,10 +24,10 @@ use base::mem::{heap, GlobAddr};
 use base::tcu;
 use core::cmp;
 
-use mem;
-use paging::{self, AddrSpace, Allocator, Phys};
-use pes;
-use platform;
+use crate::mem;
+use crate::paging::{self, AddrSpace, Allocator, Phys};
+use crate::pes;
+use crate::platform;
 
 extern "C" {
     fn heap_set_oom_callback(cb: extern "C" fn(size: usize) -> bool);

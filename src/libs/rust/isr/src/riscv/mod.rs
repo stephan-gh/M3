@@ -14,7 +14,9 @@
  * General Public License version 2 for more details.
  */
 
+use base::int_enum;
 use base::libc;
+use base::{set_csr_bits, write_csr};
 use core::fmt;
 
 pub const ISR_COUNT: usize = 32;

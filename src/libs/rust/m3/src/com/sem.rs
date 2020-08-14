@@ -14,11 +14,11 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Capability, Selector};
-use errors::Error;
-use kif;
-use pes::VPE;
-use syscalls;
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::errors::Error;
+use crate::kif;
+use crate::pes::VPE;
+use crate::syscalls;
 
 /// A syscall-based semaphore.
 #[derive(Debug)]

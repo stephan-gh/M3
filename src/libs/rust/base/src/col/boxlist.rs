@@ -19,7 +19,7 @@ use core::intrinsics;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use boxed::Box;
+use crate::boxed::Box;
 
 /// A reference to an element in the list
 pub type BoxRef<T> = NonNull<T>;

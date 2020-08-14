@@ -26,9 +26,9 @@ use core::fmt;
 use core::ptr;
 use thread;
 
-use com::Service;
-use mem;
-use pes::{pemng, State, VPE};
+use crate::com::Service;
+use crate::mem;
+use crate::pes::{pemng, State, VPE};
 
 #[derive(Clone)]
 pub enum KObject {

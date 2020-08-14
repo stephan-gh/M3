@@ -19,7 +19,7 @@ use base::col::ToString;
 use base::libc;
 use core::mem::MaybeUninit;
 
-use mem;
+use crate::mem;
 
 pub fn copy_from_fs(path: &str) -> usize {
     unsafe {

@@ -14,6 +14,8 @@
  * General Public License version 2 for more details.
  */
 
+use bitflags::bitflags;
+
 bitflags! {
     /// The permission bitmap that is used for memory and mapping capabilities.
     pub struct Perm : u32 {

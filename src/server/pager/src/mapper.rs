@@ -22,7 +22,7 @@ use m3::session::MapFlags;
 use m3::session::Pager;
 use m3::vfs;
 
-use AddrSpace;
+use crate::AddrSpace;
 
 pub(crate) struct ChildMapper<'a> {
     aspace: &'a mut AddrSpace,

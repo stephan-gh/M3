@@ -14,18 +14,19 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Selector};
-use com::ep::EP;
-use com::gate::Gate;
-use com::stream::GateIStream;
-use com::RecvGate;
 use core::fmt;
-use errors::Error;
-use kif::{INVALID_SEL, UNLIM_CREDITS};
-use pes::VPE;
-use syscalls;
-use tcu;
-use util;
+
+use crate::cap::{CapFlags, Selector};
+use crate::com::ep::EP;
+use crate::com::gate::Gate;
+use crate::com::stream::GateIStream;
+use crate::com::RecvGate;
+use crate::errors::Error;
+use crate::kif::{INVALID_SEL, UNLIM_CREDITS};
+use crate::pes::VPE;
+use crate::syscalls;
+use crate::tcu;
+use crate::util;
 
 /// A send gate (`SendGate`) can send message via TCU to an associated `RecvGate`.
 pub struct SendGate {

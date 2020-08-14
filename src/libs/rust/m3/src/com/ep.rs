@@ -14,12 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use cap::{CapFlags, Capability, Selector};
-use errors::Error;
-use kif;
-use pes::VPE;
-use syscalls;
-use tcu::{EpId, EP_COUNT};
+use crate::cap::{CapFlags, Capability, Selector};
+use crate::errors::Error;
+use crate::kif;
+use crate::pes::VPE;
+use crate::syscalls;
+use crate::tcu::{EpId, EP_COUNT};
 
 /// Represents a TCU endpoint that can be used for communication. This class only serves the purpose
 /// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can

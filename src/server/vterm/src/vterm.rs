@@ -16,9 +16,6 @@
 
 #![no_std]
 
-#[macro_use]
-extern crate m3;
-
 use core::mem::MaybeUninit;
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
@@ -27,8 +24,10 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::{Read, Serial, Write};
 use m3::kif;
+use m3::log;
 use m3::pes::VPE;
 use m3::rc::Rc;
+use m3::reply_vmsg;
 use m3::serialize::Source;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,

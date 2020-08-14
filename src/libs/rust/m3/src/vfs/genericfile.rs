@@ -14,22 +14,24 @@
  * General Public License version 2 for more details.
  */
 
-use cap::Selector;
-use cell::RefCell;
-use col::Vec;
-use com::{MemGate, RecvGate, SendGate, SliceSource, VecSink};
 use core::cmp;
 use core::fmt;
-use errors::Error;
-use goff;
-use io::{Read, Write};
-use kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
-use pes::VPE;
-use rc::Rc;
-use serialize::Sink;
-use session::{ClientSession, MapFlags, Pager};
-use time;
-use vfs::{filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode};
+
+use crate::cap::Selector;
+use crate::cell::RefCell;
+use crate::col::Vec;
+use crate::com::{MemGate, RecvGate, SendGate, SliceSource, VecSink};
+use crate::errors::Error;
+use crate::goff;
+use crate::int_enum;
+use crate::io::{Read, Write};
+use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
+use crate::pes::VPE;
+use crate::rc::Rc;
+use crate::serialize::Sink;
+use crate::session::{ClientSession, MapFlags, Pager};
+use crate::time;
+use crate::vfs::{filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode};
 
 int_enum! {
     /// The operations for [`GenericFile`].

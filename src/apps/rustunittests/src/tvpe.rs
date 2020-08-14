@@ -20,6 +20,7 @@ use m3::env;
 use m3::math;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::test;
+use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, run_stop);

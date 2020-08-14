@@ -14,10 +14,12 @@
  * General Public License version 2 for more details.
  */
 
-use cell::Cell;
+use bitflags::bitflags;
 use core::ops;
-use kif;
-use syscalls;
+
+use crate::cell::Cell;
+use crate::kif;
+use crate::syscalls;
 
 /// A capability selector
 pub type Selector = kif::CapSel;

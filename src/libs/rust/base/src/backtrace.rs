@@ -16,9 +16,9 @@
 
 //! Contains the backtrace generation function
 
-use arch::cfg;
-use arch::cpu;
-use math;
+use crate::arch::cfg;
+use crate::arch::cpu;
+use crate::math;
 
 /// Walks up the stack and stores the return addresses into the given slice and returns the number
 /// of addresses.

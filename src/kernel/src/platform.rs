@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use arch;
 use base::cell::StaticCell;
 use base::col::{String, Vec};
 use base::kif::{boot, PEDesc};
@@ -22,6 +21,8 @@ use base::mem::GlobAddr;
 use base::tcu::PEId;
 use base::util;
 use core::iter;
+
+use crate::arch;
 
 #[cfg(target_os = "none")]
 pub use arch::platform::rbuf_pemux;

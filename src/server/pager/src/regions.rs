@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use bitflags::bitflags;
 use core::cmp;
 use core::fmt;
 use m3::boxed::Box;
@@ -25,10 +26,11 @@ use m3::com::MemGate;
 use m3::errors::Error;
 use m3::goff;
 use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
+use m3::log;
 use m3::rc::Rc;
 use m3::syscalls;
 
-use physmem::{copy_block, PhysMem};
+use crate::physmem::{copy_block, PhysMem};
 
 bitflags! {
     struct RegionFlags : u64 {

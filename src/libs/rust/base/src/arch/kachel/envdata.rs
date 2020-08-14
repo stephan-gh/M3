@@ -14,8 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-use cfg;
 use core::intrinsics;
+
+use crate::cfg;
 
 int_enum! {
     pub struct Platform : u64 {

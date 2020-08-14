@@ -25,13 +25,13 @@ use base::tcu;
 use thread;
 
 use super::{fs, net};
-use arch::loader;
-use args;
-use ktcu;
-use mem;
-use pes;
-use platform;
-use workloop::{thread_startup, workloop};
+use crate::arch::loader;
+use crate::args;
+use crate::ktcu;
+use crate::mem;
+use crate::pes;
+use crate::platform;
+use crate::workloop::{thread_startup, workloop};
 
 #[no_mangle]
 pub extern "C" fn rust_init(argc: i32, argv: *const *const i8) {
@@ -68,7 +68,7 @@ pub fn main() -> i32 {
     let kernel = env::args().next().unwrap();
     let builddir = kernel.rsplitn(2, '/').nth(1).unwrap();
     loader::init(&builddir);
-    ::arch::childs::init();
+    crate::arch::childs::init();
 
     thread::init();
     for _ in 0..8 {

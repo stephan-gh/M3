@@ -16,8 +16,8 @@
 
 //! Contains the serializing basics, which is used for IPC
 
-use col::String;
-use errors::Error;
+use crate::col::String;
+use crate::errors::Error;
 
 /// For types that can be marshalled into a [`Sink`].
 pub trait Marshallable {

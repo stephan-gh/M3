@@ -46,7 +46,7 @@ macro_rules! wv_run_test {
 #[macro_export]
 macro_rules! wv_perf {
     ($name:expr, $bench:expr) => {
-        println!("! {}:{}  PERF \"{}\": {}", file!(), line!(), $name, $bench);
+        ::m3::println!("! {}:{}  PERF \"{}\": {}", file!(), line!(), $name, $bench);
     };
 }
 
@@ -62,8 +62,8 @@ macro_rules! wv_assert {
         match (&$a) {
             (a_val) => {
                 if !*a_val {
-                    println!("! {}:{}  {:?} FAILED", file!(), line!(), &*a_val);
-                    ::wvtest_failed();
+                    ::m3::println!("! {}:{}  {:?} FAILED", file!(), line!(), &*a_val);
+                    crate::wvtest_failed();
                 }
             },
         }
@@ -77,8 +77,8 @@ macro_rules! wv_assert_eq {
         match (&$a, &$b) {
             (a_val, b_val) => {
                 if *a_val != *b_val {
-                    println!("! {}:{}  {:?} == {:?} FAILED", file!(), line!(), &*a_val, &*b_val);
-                    ::wvtest_failed();
+                    ::m3::println!("! {}:{}  {:?} == {:?} FAILED", file!(), line!(), &*a_val, &*b_val);
+                    crate::wvtest_failed();
                 }
             }
         }
@@ -88,8 +88,8 @@ macro_rules! wv_assert_eq {
         match (&$a, &$b) {
             (a_val, b_val) => {
                 if *a_val != *b_val {
-                    println!("! {}:{}  {} FAILED", file!(), line!(), format_args!($($arg)+));
-                    ::wvtest_failed();
+                    ::m3::println!("! {}:{}  {} FAILED", file!(), line!(), format_args!($($arg)+));
+                    crate::wvtest_failed();
                 }
             }
         }
@@ -104,7 +104,7 @@ macro_rules! wv_assert_ok {
         match $res {
             Ok(r) => r,
             Err(e) => {
-                println!(
+                ::m3::println!(
                     "! {}:{}  expected Ok for {}, got {:?} FAILED",
                     file!(),
                     line!(),
@@ -125,7 +125,7 @@ macro_rules! wv_assert_some {
         match $res {
             Some(r) => r,
             None => {
-                println!(
+                ::m3::println!(
                     "! {}:{}  expected Some for {}, received None FAILED",
                     file!(),
                     line!(),
@@ -143,18 +143,18 @@ macro_rules! wv_assert_err {
     ($res:expr, $err:expr) => {{
         match $res {
             Ok(r) => {
-                println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
-                ::wvtest_failed();
+                ::m3::println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
+                crate::wvtest_failed();
             },
             Err(ref e) if e.code() != $err => {
-                println!(
+                ::m3::println!(
                     "! {}:{}  received error {:?}, expected {:?} FAILED",
                     file!(),
                     line!(),
                     e,
                     $err
                 );
-                ::wvtest_failed();
+                crate::wvtest_failed();
             },
             Err(_) => (),
         }
@@ -162,11 +162,11 @@ macro_rules! wv_assert_err {
     ($res:expr, $err1:expr, $err2:expr) => {{
         match $res {
             Ok(r) => {
-                println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
-                ::wvtest_failed();
+                ::m3::println!("! {}:{}  received okay: {:?} FAILED", file!(), line!(), r);
+                crate::wvtest_failed();
             },
             Err(ref e) if e.code() != $err1 && e.code() != $err2 => {
-                println!(
+                ::m3::println!(
                     "! {}:{}  received error {:?}, expected {:?} or {:?} FAILED",
                     file!(),
                     line!(),
@@ -174,7 +174,7 @@ macro_rules! wv_assert_err {
                     $err1,
                     $err2
                 );
-                ::wvtest_failed();
+                crate::wvtest_failed();
             },
             Err(_) => (),
         }

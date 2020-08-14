@@ -17,10 +17,7 @@
 #![feature(llvm_asm)]
 #![no_std]
 
-#[macro_use]
-extern crate base;
-#[macro_use]
-extern crate cfg_if;
+use cfg_if::cfg_if;
 
 cfg_if! {
     if #[cfg(target_arch = "x86_64")] {

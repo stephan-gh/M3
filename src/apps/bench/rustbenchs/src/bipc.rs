@@ -20,6 +20,9 @@ use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::profile;
 use m3::rc::Rc;
 use m3::test;
+use m3::{
+    format, println, reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test,
+};
 
 const MSG_ORD: u32 = 8;
 

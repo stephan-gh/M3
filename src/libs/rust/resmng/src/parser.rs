@@ -16,10 +16,11 @@
 
 use m3::col::{String, ToString, Vec};
 use m3::errors::{Code, Error};
+use m3::format;
 use m3::goff;
 use m3::rc::Rc;
 
-use config;
+use crate::config;
 
 struct ConfigParser {
     chars: Vec<char>,

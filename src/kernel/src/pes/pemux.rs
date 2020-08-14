@@ -22,10 +22,10 @@ use base::mem::GlobAddr;
 use base::rc::SRc;
 use base::tcu::{self, EpId, PEId, VPEId};
 
-use cap::{MGateObject, PEObject, RGateObject, SGateObject};
-use ktcu;
-use pes::INVAL_ID;
-use platform;
+use crate::cap::{MGateObject, PEObject, RGateObject, SGateObject};
+use crate::ktcu;
+use crate::pes::INVAL_ID;
+use crate::platform;
 
 pub struct PEMux {
     pe: SRc<PEObject>,
@@ -316,7 +316,7 @@ impl PEMux {
 #[cfg(target_os = "none")]
 impl PEMux {
     pub fn handle_call(&mut self, msg: &tcu::Message) {
-        use pes::vpemng;
+        use crate::pes::vpemng;
 
         let req = msg.get_data::<kif::pemux::Exit>();
         let vpe_id = req.vpe_sel as VPEId;
@@ -422,7 +422,7 @@ impl PEMux {
         req: &R,
     ) -> Result<thread::Event, Error> {
         use base::util;
-        use pes::{vpemng, State};
+        use crate::pes::{vpemng, State};
 
         // if the VPE has no app anymore, don't send the notify
         if let Some(id) = vpe {

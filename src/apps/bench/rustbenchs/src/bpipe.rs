@@ -23,6 +23,7 @@ use m3::profile;
 use m3::session::Pipes;
 use m3::test;
 use m3::vfs::IndirectPipe;
+use m3::{format, vec, wv_assert_ok, wv_assert_eq, wv_perf, wv_run_test};
 
 const DATA_SIZE: usize = 2 * 1024 * 1024;
 const BUF_SIZE: usize = 8 * 1024;

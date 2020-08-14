@@ -23,6 +23,7 @@ use m3::math;
 use m3::pes::{Activity, PE, VPE};
 use m3::session::MapFlags;
 use m3::test;
+use m3::{wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
 pub fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, create);
@@ -140,9 +141,7 @@ fn remote_access() {
         let sem2 = Semaphore::bind(sem2_sel);
         // write value to own address space
         let obj_addr = virt as *mut u64;
-        unsafe {
-            *obj_addr = 0xDEAD_BEEF
-        };
+        unsafe { *obj_addr = 0xDEAD_BEEF };
         //  notify parent that we're ready
         wv_assert_ok!(sem1.up());
         // wait for parent

@@ -17,10 +17,11 @@
 use base::cell::StaticCell;
 use base::col::Vec;
 use base::kif;
+use base::log;
 use base::tcu;
 use core::cmp;
 
-use vpe;
+use crate::vpe;
 
 pub type Nanos = u64;
 

@@ -14,14 +14,15 @@
  * General Public License version 2 for more details.
  */
 
-use arch::{env, loader};
 use base::envdata;
-use cfg;
-use kif;
-use libc;
-use pes::VPE;
-use syscalls;
-use tcu;
+
+use crate::arch::{env, loader};
+use crate::cfg;
+use crate::kif;
+use crate::libc;
+use crate::pes::VPE;
+use crate::syscalls;
+use crate::tcu;
 
 pub fn init() {
     {
