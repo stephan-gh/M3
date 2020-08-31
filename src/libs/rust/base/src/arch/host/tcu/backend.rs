@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use alloc::{format, vec};
 use core::ptr;
 use libc;
 

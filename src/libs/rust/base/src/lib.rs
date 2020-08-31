@@ -40,7 +40,6 @@ cfg_if! {
         }
     }
     else if #[cfg(target_os = "linux")] {
-        #[macro_use]
         extern crate alloc;
 
         /// The C library
