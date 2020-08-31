@@ -36,8 +36,8 @@ mod tcuif;
 
 /// The interface to the trusted communication unit
 pub mod tcu {
-    pub use base::tcu::*;
     pub use crate::tcuif::*;
+    pub use base::tcu::*;
 }
 
 pub use base::{

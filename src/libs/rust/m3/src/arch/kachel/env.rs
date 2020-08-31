@@ -14,9 +14,9 @@
  * General Public License version 2 for more details.
  */
 
+use base;
 use core::cmp;
 use core::intrinsics;
-use base;
 
 use crate::cap::Selector;
 use crate::cfg;

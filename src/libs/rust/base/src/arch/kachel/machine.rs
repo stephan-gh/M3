@@ -22,9 +22,7 @@ extern "C" {
 
 pub fn shutdown() -> ! {
     if envdata::get().platform == envdata::Platform::GEM5.val {
-        unsafe {
-            gem5_shutdown(0)
-        };
+        unsafe { gem5_shutdown(0) };
     }
     else {
         #[cfg(target_arch = "riscv64")]

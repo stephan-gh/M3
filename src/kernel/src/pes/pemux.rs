@@ -421,8 +421,8 @@ impl PEMux {
         vpe: Option<VPEId>,
         req: &R,
     ) -> Result<thread::Event, Error> {
+        use crate::pes::{State, VPEMng};
         use base::util;
-        use crate::pes::{VPEMng, State};
 
         // if the VPE has no app anymore, don't send the notify
         if let Some(id) = vpe {

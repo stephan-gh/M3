@@ -102,6 +102,12 @@ impl Drop for PE {
 
 impl fmt::Debug for PE {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "PE{}[sel: {}, desc: {:?}]", self.id(), self.sel(), self.desc())
+        write!(
+            f,
+            "PE{}[sel: {}, desc: {:?}]",
+            self.id(),
+            self.sel(),
+            self.desc()
+        )
     }
 }

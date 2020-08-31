@@ -18,7 +18,7 @@ use m3::col::String;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::profile;
 use m3::test;
-use m3::{send_vmsg, reply_vmsg, wv_assert_ok, wv_assert_eq, wv_perf, wv_run_test};
+use m3::{reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_test};
 
 const MSG_ORD: u32 = 8;
 

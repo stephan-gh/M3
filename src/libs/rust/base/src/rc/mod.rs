@@ -18,5 +18,5 @@
 
 mod src;
 
-pub use alloc::rc::{Rc, Weak};
 pub use self::src::SRc;
+pub use alloc::rc::{Rc, Weak};

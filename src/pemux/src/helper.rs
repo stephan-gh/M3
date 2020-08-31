@@ -40,9 +40,7 @@ impl TCUCmdState {
         tcu::TCU::write_unpriv_reg(tcu::UnprivReg::DATA, self.cmd_regs[2]);
         // always restore the command register, because the previous VPE might have an error code
         // in the command register or similar.
-        unsafe {
-            intrinsics::atomic_fence()
-        };
+        unsafe { intrinsics::atomic_fence() };
         tcu::TCU::write_unpriv_reg(tcu::UnprivReg::COMMAND, self.cmd_regs[0]);
     }
 }

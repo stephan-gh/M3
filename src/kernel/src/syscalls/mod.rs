@@ -60,7 +60,7 @@ macro_rules! as_obj {
             KObject::$ty(k) => k,
             _ => sysc_err!(Code::InvArgs, "Expected {:?} cap", stringify!($ty)),
         }
-    }
+    };
 }
 macro_rules! get_cap {
     ($table:expr, $sel:expr) => {{

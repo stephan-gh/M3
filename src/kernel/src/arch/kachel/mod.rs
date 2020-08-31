@@ -18,5 +18,5 @@ pub mod exceptions;
 pub mod kernel;
 pub mod ktcu;
 pub mod loader;
-pub mod platform;
 pub mod paging;
+pub mod platform;

@@ -15,13 +15,13 @@
  */
 
 use base::cell::StaticCell;
-use base::col::{String, Vec};
 use base::cfg;
-use base::tcu::PEId;
+use base::col::{String, Vec};
 use base::envdata;
 use base::goff;
 use base::kif::{boot, PEDesc, PEType};
 use base::mem::GlobAddr;
+use base::tcu::PEId;
 use base::util;
 
 use crate::args;
@@ -93,10 +93,19 @@ pub fn init(_args: &[String]) -> platform::KEnv {
                 // user memory
                 let user = used + args::get().kmem as goff;
                 mem.add(MemMod::new(MemType::USER, i as PEId, user, avail));
-                umems.push(boot::Mem::new(user, avail - args::get().kmem as goff, false));
+                umems.push(boot::Mem::new(
+                    user,
+                    avail - args::get().kmem as goff,
+                    false,
+                ));
             }
             else {
-                mem.add(MemMod::new(MemType::USER, i as PEId, 0, pe.mem_size() as goff));
+                mem.add(MemMod::new(
+                    MemType::USER,
+                    i as PEId,
+                    0,
+                    pe.mem_size() as goff,
+                ));
                 umems.push(boot::Mem::new(0, pe.mem_size() as goff, false));
             }
             kmem_idx += 1;

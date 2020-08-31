@@ -15,8 +15,8 @@
  */
 
 use base::cfg;
-use base::libc;
 use base::kif::PageFlags;
+use base::libc;
 use base::tcu;
 
 use crate::arch::paging;

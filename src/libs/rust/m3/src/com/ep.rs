@@ -88,7 +88,13 @@ impl EP {
     /// Allocates a new endpoint with custom arguments
     pub(crate) fn new_with(args: EPArgs) -> Result<Self, Error> {
         let (sel, id) = Self::alloc_cap(args.epid, args.vpe, args.replies)?;
-        Ok(Self::create(sel, id, args.replies, CapFlags::empty(), false))
+        Ok(Self::create(
+            sel,
+            id,
+            args.replies,
+            CapFlags::empty(),
+            false,
+        ))
     }
 
     /// Binds the given selector to a new EP object

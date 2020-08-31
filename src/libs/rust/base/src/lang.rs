@@ -52,9 +52,7 @@ fn panic(info: &PanicInfo) -> ! {
         }
     }
 
-    unsafe {
-        exit(1)
-    };
+    unsafe { exit(1) };
     intrinsics::abort();
 }
 

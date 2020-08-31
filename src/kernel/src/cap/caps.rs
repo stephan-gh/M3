@@ -27,7 +27,7 @@ use core::fmt;
 use core::ptr::{NonNull, Unique};
 
 use crate::cap::{EPObject, GateEP, KObject};
-use crate::pes::{PEMng, VPEMng, State, VPE};
+use crate::pes::{PEMng, State, VPEMng, VPE};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
 pub struct SelRange {

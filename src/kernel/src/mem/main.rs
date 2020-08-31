@@ -16,8 +16,8 @@
 
 use base::cell::StaticCell;
 use base::col::Vec;
-use base::mem::GlobAddr;
 use base::goff;
+use base::mem::GlobAddr;
 use core::fmt;
 
 use crate::mem::{MemMod, MemType};
@@ -81,11 +81,7 @@ impl MainMemory {
         &self.mods[idx]
     }
 
-    pub fn allocate(
-        &mut self,
-        size: goff,
-        align: goff,
-    ) -> Result<Allocation, base::errors::Error> {
+    pub fn allocate(&mut self, size: goff, align: goff) -> Result<Allocation, base::errors::Error> {
         use base::errors::{Code, Error};
 
         for m in &mut self.mods {

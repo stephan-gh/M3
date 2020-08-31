@@ -14,10 +14,10 @@
  * General Public License version 2 for more details.
  */
 
-use base::tcu::PEId;
 use base::errors::Error;
 use base::goff;
 use base::mem::{GlobAddr, MemMap};
+use base::tcu::PEId;
 use core::fmt;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

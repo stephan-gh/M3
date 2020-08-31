@@ -24,10 +24,12 @@ use base::rc::Rc;
 use base::tcu;
 
 use crate::cap::{Capability, KObject, SelRange};
-use crate::cap::{MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject};
+use crate::cap::{
+    MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject,
+};
 use crate::com::Service;
 use crate::mem;
-use crate::pes::{PEMng, VPEMng, VPEFlags, VPE};
+use crate::pes::{PEMng, VPEFlags, VPEMng, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply, SyscError};
 
@@ -103,11 +105,10 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
     if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
         let map_caps = tgt_vpe.map_caps().borrow_mut();
-        try_kmem_quota!(
-            vpe.obj_caps()
-                .borrow_mut()
-                .insert_as_child_from(cap, map_caps, sel)
-        );
+        try_kmem_quota!(vpe
+            .obj_caps()
+            .borrow_mut()
+            .insert_as_child_from(cap, map_caps, sel));
     }
     else {
         try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));

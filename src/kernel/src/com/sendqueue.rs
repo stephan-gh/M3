@@ -16,8 +16,8 @@
 
 use base::cell::StaticCell;
 use base::col::{DList, Vec};
-use base::tcu;
 use base::errors::{Code, Error};
+use base::tcu;
 use thread;
 
 use crate::ktcu;
@@ -71,7 +71,12 @@ impl SendQueue {
         }
     }
 
-    pub fn send(&mut self, rep: tcu::EpId, lbl: tcu::Label, msg: &[u8]) -> Result<thread::Event, Error> {
+    pub fn send(
+        &mut self,
+        rep: tcu::EpId,
+        lbl: tcu::Label,
+        msg: &[u8],
+    ) -> Result<thread::Event, Error> {
         klog!(SQUEUE, "SendQueue[{}]: trying to send msg", self.id);
 
         if self.state == QState::Aborted {
@@ -123,7 +128,10 @@ impl SendQueue {
                 Some(e) => {
                     klog!(SQUEUE, "SendQueue[{}]: found pending message", self.id);
 
-                    if self.do_send(e.rep, e.lbl, e.id, &e.msg, e.msg.len()).is_ok() {
+                    if self
+                        .do_send(e.rep, e.lbl, e.id, &e.msg, e.msg.len())
+                        .is_ok()
+                    {
                         break;
                     }
                 },
@@ -145,7 +153,15 @@ impl SendQueue {
         self.state = QState::Waiting;
 
         let rpl_lbl = self as *mut Self as tcu::Label;
-        ktcu::send_to(self.pe, rep, lbl, msg.as_ptr(), size, rpl_lbl, ktcu::KSRV_EP)?;
+        ktcu::send_to(
+            self.pe,
+            rep,
+            lbl,
+            msg.as_ptr(),
+            size,
+            rpl_lbl,
+            ktcu::KSRV_EP,
+        )?;
 
         Ok(self.cur_event)
     }

@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use crate::tcu::EpId;
 use crate::cap::Selector;
 use crate::col::Vec;
 use crate::com::gate::Gate;
@@ -22,6 +21,7 @@ use crate::com::{EPArgs, EP};
 use crate::errors::Error;
 use crate::kif::INVALID_SEL;
 use crate::syscalls;
+use crate::tcu::EpId;
 
 /// The endpoint manager (`EpMng`) multiplexes all non-reserved endpoints among the gates.
 #[derive(Default)]

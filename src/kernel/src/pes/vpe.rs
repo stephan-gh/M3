@@ -152,10 +152,10 @@ impl VPE {
 
     #[cfg(target_os = "none")]
     fn init_eps(&self) -> Result<(), Error> {
+        use crate::cap::{RGateObject, SGateObject};
         use base::cfg;
         use base::kif::Perm;
         use base::tcu;
-        use crate::cap::{RGateObject, SGateObject};
 
         let pemux = PEMng::get().pemux(self.pe_id());
         let vpe = if platform::is_shared(self.pe_id()) {
@@ -425,9 +425,9 @@ impl VPE {
             self.exit_app(exit_code, false);
         }
         else if self.state.get() == State::RUNNING {
-                // devices always exit successfully
-                let exit_code = if self.pe_desc().is_device() { 0 } else { 1 };
-                self.exit_app(exit_code, true);
+            // devices always exit successfully
+            let exit_code = if self.pe_desc().is_device() { 0 } else { 1 };
+            self.exit_app(exit_code, true);
         }
         else {
             self.state.set(State::DEAD);

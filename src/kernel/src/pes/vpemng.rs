@@ -42,7 +42,6 @@ pub struct VPEMng {
 
 static INST: StaticCell<Option<VPEMng>> = StaticCell::new(None);
 
-
 pub fn init() {
     INST.set(Some(VPEMng {
         vpes: vec![None; MAX_VPES],
@@ -115,8 +114,11 @@ impl VPEMng {
 
     fn init_vpe(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMng::get().pemux(vpe.pe_id())
-                .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::INIT)?;
+            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl(
+                vpe.id(),
+                vpe.eps_start(),
+                kif::pemux::VPEOp::INIT,
+            )?;
         }
 
         vpe.init()
@@ -137,8 +139,11 @@ impl VPEMng {
 
     pub fn stop_vpe(&mut self, vpe: &VPE, stop: bool, reset: bool) -> Result<(), Error> {
         if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMng::get().pemux(vpe.pe_id())
-                .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::STOP)?;
+            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl(
+                vpe.id(),
+                vpe.eps_start(),
+                kif::pemux::VPEOp::STOP,
+            )?;
         }
 
         if reset && !platform::pe_desc(vpe.pe_id()).is_programmable() {
@@ -239,7 +244,7 @@ impl VPEMng {
                 pemux.rem_vpe(v.id());
                 self.count -= 1;
             },
-            None => panic!("Removing nonexisting VPE with id {}", id)
+            None => panic!("Removing nonexisting VPE with id {}", id),
         };
     }
 

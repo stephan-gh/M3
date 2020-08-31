@@ -113,7 +113,11 @@ impl VPE {
 
     fn init(&mut self) {
         let env = arch::env::get();
-        self.pe = Rc::new(PE::new_bind(env.pe_id() as PEId, env.pe_desc(), kif::SEL_PE));
+        self.pe = Rc::new(PE::new_bind(
+            env.pe_id() as PEId,
+            env.pe_desc(),
+            kif::SEL_PE,
+        ));
         self.next_sel = env.load_first_sel();
         self.eps_start = env.first_std_ep();
         self.rmng = env.load_rmng();
@@ -488,9 +492,7 @@ impl VPE {
                 c2p.signal();
 
                 let res = closure.call();
-                unsafe {
-                    libc::exit(res)
-                };
+                unsafe { libc::exit(res) };
             },
 
             pid => {

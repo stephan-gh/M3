@@ -24,8 +24,8 @@ pub use self::std::{stderr, stdin, stdout};
 pub use self::std::{STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO};
 pub use base::io::{read_object, Read, Serial, Write};
 
-use base::envdata;
 use crate::env;
+use base::envdata;
 
 /// Uses stdout to print `$fmt` with given arguments.
 #[macro_export]
