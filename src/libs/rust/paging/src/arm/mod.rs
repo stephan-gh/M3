@@ -144,7 +144,7 @@ pub fn enable_paging() {
     }
 }
 
-pub fn invalidate_page(id: ::VPEId, virt: usize) {
+pub fn invalidate_page(id: crate::VPEId, virt: usize) {
     unsafe {
         llvm_asm!(
             "mcr p15, 0, $0, c8, c7, 1"
@@ -164,7 +164,7 @@ pub fn invalidate_tlb() {
     }
 }
 
-pub fn set_root_pt(id: ::VPEId, root: Phys) {
+pub fn set_root_pt(id: crate::VPEId, root: Phys) {
     // the ASID is 8 bit; make sure that we stay in that space
     assert!(
         id == pemux::VPE_ID

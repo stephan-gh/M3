@@ -120,7 +120,7 @@ pub fn enable_paging() {
     // already enabled by gem5
 }
 
-pub fn invalidate_page(_id: ::VPEId, virt: usize) {
+pub fn invalidate_page(_id: crate::VPEId, virt: usize) {
     unsafe {
         llvm_asm!(
             "invlpg ($0)"
@@ -134,7 +134,7 @@ pub fn invalidate_tlb() {
     // nothing to do
 }
 
-pub fn set_root_pt(_id: ::VPEId, root: Phys) {
+pub fn set_root_pt(_id: crate::VPEId, root: Phys) {
     cpu::write_cr3(root as usize);
 }
 

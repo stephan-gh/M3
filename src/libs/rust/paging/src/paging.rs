@@ -17,10 +17,6 @@
 #![feature(llvm_asm)]
 #![no_std]
 
-extern crate base;
-extern crate bitflags;
-extern crate cfg_if;
-
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         #[path = "x86_64/mod.rs"]

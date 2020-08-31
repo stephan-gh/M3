@@ -124,7 +124,7 @@ pub fn enable_paging() {
     set_csr_bits!("sstatus", 1 << 18);
 }
 
-pub fn invalidate_page(id: ::VPEId, virt: usize) {
+pub fn invalidate_page(id: crate::VPEId, virt: usize) {
     unsafe {
         llvm_asm!(
             "sfence.vma $0, $1"
@@ -140,7 +140,7 @@ pub fn invalidate_tlb() {
     }
 }
 
-pub fn set_root_pt(id: ::VPEId, root: Phys) {
+pub fn set_root_pt(id: crate::VPEId, root: Phys) {
     let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
     write_csr!("satp", satp);
 }
