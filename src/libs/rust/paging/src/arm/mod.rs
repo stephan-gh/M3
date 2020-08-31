@@ -17,6 +17,7 @@
 use base::cfg;
 use base::goff;
 use base::kif::{pemux, PageFlags};
+use bitflags::bitflags;
 
 pub type MMUPTE = u64;
 pub type Phys = u64;

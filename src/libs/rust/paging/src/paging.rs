@@ -17,14 +17,11 @@
 #![feature(llvm_asm)]
 #![no_std]
 
-#[macro_use]
 extern crate base;
-#[macro_use]
 extern crate bitflags;
-#[macro_use]
 extern crate cfg_if;
 
-cfg_if! {
+cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         #[path = "x86_64/mod.rs"]
         mod arch;
@@ -44,6 +41,7 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, PTE};
 use base::libc;
+use base::log;
 use base::math;
 use base::mem::GlobAddr;
 use base::tcu::TCU;

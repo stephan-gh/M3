@@ -18,6 +18,7 @@ use base::cfg;
 use base::cpu;
 use base::goff;
 use base::kif::PageFlags;
+use bitflags::bitflags;
 
 pub type MMUPTE = u64;
 pub type Phys = u64;
