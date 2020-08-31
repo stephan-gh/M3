@@ -58,8 +58,7 @@ pub extern "C" fn env_run() {
         thread::ThreadManager::get().add_thread(thread_startup as *const () as usize, 0);
     }
 
-    pes::pemng::init();
-    pes::vpemng::init();
+    pes::init();
 
     // TODO add second syscall REP
     let sysc_rbuf = vec![0u8; 512 * 32];
@@ -75,14 +74,14 @@ pub extern "C" fn env_run() {
     ktcu::recv_msgs(ktcu::KPEX_EP, pex_rbuf.as_ptr() as goff, pex_rbuf_ord, 7)
         .expect("Unable to config pemux REP");
 
-    let vpemng = pes::vpemng::get();
-    vpemng.start_root().expect("starting root failed");
+    pes::VPEMng::get().start_root().expect("starting root failed");
 
     klog!(DEF, "Kernel is ready!");
 
     workloop();
 
-    pes::vpemng::deinit();
+    pes::deinit();
+
     klog!(DEF, "Shutting down");
     exit(0);
 }

@@ -29,8 +29,7 @@ use crate::args;
 use crate::cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
 use crate::ktcu;
 use crate::mem::{self, Allocation};
-use crate::pes::pemng;
-use crate::pes::{VPEFlags, VPE};
+use crate::pes::{PEMng, VPEFlags, VPE};
 use crate::platform;
 
 pub const MAX_VPES: usize = 64;
@@ -43,9 +42,6 @@ pub struct VPEMng {
 
 static INST: StaticCell<Option<VPEMng>> = StaticCell::new(None);
 
-pub fn get() -> &'static mut VPEMng {
-    INST.get_mut().as_mut().unwrap()
-}
 
 pub fn init() {
     INST.set(Some(VPEMng {
@@ -60,6 +56,10 @@ pub fn deinit() {
 }
 
 impl VPEMng {
+    pub fn get() -> &'static mut Self {
+        INST.get_mut().as_mut().unwrap()
+    }
+
     pub fn count(&self) -> usize {
         self.count
     }
@@ -105,7 +105,7 @@ impl VPEMng {
         self.vpes[id as usize] = Some(vpe);
         self.count += 1;
 
-        pemng::get().pemux(pe_id).add_vpe(id);
+        PEMng::get().pemux(pe_id).add_vpe(id);
         if flags.is_empty() {
             self.init_vpe(&clone).unwrap();
         }
@@ -115,7 +115,7 @@ impl VPEMng {
 
     fn init_vpe(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            pemng::get().pemux(vpe.pe_id())
+            PEMng::get().pemux(vpe.pe_id())
                 .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::INIT)?;
         }
 
@@ -124,7 +124,7 @@ impl VPEMng {
 
     pub fn start_vpe(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            pemng::get().pemux(vpe.pe_id()).vpe_ctrl(
+            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl(
                 vpe.id(),
                 vpe.eps_start(),
                 kif::pemux::VPEOp::START,
@@ -137,7 +137,7 @@ impl VPEMng {
 
     pub fn stop_vpe(&mut self, vpe: &VPE, stop: bool, reset: bool) -> Result<(), Error> {
         if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            pemng::get().pemux(vpe.pe_id())
+            PEMng::get().pemux(vpe.pe_id())
                 .vpe_ctrl(vpe.id(), vpe.eps_start(), kif::pemux::VPEOp::STOP)?;
         }
 
@@ -155,10 +155,10 @@ impl VPEMng {
         let pe_emem = kif::PEDesc::new(kif::PEType::COMP_EMEM, isa, 0);
         let pe_imem = kif::PEDesc::new(kif::PEType::COMP_IMEM, isa, 0);
 
-        let pe_id = pemng::get()
+        let pe_id = PEMng::get()
             .find_pe(&pe_emem)
-            .unwrap_or_else(|| pemng::get().find_pe(&pe_imem).unwrap());
-        let pemux = pemng::get().pemux(pe_id);
+            .unwrap_or_else(|| PEMng::get().find_pe(&pe_imem).unwrap());
+        let pemux = PEMng::get().pemux(pe_id);
 
         let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
         let vpe = self
@@ -200,7 +200,7 @@ impl VPEMng {
 
         // PES
         for pe in platform::user_pes() {
-            let pe_obj = pemng::get().pemux(pe).pe().clone();
+            let pe_obj = PEMng::get().pemux(pe).pe().clone();
             let cap = Capability::new(sel, KObject::PE(pe_obj));
             vpe.obj_caps().borrow_mut().insert(cap).unwrap();
             sel += 1;
@@ -235,7 +235,7 @@ impl VPEMng {
 
         match vpe {
             Some(ref v) => {
-                let pemux = pemng::get().pemux(v.pe_id());
+                let pemux = PEMng::get().pemux(v.pe_id());
                 pemux.rem_vpe(v.id());
                 self.count -= 1;
             },

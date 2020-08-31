@@ -26,8 +26,7 @@ use crate::arch::loader::Loader;
 use crate::cap::{Capability, KObject};
 use crate::cap::{EPObject, SemObject};
 use crate::ktcu;
-use crate::pes::pemng;
-use crate::pes::VPE;
+use crate::pes::{PEMng, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply, SyscError};
 
@@ -66,7 +65,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         );
     }
 
-    let pemux = pemng::get().pemux(dst_vpe.pe_id());
+    let pemux = PEMng::get().pemux(dst_vpe.pe_id());
     if epid == tcu::EP_COUNT {
         epid = match pemux.find_eps(ep_count) {
             Ok(epid) => epid,
@@ -224,7 +223,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
     let epid = ep.ep();
     let dst_pe = ep.pe_id();
-    let pemux = pemng::get().pemux(dst_pe);
+    let pemux = PEMng::get().pemux(dst_pe);
 
     let invalidated = match ep.deconfigure(false) {
         Ok(inv) => inv,

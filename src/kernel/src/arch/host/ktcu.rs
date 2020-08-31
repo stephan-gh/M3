@@ -27,7 +27,7 @@ use base::tcu::*;
 use base::util;
 
 use crate::ktcu;
-use crate::pes::{pemng, vpemng, State, VPE};
+use crate::pes::{PEMng, VPEMng, State, VPE};
 
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
     let off = virt - envdata::rbuf_start() as goff;
@@ -142,11 +142,11 @@ pub fn init() {
 }
 
 pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
-    let vpe = vpemng::get()
+    let vpe = VPEMng::get()
         .find_vpe(|v: &Rc<VPE>| v.pe_id() == pe)
         .unwrap();
     if vpe.state() == State::RUNNING {
-        let eps = pemng::get().pemux(pe).eps_base() as usize;
+        let eps = PEMng::get().pemux(pe).eps_base() as usize;
         let addr = eps + ep as usize * EP_REGS * util::size_of::<Reg>();
         let bytes = EP_REGS * util::size_of::<Reg>();
         ktcu::try_write_mem(pe, addr as goff, regs.as_ptr() as *const u8, bytes)

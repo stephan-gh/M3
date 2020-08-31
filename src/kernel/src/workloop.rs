@@ -20,7 +20,7 @@ use thread;
 
 use crate::com;
 use crate::ktcu;
-use crate::pes;
+use crate::pes::{PEMng, VPEMng};
 use crate::syscalls;
 
 pub fn thread_startup() {
@@ -31,7 +31,8 @@ pub fn thread_startup() {
 
 pub fn workloop() {
     let thmng = thread::ThreadManager::get();
-    let vpemng = pes::vpemng::get();
+    let vpemng = VPEMng::get();
+    let pemng = PEMng::get();
 
     while vpemng.count() > 0 {
         tcu::TCU::sleep().unwrap();
@@ -50,7 +51,7 @@ pub fn workloop() {
         #[cfg(target_os = "none")]
         if let Some(msg) = ktcu::fetch_msg(ktcu::KPEX_EP) {
             let pe = msg.header.label as tcu::PEId;
-            pes::pemng::get().pemux(pe).handle_call(msg);
+            pemng.pemux(pe).handle_call(msg);
         }
 
         thmng.try_yield();

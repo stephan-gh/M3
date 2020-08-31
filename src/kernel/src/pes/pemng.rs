@@ -33,10 +33,6 @@ pub fn init() {
     INST.set(Some(PEMng::new()));
 }
 
-pub fn get() -> &'static mut PEMng {
-    INST.get_mut().as_mut().unwrap()
-}
-
 impl PEMng {
     fn new() -> Self {
         Self::deprivilege_pes();
@@ -46,6 +42,10 @@ impl PEMng {
             muxes.push(PEMux::new(pe));
         }
         PEMng { muxes }
+    }
+
+    pub fn get() -> &'static mut Self {
+        INST.get_mut().as_mut().unwrap()
     }
 
     pub fn pemux(&mut self, pe: PEId) -> &mut PEMux {

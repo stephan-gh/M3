@@ -22,7 +22,7 @@ use base::tcu;
 use base::util;
 
 use crate::ktcu;
-use crate::pes::vpemng;
+use crate::pes::VPEMng;
 use crate::pes::VPE;
 
 #[macro_export]
@@ -129,7 +129,7 @@ fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
 }
 
 pub fn handle(msg: &'static tcu::Message) {
-    let vpe: Rc<VPE> = vpemng::get().vpe(msg.header.label as tcu::VPEId).unwrap();
+    let vpe: Rc<VPE> = VPEMng::get().vpe(msg.header.label as tcu::VPEId).unwrap();
     let req = msg.get_data::<kif::DefaultRequest>();
 
     let res = match kif::syscalls::Operation::from(req.opcode) {

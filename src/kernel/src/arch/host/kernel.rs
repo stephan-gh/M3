@@ -75,8 +75,7 @@ pub fn main() -> i32 {
         thread::ThreadManager::get().add_thread(thread_startup as *const () as usize, 0);
     }
 
-    pes::pemng::init();
-    pes::vpemng::init();
+    pes::init();
 
     let fs_size = if let Some(ref path) = args::get().fs_image {
         fs::copy_from_fs(path)
@@ -96,14 +95,14 @@ pub fn main() -> i32 {
     ktcu::recv_msgs(ktcu::KSRV_EP, serv_rbuf.as_ptr() as goff, 10, 8)
         .expect("Unable to config service REP");
 
-    let vpemng = pes::vpemng::get();
+    let vpemng = pes::VPEMng::get();
     vpemng.start_root().expect("starting root failed");
 
     klog!(DEF, "Kernel is ready!");
 
     workloop();
 
-    pes::vpemng::deinit();
+    pes::deinit();
     if let Some(ref path) = args::get().fs_image {
         fs::copy_to_fs(path, fs_size);
     }

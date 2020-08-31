@@ -20,7 +20,7 @@ use base::tcu::TCU;
 use core::ptr;
 use core::sync::atomic;
 
-use crate::pes::{vpemng, State, VPE};
+use crate::pes::{VPEMng, State, VPE};
 
 static mut SIGCHLDS: atomic::AtomicUsize = atomic::AtomicUsize::new(0);
 
@@ -58,7 +58,7 @@ pub fn check_childs() {
 }
 
 fn kill_vpe(pid: libc::pid_t, status: i32) {
-    let (vpe, vpe_name) = match vpemng::get().find_vpe(|v: &Rc<VPE>| v.pid().unwrap_or(0) == pid) {
+    let (vpe, vpe_name) = match VPEMng::get().find_vpe(|v: &Rc<VPE>| v.pid().unwrap_or(0) == pid) {
         Some(v) => {
             let id = v.id();
             let name = format!("{}:{}", id, v.name());
@@ -89,7 +89,7 @@ fn kill_vpe(pid: libc::pid_t, status: i32) {
             if let Some(v) = vpe {
                 // only remove the VPE if it has an app; otherwise the kernel sent the signal
                 if v.state() == State::RUNNING {
-                    vpemng::get().remove_vpe(v.id());
+                    VPEMng::get().remove_vpe(v.id());
                 }
             }
         }

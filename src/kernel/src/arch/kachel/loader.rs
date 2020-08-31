@@ -32,7 +32,8 @@ use base::util;
 use crate::cap::{Capability, KObject, MapObject, SelRange};
 use crate::ktcu;
 use crate::mem;
-use crate::pes::{pemng, VPE};
+use crate::pes::{PEMng, VPE};
+
 use crate::platform;
 
 pub struct Loader {
@@ -55,7 +56,7 @@ impl Loader {
     pub fn init_memory(&mut self, vpe: &VPE) -> Result<i32, Error> {
         // put mapping for env into cap table (so that we can access it in create_mgate later)
         let env_addr = if platform::pe_desc(vpe.pe_id()).has_virtmem() {
-            let pemux = pemng::get().pemux(vpe.pe_id());
+            let pemux = PEMng::get().pemux(vpe.pe_id());
             let env_addr = pemux.translate(vpe.id(), ENV_START as goff, kif::Perm::RW)?;
             let flags = PageFlags::from(kif::Perm::RW);
             Self::load_segment(vpe, env_addr, ENV_START as goff, PAGE_SIZE, flags, false)?;

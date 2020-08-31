@@ -28,7 +28,7 @@ use thread;
 
 use crate::com::Service;
 use crate::mem;
-use crate::pes::{pemng, State, VPE};
+use crate::pes::{PEMng, State, VPE};
 
 #[derive(Clone)]
 pub enum KObject {
@@ -278,8 +278,10 @@ impl SGateObject {
         if let Some(sep) = self.gate_ep().get_ep() {
             // is the associated receive gate activated?
             if let Some((recv_pe, recv_ep)) = self.rgate().location() {
-                let pemux = pemng::get().pemux(sep.pe_id());
-                pemux.invalidate_reply_eps(recv_pe, recv_ep, sep.ep()).unwrap();
+                let pemux = PEMng::get().pemux(sep.pe_id());
+                pemux
+                    .invalidate_reply_eps(recv_pe, recv_ep, sep.ep())
+                    .unwrap();
             }
         }
     }
@@ -650,7 +652,7 @@ impl EPObject {
         let mut invalidated = false;
         if let Some(ref gate) = &*self.gate.borrow() {
             let pe_id = self.pe_id();
-            let pemux = pemng::get().pemux(pe_id);
+            let pemux = PEMng::get().pemux(pe_id);
 
             // invalidate receive and send EPs
             match gate {
@@ -679,7 +681,7 @@ impl EPObject {
 impl Drop for EPObject {
     fn drop(&mut self) {
         if !self.is_std {
-            let pemux = pemng::get().pemux(self.pe.pe);
+            let pemux = PEMng::get().pemux(self.pe.pe);
             pemux.free_eps(self.ep, 1 + self.replies);
 
             self.pe.free(1 + self.replies);
@@ -830,7 +832,7 @@ impl MapObject {
         pages: usize,
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
-        let pemux = pemng::get().pemux(vpe.pe_id());
+        let pemux = PEMng::get().pemux(vpe.pe_id());
         pemux.map(vpe.id(), virt, glob, pages, flags).map(|_| {
             self.glob.replace(glob);
             self.flags.replace(flags);
@@ -840,7 +842,7 @@ impl MapObject {
 
     pub fn unmap(&self, vpe: &VPE, virt: goff, pages: usize) {
         if vpe.state() != State::DEAD {
-            let pemux = pemng::get().pemux(vpe.pe_id());
+            let pemux = PEMng::get().pemux(vpe.pe_id());
             pemux.unmap(vpe.id(), virt, pages).unwrap();
         }
     }

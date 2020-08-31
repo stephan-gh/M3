@@ -23,7 +23,7 @@ use base::libc;
 use base::tcu::{PEId, VPEId};
 
 use crate::ktcu;
-use crate::pes::{pemng, VPE};
+use crate::pes::{PEMng, VPE};
 
 pub fn init(build_dir: &str) {
     LOADER.set(Some(Loader::new(build_dir)));
@@ -85,7 +85,7 @@ impl Loader {
     }
 
     pub fn finish_start(&self, vpe: &VPE) -> Result<(), Error> {
-        let pemux = pemng::get().pemux(vpe.pe_id());
+        let pemux = PEMng::get().pemux(vpe.pe_id());
         // update all EPs (e.g., to allow parents to activate EPs for their childs)
         // set base for all receive EPs (do it for all, but it's just unused for the other types)
         pemux.update_eps()

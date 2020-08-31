@@ -27,7 +27,7 @@ use core::fmt;
 use core::ptr::{NonNull, Unique};
 
 use crate::cap::{EPObject, GateEP, KObject};
-use crate::pes::{pemng, vpemng, State, VPE};
+use crate::pes::{PEMng, VPEMng, State, VPE};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
 pub struct SelRange {
@@ -388,9 +388,9 @@ impl Capability {
         self.table().vpe()
     }
 
-    fn invalidate_ep(mut cgp: RefMut<GateEP>, foreign: bool) {
+    fn invalidate_ep(mut cgp: RefMut<'_, GateEP>, foreign: bool) {
         if let Some(ep) = cgp.get_ep() {
-            let pemux = pemng::get().pemux(ep.pe_id());
+            let pemux = PEMng::get().pemux(ep.pe_id());
             if let Some(vpe) = ep.vpe() {
                 // if that fails, just ignore it
                 pemux.invalidate_ep(vpe.id(), ep.ep(), true, true).ok();
@@ -437,7 +437,7 @@ impl Capability {
                 // remove VPE if we revoked the root capability and if it's not the own VPE
                 if let Some(v) = v.upgrade() {
                     if sel != SEL_VPE && self.parent.is_none() && !v.is_root() {
-                        vpemng::get().remove_vpe(v.id());
+                        VPEMng::get().remove_vpe(v.id());
                     }
                 }
             },

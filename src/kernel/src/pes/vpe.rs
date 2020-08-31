@@ -30,7 +30,7 @@ use crate::arch::loader::Loader;
 use crate::cap::{CapTable, Capability, EPObject, KMemObject, KObject, PEObject};
 use crate::com::SendQueue;
 use crate::ktcu;
-use crate::pes::{pemng, vpemng};
+use crate::pes::{PEMng, VPEMng};
 use crate::platform;
 
 bitflags! {
@@ -122,7 +122,7 @@ impl VPE {
             ))?;
 
             // alloc standard EPs
-            let pemux = pemng::get().pemux(vpe.pe_id());
+            let pemux = PEMng::get().pemux(vpe.pe_id());
             pemux.alloc_eps(eps_start, STD_EPS_COUNT as u32);
             vpe.pe.alloc(STD_EPS_COUNT as u32);
 
@@ -157,7 +157,7 @@ impl VPE {
         use base::tcu;
         use crate::cap::{RGateObject, SGateObject};
 
-        let pemux = pemng::get().pemux(self.pe_id());
+        let pemux = PEMng::get().pemux(self.pe_id());
         let vpe = if platform::is_shared(self.pe_id()) {
             self.id()
         }
@@ -270,7 +270,7 @@ impl VPE {
     }
 
     pub fn set_mem_base(&self, addr: goff) {
-        pemng::get().pemux(self.pe_id()).set_mem_base(addr);
+        PEMng::get().pemux(self.pe_id()).set_mem_base(addr);
     }
 
     pub fn first_sel(&self) -> CapSel {
@@ -405,7 +405,7 @@ impl VPE {
         self.pid.set(pid);
         self.state.set(State::RUNNING);
 
-        vpemng::get().start_vpe(self)?;
+        VPEMng::get().start_vpe(self)?;
 
         let loader = Loader::get();
         let pid = loader.start(self)?;
@@ -431,7 +431,7 @@ impl VPE {
         }
         else {
             self.state.set(State::DEAD);
-            vpemng::get().stop_vpe(self, true, true).unwrap();
+            VPEMng::get().stop_vpe(self, true, true).unwrap();
             ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
         }
     }
@@ -445,7 +445,7 @@ impl VPE {
 
         #[cfg(target_os = "none")]
         {
-            let pemux = pemng::get().pemux(self.pe_id());
+            let pemux = PEMng::get().pemux(self.pe_id());
             // force-invalidate standard EPs
             for ep in self.eps_start..self.eps_start + STD_EPS_COUNT as EpId {
                 // ignore failures
@@ -465,7 +465,7 @@ impl VPE {
         self.state.set(State::DEAD);
         self.exit_code.set(Some(exit_code));
 
-        vpemng::get().stop_vpe(self, stop, false).unwrap();
+        VPEMng::get().stop_vpe(self, stop, false).unwrap();
 
         self.revoke_caps();
 
@@ -474,7 +474,7 @@ impl VPE {
 
         // if it's root, there is nobody waiting for it; just remove it
         if self.is_root() {
-            vpemng::get().remove_vpe(self.id());
+            VPEMng::get().remove_vpe(self.id());
         }
     }
 
@@ -500,7 +500,7 @@ impl Drop for VPE {
         self.state.set(State::DEAD);
 
         // free standard EPs
-        let pemux = pemng::get().pemux(self.pe_id());
+        let pemux = PEMng::get().pemux(self.pe_id());
         pemux.free_eps(self.eps_start, STD_EPS_COUNT as u32);
         self.pe.free(STD_EPS_COUNT as u32);
 
@@ -509,7 +509,7 @@ impl Drop for VPE {
 
         self.revoke_caps();
 
-        vpemng::get().stop_vpe(self, !called_stop, true).unwrap();
+        VPEMng::get().stop_vpe(self, !called_stop, true).unwrap();
 
         klog!(
             VPES,

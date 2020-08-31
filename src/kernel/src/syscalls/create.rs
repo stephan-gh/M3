@@ -27,8 +27,7 @@ use crate::cap::{Capability, KObject, SelRange};
 use crate::cap::{MGateObject, MapObject, RGateObject, SGateObject, SemObject, ServObject, SessObject};
 use crate::com::Service;
 use crate::mem;
-use crate::pes::{pemng, vpemng};
-use crate::pes::{VPEFlags, VPE};
+use crate::pes::{PEMng, VPEMng, VPEFlags, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply, SyscError};
 
@@ -346,7 +345,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     // TODO kmem quota stuff
 
     // find contiguous space for standard EPs
-    let pemux = pemng::get().pemux(pe.pe());
+    let pemux = PEMng::get().pemux(pe.pe());
     let eps = match pemux.find_eps(tcu::STD_EPS_COUNT as u32) {
         Ok(eps) => eps,
         Err(e) => sysc_err!(e.code(), "No free range for standard EPs"),
@@ -356,7 +355,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     }
 
     // create VPE
-    let nvpe = match vpemng::get().create_vpe(name, pe, eps, kmem, VPEFlags::empty()) {
+    let nvpe = match VPEMng::get().create_vpe(name, pe, eps, kmem, VPEFlags::empty()) {
         Ok(nvpe) => nvpe,
         Err(e) => sysc_err!(e.code(), "Unable to create VPE"),
     };

@@ -316,7 +316,7 @@ impl PEMux {
 #[cfg(target_os = "none")]
 impl PEMux {
     pub fn handle_call(&mut self, msg: &tcu::Message) {
-        use crate::pes::vpemng;
+        use crate::pes::VPEMng;
 
         let req = msg.get_data::<kif::pemux::Exit>();
         let vpe_id = req.vpe_sel as VPEId;
@@ -325,7 +325,7 @@ impl PEMux {
         klog!(PEXC, "PEMux[{}] received {:?}", self.pe_id(), req);
 
         if self.vpes.contains(&vpe_id) {
-            let vpe = vpemng::get().vpe(vpe_id).unwrap();
+            let vpe = VPEMng::get().vpe(vpe_id).unwrap();
             vpe.stop_app(exitcode, true);
         }
 
@@ -422,11 +422,11 @@ impl PEMux {
         req: &R,
     ) -> Result<thread::Event, Error> {
         use base::util;
-        use crate::pes::{vpemng, State};
+        use crate::pes::{VPEMng, State};
 
         // if the VPE has no app anymore, don't send the notify
         if let Some(id) = vpe {
-            if !vpemng::get()
+            if !VPEMng::get()
                 .vpe(id)
                 .map(|v| v.state() != State::DEAD)
                 .unwrap_or(false)
