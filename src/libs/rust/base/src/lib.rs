@@ -24,24 +24,19 @@
 #![default_lib_allocator]
 #![no_std]
 
-// for int_enum!
+extern crate alloc;
 pub extern crate core as _core;
-pub extern crate static_assertions;
 
 use cfg_if::cfg_if;
 
 cfg_if! {
     if #[cfg(target_os = "none")] {
-        extern crate alloc;
-
         /// The C library
         pub mod libc {
             pub use crate::arch::libc::*;
         }
     }
     else if #[cfg(target_os = "linux")] {
-        extern crate alloc;
-
         /// The C library
         pub extern crate libc;
     }
