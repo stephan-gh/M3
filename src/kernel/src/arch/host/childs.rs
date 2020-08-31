@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::format;
 use base::libc;
 use base::rc::Rc;
 use base::tcu::TCU;

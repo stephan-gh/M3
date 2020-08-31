@@ -22,6 +22,7 @@ use base::kif;
 use base::libc;
 use base::mem::heap;
 use base::tcu;
+use base::vec;
 use thread;
 
 use super::{fs, net};

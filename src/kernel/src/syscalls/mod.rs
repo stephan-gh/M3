@@ -42,7 +42,7 @@ macro_rules! sysc_err {
         return Err(SyscError::new($e, $fmt.to_string()));
     });
     ($e:expr, $fmt:tt, $($args:tt)*) => ({
-        return Err(SyscError::new($e, format!($fmt, $($args)*)));
+        return Err(SyscError::new($e, base::format!($fmt, $($args)*)));
     });
 }
 

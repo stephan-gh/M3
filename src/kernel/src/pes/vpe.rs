@@ -23,6 +23,7 @@ use base::rc::{Rc, SRc};
 use base::tcu::Label;
 use base::tcu::{EpId, PEId, VPEId, STD_EPS_COUNT, UPCALL_REP_OFF};
 use base::util;
+use bitflags::bitflags;
 use core::fmt;
 use thread;
 

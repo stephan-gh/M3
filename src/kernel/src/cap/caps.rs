@@ -252,7 +252,7 @@ pub struct Capability {
 
 impl Capability {
     const fn size() -> usize {
-        const_assert!(util::size_of::<Capability>() <= 128);
+        base::const_assert!(util::size_of::<Capability>() <= 128);
         128 + crate::slab::HEADER_SIZE
     }
 

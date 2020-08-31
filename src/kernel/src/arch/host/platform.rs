@@ -16,6 +16,7 @@
 
 use base::cfg;
 use base::col::{String, Vec};
+use base::format;
 use base::goff;
 use base::kif::{boot, PEDesc, PEType, PEISA};
 use base::libc;

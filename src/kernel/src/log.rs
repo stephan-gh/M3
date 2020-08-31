@@ -33,9 +33,9 @@ pub static SLAB: bool = false;
 #[macro_export]
 macro_rules! klog {
     ($type:tt, $fmt:expr)              => (
-        llog!(@log_impl $crate::log::$type, concat!($fmt, "\n"))
+        base::llog!(@log_impl $crate::log::$type, concat!($fmt, "\n"))
     );
     ($type:tt, $fmt:expr, $($arg:tt)*) => (
-        llog!(@log_impl $crate::log::$type, concat!($fmt, "\n"), $($arg)*)
+        base::llog!(@log_impl $crate::log::$type, concat!($fmt, "\n"), $($arg)*)
     );
 }

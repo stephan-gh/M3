@@ -19,6 +19,7 @@ use base::io;
 use base::machine;
 use base::math;
 use base::mem::heap;
+use base::vec;
 use thread;
 
 use crate::arch::{exceptions, loader, paging};

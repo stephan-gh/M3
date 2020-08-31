@@ -18,6 +18,7 @@ use base::cell::StaticCell;
 use base::cfg;
 use base::col::{String, ToString, Vec};
 use base::errors::{Code, Error};
+use base::format;
 use base::kif;
 use base::libc;
 use base::tcu::{PEId, VPEId};

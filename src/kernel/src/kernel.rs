@@ -19,9 +19,7 @@
 #![feature(ptr_internals)]
 #![no_std]
 
-#[macro_use]
 extern crate base;
-#[macro_use]
 extern crate bitflags;
 extern crate thread;
 

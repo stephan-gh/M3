@@ -16,6 +16,7 @@
 
 use base::cell::{LazyStaticCell, StaticCell};
 use base::col::{String, ToString, Vec};
+use base::format;
 use base::libc;
 use base::util;
 use core::ptr;

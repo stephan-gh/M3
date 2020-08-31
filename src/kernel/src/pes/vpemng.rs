@@ -24,6 +24,7 @@ use base::math;
 use base::mem::GlobAddr;
 use base::rc::{Rc, SRc};
 use base::tcu;
+use base::vec;
 
 use crate::args;
 use crate::cap::{Capability, KMemObject, KObject, MGateObject, PEObject};

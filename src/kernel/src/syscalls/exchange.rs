@@ -16,6 +16,7 @@
 
 use base::col::ToString;
 use base::errors::Code;
+use base::format;
 use base::kif::{service, syscalls, CapRngDesc, CapSel, CapType, SEL_VPE};
 use base::rc::Rc;
 use base::tcu;
@@ -150,10 +151,11 @@ pub fn exchange_over_sess_async(
         serv.service().name(),
         label,
     );
-    let rmsg = match Service::send_receive_async(serv.service(), label, util::object_to_bytes(&smsg)) {
-        Ok(rmsg) => rmsg,
-        Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
-    };
+    let rmsg =
+        match Service::send_receive_async(serv.service(), label, util::object_to_bytes(&smsg)) {
+            Ok(rmsg) => rmsg,
+            Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
+        };
 
     let reply: &service::ExchangeReply = get_request(rmsg)?;
 
