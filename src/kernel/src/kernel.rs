@@ -19,12 +19,6 @@
 #![feature(ptr_internals)]
 #![no_std]
 
-extern crate base;
-extern crate bitflags;
-extern crate thread;
-
-#[cfg(target_os = "none")]
-extern crate isr;
 #[cfg(target_os = "none")]
 extern crate paging;
 
