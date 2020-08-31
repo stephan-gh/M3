@@ -16,8 +16,6 @@
 
 #![no_std]
 
-extern crate base;
-
 use base::libc;
 
 extern "C" {
