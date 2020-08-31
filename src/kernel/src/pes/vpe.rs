@@ -302,41 +302,6 @@ impl VPE {
         thread::ThreadManager::get().wait_for(event);
     }
 
-    fn check_exits(&self, reply: &mut kif::syscalls::VPEWaitReply) -> bool {
-        {
-            for sel in &*self.wait_sels.borrow() {
-                let wvpe = self
-                    .obj_caps()
-                    .borrow()
-                    .get(*sel as CapSel)
-                    .map(|c| c.get().clone());
-                match wvpe {
-                    Some(KObject::VPE(wv)) => {
-                        let wv = wv.upgrade().unwrap();
-                        if wv.id() == self.id() {
-                            continue;
-                        }
-
-                        if let Some(code) = wv.fetch_exit_code() {
-                            reply.vpe_sel = *sel as u64;
-                            reply.exitcode = code as u64;
-                            return true;
-                        }
-                    },
-                    _ => continue,
-                }
-            }
-        }
-
-        if self.state() == State::RUNNING {
-            Self::wait();
-            false
-        }
-        else {
-            true
-        }
-    }
-
     pub fn start_wait(&self, sels: &[u64]) -> bool {
         let was_empty = self.wait_sels.borrow().len() == 0;
 
@@ -346,27 +311,59 @@ impl VPE {
         was_empty
     }
 
-    pub fn wait_exit_async(&self, reply: &mut kif::syscalls::VPEWaitReply) {
-        assert!(self.wait_sels.borrow().len() > 0);
+    fn fetch_exit(&self) -> Option<(CapSel, i32)> {
+        for sel in &*self.wait_sels.borrow() {
+            let wvpe = self
+                .obj_caps()
+                .borrow()
+                .get(*sel as CapSel)
+                .map(|c| c.get().clone());
+            match wvpe {
+                Some(KObject::VPE(wv)) => {
+                    let wv = wv.upgrade().unwrap();
+                    if wv.id() == self.id() {
+                        continue;
+                    }
 
-        loop {
-            if self.check_exits(reply) {
-                break;
+                    if let Some(code) = wv.fetch_exit_code() {
+                        return Some((*sel, code));
+                    }
+                },
+                _ => continue,
             }
         }
 
-        self.wait_sels.borrow_mut().clear();
+        None
     }
 
-    pub fn upcall_vpe_wait(&self, event: u64, reply: &kif::syscalls::VPEWaitReply) {
+    pub fn wait_exit_async(&self) -> Option<(CapSel, i32)> {
+        assert!(self.wait_sels.borrow().len() > 0);
+
+        let res = loop {
+            if let Some(res) = self.fetch_exit() {
+                break Some(res);
+            }
+
+            if self.state() != State::RUNNING {
+                break None;
+            }
+
+            Self::wait();
+        };
+
+        self.wait_sels.borrow_mut().clear();
+        res
+    }
+
+    pub fn upcall_vpe_wait(&self, event: u64, vpe_sel: CapSel, exitcode: i32) {
         let msg = kif::upcalls::VPEWait {
             def: kif::upcalls::DefaultUpcall {
                 opcode: kif::upcalls::Operation::VPE_WAIT.val,
                 event,
             },
-            error: reply.error,
-            vpe_sel: reply.vpe_sel,
-            exitcode: reply.exitcode,
+            error: Code::None as u64,
+            vpe_sel: vpe_sel as u64,
+            exitcode: exitcode as u64,
         };
 
         self.send_upcall(&msg);

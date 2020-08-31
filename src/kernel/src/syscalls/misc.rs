@@ -453,20 +453,15 @@ pub fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         send_reply(msg, &reply);
     }
 
-    vpe.wait_exit_async(&mut reply);
-
-    if reply.vpe_sel != kif::INVALID_SEL as u64 {
-        sysc_log!(
-            vpe,
-            "vpe_wait-cont(vpe={}, exitcode={})",
-            { reply.vpe_sel },
-            { reply.exitcode }
-        );
+    if let Some((sel, code)) = vpe.wait_exit_async() {
+        sysc_log!(vpe, "vpe_wait-cont(vpe={}, exitcode={})", sel, code);
 
         if event != 0 {
-            vpe.upcall_vpe_wait(event, &reply);
+            vpe.upcall_vpe_wait(event, sel, code);
         }
         else {
+            reply.vpe_sel = sel as u64;
+            reply.exitcode = code as u64;
             send_reply(msg, &reply);
         }
     }
