@@ -133,25 +133,25 @@ impl VPE {
         Ok(vpe)
     }
 
-    pub fn init(&self) -> Result<(), Error> {
-        let loader = Loader::get();
-        loader.init_memory(self)?;
-
-        if !platform::pe_desc(self.pe_id()).is_device() {
-            self.init_eps()
+    pub fn init_async(&self) -> Result<(), Error> {
+        #[cfg(target_os = "none")]
+        {
+            let loader = Loader::get();
+            loader.init_memory_async(self)?;
+            if !platform::pe_desc(self.pe_id()).is_device() {
+                self.init_eps_async()
+            }
+            else {
+                Ok(())
+            }
         }
-        else {
-            Ok(())
-        }
-    }
 
-    #[cfg(target_os = "linux")]
-    fn init_eps(&self) -> Result<(), Error> {
+        #[cfg(target_os = "linux")]
         Ok(())
     }
 
     #[cfg(target_os = "none")]
-    fn init_eps(&self) -> Result<(), Error> {
+    fn init_eps_async(&self) -> Result<(), Error> {
         use crate::cap::{RGateObject, SGateObject};
         use base::cfg;
         use base::kif::Perm;
@@ -170,7 +170,7 @@ impl VPE {
         self.rbuf_phys
             .set(if platform::pe_desc(self.pe_id()).has_virtmem() {
                 pemux
-                    .translate(self.id(), rbuf_virt as goff, Perm::RW)?
+                    .translate_async(self.id(), rbuf_virt as goff, Perm::RW)?
                     .raw()
             }
             else {
@@ -297,7 +297,7 @@ impl VPE {
         self.eps.borrow_mut().retain(|e| e.ep() != ep.ep());
     }
 
-    pub fn wait() {
+    pub fn wait_async() {
         let event = &EXIT_EVENT as *const _ as thread::Event;
         thread::ThreadManager::get().wait_for(event);
     }
@@ -348,7 +348,7 @@ impl VPE {
                 break None;
             }
 
-            Self::wait();
+            Self::wait_async();
         };
 
         self.wait_sels.borrow_mut().clear();
@@ -394,7 +394,7 @@ impl VPE {
             .unwrap();
     }
 
-    pub fn start_app(&self, pid: Option<i32>) -> Result<(), Error> {
+    pub fn start_app_async(&self, pid: Option<i32>) -> Result<(), Error> {
         if self.state.get() != State::INIT {
             return Ok(());
         }
@@ -402,7 +402,7 @@ impl VPE {
         self.pid.set(pid);
         self.state.set(State::RUNNING);
 
-        VPEMng::get().start_vpe(self)?;
+        VPEMng::get().start_vpe_async(self)?;
 
         let loader = Loader::get();
         let pid = loader.start(self)?;
@@ -411,7 +411,7 @@ impl VPE {
         Ok(())
     }
 
-    pub fn stop_app(&self, exit_code: i32, is_self: bool) {
+    pub fn stop_app_async(&self, exit_code: i32, is_self: bool) {
         if self.state.get() == State::DEAD {
             return;
         }
@@ -419,21 +419,21 @@ impl VPE {
         klog!(VPES, "Stopping VPE {} [id={}]", self.name(), self.id());
 
         if is_self {
-            self.exit_app(exit_code, false);
+            self.exit_app_async(exit_code, false);
         }
         else if self.state.get() == State::RUNNING {
             // devices always exit successfully
             let exit_code = if self.pe_desc().is_device() { 0 } else { 1 };
-            self.exit_app(exit_code, true);
+            self.exit_app_async(exit_code, true);
         }
         else {
             self.state.set(State::DEAD);
-            VPEMng::get().stop_vpe(self, true, true).unwrap();
+            VPEMng::get().stop_vpe_async(self, true, true).unwrap();
             ktcu::drop_msgs(ktcu::KSYS_EP, self.id() as Label);
         }
     }
 
-    fn exit_app(&self, exit_code: i32, stop: bool) {
+    fn exit_app_async(&self, exit_code: i32, stop: bool) {
         #[cfg(target_os = "linux")]
         if let Some(pid) = self.pid() {
             // first kill the process to ensure that it cannot use EPs anymore
@@ -462,38 +462,41 @@ impl VPE {
         self.state.set(State::DEAD);
         self.exit_code.set(Some(exit_code));
 
-        VPEMng::get().stop_vpe(self, stop, false).unwrap();
-
-        self.revoke_caps();
+        self.force_stop_async(stop);
 
         let event = &EXIT_EVENT as *const _ as thread::Event;
         thread::ThreadManager::get().notify(event, None);
 
         // if it's root, there is nobody waiting for it; just remove it
         if self.is_root() {
-            VPEMng::get().remove_vpe(self.id());
+            VPEMng::get().remove_vpe_async(self.id());
         }
     }
 
-    fn revoke_caps(&self) {
-        self.obj_caps.borrow_mut().revoke_all();
-        self.map_caps.borrow_mut().revoke_all();
+    fn revoke_caps_async(&self) {
+        self.obj_caps.borrow_mut().revoke_all_async();
+        self.map_caps.borrow_mut().revoke_all_async();
     }
 
-    pub fn revoke(&self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
+    pub fn revoke_async(&self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
         // we can't use borrow_mut() here, because revoke might need to use borrow as well.
         if crd.cap_type() == CapType::OBJECT {
-            self.obj_caps().borrow_mut().revoke(crd, own)
+            self.obj_caps().borrow_mut().revoke_async(crd, own)
         }
         else {
-            self.map_caps().borrow_mut().revoke(crd, own)
+            self.map_caps().borrow_mut().revoke_async(crd, own)
         }
+    }
+
+    pub fn force_stop_async(&self, stop: bool) {
+        VPEMng::get().stop_vpe_async(self, stop, true).unwrap();
+
+        self.revoke_caps_async();
     }
 }
 
 impl Drop for VPE {
     fn drop(&mut self) {
-        let called_stop = self.state() == State::DEAD;
         self.state.set(State::DEAD);
 
         // free standard EPs
@@ -504,9 +507,8 @@ impl Drop for VPE {
         // remove us from PE
         self.pe.rem_vpe();
 
-        self.revoke_caps();
-
-        VPEMng::get().stop_vpe(self, !called_stop, true).unwrap();
+        assert!(self.obj_caps.borrow().is_empty());
+        assert!(self.map_caps.borrow().is_empty());
 
         klog!(
             VPES,

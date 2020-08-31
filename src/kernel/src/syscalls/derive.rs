@@ -140,7 +140,7 @@ pub fn derive_mem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 }
 
 #[inline(never)]
-pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn derive_srv_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &kif::syscalls::DeriveSrv = get_request(msg)?;
     let dst_crd = CapRngDesc::new(CapType::OBJECT, req.dst_sel, 2);
     let srv_sel = req.srv_sel as CapSel;
@@ -181,7 +181,7 @@ pub fn derive_srv(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
         srvcap.service().name(),
         label,
     );
-    let res = Service::send_receive(srvcap.service(), label, util::object_to_bytes(&smsg));
+    let res = Service::send_receive_async(srvcap.service(), label, util::object_to_bytes(&smsg));
 
     let res = match res {
         Err(e) => {

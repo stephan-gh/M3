@@ -287,7 +287,7 @@ impl PEMux {
                 vpe_sel: vpe as u64,
                 unread_mask: unread as u64,
             };
-            self.upcall(Some(vpe), &req).map(|_| ())
+            self.send_upcall(Some(vpe), &req).map(|_| ())
         }
         else {
             Ok(())
@@ -315,7 +315,7 @@ impl PEMux {
 
 #[cfg(target_os = "none")]
 impl PEMux {
-    pub fn handle_call(&mut self, msg: &tcu::Message) {
+    pub fn handle_call_async(&mut self, msg: &tcu::Message) {
         use crate::pes::VPEMng;
 
         let req = msg.get_data::<kif::pemux::Exit>();
@@ -326,14 +326,14 @@ impl PEMux {
 
         if self.vpes.contains(&vpe_id) {
             let vpe = VPEMng::get().vpe(vpe_id).unwrap();
-            vpe.stop_app(exitcode, true);
+            vpe.stop_app_async(exitcode, true);
         }
 
         let reply = kif::DefaultReply { error: 0 };
         ktcu::reply(ktcu::KPEX_EP, &reply, msg).unwrap();
     }
 
-    pub fn vpe_ctrl(
+    pub fn vpe_ctrl_async(
         &mut self,
         vpe: VPEId,
         eps_start: EpId,
@@ -345,10 +345,10 @@ impl PEMux {
             vpe_op: ctrl.val as u64,
             eps_start: eps_start as u64,
         };
-        self.upcall(None, &req).map(|_| ())
+        self.send_receive_upcall_async(None, &req).map(|_| ())
     }
 
-    pub fn map(
+    pub fn map_async(
         &mut self,
         vpe: VPEId,
         virt: goff,
@@ -364,14 +364,14 @@ impl PEMux {
             pages: pages as u64,
             perm: perm.bits() as u64,
         };
-        self.upcall(Some(vpe), &req).map(|_| ())
+        self.send_receive_upcall_async(Some(vpe), &req).map(|_| ())
     }
 
-    pub fn unmap(&mut self, vpe: VPEId, virt: goff, pages: usize) -> Result<(), Error> {
-        self.map(vpe, virt, GlobAddr::new(0), pages, kif::PageFlags::empty())
+    pub fn unmap_async(&mut self, vpe: VPEId, virt: goff, pages: usize) -> Result<(), Error> {
+        self.map_async(vpe, virt, GlobAddr::new(0), pages, kif::PageFlags::empty())
     }
 
-    pub fn translate(
+    pub fn translate_async(
         &mut self,
         vpe: VPEId,
         virt: goff,
@@ -385,7 +385,7 @@ impl PEMux {
             virt: virt as u64,
             perm: perm.bits() as u64,
         };
-        self.upcall(Some(vpe), &req)
+        self.send_receive_upcall_async(Some(vpe), &req)
             .map(|reply| GlobAddr::new(reply.val & !PAGE_MASK as goff))
     }
 
@@ -396,24 +396,6 @@ impl PEMux {
             ep: ep as u64,
         };
         self.send_upcall(Some(vpe), &req).map(|_| ())
-    }
-
-    fn upcall<R: core::fmt::Debug>(
-        &mut self,
-        vpe: Option<VPEId>,
-        req: &R,
-    ) -> Result<&'static kif::pemux::Response, Error> {
-        let event = self.send_upcall(vpe, req)?;
-        thread::ThreadManager::get().wait_for(event);
-
-        let reply = thread::ThreadManager::get().fetch_msg().unwrap();
-        let reply = reply.get_data::<kif::pemux::Response>();
-        if reply.error == 0 {
-            Ok(reply)
-        }
-        else {
-            Err(Error::new(Code::from(reply.error as u32)))
-        }
     }
 
     fn send_upcall<R: core::fmt::Debug>(
@@ -437,8 +419,26 @@ impl PEMux {
 
         klog!(PEXC, "PEMux[{}] sending {:?}", self.pe_id(), req);
 
-        self.queue
-            .send(tcu::PEXUP_REP, 0, util::object_to_bytes(req))
+        self.queue.send(tcu::PEXUP_REP, 0, util::object_to_bytes(req))
+    }
+
+    fn send_receive_upcall_async<R: core::fmt::Debug>(
+        &mut self,
+        vpe: Option<VPEId>,
+        req: &R,
+    ) -> Result<&'static kif::pemux::Response, Error> {
+        use crate::com::SendQueue;
+
+        let event = self.send_upcall(vpe, req)?;
+        let reply = SendQueue::receive_async(event)?;
+
+        let reply = reply.get_data::<kif::pemux::Response>();
+        if reply.error == 0 {
+            Ok(reply)
+        }
+        else {
+            Err(Error::new(Code::from(reply.error as u32)))
+        }
     }
 }
 
@@ -448,7 +448,7 @@ impl PEMux {
         ktcu::update_eps(self.pe_id(), self.mem_base)
     }
 
-    pub fn vpe_ctrl(
+    pub fn vpe_ctrl_async(
         &mut self,
         _vpe: VPEId,
         _eps_start: EpId,
@@ -457,7 +457,7 @@ impl PEMux {
         Ok(())
     }
 
-    pub fn map(
+    pub fn map_async(
         &mut self,
         _vpe: VPEId,
         _virt: goff,
@@ -468,7 +468,7 @@ impl PEMux {
         Ok(())
     }
 
-    pub fn unmap(&mut self, _vpe: VPEId, _virt: goff, _pages: usize) -> Result<(), Error> {
+    pub fn unmap_async(&mut self, _vpe: VPEId, _virt: goff, _pages: usize) -> Result<(), Error> {
         Ok(())
     }
 
@@ -476,11 +476,11 @@ impl PEMux {
         Ok(())
     }
 
-    fn upcall<R>(
+    fn send_upcall<R>(
         &mut self,
         _vpe: Option<VPEId>,
         _req: &R,
-    ) -> Result<&'static kif::pemux::Response, Error> {
+    ) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 }

@@ -198,7 +198,7 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 }
 
 #[inline(never)]
-pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &kif::syscalls::Activate = get_request(msg)?;
     let ep_sel = req.ep_sel as CapSel;
     let gate_sel = req.gate_sel as CapSel;
@@ -344,7 +344,7 @@ pub fn activate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 }
 
 #[inline(never)]
-pub fn sem_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn sem_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &kif::syscalls::SemCtrl = get_request(msg)?;
     let sem_sel = req.sem_sel as CapSel;
     let op = kif::syscalls::SemOp::from(req.op);
@@ -359,7 +359,7 @@ pub fn sem_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         },
 
         kif::syscalls::SemOp::DOWN => {
-            let res = SemObject::down(&sem);
+            let res = SemObject::down_async(&sem);
             sysc_log!(vpe, "sem_ctrl-cont(res={:?})", res);
             if let Err(e) = res {
                 sysc_err!(e.code(), "Semaphore operation failed");
@@ -374,7 +374,7 @@ pub fn sem_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 }
 
 #[inline(never)]
-pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn vpe_ctrl_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &kif::syscalls::VPECtrl = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let op = kif::syscalls::VPEOp::from(req.op);
@@ -403,14 +403,14 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 sysc_err!(Code::InvArgs, "VPE can't start itself");
             }
 
-            if let Err(e) = vpecap.start_app(Some(arg as i32)) {
+            if let Err(e) = vpecap.start_app_async(Some(arg as i32)) {
                 sysc_err!(e.code(), "Unable to start VPE");
             }
         },
 
         kif::syscalls::VPEOp::STOP => {
             let is_self = vpe_sel == kif::SEL_VPE;
-            vpecap.stop_app(arg as i32, is_self);
+            vpecap.stop_app_async(arg as i32, is_self);
             if is_self {
                 ktcu::ack_msg(ktcu::KSYS_EP, msg);
                 return Ok(());
@@ -425,7 +425,7 @@ pub fn vpe_ctrl(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 }
 
 #[inline(never)]
-pub fn vpe_wait(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &kif::syscalls::VPEWait = get_request(msg)?;
     let count = req.vpe_count as usize;
     let event = req.event;

@@ -46,10 +46,6 @@ impl Loader {
         LOADER.get_mut().as_mut().unwrap()
     }
 
-    pub fn init_memory(&mut self, _vpe: &VPE) -> Result<(), Error> {
-        Ok(())
-    }
-
     pub fn start(&mut self, vpe: &VPE) -> Result<i32, Error> {
         if let Some(pid) = vpe.pid() {
             Self::write_env_file(pid, vpe.id(), vpe.pe_id(), 0);

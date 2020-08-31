@@ -20,7 +20,7 @@ use thread;
 
 use crate::com;
 use crate::ktcu;
-use crate::pes::{PEMng, VPEMng};
+use crate::pes::VPEMng;
 use crate::syscalls;
 
 pub fn thread_startup() {
@@ -32,13 +32,18 @@ pub fn thread_startup() {
 pub fn workloop() {
     let thmng = thread::ThreadManager::get();
     let vpemng = VPEMng::get();
-    let pemng = PEMng::get();
+
+    if thmng.cur().is_main() {
+        VPEMng::get()
+            .start_root_async()
+            .expect("starting root failed");
+    }
 
     while vpemng.count() > 0 {
         tcu::TCU::sleep().unwrap();
 
         if let Some(msg) = ktcu::fetch_msg(ktcu::KSYS_EP) {
-            syscalls::handle(msg);
+            syscalls::handle_async(msg);
         }
 
         if let Some(msg) = ktcu::fetch_msg(ktcu::KSRV_EP) {
@@ -51,13 +56,13 @@ pub fn workloop() {
         #[cfg(target_os = "none")]
         if let Some(msg) = ktcu::fetch_msg(ktcu::KPEX_EP) {
             let pe = msg.header.label as tcu::PEId;
-            pemng.pemux(pe).handle_call(msg);
+            crate::pes::PEMng::get().pemux(pe).handle_call_async(msg);
         }
 
         thmng.try_yield();
 
         #[cfg(target_os = "linux")]
-        crate::arch::childs::check_childs();
+        crate::arch::childs::check_childs_async();
         #[cfg(target_os = "linux")]
         crate::arch::net::check();
     }

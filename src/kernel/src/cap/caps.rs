@@ -93,6 +93,10 @@ impl CapTable {
         self.vpe = Some(vpe_ptr);
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.caps.is_empty()
+    }
+
     pub fn unused(&self, sel: CapSel) -> bool {
         self.get(sel).is_none()
     }
@@ -199,7 +203,7 @@ impl CapTable {
         self.caps.insert(*cap.sel_range(), cap)
     }
 
-    pub fn revoke(&mut self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
+    pub fn revoke_async(&mut self, crd: CapRngDesc, own: bool) -> Result<(), Error> {
         for sel in crd.start()..crd.start() + crd.count() {
             if let Some(cap) = self.get_mut(sel) {
                 if !cap.can_revoke() {
@@ -207,11 +211,11 @@ impl CapTable {
                 }
 
                 if own {
-                    cap.revoke(false, false);
+                    cap.revoke_async(false, false);
                 }
                 else if let Some(child) = cap.child {
                     unsafe {
-                        (*child.as_ptr()).revoke(true, true);
+                        (*child.as_ptr()).revoke_async(true, true);
                     }
                 }
             }
@@ -219,11 +223,11 @@ impl CapTable {
         Ok(())
     }
 
-    pub fn revoke_all(&mut self) {
+    pub fn revoke_all_async(&mut self) {
         while let Some(cap) = self.caps.get_root_mut() {
             // on revoke_all, we consider all revokes foreign to notify about invalidate send gates
             // in any case. on explicit revokes, we only do that if it's a derived cap.
-            cap.revoke(false, true);
+            cap.revoke_async(false, true);
         }
     }
 }
@@ -336,7 +340,7 @@ impl Capability {
         }
     }
 
-    fn revoke(&mut self, rev_next: bool, foreign: bool) {
+    fn revoke_async(&mut self, rev_next: bool, foreign: bool) {
         unsafe {
             if let Some(n) = self.next {
                 (*n.as_ptr()).prev = self.prev;
@@ -350,30 +354,30 @@ impl Capability {
                     *child = self.next;
                 }
             }
-            self.revoke_rec(rev_next, foreign);
+            self.revoke_rec_async(rev_next, foreign);
         }
     }
 
-    fn revoke_rec(&mut self, rev_next: bool, foreign: bool) {
+    fn revoke_rec_async(&mut self, rev_next: bool, foreign: bool) {
         unsafe {
             // remove it from the table
             let sels = SelRange::new(self.sel());
             let cap = self.table_mut().caps.remove(&sels).unwrap();
 
             if let Some(c) = cap.child {
-                (*c.as_ptr()).revoke_rec(true, true);
+                (*c.as_ptr()).revoke_rec_async(true, true);
             }
             // on the first level, we don't want to revoke siblings
             if rev_next {
                 if let Some(n) = cap.next {
-                    (*n.as_ptr()).revoke_rec(true, true);
+                    (*n.as_ptr()).revoke_rec_async(true, true);
                 }
             }
         }
 
         // do that after making the cap inaccessible to make sure that no one can still access it,
         // because we might do a thread switch in release().
-        self.release(foreign);
+        self.release_async(foreign);
     }
 
     fn table(&self) -> &CapTable {
@@ -417,7 +421,7 @@ impl Capability {
         }
     }
 
-    fn release(&mut self, foreign: bool) {
+    fn release_async(&mut self, foreign: bool) {
         klog!(CAPS, "Freeing cap {:?}", self);
 
         let vpe = self.vpe();
@@ -437,7 +441,7 @@ impl Capability {
                 // remove VPE if we revoked the root capability and if it's not the own VPE
                 if let Some(v) = v.upgrade() {
                     if sel != SEL_VPE && self.parent.is_none() && !v.is_root() {
-                        VPEMng::get().remove_vpe(v.id());
+                        VPEMng::get().remove_vpe_async(v.id());
                     }
                 }
             },
@@ -498,7 +502,7 @@ impl Capability {
                     // accept/continue a syscall that inserts something into the VPE's table.
                     if vpe.state() != State::DEAD {
                         let virt = (self.sel() as goff) << cfg::PAGE_BITS;
-                        m.unmap(vpe, virt, self.len() as usize);
+                        m.unmap_async(vpe, virt, self.len() as usize);
                     }
                 }
             },

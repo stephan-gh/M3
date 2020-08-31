@@ -278,7 +278,7 @@ pub fn create_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sysc
 }
 
 #[inline(never)]
-pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &syscalls::CreateVPE = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let pg_sg_sel = req.pg_sg_sel as CapSel;
@@ -356,7 +356,7 @@ pub fn create_vpe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     }
 
     // create VPE
-    let nvpe = match VPEMng::get().create_vpe(name, pe, eps, kmem, VPEFlags::empty()) {
+    let nvpe = match VPEMng::get().create_vpe_async(name, pe, eps, kmem, VPEFlags::empty()) {
         Ok(nvpe) => nvpe,
         Err(e) => sysc_err!(e.code(), "Unable to create VPE"),
     };
@@ -427,7 +427,7 @@ pub fn create_sem(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 }
 
 #[inline(never)]
-pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn create_map_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &syscalls::CreateMap = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let mgate_sel = req.mgate_sel as CapSel;
@@ -508,7 +508,7 @@ pub fn create_map(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
 
     // create/update the PTEs
     if let KObject::Map(m) = &map_obj {
-        if let Err(e) = m.map(&dst_vpe, virt, phys, pages as usize, PageFlags::from(perms)) {
+        if let Err(e) = m.map_async(&dst_vpe, virt, phys, pages as usize, PageFlags::from(perms)) {
             sysc_err!(e.code(), "Unable to map memory");
         }
     }

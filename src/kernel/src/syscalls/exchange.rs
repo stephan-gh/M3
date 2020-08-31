@@ -99,7 +99,7 @@ pub fn exchange(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 }
 
 #[inline(never)]
-pub fn exchange_over_sess(
+pub fn exchange_over_sess_async(
     vpe: &Rc<VPE>,
     msg: &'static tcu::Message,
     obtain: bool,
@@ -150,7 +150,7 @@ pub fn exchange_over_sess(
         serv.service().name(),
         label,
     );
-    let rmsg = match Service::send_receive(serv.service(), label, util::object_to_bytes(&smsg)) {
+    let rmsg = match Service::send_receive_async(serv.service(), label, util::object_to_bytes(&smsg)) {
         Ok(rmsg) => rmsg,
         Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
     };
@@ -183,7 +183,7 @@ pub fn exchange_over_sess(
 }
 
 #[inline(never)]
-pub fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+pub fn revoke_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
     let req: &syscalls::Revoke = get_request(msg)?;
     let vpe_sel = req.vpe_sel as CapSel;
     let crd = CapRngDesc::new_from(req.caps);
@@ -196,7 +196,7 @@ pub fn revoke(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError
     }
 
     let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
-    if let Err(e) = vpecap.revoke(crd, own) {
+    if let Err(e) = vpecap.revoke_async(crd, own) {
         sysc_err!(e.code(), "Revoke of {} with VPE {} failed", crd, vpe.id());
     }
 

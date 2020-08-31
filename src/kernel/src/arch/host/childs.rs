@@ -39,9 +39,9 @@ pub fn kill_child(pid: i32) {
     }
 }
 
-pub fn check_childs() {
+pub fn check_childs_async() {
     if let Some((pid, status)) = TCU::receive_knotify() {
-        kill_vpe(pid, status);
+        kill_vpe_async(pid, status);
     }
 
     unsafe {
@@ -51,13 +51,13 @@ pub fn check_childs() {
             let mut status = 0;
             let pid = libc::wait(&mut status);
             if pid != -1 {
-                kill_vpe(pid, status);
+                kill_vpe_async(pid, status);
             }
         }
     }
 }
 
-fn kill_vpe(pid: libc::pid_t, status: i32) {
+fn kill_vpe_async(pid: libc::pid_t, status: i32) {
     let (vpe, vpe_name) = match VPEMng::get().find_vpe(|v: &Rc<VPE>| v.pid().unwrap_or(0) == pid) {
         Some(v) => {
             let id = v.id();
@@ -89,7 +89,7 @@ fn kill_vpe(pid: libc::pid_t, status: i32) {
             if let Some(v) = vpe {
                 // only remove the VPE if it has an app; otherwise the kernel sent the signal
                 if v.state() == State::RUNNING {
-                    VPEMng::get().remove_vpe(v.id());
+                    VPEMng::get().remove_vpe_async(v.id());
                 }
             }
         }

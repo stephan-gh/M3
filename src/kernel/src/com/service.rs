@@ -16,7 +16,7 @@
 
 use base::cell::RefCell;
 use base::col::String;
-use base::errors::{Code, Error};
+use base::errors::Error;
 use base::rc::{Rc, SRc, Weak};
 use base::tcu;
 use core::fmt;
@@ -55,19 +55,13 @@ impl Service {
         self.queue.borrow_mut().send(rep, lbl, msg)
     }
 
-    pub fn send_receive(
-        serv: &SRc<Service>,
+    pub fn send_receive_async(
+        &self,
         lbl: tcu::Label,
         msg: &[u8],
     ) -> Result<&'static tcu::Message, Error> {
-        let event = serv.send(lbl, msg);
-
-        event.and_then(|event| {
-            thread::ThreadManager::get().wait_for(event);
-            thread::ThreadManager::get()
-                .fetch_msg()
-                .ok_or_else(|| Error::new(Code::RecvGone))
-        })
+        let event = self.send(lbl, msg)?;
+        SendQueue::receive_async(event)
     }
 
     pub fn abort(&self) {

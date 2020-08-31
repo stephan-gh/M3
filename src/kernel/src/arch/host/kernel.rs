@@ -95,9 +95,6 @@ pub fn main() -> i32 {
     ktcu::recv_msgs(ktcu::KSRV_EP, serv_rbuf.as_ptr() as goff, 10, 8)
         .expect("Unable to config service REP");
 
-    let vpemng = pes::VPEMng::get();
-    vpemng.start_root().expect("starting root failed");
-
     klog!(DEF, "Kernel is ready!");
 
     workloop();

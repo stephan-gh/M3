@@ -450,7 +450,7 @@ impl SemObject {
         })
     }
 
-    pub fn down(sem: &SRc<Self>) -> Result<(), Error> {
+    pub fn down_async(sem: &SRc<Self>) -> Result<(), Error> {
         while unsafe { ptr::read_volatile(sem.counter.as_ptr()) } == 0 {
             sem.waiters.set(sem.waiters.get() + 1);
             let event = sem.get_event();
@@ -824,7 +824,7 @@ impl MapObject {
         self.flags.get()
     }
 
-    pub fn map(
+    pub fn map_async(
         &self,
         vpe: &VPE,
         virt: goff,
@@ -833,17 +833,17 @@ impl MapObject {
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
         let pemux = PEMng::get().pemux(vpe.pe_id());
-        pemux.map(vpe.id(), virt, glob, pages, flags).map(|_| {
+        pemux.map_async(vpe.id(), virt, glob, pages, flags).map(|_| {
             self.glob.replace(glob);
             self.flags.replace(flags);
             self.mapped.set(true);
         })
     }
 
-    pub fn unmap(&self, vpe: &VPE, virt: goff, pages: usize) {
+    pub fn unmap_async(&self, vpe: &VPE, virt: goff, pages: usize) {
         if vpe.state() != State::DEAD {
             let pemux = PEMng::get().pemux(vpe.pe_id());
-            pemux.unmap(vpe.id(), virt, pages).unwrap();
+            pemux.unmap_async(vpe.id(), virt, pages).unwrap();
         }
     }
 }

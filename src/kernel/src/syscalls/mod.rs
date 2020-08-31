@@ -128,7 +128,7 @@ fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
     }
 }
 
-pub fn handle(msg: &'static tcu::Message) {
+pub fn handle_async(msg: &'static tcu::Message) {
     let vpe: Rc<VPE> = VPEMng::get().vpe(msg.header.label as tcu::VPEId).unwrap();
     let req = msg.get_data::<kif::DefaultRequest>();
 
@@ -138,28 +138,28 @@ pub fn handle(msg: &'static tcu::Message) {
         kif::syscalls::Operation::CREATE_SGATE => create::create_sgate(&vpe, msg),
         kif::syscalls::Operation::CREATE_SRV => create::create_srv(&vpe, msg),
         kif::syscalls::Operation::CREATE_SESS => create::create_sess(&vpe, msg),
-        kif::syscalls::Operation::CREATE_VPE => create::create_vpe(&vpe, msg),
+        kif::syscalls::Operation::CREATE_VPE => create::create_vpe_async(&vpe, msg),
         kif::syscalls::Operation::CREATE_SEM => create::create_sem(&vpe, msg),
-        kif::syscalls::Operation::CREATE_MAP => create::create_map(&vpe, msg),
+        kif::syscalls::Operation::CREATE_MAP => create::create_map_async(&vpe, msg),
 
         kif::syscalls::Operation::DERIVE_PE => derive::derive_pe(&vpe, msg),
         kif::syscalls::Operation::DERIVE_MEM => derive::derive_mem(&vpe, msg),
         kif::syscalls::Operation::DERIVE_KMEM => derive::derive_kmem(&vpe, msg),
-        kif::syscalls::Operation::DERIVE_SRV => derive::derive_srv(&vpe, msg),
+        kif::syscalls::Operation::DERIVE_SRV => derive::derive_srv_async(&vpe, msg),
 
         kif::syscalls::Operation::EXCHANGE => exchange::exchange(&vpe, msg),
-        kif::syscalls::Operation::DELEGATE => exchange::exchange_over_sess(&vpe, msg, false),
-        kif::syscalls::Operation::OBTAIN => exchange::exchange_over_sess(&vpe, msg, true),
-        kif::syscalls::Operation::REVOKE => exchange::revoke(&vpe, msg),
+        kif::syscalls::Operation::DELEGATE => exchange::exchange_over_sess_async(&vpe, msg, false),
+        kif::syscalls::Operation::OBTAIN => exchange::exchange_over_sess_async(&vpe, msg, true),
+        kif::syscalls::Operation::REVOKE => exchange::revoke_async(&vpe, msg),
 
         kif::syscalls::Operation::ALLOC_EP => misc::alloc_ep(&vpe, msg),
-        kif::syscalls::Operation::ACTIVATE => misc::activate(&vpe, msg),
+        kif::syscalls::Operation::ACTIVATE => misc::activate_async(&vpe, msg),
         kif::syscalls::Operation::KMEM_QUOTA => misc::kmem_quota(&vpe, msg),
         kif::syscalls::Operation::PE_QUOTA => misc::pe_quota(&vpe, msg),
         kif::syscalls::Operation::GET_SESS => misc::get_sess(&vpe, msg),
-        kif::syscalls::Operation::SEM_CTRL => misc::sem_ctrl(&vpe, msg),
-        kif::syscalls::Operation::VPE_CTRL => misc::vpe_ctrl(&vpe, msg),
-        kif::syscalls::Operation::VPE_WAIT => misc::vpe_wait(&vpe, msg),
+        kif::syscalls::Operation::SEM_CTRL => misc::sem_ctrl_async(&vpe, msg),
+        kif::syscalls::Operation::VPE_CTRL => misc::vpe_ctrl_async(&vpe, msg),
+        kif::syscalls::Operation::VPE_WAIT => misc::vpe_wait_async(&vpe, msg),
 
         kif::syscalls::Operation::NOOP => misc::noop(&vpe, msg),
 

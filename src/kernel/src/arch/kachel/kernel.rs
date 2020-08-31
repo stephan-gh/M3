@@ -74,10 +74,6 @@ pub extern "C" fn env_run() {
     ktcu::recv_msgs(ktcu::KPEX_EP, pex_rbuf.as_ptr() as goff, pex_rbuf_ord, 7)
         .expect("Unable to config pemux REP");
 
-    pes::VPEMng::get()
-        .start_root()
-        .expect("starting root failed");
-
     klog!(DEF, "Kernel is ready!");
 
     workloop();

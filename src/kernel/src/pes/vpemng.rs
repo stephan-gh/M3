@@ -29,7 +29,7 @@ use crate::args;
 use crate::cap::{Capability, KMemObject, KObject, MGateObject, PEObject};
 use crate::ktcu;
 use crate::mem::{self, Allocation};
-use crate::pes::{PEMng, VPEFlags, VPE};
+use crate::pes::{PEMng, State, VPEFlags, VPE};
 use crate::platform;
 
 pub const MAX_VPES: usize = 64;
@@ -85,7 +85,7 @@ impl VPEMng {
         Err(Error::new(Code::NoSpace))
     }
 
-    pub fn create_vpe(
+    pub fn create_vpe_async(
         &mut self,
         name: &str,
         pe: SRc<PEObject>,
@@ -106,27 +106,27 @@ impl VPEMng {
 
         PEMng::get().pemux(pe_id).add_vpe(id);
         if flags.is_empty() {
-            self.init_vpe(&clone).unwrap();
+            self.init_vpe_async(&clone).unwrap();
         }
 
         Ok(clone)
     }
 
-    fn init_vpe(&mut self, vpe: &VPE) -> Result<(), Error> {
+    fn init_vpe_async(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl(
+            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl_async(
                 vpe.id(),
                 vpe.eps_start(),
                 kif::pemux::VPEOp::INIT,
             )?;
         }
 
-        vpe.init()
+        vpe.init_async()
     }
 
-    pub fn start_vpe(&mut self, vpe: &VPE) -> Result<(), Error> {
+    pub fn start_vpe_async(&mut self, vpe: &VPE) -> Result<(), Error> {
         if platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl(
+            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl_async(
                 vpe.id(),
                 vpe.eps_start(),
                 kif::pemux::VPEOp::START,
@@ -137,9 +137,9 @@ impl VPEMng {
         }
     }
 
-    pub fn stop_vpe(&mut self, vpe: &VPE, stop: bool, reset: bool) -> Result<(), Error> {
+    pub fn stop_vpe_async(&mut self, vpe: &VPE, stop: bool, reset: bool) -> Result<(), Error> {
         if stop && platform::pe_desc(vpe.pe_id()).supports_pemux() {
-            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl(
+            PEMng::get().pemux(vpe.pe_id()).vpe_ctrl_async(
                 vpe.id(),
                 vpe.eps_start(),
                 kif::pemux::VPEOp::STOP,
@@ -154,7 +154,7 @@ impl VPEMng {
         }
     }
 
-    pub fn start_root(&mut self) -> Result<(), Error> {
+    pub fn start_root_async(&mut self) -> Result<(), Error> {
         // TODO temporary
         let isa = platform::pe_desc(platform::kernel_pe()).isa();
         let pe_emem = kif::PEDesc::new(kif::PEType::COMP_EMEM, isa, 0);
@@ -167,7 +167,7 @@ impl VPEMng {
 
         let kmem = KMemObject::new(args::get().kmem - cfg::FIXED_KMEM);
         let vpe = self
-            .create_vpe(
+            .create_vpe_async(
                 "root",
                 pemux.pe().clone(),
                 tcu::FIRST_USER_EP,
@@ -229,11 +229,11 @@ impl VPEMng {
         vpe.set_first_sel(sel);
 
         // go!
-        self.init_vpe(&vpe)?;
-        vpe.start_app(None)
+        self.init_vpe_async(&vpe)?;
+        vpe.start_app_async(None)
     }
 
-    pub fn remove_vpe(&mut self, id: tcu::VPEId) {
+    pub fn remove_vpe_async(&mut self, id: tcu::VPEId) {
         // Replace item at position
         // https://stackoverflow.com/questions/33204273/how-can-i-take-ownership-of-a-vec-element-and-replace-it-with-something-else
         let vpe: Option<Rc<VPE>> = core::mem::replace(&mut self.vpes[id as usize], None);
@@ -242,6 +242,7 @@ impl VPEMng {
             Some(ref v) => {
                 let pemux = PEMng::get().pemux(v.pe_id());
                 pemux.rem_vpe(v.id());
+                v.force_stop_async(v.state() != State::DEAD);
                 self.count -= 1;
             },
             None => panic!("Removing nonexisting VPE with id {}", id),

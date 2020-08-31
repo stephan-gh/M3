@@ -53,13 +53,13 @@ impl Loader {
         LOADER.get_mut().as_mut().unwrap()
     }
 
-    pub fn init_memory(&mut self, vpe: &VPE) -> Result<i32, Error> {
+    pub fn init_memory_async(&mut self, vpe: &VPE) -> Result<i32, Error> {
         // put mapping for env into cap table (so that we can access it in create_mgate later)
         let env_addr = if platform::pe_desc(vpe.pe_id()).has_virtmem() {
             let pemux = PEMng::get().pemux(vpe.pe_id());
-            let env_addr = pemux.translate(vpe.id(), ENV_START as goff, kif::Perm::RW)?;
+            let env_addr = pemux.translate_async(vpe.id(), ENV_START as goff, kif::Perm::RW)?;
             let flags = PageFlags::from(kif::Perm::RW);
-            Self::load_segment(vpe, env_addr, ENV_START as goff, PAGE_SIZE, flags, false)?;
+            Self::load_segment_async(vpe, env_addr, ENV_START as goff, PAGE_SIZE, flags, false)?;
             env_addr
         }
         else {
@@ -67,7 +67,7 @@ impl Loader {
         };
 
         if vpe.is_root() {
-            self.load_root(env_addr, vpe)?;
+            self.load_root_async(env_addr, vpe)?;
         }
         Ok(0)
     }
@@ -82,13 +82,13 @@ impl Loader {
         Ok(())
     }
 
-    fn load_root(&mut self, env_addr: GlobAddr, vpe: &VPE) -> Result<(), Error> {
+    fn load_root_async(&mut self, env_addr: GlobAddr, vpe: &VPE) -> Result<(), Error> {
         // map stack
         if vpe.pe_desc().has_virtmem() {
             let virt = STACK_BOTTOM;
             let size = STACK_TOP - virt;
             let mut phys = mem::get().allocate(size as goff, PAGE_SIZE as goff)?;
-            Self::load_segment(vpe, phys.global(), virt as goff, size, PageFlags::RW, true)?;
+            Self::load_segment_async(vpe, phys.global(), virt as goff, size, PageFlags::RW, true)?;
             phys.claim();
         }
 
@@ -97,7 +97,7 @@ impl Loader {
                 .get_mod("root")
                 .ok_or_else(|| Error::new(Code::NoSuchFile))?;
             klog!(VPES, "Loading mod '{}':", app.name());
-            self.load_mod(vpe, app, !first)?
+            self.load_mod_async(vpe, app, !first)?
         };
 
         let argv_addr = Self::write_arguments(env_addr.raw(), vpe.pe_id(), &["root"]);
@@ -142,7 +142,7 @@ impl Loader {
         Ok(ktcu::read_obj(gaddr.pe(), gaddr.offset() + off))
     }
 
-    fn load_segment(
+    fn load_segment_async(
         vpe: &VPE,
         phys: GlobAddr,
         virt: goff,
@@ -156,7 +156,7 @@ impl Loader {
 
             let map_obj = MapObject::new(phys, flags);
             if map {
-                map_obj.map(vpe, virt, phys, pages, flags)?;
+                map_obj.map_async(vpe, virt, phys, pages, flags)?;
             }
 
             vpe.map_caps().borrow_mut().insert(Capability::new_range(
@@ -177,7 +177,7 @@ impl Loader {
         }
     }
 
-    fn load_mod(&self, vpe: &VPE, bm: &kif::boot::Mod, copy: bool) -> Result<usize, Error> {
+    fn load_mod_async(&self, vpe: &VPE, bm: &kif::boot::Mod, copy: bool) -> Result<usize, Error> {
         let mod_addr = GlobAddr::new(bm.addr);
         let hdr: elf::Ehdr = Self::read_from_mod(bm, 0)?;
 
@@ -213,7 +213,7 @@ impl Loader {
 
                 if vpe.pe_desc().has_virtmem() {
                     let mut phys = mem::get().allocate(size as goff, PAGE_SIZE as goff)?;
-                    Self::load_segment(vpe, phys.global(), virt as goff, size, flags, true)?;
+                    Self::load_segment_async(vpe, phys.global(), virt as goff, size, flags, true)?;
                     phys.claim();
                 }
 
@@ -237,7 +237,7 @@ impl Loader {
             else {
                 assert!(phdr.memsz == phdr.filesz);
                 let size = (phdr.offset as usize & PAGE_MASK) + phdr.filesz as usize;
-                Self::load_segment(
+                Self::load_segment_async(
                     vpe,
                     mod_addr + offset as goff,
                     virt as goff,
@@ -252,7 +252,7 @@ impl Loader {
         // create initial heap
         let end = math::round_up(end, LPAGE_SIZE);
         let mut phys = mem::get().allocate(MOD_HEAP_SIZE as goff, PAGE_SIZE as goff)?;
-        Self::load_segment(
+        Self::load_segment_async(
             vpe,
             phys.global(),
             end as goff,

@@ -97,6 +97,13 @@ impl SendQueue {
         Ok(get_event(qid))
     }
 
+    pub fn receive_async(event: thread::Event) -> Result<&'static tcu::Message, Error> {
+        thread::ThreadManager::get().wait_for(event);
+        thread::ThreadManager::get()
+            .fetch_msg()
+            .ok_or_else(|| Error::new(Code::RecvGone))
+    }
+
     pub fn received_reply(&mut self, msg: &'static tcu::Message) {
         klog!(SQUEUE, "SendQueue[{}]: received reply", self.id);
 
