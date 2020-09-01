@@ -105,7 +105,16 @@ pub mod cpu {
 pub mod tcu {
     pub use crate::arch::tcu::*;
 }
+
 /// The environment data
 pub mod envdata {
+    int_enum! {
+        pub struct Platform : u64 {
+            const GEM5 = 0;
+            const HW = 1;
+            const HOST = 2;
+        }
+    }
+
     pub use crate::arch::envdata::*;
 }

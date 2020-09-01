@@ -28,7 +28,7 @@ extern "C" {
 }
 
 pub fn read(buf: &mut [u8]) -> Result<usize, Error> {
-    if envdata::get().platform == envdata::Platform::GEM5.val {
+    if envdata::get().platform == crate::envdata::Platform::GEM5.val {
         unsafe { Ok(gem5_readfile(buf.as_mut_ptr(), buf.len() as u64, 0) as usize) }
     }
     else {
@@ -37,7 +37,7 @@ pub fn read(buf: &mut [u8]) -> Result<usize, Error> {
 }
 
 pub fn write(buf: &[u8]) -> Result<usize, Error> {
-    if envdata::get().platform == envdata::Platform::GEM5.val {
+    if envdata::get().platform == crate::envdata::Platform::GEM5.val {
         tcu::TCU::print(buf);
         unsafe {
             // put the string on the stack to prevent that gem5_writefile causes a pagefault

@@ -29,6 +29,7 @@ pub struct EnvData {
     pub argv: u64,
     pub first_sel: u32,
     pub kmem_sel: u32,
+    pub platform: u64,
 }
 
 impl EnvData {
@@ -48,6 +49,7 @@ impl EnvData {
             argv: argv as u64,
             first_sel: first_sel as u32,
             kmem_sel: kmem_sel as u32,
+            platform: crate::envdata::Platform::HOST.val,
         }
     }
 }

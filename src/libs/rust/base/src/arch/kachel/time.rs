@@ -21,7 +21,7 @@ const START_TSC: usize = 0x1FF1_0000;
 const STOP_TSC: usize = 0x1FF2_0000;
 
 pub fn start(msg: usize) -> time::Time {
-    if envdata::get().platform == envdata::Platform::GEM5.val {
+    if envdata::get().platform == crate::envdata::Platform::GEM5.val {
         cpu::gem5_debug(START_TSC | msg)
     }
     else {
@@ -30,7 +30,7 @@ pub fn start(msg: usize) -> time::Time {
 }
 
 pub fn stop(msg: usize) -> time::Time {
-    if envdata::get().platform == envdata::Platform::GEM5.val {
+    if envdata::get().platform == crate::envdata::Platform::GEM5.val {
         cpu::gem5_debug(STOP_TSC | msg)
     }
     else {

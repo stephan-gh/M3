@@ -16,8 +16,7 @@
 
 use base::pexif;
 
-use crate::arch::env;
-use crate::arch::pexcalls;
+use crate::arch::{env, pexcalls};
 use crate::com::{MemGate, RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;

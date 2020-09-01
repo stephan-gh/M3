@@ -18,13 +18,6 @@ use core::intrinsics;
 
 use crate::cfg;
 
-int_enum! {
-    pub struct Platform : u64 {
-        const GEM5 = 0;
-        const HW = 1;
-    }
-}
-
 #[derive(Default, Copy, Clone)]
 #[repr(C)]
 pub struct EnvData {

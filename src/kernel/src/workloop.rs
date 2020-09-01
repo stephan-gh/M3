@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::envdata;
 use base::tcu;
 use core::intrinsics;
 
@@ -39,7 +40,9 @@ pub fn workloop() {
     }
 
     while vpemng.count() > 0 {
-        tcu::TCU::sleep().unwrap();
+        if envdata::get().platform == envdata::Platform::GEM5.val {
+            tcu::TCU::sleep().unwrap();
+        }
 
         if let Some(msg) = ktcu::fetch_msg(ktcu::KSYS_EP) {
             syscalls::handle_async(msg);
