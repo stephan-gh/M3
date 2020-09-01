@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import traceback
 from time import sleep
 from datetime import datetime
@@ -83,23 +84,24 @@ def glob_addr(pe, offset):
 
 def write_file(dram, file, offset):
     print("%s: loading %u bytes to %#x" % (dram.name, os.path.getsize(file), offset))
-    with open(file, "r") as f:
+    with open(file, "rb") as f:
         while True:
             data = f.read(8)
-            if data == "":
+            if data == b"":
                 break
-            dram.mem[offset] = string_to_u64s(data)[0]
+            u64 = int.from_bytes(data, byteorder='little')
+            write_u64(dram, offset, u64)
             offset += 8
 
 def add_mod(dram, addr, name, offset):
     size = os.path.getsize(name)
-    dram.mem[offset + 0x0] = glob_addr(4, addr)
-    dram.mem[offset + 0x8] = size
+    write_u64(dram, offset + 0x0, glob_addr(4, addr))
+    write_u64(dram, offset + 0x8, size)
     write_str(dram, name, offset + 16)
     write_file(dram, name, addr)
     return size
 
-def load_prog(pm, i, dram, args):
+def load_prog(pm, i, dram, args, mods):
     memfile = args[0] + ".hex"
     print("%s: loading %s..." % (pm.name, memfile))
     sys.stdout.flush()
@@ -119,16 +121,18 @@ def load_prog(pm, i, dram, args):
 
         # boot info
         kenv_off = kenv
-        dram.mem[kenv_off + 0 * 8] = 1 # mod_count
-        dram.mem[kenv_off + 1 * 8] = 5 # pe_count
-        dram.mem[kenv_off + 2 * 8] = 1 # mem_count
-        dram.mem[kenv_off + 3 * 8] = 0 # serv_count
+        write_u64(dram, kenv_off + 0 * 8, len(mods)) # mod_count
+        write_u64(dram, kenv_off + 1 * 8, 5)         # pe_count
+        write_u64(dram, kenv_off + 2 * 8, 1)         # mem_count
+        write_u64(dram, kenv_off + 3 * 8, 0)         # serv_count
         kenv_off += 8 * 4
 
         # mods
         mods_addr = MAX_FS_SIZE + 0x1000
-        mods_addr += add_mod(dram, mods_addr, "boot.xml", kenv_off)
-        kenv_off += 80
+        for m in mods:
+            mod_size = add_mod(dram, mods_addr, m, kenv_off)
+            mods_addr = (mods_addr + mod_size + 4096 - 1) & ~(4096 - 1)
+            kenv_off += 80
 
         # PEs
         for x in range(0, 4):
@@ -142,26 +146,28 @@ def load_prog(pm, i, dram, args):
         kenv_off += 8
         write_u64(dram, kenv_off, DRAM_SIZE - MAX_FS_SIZE - KENV_SIZE) # size
         kenv_off += 8
+        kenv = glob_addr(4, kenv)
     else:
         kenv = 0
 
     # init environment
     argv = ENV + 0x400
-    pm.mem[ENV + 0] = 1 # platform = HW
-    pm.mem[ENV + 8] = i # pe_id
-    pm.mem[ENV + 16] = MEM_SIZE | (3 << 3) | 0 # pe_desc
-    pm.mem[ENV + 24] = len(args) # argc
-    pm.mem[ENV + 32] = argv # argv
-    pm.mem[ENV + 40] = 0 # heap size
-    pm.mem[ENV + 48] = 0 # pe_mem_base
-    pm.mem[ENV + 56] = 0 # pe_mem_size
-    pm.mem[ENV + 64] = glob_addr(4, kenv) if kenv != 0 else 0 # kenv
-    pm.mem[ENV + 72] = 0 # lambda
+    pe_desc = MEM_SIZE | (3 << 3) | 0
+    write_u64(pm, ENV + 0, 1)           # platform = HW
+    write_u64(pm, ENV + 8, i)           # pe_id
+    write_u64(pm, ENV + 16, pe_desc)    # pe_desc
+    write_u64(pm, ENV + 24, len(args))  # argc
+    write_u64(pm, ENV + 32, argv)       # argv
+    write_u64(pm, ENV + 40, 0)          # heap size
+    write_u64(pm, ENV + 48, 0)          # pe_mem_base
+    write_u64(pm, ENV + 56, 0)          # pe_mem_size
+    write_u64(pm, ENV + 64, kenv)       # kenv
+    write_u64(pm, ENV + 72, 0)          # lambda
 
     # write arguments to memory
     args_addr = argv + len(args) * 8
     for (i, a) in enumerate(args, 0):
-        pm.mem[argv + i * 8] = args_addr
+        write_u64(pm, argv + i * 8, args_addr)
         write_str(pm, a, args_addr)
         args_addr += (len(a) + 1 + 7) & ~7
         if args_addr > ENV + 0x800:
@@ -170,29 +176,22 @@ def load_prog(pm, i, dram, args):
     # start core (via interrupt 0)
     pm.rocket_start()
 
-def parse_args():
-    progs = []
-    args = []
-    for arg in sys.argv[1:]:
-        if arg == "--":
-            progs.append(args)
-            args = []
-        else:
-            args.append(arg)
-    if len(args) > 0:
-        progs.append(args)
-    return progs
-
 def main():
     # get connection to FPGA, SW12=0000b -> chipid=0
     fpga_inst = fpga_top.FPGA_TOP(0)
     # fpga_inst.eth_rf.system_reset()
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pe', action='append')
+    parser.add_argument('--mod', action='append')
+    args = parser.parse_args()
+
+    mods = [] if args.mod is None else args.mod
+
     # load programs onto PEs
-    progs = parse_args()
     pms = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]
-    for i, args in enumerate(progs, 0):
-        load_prog(pms[i], i, fpga_inst.dram1, args)
+    for i, peargs in enumerate(args.pe, 0):
+        load_prog(pms[i], i, fpga_inst.dram1, peargs.split(' '), mods)
 
     # wait for prints
     run = True

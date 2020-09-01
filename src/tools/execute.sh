@@ -153,22 +153,24 @@ build_params_hw() {
     generate_config $1 $M3_OUT || exit 1
 
     kargs=$(perl -ne 'printf("%s;", $1) if /<kernel\s.*args="(.*?)"/' < $M3_OUT/boot-all.xml)
+    mods=$(perl -ne 'printf("%s;", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_OUT/boot-all.xml)
 
-    args=""
+    args="--mod boot.xml"
     files="run/boot.xml $build/mem/peidle.hex"
     IFS=';'
     c=0
     for karg in $kargs; do
-        if [ "$args" = "" ]; then
-            args="$karg"
-        else
-            args="$args -- $karg"
-        fi
+        args="$args --pe '$karg'"
         files="$files $build/mem/"${karg%% *}.hex
         c=$((c + 1))
     done
+    for mod in $mods; do
+        args="$args --mod '$mod'"
+        # use the stripped binary from the default fs
+        files="$files $build/src/fs/default/bin/$(basename $mod)"
+    done
     while [ $c -lt 4 ]; do
-        args="$args -- peidle"
+        args="$args --pe peidle"
         c=$((c + 1))
     done
     unset IFS
