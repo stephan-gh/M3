@@ -1,4 +1,4 @@
 def build(gen, env):
     if env['TGT'] == 'hw':
-        bin = env.m3_rust_exe(gen, out = 'peidle', ldscript = 'pemux')
+        bin = env.m3_rust_exe(gen, out = 'peidle', ldscript = 'pemux', libs = ['isr'])
         env.install_as(gen, env['BINDIR'] + '/pemux', bin)

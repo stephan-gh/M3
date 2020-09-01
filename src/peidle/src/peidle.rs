@@ -129,6 +129,9 @@ pub extern "C" fn env_run() {
     io::init(envdata::get().pe_id, "pemux");
     log!(crate::LOG_UPCALLS, "Hello World!");
 
+    isr::init(cfg::STACK_BOTTOM + cfg::STACK_SIZE / 2);
+    isr::enable_irqs();
+
     // wait until the kernel configured the EP
     if envdata::get().platform == envdata::Platform::GEM5.val {
         loop {
