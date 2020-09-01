@@ -19,6 +19,7 @@
 use core::cmp;
 use core::fmt;
 use core::mem::MaybeUninit;
+use core::ptr;
 
 use crate::col::{String, Vec};
 use crate::errors::{Code, Error};
@@ -142,6 +143,29 @@ pub trait Write {
 
     /// Ensure that the file is made persistent.
     fn sync(&mut self) -> Result<(), Error>;
+
+    /// Dumps the given array of bytes to this sink
+    unsafe fn dump_bytes(&mut self, addr: *const u8, len: usize) -> Result<(), Error> {
+        let slice = ptr::slice_from_raw_parts(addr, len);
+        self.dump_slice(&*slice, addr as usize)
+    }
+
+    /// Dumps the given slice to this sink
+    fn dump_slice(&mut self, slice: &[u8], addr: usize) -> Result<(), Error> {
+        for (i, b) in slice.iter().enumerate() {
+            if i % 16 == 0 {
+                if i > 0 {
+                    self.write(&[b'\n'])?;
+                }
+                self.write_fmt(format_args!("{:#x}: ", addr + i))?;
+            }
+            self.write_fmt(format_args!("{:02x} ", b))?;
+        }
+        if slice.len() > 0 {
+            self.write(&[b'\n'])?;
+        }
+        Ok(())
+    }
 
     /// Writes all bytes of the given buffer to this sink
     ///

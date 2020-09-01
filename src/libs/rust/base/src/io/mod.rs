@@ -70,6 +70,20 @@ macro_rules! llog {
     });
 }
 
+/// Writes the given byte array to the log, showing `addr` as a prefix.
+pub unsafe fn log_bytes(addr: *const u8, len: usize) {
+    if let Some(l) = log::Log::get() {
+        l.dump_bytes(addr, len).unwrap();
+    }
+}
+
+/// Writes the given slice to the log, showing `addr` as a prefix.
+pub fn log_slice(slice: &[u8], addr: usize) {
+    if let Some(l) = log::Log::get() {
+        l.dump_slice(slice, addr).unwrap();
+    }
+}
+
 #[no_mangle]
 #[allow(clippy::missing_safety_doc)]
 pub unsafe extern "C" fn init_rust_io(pe_id: u32, name: *const i8) {
