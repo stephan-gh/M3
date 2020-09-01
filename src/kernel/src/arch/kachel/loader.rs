@@ -251,18 +251,20 @@ impl Loader {
             }
         }
 
-        // create initial heap
-        let end = math::round_up(end, LPAGE_SIZE);
-        let mut phys = mem::get().allocate(MOD_HEAP_SIZE as goff, PAGE_SIZE as goff)?;
-        Self::load_segment_async(
-            vpe,
-            phys.global(),
-            end as goff,
-            MOD_HEAP_SIZE,
-            PageFlags::RW,
-            true,
-        )?;
-        phys.claim();
+        if vpe.pe_desc().has_virtmem() {
+            // create initial heap
+            let end = math::round_up(end, LPAGE_SIZE);
+            let mut phys = mem::get().allocate(MOD_HEAP_SIZE as goff, PAGE_SIZE as goff)?;
+            Self::load_segment_async(
+                vpe,
+                phys.global(),
+                end as goff,
+                MOD_HEAP_SIZE,
+                PageFlags::RW,
+                true,
+            )?;
+            phys.claim();
+        }
 
         Ok(hdr.entry)
     }
