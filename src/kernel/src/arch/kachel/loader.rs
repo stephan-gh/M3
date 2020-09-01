@@ -104,10 +104,12 @@ impl Loader {
 
         // build env
         let mut senv = envdata::EnvData::default();
+        senv.platform = envdata::get().platform;
         senv.argc = 1;
         senv.argv = argv_addr as u64;
         senv.sp = STACK_TOP as u64;
         senv.entry = entry as u64;
+        senv.pe_id = vpe.pe_id() as u64;
         senv.pe_desc = vpe.pe_desc().value();
         senv.heap_size = MOD_HEAP_SIZE as u64;
         senv.rmng_sel = kif::INVALID_SEL as u64;
