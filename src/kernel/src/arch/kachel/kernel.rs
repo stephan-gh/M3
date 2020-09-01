@@ -60,8 +60,6 @@ pub extern "C" fn env_run() {
         thread::ThreadManager::get().add_thread(thread_startup as *const () as usize, 0);
     }
 
-    pes::init();
-
     // TODO add second syscall REP
     let sysc_slot_size = 9;
     let sysc_rbuf_size = math::next_log2(pes::MAX_VPES) + sysc_slot_size;
@@ -80,6 +78,8 @@ pub extern "C" fn env_run() {
     let pex_rbuf = vec![0u8; 1 << pex_rbuf_size];
     ktcu::recv_msgs(ktcu::KPEX_EP, pex_rbuf.as_ptr() as goff, pex_rbuf_size, pex_slot_size)
         .expect("Unable to config pemux REP");
+
+    pes::init();
 
     klog!(DEF, "Kernel is ready!");
 
