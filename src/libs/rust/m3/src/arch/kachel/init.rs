@@ -33,7 +33,15 @@ pub extern "C" fn abort() -> ! {
 pub extern "C" fn exit(code: i32) -> ! {
     io::deinit();
     vfs::deinit();
+
+    #[cfg(target_vendor = "gem5")]
     arch::pexcalls::call1(pexif::Operation::EXIT, code as usize).ok();
+    #[cfg(target_vendor = "hw")]
+    {
+        unsafe {
+            llvm_asm!("jr $0" : : "r"(crate::cfg::PEMUX_START));
+        }
+    }
     unreachable!();
 }
 

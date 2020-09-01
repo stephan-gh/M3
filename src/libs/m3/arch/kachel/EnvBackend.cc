@@ -44,8 +44,12 @@ public:
         VPE::reset();
     }
 
-    NORETURN void exit(int code) override {
+    NORETURN void exit(UNUSED int code) override {
+#if defined(__gem5__)
         PEXCalls::call1(Operation::EXIT, static_cast<word_t>(code));
+#else
+        asm volatile ("jr %0" : : "r"(PEMUX_CODE_START));
+#endif
         UNREACHED;
     }
 };
