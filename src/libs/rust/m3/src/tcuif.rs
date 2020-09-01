@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::envdata;
 use base::pexif;
 
 use crate::arch::{env, pexcalls};
@@ -112,25 +113,35 @@ impl TCUIf {
 
     #[inline(always)]
     pub fn sleep_for(nanos: u64) -> Result<(), Error> {
-        if env::get().shared() || nanos != 0 {
-            pexcalls::call2(
-                pexif::Operation::SLEEP,
-                nanos as usize,
-                tcu::INVALID_EP as usize,
-            )
-            .map(|_| ())
+        if envdata::get().platform == envdata::Platform::GEM5.val {
+            if env::get().shared() || nanos != 0 {
+                pexcalls::call2(
+                    pexif::Operation::SLEEP,
+                    nanos as usize,
+                    tcu::INVALID_EP as usize,
+                )
+                .map(|_| ())
+            }
+            else {
+                tcu::TCU::wait_for_msg(tcu::INVALID_EP)
+            }
         }
         else {
-            tcu::TCU::wait_for_msg(tcu::INVALID_EP)
+            Ok(())
         }
     }
 
     pub fn wait_for_msg(ep: tcu::EpId) -> Result<(), Error> {
-        if env::get().shared() {
-            pexcalls::call2(pexif::Operation::SLEEP, 0, ep as usize).map(|_| ())
+        if envdata::get().platform == envdata::Platform::GEM5.val {
+            if env::get().shared() {
+                pexcalls::call2(pexif::Operation::SLEEP, 0, ep as usize).map(|_| ())
+            }
+            else {
+                tcu::TCU::wait_for_msg(ep)
+            }
         }
         else {
-            tcu::TCU::wait_for_msg(ep)
+            Ok(())
         }
     }
 
