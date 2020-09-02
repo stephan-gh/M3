@@ -99,6 +99,26 @@ static void test_mem_short() {
     }
 }
 
+static uint8_t src_buf[16384];
+static uint8_t dst_buf[16384];
+
+static void test_mem_large() {
+    for(size_t i = 0; i < ARRAY_SIZE(src_buf); ++i)
+        src_buf[i] = i;
+
+    kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, sizeof(src_buf), TCU::R | TCU::W);
+
+    const size_t sizes[] = {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384};
+    for(auto size : sizes) {
+        Serial::get() << "READ+WRITE with " << size << " bytes\n";
+
+        ASSERT_EQ(kernel::TCU::write(1, src_buf, size, 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::read(1, dst_buf, size, 0), Errors::NONE);
+        for(size_t i = 0; i < size; ++i)
+            ASSERT_EQ(src_buf[i], dst_buf[i]);
+    }
+}
+
 template<typename DATA>
 static void test_mem(size_t size_in) {
     Serial::get() << "READ+WRITE with " << size_in << " " << sizeof(DATA) << "B words\n";
@@ -572,6 +592,7 @@ int main() {
     Serial::get() << "Starting TCU tests\n";
 
     test_mem_short();
+    test_mem_large();
     test_msg_errors();
     test_msg_send_empty();
     test_msg_reply_empty();
