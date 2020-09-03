@@ -216,7 +216,14 @@ pub fn copy(
 fn do_ext_cmd(pe: PEId, cmd: Reg) -> Result<Reg, Error> {
     let addr = TCU::ext_reg_addr(ExtReg::EXT_CMD) as goff;
     ktcu::try_write_slice(pe, addr, &[cmd])?;
-    let res: Reg = ktcu::try_read_obj(pe, addr)?;
+
+    let res = loop {
+        let res: Reg = ktcu::try_read_obj(pe, addr)?;
+        if (res & 0xF) == ExtCmdOpCode::IDLE.val {
+            break res;
+        }
+    };
+
     match Code::from(((res >> 4) & 0x1F) as u32) {
         Code::None => Ok(res >> 9),
         e => Err(Error::new(e)),
