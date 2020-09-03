@@ -55,6 +55,8 @@ pub const LOG_VPES: bool = false;
 pub const LOG_UPCALLS: bool = false;
 /// Logs foreign messages
 pub const LOG_FOREIGN_MSG: bool = false;
+/// Logs core requests
+pub const LOG_CORE_REQS: bool = false;
 /// Logs page table allocations/frees
 pub const LOG_PTS: bool = false;
 /// Logs timer IRQs
@@ -197,13 +199,11 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
     tcu::TCU::clear_irq(tcu::IRQ::CORE_REQ);
 
     // core request from TCU?
-    let core_req = tcu::TCU::get_core_req();
-    if core_req != 0 {
-        if (core_req & 0x1) != 0 {
-            corereq::handle_recv(core_req);
-        }
-        else {
-            vma::handle_xlate(core_req)
+    if let Some(r) = tcu::TCU::get_core_req() {
+        log!(crate::LOG_CORE_REQS, "Got {:x?}", r);
+        match r {
+            tcu::CoreReq::Xlate(r) => vma::handle_xlate(r),
+            tcu::CoreReq::Foreign(r) => corereq::handle_recv(r),
         }
     }
 

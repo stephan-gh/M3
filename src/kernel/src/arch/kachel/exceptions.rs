@@ -15,7 +15,6 @@
  */
 
 use base::cfg;
-use base::kif::PageFlags;
 use base::libc;
 use base::tcu;
 
@@ -27,25 +26,21 @@ pub fn init() {
     isr::enable_irqs();
 }
 
-fn handle_xlate(xlate_req: tcu::Reg) {
-    let virt = (xlate_req & 0xFFFF_FFFF_FFFF) as usize & !cfg::PAGE_MASK;
-    let perm = PageFlags::from_bits_truncate((xlate_req >> 2) & PageFlags::RW.bits());
-
-    let pte = paging::translate(virt, perm);
-    if (!(pte & 0xF) & perm.bits()) != 0 {
-        panic!("Pagefault during PT walk for {:#x} (PTE={:#x})", virt, pte);
+fn handle_xlate(req: tcu::CoreXlateReq) {
+    let pte = paging::translate(req.virt, req.perm);
+    if (!(pte & 0xF) & req.perm.bits()) != 0 {
+        panic!("Pagefault during PT walk for {:#x} (PTE={:#x})", req.virt, pte);
     }
 
-    tcu::TCU::set_core_req(pte);
+    tcu::TCU::set_xlate_resp(pte);
 }
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
     tcu::TCU::clear_irq(tcu::IRQ::CORE_REQ);
 
-    let core_req = tcu::TCU::get_core_req();
-    if core_req != 0 {
-        assert!((core_req & 0x1) == 0);
-        handle_xlate(core_req);
+    match tcu::TCU::get_core_req() {
+        Some(tcu::CoreReq::Xlate(r)) => handle_xlate(r),
+        _ => assert!(false),
     }
 
     state as *mut _ as *mut libc::c_void

@@ -104,31 +104,26 @@ fn recv_pf_resp() -> vpe::ContResult {
     }
 }
 
-pub fn handle_xlate(req: tcu::Reg) {
-    let asid = req >> 48;
-    let virt = ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize;
-    let can_pf = ((req >> 1) & 0x1) != 0;
-    let perm = PageFlags::from_bits_truncate((req >> 2) & PageFlags::RW.bits());
-
+pub fn handle_xlate(req: tcu::CoreXlateReq) {
     // perform page table walk
-    let vpe = vpe::get_mut(asid);
+    let vpe = vpe::get_mut(req.asid as vpe::Id);
     if let Some(vpe) = vpe {
-        let pte = vpe.translate(virt, perm);
+        let pte = vpe.translate(req.virt, req.perm);
         // page fault?
-        if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
-            if can_pf && send_pf(vpe, virt, perm).is_ok() {
+        if (!(pte & PageFlags::RW.bits()) & req.perm.bits()) != 0 {
+            if req.can_pf && send_pf(vpe, req.virt, req.perm).is_ok() {
                 return;
             }
         }
         // translation worked: let transfer continue
         else {
-            tcu::TCU::set_core_req(pte);
+            tcu::TCU::set_xlate_resp(pte);
             return;
         }
     }
 
-    // translation failed: set non-zero response, but have no permission bits set
-    tcu::TCU::set_core_req(cfg::PAGE_SIZE as u64);
+    // translation failed: set permissions to zero
+    tcu::TCU::set_xlate_resp(0);
 }
 
 pub fn handle_pf(

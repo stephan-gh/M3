@@ -20,14 +20,11 @@ use base::tcu;
 
 use crate::vpe;
 
-pub fn handle_recv(req: tcu::Reg) {
-    log!(crate::LOG_FOREIGN_MSG, "Got core request {:#x}", req);
-
+pub fn handle_recv(req: tcu::CoreForeignReq) {
     // add message to VPE
-    let vpe_id = req >> 48;
-    if let Some(v) = vpe::get_mut(vpe_id) {
+    if let Some(v) = vpe::get_mut(req.vpe as vpe::Id) {
         // if this VPE is currently running, we have to update the CUR_VPE register
-        if (tcu::TCU::get_cur_vpe() & 0xFFFF) == vpe_id {
+        if (tcu::TCU::get_cur_vpe() & 0xFFFF) == req.vpe as vpe::Id {
             // temporary switch to idle
             let old_vpe = tcu::TCU::xchg_vpe(vpe::idle().vpe_reg());
             // set user event
@@ -44,15 +41,14 @@ pub fn handle_recv(req: tcu::Reg) {
         log!(
             crate::LOG_FOREIGN_MSG,
             "Added message to VPE {} ({} msgs)",
-            vpe_id,
+            req.vpe,
             v.msgs()
         );
 
         if v.id() != kif::pemux::VPE_ID {
-            let ep_id = ((req >> 1) & 0xFFFF) as tcu::EpId;
-            v.unblock(Some(ep_id), false);
+            v.unblock(Some(req.ep), false);
         }
     }
 
-    tcu::TCU::set_core_req(req);
+    tcu::TCU::set_foreign_resp();
 }
