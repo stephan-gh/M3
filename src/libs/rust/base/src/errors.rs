@@ -40,7 +40,6 @@ pub enum Code {
     InvMsgOff,
     Pagefault,
     Abort,
-    SelfRead,
     UnknownCmd,
     // SW Errors
     InvArgs,

@@ -90,13 +90,6 @@ static void test_mem_short() {
         ASSERT_EQ(kernel::TCU::write(2, nullptr, 0, 0), Errors::NONE);
         ASSERT_EQ(kernel::TCU::read(2, nullptr, 0, 0), Errors::NONE);
     }
-
-    // test self read (temporary limitation of the HW implementation)
-    if(env()->platform == Platform::HW) {
-        kernel::TCU::config_mem(2, pe_id(PE::PE0), MEM_OFFSET, sizeof(uint64_t), TCU::R);
-
-        ASSERT_EQ(kernel::TCU::read(2, &data, sizeof(data), 0), Errors::SELF_READ);
-    }
 }
 
 static uint8_t src_buf[16384];

@@ -38,12 +38,11 @@ static const char *errmsgs[] = {
     "Invalid message offset",
     "Pagefault",
     "Command aborted",
-    "READ from own PE",
     "Unknown TCU command",
     "Invalid arguments",
     "VPE gone",
-    /* 20 */
     "Out of memory",
+    /* 20 */
     "No such file or directory",
     "Not supported",
     "No free/suitable PE",
@@ -53,8 +52,8 @@ static const char *errmsgs[] = {
     "Cross-filesystem link not possible",
     "Directory not empty",
     "Is a directory",
-    /* 30 */
     "Is no directory",
+    /* 30 */
     "Endpoint is invalid",
     "End of file",
     "Messages are waiting to be handled",
