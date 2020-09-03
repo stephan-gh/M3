@@ -588,6 +588,68 @@ static void test_unaligned_rdwr(size_t nwords) {
         ASSERT_EQ(msg.data[i], i + 1);
 }
 
+static void test_inv_ep() {
+    ALIGNED(8) char rbuffer[32];
+    uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
+
+    // force invalidate
+    {
+        uint64_t data;
+        kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, sizeof(data), TCU::R);
+        kernel::TCU::config_recv(2, buf, 5 /* 32 */, 5 /* 32 */, TCU::INVALID_EP, 0, 0);
+        kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 2, 5 /* 32 */, 1);
+
+        // here everything still works
+        ASSERT_EQ(kernel::TCU::read(1, &data, sizeof(data), 0), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::ack_msg(2, buf, reinterpret_cast<const m3::TCU::Message*>(buf)), Errors::NONE);
+        ASSERT_EQ(m3::TCU::get().is_valid(3), true);
+
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 1, true), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 2, true), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 3, true), Errors::NONE);
+
+        // now the EPs are invalid
+        ASSERT_EQ(kernel::TCU::read(1, &data, sizeof(data), 0), Errors::NO_MEP);
+        ASSERT_EQ(kernel::TCU::ack_msg(2, buf, reinterpret_cast<const m3::TCU::Message*>(buf)), Errors::NO_REP);
+        ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
+
+        // invalidating again should work as well
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 1, true), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 2, true), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 3, true), Errors::NONE);
+    }
+
+    // non-force send EP
+    {
+        kernel::TCU::config_recv(2, buf, 5 /* 32 */, 5 /* 32 */, TCU::INVALID_EP, 0, 0);
+        kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 2, 5 /* 32 */, 1);
+
+        // if credits are missing, we can't invalidate it (with force=0)
+        uint64_t data;
+        ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), 0x5678, TCU::NO_REPLIES), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 3, false), Errors::NO_CREDITS);
+        ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), 0x5678, TCU::NO_REPLIES), Errors::NO_CREDITS);
+
+        // with all credits, we can invalidate
+        kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 2, 5 /* 32 */, 1);
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 3, false), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
+    }
+
+    // non-force receive EP
+    {
+        kernel::TCU::config_recv(2, buf, 5 /* 32 */, 5 /* 32 */, TCU::INVALID_EP, 0x1, 0x1);
+
+        // invalidation gives us the unread mask
+        uint32_t unread;
+        ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 2, false, &unread), Errors::NONE);
+        ASSERT_EQ(unread, 0x1);
+
+        // EP is invalid
+        ASSERT_EQ(kernel::TCU::ack_msg(2, buf, reinterpret_cast<const m3::TCU::Message*>(buf)), Errors::NO_REP);
+    }
+}
+
 int main() {
     Serial::get() << "Starting TCU tests\n";
 
@@ -599,7 +661,7 @@ int main() {
     test_msg_no_reply();
     test_msg_no_credits();
     test_msg_2send_2reply();
-
+    test_inv_ep();
     // test different lengths
     for(size_t i = 1; i <= MSG_SIZE; i++) {
         test_mem<uint8_t>(i);

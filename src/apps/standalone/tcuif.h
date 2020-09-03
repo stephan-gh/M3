@@ -23,6 +23,8 @@ class TCU {
 public:
     typedef m3::TCU::reg_t reg_t;
 
+    static const epid_t TMP_EP = EP_COUNT - 1;
+
     static int credits(epid_t ep) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
         return (r0 >> 19) & 0x3F;
@@ -80,6 +82,29 @@ public:
 
     static void config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm) {
         m3::TCU::config_mem(ep, pe, addr, size, perm);
+    }
+
+    static m3::Errors::Code invalidate_ep_remote(peid_t pe, epid_t ep, bool force,
+                                                 uint32_t *unread = nullptr) {
+        reg_t cmd = static_cast<reg_t>(m3::TCU::ExtCmdOpCode::INV_EP) |
+            (static_cast<reg_t>(ep) << 9) |
+            (static_cast<reg_t>(force) << 25);
+        return perform_ext_cmd(pe, cmd, unread);
+    }
+
+private:
+    static m3::Errors::Code perform_ext_cmd(peid_t pe, reg_t cmd, uint32_t *unread = nullptr) {
+        size_t addr = m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD);
+        config_mem(TMP_EP, pe, addr, sizeof(reg_t), m3::TCU::R | m3::TCU::W);
+        write(TMP_EP, &cmd, sizeof(cmd), 0);
+        reg_t res;
+        do {
+            read(TMP_EP, &res, sizeof(res), 0);
+        }
+        while((res & 0xF) != 0);
+        if(unread)
+            *unread = res >> 9;
+        return static_cast<m3::Errors::Code>((res >> 4) & 0x1F);
     }
 };
 
