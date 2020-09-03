@@ -94,16 +94,18 @@ static void test_mem_short() {
 
 static uint8_t src_buf[16384];
 static uint8_t dst_buf[16384];
+static uint8_t mem_buf[16384];
 
-static void test_mem_large() {
+static void test_mem_large(PE mem_pe) {
     for(size_t i = 0; i < ARRAY_SIZE(src_buf); ++i)
         src_buf[i] = i;
 
-    kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, sizeof(src_buf), TCU::R | TCU::W);
+    size_t addr = mem_pe == PE::MEM ? 0x1000 : reinterpret_cast<size_t>(mem_buf);
+    kernel::TCU::config_mem(1, pe_id(mem_pe), addr, sizeof(src_buf), TCU::R | TCU::W);
 
     const size_t sizes[] = {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384};
     for(auto size : sizes) {
-        Serial::get() << "READ+WRITE with " << size << " bytes\n";
+        Serial::get() << "READ+WRITE with " << size << " bytes with PE" << (int)mem_pe << "\n";
 
         ASSERT_EQ(kernel::TCU::write(1, src_buf, size, 0), Errors::NONE);
         ASSERT_EQ(kernel::TCU::read(1, dst_buf, size, 0), Errors::NONE);
@@ -647,7 +649,8 @@ int main() {
     Serial::get() << "Starting TCU tests\n";
 
     test_mem_short();
-    test_mem_large();
+    test_mem_large(PE::MEM);
+    test_mem_large(PE::PE0);
     test_msg_errors();
     test_msg_send_empty();
     test_msg_reply_empty();
