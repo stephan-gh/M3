@@ -7,9 +7,10 @@ from datetime import datetime
 import os, sys
 
 import modids
-from noc import noc_packet
 import fpga_top
+from noc import NoCmonitor
 from fpga_utils import FPGA_Error
+import memory
 
 ENV = 0x10100000
 SERIAL_BUF = 0x101F0008
@@ -26,42 +27,12 @@ def read_u64(pm, addr):
 def write_u64(pm, addr, value):
     pm.mem[addr] = value
 
-def begin_to_u64(str):
-    res = 0
-    i = 0
-    for x in range(0, 16, 2):
-        if i >= len(str):
-            break
-        res |= ord(str[i]) << x * 4
-        i += 1
-    return res
-
-def string_to_u64s(str):
-    vals = []
-    for i in range(0, len(str), 8):
-        int64 = begin_to_u64(str[i:i + 8])
-        vals += [int64]
-    return vals
-
 def read_str(mod, addr, length):
-    line = ""
-    length = (length + 7) & ~7
-    for off in range(0, length, 8):
-        val = read_u64(mod, addr + off)
-        for x in range(0, 64, 8):
-            hexdig = (val >> x) & 0xFF
-            if hexdig == 0:
-                break
-            if (hexdig < 0x20 or hexdig > 0x80) and hexdig != ord('\t') and hexdig != ord('\n') and hexdig != 0x1b:
-                hexdig = ord('?')
-            line += chr(hexdig)
-    return line
+    b = mod.mem.read_bytes(addr, length)
+    return b.decode()
 
 def write_str(pm, str, addr):
-    for v in string_to_u64s(str):
-        write_u64(pm, addr, v)
-        addr += 8
-    write_u64(pm, addr, 0)
+    pm.mem.write_bytes(addr, str.encode(), burst=False) # TODO enable burst
 
 def fetch_print(pm):
     length = read_u64(pm, SERIAL_ACK) & 0xFFFFFFFF
@@ -84,14 +55,11 @@ def glob_addr(pe, offset):
 
 def write_file(dram, file, offset):
     print("%s: loading %u bytes to %#x" % (dram.name, os.path.getsize(file), offset))
+    sys.stdout.flush()
+
     with open(file, "rb") as f:
-        while True:
-            data = f.read(8)
-            if data == b"":
-                break
-            u64 = int.from_bytes(data, byteorder='little')
-            write_u64(dram, offset, u64)
-            offset += 8
+        content = f.read()
+    dram.mem.write_bytes_checked(offset, content, True)
 
 def add_mod(dram, addr, name, offset):
     size = os.path.getsize(name)
@@ -101,9 +69,37 @@ def add_mod(dram, addr, name, offset):
     write_file(dram, name, addr)
     return size
 
-def load_prog(pm, i, dram, args, mods):
-    memfile = args[0] + ".hex"
-    print("%s: loading %s..." % (pm.name, memfile))
+def load_boot_info(dram, mods):
+    # boot info
+    kenv_off = MAX_FS_SIZE
+    write_u64(dram, kenv_off + 0 * 8, len(mods)) # mod_count
+    write_u64(dram, kenv_off + 1 * 8, 5)         # pe_count
+    write_u64(dram, kenv_off + 2 * 8, 1)         # mem_count
+    write_u64(dram, kenv_off + 3 * 8, 0)         # serv_count
+    kenv_off += 8 * 4
+
+    # mods
+    mods_addr = MAX_FS_SIZE + 0x1000
+    for m in mods:
+        mod_size = add_mod(dram, mods_addr, m, kenv_off)
+        mods_addr = (mods_addr + mod_size + 4096 - 1) & ~(4096 - 1)
+        kenv_off += 80
+
+    # PEs
+    for x in range(0, 4):
+        write_u64(dram, kenv_off, MEM_SIZE | (3 << 3) | 0) # PM
+        kenv_off += 8
+    write_u64(dram, kenv_off, DRAM_SIZE | (0 << 3) | 2) # dram
+    kenv_off += 8
+
+    # mems
+    write_u64(dram, kenv_off, MAX_FS_SIZE + KENV_SIZE) # addr (ignored)
+    kenv_off += 8
+    write_u64(dram, kenv_off, DRAM_SIZE - MAX_FS_SIZE - KENV_SIZE) # size
+    kenv_off += 8
+
+def load_prog(pm, i, args):
+    print("%s: loading %s..." % (pm.name, args[0]))
     sys.stdout.flush()
 
     # first disable core to start from initial state
@@ -112,47 +108,15 @@ def load_prog(pm, i, dram, args, mods):
     # start core
     pm.start()
 
-    # init mem
-    pm.initMem(memfile)
+    # load ELF file
+    pm.mem.write_elf(args[0])
+    sys.stdout.flush()
 
-    # init kernel environment
-    if i == 0:
-        kenv = MAX_FS_SIZE
-
-        # boot info
-        kenv_off = kenv
-        write_u64(dram, kenv_off + 0 * 8, len(mods)) # mod_count
-        write_u64(dram, kenv_off + 1 * 8, 5)         # pe_count
-        write_u64(dram, kenv_off + 2 * 8, 1)         # mem_count
-        write_u64(dram, kenv_off + 3 * 8, 0)         # serv_count
-        kenv_off += 8 * 4
-
-        # mods
-        mods_addr = MAX_FS_SIZE + 0x1000
-        for m in mods:
-            mod_size = add_mod(dram, mods_addr, m, kenv_off)
-            mods_addr = (mods_addr + mod_size + 4096 - 1) & ~(4096 - 1)
-            kenv_off += 80
-
-        # PEs
-        for x in range(0, 4):
-            write_u64(dram, kenv_off, MEM_SIZE | (3 << 3) | 0) # PM
-            kenv_off += 8
-        write_u64(dram, kenv_off, DRAM_SIZE | (0 << 3) | 2) # dram
-        kenv_off += 8
-
-        # mems
-        write_u64(dram, kenv_off, MAX_FS_SIZE + KENV_SIZE) # addr (ignored)
-        kenv_off += 8
-        write_u64(dram, kenv_off, DRAM_SIZE - MAX_FS_SIZE - KENV_SIZE) # size
-        kenv_off += 8
-        kenv = glob_addr(4, kenv)
-    else:
-        kenv = 0
-
-    # init environment
     argv = ENV + 0x400
     pe_desc = MEM_SIZE | (3 << 3) | 0
+    kenv = glob_addr(4, MAX_FS_SIZE) if i == 0 else 0
+
+    # init environment
     write_u64(pm, ENV + 0, 1)           # platform = HW
     write_u64(pm, ENV + 8, i)           # pe_id
     write_u64(pm, ENV + 16, pe_desc)    # pe_desc
@@ -181,6 +145,8 @@ def main():
     fpga_inst = fpga_top.FPGA_TOP(0)
     # fpga_inst.eth_rf.system_reset()
 
+    mon = NoCmonitor()
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--pe', action='append')
     parser.add_argument('--mod', action='append')
@@ -188,10 +154,13 @@ def main():
 
     mods = [] if args.mod is None else args.mod
 
+    # load boot info into DRAM
+    load_boot_info(fpga_inst.dram1, mods)
+
     # load programs onto PEs
     pms = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]
     for i, peargs in enumerate(args.pe, 0):
-        load_prog(pms[i], i, fpga_inst.dram1, peargs.split(' '), mods)
+        load_prog(pms[i], i, peargs.split(' '))
 
     # wait for prints
     run = True
@@ -212,8 +181,10 @@ def main():
 try:
     main()
 except FPGA_Error as e:
+    sys.stdout.flush()
     traceback.print_exc()
 except Exception:
+    sys.stdout.flush()
     traceback.print_exc()
 except KeyboardInterrupt:
     print("interrupt")

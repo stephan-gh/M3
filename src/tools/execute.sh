@@ -156,12 +156,12 @@ build_params_hw() {
     mods=$(perl -ne 'printf("%s;", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_OUT/boot-all.xml)
 
     args="--mod boot.xml"
-    files="run/boot.xml $build/mem/peidle.hex"
+    files="run/boot.xml $bindir/peidle"
     IFS=';'
     c=0
     for karg in $kargs; do
         args="$args --pe '$karg'"
-        files="$files $build/mem/"${karg%% *}.hex
+        files="$files $bindir/"${karg%% *}
         c=$((c + 1))
     done
     for mod in $mods; do
