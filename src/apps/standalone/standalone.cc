@@ -114,6 +114,32 @@ static void test_mem_large(PE mem_pe) {
     }
 }
 
+static void test_mem_rdwr(PE mem_pe) {
+    for(size_t i = 0; i < ARRAY_SIZE(src_buf); ++i)
+        src_buf[i] = i;
+
+    size_t addr = mem_pe == PE::MEM ? 0x1000 : reinterpret_cast<size_t>(mem_buf);
+    kernel::TCU::config_mem(1, pe_id(mem_pe), addr, sizeof(src_buf), TCU::R | TCU::W);
+
+    const size_t sizes[] = {4096, 8192};
+    for(auto size : sizes) {
+        memset(dst_buf, 0, sizeof(dst_buf));
+
+        Serial::get() << "READ+WRITE+READ+WRITE with " << size << " bytes with PE" << (int)mem_pe << "\n";
+
+        // first write our data
+        ASSERT_EQ(kernel::TCU::write(1, src_buf, size, 0), Errors::NONE);
+        // read it into a buffer for the next write
+        ASSERT_EQ(kernel::TCU::read(1, dst_buf, size, 0), Errors::NONE);
+        // write the just read data
+        ASSERT_EQ(kernel::TCU::write(1, dst_buf, size, 0), Errors::NONE);
+        // read it again for checking purposes
+        ASSERT_EQ(kernel::TCU::read(1, dst_buf, size, 0), Errors::NONE);
+        for(size_t i = 0; i < size; ++i)
+            ASSERT_EQ(src_buf[i], dst_buf[i]);
+    }
+}
+
 template<typename DATA>
 static void test_mem(size_t size_in) {
     Serial::get() << "READ+WRITE with " << size_in << " " << sizeof(DATA) << "B words\n";
@@ -651,6 +677,7 @@ int main() {
     test_mem_short();
     test_mem_large(PE::MEM);
     test_mem_large(PE::PE0);
+    test_mem_rdwr(PE::MEM);
     test_msg_errors();
     test_msg_send_empty();
     test_msg_reply_empty();
