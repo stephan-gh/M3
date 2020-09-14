@@ -108,6 +108,9 @@ def load_prog(pm, i, args):
     # start core
     pm.start()
 
+    # make privileged
+    pm.tcu_set_privileged(1)
+
     # load ELF file
     pm.mem.write_elf(args[0])
     sys.stdout.flush()
