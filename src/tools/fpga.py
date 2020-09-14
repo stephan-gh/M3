@@ -32,7 +32,9 @@ def read_str(mod, addr, length):
     return b.decode()
 
 def write_str(pm, str, addr):
-    pm.mem.write_bytes(addr, str.encode(), burst=False) # TODO enable burst
+    buf = bytearray(str.encode())
+    buf += b'\x00'
+    pm.mem.write_bytes(addr, bytes(buf), burst=False) # TODO enable burst
 
 def fetch_print(pm):
     length = read_u64(pm, SERIAL_ACK) & 0xFFFFFFFF
