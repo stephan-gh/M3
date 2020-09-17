@@ -32,7 +32,11 @@
 #define ROOT_HEAP_SIZE      (2 * 1024 * 1024)
 #define EPMEM_SIZE          0
 
-#define EP_COUNT            192
+#if defined(__hw__)
+#   define EP_COUNT         64
+#else
+#   define EP_COUNT         192
+#endif
 
 #if defined(__riscv)
 #   define MEM_OFFSET       0x10000000
