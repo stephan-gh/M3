@@ -96,12 +96,18 @@ private:
     static m3::Errors::Code perform_ext_cmd(peid_t pe, reg_t cmd, uint32_t *unread = nullptr) {
         size_t addr = m3::TCU::ext_reg_addr(m3::TCU::ExtRegs::EXT_CMD);
         config_mem(TMP_EP, pe, addr, sizeof(reg_t), m3::TCU::R | m3::TCU::W);
-        write(TMP_EP, &cmd, sizeof(cmd), 0);
+        m3::Errors::Code err = write(TMP_EP, &cmd, sizeof(cmd), 0);
+        if(err != m3::Errors::NONE)
+            return err;
+
         reg_t res;
         do {
-            read(TMP_EP, &res, sizeof(res), 0);
+            err = read(TMP_EP, &res, sizeof(res), 0);
+            if(err != m3::Errors::NONE)
+                return err;
         }
         while((res & 0xF) != 0);
+
         if(unread)
             *unread = res >> 9;
         return static_cast<m3::Errors::Code>((res >> 4) & 0x1F);
