@@ -55,13 +55,13 @@ def fetch_print(pm):
 def glob_addr(pe, offset):
     return (0x80 + pe) << 56 | offset
 
-def write_file(dram, file, offset):
-    print("%s: loading %u bytes to %#x" % (dram.name, os.path.getsize(file), offset))
+def write_file(mod, file, offset):
+    print("%s: loading %u bytes to %#x" % (mod.name, os.path.getsize(file), offset))
     sys.stdout.flush()
 
     with open(file, "rb") as f:
         content = f.read()
-    dram.mem.write_bytes_checked(offset, content, True)
+    mod.mem.write_bytes_checked(offset, content, True)
 
 def add_mod(dram, addr, name, offset):
     size = os.path.getsize(name)
@@ -147,7 +147,7 @@ def load_prog(pm, i, args):
 
 def main():
     # get connection to FPGA, SW12=0000b -> chipid=0
-    fpga_inst = fpga_top.FPGA_TOP(0)
+    fpga_inst = fpga_top.FPGA_TOP(1)
     # fpga_inst.eth_rf.system_reset()
 
     mon = NoCmonitor()
@@ -155,12 +155,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pe', action='append')
     parser.add_argument('--mod', action='append')
+    parser.add_argument('--fs')
     args = parser.parse_args()
 
     mods = [] if args.mod is None else args.mod
 
     # load boot info into DRAM
     load_boot_info(fpga_inst.dram1, mods)
+
+    # load file system into DRAM, if there is any
+    if not args.fs is None:
+        write_file(fpga_inst.dram1, args.fs, 0)
 
     # load programs onto PEs
     pms = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]

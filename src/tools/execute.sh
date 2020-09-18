@@ -175,7 +175,12 @@ build_params_hw() {
     done
     unset IFS
 
-    scp src/tools/fpga.py $files $hwssh:m3
+    if [ "`grep '$fs' $1`" != "" ]; then
+        files="$files $build/$M3_FS"
+        args="$args --fs $(basename $build/$M3_FS)"
+    fi
+
+    rsync -z src/tools/fpga.py $files $hwssh:m3
 
     ssh -t $hwssh "cd m3 && source setup.sh && ./fpga.py $args | tee log.txt"
     scp $hwssh:m3/log.txt $M3_OUT
