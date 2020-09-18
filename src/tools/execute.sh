@@ -11,7 +11,7 @@ fi
 
 build=build/$M3_TARGET-$M3_ISA-$M3_BUILD
 bindir=$build/bin
-hwssh=syn
+hwssh=${M3_HW_SSH:-syn}
 
 if [ $# -lt 1 ]; then
     usage $0
@@ -155,7 +155,11 @@ build_params_hw() {
     kargs=$(perl -ne 'printf("%s;", $1) if /<kernel\s.*args="(.*?)"/' < $M3_OUT/boot-all.xml)
     mods=$(perl -ne 'printf("%s;", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_OUT/boot-all.xml)
 
-    args="--mod boot.xml"
+    args="--fpga ${M3_HW_FPGA:-0} --mod boot.xml"
+    if [ "$M3_HW_RESET" = "1" ]; then
+        args="$args --reset"
+    fi
+
     files="run/boot.xml $bindir/peidle"
     IFS=';'
     c=0

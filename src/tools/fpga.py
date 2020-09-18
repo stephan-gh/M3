@@ -146,17 +146,20 @@ def load_prog(pm, i, args):
     pm.rocket_start()
 
 def main():
-    # get connection to FPGA, SW12=0000b -> chipid=0
-    fpga_inst = fpga_top.FPGA_TOP(1)
-    # fpga_inst.eth_rf.system_reset()
-
     mon = NoCmonitor()
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--fpga', type=int)
+    parser.add_argument('--reset', action='store_true')
     parser.add_argument('--pe', action='append')
     parser.add_argument('--mod', action='append')
     parser.add_argument('--fs')
     args = parser.parse_args()
+
+    # connect to FPGA
+    fpga_inst = fpga_top.FPGA_TOP(args.fpga)
+    if args.reset:
+        fpga_inst.eth_rf.system_reset()
 
     mods = [] if args.mod is None else args.mod
 

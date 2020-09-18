@@ -131,6 +131,9 @@ help() {
     echo "    M3_GEM5_FSNUM:           The number of times to load the FS image."
     echo "    M3_GEM5_PAUSE:           Pause the PE with given number until GDB connects"
     echo "                             (only on gem5 and with command dbg=)."
+    echo "    M3_HW_SSH:               The SSH alias for the FPGA PC (default: syn)"
+    echo "    M3_HW_FPGA:              The FPGA number (default 0 = IP 192.168.42.240)"
+    echo "    M3_HW_RESET:             Reset the FPGA before starting"
     exit 0
 }
 
