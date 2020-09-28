@@ -188,7 +188,7 @@ class M3Env(ninjagen.Env):
             outs = outs,
             ins = [],
             deps = deps,
-            vars = { 'cargoflags' : 'xbuild --target ' + env['TRIPLE'] + ' ' + ' '.join(env['CRGFLAGS']) }
+            vars = { 'cargoflags' : 'build -Z build-std=core,alloc --target ' + env['TRIPLE'] + ' ' + ' '.join(env['CRGFLAGS']) }
         ))
 
     def build_fs(self, gen, out, dir, blocks, inodes):

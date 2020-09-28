@@ -49,12 +49,11 @@ The cross compiler will be installed to ``<m3-root>/build/cross-<ISA>``.
 
 ### Rust
 
-M³ is partially written in Rust and therefore you need to install Rust before building M³. Since M³ still uses some nightly features of Rust, you need the nightly version. Additionally, ``cargo-xbuild`` is required to build ``core``, ``alloc``, and other base libraries of Rust for a non-standard platforms like M³. You can install these with ``rustup`` and ``cargo``:
+M³ is partially written in Rust and therefore you need to install Rust before building M³. Since M³ still uses some nightly features of Rust, you need the nightly version as follows:
 
-    $ rustup install nightly-2020-05-30
-    $ rustup default nightly-2020-05-30
+    $ rustup install nightly-2020-09-15
+    $ rustup default nightly-2020-09-15
     $ rustup component add rust-src
-    $ cargo install cargo-xbuild
 
 ### Building:
 

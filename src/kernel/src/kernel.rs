@@ -15,7 +15,6 @@
  */
 
 #![feature(core_intrinsics)]
-#![feature(const_if_match)]
 #![feature(ptr_internals)]
 #![no_std]
 
