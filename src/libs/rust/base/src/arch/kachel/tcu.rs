@@ -560,7 +560,7 @@ impl TCU {
     /// Provides the TCU with the response to a translation core request
     pub fn set_xlate_resp(pte: PTE) {
         let perm_bits = (PageFlags::RWX | PageFlags::L | PageFlags::FIXED).bits();
-        let resp = (pte & !cfg::PAGE_MASK as PTE) | ((pte & perm_bits) << 2);
+        let resp = (pte & !(cfg::PAGE_MASK as PTE)) | ((pte & perm_bits) << 2);
         Self::write_priv_reg(PrivReg::CORE_REQ, resp | 0x1)
     }
 

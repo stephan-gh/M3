@@ -26,7 +26,7 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
         llvm_asm!(
-            "svc $$0"
+            "svc 0"
             : "+{r0}"(res)
             : "{r1}"(arg1), "{r2}"(arg2)
             : "memory"
