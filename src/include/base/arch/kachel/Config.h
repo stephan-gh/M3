@@ -74,11 +74,11 @@
 // |            ...             |
 // +----------------------------+ 0x10200000
 // |      PEMux code+data       |
-// +----------------------------+ 0x102FF000
+// +----------------------------+ 0x103FF000
 // |     PEMux recv buffers     |
-// +----------------------------+ 0x10300000
+// +----------------------------+ 0x10400000
 // |          app stack         |
-// +----------------------------+ 0x10310000
+// +----------------------------+ 0x10410000
 // |       app code+data        |
 // |            ...             |
 // +----------------------------+ 0xD0000000
@@ -129,11 +129,11 @@
 
 #   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x1FF000)
 #else
-#   define STACK_BOTTOM     (MEM_OFFSET + 0x300000)
+#   define STACK_BOTTOM     (MEM_OFFSET + 0x400000)
 
 #   define PEMUX_CODE_START (MEM_OFFSET + 0x200000)
 
-#   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x2FF000)
+#   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x3FF000)
 #endif
 
 #define MAX_RB_SIZE         32

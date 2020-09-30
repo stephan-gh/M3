@@ -63,10 +63,10 @@ cfg_if! {
         pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x1F_F000;
     }
     else {
-        pub const STACK_BOTTOM: usize       = MEM_OFFSET + 0x30_0000;
+        pub const STACK_BOTTOM: usize       = MEM_OFFSET + 0x40_0000;
 
         pub const PEMUX_START: usize        = MEM_OFFSET + 0x20_0000;
-        pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x2F_F000;
+        pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x3F_F000;
     }
 }
 
