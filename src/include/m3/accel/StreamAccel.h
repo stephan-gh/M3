@@ -65,7 +65,7 @@ public:
 
     static const size_t BUF_ADDR    = MEM_OFFSET + 0x8000;
     static const size_t BUF_SIZE    = 8192;
-    static const size_t RECV_ADDR   = MEM_OFFSET + 0x2FFF00;
+    static const size_t RECV_ADDR   = MEM_OFFSET + 0x3FFF00;
 
     explicit StreamAccel(std::unique_ptr<VPE> &vpe, cycles_t /* TODO */)
         : _sgate_in(),
