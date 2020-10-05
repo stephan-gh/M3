@@ -8,6 +8,7 @@ root = createRoot(options)
 
 cmd_list = options.cmd.split(",")
 
+num_eps = 192
 num_mem = 1
 num_pes = int(os.environ.get('M3_GEM5_PES'))
 fsimg = os.environ.get('M3_GEM5_FS')
@@ -27,7 +28,8 @@ for i in range(0, num_pes):
                       memPE=mem_pe,
                       l1size='32kB',
                       l2size='256kB',
-                      tcupos=tcupos)
+                      tcupos=tcupos,
+                      epCount=num_eps)
     pes.append(pe)
 
 options.cpu_clock = '1GHz'
@@ -39,7 +41,8 @@ for i in range(0, len(accs)):
                        no=num_pes + i,
                        accel=accs[i],
                        memPE=mem_pe,
-                       spmsize='2MB')
+                       spmsize='2MB',
+                       epCount=num_eps)
     pes.append(pe)
 
 # create the memory PEs
@@ -49,7 +52,8 @@ for i in range(0, num_mem):
                      no=num_pes + len(accs) + i,
                      size='3072MB',
                      image=fsimg if i == 0 else None,
-                     imageNum=int(fsimgnum))
+                     imageNum=int(fsimgnum),
+                     epCount=num_eps)
     pes.append(pe)
 
 runSimulation(root, options, pes)

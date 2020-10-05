@@ -9,6 +9,7 @@ root = createRoot(options)
 
 cmd_list = options.cmd.split(",")
 
+num_eps = 192
 num_mem = 1
 num_sto = 1 # Number of PEs for IDE storage
 num_pes = int(os.environ.get('M3_GEM5_PES'))
@@ -38,7 +39,8 @@ for i in range(0, num_pes - num_spm):
                       memPE=mem_pe,
                       l1size='32kB',
                       l2size='256kB',
-                      tcupos=tcupos)
+                      tcupos=tcupos,
+                      epCount=num_eps)
     pes.append(pe)
 
 for i in range(num_pes - num_spm, num_pes):
@@ -47,7 +49,8 @@ for i in range(num_pes - num_spm, num_pes):
                       no=i,
                       cmdline=cmd_list[i],
                       memPE=mem_pe,
-                      spmsize='32MB')
+                      spmsize='32MB',
+                      epCount=num_eps)
     pes.append(pe)
 
 # create the persistent storage PEs
@@ -56,20 +59,23 @@ for i in range(0, num_sto):
                          options=options,
                          no=num_pes + i,
                          memPE=mem_pe,
-                         img0=hard_disk0)
+                         img0=hard_disk0,
+                         epCount=num_eps)
     pes.append(pe)
 
 # create ether PEs
 ether0 = createEtherPE(noc=root.noc,
                        options=options,
                        no=num_pes + num_sto + 0,
-                       memPE=mem_pe)
+                       memPE=mem_pe,
+                       epCount=num_eps)
 pes.append(ether0)
 
 ether1 = createEtherPE(noc=root.noc,
                        options=options,
                        no=num_pes + num_sto + 1,
-                       memPE=mem_pe)
+                       memPE=mem_pe,
+                       epCount=num_eps)
 pes.append(ether1)
 
 linkEtherPEs(ether0, ether1)
@@ -80,7 +86,8 @@ for i in range(0, num_rot13):
                         no=num_pes + num_sto + 2 + i,
                         accel='rot13',
                         memPE=mem_pe,
-                        spmsize='2MB')
+                        spmsize='2MB',
+                        epCount=num_eps)
     pes.append(rpe)
 
 # create the memory PEs
@@ -90,7 +97,8 @@ for i in range(0, num_mem):
                      no=num_pes + num_sto + 2 + num_rot13 + i,
                      size='3072MB',
                      image=fsimg if i == 0 else None,
-                     imageNum=int(fsimgnum))
+                     imageNum=int(fsimgnum),
+                     epCount=num_eps)
     pes.append(pe)
 
 runSimulation(root, options, pes)
