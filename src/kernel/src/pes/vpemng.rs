@@ -33,7 +33,10 @@ use crate::mem::{self, Allocation};
 use crate::pes::{PEMng, State, VPEFlags, VPE};
 use crate::platform;
 
+#[cfg(any(target_vendor = "gem5", target_vendor = "host"))]
 pub const MAX_VPES: usize = 64;
+#[cfg(target_vendor = "hw")]
+pub const MAX_VPES: usize = 16;
 
 pub struct VPEMng {
     vpes: Vec<Option<Rc<VPE>>>,
