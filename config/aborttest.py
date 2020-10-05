@@ -6,7 +6,7 @@ from tcu_fs import *
 options = getOptions()
 root = createRoot(options)
 
-num_eps = 192
+num_eps = 64 if os.environ.get('M3_TARGET') == 'hw' else 192
 num_pes = 1
 mem_pe = num_pes
 pes = []
