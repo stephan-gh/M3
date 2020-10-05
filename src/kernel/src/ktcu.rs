@@ -50,7 +50,7 @@ where
 }
 
 pub fn recv_msgs(ep: EpId, buf: goff, ord: u32, msg_ord: u32) -> Result<(), Error> {
-    static REPS: StaticCell<EpId> = StaticCell::new(16);
+    static REPS: StaticCell<EpId> = StaticCell::new(8);
 
     if *REPS + (1 << (ord - msg_ord)) > EP_COUNT {
         return Err(Error::new(Code::NoSpace));
