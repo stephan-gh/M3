@@ -58,7 +58,7 @@ impl BitVec {
         self.words[idx(bit)] |= bitpos(bit);
         if bit == self.first_clear {
             self.first_clear += 1;
-            while self.is_set(self.first_clear) && self.first_clear < self.bits {
+            while self.first_clear < self.bits && self.is_set(self.first_clear) {
                 self.first_clear += 1;
             }
         }
