@@ -60,7 +60,7 @@ void Env::on_exit_func(int status, void *) {
 
 static void load_params(Env *e) {
     char path[64];
-    snprintf(path, sizeof(path), "/tmp/m3/%d", getpid());
+    snprintf(path, sizeof(path), "%s/%d", Env::tmp_dir(), getpid());
     std::ifstream in(path);
     if(!in.good())
         PANIC("Unable to read " << path);

@@ -170,6 +170,11 @@ build_params_hw() {
 }
 
 if [ "$M3_TARGET" = "host" ]; then
+    # use unique temp directory for this run and remove it afterwards
+    dir=$(mktemp -d)
+    export M3_HOST_TMP=$dir
+    trap "rm -rf $dir" EXIT ERR INT TERM
+
     params=$(build_params_host $script) || exit 1
 
     if [[ $params == *disk* ]] && [ "$M3_HDD" = "" ]; then

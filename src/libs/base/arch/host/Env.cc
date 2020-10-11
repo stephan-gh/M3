@@ -69,6 +69,10 @@ Env::Init::Init() {
 Env::Init::~Init() {
 }
 
+const char *Env::tmp_dir() {
+    return getenv("M3_HOST_TMP");
+}
+
 Env::Env(EnvBackend *backend, int logfd)
     : pe_id(set_inst(this)),
       shared(false),

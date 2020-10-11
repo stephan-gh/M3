@@ -78,6 +78,8 @@ public:
         return _exec_short_ptr;
     }
 
+    static const char *tmp_dir();
+
     explicit Env(EnvBackend *backend, int logfd);
     ~Env();
 

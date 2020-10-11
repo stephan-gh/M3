@@ -19,6 +19,7 @@ use core::ptr;
 use crate::cell::{LazyStaticCell, StaticCell};
 use crate::cfg;
 use crate::kif::{CapSel, PEDesc, PEDescRaw};
+use crate::util;
 
 pub struct EnvData {
     pub pe_id: u64,
@@ -60,6 +61,13 @@ pub fn get() -> &'static mut EnvData {
 
 pub fn set(data: EnvData) {
     ENV_DATA.set(data);
+}
+
+pub fn tmp_dir() -> &'static str {
+    unsafe {
+        let tmp_dir = libc::getenv("M3_HOST_TMP\0".as_bytes().as_ptr() as *const i8);
+        util::cstr_to_str(tmp_dir)
+    }
 }
 
 pub fn eps_start() -> usize {

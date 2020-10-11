@@ -59,10 +59,6 @@ pub extern "C" fn rust_deinit(_status: i32, _arg: *const libc::c_void) {
 pub fn main() -> i32 {
     args::parse();
 
-    unsafe {
-        libc::mkdir("/tmp/m3\0".as_ptr() as *const i8, 0o755);
-    }
-
     mem::init();
     ktcu::init();
     platform::init(&args::get().free);

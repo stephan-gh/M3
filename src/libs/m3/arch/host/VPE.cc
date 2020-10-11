@@ -77,7 +77,7 @@ static const size_t STATE_BUF_SIZE    = 4096;
 static void write_file(pid_t pid, const char *suffix, const void *data, size_t size) {
     if(data) {
         char path[64];
-        snprintf(path, sizeof(path), "/tmp/m3/%d-%s", pid, suffix);
+        snprintf(path, sizeof(path), "%s/%d-%s", Env::tmp_dir(), pid, suffix);
         int fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);
         if(fd < 0)
             perror("open");
@@ -97,7 +97,7 @@ static void write_file(pid_t pid, const char *suffix, uint64_t value) {
 
 static void *read_from(const char *suffix, void *dst, size_t &size) {
     char path[64];
-    snprintf(path, sizeof(path), "/tmp/m3/%d-%s", getpid(), suffix);
+    snprintf(path, sizeof(path), "%s/%d-%s", Env::tmp_dir(), getpid(), suffix);
     int fd = open(path, O_RDONLY);
     if(fd >= 0) {
         if(dst == nullptr) {
@@ -218,10 +218,12 @@ void VPE::run(void *lambda) {
 
 void VPE::exec(int argc, const char **argv) {
     static char buffer[8192];
-    char templ[] = "/tmp/m3-XXXXXX";
     int tmp, pid;
     size_t res;
     Chan p2c, c2p;
+
+    char templ[256];
+    snprintf(templ, sizeof(templ), "%s/exec-XXXXXX", Env::tmp_dir());
 
     FileRef bin(argv[0], FILE_R);
     tmp = mkstemp(templ);

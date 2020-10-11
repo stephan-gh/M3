@@ -17,7 +17,7 @@
 use core::mem::MaybeUninit;
 use core::ptr;
 
-use crate::col::{String, ToString, Vec};
+use crate::col::{String, Vec};
 use crate::com::VecSink;
 use crate::errors::{Code, Error};
 use crate::format;
@@ -86,7 +86,7 @@ impl Drop for Channel {
 pub fn copy_file(file: &mut FileRef) -> Result<String, Error> {
     let mut buf = vec![0u8; 8192];
 
-    let mut path = "/tmp/m3-XXXXXX\0".to_string();
+    let mut path = format!("{}/exec-XXXXXX\0", base::envdata::tmp_dir());
 
     unsafe {
         let tmp = libc::mkstemp(path.as_bytes_mut().as_mut_ptr() as *mut i8);
@@ -113,7 +113,7 @@ pub fn copy_file(file: &mut FileRef) -> Result<String, Error> {
 
 pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
     unsafe {
-        let path = format!("/tmp/m3/{}-{}\0", libc::getpid(), suffix);
+        let path = format!("{}/{}-{}\0", base::envdata::tmp_dir(), libc::getpid(), suffix);
         let path_ptr = path.as_bytes().as_ptr() as *const i8;
         let fd = libc::open(path_ptr, libc::O_RDONLY);
         if fd == -1 {
@@ -144,7 +144,7 @@ pub fn write_env_value(pid: i32, suffix: &str, data: u64) {
 }
 
 pub fn write_env_file(pid: i32, suffix: &str, data: &[u64]) {
-    let path = format!("/tmp/m3/{}-{}\0", pid, suffix);
+    let path = format!("{}/{}-{}\0", base::envdata::tmp_dir(), pid, suffix);
     unsafe {
         let fd = libc::open(
             path.as_bytes().as_ptr() as *const i8,

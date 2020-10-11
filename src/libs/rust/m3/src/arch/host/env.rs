@@ -151,7 +151,7 @@ pub fn get() -> &'static mut EnvData {
 
 pub fn init(argc: i32, argv: *const *const i8) {
     let fd = unsafe {
-        let path = format!("/tmp/m3/{}\0", libc::getpid());
+        let path = format!("{}/{}\0", base::envdata::tmp_dir(), libc::getpid());
         libc::open(path.as_ptr() as *const libc::c_char, libc::O_RDONLY)
     };
     assert!(fd != -1);

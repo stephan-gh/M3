@@ -17,6 +17,7 @@
 use base::cell::StaticCell;
 use base::cfg;
 use base::col::{String, ToString, Vec};
+use base::envdata;
 use base::errors::{Code, Error};
 use base::format;
 use base::kif;
@@ -89,7 +90,7 @@ impl Loader {
     }
 
     fn write_env_file(pid: i32, id: VPEId, pe: PEId, first_sel: kif::CapSel) {
-        let path = format!("/tmp/m3/{}\0", pid);
+        let path = format!("{}/{}\0", envdata::tmp_dir(), pid);
         let data = format!(
             "{}\n{}\n{}\n{}\n{}\n{}\n{}\n",
             "foo", // TODO SHM prefix
