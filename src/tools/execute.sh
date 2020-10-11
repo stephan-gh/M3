@@ -59,21 +59,19 @@ generate_config() {
 }
 
 build_params_host() {
-    generate_config $1 run || exit 1
+    generate_config $1 $M3_OUT || exit 1
 
-    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < run/boot-all.xml)
-    mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < run/boot-all.xml)
-    echo "$bindir/$kargs run/boot.xml$mods"
+    kargs=$(perl -ne '/<kernel\s.*args="(.*?)"/ && print $1' < $M3_OUT/boot-all.xml)
+    mods=$(perl -ne 'printf(" '$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_OUT/boot-all.xml)
+    echo "$bindir/$kargs $M3_OUT/boot.xml$mods"
 }
 
 build_params_gem5() {
-    M3_GEM5_OUT=${M3_GEM5_OUT:-run}
+    generate_config $1 $M3_OUT || exit 1
 
-    generate_config $1 $M3_GEM5_OUT || exit 1
-
-    kargs=$(perl -ne 'printf("'$bindir/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < $M3_GEM5_OUT/boot-all.xml)
-    mods=$(perl -ne 'printf(",'$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_GEM5_OUT/boot-all.xml)
-    mods="$M3_GEM5_OUT/boot.xml$mods"
+    kargs=$(perl -ne 'printf("'$bindir/'%s,", $1) if /<kernel\s.*args="(.*?)"/' < $M3_OUT/boot-all.xml)
+    mods=$(perl -ne 'printf(",'$bindir'/%s", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_OUT/boot-all.xml)
+    mods="$M3_OUT/boot.xml$mods"
 
     if [ "$M3_GEM5_DBG" = "" ]; then
         M3_GEM5_DBG="Tcu"
@@ -109,7 +107,7 @@ build_params_gem5() {
     params=$(mktemp)
     trap "rm -f $params" EXIT ERR INT TERM
 
-    echo -n "--outdir=$M3_GEM5_OUT --debug-file=gem5.log --debug-flags=$M3_GEM5_DBG" >> $params
+    echo -n "--outdir=$M3_OUT --debug-file=gem5.log --debug-flags=$M3_GEM5_DBG" >> $params
     if [ "$M3_GEM5_PAUSE" != "" ]; then
         echo -n " --listener-mode=on" >> $params
     fi
@@ -152,9 +150,9 @@ build_params_gem5() {
 }
 
 build_params_hw() {
-    generate_config $1 run || exit 1
+    generate_config $1 $M3_OUT || exit 1
 
-    kargs=$(perl -ne 'printf("%s.hex ", $1) if /<kernel\s.*args="(.*?)"/' < run/boot-all.xml)
+    kargs=$(perl -ne 'printf("%s.hex ", $1) if /<kernel\s.*args="(.*?)"/' < $M3_OUT/boot-all.xml)
 
     args=""
     files=""
@@ -166,7 +164,7 @@ build_params_hw() {
     scp src/tools/fpga.py $files $hwssh:m3
 
     ssh -t $hwssh "cd m3 && source setup.sh && ./fpga.py $args | tee log.txt"
-    scp $hwssh:m3/log.txt run
+    scp $hwssh:m3/log.txt $M3_OUT
 }
 
 if [ "$M3_TARGET" = "host" ]; then

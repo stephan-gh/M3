@@ -79,6 +79,7 @@ public:
     }
 
     static const char *tmp_dir();
+    static const char *out_dir();
 
     explicit Env(EnvBackend *backend, int logfd);
     ~Env();

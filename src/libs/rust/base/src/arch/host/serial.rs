@@ -14,8 +14,10 @@
  * General Public License version 2 for more details.
  */
 
+use alloc::format;
 use libc;
 
+use crate::envdata;
 use crate::errors::{Code, Error};
 
 static mut LOG_FD: i32 = -1;
@@ -36,8 +38,9 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
 
 pub fn init() {
     unsafe {
+        let path = format!("{}/log.txt\0", envdata::out_dir());
         LOG_FD = libc::open(
-            "run/log.txt\0".as_ptr() as *const libc::c_char,
+            path.as_ptr() as *const libc::c_char,
             libc::O_WRONLY | libc::O_APPEND,
         );
         assert!(LOG_FD != -1);

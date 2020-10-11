@@ -80,7 +80,9 @@ static void load_params(Env *e) {
 EXTERN_C WEAK void init_env() {
     std::set_terminate(Exception::terminate_handler);
 
-    int logfd = open("run/log.txt", O_WRONLY | O_APPEND);
+    char log_file[256];
+    snprintf(log_file, sizeof(log_file), "%s/log.txt", Env::out_dir());
+    int logfd = open(log_file, O_WRONLY | O_APPEND);
 
     new Env(new HostEnvBackend(), logfd);
     load_params(env());

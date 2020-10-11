@@ -10,8 +10,8 @@ fi
 if [ -z $M3_ISA ]; then
     M3_ISA='x86_64'
 fi
-if [ -z $M3_GEM5_OUT ]; then
-    M3_GEM5_OUT="run"
+if [ -z $M3_OUT ]; then
+    M3_OUT="run"
 fi
 
 # set target
@@ -30,7 +30,7 @@ else
     echo "Target $M3_TARGET not supported." >&2 && exit 1
 fi
 
-export M3_BUILD M3_TARGET M3_ISA
+export M3_BUILD M3_TARGET M3_ISA M3_OUT
 
 # determine cross compiler and rust ABI based on target and ISA
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$build/bin"
@@ -120,10 +120,10 @@ help() {
     echo "    M3_CORES:                # of cores to simulate."
     echo "    M3_FS:                   The filesystem to use (filename only)."
     echo "    M3_HDD:                  The hard drive image to use (filename only)."
+    echo "    M3_OUT:                  The output directory ('run' by default)."
     echo "    M3_GEM5_DBG:             The trace-flags for gem5 (--debug-flags)."
     echo "    M3_GEM5_DBGSTART:        When to start tracing for gem5 (--debug-start)."
     echo "    M3_GEM5_CPU:             The CPU model (detailed by default)."
-    echo "    M3_GEM5_OUT:             The output directory of gem5 ('run' by default)."
     echo "    M3_GEM5_TCUPOS:          The TCU position (0=before L1, 1=behind L1 or"
     echo "                             2=behind L2)."
     echo "    M3_GEM5_CPUFREQ:         The CPU frequency (1GHz by default)."
@@ -157,7 +157,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-mkdir -p $build run
+mkdir -p $build $M3_OUT
 
 if [ "$M3_VERBOSE" != "" ]; then
     ninjaargs="-v"
@@ -187,8 +187,8 @@ if [ $skipbuild -eq 0 ]; then
 fi
 
 run_on_host() {
-    echo -n > run/log.txt
-    tail -f run/log.txt &
+    echo -n > $M3_OUT/log.txt
+    tail -f $M3_OUT/log.txt &
     tailpid=$!
     trap 'stty sane && kill $tailpid' INT
     ./src/tools/execute.sh $1
@@ -232,14 +232,14 @@ case "$cmd" in
             if [ "$DBG_GEM5" = "1" ]; then
                 ./src/tools/execute.sh $script
             else
-                ./src/tools/execute.sh $script 2>&1 | tee $M3_GEM5_OUT/log.txt
+                ./src/tools/execute.sh $script 2>&1 | tee $M3_OUT/log.txt
             fi
         fi
         ;;
 
     rungem5)
         if [ "$M3_TARGET" = "gem5" ] || [ "$M3_TARGET" = "hw" ]; then
-            M3_RUN_GEM5=1 ./src/tools/execute.sh $script 2>&1 | tee $M3_GEM5_OUT/log.txt
+            M3_RUN_GEM5=1 ./src/tools/execute.sh $script 2>&1 | tee $M3_OUT/log.txt
         fi
         ;;
 
@@ -335,11 +335,11 @@ case "$cmd" in
             kill_m3_procs 2>/dev/null
             rm $tmp
         elif [ "$M3_TARGET" = "gem5" ]; then
-            truncate --size 0 $M3_GEM5_OUT/log.txt
-            ./src/tools/execute.sh $script --debug=${cmd#dbg=} 1>$M3_GEM5_OUT/log.txt 2>&1 &
+            truncate --size 0 $M3_OUT/log.txt
+            ./src/tools/execute.sh $script --debug=${cmd#dbg=} 1>$M3_OUT/log.txt 2>&1 &
 
             # wait until it has started
-            while [ "`grep --text "Global frequency set at" $M3_GEM5_OUT/log.txt`" = "" ]; do
+            while [ "`grep --text "Global frequency set at" $M3_OUT/log.txt`" = "" ]; do
                 sleep 1
             done
 
@@ -347,7 +347,7 @@ case "$cmd" in
                 port=$(($M3_GEM5_PAUSE + 7000))
             else
                 echo "Warning: M3_GEM5_PAUSE not specified; gem5 won't wait for GDB."
-                pe=`grep --text "^PE.*$build/bin/${cmd#dbg=}" $M3_GEM5_OUT/log.txt | cut -d : -f 1`
+                pe=`grep --text "^PE.*$build/bin/${cmd#dbg=}" $M3_OUT/log.txt | cut -d : -f 1`
                 port=$((${pe#PE} + 7000))
             fi
 

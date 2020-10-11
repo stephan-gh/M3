@@ -64,9 +64,18 @@ pub fn set(data: EnvData) {
 }
 
 pub fn tmp_dir() -> &'static str {
+    get_env("M3_HOST_TMP\0")
+}
+
+pub fn out_dir() -> &'static str {
+    get_env("M3_OUT\0")
+}
+
+fn get_env(name: &str) -> &'static str {
     unsafe {
-        let tmp_dir = libc::getenv("M3_HOST_TMP\0".as_bytes().as_ptr() as *const i8);
-        util::cstr_to_str(tmp_dir)
+        let value = libc::getenv(name.as_bytes().as_ptr() as *const i8);
+        assert!(value != ptr::null_mut());
+        util::cstr_to_str(value)
     }
 }
 
