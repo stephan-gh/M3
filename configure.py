@@ -162,9 +162,10 @@ class M3Env(ninjagen.Env):
             crates += [
                 'src/apps/ruststandalone',
                 'src/libs/rust/paging',
-                'src/peidle',
                 'src/pemux',
             ]
+        if self['TGT'] == 'hw':
+            crates += ['src/peidle']
 
         env = self.clone()
         for cr in crates:
@@ -174,9 +175,8 @@ class M3Env(ninjagen.Env):
             deps += [cr + '/Cargo.toml']
             deps += env.glob(cr + '/**/*.rs', recursive = True)
             deps += ['src/toolchain/rust/' + env['TRIPLE'] + '.json']
-            # some crates can't be build for host; only built the supported crates in the workspace
-            if env['PLATF'] == 'host':
-                env['CRGFLAGS'] += ['-p', crate_name]
+            # specify crates explicitly, because some crates are only supported by some targets
+            env['CRGFLAGS'] += ['-p', crate_name]
 
         # we need the touch here, because cargo does sometimes not rebuild a crate even if a rust
         # file is more recent than the output
