@@ -18,9 +18,9 @@ use crate::arch::cpu;
 use crate::time;
 
 pub fn start(_msg: usize) -> time::Time {
-    cpu::rdtsc()
+    cpu::elapsed_cycles()
 }
 
 pub fn stop(_msg: usize) -> time::Time {
-    cpu::rdtsc()
+    cpu::elapsed_cycles()
 }

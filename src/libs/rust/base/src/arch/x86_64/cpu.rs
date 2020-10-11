@@ -45,8 +45,8 @@ impl_write_reg!(write_cr0, "cr0");
 impl_write_reg!(write_cr3, "cr3");
 impl_write_reg!(write_cr4, "cr4");
 
-impl_read_reg!(get_sp, "rsp");
-impl_read_reg!(get_bp, "rbp");
+impl_read_reg!(stack_pointer, "rsp");
+impl_read_reg!(base_pointer, "rbp");
 
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn read8b(addr: usize) -> u64 {
@@ -76,7 +76,7 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     *bp_ptr
 }
 
-pub fn rdtsc() -> time::Time {
+pub fn elapsed_cycles() -> time::Time {
     let u: u32;
     let l: u32;
     unsafe {

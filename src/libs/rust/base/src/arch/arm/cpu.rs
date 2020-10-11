@@ -38,7 +38,7 @@ pub unsafe fn write8b(addr: usize, val: u64) {
 }
 
 #[inline(always)]
-pub fn get_sp() -> usize {
+pub fn stack_pointer() -> usize {
     let res: usize;
     unsafe {
         llvm_asm!(
@@ -50,7 +50,7 @@ pub fn get_sp() -> usize {
 }
 
 #[inline(always)]
-pub fn get_bp() -> usize {
+pub fn base_pointer() -> usize {
     let val: usize;
     unsafe {
         llvm_asm!(
@@ -68,7 +68,7 @@ pub unsafe fn backtrace_step(bp: usize, func: &mut usize) -> usize {
     *bp_ptr
 }
 
-pub fn rdtsc() -> time::Time {
+pub fn elapsed_cycles() -> time::Time {
     // TODO implement me
     0
 }

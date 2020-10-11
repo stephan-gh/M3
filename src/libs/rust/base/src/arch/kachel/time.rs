@@ -25,7 +25,7 @@ pub fn start(msg: usize) -> time::Time {
         cpu::gem5_debug(START_TSC | msg)
     }
     else {
-        cpu::rdtsc()
+        cpu::elapsed_cycles()
     }
 }
 
@@ -34,6 +34,6 @@ pub fn stop(msg: usize) -> time::Time {
         cpu::gem5_debug(STOP_TSC | msg)
     }
     else {
-        cpu::rdtsc()
+        cpu::elapsed_cycles()
     }
 }

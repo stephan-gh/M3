@@ -77,7 +77,7 @@ void VPE::run(void *lambda) {
     senv.argv = ENV_SPACE_START;
     senv.heap_size = env()->heap_size;
 
-    senv.sp = CPU::get_sp();
+    senv.sp = CPU::stack_pointer();
     senv.entry = get_entry();
     senv.first_std_ep = _eps_start;
     senv.first_sel = 0;
@@ -340,7 +340,7 @@ void VPE::copy_sections() {
     mem.write(reinterpret_cast<void*>(start_addr), Heap::end_area_size(), start_addr);
 
     /* copy stack */
-    start_addr = CPU::get_sp();
+    start_addr = CPU::stack_pointer();
     end_addr = STACK_TOP;
     mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 }

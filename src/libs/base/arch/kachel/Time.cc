@@ -51,7 +51,7 @@ cycles_t Time::start(unsigned msg) {
     CPU::compiler_barrier();
     if(env()->platform == Platform::GEM5)
         return gem5_debug(START_TSC | msg);
-    return CPU::rdtsc();
+    return CPU::elapsed_cycles();
 }
 
 cycles_t Time::stop(unsigned msg) {
@@ -59,7 +59,7 @@ cycles_t Time::stop(unsigned msg) {
     if(env()->platform == Platform::GEM5)
         res = gem5_debug(STOP_TSC | msg);
     else
-        res = CPU::rdtsc();
+        res = CPU::elapsed_cycles();
     CPU::compiler_barrier();
     return res;
 }

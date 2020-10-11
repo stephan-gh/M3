@@ -139,7 +139,7 @@ fn create_mgate() {
             Code::InvArgs
         );
         // and respect the permissions
-        let addr = cpu::get_sp() as goff;
+        let addr = cpu::stack_pointer() as goff;
         let addr = math::round_dn(addr, PAGE_SIZE as goff);
         wv_assert_err!(
             syscalls::create_mgate(sel, SEL_VPE, addr, PAGE_SIZE as goff, Perm::X),

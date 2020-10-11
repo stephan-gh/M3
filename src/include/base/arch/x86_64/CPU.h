@@ -41,7 +41,7 @@ inline void CPU::write8b(uintptr_t addr, uint64_t val) {
     );
 }
 
-ALWAYS_INLINE word_t CPU::get_bp() {
+ALWAYS_INLINE word_t CPU::base_pointer() {
     word_t val;
     asm volatile (
           "mov %%rbp, %0;"
@@ -50,7 +50,7 @@ ALWAYS_INLINE word_t CPU::get_bp() {
     return val;
 }
 
-ALWAYS_INLINE word_t CPU::get_sp() {
+ALWAYS_INLINE word_t CPU::stack_pointer() {
     word_t val;
     asm volatile (
           "mov %%rsp, %0;"
@@ -59,7 +59,7 @@ ALWAYS_INLINE word_t CPU::get_sp() {
     return val;
 }
 
-inline cycles_t CPU::rdtsc() {
+inline cycles_t CPU::elapsed_cycles() {
     uint32_t u, l;
     asm volatile ("rdtsc" : "=a" (l), "=d" (u) : : "memory");
     return static_cast<cycles_t>(u) << 32 | l;

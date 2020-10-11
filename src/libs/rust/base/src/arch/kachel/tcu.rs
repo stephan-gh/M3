@@ -656,8 +656,8 @@ impl TCU {
         addr as Reg | (size as Reg) << 32
     }
 
-    fn build_cmd(ep: EpId, c: CmdOpCode, arg: Reg) -> Reg {
-        c.val as Reg | ((ep as Reg) << 4) | (arg << 25)
+    fn build_cmd(ep: EpId, cmd: CmdOpCode, arg: Reg) -> Reg {
+        cmd.val as Reg | ((ep as Reg) << 4) | (arg << 25)
     }
 }
 

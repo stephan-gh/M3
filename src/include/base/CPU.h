@@ -25,14 +25,14 @@ public:
     static inline uint64_t read8b(uintptr_t addr);
     static inline void write8b(uintptr_t addr, uint64_t val);
 
-    static inline word_t get_bp();
-    static inline word_t get_sp();
+    static inline word_t base_pointer();
+    static inline word_t stack_pointer();
 
     NORETURN static inline void exit();
 
     static uintptr_t backtrace_step(uintptr_t bp, uintptr_t *func);
 
-    static cycles_t rdtsc();
+    static cycles_t elapsed_cycles();
 
     static inline void compute(cycles_t cycles);
 

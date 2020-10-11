@@ -26,7 +26,7 @@ cycles_t Time::start(unsigned u) {
 
 cycles_t Time::stop(unsigned) {
 #if defined(__i386__) or defined(__x86_64__)
-    return CPU::rdtsc();
+    return CPU::elapsed_cycles();
 #elif defined(__arm__)
     struct timeval tv;
     gettimeofday(&tv,nullptr);

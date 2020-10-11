@@ -26,7 +26,7 @@ use crate::math;
 /// The function assumes that the stack is aligned by `cfg::STACK_SIZE` and ensures to not access
 /// below or above the stack.
 pub fn collect(addrs: &mut [usize]) -> usize {
-    let mut bp = cpu::get_bp();
+    let mut bp = cpu::base_pointer();
     if bp == 0 {
         return 0;
     }

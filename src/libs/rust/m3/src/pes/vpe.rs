@@ -407,7 +407,7 @@ impl VPE {
 
         let closure = {
             senv.set_platform(arch::env::get().platform());
-            senv.set_sp(cpu::get_sp());
+            senv.set_sp(cpu::stack_pointer());
             let entry = match self.pager {
                 // clone via copy-on-write
                 Some(ref pg) => arch::loader::clone_vpe(pg),

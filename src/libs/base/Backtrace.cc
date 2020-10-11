@@ -23,7 +23,7 @@
 namespace m3 {
 
 size_t Backtrace::collect(uintptr_t *addr, size_t max) {
-    uintptr_t bp = CPU::get_bp();
+    uintptr_t bp = CPU::base_pointer();
 
     uintptr_t base = Math::round_dn<uintptr_t>(bp, STACK_SIZE);
     uintptr_t end = Math::round_up<uintptr_t>(bp, STACK_SIZE);

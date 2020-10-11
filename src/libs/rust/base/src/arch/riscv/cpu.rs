@@ -60,7 +60,7 @@ pub unsafe fn write8b(addr: usize, val: u64) {
 }
 
 #[inline(always)]
-pub fn get_sp() -> usize {
+pub fn stack_pointer() -> usize {
     let sp: usize;
     unsafe {
         llvm_asm!(
@@ -72,7 +72,7 @@ pub fn get_sp() -> usize {
 }
 
 #[inline(always)]
-pub fn get_bp() -> usize {
+pub fn base_pointer() -> usize {
     let fp: usize;
     unsafe {
         llvm_asm!(
@@ -83,7 +83,7 @@ pub fn get_bp() -> usize {
     fp
 }
 
-pub fn rdtsc() -> time::Time {
+pub fn elapsed_cycles() -> time::Time {
     let mut res: time::Time;
     unsafe {
         llvm_asm!(

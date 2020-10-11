@@ -40,7 +40,7 @@ inline void CPU::write8b(uintptr_t addr, uint64_t val) {
     );
 }
 
-ALWAYS_INLINE word_t CPU::get_bp() {
+ALWAYS_INLINE word_t CPU::base_pointer() {
     word_t val;
     asm volatile (
         "mov %0, r11;"
@@ -49,7 +49,7 @@ ALWAYS_INLINE word_t CPU::get_bp() {
     return val;
 }
 
-ALWAYS_INLINE word_t CPU::get_sp() {
+ALWAYS_INLINE word_t CPU::stack_pointer() {
     word_t val;
     asm volatile (
         "mov %0, r13;"
@@ -58,7 +58,7 @@ ALWAYS_INLINE word_t CPU::get_sp() {
     return val;
 }
 
-inline cycles_t CPU::rdtsc() {
+inline cycles_t CPU::elapsed_cycles() {
     // TODO implement me
     return 0;
 }
