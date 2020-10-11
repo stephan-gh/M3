@@ -62,12 +62,13 @@ impl SocketBackend {
         unsafe {
             assert!(libc::fcntl(knotify_sock, libc::F_SETFD, libc::FD_CLOEXEC) == 0);
         }
-        let knotify_addr = Self::get_sock_addr("\0m3_knotify\0");
+        let knotify_name = format!("\0{}/knotify\0", envdata::tmp_dir());
+        let knotify_addr = Self::get_sock_addr(&knotify_name);
 
         let mut eps = vec![];
         for pe in 0..PE_COUNT {
             for ep in 0..EP_COUNT {
-                let addr = format!("\0m3_ep_{}.{}\0", pe, ep);
+                let addr = format!("\0{}/ep_{}.{}\0", envdata::tmp_dir(), pe, ep);
                 eps.push(Self::get_sock_addr(&addr));
             }
         }

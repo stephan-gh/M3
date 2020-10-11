@@ -45,7 +45,8 @@ TCUBackend::TCUBackend()
 
     _knotify_addr.sun_family = AF_UNIX;
     _knotify_addr.sun_path[0] = '\0';
-    strcpy(_knotify_addr.sun_path + 1, "m3_knotify");
+    snprintf(_knotify_addr.sun_path + 1, sizeof(_knotify_addr.sun_path) - 1,
+             "%s/knotify", Env::tmp_dir());
 
     // build socket names for all endpoints on all PEs
     for(peid_t pe = 0; pe < PE_COUNT; ++pe) {
@@ -54,7 +55,8 @@ TCUBackend::TCUBackend()
             addr->sun_family = AF_UNIX;
             // we can't put that in the format string
             addr->sun_path[0] = '\0';
-            snprintf(addr->sun_path + 1, sizeof(addr->sun_path) - 1, "m3_ep_%d.%d", (int)pe, (int)ep);
+            snprintf(addr->sun_path + 1, sizeof(addr->sun_path) - 1,
+                     "%s/ep_%d.%d", Env::tmp_dir(), (int)pe, (int)ep);
         }
     }
 
