@@ -51,13 +51,13 @@ where
     loop {
         let is = RGATE.fetch();
         if let Some(is) = is {
-            handle_request(is);
+            handle_request_async(is);
             subsys::start_delayed(&mut spawn)?;
         }
 
         let msg = tcu::TCUIf::fetch_msg(upcall_rg);
         if let Some(msg) = msg {
-            childs::get().handle_upcall(msg);
+            childs::get().handle_upcall_async(msg);
         }
 
         sendqueue::check_replies();
@@ -83,19 +83,19 @@ where
     Ok(())
 }
 
-fn handle_request(mut is: GateIStream) {
+fn handle_request_async(mut is: GateIStream) {
     let op: Result<ResMngOperation, Error> = is.pop();
     let child = childs::get().child_by_id_mut(is.label() as Id).unwrap();
 
     let res = match op {
         Ok(ResMngOperation::REG_SERV) => reg_serv(&mut is, child),
-        Ok(ResMngOperation::UNREG_SERV) => unreg_serv(&mut is, child),
+        Ok(ResMngOperation::UNREG_SERV) => unreg_serv_async(&mut is, child),
 
-        Ok(ResMngOperation::OPEN_SESS) => open_session(&mut is, child),
-        Ok(ResMngOperation::CLOSE_SESS) => close_session(&mut is, child),
+        Ok(ResMngOperation::OPEN_SESS) => open_session_async(&mut is, child),
+        Ok(ResMngOperation::CLOSE_SESS) => close_session_async(&mut is, child),
 
         Ok(ResMngOperation::ADD_CHILD) => add_child(&mut is, child),
-        Ok(ResMngOperation::REM_CHILD) => rem_child(&mut is, child),
+        Ok(ResMngOperation::REM_CHILD) => rem_child_async(&mut is, child),
 
         Ok(ResMngOperation::ALLOC_MEM) => alloc_mem(&mut is, child),
         Ok(ResMngOperation::FREE_MEM) => free_mem(&mut is, child),
@@ -131,24 +131,24 @@ fn reg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     child.reg_service(dst_sel, sgate_sel, name, sessions)
 }
 
-fn unreg_serv(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+fn unreg_serv_async(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
     let notify: bool = is.pop()?;
 
-    child.unreg_service(sel, notify)
+    child.unreg_service_async(sel, notify)
 }
 
-fn open_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+fn open_session_async(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let dst_sel: Selector = is.pop()?;
     let name: String = is.pop()?;
 
-    child.open_session(dst_sel, &name)
+    child.open_session_async(dst_sel, &name)
 }
 
-fn close_session(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+fn close_session_async(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let sel: Selector = is.pop()?;
 
-    child.close_session(sel)
+    child.close_session_async(sel)
 }
 
 fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
@@ -159,10 +159,10 @@ fn add_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     child.add_child(vpe_sel, &RGATE, sgate_sel, name)
 }
 
-fn rem_child(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
+fn rem_child_async(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {
     let vpe_sel: Selector = is.pop()?;
 
-    child.rem_child(vpe_sel)
+    child.rem_child_async(vpe_sel)
 }
 
 fn alloc_mem(is: &mut GateIStream, child: &mut dyn Child) -> Result<(), Error> {

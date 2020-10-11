@@ -400,7 +400,7 @@ impl SubsystemBuilder {
             + util::size_of::<boot::Service>() * self.servs.len()
     }
 
-    pub fn finalize(&mut self, vpe: &mut VPE) -> Result<(), Error> {
+    pub fn finalize_async(&mut self, vpe: &mut VPE) -> Result<(), Error> {
         let mut sel = SUBSYS_SELS;
         let mut off: goff = 0;
 
@@ -461,7 +461,7 @@ impl SubsystemBuilder {
                 }
                 (serv.sessions() - sess_fixed) / sess_frac
             };
-            let subserv = serv.derive(sessions)?;
+            let subserv = serv.derive_async(sessions)?;
             let boot_serv = boot::Service::new(name, sessions);
             mem.write_obj(&boot_serv, off)?;
 

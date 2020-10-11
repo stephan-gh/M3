@@ -170,7 +170,7 @@ pub trait Child {
         Ok(())
     }
 
-    fn rem_child(&mut self, vpe_sel: Selector) -> Result<(), Error> {
+    fn rem_child_async(&mut self, vpe_sel: Selector) -> Result<(), Error> {
         log!(
             crate::LOG_CHILD,
             "{}: rem_child(vpe={})",
@@ -185,7 +185,7 @@ pub trait Child {
             .position(|c| c.1 == vpe_sel)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         let id = self.res().childs[idx].0;
-        get().remove_rec(id);
+        get().remove_rec_async(id);
         self.res_mut().childs.remove(idx);
         Ok(())
     }
@@ -246,7 +246,7 @@ pub trait Child {
         Ok(())
     }
 
-    fn unreg_service(&mut self, sel: Selector, notify: bool) -> Result<(), Error> {
+    fn unreg_service_async(&mut self, sel: Selector, notify: bool) -> Result<(), Error> {
         log!(crate::LOG_SERV, "{}: unreg_serv(sel={})", self.name(), sel);
 
         let id = {
@@ -257,13 +257,13 @@ pub trait Child {
                 .map(|idx| serv.remove(idx).0)
         }?;
 
-        let serv = services::get().remove_service(id, notify);
+        let serv = services::get().remove_service_async(id, notify);
         self.cfg().unreg_service(serv.name());
 
         Ok(())
     }
 
-    fn open_session(&mut self, dst_sel: Selector, name: &str) -> Result<(), Error> {
+    fn open_session_async(&mut self, dst_sel: Selector, name: &str) -> Result<(), Error> {
         log!(
             crate::LOG_SERV,
             "{}: open_sess(dst_sel={}, name={})",
@@ -281,7 +281,11 @@ pub trait Child {
         }
 
         let serv = services::get().get(sdesc.serv_name())?;
-        let sess = Session::new(dst_sel, serv, sdesc.arg())?;
+        let sess = Session::new_async(dst_sel, serv, sdesc.arg())?;
+        // check again if it's still unused, because of the async call above
+        if sdesc.is_used() {
+            return Err(Error::new(Code::Exists));
+        }
 
         syscalls::get_sess(serv.sel(), self.vpe_sel(), dst_sel, sess.ident())?;
 
@@ -291,7 +295,7 @@ pub trait Child {
         Ok(())
     }
 
-    fn close_session(&mut self, sel: Selector) -> Result<(), Error> {
+    fn close_session_async(&mut self, sel: Selector) -> Result<(), Error> {
         log!(crate::LOG_SERV, "{}: close_sess(sel={})", self.name(), sel);
 
         let (cfg_idx, sess) = {
@@ -304,7 +308,7 @@ pub trait Child {
         }?;
 
         self.cfg().close_session(cfg_idx);
-        sess.close()
+        sess.close_async()
     }
 
     fn alloc_mem(&mut self, dst_sel: Selector, size: goff, perm: Perm) -> Result<(), Error> {
@@ -490,19 +494,17 @@ pub trait Child {
         Ok(())
     }
 
-    fn remove_resources(&mut self)
-    where
-        Self: Sized,
+    fn remove_resources_async(&mut self)
     {
         while !self.res().sessions.is_empty() {
             let (idx, sess) = self.res_mut().sessions.remove(0);
             self.cfg().close_session(idx);
-            sess.close().ok();
+            sess.close_async().ok();
         }
 
         while !self.res().services.is_empty() {
             let (id, _) = self.res_mut().services.remove(0);
-            let serv = services::get().remove_service(id, false);
+            let serv = services::get().remove_service_async(id, false);
             self.cfg().unreg_service(serv.name());
         }
 
@@ -651,12 +653,6 @@ impl fmt::Debug for OwnChild {
     }
 }
 
-impl Drop for OwnChild {
-    fn drop(&mut self) {
-        self.remove_resources();
-    }
-}
-
 pub struct ForeignChild {
     id: Id,
     name: String,
@@ -733,12 +729,6 @@ impl Child for ForeignChild {
 impl fmt::Debug for ForeignChild {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "ForeignChild[id={}, mem={:?}]", self.id, self.mem)
-    }
-}
-
-impl Drop for ForeignChild {
-    fn drop(&mut self) {
-        self.remove_resources();
     }
 }
 
@@ -840,11 +830,11 @@ impl ChildManager {
         syscalls::vpe_wait(&sels, event).unwrap();
     }
 
-    pub fn handle_upcall(&mut self, msg: &'static tcu::Message) {
+    pub fn handle_upcall_async(&mut self, msg: &'static tcu::Message) {
         let upcall = msg.get_data::<kif::upcalls::DefaultUpcall>();
 
         match kif::upcalls::Operation::from(upcall.opcode) {
-            kif::upcalls::Operation::VPE_WAIT => self.upcall_wait_vpe(msg),
+            kif::upcalls::Operation::VPE_WAIT => self.upcall_wait_vpe_async(msg),
             kif::upcalls::Operation::DERIVE_SRV => self.upcall_derive_srv(msg),
             _ => panic!("Unexpected upcall {}", upcall.opcode),
         }
@@ -855,17 +845,17 @@ impl ChildManager {
             .expect("Upcall reply failed");
     }
 
-    fn upcall_wait_vpe(&mut self, msg: &'static tcu::Message) {
+    fn upcall_wait_vpe_async(&mut self, msg: &'static tcu::Message) {
         let upcall = msg.get_data::<kif::upcalls::VPEWait>();
 
-        self.kill_child(upcall.vpe_sel as Selector, upcall.exitcode as i32);
+        self.kill_child_async(upcall.vpe_sel as Selector, upcall.exitcode as i32);
 
         // wait for the next
         let no_wait_childs = self.daemons() + self.foreigns();
         if !self.flags.contains(Flags::SHUTDOWN) && self.children() == no_wait_childs {
             self.flags.set(Flags::SHUTDOWN, true);
-            self.kill_daemons();
-            services::get().shutdown();
+            self.kill_daemons_async();
+            services::get().shutdown_async();
         }
         if !self.should_stop() {
             self.start_waiting(1);
@@ -878,9 +868,9 @@ impl ChildManager {
         thread::ThreadManager::get().notify(upcall.def.event, Some(msg));
     }
 
-    pub fn kill_child(&mut self, sel: Selector, exitcode: i32) {
+    pub fn kill_child_async(&mut self, sel: Selector, exitcode: i32) {
         if let Some(id) = self.sel_to_id(sel) {
-            let child = self.remove_rec(id).unwrap();
+            let child = self.remove_rec_async(id).unwrap();
 
             if exitcode != 0 {
                 println!("Child '{}' exited with exitcode {}", child.name(), exitcode);
@@ -888,7 +878,7 @@ impl ChildManager {
         }
     }
 
-    fn kill_daemons(&mut self) {
+    fn kill_daemons_async(&mut self) {
         let ids = self.ids.clone();
         for id in ids {
             // kill all daemons that didn't register a service
@@ -904,13 +894,13 @@ impl ChildManager {
             };
 
             if can_kill {
-                self.remove_rec(id).unwrap();
+                self.remove_rec_async(id).unwrap();
             }
         }
     }
 
-    fn remove_rec(&mut self, id: Id) -> Option<Box<dyn Child>> {
-        self.childs.remove(&id).map(|child| {
+    fn remove_rec_async(&mut self, id: Id) -> Option<Box<dyn Child>> {
+        self.childs.remove(&id).map(|mut child| {
             self.ids.retain(|&i| i != id);
             if child.daemon() {
                 self.daemons -= 1;
@@ -922,8 +912,9 @@ impl ChildManager {
             log!(crate::LOG_CHILD, "Removed child '{}'", child.name());
 
             for csel in &child.res().childs {
-                self.remove_rec(csel.0);
+                self.remove_rec_async(csel.0);
             }
+            child.remove_resources_async();
             child
         })
     }

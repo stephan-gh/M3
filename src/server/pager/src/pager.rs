@@ -145,7 +145,7 @@ fn get_mount(name: &str) -> Result<vfs::FSHandle, Error> {
     Ok(fs)
 }
 
-fn start_child(child: &mut OwnChild) -> Result<(), Error> {
+fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
     // send gate for resmng
     #[allow(clippy::useless_conversion)]
     let resmng_sgate = SendGate::new_with(
@@ -175,7 +175,7 @@ fn start_child(child: &mut OwnChild) -> Result<(), Error> {
 
     // pass subsystem info to child, if it's a subsystem
     if let Some(sub) = child.subsys() {
-        sub.finalize(&mut vpe)?;
+        sub.finalize_async(&mut vpe)?;
     }
 
     // mount file systems for childs
@@ -232,7 +232,7 @@ fn workloop(serv: &Server) {
 
             REQHDL.get_mut().handle(handle_request).ok();
         },
-        start_child,
+        start_child_async,
     )
     .expect("Unable to run workloop");
 }
@@ -284,7 +284,7 @@ pub fn main() -> i32 {
     }
 
     subsys
-        .start(start_child)
+        .start(start_child_async)
         .expect("Unable to start subsystem");
 
     childs::get().start_waiting(1);

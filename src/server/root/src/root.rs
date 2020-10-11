@@ -51,7 +51,7 @@ fn find_mod(name: &str) -> Option<(MemGate, usize)> {
         })
 }
 
-fn start_child(child: &mut OwnChild) -> Result<(), Error> {
+fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
     let bmod = find_mod(child.cfg().name()).ok_or_else(|| Error::new(Code::NotFound))?;
 
     #[allow(clippy::useless_conversion)]
@@ -74,7 +74,7 @@ fn start_child(child: &mut OwnChild) -> Result<(), Error> {
     }
 
     if let Some(sub) = child.subsys() {
-        sub.finalize(&mut vpe)
+        sub.finalize_async(&mut vpe)
             .expect("Unable to finalize subsystem");
     }
 
@@ -127,7 +127,7 @@ fn create_rgate(buf_size: usize, msg_size: usize) -> Result<RecvGate, Error> {
 }
 
 fn workloop() {
-    requests::workloop(|| {}, start_child).expect("Running the workloop failed");
+    requests::workloop(|| {}, start_child_async).expect("Running the workloop failed");
 }
 
 #[no_mangle]
@@ -148,7 +148,7 @@ pub fn main() -> i32 {
     }
 
     SUBSYS
-        .start(start_child)
+        .start(start_child_async)
         .expect("Unable to start subsystem");
 
     childs::get().start_waiting(1);

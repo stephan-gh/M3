@@ -80,7 +80,7 @@ impl Service {
         self.sessions
     }
 
-    pub fn derive(&self, sessions: u32) -> Result<Self, Error> {
+    pub fn derive_async(&self, sessions: u32) -> Result<Self, Error> {
         let dst = VPE::cur().alloc_sels(2);
         let event = events::uid_to_event(events::alloc_unique_id());
         syscalls::derive_srv(
@@ -108,7 +108,7 @@ impl Service {
         ))
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown_async(&mut self) {
         log!(
             crate::LOG_SERV,
             "Sending SHUTDOWN to service '{}'",
@@ -133,7 +133,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(sel: Selector, serv: &mut Service, arg: &str) -> Result<Self, Error> {
+    pub fn new_async(sel: Selector, serv: &mut Service, arg: &str) -> Result<Self, Error> {
         let smsg = kif::service::Open::new(arg);
         let event = serv.queue.send(util::object_to_bytes(&smsg));
 
@@ -166,7 +166,7 @@ impl Session {
         self.ident
     }
 
-    pub fn close(&self) -> Result<(), Error> {
+    pub fn close_async(&self) -> Result<(), Error> {
         let serv = get().get_by_id(self.serv)?;
 
         let smsg = kif::service::Close {
@@ -232,7 +232,7 @@ impl ServiceManager {
         Ok(self.next_id - 1)
     }
 
-    pub fn remove_service(&mut self, id: Id, notify: bool) -> Service {
+    pub fn remove_service_async(&mut self, id: Id, notify: bool) -> Service {
         let idx = self.servs.iter().position(|s| s.id == id).unwrap();
 
         log!(
@@ -244,13 +244,13 @@ impl ServiceManager {
         if notify {
             // we need to do that before we remove the service
             let serv = self.get_by_id(id).unwrap();
-            serv.shutdown();
+            serv.shutdown_async();
         }
 
         self.servs.remove(idx)
     }
 
-    pub fn shutdown(&mut self) {
+    pub fn shutdown_async(&mut self) {
         // first collect the ids
         let mut ids = Vec::new();
         for s in &self.servs {
@@ -266,7 +266,7 @@ impl ServiceManager {
         // change in the meantime.
         for id in ids {
             if let Ok(serv) = self.get_by_id(id) {
-                serv.shutdown();
+                serv.shutdown_async();
             }
         }
     }
