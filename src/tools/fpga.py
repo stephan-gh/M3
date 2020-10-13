@@ -37,7 +37,7 @@ def write_str(pm, str, addr):
     pm.mem.write_bytes(addr, bytes(buf), burst=False) # TODO enable burst
 
 def fetch_print(pm):
-    length = read_u64(pm, SERIAL_ACK) & 0xFFFFFFFF
+    length = read_u64(pm, SERIAL_ACK)
     if length != 0 and length <= SERIAL_BUFSIZE:
         line = read_str(pm, SERIAL_BUF, length)
         sys.stdout.write(line)
