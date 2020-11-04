@@ -3,7 +3,6 @@ use crate::internal::*;
 use crate::sess::request::Request;
 use crate::util::*;
 
-use m3::col::Vec;
 use m3::errors::*;
 
 pub struct Dirs;
@@ -255,7 +254,7 @@ impl Dirs {
         assert!(
             inode.inode().links == 2,
             "Dir links should be 2 before removing but where {}!",
-            inode.inode().links
+            { inode.inode().links }
         );
         // ensure that the inode is removed
         inode.inode().links -= 1;

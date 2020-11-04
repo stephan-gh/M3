@@ -3,14 +3,11 @@ use crate::internal::*;
 use crate::sess::request::Request;
 use crate::util::*;
 
-use m3::boxed::Box;
 use m3::cell::RefCell;
-use m3::col::BoxList;
 use m3::col::Treap;
 use m3::col::Vec;
 use m3::rc::Rc;
 
-use core::ptr::NonNull;
 use thread::Event;
 
 pub struct LRUEntry {

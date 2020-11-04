@@ -395,12 +395,6 @@ impl LoadedDirEntry {
                     core::ptr::slice_from_raw_parts_mut(buffer_location, *name_length as usize);
                 let str_array_lt: &'static mut [u8] = &mut *str_array;
 
-                let valid_length = if let Err(e) = core::str::from_utf8(str_array_lt) {
-                    e.valid_up_to()
-                }
-                else {
-                    *name_length as usize
-                };
                 //It can happen that the validation fails when an inode is created. This takes care that even then the inode only contains valid data from the start.
                 match core::str::from_utf8_mut(str_array_lt) {
                     Ok(s) => break s,

@@ -3,15 +3,12 @@ use crate::buffer::{Buffer, PRDT_SIZE};
 use crate::internal::BlockNo;
 use crate::util::*;
 
-use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::RefCell;
-use m3::col::BoxList;
 use m3::col::Treap;
 use m3::com::{MemGate, Perm};
 use m3::rc::Rc;
 
-use core::ptr::NonNull;
 use thread::Event;
 
 pub struct FileBufferHead {
