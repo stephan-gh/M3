@@ -257,7 +257,6 @@ impl FileSession {
         );
 
         if (out && ((self.oflags & FILE_W) == 0)) || (!out && ((self.oflags & FILE_R) == 0)) {
-            //is.reply_error(Code::NoPerm);
             return Err(Error::new(Code::NoPerm));
         }
 
@@ -266,9 +265,8 @@ impl FileSession {
         // in/out implicitly commits the previous in/out request
         if out && self.appending {
             if let Err(e) = self.commit_append(&mut req, inode.clone(), self.lastbytes) {
-                //is.reply_error(e.code());
                 return Err(e);
-            };
+            }
         }
 
         if self.accessed < 31 {
@@ -293,7 +291,6 @@ impl FileSession {
                     crate::LOG_DEF,
                     "file::next_in_out : append already in progress!"
                 );
-                //is.reply_error(Code::Exists);
                 return Err(Error::new(Code::Exists));
             }
 
@@ -334,7 +331,6 @@ impl FileSession {
 
             if req.has_error() {
                 log!(crate::LOG_DEF, "append failed: {:?}", req.error().unwrap());
-                //is.reply_error(req.error().unwrap());
                 return Err(Error::new(req.error().unwrap()));
             }
 
