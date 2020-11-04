@@ -70,7 +70,7 @@ static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 //The global file handle in this process
 static FSHANDLE: StaticCell<Option<M3FSHandle>> = StaticCell::new(None);
 fn hdl() -> &'static M3FSHandle {
-    FSHANDLE.get().as_ref().expect("Could not get M3FS Handle")
+    FSHANDLE.get().as_ref().unwrap()
 }
 
 struct M3FSRequestHandler {
@@ -338,7 +338,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
         else {
             log!(
                 LOG_DEF,
-                "fs::delegate: Failed to delegate: Could not find session with id {}, crt: {}",
+                "fs::delegate: could not find session with id {}, crt: {}",
                 sid,
                 crt
             );
@@ -348,7 +348,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
         if data.in_caps() != 1 || !session.is_file_session() {
             log!(
                 LOG_DEF,
-                "fs::delegate: was not file session of data_caps != 1"
+                "fs::delegate: was not file session or data_caps != 1"
             );
             return Err(Error::new(Code::NotSup));
         }

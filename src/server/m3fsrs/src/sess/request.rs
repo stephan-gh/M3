@@ -39,9 +39,7 @@ impl Request {
     }
 
     pub fn pop_meta(&mut self) {
-        if let None = self.blocks.pop() {
-            panic!("Popped meta from Request that has no metas stored.");
-        }
+        self.blocks.pop().unwrap();
     }
 
     pub fn pop_metas(&mut self, n: usize) {

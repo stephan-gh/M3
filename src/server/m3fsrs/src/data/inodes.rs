@@ -49,9 +49,7 @@ impl INodes {
             inode_offset + NUM_INODE_BYTES,
             crate::hdl().superblock().block_size
         );
-        let inode = LoadedInode::from_buffer_location(inodes_block, inode_offset);
-        //inodes_block.borrow_mut().get_inode(inode_offset).expect("Failed to get inode for location!");
-        inode
+        LoadedInode::from_buffer_location(inodes_block, inode_offset)
     }
 
     pub fn stat(_req: &mut Request, inode: LoadedInode, info: &mut FileInfo) {
@@ -95,7 +93,6 @@ impl INodes {
             //determine extent offset
             if *extent > 0 {
                 let ext = INodes::get_extent(req, inode.clone(), *extent - 1, &mut indir, false);
-                assert!(ext.is_some(), "Could not get extent while seeking to end");
                 *extoff = (*ext.unwrap().length() * blocksize) as usize;
                 //ensure to stay within a block
                 let unaligned = inode.inode().size % blocksize as u64;
@@ -227,8 +224,7 @@ impl INodes {
 
         if i < inode.inode().extents as usize {
             let mut indir = vec![];
-            let ext = &mut INodes::get_extent(req, inode, i, &mut indir, false)
-                .expect("M3FS: Inodes: req_append(): Appended ext was None!");
+            let ext = &mut INodes::get_extent(req, inode, i, &mut indir, false).unwrap();
 
             *extlen = (*ext.length() * crate::hdl().superblock().block_size) as usize;
             crate::hdl()
@@ -281,10 +277,6 @@ impl INodes {
                 (inode.inode().extents - 1) as usize,
                 &mut indir,
                 false,
-            );
-            assert!(
-                ext.is_some(),
-                "Loaded extent should be present, but was none"
             );
             if (*ext.clone().unwrap().start() + *ext.clone().unwrap().length()) != *next.start() {
                 ext = None;
@@ -622,22 +614,18 @@ impl INodes {
             //erase everything up to `extent`
             let mut i = iextents - 1;
             while i > extent {
-                if let Some(ext) = INodes::change_extent(req, inode.clone(), i, &mut indir, true) {
-                    assert!(
-                        *ext.length() > 0,
-                        "Failed to delete extent while truncating"
-                    );
-                    crate::hdl()
-                        .blocks()
-                        .free(req, *ext.start() as usize, *ext.length() as usize);
-                    inode.inode().extents -= 1;
-                    inode.inode().size -= (*ext.length() * blocksize) as u64;
-                    *ext.length_mut() = 0;
-                    *ext.start_mut() = 0;
-                }
-                else {
-                    panic!("ext was not found while truncating");
-                }
+                let ext = INodes::change_extent(req, inode.clone(), i, &mut indir, true).unwrap();
+                assert!(
+                    *ext.length() > 0,
+                    "Failed to delete extent while truncating"
+                );
+                crate::hdl()
+                    .blocks()
+                    .free(req, *ext.start() as usize, *ext.length() as usize);
+                inode.inode().extents -= 1;
+                inode.inode().size -= (*ext.length() * blocksize) as u64;
+                *ext.length_mut() = 0;
+                *ext.start_mut() = 0;
                 i -= 1;
             }
 
@@ -700,7 +688,7 @@ impl INodes {
             let extent =
                 INodes::get_extent(req, inode.clone(), ext_idx as usize, &mut indir, false);
 
-            for block in extent.expect("Failed to load extent for sync").into_iter() {
+            for block in extent.unwrap().into_iter() {
                 if crate::hdl().metabuffer().dirty(block) {
                     crate::hdl().backend().sync_meta(req, &block);
                 }

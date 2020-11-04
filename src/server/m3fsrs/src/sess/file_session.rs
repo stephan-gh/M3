@@ -175,7 +175,7 @@ impl FileSession {
     }
 
     pub fn get_mem(&mut self, data: &mut CapExchange) -> Result<(), Error> {
-        let pop_offset: u32 = data.in_args().pop().expect("Failed to pop mem offset");
+        let pop_offset: u32 = data.in_args().pop()?;
         let mut offset = pop_offset as usize;
         let mut req = Request::new();
 
@@ -279,12 +279,7 @@ impl FileSession {
         //Do we need to append to the file?
         let len = if out && (self.fileoff as u64 == inode.inode().size) {
             let mut files = crate::hdl().files();
-            let open_file = if let Some(f) = files.get_file_mut(self.ino) {
-                f
-            }
-            else {
-                panic!("Could not get open file for next_in_out operation in file session");
-            };
+            let open_file = files.get_file_mut(self.ino).unwrap();
 
             if open_file.appending() {
                 log!(
@@ -495,13 +490,7 @@ impl FileSession {
 
         //stop appending
         let mut files = crate::hdl().files();
-        let ofile = if let Some(f) = files.get_file_mut(self.ino) {
-            f
-        }
-        else {
-            panic!("Could not get file for file session while commiting append");
-        };
-
+        let ofile = files.get_file_mut(self.ino).unwrap();
         assert!(ofile.appending(), "ofile should be in append mode!");
         ofile.set_appending(false);
 

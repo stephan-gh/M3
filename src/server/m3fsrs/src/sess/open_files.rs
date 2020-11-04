@@ -76,15 +76,13 @@ impl OpenFiles {
         }
 
         self.get_file_mut(session_ino)
-            .expect("Found no file, but added before")
+            .unwrap()
             .sessions
             .push(session);
     }
 
     pub fn remove_session(&mut self, session: Rc<RefCell<FileSession>>) {
-        let file = self
-            .get_file_mut(session.borrow().ino())
-            .expect("Failed to get file for session ino");
+        let file = self.get_file_mut(session.borrow().ino()).unwrap();
 
         //Search for this pointer in vec and remove when found
         let mut rm_idx = None;
@@ -95,12 +93,8 @@ impl OpenFiles {
             }
         }
 
-        if let Some(idx) = rm_idx {
-            file.sessions.remove(idx);
-        }
-        else {
-            panic!("Could not remove session based on pointer from open files");
-        }
+        let idx = rm_idx.unwrap();
+        file.sessions.remove(idx);
 
         //If no session own this file anymore, remove it
         if file.sessions.is_empty() {

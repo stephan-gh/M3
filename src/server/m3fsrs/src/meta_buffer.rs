@@ -163,13 +163,7 @@ impl MetaBuffer {
             }
         }
 
-        let block: Rc<RefCell<MetaBufferHead>> = if let Some(b) = use_block {
-            b
-        }
-        else {
-            log!(crate::LOG_DEF, "MetaBuffer: Could not find unused block!");
-            panic!("Meta buffer could not find unused block in lru");
-        };
+        let block: Rc<RefCell<MetaBufferHead>> = use_block.unwrap();
 
         //Flush if there is still a block present with the given bno.
         if let Some(mut old_block) = self.ht.remove(&block.borrow().bno) {
