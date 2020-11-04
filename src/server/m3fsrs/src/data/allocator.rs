@@ -70,7 +70,7 @@ impl Allocator {
             let mut bitmap = Bitmap::from_bytes(block_borrow.data_mut());
 
             //Search for first word that has at leas one free bit, starting at the current i
-            while bitmap.is_word_set(i) && i < max {
+            while i < max && bitmap.is_word_set(i) {
                 i += Bitmap::word_size(); //Jump to next word
             }
 
@@ -80,7 +80,7 @@ impl Allocator {
             //This should be the index of the word we found the first 0 at
             let word_index = i / Bitmap::word_size();
             i = word_index * Bitmap::word_size();
-            while bitmap.is_bit_set(i) && i < max {
+            while i < max && bitmap.is_bit_set(i) {
                 i += 1;
             }
 
@@ -196,7 +196,7 @@ impl Allocator {
             let end = (i + count).min(perblock);
 
             //Unset all unaligned bits
-            while (i % Bitmap::word_size()) != 0 && i < end {
+            while i < end && (i % Bitmap::word_size()) != 0 {
                 assert!(bitmap.is_bit_set(i), "Bit should have been set!");
                 bitmap.unset_bit(i);
                 i += 1;
