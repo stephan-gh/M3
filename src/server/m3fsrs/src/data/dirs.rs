@@ -9,7 +9,7 @@ use m3::errors::*;
 pub struct Dirs;
 
 impl Dirs {
-    pub fn find_entry(req: &mut Request, inode: LoadedInode, name: &str) -> Option<LoadedDirEntry> {
+    fn find_entry(req: &mut Request, inode: LoadedInode, name: &str) -> Option<LoadedDirEntry> {
         let org_used = req.used_meta();
         let mut indir = vec![];
 
