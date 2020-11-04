@@ -6,6 +6,7 @@ use crate::sess::request::Request;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::com::{MGateArgs, MemGate, Perm};
+use m3::errors::Error;
 use m3::goff;
 use m3::rc::Rc;
 use m3::syscalls::derive_mem;
@@ -37,14 +38,12 @@ impl Backend for MemBackend {
         _dst_off: usize,
         bno: BlockNo,
         _unlock: Event,
-    ) {
-        self.mem
-            .read_bytes(
-                dst.borrow_mut().data_mut().as_mut_ptr(),
-                self.blocksize,
-                (bno as usize * self.blocksize) as u64,
-            )
-            .unwrap();
+    ) -> Result<(), Error> {
+        self.mem.read_bytes(
+            dst.borrow_mut().data_mut().as_mut_ptr(),
+            self.blocksize,
+            (bno as usize * self.blocksize) as u64,
+        )
     }
 
     fn load_data(
@@ -54,8 +53,9 @@ impl Backend for MemBackend {
         _blocks: usize,
         _init: bool,
         _unlock: Event,
-    ) {
+    ) -> Result<(), Error> {
         //Unused
+        Ok(())
     }
 
     fn store_meta(
@@ -64,22 +64,20 @@ impl Backend for MemBackend {
         _src_off: usize,
         bno: BlockNo,
         _unlock: Event,
-    ) {
+    ) -> Result<(), Error> {
         let borrow = src.borrow();
         let slice: &[u8] = borrow.data();
 
-        self.mem
-            .write(slice, bno as u64 * self.blocksize as u64)
-            .unwrap();
-        //self.mem.write(&src.borrow(), src_off as u64);
+        self.mem.write(slice, bno as u64 * self.blocksize as u64)
     }
 
-    fn store_data(&self, _bno: BlockNo, _blocks: usize, _unlock: Event) {
+    fn store_data(&self, _bno: BlockNo, _blocks: usize, _unlock: Event) -> Result<(), Error> {
         //unused
+        Ok(())
     }
 
-    fn sync_meta(&self, _request: &mut Request, bno: &BlockNo) {
-        crate::hdl().metabuffer().write_back(bno);
+    fn sync_meta(&self, _request: &mut Request, bno: &BlockNo) -> Result<(), Error> {
+        crate::hdl().metabuffer().write_back(bno)
     }
 
     fn get_filedata(
@@ -92,7 +90,7 @@ impl Backend for MemBackend {
         _dirty: bool,
         _load: bool,
         _accessed: usize,
-    ) -> usize {
+    ) -> Result<usize, Error> {
         let first_block = extoff / self.blocksize;
         let bytes: usize = (*ext.length() as usize - first_block) * self.blocksize as usize;
         let size = ((*ext.start() as usize + first_block) * self.blocksize) as u64;
@@ -103,39 +101,38 @@ impl Backend for MemBackend {
             size,
             bytes,
             perms,
-        )
-        .expect("FS: MemoryBackend: Failed to get file meta data via sys call");
-        bytes
+        )?;
+        Ok(bytes)
     }
 
-    fn clear_extent(&self, _request: &mut Request, extent: &LoadedExtent, _accessed: usize) {
+    fn clear_extent(
+        &self,
+        _request: &mut Request,
+        extent: &LoadedExtent,
+        _accessed: usize,
+    ) -> Result<(), Error> {
         let zeros = vec![0; self.blocksize];
         for block in extent.clone().into_iter() {
             self.mem
-                .write(&zeros, (block as usize * self.blocksize) as u64)
-                .unwrap();
+                .write(&zeros, (block as usize * self.blocksize) as u64)?;
         }
+        Ok(())
     }
 
     ///Loads a new superblock
-    fn load_sb(&mut self) -> SuperBlock {
-        let block = self
-            .mem
-            .read_obj::<SuperBlockStorage>(0)
-            .expect("Failed to load superblock in memory backend");
+    fn load_sb(&mut self) -> Result<SuperBlock, Error> {
+        let block = self.mem.read_obj::<SuperBlockStorage>(0)?;
         self.blocksize = block.block_size as usize;
         log!(
             crate::LOG_DEF,
             "MemBackend: Using block_size={}",
             self.blocksize
         );
-        block.to_superblock()
+        Ok(block.to_superblock())
     }
 
-    fn store_sb(&self, super_block: &SuperBlock) {
+    fn store_sb(&self, super_block: &SuperBlock) -> Result<(), Error> {
         let storage = super_block.to_storage();
-        self.mem
-            .write_obj(&storage, 0)
-            .expect("Failed to store superblock in memory backend");
+        self.mem.write_obj(&storage, 0)
     }
 }

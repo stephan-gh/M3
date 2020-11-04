@@ -9,6 +9,7 @@ use crate::{
 
 use m3::cell::{Ref, RefCell, RefMut};
 use m3::col::String;
+use m3::errors::Error;
 use m3::rc::Rc;
 
 ///Handle to the real file system based on some backend
@@ -34,7 +35,7 @@ impl M3FSHandle {
         //Load suoerblock, then print all the superblock infor for debugginh
 
         log!(crate::LOG_DEF, "M3FS: Loading superblock");
-        let sb = backend.load_sb();
+        let sb = backend.load_sb().expect("Unable to load super block");
         sb.log();
 
         let blocks_allocator = Allocator::new(
@@ -104,10 +105,10 @@ impl M3FSHandle {
         self.settings.extend
     }
 
-    pub fn flush_buffer(&self) {
-        self.meta_buffer.borrow_mut().flush();
-        self.file_buffer.borrow_mut().flush();
-        self.backend.borrow_mut().store_sb(&self.super_block);
+    pub fn flush_buffer(&self) -> Result<(), Error> {
+        self.meta_buffer.borrow_mut().flush()?;
+        self.file_buffer.borrow_mut().flush()?;
+        self.backend.borrow_mut().store_sb(&self.super_block)
     }
 
     pub fn metabuffer<'a>(&'a self) -> RefMut<'a, MetaBuffer> {
@@ -123,7 +124,7 @@ impl M3FSHandle {
         req: &mut Request,
         bno: BlockNo,
         dirty: bool,
-    ) -> Rc<RefCell<MetaBufferHead>> {
+    ) -> Result<Rc<RefCell<MetaBufferHead>>, Error> {
         self.meta_buffer.borrow_mut().get_block(req, bno, dirty)
     }
 }

@@ -7,6 +7,7 @@ use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::Treap;
 use m3::com::{MemGate, Perm};
+use m3::errors::Error;
 use m3::rc::Rc;
 
 use thread::Event;
@@ -30,11 +31,10 @@ impl core::cmp::PartialEq for FileBufferHead {
 }
 
 impl FileBufferHead {
-    pub fn new(bno: BlockNo, size: usize, blocksize: usize) -> Self {
-        FileBufferHead {
+    fn new(bno: BlockNo, size: usize, blocksize: usize) -> Result<Self, Error> {
+        Ok(FileBufferHead {
             bno,
-            data: MemGate::new(size * blocksize + PRDT_SIZE, Perm::RWX)
-                .expect("Failed to create mem gate for FileBufferHead"),
+            data: MemGate::new(size * blocksize + PRDT_SIZE, Perm::RWX)?,
 
             lru_entry: LruElement::new(bno),
 
@@ -42,7 +42,7 @@ impl FileBufferHead {
             locked: true,
             dirty: false,
             unlock: thread::ThreadManager::get().alloc_event(),
-        }
+        })
     }
 }
 
@@ -80,7 +80,7 @@ impl FileBuffer {
         accessed: usize,
         load: Option<bool>,
         dirty: Option<bool>,
-    ) -> usize {
+    ) -> Result<usize, Error> {
         let load = load.unwrap_or(true);
         let dirty = dirty.unwrap_or(false);
 
@@ -119,12 +119,11 @@ impl FileBuffer {
                         ((bno - key) as u64) * self.block_size as u64,
                         len * self.block_size,
                         perm,
-                    )
-                    .expect("Failed to derive memory for block!");
+                    )?;
 
                     head.borrow_mut().dirty |= dirty;
 
-                    return len * self.block_size;
+                    return Ok(len * self.block_size);
                 }
             }
             else {
@@ -170,18 +169,16 @@ impl FileBuffer {
                         if head.borrow().dirty {
                             //If the head we are changing is dirty, flush it to the disk before
                             // removing it
-                            self.flush_chunk(&mut oldest_head_in_ht);
+                            self.flush_chunk(&mut oldest_head_in_ht)?;
                         }
-                        m3::pes::VPE::cur()
-                            .revoke(
-                                m3::kif::CapRngDesc::new(
-                                    m3::kif::CapType::OBJECT,
-                                    head.borrow().data.sel(),
-                                    1,
-                                ),
-                                false,
-                            )
-                            .expect("Failed to revoke VPE capabilities");
+                        m3::pes::VPE::cur().revoke(
+                            m3::kif::CapRngDesc::new(
+                                m3::kif::CapType::OBJECT,
+                                head.borrow().data.sel(),
+                                1,
+                            ),
+                            false,
+                        )?;
                         //Remove head from inner Buffer size
                         self.size -= head.borrow().size;
                     }
@@ -194,7 +191,7 @@ impl FileBuffer {
             bno,
             load_size,
             self.block_size as usize,
-        )));
+        )?));
         self.size += new_head.borrow().size;
         self.ht.insert(bno, new_head.clone());
         let lru_entry = new_head.borrow().lru_entry.clone();
@@ -214,7 +211,7 @@ impl FileBuffer {
             new_head.borrow().size,
             load,
             new_head.borrow().unlock,
-        );
+        )?;
         new_head.borrow_mut().locked = false;
 
         m3::syscalls::derive_mem(
@@ -224,11 +221,10 @@ impl FileBuffer {
             0,
             load_size * self.block_size,
             perm,
-        )
-        .expect("Failed to derive memory for file buffer block!");
+        )?;
 
         new_head.borrow_mut().dirty = dirty;
-        return load_size * self.block_size;
+        Ok(load_size * self.block_size)
     }
 }
 
@@ -241,17 +237,18 @@ impl Buffer for FileBuffer {
         }
     }
 
-    fn flush(&mut self) {
+    fn flush(&mut self) -> Result<(), Error> {
         while !self.ht.is_empty() {
             if let Some(mut head) = self.ht.remove_root() {
                 if head.borrow().dirty {
-                    self.flush_chunk(&mut head);
+                    self.flush_chunk(&mut head)?;
                 }
             }
             else {
                 break;
             }
         }
+        Ok(())
     }
 
     fn get(&self, bno: BlockNo) -> Option<&Rc<RefCell<FileBufferHead>>> {
@@ -262,7 +259,7 @@ impl Buffer for FileBuffer {
         self.ht.get_mut(&bno)
     }
 
-    fn flush_chunk(&mut self, head: &Rc<RefCell<FileBufferHead>>) {
+    fn flush_chunk(&mut self, head: &Rc<RefCell<FileBufferHead>>) -> Result<(), Error> {
         head.borrow_mut().locked = true;
         log!(
             crate::LOG_DEF,
@@ -276,10 +273,11 @@ impl Buffer for FileBuffer {
             head.borrow().bno,
             head.borrow().size,
             head.borrow().unlock,
-        );
+        )?;
 
         //Reset dirty and unlock
         head.borrow_mut().dirty = false;
         head.borrow_mut().locked = false;
+        Ok(())
     }
 }

@@ -148,6 +148,7 @@ impl M3FSRequestHandler {
         };
 
         if let Err(e) = res {
+            log!(LOG_DEF, "Error for operation {}: {:?}", op, e);
             input.reply_error(e.code()).ok();
         }
 
@@ -201,13 +202,13 @@ impl M3FSRequestHandler {
             if let Some(ext) = fsess.borrow().append_ext.clone() {
                 hdl()
                     .blocks()
-                    .free(&mut req, *ext.start() as usize, *ext.length() as usize);
+                    .free(&mut req, *ext.start() as usize, *ext.length() as usize)?;
             }
             //Delete append extent if there was any
             fsess.borrow_mut().append_ext = None;
 
             //Remove session from open_files and from its meta session
-            hdl().files().remove_session(fsess.clone());
+            hdl().files().remove_session(fsess.clone())?;
 
             //remove file session from parent meta session
             let parent_meta_session = self

@@ -6,6 +6,7 @@ use crate::util::*;
 use m3::cell::RefCell;
 use m3::col::Treap;
 use m3::col::Vec;
+use m3::errors::Error;
 use m3::rc::Rc;
 
 use thread::Event;
@@ -110,7 +111,7 @@ impl MetaBuffer {
         req: &mut Request,
         bno: BlockNo,
         dirty: bool,
-    ) -> Rc<RefCell<MetaBufferHead>> {
+    ) -> Result<Rc<RefCell<MetaBufferHead>>, Error> {
         log!(
             crate::LOG_DEF,
             "MetaBuffer::get_block(bno={}, dirty={})",
@@ -127,7 +128,7 @@ impl MetaBuffer {
                     //log!(crate::LOG_DEF, "WARNING: No really waiting for unlock: TODO find out why this breaks the linker!");
                     //thread::ThreadManager::get().wait_for(head.borrow().unlock);
                     //head.borrow_mut().locked = false;
-                    self.flush_chunk(&head);
+                    self.flush_chunk(&head)?;
                 }
                 else {
                     //Move element to back since it was touched
@@ -141,7 +142,7 @@ impl MetaBuffer {
                         Rc::strong_count(&head)
                     );
                     req.push_meta(head.clone());
-                    return head;
+                    return Ok(head);
                 }
             }
             else {
@@ -165,7 +166,7 @@ impl MetaBuffer {
         //Flush if there is still a block present with the given bno.
         if let Some(mut old_block) = self.ht.remove(&block.borrow().bno) {
             if old_block.borrow().dirty {
-                self.flush_chunk(&mut old_block);
+                self.flush_chunk(&mut old_block)?;
             }
         }
 
@@ -179,7 +180,7 @@ impl MetaBuffer {
         //Now load from backend and setup everything
         crate::hdl()
             .backend()
-            .load_meta(block.clone(), off, bno, unlock);
+            .load_meta(block.clone(), off, bno, unlock)?;
         block.borrow_mut().dirty = dirty;
         let lru_element = block.borrow().lru_entry.clone();
         self.lru.move_to_back(lru_element);
@@ -193,7 +194,7 @@ impl MetaBuffer {
         block.borrow_mut().locked = false;
 
         req.push_meta(block.clone());
-        block.clone()
+        Ok(block.clone())
     }
 
     pub fn dirty(&self, bno: BlockNo) -> bool {
@@ -205,13 +206,14 @@ impl MetaBuffer {
         }
     }
 
-    pub fn write_back(&mut self, bno: &BlockNo) {
+    pub fn write_back(&mut self, bno: &BlockNo) -> Result<(), Error> {
         if let Some(h) = self.get(*bno) {
             let inner = h.clone();
             if inner.borrow().dirty {
-                self.flush_chunk(&inner);
+                self.flush_chunk(&inner)?;
             }
         }
+        Ok(())
     }
 }
 
@@ -224,17 +226,18 @@ impl Buffer for MetaBuffer {
         }
     }
 
-    fn flush(&mut self) {
+    fn flush(&mut self) -> Result<(), Error> {
         while !self.ht.is_empty() {
             if let Some(mut head) = self.ht.remove_root() {
                 if head.borrow().dirty {
-                    self.flush_chunk(&mut head);
+                    self.flush_chunk(&mut head)?;
                 }
             }
             else {
                 break;
             }
         }
+        Ok(())
     }
 
     fn get(&self, bno: BlockNo) -> Option<&Self::HEAD> {
@@ -245,7 +248,7 @@ impl Buffer for MetaBuffer {
         self.ht.get_mut(&bno)
     }
 
-    fn flush_chunk(&mut self, head: &Self::HEAD) {
+    fn flush_chunk(&mut self, head: &Self::HEAD) -> Result<(), Error> {
         head.borrow_mut().locked = true;
         log!(
             crate::LOG_DEF,
@@ -259,8 +262,9 @@ impl Buffer for MetaBuffer {
             head.borrow().off,
             head.borrow().bno,
             head.borrow().unlock,
-        );
+        )?;
         head.borrow_mut().dirty = false;
         head.borrow_mut().locked = false;
+        Ok(())
     }
 }

@@ -31,20 +31,17 @@ impl DiskBackend {
         })
     }
 
-    fn delegate_mem(&self, mem: &MemGate, bno: BlockNo, len: usize) {
+    fn delegate_mem(&self, mem: &MemGate, bno: BlockNo, len: usize) -> Result<(), Error> {
         let crd = CapRngDesc::new(CapType::OBJECT, mem.sel(), 1);
-        self.disk
-            .sess
-            .delegate(
-                crd,
-                |slice_sink| {
-                    //Add arguments in order
-                    slice_sink.push(&bno);
-                    slice_sink.push(&len);
-                },
-                |_slice_source| Ok(()),
-            )
-            .unwrap();
+        self.disk.sess.delegate(
+            crd,
+            |slice_sink| {
+                //Add arguments in order
+                slice_sink.push(&bno);
+                slice_sink.push(&len);
+            },
+            |_slice_source| Ok(()),
+        )
     }
 }
 
@@ -59,29 +56,33 @@ impl Backend for DiskBackend {
         dst_off: usize,
         bno: BlockNo,
         unlock: Event,
-    ) {
+    ) -> Result<(), Error> {
         let off = dst_off * (self.blocksize + crate::buffer::PRDT_SIZE);
         self.disk
-            .read(0, bno, 1, self.blocksize, Some(off as u64))
-            .unwrap();
-        self.metabuf
-            .read_bytes(
-                dst.borrow_mut().data_mut().as_mut_ptr(),
-                self.blocksize,
-                off as u64,
-            )
-            .unwrap();
+            .read(0, bno, 1, self.blocksize, Some(off as u64))?;
+        self.metabuf.read_bytes(
+            dst.borrow_mut().data_mut().as_mut_ptr(),
+            self.blocksize,
+            off as u64,
+        )?;
         thread::ThreadManager::get().notify(unlock, None);
+        Ok(())
     }
 
-    fn load_data(&self, mem: &MemGate, bno: BlockNo, blocks: usize, init: bool, unlock: Event) {
-        self.delegate_mem(mem, bno, blocks);
+    fn load_data(
+        &self,
+        mem: &MemGate,
+        bno: BlockNo,
+        blocks: usize,
+        init: bool,
+        unlock: Event,
+    ) -> Result<(), Error> {
+        self.delegate_mem(mem, bno, blocks)?;
         if init {
-            self.disk
-                .read(bno, bno, blocks, self.blocksize, None)
-                .unwrap();
+            self.disk.read(bno, bno, blocks, self.blocksize, None)?;
         }
         thread::ThreadManager::get().notify(unlock, None);
+        Ok(())
     }
 
     fn store_meta(
@@ -90,32 +91,29 @@ impl Backend for DiskBackend {
         src_off: usize,
         bno: BlockNo,
         unlock: Event,
-    ) {
+    ) -> Result<(), Error> {
         let off = src_off * (self.blocksize + crate::buffer::PRDT_SIZE);
-        self.metabuf
-            .write_bytes(
-                src.borrow_mut().data_mut().as_mut_ptr(),
-                self.blocksize,
-                off as u64,
-            )
-            .unwrap();
+        self.metabuf.write_bytes(
+            src.borrow_mut().data_mut().as_mut_ptr(),
+            self.blocksize,
+            off as u64,
+        )?;
         self.disk
-            .write(0, bno, 1, self.blocksize, Some(off as u64))
-            .unwrap();
+            .write(0, bno, 1, self.blocksize, Some(off as u64))?;
         thread::ThreadManager::get().notify(unlock, None);
+        Ok(())
     }
 
-    fn store_data(&self, bno: BlockNo, blocks: usize, unlock: Event) {
-        self.disk
-            .write(bno, bno, blocks, self.blocksize, None)
-            .unwrap();
+    fn store_data(&self, bno: BlockNo, blocks: usize, unlock: Event) -> Result<(), Error> {
+        self.disk.write(bno, bno, blocks, self.blocksize, None)?;
         thread::ThreadManager::get().notify(unlock, None);
+        Ok(())
     }
 
-    fn sync_meta(&self, request: &mut Request, bno: &BlockNo) {
+    fn sync_meta(&self, request: &mut Request, bno: &BlockNo) -> Result<(), Error> {
         // check if there is a filebuffer entry for it or create one
         let msel = m3::pes::VPE::cur().alloc_sel();
-        let ret = crate::hdl().filebuffer().get_extent(
+        crate::hdl().filebuffer().get_extent(
             self,
             *bno,
             1,
@@ -124,23 +122,18 @@ impl Backend for DiskBackend {
             1,
             Some(false),
             None,
-        );
-        if ret > 0 {
-            // okay, so write it from metabuffer to filebuffer
-            let m = MemGate::new_bind(msel);
-            let block_borrow = crate::hdl().metabuffer().get_block(request, *bno, false);
-            m.write_bytes(
-                block_borrow.borrow_mut().data_mut().as_mut_ptr(),
-                crate::hdl().superblock().block_size as usize,
-                0,
-            )
-            .unwrap();
-            request.pop_meta();
-        }
-        else {
-            // if the filebuffer entry didn't exist and couldn't be created, update block on disk
-            crate::hdl().metabuffer().write_back(bno);
-        }
+        )?;
+
+        // okay, so write it from metabuffer to filebuffer
+        let m = MemGate::new_bind(msel);
+        let block_borrow = crate::hdl().metabuffer().get_block(request, *bno, false)?;
+        m.write_bytes(
+            block_borrow.borrow_mut().data_mut().as_mut_ptr(),
+            crate::hdl().superblock().block_size as usize,
+            0,
+        )?;
+        request.pop_meta();
+        Ok(())
     }
 
     fn get_filedata(
@@ -153,7 +146,7 @@ impl Backend for DiskBackend {
         dirty: bool,
         load: bool,
         accessed: usize,
-    ) -> usize {
+    ) -> Result<usize, Error> {
         let first_block = extoff / self.blocksize;
         crate::hdl().filebuffer().get_extent(
             self,
@@ -167,7 +160,12 @@ impl Backend for DiskBackend {
         )
     }
 
-    fn clear_extent(&self, _request: &mut Request, extent: &LoadedExtent, accessed: usize) {
+    fn clear_extent(
+        &self,
+        _request: &mut Request,
+        extent: &LoadedExtent,
+        accessed: usize,
+    ) -> Result<(), Error> {
         let mut zeros: [u8; crate::internal::MAX_BLOCK_SIZE as usize] =
             [0; crate::internal::MAX_BLOCK_SIZE as usize];
         let sel = m3::pes::VPE::cur().alloc_sel();
@@ -182,23 +180,20 @@ impl Backend for DiskBackend {
                 accessed,
                 Some(false),
                 Some(true),
-            );
+            )?;
             let mem = MemGate::new_bind(sel);
-            mem.write_bytes(zeros.as_mut_ptr(), bytes, 0).unwrap();
+            mem.write_bytes(zeros.as_mut_ptr(), bytes, 0)?;
             i += bytes as u32 / self.blocksize as u32;
         }
+        Ok(())
     }
 
     ///Loads a new superblock
-    fn load_sb(&mut self) -> SuperBlock {
-        let tmp = MemGate::new(512 + crate::buffer::PRDT_SIZE, Perm::RW).unwrap();
-        self.delegate_mem(&tmp, 0, 1);
-        self.disk
-            .read(0, 0, 1, 512, None)
-            .expect("Failed to read superblock from disk teddy");
-        let sbs: SuperBlockStorage = tmp
-            .read_obj::<SuperBlockStorage>(0)
-            .expect("Failed to read superblock from disk");
+    fn load_sb(&mut self) -> Result<SuperBlock, Error> {
+        let tmp = MemGate::new(512 + crate::buffer::PRDT_SIZE, Perm::RW)?;
+        self.delegate_mem(&tmp, 0, 1)?;
+        self.disk.read(0, 0, 1, 512, None)?;
+        let sbs: SuperBlockStorage = tmp.read_obj::<SuperBlockStorage>(0)?;
         let super_block = sbs.to_superblock();
 
         super_block.log();
@@ -207,17 +202,15 @@ impl Backend for DiskBackend {
         self.blocksize = super_block.block_size as usize;
         let size =
             (self.blocksize + crate::buffer::PRDT_SIZE) * crate::meta_buffer::META_BUFFER_SIZE;
-        self.metabuf = MemGate::new(size, Perm::RW).expect("Failed to create disk transfer buffer");
+        self.metabuf = MemGate::new(size, Perm::RW)?;
         // store the MemCap as blockno 0, bc we won't load the superblock again
-        self.delegate_mem(&self.metabuf, 0, 1);
-        super_block
+        self.delegate_mem(&self.metabuf, 0, 1)?;
+        Ok(super_block)
     }
 
-    fn store_sb(&self, super_block: &SuperBlock) {
+    fn store_sb(&self, super_block: &SuperBlock) -> Result<(), Error> {
         *super_block.checksum.borrow_mut() = super_block.get_checksum();
-        self.metabuf
-            .write_obj(&super_block.to_storage(), 0)
-            .unwrap();
-        self.disk.write(0, 0, 1, 512, None).unwrap();
+        self.metabuf.write_obj(&super_block.to_storage(), 0)?;
+        self.disk.write(0, 0, 1, 512, None)
     }
 }

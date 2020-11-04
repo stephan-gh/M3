@@ -6,6 +6,7 @@ use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::com::MemGate;
 use m3::com::Perm;
+use m3::errors::Error;
 use m3::rc::Rc;
 use thread::Event;
 
@@ -24,8 +25,15 @@ pub trait Backend {
         dst_off: usize,
         bno: BlockNo,
         unlock: Event,
-    );
-    fn load_data(&self, mem: &MemGate, bno: BlockNo, blocks: usize, init: bool, unlock: Event);
+    ) -> Result<(), Error>;
+    fn load_data(
+        &self,
+        mem: &MemGate,
+        bno: BlockNo,
+        blocks: usize,
+        init: bool,
+        unlock: Event,
+    ) -> Result<(), Error>;
 
     fn store_meta(
         &self,
@@ -33,10 +41,10 @@ pub trait Backend {
         src_off: usize,
         bno: BlockNo,
         unlock: Event,
-    );
-    fn store_data(&self, bno: BlockNo, blocks: usize, unlock: Event);
+    ) -> Result<(), Error>;
+    fn store_data(&self, bno: BlockNo, blocks: usize, unlock: Event) -> Result<(), Error>;
 
-    fn sync_meta(&self, request: &mut Request, bno: &BlockNo);
+    fn sync_meta(&self, request: &mut Request, bno: &BlockNo) -> Result<(), Error>;
 
     fn get_filedata(
         &self,
@@ -48,12 +56,17 @@ pub trait Backend {
         dirty: bool,
         load: bool,
         accessed: usize,
-    ) -> usize;
+    ) -> Result<usize, Error>;
 
-    fn clear_extent(&self, request: &mut Request, extent: &LoadedExtent, accessed: usize);
+    fn clear_extent(
+        &self,
+        request: &mut Request,
+        extent: &LoadedExtent,
+        accessed: usize,
+    ) -> Result<(), Error>;
 
     ///Loads a new superblock
-    fn load_sb(&mut self) -> SuperBlock;
+    fn load_sb(&mut self) -> Result<SuperBlock, Error>;
 
-    fn store_sb(&self, super_block: &SuperBlock);
+    fn store_sb(&self, super_block: &SuperBlock) -> Result<(), Error>;
 }

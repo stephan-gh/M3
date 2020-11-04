@@ -28,12 +28,11 @@ impl Links {
         let mut search_entry = None;
 
         'search_loop: for ext_idx in 0..dir.inode().extents {
-            let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)
-                .expect("Failed to get extent for entry!");
+            let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
 
             for bno in ext.into_iter() {
                 //This is the block for all entries that are within this block
-                let dir_entry_data_ref = crate::hdl().metabuffer().get_block(req, bno, false);
+                let dir_entry_data_ref = crate::hdl().metabuffer().get_block(req, bno, false)?;
                 let mut entry_location = 0;
                 //Max offset into the buffer at which a entry could be. Is anyways incorrect since each name has a dynamic length.
                 let entry_location_end = crate::hdl().superblock().block_size;
@@ -74,30 +73,22 @@ impl Links {
         }
         else {
             //Create new
-            let ext = if let Some(e) = INodes::get_extent(
+            let ext = INodes::get_extent(
                 req,
                 dir.clone(),
                 dir.inode().extents as usize,
                 &mut indir,
                 true,
-            ) {
-                e
-            }
-            else {
-                return Err(Error::new(Code::NoSpace));
-            };
+            )?;
 
             //Insert one block extent
-            INodes::fill_extent(req, Some(dir), &ext, 1, 1);
-            if *ext.length() == 0 {
-                return Err(Error::new(Code::NoSpace));
-            }
+            INodes::fill_extent(req, Some(dir), &ext, 1, 1)?;
 
             //put entry at the beginning of the block
             rem = crate::hdl().superblock().block_size;
             let start: u32 = *ext.start();
             LoadedDirEntry::from_buffer_location(
-                crate::hdl().metabuffer().get_block(req, start, true),
+                crate::hdl().metabuffer().get_block(req, start, true)?,
                 0,
             )
         };
@@ -133,11 +124,10 @@ impl Links {
             is_dir
         );
         for ext_idx in 0..dir.inode().extents {
-            let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)
-                .expect("Failed to get extent for entry!");
+            let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
                 //This is the block for all entries that are within this block
-                let dir_entry_data_ref = crate::hdl().metabuffer().get_block(req, bno, false);
+                let dir_entry_data_ref = crate::hdl().metabuffer().get_block(req, bno, false)?;
                 let mut entry_location = 0;
                 //Max offset into the buffer at which a entry could be. Is anyways incorrect since each name has a dynamic length.
                 let entry_location_end = crate::hdl().superblock().block_size;
@@ -157,7 +147,7 @@ impl Links {
                     {
                         //if we are not removing a dir, we are coming from unlink(). in this case, directories
                         //are not allowed
-                        let inode = INodes::get(req, *entry.entry.borrow().nodeno);
+                        let inode = INodes::get(req, *entry.entry.borrow().nodeno)?;
                         if !is_dir && crate::internal::is_dir(inode.inode().mode) {
                             req.pop_metas(req.used_meta() - org_used);
                             return Err(Error::new(Code::IsDir));
@@ -196,7 +186,7 @@ impl Links {
                         //reduce links and free if necessary
                         if (inode.inode().links - 1) == 0 {
                             let ino = inode.inode().inode;
-                            crate::hdl().files().delete_file(ino);
+                            crate::hdl().files().delete_file(ino)?;
                         }
 
                         req.pop_metas(req.used_meta() - org_used);

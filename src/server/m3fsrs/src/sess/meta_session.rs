@@ -117,35 +117,31 @@ impl MetaSession {
         );
 
         let mut req = Request::new();
-        let ino = Dirs::search(&mut req, &path, (flags & FILE_CREATE) > 0);
-        if ino == INVALID_INO {
-            log!(crate::LOG_DEF, "open failed: {:?}", req.error().unwrap());
-            return Err(Error::new(req.error().unwrap()));
-        }
-        let inode = INodes::get(&mut req, ino);
+        let ino = Dirs::search(&mut req, &path, (flags & FILE_CREATE) > 0)?;
+        let inode = INodes::get(&mut req, ino)?;
 
         if ((flags & FILE_W) > 0 && (!inode.inode().mode & M3FS_IWUSR) > 0)
             || ((flags & FILE_R) > 0 && (!inode.inode().mode & M3FS_IRUSR) > 0)
         {
             log!(
-		crate::LOG_DEF,
-		"open failed: NoPerm: opener had no permission to read or write. Flags={:b}, mode={:b}",
-		flags,
-		{inode.inode().mode} //{} needed because of packed inode struct
-	    );
+                crate::LOG_DEF,
+                "open failed: NoPerm: opener had no permission to read or write. Flags={:b}, mode={:b}",
+                flags,
+                { inode.inode().mode } //{} needed because of packed inode struct
+            );
             return Err(Error::new(Code::NoPerm));
         }
 
         // only determine the current size, if we're writing and the file isn't empty
         if (flags & FILE_TRUNC) > 0 {
-            INodes::truncate(&mut req, inode.clone(), 0, 0);
+            INodes::truncate(&mut req, inode.clone(), 0, 0)?;
             // TODO carried over from c++
             // TODO revoke access, if necessary
         }
 
         // for directories: ensure that we don't have a changed version in the cache
         if is_dir(inode.inode().mode) {
-            INodes::sync_metadata(&mut req, inode.clone());
+            INodes::sync_metadata(&mut req, inode.clone())?;
         }
         let inode_no = inode.inode().inode;
         match self.alloc_file(srv, crt, path, flags, inode_no, file_session_id) {
@@ -172,7 +168,7 @@ impl MetaSession {
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
         assert!(flags != 0, "while alloc file, flags should not be 0!");
-        let new_session = FileSession::new(
+        FileSession::new(
             srv,
             crt,
             crate::REQHDL.recv_gate(),
@@ -181,8 +177,7 @@ impl MetaSession {
             path,
             flags,
             ino,
-        )?;
-        Ok(new_session)
+        )
     }
 }
 
@@ -225,21 +220,8 @@ impl M3FSSession for MetaSession {
 
         log!(crate::LOG_DEF, "fs::stat(path={})", path);
 
-        let ino = Dirs::search(&mut req, &path, false);
-        if ino == INVALID_INO {
-            let error = if let Some(e) = req.error() {
-                e
-            }
-            else {
-                Code::NotFound
-            };
-
-            log!(crate::LOG_DEF, "stat failed: {:?}", error);
-            //stream.reply_error(error);
-            return Err(Error::new(error));
-        }
-
-        let inode = INodes::get(&mut req, ino);
+        let ino = Dirs::search(&mut req, &path, false)?;
+        let inode = INodes::get(&mut req, ino)?;
 
         let mut info = FileInfo::default();
         INodes::stat(&mut req, inode.clone(), &mut info);
@@ -254,14 +236,9 @@ impl M3FSSession for MetaSession {
 
         log!(crate::LOG_DEF, "fs::mkdir(path={}, mode={:b})", path, mode);
 
-        if let Err(e) = Dirs::create(&mut req, &path, mode) {
-            log!(crate::LOG_DEF, "mkdir failed: {}", e);
-            return Err(e);
-        }
-        else {
-            //everything went all right
-            reply_vmsg!(stream, 0 as u64)
-        }
+        Dirs::create(&mut req, &path, mode)?;
+
+        reply_vmsg!(stream, 0 as u64)
     }
 
     fn rmdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
@@ -270,13 +247,9 @@ impl M3FSSession for MetaSession {
 
         log!(crate::LOG_DEF, "fs::rmdir(path={})", path);
 
-        if let Err(e) = Dirs::remove(&mut req, &path) {
-            log!(crate::LOG_DEF, "rmdir failed: {:?}", e);
-            return Err(e);
-        }
-        else {
-            reply_vmsg!(stream, 0 as u32)
-        }
+        Dirs::remove(&mut req, &path)?;
+
+        reply_vmsg!(stream, 0 as u32)
     }
 
     fn link(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
@@ -292,13 +265,9 @@ impl M3FSSession for MetaSession {
             new_path
         );
 
-        if let Err(e) = Dirs::link(&mut req, &old_path, &new_path) {
-            log!(crate::LOG_DEF, "link failed: {:?}", e);
-            return Err(e);
-        }
-        else {
-            reply_vmsg!(stream, 0 as u32)
-        }
+        Dirs::link(&mut req, &old_path, &new_path)?;
+
+        reply_vmsg!(stream, 0 as u32)
     }
 
     fn unlink(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
@@ -306,13 +275,9 @@ impl M3FSSession for MetaSession {
         let mut req = Request::new();
         log!(crate::LOG_DEF, "fs::unlink(path={})", path);
 
-        if let Err(e) = Dirs::unlink(&mut req, &path, false) {
-            log!(crate::LOG_DEF, "unlink failed: {:?}", e);
-            return Err(e);
-        }
-        else {
-            reply_vmsg!(stream, 0 as u32)
-        }
+        Dirs::unlink(&mut req, &path, false)?;
+
+        reply_vmsg!(stream, 0 as u32)
     }
 }
 

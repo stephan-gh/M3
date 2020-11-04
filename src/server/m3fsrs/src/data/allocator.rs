@@ -3,6 +3,7 @@ use m3::col::String;
 use crate::sess::request::Request;
 use crate::util::Bitmap;
 
+use m3::errors::{Code, Error};
 use m3::cell::RefCell;
 use m3::rc::Rc;
 
@@ -13,7 +14,6 @@ pub struct Allocator {
     free: Rc<RefCell<u32>>,
     total: u32,
     blocks: u32,
-
     blocksize: usize,
 }
 
@@ -27,9 +27,25 @@ impl Allocator {
         blocks: u32,
         blocksize: usize,
     ) -> Self {
-        log!(crate::LOG_DEF, "Creating {} allocator with: \n    first: {}\n    first_free: {}\n    free: {}\n    total: {}\n    blocks: {}\n    blocksize: {}",
-	     name, first, first_free.borrow(), free.borrow(), total, blocks, blocksize
-	);
+        log!(
+            crate::LOG_DEF,
+            concat!(
+                "Creating {} allocator with: \n",
+                "    first: {}\n",
+                "    first_free: {}\n",
+                "    free: {}\n",
+                "    total: {}\n",
+                "    blocks: {}\n",
+                "    blocksize: {}",
+            ),
+            name,
+            first,
+            first_free.borrow(),
+            free.borrow(),
+            total,
+            blocks,
+            blocksize
+        );
 
         Allocator {
             name,
@@ -42,7 +58,7 @@ impl Allocator {
         }
     }
 
-    pub fn alloc(&mut self, req: &mut Request, count: Option<&mut usize>) -> u32 {
+    pub fn alloc(&mut self, req: &mut Request, count: Option<&mut usize>) -> Result<u32, Error> {
         let mut tmp_count = 1;
         let count = count.unwrap_or(&mut tmp_count);
 
@@ -57,7 +73,7 @@ impl Allocator {
         let mut i = (*self.first_free.borrow() as usize) % perblock;
 
         while (total == 0) && (no <= lastno) {
-            let block_bytes = crate::hdl().get_meta_block(req, no, true);
+            let block_bytes = crate::hdl().get_meta_block(req, no, true)?;
             let mut block_borrow = block_bytes.borrow_mut();
 
             let mut max = perblock;
@@ -150,7 +166,7 @@ impl Allocator {
         *self.free.borrow_mut() -= total as u32;
         *count = total; //It happens that more was allocated then needed because of alignment
         if total == 0 {
-            return 0;
+            return Err(Error::new(Code::NoSpace));
         }
 
         let off = (no - self.first) * perblock as u32 + i as u32;
@@ -165,10 +181,10 @@ impl Allocator {
             (start + total as u32 - 1)
         );
 
-        return start;
+        return Ok(start);
     }
 
-    pub fn free(&mut self, req: &mut Request, mut start: usize, mut count: usize) {
+    pub fn free(&mut self, req: &mut Request, mut start: usize, mut count: usize) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
             "Allocator::{}::free(start={}, count={})",
@@ -186,7 +202,7 @@ impl Allocator {
         *self.free.borrow_mut() += count as u32;
         //Actually free bits in bitmap and update superblock
         while count > 0 {
-            let block_bytes = crate::hdl().get_meta_block(req, no as u32, true);
+            let block_bytes = crate::hdl().get_meta_block(req, no as u32, true)?;
             let mut block_bytes_borrow = block_bytes.borrow_mut();
             let mut bitmap = Bitmap::from_bytes(block_bytes_borrow.data_mut());
 
@@ -234,5 +250,6 @@ impl Allocator {
             start,
             (start + count - 1)
         );
+        Ok(())
     }
 }
