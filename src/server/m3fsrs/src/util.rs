@@ -155,32 +155,10 @@ pub fn get_base_dir<'a>(path: &'a str) -> (Range<usize>, Range<usize>) {
 }
 
 pub fn flags_to_perm(flags: u64) -> Perm {
-    let masked = flags & FILE_RWX;
-
-    if masked == FILE_RWX {
-        Perm::RWX
-    }
-    else if masked == FILE_RW {
-        Perm::RW
-    }
-    else if masked == (FILE_W | FILE_X) {
-        Perm::W | Perm::X
-    }
-    else if masked == (FILE_R | FILE_X) {
-        Perm::R | Perm::X
-    }
-    else if masked == FILE_R {
-        Perm::R
-    }
-    else if masked == FILE_W {
-        Perm::W
-    }
-    else if masked == FILE_X {
-        Perm::X
-    }
-    else {
-        panic!("Unknown perm configuration")
-    }
+    const_assert!(FILE_R == Perm::R.bits() as u64);
+    const_assert!(FILE_W == Perm::W.bits() as u64);
+    const_assert!(FILE_X == Perm::X.bits() as u64);
+    Perm::from_bits_truncate(flags as u32)
 }
 
 ///Entry iterator takes a block and iterates over it assuming that the block contains entries.
