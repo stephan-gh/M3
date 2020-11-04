@@ -44,12 +44,7 @@ impl Allocator {
 
     pub fn alloc(&mut self, req: &mut Request, count: Option<&mut usize>) -> u32 {
         let mut tmp_count = 1;
-        let count = if let Some(c) = count {
-            c
-        }
-        else {
-            &mut tmp_count
-        };
+        let count = count.unwrap_or(&mut tmp_count);
 
         let perblock: usize = self.blocksize as usize * 8;
         let lastno: u32 = self.first + self.blocks - 1;
