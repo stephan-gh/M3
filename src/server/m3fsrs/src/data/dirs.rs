@@ -12,7 +12,7 @@ impl Dirs {
         req: &mut Request,
         inode: LoadedInode,
         name: &str,
-    ) -> Result<LoadedDirEntry, Error> {
+    ) -> Result<InodeNo, Error> {
         let org_used = req.used_meta();
         let mut indir = vec![];
 
@@ -37,7 +37,7 @@ impl Dirs {
                             "Found entry with name: {}",
                             entry.entry.borrow().name
                         );
-                        return Ok(entry);
+                        return Ok(*entry.entry.borrow().nodeno);
                     }
                 }
                 req.pop_meta();
@@ -83,17 +83,17 @@ impl Dirs {
                 );
             }
 
-            if let Ok(dir_entry) =
+            if let Ok(nodeno) =
                 Dirs::find_entry(req, inode.clone().unwrap(), &path[start..end])
             {
                 //If path is now empty, finish searching,
                 //Test for 1, since there might be  a rest /
                 if (path.len() - end) <= 1 {
                     req.pop_metas(req.used_meta() - org_used);
-                    return Ok(*dir_entry.entry.borrow().nodeno);
+                    return Ok(nodeno);
                 }
                 //Save the inode anyways if we want to create a inode here.
-                ino = *dir_entry.entry.borrow().nodeno;
+                ino = nodeno;
                 req.pop_metas(req.used_meta() - org_used);
             }
             else {
