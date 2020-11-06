@@ -70,8 +70,8 @@ static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 
 // The global file handle in this process
 static FSHANDLE: StaticCell<Option<M3FSHandle>> = StaticCell::new(None);
-fn hdl() -> &'static M3FSHandle {
-    FSHANDLE.get().as_ref().unwrap()
+fn hdl() -> &'static mut M3FSHandle {
+    FSHANDLE.get_mut().as_mut().unwrap()
 }
 
 struct M3FSRequestHandler {

@@ -267,7 +267,7 @@ impl FileSession {
 
         // Do we need to append to the file?
         let len = if out && (self.fileoff as u64 == inode.inode().size) {
-            let mut files = crate::hdl().files();
+            let files = crate::hdl().files();
             let open_file = files.get_file_mut(self.ino).unwrap();
 
             if open_file.appending() {
@@ -464,7 +464,7 @@ impl FileSession {
         INodes::mark_dirty(req, inode.inode().inode);
 
         // stop appending
-        let mut files = crate::hdl().files();
+        let files = crate::hdl().files();
         let ofile = files.get_file_mut(self.ino).unwrap();
         assert!(ofile.appending(), "ofile should be in append mode!");
         ofile.set_appending(false);

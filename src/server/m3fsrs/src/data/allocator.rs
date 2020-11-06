@@ -73,8 +73,7 @@ impl Allocator {
         let mut i = (*self.first_free.borrow() as usize) % perblock;
 
         while (total == 0) && (no <= lastno) {
-            let block_bytes = crate::hdl().get_meta_block(req, no, true)?;
-            let mut block_borrow = block_bytes.borrow_mut();
+            let block = crate::hdl().get_meta_block(req, no, true)?;
 
             let mut max = perblock;
             if no == lastno {
@@ -83,7 +82,7 @@ impl Allocator {
             }
 
             // Load data into bitmap
-            let mut bitmap = Bitmap::from_bytes(block_borrow.data_mut());
+            let mut bitmap = Bitmap::from_bytes(block.data_mut());
 
             // Search for first word that has at leas one free bit, starting at the current i
             while i < max && bitmap.is_word_set(i) {
@@ -202,9 +201,8 @@ impl Allocator {
         *self.free.borrow_mut() += count as u32;
         // Actually free bits in bitmap and update superblock
         while count > 0 {
-            let block_bytes = crate::hdl().get_meta_block(req, no as u32, true)?;
-            let mut block_bytes_borrow = block_bytes.borrow_mut();
-            let mut bitmap = Bitmap::from_bytes(block_bytes_borrow.data_mut());
+            let block = crate::hdl().get_meta_block(req, no as u32, true)?;
+            let mut bitmap = Bitmap::from_bytes(block.data_mut());
 
             // align i to wordsize
             let mut i: usize = start & (perblock - 1);

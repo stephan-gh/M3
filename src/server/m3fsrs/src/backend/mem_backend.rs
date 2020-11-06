@@ -4,11 +4,9 @@ use crate::meta_buffer::MetaBufferHead;
 use crate::sess::request::Request;
 
 use m3::cap::Selector;
-use m3::cell::RefCell;
 use m3::com::{MGateArgs, MemGate, Perm};
 use m3::errors::Error;
 use m3::goff;
-use m3::rc::Rc;
 use m3::syscalls::derive_mem;
 use thread::Event;
 
@@ -34,13 +32,13 @@ impl Backend for MemBackend {
 
     fn load_meta(
         &self,
-        dst: Rc<RefCell<MetaBufferHead>>,
+        dst: &mut MetaBufferHead,
         _dst_off: usize,
         bno: BlockNo,
         _unlock: Event,
     ) -> Result<(), Error> {
         self.mem.read_bytes(
-            dst.borrow_mut().data_mut().as_mut_ptr(),
+            dst.data_mut().as_mut_ptr(),
             self.blocksize,
             (bno as usize * self.blocksize) as u64,
         )
@@ -60,13 +58,12 @@ impl Backend for MemBackend {
 
     fn store_meta(
         &self,
-        src: Rc<RefCell<MetaBufferHead>>,
+        src: &MetaBufferHead,
         _src_off: usize,
         bno: BlockNo,
         _unlock: Event,
     ) -> Result<(), Error> {
-        let borrow = src.borrow();
-        let slice: &[u8] = borrow.data();
+        let slice: &[u8] = src.data();
 
         self.mem.write(slice, bno as u64 * self.blocksize as u64)
     }
@@ -76,7 +73,7 @@ impl Backend for MemBackend {
         Ok(())
     }
 
-    fn sync_meta(&self, _request: &mut Request, bno: &BlockNo) -> Result<(), Error> {
+    fn sync_meta(&self, _request: &mut Request, bno: BlockNo) -> Result<(), Error> {
         crate::hdl().metabuffer().write_back(bno)
     }
 

@@ -14,5 +14,5 @@ pub trait Buffer {
     fn get(&self, bno: BlockNo) -> Option<&Self::HEAD>;
     fn get_mut(&mut self, bno: BlockNo) -> Option<&mut Self::HEAD>;
 
-    fn flush_chunk(&mut self, head: &Self::HEAD) -> Result<(), Error>;
+    fn flush_chunk(head: &mut Self::HEAD) -> Result<(), Error>;
 }

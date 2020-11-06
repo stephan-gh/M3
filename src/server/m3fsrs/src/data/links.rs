@@ -32,7 +32,7 @@ impl Links {
 
             for bno in ext.into_iter() {
                 let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
-                let mut entry_iter = DirEntryIterator::from_block(block.clone());
+                let mut entry_iter = DirEntryIterator::from_block(block);
                 while let Some(entry) = entry_iter.next() {
                     rem = entry.next - entry.size() as u32;
                     // This happens if we can embed the new dir-entry between this one and the "next"
@@ -112,7 +112,7 @@ impl Links {
                 let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
 
                 let mut prev: Option<&'static mut DirEntry> = None;
-                let mut entry_iter = DirEntryIterator::from_block(block.clone());
+                let mut entry_iter = DirEntryIterator::from_block(block);
                 while let Some(entry) = entry_iter.next() {
                     if entry.name() == name {
                         // if we are not removing a dir, we are coming from unlink(). in this case, directories

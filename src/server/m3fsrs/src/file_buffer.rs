@@ -169,7 +169,7 @@ impl FileBuffer {
                         if head.borrow().dirty {
                             // If the head we are changing is dirty, flush it to the disk before
                             // removing it
-                            self.flush_chunk(&mut oldest_head_in_ht)?;
+                            Self::flush_chunk(&mut oldest_head_in_ht)?;
                         }
                         m3::pes::VPE::cur().revoke(
                             m3::kif::CapRngDesc::new(
@@ -241,7 +241,7 @@ impl Buffer for FileBuffer {
         while !self.ht.is_empty() {
             if let Some(mut head) = self.ht.remove_root() {
                 if head.borrow().dirty {
-                    self.flush_chunk(&mut head)?;
+                    Self::flush_chunk(&mut head)?;
                 }
             }
             else {
@@ -259,7 +259,7 @@ impl Buffer for FileBuffer {
         self.ht.get_mut(&bno)
     }
 
-    fn flush_chunk(&mut self, head: &Rc<RefCell<FileBufferHead>>) -> Result<(), Error> {
+    fn flush_chunk(head: &mut Rc<RefCell<FileBufferHead>>) -> Result<(), Error> {
         head.borrow_mut().locked = true;
         log!(
             crate::LOG_DEF,

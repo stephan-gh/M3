@@ -1,35 +1,33 @@
 use crate::buffer::Buffer;
 use crate::internal::*;
 use crate::sess::request::Request;
-use crate::util::*;
 
-use m3::cell::RefCell;
-use m3::col::Treap;
-use m3::col::Vec;
+use core::ptr::NonNull;
+use m3::boxed::Box;
+use m3::col::{BoxList, Treap, Vec};
 use m3::errors::Error;
-use m3::rc::Rc;
 
 use thread::Event;
-
-pub struct LRUEntry {
-    head: Option<Rc<RefCell<MetaBufferHead>>>,
-}
 
 /// The BufferHead represents a single block within the MetaBuffer. In Rust, contrary to C++ it also
 /// handles runtime type checking. When loading an Inode, extent, or DirEntry from it, it checks if this entity has already been loaded.
 /// If that's the case, a reference to this entity is returned, otherwise a new entity is loaded and returned.
 pub struct MetaBufferHead {
+    id: usize,
     bno: BlockNo,
 
-    lru_entry: Rc<RefCell<LruElement<LRUEntry>>>,
+    prev: Option<NonNull<Self>>,
+    next: Option<NonNull<Self>>,
 
     locked: bool,
     dirty: bool,
+    links: usize,
     unlock: Event,
 
-    off: usize,
     data: Vec<u8>,
 }
+
+impl_boxitem!(MetaBufferHead);
 
 impl core::cmp::PartialEq for MetaBufferHead {
     fn eq(&self, other: &Self) -> bool {
@@ -40,24 +38,25 @@ impl core::cmp::PartialEq for MetaBufferHead {
 pub const META_BUFFER_SIZE: usize = 128;
 
 impl MetaBufferHead {
-    pub fn new(
-        bno: BlockNo,
-        off: usize,
-        blocksize: usize,
-        lru_entry: Rc<RefCell<LruElement<LRUEntry>>>,
-    ) -> Self {
+    pub fn new(id: usize, bno: BlockNo, blocksize: usize) -> Self {
         MetaBufferHead {
+            id,
             bno,
 
-            lru_entry,
+            prev: None,
+            next: None,
 
             locked: true,
             dirty: false,
+            links: 0,
             unlock: thread::ThreadManager::get().alloc_event(),
 
-            off,
             data: vec![0; blocksize as usize],
         }
+    }
+
+    pub fn id(&self) -> usize {
+        self.id
     }
 
     pub fn data(&self) -> &[u8] {
@@ -77,32 +76,44 @@ impl MetaBufferHead {
 }
 
 pub struct MetaBuffer {
-    ht: Treap<BlockNo, Rc<RefCell<MetaBufferHead>>>,
-    lru: Lru<LRUEntry>,
+    /// Contains the actual MetaBufferHead objects and keeps them sorted by LRU
+    lru: BoxList<MetaBufferHead>,
+    /// Gives us a quick translation from block number to block id (index in the following vector)
+    ht: Treap<BlockNo, usize>,
+    /// Contains pointers to the MetaBufferHead objects, indexed by their id
+    blocks: Vec<NonNull<MetaBufferHead>>,
 }
 
 impl MetaBuffer {
     pub fn new(blocksize: usize) -> Self {
-        let mut lru = Lru::new();
+        let mut blocks = Vec::with_capacity(META_BUFFER_SIZE);
+        let mut lru = BoxList::new();
         for i in 0..META_BUFFER_SIZE {
-            let entry = LruElement::new(LRUEntry { head: None });
-
-            let meta_buffer_head = Rc::new(RefCell::new(MetaBufferHead::new(
-                0,
-                i,
-                blocksize,
-                entry.clone(),
-            )));
-
-            entry.borrow_mut().value_mut().head = Some(meta_buffer_head.clone());
-
-            lru.push_back(entry) // Init a block for each slot
+            let mut buffer = Box::new(MetaBufferHead::new(i, 0, blocksize));
+            // we can store the pointer in the vector, because boxing prevents it from moving.
+            unsafe {
+                blocks.push(NonNull::new_unchecked(&mut *buffer as *mut _));
+            }
+            lru.push_back(buffer);
         }
 
         MetaBuffer {
             ht: Treap::new(),
+            blocks,
             lru,
         }
+    }
+
+    fn bno_to_id(&self, bno: BlockNo) -> Option<usize> {
+        self.ht.get(&bno).map(|id| *id)
+    }
+
+    fn get_block_by_id(&self, id: usize) -> &MetaBufferHead {
+        unsafe { &(*self.blocks[id].as_ptr()) }
+    }
+
+    pub fn get_block_mut_by_id(&mut self, id: usize) -> &mut MetaBufferHead {
+        unsafe { &mut (*self.blocks[id].as_ptr()) }
     }
 
     /// Searches for data at `bno`, allocates if none is present.
@@ -111,38 +122,38 @@ impl MetaBuffer {
         req: &mut Request,
         bno: BlockNo,
         dirty: bool,
-    ) -> Result<Rc<RefCell<MetaBufferHead>>, Error> {
+    ) -> Result<&mut MetaBufferHead, Error> {
         log!(
             crate::LOG_DEF,
             "MetaBuffer::get_block(bno={}, dirty={})",
             bno,
             dirty
         );
-        loop {
-            if let Some(head) = self.get(bno) {
-                let head = head.clone();
 
-                if head.borrow().locked {
-                    // TODO find out why this breaks the linker
-                    // panic!("Could not wait for locked block, linking is broken atm.");
-                    // log!(crate::LOG_DEF, "WARNING: No really waiting for unlock: TODO find out why this breaks the linker!");
-                    // thread::ThreadManager::get().wait_for(head.borrow().unlock);
-                    // head.borrow_mut().locked = false;
-                    self.flush_chunk(&head)?;
+        loop {
+            if let Some(id) = self.bno_to_id(bno) {
+                // workaround for borrow-checker: don't use our convenience function
+                let block = unsafe { &mut (*self.blocks[id].as_ptr()) };
+
+                if block.locked {
+                    thread::ThreadManager::get().wait_for(block.unlock);
                 }
                 else {
                     // Move element to back since it was touched
-                    let lru_entry = head.borrow().lru_entry.clone();
-                    self.lru.move_to_back(lru_entry);
-                    head.borrow_mut().dirty |= dirty;
+                    unsafe {
+                        self.lru.move_to_back(block);
+                    }
+                    block.dirty |= dirty;
+                    block.links += 1;
+
                     log!(
                         crate::LOG_DEF,
                         "MetaBuffer: Found cached block <{}>, Links: {}",
-                        head.borrow().bno,
-                        Rc::strong_count(&head)
+                        block.bno,
+                        block.links,
                     );
-                    req.push_meta(head.clone());
-                    return Ok(head);
+                    req.push_meta(block.id);
+                    return Ok(block);
                 }
             }
             else {
@@ -154,63 +165,70 @@ impl MetaBuffer {
         let mut use_block = None;
         // Find first unused head
         for lru_element in self.lru.iter() {
-            if Rc::strong_count(lru_element.borrow().value().head.as_ref().unwrap()) <= 2 {
+            if lru_element.links == 0 {
                 // Only saved in lru and ht but unused
-                use_block = Some(lru_element.borrow().value().head.as_ref().unwrap().clone());
+                use_block = Some(lru_element.id);
                 break;
             }
         }
 
-        let block: Rc<RefCell<MetaBufferHead>> = use_block.unwrap();
+        let block = unsafe {
+            let block = &mut (*self.blocks[use_block.unwrap()].as_ptr());
+            self.lru.move_to_back(block);
+            block
+        };
 
         // Flush if there is still a block present with the given bno.
-        if let Some(mut old_block) = self.ht.remove(&block.borrow().bno) {
-            if old_block.borrow().dirty {
-                self.flush_chunk(&mut old_block)?;
+        if block.bno != 0 {
+            self.ht.remove(&block.bno);
+            if block.dirty {
+                Self::flush_chunk(block)?;
             }
         }
 
         // Now we are save to use this bno
         // Insert into ht
-        block.borrow_mut().bno = bno;
-        self.ht.insert(bno, block.clone());
+        block.bno = bno;
+        self.ht.insert(bno, block.id);
 
-        let off = block.borrow().off;
-        let unlock = block.borrow().unlock;
+        let unlock = block.unlock;
         // Now load from backend and setup everything
         crate::hdl()
             .backend()
-            .load_meta(block.clone(), off, bno, unlock)?;
-        block.borrow_mut().dirty = dirty;
-        let lru_element = block.borrow().lru_entry.clone();
-        self.lru.move_to_back(lru_element);
+            .load_meta(block, block.id, bno, unlock)?;
+        block.dirty = dirty;
+        block.locked = false;
+        block.links += 1;
 
         log!(
             crate::LOG_DEF,
             "MetaBuffer: Load new block<{}> Links: {}",
             bno,
-            Rc::strong_count(&block)
+            block.links,
         );
-        block.borrow_mut().locked = false;
+        req.push_meta(block.id);
+        Ok(block)
+    }
 
-        req.push_meta(block.clone());
-        Ok(block.clone())
+    pub fn deref(&mut self, id: usize) {
+        let block = self.get_block_mut_by_id(id);
+        assert!(block.links > 0);
+        block.links -= 1;
     }
 
     pub fn dirty(&self, bno: BlockNo) -> bool {
         if let Some(b) = self.get(bno) {
-            b.borrow().dirty
+            b.dirty
         }
         else {
             false
         }
     }
 
-    pub fn write_back(&mut self, bno: &BlockNo) -> Result<(), Error> {
-        if let Some(h) = self.get(*bno) {
-            let inner = h.clone();
-            if inner.borrow().dirty {
-                self.flush_chunk(&inner)?;
+    pub fn write_back(&mut self, bno: BlockNo) -> Result<(), Error> {
+        if let Some(b) = self.get_mut(bno) {
+            if b.dirty {
+                Self::flush_chunk(b)?;
             }
         }
         Ok(())
@@ -218,53 +236,47 @@ impl MetaBuffer {
 }
 
 impl Buffer for MetaBuffer {
-    type HEAD = Rc<RefCell<MetaBufferHead>>;
+    type HEAD = MetaBufferHead;
 
     fn mark_dirty(&mut self, bno: BlockNo) {
         if let Some(b) = self.get_mut(bno) {
-            b.borrow_mut().dirty = true;
+            b.dirty = true;
         }
     }
 
     fn flush(&mut self) -> Result<(), Error> {
-        while !self.ht.is_empty() {
-            if let Some(mut head) = self.ht.remove_root() {
-                if head.borrow().dirty {
-                    self.flush_chunk(&mut head)?;
-                }
-            }
-            else {
-                break;
+        for block_ptr in &mut self.blocks {
+            let block = unsafe { &mut (*block_ptr.as_ptr()) };
+            if block.dirty {
+                Self::flush_chunk(block)?;
             }
         }
         Ok(())
     }
 
     fn get(&self, bno: BlockNo) -> Option<&Self::HEAD> {
-        self.ht.get(&bno)
+        self.bno_to_id(bno).map(|id| &*self.get_block_by_id(id))
     }
 
     fn get_mut(&mut self, bno: BlockNo) -> Option<&mut Self::HEAD> {
-        self.ht.get_mut(&bno)
+        self.bno_to_id(bno)
+            .map(|id| unsafe { &mut (*self.blocks[id].as_ptr()) })
     }
 
-    fn flush_chunk(&mut self, head: &Self::HEAD) -> Result<(), Error> {
-        head.borrow_mut().locked = true;
+    fn flush_chunk(head: &mut Self::HEAD) -> Result<(), Error> {
+        head.locked = true;
         log!(
             crate::LOG_DEF,
             "MetaBuffer: Write back block <{}>",
-            head.borrow().bno
+            head.bno
         );
 
         // Write meta block to backend device
-        crate::hdl().backend().store_meta(
-            head.clone(),
-            head.borrow().off,
-            head.borrow().bno,
-            head.borrow().unlock,
-        )?;
-        head.borrow_mut().dirty = false;
-        head.borrow_mut().locked = false;
+        crate::hdl()
+            .backend()
+            .store_meta(head, head.id, head.bno, head.unlock)?;
+        head.dirty = false;
+        head.locked = false;
         Ok(())
     }
 }

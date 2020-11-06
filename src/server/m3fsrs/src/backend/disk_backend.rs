@@ -5,11 +5,9 @@ use crate::sess::request::Request;
 
 use crate::m3::serialize::Sink;
 use m3::cap::Selector;
-use m3::cell::RefCell;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
 use m3::kif::{CapRngDesc, CapType};
-use m3::rc::Rc;
 use m3::session::Disk;
 use thread::Event;
 
@@ -52,7 +50,7 @@ impl Backend for DiskBackend {
 
     fn load_meta(
         &self,
-        dst: Rc<RefCell<MetaBufferHead>>,
+        dst: &mut MetaBufferHead,
         dst_off: usize,
         bno: BlockNo,
         unlock: Event,
@@ -61,7 +59,7 @@ impl Backend for DiskBackend {
         self.disk
             .read(0, bno, 1, self.blocksize, Some(off as u64))?;
         self.metabuf.read_bytes(
-            dst.borrow_mut().data_mut().as_mut_ptr(),
+            dst.data_mut().as_mut_ptr(),
             self.blocksize,
             off as u64,
         )?;
@@ -87,14 +85,14 @@ impl Backend for DiskBackend {
 
     fn store_meta(
         &self,
-        src: Rc<RefCell<MetaBufferHead>>,
+        src: &MetaBufferHead,
         src_off: usize,
         bno: BlockNo,
         unlock: Event,
     ) -> Result<(), Error> {
         let off = src_off * (self.blocksize + crate::buffer::PRDT_SIZE);
         self.metabuf.write_bytes(
-            src.borrow_mut().data_mut().as_mut_ptr(),
+            src.data().as_ptr(),
             self.blocksize,
             off as u64,
         )?;
@@ -110,12 +108,12 @@ impl Backend for DiskBackend {
         Ok(())
     }
 
-    fn sync_meta(&self, request: &mut Request, bno: &BlockNo) -> Result<(), Error> {
+    fn sync_meta(&self, request: &mut Request, bno: BlockNo) -> Result<(), Error> {
         // check if there is a filebuffer entry for it or create one
         let msel = m3::pes::VPE::cur().alloc_sel();
         crate::hdl().filebuffer().get_extent(
             self,
-            *bno,
+            bno,
             1,
             msel,
             Perm::RWX,
@@ -126,9 +124,9 @@ impl Backend for DiskBackend {
 
         // okay, so write it from metabuffer to filebuffer
         let m = MemGate::new_bind(msel);
-        let block_borrow = crate::hdl().metabuffer().get_block(request, *bno, false)?;
+        let block = crate::hdl().metabuffer().get_block(request, bno, false)?;
         m.write_bytes(
-            block_borrow.borrow_mut().data_mut().as_mut_ptr(),
+            block.data_mut().as_mut_ptr(),
             crate::hdl().superblock().block_size as usize,
             0,
         )?;

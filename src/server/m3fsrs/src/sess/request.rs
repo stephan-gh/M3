@@ -1,11 +1,7 @@
-use m3::cell::RefCell;
 use m3::col::Vec;
-use m3::rc::Rc;
-
-use crate::meta_buffer::MetaBufferHead;
 
 pub struct Request {
-    blocks: Vec<Rc<RefCell<MetaBufferHead>>>,
+    blocks: Vec<usize>,
 }
 
 impl Request {
@@ -19,13 +15,12 @@ impl Request {
         self.blocks.len()
     }
 
-    pub fn push_meta(&mut self, meta: Rc<RefCell<MetaBufferHead>>) {
+    pub fn push_meta(&mut self, meta: usize) {
         self.blocks.push(meta);
     }
 
     pub fn pop_meta(&mut self) {
-        // TODO actually dereference the block here
-        self.blocks.pop().unwrap();
+        crate::hdl().metabuffer().deref(self.blocks.pop().unwrap());
     }
 
     pub fn pop_metas(&mut self, n: usize) {

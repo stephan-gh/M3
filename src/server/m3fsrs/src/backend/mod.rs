@@ -3,11 +3,9 @@ use crate::meta_buffer::MetaBufferHead;
 use crate::sess::request::Request;
 
 use m3::cap::Selector;
-use m3::cell::RefCell;
 use m3::com::MemGate;
 use m3::com::Perm;
 use m3::errors::Error;
-use m3::rc::Rc;
 use thread::Event;
 
 /// In-Memory backend implementation for the file system
@@ -21,7 +19,7 @@ pub trait Backend {
     fn in_memory(&self) -> bool;
     fn load_meta(
         &self,
-        dst: Rc<RefCell<MetaBufferHead>>,
+        dst: &mut MetaBufferHead,
         dst_off: usize,
         bno: BlockNo,
         unlock: Event,
@@ -37,14 +35,14 @@ pub trait Backend {
 
     fn store_meta(
         &self,
-        src: Rc<RefCell<MetaBufferHead>>,
+        src: &MetaBufferHead,
         src_off: usize,
         bno: BlockNo,
         unlock: Event,
     ) -> Result<(), Error>;
     fn store_data(&self, bno: BlockNo, blocks: usize, unlock: Event) -> Result<(), Error>;
 
-    fn sync_meta(&self, request: &mut Request, bno: &BlockNo) -> Result<(), Error>;
+    fn sync_meta(&self, request: &mut Request, bno: BlockNo) -> Result<(), Error>;
 
     fn get_filedata(
         &self,

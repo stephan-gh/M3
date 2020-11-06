@@ -307,6 +307,8 @@ impl INodes {
         }
         i -= INODE_DIR_COUNT;
 
+        let mb = crate::hdl().metabuffer();
+
         // Try to find/put the searched ext within the inodes indirect block
         if i < crate::hdl().superblock().extents_per_block() {
             // Create indirect block if not done yet
@@ -330,18 +332,15 @@ impl INodes {
 
                 let num_ext_per_block = crate::hdl().superblock().extents_per_block();
                 let mut extent_vec = Vec::with_capacity(num_ext_per_block);
-                let data_ref =
-                    crate::hdl()
-                        .metabuffer()
-                        .get_block(req, inode.inode().indirect, false)?;
+                let data_ref = mb.get_block(req, inode.inode().indirect, false)?;
 
                 if created {
-                    data_ref.borrow_mut().overwrite_zero();
+                    data_ref.overwrite_zero();
                 }
 
                 for j in 0..num_ext_per_block {
                     extent_vec.push(LoadedExtent::ind_from_buffer_location(
-                        data_ref.clone(),
+                        data_ref,
                         j * crate::internal::NUM_EXT_BYTES,
                     ));
                 }
@@ -372,12 +371,9 @@ impl INodes {
             }
 
             // init with zeros
-            let dind_block_ref =
-                crate::hdl()
-                    .metabuffer()
-                    .get_block(req, inode.inode().dindirect, false)?;
+            let dind_block_ref = mb.get_block(req, inode.inode().dindirect, false)?;
             if created {
-                dind_block_ref.borrow_mut().overwrite_zero();
+                dind_block_ref.overwrite_zero();
             }
 
             log!(
@@ -392,7 +388,7 @@ impl INodes {
             // within the indirect block.
             // I changed it not to be the (i/ext_perblock)-th extent within this block
             let dind_ext_pointer = LoadedExtent::ind_from_buffer_location(
-                dind_block_ref.clone(),
+                dind_block_ref,
                 (i / crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
             );
 
@@ -406,17 +402,14 @@ impl INodes {
                 created = true;
             }
             // init with zeros
-            let ind_block_ref =
-                crate::hdl()
-                    .metabuffer()
-                    .get_block(req, *dind_ext_pointer.start(), false)?;
+            let ind_block_ref = mb.get_block(req, *dind_ext_pointer.start(), false)?;
             if created {
-                ind_block_ref.borrow_mut().overwrite_zero();
+                ind_block_ref.overwrite_zero();
             }
 
             // Finally get extent and return
             let ext = LoadedExtent::ind_from_buffer_location(
-                ind_block_ref.clone(),
+                ind_block_ref,
                 (i % crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
             );
 
@@ -450,6 +443,8 @@ impl INodes {
 
         i -= INODE_DIR_COUNT;
 
+        let mb = crate::hdl().metabuffer();
+
         if i < ext_per_block {
             assert!(
                 inode.inode().indirect != 0,
@@ -458,15 +453,12 @@ impl INodes {
 
             if indir.len() == 0 {
                 // indir is allocated but not laoded in the indir-vec. Do that now
-                let data_ref =
-                    crate::hdl()
-                        .metabuffer()
-                        .get_block(req, inode.inode().indirect, false)?;
+                let data_ref = mb.get_block(req, inode.inode().indirect, false)?;
 
                 let mut extent_vec = Vec::with_capacity(ext_per_block);
                 for j in 0..ext_per_block {
                     extent_vec.push(LoadedExtent::ind_from_buffer_location(
-                        data_ref.clone(),
+                        data_ref,
                         j * NUM_EXT_BYTES,
                     ));
                 }
@@ -494,22 +486,17 @@ impl INodes {
                 "inode was in dindirect block, but dindirect is not allocated!"
             );
             // Load dindirect into vec
-            let data_ref =
-                crate::hdl()
-                    .metabuffer()
-                    .get_block(req, inode.inode().indirect, false)?;
+            let data_ref = mb.get_block(req, inode.inode().indirect, false)?;
 
             let ptr = LoadedExtent::ind_from_buffer_location(
-                data_ref.clone(),
+                data_ref,
                 (i / ext_per_block) * NUM_EXT_BYTES,
             );
 
-            let dindir = crate::hdl()
-                .metabuffer()
-                .get_block(req, *ptr.start(), false)?;
+            let dindir = mb.get_block(req, *ptr.start(), false)?;
 
             let ext_loc = (i % ext_per_block) * NUM_EXT_BYTES;
-            let ext = LoadedExtent::ind_from_buffer_location(dindir.clone(), ext_loc);
+            let ext = LoadedExtent::ind_from_buffer_location(dindir, ext_loc);
 
             crate::hdl().metabuffer().mark_dirty(*ptr.start());
 
@@ -668,7 +655,7 @@ impl INodes {
 
             for block in extent.into_iter() {
                 if crate::hdl().metabuffer().dirty(block) {
-                    crate::hdl().backend().sync_meta(req, &block)?;
+                    crate::hdl().backend().sync_meta(req, block)?;
                 }
             }
             req.pop_metas(req.used_meta() - org_used);

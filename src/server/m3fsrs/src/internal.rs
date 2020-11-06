@@ -217,7 +217,7 @@ impl INode {
 /// The wrapper around the original `Inode` is needed to safely hold several pointer to the same block for several INodes at once.
 pub struct LoadedInode {
     /// Reference to the location of the Inodes data
-    pub(crate) data_ref: Rc<RefCell<MetaBufferHead>>,
+    pub(crate) block_id: usize,
     // Offset into the block where the inode is located.
     pub(crate) inode_location: usize,
     pub(crate) inode: RefCell<&'static mut INode>,
@@ -268,12 +268,13 @@ fn to_flags(mode: u32) -> String {
 impl Clone for LoadedInode {
     fn clone(&self) -> Self {
         // Creates a copied pointer but this should be okay according to safety comment in `from_buffer_location`
-        LoadedInode::from_buffer_location(self.data_ref.clone(), self.inode_location)
+        let block = crate::hdl().metabuffer().get_block_mut_by_id(self.block_id);
+        LoadedInode::from_buffer_location(block, self.inode_location)
     }
 }
 
 impl LoadedInode {
-    pub fn from_buffer_location(buffer: Rc<RefCell<MetaBufferHead>>, location: usize) -> Self {
+    pub fn from_buffer_location(buffer: &mut MetaBufferHead, location: usize) -> Self {
         // Use transmute to create an Inode from the buffer and load it into the variable.
         // the "LoadedInode" wrapper keeps track that the buffer is at least as long alive as the inode itself
         let inode: &'static mut INode = unsafe {
@@ -284,24 +285,24 @@ impl LoadedInode {
                 location
             );
             debug_assert!(
-                (location + size_of::<INode>()) < buffer.borrow().data().len(),
+                (location + size_of::<INode>()) < buffer.data().len(),
                 "Inode at location {} does not fit in buffer of size {}",
                 location,
-                buffer.borrow().data().len()
+                buffer.data().len()
             );
 
             // Since all conditions for the cast should be checked at this point, transmute the pointer into the buffer.
             // Safety: Borrowing the same Inode several time is potentially unsafe, when sharing the pointers. However, currently
             // m3fsrs is single threaded, so it should behave like a copied pointer in C/C++ i guess.
             let inode_offset = location / size_of::<INode>();
-            let mem = buffer.borrow_mut().data_mut().as_mut_ptr();
+            let mem = buffer.data_mut().as_mut_ptr();
             let mut cast_ptr = mem.cast::<INode>();
             cast_ptr = cast_ptr.add(inode_offset);
             &mut *cast_ptr
         };
 
         LoadedInode {
-            data_ref: buffer,
+            block_id: buffer.id(),
             inode_location: location,
             inode: RefCell::new(inode),
         }
@@ -342,10 +343,10 @@ const DIR_ENTRY_LEN: usize = 12;
 
 impl DirEntry {
     /// Returns a reference to the directory entry stored at `off` in the given buffer
-    pub fn from_buffer(buffer: Rc<RefCell<MetaBufferHead>>, off: usize) -> &'static Self {
+    pub fn from_buffer(buffer: &MetaBufferHead, off: usize) -> &'static Self {
         // TODO ensure that name_length and next are within bounds (in case FS image is corrupt)
         unsafe {
-            let buffer_off = buffer.borrow().data().as_ptr().add(off);
+            let buffer_off = buffer.data().as_ptr().add(off);
             let name_length = buffer_off.add(size_of::<InodeNo>()) as *const u32;
             let slice = [buffer_off as usize, *name_length as usize + DIR_ENTRY_LEN];
             intrinsics::transmute(slice)
@@ -353,10 +354,10 @@ impl DirEntry {
     }
 
     /// Returns a mutable reference to the directory entry stored at `off` in the given buffer
-    pub fn from_buffer_mut(buffer: Rc<RefCell<MetaBufferHead>>, off: usize) -> &'static mut Self {
+    pub fn from_buffer_mut(buffer: &mut MetaBufferHead, off: usize) -> &'static mut Self {
         // TODO ensure that name_length and next are within bounds (in case FS image is corrupt)
         unsafe {
-            let buffer_off = buffer.borrow_mut().data_mut().as_mut_ptr().add(off);
+            let buffer_off = buffer.data_mut().as_mut_ptr().add(off);
             let name_length = buffer_off.add(size_of::<InodeNo>()) as *const u32;
             let slice = [buffer_off as usize, *name_length as usize + DIR_ENTRY_LEN];
             intrinsics::transmute(slice)
@@ -405,7 +406,7 @@ pub struct Extent {
 /// And as a third option the extent might not be saved in an inode or block at all, but just memory. In that case we use `Unstored`.
 pub enum LoadedExtent {
     Indirect {
-        data_ref: Rc<RefCell<MetaBufferHead>>,
+        block_id: usize,
         ext_location: usize,
         extent: RefCell<&'static mut Extent>,
     },
@@ -424,10 +425,13 @@ impl Clone for LoadedExtent {
     fn clone(&self) -> Self {
         match self {
             LoadedExtent::Indirect {
-                data_ref,
+                block_id,
                 ext_location,
                 extent: _,
-            } => LoadedExtent::ind_from_buffer_location(data_ref.clone(), *ext_location),
+            } => {
+                let block = crate::hdl().metabuffer().get_block_mut_by_id(*block_id);
+                LoadedExtent::ind_from_buffer_location(block, *ext_location)
+            },
             LoadedExtent::Direct { inode_ref, index } => LoadedExtent::Direct {
                 inode_ref: inode_ref.clone(),
                 index: *index,
@@ -441,26 +445,26 @@ impl Clone for LoadedExtent {
 
 impl LoadedExtent {
     /// Loads an indirect block from some MetaBufferHead
-    pub fn ind_from_buffer_location(buffer: Rc<RefCell<MetaBufferHead>>, location: usize) -> Self {
+    pub fn ind_from_buffer_location(buffer: &mut MetaBufferHead, location: usize) -> Self {
         debug_assert!(
             location % size_of::<Extent>() == 0,
             "Extent location is not multiple of extent size!"
         );
         debug_assert!(
-            location + size_of::<Extent>() < buffer.borrow().data().len(),
+            location + size_of::<Extent>() < buffer.data().len(),
             "Extent location exceeds buffer!"
         );
 
         let loc = location / size_of::<Extent>();
         let ext = unsafe {
-            let mem = buffer.borrow_mut().data_mut().as_mut_ptr();
+            let mem = buffer.data_mut().as_mut_ptr();
             let mut cmem = mem.cast::<Extent>();
             cmem = cmem.add(loc);
             &mut *cmem
         };
 
         LoadedExtent::Indirect {
-            data_ref: buffer,
+            block_id: buffer.id(),
             ext_location: location,
             extent: RefCell::new(ext),
         }
@@ -469,7 +473,7 @@ impl LoadedExtent {
     pub fn length(&self) -> Ref<u32> {
         match self {
             LoadedExtent::Indirect {
-                data_ref: _,
+                block_id: _,
                 ext_location: _,
                 extent,
             } => Ref::map(extent.borrow(), |ex| &ex.length),
@@ -483,7 +487,7 @@ impl LoadedExtent {
     pub fn length_mut(&self) -> RefMut<u32> {
         match self {
             LoadedExtent::Indirect {
-                data_ref: _,
+                block_id: _,
                 ext_location: _,
                 extent,
             } => RefMut::map(extent.borrow_mut(), |ex| &mut ex.length),
@@ -499,7 +503,7 @@ impl LoadedExtent {
     pub fn start(&self) -> Ref<u32> {
         match self {
             LoadedExtent::Indirect {
-                data_ref: _,
+                block_id: _,
                 ext_location: _,
                 extent,
             } => Ref::map(extent.borrow(), |ex| &ex.start),
@@ -513,7 +517,7 @@ impl LoadedExtent {
     pub fn start_mut(&self) -> RefMut<u32> {
         match self {
             LoadedExtent::Indirect {
-                data_ref: _,
+                block_id: _,
                 ext_location: _,
                 extent,
             } => RefMut::map(extent.borrow_mut(), |ex| &mut ex.start),

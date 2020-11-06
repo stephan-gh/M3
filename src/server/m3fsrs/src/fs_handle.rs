@@ -7,24 +7,23 @@ use crate::{
     meta_buffer::MetaBuffer, sess::open_files::OpenFiles, FsSettings,
 };
 
-use m3::cell::{Ref, RefCell, RefMut};
+use m3::boxed::Box;
 use m3::col::String;
 use m3::errors::Error;
-use m3::rc::Rc;
 
 /// Handle to the real file system based on some backend
 pub struct M3FSHandle {
-    backend: Rc<RefCell<dyn Backend + 'static>>,
+    backend: Box<dyn Backend + 'static>,
     settings: FsSettings<'static>,
 
     super_block: SuperBlock,
-    file_buffer: Rc<RefCell<FileBuffer>>,
-    meta_buffer: Rc<RefCell<MetaBuffer>>,
+    file_buffer: FileBuffer,
+    meta_buffer: MetaBuffer,
 
-    blocks: Rc<RefCell<Allocator>>,
-    inodes: Rc<RefCell<Allocator>>,
+    blocks: Allocator,
+    inodes: Allocator,
 
-    files: Rc<RefCell<OpenFiles>>,
+    files: OpenFiles,
 }
 
 impl M3FSHandle {
@@ -58,39 +57,39 @@ impl M3FSHandle {
         );
 
         let fs_handle = M3FSHandle {
-            backend: Rc::new(RefCell::new(backend)),
-            file_buffer: Rc::new(RefCell::new(FileBuffer::new(sb.block_size as usize))),
-            meta_buffer: Rc::new(RefCell::new(MetaBuffer::new(sb.block_size as usize))),
+            backend: Box::new(backend),
+            file_buffer: FileBuffer::new(sb.block_size as usize),
+            meta_buffer: MetaBuffer::new(sb.block_size as usize),
             settings,
             super_block: sb,
 
-            files: Rc::new(RefCell::new(OpenFiles::new())),
+            files: OpenFiles::new(),
 
-            blocks: Rc::new(RefCell::new(blocks_allocator)),
-            inodes: Rc::new(RefCell::new(inodes_allocator)),
+            blocks: blocks_allocator,
+            inodes: inodes_allocator,
         };
 
         fs_handle
     }
 
-    pub fn backend<'a>(&'a self) -> Ref<'a, dyn Backend> {
-        self.backend.borrow()
+    pub fn backend(&self) -> &dyn Backend {
+        &*self.backend
     }
 
     pub fn superblock(&self) -> &SuperBlock {
         &self.super_block
     }
 
-    pub fn inodes<'a>(&'a self) -> RefMut<'a, Allocator> {
-        self.inodes.borrow_mut()
+    pub fn inodes(&mut self) -> &mut Allocator {
+        &mut self.inodes
     }
 
-    pub fn blocks<'a>(&'a self) -> RefMut<'a, Allocator> {
-        self.blocks.borrow_mut()
+    pub fn blocks(&mut self) -> &mut Allocator {
+        &mut self.blocks
     }
 
-    pub fn files<'a>(&'a self) -> RefMut<'a, OpenFiles> {
-        self.files.borrow_mut()
+    pub fn files(&mut self) -> &mut OpenFiles {
+        &mut self.files
     }
 
     pub fn revoke_first(&self) -> bool {
@@ -105,26 +104,26 @@ impl M3FSHandle {
         self.settings.extend
     }
 
-    pub fn flush_buffer(&self) -> Result<(), Error> {
-        self.meta_buffer.borrow_mut().flush()?;
-        self.file_buffer.borrow_mut().flush()?;
-        self.backend.borrow_mut().store_sb(&self.super_block)
+    pub fn flush_buffer(&mut self) -> Result<(), Error> {
+        self.meta_buffer.flush()?;
+        self.file_buffer.flush()?;
+        self.backend.store_sb(&self.super_block)
     }
 
-    pub fn metabuffer<'a>(&'a self) -> RefMut<'a, MetaBuffer> {
-        self.meta_buffer.borrow_mut()
+    pub fn metabuffer(&mut self) -> &mut MetaBuffer {
+        &mut self.meta_buffer
     }
 
-    pub fn filebuffer<'a>(&'a self) -> RefMut<'a, FileBuffer> {
-        self.file_buffer.borrow_mut()
+    pub fn filebuffer(&mut self) -> &mut FileBuffer {
+        &mut self.file_buffer
     }
 
     pub fn get_meta_block(
-        &self,
+        &mut self,
         req: &mut Request,
         bno: BlockNo,
         dirty: bool,
-    ) -> Result<Rc<RefCell<MetaBufferHead>>, Error> {
-        self.meta_buffer.borrow_mut().get_block(req, bno, dirty)
+    ) -> Result<&mut MetaBufferHead, Error> {
+        self.meta_buffer.get_block(req, bno, dirty)
     }
 }
