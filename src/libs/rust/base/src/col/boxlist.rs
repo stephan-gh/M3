@@ -310,6 +310,35 @@ impl<T: BoxItem> BoxList<T> {
             Box::from_raw(item)
         })
     }
+
+    /// Moves the given element from the current position in the list to the back of the list
+    ///
+    /// # Safety
+    ///
+    /// This function assumes that the given element is part of this list
+    pub unsafe fn move_to_back(&mut self, item: &mut T) {
+        // already at the back? (tail is always Some, because T is in the list)
+        if self.tail.unwrap().as_ptr() == item as *mut T {
+            return;
+        }
+
+        // remove us from the list
+        match item.prev() {
+            Some(mut p) => p.as_mut().set_next(intrinsics::transmute(item.next())),
+            None => self.head = intrinsics::transmute(item.next()),
+        }
+        // it's not at the back, so we can assume next() is Some
+        item.next().unwrap().as_mut().set_prev(intrinsics::transmute(item.prev()));
+
+        // let the current tail's next point to us
+        let item_ptr = Some(NonNull::new_unchecked(item as *mut T));
+        self.tail.unwrap().as_mut().set_next(intrinsics::transmute(item_ptr));
+
+        // add us to the end
+        item.set_prev(intrinsics::transmute(self.tail));
+        item.set_next(None);
+        self.tail = item_ptr;
+    }
 }
 
 impl<T: BoxItem> Drop for BoxList<T> {
