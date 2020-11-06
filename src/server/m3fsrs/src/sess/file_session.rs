@@ -6,7 +6,7 @@ use crate::util::*;
 use m3::{
     cap::Selector,
     cell::RefCell,
-    col::{String, Vec},
+    col::{String, ToString, Vec},
     com::{GateIStream, SendGate},
     errors::{Code, Error},
     kif::{CapRngDesc, CapType, INVALID_SEL},
@@ -93,7 +93,7 @@ impl FileSession {
         meta_rgate: &m3::com::RecvGate,
         file_session_id: SessId,
         meta_session_id: SessId,
-        filename: String,
+        filename: &str,
         flags: u64,
         ino: InodeNo,
     ) -> Result<Rc<RefCell<Self>>, Error> {
@@ -149,7 +149,7 @@ impl FileSession {
             sgate: send_gate,
 
             oflags: flags,
-            filename,
+            filename: filename.to_string(),
             ino,
 
             sel,

@@ -81,7 +81,7 @@ impl MetaSession {
         let flags = data.in_args().pop::<u32>()? as u64; // Pop Flags from args
 
         // Read the string, is already read only until termination or not at all
-        let path = data.in_args().pop_str()?;
+        let path = data.in_args().pop_str_slice()?;
 
         log!(
             crate::LOG_DEF,
@@ -104,7 +104,7 @@ impl MetaSession {
         &mut self,
         srv: Selector,
         crt: usize,
-        path: String,
+        path: &str,
         flags: u64,
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
@@ -162,7 +162,7 @@ impl MetaSession {
         &mut self,
         srv: Selector,
         crt: usize,
-        path: String,
+        path: &str,
         flags: u64,
         ino: InodeNo,
         file_session_id: SessId,
@@ -215,12 +215,12 @@ impl M3FSSession for MetaSession {
     }
 
     fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let path: String = stream.pop()?;
+        let path: &str = stream.pop()?;
         let mut req = Request::new();
 
         log!(crate::LOG_DEF, "fs::stat(path={})", path);
 
-        let ino = Dirs::search(&mut req, &path, false)?;
+        let ino = Dirs::search(&mut req, path, false)?;
         let inode = INodes::get(&mut req, ino)?;
 
         let mut info = FileInfo::default();
@@ -229,32 +229,32 @@ impl M3FSSession for MetaSession {
     }
 
     fn mkdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let path: String = stream.pop()?;
+        let path: &str = stream.pop()?;
         let mode: Mode = stream.pop()?;
 
         let mut req = Request::new();
 
         log!(crate::LOG_DEF, "fs::mkdir(path={}, mode={:b})", path, mode);
 
-        Dirs::create(&mut req, &path, mode)?;
+        Dirs::create(&mut req, path, mode)?;
 
         reply_vmsg!(stream, 0 as u64)
     }
 
     fn rmdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let path: String = stream.pop()?;
+        let path: &str = stream.pop()?;
         let mut req = Request::new();
 
         log!(crate::LOG_DEF, "fs::rmdir(path={})", path);
 
-        Dirs::remove(&mut req, &path)?;
+        Dirs::remove(&mut req, path)?;
 
         reply_vmsg!(stream, 0 as u32)
     }
 
     fn link(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let old_path: String = stream.pop()?;
-        let new_path: String = stream.pop()?;
+        let old_path: &str = stream.pop()?;
+        let new_path: &str = stream.pop()?;
 
         let mut req = Request::new();
 
@@ -265,17 +265,17 @@ impl M3FSSession for MetaSession {
             new_path
         );
 
-        Dirs::link(&mut req, &old_path, &new_path)?;
+        Dirs::link(&mut req, old_path, new_path)?;
 
         reply_vmsg!(stream, 0 as u32)
     }
 
     fn unlink(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let path: String = stream.pop()?;
+        let path: &str = stream.pop()?;
         let mut req = Request::new();
         log!(crate::LOG_DEF, "fs::unlink(path={})", path);
 
-        Dirs::unlink(&mut req, &path, false)?;
+        Dirs::unlink(&mut req, path, false)?;
 
         reply_vmsg!(stream, 0 as u32)
     }
