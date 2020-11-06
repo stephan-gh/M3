@@ -70,9 +70,9 @@ impl MetaBufferHead {
 
     // Overwrites the data of this block with zeros
     pub fn overwrite_zero(&mut self) {
-        // we are allowed to move the memory loction, since the overwrite invalidates the whole
-        // block anyways
-        self.data = vec![0; crate::hdl().superblock().block_size as usize];
+        for i in &mut self.data {
+            *i = 0;
+        }
     }
 }
 
