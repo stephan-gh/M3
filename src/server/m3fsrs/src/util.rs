@@ -7,7 +7,7 @@ use m3::rc::Rc;
 
 use core::ops::Range;
 
-///Bitmap wrapper for a number of bytes.
+/// Bitmap wrapper for a number of bytes.
 pub struct Bitmap<'a> {
     bytes: &'a mut [u8],
 }
@@ -17,12 +17,12 @@ impl<'a> Bitmap<'a> {
         Bitmap { bytes }
     }
 
-    ///Returns the index of the first bit with the word in which `index` lays.
+    /// Returns the index of the first bit with the word in which `index` lays.
     pub fn get_first_index_of_word(index: usize) -> usize {
         (index / Bitmap::word_size()) * Bitmap::word_size()
     }
 
-    ///Checks if the word at `index` is 255. If `false` is returned, some bit is 0 within this word.
+    /// Checks if the word at `index` is 255. If `false` is returned, some bit is 0 within this word.
     pub fn is_word_set(&self, mut index: usize) -> bool {
         index = index / Bitmap::word_size();
         self.bytes[index] == core::u8::MAX
@@ -76,15 +76,15 @@ impl<'a> Bitmap<'a> {
     }
 }
 
-//TODO abstract to a T maybe that implements all the ops needed.
+// TODO abstract to a T maybe that implements all the ops needed.
 pub fn round_up(value: usize, align: usize) -> usize {
     (value + align - 1) & !(align - 1)
 }
 
-///takes some path, returns the next component as well as the rest path. Returns none if there is no other pattern
+/// takes some path, returns the next component as well as the rest path. Returns none if there is no other pattern
 pub fn next_start_end<'a>(st: &'a str, last_end: usize) -> Option<(usize, usize)> {
     let mut new_start = last_end;
-    //Move over all / until we found a real start
+    // Move over all / until we found a real start
     loop {
         if let Some(ch) = st.get(new_start..new_start + 1) {
             if ch == "/" {
@@ -95,7 +95,7 @@ pub fn next_start_end<'a>(st: &'a str, last_end: usize) -> Option<(usize, usize)
             }
         }
         else {
-            //Indexed outside of string
+            // Indexed outside of string
             return None;
         }
     }
@@ -112,7 +112,7 @@ pub fn next_start_end<'a>(st: &'a str, last_end: usize) -> Option<(usize, usize)
             }
         }
         else {
-            //Sampled outside, but might be just the last component, therefore move sample back one
+            // Sampled outside, but might be just the last component, therefore move sample back one
             break;
         }
     }
@@ -120,13 +120,13 @@ pub fn next_start_end<'a>(st: &'a str, last_end: usize) -> Option<(usize, usize)
     Some((new_start, new_end))
 }
 
-///Returns the range in which range the last directory of the path is.
+/// Returns the range in which range the last directory of the path is.
 ///
 /// - get_base_dir("/foo/bar.baz") == ((0..4), (5..11))
 /// - get_base_dir("/foo/bar/") == ((0..9), (10..10));
 /// - get_base_dir("foo") == ((0..0, 0..2));
 pub fn get_base_dir<'a>(path: &'a str) -> (Range<usize>, Range<usize>) {
-    //Search from back for first /, if found, check if / is not last char of string.
+    // Search from back for first /, if found, check if / is not last char of string.
     let mut base_start = path.len() - 1;
     while let Some(ch) = path.get(base_start..base_start + 1) {
         if ch == "/" {
@@ -147,7 +147,7 @@ pub fn get_base_dir<'a>(path: &'a str) -> (Range<usize>, Range<usize>) {
         (0..base_start - 1, base_start..path.len())
     }
     else {
-        //No dir but maybe a base left
+        // No dir but maybe a base left
         (0..base_start - 1, base_start..path.len())
     }
 }
@@ -159,7 +159,7 @@ pub fn flags_to_perm(flags: u64) -> Perm {
     Perm::from_bits_truncate(flags as u32)
 }
 
-///Entry iterator takes a block and iterates over it assuming that the block contains entries.
+/// Entry iterator takes a block and iterates over it assuming that the block contains entries.
 pub struct EntryIterator {
     block: Rc<RefCell<MetaBufferHead>>,
     entry_location: usize,
@@ -179,7 +179,6 @@ impl EntryIterator {
 impl core::iter::Iterator for EntryIterator {
     type Item = &'static DirEntry;
 
-    // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
         if self.entry_location < self.end {
             let ret = DirEntry::from_buffer(self.block.clone(), self.entry_location);
@@ -237,7 +236,7 @@ impl<T> Lru<T> {
 
     pub fn pop_front(&mut self) -> Option<Rc<RefCell<LruElement<T>>>> {
         if let Some(front) = self.head.take() {
-            //Update front pointer
+            // Update front pointer
             self.head = front.borrow().next.clone();
 
             front.borrow_mut().next = None;
@@ -250,38 +249,38 @@ impl<T> Lru<T> {
     }
 
     pub fn push_back(&mut self, item: Rc<RefCell<LruElement<T>>>) {
-        //Have to initialize the lru
+        // Have to initialize the lru
         if self.head.is_none() {
             self.head = Some(item.clone());
             self.tail = Some(item.clone());
             return;
         }
 
-        //Has to be something, otherwise head would be uninitialized. This list can't remove items.
+        // Has to be something, otherwise head would be uninitialized. This list can't remove items.
         item.borrow_mut().prev = self.tail.clone();
         item.borrow_mut().next = None;
-        //Set old tails next pointer
+        // Set old tails next pointer
         self.tail.as_ref().unwrap().borrow_mut().next = Some(item.clone());
-        //Update tail pointer
+        // Update tail pointer
         self.tail = Some(item);
     }
 
     pub fn move_to_back(&mut self, item: Rc<RefCell<LruElement<T>>>) {
-        //No head, therefore this element cant be part and we have to move nothing
+        // No head, therefore this element cant be part and we have to move nothing
         if self.head.is_none() {
             return;
         }
-        //Check if this is the head if so we only need to adjust one pointer
+        // Check if this is the head if so we only need to adjust one pointer
         if Rc::ptr_eq(&self.head.as_ref().unwrap(), &item) {
-            //Update head
+            // Update head
             self.head = item.borrow().next.clone();
         }
-        //If we are moving back the tail, do nothing
+        // If we are moving back the tail, do nothing
         if Rc::ptr_eq(&self.tail.as_ref().unwrap(), &item) {
             return;
         }
 
-        //Take the element out of this list. This is unsafe if `element` is not part of this list.
+        // Take the element out of this list. This is unsafe if `element` is not part of this list.
         if let Some(prev) = &item.borrow().prev {
             let new_next = item.borrow().next.clone();
             prev.borrow_mut().next = new_next;

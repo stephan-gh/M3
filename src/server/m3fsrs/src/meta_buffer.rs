@@ -68,10 +68,10 @@ impl MetaBufferHead {
         &mut self.data
     }
 
-    //Overwrites the data of this block with zeros
+    // Overwrites the data of this block with zeros
     pub fn overwrite_zero(&mut self) {
-        //we are allowed to move the memory loction, since the overwrite invalidates the whole
-        //block anyways
+        // we are allowed to move the memory loction, since the overwrite invalidates the whole
+        // block anyways
         self.data = vec![0; crate::hdl().superblock().block_size as usize];
     }
 }
@@ -96,7 +96,7 @@ impl MetaBuffer {
 
             entry.borrow_mut().value_mut().head = Some(meta_buffer_head.clone());
 
-            lru.push_back(entry) //Init a block for each slot
+            lru.push_back(entry) // Init a block for each slot
         }
 
         MetaBuffer {
@@ -105,7 +105,7 @@ impl MetaBuffer {
         }
     }
 
-    ///Searches for data at `bno`, allocates if none is present.
+    /// Searches for data at `bno`, allocates if none is present.
     pub fn get_block(
         &mut self,
         req: &mut Request,
@@ -123,15 +123,15 @@ impl MetaBuffer {
                 let head = head.clone();
 
                 if head.borrow().locked {
-                    //TODO find out why this breaks the linker
-                    //panic!("Could not wait for locked block, linking is broken atm.");
-                    //log!(crate::LOG_DEF, "WARNING: No really waiting for unlock: TODO find out why this breaks the linker!");
-                    //thread::ThreadManager::get().wait_for(head.borrow().unlock);
-                    //head.borrow_mut().locked = false;
+                    // TODO find out why this breaks the linker
+                    // panic!("Could not wait for locked block, linking is broken atm.");
+                    // log!(crate::LOG_DEF, "WARNING: No really waiting for unlock: TODO find out why this breaks the linker!");
+                    // thread::ThreadManager::get().wait_for(head.borrow().unlock);
+                    // head.borrow_mut().locked = false;
                     self.flush_chunk(&head)?;
                 }
                 else {
-                    //Move element to back since it was touched
+                    // Move element to back since it was touched
                     let lru_entry = head.borrow().lru_entry.clone();
                     self.lru.move_to_back(lru_entry);
                     head.borrow_mut().dirty |= dirty;
@@ -146,16 +146,16 @@ impl MetaBuffer {
                 }
             }
             else {
-                //No block for block number, therefore allocate
+                // No block for block number, therefore allocate
                 break;
             }
         }
 
         let mut use_block = None;
-        //Find first unused head
+        // Find first unused head
         for lru_element in self.lru.iter() {
             if Rc::strong_count(lru_element.borrow().value().head.as_ref().unwrap()) <= 2 {
-                //Only saved in lru and ht but unused
+                // Only saved in lru and ht but unused
                 use_block = Some(lru_element.borrow().value().head.as_ref().unwrap().clone());
                 break;
             }
@@ -163,21 +163,21 @@ impl MetaBuffer {
 
         let block: Rc<RefCell<MetaBufferHead>> = use_block.unwrap();
 
-        //Flush if there is still a block present with the given bno.
+        // Flush if there is still a block present with the given bno.
         if let Some(mut old_block) = self.ht.remove(&block.borrow().bno) {
             if old_block.borrow().dirty {
                 self.flush_chunk(&mut old_block)?;
             }
         }
 
-        //Now we are save to use this bno
-        //Insert into ht
+        // Now we are save to use this bno
+        // Insert into ht
         block.borrow_mut().bno = bno;
         self.ht.insert(bno, block.clone());
 
         let off = block.borrow().off;
         let unlock = block.borrow().unlock;
-        //Now load from backend and setup everything
+        // Now load from backend and setup everything
         crate::hdl()
             .backend()
             .load_meta(block.clone(), off, bno, unlock)?;
@@ -256,7 +256,7 @@ impl Buffer for MetaBuffer {
             head.borrow().bno
         );
 
-        //Write meta block to backend device
+        // Write meta block to backend device
         crate::hdl().backend().store_meta(
             head.clone(),
             head.borrow().off,

@@ -10,7 +10,7 @@ use core::intrinsics;
 use core::slice;
 use core::u32;
 
-///Number of some block
+/// Number of some block
 pub type BlockNo = u32;
 
 pub type Dev = u8;
@@ -133,14 +133,14 @@ impl Default for FileInfo {
     }
 }
 
-///In memory version of INodes as they appear on disk.
+/// In memory version of INodes as they appear on disk.
 // should be 64 bytes large
 #[repr(C, packed)]
 pub struct INode {
     pub devno: Dev,
     pub links: u16,
 
-    pub pad: u8, //Is this really a padding, was originally named "8"
+    pub pad: u8, // Is this really a padding, was originally named "8"
 
     pub inode: InodeNo,
     pub mode: Mode,
@@ -150,9 +150,9 @@ pub struct INode {
     pub lastmod: Time,
     pub extents: u32,
 
-    pub direct: [Extent; INODE_DIR_COUNT], //direct entries
-    pub indirect: BlockNo,                 //location of the indirect block if != 0,
-    pub dindirect: BlockNo,                //location of double indirect block if != 0
+    pub direct: [Extent; INODE_DIR_COUNT], // direct entries
+    pub indirect: BlockNo,                 // location of the indirect block if != 0,
+    pub dindirect: BlockNo,                // location of double indirect block if != 0
 }
 
 impl Clone for INode {
@@ -170,8 +170,8 @@ impl Clone for INode {
             lastmod: self.lastmod,
             extents: self.extents,
 
-            direct: self.direct,     //direct entries
-            indirect: self.indirect, //location of the indirect block if != 0,
+            direct: self.direct,     // direct entries
+            indirect: self.indirect, // location of the indirect block if != 0,
             dindirect: self.dindirect,
         }
     }
@@ -211,19 +211,19 @@ impl INode {
     }
 }
 
-///Represents a inode within a MetaBuffer block. Can be manipulated via the getter and setter functions, which writes out the
+/// Represents a inode within a MetaBuffer block. Can be manipulated via the getter and setter functions, which writes out the
 /// changes immediately. Internally a pointer to the source block is saved as well as the location of this inode within the block.
 ///
-///The wrapper around the original `Inode` is needed to safely hold several pointer to the same block for several INodes at once.
+/// The wrapper around the original `Inode` is needed to safely hold several pointer to the same block for several INodes at once.
 pub struct LoadedInode {
-    ///Reference to the location of the Inodes data
+    /// Reference to the location of the Inodes data
     pub(crate) data_ref: Rc<RefCell<MetaBufferHead>>,
-    //Offset into the block where the inode is located.
+    // Offset into the block where the inode is located.
     pub(crate) inode_location: usize,
     pub(crate) inode: RefCell<&'static mut INode>,
 }
 
-pub const NUM_INODE_BYTES: usize = 64; //While the struct has another alignment, the data in the memory is read and writte as 64 bytes.
+pub const NUM_INODE_BYTES: usize = 64; // While the struct has another alignment, the data in the memory is read and writte as 64 bytes.
 
 #[allow(dead_code)]
 fn to_flags(mode: u32) -> String {
@@ -267,15 +267,15 @@ fn to_flags(mode: u32) -> String {
 
 impl Clone for LoadedInode {
     fn clone(&self) -> Self {
-        //Creates a copied pointer but this should be okay according to safety comment in `from_buffer_location`
+        // Creates a copied pointer but this should be okay according to safety comment in `from_buffer_location`
         LoadedInode::from_buffer_location(self.data_ref.clone(), self.inode_location)
     }
 }
 
 impl LoadedInode {
     pub fn from_buffer_location(buffer: Rc<RefCell<MetaBufferHead>>, location: usize) -> Self {
-        //Use transmute to create an Inode from the buffer and load it into the variable.
-        //the "LoadedInode" wrapper keeps track that the buffer is at least as long alive as the inode itself
+        // Use transmute to create an Inode from the buffer and load it into the variable.
+        // the "LoadedInode" wrapper keeps track that the buffer is at least as long alive as the inode itself
         let inode: &'static mut INode = unsafe {
             debug_assert!(size_of::<INode>() == 64, "Inode is not 64 bytes long!");
             debug_assert!(
@@ -290,8 +290,8 @@ impl LoadedInode {
                 buffer.borrow().data().len()
             );
 
-            //Since all conditions for the cast should be checked at this point, transmute the pointer into the buffer.
-            //Safety: Borrowing the same Inode several time is potentially unsafe, when sharing the pointers. However, currently
+            // Since all conditions for the cast should be checked at this point, transmute the pointer into the buffer.
+            // Safety: Borrowing the same Inode several time is potentially unsafe, when sharing the pointers. However, currently
             // m3fsrs is single threaded, so it should behave like a copied pointer in C/C++ i guess.
             let inode_offset = location / size_of::<INode>();
             let mem = buffer.borrow_mut().data_mut().as_mut_ptr();
@@ -398,11 +398,11 @@ pub struct Extent {
     pub length: u32,
 }
 
-///There are three possible sources of an Loaded extent. Either from a indirect block,
-///in that case we carry a refrence to the block as well as the location within this block of the extent.
-///Secondly the extent might be one of the INODE_DIR_COUNT directly saved extent. In that case we have to read/write
-///to the stored inode.
-///And as a third option the extent might not be saved in an inode or block at all, but just memory. In that case we use `Unstored`.
+/// There are three possible sources of an Loaded extent. Either from a indirect block,
+/// in that case we carry a refrence to the block as well as the location within this block of the extent.
+/// Secondly the extent might be one of the INODE_DIR_COUNT directly saved extent. In that case we have to read/write
+/// to the stored inode.
+/// And as a third option the extent might not be saved in an inode or block at all, but just memory. In that case we use `Unstored`.
 pub enum LoadedExtent {
     Indirect {
         data_ref: Rc<RefCell<MetaBufferHead>>,
@@ -413,8 +413,8 @@ pub enum LoadedExtent {
         inode_ref: LoadedInode,
         index: usize,
     },
-    //An extent that has no Inode, currently only used in file_session::get_next_in_out.
-    //might become obsolte when refactoring.
+    // An extent that has no Inode, currently only used in file_session::get_next_in_out.
+    // might become obsolte when refactoring.
     Unstored {
         extent: Rc<RefCell<Extent>>,
     },
@@ -440,7 +440,7 @@ impl Clone for LoadedExtent {
 }
 
 impl LoadedExtent {
-    ///Loads an indirect block from some MetaBufferHead
+    /// Loads an indirect block from some MetaBufferHead
     pub fn ind_from_buffer_location(buffer: Rc<RefCell<MetaBufferHead>>, location: usize) -> Self {
         debug_assert!(
             location % size_of::<Extent>() == 0,
@@ -559,7 +559,7 @@ impl core::iter::Iterator for ExtentBlocksIterator {
     }
 }
 
-///represents how a superblock is stored on disk.
+/// represents how a superblock is stored on disk.
 #[repr(C, align(8))]
 pub struct SuperBlockStorage {
     pub block_size: u32,
@@ -614,7 +614,7 @@ impl SuperBlockStorage {
     }
 }
 
-///A loaded superblock, setup with smartpointers for sharing betweent the allocators.
+/// A loaded superblock, setup with smartpointers for sharing betweent the allocators.
 pub struct SuperBlock {
     pub block_size: u32,
     pub total_inodes: u32,
@@ -673,7 +673,7 @@ impl SuperBlock {
             + *self.first_free_block.borrow() * 17
     }
 
-    ///Writes info about the superblock to the log
+    /// Writes info about the superblock to the log
     pub fn log(&self) {
         log!(crate::LOG_DEF, "SuperBlock: ");
         log!(crate::LOG_DEF, "    blocksize={}", self.block_size);

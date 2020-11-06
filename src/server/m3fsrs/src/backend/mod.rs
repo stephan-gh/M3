@@ -10,14 +10,14 @@ use m3::errors::Error;
 use m3::rc::Rc;
 use thread::Event;
 
-///In-Memory backend implementation for the file system
+/// In-Memory backend implementation for the file system
 pub mod mem_backend;
 
-///On-Disk backend implementation for the file system
+/// On-Disk backend implementation for the file system
 pub mod disk_backend;
 
 pub trait Backend {
-    ///Needed for the hotfix. Might be removed.
+    /// Needed for the hotfix. Might be removed.
     fn in_memory(&self) -> bool;
     fn load_meta(
         &self,
@@ -65,7 +65,7 @@ pub trait Backend {
         accessed: usize,
     ) -> Result<(), Error>;
 
-    ///Loads a new superblock
+    /// Loads a new superblock
     fn load_sb(&mut self) -> Result<SuperBlock, Error>;
 
     fn store_sb(&self, super_block: &SuperBlock) -> Result<(), Error>;

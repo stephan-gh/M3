@@ -19,7 +19,7 @@ impl Links {
             { dir.inode().inode },
             name,
             { inode.inode().inode }
-        ); //{} needed because of packed inode struct
+        ); // {} needed because of packed inode struct
         let org_used = req.used_meta();
         let mut indir = vec![];
 
@@ -30,12 +30,12 @@ impl Links {
             let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
 
             for bno in ext.into_iter() {
-                //This is the block for all entries that are within this block
+                // This is the block for all entries that are within this block
                 let dir_entry_data_ref = crate::hdl().metabuffer().get_block(req, bno, false)?;
                 let mut entry_location = 0;
-                //Max offset into the buffer at which a entry could be. Is anyways incorrect since each name has a dynamic length.
+                // Max offset into the buffer at which a entry could be. Is anyways incorrect since each name has a dynamic length.
                 let entry_location_end = crate::hdl().superblock().block_size;
-                //Iter over the entries, at the end always increment the ptr offset by entry.next
+                // Iter over the entries, at the end always increment the ptr offset by entry.next
                 while entry_location < entry_location_end {
                     let entry = DirEntry::from_buffer_mut(
                         dir_entry_data_ref.clone(),
@@ -43,9 +43,9 @@ impl Links {
                     );
 
                     rem = entry.next - entry.size() as u32;
-                    //This happens if we can embed the new dir-entry between this one and the "next"
+                    // This happens if we can embed the new dir-entry between this one and the "next"
                     if rem >= entry.size() as u32 {
-                        //change previous entry
+                        // change previous entry
                         entry.next = entry.size() as u32;
 
                         // create new entry
@@ -60,7 +60,7 @@ impl Links {
                         break 'search_loop;
                     }
 
-                    //Go to next entry
+                    // Go to next entry
                     entry_location = entry_location + entry.next;
                 }
                 req.pop_meta();
@@ -68,12 +68,12 @@ impl Links {
             req.pop_metas(req.used_meta() - org_used);
         }
 
-        //Check if a suitable space was found, otherwise extend directory
+        // Check if a suitable space was found, otherwise extend directory
         let entry = if let Some(e) = new_entry {
             e
         }
         else {
-            //Create new
+            // Create new
             let ext = INodes::get_extent(
                 req,
                 dir.clone(),
@@ -82,10 +82,10 @@ impl Links {
                 true,
             )?;
 
-            //Insert one block extent
+            // Insert one block extent
             INodes::fill_extent(req, Some(dir), &ext, 1, 1)?;
 
-            //put entry at the beginning of the block
+            // put entry at the beginning of the block
             rem = crate::hdl().superblock().block_size;
             let start = *ext.start();
             DirEntry::from_buffer_mut(
@@ -122,16 +122,16 @@ impl Links {
         for ext_idx in 0..dir.inode().extents {
             let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
-                //This is the block for all entries that are within this block
+                // This is the block for all entries that are within this block
                 let dir_entry_data_ref = crate::hdl().metabuffer().get_block(req, bno, false)?;
                 let mut entry_location = 0;
-                //Max offset into the buffer at which a entry could be. Is anyways incorrect since each name has a dynamic length.
+                // Max offset into the buffer at which a entry could be. Is anyways incorrect since each name has a dynamic length.
                 let entry_location_end = crate::hdl().superblock().block_size;
 
-                //previouse entry
+                // previouse entry
                 let mut prev: Option<&'static mut DirEntry> = None;
 
-                //Iter over the entries, at the end always increment the ptr offset by entry.next
+                // Iter over the entries, at the end always increment the ptr offset by entry.next
                 while entry_location < entry_location_end {
                     let entry = DirEntry::from_buffer_mut(
                         dir_entry_data_ref.clone(),
@@ -139,20 +139,20 @@ impl Links {
                     );
 
                     if entry.name() == name {
-                        //if we are not removing a dir, we are coming from unlink(). in this case, directories
-                        //are not allowed
+                        // if we are not removing a dir, we are coming from unlink(). in this case, directories
+                        // are not allowed
                         let inode = INodes::get(req, entry.nodeno)?;
                         if !is_dir && crate::internal::is_dir(inode.inode().mode) {
                             req.pop_metas(req.used_meta() - org_used);
                             return Err(Error::new(Code::IsDir));
                         }
 
-                        //remove entry by skipping over it
+                        // remove entry by skipping over it
                         if let Some(p) = prev {
                             p.next += entry.next;
                         }
                         else {
-                            //copy the next entry back, if there is any
+                            // copy the next entry back, if there is any
                             let next_location = entry_location as usize + entry.next as usize;
                             let next_entry = DirEntry::from_buffer_mut(
                                 dir_entry_data_ref,
@@ -161,7 +161,7 @@ impl Links {
 
                             if next_location < entry_location_end as usize {
                                 let dist = entry.next;
-                                //Copy data over
+                                // Copy data over
                                 entry.next = next_entry.next;
                                 entry.nodeno = next_entry.nodeno;
 
@@ -170,7 +170,7 @@ impl Links {
                             }
                         }
                         crate::hdl().metabuffer().mark_dirty(bno);
-                        //reduce links and free if necessary
+                        // reduce links and free if necessary
                         if (inode.inode().links - 1) == 0 {
                             let ino = inode.inode().inode;
                             crate::hdl().files().delete_file(ino)?;
@@ -179,9 +179,9 @@ impl Links {
                         req.pop_metas(req.used_meta() - org_used);
                         return Ok(());
                     }
-                    //Go to next entry
+                    // Go to next entry
                     entry_location = entry_location + entry.next;
-                    //Update pref
+                    // Update pref
                     prev = Some(entry);
                 }
 

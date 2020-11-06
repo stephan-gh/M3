@@ -82,39 +82,39 @@ impl Allocator {
                 max = if max == 0 { perblock } else { max };
             }
 
-            //Load data into bitmap
+            // Load data into bitmap
             let mut bitmap = Bitmap::from_bytes(block_borrow.data_mut());
 
-            //Search for first word that has at leas one free bit, starting at the current i
+            // Search for first word that has at leas one free bit, starting at the current i
             while i < max && bitmap.is_word_set(i) {
-                i += Bitmap::word_size(); //Jump to next word
+                i += Bitmap::word_size(); // Jump to next word
             }
 
-            //Now we know i is in a word that has unset bits, since the bit is somewhere in the word, jump
-            //back to the start of this word and iterate over the bits until we found the bit.
+            // Now we know i is in a word that has unset bits, since the bit is somewhere in the word, jump
+            // back to the start of this word and iterate over the bits until we found the bit.
 
-            //This should be the index of the word we found the first 0 at
+            // This should be the index of the word we found the first 0 at
             let word_index = i / Bitmap::word_size();
             i = word_index * Bitmap::word_size();
             while i < max && bitmap.is_bit_set(i) {
                 i += 1;
             }
 
-            //I should now point to the first unset index
-            //Now set all bits until i is aligned to a whole word.
+            // I should now point to the first unset index
+            // Now set all bits until i is aligned to a whole word.
             while ((i % Bitmap::word_size()) != 0) && total < icount {
                 if !bitmap.is_bit_set(i) {
                     bitmap.set_bit(i);
-                    total += 1; //add bits to total allocated since we cant use them anymore
+                    total += 1; // add bits to total allocated since we cant use them anymore
                 }
                 else if total > 0 {
-                    break; //Not sure about this one, but it works and was in the reference impl
+                    break; // Not sure about this one, but it works and was in the reference impl
                 }
 
                 i += 1;
             }
 
-            //At this point i is aligned to the word size, now mark all whole words
+            // At this point i is aligned to the word size, now mark all whole words
             while ((icount - total) >= Bitmap::word_size()) && ((max - i) >= Bitmap::word_size()) {
                 if bitmap.is_word_unset(i) {
                     bitmap.set_word(i);
@@ -127,9 +127,9 @@ impl Allocator {
                 i += Bitmap::word_size();
             }
 
-            //Now set the bit that are left (but not enough to fill a whole word)
-            //there is an edge case where icount was < BitMap::word_size()
-            //in that case total is at this point still 0
+            // Now set the bit that are left (but not enough to fill a whole word)
+            // there is an edge case where icount was < BitMap::word_size()
+            // in that case total is at this point still 0
             if total == 0 {
                 while (i < max) && (total < icount) {
                     if !bitmap.is_bit_set(i) {
@@ -148,7 +148,7 @@ impl Allocator {
                 }
             }
 
-            //Now all bits are set in the bitmap, therefore pop the meta entry. If any
+            // Now all bits are set in the bitmap, therefore pop the meta entry. If any
             // "size" is left, the loop will start again and go to the next meta entry
             req.pop_meta();
             if total == 0 {
@@ -157,14 +157,14 @@ impl Allocator {
             }
         }
 
-        //Finally mark the allocated bits in the superblock (which are shared with this allocator)
+        // Finally mark the allocated bits in the superblock (which are shared with this allocator)
         assert!(
             *self.free.borrow() as usize >= total,
             "Error: Tried to allocate more then was available according to superblock!"
         );
 
         *self.free.borrow_mut() -= total as u32;
-        *count = total; //It happens that more was allocated then needed because of alignment
+        *count = total; // It happens that more was allocated then needed because of alignment
         if total == 0 {
             return Err(Error::new(Code::NoSpace));
         }
@@ -200,25 +200,25 @@ impl Allocator {
             *self.first_free.borrow_mut() = start as u32;
         }
         *self.free.borrow_mut() += count as u32;
-        //Actually free bits in bitmap and update superblock
+        // Actually free bits in bitmap and update superblock
         while count > 0 {
             let block_bytes = crate::hdl().get_meta_block(req, no as u32, true)?;
             let mut block_bytes_borrow = block_bytes.borrow_mut();
             let mut bitmap = Bitmap::from_bytes(block_bytes_borrow.data_mut());
 
-            //align i to wordsize
+            // align i to wordsize
             let mut i: usize = start & (perblock - 1);
             let begin = i;
             let end = (i + count).min(perblock);
 
-            //Unset all unaligned bits
+            // Unset all unaligned bits
             while i < end && (i % Bitmap::word_size()) != 0 {
                 assert!(bitmap.is_bit_set(i), "Bit should have been set!");
                 bitmap.unset_bit(i);
                 i += 1;
             }
 
-            //Now clear all whole word
+            // Now clear all whole word
             let wend = end & (!(Bitmap::word_size() - 1));
             while i < wend {
                 assert!(
@@ -229,14 +229,14 @@ impl Allocator {
 
                 i += Bitmap::word_size();
             }
-            //Clear possible rest
+            // Clear possible rest
             while i < end {
                 assert!(bitmap.is_bit_set(i), "Rest bit should have been set");
                 bitmap.unset_bit(i);
                 i += 1;
             }
 
-            //Go to next bitmap block from rep
+            // Go to next bitmap block from rep
             req.pop_meta();
             count -= i - begin;
             start = (start + perblock - 1) & !(perblock - 1);

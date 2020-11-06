@@ -25,9 +25,9 @@ impl DiskBackend {
         let metabuf = MemGate::new(1, Perm::R)?;
 
         Ok(DiskBackend {
-            blocksize: 4096, //gets initialized when loading superblock
+            blocksize: 4096, // gets initialized when loading superblock
             disk,
-            metabuf, //Gets set as well when loading supper block
+            metabuf, // Gets set as well when loading supper block
         })
     }
 
@@ -36,7 +36,7 @@ impl DiskBackend {
         self.disk.sess.delegate(
             crd,
             |slice_sink| {
-                //Add arguments in order
+                // Add arguments in order
                 slice_sink.push(&bno);
                 slice_sink.push(&len);
             },
@@ -188,7 +188,7 @@ impl Backend for DiskBackend {
         Ok(())
     }
 
-    ///Loads a new superblock
+    /// Loads a new superblock
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
         let tmp = MemGate::new(512 + crate::buffer::PRDT_SIZE, Perm::RW)?;
         self.delegate_mem(&tmp, 0, 1)?;

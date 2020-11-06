@@ -17,7 +17,7 @@ impl Dirs {
             "dirs::find_entry(entry={} inode={}",
             name,
             { inode.inode().inode }
-        ); //{} needed because of packed inode struct
+        ); // {} needed because of packed inode struct
 
         for ext_idx in 0..inode.inode().extents {
             let ext = INodes::get_extent(req, inode.clone(), ext_idx as usize, &mut indir, false)?;
@@ -43,17 +43,17 @@ impl Dirs {
             path,
             create
         );
-        //Remove all leading /
+        // Remove all leading /
         while path.starts_with('/') {
             path = &path[1..path.len()];
         }
 
-        //Check if this is now the root node, if thats the case we can always return the root inode (0)
+        // Check if this is now the root node, if thats the case we can always return the root inode (0)
         if path == "" {
             return Ok(0);
         }
 
-        //Start at root inode with search
+        // Start at root inode with search
         let mut ino = 0;
         let org_used = req.used_meta();
 
@@ -73,29 +73,29 @@ impl Dirs {
             }
 
             if let Ok(nodeno) = Dirs::find_entry(req, inode.clone().unwrap(), &path[start..end]) {
-                //If path is now empty, finish searching,
-                //Test for 1, since there might be  a rest /
+                // If path is now empty, finish searching,
+                // Test for 1, since there might be  a rest /
                 if (path.len() - end) <= 1 {
                     req.pop_metas(req.used_meta() - org_used);
                     return Ok(nodeno);
                 }
-                //Save the inode anyways if we want to create a inode here.
+                // Save the inode anyways if we want to create a inode here.
                 ino = nodeno;
                 req.pop_metas(req.used_meta() - org_used);
             }
             else {
-                //No such entry, therefore break
+                // No such entry, therefore break
                 req.pop_meta();
                 break;
             }
 
             counter_end = end + 1;
-            //Carry them so we can create a new dir if create==true;
+            // Carry them so we can create a new dir if create==true;
             last_start = start;
             last_end = end;
         }
 
-        //Did not find correct one, check if we can create one
+        // Did not find correct one, check if we can create one
         if create {
             let (inode_name_start, inode_name_end) =
                 if let Some((start, end)) = crate::util::next_start_end(path, counter_end) {
@@ -116,9 +116,9 @@ impl Dirs {
                     return Err(Error::new(Code::NoSuchFile));
                 };
 
-            //Create inode and put link into directory
+            // Create inode and put link into directory
             let new_inode = INodes::create(req, M3FS_IFREG | 0o0644)?;
-            new_inode.inode().mode = 0o644; //be sure to have correct rights
+            new_inode.inode().mode = 0o644; // be sure to have correct rights
             if let Err(e) = Links::create(
                 req,
                 inode.unwrap().clone(),
@@ -138,8 +138,8 @@ impl Dirs {
     }
 
     pub fn create(req: &mut Request, path: &str, mode: Mode) -> Result<(), Error> {
-        //Split the path into the dir part and the base(name) part.
-        //might have to change the dir into "." if the file is located at the root
+        // Split the path into the dir part and the base(name) part.
+        // might have to change the dir into "." if the file is located at the root
 
         log!(
             crate::LOG_DEF,
@@ -153,14 +153,14 @@ impl Dirs {
             (&path[base_slice], &path[dir_slice])
         };
 
-        //If there is no base, we are at the root of the file system.
+        // If there is no base, we are at the root of the file system.
         if base == "" {
             base = "/";
         }
 
         let parent_ino = Dirs::search(req, base, false)?;
 
-        //Ensure that the entry doesn't exist
+        // Ensure that the entry doesn't exist
         if Dirs::search(req, path, false).is_ok() {
             log!(
                 crate::LOG_DEF,
@@ -172,26 +172,26 @@ impl Dirs {
 
         let parinode = INodes::get(req, parent_ino)?;
         if let Ok(dirino) = INodes::create(req, M3FS_IFDIR | (mode & 0x777)) {
-            //Create directory itself
+            // Create directory itself
             if let Err(e) = Links::create(req, parinode.clone(), dir, dirino.clone()) {
                 crate::hdl().files().delete_file(dirino.inode().inode).ok();
                 return Err(e);
             }
-            //Successfully created directory
-            //create "." and ".."
+            // Successfully created directory
+            // create "." and ".."
             if let Err(e) = Links::create(req, dirino.clone(), ".", dirino.clone()) {
                 Links::remove(req, parinode.clone(), dir, true).unwrap();
                 crate::hdl().files().delete_file(dirino.inode().inode).ok();
                 return Err(e);
             }
-            //created ., now ..
+            // created ., now ..
             if let Err(e) = Links::create(req, dirino.clone(), "..", parinode.clone()) {
                 Links::remove(req, dirino.clone(), ".", true).unwrap();
                 Links::remove(req, parinode.clone(), dir, true).unwrap();
                 crate::hdl().files().delete_file(dirino.inode().inode).ok();
                 return Err(e);
             }
-            //Everything created successful, therefore return
+            // Everything created successful, therefore return
             return Ok(());
         }
         else {
@@ -204,13 +204,13 @@ impl Dirs {
 
         let ino = Dirs::search(req, path, false)?;
 
-        //it has to be a directory
+        // it has to be a directory
         let inode = INodes::get(req, ino)?;
         if !is_dir(inode.inode().mode) {
             return Err(Error::new(Code::IsNoDir));
         }
 
-        //check whether it's empty
+        // check whether it's empty
         let org_used = req.used_meta();
         let mut indir = vec![];
 
@@ -251,13 +251,13 @@ impl Dirs {
 
         let oldino = Dirs::search(req, old_path, false)?;
 
-        //it can't be a directory
+        // it can't be a directory
         let old_inode = INodes::get(req, oldino)?;
         if is_dir(old_inode.inode().mode) {
             return Err(Error::new(Code::IsDir));
         }
 
-        //Split path into dir and base
+        // Split path into dir and base
         let (base, dir) = {
             let (base_slice, dir_slice) = crate::util::get_base_dir(new_path);
             (&new_path[base_slice], &new_path[dir_slice])
@@ -286,7 +286,7 @@ impl Dirs {
 
         let res = Links::remove(req, parinode.clone(), dir, is_dir);
         if is_dir && res.is_ok() {
-            //decrement link count for parent inode by one
+            // decrement link count for parent inode by one
             parinode.inode().links -= 1;
         }
 

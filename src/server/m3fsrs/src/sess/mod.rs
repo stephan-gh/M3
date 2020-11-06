@@ -118,7 +118,7 @@ impl M3FSSession for FSSession {
     }
 }
 
-///Represents an abstract server-side M3FS Session.
+/// Represents an abstract server-side M3FS Session.
 pub trait M3FSSession {
     fn creator(&self) -> usize;
     fn next_in(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {

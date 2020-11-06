@@ -22,7 +22,7 @@ impl MemBackend {
         MemBackend {
             mem: MemGate::new_with(MGateArgs::new(fssize, Perm::RWX).addr(fsoff))
                 .expect("Could not create MemGate for Memory Backend"),
-            blocksize: 4096, //Gets set when the superblock is read first as well
+            blocksize: 4096, // Gets set when the superblock is read first as well
         }
     }
 }
@@ -54,7 +54,7 @@ impl Backend for MemBackend {
         _init: bool,
         _unlock: Event,
     ) -> Result<(), Error> {
-        //Unused
+        // Unused
         Ok(())
     }
 
@@ -72,7 +72,7 @@ impl Backend for MemBackend {
     }
 
     fn store_data(&self, _bno: BlockNo, _blocks: usize, _unlock: Event) -> Result<(), Error> {
-        //unused
+        // unused
         Ok(())
     }
 
@@ -119,7 +119,7 @@ impl Backend for MemBackend {
         Ok(())
     }
 
-    ///Loads a new superblock
+    /// Loads a new superblock
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
         let block = self.mem.read_obj::<SuperBlockStorage>(0)?;
         self.blocksize = block.block_size as usize;

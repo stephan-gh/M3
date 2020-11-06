@@ -23,7 +23,7 @@ struct Entry {
 
 impl Drop for Entry {
     fn drop(&mut self) {
-        //On drop, revoke all capabilities
+        // On drop, revoke all capabilities
         m3::pes::VPE::cur()
             .revoke(
                 m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.sel, 1),
@@ -62,21 +62,21 @@ pub struct FileSession {
 
     pub(crate) last: Selector,
     epcap: Selector,
-    #[allow(dead_code)] //keeps the send gate alive
+    #[allow(dead_code)] // keeps the send gate alive
     sgate: Option<SendGate>,
 
     oflags: u64,
     filename: String,
     ino: InodeNo,
 
-    ///the selector this session was created for
+    /// the selector this session was created for
     sel: Selector,
     creator: usize,
-    ///The id of the parent meta session
+    /// The id of the parent meta session
     pub(crate) meta_session: SessId,
 
     capscon: CapContainer,
-    #[allow(dead_code)] //keeps the server session alive
+    #[allow(dead_code)] // keeps the server session alive
     server_session: ServerSession,
 }
 
@@ -105,7 +105,7 @@ impl FileSession {
             file_session_id
         );
 
-        //The server session for this file
+        // The server session for this file
         let sel = if srv_sel == m3::kif::INVALID_SEL {
             srv_sel
         }
@@ -122,8 +122,8 @@ impl FileSession {
         else {
             Some(m3::com::SendGate::new_with(
                 m3::com::SGateArgs::new(meta_rgate)
-                    //We use the file session id as identifier when the session is called again.
-                    //The olf impl used the pointer to this session, but this is not as easy in rust and I guess
+                    // We use the file session id as identifier when the session is called again.
+                    // The olf impl used the pointer to this session, but this is not as easy in rust and I guess
                     // kinda unsafe as well
                     .label(file_session_id as tcu::Label)
                     .credits(1)
@@ -265,7 +265,7 @@ impl FileSession {
         let mut sel = m3::pes::VPE::cur().alloc_sel();
         let mut extlen = 0;
 
-        //Do we need to append to the file?
+        // Do we need to append to the file?
         let len = if out && (self.fileoff as u64 == inode.inode().size) {
             let mut files = crate::hdl().files();
             let open_file = files.get_file_mut(self.ino).unwrap();
@@ -278,7 +278,7 @@ impl FileSession {
                 return Err(Error::new(Code::Exists));
             }
 
-            //Continue in last extent if there is space
+            // Continue in last extent if there is space
             if (self.extent > 0)
                 && (self.fileoff as u64 == inode.inode().size)
                 && ((self.fileoff % crate::hdl().superblock().block_size as usize) != 0)
@@ -293,7 +293,7 @@ impl FileSession {
                     &mut self.extoff,
                 )?;
             }
-            //Exchange extent in which we store the "to append" extent
+            // Exchange extent in which we store the "to append" extent
             let mut e = LoadedExtent::Unstored {
                 extent: Rc::new(RefCell::new(Extent {
                     start: 0,
@@ -320,7 +320,7 @@ impl FileSession {
             len
         }
         else {
-            //get next mem_cap
+            // get next mem_cap
             let len = INodes::get_extent_mem(
                 &mut req,
                 inode.clone(),
@@ -340,13 +340,13 @@ impl FileSession {
             }
         };
 
-        //The mem cap covers all blocks from `self.extoff` to `self.extoff + len`. Thus, the offset to start
+        // The mem cap covers all blocks from `self.extoff` to `self.extoff + len`. Thus, the offset to start
         // is the offset within the first of these blocks
         let mut capoff = self.extoff % crate::hdl().superblock().block_size as usize;
         if len > 0 {
             syscalls::activate(self.epcap, sel, INVALID_SEL, 0)?;
 
-            //Move forward
+            // Move forward
             self.lastoff = self.extoff;
             self.lastext = self.extent;
             if (self.extoff + len) >= extlen {
@@ -377,7 +377,7 @@ impl FileSession {
         );
 
         if crate::hdl().revoke_first() {
-            //revoke last mem cap and remember new one
+            // revoke last mem cap and remember new one
             if self.last != m3::kif::INVALID_SEL {
                 m3::pes::VPE::cur()
                     .revoke(
@@ -421,20 +421,20 @@ impl FileSession {
             return Ok(());
         }
 
-        //adjust file position
+        // adjust file position
         self.fileoff -= self.lastbytes - submit;
 
-        //add new extent?
+        // add new extent?
         if let Some(ref append_ext) = self.append_ext {
             let blocksize = crate::hdl().superblock().block_size as usize;
             let blocks = (submit + blocksize - 1) / blocksize;
             let old_len = *append_ext.length();
-            //append extent to file
+            // append extent to file
             *append_ext.length_mut() = blocks as u32;
             let mut new_ext = false;
             INodes::append_extent(req, inode.clone(), &append_ext, &mut new_ext)?;
 
-            //free superfluous blocks
+            // free superfluous blocks
             if old_len as usize > blocks {
                 crate::hdl().blocks().free(
                     req,
@@ -444,7 +444,7 @@ impl FileSession {
             }
 
             self.extlen = blocks * blocksize;
-            //have we appended the new extent to the previous extent?
+            // have we appended the new extent to the previous extent?
             if !new_ext {
                 self.extent -= 1;
             }
@@ -459,11 +459,11 @@ impl FileSession {
             self.extoff = 0;
         }
 
-        //change size
+        // change size
         inode.inode().size += submit as u64;
         INodes::mark_dirty(req, inode.inode().inode);
 
-        //stop appending
+        // stop appending
         let mut files = crate::hdl().files();
         let ofile = files.get_file_mut(self.ino).unwrap();
         assert!(ofile.appending(), "ofile should be in append mode!");
@@ -475,7 +475,7 @@ impl FileSession {
         Ok(())
     }
 
-    #[allow(dead_code)] //TODO currently unused since there seams to be no SYNC Op in rust
+    #[allow(dead_code)] // TODO currently unused since there seams to be no SYNC Op in rust
     fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         crate::hdl().flush_buffer()?;
         reply_vmsg!(stream, 0 as u32)

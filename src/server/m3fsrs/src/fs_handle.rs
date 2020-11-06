@@ -12,7 +12,7 @@ use m3::col::String;
 use m3::errors::Error;
 use m3::rc::Rc;
 
-///Handle to the real file system based on some backend
+/// Handle to the real file system based on some backend
 pub struct M3FSHandle {
     backend: Rc<RefCell<dyn Backend + 'static>>,
     settings: FsSettings<'static>,
@@ -32,7 +32,7 @@ impl M3FSHandle {
     where
         B: Backend + 'static,
     {
-        //Load suoerblock, then print all the superblock infor for debugginh
+        // Load suoerblock, then print all the superblock infor for debugginh
 
         log!(crate::LOG_DEF, "M3FS: Loading superblock");
         let sb = backend.load_sb().expect("Unable to load super block");

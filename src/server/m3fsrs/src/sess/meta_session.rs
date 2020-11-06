@@ -69,8 +69,8 @@ impl MetaSession {
         }
     }
 
-    ///Creates a file session based on this meta session for `file_session_id`.
-    ///If successful returns a pointer to this session.
+    /// Creates a file session based on this meta session for `file_session_id`.
+    /// If successful returns a pointer to this session.
     pub fn open_file(
         &mut self,
         selector: Selector,
@@ -78,9 +78,9 @@ impl MetaSession {
         data: &mut CapExchange,
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
-        let flags = data.in_args().pop::<u32>()? as u64; //Pop Flags from args
+        let flags = data.in_args().pop::<u32>()? as u64; // Pop Flags from args
 
-        //Read the string, is already read only until termination or not at all
+        // Read the string, is already read only until termination or not at all
         let path = data.in_args().pop_str()?;
 
         log!(
@@ -94,7 +94,7 @@ impl MetaSession {
 
         let caps = session.borrow().caps();
 
-        //Unwrap should be okay since the do_open would otherwise return err.
+        // Unwrap should be okay since the do_open would otherwise return err.
         data.out_caps(caps);
 
         return Ok(session);
@@ -127,7 +127,7 @@ impl MetaSession {
                 crate::LOG_DEF,
                 "open failed: NoPerm: opener had no permission to read or write. Flags={:b}, mode={:b}",
                 flags,
-                { inode.inode().mode } //{} needed because of packed inode struct
+                { inode.inode().mode } // {} needed because of packed inode struct
             );
             return Err(Error::new(Code::NoPerm));
         }
@@ -151,7 +151,7 @@ impl MetaSession {
                     "-> inode={}, id={}",
                     { inode.inode().inode },
                     file_session_id
-                ); //{} needed because of packed inode struct
+                ); // {} needed because of packed inode struct
                 Ok(session)
             },
             Err(e) => Err(e),

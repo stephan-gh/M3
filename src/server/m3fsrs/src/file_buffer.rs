@@ -50,7 +50,7 @@ pub struct FileBuffer {
     size: usize,
 
     ht: Treap<BlockNo, Rc<RefCell<FileBufferHead>>>,
-    //Least recently used list, the front element is least recently used, the last element is the most recently used one.
+    // Least recently used list, the front element is least recently used, the last element is the most recently used one.
     lru: Lru<BlockNo>,
 
     block_size: usize,
@@ -61,7 +61,7 @@ pub const FILE_BUFFER_SIZE: usize = 16384;
 impl FileBuffer {
     pub fn new(block_size: usize) -> Self {
         FileBuffer {
-            size: 0, //No size atm
+            size: 0, // No size atm
 
             ht: Treap::new(),
             lru: Lru::new(),
@@ -87,11 +87,11 @@ impl FileBuffer {
         loop {
             if let Some(head) = self.get(bno).cloned() {
                 // Think this is redundant, but the c++ impl uses the key explicitly.
-                //TODO Test, might remove
+                // TODO Test, might remove
                 let key: BlockNo = head.borrow().bno;
 
                 if head.borrow().locked {
-                    //Wait for block to unlock
+                    // Wait for block to unlock
                     log!(
                         crate::LOG_DEF,
                         "FileFuffer: Waiting for cached blocks <{},{}> for block {}",
@@ -131,14 +131,14 @@ impl FileBuffer {
             }
         }
 
-        //There is no block for the given bno.
-        //Load chunk into memory
+        // There is no block for the given bno.
+        // Load chunk into memory
         let max_size: usize = FILE_BUFFER_SIZE.min((1 as usize) << accessed);
         let load_size: usize = size.min(if load { max_size } else { FILE_BUFFER_SIZE });
 
         if (self.size + load_size) > FILE_BUFFER_SIZE {
             while (self.size + load_size) > FILE_BUFFER_SIZE {
-                //Get the key of the first element in the lru chain.
+                // Get the key of the first element in the lru chain.
                 let key = *self
                     .lru
                     .front()
@@ -146,10 +146,10 @@ impl FileBuffer {
                     .borrow()
                     .value();
 
-                //Get head for key of first element
+                // Get head for key of first element
                 if let Some(head) = self.ht.get(&key).cloned() {
                     if head.borrow().locked {
-                        //Wait for block to be evicted. We then have more space. Maybe enough space to store the new data
+                        // Wait for block to be evicted. We then have more space. Maybe enough space to store the new data
                         log!(
                             crate::LOG_DEF,
                             "FileBuffer: Waiting for eviction of block <{}>",
@@ -158,7 +158,7 @@ impl FileBuffer {
                         thread::ThreadManager::get().wait_for(head.borrow().unlock);
                     }
                     else {
-                        //Evict oldest block
+                        // Evict oldest block
                         log!(crate::LOG_DEF, "FileBuffer: Evict block <{}>", key);
                         let _oldest_head_in_lru = self.lru.pop_front();
                         let mut oldest_head_in_ht = self
@@ -167,7 +167,7 @@ impl FileBuffer {
                             .expect("Could not delete head when allocating in file buffer!");
 
                         if head.borrow().dirty {
-                            //If the head we are changing is dirty, flush it to the disk before
+                            // If the head we are changing is dirty, flush it to the disk before
                             // removing it
                             self.flush_chunk(&mut oldest_head_in_ht)?;
                         }
@@ -179,14 +179,14 @@ impl FileBuffer {
                             ),
                             false,
                         )?;
-                        //Remove head from inner Buffer size
+                        // Remove head from inner Buffer size
                         self.size -= head.borrow().size;
                     }
                 }
             }
         }
 
-        //At this point there must be enough space for the block
+        // At this point there must be enough space for the block
         let new_head = Rc::new(RefCell::new(FileBufferHead::new(
             bno,
             load_size,
@@ -204,7 +204,7 @@ impl FileBuffer {
             new_head.borrow().size,
             if load { "loading" } else { "" }
         );
-        //Load data from backend
+        // Load data from backend
         backend.load_data(
             &new_head.borrow().data,
             new_head.borrow().bno,
@@ -268,14 +268,14 @@ impl Buffer for FileBuffer {
             head.borrow().size
         );
 
-        //Write data of block to backend
+        // Write data of block to backend
         crate::hdl().backend().store_data(
             head.borrow().bno,
             head.borrow().size,
             head.borrow().unlock,
         )?;
 
-        //Reset dirty and unlock
+        // Reset dirty and unlock
         head.borrow_mut().dirty = false;
         head.borrow_mut().locked = false;
         Ok(())

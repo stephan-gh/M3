@@ -4,7 +4,7 @@ use m3::errors::Error;
 
 pub const PRDT_SIZE: usize = 8;
 
-///Implemented by File and Meta buffer, defines shared behavior.
+/// Implemented by File and Meta buffer, defines shared behavior.
 pub trait Buffer {
     type HEAD;
 
