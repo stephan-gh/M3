@@ -11,7 +11,6 @@ impl Links {
         req: &mut Request,
         dir: LoadedInode,
         name: &str,
-        _namelen: usize,
         inode: LoadedInode,
     ) -> Result<(), Error> {
         log!(
@@ -25,7 +24,7 @@ impl Links {
         let mut indir = vec![];
 
         let mut rem = 0;
-        let mut search_entry = None;
+        let mut new_entry = None;
 
         'search_loop: for ext_idx in 0..dir.inode().extents {
             let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
@@ -38,29 +37,31 @@ impl Links {
                 let entry_location_end = crate::hdl().superblock().block_size;
                 //Iter over the entries, at the end always increment the ptr offset by entry.next
                 while entry_location < entry_location_end {
-                    let entry = LoadedDirEntry::from_buffer_location(
+                    let entry = DirEntry::from_buffer_mut(
                         dir_entry_data_ref.clone(),
                         entry_location as usize,
                     );
 
-                    rem = *entry.entry.borrow().next - entry.size() as u32;
+                    rem = entry.next - entry.size() as u32;
                     //This happens if we can embed the new dir-entry between this one and the "next"
                     if rem >= entry.size() as u32 {
                         //change previous entry
-                        *entry.entry.borrow_mut().next = entry.size() as u32;
-                        //get pointer to new one by offseting with this entries size
-                        search_entry = Some(LoadedDirEntry::from_buffer_location(
+                        entry.next = entry.size() as u32;
+
+                        // create new entry
+                        new_entry = Some(DirEntry::from_buffer_mut(
                             dir_entry_data_ref,
-                            (entry_location + *entry.entry.borrow().next) as usize,
+                            (entry_location + entry.next) as usize,
                         ));
+
                         crate::hdl().metabuffer().mark_dirty(bno);
                         req.pop_metas(req.used_meta() - org_used);
-                        //break the loop
+
                         break 'search_loop;
                     }
 
                     //Go to next entry
-                    entry_location = entry_location + *entry.entry.borrow().next;
+                    entry_location = entry_location + entry.next;
                 }
                 req.pop_meta();
             }
@@ -68,7 +69,7 @@ impl Links {
         }
 
         //Check if a suitable space was found, otherwise extend directory
-        let entry = if let Some(e) = search_entry {
+        let entry = if let Some(e) = new_entry {
             e
         }
         else {
@@ -86,21 +87,17 @@ impl Links {
 
             //put entry at the beginning of the block
             rem = crate::hdl().superblock().block_size;
-            let start: u32 = *ext.start();
-            LoadedDirEntry::from_buffer_location(
+            let start = *ext.start();
+            DirEntry::from_buffer_mut(
                 crate::hdl().metabuffer().get_block(req, start, true)?,
                 0,
             )
         };
 
-        //write entry
-        //is safe since both allocation paths make sure that the needed space is given
-        unsafe {
-            entry.set_name(name);
-        }
-
-        *entry.entry.borrow_mut().nodeno = inode.inode().inode;
-        *entry.entry.borrow_mut().next = rem;
+        // write entry
+        entry.set_name(name);
+        entry.nodeno = inode.inode().inode;
+        entry.next = rem;
 
         inode.inode().links += 1;
         INodes::mark_dirty(req, inode.inode().inode);
@@ -111,7 +108,6 @@ impl Links {
         req: &mut Request,
         dir: LoadedInode,
         name: &str,
-        name_len: usize,
         is_dir: bool,
     ) -> Result<(), Error> {
         let org_used = req.used_meta();
@@ -133,21 +129,19 @@ impl Links {
                 let entry_location_end = crate::hdl().superblock().block_size;
 
                 //previouse entry
-                let mut prev: Option<LoadedDirEntry> = None;
+                let mut prev: Option<&'static mut DirEntry> = None;
 
                 //Iter over the entries, at the end always increment the ptr offset by entry.next
                 while entry_location < entry_location_end {
-                    let entry = LoadedDirEntry::from_buffer_location(
+                    let entry = DirEntry::from_buffer_mut(
                         dir_entry_data_ref.clone(),
                         entry_location as usize,
                     );
 
-                    if *entry.entry.borrow().name_length as usize == name_len
-                        && entry.entry.borrow().name == name
-                    {
+                    if entry.name() == name {
                         //if we are not removing a dir, we are coming from unlink(). in this case, directories
                         //are not allowed
-                        let inode = INodes::get(req, *entry.entry.borrow().nodeno)?;
+                        let inode = INodes::get(req, entry.nodeno)?;
                         if !is_dir && crate::internal::is_dir(inode.inode().mode) {
                             req.pop_metas(req.used_meta() - org_used);
                             return Err(Error::new(Code::IsDir));
@@ -155,31 +149,24 @@ impl Links {
 
                         //remove entry by skipping over it
                         if let Some(p) = prev {
-                            let next = *p.entry.borrow().next + *entry.entry.borrow().next;
-                            *p.entry.borrow_mut().next = next;
+                            p.next += entry.next;
                         }
                         else {
                             //copy the next entry back, if there is any
-                            let next_location =
-                                entry_location as usize + *entry.entry.borrow().next as usize;
-                            let next_entry = LoadedDirEntry::from_buffer_location(
+                            let next_location = entry_location as usize + entry.next as usize;
+                            let next_entry = DirEntry::from_buffer_mut(
                                 dir_entry_data_ref,
                                 next_location,
                             );
 
                             if next_location < entry_location_end as usize {
-                                let dist = *entry.entry.borrow().next;
+                                let dist = entry.next;
                                 //Copy data over
-                                *entry.entry.borrow_mut().next = *next_entry.entry.borrow().next;
-                                *entry.entry.borrow_mut().nodeno =
-                                    *next_entry.entry.borrow().nodeno;
-                                //Should be safe since we are moving "back", therefore "next" will be updated as well
+                                entry.next = next_entry.next;
+                                entry.nodeno = next_entry.nodeno;
 
-                                unsafe {
-                                    entry.set_name(next_entry.entry.borrow().name);
-                                }
-                                *entry.entry.borrow_mut().next =
-                                    dist + *next_entry.entry.borrow().next;
+                                entry.set_name(next_entry.name());
+                                entry.next = dist + next_entry.next;
                             }
                         }
                         crate::hdl().metabuffer().mark_dirty(bno);
@@ -193,7 +180,7 @@ impl Links {
                         return Ok(());
                     }
                     //Go to next entry
-                    entry_location = entry_location + *entry.entry.borrow().next;
+                    entry_location = entry_location + entry.next;
                     //Update pref
                     prev = Some(entry);
                 }

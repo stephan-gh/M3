@@ -177,14 +177,14 @@ impl EntryIterator {
 }
 
 impl core::iter::Iterator for EntryIterator {
-    type Item = LoadedDirEntry;
+    type Item = &'static DirEntry;
 
     // next() is the only required method
     fn next(&mut self) -> Option<Self::Item> {
         if self.entry_location < self.end {
-            let ret = LoadedDirEntry::from_buffer_location(self.block.clone(), self.entry_location);
+            let ret = DirEntry::from_buffer(self.block.clone(), self.entry_location);
 
-            self.entry_location += *ret.entry.borrow().next as usize;
+            self.entry_location += ret.next as usize;
 
             Some(ret)
         }

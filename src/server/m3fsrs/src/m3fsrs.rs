@@ -1,3 +1,4 @@
+#![feature(core_intrinsics)]
 #![no_std]
 #[macro_use]
 extern crate m3;

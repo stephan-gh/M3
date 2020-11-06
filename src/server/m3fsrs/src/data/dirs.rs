@@ -8,11 +8,7 @@ use m3::errors::*;
 pub struct Dirs;
 
 impl Dirs {
-    fn find_entry(
-        req: &mut Request,
-        inode: LoadedInode,
-        name: &str,
-    ) -> Result<InodeNo, Error> {
+    fn find_entry(req: &mut Request, inode: LoadedInode, name: &str) -> Result<InodeNo, Error> {
         let org_used = req.used_meta();
         let mut indir = vec![];
 
@@ -26,18 +22,11 @@ impl Dirs {
         for ext_idx in 0..inode.inode().extents {
             let ext = INodes::get_extent(req, inode.clone(), ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
-                for entry in
-                    EntryIterator::from_block(crate::hdl().metabuffer().get_block(req, bno, false)?)
-                {
-                    if *entry.entry.borrow().name_length as usize == name.len()
-                        && (name == entry.entry.borrow().name)
-                    {
-                        log!(
-                            crate::LOG_DEF,
-                            "Found entry with name: {}",
-                            entry.entry.borrow().name
-                        );
-                        return Ok(*entry.entry.borrow().nodeno);
+                let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
+                for entry in EntryIterator::from_block(block) {
+                    if entry.name() == name {
+                        log!(crate::LOG_DEF, "Found entry with name: {}", entry.name());
+                        return Ok(entry.nodeno);
                     }
                 }
                 req.pop_meta();
@@ -83,9 +72,7 @@ impl Dirs {
                 );
             }
 
-            if let Ok(nodeno) =
-                Dirs::find_entry(req, inode.clone().unwrap(), &path[start..end])
-            {
+            if let Ok(nodeno) = Dirs::find_entry(req, inode.clone().unwrap(), &path[start..end]) {
                 //If path is now empty, finish searching,
                 //Test for 1, since there might be  a rest /
                 if (path.len() - end) <= 1 {
@@ -132,15 +119,16 @@ impl Dirs {
             //Create inode and put link into directory
             let new_inode = INodes::create(req, M3FS_IFREG | 0o0644)?;
             new_inode.inode().mode = 0o644; //be sure to have correct rights
-            let namelen = path[inode_name_start..inode_name_end].len();
             if let Err(e) = Links::create(
                 req,
                 inode.unwrap().clone(),
                 &path[inode_name_start..inode_name_end],
-                namelen,
                 new_inode.clone(),
             ) {
-                crate::hdl().files().delete_file(new_inode.inode().inode).ok();
+                crate::hdl()
+                    .files()
+                    .delete_file(new_inode.inode().inode)
+                    .ok();
                 return Err(e);
             };
             return Ok(new_inode.inode().inode);
@@ -185,21 +173,21 @@ impl Dirs {
         let parinode = INodes::get(req, parent_ino)?;
         if let Ok(dirino) = INodes::create(req, M3FS_IFDIR | (mode & 0x777)) {
             //Create directory itself
-            if let Err(e) = Links::create(req, parinode.clone(), dir, dir.len(), dirino.clone()) {
+            if let Err(e) = Links::create(req, parinode.clone(), dir, dirino.clone()) {
                 crate::hdl().files().delete_file(dirino.inode().inode).ok();
                 return Err(e);
             }
             //Successfully created directory
             //create "." and ".."
-            if let Err(e) = Links::create(req, dirino.clone(), ".", 1, dirino.clone()) {
-                Links::remove(req, parinode.clone(), dir, dir.len(), true).unwrap();
+            if let Err(e) = Links::create(req, dirino.clone(), ".", dirino.clone()) {
+                Links::remove(req, parinode.clone(), dir, true).unwrap();
                 crate::hdl().files().delete_file(dirino.inode().inode).ok();
                 return Err(e);
             }
             //created ., now ..
-            if let Err(e) = Links::create(req, dirino.clone(), "..", 2, parinode.clone()) {
-                Links::remove(req, dirino.clone(), ".", 1, true).unwrap();
-                Links::remove(req, parinode.clone(), dir, dir.len(), true).unwrap();
+            if let Err(e) = Links::create(req, dirino.clone(), "..", parinode.clone()) {
+                Links::remove(req, dirino.clone(), ".", true).unwrap();
+                Links::remove(req, parinode.clone(), dir, true).unwrap();
                 crate::hdl().files().delete_file(dirino.inode().inode).ok();
                 return Err(e);
             }
@@ -229,13 +217,9 @@ impl Dirs {
         for ext_idx in 0..inode.inode().extents {
             let ext = INodes::get_extent(req, inode.clone(), ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
-                for entry in
-                    EntryIterator::from_block(crate::hdl().metabuffer().get_block(req, bno, false)?)
-                {
-                    if !(*entry.entry.borrow().name_length == 1 && entry.entry.borrow().name == ".")
-                        && !(*entry.entry.borrow().name_length == 2
-                            && entry.entry.borrow().name == "..")
-                    {
+                let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
+                for entry in EntryIterator::from_block(block) {
+                    if entry.name() != "." && entry.name() != ".." {
                         req.pop_metas(req.used_meta() - org_used);
                         return Err(Error::new(Code::DirNotEmpty));
                     }
@@ -281,7 +265,7 @@ impl Dirs {
 
         let baseino = Dirs::search(req, base, false)?;
         let base_ino = INodes::get(req, baseino)?;
-        Links::create(req, base_ino.clone(), dir, dir.len(), old_inode.clone())
+        Links::create(req, base_ino.clone(), dir, old_inode.clone())
     }
 
     pub fn unlink(req: &mut Request, path: &str, is_dir: bool) -> Result<(), Error> {
@@ -300,7 +284,7 @@ impl Dirs {
         let parino = Dirs::search(req, base, false)?;
         let parinode = INodes::get(req, parino)?;
 
-        let res = Links::remove(req, parinode.clone(), dir, dir.len(), is_dir);
+        let res = Links::remove(req, parinode.clone(), dir, is_dir);
         if is_dir && res.is_ok() {
             //decrement link count for parent inode by one
             parinode.inode().links -= 1;

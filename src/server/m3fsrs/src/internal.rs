@@ -1,10 +1,13 @@
 use m3::cell::{Ref, RefCell, RefMut};
 use m3::col::String;
+use m3::libc;
 use m3::rc::Rc;
 use m3::util::size_of;
 
 use crate::meta_buffer::MetaBufferHead;
 
+use core::intrinsics;
+use core::slice;
 use core::u32;
 
 ///Number of some block
@@ -326,134 +329,64 @@ impl LoadedInode {
     }
 }
 
-/// # Note on str
-/// Since rust uses utf-8-strings which in turn is ascii for all 1-byte characters, this should enable non
-/// utf-8 characters in file names, while still allowing load/store of ascii file names.
-///
-/// However most tools etc. wont support utf8, so this currently won't matter. However, the file system is ready to load utf8.
-#[repr(C)]
+/// On-disk representation of directory entries.
+#[repr(packed, C)]
 pub struct DirEntry {
-    pub nodeno: &'static mut InodeNo,
-    ///Length of the bytes that need to be loaded, to create
-    ///The name field.
-    pub name_length: &'static mut u32,
-    pub next: &'static mut u32,
-    ///Name buffer as represented by a string
-    pub name: &'static mut str,
+    pub nodeno: InodeNo,
+    pub name_length: u32,
+    pub next: u32,
+    name: [i8],
 }
+
+const DIR_ENTRY_LEN: usize = 12;
 
 impl DirEntry {
-    pub fn name_len(&self) -> usize {
-        self.name.len()
-    }
-}
-
-///Represents a Dir entry which can be loaded from some block.
-///# Note
-/// it is not possible to change the name of this entry, since that might change the length of the entry
-/// in memory, which in turn is not save.
-///
-/// Instead when changing a name, the entry is deleted and a new entry with the the new name and the  same node_no ref is created.
-pub struct LoadedDirEntry {
-    pub data_ref: Rc<RefCell<MetaBufferHead>>,
-    pub entry_location: usize,
-    pub entry: RefCell<DirEntry>,
-}
-
-impl LoadedDirEntry {
-    pub fn from_buffer_location(buffer: Rc<RefCell<MetaBufferHead>>, location: usize) -> Self {
-        //Similar to the inode, we take a pointer into the data, increase the offset tit he buffers location,
-        // then read from there. However, since the size is not static, we have to read each field on its own.
-
+    /// Returns a reference to the directory entry stored at `off` in the given buffer
+    pub fn from_buffer(buffer: Rc<RefCell<MetaBufferHead>>, off: usize) -> &'static Self {
+        // TODO ensure that name_length and next are within bounds (in case FS image is corrupt)
         unsafe {
-            debug_assert!(
-                location < buffer.borrow().data().len(),
-                "DirEntry location not within buffer!"
-            );
-
-            //Get pointer on buffer
-            let mut buffer_location: *mut u8 = buffer.borrow_mut().data_mut().as_mut_ptr();
-            //Offset until dir entry
-            buffer_location = buffer_location.add(location);
-
-            //Now load each field individually since we can't know the size of the name until we read the namelen.
-            let nodeno: &'static mut InodeNo = &mut *buffer_location.cast::<InodeNo>();
-
-            //Offset to name_length filed
-            buffer_location = buffer_location.add(size_of::<InodeNo>());
-            let name_length: &'static mut u32 = &mut *buffer_location.cast::<u32>();
-
-            //Offset to next field
-            buffer_location = buffer_location.add(size_of::<u32>());
-            let next: &'static mut u32 = &mut *buffer_location.cast::<u32>();
-
-            //offset to start of name, then read the name according to the just read name_length
-            buffer_location = buffer_location.add(size_of::<u32>());
-            let name: &mut str = loop {
-                //Get the byte array of the string and convert a str from it.
-                let str_array: *mut [u8] =
-                    core::ptr::slice_from_raw_parts_mut(buffer_location, *name_length as usize);
-                let str_array_lt: &'static mut [u8] = &mut *str_array;
-
-                //It can happen that the validation fails when an inode is created. This takes care that even then the inode only contains valid data from the start.
-                match core::str::from_utf8_mut(str_array_lt) {
-                    Ok(s) => break s,
-                    Err(e) => {
-                        log!(
-                            crate::LOG_DEF,
-                            "Failed to read name with length={}, was only valid until={}, trying again",
-                            name_length,
-                            e.valid_up_to()
-                        );
-                        //Overwrite name length with possible value
-                        *name_length = e.valid_up_to() as u32;
-                    },
-                }
-            };
-
-            //Since we now have all parts, build the struct
-            LoadedDirEntry {
-                data_ref: buffer,
-                entry_location: location,
-                entry: RefCell::new(DirEntry {
-                    nodeno,
-                    next,
-                    name_length,
-                    name,
-                }),
-            }
+            let buffer_off = buffer.borrow().data().as_ptr().add(off);
+            let name_length = buffer_off.add(size_of::<InodeNo>()) as *const u32;
+            let slice = [buffer_off as usize, *name_length as usize + DIR_ENTRY_LEN];
+            intrinsics::transmute(slice)
         }
     }
 
-    ///Returns the size of this entry when stored on disk. Includes the static size of the struct as well as the str. buffer size.
-    pub fn size(&self) -> usize {
-        12 + *self.entry.borrow().name_length as usize
+    /// Returns a mutable reference to the directory entry stored at `off` in the given buffer
+    pub fn from_buffer_mut(buffer: Rc<RefCell<MetaBufferHead>>, off: usize) -> &'static mut Self {
+        // TODO ensure that name_length and next are within bounds (in case FS image is corrupt)
+        unsafe {
+            let buffer_off = buffer.borrow_mut().data_mut().as_mut_ptr().add(off);
+            let name_length = buffer_off.add(size_of::<InodeNo>()) as *const u32;
+            let slice = [buffer_off as usize, *name_length as usize + DIR_ENTRY_LEN];
+            intrinsics::transmute(slice)
+        }
     }
 
-    ///Sets the name of this DirEntry. If the name.len() > old_name.len() this could mean that some other inode data
-    ///gets overwritten or otherwise tempered with.
-    /// # Safety
-    /// It is the callers responsibility to ensure that the space behind the internal `entry_location` within `data_ref` is big enough
-    /// to hold the string given to this function.
-    pub unsafe fn set_name(&self, new_name: &str) {
-        let new_length = new_name.len() as u32;
+    /// Returns the size of this entry when stored on disk. Includes the static size of the struct
+    /// as well as the str. buffer size.
+    pub fn size(&self) -> usize {
+        DIR_ENTRY_LEN + self.name_length as usize
+    }
 
-        //Overwrite internal length
-        *self.entry.borrow_mut().name_length = new_length;
-        //Overwrite buffer location with new string
-        //This is the location within the byte buffer of this block. Copy safety must be checked by the caller.
-        let buffer_dst = self.entry.borrow_mut().name.as_mut_ptr().cast::<u8>();
-        let src_ptr = new_name.as_ptr().cast::<u8>();
+    /// Returns the name of the entry
+    pub fn name(&self) -> &str {
+        unsafe {
+            let sl = slice::from_raw_parts(self.name.as_ptr(), self.name_length as usize);
+            &*(&sl[..sl.len()] as *const [i8] as *const str)
+        }
+    }
 
-        //Copy data over to destination.
-        core::ptr::copy(src_ptr, buffer_dst, new_length as usize);
-
-        //now patch the string slice with the new length
-        let str_array: *mut [u8] =
-            core::ptr::slice_from_raw_parts_mut(buffer_dst, new_length as usize);
-        let str_array_lt: &'static mut [u8] = &mut *str_array;
-        self.entry.borrow_mut().name = core::str::from_utf8_mut(str_array_lt)
-            .expect("Failed to convert DirEntry's name to utf8.");
+    /// Sets the name of the entry to the given one
+    pub fn set_name(&mut self, name: &str) {
+        self.name_length = name.len() as u32;
+        unsafe {
+            libc::memcpy(
+                self.name.as_mut_ptr() as *mut libc::c_void,
+                name.as_ptr() as *const libc::c_void,
+                name.len(),
+            );
+        }
     }
 }
 
