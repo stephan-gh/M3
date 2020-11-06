@@ -23,7 +23,7 @@ impl Dirs {
             let ext = INodes::get_extent(req, inode.clone(), ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
                 let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
-                for entry in EntryIterator::from_block(block) {
+                for entry in DirEntryIterator::from_block(block) {
                     if entry.name() == name {
                         log!(crate::LOG_DEF, "Found entry with name: {}", entry.name());
                         return Ok(entry.nodeno);
@@ -218,7 +218,7 @@ impl Dirs {
             let ext = INodes::get_extent(req, inode.clone(), ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
                 let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
-                for entry in EntryIterator::from_block(block) {
+                for entry in DirEntryIterator::from_block(block) {
                     if entry.name() != "." && entry.name() != ".." {
                         req.pop_metas(req.used_meta() - org_used);
                         return Err(Error::new(Code::DirNotEmpty));

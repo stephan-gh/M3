@@ -160,30 +160,40 @@ pub fn flags_to_perm(flags: u64) -> Perm {
 }
 
 /// Entry iterator takes a block and iterates over it assuming that the block contains entries.
-pub struct EntryIterator {
+pub struct DirEntryIterator {
     block: Rc<RefCell<MetaBufferHead>>,
-    entry_location: usize,
+    off: usize,
     end: usize,
 }
 
-impl EntryIterator {
+impl DirEntryIterator {
     pub fn from_block(block: Rc<RefCell<MetaBufferHead>>) -> Self {
-        EntryIterator {
-            entry_location: 0,
+        DirEntryIterator {
+            off: 0,
             end: crate::hdl().superblock().block_size as usize,
             block,
         }
     }
+
+    /// Returns true if there a next entry
+    pub fn has_next(&self) -> bool {
+        self.off < self.end
+    }
+
+    /// Returns the DirEntry offset in the block that is returned by the next `next` call.
+    pub fn next_offset(&self) -> usize {
+        self.off
+    }
 }
 
-impl core::iter::Iterator for EntryIterator {
-    type Item = &'static DirEntry;
+impl core::iter::Iterator for DirEntryIterator {
+    type Item = &'static mut DirEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.entry_location < self.end {
-            let ret = DirEntry::from_buffer(self.block.clone(), self.entry_location);
+        if self.has_next() {
+            let ret = DirEntry::from_buffer_mut(self.block.clone(), self.off);
 
-            self.entry_location += ret.next as usize;
+            self.off += ret.next as usize;
 
             Some(ret)
         }

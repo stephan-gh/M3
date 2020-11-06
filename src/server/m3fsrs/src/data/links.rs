@@ -2,6 +2,7 @@ use crate::buffer::Buffer;
 use crate::data::*;
 use crate::internal::*;
 use crate::sess::*;
+use crate::util::DirEntryIterator;
 use m3::errors::{Code, Error};
 
 pub struct Links {}
@@ -30,28 +31,20 @@ impl Links {
             let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
 
             for bno in ext.into_iter() {
-                // This is the block for all entries that are within this block
-                let dir_entry_data_ref = crate::hdl().metabuffer().get_block(req, bno, false)?;
-                let mut entry_location = 0;
-                // Max offset into the buffer at which a entry could be. Is anyways incorrect since each name has a dynamic length.
-                let entry_location_end = crate::hdl().superblock().block_size;
-                // Iter over the entries, at the end always increment the ptr offset by entry.next
-                while entry_location < entry_location_end {
-                    let entry = DirEntry::from_buffer_mut(
-                        dir_entry_data_ref.clone(),
-                        entry_location as usize,
-                    );
-
+                let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
+                let mut entry_iter = DirEntryIterator::from_block(block.clone());
+                while let Some(entry) = entry_iter.next() {
                     rem = entry.next - entry.size() as u32;
                     // This happens if we can embed the new dir-entry between this one and the "next"
                     if rem >= entry.size() as u32 {
-                        // change previous entry
+                        let prev_offset = entry_iter.next_offset() - entry.next as usize;
+                        // change current entry (thus, we cannot call entry_iter.next() again!)
                         entry.next = entry.size() as u32;
 
-                        // create new entry
+                        // create new entry behind it
                         new_entry = Some(DirEntry::from_buffer_mut(
-                            dir_entry_data_ref,
-                            (entry_location + entry.next) as usize,
+                            block,
+                            prev_offset + entry.next as usize,
                         ));
 
                         crate::hdl().metabuffer().mark_dirty(bno);
@@ -59,9 +52,6 @@ impl Links {
 
                         break 'search_loop;
                     }
-
-                    // Go to next entry
-                    entry_location = entry_location + entry.next;
                 }
                 req.pop_meta();
             }
@@ -88,10 +78,7 @@ impl Links {
             // put entry at the beginning of the block
             rem = crate::hdl().superblock().block_size;
             let start = *ext.start();
-            DirEntry::from_buffer_mut(
-                crate::hdl().metabuffer().get_block(req, start, true)?,
-                0,
-            )
+            DirEntry::from_buffer_mut(crate::hdl().metabuffer().get_block(req, start, true)?, 0)
         };
 
         // write entry
@@ -122,22 +109,11 @@ impl Links {
         for ext_idx in 0..dir.inode().extents {
             let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
-                // This is the block for all entries that are within this block
-                let dir_entry_data_ref = crate::hdl().metabuffer().get_block(req, bno, false)?;
-                let mut entry_location = 0;
-                // Max offset into the buffer at which a entry could be. Is anyways incorrect since each name has a dynamic length.
-                let entry_location_end = crate::hdl().superblock().block_size;
+                let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
 
-                // previouse entry
                 let mut prev: Option<&'static mut DirEntry> = None;
-
-                // Iter over the entries, at the end always increment the ptr offset by entry.next
-                while entry_location < entry_location_end {
-                    let entry = DirEntry::from_buffer_mut(
-                        dir_entry_data_ref.clone(),
-                        entry_location as usize,
-                    );
-
+                let mut entry_iter = DirEntryIterator::from_block(block.clone());
+                while let Some(entry) = entry_iter.next() {
                     if entry.name() == name {
                         // if we are not removing a dir, we are coming from unlink(). in this case, directories
                         // are not allowed
@@ -153,23 +129,20 @@ impl Links {
                         }
                         else {
                             // copy the next entry back, if there is any
-                            let next_location = entry_location as usize + entry.next as usize;
-                            let next_entry = DirEntry::from_buffer_mut(
-                                dir_entry_data_ref,
-                                next_location,
-                            );
-
-                            if next_location < entry_location_end as usize {
+                            if entry_iter.has_next() {
+                                let next =
+                                    DirEntry::from_buffer_mut(block, entry_iter.next_offset());
                                 let dist = entry.next;
                                 // Copy data over
-                                entry.next = next_entry.next;
-                                entry.nodeno = next_entry.nodeno;
+                                entry.next = next.next;
+                                entry.nodeno = next.nodeno;
 
-                                entry.set_name(next_entry.name());
-                                entry.next = dist + next_entry.next;
+                                entry.set_name(next.name());
+                                entry.next = dist + next.next;
                             }
                         }
                         crate::hdl().metabuffer().mark_dirty(bno);
+
                         // reduce links and free if necessary
                         if (inode.inode().links - 1) == 0 {
                             let ino = inode.inode().inode;
@@ -179,8 +152,6 @@ impl Links {
                         req.pop_metas(req.used_meta() - org_used);
                         return Ok(());
                     }
-                    // Go to next entry
-                    entry_location = entry_location + entry.next;
                     // Update pref
                     prev = Some(entry);
                 }
