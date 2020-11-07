@@ -1,10 +1,9 @@
 use m3::col::String;
 
-use crate::sess::request::Request;
 use crate::util::Bitmap;
 
-use m3::errors::{Code, Error};
 use m3::cell::RefCell;
+use m3::errors::{Code, Error};
 use m3::rc::Rc;
 
 pub struct Allocator {
@@ -58,7 +57,7 @@ impl Allocator {
         }
     }
 
-    pub fn alloc(&mut self, req: &mut Request, count: Option<&mut usize>) -> Result<u32, Error> {
+    pub fn alloc(&mut self, count: Option<&mut usize>) -> Result<u32, Error> {
         let mut tmp_count = 1;
         let count = count.unwrap_or(&mut tmp_count);
 
@@ -73,7 +72,7 @@ impl Allocator {
         let mut i = (*self.first_free.borrow() as usize) % perblock;
 
         while (total == 0) && (no <= lastno) {
-            let block = crate::hdl().get_meta_block(req, no, true)?;
+            let mut block = crate::hdl().metabuffer().get_block(no, true)?;
 
             let mut max = perblock;
             if no == lastno {
@@ -147,9 +146,6 @@ impl Allocator {
                 }
             }
 
-            // Now all bits are set in the bitmap, therefore pop the meta entry. If any
-            // "size" is left, the loop will start again and go to the next meta entry
-            req.pop_meta();
             if total == 0 {
                 no += 1;
                 i = 0;
@@ -183,7 +179,7 @@ impl Allocator {
         return Ok(start);
     }
 
-    pub fn free(&mut self, req: &mut Request, mut start: usize, mut count: usize) -> Result<(), Error> {
+    pub fn free(&mut self, mut start: usize, mut count: usize) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
             "Allocator::{}::free(start={}, count={})",
@@ -201,7 +197,7 @@ impl Allocator {
         *self.free.borrow_mut() += count as u32;
         // Actually free bits in bitmap and update superblock
         while count > 0 {
-            let block = crate::hdl().get_meta_block(req, no as u32, true)?;
+            let mut block = crate::hdl().metabuffer().get_block(no as u32, true)?;
             let mut bitmap = Bitmap::from_bytes(block.data_mut());
 
             // align i to wordsize
@@ -235,7 +231,6 @@ impl Allocator {
             }
 
             // Go to next bitmap block from rep
-            req.pop_meta();
             count -= i - begin;
             start = (start + perblock - 1) & !(perblock - 1);
             no += 1;

@@ -1,6 +1,6 @@
 use crate::data::*;
 use crate::internal::*;
-use crate::sess::{M3FSSession, Request};
+use crate::sess::M3FSSession;
 use crate::util::*;
 
 use m3::{
@@ -177,7 +177,6 @@ impl FileSession {
     pub fn get_mem(&mut self, data: &mut CapExchange) -> Result<(), Error> {
         let pop_offset: u32 = data.in_args().pop()?;
         let mut offset = pop_offset as usize;
-        let mut req = Request::new();
 
         log!(
             crate::LOG_DEF,
@@ -186,13 +185,12 @@ impl FileSession {
             offset
         );
 
-        let inode = INodes::get(&mut req, self.ino)?;
+        let inode = INodes::get(self.ino)?;
 
         let mut first_off = offset as usize;
         let mut ext_off = 0;
         let mut tmp_extent = 0;
         INodes::seek(
-            &mut req,
             inode.clone(),
             &mut first_off,
             M3FS_SEEK_SET,
@@ -204,7 +202,6 @@ impl FileSession {
 
         let mut extlen = 0;
         let len = INodes::get_extent_mem(
-            &mut req,
             inode.clone(),
             offset,
             ext_off,
@@ -251,11 +248,10 @@ impl FileSession {
             return Err(Error::new(Code::NoPerm));
         }
 
-        let mut req = Request::new();
-        let inode = INodes::get(&mut req, self.ino)?;
+        let inode = INodes::get(self.ino)?;
         // in/out implicitly commits the previous in/out request
         if out && self.appending {
-            self.commit_append(&mut req, inode.clone(), self.lastbytes)?;
+            self.commit_append(inode.clone(), self.lastbytes)?;
         }
 
         if self.accessed < 31 {
@@ -285,7 +281,6 @@ impl FileSession {
             {
                 let mut off = 0;
                 self.fileoff = INodes::seek(
-                    &mut req,
                     inode.clone(),
                     &mut off,
                     M3FS_SEEK_END,
@@ -302,7 +297,6 @@ impl FileSession {
             };
 
             let len = INodes::req_append(
-                &mut req,
                 inode.clone(),
                 self.extent,
                 self.extoff,
@@ -322,7 +316,6 @@ impl FileSession {
         else {
             // get next mem_cap
             let len = INodes::get_extent_mem(
-                &mut req,
                 inode.clone(),
                 self.extent,
                 self.extoff,
@@ -404,12 +397,7 @@ impl FileSession {
         }
     }
 
-    fn commit_append(
-        &mut self,
-        req: &mut Request,
-        inode: LoadedInode,
-        submit: usize,
-    ) -> Result<(), Error> {
+    fn commit_append(&mut self, inode: LoadedInode, submit: usize) -> Result<(), Error> {
         assert!(submit > 0, "commit_append() submit must be > 0");
         log!(
             crate::LOG_DEF,
@@ -432,12 +420,11 @@ impl FileSession {
             // append extent to file
             *append_ext.length_mut() = blocks as u32;
             let mut new_ext = false;
-            INodes::append_extent(req, inode.clone(), &append_ext, &mut new_ext)?;
+            INodes::append_extent(inode.clone(), &append_ext, &mut new_ext)?;
 
             // free superfluous blocks
             if old_len as usize > blocks {
                 crate::hdl().blocks().free(
-                    req,
                     *append_ext.start() as usize + blocks,
                     old_len as usize - blocks,
                 )?;
@@ -461,7 +448,7 @@ impl FileSession {
 
         // change size
         inode.inode().size += submit as u64;
-        INodes::mark_dirty(req, inode.inode().inode);
+        INodes::mark_dirty(inode.inode().inode);
 
         // stop appending
         let files = crate::hdl().files();
@@ -498,8 +485,6 @@ impl M3FSSession for FileSession {
     fn commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         let nbytes: usize = stream.pop()?;
 
-        let mut req = Request::new();
-
         log!(
             crate::LOG_DEF,
             "file::commit(nbytes={}); file[path={}, fileoff={}, ext={}, extoff={}]",
@@ -514,10 +499,10 @@ impl M3FSSession for FileSession {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let inode = INodes::get(&mut req, self.ino)?;
+        let inode = INodes::get(self.ino)?;
 
         let res = if self.appending {
-            self.commit_append(&mut req, inode.clone(), nbytes)
+            self.commit_append(inode.clone(), nbytes)
         }
         else {
             if (self.extent > self.lastext) && ((self.lastoff + nbytes) > self.extlen) {
@@ -554,11 +539,9 @@ impl M3FSSession for FileSession {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let mut req = Request::new();
-        let inode = INodes::get(&mut req, self.ino)?;
+        let inode = INodes::get(self.ino)?;
 
         let pos = INodes::seek(
-            &mut req,
             inode.clone(),
             &mut off,
             whence,
@@ -570,12 +553,11 @@ impl M3FSSession for FileSession {
     }
 
     fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let mut req = Request::new();
         log!(crate::LOG_DEF, "file::fstat(path={})", self.filename);
-        let inode = INodes::get(&mut req, self.ino)?;
+        let inode = INodes::get(self.ino)?;
 
         let mut info = FileInfo::default();
-        INodes::stat(&mut req, inode.clone(), &mut info);
+        INodes::stat(inode.clone(), &mut info);
 
         reply_vmsg!(stream, 0, info)
     }

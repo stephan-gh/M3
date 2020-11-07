@@ -1,7 +1,6 @@
 use crate::backend::{Backend, SuperBlock};
 use crate::internal::*;
-use crate::meta_buffer::MetaBufferHead;
-use crate::sess::request::Request;
+use crate::meta_buffer::MetaBufferBlock;
 
 use crate::m3::serialize::Sink;
 use m3::cap::Selector;
@@ -50,7 +49,7 @@ impl Backend for DiskBackend {
 
     fn load_meta(
         &self,
-        dst: &mut MetaBufferHead,
+        dst: &mut MetaBufferBlock,
         dst_off: usize,
         bno: BlockNo,
         unlock: Event,
@@ -58,11 +57,8 @@ impl Backend for DiskBackend {
         let off = dst_off * (self.blocksize + crate::buffer::PRDT_SIZE);
         self.disk
             .read(0, bno, 1, self.blocksize, Some(off as u64))?;
-        self.metabuf.read_bytes(
-            dst.data_mut().as_mut_ptr(),
-            self.blocksize,
-            off as u64,
-        )?;
+        self.metabuf
+            .read_bytes(dst.data_mut().as_mut_ptr(), self.blocksize, off as u64)?;
         thread::ThreadManager::get().notify(unlock, None);
         Ok(())
     }
@@ -85,17 +81,14 @@ impl Backend for DiskBackend {
 
     fn store_meta(
         &self,
-        src: &MetaBufferHead,
+        src: &MetaBufferBlock,
         src_off: usize,
         bno: BlockNo,
         unlock: Event,
     ) -> Result<(), Error> {
         let off = src_off * (self.blocksize + crate::buffer::PRDT_SIZE);
-        self.metabuf.write_bytes(
-            src.data().as_ptr(),
-            self.blocksize,
-            off as u64,
-        )?;
+        self.metabuf
+            .write_bytes(src.data().as_ptr(), self.blocksize, off as u64)?;
         self.disk
             .write(0, bno, 1, self.blocksize, Some(off as u64))?;
         thread::ThreadManager::get().notify(unlock, None);
@@ -108,7 +101,7 @@ impl Backend for DiskBackend {
         Ok(())
     }
 
-    fn sync_meta(&self, request: &mut Request, bno: BlockNo) -> Result<(), Error> {
+    fn sync_meta(&self, bno: BlockNo) -> Result<(), Error> {
         // check if there is a filebuffer entry for it or create one
         let msel = m3::pes::VPE::cur().alloc_sel();
         crate::hdl().filebuffer().get_extent(
@@ -124,19 +117,17 @@ impl Backend for DiskBackend {
 
         // okay, so write it from metabuffer to filebuffer
         let m = MemGate::new_bind(msel);
-        let block = crate::hdl().metabuffer().get_block(request, bno, false)?;
+        let mut block = crate::hdl().metabuffer().get_block(bno, false)?;
         m.write_bytes(
             block.data_mut().as_mut_ptr(),
             crate::hdl().superblock().block_size as usize,
             0,
         )?;
-        request.pop_meta();
         Ok(())
     }
 
     fn get_filedata(
         &self,
-        _req: &Request,
         ext: &mut LoadedExtent,
         extoff: usize,
         perms: Perm,
@@ -158,12 +149,7 @@ impl Backend for DiskBackend {
         )
     }
 
-    fn clear_extent(
-        &self,
-        _request: &mut Request,
-        extent: &LoadedExtent,
-        accessed: usize,
-    ) -> Result<(), Error> {
+    fn clear_extent(&self, extent: &LoadedExtent, accessed: usize) -> Result<(), Error> {
         let mut zeros: [u8; crate::internal::MAX_BLOCK_SIZE as usize] =
             [0; crate::internal::MAX_BLOCK_SIZE as usize];
         let sel = m3::pes::VPE::cur().alloc_sel();

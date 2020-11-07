@@ -11,9 +11,6 @@ pub use meta_session::MetaSession;
 pub mod open_files;
 pub use open_files::OpenFiles;
 
-pub mod request;
-pub use request::Request;
-
 pub enum FSSession {
     Meta(MetaSession),
     File(Rc<RefCell<FileSession>>),

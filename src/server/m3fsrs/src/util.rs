@@ -1,8 +1,8 @@
 use m3::com::Perm;
 
 use crate::internal::*;
-use crate::meta_buffer::MetaBufferHead;
-use m3::cell::RefCell;
+use crate::meta_buffer::MetaBufferBlock;
+use m3::cell::{Cell, RefCell};
 use m3::rc::Rc;
 
 use core::ops::Range;
@@ -160,41 +160,27 @@ pub fn flags_to_perm(flags: u64) -> Perm {
 }
 
 /// Entry iterator takes a block and iterates over it assuming that the block contains entries.
-pub struct DirEntryIterator {
-    block_id: usize,
-    off: usize,
+pub struct DirEntryIterator<'e> {
+    block: &'e MetaBufferBlock,
+    off: Cell<usize>,
     end: usize,
 }
 
-impl DirEntryIterator {
-    pub fn from_block(block: &MetaBufferHead) -> Self {
+impl<'e> DirEntryIterator<'e> {
+    pub fn from_block(block: &'e MetaBufferBlock) -> Self {
         DirEntryIterator {
-            block_id: block.id(),
-            off: 0,
+            block,
+            off: Cell::from(0),
             end: crate::hdl().superblock().block_size as usize,
         }
     }
 
-    /// Returns true if there a next entry
-    pub fn has_next(&self) -> bool {
-        self.off < self.end
-    }
+    /// Returns the next DirEntry
+    pub fn next(&'e self) -> Option<&'e DirEntry> {
+        if self.off.get() < self.end {
+            let ret = DirEntry::from_buffer(self.block, self.off.get());
 
-    /// Returns the DirEntry offset in the block that is returned by the next `next` call.
-    pub fn next_offset(&self) -> usize {
-        self.off
-    }
-}
-
-impl core::iter::Iterator for DirEntryIterator {
-    type Item = &'static mut DirEntry;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.has_next() {
-            let block = crate::hdl().metabuffer().get_block_mut_by_id(self.block_id);
-            let ret = DirEntry::from_buffer_mut(block, self.off);
-
-            self.off += ret.next as usize;
+            self.off.set(self.off.get() + ret.next as usize);
 
             Some(ret)
         }

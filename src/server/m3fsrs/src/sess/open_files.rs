@@ -53,12 +53,11 @@ impl OpenFiles {
 
     pub fn delete_file(&mut self, inode_num: InodeNo) -> Result<(), Error> {
         // Create a request which executes the delete request on the FShandle
-        let mut req = Request::new();
         if let Some(file) = self.get_file_mut(inode_num) {
             file.deleted = true;
         }
         else {
-            INodes::free(&mut req, inode_num)?;
+            INodes::free(inode_num)?;
         }
         Ok(())
     }
@@ -102,8 +101,7 @@ impl OpenFiles {
             let removed_file = self.files.remove(&session.borrow().ino());
             // unwrap save since the first line of the function would otherwise fail
             if removed_file.unwrap().deleted {
-                let mut req = Request::new();
-                INodes::free(&mut req, session.borrow().ino())?;
+                INodes::free(session.borrow().ino())?;
             }
         }
         Ok(())

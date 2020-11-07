@@ -1,39 +1,38 @@
 use crate::buffer::Buffer;
 use crate::internal::NUM_INODE_BYTES;
 use crate::internal::*;
-use crate::sess::*;
 use m3::{cap::Selector, col::Vec, com::Perm, errors::*, time};
 
 pub struct INodes;
 
 impl INodes {
-    pub fn create(req: &mut Request, mode: Mode) -> Result<LoadedInode, Error> {
+    pub fn create(mode: Mode) -> Result<LoadedInode, Error> {
         log!(crate::LOG_DEF, "Inodes::create(mode: {:b})", mode);
 
-        let ino = crate::hdl().inodes().alloc(req, None)?;
-        let inode = INodes::get(req, ino)?;
+        let ino = crate::hdl().inodes().alloc(None)?;
+        let inode = INodes::get(ino)?;
         // Reset inode
         inode.inode().reset();
         inode.inode().inode = ino;
         inode.inode().devno = 0; /* TODO (was also in C++ todo)*/
         inode.inode().mode = mode;
-        INodes::mark_dirty(req, ino);
+        INodes::mark_dirty(ino);
         Ok(inode)
     }
 
-    pub fn free(req: &mut Request, inode_no: InodeNo) -> Result<(), Error> {
-        let ino = INodes::get(req, inode_no)?;
+    pub fn free(inode_no: InodeNo) -> Result<(), Error> {
+        let ino = INodes::get(inode_no)?;
         let inodeno = ino.inode().inode as usize;
-        INodes::truncate(req, ino.clone(), 0, 0)?;
-        crate::hdl().inodes().free(req, inodeno, 1)
+        INodes::truncate(ino.clone(), 0, 0)?;
+        crate::hdl().inodes().free(inodeno, 1)
     }
 
-    pub fn get(req: &mut Request, inode: InodeNo) -> Result<LoadedInode, Error> {
+    pub fn get(inode: InodeNo) -> Result<LoadedInode, Error> {
         log!(crate::LOG_DEF, "Getting inode={}", inode);
 
         let inos_per_block = crate::hdl().superblock().inodes_per_block();
         let bno = crate::hdl().superblock().first_inode_block() + (inode / inos_per_block as u32);
-        let inodes_block = crate::hdl().metabuffer().get_block(req, bno, false)?;
+        let inodes_block = crate::hdl().metabuffer().get_block(bno, false)?;
 
         // Calc the byte offset of this inode within its block
         let inode_offset = (inode as usize % inos_per_block as usize) * NUM_INODE_BYTES as usize;
@@ -49,12 +48,11 @@ impl INodes {
         ))
     }
 
-    pub fn stat(_req: &mut Request, inode: LoadedInode, info: &mut FileInfo) {
+    pub fn stat(inode: LoadedInode, info: &mut FileInfo) {
         inode.inode().to_file_info(info);
     }
 
     pub fn seek(
-        req: &mut Request,
         inode: LoadedInode,
         off: &mut usize,
         whence: i32,
@@ -89,7 +87,7 @@ impl INodes {
             *extoff = 0;
             // determine extent offset
             if *extent > 0 {
-                let ext = INodes::get_extent(req, inode.clone(), *extent - 1, &mut indir, false)?;
+                let ext = INodes::get_extent(inode.clone(), *extent - 1, &mut indir, false)?;
                 *extoff = (*ext.length() * blocksize) as usize;
                 // ensure to stay within a block
                 let unaligned = inode.inode().size % blocksize as u64;
@@ -111,7 +109,7 @@ impl INodes {
         // Since we don't want to find just the end, go through the extents until we found
         // the extent that contains the `off`
         for i in 0..inode.inode().extents {
-            let ext = INodes::get_extent(req, inode.clone(), i as usize, &mut indir, false)?;
+            let ext = INodes::get_extent(inode.clone(), i as usize, &mut indir, false)?;
             if *off < (*ext.length() * blocksize) as usize {
                 *extent = i as usize;
                 *extoff = *off;
@@ -126,7 +124,6 @@ impl INodes {
     }
 
     pub fn get_extent_mem(
-        req: &mut Request,
         inode: LoadedInode,
         extent: usize,
         extoff: usize,
@@ -146,7 +143,7 @@ impl INodes {
         ); // {} needed because of packed inode struct
 
         let mut indir = vec![];
-        let mut ext = INodes::get_extent(req, inode.clone(), extent, &mut indir, false)?;
+        let mut ext = INodes::get_extent(inode.clone(), extent, &mut indir, false)?;
         if *ext.length() == 0 {
             *extlen = 0;
             return Ok(0);
@@ -158,7 +155,7 @@ impl INodes {
 
         let mut bytes = crate::hdl()
             .backend()
-            .get_filedata(req, &mut ext, extoff, perms, sel, dirty, true, accessed)?;
+            .get_filedata(&mut ext, extoff, perms, sel, dirty, true, accessed)?;
 
         // Stop at file end
         if (extent == (inode.inode().extents - 1) as usize)
@@ -176,7 +173,6 @@ impl INodes {
     /// Requests some extend in memory at `ext_off` for some `inode`. Stores the
     /// location and length in `ext` and returns the ext size
     pub fn req_append(
-        req: &mut Request,
         inode: LoadedInode,
         i: usize,
         mut extoff: usize,
@@ -205,15 +201,15 @@ impl INodes {
 
         if i < inode.inode().extents as usize {
             let mut indir = vec![];
-            let ext = &mut INodes::get_extent(req, inode, i, &mut indir, false)?;
+            let ext = &mut INodes::get_extent(inode, i, &mut indir, false)?;
 
             *extlen = (*ext.length() * crate::hdl().superblock().block_size) as usize;
             crate::hdl()
                 .backend()
-                .get_filedata(req, ext, extoff, perm, sel, true, load, accessed)
+                .get_filedata(ext, extoff, perm, sel, true, load, accessed)
         }
         else {
-            INodes::fill_extent(req, None, ext, crate::hdl().extend() as u32, accessed)?;
+            INodes::fill_extent(None, ext, crate::hdl().extend() as u32, accessed)?;
 
             if !crate::hdl().clear_blocks() {
                 load = false;
@@ -223,12 +219,11 @@ impl INodes {
             *extlen = (*ext.length() * crate::hdl().superblock().block_size) as usize;
             crate::hdl()
                 .backend()
-                .get_filedata(req, ext, extoff, perm, sel, true, load, accessed)
+                .get_filedata(ext, extoff, perm, sel, true, load, accessed)
         }
     }
 
     pub fn append_extent(
-        req: &mut Request,
         inode: LoadedInode,
         next: &LoadedExtent,
         newext: &mut bool,
@@ -248,7 +243,6 @@ impl INodes {
         // Try to load present
         let mut ext = if inode.inode().extents > 0 {
             let ext = INodes::get_extent(
-                req,
                 inode.clone(),
                 (inode.inode().extents - 1) as usize,
                 &mut indir,
@@ -269,7 +263,6 @@ impl INodes {
         // Load a new one
         if ext.is_none() {
             ext = Some(INodes::get_extent(
-                req,
                 inode.clone(),
                 inode.inode().extents as usize,
                 &mut indir,
@@ -284,7 +277,6 @@ impl INodes {
     }
 
     pub fn get_extent(
-        req: &mut Request,
         inode: LoadedInode,
         mut i: usize,
         indir: &mut Vec<LoadedExtent>,
@@ -320,7 +312,7 @@ impl INodes {
                         return Err(Error::new(Code::NotFound));
                     }
                     // Alloc block for indirect extents and put in inode.
-                    let indirect_block = crate::hdl().blocks().alloc(req, None)?;
+                    let indirect_block = crate::hdl().blocks().alloc(None)?;
                     inode.inode().indirect = indirect_block;
                     created = true;
                 }
@@ -332,7 +324,7 @@ impl INodes {
 
                 let num_ext_per_block = crate::hdl().superblock().extents_per_block();
                 let mut extent_vec = Vec::with_capacity(num_ext_per_block);
-                let data_ref = mb.get_block(req, inode.inode().indirect, false)?;
+                let mut data_ref = mb.get_block(inode.inode().indirect, false)?;
 
                 if created {
                     data_ref.overwrite_zero();
@@ -340,7 +332,7 @@ impl INodes {
 
                 for j in 0..num_ext_per_block {
                     extent_vec.push(LoadedExtent::ind_from_buffer_location(
-                        data_ref,
+                        data_ref.clone(),
                         j * crate::internal::NUM_EXT_BYTES,
                     ));
                 }
@@ -365,13 +357,13 @@ impl INodes {
                 if !create {
                     return Err(Error::new(Code::NotFound));
                 }
-                let dindirect_block = crate::hdl().blocks().alloc(req, None)?;
+                let dindirect_block = crate::hdl().blocks().alloc(None)?;
                 inode.inode().dindirect = dindirect_block;
                 created = true;
             }
 
             // init with zeros
-            let dind_block_ref = mb.get_block(req, inode.inode().dindirect, false)?;
+            let mut dind_block_ref = mb.get_block(inode.inode().dindirect, false)?;
             if created {
                 dind_block_ref.overwrite_zero();
             }
@@ -397,12 +389,12 @@ impl INodes {
                 crate::hdl()
                     .metabuffer()
                     .mark_dirty(inode.inode().dindirect);
-                *dind_ext_pointer.start_mut() = crate::hdl().blocks().alloc(req, None)?;
+                *dind_ext_pointer.start_mut() = crate::hdl().blocks().alloc(None)?;
                 *dind_ext_pointer.length_mut() = 1;
                 created = true;
             }
             // init with zeros
-            let ind_block_ref = mb.get_block(req, *dind_ext_pointer.start(), false)?;
+            let mut ind_block_ref = mb.get_block(*dind_ext_pointer.start(), false)?;
             if created {
                 ind_block_ref.overwrite_zero();
             }
@@ -426,7 +418,6 @@ impl INodes {
     }
 
     fn change_extent(
-        req: &mut Request,
         inode: LoadedInode,
         mut i: usize,
         indir: &mut Vec<LoadedExtent>,
@@ -453,12 +444,12 @@ impl INodes {
 
             if indir.len() == 0 {
                 // indir is allocated but not laoded in the indir-vec. Do that now
-                let data_ref = mb.get_block(req, inode.inode().indirect, false)?;
+                let data_ref = mb.get_block(inode.inode().indirect, false)?;
 
                 let mut extent_vec = Vec::with_capacity(ext_per_block);
                 for j in 0..ext_per_block {
                     extent_vec.push(LoadedExtent::ind_from_buffer_location(
-                        data_ref,
+                        data_ref.clone(),
                         j * NUM_EXT_BYTES,
                     ));
                 }
@@ -472,7 +463,7 @@ impl INodes {
             if remove && i == 0 {
                 crate::hdl()
                     .blocks()
-                    .free(req, inode.inode().indirect as usize, 1)?;
+                    .free(inode.inode().indirect as usize, 1)?;
                 inode.inode().indirect = 0;
             }
             // Return i-th inode from the loaded indirect block
@@ -486,14 +477,14 @@ impl INodes {
                 "inode was in dindirect block, but dindirect is not allocated!"
             );
             // Load dindirect into vec
-            let data_ref = mb.get_block(req, inode.inode().indirect, false)?;
+            let data_ref = mb.get_block(inode.inode().indirect, false)?;
 
             let ptr = LoadedExtent::ind_from_buffer_location(
                 data_ref,
                 (i / ext_per_block) * NUM_EXT_BYTES,
             );
 
-            let dindir = mb.get_block(req, *ptr.start(), false)?;
+            let dindir = mb.get_block(*ptr.start(), false)?;
 
             let ext_loc = (i % ext_per_block) * NUM_EXT_BYTES;
             let ext = LoadedExtent::ind_from_buffer_location(dindir, ext_loc);
@@ -504,7 +495,7 @@ impl INodes {
             if remove {
                 // Is first block in dind block
                 if ext_loc == 0 {
-                    crate::hdl().blocks().free(req, *ptr.start() as usize, 1)?;
+                    crate::hdl().blocks().free(*ptr.start() as usize, 1)?;
                     *ptr.length_mut() = 0;
                     *ptr.start_mut() = 0;
                     crate::hdl()
@@ -516,7 +507,7 @@ impl INodes {
                 if i == 0 {
                     crate::hdl()
                         .blocks()
-                        .free(req, inode.inode().dindirect as usize, 1)?;
+                        .free(inode.inode().dindirect as usize, 1)?;
                     inode.inode().dindirect = 0;
                 }
             }
@@ -527,14 +518,13 @@ impl INodes {
     }
 
     pub fn fill_extent(
-        req: &mut Request,
         inode: Option<LoadedInode>,
         ext: &LoadedExtent,
         blocks: u32,
         accessed: usize,
     ) -> Result<(), Error> {
         let mut count = blocks as usize;
-        match crate::hdl().blocks().alloc(req, Some(&mut count)) {
+        match crate::hdl().blocks().alloc(Some(&mut count)) {
             Ok(start) => *ext.start_mut() = start,
             Err(e) => {
                 *ext.length_mut() = 0;
@@ -546,7 +536,7 @@ impl INodes {
         let blocksize = crate::hdl().superblock().block_size;
         if crate::hdl().clear_blocks() {
             time::start(0xaaaa);
-            crate::hdl().backend().clear_extent(req, ext, accessed)?;
+            crate::hdl().backend().clear_extent(ext, accessed)?;
             time::stop(0xaaaa);
         }
 
@@ -556,17 +546,12 @@ impl INodes {
             ino.inode().size = (old_size + blocksize as u64 - 1) & !(blocksize as u64 - 1);
             ino.inode().size += (count * blocksize as usize) as u64;
 
-            INodes::mark_dirty(req, ino.inode().inode);
+            INodes::mark_dirty(ino.inode().inode);
         }
         Ok(())
     }
 
-    pub fn truncate(
-        req: &mut Request,
-        inode: LoadedInode,
-        extent: usize,
-        extoff: usize,
-    ) -> Result<(), Error> {
+    pub fn truncate(inode: LoadedInode, extent: usize, extoff: usize) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
             "Inode::truncate(inode={}, extent={}, extoff={})",
@@ -584,10 +569,10 @@ impl INodes {
             // erase everything up to `extent`
             let mut i = iextents - 1;
             while i > extent {
-                let ext = INodes::change_extent(req, inode.clone(), i, &mut indir, true)?;
+                let ext = INodes::change_extent(inode.clone(), i, &mut indir, true)?;
                 crate::hdl()
                     .blocks()
-                    .free(req, *ext.start() as usize, *ext.length() as usize)?;
+                    .free(*ext.start() as usize, *ext.length() as usize)?;
                 inode.inode().extents -= 1;
                 inode.inode().size -= (*ext.length() * blocksize) as u64;
                 *ext.length_mut() = 0;
@@ -596,7 +581,7 @@ impl INodes {
             }
 
             // get `extent` and determine length
-            let ext = INodes::change_extent(req, inode.clone(), extent, &mut indir, extoff == 0)?;
+            let ext = INodes::change_extent(inode.clone(), extent, &mut indir, extoff == 0)?;
             if *ext.length() > 0 {
                 let mut curlen = *ext.length() * blocksize;
 
@@ -617,11 +602,9 @@ impl INodes {
                     let blocks = bdiff / blocksize as usize;
                     if blocks > 0 {
                         // Free all of these blocks
-                        crate::hdl().blocks().free(
-                            req,
-                            (*ext.start() + *ext.length()) as usize - blocks,
-                            blocks,
-                        )?;
+                        crate::hdl()
+                            .blocks()
+                            .free((*ext.start() + *ext.length()) as usize - blocks, blocks)?;
                     }
                     inode.inode().size -= diff as u64;
                     let new_length = (*ext.length() as usize - blocks) as u32;
@@ -632,33 +615,30 @@ impl INodes {
                     }
                 }
             }
-            INodes::mark_dirty(req, inode.inode().inode);
+            INodes::mark_dirty(inode.inode().inode);
         }
 
         Ok(())
     }
 
-    pub fn mark_dirty(_req: &mut Request, ino: InodeNo) {
+    pub fn mark_dirty(ino: InodeNo) {
         let inos_per_block = crate::hdl().superblock().inodes_per_block();
         let block_no =
             crate::hdl().superblock().first_inode_block() + (ino / inos_per_block as u32);
         crate::hdl().metabuffer().mark_dirty(block_no);
     }
 
-    pub fn sync_metadata(req: &mut Request, inode: LoadedInode) -> Result<(), Error> {
-        let org_used = req.used_meta();
+    pub fn sync_metadata(inode: LoadedInode) -> Result<(), Error> {
         for ext_idx in 0..inode.inode().extents {
             // Load extent from inode
             let mut indir = vec![];
-            let extent =
-                INodes::get_extent(req, inode.clone(), ext_idx as usize, &mut indir, false)?;
+            let extent = INodes::get_extent(inode.clone(), ext_idx as usize, &mut indir, false)?;
 
             for block in extent.into_iter() {
                 if crate::hdl().metabuffer().dirty(block) {
-                    crate::hdl().backend().sync_meta(req, block)?;
+                    crate::hdl().backend().sync_meta(block)?;
                 }
             }
-            req.pop_metas(req.used_meta() - org_used);
         }
         Ok(())
     }

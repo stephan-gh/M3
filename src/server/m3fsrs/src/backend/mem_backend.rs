@@ -1,7 +1,6 @@
 use crate::backend::{Backend, SuperBlock};
 use crate::internal::*;
-use crate::meta_buffer::MetaBufferHead;
-use crate::sess::request::Request;
+use crate::meta_buffer::MetaBufferBlock;
 
 use m3::cap::Selector;
 use m3::com::{MGateArgs, MemGate, Perm};
@@ -32,7 +31,7 @@ impl Backend for MemBackend {
 
     fn load_meta(
         &self,
-        dst: &mut MetaBufferHead,
+        dst: &mut MetaBufferBlock,
         _dst_off: usize,
         bno: BlockNo,
         _unlock: Event,
@@ -58,7 +57,7 @@ impl Backend for MemBackend {
 
     fn store_meta(
         &self,
-        src: &MetaBufferHead,
+        src: &MetaBufferBlock,
         _src_off: usize,
         bno: BlockNo,
         _unlock: Event,
@@ -73,13 +72,12 @@ impl Backend for MemBackend {
         Ok(())
     }
 
-    fn sync_meta(&self, _request: &mut Request, bno: BlockNo) -> Result<(), Error> {
+    fn sync_meta(&self, bno: BlockNo) -> Result<(), Error> {
         crate::hdl().metabuffer().write_back(bno)
     }
 
     fn get_filedata(
         &self,
-        _req: &Request,
         ext: &mut LoadedExtent,
         extoff: usize,
         perms: Perm,
@@ -102,12 +100,7 @@ impl Backend for MemBackend {
         Ok(bytes)
     }
 
-    fn clear_extent(
-        &self,
-        _request: &mut Request,
-        extent: &LoadedExtent,
-        _accessed: usize,
-    ) -> Result<(), Error> {
+    fn clear_extent(&self, extent: &LoadedExtent, _accessed: usize) -> Result<(), Error> {
         let zeros = vec![0; self.blocksize];
         for block in extent.clone().into_iter() {
             self.mem

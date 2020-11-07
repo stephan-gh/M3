@@ -1,7 +1,7 @@
 use crate::buffer::Buffer;
 use crate::internal::*;
-use crate::sess::request::Request;
 
+use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
 use m3::boxed::Box;
 use m3::col::{BoxList, Treap, Vec};
@@ -9,10 +9,8 @@ use m3::errors::Error;
 
 use thread::Event;
 
-/// The BufferHead represents a single block within the MetaBuffer. In Rust, contrary to C++ it also
-/// handles runtime type checking. When loading an Inode, extent, or DirEntry from it, it checks if this entity has already been loaded.
-/// If that's the case, a reference to this entity is returned, otherwise a new entity is loaded and returned.
-pub struct MetaBufferHead {
+/// A single block in the meta buffer
+pub struct MetaBufferBlock {
     id: usize,
     bno: BlockNo,
 
@@ -27,19 +25,13 @@ pub struct MetaBufferHead {
     data: Vec<u8>,
 }
 
-impl_boxitem!(MetaBufferHead);
-
-impl core::cmp::PartialEq for MetaBufferHead {
-    fn eq(&self, other: &Self) -> bool {
-        self.bno == other.bno
-    }
-}
+impl_boxitem!(MetaBufferBlock);
 
 pub const META_BUFFER_SIZE: usize = 128;
 
-impl MetaBufferHead {
+impl MetaBufferBlock {
     pub fn new(id: usize, bno: BlockNo, blocksize: usize) -> Self {
-        MetaBufferHead {
+        MetaBufferBlock {
             id,
             bno,
 
@@ -53,10 +45,6 @@ impl MetaBufferHead {
 
             data: vec![0; blocksize as usize],
         }
-    }
-
-    pub fn id(&self) -> usize {
-        self.id
     }
 
     pub fn data(&self) -> &[u8] {
@@ -75,13 +63,53 @@ impl MetaBufferHead {
     }
 }
 
+pub struct MetaBufferBlockRef {
+    id: usize,
+}
+
+impl MetaBufferBlockRef {
+    fn new(id: usize) -> Self {
+        let mut r = Self { id };
+        r.links += 1;
+        r
+    }
+}
+
+impl Clone for MetaBufferBlockRef {
+    fn clone(&self) -> Self {
+        Self::new(self.id)
+    }
+}
+
+impl Deref for MetaBufferBlockRef {
+    type Target = MetaBufferBlock;
+
+    fn deref(&self) -> &Self::Target {
+        crate::hdl().metabuffer().get_block_by_id(self.id)
+    }
+}
+
+impl DerefMut for MetaBufferBlockRef {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        crate::hdl().metabuffer().get_block_mut_by_id(self.id)
+    }
+}
+
+impl Drop for MetaBufferBlockRef {
+    fn drop(&mut self) {
+        let block = self.deref_mut();
+        assert!(block.links > 0);
+        block.links -= 1;
+    }
+}
+
 pub struct MetaBuffer {
-    /// Contains the actual MetaBufferHead objects and keeps them sorted by LRU
-    lru: BoxList<MetaBufferHead>,
+    /// Contains the actual MetaBufferBlock objects and keeps them sorted by LRU
+    lru: BoxList<MetaBufferBlock>,
     /// Gives us a quick translation from block number to block id (index in the following vector)
     ht: Treap<BlockNo, usize>,
-    /// Contains pointers to the MetaBufferHead objects, indexed by their id
-    blocks: Vec<NonNull<MetaBufferHead>>,
+    /// Contains pointers to the MetaBufferBlock objects, indexed by their id
+    blocks: Vec<NonNull<MetaBufferBlock>>,
 }
 
 impl MetaBuffer {
@@ -89,7 +117,7 @@ impl MetaBuffer {
         let mut blocks = Vec::with_capacity(META_BUFFER_SIZE);
         let mut lru = BoxList::new();
         for i in 0..META_BUFFER_SIZE {
-            let mut buffer = Box::new(MetaBufferHead::new(i, 0, blocksize));
+            let mut buffer = Box::new(MetaBufferBlock::new(i, 0, blocksize));
             // we can store the pointer in the vector, because boxing prevents it from moving.
             unsafe {
                 blocks.push(NonNull::new_unchecked(&mut *buffer as *mut _));
@@ -108,21 +136,20 @@ impl MetaBuffer {
         self.ht.get(&bno).map(|id| *id)
     }
 
-    fn get_block_by_id(&self, id: usize) -> &MetaBufferHead {
+    fn get_block_by_id(&self, id: usize) -> &MetaBufferBlock {
         unsafe { &(*self.blocks[id].as_ptr()) }
     }
 
-    pub fn get_block_mut_by_id(&mut self, id: usize) -> &mut MetaBufferHead {
-        unsafe { &mut (*self.blocks[id].as_ptr()) }
+    fn get_block_mut_by_id(&mut self, id: usize) -> &mut MetaBufferBlock {
+        unsafe { &mut (*self.blocks[id].as_mut()) }
+    }
+
+    pub fn get_block_by_ref(&mut self, r: &MetaBufferBlockRef) -> &mut MetaBufferBlock {
+        self.get_block_mut_by_id(r.id)
     }
 
     /// Searches for data at `bno`, allocates if none is present.
-    pub fn get_block(
-        &mut self,
-        req: &mut Request,
-        bno: BlockNo,
-        dirty: bool,
-    ) -> Result<&mut MetaBufferHead, Error> {
+    pub fn get_block(&mut self, bno: BlockNo, dirty: bool) -> Result<MetaBufferBlockRef, Error> {
         log!(
             crate::LOG_DEF,
             "MetaBuffer::get_block(bno={}, dirty={})",
@@ -144,16 +171,14 @@ impl MetaBuffer {
                         self.lru.move_to_back(block);
                     }
                     block.dirty |= dirty;
-                    block.links += 1;
 
                     log!(
                         crate::LOG_DEF,
                         "MetaBuffer: Found cached block <{}>, Links: {}",
                         block.bno,
-                        block.links,
+                        block.links + 1,
                     );
-                    req.push_meta(block.id);
-                    return Ok(block);
+                    return Ok(MetaBufferBlockRef::new(block.id));
                 }
             }
             else {
@@ -198,22 +223,14 @@ impl MetaBuffer {
             .load_meta(block, block.id, bno, unlock)?;
         block.dirty = dirty;
         block.locked = false;
-        block.links += 1;
 
         log!(
             crate::LOG_DEF,
             "MetaBuffer: Load new block<{}> Links: {}",
             bno,
-            block.links,
+            block.links + 1,
         );
-        req.push_meta(block.id);
-        Ok(block)
-    }
-
-    pub fn deref(&mut self, id: usize) {
-        let block = self.get_block_mut_by_id(id);
-        assert!(block.links > 0);
-        block.links -= 1;
+        Ok(MetaBufferBlockRef::new(block.id))
     }
 
     pub fn dirty(&self, bno: BlockNo) -> bool {
@@ -236,7 +253,7 @@ impl MetaBuffer {
 }
 
 impl Buffer for MetaBuffer {
-    type HEAD = MetaBufferHead;
+    type HEAD = MetaBufferBlock;
 
     fn mark_dirty(&mut self, bno: BlockNo) {
         if let Some(b) = self.get_mut(bno) {

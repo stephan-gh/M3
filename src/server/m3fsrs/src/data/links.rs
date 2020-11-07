@@ -1,19 +1,12 @@
 use crate::buffer::Buffer;
 use crate::data::*;
 use crate::internal::*;
-use crate::sess::*;
-use crate::util::DirEntryIterator;
 use m3::errors::{Code, Error};
 
 pub struct Links {}
 
 impl Links {
-    pub fn create(
-        req: &mut Request,
-        dir: LoadedInode,
-        name: &str,
-        inode: LoadedInode,
-    ) -> Result<(), Error> {
+    pub fn create(dir: LoadedInode, name: &str, inode: LoadedInode) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
             "Links::create(dir={}, name={}, inode={})",
@@ -21,83 +14,72 @@ impl Links {
             name,
             { inode.inode().inode }
         ); // {} needed because of packed inode struct
-        let org_used = req.used_meta();
         let mut indir = vec![];
 
-        let mut rem = 0;
-        let mut new_entry = None;
+        let mut created = false;
 
         'search_loop: for ext_idx in 0..dir.inode().extents {
-            let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
+            let ext = INodes::get_extent(dir.clone(), ext_idx as usize, &mut indir, false)?;
 
             for bno in ext.into_iter() {
-                let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
-                let mut entry_iter = DirEntryIterator::from_block(block);
-                while let Some(entry) = entry_iter.next() {
-                    rem = entry.next - entry.size() as u32;
+                let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
+
+                let mut off = 0;
+                let end = crate::hdl().superblock().block_size as usize;
+                while off < end {
+                    let entry = DirEntry::from_buffer_mut(&mut block, off);
+
+                    let rem = entry.next - entry.size() as u32;
                     // This happens if we can embed the new dir-entry between this one and the "next"
                     if rem >= entry.size() as u32 {
-                        let prev_offset = entry_iter.next_offset() - entry.next as usize;
                         // change current entry (thus, we cannot call entry_iter.next() again!)
                         entry.next = entry.size() as u32;
+                        let entry_next = entry.next;
+                        drop(entry);
 
                         // create new entry behind it
-                        new_entry = Some(DirEntry::from_buffer_mut(
-                            block,
-                            prev_offset + entry.next as usize,
-                        ));
+                        let new_entry =
+                            DirEntry::from_buffer_mut(&mut block, off + entry_next as usize);
+
+                        new_entry.set_name(name);
+                        new_entry.nodeno = inode.inode().inode;
+                        new_entry.next = rem;
 
                         crate::hdl().metabuffer().mark_dirty(bno);
-                        req.pop_metas(req.used_meta() - org_used);
 
+                        created = true;
                         break 'search_loop;
                     }
+
+                    off += entry.next as usize;
                 }
-                req.pop_meta();
             }
-            req.pop_metas(req.used_meta() - org_used);
         }
 
         // Check if a suitable space was found, otherwise extend directory
-        let entry = if let Some(e) = new_entry {
-            e
-        }
-        else {
+        if !created {
             // Create new
-            let ext = INodes::get_extent(
-                req,
-                dir.clone(),
-                dir.inode().extents as usize,
-                &mut indir,
-                true,
-            )?;
+            let ext =
+                INodes::get_extent(dir.clone(), dir.inode().extents as usize, &mut indir, true)?;
 
             // Insert one block extent
-            INodes::fill_extent(req, Some(dir), &ext, 1, 1)?;
+            INodes::fill_extent(Some(dir), &ext, 1, 1)?;
 
             // put entry at the beginning of the block
-            rem = crate::hdl().superblock().block_size;
             let start = *ext.start();
-            DirEntry::from_buffer_mut(crate::hdl().metabuffer().get_block(req, start, true)?, 0)
-        };
-
-        // write entry
-        entry.set_name(name);
-        entry.nodeno = inode.inode().inode;
-        entry.next = rem;
+            let mut block = crate::hdl().metabuffer().get_block(start, true)?;
+            let new_entry = DirEntry::from_buffer_mut(&mut block, 0);
+            new_entry.set_name(name);
+            new_entry.nodeno = inode.inode().inode;
+            new_entry.next = crate::hdl().superblock().block_size;
+        }
 
         inode.inode().links += 1;
-        INodes::mark_dirty(req, inode.inode().inode);
+        INodes::mark_dirty(inode.inode().inode);
         Ok(())
     }
 
-    pub fn remove(
-        req: &mut Request,
-        dir: LoadedInode,
-        name: &str,
-        is_dir: bool,
-    ) -> Result<(), Error> {
-        let org_used = req.used_meta();
+    pub fn remove(dir: LoadedInode, name: &str, is_dir: bool) -> Result<(), Error> {
         let mut indir = vec![];
 
         log!(
@@ -107,38 +89,48 @@ impl Links {
             is_dir
         );
         for ext_idx in 0..dir.inode().extents {
-            let ext = INodes::get_extent(req, dir.clone(), ext_idx as usize, &mut indir, false)?;
+            let ext = INodes::get_extent(dir.clone(), ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
-                let block = crate::hdl().metabuffer().get_block(req, bno, false)?;
+                let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
 
-                let mut prev: Option<&'static mut DirEntry> = None;
-                let mut entry_iter = DirEntryIterator::from_block(block);
-                while let Some(entry) = entry_iter.next() {
+                let mut prev_off = 0;
+                let mut off = 0;
+                let end = crate::hdl().superblock().block_size as usize;
+                while off < end {
+                    let entry = DirEntry::from_buffer_mut(&mut block, off);
+
                     if entry.name() == name {
                         // if we are not removing a dir, we are coming from unlink(). in this case, directories
                         // are not allowed
-                        let inode = INodes::get(req, entry.nodeno)?;
+                        let inode = INodes::get(entry.nodeno)?;
                         if !is_dir && crate::internal::is_dir(inode.inode().mode) {
-                            req.pop_metas(req.used_meta() - org_used);
                             return Err(Error::new(Code::IsDir));
                         }
 
+                        let entry_next = entry.next;
+                        drop(entry);
+
                         // remove entry by skipping over it
-                        if let Some(p) = prev {
-                            p.next += entry.next;
+                        if off > 0 {
+                            let mut prev = DirEntry::from_buffer_mut(&mut block, prev_off);
+                            prev.next += entry_next;
                         }
                         else {
-                            // copy the next entry back, if there is any
-                            if entry_iter.has_next() {
-                                let next =
-                                    DirEntry::from_buffer_mut(block, entry_iter.next_offset());
-                                let dist = entry.next;
-                                // Copy data over
-                                entry.next = next.next;
-                                entry.nodeno = next.nodeno;
+                            let next_off = off + entry_next as usize;
+                            if next_off < end {
+                                let (cur_entry, next_entry) = DirEntry::two_from_buffer_mut(
+                                    &mut block,
+                                    off,
+                                    off + entry_next as usize,
+                                );
 
-                                entry.set_name(next.name());
-                                entry.next = dist + next.next;
+                                let dist = cur_entry.next;
+                                // Copy data over
+                                cur_entry.next = next_entry.next;
+                                cur_entry.nodeno = next_entry.nodeno;
+
+                                cur_entry.set_name(next_entry.name());
+                                cur_entry.next = dist + next_entry.next;
                             }
                         }
                         crate::hdl().metabuffer().mark_dirty(bno);
@@ -149,16 +141,13 @@ impl Links {
                             crate::hdl().files().delete_file(ino)?;
                         }
 
-                        req.pop_metas(req.used_meta() - org_used);
                         return Ok(());
                     }
-                    // Update pref
-                    prev = Some(entry);
-                }
 
-                req.pop_meta();
+                    prev_off = off;
+                    off += entry.next as usize;
+                }
             }
-            req.pop_metas(req.used_meta() - org_used);
         }
 
         Err(Error::new(Code::NoSuchFile))

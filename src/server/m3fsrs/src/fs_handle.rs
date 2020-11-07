@@ -1,7 +1,4 @@
 use crate::buffer::Buffer;
-use crate::internal::BlockNo;
-use crate::meta_buffer::MetaBufferHead;
-use crate::sess::request::Request;
 use crate::{
     backend::Backend, data::allocator::Allocator, file_buffer::FileBuffer, internal::SuperBlock,
     meta_buffer::MetaBuffer, sess::open_files::OpenFiles, FsSettings,
@@ -116,14 +113,5 @@ impl M3FSHandle {
 
     pub fn filebuffer(&mut self) -> &mut FileBuffer {
         &mut self.file_buffer
-    }
-
-    pub fn get_meta_block(
-        &mut self,
-        req: &mut Request,
-        bno: BlockNo,
-        dirty: bool,
-    ) -> Result<&mut MetaBufferHead, Error> {
-        self.meta_buffer.get_block(req, bno, dirty)
     }
 }

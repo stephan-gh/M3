@@ -199,11 +199,10 @@ impl M3FSRequestHandler {
 
         // if the removed session was a file session, clean up the open_files table and the parent meta session
         if let Some(fsess) = file_session {
-            let mut req = sess::request::Request::new();
             if let Some(ext) = fsess.borrow().append_ext.clone() {
                 hdl()
                     .blocks()
-                    .free(&mut req, *ext.start() as usize, *ext.length() as usize)?;
+                    .free(*ext.start() as usize, *ext.length() as usize)?;
             }
             // Delete append extent if there was any
             fsess.borrow_mut().append_ext = None;
