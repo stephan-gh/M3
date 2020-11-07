@@ -111,18 +111,17 @@ impl Backend for MemBackend {
 
     /// Loads a new superblock
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
-        let block = self.mem.read_obj::<SuperBlockStorage>(0)?;
+        let block = self.mem.read_obj::<SuperBlock>(0)?;
         self.blocksize = block.block_size as usize;
         log!(
             crate::LOG_DEF,
             "MemBackend: Using block_size={}",
             self.blocksize
         );
-        Ok(block.to_superblock())
+        Ok(block)
     }
 
     fn store_sb(&self, super_block: &SuperBlock) -> Result<(), Error> {
-        let storage = super_block.to_storage();
-        self.mem.write_obj(&storage, 0)
+        self.mem.write_obj(super_block, 0)
     }
 }

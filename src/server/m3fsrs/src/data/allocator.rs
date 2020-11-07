@@ -2,15 +2,13 @@ use m3::col::String;
 
 use crate::util::Bitmap;
 
-use m3::cell::RefCell;
 use m3::errors::{Code, Error};
-use m3::rc::Rc;
 
 pub struct Allocator {
     name: String,
     first: u32,
-    first_free: Rc<RefCell<u32>>,
-    free: Rc<RefCell<u32>>,
+    first_free: u32,
+    free: u32,
     total: u32,
     blocks: u32,
     blocksize: usize,
@@ -20,8 +18,8 @@ impl Allocator {
     pub fn new(
         name: String,
         first: u32,
-        first_free: Rc<RefCell<u32>>,
-        free: Rc<RefCell<u32>>,
+        first_free: u32,
+        free: u32,
         total: u32,
         blocks: u32,
         blocksize: usize,
@@ -39,8 +37,8 @@ impl Allocator {
             ),
             name,
             first,
-            first_free.borrow(),
-            free.borrow(),
+            first_free,
+            free,
             total,
             blocks,
             blocksize
@@ -57,6 +55,14 @@ impl Allocator {
         }
     }
 
+    pub fn first_free(&self) -> u32 {
+        self.first_free
+    }
+
+    pub fn free_count(&self) -> u32 {
+        self.free
+    }
+
     pub fn alloc(&mut self, count: Option<&mut usize>) -> Result<u32, Error> {
         let mut tmp_count = 1;
         let count = count.unwrap_or(&mut tmp_count);
@@ -66,10 +72,9 @@ impl Allocator {
 
         let icount = *count;
 
-        let mut no: u32 =
-            (self.first as usize + *self.first_free.borrow() as usize / perblock) as u32;
+        let mut no: u32 = (self.first as usize + self.first_free as usize / perblock) as u32;
         let mut total: usize = 0;
-        let mut i = (*self.first_free.borrow() as usize) % perblock;
+        let mut i = (self.first_free as usize) % perblock;
 
         while (total == 0) && (no <= lastno) {
             let mut block = crate::hdl().metabuffer().get_block(no, true)?;
@@ -154,18 +159,18 @@ impl Allocator {
 
         // Finally mark the allocated bits in the superblock (which are shared with this allocator)
         assert!(
-            *self.free.borrow() as usize >= total,
+            self.free as usize >= total,
             "Error: Tried to allocate more then was available according to superblock!"
         );
 
-        *self.free.borrow_mut() -= total as u32;
+        self.free -= total as u32;
         *count = total; // It happens that more was allocated then needed because of alignment
         if total == 0 {
             return Err(Error::new(Code::NoSpace));
         }
 
         let off = (no - self.first) * perblock as u32 + i as u32;
-        *self.first_free.borrow_mut() = off;
+        self.first_free = off;
 
         let start = off - total as u32;
         log!(
@@ -191,10 +196,10 @@ impl Allocator {
         let perblock: usize = self.blocksize as usize * 8;
         let mut no: usize = self.first as usize + start / perblock;
 
-        if start < *self.first_free.borrow() as usize {
-            *self.first_free.borrow_mut() = start as u32;
+        if start < self.first_free as usize {
+            self.first_free = start as u32;
         }
-        *self.free.borrow_mut() += count as u32;
+        self.free += count as u32;
         // Actually free bits in bitmap and update superblock
         while count > 0 {
             let mut block = crate::hdl().metabuffer().get_block(no as u32, true)?;

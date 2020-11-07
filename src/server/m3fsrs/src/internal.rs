@@ -578,9 +578,9 @@ impl core::iter::Iterator for ExtentBlocksIterator {
     }
 }
 
-/// represents how a superblock is stored on disk.
+/// Represents a superblock
 #[repr(C, align(8))]
-pub struct SuperBlockStorage {
+pub struct SuperBlock {
     pub block_size: u32,
     pub total_inodes: u32,
     pub total_blocks: u32,
@@ -591,38 +591,8 @@ pub struct SuperBlockStorage {
     pub checksum: u32,
 }
 
-impl SuperBlockStorage {
-    pub fn to_superblock(self) -> SuperBlock {
-        SuperBlock {
-            block_size: self.block_size,
-            total_inodes: self.total_inodes,
-            total_blocks: self.total_blocks,
-            free_inodes: Rc::new(RefCell::new(self.free_inodes)),
-            free_blocks: Rc::new(RefCell::new(self.free_blocks)),
-            first_free_inode: Rc::new(RefCell::new(self.first_free_inode)),
-            first_free_block: Rc::new(RefCell::new(self.first_free_block)),
-            checksum: Rc::new(RefCell::new(self.checksum)),
-        }
-    }
-
-    pub fn empty() -> Self {
-        let mut sb = SuperBlockStorage {
-            block_size: 0,
-            total_inodes: 0,
-            total_blocks: 0,
-            free_inodes: 0,
-            free_blocks: 0,
-            first_free_inode: 0,
-            first_free_block: 0,
-            checksum: 0,
-        };
-
-        let checksum = sb.get_checksum();
-        sb.checksum = checksum;
-        sb
-    }
-
-    fn get_checksum(&self) -> u32 {
+impl SuperBlock {
+    pub fn get_checksum(&self) -> u32 {
         1 + self.block_size * 2
             + self.total_inodes * 3
             + self.total_blocks * 5
@@ -631,21 +601,7 @@ impl SuperBlockStorage {
             + self.first_free_inode * 13
             + self.first_free_block * 17
     }
-}
 
-/// A loaded superblock, setup with smartpointers for sharing betweent the allocators.
-pub struct SuperBlock {
-    pub block_size: u32,
-    pub total_inodes: u32,
-    pub total_blocks: u32,
-    pub free_inodes: Rc<RefCell<u32>>,
-    pub free_blocks: Rc<RefCell<u32>>,
-    pub first_free_inode: Rc<RefCell<u32>>,
-    pub first_free_block: Rc<RefCell<u32>>,
-    pub checksum: Rc<RefCell<u32>>,
-}
-
-impl SuperBlock {
     pub fn first_inodebm_block(&self) -> BlockNo {
         1
     }
@@ -682,14 +638,14 @@ impl SuperBlock {
         self.block_size as usize / NUM_INODE_BYTES
     }
 
-    pub fn get_checksum(&self) -> u32 {
-        1 + self.block_size * 2
-            + self.total_inodes * 3
-            + self.total_blocks * 5
-            + *self.free_inodes.borrow() * 7
-            + *self.free_blocks.borrow() * 11
-            + *self.first_free_inode.borrow() * 13
-            + *self.first_free_block.borrow() * 17
+    pub fn update_inodebm(&mut self, free: u32, first: u32) {
+        self.free_inodes = free;
+        self.first_free_inode = first;
+    }
+
+    pub fn update_blockbm(&mut self, free: u32, first: u32) {
+        self.free_blocks = free;
+        self.first_free_block = first;
     }
 
     /// Writes info about the superblock to the log
@@ -698,41 +654,20 @@ impl SuperBlock {
         log!(crate::LOG_DEF, "    blocksize={}", self.block_size);
         log!(crate::LOG_DEF, "    total_inodes={}", self.total_inodes);
         log!(crate::LOG_DEF, "    total_blocks={}", self.total_blocks);
-        log!(
-            crate::LOG_DEF,
-            "    free_inodes={}",
-            self.free_inodes.borrow()
-        );
-        log!(
-            crate::LOG_DEF,
-            "    free_blocks={}",
-            self.free_blocks.borrow()
-        );
+        log!(crate::LOG_DEF, "    free_inodes={}", self.free_inodes);
+        log!(crate::LOG_DEF, "    free_blocks={}", self.free_blocks);
         log!(
             crate::LOG_DEF,
             "    first_free_inode={}",
-            self.first_free_inode.borrow()
+            self.first_free_inode
         );
         log!(
             crate::LOG_DEF,
             "    first_free_block={}",
-            self.first_free_block.borrow()
+            self.first_free_block
         );
-        if self.get_checksum() != *self.checksum.borrow() {
+        if self.get_checksum() != self.checksum {
             panic!("Supberblock checksum is invalid, terminating!");
-        }
-    }
-
-    pub fn to_storage(&self) -> SuperBlockStorage {
-        SuperBlockStorage {
-            block_size: self.block_size,
-            total_inodes: self.total_inodes,
-            total_blocks: self.total_blocks,
-            free_inodes: *self.free_inodes.borrow(),
-            free_blocks: *self.free_blocks.borrow(),
-            first_free_inode: *self.first_free_inode.borrow(),
-            first_free_block: *self.first_free_block.borrow(),
-            checksum: *self.checksum.borrow(),
         }
     }
 }

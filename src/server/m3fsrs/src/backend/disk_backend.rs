@@ -177,9 +177,7 @@ impl Backend for DiskBackend {
         let tmp = MemGate::new(512 + crate::buffer::PRDT_SIZE, Perm::RW)?;
         self.delegate_mem(&tmp, 0, 1)?;
         self.disk.read(0, 0, 1, 512, None)?;
-        let sbs: SuperBlockStorage = tmp.read_obj::<SuperBlockStorage>(0)?;
-        let super_block = sbs.to_superblock();
-
+        let super_block = tmp.read_obj::<SuperBlock>(0)?;
         super_block.log();
 
         // use separate transfer buffer for each entry to allow parallel disk requests
@@ -193,8 +191,7 @@ impl Backend for DiskBackend {
     }
 
     fn store_sb(&self, super_block: &SuperBlock) -> Result<(), Error> {
-        *super_block.checksum.borrow_mut() = super_block.get_checksum();
-        self.metabuf.write_obj(&super_block.to_storage(), 0)?;
+        self.metabuf.write_obj(super_block, 0)?;
         self.disk.write(0, 0, 1, 512, None)
     }
 }

@@ -104,6 +104,13 @@ impl M3FSHandle {
     pub fn flush_buffer(&mut self) -> Result<(), Error> {
         self.meta_buffer.flush()?;
         self.file_buffer.flush()?;
+
+        // update superblock and write it back to disk/memory
+        self.super_block
+            .update_inodebm(self.inodes.free_count(), self.inodes.first_free());
+        self.super_block
+            .update_blockbm(self.blocks.free_count(), self.blocks.first_free());
+        self.super_block.checksum = self.super_block.get_checksum();
         self.backend.store_sb(&self.super_block)
     }
 
