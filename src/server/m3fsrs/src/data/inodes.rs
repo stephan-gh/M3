@@ -55,7 +55,7 @@ impl INodes {
     pub fn seek(
         inode: LoadedInode,
         off: &mut usize,
-        whence: i32,
+        whence: SeekMode,
         extent: &mut usize,
         extoff: &mut usize,
     ) -> Result<usize, Error> {
@@ -70,14 +70,14 @@ impl INodes {
         ); // {} needed because of packed inode struct
 
         assert!(
-            whence != M3FS_SEEK_CUR,
+            whence != SeekMode::CUR,
             "INodes::seek().whence should not be M3FS_SEEK_CUR"
         );
         let mut indir = vec![];
         let blocksize = crate::hdl().superblock().block_size;
 
         // seeking to the end
-        if whence == M3FS_SEEK_END {
+        if whence == SeekMode::END {
             // TODO support off != 0, carried over from c++
             assert!(
                 *off == 0,

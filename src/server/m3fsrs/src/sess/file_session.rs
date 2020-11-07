@@ -192,7 +192,7 @@ impl FileSession {
         INodes::seek(
             inode.clone(),
             &mut first_off,
-            M3FS_SEEK_SET,
+            SeekMode::SET,
             &mut tmp_extent,
             &mut ext_off,
         )?;
@@ -284,7 +284,7 @@ impl FileSession {
                 self.fileoff = INodes::seek(
                     inode.clone(),
                     &mut off,
-                    M3FS_SEEK_END,
+                    SeekMode::END,
                     &mut self.extent,
                     &mut self.extoff,
                 )?;
@@ -527,7 +527,7 @@ impl M3FSSession for FileSession {
 
     fn seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         let mut off: usize = stream.pop()?;
-        let whence: i32 = stream.pop()?;
+        let whence = SeekMode::from(stream.pop::<u32>()?);
 
         log!(
             crate::LOG_DEF,
@@ -536,7 +536,7 @@ impl M3FSSession for FileSession {
             off,
             whence
         );
-        if whence == M3FS_SEEK_CUR {
+        if whence == SeekMode::CUR {
             return Err(Error::new(Code::InvArgs));
         }
 

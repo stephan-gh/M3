@@ -25,10 +25,7 @@ pub type InodeNo = u32;
 pub type Time = u32;
 
 pub const INVALID_INO: InodeNo = u32::MAX;
-pub const M3FS_SEEK_SET: i32 = 0;
-pub const M3FS_SEEK_CUR: i32 = 1;
-pub const M3FS_SEEK_END: i32 = 2;
-//                                            ugo
+
 pub const M3FS_IFMT: u32 = 0o0160000;
 pub const M3FS_IFLNK: u32 = 0o0120000;
 pub const M3FS_IFPIP: u32 = 0o0110000;
@@ -77,6 +74,14 @@ pub fn is_blk(mode: Mode) -> bool {
 
 pub fn is_pip(mode: Mode) -> bool {
     (mode & M3FS_IFMT) == M3FS_IFPIP
+}
+
+int_enum! {
+    pub struct SeekMode : u32 {
+        const SET = 0;
+        const CUR = 1;
+        const END = 2;
+    }
 }
 
 bitflags! {
