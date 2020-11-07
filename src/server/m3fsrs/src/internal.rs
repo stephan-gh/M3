@@ -338,16 +338,7 @@ impl LoadedInode {
     }
 
     pub fn to_file_info(&self, info: &mut FileInfo) {
-        info.devno = self.inode.borrow().devno;
-        info.inode = self.inode.borrow().inode;
-        info.mode = self.inode.borrow().mode;
-        info.links = self.inode.borrow().links as usize;
-        info.size = self.inode.borrow().size as usize;
-        info.lastaccess = self.inode.borrow().lastaccess;
-        info.lastmod = self.inode.borrow().lastmod;
-        info.extents = self.inode.borrow().extents as usize;
-        info.blocksize = crate::hdl().superblock().block_size as usize;
-        info.firstblock = self.inode.borrow().direct[0].start;
+        self.inode.borrow().to_file_info(info);
     }
 }
 
