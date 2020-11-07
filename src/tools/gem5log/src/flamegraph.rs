@@ -118,19 +118,20 @@ impl<'n> PE<'n> {
     fn resume(&mut self, now: u64) {
         let duration = now - self.susp_start;
         debug!("{}: PE{}: sleep end ({})", now, self.id, duration);
-        assert!(self.susp_start > 0);
 
-        for bin in self.bins.values_mut() {
-            for thread in bin.stacks.values_mut() {
-                if thread.switched != 0 {
-                    thread.switched += duration;
-                }
-                for f in &mut thread.stack {
-                    f.time += duration;
+        if self.susp_start > 0 {
+            for bin in self.bins.values_mut() {
+                for thread in bin.stacks.values_mut() {
+                    if thread.switched != 0 {
+                        thread.switched += duration;
+                    }
+                    for f in &mut thread.stack {
+                        f.time += duration;
+                    }
                 }
             }
+            self.susp_start = 0;
         }
-        self.susp_start = 0;
     }
 
     fn snapshot(&self) {
