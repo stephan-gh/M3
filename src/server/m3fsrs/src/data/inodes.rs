@@ -6,8 +6,8 @@ use m3::{cap::Selector, col::Vec, com::Perm, errors::*, time};
 pub struct INodes;
 
 impl INodes {
-    pub fn create(mode: Mode) -> Result<LoadedInode, Error> {
-        log!(crate::LOG_DEF, "Inodes::create(mode: {:b})", mode);
+    pub fn create(mode: FileMode) -> Result<LoadedInode, Error> {
+        log!(crate::LOG_DEF, "Inodes::create(mode: {:o})", mode);
 
         let ino = crate::hdl().inodes().alloc(None)?;
         let inode = INodes::get(ino)?;

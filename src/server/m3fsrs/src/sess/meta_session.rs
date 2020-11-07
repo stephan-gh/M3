@@ -118,9 +118,10 @@ impl MetaSession {
 
         let ino = Dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
         let inode = INodes::get(ino)?;
+        let inode_mode = inode.inode().mode;
 
-        if (flags.contains(OpenFlags::W) && (!inode.inode().mode & M3FS_IWUSR) > 0)
-            || (flags.contains(OpenFlags::R) && (!inode.inode().mode & M3FS_IRUSR) > 0)
+        if (flags.contains(OpenFlags::W) && !inode_mode.contains(FileMode::IWUSR))
+            || (flags.contains(OpenFlags::R) && !inode_mode.contains(FileMode::IRUSR))
         {
             log!(
                 crate::LOG_DEF,
@@ -139,7 +140,7 @@ impl MetaSession {
         }
 
         // for directories: ensure that we don't have a changed version in the cache
-        if is_dir(inode.inode().mode) {
+        if inode.inode().mode.is_dir() {
             INodes::sync_metadata(inode.clone())?;
         }
         let inode_no = inode.inode().inode;
@@ -227,9 +228,9 @@ impl M3FSSession for MetaSession {
 
     fn mkdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         let path: &str = stream.pop()?;
-        let mode: Mode = stream.pop()?;
+        let mode = FileMode::from_bits_truncate(stream.pop::<u32>()?) & FileMode::PERM;
 
-        log!(crate::LOG_DEF, "fs::mkdir(path={}, mode={:b})", path, mode);
+        log!(crate::LOG_DEF, "fs::mkdir(path={}, mode={:o})", path, mode);
 
         Dirs::create(path, mode)?;
 

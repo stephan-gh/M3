@@ -103,7 +103,7 @@ impl Links {
                         // if we are not removing a dir, we are coming from unlink(). in this case, directories
                         // are not allowed
                         let inode = INodes::get(entry.nodeno)?;
-                        if !is_dir && crate::internal::is_dir(inode.inode().mode) {
+                        if !is_dir && inode.inode().mode.is_dir() {
                             return Err(Error::new(Code::IsDir));
                         }
 

@@ -1,7 +1,6 @@
 use bitflags::bitflags;
 
 use m3::cell::{Ref, RefCell, RefMut};
-use m3::col::String;
 use m3::kif::Perm;
 use m3::libc;
 use m3::rc::Rc;
@@ -15,72 +14,76 @@ use core::u32;
 
 /// Number of some block
 pub type BlockNo = u32;
-
 pub type Dev = u8;
-
-pub type Mode = u32;
-
 pub type InodeNo = u32;
-
 pub type Time = u32;
 
 pub const INVALID_INO: InodeNo = u32::MAX;
-
-pub const M3FS_IFMT: u32 = 0o0160000;
-pub const M3FS_IFLNK: u32 = 0o0120000;
-pub const M3FS_IFPIP: u32 = 0o0110000;
-pub const M3FS_IFREG: u32 = 0o0100000;
-pub const M3FS_IFBLK: u32 = 0o0060000;
-pub const M3FS_IFDIR: u32 = 0o0040000;
-pub const M3FS_IFCHR: u32 = 0o0020000;
-pub const M3FS_ISUID: u32 = 0o0004000;
-pub const M3FS_ISGID: u32 = 0o0002000;
-pub const M3FS_ISSTICKY: u32 = 0o0001000;
-pub const M3FS_IRWXU: u32 = 0o0000700;
-pub const M3FS_IRUSR: u32 = 0o0000400;
-pub const M3FS_IWUSR: u32 = 0o0000200;
-pub const M3FS_IXUSR: u32 = 0o0000100;
-pub const M3FS_IRWXG: u32 = 0o0000070;
-pub const M3FS_IRGRP: u32 = 0o0000040;
-pub const M3FS_IWGRP: u32 = 0o0000020;
-pub const M3FS_IXGRP: u32 = 0o0000010;
-pub const M3FS_IRWXO: u32 = 0o0000007;
-pub const M3FS_IROTH: u32 = 0o0000004;
-pub const M3FS_IWOTH: u32 = 0o0000002;
-pub const M3FS_IXOTH: u32 = 0o0000001;
-
 pub const INODE_DIR_COUNT: usize = 3;
 pub const MAX_BLOCK_SIZE: u32 = 4096;
-
-pub fn is_dir(mode: Mode) -> bool {
-    ((mode) & M3FS_IFMT) == M3FS_IFDIR
-}
-
-pub fn is_reg(mode: Mode) -> bool {
-    (mode & M3FS_IFMT) == M3FS_IFREG
-}
-
-pub fn is_link(mode: Mode) -> bool {
-    (mode & M3FS_IFMT) == M3FS_IFLNK
-}
-
-pub fn is_chr(mode: Mode) -> bool {
-    (mode & M3FS_IFMT) == M3FS_IFCHR
-}
-
-pub fn is_blk(mode: Mode) -> bool {
-    (mode & M3FS_IFMT) == M3FS_IFBLK
-}
-
-pub fn is_pip(mode: Mode) -> bool {
-    (mode & M3FS_IFMT) == M3FS_IFPIP
-}
 
 int_enum! {
     pub struct SeekMode : u32 {
         const SET = 0;
         const CUR = 1;
         const END = 2;
+    }
+}
+
+bitflags! {
+    pub struct FileMode : u32 {
+        const IFMT      = 0o0160000;
+        const IFLNK     = 0o0120000;
+        const IFPIP     = 0o0110000;
+        const IFREG     = 0o0100000;
+        const IFBLK     = 0o0060000;
+        const IFDIR     = 0o0040000;
+        const IFCHR     = 0o0020000;
+        const ISUID     = 0o0004000;
+        const ISGID     = 0o0002000;
+        const ISSTICKY  = 0o0001000;
+        const IRWXU     = 0o0000700;
+        const IRUSR     = 0o0000400;
+        const IWUSR     = 0o0000200;
+        const IXUSR     = 0o0000100;
+        const IRWXG     = 0o0000070;
+        const IRGRP     = 0o0000040;
+        const IWGRP     = 0o0000020;
+        const IXGRP     = 0o0000010;
+        const IRWXO     = 0o0000007;
+        const IROTH     = 0o0000004;
+        const IWOTH     = 0o0000002;
+        const IXOTH     = 0o0000001;
+
+        const FILE_DEF  = Self::IFREG.bits | 0o0644;
+        const DIR_DEF   = Self::IFDIR.bits;
+        const PERM      = 0o777;
+    }
+}
+
+impl FileMode {
+    pub fn is_dir(self) -> bool {
+        (self & Self::IFMT) == Self::IFDIR
+    }
+
+    pub fn is_reg(self) -> bool {
+        (self & Self::IFMT) == Self::IFREG
+    }
+
+    pub fn is_link(self) -> bool {
+        (self & Self::IFMT) == Self::IFLNK
+    }
+
+    pub fn is_chr(self) -> bool {
+        (self & Self::IFMT) == Self::IFCHR
+    }
+
+    pub fn is_blk(self) -> bool {
+        (self & Self::IFMT) == Self::IFBLK
+    }
+
+    pub fn is_pip(self) -> bool {
+        (self & Self::IFMT) == Self::IFPIP
     }
 }
 
@@ -111,7 +114,7 @@ impl From<OpenFlags> for Perm {
 pub struct FileInfo {
     pub devno: Dev,
     pub inode: InodeNo,
-    pub mode: Mode,
+    pub mode: u32,
     pub links: usize,
     pub size: usize,
     pub lastaccess: Time,
@@ -164,7 +167,7 @@ pub struct INode {
     pub pad: u8, // Is this really a padding, was originally named "8"
 
     pub inode: InodeNo,
-    pub mode: Mode,
+    pub mode: FileMode,
     pub size: u64,
 
     pub lastaccess: Time,
@@ -204,7 +207,7 @@ impl INode {
         self.links = 0;
         self.pad = 0;
         self.inode = 0;
-        self.mode = 0;
+        self.mode = FileMode::empty();
         self.size = 0;
         self.lastaccess = 0;
         self.lastmod = 0;
@@ -221,7 +224,7 @@ impl INode {
     pub fn to_file_info(&self, info: &mut FileInfo) {
         info.devno = self.devno;
         info.inode = self.inode;
-        info.mode = self.mode;
+        info.mode = { self.mode }.bits();
         info.links = self.links as usize;
         info.size = self.size as usize;
         info.lastaccess = self.lastaccess;
@@ -245,46 +248,6 @@ pub struct LoadedInode {
 }
 
 pub const NUM_INODE_BYTES: usize = 64; // While the struct has another alignment, the data in the memory is read and writte as 64 bytes.
-
-#[allow(dead_code)]
-fn to_flags(mode: u32) -> String {
-    let mut flags = vec!['-'; 10];
-    if is_dir(mode) {
-        flags[0] = 'd'
-    }
-
-    if mode & M3FS_IRUSR > 0 {
-        flags[1] = 'r';
-    }
-    if mode & M3FS_IWUSR > 0 {
-        flags[2] = 'w';
-    }
-    if mode & M3FS_IXUSR > 0 {
-        flags[3] = 'x';
-    }
-
-    if mode & M3FS_IRGRP > 0 {
-        flags[4] = 'r';
-    }
-    if mode & M3FS_IWGRP > 0 {
-        flags[5] = 'w';
-    }
-    if mode & M3FS_IXGRP > 0 {
-        flags[6] = 'x';
-    }
-
-    if mode & M3FS_IROTH > 0 {
-        flags[7] = 'r';
-    }
-    if mode & M3FS_IWOTH > 0 {
-        flags[8] = 'w';
-    }
-    if mode & M3FS_IXOTH > 0 {
-        flags[9] = 'x';
-    }
-
-    flags.into_iter().collect()
-}
 
 impl Clone for LoadedInode {
     fn clone(&self) -> Self {

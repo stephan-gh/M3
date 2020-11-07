@@ -110,8 +110,7 @@ impl Dirs {
                 };
 
             // Create inode and put link into directory
-            let new_inode = INodes::create(M3FS_IFREG | 0o0644)?;
-            new_inode.inode_mut().mode = 0o644; // be sure to have correct rights
+            let new_inode = INodes::create(FileMode::FILE_DEF)?;
             if let Err(e) = Links::create(
                 inode.unwrap().clone(),
                 &path[inode_name_start..inode_name_end],
@@ -129,7 +128,7 @@ impl Dirs {
         Err(Error::new(Code::NoSuchFile))
     }
 
-    pub fn create(path: &str, mode: Mode) -> Result<(), Error> {
+    pub fn create(path: &str, mode: FileMode) -> Result<(), Error> {
         // Split the path into the dir part and the base(name) part.
         // might have to change the dir into "." if the file is located at the root
 
@@ -163,7 +162,7 @@ impl Dirs {
         }
 
         let parinode = INodes::get(parent_ino)?;
-        if let Ok(dirino) = INodes::create(M3FS_IFDIR | (mode & 0x777)) {
+        if let Ok(dirino) = INodes::create(FileMode::DIR_DEF | mode) {
             // Create directory itself
             if let Err(e) = Links::create(parinode.clone(), dir, dirino.clone()) {
                 crate::hdl().files().delete_file(dirino.inode().inode).ok();
@@ -198,7 +197,7 @@ impl Dirs {
 
         // it has to be a directory
         let inode = INodes::get(ino)?;
-        if !is_dir(inode.inode().mode) {
+        if !inode.inode().mode.is_dir() {
             return Err(Error::new(Code::IsNoDir));
         }
 
@@ -242,7 +241,7 @@ impl Dirs {
 
         // it can't be a directory
         let old_inode = INodes::get(oldino)?;
-        if is_dir(old_inode.inode().mode) {
+        if old_inode.inode().mode.is_dir() {
             return Err(Error::new(Code::IsDir));
         }
 
