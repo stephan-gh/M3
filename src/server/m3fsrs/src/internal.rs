@@ -1,4 +1,12 @@
+use crate::meta_buffer::{MetaBufferBlock, MetaBufferBlockRef};
+
+use base::const_assert;
+
 use bitflags::bitflags;
+
+use core::intrinsics;
+use core::slice;
+use core::u32;
 
 use m3::cell::{Ref, RefCell, RefMut};
 use m3::kif::Perm;
@@ -6,19 +14,12 @@ use m3::libc;
 use m3::rc::Rc;
 use m3::util::size_of;
 
-use crate::meta_buffer::{MetaBufferBlock, MetaBufferBlockRef};
-
-use core::intrinsics;
-use core::slice;
-use core::u32;
-
 /// Number of some block
 pub type BlockNo = u32;
 pub type Dev = u8;
 pub type InodeNo = u32;
 pub type Time = u32;
 
-pub const INVALID_INO: InodeNo = u32::MAX;
 pub const INODE_DIR_COUNT: usize = 3;
 pub const MAX_BLOCK_SIZE: u32 = 4096;
 
@@ -61,6 +62,7 @@ bitflags! {
     }
 }
 
+#[allow(dead_code)]
 impl FileMode {
     pub fn is_dir(self) -> bool {
         (self & Self::IFMT) == Self::IFDIR
@@ -298,10 +300,6 @@ impl LoadedInode {
 
     pub fn inode_mut(&self) -> RefMut<&'static mut INode> {
         self.inode.borrow_mut()
-    }
-
-    pub fn to_file_info(&self, info: &mut FileInfo) {
-        self.inode.borrow().to_file_info(info);
     }
 }
 
@@ -595,14 +593,6 @@ impl SuperBlock {
 
     pub fn first_inode_block(&self) -> BlockNo {
         self.first_blockbm_block() + self.blockbm_blocks()
-    }
-
-    pub fn inode_blocks(&self) -> BlockNo {
-        (self.total_inodes * (size_of::<INode>() as u32) + self.block_size - 1) / self.block_size
-    }
-
-    pub fn first_data_block(&self) -> BlockNo {
-        self.first_inode_block() + self.inode_blocks()
     }
 
     pub fn extents_per_block(&self) -> usize {

@@ -1,9 +1,10 @@
-use crate::internal::*;
+use crate::internal::DirEntry;
 use crate::meta_buffer::MetaBufferBlock;
-use m3::cell::{Cell, RefCell};
-use m3::rc::Rc;
 
 use core::ops::Range;
+
+use m3::cell::{Cell, RefCell};
+use m3::rc::Rc;
 
 /// Bitmap wrapper for a number of bytes.
 pub struct Bitmap<'a> {
@@ -67,6 +68,7 @@ impl<'a> Bitmap<'a> {
         8
     }
 
+    #[allow(dead_code)]
     pub fn print(&self) {
         for (idx, byte) in self.bytes.iter().enumerate() {
             println!("[{}]\t {:b}\t:{}", idx, byte, byte);
@@ -199,10 +201,6 @@ impl<T> LruElement<T> {
     pub fn value(&self) -> &T {
         &self.value
     }
-
-    pub fn value_mut(&mut self) -> &mut T {
-        &mut self.value
-    }
 }
 
 pub struct Lru<T> {
@@ -282,12 +280,6 @@ impl<T> Lru<T> {
         item.borrow_mut().prev = None;
 
         self.push_back(item);
-    }
-
-    pub fn iter(&self) -> LruIterator<T> {
-        LruIterator {
-            next_element: self.head.clone(),
-        }
     }
 }
 

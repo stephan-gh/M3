@@ -1,17 +1,18 @@
-use crate::internal::*;
+mod mem_backend;
+mod disk_backend;
+
+pub use mem_backend::MemBackend;
+pub use disk_backend::DiskBackend;
+
+use crate::internal::LoadedExtent;
 use crate::meta_buffer::MetaBufferBlock;
+use crate::{BlockNo, SuperBlock};
 
 use m3::cap::Selector;
 use m3::com::MemGate;
 use m3::com::Perm;
 use m3::errors::Error;
 use thread::Event;
-
-/// In-Memory backend implementation for the file system
-pub mod mem_backend;
-
-/// On-Disk backend implementation for the file system
-pub mod disk_backend;
 
 pub trait Backend {
     /// Needed for the hotfix. Might be removed.

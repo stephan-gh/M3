@@ -1,11 +1,9 @@
-pub mod allocator;
-pub use allocator::*;
+mod allocator;
+mod dirs;
+mod inodes;
+mod links;
 
-pub mod dirs;
-pub use dirs::*;
-
-pub mod inodes;
-pub use inodes::*;
-
-pub mod links;
-pub use links::*;
+pub use allocator::Allocator;
+pub use dirs::Dirs;
+pub use inodes::INodes;
+pub use links::Links;

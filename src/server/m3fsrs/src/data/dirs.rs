@@ -1,8 +1,8 @@
-use crate::data::*;
-use crate::internal::*;
-use crate::util::*;
+use crate::data::{INodes, Links};
+use crate::internal::{FileMode, InodeNo, LoadedInode};
+use crate::util::DirEntryIterator;
 
-use m3::errors::*;
+use m3::errors::{Code, Error};
 
 pub struct Dirs;
 

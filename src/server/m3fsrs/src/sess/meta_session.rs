@@ -1,6 +1,7 @@
-use crate::data::*;
-use crate::internal::*;
+use crate::data::{Dirs, INodes};
+use crate::internal::{FileMode, InodeNo, OpenFlags};
 use crate::sess::{FileSession, M3FSSession};
+use crate::FileInfo;
 
 use m3::{
     cap::Selector,

@@ -1,6 +1,7 @@
 use crate::buffer::Buffer;
-use crate::data::*;
-use crate::internal::*;
+use crate::data::INodes;
+use crate::internal::{DirEntry, LoadedInode};
+
 use m3::errors::{Code, Error};
 
 pub struct Links {}

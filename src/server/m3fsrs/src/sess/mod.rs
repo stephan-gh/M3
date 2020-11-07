@@ -1,19 +1,19 @@
+mod file_session;
+mod meta_session;
+mod open_files;
+
+pub use file_session::FileSession;
+pub use meta_session::MetaSession;
+pub use open_files::OpenFiles;
+
 use m3::cell::RefCell;
 use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 use m3::rc::Rc;
 
-pub mod file_session;
-pub use file_session::FileSession;
-pub mod meta_session;
-pub use meta_session::MetaSession;
-
-pub mod open_files;
-pub use open_files::OpenFiles;
-
 pub enum FSSession {
-    Meta(MetaSession),
-    File(Rc<RefCell<FileSession>>),
+    Meta(meta_session::MetaSession),
+    File(Rc<RefCell<file_session::FileSession>>),
 }
 
 impl FSSession {

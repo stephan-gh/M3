@@ -1,6 +1,7 @@
 use crate::backend::{Backend, SuperBlock};
-use crate::internal::*;
+use crate::internal::LoadedExtent;
 use crate::meta_buffer::MetaBufferBlock;
+use crate::BlockNo;
 
 use crate::m3::serialize::Sink;
 use m3::cap::Selector;

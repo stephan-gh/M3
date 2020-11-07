@@ -1,12 +1,23 @@
 #![feature(core_intrinsics)]
 #![no_std]
+
 #[macro_use]
 extern crate m3;
 
-#[macro_use]
-extern crate base;
+mod backend;
+mod buffer;
+mod data;
+mod file_buffer;
+mod fs_handle;
+mod internal;
+mod meta_buffer;
+mod sess;
+mod util;
 
-extern crate thread;
+use crate::backend::{Backend, DiskBackend, MemBackend};
+use crate::fs_handle::M3FSHandle;
+use crate::sess::{FSSession, FileSession, M3FSSession, MetaSession};
+use crate::internal::{BlockNo, Extent, FileInfo, SuperBlock};
 
 use m3::{
     cap::Selector,
@@ -16,6 +27,7 @@ use m3::{
     env,
     errors::{Code, Error},
     goff,
+    pes::VPE,
     rc::Rc,
     serialize::Source,
     server::{server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer},
@@ -23,45 +35,13 @@ use m3::{
     vfs::{FSOperation, GenFileOp},
 };
 
-use m3::pes::VPE;
-
-mod sess;
-use sess::{FSSession, FileSession, M3FSSession, MetaSession};
-
-mod fs_handle;
-use fs_handle::M3FSHandle;
-
-mod backend;
-use backend::{disk_backend::DiskBackend, mem_backend::MemBackend, Backend};
-
-mod file_buffer;
-pub use file_buffer::FileBuffer;
-
-mod buffer;
-pub use buffer::Buffer;
-
-mod meta_buffer;
-pub use meta_buffer::MetaBuffer;
-
-mod data;
-
-/// Custom internal data types used. This contains
-/// usually a data representation like `Inode` as well as
-/// the loaded version, like `LoadedInode`.
-pub mod internal;
-pub use internal::{BlockNo, Extent, FileInfo, INode, SuperBlock};
-
-/// Utility functions and structs used mostly within inode.rs, dirs.rs and links.rs
-pub mod util;
-
-const FS_IMG_OFFSET: goff = 0;
-
 // Sets the logging behavior
 pub const LOG_DEF: bool = false;
 // enables a hack that is needed when running the shell.. for some reason
 const SHELL_HACK: bool = false;
 
 // Server consts
+const FS_IMG_OFFSET: goff = 0;
 const MAX_CLIENTS: usize = 32;
 const MSG_SIZE: usize = 128;
 
@@ -70,6 +50,7 @@ static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 
 // The global file handle in this process
 static FSHANDLE: StaticCell<Option<M3FSHandle>> = StaticCell::new(None);
+
 fn hdl() -> &'static mut M3FSHandle {
     FSHANDLE.get_mut().as_mut().unwrap()
 }

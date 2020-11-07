@@ -1,8 +1,9 @@
 use crate::buffer::Buffer;
-use crate::internal::*;
+use crate::BlockNo;
 
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
+
 use m3::boxed::Box;
 use m3::col::{BoxList, Treap, Vec};
 use m3::errors::Error;

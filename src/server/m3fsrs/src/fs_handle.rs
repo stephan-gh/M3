@@ -1,7 +1,7 @@
 use crate::buffer::Buffer;
 use crate::{
-    backend::Backend, data::allocator::Allocator, file_buffer::FileBuffer, internal::SuperBlock,
-    meta_buffer::MetaBuffer, sess::open_files::OpenFiles, FsSettings,
+    backend::Backend, data::Allocator, file_buffer::FileBuffer, internal::SuperBlock,
+    meta_buffer::MetaBuffer, sess::OpenFiles, FsSettings,
 };
 
 use m3::boxed::Box;

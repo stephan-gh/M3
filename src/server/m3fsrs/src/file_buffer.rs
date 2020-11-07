@@ -1,7 +1,7 @@
 use crate::backend::Backend;
 use crate::buffer::{Buffer, PRDT_SIZE};
 use crate::internal::BlockNo;
-use crate::util::*;
+use crate::util::{Lru, LruElement};
 
 use m3::cap::Selector;
 use m3::cell::RefCell;

@@ -1,7 +1,17 @@
 use crate::buffer::Buffer;
-use crate::internal::NUM_INODE_BYTES;
-use crate::internal::*;
-use m3::{cap::Selector, col::Vec, com::Perm, errors::*, time};
+use crate::internal::{
+    FileMode, InodeNo, LoadedExtent, LoadedInode, SeekMode, INODE_DIR_COUNT, NUM_EXT_BYTES,
+    NUM_INODE_BYTES,
+};
+use crate::FileInfo;
+
+use m3::{
+    cap::Selector,
+    col::Vec,
+    com::Perm,
+    errors::{Code, Error},
+    time,
+};
 
 pub struct INodes;
 
