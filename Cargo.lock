@@ -92,6 +92,7 @@ name = "m3fsrs"
 version = "0.1.0"
 dependencies = [
  "base",
+ "bitflags",
  "m3",
  "thread",
 ]

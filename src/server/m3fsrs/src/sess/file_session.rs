@@ -1,7 +1,6 @@
 use crate::data::*;
 use crate::internal::*;
 use crate::sess::M3FSSession;
-use crate::util::*;
 
 use m3::{
     cap::Selector,
@@ -9,7 +8,7 @@ use m3::{
     col::{String, ToString, Vec},
     com::{GateIStream, SendGate},
     errors::{Code, Error},
-    kif::{CapRngDesc, CapType, INVALID_SEL},
+    kif::{CapRngDesc, CapType, Perm, INVALID_SEL},
     rc::Rc,
     serialize::Sink,
     server::{CapExchange, SessId},
@@ -65,7 +64,7 @@ pub struct FileSession {
     #[allow(dead_code)] // keeps the send gate alive
     sgate: Option<SendGate>,
 
-    oflags: u64,
+    oflags: OpenFlags,
     filename: String,
     ino: InodeNo,
 
@@ -94,7 +93,7 @@ impl FileSession {
         file_session_id: SessId,
         meta_session_id: SessId,
         filename: &str,
-        flags: u64,
+        flags: OpenFlags,
         ino: InodeNo,
     ) -> Result<Rc<RefCell<Self>>, Error> {
         log!(
@@ -206,7 +205,7 @@ impl FileSession {
             offset,
             ext_off,
             &mut extlen,
-            flags_to_perm(self.oflags),
+            Perm::from(self.oflags),
             sel,
             true,
             self.accessed,
@@ -244,7 +243,9 @@ impl FileSession {
             self.extoff
         );
 
-        if (out && ((self.oflags & FILE_W) == 0)) || (!out && ((self.oflags & FILE_R) == 0)) {
+        if (out && !self.oflags.contains(OpenFlags::W))
+            || (!out && !self.oflags.contains(OpenFlags::R))
+        {
             return Err(Error::new(Code::NoPerm));
         }
 
@@ -302,7 +303,7 @@ impl FileSession {
                 self.extoff,
                 &mut extlen,
                 sel,
-                flags_to_perm(self.oflags),
+                Perm::from(self.oflags),
                 &mut e,
                 self.accessed,
             )?;
@@ -320,7 +321,7 @@ impl FileSession {
                 self.extent,
                 self.extoff,
                 &mut extlen,
-                flags_to_perm(self.oflags),
+                Perm::from(self.oflags),
                 sel,
                 out,
                 self.accessed,

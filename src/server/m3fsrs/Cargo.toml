@@ -9,6 +9,7 @@ path = "src/m3fsrs.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
+bitflags = "*"
 m3 = { path = "../../libs/rust/m3" }
 base = { path = "../../libs/rust/base"}
 thread = { path = "../../libs/rust/thread" }

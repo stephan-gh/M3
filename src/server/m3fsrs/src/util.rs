@@ -1,5 +1,3 @@
-use m3::com::Perm;
-
 use crate::internal::*;
 use crate::meta_buffer::MetaBufferBlock;
 use m3::cell::{Cell, RefCell};
@@ -150,13 +148,6 @@ pub fn get_base_dir<'a>(path: &'a str) -> (Range<usize>, Range<usize>) {
         // No dir but maybe a base left
         (0..base_start - 1, base_start..path.len())
     }
-}
-
-pub fn flags_to_perm(flags: u64) -> Perm {
-    const_assert!(FILE_R == Perm::R.bits() as u64);
-    const_assert!(FILE_W == Perm::W.bits() as u64);
-    const_assert!(FILE_X == Perm::X.bits() as u64);
-    Perm::from_bits_truncate(flags as u32)
 }
 
 /// Entry iterator takes a block and iterates over it assuming that the block contains entries.

@@ -1,5 +1,8 @@
+use bitflags::bitflags;
+
 use m3::cell::{Ref, RefCell, RefMut};
 use m3::col::String;
+use m3::kif::Perm;
 use m3::libc;
 use m3::rc::Rc;
 use m3::util::size_of;
@@ -76,15 +79,28 @@ pub fn is_pip(mode: Mode) -> bool {
     (mode & M3FS_IFMT) == M3FS_IFPIP
 }
 
-pub const FILE_R: u64 = 1;
-pub const FILE_W: u64 = 2;
-pub const FILE_X: u64 = 4;
-pub const FILE_RW: u64 = FILE_R | FILE_W;
-pub const FILE_RWX: u64 = FILE_R | FILE_W | FILE_X;
-pub const FILE_TRUNC: u64 = 8;
-pub const FILE_APPEND: u64 = 16;
-pub const FILE_CREATE: u64 = 32;
-pub const FILE_NODATA: u64 = 64;
+bitflags! {
+    pub struct OpenFlags : u64 {
+        const R = 1;
+        const W = 2;
+        const X = 4;
+        const RW = Self::R.bits | Self::W.bits;
+        const RWX = Self::R.bits | Self::W.bits | Self::X.bits;
+        const TRUNC = 8;
+        const APPEND = 16;
+        const CREATE = 32;
+        const NODATA = 64;
+    }
+}
+
+impl From<OpenFlags> for Perm {
+    fn from(flags: OpenFlags) -> Self {
+        const_assert!(OpenFlags::R.bits() == Perm::R.bits() as u64);
+        const_assert!(OpenFlags::W.bits() == Perm::W.bits() as u64);
+        const_assert!(OpenFlags::X.bits() == Perm::X.bits() as u64);
+        Perm::from_bits_truncate((flags & OpenFlags::RWX).bits() as u32)
+    }
+}
 
 #[derive(Debug)]
 pub struct FileInfo {

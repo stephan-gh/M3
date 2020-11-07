@@ -5,7 +5,7 @@ use crate::sess::{FileSession, M3FSSession};
 use m3::{
     cap::Selector,
     cell::RefCell,
-    col::{String, Vec},
+    col::Vec,
     com::{GateIStream, SendGate},
     errors::{Code, Error},
     rc::Rc,
@@ -78,7 +78,7 @@ impl MetaSession {
         data: &mut CapExchange,
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
-        let flags = data.in_args().pop::<u32>()? as u64; // Pop Flags from args
+        let flags = OpenFlags::from_bits_truncate(data.in_args().pop::<u64>()?);
 
         // Read the string, is already read only until termination or not at all
         let path = data.in_args().pop_str_slice()?;
@@ -105,7 +105,7 @@ impl MetaSession {
         srv: Selector,
         crt: usize,
         path: &str,
-        flags: u64,
+        flags: OpenFlags,
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
         log!(
@@ -116,11 +116,11 @@ impl MetaSession {
             file_session_id
         );
 
-        let ino = Dirs::search(&path, (flags & FILE_CREATE) > 0)?;
+        let ino = Dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
         let inode = INodes::get(ino)?;
 
-        if ((flags & FILE_W) > 0 && (!inode.inode().mode & M3FS_IWUSR) > 0)
-            || ((flags & FILE_R) > 0 && (!inode.inode().mode & M3FS_IRUSR) > 0)
+        if (flags.contains(OpenFlags::W) && (!inode.inode().mode & M3FS_IWUSR) > 0)
+            || (flags.contains(OpenFlags::R) && (!inode.inode().mode & M3FS_IRUSR) > 0)
         {
             log!(
                 crate::LOG_DEF,
@@ -132,7 +132,7 @@ impl MetaSession {
         }
 
         // only determine the current size, if we're writing and the file isn't empty
-        if (flags & FILE_TRUNC) > 0 {
+        if flags.contains(OpenFlags::TRUNC) {
             INodes::truncate(inode.clone(), 0, 0)?;
             // TODO carried over from c++
             // TODO revoke access, if necessary
@@ -162,11 +162,10 @@ impl MetaSession {
         srv: Selector,
         crt: usize,
         path: &str,
-        flags: u64,
+        flags: OpenFlags,
         ino: InodeNo,
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
-        assert!(flags != 0, "while alloc file, flags should not be 0!");
         FileSession::new(
             srv,
             crt,
@@ -271,18 +270,4 @@ impl M3FSSession for MetaSession {
 
         reply_vmsg!(stream, 0 as u32)
     }
-}
-
-#[allow(dead_code)]
-fn decode_flags(flags: u64) -> String {
-    let mut chars = vec!['-'; 7];
-    chars[0] = if flags & FILE_R > 0 { 'r' } else { '-' };
-    chars[1] = if flags & FILE_W > 0 { 'w' } else { '-' };
-    chars[2] = if flags & FILE_X > 0 { 'x' } else { '-' };
-    chars[3] = if flags & FILE_TRUNC > 0 { 't' } else { '-' };
-    chars[4] = if flags & FILE_APPEND > 0 { 'a' } else { '-' };
-    chars[5] = if flags & FILE_CREATE > 0 { 'c' } else { '-' };
-    chars[6] = if flags & FILE_NODATA > 0 { 'd' } else { '-' };
-
-    chars.into_iter().collect()
 }
