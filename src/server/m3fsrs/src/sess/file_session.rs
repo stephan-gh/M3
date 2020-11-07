@@ -447,7 +447,7 @@ impl FileSession {
         }
 
         // change size
-        inode.inode().size += submit as u64;
+        inode.inode_mut().size += submit as u64;
         INodes::mark_dirty(inode.inode().inode);
 
         // stop appending

@@ -12,10 +12,10 @@ impl INodes {
         let ino = crate::hdl().inodes().alloc(None)?;
         let inode = INodes::get(ino)?;
         // Reset inode
-        inode.inode().reset();
-        inode.inode().inode = ino;
-        inode.inode().devno = 0; /* TODO (was also in C++ todo)*/
-        inode.inode().mode = mode;
+        inode.inode_mut().reset();
+        inode.inode_mut().inode = ino;
+        inode.inode_mut().devno = 0; /* TODO (was also in C++ todo)*/
+        inode.inode_mut().mode = mode;
         INodes::mark_dirty(ino);
         Ok(inode)
     }
@@ -269,7 +269,7 @@ impl INodes {
                 true,
             )?);
             *ext.clone().unwrap().start_mut() = *next.start();
-            inode.inode().extents += 1;
+            inode.inode_mut().extents += 1;
         }
 
         *ext.unwrap().length_mut() += *next.length();
@@ -313,7 +313,7 @@ impl INodes {
                     }
                     // Alloc block for indirect extents and put in inode.
                     let indirect_block = crate::hdl().blocks().alloc(None)?;
-                    inode.inode().indirect = indirect_block;
+                    inode.inode_mut().indirect = indirect_block;
                     created = true;
                 }
                 // Overwrite passed indirect arg with the loaded indirect block
@@ -358,7 +358,7 @@ impl INodes {
                     return Err(Error::new(Code::NotFound));
                 }
                 let dindirect_block = crate::hdl().blocks().alloc(None)?;
-                inode.inode().dindirect = dindirect_block;
+                inode.inode_mut().dindirect = dindirect_block;
                 created = true;
             }
 
@@ -464,7 +464,7 @@ impl INodes {
                 crate::hdl()
                     .blocks()
                     .free(inode.inode().indirect as usize, 1)?;
-                inode.inode().indirect = 0;
+                inode.inode_mut().indirect = 0;
             }
             // Return i-th inode from the loaded indirect block
             return Ok(indir[i].clone());
@@ -508,7 +508,7 @@ impl INodes {
                     crate::hdl()
                         .blocks()
                         .free(inode.inode().dindirect as usize, 1)?;
-                    inode.inode().dindirect = 0;
+                    inode.inode_mut().dindirect = 0;
                 }
             }
             return Ok(ext);
@@ -542,9 +542,9 @@ impl INodes {
 
         if let Some(ino) = inode {
             let old_size = ino.inode().size;
-            ino.inode().extents += 1;
-            ino.inode().size = (old_size + blocksize as u64 - 1) & !(blocksize as u64 - 1);
-            ino.inode().size += (count * blocksize as usize) as u64;
+            ino.inode_mut().extents += 1;
+            ino.inode_mut().size = (old_size + blocksize as u64 - 1) & !(blocksize as u64 - 1);
+            ino.inode_mut().size += (count * blocksize as usize) as u64;
 
             INodes::mark_dirty(ino.inode().inode);
         }
@@ -573,8 +573,8 @@ impl INodes {
                 crate::hdl()
                     .blocks()
                     .free(*ext.start() as usize, *ext.length() as usize)?;
-                inode.inode().extents -= 1;
-                inode.inode().size -= (*ext.length() * blocksize) as u64;
+                inode.inode_mut().extents -= 1;
+                inode.inode_mut().size -= (*ext.length() * blocksize) as u64;
                 *ext.length_mut() = 0;
                 *ext.start_mut() = 0;
                 i -= 1;
@@ -606,12 +606,12 @@ impl INodes {
                             .blocks()
                             .free((*ext.start() + *ext.length()) as usize - blocks, blocks)?;
                     }
-                    inode.inode().size -= diff as u64;
+                    inode.inode_mut().size -= diff as u64;
                     let new_length = (*ext.length() as usize - blocks) as u32;
                     *ext.length_mut() = new_length;
                     if *ext.length() == 0 {
                         *ext.start_mut() = 0;
-                        inode.inode().extents -= 1;
+                        inode.inode_mut().extents -= 1;
                     }
                 }
             }

@@ -74,7 +74,7 @@ impl Links {
             new_entry.next = crate::hdl().superblock().block_size;
         }
 
-        inode.inode().links += 1;
+        inode.inode_mut().links += 1;
         INodes::mark_dirty(inode.inode().inode);
         Ok(())
     }

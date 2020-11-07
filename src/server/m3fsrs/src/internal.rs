@@ -308,12 +308,12 @@ impl LoadedInode {
         }
     }
 
-    pub fn inode(&self) -> RefMut<&'static mut INode> {
-        self.inode.borrow_mut()
+    pub fn inode(&self) -> Ref<&'static mut INode> {
+        self.inode.borrow()
     }
 
-    pub fn inode_im(&self) -> Ref<&'static mut INode> {
-        self.inode.borrow()
+    pub fn inode_mut(&self) -> RefMut<&'static mut INode> {
+        self.inode.borrow_mut()
     }
 
     pub fn to_file_info(&self, info: &mut FileInfo) {
@@ -493,7 +493,7 @@ impl LoadedExtent {
                 extent,
             } => Ref::map(extent.borrow(), |ex| &ex.length),
             LoadedExtent::Direct { inode_ref, index } => {
-                Ref::map(inode_ref.inode_im(), |i| &i.direct[*index].length)
+                Ref::map(inode_ref.inode(), |i| &i.direct[*index].length)
             },
             LoadedExtent::Unstored { extent } => Ref::map(extent.borrow(), |e| &e.length),
         }
@@ -507,7 +507,7 @@ impl LoadedExtent {
                 extent,
             } => RefMut::map(extent.borrow_mut(), |ex| &mut ex.length),
             LoadedExtent::Direct { inode_ref, index } => {
-                RefMut::map(inode_ref.inode(), |i| &mut i.direct[*index].length)
+                RefMut::map(inode_ref.inode_mut(), |i| &mut i.direct[*index].length)
             },
             LoadedExtent::Unstored { extent } => {
                 RefMut::map(extent.borrow_mut(), |e| &mut e.length)
@@ -523,7 +523,7 @@ impl LoadedExtent {
                 extent,
             } => Ref::map(extent.borrow(), |ex| &ex.start),
             LoadedExtent::Direct { inode_ref, index } => {
-                Ref::map(inode_ref.inode_im(), |i| &i.direct[*index].start)
+                Ref::map(inode_ref.inode(), |i| &i.direct[*index].start)
             },
             LoadedExtent::Unstored { extent } => Ref::map(extent.borrow(), |e| &e.start),
         }
@@ -537,7 +537,7 @@ impl LoadedExtent {
                 extent,
             } => RefMut::map(extent.borrow_mut(), |ex| &mut ex.start),
             LoadedExtent::Direct { inode_ref, index } => {
-                RefMut::map(inode_ref.inode(), |i| &mut i.direct[*index].start)
+                RefMut::map(inode_ref.inode_mut(), |i| &mut i.direct[*index].start)
             },
             LoadedExtent::Unstored { extent } => RefMut::map(extent.borrow_mut(), |e| &mut e.start),
         }

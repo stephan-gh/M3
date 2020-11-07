@@ -111,7 +111,7 @@ impl Dirs {
 
             // Create inode and put link into directory
             let new_inode = INodes::create(M3FS_IFREG | 0o0644)?;
-            new_inode.inode().mode = 0o644; // be sure to have correct rights
+            new_inode.inode_mut().mode = 0o644; // be sure to have correct rights
             if let Err(e) = Links::create(
                 inode.unwrap().clone(),
                 &path[inode_name_start..inode_name_end],
@@ -225,7 +225,7 @@ impl Dirs {
             { inode.inode().links }
         );
         // ensure that the inode is removed
-        inode.inode().links -= 1;
+        inode.inode_mut().links -= 1;
         // TODO if that fails, we have already reduced the link count!?
         Dirs::unlink(path, true)
     }
@@ -276,7 +276,7 @@ impl Dirs {
         let res = Links::remove(parinode.clone(), dir, is_dir);
         if is_dir && res.is_ok() {
             // decrement link count for parent inode by one
-            parinode.inode().links -= 1;
+            parinode.inode_mut().links -= 1;
         }
 
         res
