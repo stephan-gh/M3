@@ -438,7 +438,7 @@ impl LoadedExtent {
             "Extent location is not multiple of extent size!"
         );
         debug_assert!(
-            location + size_of::<Extent>() < block.data().len(),
+            location + size_of::<Extent>() <= block.data().len(),
             "Extent location exceeds block!"
         );
 
