@@ -16,8 +16,8 @@ mod util;
 
 use crate::backend::{Backend, DiskBackend, MemBackend};
 use crate::fs_handle::M3FSHandle;
-use crate::sess::{FSSession, FileSession, M3FSSession, MetaSession};
 use crate::internal::{BlockNo, Extent, FileInfo, SuperBlock};
+use crate::sess::{FSSession, FileSession, M3FSSession, MetaSession};
 
 use m3::{
     cap::Selector,
@@ -183,7 +183,7 @@ impl M3FSRequestHandler {
             if let Some(ext) = fsess.borrow().append_ext.clone() {
                 hdl()
                     .blocks()
-                    .free(ext.start() as usize, ext.length() as usize)?;
+                    .free(ext.start as usize, ext.length as usize)?;
             }
             // Delete append extent if there was any
             fsess.borrow_mut().append_ext = None;

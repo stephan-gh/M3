@@ -1,5 +1,5 @@
 use crate::data::INodes;
-use crate::internal::{InodeNo, LoadedExtent, INodeRef, OpenFlags, SeekMode};
+use crate::internal::{INodeRef, InodeNo, OpenFlags, SeekMode};
 use crate::sess::M3FSSession;
 use crate::{Extent, FileInfo};
 
@@ -58,7 +58,7 @@ pub struct FileSession {
     accessed: usize,
 
     appending: bool,
-    pub(crate) append_ext: Option<LoadedExtent>,
+    pub(crate) append_ext: Option<Extent>,
 
     pub(crate) last: Selector,
     epcap: Selector,
@@ -290,27 +290,19 @@ impl FileSession {
                     &mut self.extoff,
                 )?;
             }
-            // Exchange extent in which we store the "to append" extent
-            let mut e = LoadedExtent::Unstored {
-                extent: Rc::new(RefCell::new(Extent {
-                    start: 0,
-                    length: 0,
-                })),
-            };
 
-            let len = INodes::req_append(
+            let (len, new_ext) = INodes::req_append(
                 &inode,
                 self.extent,
                 self.extoff,
                 &mut extlen,
                 sel,
                 Perm::from(self.oflags),
-                &mut e,
                 self.accessed,
             )?;
 
             self.appending = true;
-            self.append_ext = if e.length() > 0 { Some(e) } else { None };
+            self.append_ext = new_ext;
 
             open_file.set_appending(true);
             len
@@ -415,19 +407,19 @@ impl FileSession {
         self.fileoff -= self.lastbytes - submit;
 
         // add new extent?
-        if let Some(ref append_ext) = self.append_ext {
+        if let Some(ref mut append_ext) = self.append_ext.take() {
             let blocksize = crate::hdl().superblock().block_size as usize;
             let blocks = (submit + blocksize - 1) / blocksize;
-            let old_len = append_ext.length();
+            let old_len = append_ext.length;
             // append extent to file
-            append_ext.set_length(blocks as u32);
+            append_ext.length = blocks as u32;
             let mut new_ext = false;
-            INodes::append_extent(inode, &append_ext, &mut new_ext)?;
+            INodes::append_extent(inode, *append_ext, &mut new_ext)?;
 
             // free superfluous blocks
             if old_len as usize > blocks {
                 crate::hdl().blocks().free(
-                    append_ext.start() as usize + blocks,
+                    append_ext.start as usize + blocks,
                     old_len as usize - blocks,
                 )?;
             }
@@ -439,7 +431,6 @@ impl FileSession {
             }
 
             self.lastoff = 0;
-            self.append_ext = None;
         }
 
         // we are at the end of the extent now, so move forward if not already done
@@ -543,13 +534,7 @@ impl M3FSSession for FileSession {
 
         let inode = INodes::get(self.ino)?;
 
-        let pos = INodes::seek(
-            &inode,
-            &mut off,
-            whence,
-            &mut self.extent,
-            &mut self.extoff,
-        )?;
+        let pos = INodes::seek(&inode, &mut off, whence, &mut self.extent, &mut self.extoff)?;
         self.fileoff = pos + off;
         reply_vmsg!(stream, 0, pos, off)
     }

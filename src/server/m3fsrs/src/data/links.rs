@@ -60,14 +60,14 @@ impl Links {
         // Check if a suitable space was found, otherwise extend directory
         if !created {
             // Create new
-            let ext =
-                INodes::get_extent(dir, dir.extents as usize, &mut indir, true)?;
+            let ext = INodes::get_extent(dir, dir.extents as usize, &mut indir, true)?;
 
             // Insert one block extent
-            INodes::fill_extent(Some(dir), &ext, 1, 1)?;
+            let ext_range = INodes::create_extent(Some(dir), 1, 1)?;
+            *ext.as_mut() = ext_range;
 
             // put entry at the beginning of the block
-            let start = ext.start();
+            let start = ext.start;
             let mut block = crate::hdl().metabuffer().get_block(start, true)?;
             let new_entry = DirEntry::from_buffer_mut(&mut block, 0);
             new_entry.set_name(name);

@@ -1,5 +1,5 @@
 use crate::backend::{Backend, SuperBlock};
-use crate::internal::LoadedExtent;
+use crate::internal::Extent;
 use crate::meta_buffer::MetaBufferBlock;
 use crate::BlockNo;
 
@@ -129,7 +129,7 @@ impl Backend for DiskBackend {
 
     fn get_filedata(
         &self,
-        ext: &mut LoadedExtent,
+        ext: Extent,
         extoff: usize,
         perms: Perm,
         sel: Selector,
@@ -140,8 +140,8 @@ impl Backend for DiskBackend {
         let first_block = extoff / self.blocksize;
         crate::hdl().filebuffer().get_extent(
             self,
-            ext.start() + first_block as u32,
-            ext.length() as usize - first_block,
+            ext.start + first_block as u32,
+            ext.length as usize - first_block,
             sel,
             perms,
             accessed,
@@ -150,16 +150,16 @@ impl Backend for DiskBackend {
         )
     }
 
-    fn clear_extent(&self, extent: &LoadedExtent, accessed: usize) -> Result<(), Error> {
+    fn clear_blocks(&self, start: BlockNo, count: BlockNo, accessed: usize) -> Result<(), Error> {
         let mut zeros: [u8; crate::internal::MAX_BLOCK_SIZE as usize] =
             [0; crate::internal::MAX_BLOCK_SIZE as usize];
         let sel = m3::pes::VPE::cur().alloc_sel();
         let mut i = 0;
-        while i < extent.length() {
+        while i < count {
             let bytes = crate::hdl().filebuffer().get_extent(
                 self,
-                extent.start() + i,
-                (extent.length() - i) as usize,
+                start + i,
+                (count - i) as usize,
                 sel,
                 Perm::RW,
                 accessed,

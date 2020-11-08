@@ -8,10 +8,8 @@ use core::intrinsics;
 use core::slice;
 use core::u32;
 
-use m3::cell::RefCell;
 use m3::kif::Perm;
 use m3::libc;
-use m3::rc::Rc;
 use m3::util::size_of;
 
 /// Number of some block
@@ -23,6 +21,7 @@ pub type Time = u32;
 pub const INODE_DIR_COUNT: usize = 3;
 pub const MAX_BLOCK_SIZE: u32 = 4096;
 pub const NUM_INODE_BYTES: usize = 64;
+pub const NUM_EXT_BYTES: usize = 8;
 
 int_enum! {
     pub struct SeekMode : u32 {
@@ -267,10 +266,7 @@ impl INodeRef {
             inode_ptr.add(off / size_of::<INode>())
         };
 
-        Self {
-            block_ref,
-            inode,
-        }
+        Self { block_ref, inode }
     }
 
     pub fn as_mut(&self) -> &mut INode {
@@ -375,7 +371,7 @@ impl DirEntry {
     }
 }
 
-pub const NUM_EXT_BYTES: usize = 8;
+/// Represents an extent as stored on disk
 #[derive(Clone, Copy, Debug)]
 #[repr(C, align(8))]
 pub struct Extent {
@@ -383,151 +379,100 @@ pub struct Extent {
     pub length: u32,
 }
 
-/// There are three possible sources of an Loaded extent. Either from a indirect block,
-/// in that case we carry a refrence to the block as well as the location within this block of the extent.
-/// Secondly the extent might be one of the INODE_DIR_COUNT directly saved extent. In that case we have to read/write
-/// to the stored inode.
-/// And as a third option the extent might not be saved in an inode or block at all, but just memory. In that case we use `Unstored`.
-pub enum LoadedExtent {
-    Indirect {
-        block_ref: MetaBufferBlockRef,
-        ext_location: usize,
-        extent: RefCell<&'static mut Extent>,
-    },
-    Direct {
-        inode_ref: INodeRef,
-        index: usize,
-    },
-    // An extent that has no Inode, currently only used in file_session::get_next_in_out.
-    // might become obsolte when refactoring.
-    Unstored {
-        extent: Rc<RefCell<Extent>>,
-    },
+impl Extent {
+    pub fn new(start: u32, length: u32) -> Self {
+        Self { start, length }
+    }
 }
 
-impl Clone for LoadedExtent {
+/// A reference to an direct or indirect extent
+pub struct ExtentRef {
+    block_ref: MetaBufferBlockRef,
+    // this pointer is valid during our lifetime, because we keep a MetaBufferBlockRef
+    extent: *mut Extent,
+}
+
+impl Clone for ExtentRef {
     fn clone(&self) -> Self {
-        match self {
-            LoadedExtent::Indirect {
-                block_ref,
-                ext_location,
-                extent: _,
-            } => LoadedExtent::ind_from_buffer_location(block_ref.clone(), *ext_location),
-            LoadedExtent::Direct { inode_ref, index } => LoadedExtent::Direct {
-                inode_ref: inode_ref.clone(),
-                index: *index,
-            },
-            LoadedExtent::Unstored { extent } => LoadedExtent::Unstored {
-                extent: extent.clone(),
-            },
+        Self {
+            block_ref: self.block_ref.clone(),
+            extent: self.extent,
         }
     }
 }
 
-impl LoadedExtent {
-    /// Loads an indirect block from some MetaBufferBlock
-    pub fn ind_from_buffer_location(block_ref: MetaBufferBlockRef, location: usize) -> Self {
+impl ExtentRef {
+    /// Loads the extent with given index from the given INode
+    pub fn dir_from_inode(inode: &INodeRef, index: usize) -> Self {
+        Self {
+            block_ref: inode.block_ref.clone(),
+            extent: &mut inode.as_mut().direct[index],
+        }
+    }
+
+    /// Loads the indirect extent at given offset from given MetaBufferBlock
+    pub fn indir_from_buffer(block_ref: MetaBufferBlockRef, off: usize) -> Self {
         let block = crate::hdl().metabuffer().get_block_by_ref(&block_ref);
         debug_assert!(
-            location % size_of::<Extent>() == 0,
-            "Extent location is not multiple of extent size!"
+            off % size_of::<Extent>() == 0,
+            "Extent off is not multiple of extent size!"
         );
         debug_assert!(
-            location + size_of::<Extent>() <= block.data().len(),
-            "Extent location exceeds block!"
+            off + size_of::<Extent>() <= block.data().len(),
+            "Extent off exceeds block!"
         );
 
-        let loc = location / size_of::<Extent>();
+        // safety: the cast is valid if the checks above succeeded
         let ext = unsafe {
             let mem = block.data_mut().as_mut_ptr();
-            let mut cmem = mem.cast::<Extent>();
-            cmem = cmem.add(loc);
-            &mut *cmem
+            mem.cast::<Extent>().add(off / size_of::<Extent>())
         };
 
-        LoadedExtent::Indirect {
+        Self {
             block_ref: block_ref.clone(),
-            ext_location: location,
-            extent: RefCell::new(ext),
+            extent: ext,
         }
     }
 
-    pub fn length(&self) -> u32 {
-        match self {
-            LoadedExtent::Indirect {
-                block_ref: _,
-                ext_location: _,
-                extent,
-            } => extent.borrow().length,
-            LoadedExtent::Direct { inode_ref, index } => inode_ref.direct[*index].length,
-            LoadedExtent::Unstored { extent } => extent.borrow().length,
-        }
-    }
-
-    pub fn set_length(&self, len: u32) {
-        match self {
-            LoadedExtent::Indirect {
-                block_ref: _,
-                ext_location: _,
-                extent,
-            } => extent.borrow_mut().length = len,
-            LoadedExtent::Direct { inode_ref, index } => inode_ref.as_mut().direct[*index].length = len,
-            LoadedExtent::Unstored { extent } => extent.borrow_mut().length = len,
-        }
-    }
-
-    pub fn start(&self) -> u32 {
-        match self {
-            LoadedExtent::Indirect {
-                block_ref: _,
-                ext_location: _,
-                extent,
-            } => extent.borrow().start,
-            LoadedExtent::Direct { inode_ref, index } => inode_ref.direct[*index].start,
-            LoadedExtent::Unstored { extent } => extent.borrow().start,
-        }
-    }
-
-    pub fn set_start(&self, start: u32) {
-        match self {
-            LoadedExtent::Indirect {
-                block_ref: _,
-                ext_location: _,
-                extent,
-            } => extent.borrow_mut().start = start,
-            LoadedExtent::Direct { inode_ref, index } => inode_ref.as_mut().direct[*index].start = start,
-            LoadedExtent::Unstored { extent } => extent.borrow_mut().start = start,
-        }
+    pub fn as_mut(&self) -> &mut Extent {
+        // safety: valid because we keep a MetaBufferBlockRef
+        unsafe { &mut *self.extent }
     }
 }
 
-impl IntoIterator for LoadedExtent {
+impl core::ops::Deref for ExtentRef {
+    type Target = Extent;
+
+    fn deref(&self) -> &Self::Target {
+        // safety: valid because we keep a MetaBufferBlockRef
+        unsafe { &*self.extent }
+    }
+}
+
+impl IntoIterator for ExtentRef {
     type IntoIter = ExtentBlocksIterator;
     type Item = BlockNo;
 
     fn into_iter(self) -> Self::IntoIter {
         ExtentBlocksIterator {
-            start: self.start(),
-            j: 0,
-            length: self.length(),
+            cur: self.start,
+            last: self.start + self.length,
         }
     }
 }
+
 pub struct ExtentBlocksIterator {
-    start: u32,
-    j: u32,
-    length: u32,
+    cur: BlockNo,
+    last: BlockNo,
 }
 
 impl core::iter::Iterator for ExtentBlocksIterator {
     type Item = BlockNo;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.j < self.length {
-            let cur = self.j;
-            self.j += 1;
-
-            Some(self.start + cur)
+        if self.cur < self.last {
+            self.cur += 1;
+            Some(self.cur - 1)
         }
         else {
             None

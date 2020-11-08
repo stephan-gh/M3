@@ -1,5 +1,5 @@
 use crate::backend::{Backend, SuperBlock};
-use crate::internal::LoadedExtent;
+use crate::internal::Extent;
 use crate::meta_buffer::MetaBufferBlock;
 use crate::BlockNo;
 
@@ -79,7 +79,7 @@ impl Backend for MemBackend {
 
     fn get_filedata(
         &self,
-        ext: &mut LoadedExtent,
+        ext: Extent,
         extoff: usize,
         perms: Perm,
         sel: Selector,
@@ -88,8 +88,8 @@ impl Backend for MemBackend {
         _accessed: usize,
     ) -> Result<usize, Error> {
         let first_block = extoff / self.blocksize;
-        let bytes: usize = (ext.length() as usize - first_block) * self.blocksize as usize;
-        let size = ((ext.start() as usize + first_block) * self.blocksize) as u64;
+        let bytes: usize = (ext.length as usize - first_block) * self.blocksize as usize;
+        let size = ((ext.start as usize + first_block) * self.blocksize) as u64;
         derive_mem(
             m3::pes::VPE::cur().sel(),
             sel,
@@ -101,9 +101,9 @@ impl Backend for MemBackend {
         Ok(bytes)
     }
 
-    fn clear_extent(&self, extent: &LoadedExtent, _accessed: usize) -> Result<(), Error> {
+    fn clear_blocks(&self, start: BlockNo, count: BlockNo, _accessed: usize) -> Result<(), Error> {
         let zeros = vec![0; self.blocksize];
-        for block in extent.clone().into_iter() {
+        for block in start..start + count {
             self.mem
                 .write(&zeros, (block as usize * self.blocksize) as u64)?;
         }

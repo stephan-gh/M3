@@ -1,10 +1,10 @@
-mod mem_backend;
 mod disk_backend;
+mod mem_backend;
 
-pub use mem_backend::MemBackend;
 pub use disk_backend::DiskBackend;
+pub use mem_backend::MemBackend;
 
-use crate::internal::LoadedExtent;
+use crate::internal::Extent;
 use crate::meta_buffer::MetaBufferBlock;
 use crate::{BlockNo, SuperBlock};
 
@@ -46,7 +46,7 @@ pub trait Backend {
 
     fn get_filedata(
         &self,
-        ext: &mut LoadedExtent,
+        ext: Extent,
         extoff: usize,
         perms: Perm,
         sel: Selector,
@@ -55,7 +55,7 @@ pub trait Backend {
         accessed: usize,
     ) -> Result<usize, Error>;
 
-    fn clear_extent(&self, extent: &LoadedExtent, accessed: usize) -> Result<(), Error>;
+    fn clear_blocks(&self, start: BlockNo, count: BlockNo, accessed: usize) -> Result<(), Error>;
 
     /// Loads a new superblock
     fn load_sb(&mut self) -> Result<SuperBlock, Error>;

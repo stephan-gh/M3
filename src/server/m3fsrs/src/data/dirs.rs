@@ -1,5 +1,5 @@
 use crate::data::{INodes, Links};
-use crate::internal::{FileMode, InodeNo, INodeRef};
+use crate::internal::{FileMode, INodeRef, InodeNo};
 use crate::util::DirEntryIterator;
 
 use m3::errors::{Code, Error};
@@ -94,10 +94,7 @@ impl Dirs {
             // create inode and put link into directory
             let new_inode = INodes::create(FileMode::FILE_DEF)?;
             if let Err(e) = Links::create(&inode, filename, &new_inode) {
-                crate::hdl()
-                    .files()
-                    .delete_file(new_inode.inode)
-                    .ok();
+                crate::hdl().files().delete_file(new_inode.inode).ok();
                 return Err(e);
             };
             return Ok(new_inode.inode);
