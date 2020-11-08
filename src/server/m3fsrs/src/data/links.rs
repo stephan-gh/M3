@@ -15,8 +15,8 @@ impl Links {
             name,
             inode.inode,
         );
-        let mut indir = vec![];
 
+        let mut indir = vec![];
         let mut created = false;
 
         'search_loop: for ext_idx in 0..dir.extents {
@@ -81,14 +81,15 @@ impl Links {
     }
 
     pub fn remove(dir: &INodeRef, name: &str, is_dir: bool) -> Result<(), Error> {
-        let mut indir = vec![];
-
         log!(
             crate::LOG_DEF,
             "links::remove(name={}, is_dir={})",
             name,
             is_dir
         );
+
+        let mut indir = vec![];
+
         for ext_idx in 0..dir.extents {
             let ext = INodes::get_extent(dir, ext_idx as usize, &mut indir, false)?;
             for bno in ext.blocks() {

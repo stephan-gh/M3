@@ -29,6 +29,7 @@ impl Dirs {
                 }
             }
         }
+
         Err(Error::new(Code::NoSuchFile))
     }
 
@@ -44,6 +45,7 @@ impl Dirs {
         while path.starts_with('/') {
             path = &path[1..];
         }
+
         // root inode?
         if path == "" {
             return Ok(0);
@@ -137,30 +139,31 @@ impl Dirs {
 
         let parinode = INodes::get(parent_ino)?;
         if let Ok(dirino) = INodes::create(FileMode::DIR_DEF | mode) {
-            // Create directory itself
+            // create directory itself
             if let Err(e) = Links::create(&parinode, dir, &dirino) {
                 crate::hdl().files().delete_file(dirino.inode).ok();
                 return Err(e);
             }
-            // Successfully created directory
-            // create "." and ".."
+
+            // create "." link
             if let Err(e) = Links::create(&dirino, ".", &dirino) {
                 Links::remove(&parinode, dir, true).unwrap();
                 crate::hdl().files().delete_file(dirino.inode).ok();
                 return Err(e);
             }
-            // created ., now ..
+
+            // create ".." link
             if let Err(e) = Links::create(&dirino, "..", &parinode) {
                 Links::remove(&dirino, ".", true).unwrap();
                 Links::remove(&parinode, dir, true).unwrap();
                 crate::hdl().files().delete_file(dirino.inode).ok();
                 return Err(e);
             }
-            // Everything created successful, therefore return
-            return Ok(());
+
+            Ok(())
         }
         else {
-            return Err(Error::new(Code::NoSpace));
+            Err(Error::new(Code::NoSpace))
         }
     }
 
@@ -192,13 +195,9 @@ impl Dirs {
         }
 
         // hardlinks to directories are not possible, thus we always have 2 ( . and ..)
-        assert!(
-            inode.links == 2,
-            "Dir links should be 2 before removing but where {}!",
-            { inode.links }
-        );
-        // ensure that the inode is removed
+        assert!(inode.links == 2, "expected 2 links, found {}", inode.links);
         inode.as_mut().links -= 1;
+
         // TODO if that fails, we have already reduced the link count!?
         Dirs::unlink(path, true)
     }

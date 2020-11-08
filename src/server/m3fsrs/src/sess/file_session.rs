@@ -198,9 +198,9 @@ impl FileSession {
             &mut ext_off,
         )?;
         offset = tmp_extent;
-        let sel = m3::pes::VPE::cur().alloc_sel();
 
         let mut extlen = 0;
+        let sel = m3::pes::VPE::cur().alloc_sel();
         let len = INodes::get_extent_mem(
             &inode,
             offset,
@@ -217,8 +217,10 @@ impl FileSession {
         data.out_args().push(&len);
 
         log!(crate::LOG_DEF, "file::get_mem -> {}", len);
+
         self.capscon.add(sel);
-        return Ok(());
+
+        Ok(())
     }
 
     pub fn set_ep(&mut self, ep: Selector) {
@@ -251,6 +253,7 @@ impl FileSession {
         }
 
         let inode = INodes::get(self.ino)?;
+
         // in/out implicitly commits the previous in/out request
         if out && self.appending {
             self.commit_append(&inode, self.lastbytes)?;
@@ -399,6 +402,7 @@ impl FileSession {
             inode.inode,
             submit
         );
+
         if !self.appending {
             return Ok(());
         }
@@ -411,6 +415,7 @@ impl FileSession {
             let blocksize = crate::hdl().superblock().block_size as usize;
             let blocks = (submit + blocksize - 1) / blocksize;
             let old_len = append_ext.length;
+
             // append extent to file
             append_ext.length = blocks as u32;
             let mut new_ext = false;
@@ -528,21 +533,22 @@ impl M3FSSession for FileSession {
             off,
             whence
         );
+
         if whence == SeekMode::CUR {
             return Err(Error::new(Code::InvArgs));
         }
 
         let inode = INodes::get(self.ino)?;
-
         let pos = INodes::seek(&inode, &mut off, whence, &mut self.extent, &mut self.extoff)?;
         self.fileoff = pos + off;
+
         reply_vmsg!(stream, 0, pos, off)
     }
 
     fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         log!(crate::LOG_DEF, "file::fstat(path={})", self.filename);
-        let inode = INodes::get(self.ino)?;
 
+        let inode = INodes::get(self.ino)?;
         let mut info = FileInfo::default();
         INodes::stat(&inode, &mut info);
 

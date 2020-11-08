@@ -173,7 +173,6 @@ impl Backend for DiskBackend {
         Ok(())
     }
 
-    /// Loads a new superblock
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
         let tmp = MemGate::new(512 + crate::buffer::PRDT_SIZE, Perm::RW)?;
         self.delegate_mem(&tmp, 0, 1)?;

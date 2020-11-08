@@ -74,8 +74,9 @@ impl INodes {
             whence != SeekMode::CUR,
             "INodes::seek().whence should not be M3FS_SEEK_CUR"
         );
-        let mut indir = vec![];
+
         let blocksize = crate::hdl().superblock().block_size;
+        let mut indir = vec![];
 
         // seeking to the end
         if whence == SeekMode::END {
@@ -84,8 +85,10 @@ impl INodes {
                 *off == 0,
                 "INodes::seek() offset of != 0 is currently not supported."
             );
+
             *extent = inode.extents as usize;
             *extoff = 0;
+
             // determine extent offset
             if *extent > 0 {
                 let ext = INodes::get_extent(inode, *extent - 1, &mut indir, false)?;
@@ -96,31 +99,38 @@ impl INodes {
                     *extoff -= (blocksize as u64 - unaligned) as usize;
                 }
             }
+
             if *extoff > 0 {
                 *extent -= 1;
             }
             *off = 0;
+
             return Ok(inode.size as usize);
         }
 
         if *off as u64 > inode.size {
             *off = inode.size as usize;
         }
-        let mut pos = 0;
+
         // Since we don't want to find just the end, go through the extents until we found
         // the extent that contains the `off`
+        let mut pos = 0;
         for i in 0..inode.extents {
             let ext = INodes::get_extent(inode, i as usize, &mut indir, false)?;
+
             if *off < (ext.length * blocksize) as usize {
                 *extent = i as usize;
                 *extoff = *off;
                 return Ok(pos);
             }
+
             pos += (ext.length * blocksize) as usize;
             *off -= (ext.length * blocksize) as usize;
         }
+
         *extent = inode.extents as usize;
         *extoff = *off;
+
         Ok(pos)
     }
 
@@ -168,6 +178,7 @@ impl INodes {
                 *extlen -= (blocksize - rem) as usize;
             }
         }
+
         Ok(bytes)
     }
 
@@ -236,8 +247,9 @@ impl INodes {
         );
 
         *newext = true;
-        // Try to load present
-        let mut ext = if inode.extents > 0 {
+
+        // try to load existing inode
+        let ext = if inode.extents > 0 {
             let ext = INodes::get_extent(inode, (inode.extents - 1) as usize, &mut indir, false)?;
             if ext.start + ext.length != next.start {
                 None
@@ -251,19 +263,23 @@ impl INodes {
             None
         };
 
-        // Load a new one
-        if ext.is_none() {
-            ext = Some(INodes::get_extent(
+        // if found, append to extent
+        if let Some(ref ext) = ext {
+            ext.as_mut().length += next.length;
+        }
+        // create new extent
+        else {
+            let ext = INodes::get_extent(
                 inode,
                 inode.extents as usize,
                 &mut indir,
                 true,
-            )?);
-            ext.as_ref().unwrap().as_mut().start = next.start;
+            )?;
             inode.as_mut().extents += 1;
+
+            *ext.as_mut() = next;
         }
 
-        ext.as_ref().unwrap().as_mut().length = ext.as_ref().unwrap().length + next.length;
         Ok(())
     }
 
@@ -515,6 +531,7 @@ impl INodes {
 
             INodes::mark_dirty(ino.inode);
         }
+
         Ok(ext)
     }
 

@@ -51,11 +51,13 @@ impl MetaSession {
         let sgate = SendGate::new(crate::REQHDL.recv_gate())?;
         let sgate_selector = sgate.sel();
         self.sgates.push(sgate);
+
         data.out_caps(m3::kif::CapRngDesc::new(
             m3::kif::CapType::OBJECT,
             sgate_selector,
             1,
         ));
+
         Ok(())
     }
 
@@ -94,11 +96,9 @@ impl MetaSession {
         let session = self.do_open(selector, crt, path, flags, file_session_id)?;
 
         let caps = session.borrow().caps();
-
-        // Unwrap should be okay since the do_open would otherwise return err.
         data.out_caps(caps);
 
-        return Ok(session);
+        Ok(session)
     }
 
     fn do_open(
@@ -144,8 +144,8 @@ impl MetaSession {
         if inode.mode.is_dir() {
             INodes::sync_metadata(&inode)?;
         }
-        let inode_no = inode.inode;
-        match self.alloc_file(srv, crt, path, flags, inode_no, file_session_id) {
+
+        match self.alloc_file(srv, crt, path, flags, inode.inode, file_session_id) {
             Ok(session) => {
                 log!(
                     crate::LOG_DEF,
@@ -266,6 +266,7 @@ impl M3FSSession for MetaSession {
 
     fn unlink(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         let path: &str = stream.pop()?;
+
         log!(crate::LOG_DEF, "fs::unlink(path={})", path);
 
         Dirs::unlink(path, false)?;

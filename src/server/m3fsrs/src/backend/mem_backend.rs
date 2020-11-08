@@ -110,7 +110,6 @@ impl Backend for MemBackend {
         Ok(())
     }
 
-    /// Loads a new superblock
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
         let block = self.mem.read_obj::<SuperBlock>(0)?;
         self.blocksize = block.block_size as usize;
