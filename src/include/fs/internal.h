@@ -112,14 +112,14 @@ struct FileInfo {
 // should be 64 bytes large
 struct alignas(8) INode {
     dev_t devno;
-    uint16_t links;
     uint8_t : 8;
-    inodeno_t inode;
-    mode_t mode;
-    uint64_t size;
+    uint16_t links;
     time_t lastaccess;
     time_t lastmod;
     uint32_t extents;
+    inodeno_t inode;
+    mode_t mode;
+    uint64_t size;
     Extent direct[INODE_DIR_COUNT];
     blockno_t indirect;
     blockno_t dindirect;
@@ -134,6 +134,7 @@ struct DirEntry {
 
 struct SuperBlock {
     blockno_t first_inodebm_block() const {
+        static_assert(sizeof(INode) == 64, "INode not 64-byte large");
         return 1;
     }
     blockno_t inodebm_blocks() const {

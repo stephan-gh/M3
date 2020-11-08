@@ -161,20 +161,19 @@ impl Default for FileInfo {
 
 /// In memory version of INodes as they appear on disk.
 // should be 64 bytes large
-#[repr(C, packed)]
+#[repr(C)]
 pub struct INode {
     pub devno: Dev,
+    _pad: u8,
     pub links: u16,
-
-    pub pad: u8, // Is this really a padding, was originally named "8"
-
-    pub inode: InodeNo,
-    pub mode: FileMode,
-    pub size: u64,
 
     pub lastaccess: Time,
     pub lastmod: Time,
     pub extents: u32,
+
+    pub inode: InodeNo,
+    pub mode: FileMode,
+    pub size: u64,
 
     pub direct: [Extent; INODE_DIR_COUNT], // direct entries
     pub indirect: BlockNo,                 // location of the indirect block if != 0,
@@ -183,10 +182,11 @@ pub struct INode {
 
 impl Clone for INode {
     fn clone(&self) -> Self {
+        const_assert!(size_of::<INode>() == 64);
         INode {
             devno: self.devno,
             links: self.links,
-            pad: self.pad,
+            _pad: 0,
 
             inode: self.inode,
             mode: self.mode,
@@ -207,7 +207,6 @@ impl INode {
     pub fn reset(&mut self) {
         self.devno = 0;
         self.links = 0;
-        self.pad = 0;
         self.inode = 0;
         self.mode = FileMode::empty();
         self.size = 0;
