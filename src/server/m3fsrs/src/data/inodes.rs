@@ -10,7 +10,7 @@ use m3::{
     col::Vec,
     com::Perm,
     errors::{Code, Error},
-    time,
+    math, time,
 };
 
 pub struct INodes;
@@ -561,7 +561,7 @@ impl INodes {
                 if extoff < curlen as usize {
                     let diff = curlen as usize - extoff;
                     let bdiff = if extoff == 0 {
-                        crate::util::round_up(diff, blocksize as usize)
+                        math::round_up(diff, blocksize as usize)
                     }
                     else {
                         diff

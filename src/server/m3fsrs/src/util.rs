@@ -76,11 +76,6 @@ impl<'a> Bitmap<'a> {
     }
 }
 
-// TODO abstract to a T maybe that implements all the ops needed.
-pub fn round_up(value: usize, align: usize) -> usize {
-    (value + align - 1) & !(align - 1)
-}
-
 /// Returns the range in which range the last directory of the path is.
 ///
 /// - get_base_dir("/foo/bar.baz") == ((0..4), (5..11))
