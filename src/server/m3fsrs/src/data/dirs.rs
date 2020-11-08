@@ -1,6 +1,5 @@
 use crate::data::{INodes, Links};
-use crate::internal::{FileMode, INodeRef, InodeNo};
-use crate::util::DirEntryIterator;
+use crate::internal::{DirEntryIterator, FileMode, INodeRef, InodeNo};
 
 use m3::errors::{Code, Error};
 
