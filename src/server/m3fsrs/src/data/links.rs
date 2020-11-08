@@ -1,26 +1,26 @@
 use crate::buffer::Buffer;
 use crate::data::INodes;
-use crate::internal::{DirEntry, LoadedInode};
+use crate::internal::{DirEntry, INodeRef};
 
 use m3::errors::{Code, Error};
 
 pub struct Links {}
 
 impl Links {
-    pub fn create(dir: LoadedInode, name: &str, inode: LoadedInode) -> Result<(), Error> {
+    pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error> {
         log!(
             crate::LOG_DEF,
             "Links::create(dir={}, name={}, inode={})",
-            { dir.inode().inode },
+            dir.inode,
             name,
-            { inode.inode().inode }
-        ); // {} needed because of packed inode struct
+            inode.inode,
+        );
         let mut indir = vec![];
 
         let mut created = false;
 
-        'search_loop: for ext_idx in 0..dir.inode().extents {
-            let ext = INodes::get_extent(dir.clone(), ext_idx as usize, &mut indir, false)?;
+        'search_loop: for ext_idx in 0..dir.extents {
+            let ext = INodes::get_extent(dir, ext_idx as usize, &mut indir, false)?;
 
             for bno in ext.into_iter() {
                 let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
@@ -43,7 +43,7 @@ impl Links {
                             DirEntry::from_buffer_mut(&mut block, off + entry_next as usize);
 
                         new_entry.set_name(name);
-                        new_entry.nodeno = inode.inode().inode;
+                        new_entry.nodeno = inode.inode;
                         new_entry.next = rem;
 
                         crate::hdl().metabuffer().mark_dirty(bno);
@@ -61,26 +61,26 @@ impl Links {
         if !created {
             // Create new
             let ext =
-                INodes::get_extent(dir.clone(), dir.inode().extents as usize, &mut indir, true)?;
+                INodes::get_extent(dir, dir.extents as usize, &mut indir, true)?;
 
             // Insert one block extent
             INodes::fill_extent(Some(dir), &ext, 1, 1)?;
 
             // put entry at the beginning of the block
-            let start = *ext.start();
+            let start = ext.start();
             let mut block = crate::hdl().metabuffer().get_block(start, true)?;
             let new_entry = DirEntry::from_buffer_mut(&mut block, 0);
             new_entry.set_name(name);
-            new_entry.nodeno = inode.inode().inode;
+            new_entry.nodeno = inode.inode;
             new_entry.next = crate::hdl().superblock().block_size;
         }
 
-        inode.inode_mut().links += 1;
-        INodes::mark_dirty(inode.inode().inode);
+        inode.as_mut().links += 1;
+        INodes::mark_dirty(inode.inode);
         Ok(())
     }
 
-    pub fn remove(dir: LoadedInode, name: &str, is_dir: bool) -> Result<(), Error> {
+    pub fn remove(dir: &INodeRef, name: &str, is_dir: bool) -> Result<(), Error> {
         let mut indir = vec![];
 
         log!(
@@ -89,8 +89,8 @@ impl Links {
             name,
             is_dir
         );
-        for ext_idx in 0..dir.inode().extents {
-            let ext = INodes::get_extent(dir.clone(), ext_idx as usize, &mut indir, false)?;
+        for ext_idx in 0..dir.extents {
+            let ext = INodes::get_extent(dir, ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
                 let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
 
@@ -104,7 +104,7 @@ impl Links {
                         // if we are not removing a dir, we are coming from unlink(). in this case, directories
                         // are not allowed
                         let inode = INodes::get(entry.nodeno)?;
-                        if !is_dir && inode.inode().mode.is_dir() {
+                        if !is_dir && inode.mode.is_dir() {
                             return Err(Error::new(Code::IsDir));
                         }
 
@@ -137,8 +137,8 @@ impl Links {
                         crate::hdl().metabuffer().mark_dirty(bno);
 
                         // reduce links and free if necessary
-                        if (inode.inode().links - 1) == 0 {
-                            let ino = inode.inode().inode;
+                        if (inode.links - 1) == 0 {
+                            let ino = inode.inode;
                             crate::hdl().files().delete_file(ino)?;
                         }
 

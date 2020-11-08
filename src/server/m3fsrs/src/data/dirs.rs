@@ -1,5 +1,5 @@
 use crate::data::{INodes, Links};
-use crate::internal::{FileMode, InodeNo, LoadedInode};
+use crate::internal::{FileMode, InodeNo, INodeRef};
 use crate::util::DirEntryIterator;
 
 use m3::errors::{Code, Error};
@@ -7,18 +7,18 @@ use m3::errors::{Code, Error};
 pub struct Dirs;
 
 impl Dirs {
-    fn find_entry(inode: LoadedInode, name: &str) -> Result<InodeNo, Error> {
+    fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
         let mut indir = vec![];
 
         log!(
             crate::LOG_DEF,
             "dirs::find_entry(entry={} inode={}",
             name,
-            { inode.inode().inode }
-        ); // {} needed because of packed inode struct
+            inode.inode
+        );
 
-        for ext_idx in 0..inode.inode().extents {
-            let ext = INodes::get_extent(inode.clone(), ext_idx as usize, &mut indir, false)?;
+        for ext_idx in 0..inode.extents {
+            let ext = INodes::get_extent(inode, ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
                 let mut block = crate::hdl().metabuffer().get_block(bno, false)?;
                 let entry_iter = DirEntryIterator::from_block(&mut block);
@@ -60,7 +60,7 @@ impl Dirs {
             // find directory entry
             let next_end = path.find('/').unwrap_or(path.len());
             let filename = &path[..next_end];
-            let next_ino = Dirs::find_entry(inode.clone(), filename);
+            let next_ino = Dirs::find_entry(&inode, filename);
 
             // walk to next path component start
             let mut end = &path[next_end..];
@@ -93,14 +93,14 @@ impl Dirs {
         if create {
             // create inode and put link into directory
             let new_inode = INodes::create(FileMode::FILE_DEF)?;
-            if let Err(e) = Links::create(inode.clone(), filename, new_inode.clone()) {
+            if let Err(e) = Links::create(&inode, filename, &new_inode) {
                 crate::hdl()
                     .files()
-                    .delete_file(new_inode.inode().inode)
+                    .delete_file(new_inode.inode)
                     .ok();
                 return Err(e);
             };
-            return Ok(new_inode.inode().inode);
+            return Ok(new_inode.inode);
         }
 
         Err(Error::new(Code::NoSuchFile))
@@ -142,22 +142,22 @@ impl Dirs {
         let parinode = INodes::get(parent_ino)?;
         if let Ok(dirino) = INodes::create(FileMode::DIR_DEF | mode) {
             // Create directory itself
-            if let Err(e) = Links::create(parinode.clone(), dir, dirino.clone()) {
-                crate::hdl().files().delete_file(dirino.inode().inode).ok();
+            if let Err(e) = Links::create(&parinode, dir, &dirino) {
+                crate::hdl().files().delete_file(dirino.inode).ok();
                 return Err(e);
             }
             // Successfully created directory
             // create "." and ".."
-            if let Err(e) = Links::create(dirino.clone(), ".", dirino.clone()) {
-                Links::remove(parinode.clone(), dir, true).unwrap();
-                crate::hdl().files().delete_file(dirino.inode().inode).ok();
+            if let Err(e) = Links::create(&dirino, ".", &dirino) {
+                Links::remove(&parinode, dir, true).unwrap();
+                crate::hdl().files().delete_file(dirino.inode).ok();
                 return Err(e);
             }
             // created ., now ..
-            if let Err(e) = Links::create(dirino.clone(), "..", parinode.clone()) {
-                Links::remove(dirino.clone(), ".", true).unwrap();
-                Links::remove(parinode.clone(), dir, true).unwrap();
-                crate::hdl().files().delete_file(dirino.inode().inode).ok();
+            if let Err(e) = Links::create(&dirino, "..", &parinode) {
+                Links::remove(&dirino, ".", true).unwrap();
+                Links::remove(&parinode, dir, true).unwrap();
+                crate::hdl().files().delete_file(dirino.inode).ok();
                 return Err(e);
             }
             // Everything created successful, therefore return
@@ -175,15 +175,15 @@ impl Dirs {
 
         // it has to be a directory
         let inode = INodes::get(ino)?;
-        if !inode.inode().mode.is_dir() {
+        if !inode.mode.is_dir() {
             return Err(Error::new(Code::IsNoDir));
         }
 
         // check whether it's empty
         let mut indir = vec![];
 
-        for ext_idx in 0..inode.inode().extents {
-            let ext = INodes::get_extent(inode.clone(), ext_idx as usize, &mut indir, false)?;
+        for ext_idx in 0..inode.extents {
+            let ext = INodes::get_extent(&inode, ext_idx as usize, &mut indir, false)?;
             for bno in ext.into_iter() {
                 let mut block = crate::hdl().metabuffer().get_block(bno, false)?;
                 let entry_iter = DirEntryIterator::from_block(&mut block);
@@ -197,12 +197,12 @@ impl Dirs {
 
         // hardlinks to directories are not possible, thus we always have 2 ( . and ..)
         assert!(
-            inode.inode().links == 2,
+            inode.links == 2,
             "Dir links should be 2 before removing but where {}!",
-            { inode.inode().links }
+            { inode.links }
         );
         // ensure that the inode is removed
-        inode.inode_mut().links -= 1;
+        inode.as_mut().links -= 1;
         // TODO if that fails, we have already reduced the link count!?
         Dirs::unlink(path, true)
     }
@@ -219,7 +219,7 @@ impl Dirs {
 
         // it can't be a directory
         let old_inode = INodes::get(oldino)?;
-        if old_inode.inode().mode.is_dir() {
+        if old_inode.mode.is_dir() {
             return Err(Error::new(Code::IsDir));
         }
 
@@ -231,7 +231,7 @@ impl Dirs {
 
         let baseino = Dirs::search(base, false)?;
         let base_ino = INodes::get(baseino)?;
-        Links::create(base_ino.clone(), dir, old_inode.clone())
+        Links::create(&base_ino, dir, &old_inode)
     }
 
     pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
@@ -250,10 +250,10 @@ impl Dirs {
         let parino = Dirs::search(base, false)?;
         let parinode = INodes::get(parino)?;
 
-        let res = Links::remove(parinode.clone(), dir, is_dir);
+        let res = Links::remove(&parinode, dir, is_dir);
         if is_dir && res.is_ok() {
             // decrement link count for parent inode by one
-            parinode.inode_mut().links -= 1;
+            parinode.as_mut().links -= 1;
         }
 
         res

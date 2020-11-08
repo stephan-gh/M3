@@ -88,8 +88,8 @@ impl Backend for MemBackend {
         _accessed: usize,
     ) -> Result<usize, Error> {
         let first_block = extoff / self.blocksize;
-        let bytes: usize = (*ext.length() as usize - first_block) * self.blocksize as usize;
-        let size = ((*ext.start() as usize + first_block) * self.blocksize) as u64;
+        let bytes: usize = (ext.length() as usize - first_block) * self.blocksize as usize;
+        let size = ((ext.start() as usize + first_block) * self.blocksize) as u64;
         derive_mem(
             m3::pes::VPE::cur().sel(),
             sel,

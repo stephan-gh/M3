@@ -183,7 +183,7 @@ impl M3FSRequestHandler {
             if let Some(ext) = fsess.borrow().append_ext.clone() {
                 hdl()
                     .blocks()
-                    .free(*ext.start() as usize, *ext.length() as usize)?;
+                    .free(ext.start() as usize, ext.length() as usize)?;
             }
             // Delete append extent if there was any
             fsess.borrow_mut().append_ext = None;

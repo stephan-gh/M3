@@ -119,7 +119,7 @@ impl MetaSession {
 
         let ino = Dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
         let inode = INodes::get(ino)?;
-        let inode_mode = inode.inode().mode;
+        let inode_mode = inode.mode;
 
         if (flags.contains(OpenFlags::W) && !inode_mode.contains(FileMode::IWUSR))
             || (flags.contains(OpenFlags::R) && !inode_mode.contains(FileMode::IRUSR))
@@ -128,31 +128,31 @@ impl MetaSession {
                 crate::LOG_DEF,
                 "open failed: NoPerm: opener had no permission to read or write. Flags={:b}, mode={:b}",
                 flags,
-                { inode.inode().mode } // {} needed because of packed inode struct
+                inode.mode,
             );
             return Err(Error::new(Code::NoPerm));
         }
 
         // only determine the current size, if we're writing and the file isn't empty
         if flags.contains(OpenFlags::TRUNC) {
-            INodes::truncate(inode.clone(), 0, 0)?;
+            INodes::truncate(&inode, 0, 0)?;
             // TODO carried over from c++
             // TODO revoke access, if necessary
         }
 
         // for directories: ensure that we don't have a changed version in the cache
-        if inode.inode().mode.is_dir() {
-            INodes::sync_metadata(inode.clone())?;
+        if inode.mode.is_dir() {
+            INodes::sync_metadata(&inode)?;
         }
-        let inode_no = inode.inode().inode;
+        let inode_no = inode.inode;
         match self.alloc_file(srv, crt, path, flags, inode_no, file_session_id) {
             Ok(session) => {
                 log!(
                     crate::LOG_DEF,
                     "-> inode={}, id={}",
-                    { inode.inode().inode },
-                    file_session_id
-                ); // {} needed because of packed inode struct
+                    inode.inode,
+                    file_session_id,
+                );
                 Ok(session)
             },
             Err(e) => Err(e),
@@ -223,7 +223,7 @@ impl M3FSSession for MetaSession {
         let inode = INodes::get(ino)?;
 
         let mut info = FileInfo::default();
-        INodes::stat(inode.clone(), &mut info);
+        INodes::stat(&inode, &mut info);
         reply_vmsg!(stream, 0, info)
     }
 

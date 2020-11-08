@@ -140,8 +140,8 @@ impl Backend for DiskBackend {
         let first_block = extoff / self.blocksize;
         crate::hdl().filebuffer().get_extent(
             self,
-            *ext.start() + first_block as u32,
-            *ext.length() as usize - first_block,
+            ext.start() + first_block as u32,
+            ext.length() as usize - first_block,
             sel,
             perms,
             accessed,
@@ -155,11 +155,11 @@ impl Backend for DiskBackend {
             [0; crate::internal::MAX_BLOCK_SIZE as usize];
         let sel = m3::pes::VPE::cur().alloc_sel();
         let mut i = 0;
-        while i < *extent.length() {
+        while i < extent.length() {
             let bytes = crate::hdl().filebuffer().get_extent(
                 self,
-                *extent.start() + i,
-                (*extent.length() - i) as usize,
+                extent.start() + i,
+                (extent.length() - i) as usize,
                 sel,
                 Perm::RW,
                 accessed,

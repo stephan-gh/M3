@@ -8,7 +8,7 @@ use core::intrinsics;
 use core::slice;
 use core::u32;
 
-use m3::cell::{Ref, RefCell, RefMut};
+use m3::cell::RefCell;
 use m3::kif::Perm;
 use m3::libc;
 use m3::rc::Rc;
@@ -22,6 +22,7 @@ pub type Time = u32;
 
 pub const INODE_DIR_COUNT: usize = 3;
 pub const MAX_BLOCK_SIZE: u32 = 4096;
+pub const NUM_INODE_BYTES: usize = 64;
 
 int_enum! {
     pub struct SeekMode : u32 {
@@ -182,7 +183,7 @@ pub struct INode {
 
 impl Clone for INode {
     fn clone(&self) -> Self {
-        const_assert!(size_of::<INode>() == 64);
+        const_assert!(size_of::<INode>() == NUM_INODE_BYTES);
         INode {
             devno: self.devno,
             links: self.links,
@@ -225,7 +226,7 @@ impl INode {
     pub fn to_file_info(&self, info: &mut FileInfo) {
         info.devno = self.devno;
         info.inode = self.inode;
-        info.mode = { self.mode }.bits();
+        info.mode = self.mode.bits();
         info.links = self.links as usize;
         info.size = self.size as usize;
         info.lastaccess = self.lastaccess;
@@ -236,69 +237,63 @@ impl INode {
     }
 }
 
-/// Represents a inode within a MetaBuffer block. Can be manipulated via the getter and setter functions, which writes out the
-/// changes immediately. Internally a pointer to the source block is saved as well as the location of this inode within the block.
-///
-/// The wrapper around the original `Inode` is needed to safely hold several pointer to the same block for several INodes at once.
-pub struct LoadedInode {
-    /// Reference to the location of the Inodes data
-    pub(crate) block_ref: MetaBufferBlockRef,
-    // Offset into the block where the inode is located.
-    pub(crate) inode_location: usize,
-    pub(crate) inode: RefCell<&'static mut INode>,
+/// A reference to an inode within a loaded MetaBuffer block.
+pub struct INodeRef {
+    block_ref: MetaBufferBlockRef,
+    // this pointer is valid during our lifetime, because we keep a MetaBufferBlockRef
+    inode: *mut INode,
 }
 
-pub const NUM_INODE_BYTES: usize = 64; // While the struct has another alignment, the data in the memory is read and writte as 64 bytes.
-
-impl Clone for LoadedInode {
-    fn clone(&self) -> Self {
-        // Creates a copied pointer but this should be okay according to safety comment in `from_buffer_location`
-        LoadedInode::from_buffer_location(self.block_ref.clone(), self.inode_location)
-    }
-}
-
-impl LoadedInode {
-    pub fn from_buffer_location(block_ref: MetaBufferBlockRef, location: usize) -> Self {
+impl INodeRef {
+    pub fn from_buffer(block_ref: MetaBufferBlockRef, off: usize) -> Self {
         let block = crate::hdl().metabuffer().get_block_by_ref(&block_ref);
-        // Use transmute to create an Inode from the buffer and load it into the variable.
-        // the "LoadedInode" wrapper keeps track that the buffer is at least as long alive as the inode itself
-        let inode: &'static mut INode = unsafe {
-            debug_assert!(size_of::<INode>() == 64, "Inode is not 64 bytes long!");
-            debug_assert!(
-                (location % size_of::<INode>()) == 0,
-                "Inode location {} is not multiple of Inode size",
-                location
-            );
-            debug_assert!(
-                (location + size_of::<INode>()) < block.data().len(),
-                "Inode at location {} does not fit in block of size {}",
-                location,
-                block.data().len()
-            );
 
-            // Since all conditions for the cast should be checked at this point, transmute the pointer into the buffer.
-            // Safety: Borrowing the same Inode several time is potentially unsafe, when sharing the pointers. However, currently
-            // m3fsrs is single threaded, so it should behave like a copied pointer in C/C++ i guess.
-            let inode_offset = location / size_of::<INode>();
-            let mem = block.data_mut().as_mut_ptr();
-            let mut cast_ptr = mem.cast::<INode>();
-            cast_ptr = cast_ptr.add(inode_offset);
-            &mut *cast_ptr
+        // ensure that the offset is valid
+        debug_assert!(
+            (off % size_of::<INode>()) == 0,
+            "INode offset {} is not multiple of INode size",
+            off
+        );
+        debug_assert!(
+            (off + size_of::<INode>()) <= block.data().len(),
+            "INode at offset {} not within block",
+            off,
+        );
+
+        // cast to inode at that offset within the block
+        // safety: if the checks above succeeded, this cast is valid
+        let inode = unsafe {
+            let inode_ptr = block.data_mut().as_mut_ptr().cast::<INode>();
+            inode_ptr.add(off / size_of::<INode>())
         };
 
-        LoadedInode {
+        Self {
             block_ref,
-            inode_location: location,
-            inode: RefCell::new(inode),
+            inode,
         }
     }
 
-    pub fn inode(&self) -> Ref<&'static mut INode> {
-        self.inode.borrow()
+    pub fn as_mut(&self) -> &mut INode {
+        // safety: valid because we keep a MetaBufferBlockRef
+        unsafe { &mut *self.inode }
     }
+}
 
-    pub fn inode_mut(&self) -> RefMut<&'static mut INode> {
-        self.inode.borrow_mut()
+impl core::ops::Deref for INodeRef {
+    type Target = INode;
+
+    fn deref(&self) -> &Self::Target {
+        // safety: valid because we keep a MetaBufferBlockRef
+        unsafe { &*self.inode }
+    }
+}
+
+impl Clone for INodeRef {
+    fn clone(&self) -> Self {
+        Self {
+            block_ref: self.block_ref.clone(),
+            inode: self.inode,
+        }
     }
 }
 
@@ -400,7 +395,7 @@ pub enum LoadedExtent {
         extent: RefCell<&'static mut Extent>,
     },
     Direct {
-        inode_ref: LoadedInode,
+        inode_ref: INodeRef,
         index: usize,
     },
     // An extent that has no Inode, currently only used in file_session::get_next_in_out.
@@ -457,61 +452,51 @@ impl LoadedExtent {
         }
     }
 
-    pub fn length(&self) -> Ref<u32> {
+    pub fn length(&self) -> u32 {
         match self {
             LoadedExtent::Indirect {
                 block_ref: _,
                 ext_location: _,
                 extent,
-            } => Ref::map(extent.borrow(), |ex| &ex.length),
-            LoadedExtent::Direct { inode_ref, index } => {
-                Ref::map(inode_ref.inode(), |i| &i.direct[*index].length)
-            },
-            LoadedExtent::Unstored { extent } => Ref::map(extent.borrow(), |e| &e.length),
+            } => extent.borrow().length,
+            LoadedExtent::Direct { inode_ref, index } => inode_ref.direct[*index].length,
+            LoadedExtent::Unstored { extent } => extent.borrow().length,
         }
     }
 
-    pub fn length_mut(&self) -> RefMut<u32> {
+    pub fn set_length(&self, len: u32) {
         match self {
             LoadedExtent::Indirect {
                 block_ref: _,
                 ext_location: _,
                 extent,
-            } => RefMut::map(extent.borrow_mut(), |ex| &mut ex.length),
-            LoadedExtent::Direct { inode_ref, index } => {
-                RefMut::map(inode_ref.inode_mut(), |i| &mut i.direct[*index].length)
-            },
-            LoadedExtent::Unstored { extent } => {
-                RefMut::map(extent.borrow_mut(), |e| &mut e.length)
-            },
+            } => extent.borrow_mut().length = len,
+            LoadedExtent::Direct { inode_ref, index } => inode_ref.as_mut().direct[*index].length = len,
+            LoadedExtent::Unstored { extent } => extent.borrow_mut().length = len,
         }
     }
 
-    pub fn start(&self) -> Ref<u32> {
+    pub fn start(&self) -> u32 {
         match self {
             LoadedExtent::Indirect {
                 block_ref: _,
                 ext_location: _,
                 extent,
-            } => Ref::map(extent.borrow(), |ex| &ex.start),
-            LoadedExtent::Direct { inode_ref, index } => {
-                Ref::map(inode_ref.inode(), |i| &i.direct[*index].start)
-            },
-            LoadedExtent::Unstored { extent } => Ref::map(extent.borrow(), |e| &e.start),
+            } => extent.borrow().start,
+            LoadedExtent::Direct { inode_ref, index } => inode_ref.direct[*index].start,
+            LoadedExtent::Unstored { extent } => extent.borrow().start,
         }
     }
 
-    pub fn start_mut(&self) -> RefMut<u32> {
+    pub fn set_start(&self, start: u32) {
         match self {
             LoadedExtent::Indirect {
                 block_ref: _,
                 ext_location: _,
                 extent,
-            } => RefMut::map(extent.borrow_mut(), |ex| &mut ex.start),
-            LoadedExtent::Direct { inode_ref, index } => {
-                RefMut::map(inode_ref.inode_mut(), |i| &mut i.direct[*index].start)
-            },
-            LoadedExtent::Unstored { extent } => RefMut::map(extent.borrow_mut(), |e| &mut e.start),
+            } => extent.borrow_mut().start = start,
+            LoadedExtent::Direct { inode_ref, index } => inode_ref.as_mut().direct[*index].start = start,
+            LoadedExtent::Unstored { extent } => extent.borrow_mut().start = start,
         }
     }
 }
@@ -522,9 +507,9 @@ impl IntoIterator for LoadedExtent {
 
     fn into_iter(self) -> Self::IntoIter {
         ExtentBlocksIterator {
-            start: *self.start(),
+            start: self.start(),
             j: 0,
-            length: *self.length(),
+            length: self.length(),
         }
     }
 }

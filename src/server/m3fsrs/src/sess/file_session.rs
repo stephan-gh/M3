@@ -1,5 +1,5 @@
 use crate::data::INodes;
-use crate::internal::{InodeNo, LoadedExtent, LoadedInode, OpenFlags, SeekMode};
+use crate::internal::{InodeNo, LoadedExtent, INodeRef, OpenFlags, SeekMode};
 use crate::sess::M3FSSession;
 use crate::{Extent, FileInfo};
 
@@ -191,7 +191,7 @@ impl FileSession {
         let mut ext_off = 0;
         let mut tmp_extent = 0;
         INodes::seek(
-            inode.clone(),
+            &inode,
             &mut first_off,
             SeekMode::SET,
             &mut tmp_extent,
@@ -202,7 +202,7 @@ impl FileSession {
 
         let mut extlen = 0;
         let len = INodes::get_extent_mem(
-            inode.clone(),
+            &inode,
             offset,
             ext_off,
             &mut extlen,
@@ -253,7 +253,7 @@ impl FileSession {
         let inode = INodes::get(self.ino)?;
         // in/out implicitly commits the previous in/out request
         if out && self.appending {
-            self.commit_append(inode.clone(), self.lastbytes)?;
+            self.commit_append(&inode, self.lastbytes)?;
         }
 
         if self.accessed < 31 {
@@ -264,7 +264,7 @@ impl FileSession {
         let mut extlen = 0;
 
         // Do we need to append to the file?
-        let len = if out && (self.fileoff as u64 == inode.inode().size) {
+        let len = if out && (self.fileoff as u64 == inode.size) {
             let files = crate::hdl().files();
             let open_file = files.get_file_mut(self.ino).unwrap();
 
@@ -278,12 +278,12 @@ impl FileSession {
 
             // Continue in last extent if there is space
             if (self.extent > 0)
-                && (self.fileoff as u64 == inode.inode().size)
+                && (self.fileoff as u64 == inode.size)
                 && ((self.fileoff % crate::hdl().superblock().block_size as usize) != 0)
             {
                 let mut off = 0;
                 self.fileoff = INodes::seek(
-                    inode.clone(),
+                    &inode,
                     &mut off,
                     SeekMode::END,
                     &mut self.extent,
@@ -299,7 +299,7 @@ impl FileSession {
             };
 
             let len = INodes::req_append(
-                inode.clone(),
+                &inode,
                 self.extent,
                 self.extoff,
                 &mut extlen,
@@ -310,7 +310,7 @@ impl FileSession {
             )?;
 
             self.appending = true;
-            self.append_ext = if *e.length() > 0 { Some(e) } else { None };
+            self.append_ext = if e.length() > 0 { Some(e) } else { None };
 
             open_file.set_appending(true);
             len
@@ -318,7 +318,7 @@ impl FileSession {
         else {
             // get next mem_cap
             let len = INodes::get_extent_mem(
-                inode.clone(),
+                &inode,
                 self.extent,
                 self.extoff,
                 &mut extlen,
@@ -399,12 +399,12 @@ impl FileSession {
         }
     }
 
-    fn commit_append(&mut self, inode: LoadedInode, submit: usize) -> Result<(), Error> {
+    fn commit_append(&mut self, inode: &INodeRef, submit: usize) -> Result<(), Error> {
         assert!(submit > 0, "commit_append() submit must be > 0");
         log!(
             crate::LOG_DEF,
             "file::commit_append(inode={}, submit={})",
-            { inode.inode().inode },
+            inode.inode,
             submit
         );
         if !self.appending {
@@ -418,16 +418,16 @@ impl FileSession {
         if let Some(ref append_ext) = self.append_ext {
             let blocksize = crate::hdl().superblock().block_size as usize;
             let blocks = (submit + blocksize - 1) / blocksize;
-            let old_len = *append_ext.length();
+            let old_len = append_ext.length();
             // append extent to file
-            *append_ext.length_mut() = blocks as u32;
+            append_ext.set_length(blocks as u32);
             let mut new_ext = false;
-            INodes::append_extent(inode.clone(), &append_ext, &mut new_ext)?;
+            INodes::append_extent(inode, &append_ext, &mut new_ext)?;
 
             // free superfluous blocks
             if old_len as usize > blocks {
                 crate::hdl().blocks().free(
-                    *append_ext.start() as usize + blocks,
+                    append_ext.start() as usize + blocks,
                     old_len as usize - blocks,
                 )?;
             }
@@ -449,8 +449,8 @@ impl FileSession {
         }
 
         // change size
-        inode.inode_mut().size += submit as u64;
-        INodes::mark_dirty(inode.inode().inode);
+        inode.as_mut().size += submit as u64;
+        INodes::mark_dirty(inode.inode);
 
         // stop appending
         let files = crate::hdl().files();
@@ -504,7 +504,7 @@ impl M3FSSession for FileSession {
         let inode = INodes::get(self.ino)?;
 
         let res = if self.appending {
-            self.commit_append(inode.clone(), nbytes)
+            self.commit_append(&inode, nbytes)
         }
         else {
             if (self.extent > self.lastext) && ((self.lastoff + nbytes) > self.extlen) {
@@ -544,7 +544,7 @@ impl M3FSSession for FileSession {
         let inode = INodes::get(self.ino)?;
 
         let pos = INodes::seek(
-            inode.clone(),
+            &inode,
             &mut off,
             whence,
             &mut self.extent,
@@ -559,7 +559,7 @@ impl M3FSSession for FileSession {
         let inode = INodes::get(self.ino)?;
 
         let mut info = FileInfo::default();
-        INodes::stat(inode.clone(), &mut info);
+        INodes::stat(&inode, &mut info);
 
         reply_vmsg!(stream, 0, info)
     }
