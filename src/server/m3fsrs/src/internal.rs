@@ -22,6 +22,7 @@ pub const INODE_DIR_COUNT: usize = 3;
 pub const MAX_BLOCK_SIZE: u32 = 4096;
 pub const NUM_INODE_BYTES: usize = 64;
 pub const NUM_EXT_BYTES: usize = 8;
+const DIR_ENTRY_LEN: usize = 12;
 
 int_enum! {
     pub struct SeekMode : u32 {
@@ -301,8 +302,6 @@ pub struct DirEntry {
     pub next: u32,
     name: [i8],
 }
-
-const DIR_ENTRY_LEN: usize = 12;
 
 macro_rules! get_entry_mut {
     ($buffer_off:expr) => {{
