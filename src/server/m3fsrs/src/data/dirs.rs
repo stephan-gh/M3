@@ -19,7 +19,7 @@ impl Dirs {
 
         for ext_idx in 0..inode.extents {
             let ext = INodes::get_extent(inode, ext_idx as usize, &mut indir, false)?;
-            for bno in ext.into_iter() {
+            for bno in ext.blocks() {
                 let mut block = crate::hdl().metabuffer().get_block(bno, false)?;
                 let entry_iter = DirEntryIterator::from_block(&mut block);
                 while let Some(entry) = entry_iter.next() {
@@ -181,7 +181,7 @@ impl Dirs {
 
         for ext_idx in 0..inode.extents {
             let ext = INodes::get_extent(&inode, ext_idx as usize, &mut indir, false)?;
-            for bno in ext.into_iter() {
+            for bno in ext.blocks() {
                 let mut block = crate::hdl().metabuffer().get_block(bno, false)?;
                 let entry_iter = DirEntryIterator::from_block(&mut block);
                 while let Some(entry) = entry_iter.next() {

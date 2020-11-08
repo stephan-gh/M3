@@ -22,7 +22,7 @@ impl Links {
         'search_loop: for ext_idx in 0..dir.extents {
             let ext = INodes::get_extent(dir, ext_idx as usize, &mut indir, false)?;
 
-            for bno in ext.into_iter() {
+            for bno in ext.blocks() {
                 let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
 
                 let mut off = 0;
@@ -91,7 +91,7 @@ impl Links {
         );
         for ext_idx in 0..dir.extents {
             let ext = INodes::get_extent(dir, ext_idx as usize, &mut indir, false)?;
-            for bno in ext.into_iter() {
+            for bno in ext.blocks() {
                 let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
 
                 let mut prev_off = 0;

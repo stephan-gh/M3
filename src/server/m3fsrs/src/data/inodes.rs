@@ -600,7 +600,7 @@ impl INodes {
             let mut indir = vec![];
             let extent = INodes::get_extent(inode, ext_idx as usize, &mut indir, false)?;
 
-            for block in extent.into_iter() {
+            for block in extent.blocks() {
                 if crate::hdl().metabuffer().dirty(block) {
                     crate::hdl().backend().sync_meta(block)?;
                 }

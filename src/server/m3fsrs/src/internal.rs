@@ -383,6 +383,13 @@ impl Extent {
     pub fn new(start: u32, length: u32) -> Self {
         Self { start, length }
     }
+
+    pub fn blocks(&self) -> core::ops::Range<u32> {
+        core::ops::Range {
+            start: self.start,
+            end: self.start + self.length,
+        }
+    }
 }
 
 /// A reference to an direct or indirect extent
@@ -446,37 +453,6 @@ impl core::ops::Deref for ExtentRef {
     fn deref(&self) -> &Self::Target {
         // safety: valid because we keep a MetaBufferBlockRef
         unsafe { &*self.extent }
-    }
-}
-
-impl IntoIterator for ExtentRef {
-    type IntoIter = ExtentBlocksIterator;
-    type Item = BlockNo;
-
-    fn into_iter(self) -> Self::IntoIter {
-        ExtentBlocksIterator {
-            cur: self.start,
-            last: self.start + self.length,
-        }
-    }
-}
-
-pub struct ExtentBlocksIterator {
-    cur: BlockNo,
-    last: BlockNo,
-}
-
-impl core::iter::Iterator for ExtentBlocksIterator {
-    type Item = BlockNo;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.cur < self.last {
-            self.cur += 1;
-            Some(self.cur - 1)
-        }
-        else {
-            None
-        }
     }
 }
 
