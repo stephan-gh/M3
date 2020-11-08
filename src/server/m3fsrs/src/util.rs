@@ -81,45 +81,6 @@ pub fn round_up(value: usize, align: usize) -> usize {
     (value + align - 1) & !(align - 1)
 }
 
-/// takes some path, returns the next component as well as the rest path. Returns none if there is no other pattern
-pub fn next_start_end<'a>(st: &'a str, last_end: usize) -> Option<(usize, usize)> {
-    let mut new_start = last_end;
-    // Move over all / until we found a real start
-    loop {
-        if let Some(ch) = st.get(new_start..new_start + 1) {
-            if ch == "/" {
-                new_start += 1;
-            }
-            else {
-                break;
-            }
-        }
-        else {
-            // Indexed outside of string
-            return None;
-        }
-    }
-
-    let mut new_end = new_start;
-
-    loop {
-        if let Some(ch) = st.get(new_end..new_end + 1) {
-            if ch == "/" {
-                break;
-            }
-            else {
-                new_end += 1;
-            }
-        }
-        else {
-            // Sampled outside, but might be just the last component, therefore move sample back one
-            break;
-        }
-    }
-
-    Some((new_start, new_end))
-}
-
 /// Returns the range in which range the last directory of the path is.
 ///
 /// - get_base_dir("/foo/bar.baz") == ((0..4), (5..11))

@@ -40,82 +40,60 @@ impl Dirs {
             path,
             create
         );
-        // Remove all leading /
-        while path.starts_with('/') {
-            path = &path[1..path.len()];
-        }
 
-        // Check if this is now the root node, if thats the case we can always return the root inode (0)
+        // remove all leading /
+        while path.starts_with('/') {
+            path = &path[1..];
+        }
+        // root inode?
         if path == "" {
             return Ok(0);
         }
 
-        // Start at root inode with search
+        // start at root inode with search
         let mut ino = 0;
 
-        let mut inode: Option<LoadedInode> = None;
+        let (filename, inode) = loop {
+            // get directory inode
+            let inode = INodes::get(ino)?;
 
-        let mut counter_end = 0;
-        let mut last_start = 0;
-        let mut last_end = 0;
-        while let Some((start, end)) = crate::util::next_start_end(path, counter_end) {
-            inode = Some(INodes::get(ino)?);
+            // find directory entry
+            let next_end = path.find('/').unwrap_or(path.len());
+            let filename = &path[..next_end];
+            let next_ino = Dirs::find_entry(inode.clone(), filename);
 
-            if ino != inode.as_ref().unwrap().inode().inode {
-                log!(
-                    crate::LOG_DEF,
-                    "Inode numbers of wanted and loaded inode do not match!"
-                );
+            // walk to next path component start
+            let mut end = &path[next_end..];
+            while end.starts_with('/') {
+                end = &end[1..];
             }
 
-            if let Ok(nodeno) = Dirs::find_entry(inode.clone().unwrap(), &path[start..end]) {
-                // If path is now empty, finish searching,
-                // Test for 1, since there might be  a rest /
-                if (path.len() - end) <= 1 {
+            if let Ok(nodeno) = next_ino {
+                // if path is now empty, finish searching
+                if end == "" {
                     return Ok(nodeno);
                 }
-                // Save the inode anyways if we want to create a inode here.
+                // continue with this directory
                 ino = nodeno;
             }
             else {
-                // No such entry, therefore break
-                break;
+                // cannot create new file if it's not the last path component
+                if end != "" {
+                    return Err(Error::new(Code::NoSuchFile));
+                }
+
+                // not found, maybe we want to create it
+                break (filename, inode);
             }
 
-            counter_end = end + 1;
-            // Carry them so we can create a new dir if create==true;
-            last_start = start;
-            last_end = end;
-        }
+            // to next path component
+            path = end;
+        };
 
-        // Did not find correct one, check if we can create one
         if create {
-            let (inode_name_start, inode_name_end) =
-                if let Some((start, end)) = crate::util::next_start_end(path, counter_end) {
-                    (start, end)
-                }
-                else {
-                    log!(
-                        crate::LOG_DEF,
-                        concat!(
-                            "While creating new inode, the rest path component was not long enough",
-                            " for another component:\n",
-                            " wanted to create for {}\n",
-                            " whole rest was {}",
-                        ),
-                        &path[last_start..last_end],
-                        &path[last_start..path.len()]
-                    );
-                    return Err(Error::new(Code::NoSuchFile));
-                };
-
-            // Create inode and put link into directory
+            // create inode and put link into directory
             let new_inode = INodes::create(FileMode::FILE_DEF)?;
-            if let Err(e) = Links::create(
-                inode.unwrap().clone(),
-                &path[inode_name_start..inode_name_end],
-                new_inode.clone(),
-            ) {
+            if let Err(e) = Links::create(inode.clone(), filename, new_inode.clone()) {
                 crate::hdl()
                     .files()
                     .delete_file(new_inode.inode().inode)
