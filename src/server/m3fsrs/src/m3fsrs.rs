@@ -22,7 +22,7 @@ use crate::sess::{FSSession, FileSession, M3FSSession, MetaSession};
 use m3::{
     cap::Selector,
     cell::{LazyStaticCell, RefCell, StaticCell},
-    col::{ToString, Vec},
+    col::Vec,
     com::GateIStream,
     env,
     errors::{Code, Error},
@@ -362,7 +362,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FsSettings<'a> {
     name: &'a str,
     extend: usize,
@@ -372,37 +372,6 @@ pub struct FsSettings<'a> {
     selector: Option<Selector>,
     ep: EpId,
     fs_offset: goff,
-}
-
-impl<'a> FsSettings<'a> {
-    fn log(&self) {
-        log!(
-            crate::LOG_DEF,
-            "M3FSRS Settings: \n
-    name: {}\n
-    extend: {}\n
-    max_load: {}\n
-    clear: {}\n
-    revoke_first: {}\n
-    selector: {}\n
-    ep: {}\n
-    fs_offset: {}
-",
-            self.name,
-            self.extend,
-            self.max_load,
-            self.clear,
-            self.revoke_first,
-            if let Some(s) = self.selector {
-                format!("{}", s)
-            }
-            else {
-                "No Selector".to_string()
-            },
-            self.ep,
-            self.fs_offset
-        );
-    }
 }
 
 impl core::default::Default for FsSettings<'static> {
@@ -463,7 +432,7 @@ pub fn main() -> i32 {
         }
     }
 
-    settings.log();
+    log!(crate::LOG_DEF, "{:#?}", settings);
 
     // Create backend for the file system
     let mut hdl = match backend_type {

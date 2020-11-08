@@ -481,6 +481,7 @@ impl core::iter::Iterator for ExtentBlocksIterator {
 }
 
 /// Represents a superblock
+#[derive(Debug)]
 #[repr(C, align(8))]
 pub struct SuperBlock {
     pub block_size: u32,
@@ -540,28 +541,5 @@ impl SuperBlock {
     pub fn update_blockbm(&mut self, free: u32, first: u32) {
         self.free_blocks = free;
         self.first_free_block = first;
-    }
-
-    /// Writes info about the superblock to the log
-    pub fn log(&self) {
-        log!(crate::LOG_DEF, "SuperBlock: ");
-        log!(crate::LOG_DEF, "    blocksize={}", self.block_size);
-        log!(crate::LOG_DEF, "    total_inodes={}", self.total_inodes);
-        log!(crate::LOG_DEF, "    total_blocks={}", self.total_blocks);
-        log!(crate::LOG_DEF, "    free_inodes={}", self.free_inodes);
-        log!(crate::LOG_DEF, "    free_blocks={}", self.free_blocks);
-        log!(
-            crate::LOG_DEF,
-            "    first_free_inode={}",
-            self.first_free_inode
-        );
-        log!(
-            crate::LOG_DEF,
-            "    first_free_block={}",
-            self.first_free_block
-        );
-        if self.get_checksum() != self.checksum {
-            panic!("Supberblock checksum is invalid, terminating!");
-        }
     }
 }

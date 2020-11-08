@@ -4,6 +4,7 @@ use crate::util::Bitmap;
 
 use m3::errors::{Code, Error};
 
+#[derive(Debug)]
 pub struct Allocator {
     name: String,
     first: u32,
@@ -24,27 +25,7 @@ impl Allocator {
         blocks: u32,
         blocksize: usize,
     ) -> Self {
-        log!(
-            crate::LOG_DEF,
-            concat!(
-                "Creating {} allocator with: \n",
-                "    first: {}\n",
-                "    first_free: {}\n",
-                "    free: {}\n",
-                "    total: {}\n",
-                "    blocks: {}\n",
-                "    blocksize: {}",
-            ),
-            name,
-            first,
-            first_free,
-            free,
-            total,
-            blocks,
-            blocksize
-        );
-
-        Allocator {
+        let alloc = Allocator {
             name,
             first,
             first_free,
@@ -52,7 +33,9 @@ impl Allocator {
             total,
             blocks,
             blocksize,
-        }
+        };
+        log!(crate::LOG_DEF, "Created {:#?}", alloc);
+        alloc
     }
 
     pub fn first_free(&self) -> u32 {
