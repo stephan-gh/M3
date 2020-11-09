@@ -409,6 +409,38 @@ impl core::ops::Deref for ExtentRef {
     }
 }
 
+/// A cache for a block of extents
+pub struct ExtentCache {
+    block_ref: MetaBufferBlockRef,
+    // this pointer is valid during our lifetime, because we keep a MetaBufferBlockRef
+    extents: *const Extent,
+}
+
+impl ExtentCache {
+    pub fn from_buffer(block_ref: MetaBufferBlockRef) -> Self {
+        let block = crate::hdl().metabuffer().get_block_by_ref(&block_ref);
+        let extents = block.data().as_ptr().cast::<Extent>();
+        Self {
+            block_ref,
+            extents,
+        }
+    }
+
+    pub fn get_ref(&self, idx: usize) -> ExtentRef {
+        ExtentRef::indir_from_buffer(self.block_ref.clone(), idx * size_of::<Extent>())
+    }
+}
+
+impl core::ops::Index<usize> for ExtentCache {
+    type Output = Extent;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        assert!(idx < crate::hdl().superblock().extents_per_block());
+        // safety: valid because we keep a MetaBufferBlockRef
+        unsafe { &*self.extents.add(idx) }
+    }
+}
+
 /// Represents a superblock
 #[derive(Debug)]
 #[repr(C, align(8))]

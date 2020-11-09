@@ -16,7 +16,7 @@ impl Links {
             inode.inode,
         );
 
-        let mut indir = vec![];
+        let mut indir = None;
         let mut created = false;
 
         'search_loop: for ext_idx in 0..dir.extents {
@@ -88,7 +88,7 @@ impl Links {
             is_dir
         );
 
-        let mut indir = vec![];
+        let mut indir = None;
 
         for ext_idx in 0..dir.extents {
             let ext = INodes::get_extent(dir, ext_idx as usize, &mut indir, false)?;

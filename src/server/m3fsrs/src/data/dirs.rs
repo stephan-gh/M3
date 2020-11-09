@@ -7,7 +7,7 @@ pub struct Dirs;
 
 impl Dirs {
     fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
-        let mut indir = vec![];
+        let mut indir = None;
 
         log!(
             crate::LOG_DEF,
@@ -179,7 +179,7 @@ impl Dirs {
         }
 
         // check whether it's empty
-        let mut indir = vec![];
+        let mut indir = None;
 
         for ext_idx in 0..inode.extents {
             let ext = INodes::get_extent(&inode, ext_idx as usize, &mut indir, false)?;
