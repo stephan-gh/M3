@@ -1,4 +1,4 @@
-use crate::data::{Dirs, INodes};
+use crate::data::{dirs, inodes};
 use crate::internal::{FileMode, InodeNo};
 use crate::sess::{FileSession, M3FSSession};
 use crate::FileInfo;
@@ -120,8 +120,8 @@ impl MetaSession {
         flags: OpenFlags,
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
-        let ino = Dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
-        let inode = INodes::get(ino)?;
+        let ino = dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
+        let inode = inodes::get(ino)?;
         let inode_mode = inode.mode;
 
         if (flags.contains(OpenFlags::W) && !inode_mode.contains(FileMode::IWUSR))
@@ -138,14 +138,14 @@ impl MetaSession {
 
         // only determine the current size, if we're writing and the file isn't empty
         if flags.contains(OpenFlags::TRUNC) {
-            INodes::truncate(&inode, 0, 0)?;
+            inodes::truncate(&inode, 0, 0)?;
             // TODO carried over from c++
             // TODO revoke access, if necessary
         }
 
         // for directories: ensure that we don't have a changed version in the cache
         if inode.mode.is_dir() {
-            INodes::sync_metadata(&inode)?;
+            inodes::sync_metadata(&inode)?;
         }
 
         self.alloc_file(srv, crt, path, flags, inode.inode, file_session_id)
@@ -216,11 +216,11 @@ impl M3FSSession for MetaSession {
             path
         );
 
-        let ino = Dirs::search(path, false)?;
-        let inode = INodes::get(ino)?;
+        let ino = dirs::search(path, false)?;
+        let inode = inodes::get(ino)?;
 
         let mut info = FileInfo::default();
-        INodes::stat(&inode, &mut info);
+        inodes::stat(&inode, &mut info);
         reply_vmsg!(stream, 0, info)
     }
 
@@ -236,7 +236,7 @@ impl M3FSSession for MetaSession {
             mode
         );
 
-        Dirs::create(path, mode)?;
+        dirs::create(path, mode)?;
 
         reply_vmsg!(stream, 0 as u64)
     }
@@ -251,7 +251,7 @@ impl M3FSSession for MetaSession {
             path
         );
 
-        Dirs::remove(path)?;
+        dirs::remove(path)?;
 
         reply_vmsg!(stream, 0 as u32)
     }
@@ -268,7 +268,7 @@ impl M3FSSession for MetaSession {
             new_path
         );
 
-        Dirs::link(old_path, new_path)?;
+        dirs::link(old_path, new_path)?;
 
         reply_vmsg!(stream, 0 as u32)
     }
@@ -283,7 +283,7 @@ impl M3FSSession for MetaSession {
             path
         );
 
-        Dirs::unlink(path, false)?;
+        dirs::unlink(path, false)?;
 
         reply_vmsg!(stream, 0 as u32)
     }

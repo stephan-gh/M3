@@ -1,4 +1,4 @@
-use crate::data::INodes;
+use crate::data::inodes;
 use crate::internal::InodeNo;
 use crate::FileSession;
 
@@ -58,7 +58,7 @@ impl OpenFiles {
             file.deleted = true;
         }
         else {
-            INodes::free(inode_num)?;
+            inodes::free(inode_num)?;
         }
         Ok(())
     }
@@ -97,7 +97,7 @@ impl OpenFiles {
             let removed_file = self.files.remove(&session.borrow().ino());
             // unwrap save since the first line of the function would otherwise fail
             if removed_file.unwrap().deleted {
-                INodes::free(session.borrow().ino())?;
+                inodes::free(session.borrow().ino())?;
             }
         }
         Ok(())
