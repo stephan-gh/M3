@@ -133,7 +133,6 @@ pub fn get_extent_mem(
     extlen: &mut usize,
     perms: Perm,
     sel: Selector,
-    dirty: bool,
     accessed: usize,
 ) -> Result<usize, Error> {
     log!(
@@ -158,7 +157,7 @@ pub fn get_extent_mem(
 
     let mut bytes = crate::hdl()
         .backend()
-        .get_filedata(*ext, extoff, perms, sel, dirty, true, accessed)?;
+        .get_filedata(*ext, extoff, perms, sel, true, accessed)?;
 
     // Stop at file end
     if (extent == (inode.extents - 1) as usize)
@@ -207,7 +206,7 @@ pub fn req_append(
         *extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
-            .get_filedata(**ext, extoff, perm, sel, true, load, accessed)?;
+            .get_filedata(**ext, extoff, perm, sel, load, accessed)?;
         Ok((bytes, None))
     }
     else {
@@ -221,7 +220,7 @@ pub fn req_append(
         *extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
-            .get_filedata(ext, extoff, perm, sel, true, load, accessed)?;
+            .get_filedata(ext, extoff, perm, sel, load, accessed)?;
         Ok((bytes, Some(ext)))
     }
 }

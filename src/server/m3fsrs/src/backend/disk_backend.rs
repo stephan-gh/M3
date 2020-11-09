@@ -113,7 +113,6 @@ impl Backend for DiskBackend {
             Perm::RWX,
             1,
             Some(false),
-            None,
         )?;
 
         // okay, so write it from metabuffer to filebuffer
@@ -133,7 +132,6 @@ impl Backend for DiskBackend {
         extoff: usize,
         perms: Perm,
         sel: Selector,
-        dirty: bool,
         load: bool,
         accessed: usize,
     ) -> Result<usize, Error> {
@@ -146,7 +144,6 @@ impl Backend for DiskBackend {
             perms,
             accessed,
             Some(load),
-            Some(dirty),
         )
     }
 
@@ -163,7 +160,6 @@ impl Backend for DiskBackend {
                 Perm::RW,
                 accessed,
                 Some(false),
-                Some(true),
             )?;
             let mem = MemGate::new_bind(sel);
             mem.write_bytes(zeros.as_mut_ptr(), bytes, 0)?;

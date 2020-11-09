@@ -79,19 +79,16 @@ impl FileBuffer {
         perm: Perm,
         accessed: usize,
         load: Option<bool>,
-        dirty: Option<bool>,
     ) -> Result<usize, Error> {
         let load = load.unwrap_or(true);
-        let dirty = dirty.unwrap_or(false);
 
         log!(
             crate::LOG_BUFFER,
-            "filebuffer::get_extent(bno={}, size={}, sel={}, load={}, dirty={})",
+            "filebuffer::get_extent(bno={}, size={}, sel={}, load={})",
             bno,
             size,
             sel,
             load,
-            dirty,
         );
 
         loop {
@@ -129,7 +126,7 @@ impl FileBuffer {
                         perm,
                     )?;
 
-                    head.borrow_mut().dirty |= dirty;
+                    head.borrow_mut().dirty |= perm.contains(Perm::W);
 
                     return Ok(len * self.block_size);
                 }
@@ -231,7 +228,7 @@ impl FileBuffer {
             perm,
         )?;
 
-        new_head.borrow_mut().dirty = dirty;
+        new_head.borrow_mut().dirty = perm.contains(Perm::W);
         Ok(load_size * self.block_size)
     }
 }

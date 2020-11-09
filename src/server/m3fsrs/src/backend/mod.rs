@@ -53,7 +53,6 @@ pub trait Backend {
         extoff: usize,
         perms: Perm,
         sel: Selector,
-        dirty: bool,
         load: bool,
         accessed: usize,
     ) -> Result<usize, Error>;

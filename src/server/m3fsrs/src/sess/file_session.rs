@@ -214,7 +214,6 @@ impl FileSession {
             &mut extlen,
             Perm::from(self.oflags),
             sel,
-            true,
             self.accessed,
         )?;
 
@@ -334,7 +333,6 @@ impl FileSession {
                 &mut extlen,
                 Perm::from(self.oflags),
                 sel,
-                out,
                 self.accessed,
             );
             match len {

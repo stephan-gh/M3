@@ -83,7 +83,6 @@ impl Backend for MemBackend {
         extoff: usize,
         perms: Perm,
         sel: Selector,
-        _dirty: bool,
         _load: bool,
         _accessed: usize,
     ) -> Result<usize, Error> {
