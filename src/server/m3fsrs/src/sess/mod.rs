@@ -27,7 +27,6 @@ impl FSSession {
 
 impl M3FSSession for FSSession {
     fn creator(&self) -> usize {
-        log!(crate::LOG_DEF, "m3fssession:next_in");
         match self {
             FSSession::Meta(m) => m.creator(),
             FSSession::File(f) => f.borrow().creator(),
@@ -35,7 +34,6 @@ impl M3FSSession for FSSession {
     }
 
     fn next_in(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:next_in");
         match self {
             FSSession::Meta(m) => m.next_in(stream),
             FSSession::File(f) => f.borrow_mut().next_in(stream),
@@ -43,7 +41,6 @@ impl M3FSSession for FSSession {
     }
 
     fn next_out(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:next_out");
         match self {
             FSSession::Meta(m) => m.next_out(stream),
             FSSession::File(f) => f.borrow_mut().next_out(stream),
@@ -51,7 +48,6 @@ impl M3FSSession for FSSession {
     }
 
     fn commit(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:commit");
         match self {
             FSSession::Meta(m) => m.commit(stream),
             FSSession::File(f) => f.borrow_mut().commit(stream),
@@ -59,7 +55,6 @@ impl M3FSSession for FSSession {
     }
 
     fn seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:seek");
         match self {
             FSSession::Meta(m) => m.seek(stream),
             FSSession::File(f) => f.borrow_mut().seek(stream),
@@ -67,7 +62,6 @@ impl M3FSSession for FSSession {
     }
 
     fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:fstat");
         match self {
             FSSession::Meta(m) => m.fstat(stream),
             FSSession::File(f) => f.borrow_mut().fstat(stream),
@@ -75,7 +69,6 @@ impl M3FSSession for FSSession {
     }
 
     fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:stat");
         match self {
             FSSession::Meta(m) => m.stat(stream),
             FSSession::File(f) => f.borrow_mut().stat(stream),
@@ -83,7 +76,6 @@ impl M3FSSession for FSSession {
     }
 
     fn mkdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:mkdir");
         match self {
             FSSession::Meta(m) => m.mkdir(stream),
             FSSession::File(f) => f.borrow_mut().mkdir(stream),
@@ -91,7 +83,6 @@ impl M3FSSession for FSSession {
     }
 
     fn rmdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:rmdir");
         match self {
             FSSession::Meta(m) => m.rmdir(stream),
             FSSession::File(f) => f.borrow_mut().rmdir(stream),
@@ -99,7 +90,6 @@ impl M3FSSession for FSSession {
     }
 
     fn link(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:link");
         match self {
             FSSession::Meta(m) => m.link(stream),
             FSSession::File(f) => f.borrow_mut().link(stream),
@@ -107,7 +97,6 @@ impl M3FSSession for FSSession {
     }
 
     fn unlink(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "m3fssession:unlink");
         match self {
             FSSession::Meta(m) => m.unlink(stream),
             FSSession::File(f) => f.borrow_mut().unlink(stream),

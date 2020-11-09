@@ -152,8 +152,8 @@ impl MetaBuffer {
     /// Searches for data at `bno`, allocates if none is present.
     pub fn get_block(&mut self, bno: BlockNo, dirty: bool) -> Result<MetaBufferBlockRef, Error> {
         log!(
-            crate::LOG_DEF,
-            "MetaBuffer::get_block(bno={}, dirty={})",
+            crate::LOG_BUFFER,
+            "metabuffer::get_block(bno={}, dirty={})",
             bno,
             dirty
         );
@@ -174,8 +174,8 @@ impl MetaBuffer {
                     block.dirty |= dirty;
 
                     log!(
-                        crate::LOG_DEF,
-                        "MetaBuffer: Found cached block <{}>, Links: {}",
+                        crate::LOG_BUFFER,
+                        "metabuffer: found cached block <{}>, links: {}",
                         block.bno,
                         block.links + 1,
                     );
@@ -226,8 +226,8 @@ impl MetaBuffer {
         block.locked = false;
 
         log!(
-            crate::LOG_DEF,
-            "MetaBuffer: Load new block<{}> Links: {}",
+            crate::LOG_BUFFER,
+            "metabuffer: loaded new block<{}> links: {}",
             bno,
             block.links + 1,
         );
@@ -284,8 +284,8 @@ impl Buffer for MetaBuffer {
     fn flush_chunk(head: &mut Self::HEAD) -> Result<(), Error> {
         head.locked = true;
         log!(
-            crate::LOG_DEF,
-            "MetaBuffer: Write back block <{}>",
+            crate::LOG_BUFFER,
+            "metabuffer: writing back block <{}>",
             head.bno
         );
 

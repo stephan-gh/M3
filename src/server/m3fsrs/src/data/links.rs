@@ -9,8 +9,8 @@ pub struct Links {}
 impl Links {
     pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
-            "Links::create(dir={}, name={}, inode={})",
+            crate::LOG_LINKS,
+            "links::create(dir={}, name={}, inode={})",
             dir.inode,
             name,
             inode.inode,
@@ -82,8 +82,9 @@ impl Links {
 
     pub fn remove(dir: &INodeRef, name: &str, is_dir: bool) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
-            "links::remove(name={}, is_dir={})",
+            crate::LOG_LINKS,
+            "links::remove(dir={}, name={}, is_dir={})",
+            dir.inode,
             name,
             is_dir
         );

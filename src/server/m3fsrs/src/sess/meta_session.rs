@@ -18,8 +18,7 @@ use m3::{
 };
 
 pub struct MetaSession {
-    #[allow(dead_code)]
-    server_session: ServerSession,
+    _server_session: ServerSession,
     sgates: Vec<SendGate>,
     max_files: usize,
     files: Vec<Option<Rc<RefCell<FileSession>>>>,
@@ -29,13 +28,13 @@ pub struct MetaSession {
 
 impl MetaSession {
     pub fn new(
-        server_session: ServerSession,
+        _server_session: ServerSession,
         session_id: SessId,
         crt: usize,
         max_files: usize,
     ) -> Self {
         MetaSession {
-            server_session,
+            _server_session,
             sgates: Vec::new(),
             max_files,
             files: vec![None; max_files],
@@ -88,8 +87,9 @@ impl MetaSession {
         let path = data.in_args().pop_str_slice()?;
 
         log!(
-            crate::LOG_DEF,
-            "fs::open(path={}, flags={:#0b})",
+            crate::LOG_SESSION,
+            "[{}] meta::open(path={}, flags={:?})",
+            self.session_id,
             path,
             flags
         );
@@ -98,6 +98,16 @@ impl MetaSession {
 
         let caps = session.borrow().caps();
         data.out_caps(caps);
+
+        log!(
+            crate::LOG_SESSION,
+            "[{}] meta::open(path={}, flags={:?}) -> inode={}, sid={}",
+            self.session_id,
+            path,
+            flags,
+            session.borrow().ino(),
+            file_session_id,
+        );
 
         Ok(session)
     }
@@ -110,14 +120,6 @@ impl MetaSession {
         flags: OpenFlags,
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
-        log!(
-            crate::LOG_DEF,
-            "fs::open(path={}, flags={:#0b}, session_idx: {})",
-            path,
-            flags,
-            file_session_id
-        );
-
         let ino = Dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
         let inode = INodes::get(ino)?;
         let inode_mode = inode.mode;
@@ -126,8 +128,8 @@ impl MetaSession {
             || (flags.contains(OpenFlags::R) && !inode_mode.contains(FileMode::IRUSR))
         {
             log!(
-                crate::LOG_DEF,
-                "open failed: NoPerm: opener had no permission to read or write. Flags={:b}, mode={:b}",
+                crate::LOG_SESSION,
+                "insufficient permissions: flags={:o}, mode={:o}",
                 flags,
                 inode.mode,
             );
@@ -146,18 +148,7 @@ impl MetaSession {
             INodes::sync_metadata(&inode)?;
         }
 
-        match self.alloc_file(srv, crt, path, flags, inode.inode, file_session_id) {
-            Ok(session) => {
-                log!(
-                    crate::LOG_DEF,
-                    "-> inode={}, id={}",
-                    inode.inode,
-                    file_session_id,
-                );
-                Ok(session)
-            },
-            Err(e) => Err(e),
-        }
+        self.alloc_file(srv, crt, path, flags, inode.inode, file_session_id)
     }
 
     fn alloc_file(
@@ -218,7 +209,12 @@ impl M3FSSession for MetaSession {
     fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         let path: &str = stream.pop()?;
 
-        log!(crate::LOG_DEF, "fs::stat(path={})", path);
+        log!(
+            crate::LOG_SESSION,
+            "[{}] meta::stat(path={})",
+            self.session_id,
+            path
+        );
 
         let ino = Dirs::search(path, false)?;
         let inode = INodes::get(ino)?;
@@ -232,7 +228,13 @@ impl M3FSSession for MetaSession {
         let path: &str = stream.pop()?;
         let mode = FileMode::from_bits_truncate(stream.pop::<u32>()?) & FileMode::PERM;
 
-        log!(crate::LOG_DEF, "fs::mkdir(path={}, mode={:o})", path, mode);
+        log!(
+            crate::LOG_SESSION,
+            "[{}] meta::mkdir(path={}, mode={:o})",
+            self.session_id,
+            path,
+            mode
+        );
 
         Dirs::create(path, mode)?;
 
@@ -242,7 +244,12 @@ impl M3FSSession for MetaSession {
     fn rmdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         let path: &str = stream.pop()?;
 
-        log!(crate::LOG_DEF, "fs::rmdir(path={})", path);
+        log!(
+            crate::LOG_SESSION,
+            "[{}] meta::rmdir(path={})",
+            self.session_id,
+            path
+        );
 
         Dirs::remove(path)?;
 
@@ -254,8 +261,9 @@ impl M3FSSession for MetaSession {
         let new_path: &str = stream.pop()?;
 
         log!(
-            crate::LOG_DEF,
-            "fs::link(old_path={}, new_path: {})",
+            crate::LOG_SESSION,
+            "[{}] meta::link(old_path={}, new_path: {})",
+            self.session_id,
             old_path,
             new_path
         );
@@ -268,7 +276,12 @@ impl M3FSSession for MetaSession {
     fn unlink(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         let path: &str = stream.pop()?;
 
-        log!(crate::LOG_DEF, "fs::unlink(path={})", path);
+        log!(
+            crate::LOG_SESSION,
+            "[{}] meta::unlink(path={})",
+            self.session_id,
+            path
+        );
 
         Dirs::unlink(path, false)?;
 

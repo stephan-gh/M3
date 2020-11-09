@@ -37,6 +37,13 @@ use m3::{
 
 // Sets the logging behavior
 pub const LOG_DEF: bool = false;
+pub const LOG_SESSION: bool = false;
+pub const LOG_ALLOC: bool = false;
+pub const LOG_BUFFER: bool = false;
+pub const LOG_DIRS: bool = false;
+pub const LOG_INODES: bool = false;
+pub const LOG_LINKS: bool = false;
+
 // enables a hack that is needed when running the shell.. for some reason
 const SHELL_HACK: bool = false;
 
@@ -53,6 +60,23 @@ static FSHANDLE: StaticCell<Option<M3FSHandle>> = StaticCell::new(None);
 
 fn hdl() -> &'static mut M3FSHandle {
     FSHANDLE.get_mut().as_mut().unwrap()
+}
+
+int_enum! {
+    pub struct M3FSOperation : u64 {
+        const STAT      = GenFileOp::STAT.val;
+        const SEEK      = GenFileOp::SEEK.val;
+        const NEXT_IN   = GenFileOp::NEXT_IN.val;
+        const NEXT_OUT  = GenFileOp::NEXT_OUT.val;
+        const COMMIT    = GenFileOp::COMMIT.val;
+        const SYNC      = GenFileOp::SYNC.val;
+        const CLOSE     = GenFileOp::CLOSE.val;
+        const FSTAT     = FSOperation::STAT.val;
+        const MKDIR     = FSOperation::MKDIR.val;
+        const RMDIR     = FSOperation::RMDIR.val;
+        const LINK      = FSOperation::LINK.val;
+        const UNLINK    = FSOperation::UNLINK.val;
+    }
 }
 
 struct M3FSRequestHandler {
@@ -80,61 +104,41 @@ impl M3FSRequestHandler {
         })
     }
 
-    pub fn handle(&mut self, op: GenFileOp, input: &mut GateIStream) -> Result<(), Error> {
-        // Check what we have to do there are two options, either a
-        // gen file op, or fs-op
-        let file_op: FSOperation = FSOperation::from(op.val);
-
-        log!(
-            LOG_DEF,
-            "fs::handle(gen_op={}, file_op={}, label={})",
-            op,
-            file_op,
-            input.label() as SessId
-        );
+    pub fn handle(&mut self, op: M3FSOperation, input: &mut GateIStream) -> Result<(), Error> {
+        log!(LOG_DEF, "[{}] fs::handle(op={})", input.label(), op);
 
         let res = match op {
-            GenFileOp::NEXT_IN => self.execute_on_session(input, |sess, is| sess.next_in(is)),
-            GenFileOp::NEXT_OUT => self.execute_on_session(input, |sess, is| sess.next_out(is)),
-            GenFileOp::COMMIT => self.execute_on_session(input, |sess, is| sess.commit(is)),
-            GenFileOp::CLOSE => {
+            M3FSOperation::NEXT_IN => self.execute_on_session(input, |sess, is| sess.next_in(is)),
+            M3FSOperation::NEXT_OUT => self.execute_on_session(input, |sess, is| sess.next_out(is)),
+            M3FSOperation::COMMIT => self.execute_on_session(input, |sess, is| sess.commit(is)),
+            M3FSOperation::CLOSE => {
                 // Get session id, then notify caller that we closed, finally close self
                 let sid = input.label() as SessId;
 
                 reply_vmsg!(input, 0).ok();
                 self.close_session(sid)
             },
-            GenFileOp::STAT => self.execute_on_session(input, |sess, is| sess.stat(is)),
-            GenFileOp::SEEK => self.execute_on_session(input, |sess, is| sess.seek(is)),
-            _ => {
-                // Was not a GenOp, should be a fs op, otherwise error
-                match file_op {
-                    // I guess fstat file operation stat.
-                    FSOperation::STAT => self.execute_on_session(input, |sess, is| sess.stat(is)),
-                    // FSOperation::FSTAT => self.execute_on_session(input, |sess, is| sess.fstat(is)),
-                    FSOperation::MKDIR => self.execute_on_session(input, |sess, is| sess.mkdir(is)),
-                    FSOperation::RMDIR => self.execute_on_session(input, |sess, is| sess.rmdir(is)),
-                    FSOperation::LINK => self.execute_on_session(input, |sess, is| sess.link(is)),
-                    FSOperation::UNLINK => {
-                        self.execute_on_session(input, |sess, is| sess.unlink(is))
-                    },
-                    _ => {
-                        log!(
-                            LOG_DEF,
-                            "handle was not GenFileOp or FSOperation, aborting..."
-                        );
-                        Err(Error::new(Code::InvArgs))
-                    },
-                }
-            },
+            M3FSOperation::STAT => self.execute_on_session(input, |sess, is| sess.stat(is)),
+            M3FSOperation::SEEK => self.execute_on_session(input, |sess, is| sess.seek(is)),
+            M3FSOperation::FSTAT => self.execute_on_session(input, |sess, is| sess.stat(is)),
+            M3FSOperation::MKDIR => self.execute_on_session(input, |sess, is| sess.mkdir(is)),
+            M3FSOperation::RMDIR => self.execute_on_session(input, |sess, is| sess.rmdir(is)),
+            M3FSOperation::LINK => self.execute_on_session(input, |sess, is| sess.link(is)),
+            M3FSOperation::UNLINK => self.execute_on_session(input, |sess, is| sess.unlink(is)),
+            _ => Err(Error::new(Code::InvArgs)),
         };
 
-        if let Err(e) = res {
-            log!(LOG_DEF, "Error for operation {}: {:?}", op, e);
+        if let Err(ref e) = res {
             input.reply_error(e.code()).ok();
         }
 
-        log!(LOG_DEF, "--Handel finished --");
+        log!(
+            LOG_DEF,
+            "[{}] fs::handle(op={}) -> {:?}",
+            input.label(),
+            op,
+            res.as_ref().map_err(|e| e.code()),
+        );
         Ok(())
     }
 
@@ -160,7 +164,7 @@ impl M3FSRequestHandler {
     }
 
     fn close_session(&mut self, session_id: SessId) -> Result<(), Error> {
-        log!(LOG_DEF, "Closing session={}", session_id);
+        log!(LOG_SESSION, "[{}] closing session", session_id);
 
         let (crt, file_session) = if let Some(sess) = self.sessions.get(session_id) {
             // Remove session from inner collection
@@ -246,7 +250,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
         let sessid = self.sessions.next_id()?;
 
         self.sessions.add_next(crt, srv_sel, true, |sess| {
-            log!(crate::LOG_DEF, "M3FS: createSession({})", sess.ident());
+            log!(crate::LOG_SESSION, "[{}] creating session", sess.ident());
             Ok(FSSession::Meta(MetaSession::new(
                 sess, sessid, crt, max_files,
             )))
@@ -286,11 +290,11 @@ impl Handler<FSSession> for M3FSRequestHandler {
         match session {
             FSSession::Meta(meta) => {
                 if data.in_args().size() == 0 {
-                    log!(crate::LOG_DEF, "Meta: get sgate");
+                    log!(crate::LOG_DEF, "[{}] fs::get_sgate()", sid);
                     meta.get_sgate(data)
                 }
                 else {
-                    log!(crate::LOG_DEF, "Meta: open file");
+                    log!(crate::LOG_DEF, "[{}] fs::open_file()", sid);
                     let session = meta.open_file(sel, crt, data, next_sess_id)?;
 
                     self.sessions
@@ -300,11 +304,11 @@ impl Handler<FSSession> for M3FSRequestHandler {
             },
             FSSession::File(file) => {
                 if data.in_args().size() == 0 {
-                    log!(crate::LOG_DEF, "FileSession: Clone");
+                    log!(crate::LOG_DEF, "[{}] fs::clone()", sid);
                     file.borrow_mut().clone(sel, data)
                 }
                 else {
-                    log!(crate::LOG_DEF, "FileSession: get_mem()");
+                    log!(crate::LOG_DEF, "[{}] fs::get_mem()", sid);
                     file.borrow_mut().get_mem(data)
                 }
             },
@@ -313,7 +317,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
 
     /// Let's the client delegate a capability to the server
     fn delegate(&mut self, crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
-        log!(LOG_DEF, "fs::delegate (sid={})", sid);
+        log!(LOG_DEF, "[{}] fs::delegate()", sid);
         let session = if let Some(s) = self.get_session(sid) {
             s
         }

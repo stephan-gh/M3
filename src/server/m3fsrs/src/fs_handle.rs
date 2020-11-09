@@ -30,9 +30,8 @@ impl M3FSHandle {
     {
         // Load suoerblock, then print all the superblock infor for debugginh
 
-        log!(crate::LOG_DEF, "M3FS: Loading superblock");
         let sb = backend.load_sb().expect("Unable to load super block");
-        log!(crate::LOG_DEF, "{:#?}", sb);
+        log!(crate::LOG_DEF, "Loaded {:#?}", sb);
 
         let blocks_allocator = Allocator::new(
             String::from("Block"),

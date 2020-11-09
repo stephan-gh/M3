@@ -420,10 +420,7 @@ impl ExtentCache {
     pub fn from_buffer(block_ref: MetaBufferBlockRef) -> Self {
         let block = crate::hdl().metabuffer().get_block_by_ref(&block_ref);
         let extents = block.data().as_ptr().cast::<Extent>();
-        Self {
-            block_ref,
-            extents,
-        }
+        Self { block_ref, extents }
     }
 
     pub fn get_ref(&self, idx: usize) -> ExtentRef {

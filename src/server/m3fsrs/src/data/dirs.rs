@@ -9,13 +9,6 @@ impl Dirs {
     fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
         let mut indir = None;
 
-        log!(
-            crate::LOG_DEF,
-            "dirs::find_entry(entry={} inode={}",
-            name,
-            inode.inode
-        );
-
         for ext_idx in 0..inode.extents {
             let ext = INodes::get_extent(inode, ext_idx as usize, &mut indir, false)?;
             for bno in ext.blocks() {
@@ -23,7 +16,6 @@ impl Dirs {
                 let entry_iter = DirEntryIterator::from_block(&mut block);
                 while let Some(entry) = entry_iter.next() {
                     if entry.name() == name {
-                        log!(crate::LOG_DEF, "Found entry with name: {}", entry.name());
                         return Ok(entry.nodeno);
                     }
                 }
@@ -33,14 +25,19 @@ impl Dirs {
         Err(Error::new(Code::NoSuchFile))
     }
 
-    pub fn search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
+    pub fn search(path: &str, create: bool) -> Result<InodeNo, Error> {
+        let ino = Self::do_search(path, create);
         log!(
-            crate::LOG_DEF,
-            "dirs::search(path={}, create={})",
+            crate::LOG_DIRS,
+            "dirs::search(path={}, create={}) -> {:?}",
             path,
-            create
+            create,
+            ino.as_ref().map_err(|e| e.code()),
         );
+        ino
+    }
 
+    fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
         // remove all leading /
         while path.starts_with('/') {
             path = &path[1..];
@@ -105,15 +102,20 @@ impl Dirs {
     }
 
     pub fn create(path: &str, mode: FileMode) -> Result<(), Error> {
+        let res = Self::do_create(path, mode);
+        log!(
+            crate::LOG_DIRS,
+            "dirs::create(path={}, mode={:o}) -> {:?}",
+            path,
+            mode,
+            res.as_ref().map_err(|e| e.code()),
+        );
+        res
+    }
+
+    fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
         // Split the path into the dir part and the base(name) part.
         // might have to change the dir into "." if the file is located at the root
-
-        log!(
-            crate::LOG_DEF,
-            "dirs::create(path={}, mode={:o})",
-            path,
-            mode
-        );
 
         let (mut base, dir) = {
             let (base_slice, dir_slice) = crate::util::get_base_dir(path);
@@ -129,11 +131,6 @@ impl Dirs {
 
         // Ensure that the entry doesn't exist
         if Dirs::search(path, false).is_ok() {
-            log!(
-                crate::LOG_DEF,
-                "Directory({}) exists, can't be created",
-                path
-            );
             return Err(Error::new(Code::Exists));
         }
 
@@ -168,7 +165,7 @@ impl Dirs {
     }
 
     pub fn remove(path: &str) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "dirs::remove(path={})", path);
+        log!(crate::LOG_DIRS, "dirs::remove(path={})", path);
 
         let ino = Dirs::search(path, false)?;
 
@@ -204,7 +201,7 @@ impl Dirs {
 
     pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
+            crate::LOG_DIRS,
             "dirs::link(old_path={}, new_path={})",
             old_path,
             new_path
@@ -231,7 +228,7 @@ impl Dirs {
 
     pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
+            crate::LOG_DIRS,
             "dirs::unlink(path={}, is_dir={})",
             path,
             is_dir

@@ -67,11 +67,6 @@ impl OpenFiles {
         let session_ino = session.borrow().ino();
 
         if self.get_file(session.borrow().ino()).is_none() {
-            log!(
-                crate::LOG_DEF,
-                "Creating new open_file entry (ino={})",
-                session_ino
-            );
             let file = OpenFile::new();
             self.files.insert(session_ino, file);
         }

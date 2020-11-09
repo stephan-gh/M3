@@ -16,7 +16,7 @@ pub struct INodes;
 
 impl INodes {
     pub fn create(mode: FileMode) -> Result<INodeRef, Error> {
-        log!(crate::LOG_DEF, "Inodes::create(mode: {:o})", mode);
+        log!(crate::LOG_INODES, "inodes::create(mode={:o})", mode);
 
         let ino = crate::hdl().inodes().alloc(None)?;
         let inode = INodes::get(ino)?;
@@ -30,6 +30,8 @@ impl INodes {
     }
 
     pub fn free(inode_no: InodeNo) -> Result<(), Error> {
+        log!(crate::LOG_INODES, "inodes::free(inode_no={})", inode_no);
+
         let ino = INodes::get(inode_no)?;
         let inodeno = ino.inode as usize;
         INodes::truncate(&ino, 0, 0)?;
@@ -37,7 +39,7 @@ impl INodes {
     }
 
     pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
-        log!(crate::LOG_DEF, "Getting inode={}", inode);
+        log!(crate::LOG_INODES, "inodes::get({})", inode);
 
         let inos_per_block = crate::hdl().superblock().inodes_per_block();
         let bno = crate::hdl().superblock().first_inode_block() + (inode / inos_per_block as u32);
@@ -60,8 +62,8 @@ impl INodes {
         extoff: &mut usize,
     ) -> Result<usize, Error> {
         log!(
-            crate::LOG_DEF,
-            "Inode::seek(inode={}, off={}, whence={}, extent={}, extoff={})",
+            crate::LOG_INODES,
+            "inodes::seek(inode={}, off={}, whence={}, extent={}, extoff={})",
             inode.inode,
             off,
             whence,
@@ -69,21 +71,15 @@ impl INodes {
             extoff
         );
 
-        assert!(
-            whence != SeekMode::CUR,
-            "INodes::seek().whence should not be M3FS_SEEK_CUR"
-        );
+        assert!(whence != SeekMode::CUR);
 
         let blocksize = crate::hdl().superblock().block_size;
         let mut indir = None;
 
         // seeking to the end
         if whence == SeekMode::END {
-            // TODO support off != 0, carried over from c++
-            assert!(
-                *off == 0,
-                "INodes::seek() offset of != 0 is currently not supported."
-            );
+            // TODO support off != 0
+            assert!(*off == 0);
 
             *extent = inode.extents as usize;
             *extoff = 0;
@@ -144,8 +140,8 @@ impl INodes {
         accessed: usize,
     ) -> Result<usize, Error> {
         log!(
-            crate::LOG_DEF,
-            "Inode::get_extent_mem(inode={}, extent={}, extoff={}, extlen={})",
+            crate::LOG_INODES,
+            "inodes::get_extent_mem(inode={}, extent={}, extoff={}, extlen={})",
             inode.inode,
             extent,
             extoff,
@@ -195,8 +191,8 @@ impl INodes {
         let num_extents = inode.extents;
 
         log!(
-            crate::LOG_DEF,
-            "Inode::req_append(inode={}, i={}, extoff={}, extlen={}, accessed={}, num_extents={})",
+            crate::LOG_INODES,
+            "inodes::req_append(inode={}, i={}, extoff={}, extlen={}, accessed={}, num_extents={})",
             inode.inode,
             i,
             extoff,
@@ -234,17 +230,16 @@ impl INodes {
     }
 
     pub fn append_extent(inode: &INodeRef, next: Extent, newext: &mut bool) -> Result<(), Error> {
-        let mut indir = None;
-
         log!(
-            crate::LOG_DEF,
-            "Inodes::append_extent(inode={}, next=(start={}, length={}), newext={})",
+            crate::LOG_INODES,
+            "inodes::append_extent(inode={}, next=(start={}, length={}), newext={})",
             inode.inode,
             next.start,
             next.length,
             newext
         );
 
+        let mut indir = None;
         *newext = true;
 
         // try to load existing inode
@@ -284,8 +279,8 @@ impl INodes {
         create: bool,
     ) -> Result<ExtentRef, Error> {
         log!(
-            crate::LOG_DEF,
-            "INode::get_extent(inode={}, i={}, create={})",
+            crate::LOG_INODES,
+            "inodes::get_extent(inode={}, i={}, create={})",
             inode.inode,
             i,
             create
@@ -356,7 +351,7 @@ impl INodes {
             }
 
             log!(
-                crate::LOG_DEF,
+                crate::LOG_INODES,
                 "Using d-indirect block, WARNING: not fully tested atm."
             );
 
@@ -396,6 +391,7 @@ impl INodes {
 
             return Ok(ext);
         }
+
         // i was not even within the d extent
         Err(Error::new(Code::NotFound))
     }
@@ -406,6 +402,14 @@ impl INodes {
         indir: &mut Option<ExtentCache>,
         remove: bool,
     ) -> Result<ExtentRef, Error> {
+        log!(
+            crate::LOG_INODES,
+            "inodes::change_extent(inode={}, i={}, remove={})",
+            inode.inode,
+            i,
+            remove,
+        );
+
         let ext_per_block = crate::hdl().superblock().extents_per_block();
 
         if i < INODE_DIR_COUNT {
@@ -417,10 +421,7 @@ impl INodes {
         let mb = crate::hdl().metabuffer();
 
         if i < ext_per_block {
-            assert!(
-                inode.indirect != 0,
-                "Inode was not in direct, but indirect is not loaded!"
-            );
+            assert!(inode.indirect != 0);
 
             if indir.is_none() {
                 // indir is allocated but not laoded in the indir-vec. Do that now
@@ -436,16 +437,15 @@ impl INodes {
                 crate::hdl().blocks().free(inode.indirect as usize, 1)?;
                 inode.as_mut().indirect = 0;
             }
+
             // Return i-th inode from the loaded indirect block
             return Ok(indir.as_ref().unwrap().get_ref(i));
         }
 
         i -= ext_per_block;
         if i < (ext_per_block * ext_per_block) {
-            assert!(
-                inode.dindirect != 0,
-                "inode was in dindirect block, but dindirect is not allocated!"
-            );
+            assert!(inode.dindirect != 0);
+
             // Load dindirect into vec
             let data_ref = mb.get_block(inode.indirect, false)?;
 
@@ -474,8 +474,10 @@ impl INodes {
                     inode.as_mut().dindirect = 0;
                 }
             }
+
             return Ok(ext);
         }
+
         // i not even in dindirect block
         Err(Error::new(Code::NotFound))
     }
@@ -510,8 +512,8 @@ impl INodes {
 
     pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
-            "Inode::truncate(inode={}, extent={}, extoff={})",
+            crate::LOG_INODES,
+            "inodes::truncate(inode={}, extent={}, extoff={})",
             inode.inode,
             extent,
             extoff
@@ -585,6 +587,12 @@ impl INodes {
     }
 
     pub fn sync_metadata(inode: &INodeRef) -> Result<(), Error> {
+        log!(
+            crate::LOG_INODES,
+            "inodes::sync_metadata(inode={})",
+            inode.inode,
+        );
+
         let mut indir = None;
         for ext_idx in 0..inode.extents {
             // Load extent from inode

@@ -84,6 +84,16 @@ impl FileBuffer {
         let load = load.unwrap_or(true);
         let dirty = dirty.unwrap_or(false);
 
+        log!(
+            crate::LOG_BUFFER,
+            "filebuffer::get_extent(bno={}, size={}, sel={}, load={}, dirty={})",
+            bno,
+            size,
+            sel,
+            load,
+            dirty,
+        );
+
         loop {
             if let Some(head) = self.get(bno).cloned() {
                 // Think this is redundant, but the c++ impl uses the key explicitly.
@@ -93,11 +103,10 @@ impl FileBuffer {
                 if head.borrow().locked {
                     // Wait for block to unlock
                     log!(
-                        crate::LOG_DEF,
-                        "FileFuffer: Waiting for cached blocks <{},{}> for block {}",
+                        crate::LOG_BUFFER,
+                        "filebuffer: waiting for cached blocks <{},{}>",
                         key,
                         head.borrow().size,
-                        bno
                     );
                     thread::ThreadManager::get().wait_for(head.borrow().unlock);
                 }
@@ -105,11 +114,10 @@ impl FileBuffer {
                     self.lru.move_to_back(head.borrow().lru_entry.clone());
 
                     log!(
-                        crate::LOG_DEF,
-                        "FileBuffer: Found cached blocks <{},{}> for block {}",
+                        crate::LOG_BUFFER,
+                        "filebuffer: found cached blocks <{},{}>",
                         key,
                         head.borrow().size,
-                        bno
                     );
                     let len = size.min(head.borrow().size - (bno - key) as usize);
                     m3::syscalls::derive_mem(
@@ -151,15 +159,15 @@ impl FileBuffer {
                     if head.borrow().locked {
                         // Wait for block to be evicted. We then have more space. Maybe enough space to store the new data
                         log!(
-                            crate::LOG_DEF,
-                            "FileBuffer: Waiting for eviction of block <{}>",
+                            crate::LOG_BUFFER,
+                            "filebuffer: waiting for eviction of block <{}>",
                             key
                         );
                         thread::ThreadManager::get().wait_for(head.borrow().unlock);
                     }
                     else {
                         // Evict oldest block
-                        log!(crate::LOG_DEF, "FileBuffer: Evict block <{}>", key);
+                        log!(crate::LOG_BUFFER, "filebuffer: evict block <{}>", key);
                         let _oldest_head_in_lru = self.lru.pop_front();
                         let mut oldest_head_in_ht = self
                             .ht
@@ -198,11 +206,11 @@ impl FileBuffer {
         self.lru.move_to_back(lru_entry);
 
         log!(
-            crate::LOG_DEF,
-            "FileBuffer: Allocating blocks <{},{}> {}",
+            crate::LOG_BUFFER,
+            "filebuffer: allocated blocks <{},{}>{}",
             new_head.borrow().bno,
             new_head.borrow().size,
-            if load { "loading" } else { "" }
+            if load { " (loading)" } else { "" }
         );
         // Load data from backend
         backend.load_data(
@@ -262,8 +270,8 @@ impl Buffer for FileBuffer {
     fn flush_chunk(head: &mut Rc<RefCell<FileBufferHead>>) -> Result<(), Error> {
         head.borrow_mut().locked = true;
         log!(
-            crate::LOG_DEF,
-            "FileBuffer: Write back blocks <{},{}>",
+            crate::LOG_BUFFER,
+            "filebuffer: writing back blocks <{},{}>",
             head.borrow().bno,
             head.borrow().size
         );

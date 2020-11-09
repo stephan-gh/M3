@@ -73,6 +73,7 @@ pub struct FileSession {
     /// the selector this session was created for
     sel: Selector,
     creator: usize,
+    session_id: SessId,
     /// The id of the parent meta session
     pub(crate) meta_session: SessId,
 
@@ -83,7 +84,12 @@ pub struct FileSession {
 
 impl Drop for FileSession {
     fn drop(&mut self) {
-        log!(crate::LOG_DEF, "file:close(path={})", self.filename);
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::close(path={})",
+            self.session_id,
+            self.filename
+        );
     }
 }
 
@@ -98,14 +104,6 @@ impl FileSession {
         flags: OpenFlags,
         ino: InodeNo,
     ) -> Result<Rc<RefCell<Self>>, Error> {
-        log!(
-            crate::LOG_DEF,
-            "Creating File Session (filename={}, inode={}, file_session_id={})",
-            filename,
-            ino,
-            file_session_id
-        );
-
         // The server session for this file
         let sel = if srv_sel == m3::kif::INVALID_SEL {
             srv_sel
@@ -155,6 +153,7 @@ impl FileSession {
 
             sel,
             creator: crt,
+            session_id: file_session_id,
             meta_session: meta_session_id,
 
             capscon: CapContainer { caps: vec![] },
@@ -170,7 +169,12 @@ impl FileSession {
     }
 
     pub fn clone(&mut self, _selector: Selector, _data: &mut CapExchange) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "file:clone(path={})", self.filename);
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::clone(path={})",
+            self.session_id,
+            self.filename
+        );
 
         panic!("Clone not yet implemented")
     }
@@ -180,8 +184,9 @@ impl FileSession {
         let mut offset = pop_offset as usize;
 
         log!(
-            crate::LOG_DEF,
-            "file::get_mem(path={}, offset={})",
+            crate::LOG_SESSION,
+            "[{}] file::get_mem(path={}, offset={})",
+            self.session_id,
             self.filename,
             offset
         );
@@ -217,7 +222,14 @@ impl FileSession {
         data.out_args().push(&0);
         data.out_args().push(&len);
 
-        log!(crate::LOG_DEF, "file::get_mem -> {}", len);
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::get_mem(path={}, offset={}) -> {}",
+            self.session_id,
+            self.filename,
+            offset,
+            len,
+        );
 
         self.capscon.add(sel);
 
@@ -238,8 +250,9 @@ impl FileSession {
 
     fn next_in_out(&mut self, is: &mut GateIStream, out: bool) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
-            "file::next_{}(); file[path={}, fileoff={}, ext={}, extoff={}]",
+            crate::LOG_SESSION,
+            "[{}] file::next_{}(); file[path={}, fileoff={}, ext={}, extoff={}]",
+            self.session_id,
             if out { "out" } else { "in" },
             self.filename,
             self.fileoff,
@@ -274,8 +287,9 @@ impl FileSession {
 
             if open_file.appending() {
                 log!(
-                    crate::LOG_DEF,
-                    "file::next_in_out : append already in progress!"
+                    crate::LOG_SESSION,
+                    "[{}] file::next_in_out(): append already in progress!",
+                    self.session_id,
                 );
                 return Err(Error::new(Code::Exists));
             }
@@ -360,8 +374,9 @@ impl FileSession {
         self.lastbytes = len - capoff;
 
         log!(
-            crate::LOG_DEF,
-            "file::next_{}() -> ({}, {})",
+            crate::LOG_SESSION,
+            "[{}] file::next_{}() -> ({}, {})",
+            self.session_id,
             if out { "out" } else { "in" },
             self.lastoff,
             self.lastbytes
@@ -396,13 +411,15 @@ impl FileSession {
     }
 
     fn commit_append(&mut self, inode: &INodeRef, submit: usize) -> Result<(), Error> {
-        assert!(submit > 0, "commit_append() submit must be > 0");
         log!(
-            crate::LOG_DEF,
-            "file::commit_append(inode={}, submit={})",
+            crate::LOG_SESSION,
+            "[{}] file::commit_append(inode={}, submit={})",
+            self.session_id,
             inode.inode,
             submit
         );
+
+        assert!(submit > 0, "commit_append() submit must be > 0");
 
         if !self.appending {
             return Ok(());
@@ -485,8 +502,9 @@ impl M3FSSession for FileSession {
         let nbytes: usize = stream.pop()?;
 
         log!(
-            crate::LOG_DEF,
-            "file::commit(nbytes={}); file[path={}, fileoff={}, ext={}, extoff={}]",
+            crate::LOG_SESSION,
+            "[{}] file::commit(nbytes={}); file[path={}, fileoff={}, ext={}, extoff={}]",
+            self.session_id,
             nbytes,
             self.filename,
             self.fileoff,
@@ -528,8 +546,9 @@ impl M3FSSession for FileSession {
         let whence = SeekMode::from(stream.pop::<u32>()?);
 
         log!(
-            crate::LOG_DEF,
-            "file::seek(path={}, off={}, whence={})",
+            crate::LOG_SESSION,
+            "[{}] file::seek(path={}, off={}, whence={})",
+            self.session_id,
             self.filename,
             off,
             whence
@@ -547,7 +566,12 @@ impl M3FSSession for FileSession {
     }
 
     fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        log!(crate::LOG_DEF, "file::fstat(path={})", self.filename);
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::fstat(path={})",
+            self.session_id,
+            self.filename
+        );
 
         let inode = INodes::get(self.ino)?;
         let mut info = FileInfo::default();

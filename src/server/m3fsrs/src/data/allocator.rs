@@ -34,7 +34,7 @@ impl Allocator {
             blocks,
             blocksize,
         };
-        log!(crate::LOG_DEF, "Created {:#?}", alloc);
+        log!(crate::LOG_ALLOC, "Created {:#?}", alloc);
         alloc
     }
 
@@ -143,7 +143,7 @@ impl Allocator {
         // Finally mark the allocated bits in the superblock (which are shared with this allocator)
         assert!(
             self.free as usize >= total,
-            "Error: Tried to allocate more then was available according to superblock!"
+            "tried to allocate more than available according to superblock!"
         );
 
         self.free -= total as u32;
@@ -157,9 +157,10 @@ impl Allocator {
 
         let start = off - total as u32;
         log!(
-            crate::LOG_DEF,
-            "M3FS: {} allocated: {}..{}",
+            crate::LOG_ALLOC,
+            "allocator[{}]::alloc(count={}) -> {}..{}",
             self.name,
+            count,
             start,
             (start + total as u32 - 1)
         );
@@ -169,8 +170,8 @@ impl Allocator {
 
     pub fn free(&mut self, mut start: usize, mut count: usize) -> Result<(), Error> {
         log!(
-            crate::LOG_DEF,
-            "Allocator::{}::free(start={}, count={})",
+            crate::LOG_ALLOC,
+            "allocator[{}]::free(start={}, count={})",
             self.name,
             start,
             count
@@ -195,7 +196,7 @@ impl Allocator {
 
             // Unset all unaligned bits
             while i < end && (i % Bitmap::word_size()) != 0 {
-                assert!(bitmap.is_bit_set(i), "Bit should have been set!");
+                assert!(bitmap.is_bit_set(i));
                 bitmap.unset_bit(i);
                 i += 1;
             }
@@ -203,17 +204,14 @@ impl Allocator {
             // Now clear all whole word
             let wend = end & (!(Bitmap::word_size() - 1));
             while i < wend {
-                assert!(
-                    bitmap.is_word_set(i),
-                    "Word should have been set for clearing"
-                );
+                assert!(bitmap.is_word_set(i));
                 bitmap.unset_word(i);
 
                 i += Bitmap::word_size();
             }
             // Clear possible rest
             while i < end {
-                assert!(bitmap.is_bit_set(i), "Rest bit should have been set");
+                assert!(bitmap.is_bit_set(i));
                 bitmap.unset_bit(i);
                 i += 1;
             }
@@ -224,13 +222,6 @@ impl Allocator {
             no += 1;
         }
 
-        log!(
-            crate::LOG_DEF,
-            "M3FS: {} free'd {}..{}",
-            self.name,
-            start,
-            (start + count - 1)
-        );
         Ok(())
     }
 }

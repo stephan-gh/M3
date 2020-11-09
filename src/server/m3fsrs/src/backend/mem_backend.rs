@@ -113,11 +113,6 @@ impl Backend for MemBackend {
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
         let block = self.mem.read_obj::<SuperBlock>(0)?;
         self.blocksize = block.block_size as usize;
-        log!(
-            crate::LOG_DEF,
-            "MemBackend: Using block_size={}",
-            self.blocksize
-        );
         Ok(block)
     }
 

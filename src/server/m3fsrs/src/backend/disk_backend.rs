@@ -177,7 +177,6 @@ impl Backend for DiskBackend {
         self.delegate_mem(&tmp, 0, 1)?;
         self.disk.read(0, 0, 1, 512, None)?;
         let super_block = tmp.read_obj::<SuperBlock>(0)?;
-        log!(crate::LOG_DEF, "{:#?}", super_block);
 
         // use separate transfer buffer for each entry to allow parallel disk requests
         self.blocksize = super_block.block_size as usize;
