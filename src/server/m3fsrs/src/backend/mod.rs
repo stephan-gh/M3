@@ -58,7 +58,7 @@ pub trait Backend {
         accessed: usize,
     ) -> Result<usize, Error>;
 
-    fn clear_blocks(&self, start: BlockNo, count: BlockNo, accessed: usize) -> Result<(), Error>;
+    fn clear_extent(&self, ext: Extent, accessed: usize) -> Result<(), Error>;
 
     fn load_sb(&mut self) -> Result<SuperBlock, Error>;
 

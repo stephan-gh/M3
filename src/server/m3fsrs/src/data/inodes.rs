@@ -269,12 +269,7 @@ impl INodes {
         }
         // create new extent
         else {
-            let ext = INodes::get_extent(
-                inode,
-                inode.extents as usize,
-                &mut indir,
-                true,
-            )?;
+            let ext = INodes::get_extent(inode, inode.extents as usize, &mut indir, true)?;
             inode.as_mut().extents += 1;
 
             *ext.as_mut() = next;
@@ -517,9 +512,7 @@ impl INodes {
         let blocksize = crate::hdl().superblock().block_size;
         if crate::hdl().clear_blocks() {
             time::start(0xaaaa);
-            crate::hdl()
-                .backend()
-                .clear_blocks(ext.start, ext.length, accessed)?;
+            crate::hdl().backend().clear_extent(ext, accessed)?;
             time::stop(0xaaaa);
         }
 

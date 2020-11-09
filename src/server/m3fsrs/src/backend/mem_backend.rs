@@ -101,9 +101,9 @@ impl Backend for MemBackend {
         Ok(bytes)
     }
 
-    fn clear_blocks(&self, start: BlockNo, count: BlockNo, _accessed: usize) -> Result<(), Error> {
+    fn clear_extent(&self, ext: Extent, _accessed: usize) -> Result<(), Error> {
         let zeros = vec![0; self.blocksize];
-        for block in start..start + count {
+        for block in ext.blocks() {
             self.mem
                 .write(&zeros, (block as usize * self.blocksize) as u64)?;
         }

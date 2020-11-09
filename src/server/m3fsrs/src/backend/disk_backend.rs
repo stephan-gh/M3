@@ -150,16 +150,15 @@ impl Backend for DiskBackend {
         )
     }
 
-    fn clear_blocks(&self, start: BlockNo, count: BlockNo, accessed: usize) -> Result<(), Error> {
-        let mut zeros: [u8; crate::internal::MAX_BLOCK_SIZE as usize] =
-            [0; crate::internal::MAX_BLOCK_SIZE as usize];
+    fn clear_extent(&self, ext: Extent, accessed: usize) -> Result<(), Error> {
+        let mut zeros = [0; crate::internal::MAX_BLOCK_SIZE as usize];
         let sel = m3::pes::VPE::cur().alloc_sel();
         let mut i = 0;
-        while i < count {
+        while i < ext.length {
             let bytes = crate::hdl().filebuffer().get_extent(
                 self,
-                start + i,
-                (count - i) as usize,
+                ext.start + i,
+                (ext.length - i) as usize,
                 sel,
                 Perm::RW,
                 accessed,
