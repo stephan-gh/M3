@@ -205,13 +205,11 @@ impl FileSession {
         )?;
         offset = tmp_extent;
 
-        let mut extlen = 0;
         let sel = m3::pes::VPE::cur().alloc_sel();
-        let len = inodes::get_extent_mem(
+        let (len, _) = inodes::get_extent_mem(
             &inode,
             offset,
             ext_off,
-            &mut extlen,
             Perm::from(self.oflags),
             sel,
             self.accessed,
@@ -326,20 +324,22 @@ impl FileSession {
         }
         else {
             // get next mem_cap
-            let len = inodes::get_extent_mem(
+            let res = inodes::get_extent_mem(
                 &inode,
                 self.extent,
                 self.extoff,
-                &mut extlen,
                 Perm::from(self.oflags),
                 sel,
                 self.accessed,
             );
-            match len {
+            match res {
                 // if we didn't find the extent, turn that into EOF
                 Err(e) if e.code() == Code::NotFound => 0,
                 Err(e) => return Err(e),
-                Ok(len) => len,
+                Ok((len, elen)) => {
+                    extlen = elen;
+                    len
+                }
             }
         };
 

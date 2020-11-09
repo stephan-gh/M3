@@ -126,30 +126,27 @@ pub fn get_extent_mem(
     inode: &INodeRef,
     extent: usize,
     extoff: usize,
-    extlen: &mut usize,
     perms: Perm,
     sel: Selector,
     accessed: usize,
-) -> Result<usize, Error> {
+) -> Result<(usize, usize), Error> {
     log!(
         crate::LOG_INODES,
-        "inodes::get_extent_mem(inode={}, extent={}, extoff={}, extlen={})",
+        "inodes::get_extent_mem(inode={}, extent={}, extoff={})",
         inode.inode,
         extent,
         extoff,
-        extlen
     );
 
     let mut indir = None;
     let ext = get_extent(inode, extent, &mut indir, false)?;
     if ext.length == 0 {
-        *extlen = 0;
-        return Ok(0);
+        return Ok((0, 0));
     }
 
     // Create memory capability for extent
     let blocksize = crate::hdl().superblock().block_size;
-    *extlen = (ext.length * blocksize) as usize;
+    let mut extlen = (ext.length * blocksize) as usize;
 
     let mut bytes = crate::hdl()
         .backend()
@@ -162,11 +159,11 @@ pub fn get_extent_mem(
         let rem = (inode.size % blocksize as u64) as u32;
         if rem > 0 {
             bytes -= (blocksize - rem) as usize;
-            *extlen -= (blocksize - rem) as usize;
+            extlen -= (blocksize - rem) as usize;
         }
     }
 
-    Ok(bytes)
+    Ok((bytes, extlen))
 }
 
 /// Requests some extend in memory at `ext_off` for some `inode`. Stores the
