@@ -15,6 +15,7 @@
  */
 
 use bitflags::bitflags;
+use base::const_assert;
 use core::fmt::Debug;
 
 use crate::cap::Selector;
@@ -62,6 +63,15 @@ bitflags! {
         const RX        = Self::R.bits | Self::X.bits;
         /// Opens the file for reading, writing, and code execution.
         const RWX       = Self::R.bits | Self::W.bits | Self::X.bits;
+    }
+}
+
+impl From<OpenFlags> for kif::Perm {
+    fn from(flags: OpenFlags) -> Self {
+        const_assert!(OpenFlags::R.bits() == kif::Perm::R.bits());
+        const_assert!(OpenFlags::W.bits() == kif::Perm::W.bits());
+        const_assert!(OpenFlags::X.bits() == kif::Perm::X.bits());
+        kif::Perm::from_bits_truncate((flags & OpenFlags::RWX).bits() as u32)
     }
 }
 
