@@ -22,7 +22,7 @@ use crate::sess::{FSSession, FileSession, M3FSSession, MetaSession};
 use m3::{
     cap::Selector,
     cell::{LazyStaticCell, RefCell, StaticCell},
-    col::Vec,
+    col::{String, ToString, Vec},
     com::GateIStream,
     env,
     errors::{Code, Error},
@@ -62,7 +62,7 @@ struct M3FSRequestHandler {
 }
 
 impl M3FSRequestHandler {
-    fn new<B>(backend: B, settings: FsSettings<'static>) -> Result<Self, Error>
+    fn new<B>(backend: B, settings: FsSettings) -> Result<Self, Error>
     where
         B: Backend + 'static,
     {
@@ -363,8 +363,10 @@ impl Handler<FSSession> for M3FSRequestHandler {
 }
 
 #[derive(Clone, Debug)]
-pub struct FsSettings<'a> {
-    name: &'a str,
+pub struct FsSettings {
+    name: String,
+    backend: String,
+    fs_size: usize,
     extend: usize,
     max_load: usize,
     clear: bool,
@@ -374,10 +376,12 @@ pub struct FsSettings<'a> {
     fs_offset: goff,
 }
 
-impl core::default::Default for FsSettings<'static> {
+impl core::default::Default for FsSettings {
     fn default() -> Self {
         FsSettings {
-            name: "m3fs",
+            name: String::from("m3fs"),
+            backend: String::from("mem"),
+            fs_size: 0,
             extend: 128,
             max_load: 128,
             clear: false,
@@ -389,16 +393,31 @@ impl core::default::Default for FsSettings<'static> {
     }
 }
 
-#[no_mangle]
-pub fn main() -> i32 {
+fn usage() -> ! {
+    println!(
+        "Usage: {} [-n <name>] [-s <sel>] [-e <blocks>] [-c] [-r] [-b <blocks>]",
+        env::args().next().unwrap()
+    );
+    println!("       [-o <offset>] (disk|mem <fssize>)");
+    println!();
+    println!("  -n: the name of the service (m3fs by default)");
+    println!("  -s: don't create service, use selectors <sel>..<sel+1>");
+    println!("  -e: the number of blocks to extend files when appending");
+    println!("  -c: clear allocated blocks");
+    println!("  -r: revoke first, reply afterwards");
+    println!("  -b: the maximum number of blocks loaded from the disk");
+    println!("  -o: the file system offset in DRAM");
+    m3::exit(1);
+}
+
+fn parse_args() -> Result<FsSettings, String> {
     let mut settings = FsSettings::default();
 
-    let mut backend_type = "mem";
-    let mut fs_size = 512;
     let args: Vec<&str> = env::args().collect();
-    for i in 1..args.len() {
+    let mut i = 1;
+    while i < args.len() {
         match args[i] {
-            "-n" => settings.name = args[i + 1],
+            "-n" => settings.name = args[i + 1].to_string(),
             "-s" => {
                 if let Ok(s) = args[i + 1].parse::<Selector>() {
                     settings.selector = Some(s);
@@ -407,53 +426,71 @@ pub fn main() -> i32 {
             "-e" => {
                 settings.extend = args[i + 1]
                     .parse::<usize>()
-                    .expect("Could not parse FS extend")
+                    .map_err(|_| String::from("Could not parse FS extend"))?;
             },
-            "-c" => settings.clear = true,
-            "-r" => settings.revoke_first = true,
             "-b" => {
                 settings.max_load = args[i + 1]
                     .parse::<usize>()
-                    .expect("Could not parse max load")
+                    .map_err(|_| String::from("Could not parse max load"))?;
             },
             "-o" => {
                 settings.fs_offset = args[i + 1]
                     .parse::<goff>()
-                    .expect("Failed to parse fs offset")
+                    .map_err(|_| String::from("Failed to parse FS offset"))?;
             },
-            "mem" => backend_type = "mem",
-            "disk" => backend_type = "disk",
-            _ => {
-                if backend_type == "mem" {
-                    fs_size = args[i].parse::<usize>().expect("Failed to parse fs size");
-                    log!(LOG_DEF, "Found Mem backend with size: {}", fs_size);
-                }
+            "-c" => {
+                settings.clear = true;
+                i -= 1; // argument has no value
             },
+            "-r" => {
+                settings.revoke_first = true;
+                i -= 1;
+            },
+            _ => break,
         }
+        // move forward 2 by default, since most arguments have a value
+        i += 2;
     }
 
+    settings.backend = args[i].to_string();
+    match settings.backend.as_str() {
+        "mem" => {
+            settings.fs_size = args[i + 1]
+                .parse::<usize>()
+                .map_err(|_| String::from("Failed to parse fs size"))?;
+        },
+        "disk" => {},
+        backend => return Err(format!("Unknown backend {}", backend)),
+    }
+
+    Ok(settings)
+}
+
+#[no_mangle]
+pub fn main() -> i32 {
+    // parse arguments
+    let settings = parse_args().unwrap_or_else(|e| {
+        println!("Invalid arguments: {}", e);
+        usage();
+    });
     log!(crate::LOG_DEF, "{:#?}", settings);
 
     // Create backend for the file system
-    let mut hdl = match backend_type {
+    let mut hdl = match settings.backend.as_str() {
         "mem" => {
-            let backend = MemBackend::new(settings.fs_offset, fs_size);
+            let backend = MemBackend::new(settings.fs_offset, settings.fs_size);
             M3FSRequestHandler::new(backend, settings.clone())
                 .expect("Failed to create m3fs handler based on memory backend")
         },
-        "disk" => {
+        "disk" | _ => {
             let backend = DiskBackend::new().expect("Failed to initialize disk backend!");
             M3FSRequestHandler::new(backend, settings.clone())
                 .expect("Failed to create m3fs handler based on disk backend")
         },
-        _ => {
-            log!(crate::LOG_DEF, "M3FS: No backend found!");
-            return -1;
-        },
     };
 
     // Create new server for file system and pass on selector to handler
-    let serv = Server::new(settings.name, &mut hdl).expect("Could not create service 'M3FS'");
+    let serv = Server::new(&settings.name, &mut hdl).expect("Could not create service 'm3fs'");
     hdl.sel = serv.sel();
 
     // Create request handler

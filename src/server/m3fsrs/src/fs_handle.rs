@@ -11,7 +11,7 @@ use m3::errors::Error;
 /// Handle to the real file system based on some backend
 pub struct M3FSHandle {
     backend: Box<dyn Backend + 'static>,
-    settings: FsSettings<'static>,
+    settings: FsSettings,
 
     super_block: SuperBlock,
     file_buffer: FileBuffer,
@@ -24,7 +24,7 @@ pub struct M3FSHandle {
 }
 
 impl M3FSHandle {
-    pub fn new<B>(mut backend: B, settings: FsSettings<'static>) -> Self
+    pub fn new<B>(mut backend: B, settings: FsSettings) -> Self
     where
         B: Backend + 'static,
     {
