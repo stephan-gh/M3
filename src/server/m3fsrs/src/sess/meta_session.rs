@@ -220,7 +220,7 @@ impl M3FSSession for MetaSession {
         let inode = inodes::get(ino)?;
 
         let mut info = FileInfo::default();
-        inodes::stat(&inode, &mut info);
+        inode.to_file_info(&mut info);
         reply_vmsg!(stream, 0, info)
     }
 

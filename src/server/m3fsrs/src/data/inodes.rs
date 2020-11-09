@@ -9,7 +9,7 @@ use m3::{
     com::Perm,
     errors::{Code, Error},
     math, time,
-    vfs::{FileInfo, SeekMode},
+    vfs::SeekMode,
 };
 
 pub fn create(mode: FileMode) -> Result<INodeRef, Error> {
@@ -45,10 +45,6 @@ pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
     // Calc the byte offset of this inode within its block
     let offset = (inode as usize % inos_per_block as usize) * NUM_INODE_BYTES as usize;
     Ok(INodeRef::from_buffer(block, offset))
-}
-
-pub fn stat(inode: &INodeRef, info: &mut FileInfo) {
-    inode.to_file_info(info);
 }
 
 pub fn seek(
