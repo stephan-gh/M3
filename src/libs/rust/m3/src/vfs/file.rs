@@ -66,8 +66,7 @@ bitflags! {
 }
 
 /// The file information that can be retrieved via [`VFS::stat`](::vfs::VFS::stat).
-#[derive(Copy, Clone, Debug, Default)]
-#[repr(C, packed)]
+#[derive(Clone, Debug, Default)]
 pub struct FileInfo {
     pub devno: DevId,
     pub inode: INodeId,
@@ -85,15 +84,15 @@ pub struct FileInfo {
 impl Marshallable for FileInfo {
     fn marshall(&self, s: &mut dyn Sink) {
         s.push(&self.devno);
-        s.push(&{ self.inode });
-        s.push(&{ self.mode });
-        s.push(&{ self.links });
-        s.push(&{ self.size });
-        s.push(&{ self.lastaccess });
-        s.push(&{ self.lastmod });
-        s.push(&{ self.blocksize });
-        s.push(&{ self.extents });
-        s.push(&{ self.firstblock });
+        s.push(&self.inode);
+        s.push(&self.mode);
+        s.push(&self.links);
+        s.push(&self.size);
+        s.push(&self.lastaccess);
+        s.push(&self.lastmod);
+        s.push(&self.blocksize);
+        s.push(&self.extents);
+        s.push(&self.firstblock);
     }
 }
 
