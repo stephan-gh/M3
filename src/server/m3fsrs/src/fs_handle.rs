@@ -8,7 +8,7 @@ use m3::boxed::Box;
 use m3::col::String;
 use m3::errors::Error;
 
-/// Handle to the real file system based on some backend
+/// Handle with global data structures needed at various places
 pub struct M3FSHandle {
     backend: Box<dyn Backend + 'static>,
     settings: FsSettings,
@@ -28,8 +28,6 @@ impl M3FSHandle {
     where
         B: Backend + 'static,
     {
-        // Load suoerblock, then print all the superblock infor for debugginh
-
         let sb = backend.load_sb().expect("Unable to load super block");
         log!(crate::LOG_DEF, "Loaded {:#?}", sb);
 

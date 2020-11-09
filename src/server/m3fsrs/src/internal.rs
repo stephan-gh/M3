@@ -13,7 +13,6 @@ use m3::libc;
 use m3::util::size_of;
 use m3::vfs::FileInfo;
 
-/// Number of some block
 pub type BlockNo = u32;
 pub type Dev = u8;
 pub type InodeNo = u32;
@@ -83,8 +82,7 @@ impl FileMode {
     }
 }
 
-/// In memory version of INodes as they appear on disk.
-// should be 64 bytes large
+/// Represents an INode as stored on disk.
 #[repr(C)]
 pub struct INode {
     pub devno: Dev,
@@ -120,8 +118,8 @@ impl Clone for INode {
             lastmod: self.lastmod,
             extents: self.extents,
 
-            direct: self.direct,     // direct entries
-            indirect: self.indirect, // location of the indirect block if != 0,
+            direct: self.direct,
+            indirect: self.indirect,
             dindirect: self.dindirect,
         }
     }

@@ -19,8 +19,8 @@ impl MemBackend {
     pub fn new(fsoff: goff, fssize: usize) -> Self {
         MemBackend {
             mem: MemGate::new_with(MGateArgs::new(fssize, Perm::RWX).addr(fsoff))
-                .expect("Could not create MemGate for Memory Backend"),
-            blocksize: 4096, // Gets set when the superblock is read first as well
+                .expect("Could not create MemGate for memory backend"),
+            blocksize: 0, // gets set when the superblock is read
         }
     }
 }
@@ -52,7 +52,7 @@ impl Backend for MemBackend {
         _init: bool,
         _unlock: Event,
     ) -> Result<(), Error> {
-        // Unused
+        // unused
         Ok(())
     }
 

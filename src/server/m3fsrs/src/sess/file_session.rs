@@ -24,7 +24,7 @@ struct Entry {
 
 impl Drop for Entry {
     fn drop(&mut self) {
-        // On drop, revoke all capabilities
+        // revoke all capabilities
         m3::pes::VPE::cur()
             .revoke(
                 m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.sel, 1),
@@ -63,23 +63,23 @@ pub struct FileSession {
 
     pub(crate) last: Selector,
     epcap: Selector,
-    #[allow(dead_code)] // keeps the send gate alive
-    sgate: Option<SendGate>,
+    // keep the send gate alive
+    _sgate: Option<SendGate>,
 
     oflags: OpenFlags,
     filename: String,
     ino: InodeNo,
 
-    /// the selector this session was created for
+    // the selector this session was created for
     sel: Selector,
     creator: usize,
     session_id: SessId,
-    /// The id of the parent meta session
+    // The id of the parent meta session
     pub(crate) meta_session: SessId,
 
     capscon: CapContainer,
-    #[allow(dead_code)] // keeps the server session alive
-    server_session: ServerSession,
+    // keep the server session alive
+    _server_session: ServerSession,
 }
 
 impl Drop for FileSession {
@@ -104,7 +104,7 @@ impl FileSession {
         flags: OpenFlags,
         ino: InodeNo,
     ) -> Result<Rc<RefCell<Self>>, Error> {
-        // The server session for this file
+        // the server session for this file
         let sel = if srv_sel == m3::kif::INVALID_SEL {
             srv_sel
         }
@@ -112,7 +112,7 @@ impl FileSession {
             m3::pes::VPE::cur().alloc_sels(2)
         };
 
-        let server_session =
+        let _server_session =
             ServerSession::new_with_sel(srv_sel, sel, crt, file_session_id as u64, false)?;
 
         let send_gate = if srv_sel == m3::kif::INVALID_SEL {
@@ -121,9 +121,7 @@ impl FileSession {
         else {
             Some(m3::com::SendGate::new_with(
                 m3::com::SGateArgs::new(meta_rgate)
-                    // We use the file session id as identifier when the session is called again.
-                    // The olf impl used the pointer to this session, but this is not as easy in rust and I guess
-                    // kinda unsafe as well
+                    // use the session id as identifier
                     .label(file_session_id as tcu::Label)
                     .credits(1)
                     .sel(sel + 1),
@@ -145,7 +143,7 @@ impl FileSession {
 
             last: m3::kif::INVALID_SEL,
             epcap: m3::kif::INVALID_SEL,
-            sgate: send_gate,
+            _sgate: send_gate,
 
             oflags: flags,
             filename: filename.to_string(),
@@ -158,7 +156,7 @@ impl FileSession {
 
             capscon: CapContainer { caps: vec![] },
 
-            server_session,
+            _server_session,
         };
 
         let wrapped_fssess = Rc::new(RefCell::new(fsess));
@@ -193,6 +191,7 @@ impl FileSession {
 
         let inode = inodes::get(self.ino)?;
 
+        // determine extent from byte offset
         let mut first_off = offset as usize;
         let mut ext_off = 0;
         let mut tmp_extent = 0;
@@ -276,7 +275,7 @@ impl FileSession {
 
         let mut sel = m3::pes::VPE::cur().alloc_sel();
 
-        // Do we need to append to the file?
+        // do we need to append to the file?
         let (len, extlen) = if out && (self.fileoff as u64 == inode.size) {
             let files = crate::hdl().files();
             let open_file = files.get_file_mut(self.ino).unwrap();
@@ -290,7 +289,7 @@ impl FileSession {
                 return Err(Error::new(Code::Exists));
             }
 
-            // Continue in last extent if there is space
+            // continue in last extent, if there is space
             if (self.extent > 0)
                 && (self.fileoff as u64 == inode.size)
                 && ((self.fileoff % crate::hdl().superblock().block_size as usize) != 0)
@@ -338,13 +337,13 @@ impl FileSession {
             }
         };
 
-        // The mem cap covers all blocks from `self.extoff` to `self.extoff + len`. Thus, the offset to start
-        // is the offset within the first of these blocks
+        // The mem cap covers all blocks from `self.extoff` to `self.extoff + len`. Thus, the offset
+        // to start is the offset within the first of these blocks
         let mut capoff = self.extoff % crate::hdl().superblock().block_size as usize;
         if len > 0 {
             syscalls::activate(self.epcap, sel, INVALID_SEL, 0)?;
 
-            // Move forward
+            // move forward
             self.lastoff = self.extoff;
             self.lastext = self.extent;
             if (self.extoff + len) >= extlen {

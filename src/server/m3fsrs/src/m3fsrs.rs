@@ -47,7 +47,7 @@ pub const LOG_LINKS: bool = false;
 // enables a hack that is needed when running the shell.. for some reason
 const SHELL_HACK: bool = false;
 
-// Server consts
+// Server constants
 const FS_IMG_OFFSET: goff = 0;
 const MAX_CLIENTS: usize = 32;
 const MSG_SIZE: usize = 128;
@@ -91,14 +91,14 @@ impl M3FSRequestHandler {
         B: Backend + 'static,
     {
         let in_memory = backend.in_memory();
-        // Init thread manager, otherwise the waiting within the file and meta buffer impl. panics.
+        // init thread manager, otherwise the waiting within the file and meta buffer impl. panics.
         thread::init();
         FSHANDLE.set(Some(M3FSHandle::new(backend, settings.clone())));
 
         let container = SessionContainer::new(m3::server::DEF_MAX_CLIENTS);
 
         Ok(M3FSRequestHandler {
-            sel: 0, // Gets set later in main
+            sel: 0, // gets set later in main
             sessions: container,
             in_memory,
         })
@@ -112,9 +112,8 @@ impl M3FSRequestHandler {
             M3FSOperation::NEXT_OUT => self.execute_on_session(input, |sess, is| sess.next_out(is)),
             M3FSOperation::COMMIT => self.execute_on_session(input, |sess, is| sess.commit(is)),
             M3FSOperation::CLOSE => {
-                // Get session id, then notify caller that we closed, finally close self
+                // get session id, then notify caller that we closed, finally close self
                 let sid = input.label() as SessId;
-
                 reply_vmsg!(input, 0).ok();
                 self.close_session(sid)
             },
@@ -167,7 +166,7 @@ impl M3FSRequestHandler {
         log!(LOG_SESSION, "[{}] closing session", session_id);
 
         let (crt, file_session) = if let Some(sess) = self.sessions.get(session_id) {
-            // Remove session from inner collection
+            // remove session
             let crt = sess.creator();
             let mut fsess: Option<Rc<RefCell<FileSession>>> = None;
             if let FSSession::File(file_session) = sess {
@@ -177,7 +176,7 @@ impl M3FSRequestHandler {
             (crt, fsess)
         }
         else {
-            return Err(Error::new(Code::InvArgs)); // There was no session with the given Id registered
+            return Err(Error::new(Code::InvArgs));
         };
         // remove session from inner container
         self.sessions.remove(crt, session_id);
@@ -189,10 +188,10 @@ impl M3FSRequestHandler {
                     .blocks()
                     .free(ext.start as usize, ext.length as usize)?;
             }
-            // Delete append extent if there was any
+            // delete append extent if there was any
             fsess.borrow_mut().append_ext = None;
 
-            // Remove session from open_files and from its meta session
+            // remove session from open_files and from its meta session
             hdl().files().remove_session(fsess.clone())?;
 
             // remove file session from parent meta session
@@ -210,7 +209,7 @@ impl M3FSRequestHandler {
                 );
             }
 
-            // Revoke rights if needed
+            // revoke caps if needed
             if fsess.borrow().last != m3::kif::INVALID_SEL {
                 m3::pes::VPE::cur().revoke(
                     m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, fsess.borrow().last, 1),
@@ -219,7 +218,7 @@ impl M3FSRequestHandler {
             }
         }
 
-        // Drop remaining messages for this id
+        // drop remaining messages for this id
         REQHDL.recv_gate().drop_msgs_with(session_id as Label);
         Ok(())
     }
@@ -231,6 +230,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     /// Creates a new session with `arg` as an argument for the service with selector `srv_sel`.
+    ///
     /// Returns the session selector and the session identifier.
     fn open(
         &mut self,
@@ -238,15 +238,15 @@ impl Handler<FSSession> for M3FSRequestHandler {
         srv_sel: Selector,
         arg: &str,
     ) -> Result<(Selector, SessId), Error> {
-        // Get max number of files
+        // get max number of files
         let mut max_files: usize = 64;
         if arg.len() > 6 {
             if &arg[..6] == "file=" {
                 max_files = arg[6..].parse().unwrap_or(64);
             }
-        } // Otherwise there is an argument but it is not big enough
+        } // otherwise there is an argument but it is not big enough
 
-        // Get the id this session would belong to.
+        // get the id this session would belong to.
         let sessid = self.sessions.next_id()?;
 
         self.sessions.add_next(crt, srv_sel, true, |sess| {
@@ -479,7 +479,7 @@ pub fn main() -> i32 {
     });
     log!(crate::LOG_DEF, "{:#?}", settings);
 
-    // Create backend for the file system
+    // create backend for the file system
     let mut hdl = match settings.backend.as_str() {
         "mem" => {
             let backend = MemBackend::new(settings.fs_offset, settings.fs_size);
@@ -493,11 +493,11 @@ pub fn main() -> i32 {
         },
     };
 
-    // Create new server for file system and pass on selector to handler
+    // create new server for file system and pass on selector to handler
     let serv = Server::new(&settings.name, &mut hdl).expect("Could not create service 'm3fs'");
     hdl.sel = serv.sel();
 
-    // Create request handler
+    // create request handler
     REQHDL.set(
         RequestHandler::new_with(MAX_CLIENTS, MSG_SIZE).expect("Unable to create request handler"),
     );

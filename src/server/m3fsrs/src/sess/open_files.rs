@@ -53,7 +53,7 @@ impl OpenFiles {
     }
 
     pub fn delete_file(&mut self, inode_num: InodeNo) -> Result<(), Error> {
-        // Create a request which executes the delete request on the FShandle
+        // create a request which executes the delete request on the FShandle
         if let Some(file) = self.get_file_mut(inode_num) {
             file.deleted = true;
         }
@@ -80,7 +80,7 @@ impl OpenFiles {
     pub fn remove_session(&mut self, session: Rc<RefCell<FileSession>>) -> Result<(), Error> {
         let file = self.get_file_mut(session.borrow().ino()).unwrap();
 
-        // Search for this pointer in vec and remove when found
+        // search for this pointer in vec and remove when found
         let mut rm_idx = None;
         for (i, p) in file.sessions.iter().enumerate() {
             if Rc::ptr_eq(p, &session) {
@@ -92,7 +92,7 @@ impl OpenFiles {
         let idx = rm_idx.unwrap();
         file.sessions.remove(idx);
 
-        // If no session own this file anymore, remove it
+        // if no session own this file anymore, remove it
         if file.sessions.is_empty() {
             let removed_file = self.files.remove(&session.borrow().ino());
             // unwrap save since the first line of the function would otherwise fail

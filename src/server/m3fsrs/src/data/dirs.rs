@@ -22,6 +22,7 @@ fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
     Err(Error::new(Code::NoSuchFile))
 }
 
+/// Searches for the given path, optionally creates a new file, and returns the inode number.
 pub fn search(path: &str, create: bool) -> Result<InodeNo, Error> {
     let ino = do_search(path, create);
     log!(
@@ -98,6 +99,7 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
     Err(Error::new(Code::NoSuchFile))
 }
 
+/// Creates a new directory with given mode at given path
 pub fn create(path: &str, mode: FileMode) -> Result<(), Error> {
     let res = do_create(path, mode);
     log!(
@@ -111,22 +113,21 @@ pub fn create(path: &str, mode: FileMode) -> Result<(), Error> {
 }
 
 fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
-    // Split the path into the dir part and the base(name) part.
-    // might have to change the dir into "." if the file is located at the root
-
+    // split the path into directory and filename.
     let (mut base, dir) = {
         let (base_slice, dir_slice) = crate::util::get_base_dir(path);
         (&path[base_slice], &path[dir_slice])
     };
 
-    // If there is no base, we are at the root of the file system.
+    // if there is no base, we are at the root of the file system.
     if base == "" {
         base = "/";
     }
 
+    // get parent directory
     let parent_ino = search(base, false)?;
 
-    // Ensure that the entry doesn't exist
+    // ensure that the entry doesn't exist
     if search(path, false).is_ok() {
         return Err(Error::new(Code::Exists));
     }
@@ -141,15 +142,15 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
 
         // create "." link
         if let Err(e) = links::create(&dirino, ".", &dirino) {
-            links::remove(&parinode, dir, true).unwrap();
+            links::remove(&parinode, dir, false).unwrap();
             crate::hdl().files().delete_file(dirino.inode).ok();
             return Err(e);
         }
 
         // create ".." link
         if let Err(e) = links::create(&dirino, "..", &parinode) {
-            links::remove(&dirino, ".", true).unwrap();
-            links::remove(&parinode, dir, true).unwrap();
+            links::remove(&dirino, ".", false).unwrap();
+            links::remove(&parinode, dir, false).unwrap();
             crate::hdl().files().delete_file(dirino.inode).ok();
             return Err(e);
         }
@@ -161,6 +162,7 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
     }
 }
 
+/// Removes the directory at given path if it is empty
 pub fn remove(path: &str) -> Result<(), Error> {
     log!(crate::LOG_DIRS, "dirs::remove(path={})", path);
 
@@ -190,12 +192,14 @@ pub fn remove(path: &str) -> Result<(), Error> {
 
     // hardlinks to directories are not possible, thus we always have 2 ( . and ..)
     assert!(inode.links == 2, "expected 2 links, found {}", inode.links);
+    // ensure that the inode is removed
     inode.as_mut().links -= 1;
 
     // TODO if that fails, we have already reduced the link count!?
     unlink(path, true)
 }
 
+/// Creates a link at `new_path` to `old_path`
 pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
     log!(
         crate::LOG_DIRS,
@@ -212,7 +216,7 @@ pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
         return Err(Error::new(Code::IsDir));
     }
 
-    // Split path into dir and base
+    // split path into directory and base
     let (base, dir) = {
         let (base_slice, dir_slice) = crate::util::get_base_dir(new_path);
         (&new_path[base_slice], &new_path[dir_slice])
@@ -223,6 +227,9 @@ pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
     links::create(&base_ino, dir, &old_inode)
 }
 
+/// Removes the directory entry at given path
+///
+/// If `is_dir` is true, the link count at the parent inode is reduced.
 pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
     log!(
         crate::LOG_DIRS,
@@ -239,7 +246,7 @@ pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
     let parino = search(base, false)?;
     let parinode = inodes::get(parino)?;
 
-    let res = links::remove(&parinode, dir, is_dir);
+    let res = links::remove(&parinode, dir, !is_dir);
     if is_dir && res.is_ok() {
         // decrement link count for parent inode by one
         parinode.as_mut().links -= 1;

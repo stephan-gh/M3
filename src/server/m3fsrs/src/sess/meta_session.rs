@@ -73,7 +73,6 @@ impl MetaSession {
     }
 
     /// Creates a file session based on this meta session for `file_session_id`.
-    /// If successful returns a pointer to this session.
     pub fn open_file(
         &mut self,
         selector: Selector,
@@ -82,8 +81,6 @@ impl MetaSession {
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
         let flags = OpenFlags::from_bits_truncate(data.in_args().pop::<u32>()?);
-
-        // Read the string, is already read only until termination or not at all
         let path = data.in_args().pop_str_slice()?;
 
         log!(
@@ -139,7 +136,6 @@ impl MetaSession {
         // only determine the current size, if we're writing and the file isn't empty
         if flags.contains(OpenFlags::TRUNC) {
             inodes::truncate(&inode, 0, 0)?;
-            // TODO carried over from c++
             // TODO revoke access, if necessary
         }
 
@@ -283,6 +279,7 @@ impl M3FSSession for MetaSession {
             path
         );
 
+        // TODO what if `path` points to a directory?
         dirs::unlink(path, false)?;
 
         reply_vmsg!(stream, 0 as u32)

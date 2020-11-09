@@ -62,45 +62,47 @@ impl Allocator {
         while (total == 0) && (no <= lastno) {
             let mut block = crate::hdl().metabuffer().get_block(no, true)?;
 
+            // take care that total_blocks might not be a multiple of perblock
             let mut max = perblock;
             if no == lastno {
                 max = (self.total as usize) % perblock;
                 max = if max == 0 { perblock } else { max };
             }
 
-            // Load data into bitmap
+            // load data into bitmap
             let mut bitmap = Bitmap::from_bytes(block.data_mut());
 
-            // Search for first word that has at leas one free bit, starting at the current i
-            while i < max && bitmap.is_word_set(i) {
-                i += Bitmap::word_size(); // Jump to next word
+            // first, search quickly until we've found a word that has free bits
+            if i < max && bitmap.is_word_set(i) {
+                // within the first word with free bits, the first free bit is not necessarily
+                // i % Bitmap::WORD_BITS. thus, start from 0 within each word
+                i = (i + Bitmap::word_size()) & !(Bitmap::word_size() - 1);
+                while i < max && bitmap.is_word_set(i) {
+                    i += Bitmap::word_size();
+                }
+                if i < max {
+                    // now walk to the actual first free bit
+                    while i < max && bitmap.is_bit_set(i) {
+                        i += 1;
+                    }
+                }
             }
 
-            // Now we know i is in a word that has unset bits, since the bit is somewhere in the word, jump
-            // back to the start of this word and iterate over the bits until we found the bit.
-
-            // This should be the index of the word we found the first 0 at
-            let word_index = i / Bitmap::word_size();
-            i = word_index * Bitmap::word_size();
-            while i < max && bitmap.is_bit_set(i) {
-                i += 1;
-            }
-
-            // I should now point to the first unset index
-            // Now set all bits until i is aligned to a whole word.
+            // now walk until its aligned (i < max is not required here since a block is always a multiple
+            // of Bitmap::WORD_BITS and we run only until i % Bitmap::WORD_BITS == 0)
             while ((i % Bitmap::word_size()) != 0) && total < icount {
                 if !bitmap.is_bit_set(i) {
                     bitmap.set_bit(i);
-                    total += 1; // add bits to total allocated since we cant use them anymore
+                    total += 1;
                 }
                 else if total > 0 {
-                    break; // Not sure about this one, but it works and was in the reference impl
+                    break;
                 }
 
                 i += 1;
             }
 
-            // At this point i is aligned to the word size, now mark all whole words
+            // at this point i is aligned to the word size, now allocate in words
             while ((icount - total) >= Bitmap::word_size()) && ((max - i) >= Bitmap::word_size()) {
                 if bitmap.is_word_unset(i) {
                     bitmap.set_word(i);
@@ -113,9 +115,7 @@ impl Allocator {
                 i += Bitmap::word_size();
             }
 
-            // Now set the bit that are left (but not enough to fill a whole word)
-            // there is an edge case where icount was < BitMap::word_size()
-            // in that case total is at this point still 0
+            // set the bits that are left one bit at a time
             if total == 0 {
                 while (i < max) && (total < icount) {
                     if !bitmap.is_bit_set(i) {
@@ -140,14 +140,14 @@ impl Allocator {
             }
         }
 
-        // Finally mark the allocated bits in the superblock (which are shared with this allocator)
+        // finally mark the allocated bits in the superblock
         assert!(
             self.free as usize >= total,
             "tried to allocate more than available according to superblock!"
         );
 
         self.free -= total as u32;
-        *count = total; // It happens that more was allocated then needed because of alignment
+        *count = total; // notify caller about the number of allocated items
         if total == 0 {
             return Err(Error::new(Code::NoSpace));
         }
@@ -184,12 +184,11 @@ impl Allocator {
             self.first_free = start as u32;
         }
         self.free += count as u32;
-        // Actually free bits in bitmap and update superblock
         while count > 0 {
             let mut block = crate::hdl().metabuffer().get_block(no as u32, true)?;
             let mut bitmap = Bitmap::from_bytes(block.data_mut());
 
-            // align i to wordsize
+            // first, align it to word-size
             let mut i: usize = start & (perblock - 1);
             let begin = i;
             let end = (i + count).min(perblock);
@@ -201,7 +200,7 @@ impl Allocator {
                 i += 1;
             }
 
-            // Now clear all whole word
+            // now clear in word-steps
             let wend = end & (!(Bitmap::word_size() - 1));
             while i < wend {
                 assert!(bitmap.is_word_set(i));
@@ -209,14 +208,15 @@ impl Allocator {
 
                 i += Bitmap::word_size();
             }
-            // Clear possible rest
+
+            // maybe, there is something left
             while i < end {
                 assert!(bitmap.is_bit_set(i));
                 bitmap.unset_bit(i);
                 i += 1;
             }
 
-            // Go to next bitmap block from rep
+            // to next bitmap block
             count -= i - begin;
             start = (start + perblock - 1) & !(perblock - 1);
             no += 1;

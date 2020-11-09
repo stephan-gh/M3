@@ -18,7 +18,8 @@ impl<'a> Bitmap<'a> {
         (index / Bitmap::word_size()) * Bitmap::word_size()
     }
 
-    /// Checks if the word at `index` is 255. If `false` is returned, some bit is 0 within this word.
+    /// Checks if the word at `index` is 255. If `false` is returned, some bit is 0 within this
+    /// word.
     pub fn is_word_set(&self, mut index: usize) -> bool {
         index = index / Bitmap::word_size();
         self.bytes[index] == core::u8::MAX
@@ -100,7 +101,7 @@ pub fn get_base_dir<'a>(path: &'a str) -> (Range<usize>, Range<usize>) {
         (0..base_start - 1, base_start..path.len())
     }
     else {
-        // No dir but maybe a base left
+        // no dir but maybe a base left
         (0..base_start - 1, base_start..path.len())
     }
 }
@@ -144,7 +145,7 @@ impl<T> Lru<T> {
 
     pub fn pop_front(&mut self) -> Option<Rc<RefCell<LruElement<T>>>> {
         if let Some(front) = self.head.take() {
-            // Update front pointer
+            // update front pointer
             self.head = front.borrow().next.clone();
 
             front.borrow_mut().next = None;
@@ -157,38 +158,38 @@ impl<T> Lru<T> {
     }
 
     pub fn push_back(&mut self, item: Rc<RefCell<LruElement<T>>>) {
-        // Have to initialize the lru
+        // have to initialize the lru
         if self.head.is_none() {
             self.head = Some(item.clone());
             self.tail = Some(item.clone());
             return;
         }
 
-        // Has to be something, otherwise head would be uninitialized. This list can't remove items.
+        // has to be something, otherwise head would be uninitialized. This list can't remove items.
         item.borrow_mut().prev = self.tail.clone();
         item.borrow_mut().next = None;
-        // Set old tails next pointer
+        // set old tails next pointer
         self.tail.as_ref().unwrap().borrow_mut().next = Some(item.clone());
-        // Update tail pointer
+        // update tail pointer
         self.tail = Some(item);
     }
 
     pub fn move_to_back(&mut self, item: Rc<RefCell<LruElement<T>>>) {
-        // No head, therefore this element cant be part and we have to move nothing
+        // no head, therefore this element cant be part and we have to move nothing
         if self.head.is_none() {
             return;
         }
-        // Check if this is the head if so we only need to adjust one pointer
+        // check if this is the head if so we only need to adjust one pointer
         if Rc::ptr_eq(&self.head.as_ref().unwrap(), &item) {
-            // Update head
+            // uUpdate head
             self.head = item.borrow().next.clone();
         }
-        // If we are moving back the tail, do nothing
+        // if we are moving back the tail, do nothing
         if Rc::ptr_eq(&self.tail.as_ref().unwrap(), &item) {
             return;
         }
 
-        // Take the element out of this list. This is unsafe if `element` is not part of this list.
+        // take the element out of this list. This is unsafe if `element` is not part of this list.
         if let Some(prev) = &item.borrow().prev {
             let new_next = item.borrow().next.clone();
             prev.borrow_mut().next = new_next;

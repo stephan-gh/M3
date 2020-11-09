@@ -12,20 +12,22 @@ use m3::{
     vfs::SeekMode,
 };
 
+/// Creates a new inode with given mode and returns its INodeRef
 pub fn create(mode: FileMode) -> Result<INodeRef, Error> {
     log!(crate::LOG_INODES, "inodes::create(mode={:o})", mode);
 
     let ino = crate::hdl().inodes().alloc(None)?;
     let inode = get(ino)?;
-    // Reset inode
+    // reset inode
     inode.as_mut().reset();
     inode.as_mut().inode = ino;
-    inode.as_mut().devno = 0; /* TODO (was also in C++ todo)*/
+    inode.as_mut().devno = 0; // TODO
     inode.as_mut().mode = mode;
     mark_dirty(ino);
     Ok(inode)
 }
 
+/// Frees the inode with given number
 pub fn free(inode_no: InodeNo) -> Result<(), Error> {
     log!(crate::LOG_INODES, "inodes::free(inode_no={})", inode_no);
 
@@ -35,6 +37,7 @@ pub fn free(inode_no: InodeNo) -> Result<(), Error> {
     crate::hdl().inodes().free(inodeno, 1)
 }
 
+/// Loads an INodeRef for given inode number
 pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
     log!(crate::LOG_INODES, "inodes::get({})", inode);
 
@@ -42,11 +45,18 @@ pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
     let bno = crate::hdl().superblock().first_inode_block() + (inode / inos_per_block as u32);
     let block = crate::hdl().metabuffer().get_block(bno, false)?;
 
-    // Calc the byte offset of this inode within its block
     let offset = (inode as usize % inos_per_block as usize) * NUM_INODE_BYTES as usize;
     Ok(INodeRef::from_buffer(block, offset))
 }
 
+/// Seeks to the given position and calculates its extent and the offset within the extent
+///
+/// `off` is the desired offset and `whence` defines the seek mode. `extent` and `extoff` are set to
+/// the extent number and offset within this extent at the target position.
+///
+/// TODO why is off set as well?
+///
+/// Returns the new position (TODO at the beginning of the extent??)
 pub fn seek(
     inode: &INodeRef,
     off: &mut usize,
@@ -100,8 +110,7 @@ pub fn seek(
         *off = inode.size as usize;
     }
 
-    // Since we don't want to find just the end, go through the extents until we found
-    // the extent that contains the `off`
+    // now search until we've found the extent covering the desired file position
     let mut pos = 0;
     for i in 0..inode.extents {
         let ext = get_extent(inode, i as usize, &mut indir, false)?;
@@ -122,6 +131,13 @@ pub fn seek(
     Ok(pos)
 }
 
+/// Retrieves the memory for an extent as a MemGate.
+///
+/// `extent` denotes the extent number, `extoff` the offset within the extent, `perm` the
+/// permissions with which the MemGate should be created, `sel` the selector for the MemGate, and
+/// `accessed` denotes the number of times we already accessed this file.
+///
+/// Returns the length of the MemGate and the length of the extent
 pub fn get_extent_mem(
     inode: &INodeRef,
     extent: usize,
@@ -144,7 +160,7 @@ pub fn get_extent_mem(
         return Ok((0, 0));
     }
 
-    // Create memory capability for extent
+    // create memory capability for extent
     let blocksize = crate::hdl().superblock().block_size;
     let mut extlen = (ext.length * blocksize) as usize;
 
@@ -152,7 +168,7 @@ pub fn get_extent_mem(
         .backend()
         .get_filedata(*ext, extoff, perms, sel, true, accessed)?;
 
-    // Stop at file end
+    // stop at file end
     if (extent == (inode.extents - 1) as usize)
         && ((ext.length * blocksize) as usize <= (extoff + bytes))
     {
@@ -166,8 +182,13 @@ pub fn get_extent_mem(
     Ok((bytes, extlen))
 }
 
-/// Requests some extend in memory at `ext_off` for some `inode`. Stores the
-/// location and length in `ext` and returns the ext size
+/// Requests an append of a new block to given inode and creates a MemGate to access the block.
+///
+/// Note that this only requests the append, but does not append anything.
+///
+/// `extent` denotes the extent to append to, `extoff` the offset within the extent, `sel` the
+/// selector to use for the MemGate, `perm` the permissions for the MemGate, and `accessed` denotes
+/// the number of times we already accessed this file.
 pub fn req_append(
     inode: &INodeRef,
     extent: usize,
@@ -203,6 +224,7 @@ pub fn req_append(
     else {
         let ext = create_extent(None, crate::hdl().extend() as u32, accessed)?;
 
+        // this is a new extent we dont have to load it
         if !crate::hdl().clear_blocks() {
             load = false;
         }
@@ -215,6 +237,9 @@ pub fn req_append(
     }
 }
 
+/// Actually appends the given extent to the inode.
+///
+/// Returns whether a new extent was created (false means that it was appended to an existing one).
 pub fn append_extent(inode: &INodeRef, next: Extent) -> Result<bool, Error> {
     log!(
         crate::LOG_INODES,
@@ -257,39 +282,44 @@ pub fn append_extent(inode: &INodeRef, next: Extent) -> Result<bool, Error> {
     Ok(new_ext)
 }
 
+/// Requests the given extent from given inode.
+///
+/// `indir` denotes an ExtentCache to speed up loading of the indirect block with extents, and
+/// `create` whether the extent should be created in case it does not exist.
+///
+/// Returns the ExtentRef
 pub fn get_extent(
     inode: &INodeRef,
-    mut i: usize,
+    mut extent: usize,
     indir: &mut Option<ExtentCache>,
     create: bool,
 ) -> Result<ExtentRef, Error> {
     log!(
         crate::LOG_INODES,
-        "inodes::get_extent(inode={}, i={}, create={})",
+        "inodes::get_extent(inode={}, extent={}, create={})",
         inode.inode,
-        i,
+        extent,
         create
     );
 
-    if i < INODE_DIR_COUNT {
-        // i is still within the direct array of the inode
-        return Ok(ExtentRef::dir_from_inode(&inode, i));
+    // direct extent stored in the inode?
+    if extent < INODE_DIR_COUNT {
+        return Ok(ExtentRef::dir_from_inode(&inode, extent));
     }
-    i -= INODE_DIR_COUNT;
+    extent -= INODE_DIR_COUNT;
 
     let mb = crate::hdl().metabuffer();
 
-    // Try to find/put the searched ext within the inodes indirect block
-    if i < crate::hdl().superblock().extents_per_block() {
-        // Create indirect block if not done yet
+    // indirect extent stored in the nodes indirect block?
+    if extent < crate::hdl().superblock().extents_per_block() {
+        // create indirect block if not done yet
         if indir.is_none() {
             let mut created = false;
             if inode.indirect == 0 {
-                // No indirect loaded, but we also should not allocate
                 if !create {
                     return Err(Error::new(Code::NotFound));
                 }
-                // Alloc block for indirect extents and put in inode.
+                // alloc block for indirect extents and put in inode
                 let indirect_block = crate::hdl().blocks().alloc(None)?;
                 inode.as_mut().indirect = indirect_block;
                 created = true;
@@ -305,21 +335,21 @@ pub fn get_extent(
             *indir = Some(ExtentCache::from_buffer(data_ref));
         }
 
-        // Accessing 0 should be save, otherwise the indirect block would be loaded before
+        // we're going to change it, if its empty and the caller wants to create blocks
         if create && indir.as_ref().unwrap()[0].length == 0 {
             crate::hdl().metabuffer().mark_dirty(inode.indirect);
         }
 
-        return Ok(indir.as_ref().unwrap().get_ref(i)); // Finally return loaded i-th indirect extent
+        return Ok(indir.as_ref().unwrap().get_ref(extent));
     }
 
-    // Since i is not in direct or indirect part, check if we can load it in the double indirect block
+    // double indirect extents
     let ext_per_block = crate::hdl().superblock().extents_per_block();
-    i -= ext_per_block;
-    if i < (ext_per_block * ext_per_block) {
-        // Not sure if thats correct since we create two blocks and not the square
+    extent -= ext_per_block;
+
+    if extent < (ext_per_block * ext_per_block) {
         let mut created = false;
-        // Create double indirect block if not done yet
+        // create double indirect block, if not done yet
         if inode.dindirect == 0 {
             if !create {
                 return Err(Error::new(Code::NotFound));
@@ -340,105 +370,104 @@ pub fn get_extent(
             "Using d-indirect block, WARNING: not fully tested atm."
         );
 
-        // Create indirect block if necessary
+        // create indirect block if necessary
         created = false;
-
-        // TODO Not sure here. The C++ code uses the data_ref pointer and increments by i/ext_per_block. However, this could then be some not align_of(Extent) byte
-        // within the indirect block.
-        // I changed it not to be the (i/ext_perblock)-th extent within this block
-        let dind_ext_pointer = ExtentRef::indir_from_buffer(
+        let ptr = ExtentRef::indir_from_buffer(
             dind_block_ref,
-            (i / crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
+            (extent / crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
         );
-
-        // Create the indirect block at dint_ext_pointer.start if needed.
-        if dind_ext_pointer.length == 0 {
+        if ptr.length == 0 {
             crate::hdl().metabuffer().mark_dirty(inode.dindirect);
-            dind_ext_pointer.as_mut().start = crate::hdl().blocks().alloc(None)?;
-            dind_ext_pointer.as_mut().length = 1;
+            ptr.as_mut().start = crate::hdl().blocks().alloc(None)?;
+            ptr.as_mut().length = 1;
             created = true;
         }
+
         // init with zeros
-        let mut ind_block_ref = mb.get_block(dind_ext_pointer.start, false)?;
+        let mut ind_block_ref = mb.get_block(ptr.start, false)?;
         if created {
             ind_block_ref.overwrite_zero();
         }
 
-        // Finally get extent and return
+        // get extent
         let ext = ExtentRef::indir_from_buffer(
             ind_block_ref,
-            (i % crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
+            (extent % crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
         );
 
         if create && ext.length == 0 {
-            crate::hdl().metabuffer().mark_dirty(dind_ext_pointer.start);
+            crate::hdl().metabuffer().mark_dirty(ptr.start);
         }
 
         return Ok(ext);
     }
 
-    // i was not even within the d extent
+    // extent was not within the doubly indirect extents
     Err(Error::new(Code::NotFound))
 }
 
+/// Retrieves the given extent from given inode and removes it if requested.
+///
+/// Assumes that the extent exists.
+///
+/// `indir` denotes an ExtentCache to speed up loading of the indirect block with extents, and
+/// `create` whether the extent should be created in case it does not exist.
+///
+/// Returns the ExtentRef
 fn change_extent(
     inode: &INodeRef,
-    mut i: usize,
+    mut extent: usize,
     indir: &mut Option<ExtentCache>,
     remove: bool,
 ) -> Result<ExtentRef, Error> {
     log!(
         crate::LOG_INODES,
-        "inodes::change_extent(inode={}, i={}, remove={})",
+        "inodes::change_extent(inode={}, extent={}, remove={})",
         inode.inode,
-        i,
+        extent,
         remove,
     );
 
     let ext_per_block = crate::hdl().superblock().extents_per_block();
 
-    if i < INODE_DIR_COUNT {
-        return Ok(ExtentRef::dir_from_inode(&inode, i));
+    if extent < INODE_DIR_COUNT {
+        return Ok(ExtentRef::dir_from_inode(&inode, extent));
     }
-
-    i -= INODE_DIR_COUNT;
 
     let mb = crate::hdl().metabuffer();
 
-    if i < ext_per_block {
+    extent -= INODE_DIR_COUNT;
+    if extent < ext_per_block {
         assert!(inode.indirect != 0);
 
+        // load indirect extent cache, if not done yet
         if indir.is_none() {
-            // indir is allocated but not laoded in the indir-vec. Do that now
             let data_ref = mb.get_block(inode.indirect, false)?;
-            // Overwrite extent vec with the created one
             *indir = Some(ExtentCache::from_buffer(data_ref));
         }
         crate::hdl().metabuffer().mark_dirty(inode.indirect);
 
         // we assume that we only delete extents at the end; thus, if its the first, we can remove
         // the indirect block as well.
-        if remove && i == 0 {
+        if remove && extent == 0 {
             crate::hdl().blocks().free(inode.indirect as usize, 1)?;
             inode.as_mut().indirect = 0;
         }
 
-        // Return i-th inode from the loaded indirect block
-        return Ok(indir.as_ref().unwrap().get_ref(i));
+        return Ok(indir.as_ref().unwrap().get_ref(extent));
     }
 
-    i -= ext_per_block;
-    if i < (ext_per_block * ext_per_block) {
+    extent -= ext_per_block;
+    if extent < (ext_per_block * ext_per_block) {
         assert!(inode.dindirect != 0);
 
-        // Load dindirect into vec
-        let data_ref = mb.get_block(inode.indirect, false)?;
-
-        let ptr = ExtentRef::indir_from_buffer(data_ref, (i / ext_per_block) * NUM_EXT_BYTES);
-
+        // load block with doubly indirect extents
+        let data_ref = mb.get_block(inode.dindirect, false)?;
+        let ptr = ExtentRef::indir_from_buffer(data_ref, (extent / ext_per_block) * NUM_EXT_BYTES);
         let dindir = mb.get_block(ptr.start, false)?;
 
-        let ext_loc = (i % ext_per_block) * NUM_EXT_BYTES;
+        // load extent
+        let ext_loc = (extent % ext_per_block) * NUM_EXT_BYTES;
         let ext = ExtentRef::indir_from_buffer(dindir, ext_loc);
 
         crate::hdl().metabuffer().mark_dirty(ptr.start);
@@ -454,7 +483,7 @@ fn change_extent(
             }
 
             // for the double-indirect too
-            if i == 0 {
+            if extent == 0 {
                 crate::hdl().blocks().free(inode.dindirect as usize, 1)?;
                 inode.as_mut().dindirect = 0;
             }
@@ -463,10 +492,15 @@ fn change_extent(
         return Ok(ext);
     }
 
-    // i not even in dindirect block
+    // extent was not within the doubly indirect extents
     Err(Error::new(Code::NotFound))
 }
 
+/// Creates a new extent for given inode with given number of blocks
+///
+/// `accessed` denotes the number of times we already accessed this file.
+///
+/// Returns the created extent
 pub fn create_extent(
     inode: Option<&INodeRef>,
     blocks: u32,
@@ -495,6 +529,7 @@ pub fn create_extent(
     Ok(ext)
 }
 
+/// Truncates the given inode until the given extent and extent offset.
 pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Error> {
     log!(
         crate::LOG_INODES,
@@ -534,7 +569,7 @@ pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Er
                 curlen -= blocksize - modul as u32;
             }
 
-            // do we need to reduce the size of `extent` ?
+            // do we need to reduce the size of `extent`?
             if extoff < curlen as usize {
                 let diff = curlen as usize - extoff;
                 let bdiff = if extoff == 0 {
@@ -545,7 +580,7 @@ pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Er
                 };
                 let blocks = bdiff / blocksize as usize;
                 if blocks > 0 {
-                    // Free all of these blocks
+                    // free all of these blocks
                     crate::hdl()
                         .blocks()
                         .free((ext.start + ext.length) as usize - blocks, blocks)?;
@@ -564,13 +599,14 @@ pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Er
     Ok(())
 }
 
+/// Marks the given inode as dirty, so that it is written back to storage later
 pub fn mark_dirty(ino: InodeNo) {
     let inos_per_block = crate::hdl().superblock().inodes_per_block();
-    let block_no =
-        crate::hdl().superblock().first_inode_block() + (ino / inos_per_block as u32);
+    let block_no = crate::hdl().superblock().first_inode_block() + (ino / inos_per_block as u32);
     crate::hdl().metabuffer().mark_dirty(block_no);
 }
 
+/// Writes all dirty metadata from given inode back to storage
 pub fn sync_metadata(inode: &INodeRef) -> Result<(), Error> {
     log!(
         crate::LOG_INODES,
@@ -580,7 +616,6 @@ pub fn sync_metadata(inode: &INodeRef) -> Result<(), Error> {
 
     let mut indir = None;
     for ext_idx in 0..inode.extents {
-        // Load extent from inode
         let extent = get_extent(inode, ext_idx as usize, &mut indir, false)?;
 
         for block in extent.blocks() {

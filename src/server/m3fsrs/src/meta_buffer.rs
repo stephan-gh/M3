@@ -56,7 +56,7 @@ impl MetaBufferBlock {
         &mut self.data
     }
 
-    // Overwrites the data of this block with zeros
+    /// Overwrites the data of this block with zeros
     pub fn overwrite_zero(&mut self) {
         for i in &mut self.data {
             *i = 0;
@@ -105,11 +105,11 @@ impl Drop for MetaBufferBlockRef {
 }
 
 pub struct MetaBuffer {
-    /// Contains the actual MetaBufferBlock objects and keeps them sorted by LRU
+    // contains the actual MetaBufferBlock objects and keeps them sorted by LRU
     lru: BoxList<MetaBufferBlock>,
-    /// Gives us a quick translation from block number to block id (index in the following vector)
+    // gives us a quick translation from block number to block id (index in the following vector)
     ht: Treap<BlockNo, usize>,
-    /// Contains pointers to the MetaBufferBlock objects, indexed by their id
+    // contains pointers to the MetaBufferBlock objects, indexed by their id
     blocks: Vec<NonNull<MetaBufferBlock>>,
 }
 
@@ -167,7 +167,7 @@ impl MetaBuffer {
                     thread::ThreadManager::get().wait_for(block.unlock);
                 }
                 else {
-                    // Move element to back since it was touched
+                    // move element to back since it was touched
                     unsafe {
                         self.lru.move_to_back(block);
                     }
@@ -183,16 +183,15 @@ impl MetaBuffer {
                 }
             }
             else {
-                // No block for block number, therefore allocate
+                // no block for block number, therefore allocate
                 break;
             }
         }
 
+        // find first unused head
         let mut use_block = None;
-        // Find first unused head
         for lru_element in self.lru.iter() {
             if lru_element.links == 0 {
-                // Only saved in lru and ht but unused
                 use_block = Some(lru_element.id);
                 break;
             }
@@ -204,7 +203,7 @@ impl MetaBuffer {
             block
         };
 
-        // Flush if there is still a block present with the given bno.
+        // flush if there is still a block present with the given bno.
         if block.bno != 0 {
             self.ht.remove(&block.bno);
             if block.dirty {
@@ -212,13 +211,12 @@ impl MetaBuffer {
             }
         }
 
-        // Now we are save to use this bno
-        // Insert into ht
+        // use this block
         block.bno = bno;
         self.ht.insert(bno, block.id);
 
         let unlock = block.unlock;
-        // Now load from backend and setup everything
+        // now load from backend and setup everything
         crate::hdl()
             .backend()
             .load_meta(block, block.id, bno, unlock)?;
@@ -289,7 +287,7 @@ impl Buffer for MetaBuffer {
             head.bno
         );
 
-        // Write meta block to backend device
+        // write meta block to backend
         crate::hdl()
             .backend()
             .store_meta(head, head.id, head.bno, head.unlock)?;

@@ -7,7 +7,7 @@ use crate::m3::serialize::Sink;
 use m3::cap::Selector;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
-use m3::kif::{CapRngDesc, CapType};
+use m3::kif::{CapRngDesc, CapType, INVALID_SEL};
 use m3::session::Disk;
 use thread::Event;
 
@@ -20,12 +20,11 @@ pub struct DiskBackend {
 impl DiskBackend {
     pub fn new() -> Result<Self, Error> {
         let disk = Disk::new("disk")?;
-        let metabuf = MemGate::new(1, Perm::R)?;
 
         Ok(DiskBackend {
-            blocksize: 4096, // gets initialized when loading superblock
+            blocksize: 0, // gets initialized when loading superblock
             disk,
-            metabuf, // Gets set as well when loading supper block
+            metabuf: MemGate::new_bind(INVALID_SEL), // gets replaced when loading superblock
         })
     }
 
@@ -34,7 +33,6 @@ impl DiskBackend {
         self.disk.sess.delegate(
             crd,
             |slice_sink| {
-                // Add arguments in order
                 slice_sink.push(&bno);
                 slice_sink.push(&len);
             },

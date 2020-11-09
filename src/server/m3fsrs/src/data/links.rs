@@ -4,6 +4,7 @@ use crate::internal::{DirEntry, INodeRef};
 
 use m3::errors::{Code, Error};
 
+/// Creates a link in directory `dir` with given name pointing to `inode`.
 pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error> {
     log!(
         crate::LOG_LINKS,
@@ -28,9 +29,8 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
                 let entry = DirEntry::from_buffer_mut(&mut block, off);
 
                 let rem = entry.next - entry.size() as u32;
-                // This happens if we can embed the new dir-entry between this one and the "next"
                 if rem >= entry.size() as u32 {
-                    // change current entry (thus, we cannot call entry_iter.next() again!)
+                    // change current entry
                     entry.next = entry.size() as u32;
                     let entry_next = entry.next;
                     drop(entry);
@@ -54,12 +54,11 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
         }
     }
 
-    // Check if a suitable space was found, otherwise extend directory
+    // no suitable space found; extend directory
     if !created {
-        // Create new
         let ext = inodes::get_extent(dir, dir.extents as usize, &mut indir, true)?;
 
-        // Insert one block extent
+        // insert one block extent
         let ext_range = inodes::create_extent(Some(dir), 1, 1)?;
         *ext.as_mut() = ext_range;
 
@@ -77,13 +76,16 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
     Ok(())
 }
 
-pub fn remove(dir: &INodeRef, name: &str, is_dir: bool) -> Result<(), Error> {
+/// Removes the link with given name from `dir`
+///
+/// If `deny_dir` is true, the function fails if the link points to a directory.
+pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
     log!(
         crate::LOG_LINKS,
-        "links::remove(dir={}, name={}, is_dir={})",
+        "links::remove(dir={}, name={}, deny_dir={})",
         dir.inode,
         name,
-        is_dir
+        deny_dir
     );
 
     let mut indir = None;
@@ -100,10 +102,10 @@ pub fn remove(dir: &INodeRef, name: &str, is_dir: bool) -> Result<(), Error> {
                 let entry = DirEntry::from_buffer_mut(&mut block, off);
 
                 if entry.name() == name {
-                    // if we are not removing a dir, we are coming from unlink(). in this case, directories
-                    // are not allowed
+                    // if we're not removing a dir, we're coming from unlink(). in this case,
+                    // directories are not allowed
                     let inode = inodes::get(entry.nodeno)?;
-                    if !is_dir && inode.mode.is_dir() {
+                    if deny_dir && inode.mode.is_dir() {
                         return Err(Error::new(Code::IsDir));
                     }
 
@@ -115,6 +117,7 @@ pub fn remove(dir: &INodeRef, name: &str, is_dir: bool) -> Result<(), Error> {
                         let mut prev = DirEntry::from_buffer_mut(&mut block, prev_off);
                         prev.next += entry_next;
                     }
+                    // copy the next entry back, if there is any
                     else {
                         let next_off = off + entry_next as usize;
                         if next_off < end {
@@ -125,7 +128,6 @@ pub fn remove(dir: &INodeRef, name: &str, is_dir: bool) -> Result<(), Error> {
                             );
 
                             let dist = cur_entry.next;
-                            // Copy data over
                             cur_entry.next = next_entry.next;
                             cur_entry.nodeno = next_entry.nodeno;
 
