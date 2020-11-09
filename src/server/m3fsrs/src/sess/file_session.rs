@@ -429,8 +429,7 @@ impl FileSession {
 
             // append extent to file
             append_ext.length = blocks as u32;
-            let mut new_ext = false;
-            inodes::append_extent(inode, *append_ext, &mut new_ext)?;
+            let new_ext = inodes::append_extent(inode, *append_ext)?;
 
             // free superfluous blocks
             if old_len as usize > blocks {

@@ -215,18 +215,17 @@ pub fn req_append(
     }
 }
 
-pub fn append_extent(inode: &INodeRef, next: Extent, newext: &mut bool) -> Result<(), Error> {
+pub fn append_extent(inode: &INodeRef, next: Extent) -> Result<bool, Error> {
     log!(
         crate::LOG_INODES,
-        "inodes::append_extent(inode={}, next=(start={}, length={}), newext={})",
+        "inodes::append_extent(inode={}, next=(start={}, length={}))",
         inode.inode,
         next.start,
         next.length,
-        newext
     );
 
     let mut indir = None;
-    *newext = true;
+    let mut new_ext = true;
 
     // try to load existing inode
     let ext = if inode.extents > 0 {
@@ -235,7 +234,7 @@ pub fn append_extent(inode: &INodeRef, next: Extent, newext: &mut bool) -> Resul
             None
         }
         else {
-            *newext = false;
+            new_ext = false;
             Some(ext)
         }
     }
@@ -255,7 +254,7 @@ pub fn append_extent(inode: &INodeRef, next: Extent, newext: &mut bool) -> Resul
         *ext.as_mut() = next;
     }
 
-    Ok(())
+    Ok(new_ext)
 }
 
 pub fn get_extent(
