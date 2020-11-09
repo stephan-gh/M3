@@ -1,9 +1,8 @@
 use crate::buffer::Buffer;
 use crate::internal::{
-    Extent, ExtentRef, FileMode, INodeRef, InodeNo, SeekMode, INODE_DIR_COUNT, NUM_EXT_BYTES,
+    Extent, ExtentRef, FileMode, INodeRef, InodeNo, INODE_DIR_COUNT, NUM_EXT_BYTES,
     NUM_INODE_BYTES,
 };
-use crate::FileInfo;
 
 use m3::{
     cap::Selector,
@@ -11,6 +10,7 @@ use m3::{
     com::Perm,
     errors::{Code, Error},
     math, time,
+    vfs::{FileInfo, SeekMode},
 };
 
 pub struct INodes;

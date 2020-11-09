@@ -9,9 +9,9 @@ use core::slice;
 use core::u32;
 
 use m3::cell::Cell;
-use m3::kif::Perm;
 use m3::libc;
 use m3::util::size_of;
+use m3::vfs::FileInfo;
 
 /// Number of some block
 pub type BlockNo = u32;
@@ -24,14 +24,6 @@ pub const MAX_BLOCK_SIZE: u32 = 4096;
 pub const NUM_INODE_BYTES: usize = 64;
 pub const NUM_EXT_BYTES: usize = 8;
 const DIR_ENTRY_LEN: usize = 12;
-
-int_enum! {
-    pub struct SeekMode : u32 {
-        const SET = 0;
-        const CUR = 1;
-        const END = 2;
-    }
-}
 
 bitflags! {
     pub struct FileMode : u32 {
@@ -88,76 +80,6 @@ impl FileMode {
 
     pub fn is_pip(self) -> bool {
         (self & Self::IFMT) == Self::IFPIP
-    }
-}
-
-bitflags! {
-    pub struct OpenFlags : u64 {
-        const R = 1;
-        const W = 2;
-        const X = 4;
-        const RW = Self::R.bits | Self::W.bits;
-        const RWX = Self::R.bits | Self::W.bits | Self::X.bits;
-        const TRUNC = 8;
-        const APPEND = 16;
-        const CREATE = 32;
-        const NODATA = 64;
-    }
-}
-
-impl From<OpenFlags> for Perm {
-    fn from(flags: OpenFlags) -> Self {
-        const_assert!(OpenFlags::R.bits() == Perm::R.bits() as u64);
-        const_assert!(OpenFlags::W.bits() == Perm::W.bits() as u64);
-        const_assert!(OpenFlags::X.bits() == Perm::X.bits() as u64);
-        Perm::from_bits_truncate((flags & OpenFlags::RWX).bits() as u32)
-    }
-}
-
-#[derive(Debug)]
-pub struct FileInfo {
-    pub devno: Dev,
-    pub inode: InodeNo,
-    pub mode: u32,
-    pub links: usize,
-    pub size: usize,
-    pub lastaccess: Time,
-    pub lastmod: Time,
-    pub blocksize: usize,
-    // for debugging
-    pub extents: usize,
-    pub firstblock: BlockNo,
-}
-
-impl m3::serialize::Marshallable for FileInfo {
-    fn marshall(&self, sink: &mut dyn m3::serialize::Sink) {
-        self.devno.marshall(sink);
-        self.inode.marshall(sink);
-        self.mode.marshall(sink);
-        self.links.marshall(sink);
-        self.size.marshall(sink);
-        self.lastaccess.marshall(sink);
-        self.lastmod.marshall(sink);
-        self.blocksize.marshall(sink);
-        self.extents.marshall(sink);
-        self.firstblock.marshall(sink);
-    }
-}
-
-impl Default for FileInfo {
-    fn default() -> Self {
-        FileInfo {
-            devno: 0,
-            inode: 0,
-            mode: 0,
-            links: 0,
-            size: 0,
-            lastaccess: 0,
-            lastmod: 0,
-            blocksize: crate::hdl().superblock().block_size as usize,
-            extents: 0,
-            firstblock: 0,
-        }
     }
 }
 
@@ -227,13 +149,13 @@ impl INode {
     pub fn to_file_info(&self, info: &mut FileInfo) {
         info.devno = self.devno;
         info.inode = self.inode;
-        info.mode = self.mode.bits();
-        info.links = self.links as usize;
+        info.mode = self.mode.bits() as u16;
+        info.links = self.links as u32;
         info.size = self.size as usize;
         info.lastaccess = self.lastaccess;
         info.lastmod = self.lastmod;
-        info.extents = self.extents as usize;
-        info.blocksize = crate::hdl().superblock().block_size as usize;
+        info.extents = self.extents as u32;
+        info.blocksize = crate::hdl().superblock().block_size as u32;
         info.firstblock = self.direct[0].start;
     }
 }

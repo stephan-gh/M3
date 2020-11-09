@@ -1,5 +1,5 @@
 use crate::data::{Dirs, INodes};
-use crate::internal::{FileMode, InodeNo, OpenFlags};
+use crate::internal::{FileMode, InodeNo};
 use crate::sess::{FileSession, M3FSSession};
 use crate::FileInfo;
 
@@ -14,6 +14,7 @@ use m3::{
     server::CapExchange,
     server::SessId,
     session::ServerSession,
+    vfs::OpenFlags,
 };
 
 pub struct MetaSession {
@@ -81,7 +82,7 @@ impl MetaSession {
         data: &mut CapExchange,
         file_session_id: SessId,
     ) -> Result<Rc<RefCell<FileSession>>, Error> {
-        let flags = OpenFlags::from_bits_truncate(data.in_args().pop::<u64>()?);
+        let flags = OpenFlags::from_bits_truncate(data.in_args().pop::<u32>()?);
 
         // Read the string, is already read only until termination or not at all
         let path = data.in_args().pop_str_slice()?;

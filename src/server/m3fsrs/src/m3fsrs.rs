@@ -16,7 +16,7 @@ mod util;
 
 use crate::backend::{Backend, DiskBackend, MemBackend};
 use crate::fs_handle::M3FSHandle;
-use crate::internal::{BlockNo, Extent, FileInfo, SuperBlock};
+use crate::internal::{BlockNo, Extent, SuperBlock};
 use crate::sess::{FSSession, FileSession, M3FSSession, MetaSession};
 
 use m3::{
@@ -32,7 +32,7 @@ use m3::{
     serialize::Source,
     server::{server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer},
     tcu::{EpId, Label, EP_COUNT},
-    vfs::{FSOperation, GenFileOp},
+    vfs::{FSOperation, FileInfo, GenFileOp},
 };
 
 // Sets the logging behavior

@@ -1,5 +1,5 @@
 use crate::data::INodes;
-use crate::internal::{INodeRef, InodeNo, OpenFlags, SeekMode};
+use crate::internal::{INodeRef, InodeNo};
 use crate::sess::M3FSSession;
 use crate::{Extent, FileInfo};
 
@@ -15,6 +15,7 @@ use m3::{
     server::{CapExchange, SessId},
     session::ServerSession,
     syscalls, tcu,
+    vfs::{OpenFlags, SeekMode},
 };
 
 struct Entry {
