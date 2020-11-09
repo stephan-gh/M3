@@ -170,37 +170,35 @@ pub fn get_extent_mem(
 /// location and length in `ext` and returns the ext size
 pub fn req_append(
     inode: &INodeRef,
-    i: usize,
-    mut extoff: usize,
-    extlen: &mut usize,
+    extent: usize,
+    extoff: usize,
     sel: Selector,
     perm: Perm,
     accessed: usize,
-) -> Result<(usize, Option<Extent>), Error> {
+) -> Result<(usize, usize, Option<Extent>), Error> {
     let num_extents = inode.extents;
 
     log!(
         crate::LOG_INODES,
-        "inodes::req_append(inode={}, i={}, extoff={}, extlen={}, accessed={}, num_extents={})",
+        "inodes::req_append(inode={}, extent={}, extoff={}, accessed={}, num_extents={})",
         inode.inode,
-        i,
+        extent,
         extoff,
-        extlen,
         accessed,
         num_extents
     );
 
     let mut load = true;
 
-    if i < inode.extents as usize {
+    if extent < inode.extents as usize {
         let mut indir = None;
-        let ext = &mut get_extent(inode, i, &mut indir, false)?;
+        let ext = get_extent(inode, extent, &mut indir, false)?;
 
-        *extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
+        let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
-            .get_filedata(**ext, extoff, perm, sel, load, accessed)?;
-        Ok((bytes, None))
+            .get_filedata(*ext, extoff, perm, sel, load, accessed)?;
+        Ok((bytes, extlen, None))
     }
     else {
         let ext = create_extent(None, crate::hdl().extend() as u32, accessed)?;
@@ -209,12 +207,11 @@ pub fn req_append(
             load = false;
         }
 
-        extoff = 0;
-        *extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
+        let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
-            .get_filedata(ext, extoff, perm, sel, load, accessed)?;
-        Ok((bytes, Some(ext)))
+            .get_filedata(ext, 0, perm, sel, load, accessed)?;
+        Ok((bytes, extlen, Some(ext)))
     }
 }
 

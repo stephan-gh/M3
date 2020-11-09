@@ -275,10 +275,9 @@ impl FileSession {
         }
 
         let mut sel = m3::pes::VPE::cur().alloc_sel();
-        let mut extlen = 0;
 
         // Do we need to append to the file?
-        let len = if out && (self.fileoff as u64 == inode.size) {
+        let (len, extlen) = if out && (self.fileoff as u64 == inode.size) {
             let files = crate::hdl().files();
             let open_file = files.get_file_mut(self.ino).unwrap();
 
@@ -306,11 +305,10 @@ impl FileSession {
                 )?;
             }
 
-            let (len, new_ext) = inodes::req_append(
+            let (len, extlen, new_ext) = inodes::req_append(
                 &inode,
                 self.extent,
                 self.extoff,
-                &mut extlen,
                 sel,
                 Perm::from(self.oflags),
                 self.accessed,
@@ -320,7 +318,7 @@ impl FileSession {
             self.append_ext = new_ext;
 
             open_file.set_appending(true);
-            len
+            (len, extlen)
         }
         else {
             // get next mem_cap
@@ -334,12 +332,9 @@ impl FileSession {
             );
             match res {
                 // if we didn't find the extent, turn that into EOF
-                Err(e) if e.code() == Code::NotFound => 0,
+                Err(e) if e.code() == Code::NotFound => (0, 0),
                 Err(e) => return Err(e),
-                Ok((len, elen)) => {
-                    extlen = elen;
-                    len
-                }
+                Ok((len, extlen)) => (len, extlen)
             }
         };
 
