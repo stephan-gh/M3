@@ -3,6 +3,9 @@ use crate::buffer::{Buffer, PRDT_SIZE};
 use crate::internal::BlockNo;
 use crate::util::{Lru, LruElement};
 
+use core::cmp;
+use core::fmt;
+
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::Treap;
@@ -12,33 +15,61 @@ use m3::rc::Rc;
 
 use thread::Event;
 
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
+pub struct BlockRange {
+    start: BlockNo,
+    count: BlockNo,
+}
+
+impl BlockRange {
+    pub fn new(bno: BlockNo) -> Self {
+        Self::new_range(bno, 1)
+    }
+
+    pub fn new_range(start: BlockNo, count: BlockNo) -> Self {
+        BlockRange { start, count }
+    }
+}
+
+impl fmt::Debug for BlockRange {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}..{}", self.start, self.start + self.count - 1)
+    }
+}
+
+impl cmp::Ord for BlockRange {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        if self.start >= other.start && self.start < other.start + other.count {
+            cmp::Ordering::Equal
+        }
+        else if self.start < other.start {
+            cmp::Ordering::Less
+        }
+        else {
+            cmp::Ordering::Greater
+        }
+    }
+}
+
 pub struct FileBufferHead {
-    bno: BlockNo,
+    blocks: BlockRange,
     data: m3::com::MemGate,
 
     lru_entry: Rc<RefCell<LruElement<BlockNo>>>,
 
-    size: usize,
     locked: bool,
     dirty: bool,
     unlock: Event,
 }
 
-impl core::cmp::PartialEq for FileBufferHead {
-    fn eq(&self, other: &Self) -> bool {
-        self.bno == other.bno
-    }
-}
-
 impl FileBufferHead {
-    fn new(bno: BlockNo, size: usize, blocksize: usize) -> Result<Self, Error> {
+    fn new(blocks: BlockRange, blocksize: usize) -> Result<Self, Error> {
         Ok(FileBufferHead {
-            bno,
-            data: MemGate::new(size * blocksize + PRDT_SIZE, Perm::RWX)?,
+            blocks,
+            data: MemGate::new(blocks.count as usize * blocksize + PRDT_SIZE, Perm::RWX)?,
 
-            lru_entry: LruElement::new(bno),
+            lru_entry: LruElement::new(blocks.start),
 
-            size,
             locked: true,
             dirty: false,
             unlock: thread::ThreadManager::get().alloc_event(),
@@ -49,7 +80,7 @@ impl FileBufferHead {
 pub struct FileBuffer {
     size: usize,
 
-    ht: Treap<BlockNo, Rc<RefCell<FileBufferHead>>>,
+    ht: Treap<BlockRange, Rc<RefCell<FileBufferHead>>>,
     // least recently used list, the front element is least recently used, the last element is the
     // most recently used one.
     lru: Lru<BlockNo>,
@@ -94,16 +125,14 @@ impl FileBuffer {
 
         loop {
             if let Some(head) = self.get(bno).cloned() {
-                // TODO redundant?
-                let key: BlockNo = head.borrow().bno;
+                let start = head.borrow().blocks.start;
 
                 if head.borrow().locked {
                     // wait for block to unlock
                     log!(
                         crate::LOG_BUFFER,
-                        "filebuffer: waiting for cached blocks <{},{}>",
-                        key,
-                        head.borrow().size,
+                        "filebuffer: waiting for cached blocks <{:?}>",
+                        head.borrow().blocks,
                     );
                     thread::ThreadManager::get().wait_for(head.borrow().unlock);
                 }
@@ -112,16 +141,16 @@ impl FileBuffer {
 
                     log!(
                         crate::LOG_BUFFER,
-                        "filebuffer: found cached blocks <{},{}>",
-                        key,
-                        head.borrow().size,
+                        "filebuffer: found cached blocks <{:?}>",
+                        head.borrow().blocks,
                     );
-                    let len = size.min(head.borrow().size - (bno - key) as usize);
+
+                    let len = size.min((head.borrow().blocks.count - (bno - start)) as usize);
                     m3::syscalls::derive_mem(
                         m3::pes::VPE::cur().sel(),
                         sel,
                         head.borrow().data.sel(),
-                        ((bno - key) as u64) * self.block_size as u64,
+                        ((bno - start) as u64) * self.block_size as u64,
                         len * self.block_size,
                         perm,
                     )?;
@@ -151,7 +180,7 @@ impl FileBuffer {
                     .value();
 
                 // get head for key of first element
-                if let Some(head) = self.ht.get(&key).cloned() {
+                if let Some(head) = self.get(key).cloned() {
                     if head.borrow().locked {
                         // wait for block to be evicted. We then have more space. Maybe enough space
                         // to store the new data
@@ -168,7 +197,7 @@ impl FileBuffer {
                         let _oldest_head_in_lru = self.lru.pop_front();
                         let mut oldest_head_in_ht = self
                             .ht
-                            .remove(&key)
+                            .remove(&BlockRange::new(key))
                             .expect("Could not delete head when allocating in file buffer!");
 
                         if head.borrow().dirty {
@@ -185,7 +214,7 @@ impl FileBuffer {
                             false,
                         )?;
                         // remove head from inner Buffer size
-                        self.size -= head.borrow().size;
+                        self.size -= head.borrow().blocks.count as usize;
                     }
                 }
             }
@@ -193,28 +222,26 @@ impl FileBuffer {
 
         // at this point there must be enough space for the block
         let new_head = Rc::new(RefCell::new(FileBufferHead::new(
-            bno,
-            load_size,
+            BlockRange::new_range(bno, load_size as BlockNo),
             self.block_size as usize,
         )?));
-        self.size += new_head.borrow().size;
-        self.ht.insert(bno, new_head.clone());
+        self.size += new_head.borrow().blocks.count as usize;
+        self.ht.insert(new_head.borrow().blocks, new_head.clone());
         let lru_entry = new_head.borrow().lru_entry.clone();
         self.lru.move_to_back(lru_entry);
 
         log!(
             crate::LOG_BUFFER,
-            "filebuffer: allocated blocks <{},{}>{}",
-            new_head.borrow().bno,
-            new_head.borrow().size,
+            "filebuffer: allocated blocks <{:?}>{}",
+            new_head.borrow().blocks,
             if load { " (loading)" } else { "" }
         );
 
         // load data from backend
         backend.load_data(
             &new_head.borrow().data,
-            new_head.borrow().bno,
-            new_head.borrow().size,
+            new_head.borrow().blocks.start,
+            new_head.borrow().blocks.count as usize,
             load,
             new_head.borrow().unlock,
         )?;
@@ -258,26 +285,25 @@ impl Buffer for FileBuffer {
     }
 
     fn get(&self, bno: BlockNo) -> Option<&Rc<RefCell<FileBufferHead>>> {
-        self.ht.get(&bno)
+        self.ht.get(&BlockRange::new(bno))
     }
 
     fn get_mut(&mut self, bno: BlockNo) -> Option<&mut Rc<RefCell<FileBufferHead>>> {
-        self.ht.get_mut(&bno)
+        self.ht.get_mut(&BlockRange::new(bno))
     }
 
     fn flush_chunk(head: &mut Rc<RefCell<FileBufferHead>>) -> Result<(), Error> {
         head.borrow_mut().locked = true;
         log!(
             crate::LOG_BUFFER,
-            "filebuffer: writing back blocks <{},{}>",
-            head.borrow().bno,
-            head.borrow().size
+            "filebuffer: writing back blocks <{:?}>",
+            head.borrow().blocks,
         );
 
         // write data of block to backend
         crate::hdl().backend().store_data(
-            head.borrow().bno,
-            head.borrow().size,
+            head.borrow().blocks.start,
+            head.borrow().blocks.count as usize,
             head.borrow().unlock,
         )?;
 
