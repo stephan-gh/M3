@@ -26,10 +26,6 @@ impl MemBackend {
 }
 
 impl Backend for MemBackend {
-    fn in_memory(&self) -> bool {
-        true
-    }
-
     fn load_meta(
         &self,
         dst: &mut MetaBufferBlock,

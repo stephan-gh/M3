@@ -44,9 +44,6 @@ pub const LOG_DIRS: bool = false;
 pub const LOG_INODES: bool = false;
 pub const LOG_LINKS: bool = false;
 
-// enables a hack that is needed when running the shell.. for some reason
-const SHELL_HACK: bool = false;
-
 // Server constants
 const FS_IMG_OFFSET: goff = 0;
 const MAX_CLIENTS: usize = 32;
@@ -82,7 +79,6 @@ int_enum! {
 struct M3FSRequestHandler {
     sel: Selector,
     sessions: SessionContainer<FSSession>,
-    in_memory: bool,
 }
 
 impl M3FSRequestHandler {
@@ -90,7 +86,6 @@ impl M3FSRequestHandler {
     where
         B: Backend + 'static,
     {
-        let in_memory = backend.in_memory();
         // init thread manager, otherwise the waiting within the file and meta buffer impl. panics.
         thread::init();
         FSHANDLE.set(Some(M3FSHandle::new(backend, settings.clone())));
@@ -100,7 +95,6 @@ impl M3FSRequestHandler {
         Ok(M3FSRequestHandler {
             sel: 0, // gets set later in main
             sessions: container,
-            in_memory,
         })
     }
 
@@ -239,18 +233,18 @@ impl Handler<FSSession> for M3FSRequestHandler {
         arg: &str,
     ) -> Result<(Selector, SessId), Error> {
         // get max number of files
-        let mut max_files: usize = 64;
+        let mut max_files: usize = 16;
         if arg.len() > 6 {
             if &arg[..6] == "file=" {
-                max_files = arg[6..].parse().unwrap_or(64);
+                max_files = arg[6..].parse().map_err(|_| Error::new(Code::InvArgs))?;
             }
-        } // otherwise there is an argument but it is not big enough
+        }
 
         // get the id this session would belong to.
         let sessid = self.sessions.next_id()?;
 
         self.sessions.add_next(crt, srv_sel, true, |sess| {
-            log!(crate::LOG_SESSION, "[{}] creating session", sess.ident());
+            log!(crate::LOG_SESSION, "[{}] creating session(crt={})", sess.ident(), crt);
             Ok(FSSession::Meta(MetaSession::new(
                 sess, sessid, crt, max_files,
             )))
@@ -258,35 +252,18 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     /// Let's the client obtain a capability from the server
-    fn obtain(&mut self, mut crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
-        // TODO hotfix for buggy crt mechanism, must be removed later
-
-        if crt == 0 && self.in_memory && SHELL_HACK {
-            println!(
-                "M3FS-RS WARNING: changed obtain(crt) from 0 to 1 according to memory-backend specific hack"
-            );
-            crt += 1;
-        }
+    fn obtain(&mut self, crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
+        log!(LOG_DEF, "[{}] fs::obtain(crt={})", sid, crt);
 
         if !self.sessions.can_add(crt) {
-            log!(
-                LOG_DEF,
-                "m3fs:obtain: WARNING: Can't add new session for creator: {}, this is a bug that needs to be fixed!",
-                crt
-            );
             return Err(Error::new(Code::NoSpace));
         }
 
+        // get some values now, because we cannot borrow self while holding the session reference
         let next_sess_id = self.sessions.next_id()?;
-
         let sel: Selector = self.sel;
 
-        let session = if let Some(s) = self.get_session(sid) {
-            s
-        }
-        else {
-            return Err(Error::new(Code::InvArgs));
-        };
+        let session = self.get_session(sid).ok_or_else(|| Error::new(Code::InvArgs))?;
         match session {
             FSSession::Meta(meta) => {
                 if data.in_args().size() == 0 {
@@ -295,13 +272,14 @@ impl Handler<FSSession> for M3FSRequestHandler {
                 }
                 else {
                     log!(crate::LOG_DEF, "[{}] fs::open_file()", sid);
-                    let session = meta.open_file(sel, crt, data, next_sess_id)?;
+                    let file_session = meta.open_file(sel, crt, data, next_sess_id)?;
 
                     self.sessions
-                        .add(crt, next_sess_id, FSSession::File(session))?;
+                        .add(crt, next_sess_id, FSSession::File(file_session))?;
                     Ok(())
                 }
             },
+
             FSSession::File(file) => {
                 if data.in_args().size() == 0 {
                     log!(crate::LOG_DEF, "[{}] fs::clone()", sid);
@@ -316,37 +294,25 @@ impl Handler<FSSession> for M3FSRequestHandler {
     }
 
     /// Let's the client delegate a capability to the server
-    fn delegate(&mut self, crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
+    fn delegate(&mut self, _crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
         log!(LOG_DEF, "[{}] fs::delegate()", sid);
-        let session = if let Some(s) = self.get_session(sid) {
-            s
-        }
-        else {
-            log!(
-                LOG_DEF,
-                "fs::delegate: could not find session with id {}, crt: {}",
-                sid,
-                crt
-            );
-            return Err(Error::new(Code::NotSup));
-        };
+
+        let session = self.get_session(sid).ok_or_else(|| Error::new(Code::InvArgs))?;
 
         if data.in_caps() != 1 || !session.is_file_session() {
-            log!(
-                LOG_DEF,
-                "fs::delegate: was not file session or data_caps != 1"
-            );
             return Err(Error::new(Code::NotSup));
         }
 
         if let FSSession::File(fs) = session {
             let new_sel: Selector = VPE::cur().alloc_sel();
+
             log!(
                 LOG_DEF,
-                "fs::delegate: set_ep(sel: {}, sid: {})",
+                "[{}] fs::delegate(): set_ep(sel: {})",
+                sid,
                 new_sel,
-                sid
             );
+
             fs.borrow_mut().set_ep(new_sel);
             data.out_caps(m3::kif::CapRngDesc::new(
                 m3::kif::CapType::OBJECT,

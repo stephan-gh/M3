@@ -15,9 +15,6 @@ use m3::errors::Error;
 use thread::Event;
 
 pub trait Backend {
-    // Needed for the hotfix. Might be removed.
-    fn in_memory(&self) -> bool;
-
     fn load_meta(
         &self,
         dst: &mut MetaBufferBlock,

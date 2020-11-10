@@ -42,10 +42,6 @@ impl DiskBackend {
 }
 
 impl Backend for DiskBackend {
-    fn in_memory(&self) -> bool {
-        false
-    }
-
     fn load_meta(
         &self,
         dst: &mut MetaBufferBlock,
