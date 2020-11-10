@@ -20,7 +20,6 @@
         <dom>
             <app args="pager" usermem="256M">
                 <sess name="m3fs" />
-                <sesscrt name="m3fs" count="30" />
                 <pes type="core" count="1" />
                 <dom>
                     <app args="/bin/shell">
