@@ -108,7 +108,7 @@ pub struct MetaBuffer {
     // contains the actual MetaBufferBlock objects and keeps them sorted by LRU
     lru: BoxList<MetaBufferBlock>,
     // gives us a quick translation from block number to block id (index in the following vector)
-    ht: Treap<BlockNo, usize>,
+    ids: Treap<BlockNo, usize>,
     // contains pointers to the MetaBufferBlock objects, indexed by their id
     blocks: Vec<NonNull<MetaBufferBlock>>,
 }
@@ -127,14 +127,14 @@ impl MetaBuffer {
         }
 
         MetaBuffer {
-            ht: Treap::new(),
+            ids: Treap::new(),
             blocks,
             lru,
         }
     }
 
     fn bno_to_id(&self, bno: BlockNo) -> Option<usize> {
-        self.ht.get(&bno).map(|id| *id)
+        self.ids.get(&bno).map(|id| *id)
     }
 
     fn get_block_by_id(&self, id: usize) -> &MetaBufferBlock {
@@ -205,7 +205,7 @@ impl MetaBuffer {
 
         // flush if there is still a block present with the given bno.
         if block.bno != 0 {
-            self.ht.remove(&block.bno);
+            self.ids.remove(&block.bno);
             if block.dirty {
                 Self::flush_chunk(block)?;
             }
@@ -213,7 +213,7 @@ impl MetaBuffer {
 
         // use this block
         block.bno = bno;
-        self.ht.insert(bno, block.id);
+        self.ids.insert(bno, block.id);
 
         let unlock = block.unlock;
         // now load from backend and setup everything

@@ -50,7 +50,7 @@ impl cmp::Ord for BlockRange {
     }
 }
 
-pub struct FileBufferHead {
+pub struct FileBufferEntry {
     blocks: BlockRange,
     data: m3::com::MemGate,
 
@@ -62,11 +62,11 @@ pub struct FileBufferHead {
     unlock: Event,
 }
 
-impl_boxitem!(FileBufferHead);
+impl_boxitem!(FileBufferEntry);
 
-impl FileBufferHead {
+impl FileBufferEntry {
     fn new(blocks: BlockRange, blocksize: usize) -> Result<Self, Error> {
-        Ok(FileBufferHead {
+        Ok(FileBufferEntry {
             blocks,
             data: MemGate::new(blocks.count as usize * blocksize + PRDT_SIZE, Perm::RWX)?,
 
@@ -83,10 +83,10 @@ impl FileBufferHead {
 pub struct FileBuffer {
     size: usize,
 
-    // contains the actual FileBufferHead objects and keeps them sorted by LRU
-    lru: BoxList<FileBufferHead>,
-    // gives us a quick translation from block number to FileBufferHead
-    ht: Treap<BlockRange, NonNull<FileBufferHead>>,
+    // contains the actual FileBufferEntry objects and keeps them sorted by LRU
+    lru: BoxList<FileBufferEntry>,
+    // gives us a quick translation from block number to FileBufferEntry
+    entries: Treap<BlockRange, NonNull<FileBufferEntry>>,
 
     block_size: usize,
 }
@@ -99,7 +99,7 @@ impl FileBuffer {
             size: 0,
 
             lru: BoxList::new(),
-            ht: Treap::new(),
+            entries: Treap::new(),
 
             block_size,
         }
@@ -129,7 +129,7 @@ impl FileBuffer {
         loop {
             // workaround for borrow-checker: don't use our convenience function
             let block_opt = self
-                .ht
+                .entries
                 .get_mut(&BlockRange::new(bno))
                 .map(|b| unsafe { &mut *b.as_mut() });
 
@@ -202,7 +202,7 @@ impl FileBuffer {
                         "filebuffer: evict blocks <{:?}>",
                         head.blocks
                     );
-                    self.ht.remove(&head.blocks);
+                    self.entries.remove(&head.blocks);
 
                     // write it back, if it's dirty
                     if head.dirty {
@@ -225,7 +225,7 @@ impl FileBuffer {
         }
 
         // create new entry (boxed to ensure its pointer stays constant)
-        let mut new_head = Box::new(FileBufferHead::new(
+        let mut new_head = Box::new(FileBufferEntry::new(
             BlockRange::new_range(bno, load_size as BlockNo),
             self.block_size as usize,
         )?);
@@ -261,7 +261,7 @@ impl FileBuffer {
 
         // everything went fine, so insert pointer into treap and the object into the LRU list
         let ptr = unsafe { NonNull::new_unchecked(&mut *new_head as *mut _) };
-        self.ht.insert(new_head.blocks, ptr);
+        self.entries.insert(new_head.blocks, ptr);
         self.lru.push_back(new_head);
 
         Ok(load_size * self.block_size)
@@ -269,7 +269,7 @@ impl FileBuffer {
 }
 
 impl Buffer for FileBuffer {
-    type HEAD = FileBufferHead;
+    type HEAD = FileBufferEntry;
 
     fn mark_dirty(&mut self, bno: BlockNo) {
         if let Some(b) = self.get_mut(bno) {
@@ -279,7 +279,7 @@ impl Buffer for FileBuffer {
 
     fn flush(&mut self) -> Result<(), Error> {
         while let Some(mut b) = self.lru.pop_front() {
-            self.ht.remove(&b.blocks);
+            self.entries.remove(&b.blocks);
             if b.dirty {
                 Self::flush_chunk(&mut b)?;
             }
@@ -288,19 +288,19 @@ impl Buffer for FileBuffer {
         Ok(())
     }
 
-    fn get(&self, bno: BlockNo) -> Option<&FileBufferHead> {
-        self.ht
+    fn get(&self, bno: BlockNo) -> Option<&FileBufferEntry> {
+        self.entries
             .get(&BlockRange::new(bno))
             .map(|b| unsafe { &*b.as_ptr() })
     }
 
-    fn get_mut(&mut self, bno: BlockNo) -> Option<&mut FileBufferHead> {
-        self.ht
+    fn get_mut(&mut self, bno: BlockNo) -> Option<&mut FileBufferEntry> {
+        self.entries
             .get_mut(&BlockRange::new(bno))
             .map(|b| unsafe { &mut *b.as_mut() })
     }
 
-    fn flush_chunk(head: &mut FileBufferHead) -> Result<(), Error> {
+    fn flush_chunk(head: &mut FileBufferEntry) -> Result<(), Error> {
         head.locked = true;
         log!(
             crate::LOG_BUFFER,
