@@ -15,17 +15,17 @@ use m3::errors::Error;
 use thread::Event;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
-pub struct BlockRange {
+struct BlockRange {
     start: BlockNo,
     count: BlockNo,
 }
 
 impl BlockRange {
-    pub fn new(bno: BlockNo) -> Self {
+    fn new(bno: BlockNo) -> Self {
         Self::new_range(bno, 1)
     }
 
-    pub fn new_range(start: BlockNo, count: BlockNo) -> Self {
+    fn new_range(start: BlockNo, count: BlockNo) -> Self {
         BlockRange { start, count }
     }
 }

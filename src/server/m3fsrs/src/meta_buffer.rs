@@ -31,7 +31,7 @@ impl_boxitem!(MetaBufferBlock);
 pub const META_BUFFER_SIZE: usize = 128;
 
 impl MetaBufferBlock {
-    pub fn new(id: usize, bno: BlockNo, blocksize: usize) -> Self {
+    fn new(id: usize, bno: BlockNo, blocksize: usize) -> Self {
         MetaBufferBlock {
             id,
             bno,
