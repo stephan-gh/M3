@@ -1,5 +1,5 @@
 use crate::backend::{Backend, SuperBlock};
-use crate::buf::MetaBufferBlock;
+use crate::buf::{LoadLimit, MetaBufferBlock};
 use crate::data::{BlockNo, Extent};
 
 use m3::cap::Selector;
@@ -101,7 +101,7 @@ impl Backend for DiskBackend {
         let msel = m3::pes::VPE::cur().alloc_sel();
         crate::hdl()
             .filebuffer()
-            .get_extent(self, bno, 1, msel, Perm::RWX, 1, false)?;
+            .get_extent(self, bno, 1, msel, Perm::RWX, None)?;
 
         // okay, so write it from metabuffer to filebuffer
         let m = MemGate::new_bind(msel);
@@ -120,8 +120,7 @@ impl Backend for DiskBackend {
         extoff: usize,
         perms: Perm,
         sel: Selector,
-        load: bool,
-        accessed: usize,
+        load: Option<&mut LoadLimit>,
     ) -> Result<usize, Error> {
         let first_block = extoff / self.blocksize;
         crate::hdl().filebuffer().get_extent(
@@ -130,12 +129,11 @@ impl Backend for DiskBackend {
             ext.length as usize - first_block,
             sel,
             perms,
-            accessed,
             load,
         )
     }
 
-    fn clear_extent(&self, ext: Extent, accessed: usize) -> Result<(), Error> {
+    fn clear_extent(&self, ext: Extent) -> Result<(), Error> {
         let mut zeros = [0; crate::data::MAX_BLOCK_SIZE as usize];
         let sel = m3::pes::VPE::cur().alloc_sel();
         let mut i = 0;
@@ -146,8 +144,7 @@ impl Backend for DiskBackend {
                 (ext.length - i) as usize,
                 sel,
                 Perm::RW,
-                accessed,
-                false,
+                None,
             )?;
             let mem = MemGate::new_bind(sel);
             mem.write_bytes(zeros.as_mut_ptr(), bytes, 0)?;

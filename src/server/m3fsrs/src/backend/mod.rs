@@ -4,7 +4,7 @@ mod mem_backend;
 pub use disk_backend::DiskBackend;
 pub use mem_backend::MemBackend;
 
-use crate::buf::MetaBufferBlock;
+use crate::buf::{LoadLimit, MetaBufferBlock};
 use crate::data::{BlockNo, Extent, SuperBlock};
 
 use m3::cap::Selector;
@@ -49,11 +49,10 @@ pub trait Backend {
         extoff: usize,
         perms: Perm,
         sel: Selector,
-        load: bool,
-        accessed: usize,
+        load: Option<&mut LoadLimit>,
     ) -> Result<usize, Error>;
 
-    fn clear_extent(&self, ext: Extent, accessed: usize) -> Result<(), Error>;
+    fn clear_extent(&self, ext: Extent) -> Result<(), Error>;
 
     fn load_sb(&mut self) -> Result<SuperBlock, Error>;
 

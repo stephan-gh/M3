@@ -15,6 +15,7 @@ use m3::errors::Error;
 use thread::Event;
 
 pub const MAX_BUFFERED_BLKS: usize = 16384;
+const MAX_BLKS_PER_ENTRY: usize = 1024;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
 struct BlockRange {
@@ -82,6 +83,34 @@ impl FileBufferEntry {
     }
 }
 
+pub struct LoadLimit {
+    counter: usize,
+}
+
+impl LoadLimit {
+    pub fn new() -> Self {
+        Self { counter: 1 }
+    }
+
+    pub fn limit(&self) -> usize {
+        cmp::min(1 << self.counter, MAX_BLKS_PER_ENTRY)
+    }
+
+    pub fn load(&mut self) -> usize {
+        let limit = self.limit();
+        if self.counter < 31 {
+            self.counter += 1;
+        }
+        limit
+    }
+}
+
+impl fmt::Debug for LoadLimit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "LoadLimit={} blocks", self.limit())
+    }
+}
+
 pub struct FileBuffer {
     size: usize,
 
@@ -112,12 +141,11 @@ impl FileBuffer {
         size: usize,
         sel: Selector,
         perm: Perm,
-        accessed: usize,
-        load: bool,
+        mut load: Option<&mut LoadLimit>,
     ) -> Result<usize, Error> {
         log!(
             crate::LOG_BUFFER,
-            "filebuffer::get_extent(bno={}, size={}, sel={}, load={})",
+            "filebuffer::get_extent(bno={}, size={}, sel={}, load={:?})",
             bno,
             size,
             sel,
@@ -175,10 +203,15 @@ impl FileBuffer {
             }
         }
 
-        // load chunk into memory
-        let max_size: usize = MAX_BUFFERED_BLKS.min((1 as usize) << accessed);
-        let load_size: usize = size.min(if load { max_size } else { MAX_BUFFERED_BLKS });
+        // determine number of blocks to load
+        let load_size: usize = size.min(if let Some(ref mut l) = load {
+            l.load()
+        }
+        else {
+            MAX_BLKS_PER_ENTRY
+        });
 
+        // remove entries, if we are full
         while (self.size + load_size) > MAX_BUFFERED_BLKS {
             // remove oldest entry
             let mut head = self.lru.pop_front().unwrap();
@@ -231,7 +264,7 @@ impl FileBuffer {
             crate::LOG_BUFFER,
             "filebuffer: allocated blocks <{:?}>{}",
             new_head.blocks,
-            if load { " (loading)" } else { "" }
+            if load.is_some() { " (loading)" } else { "" }
         );
 
         // load data from backend
@@ -239,7 +272,7 @@ impl FileBuffer {
             &new_head.data,
             new_head.blocks.start,
             new_head.blocks.count as usize,
-            load,
+            load.is_some(),
             new_head.unlock,
         )?;
         new_head.locked = false;

@@ -1,6 +1,6 @@
 use crate::buf::Buffer;
-use crate::ops::inodes;
 use crate::data::{DirEntry, INodeRef};
+use crate::ops::inodes;
 
 use m3::errors::{Code, Error};
 
@@ -59,7 +59,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
         let ext = inodes::get_extent(dir, dir.extents as usize, &mut indir, true)?;
 
         // insert one block extent
-        let ext_range = inodes::create_extent(Some(dir), 1, 1)?;
+        let ext_range = inodes::create_extent(Some(dir), 1)?;
         *ext.as_mut() = ext_range;
 
         // put entry at the beginning of the block

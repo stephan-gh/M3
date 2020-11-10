@@ -1,4 +1,4 @@
-use crate::buf::Buffer;
+use crate::buf::{Buffer, LoadLimit};
 use crate::data::{
     Extent, ExtentCache, ExtentRef, FileMode, INodeRef, InodeNo, INODE_DIR_COUNT, NUM_EXT_BYTES,
     NUM_INODE_BYTES,
@@ -144,7 +144,7 @@ pub fn get_extent_mem(
     extoff: usize,
     perms: Perm,
     sel: Selector,
-    accessed: usize,
+    limit: &mut LoadLimit,
 ) -> Result<(usize, usize), Error> {
     log!(
         crate::LOG_INODES,
@@ -166,7 +166,7 @@ pub fn get_extent_mem(
 
     let mut bytes = crate::hdl()
         .backend()
-        .get_filedata(*ext, extoff, perms, sel, true, accessed)?;
+        .get_filedata(*ext, extoff, perms, sel, Some(limit))?;
 
     // stop at file end
     if (extent == (inode.extents - 1) as usize)
@@ -195,17 +195,16 @@ pub fn req_append(
     extoff: usize,
     sel: Selector,
     perm: Perm,
-    accessed: usize,
+    limit: &mut LoadLimit,
 ) -> Result<(usize, usize, Option<Extent>), Error> {
     let num_extents = inode.extents;
 
     log!(
         crate::LOG_INODES,
-        "inodes::req_append(inode={}, extent={}, extoff={}, accessed={}, num_extents={})",
+        "inodes::req_append(inode={}, extent={}, extoff={}, num_extents={})",
         inode.inode,
         extent,
         extoff,
-        accessed,
         num_extents
     );
 
@@ -216,19 +215,24 @@ pub fn req_append(
         let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
-            .get_filedata(*ext, extoff, perm, sel, true, accessed)?;
+            .get_filedata(*ext, extoff, perm, sel, Some(limit))?;
         Ok((bytes, extlen, None))
     }
     else {
-        let ext = create_extent(None, crate::hdl().extend() as u32, accessed)?;
+        let ext = create_extent(None, crate::hdl().extend() as u32)?;
 
         // this is a new extent we don't have to load it
-        let load = crate::hdl().clear_blocks();
+        let load = if crate::hdl().clear_blocks() {
+            Some(limit)
+        }
+        else {
+            None
+        };
 
         let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
-            .get_filedata(ext, 0, perm, sel, load, accessed)?;
+            .get_filedata(ext, 0, perm, sel, load)?;
         Ok((bytes, extlen, Some(ext)))
     }
 }
@@ -497,11 +501,7 @@ fn change_extent(
 /// `accessed` denotes the number of times we already accessed this file.
 ///
 /// Returns the created extent
-pub fn create_extent(
-    inode: Option<&INodeRef>,
-    blocks: u32,
-    accessed: usize,
-) -> Result<Extent, Error> {
+pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Error> {
     let mut count = blocks as usize;
     let start = crate::hdl().blocks().alloc(Some(&mut count))?;
     let ext = Extent::new(start, count as u32);
@@ -509,7 +509,7 @@ pub fn create_extent(
     let blocksize = crate::hdl().superblock().block_size;
     if crate::hdl().clear_blocks() {
         time::start(0xaaaa);
-        crate::hdl().backend().clear_extent(ext, accessed)?;
+        crate::hdl().backend().clear_extent(ext)?;
         time::stop(0xaaaa);
     }
 

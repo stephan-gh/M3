@@ -1,5 +1,5 @@
 use crate::backend::{Backend, SuperBlock};
-use crate::buf::MetaBufferBlock;
+use crate::buf::{LoadLimit, MetaBufferBlock};
 use crate::data::{BlockNo, Extent};
 
 use m3::cap::Selector;
@@ -78,8 +78,7 @@ impl Backend for MemBackend {
         extoff: usize,
         perms: Perm,
         sel: Selector,
-        _load: bool,
-        _accessed: usize,
+        _load: Option<&mut LoadLimit>,
     ) -> Result<usize, Error> {
         let first_block = extoff / self.blocksize;
         let bytes: usize = (ext.length as usize - first_block) * self.blocksize as usize;
@@ -95,7 +94,7 @@ impl Backend for MemBackend {
         Ok(bytes)
     }
 
-    fn clear_extent(&self, ext: Extent, _accessed: usize) -> Result<(), Error> {
+    fn clear_extent(&self, ext: Extent) -> Result<(), Error> {
         let zeros = vec![0; self.blocksize];
         for block in ext.blocks() {
             self.mem

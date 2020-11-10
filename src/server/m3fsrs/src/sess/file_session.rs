@@ -1,3 +1,4 @@
+use crate::buf::LoadLimit;
 use crate::data::{Extent, INodeRef, InodeNo};
 use crate::ops::inodes;
 use crate::sess::M3FSSession;
@@ -55,7 +56,7 @@ pub struct FileSession {
 
     lastbytes: usize,
 
-    accessed: usize,
+    load_limit: LoadLimit,
 
     appending: bool,
     pub(crate) append_ext: Option<Extent>,
@@ -135,7 +136,7 @@ impl FileSession {
             extlen: 0,
             fileoff: 0,
             lastbytes: 0,
-            accessed: 0,
+            load_limit: LoadLimit::new(),
 
             appending: false,
             append_ext: None,
@@ -210,7 +211,7 @@ impl FileSession {
             ext_off,
             Perm::from(self.oflags),
             sel,
-            self.accessed,
+            &mut self.load_limit,
         )?;
 
         data.out_caps(m3::kif::CapRngDesc::new(CapType::OBJECT, sel, 1));
@@ -268,10 +269,6 @@ impl FileSession {
             self.commit_append(&inode, self.lastbytes)?;
         }
 
-        if self.accessed < 31 {
-            self.accessed += 1;
-        }
-
         let mut sel = m3::pes::VPE::cur().alloc_sel();
 
         // do we need to append to the file?
@@ -309,7 +306,7 @@ impl FileSession {
                 self.extoff,
                 sel,
                 Perm::from(self.oflags),
-                self.accessed,
+                &mut self.load_limit,
             )?;
 
             self.appending = true;
@@ -326,7 +323,7 @@ impl FileSession {
                 self.extoff,
                 Perm::from(self.oflags),
                 sel,
-                self.accessed,
+                &mut self.load_limit,
             );
             match res {
                 // if we didn't find the extent, turn that into EOF
