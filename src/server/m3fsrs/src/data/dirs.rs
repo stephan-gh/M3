@@ -42,7 +42,7 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
     }
 
     // root inode?
-    if path == "" {
+    if path.is_empty() {
         return Ok(0);
     }
 
@@ -66,7 +66,7 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
 
         if let Ok(nodeno) = next_ino {
             // if path is now empty, finish searching
-            if end == "" {
+            if end.is_empty() {
                 return Ok(nodeno);
             }
             // continue with this directory
@@ -74,7 +74,7 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
         }
         else {
             // cannot create new file if it's not the last path component
-            if end != "" {
+            if !end.is_empty() {
                 return Err(Error::new(Code::NoSuchFile));
             }
 
@@ -120,7 +120,7 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
     };
 
     // if there is no base, we are at the root of the file system.
-    if base == "" {
+    if base.is_empty() {
         base = "/";
     }
 
