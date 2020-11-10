@@ -5,18 +5,14 @@
 extern crate m3;
 
 mod backend;
-mod buffer;
+mod buf;
 mod data;
-mod file_buffer;
 mod fs_handle;
-mod internal;
-mod meta_buffer;
+mod ops;
 mod sess;
-mod util;
 
 use crate::backend::{Backend, DiskBackend, MemBackend};
 use crate::fs_handle::M3FSHandle;
-use crate::internal::{BlockNo, Extent, SuperBlock};
 use crate::sess::{FSSession, FileSession, M3FSSession, MetaSession};
 
 use m3::{
@@ -32,7 +28,7 @@ use m3::{
     serialize::Source,
     server::{server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer},
     tcu::{EpId, Label, EP_COUNT},
-    vfs::{FSOperation, FileInfo, GenFileOp},
+    vfs::{FSOperation, GenFileOp},
 };
 
 // Sets the logging behavior
@@ -244,7 +240,12 @@ impl Handler<FSSession> for M3FSRequestHandler {
         let sessid = self.sessions.next_id()?;
 
         self.sessions.add_next(crt, srv_sel, true, |sess| {
-            log!(crate::LOG_SESSION, "[{}] creating session(crt={})", sess.ident(), crt);
+            log!(
+                crate::LOG_SESSION,
+                "[{}] creating session(crt={})",
+                sess.ident(),
+                crt
+            );
             Ok(FSSession::Meta(MetaSession::new(
                 sess, sessid, crt, max_files,
             )))
@@ -263,7 +264,9 @@ impl Handler<FSSession> for M3FSRequestHandler {
         let next_sess_id = self.sessions.next_id()?;
         let sel: Selector = self.sel;
 
-        let session = self.get_session(sid).ok_or_else(|| Error::new(Code::InvArgs))?;
+        let session = self
+            .get_session(sid)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
         match session {
             FSSession::Meta(meta) => {
                 if data.in_args().size() == 0 {
@@ -297,7 +300,9 @@ impl Handler<FSSession> for M3FSRequestHandler {
     fn delegate(&mut self, _crt: usize, sid: SessId, data: &mut CapExchange) -> Result<(), Error> {
         log!(LOG_DEF, "[{}] fs::delegate()", sid);
 
-        let session = self.get_session(sid).ok_or_else(|| Error::new(Code::InvArgs))?;
+        let session = self
+            .get_session(sid)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
 
         if data.in_caps() != 1 || !session.is_file_session() {
             return Err(Error::new(Code::NotSup));

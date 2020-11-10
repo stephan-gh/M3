@@ -1,7 +1,6 @@
-use crate::data::inodes;
-use crate::internal::{INodeRef, InodeNo};
+use crate::data::{Extent, INodeRef, InodeNo};
+use crate::ops::inodes;
 use crate::sess::M3FSSession;
-use crate::{Extent, FileInfo};
 
 use m3::{
     cap::Selector,
@@ -15,7 +14,7 @@ use m3::{
     server::{CapExchange, SessId},
     session::ServerSession,
     syscalls, tcu,
-    vfs::{OpenFlags, SeekMode},
+    vfs::{FileInfo, OpenFlags, SeekMode},
 };
 
 struct Entry {
@@ -333,7 +332,7 @@ impl FileSession {
                 // if we didn't find the extent, turn that into EOF
                 Err(e) if e.code() == Code::NotFound => (0, 0),
                 Err(e) => return Err(e),
-                Ok((len, extlen)) => (len, extlen)
+                Ok((len, extlen)) => (len, extlen),
             }
         };
 

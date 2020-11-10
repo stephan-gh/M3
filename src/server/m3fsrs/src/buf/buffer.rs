@@ -1,4 +1,4 @@
-use crate::BlockNo;
+use crate::data::BlockNo;
 
 use m3::errors::Error;
 

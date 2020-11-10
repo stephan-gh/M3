@@ -1,5 +1,3 @@
-use core::ops::Range;
-
 /// Bitmap wrapper for a number of bytes.
 pub struct Bitmap<'a> {
     bytes: &'a mut [u8],
@@ -68,37 +66,5 @@ impl<'a> Bitmap<'a> {
         for (idx, byte) in self.bytes.iter().enumerate() {
             println!("[{}]\t {:b}\t:{}", idx, byte, byte);
         }
-    }
-}
-
-/// Returns the range in which range the last directory of the path is.
-///
-/// - get_base_dir("/foo/bar.baz") == ((0..4), (5..11))
-/// - get_base_dir("/foo/bar/") == ((0..9), (10..10));
-/// - get_base_dir("foo") == ((0..0, 0..2));
-pub fn get_base_dir<'a>(path: &'a str) -> (Range<usize>, Range<usize>) {
-    // Search from back for first /, if found, check if / is not last char of string.
-    let mut base_start = path.len() - 1;
-    while let Some(ch) = path.get(base_start..base_start + 1) {
-        if ch == "/" {
-            base_start += 1;
-            break;
-        }
-        else {
-            base_start = if let Some(new_start) = base_start.checked_sub(1) {
-                new_start
-            }
-            else {
-                return (0..0, 0..path.len());
-            };
-        }
-    }
-
-    if base_start < path.len() - 1 {
-        (0..base_start - 1, base_start..path.len())
-    }
-    else {
-        // no dir but maybe a base left
-        (0..base_start - 1, base_start..path.len())
     }
 }

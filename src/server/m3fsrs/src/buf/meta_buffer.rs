@@ -1,5 +1,5 @@
-use crate::buffer::Buffer;
-use crate::BlockNo;
+use crate::buf::Buffer;
+use crate::data::BlockNo;
 
 use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;

@@ -1,6 +1,6 @@
-use crate::data::inodes;
-use crate::internal::InodeNo;
-use crate::FileSession;
+use crate::ops::inodes;
+use crate::data::InodeNo;
+use crate::sess::FileSession;
 
 use m3::{
     cell::RefCell,

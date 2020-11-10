@@ -1,14 +1,14 @@
 use crate::backend::{Backend, SuperBlock};
-use crate::internal::Extent;
-use crate::meta_buffer::MetaBufferBlock;
-use crate::BlockNo;
+use crate::buf::MetaBufferBlock;
+use crate::data::{BlockNo, Extent};
 
-use crate::m3::serialize::Sink;
 use m3::cap::Selector;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
 use m3::kif::{CapRngDesc, CapType, INVALID_SEL};
+use m3::serialize::Sink;
 use m3::session::Disk;
+
 use thread::Event;
 
 pub struct DiskBackend {
@@ -49,7 +49,7 @@ impl Backend for DiskBackend {
         bno: BlockNo,
         unlock: Event,
     ) -> Result<(), Error> {
-        let off = dst_off * (self.blocksize + crate::buffer::PRDT_SIZE);
+        let off = dst_off * (self.blocksize + crate::buf::PRDT_SIZE);
         self.disk
             .read(0, bno, 1, self.blocksize, Some(off as u64))?;
         self.metabuf
@@ -81,7 +81,7 @@ impl Backend for DiskBackend {
         bno: BlockNo,
         unlock: Event,
     ) -> Result<(), Error> {
-        let off = src_off * (self.blocksize + crate::buffer::PRDT_SIZE);
+        let off = src_off * (self.blocksize + crate::buf::PRDT_SIZE);
         self.metabuf
             .write_bytes(src.data().as_ptr(), self.blocksize, off as u64)?;
         self.disk
@@ -99,15 +99,9 @@ impl Backend for DiskBackend {
     fn sync_meta(&self, bno: BlockNo) -> Result<(), Error> {
         // check if there is a filebuffer entry for it or create one
         let msel = m3::pes::VPE::cur().alloc_sel();
-        crate::hdl().filebuffer().get_extent(
-            self,
-            bno,
-            1,
-            msel,
-            Perm::RWX,
-            1,
-            Some(false),
-        )?;
+        crate::hdl()
+            .filebuffer()
+            .get_extent(self, bno, 1, msel, Perm::RWX, 1, Some(false))?;
 
         // okay, so write it from metabuffer to filebuffer
         let m = MemGate::new_bind(msel);
@@ -142,7 +136,7 @@ impl Backend for DiskBackend {
     }
 
     fn clear_extent(&self, ext: Extent, accessed: usize) -> Result<(), Error> {
-        let mut zeros = [0; crate::internal::MAX_BLOCK_SIZE as usize];
+        let mut zeros = [0; crate::data::MAX_BLOCK_SIZE as usize];
         let sel = m3::pes::VPE::cur().alloc_sel();
         let mut i = 0;
         while i < ext.length {
@@ -163,15 +157,14 @@ impl Backend for DiskBackend {
     }
 
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
-        let tmp = MemGate::new(512 + crate::buffer::PRDT_SIZE, Perm::RW)?;
+        let tmp = MemGate::new(512 + crate::buf::PRDT_SIZE, Perm::RW)?;
         self.delegate_mem(&tmp, 0, 1)?;
         self.disk.read(0, 0, 1, 512, None)?;
         let super_block = tmp.read_obj::<SuperBlock>(0)?;
 
         // use separate transfer buffer for each entry to allow parallel disk requests
         self.blocksize = super_block.block_size as usize;
-        let size =
-            (self.blocksize + crate::buffer::PRDT_SIZE) * crate::meta_buffer::META_BUFFER_SIZE;
+        let size = (self.blocksize + crate::buf::PRDT_SIZE) * crate::buf::META_BUFFER_SIZE;
         self.metabuf = MemGate::new(size, Perm::RW)?;
         // store the MemCap as blockno 0, bc we won't load the superblock again
         self.delegate_mem(&self.metabuf, 0, 1)?;

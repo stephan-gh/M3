@@ -1,7 +1,6 @@
-use crate::data::{dirs, inodes};
-use crate::internal::FileMode;
+use crate::data::FileMode;
+use crate::ops::{dirs, inodes};
 use crate::sess::{FileSession, M3FSSession};
-use crate::FileInfo;
 
 use m3::{
     cap::Selector,
@@ -14,7 +13,7 @@ use m3::{
     server::CapExchange,
     server::SessId,
     session::ServerSession,
-    vfs::OpenFlags,
+    vfs::{FileInfo, OpenFlags},
 };
 
 pub struct MetaSession {

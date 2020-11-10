@@ -1,8 +1,8 @@
-use crate::buffer::Buffer;
-use crate::{
-    backend::Backend, data::Allocator, file_buffer::FileBuffer, internal::SuperBlock,
-    meta_buffer::MetaBuffer, sess::OpenFiles, FsSettings,
-};
+use crate::backend::Backend;
+use crate::buf::{Buffer, FileBuffer, MetaBuffer};
+use crate::data::{Allocator, SuperBlock};
+use crate::sess::OpenFiles;
+use crate::FsSettings;
 
 use m3::boxed::Box;
 use m3::col::String;

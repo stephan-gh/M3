@@ -1,6 +1,6 @@
 use m3::col::String;
 
-use crate::util::Bitmap;
+use crate::data::bitmap::Bitmap;
 
 use m3::errors::{Code, Error};
 

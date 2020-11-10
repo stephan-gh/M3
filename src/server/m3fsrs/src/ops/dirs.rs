@@ -1,7 +1,41 @@
-use crate::data::{inodes, links};
-use crate::internal::{DirEntryIterator, FileMode, INodeRef, InodeNo};
+use crate::data::{DirEntryIterator, FileMode, INodeRef, InodeNo};
+use crate::ops::{inodes, links};
 
 use m3::errors::{Code, Error};
+
+use core::ops::Range;
+
+/// Returns the range in which range the last directory of the path is.
+///
+/// - get_base_dir("/foo/bar.baz") == ((0..4), (5..11))
+/// - get_base_dir("/foo/bar/") == ((0..9), (10..10));
+/// - get_base_dir("foo") == ((0..0, 0..2));
+fn get_base_dir<'a>(path: &'a str) -> (Range<usize>, Range<usize>) {
+    // Search from back for first /, if found, check if / is not last char of string.
+    let mut base_start = path.len() - 1;
+    while let Some(ch) = path.get(base_start..base_start + 1) {
+        if ch == "/" {
+            base_start += 1;
+            break;
+        }
+        else {
+            base_start = if let Some(new_start) = base_start.checked_sub(1) {
+                new_start
+            }
+            else {
+                return (0..0, 0..path.len());
+            };
+        }
+    }
+
+    if base_start < path.len() - 1 {
+        (0..base_start - 1, base_start..path.len())
+    }
+    else {
+        // no dir but maybe a base left
+        (0..base_start - 1, base_start..path.len())
+    }
+}
 
 fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
     let mut indir = None;
@@ -115,7 +149,7 @@ pub fn create(path: &str, mode: FileMode) -> Result<(), Error> {
 fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
     // split the path into directory and filename.
     let (mut base, dir) = {
-        let (base_slice, dir_slice) = crate::util::get_base_dir(path);
+        let (base_slice, dir_slice) = get_base_dir(path);
         (&path[base_slice], &path[dir_slice])
     };
 
@@ -218,7 +252,7 @@ pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
 
     // split path into directory and base
     let (base, dir) = {
-        let (base_slice, dir_slice) = crate::util::get_base_dir(new_path);
+        let (base_slice, dir_slice) = get_base_dir(new_path);
         (&new_path[base_slice], &new_path[dir_slice])
     };
 
@@ -239,7 +273,7 @@ pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
     );
 
     let (base, dir) = {
-        let (base_slice, dir_slice) = crate::util::get_base_dir(path);
+        let (base_slice, dir_slice) = get_base_dir(path);
         (&path[base_slice], &path[dir_slice])
     };
 

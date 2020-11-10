@@ -1,5 +1,5 @@
-use crate::buffer::Buffer;
-use crate::internal::{
+use crate::buf::Buffer;
+use crate::data::{
     Extent, ExtentCache, ExtentRef, FileMode, INodeRef, InodeNo, INODE_DIR_COUNT, NUM_EXT_BYTES,
     NUM_INODE_BYTES,
 };

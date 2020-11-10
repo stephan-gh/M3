@@ -1,6 +1,6 @@
-use crate::buffer::Buffer;
-use crate::data::inodes;
-use crate::internal::{DirEntry, INodeRef};
+use crate::buf::Buffer;
+use crate::ops::inodes;
+use crate::data::{DirEntry, INodeRef};
 
 use m3::errors::{Code, Error};
 

@@ -4,9 +4,8 @@ mod mem_backend;
 pub use disk_backend::DiskBackend;
 pub use mem_backend::MemBackend;
 
-use crate::internal::Extent;
-use crate::meta_buffer::MetaBufferBlock;
-use crate::{BlockNo, SuperBlock};
+use crate::buf::MetaBufferBlock;
+use crate::data::{BlockNo, Extent, SuperBlock};
 
 use m3::cap::Selector;
 use m3::com::MemGate;

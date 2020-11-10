@@ -1,7 +1,6 @@
 use crate::backend::{Backend, SuperBlock};
-use crate::internal::Extent;
-use crate::meta_buffer::MetaBufferBlock;
-use crate::BlockNo;
+use crate::buf::MetaBufferBlock;
+use crate::data::{BlockNo, Extent};
 
 use m3::cap::Selector;
 use m3::com::{MGateArgs, MemGate, Perm};

@@ -1,6 +1,6 @@
 use crate::backend::Backend;
-use crate::buffer::{Buffer, PRDT_SIZE};
-use crate::internal::BlockNo;
+use crate::buf::{Buffer, PRDT_SIZE};
+use crate::data::BlockNo;
 
 use core::cmp;
 use core::fmt;
