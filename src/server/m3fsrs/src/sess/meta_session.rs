@@ -1,5 +1,5 @@
 use crate::data::{dirs, inodes};
-use crate::internal::{FileMode, InodeNo};
+use crate::internal::FileMode;
 use crate::sess::{FileSession, M3FSSession};
 use crate::FileInfo;
 
@@ -144,18 +144,6 @@ impl MetaSession {
             inodes::sync_metadata(&inode)?;
         }
 
-        self.alloc_file(srv, crt, path, flags, inode.inode, file_session_id)
-    }
-
-    fn alloc_file(
-        &mut self,
-        srv: Selector,
-        crt: usize,
-        path: &str,
-        flags: OpenFlags,
-        ino: InodeNo,
-        file_session_id: SessId,
-    ) -> Result<Rc<RefCell<FileSession>>, Error> {
         FileSession::new(
             srv,
             crt,
@@ -164,7 +152,7 @@ impl MetaSession {
             self.session_id,
             path,
             flags,
-            ino,
+            inode.inode,
         )
     }
 }
