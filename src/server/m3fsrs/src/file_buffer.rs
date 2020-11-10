@@ -1,17 +1,16 @@
 use crate::backend::Backend;
 use crate::buffer::{Buffer, PRDT_SIZE};
 use crate::internal::BlockNo;
-use crate::util::{Lru, LruElement};
 
 use core::cmp;
 use core::fmt;
+use core::ptr::NonNull;
 
+use m3::boxed::Box;
 use m3::cap::Selector;
-use m3::cell::RefCell;
-use m3::col::Treap;
+use m3::col::{BoxList, Treap};
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
-use m3::rc::Rc;
 
 use thread::Event;
 
@@ -55,12 +54,15 @@ pub struct FileBufferHead {
     blocks: BlockRange,
     data: m3::com::MemGate,
 
-    lru_entry: Rc<RefCell<LruElement<BlockNo>>>,
+    prev: Option<NonNull<Self>>,
+    next: Option<NonNull<Self>>,
 
     locked: bool,
     dirty: bool,
     unlock: Event,
 }
+
+impl_boxitem!(FileBufferHead);
 
 impl FileBufferHead {
     fn new(blocks: BlockRange, blocksize: usize) -> Result<Self, Error> {
@@ -68,7 +70,8 @@ impl FileBufferHead {
             blocks,
             data: MemGate::new(blocks.count as usize * blocksize + PRDT_SIZE, Perm::RWX)?,
 
-            lru_entry: LruElement::new(blocks.start),
+            prev: None,
+            next: None,
 
             locked: true,
             dirty: false,
@@ -80,10 +83,10 @@ impl FileBufferHead {
 pub struct FileBuffer {
     size: usize,
 
-    ht: Treap<BlockRange, Rc<RefCell<FileBufferHead>>>,
-    // least recently used list, the front element is least recently used, the last element is the
-    // most recently used one.
-    lru: Lru<BlockNo>,
+    // contains the actual FileBufferHead objects and keeps them sorted by LRU
+    lru: BoxList<FileBufferHead>,
+    // gives us a quick translation from block number to FileBufferHead
+    ht: Treap<BlockRange, NonNull<FileBufferHead>>,
 
     block_size: usize,
 }
@@ -95,8 +98,8 @@ impl FileBuffer {
         FileBuffer {
             size: 0,
 
+            lru: BoxList::new(),
             ht: Treap::new(),
-            lru: Lru::new(),
 
             block_size,
         }
@@ -124,38 +127,47 @@ impl FileBuffer {
         );
 
         loop {
-            if let Some(head) = self.get(bno).cloned() {
-                let start = head.borrow().blocks.start;
+            // workaround for borrow-checker: don't use our convenience function
+            let block_opt = self
+                .ht
+                .get_mut(&BlockRange::new(bno))
+                .map(|b| unsafe { &mut *b.as_mut() });
 
-                if head.borrow().locked {
+            if let Some(head) = block_opt {
+                let start = head.blocks.start;
+
+                if head.locked {
                     // wait for block to unlock
                     log!(
                         crate::LOG_BUFFER,
                         "filebuffer: waiting for cached blocks <{:?}>",
-                        head.borrow().blocks,
+                        head.blocks,
                     );
-                    thread::ThreadManager::get().wait_for(head.borrow().unlock);
+                    thread::ThreadManager::get().wait_for(head.unlock);
                 }
                 else {
-                    self.lru.move_to_back(head.borrow().lru_entry.clone());
+                    // move element to back since it was touched
+                    unsafe {
+                        self.lru.move_to_back(head);
+                    }
 
                     log!(
                         crate::LOG_BUFFER,
                         "filebuffer: found cached blocks <{:?}>",
-                        head.borrow().blocks,
+                        head.blocks,
                     );
 
-                    let len = size.min((head.borrow().blocks.count - (bno - start)) as usize);
+                    let len = size.min((head.blocks.count - (bno - start)) as usize);
                     m3::syscalls::derive_mem(
                         m3::pes::VPE::cur().sel(),
                         sel,
-                        head.borrow().data.sel(),
+                        head.data.sel(),
                         ((bno - start) as u64) * self.block_size as u64,
                         len * self.block_size,
                         perm,
                     )?;
 
-                    head.borrow_mut().dirty |= perm.contains(Perm::W);
+                    head.dirty |= perm.contains(Perm::W);
 
                     return Ok(len * self.block_size);
                 }
@@ -171,145 +183,141 @@ impl FileBuffer {
 
         if (self.size + load_size) > FILE_BUFFER_SIZE {
             while (self.size + load_size) > FILE_BUFFER_SIZE {
-                // get the key of the first element in the lru chain.
-                let key = *self
-                    .lru
-                    .front()
-                    .expect("Could not get front element of lru")
-                    .borrow()
-                    .value();
+                // remove oldest entry
+                let mut head = self.lru.pop_front().unwrap();
 
-                // get head for key of first element
-                if let Some(head) = self.get(key).cloned() {
-                    if head.borrow().locked {
-                        // wait for block to be evicted. We then have more space. Maybe enough space
-                        // to store the new data
-                        log!(
-                            crate::LOG_BUFFER,
-                            "filebuffer: waiting for eviction of block <{}>",
-                            key
-                        );
-                        thread::ThreadManager::get().wait_for(head.borrow().unlock);
+                if head.locked {
+                    // wait for block to be evicted
+                    log!(
+                        crate::LOG_BUFFER,
+                        "filebuffer: waiting for eviction of blocks <{:?}>",
+                        head.blocks,
+                    );
+                    thread::ThreadManager::get().wait_for(head.unlock);
+                }
+                else {
+                    // remove from treap
+                    log!(
+                        crate::LOG_BUFFER,
+                        "filebuffer: evict blocks <{:?}>",
+                        head.blocks
+                    );
+                    self.ht.remove(&head.blocks);
+
+                    // write it back, if it's dirty
+                    if head.dirty {
+                        Self::flush_chunk(&mut head).unwrap();
                     }
-                    else {
-                        // evict oldest block
-                        log!(crate::LOG_BUFFER, "filebuffer: evict block <{}>", key);
-                        let _oldest_head_in_lru = self.lru.pop_front();
-                        let mut oldest_head_in_ht = self
-                            .ht
-                            .remove(&BlockRange::new(key))
-                            .expect("Could not delete head when allocating in file buffer!");
 
-                        if head.borrow().dirty {
-                            // if the head we are changing is dirty, flush it to the disk before
-                            // removing it
-                            Self::flush_chunk(&mut oldest_head_in_ht)?;
-                        }
-                        m3::pes::VPE::cur().revoke(
-                            m3::kif::CapRngDesc::new(
-                                m3::kif::CapType::OBJECT,
-                                head.borrow().data.sel(),
-                                1,
-                            ),
+                    // revoke access from clients
+                    // TODO currently, clients are not prepared for that
+                    m3::pes::VPE::cur()
+                        .revoke(
+                            m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, head.data.sel(), 1),
                             false,
-                        )?;
-                        // remove head from inner Buffer size
-                        self.size -= head.borrow().blocks.count as usize;
-                    }
+                        )
+                        .unwrap();
+
+                    // we have more space now
+                    self.size -= head.blocks.count as usize;
                 }
             }
         }
 
-        // at this point there must be enough space for the block
-        let new_head = Rc::new(RefCell::new(FileBufferHead::new(
+        // create new entry (boxed to ensure its pointer stays constant)
+        let mut new_head = Box::new(FileBufferHead::new(
             BlockRange::new_range(bno, load_size as BlockNo),
             self.block_size as usize,
-        )?));
-        self.size += new_head.borrow().blocks.count as usize;
-        self.ht.insert(new_head.borrow().blocks, new_head.clone());
-        let lru_entry = new_head.borrow().lru_entry.clone();
-        self.lru.move_to_back(lru_entry);
+        )?);
+        self.size += new_head.blocks.count as usize;
 
         log!(
             crate::LOG_BUFFER,
             "filebuffer: allocated blocks <{:?}>{}",
-            new_head.borrow().blocks,
+            new_head.blocks,
             if load { " (loading)" } else { "" }
         );
 
         // load data from backend
         backend.load_data(
-            &new_head.borrow().data,
-            new_head.borrow().blocks.start,
-            new_head.borrow().blocks.count as usize,
+            &new_head.data,
+            new_head.blocks.start,
+            new_head.blocks.count as usize,
             load,
-            new_head.borrow().unlock,
+            new_head.unlock,
         )?;
-        new_head.borrow_mut().locked = false;
+        new_head.locked = false;
 
         m3::syscalls::derive_mem(
             m3::pes::VPE::cur().sel(),
             sel,
-            new_head.borrow().data.sel(),
+            new_head.data.sel(),
             0,
             load_size * self.block_size,
             perm,
         )?;
 
-        new_head.borrow_mut().dirty = perm.contains(Perm::W);
+        new_head.dirty = perm.contains(Perm::W);
+
+        // everything went fine, so insert pointer into treap and the object into the LRU list
+        let ptr = unsafe { NonNull::new_unchecked(&mut *new_head as *mut _) };
+        self.ht.insert(new_head.blocks, ptr);
+        self.lru.push_back(new_head);
+
         Ok(load_size * self.block_size)
     }
 }
 
 impl Buffer for FileBuffer {
-    type HEAD = Rc<RefCell<FileBufferHead>>;
+    type HEAD = FileBufferHead;
 
     fn mark_dirty(&mut self, bno: BlockNo) {
         if let Some(b) = self.get_mut(bno) {
-            b.borrow_mut().dirty = true;
+            b.dirty = true;
         }
     }
 
     fn flush(&mut self) -> Result<(), Error> {
-        while !self.ht.is_empty() {
-            if let Some(mut head) = self.ht.remove_root() {
-                if head.borrow().dirty {
-                    Self::flush_chunk(&mut head)?;
-                }
-            }
-            else {
-                break;
+        while let Some(mut b) = self.lru.pop_front() {
+            self.ht.remove(&b.blocks);
+            if b.dirty {
+                Self::flush_chunk(&mut b)?;
             }
         }
+
         Ok(())
     }
 
-    fn get(&self, bno: BlockNo) -> Option<&Rc<RefCell<FileBufferHead>>> {
-        self.ht.get(&BlockRange::new(bno))
+    fn get(&self, bno: BlockNo) -> Option<&FileBufferHead> {
+        self.ht
+            .get(&BlockRange::new(bno))
+            .map(|b| unsafe { &*b.as_ptr() })
     }
 
-    fn get_mut(&mut self, bno: BlockNo) -> Option<&mut Rc<RefCell<FileBufferHead>>> {
-        self.ht.get_mut(&BlockRange::new(bno))
+    fn get_mut(&mut self, bno: BlockNo) -> Option<&mut FileBufferHead> {
+        self.ht
+            .get_mut(&BlockRange::new(bno))
+            .map(|b| unsafe { &mut *b.as_mut() })
     }
 
-    fn flush_chunk(head: &mut Rc<RefCell<FileBufferHead>>) -> Result<(), Error> {
-        head.borrow_mut().locked = true;
+    fn flush_chunk(head: &mut FileBufferHead) -> Result<(), Error> {
+        head.locked = true;
         log!(
             crate::LOG_BUFFER,
             "filebuffer: writing back blocks <{:?}>",
-            head.borrow().blocks,
+            head.blocks,
         );
 
         // write data of block to backend
         crate::hdl().backend().store_data(
-            head.borrow().blocks.start,
-            head.borrow().blocks.count as usize,
-            head.borrow().unlock,
+            head.blocks.start,
+            head.blocks.count as usize,
+            head.unlock,
         )?;
 
         // reset dirty and unlock
-        head.borrow_mut().dirty = false;
-        head.borrow_mut().locked = false;
+        head.dirty = false;
+        head.locked = false;
         Ok(())
     }
 }
