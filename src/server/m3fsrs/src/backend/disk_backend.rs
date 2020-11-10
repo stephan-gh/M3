@@ -101,7 +101,7 @@ impl Backend for DiskBackend {
         let msel = m3::pes::VPE::cur().alloc_sel();
         crate::hdl()
             .filebuffer()
-            .get_extent(self, bno, 1, msel, Perm::RWX, 1, Some(false))?;
+            .get_extent(self, bno, 1, msel, Perm::RWX, 1, false)?;
 
         // okay, so write it from metabuffer to filebuffer
         let m = MemGate::new_bind(msel);
@@ -131,7 +131,7 @@ impl Backend for DiskBackend {
             sel,
             perms,
             accessed,
-            Some(load),
+            load,
         )
     }
 
@@ -147,7 +147,7 @@ impl Backend for DiskBackend {
                 sel,
                 Perm::RW,
                 accessed,
-                Some(false),
+                false,
             )?;
             let mem = MemGate::new_bind(sel);
             mem.write_bytes(zeros.as_mut_ptr(), bytes, 0)?;

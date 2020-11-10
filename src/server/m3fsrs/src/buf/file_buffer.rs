@@ -113,10 +113,8 @@ impl FileBuffer {
         sel: Selector,
         perm: Perm,
         accessed: usize,
-        load: Option<bool>,
+        load: bool,
     ) -> Result<usize, Error> {
-        let load = load.unwrap_or(true);
-
         log!(
             crate::LOG_BUFFER,
             "filebuffer::get_extent(bno={}, size={}, sel={}, load={})",
@@ -181,46 +179,44 @@ impl FileBuffer {
         let max_size: usize = FILE_BUFFER_SIZE.min((1 as usize) << accessed);
         let load_size: usize = size.min(if load { max_size } else { FILE_BUFFER_SIZE });
 
-        if (self.size + load_size) > FILE_BUFFER_SIZE {
-            while (self.size + load_size) > FILE_BUFFER_SIZE {
-                // remove oldest entry
-                let mut head = self.lru.pop_front().unwrap();
+        while (self.size + load_size) > FILE_BUFFER_SIZE {
+            // remove oldest entry
+            let mut head = self.lru.pop_front().unwrap();
 
-                if head.locked {
-                    // wait for block to be evicted
-                    log!(
-                        crate::LOG_BUFFER,
-                        "filebuffer: waiting for eviction of blocks <{:?}>",
-                        head.blocks,
-                    );
-                    thread::ThreadManager::get().wait_for(head.unlock);
+            if head.locked {
+                // wait for block to be evicted
+                log!(
+                    crate::LOG_BUFFER,
+                    "filebuffer: waiting for eviction of blocks <{:?}>",
+                    head.blocks,
+                );
+                thread::ThreadManager::get().wait_for(head.unlock);
+            }
+            else {
+                // remove from treap
+                log!(
+                    crate::LOG_BUFFER,
+                    "filebuffer: evict blocks <{:?}>",
+                    head.blocks
+                );
+                self.entries.remove(&head.blocks);
+
+                // write it back, if it's dirty
+                if head.dirty {
+                    Self::flush_chunk(&mut head).unwrap();
                 }
-                else {
-                    // remove from treap
-                    log!(
-                        crate::LOG_BUFFER,
-                        "filebuffer: evict blocks <{:?}>",
-                        head.blocks
-                    );
-                    self.entries.remove(&head.blocks);
 
-                    // write it back, if it's dirty
-                    if head.dirty {
-                        Self::flush_chunk(&mut head).unwrap();
-                    }
+                // revoke access from clients
+                // TODO currently, clients are not prepared for that
+                m3::pes::VPE::cur()
+                    .revoke(
+                        m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, head.data.sel(), 1),
+                        false,
+                    )
+                    .unwrap();
 
-                    // revoke access from clients
-                    // TODO currently, clients are not prepared for that
-                    m3::pes::VPE::cur()
-                        .revoke(
-                            m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, head.data.sel(), 1),
-                            false,
-                        )
-                        .unwrap();
-
-                    // we have more space now
-                    self.size -= head.blocks.count as usize;
-                }
+                // we have more space now
+                self.size -= head.blocks.count as usize;
             }
         }
 
