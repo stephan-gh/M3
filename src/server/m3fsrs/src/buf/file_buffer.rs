@@ -14,6 +14,8 @@ use m3::errors::Error;
 
 use thread::Event;
 
+pub const MAX_BUFFERED_BLKS: usize = 16384;
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
 struct BlockRange {
     start: BlockNo,
@@ -90,8 +92,6 @@ pub struct FileBuffer {
 
     block_size: usize,
 }
-
-pub const FILE_BUFFER_SIZE: usize = 16384;
 
 impl FileBuffer {
     pub fn new(block_size: usize) -> Self {
@@ -176,10 +176,10 @@ impl FileBuffer {
         }
 
         // load chunk into memory
-        let max_size: usize = FILE_BUFFER_SIZE.min((1 as usize) << accessed);
-        let load_size: usize = size.min(if load { max_size } else { FILE_BUFFER_SIZE });
+        let max_size: usize = MAX_BUFFERED_BLKS.min((1 as usize) << accessed);
+        let load_size: usize = size.min(if load { max_size } else { MAX_BUFFERED_BLKS });
 
-        while (self.size + load_size) > FILE_BUFFER_SIZE {
+        while (self.size + load_size) > MAX_BUFFERED_BLKS {
             // remove oldest entry
             let mut head = self.lru.pop_front().unwrap();
 
