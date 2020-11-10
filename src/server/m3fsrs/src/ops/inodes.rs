@@ -209,8 +209,6 @@ pub fn req_append(
         num_extents
     );
 
-    let mut load = true;
-
     if extent < inode.extents as usize {
         let mut indir = None;
         let ext = get_extent(inode, extent, &mut indir, false)?;
@@ -218,16 +216,14 @@ pub fn req_append(
         let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
-            .get_filedata(*ext, extoff, perm, sel, load, accessed)?;
+            .get_filedata(*ext, extoff, perm, sel, true, accessed)?;
         Ok((bytes, extlen, None))
     }
     else {
         let ext = create_extent(None, crate::hdl().extend() as u32, accessed)?;
 
-        // this is a new extent we dont have to load it
-        if !crate::hdl().clear_blocks() {
-            load = false;
-        }
+        // this is a new extent we don't have to load it
+        let load = crate::hdl().clear_blocks();
 
         let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
