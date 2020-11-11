@@ -20,37 +20,24 @@ use crate::ops::{inodes, links};
 
 use m3::errors::{Code, Error};
 
-use core::ops::Range;
-
-/// Returns the range in which range the last directory of the path is.
+/// Returns the directory and filename part of the given path.
 ///
-/// - get_base_dir("/foo/bar.baz") == ((0..4), (5..11))
-/// - get_base_dir("/foo/bar/") == ((0..9), (10..10));
-/// - get_base_dir("foo") == ((0..0, 0..2));
-fn get_base_dir<'a>(path: &'a str) -> (Range<usize>, Range<usize>) {
-    // Search from back for first /, if found, check if / is not last char of string.
-    let mut base_start = path.len() - 1;
-    while let Some(ch) = path.get(base_start..base_start + 1) {
-        if ch == "/" {
-            base_start += 1;
-            break;
-        }
-        else {
-            base_start = if let Some(new_start) = base_start.checked_sub(1) {
-                new_start
-            }
-            else {
-                return (0..0, 0..path.len());
-            };
-        }
+/// - split_path("/foo/bar.baz") == ("/foo", "bar.baz")
+/// - split_path("/foo/bar/") == ("/foo", "bar");
+/// - split_path("foo") == ("", "foo");
+fn split_path<'a>(mut path: &'a str) -> (&'a str, &'a str) {
+    // skip trailing slashes
+    while path.ends_with('/') {
+        path = &path[..path.len() - 1];
     }
 
-    if base_start < path.len() - 1 {
-        (0..base_start - 1, base_start..path.len())
+    let last_slash = path.rfind('/');
+    if let Some(s) = last_slash {
+        (&path[..s], &path[s + 1..])
     }
     else {
-        // no dir but maybe a base left
-        (0..base_start - 1, base_start..path.len())
+        // the path is either empty or only contained slashes
+        ("", path)
     }
 }
 
@@ -164,19 +151,10 @@ pub fn create(path: &str, mode: FileMode) -> Result<(), Error> {
 }
 
 fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
-    // split the path into directory and filename.
-    let (mut base, dir) = {
-        let (base_slice, dir_slice) = get_base_dir(path);
-        (&path[base_slice], &path[dir_slice])
-    };
-
-    // if there is no base, we are at the root of the file system.
-    if base.is_empty() {
-        base = "/";
-    }
+    let (dir, name) = split_path(path);
 
     // get parent directory
-    let parent_ino = search(base, false)?;
+    let parent_ino = search(dir, false)?;
 
     // ensure that the entry doesn't exist
     if search(path, false).is_ok() {
@@ -186,14 +164,14 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
     let parinode = inodes::get(parent_ino)?;
     if let Ok(dirino) = inodes::create(FileMode::DIR_DEF | mode) {
         // create directory itself
-        if let Err(e) = links::create(&parinode, dir, &dirino) {
+        if let Err(e) = links::create(&parinode, name, &dirino) {
             crate::hdl().files().delete_file(dirino.inode).ok();
             return Err(e);
         }
 
         // create "." link
         if let Err(e) = links::create(&dirino, ".", &dirino) {
-            links::remove(&parinode, dir, false).unwrap();
+            links::remove(&parinode, name, false).unwrap();
             crate::hdl().files().delete_file(dirino.inode).ok();
             return Err(e);
         }
@@ -201,7 +179,7 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
         // create ".." link
         if let Err(e) = links::create(&dirino, "..", &parinode) {
             links::remove(&dirino, ".", false).unwrap();
-            links::remove(&parinode, dir, false).unwrap();
+            links::remove(&parinode, name, false).unwrap();
             crate::hdl().files().delete_file(dirino.inode).ok();
             return Err(e);
         }
@@ -267,15 +245,11 @@ pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
         return Err(Error::new(Code::IsDir));
     }
 
-    // split path into directory and base
-    let (base, dir) = {
-        let (base_slice, dir_slice) = get_base_dir(new_path);
-        (&new_path[base_slice], &new_path[dir_slice])
-    };
+    let (dir, name) = split_path(new_path);
 
-    let baseino = search(base, false)?;
+    let baseino = search(dir, false)?;
     let base_ino = inodes::get(baseino)?;
-    links::create(&base_ino, dir, &old_inode)
+    links::create(&base_ino, name, &old_inode)
 }
 
 /// Removes the directory entry at given path
@@ -289,15 +263,15 @@ pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
         is_dir
     );
 
-    let (base, dir) = {
+    let (dir, name) = split_path(path);
         let (base_slice, dir_slice) = get_base_dir(path);
         (&path[base_slice], &path[dir_slice])
     };
 
-    let parino = search(base, false)?;
+    let parino = search(dir, false)?;
     let parinode = inodes::get(parino)?;
 
-    let res = links::remove(&parinode, dir, !is_dir);
+    let res = links::remove(&parinode, name, !is_dir);
     if is_dir && res.is_ok() {
         // decrement link count for parent inode by one
         parinode.as_mut().links -= 1;
