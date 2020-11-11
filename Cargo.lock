@@ -88,7 +88,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "m3fsrs"
+name = "m3fs"
 version = "0.1.0"
 dependencies = [
  "base",

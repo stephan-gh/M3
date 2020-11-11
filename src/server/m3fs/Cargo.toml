@@ -1,11 +1,11 @@
 [package]
-name = "m3fsrs"
+name = "m3fs"
 version = "0.1.0"
 authors = ["Nils Asmussen <nils@os.inf.tu-dresden.de>", "Tendsin Mende <tendsin@protonmail.com>"]
 edition = "2018"
 
 [lib]
-path = "src/m3fsrs.rs"
+path = "src/m3fs.rs"
 crate-type = ["staticlib"]
 
 [dependencies]
