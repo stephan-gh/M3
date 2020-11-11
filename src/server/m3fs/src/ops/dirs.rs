@@ -196,6 +196,10 @@ pub fn remove(path: &str) -> Result<(), Error> {
     log!(crate::LOG_DIRS, "dirs::remove(path={})", path);
 
     let ino = search(path, false)?;
+    // cannot remove root directory
+    if ino == 0 {
+        return Err(Error::new(Code::InvArgs));
+    }
 
     // it has to be a directory
     let inode = inodes::get(ino)?;
@@ -264,9 +268,10 @@ pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
     );
 
     let (dir, name) = split_path(path);
-        let (base_slice, dir_slice) = get_base_dir(path);
-        (&path[base_slice], &path[dir_slice])
-    };
+    // cannot remove entry with empty name
+    if name.is_empty() {
+        return Err(Error::new(Code::InvArgs));
+    }
 
     let parino = search(dir, false)?;
     let parinode = inodes::get(parino)?;

@@ -44,6 +44,10 @@ pub fn meta_ops() {
         wv_assert_ok!(VFS::unmount("/fs/"));
     }
 
+    wv_assert_err!(VFS::rmdir("/"), Code::InvArgs);
+    wv_assert_err!(VFS::link("/example", "/"), Code::IsDir);
+    wv_assert_err!(VFS::unlink("/"), Code::InvArgs);
+
     // create and remove directory within directory
     wv_assert_ok!(VFS::mkdir("/parent", 0o755));
     wv_assert_ok!(VFS::mkdir("/parent/child", 0o755));
