@@ -282,8 +282,7 @@ impl M3FSSession for MetaSession {
             path
         );
 
-        // TODO what if `path` points to a directory?
-        dirs::unlink(path, false)?;
+        dirs::unlink(path, true)?;
 
         reply_vmsg!(stream, 0 as u32)
     }

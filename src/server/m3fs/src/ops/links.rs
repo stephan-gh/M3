@@ -22,6 +22,8 @@ use crate::ops::inodes;
 use m3::errors::{Code, Error};
 
 /// Creates a link in directory `dir` with given name pointing to `inode`.
+///
+/// Assumes that no entry with given name already exists!
 pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error> {
     log!(
         crate::LOG_LINKS,
@@ -155,10 +157,7 @@ pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
                     crate::hdl().metabuffer().mark_dirty(bno);
 
                     // reduce links and free if necessary
-                    if (inode.links - 1) == 0 {
-                        let ino = inode.inode;
-                        crate::hdl().files().delete_file(ino)?;
-                    }
+                    inodes::decrease_links(&inode)?;
 
                     return Ok(());
                 }

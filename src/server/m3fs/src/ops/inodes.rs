@@ -44,6 +44,19 @@ pub fn create(mode: FileMode) -> Result<INodeRef, Error> {
     Ok(inode)
 }
 
+/// Decreases the number of links for the given inode and deletes it, if there are no links anymore
+pub fn decrease_links(inode: &INodeRef) -> Result<(), Error> {
+    inode.as_mut().links -= 1;
+    if inode.links == 0 {
+        let ino = inode.inode;
+        crate::hdl().files().delete_file(ino)?;
+    }
+    else {
+        mark_dirty(inode.inode);
+    }
+    Ok(())
+}
+
 /// Frees the inode with given number
 pub fn free(inode_no: InodeNo) -> Result<(), Error> {
     log!(crate::LOG_INODES, "inodes::free(inode_no={})", inode_no);

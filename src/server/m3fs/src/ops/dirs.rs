@@ -172,7 +172,6 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
         // create "." link
         if let Err(e) = links::create(&dirino, ".", &dirino) {
             links::remove(&parinode, name, false).unwrap();
-            crate::hdl().files().delete_file(dirino.inode).ok();
             return Err(e);
         }
 
@@ -180,7 +179,6 @@ fn do_create(path: &str, mode: FileMode) -> Result<(), Error> {
         if let Err(e) = links::create(&dirino, "..", &parinode) {
             links::remove(&dirino, ".", false).unwrap();
             links::remove(&parinode, name, false).unwrap();
-            crate::hdl().files().delete_file(dirino.inode).ok();
             return Err(e);
         }
 
@@ -229,7 +227,8 @@ pub fn remove(path: &str) -> Result<(), Error> {
     inode.as_mut().links -= 1;
 
     // TODO if that fails, we have already reduced the link count!?
-    unlink(path, true)
+    let parent_inode = unlink(path, false)?;
+    inodes::decrease_links(&parent_inode)
 }
 
 /// Creates a link at `new_path` to `old_path`
@@ -258,13 +257,15 @@ pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
 
 /// Removes the directory entry at given path
 ///
-/// If `is_dir` is true, the link count at the parent inode is reduced.
-pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
+/// If `deny_dir` is true and the path points to a directory, the call fails.
+///
+/// Returns the directory inode
+pub fn unlink(path: &str, deny_dir: bool) -> Result<INodeRef, Error> {
     log!(
         crate::LOG_DIRS,
-        "dirs::unlink(path={}, is_dir={})",
+        "dirs::unlink(path={}, deny_dir={})",
         path,
-        is_dir
+        deny_dir
     );
 
     let (dir, name) = split_path(path);
@@ -276,11 +277,5 @@ pub fn unlink(path: &str, is_dir: bool) -> Result<(), Error> {
     let parino = search(dir, false)?;
     let parinode = inodes::get(parino)?;
 
-    let res = links::remove(&parinode, name, !is_dir);
-    if is_dir && res.is_ok() {
-        // decrement link count for parent inode by one
-        parinode.as_mut().links -= 1;
-    }
-
-    res
+    links::remove(&parinode, name, deny_dir).map(|_| parinode)
 }
