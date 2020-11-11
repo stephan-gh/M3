@@ -119,6 +119,13 @@ impl M3FSSession for FSSession {
             FSSession::File(f) => f.borrow_mut().unlink(stream),
         }
     }
+
+    fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        match self {
+            FSSession::Meta(m) => m.sync(stream),
+            FSSession::File(f) => f.borrow_mut().sync(stream),
+        }
+    }
 }
 
 /// Represents an abstract server-side M3FS Session.
@@ -152,6 +159,9 @@ pub trait M3FSSession {
         Err(Error::new(Code::NotSup))
     }
     fn unlink(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+    fn sync(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 }

@@ -497,12 +497,6 @@ impl FileSession {
 
         Ok(())
     }
-
-    #[allow(dead_code)] // TODO currently unused since there seams to be no SYNC Op in rust
-    fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        crate::hdl().flush_buffer()?;
-        reply_vmsg!(stream, 0 as u32)
-    }
 }
 
 impl M3FSSession for FileSession {
@@ -618,5 +612,12 @@ impl M3FSSession for FileSession {
 
     fn unlink(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
+    }
+
+    fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        log!(crate::LOG_SESSION, "[{}] file::sync()", self.session_id,);
+
+        crate::hdl().flush_buffer()?;
+        reply_vmsg!(stream, 0 as u32)
     }
 }
