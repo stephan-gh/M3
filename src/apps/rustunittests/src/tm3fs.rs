@@ -44,6 +44,12 @@ pub fn meta_ops() {
         wv_assert_ok!(VFS::unmount("/fs/"));
     }
 
+    // create and remove directory within directory
+    wv_assert_ok!(VFS::mkdir("/parent", 0o755));
+    wv_assert_ok!(VFS::mkdir("/parent/child", 0o755));
+    wv_assert_ok!(VFS::rmdir("/parent/child"));
+    wv_assert_ok!(VFS::rmdir("/parent"));
+
     wv_assert_err!(VFS::rmdir("/example/foo/bar"), Code::NoSuchFile);
     wv_assert_err!(VFS::rmdir("/example/myfile"), Code::IsNoDir);
     wv_assert_err!(VFS::rmdir("/example"), Code::DirNotEmpty);
