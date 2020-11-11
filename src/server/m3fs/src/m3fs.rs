@@ -356,6 +356,12 @@ impl Handler<FSSession> for M3FSRequestHandler {
     fn close(&mut self, _crt: usize, sid: SessId) {
         self.close_session(sid).ok();
     }
+
+    fn shutdown(&mut self) {
+        crate::hdl()
+            .flush_buffer()
+            .expect("buffer flush at shutdown failed");
+    }
 }
 
 #[derive(Clone, Debug)]
