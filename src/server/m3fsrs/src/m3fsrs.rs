@@ -278,15 +278,18 @@ impl Handler<FSSession> for M3FSRequestHandler {
                     let file_session = meta.open_file(sel, crt, data, next_sess_id)?;
 
                     self.sessions
-                        .add(crt, next_sess_id, FSSession::File(file_session))?;
-                    Ok(())
+                        .add(crt, next_sess_id, FSSession::File(file_session))
                 }
             },
 
             FSSession::File(file) => {
                 if data.in_args().size() == 0 {
                     log!(crate::LOG_DEF, "[{}] fs::clone()", sid);
-                    file.borrow_mut().clone(sel, data)
+
+                    let nfile_session = file.borrow_mut().clone(sel, crt, next_sess_id, data)?;
+
+                    self.sessions
+                        .add(crt, next_sess_id, FSSession::File(nfile_session))
                 }
                 else {
                     log!(crate::LOG_DEF, "[{}] fs::get_mem()", sid);

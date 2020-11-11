@@ -97,7 +97,6 @@ impl FileSession {
     pub fn new(
         srv_sel: Selector,
         crt: usize,
-        meta_rgate: &m3::com::RecvGate,
         file_session_id: SessId,
         meta_session_id: SessId,
         filename: &str,
@@ -120,7 +119,7 @@ impl FileSession {
         }
         else {
             Some(m3::com::SendGate::new_with(
-                m3::com::SGateArgs::new(meta_rgate)
+                m3::com::SGateArgs::new(crate::REQHDL.recv_gate())
                     // use the session id as identifier
                     .label(file_session_id as tcu::Label)
                     .credits(1)
@@ -128,7 +127,7 @@ impl FileSession {
             )?)
         };
 
-        let fsess = FileSession {
+        let fsess = Rc::new(RefCell::new(FileSession {
             extent: 0,
             lastext: 0,
             extoff: 0,
@@ -157,16 +156,20 @@ impl FileSession {
             capscon: CapContainer { caps: vec![] },
 
             _server_session,
-        };
+        }));
 
-        let wrapped_fssess = Rc::new(RefCell::new(fsess));
+        crate::hdl().files().add_sess(fsess.clone());
 
-        crate::hdl().files().add_sess(wrapped_fssess.clone());
-
-        Ok(wrapped_fssess)
+        Ok(fsess)
     }
 
-    pub fn clone(&mut self, _selector: Selector, _data: &mut CapExchange) -> Result<(), Error> {
+    pub fn clone(
+        &mut self,
+        srv_sel: Selector,
+        crt: usize,
+        sid: SessId,
+        data: &mut CapExchange,
+    ) -> Result<Rc<RefCell<Self>>, Error> {
         log!(
             crate::LOG_SESSION,
             "[{}] file::clone(path={})",
@@ -174,7 +177,19 @@ impl FileSession {
             self.filename
         );
 
-        panic!("Clone not yet implemented")
+        let nsess = Self::new(
+            srv_sel,
+            crt,
+            sid,
+            self.meta_session,
+            &self.filename,
+            self.oflags,
+            self.ino,
+        )?;
+
+        data.out_caps(CapRngDesc::new(CapType::OBJECT, nsess.borrow().sel, 2));
+
+        Ok(nsess)
     }
 
     pub fn get_mem(&mut self, data: &mut CapExchange) -> Result<(), Error> {

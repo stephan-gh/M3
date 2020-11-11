@@ -146,7 +146,6 @@ impl MetaSession {
         FileSession::new(
             srv,
             crt,
-            crate::REQHDL.recv_gate(),
             file_session_id,
             self.session_id,
             path,
