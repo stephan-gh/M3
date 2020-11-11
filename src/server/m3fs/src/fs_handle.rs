@@ -51,8 +51,8 @@ impl M3FSHandle {
         let blocks_allocator = Allocator::new(
             String::from("Block"),
             sb.first_blockbm_block(),
-            sb.first_free_block.clone(),
-            sb.free_blocks.clone(),
+            sb.first_free_block,
+            sb.free_blocks,
             sb.total_blocks,
             sb.blockbm_blocks(),
             sb.block_size as usize,
@@ -60,8 +60,8 @@ impl M3FSHandle {
         let inodes_allocator = Allocator::new(
             String::from("INodes"),
             sb.first_inodebm_block(),
-            sb.first_free_inode.clone(),
-            sb.free_inodes.clone(),
+            sb.first_free_inode,
+            sb.free_inodes,
             sb.total_inodes,
             sb.inodebm_block(),
             sb.block_size as usize,
