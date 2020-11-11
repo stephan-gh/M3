@@ -1,7 +1,7 @@
 [package]
 name = "m3fsrs"
 version = "0.1.0"
-authors = ["Tendsin Mende <tendsin@protonmail.com>"]
+authors = ["Nils Asmussen <nils@os.inf.tu-dresden.de>", "Tendsin Mende <tendsin@protonmail.com>"]
 edition = "2018"
 
 [lib]
