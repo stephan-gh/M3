@@ -60,6 +60,7 @@ pub fn meta_ops() {
 
     wv_assert_err!(VFS::link("/example", "/newpath"), Code::IsDir);
     wv_assert_ok!(VFS::link("/example/myfile", "/newpath"));
+    wv_assert_err!(VFS::link("/example/myfile", "/newpath"), Code::Exists);
 
     wv_assert_err!(VFS::unlink("/example"), Code::IsDir);
     wv_assert_err!(VFS::unlink("/example/foo"), Code::NoSuchFile);

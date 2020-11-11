@@ -240,19 +240,25 @@ pub fn link(old_path: &str, new_path: &str) -> Result<(), Error> {
         new_path
     );
 
-    let oldino = search(old_path, false)?;
+    let old_ino = search(old_path, false)?;
 
     // it can't be a directory
-    let old_inode = inodes::get(oldino)?;
+    let old_inode = inodes::get(old_ino)?;
     if old_inode.mode.is_dir() {
         return Err(Error::new(Code::IsDir));
     }
 
     let (dir, name) = split_path(new_path);
 
-    let baseino = search(dir, false)?;
-    let base_ino = inodes::get(baseino)?;
-    links::create(&base_ino, name, &old_inode)
+    let base_ino = search(dir, false)?;
+    let base_inode = inodes::get(base_ino)?;
+
+    // the destination cannot already exist
+    if find_entry(&base_inode, name).is_ok() {
+        return Err(Error::new(Code::Exists));
+    }
+
+    links::create(&base_inode, name, &old_inode)
 }
 
 /// Removes the directory entry at given path
@@ -274,8 +280,8 @@ pub fn unlink(path: &str, deny_dir: bool) -> Result<INodeRef, Error> {
         return Err(Error::new(Code::InvArgs));
     }
 
-    let parino = search(dir, false)?;
-    let parinode = inodes::get(parino)?;
+    let par_ino = search(dir, false)?;
+    let par_inode = inodes::get(par_ino)?;
 
-    links::remove(&parinode, name, deny_dir).map(|_| parinode)
+    links::remove(&par_inode, name, deny_dir).map(|_| par_inode)
 }
