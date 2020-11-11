@@ -31,6 +31,7 @@ pub struct DiskBackend {
     blocksize: usize,
     disk: Disk,
     metabuf: MemGate,
+    metabuf_disk: MemGate,
 }
 
 impl DiskBackend {
@@ -41,6 +42,7 @@ impl DiskBackend {
             blocksize: 0, // gets initialized when loading superblock
             disk,
             metabuf: MemGate::new_bind(INVALID_SEL), // gets replaced when loading superblock
+            metabuf_disk: MemGate::new_bind(INVALID_SEL), // same here
         })
     }
 }
@@ -158,7 +160,10 @@ impl Backend for DiskBackend {
 
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
         let tmp = MemGate::new(512 + crate::buf::PRDT_SIZE, Perm::RW)?;
-        self.disk.delegate_mem(&tmp, BlockRange::new(0))?;
+        // use a separate MemGate for the disk service, because both have to activate the gate,
+        // which can only be done once per MemGate.
+        let tmp_disk = tmp.derive(0, 512 + crate::buf::PRDT_SIZE, Perm::RW)?;
+        self.disk.delegate_mem(&tmp_disk, BlockRange::new(0))?;
         self.disk.read(0, BlockRange::new(0), 512, None)?;
         let super_block = tmp.read_obj::<SuperBlock>(0)?;
 
@@ -166,8 +171,11 @@ impl Backend for DiskBackend {
         self.blocksize = super_block.block_size as usize;
         let size = (self.blocksize + crate::buf::PRDT_SIZE) * crate::buf::META_BUFFER_SIZE;
         self.metabuf = MemGate::new(size, Perm::RW)?;
+        // separate MemGate for the same reason as above
+        self.metabuf_disk = self.metabuf.derive(0, size, Perm::RW)?;
+
         // store the MemCap as blockno 0, bc we won't load the superblock again
-        self.disk.delegate_mem(&self.metabuf, BlockRange::new(0))?;
+        self.disk.delegate_mem(&self.metabuf_disk, BlockRange::new(0))?;
         Ok(super_block)
     }
 
