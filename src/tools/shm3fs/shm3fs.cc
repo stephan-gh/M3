@@ -78,6 +78,9 @@ static void print_time(m3::time_t time, const char *name) {
 }
 
 static void print_extents(m3::blockno_t bno, int indent, int depth) {
+    if(bno >= sb.total_blocks)
+        err(1, "Invalid block number %u (have only %u blocks)", bno, sb.total_blocks);
+
     m3::Extent *extents = new m3::Extent[sb.extents_per_block()];
     read_from_block(extents, sb.blocksize, bno);
 
@@ -93,6 +96,9 @@ static void print_extents(m3::blockno_t bno, int indent, int depth) {
 }
 
 static void print_inode(m3::inodeno_t ino, bool all) {
+    if(ino >= sb.total_inodes)
+        err(1, "Invalid inode number %u (have only %u inodes)", ino, sb.total_inodes);
+
     m3::INode inode = read_inode(ino);
     printf("INode %u:\n", ino);
     printf("  devno: %u\n", inode.devno);
@@ -127,6 +133,9 @@ static void print_inodes() {
 }
 
 static void print_as_dir(m3::blockno_t block) {
+    if(block >= sb.total_blocks)
+        err(1, "Invalid block number %u (have only %u blocks)", block, sb.total_blocks);
+
     char *buffer = new char[sb.blocksize];
     read_from_block(buffer, sb.blocksize, block);
 
@@ -150,6 +159,9 @@ static void print_as_dir(m3::blockno_t block) {
 }
 
 static void print_as_extents(m3::blockno_t block) {
+    if(block >= sb.total_blocks)
+        err(1, "Invalid block number %u (have only %u blocks)", block, sb.total_blocks);
+
     m3::Extent *extents = new m3::Extent[sb.extents_per_block()];
     read_from_block(extents, sb.blocksize, block);
 
@@ -164,6 +176,9 @@ static void print_as_extents(m3::blockno_t block) {
 }
 
 static void print_block_bytes(size_t off, m3::blockno_t block) {
+    if(block >= sb.total_blocks)
+        err(1, "Invalid block number %u (have only %u blocks)", block, sb.total_blocks);
+
     printf("Block %u:\n", block);
     uint8_t *buffer = new uint8_t[sb.blocksize];
     read_from_block(buffer, sb.blocksize, block);
@@ -180,6 +195,9 @@ static void print_block_bytes(size_t off, m3::blockno_t block) {
 }
 
 static void print_block_text(m3::blockno_t block, size_t count) {
+    if(block >= sb.total_blocks)
+        err(1, "Invalid block number %u (have only %u blocks)", block, sb.total_blocks);
+
     uint8_t *buffer = new uint8_t[sb.blocksize];
     read_from_block(buffer, sb.blocksize, block);
     for(size_t i = 0; i < count; ++i)
@@ -188,6 +206,9 @@ static void print_block_text(m3::blockno_t block, size_t count) {
 }
 
 static void print_ino_bytes(m3::inodeno_t ino) {
+    if(ino >= sb.total_inodes)
+        err(1, "Invalid inode number %u (have only %u inodes)", ino, sb.total_inodes);
+
     printf("Printing bytes of inode %d:\n", ino);
     m3::INode inode = read_inode(ino);
     size_t blockcount = (inode.size + sb.blocksize - 1) / sb.blocksize;
@@ -196,6 +217,9 @@ static void print_ino_bytes(m3::inodeno_t ino) {
 }
 
 static void print_ino_text(m3::inodeno_t ino) {
+    if(ino >= sb.total_inodes)
+        err(1, "Invalid inode number %u (have only %u inodes)", ino, sb.total_inodes);
+
     m3::INode inode = read_inode(ino);
     size_t blockcount = (inode.size + sb.blocksize - 1) / sb.blocksize;
     size_t count = 0;
