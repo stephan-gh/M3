@@ -1,81 +1,121 @@
-use crate::{goff, math};
-use crate::com::{RecvGate, SendGate};
+use crate::com::{MemGate, RecvGate, SendGate};
 use crate::errors::Error;
+use crate::int_enum;
+use crate::kif::{CapRngDesc, CapType};
+use crate::pes::VPE;
+use crate::serialize::Sink;
 use crate::session::ClientSession;
+use crate::{goff, math};
+
+use core::{cmp, fmt};
 
 pub const MSG_SIZE: usize = 128;
-pub struct Disk {
-    pub sess: ClientSession,
-    rgate: RecvGate,
-    sgate: SendGate,
-    //sel: Selector
+pub const MSG_SLOTS: usize = 1;
+
+pub type BlockNo = u32;
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
+pub struct BlockRange {
+    pub start: BlockNo,
+    pub count: BlockNo,
 }
 
-enum Operation {
-    Read,
-    Write,
+impl BlockRange {
+    pub fn new(bno: BlockNo) -> Self {
+        Self::new_range(bno, 1)
+    }
+
+    pub fn new_range(start: BlockNo, count: BlockNo) -> Self {
+        BlockRange { start, count }
+    }
 }
 
-impl Operation {
-    fn to_i32(&self) -> i32 {
-        match self {
-            Operation::Read => 0,
-            Operation::Write => 1,
+impl fmt::Debug for BlockRange {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}..{}", self.start, self.start + self.count - 1)
+    }
+}
+
+impl cmp::Ord for BlockRange {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        if self.start >= other.start && self.start < other.start + other.count {
+            cmp::Ordering::Equal
+        }
+        else if self.start < other.start {
+            cmp::Ordering::Less
+        }
+        else {
+            cmp::Ordering::Greater
         }
     }
 }
 
+int_enum! {
+    pub struct DiskOperation : u32 {
+        const READ  = 0x0;
+        const WRITE = 0x1;
+    }
+}
+
+pub struct Disk {
+    sess: ClientSession,
+    rgate: RecvGate,
+    sgate: SendGate,
+}
+
 impl Disk {
     pub fn new(name: &str) -> Result<Self, Error> {
-        let sels = crate::pes::VPE::cur().alloc_sels(2);
-        let sess = ClientSession::new_with_sel(name, sels + 1)?;
-        let mut rgate = RecvGate::new(math::next_log2(MSG_SIZE * 8), math::next_log2(MSG_SIZE))?;
+        // connect to disk service
+        let sess = ClientSession::new(name)?;
 
-        //Whats usually in obtain_sgate
+        // create receive gate for the responses
+        let mut rgate = RecvGate::new(
+            math::next_log2(MSG_SIZE * MSG_SLOTS),
+            math::next_log2(MSG_SIZE),
+        )?;
+        rgate.activate()?;
 
-        let crd = crate::kif::CapRngDesc::new(crate::kif::CapType::OBJECT, sels, 1);
+        // get send gate for our requests
+        let crd = CapRngDesc::new(CapType::OBJECT, VPE::cur().alloc_sel(), 1);
         sess.obtain_for(
-            crate::pes::VPE::cur().sel(),
+            VPE::cur().sel(),
             crd,
             |_slice_sink| {},
             |_slice_source| Ok(()),
         )?;
-        //Connect sgate to disk session
-        let sgate = SendGate::new_bind(sels);
-
-        rgate
-            .activate()
-            .expect("failed to activate disk client session rgate!");
+        let sgate = SendGate::new_bind(crd.start());
 
         Ok(Disk { sess, rgate, sgate })
     }
 
-    pub fn rgate(&self) -> &RecvGate {
-        &self.rgate
-    }
-
-    pub fn sgate(&self) -> &SendGate {
-        &self.sgate
+    pub fn delegate_mem(&self, mem: &MemGate, blocks: BlockRange) -> Result<(), Error> {
+        let crd = CapRngDesc::new(CapType::OBJECT, mem.sel(), 1);
+        self.sess.delegate(
+            crd,
+            |slice_sink| {
+                slice_sink.push(&blocks.start);
+                slice_sink.push(&blocks.count);
+            },
+            |_slice_source| Ok(()),
+        )
     }
 
     pub fn read(
         &self,
-        cap: u32,
-        bno: u32,
-        len: usize,
+        cap: BlockNo,
+        blocks: BlockRange,
         blocksize: usize,
         off: Option<goff>,
     ) -> Result<(), Error> {
-        let off = if let Some(g) = off { g } else { 0 };
         if let Err(e) = send_recv_res!(
             &self.sgate,
             &self.rgate,
-            Operation::Read.to_i32(),
+            DiskOperation::READ.val,
             cap,
-            bno,
-            len,
+            blocks.start,
+            blocks.count,
             blocksize,
-            off
+            off.unwrap_or(0)
         ) {
             Err(e)
         }
@@ -86,23 +126,20 @@ impl Disk {
 
     pub fn write(
         &self,
-        cap: u32,
-        bno: u32,
-        len: usize,
+        cap: BlockNo,
+        blocks: BlockRange,
         blocksize: usize,
         off: Option<goff>,
     ) -> Result<(), Error> {
-        let off = if let Some(g) = off { g } else { 0 };
-
         if let Err(e) = send_recv_res!(
             &self.sgate,
             &self.rgate,
-            Operation::Write.to_i32(),
+            DiskOperation::WRITE.val,
             cap,
-            bno,
-            len,
+            blocks.start,
+            blocks.count,
             blocksize,
-            off
+            off.unwrap_or(0)
         ) {
             Err(e)
         }

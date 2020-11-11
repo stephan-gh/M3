@@ -21,6 +21,7 @@ use m3::goff;
 use m3::kif::Perm;
 use m3::log;
 use m3::rc::Rc;
+use m3::session::DiskOperation;
 use m3::tcu;
 use m3::time::Time;
 use m3::util;
@@ -29,7 +30,6 @@ use pci;
 use super::ctrl::IDE_CTRL_BAR;
 use super::device::{ATAReg, BMIReg, CommandStatus, DevOp, Device, PRD};
 use super::PartDesc;
-use crate::Operation;
 
 pub struct Channel {
     id: u8,
@@ -134,7 +134,7 @@ impl Channel {
     pub fn read_write(
         &self,
         desc: PartDesc,
-        op: Operation,
+        op: DiskOperation,
         buf: &MemGate,
         buf_off: usize,
         disk_off: usize,
@@ -159,7 +159,7 @@ impl Channel {
         let count = bytes / dev.sector_size();
 
         let dev_op = match op {
-            Operation::READ => DevOp::READ,
+            DiskOperation::READ => DevOp::READ,
             _ => DevOp::WRITE,
         };
 

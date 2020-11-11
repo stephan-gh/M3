@@ -21,11 +21,11 @@ use m3::int_enum;
 use m3::kif;
 use m3::log;
 use m3::rc::Rc;
+use m3::session::DiskOperation;
 use pci;
 
 use super::chan::Channel;
 use super::PartDesc;
-use crate::Operation;
 
 const PORTBASE_PRIMARY: u16 = 0x1F0;
 const PORTBASE_SECONDARY: u16 = 0x170;
@@ -115,7 +115,7 @@ impl IDEController {
     pub fn read_write(
         &self,
         part: PartDesc,
-        op: Operation,
+        op: DiskOperation,
         buf: &MemGate,
         buf_off: usize,
         disk_off: usize,

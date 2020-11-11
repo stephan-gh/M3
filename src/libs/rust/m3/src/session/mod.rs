@@ -30,4 +30,4 @@ pub use self::pager::{MapFlags, Pager, PagerOp};
 pub use self::pipe::{Pipe, Pipes};
 pub use self::resmng::{ResMng, ResMngOperation};
 pub use self::srvsession::ServerSession;
-pub use self::disk::Disk;
+pub use self::disk::{BlockNo, BlockRange, DiskOperation, Disk};

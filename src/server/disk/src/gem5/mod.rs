@@ -21,11 +21,11 @@ mod device;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::Error;
+use m3::session::DiskOperation;
 
 use self::ctrl::DEVICE_COUNT;
 use crate::backend::BlockDeviceTrait;
 use crate::partition::{Partition, PART_COUNT};
-use crate::Operation;
 
 #[derive(Clone, Copy)]
 pub struct PartDesc {
@@ -88,7 +88,7 @@ impl BlockDeviceTrait for BlockDevice {
     ) -> Result<(), Error> {
         let part_desc = self.devs[part].unwrap();
         self.ide_ctrl
-            .read_write(part_desc, Operation::READ, buf, buf_off, disk_off, bytes)
+            .read_write(part_desc, DiskOperation::READ, buf, buf_off, disk_off, bytes)
     }
 
     fn write(
@@ -101,6 +101,6 @@ impl BlockDeviceTrait for BlockDevice {
     ) -> Result<(), Error> {
         let part_desc = self.devs[part].unwrap();
         self.ide_ctrl
-            .read_write(part_desc, Operation::WRITE, buf, buf_off, disk_off, bytes)
+            .read_write(part_desc, DiskOperation::WRITE, buf, buf_off, disk_off, bytes)
     }
 }

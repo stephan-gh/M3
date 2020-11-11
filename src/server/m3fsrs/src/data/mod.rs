@@ -13,7 +13,8 @@ pub use superblock::SuperBlock;
 
 use bitflags::bitflags;
 
-pub type BlockNo = u32;
+pub type BlockNo = m3::session::BlockNo;
+pub type BlockRange = m3::session::BlockRange;
 pub type Dev = u8;
 pub type InodeNo = u32;
 pub type Time = u32;

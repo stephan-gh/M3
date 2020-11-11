@@ -19,7 +19,6 @@
 mod backend;
 mod partition;
 
-use core::cmp;
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::col::Treap;
@@ -33,21 +32,12 @@ use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MAX_CLIENTS,
 };
-use m3::session::ServerSession;
+use m3::session::{BlockNo, BlockRange, DiskOperation, ServerSession};
 use m3::tcu::Label;
-use m3::{int_enum, log, reply_vmsg};
+use m3::{log, reply_vmsg};
 
 use backend::BlockDevice;
 use backend::BlockDeviceTrait;
-
-type BlockNo = u32;
-
-int_enum! {
-    pub struct Operation : u32 {
-        const READ  = 0x0;
-        const WRITE = 0x1;
-    }
-}
 
 pub const LOG_DEF: bool = false;
 pub const LOG_ALL: bool = false;
@@ -60,32 +50,6 @@ const MIN_SEC_SIZE: usize = 512;
 
 static REQHDL: LazyStaticCell<RequestHandler> = LazyStaticCell::default();
 static DEVICE: LazyStaticCell<BlockDevice> = LazyStaticCell::default();
-
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
-struct BlockRange {
-    start: BlockNo,
-    count: u32,
-}
-
-impl BlockRange {
-    fn new(start: BlockNo, count: u32) -> Self {
-        Self { start, count }
-    }
-}
-
-impl cmp::Ord for BlockRange {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        if self.start >= other.start && self.start < other.start + other.count as u32 {
-            cmp::Ordering::Equal
-        }
-        else if self.start < other.start {
-            cmp::Ordering::Less
-        }
-        else {
-            cmp::Ordering::Greater
-        }
-    }
-}
 
 struct DiskSession {
     sess: ServerSession,
@@ -133,7 +97,7 @@ impl DiskSession {
             return Err(Error::new(Code::InvArgs));
         }
 
-        let range = BlockRange::new(cap, 1);
+        let range = BlockRange::new_range(cap, 1);
         let mem_sel = self
             .blocks
             .get(&range)
@@ -230,7 +194,7 @@ impl Handler<DiskSession> for DiskHandler {
 
         let sess = self.sessions.get_mut(sid).unwrap();
         let sel = VPE::cur().alloc_sel();
-        let range = BlockRange::new(bno, len);
+        let range = BlockRange::new_range(bno, len);
         sess.blocks.remove(&range);
         sess.blocks.insert(range, sel);
 
@@ -266,8 +230,8 @@ pub fn main() -> i32 {
                 .ok_or_else(|| Error::new(Code::InvArgs))?;
 
             match op {
-                Operation::READ => sess.read(is),
-                Operation::WRITE => sess.write(is),
+                DiskOperation::READ => sess.read(is),
+                DiskOperation::WRITE => sess.write(is),
                 _ => Err(Error::new(Code::InvArgs)),
             }
         })

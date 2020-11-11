@@ -1,6 +1,6 @@
 use crate::backend::{Backend, SuperBlock};
 use crate::buf::{LoadLimit, MetaBufferBlock};
-use crate::data::{BlockNo, Extent};
+use crate::data::{BlockNo, BlockRange, Extent};
 
 use m3::cap::Selector;
 use m3::com::{MGateArgs, MemGate, Perm};
@@ -42,8 +42,7 @@ impl Backend for MemBackend {
     fn load_data(
         &self,
         _mem: &MemGate,
-        _bno: BlockNo,
-        _blocks: usize,
+        _blocks: BlockRange,
         _init: bool,
         _unlock: Event,
     ) -> Result<(), Error> {
@@ -63,7 +62,7 @@ impl Backend for MemBackend {
         self.mem.write(slice, bno as u64 * self.blocksize as u64)
     }
 
-    fn store_data(&self, _bno: BlockNo, _blocks: usize, _unlock: Event) -> Result<(), Error> {
+    fn store_data(&self, _blocks: BlockRange, _unlock: Event) -> Result<(), Error> {
         // unused
         Ok(())
     }

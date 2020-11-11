@@ -1,12 +1,11 @@
 use crate::backend::{Backend, SuperBlock};
 use crate::buf::{LoadLimit, MetaBufferBlock};
-use crate::data::{BlockNo, Extent};
+use crate::data::{BlockNo, BlockRange, Extent};
 
 use m3::cap::Selector;
 use m3::com::{MemGate, Perm};
 use m3::errors::Error;
-use m3::kif::{CapRngDesc, CapType, INVALID_SEL};
-use m3::serialize::Sink;
+use m3::kif::INVALID_SEL;
 use m3::session::Disk;
 
 use thread::Event;
@@ -27,18 +26,6 @@ impl DiskBackend {
             metabuf: MemGate::new_bind(INVALID_SEL), // gets replaced when loading superblock
         })
     }
-
-    fn delegate_mem(&self, mem: &MemGate, bno: BlockNo, len: usize) -> Result<(), Error> {
-        let crd = CapRngDesc::new(CapType::OBJECT, mem.sel(), 1);
-        self.disk.sess.delegate(
-            crd,
-            |slice_sink| {
-                slice_sink.push(&bno);
-                slice_sink.push(&len);
-            },
-            |_slice_source| Ok(()),
-        )
-    }
 }
 
 impl Backend for DiskBackend {
@@ -51,7 +38,7 @@ impl Backend for DiskBackend {
     ) -> Result<(), Error> {
         let off = dst_off * (self.blocksize + crate::buf::PRDT_SIZE);
         self.disk
-            .read(0, bno, 1, self.blocksize, Some(off as u64))?;
+            .read(0, BlockRange::new(bno), self.blocksize, Some(off as u64))?;
         self.metabuf
             .read_bytes(dst.data_mut().as_mut_ptr(), self.blocksize, off as u64)?;
         thread::ThreadManager::get().notify(unlock, None);
@@ -61,14 +48,13 @@ impl Backend for DiskBackend {
     fn load_data(
         &self,
         mem: &MemGate,
-        bno: BlockNo,
-        blocks: usize,
+        blocks: BlockRange,
         init: bool,
         unlock: Event,
     ) -> Result<(), Error> {
-        self.delegate_mem(mem, bno, blocks)?;
+        self.disk.delegate_mem(mem, blocks)?;
         if init {
-            self.disk.read(bno, bno, blocks, self.blocksize, None)?;
+            self.disk.read(blocks.start, blocks, self.blocksize, None)?;
         }
         thread::ThreadManager::get().notify(unlock, None);
         Ok(())
@@ -85,13 +71,13 @@ impl Backend for DiskBackend {
         self.metabuf
             .write_bytes(src.data().as_ptr(), self.blocksize, off as u64)?;
         self.disk
-            .write(0, bno, 1, self.blocksize, Some(off as u64))?;
+            .write(0, BlockRange::new(bno), self.blocksize, Some(off as u64))?;
         thread::ThreadManager::get().notify(unlock, None);
         Ok(())
     }
 
-    fn store_data(&self, bno: BlockNo, blocks: usize, unlock: Event) -> Result<(), Error> {
-        self.disk.write(bno, bno, blocks, self.blocksize, None)?;
+    fn store_data(&self, blocks: BlockRange, unlock: Event) -> Result<(), Error> {
+        self.disk.write(blocks.start, blocks, self.blocksize, None)?;
         thread::ThreadManager::get().notify(unlock, None);
         Ok(())
     }
@@ -155,8 +141,8 @@ impl Backend for DiskBackend {
 
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
         let tmp = MemGate::new(512 + crate::buf::PRDT_SIZE, Perm::RW)?;
-        self.delegate_mem(&tmp, 0, 1)?;
-        self.disk.read(0, 0, 1, 512, None)?;
+        self.disk.delegate_mem(&tmp, BlockRange::new(0))?;
+        self.disk.read(0, BlockRange::new(0), 512, None)?;
         let super_block = tmp.read_obj::<SuperBlock>(0)?;
 
         // use separate transfer buffer for each entry to allow parallel disk requests
@@ -164,12 +150,12 @@ impl Backend for DiskBackend {
         let size = (self.blocksize + crate::buf::PRDT_SIZE) * crate::buf::META_BUFFER_SIZE;
         self.metabuf = MemGate::new(size, Perm::RW)?;
         // store the MemCap as blockno 0, bc we won't load the superblock again
-        self.delegate_mem(&self.metabuf, 0, 1)?;
+        self.disk.delegate_mem(&self.metabuf, BlockRange::new(0))?;
         Ok(super_block)
     }
 
     fn store_sb(&self, super_block: &SuperBlock) -> Result<(), Error> {
         self.metabuf.write_obj(super_block, 0)?;
-        self.disk.write(0, 0, 1, 512, None)
+        self.disk.write(0, BlockRange::new(0), 512, None)
     }
 }

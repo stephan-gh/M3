@@ -5,7 +5,7 @@ pub use disk_backend::DiskBackend;
 pub use mem_backend::MemBackend;
 
 use crate::buf::{LoadLimit, MetaBufferBlock};
-use crate::data::{BlockNo, Extent, SuperBlock};
+use crate::data::{BlockNo, BlockRange, Extent, SuperBlock};
 
 use m3::cap::Selector;
 use m3::com::MemGate;
@@ -25,8 +25,7 @@ pub trait Backend {
     fn load_data(
         &self,
         mem: &MemGate,
-        bno: BlockNo,
-        blocks: usize,
+        blocks: BlockRange,
         init: bool,
         unlock: Event,
     ) -> Result<(), Error>;
@@ -39,7 +38,7 @@ pub trait Backend {
         unlock: Event,
     ) -> Result<(), Error>;
 
-    fn store_data(&self, bno: BlockNo, blocks: usize, unlock: Event) -> Result<(), Error>;
+    fn store_data(&self, blocks: BlockRange, unlock: Event) -> Result<(), Error>;
 
     fn sync_meta(&self, bno: BlockNo) -> Result<(), Error>;
 

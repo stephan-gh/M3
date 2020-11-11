@@ -1,6 +1,6 @@
 use crate::backend::Backend;
 use crate::buf::{Buffer, PRDT_SIZE};
-use crate::data::BlockNo;
+use crate::data::{BlockNo, BlockRange};
 
 use core::cmp;
 use core::fmt;
@@ -16,42 +16,6 @@ use thread::Event;
 
 pub const MAX_BUFFERED_BLKS: usize = 16384;
 const MAX_BLKS_PER_ENTRY: usize = 1024;
-
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
-struct BlockRange {
-    start: BlockNo,
-    count: BlockNo,
-}
-
-impl BlockRange {
-    fn new(bno: BlockNo) -> Self {
-        Self::new_range(bno, 1)
-    }
-
-    fn new_range(start: BlockNo, count: BlockNo) -> Self {
-        BlockRange { start, count }
-    }
-}
-
-impl fmt::Debug for BlockRange {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}..{}", self.start, self.start + self.count - 1)
-    }
-}
-
-impl cmp::Ord for BlockRange {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        if self.start >= other.start && self.start < other.start + other.count {
-            cmp::Ordering::Equal
-        }
-        else if self.start < other.start {
-            cmp::Ordering::Less
-        }
-        else {
-            cmp::Ordering::Greater
-        }
-    }
-}
 
 pub struct FileBufferEntry {
     blocks: BlockRange,
@@ -270,8 +234,7 @@ impl FileBuffer {
         // load data from backend
         backend.load_data(
             &new_head.data,
-            new_head.blocks.start,
-            new_head.blocks.count as usize,
+            new_head.blocks,
             load.is_some(),
             new_head.unlock,
         )?;
@@ -339,8 +302,7 @@ impl Buffer for FileBuffer {
 
         // write data of block to backend
         crate::hdl().backend().store_data(
-            head.blocks.start,
-            head.blocks.count as usize,
+            head.blocks,
             head.unlock,
         )?;
 
