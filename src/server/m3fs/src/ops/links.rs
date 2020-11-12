@@ -35,7 +35,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
     let mut created = false;
 
     'search_loop: for ext in dir.extent_iter() {
-        for bno in ext.bno_iter() {
+        for bno in ext.block_range() {
             let mut block = crate::hdl().metabuffer().get_block(bno)?;
 
             let mut off = 0;
@@ -102,7 +102,7 @@ pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
     );
 
     for ext in dir.extent_iter() {
-        for bno in ext.bno_iter() {
+        for bno in ext.block_range() {
             let mut block = crate::hdl().metabuffer().get_block(bno)?;
 
             let mut prev_off = 0;

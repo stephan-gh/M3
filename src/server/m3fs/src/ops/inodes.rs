@@ -613,7 +613,7 @@ pub fn sync_metadata(inode: &INodeRef) -> Result<(), Error> {
     );
 
     for ext in inode.extent_iter() {
-        for bno in ext.bno_iter() {
+        for bno in ext.block_range() {
             if crate::hdl().metabuffer().dirty(bno) {
                 crate::hdl().backend().sync_meta(bno)?;
             }

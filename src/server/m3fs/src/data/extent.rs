@@ -36,7 +36,7 @@ impl Extent {
         Self { start, length }
     }
 
-    pub fn bno_iter(&self) -> core::ops::Range<u32> {
+    pub fn block_range(&self) -> core::ops::Range<u32> {
         core::ops::Range {
             start: self.start,
             end: self.start + self.length,

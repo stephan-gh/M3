@@ -43,7 +43,7 @@ fn split_path<'a>(mut path: &'a str) -> (&'a str, &'a str) {
 
 fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
     for ext in inode.extent_iter() {
-        for bno in ext.bno_iter() {
+        for bno in ext.block_range() {
             let mut block = crate::hdl().metabuffer().get_block(bno)?;
             let entry_iter = DirEntryIterator::from_block(&mut block);
             while let Some(entry) = entry_iter.next() {
@@ -204,7 +204,7 @@ pub fn remove(path: &str) -> Result<(), Error> {
 
     // check whether it's empty
     for ext in inode.extent_iter() {
-        for bno in ext.bno_iter() {
+        for bno in ext.block_range() {
             let mut block = crate::hdl().metabuffer().get_block(bno)?;
             let entry_iter = DirEntryIterator::from_block(&mut block);
             while let Some(entry) = entry_iter.next() {
@@ -319,7 +319,7 @@ pub fn rename(old_path: &str, new_path: &str) -> Result<(), Error> {
     // search for the entry in the new directory and change link to new inode if found
     let mut prev_ino = None;
     'search_loop: for ext in new_dir_inode.extent_iter() {
-        for bno in ext.bno_iter() {
+        for bno in ext.block_range() {
             let mut block = crate::hdl().metabuffer().get_block(bno)?;
 
             let mut off = 0;
