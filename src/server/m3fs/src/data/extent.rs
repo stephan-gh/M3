@@ -16,7 +16,7 @@
  */
 
 use crate::buf::MetaBufferBlockRef;
-use crate::data::INodeRef;
+use crate::data::{BlockNo, INodeRef};
 
 use core::u32;
 
@@ -36,10 +36,16 @@ impl Extent {
         Self { start, length }
     }
 
-    pub fn block_range(&self) -> core::ops::Range<u32> {
+    pub fn block_range(&self) -> core::ops::Range<BlockNo> {
         core::ops::Range {
             start: self.start,
             end: self.start + self.length,
+        }
+    }
+
+    pub fn block_iter(&self) -> BlockIterator {
+        BlockIterator {
+            range: self.block_range(),
         }
     }
 }
@@ -118,6 +124,28 @@ impl Drop for ExtentRef {
     fn drop(&mut self) {
         if self.dirty.get() {
             self.block_ref.mark_dirty();
+        }
+    }
+}
+
+/// Block iterator that delivers all blocks of an extent.
+pub struct BlockIterator {
+    range: core::ops::Range<BlockNo>,
+}
+
+impl core::iter::Iterator for BlockIterator {
+    type Item = MetaBufferBlockRef;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.range.is_empty() {
+            self.range.start += 1;
+            crate::hdl()
+                .metabuffer()
+                .get_block(self.range.start - 1)
+                .ok()
+        }
+        else {
+            None
         }
     }
 }
