@@ -20,12 +20,12 @@ use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::cfg::PAGE_BITS;
 use m3::col::Vec;
-use m3::com::{MemGate, VecSink};
+use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::io::{Read, Write};
 use m3::kif::Perm;
-use m3::pes::Mapper;
+use m3::pes::{Mapper, StateSerializer};
 use m3::rc::Rc;
 use m3::session::{MapFlags, Pager};
 use m3::syscalls;
@@ -85,7 +85,7 @@ impl vfs::File for BootFile {
         Err(Error::new(Code::NotSup))
     }
 
-    fn serialize(&self, _s: &mut VecSink) {
+    fn serialize(&self, _s: &mut StateSerializer) {
         // not serializable
     }
 }

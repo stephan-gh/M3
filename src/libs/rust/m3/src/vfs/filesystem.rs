@@ -19,9 +19,9 @@ use core::fmt;
 
 use crate::cap::Selector;
 use crate::col::Vec;
-use crate::com::VecSink;
 use crate::errors::Error;
 use crate::int_enum;
+use crate::pes::StateSerializer;
 use crate::vfs::{FileHandle, FileInfo, FileMode, OpenFlags};
 
 int_enum! {
@@ -69,5 +69,5 @@ pub trait FileSystem: fmt::Debug {
         max_sel: &mut Selector,
     ) -> Result<(), Error>;
     /// Serializes this file system into `s`.
-    fn serialize(&self, s: &mut VecSink);
+    fn serialize(&self, s: &mut StateSerializer);
 }

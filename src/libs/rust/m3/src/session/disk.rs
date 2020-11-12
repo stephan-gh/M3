@@ -21,7 +21,6 @@ use crate::errors::Error;
 use crate::int_enum;
 use crate::kif::{CapRngDesc, CapType};
 use crate::pes::VPE;
-use crate::serialize::Sink;
 use crate::session::ClientSession;
 use crate::{goff, math};
 
@@ -111,8 +110,8 @@ impl Disk {
         self.sess.delegate(
             crd,
             |slice_sink| {
-                slice_sink.push(&blocks.start);
-                slice_sink.push(&blocks.count);
+                slice_sink.push_word(blocks.start as u64);
+                slice_sink.push_word(blocks.count as u64);
             },
             |_slice_source| Ok(()),
         )

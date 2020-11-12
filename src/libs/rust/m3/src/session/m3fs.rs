@@ -21,13 +21,13 @@ use core::fmt;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{RecvGate, SendGate, SliceSource, VecSink};
+use crate::com::{RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
-use crate::pes::VPE;
+use crate::pes::{StateSerializer, VPE};
 use crate::rc::{Rc, Weak};
-use crate::serialize::{Sink, Source};
+use crate::serialize::Source;
 use crate::session::ClientSession;
 use crate::vfs::{
     FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
@@ -171,13 +171,13 @@ impl FileSystem for M3FS {
         Ok(())
     }
 
-    fn serialize(&self, s: &mut VecSink) {
-        s.push(&self.sess.sel());
+    fn serialize(&self, s: &mut StateSerializer) {
+        s.push_word(self.sess.sel() as u64);
     }
 }
 
 impl M3FS {
-    pub fn unserialize(s: &mut SliceSource) -> FSHandle {
+    pub fn unserialize(s: &mut Source) -> FSHandle {
         let sels: Selector = s.pop().unwrap();
         M3FS::new_bind(sels)
     }

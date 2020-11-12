@@ -16,11 +16,11 @@
 
 use crate::cap::Selector;
 use crate::col::Vec;
-use crate::com::VecSink;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io;
 use crate::kif;
+use crate::pes::StateSerializer;
 use crate::session::{MapFlags, Pager};
 use crate::vfs;
 
@@ -77,7 +77,7 @@ impl vfs::File for io::Serial {
         Ok(())
     }
 
-    fn serialize(&self, _s: &mut VecSink) {
+    fn serialize(&self, _s: &mut StateSerializer) {
         // nothing to do
     }
 }

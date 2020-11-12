@@ -20,10 +20,11 @@ use core::intrinsics;
 
 use crate::cap::Selector;
 use crate::cfg;
-use crate::com::{SendGate, SliceSource};
+use crate::com::SendGate;
 use crate::env;
 use crate::kif::{self, PEDesc};
 use crate::pes::VPE;
+use crate::serialize::Source;
 use crate::session::{Pager, ResMng};
 use crate::tcu;
 use crate::util;
@@ -137,7 +138,7 @@ impl EnvData {
                     self.base.mounts_len as usize,
                 )
             };
-            MountTable::unserialize(&mut SliceSource::new(slice))
+            MountTable::unserialize(&mut Source::new(slice))
         }
         else {
             MountTable::default()
@@ -150,7 +151,7 @@ impl EnvData {
             let slice = unsafe {
                 util::slice_for(self.base.fds_addr as *const u64, self.base.fds_len as usize)
             };
-            FileTable::unserialize(&mut SliceSource::new(slice))
+            FileTable::unserialize(&mut Source::new(slice))
         }
         else {
             FileTable::default()

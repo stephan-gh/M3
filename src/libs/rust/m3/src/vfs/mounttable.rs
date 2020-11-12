@@ -19,10 +19,10 @@ use core::fmt;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::{String, ToString, Vec};
-use crate::com::{SliceSource, VecSink};
 use crate::errors::{Code, Error};
+use crate::pes::StateSerializer;
 use crate::rc::Rc;
-use crate::serialize::Sink;
+use crate::serialize::Source;
 use crate::session::M3FS;
 use crate::vfs::FileSystem;
 
@@ -123,20 +123,20 @@ impl MountTable {
         Ok(())
     }
 
-    pub(crate) fn serialize(&self, s: &mut VecSink) {
+    pub(crate) fn serialize(&self, s: &mut StateSerializer) {
         let count = self.mounts.len();
-        s.push(&count);
+        s.push_word(count as u64);
 
         for m in &self.mounts {
             let fs = m.fs.borrow();
             let fs_type = fs.fs_type();
-            s.push(&m.path);
-            s.push(&fs_type);
+            s.push_str(&m.path);
+            s.push_word(fs_type as u64);
             fs.serialize(s);
         }
     }
 
-    pub(crate) fn unserialize(s: &mut SliceSource) -> MountTable {
+    pub(crate) fn unserialize(s: &mut Source) -> MountTable {
         let mut mt = MountTable::default();
 
         let count = s.pop().unwrap();

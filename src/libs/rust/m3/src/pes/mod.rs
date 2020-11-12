@@ -20,12 +20,14 @@ mod activity;
 mod kmem;
 mod mapper;
 mod pe;
+mod state;
 mod vpe;
 
 pub use self::activity::{Activity, ClosureActivity, DeviceActivity, ExecActivity};
 pub use self::kmem::KMem;
 pub use self::mapper::{DefaultMapper, Mapper};
 pub use self::pe::PE;
+pub use self::state::{StateDeserializer, StateSerializer};
 pub use self::vpe::{VPEArgs, VPE};
 
 pub(crate) fn init() {

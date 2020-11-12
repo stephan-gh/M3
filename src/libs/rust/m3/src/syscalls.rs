@@ -21,10 +21,10 @@ use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
 use crate::arch;
 use crate::cap::Selector;
 use crate::cell::LazyStaticCell;
-use crate::com::{RecvGate, SendGate, SliceSink, SliceSource};
+use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
-use crate::serialize::Sink;
+use crate::serialize::{Sink, Source};
 use crate::tcu::{EpId, Label, Message, TCUIf, SYSC_SEP_OFF};
 use crate::util;
 
@@ -399,8 +399,8 @@ pub fn exchange(
 /// session.
 ///
 /// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
-/// [`SliceSink`], allowing to pass arguments to the server, whereas `post` is called with
-/// [`SliceSource`], allowing to get arguments from the server.
+/// [`Sink`], allowing to pass arguments to the server, whereas `post` is called with [`Source`],
+/// allowing to get arguments from the server.
 pub fn delegate<PRE, POST>(
     vpe: Selector,
     sess: Selector,
@@ -409,8 +409,8 @@ pub fn delegate<PRE, POST>(
     post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut SliceSink),
-    POST: FnMut(&mut SliceSource) -> Result<(), Error>,
+    PRE: Fn(&mut Sink),
+    POST: FnMut(&mut Source) -> Result<(), Error>,
 {
     exchange_sess(vpe, syscalls::Operation::DELEGATE, sess, crd, pre, post)
 }
@@ -419,8 +419,8 @@ where
 /// into `crd` of VPE `vpe`.
 ///
 /// `pre` and `post` are called before and after the system call, respectively. `pre` is called with
-/// [`SliceSink`], allowing to pass arguments to the server, whereas `post` is called with
-/// [`SliceSource`], allowing to get arguments from the server.
+/// [`Sink`], allowing to pass arguments to the server, whereas `post` is called with [`Source`],
+/// allowing to get arguments from the server.
 pub fn obtain<PRE, POST>(
     vpe: Selector,
     sess: Selector,
@@ -429,8 +429,8 @@ pub fn obtain<PRE, POST>(
     post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut SliceSink),
-    POST: FnMut(&mut SliceSource) -> Result<(), Error>,
+    PRE: Fn(&mut Sink),
+    POST: FnMut(&mut Source) -> Result<(), Error>,
 {
     exchange_sess(vpe, syscalls::Operation::OBTAIN, sess, crd, pre, post)
 }
@@ -444,8 +444,8 @@ fn exchange_sess<PRE, POST>(
     mut post: POST,
 ) -> Result<(), Error>
 where
-    PRE: Fn(&mut SliceSink),
-    POST: FnMut(&mut SliceSource) -> Result<(), Error>,
+    PRE: Fn(&mut Sink),
+    POST: FnMut(&mut Source) -> Result<(), Error>,
 {
     let mut req = syscalls::ExchangeSess {
         opcode: op.val,
@@ -456,7 +456,7 @@ where
     };
 
     {
-        let mut sink = SliceSink::new(&mut req.args.data);
+        let mut sink = Sink::new(&mut req.args.data);
         pre(&mut sink);
         req.args.bytes = sink.size() as u64;
     }
@@ -465,7 +465,7 @@ where
 
     {
         let words = (reply.data.args.bytes as usize + 7) / 8;
-        let mut src = SliceSource::new(&reply.data.args.data[..words]);
+        let mut src = Source::new(&reply.data.args.data[..words]);
         post(&mut src)?;
     }
 

@@ -17,7 +17,7 @@
 use m3::cap::Selector;
 use m3::cfg;
 use m3::col::Vec;
-use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate, SliceSource};
+use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{PageFlags, Perm};
@@ -172,7 +172,7 @@ impl AddrSpace {
         }
     }
 
-    pub fn map_ds(&mut self, args: &mut SliceSource) -> Result<(Selector, goff), Error> {
+    pub fn map_ds(&mut self, args: &mut Source) -> Result<(Selector, goff), Error> {
         if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }
@@ -256,7 +256,7 @@ impl AddrSpace {
         Ok(())
     }
 
-    pub fn map_mem(&mut self, args: &mut SliceSource) -> Result<(Selector, goff), Error> {
+    pub fn map_mem(&mut self, args: &mut Source) -> Result<(Selector, goff), Error> {
         if !self.has_owner() {
             return Err(Error::new(Code::InvArgs));
         }

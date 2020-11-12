@@ -17,10 +17,10 @@
 use core::fmt;
 
 use crate::cap::{CapFlags, Capability, Selector};
-use crate::com::{SliceSink, SliceSource};
 use crate::errors::Error;
 use crate::kif;
 use crate::pes::VPE;
+use crate::serialize::{Sink, Source};
 use crate::syscalls;
 
 /// Represents an established connection to a server that can be used to exchange capabilities.
@@ -71,9 +71,9 @@ impl ClientSession {
     }
 
     /// Delegates the given capability range to the server, using `pre` and `post` for input and
-    /// output arguments. `pre` is called with a [`SliceSink`] before the delegation operation,
-    /// allowing to pass arguments to the server. `post` is called with a [`SliceSource`] after the
-    /// delegation operation, allowing to get arguments from the server.
+    /// output arguments. `pre` is called with a [`Sink`] before the delegation operation, allowing
+    /// to pass arguments to the server. `post` is called with a [`Source`] after the delegation
+    /// operation, allowing to get arguments from the server.
     pub fn delegate<PRE, POST>(
         &self,
         crd: kif::CapRngDesc,
@@ -81,16 +81,16 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut SliceSink),
-        POST: FnMut(&mut SliceSource) -> Result<(), Error>,
+        PRE: Fn(&mut Sink),
+        POST: FnMut(&mut Source) -> Result<(), Error>,
     {
         self.delegate_for(VPE::cur().sel(), crd, pre, post)
     }
 
     /// Delegates the given capability range from `vpe` to the server, using `pre` and `post` for
-    /// input and output arguments. `pre` is called with a [`SliceSink`] before the delegation
-    /// operation, allowing to pass arguments to the server. `post` is called with a [`SliceSource`]
-    /// after the delegation operation, allowing to get arguments from the server.
+    /// input and output arguments. `pre` is called with a [`Sink`] before the delegation operation,
+    /// allowing to pass arguments to the server. `post` is called with a [`Source`] after the
+    /// delegation operation, allowing to get arguments from the server.
     pub fn delegate_for<PRE, POST>(
         &self,
         vpe: Selector,
@@ -99,8 +99,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut SliceSink),
-        POST: FnMut(&mut SliceSource) -> Result<(), Error>,
+        PRE: Fn(&mut Sink),
+        POST: FnMut(&mut Source) -> Result<(), Error>,
     {
         syscalls::delegate(vpe, self.sel(), crd, pre, post)
     }
@@ -116,9 +116,9 @@ impl ClientSession {
     }
 
     /// Obtains `count` capabilities from the server and returns the capability range descriptor,
-    /// using `pre` and `post` for input and output arguments. `pre` is called with a [`SliceSink`]
+    /// using `pre` and `post` for input and output arguments. `pre` is called with a [`Sink`]
     /// before the obtain operation, allowing to pass arguments to the server. `post` is called with
-    /// a [`SliceSource`] after the obtain operation, allowing to get arguments from the server.
+    /// a [`Source`] after the obtain operation, allowing to get arguments from the server.
     pub fn obtain<PRE, POST>(
         &self,
         count: u64,
@@ -126,8 +126,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<kif::CapRngDesc, Error>
     where
-        PRE: Fn(&mut SliceSink),
-        POST: FnMut(&mut SliceSource) -> Result<(), Error>,
+        PRE: Fn(&mut Sink),
+        POST: FnMut(&mut Source) -> Result<(), Error>,
     {
         let caps = VPE::cur().alloc_sels(count);
         let crd = kif::CapRngDesc::new(kif::CapType::OBJECT, caps, count);
@@ -136,9 +136,9 @@ impl ClientSession {
     }
 
     /// Obtains `count` capabilities from the server for VPE `vpe`, using `pre` and `post` for input
-    /// and output arguments. `pre` is called with a [`SliceSink`] before the obtain operation,
-    /// allowing to pass arguments to the server. `post` is called with a [`SliceSource`] after the
-    /// obtain operation, allowing to get arguments from the server.
+    /// and output arguments. `pre` is called with a [`Sink`] before the obtain operation, allowing
+    /// to pass arguments to the server. `post` is called with a [`Source`] after the obtain
+    /// operation, allowing to get arguments from the server.
     pub fn obtain_for<PRE, POST>(
         &self,
         vpe: Selector,
@@ -147,8 +147,8 @@ impl ClientSession {
         post: POST,
     ) -> Result<(), Error>
     where
-        PRE: Fn(&mut SliceSink),
-        POST: FnMut(&mut SliceSource) -> Result<(), Error>,
+        PRE: Fn(&mut Sink),
+        POST: FnMut(&mut Source) -> Result<(), Error>,
     {
         syscalls::obtain(vpe, self.sel(), crd, pre, post)
     }

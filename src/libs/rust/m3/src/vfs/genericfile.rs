@@ -20,15 +20,15 @@ use core::fmt;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{MemGate, RecvGate, SendGate, SliceSource, VecSink};
+use crate::com::{MemGate, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
-use crate::pes::VPE;
+use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
-use crate::serialize::Sink;
+use crate::serialize::Source;
 use crate::session::{ClientSession, MapFlags, Pager};
 use crate::time;
 use crate::vfs::{filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode};
@@ -79,7 +79,7 @@ impl GenericFile {
         }
     }
 
-    pub(crate) fn unserialize(s: &mut SliceSource) -> FileHandle {
+    pub(crate) fn unserialize(s: &mut Source) -> FileHandle {
         let flags: u32 = s.pop().unwrap();
         Rc::new(RefCell::new(GenericFile::new(
             OpenFlags::from_bits_truncate(flags),
@@ -159,10 +159,10 @@ impl File for GenericFile {
         Ok(())
     }
 
-    fn serialize(&self, s: &mut VecSink) {
-        s.push(&0); // flags
-        s.push(&self.sess.sel());
-        s.push(&0); // id
+    fn serialize(&self, s: &mut StateSerializer) {
+        s.push_word(0); // flags
+        s.push_word(self.sess.sel());
+        s.push_word(0); // id
     }
 }
 

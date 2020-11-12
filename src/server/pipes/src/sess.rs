@@ -30,7 +30,10 @@ use m3::tcu::{Label, Message};
 
 macro_rules! reply_vmsg_late {
     ( $msg:expr, $( $args:expr ),* ) => ({
-        let mut os = m3::com::GateOStream::default();
+        let mut arr: [u64; m3::com::MAX_MSG_SIZE / 8 ] = unsafe {
+            core::mem::MaybeUninit::uninit().assume_init()
+        };
+        let mut os = m3::com::GateOStream::new(&mut arr);
         $( os.push(&$args); )*
         crate::REQHDL.recv_gate().reply(os.words(), $msg)
     });

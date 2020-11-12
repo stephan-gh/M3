@@ -19,7 +19,6 @@ use crate::cell::RefCell;
 use crate::com::MemGate;
 use crate::errors::Error;
 use crate::rc::Rc;
-use crate::serialize::Sink;
 use crate::session::ClientSession;
 use crate::vfs::{FileHandle, GenericFile, OpenFlags};
 

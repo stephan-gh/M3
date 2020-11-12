@@ -14,326 +14,50 @@
  * General Public License version 2 for more details.
  */
 
-use core::intrinsics;
-use core::mem::MaybeUninit;
 use core::ops;
 use core::slice;
 
-use crate::col::{String, Vec};
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
-use crate::libc;
 use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
 use crate::tcu;
 use crate::util;
 
-const MAX_MSG_SIZE: usize = 512;
-
-/// A sink for marshalling that uses a static array internally.
-pub struct ArraySink {
-    arr: [u64; MAX_MSG_SIZE / 8],
-    pos: usize,
-}
-
-impl Default for ArraySink {
-    fn default() -> Self {
-        #[allow(clippy::uninit_assumed_init)]
-        ArraySink {
-            // safety: we will make sure that arr[0..pos-1] is initialized
-            arr: unsafe { MaybeUninit::uninit().assume_init() },
-            pos: 0,
-        }
-    }
-}
-
-macro_rules! impl_sink_for_array {
-    () => {
-        #[inline(always)]
-        fn size(&self) -> usize {
-            self.pos * util::size_of::<u64>()
-        }
-
-        #[inline(always)]
-        fn words(&self) -> &[u64] {
-            &self.arr[0..self.pos]
-        }
-
-        #[inline(always)]
-        fn push(&mut self, item: &dyn Marshallable) {
-            item.marshall(self);
-        }
-
-        #[inline(always)]
-        fn push_word(&mut self, word: u64) {
-            self.arr[self.pos] = word;
-            self.pos += 1;
-        }
-
-        fn push_str(&mut self, b: &str) {
-            let len = b.len() + 1;
-            self.push_word(len as u64);
-
-            // safety: we know the pointer and length are valid
-            unsafe { copy_from_str(&mut self.arr[self.pos..], b) };
-            self.pos += (len + 7) / 8;
-        }
-    };
-}
-
-impl Sink for ArraySink {
-    impl_sink_for_array!();
-}
-
-/// A sink for marshalling into a slice
-pub struct SliceSink<'s> {
-    arr: &'s mut [u64],
-    pos: usize,
-}
-
-impl<'s> SliceSink<'s> {
-    pub fn new(slice: &'s mut [u64]) -> Self {
-        Self { arr: slice, pos: 0 }
-    }
-}
-
-impl<'s> Sink for SliceSink<'s> {
-    impl_sink_for_array!();
-}
-
-/// A sink for marshalling that uses a [`Vec`] internally.
-pub struct VecSink {
-    vec: Vec<u64>,
-}
-
-impl Default for VecSink {
-    fn default() -> Self {
-        VecSink { vec: Vec::new() }
-    }
-}
-
-impl Sink for VecSink {
-    fn size(&self) -> usize {
-        self.vec.len() * util::size_of::<u64>()
-    }
-
-    fn words(&self) -> &[u64] {
-        &self.vec
-    }
-
-    fn push(&mut self, item: &dyn Marshallable) {
-        item.marshall(self);
-    }
-
-    fn push_word(&mut self, word: u64) {
-        self.vec.push(word);
-    }
-
-    fn push_str(&mut self, b: &str) {
-        let len = b.len() + 1;
-        self.push_word(len as u64);
-
-        let elems = (len + 7) / 8;
-        let cur = self.vec.len();
-        self.vec.reserve_exact(elems);
-
-        unsafe {
-            // safety: will be initialized below
-            self.vec.set_len(cur + elems);
-            // safety: we know the pointer and length are valid
-            copy_from_str(&mut self.vec.as_mut_slice()[cur..cur + elems], b);
-        }
-    }
-}
-
-/// A source for unmarshalling that uses a TCU message internally
-#[derive(Debug)]
-pub struct MsgSource {
-    msg: &'static tcu::Message,
-    pos: usize,
-}
-
-impl MsgSource {
-    /// Creates a new `MsgSource` for given TCU message.
-    pub fn new(msg: &'static tcu::Message) -> Self {
-        MsgSource { msg, pos: 0 }
-    }
-
-    /// Returns a slice to the message data.
-    #[inline(always)]
-    pub fn data(&self) -> &'static [u64] {
-        // safety: we trust the TCU
-        unsafe {
-            #[allow(clippy::cast_ptr_alignment)]
-            let ptr = self.msg.data.as_ptr() as *const u64;
-            slice::from_raw_parts(ptr, (self.msg.header.length / 8) as usize)
-        }
-    }
-
-    fn do_pop_str<T, F>(&mut self, f: F) -> Result<T, Error>
-    where
-        F: Fn(&'static [u64], usize, usize) -> T,
-    {
-        let len = self.pop_word()? as usize;
-
-        let data = self.data();
-        let npos = self.pos + (len + 7) / 8;
-        if len == 0 || npos > data.len() {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let res = f(data, self.pos, len);
-        self.pos = npos;
-        Ok(res)
-    }
-}
-
-unsafe fn copy_from_str(words: &mut [u64], s: &str) {
-    let addr = words.as_mut_ptr() as usize;
-    libc::memcpy(
-        addr as *mut libc::c_void,
-        s.as_bytes().as_ptr() as *const libc::c_void,
-        s.len(),
-    );
-    // null termination
-    let end: &mut u8 = intrinsics::transmute(addr + s.len());
-    *end = 0u8;
-}
-
-unsafe fn copy_str_from(s: &[u64], len: usize) -> String {
-    let mut v = Vec::<u8>::with_capacity(len);
-    v.set_len(len);
-    let src = s.as_ptr() as *mut libc::c_void;
-    let dst = v.as_mut_ptr() as *mut _ as *mut libc::c_void;
-    libc::memcpy(dst, src, len);
-    String::from_utf8(v).unwrap()
-}
-
-unsafe fn str_slice_from(s: &[u64], len: usize) -> &'static str {
-    let slice = core::slice::from_raw_parts(s.as_ptr() as *const u8, len);
-    core::str::from_utf8(slice).unwrap()
-}
-
-impl Source for MsgSource {
-    fn size(&self) -> usize {
-        self.msg.header.length as usize
-    }
-
-    #[inline(always)]
-    fn pop_word(&mut self) -> Result<u64, Error> {
-        let data = self.data();
-        if self.pos >= data.len() {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        self.pos += 1;
-        Ok(data[self.pos - 1])
-    }
-
-    fn pop_str(&mut self) -> Result<String, Error> {
-        // safety: we know that the pointer and length are okay
-        self.do_pop_str(|d, pos, len| unsafe { copy_str_from(&d[pos..], len - 1) })
-    }
-
-    fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
-        // safety: we know that the pointer and length are okay
-        self.do_pop_str(|d, pos, len| unsafe { str_slice_from(&d[pos..], len - 1) })
-    }
-}
-
-/// A source for unmarshalling that uses a slice internally.
-pub struct SliceSource<'s> {
-    slice: &'s [u64],
-    pos: usize,
-}
-
-impl<'s> SliceSource<'s> {
-    /// Creates a new `SliceSource` for given slice.
-    pub fn new(s: &'s [u64]) -> SliceSource<'s> {
-        SliceSource { slice: s, pos: 0 }
-    }
-
-    /// Pops an object of type `T` from the source.
-    pub fn pop<T: Unmarshallable>(&mut self) -> Result<T, Error> {
-        T::unmarshall(self)
-    }
-
-    fn do_pop_str<T, F>(&mut self, f: F) -> Result<T, Error>
-    where
-        F: Fn(&'s [u64], usize, usize) -> T,
-    {
-        let len = self.pop_word()? as usize;
-
-        let npos = self.pos + (len + 7) / 8;
-        if len == 0 || npos > self.slice.len() {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        let res = f(self.slice, self.pos, len);
-        self.pos = npos;
-        Ok(res)
-    }
-}
-
-impl<'s> Source for SliceSource<'s> {
-    fn size(&self) -> usize {
-        self.slice.len()
-    }
-
-    fn pop_word(&mut self) -> Result<u64, Error> {
-        if self.pos >= self.slice.len() {
-            return Err(Error::new(Code::InvArgs));
-        }
-
-        self.pos += 1;
-        Ok(self.slice[self.pos - 1])
-    }
-
-    fn pop_str(&mut self) -> Result<String, Error> {
-        // safety: we know that the pointer and length are okay
-        self.do_pop_str(|slice, pos, len| unsafe { copy_str_from(&slice[pos..], len - 1) })
-    }
-
-    fn pop_str_slice(&mut self) -> Result<&'static str, Error> {
-        // safety: we know that the pointer and length are okay
-        self.do_pop_str(|slice, pos, len| unsafe { str_slice_from(&slice[pos..], len - 1) })
-    }
-}
+pub const MAX_MSG_SIZE: usize = 512;
 
 /// An output stream for marshalling a TCU message and sending it via a [`SendGate`].
-pub struct GateOStream {
-    buf: ArraySink,
+pub struct GateOStream<'s> {
+    sink: Sink<'s>,
 }
 
-impl Default for GateOStream {
-    fn default() -> Self {
+impl<'s> GateOStream<'s> {
+    pub fn new(slice: &'s mut [u64]) -> Self {
         GateOStream {
-            buf: ArraySink::default(),
+            sink: Sink::new(slice),
         }
     }
-}
 
-impl GateOStream {
     /// Returns the size of the marshalled message
     #[inline(always)]
     pub fn size(&self) -> usize {
-        self.buf.size()
+        self.sink.size()
     }
 
     /// Returns the marshalled message as a slice of words
     pub fn words(&self) -> &[u64] {
-        self.buf.words()
+        self.sink.words()
     }
 
     /// Pushes the given object into the stream.
     #[inline(always)]
     pub fn push<T: Marshallable>(&mut self, item: &T) {
-        item.marshall(&mut self.buf);
+        item.marshall(&mut self.sink);
     }
 
     /// Sends the marshalled message via `gate`, using `reply_gate` for the reply.
     #[inline(always)]
     pub fn send(&self, gate: &SendGate, reply_gate: &RecvGate) -> Result<(), Error> {
-        gate.send(self.buf.words(), reply_gate)
+        gate.send(self.sink.words(), reply_gate)
     }
 
     /// Sends the marshalled message via `gate`, using `reply_gate` for the reply.
@@ -343,14 +67,15 @@ impl GateOStream {
         gate: &SendGate,
         reply_gate: &'r RecvGate,
     ) -> Result<GateIStream<'r>, Error> {
-        gate.call(self.buf.words(), reply_gate)
+        gate.call(self.sink.words(), reply_gate)
     }
 }
 
 /// An input stream for unmarshalling a TCU message that has been received over a [`RecvGate`].
 #[derive(Debug)]
 pub struct GateIStream<'r> {
-    source: MsgSource,
+    msg: &'static tcu::Message,
+    source: Source<'static>,
     rgate: &'r RecvGate,
     ack: bool,
 }
@@ -358,8 +83,16 @@ pub struct GateIStream<'r> {
 impl<'r> GateIStream<'r> {
     /// Creates a new `GateIStream` for `msg` that has been received over `rgate`.
     pub fn new(msg: &'static tcu::Message, rgate: &'r RecvGate) -> Self {
+        // safety: we trust the TCU
+        let slice = unsafe {
+            #[allow(clippy::cast_ptr_alignment)]
+            let ptr = msg.data.as_ptr() as *const u64;
+            slice::from_raw_parts(ptr, (msg.header.length / 8) as usize)
+        };
+
         GateIStream {
-            source: MsgSource::new(msg),
+            msg,
+            source: Source::new(slice),
             rgate,
             ack: true,
         }
@@ -373,24 +106,24 @@ impl<'r> GateIStream<'r> {
     /// Returns the label of the message
     #[inline(always)]
     pub fn label(&self) -> tcu::Label {
-        self.source.msg.header.label
+        self.msg.header.label
     }
 
     /// Returns the size of the message
     #[inline(always)]
     pub fn size(&self) -> usize {
-        self.source.data().len() * util::size_of::<u64>()
+        self.source.size() * util::size_of::<u64>()
     }
 
     /// Returns the message
     pub fn msg(&self) -> &'static tcu::Message {
-        self.source.msg
+        self.msg
     }
 
     /// Removes the message from this gate stream, so that no ACK will be performed on drop.
     pub fn take_msg(&mut self) -> &'static tcu::Message {
         self.ack = false;
-        self.source.msg
+        self.msg
     }
 
     /// Pops an object of type `T` from the message.
@@ -402,7 +135,7 @@ impl<'r> GateIStream<'r> {
     /// Sends `reply` as a reply to the received message.
     #[inline(always)]
     pub fn reply<T>(&mut self, reply: &[T]) -> Result<(), Error> {
-        match self.rgate.reply(reply, self.source.msg) {
+        match self.rgate.reply(reply, self.msg) {
             Ok(_) => {
                 self.ack = false;
                 Ok(())
@@ -415,14 +148,14 @@ impl<'r> GateIStream<'r> {
     /// message.
     #[inline(always)]
     pub fn reply_os(&mut self, os: &GateOStream) -> Result<(), Error> {
-        self.reply(os.buf.words())
+        self.reply(os.sink.words())
     }
 }
 
 impl<'r> ops::Drop for GateIStream<'r> {
     fn drop(&mut self) {
         if self.ack {
-            self.rgate.ack_msg(self.source.msg).ok();
+            self.rgate.ack_msg(self.msg).ok();
         }
     }
 }
@@ -431,7 +164,10 @@ impl<'r> ops::Drop for GateIStream<'r> {
 #[macro_export]
 macro_rules! send_vmsg {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let mut os = $crate::com::GateOStream::default();
+        let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
+            core::mem::MaybeUninit::uninit().assume_init()
+        };
+        let mut os = $crate::com::GateOStream::new(&mut arr);
         $( os.push(&$args); )*
         os.send($sg, $rg)
     });
@@ -442,7 +178,10 @@ macro_rules! send_vmsg {
 #[macro_export]
 macro_rules! reply_vmsg {
     ( $is:expr, $( $args:expr ),* ) => ({
-        let mut os = $crate::com::GateOStream::default();
+        let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
+            core::mem::MaybeUninit::uninit().assume_init()
+        };
+        let mut os = $crate::com::GateOStream::new(&mut arr);
         $( os.push(&$args); )*
         $is.reply_os(&os)
     });
@@ -494,7 +233,10 @@ pub fn recv_result<'r>(
 #[macro_export]
 macro_rules! send_recv {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let mut os = $crate::com::GateOStream::default();
+        let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
+            core::mem::MaybeUninit::uninit().assume_init()
+        };
+        let mut os = $crate::com::GateOStream::new(&mut arr);
         $( os.push(&$args); )*
         os.call($sg, $rg)
     });

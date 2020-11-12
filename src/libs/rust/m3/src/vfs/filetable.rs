@@ -19,12 +19,11 @@ use core::{fmt, mem};
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{SliceSource, VecSink};
 use crate::errors::{Code, Error};
 use crate::io::Serial;
-use crate::pes::VPE;
+use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
-use crate::serialize::Sink;
+use crate::serialize::Source;
 use crate::vfs::{File, FileRef, GenericFile};
 
 /// A file descriptor
@@ -101,21 +100,21 @@ impl FileTable {
         Ok(())
     }
 
-    pub(crate) fn serialize(&self, s: &mut VecSink) {
+    pub(crate) fn serialize(&self, s: &mut StateSerializer) {
         let count = self.files.iter().filter(|&f| f.is_some()).count();
-        s.push(&count);
+        s.push_word(count as u64);
 
         for fd in 0..MAX_FILES {
             if let Some(ref f) = self.files[fd] {
                 let file = f.borrow();
-                s.push(&fd);
-                s.push(&file.file_type());
+                s.push_word(fd as u64);
+                s.push_word(file.file_type() as u64);
                 file.serialize(s);
             }
         }
     }
 
-    pub(crate) fn unserialize(s: &mut SliceSource) -> FileTable {
+    pub(crate) fn unserialize(s: &mut Source) -> FileTable {
         let mut ft = FileTable::default();
 
         let count = s.pop().unwrap();

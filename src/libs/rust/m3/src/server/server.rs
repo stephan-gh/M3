@@ -17,13 +17,13 @@
 use core::fmt;
 
 use crate::cap::{CapFlags, Capability, Selector};
-use crate::com::{GateIStream, RecvGate, SliceSink, SliceSource};
+use crate::com::{GateIStream, RecvGate};
 use crate::errors::{Code, Error};
 use crate::kif::{service, CapRngDesc};
 use crate::llog;
 use crate::math;
 use crate::pes::VPE;
-use crate::serialize::Sink;
+use crate::serialize::{Sink, Source};
 use crate::server::{SessId, SessionContainer};
 use crate::syscalls;
 
@@ -36,8 +36,8 @@ pub struct Server {
 
 /// The struct to exchange capabilities with a client (obtain/delegate)
 pub struct CapExchange<'d> {
-    src: SliceSource<'d>,
-    sink: SliceSink<'d>,
+    src: Source<'d>,
+    sink: Sink<'d>,
     input: &'d service::ExchangeData,
     out_crd: CapRngDesc,
 }
@@ -48,20 +48,20 @@ impl<'d> CapExchange<'d> {
     pub fn new(input: &'d service::ExchangeData, output: &'d mut service::ExchangeData) -> Self {
         let len = (input.args.bytes as usize + 7) / 8;
         Self {
-            src: SliceSource::new(&input.args.data[..len]),
-            sink: SliceSink::new(&mut output.args.data),
+            src: Source::new(&input.args.data[..len]),
+            sink: Sink::new(&mut output.args.data),
             input,
             out_crd: CapRngDesc::default(),
         }
     }
 
     /// Returns the input arguments
-    pub fn in_args(&mut self) -> &mut SliceSource<'d> {
+    pub fn in_args(&mut self) -> &mut Source<'d> {
         &mut self.src
     }
 
     /// Returns the output arguments
-    pub fn out_args(&mut self) -> &mut SliceSink<'d> {
+    pub fn out_args(&mut self) -> &mut Sink<'d> {
         &mut self.sink
     }
 

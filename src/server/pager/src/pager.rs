@@ -31,7 +31,6 @@ use m3::kif;
 use m3::log;
 use m3::math;
 use m3::pes::{VPEArgs, VPE};
-use m3::serialize::{Sink, Source};
 use m3::server::{
     CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer, DEF_MAX_CLIENTS,
 };

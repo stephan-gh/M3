@@ -185,13 +185,13 @@ macro_rules! int_enum {
         }
 
         impl $crate::serialize::Marshallable for $Name {
-            fn marshall(&self, s: &mut dyn $crate::serialize::Sink) {
+            fn marshall(&self, s: &mut $crate::serialize::Sink) {
                 s.push_word(self.val as u64);
             }
         }
 
         impl $crate::serialize::Unmarshallable for $Name {
-            fn unmarshall(s: &mut dyn $crate::serialize::Source) -> Result<Self, $crate::errors::Error> {
+            fn unmarshall(s: &mut $crate::serialize::Source) -> Result<Self, $crate::errors::Error> {
                 let val = s.pop_word()? as $T;
                 Ok($Name { val: val })
             }

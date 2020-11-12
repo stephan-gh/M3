@@ -28,7 +28,6 @@ use m3::log;
 use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::reply_vmsg;
-use m3::serialize::Source;
 use m3::server::{
     server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
     DEF_MAX_CLIENTS,

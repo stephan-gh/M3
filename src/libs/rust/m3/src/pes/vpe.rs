@@ -533,9 +533,7 @@ impl VPE {
         args: &[S],
     ) -> Result<ExecActivity, Error> {
         use crate::cfg;
-        use crate::com::VecSink;
-        use crate::pes::Activity;
-        use crate::serialize::Sink;
+        use crate::pes::{Activity, StateSerializer};
         use crate::util;
 
         let mut file = BufReader::new(file);
@@ -557,7 +555,7 @@ impl VPE {
 
             // write file table
             {
-                let mut fds = VecSink::default();
+                let mut fds = StateSerializer::default();
                 self.files.serialize(&mut fds);
                 let words = fds.words();
                 mem.write_bytes(
@@ -571,7 +569,7 @@ impl VPE {
 
             // write mounts table
             {
-                let mut mounts = VecSink::default();
+                let mut mounts = StateSerializer::default();
                 self.mounts.serialize(&mut mounts);
                 let words = mounts.words();
                 mem.write_bytes(
@@ -616,10 +614,9 @@ impl VPE {
         mut file: FileRef,
         args: &[S],
     ) -> Result<ExecActivity, Error> {
-        use crate::com::VecSink;
         use crate::errors::Code;
         use crate::libc;
-        use crate::serialize::Sink;
+        use crate::pes::StateSerializer;
 
         let path = arch::loader::copy_file(&mut file)?;
 
@@ -644,12 +641,12 @@ impl VPE {
                 arch::loader::write_env_value(pid, "kmem", u64::from(self.kmem.sel()));
 
                 // write file table
-                let mut fds = VecSink::default();
+                let mut fds = StateSerializer::default();
                 self.files.serialize(&mut fds);
                 arch::loader::write_env_file(pid, "fds", fds.words());
 
                 // write mounts table
-                let mut mounts = VecSink::default();
+                let mut mounts = StateSerializer::default();
                 self.mounts.serialize(&mut mounts);
                 arch::loader::write_env_file(pid, "ms", mounts.words());
 

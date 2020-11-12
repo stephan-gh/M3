@@ -18,12 +18,11 @@ use core::mem::MaybeUninit;
 use core::ptr;
 
 use crate::col::{String, Vec};
-use crate::com::VecSink;
 use crate::errors::{Code, Error};
 use crate::format;
 use crate::io::Read;
 use crate::libc;
-use crate::serialize::Sink;
+use crate::pes::StateSerializer;
 use crate::util;
 use crate::vec;
 use crate::vfs::FileRef;
@@ -113,7 +112,12 @@ pub fn copy_file(file: &mut FileRef) -> Result<String, Error> {
 
 pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
     unsafe {
-        let path = format!("{}/{}-{}\0", base::envdata::tmp_dir(), libc::getpid(), suffix);
+        let path = format!(
+            "{}/{}-{}\0",
+            base::envdata::tmp_dir(),
+            libc::getpid(),
+            suffix
+        );
         let path_ptr = path.as_bytes().as_ptr() as *const i8;
         let fd = libc::open(path_ptr, libc::O_RDONLY);
         if fd == -1 {
@@ -138,8 +142,8 @@ pub fn read_env_file(suffix: &str) -> Option<Vec<u64>> {
 }
 
 pub fn write_env_value(pid: i32, suffix: &str, data: u64) {
-    let mut buf = VecSink::default();
-    buf.push(&data);
+    let mut buf = StateSerializer::default();
+    buf.push_word(data);
     write_env_file(pid, suffix, buf.words());
 }
 

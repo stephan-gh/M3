@@ -22,10 +22,11 @@ use crate::arch;
 use crate::cap::Selector;
 use crate::cell::LazyStaticCell;
 use crate::col::{String, Vec};
-use crate::com::{SendGate, SliceSource};
+use crate::com::SendGate;
 use crate::kif::{self, PEDesc, PEType, PEISA};
 use crate::libc;
 use crate::pes::VPE;
+use crate::serialize::Source;
 use crate::session::{Pager, ResMng};
 use crate::tcu::{EpId, Label};
 use crate::vfs::{FileTable, MountTable};
@@ -102,21 +103,21 @@ impl EnvData {
 
     pub fn load_mounts(&self) -> MountTable {
         match arch::loader::read_env_file("ms") {
-            Some(ms) => MountTable::unserialize(&mut SliceSource::new(&ms)),
+            Some(ms) => MountTable::unserialize(&mut Source::new(&ms)),
             None => MountTable::default(),
         }
     }
 
     pub fn load_fds(&self) -> FileTable {
         match arch::loader::read_env_file("fds") {
-            Some(fds) => FileTable::unserialize(&mut SliceSource::new(&fds)),
+            Some(fds) => FileTable::unserialize(&mut Source::new(&fds)),
             None => FileTable::default(),
         }
     }
 
     fn load_word(name: &str, default: u64) -> u64 {
         match arch::loader::read_env_file(name) {
-            Some(buf) => SliceSource::new(&buf).pop().unwrap(),
+            Some(buf) => Source::new(&buf).pop().unwrap(),
             None => default,
         }
     }

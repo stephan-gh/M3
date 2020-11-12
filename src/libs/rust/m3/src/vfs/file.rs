@@ -14,18 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-use bitflags::bitflags;
 use base::const_assert;
+use bitflags::bitflags;
 use core::fmt::Debug;
 
 use crate::cap::Selector;
 use crate::col::Vec;
-use crate::com::VecSink;
 use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif;
+use crate::pes::StateSerializer;
 use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
 use crate::session::{MapFlags, Pager};
 use crate::vfs::{BlockId, DevId, Fd, FileMode, INodeId};
@@ -92,22 +92,22 @@ pub struct FileInfo {
 }
 
 impl Marshallable for FileInfo {
-    fn marshall(&self, s: &mut dyn Sink) {
-        s.push(&self.devno);
-        s.push(&self.inode);
-        s.push(&self.mode);
-        s.push(&self.links);
-        s.push(&self.size);
-        s.push(&self.lastaccess);
-        s.push(&self.lastmod);
-        s.push(&self.blocksize);
-        s.push(&self.extents);
-        s.push(&self.firstblock);
+    fn marshall(&self, s: &mut Sink) {
+        s.push_word(self.devno as u64);
+        s.push_word(self.inode as u64);
+        s.push_word(self.mode as u64);
+        s.push_word(self.links as u64);
+        s.push_word(self.size as u64);
+        s.push_word(self.lastaccess as u64);
+        s.push_word(self.lastmod as u64);
+        s.push_word(self.blocksize as u64);
+        s.push_word(self.extents as u64);
+        s.push_word(self.firstblock as u64);
     }
 }
 
 impl Unmarshallable for FileInfo {
-    fn unmarshall(s: &mut dyn Source) -> Result<Self, Error> {
+    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
         Ok(FileInfo {
             devno: s.pop_word()? as DevId,
             inode: s.pop_word()? as INodeId,
@@ -151,7 +151,7 @@ pub trait File: Read + Write + Seek + Map + Debug {
         max_sel: &mut Selector,
     ) -> Result<(), Error>;
     /// Serializes this file into `s`.
-    fn serialize(&self, s: &mut VecSink);
+    fn serialize(&self, s: &mut StateSerializer);
 }
 
 /// Trait for resources that are seekable.

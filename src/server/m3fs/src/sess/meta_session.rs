@@ -26,7 +26,6 @@ use m3::{
     com::{GateIStream, SendGate},
     errors::{Code, Error},
     rc::Rc,
-    serialize::Source,
     server::CapExchange,
     server::SessId,
     session::ServerSession,

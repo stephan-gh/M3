@@ -24,7 +24,6 @@ use crate::goff;
 use crate::int_enum;
 use crate::kif;
 use crate::pes::VPE;
-use crate::serialize::{Sink, Source};
 use crate::session::ClientSession;
 
 /// Represents a session at the pager.

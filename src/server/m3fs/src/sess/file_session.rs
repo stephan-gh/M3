@@ -29,7 +29,6 @@ use m3::{
     errors::{Code, Error},
     kif::{CapRngDesc, CapType, Perm, INVALID_SEL},
     rc::Rc,
-    serialize::Sink,
     server::{CapExchange, SessId},
     session::ServerSession,
     syscalls, tcu,
@@ -248,8 +247,8 @@ impl FileSession {
         )?;
 
         data.out_caps(m3::kif::CapRngDesc::new(CapType::OBJECT, sel, 1));
-        data.out_args().push(&0);
-        data.out_args().push(&len);
+        data.out_args().push_word(0);
+        data.out_args().push_word(len as u64);
 
         log!(
             crate::LOG_SESSION,
