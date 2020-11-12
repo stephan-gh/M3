@@ -55,6 +55,7 @@ impl DirEntry {
 
     /// Returns a mutable reference to the directory entry stored at `off` in the given buffer
     pub fn from_buffer_mut(block: &mut MetaBufferBlock, off: usize) -> &mut Self {
+        block.mark_dirty();
         unsafe {
             let buffer_off = block.data_mut().as_mut_ptr().add(off);
             get_entry_mut!(buffer_off)
@@ -68,6 +69,7 @@ impl DirEntry {
         off2: usize,
     ) -> (&mut Self, &mut Self) {
         assert!(off1 != off2);
+        block.mark_dirty();
         unsafe {
             let buffer_off1 = block.data_mut().as_mut_ptr().add(off1);
             let buffer_off2 = block.data_mut().as_mut_ptr().add(off2);

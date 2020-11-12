@@ -484,7 +484,6 @@ impl FileSession {
 
         // change size
         inode.as_mut().size += submit as u64;
-        inodes::mark_dirty(inode.inode);
 
         // stop appending
         let files = crate::hdl().files();

@@ -15,7 +15,6 @@
  * General Public License version 2 for more details.
  */
 
-use crate::buf::Buffer;
 use crate::data::{DirEntry, INodeRef};
 use crate::ops::inodes;
 
@@ -37,7 +36,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
 
     'search_loop: for ext in dir.extent_iter() {
         for bno in ext.bno_iter() {
-            let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
+            let mut block = crate::hdl().metabuffer().get_block(bno)?;
 
             let mut off = 0;
             let end = crate::hdl().superblock().block_size as usize;
@@ -59,8 +58,6 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
                     new_entry.nodeno = inode.inode;
                     new_entry.next = rem;
 
-                    crate::hdl().metabuffer().mark_dirty(bno);
-
                     created = true;
                     break 'search_loop;
                 }
@@ -81,7 +78,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
 
         // put entry at the beginning of the block
         let start = ext.start;
-        let mut block = crate::hdl().metabuffer().get_block(start, true)?;
+        let mut block = crate::hdl().metabuffer().get_block(start)?;
         let new_entry = DirEntry::from_buffer_mut(&mut block, 0);
         new_entry.set_name(name);
         new_entry.nodeno = inode.inode;
@@ -89,7 +86,6 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
     }
 
     inode.as_mut().links += 1;
-    inodes::mark_dirty(inode.inode);
     Ok(())
 }
 
@@ -107,12 +103,13 @@ pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
 
     for ext in dir.extent_iter() {
         for bno in ext.bno_iter() {
-            let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
+            let mut block = crate::hdl().metabuffer().get_block(bno)?;
 
             let mut prev_off = 0;
             let mut off = 0;
             let end = crate::hdl().superblock().block_size as usize;
             while off < end {
+                // TODO marking all blocks dirty here is suboptimal
                 let entry = DirEntry::from_buffer_mut(&mut block, off);
 
                 if entry.name() == name {
@@ -149,7 +146,6 @@ pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
                             cur_entry.next = dist + next_entry.next;
                         }
                     }
-                    crate::hdl().metabuffer().mark_dirty(bno);
 
                     // reduce links and free if necessary
                     inodes::decrease_links(&inode)?;

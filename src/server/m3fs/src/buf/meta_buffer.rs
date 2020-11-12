@@ -66,6 +66,10 @@ impl MetaBufferBlock {
         }
     }
 
+    pub fn mark_dirty(&mut self) {
+        self.dirty = true;
+    }
+
     pub fn data(&self) -> &[u8] {
         &self.data
     }
@@ -76,6 +80,7 @@ impl MetaBufferBlock {
 
     /// Overwrites the data of this block with zeros
     pub fn overwrite_zero(&mut self) {
+        self.dirty = true;
         for i in &mut self.data {
             *i = 0;
         }
@@ -168,12 +173,11 @@ impl MetaBuffer {
     }
 
     /// Searches for data at `bno`, allocates if none is present.
-    pub fn get_block(&mut self, bno: BlockNo, dirty: bool) -> Result<MetaBufferBlockRef, Error> {
+    pub fn get_block(&mut self, bno: BlockNo) -> Result<MetaBufferBlockRef, Error> {
         log!(
             crate::LOG_BUFFER,
-            "metabuffer::get_block(bno={}, dirty={})",
+            "metabuffer::get_block(bno={})",
             bno,
-            dirty
         );
 
         loop {
@@ -189,7 +193,6 @@ impl MetaBuffer {
                     unsafe {
                         self.lru.move_to_back(block);
                     }
-                    block.dirty |= dirty;
 
                     log!(
                         crate::LOG_BUFFER,
@@ -238,7 +241,6 @@ impl MetaBuffer {
         crate::hdl()
             .backend()
             .load_meta(block, block.id, bno, unlock)?;
-        block.dirty = dirty;
         block.locked = false;
 
         log!(
@@ -271,12 +273,6 @@ impl MetaBuffer {
 
 impl Buffer for MetaBuffer {
     type HEAD = MetaBufferBlock;
-
-    fn mark_dirty(&mut self, bno: BlockNo) {
-        if let Some(b) = self.get_mut(bno) {
-            b.dirty = true;
-        }
-    }
 
     fn flush(&mut self) -> Result<(), Error> {
         for block_ptr in &mut self.blocks {

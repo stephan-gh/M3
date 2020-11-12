@@ -77,7 +77,8 @@ impl Allocator {
         let mut i = (self.first_free as usize) % perblock;
 
         while (total == 0) && (no <= lastno) {
-            let mut block = crate::hdl().metabuffer().get_block(no, true)?;
+            let mut block = crate::hdl().metabuffer().get_block(no)?;
+            block.mark_dirty();
 
             // take care that total_blocks might not be a multiple of perblock
             let mut max = perblock;
@@ -202,7 +203,8 @@ impl Allocator {
         }
         self.free += count as u32;
         while count > 0 {
-            let mut block = crate::hdl().metabuffer().get_block(no as u32, true)?;
+            let mut block = crate::hdl().metabuffer().get_block(no as u32)?;
+            block.mark_dirty();
             let mut bitmap = Bitmap::from_bytes(block.data_mut());
 
             // first, align it to word-size

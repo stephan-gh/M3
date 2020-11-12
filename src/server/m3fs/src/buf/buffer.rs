@@ -26,7 +26,6 @@ pub const PRDT_SIZE: usize = 8;
 pub trait Buffer {
     type HEAD;
 
-    fn mark_dirty(&mut self, bno: BlockNo);
     fn flush(&mut self) -> Result<(), Error>;
 
     fn get(&self, bno: BlockNo) -> Option<&Self::HEAD>;

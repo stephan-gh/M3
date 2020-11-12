@@ -281,12 +281,6 @@ impl FileBuffer {
 impl Buffer for FileBuffer {
     type HEAD = FileBufferEntry;
 
-    fn mark_dirty(&mut self, bno: BlockNo) {
-        if let Some(b) = self.get_mut(bno) {
-            b.dirty = true;
-        }
-    }
-
     fn flush(&mut self) -> Result<(), Error> {
         while let Some(mut b) = self.lru.pop_front() {
             self.entries.remove(&b.blocks);

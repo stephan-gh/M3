@@ -26,6 +26,7 @@ use base::const_assert;
 
 use core::u32;
 
+use m3::cell::Cell;
 use m3::util::size_of;
 use m3::vfs::FileInfo;
 
@@ -110,6 +111,7 @@ pub struct INodeRef {
     block_ref: MetaBufferBlockRef,
     // this pointer is valid during our lifetime, because we keep a MetaBufferBlockRef
     inode: *mut INode,
+    dirty: Cell<bool>,
 }
 
 impl INodeRef {
@@ -135,7 +137,7 @@ impl INodeRef {
             inode_ptr.add(off / size_of::<INode>())
         };
 
-        Self { block_ref, inode }
+        Self { block_ref, inode, dirty: Cell::from(false) }
     }
 
     pub fn extent_iter(&self) -> ExtentIterator {
@@ -151,6 +153,7 @@ impl INodeRef {
     }
 
     pub fn as_mut(&self) -> &mut INode {
+        self.dirty.set(true);
         // safety: valid because we keep a MetaBufferBlockRef
         unsafe { &mut *self.inode }
     }
@@ -170,6 +173,16 @@ impl Clone for INodeRef {
         Self {
             block_ref: self.block_ref.clone(),
             inode: self.inode,
+            // we reference the same block; there is no need to mark it dirty twice
+            dirty: Cell::from(false),
+        }
+    }
+}
+
+impl Drop for INodeRef {
+    fn drop(&mut self) {
+        if self.dirty.get() {
+            self.block_ref.mark_dirty();
         }
     }
 }

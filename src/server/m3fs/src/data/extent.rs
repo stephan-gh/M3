@@ -20,6 +20,7 @@ use crate::data::INodeRef;
 
 use core::u32;
 
+use m3::cell::Cell;
 use m3::util::size_of;
 
 /// Represents an extent as stored on disk
@@ -48,6 +49,7 @@ pub struct ExtentRef {
     block_ref: MetaBufferBlockRef,
     // this pointer is valid during our lifetime, because we keep a MetaBufferBlockRef
     extent: *mut Extent,
+    dirty: Cell<bool>,
 }
 
 impl Clone for ExtentRef {
@@ -55,6 +57,8 @@ impl Clone for ExtentRef {
         Self {
             block_ref: self.block_ref.clone(),
             extent: self.extent,
+            // we reference the same block; there is no need to mark it dirty twice
+            dirty: Cell::from(false),
         }
     }
 }
@@ -65,6 +69,7 @@ impl ExtentRef {
         Self {
             block_ref: inode.block().clone(),
             extent: &mut inode.as_mut().direct[index],
+            dirty: Cell::from(false),
         }
     }
 
@@ -89,10 +94,12 @@ impl ExtentRef {
         Self {
             block_ref: block_ref.clone(),
             extent: ext,
+            dirty: Cell::from(false),
         }
     }
 
     pub fn as_mut(&self) -> &mut Extent {
+        self.dirty.set(true);
         // safety: valid because we keep a MetaBufferBlockRef
         unsafe { &mut *self.extent }
     }
@@ -104,6 +111,14 @@ impl core::ops::Deref for ExtentRef {
     fn deref(&self) -> &Self::Target {
         // safety: valid because we keep a MetaBufferBlockRef
         unsafe { &*self.extent }
+    }
+}
+
+impl Drop for ExtentRef {
+    fn drop(&mut self) {
+        if self.dirty.get() {
+            self.block_ref.mark_dirty();
+        }
     }
 }
 

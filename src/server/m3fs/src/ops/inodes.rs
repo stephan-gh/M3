@@ -15,7 +15,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::buf::{Buffer, LoadLimit};
+use crate::buf::LoadLimit;
 use crate::data::{
     Extent, ExtentCache, ExtentRef, FileMode, INodeRef, InodeNo, INODE_DIR_COUNT, NUM_EXT_BYTES,
     NUM_INODE_BYTES,
@@ -40,7 +40,6 @@ pub fn create(mode: FileMode) -> Result<INodeRef, Error> {
     inode.as_mut().inode = ino;
     inode.as_mut().devno = 0; // TODO
     inode.as_mut().mode = mode;
-    mark_dirty(ino);
     Ok(inode)
 }
 
@@ -50,9 +49,6 @@ pub fn decrease_links(inode: &INodeRef) -> Result<(), Error> {
     if inode.links == 0 {
         let ino = inode.inode;
         crate::hdl().files().delete_file(ino)?;
-    }
-    else {
-        mark_dirty(inode.inode);
     }
     Ok(())
 }
@@ -73,7 +69,7 @@ pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
 
     let inos_per_block = crate::hdl().superblock().inodes_per_block();
     let bno = crate::hdl().superblock().first_inode_block() + (inode / inos_per_block as u32);
-    let block = crate::hdl().metabuffer().get_block(bno, false)?;
+    let block = crate::hdl().metabuffer().get_block(bno)?;
 
     let offset = (inode as usize % inos_per_block as usize) * NUM_INODE_BYTES as usize;
     Ok(INodeRef::from_buffer(block, offset))
@@ -356,18 +352,13 @@ pub fn get_extent(
             }
 
             // load block and initialize extents
-            let mut data_ref = mb.get_block(inode.indirect, false)?;
+            let mut data_ref = mb.get_block(inode.indirect)?;
             if created {
                 data_ref.overwrite_zero();
             }
 
             // create extent cache from that block
             *indir = Some(ExtentCache::from_buffer(data_ref));
-        }
-
-        // we're going to change it, if its empty and the caller wants to create blocks
-        if create && indir.as_ref().unwrap()[0].length == 0 {
-            crate::hdl().metabuffer().mark_dirty(inode.indirect);
         }
 
         return Ok(indir.as_ref().unwrap().get_ref(extent));
@@ -390,7 +381,7 @@ pub fn get_extent(
         }
 
         // init with zeros
-        let mut dind_block_ref = mb.get_block(inode.dindirect, false)?;
+        let mut dind_block_ref = mb.get_block(inode.dindirect)?;
         if created {
             dind_block_ref.overwrite_zero();
         }
@@ -407,14 +398,13 @@ pub fn get_extent(
             (extent / crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
         );
         if ptr.length == 0 {
-            crate::hdl().metabuffer().mark_dirty(inode.dindirect);
             ptr.as_mut().start = crate::hdl().blocks().alloc(None)?;
             ptr.as_mut().length = 1;
             created = true;
         }
 
         // init with zeros
-        let mut ind_block_ref = mb.get_block(ptr.start, false)?;
+        let mut ind_block_ref = mb.get_block(ptr.start)?;
         if created {
             ind_block_ref.overwrite_zero();
         }
@@ -424,10 +414,6 @@ pub fn get_extent(
             ind_block_ref,
             (extent % crate::hdl().superblock().extents_per_block()) * NUM_EXT_BYTES,
         );
-
-        if create && ext.length == 0 {
-            crate::hdl().metabuffer().mark_dirty(ptr.start);
-        }
 
         return Ok(ext);
     }
@@ -472,10 +458,9 @@ fn change_extent(
 
         // load indirect extent cache, if not done yet
         if indir.is_none() {
-            let data_ref = mb.get_block(inode.indirect, false)?;
+            let data_ref = mb.get_block(inode.indirect)?;
             *indir = Some(ExtentCache::from_buffer(data_ref));
         }
-        crate::hdl().metabuffer().mark_dirty(inode.indirect);
 
         // we assume that we only delete extents at the end; thus, if its the first, we can remove
         // the indirect block as well.
@@ -492,15 +477,13 @@ fn change_extent(
         assert!(inode.dindirect != 0);
 
         // load block with doubly indirect extents
-        let data_ref = mb.get_block(inode.dindirect, false)?;
+        let data_ref = mb.get_block(inode.dindirect)?;
         let ptr = ExtentRef::indir_from_buffer(data_ref, (extent / ext_per_block) * NUM_EXT_BYTES);
-        let dindir = mb.get_block(ptr.start, false)?;
+        let dindir = mb.get_block(ptr.start)?;
 
         // load extent
         let ext_loc = (extent % ext_per_block) * NUM_EXT_BYTES;
         let ext = ExtentRef::indir_from_buffer(dindir, ext_loc);
-
-        crate::hdl().metabuffer().mark_dirty(ptr.start);
 
         // same here: if its the first, remove the indirect, an maybe the indirect block
         if remove {
@@ -509,7 +492,6 @@ fn change_extent(
                 crate::hdl().blocks().free(ptr.start as usize, 1)?;
                 ptr.as_mut().start = 0;
                 ptr.as_mut().length = 0;
-                crate::hdl().metabuffer().mark_dirty(inode.dindirect);
             }
 
             // for the double-indirect too
@@ -548,8 +530,6 @@ pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Er
         ino.as_mut().extents += 1;
         ino.as_mut().size = (old_size + blocksize as u64 - 1) & !(blocksize as u64 - 1);
         ino.as_mut().size += (count * blocksize as usize) as u64;
-
-        mark_dirty(ino.inode);
     }
 
     Ok(ext)
@@ -619,17 +599,9 @@ pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Er
                 }
             }
         }
-        mark_dirty(inode.inode);
     }
 
     Ok(())
-}
-
-/// Marks the given inode as dirty, so that it is written back to storage later
-pub fn mark_dirty(ino: InodeNo) {
-    let inos_per_block = crate::hdl().superblock().inodes_per_block();
-    let block_no = crate::hdl().superblock().first_inode_block() + (ino / inos_per_block as u32);
-    crate::hdl().metabuffer().mark_dirty(block_no);
 }
 
 /// Writes all dirty metadata from given inode back to storage

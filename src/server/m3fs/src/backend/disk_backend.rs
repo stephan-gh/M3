@@ -111,9 +111,9 @@ impl Backend for DiskBackend {
 
         // okay, so write it from metabuffer to filebuffer
         let m = MemGate::new_bind(msel);
-        let mut block = crate::hdl().metabuffer().get_block(bno, false)?;
+        let block = crate::hdl().metabuffer().get_block(bno)?;
         m.write_bytes(
-            block.data_mut().as_mut_ptr(),
+            block.data().as_ptr(),
             crate::hdl().superblock().block_size as usize,
             0,
         )?;
