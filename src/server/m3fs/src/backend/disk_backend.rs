@@ -27,6 +27,8 @@ use m3::session::Disk;
 
 use thread::Event;
 
+pub const PRDT_SIZE: usize = 8;
+
 pub struct DiskBackend {
     blocksize: usize,
     disk: Disk,
@@ -55,7 +57,7 @@ impl Backend for DiskBackend {
         bno: BlockNo,
         unlock: Event,
     ) -> Result<(), Error> {
-        let off = dst_off * (self.blocksize + crate::buf::PRDT_SIZE);
+        let off = dst_off * (self.blocksize + PRDT_SIZE);
         self.disk
             .read(0, BlockRange::new(bno), self.blocksize, Some(off as u64))?;
         self.metabuf
@@ -86,7 +88,7 @@ impl Backend for DiskBackend {
         bno: BlockNo,
         unlock: Event,
     ) -> Result<(), Error> {
-        let off = src_off * (self.blocksize + crate::buf::PRDT_SIZE);
+        let off = src_off * (self.blocksize + PRDT_SIZE);
         self.metabuf
             .write_bytes(src.data().as_ptr(), self.blocksize, off as u64)?;
         self.disk
@@ -159,17 +161,17 @@ impl Backend for DiskBackend {
     }
 
     fn load_sb(&mut self) -> Result<SuperBlock, Error> {
-        let tmp = MemGate::new(512 + crate::buf::PRDT_SIZE, Perm::RW)?;
+        let tmp = MemGate::new(512 + PRDT_SIZE, Perm::RW)?;
         // use a separate MemGate for the disk service, because both have to activate the gate,
         // which can only be done once per MemGate.
-        let tmp_disk = tmp.derive(0, 512 + crate::buf::PRDT_SIZE, Perm::RW)?;
+        let tmp_disk = tmp.derive(0, 512 + PRDT_SIZE, Perm::RW)?;
         self.disk.delegate_mem(&tmp_disk, BlockRange::new(0))?;
         self.disk.read(0, BlockRange::new(0), 512, None)?;
         let super_block = tmp.read_obj::<SuperBlock>(0)?;
 
         // use separate transfer buffer for each entry to allow parallel disk requests
         self.blocksize = super_block.block_size as usize;
-        let size = (self.blocksize + crate::buf::PRDT_SIZE) * crate::buf::META_BUFFER_SIZE;
+        let size = (self.blocksize + PRDT_SIZE) * crate::buf::META_BUFFER_SIZE;
         self.metabuf = MemGate::new(size, Perm::RW)?;
         // separate MemGate for the same reason as above
         self.metabuf_disk = self.metabuf.derive(0, size, Perm::RW)?;

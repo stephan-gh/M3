@@ -16,8 +16,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::backend::Backend;
-use crate::buf::{Buffer, PRDT_SIZE};
+use crate::backend::{Backend, PRDT_SIZE};
 use crate::data::{BlockNo, BlockRange};
 
 use core::cmp;
@@ -295,29 +294,13 @@ impl FileBuffer {
 
         Ok(load_size * self.block_size)
     }
-}
 
-impl Buffer for FileBuffer {
-    type HEAD = FileBufferEntry;
-
-    fn flush(&mut self) -> Result<(), Error> {
+    pub fn flush(&mut self) -> Result<(), Error> {
         while let Some(mut b) = self.lru.pop_front() {
             self.entries.remove(&b.blocks);
             b.flush()?;
         }
 
         Ok(())
-    }
-
-    fn get(&self, bno: BlockNo) -> Option<&FileBufferEntry> {
-        self.entries
-            .get(&BlockRange::new(bno))
-            .map(|b| unsafe { &*b.as_ptr() })
-    }
-
-    fn get_mut(&mut self, bno: BlockNo) -> Option<&mut FileBufferEntry> {
-        self.entries
-            .get_mut(&BlockRange::new(bno))
-            .map(|b| unsafe { &mut *b.as_mut() })
     }
 }

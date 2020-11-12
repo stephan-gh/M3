@@ -16,7 +16,7 @@
  */
 
 use crate::backend::Backend;
-use crate::buf::{Buffer, FileBuffer, MetaBuffer};
+use crate::buf::{FileBuffer, MetaBuffer};
 use crate::data::{Allocator, SuperBlock};
 use crate::sess::OpenFiles;
 use crate::FsSettings;

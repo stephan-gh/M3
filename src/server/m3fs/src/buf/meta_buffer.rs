@@ -16,7 +16,6 @@
  * General Public License version 2 for more details.
  */
 
-use crate::buf::Buffer;
 use crate::data::BlockNo;
 
 use core::ops::{Deref, DerefMut};
@@ -268,25 +267,12 @@ impl MetaBuffer {
         );
         Ok(MetaBufferBlockRef::new(block.id))
     }
-}
 
-impl Buffer for MetaBuffer {
-    type HEAD = MetaBufferBlock;
-
-    fn flush(&mut self) -> Result<(), Error> {
+    pub fn flush(&mut self) -> Result<(), Error> {
         for block_ptr in &mut self.blocks {
             let block = unsafe { &mut (*block_ptr.as_ptr()) };
             block.flush()?;
         }
         Ok(())
-    }
-
-    fn get(&self, bno: BlockNo) -> Option<&Self::HEAD> {
-        self.bno_to_id(bno).map(|id| &*self.get_block_by_id(id))
-    }
-
-    fn get_mut(&mut self, bno: BlockNo) -> Option<&mut Self::HEAD> {
-        self.bno_to_id(bno)
-            .map(|id| unsafe { &mut (*self.blocks[id].as_ptr()) })
     }
 }

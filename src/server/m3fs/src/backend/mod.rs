@@ -18,7 +18,7 @@
 mod disk_backend;
 mod mem_backend;
 
-pub use disk_backend::DiskBackend;
+pub use disk_backend::{DiskBackend, PRDT_SIZE};
 pub use mem_backend::MemBackend;
 
 use crate::buf::{LoadLimit, MetaBufferBlock};
