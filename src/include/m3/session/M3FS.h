@@ -48,6 +48,7 @@ public:
         RMDIR,
         LINK,
         UNLINK,
+        RENAME,
         COUNT
     };
 
@@ -76,6 +77,7 @@ public:
     virtual void rmdir(const char *path) override;
     virtual void link(const char *oldpath, const char *newpath) override;
     virtual void unlink(const char *path) override;
+    virtual void rename(const char *oldpath, const char *newpath) override;
 
     virtual void delegate(VPE &vpe) override;
     virtual void serialize(Marshaller &m) override;

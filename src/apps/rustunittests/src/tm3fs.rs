@@ -62,9 +62,25 @@ pub fn meta_ops() {
     wv_assert_ok!(VFS::link("/example/myfile", "/newpath"));
     wv_assert_err!(VFS::link("/example/myfile", "/newpath"), Code::Exists);
 
+    // error cases for rename
+    wv_assert_err!(VFS::rename("/", "/example"), Code::InvArgs);
+    wv_assert_err!(VFS::rename("/example/myfile", "/"), Code::InvArgs);
+    wv_assert_err!(VFS::rename("/example", "/example"), Code::IsDir);
+    wv_assert_err!(VFS::rename("/example/myfiles", "/example/myfile2"), Code::NoSuchFile);
+
+    // successful rename
+    wv_assert_ok!(VFS::rename("/example/myfile", "/example/myotherfile"));
+    wv_assert_err!(VFS::open("/example/myfile", OpenFlags::R), Code::NoSuchFile);
+    wv_assert_ok!(VFS::open("/example/myotherfile", OpenFlags::R));
+
+    // if both link to the same file, rename has no effect
+    wv_assert_ok!(VFS::rename("/example/myotherfile", "/newpath"));
+    wv_assert_ok!(VFS::open("/example/myotherfile", OpenFlags::R));
+    wv_assert_ok!(VFS::open("/newpath", OpenFlags::R));
+
     wv_assert_err!(VFS::unlink("/example"), Code::IsDir);
     wv_assert_err!(VFS::unlink("/example/foo"), Code::NoSuchFile);
-    wv_assert_ok!(VFS::unlink("/example/myfile"));
+    wv_assert_ok!(VFS::unlink("/example/myotherfile"));
 
     wv_assert_ok!(VFS::rmdir("/example"));
 

@@ -66,6 +66,11 @@ void M3FS::unlink(const char *path) {
     reply.pull_result();
 }
 
+void M3FS::rename(const char *oldpath, const char *newpath) {
+    GateIStream reply = send_receive_vmsg(_gate, RENAME, oldpath, newpath);
+    reply.pull_result();
+}
+
 void M3FS::delegate(VPE &vpe) {
     vpe.delegate_obj(sel());
     // TODO what if it fails?

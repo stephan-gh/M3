@@ -142,6 +142,17 @@ impl FileSystem for M3FS {
         send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::UNLINK, path).map(|_| ())
     }
 
+    fn rename(&self, old_path: &str, new_path: &str) -> Result<(), Error> {
+        send_recv_res!(
+            &self.sgate,
+            RecvGate::def(),
+            FSOperation::RENAME,
+            old_path,
+            new_path
+        )
+        .map(|_| ())
+    }
+
     fn fs_type(&self) -> u8 {
         b'M'
     }

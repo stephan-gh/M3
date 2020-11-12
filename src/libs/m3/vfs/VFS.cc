@@ -141,6 +141,20 @@ void VFS::unlink(const char *path) {
     }
 }
 
+void VFS::rename(const char *oldpath, const char *newpath) {
+    try {
+        size_t pos1, pos2;
+        Reference<FileSystem> fs1 = ms()->resolve(oldpath, &pos1);
+        Reference<FileSystem> fs2 = ms()->resolve(newpath, &pos2);
+        if(fs1.get() != fs2.get())
+            throw Exception(Errors::XFS_LINK);
+        return fs1->rename(oldpath + pos1, newpath + pos2);
+    }
+    catch(const Exception &e) {
+        VTHROW(e.code(), "rename '" << oldpath << "' to '" << newpath << "' failed");
+    }
+}
+
 void VFS::print(OStream &os) noexcept {
     VPE::self().mounts()->print(os);
 }

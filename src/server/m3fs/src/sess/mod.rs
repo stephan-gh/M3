@@ -120,6 +120,13 @@ impl M3FSSession for FSSession {
         }
     }
 
+    fn rename(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        match self {
+            FSSession::Meta(m) => m.rename(stream),
+            FSSession::File(f) => f.borrow_mut().rename(stream),
+        }
+    }
+
     fn sync(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
         match self {
             FSSession::Meta(m) => m.sync(stream),
@@ -159,6 +166,9 @@ pub trait M3FSSession {
         Err(Error::new(Code::NotSup))
     }
     fn unlink(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
+        Err(Error::new(Code::NotSup))
+    }
+    fn rename(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
     fn sync(&mut self, _stream: &mut GateIStream) -> Result<(), Error> {

@@ -89,7 +89,7 @@ public:
      * Creates a link at <newpath> to <oldpath>.
      *
      * @param oldpath the existing path
-     * @param newpath tne link to create
+     * @param newpath the link to create
      */
     virtual void link(const char *oldpath, const char *newpath) = 0;
 
@@ -99,6 +99,14 @@ public:
      * @param path the path
      */
     virtual void unlink(const char *path) = 0;
+
+    /**
+     * Renames <newpath> to <oldpath>.
+     *
+     * @param oldpath the existing path
+     * @param newpath the new path
+     */
+    virtual void rename(const char *oldpath, const char *newpath) = 0;
 
     /**
      * Delegates all this filesystem to the given VPE.

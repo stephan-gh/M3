@@ -32,6 +32,7 @@ int_enum! {
         const RMDIR         = 0x9;
         const LINK          = 0xA;
         const UNLINK        = 0xB;
+        const RENAME        = 0xC;
     }
 }
 
@@ -55,6 +56,8 @@ pub trait FileSystem: fmt::Debug {
     fn link(&self, old_path: &str, new_path: &str) -> Result<(), Error>;
     /// Removes the file at `path`.
     fn unlink(&self, path: &str) -> Result<(), Error>;
+    /// Renames `new_path` to `old_path`.
+    fn rename(&self, old_path: &str, new_path: &str) -> Result<(), Error>;
 
     /// Returns the type of the file system implementation used for serialization.
     fn fs_type(&self) -> u8;

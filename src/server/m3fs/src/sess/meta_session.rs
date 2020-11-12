@@ -286,4 +286,21 @@ impl M3FSSession for MetaSession {
 
         reply_vmsg!(stream, 0 as u32)
     }
+
+    fn rename(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
+        let old_path: &str = stream.pop()?;
+        let new_path: &str = stream.pop()?;
+
+        log!(
+            crate::LOG_SESSION,
+            "[{}] meta::rename(old_path={}, new_path: {})",
+            self.session_id,
+            old_path,
+            new_path
+        );
+
+        dirs::rename(old_path, new_path)?;
+
+        reply_vmsg!(stream, 0 as u32)
+    }
 }

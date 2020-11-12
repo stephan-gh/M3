@@ -108,7 +108,7 @@ public:
      * Creates a link at <newpath> to <oldpath>.
      *
      * @param oldpath the existing path
-     * @param newpath tne link to create
+     * @param newpath the link to create
      */
     static void link(const char *oldpath, const char *newpath);
 
@@ -118,6 +118,14 @@ public:
      * @param path the path
      */
     static void unlink(const char *path);
+
+    /**
+     * Renames <oldpath> to <newpath>.
+     *
+     * @param oldpath the existing path
+     * @param newpath the new path
+     */
+    static void rename(const char *oldpath, const char *newpath);
 
     /**
      * Prints the current mounts to <os>.

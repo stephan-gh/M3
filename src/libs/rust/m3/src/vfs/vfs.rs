@@ -81,3 +81,15 @@ pub fn link(old: &str, new: &str) -> Result<(), Error> {
 pub fn unlink(path: &str) -> Result<(), Error> {
     with_path(path, |fs, pos| fs.borrow().unlink(&path[pos..]))
 }
+
+/// Renames `new` to `old`.
+pub fn rename(old: &str, new: &str) -> Result<(), Error> {
+    let (fs1, pos1) = VPE::cur().mounts().resolve(old)?;
+    let (fs2, pos2) = VPE::cur().mounts().resolve(new)?;
+    if !Rc::ptr_eq(&fs1, &fs2) {
+        return Err(Error::new(Code::XfsLink));
+    }
+    #[allow(clippy::let_and_return)] // is required because of fs1.borrow()'s lifetime
+    let res = fs1.borrow().rename(&old[pos1..], &new[pos2..]);
+    res
+}

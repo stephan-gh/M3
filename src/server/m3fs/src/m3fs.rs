@@ -86,6 +86,7 @@ int_enum! {
         const RMDIR     = FSOperation::RMDIR.val;
         const LINK      = FSOperation::LINK.val;
         const UNLINK    = FSOperation::UNLINK.val;
+        const RENAME    = FSOperation::RENAME.val;
     }
 }
 
@@ -131,6 +132,7 @@ impl M3FSRequestHandler {
             M3FSOperation::RMDIR => self.execute_on_session(input, |sess, is| sess.rmdir(is)),
             M3FSOperation::LINK => self.execute_on_session(input, |sess, is| sess.link(is)),
             M3FSOperation::UNLINK => self.execute_on_session(input, |sess, is| sess.unlink(is)),
+            M3FSOperation::RENAME => self.execute_on_session(input, |sess, is| sess.rename(is)),
             M3FSOperation::SYNC => self.execute_on_session(input, |sess, is| sess.sync(is)),
             _ => Err(Error::new(Code::InvArgs)),
         };

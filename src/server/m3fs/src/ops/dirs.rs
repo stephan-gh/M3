@@ -15,7 +15,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::data::{DirEntryIterator, FileMode, INodeRef, InodeNo};
+use crate::data::{DirEntry, DirEntryIterator, FileMode, INodeRef, InodeNo};
 use crate::ops::{inodes, links};
 
 use m3::errors::{Code, Error};
@@ -284,4 +284,91 @@ pub fn unlink(path: &str, deny_dir: bool) -> Result<INodeRef, Error> {
     let par_inode = inodes::get(par_ino)?;
 
     links::remove(&par_inode, name, deny_dir).map(|_| par_inode)
+}
+
+/// Renames `old_path` to `new_path`
+pub fn rename(old_path: &str, new_path: &str) -> Result<(), Error> {
+    log!(
+        crate::LOG_DIRS,
+        "dirs::rename(old_path={}, new_path={})",
+        old_path,
+        new_path
+    );
+
+    // split old path and get directory inode
+    let (old_dir, old_name) = split_path(old_path);
+    // cannot rename root directory
+    if old_name.is_empty() {
+        return Err(Error::new(Code::InvArgs));
+    }
+    let old_dir_ino = search(old_dir, false)?;
+    let old_dir_inode = inodes::get(old_dir_ino)?;
+
+    // get old inode to link to
+    let old_ino = find_entry(&old_dir_inode, old_name)?;
+
+    // renaming directories is not supported atm (we would need to change ".." as well)
+    let old_inode = inodes::get(old_ino)?;
+    if old_inode.mode.is_dir() {
+        return Err(Error::new(Code::IsDir));
+    }
+
+    // find new path
+    let (new_dir, new_name) = split_path(new_path);
+    // cannot rename into root directory
+    if new_name.is_empty() {
+        return Err(Error::new(Code::InvArgs));
+    }
+    let new_dir_ino = search(new_dir, false)?;
+    let new_dir_inode = inodes::get(new_dir_ino)?;
+
+    // search for the entry in the new directory and change link to new inode if found
+    let mut indir = None;
+    let mut prev_ino = None;
+    'search_loop: for ext_idx in 0..new_dir_inode.extents {
+        let ext = inodes::get_extent(&new_dir_inode, ext_idx as usize, &mut indir, false)?;
+        for bno in ext.blocks() {
+            let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
+
+            let mut off = 0;
+            let end = crate::hdl().superblock().block_size as usize;
+            while off < end {
+                let entry = DirEntry::from_buffer_mut(&mut block, off);
+                if entry.name() == new_name {
+                    // both link to the same inode? nothing to do
+                    if entry.nodeno == old_ino {
+                        return Ok(());
+                    }
+
+                    // remember original link
+                    prev_ino = Some(entry.nodeno);
+
+                    // set new inode
+                    entry.nodeno = old_ino;
+                    break 'search_loop;
+                }
+
+                off += entry.next as usize;
+            }
+        }
+    }
+
+    // point of no return: we have changed the DirEntry; for simplicity, we assume here that
+    // everything works fine, because we cannot undo that operation safely since that could fail as
+    // well.
+
+    if let Some(prev_ino) = prev_ino {
+        let prev_inode = inodes::get(prev_ino).unwrap();
+        inodes::decrease_links(&prev_inode).unwrap();
+
+        // increase links for the old_inode, because we will increase it in links::create below as
+        // well and if we don't links::remove might delete the inode.
+        old_inode.as_mut().links += 1;
+    }
+    else {
+        links::create(&new_dir_inode, new_name, &old_inode).unwrap();
+    }
+
+    links::remove(&old_dir_inode, old_name, true).unwrap();
+    Ok(())
 }
