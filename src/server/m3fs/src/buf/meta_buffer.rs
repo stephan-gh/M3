@@ -66,6 +66,10 @@ impl MetaBufferBlock {
         }
     }
 
+    pub fn blockno(&self) -> BlockNo {
+        self.bno
+    }
+
     pub fn mark_dirty(&mut self) {
         self.dirty = true;
     }
@@ -84,6 +88,25 @@ impl MetaBufferBlock {
         for i in &mut self.data {
             *i = 0;
         }
+    }
+
+    pub fn flush(&mut self) -> Result<(), Error> {
+        if self.dirty {
+            self.locked = true;
+            log!(
+                crate::LOG_BUFFER,
+                "metabuffer: writing back block <{}>",
+                self.bno
+            );
+
+            // write meta block to backend
+            crate::hdl()
+                .backend()
+                .store_meta(self, self.id, self.bno, self.unlock)?;
+            self.dirty = false;
+            self.locked = false;
+        }
+        Ok(())
     }
 }
 
@@ -174,11 +197,7 @@ impl MetaBuffer {
 
     /// Searches for data at `bno`, allocates if none is present.
     pub fn get_block(&mut self, bno: BlockNo) -> Result<MetaBufferBlockRef, Error> {
-        log!(
-            crate::LOG_BUFFER,
-            "metabuffer::get_block(bno={})",
-            bno,
-        );
+        log!(crate::LOG_BUFFER, "metabuffer::get_block(bno={})", bno,);
 
         loop {
             if let Some(id) = self.bno_to_id(bno) {
@@ -227,9 +246,7 @@ impl MetaBuffer {
         // flush if there is still a block present with the given bno.
         if block.bno != 0 {
             self.ids.remove(&block.bno);
-            if block.dirty {
-                Self::flush_chunk(block)?;
-            }
+            block.flush()?;
         }
 
         // use this block
@@ -251,24 +268,6 @@ impl MetaBuffer {
         );
         Ok(MetaBufferBlockRef::new(block.id))
     }
-
-    pub fn dirty(&self, bno: BlockNo) -> bool {
-        if let Some(b) = self.get(bno) {
-            b.dirty
-        }
-        else {
-            false
-        }
-    }
-
-    pub fn write_back(&mut self, bno: BlockNo) -> Result<(), Error> {
-        if let Some(b) = self.get_mut(bno) {
-            if b.dirty {
-                Self::flush_chunk(b)?;
-            }
-        }
-        Ok(())
-    }
 }
 
 impl Buffer for MetaBuffer {
@@ -277,9 +276,7 @@ impl Buffer for MetaBuffer {
     fn flush(&mut self) -> Result<(), Error> {
         for block_ptr in &mut self.blocks {
             let block = unsafe { &mut (*block_ptr.as_ptr()) };
-            if block.dirty {
-                Self::flush_chunk(block)?;
-            }
+            block.flush()?;
         }
         Ok(())
     }
@@ -291,22 +288,5 @@ impl Buffer for MetaBuffer {
     fn get_mut(&mut self, bno: BlockNo) -> Option<&mut Self::HEAD> {
         self.bno_to_id(bno)
             .map(|id| unsafe { &mut (*self.blocks[id].as_ptr()) })
-    }
-
-    fn flush_chunk(head: &mut Self::HEAD) -> Result<(), Error> {
-        head.locked = true;
-        log!(
-            crate::LOG_BUFFER,
-            "metabuffer: writing back block <{}>",
-            head.bno
-        );
-
-        // write meta block to backend
-        crate::hdl()
-            .backend()
-            .store_meta(head, head.id, head.bno, head.unlock)?;
-        head.dirty = false;
-        head.locked = false;
-        Ok(())
     }
 }

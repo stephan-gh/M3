@@ -137,7 +137,11 @@ impl INodeRef {
             inode_ptr.add(off / size_of::<INode>())
         };
 
-        Self { block_ref, inode, dirty: Cell::from(false) }
+        Self {
+            block_ref,
+            inode,
+            dirty: Cell::from(false),
+        }
     }
 
     pub fn extent_iter(&self) -> ExtentIterator {

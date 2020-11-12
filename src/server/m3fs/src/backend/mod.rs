@@ -57,7 +57,7 @@ pub trait Backend {
 
     fn store_data(&self, blocks: BlockRange, unlock: Event) -> Result<(), Error>;
 
-    fn sync_meta(&self, bno: BlockNo) -> Result<(), Error>;
+    fn sync_meta(&self, block: &mut MetaBufferBlock) -> Result<(), Error>;
 
     fn get_filedata(
         &self,

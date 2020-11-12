@@ -63,6 +63,27 @@ impl FileBufferEntry {
             unlock: thread::ThreadManager::get().alloc_event(),
         })
     }
+
+    fn flush(&mut self) -> Result<(), Error> {
+        if self.dirty {
+            self.locked = true;
+            log!(
+                crate::LOG_BUFFER,
+                "filebuffer: writing back blocks <{:?}>",
+                self.blocks,
+            );
+
+            // write data of block to backend
+            crate::hdl()
+                .backend()
+                .store_data(self.blocks, self.unlock)?;
+
+            // reset dirty and unlock
+            self.dirty = false;
+            self.locked = false;
+        }
+        Ok(())
+    }
 }
 
 pub struct LoadLimit {
@@ -217,9 +238,7 @@ impl FileBuffer {
                 self.entries.remove(&head.blocks);
 
                 // write it back, if it's dirty
-                if head.dirty {
-                    Self::flush_chunk(&mut head).unwrap();
-                }
+                head.flush().unwrap();
 
                 // revoke access from clients
                 // TODO currently, clients are not prepared for that
@@ -284,9 +303,7 @@ impl Buffer for FileBuffer {
     fn flush(&mut self) -> Result<(), Error> {
         while let Some(mut b) = self.lru.pop_front() {
             self.entries.remove(&b.blocks);
-            if b.dirty {
-                Self::flush_chunk(&mut b)?;
-            }
+            b.flush()?;
         }
 
         Ok(())
@@ -302,24 +319,5 @@ impl Buffer for FileBuffer {
         self.entries
             .get_mut(&BlockRange::new(bno))
             .map(|b| unsafe { &mut *b.as_mut() })
-    }
-
-    fn flush_chunk(head: &mut FileBufferEntry) -> Result<(), Error> {
-        head.locked = true;
-        log!(
-            crate::LOG_BUFFER,
-            "filebuffer: writing back blocks <{:?}>",
-            head.blocks,
-        );
-
-        // write data of block to backend
-        crate::hdl()
-            .backend()
-            .store_data(head.blocks, head.unlock)?;
-
-        // reset dirty and unlock
-        head.dirty = false;
-        head.locked = false;
-        Ok(())
     }
 }

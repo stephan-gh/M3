@@ -84,8 +84,8 @@ impl Backend for MemBackend {
         Ok(())
     }
 
-    fn sync_meta(&self, bno: BlockNo) -> Result<(), Error> {
-        crate::hdl().metabuffer().write_back(bno)
+    fn sync_meta(&self, block: &mut MetaBufferBlock) -> Result<(), Error> {
+        block.flush()
     }
 
     fn get_filedata(
