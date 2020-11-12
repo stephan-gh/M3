@@ -112,9 +112,9 @@ impl Backend for MemBackend {
 
     fn clear_extent(&self, ext: Extent) -> Result<(), Error> {
         let zeros = vec![0; self.blocksize];
-        for block in ext.blocks() {
+        for bno in ext.bno_iter() {
             self.mem
-                .write(&zeros, (block as usize * self.blocksize) as u64)?;
+                .write(&zeros, (bno as usize * self.blocksize) as u64)?;
         }
         Ok(())
     }

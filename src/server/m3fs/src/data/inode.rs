@@ -17,8 +17,10 @@
 
 use crate::buf::MetaBufferBlockRef;
 use crate::data::{
-    BlockNo, Dev, Extent, FileMode, InodeNo, Time, INODE_DIR_COUNT, NUM_INODE_BYTES,
+    BlockNo, Dev, Extent, ExtentCache, ExtentRef, FileMode, InodeNo, Time, INODE_DIR_COUNT,
+    NUM_INODE_BYTES,
 };
+use crate::ops::inodes;
 
 use base::const_assert;
 
@@ -136,6 +138,14 @@ impl INodeRef {
         Self { block_ref, inode }
     }
 
+    pub fn extent_iter(&self) -> ExtentIterator {
+        ExtentIterator {
+            inode: self,
+            indir: None,
+            extno: 0,
+        }
+    }
+
     pub fn block(&self) -> &MetaBufferBlockRef {
         &self.block_ref
     }
@@ -160,6 +170,27 @@ impl Clone for INodeRef {
         Self {
             block_ref: self.block_ref.clone(),
             inode: self.inode,
+        }
+    }
+}
+
+/// Extent iterator that delivers all extents of an inode.
+pub struct ExtentIterator<'e> {
+    inode: &'e INodeRef,
+    indir: Option<ExtentCache>,
+    extno: usize,
+}
+
+impl<'e> core::iter::Iterator for ExtentIterator<'e> {
+    type Item = ExtentRef;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.extno < self.inode.extents as usize {
+            self.extno += 1;
+            inodes::get_extent(self.inode, self.extno - 1, &mut self.indir, false).ok()
+        }
+        else {
+            None
         }
     }
 }

@@ -23,9 +23,9 @@ mod inode;
 mod superblock;
 
 pub use allocator::Allocator;
-pub use inode::INodeRef;
 pub use direntry::{DirEntry, DirEntryIterator};
-pub use extent::{Extent, ExtentRef, ExtentCache};
+pub use extent::{Extent, ExtentCache, ExtentRef};
+pub use inode::INodeRef;
 pub use superblock::SuperBlock;
 
 use bitflags::bitflags;

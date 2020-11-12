@@ -33,13 +33,10 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
         inode.inode,
     );
 
-    let mut indir = None;
     let mut created = false;
 
-    'search_loop: for ext_idx in 0..dir.extents {
-        let ext = inodes::get_extent(dir, ext_idx as usize, &mut indir, false)?;
-
-        for bno in ext.blocks() {
+    'search_loop: for ext in dir.extent_iter() {
+        for bno in ext.bno_iter() {
             let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
 
             let mut off = 0;
@@ -75,6 +72,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
 
     // no suitable space found; extend directory
     if !created {
+        let mut indir = None;
         let ext = inodes::get_extent(dir, dir.extents as usize, &mut indir, true)?;
 
         // insert one block extent
@@ -107,11 +105,8 @@ pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
         deny_dir
     );
 
-    let mut indir = None;
-
-    for ext_idx in 0..dir.extents {
-        let ext = inodes::get_extent(dir, ext_idx as usize, &mut indir, false)?;
-        for bno in ext.blocks() {
+    for ext in dir.extent_iter() {
+        for bno in ext.bno_iter() {
             let mut block = crate::hdl().metabuffer().get_block(bno, true)?;
 
             let mut prev_off = 0;

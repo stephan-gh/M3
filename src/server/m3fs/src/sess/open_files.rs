@@ -15,8 +15,8 @@
  * General Public License version 2 for more details.
  */
 
-use crate::ops::inodes;
 use crate::data::InodeNo;
+use crate::ops::inodes;
 use crate::sess::FileSession;
 
 use m3::{

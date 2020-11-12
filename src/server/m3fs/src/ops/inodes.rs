@@ -640,13 +640,10 @@ pub fn sync_metadata(inode: &INodeRef) -> Result<(), Error> {
         inode.inode,
     );
 
-    let mut indir = None;
-    for ext_idx in 0..inode.extents {
-        let extent = get_extent(inode, ext_idx as usize, &mut indir, false)?;
-
-        for block in extent.blocks() {
-            if crate::hdl().metabuffer().dirty(block) {
-                crate::hdl().backend().sync_meta(block)?;
+    for ext in inode.extent_iter() {
+        for bno in ext.bno_iter() {
+            if crate::hdl().metabuffer().dirty(bno) {
+                crate::hdl().backend().sync_meta(bno)?;
             }
         }
     }

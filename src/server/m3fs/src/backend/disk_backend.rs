@@ -96,7 +96,8 @@ impl Backend for DiskBackend {
     }
 
     fn store_data(&self, blocks: BlockRange, unlock: Event) -> Result<(), Error> {
-        self.disk.write(blocks.start, blocks, self.blocksize, None)?;
+        self.disk
+            .write(blocks.start, blocks, self.blocksize, None)?;
         thread::ThreadManager::get().notify(unlock, None);
         Ok(())
     }
@@ -175,7 +176,8 @@ impl Backend for DiskBackend {
         self.metabuf_disk = self.metabuf.derive(0, size, Perm::RW)?;
 
         // store the MemCap as blockno 0, bc we won't load the superblock again
-        self.disk.delegate_mem(&self.metabuf_disk, BlockRange::new(0))?;
+        self.disk
+            .delegate_mem(&self.metabuf_disk, BlockRange::new(0))?;
         Ok(super_block)
     }
 

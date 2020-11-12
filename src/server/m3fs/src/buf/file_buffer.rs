@@ -319,10 +319,9 @@ impl Buffer for FileBuffer {
         );
 
         // write data of block to backend
-        crate::hdl().backend().store_data(
-            head.blocks,
-            head.unlock,
-        )?;
+        crate::hdl()
+            .backend()
+            .store_data(head.blocks, head.unlock)?;
 
         // reset dirty and unlock
         head.dirty = false;
