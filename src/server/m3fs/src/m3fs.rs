@@ -30,18 +30,17 @@ mod sess;
 
 use crate::backend::{Backend, DiskBackend, MemBackend};
 use crate::fs_handle::M3FSHandle;
-use crate::sess::{FSSession, FileSession, M3FSSession, MetaSession};
+use crate::sess::{FSSession, M3FSSession, MetaSession};
 
 use m3::{
     cap::Selector,
-    cell::{LazyStaticCell, RefCell, StaticCell},
+    cell::{LazyStaticCell, StaticCell},
     col::{String, ToString, Vec},
     com::GateIStream,
     env,
     errors::{Code, Error},
     goff,
     pes::VPE,
-    rc::Rc,
     server::{server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer},
     tcu::{EpId, Label, EP_COUNT},
     vfs::{FSOperation, GenFileOp},
@@ -155,7 +154,7 @@ impl M3FSRequestHandler {
         F: Fn(&mut FSSession, &mut GateIStream) -> Result<R, Error>,
     {
         let session_id: SessId = is.label() as SessId;
-        if let Some(sess) = self.get_session(session_id) {
+        if let Some(sess) = self.sessions.get_mut(session_id) {
             function(sess, is)
         }
         else {
@@ -163,73 +162,48 @@ impl M3FSRequestHandler {
         }
     }
 
-    fn get_session(&mut self, sess: SessId) -> Option<&mut FSSession> {
-        if let Some(s) = self.sessions.get_mut(sess) {
-            return Some(s);
+    fn close_session(&mut self, sid: SessId) -> Result<(), Error> {
+        log!(LOG_SESSION, "[{}] closing session", sid);
+
+        {
+            let session = self.remove_session(sid)?;
+            match session {
+                FSSession::Meta(ref meta) => {
+                    // remove contained file sessions
+                    for fsid in meta.file_sessions() {
+                        self.remove_session(*fsid)?;
+
+                        // see below
+                        REQHDL.recv_gate().drop_msgs_with(*fsid as Label);
+                    }
+                },
+
+                FSSession::File(ref file) => {
+                    // remove file session from parent meta session
+                    let parent_meta_session = self.sessions.get_mut(file.meta_sess()).unwrap();
+                    match parent_meta_session {
+                        FSSession::Meta(ref mut pms) => pms.remove_file(sid),
+                        _ => panic!("FileSession's parent is not a MetaSession!?"),
+                    }
+                },
+            }
         }
 
-        None
+        // now that the session has been dropped and thus the SendGate revoked, drop remaining
+        // messages for this session
+        REQHDL.recv_gate().drop_msgs_with(sid as Label);
+
+        Ok(())
     }
 
-    fn close_session(&mut self, session_id: SessId) -> Result<(), Error> {
-        log!(LOG_SESSION, "[{}] closing session", session_id);
+    fn remove_session(&mut self, sid: SessId) -> Result<FSSession, Error> {
+        let session = self
+            .sessions
+            .get_mut(sid)
+            .ok_or_else(|| Error::new(Code::InvArgs))?;
 
-        let (crt, file_session) = if let Some(sess) = self.sessions.get(session_id) {
-            // remove session
-            let crt = sess.creator();
-            let mut fsess: Option<Rc<RefCell<FileSession>>> = None;
-            if let FSSession::File(file_session) = sess {
-                fsess = Some(file_session.clone());
-            }
-
-            (crt, fsess)
-        }
-        else {
-            return Err(Error::new(Code::InvArgs));
-        };
-        // remove session from inner container
-        self.sessions.remove(crt, session_id);
-
-        // if the removed session was a file session, clean up the open_files table and the parent meta session
-        if let Some(fsess) = file_session {
-            if let Some(ext) = fsess.borrow().append_ext.clone() {
-                hdl()
-                    .blocks()
-                    .free(ext.start as usize, ext.length as usize)?;
-            }
-            // delete append extent if there was any
-            fsess.borrow_mut().append_ext = None;
-
-            // remove session from open_files and from its meta session
-            hdl().files().remove_session(fsess.clone())?;
-
-            // remove file session from parent meta session
-            let parent_meta_session = self
-                .sessions
-                .get_mut(fsess.borrow().meta_session)
-                .expect("Could not find file sessions parent meta session!");
-            if let FSSession::Meta(ref mut pms) = parent_meta_session {
-                pms.remove_file(fsess.clone());
-            }
-            else {
-                log!(
-                    LOG_DEF,
-                    "FileSessions parents session was not a meta session!"
-                );
-            }
-
-            // revoke caps if needed
-            if fsess.borrow().last != m3::kif::INVALID_SEL {
-                m3::pes::VPE::cur().revoke(
-                    m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, fsess.borrow().last, 1),
-                    false,
-                )?;
-            }
-        }
-
-        // drop remaining messages for this id
-        REQHDL.recv_gate().drop_msgs_with(session_id as Label);
-        Ok(())
+        let creator = session.creator();
+        Ok(self.sessions.remove(creator, sid))
     }
 }
 
@@ -284,7 +258,8 @@ impl Handler<FSSession> for M3FSRequestHandler {
         let sel: Selector = self.sel;
 
         let session = self
-            .get_session(sid)
+            .sessions
+            .get_mut(sid)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         match session {
             FSSession::Meta(meta) => {
@@ -305,14 +280,14 @@ impl Handler<FSSession> for M3FSRequestHandler {
                 if data.in_args().size() == 0 {
                     log!(crate::LOG_DEF, "[{}] fs::clone()", sid);
 
-                    let nfile_session = file.borrow_mut().clone(sel, crt, next_sess_id, data)?;
+                    let nfile_session = file.clone(sel, crt, next_sess_id, data)?;
 
                     self.sessions
                         .add(crt, next_sess_id, FSSession::File(nfile_session))
                 }
                 else {
                     log!(crate::LOG_DEF, "[{}] fs::get_mem()", sid);
-                    file.borrow_mut().get_mem(data)
+                    file.get_mem(data)
                 }
             },
         }
@@ -323,7 +298,8 @@ impl Handler<FSSession> for M3FSRequestHandler {
         log!(LOG_DEF, "[{}] fs::delegate()", sid);
 
         let session = self
-            .get_session(sid)
+            .sessions
+            .get_mut(sid)
             .ok_or_else(|| Error::new(Code::InvArgs))?;
 
         if data.in_caps() != 1 || !session.is_file_session() {
@@ -340,7 +316,7 @@ impl Handler<FSSession> for M3FSRequestHandler {
                 new_sel,
             );
 
-            fs.borrow_mut().set_ep(new_sel);
+            fs.set_ep(new_sel);
             data.out_caps(m3::kif::CapRngDesc::new(
                 m3::kif::CapType::OBJECT,
                 new_sel,

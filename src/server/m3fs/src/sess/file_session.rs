@@ -23,12 +23,10 @@ use crate::sess::M3FSSession;
 
 use m3::{
     cap::Selector,
-    cell::RefCell,
     col::{String, ToString, Vec},
     com::{GateIStream, SendGate},
     errors::{Code, Error},
     kif::{CapRngDesc, CapType, Perm, INVALID_SEL},
-    rc::Rc,
     server::{CapExchange, SessId},
     session::ServerSession,
     syscalls, tcu,
@@ -62,66 +60,55 @@ impl CapContainer {
 }
 
 pub struct FileSession {
-    extent: usize,
-    lastext: usize,
+    extent: usize,  // next file position: extent
+    lastext: usize, // cur file position: extent
 
-    extoff: usize,
-    lastoff: usize,
+    extoff: usize,  // next file position: offset within the extent
+    lastoff: usize, // cur file position: offset within the extent
 
-    extlen: usize,
-    fileoff: usize,
+    extlen: usize,  // length of current extent
+    fileoff: usize, // next file position (global offset)
 
-    lastbytes: usize,
+    lastsel: Selector,  // memory capability the client has access to currently
+    lastbytes: usize,   // number of bytes the client has access to currently
 
     load_limit: LoadLimit,
 
+    // for an ongoing append
     appending: bool,
-    pub(crate) append_ext: Option<Extent>,
+    append_ext: Option<Extent>,
 
-    pub(crate) last: Selector,
+    // capabilities
+    capscon: CapContainer,
     epcap: Selector,
-    // keep the send gate alive
-    _sgate: Option<SendGate>,
+    _sgate: Option<SendGate>,   // keep the send gate alive
 
+    // the file the client has access to
     oflags: OpenFlags,
     filename: String,
     ino: InodeNo,
 
-    // the selector this session was created for
-    sel: Selector,
-    creator: usize,
+    // session information
+    sess_sel: Selector,
+    sess_creator: usize,
     session_id: SessId,
-    // The id of the parent meta session
-    pub(crate) meta_session: SessId,
+    meta_sess_id: SessId,
 
-    capscon: CapContainer,
-    // keep the server session alive
-    _server_session: ServerSession,
-}
-
-impl Drop for FileSession {
-    fn drop(&mut self) {
-        log!(
-            crate::LOG_SESSION,
-            "[{}] file::close(path={})",
-            self.session_id,
-            self.filename
-        );
-    }
+    _server_session: ServerSession, // keep the server session alive
 }
 
 impl FileSession {
     pub fn new(
         srv_sel: Selector,
         crt: usize,
-        file_session_id: SessId,
-        meta_session_id: SessId,
+        file_sess_id: SessId,
+        meta_sess_id: SessId,
         filename: &str,
-        flags: OpenFlags,
+        oflags: OpenFlags,
         ino: InodeNo,
-    ) -> Result<Rc<RefCell<Self>>, Error> {
+    ) -> Result<Self, Error> {
         // the server session for this file
-        let sel = if srv_sel == m3::kif::INVALID_SEL {
+        let sess_sel = if srv_sel == m3::kif::INVALID_SEL {
             srv_sel
         }
         else {
@@ -129,7 +116,7 @@ impl FileSession {
         };
 
         let _server_session =
-            ServerSession::new_with_sel(srv_sel, sel, crt, file_session_id as u64, false)?;
+            ServerSession::new_with_sel(srv_sel, sess_sel, crt, file_sess_id as u64, false)?;
 
         let send_gate = if srv_sel == m3::kif::INVALID_SEL {
             None
@@ -138,44 +125,43 @@ impl FileSession {
             Some(m3::com::SendGate::new_with(
                 m3::com::SGateArgs::new(crate::REQHDL.recv_gate())
                     // use the session id as identifier
-                    .label(file_session_id as tcu::Label)
+                    .label(file_sess_id as tcu::Label)
                     .credits(1)
-                    .sel(sel + 1),
+                    .sel(sess_sel + 1),
             )?)
         };
 
-        let fsess = Rc::new(RefCell::new(FileSession {
+        let fsess = FileSession {
             extent: 0,
             lastext: 0,
             extoff: 0,
             lastoff: 0,
             extlen: 0,
             fileoff: 0,
+            lastsel: m3::kif::INVALID_SEL,
             lastbytes: 0,
             load_limit: LoadLimit::new(),
 
             appending: false,
             append_ext: None,
 
-            last: m3::kif::INVALID_SEL,
+            capscon: CapContainer { caps: vec![] },
             epcap: m3::kif::INVALID_SEL,
             _sgate: send_gate,
 
-            oflags: flags,
+            oflags,
             filename: filename.to_string(),
             ino,
 
-            sel,
-            creator: crt,
-            session_id: file_session_id,
-            meta_session: meta_session_id,
-
-            capscon: CapContainer { caps: vec![] },
+            sess_sel,
+            sess_creator: crt,
+            session_id: file_sess_id,
+            meta_sess_id,
 
             _server_session,
-        }));
+        };
 
-        crate::hdl().files().add_sess(fsess.clone());
+        crate::hdl().files().add_sess(ino);
 
         Ok(fsess)
     }
@@ -186,7 +172,7 @@ impl FileSession {
         crt: usize,
         sid: SessId,
         data: &mut CapExchange,
-    ) -> Result<Rc<RefCell<Self>>, Error> {
+    ) -> Result<Self, Error> {
         log!(
             crate::LOG_SESSION,
             "[{}] file::clone(path={})",
@@ -198,13 +184,13 @@ impl FileSession {
             srv_sel,
             crt,
             sid,
-            self.meta_session,
+            self.meta_sess_id,
             &self.filename,
             self.oflags,
             self.ino,
         )?;
 
-        data.out_caps(CapRngDesc::new(CapType::OBJECT, nsess.borrow().sel, 2));
+        data.out_caps(CapRngDesc::new(CapType::OBJECT, nsess.sess_sel, 2));
 
         Ok(nsess)
     }
@@ -272,8 +258,12 @@ impl FileSession {
         self.ino
     }
 
+    pub fn meta_sess(&self) -> SessId {
+        self.meta_sess_id
+    }
+
     pub fn caps(&self) -> CapRngDesc {
-        CapRngDesc::new(CapType::OBJECT, self.sel, 2)
+        CapRngDesc::new(CapType::OBJECT, self.sess_sel, 2)
     }
 
     fn next_in_out(&mut self, is: &mut GateIStream, out: bool) -> Result<(), Error> {
@@ -379,7 +369,7 @@ impl FileSession {
                 self.extoff = 0;
             }
             else {
-                self.extoff += len - self.extoff % crate::hdl().superblock().block_size as usize;
+                self.extoff += len - capoff;
             }
 
             self.fileoff += len - capoff;
@@ -404,15 +394,15 @@ impl FileSession {
 
         reply_vmsg!(is, 0 as u32, capoff, self.lastbytes)?;
 
-        if self.last != m3::kif::INVALID_SEL {
+        if self.lastsel != m3::kif::INVALID_SEL {
             m3::pes::VPE::cur()
                 .revoke(
-                    m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.last, 1),
+                    m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.lastsel, 1),
                     false,
                 )
                 .unwrap();
         }
-        self.last = sel;
+        self.lastsel = sel;
 
         Ok(())
     }
@@ -484,9 +474,38 @@ impl FileSession {
     }
 }
 
+impl Drop for FileSession {
+    fn drop(&mut self) {
+        log!(
+            crate::LOG_SESSION,
+            "[{}] file::close(path={})",
+            self.session_id,
+            self.filename
+        );
+
+        // free to-be-appended blocks, if there are any
+        if let Some(ext) = self.append_ext.take() {
+            crate::hdl()
+                .blocks()
+                .free(ext.start as usize, ext.length as usize).unwrap();
+        }
+
+        // remove session from open_files and from its meta session
+        crate::hdl().files().remove_session(self.ino).unwrap();
+
+        // revoke caps if needed
+        if self.lastsel != m3::kif::INVALID_SEL {
+            m3::pes::VPE::cur().revoke(
+                m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.lastsel, 1),
+                false,
+            ).unwrap();
+        }
+    }
+}
+
 impl M3FSSession for FileSession {
     fn creator(&self) -> usize {
-        self.creator
+        self.sess_creator
     }
 
     fn next_in(&mut self, stream: &mut GateIStream) -> Result<(), Error> {

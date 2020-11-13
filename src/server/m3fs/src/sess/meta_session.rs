@@ -21,11 +21,9 @@ use crate::sess::{FileSession, M3FSSession};
 
 use m3::{
     cap::Selector,
-    cell::RefCell,
     col::Vec,
     com::{GateIStream, SendGate},
     errors::{Code, Error},
-    rc::Rc,
     server::CapExchange,
     server::SessId,
     session::ServerSession,
@@ -36,7 +34,7 @@ pub struct MetaSession {
     _server_session: ServerSession,
     sgates: Vec<SendGate>,
     max_files: usize,
-    files: Vec<Option<Rc<RefCell<FileSession>>>>,
+    files: Vec<SessId>,
     creator: usize,
     session_id: SessId,
 }
@@ -52,7 +50,7 @@ impl MetaSession {
             _server_session,
             sgates: Vec::new(),
             max_files,
-            files: vec![None; max_files],
+            files: Vec::new(),
             creator: crt,
             session_id,
         }
@@ -76,15 +74,12 @@ impl MetaSession {
         Ok(())
     }
 
-    pub fn remove_file(&mut self, file_session: Rc<RefCell<FileSession>>) {
-        for i in 0..self.max_files {
-            if let Some(ifs) = &self.files[i] {
-                if ifs.borrow().ino() == file_session.borrow().ino() {
-                    self.files.remove(i);
-                    break;
-                }
-            }
-        }
+    pub fn file_sessions(&self) -> &[SessId] {
+        &self.files
+    }
+
+    pub fn remove_file(&mut self, file_session: SessId) {
+        self.files.retain(|sid| *sid != file_session);
     }
 
     /// Creates a file session based on this meta session for `file_session_id`.
@@ -94,7 +89,11 @@ impl MetaSession {
         crt: usize,
         data: &mut CapExchange,
         file_session_id: SessId,
-    ) -> Result<Rc<RefCell<FileSession>>, Error> {
+    ) -> Result<FileSession, Error> {
+        if self.files.len() == self.max_files {
+            return Err(Error::new(Code::NoSpace));
+        }
+
         let flags = OpenFlags::from_bits_truncate(data.in_args().pop::<u32>()?);
         let path = data.in_args().pop_str_slice()?;
 
@@ -108,8 +107,9 @@ impl MetaSession {
 
         let session = self.do_open(selector, crt, path, flags, file_session_id)?;
 
-        let caps = session.borrow().caps();
-        data.out_caps(caps);
+        self.files.push(file_session_id);
+
+        data.out_caps(session.caps());
 
         log!(
             crate::LOG_SESSION,
@@ -117,7 +117,7 @@ impl MetaSession {
             self.session_id,
             path,
             flags,
-            session.borrow().ino(),
+            session.ino(),
             file_session_id,
         );
 
@@ -131,7 +131,7 @@ impl MetaSession {
         path: &str,
         flags: OpenFlags,
         file_session_id: SessId,
-    ) -> Result<Rc<RefCell<FileSession>>, Error> {
+    ) -> Result<FileSession, Error> {
         let ino = dirs::search(&path, flags.contains(OpenFlags::CREATE))?;
         let inode = inodes::get(ino)?;
         let inode_mode = inode.mode;

@@ -17,19 +17,14 @@
 
 use crate::data::InodeNo;
 use crate::ops::inodes;
-use crate::sess::FileSession;
 
-use m3::{
-    cell::RefCell,
-    col::{Treap, Vec},
-    errors::Error,
-    rc::Rc,
-};
+use m3::col::Treap;
+use m3::errors::Error;
 
 pub struct OpenFile {
     appending: bool,
     deleted: bool,
-    sessions: Vec<Rc<RefCell<FileSession>>>,
+    refs: usize,
 }
 
 impl OpenFile {
@@ -37,7 +32,7 @@ impl OpenFile {
         OpenFile {
             appending: false,
             deleted: false,
-            sessions: Vec::new(),
+            refs: 1,
         }
     }
 
@@ -61,62 +56,50 @@ impl OpenFiles {
         }
     }
 
-    pub fn get_file(&self, inode_num: InodeNo) -> Option<&OpenFile> {
-        self.files.get(&inode_num)
+    pub fn get_file_mut(&mut self, ino: InodeNo) -> Option<&mut OpenFile> {
+        self.files.get_mut(&ino)
     }
 
-    pub fn get_file_mut(&mut self, inode_num: InodeNo) -> Option<&mut OpenFile> {
-        self.files.get_mut(&inode_num)
-    }
-
-    pub fn delete_file(&mut self, inode_num: InodeNo) -> Result<(), Error> {
+    pub fn delete_file(&mut self, ino: InodeNo) -> Result<(), Error> {
         // create a request which executes the delete request on the FShandle
-        if let Some(file) = self.get_file_mut(inode_num) {
+        if let Some(file) = self.get_file_mut(ino) {
             file.deleted = true;
         }
         else {
-            inodes::free(inode_num)?;
+            inodes::free(ino)?;
         }
         Ok(())
     }
 
-    pub fn add_sess(&mut self, session: Rc<RefCell<FileSession>>) {
-        let session_ino = session.borrow().ino();
-
-        if self.get_file(session.borrow().ino()).is_none() {
-            let file = OpenFile::new();
-            self.files.insert(session_ino, file);
+    pub fn add_sess(&mut self, ino: InodeNo) {
+        // add reference to OpenFile instance or create new one
+        if let Some(file) = self.get_file_mut(ino) {
+            file.refs += 1;
         }
-
-        self.get_file_mut(session_ino)
-            .unwrap()
-            .sessions
-            .push(session);
+        else {
+            self.files.insert(ino, OpenFile::new());
+        }
     }
 
-    pub fn remove_session(&mut self, session: Rc<RefCell<FileSession>>) -> Result<(), Error> {
-        let file = self.get_file_mut(session.borrow().ino()).unwrap();
+    pub fn remove_session(&mut self, ino: InodeNo) -> Result<(), Error> {
+        let file = self.get_file_mut(ino).unwrap();
 
-        // search for this pointer in vec and remove when found
-        let mut rm_idx = None;
-        for (i, p) in file.sessions.iter().enumerate() {
-            if Rc::ptr_eq(p, &session) {
-                rm_idx = Some(i);
-                break;
+        // dereference OpenFile instance
+        assert!(file.refs > 0);
+        file.refs -= 1;
+
+        // are there sessions left using the file?
+        if file.refs == 0 {
+            // if has the inode been deleted in the meantime, remove it
+            if file.deleted {
+                inodes::free(ino)?;
             }
+            drop(file);
+
+            // remove OpenFile instance
+            self.files.remove(&ino).unwrap();
         }
 
-        let idx = rm_idx.unwrap();
-        file.sessions.remove(idx);
-
-        // if no session own this file anymore, remove it
-        if file.sessions.is_empty() {
-            let removed_file = self.files.remove(&session.borrow().ino());
-            // unwrap save since the first line of the function would otherwise fail
-            if removed_file.unwrap().deleted {
-                inodes::free(session.borrow().ino())?;
-            }
-        }
         Ok(())
     }
 }
