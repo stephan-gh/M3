@@ -39,8 +39,14 @@ static void check_content(const char *filename, size_t size) {
     size_t pos = 0;
     size_t count;
     while((count = file->read(largebuf, sizeof(largebuf))) > 0) {
-        for(size_t i = 0; i < count; ++i)
-            WVASSERTEQ(largebuf[i], static_cast<uint8_t>(pos++ % 100));
+        for(size_t i = 0; i < count; ++i) {
+            if(largebuf[i] != pos % 100) {
+                cout << "file[" << pos << "]: expected "
+                     << (pos % 100) << ", got " << largebuf[i] << "\n";
+                WVASSERT(false);
+            }
+            pos++;
+        }
     }
     WVASSERTEQ(pos, size);
 
