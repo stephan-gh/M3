@@ -29,7 +29,10 @@ pub fn init() {
 fn handle_xlate(req: tcu::CoreXlateReq) {
     let pte = paging::translate(req.virt, req.perm);
     if (!(pte & 0xF) & req.perm.bits()) != 0 {
-        panic!("Pagefault during PT walk for {:#x} (PTE={:#x})", req.virt, pte);
+        panic!(
+            "Pagefault during PT walk for {:#x} (PTE={:#x})",
+            req.virt, pte
+        );
     }
 
     tcu::TCU::set_xlate_resp(pte);

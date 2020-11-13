@@ -21,7 +21,7 @@ use base::tcu::TCU;
 use core::ptr;
 use core::sync::atomic;
 
-use crate::pes::{VPEMng, State, VPE};
+use crate::pes::{State, VPEMng, VPE};
 
 static mut SIGCHLDS: atomic::AtomicUsize = atomic::AtomicUsize::new(0);
 

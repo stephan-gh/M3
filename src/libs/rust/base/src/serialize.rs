@@ -17,7 +17,7 @@
 //! Contains the serializing basics, which is used for IPC
 
 use crate::col::{String, Vec};
-use crate::errors::{Error, Code};
+use crate::errors::{Code, Error};
 use crate::libc;
 use crate::util;
 

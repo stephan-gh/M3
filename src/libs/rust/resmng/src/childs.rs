@@ -494,8 +494,7 @@ pub trait Child {
         Ok(())
     }
 
-    fn remove_resources_async(&mut self)
-    {
+    fn remove_resources_async(&mut self) {
         while !self.res().sessions.is_empty() {
             let (idx, sess) = self.res_mut().sessions.remove(0);
             self.cfg().close_session(idx);

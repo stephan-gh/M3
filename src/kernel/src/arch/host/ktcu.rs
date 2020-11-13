@@ -27,7 +27,7 @@ use base::tcu::*;
 use base::util;
 
 use crate::ktcu;
-use crate::pes::{PEMng, VPEMng, State, VPE};
+use crate::pes::{PEMng, State, VPEMng, VPE};
 
 pub fn rbuf_addrs(virt: goff) -> (goff, goff) {
     let off = virt - envdata::rbuf_start() as goff;

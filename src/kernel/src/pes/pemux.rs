@@ -419,7 +419,8 @@ impl PEMux {
 
         klog!(PEXC, "PEMux[{}] sending {:?}", self.pe_id(), req);
 
-        self.queue.send(tcu::PEXUP_REP, 0, util::object_to_bytes(req))
+        self.queue
+            .send(tcu::PEXUP_REP, 0, util::object_to_bytes(req))
     }
 
     fn send_receive_upcall_async<R: core::fmt::Debug>(
@@ -476,11 +477,7 @@ impl PEMux {
         Ok(())
     }
 
-    fn send_upcall<R>(
-        &mut self,
-        _vpe: Option<VPEId>,
-        _req: &R,
-    ) -> Result<(), Error> {
+    fn send_upcall<R>(&mut self, _vpe: Option<VPEId>, _req: &R) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 }

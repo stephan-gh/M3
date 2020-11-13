@@ -328,11 +328,17 @@ impl<T: BoxItem> BoxList<T> {
             None => self.head = intrinsics::transmute(item.next()),
         }
         // it's not at the back, so we can assume next() is Some
-        item.next().unwrap().as_mut().set_prev(intrinsics::transmute(item.prev()));
+        item.next()
+            .unwrap()
+            .as_mut()
+            .set_prev(intrinsics::transmute(item.prev()));
 
         // let the current tail's next point to us
         let item_ptr = Some(NonNull::new_unchecked(item as *mut T));
-        self.tail.unwrap().as_mut().set_next(intrinsics::transmute(item_ptr));
+        self.tail
+            .unwrap()
+            .as_mut()
+            .set_next(intrinsics::transmute(item_ptr));
 
         // add us to the end
         item.set_prev(intrinsics::transmute(self.tail));

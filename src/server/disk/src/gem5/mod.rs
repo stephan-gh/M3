@@ -87,8 +87,14 @@ impl BlockDeviceTrait for BlockDevice {
         bytes: usize,
     ) -> Result<(), Error> {
         let part_desc = self.devs[part].unwrap();
-        self.ide_ctrl
-            .read_write(part_desc, DiskOperation::READ, buf, buf_off, disk_off, bytes)
+        self.ide_ctrl.read_write(
+            part_desc,
+            DiskOperation::READ,
+            buf,
+            buf_off,
+            disk_off,
+            bytes,
+        )
     }
 
     fn write(
@@ -100,7 +106,13 @@ impl BlockDeviceTrait for BlockDevice {
         bytes: usize,
     ) -> Result<(), Error> {
         let part_desc = self.devs[part].unwrap();
-        self.ide_ctrl
-            .read_write(part_desc, DiskOperation::WRITE, buf, buf_off, disk_off, bytes)
+        self.ide_ctrl.read_write(
+            part_desc,
+            DiskOperation::WRITE,
+            buf,
+            buf_off,
+            disk_off,
+            bytes,
+        )
     }
 }

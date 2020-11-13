@@ -833,11 +833,13 @@ impl MapObject {
         flags: kif::PageFlags,
     ) -> Result<(), Error> {
         let pemux = PEMng::get().pemux(vpe.pe_id());
-        pemux.map_async(vpe.id(), virt, glob, pages, flags).map(|_| {
-            self.glob.replace(glob);
-            self.flags.replace(flags);
-            self.mapped.set(true);
-        })
+        pemux
+            .map_async(vpe.id(), virt, glob, pages, flags)
+            .map(|_| {
+                self.glob.replace(glob);
+                self.flags.replace(flags);
+                self.mapped.set(true);
+            })
     }
 
     pub fn unmap_async(&self, vpe: &VPE, virt: goff, pages: usize) {

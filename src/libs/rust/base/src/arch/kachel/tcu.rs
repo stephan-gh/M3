@@ -228,7 +228,7 @@ int_enum! {
 /// A translation core request, that is sent by the TCU if a virtual address needs to be translated
 #[derive(Debug)]
 pub struct CoreXlateReq {
-    pub asid : u16,
+    pub asid: u16,
     pub virt: usize,
     pub perm: PageFlags,
     pub can_pf: bool,
@@ -553,7 +553,7 @@ impl TCU {
         match req & 0x3 {
             0x2 => Some(CoreReq::Xlate(CoreXlateReq::new(req))),
             0x3 => Some(CoreReq::Foreign(CoreForeignReq::new(req))),
-            _ => None
+            _ => None,
         }
     }
 
