@@ -75,17 +75,15 @@ pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
     Ok(INodeRef::from_buffer(block, offset))
 }
 
-/// Seeks to the given position and calculates its extent and the offset within the extent
+/// Calculates the extent and the offset within the extent for the given offset.
 ///
 /// `off` is the desired offset and `whence` defines the seek mode. `extent` and `extoff` are set to
 /// the extent number and offset within this extent at the target position.
 ///
-/// TODO why is off set as well?
-///
-/// Returns the new position (TODO at the beginning of the extent??)
+/// Returns the new file position
 pub fn seek(
     inode: &INodeRef,
-    off: &mut usize,
+    mut off: usize,
     whence: SeekMode,
     extent: &mut usize,
     extoff: &mut usize,
@@ -102,13 +100,13 @@ pub fn seek(
 
     assert!(whence != SeekMode::CUR);
 
-    let blocksize = crate::hdl().superblock().block_size;
+    let blocksize = crate::hdl().superblock().block_size as usize;
     let mut indir = None;
 
     // seeking to the end
     if whence == SeekMode::END {
         // TODO support off != 0
-        assert!(*off == 0);
+        assert!(off == 0);
 
         *extent = inode.extents as usize;
         *extoff = 0;
@@ -116,24 +114,19 @@ pub fn seek(
         // determine extent offset
         if *extent > 0 {
             let ext = get_extent(inode, *extent - 1, &mut indir, false)?;
-            *extoff = (ext.length * blocksize) as usize;
             // ensure to stay within a block
-            let unaligned = inode.size % blocksize as u64;
+            let unaligned = (inode.size as usize) % blocksize;
             if unaligned > 0 {
-                *extoff -= (blocksize as u64 - unaligned) as usize;
+                *extent -= 1;
+                *extoff = ((ext.length as usize) * blocksize) - (blocksize - unaligned);
             }
         }
-
-        if *extoff > 0 {
-            *extent -= 1;
-        }
-        *off = 0;
 
         return Ok(inode.size as usize);
     }
 
-    if *off as u64 > inode.size {
-        *off = inode.size as usize;
+    if off as u64 > inode.size {
+        off = inode.size as usize;
     }
 
     // now search until we've found the extent covering the desired file position
@@ -141,20 +134,20 @@ pub fn seek(
     for i in 0..inode.extents {
         let ext = get_extent(inode, i as usize, &mut indir, false)?;
 
-        if *off < (ext.length * blocksize) as usize {
+        if off < (ext.length as usize) * blocksize {
             *extent = i as usize;
-            *extoff = *off;
-            return Ok(pos);
+            *extoff = off;
+            return Ok(pos + off);
         }
 
-        pos += (ext.length * blocksize) as usize;
-        *off -= (ext.length * blocksize) as usize;
+        pos += ext.length as usize * blocksize;
+        off -= ext.length as usize * blocksize;
     }
 
     *extent = inode.extents as usize;
-    *extoff = *off;
+    *extoff = off;
 
-    Ok(pos)
+    Ok(pos + off)
 }
 
 /// Retrieves the memory for an extent as a MemGate.

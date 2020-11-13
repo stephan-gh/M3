@@ -210,12 +210,11 @@ impl FileSession {
         let inode = inodes::get(self.ino)?;
 
         // determine extent from byte offset
-        let mut first_off = offset as usize;
         let mut ext_off = 0;
         let mut tmp_extent = 0;
         inodes::seek(
             &inode,
-            &mut first_off,
+            offset as usize,
             SeekMode::SET,
             &mut tmp_extent,
             &mut ext_off,
@@ -312,10 +311,9 @@ impl FileSession {
                 && (self.fileoff as u64 == inode.size)
                 && ((self.fileoff % crate::hdl().superblock().block_size as usize) != 0)
             {
-                let mut off = 0;
                 self.fileoff = inodes::seek(
                     &inode,
-                    &mut off,
+                    0,
                     SeekMode::END,
                     &mut self.extent,
                     &mut self.extoff,
@@ -560,7 +558,7 @@ impl M3FSSession for FileSession {
     }
 
     fn seek(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
-        let mut off: usize = stream.pop()?;
+        let off: usize = stream.pop()?;
         let whence = SeekMode::from(stream.pop::<u32>()?);
 
         log!(
@@ -577,10 +575,10 @@ impl M3FSSession for FileSession {
         }
 
         let inode = inodes::get(self.ino)?;
-        let pos = inodes::seek(&inode, &mut off, whence, &mut self.extent, &mut self.extoff)?;
-        self.fileoff = pos + off;
+        let pos = inodes::seek(&inode, off, whence, &mut self.extent, &mut self.extoff)?;
+        self.fileoff = pos;
 
-        reply_vmsg!(stream, 0, pos, off)
+        reply_vmsg!(stream, 0, pos - self.extoff, self.extoff)
     }
 
     fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {
