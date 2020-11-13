@@ -17,8 +17,8 @@
 
 use crate::buf::LoadLimit;
 use crate::data::{
-    Extent, ExtentCache, ExtentRef, FileMode, INodeRef, InodeNo, INODE_DIR_COUNT, NUM_EXT_BYTES,
-    NUM_INODE_BYTES,
+    ExtPos, Extent, ExtentCache, ExtentRef, FileMode, INodeRef, InodeNo, INODE_DIR_COUNT,
+    NUM_EXT_BYTES, NUM_INODE_BYTES,
 };
 
 use m3::{
@@ -59,7 +59,7 @@ pub fn free(inode_no: InodeNo) -> Result<(), Error> {
 
     let ino = get(inode_no)?;
     let inodeno = ino.inode as usize;
-    truncate(&ino, 0, 0)?;
+    truncate(&ino, &ExtPos::new(0, 0))?;
     crate::hdl().inodes().free(inodeno, 1)
 }
 
@@ -75,27 +75,22 @@ pub fn get(inode: InodeNo) -> Result<INodeRef, Error> {
     Ok(INodeRef::from_buffer(block, offset))
 }
 
-/// Calculates the extent and the offset within the extent for the given offset.
+/// Calculates the extent and the offset within the extent for the given seek operation.
 ///
-/// `off` is the desired offset and `whence` defines the seek mode. `extent` and `extoff` are set to
-/// the extent number and offset within this extent at the target position.
+/// `off` is the desired offset and `whence` defines the seek mode.
 ///
-/// Returns the new file position
-pub fn seek(
+/// Returns the new file position and the extent position
+pub fn get_seek_pos(
     inode: &INodeRef,
     mut off: usize,
     whence: SeekMode,
-    extent: &mut usize,
-    extoff: &mut usize,
-) -> Result<usize, Error> {
+) -> Result<(usize, ExtPos), Error> {
     log!(
         crate::LOG_INODES,
-        "inodes::seek(inode={}, off={}, whence={}, extent={}, extoff={})",
+        "inodes::seek(inode={}, off={}, whence={})",
         inode.inode,
         off,
         whence,
-        extent,
-        extoff
     );
 
     assert!(whence != SeekMode::CUR);
@@ -108,21 +103,20 @@ pub fn seek(
         // TODO support off != 0
         assert!(off == 0);
 
-        *extent = inode.extents as usize;
-        *extoff = 0;
+        let mut extpos = ExtPos::new(inode.extents as usize, 0);
 
         // determine extent offset
-        if *extent > 0 {
-            let ext = get_extent(inode, *extent - 1, &mut indir, false)?;
+        if extpos.ext > 0 {
+            let ext = get_extent(inode, extpos.ext - 1, &mut indir, false)?;
             // ensure to stay within a block
             let unaligned = (inode.size as usize) % blocksize;
             if unaligned > 0 {
-                *extent -= 1;
-                *extoff = ((ext.length as usize) * blocksize) - (blocksize - unaligned);
+                extpos.ext -= 1;
+                extpos.off = ((ext.length as usize) * blocksize) - (blocksize - unaligned);
             }
         }
 
-        return Ok(inode.size as usize);
+        return Ok((inode.size as usize, extpos));
     }
 
     if off as u64 > inode.size {
@@ -135,46 +129,39 @@ pub fn seek(
         let ext = get_extent(inode, i as usize, &mut indir, false)?;
 
         if off < (ext.length as usize) * blocksize {
-            *extent = i as usize;
-            *extoff = off;
-            return Ok(pos + off);
+            return Ok((pos + off, ExtPos::new(i as usize, off)));
         }
 
         pos += ext.length as usize * blocksize;
         off -= ext.length as usize * blocksize;
     }
 
-    *extent = inode.extents as usize;
-    *extoff = off;
-
-    Ok(pos + off)
+    Ok((pos + off, ExtPos::new(inode.extents as usize, off)))
 }
 
-/// Retrieves the memory for an extent as a MemGate.
+/// Retrieves the memory beginning at the given position as a MemGate.
 ///
-/// `extent` denotes the extent number, `extoff` the offset within the extent, `perm` the
-/// permissions with which the MemGate should be created, `sel` the selector for the MemGate, and
-/// `accessed` denotes the number of times we already accessed this file.
+/// `pos` denotes the start position for the to-be-created MemGate, `perm` the permissions with
+/// which the MemGate should be created, `sel` the selector for the MemGate, and `accessed` denotes
+/// the number of times we already accessed this file.
 ///
 /// Returns the length of the MemGate and the length of the extent
 pub fn get_extent_mem(
     inode: &INodeRef,
-    extent: usize,
-    extoff: usize,
+    start: &ExtPos,
     perms: Perm,
     sel: Selector,
     limit: &mut LoadLimit,
 ) -> Result<(usize, usize), Error> {
     log!(
         crate::LOG_INODES,
-        "inodes::get_extent_mem(inode={}, extent={}, extoff={})",
+        "inodes::get_extent_mem(inode={}, start={:?})",
         inode.inode,
-        extent,
-        extoff,
+        start,
     );
 
     let mut indir = None;
-    let ext = get_extent(inode, extent, &mut indir, false)?;
+    let ext = get_extent(inode, start.ext, &mut indir, false)?;
     if ext.length == 0 {
         return Ok((0, 0));
     }
@@ -183,13 +170,14 @@ pub fn get_extent_mem(
     let blocksize = crate::hdl().superblock().block_size;
     let mut extlen = (ext.length * blocksize) as usize;
 
-    let mut bytes = crate::hdl()
-        .backend()
-        .get_filedata(*ext, extoff, perms, sel, Some(limit))?;
+    let mut bytes =
+        crate::hdl()
+            .backend()
+            .get_filedata(*ext, start.off, perms, sel, Some(limit))?;
 
     // stop at file end
-    if (extent == (inode.extents - 1) as usize)
-        && ((ext.length * blocksize) as usize <= (extoff + bytes))
+    if (start.ext == (inode.extents - 1) as usize)
+        && ((ext.length * blocksize) as usize <= (start.off + bytes))
     {
         let rem = (inode.size % blocksize as u64) as u32;
         if rem > 0 {
@@ -205,13 +193,12 @@ pub fn get_extent_mem(
 ///
 /// Note that this only requests the append, but does not append anything.
 ///
-/// `extent` denotes the extent to append to, `extoff` the offset within the extent, `sel` the
-/// selector to use for the MemGate, `perm` the permissions for the MemGate, and `accessed` denotes
-/// the number of times we already accessed this file.
+/// `pos` denotes the position where to append to, `sel` the selector to use for the MemGate, `perm`
+/// the permissions for the MemGate, and `accessed` denotes the number of times we already accessed
+/// this file.
 pub fn req_append(
     inode: &INodeRef,
-    extent: usize,
-    extoff: usize,
+    pos: &ExtPos,
     sel: Selector,
     perm: Perm,
     limit: &mut LoadLimit,
@@ -220,21 +207,20 @@ pub fn req_append(
 
     log!(
         crate::LOG_INODES,
-        "inodes::req_append(inode={}, extent={}, extoff={}, num_extents={})",
+        "inodes::req_append(inode={}, pos={:?}, num_extents={})",
         inode.inode,
-        extent,
-        extoff,
+        pos,
         num_extents
     );
 
-    if extent < inode.extents as usize {
+    if pos.ext < inode.extents as usize {
         let mut indir = None;
-        let ext = get_extent(inode, extent, &mut indir, false)?;
+        let ext = get_extent(inode, pos.ext, &mut indir, false)?;
 
         let extlen = (ext.length * crate::hdl().superblock().block_size) as usize;
         let bytes = crate::hdl()
             .backend()
-            .get_filedata(*ext, extoff, perm, sel, Some(limit))?;
+            .get_filedata(*ext, pos.off, perm, sel, Some(limit))?;
         Ok((bytes, extlen, None))
     }
     else {
@@ -528,14 +514,13 @@ pub fn create_extent(inode: Option<&INodeRef>, blocks: u32) -> Result<Extent, Er
     Ok(ext)
 }
 
-/// Truncates the given inode until the given extent and extent offset.
-pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Error> {
+/// Truncates the given inode until the given position.
+pub fn truncate(inode: &INodeRef, pos: &ExtPos) -> Result<(), Error> {
     log!(
         crate::LOG_INODES,
-        "inodes::truncate(inode={}, extent={}, extoff={})",
+        "inodes::truncate(inode={}, pos={:?})",
         inode.inode,
-        extent,
-        extoff
+        pos,
     );
 
     let blocksize = crate::hdl().superblock().block_size;
@@ -546,7 +531,7 @@ pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Er
     if iextents > 0 {
         // erase everything up to `extent`
         let mut i = iextents - 1;
-        while i > extent {
+        while i > pos.ext {
             let ext = change_extent(inode, i, &mut indir, true)?;
             crate::hdl()
                 .blocks()
@@ -559,7 +544,7 @@ pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Er
         }
 
         // get `extent` and determine length
-        let ext = change_extent(inode, extent, &mut indir, extoff == 0)?;
+        let ext = change_extent(inode, pos.ext, &mut indir, pos.off == 0)?;
         if ext.length > 0 {
             let mut curlen = ext.length * blocksize;
 
@@ -569,9 +554,9 @@ pub fn truncate(inode: &INodeRef, extent: usize, extoff: usize) -> Result<(), Er
             }
 
             // do we need to reduce the size of `extent`?
-            if extoff < curlen as usize {
-                let diff = curlen as usize - extoff;
-                let bdiff = if extoff == 0 {
+            if pos.off < curlen as usize {
+                let diff = curlen as usize - pos.off;
+                let bdiff = if pos.off == 0 {
                     math::round_up(diff, blocksize as usize)
                 }
                 else {

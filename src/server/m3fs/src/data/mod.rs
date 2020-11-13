@@ -24,7 +24,7 @@ mod superblock;
 
 pub use allocator::Allocator;
 pub use direntry::{DirEntry, DirEntryIterator};
-pub use extent::{Extent, ExtentCache, ExtentRef};
+pub use extent::{ExtPos, Extent, ExtentCache, ExtentRef};
 pub use inode::INodeRef;
 pub use superblock::SuperBlock;
 

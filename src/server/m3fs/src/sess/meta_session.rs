@@ -15,7 +15,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::data::FileMode;
+use crate::data::{ExtPos, FileMode};
 use crate::ops::{dirs, inodes};
 use crate::sess::{FileSession, M3FSSession};
 
@@ -150,7 +150,7 @@ impl MetaSession {
 
         // only determine the current size, if we're writing and the file isn't empty
         if flags.contains(OpenFlags::TRUNC) {
-            inodes::truncate(&inode, 0, 0)?;
+            inodes::truncate(&inode, &ExtPos::new(0, 0))?;
             // TODO revoke access, if necessary
         }
 

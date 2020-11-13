@@ -17,7 +17,7 @@
  */
 
 use crate::buf::LoadLimit;
-use crate::data::{Extent, INodeRef, InodeNo};
+use crate::data::{ExtPos, Extent, INodeRef, InodeNo};
 use crate::ops::inodes;
 use crate::sess::M3FSSession;
 
@@ -60,17 +60,15 @@ impl CapContainer {
 }
 
 pub struct FileSession {
-    extent: usize,  // next file position: extent
-    lastext: usize, // cur file position: extent
+    // current position (the one that the client has access to)
+    cur_pos: ExtPos,   // extent position
+    cur_extlen: usize, // length of the extent
+    cur_bytes: usize,  // number of bytes
+    cur_sel: Selector, // memory capability
 
-    extoff: usize,  // next file position: offset within the extent
-    lastoff: usize, // cur file position: offset within the extent
-
-    extlen: usize,  // length of current extent
-    fileoff: usize, // next file position (global offset)
-
-    lastsel: Selector,  // memory capability the client has access to currently
-    lastbytes: usize,   // number of bytes the client has access to currently
+    // next position (the one that the client gets access to next)
+    next_pos: ExtPos,    // extent position
+    next_fileoff: usize, // file position (global offset)
 
     load_limit: LoadLimit,
 
@@ -81,7 +79,7 @@ pub struct FileSession {
     // capabilities
     capscon: CapContainer,
     epcap: Selector,
-    _sgate: Option<SendGate>,   // keep the send gate alive
+    _sgate: Option<SendGate>, // keep the send gate alive
 
     // the file the client has access to
     oflags: OpenFlags,
@@ -132,14 +130,14 @@ impl FileSession {
         };
 
         let fsess = FileSession {
-            extent: 0,
-            lastext: 0,
-            extoff: 0,
-            lastoff: 0,
-            extlen: 0,
-            fileoff: 0,
-            lastsel: m3::kif::INVALID_SEL,
-            lastbytes: 0,
+            cur_pos: ExtPos::new(0, 0),
+            cur_extlen: 0,
+            cur_bytes: 0,
+            cur_sel: m3::kif::INVALID_SEL,
+
+            next_pos: ExtPos::new(0, 0),
+            next_fileoff: 0,
+
             load_limit: LoadLimit::new(),
 
             appending: false,
@@ -196,8 +194,7 @@ impl FileSession {
     }
 
     pub fn get_mem(&mut self, data: &mut CapExchange) -> Result<(), Error> {
-        let pop_offset: u32 = data.in_args().pop()?;
-        let mut offset = pop_offset as usize;
+        let offset: u32 = data.in_args().pop()?;
 
         log!(
             crate::LOG_SESSION,
@@ -210,22 +207,12 @@ impl FileSession {
         let inode = inodes::get(self.ino)?;
 
         // determine extent from byte offset
-        let mut ext_off = 0;
-        let mut tmp_extent = 0;
-        inodes::seek(
-            &inode,
-            offset as usize,
-            SeekMode::SET,
-            &mut tmp_extent,
-            &mut ext_off,
-        )?;
-        offset = tmp_extent;
+        let (_, extpos) = inodes::get_seek_pos(&inode, offset as usize, SeekMode::SET)?;
 
         let sel = m3::pes::VPE::cur().alloc_sel();
         let (len, _) = inodes::get_extent_mem(
             &inode,
-            offset,
-            ext_off,
+            &extpos,
             Perm::from(self.oflags),
             sel,
             &mut self.load_limit,
@@ -268,13 +255,12 @@ impl FileSession {
     fn next_in_out(&mut self, is: &mut GateIStream, out: bool) -> Result<(), Error> {
         log!(
             crate::LOG_SESSION,
-            "[{}] file::next_{}(); file[path={}, fileoff={}, ext={}, extoff={}]",
+            "[{}] file::next_{}(); file[path={}, fileoff={}, pos={:?}]",
             self.session_id,
             if out { "out" } else { "in" },
             self.filename,
-            self.fileoff,
-            self.extent,
-            self.extoff
+            self.next_fileoff,
+            self.next_pos,
         );
 
         if (out && !self.oflags.contains(OpenFlags::W))
@@ -287,13 +273,13 @@ impl FileSession {
 
         // in/out implicitly commits the previous in/out request
         if out && self.appending {
-            self.commit_append(&inode, self.lastbytes)?;
+            self.commit_append(&inode, self.cur_bytes)?;
         }
 
         let mut sel = m3::pes::VPE::cur().alloc_sel();
 
         // do we need to append to the file?
-        let (len, extlen) = if out && (self.fileoff as u64 == inode.size) {
+        let (len, extlen) = if out && (self.next_fileoff as u64 == inode.size) {
             let files = crate::hdl().files();
             let open_file = files.get_file_mut(self.ino).unwrap();
 
@@ -307,23 +293,18 @@ impl FileSession {
             }
 
             // continue in last extent, if there is space
-            if (self.extent > 0)
-                && (self.fileoff as u64 == inode.size)
-                && ((self.fileoff % crate::hdl().superblock().block_size as usize) != 0)
+            if (self.next_pos.ext > 0)
+                && (self.next_fileoff as u64 == inode.size)
+                && ((self.next_fileoff % crate::hdl().superblock().block_size as usize) != 0)
             {
-                self.fileoff = inodes::seek(
-                    &inode,
-                    0,
-                    SeekMode::END,
-                    &mut self.extent,
-                    &mut self.extoff,
-                )?;
+                let (fileoff, extpos) = inodes::get_seek_pos(&inode, 0, SeekMode::END)?;
+                self.next_fileoff = fileoff;
+                self.next_pos = extpos;
             }
 
             let (len, extlen, new_ext) = inodes::req_append(
                 &inode,
-                self.extent,
-                self.extoff,
+                &self.next_pos,
                 sel,
                 Perm::from(self.oflags),
                 &mut self.load_limit,
@@ -339,8 +320,7 @@ impl FileSession {
             // get next mem_cap
             let res = inodes::get_extent_mem(
                 &inode,
-                self.extent,
-                self.extoff,
+                &self.next_pos,
                 Perm::from(self.oflags),
                 sel,
                 &mut self.load_limit,
@@ -355,52 +335,50 @@ impl FileSession {
 
         // The mem cap covers all blocks from `self.extoff` to `self.extoff + len`. Thus, the offset
         // to start is the offset within the first of these blocks
-        let mut capoff = self.extoff % crate::hdl().superblock().block_size as usize;
+        let mut capoff = self.next_pos.off % crate::hdl().superblock().block_size as usize;
         if len > 0 {
             syscalls::activate(self.epcap, sel, INVALID_SEL, 0)?;
 
             // move forward
-            self.lastoff = self.extoff;
-            self.lastext = self.extent;
-            if (self.extoff + len) >= extlen {
-                self.extent += 1;
-                self.extoff = 0;
+            self.cur_pos = self.next_pos;
+            if (self.next_pos.off + len) >= extlen {
+                self.next_pos.next_ext();
             }
             else {
-                self.extoff += len - capoff;
+                self.next_pos.off += len - capoff;
             }
 
-            self.fileoff += len - capoff;
+            self.next_fileoff += len - capoff;
         }
         else {
-            self.lastoff = 0;
+            self.cur_pos = ExtPos::new(0, 0);
             capoff = 0;
             sel = m3::kif::INVALID_SEL;
         }
 
-        self.extlen = extlen;
-        self.lastbytes = len - capoff;
+        self.cur_extlen = extlen;
+        self.cur_bytes = len - capoff;
 
         log!(
             crate::LOG_SESSION,
-            "[{}] file::next_{}() -> ({}, {})",
+            "[{}] file::next_{}() -> ({:?}, {})",
             self.session_id,
             if out { "out" } else { "in" },
-            self.lastoff,
-            self.lastbytes
+            self.cur_pos,
+            self.cur_bytes
         );
 
-        reply_vmsg!(is, 0 as u32, capoff, self.lastbytes)?;
+        reply_vmsg!(is, 0 as u32, capoff, self.cur_bytes)?;
 
-        if self.lastsel != m3::kif::INVALID_SEL {
+        if self.cur_sel != m3::kif::INVALID_SEL {
             m3::pes::VPE::cur()
                 .revoke(
-                    m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.lastsel, 1),
+                    m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.cur_sel, 1),
                     false,
                 )
                 .unwrap();
         }
-        self.lastsel = sel;
+        self.cur_sel = sel;
 
         Ok(())
     }
@@ -421,7 +399,7 @@ impl FileSession {
         }
 
         // adjust file position
-        self.fileoff -= self.lastbytes - submit;
+        self.next_fileoff -= self.cur_bytes - submit;
 
         // add new extent?
         if let Some(ref mut append_ext) = self.append_ext.take() {
@@ -441,19 +419,18 @@ impl FileSession {
                 )?;
             }
 
-            self.extlen = blocks * blocksize;
+            self.cur_extlen = blocks * blocksize;
             // have we appended the new extent to the previous extent?
             if !new_ext {
-                self.extent -= 1;
+                self.next_pos.ext -= 1;
             }
 
-            self.lastoff = 0;
+            self.cur_pos = ExtPos::new(0, 0);
         }
 
         // we are at the end of the extent now, so move forward if not already done
-        if self.extoff >= self.extlen {
-            self.extent += 1;
-            self.extoff = 0;
+        if self.next_pos.off >= self.cur_extlen {
+            self.next_pos.next_ext();
         }
 
         // change size
@@ -485,18 +462,21 @@ impl Drop for FileSession {
         if let Some(ext) = self.append_ext.take() {
             crate::hdl()
                 .blocks()
-                .free(ext.start as usize, ext.length as usize).unwrap();
+                .free(ext.start as usize, ext.length as usize)
+                .unwrap();
         }
 
         // remove session from open_files and from its meta session
         crate::hdl().files().remove_session(self.ino).unwrap();
 
         // revoke caps if needed
-        if self.lastsel != m3::kif::INVALID_SEL {
-            m3::pes::VPE::cur().revoke(
-                m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.lastsel, 1),
-                false,
-            ).unwrap();
+        if self.cur_sel != m3::kif::INVALID_SEL {
+            m3::pes::VPE::cur()
+                .revoke(
+                    m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.cur_sel, 1),
+                    false,
+                )
+                .unwrap();
         }
     }
 }
@@ -519,16 +499,15 @@ impl M3FSSession for FileSession {
 
         log!(
             crate::LOG_SESSION,
-            "[{}] file::commit(nbytes={}); file[path={}, fileoff={}, ext={}, extoff={}]",
+            "[{}] file::commit(nbytes={}); file[path={}, fileoff={}, next={:?}]",
             self.session_id,
             nbytes,
             self.filename,
-            self.fileoff,
-            self.extent,
-            self.extoff
+            self.next_fileoff,
+            self.next_pos,
         );
 
-        if (nbytes == 0) || (nbytes > self.lastbytes) {
+        if (nbytes == 0) || (nbytes > self.cur_bytes) {
             return Err(Error::new(Code::InvArgs));
         }
 
@@ -538,17 +517,19 @@ impl M3FSSession for FileSession {
             self.commit_append(&inode, nbytes)
         }
         else {
-            if (self.extent > self.lastext) && ((self.lastoff + nbytes) > self.extlen) {
-                self.extent -= 1;
+            if (self.next_pos.ext > self.cur_pos.ext)
+                && ((self.cur_pos.off + nbytes) > self.cur_extlen)
+            {
+                self.next_pos.ext -= 1;
             }
 
-            if nbytes < self.lastbytes {
-                self.extoff = self.lastoff + nbytes;
+            if nbytes < self.cur_bytes {
+                self.next_pos.off = self.cur_pos.off + nbytes;
             }
             Ok(())
         };
 
-        self.lastbytes = 0;
+        self.cur_bytes = 0;
         if let Err(e) = res {
             Err(e)
         }
@@ -575,10 +556,11 @@ impl M3FSSession for FileSession {
         }
 
         let inode = inodes::get(self.ino)?;
-        let pos = inodes::seek(&inode, off, whence, &mut self.extent, &mut self.extoff)?;
-        self.fileoff = pos;
+        let (pos, extpos) = inodes::get_seek_pos(&inode, off, whence)?;
+        self.next_pos = extpos;
+        self.next_fileoff = pos;
 
-        reply_vmsg!(stream, 0, pos - self.extoff, self.extoff)
+        reply_vmsg!(stream, 0, pos - extpos.off, extpos.off)
     }
 
     fn fstat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {

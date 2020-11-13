@@ -18,10 +18,35 @@
 use crate::buf::MetaBufferBlockRef;
 use crate::data::{BlockNo, INodeRef};
 
+use core::fmt;
 use core::u32;
 
 use m3::cell::Cell;
 use m3::util::size_of;
+
+/// Represents a file position given by extent number and offset within the extent
+#[derive(Copy, Clone)]
+pub struct ExtPos {
+    pub ext: usize,
+    pub off: usize,
+}
+
+impl ExtPos {
+    pub fn new(ext: usize, off: usize) -> Self {
+        Self { ext, off }
+    }
+
+    pub fn next_ext(&mut self) {
+        self.ext += 1;
+        self.off = 0;
+    }
+}
+
+impl fmt::Debug for ExtPos {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ExtPos[ext={}, off={}]", self.ext, self.off)
+    }
+}
 
 /// Represents an extent as stored on disk
 #[derive(Clone, Copy, Debug)]
