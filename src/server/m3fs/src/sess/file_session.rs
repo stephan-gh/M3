@@ -402,32 +402,19 @@ impl FileSession {
             self.lastbytes
         );
 
-        if crate::hdl().revoke_first() {
-            // revoke last mem cap and remember new one
-            if self.last != m3::kif::INVALID_SEL {
-                m3::pes::VPE::cur()
-                    .revoke(
-                        m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.last, 1),
-                        false,
-                    )
-                    .unwrap();
-            }
-            self.last = sel;
-            reply_vmsg!(is, 0 as u32, capoff, self.lastbytes)
+        reply_vmsg!(is, 0 as u32, capoff, self.lastbytes)?;
+
+        if self.last != m3::kif::INVALID_SEL {
+            m3::pes::VPE::cur()
+                .revoke(
+                    m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.last, 1),
+                    false,
+                )
+                .unwrap();
         }
-        else {
-            reply_vmsg!(is, 0 as u32, capoff, self.lastbytes)?;
-            if self.last != m3::kif::INVALID_SEL {
-                m3::pes::VPE::cur()
-                    .revoke(
-                        m3::kif::CapRngDesc::new(m3::kif::CapType::OBJECT, self.last, 1),
-                        false,
-                    )
-                    .unwrap();
-            }
-            self.last = sel;
-            Ok(())
-        }
+        self.last = sel;
+
+        Ok(())
     }
 
     fn commit_append(&mut self, inode: &INodeRef, submit: usize) -> Result<(), Error> {

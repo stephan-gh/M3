@@ -373,7 +373,6 @@ pub struct FsSettings {
     extend: usize,
     max_load: usize,
     clear: bool,
-    revoke_first: bool,
     selector: Option<Selector>,
     ep: EpId,
     fs_offset: goff,
@@ -388,7 +387,6 @@ impl core::default::Default for FsSettings {
             extend: 128,
             max_load: 128,
             clear: false,
-            revoke_first: false,
             selector: None,
             ep: EP_COUNT,
             fs_offset: FS_IMG_OFFSET,
@@ -398,7 +396,7 @@ impl core::default::Default for FsSettings {
 
 fn usage() -> ! {
     println!(
-        "Usage: {} [-n <name>] [-s <sel>] [-e <blocks>] [-c] [-r] [-b <blocks>]",
+        "Usage: {} [-n <name>] [-s <sel>] [-e <blocks>] [-c] [-b <blocks>]",
         env::args().next().unwrap()
     );
     println!("       [-o <offset>] (disk|mem <fssize>)");
@@ -407,7 +405,6 @@ fn usage() -> ! {
     println!("  -s: don't create service, use selectors <sel>..<sel+1>");
     println!("  -e: the number of blocks to extend files when appending");
     println!("  -c: clear allocated blocks");
-    println!("  -r: revoke first, reply afterwards");
     println!("  -b: the maximum number of blocks loaded from the disk");
     println!("  -o: the file system offset in DRAM");
     m3::exit(1);
@@ -444,10 +441,6 @@ fn parse_args() -> Result<FsSettings, String> {
             "-c" => {
                 settings.clear = true;
                 i -= 1; // argument has no value
-            },
-            "-r" => {
-                settings.revoke_first = true;
-                i -= 1;
             },
             _ => break,
         }

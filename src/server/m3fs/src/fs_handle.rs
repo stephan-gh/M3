@@ -103,10 +103,6 @@ impl M3FSHandle {
         &mut self.files
     }
 
-    pub fn revoke_first(&self) -> bool {
-        self.settings.revoke_first
-    }
-
     pub fn clear_blocks(&self) -> bool {
         self.settings.clear
     }
