@@ -43,7 +43,7 @@ pub fn copy_from_fs(path: &str) -> usize {
 }
 
 pub fn copy_to_fs(path: &str, fs_size: usize) {
-    let out_path = path.to_string() + ".out";
+    let out_path = path.to_string() + ".out\0";
 
     unsafe {
         let fd = libc::open(
