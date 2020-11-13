@@ -86,6 +86,9 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
     let (filename, inode) = loop {
         // get directory inode
         let inode = inodes::get(ino)?;
+        if !inode.mode.is_dir() {
+            return Err(Error::new(Code::IsNoDir));
+        }
 
         // find directory entry
         let next_end = path.find('/').unwrap_or(path.len());
@@ -215,12 +218,14 @@ pub fn remove(path: &str) -> Result<(), Error> {
 
     // hardlinks to directories are not possible, thus we always have 2 ( . and ..)
     assert!(inode.links == 2, "expected 2 links, found {}", inode.links);
-    // ensure that the inode is removed
-    inode.as_mut().links -= 1;
 
-    // TODO if that fails, we have already reduced the link count!?
     let parent_inode = unlink(path, false)?;
-    inodes::decrease_links(&parent_inode)
+
+    // we have already removed the entry; if something fails now we're screwed
+    inodes::decrease_links(&parent_inode).unwrap();
+    inodes::decrease_links(&inode).unwrap();
+
+    Ok(())
 }
 
 /// Creates a link at `new_path` to `old_path`
@@ -267,8 +272,8 @@ pub fn unlink(path: &str, deny_dir: bool) -> Result<INodeRef, Error> {
     );
 
     let (dir, name) = split_path(path);
-    // cannot remove entry with empty name
-    if name.is_empty() {
+    // can't remove empty entries and internal entries
+    if name.is_empty() || name == "." || name == ".." {
         return Err(Error::new(Code::InvArgs));
     }
 
@@ -289,8 +294,8 @@ pub fn rename(old_path: &str, new_path: &str) -> Result<(), Error> {
 
     // split old path and get directory inode
     let (old_dir, old_name) = split_path(old_path);
-    // cannot rename root directory
-    if old_name.is_empty() {
+    // cannot rename root directory or internal entries
+    if old_name.is_empty() || old_name == "." || old_name == ".." {
         return Err(Error::new(Code::InvArgs));
     }
     let old_dir_ino = search(old_dir, false)?;
@@ -307,8 +312,8 @@ pub fn rename(old_path: &str, new_path: &str) -> Result<(), Error> {
 
     // find new path
     let (new_dir, new_name) = split_path(new_path);
-    // cannot rename into root directory
-    if new_name.is_empty() {
+    // cannot rename into root directory or internal entries
+    if new_name.is_empty() || new_name == "." || new_name == ".." {
         return Err(Error::new(Code::InvArgs));
     }
     let new_dir_ino = search(new_dir, false)?;

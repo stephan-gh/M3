@@ -15,7 +15,7 @@
  * General Public License version 2 for more details.
  */
 
-use crate::data::{DirEntry, INodeRef};
+use crate::data::{DirEntry, INodeRef, DIR_ENTRY_LEN};
 use crate::ops::inodes;
 
 use m3::errors::{Code, Error};
@@ -33,6 +33,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
     );
 
     let mut created = false;
+    let new_entry_size = DIR_ENTRY_LEN + name.len();
 
     'search_loop: for ext in dir.extent_iter() {
         for mut block in ext.block_iter() {
@@ -42,7 +43,7 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
                 let entry = DirEntry::from_buffer_mut(&mut block, off);
 
                 let rem = entry.next - entry.size() as u32;
-                if rem >= entry.size() as u32 {
+                if rem >= new_entry_size as u32 {
                     // change current entry
                     entry.next = entry.size() as u32;
                     let entry_next = entry.next;
