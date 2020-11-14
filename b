@@ -254,7 +254,6 @@ case "$cmd" in
         ;;
 
     clippy)
-        export SYSROOT=$XBUILD_SYSROOT_PATH
         for f in $(find src -mindepth 2 -name Cargo.toml); do
             # pemux can't be built for host
             if [ "$M3_TARGET" = "host" ] && [[ $f =~ "pemux" ]]; then
@@ -263,7 +262,7 @@ case "$cmd" in
             # gem5log is always built for the host OS (not our host target)
             target=""
             if [[ ! $f =~ "gem5log" ]]; then
-                target="--target $RUST_TARGET"
+                target="-Z build-std=core,alloc --target $RUST_TARGET"
             fi
             echo "Running clippy for $(dirname $f)..."
             ( cd $(dirname $f) && cargo clippy $target -- -A clippy::identity_op )
