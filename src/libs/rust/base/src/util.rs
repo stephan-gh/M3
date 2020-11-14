@@ -193,13 +193,13 @@ macro_rules! int_enum {
         impl $crate::serialize::Unmarshallable for $Name {
             fn unmarshall(s: &mut $crate::serialize::Source) -> Result<Self, $crate::errors::Error> {
                 let val = s.pop_word()? as $T;
-                Ok($Name { val: val })
+                Ok($Name { val })
             }
         }
 
         impl From<$T> for $Name {
             fn from(val: $T) -> Self {
-                $Name { val: val }
+                $Name { val }
             }
         }
 

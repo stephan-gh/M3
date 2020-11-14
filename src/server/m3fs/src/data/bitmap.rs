@@ -33,22 +33,22 @@ impl<'a> Bitmap<'a> {
     /// Checks if the word at `index` is 255. If `false` is returned, some bit is 0 within this
     /// word.
     pub fn is_word_set(&self, mut index: usize) -> bool {
-        index = index / Bitmap::word_size();
+        index /= Bitmap::word_size();
         self.bytes[index] == core::u8::MAX
     }
 
     pub fn is_word_unset(&self, mut index: usize) -> bool {
-        index = index / Bitmap::word_size();
+        index /= Bitmap::word_size();
         self.bytes[index] == core::u8::MIN
     }
 
     pub fn set_word(&mut self, mut index: usize) {
-        index = index / Bitmap::word_size();
+        index /= Bitmap::word_size();
         self.bytes[index] = core::u8::MAX;
     }
 
     pub fn unset_word(&mut self, mut index: usize) {
-        index = index / Bitmap::word_size();
+        index /= Bitmap::word_size();
         self.bytes[index] = core::u8::MIN;
     }
 
@@ -61,12 +61,12 @@ impl<'a> Bitmap<'a> {
 
     pub fn set_bit(&mut self, index: usize) {
         let (word_index, bit_index) = Bitmap::get_word_bit_index(index);
-        self.bytes[word_index] = self.bytes[word_index] | (1 << bit_index);
+        self.bytes[word_index] |= 1 << bit_index;
     }
 
     pub fn unset_bit(&mut self, index: usize) {
         let (word_index, bit_index) = Bitmap::get_word_bit_index(index);
-        self.bytes[word_index] = self.bytes[word_index] & (core::u8::MAX ^ (1 << bit_index));
+        self.bytes[word_index] &= core::u8::MAX ^ (1 << bit_index);
     }
 
     pub fn is_bit_set(&self, index: usize) -> bool {

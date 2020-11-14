@@ -67,7 +67,7 @@ impl M3FSHandle {
             sb.block_size as usize,
         );
 
-        let fs_handle = M3FSHandle {
+        M3FSHandle {
             backend: Box::new(backend),
             file_buffer: FileBuffer::new(sb.block_size as usize),
             meta_buffer: MetaBuffer::new(sb.block_size as usize),
@@ -78,9 +78,7 @@ impl M3FSHandle {
 
             blocks: blocks_allocator,
             inodes: inodes_allocator,
-        };
-
-        fs_handle
+        }
     }
 
     pub fn backend(&self) -> &dyn Backend {

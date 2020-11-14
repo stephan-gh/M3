@@ -183,7 +183,7 @@ impl Allocator {
             (start + total as u32 - 1)
         );
 
-        return Ok(start);
+        Ok(start)
     }
 
     pub fn free(&mut self, mut start: usize, mut count: usize) -> Result<(), Error> {

@@ -129,6 +129,7 @@ impl ExtentRef {
         }
     }
 
+    #[allow(clippy::mut_from_ref)]
     pub fn as_mut(&self) -> &mut Extent {
         self.dirty.set(true);
         // safety: valid because we keep a MetaBufferBlockRef

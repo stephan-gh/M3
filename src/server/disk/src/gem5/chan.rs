@@ -25,7 +25,6 @@ use m3::session::DiskOperation;
 use m3::tcu;
 use m3::time::Time;
 use m3::util;
-use pci;
 
 use super::ctrl::IDE_CTRL_BAR;
 use super::device::{ATAReg, BMIReg, CommandStatus, DevOp, Device, PRD};

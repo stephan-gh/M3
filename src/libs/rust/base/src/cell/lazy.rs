@@ -50,7 +50,7 @@ impl<T> LazyStaticCell<T> {
 
     /// Sets the inner value to `val` and returns the old value
     pub fn set(&self, val: T) -> Option<T> {
-        self.inner.set(Some(val)).map(|v| v)
+        self.inner.set(Some(val))
     }
 
     /// Removes the inner value and returns the old value

@@ -156,6 +156,7 @@ impl INodeRef {
         &self.block_ref
     }
 
+    #[allow(clippy::mut_from_ref)]
     pub fn as_mut(&self) -> &mut INode {
         self.dirty.set(true);
         // safety: valid because we keep a MetaBufferBlockRef

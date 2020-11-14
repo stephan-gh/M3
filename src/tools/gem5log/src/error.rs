@@ -1,4 +1,3 @@
-use log;
 use std::fmt;
 use std::io;
 use std::num;

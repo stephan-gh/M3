@@ -31,7 +31,7 @@ pub const MSG_SLOTS: usize = 1;
 
 pub type BlockNo = u32;
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct BlockRange {
     pub start: BlockNo,
     pub count: BlockNo,
@@ -50,6 +50,12 @@ impl BlockRange {
 impl fmt::Debug for BlockRange {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}..{}", self.start, self.start + self.count - 1)
+    }
+}
+
+impl cmp::PartialOrd for BlockRange {
+    fn partial_cmp(&self, other: &BlockRange) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 

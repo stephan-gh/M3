@@ -18,7 +18,6 @@ use base::cell::StaticCell;
 use base::col::{DList, Vec};
 use base::errors::{Code, Error};
 use base::tcu;
-use thread;
 
 use crate::ktcu;
 

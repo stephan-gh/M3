@@ -135,6 +135,11 @@ impl<'s> Source<'s> {
     }
 }
 
+/// Copies the given string into the given word slice
+///
+/// # Safety
+///
+/// Assumes that words has sufficient space
 pub unsafe fn copy_from_str(words: &mut [u64], s: &str) {
     let addr = words.as_mut_ptr() as usize;
     libc::memcpy(
@@ -147,6 +152,11 @@ pub unsafe fn copy_from_str(words: &mut [u64], s: &str) {
     *end = 0u8;
 }
 
+/// Copies a string of given length from the given slice
+///
+/// # Safety
+///
+/// Assumes that `s` points to a valid string of given length
 pub unsafe fn copy_str_from(s: &[u64], len: usize) -> String {
     let mut v = Vec::<u8>::with_capacity(len);
     v.set_len(len);
@@ -156,6 +166,11 @@ pub unsafe fn copy_str_from(s: &[u64], len: usize) -> String {
     String::from_utf8(v).unwrap()
 }
 
+/// Returns a reference to the string in the given slice of given length
+///
+/// # Safety
+///
+/// Assumes that `s` points to a valid string of given length
 pub unsafe fn str_slice_from(s: &[u64], len: usize) -> &'static str {
     let slice = core::slice::from_raw_parts(s.as_ptr() as *const u8, len);
     core::str::from_utf8(slice).unwrap()

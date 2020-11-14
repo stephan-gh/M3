@@ -94,7 +94,6 @@ impl OpenFiles {
             if file.deleted {
                 inodes::free(ino)?;
             }
-            drop(file);
 
             // remove OpenFile instance
             self.files.remove(&ino).unwrap();

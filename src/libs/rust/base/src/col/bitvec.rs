@@ -16,6 +16,7 @@
 
 use crate::col::Vec;
 use crate::util;
+use crate::vec;
 
 pub struct BitVec {
     bits: usize,
@@ -38,14 +39,9 @@ fn bitpos(bit: usize) -> usize {
 impl BitVec {
     pub fn new(bits: usize) -> Self {
         let word_count = (bits + word_bits() - 1) / word_bits();
-        let mut words = Vec::with_capacity(word_count);
-        for _ in 0..word_count {
-            words.push(0);
-        }
-
         BitVec {
             bits,
-            words,
+            words: vec![0; word_count],
             first_clear: 0,
         }
     }

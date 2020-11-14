@@ -29,7 +29,7 @@ use core::ptr::{NonNull, Unique};
 use crate::cap::{EPObject, GateEP, KObject};
 use crate::pes::{PEMng, State, VPEMng, VPE};
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct SelRange {
     start: CapSel,
     count: CapSel,
@@ -48,6 +48,12 @@ impl SelRange {
 impl fmt::Debug for SelRange {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.start)
+    }
+}
+
+impl cmp::PartialOrd for SelRange {
+    fn partial_cmp(&self, other: &SelRange) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 

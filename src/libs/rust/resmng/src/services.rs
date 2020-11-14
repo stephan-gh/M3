@@ -25,7 +25,8 @@ use m3::pes::VPE;
 use m3::syscalls;
 use m3::tcu::Label;
 use m3::util;
-use thread;
+
+use core::cmp::Reverse;
 
 use crate::events;
 use crate::sendqueue::SendQueue;
@@ -259,7 +260,7 @@ impl ServiceManager {
             }
         }
         // reverse sort to shutdown the services in reverse order
-        ids.sort_by(|a, b| b.cmp(a));
+        ids.sort_by_key(|&b| Reverse(b));
 
         // now send a shutdown request to all that still exist.
         // this is required, because shutdown switches the thread, so that the service list can

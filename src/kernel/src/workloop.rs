@@ -16,7 +16,6 @@
 
 use base::tcu;
 use core::intrinsics;
-use thread;
 
 use crate::com;
 use crate::ktcu;

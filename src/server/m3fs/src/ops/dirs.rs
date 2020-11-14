@@ -25,7 +25,7 @@ use m3::errors::{Code, Error};
 /// - split_path("/foo/bar.baz") == ("/foo", "bar.baz")
 /// - split_path("/foo/bar/") == ("/foo", "bar");
 /// - split_path("foo") == ("", "foo");
-fn split_path<'a>(mut path: &'a str) -> (&'a str, &'a str) {
+fn split_path(mut path: &str) -> (&str, &str) {
     // skip trailing slashes
     while path.ends_with('/') {
         path = &path[..path.len() - 1];
@@ -43,8 +43,8 @@ fn split_path<'a>(mut path: &'a str) -> (&'a str, &'a str) {
 
 fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
     for ext in inode.extent_iter() {
-        for mut block in ext.block_iter() {
-            let entry_iter = DirEntryIterator::from_block(&mut block);
+        for block in ext.block_iter() {
+            let entry_iter = DirEntryIterator::from_block(&block);
             while let Some(entry) = entry_iter.next() {
                 if entry.name() == name {
                     return Ok(entry.nodeno);
@@ -91,7 +91,7 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
         }
 
         // find directory entry
-        let next_end = path.find('/').unwrap_or(path.len());
+        let next_end = path.find('/').unwrap_or_else(|| path.len());
         let filename = &path[..next_end];
         let next_ino = find_entry(&inode, filename);
 
@@ -206,8 +206,8 @@ pub fn remove(path: &str) -> Result<(), Error> {
 
     // check whether it's empty
     for ext in inode.extent_iter() {
-        for mut block in ext.block_iter() {
-            let entry_iter = DirEntryIterator::from_block(&mut block);
+        for block in ext.block_iter() {
+            let entry_iter = DirEntryIterator::from_block(&block);
             while let Some(entry) = entry_iter.next() {
                 if entry.name() != "." && entry.name() != ".." {
                     return Err(Error::new(Code::DirNotEmpty));

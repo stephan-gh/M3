@@ -47,7 +47,6 @@ pub fn create(dir: &INodeRef, name: &str, inode: &INodeRef) -> Result<(), Error>
                     // change current entry
                     entry.next = entry.size() as u32;
                     let entry_next = entry.next;
-                    drop(entry);
 
                     // create new entry behind it
                     let new_entry =
@@ -118,7 +117,6 @@ pub fn remove(dir: &INodeRef, name: &str, deny_dir: bool) -> Result<(), Error> {
                     }
 
                     let entry_next = entry.next;
-                    drop(entry);
 
                     // remove entry by skipping over it
                     if off > 0 {

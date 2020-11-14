@@ -179,7 +179,7 @@ impl MetaBuffer {
     }
 
     fn bno_to_id(&self, bno: BlockNo) -> Option<usize> {
-        self.ids.get(&bno).map(|id| *id)
+        self.ids.get(&bno).copied()
     }
 
     fn get_block_by_id(&self, id: usize) -> &MetaBufferBlock {
@@ -198,32 +198,26 @@ impl MetaBuffer {
     pub fn get_block(&mut self, bno: BlockNo) -> Result<MetaBufferBlockRef, Error> {
         log!(crate::LOG_BUFFER, "metabuffer::get_block(bno={})", bno,);
 
-        loop {
-            if let Some(id) = self.bno_to_id(bno) {
-                // workaround for borrow-checker: don't use our convenience function
-                let block = unsafe { &mut (*self.blocks[id].as_ptr()) };
+        while let Some(id) = self.bno_to_id(bno) {
+            // workaround for borrow-checker: don't use our convenience function
+            let block = unsafe { &mut (*self.blocks[id].as_ptr()) };
 
-                if block.locked {
-                    thread::ThreadManager::get().wait_for(block.unlock);
-                }
-                else {
-                    // move element to back since it was touched
-                    unsafe {
-                        self.lru.move_to_back(block);
-                    }
-
-                    log!(
-                        crate::LOG_BUFFER,
-                        "metabuffer: found cached block <{}>, links: {}",
-                        block.bno,
-                        block.links + 1,
-                    );
-                    return Ok(MetaBufferBlockRef::new(block.id));
-                }
+            if block.locked {
+                thread::ThreadManager::get().wait_for(block.unlock);
             }
             else {
-                // no block for block number, therefore allocate
-                break;
+                // move element to back since it was touched
+                unsafe {
+                    self.lru.move_to_back(block);
+                }
+
+                log!(
+                    crate::LOG_BUFFER,
+                    "metabuffer: found cached block <{}>, links: {}",
+                    block.bno,
+                    block.links + 1,
+                );
+                return Ok(MetaBufferBlockRef::new(block.id));
             }
         }
 

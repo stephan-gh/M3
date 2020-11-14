@@ -20,7 +20,6 @@ use base::goff;
 use base::kif::{self, CapSel};
 use base::rc::Rc;
 use base::tcu;
-use thread;
 
 use crate::arch::loader::Loader;
 use crate::cap::{Capability, KObject};
@@ -175,10 +174,8 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let srv_root = srvcap.get_root();
 
     // walk through the childs to find the session with given id (only root cap can create sessions)
-    let mut csess = srv_root.find_child(|c| match c.get() {
-        KObject::Sess(s) if s.ident() == sid => true,
-        _ => false,
-    });
+    let mut csess =
+        srv_root.find_child(|c| matches!(c.get(), KObject::Sess(s) if s.ident() == sid));
     if let Some(KObject::Sess(s)) = csess.as_mut().map(|c| c.get()) {
         if s.creator() != creator {
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");

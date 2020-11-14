@@ -15,7 +15,6 @@
  */
 
 use m3::cell::StaticCell;
-use thread;
 
 pub fn alloc_unique_id() -> u64 {
     static NEXT_ID: StaticCell<u64> = StaticCell::new(0);

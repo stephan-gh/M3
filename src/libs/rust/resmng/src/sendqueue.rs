@@ -21,7 +21,6 @@ use m3::com::{RecvGate, SendGate};
 use m3::errors::Error;
 use m3::log;
 use m3::tcu;
-use thread;
 
 use crate::childs::Id;
 use crate::events;

@@ -24,7 +24,6 @@ use base::tcu::{EpId, Label, PEId};
 use base::util;
 use core::fmt;
 use core::ptr;
-use thread;
 
 use crate::com::Service;
 use crate::mem;

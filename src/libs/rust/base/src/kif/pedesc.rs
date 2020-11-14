@@ -103,10 +103,7 @@ impl PEDesc {
 
     /// Returns whether the PE executes software
     pub fn is_programmable(self) -> bool {
-        match self.isa() {
-            PEISA::X86 | PEISA::ARM | PEISA::RISCV => true,
-            _ => false,
-        }
+        matches!(self.isa(), PEISA::X86 | PEISA::ARM | PEISA::RISCV)
     }
 
     /// Return if the PE supports multiple contexts

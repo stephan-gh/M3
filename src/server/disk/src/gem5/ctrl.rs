@@ -22,7 +22,6 @@ use m3::kif;
 use m3::log;
 use m3::rc::Rc;
 use m3::session::DiskOperation;
-use pci;
 
 use super::chan::Channel;
 use super::PartDesc;

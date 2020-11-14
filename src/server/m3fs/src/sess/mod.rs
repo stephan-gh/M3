@@ -33,10 +33,7 @@ pub enum FSSession {
 
 impl FSSession {
     pub fn is_file_session(&self) -> bool {
-        match self {
-            FSSession::File(_) => true,
-            _ => false,
-        }
+        matches!(self, FSSession::File(_))
     }
 }
 

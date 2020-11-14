@@ -100,7 +100,7 @@ impl M3FSRequestHandler {
     {
         // init thread manager, otherwise the waiting within the file and meta buffer impl. panics.
         thread::init();
-        FSHANDLE.set(Some(M3FSHandle::new(backend, settings.clone())));
+        FSHANDLE.set(Some(M3FSHandle::new(backend, settings)));
 
         let container = SessionContainer::new(m3::server::DEF_MAX_CLIENTS);
 
@@ -223,10 +223,8 @@ impl Handler<FSSession> for M3FSRequestHandler {
     ) -> Result<(Selector, SessId), Error> {
         // get max number of files
         let mut max_files: usize = 16;
-        if arg.len() > 6 {
-            if &arg[..6] == "file=" {
-                max_files = arg[6..].parse().map_err(|_| Error::new(Code::InvArgs))?;
-            }
+        if arg.len() > 6 && &arg[..6] == "file=" {
+            max_files = arg[6..].parse().map_err(|_| Error::new(Code::InvArgs))?;
         }
 
         // get the id this session would belong to.
@@ -448,17 +446,15 @@ pub fn main() -> i32 {
     log!(crate::LOG_DEF, "{:#?}", settings);
 
     // create backend for the file system
-    let mut hdl = match settings.backend.as_str() {
-        "mem" => {
-            let backend = MemBackend::new(settings.fs_offset, settings.fs_size);
-            M3FSRequestHandler::new(backend, settings.clone())
-                .expect("Failed to create m3fs handler based on memory backend")
-        },
-        "disk" | _ => {
-            let backend = DiskBackend::new().expect("Failed to initialize disk backend!");
-            M3FSRequestHandler::new(backend, settings.clone())
-                .expect("Failed to create m3fs handler based on disk backend")
-        },
+    let mut hdl = if settings.backend == "mem" {
+        let backend = MemBackend::new(settings.fs_offset, settings.fs_size);
+        M3FSRequestHandler::new(backend, settings.clone())
+            .expect("Failed to create m3fs handler based on memory backend")
+    }
+    else {
+        let backend = DiskBackend::new().expect("Failed to initialize disk backend!");
+        M3FSRequestHandler::new(backend, settings.clone())
+            .expect("Failed to create m3fs handler based on disk backend")
     };
 
     // create new server for file system and pass on selector to handler

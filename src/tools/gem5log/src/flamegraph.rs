@@ -296,10 +296,10 @@ fn handle_return(
         // generate stack
         let stack = if mode == crate::Mode::FlameGraph {
             let mut stack: String = format!("PE{}", pe);
-            stack.push_str(";");
+            stack.push(';');
             stack.push_str(&format!("{}", tid));
             for f in thread.stack.iter() {
-                stack.push_str(";");
+                stack.push(';');
                 stack.push_str(&f.func);
             }
             Some(stack)
