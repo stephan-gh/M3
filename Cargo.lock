@@ -137,8 +137,9 @@ dependencies = [
 name = "peidle"
 version = "0.1.0"
 dependencies = [
- "base 0.1.0",
- "isr 0.1.0",
+ "base",
+ "heap",
+ "isr",
 ]
 
 [[package]]

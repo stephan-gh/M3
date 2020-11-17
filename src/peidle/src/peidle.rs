@@ -19,6 +19,7 @@
 #![no_std]
 
 extern crate base;
+extern crate heap;
 
 use base::cell::StaticCell;
 use base::cfg;
