@@ -29,10 +29,12 @@ class TCU;
 
 namespace m3 {
 
+class Machine;
 class TCUIf;
 
 class TCU {
     friend class kernel::TCU;
+    friend class Machine;
     friend class TCUIf;
 
     explicit TCU() {

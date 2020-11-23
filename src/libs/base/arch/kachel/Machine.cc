@@ -44,12 +44,7 @@ int Machine::write(const char *str, size_t len) {
         gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
     }
     else {
-        static volatile uint64_t *signal    = reinterpret_cast<uint64_t*>(SERIAL_SIGNAL);
-
-        strcpy(reinterpret_cast<char*>(SERIAL_BUF), str);
-        *signal = len;
-        while(*signal != 0)
-            ;
+        TCU::get().write(PRINT_EP, str, len, 0);
     }
     return 0;
 }

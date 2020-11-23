@@ -41,7 +41,9 @@ pub type VPEId = u16;
 #[cfg(target_vendor = "gem5")]
 pub const EP_COUNT: EpId = 192;
 #[cfg(target_vendor = "hw")]
-pub const EP_COUNT: EpId = 64;
+pub const EP_COUNT: EpId = 63;
+#[cfg(target_vendor = "hw")]
+pub const PRINT_EP: EpId = 63;
 
 /// The send EP for kernel calls from PEMux
 pub const KPEX_SEP: EpId = 0;

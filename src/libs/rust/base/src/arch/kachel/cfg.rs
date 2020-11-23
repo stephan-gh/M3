@@ -53,13 +53,9 @@ pub const STACK_TOP: usize                  = STACK_BOTTOM + STACK_SIZE;
 
 pub const FIXED_KMEM: usize                 = 2 * 1024 * 1024;
 
-pub const SERIAL_SIGNAL: usize              = MEM_OFFSET + 0x1F_0000;
-pub const SERIAL_BUF: usize                 = MEM_OFFSET + 0x1F_0008;
-pub const SERIAL_SIZE: usize                = 0x1000;
-
 cfg_if! {
     if #[cfg(target_vendor = "hw")] {
-        pub const STACK_BOTTOM: usize       = MEM_OFFSET + 0x1E_0000;
+        pub const STACK_BOTTOM: usize       = MEM_OFFSET + 0x1F_0000;
 
         pub const PEMUX_START: usize        = MEM_OFFSET;
         pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x1F_F000;

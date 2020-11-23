@@ -14,13 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-use core::ptr;
-
 use crate::arch::envdata;
 use crate::arch::tcu;
-use crate::cfg;
 use crate::errors::Error;
-use crate::libc;
 
 extern "C" {
     pub fn gem5_writefile(src: *const u8, len: u64, offset: u64, file: u64);
@@ -46,18 +42,7 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
         }
     }
     else {
-        let signal = cfg::SERIAL_SIGNAL as *mut u64;
-        let serbuf = cfg::SERIAL_BUF as *mut i8;
-        unsafe {
-            libc::memcpy(
-                serbuf as *mut libc::c_void,
-                buf.as_ptr() as *const libc::c_void,
-                buf.len(),
-            );
-            *serbuf.add(buf.len()) = 0;
-            *signal = buf.len() as u64;
-            while ptr::read_volatile(signal) != 0 {}
-        }
+        tcu::TCU::write(tcu::PRINT_EP, buf.as_ptr(), buf.len(), 0)?;
     }
     Ok(buf.len())
 }

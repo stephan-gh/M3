@@ -9,13 +9,11 @@ import os, sys
 import modids
 import fpga_top
 from noc import NoCmonitor
+from tcu import MemEP, Flags
 from fpga_utils import FPGA_Error
 import memory
 
 ENV = 0x10100000
-SERIAL_BUF = 0x101F0008
-SERIAL_BUFSIZE = 0x1000 - 8
-SERIAL_ACK = 0x101F0000
 MEM_SIZE = 2 * 1024 * 1024
 DRAM_SIZE = 2 * 1024 * 1024 * 1024
 MAX_FS_SIZE = 256 * 1024 * 1024
@@ -35,22 +33,6 @@ def write_str(pm, str, addr):
     buf = bytearray(str.encode())
     buf += b'\x00'
     pm.mem.write_bytes(addr, bytes(buf), burst=False) # TODO enable burst
-
-def fetch_print(pm):
-    length = read_u64(pm, SERIAL_ACK)
-    if length != 0 and length <= SERIAL_BUFSIZE:
-        line = read_str(pm, SERIAL_BUF, length)
-        sys.stdout.write(line)
-        sys.stdout.write('\033[0m')
-        sys.stdout.flush()
-
-        write_u64(pm, SERIAL_ACK, 0)
-        if "Shutting down" in line:
-            return 2
-        return 1
-    elif length != 0:
-        print("Got invalid length from %s: %u" % (pm.name, length))
-    return 0
 
 def glob_addr(pe, offset):
     return (0x80 + pe) << 56 | offset
@@ -113,6 +95,13 @@ def load_prog(pm, i, args):
     # make privileged
     pm.tcu_set_privileged(1)
 
+    # install EP for prints
+    print_ep = MemEP()
+    print_ep.set_pe(modids.MODID_ETH)
+    print_ep.set_flags(Flags.WRITE)
+    print_ep.set_size(256)
+    pm.tcu_set_ep(63, print_ep)
+
     # load ELF file
     pm.mem.write_elf(args[0])
     sys.stdout.flush()
@@ -135,8 +124,8 @@ def load_prog(pm, i, args):
 
     # write arguments to memory
     args_addr = argv + len(args) * 8
-    for (i, a) in enumerate(args, 0):
-        write_u64(pm, argv + i * 8, args_addr)
+    for (idx, a) in enumerate(args, 0):
+        write_u64(pm, argv + idx * 8, args_addr)
         write_str(pm, a, args_addr)
         args_addr += (len(a) + 1 + 7) & ~7
         if args_addr > ENV + 0x800:
@@ -161,9 +150,8 @@ def main():
     if args.reset:
         fpga_inst.eth_rf.system_reset()
 
-    mods = [] if args.mod is None else args.mod
-
     # load boot info into DRAM
+    mods = [] if args.mod is None else args.mod
     load_boot_info(fpga_inst.dram1, mods)
 
     # load file system into DRAM, if there is any
@@ -171,25 +159,23 @@ def main():
         write_file(fpga_inst.dram1, args.fs, 0)
 
     # load programs onto PEs
-    pms = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]
+    pes = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]
     for i, peargs in enumerate(args.pe, 0):
-        load_prog(pms[i], i, peargs.split(' '))
+        load_prog(pes[i], i, peargs.split(' '))
 
     # wait for prints
-    run = True
-    while run:
-        counter = 0
-        for pm in pms:
-            res = fetch_print(pm)
-            if res == 2:
-                run = False
-            else:
-                counter += res
+    while True:
+        msg = fpga_inst.nocif.receive_bytes().decode()
+        sys.stdout.write(msg)
+        sys.stdout.write('\033[0m')
+        sys.stdout.flush()
+        if "Shutting down" in msg:
+            break
 
     # stop all PEs
     print("Stopping all PEs...")
-    for pm in pms:
-        pm.stop()
+    for pe in pes:
+        pe.stop()
 
 try:
     main()

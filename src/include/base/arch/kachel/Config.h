@@ -33,7 +33,8 @@
 #define EPMEM_SIZE          0
 
 #if defined(__hw__)
-#   define EP_COUNT         64
+#   define EP_COUNT         63
+#   define PRINT_EP         63
 #else
 #   define EP_COUNT         192
 #endif
@@ -50,15 +51,13 @@
 // +----------------------------+ 0x10000000
 // |          PEMux code        |
 // +----------------------------+ 0x10040000
-// |           App code         |
+// |           app code         |
 // +----------------------------+ 0x10100000
 // |       env + PEMux data     |
 // +----------------------------+ 0x10104000
 // |          app data          |
-// +----------------------------+ 0x101E0000
-// |          app stack         |
 // +----------------------------+ 0x101F0000
-// |         serial buf         |
+// |          app stack         |
 // +----------------------------+ 0x101F1000
 // |      app recv buffers      |
 // +----------------------------+ 0x101FF000
@@ -112,10 +111,6 @@
 #define RBUF_SIZE           (0x10000000 - RBUF_STD_SIZE)
 #define RBUF_SIZE_SPM       0xE000
 
-#define SERIAL_SIGNAL       (MEM_OFFSET + 0x1F0000)
-#define SERIAL_BUF          (MEM_OFFSET + 0x1F0008)
-#define SERIAL_SIZE         0x1000
-
 #define PE_MEM_BASE         0xE0000000
 
 #if defined(__hw__)
@@ -129,7 +124,7 @@
 #   define PEMUX_DATA_START (ENV_START + 0x800)
 #   define PEMUX_DATA_SIZE  (APP_DATA_START - PEMUX_DATA_START)
 
-#   define STACK_BOTTOM     (MEM_OFFSET + 0x1E0000)
+#   define STACK_BOTTOM     (MEM_OFFSET + 0x1F0000)
 
 #   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x1FF000)
 #else
