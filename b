@@ -134,6 +134,8 @@ help() {
     echo "    M3_HW_SSH:               The SSH alias for the FPGA PC (default: syn)"
     echo "    M3_HW_FPGA:              The FPGA number (default 0 = IP 192.168.42.240)"
     echo "    M3_HW_RESET:             Reset the FPGA before starting"
+    echo "    M3_HW_PAUSE:             Pause the PE with given number at startup"
+    echo "                             (only on hw and with command dbg=)."
     exit 0
 }
 
@@ -362,7 +364,36 @@ case "$cmd" in
             killall -9 gem5.opt
             rm $gdbcmd
         else
-            echo "Not supported"
+            if [ "$M3_HW_PAUSE" = "" ]; then
+                echo "Please set M3_HW_PAUSE to the PE to debug."
+                exit 1
+            fi
+            ./src/tools/execute.sh $script --debug=${cmd#dbg=} &>/dev/null &
+
+            port=$((3342 + $M3_HW_PAUSE))
+            ssh -N -L 30000:localhost:$port ${M3_HW_SSH:-syn} 2>/dev/null &
+            trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+
+            echo -n "Connecting..."
+            time=0
+            while [ "$(telnet localhost 30000 2>/dev/null | grep '\+')" = "" ]; do
+                # after some warmup, detect if something went wrong
+                if [ $time -gt 5 ]; then
+                    ssh ${M3_HW_SSH:-syn} "test -e m3/.running" || { echo "Remote side stopped." && exit 1; }
+                fi
+                echo -n "."
+                sleep 1
+                time=$((time + 1))
+            done
+
+            gdbcmd=`mktemp`
+            echo "target remote localhost:30000" > $gdbcmd
+            echo "display/i \$pc" >> $gdbcmd
+            echo "set \$t0 = 0" >> $gdbcmd          # ensure that we set the default stack pointer
+            echo "set \$pc = 0x10000000" >> $gdbcmd # go to entry point
+            echo "b env_run" >> $gdbcmd
+
+            RUST_GDB=${crossprefix}gdb rust-gdb --tui $bindir/${cmd#dbg=} --command=$gdbcmd
         fi
         ;;
 

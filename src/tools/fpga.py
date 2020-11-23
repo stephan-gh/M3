@@ -82,7 +82,7 @@ def load_boot_info(dram, mods):
     write_u64(dram, kenv_off, DRAM_SIZE - MAX_FS_SIZE - KENV_SIZE) # size
     kenv_off += 8
 
-def load_prog(pm, i, args):
+def load_prog(pm, i, args, debug_pe):
     print("%s: loading %s..." % (pm.name, args[0]))
     sys.stdout.flush()
 
@@ -131,8 +131,10 @@ def load_prog(pm, i, args):
         if args_addr > ENV + 0x800:
             sys.exit("Not enough space for arguments")
 
-    # start core (via interrupt 0)
-    pm.rocket_start()
+    if debug_pe != i:
+        # start core (via interrupt 0)
+        pm.rocket_start()
+    sys.stdout.flush()
 
 def main():
     mon = NoCmonitor()
@@ -140,6 +142,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--fpga', type=int)
     parser.add_argument('--reset', action='store_true')
+    parser.add_argument('--debug', type=int)
     parser.add_argument('--pe', action='append')
     parser.add_argument('--mod', action='append')
     parser.add_argument('--fs')
@@ -160,8 +163,15 @@ def main():
 
     # load programs onto PEs
     pes = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]
+    debug_pe = len(pes) if args.debug is None else args.debug
     for i, peargs in enumerate(args.pe, 0):
-        load_prog(pes[i], i, peargs.split(' '))
+        load_prog(pes[i], i, peargs.split(' '), debug_pe)
+
+    # signal run.sh that everything has been loaded
+    if not args.debug is None:
+        ready = open('.ready', 'w')
+        ready.write('1')
+        ready.close()
 
     # wait for prints
     while True:

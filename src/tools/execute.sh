@@ -155,7 +155,7 @@ build_params_hw() {
     kargs=$(perl -ne 'printf("%s;", $1) if /<kernel\s.*args="(.*?)"/' < $M3_OUT/boot-all.xml)
     mods=$(perl -ne 'printf("%s;", $1) if /app\s.*args="([^\/"\s]+).*"/' < $M3_OUT/boot-all.xml)
 
-    args="--fpga ${M3_HW_FPGA:-0} --mod boot.xml"
+    args="--mod boot.xml"
     if [ "$M3_HW_RESET" = "1" ]; then
         args="$args --reset"
     fi
@@ -184,9 +184,41 @@ build_params_hw() {
         args="$args --fs $(basename $build/$M3_FS)"
     fi
 
-    rsync -z src/tools/fpga.py $files $hwssh:m3
+    fpga="--fpga ${M3_HW_FPGA:-0}"
 
-    ssh -t $hwssh "cd m3 && source setup.sh && ./fpga.py $args | tee log.txt"
+    echo -n > $M3_OUT/run.sh
+    echo "#!/bin/sh" >> $M3_OUT/run.sh
+    echo "export PYTHONPATH=\$HOME/tcu/fpga_tools/python:\$PYTHONPATH" >> $M3_OUT/run.sh
+    echo "export PYTHONPATH=\$HOME/tcu/fpga_tools/pyelftools-0.26:\$PYTHONPATH" >> $M3_OUT/run.sh
+    # echo "export RUST_FILE_LOG=debug" >> $M3_OUT/run.sh
+    echo "" >> $M3_OUT/run.sh
+    if [ "$debug" != "" ]; then
+        # start everything
+        echo 'echo -n > .running' >> $M3_OUT/run.sh
+        echo 'trap "rm -f .running 2>/dev/null" SIGINT SIGTERM EXIT' >> $M3_OUT/run.sh
+        echo 'rm -f .ready' >> $M3_OUT/run.sh
+        echo "python3 ./fpga.py $fpga $args --debug $M3_HW_PAUSE &>log.txt &" >> $M3_OUT/run.sh
+        # wait until it's finished or failed
+        echo 'fpga=$!' >> $M3_OUT/run.sh
+        echo 'echo "Waiting until FPGA has been initialized..."' >> $M3_OUT/run.sh
+        echo 'while [ "`cat .ready 2>/dev/null`" = "" ] && [ -f /proc/$fpga/cmdline ]; do sleep 1; done' >> $M3_OUT/run.sh
+        # stop if it failed
+        echo '[ -f /proc/$fpga/cmdline ] || { cat log.txt && exit 1; }' >> $M3_OUT/run.sh
+        # make sure we clean up everything
+        echo 'trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT' >> $M3_OUT/run.sh
+        # start openocd
+        echo 'OPENOCD=$HOME/tcu/fpga_tools/debug' >> $M3_OUT/run.sh
+        echo '$OPENOCD/openocd -f $OPENOCD/fpga_switch.cfg >openocd.log 2>&1' >> $M3_OUT/run.sh
+
+        # make sure that openocd is stopped
+        trap "ssh -t $hwssh 'killall openocd'" ERR INT TERM
+    else
+        echo "python3 ./fpga.py $fpga $args 2>&1 | tee log.txt" >> $M3_OUT/run.sh
+    fi
+
+    rsync -z src/tools/fpga.py $files $M3_OUT/run.sh $hwssh:m3
+
+    ssh -t $hwssh "cd m3 && sh run.sh"
     scp $hwssh:m3/log.txt $M3_OUT
 }
 
