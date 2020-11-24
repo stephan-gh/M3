@@ -56,7 +56,7 @@
 // |       env + PEMux data     |
 // +----------------------------+ 0x10104000
 // |          app data          |
-// +----------------------------+ 0x101F0000
+// +----------------------------+ 0x101E1000
 // |          app stack         |
 // +----------------------------+ 0x101F1000
 // |      app recv buffers      |
@@ -124,7 +124,7 @@
 #   define PEMUX_DATA_START (ENV_START + 0x800)
 #   define PEMUX_DATA_SIZE  (APP_DATA_START - PEMUX_DATA_START)
 
-#   define STACK_BOTTOM     (MEM_OFFSET + 0x1F0000)
+#   define STACK_BOTTOM     (MEM_OFFSET + 0x1E1000)
 
 #   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x1FF000)
 #else
