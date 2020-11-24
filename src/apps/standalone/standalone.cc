@@ -547,7 +547,9 @@ static void test_msg(size_t msg_size_in, size_t reply_size_in) {
 template<size_t PAD>
 struct UnalignedData {
     uint8_t _pad[PAD];
-    uint64_t data[2];
+    uint64_t pre;
+    uint64_t data[3];
+    uint64_t post;
 } PACKED ALIGNED(16);
 
 template<size_t PAD>
@@ -557,6 +559,7 @@ static void test_unaligned_msg(size_t nwords) {
     const size_t TOTAL_MSG_ORD = m3::nextlog2<sizeof(UnalignedData<PAD>)>::val;
 
     ALIGNED(8) char rbuffer[1 << TOTAL_MSG_ORD];
+    memset(rbuffer, -1, sizeof(rbuffer));
     uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
 
     // prepare test data
@@ -586,25 +589,31 @@ static void test_unaligned_msg(size_t nwords) {
     const uint64_t *msg_ctrl = reinterpret_cast<const uint64_t*>(rmsg->data);
     for(size_t i = 0; i < nwords; ++i)
         ASSERT_EQ(msg_ctrl[i], i + 1);
+    ASSERT_EQ(msg_ctrl[nwords], static_cast<uint64_t>(-1));
 
     // free slot
     ASSERT_EQ(kernel::TCU::ack_msg(1, buf, rmsg), Errors::NONE);
 }
 
 template<size_t PAD>
-static void test_unaligned_rdwr(size_t nwords) {
-    Serial::get() << "READ+WRITE with " << PAD << "B padding and " << nwords << " words data\n";
+static void test_unaligned_rdwr(size_t nwords, size_t offset) {
+    Serial::get() << "READ+WRITE with " << PAD << "B padding and "
+                  << nwords << " words data from offset " << offset << "\n";
 
     // prepare test data
     UnalignedData<PAD> msg;
+    msg.pre = 0xDEADBEEF;
+    msg.post = 0xCAFEBABE;
     for(size_t i = 0; i < nwords; ++i)
         msg.data[i] = i + 1;
 
     kernel::TCU::config_mem(1, pe_id(PE::MEM), 0x1000, 0x1000, TCU::R | TCU::W);
 
-    ASSERT_EQ(kernel::TCU::write(1, msg.data, nwords * sizeof(uint64_t), 0), Errors::NONE);
-    ASSERT_EQ(kernel::TCU::read(1, msg.data, nwords * sizeof(uint64_t), 0), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::write(1, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::read(1, msg.data, nwords * sizeof(uint64_t), offset), Errors::NONE);
 
+    ASSERT_EQ(msg.pre, 0xDEADBEEF);
+    ASSERT_EQ(msg.post, 0xCAFEBABE);
     for(size_t i = 0; i < nwords; ++i)
         ASSERT_EQ(msg.data[i], i + 1);
 }
@@ -699,7 +708,7 @@ int main() {
     }
 
     // test different alignments
-    for(size_t i = 1; i <= 2; ++i) {
+    for(size_t i = 1; i <= 3; ++i) {
         test_unaligned_msg<1>(i);
         test_unaligned_msg<2>(i);
         test_unaligned_msg<3>(i);
@@ -716,21 +725,24 @@ int main() {
         test_unaligned_msg<14>(i);
         test_unaligned_msg<15>(i);
 
-        test_unaligned_rdwr<1>(i);
-        test_unaligned_rdwr<2>(i);
-        test_unaligned_rdwr<3>(i);
-        test_unaligned_rdwr<4>(i);
-        test_unaligned_rdwr<5>(i);
-        test_unaligned_rdwr<6>(i);
-        test_unaligned_rdwr<7>(i);
-        test_unaligned_rdwr<8>(i);
-        test_unaligned_rdwr<9>(i);
-        test_unaligned_rdwr<10>(i);
-        test_unaligned_rdwr<11>(i);
-        test_unaligned_rdwr<12>(i);
-        test_unaligned_rdwr<13>(i);
-        test_unaligned_rdwr<14>(i);
-        test_unaligned_rdwr<15>(i);
+        for(size_t off = 0; off < 16; off += 8) {
+            test_unaligned_rdwr<1>(i, off);
+            test_unaligned_rdwr<2>(i, off);
+            test_unaligned_rdwr<3>(i, off);
+            test_unaligned_rdwr<4>(i, off);
+            test_unaligned_rdwr<5>(i, off);
+            test_unaligned_rdwr<6>(i, off);
+            test_unaligned_rdwr<7>(i, off);
+            test_unaligned_rdwr<8>(i, off);
+            test_unaligned_rdwr<9>(i, off);
+            test_unaligned_rdwr<10>(i, off);
+            test_unaligned_rdwr<11>(i, off);
+            test_unaligned_rdwr<12>(i, off);
+            test_unaligned_rdwr<13>(i, off);
+            test_unaligned_rdwr<14>(i, off);
+            test_unaligned_rdwr<15>(i, off);
+            test_unaligned_rdwr<16>(i, off);
+        }
     }
 
     Serial::get() << "\x1B[1;32mAll tests successful!\x1B[0;m\n";
