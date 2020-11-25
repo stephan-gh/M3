@@ -43,7 +43,6 @@ use base::machine;
 use base::tcu;
 use base::util;
 use cfg_if::cfg_if;
-use core::intrinsics;
 
 /// Logs errors
 pub const LOG_ERR: bool = true;
@@ -91,7 +90,7 @@ pub fn pex_env() -> &'static PEXEnv {
 }
 
 pub fn app_env() -> &'static mut envdata::EnvData {
-    unsafe { intrinsics::transmute(cfg::ENV_START) }
+    unsafe { &mut *(cfg::ENV_START as *mut _) }
 }
 
 pub struct PagefaultMessage {

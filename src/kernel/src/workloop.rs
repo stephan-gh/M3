@@ -16,7 +16,6 @@
 
 use base::envdata;
 use base::tcu;
-use core::intrinsics;
 
 use crate::com;
 use crate::ktcu;
@@ -50,7 +49,7 @@ pub fn workloop() {
 
         if let Some(msg) = ktcu::fetch_msg(ktcu::KSRV_EP) {
             unsafe {
-                let squeue: *mut com::SendQueue = intrinsics::transmute(msg.header.label as usize);
+                let squeue: *mut com::SendQueue = msg.header.label as usize as *mut _;
                 (*squeue).received_reply(msg);
             }
         }

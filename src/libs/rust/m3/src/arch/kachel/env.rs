@@ -15,7 +15,6 @@
  */
 
 use core::cmp;
-use core::intrinsics;
 
 use crate::cap::Selector;
 use crate::cfg;
@@ -106,7 +105,7 @@ impl EnvData {
 
     pub fn vpe(&self) -> &'static mut VPE {
         // safety: we trust our loader
-        unsafe { intrinsics::transmute(self.base.vpe_addr as usize) }
+        unsafe { &mut *(self.base.vpe_addr as usize as *mut _) }
     }
 
     pub fn load_pager(&self) -> Option<Pager> {
@@ -196,10 +195,10 @@ impl EnvData {
 
 pub fn get() -> &'static mut EnvData {
     // safety: we trust our loader
-    unsafe { intrinsics::transmute(cfg::ENV_START) }
+    unsafe { &mut *(cfg::ENV_START as *mut _) }
 }
 
 pub fn closure() -> &'static mut env::Closure {
     // safety: we trust our loader
-    unsafe { intrinsics::transmute(cfg::ENV_START + util::size_of::<EnvData>()) }
+    unsafe { &mut *((cfg::ENV_START + util::size_of::<EnvData>()) as *mut _) }
 }

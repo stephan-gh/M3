@@ -14,8 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use core::intrinsics;
-
 use crate::cfg;
 
 #[derive(Default, Copy, Clone)]
@@ -57,5 +55,5 @@ pub struct EnvData {
 
 pub fn get() -> &'static EnvData {
     // safety: the cast is okay because we trust our loader to put the environment at that place
-    unsafe { intrinsics::transmute(cfg::ENV_START) }
+    unsafe { &*(cfg::ENV_START as *const _) }
 }

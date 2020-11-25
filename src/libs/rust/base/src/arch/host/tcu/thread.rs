@@ -618,7 +618,7 @@ fn handle_command(backend: &backend::SocketBackend) {
 fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
     let buf = buffer();
     if let Some(size) = backend.receive(ep, buf) {
-        match Command::from(buf.header.opcode) {
+        match Command::from(buf.header.opcode as Reg) {
             Command::SEND | Command::REPLY => handle_msg(ep, size),
             Command::READ => handle_read_cmd(backend, ep).unwrap(),
             Command::WRITE => handle_write_cmd(backend, ep).unwrap(),

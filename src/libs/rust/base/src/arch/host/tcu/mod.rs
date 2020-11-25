@@ -131,12 +131,6 @@ int_enum! {
     }
 }
 
-impl From<u8> for Command {
-    fn from(cmd: u8) -> Self {
-        unsafe { intrinsics::transmute(Reg::from(cmd)) }
-    }
-}
-
 bitflags! {
     struct Control : Reg {
         const NONE        = 0b000;
@@ -412,7 +406,7 @@ impl TCU {
 
     fn ep_addr(ep: EpId, reg: usize) -> &'static mut Reg {
         let off = (ep as usize * EP_REGS + reg as usize) * util::size_of::<Reg>();
-        unsafe { intrinsics::transmute(arch::envdata::eps_start() + off) }
+        unsafe { &mut *((arch::envdata::eps_start() + off) as *mut _) }
     }
 }
 

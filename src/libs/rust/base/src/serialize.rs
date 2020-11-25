@@ -21,8 +21,6 @@ use crate::errors::{Code, Error};
 use crate::libc;
 use crate::util;
 
-use core::intrinsics;
-
 /// For types that can be marshalled into a [`Sink`].
 pub trait Marshallable {
     /// Writes this object into the given sink
@@ -141,15 +139,14 @@ impl<'s> Source<'s> {
 ///
 /// Assumes that words has sufficient space
 pub unsafe fn copy_from_str(words: &mut [u64], s: &str) {
-    let addr = words.as_mut_ptr() as usize;
+    let bytes = words.as_mut_ptr() as *mut u8;
     libc::memcpy(
-        addr as *mut libc::c_void,
+        bytes as *mut libc::c_void,
         s.as_bytes().as_ptr() as *const libc::c_void,
         s.len(),
     );
     // null termination
-    let end: &mut u8 = intrinsics::transmute(addr + s.len());
-    *end = 0u8;
+    *bytes.add(s.len()) = 0u8;
 }
 
 /// Copies a string of given length from the given slice

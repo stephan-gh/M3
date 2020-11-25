@@ -31,7 +31,6 @@ use base::log;
 use base::machine;
 use base::tcu;
 use base::util;
-use core::intrinsics;
 
 const UPC_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 
@@ -54,7 +53,7 @@ pub extern "C" fn exit(_code: i32) -> ! {
 }
 
 pub fn app_env() -> &'static mut envdata::EnvData {
-    unsafe { intrinsics::transmute(cfg::ENV_START) }
+    unsafe { &mut *(cfg::ENV_START as *mut _) }
 }
 
 fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {

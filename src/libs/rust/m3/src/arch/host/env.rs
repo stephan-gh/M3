@@ -16,7 +16,6 @@
 
 use base;
 use base::format;
-use core::intrinsics;
 
 use crate::arch;
 use crate::cap::Selector;
@@ -70,7 +69,7 @@ impl EnvData {
     }
 
     pub fn vpe(&self) -> &'static mut VPE {
-        unsafe { intrinsics::transmute(self.vpe) }
+        unsafe { &mut *(self.vpe as *mut _) }
     }
 
     pub fn set_vpe(&mut self, vpe: &VPE) {
