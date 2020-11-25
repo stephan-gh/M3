@@ -42,6 +42,7 @@ pub fn write(buf: &[u8]) -> Result<usize, Error> {
         }
     }
     else {
+        #[cfg(target_vendor = "hw")]
         tcu::TCU::write(tcu::PRINT_EP, buf.as_ptr(), buf.len(), 0)?;
     }
     Ok(buf.len())

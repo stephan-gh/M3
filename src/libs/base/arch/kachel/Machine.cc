@@ -43,9 +43,11 @@ int Machine::write(const char *str, size_t len) {
         static const char *fileAddr = "stdout";
         gem5_writefile(str, len, 0, reinterpret_cast<uint64_t>(fileAddr));
     }
+#if defined(__hw__)
     else {
         TCU::get().write(PRINT_EP, str, len, 0);
     }
+#endif
     return 0;
 }
 
