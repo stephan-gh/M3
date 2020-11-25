@@ -59,12 +59,14 @@ using net_reqh_base_t = RequestHandler<
 static Server<NMRequestHandler> *srv;
 
 class NMRequestHandler: public net_reqh_base_t {
+    static constexpr size_t BUF_SIZE = Server<NMRequestHandler>::MAX_SESSIONS * NMSession::MSG_SIZE;
+
 public:
     explicit NMRequestHandler(WorkLoop *wl, NetDriver *driver)
         : net_reqh_base_t(),
           _wl(wl),
           _driver(driver),
-          _rgate(RecvGate::create(nextlog2<32 * NMSession::MSG_SIZE>::val, nextlog2<NMSession::MSG_SIZE>::val)) {
+          _rgate(RecvGate::create(nextlog2<BUF_SIZE>::val, nextlog2<NMSession::MSG_SIZE>::val)) {
         add_operation(NetworkManager::CREATE, &NMRequestHandler::create);
         add_operation(NetworkManager::BIND, &NMRequestHandler::bind);
         add_operation(NetworkManager::LISTEN, &NMRequestHandler::listen);

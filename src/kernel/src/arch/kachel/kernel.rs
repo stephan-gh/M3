@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::cfg;
 use base::goff;
 use base::io;
 use base::machine;
@@ -62,7 +63,7 @@ pub extern "C" fn env_run() {
 
     // TODO add second syscall REP
     let sysc_slot_size = 9;
-    let sysc_rbuf_size = math::next_log2(pes::MAX_VPES) + sysc_slot_size;
+    let sysc_rbuf_size = math::next_log2(cfg::MAX_VPES) + sysc_slot_size;
     let sysc_rbuf = vec![0u8; 1 << sysc_rbuf_size];
     ktcu::recv_msgs(ktcu::KSYS_EP, sysc_rbuf.as_ptr() as goff, sysc_rbuf_size, sysc_slot_size)
         .expect("Unable to config syscall REP");
@@ -74,7 +75,7 @@ pub extern "C" fn env_run() {
         .expect("Unable to config service REP");
 
     let pex_slot_size = 7;
-    let pex_rbuf_size = math::next_log2(pes::MAX_VPES) + pex_slot_size;
+    let pex_rbuf_size = math::next_log2(cfg::MAX_VPES) + pex_slot_size;
     let pex_rbuf = vec![0u8; 1 << pex_rbuf_size];
     ktcu::recv_msgs(ktcu::KPEX_EP, pex_rbuf.as_ptr() as goff, pex_rbuf_size, pex_slot_size)
         .expect("Unable to config pemux REP");

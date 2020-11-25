@@ -16,7 +16,8 @@
 
 #pragma once
 
-#define PE_COUNT             18
+#define PE_COUNT            18
+#define MAX_VPES            (PE_COUNT - 1)
 
 #define TOTAL_MEM_SIZE      (1024 * 1024 * 1024)
 #define FS_MAX_SIZE         (640 * 1024 * 1024)

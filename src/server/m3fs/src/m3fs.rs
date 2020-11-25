@@ -41,7 +41,10 @@ use m3::{
     errors::{Code, Error},
     goff,
     pes::VPE,
-    server::{server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer},
+    server::{
+        server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer,
+        DEF_MAX_CLIENTS,
+    },
     tcu::{EpId, Label, TOTAL_EPS},
     vfs::{FSOperation, GenFileOp},
 };
@@ -57,7 +60,7 @@ pub const LOG_LINKS: bool = false;
 
 // Server constants
 const FS_IMG_OFFSET: goff = 0;
-const MAX_CLIENTS: usize = 32;
+const MAX_CLIENTS: usize = DEF_MAX_CLIENTS;
 const MSG_SIZE: usize = 128;
 
 // The global request handler
@@ -102,7 +105,7 @@ impl M3FSRequestHandler {
         thread::init();
         FSHANDLE.set(Some(M3FSHandle::new(backend, settings)));
 
-        let container = SessionContainer::new(m3::server::DEF_MAX_CLIENTS);
+        let container = SessionContainer::new(DEF_MAX_CLIENTS);
 
         Ok(M3FSRequestHandler {
             sel: 0, // gets set later in main

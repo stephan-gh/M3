@@ -20,7 +20,7 @@ mod loader;
 
 use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, RefCell, StaticCell};
-use m3::cfg::PAGE_SIZE;
+use m3::cfg;
 use m3::com::{MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::goff;
@@ -29,6 +29,7 @@ use m3::log;
 use m3::math;
 use m3::pes::{VPEArgs, VPE};
 use m3::rc::Rc;
+use m3::server::DEF_MAX_CLIENTS;
 use m3::session::ResMng;
 use m3::syscalls;
 use m3::tcu;
@@ -102,9 +103,9 @@ fn create_rgate(buf_size: usize, msg_size: usize) -> Result<RecvGate, Error> {
     let (rbuf_addr, _) = VPE::cur().pe_desc().rbuf_space();
     let (rbuf_off, rbuf_mem) = if VPE::cur().pe_desc().has_virtmem() {
         let buf_mem = memory::container().alloc_mem(buf_size as goff)?;
-        let pages = (buf_mem.capacity() as usize + PAGE_SIZE - 1) / PAGE_SIZE;
+        let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
         syscalls::create_map(
-            (rbuf_addr / PAGE_SIZE) as Selector,
+            (rbuf_addr / cfg::PAGE_SIZE) as Selector,
             VPE::cur().sel(),
             buf_mem.sel(),
             0,
@@ -134,7 +135,9 @@ fn workloop() {
 pub fn main() -> i32 {
     SUBSYS.set(subsys::Subsystem::new().expect("Unable to read subsystem info"));
 
-    let req_rgate = create_rgate(1 << 12, 1 << 8).expect("Unable to create request RecvGate");
+    let max_msg_size = 1 << 8;
+    let buf_size = max_msg_size * DEF_MAX_CLIENTS;
+    let req_rgate = create_rgate(buf_size, max_msg_size).expect("Unable to create request RecvGate");
     requests::init(req_rgate);
 
     let squeue_rgate = create_rgate(sendqueue::RBUF_SIZE, sendqueue::RBUF_MSG_SIZE)

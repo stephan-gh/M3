@@ -36,10 +36,12 @@ struct SimpleSession : public ServerSession {
 
 template<typename CLS, typename OP, size_t OPCNT, size_t MSG_SIZE = 128>
 class SimpleRequestHandler : public RequestHandler<CLS, OP, OPCNT, SimpleSession> {
+    static constexpr size_t BUF_SIZE = Server<SimpleRequestHandler>::MAX_SESSIONS * MSG_SIZE;
+
 public:
     explicit SimpleRequestHandler(WorkLoop *wl)
         : RequestHandler<CLS, OP, OPCNT, SimpleSession>(),
-          _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
+          _rgate(RecvGate::create(nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         using std::placeholders::_1;
         _rgate.start(wl, std::bind(&SimpleRequestHandler::handle_message, this, _1));
     }

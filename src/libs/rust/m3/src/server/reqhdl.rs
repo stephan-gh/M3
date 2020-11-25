@@ -14,13 +14,20 @@
  * General Public License version 2 for more details.
  */
 
+use crate::cfg;
 use crate::com::{GateIStream, RecvGate};
 use crate::errors::Error;
 use crate::math;
 use crate::serialize::Unmarshallable;
 
 /// The default maximum number of clients a service supports
-pub const DEF_MAX_CLIENTS: usize = 32;
+pub const DEF_MAX_CLIENTS: usize = if cfg::MAX_VPES < 32 {
+    cfg::MAX_VPES
+}
+else {
+    32
+};
+
 /// The default message size used for the requests
 pub const DEF_MSG_SIZE: usize = 64;
 

@@ -33,11 +33,6 @@ use crate::mem::{self, Allocation};
 use crate::pes::{PEMng, State, VPEFlags, VPE};
 use crate::platform;
 
-#[cfg(any(target_vendor = "gem5", target_vendor = "host"))]
-pub const MAX_VPES: usize = 64;
-#[cfg(target_vendor = "hw")]
-pub const MAX_VPES: usize = 16;
-
 pub struct VPEMng {
     vpes: Vec<Option<Rc<VPE>>>,
     count: usize,
@@ -48,7 +43,7 @@ static INST: StaticCell<Option<VPEMng>> = StaticCell::new(None);
 
 pub fn init() {
     INST.set(Some(VPEMng {
-        vpes: vec![None; MAX_VPES],
+        vpes: vec![None; cfg::MAX_VPES],
         count: 0,
         next_id: 0,
     }));
@@ -72,7 +67,7 @@ impl VPEMng {
     }
 
     fn get_id(&mut self) -> Result<tcu::VPEId, Error> {
-        for id in self.next_id..MAX_VPES as tcu::VPEId {
+        for id in self.next_id..cfg::MAX_VPES as tcu::VPEId {
             if self.vpes[id as usize].is_none() {
                 self.next_id = id + 1;
                 return Ok(id);

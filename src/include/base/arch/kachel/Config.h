@@ -36,9 +36,11 @@
 #   define TOTAL_EPS        64
 #   define AVAIL_EPS        (TOTAL_EPS - 1)
 #   define PRINT_EP         (TOTAL_EPS - 1)
+#define MAX_VPES            8
 #else
 #   define TOTAL_EPS        192
 #   define AVAIL_EPS        TOTAL_EPS
+#define MAX_VPES            32
 #endif
 
 #if defined(__riscv)

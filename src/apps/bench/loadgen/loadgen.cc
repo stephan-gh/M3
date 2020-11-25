@@ -66,10 +66,11 @@ typedef RequestHandler<ReqHandler, LoadGen::Operation, LoadGen::COUNT, LoadGenSe
 class ReqHandler : public base_class_t {
 public:
     static constexpr size_t MSG_SIZE = 64;
+    static constexpr size_t BUF_SIZE = Server<ReqHandler>::MAX_SESSIONS * MSG_SIZE;
 
     explicit ReqHandler(WorkLoop *wl)
         : base_class_t(),
-          _rgate(RecvGate::create(nextlog2<32 * MSG_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
+          _rgate(RecvGate::create(nextlog2<BUF_SIZE>::val, nextlog2<MSG_SIZE>::val)) {
         add_operation(LoadGen::START, &ReqHandler::start);
         add_operation(LoadGen::RESPONSE, &ReqHandler::response);
 

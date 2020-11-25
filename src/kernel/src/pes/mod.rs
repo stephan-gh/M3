@@ -22,7 +22,7 @@ mod vpemng;
 pub use self::pemng::PEMng;
 pub use self::pemux::PEMux;
 pub use self::vpe::{State, VPEFlags, INVAL_ID, KERNEL_ID, VPE};
-pub use self::vpemng::{VPEMng, MAX_VPES};
+pub use self::vpemng::VPEMng;
 
 pub fn init() {
     self::pemng::init();

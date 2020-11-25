@@ -24,6 +24,7 @@ pub const MAX_RB_SIZE: usize        = usize::max_value();
 pub const MEM_CAP_END: usize        = 0xFFFF_FFFF_FFFF_FFFF;
 
 pub const PE_COUNT: usize           = 18;
+pub const MAX_VPES: usize           = PE_COUNT - 1;
 
 pub const TOTAL_MEM_SIZE: usize     = 1024 * 1024 * 1024;
 pub const FS_MAX_SIZE: usize        = 640 * 1024 * 1024;
