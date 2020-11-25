@@ -18,7 +18,7 @@ use base::cell::StaticCell;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
-use base::tcu::{EpId, Header, Label, Message, PEId, Reg, EP_COUNT, EP_REGS, TCU, UNLIM_CREDITS};
+use base::tcu::{EpId, Header, Label, Message, PEId, Reg, AVAIL_EPS, EP_REGS, TCU, UNLIM_CREDITS};
 use base::util;
 
 use crate::pes::KERNEL_ID;
@@ -54,7 +54,7 @@ where
 pub fn recv_msgs(ep: EpId, buf: goff, ord: u32, msg_ord: u32) -> Result<(), Error> {
     static REPS: StaticCell<EpId> = StaticCell::new(8);
 
-    if *REPS + (1 << (ord - msg_ord)) > EP_COUNT {
+    if *REPS + (1 << (ord - msg_ord)) > AVAIL_EPS {
         return Err(Error::new(Code::NoSpace));
     }
 

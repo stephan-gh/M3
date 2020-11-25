@@ -50,8 +50,8 @@ TCUBackend::TCUBackend()
 
     // build socket names for all endpoints on all PEs
     for(peid_t pe = 0; pe < PE_COUNT; ++pe) {
-        for(epid_t ep = 0; ep < EP_COUNT; ++ep) {
-            sockaddr_un *addr = _endpoints + pe * EP_COUNT + ep;
+        for(epid_t ep = 0; ep < TOTAL_EPS; ++ep) {
+            sockaddr_un *addr = _endpoints + pe * TOTAL_EPS + ep;
             addr->sun_family = AF_UNIX;
             // we can't put that in the format string
             addr->sun_path[0] = '\0';
@@ -70,7 +70,7 @@ TCUBackend::TCUBackend()
         if(fcntl(_localsocks[ep], F_SETFD, FD_CLOEXEC) == -1)
             PANIC("Setting FD_CLOEXEC failed: " << strerror(errno));
 
-        sockaddr_un *addr = _endpoints + env()->pe_id * EP_COUNT + ep;
+        sockaddr_un *addr = _endpoints + env()->pe_id * TOTAL_EPS + ep;
         if(bind(_localsocks[ep], (struct sockaddr*)addr, sizeof(*addr)) == -1)
             PANIC("Binding socket for ep " << ep << " failed: " << strerror(errno));
     }
@@ -111,7 +111,7 @@ bool TCUBackend::receive_knotify(pid_t *pid, int *status) {
 
 bool TCUBackend::send(peid_t pe, epid_t ep, const TCU::Buffer *buf) {
     int res = sendto(_sock, buf, buf->length + TCU::HEADER_SIZE, 0,
-                     (struct sockaddr*)(_endpoints + pe * EP_COUNT + ep), sizeof(sockaddr_un));
+                     (struct sockaddr*)(_endpoints + pe * TOTAL_EPS + ep), sizeof(sockaddr_un));
     if(res == -1) {
         LLOG(TCUERR, "Sending message to EP " << pe << ":" << ep << " failed: " << strerror(errno));
         return false;

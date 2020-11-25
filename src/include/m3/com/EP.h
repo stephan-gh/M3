@@ -40,7 +40,7 @@ class EP : public SListItem, public ObjCap {
     friend class RecvGate;
 
     static EP alloc(uint replies = 0);
-    static EP alloc_for(const VPE &vpe, epid_t ep = EP_COUNT, uint replies = 0);
+    static EP alloc_for(const VPE &vpe, epid_t ep = TOTAL_EPS, uint replies = 0);
     static EP bind(epid_t id) noexcept;
 
     explicit EP(capsel_t sel, epid_t id, uint replies, uint flags) noexcept

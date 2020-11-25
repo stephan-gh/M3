@@ -18,7 +18,7 @@ use core::{ptr, sync::atomic};
 
 use crate::arch::envdata;
 use crate::arch::tcu::{
-    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, EP_COUNT, MAX_MSG_SIZE, TCU,
+    backend, CmdReg, Command, Control, EpId, EpReg, Header, PEId, Reg, TOTAL_EPS, MAX_MSG_SIZE, TCU,
     UNLIM_CREDITS,
 };
 use crate::cell::{LazyStaticCell, StaticCell};
@@ -305,14 +305,14 @@ fn prepare_ack(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     log_tcu!("EP{}: acked message at index {}", ep, idx);
 
-    Ok((0, EP_COUNT))
+    Ok((0, TOTAL_EPS))
 }
 
 fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
     let msgs = TCU::get_ep(ep, EpReg::BUF_MSG_CNT);
     if msgs == 0 {
         TCU::set_cmd(CmdReg::OFFSET, !0);
-        return Ok((0, EP_COUNT));
+        return Ok((0, TOTAL_EPS));
     }
 
     let unread = TCU::get_ep(ep, EpReg::BUF_UNREAD);
@@ -336,7 +336,7 @@ fn prepare_fetch(ep: EpId) -> Result<(PEId, EpId), Error> {
 
         TCU::set_cmd(CmdReg::OFFSET, idx * (1 << msg_ord));
 
-        Ok((0, EP_COUNT))
+        Ok((0, TOTAL_EPS))
     };
 
     for i in roff..size {
@@ -559,7 +559,7 @@ fn handle_command(backend: &backend::SocketBackend) {
 
     let ep = TCU::get_cmd(CmdReg::EPID) as EpId;
 
-    let res = if ep >= EP_COUNT {
+    let res = if ep >= TOTAL_EPS {
         log_tcu_err!("TCU-error: invalid ep-id ({})", ep);
         Err(Error::new(Code::InvArgs))
     }
@@ -578,7 +578,7 @@ fn handle_command(backend: &backend::SocketBackend) {
         };
 
         match res {
-            Ok((dst_pe, dst_ep)) if dst_ep < EP_COUNT => {
+            Ok((dst_pe, dst_ep)) if dst_ep < TOTAL_EPS => {
                 let buf = buffer();
                 buf.header.opcode = op.val as u8;
 
@@ -628,7 +628,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
 
         // refill credits
         let crd_ep = buf.header.crd_ep as EpId;
-        if crd_ep >= EP_COUNT {
+        if crd_ep >= TOTAL_EPS {
             log_tcu_err!("TCU-error: should give credits to ep {}", crd_ep);
         }
         else {
@@ -701,7 +701,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
             handle_command(&backend);
         }
 
-        for ep in 0..EP_COUNT {
+        for ep in 0..TOTAL_EPS {
             handle_receive(&backend, ep);
         }
 
@@ -714,7 +714,7 @@ extern "C" fn run(_arg: *mut libc::c_void) -> *mut libc::c_void {
     // handle all outstanding messages
     loop {
         let mut received = false;
-        for ep in 0..EP_COUNT {
+        for ep in 0..TOTAL_EPS {
             received |= handle_receive(&backend, ep);
         }
         if !received {

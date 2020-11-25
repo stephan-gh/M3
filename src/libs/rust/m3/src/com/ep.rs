@@ -19,7 +19,7 @@ use crate::errors::Error;
 use crate::kif;
 use crate::pes::VPE;
 use crate::syscalls;
-use crate::tcu::{EpId, EP_COUNT};
+use crate::tcu::{EpId, TOTAL_EPS};
 
 /// Represents a TCU endpoint that can be used for communication. This class only serves the purpose
 /// to allocate a EP capability and revoke it on destruction. In the meantime, the EP capability can
@@ -43,7 +43,7 @@ impl Default for EPArgs {
     /// Creates a new `EPArgs` with default arguments (any EP and no reply slots)
     fn default() -> Self {
         Self {
-            epid: EP_COUNT,
+            epid: TOTAL_EPS,
             vpe: VPE::cur().sel(),
             replies: 0,
         }

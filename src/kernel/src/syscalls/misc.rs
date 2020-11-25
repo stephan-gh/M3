@@ -49,7 +49,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     if !vpe.obj_caps().borrow().unused(dst_sel) {
         sysc_err!(Code::InvArgs, "Selector {} already in use", dst_sel);
     }
-    if replies >= tcu::EP_COUNT as u32 {
+    if replies >= tcu::AVAIL_EPS as u32 {
         sysc_err!(Code::InvArgs, "Invalid reply count ({})", replies);
     }
 
@@ -65,14 +65,14 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     }
 
     let pemux = PEMng::get().pemux(dst_vpe.pe_id());
-    if epid == tcu::EP_COUNT {
+    if epid == tcu::TOTAL_EPS {
         epid = match pemux.find_eps(ep_count) {
             Ok(epid) => epid,
             Err(e) => sysc_err!(e.code(), "No free EP range for {} EPs", ep_count),
         };
     }
     else {
-        if epid > tcu::EP_COUNT || epid as u32 + ep_count > tcu::EP_COUNT as u32 {
+        if epid > tcu::AVAIL_EPS || epid as u32 + ep_count > tcu::AVAIL_EPS as u32 {
             sysc_err!(Code::InvArgs, "Invalid endpoint id ({}:{})", epid, ep_count);
         }
         if !pemux.eps_free(epid, ep_count) {

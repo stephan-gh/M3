@@ -19,7 +19,7 @@ use core::ptr;
 use libc;
 
 use crate::arch::envdata;
-use crate::arch::tcu::{thread, EpId, Header, PEId, EP_COUNT, PE_COUNT};
+use crate::arch::tcu::{thread, EpId, Header, PEId, TOTAL_EPS, PE_COUNT};
 use crate::col::Vec;
 use crate::util;
 
@@ -50,7 +50,7 @@ impl SocketBackend {
     }
 
     fn ep_idx(pe: PEId, ep: EpId) -> usize {
-        pe as usize * EP_COUNT as usize + ep as usize
+        pe as usize * TOTAL_EPS as usize + ep as usize
     }
 
     pub fn new() -> SocketBackend {
@@ -67,7 +67,7 @@ impl SocketBackend {
 
         let mut eps = vec![];
         for pe in 0..PE_COUNT {
-            for ep in 0..EP_COUNT {
+            for ep in 0..TOTAL_EPS {
                 let addr = format!("\0{}/ep_{}.{}\0", envdata::tmp_dir(), pe, ep);
                 eps.push(Self::get_sock_addr(&addr));
             }
@@ -75,7 +75,7 @@ impl SocketBackend {
 
         let pe = envdata::get().pe_id as PEId;
         let mut localsock = vec![];
-        for ep in 0..EP_COUNT {
+        for ep in 0..TOTAL_EPS {
             unsafe {
                 let epsock = libc::socket(libc::AF_UNIX, libc::SOCK_DGRAM, 0);
                 assert!(epsock != -1);
@@ -187,7 +187,7 @@ impl SocketBackend {
     }
 
     pub fn shutdown(&self) {
-        for ep in 0..EP_COUNT {
+        for ep in 0..TOTAL_EPS {
             unsafe { libc::shutdown(self.localsock[ep as usize], libc::SHUT_RD) };
         }
     }
@@ -195,7 +195,7 @@ impl SocketBackend {
 
 impl Drop for SocketBackend {
     fn drop(&mut self) {
-        for ep in 0..EP_COUNT {
+        for ep in 0..TOTAL_EPS {
             unsafe { libc::close(self.localsock[ep as usize]) };
         }
     }

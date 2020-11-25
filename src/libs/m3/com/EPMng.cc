@@ -22,7 +22,7 @@ namespace m3 {
 
 EP *EPMng::acquire(epid_t ep, uint replies) {
     EP *e = nullptr;
-    if(ep == EP_COUNT && replies == 0)
+    if(ep == TOTAL_EPS && replies == 0)
         e = _eps.remove_first();
     if(!e)
         e = new EP(EP::alloc_for(_vpe, ep, replies));

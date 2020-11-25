@@ -114,7 +114,7 @@ void RecvGate::activate() {
             _buf_addr = _buf->addr();
         }
 
-        auto rep = VPE::self().epmng().acquire(EP_COUNT, slots());
+        auto rep = VPE::self().epmng().acquire(TOTAL_EPS, slots());
         Gate::activate_on(*rep, _buf->mem(), _buf->off());
         Gate::set_ep(rep);
     }

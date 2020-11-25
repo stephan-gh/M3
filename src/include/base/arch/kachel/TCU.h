@@ -321,7 +321,7 @@ private:
         return MMIO_ADDR + (EXT_REGS + UNPRIV_REGS + ep * EP_REGS) * sizeof(reg_t);
     }
     static uintptr_t buffer_addr() {
-        size_t regCount = EXT_REGS + UNPRIV_REGS + EP_COUNT * EP_REGS;
+        size_t regCount = EXT_REGS + UNPRIV_REGS + TOTAL_EPS * EP_REGS;
         return MMIO_ADDR + regCount * sizeof(reg_t);
     }
 

@@ -41,7 +41,7 @@ TCU::TCU()
       _cmdregs(),
       _epregs(reinterpret_cast<word_t*>(Env::eps_start())),
       _tid() {
-    const size_t epsize = EP_REGS * EP_COUNT * sizeof(word_t);
+    const size_t epsize = EP_REGS * TOTAL_EPS * sizeof(word_t);
     static_assert(epsize <= EPMEM_SIZE, "Not enough space for endpoints");
     memset(const_cast<word_t*>(_epregs), 0, epsize);
 }
@@ -62,7 +62,7 @@ void TCU::reset() {
     // TODO this is a hack; we cannot leave the recv EPs here in all cases. sometimes the REPs are
     // not inherited so that the child might want to reuse the EP for something else, which does
     // not work, because the cmpxchg fails.
-    for(epid_t i = 0; i < EP_COUNT; ++i) {
+    for(epid_t i = 0; i < TOTAL_EPS; ++i) {
         if(get_ep(i, EP_BUF_ADDR) == 0)
             memset(const_cast<word_t*>(_epregs) + i * EP_REGS, 0, EP_REGS * sizeof(word_t));
     }
@@ -281,7 +281,7 @@ void TCU::handle_command(peid_t pe) {
     const epid_t reply_ep = get_cmd(CMD_REPLY_EPID);
     const word_t ctrl = get_cmd(CMD_CTRL);
     int op = (ctrl >> OPCODE_SHIFT) & 0xF;
-    if(ep >= EP_COUNT) {
+    if(ep >= TOTAL_EPS) {
         LLOG(TCUERR, "DMA-error: invalid ep-id (" << ep << ")");
         res = Errors::INV_ARGS;
         goto done;
@@ -483,7 +483,7 @@ bool TCU::handle_receive(epid_t ep) {
     }
 
     // refill credits
-    if(_buf.crd_ep >= EP_COUNT)
+    if(_buf.crd_ep >= TOTAL_EPS)
         LLOG(TCUERR, "DMA-error: should give credits to endpoint " << _buf.crd_ep);
     else {
         word_t credits = get_ep(_buf.crd_ep, EP_CREDITS);
@@ -544,7 +544,7 @@ void *TCU::thread(void *arg) {
             dma->handle_command(pe);
 
         // have we received a message?
-        for(epid_t ep = 0; ep < EP_COUNT; ++ep)
+        for(epid_t ep = 0; ep < TOTAL_EPS; ++ep)
             dma->handle_receive(ep);
 
         dma->sleep();
@@ -556,7 +556,7 @@ void *TCU::thread(void *arg) {
     // handle all outstanding messages
     while(1) {
         bool received = false;
-        for(epid_t ep = 0; ep < EP_COUNT; ++ep)
+        for(epid_t ep = 0; ep < TOTAL_EPS; ++ep)
             received |= dma->handle_receive(ep);
         if(!received)
             break;

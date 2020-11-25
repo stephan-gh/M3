@@ -39,11 +39,11 @@ pub struct PEMux {
 impl PEMux {
     pub fn new(pe: PEId) -> Self {
         let mut pemux = PEMux {
-            pe: PEObject::new(pe, (tcu::EP_COUNT - tcu::FIRST_USER_EP) as u32),
+            pe: PEObject::new(pe, (tcu::AVAIL_EPS - tcu::FIRST_USER_EP) as u32),
             vpes: Vec::new(),
             #[cfg(target_os = "none")]
             queue: crate::com::SendQueue::new(pe as u64, pe),
-            eps: BitVec::new(tcu::EP_COUNT as usize),
+            eps: BitVec::new(tcu::AVAIL_EPS as usize),
             mem_base: 0,
         };
 
@@ -139,7 +139,7 @@ impl PEMux {
     pub fn find_eps(&self, count: u32) -> Result<EpId, Error> {
         let mut start = self.eps.first_clear();
         let mut bit = start;
-        while bit < start + count as usize && bit < tcu::EP_COUNT as usize {
+        while bit < start + count as usize && bit < tcu::AVAIL_EPS as usize {
             if self.eps.is_set(bit) {
                 start = bit + 1;
             }

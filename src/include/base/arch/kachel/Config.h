@@ -33,10 +33,12 @@
 #define EPMEM_SIZE          0
 
 #if defined(__hw__)
-#   define EP_COUNT         63
-#   define PRINT_EP         63
+#   define TOTAL_EPS        64
+#   define AVAIL_EPS        (TOTAL_EPS - 1)
+#   define PRINT_EP         (TOTAL_EPS - 1)
 #else
-#   define EP_COUNT         192
+#   define TOTAL_EPS        192
+#   define AVAIL_EPS        TOTAL_EPS
 #endif
 
 #if defined(__riscv)

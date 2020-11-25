@@ -23,7 +23,7 @@ class TCU {
 public:
     typedef m3::TCU::reg_t reg_t;
 
-    static const epid_t TMP_EP = EP_COUNT - 1;
+    static const epid_t TMP_EP = AVAIL_EPS - 1;
 
     static int credits(epid_t ep) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);

@@ -30,7 +30,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#define EP_COUNT            128
+#define TOTAL_EPS            128
+#define AVAIL_EPS            TOTAL_EPS
 
 namespace m3 {
 

@@ -42,7 +42,8 @@ const MAX_MSG_SIZE: usize = 16 * 1024;
 
 pub const HEADER_COUNT: usize = usize::max_value();
 
-pub const EP_COUNT: EpId = 128;
+pub const TOTAL_EPS: EpId = 128;
+pub const AVAIL_EPS: EpId = TOTAL_EPS;
 
 pub const INVALID_EP: EpId = 0xFF;
 pub const UNLIM_CREDITS: u32 = 0xFFFF_FFFF;
@@ -438,7 +439,7 @@ impl TCU {
 }
 
 pub fn init() {
-    const EP_SIZE: usize = (EP_COUNT as usize * EP_REGS) * util::size_of::<Reg>();
+    const EP_SIZE: usize = (TOTAL_EPS as usize * EP_REGS) * util::size_of::<Reg>();
     const_assert!(EP_SIZE <= cfg::EPMEM_SIZE);
 
     thread::init();

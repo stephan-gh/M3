@@ -47,8 +47,8 @@ private:
     int _sock;
     int _knotify_sock;
     sockaddr_un _knotify_addr;
-    int _localsocks[EP_COUNT];
-    sockaddr_un _endpoints[PE_COUNT * EP_COUNT];
+    int _localsocks[TOTAL_EPS];
+    sockaddr_un _endpoints[PE_COUNT * TOTAL_EPS];
 };
 
 }

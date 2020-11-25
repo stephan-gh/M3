@@ -36,7 +36,7 @@ EP &EP::operator=(EP &&ep) noexcept {
 }
 
 EP EP::alloc(uint replies) {
-    return alloc_for(VPE::self(), EP_COUNT, replies);
+    return alloc_for(VPE::self(), TOTAL_EPS, replies);
 }
 
 EP EP::alloc_for(const VPE &vpe, epid_t ep, uint replies) {

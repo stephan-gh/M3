@@ -27,7 +27,7 @@ use m3::pes::{VPEArgs, PE, VPE};
 use m3::server::{Handler, Server, SessId, SessionContainer};
 use m3::session::{ServerSession, M3FS};
 use m3::syscalls;
-use m3::tcu::{EP_COUNT, FIRST_USER_EP};
+use m3::tcu::{TOTAL_EPS, FIRST_USER_EP};
 use m3::test;
 use m3::{wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -350,7 +350,7 @@ fn alloc_ep() {
         {
             let pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
             let vpe = wv_assert_ok!(VPE::new_with(pe, VPEArgs::new("test")));
-            wv_assert_ok!(syscalls::alloc_ep(sel, vpe.sel(), EP_COUNT, 1));
+            wv_assert_ok!(syscalls::alloc_ep(sel, vpe.sel(), TOTAL_EPS, 1));
         }
 
         let mgate = wv_assert_ok!(MemGate::new(0x1000, Perm::RW));
@@ -362,30 +362,30 @@ fn alloc_ep() {
 
     // invalid dest selector
     wv_assert_err!(
-        syscalls::alloc_ep(SEL_VPE, VPE::cur().pe().sel(), EP_COUNT, 1),
+        syscalls::alloc_ep(SEL_VPE, VPE::cur().pe().sel(), TOTAL_EPS, 1),
         Code::InvArgs
     );
     // invalid VPE selector
-    wv_assert_err!(syscalls::alloc_ep(sel, SEL_PE, EP_COUNT, 1), Code::InvArgs);
+    wv_assert_err!(syscalls::alloc_ep(sel, SEL_PE, TOTAL_EPS, 1), Code::InvArgs);
     // invalid reply count
     wv_assert_err!(
-        syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, !0),
+        syscalls::alloc_ep(sel, VPE::cur().sel(), TOTAL_EPS - 2, !0),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, EP_COUNT as u32),
+        syscalls::alloc_ep(sel, VPE::cur().sel(), TOTAL_EPS - 2, TOTAL_EPS as u32),
         Code::InvArgs
     );
 
     // any EP
-    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT, 1));
+    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), TOTAL_EPS, 1));
     wv_assert!(ep >= FIRST_USER_EP);
-    wv_assert!(ep < EP_COUNT);
+    wv_assert!(ep < TOTAL_EPS);
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 
     // specific EP
-    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), EP_COUNT - 2, 1));
-    wv_assert_eq!(ep, EP_COUNT - 2);
+    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), TOTAL_EPS - 2, 1));
+    wv_assert_eq!(ep, TOTAL_EPS - 2);
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 }
 

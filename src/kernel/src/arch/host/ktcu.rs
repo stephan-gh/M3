@@ -130,12 +130,12 @@ impl EP {
 static ALL_EPS: StaticCell<Vec<EP>> = StaticCell::new(Vec::new());
 
 fn ep_idx(pe: PEId, ep: EpId) -> usize {
-    pe as usize * EP_COUNT as usize + ep as usize
+    pe as usize * TOTAL_EPS as usize + ep as usize
 }
 
 pub fn init() {
     for _ in 0..PE_COUNT {
-        for _ in 0..EP_COUNT {
+        for _ in 0..TOTAL_EPS {
             ALL_EPS.get_mut().push(EP::new(&[0; EP_REGS], false));
         }
     }
@@ -158,7 +158,7 @@ pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
 }
 
 pub fn update_eps(pe: PEId, base: goff) -> Result<(), Error> {
-    for ep in FIRST_USER_EP..EP_COUNT {
+    for ep in FIRST_USER_EP..TOTAL_EPS {
         let mut ep_obj = &mut ALL_EPS.get_mut()[ep_idx(pe, ep)];
         if ep_obj.dirty {
             ep_obj.regs[EpReg::BUF_ADDR.val as usize] += base;

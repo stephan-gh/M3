@@ -50,7 +50,7 @@ class Gate : public SListItem, public ObjCap {
     friend class VPE;
 
 public:
-    static const epid_t UNBOUND     = EP_COUNT;
+    static const epid_t UNBOUND     = TOTAL_EPS;
 
 protected:
     explicit Gate(uint type, capsel_t cap, unsigned capflags, epid_t ep = UNBOUND) noexcept

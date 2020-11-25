@@ -42,7 +42,7 @@ use m3::{
     goff,
     pes::VPE,
     server::{server_loop, CapExchange, Handler, RequestHandler, Server, SessId, SessionContainer},
-    tcu::{EpId, Label, EP_COUNT},
+    tcu::{EpId, Label, TOTAL_EPS},
     vfs::{FSOperation, GenFileOp},
 };
 
@@ -362,7 +362,7 @@ impl core::default::Default for FsSettings {
             max_load: 128,
             clear: false,
             selector: None,
-            ep: EP_COUNT,
+            ep: TOTAL_EPS,
             fs_offset: FS_IMG_OFFSET,
         }
     }
