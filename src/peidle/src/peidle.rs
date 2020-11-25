@@ -134,8 +134,9 @@ fn run_app(entry: usize, sp: usize) -> ! {
         sp
     );
 
-    // let app know the PE its running on
+    // let app know the PE its running on and that it's not shared with others
     app_env().pe_id = *PE_ID;
+    app_env().shared = 0;
 
     unsafe {
         llvm_asm!(
