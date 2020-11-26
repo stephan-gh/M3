@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::backtrace;
 use base::int_enum;
 use base::libc;
 use base::{set_csr_bits, write_csr};
@@ -34,6 +35,10 @@ pub struct State {
 }
 
 impl State {
+    pub fn base_pointer(&self) -> usize {
+        self.r[7]
+    }
+
     pub fn came_from_user(&self) -> bool {
         ((self.sstatus >> 8) & 1) == 0
     }
@@ -79,7 +84,6 @@ impl fmt::Debug for State {
             self.cause & 0xF
         };
 
-        writeln!(fmt, "State @ {:#x}", self as *const State as usize)?;
         writeln!(fmt, "  vec: {:#x} ({})", vec, Vector::from(vec))?;
         for (idx, r) in { self.r }.iter().enumerate() {
             writeln!(fmt, "  r[{:02}]:  {:#x}", idx + 1, r)?;
@@ -87,6 +91,13 @@ impl fmt::Debug for State {
         writeln!(fmt, "  cause:  {:#x}", { self.cause })?;
         writeln!(fmt, "  sepc:   {:#x}", { self.sepc })?;
         writeln!(fmt, "  status: {:#x}", { self.sstatus })?;
+
+        writeln!(fmt, "\nUser backtrace:")?;
+        let mut bt = [0usize; 16];
+        let bt_len = backtrace::collect_for(self.base_pointer(), &mut bt);
+        for addr in bt.iter().take(bt_len) {
+            writeln!(fmt, "  {:#x}", addr)?;
+        }
         Ok(())
     }
 }

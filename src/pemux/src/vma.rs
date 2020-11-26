@@ -88,7 +88,7 @@ fn recv_pf_resp() -> vpe::ContResult {
         if err != 0 {
             log!(
                 crate::LOG_ERR,
-                "Pagefault for {:#x} (perm: {:?}) with {:?}",
+                "Pagefault for {:#x} (perm: {:?}) with user state:\n{:?}",
                 pf_state.virt,
                 pf_state.perm,
                 vpe.user_state()
@@ -138,7 +138,7 @@ pub fn handle_pf(
     }
 
     if let Err(e) = send_pf(vpe::cur(), virt, perm) {
-        log!(crate::LOG_ERR, "Pagefault for {:#x} with {:?}", virt, state);
+        log!(crate::LOG_ERR, "Pagefault for {:#x} with user state:\n{:?}", virt, state);
         return Err(e);
     }
 

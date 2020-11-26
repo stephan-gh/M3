@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::backtrace;
 use base::int_enum;
 use base::libc;
 use core::fmt;
@@ -37,6 +38,10 @@ pub struct State {
 }
 
 impl State {
+    pub fn base_pointer(&self) -> usize {
+        self.r[11]
+    }
+
     #[allow(clippy::verbose_bit_mask)]
     pub fn came_from_user(&self) -> bool {
         (self.cpsr & 0x0F) == 0x0
@@ -58,7 +63,6 @@ int_enum! {
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        writeln!(fmt, "State @ {:#x}", self as *const State as usize)?;
         writeln!(fmt, "  lr:     {:#x}", { self.lr })?;
         writeln!(fmt, "  sp:     {:#x}", { self.sp })?;
         writeln!(
@@ -73,6 +77,13 @@ impl fmt::Debug for State {
         }
         writeln!(fmt, "  pc:     {:#x}", { self.pc })?;
         writeln!(fmt, "  cpsr:   {:#x}", { self.cpsr })?;
+
+        writeln!(fmt, "\nUser backtrace:")?;
+        let mut bt = [0usize; 16];
+        let bt_len = backtrace::collect_for(self.base_pointer(), &mut bt);
+        for addr in bt.iter().take(bt_len) {
+            writeln!(fmt, "  {:#x}", addr)?;
+        }
         Ok(())
     }
 }

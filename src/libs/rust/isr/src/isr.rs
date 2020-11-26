@@ -43,7 +43,7 @@ pub type IsrFunc = extern "C" fn(state: &mut State) -> *mut base::libc::c_void;
 static ISRS: StaticCell<[IsrFunc; ISR_COUNT]> = StaticCell::new([unexpected_irq; ISR_COUNT]);
 
 pub extern "C" fn unexpected_irq(state: &mut State) -> *mut base::libc::c_void {
-    panic!("Unexpected IRQ with {:?}", state);
+    panic!("Unexpected IRQ with user state:\n{:?}", state);
 }
 
 pub fn reg(idx: usize, func: IsrFunc) {

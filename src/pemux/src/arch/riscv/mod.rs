@@ -142,7 +142,7 @@ pub fn handle_fpu_ex(state: &mut State) {
 
     // if the FPU is enabled and we receive an illegal instruction exception, kill VPE
     if get_fpu_mode(state.sstatus) != FSMode::OFF {
-        log!(crate::LOG_ERR, "Illegal instruction with {:?}", state);
+        log!(crate::LOG_ERR, "Illegal instruction with user state:\n{:?}", state);
         vpe::remove_cur(1);
         return;
     }

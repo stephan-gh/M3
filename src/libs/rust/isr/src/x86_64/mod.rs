@@ -14,6 +14,7 @@
  * General Public License version 2 for more details.
  */
 
+use base::backtrace;
 use base::cell::StaticCell;
 use base::cfg;
 use base::cpu;
@@ -64,6 +65,10 @@ pub struct State {
 }
 
 impl State {
+    pub fn base_pointer(&self) -> usize {
+        self.r[8]
+    }
+
     pub fn came_from_user(&self) -> bool {
         (self.cs & DPL::USER.val as usize) == DPL::USER.val as usize
     }
@@ -94,7 +99,6 @@ fn vec_name(vec: usize) -> &'static str {
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let cr2 = cpu::read_cr2();
-        writeln!(fmt, "State @ {:#x}", self as *const State as usize)?;
         writeln!(fmt, "  vec: {:#x} ({})", { self.irq }, vec_name(self.irq))?;
         writeln!(fmt, "  cr2:    {:#x}", cr2)?;
         writeln!(fmt, "  error:  {:#x}", { self.error })?;
@@ -105,6 +109,13 @@ impl fmt::Debug for State {
         writeln!(fmt, "  ss:     {:#x}", { self.ss })?;
         for (idx, r) in { self.r }.iter().enumerate() {
             writeln!(fmt, "  r[{:02}]:  {:#x}", idx, r)?;
+        }
+
+        writeln!(fmt, "\nUser backtrace:")?;
+        let mut bt = [0usize; 16];
+        let bt_len = backtrace::collect_for(self.base_pointer(), &mut bt);
+        for addr in bt.iter().take(bt_len) {
+            writeln!(fmt, "  {:#x}", addr)?;
         }
         Ok(())
     }

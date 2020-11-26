@@ -159,7 +159,7 @@ pub fn scheduling_pending() -> bool {
 }
 
 pub extern "C" fn unexpected_irq(state: &mut arch::State) -> *mut libc::c_void {
-    log!(LOG_ERR, "Unexpected IRQ with {:?}", state);
+    log!(LOG_ERR, "Unexpected IRQ with user state:\n{:?}", state);
     vpe::remove_cur(1);
 
     leave(state)

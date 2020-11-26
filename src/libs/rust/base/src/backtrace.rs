@@ -26,7 +26,15 @@ use crate::math;
 /// The function assumes that the stack is aligned by `cfg::STACK_SIZE` and ensures to not access
 /// below or above the stack.
 pub fn collect(addrs: &mut [usize]) -> usize {
-    let mut bp = cpu::base_pointer();
+    collect_for(cpu::base_pointer(), addrs)
+}
+
+/// Walks up the stack starting with given base pointer and stores the return addresses into the
+/// given slice and returns the number of addresses.
+///
+/// The function assumes that the stack is aligned by `cfg::STACK_SIZE` and ensures to not access
+/// below or above the stack.
+pub fn collect_for(mut bp: usize, addrs: &mut [usize]) -> usize {
     if bp == 0 {
         return 0;
     }
