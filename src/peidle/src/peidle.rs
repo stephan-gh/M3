@@ -175,13 +175,13 @@ fn send_exit(vpe: u64) {
 pub extern "C" fn env_run() {
     if *PE_ID == 0 {
         PE_ID.set(envdata::get().pe_id);
+
+        // install exception handlers to ease debugging
+        isr::init(cfg::STACK_BOTTOM + cfg::STACK_SIZE / 2);
+        isr::enable_irqs();
+
+        io::init(*PE_ID, "pemux");
     }
-
-    io::init(*PE_ID, "pemux");
-
-    // install exception handlers to ease debugging
-    isr::init(cfg::STACK_BOTTOM + cfg::STACK_SIZE / 2);
-    isr::enable_irqs();
 
     // wait until the kernel configured the EP
     loop {

@@ -16,18 +16,22 @@
 
 #include <base/Asm.h>
 
-#if defined(__hw__)
-#   define MODE_REG(name)   m ## name
-#else
-#   define MODE_REG(name)   s ## name
-#endif
-
 .extern isr_handler
 .extern isr_stack
 
 .text
 
 BEGIN_FUNC(isr_setup)
+    // setup a PMP to permit access to all memory
+    li      t0, -1
+    csrw    pmpaddr0, t0
+    li      t0, ((0x3 << 3) | 0x7)  # NAPOT + RWX
+    csrw    pmpcfg0, t0
+
+    // enable performance counters for supervisor mode
+    li      t0, -1
+    csrw    mcounteren, t0
+
     // set address to save the state on interrupts to
     csrw    sscratch, a0
 
@@ -40,12 +44,8 @@ BEGIN_FUNC(isr_setup)
     // unmask interrupts
     csrs    sie, t1
 
-    // return to supervisor mode (for some reason we get an instruction access fault on hw)
-#if defined(__gem5__)
+    // return to supervisor mode
     li      t1, 1 << 11     # MPP = S
-#else
-    li      t1, 3 << 11     # MPP = M
-#endif
     csrs    mstatus, t1
 
     // jump to 1:
@@ -110,13 +110,13 @@ BEGIN_FUNC(isr_common)
     sd      x31, 8*30(a0)
 
     # save SCAUSE
-    csrr    s1, MODE_REG(cause)
+    csrr    s1, scause
     sd      s1, 8*31(a0)
     # save SEPC
-    csrr    s1, MODE_REG(epc)
+    csrr    s1, sepc
     sd      s1, 8*32(a0)
     # save SSTATUS
-    csrr    s1, MODE_REG(status)
+    csrr    s1, sstatus
     sd      s1, 8*33(a0)
 
     # start with a new stack
