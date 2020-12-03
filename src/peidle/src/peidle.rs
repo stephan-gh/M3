@@ -140,11 +140,17 @@ fn run_app(entry: usize, sp: usize) -> ! {
 
     unsafe {
         llvm_asm!(
-            // jump to entry point
-            "jr $0"
+            concat!(
+                // enable FPU
+                "li t0, 1 << 13\n",
+                "csrs sstatus, t0\n",
+                // jump to entry point
+                "jr $0\n"
+            )
             // set SP and set x10 to tell crt0 that the SP is already set
             : : "r"(entry), "{x2}"(sp), "{x10}"(0xDEAD_BEEFu64)
-            : : : "volatile"
+            : "t0"
+            : : "volatile"
         );
     }
     unreachable!();
