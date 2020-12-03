@@ -175,8 +175,12 @@ def main():
 
     # wait for prints
     while True:
-        msg = fpga_inst.nocif.receive_bytes().decode()
-        sys.stdout.write(msg)
+        bytes = fpga_inst.nocif.receive_bytes()
+        try:
+            msg = bytes.decode()
+            sys.stdout.write(msg)
+        except:
+            sys.stdout.write("Unable to decode: {}\n".format(bytes))
         sys.stdout.write('\033[0m')
         sys.stdout.flush()
         if "Shutting down" in msg:
