@@ -57,6 +57,7 @@ pub const LOG_BUFFER: bool = false;
 pub const LOG_DIRS: bool = false;
 pub const LOG_INODES: bool = false;
 pub const LOG_LINKS: bool = false;
+pub const LOG_FIND: bool = false;
 
 // Server constants
 const FS_IMG_OFFSET: goff = 0;

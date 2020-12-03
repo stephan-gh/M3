@@ -42,10 +42,18 @@ fn split_path(mut path: &str) -> (&str, &str) {
 }
 
 fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
+    log!(
+        crate::LOG_FIND,
+        "dirs::find(inode: {}, name={})",
+        inode.inode,
+        name
+    );
+
     for ext in inode.extent_iter() {
         for block in ext.block_iter() {
             let entry_iter = DirEntryIterator::from_block(&block);
             while let Some(entry) = entry_iter.next() {
+                log!(crate::LOG_FIND, "  considering {}", entry.name());
                 if entry.name() == name {
                     return Ok(entry.nodeno);
                 }
