@@ -388,12 +388,22 @@ case "$cmd" in
 
             gdbcmd=`mktemp`
             echo "target remote localhost:30000" > $gdbcmd
-            echo "display/i \$pc" >> $gdbcmd
             echo "set \$t0 = 0" >> $gdbcmd          # ensure that we set the default stack pointer
             echo "set \$pc = 0x10000000" >> $gdbcmd # go to entry point
-            echo "b env_run" >> $gdbcmd
 
-            RUST_GDB=${crossprefix}gdb rust-gdb --tui $bindir/${cmd#dbg=} --command=$gdbcmd
+            if [ "${cmd#dbg=}" = "pemux" ] || [ "${cmd#dbg=}" = "kernel" ]; then
+                echo "b env_run" >> $gdbcmd
+                symbols=$bindir/${cmd#dbg=}
+            else
+                echo "tb __app_start" >> $gdbcmd
+                echo "c" >> $gdbcmd
+                echo "symbol-file $bindir/${cmd#dbg=}" >> $gdbcmd
+                echo "b main" >> $gdbcmd
+                symbols=$bindir/pemux
+            fi
+            echo "display/i \$pc" >> $gdbcmd
+
+            RUST_GDB=${crossprefix}gdb rust-gdb --tui $symbols --command=$gdbcmd
         fi
         ;;
 

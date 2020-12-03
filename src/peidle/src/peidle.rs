@@ -145,7 +145,8 @@ fn run_app(entry: usize, sp: usize) -> ! {
                 "li t0, 1 << 13\n",
                 "csrs sstatus, t0\n",
                 // jump to entry point
-                "jr $0\n"
+                ".global __app_start\n",
+                "__app_start: jr $0\n"
             )
             // set SP and set x10 to tell crt0 that the SP is already set
             : : "r"(entry), "{x2}"(sp), "{x10}"(0xDEAD_BEEFu64)
