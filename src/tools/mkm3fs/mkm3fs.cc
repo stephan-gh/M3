@@ -16,6 +16,7 @@
 
 #include <base/Common.h>
 #include <base/util/BitField.h>
+#include <base/util/Math.h>
 
 #include <fs/internal.h>
 
@@ -157,7 +158,8 @@ static m3::DirEntry *write_dirent(m3::INode *dir, m3::DirEntry *prev, const char
                                   const char *name, m3::inodeno_t inode, size_t &off,
                                   m3::blockno_t &block) {
     size_t len = strlen(name);
-    size_t total = sizeof(m3::DirEntry) + len;
+    // all entries should be 4-byte aligned
+    size_t total = sizeof(m3::DirEntry) + m3::Math::round_up(len, static_cast<size_t>(4));
     if(off + total > sb.blocksize) {
         prev->next += sb.blocksize - off;
         write_to_block(prev, total, block, off - (sizeof(m3::DirEntry) + prev->namelen));
@@ -172,7 +174,7 @@ static m3::DirEntry *write_dirent(m3::INode *dir, m3::DirEntry *prev, const char
         err(1, "malloc failed");
     entry->nodeno = inode;
     entry->namelen = len;
-    entry->next = sizeof(m3::DirEntry) + len;
+    entry->next = total;
     memcpy(entry->name, name, len);
 
     PRINT("Writing dir-entry %s/%s to %u+%zu\n", path, name, block, off);

@@ -24,6 +24,7 @@ use core::u32;
 
 use m3::cell::Cell;
 use m3::libc;
+use m3::math;
 use m3::util::size_of;
 
 /// On-disk representation of directory entries.
@@ -80,7 +81,8 @@ impl DirEntry {
     /// Returns the size of this entry when stored on disk. Includes the static size of the struct
     /// as well as the str. buffer size.
     pub fn size(&self) -> usize {
-        DIR_ENTRY_LEN + self.name_length as usize
+        // make sure the next entry is 4-byte aligned
+        DIR_ENTRY_LEN + math::round_up(self.name_length as usize, 4)
     }
 
     /// Returns the name of the entry
