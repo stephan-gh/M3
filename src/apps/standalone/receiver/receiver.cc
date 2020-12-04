@@ -30,9 +30,6 @@ int main() {
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
     kernel::TCU::config_recv(0, rbuf_addr, size, size, 1);
 
-    for(volatile int i = 0; i < 1000; ++i)
-        ;
-
     Serial::get() << "Hello World from receiver!\n";
 
     uint64_t reply = 0xCAFEBABE;

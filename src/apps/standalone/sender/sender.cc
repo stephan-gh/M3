@@ -33,17 +33,19 @@ int main() {
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
     kernel::TCU::config_recv(1, rbuf_addr, size, size, TCU::NO_REPLIES);
 
-    for(volatile int i = 0; i < 1000; ++i)
-        ;
-
     Serial::get() << "Hello World from sender!\n";
 
     uint64_t msg = 0xDEADBEEF;
-    while(1) {
-        // send message
-        ASSERT_EQ(kernel::TCU::send(0, &msg, sizeof(msg), 0x2222, 1), Errors::NONE);
-        msg++;
 
+    // initial send; wait until receiver is ready
+    Errors::Code res;
+    while((res = kernel::TCU::send(0, &msg, sizeof(msg), 0x2222, 1)) != Errors::NONE) {
+        Serial::get() << "send failed: " << res << "\n";
+        // get credits back
+        kernel::TCU::config_send(0, 0x1234, pe_id(PE::PE1), 0, nextlog2<MSG_SIZE>::val, 1);
+    }
+
+    while(1) {
         // wait for reply
         const TCU::Message *rmsg;
         while((rmsg = kernel::TCU::fetch_msg(1, rbuf_addr)) == nullptr)
@@ -55,6 +57,10 @@ int main() {
 
         // ack reply
         ASSERT_EQ(kernel::TCU::ack_msg(1, rbuf_addr, rmsg), Errors::NONE);
+
+        // send message
+        ASSERT_EQ(kernel::TCU::send(0, &msg, sizeof(msg), 0x2222, 1), Errors::NONE);
+        msg++;
     }
     return 0;
 }
