@@ -17,6 +17,7 @@
 use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
 use base::envdata;
+use base::errors::Error;
 use base::goff;
 use base::kif::{PEDesc, PageFlags, PTE};
 use base::math;
@@ -45,10 +46,10 @@ extern "C" {
 struct PTAllocator {}
 
 impl Allocator for PTAllocator {
-    fn allocate_pt(&mut self) -> Phys {
+    fn allocate_pt(&mut self) -> Result<Phys, Error> {
         let phys_begin = paging::glob_to_phys(envdata::get().pe_mem_base);
         PT_POS.set(*PT_POS + cfg::PAGE_SIZE as goff);
-        phys_begin + *PT_POS - cfg::PAGE_SIZE as goff
+        Ok(phys_begin + *PT_POS - cfg::PAGE_SIZE as goff)
     }
 
     fn translate_pt(&self, phys: Phys) -> usize {

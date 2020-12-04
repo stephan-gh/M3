@@ -33,7 +33,7 @@ cfg_if::cfg_if! {
 }
 
 use base::cfg;
-use base::errors::{Code, Error};
+use base::errors::Error;
 use base::goff;
 use base::kif::{PageFlags, PTE};
 use base::libc;
@@ -59,8 +59,8 @@ pub const LOG_MAP: bool = false;
 pub const LOG_MAP_DETAIL: bool = false;
 
 pub trait Allocator {
-    /// Allocates a new page table and returns its physical addres
-    fn allocate_pt(&mut self) -> Phys;
+    /// Allocates a new page table and returns its physical address
+    fn allocate_pt(&mut self) -> Result<Phys, Error>;
 
     /// Translates the given physical address of a page table to a virtual address
     fn translate_pt(&self, phys: Phys) -> usize;
@@ -242,10 +242,7 @@ impl<A: Allocator> AddrSpace<A> {
     }
 
     fn create_pt(&mut self, virt: usize, pte_addr: usize, level: usize) -> Result<MMUPTE, Error> {
-        let frame = self.alloc.allocate_pt();
-        if frame == 0 {
-            return Err(Error::new(Code::NoSpace));
-        }
+        let frame = self.alloc.allocate_pt()?;
         Self::clear_pt(self.alloc.translate_pt(frame));
 
         // insert PTE

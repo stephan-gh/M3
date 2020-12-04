@@ -18,7 +18,7 @@ use base::boxed::Box;
 use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
 use base::col::{BoxList, Vec};
-use base::errors::Error;
+use base::errors::{Code, Error};
 use base::goff;
 use base::impl_boxitem;
 use base::kif;
@@ -45,14 +45,14 @@ struct PTAllocator {
 }
 
 impl Allocator for PTAllocator {
-    fn allocate_pt(&mut self) -> Phys {
+    fn allocate_pt(&mut self) -> Result<Phys, Error> {
         assert!(self.vpe != kif::pemux::IDLE_ID);
         if let Some(pt) = PTS.get_mut().pop() {
             log!(crate::LOG_PTS, "Alloc PT {:#x} (free: {})", pt, PTS.len());
-            pt
+            Ok(pt)
         }
         else {
-            0
+            Err(Error::new(Code::NoSpace))
         }
     }
 
@@ -147,7 +147,7 @@ pub fn init() {
         PTAllocator {
             vpe: kif::pemux::VPE_ID,
         }
-        .allocate_pt()
+        .allocate_pt().unwrap()
     }
     else {
         0
@@ -166,11 +166,11 @@ pub fn init() {
     BOOTSTRAP.set(false);
 }
 
-pub fn add(id: Id, eps_start: tcu::EpId) {
+pub fn add(id: Id, eps_start: tcu::EpId) -> Result<(), Error> {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
     let root_pt = if pex_env().pe_desc.has_virtmem() {
-        PTAllocator { vpe: id }.allocate_pt()
+        PTAllocator { vpe: id }.allocate_pt()?
     }
     else {
         0
@@ -188,6 +188,7 @@ pub fn add(id: Id, eps_start: tcu::EpId) {
     }
 
     make_blocked(vpe);
+    Ok(())
 }
 
 pub fn get_mut(id: Id) -> Option<&'static mut VPE> {
@@ -721,8 +722,7 @@ impl VPE {
 
     fn map_new_mem(&mut self, addr: usize, size: usize, perm: kif::PageFlags) {
         for i in 0..(size / cfg::PAGE_SIZE) {
-            let frame = self.aspace.allocator_mut().allocate_pt();
-            assert!(frame != 0);
+            let frame = self.aspace.allocator_mut().allocate_pt().unwrap();
             self.frames.push(frame);
             self.map(
                 addr + i * cfg::PAGE_SIZE,

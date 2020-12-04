@@ -55,7 +55,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
 
     match op {
         kif::pemux::VPEOp::INIT => {
-            vpe::add(vpe_id, eps_start);
+            vpe::add(vpe_id, eps_start)
         },
 
         kif::pemux::VPEOp::START => {
@@ -68,6 +68,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
             vpe.unblock(None, false);
             // now switch back
             cur.switch_to();
+            Ok(())
         },
 
         _ => {
@@ -76,10 +77,9 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
                 Some(cur) if cur.id() == vpe_id => crate::reg_scheduling(vpe::ScheduleAction::Kill),
                 _ => vpe::remove(vpe_id, 0, false, true),
             }
+            Ok(())
         },
     }
-
-    Ok(())
 }
 
 fn map(msg: &'static tcu::Message) -> Result<(), Error> {
