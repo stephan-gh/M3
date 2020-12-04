@@ -17,6 +17,7 @@
 #include <base/Asm.h>
 #include <base/Config.h>
 
+.weak baremetal_stack
 .extern env_run
 
 BEGIN_FUNC(_start)
@@ -41,7 +42,7 @@ BEGIN_FUNC(_start)
     orr     r0, r0, #0x10000000     // enable TEX remap
     mcr     p15, 0, r0, c1, c0, 0
 
-    ldr     sp, =#STACK_TOP - 8
+    ldr     sp, =baremetal_stack
     mov     fp, #0
 
 1:

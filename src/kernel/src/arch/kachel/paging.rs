@@ -97,12 +97,11 @@ pub fn init() {
         map_segment(&mut aspace, &_bss_start, &_bss_end, PageFlags::RW);
 
         // map initial heap
-        let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::LPAGE_SIZE);
+        let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
         map_to_phys(&mut aspace, heap_start, 4 * cfg::PAGE_SIZE, rw);
     }
 
-    // map stack and env
-    map_to_phys(&mut aspace, cfg::STACK_BOTTOM, cfg::STACK_SIZE, rw);
+    // map env
     map_to_phys(&mut aspace, cfg::ENV_START, cfg::ENV_SIZE, rw);
 
     // map PTs

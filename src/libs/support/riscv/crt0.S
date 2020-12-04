@@ -17,13 +17,15 @@
 #include <base/Asm.h>
 #include <base/Config.h>
 
+.weak baremetal_stack
+
 BEGIN_FUNC(_start)
     # stack pointer already set?
     li      t0, 0xDEADBEEF
     beq     t0, a0, 1f
 
     # set default stack pointer
-    li      sp, (STACK_TOP - 16)
+    la      sp, baremetal_stack
 
 1:
     jal     env_run

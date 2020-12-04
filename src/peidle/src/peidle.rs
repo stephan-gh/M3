@@ -21,7 +21,7 @@
 extern crate base;
 extern crate heap;
 
-use base::cell::StaticCell;
+use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
 use base::envdata;
 use base::errors::{Code, Error};
@@ -41,6 +41,8 @@ pub const LOG_VERBOSE: bool = false;
 // remember our PE id here, because the environment is overwritten later
 static PE_ID: StaticCell<u64> = StaticCell::new(0);
 static CUR_VPE: StaticCell<Option<u64>> = StaticCell::new(None);
+
+static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
 
 #[no_mangle]
 pub extern "C" fn abort() -> ! {
@@ -177,7 +179,8 @@ pub extern "C" fn env_run() {
         PE_ID.set(envdata::get().pe_id);
 
         // install exception handlers to ease debugging
-        isr::init(cfg::STACK_BOTTOM + cfg::STACK_SIZE / 2);
+        STATE.set(isr::State::default());
+        isr::init(STATE.get_mut());
         isr::enable_irqs();
 
         io::init(*PE_ID, "pemux");

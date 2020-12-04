@@ -49,16 +49,16 @@
 #   define MEM_OFFSET       0
 #endif
 
-// hw layout:
+// (RISC-V) physical memory layout:
 // +----------------------------+ 0x0
 // |         devices etc.       |
 // +----------------------------+ 0x10000000
 // |          PEMux code        |
-// +----------------------------+ 0x10040000
+// +----------------------------+ 0x10060000
 // |           app code         |
 // +----------------------------+ 0x10100000
 // |       env + PEMux data     |
-// +----------------------------+ 0x10104000
+// +----------------------------+ 0x10160000
 // |          app data          |
 // +----------------------------+ 0x101E0000
 // |          app stack         |
@@ -72,7 +72,7 @@
 // |          TCU MMIO          |
 // +----------------------------+ 0xF0002000
 
-// gem5 layout:
+// (RISC-V) virtual memory layout:
 // +----------------------------+ 0x0
 // |            ...             |
 // +----------------------------+ 0x10100000
@@ -84,10 +84,10 @@
 // +----------------------------+ 0x103FF000
 // |     PEMux recv buffers     |
 // +----------------------------+ 0x10400000
-// |          app stack         |
-// +----------------------------+ 0x10410000
 // |       app code+data        |
 // |            ...             |
+// +----------------------------+ 0xEFFF0000
+// |          app stack         |
 // +----------------------------+ 0xD0000000
 // |      std recv buffers      |
 // +----------------------------+ 0xD0001000
@@ -104,7 +104,6 @@
 #define ENV_END             (ENV_START + ENV_SIZE)
 
 #define STACK_SIZE          0x10000
-#define STACK_TOP           (STACK_BOTTOM + STACK_SIZE)
 
 #define PEMUX_RBUF_PHYS     0x2000
 #define PEMUX_RBUF_SIZE     0x1000
@@ -118,22 +117,18 @@
 #define PE_MEM_BASE         0xE0000000
 
 #if defined(__hw__)
-#   define APP_CODE_START   (MEM_OFFSET + 0x40000)
+#   define APP_CODE_START   (MEM_OFFSET + 0x60000)
 #   define APP_CODE_SIZE    (ENV_START - APP_CODE_START)
-#   define APP_DATA_START   (MEM_OFFSET + 0x104000)
-#   define APP_DATA_SIZE    (STACK_BOTTOM - APP_DATA_START)
+#   define APP_DATA_START   (MEM_OFFSET + 0x160000)
+#   define APP_DATA_SIZE    (MEM_OFFSET + 0x1E0000 - APP_DATA_START)
 
 #   define PEMUX_CODE_START MEM_OFFSET
 #   define PEMUX_CODE_SIZE  (APP_CODE_START - PEMUX_CODE_START)
 #   define PEMUX_DATA_START (ENV_START + 0x800)
 #   define PEMUX_DATA_SIZE  (APP_DATA_START - PEMUX_DATA_START)
 
-#   define STACK_BOTTOM     (MEM_OFFSET + 0x1E0000)
-
 #   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x1FF000)
 #else
-#   define STACK_BOTTOM     (MEM_OFFSET + 0x400000)
-
 #   define PEMUX_CODE_START (MEM_OFFSET + 0x200000)
 
 #   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x3FF000)

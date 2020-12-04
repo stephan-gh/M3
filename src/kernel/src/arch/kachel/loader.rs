@@ -15,9 +15,7 @@
  */
 
 use base::cell::{Cell, StaticCell};
-use base::cfg::{
-    ENV_START, LPAGE_SIZE, MOD_HEAP_SIZE, PAGE_BITS, PAGE_MASK, PAGE_SIZE, STACK_BOTTOM, STACK_TOP,
-};
+use base::cfg::{ENV_START, MOD_HEAP_SIZE, PAGE_BITS, PAGE_MASK, PAGE_SIZE};
 use base::col::Vec;
 use base::elf;
 use base::envdata;
@@ -85,8 +83,7 @@ impl Loader {
     fn load_root_async(&mut self, env_addr: GlobAddr, vpe: &VPE) -> Result<(), Error> {
         // map stack
         if vpe.pe_desc().has_virtmem() {
-            let virt = STACK_BOTTOM;
-            let size = STACK_TOP - virt;
+            let (virt, size) = vpe.pe_desc().stack_space();
             let mut phys = mem::get().allocate(size as goff, PAGE_SIZE as goff)?;
             Self::load_segment_async(vpe, phys.global(), virt as goff, size, PageFlags::RW, true)?;
             phys.claim();
@@ -107,7 +104,7 @@ impl Loader {
         senv.platform = envdata::get().platform;
         senv.argc = 1;
         senv.argv = argv_addr as u64;
-        senv.sp = STACK_TOP as u64;
+        senv.sp = vpe.pe_desc().stack_top() as u64;
         senv.entry = entry as u64;
         senv.pe_id = vpe.pe_id() as u64;
         senv.pe_desc = vpe.pe_desc().value();
@@ -253,7 +250,7 @@ impl Loader {
 
         if vpe.pe_desc().has_virtmem() {
             // create initial heap
-            let end = math::round_up(end, LPAGE_SIZE);
+            let end = math::round_up(end, PAGE_SIZE);
             let mut phys = mem::get().allocate(MOD_HEAP_SIZE as goff, PAGE_SIZE as goff)?;
             Self::load_segment_async(
                 vpe,

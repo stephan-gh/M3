@@ -50,8 +50,8 @@ impl Default for FPUState {
     }
 }
 
-pub fn init(stack: usize) {
-    isr::init(stack);
+pub fn init(state: &mut State) {
+    isr::init(state);
     for i in 0..=65 {
         match i {
             7 => isr::reg(i, crate::fpu_ex),

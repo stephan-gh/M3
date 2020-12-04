@@ -138,35 +138,43 @@ impl PEDesc {
 
     /// Returns the starting address and size of the standard receive buffer space
     pub fn rbuf_std_space(self) -> (usize, usize) {
-        cfg_if! {
-            if #[cfg(target_os = "linux")] {
-                (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
-            }
-            else {
-                if self.has_virtmem() {
-                    (cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE)
-                }
-                else {
-                    let rbufs = cfg::PEMUX_RBUF_SIZE + cfg::RBUF_SIZE_SPM + cfg::RBUF_STD_SIZE;
-                    (cfg::MEM_OFFSET + self.mem_size() - rbufs, cfg::RBUF_STD_SIZE)
-                }
-            }
-        }
+        (self.rbuf_base(), cfg::RBUF_STD_SIZE)
     }
 
     /// Returns the starting address and size of the receive buffer space
     pub fn rbuf_space(self) -> (usize, usize) {
+        let size = if self.has_virtmem() {
+            cfg::RBUF_SIZE
+        }
+        else {
+            cfg::RBUF_SIZE_SPM
+        };
+        (self.rbuf_base() + cfg::RBUF_STD_SIZE, size)
+    }
+
+    /// Returns the highest address of the stack
+    pub fn stack_top(self) -> usize {
+        let (addr, size) = self.stack_space();
+        addr + size
+    }
+
+    /// Returns the starting address and size of the stack
+    pub fn stack_space(self) -> (usize, usize) {
+        (self.rbuf_base() - cfg::STACK_SIZE, cfg::STACK_SIZE)
+    }
+
+    fn rbuf_base(self) -> usize {
         cfg_if! {
             if #[cfg(target_os = "linux")] {
-                (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
+                cfg::RBUF_STD_ADDR
             }
             else {
                 if self.has_virtmem() {
-                    (cfg::RBUF_ADDR, cfg::RBUF_SIZE)
+                    cfg::RBUF_STD_ADDR
                 }
                 else {
-                    let rbufs = cfg::PEMUX_RBUF_SIZE + cfg::RBUF_SIZE_SPM;
-                    (cfg::MEM_OFFSET + self.mem_size() - rbufs, cfg::RBUF_SIZE_SPM)
+                    let rbufs = cfg::PEMUX_RBUF_SIZE + cfg::RBUF_SIZE_SPM + cfg::RBUF_STD_SIZE;
+                    cfg::MEM_OFFSET + self.mem_size() - rbufs
                 }
             }
         }

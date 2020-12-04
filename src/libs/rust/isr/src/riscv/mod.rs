@@ -123,8 +123,11 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
     crate::ISRS[vec](state)
 }
 
-pub fn init(stack: usize) {
-    unsafe { isr_setup(stack) };
+pub fn init(state: &mut State) {
+    unsafe {
+        let state_top = (state as *mut State).offset(1) as usize;
+        isr_setup(state_top)
+    };
 }
 
 pub fn set_entry_sp(sp: usize) {

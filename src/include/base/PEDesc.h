@@ -154,31 +154,44 @@ struct PEDesc {
      * @return the starting address and size of the standard receive buffer space
      */
     std::pair<uintptr_t, size_t> rbuf_std_space() const {
-        if(has_virtmem())
-            return std::make_pair(RBUF_STD_ADDR, RBUF_STD_SIZE);
-#if defined(__kachel__)
-        size_t rbufs = PEMUX_RBUF_SIZE + RBUF_SIZE_SPM + RBUF_STD_SIZE;
-        return std::make_pair(MEM_OFFSET + mem_size() - rbufs, RBUF_STD_SIZE);
-#else
-        return std::make_pair(RBUF_STD_ADDR, RBUF_STD_SIZE);
-#endif
+        return std::make_pair(rbuf_base(), RBUF_STD_SIZE);
     }
 
     /**
      * @return the starting address and size of the receive buffer space
      */
     std::pair<uintptr_t, size_t> rbuf_space() const {
-        if(has_virtmem())
-            return std::make_pair(RBUF_ADDR, RBUF_SIZE);
-#if defined(__kachel__)
-        size_t rbufs = PEMUX_RBUF_SIZE + RBUF_SIZE_SPM;
-        return std::make_pair(MEM_OFFSET + mem_size() - rbufs, RBUF_SIZE_SPM);
-#else
-        return std::make_pair(RBUF_ADDR, RBUF_SIZE);
-#endif
+        size_t size = has_virtmem() ? RBUF_SIZE : RBUF_SIZE_SPM;
+        return std::make_pair(rbuf_base() + RBUF_STD_SIZE, size);
+    }
+
+    /**
+     * @return the highest address of the stack
+     */
+    uintptr_t stack_top() const {
+        auto space = stack_space();
+        return space.first + space.second;
+    }
+
+    /**
+     * @return the starting address and size of the stack
+     */
+    std::pair<uintptr_t, size_t> stack_space() const {
+        return std::make_pair(rbuf_base() - STACK_SIZE, STACK_SIZE);
     }
 
 private:
+    uintptr_t rbuf_base() const {
+#if defined(__host__)
+        return RBUF_STD_ADDR;
+#else
+        if(has_virtmem())
+            return RBUF_STD_ADDR;
+        size_t rbufs = PEMUX_RBUF_SIZE + RBUF_SIZE_SPM + RBUF_STD_SIZE;
+        return MEM_OFFSET + mem_size() - rbufs;
+#endif
+    }
+
     value_t _value;
 } PACKED;
 

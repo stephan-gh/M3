@@ -34,8 +34,8 @@ pub fn init_state(state: &mut State, entry: usize, sp: usize) {
     state.lr = 0;
 }
 
-pub fn init(stack: usize) {
-    isr::init(stack);
+pub fn init(state: &mut State) {
+    isr::init(state);
     for i in 0..=7 {
         match isr::Vector::from(i) {
             isr::Vector::SWI => isr::reg(i, crate::pexcall),

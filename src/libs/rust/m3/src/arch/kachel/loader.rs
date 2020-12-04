@@ -45,7 +45,7 @@ fn sym_addr<T>(sym: &T) -> usize {
     sym as *const _ as usize
 }
 
-pub fn copy_vpe(sp: usize, mem: MemGate) -> Result<usize, Error> {
+pub fn copy_vpe(pedesc: kif::PEDesc, sp: usize, mem: MemGate) -> Result<usize, Error> {
     unsafe {
         // copy text
         let text_start = sym_addr(&_text_start);
@@ -69,7 +69,8 @@ pub fn copy_vpe(sp: usize, mem: MemGate) -> Result<usize, Error> {
         )?;
 
         // copy stack
-        mem.write_bytes(sp as *const u8, cfg::STACK_TOP - sp, sp as goff)?;
+        let stack_top = pedesc.stack_top();
+        mem.write_bytes(sp as *const u8, stack_top - sp, sp as goff)?;
 
         Ok(sym_addr(&_start))
     }
@@ -125,16 +126,17 @@ pub fn load_program(
     }
 
     // create area for stack
+    let (stack_addr, stack_size) = vpe.pe_desc().stack_space();
     mapper.map_anon(
         vpe.pager(),
-        cfg::STACK_BOTTOM as goff,
-        cfg::STACK_SIZE,
+        stack_addr as goff,
+        stack_size,
         kif::Perm::RW,
         MapFlags::PRIVATE | MapFlags::UNINIT,
     )?;
 
     // create heap
-    let heap_begin = math::round_up(end, cfg::LPAGE_SIZE);
+    let heap_begin = math::round_up(end, cfg::PAGE_SIZE);
     let (heap_size, flags) = if vpe.pager().is_some() {
         (cfg::APP_HEAP_SIZE, MapFlags::NOLPAGE)
     }

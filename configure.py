@@ -53,9 +53,9 @@ if cross != '':
 bins = []
 ldscripts = {}
 if isa == 'riscv':
-    link_addr = 0x10310000
+    link_addr = 0x10400000
 else:
-    link_addr = 0x310000
+    link_addr = 0x400000
 
 class M3Env(ninjagen.Env):
     def clone(self):
@@ -359,13 +359,17 @@ if env['PLATF'] == 'kachel':
     ldscript = 'src/toolchain/' + env['TGT'] + '/ld.conf'
     ldscripts['default'] = env.cpp(gen, out = 'ld-default.conf', ins = [ldscript])
 
+    bare_env = env.clone()
+    bare_env['CPPFLAGS'] += ['-D__baremetal__=1']
+    ldscripts['baremetal'] = bare_env.cpp(gen, out = 'ld-baremetal.conf', ins = [ldscript])
+
+    isr_env = env.clone()
+    isr_env['CPPFLAGS'] += ['-D__baremetal__=1', '-D__isr__=1']
+    ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', ins = [ldscript])
+
     pemux_env = env.clone()
     pemux_env['CPPFLAGS'] += ['-D__isr__=1', '-D__pemux__=1']
     ldscripts['pemux'] = pemux_env.cpp(gen, out = 'ld-pemux.conf', ins = [ldscript])
-
-    isr_env = env.clone()
-    isr_env['CPPFLAGS'] += ['-D__isr__=1']
-    ldscripts['isr'] = isr_env.cpp(gen, out = 'ld-isr.conf', ins = [ldscript])
 
 # generate build edge to build the workspace with cargo
 env.cargo_ws(gen)

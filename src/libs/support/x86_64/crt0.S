@@ -17,6 +17,7 @@
 #include <base/Asm.h>
 #include <base/Config.h>
 
+.weak baremetal_stack
 .extern env_run
 
 BEGIN_FUNC(_start)
@@ -26,7 +27,7 @@ BEGIN_FUNC(_start)
     je      1f
 
     # set default stack pointer
-    mov     $(STACK_TOP - 8), %rsp
+    mov     $baremetal_stack, %rsp
     mov     $0, %rbp
 
 1:

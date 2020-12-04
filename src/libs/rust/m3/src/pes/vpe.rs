@@ -413,6 +413,7 @@ impl VPE {
                 Some(ref pg) => arch::loader::clone_vpe(pg),
                 // copy all regions to child
                 None => arch::loader::copy_vpe(
+                    self.pe_desc(),
                     senv.sp(),
                     self.get_mem(
                         0,
@@ -545,7 +546,7 @@ impl VPE {
         {
             // load program segments
             senv.set_platform(arch::env::get().platform());
-            senv.set_sp(cfg::STACK_TOP);
+            senv.set_sp(self.pe_desc().stack_top());
             senv.set_entry(arch::loader::load_program(&self, mapper, &mut file)?);
 
             // write args

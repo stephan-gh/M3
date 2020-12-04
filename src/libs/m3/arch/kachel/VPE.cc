@@ -126,7 +126,7 @@ void VPE::exec(int argc, const char **argv) {
     senv.argv = ENV_SPACE_START;
     senv.heap_size = _pager ? APP_HEAP_SIZE : 0;
 
-    senv.sp = STACK_TOP;
+    senv.sp = _pe->desc().stack_top();
     senv.entry = entry;
     senv.first_std_ep = _eps_start;
     senv.first_sel = _next_sel;
@@ -256,11 +256,12 @@ void VPE::load(int argc, const char **argv, uintptr_t *entry, char *buffer, size
 
     if(_pager) {
         // create area for stack
-        goff_t virt = STACK_BOTTOM;
-        _pager->map_anon(&virt, STACK_TOP - virt, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
+        auto stack_space = _pe->desc().stack_space();
+        goff_t virt = stack_space.first;
+        _pager->map_anon(&virt, stack_space.second, Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
 
         // create heap
-        virt = Math::round_up(end, static_cast<goff_t>(LPAGE_SIZE));
+        virt = Math::round_up(end, static_cast<goff_t>(PAGE_SIZE));
         _pager->map_anon(&virt, APP_HEAP_SIZE, Pager::READ | Pager::WRITE,
                          Pager::MAP_UNINIT | Pager::MAP_NOLPAGE);
     }
@@ -302,22 +303,7 @@ void VPE::copy_sections() {
             return;
         }
 
-        // map text
-        start_addr = reinterpret_cast<uintptr_t>(&_text_start);
-        end_addr = reinterpret_cast<uintptr_t>(&_text_end);
-        _pager->map_anon(&start_addr, end_addr - start_addr,
-                         Pager::READ | Pager::WRITE | Pager::EXEC, Pager::MAP_UNINIT);
-
-        // map data
-        start_addr = reinterpret_cast<uintptr_t>(&_data_start);
-        end_addr = Heap::end_area() + Heap::end_area_size();
-        _pager->map_anon(&start_addr, end_addr - start_addr,
-                         Pager::READ | Pager::WRITE, Pager::MAP_UNINIT | Pager::MAP_NOLPAGE);
-
-        // map area for stack and boot/runtime stuff
-        start_addr = ENV_START;
-        _pager->map_anon(&start_addr, STACK_TOP - start_addr,
-                         Pager::READ | Pager::WRITE, Pager::MAP_UNINIT);
+        VTHROW(Errors::NOT_SUP, "Clone requires a pager");
     }
 
     if(pe_desc().has_virtmem())
@@ -341,7 +327,7 @@ void VPE::copy_sections() {
 
     /* copy stack */
     start_addr = CPU::stack_pointer();
-    end_addr = STACK_TOP;
+    end_addr = pe_desc().stack_top();
     mem.write(reinterpret_cast<void*>(start_addr), end_addr - start_addr, start_addr);
 }
 

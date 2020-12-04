@@ -98,8 +98,8 @@ fn set_fpu_mode(mut sstatus: usize, mode: FSMode) -> usize {
     sstatus | (mode.val << 13)
 }
 
-pub fn init(stack: usize) {
-    isr::init(stack);
+pub fn init(state: &mut State) {
+    isr::init(state);
     for i in 0..=31 {
         match isr::Vector::from(i) {
             isr::Vector::ILLEGAL_INSTR => isr::reg(i, crate::fpu_ex),

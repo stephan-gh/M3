@@ -246,7 +246,8 @@ pub extern "C" fn init() -> usize {
     vpe::idle().start();
     vpe::schedule(vpe::ScheduleAction::Yield);
 
-    let stack_top = vpe::idle().user_state() as *const _ as usize + util::size_of::<arch::State>();
-    arch::init(stack_top);
-    stack_top
+    let state = vpe::idle().user_state();
+    let state_top = state as *const _ as usize + util::size_of::<arch::State>();
+    arch::init(state);
+    state_top
 }

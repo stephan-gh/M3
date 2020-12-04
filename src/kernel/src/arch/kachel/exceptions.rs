@@ -14,14 +14,17 @@
  * General Public License version 2 for more details.
  */
 
-use base::cfg;
+use base::cell::LazyStaticCell;
 use base::libc;
 use base::tcu;
 
 use crate::arch::paging;
 
+static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
+
 pub fn init() {
-    isr::init(cfg::STACK_BOTTOM + cfg::STACK_SIZE / 2);
+    STATE.set(isr::State::default());
+    isr::init(STATE.get_mut());
     isr::reg(isr::TCU_ISR, tcu_irq);
     isr::enable_irqs();
 }

@@ -54,20 +54,15 @@ pub const ENV_START: usize                  = MEM_OFFSET + 0x10_0000;
 pub const ENV_SIZE: usize                   = PAGE_SIZE;
 
 pub const STACK_SIZE: usize                 = 0x10000;
-pub const STACK_TOP: usize                  = STACK_BOTTOM + STACK_SIZE;
 
 pub const FIXED_KMEM: usize                 = 2 * 1024 * 1024;
 
 cfg_if! {
     if #[cfg(target_vendor = "hw")] {
-        pub const STACK_BOTTOM: usize       = MEM_OFFSET + 0x1E_0000;
-
         pub const PEMUX_START: usize        = MEM_OFFSET;
         pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x1F_F000;
     }
     else {
-        pub const STACK_BOTTOM: usize       = MEM_OFFSET + 0x40_0000;
-
         pub const PEMUX_START: usize        = MEM_OFFSET + 0x20_0000;
         pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x3F_F000;
     }

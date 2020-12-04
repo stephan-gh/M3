@@ -361,8 +361,9 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
     crate::ISRS[state.irq](state)
 }
 
-pub fn init(stack: usize) {
-    set_entry_sp(stack);
+pub fn init(state: &mut State) {
+    let state_top = unsafe { (state as *mut State).offset(1) } as usize;
+    set_entry_sp(state_top);
 
     // initialize GDT
     let gdt = &mut GDT.get_mut().inner;

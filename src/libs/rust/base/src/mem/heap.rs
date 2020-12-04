@@ -73,14 +73,11 @@ fn heap_bounds() -> (usize, usize) {
     use crate::math;
 
     unsafe {
-        #[cfg(target_vendor = "gem5")]
-        let begin = math::round_up(&_bss_end as *const u8 as usize, cfg::LPAGE_SIZE);
-        #[cfg(target_vendor = "hw")]
         let begin = math::round_up(&_bss_end as *const u8 as usize, cfg::PAGE_SIZE);
 
         let env = arch::envdata::get();
         let end = if env.heap_size == 0 {
-            PEDesc::new_from(env.pe_desc).rbuf_std_space().0
+            PEDesc::new_from(env.pe_desc).stack_space().0
         }
         else {
             begin + env.heap_size as usize
