@@ -9,7 +9,7 @@ import os, sys
 import modids
 import fpga_top
 from noc import NoCmonitor
-from tcu import MemEP, Flags
+from tcu import EP, MemEP, Flags
 from fpga_utils import FPGA_Error
 import memory
 
@@ -82,12 +82,9 @@ def load_boot_info(dram, mods):
     write_u64(dram, kenv_off, DRAM_SIZE - MAX_FS_SIZE - KENV_SIZE) # size
     kenv_off += 8
 
-def load_prog(pm, i, args, debug_pe):
+def load_prog(pm, i, args):
     print("%s: loading %s..." % (pm.name, args[0]))
     sys.stdout.flush()
-
-    # first disable core to start from initial state
-    pm.stop()
 
     # start core
     pm.start()
@@ -95,6 +92,9 @@ def load_prog(pm, i, args, debug_pe):
     # make privileged
     pm.tcu_set_privileged(1)
 
+    # invalidate all EPs
+    for ep in range(0, 63):
+        pm.tcu_set_ep(ep, EP.invalid())
     # install EP for prints
     print_ep = MemEP()
     print_ep.set_pe(modids.MODID_ETH)
@@ -131,9 +131,6 @@ def load_prog(pm, i, args, debug_pe):
         if args_addr > ENV + 0x800:
             sys.exit("Not enough space for arguments")
 
-    if debug_pe != i:
-        # start core (via interrupt 0)
-        pm.rocket_start()
     sys.stdout.flush()
 
 def main():
@@ -153,6 +150,11 @@ def main():
     if args.reset:
         fpga_inst.eth_rf.system_reset()
 
+    # stop all PEs
+    pes = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]
+    for pe in pes:
+        pe.stop()
+
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
     load_boot_info(fpga_inst.dram1, mods)
@@ -162,10 +164,15 @@ def main():
         write_file(fpga_inst.dram1, args.fs, 0)
 
     # load programs onto PEs
-    pes = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]
-    debug_pe = len(pes) if args.debug is None else args.debug
     for i, peargs in enumerate(args.pe, 0):
-        load_prog(pes[i], i, peargs.split(' '), debug_pe)
+        load_prog(pes[i], i, peargs.split(' '))
+
+    # start PEs
+    debug_pe = len(pes) if args.debug is None else args.debug
+    for i, pe in enumerate(pes, 0):
+        if i != debug_pe:
+            # start core (via interrupt 0)
+            pes[i].rocket_start()
 
     # signal run.sh that everything has been loaded
     if not args.debug is None:
