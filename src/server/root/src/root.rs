@@ -96,28 +96,13 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
     Ok(())
 }
 
-fn create_rgate(buf_size: usize, msg_size: usize) -> Result<RecvGate, Error> {
-    // allocate and map memory for receive buffer. note that we need to do that manually here,
-    // because RecvBufs allocate new physical memory via the resource manager and root does not have
-    // a resource manager.
-    let (rbuf_addr, _) = VPE::cur().pe_desc().rbuf_space();
-    let (rbuf_off, rbuf_mem) = if VPE::cur().pe_desc().has_virtmem() {
-        let buf_mem = memory::container().alloc_mem(buf_size as goff)?;
-        let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
-        syscalls::create_map(
-            (rbuf_addr / cfg::PAGE_SIZE) as Selector,
-            VPE::cur().sel(),
-            buf_mem.sel(),
-            0,
-            pages,
-            kif::Perm::R,
-        )?;
-        (0, Some(buf_mem.sel()))
-    }
-    else {
-        (rbuf_addr, None)
-    };
-
+fn create_rgate(
+    buf_size: usize,
+    msg_size: usize,
+    rbuf_mem: Option<Selector>,
+    rbuf_off: usize,
+    rbuf_addr: usize,
+) -> Result<RecvGate, Error> {
     let mut rgate = RecvGate::new_with(
         RGateArgs::default()
             .order(math::next_log2(buf_size))
@@ -137,11 +122,43 @@ pub fn main() -> i32 {
 
     let max_msg_size = 1 << 8;
     let buf_size = max_msg_size * DEF_MAX_CLIENTS;
-    let req_rgate = create_rgate(buf_size, max_msg_size).expect("Unable to create request RecvGate");
+
+    // allocate and map memory for receive buffer. note that we need to do that manually here,
+    // because RecvBufs allocate new physical memory via the resource manager and root does not have
+    // a resource manager.
+    let (rbuf_addr, _) = VPE::cur().pe_desc().rbuf_space();
+    let (rbuf_off, rbuf_mem) = if VPE::cur().pe_desc().has_virtmem() {
+        let buf_mem = memory::container()
+            .alloc_mem((buf_size + sendqueue::RBUF_SIZE) as goff)
+            .expect("Unable to allocate memory for receive buffers");
+        let pages = (buf_mem.capacity() as usize + cfg::PAGE_SIZE - 1) / cfg::PAGE_SIZE;
+        syscalls::create_map(
+            (rbuf_addr / cfg::PAGE_SIZE) as Selector,
+            VPE::cur().sel(),
+            buf_mem.sel(),
+            0,
+            pages,
+            kif::Perm::R,
+        )
+        .expect("Unable to map receive buffers");
+        (0, Some(buf_mem.sel()))
+    }
+    else {
+        (rbuf_addr, None)
+    };
+
+    let req_rgate = create_rgate(buf_size, max_msg_size, rbuf_mem, rbuf_off, rbuf_addr)
+        .expect("Unable to create request RecvGate");
     requests::init(req_rgate);
 
-    let squeue_rgate = create_rgate(sendqueue::RBUF_SIZE, sendqueue::RBUF_MSG_SIZE)
-        .expect("Unable to create sendqueue RecvGate");
+    let squeue_rgate = create_rgate(
+        sendqueue::RBUF_SIZE,
+        sendqueue::RBUF_MSG_SIZE,
+        rbuf_mem,
+        rbuf_off + buf_size,
+        rbuf_addr + buf_size,
+    )
+    .expect("Unable to create sendqueue RecvGate");
     sendqueue::init(squeue_rgate);
 
     thread::init();
