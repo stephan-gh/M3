@@ -28,7 +28,7 @@ pub const HEAP: bool = false;
 pub const FS: bool = false;
 /// Logs server operations
 pub const SERV: bool = false;
-/// Logs TCU operations (only on host)
+/// Logs TCU operations
 pub const TCU: bool = false;
 /// Logs TCU errors (only on host)
 pub const TCU_ERR: bool = true;

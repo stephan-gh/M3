@@ -23,6 +23,7 @@ use crate::arch;
 use crate::cfg;
 use crate::errors::{Code, Error};
 use crate::goff;
+use crate::io::log::TCU;
 use crate::kif::{PageFlags, Perm, PTE};
 use crate::math;
 use crate::util;
@@ -340,6 +341,16 @@ impl TCU {
         reply_lbl: Label,
         reply_ep: EpId,
     ) -> Result<(), Error> {
+        log!(
+            TCU,
+            "TCU::send(ep={}, msg={:#x}, size={:#x}, reply_lbl={:#x}, reply_ep={})",
+            ep,
+            msg as usize,
+            size,
+            reply_lbl,
+            reply_ep
+        );
+
         Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(msg, size));
         if reply_lbl != 0 {
             Self::write_unpriv_reg(UnprivReg::ARG1, reply_lbl as Reg);
@@ -355,6 +366,15 @@ impl TCU {
     /// Sends `reply[0..size]` as reply to `msg`.
     #[inline(always)]
     pub fn reply(ep: EpId, reply: *const u8, size: usize, msg_off: usize) -> Result<(), Error> {
+        log!(
+            TCU,
+            "TCU::reply(ep={}, reply={:#x}, size={:#x}, msg_off={:#x})",
+            ep,
+            reply as usize,
+            size,
+            msg_off
+        );
+
         Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(reply, size));
         Self::write_unpriv_reg(
             UnprivReg::COMMAND,
@@ -369,6 +389,16 @@ impl TCU {
         if size == 0 {
             return Ok(());
         }
+
+        log!(
+            TCU,
+            "TCU::read(ep={}, data={:#x}, size={:#x}, off={:#x})",
+            ep,
+            data as usize,
+            size,
+            off
+        );
+
         Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, size));
         Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
         Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
@@ -382,6 +412,18 @@ impl TCU {
         if size == 0 {
             return Ok(());
         }
+
+        if ep != PRINT_EP {
+            log!(
+                TCU,
+                "TCU::write(ep={}, data={:#x}, size={:#x}, off={:#x})",
+                ep,
+                data as usize,
+                size,
+                off
+            );
+        }
+
         Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, size));
         Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
         Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::WRITE, 0));
