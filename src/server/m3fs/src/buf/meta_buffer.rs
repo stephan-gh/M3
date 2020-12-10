@@ -45,6 +45,9 @@ pub struct MetaBufferBlock {
 
 impl_boxitem!(MetaBufferBlock);
 
+#[cfg(target_vendor = "hw")]
+pub const META_BUFFER_SIZE: usize = 32;
+#[cfg(not(target_vendor = "hw"))]
 pub const META_BUFFER_SIZE: usize = 128;
 
 impl MetaBufferBlock {
