@@ -76,10 +76,12 @@ fn heap_bounds() -> (usize, usize) {
         let begin = math::round_up(&_bss_end as *const u8 as usize, cfg::PAGE_SIZE);
 
         let env = arch::envdata::get();
-        let end = if env.heap_size == 0 {
-            PEDesc::new_from(env.pe_desc).stack_space().0
+        let pe_desc = PEDesc::new_from(env.pe_desc);
+        let end = if pe_desc.has_mem() {
+            pe_desc.stack_space().0
         }
         else {
+            assert!(env.heap_size != 0);
             begin + env.heap_size as usize
         };
 

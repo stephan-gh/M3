@@ -19,6 +19,7 @@
 #include <base/Config.h>
 #include <base/mem/Heap.h>
 #include <base/Env.h>
+#include <assert.h>
 
 extern void *_bss_end;
 
@@ -28,15 +29,12 @@ void Heap::init_arch() {
     uintptr_t begin = Math::round_up<uintptr_t>(reinterpret_cast<uintptr_t>(&_bss_end), PAGE_SIZE);
 
     uintptr_t end;
-    if(env()->heap_size == 0) {
-        if(PEDesc(env()->pe_desc).has_memory())
-            end = PEDesc(env()->pe_desc).stack_space().first;
-        // this does only exist so that we can still run scenarios on cache-PEs without pager
-        else
-            end = begin + ROOT_HEAP_SIZE;
-    }
-    else
+    if(PEDesc(env()->pe_desc).has_memory())
+        end = PEDesc(env()->pe_desc).stack_space().first;
+    else {
+        assert(env()->heap_size != 0);
         end = begin + env()->heap_size;
+    }
 
     heap_init(begin, end);
 }
