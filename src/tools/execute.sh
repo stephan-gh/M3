@@ -173,7 +173,7 @@ build_params_hw() {
         # use the stripped binary from the default fs
         files="$files $build/src/fs/default/bin/$(basename $mod)"
     done
-    while [ $c -lt 4 ]; do
+    while [ $c -lt 8 ]; do
         args="$args --pe peidle"
         c=$((c + 1))
     done

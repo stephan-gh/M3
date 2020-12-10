@@ -14,6 +14,7 @@ from fpga_utils import FPGA_Error
 import memory
 
 ENV = 0x10100000
+MEM_TILE = 8
 MEM_SIZE = 2 * 1024 * 1024
 DRAM_SIZE = 2 * 1024 * 1024 * 1024
 MAX_FS_SIZE = 256 * 1024 * 1024
@@ -47,19 +48,19 @@ def write_file(mod, file, offset):
 
 def add_mod(dram, addr, name, offset):
     size = os.path.getsize(name)
-    write_u64(dram, offset + 0x0, glob_addr(4, addr))
+    write_u64(dram, offset + 0x0, glob_addr(MEM_TILE, addr))
     write_u64(dram, offset + 0x8, size)
     write_str(dram, name, offset + 16)
     write_file(dram, name, addr)
     return size
 
-def load_boot_info(dram, mods):
+def load_boot_info(dram, mods, pes):
     # boot info
     kenv_off = MAX_FS_SIZE
-    write_u64(dram, kenv_off + 0 * 8, len(mods)) # mod_count
-    write_u64(dram, kenv_off + 1 * 8, 5)         # pe_count
-    write_u64(dram, kenv_off + 2 * 8, 1)         # mem_count
-    write_u64(dram, kenv_off + 3 * 8, 0)         # serv_count
+    write_u64(dram, kenv_off + 0 * 8, len(mods))    # mod_count
+    write_u64(dram, kenv_off + 1 * 8, len(pes) + 1) # pe_count
+    write_u64(dram, kenv_off + 2 * 8, 1)            # mem_count
+    write_u64(dram, kenv_off + 3 * 8, 0)            # serv_count
     kenv_off += 8 * 4
 
     # mods
@@ -70,7 +71,7 @@ def load_boot_info(dram, mods):
         kenv_off += 80
 
     # PEs
-    for x in range(0, 4):
+    for x in range(0, len(pes)):
         write_u64(dram, kenv_off, MEM_SIZE | (3 << 3) | 0) # PM
         kenv_off += 8
     write_u64(dram, kenv_off, DRAM_SIZE | (0 << 3) | 2) # dram
@@ -108,7 +109,7 @@ def load_prog(pm, i, args):
 
     argv = ENV + 0x400
     pe_desc = MEM_SIZE | (3 << 3) | 0
-    kenv = glob_addr(4, MAX_FS_SIZE) if i == 0 else 0
+    kenv = glob_addr(MEM_TILE, MAX_FS_SIZE) if i == 0 else 0
 
     # init environment
     write_u64(pm, ENV + 0, 1)           # platform = HW
@@ -151,13 +152,12 @@ def main():
         fpga_inst.eth_rf.system_reset()
 
     # stop all PEs
-    pes = [fpga_inst.pm6, fpga_inst.pm7, fpga_inst.pm3, fpga_inst.pm5]
-    for pe in pes:
+    for pe in fpga_inst.pms:
         pe.stop()
 
     # load boot info into DRAM
     mods = [] if args.mod is None else args.mod
-    load_boot_info(fpga_inst.dram1, mods)
+    load_boot_info(fpga_inst.dram1, mods, fpga_inst.pms)
 
     # load file system into DRAM, if there is any
     if not args.fs is None:
@@ -165,14 +165,14 @@ def main():
 
     # load programs onto PEs
     for i, peargs in enumerate(args.pe, 0):
-        load_prog(pes[i], i, peargs.split(' '))
+        load_prog(fpga_inst.pms[i], i, peargs.split(' '))
 
     # start PEs
-    debug_pe = len(pes) if args.debug is None else args.debug
-    for i, pe in enumerate(pes, 0):
+    debug_pe = len(fpga_inst.pms) if args.debug is None else args.debug
+    for i, pe in enumerate(fpga_inst.pms, 0):
         if i != debug_pe:
             # start core (via interrupt 0)
-            pes[i].rocket_start()
+            fpga_inst.pms[i].rocket_start()
 
     # signal run.sh that everything has been loaded
     if not args.debug is None:
@@ -195,7 +195,7 @@ def main():
 
     # stop all PEs
     print("Stopping all PEs...")
-    for pe in pes:
+    for pe in fpga_inst.pms:
         pe.stop()
 
 try:

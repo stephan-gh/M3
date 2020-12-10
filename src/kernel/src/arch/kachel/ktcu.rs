@@ -39,11 +39,15 @@ pub fn init() {
     }
     else {
         let pes = PE_IDS.get_mut();
-        pes[0] = 0x00; // PM6
-        pes[1] = 0x01; // PM7
-        pes[2] = 0x25; // PM3
-        pes[3] = 0x21; // PM5
-        pes[4] = 0x24; // DRAM1
+        pes[0] = 0x06;  // PM0
+        pes[1] = 0x25;  // PM1
+        pes[2] = 0x26;  // PM2
+        pes[3] = 0x00;  // PM3
+        pes[4] = 0x01;  // PM4
+        pes[5] = 0x02;  // PM5
+        pes[6] = 0x20;  // PM6
+        pes[7] = 0x21;  // PM7
+        pes[8] = 0x24;  // DRAM
     }
 }
 
