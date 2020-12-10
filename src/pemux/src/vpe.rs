@@ -147,7 +147,8 @@ pub fn init() {
         PTAllocator {
             vpe: kif::pemux::VPE_ID,
         }
-        .allocate_pt().unwrap()
+        .allocate_pt()
+        .unwrap()
     }
     else {
         0

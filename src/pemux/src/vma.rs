@@ -138,7 +138,12 @@ pub fn handle_pf(
     }
 
     if let Err(e) = send_pf(vpe::cur(), virt, perm) {
-        log!(crate::LOG_ERR, "Pagefault for {:#x} with user state:\n{:?}", virt, state);
+        log!(
+            crate::LOG_ERR,
+            "Pagefault for {:#x} with user state:\n{:?}",
+            virt,
+            state
+        );
         return Err(e);
     }
 

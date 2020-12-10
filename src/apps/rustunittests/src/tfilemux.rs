@@ -66,7 +66,7 @@ fn pipe_mux() {
         _pipe: IndirectPipe,
         reader: FileHandle,
         writer: FileHandle,
-    };
+    }
 
     let pipeserv = wv_assert_ok!(Pipes::new("pipes"));
     let mut pipes = vec![];

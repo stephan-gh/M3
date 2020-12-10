@@ -70,7 +70,9 @@ impl<'s> Sink<'s> {
         self.push_word(len as u64);
 
         // safety: we know the pointer and length are valid
-        unsafe { copy_from_str(&mut self.arr[self.pos..], b) };
+        unsafe {
+            copy_from_str(&mut self.arr[self.pos..], b)
+        };
         self.pos += (len + 7) / 8;
     }
 }

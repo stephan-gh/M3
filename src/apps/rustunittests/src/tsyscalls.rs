@@ -27,7 +27,7 @@ use m3::pes::{VPEArgs, PE, VPE};
 use m3::server::{Handler, Server, SessId, SessionContainer};
 use m3::session::{ServerSession, M3FS};
 use m3::syscalls;
-use m3::tcu::{TOTAL_EPS, FIRST_USER_EP};
+use m3::tcu::{FIRST_USER_EP, TOTAL_EPS};
 use m3::test;
 use m3::{wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 

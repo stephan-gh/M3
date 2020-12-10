@@ -42,7 +42,9 @@ extern "C" fn __rdl_alloc(size: usize, _align: usize, _err: *mut u8) -> *mut lib
 
 #[no_mangle]
 extern "C" fn __rdl_dealloc(ptr: *mut libc::c_void, _size: usize, _align: usize) {
-    unsafe { heap_free(ptr) };
+    unsafe {
+        heap_free(ptr)
+    };
 }
 
 #[no_mangle]

@@ -54,9 +54,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
     );
 
     match op {
-        kif::pemux::VPEOp::INIT => {
-            vpe::add(vpe_id, eps_start)
-        },
+        kif::pemux::VPEOp::INIT => vpe::add(vpe_id, eps_start),
 
         kif::pemux::VPEOp::START => {
             let cur = vpe::cur();

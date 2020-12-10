@@ -403,7 +403,9 @@ impl TCU {
         Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
         Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
         let res = Self::get_error();
-        unsafe { intrinsics::atomic_fence() };
+        unsafe {
+            intrinsics::atomic_fence()
+        };
         res
     }
 
@@ -439,12 +441,7 @@ impl TCU {
         );
         Self::get_error().ok()?;
         let msg = Self::read_unpriv_reg(UnprivReg::ARG1);
-        if msg != !0 {
-            Some(msg as usize)
-        }
-        else {
-            None
-        }
+        if msg != !0 { Some(msg as usize) } else { None }
     }
 
     /// Assuming that `ep` is a receive EP, the function returns whether there are unread messages.
@@ -476,7 +473,9 @@ impl TCU {
     #[inline(always)]
     pub fn ack_msg(ep: EpId, msg_off: usize) -> Result<(), Error> {
         // ensure that we are really done with the message before acking it
-        unsafe { intrinsics::atomic_fence() };
+        unsafe {
+            intrinsics::atomic_fence()
+        };
         Self::write_unpriv_reg(
             UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::ACK_MSG, msg_off as Reg),
@@ -550,7 +549,9 @@ impl TCU {
         let num = math::round_up(s.len(), 8) / 8;
         for c in rstr.iter().take(num) {
             // safety: we know that the address is within the MMIO region of the TCU
-            unsafe { arch::cpu::write8b(buffer, *c) };
+            unsafe {
+                arch::cpu::write8b(buffer, *c)
+            };
             buffer += 8;
         }
 
@@ -563,7 +564,9 @@ impl TCU {
         // save the old value before aborting
         let cmd_reg = Self::read_unpriv_reg(UnprivReg::COMMAND);
         // ensure that we read the command register before the abort has been executed
-        unsafe { intrinsics::atomic_fence() };
+        unsafe {
+            intrinsics::atomic_fence()
+        };
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::ABORT_CMD.val);
 
         loop {
@@ -640,7 +643,9 @@ impl TCU {
     /// Switches to the given VPE and returns the old VPE
     pub fn xchg_vpe(nvpe: Reg) -> Reg {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 9));
-        unsafe { intrinsics::atomic_fence() };
+        unsafe {
+            intrinsics::atomic_fence()
+        };
         Self::read_priv_reg(PrivReg::PRIV_CMD_ARG)
     }
 
@@ -658,7 +663,9 @@ impl TCU {
     /// Inserts the given entry into the TCU's TLB
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) {
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, phys);
-        unsafe { intrinsics::atomic_fence() };
+        unsafe {
+            intrinsics::atomic_fence()
+        };
         let cmd = ((asid as Reg) << 41)
             | (((virt & !cfg::PAGE_MASK) as Reg) << 9)
             | ((flags.bits() as Reg) << 9)
@@ -712,7 +719,9 @@ impl TCU {
 
     fn write_reg(idx: usize, val: Reg) {
         // safety: as above
-        unsafe { arch::cpu::write8b(MMIO_ADDR + idx * 8, val) };
+        unsafe {
+            arch::cpu::write8b(MMIO_ADDR + idx * 8, val)
+        };
     }
 
     fn build_data(addr: *const u8, size: usize) -> Reg {

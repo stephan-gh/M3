@@ -156,7 +156,7 @@ macro_rules! wv_assert_err {
                 );
                 crate::wvtest_failed();
             },
-            Err(_) => (),
+            Err(_) => {},
         }
     }};
     ($res:expr, $err1:expr, $err2:expr) => {{
@@ -176,7 +176,7 @@ macro_rules! wv_assert_err {
                 );
                 crate::wvtest_failed();
             },
-            Err(_) => (),
+            Err(_) => {},
         }
     }};
 }
