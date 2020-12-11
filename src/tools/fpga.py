@@ -19,6 +19,7 @@ MEM_SIZE = 2 * 1024 * 1024
 DRAM_SIZE = 2 * 1024 * 1024 * 1024
 MAX_FS_SIZE = 256 * 1024 * 1024
 KENV_SIZE = 16 * 1024 * 1024
+PRINT_TIMEOUT = 10 # seconds
 
 def read_u64(pm, addr):
     return pm.mem[addr]
@@ -89,6 +90,9 @@ def load_prog(pm, i, args):
 
     # start core
     pm.start()
+
+    # reset TCU (clear command log and reset registers except FEATURES and EPs)
+    pm.tcu_reset()
 
     # make privileged
     pm.tcu_set_privileged(1)
@@ -181,13 +185,25 @@ def main():
         ready.close()
 
     # wait for prints
+    timeouts = 0
     while True:
-        bytes = fpga_inst.nocif.receive_bytes()
+        try:
+            bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 1000_000_000)
+        except:
+            timeouts += 1
+            if timeouts == PRINT_TIMEOUT:
+                print("Stopping execution after {} seconds without print".format(timeouts))
+                sys.stdout.flush()
+                break
+            else:
+                continue
+
+        timeouts = 0
         try:
             msg = bytes.decode()
             sys.stdout.write(msg)
         except:
-            sys.stdout.write("Unable to decode: {}\n".format(bytes))
+            print("Unable to decode: {}".format(bytes))
         sys.stdout.write('\033[0m')
         sys.stdout.flush()
         if "Shutting down" in msg:
@@ -195,7 +211,13 @@ def main():
 
     # stop all PEs
     print("Stopping all PEs...")
-    for pe in fpga_inst.pms:
+    for i, pe in enumerate(fpga_inst.pms, 0):
+        print("PM{}: dropped {} flits".format(i, pe.tcu_drop_flit_count()))
+        # extract TCU log on timeouts
+        if timeouts != 0:
+            print("PM{}: reading TCU log...".format(i))
+            sys.stdout.flush()
+            pe.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log')
         pe.stop()
 
 try:
