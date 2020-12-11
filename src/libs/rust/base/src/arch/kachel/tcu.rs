@@ -45,6 +45,7 @@ cfg_if! {
         pub const TOTAL_EPS: EpId = 192;
         /// The number of available endpoints in each TCU
         pub const AVAIL_EPS: EpId = TOTAL_EPS;
+        const PRINT_EP: EpId = INVALID_EP;  // unused
     }
     else {
         /// The total number of endpoints in each TCU
