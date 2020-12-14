@@ -36,6 +36,12 @@ public:
         *wpos = (r0 >> 47) & 0x3F;
     }
 
+    static void recv_masks(epid_t ep, uint32_t *unread, uint32_t *occupied) {
+        reg_t r2 = m3::TCU::read_reg(ep, 2);
+        *unread = r2 >> 32;
+        *occupied = r2 & 0xFFFFFFFF;
+    }
+
     static const m3::TCU::Message *fetch_msg(epid_t ep, uintptr_t base) {
         size_t off = m3::TCU::get().fetch_msg(ep);
         if(off == static_cast<size_t>(-1))

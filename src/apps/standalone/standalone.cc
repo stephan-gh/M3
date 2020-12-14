@@ -688,17 +688,31 @@ static void test_msg_receive() {
     kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 2, 5 /* 32 */, TCU::UNLIM_CREDITS);
 
     uint8_t expected_rpos = 0, expected_wpos = 0;
+    uint32_t expected_unread = 0, expected_occupied = 0;
     for(int j = 0; j < 32; ++j) {
         // send all messages
         const uint64_t data = 0xDEADBEEF;
         for(int i = 0; i < j; ++i) {
             uint8_t rpos, wpos;
+            uint32_t unread, occupied;
             kernel::TCU::recv_pos(2, &rpos, &wpos);
+            kernel::TCU::recv_masks(2, &unread, &occupied);
             ASSERT_EQ(rpos, expected_rpos);
             ASSERT_EQ(wpos, expected_wpos);
+            ASSERT_EQ(unread, expected_unread);
+            ASSERT_EQ(occupied, expected_occupied);
 
             ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), static_cast<label_t>(i + 1),
                                         TCU::NO_REPLIES), Errors::NONE);
+            if(wpos == 32) {
+                expected_unread |= 1 << 0;
+                expected_occupied |= 1 << 0;
+            }
+            else {
+                expected_unread |= 1 << wpos;
+                expected_occupied |= 1 << wpos;
+            }
+
             if(expected_wpos == 32)
                 expected_wpos = 1;
             else
@@ -708,24 +722,42 @@ static void test_msg_receive() {
         // fetch all messages
         for(int i = 0; i < j; ++i) {
             uint8_t rpos, wpos;
+            uint32_t unread, occupied;
             kernel::TCU::recv_pos(2, &rpos, &wpos);
+            kernel::TCU::recv_masks(2, &unread, &occupied);
             ASSERT_EQ(rpos, expected_rpos);
             ASSERT_EQ(wpos, expected_wpos);
+            ASSERT_EQ(unread, expected_unread);
+            ASSERT_EQ(occupied, expected_occupied);
 
             const TCU::Message *rmsg = kernel::TCU::fetch_msg(2, buf);
             ASSERT(rmsg != nullptr);
+
+            if(rpos == 32)
+                expected_unread &= ~(1U << 0);
+            else
+                expected_unread &= ~(1U << rpos);
 
             if(expected_rpos == 32)
                 expected_rpos = 1;
             else
                 expected_rpos++;
 
+            kernel::TCU::recv_masks(2, &unread, &occupied);
+            ASSERT_EQ(unread, expected_unread);
+            ASSERT_EQ(occupied, expected_occupied);
+
             // validate contents
             ASSERT_EQ(rmsg->label, 0x5678);
-            ASSERT_EQ(rmsg->replylabel, i + 1);
+            ASSERT_EQ(rmsg->replylabel, static_cast<uint32_t>(i + 1));
 
             // free slot
             ASSERT_EQ(kernel::TCU::ack_msg(2, buf, rmsg), Errors::NONE);
+
+            if(rpos == 32)
+                expected_occupied &= ~(1U << 0);
+            else
+                expected_occupied &= ~(1U << rpos);
         }
     }
 }
