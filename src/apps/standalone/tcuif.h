@@ -30,6 +30,11 @@ public:
         return (r0 >> 19) & 0x3F;
     }
 
+    static int max_credits(epid_t ep) {
+        reg_t r0 = m3::TCU::read_reg(ep, 0);
+        return (r0 >> 25) & 0x3F;
+    }
+
     static void recv_pos(epid_t ep, uint8_t *rpos, uint8_t *wpos) {
         reg_t r0 = m3::TCU::read_reg(ep, 0);
         *rpos = (r0 >> 53) & 0x3F;

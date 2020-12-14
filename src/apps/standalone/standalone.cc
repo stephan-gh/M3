@@ -234,6 +234,8 @@ static void test_msg_send_empty() {
 
     // send empty message
     ASSERT_EQ(kernel::TCU::send(4, nullptr, 0, 0x2222, TCU::NO_REPLIES), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::max_credits(4), 1);
+    ASSERT_EQ(kernel::TCU::credits(4), 0);
 
     // fetch message
     const TCU::Message *rmsg;
@@ -263,8 +265,10 @@ static void test_msg_reply_empty() {
     kernel::TCU::config_send(4, 0x1234, pe_id(PE::PE0), 1, 4 /* 16 */, 1);
 
     // send empty message
+    ASSERT_EQ(kernel::TCU::max_credits(4), 1);
     ASSERT_EQ(kernel::TCU::credits(4), 1);
     ASSERT_EQ(kernel::TCU::send(4, nullptr, 0, 0x1111, 2), Errors::NONE);
+    ASSERT_EQ(kernel::TCU::max_credits(4), 1);
     ASSERT_EQ(kernel::TCU::credits(4), 0);
 
     // fetch message
@@ -285,6 +289,9 @@ static void test_msg_reply_empty() {
     ASSERT_EQ(kernel::TCU::send(3, nullptr, 0, 0x1111, TCU::NO_REPLIES), Errors::SEND_REPLY_EP);
     // send empty reply
     ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::NONE);
+
+    ASSERT_EQ(kernel::TCU::max_credits(4), 1);
+    ASSERT_EQ(kernel::TCU::credits(4), 1);
 
     // fetch reply
     while((rmsg = kernel::TCU::fetch_msg(2, buf2)) == nullptr)
