@@ -680,9 +680,60 @@ static void test_inv_ep() {
     }
 }
 
+static void test_msg_receive() {
+    ALIGNED(8) char rbuffer[32 * 32];
+    uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
+
+    kernel::TCU::config_recv(2, buf, 5 + 5 /* 32 * 32 */, 5 /* 32 */, TCU::NO_REPLIES, 0, 0);
+    kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 2, 5 /* 32 */, TCU::UNLIM_CREDITS);
+
+    uint8_t expected_rpos = 0, expected_wpos = 0;
+    for(int j = 0; j < 32; ++j) {
+        // send all messages
+        const uint64_t data = 0xDEADBEEF;
+        for(int i = 0; i < j; ++i) {
+            uint8_t rpos, wpos;
+            kernel::TCU::recv_pos(2, &rpos, &wpos);
+            ASSERT_EQ(rpos, expected_rpos);
+            ASSERT_EQ(wpos, expected_wpos);
+
+            ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), static_cast<label_t>(i + 1),
+                                        TCU::NO_REPLIES), Errors::NONE);
+            if(expected_wpos == 32)
+                expected_wpos = 1;
+            else
+                expected_wpos++;
+        }
+
+        // fetch all messages
+        for(int i = 0; i < j; ++i) {
+            uint8_t rpos, wpos;
+            kernel::TCU::recv_pos(2, &rpos, &wpos);
+            ASSERT_EQ(rpos, expected_rpos);
+            ASSERT_EQ(wpos, expected_wpos);
+
+            const TCU::Message *rmsg = kernel::TCU::fetch_msg(2, buf);
+            ASSERT(rmsg != nullptr);
+
+            if(expected_rpos == 32)
+                expected_rpos = 1;
+            else
+                expected_rpos++;
+
+            // validate contents
+            ASSERT_EQ(rmsg->label, 0x5678);
+            ASSERT_EQ(rmsg->replylabel, i + 1);
+
+            // free slot
+            ASSERT_EQ(kernel::TCU::ack_msg(2, buf, rmsg), Errors::NONE);
+        }
+    }
+}
+
 int main() {
     Serial::get() << "Starting TCU tests\n";
 
+    test_msg_receive();
     test_mem_short();
     test_mem_large(PE::MEM);
     test_mem_large(PE::PE0);

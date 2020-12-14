@@ -30,6 +30,12 @@ public:
         return (r0 >> 19) & 0x3F;
     }
 
+    static void recv_pos(epid_t ep, uint8_t *rpos, uint8_t *wpos) {
+        reg_t r0 = m3::TCU::read_reg(ep, 0);
+        *rpos = (r0 >> 53) & 0x3F;
+        *wpos = (r0 >> 47) & 0x3F;
+    }
+
     static const m3::TCU::Message *fetch_msg(epid_t ep, uintptr_t base) {
         size_t off = m3::TCU::get().fetch_msg(ep);
         if(off == static_cast<size_t>(-1))
