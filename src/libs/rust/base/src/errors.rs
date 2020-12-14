@@ -41,6 +41,7 @@ pub enum Code {
     Pagefault,
     Abort,
     UnknownCmd,
+    RecvOutOfBounds,
     // SW Errors
     InvArgs,
     VPEGone,

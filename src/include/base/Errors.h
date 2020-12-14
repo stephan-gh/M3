@@ -43,6 +43,7 @@ struct Errors {
         PAGEFAULT,
         ABORT,
         UNKNOWN_CMD,
+        RECV_OUT_OF_BOUNDS,
         // SW errors
         INV_ARGS,
         VPE_GONE,

@@ -223,6 +223,14 @@ static void test_msg_errors() {
         kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 4 /* 16 */, 1);
         ASSERT_EQ(kernel::TCU::send(2, nullptr, 0, 0x1111, TCU::NO_REPLIES), Errors::RECV_MISALIGN);
     }
+
+    // message too large for receive buffer
+    {
+        kernel::TCU::config_recv(1, buf1, 5 /* 32 */, 5 /* 32 */, TCU::NO_REPLIES);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 6 /* 64 */, 1);
+        uint64_t data[6];
+        ASSERT_EQ(kernel::TCU::send(2, &data, sizeof(data), 0x1111, TCU::NO_REPLIES), Errors::RECV_OUT_OF_BOUNDS);
+    }
 }
 
 static void test_msg_send_empty() {
