@@ -93,8 +93,9 @@ public:
     }
 
     static void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
-                            unsigned msgorder, unsigned credits) {
-        m3::TCU::config_send(ep, lbl, pe, dstep, msgorder, credits);
+                            unsigned msgorder, unsigned credits,
+                            bool reply = false, epid_t crd_ep = m3::TCU::INVALID_EP) {
+        m3::TCU::config_send(ep, lbl, pe, dstep, msgorder, credits, reply, crd_ep);
     }
 
     static void config_mem(epid_t ep, peid_t pe, goff_t addr, size_t size, int perm) {

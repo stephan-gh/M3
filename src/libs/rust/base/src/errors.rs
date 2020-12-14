@@ -42,6 +42,8 @@ pub enum Code {
     Abort,
     UnknownCmd,
     RecvOutOfBounds,
+    RecvInvReplyEPs,
+    SendInvCreditEp,
     // SW Errors
     InvArgs,
     VPEGone,

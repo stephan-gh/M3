@@ -40,9 +40,11 @@ static const char *errmsgs[] = {
     "Command aborted",
     "Unknown TCU command",
     "Message too large for receive buffer",
+    "Invalid reply EPs in receive EP",
+    "Invalid credit EP in send EP",
+    /* 20 */
     "Invalid arguments",
     "VPE gone",
-    /* 20 */
     "Out of memory",
     "No such file or directory",
     "Not supported",
@@ -51,9 +53,9 @@ static const char *errmsgs[] = {
     "No space left",
     "Object does already exist",
     "Cross-filesystem link not possible",
+    /* 30 */
     "Directory not empty",
     "Is a directory",
-    /* 30 */
     "Is no directory",
     "Endpoint is invalid",
     "End of file",
@@ -62,6 +64,7 @@ static const char *errmsgs[] = {
     "Commit failed",
     "Out of kernel memory",
     "Not found",
+    /* 40 */
     "Not revocable",
     "Timeout",
 

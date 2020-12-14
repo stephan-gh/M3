@@ -217,6 +217,12 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::send(1, nullptr, 0, 0x1111, TCU::NO_REPLIES), Errors::RECV_GONE);
     }
 
+    // receive EP out of bounds
+    {
+        kernel::TCU::config_send(1, 0x5678, pe_id(PE::PE0), TOTAL_EPS, 4 /* 16 */, 1);
+        ASSERT_EQ(kernel::TCU::send(1, nullptr, 0, 0x1111, TCU::NO_REPLIES), Errors::RECV_GONE);
+    }
+
     // receive buffer misaligned
     {
         kernel::TCU::config_recv(1, buf1 + 1 /* misaligned */, 6 /* 64 */, 6 /* 64 */, TCU::NO_REPLIES);
@@ -230,6 +236,26 @@ static void test_msg_errors() {
         kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 6 /* 64 */, 1);
         uint64_t data[6];
         ASSERT_EQ(kernel::TCU::send(2, &data, sizeof(data), 0x1111, TCU::NO_REPLIES), Errors::RECV_OUT_OF_BOUNDS);
+    }
+
+    // invalid reply EPs
+    {
+        kernel::TCU::config_recv(1, buf1, 5 /* 32 */, 5 /* 32 */, TOTAL_EPS);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 5 /* 32 */, 1);
+        ASSERT_EQ(kernel::TCU::send(2, nullptr, 0, 0x1111, 1), Errors::RECV_INV_RPL_EPS);
+        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        ASSERT_EQ(kernel::TCU::ack_msg(1, buf1, rmsg), Errors::RECV_INV_RPL_EPS);
+        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::RECV_INV_RPL_EPS);
+    }
+
+    // invalid credit EP
+    {
+        kernel::TCU::config_recv(1, buf1, 5 /* 32 */, 5 /* 32 */, 2);
+        // install reply EP
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 5 /* 32 */, 1, true, TOTAL_EPS);
+        // now try to reply with invalid credit EP
+        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::SEND_INV_CRD_EP);
     }
 }
 

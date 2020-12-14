@@ -44,6 +44,8 @@ struct Errors {
         ABORT,
         UNKNOWN_CMD,
         RECV_OUT_OF_BOUNDS,
+        RECV_INV_RPL_EPS,
+        SEND_INV_CRD_EP,
         // SW errors
         INV_ARGS,
         VPE_GONE,

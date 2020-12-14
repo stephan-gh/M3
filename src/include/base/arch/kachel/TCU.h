@@ -350,12 +350,15 @@ private:
     }
 
     static void config_send(epid_t ep, label_t lbl, peid_t pe, epid_t dstep,
-                            unsigned msgorder, unsigned credits) {
+                            unsigned msgorder, unsigned credits,
+                            bool reply = false, epid_t crd_ep = INVALID_EP) {
         write_reg(ep, 0, static_cast<reg_t>(m3::TCU::EpType::SEND) |
                         (static_cast<reg_t>(INVALID_VPE) << 3) |
                         (static_cast<reg_t>(credits) << 19) |
                         (static_cast<reg_t>(credits) << 25) |
-                        (static_cast<reg_t>(msgorder) << 31));
+                        (static_cast<reg_t>(msgorder) << 31) |
+                        (static_cast<reg_t>(crd_ep) << 37) |
+                        (static_cast<reg_t>(reply) << 53));
         write_reg(ep, 1, (static_cast<reg_t>(pe) << 16) |
                          (static_cast<reg_t>(dstep) << 0));
         write_reg(ep, 2, lbl);
