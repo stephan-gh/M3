@@ -212,12 +212,19 @@ def main():
     # stop all PEs
     print("Stopping all PEs...")
     for i, pe in enumerate(fpga_inst.pms, 0):
-        print("PM{}: dropped {} flits".format(i, pe.tcu_drop_flit_count()))
+        try:
+            print("PM{}: dropped {} flits".format(i, pe.tcu_drop_flit_count()))
+        except Exception as e:
+            print("PM{}: unable to read number of dropped flits: {}".format(i, e))
+
         # extract TCU log on timeouts
         if timeouts != 0:
             print("PM{}: reading TCU log...".format(i))
             sys.stdout.flush()
-            pe.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log')
+            try:
+                pe.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log')
+            except Exception as e:
+                print("PM{}: unable to read TCU log: {}".format(i, e))
         pe.stop()
 
 try:
