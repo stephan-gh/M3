@@ -387,10 +387,6 @@ impl TCU {
 
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        if size == 0 {
-            return Ok(());
-        }
-
         log!(
             TCU,
             "TCU::read(ep={}, data={:#x}, size={:#x}, off={:#x})",
@@ -412,10 +408,6 @@ impl TCU {
 
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        if size == 0 {
-            return Ok(());
-        }
-
         if ep != PRINT_EP {
             log!(
                 TCU,

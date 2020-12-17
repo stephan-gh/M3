@@ -57,8 +57,6 @@ Errors::Code TCU::reply(epid_t ep, const void *reply, size_t size, size_t msg_of
 }
 
 Errors::Code TCU::read(epid_t ep, void *data, size_t size, goff_t off) {
-    if(size == 0)
-        return Errors::NONE;
     assert(size <= 0xFFFFFFFF);
     write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
     write_reg(UnprivRegs::ARG1, off);
@@ -70,8 +68,6 @@ Errors::Code TCU::read(epid_t ep, void *data, size_t size, goff_t off) {
 }
 
 Errors::Code TCU::write(epid_t ep, const void *data, size_t size, goff_t off) {
-    if(size == 0)
-        return Errors::NONE;
     write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(data) | (static_cast<reg_t>(size) << 32));
     write_reg(UnprivRegs::ARG1, off);
     CPU::compiler_barrier();
