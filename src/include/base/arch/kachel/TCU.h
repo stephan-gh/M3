@@ -212,6 +212,8 @@ private:
     Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off);
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off);
 
+    Errors::Code perform_send_reply(reg_t cmd);
+
     size_t fetch_msg(epid_t ep) const {
         write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));
         get_error();

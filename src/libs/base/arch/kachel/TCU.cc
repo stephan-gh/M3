@@ -42,18 +42,24 @@ Errors::Code TCU::send(epid_t ep, const void *msg, size_t size, label_t replylbl
     if(replylbl)
         write_reg(UnprivRegs::ARG1, replylbl);
     CPU::compiler_barrier();
-    write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::SEND, reply_ep));
-
-    return get_error();
+    return perform_send_reply(build_command(ep, CmdOpCode::SEND, reply_ep));
 }
 
 Errors::Code TCU::reply(epid_t ep, const void *reply, size_t size, size_t msg_off) {
     assert(size <= 0xFFFFFFFF);
     write_reg(UnprivRegs::DATA, reinterpret_cast<reg_t>(reply) | (static_cast<reg_t>(size) << 32));
     CPU::compiler_barrier();
-    write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::REPLY, msg_off));
+    return perform_send_reply(build_command(ep, CmdOpCode::REPLY, msg_off));
+}
 
-    return get_error();
+Errors::Code TCU::perform_send_reply(reg_t cmd) {
+    while(true) {
+        write_reg(UnprivRegs::COMMAND, cmd);
+
+        auto res = get_error();
+        if (res != Errors::RECV_BUSY)
+            return res;
+    }
 }
 
 Errors::Code TCU::read(epid_t ep, void *data, size_t size, goff_t off) {

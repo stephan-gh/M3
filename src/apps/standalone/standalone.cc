@@ -275,6 +275,35 @@ static void test_msg_errors() {
         auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
         ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::SEND_INV_MSG_SZ);
     }
+
+    // don't lose credits on send error
+    {
+        kernel::TCU::config_invalid(1);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 5 /* 32 */, 1);
+        // try send to invalid receive EP
+        ASSERT_EQ(kernel::TCU::send(2, nullptr, 0, 0x1111, TCU::NO_REPLIES), Errors::RECV_GONE);
+        // now we should still have credits
+        ASSERT_EQ(kernel::TCU::credits(2), 1);
+    }
+
+    // don't lose credits and keep msg on reply error
+    {
+        kernel::TCU::config_recv(1, buf1, 5 /* 32 */, 5 /* 32 */, 3, 0x1, 0x1);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 5 /* 32 */, 1);
+        // install reply EP
+        kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 4, 5 /* 32 */, 1, true, 2);
+        kernel::TCU::config_invalid(4);
+        // now try reply to invalid receive EP
+        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::RECV_GONE);
+
+        // now we should still have credits and the msg should still be unread
+        ASSERT_EQ(kernel::TCU::credits(3), 1);
+        uint32_t unread, occupied;
+        kernel::TCU::recv_masks(1, &unread, &occupied);
+        ASSERT_EQ(unread, 0x1);
+        ASSERT_EQ(occupied, 0x1);
+    }
 }
 
 static void test_msg_send_empty() {

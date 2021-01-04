@@ -356,12 +356,7 @@ impl TCU {
         if reply_lbl != 0 {
             Self::write_unpriv_reg(UnprivReg::ARG1, reply_lbl as Reg);
         }
-        Self::write_unpriv_reg(
-            UnprivReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::SEND, reply_ep as Reg),
-        );
-
-        Self::get_error()
+        Self::perform_send_reply(Self::build_cmd(ep, CmdOpCode::SEND, reply_ep as Reg))
     }
 
     /// Sends `reply[0..size]` as reply to `msg`.
@@ -377,12 +372,21 @@ impl TCU {
         );
 
         Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(reply, size));
-        Self::write_unpriv_reg(
-            UnprivReg::COMMAND,
-            Self::build_cmd(ep, CmdOpCode::REPLY, msg_off as Reg),
-        );
 
-        Self::get_error()
+        Self::perform_send_reply(Self::build_cmd(ep, CmdOpCode::REPLY, msg_off as Reg))
+    }
+
+    #[inline(always)]
+    fn perform_send_reply(cmd: Reg) -> Result<(), Error> {
+        loop {
+            Self::write_unpriv_reg(UnprivReg::COMMAND, cmd);
+
+            match Self::get_error() {
+                Ok(_) => break Ok(()),
+                Err(e) if e.code() == Code::RecvBusy => continue,
+                Err(e) => break Err(e),
+            }
+        }
     }
 
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
