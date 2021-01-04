@@ -257,6 +257,24 @@ static void test_msg_errors() {
         auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
         ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::SEND_INV_CRD_EP);
     }
+
+    // message size invalid
+    {
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 12 /* 4096 */, 1);
+        uint64_t data[6];
+        ASSERT_EQ(kernel::TCU::send(2, &data, sizeof(data), 0x1111, TCU::NO_REPLIES), Errors::SEND_INV_MSG_SZ);
+    }
+
+    // message size invalid in reply EP
+    {
+        kernel::TCU::config_recv(1, buf1, 5 /* 32 */, 5 /* 32 */, 3);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 5 /* 32 */, 1);
+        // install reply EP
+        kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 1, 12 /* 4096 */, 1, true, 2);
+        // now try to reply
+        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        ASSERT_EQ(kernel::TCU::reply(1, nullptr, 0, buf1, rmsg), Errors::SEND_INV_MSG_SZ);
+    }
 }
 
 static void test_msg_send_empty() {

@@ -46,6 +46,7 @@ struct Errors {
         RECV_OUT_OF_BOUNDS,
         RECV_INV_RPL_EPS,
         SEND_INV_CRD_EP,
+        SEND_INV_MSG_SZ,
         // SW errors
         INV_ARGS,
         VPE_GONE,

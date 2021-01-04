@@ -43,6 +43,7 @@ static const char *errmsgs[] = {
     "Invalid reply EPs in receive EP",
     "Invalid credit EP in send EP",
     /* 20 */
+    "Invalid msg_sz in send EP",
     "Invalid arguments",
     "VPE gone",
     "Out of memory",
