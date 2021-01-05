@@ -8,7 +8,7 @@ def build(gen, env):
         env.m3_exe(
             gen,
             out = 'standalone',
-            ins = [env_obj, 'standalone.cc'],
+            ins = [env_obj, 'standalone.cc'] + env.glob('tests/*.cc'),
             libs = ['c', 'heap', 'base', 'supc++'],
             ldscript = 'baremetal',
             NoSup = True
