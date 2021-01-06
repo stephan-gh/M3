@@ -214,12 +214,13 @@ impl<A: Allocator> AddrSpace<A> {
 
                 log!(
                     crate::LOG_MAP_DETAIL,
-                    "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} (invalidate={})",
+                    "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} (inv={}) @ {:#x}",
                     self.id,
                     level,
                     virt,
                     new_pte,
-                    invalidate
+                    invalidate,
+                    pte_addr,
                 );
 
                 *pages -= psize / cfg::PAGE_SIZE;
@@ -258,11 +259,12 @@ impl<A: Allocator> AddrSpace<A> {
         let virt_base = virt as usize & !(pt_size - 1);
         log!(
             crate::LOG_MAP_DETAIL,
-            "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x}",
+            "VPE{}: lvl {} PTE for 0x{:0>16x}: 0x{:0>16x} @ {:#x}",
             self.id,
             level,
             virt_base,
-            pte
+            pte,
+            pte_addr,
         );
 
         Ok(pte)
