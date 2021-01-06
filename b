@@ -391,7 +391,9 @@ case "$cmd" in
             echo "set \$t0 = 0" >> $gdbcmd          # ensure that we set the default stack pointer
             echo "set \$pc = 0x10000000" >> $gdbcmd # go to entry point
 
-            if [ "${cmd#dbg=}" = "pemux" ] || [ "${cmd#dbg=}" = "kernel" ]; then
+            # differentiate between baremetal components and others
+            entry=$(${crossprefix}readelf -h $bindir/${cmd#dbg=} | grep "Entry point" | awk '{ print($4) }')
+            if [ "$entry" = "0x10000000" ]; then
                 echo "b env_run" >> $gdbcmd
                 symbols=$bindir/${cmd#dbg=}
             else
