@@ -34,9 +34,12 @@ pub const MODE_SV39: u64 = 8;
 bitflags! {
     pub struct MMUFlags : MMUPTE {
         const V     = 0b0000_0001;          // valid
-        const R     = 0b0000_0010;          // readable
-        const W     = 0b0000_0100;          // writable
-        const X     = 0b0000_1000;          // executable
+        const R     = 0b0100_0010;          // readable
+                                            // note: the accessed bit is set here, because the
+                                            // RocketCore raises a PF if unset instead of setting
+                                            // the bit itself.
+        const W     = 0b1000_0100;          // writable (same here with the dirty bit)
+        const X     = 0b0100_1000;          // executable (same here with the accessed bit)
         const U     = 0b0001_0000;          // user accessible
         const G     = 0b0010_0000;          // global
         const A     = 0b0100_0000;          // accessed
