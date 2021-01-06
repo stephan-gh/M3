@@ -159,6 +159,9 @@ build_params_hw() {
     if [ "$M3_HW_RESET" = "1" ]; then
         args="$args --reset"
     fi
+    if [ "$M3_HW_VM" = "1" ]; then
+        args="$args --vm"
+    fi
 
     files="run/boot.xml $bindir/peidle"
     IFS=';'

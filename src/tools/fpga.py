@@ -84,7 +84,7 @@ def load_boot_info(dram, mods, pes):
     write_u64(dram, kenv_off, DRAM_SIZE - MAX_FS_SIZE - KENV_SIZE) # size
     kenv_off += 8
 
-def load_prog(pm, i, args):
+def load_prog(pm, i, args, vm):
     print("%s: loading %s..." % (pm.name, args[0]))
     sys.stdout.flush()
 
@@ -112,7 +112,12 @@ def load_prog(pm, i, args):
     sys.stdout.flush()
 
     argv = ENV + 0x400
-    pe_desc = MEM_SIZE | (3 << 3) | 0
+    if vm:
+        pe_desc = (3 << 3) | 1
+        heap_size = 0x4000
+    else:
+        pe_desc = MEM_SIZE | (3 << 3) | 0
+        heap_size = 0
     kenv = glob_addr(MEM_TILE, MAX_FS_SIZE) if i == 0 else 0
 
     # init environment
@@ -121,9 +126,9 @@ def load_prog(pm, i, args):
     write_u64(pm, ENV + 16, pe_desc)    # pe_desc
     write_u64(pm, ENV + 24, len(args))  # argc
     write_u64(pm, ENV + 32, argv)       # argv
-    write_u64(pm, ENV + 40, 0)          # heap size
-    write_u64(pm, ENV + 48, 0)          # pe_mem_base
-    write_u64(pm, ENV + 56, 0)          # pe_mem_size
+    write_u64(pm, ENV + 40, heap_size)  # heap size
+    write_u64(pm, ENV + 48, 0x10160000) # pe_mem_base (start of app data)
+    write_u64(pm, ENV + 56, 0x9F000)    # pe_mem_size (end of dmem)
     write_u64(pm, ENV + 64, kenv)       # kenv
     write_u64(pm, ENV + 72, 0)          # lambda
 
@@ -147,6 +152,7 @@ def main():
     parser.add_argument('--debug', type=int)
     parser.add_argument('--pe', action='append')
     parser.add_argument('--mod', action='append')
+    parser.add_argument('--vm', action='store_true')
     parser.add_argument('--fs')
     args = parser.parse_args()
 
@@ -169,7 +175,7 @@ def main():
 
     # load programs onto PEs
     for i, peargs in enumerate(args.pe, 0):
-        load_prog(fpga_inst.pms[i], i, peargs.split(' '))
+        load_prog(fpga_inst.pms[i], i, peargs.split(' '), args.vm)
 
     # start PEs
     debug_pe = len(fpga_inst.pms) if args.debug is None else args.debug
