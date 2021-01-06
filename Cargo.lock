@@ -223,6 +223,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vmtest"
+version = "0.1.0"
+dependencies = [
+ "base",
+ "heap",
+ "isr",
+ "paging",
+]
+
+[[package]]
 name = "vterm"
 version = "0.1.0"
 dependencies = [

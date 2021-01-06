@@ -1,0 +1,3 @@
+<config>
+    <kernel args="vmtest" />
+</config>

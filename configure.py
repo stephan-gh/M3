@@ -165,7 +165,10 @@ class M3Env(ninjagen.Env):
                 'src/pemux',
             ]
         if self['TGT'] == 'hw':
-            crates += ['src/peidle']
+            crates += [
+                'src/apps/vmtest',
+                'src/peidle',
+            ]
 
         env = self.clone()
         for cr in crates:
