@@ -191,7 +191,7 @@ def main():
             bytes = fpga_inst.nocif.receive_bytes(timeout_ns = 1000_000_000)
         except:
             timeouts += 1
-            if timeouts == PRINT_TIMEOUT:
+            if args.debug is None and timeouts == PRINT_TIMEOUT:
                 print("Stopping execution after {} seconds without print".format(timeouts))
                 sys.stdout.flush()
                 break
