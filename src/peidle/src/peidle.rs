@@ -186,13 +186,15 @@ pub extern "C" fn env_run() {
         io::init(*PE_ID, "pemux");
     }
 
-    // wait until the kernel configured the EP
-    loop {
-        if tcu::TCU::is_valid(tcu::PEXUP_REP)
-            && tcu::TCU::is_valid(tcu::KPEX_SEP)
-            && tcu::TCU::is_valid(tcu::KPEX_REP)
-        {
-            break;
+    // wait until the kernel configured the EP (only necessary on HW where we can't sleep below)
+    if envdata::get().platform == envdata::Platform::HW.val {
+        loop {
+            if tcu::TCU::is_valid(tcu::PEXUP_REP)
+                && tcu::TCU::is_valid(tcu::KPEX_SEP)
+                && tcu::TCU::is_valid(tcu::KPEX_REP)
+            {
+                break;
+            }
         }
     }
 
