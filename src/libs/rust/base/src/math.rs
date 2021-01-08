@@ -33,7 +33,7 @@ pub fn sqrt(val: f32) -> f32 {
     f32::from_bits(val_int)
 }
 
-fn _next_log2(size: usize, shift: u32) -> u32 {
+const fn _next_log2(size: usize, shift: u32) -> u32 {
     if size > (1 << shift) {
         shift + 1
     }
@@ -53,7 +53,7 @@ fn _next_log2(size: usize, shift: u32) -> u32 {
 /// assert_eq!(util::next_log2(4), 4);
 /// assert_eq!(util::next_log2(5), 8);
 /// ```
-pub fn next_log2(size: usize) -> u32 {
+pub const fn next_log2(size: usize) -> u32 {
     _next_log2(size, (util::size_of::<usize>() * 8 - 2) as u32)
 }
 
