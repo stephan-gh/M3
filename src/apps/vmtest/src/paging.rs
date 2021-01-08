@@ -107,6 +107,19 @@ pub fn translate(virt: usize, perm: PageFlags) -> PTE {
     ASPACE.translate(virt, perm.bits())
 }
 
+pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> {
+    for i in 0..(size / cfg::PAGE_SIZE) {
+        let frame = ASPACE.get_mut().allocator_mut().allocate_pt()?;
+        ASPACE.get_mut().map_pages(
+            virt + i * cfg::PAGE_SIZE,
+            GlobAddr::new(paging::phys_to_glob(frame)),
+            1,
+            perm,
+        )?;
+    }
+    Ok(())
+}
+
 fn map_segment(
     aspace: &mut AddrSpace<PTAllocator>,
     start: *const u8,
