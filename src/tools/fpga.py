@@ -231,6 +231,13 @@ def main():
                 pe.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log')
             except Exception as e:
                 print("PM{}: unable to read TCU log: {}".format(i, e))
+                print("PM{}: resetting TCU and reading all logs...".format(i))
+                sys.stdout.flush()
+                pe.tcu_reset()
+                try:
+                    pe.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log', all=True)
+                except:
+                    pass
         pe.stop()
 
 try:
