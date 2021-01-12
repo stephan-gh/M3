@@ -14,7 +14,7 @@ def build(gen, env):
             NoSup = True
         )
 
-        for s in ['sender', 'receiver']:
+        for s in ['sender', 'receiver', 'mem']:
             env.m3_exe(
                 gen,
                 out = 'standalone-' + s,

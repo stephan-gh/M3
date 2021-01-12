@@ -1,0 +1,10 @@
+<config>
+    <kernel args="standalone-mem" />
+    <kernel args="standalone-mem" />
+    <kernel args="standalone-mem" />
+    <kernel args="standalone-mem" />
+    <kernel args="standalone-mem" />
+    <kernel args="standalone-mem" />
+    <kernel args="standalone-mem" />
+    <kernel args="standalone-mem" />
+</config>
