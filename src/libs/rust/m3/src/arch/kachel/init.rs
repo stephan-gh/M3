@@ -39,7 +39,11 @@ pub extern "C" fn exit(code: i32) -> ! {
     #[cfg(target_vendor = "hw")]
     {
         unsafe {
-            llvm_asm!("jr $0" : : "r"(crate::cfg::PEMUX_START));
+            llvm_asm!(
+                "jr $0"
+                // set x10 to tell crt0 that the SP is not set
+                : : "r"(crate::cfg::PEMUX_START), "{x10}"(0u64)
+            );
         }
     }
     unreachable!();

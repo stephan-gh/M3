@@ -48,7 +48,9 @@ public:
 #if defined(__gem5__)
         PEXCalls::call1(Operation::EXIT, static_cast<word_t>(code));
 #else
-        asm volatile ("jr %0" : : "r"(PEMUX_CODE_START));
+        // set x10 to tell crt0 that the SP is not set
+        register uint64_t x10 asm ("x10") = 0;
+        asm volatile ("jr %0" : : "r"(PEMUX_CODE_START), "r"(x10));
 #endif
         UNREACHED;
     }
