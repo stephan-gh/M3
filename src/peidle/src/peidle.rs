@@ -97,8 +97,11 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<Option<(usize, usize)>, Error>
             Ok(Some((app_env().entry as usize, app_env().sp as usize)))
         },
 
-        // ignore all other requests
-        _ => Ok(None),
+        // for all others, "stop" the VPE
+        _ => {
+            CUR_VPE.set(None);
+            Ok(None)
+        }
     }
 }
 
