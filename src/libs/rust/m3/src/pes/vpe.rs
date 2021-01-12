@@ -403,7 +403,7 @@ impl VPE {
         let env = arch::env::get();
         let mut senv = arch::env::EnvData::default();
 
-        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::W)?;
+        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
 
         let closure = {
             senv.set_platform(arch::env::get().platform());
@@ -418,7 +418,7 @@ impl VPE {
                     self.get_mem(
                         0,
                         (cfg::MEM_OFFSET + self.pe_desc().mem_size()) as goff,
-                        kif::Perm::W,
+                        kif::Perm::RW,
                     )?,
                 ),
             }?;
@@ -541,7 +541,7 @@ impl VPE {
 
         let mut senv = arch::env::EnvData::default();
 
-        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::W)?;
+        let mem = self.get_mem(cfg::ENV_START as goff, cfg::ENV_SIZE as goff, kif::Perm::RW)?;
 
         {
             // load program segments

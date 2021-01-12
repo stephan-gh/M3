@@ -45,14 +45,50 @@ fn sym_addr<T>(sym: &T) -> usize {
     sym as *const _ as usize
 }
 
+fn write_bytes_checked(
+    mem: &MemGate,
+    _vaddr: usize,
+    data: *const u8,
+    size: usize,
+    mut offset: goff,
+) -> Result<(), Error> {
+    mem.write_bytes(data, size, offset)?;
+
+    // on hw, validate whether the data has been written correctly by reading it again
+    #[cfg(target_vendor = "hw")]
+    {
+        use crate::cell::StaticCell;
+
+        static BUF: StaticCell<[u8; cfg::PAGE_SIZE]> = StaticCell::new([0u8; cfg::PAGE_SIZE]);
+
+        let mut data_slice = unsafe { core::slice::from_raw_parts(data, size) };
+        while !data_slice.is_empty() {
+            let amount = cmp::min(data_slice.len(), cfg::PAGE_SIZE);
+            mem.read_bytes(BUF.get_mut().as_mut_ptr(), amount, offset)?;
+            assert_eq!(BUF[0..amount], data_slice[0..amount]);
+
+            offset += amount as goff;
+            data_slice = &data_slice[amount..];
+        }
+    }
+
+    Ok(())
+}
+
 pub fn copy_vpe(pedesc: kif::PEDesc, sp: usize, mem: MemGate) -> Result<usize, Error> {
     unsafe {
         // copy text
         let text_start = sym_addr(&_text_start);
         let text_end = sym_addr(&_text_end);
-        mem.write_bytes(&_text_start, text_end - text_start, text_start as goff)?;
+        write_bytes_checked(
+            &mem,
+            text_start,
+            &_text_start,
+            text_end - text_start,
+            text_start as goff,
+        )?;
 
-        // copy data and heap
+        // copy data and heap (no checking, because data contains the buffer for the check)
         let data_start = sym_addr(&_data_start);
         mem.write_bytes(
             &_data_start,
@@ -62,7 +98,9 @@ pub fn copy_vpe(pedesc: kif::PEDesc, sp: usize, mem: MemGate) -> Result<usize, E
 
         // copy end-area of heap
         let heap_area_size = util::size_of::<heap::HeapArea>();
-        mem.write_bytes(
+        write_bytes_checked(
+            &mem,
+            heap::end(),
             heap::end() as *const u8,
             heap_area_size,
             heap::end() as goff,
@@ -70,7 +108,7 @@ pub fn copy_vpe(pedesc: kif::PEDesc, sp: usize, mem: MemGate) -> Result<usize, E
 
         // copy stack
         let stack_top = pedesc.stack_top();
-        mem.write_bytes(sp as *const u8, stack_top - sp, sp as goff)?;
+        write_bytes_checked(&mem, sp, sp as *const u8, stack_top - sp, sp as goff)?;
 
         Ok(sym_addr(&_start))
     }
@@ -177,14 +215,18 @@ where
         argoff += arg.len() + 1;
     }
 
-    mem.write_bytes(
+    write_bytes_checked(
+        mem,
+        *off,
         argbuf.as_ptr() as *const _,
         argbuf.len(),
         (*off - cfg::ENV_START) as goff,
     )?;
 
     argoff = math::round_up(argoff, util::size_of::<u64>());
-    mem.write_bytes(
+    write_bytes_checked(
+        mem,
+        argoff,
         argptr.as_ptr() as *const _,
         argptr.len() * util::size_of::<u64>(),
         (argoff - cfg::ENV_START) as goff,
@@ -230,12 +272,13 @@ fn load_segment(
         let mem = vpe.get_mem(
             phdr.vaddr as goff,
             math::round_up(size, cfg::PAGE_SIZE) as goff,
-            kif::Perm::W,
+            kif::Perm::RW,
         )?;
         init_mem(
             buf,
             &mem,
             file,
+            phdr.vaddr as usize,
             phdr.offset as usize,
             phdr.filesz as usize,
             phdr.memsz as usize,
@@ -250,6 +293,7 @@ fn init_mem(
     buf: &mut [u8],
     mem: &MemGate,
     file: &mut BufReader<FileRef>,
+    vaddr: usize,
     foff: usize,
     fsize: usize,
     memsize: usize,
@@ -257,21 +301,33 @@ fn init_mem(
     file.seek(foff, SeekMode::SET)?;
 
     let mut count = fsize;
-    let mut segoff = 0;
+    let mut segoff = 0 as goff;
     while count > 0 {
         let amount = cmp::min(count, buf.len());
         let amount = file.read(&mut buf[0..amount])?;
 
-        mem.write(&buf[0..amount], segoff as goff)?;
+        write_bytes_checked(
+            mem,
+            vaddr + segoff as usize,
+            buf.as_mut_ptr(),
+            amount,
+            segoff,
+        )?;
 
         count -= amount;
-        segoff += amount;
+        segoff += amount as goff;
     }
 
-    clear_mem(buf, mem, segoff, (memsize - fsize) as usize)
+    clear_mem(buf, mem, vaddr, segoff as usize, (memsize - fsize) as usize)
 }
 
-fn clear_mem(buf: &mut [u8], mem: &MemGate, mut virt: usize, mut len: usize) -> Result<(), Error> {
+fn clear_mem(
+    buf: &mut [u8],
+    mem: &MemGate,
+    virt: usize,
+    mut off: usize,
+    mut len: usize,
+) -> Result<(), Error> {
     if len == 0 {
         return Ok(());
     }
@@ -282,9 +338,9 @@ fn clear_mem(buf: &mut [u8], mem: &MemGate, mut virt: usize, mut len: usize) -> 
 
     while len > 0 {
         let amount = cmp::min(len, buf.len());
-        mem.write(&buf[0..amount], virt as goff)?;
+        write_bytes_checked(mem, virt, buf.as_mut_ptr(), amount, off as goff)?;
         len -= amount;
-        virt += amount;
+        off += amount;
     }
 
     Ok(())
