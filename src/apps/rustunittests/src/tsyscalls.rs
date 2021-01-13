@@ -27,7 +27,7 @@ use m3::pes::{VPEArgs, PE, VPE};
 use m3::server::{Handler, Server, SessId, SessionContainer};
 use m3::session::{ServerSession, M3FS};
 use m3::syscalls;
-use m3::tcu::{FIRST_USER_EP, TOTAL_EPS};
+use m3::tcu::{AVAIL_EPS, FIRST_USER_EP, TOTAL_EPS};
 use m3::test;
 use m3::{wv_assert, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -369,11 +369,11 @@ fn alloc_ep() {
     wv_assert_err!(syscalls::alloc_ep(sel, SEL_PE, TOTAL_EPS, 1), Code::InvArgs);
     // invalid reply count
     wv_assert_err!(
-        syscalls::alloc_ep(sel, VPE::cur().sel(), TOTAL_EPS - 2, !0),
+        syscalls::alloc_ep(sel, VPE::cur().sel(), AVAIL_EPS - 2, !0),
         Code::InvArgs
     );
     wv_assert_err!(
-        syscalls::alloc_ep(sel, VPE::cur().sel(), TOTAL_EPS - 2, TOTAL_EPS as u32),
+        syscalls::alloc_ep(sel, VPE::cur().sel(), AVAIL_EPS - 2, TOTAL_EPS as u32),
         Code::InvArgs
     );
 
@@ -384,8 +384,8 @@ fn alloc_ep() {
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 
     // specific EP
-    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), TOTAL_EPS - 2, 1));
-    wv_assert_eq!(ep, TOTAL_EPS - 2);
+    let ep = wv_assert_ok!(syscalls::alloc_ep(sel, VPE::cur().sel(), AVAIL_EPS - 2, 1));
+    wv_assert_eq!(ep, AVAIL_EPS - 2);
     wv_assert_ok!(VPE::cur().revoke(CapRngDesc::new(CapType::OBJECT, sel, 1), false));
 }
 
