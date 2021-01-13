@@ -56,7 +56,7 @@ fn genfile_mux() {
 }
 
 fn pipe_mux() {
-    const NUM: usize = 6;
+    const NUM: usize = 4;
     const STEP_SIZE: usize = 16;
     const DATA_SIZE: usize = 1024;
     const PIPE_SIZE: usize = 256;

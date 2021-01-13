@@ -238,7 +238,7 @@ static void file_mux() {
 }
 
 static void pipe_mux() {
-    const size_t NUM = 6;
+    const size_t NUM = 4;
     const size_t STEP_SIZE = 16;
     const size_t DATA_SIZE = 1024;
     const size_t PIPE_SIZE = 256;
