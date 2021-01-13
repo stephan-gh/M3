@@ -50,7 +50,7 @@ fn write_bytes_checked(
     _vaddr: usize,
     data: *const u8,
     size: usize,
-    mut offset: goff,
+    offset: goff,
 ) -> Result<(), Error> {
     mem.write_bytes(data, size, offset)?;
 
@@ -61,13 +61,14 @@ fn write_bytes_checked(
 
         static BUF: StaticCell<[u8; cfg::PAGE_SIZE]> = StaticCell::new([0u8; cfg::PAGE_SIZE]);
 
+        let mut off = offset;
         let mut data_slice = unsafe { core::slice::from_raw_parts(data, size) };
         while !data_slice.is_empty() {
             let amount = cmp::min(data_slice.len(), cfg::PAGE_SIZE);
-            mem.read_bytes(BUF.get_mut().as_mut_ptr(), amount, offset)?;
+            mem.read_bytes(BUF.get_mut().as_mut_ptr(), amount, off)?;
             assert_eq!(BUF[0..amount], data_slice[0..amount]);
 
-            offset += amount as goff;
+            off += amount as goff;
             data_slice = &data_slice[amount..];
         }
     }
