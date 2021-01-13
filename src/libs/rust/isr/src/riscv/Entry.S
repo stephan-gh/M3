@@ -44,9 +44,6 @@ BEGIN_FUNC(isr_setup)
     // unmask interrupts
     csrs    sie, t1
 
-    // disable address translation in case it was enabled before
-    csrw    satp, x0
-
     // return to supervisor mode
     li      t1, 3 << 11     # clear bits first
     csrc    mstatus, t1

@@ -229,6 +229,9 @@ fn test_msgs(size_in: usize) {
 pub extern "C" fn env_run() {
     io::init(0, "vmtest");
 
+    log!(crate::LOG_DEF, "Setting up paging...");
+    paging::init();
+
     log!(crate::LOG_DEF, "Setting up interrupts...");
     STATE.set(isr::State::default());
     isr::init(STATE.get_mut());
@@ -237,9 +240,6 @@ pub extern "C" fn env_run() {
     isr::reg(isr::Vector::LOAD_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::STORE_PAGEFAULT.val, mmu_pf);
     isr::enable_irqs();
-
-    log!(crate::LOG_DEF, "Setting up paging...");
-    paging::init();
 
     log!(crate::LOG_DEF, "Mapping and initializing heap...");
     let heap_begin = 0xC000_0000;
