@@ -45,7 +45,9 @@ impl<R: Read> BufReader<R> {
             cap: 0,
         };
         // safety: we will not hand out the Vec and never access anything except 0..`pos`-1 below
-        unsafe { br.buf.set_len(cap) };
+        unsafe {
+            br.buf.set_len(cap)
+        };
         br
     }
 
@@ -101,7 +103,22 @@ impl<R: Read> Read for BufReader<R> {
 
 impl<R: Read + Seek> Seek for BufReader<R> {
     fn seek(&mut self, off: usize, whence: SeekMode) -> Result<usize, Error> {
-        if whence != SeekMode::CUR || off != 0 {
+        if whence == SeekMode::CUR {
+            // move buffer-internal position forward, but not beyond the buffer end
+            let rem = self.cap - self.pos;
+            self.pos += cmp::min(off, rem);
+            // if the user wants to seek beyond the buffer end, do that with the underlying reader
+            let rem_off = off.saturating_sub(rem);
+            return if rem_off > 0 {
+                self.reader.seek(rem_off, SeekMode::CUR)
+            }
+            // otherwise, just get the current position
+            else {
+                self.reader.seek(0, SeekMode::CUR).map(|pos| pos - (self.cap - self.pos))
+            };
+        }
+
+        if off != 0 {
             // invalidate buffer
             self.pos = 0;
             self.cap = 0;
@@ -141,7 +158,9 @@ impl<W: Write> BufWriter<W> {
             pos: 0,
         };
         // safety: we will not hand out the Vec and never access anything except 0..`pos`-1 below
-        unsafe { br.buf.set_len(cap) };
+        unsafe {
+            br.buf.set_len(cap)
+        };
         br
     }
 
