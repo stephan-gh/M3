@@ -273,5 +273,7 @@ pub extern "C" fn env_run() {
         assert_eq!(*XLATES, count);
     }
 
+
+    log!(crate::LOG_DEF, "Shutting down");
     exit(0);
 }
