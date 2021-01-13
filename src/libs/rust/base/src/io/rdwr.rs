@@ -145,6 +145,10 @@ pub trait Write {
     fn sync(&mut self) -> Result<(), Error>;
 
     /// Dumps the given array of bytes to this sink
+    ///
+    /// # Safety
+    ///
+    /// The address range needs to be readable
     unsafe fn dump_bytes(&mut self, addr: *const u8, len: usize) -> Result<(), Error> {
         let slice = ptr::slice_from_raw_parts(addr, len);
         self.dump_slice(&*slice, addr as usize)

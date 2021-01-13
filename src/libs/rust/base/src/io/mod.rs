@@ -71,6 +71,10 @@ macro_rules! llog {
 }
 
 /// Writes the given byte array to the log, showing `addr` as a prefix.
+///
+/// # Safety
+///
+/// The address range needs to be readable
 pub unsafe fn log_bytes(addr: *const u8, len: usize) {
     if let Some(l) = log::Log::get() {
         l.dump_bytes(addr, len).unwrap();
