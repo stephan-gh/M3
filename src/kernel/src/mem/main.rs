@@ -76,11 +76,6 @@ impl MainMemory {
         self.mods.push(m)
     }
 
-    #[cfg(target_os = "linux")]
-    pub fn module(&mut self, idx: usize) -> &MemMod {
-        &self.mods[idx]
-    }
-
     pub fn allocate(&mut self, size: goff, align: goff) -> Result<Allocation, base::errors::Error> {
         use base::errors::{Code, Error};
 
