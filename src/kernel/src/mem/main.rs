@@ -76,11 +76,16 @@ impl MainMemory {
         self.mods.push(m)
     }
 
-    pub fn allocate(&mut self, size: goff, align: goff) -> Result<Allocation, base::errors::Error> {
+    pub fn allocate(
+        &mut self,
+        mtype: MemType,
+        size: goff,
+        align: goff,
+    ) -> Result<Allocation, base::errors::Error> {
         use base::errors::{Code, Error};
 
         for m in &mut self.mods {
-            if m.mem_type() != MemType::KERNEL {
+            if m.mem_type() != mtype {
                 continue;
             }
 

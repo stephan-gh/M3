@@ -84,7 +84,8 @@ impl Loader {
         // map stack
         if vpe.pe_desc().has_virtmem() {
             let (virt, size) = vpe.pe_desc().stack_space();
-            let mut phys = mem::get().allocate(size as goff, PAGE_SIZE as goff)?;
+            let mut phys =
+                mem::get().allocate(mem::MemType::USER, size as goff, PAGE_SIZE as goff)?;
             Self::load_segment_async(vpe, phys.global(), virt as goff, size, PageFlags::RW, true)?;
             phys.claim();
         }
@@ -211,7 +212,8 @@ impl Loader {
                     math::round_up((phdr.vaddr & PAGE_MASK) + phdr.memsz as usize, PAGE_SIZE);
 
                 if vpe.pe_desc().has_virtmem() {
-                    let mut phys = mem::get().allocate(size as goff, PAGE_SIZE as goff)?;
+                    let mut phys =
+                        mem::get().allocate(mem::MemType::USER, size as goff, PAGE_SIZE as goff)?;
                     Self::load_segment_async(vpe, phys.global(), virt as goff, size, flags, true)?;
                     phys.claim();
                 }
@@ -251,7 +253,11 @@ impl Loader {
         if vpe.pe_desc().has_virtmem() {
             // create initial heap
             let end = math::round_up(end, PAGE_SIZE);
-            let mut phys = mem::get().allocate(MOD_HEAP_SIZE as goff, PAGE_SIZE as goff)?;
+            let mut phys = mem::get().allocate(
+                mem::MemType::USER,
+                MOD_HEAP_SIZE as goff,
+                PAGE_SIZE as goff,
+            )?;
             Self::load_segment_async(
                 vpe,
                 phys.global(),

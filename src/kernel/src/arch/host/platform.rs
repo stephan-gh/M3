@@ -62,7 +62,7 @@ pub fn init(args: &[String]) -> platform::KEnv {
         + info.pe_count as usize * util::size_of::<boot::PE>()
         + info.mem_count as usize * util::size_of::<boot::Mem>();
     let mut binfo_mem = mem::get()
-        .allocate(bsize as goff, 1)
+        .allocate(mem::MemType::KERNEL, bsize as goff, 1)
         .expect("Unable to allocate mem for boot info");
 
     unsafe {
@@ -169,7 +169,7 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
             }
 
             let mut alloc = mem::get()
-                .allocate(finfo.st_size as goff, 1)
+                .allocate(mem::MemType::KERNEL, finfo.st_size as goff, 1)
                 .expect("Unable to alloc mem for boot module");
             let dest = alloc.global().offset() as *mut u8 as *mut libc::c_void;
             if libc::read(fd, dest, alloc.size() as usize) == -1 {
