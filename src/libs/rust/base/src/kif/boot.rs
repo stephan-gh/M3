@@ -123,6 +123,7 @@ pub struct Mem {
 impl Mem {
     /// Creates a new memory region of given size.
     pub fn new(addr: u64, size: u64, reserved: bool) -> Self {
+        assert!((size & 1) == 0);
         Mem {
             addr,
             size: size | (reserved as u64),
