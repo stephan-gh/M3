@@ -76,7 +76,7 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    tcu::TCU::clear_irq(tcu::IRQ::CORE_REQ);
+    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
 
     // core request from TCU?
     if let Some(r) = tcu::TCU::get_core_req() {

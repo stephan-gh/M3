@@ -113,3 +113,7 @@ pub fn set_entry_sp(_sp: usize) {
 pub fn enable_irqs() {
     unsafe { llvm_asm!("msr cpsr, $0" : : "r"(0x53)) };
 }
+
+pub fn acknowledge_irq(irq: tcu::IRQ) {
+    tcu::TCU::clear_irq(irq);
+}

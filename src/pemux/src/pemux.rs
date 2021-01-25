@@ -195,7 +195,7 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
         }
     }
 
-    tcu::TCU::clear_irq(tcu::IRQ::CORE_REQ);
+    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
 
     // core request from TCU?
     if let Some(r) = tcu::TCU::get_core_req() {
@@ -210,7 +210,7 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn timer_irq(state: &mut arch::State) -> *mut libc::c_void {
-    tcu::TCU::clear_irq(tcu::IRQ::TIMER);
+    isr::acknowledge_irq(tcu::IRQ::TIMER);
 
     vpe::cur().consume_time();
     timer::trigger();

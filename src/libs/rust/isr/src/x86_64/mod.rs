@@ -438,3 +438,7 @@ pub fn set_entry_sp(sp: usize) {
 pub fn enable_irqs() {
     unsafe { llvm_asm!("sti") };
 }
+
+pub fn acknowledge_irq(irq: tcu::IRQ) {
+    tcu::TCU::clear_irq(irq);
+}

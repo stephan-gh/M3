@@ -15,9 +15,11 @@
  */
 
 use base::backtrace;
+use base::envdata;
 use base::int_enum;
 use base::libc;
 use base::{set_csr_bits, write_csr};
+use base::tcu;
 use core::fmt;
 
 pub const ISR_COUNT: usize = 32;
@@ -102,6 +104,44 @@ impl fmt::Debug for State {
     }
 }
 
+mod plic {
+    pub const TCU_ID: u32 = 0;
+
+    const MMIO_PRIORITY: *mut u32 = 0x0C00_0000 as *mut u32;
+    const MMIO_ENABLE: *mut u32 = 0x0C00_2000 as *mut u32;
+    const MMIO_THRESHOLD: *mut u32 = 0x0C20_0000 as *mut u32;
+    const MMIO_CLAIM: *mut u32 = 0x0C20_0004 as *mut u32;
+
+    pub fn fetch_and_ack() {
+        unsafe {
+            let next = MMIO_CLAIM.read_volatile();
+            assert!(next != 0);
+            MMIO_CLAIM.write_volatile(next);
+        }
+    }
+
+    pub fn enable(id: u32) {
+        unsafe {
+            let val = MMIO_ENABLE.read_volatile();
+            MMIO_ENABLE.write_volatile(val | (1 << id));
+        }
+    }
+
+    pub fn set_priority(id: u32, prio: u8) {
+        unsafe {
+            MMIO_PRIORITY
+                .add(id as usize)
+                .write_volatile(prio as u32 & 0x7);
+        }
+    }
+
+    pub fn set_threshold(threshold: u8) {
+        unsafe {
+            MMIO_THRESHOLD.write_volatile(threshold as u32 & 0x7);
+        }
+    }
+}
+
 extern "C" {
     fn isr_setup(stack: usize);
 }
@@ -124,6 +164,12 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
 }
 
 pub fn init(state: &mut State) {
+    if envdata::get().platform == envdata::Platform::HW.val {
+        plic::set_threshold(0);
+        plic::enable(plic::TCU_ID);
+        plic::set_priority(plic::TCU_ID, 1);
+    }
+
     unsafe {
         let state_top = (state as *mut State).offset(1) as usize;
         isr_setup(state_top)
@@ -137,4 +183,13 @@ pub fn set_entry_sp(sp: usize) {
 pub fn enable_irqs() {
     // set SIE to 1
     set_csr_bits!("sstatus", 1 << 1);
+}
+
+pub fn acknowledge_irq(irq: tcu::IRQ) {
+    if envdata::get().platform == envdata::Platform::HW.val {
+        plic::fetch_and_ack();
+    }
+    else {
+        tcu::TCU::clear_irq(irq);
+    }
 }

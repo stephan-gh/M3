@@ -42,7 +42,7 @@ fn handle_xlate(req: tcu::CoreXlateReq) {
 }
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    tcu::TCU::clear_irq(tcu::IRQ::CORE_REQ);
+    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
 
     match tcu::TCU::get_core_req() {
         Some(tcu::CoreReq::Xlate(r)) => handle_xlate(r),
