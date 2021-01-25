@@ -26,6 +26,7 @@ use base::boxed::Box;
 use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
 use base::col::Vec;
+use base::envdata;
 use base::io;
 use base::kif::{PageFlags, Perm};
 use base::libc;
@@ -257,6 +258,15 @@ pub extern "C" fn env_run() {
         virt,
         pte
     );
+
+    if envdata::get().platform == envdata::Platform::HW.val {
+        // trigger irq for testing purposes
+        let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
+        unsafe {
+            tcu_set_irq_addr.add(1).write_volatile(1);
+            tcu_set_irq_addr.add(1).write_volatile(0);
+        }
+    }
 
     let mut count = 0;
     for i in 1..=4 {
