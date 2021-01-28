@@ -88,9 +88,12 @@ help() {
     echo "    nma=<prog>:              run nm -SCn <prog> (the cc version)"
     echo "    straddr=<prog> <string>  search for <string> in <prog>"
     echo "    ctors=<prog>:            show the constructors of <prog>"
-    echo "    trace=<progs>:           shows an annotated instruction trace stdin. <progs>"
+    echo "    hwitrace=<progs>:        shows an annotated hardware instruction trace. <progs>"
     echo "                             are the binary names for the symbols. stdin expects"
-    echo "                             the gem5.log with Exec,ExecPC enabled."
+    echo "                             the run/pm*-instrs.log."
+    echo "    trace=<progs>:           shows an annotated instruction trace. <progs> are"
+    echo "                             the binary names for the symbols. stdin expects the"
+    echo "                             gem5.log with Exec,ExecPC enabled."
     echo "    flamegraph=<progs>:      produces a flamegraph with stdin to stdout. <progs>"
     echo "                             are the binary names for the symbols. stdin expects"
     echo "                             the gem5.log with Exec,ExecPC,TcuConnector enabled."
@@ -464,6 +467,14 @@ case "$cmd" in
                 ${crossprefix}nm -C -l "$file" | grep -m 1 $addr
             done
         fi
+        ;;
+
+    hwitrace=*)
+        paths=""
+        for f in $(echo ${cmd#hwitrace=} | sed "s/,/ /g"); do
+            paths="$paths $build/bin/$f"
+        done
+        $build/tools/hwitrace $crossprefix $paths | less
         ;;
 
     trace=*)

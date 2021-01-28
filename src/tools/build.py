@@ -3,6 +3,7 @@ dirs = [
     'exm3fs',
     'gem52otf',
     'gem5log',
+    'hwitrace',
     'ignoreint',
     'm3fsck',
     'mkm3fs',

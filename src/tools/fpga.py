@@ -94,6 +94,9 @@ def load_prog(pm, i, args, vm):
     # reset TCU (clear command log and reset registers except FEATURES and EPs)
     pm.tcu_reset()
 
+    # enable instruction trace for all PEs (doesn't cost anything)
+    pm.rocket_enableTrace()
+
     # make privileged
     pm.tcu_set_privileged(1)
 
@@ -238,6 +241,20 @@ def main():
                     pe.tcu_print_log('log/pm' + str(i) + '-tcu-cmds.log', all=True)
                 except:
                     pass
+
+        # extract instruction trace
+        try:
+            pe.rocket_printTrace('log/pm' + str(i) + '-instrs.log')
+        except Exception as e:
+            print("PM{}: unable to read instruction trace: {}".format(i, e))
+            print("PM{}: resetting TCU and reading all logs...".format(i))
+            sys.stdout.flush()
+            pe.tcu_reset()
+            try:
+                pe.rocket_printTrace('log/pm' + str(i) + '-instrs.log', all=True)
+            except:
+                pass
+
         pe.stop()
 
 try:

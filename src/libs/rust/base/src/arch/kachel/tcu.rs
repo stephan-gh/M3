@@ -99,8 +99,8 @@ pub const MMIO_ADDR: usize = 0xF000_0000;
 pub const MMIO_SIZE: usize = cfg::PAGE_SIZE * 2;
 /// The base address of the TCU's private MMIO area
 pub const MMIO_PRIV_ADDR: usize = MMIO_ADDR + MMIO_SIZE;
-/// The size of the TCU's private MMIO area
-pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE;
+/// The size of the TCU's private MMIO area (including config space on HW)
+pub const MMIO_PRIV_SIZE: usize = cfg::PAGE_SIZE * 2;
 
 /// The number of external registers
 pub const EXT_REGS: usize = 2;
@@ -159,6 +159,15 @@ int_enum! {
         const CUR_TIME      = 0x3;
         /// Prints a line into the gem5 log
         const PRINT         = 0x4;
+    }
+}
+
+#[allow(dead_code)]
+int_enum! {
+    /// The config registers (hardware only)
+    pub struct ConfigReg : Reg {
+        /// Enables/disables the instruction trace
+        const INSTR_TRACE   = 0xD;
     }
 }
 
@@ -670,6 +679,11 @@ impl TCU {
         Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
     }
 
+    /// Enables or disables instruction tracing
+    pub fn set_trace_instrs(enable: bool) {
+        Self::write_cfg_reg(ConfigReg::INSTR_TRACE, enable as Reg);
+    }
+
     /// Flushes and invalidates the CPU caches
     pub fn flush_cache() {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::FLUSH_CACHE.val);
@@ -692,6 +706,13 @@ impl TCU {
     /// Sets the value of the given unprivileged register to `val`
     pub fn write_unpriv_reg(reg: UnprivReg, val: Reg) {
         Self::write_reg(EXT_REGS + reg.val as usize, val)
+    }
+
+    fn write_cfg_reg(reg: ConfigReg, val: Reg) {
+        Self::write_reg(
+            ((cfg::PAGE_SIZE * 3) / util::size_of::<Reg>()) + reg.val as usize,
+            val,
+        )
     }
 
     fn read_ep_reg(ep: EpId, reg: usize) -> Reg {

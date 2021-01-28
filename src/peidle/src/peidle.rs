@@ -189,6 +189,9 @@ pub extern "C" fn env_run() {
         io::init(*PE_ID, "pemux");
     }
 
+    // disable instruction trace to see the last instructions of the previous app
+    tcu::TCU::set_trace_instrs(false);
+
     // wait until the kernel configured the EP (only necessary on HW where we can't sleep below)
     if envdata::get().platform == envdata::Platform::HW.val {
         loop {
@@ -229,6 +232,9 @@ pub extern "C" fn env_run() {
             tcu::TCU::ack_msg(tcu::KPEX_REP, msg_off).unwrap();
         }
     };
+
+    // enable instruction trace again for the app we're about to run
+    tcu::TCU::set_trace_instrs(true);
 
     run_app(entry, sp);
 }

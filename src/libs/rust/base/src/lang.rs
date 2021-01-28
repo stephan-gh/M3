@@ -26,6 +26,10 @@ extern "C" {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    // disable instruction trace here to see the instructions that lead to the panic
+    #[cfg(target_vendor = "hw")]
+    crate::tcu::TCU::set_trace_instrs(false);
+
     if let Some(l) = log::Log::get() {
         if let Some(loc) = info.location() {
             l.write_fmt(format_args!(
