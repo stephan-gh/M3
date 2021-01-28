@@ -18,7 +18,7 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/com/RecvGate.h>
-#include <m3/TCUIf.h>
+#include <m3/pes/VPE.h>
 #include <m3/WorkLoop.h>
 
 #include <thread/ThreadManager.h>
@@ -63,7 +63,7 @@ void WorkLoop::thread_shutdown() {
     // first wait until we have no threads left that wait for some event
     ThreadManager &tm = ThreadManager::get();
     while(tm.get().blocked_count() > 0) {
-        TCUIf::sleep();
+        VPE::sleep();
 
         tick();
 
@@ -103,7 +103,7 @@ void WorkLoop::tick() {
 
 void WorkLoop::run() {
     while(has_items()) {
-        TCUIf::sleep();
+        VPE::sleep();
 
         tick();
 

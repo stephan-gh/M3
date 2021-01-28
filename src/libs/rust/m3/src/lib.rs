@@ -32,13 +32,7 @@ pub use arch::init::{exit, rust_deinit, rust_init};
 pub mod io;
 #[macro_use]
 pub mod com;
-mod tcuif;
-
-/// The interface to the trusted communication unit
-pub mod tcu {
-    pub use crate::tcuif::*;
-    pub use base::tcu::*;
-}
+pub mod pexcalls;
 
 pub use base::{
     backtrace,
@@ -68,6 +62,7 @@ pub use base::{
     rc,
     serialize,
     sync,
+    tcu,
     test,
     time,
     util,

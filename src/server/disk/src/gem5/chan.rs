@@ -20,9 +20,9 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::Perm;
 use m3::log;
+use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::session::DiskOperation;
-use m3::tcu;
 use m3::time::Time;
 use m3::util;
 
@@ -238,7 +238,7 @@ impl Channel {
                 return Ok(());
             }
             if sleep > 0 {
-                tcu::TCUIf::sleep_for(sleep)?;
+                VPE::sleep_for(sleep)?;
                 elapsed += sleep;
             }
             else {

@@ -21,7 +21,7 @@
 #include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
-#include <m3/TCUIf.h>
+#include <m3/pes/VPE.h>
 #include <m3/Test.h>
 
 using namespace m3;
@@ -74,7 +74,7 @@ int main() {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
             failures = 0;
-            TCUIf::sleep();
+            VPE::sleep();
         }
 
         size_t send_count = burst_size;

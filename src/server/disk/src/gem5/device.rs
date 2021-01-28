@@ -23,7 +23,7 @@ use m3::goff;
 use m3::int_enum;
 use m3::kif::Perm;
 use m3::log;
-use m3::tcu;
+use m3::pes::VPE;
 use m3::time::Time;
 use m3::util;
 
@@ -537,7 +537,7 @@ impl Device {
             while elapsed < ATA_WAIT_TIMEOUT
                 && (chan.read_pio::<u8>(ATAReg::STATUS)? & CommandStatus::BUSY.bits()) != 0
             {
-                tcu::TCUIf::sleep_for(SLEEP_TIME)?;
+                VPE::sleep_for(SLEEP_TIME)?;
                 elapsed += SLEEP_TIME;
             }
             chan.wait();

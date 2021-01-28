@@ -23,7 +23,7 @@
 #include <m3/server/RequestHandler.h>
 #include <m3/server/Server.h>
 #include <m3/stream/Standard.h>
-#include <m3/TCUIf.h>
+#include <m3/pes/VPE.h>
 #include <m3/vfs/VFS.h>
 #include <pci/Device.h>
 #include <thread/ThreadManager.h>
@@ -348,7 +348,7 @@ int main(int argc, char **argv) {
                 cycles_t start = m3::TCU::get().nanotime();
                 SLOG(NET_ALL, "@" << start << " sleep: (for " << sleep_ms << " ms)");
 
-                TCUIf::sleep_for(sleep_ms * 1000000);
+                VPE::sleep_for(sleep_ms * 1000000);
 
                 cycles_t stop = m3::TCU::get().nanotime();
                 SLOG(NET_ALL, "@" << stop << " wakeup: " << (stop - start) << " ns"

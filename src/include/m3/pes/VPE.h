@@ -32,6 +32,7 @@
 #include <m3/pes/PE.h>
 #include <m3/session/Pager.h>
 #include <m3/ObjCap.h>
+#include <m3/PEXCalls.h>
 
 #include <functional>
 #include <memory>
@@ -95,6 +96,34 @@ public:
      */
     static VPE &self() noexcept {
         return *_self_ptr;
+    }
+
+    /**
+     * Puts the current VPE to sleep until the next message arrives
+     */
+    static void sleep() noexcept {
+        sleep_for(0);
+    }
+
+    /**
+     * Puts the current VPE to sleep until the next message arrives or <nanos> nanoseconds have
+     * passed.
+     */
+    static void sleep_for(uint64_t nanos) noexcept {
+        if(env()->shared || nanos != 0)
+            PEXCalls::sleep(nanos, TCU::INVALID_EP);
+        else
+            TCU::get().wait_for_msg(TCU::INVALID_EP);
+    }
+
+    /**
+     * Puts the current VPE to sleep until the next message arrives on the given EP
+     */
+    static void wait_for_msg(epid_t ep) noexcept {
+        if(env()->shared)
+            PEXCalls::sleep(0, ep);
+        else
+            TCU::get().wait_for_msg(ep);
     }
 
     explicit VPE(const Reference<class PE> &pe, const String &name, const VPEArgs &args = VPEArgs());

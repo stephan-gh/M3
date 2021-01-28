@@ -16,8 +16,8 @@
 
 use m3::boxed::Box;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
+use m3::pexcalls;
 use m3::rc::Rc;
-use m3::tcu;
 use m3::test;
 use m3::{println, wv_assert, wv_assert_ok, wv_run_test};
 
@@ -63,7 +63,7 @@ fn calc_pi(pe: &Rc<PE>) {
 
             // yield every now and then to test if the FPU registers are saved/restored correctly
             if i % 10 == 0 {
-                wv_assert_ok!(tcu::TCUIf::switch_vpe());
+                wv_assert_ok!(pexcalls::switch_vpe());
             }
 
             div += 2.0;
@@ -87,7 +87,7 @@ fn calc_pi(pe: &Rc<PE>) {
         }
 
         if i % 10 == 0 {
-            wv_assert_ok!(tcu::TCUIf::switch_vpe());
+            wv_assert_ok!(pexcalls::switch_vpe());
         }
 
         div += 2.0;

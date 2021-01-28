@@ -33,7 +33,8 @@ pub extern "C" fn exit(_code: i32) -> ! {
     vfs::deinit();
 
     #[cfg(target_vendor = "gem5")]
-    arch::pexcalls::call1(base::pexif::Operation::EXIT, _code as usize).ok();
+    crate::pexcalls::exit(_code);
+
     #[cfg(target_vendor = "hw")]
     {
         unsafe {
@@ -43,8 +44,8 @@ pub extern "C" fn exit(_code: i32) -> ! {
                 : : "r"(crate::cfg::PEMUX_START), "{x10}"(0u64)
             );
         }
+        unreachable!();
     }
-    unreachable!();
 }
 
 extern "C" {

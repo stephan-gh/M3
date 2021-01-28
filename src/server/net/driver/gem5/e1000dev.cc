@@ -16,7 +16,7 @@
 
 #include <base/log/Services.h>
 
-#include <m3/TCUIf.h>
+#include <m3/pes/VPE.h>
 
 #include <assert.h>
 #include <cstddef>
@@ -194,7 +194,7 @@ void E1000::sleep(cycles_t usec) {
     do {
         auto sleep_time = (TCU::get().nanotime() - t);
         if(nanos > sleep_time)
-            TCUIf::sleep_for(nanos - sleep_time);
+            VPE::sleep_for(nanos - sleep_time);
     } while ((TCU::get().nanotime() - t) < nanos);
 }
 

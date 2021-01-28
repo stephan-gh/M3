@@ -19,8 +19,8 @@
 #include <m3/com/GateStream.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/pes/VPE.h>
 #include <m3/Exception.h>
-#include <m3/TCUIf.h>
 
 #include <thread/ThreadManager.h>
 
@@ -135,7 +135,7 @@ void NetworkManager::wait_sync() {
 
     while(1) {
         // This would be the place to implement timeouts.
-        TCUIf::sleep();
+        VPE::sleep();
 
         if(_channel->has_events(ev, crd))
             break;

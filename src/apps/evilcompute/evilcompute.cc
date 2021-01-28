@@ -18,7 +18,7 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/GateStream.h>
 #include <m3/stream/Standard.h>
-#include <m3/TCUIf.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     // now try to trick PEMux to leave us running, because we have unread messages
     for(volatile int i = 0; ; ++i) {
         cout << "Hello " << i << " from " << (argc > 0 ? argv[1] : "??") << "\n";
-        TCUIf::sleep_for(10);
+        VPE::sleep_for(10);
     }
     return 0;
 }

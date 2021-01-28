@@ -22,9 +22,9 @@ use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif;
 use m3::log;
+use m3::pes::VPE;
 use m3::reply_vmsg;
 use m3::session::ResMngOperation;
-use m3::tcu;
 
 use crate::childs::{self, Child, Id};
 use crate::sendqueue;
@@ -71,7 +71,7 @@ where
             break;
         }
 
-        tcu::TCUIf::sleep().ok();
+        VPE::sleep().ok();
     }
 
     if !thmng.cur().is_main() {

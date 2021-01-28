@@ -22,7 +22,7 @@
 
 namespace m3 {
 
-class PEXCalls {
+class PEXABI {
 public:
     static word_t call1(Operation op, word_t arg1) {
         return call2(op, arg1, 0);

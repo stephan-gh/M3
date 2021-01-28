@@ -34,7 +34,6 @@ pub fn run(t: &mut dyn test::WvTester) {
 
 fn run_stop() {
     use m3::com::RGateArgs;
-    use m3::tcu::TCUIf;
     use m3::vfs;
 
     let mut rg = wv_assert_ok!(RecvGate::new_with(
@@ -72,7 +71,7 @@ fn run_stop() {
         wv_assert_ok!(recv_msg(&rg));
 
         // wait a bit and stop VPE
-        wv_assert_ok!(TCUIf::sleep_for(wait_time));
+        wv_assert_ok!(VPE::sleep_for(wait_time));
         wv_assert_ok!(act.stop());
 
         // increase by one cycle to attempt interrupts at many points in the instruction stream

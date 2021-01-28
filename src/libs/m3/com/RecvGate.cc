@@ -23,7 +23,6 @@
 #include <m3/pes/VPE.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
-#include <m3/TCUIf.h>
 
 #include <thread/ThreadManager.h>
 
@@ -178,7 +177,7 @@ const TCU::Message *RecvGate::receive(SendGate *sgate) {
                                    Errors::EP_INVALID);
         }
 
-        TCUIf::wait_for_msg(ep()->id());
+        VPE::wait_for_msg(ep()->id());
     }
     UNREACHED;
 }

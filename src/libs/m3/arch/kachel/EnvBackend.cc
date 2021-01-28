@@ -46,7 +46,7 @@ public:
 
     NORETURN void exit(UNUSED int code) override {
 #if defined(__gem5__)
-        PEXCalls::call1(Operation::EXIT, static_cast<word_t>(code));
+        PEXCalls::exit(code);
 #else
         // set x10 to tell crt0 that the SP is not set
         register uint64_t x10 asm ("x10") = 0;

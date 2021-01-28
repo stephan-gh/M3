@@ -18,7 +18,7 @@
 
 #include <m3/server/Server.h>
 #include <m3/server/EventHandler.h>
-#include <m3/TCUIf.h>
+#include <m3/pes/VPE.h>
 
 using namespace m3;
 
@@ -48,7 +48,7 @@ int main() {
     wl.add(&wi, true);
 
     while(wl.has_items()) {
-        TCUIf::sleep_for(next_tick - TCU::get().nanotime());
+        VPE::sleep_for(next_tick - TCU::get().nanotime());
 
         wl.tick();
     }

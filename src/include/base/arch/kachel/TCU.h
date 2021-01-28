@@ -33,6 +33,7 @@ class Machine;
 class MemGate;
 class SendGate;
 class RecvGate;
+class VPE;
 
 class TCU {
     friend class kernel::TCU;
@@ -40,7 +41,7 @@ class TCU {
     friend class MemGate;
     friend class SendGate;
     friend class RecvGate;
-    friend class TCUIf;
+    friend class VPE;
 
     explicit TCU() {
     }

@@ -27,8 +27,8 @@ use crate::kif;
 use crate::math;
 use crate::mem::heap;
 use crate::pes::{Mapper, VPE};
+use crate::pexcalls;
 use crate::session::{MapFlags, Pager};
-use crate::tcuif;
 use crate::util;
 use crate::vec;
 use crate::vfs::{BufReader, FileRef, Seek, SeekMode};
@@ -121,7 +121,7 @@ pub fn clone_vpe(pager: &Pager) -> Result<usize, Error> {
         // after cloning the address space we have to make sure that we don't have dirty cache lines
         // anymore. otherwise, if our child takes over a frame from us later and we writeback such
         // a cacheline afterwards, things break.
-        tcuif::TCUIf::flush_invalidate()?;
+        pexcalls::flush_invalidate()?;
         return Ok(entry);
     }
 

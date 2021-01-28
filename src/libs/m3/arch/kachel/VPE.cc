@@ -23,7 +23,6 @@
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
 #include <m3/pes/VPE.h>
-#include <m3/TCUIf.h>
 #include <m3/vfs/GenericFile.h>
 #include <m3/vfs/MountTable.h>
 
@@ -300,7 +299,7 @@ void VPE::copy_sections() {
             // after cloning the address space we have to make sure that we don't have dirty cache lines
             // anymore. otherwise, if our child takes over a frame from us later and we writeback such
             // a cacheline afterwards, things break.
-            TCUIf::flush_invalidate();
+            PEXCalls::flush_invalidate();
             return;
         }
 

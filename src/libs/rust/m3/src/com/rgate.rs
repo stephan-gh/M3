@@ -283,7 +283,7 @@ impl RecvGate {
                 }
             }
 
-            tcu::TCUIf::wait_for_msg(rep)?;
+            VPE::wait_for_msg(rep)?;
         }
     }
 

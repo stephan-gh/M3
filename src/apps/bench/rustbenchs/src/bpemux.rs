@@ -22,7 +22,7 @@ use m3::kif::Perm;
 use m3::pes::VPE;
 use m3::profile;
 use m3::session::MapFlags;
-use m3::tcu::TCUIf;
+use m3::pexcalls;
 use m3::test;
 use m3::time;
 use m3::{println, wv_perf, wv_run_test};
@@ -36,7 +36,7 @@ fn pexcalls() {
     let mut prof = profile::Profiler::default().repeats(100).warmup(30);
     wv_perf!(
         "noop pexcall",
-        prof.run_with_id(|| TCUIf::noop().unwrap(), 0x30)
+        prof.run_with_id(|| pexcalls::noop().unwrap(), 0x30)
     );
 }
 

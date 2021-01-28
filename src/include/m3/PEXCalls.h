@@ -19,11 +19,29 @@
 #include <base/Common.h>
 
 #if defined(__x86_64__)
-#   include "arch/x86_64/PEXCalls.h"
+#   include "arch/x86_64/PEXABI.h"
 #elif defined(__arm__)
-#   include "arch/arm/PEXCalls.h"
+#   include "arch/arm/PEXABI.h"
 #elif defined(__riscv)
-#   include "arch/riscv/PEXCalls.h"
+#   include "arch/riscv/PEXABI.h"
 #else
 #   error "Unsupported ISA"
 #endif
+
+namespace m3 {
+
+struct PEXCalls {
+    static void sleep(uint64_t nanos, epid_t ep = TCU::INVALID_EP) {
+        PEXABI::call2(Operation::SLEEP, nanos, ep);
+    }
+
+    static void exit(int code) {
+        PEXABI::call1(Operation::EXIT, static_cast<word_t>(code));
+    }
+
+    static void flush_invalidate() {
+        PEXABI::call2(Operation::FLUSH_INV, 0, 0);
+    }
+};
+
+}

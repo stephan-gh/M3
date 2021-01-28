@@ -16,6 +16,8 @@
 
 //! Contains the VPE abstraction
 
+use base::envdata;
+
 use core::cmp;
 use core::fmt;
 use core::ops::FnOnce;
@@ -32,10 +34,11 @@ use crate::goff;
 use crate::kif;
 use crate::kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
 use crate::pes::{ClosureActivity, DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, PE};
+use crate::pexcalls;
 use crate::rc::Rc;
 use crate::session::{Pager, ResMng};
 use crate::syscalls;
-use crate::tcu::{EpId, PEId};
+use crate::tcu::{EpId, PEId, INVALID_EP, TCU};
 use crate::vfs::{BufReader, FileRef, OpenFlags, VFS};
 use crate::vfs::{FileTable, MountTable};
 
@@ -126,6 +129,44 @@ impl VPE {
         self.mounts = env.load_mounts();
         self.files = env.load_fds();
         self.epmng.reset();
+    }
+
+    /// Puts the current VPE to sleep until the next message arrives
+    #[inline(always)]
+    pub fn sleep() -> Result<(), Error> {
+        Self::sleep_for(0)
+    }
+
+    /// Puts the current VPE to sleep until the next message arrives or <nanos> nanoseconds have
+    /// passed.
+    #[inline(always)]
+    pub fn sleep_for(nanos: u64) -> Result<(), Error> {
+        if envdata::get().platform == envdata::Platform::GEM5.val {
+            if arch::env::get().shared() || nanos != 0 {
+                pexcalls::sleep(nanos, None)
+            }
+            else {
+                TCU::wait_for_msg(INVALID_EP)
+            }
+        }
+        else {
+            Ok(())
+        }
+    }
+
+    /// Puts the current VPE to sleep until the next message arrives on the given EP
+    pub fn wait_for_msg(ep: EpId) -> Result<(), Error> {
+        if envdata::get().platform == envdata::Platform::GEM5.val {
+            if arch::env::get().shared() {
+                pexcalls::sleep(0, Some(ep))
+            }
+            else {
+                TCU::wait_for_msg(ep)
+            }
+        }
+        else {
+            Ok(())
+        }
     }
 
     /// Returns the currently running [`VPE`].
@@ -493,7 +534,9 @@ impl VPE {
                 c2p.signal();
 
                 let res = closure.call();
-                unsafe { libc::exit(res) };
+                unsafe {
+                    libc::exit(res)
+                };
             },
 
             pid => {
