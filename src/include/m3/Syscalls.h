@@ -36,17 +36,14 @@ class Syscalls {
 
     template<class T>
     struct SyscallReply {
-        explicit SyscallReply(Errors::Code res, const TCU::Message *msg)
-            : _res(res),
-              _msg(msg) {
+        explicit SyscallReply(const TCU::Message *msg)
+            : _msg(msg) {
         }
         ~SyscallReply() {
-            TCUIf::ack_msg(RecvGate::syscall(), _msg);
+            RecvGate::syscall().ack_msg(_msg);
         }
 
         Errors::Code error() const {
-            if(_res != Errors::NONE)
-                return _res;
             return static_cast<Errors::Code>(operator->()->error);
         }
 
@@ -55,7 +52,6 @@ class Syscalls {
         }
 
     private:
-        Errors::Code _res;
         const TCU::Message *_msg;
     };
 

@@ -19,7 +19,6 @@
 
 #include <m3/pipe/DirectPipe.h>
 #include <m3/pipe/DirectPipeReader.h>
-#include <m3/TCUIf.h>
 
 namespace m3 {
 
@@ -91,7 +90,7 @@ ssize_t DirectPipeReader::read(void *buffer, size_t count, bool blocking) {
         }
         else {
             _state->_rgate.activate();
-            const TCU::Message *msg = TCUIf::fetch_msg(_state->_rgate);
+            const TCU::Message *msg = _state->_rgate.fetch();
             if(msg) {
                 _state->_is = std::make_unique<GateIStream>(GateIStream(_state->_rgate, msg));
                 _state->_is->vpull(_state->_pos, _state->_pkglen);

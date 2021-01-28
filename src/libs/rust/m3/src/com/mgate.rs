@@ -193,7 +193,8 @@ impl MemGate {
     /// Reads `size` bytes via the TCU read command from the memory region at offset `off` and
     /// stores the read data into `data`.
     pub fn read_bytes(&self, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        tcu::TCUIf::read(self, data, size, off)
+        let ep = self.activate()?;
+        tcu::TCU::read(ep.id(), data, size, off)
     }
 
     /// Writes `data` with the TCU write command to the memory region at offset `off`.
@@ -213,7 +214,8 @@ impl MemGate {
     /// Writes the `size` bytes at `data` via the TCU write command to the memory region at offset
     /// `off`.
     pub fn write_bytes(&self, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        tcu::TCUIf::write(self, data, size, off)
+        let ep = self.activate()?;
+        tcu::TCU::write(ep.id(), data, size, off)
     }
 
     pub(crate) fn activate(&self) -> Result<&EP, Error> {

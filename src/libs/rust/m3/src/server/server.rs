@@ -175,8 +175,8 @@ impl Server {
 
     /// Fetches a message from the control channel and handles it if so.
     pub fn handle_ctrl_chan<S>(&self, hdl: &mut dyn Handler<S>) -> Result<(), Error> {
-        let is = self.rgate.fetch();
-        if let Some(mut is) = is {
+        if let Some(msg) = self.rgate.fetch() {
+            let mut is = GateIStream::new(msg, &self.rgate);
             match self.handle_ctrl_msg(hdl, &mut is) {
                 // should the server terminate?
                 Ok(true) => return Err(Error::new(Code::EndOfFile)),

@@ -19,7 +19,6 @@ use core::fmt;
 use crate::cap::{CapFlags, Selector};
 use crate::com::ep::EP;
 use crate::com::gate::Gate;
-use crate::com::stream::GateIStream;
 use crate::com::RecvGate;
 use crate::errors::Error;
 use crate::kif::{INVALID_SEL, UNLIM_CREDITS};
@@ -154,31 +153,45 @@ impl SendGate {
         )
     }
 
-    /// Sends `msg` of length `len` to the associated [`RecvGate`] and receives the reply from the
-    /// set reply gate. Returns the received reply.
-    pub fn call<'r, T>(
-        &self,
-        msg: &[T],
-        reply_gate: &'r RecvGate,
-    ) -> Result<GateIStream<'r>, Error> {
-        tcu::TCUIf::call(
-            self,
-            msg.as_ptr() as *const u8,
-            msg.len() * util::size_of::<T>(),
-            reply_gate,
-        )
-        .map(|m| GateIStream::new(m, reply_gate))
-    }
-
+    /// Sends the given bytes to the associated [`RecvGate`], uses `reply_gate` to receive the
+    /// reply, and lets the communication partner use the label `rlabel` for the reply.
     #[inline(always)]
-    fn send_bytes(
+    pub fn send_bytes(
         &self,
         msg: *const u8,
         size: usize,
         reply_gate: &RecvGate,
         rlabel: tcu::Label,
     ) -> Result<(), Error> {
-        tcu::TCUIf::send(self, msg, size, rlabel, reply_gate)
+        let ep = self.activate()?;
+        tcu::TCU::send(ep.id(), msg, size, rlabel, reply_gate.ep().unwrap())
+    }
+
+    /// Sends `msg` of length `len` to the associated [`RecvGate`] and receives the reply from the
+    /// set reply gate. Returns the received reply.
+    pub fn call<T>(
+        &self,
+        msg: &[T],
+        reply_gate: &RecvGate,
+    ) -> Result<&'static tcu::Message, Error> {
+        self.call_with_bytes(
+            msg as *const _ as *const u8,
+            msg.len() * util::size_of::<T>(),
+            reply_gate,
+        )
+    }
+
+    /// Sends `msg` of length `len` to the associated [`RecvGate`] and receives the reply from the
+    /// set reply gate. Returns the received reply.
+    pub fn call_with_bytes(
+        &self,
+        msg: *const u8,
+        size: usize,
+        reply_gate: &RecvGate,
+    ) -> Result<&'static tcu::Message, Error> {
+        let ep = self.activate()?;
+        tcu::TCU::send(ep.id(), msg, size, 0, reply_gate.ep().unwrap())?;
+        reply_gate.receive(Some(self))
     }
 }
 

@@ -49,14 +49,13 @@ where
     let upcall_rg = RecvGate::upcall();
 
     loop {
-        let is = RGATE.fetch();
-        if let Some(is) = is {
+        if let Some(msg) = RGATE.fetch() {
+            let is = GateIStream::new(msg, &RGATE);
             handle_request_async(is);
             subsys::start_delayed(&mut spawn)?;
         }
 
-        let msg = tcu::TCUIf::fetch_msg(upcall_rg);
-        if let Some(msg) = msg {
+        if let Some(msg) = upcall_rg.fetch() {
             childs::get().handle_upcall_async(msg);
         }
 

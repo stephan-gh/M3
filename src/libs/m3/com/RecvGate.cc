@@ -20,9 +20,10 @@
 
 #include <m3/com/RecvGate.h>
 #include <m3/com/RecvBufs.h>
+#include <m3/pes/VPE.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
-#include <m3/pes/VPE.h>
+#include <m3/TCUIf.h>
 
 #include <thread/ThreadManager.h>
 
@@ -62,7 +63,7 @@ void RecvGate::reinit() {
 }
 
 void RecvGate::RecvGateWorkItem::work() {
-    const TCU::Message *msg = TCUIf::fetch_msg(*_gate);
+    const TCU::Message *msg = _gate->fetch();
     if(msg) {
         LLOG(IPC, "Received msg @ " << (void*)msg << " over ep " << _gate->ep());
         GateIStream is(*_gate, msg);
@@ -146,30 +147,49 @@ void RecvGate::stop() noexcept {
 
 const TCU::Message *RecvGate::fetch() {
     activate();
-    return TCUIf::fetch_msg(*this);
+    size_t msg_off = TCU::get().fetch_msg(ep()->id());
+    if(msg_off != static_cast<size_t>(-1))
+        return TCU::offset_to_msg(address(), msg_off);
+    return nullptr;
 }
 
 void RecvGate::reply(const void *reply, size_t len, const TCU::Message *msg) {
-    Errors::Code res = TCUIf::reply(*this, reply, len, msg);
+    size_t msg_off = TCU::msg_to_offset(address(), msg);
+    Errors::Code res = TCU::get().reply(ep()->id(), reply, len, msg_off);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw TCUException(res);
 }
 
 const TCU::Message *RecvGate::receive(SendGate *sgate) {
     activate();
-    const TCU::Message *reply = nullptr;
-    Errors::Code res = TCUIf::receive(*this, sgate, &reply);
-    if(res != Errors::NONE)
-        throw MessageException("SendGate became invalid while waiting for reply", res);
-    return reply;
+
+    // if the PE is shared with someone else that wants to run, poll a couple of times to
+    // prevent too frequent/unnecessary switches.
+    int polling = env()->shared ? 200 : 1;
+    while(1) {
+        for(int i = 0; i < polling; ++i) {
+            const TCU::Message *reply = fetch();
+            if(reply)
+                return reply;
+        }
+
+        if(sgate && EXPECT_FALSE(!TCU::get().is_valid(sgate->ep()->id()))) {
+            throw MessageException("SendGate became invalid while waiting for reply",
+                                   Errors::EP_INVALID);
+        }
+
+        TCUIf::wait_for_msg(ep()->id());
+    }
+    UNREACHED;
 }
 
 void RecvGate::ack_msg(const TCU::Message *msg) {
-    TCUIf::ack_msg(*this, msg);
+    size_t msg_off = TCU::msg_to_offset(address(), msg);
+    TCU::get().ack_msg(ep()->id(), msg_off);
 }
 
 void RecvGate::drop_msgs_with(label_t label) noexcept {
-    TCUIf::drop_msgs(*this, label);
+    TCU::get().drop_msgs(address(), ep()->id(), label);
 }
 
 }

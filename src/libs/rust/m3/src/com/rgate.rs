@@ -22,8 +22,8 @@ use crate::cap::{CapFlags, Selector};
 use crate::cell::LazyStaticCell;
 use crate::cfg;
 use crate::com::rbufs::{alloc_rbuf, free_rbuf};
-use crate::com::{gate::Gate, GateIStream, RecvBuf, SendGate};
-use crate::errors::Error;
+use crate::com::{gate::Gate, RecvBuf, SendGate};
+use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
 use crate::math;
 use crate::pes::VPE;
@@ -222,15 +222,10 @@ impl RecvGate {
     }
 
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns
-    /// a [`GateIStream`] for the message. Otherwise it returns None.
-    pub fn fetch(&self) -> Option<GateIStream> {
-        let msg = tcu::TCUIf::fetch_msg(self);
-        if let Some(m) = msg {
-            Some(GateIStream::new(m, self))
-        }
-        else {
-            None
-        }
+    /// a reference to the message. Otherwise it returns None.
+    pub fn fetch(&self) -> Option<&'static tcu::Message> {
+        tcu::TCU::fetch_msg(self.ep().unwrap())
+            .map(|off| tcu::TCU::offset_to_msg(self.address().unwrap(), off))
     }
 
     /// Sends `reply` as a reply to the message `msg`.
@@ -251,23 +246,45 @@ impl RecvGate {
         size: usize,
         msg: &'static tcu::Message,
     ) -> Result<(), Error> {
-        tcu::TCUIf::reply(self, reply, size, msg)
+        let off = tcu::TCU::msg_to_offset(self.address().unwrap(), msg);
+        tcu::TCU::reply(self.ep().unwrap(), reply, size, off)
     }
 
     /// Marks the given message as 'read', allowing the TCU to overwrite it with a new message.
     #[inline(always)]
     pub fn ack_msg(&self, msg: &tcu::Message) -> Result<(), Error> {
-        tcu::TCUIf::ack_msg(self, msg)
+        let off = tcu::TCU::msg_to_offset(self.address().unwrap(), msg);
+        tcu::TCU::ack_msg(self.ep().unwrap(), off)
     }
 
-    /// Waits until a message arrives and returns a [`GateIStream`] for the message. If not `None`,
-    /// the argument `sgate` denotes the [`SendGate`] that was used to send the request to the
+    /// Waits until a message arrives and returns a reference to the message. If not `None`, the
+    /// argument `sgate` denotes the [`SendGate`] that was used to send the request to the
     /// communication for which this method should receive the reply now. If the endpoint associated
     /// with `sgate` becomes invalid, the method stops waiting for a reply assuming that the
     /// communication partner is no longer interested in the communication.
     #[inline(always)]
-    pub fn receive(&self, sgate: Option<&SendGate>) -> Result<GateIStream, Error> {
-        tcu::TCUIf::receive(self, sgate).map(|m| GateIStream::new(m, self))
+    pub fn receive(&self, sgate: Option<&SendGate>) -> Result<&'static tcu::Message, Error> {
+        let rep = self.ep().unwrap();
+        // if the PE is shared with someone else that wants to run, poll a couple of times to
+        // prevent too frequent/unnecessary switches.
+        let polling = if arch::env::get().shared() { 200 } else { 1 };
+        loop {
+            for _ in 0..polling {
+                let msg_off = tcu::TCU::fetch_msg(rep);
+                if let Some(off) = msg_off {
+                    let msg = tcu::TCU::offset_to_msg(self.address().unwrap(), off);
+                    return Ok(msg);
+                }
+            }
+
+            if let Some(sg) = sgate {
+                if !tcu::TCU::is_valid(sg.ep().unwrap().id()) {
+                    return Err(Error::new(Code::NoSEP));
+                }
+            }
+
+            tcu::TCUIf::wait_for_msg(rep)?;
+        }
     }
 
     /// Drops all messages with given label. That is, these messages will be marked as read.

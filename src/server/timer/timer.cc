@@ -18,6 +18,7 @@
 
 #include <m3/server/Server.h>
 #include <m3/server/EventHandler.h>
+#include <m3/TCUIf.h>
 
 using namespace m3;
 

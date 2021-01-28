@@ -20,7 +20,6 @@
 #include <m3/com/GateStream.h>
 #include <m3/pipe/DirectPipe.h>
 #include <m3/pipe/DirectPipeWriter.h>
-#include <m3/TCUIf.h>
 
 namespace m3 {
 
@@ -123,7 +122,7 @@ ssize_t DirectPipeWriter::write(const void *buffer, size_t count, bool blocking)
             }
             else {
                 _state->_rgate.activate();
-                const TCU::Message *msg = TCUIf::fetch_msg(_state->_rgate);
+                const TCU::Message *msg = _state->_rgate.fetch();
                 if(msg) {
                     GateIStream is(_state->_rgate, msg);
                     is.vpull(len);

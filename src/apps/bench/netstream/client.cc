@@ -21,6 +21,7 @@
 #include <m3/com/Semaphore.h>
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
+#include <m3/TCUIf.h>
 #include <m3/Test.h>
 
 using namespace m3;

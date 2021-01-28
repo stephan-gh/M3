@@ -20,6 +20,7 @@
 #include <m3/session/NetworkManager.h>
 #include <m3/stream/Standard.h>
 #include <m3/Exception.h>
+#include <m3/TCUIf.h>
 
 #include <thread/ThreadManager.h>
 

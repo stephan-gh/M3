@@ -30,11 +30,16 @@ class TCU;
 namespace m3 {
 
 class Machine;
-class TCUIf;
+class MemGate;
+class SendGate;
+class RecvGate;
 
 class TCU {
     friend class kernel::TCU;
     friend class Machine;
+    friend class MemGate;
+    friend class SendGate;
+    friend class RecvGate;
     friend class TCUIf;
 
     explicit TCU() {

@@ -25,7 +25,7 @@ use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::serialize::{Sink, Source};
-use crate::tcu::{EpId, Label, Message, TCUIf, SYSC_SEP_OFF};
+use crate::tcu::{EpId, Label, Message, SYSC_SEP_OFF};
 use crate::util;
 
 static SGATE: LazyStaticCell<SendGate> = LazyStaticCell::default();
@@ -37,22 +37,18 @@ struct Reply<R: 'static> {
 
 impl<R: 'static> Drop for Reply<R> {
     fn drop(&mut self) {
-        TCUIf::ack_msg(RecvGate::syscall(), self.msg).ok();
+        RecvGate::syscall().ack_msg(self.msg).ok();
     }
 }
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
-    let reply_raw = TCUIf::call(
-        &SGATE,
-        msg as *const u8,
-        util::size_of::<T>(),
-        RecvGate::syscall(),
-    )?;
+    let reply_raw =
+        SGATE.call_with_bytes(msg as *const u8, util::size_of::<T>(), RecvGate::syscall())?;
 
     let reply = reply_raw.get_data::<kif::DefaultReply>();
     let res = Code::from(reply.error as u32);
     if res != Code::None {
-        TCUIf::ack_msg(RecvGate::syscall(), reply_raw)?;
+        RecvGate::syscall().ack_msg(reply_raw)?;
         return Err(Error::new(res));
     }
 
@@ -335,12 +331,11 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
         arg,
     };
     if vpe == kif::SEL_VPE && op == syscalls::VPEOp::STOP {
-        TCUIf::send(
-            &SGATE,
+        SGATE.send_bytes(
             &req as *const _ as *const u8,
             util::size_of_val(&req),
-            0,
             RecvGate::syscall(),
+            0,
         )
     }
     else {

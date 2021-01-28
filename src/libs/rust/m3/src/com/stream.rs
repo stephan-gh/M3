@@ -67,7 +67,7 @@ impl<'s> GateOStream<'s> {
         gate: &SendGate,
         reply_gate: &'r RecvGate,
     ) -> Result<GateIStream<'r>, Error> {
-        gate.call(self.sink.words(), reply_gate)
+        gate.call(self.sink.words(), reply_gate).map(|m| GateIStream::new(m, reply_gate))
     }
 }
 
@@ -198,7 +198,7 @@ impl<'r> GateIStream<'r> {
 /// Receives a message from `rgate` and returns a [`GateIStream`] for the message.
 #[inline(always)]
 pub fn recv_msg(rgate: &RecvGate) -> Result<GateIStream<'_>, Error> {
-    rgate.receive(None)
+    recv_reply(rgate, None)
 }
 
 /// Receives a message from `rgate` as a reply to the message that has been sent over `sgate` and
@@ -208,7 +208,7 @@ pub fn recv_reply<'r>(
     rgate: &'r RecvGate,
     sgate: Option<&SendGate>,
 ) -> Result<GateIStream<'r>, Error> {
-    rgate.receive(sgate)
+    rgate.receive(sgate).map(|m| GateIStream::new(m, rgate))
 }
 
 /// Receives a message from `rgate` as a reply to the message that has been sent over `sgate` and

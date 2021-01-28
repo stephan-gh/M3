@@ -23,6 +23,7 @@
 #include <m3/session/ResMng.h>
 #include <m3/stream/FStream.h>
 #include <m3/pes/VPE.h>
+#include <m3/TCUIf.h>
 #include <m3/vfs/GenericFile.h>
 #include <m3/vfs/MountTable.h>
 

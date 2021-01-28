@@ -62,12 +62,12 @@ pub fn init(rgate: RecvGate) {
 }
 
 pub fn check_replies() {
-    if let Some(msg) = tcu::TCUIf::fetch_msg(&RGATE) {
+    if let Some(msg) = RGATE.fetch() {
         if let Ok(serv) = services::get().get_by_id(msg.header.label as Id) {
             serv.queue().received_reply(&RGATE, msg);
         }
         else {
-            tcu::TCUIf::ack_msg(&RGATE, msg).unwrap();
+            RGATE.ack_msg(msg).unwrap();
         }
     }
 }
@@ -129,7 +129,7 @@ impl SendQueue {
         thread::ThreadManager::get().notify(self.cur_event, Some(msg));
 
         // now that we've copied the message, we can mark it read
-        tcu::TCUIf::ack_msg(rg, msg).unwrap();
+        rg.ack_msg(msg).unwrap();
 
         self.send_pending();
     }

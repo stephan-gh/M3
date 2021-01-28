@@ -18,7 +18,6 @@
 #include <base/Init.h>
 
 #include <m3/com/GateStream.h>
-#include <m3/TCUIf.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 
@@ -34,14 +33,18 @@ void Syscalls::reinit() {
 
 template<class T>
 Syscalls::SyscallReply<T> Syscalls::send_receive(const void *msg, size_t size) noexcept {
-    const TCU::Message *reply = nullptr;
-    Errors::Code res = TCUIf::call(_sendgate, msg, size, *_sendgate.reply_gate(), &reply);
-    return SyscallReply<T>(res, reply);
+    const TCU::Message *reply = _sendgate.call(msg, size);
+    return SyscallReply<T>(reply);
 }
 
 Errors::Code Syscalls::send_receive_err(const void *msg, size_t size) noexcept {
-    auto reply = send_receive<KIF::DefaultReply>(msg, size);
-    return static_cast<Errors::Code>(reply.error());
+    try {
+        auto reply = send_receive<KIF::DefaultReply>(msg, size);
+        return static_cast<Errors::Code>(reply.error());
+    }
+    catch(const TCUException &e) {
+        return e.code();
+    }
 }
 
 void Syscalls::send_receive_throw(const void *msg, size_t size) {
@@ -178,7 +181,7 @@ void Syscalls::vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg) {
     req.op = static_cast<xfer_t>(op);
     req.arg = arg;
     if(vpe == KIF::SEL_VPE && op == KIF::Syscall::VCTRL_STOP)
-        TCUIf::send(_sendgate, &req, sizeof(req), 0, *_sendgate.reply_gate());
+        _sendgate.send(&req, sizeof(req), 0);
     else
         send_receive_throw(&req, sizeof(req));
 }

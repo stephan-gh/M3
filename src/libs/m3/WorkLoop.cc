@@ -18,6 +18,7 @@
 
 #include <m3/com/GateStream.h>
 #include <m3/com/RecvGate.h>
+#include <m3/TCUIf.h>
 #include <m3/WorkLoop.h>
 
 #include <thread/ThreadManager.h>

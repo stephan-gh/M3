@@ -44,6 +44,8 @@ class Syscalls;
  */
 class Gate : public SListItem, public ObjCap {
     friend class EPMng;
+    friend class RecvGate;
+    friend class SendGate;
     friend class TCUIf;
     friend class GenericFile;
     friend class Syscalls;

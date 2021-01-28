@@ -20,7 +20,6 @@
 #include <m3/com/SendGate.h>
 #include <m3/com/MemGate.h>
 #include <m3/com/RecvGate.h>
-#include <m3/TCUIf.h>
 #include <m3/Exception.h>
 
 #include <alloca.h>

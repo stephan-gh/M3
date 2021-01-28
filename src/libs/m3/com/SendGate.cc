@@ -15,7 +15,6 @@
  */
 
 #include <m3/com/SendGate.h>
-#include <m3/TCUIf.h>
 #include <m3/Exception.h>
 #include <m3/Syscalls.h>
 #include <m3/pes/VPE.h>
@@ -40,15 +39,14 @@ void SendGate::send(const void *msg, size_t len, label_t reply_label) {
 }
 
 Errors::Code SendGate::try_send(const void *msg, size_t len, label_t reply_label) {
-    return TCUIf::send(*this, msg, len, reply_label, *_replygate);
+    const EP &sep = activate();
+    epid_t rep = _replygate->ep() ? _replygate->ep()->id() : TCU::NO_REPLIES;
+    return TCU::get().send(sep.id(), msg, len, reply_label, rep);
 }
 
 const TCU::Message *SendGate::call(const void *msg, size_t len) {
-    const TCU::Message *reply = nullptr;
-    Errors::Code res = TCUIf::call(*this, msg, len, *_replygate, &reply);
-    if(res != Errors::NONE)
-        throw TCUException(res);
-    return reply;
+    send(msg, len, 0);
+    return _replygate->receive(this);
 }
 
 }

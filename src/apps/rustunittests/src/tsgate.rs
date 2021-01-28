@@ -44,7 +44,7 @@ fn send_errors() {
     {
         wv_assert_ok!(send_vmsg!(&sgate, &rgate, 1, 2));
 
-        let mut is = wv_assert_ok!(rgate.receive(Some(&sgate)));
+        let mut is = wv_assert_ok!(recv_msg(&rgate));
         wv_assert_eq!(is.pop(), Ok(1));
         wv_assert_eq!(is.pop(), Ok(2));
         wv_assert_err!(is.pop::<u32>(), Code::InvArgs);
@@ -53,14 +53,14 @@ fn send_errors() {
     {
         wv_assert_ok!(send_vmsg!(&sgate, &rgate, 4));
 
-        let mut is = wv_assert_ok!(rgate.receive(Some(&sgate)));
+        let mut is = wv_assert_ok!(recv_msg(&rgate));
         wv_assert_err!(is.pop::<String>(), Code::InvArgs);
     }
 
     {
         wv_assert_ok!(send_vmsg!(&sgate, &rgate, 0, "123"));
 
-        let mut is = wv_assert_ok!(rgate.receive(Some(&sgate)));
+        let mut is = wv_assert_ok!(recv_msg(&rgate));
         wv_assert_err!(is.pop::<String>(), Code::InvArgs);
     }
 }
@@ -78,12 +78,12 @@ fn send_recv() {
     wv_assert_err!(sgate.send(&data, RecvGate::def()), Code::NoCredits);
 
     {
-        let is = wv_assert_ok!(rgate.receive(Some(&sgate)));
+        let is = wv_assert_ok!(recv_msg(&rgate));
         wv_assert_eq!(is.label(), 0x1234);
     }
 
     {
-        let is = wv_assert_ok!(rgate.receive(Some(&sgate)));
+        let is = wv_assert_ok!(recv_msg(&rgate));
         wv_assert_eq!(is.label(), 0x1234);
     }
 }

@@ -18,94 +18,12 @@ use base::envdata;
 use base::pexif;
 
 use crate::arch::{env, pexcalls};
-use crate::com::{MemGate, RecvGate, SendGate};
-use crate::errors::{Code, Error};
-use crate::goff;
-use crate::tcu::{self, Label, Message};
+use crate::errors::Error;
+use crate::tcu;
 
 pub struct TCUIf {}
 
 impl TCUIf {
-    #[inline(always)]
-    pub fn send(
-        sg: &SendGate,
-        msg: *const u8,
-        size: usize,
-        reply_lbl: Label,
-        rg: &RecvGate,
-    ) -> Result<(), Error> {
-        let ep = sg.activate()?;
-        tcu::TCU::send(ep.id(), msg, size, reply_lbl, rg.ep().unwrap())
-    }
-
-    #[inline(always)]
-    pub fn reply(
-        rg: &RecvGate,
-        reply: *const u8,
-        size: usize,
-        msg: &'static Message,
-    ) -> Result<(), Error> {
-        let off = tcu::TCU::msg_to_offset(rg.address().unwrap(), msg);
-        tcu::TCU::reply(rg.ep().unwrap(), reply, size, off)
-    }
-
-    #[inline(always)]
-    pub fn call(
-        sg: &SendGate,
-        msg: *const u8,
-        size: usize,
-        rg: &RecvGate,
-    ) -> Result<&'static Message, Error> {
-        let ep = sg.activate()?;
-        tcu::TCU::send(ep.id(), msg, size, 0, rg.ep().unwrap())?;
-        Self::receive(rg, Some(sg))
-    }
-
-    #[inline(always)]
-    pub fn fetch_msg(rg: &RecvGate) -> Option<&'static Message> {
-        tcu::TCU::fetch_msg(rg.ep().unwrap())
-            .map(|off| tcu::TCU::offset_to_msg(rg.address().unwrap(), off))
-    }
-
-    #[inline(always)]
-    pub fn ack_msg(rg: &RecvGate, msg: &Message) -> Result<(), Error> {
-        let off = tcu::TCU::msg_to_offset(rg.address().unwrap(), msg);
-        tcu::TCU::ack_msg(rg.ep().unwrap(), off)
-    }
-
-    pub fn receive(rg: &RecvGate, sg: Option<&SendGate>) -> Result<&'static Message, Error> {
-        let rep = rg.ep().unwrap();
-        // if the PE is shared with someone else that wants to run, poll a couple of times to
-        // prevent too frequent/unnecessary switches.
-        let polling = if env::get().shared() { 200 } else { 1 };
-        loop {
-            for _ in 0..polling {
-                let msg_off = tcu::TCU::fetch_msg(rep);
-                if let Some(off) = msg_off {
-                    return Ok(tcu::TCU::offset_to_msg(rg.address().unwrap(), off));
-                }
-            }
-
-            if let Some(sg) = sg {
-                if !tcu::TCU::is_valid(sg.ep().unwrap().id()) {
-                    return Err(Error::new(Code::NoSEP));
-                }
-            }
-
-            Self::wait_for_msg(rep)?;
-        }
-    }
-
-    pub fn read(mg: &MemGate, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
-        let ep = mg.activate()?;
-        tcu::TCU::read(ep.id(), data, size, off)
-    }
-
-    pub fn write(mg: &MemGate, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
-        let ep = mg.activate()?;
-        tcu::TCU::write(ep.id(), data, size, off)
-    }
-
     #[inline(always)]
     pub fn sleep() -> Result<(), Error> {
         Self::sleep_for(0)

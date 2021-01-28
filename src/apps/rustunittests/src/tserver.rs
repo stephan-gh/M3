@@ -26,7 +26,6 @@ use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
-use m3::tcu;
 use m3::test;
 use m3::{
     reply_vmsg, send_recv, send_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test,
@@ -157,12 +156,11 @@ pub fn testcliexit() {
         };
         let msg_ptr = &req as *const kif::syscalls::ExchangeSess as *const u8;
         let msg_size = m3::util::size_of::<kif::syscalls::ExchangeSess>();
-        wv_assert_ok!(tcu::TCUIf::send(
-            syscalls::send_gate(),
+        wv_assert_ok!(syscalls::send_gate().send_bytes(
             msg_ptr,
             msg_size,
+            RecvGate::syscall(),
             0,
-            RecvGate::syscall()
         ));
 
         // now we're ready to be killed
@@ -259,7 +257,8 @@ fn server_msgs_main() -> i32 {
     server_loop(|| {
         s.handle_ctrl_chan(&mut hdl)?;
 
-        if let Some(mut is) = RGATE.fetch() {
+        if let Some(msg) = RGATE.fetch() {
+            let mut is = GateIStream::new(msg, &RGATE);
             if let Err(e) = hdl.handle_msg(&mut is) {
                 is.reply_error(e.code()).ok();
             }
