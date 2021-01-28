@@ -204,6 +204,11 @@ pub extern "C" fn env_run() {
     // if the app exited, we re-enter env_run and send the exit request to the kernel
     if let Some(vpe) = CUR_VPE.get_mut().take() {
         send_exit(vpe);
+
+        // sync icache with dcache
+        unsafe {
+            llvm_asm!("fence.i" : : : : "volatile");
+        }
     }
 
     // wait until the app can be started
