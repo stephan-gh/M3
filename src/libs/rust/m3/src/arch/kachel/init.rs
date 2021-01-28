@@ -14,8 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use base::pexif;
-
 use crate::arch;
 use crate::com;
 use crate::io;
@@ -30,12 +28,12 @@ pub extern "C" fn abort() -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn exit(code: i32) -> ! {
+pub extern "C" fn exit(_code: i32) -> ! {
     io::deinit();
     vfs::deinit();
 
     #[cfg(target_vendor = "gem5")]
-    arch::pexcalls::call1(pexif::Operation::EXIT, code as usize).ok();
+    arch::pexcalls::call1(base::pexif::Operation::EXIT, _code as usize).ok();
     #[cfg(target_vendor = "hw")]
     {
         unsafe {
