@@ -20,6 +20,7 @@ use base::cfg;
 use base::cpu;
 use base::int_enum;
 use base::libc;
+use base::tcu;
 use base::util;
 use core::fmt;
 

@@ -17,6 +17,7 @@
 use base::backtrace;
 use base::int_enum;
 use base::libc;
+use base::tcu;
 use core::fmt;
 
 pub const ISR_COUNT: usize = 8;
