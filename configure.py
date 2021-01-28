@@ -145,7 +145,6 @@ class M3Env(ninjagen.Env):
             'src/apps/rustunittests',
             'src/libs/rust/base',
             'src/libs/rust/heap',
-            'src/libs/rust/isr',
             'src/libs/rust/m3',
             'src/libs/rust/pci',
             'src/libs/rust/resmng',
@@ -161,6 +160,7 @@ class M3Env(ninjagen.Env):
         if self['PLATF'] == 'kachel':
             crates += [
                 'src/apps/ruststandalone',
+                'src/libs/rust/isr',
                 'src/libs/rust/paging',
                 'src/pemux',
             ]
