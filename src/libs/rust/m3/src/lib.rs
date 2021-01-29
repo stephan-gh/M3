@@ -34,6 +34,11 @@ pub mod io;
 pub mod com;
 pub mod pexcalls;
 
+pub mod envdata {
+    pub use crate::arch::env::*;
+    pub use base::envdata::Platform;
+}
+
 pub use base::{
     backtrace,
     boxed,

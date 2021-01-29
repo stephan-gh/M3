@@ -19,10 +19,12 @@ use m3::cap::Selector;
 use m3::cell::{LazyStaticCell, StaticCell};
 use m3::col::String;
 use m3::com::{recv_msg, GateIStream, RGateArgs, RecvGate, SGateArgs, SendGate};
+use m3::envdata;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math::next_log2;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
+use m3::println;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::{ClientSession, ServerSession};
 use m3::syscalls;
@@ -120,6 +122,11 @@ pub fn testnoresp() {
 }
 
 pub fn testcliexit() {
+    if envdata::get().platform() == envdata::Platform::HW {
+        println!("Unsupported because VPEs cannot be stopped remotely");
+        return;
+    }
+
     let client_pe = wv_assert_ok!(PE::new(VPE::cur().pe_desc()));
     let mut client = wv_assert_ok!(VPE::new_with(client_pe, VPEArgs::new("client")));
 

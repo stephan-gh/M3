@@ -17,8 +17,10 @@
 use m3::boxed::Box;
 use m3::com::{recv_msg, RecvGate, SGateArgs, SendGate};
 use m3::env;
+use m3::envdata;
 use m3::math;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
+use m3::println;
 use m3::test;
 use m3::{send_vmsg, wv_assert_eq, wv_assert_ok, wv_assert_some, wv_run_test};
 
@@ -33,6 +35,11 @@ pub fn run(t: &mut dyn test::WvTester) {
 }
 
 fn run_stop() {
+    if envdata::get().platform() == envdata::Platform::HW {
+        println!("Unsupported because VPEs cannot be stopped remotely");
+        return;
+    }
+
     use m3::com::RGateArgs;
     use m3::vfs;
 
