@@ -27,8 +27,10 @@ use base::envdata;
 use base::errors::{Code, Error};
 use base::io;
 use base::kif;
+use base::libc;
 use base::log;
 use base::machine;
+use base::pexif;
 use base::tcu;
 use base::util;
 
@@ -37,6 +39,7 @@ const UPC_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 /// Logs upcalls
 pub const LOG_INFO: bool = true;
 pub const LOG_VERBOSE: bool = false;
+pub const LOG_PEXCALLS: bool = false;
 
 // remember our PE id here, because the environment is overwritten later
 static PE_ID: StaticCell<u64> = StaticCell::new(0);
@@ -101,7 +104,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<Option<(usize, usize)>, Error>
         _ => {
             CUR_VPE.set(None);
             Ok(None)
-        }
+        },
     }
 }
 
@@ -131,6 +134,41 @@ fn handle_upcall(msg: &'static tcu::Message) -> Option<(usize, usize)> {
     res.unwrap_or(None)
 }
 
+const PEXC_ARG0: usize = 9; // a0 = x10
+const PEXC_ARG1: usize = 10; // a1 = x11
+
+pub extern "C" fn handle_pexcall(state: &mut isr::State) -> *mut libc::c_void {
+    let call = pexif::Operation::from(state.r[PEXC_ARG0] as isize);
+
+    log!(
+        crate::LOG_PEXCALLS,
+        "PEXCall: {}(arg1={})",
+        call,
+        state.r[PEXC_ARG1]
+    );
+
+    let res = match call {
+        pexif::Operation::EXIT => exit_app(state),
+        pexif::Operation::FLUSH_INV => flush_invalidate(),
+        pexif::Operation::SLEEP => Ok(0),
+        pexif::Operation::YIELD => Ok(0),
+        pexif::Operation::NOOP => Ok(0),
+
+        _ => Err(Error::new(Code::NotSup)),
+    };
+
+    state.r[PEXC_ARG0] = res.unwrap_or_else(|e| -(e.code() as isize)) as usize;
+
+    state as *mut _ as *mut libc::c_void
+}
+
+fn flush_invalidate() -> Result<isize, Error> {
+    unsafe {
+        llvm_asm!("fence.i" : : : : "volatile");
+    }
+    Ok(0)
+}
+
 fn run_app(entry: usize, sp: usize) -> ! {
     log!(
         crate::LOG_INFO,
@@ -138,6 +176,9 @@ fn run_app(entry: usize, sp: usize) -> ! {
         entry,
         sp
     );
+
+    // enable instruction trace again for the app we're about to run
+    tcu::TCU::set_trace_instrs(true);
 
     // let app know the PE its running on and that it's not shared with others
     app_env().pe_id = *PE_ID;
@@ -147,11 +188,18 @@ fn run_app(entry: usize, sp: usize) -> ! {
         llvm_asm!(
             concat!(
                 // enable FPU
-                "li t0, 1 << 13\n",
-                "csrs sstatus, t0\n",
-                // jump to entry point
+                "li     t0, 1 << 13\n",
+                "csrs   sstatus, t0\n",
+                // return to user mode
+                "li     t0, 1 << 8\n",
+                "csrc   sstatus, t0\n",
+                // enable interrupts
+                "li     t0, 1 << 5\n",
+                "csrs   sstatus, t0\n",
+                // return to entry point
+                "csrw   sepc, $0\n",
                 ".global __app_start\n",
-                "__app_start: jr $0\n"
+                "sret\n",
             )
             // set SP and set x10 to tell crt0 that the SP is already set
             : : "r"(entry), "{x2}"(sp), "{x10}"(0xDEAD_BEEFu64)
@@ -162,11 +210,17 @@ fn run_app(entry: usize, sp: usize) -> ! {
     unreachable!();
 }
 
-fn send_exit(vpe: u64) {
+fn exit_app(state: &mut isr::State) -> Result<isize, Error> {
+    // disable instruction trace to see the last instructions of the previous app
+    tcu::TCU::set_trace_instrs(false);
+
+    let vpe = CUR_VPE.get_mut().take().unwrap();
+    let code = state.r[PEXC_ARG1] as i32;
+
     let msg = kif::pemux::Exit {
         op: kif::pemux::Calls::EXIT.val as u64,
         vpe_sel: vpe,
-        code: 0,
+        code: code as u64,
     };
 
     log!(crate::LOG_INFO, "Sending exit for VPE {}", vpe);
@@ -174,46 +228,16 @@ fn send_exit(vpe: u64) {
     let msg_addr = &msg as *const _ as *const u8;
     let size = util::size_of::<kif::pemux::Exit>();
     tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::KPEX_REP).ok();
+
+    // sync icache with dcache
+    flush_invalidate().ok();
+
+    // wait for next app
+    wait_for_app();
+    unreachable!();
 }
 
-#[no_mangle]
-pub extern "C" fn env_run() {
-    if *PE_ID == 0 {
-        PE_ID.set(envdata::get().pe_id);
-
-        // install exception handlers to ease debugging
-        STATE.set(isr::State::default());
-        isr::init(STATE.get_mut());
-        isr::enable_irqs();
-
-        io::init(*PE_ID, "pemux");
-    }
-
-    // disable instruction trace to see the last instructions of the previous app
-    tcu::TCU::set_trace_instrs(false);
-
-    // wait until the kernel configured the EP (only necessary on HW where we can't sleep below)
-    if envdata::get().platform == envdata::Platform::HW.val {
-        loop {
-            if tcu::TCU::is_valid(tcu::PEXUP_REP)
-                && tcu::TCU::is_valid(tcu::KPEX_SEP)
-                && tcu::TCU::is_valid(tcu::KPEX_REP)
-            {
-                break;
-            }
-        }
-    }
-
-    // if the app exited, we re-enter env_run and send the exit request to the kernel
-    if let Some(vpe) = CUR_VPE.get_mut().take() {
-        send_exit(vpe);
-
-        // sync icache with dcache
-        unsafe {
-            llvm_asm!("fence.i" : : : : "volatile");
-        }
-    }
-
+fn wait_for_app() {
     // wait until the app can be started
     let (entry, sp) = loop {
         if envdata::get().platform == envdata::Platform::GEM5.val {
@@ -233,8 +257,33 @@ pub extern "C" fn env_run() {
         }
     };
 
-    // enable instruction trace again for the app we're about to run
-    tcu::TCU::set_trace_instrs(true);
-
     run_app(entry, sp);
+}
+
+#[no_mangle]
+pub extern "C" fn env_run() {
+    PE_ID.set(envdata::get().pe_id);
+
+    // install exception handlers to ease debugging
+    STATE.set(isr::State::default());
+    isr::init(STATE.get_mut());
+    isr::reg(isr::Vector::ENV_UCALL.val, handle_pexcall);
+    isr::reg(isr::Vector::ENV_SCALL.val, handle_pexcall);
+    isr::enable_irqs();
+
+    io::init(*PE_ID, "pemux");
+
+    // wait until the kernel configured the EP (only necessary on HW where we can't sleep below)
+    if envdata::get().platform == envdata::Platform::HW.val {
+        loop {
+            if tcu::TCU::is_valid(tcu::PEXUP_REP)
+                && tcu::TCU::is_valid(tcu::KPEX_SEP)
+                && tcu::TCU::is_valid(tcu::KPEX_REP)
+            {
+                break;
+            }
+        }
+    }
+
+    wait_for_app();
 }

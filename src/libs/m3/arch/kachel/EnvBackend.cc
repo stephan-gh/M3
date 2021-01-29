@@ -45,13 +45,7 @@ public:
     }
 
     NORETURN void exit(UNUSED int code) override {
-#if defined(__gem5__)
         PEXCalls::exit(code);
-#else
-        // set x10 to tell crt0 that the SP is not set
-        register uint64_t x10 asm ("x10") = 0;
-        asm volatile ("jr %0" : : "r"(PEMUX_CODE_START), "r"(x10));
-#endif
         UNREACHED;
     }
 };

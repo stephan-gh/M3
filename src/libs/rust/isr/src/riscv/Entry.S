@@ -28,9 +28,10 @@ BEGIN_FUNC(isr_setup)
     li      t0, ((0x3 << 3) | 0x7)  # NAPOT + RWX
     csrw    pmpcfg0, t0
 
-    // enable performance counters for supervisor mode
+    // enable performance counters for user+supervisor mode
     li      t0, -1
     csrw    mcounteren, t0
+    csrw    scounteren, t0
 
     // set address to save the state on interrupts to
     csrw    sscratch, a0

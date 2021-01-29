@@ -32,20 +32,7 @@ pub extern "C" fn exit(_code: i32) -> ! {
     io::deinit();
     vfs::deinit();
 
-    #[cfg(target_vendor = "gem5")]
     crate::pexcalls::exit(_code);
-
-    #[cfg(target_vendor = "hw")]
-    {
-        unsafe {
-            llvm_asm!(
-                "jr $0"
-                // set x10 to tell crt0 that the SP is not set
-                : : "r"(crate::cfg::PEMUX_START), "{x10}"(0u64)
-            );
-        }
-        unreachable!();
-    }
 }
 
 extern "C" {
