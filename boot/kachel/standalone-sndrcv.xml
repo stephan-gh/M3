@@ -1,4 +1,10 @@
 <config>
-    <kernel args="standalone-sender" />
     <kernel args="standalone-receiver" />
+    <kernel args="standalone-sender" />
+    <kernel args="standalone-sender" />
+    <kernel args="standalone-sender" />
+    <kernel args="standalone-sender" />
+    <kernel args="standalone-sender" />
+    <kernel args="standalone-sender" />
+    <kernel args="standalone-sender" />
 </config>

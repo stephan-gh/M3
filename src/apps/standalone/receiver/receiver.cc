@@ -23,32 +23,29 @@
 
 using namespace m3;
 
-static ALIGNED(8) uint8_t rbuf[256];
+static ALIGNED(8) uint8_t rbuf[8 * 64];
+static uint8_t reply[32];
 
 int main() {
     size_t size = nextlog2<sizeof(rbuf)>::val;
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
-    kernel::TCU::config_recv(0, rbuf_addr, size, size, 1);
+    kernel::TCU::config_recv(0, rbuf_addr, size, size - nextlog2<8>::val, 1);
 
     Serial::get() << "Hello World from receiver!\n";
 
-    uint64_t reply = 0xCAFEBABE;
-    while(1) {
+    for(int count = 0; ; ++count) {
+        if(count % 100000 == 0)
+            Serial::get() << "received " << count << " messages\n";
+
         // wait for message
         const TCU::Message *rmsg;
         while((rmsg = kernel::TCU::fetch_msg(0, rbuf_addr)) == nullptr)
             ;
-        const uint64_t *data = reinterpret_cast<const uint64_t*>(rmsg->data);
-        Serial::get() << "Got message: "
-            << "label=" << fmt(rmsg->label, "#x")
-            << ", payload=" << fmt(data[0], "#x") << "\n";
-        // const uint64_t *words = reinterpret_cast<const uint64_t*>(rmsg);
-        // for(size_t i = 0; i < 8; ++i)
-        //     Serial::get() << "word" << i << ": " << fmt(words[i], "#x") << "\n";
+        ASSERT_EQ(rmsg->label, 0x1234);
 
         // send reply
-        ASSERT_EQ(kernel::TCU::reply(0, &reply, sizeof(reply), rbuf_addr, rmsg), Errors::NONE);
-        reply++;
+        ASSERT_EQ(kernel::TCU::reply(0, reply, sizeof(reply), rbuf_addr, rmsg), Errors::NONE);
+        reply[0]++;
     }
     return 0;
 }
