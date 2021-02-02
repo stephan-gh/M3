@@ -177,7 +177,7 @@ def main():
         write_file(fpga_inst.dram1, args.fs, 0)
 
     # load programs onto PEs
-    for i, peargs in enumerate(args.pe, 0):
+    for i, peargs in enumerate(args.pe[0:len(fpga_inst.pms)], 0):
         load_prog(fpga_inst.pms[i], i, peargs.split(' '), args.vm)
 
     # start PEs
