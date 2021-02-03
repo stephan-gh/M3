@@ -106,6 +106,7 @@ def load_prog(pm, i, args, vm):
     # install EP for prints
     print_ep = MemEP()
     print_ep.set_pe(modids.MODID_ETH)
+    print_ep.set_vpe(0xFFFF)
     print_ep.set_flags(Flags.WRITE)
     print_ep.set_size(256)
     pm.tcu_set_ep(63, print_ep)
