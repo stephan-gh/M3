@@ -105,7 +105,7 @@ impl fmt::Debug for State {
 }
 
 mod plic {
-    pub const TCU_ID: u32 = 0;
+    pub const TCU_ID: u32 = 1;
 
     const MMIO_PRIORITY: *mut u32 = 0x0C00_0000 as *mut u32;
     const MMIO_ENABLE: *mut u32 = 0x0C00_2000 as *mut u32;
