@@ -68,39 +68,39 @@ pub fn init() {
 
     let root = envdata::get().pe_mem_base;
     PT_POS.set(root + cfg::PAGE_SIZE as goff);
-    let mut aspace = AddrSpace::new(0, GlobAddr::new(root), PTAllocator {});
+    let aspace = AddrSpace::new(0, GlobAddr::new(root), PTAllocator {});
     aspace.init();
+    ASPACE.set(aspace);
 
     // map TCU
     let rw = PageFlags::RW;
-    map_ident(&mut aspace, tcu::MMIO_ADDR, tcu::MMIO_SIZE, rw);
-    map_ident(&mut aspace, tcu::MMIO_PRIV_ADDR, tcu::MMIO_PRIV_SIZE, rw);
-    map_ident(&mut aspace, tcu::MMIO_PRIV_ADDR + cfg::PAGE_SIZE, cfg::PAGE_SIZE, rw);
+    map_ident(tcu::MMIO_ADDR, tcu::MMIO_SIZE, rw);
+    map_ident(tcu::MMIO_PRIV_ADDR, tcu::MMIO_PRIV_SIZE, rw);
+    map_ident(tcu::MMIO_PRIV_ADDR + cfg::PAGE_SIZE, cfg::PAGE_SIZE, rw);
 
     // map text, data, and bss
     unsafe {
-        map_segment(&mut aspace, &_text_start, &_text_end, PageFlags::RX);
-        map_segment(&mut aspace, &_data_start, &_data_end, PageFlags::RW);
-        map_segment(&mut aspace, &_bss_start, &_bss_end, PageFlags::RW);
+        map_segment(&_text_start, &_text_end, PageFlags::RX);
+        map_segment(&_data_start, &_data_end, PageFlags::RW);
+        map_segment(&_bss_start, &_bss_end, PageFlags::RW);
 
         // map initial heap
         let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
-        map_ident(&mut aspace, heap_start, 4 * cfg::PAGE_SIZE, rw);
+        map_ident(heap_start, 4 * cfg::PAGE_SIZE, rw);
     }
 
     // map env
-    map_ident(&mut aspace, cfg::ENV_START, cfg::ENV_SIZE, rw);
+    map_ident(cfg::ENV_START, cfg::ENV_SIZE, rw);
 
     // map PTs
     let glob = GlobAddr::new(envdata::get().pe_mem_base);
     let pages = envdata::get().pe_mem_size as usize / cfg::PAGE_SIZE;
-    aspace.map_pages(cfg::PE_MEM_BASE, glob, pages, rw).unwrap();
+    ASPACE.get_mut().map_pages(cfg::PE_MEM_BASE, glob, pages, rw).unwrap();
 
     // switch to that address space
-    aspace.switch_to();
+    ASPACE.get_mut().switch_to();
     paging::enable_paging();
 
-    ASPACE.set(aspace);
     BOOTSTRAP.set(false);
 }
 
@@ -121,20 +121,16 @@ pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> 
     Ok(())
 }
 
-fn map_segment(
-    aspace: &mut AddrSpace<PTAllocator>,
-    start: *const u8,
-    end: *const u8,
-    perm: PageFlags,
-) {
-    let start_addr = math::round_dn(start as usize, cfg::PAGE_SIZE);
-    let end_addr = math::round_up(end as usize, cfg::PAGE_SIZE);
-    map_ident(aspace, start_addr, end_addr - start_addr, perm);
-}
-
-fn map_ident(aspace: &mut AddrSpace<PTAllocator>, virt: usize, size: usize, perm: PageFlags) {
+pub fn map_ident(virt: usize, size: usize, perm: PageFlags) {
     let glob = GlobAddr::new(virt as goff);
-    aspace
+    ASPACE
+        .get_mut()
         .map_pages(virt, glob, size / cfg::PAGE_SIZE, perm)
         .unwrap();
+}
+
+fn map_segment(start: *const u8, end: *const u8, perm: PageFlags) {
+    let start_addr = math::round_dn(start as usize, cfg::PAGE_SIZE);
+    let end_addr = math::round_up(end as usize, cfg::PAGE_SIZE);
+    map_ident(start_addr, end_addr - start_addr, perm);
 }
