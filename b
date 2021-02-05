@@ -374,7 +374,7 @@ case "$cmd" in
             fi
             ./src/tools/execute.sh $script --debug=${cmd#dbg=} &>/dev/null &
 
-            port=$((3342 + $M3_HW_PAUSE))
+            port=$((3340 + $M3_HW_PAUSE))
             ssh -N -L 30000:localhost:$port ${M3_HW_SSH:-syn} 2>/dev/null &
             trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
