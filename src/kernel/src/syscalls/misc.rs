@@ -34,7 +34,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let req: &kif::syscalls::AllocEP = get_request(msg)?;
     let dst_sel = req.dst_sel as CapSel;
     let vpe_sel = req.vpe_sel as CapSel;
-    let mut epid = req.epid as tcu::EpId;
+    let epid = req.epid as tcu::EpId;
     let replies = req.replies as u32;
 
     sysc_log!(
@@ -65,11 +65,11 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     }
 
     let pemux = PEMng::get().pemux(dst_vpe.pe_id());
-    if epid == tcu::TOTAL_EPS {
-        epid = match pemux.find_eps(ep_count) {
+    let epid = if epid == tcu::TOTAL_EPS {
+        match pemux.find_eps(ep_count) {
             Ok(epid) => epid,
             Err(e) => sysc_err!(e.code(), "No free EP range for {} EPs", ep_count),
-        };
+        }
     }
     else {
         if epid > tcu::AVAIL_EPS || epid as u32 + ep_count > tcu::AVAIL_EPS as u32 {
@@ -83,7 +83,8 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
                 epid as u32 + ep_count - 1
             );
         }
-    }
+        epid
+    };
 
     let cap = Capability::new(
         dst_sel,
