@@ -44,6 +44,8 @@ BEGIN_FUNC(isr_setup)
 
     // unmask interrupts
     csrs    sie, t1
+    // unset all pending interrupts
+    csrw    sip, x0
 
     // return to supervisor mode
     li      t1, 3 << 11     # clear bits first
