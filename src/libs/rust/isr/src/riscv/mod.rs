@@ -148,7 +148,7 @@ extern "C" {
 
 #[no_mangle]
 pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
-    let vec = if (state.cause & 0x8000_0000) != 0 {
+    let vec = if (state.cause & 0x8000_0000_0000_0000) != 0 {
         16 + (state.cause & 0xF)
     }
     else {
