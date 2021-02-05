@@ -33,7 +33,7 @@ use base::libc;
 use base::log;
 use base::machine;
 use base::math::next_log2;
-use base::read_csr;
+use base::{read_csr, write_csr};
 use base::tcu::{self, EpId, Message, Reg, EP_REGS, TCU};
 use base::util;
 use base::vec;
@@ -95,6 +95,15 @@ pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
             tcu::CoreReq::Foreign(_) => panic!("Unexpected message for foreign VPE"),
         }
     }
+
+    state as *mut _ as *mut libc::c_void
+}
+
+pub extern "C" fn sw_irq(state: &mut isr::State) -> *mut libc::c_void {
+    log!(crate::LOG_DEF, "Got software IRQ @ {:#x}", state.sepc);
+
+    // disable software IRQ
+    write_csr!("sip", read_csr!("sip") & !0x2);
 
     state as *mut _ as *mut libc::c_void
 }
@@ -240,7 +249,11 @@ pub extern "C" fn env_run() {
     isr::reg(isr::Vector::INSTR_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::LOAD_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::STORE_PAGEFAULT.val, mmu_pf);
+    isr::reg(isr::Vector::SUPER_SW_IRQ.val, sw_irq);
     isr::enable_irqs();
+
+    log!(crate::LOG_DEF, "Triggering software IRQ...");
+    write_csr!("sip", 0x2);
 
     log!(crate::LOG_DEF, "Mapping and initializing heap...");
     let heap_begin = 0xC000_0000;
