@@ -164,11 +164,10 @@ class M3Env(ninjagen.Env):
                 'src/libs/rust/paging',
                 'src/pemux',
             ]
+        if self['PLATF'] == 'kachel' and self['ISA'] == 'riscv':
+            crates += ['src/apps/vmtest',]
         if self['TGT'] == 'hw':
-            crates += [
-                'src/apps/vmtest',
-                'src/peidle',
-            ]
+            crates += ['src/peidle']
 
         env = self.clone()
         for cr in crates:
