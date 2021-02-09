@@ -28,6 +28,7 @@ use crate::pes;
 
 #[derive(Default)]
 pub struct PhysMemDesc {
+    // TODO add memory id
     phys: goff,
     size: goff,
 }

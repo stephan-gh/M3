@@ -57,14 +57,16 @@ cfg_if! {
     }
 }
 
+pub const PMEM_PROT_EPS: usize = 4;
+
 /// The send EP for kernel calls from PEMux
-pub const KPEX_SEP: EpId = 0;
+pub const KPEX_SEP: EpId = PMEM_PROT_EPS as EpId + 0;
 /// The receive EP for kernel calls from PEMux
-pub const KPEX_REP: EpId = 1;
+pub const KPEX_REP: EpId = PMEM_PROT_EPS as EpId + 1;
 /// The receive EP for upcalls from the kernel for PEMux
-pub const PEXUP_REP: EpId = 2;
+pub const PEXUP_REP: EpId = PMEM_PROT_EPS as EpId + 2;
 /// The reply EP for upcalls from the kernel for PEMux
-pub const PEXUP_RPLEP: EpId = 3;
+pub const PEXUP_RPLEP: EpId = PMEM_PROT_EPS as EpId + 3;
 
 /// The send EP offset for system calls
 pub const SYSC_SEP_OFF: EpId = 0;
@@ -82,7 +84,7 @@ pub const PG_SEP_OFF: EpId = 5;
 pub const PG_REP_OFF: EpId = 6;
 
 /// The offset of the first user EP
-pub const FIRST_USER_EP: EpId = 4;
+pub const FIRST_USER_EP: EpId = PMEM_PROT_EPS as EpId + 4;
 /// The number of standard EPs
 pub const STD_EPS_COUNT: usize = 7;
 
@@ -473,6 +475,31 @@ impl TCU {
         let cur = (r0 >> 19) & 0x3F;
         let max = (r0 >> 25) & 0x3F;
         cur < max
+    }
+
+    /// Unpacks the given memory EP into the PE id, address, size, and permissions.
+    ///
+    /// Returns `Some((<pe>, <address>, <size>, <perm>))` if the given EP is a memory EP, or `None`
+    /// otherwise.
+    pub fn unpack_mem_ep(ep: EpId) -> Option<(PEId, u64, u64, Perm)> {
+        let r0 = Self::read_ep_reg(ep, 0);
+        let r1 = Self::read_ep_reg(ep, 1);
+        let r2 = Self::read_ep_reg(ep, 2);
+        Self::unpack_mem_regs(&[r0, r1, r2])
+    }
+
+    /// Unpacks the given memory EP registers into the PE id, address, size, and permissions.
+    ///
+    /// Returns `Some((<pe>, <address>, <size>, <perm>))` if the given registers represent a memory
+    /// EP, or `None` otherwise.
+    pub fn unpack_mem_regs(regs: &[Reg]) -> Option<(PEId, u64, u64, Perm)> {
+        if (regs[0] & 0x7) != EpType::MEMORY.val {
+            return None;
+        }
+
+        let peid = ((regs[0] >> 23) & 0xFF) as PEId;
+        let perm = Perm::from_bits_truncate((regs[0] as u32 >> 19) & 0x3);
+        Some((peid, regs[1], regs[2], perm))
     }
 
     /// Marks the given message for receive endpoint `ep` as read

@@ -20,14 +20,16 @@ use base::envdata;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, Perm};
+use base::mem::GlobAddr;
 use base::tcu::*;
 use base::util;
+use paging::Phys;
 
 use crate::arch;
 use crate::ktcu;
 use crate::platform;
 
-pub const KPEX_EP: EpId = 3;
+pub const KPEX_EP: EpId = PMEM_PROT_EPS as EpId + 3;
 
 static PE_IDS: StaticCell<[PEId; cfg::MAX_PES]> = StaticCell::new([0; cfg::MAX_PES]);
 
@@ -104,6 +106,18 @@ pub fn config_send(
 
 pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usize, perm: Perm) {
     TCU::config_mem(regs, vpe, PE_IDS[pe as usize], addr, size, perm);
+}
+
+pub fn glob_to_phys_remote(pe: PEId, glob: GlobAddr, flags: PageFlags) -> Result<Phys, Error> {
+    paging::glob_to_phys_with(glob, flags, |ep| {
+        let mut regs = [0; 3];
+        if ktcu::read_ep_remote(pe, ep, &mut regs).is_ok() {
+            TCU::unpack_mem_regs(&regs)
+        }
+        else {
+            None
+        }
+    })
 }
 
 pub fn read_ep_remote(pe: PEId, ep: EpId, regs: &mut [Reg]) -> Result<(), Error> {

@@ -49,25 +49,26 @@ int_enum! {
 
         // capability operations
         const ACTIVATE          = 9;
-        const VPE_CTRL          = 10;
-        const VPE_WAIT          = 11;
-        const DERIVE_MEM        = 12;
-        const DERIVE_KMEM       = 13;
-        const DERIVE_PE         = 14;
-        const DERIVE_SRV        = 15;
-        const GET_SESS          = 16;
-        const KMEM_QUOTA        = 17;
-        const PE_QUOTA          = 18;
-        const SEM_CTRL          = 19;
+        const SET_PMP           = 10;
+        const VPE_CTRL          = 11;
+        const VPE_WAIT          = 12;
+        const DERIVE_MEM        = 13;
+        const DERIVE_KMEM       = 14;
+        const DERIVE_PE         = 15;
+        const DERIVE_SRV        = 16;
+        const GET_SESS          = 17;
+        const KMEM_QUOTA        = 18;
+        const PE_QUOTA          = 19;
+        const SEM_CTRL          = 20;
 
         // capability exchange
-        const DELEGATE          = 20;
-        const OBTAIN            = 21;
-        const EXCHANGE          = 22;
-        const REVOKE            = 23;
+        const DELEGATE          = 21;
+        const OBTAIN            = 22;
+        const EXCHANGE          = 23;
+        const REVOKE            = 24;
 
         // misc
-        const NOOP              = 24;
+        const NOOP              = 25;
     }
 }
 
@@ -259,6 +260,15 @@ pub struct Activate {
     pub gate_sel: u64,
     pub rbuf_mem: u64,
     pub rbuf_off: u64,
+}
+
+/// The set physical memory protection EP message
+#[repr(C)]
+pub struct SetPMP {
+    pub opcode: u64,
+    pub pe_sel: u64,
+    pub mgate_sel: u64,
+    pub epid: u64,
 }
 
 int_enum! {

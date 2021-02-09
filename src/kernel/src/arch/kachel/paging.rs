@@ -47,19 +47,16 @@ struct PTAllocator {}
 
 impl Allocator for PTAllocator {
     fn allocate_pt(&mut self) -> Result<Phys, Error> {
-        let phys_begin = paging::glob_to_phys(envdata::get().pe_mem_base);
         PT_POS.set(*PT_POS + cfg::PAGE_SIZE as goff);
-        Ok(phys_begin + *PT_POS - cfg::PAGE_SIZE as goff)
+        Ok(*PT_POS - cfg::PAGE_SIZE as goff)
     }
 
     fn translate_pt(&self, phys: Phys) -> usize {
-        let phys_begin = paging::glob_to_phys(envdata::get().pe_mem_base);
-        let off = (phys - phys_begin) as usize;
         if *BOOTSTRAP {
-            off
+            phys as usize
         }
         else {
-            cfg::PE_MEM_BASE + off
+            cfg::PE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
         }
     }
 
@@ -81,9 +78,13 @@ pub fn init() {
         return;
     }
 
-    let root = envdata::get().pe_mem_base + envdata::get().pe_mem_size / 2;
-    PT_POS.set(root + cfg::PAGE_SIZE as goff);
-    let mut aspace = AddrSpace::new(pes::KERNEL_ID as u64, GlobAddr::new(root), PTAllocator {});
+    let (mem_pe, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+
+    let base = GlobAddr::new_with(mem_pe, mem_base);
+    let root = base + mem_size / 2;
+    let pts_phys = cfg::MEM_OFFSET as goff + mem_size / 2;
+    PT_POS.set(pts_phys + cfg::PAGE_SIZE as goff);
+    let mut aspace = AddrSpace::new(pes::KERNEL_ID as u64, root, PTAllocator {});
     aspace.init();
 
     // map TCU
@@ -93,26 +94,25 @@ pub fn init() {
 
     // map text, data, and bss
     unsafe {
-        map_segment(&mut aspace, &_text_start, &_text_end, PageFlags::RX);
-        map_segment(&mut aspace, &_data_start, &_data_end, PageFlags::RW);
-        map_segment(&mut aspace, &_bss_start, &_bss_end, PageFlags::RW);
+        map_segment(&mut aspace, base, &_text_start, &_text_end, PageFlags::RX);
+        map_segment(&mut aspace, base, &_data_start, &_data_end, PageFlags::RW);
+        map_segment(&mut aspace, base, &_bss_start, &_bss_end, PageFlags::RW);
 
         // map initial heap
         let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
-        map_to_phys(&mut aspace, heap_start, 4 * cfg::PAGE_SIZE, rw);
+        map_to_phys(&mut aspace, base, heap_start, 4 * cfg::PAGE_SIZE, rw);
     }
 
     // map env
-    map_to_phys(&mut aspace, cfg::ENV_START, cfg::ENV_SIZE, rw);
+    map_to_phys(&mut aspace, base, cfg::ENV_START, cfg::ENV_SIZE, rw);
 
     // map PTs
-    let glob = GlobAddr::new(envdata::get().pe_mem_base);
-    let pages = envdata::get().pe_mem_size as usize / cfg::PAGE_SIZE;
-    aspace.map_pages(cfg::PE_MEM_BASE, glob, pages, rw).unwrap();
+    let pages = mem_size as usize / cfg::PAGE_SIZE;
+    aspace.map_pages(cfg::PE_MEM_BASE, base, pages, rw).unwrap();
 
     // map vectors
     #[cfg(target_arch = "arm")]
-    map_to_phys(&mut aspace, 0, cfg::PAGE_SIZE, PageFlags::RX);
+    map_to_phys(&mut aspace, base, 0, cfg::PAGE_SIZE, PageFlags::RX);
 
     // switch to that address space
     aspace.switch_to();
@@ -133,8 +133,14 @@ fn map_ident(aspace: &mut AddrSpace<PTAllocator>, virt: usize, size: usize, perm
         .unwrap();
 }
 
-fn map_to_phys(aspace: &mut AddrSpace<PTAllocator>, virt: usize, size: usize, perm: PageFlags) {
-    let glob = GlobAddr::new(envdata::get().pe_mem_base + virt as goff);
+fn map_to_phys(
+    aspace: &mut AddrSpace<PTAllocator>,
+    base: GlobAddr,
+    virt: usize,
+    size: usize,
+    perm: PageFlags,
+) {
+    let glob = base + (virt - cfg::MEM_OFFSET) as Phys;
     aspace
         .map_pages(virt, glob, size / cfg::PAGE_SIZE, perm)
         .unwrap();
@@ -142,13 +148,14 @@ fn map_to_phys(aspace: &mut AddrSpace<PTAllocator>, virt: usize, size: usize, pe
 
 fn map_segment(
     aspace: &mut AddrSpace<PTAllocator>,
+    base: GlobAddr,
     start: *const u8,
     end: *const u8,
     perm: PageFlags,
 ) {
     let start_addr = math::round_dn(start as usize, cfg::PAGE_SIZE);
     let end_addr = math::round_up(end as usize, cfg::PAGE_SIZE);
-    map_to_phys(aspace, start_addr, end_addr - start_addr, perm);
+    map_to_phys(aspace, base, start_addr, end_addr - start_addr, perm);
 }
 
 extern "C" fn kernel_oom_callback(size: usize) -> bool {

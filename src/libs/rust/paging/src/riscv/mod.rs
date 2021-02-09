@@ -15,7 +15,6 @@
  */
 
 use base::cfg;
-use base::goff;
 use base::kif::PageFlags;
 use base::{set_csr_bits, write_csr};
 use bitflags::bitflags;
@@ -146,12 +145,4 @@ pub fn invalidate_tlb() {
 pub fn set_root_pt(id: crate::VPEId, root: Phys) {
     let satp: u64 = MODE_SV39 << 60 | id << 44 | (root >> cfg::PAGE_BITS);
     write_csr!("satp", satp);
-}
-
-pub fn glob_to_phys(global: goff) -> Phys {
-    (global & !0xFF00_0000_0000_0000) | ((global & 0xFF00_0000_0000_0000) >> 8)
-}
-
-pub fn phys_to_glob(phys: Phys) -> goff {
-    (phys & !0x00FF_0000_0000_0000) | ((phys & 0x00FF_0000_0000_0000) << 8)
 }

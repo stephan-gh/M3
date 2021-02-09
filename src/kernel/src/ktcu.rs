@@ -18,16 +18,18 @@ use base::cell::StaticCell;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
-use base::tcu::{EpId, Header, Label, Message, PEId, Reg, AVAIL_EPS, EP_REGS, TCU, UNLIM_CREDITS};
+use base::tcu::{
+    EpId, Header, Label, Message, PEId, Reg, AVAIL_EPS, EP_REGS, PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
+};
 use base::util;
 
 use crate::pes::KERNEL_ID;
 
 pub use crate::arch::ktcu::*;
 
-pub const KSYS_EP: EpId = 0;
-pub const KSRV_EP: EpId = 1;
-pub const KTMP_EP: EpId = 2;
+pub const KSYS_EP: EpId = PMEM_PROT_EPS as EpId + 0;
+pub const KSRV_EP: EpId = PMEM_PROT_EPS as EpId + 1;
+pub const KTMP_EP: EpId = PMEM_PROT_EPS as EpId + 2;
 
 #[cfg(target_os = "none")]
 static BUF: StaticCell<[u8; 8192]> = StaticCell::new([0u8; 8192]);

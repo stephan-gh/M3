@@ -590,20 +590,23 @@ pub struct EPObject {
 impl EPObject {
     pub fn new(
         is_std: bool,
-        vpe: &Rc<VPE>,
+        vpe: Weak<VPE>,
         ep: EpId,
         replies: u32,
         pe: &SRc<PEObject>,
     ) -> Rc<Self> {
+        let maybe_vpe = vpe.upgrade();
         let ep = Rc::new(Self {
             is_std,
             gate: RefCell::from(None),
-            vpe: Rc::downgrade(vpe),
+            vpe,
             ep,
             replies,
             pe: pe.clone(),
         });
-        vpe.add_ep(ep.clone());
+        if let Some(v) = maybe_vpe {
+            v.add_ep(ep.clone());
+        }
         ep
     }
 

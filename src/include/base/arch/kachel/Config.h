@@ -86,7 +86,7 @@
 // +----------------------------+ 0x10400000
 // |       app code+data        |
 // |            ...             |
-// +----------------------------+ 0xEFFF0000
+// +----------------------------+ 0xCFFF0000
 // |          app stack         |
 // +----------------------------+ 0xD0000000
 // |      std recv buffers      |
@@ -104,9 +104,6 @@
 #define ENV_END             (ENV_START + ENV_SIZE)
 
 #define STACK_SIZE          0x10000
-
-#define PEMUX_RBUF_PHYS     0x2000
-#define PEMUX_RBUF_SIZE     0x1000
 
 #define RBUF_STD_ADDR       0xD0000000
 #define RBUF_STD_SIZE       PAGE_SIZE
@@ -126,15 +123,13 @@
 #   define PEMUX_CODE_SIZE  (APP_CODE_START - PEMUX_CODE_START)
 #   define PEMUX_DATA_START (ENV_START + 0x1000)
 #   define PEMUX_DATA_SIZE  (APP_DATA_START - PEMUX_DATA_START)
-
-#   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x1FF000)
 #else
 #   define PEMUX_CODE_START (MEM_OFFSET + 0x200000)
-
-#   define PEMUX_RBUF_SPACE (MEM_OFFSET + 0x3FF000)
 #endif
 
 #define MAX_RB_SIZE         32
+
+#define PEMUX_RBUF_SIZE     0x1000
 
 #define KPEX_RBUF_ORDER     6
 #define KPEX_RBUF_SIZE      (1 << KPEX_RBUF_ORDER)

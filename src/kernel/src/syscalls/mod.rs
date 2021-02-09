@@ -153,6 +153,7 @@ pub fn handle_async(msg: &'static tcu::Message) {
         kif::syscalls::Operation::REVOKE => exchange::revoke_async(&vpe, msg),
 
         kif::syscalls::Operation::ALLOC_EP => misc::alloc_ep(&vpe, msg),
+        kif::syscalls::Operation::SET_PMP => misc::set_pmp(&vpe, msg),
         kif::syscalls::Operation::ACTIVATE => misc::activate_async(&vpe, msg),
         kif::syscalls::Operation::KMEM_QUOTA => misc::kmem_quota(&vpe, msg),
         kif::syscalls::Operation::PE_QUOTA => misc::pe_quota(&vpe, msg),

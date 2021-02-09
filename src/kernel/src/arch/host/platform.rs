@@ -20,6 +20,7 @@ use base::format;
 use base::goff;
 use base::kif::{boot, PEDesc, PEType, PEISA};
 use base::libc;
+use base::mem::GlobAddr;
 use base::tcu::PEId;
 use base::util;
 use core::mem::MaybeUninit;
@@ -136,8 +137,19 @@ fn build_mems() -> Vec<boot::Mem> {
     ));
     off += args::get().kmem as goff;
 
+    // boot module memory
+    let boot_off = off;
+    mem::get().add(mem::MemMod::new(
+        mem::MemType::BOOT,
+        kernel_pe(),
+        off,
+        cfg::FIXED_ROOT_MEM as goff,
+    ));
+    off += cfg::FIXED_ROOT_MEM as goff;
+
     // user memory
-    let user_size = cfg::TOTAL_MEM_SIZE - (cfg::FS_MAX_SIZE + args::get().kmem);
+    let user_size =
+        cfg::TOTAL_MEM_SIZE - (cfg::FS_MAX_SIZE + args::get().kmem + cfg::FIXED_ROOT_MEM);
     mem::get().add(mem::MemMod::new(
         mem::MemType::USER,
         kernel_pe(),
@@ -147,8 +159,21 @@ fn build_mems() -> Vec<boot::Mem> {
 
     // set memories
     let mut mems = Vec::new();
-    mems.push(boot::Mem::new(0, cfg::FS_MAX_SIZE as goff, true));
-    mems.push(boot::Mem::new(off, user_size as goff, false));
+    mems.push(boot::Mem::new(
+        GlobAddr::new_with(kernel_pe(), 0),
+        cfg::FS_MAX_SIZE as goff,
+        true,
+    ));
+    mems.push(boot::Mem::new(
+        GlobAddr::new_with(kernel_pe(), boot_off),
+        cfg::FIXED_ROOT_MEM as goff,
+        true,
+    ));
+    mems.push(boot::Mem::new(
+        GlobAddr::new_with(kernel_pe(), off),
+        user_size as goff,
+        false,
+    ));
     mems
 }
 
@@ -169,7 +194,7 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
             }
 
             let mut alloc = mem::get()
-                .allocate(mem::MemType::KERNEL, finfo.st_size as goff, 1)
+                .allocate(mem::MemType::BOOT, finfo.st_size as goff, 1)
                 .expect("Unable to alloc mem for boot module");
             let dest = alloc.global().offset() as *mut u8 as *mut libc::c_void;
             if libc::read(fd, dest, alloc.size() as usize) == -1 {
@@ -178,7 +203,7 @@ fn build_modules(args: &[String]) -> Vec<boot::Mod> {
             libc::close(fd);
 
             let mod_name = arg.rsplitn(2, '/').next().unwrap();
-            mods.push(boot::Mod::new(alloc.global().raw(), alloc.size(), mod_name));
+            mods.push(boot::Mod::new(alloc.global(), alloc.size(), mod_name));
 
             // don't free mem
             alloc.claim();

@@ -26,6 +26,7 @@ use base::math;
 use base::mem::GlobAddr;
 use base::tcu;
 use base::util;
+use paging::Phys;
 
 use crate::cap::{Capability, KObject, MapObject, SelRange};
 use crate::ktcu;
@@ -53,19 +54,21 @@ impl Loader {
 
     pub fn init_memory_async(&mut self, vpe: &VPE) -> Result<i32, Error> {
         // put mapping for env into cap table (so that we can access it in create_mgate later)
-        let env_addr = if platform::pe_desc(vpe.pe_id()).has_virtmem() {
+        let env_phys = if platform::pe_desc(vpe.pe_id()).has_virtmem() {
             let pemux = PEMng::get().pemux(vpe.pe_id());
             let env_addr = pemux.translate_async(vpe.id(), ENV_START as goff, kif::Perm::RW)?;
+
             let flags = PageFlags::from(kif::Perm::RW);
             Self::load_segment_async(vpe, env_addr, ENV_START as goff, PAGE_SIZE, flags, false)?;
-            env_addr
+
+            ktcu::glob_to_phys_remote(vpe.pe_id(), env_addr, flags)?
         }
         else {
-            GlobAddr::new(ENV_START as goff)
+            ENV_START as Phys
         };
 
         if vpe.is_root() {
-            self.load_root_async(env_addr, vpe)?;
+            self.load_root_async(env_phys, vpe)?;
         }
         Ok(0)
     }
@@ -80,12 +83,12 @@ impl Loader {
         Ok(())
     }
 
-    fn load_root_async(&mut self, env_addr: GlobAddr, vpe: &VPE) -> Result<(), Error> {
+    fn load_root_async(&mut self, env_phys: Phys, vpe: &VPE) -> Result<(), Error> {
         // map stack
         if vpe.pe_desc().has_virtmem() {
             let (virt, size) = vpe.pe_desc().stack_space();
             let mut phys =
-                mem::get().allocate(mem::MemType::USER, size as goff, PAGE_SIZE as goff)?;
+                mem::get().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
             Self::load_segment_async(vpe, phys.global(), virt as goff, size, PageFlags::RW, true)?;
             phys.claim();
         }
@@ -98,7 +101,7 @@ impl Loader {
             self.load_mod_async(vpe, app, !first)?
         };
 
-        let argv_addr = Self::write_arguments(env_addr.raw(), vpe.pe_id(), &["root"]);
+        let argv_addr = Self::write_arguments(env_phys, vpe.pe_id(), &["root"]);
 
         // build env
         let mut senv = envdata::EnvData::default();
@@ -115,7 +118,7 @@ impl Loader {
         senv.first_std_ep = vpe.eps_start() as u64;
 
         // write env to target PE
-        ktcu::write_slice(vpe.pe_id(), env_addr.raw(), &[senv]);
+        ktcu::write_slice(vpe.pe_id(), env_phys, &[senv]);
         Ok(())
     }
 
@@ -211,21 +214,25 @@ impl Loader {
                 let size =
                     math::round_up((phdr.vaddr & PAGE_MASK) + phdr.memsz as usize, PAGE_SIZE);
 
-                if vpe.pe_desc().has_virtmem() {
-                    let mut phys =
-                        mem::get().allocate(mem::MemType::USER, size as goff, PAGE_SIZE as goff)?;
-                    Self::load_segment_async(vpe, phys.global(), virt as goff, size, flags, true)?;
-                    phys.claim();
+                let phys = if vpe.pe_desc().has_virtmem() {
+                    let mut mem =
+                        mem::get().allocate(mem::MemType::ROOT, size as goff, PAGE_SIZE as goff)?;
+                    Self::load_segment_async(vpe, mem.global(), virt as goff, size, flags, true)?;
+                    mem.claim();
+                    ktcu::glob_to_phys_remote(vpe.pe_id(), mem.global(), flags)?
                 }
+                else {
+                    virt as goff
+                };
 
                 if phdr.filesz == 0 {
-                    ktcu::clear(vpe.pe_id(), virt as goff, size)?;
+                    ktcu::clear(vpe.pe_id(), phys, size)?;
                 }
                 else {
                     ktcu::copy(
                         // destination
                         vpe.pe_id(),
-                        virt as goff,
+                        phys,
                         // source
                         mod_addr.pe(),
                         mod_addr.offset() + offset as goff,
@@ -254,7 +261,7 @@ impl Loader {
             // create initial heap
             let end = math::round_up(end, PAGE_SIZE);
             let mut phys = mem::get().allocate(
-                mem::MemType::USER,
+                mem::MemType::ROOT,
                 MOD_HEAP_SIZE as goff,
                 PAGE_SIZE as goff,
             )?;
@@ -272,7 +279,7 @@ impl Loader {
         Ok(hdr.entry)
     }
 
-    fn write_arguments(addr: goff, pe: tcu::PEId, args: &[&str]) -> usize {
+    fn write_arguments(addr: Phys, pe: tcu::PEId, args: &[&str]) -> usize {
         let mut argptr: Vec<u64> = Vec::new();
         let mut argbuf: Vec<u8> = Vec::new();
 

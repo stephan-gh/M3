@@ -19,10 +19,11 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
 use base::mem::GlobAddr;
-use base::rc::SRc;
+use base::rc::{Rc, SRc, Weak};
 use base::tcu::{self, EpId, PEId, VPEId};
+use core::cmp;
 
-use crate::cap::{MGateObject, PEObject, RGateObject, SGateObject};
+use crate::cap::{EPObject, MGateObject, PEObject, RGateObject, SGateObject};
 use crate::ktcu;
 use crate::pes::INVAL_ID;
 use crate::platform;
@@ -32,22 +33,35 @@ pub struct PEMux {
     vpes: Vec<VPEId>,
     #[cfg(target_os = "none")]
     queue: crate::com::SendQueue,
+    pmp: Vec<Rc<EPObject>>,
     eps: BitVec,
     mem_base: goff,
 }
 
 impl PEMux {
     pub fn new(pe: PEId) -> Self {
+        let pe_obj = PEObject::new(pe, (tcu::AVAIL_EPS - tcu::FIRST_USER_EP) as u32);
+
+        // create PMP EPObjects for this PE
+        let mut pmp = Vec::new();
+        for ep in 0..tcu::PMEM_PROT_EPS as EpId {
+            pmp.push(EPObject::new(false, Weak::new(), ep, 0, &pe_obj));
+        }
+
         let mut pemux = PEMux {
-            pe: PEObject::new(pe, (tcu::AVAIL_EPS - tcu::FIRST_USER_EP) as u32),
+            pe: pe_obj,
             vpes: Vec::new(),
             #[cfg(target_os = "none")]
             queue: crate::com::SendQueue::new(pe as u64, pe),
+            pmp,
             eps: BitVec::new(tcu::AVAIL_EPS as usize),
             mem_base: 0,
         };
 
-        for ep in 0..tcu::FIRST_USER_EP {
+        #[cfg(target_os = "none")]
+        pemux.eps.set(0); // first EP is reserved for PEMux's memory region
+
+        for ep in tcu::PMEM_PROT_EPS as EpId..tcu::FIRST_USER_EP {
             pemux.eps.set(ep as usize);
         }
 
@@ -136,8 +150,13 @@ impl PEMux {
         self.mem_base = addr;
     }
 
+    pub fn pmp_ep(&self, ep: EpId) -> &Rc<EPObject> {
+        &self.pmp[ep as usize]
+    }
+
     pub fn find_eps(&self, count: u32) -> Result<EpId, Error> {
-        let mut start = self.eps.first_clear();
+        // the PMP EPs cannot be allocated
+        let mut start = cmp::max(tcu::FIRST_USER_EP as usize, self.eps.first_clear());
         let mut bit = start;
         while bit < start + count as usize && bit < tcu::AVAIL_EPS as usize {
             if self.eps.is_set(bit) {

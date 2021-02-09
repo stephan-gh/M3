@@ -134,7 +134,7 @@ fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
         Err(Error::new(Code::NoPerm))
     }
     else {
-        Ok(pte)
+        Ok(paging::phys_to_glob(pte).unwrap().raw())
     }
 }
 

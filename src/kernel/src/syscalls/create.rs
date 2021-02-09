@@ -86,7 +86,11 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
         #[cfg(target_os = "none")]
         {
-            let off = paging::glob_to_phys(map_obj.global().raw());
+            let off = crate::ktcu::glob_to_phys_remote(
+                tgt_vpe.pe_id(),
+                map_obj.global(),
+                map_obj.flags(),
+            )?;
             GlobAddr::new_with(tgt_vpe.pe_id(), off)
         }
         #[cfg(target_os = "linux")]
@@ -376,7 +380,13 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
                 .unwrap();
 
             // remember the activation
-            let sep = EPObject::new(true, &nvpe, eps + tcu::PG_SEP_OFF, 0, pemux.pe());
+            let sep = EPObject::new(
+                true,
+                Rc::downgrade(&nvpe),
+                eps + tcu::PG_SEP_OFF,
+                0,
+                pemux.pe(),
+            );
             EPObject::configure(&sep, &KObject::SGate(sg));
             nvpe.add_ep(sep);
         }
@@ -392,7 +402,13 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
                 .unwrap();
 
             // remember the activation
-            let rep = EPObject::new(true, &nvpe, eps + tcu::PG_REP_OFF, 0, pemux.pe());
+            let rep = EPObject::new(
+                true,
+                Rc::downgrade(&nvpe),
+                eps + tcu::PG_REP_OFF,
+                0,
+                pemux.pe(),
+            );
             EPObject::configure(&rep, &KObject::RGate(rg));
             nvpe.add_ep(rep);
         }

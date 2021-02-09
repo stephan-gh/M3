@@ -33,14 +33,14 @@ cfg_if::cfg_if! {
 }
 
 use base::cfg;
-use base::errors::Error;
+use base::errors::{Code, Error};
 use base::goff;
-use base::kif::{PageFlags, PTE};
+use base::kif::{PageFlags, Perm, PTE};
 use base::libc;
 use base::log;
 use base::math;
 use base::mem::GlobAddr;
-use base::tcu::TCU;
+use base::tcu::{EpId, PEId, PMEM_PROT_EPS, TCU};
 use base::util;
 use core::fmt;
 
@@ -48,15 +48,65 @@ use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};
 
 pub type VPEId = u64;
 
-pub use arch::{
-    build_pte, enable_paging, glob_to_phys, phys_to_glob, pte_to_phys, to_page_flags, MMUFlags,
-    Phys, MMUPTE,
-};
+pub use arch::{build_pte, enable_paging, pte_to_phys, to_page_flags, MMUFlags, Phys, MMUPTE};
 
 /// Logs mapping operations
 pub const LOG_MAP: bool = false;
 /// Logs detailed mapping operations
 pub const LOG_MAP_DETAIL: bool = false;
+/// Logs global to physical and vice versa translations
+pub const LOG_TRANSLATE: bool = false;
+
+pub fn glob_to_phys(global: GlobAddr, access: PageFlags) -> Result<Phys, Error> {
+    glob_to_phys_with(global, access, TCU::unpack_mem_ep)
+}
+
+pub fn glob_to_phys_with<F>(global: GlobAddr, access: PageFlags, get_ep: F) -> Result<Phys, Error>
+where
+    F: Fn(EpId) -> Option<(PEId, u64, u64, Perm)>,
+{
+    // find memory EP that contains the address
+    for ep in 0..PMEM_PROT_EPS as EpId {
+        if let Some((pe, addr, size, perm)) = get_ep(ep) {
+            log!(
+                LOG_TRANSLATE,
+                "Translating {:?}: considering EP{} with pe={}, addr={:#x}, size={:#x}",
+                global,
+                ep,
+                pe,
+                addr,
+                size
+            );
+
+            // does the EP contain this address?
+            if global.pe() == pe && global.offset() >= addr && global.offset() < addr + size {
+                let flags = PageFlags::from(perm);
+
+                // check access permissions
+                if access.contains(PageFlags::R) && !flags.contains(PageFlags::R) {
+                    return Err(Error::new(Code::NoPerm));
+                }
+                if access.contains(PageFlags::W) && !flags.contains(PageFlags::W) {
+                    return Err(Error::new(Code::NoPerm));
+                }
+
+                let phys = cfg::MEM_OFFSET as Phys + ((ep as Phys) << 30 | global.offset() - addr);
+                log!(LOG_TRANSLATE, "Translated {:?} to {:#x}", global, phys);
+                return Ok(phys);
+            }
+        }
+    }
+    Err(Error::new(Code::InvArgs))
+}
+
+pub fn phys_to_glob(phys: Phys) -> Option<GlobAddr> {
+    let phys = phys - cfg::MEM_OFFSET as Phys;
+    let epid = ((phys >> 30) & 0x3) as EpId;
+    let off = phys & 0x3FFF_FFFF;
+    let res = TCU::unpack_mem_ep(epid).map(|(pe, addr, _, _)| GlobAddr::new_with(pe, addr + off));
+    log!(LOG_TRANSLATE, "Translated {:#x} to {:?}", phys, res);
+    res
+}
 
 pub trait Allocator {
     /// Allocates a new page table and returns its physical address
@@ -77,14 +127,10 @@ pub struct AddrSpace<A: Allocator> {
 
 impl<A: Allocator> AddrSpace<A> {
     pub fn new(id: VPEId, root: GlobAddr, alloc: A) -> Self {
+        let phys = glob_to_phys(root, PageFlags::RW).unwrap();
         AddrSpace {
             id,
-            root: build_pte(
-                arch::glob_to_phys(root.raw()),
-                MMUFlags::empty(),
-                LEVEL_CNT,
-                false,
-            ),
+            root: build_pte(phys, MMUFlags::empty(), LEVEL_CNT, false),
             alloc,
         }
     }
@@ -125,7 +171,7 @@ impl<A: Allocator> AddrSpace<A> {
 
             let pte_flags = MMUFlags::from_bits_truncate(pte);
             if pte_flags.is_leaf(lvl) || pte_flags.perms_missing(perm) {
-                let res = phys_to_glob(pte_to_phys(pte));
+                let res = pte_to_phys(pte);
                 let flags = MMUFlags::from_bits_truncate(pte);
                 return res | to_page_flags(lvl, flags).bits();
             }
@@ -140,19 +186,26 @@ impl<A: Allocator> AddrSpace<A> {
         mut pages: usize,
         perm: PageFlags,
     ) -> Result<(), Error> {
+        let mut phys = if global.has_pe() {
+            glob_to_phys(global, perm)?
+        }
+        else {
+            global.raw()
+        };
+
         log!(
             crate::LOG_MAP,
-            "VPE{}: mapping 0x{:0>16x}..0x{:0>16x} to {:?}..{:?} with {:?}",
+            "VPE{}: mapping 0x{:0>16x}..0x{:0>16x} to {:?}..{:?} (phys={:#x}) with {:?}",
             self.id,
             virt,
             virt + pages * cfg::PAGE_SIZE - 1,
             global,
             global + (pages * cfg::PAGE_SIZE - 1) as goff,
+            phys,
             perm
         );
 
         let lvl = LEVEL_CNT - 1;
-        let mut phys = arch::glob_to_phys(global.raw());
         let perm = arch::to_mmu_perms(perm);
         self.map_pages_rec(&mut virt, &mut phys, &mut pages, perm, self.root, lvl)
     }

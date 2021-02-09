@@ -169,9 +169,8 @@ impl VPE {
         let rbuf_virt = platform::pe_desc(self.pe_id()).rbuf_std_space().0;
         self.rbuf_phys
             .set(if platform::pe_desc(self.pe_id()).has_virtmem() {
-                pemux
-                    .translate_async(self.id(), rbuf_virt as goff, Perm::RW)?
-                    .raw()
+                let glob = pemux.translate_async(self.id(), rbuf_virt as goff, Perm::RW)?;
+                ktcu::glob_to_phys_remote(self.pe_id(), glob, base::kif::PageFlags::RW).unwrap()
             }
             else {
                 rbuf_virt as goff

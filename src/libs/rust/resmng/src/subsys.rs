@@ -22,9 +22,10 @@ use m3::col::{String, ToString, Vec};
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
-use m3::kif::{boot, CapRngDesc, CapType, PEDesc, PEType, FIRST_FREE_SEL};
+use m3::kif::{boot, CapRngDesc, CapType, PEDesc, PEType, Perm, FIRST_FREE_SEL};
 use m3::log;
 use m3::math;
+use m3::mem::GlobAddr;
 use m3::pes::{PE, VPE};
 use m3::rc::Rc;
 use m3::tcu::PEId;
@@ -264,6 +265,22 @@ impl Subsystem {
                 sum + a.user_mem().unwrap_or(def_umem as usize) as goff
             });
             let mem_pool = Rc::new(RefCell::new(memory::container().alloc_pool(dom_mem)?));
+
+            // add regions to PMP
+            for slice in mem_pool.borrow().slices() {
+                pe_usage.add_mem_region(slice)?;
+            }
+
+            // if we're root, we need to provide the PE access to boot modules as well
+            if VPE::cur().resmng().is_none() {
+                let start_addr = self.mods[0].addr();
+                let last_mod = &self.mods[self.mods.len() - 1];
+                let end_addr = last_mod.addr() + last_mod.size;
+                let mod_size = end_addr.offset() - start_addr.offset();
+                let mod_slice = memory::container().find_mem(start_addr.offset(), mod_size)?;
+                pe_usage.add_mem_region(&mod_slice)?;
+            }
+
             // add requested physical memory regions to pool
             for cfg in d.apps() {
                 for mem in cfg.phys_mems() {
@@ -300,10 +317,10 @@ impl Subsystem {
                     let cfg_range = cfg.cfg_range();
                     let cfg_len = cfg_range.1 - cfg_range.0;
                     let cfg_slice = memory::container().alloc_mem(cfg_len as goff)?;
-                    let cfg_mem = cfg_slice.derive()?;
+                    let cfg_mem = cfg_slice.derive(Perm::RW)?;
                     cfg_mem.write(&self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
 
-                    let mut sub = SubsystemBuilder::new((cfg_mem, cfg_len));
+                    let mut sub = SubsystemBuilder::new((cfg_mem, cfg_slice.addr(), cfg_len));
 
                     // add PEs
                     sub.add_pe(pe_usage.pe_id(), pe_usage.pe_obj().clone());
@@ -312,8 +329,8 @@ impl Subsystem {
                     // add memory
                     let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem)?;
                     sub.add_mem(
-                        sub_slice.derive()?,
-                        sub_slice.offset(),
+                        sub_slice.derive(Perm::RW)?,
+                        sub_slice.addr(),
                         sub_slice.capacity(),
                         sub_slice.in_reserved_mem(),
                     );
@@ -359,15 +376,15 @@ impl Subsystem {
 
 pub struct SubsystemBuilder {
     desc: Option<MemGate>,
-    cfg: (MemGate, usize),
+    cfg: (MemGate, GlobAddr, usize),
     pes: Vec<(PEId, Rc<PE>)>,
-    mems: Vec<(MemGate, goff, goff, bool)>,
+    mems: Vec<(MemGate, GlobAddr, goff, bool)>,
     servs: Vec<(String, u32, u32, Option<u32>)>,
     serv_objs: Vec<services::Service>,
 }
 
 impl SubsystemBuilder {
-    pub fn new(cfg: (MemGate, usize)) -> Self {
+    pub fn new(cfg: (MemGate, GlobAddr, usize)) -> Self {
         Self {
             desc: None,
             cfg,
@@ -382,7 +399,7 @@ impl SubsystemBuilder {
         self.pes.push((id, pe));
     }
 
-    pub fn add_mem(&mut self, mem: MemGate, addr: goff, size: goff, reserved: bool) {
+    pub fn add_mem(&mut self, mem: MemGate, addr: GlobAddr, size: goff, reserved: bool) {
         self.mems.push((mem, addr, size, reserved));
     }
 
@@ -406,7 +423,7 @@ impl SubsystemBuilder {
 
         let mut mem = memory::container()
             .alloc_mem(self.desc_size() as goff)?
-            .derive()?;
+            .derive(Perm::RW)?;
 
         // boot info
         let info = boot::Info {
@@ -421,7 +438,7 @@ impl SubsystemBuilder {
         sel += 1;
 
         // boot module for config
-        let m = boot::Mod::new(0, self.cfg.1 as u64, "boot.xml");
+        let m = boot::Mod::new(self.cfg.1, self.cfg.2 as u64, "boot.xml");
         mem.write_obj(&m, off)?;
         vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, self.cfg.0.sel(), 1), sel)?;
         off += util::size_of::<boot::Mod>() as goff;
@@ -533,8 +550,10 @@ fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<
         for child in d.apps() {
             for pmem in child.phys_mems() {
                 let slice = memory::container().find_mem(pmem.phys(), pmem.size())?;
-                let mgate = slice.derive()?;
-                sub.add_mem(mgate, pmem.phys(), pmem.size(), true);
+                let mgate = slice.derive(Perm::RW)?;
+                // TODO determine memory id
+                let glob = GlobAddr::new_with(0, pmem.phys());
+                sub.add_mem(mgate, glob, pmem.size(), true);
             }
 
             pass_down_mem(sub, child)?;

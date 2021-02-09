@@ -42,6 +42,8 @@ const MAX_MSG_SIZE: usize = 16 * 1024;
 
 pub const HEADER_COUNT: usize = usize::max_value();
 
+pub const PMEM_PROT_EPS: usize = 0;
+
 pub const TOTAL_EPS: EpId = 128;
 pub const AVAIL_EPS: EpId = TOTAL_EPS;
 

@@ -15,9 +15,9 @@
  */
 
 use base::col::ToString;
-use base::errors::Code;
+use base::errors::{Code, Error};
 use base::goff;
-use base::kif::{self, CapSel};
+use base::kif::{self, CapSel, PageFlags};
 use base::rc::Rc;
 use base::tcu;
 
@@ -25,7 +25,7 @@ use crate::arch::loader::Loader;
 use crate::cap::{Capability, KObject};
 use crate::cap::{EPObject, SemObject};
 use crate::ktcu;
-use crate::pes::{PEMng, VPE};
+use crate::pes::{PEMng, INVAL_ID, VPE};
 use crate::platform;
 use crate::syscalls::{get_request, reply_success, send_reply, SyscError};
 
@@ -88,7 +88,13 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
 
     let cap = Capability::new(
         dst_sel,
-        KObject::EP(EPObject::new(false, &dst_vpe, epid, replies, pemux.pe())),
+        KObject::EP(EPObject::new(
+            false,
+            Rc::downgrade(&dst_vpe),
+            epid,
+            replies,
+            pemux.pe(),
+        )),
     );
     try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));
 
@@ -100,6 +106,61 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
         ep: epid as u64,
     };
     send_reply(msg, &kreply);
+    Ok(())
+}
+
+#[inline(never)]
+pub fn set_pmp(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscError> {
+    let req: &kif::syscalls::SetPMP = get_request(msg)?;
+    let pe_sel = req.pe_sel as CapSel;
+    let mgate_sel = req.mgate_sel as CapSel;
+    let epid = req.epid as tcu::EpId;
+
+    sysc_log!(
+        vpe,
+        "set_pmp(pe={}, mgate={}, ep={})",
+        pe_sel,
+        mgate_sel,
+        epid
+    );
+
+    let vpe_caps = vpe.obj_caps().borrow();
+    let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
+
+    // for host: just pretend that we installed it
+    if tcu::PMEM_PROT_EPS == 0 {
+        reply_success(msg);
+        return Ok(());
+    }
+    if epid < 1 || epid >= tcu::PMEM_PROT_EPS as tcu::EpId {
+        sysc_err!(
+            Code::InvArgs,
+            "Only EPs 1..{} can be used for set_pmp",
+            tcu::PMEM_PROT_EPS
+        );
+    }
+
+    let kobj = vpe_caps
+        .get(mgate_sel)
+        .ok_or(Error::new(Code::InvArgs))?
+        .get();
+    match kobj {
+        KObject::MGate(mg) => {
+            let pemux = PEMng::get().pemux(pe.pe());
+
+            if let Err(e) = pemux.config_mem_ep(epid, INVAL_ID, &mg, mg.pe_id()) {
+                sysc_err!(e.code(), "Unable to configure PMP EP");
+            }
+
+            // remember that the MemGate is activated on this EP for the case that the MemGate gets
+            // revoked. If so, the EP is automatically invalidated.
+            let ep = pemux.pmp_ep(epid);
+            EPObject::configure(ep, &kobj);
+        },
+        _ => sysc_err!(Code::InvArgs, "Expected MemGate"),
+    }
+
+    reply_success(msg);
     Ok(())
 }
 
@@ -182,10 +243,12 @@ pub fn get_sess(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             sysc_err!(Code::NoPerm, "Cannot get access to foreign session");
         }
 
-        try_kmem_quota!(vpecap
-            .obj_caps()
-            .borrow_mut()
-            .obtain(dst_sel, csess.unwrap(), true));
+        try_kmem_quota!(
+            vpecap
+                .obj_caps()
+                .borrow_mut()
+                .obtain(dst_sel, csess.unwrap(), true)
+        );
     }
     else {
         sysc_err!(Code::InvArgs, "Unknown session id {}", sid);
@@ -292,8 +355,9 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
                     if platform::pe_desc(rbuf.pe_id()).pe_type() != kif::PEType::MEM {
                         sysc_err!(Code::InvArgs, "rbuffer not in physical memory");
                     }
-                    let rbuf_addr = rbuf.addr().raw();
-                    rbuf_addr + rbuf_off
+                    let rbuf_phys =
+                        ktcu::glob_to_phys_remote(dst_pe, rbuf.addr(), PageFlags::RW).unwrap();
+                    rbuf_phys + rbuf_off
                 }
                 else {
                     if rbuf_mem != kif::INVALID_SEL {

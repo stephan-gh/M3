@@ -27,6 +27,7 @@ use base::math;
 use base::mem::GlobAddr;
 use base::tcu;
 use base::util;
+use core::cmp;
 use core::ptr::NonNull;
 use paging::{Allocator, Phys};
 
@@ -57,13 +58,11 @@ impl Allocator for PTAllocator {
     }
 
     fn translate_pt(&self, phys: Phys) -> usize {
-        assert!(phys >= pex_env().mem_start as Phys && phys < pex_env().mem_end as Phys);
-        let off = phys - pex_env().mem_start as Phys;
         if *BOOTSTRAP {
-            off as usize
+            phys as usize
         }
         else {
-            cfg::PE_MEM_BASE + off as usize
+            cfg::PE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
         }
     }
 
@@ -99,7 +98,7 @@ pub struct VPE {
     state: VPEState,
     prev: Option<NonNull<VPE>>,
     next: Option<NonNull<VPE>>,
-    aspace: paging::AddrSpace<PTAllocator>,
+    aspace: Option<paging::AddrSpace<PTAllocator>>,
     frames: Vec<Phys>,
     #[cfg(any(target_arch = "riscv64", target_arch = "x86_64"))]
     fpu_state: arch::FPUState,
@@ -132,33 +131,42 @@ static BOOTSTRAP: StaticCell<bool> = StaticCell::new(true);
 static PTS: StaticCell<Vec<Phys>> = StaticCell::new(Vec::new());
 
 pub fn init() {
-    let root_pt = if pex_env().pe_desc.has_virtmem() {
-        // only use the memory up to ourself for page tables. we could use the memory behind ourself
-        // as well, but currently the 1 MiB before us is sufficient.
-        let pt_count =
-            ((pex_env().mem_end - pex_env().mem_start) as usize / cfg::PAGE_SIZE) as Phys;
-        let first_pt = (cfg::PEMUX_RBUF_PHYS / cfg::PAGE_SIZE + 1) as Phys;
-        PTS.get_mut().reserve(pt_count as usize);
+    extern "C" {
+        static _bss_end: usize;
+    }
+
+    let (frame, root_pt) = if pex_env().pe_desc.has_virtmem() {
+        let (mem_pe, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+
+        let base = GlobAddr::new_with(mem_pe, mem_base);
+
+        // use the memory behind ourself for page tables
+        let bss_end = unsafe { &_bss_end as *const _ as usize };
+        let first_pt = bss_end / cfg::PAGE_SIZE;
+        let first_pt = 1 + first_pt as Phys - (cfg::MEM_OFFSET / cfg::PAGE_SIZE) as Phys;
+        // we don't need that many PTs here; 512 are enough for now
+        let pt_count = cmp::min(first_pt + 512, (mem_size as usize / cfg::PAGE_SIZE) as Phys);
+        PTS.get_mut().reserve((pt_count - first_pt) as usize);
         for i in first_pt..pt_count {
             PTS.get_mut()
-                .push(pex_env().mem_start + i * cfg::PAGE_SIZE as Phys);
+                .push(cfg::MEM_OFFSET as Phys + i * cfg::PAGE_SIZE as Phys);
         }
 
-        PTAllocator {
+        let mut allocator = PTAllocator {
             vpe: kif::pemux::VPE_ID,
-        }
-        .allocate_pt()
-        .unwrap()
+        };
+        let frame = allocator.allocate_pt().unwrap();
+        (frame, Some(base + (frame - cfg::MEM_OFFSET as Phys)))
     }
     else {
-        0
+        (0, None)
     };
 
     IDLE.set(Box::new(VPE::new(kif::pemux::IDLE_ID, 0, root_pt)));
     OUR.set(Box::new(VPE::new(kif::pemux::VPE_ID, 0, root_pt)));
 
     if pex_env().pe_desc.has_virtmem() {
-        our().frames.push(root_pt);
+        our().frames.push(frame);
         our().init();
         our().switch_to();
         paging::enable_paging();
@@ -170,17 +178,21 @@ pub fn init() {
 pub fn add(id: Id, eps_start: tcu::EpId) -> Result<(), Error> {
     log!(crate::LOG_VPES, "Created VPE {}", id);
 
-    let root_pt = if pex_env().pe_desc.has_virtmem() {
-        PTAllocator { vpe: id }.allocate_pt()?
+    let (frame, root_pt) = if pex_env().pe_desc.has_virtmem() {
+        let (mem_pe, mem_base, _, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+        let base = GlobAddr::new_with(mem_pe, mem_base);
+
+        let frame = PTAllocator { vpe: id }.allocate_pt()?;
+        (frame, Some(base + (frame - cfg::MEM_OFFSET as Phys)))
     }
     else {
-        0
+        (0, None)
     };
 
     let mut vpe = Box::new(VPE::new(id, eps_start, root_pt));
 
     if pex_env().pe_desc.has_virtmem() {
-        vpe.frames.push(root_pt);
+        vpe.frames.push(frame);
         vpe.init();
     }
 
@@ -425,11 +437,12 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
 }
 
 impl VPE {
-    pub fn new(id: Id, eps_start: tcu::EpId, root_pt: Phys) -> Self {
+    pub fn new(id: Id, eps_start: tcu::EpId, root_pt: Option<GlobAddr>) -> Self {
+        let aspace = root_pt.map(|r| paging::AddrSpace::new(id, r, PTAllocator { vpe: id }));
         VPE {
             prev: None,
             next: None,
-            aspace: paging::AddrSpace::new(id, GlobAddr::new(root_pt), PTAllocator { vpe: id }),
+            aspace,
             frames: Vec::new(),
             vpe_reg: id,
             state: VPEState::Blocked,
@@ -456,15 +469,18 @@ impl VPE {
         pages: usize,
         perm: kif::PageFlags,
     ) -> Result<(), Error> {
-        self.aspace.map_pages(virt, global, pages, perm)
+        self.aspace
+            .as_mut()
+            .unwrap()
+            .map_pages(virt, global, pages, perm)
     }
 
     pub fn translate(&self, virt: usize, perm: kif::PageFlags) -> kif::PTE {
-        self.aspace.translate(virt, perm.bits())
+        self.aspace.as_ref().unwrap().translate(virt, perm.bits())
     }
 
     pub fn id(&self) -> Id {
-        self.aspace.id()
+        self.vpe_reg & 0xFFFF
     }
 
     pub fn vpe_reg(&self) -> tcu::Reg {
@@ -601,8 +617,8 @@ impl VPE {
     }
 
     pub fn switch_to(&self) {
-        if pex_env().pe_desc.has_virtmem() {
-            self.aspace.switch_to();
+        if let Some(ref aspace) = self.aspace {
+            aspace.switch_to();
         }
     }
 
@@ -642,9 +658,12 @@ impl VPE {
             static _bss_end: u8;
         }
 
+        let (mem_pe, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+        let base = GlobAddr::new_with(mem_pe, mem_base);
+
         // we have to perform the initialization here, because it calls xlate_pt(), so that the VPE
         // needs to be accessible via get_mut().
-        self.aspace.init();
+        self.aspace.as_mut().unwrap().init();
 
         // map TCU
         let rw = kif::PageFlags::RW;
@@ -666,15 +685,13 @@ impl VPE {
         // map text, data, and bss
         let rx = kif::PageFlags::RX;
         unsafe {
-            self.map_segment(&_text_start, &_text_end, rx);
-            self.map_segment(&_data_start, &_data_end, rw);
-            self.map_segment(&_bss_start, &_bss_end, rw);
+            self.map_segment(base, &_text_start, &_text_end, rx);
+            self.map_segment(base, &_data_start, &_data_end, rw);
+            self.map_segment(base, &_bss_start, &_bss_end, rw);
         }
 
         // map own receive buffer
-        let own_rbuf = GlobAddr::new(paging::phys_to_glob(
-            pex_env().mem_start + cfg::PEMUX_RBUF_PHYS as goff,
-        ));
+        let own_rbuf = base + (cfg::PEMUX_RBUF_SPACE - cfg::MEM_OFFSET) as goff;
         assert!(cfg::PEMUX_RBUF_SIZE == cfg::PAGE_SIZE);
         self.map(cfg::PEMUX_RBUF_SPACE, own_rbuf, 1, kif::PageFlags::R)
             .unwrap();
@@ -682,35 +699,35 @@ impl VPE {
         if self.id() == kif::pemux::VPE_ID {
             // map sleep function for user
             unsafe {
-                self.map_segment(&_user_start, &_user_end, rx | kif::PageFlags::U);
+                self.map_segment(base, &_user_start, &_user_end, rx | kif::PageFlags::U);
             }
         }
         else {
             // map application receive buffer
             let perm = kif::PageFlags::R | kif::PageFlags::U;
-            self.map_new_mem(cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE, perm);
+            self.map_new_mem(base, cfg::RBUF_STD_ADDR, cfg::RBUF_STD_SIZE, perm);
         }
 
         // map runtime environment
         self.map_new_mem(
+            base,
             cfg::ENV_START,
             cfg::ENV_SIZE,
             kif::PageFlags::RW | kif::PageFlags::U,
         );
 
         // map PTs
-        let glob_begin = GlobAddr::new(paging::phys_to_glob(pex_env().mem_start as u64));
         self.map(
             cfg::PE_MEM_BASE,
-            glob_begin,
-            (pex_env().mem_end - pex_env().mem_start) as usize / cfg::PAGE_SIZE,
+            base,
+            mem_size as usize / cfg::PAGE_SIZE,
             kif::PageFlags::RW,
         )
         .unwrap();
 
         // map vectors
         #[cfg(target_arch = "arm")]
-        self.map(0, glob_begin, 1, rx).unwrap();
+        self.map(0, base, 1, rx).unwrap();
 
         // insert fixed entry for messages into TLB
         let virt = crate::msgs_mut() as *mut _ as usize;
@@ -721,13 +738,20 @@ impl VPE {
         tcu::TCU::insert_tlb(self.id() as u16, virt, phys, flags);
     }
 
-    fn map_new_mem(&mut self, addr: usize, size: usize, perm: kif::PageFlags) {
+    fn map_new_mem(&mut self, base: GlobAddr, addr: usize, size: usize, perm: kif::PageFlags) {
         for i in 0..(size / cfg::PAGE_SIZE) {
-            let frame = self.aspace.allocator_mut().allocate_pt().unwrap();
+            let frame = self
+                .aspace
+                .as_mut()
+                .unwrap()
+                .allocator_mut()
+                .allocate_pt()
+                .unwrap();
+
             self.frames.push(frame);
             self.map(
                 addr + i * cfg::PAGE_SIZE,
-                GlobAddr::new(paging::phys_to_glob(frame)),
+                base + (frame - cfg::MEM_OFFSET as Phys),
                 1,
                 perm,
             )
@@ -735,19 +759,18 @@ impl VPE {
         }
     }
 
-    fn map_segment(&mut self, start: *const u8, end: *const u8, perm: kif::PageFlags) {
+    fn map_segment(
+        &mut self,
+        base: GlobAddr,
+        start: *const u8,
+        end: *const u8,
+        perm: kif::PageFlags,
+    ) {
         let start = math::round_dn(start as usize, cfg::PAGE_SIZE);
         let end = math::round_up(end as usize, cfg::PAGE_SIZE);
         let pages = (end - start) / cfg::PAGE_SIZE;
-        self.map(
-            start,
-            GlobAddr::new(paging::phys_to_glob(
-                (pex_env().mem_start as usize + start) as goff,
-            )),
-            pages,
-            perm,
-        )
-        .unwrap();
+        let glob = base + (start - cfg::MEM_OFFSET) as Phys;
+        self.map(start, glob, pages, perm).unwrap();
     }
 }
 
@@ -761,9 +784,11 @@ impl Drop for VPE {
         // be clear, so that the cache loads the current version from DRAM.
         tcu::TCU::flush_cache();
 
-        // free frames we allocated for env, receive buffers etc.
-        for f in &self.frames {
-            self.aspace.allocator_mut().free_pt(*f as paging::MMUPTE);
+        if let Some(ref mut aspace) = self.aspace {
+            // free frames we allocated for env, receive buffers etc.
+            for f in &self.frames {
+                aspace.allocator_mut().free_pt(*f as paging::MMUPTE);
+            }
         }
 
         // remove VPE from other modules

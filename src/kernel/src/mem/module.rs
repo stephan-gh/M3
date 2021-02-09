@@ -20,9 +20,12 @@ use base::mem::{GlobAddr, MemMap};
 use base::tcu::PEId;
 use core::fmt;
 
+#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MemType {
     KERNEL,
+    BOOT,
+    ROOT,
     USER,
     OCCUPIED,
 }

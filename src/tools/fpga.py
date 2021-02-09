@@ -131,10 +131,8 @@ def load_prog(pm, i, args, vm):
     write_u64(pm, ENV + 24, len(args))  # argc
     write_u64(pm, ENV + 32, argv)       # argv
     write_u64(pm, ENV + 40, heap_size)  # heap size
-    write_u64(pm, ENV + 48, 0x10160000) # pe_mem_base (start of app data)
-    write_u64(pm, ENV + 56, 0x9F000)    # pe_mem_size (end of dmem)
-    write_u64(pm, ENV + 64, kenv)       # kenv
-    write_u64(pm, ENV + 72, 0)          # lambda
+    write_u64(pm, ENV + 48, kenv)       # kenv
+    write_u64(pm, ENV + 56, 0)          # lambda
 
     # write arguments to memory
     args_addr = argv + len(args) * 8

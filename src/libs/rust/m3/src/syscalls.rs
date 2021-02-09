@@ -226,6 +226,21 @@ pub fn alloc_ep(dst: Selector, vpe: Selector, epid: EpId, replies: u32) -> Resul
     Ok(reply.data.ep as EpId)
 }
 
+/// Sets the given physical-memory-protection EP to the memory region as defined by the `MemGate`
+/// on the given PE.
+///
+/// The EP has to be between 1 and `crate::tcu::PMEM_PROT_EPS` - 1 and will be overwritten with the
+/// new memory region.
+pub fn set_pmp(pe: Selector, mgate: Selector, ep: EpId) -> Result<(), Error> {
+    let req = syscalls::SetPMP {
+        opcode: syscalls::Operation::SET_PMP.val,
+        pe_sel: u64::from(pe),
+        mgate_sel: u64::from(mgate),
+        epid: u64::from(ep),
+    };
+    send_receive_result(&req)
+}
+
 /// Derives a new memory gate for given VPE at selector `dst` based on memory gate `sel`.
 ///
 /// The subset of the region is given by `offset` and `size`, whereas the subset of the permissions

@@ -22,9 +22,6 @@ use crate::arch::tcu::PEId;
 use crate::goff;
 
 /// Represents a global address, which is a combination of a PE id and an offset within the PE.
-///
-/// If the PE supports virtual memory, the offset is a virtual address. Otherwise, it is a physical
-/// address (the offset in the PE-internal memory).
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct GlobAddr {
     val: u64,
@@ -57,6 +54,11 @@ impl GlobAddr {
         self.val
     }
 
+    /// Returns whether a PE id is set
+    pub fn has_pe(self) -> bool {
+        self.val >= (PE_OFFSET << PE_SHIFT)
+    }
+
     /// Returns the PE id
     pub fn pe(self) -> PEId {
         ((self.val >> PE_SHIFT) - 0x80) as PEId
@@ -71,10 +73,10 @@ impl GlobAddr {
 impl fmt::Debug for GlobAddr {
     #[allow(clippy::absurd_extreme_comparisons)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.val >= (PE_OFFSET << PE_SHIFT) {
+        if self.has_pe() {
             write!(f, "G[PE{}+{:#x}]", self.pe(), self.offset())
         }
-        // for bootstrap purposes, we need to use global addresses without PE prefix
+        // we need global addresses without PE prefix for, e.g., the TCU MMIO region
         else {
             write!(f, "G[{:#x}]", self.raw())
         }

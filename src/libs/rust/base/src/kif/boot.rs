@@ -20,6 +20,7 @@ use core::fmt;
 use core::mem::MaybeUninit;
 
 use crate::kif;
+use crate::mem::GlobAddr;
 use crate::util;
 
 const MAX_MODNAME_LEN: usize = 64;
@@ -42,7 +43,7 @@ pub struct Info {
 /// A boot module
 #[repr(C, packed)]
 pub struct Mod {
-    /// The address of the module
+    /// The global address of the module
     pub addr: u64,
     /// The size of the module
     pub size: u64,
@@ -51,11 +52,11 @@ pub struct Mod {
 
 impl Mod {
     /// Creates a new boot module
-    pub fn new(addr: u64, size: u64, name: &str) -> Self {
+    pub fn new(addr: GlobAddr, size: u64, name: &str) -> Self {
         assert!(name.len() < MAX_MODNAME_LEN);
         #[allow(clippy::uninit_assumed_init)]
         let mut m = Self {
-            addr,
+            addr: addr.raw(),
             size,
             name: unsafe { MaybeUninit::uninit().assume_init() },
         };
@@ -64,6 +65,11 @@ impl Mod {
         }
         m.name[name.len()] = 0;
         m
+    }
+
+    /// Returns the global address of the module
+    pub fn addr(&self) -> GlobAddr {
+        GlobAddr::new(self.addr)
     }
 
     /// Returns the name and arguments of the module
@@ -77,8 +83,8 @@ impl fmt::Debug for Mod {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             f,
-            "Mod[addr: {:#x}, size: {:#x}, name: {}]",
-            { self.addr },
+            "Mod[addr: {:?}, size: {:#x}, name: {}]",
+            self.addr(),
             { self.size },
             self.name()
         )
@@ -122,17 +128,17 @@ pub struct Mem {
 
 impl Mem {
     /// Creates a new memory region of given size.
-    pub fn new(addr: u64, size: u64, reserved: bool) -> Self {
+    pub fn new(addr: GlobAddr, size: u64, reserved: bool) -> Self {
         assert!((size & 1) == 0);
         Mem {
-            addr,
+            addr: addr.raw(),
             size: size | (reserved as u64),
         }
     }
 
-    /// Returns the start address of the memory region
-    pub fn addr(&self) -> u64 {
-        self.addr
+    /// Returns the global address of this memory region
+    pub fn addr(&self) -> GlobAddr {
+        GlobAddr::new(self.addr)
     }
 
     /// Returns the size of the memory region
@@ -150,7 +156,7 @@ impl fmt::Debug for Mem {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(
             f,
-            "Mem[addr: {:#x}, size: {:#x}, res={}]",
+            "Mem[addr: {:?}, size: {:#x}, res={}]",
             self.addr(),
             self.size(),
             self.reserved()

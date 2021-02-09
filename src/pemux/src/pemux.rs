@@ -34,7 +34,6 @@ use base::cell::StaticCell;
 use base::cfg;
 use base::const_assert;
 use base::envdata;
-use base::goff;
 use base::io;
 use base::kif;
 use base::libc;
@@ -74,15 +73,11 @@ static mut HEAP: Heap = Heap { 0: [0; 8 * 1024] };
 pub struct PEXEnv {
     pe_id: u64,
     pe_desc: kif::PEDesc,
-    mem_start: goff,
-    mem_end: goff,
 }
 
 static PEX_ENV: StaticCell<PEXEnv> = StaticCell::new(PEXEnv {
     pe_id: 0,
     pe_desc: kif::PEDesc::new_from(0),
-    mem_start: 0,
-    mem_end: 0,
 });
 
 pub fn pex_env() -> &'static PEXEnv {
@@ -228,9 +223,6 @@ pub extern "C" fn init() -> usize {
     // the gem5 loader for us. afterwards, our address space does not contain that anymore.s
     PEX_ENV.get_mut().pe_id = app_env().pe_id;
     PEX_ENV.get_mut().pe_desc = kif::PEDesc::new_from(app_env().pe_desc);
-    PEX_ENV.get_mut().mem_start = app_env().pe_mem_base;
-    PEX_ENV.get_mut().mem_end = app_env().pe_mem_base + 1024 * 1024;
-    assert!((cfg::PEMUX_START as u64) >= PEX_ENV.mem_end);
 
     unsafe {
         heap_init(

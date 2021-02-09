@@ -14,14 +14,18 @@
  * General Public License version 2 for more details.
  */
 
-use m3::cell::StaticCell;
+use m3::cell::{RefCell, StaticCell};
 use m3::col::Vec;
+use m3::com::MemGate;
 use m3::errors::{Code, Error};
-use m3::kif::PEDesc;
+use m3::kif::{PEDesc, Perm};
 use m3::log;
 use m3::pes::PE;
 use m3::rc::Rc;
-use m3::tcu::PEId;
+use m3::syscalls;
+use m3::tcu::{EpId, PEId};
+
+use crate::memory;
 
 struct ManagedPE {
     id: PEId,
@@ -31,6 +35,7 @@ struct ManagedPE {
 
 pub struct PEUsage {
     idx: Option<usize>,
+    pmp: Rc<RefCell<Vec<MemGate>>>,
     pe: Rc<PE>,
 }
 
@@ -38,12 +43,17 @@ impl PEUsage {
     fn new(idx: usize) -> Self {
         Self {
             idx: Some(idx),
+            pmp: Rc::new(RefCell::new(Vec::new())),
             pe: get().get(idx),
         }
     }
 
     pub fn new_obj(pe: Rc<PE>) -> Self {
-        Self { idx: None, pe }
+        Self {
+            idx: None,
+            pmp: Rc::new(RefCell::new(Vec::new())),
+            pe,
+        }
     }
 
     pub fn pe_id(&self) -> PEId {
@@ -52,6 +62,27 @@ impl PEUsage {
 
     pub fn pe_obj(&self) -> &Rc<PE> {
         &self.pe
+    }
+
+    pub fn add_mem_region(&self, slice: &memory::MemSlice) -> Result<(), Error> {
+        // PMP EPs start at 1, because 0 is reserved for PEMux
+        let epid = 1 + self.pmp.borrow().len() as EpId;
+        log!(
+            crate::LOG_PES,
+            "PE{}: set PMP EP{} to {}",
+            self.pe_id(),
+            epid,
+            slice,
+        );
+
+        // anonymous memory is RW in general; boot modules need RW for data segment (every VPE gets
+        // its own module)
+        let mgate = slice.derive(Perm::RW)?;
+
+        syscalls::set_pmp(self.pe_obj().sel(), mgate.sel(), epid)?;
+        self.pmp.borrow_mut().push(mgate);
+
+        Ok(())
     }
 
     pub fn derive(&self, eps: u32) -> Result<PEUsage, Error> {
@@ -65,7 +96,11 @@ impl PEUsage {
             self.pe_id(),
             pe.quota().unwrap(),
         );
-        Ok(PEUsage { idx: self.idx, pe })
+        Ok(PEUsage {
+            idx: self.idx,
+            pmp: self.pmp.clone(),
+            pe,
+        })
     }
 }
 

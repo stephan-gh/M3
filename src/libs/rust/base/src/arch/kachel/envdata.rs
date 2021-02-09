@@ -26,8 +26,6 @@ pub struct EnvData {
     pub argc: u64,
     pub argv: u64,
     pub heap_size: u64,
-    pub pe_mem_base: u64,
-    pub pe_mem_size: u64,
     pub kenv: u64,
     pub lambda: u64,
 

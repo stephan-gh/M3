@@ -41,8 +41,6 @@ OStream &operator<<(OStream &os, const Env &senv) {
     os << "argc         : " << senv.argc << "\n";
     os << "argv         : " << fmt(senv.argv, "p") << "\n";
     os << "heap_size    : " << fmt(senv.heap_size, "#x") << "\n";
-    os << "pe_mem_base  : " << fmt(senv.pe_mem_base, "p") << "\n";
-    os << "pe_mem_size  : " << fmt(senv.pe_mem_size, "#x") << "\n";
     os << "sp           : " << fmt(senv.sp, "p") << "\n";
     os << "entry        : " << fmt(senv.entry, "p") << "\n";
     os << "shared       : " << senv.shared << "\n";

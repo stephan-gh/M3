@@ -211,16 +211,37 @@ impl VPEMng {
         }
 
         // memory
+        #[cfg(target_os = "none")]
+        let mut mem_ep = 1 as tcu::EpId;
+
         for m in mem::get().mods() {
             if m.mem_type() != mem::MemType::KERNEL {
                 let alloc = Allocation::new(m.addr(), m.capacity());
-                let cap = Capability::new(
-                    sel,
-                    KObject::MGate(MGateObject::new(alloc, kif::Perm::RWX, false)),
-                );
+                let mgate_obj = MGateObject::new(alloc, kif::Perm::RWX, false);
 
-                vpe.obj_caps().borrow_mut().insert(cap).unwrap();
-                sel += 1;
+                #[cfg(target_os = "none")]
+                {
+                    // we currently assume that we have enough protection EPs for all user memory regions
+                    assert!(mem_ep < tcu::PMEM_PROT_EPS as tcu::EpId);
+
+                    // configure physical memory protection EP
+                    pemux
+                        .config_mem_ep(
+                            mem_ep,
+                            kif::pemux::VPE_ID as tcu::VPEId,
+                            &mgate_obj,
+                            m.addr().pe(),
+                        )
+                        .unwrap();
+                    mem_ep += 1;
+                }
+
+                if m.mem_type() != mem::MemType::ROOT {
+                    // insert capability
+                    let cap = Capability::new(sel, KObject::MGate(mgate_obj));
+                    vpe.obj_caps().borrow_mut().insert(cap).unwrap();
+                    sel += 1;
+                }
             }
         }
 

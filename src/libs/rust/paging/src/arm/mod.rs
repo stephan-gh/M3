@@ -15,7 +15,6 @@
  */
 
 use base::cfg;
-use base::goff;
 use base::kif::{pemux, PageFlags};
 use bitflags::bitflags;
 
@@ -185,12 +184,4 @@ pub fn set_root_pt(id: crate::VPEId, root: Phys) {
             : : "volatile"
         );
     }
-}
-
-pub fn glob_to_phys(glob: goff) -> Phys {
-    (glob & !0xFF00_0000_0000_0000) | ((glob & 0xFF00_0000_0000_0000) >> 24)
-}
-
-pub fn phys_to_glob(phys: Phys) -> goff {
-    (phys & !0x0000_00FF_0000_0000) | ((phys & 0x0000_00FF_0000_0000) << 24)
 }

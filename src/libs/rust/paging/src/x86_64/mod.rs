@@ -16,7 +16,6 @@
 
 use base::cfg;
 use base::cpu;
-use base::goff;
 use base::kif::PageFlags;
 use bitflags::bitflags;
 
@@ -136,12 +135,4 @@ pub fn invalidate_tlb() {
 
 pub fn set_root_pt(_id: crate::VPEId, root: Phys) {
     cpu::write_cr3(root as usize);
-}
-
-pub fn glob_to_phys(glob: goff) -> Phys {
-    (glob & !0xFF00_0000_0000_0000) | ((glob & 0xFF00_0000_0000_0000) >> 16)
-}
-
-pub fn phys_to_glob(phys: Phys) -> goff {
-    (phys & !0x0000_FF00_0000_0000) | ((phys & 0x0000_FF00_0000_0000) << 16)
 }

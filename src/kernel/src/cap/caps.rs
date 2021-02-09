@@ -28,6 +28,7 @@ use core::ptr::{NonNull, Unique};
 
 use crate::cap::{EPObject, GateEP, KObject};
 use crate::pes::{PEMng, State, VPEMng, VPE};
+use crate::ktcu;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct SelRange {
@@ -411,9 +412,13 @@ impl Capability {
                 if foreign {
                     pemux.notify_invalidate(vpe.id(), ep.ep()).ok();
                 }
-
-                EPObject::revoke(&ep);
             }
+            else {
+                // force invalidate without VPE (no notification etc.)
+                ktcu::invalidate_ep_remote(ep.pe_id(), ep.ep(), true).ok();
+            }
+
+            EPObject::revoke(&ep);
 
             cgp.remove_ep();
         }

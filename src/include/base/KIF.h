@@ -171,6 +171,7 @@ struct KIF {
 
             // capability operations
             ACTIVATE,
+            SET_PMP,
             VPE_CTRL,
             VPE_WAIT,
             DERIVE_MEM,
@@ -286,6 +287,12 @@ struct KIF {
             xfer_t gate_sel;
             xfer_t rbuf_mem;
             xfer_t rbuf_off;
+        } PACKED;
+
+        struct SetPMP : public DefaultRequest {
+            xfer_t pe_sel;
+            xfer_t mgate_sel;
+            xfer_t epid;
         } PACKED;
 
         struct VPECtrl : public DefaultRequest {

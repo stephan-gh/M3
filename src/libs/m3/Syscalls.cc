@@ -174,6 +174,15 @@ void Syscalls::activate(capsel_t ep, capsel_t gate, capsel_t rbuf_mem, goff_t rb
     send_receive_throw(&req, sizeof(req));
 }
 
+void Syscalls::set_pmp(capsel_t pe, capsel_t mgate, epid_t epid) {
+    KIF::Syscall::SetPMP req;
+    req.opcode = KIF::Syscall::SET_PMP;
+    req.pe_sel = pe;
+    req.mgate_sel = mgate;
+    req.epid = epid;
+    send_receive_throw(&req, sizeof(req));
+}
+
 void Syscalls::vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg) {
     KIF::Syscall::VPECtrl req;
     req.opcode = KIF::Syscall::VPE_CTRL;

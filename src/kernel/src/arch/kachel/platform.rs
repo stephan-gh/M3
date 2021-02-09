@@ -19,7 +19,7 @@ use base::cfg;
 use base::col::{String, Vec};
 use base::envdata;
 use base::goff;
-use base::kif::{boot, PEDesc, PEType};
+use base::kif::{boot, PEDesc, PEType, Perm};
 use base::mem::GlobAddr;
 use base::tcu::PEId;
 use base::util;
@@ -27,6 +27,7 @@ use base::util;
 use crate::args;
 use crate::ktcu;
 use crate::mem::{self, MemMod, MemType};
+use crate::pes::KERNEL_ID;
 use crate::platform;
 
 static LAST_PE: StaticCell<PEId> = StaticCell::new(0);
@@ -78,35 +79,47 @@ pub fn init(_args: &[String]) -> platform::KEnv {
                 }
 
                 // file system image
-                let used = pe.mem_size() as goff - avail;
+                let mut used = pe.mem_size() as goff - avail;
                 mem.add(MemMod::new(MemType::OCCUPIED, i as PEId, 0, used));
-                umems.push(boot::Mem::new(0, used, true));
+                umems.push(boot::Mem::new(GlobAddr::new_with(i as PEId, 0), used, true));
 
                 // kernel memory
-                mem.add(MemMod::new(
-                    MemType::KERNEL,
-                    i as PEId,
-                    used,
-                    args::get().kmem as goff,
-                ));
+                let kmem = MemMod::new(MemType::KERNEL, i as PEId, used, args::get().kmem as goff);
+                used += args::get().kmem as goff;
+                // configure EP to give us access to this range of physical memory
+                ktcu::config_local_ep(1, |regs| {
+                    ktcu::config_mem(
+                        regs,
+                        KERNEL_ID,
+                        kmem.addr().pe(),
+                        kmem.addr().offset(),
+                        kmem.capacity() as usize,
+                        Perm::RW,
+                    );
+                });
+                mem.add(kmem);
+
+                // root memory
+                mem.add(MemMod::new(MemType::ROOT, i as PEId, used, cfg::FIXED_ROOT_MEM as goff));
+                used += cfg::FIXED_ROOT_MEM as goff;
 
                 // user memory
-                let user = used + args::get().kmem as goff;
-                mem.add(MemMod::new(MemType::USER, i as PEId, user, avail));
+                let user_size = core::cmp::min((1 << 30) - cfg::PAGE_SIZE as goff, avail);
+                mem.add(MemMod::new(MemType::USER, i as PEId, used, user_size));
                 umems.push(boot::Mem::new(
-                    user,
-                    avail - args::get().kmem as goff,
+                    GlobAddr::new_with(i as PEId, used),
+                    user_size - args::get().kmem as goff,
                     false,
                 ));
             }
             else {
-                mem.add(MemMod::new(
-                    MemType::USER,
-                    i as PEId,
-                    0,
-                    pe.mem_size() as goff,
+                let user_size = core::cmp::min((1 << 30) - cfg::PAGE_SIZE as usize, pe.mem_size());
+                mem.add(MemMod::new(MemType::USER, i as PEId, 0, user_size as goff));
+                umems.push(boot::Mem::new(
+                    GlobAddr::new_with(i as PEId, 0),
+                    user_size as goff,
+                    false,
                 ));
-                umems.push(boot::Mem::new(0, pe.mem_size() as goff, false));
             }
             kmem_idx += 1;
         }
@@ -160,9 +173,6 @@ pub fn is_shared(pe: PEId) -> bool {
     }
 }
 
-pub fn rbuf_pemux(pe: PEId) -> goff {
-    match platform::pe_desc(pe).has_virtmem() {
-        true => cfg::PEMUX_RBUF_PHYS as goff,
-        false => cfg::PEMUX_RBUF_SPACE as goff,
-    }
+pub fn rbuf_pemux(_pe: PEId) -> goff {
+    cfg::PEMUX_RBUF_SPACE as goff
 }

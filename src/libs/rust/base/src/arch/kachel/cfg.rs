@@ -47,7 +47,6 @@ pub const MEM_OFFSET: usize                 = 0x1000_0000;
 #[cfg(not(target_arch = "riscv64"))]
 pub const MEM_OFFSET: usize                 = 0;
 
-pub const PEMUX_RBUF_PHYS: usize            = 0x2000;
 pub const PEMUX_RBUF_SIZE: usize            = 1 * PAGE_SIZE;
 
 pub const PE_MEM_BASE: usize                = 0xE000_0000;
@@ -60,17 +59,14 @@ pub const ENV_SIZE: usize                   = PAGE_SIZE;
 pub const STACK_SIZE: usize                 = 0x10000;
 
 pub const FIXED_KMEM: usize                 = 2 * 1024 * 1024;
+pub const FIXED_ROOT_MEM: usize             = MOD_HEAP_SIZE + 2 * 1024 * 1024;
 
-cfg_if! {
-    if #[cfg(target_vendor = "hw")] {
-        pub const PEMUX_START: usize        = MEM_OFFSET;
-        pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x1F_F000;
-    }
-    else {
-        pub const PEMUX_START: usize        = MEM_OFFSET + 0x20_0000;
-        pub const PEMUX_RBUF_SPACE: usize   = MEM_OFFSET + 0x3F_F000;
-    }
-}
+#[cfg(target_vendor = "hw")]
+pub const PEMUX_START: usize                = MEM_OFFSET;
+#[cfg(target_vendor = "gem5")]
+pub const PEMUX_START: usize                = MEM_OFFSET + 0x20_0000;
+
+pub const PEMUX_RBUF_SPACE: usize           = PEMUX_START + 0x1F_F000;
 
 pub const APP_HEAP_SIZE: usize              = 64 * 1024 * 1024;
 pub const MOD_HEAP_SIZE: usize              = 4 * 1024 * 1024;

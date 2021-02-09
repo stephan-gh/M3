@@ -44,13 +44,11 @@ impl Allocator for PTAllocator {
     }
 
     fn translate_pt(&self, phys: Phys) -> usize {
-        let phys_begin = paging::glob_to_phys(envdata::get().pe_mem_base);
-        let off = (phys - phys_begin) as usize;
         if *BOOTSTRAP {
             phys as usize
         }
         else {
-            cfg::PE_MEM_BASE + off
+            cfg::PE_MEM_BASE + (phys as usize - cfg::MEM_OFFSET)
         }
     }
 
@@ -66,9 +64,13 @@ static ASPACE: LazyStaticCell<AddrSpace<PTAllocator>> = LazyStaticCell::default(
 pub fn init() {
     assert!(PEDesc::new_from(envdata::get().pe_desc).has_virtmem());
 
-    let root = envdata::get().pe_mem_base;
-    PT_POS.set(root + cfg::PAGE_SIZE as goff);
-    let aspace = AddrSpace::new(0, GlobAddr::new(root), PTAllocator {});
+    let (mem_pe, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+
+    let base = GlobAddr::new_with(mem_pe, mem_base);
+    let root = base + mem_size / 2;
+    let pts_phys = cfg::MEM_OFFSET as goff + mem_size / 2;
+    PT_POS.set(pts_phys + cfg::PAGE_SIZE as goff);
+    let aspace = AddrSpace::new(0, root, PTAllocator {});
     aspace.init();
     ASPACE.set(aspace);
 
@@ -93,9 +95,8 @@ pub fn init() {
     map_ident(cfg::ENV_START, cfg::ENV_SIZE, rw);
 
     // map PTs
-    let glob = GlobAddr::new(envdata::get().pe_mem_base);
-    let pages = envdata::get().pe_mem_size as usize / cfg::PAGE_SIZE;
-    ASPACE.get_mut().map_pages(cfg::PE_MEM_BASE, glob, pages, rw).unwrap();
+    let pages = mem_size as usize / cfg::PAGE_SIZE;
+    ASPACE.get_mut().map_pages(cfg::PE_MEM_BASE, base, pages, rw).unwrap();
 
     // map timer
     map_ident(0x0200_4000, 0x1000, PageFlags::RW);
@@ -118,11 +119,14 @@ pub fn translate(virt: usize, perm: PageFlags) -> PTE {
 }
 
 pub fn map_anon(virt: usize, size: usize, perm: PageFlags) -> Result<(), Error> {
+    let (mem_pe, mem_base, _, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
+    let base = GlobAddr::new_with(mem_pe, mem_base);
+
     for i in 0..(size / cfg::PAGE_SIZE) {
         let frame = ASPACE.get_mut().allocator_mut().allocate_pt()?;
         ASPACE.get_mut().map_pages(
             virt + i * cfg::PAGE_SIZE,
-            GlobAddr::new(paging::phys_to_glob(frame)),
+            base + (frame - cfg::MEM_OFFSET as Phys),
             1,
             perm,
         )?;

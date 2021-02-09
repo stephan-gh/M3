@@ -71,6 +71,7 @@ public:
     static epid_t alloc_ep(capsel_t dst, capsel_t vpe, epid_t ep, uint replies);
 
     static void activate(capsel_t ep, capsel_t gate, capsel_t rbuf_mem, goff_t rbuf_off);
+    static void set_pmp(capsel_t pe, capsel_t mgate, epid_t epid);
     static void vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg);
     static int vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel_t *vpe);
     static void derive_mem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
