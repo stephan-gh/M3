@@ -48,6 +48,8 @@ struct Errors {
         SEND_INV_CRD_EP,
         SEND_INV_MSG_SZ,
         RECV_BUSY,
+        TIMEOUT_MEM,
+        TIMEOUT_NOC,
         // SW errors
         INV_ARGS,
         VPE_GONE,

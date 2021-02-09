@@ -45,15 +45,17 @@ static const char *errmsgs[] = {
     /* 20 */
     "Invalid msg_sz in send EP",
     "Receiver is busy, retry command",
+    "Timeout while waiting for memory response",
+    "Timeout while waiting for NoC response",
     "Invalid arguments",
     "VPE gone",
     "Out of memory",
     "No such file or directory",
     "Not supported",
     "No free/suitable PE",
+    /* 30 */
     "Invalid ELF file",
     "No space left",
-    /* 30 */
     "Object does already exist",
     "Cross-filesystem link not possible",
     "Directory not empty",
@@ -62,9 +64,9 @@ static const char *errmsgs[] = {
     "Endpoint is invalid",
     "End of file",
     "Messages are waiting to be handled",
+    /* 40 */
     "Reply will be sent via upcall",
     "Commit failed",
-    /* 40 */
     "Out of kernel memory",
     "Not found",
     "Not revocable",

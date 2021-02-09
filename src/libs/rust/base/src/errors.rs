@@ -46,6 +46,8 @@ pub enum Code {
     SendInvCreditEp,
     SendInvMsgSize,
     RecvBusy,
+    TimeoutMem,
+    TimeoutNoC,
     // SW Errors
     InvArgs,
     VPEGone,
