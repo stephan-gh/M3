@@ -570,11 +570,17 @@ fn split_mem(cfg: &config::AppConfig) -> Result<(usize, goff), Error> {
     for d in cfg.domains() {
         for a in d.apps() {
             if let Some(kmem) = a.kernel_mem() {
+                if total_kmem < kmem {
+                    return Err(Error::new(Code::OutOfMem));
+                }
                 total_kmem -= kmem;
                 total_kparties -= 1;
             }
 
             if let Some(amem) = a.user_mem() {
+                if total_umem < amem as goff {
+                    return Err(Error::new(Code::OutOfMem));
+                }
                 total_umem -= amem as goff;
                 total_mparties -= 1;
             }
