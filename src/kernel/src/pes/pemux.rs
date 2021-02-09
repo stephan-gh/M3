@@ -386,7 +386,7 @@ impl PEMux {
             perm: perm.bits() as u64,
         };
         self.send_receive_upcall_async(Some(vpe), &req)
-            .map(|reply| GlobAddr::new(reply.val & !PAGE_MASK as goff))
+            .map(|reply| GlobAddr::new(reply.val & !(PAGE_MASK as goff)))
     }
 
     pub fn notify_invalidate(&mut self, vpe: VPEId, ep: EpId) -> Result<(), Error> {
