@@ -44,6 +44,10 @@ impl EnvData {
         base::envdata::get()
     }
 
+    pub fn platform(&self) -> base::envdata::Platform {
+        base::envdata::Platform::from(self.base().platform)
+    }
+
     pub fn pe_id(&self) -> u64 {
         self.base().pe_id
     }
