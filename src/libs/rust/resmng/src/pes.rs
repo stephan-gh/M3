@@ -20,10 +20,10 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::kif::{PEDesc, Perm};
 use m3::log;
-use m3::pes::PE;
+use m3::pes::{PE, VPE};
 use m3::rc::Rc;
 use m3::syscalls;
-use m3::tcu::{EpId, PEId};
+use m3::tcu::{EpId, PEId, PMEM_PROT_EPS, TCU};
 
 struct ManagedPE {
     id: PEId,
@@ -31,9 +31,24 @@ struct ManagedPE {
     users: u32,
 }
 
+struct PMP {
+    next_ep: EpId,
+    regions: Vec<(MemGate, usize)>,
+}
+
+impl PMP {
+    fn new() -> Self {
+        Self {
+            // PMP EPs start at 1, because 0 is reserved for PEMux
+            next_ep: 1,
+            regions: Vec::new(),
+        }
+    }
+}
+
 pub struct PEUsage {
     idx: Option<usize>,
-    pmp: Rc<RefCell<Vec<(MemGate, usize)>>>,
+    pmp: Rc<RefCell<PMP>>,
     pe: Rc<PE>,
 }
 
@@ -41,7 +56,7 @@ impl PEUsage {
     fn new(idx: usize) -> Self {
         Self {
             idx: Some(idx),
-            pmp: Rc::new(RefCell::new(Vec::new())),
+            pmp: Rc::new(RefCell::new(PMP::new())),
             pe: get().get(idx),
         }
     }
@@ -49,7 +64,7 @@ impl PEUsage {
     pub fn new_obj(pe: Rc<PE>) -> Self {
         Self {
             idx: None,
-            pmp: Rc::new(RefCell::new(Vec::new())),
+            pmp: Rc::new(RefCell::new(PMP::new())),
             pe,
         }
     }
@@ -62,18 +77,20 @@ impl PEUsage {
         &self.pe
     }
 
-    pub fn add_mem_region(&self, mgate: MemGate, size: usize) -> Result<(), Error> {
-        // PMP EPs start at 1, because 0 is reserved for PEMux
-        let epid = 1 + self.pmp.borrow().len() as EpId;
-        syscalls::set_pmp(self.pe_obj().sel(), mgate.sel(), epid)?;
-        self.pmp.borrow_mut().push((mgate, size));
+    pub fn add_mem_region(&self, mgate: MemGate, size: usize, set: bool) -> Result<(), Error> {
+        let mut pmp = self.pmp.borrow_mut();
+        if set {
+            syscalls::set_pmp(self.pe_obj().sel(), mgate.sel(), pmp.next_ep)?;
+            pmp.next_ep += 1;
+        }
+        pmp.regions.push((mgate, size));
         Ok(())
     }
 
     pub fn inherit_mem_regions(&self, pe: &Rc<PEUsage>) -> Result<(), Error> {
         let pmps = pe.pmp.borrow();
-        for (mgate, size) in pmps.iter() {
-            self.add_mem_region(mgate.derive(0, *size, Perm::RWX)?, *size)?;
+        for (mgate, size) in pmps.regions.iter() {
+            self.add_mem_region(mgate.derive(0, *size, Perm::RWX)?, *size, true)?;
         }
         Ok(())
     }
@@ -149,8 +166,19 @@ impl PEManager {
                 && pe.pe.desc().isa() == desc.isa()
                 && pe.pe.desc().pe_type() == desc.pe_type()
             {
+                let usage = PEUsage::new(id);
+                if pe.id == VPE::cur().pe_id() {
+                    // if it's our own PE, set it to the first free PMP EP
+                    let mut pmp = usage.pmp.borrow_mut();
+                    for ep in pmp.next_ep..PMEM_PROT_EPS as EpId {
+                        if !TCU::is_valid(ep) {
+                            break;
+                        }
+                        pmp.next_ep += 1;
+                    }
+                }
                 self.alloc(id);
-                return Ok(PEUsage::new(id));
+                return Ok(usage);
             }
         }
         Err(Error::new(Code::NoSpace))

@@ -266,21 +266,36 @@ impl Subsystem {
             });
             let mem_pool = Rc::new(RefCell::new(memory::container().alloc_pool(dom_mem)?));
 
-            // add regions to PMP
-            for slice in mem_pool.borrow().slices() {
-                pe_usage.add_mem_region(slice.derive()?, slice.capacity() as usize)?;
-            }
+            // if the VPEs should run on our own PE, all PMP EPs are already installed
+            if pe_usage.pe_id() != VPE::cur().pe_id() {
+                // add regions to PMP
+                for slice in mem_pool.borrow().slices() {
+                    pe_usage.add_mem_region(slice.derive()?, slice.capacity() as usize, true)?;
+                }
 
-            // if we're root, we need to provide the PE access to boot modules as well
-            if VPE::cur().resmng().is_none() {
-                let start_addr = self.mods[0].addr();
-                let last_mod = &self.mods[self.mods.len() - 1];
-                let end_addr = last_mod.addr() + last_mod.size;
-                let mod_size = end_addr.offset() - start_addr.offset();
-                // boot modules need RW for data segment (every VPE gets its own module)
-                let mod_slice =
-                    memory::container().find_mem(start_addr.offset(), mod_size, Perm::RW)?;
-                pe_usage.add_mem_region(mod_slice.derive()?, mod_size as usize)?;
+                // if we're root, we need to provide the PE access to boot modules as well
+                if VPE::cur().resmng().is_none() {
+                    let start_addr = self.mods[0].addr();
+                    let last_mod = &self.mods[self.mods.len() - 1];
+                    let end_addr = last_mod.addr() + last_mod.size;
+                    let mod_size = end_addr.offset() - start_addr.offset();
+                    // boot modules need RW for data segment (every VPE gets its own module)
+                    let mod_slice =
+                        memory::container().find_mem(start_addr.offset(), mod_size, Perm::RW)?;
+                    pe_usage.add_mem_region(mod_slice.derive()?, mod_size as usize, true)?;
+                }
+            }
+            else {
+                // don't install new PMP EPs, but remember our whole memory areas to inherit them
+                // later to allocated PEs. TODO we could improve that by only providing them access
+                // to the memory pool of the child that allocates the PE, though.
+                for m in memory::container().mods() {
+                    pe_usage.add_mem_region(
+                        m.mgate().derive(0, m.capacity() as usize, Perm::RWX)?,
+                        m.capacity() as usize,
+                        false,
+                    )?;
+                }
             }
 
             // add requested physical memory regions to pool

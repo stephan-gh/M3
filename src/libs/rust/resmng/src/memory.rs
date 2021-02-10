@@ -52,6 +52,10 @@ impl MemMod {
         }
     }
 
+    pub fn mgate(&self) -> &MemGate {
+        &self.gate
+    }
+
     pub fn capacity(&self) -> goff {
         self.size
     }
@@ -83,6 +87,10 @@ impl MemModCon {
             cur_mod: 0,
             cur_off: 0,
         }
+    }
+
+    pub fn mods(&self) -> &[Rc<MemMod>] {
+        &self.mods
     }
 
     pub fn add(&mut self, m: Rc<MemMod>) {
