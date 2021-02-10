@@ -21,7 +21,6 @@ use m3::cfg;
 use m3::com::MemGate;
 use m3::errors::Error;
 use m3::goff;
-use m3::kif::Perm;
 
 static ZEROS: [u8; cfg::PAGE_SIZE] = [0u8; cfg::PAGE_SIZE];
 static BUF: StaticCell<[u8; cfg::PAGE_SIZE]> = StaticCell::new([0u8; cfg::PAGE_SIZE]);
@@ -48,10 +47,9 @@ pub struct PhysMem {
 }
 
 impl PhysMem {
-    pub fn new(owner_mem: (Selector, goff), size: goff) -> Result<Self, Error> {
+    pub fn new(owner_mem: (Selector, goff), mem: MemGate) -> Result<Self, Error> {
         Ok(PhysMem {
-            // TODO allocate from child memory
-            mgate: MemGate::new(size as usize, Perm::RWX)?,
+            mgate: mem,
             owner_mem: Some(owner_mem),
         })
     }

@@ -25,6 +25,7 @@ use m3::log;
 use m3::math;
 use m3::rc::Rc;
 use m3::session::{ClientSession, MapFlags, M3FS};
+use resmng::childs;
 
 use crate::physmem::{copy_block, PhysMem};
 use crate::regions::RegionList;
@@ -65,6 +66,7 @@ impl Clone for FileMapping {
 
 pub struct DataSpace {
     id: u64,
+    child: childs::Id,
     virt: goff,
     size: goff,
     perms: kif::Perm,
@@ -77,6 +79,7 @@ pub struct DataSpace {
 impl DataSpace {
     pub fn new_extern(
         owner: Selector,
+        child: childs::Id,
         virt: goff,
         size: goff,
         perms: kif::Perm,
@@ -86,18 +89,20 @@ impl DataSpace {
     ) -> Self {
         DataSpace {
             id: alloc_id(),
+            child,
             virt,
             size,
             perms,
             flags,
             owner,
-            regions: RegionList::new(owner, virt, size),
+            regions: RegionList::new(owner, child, virt, size),
             file: Some(FileMapping::new(sel, off)),
         }
     }
 
     pub fn new_anon(
         owner: Selector,
+        child: childs::Id,
         virt: goff,
         size: goff,
         perms: kif::Perm,
@@ -105,12 +110,13 @@ impl DataSpace {
     ) -> Self {
         DataSpace {
             id: alloc_id(),
+            child,
             virt,
             size,
             perms,
             flags,
             owner,
-            regions: RegionList::new(owner, virt, size),
+            regions: RegionList::new(owner, child, virt, size),
             file: None,
         }
     }
@@ -118,12 +124,13 @@ impl DataSpace {
     pub fn clone_for(&self, owner: Selector) -> Self {
         DataSpace {
             id: self.id,
+            child: self.child,
             virt: self.virt,
             size: self.size,
             perms: self.perms,
             flags: self.flags,
             owner,
-            regions: RegionList::new(owner, self.virt, self.size),
+            regions: RegionList::new(owner, self.child, self.virt, self.size),
             file: self.file.clone(),
         }
     }
@@ -195,10 +202,9 @@ impl DataSpace {
                 // if it's writable and should not be shared, create a copy
                 if !self.flags.contains(MapFlags::SHARED) && self.perms.contains(kif::Perm::W) {
                     let src = MemGate::new_owned_bind(sel);
-                    let mem = Rc::new(RefCell::new(PhysMem::new(
-                        (self.owner, self.virt),
-                        reg.size(),
-                    )?));
+                    let child = childs::get().child_by_id_mut(self.child).unwrap();
+                    let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
+                    let mem = Rc::new(RefCell::new(PhysMem::new((self.owner, self.virt), mgate)?));
                     reg.set_mem(mem.clone());
                     copy_block(&src, mem.borrow().gate(), reg.mem_off(), reg.size());
                     reg.set_mem_off(0);
@@ -238,9 +244,11 @@ impl DataSpace {
                     reg.virt() + reg.size() - 1
                 );
 
+                let child = childs::get().child_by_id_mut(self.child).unwrap();
+                let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                 reg.set_mem(Rc::new(RefCell::new(PhysMem::new(
                     (self.owner, self.virt),
-                    reg.size(),
+                    mgate,
                 )?)));
 
                 if !self.flags.contains(MapFlags::UNINIT) {

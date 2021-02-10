@@ -29,6 +29,7 @@ use m3::kif::{CapRngDesc, CapType, Perm, INVALID_SEL};
 use m3::log;
 use m3::rc::Rc;
 use m3::syscalls;
+use resmng::childs;
 
 use crate::physmem::{copy_block, PhysMem};
 
@@ -41,6 +42,7 @@ bitflags! {
 
 pub struct Region {
     owner: Selector,
+    child: childs::Id,
     mem: Option<Rc<RefCell<PhysMem>>>,
     mem_off: goff,
     ds_off: goff,
@@ -51,9 +53,10 @@ pub struct Region {
 }
 
 impl Region {
-    pub fn new(owner: Selector, ds_off: goff, off: goff, size: goff) -> Self {
+    pub fn new(owner: Selector, child: childs::Id, ds_off: goff, off: goff, size: goff) -> Self {
         Region {
             owner,
+            child,
             mem: None,
             mem_off: 0,
             ds_off,
@@ -67,6 +70,7 @@ impl Region {
     pub fn clone_for(&self, owner: Selector) -> Self {
         Region {
             owner,
+            child: self.child,
             mem: self.mem.clone(),
             mem_off: self.mem_off,
             ds_off: self.ds_off,
@@ -147,8 +151,8 @@ impl Region {
                 };
 
                 // allocate new memory for our copy
-                // TODO allocate from child memory
-                let ngate = MemGate::new(self.size as usize, Perm::RWX)?;
+                let child = childs::get().child_by_id_mut(self.child).unwrap();
+                let ngate = child.alloc_local(self.size, Perm::RWX)?;
 
                 log!(
                     crate::LOG_DEF,
@@ -272,6 +276,7 @@ impl fmt::Debug for Region {
 
 pub struct RegionList {
     owner: Selector,
+    child: childs::Id,
     ds_off: goff,
     size: goff,
     // put regions in Boxes to cheaply move them around
@@ -280,9 +285,10 @@ pub struct RegionList {
 }
 
 impl RegionList {
-    pub fn new(owner: Selector, ds_off: goff, size: goff) -> Self {
+    pub fn new(owner: Selector, child: childs::Id, ds_off: goff, size: goff) -> Self {
         RegionList {
             owner,
+            child,
             ds_off,
             size,
             regs: Vec::new(),
@@ -325,7 +331,7 @@ impl RegionList {
 
     pub fn populate(&mut self, sel: Selector) {
         assert!(self.regs.is_empty());
-        let mut r = Box::new(Region::new(self.owner, self.ds_off, 0, self.size));
+        let mut r = Box::new(Region::new(self.owner, self.child, self.ds_off, 0, self.size));
         r.set_mem(Rc::new(RefCell::new(PhysMem::new_bind(
             (self.owner, self.ds_off),
             sel,
@@ -379,7 +385,7 @@ impl RegionList {
         };
 
         // insert region
-        let r = Box::new(Region::new(self.owner, self.ds_off, start, end - start));
+        let r = Box::new(Region::new(self.owner, self.child, self.ds_off, start, end - start));
         let nidx = match last {
             Some(n) => n + 1,
             None => 0,

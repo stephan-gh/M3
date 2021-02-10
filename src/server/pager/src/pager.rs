@@ -66,7 +66,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
     ) -> Result<(Selector, SessId), Error> {
         self.sessions.add_next(crt, srv_sel, false, |sess| {
             log!(crate::LOG_DEF, "[{}] pager::open()", sess.ident());
-            Ok(AddrSpace::new(crt, sess, None))
+            Ok(AddrSpace::new(crt, sess, None, None))
         })
     }
 
@@ -81,11 +81,12 @@ impl Handler<AddrSpace> for PagerReqHandler {
         let sel = match PagerOp::from(op) {
             PagerOp::ADD_CHILD => {
                 let sid = aspace.id();
+                let child_id = aspace.child_id();
                 self.sessions
                     .add_next(crt, self.sel, false, |sess| {
                         let nsid = sess.ident();
                         log!(crate::LOG_DEF, "[{}] pager::add_child(nsid={})", sid, nsid);
-                        Ok(AddrSpace::new(crt, sess, Some(sid)))
+                        Ok(AddrSpace::new(crt, sess, Some(sid), child_id))
                     })
                     .map(|(sel, _)| sel)
             },
@@ -107,7 +108,7 @@ impl Handler<AddrSpace> for PagerReqHandler {
         let mut args = xchg.in_args();
         let op = args.pop_word()? as u32;
         let (sel, virt) = match PagerOp::from(op) {
-            PagerOp::INIT => aspace.init(None).map(|sel| (sel, 0)),
+            PagerOp::INIT => aspace.init(None, None).map(|sel| (sel, 0)),
             PagerOp::MAP_DS => aspace.map_ds(&mut args),
             PagerOp::MAP_MEM => aspace.map_mem(&mut args),
             _ => Err(Error::new(Code::InvArgs)),
@@ -186,7 +187,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
 
     // init address space (give it VPE and mgate selector)
     let mut aspace = PGHDL.get_mut().sessions.get_mut(sid).unwrap();
-    aspace.init(Some(vpe.sel())).unwrap();
+    aspace.init(Some(child.id()), Some(vpe.sel())).unwrap();
 
     // start VPE
     let file = vfs::VFS::open(child.name(), vfs::OpenFlags::RX)?;

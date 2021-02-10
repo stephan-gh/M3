@@ -20,7 +20,7 @@ use m3::boxed::Box;
 use m3::cap::Selector;
 use m3::cell::{Cell, RefCell, StaticCell};
 use m3::col::{String, ToString, Treap, Vec};
-use m3::com::{RecvGate, SGateArgs, SendGate};
+use m3::com::{MemGate, RecvGate, SGateArgs, SendGate};
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
@@ -309,6 +309,27 @@ pub trait Child {
 
         self.cfg().close_session(cfg_idx);
         sess.close_async()
+    }
+
+    fn alloc_local(&mut self, size: goff, perm: Perm) -> Result<MemGate, Error> {
+        log!(
+            crate::LOG_MEM,
+            "{}: allocate_local(size={:#x}, perm={:?})",
+            self.name(),
+            size,
+            perm
+        );
+
+        if !self.mem().have_quota(size) {
+            return Err(Error::new(Code::NoSpace));
+        }
+
+        let alloc = self.mem().pool.borrow_mut().allocate(size)?;
+        let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
+        let mgate = MemGate::new_bind(mem_sel).derive(alloc.addr(), alloc.size() as usize, perm)?;
+        // TODO this memory is currently only free'd on child exit
+        self.add_mem(alloc, None);
+        Ok(mgate)
     }
 
     fn alloc_mem(&mut self, dst_sel: Selector, size: goff, perm: Perm) -> Result<(), Error> {

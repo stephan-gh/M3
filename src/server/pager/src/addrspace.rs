@@ -29,6 +29,7 @@ use m3::serialize::Source;
 use m3::server::SessId;
 use m3::session::{MapFlags, ServerSession};
 use m3::tcu::Label;
+use resmng::childs;
 
 use crate::dataspace::DataSpace;
 
@@ -38,17 +39,24 @@ pub struct AddrSpace {
     crt: usize,
     parent: Option<SessId>,
     sess: ServerSession,
+    child: Option<childs::Id>,
     owner: Option<Selector>,
     sgates: Vec<SendGate>,
     ds: Vec<DataSpace>,
 }
 
 impl AddrSpace {
-    pub fn new(crt: usize, sess: ServerSession, parent: Option<SessId>) -> Self {
+    pub fn new(
+        crt: usize,
+        sess: ServerSession,
+        parent: Option<SessId>,
+        child: Option<childs::Id>,
+    ) -> Self {
         AddrSpace {
             crt,
             parent,
             sess,
+            child,
             owner: None,
             sgates: Vec::new(),
             ds: Vec::new(),
@@ -63,6 +71,10 @@ impl AddrSpace {
         self.sess.ident() as SessId
     }
 
+    pub fn child_id(&self) -> Option<childs::Id> {
+        self.child
+    }
+
     pub fn parent(&self) -> Option<SessId> {
         self.parent
     }
@@ -71,13 +83,30 @@ impl AddrSpace {
         self.owner.is_some()
     }
 
-    pub fn init(&mut self, vpe: Option<Selector>) -> Result<Selector, Error> {
+    pub fn init(
+        &mut self,
+        child: Option<childs::Id>,
+        vpe: Option<Selector>,
+    ) -> Result<Selector, Error> {
         if self.owner.is_some() {
             Err(Error::new(Code::InvArgs))
         }
         else {
             let vpe = vpe.unwrap_or_else(|| VPE::cur().alloc_sel());
-            log!(crate::LOG_DEF, "[{}] pager::init(vpe={})", self.id(), vpe);
+            log!(
+                crate::LOG_DEF,
+                "[{}] pager::init(child={:?}, vpe={})",
+                self.id(),
+                child,
+                vpe
+            );
+            if let Some(c) = child {
+                assert!(self.child.is_none());
+                self.child = Some(c);
+            }
+            else {
+                assert!(self.child.is_some());
+            }
             self.owner = Some(vpe);
             Ok(vpe)
         }
@@ -210,7 +239,16 @@ impl AddrSpace {
 
         self.check_map_args(virt, len, perm)?;
 
-        let ds = DataSpace::new_extern(self.owner.unwrap(), virt, len, perm, flags, off, sess);
+        let ds = DataSpace::new_extern(
+            self.owner.unwrap(),
+            self.child.unwrap(),
+            virt,
+            len,
+            perm,
+            flags,
+            off,
+            sess,
+        );
         self.ds.push(ds);
 
         Ok(virt)
@@ -250,7 +288,14 @@ impl AddrSpace {
 
         self.check_map_args(virt, len, perm)?;
 
-        let ds = DataSpace::new_anon(self.owner.unwrap(), virt, len, perm, flags);
+        let ds = DataSpace::new_anon(
+            self.owner.unwrap(),
+            self.child.unwrap(),
+            virt,
+            len,
+            perm,
+            flags,
+        );
         self.ds.push(ds);
 
         Ok(())
@@ -276,7 +321,14 @@ impl AddrSpace {
 
         self.check_map_args(virt, len, perm)?;
 
-        let mut ds = DataSpace::new_anon(self.owner.unwrap(), virt, len, perm, MapFlags::empty());
+        let mut ds = DataSpace::new_anon(
+            self.owner.unwrap(),
+            self.child.unwrap(),
+            virt,
+            len,
+            perm,
+            MapFlags::empty(),
+        );
 
         // immediately insert a region, so that we don't allocate new memory on PFs
         let sel = VPE::cur().alloc_sel();
