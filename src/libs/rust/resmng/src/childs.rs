@@ -83,7 +83,7 @@ pub struct Resources {
     childs: Vec<(Id, Selector)>,
     services: Vec<(Id, Selector)>,
     sessions: Vec<(usize, Session)>,
-    mem: Vec<(Selector, Allocation)>,
+    mem: Vec<(Option<Selector>, Allocation)>,
     pes: Vec<(pes::PEUsage, usize, Selector)>,
 }
 
@@ -378,7 +378,7 @@ pub trait Child {
         Ok(())
     }
     fn add_mem(&mut self, alloc: Allocation, dst_sel: Option<Selector>) {
-        self.res_mut().mem.push((dst_sel.unwrap_or(0), alloc));
+        self.res_mut().mem.push((dst_sel, alloc));
         if !self.mem().pool.borrow().slices()[alloc.slice_id()].in_reserved_mem() {
             self.mem().alloc_mem(alloc.size());
         }
@@ -396,15 +396,18 @@ pub trait Child {
             .res_mut()
             .mem
             .iter()
-            .position(|(s, _)| *s == sel)
+            .position(|(s, _)| match s {
+                Some(s) => *s == sel,
+                _ => false,
+            })
             .ok_or_else(|| Error::new(Code::InvArgs))?;
         self.remove_mem_by_idx(idx);
         Ok(())
     }
     fn remove_mem_by_idx(&mut self, idx: usize) {
         let (sel, alloc) = self.res_mut().mem.remove(idx);
-        if sel != 0 {
-            let crd = CapRngDesc::new(CapType::OBJECT, sel, 1);
+        if let Some(s) = sel {
+            let crd = CapRngDesc::new(CapType::OBJECT, s, 1);
             // ignore failures here; maybe the VPE is already gone
             syscalls::revoke(self.vpe_sel(), crd, true).ok();
         }
