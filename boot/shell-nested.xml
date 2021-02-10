@@ -16,13 +16,15 @@
             </app>
         </dom>
         <dom>
-            <app args="pager" usermem="512M">
+            <app args="pager $fs.size" usermem="512M">
                 <sess name="m3fs" />
+                <physmem addr="0" size="$fs.size" perm="r" />
                 <sesscrt name="m3fs" count="24" />
                 <pes type="core" count="1" />
                 <dom>
-                    <app args="/bin/pager">
+                    <app args="/bin/pager $fs.size">
                         <sess name="m3fs" />
+                        <physmem addr="0" size="$fs.size" perm="r" />
                         <pes type="core" count="2" />
                         <dom>
                             <app args="/bin/shell">

@@ -8,11 +8,12 @@
             </app>
         </dom>
         <dom>
-            <app args="pager">
+            <app args="pager $fs.size">
                 <sess name="m3fs" />
+                <physmem addr="0" size="$fs.size" perm="r" />
                 <pes type="core" count="1" />
                 <dom>
-                    <app args="/bin/fstrace-m3fs leveldb">
+                    <app args="/bin/fstrace-m3fs -n 4 leveldb">
                         <mount fs="m3fs" path="/" />
                         <pes type="core" count="1" />
                     </app>

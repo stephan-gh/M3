@@ -25,7 +25,8 @@ mod regions;
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::col::{String, ToString, Vec};
-use m3::com::{GateIStream, RecvGate, SGateArgs, SendGate};
+use m3::com::{GateIStream, MGateArgs, MemGate, RecvGate, SGateArgs, SendGate};
+use m3::env;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::log;
@@ -173,6 +174,16 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
             .kmem(child.kmem().clone()),
     )?;
 
+    // TODO make that more flexible
+    // add PMP EP for file system
+    let fs_size = env::args()
+        .nth(1)
+        .unwrap()
+        .parse::<usize>()
+        .map_err(|_| Error::new(Code::InvArgs))?;
+    let fs_mem = MemGate::new_with(MGateArgs::new(fs_size, kif::Perm::R).addr(0))?;
+    child.pe().unwrap().add_mem_region(fs_mem, fs_size)?;
+
     // pass subsystem info to child, if it's a subsystem
     if let Some(sub) = child.subsys() {
         sub.finalize_async(&mut vpe)?;
@@ -239,6 +250,11 @@ fn workloop(serv: &Server) {
 
 #[no_mangle]
 pub fn main() -> i32 {
+    if env::args().len() < 2 {
+        m3::println!("Usage: {} <fs_size>", env::args().next().unwrap());
+        return 1;
+    }
+
     let subsys = subsys::Subsystem::new().expect("Unable to read subsystem info");
 
     // mount root FS if we haven't done that yet

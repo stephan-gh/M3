@@ -13,8 +13,9 @@
             </app>
         </dom>
         <dom>
-            <app args="pager">
+            <app args="pager $fs.size">
                 <sess name="m3fs" />
+                <physmem addr="0" size="$fs.size" perm="r" />
                 <pes type="core" />
                 <dom>
                     <app args="/bin/imgproc -m dir -n 1 -r 8 /large.txt">

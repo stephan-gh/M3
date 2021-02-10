@@ -13,8 +13,9 @@
             </app>
         </dom>
         <dom>
-            <app args="pager">
+            <app args="pager $fs.size">
                 <sess name="m3fs" />
+                <physmem addr="0" size="$fs.size" perm="r" />
                 <pes type="core" count="1" />
                 <dom>
                     <app args="/bin/accelchain -m dir -n 3 -c 1024 -r 1 /medium.bin /tmp/out1.txt">
