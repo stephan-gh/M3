@@ -275,7 +275,12 @@ impl PEMux {
         obj: &SRc<MGateObject>,
         pe_id: PEId,
     ) -> Result<(), Error> {
-        klog!(EPS, "PE{}:EP{} = {:?}", self.pe_id(), ep, obj);
+        if ep < tcu::PMEM_PROT_EPS as EpId {
+            klog!(EPS, "PE{}:PMPEP{} = {:?}", self.pe_id(), ep, obj);
+        }
+        else {
+            klog!(EPS, "PE{}:EP{} = {:?}", self.pe_id(), ep, obj);
+        }
 
         ktcu::config_remote_ep(self.pe_id(), ep, |regs| {
             let vpe = self.ep_vpe_id(vpe);

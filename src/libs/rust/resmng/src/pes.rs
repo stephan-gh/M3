@@ -25,8 +25,6 @@ use m3::rc::Rc;
 use m3::syscalls;
 use m3::tcu::{EpId, PEId};
 
-use crate::memory;
-
 struct ManagedPE {
     id: PEId,
     pe: Rc<PE>,
@@ -35,7 +33,7 @@ struct ManagedPE {
 
 pub struct PEUsage {
     idx: Option<usize>,
-    pmp: Rc<RefCell<Vec<MemGate>>>,
+    pmp: Rc<RefCell<Vec<(MemGate, usize)>>>,
     pe: Rc<PE>,
 }
 
@@ -64,23 +62,11 @@ impl PEUsage {
         &self.pe
     }
 
-    pub fn add_mem_region(&self, slice: &memory::MemSlice) -> Result<(), Error> {
+    pub fn add_mem_region(&self, mgate: MemGate, size: usize) -> Result<(), Error> {
         // PMP EPs start at 1, because 0 is reserved for PEMux
         let epid = 1 + self.pmp.borrow().len() as EpId;
-        log!(
-            crate::LOG_PES,
-            "PE{}: set PMP EP{} to {}",
-            self.pe_id(),
-            epid,
-            slice,
-        );
-
-        // anonymous memory is RW in general; boot modules need RW for data segment (every VPE gets
-        // its own module)
-        let mgate = slice.derive(Perm::RW)?;
-
         syscalls::set_pmp(self.pe_obj().sel(), mgate.sel(), epid)?;
-        self.pmp.borrow_mut().push(mgate);
+        self.pmp.borrow_mut().push((mgate, size));
 
         Ok(())
     }
