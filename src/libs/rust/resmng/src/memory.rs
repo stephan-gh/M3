@@ -100,14 +100,14 @@ impl MemModCon {
         })
     }
 
-    pub fn find_mem(&mut self, phys: goff, size: goff) -> Result<MemSlice, Error> {
+    pub fn find_mem(&mut self, phys: goff, size: goff, perm: Perm) -> Result<MemSlice, Error> {
         for m in &self.mods {
             // TODO specify memory id
             if m.reserved
                 && phys >= m.addr.offset()
                 && phys + size <= m.addr.offset() + m.capacity()
             {
-                return Ok(MemSlice::new(m.clone(), phys - m.addr.offset(), size));
+                return Ok(MemSlice::new(m.clone(), phys - m.addr.offset(), size, perm));
             }
         }
         Err(Error::new(Code::InvArgs))
@@ -153,7 +153,7 @@ impl MemModCon {
 
         let avail = m.capacity() - self.cur_off;
         let amount = cmp::min(avail, size);
-        Some(MemSlice::new(m.clone(), self.cur_off, amount))
+        Some(MemSlice::new(m.clone(), self.cur_off, amount, Perm::RWX))
     }
 }
 
@@ -162,15 +162,17 @@ pub struct MemSlice {
     offset: goff,
     size: goff,
     map: MemMap,
+    perm: Perm,
 }
 
 impl MemSlice {
-    pub fn new(mem: Rc<MemMod>, offset: goff, size: goff) -> Self {
+    pub fn new(mem: Rc<MemMod>, offset: goff, size: goff, perm: Perm) -> Self {
         MemSlice {
             mem,
             offset,
             size,
             map: MemMap::new(offset, size),
+            perm,
         }
     }
 
@@ -178,10 +180,10 @@ impl MemSlice {
         self.mem.reserved
     }
 
-    pub fn derive(&self, flags: Perm) -> Result<MemGate, Error> {
+    pub fn derive(&self) -> Result<MemGate, Error> {
         self.mem
             .gate
-            .derive(self.offset, self.size as usize, flags)
+            .derive(self.offset, self.size as usize, self.perm)
     }
 
     pub fn allocate(&mut self, size: goff, align: goff) -> Result<goff, Error> {
@@ -209,9 +211,10 @@ impl fmt::Display for MemSlice {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "MemSlice[{:?} .. {:?}]",
+            "MemSlice[{:?} .. {:?}, {:?}]",
             self.mem.addr + self.offset,
-            self.mem.addr + self.offset + (self.size - 1)
+            self.mem.addr + self.offset + (self.size - 1),
+            self.perm,
         )
     }
 }
@@ -220,9 +223,10 @@ impl fmt::Debug for MemSlice {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "MemSlice[mod: {:?}, available: {} MiB, map: {:?}]",
+            "MemSlice[mod: {:?}, available: {} MiB, perm: {:?}, map: {:?}]",
             self.mem,
             self.map.size().0 / (1024 * 1024),
+            self.perm,
             self.map
         )
     }
@@ -300,7 +304,7 @@ impl MemPool {
     pub fn allocate_slice(&mut self, size: goff) -> Result<MemSlice, Error> {
         let alloc = self.allocate(size)?;
         let slice = &self.slices[alloc.slice_id];
-        Ok(MemSlice::new(slice.mem.clone(), alloc.addr, alloc.size))
+        Ok(MemSlice::new(slice.mem.clone(), alloc.addr, alloc.size, Perm::RWX))
     }
 
     pub fn allocate(&mut self, size: goff) -> Result<Allocation, Error> {
@@ -325,13 +329,17 @@ impl MemPool {
         Err(Error::new(Code::OutOfMem))
     }
 
-    pub fn allocate_at(&mut self, phys: goff, size: goff) -> Result<Allocation, Error> {
+    pub fn allocate_at(&mut self, phys: goff, size: goff, perm: Perm) -> Result<Allocation, Error> {
         for (id, s) in self.slices.iter().enumerate() {
             // TODO specify memory id
             if s.mem.reserved
                 && phys >= s.mem.addr.offset()
                 && phys + size <= s.mem.addr.offset() + s.capacity()
             {
+                if !(!s.perm & perm).is_empty() {
+                    return Err(Error::new(Code::NoPerm));
+                }
+
                 let alloc = Allocation::new(id, phys, size);
                 log!(crate::LOG_MEM, "Allocated {:?}", alloc);
                 return Ok(alloc);

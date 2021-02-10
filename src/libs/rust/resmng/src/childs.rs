@@ -346,7 +346,11 @@ pub trait Child {
             perm
         );
 
-        let alloc = self.mem().pool.borrow_mut().allocate_at(offset, size)?;
+        let alloc = self
+            .mem()
+            .pool
+            .borrow_mut()
+            .allocate_at(offset, size, perm)?;
         let mem_sel = self.mem().pool.borrow().mem_cap(alloc.slice_id());
         self.add_child_mem(alloc, mem_sel, dst_sel, perm)
     }

@@ -26,16 +26,17 @@ use m3::rc::Rc;
 use crate::parser;
 use crate::pes;
 
-#[derive(Default)]
+// #[derive(Default)]
 pub struct PhysMemDesc {
     // TODO add memory id
     phys: goff,
     size: goff,
+    perm: kif::Perm,
 }
 
 impl PhysMemDesc {
-    pub(crate) fn new(phys: goff, size: goff) -> Self {
-        PhysMemDesc { phys, size }
+    pub(crate) fn new(phys: goff, size: goff, perm: kif::Perm) -> Self {
+        PhysMemDesc { phys, size, perm }
     }
 
     pub fn phys(&self) -> goff {
@@ -44,6 +45,10 @@ impl PhysMemDesc {
 
     pub fn size(&self) -> goff {
         self.size
+    }
+
+    pub fn perm(&self) -> kif::Perm {
+        self.perm
     }
 }
 
@@ -511,10 +516,11 @@ impl AppConfig {
         for m in &self.phys_mems {
             writeln!(
                 f,
-                "{:0w$}PhysMem[addr={:#x}, size={:#x} KiB],",
+                "{:0w$}PhysMem[addr={:#x}, size={:#x} KiB, perm={:?}],",
                 "",
                 m.phys(),
                 m.size() / 1024,
+                m.perm(),
                 w = layer + 2
             )?;
         }

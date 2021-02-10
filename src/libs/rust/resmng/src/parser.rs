@@ -18,6 +18,7 @@ use m3::col::{String, ToString, Vec};
 use m3::errors::{Code, Error};
 use m3::format;
 use m3::goff;
+use m3::kif;
 use m3::rc::Rc;
 
 use crate::config;
@@ -291,17 +292,19 @@ fn parse_mount(p: &mut ConfigParser) -> Result<config::MountDesc, Error> {
 fn parse_physmem(p: &mut ConfigParser) -> Result<config::PhysMemDesc, Error> {
     let mut phys = 0;
     let mut size = 0;
+    let mut perm = kif::Perm::RWX;
     loop {
         match p.parse_arg()? {
             None => break,
             Some((n, v)) => match n.as_ref() {
                 "addr" => phys = parse_addr(&v)?,
                 "size" => size = parse_size(&v)? as goff,
+                "perm" => perm = parse_perm(&v)?,
                 _ => return Err(Error::new(Code::InvArgs)),
             },
         }
     }
-    Ok(config::PhysMemDesc::new(phys, size))
+    Ok(config::PhysMemDesc::new(phys, size, perm))
 }
 
 fn parse_service(p: &mut ConfigParser) -> Result<config::ServiceDesc, Error> {
@@ -449,4 +452,17 @@ fn parse_bool(s: &str) -> Result<bool, Error> {
         "false" => Ok(false),
         _ => Ok(parse_int(s)? == 1),
     }
+}
+
+fn parse_perm(s: &str) -> Result<kif::Perm, Error> {
+    let mut perm = kif::Perm::empty();
+    for c in s.chars() {
+        match c {
+            'r' => perm |= kif::Perm::R,
+            'w' => perm |= kif::Perm::W,
+            'x' => perm |= kif::Perm::X,
+            _ => return Err(Error::new(Code::InvArgs)),
+        }
+    }
+    Ok(perm)
 }

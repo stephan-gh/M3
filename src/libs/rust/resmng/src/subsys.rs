@@ -268,7 +268,7 @@ impl Subsystem {
 
             // add regions to PMP
             for slice in mem_pool.borrow().slices() {
-                pe_usage.add_mem_region(slice.derive(Perm::RW)?, slice.capacity() as usize)?;
+                pe_usage.add_mem_region(slice.derive()?, slice.capacity() as usize)?;
             }
 
             // if we're root, we need to provide the PE access to boot modules as well
@@ -278,14 +278,16 @@ impl Subsystem {
                 let end_addr = last_mod.addr() + last_mod.size;
                 let mod_size = end_addr.offset() - start_addr.offset();
                 // boot modules need RW for data segment (every VPE gets its own module)
-                let mod_slice = memory::container().find_mem(start_addr.offset(), mod_size)?;
-                pe_usage.add_mem_region(mod_slice.derive(Perm::RW)?, mod_size as usize)?;
+                let mod_slice =
+                    memory::container().find_mem(start_addr.offset(), mod_size, Perm::RW)?;
+                pe_usage.add_mem_region(mod_slice.derive()?, mod_size as usize)?;
             }
 
             // add requested physical memory regions to pool
             for cfg in d.apps() {
                 for mem in cfg.phys_mems() {
-                    let mslice = memory::container().find_mem(mem.phys(), mem.size())?;
+                    let mslice =
+                        memory::container().find_mem(mem.phys(), mem.size(), mem.perm())?;
                     mem_pool.borrow_mut().add(mslice);
                 }
             }
@@ -318,7 +320,7 @@ impl Subsystem {
                     let cfg_range = cfg.cfg_range();
                     let cfg_len = cfg_range.1 - cfg_range.0;
                     let cfg_slice = memory::container().alloc_mem(cfg_len as goff)?;
-                    let cfg_mem = cfg_slice.derive(Perm::RW)?;
+                    let cfg_mem = cfg_slice.derive()?;
                     cfg_mem.write(&self.cfg_str()[cfg_range.0..cfg_range.1].as_bytes(), 0)?;
 
                     let mut sub = SubsystemBuilder::new((cfg_mem, cfg_slice.addr(), cfg_len));
@@ -330,7 +332,7 @@ impl Subsystem {
                     // add memory
                     let sub_slice = mem_pool.borrow_mut().allocate_slice(sub_mem)?;
                     sub.add_mem(
-                        sub_slice.derive(Perm::RW)?,
+                        sub_slice.derive()?,
                         sub_slice.addr(),
                         sub_slice.capacity(),
                         sub_slice.in_reserved_mem(),
@@ -424,7 +426,7 @@ impl SubsystemBuilder {
 
         let mut mem = memory::container()
             .alloc_mem(self.desc_size() as goff)?
-            .derive(Perm::RW)?;
+            .derive()?;
 
         // boot info
         let info = boot::Info {
@@ -550,8 +552,8 @@ fn pass_down_mem(sub: &mut SubsystemBuilder, app: &config::AppConfig) -> Result<
     for d in app.domains() {
         for child in d.apps() {
             for pmem in child.phys_mems() {
-                let slice = memory::container().find_mem(pmem.phys(), pmem.size())?;
-                let mgate = slice.derive(Perm::RW)?;
+                let slice = memory::container().find_mem(pmem.phys(), pmem.size(), Perm::RW)?;
+                let mgate = slice.derive()?;
                 // TODO determine memory id
                 let glob = GlobAddr::new_with(0, pmem.phys());
                 sub.add_mem(mgate, glob, pmem.size(), true);
