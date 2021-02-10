@@ -67,7 +67,14 @@ impl PEUsage {
         let epid = 1 + self.pmp.borrow().len() as EpId;
         syscalls::set_pmp(self.pe_obj().sel(), mgate.sel(), epid)?;
         self.pmp.borrow_mut().push((mgate, size));
+        Ok(())
+    }
 
+    pub fn inherit_mem_regions(&self, pe: &Rc<PEUsage>) -> Result<(), Error> {
+        let pmps = pe.pmp.borrow();
+        for (mgate, size) in pmps.iter() {
+            self.add_mem_region(mgate.derive(0, *size, Perm::RWX)?, *size)?;
+        }
         Ok(())
     }
 

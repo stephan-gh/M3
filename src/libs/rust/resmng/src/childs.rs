@@ -479,6 +479,10 @@ pub trait Child {
         let idx = cfg.get_pe_idx(desc)?;
         let pe_usage = pes::get().find_and_alloc(desc)?;
 
+        // give this PE access to the same memory regions the child's PE has access to
+        // TODO later we could allow childs to customize that
+        pe_usage.inherit_mem_regions(&self.pe().unwrap())?;
+
         self.delegate(pe_usage.pe_obj().sel(), sel)?;
 
         let pe_id = pe_usage.pe_id();
