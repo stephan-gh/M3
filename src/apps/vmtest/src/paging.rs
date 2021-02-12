@@ -97,6 +97,11 @@ pub fn init() {
     let pages = envdata::get().pe_mem_size as usize / cfg::PAGE_SIZE;
     ASPACE.get_mut().map_pages(cfg::PE_MEM_BASE, glob, pages, rw).unwrap();
 
+    // map PLIC
+    map_ident(0x0C00_0000, 0x1000, PageFlags::RW);
+    map_ident(0x0C00_2000, 0x1000, PageFlags::RW);
+    map_ident(0x0C20_0000, 0x1000, PageFlags::RW);
+
     // switch to that address space
     ASPACE.get_mut().switch_to();
     paging::enable_paging();
