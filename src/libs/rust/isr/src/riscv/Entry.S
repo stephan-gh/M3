@@ -37,7 +37,7 @@ BEGIN_FUNC(isr_setup)
     csrw    sscratch, a0
 
     // delegate all interrupts and exceptions to supervisor mode
-    li      t1, 0x333
+    li      t1, 0xBBB
     csrw    mideleg, t1
     li      t0, -1
     csrw    medeleg, t0
