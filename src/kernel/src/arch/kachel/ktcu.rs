@@ -23,7 +23,6 @@ use base::kif::{PageFlags, Perm};
 use base::mem::GlobAddr;
 use base::tcu::*;
 use base::util;
-use paging::Phys;
 
 use crate::arch;
 use crate::ktcu;
@@ -108,7 +107,7 @@ pub fn config_mem(regs: &mut [Reg], vpe: VPEId, pe: PEId, addr: goff, size: usiz
     TCU::config_mem(regs, vpe, PE_IDS[pe as usize], addr, size, perm);
 }
 
-pub fn glob_to_phys_remote(pe: PEId, glob: GlobAddr, flags: PageFlags) -> Result<Phys, Error> {
+pub fn glob_to_phys_remote(pe: PEId, glob: GlobAddr, flags: PageFlags) -> Result<goff, Error> {
     paging::glob_to_phys_with(glob, flags, |ep| {
         let mut regs = [0; 3];
         if ktcu::read_ep_remote(pe, ep, &mut regs).is_ok() {

@@ -26,7 +26,6 @@ use base::math;
 use base::mem::GlobAddr;
 use base::tcu;
 use base::util;
-use paging::Phys;
 
 use crate::cap::{Capability, KObject, MapObject, SelRange};
 use crate::ktcu;
@@ -64,7 +63,7 @@ impl Loader {
             ktcu::glob_to_phys_remote(vpe.pe_id(), env_addr, flags)?
         }
         else {
-            ENV_START as Phys
+            ENV_START as goff
         };
 
         if vpe.is_root() {
@@ -83,7 +82,7 @@ impl Loader {
         Ok(())
     }
 
-    fn load_root_async(&mut self, env_phys: Phys, vpe: &VPE) -> Result<(), Error> {
+    fn load_root_async(&mut self, env_phys: goff, vpe: &VPE) -> Result<(), Error> {
         // map stack
         if vpe.pe_desc().has_virtmem() {
             let (virt, size) = vpe.pe_desc().stack_space();
@@ -279,7 +278,7 @@ impl Loader {
         Ok(hdr.entry)
     }
 
-    fn write_arguments(addr: Phys, pe: tcu::PEId, args: &[&str]) -> usize {
+    fn write_arguments(addr: goff, pe: tcu::PEId, args: &[&str]) -> usize {
         let mut argptr: Vec<u64> = Vec::new();
         let mut argbuf: Vec<u8> = Vec::new();
 
