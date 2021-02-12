@@ -32,8 +32,8 @@ pub struct State {
     // general purpose registers
     pub r: [usize; 31],
     pub cause: usize,
-    pub sepc: usize,
-    pub sstatus: usize,
+    pub epc: usize,
+    pub status: usize,
 }
 
 impl State {
@@ -42,7 +42,7 @@ impl State {
     }
 
     pub fn came_from_user(&self) -> bool {
-        ((self.sstatus >> 8) & 1) == 0
+        ((self.status >> 8) & 1) == 0
     }
 }
 
@@ -91,8 +91,8 @@ impl fmt::Debug for State {
             writeln!(fmt, "  r[{:02}]:  {:#x}", idx + 1, r)?;
         }
         writeln!(fmt, "  cause:  {:#x}", { self.cause })?;
-        writeln!(fmt, "  sepc:   {:#x}", { self.sepc })?;
-        writeln!(fmt, "  status: {:#x}", { self.sstatus })?;
+        writeln!(fmt, "  epc:    {:#x}", { self.epc })?;
+        writeln!(fmt, "  status: {:#x}", { self.status })?;
 
         writeln!(fmt, "\nUser backtrace:")?;
         let mut bt = [0usize; 16];
@@ -157,7 +157,7 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
 
     // don't repeat the ECALL instruction
     if vec >= 8 && vec <= 10 {
-        state.sepc += 4;
+        state.epc += 4;
     }
 
     crate::ISRS[vec](state)

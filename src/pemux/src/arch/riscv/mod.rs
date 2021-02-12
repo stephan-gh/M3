@@ -89,13 +89,13 @@ fn restore_fpu(state: &FPUState) {
     write_csr!("fcsr", state.fcsr);
 }
 
-fn get_fpu_mode(sstatus: usize) -> FSMode {
-    FSMode::from((sstatus >> 13) & 0x3)
+fn get_fpu_mode(status: usize) -> FSMode {
+    FSMode::from((status >> 13) & 0x3)
 }
 
-fn set_fpu_mode(mut sstatus: usize, mode: FSMode) -> usize {
-    sstatus &= !(0x3 << 13);
-    sstatus | (mode.val << 13)
+fn set_fpu_mode(mut status: usize, mode: FSMode) -> usize {
+    status &= !(0x3 << 13);
+    status | (mode.val << 13)
 }
 
 pub fn init(state: &mut State) {
@@ -116,12 +116,12 @@ pub fn init(state: &mut State) {
 
 pub fn init_state(state: &mut State, entry: usize, sp: usize) {
     state.r[9] = 0xDEAD_BEEF; // a0; don't set the stackpointer in crt0
-    state.sepc = entry;
+    state.epc = entry;
     state.r[1] = sp;
-    state.sstatus = read_csr!("sstatus");
-    state.sstatus &= !(1 << 8); // user mode
-    state.sstatus |= 1 << 5; // interrupts enabled
-    state.sstatus = set_fpu_mode(state.sstatus, FSMode::OFF);
+    state.status = read_csr!("sstatus");
+    state.status &= !(1 << 8); // user mode
+    state.status |= 1 << 5; // interrupts enabled
+    state.status = set_fpu_mode(state.status, FSMode::OFF);
 }
 
 pub fn forget_fpu(vpe_id: vpe::Id) {
@@ -133,7 +133,7 @@ pub fn forget_fpu(vpe_id: vpe::Id) {
 pub fn disable_fpu() {
     let cur = vpe::cur();
     if cur.id() != *FPU_OWNER {
-        cur.user_state().sstatus = set_fpu_mode(cur.user_state().sstatus, FSMode::OFF);
+        cur.user_state().status = set_fpu_mode(cur.user_state().status, FSMode::OFF);
     }
 }
 
@@ -141,14 +141,14 @@ pub fn handle_fpu_ex(state: &mut State) {
     let cur = vpe::cur();
 
     // if the FPU is enabled and we receive an illegal instruction exception, kill VPE
-    if get_fpu_mode(state.sstatus) != FSMode::OFF {
+    if get_fpu_mode(state.status) != FSMode::OFF {
         log!(crate::LOG_ERR, "Illegal instruction with user state:\n{:?}", state);
         vpe::remove_cur(1);
         return;
     }
 
     // enable FPU
-    state.sstatus = set_fpu_mode(state.sstatus, FSMode::CLEAN);
+    state.status = set_fpu_mode(state.status, FSMode::CLEAN);
 
     let old_id = *FPU_OWNER & 0xFFFF;
     if old_id != cur.id() {
@@ -186,5 +186,5 @@ pub fn handle_mmu_pf(state: &mut State) -> Result<(), Error> {
         _ => unreachable!(),
     };
 
-    vma::handle_pf(state, virt, perm, state.sepc)
+    vma::handle_pf(state, virt, perm, state.epc)
 }

@@ -100,7 +100,7 @@ pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn sw_irq(state: &mut isr::State) -> *mut libc::c_void {
-    log!(crate::LOG_DEF, "Got software IRQ @ {:#x}", state.sepc);
+    log!(crate::LOG_DEF, "Got software IRQ @ {:#x}", state.epc);
 
     // disable software IRQ
     write_csr!("sip", read_csr!("sip") & !0x2);
