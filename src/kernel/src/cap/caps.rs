@@ -27,7 +27,7 @@ use core::fmt;
 use core::ptr::{NonNull, Unique};
 
 use crate::cap::{EPObject, GateEP, KObject};
-use crate::pes::{PEMng, State, VPEMng, VPE};
+use crate::pes::{PEMng, VPEMng, VPE};
 use crate::ktcu;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -509,12 +509,8 @@ impl Capability {
 
             KObject::Map(ref m) => {
                 if m.mapped() {
-                    // TODO currently, it can happen that we've already stopped the VPE, but still
-                    // accept/continue a syscall that inserts something into the VPE's table.
-                    if vpe.state() != State::DEAD {
-                        let virt = (self.sel() as goff) << cfg::PAGE_BITS;
-                        m.unmap_async(vpe, virt, self.len() as usize);
-                    }
+                    let virt = (self.sel() as goff) << cfg::PAGE_BITS;
+                    m.unmap_async(vpe, virt, self.len() as usize);
                 }
             },
 

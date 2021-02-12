@@ -845,9 +845,11 @@ impl MapObject {
     }
 
     pub fn unmap_async(&self, vpe: &VPE, virt: goff, pages: usize) {
+        // TODO currently, it can happen that we've already stopped the VPE, but still
+        // accept/continue a syscall that inserts something into the VPE's table.
         if vpe.state() != State::DEAD {
             let pemux = PEMng::get().pemux(vpe.pe_id());
-            pemux.unmap_async(vpe.id(), virt, pages).unwrap();
+            pemux.unmap_async(vpe.id(), virt, pages).ok();
         }
     }
 }
