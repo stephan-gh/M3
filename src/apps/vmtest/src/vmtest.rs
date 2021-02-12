@@ -33,10 +33,10 @@ use base::libc;
 use base::log;
 use base::machine;
 use base::math::next_log2;
-use base::{read_csr, write_csr};
 use base::tcu::{self, EpId, Message, Reg, EP_REGS, TCU};
 use base::util;
 use base::vec;
+use base::{read_csr, write_csr};
 
 use pes::PE;
 
@@ -289,15 +289,6 @@ pub extern "C" fn env_run() {
         virt,
         pte
     );
-
-    if envdata::get().platform == envdata::Platform::HW.val {
-        // trigger irq for testing purposes
-        let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
-        unsafe {
-            tcu_set_irq_addr.add(1).write_volatile(1);
-            tcu_set_irq_addr.add(1).write_volatile(0);
-        }
-    }
 
     let mut count = 0;
     for i in 1..=4 {
