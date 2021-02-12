@@ -78,7 +78,6 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
 }
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
     log!(crate::LOG_TCU_IRQ, "Got TCU IRQ @ {:#x}", state.epc);
 
     // core request from TCU?
@@ -97,6 +96,8 @@ pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
             tcu::CoreReq::Foreign(_) => panic!("Unexpected message for foreign VPE"),
         }
     }
+
+    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
 
     state as *mut _ as *mut libc::c_void
 }

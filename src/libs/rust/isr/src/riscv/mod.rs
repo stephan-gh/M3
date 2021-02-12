@@ -187,6 +187,12 @@ pub fn enable_irqs() {
 
 pub fn acknowledge_irq(irq: tcu::IRQ) {
     if envdata::get().platform == envdata::Platform::HW.val {
+        // TODO: temporary (add to spec and make gem5 behave the same)
+        let tcu_set_irq_addr = 0xF000_3030 as *mut u64;
+        unsafe {
+            tcu_set_irq_addr.add(irq.val as usize).write_volatile(0);
+        }
+
         plic::fetch_and_ack();
     }
     else {
