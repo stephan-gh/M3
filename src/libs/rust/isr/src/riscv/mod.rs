@@ -79,7 +79,7 @@ int_enum! {
 
 impl fmt::Debug for State {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let vec = if (self.cause & 0x8000_0000) != 0 {
+        let vec = if (self.cause & 0x8000_0000_0000_0000) != 0 {
             16 + (self.cause & 0xF)
         }
         else {
