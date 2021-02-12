@@ -93,7 +93,7 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
             Rc::downgrade(&dst_vpe),
             epid,
             replies,
-            pemux.pe(),
+            dst_vpe.pe(),
         )),
     );
     try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));
