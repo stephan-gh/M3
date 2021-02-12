@@ -45,6 +45,7 @@ BEGIN_FUNC(isr_setup)
     // unmask interrupts
     csrs    sie, t1
     // unset all pending interrupts
+    csrw    mip, x0
     csrw    sip, x0
 
     // return to supervisor mode
