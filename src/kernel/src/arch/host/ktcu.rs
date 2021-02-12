@@ -20,8 +20,9 @@ use base::col::Vec;
 use base::envdata;
 use base::errors::Error;
 use base::goff;
-use base::kif::Perm;
+use base::kif::{PageFlags, Perm};
 use base::libc;
+use base::mem::GlobAddr;
 use base::rc::Rc;
 use base::tcu::*;
 use base::util;
@@ -110,6 +111,10 @@ pub fn inv_reply_remote(
 ) -> Result<(), Error> {
     // nothing to do
     Ok(())
+}
+
+pub fn glob_to_phys_remote(_pe: PEId, glob: GlobAddr, _flags: PageFlags) -> Result<goff, Error> {
+    Ok(glob.raw())
 }
 
 #[derive(Default)]

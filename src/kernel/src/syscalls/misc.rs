@@ -17,7 +17,7 @@
 use base::col::ToString;
 use base::errors::{Code, Error};
 use base::goff;
-use base::kif::{self, CapSel, PageFlags};
+use base::kif::{self, CapSel};
 use base::rc::Rc;
 use base::tcu;
 
@@ -356,7 +356,7 @@ pub fn activate_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
                         sysc_err!(Code::InvArgs, "rbuffer not in physical memory");
                     }
                     let rbuf_phys =
-                        ktcu::glob_to_phys_remote(dst_pe, rbuf.addr(), PageFlags::RW).unwrap();
+                        ktcu::glob_to_phys_remote(dst_pe, rbuf.addr(), kif::PageFlags::RW).unwrap();
                     rbuf_phys + rbuf_off
                 }
                 else {

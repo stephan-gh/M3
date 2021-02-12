@@ -84,17 +84,12 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
             sysc_err!(Code::InvArgs, "Invalid length");
         }
 
-        #[cfg(target_os = "none")]
-        {
-            let off = crate::ktcu::glob_to_phys_remote(
-                tgt_vpe.pe_id(),
-                map_obj.global(),
-                map_obj.flags(),
-            )?;
-            GlobAddr::new_with(tgt_vpe.pe_id(), off)
-        }
-        #[cfg(target_os = "linux")]
-        GlobAddr::new(0)
+        let off = crate::ktcu::glob_to_phys_remote(
+            tgt_vpe.pe_id(),
+            map_obj.global(),
+            map_obj.flags(),
+        )?;
+        GlobAddr::new_with(tgt_vpe.pe_id(), off)
     }
     else {
         if size == 0 || addr + size >= cfg::MEM_CAP_END as goff {
