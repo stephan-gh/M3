@@ -41,6 +41,7 @@ use base::vec;
 use pes::PE;
 
 static LOG_DEF: bool = true;
+static LOG_TCU_IRQ: bool = false;
 
 static OWN_VPE: u16 = 0xFFFF;
 static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
@@ -78,10 +79,11 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
 
 pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
     isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
+    log!(crate::LOG_TCU_IRQ, "Got TCU IRQ @ {:#x}", state.epc);
 
     // core request from TCU?
     if let Some(r) = tcu::TCU::get_core_req() {
-        log!(crate::LOG_DEF, "Got {:x?}", r);
+        log!(crate::LOG_TCU_IRQ, "Got {:x?}", r);
         match r {
             tcu::CoreReq::Xlate(r) => {
                 XLATES.set(*XLATES + 1);
@@ -89,7 +91,7 @@ pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
                 let pte = paging::translate(r.virt, r.perm);
                 // no page faults supported
                 assert!(!(pte & PageFlags::RW.bits()) & r.perm.bits() == 0);
-                log!(crate::LOG_DEF, "TCU can continue with PTE={:#x}", pte);
+                log!(crate::LOG_TCU_IRQ, "TCU can continue with PTE={:#x}", pte);
                 tcu::TCU::set_xlate_resp(pte);
             },
             tcu::CoreReq::Foreign(_) => panic!("Unexpected message for foreign VPE"),
