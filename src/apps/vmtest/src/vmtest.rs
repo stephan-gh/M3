@@ -263,6 +263,9 @@ pub extern "C" fn env_run() {
     STATE.set(isr::State::default());
     isr::init(STATE.get_mut());
     isr::reg(isr::TCU_ISR, tcu_irq);
+    if envdata::get().platform == envdata::Platform::HW.val {
+        isr::reg(isr::Vector::MACH_EXT_IRQ.val, tcu_irq);
+    }
     isr::reg(isr::Vector::INSTR_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::LOAD_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::STORE_PAGEFAULT.val, mmu_pf);
