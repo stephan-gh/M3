@@ -167,7 +167,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
 
     // create child VPE
     let mut vpe = VPE::new_with(
-        child.pe().unwrap().pe_obj().clone(),
+        child.child_pe().unwrap().pe_obj().clone(),
         VPEArgs::new(child.name())
             .resmng(ResMng::new(resmng_sgate))
             .pager(Pager::new(sess, pager_sgate)?)
@@ -182,7 +182,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
         .parse::<usize>()
         .map_err(|_| Error::new(Code::InvArgs))?;
     let fs_mem = MemGate::new_with(MGateArgs::new(fs_size, kif::Perm::R).addr(0))?;
-    child.pe().unwrap().add_mem_region(fs_mem, fs_size, true)?;
+    child.our_pe().unwrap().add_mem_region(fs_mem, fs_size, true)?;
 
     // pass subsystem info to child, if it's a subsystem
     if let Some(sub) = child.subsys() {

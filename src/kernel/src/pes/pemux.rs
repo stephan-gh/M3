@@ -40,7 +40,7 @@ pub struct PEMux {
 
 impl PEMux {
     pub fn new(pe: PEId) -> Self {
-        let pe_obj = PEObject::new(pe, (tcu::AVAIL_EPS - tcu::FIRST_USER_EP) as u32);
+        let pe_obj = PEObject::new(pe, (tcu::AVAIL_EPS - tcu::FIRST_USER_EP) as u32, false);
 
         // create PMP EPObjects for this PE
         let mut pmp = Vec::new();

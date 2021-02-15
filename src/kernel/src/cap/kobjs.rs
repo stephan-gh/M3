@@ -498,20 +498,35 @@ pub struct PEObject {
     total_eps: u32,
     cur_eps: Cell<u32>,
     cur_vpes: Cell<u32>,
+    derived: bool,
 }
 
 impl PEObject {
-    pub fn new(pe: PEId, eps: u32) -> SRc<Self> {
-        SRc::new(Self {
+    pub fn new(pe: PEId, eps: u32, derived: bool) -> SRc<Self> {
+        let res = SRc::new(Self {
             pe,
             total_eps: eps,
             cur_eps: Cell::from(eps),
             cur_vpes: Cell::from(0),
-        })
+            derived,
+        });
+        klog!(
+            PES,
+            "PE[{}, {:#x}]: {} new PEObject with {} EPs",
+            pe,
+            &*res as *const _ as usize,
+            if derived { "derived" } else { "created" },
+            eps,
+        );
+        res
     }
 
     pub fn pe(&self) -> PEId {
         self.pe
+    }
+
+    pub fn derived(&self) -> bool {
+        self.derived
     }
 
     pub fn eps(&self) -> u32 {
@@ -538,8 +553,9 @@ impl PEObject {
     pub fn alloc(&self, eps: u32) {
         klog!(
             PES,
-            "PE[{}]: allocating {} EPs ({} total)",
+            "PE[{}, {:#x}]: allocating {} EPs ({} left)",
             self.pe,
+            self as *const _ as usize,
             eps,
             self.eps()
         );
@@ -552,8 +568,9 @@ impl PEObject {
         self.cur_eps.set(self.eps() + eps);
         klog!(
             PES,
-            "PE[{}]: freed {} EPs ({} total)",
+            "PE[{}, {:#x}]: freed {} EPs ({} left)",
             self.pe,
+            self as *const _ as usize,
             eps,
             self.eps()
         );
@@ -570,10 +587,11 @@ impl fmt::Debug for PEObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "PE[id={}, eps={}, vpes={}]",
+            "PE[id={}, eps={}, vpes={}, derived={}]",
             self.pe,
             self.eps(),
-            self.vpes()
+            self.vpes(),
+            self.derived,
         )
     }
 }

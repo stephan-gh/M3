@@ -258,7 +258,8 @@ impl Subsystem {
                 Rc::new(pes::PEUsage::new_obj(PE::new(pe_desc)?))
             };
 
-            let def_eps = split_eps(&pe_usage.pe_obj(), &d)?;
+            let total_eps = pe_usage.pe_obj().quota()?;
+            let rem_eps = split_eps(total_eps, &d);
 
             // memory pool for the domain
             let dom_mem = d.apps().iter().fold(0, |sum, a| {
@@ -307,13 +308,32 @@ impl Subsystem {
                 }
             }
 
+            // all apps that did not specify an EP quota will share one quota. Derive a new PE
+            // object for them to ensure that they cannot change the PMP EPs.
+            let def_pe_usage = if let Some(mut rem) = rem_eps {
+                // if it's our PE, leave some EPs for us
+                if pe_usage.pe_id() == VPE::cur().pe_id() {
+                    assert!(rem > 16);
+                    rem -= 16;
+                }
+                Some(Rc::new(pe_usage.derive(rem)?))
+            }
+            else {
+                None
+            };
+
             for cfg in d.apps() {
                 // determine PE object with potentially reduced number of EPs
-                let pe_usage = if cfg.eps().is_none() {
+                let child_pe_usage = if !cfg.domains().is_empty() {
+                    // a resource manager has to be able to set PMPs and thus needs the root PE
                     pe_usage.clone()
                 }
+                else if let Some(eps) = cfg.eps() {
+                    Rc::new(pe_usage.derive(eps)?)
+                }
                 else {
-                    Rc::new(pe_usage.derive(cfg.eps().unwrap_or(def_eps))?)
+                    // without a specific number of EPs, childs share the remaining EP quota
+                    def_pe_usage.as_ref().unwrap().clone()
                 };
 
                 // kernel memory for child
@@ -331,6 +351,11 @@ impl Subsystem {
                 let child_mem = childs::ChildMem::new(mem_pool.clone(), user_mem);
 
                 let sub = if !cfg.domains().is_empty() {
+                    // TODO currently, we don't support PE sharing of a resource manager and another
+                    // VPEs on the same level. The resource manager needs to set PMP EPs and might
+                    // thus interfere with the other VPEs.
+                    assert!(child_pe_usage.pe_id() != VPE::cur().pe_id() && d.apps().len() == 1);
+
                     // create MemGate for config substring
                     let cfg_range = cfg.cfg_range();
                     let cfg_len = cfg_range.1 - cfg_range.0;
@@ -341,7 +366,7 @@ impl Subsystem {
                     let mut sub = SubsystemBuilder::new((cfg_mem, cfg_slice.addr(), cfg_len));
 
                     // add PEs
-                    sub.add_pe(pe_usage.pe_id(), pe_usage.pe_obj().clone());
+                    sub.add_pe(child_pe_usage.pe_id(), child_pe_usage.pe_obj().clone());
                     pass_down_pes(&mut sub, &cfg);
 
                     // add memory
@@ -368,7 +393,8 @@ impl Subsystem {
 
                 let mut child = Box::new(childs::OwnChild::new(
                     childs::get().alloc_id(),
-                    pe_usage,
+                    pe_usage.clone(),
+                    child_pe_usage,
                     // TODO either remove args and daemon from config or remove the clones from OwnChild
                     cfg.args().clone(),
                     cfg.daemon(),
@@ -654,15 +680,16 @@ fn split_sessions(cfg: &config::AppConfig, name: &str) -> (u32, u32) {
     (frac, fixed)
 }
 
-fn split_eps(pe: &Rc<PE>, d: &config::Domain) -> Result<u32, Error> {
-    let mut total_eps = pe.quota()?;
-    let mut total_parties = d.apps().len();
+fn split_eps(mut total_eps: u32, d: &config::Domain) -> Option<u32> {
+    let mut need_def = false;
     for cfg in d.apps() {
         if let Some(eps) = cfg.eps() {
             total_eps -= eps;
-            total_parties -= 1;
+        }
+        else if cfg.domains().is_empty() {
+            need_def = true;
         }
     }
 
-    Ok(total_eps.checked_div(total_parties as u32).unwrap_or(0))
+    if !need_def { None } else { Some(total_eps) }
 }

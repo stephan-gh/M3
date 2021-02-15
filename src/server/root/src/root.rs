@@ -63,7 +63,7 @@ fn start_child_async(child: &mut OwnChild) -> Result<(), Error> {
     )?;
 
     let mut vpe = VPE::new_with(
-        child.pe().unwrap().pe_obj().clone(),
+        child.child_pe().unwrap().pe_obj().clone(),
         VPEArgs::new(child.name())
             .resmng(ResMng::new(sgate))
             .kmem(child.kmem().clone()),

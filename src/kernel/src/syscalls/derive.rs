@@ -54,7 +54,7 @@ pub fn derive_pe(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscEr
         sysc_err!(Code::NoSpace, "Insufficient EPs");
     }
 
-    let cap = Capability::new(dst_sel, KObject::PE(PEObject::new(pe.pe(), eps)));
+    let cap = Capability::new(dst_sel, KObject::PE(PEObject::new(pe.pe(), eps, true)));
     try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, pe_sel));
     pe.alloc(eps);
 

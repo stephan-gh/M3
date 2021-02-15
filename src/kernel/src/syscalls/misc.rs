@@ -126,6 +126,9 @@ pub fn set_pmp(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErro
 
     let vpe_caps = vpe.obj_caps().borrow();
     let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
+    if pe.derived() {
+        sysc_err!(Code::NoPerm, "Cannot set PMP EPs for derived PE objects");
+    }
 
     // for host: just pretend that we installed it
     if tcu::PMEM_PROT_EPS == 0 {

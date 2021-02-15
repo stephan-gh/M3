@@ -105,7 +105,8 @@ pub trait Child {
     fn daemon(&self) -> bool;
     fn foreign(&self) -> bool;
 
-    fn pe(&self) -> Option<Rc<pes::PEUsage>>;
+    fn our_pe(&self) -> Option<Rc<pes::PEUsage>>;
+    fn child_pe(&self) -> Option<Rc<pes::PEUsage>>;
     fn vpe_sel(&self) -> Selector;
 
     fn mem(&self) -> &Rc<ChildMem>;
@@ -481,7 +482,7 @@ pub trait Child {
 
         // give this PE access to the same memory regions the child's PE has access to
         // TODO later we could allow childs to customize that
-        pe_usage.inherit_mem_regions(&self.pe().unwrap())?;
+        pe_usage.inherit_mem_regions(&self.our_pe().unwrap())?;
 
         self.delegate(pe_usage.pe_obj().sel(), sel)?;
 
@@ -551,7 +552,10 @@ pub trait Child {
 
 pub struct OwnChild {
     id: Id,
-    pe: Rc<pes::PEUsage>,
+    // the activity has to be dropped before we drop the PE
+    activity: Option<ExecActivity>,
+    our_pe: Rc<pes::PEUsage>,
+    child_pe: Rc<pes::PEUsage>,
     name: String,
     args: Vec<String>,
     cfg: Rc<AppConfig>,
@@ -559,7 +563,6 @@ pub struct OwnChild {
     res: Resources,
     sub: Option<SubsystemBuilder>,
     daemon: bool,
-    activity: Option<ExecActivity>,
     kmem: Rc<KMem>,
 }
 
@@ -567,7 +570,8 @@ impl OwnChild {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: Id,
-        pe: Rc<pes::PEUsage>,
+        our_pe: Rc<pes::PEUsage>,
+        child_pe: Rc<pes::PEUsage>,
         args: Vec<String>,
         daemon: bool,
         kmem: Rc<KMem>,
@@ -577,7 +581,8 @@ impl OwnChild {
     ) -> Self {
         OwnChild {
             id,
-            pe,
+            our_pe,
+            child_pe,
             name: cfg.name().to_string(),
             args,
             cfg,
@@ -603,7 +608,7 @@ impl OwnChild {
             crate::LOG_DEF,
             "Starting boot module '{}' on PE{} with arguments {:?}",
             self.name(),
-            self.pe().unwrap().pe_id(),
+            self.child_pe().unwrap().pe_id(),
             &self.args[1..]
         );
 
@@ -644,8 +649,11 @@ impl Child for OwnChild {
         false
     }
 
-    fn pe(&self) -> Option<Rc<pes::PEUsage>> {
-        Some(self.pe.clone())
+    fn our_pe(&self) -> Option<Rc<pes::PEUsage>> {
+        Some(self.our_pe.clone())
+    }
+    fn child_pe(&self) -> Option<Rc<pes::PEUsage>> {
+        Some(self.child_pe.clone())
     }
 
     fn vpe_sel(&self) -> Selector {
@@ -675,7 +683,7 @@ impl fmt::Debug for OwnChild {
             f,
             "OwnChild[id={}, pe={}, args={:?}, kmem=KMem[sel={}, quota={}], mem={:?}]",
             self.id,
-            self.pe.pe_id(),
+            self.child_pe.pe_id(),
             self.args,
             self.kmem.sel(),
             self.kmem.quota().unwrap(),
@@ -732,7 +740,10 @@ impl Child for ForeignChild {
         true
     }
 
-    fn pe(&self) -> Option<Rc<pes::PEUsage>> {
+    fn our_pe(&self) -> Option<Rc<pes::PEUsage>> {
+        None
+    }
+    fn child_pe(&self) -> Option<Rc<pes::PEUsage>> {
         None
     }
 
