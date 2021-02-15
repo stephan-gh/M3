@@ -159,7 +159,9 @@ impl Device {
     }
 
     pub fn wait_for_irq(&self) -> Result<(), Error> {
-        self.rgate.receive(None).map(|_| ())
+        self.rgate
+            .receive(None)
+            .and_then(|msg| self.rgate.ack_msg(msg))
     }
 
     pub fn read_reg<T>(&self, off: goff) -> Result<T, Error> {
