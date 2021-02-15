@@ -17,7 +17,7 @@
 use base::cfg;
 use base::col::ToString;
 use base::libc;
-use core::mem::MaybeUninit;
+use base::mem::MaybeUninit;
 
 use crate::mem;
 

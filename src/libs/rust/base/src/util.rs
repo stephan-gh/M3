@@ -16,20 +16,10 @@
 
 //! Contains utilities
 
-use core::intrinsics;
 use core::slice;
 
 use crate::libc;
-
-/// Returns the size of `T`
-pub const fn size_of<T>() -> usize {
-    intrinsics::size_of::<T>()
-}
-
-/// Returns the size of `val`
-pub fn size_of_val<T: ?Sized>(val: &T) -> usize {
-    intrinsics::size_of_val(val)
-}
+use crate::mem;
 
 /// Converts the given C string into a string slice
 ///
@@ -66,14 +56,14 @@ pub unsafe fn slice_for_mut<T>(start: *mut T, size: usize) -> &'static mut [T] {
 pub fn object_to_bytes<T: Sized>(obj: &T) -> &[u8] {
     let p: *const T = obj;
     let p: *const u8 = p as *const u8;
-    unsafe { slice::from_raw_parts(p, size_of::<T>()) }
+    unsafe { slice::from_raw_parts(p, mem::size_of::<T>()) }
 }
 
 /// Creates a mutable byte slice for the given object
 pub fn object_to_bytes_mut<T: Sized>(obj: &mut T) -> &mut [u8] {
     let p: *mut T = obj;
     let p: *mut u8 = p as *mut u8;
-    unsafe { slice::from_raw_parts_mut(p, size_of::<T>()) }
+    unsafe { slice::from_raw_parts_mut(p, mem::size_of::<T>()) }
 }
 
 /// Expands to the current function name.

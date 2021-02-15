@@ -22,10 +22,9 @@ use base::errors::Error;
 use base::goff;
 use base::kif::{PageFlags, Perm};
 use base::libc;
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, size_of};
 use base::rc::Rc;
 use base::tcu::*;
-use base::util;
 
 use crate::ktcu;
 use crate::pes::{PEMng, State, VPEMng, VPE};
@@ -152,8 +151,8 @@ pub fn write_ep_remote(pe: PEId, ep: EpId, regs: &[Reg]) -> Result<(), Error> {
         .unwrap();
     if vpe.state() == State::RUNNING {
         let eps = PEMng::get().pemux(pe).eps_base() as usize;
-        let addr = eps + ep as usize * EP_REGS * util::size_of::<Reg>();
-        let bytes = EP_REGS * util::size_of::<Reg>();
+        let addr = eps + ep as usize * EP_REGS * size_of::<Reg>();
+        let bytes = EP_REGS * size_of::<Reg>();
         ktcu::try_write_mem(pe, addr as goff, regs.as_ptr() as *const u8, bytes)
     }
     else {

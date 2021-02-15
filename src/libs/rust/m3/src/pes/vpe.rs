@@ -438,8 +438,8 @@ impl VPE {
     {
         use crate::cfg;
         use crate::cpu;
+        use crate::mem;
         use crate::pes::Activity;
-        use crate::util;
 
         let env = arch::env::get();
         let mut senv = arch::env::EnvData::default();
@@ -471,12 +471,12 @@ impl VPE {
             senv.set_vpe(&self);
 
             // env goes first
-            let mut off = cfg::ENV_START + util::size_of_val(&senv);
+            let mut off = cfg::ENV_START + mem::size_of_val(&senv);
 
             // create and write closure
             let closure = env::Closure::new(func);
             mem.write_obj(&closure, (off - cfg::ENV_START) as goff)?;
-            off += util::size_of_val(&closure);
+            off += mem::size_of_val(&closure);
 
             // write args
             senv.set_argc(env.argc());
@@ -577,8 +577,8 @@ impl VPE {
         args: &[S],
     ) -> Result<ExecActivity, Error> {
         use crate::cfg;
+        use crate::mem;
         use crate::pes::{Activity, StateSerializer};
-        use crate::util;
 
         let mut file = BufReader::new(file);
 
@@ -593,7 +593,7 @@ impl VPE {
             senv.set_entry(arch::loader::load_program(&self, mapper, &mut file)?);
 
             // write args
-            let mut off = cfg::ENV_START + util::size_of_val(&senv);
+            let mut off = cfg::ENV_START + mem::size_of_val(&senv);
             senv.set_argc(args.len());
             senv.set_argv(arch::loader::write_arguments(&mem, &mut off, args)?);
 
@@ -604,7 +604,7 @@ impl VPE {
                 let words = fds.words();
                 mem.write_bytes(
                     words.as_ptr() as *const u8,
-                    words.len() * util::size_of::<u64>(),
+                    words.len() * mem::size_of::<u64>(),
                     (off - cfg::ENV_START) as goff,
                 )?;
                 senv.set_files(off, fds.size());
@@ -618,7 +618,7 @@ impl VPE {
                 let words = mounts.words();
                 mem.write_bytes(
                     words.as_ptr() as *const u8,
-                    words.len() * util::size_of::<u64>(),
+                    words.len() * mem::size_of::<u64>(),
                     (off - cfg::ENV_START) as goff,
                 )?;
                 senv.set_mounts(off, mounts.size());
@@ -638,7 +638,7 @@ impl VPE {
             }
 
             // write start env to PE
-            mem.write_bytes(&senv as *const _ as *const u8, util::size_of_val(&senv), 0)?;
+            mem.write_bytes(&senv as *const _ as *const u8, mem::size_of_val(&senv), 0)?;
         }
 
         // go!

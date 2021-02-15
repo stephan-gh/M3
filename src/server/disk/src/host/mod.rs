@@ -15,13 +15,13 @@
  */
 
 use core::cmp;
-use core::mem::MaybeUninit;
 use m3::cell::StaticCell;
 use m3::col::Vec;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::libc;
+use m3::mem::MaybeUninit;
 use m3::log;
 
 use crate::backend::BlockDeviceTrait;

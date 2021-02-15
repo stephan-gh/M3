@@ -20,15 +20,15 @@ use base::col::Treap;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{CapRngDesc, CapSel, SEL_KMEM, SEL_PE, SEL_VPE};
+use base::mem::size_of;
 use base::rc::Rc;
-use base::util;
 use core::cmp;
 use core::fmt;
 use core::ptr::{NonNull, Unique};
 
 use crate::cap::{EPObject, GateEP, KObject};
-use crate::pes::{PEMng, VPEMng, VPE};
 use crate::ktcu;
+use crate::pes::{PEMng, VPEMng, VPE};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct SelRange {
@@ -259,7 +259,7 @@ pub struct Capability {
 
 impl Capability {
     const fn size() -> usize {
-        base::const_assert!(util::size_of::<Capability>() <= 128);
+        base::const_assert!(size_of::<Capability>() <= 128);
         128 + crate::slab::HEADER_SIZE
     }
 

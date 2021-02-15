@@ -19,7 +19,7 @@ use core::iter;
 use crate::col::String;
 use crate::errors::Error;
 use crate::io::{read_object, Read};
-use crate::util;
+use crate::mem;
 use crate::vfs::{BufReader, FileRef, INodeId, OpenFlags, Seek, SeekMode, VFS};
 
 /// Represents a directory entry.
@@ -78,7 +78,7 @@ impl iter::Iterator for ReadDir {
         );
 
         // move to next entry
-        let off = entry.next as usize - (util::size_of::<M3FSDirEntry>() + entry.name_len as usize);
+        let off = entry.next as usize - (mem::size_of::<M3FSDirEntry>() + entry.name_len as usize);
         if off != 0 && self.reader.seek(off, SeekMode::CUR).is_err() {
             return None;
         }

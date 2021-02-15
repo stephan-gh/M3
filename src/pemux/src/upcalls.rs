@@ -18,9 +18,8 @@ use base::cfg;
 use base::errors::{Code, Error};
 use base::kif;
 use base::log;
-use base::mem::GlobAddr;
+use base::mem::{size_of, GlobAddr};
 use base::tcu;
-use base::util;
 
 use crate::helper;
 use crate::vpe;
@@ -32,7 +31,7 @@ fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
     tcu::TCU::reply(
         tcu::PEXUP_REP,
         reply as *const T as *const u8,
-        util::size_of::<T>(),
+        size_of::<T>(),
         msg_off,
     )
     .unwrap();

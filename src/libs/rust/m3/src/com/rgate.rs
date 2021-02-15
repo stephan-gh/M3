@@ -26,10 +26,10 @@ use crate::com::{gate::Gate, RecvBuf, SendGate};
 use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
 use crate::math;
+use crate::mem;
 use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
-use crate::util;
 
 const DEF_MSG_ORD: u32 = 6;
 
@@ -233,7 +233,7 @@ impl RecvGate {
     pub fn reply<T>(&self, reply: &[T], msg: &'static tcu::Message) -> Result<(), Error> {
         self.reply_bytes(
             reply.as_ptr() as *const u8,
-            reply.len() * util::size_of::<T>(),
+            reply.len() * mem::size_of::<T>(),
             msg,
         )
     }

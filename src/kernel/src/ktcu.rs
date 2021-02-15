@@ -18,10 +18,10 @@ use base::cell::StaticCell;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
+use base::mem;
 use base::tcu::{
     EpId, Header, Label, Message, PEId, Reg, AVAIL_EPS, EP_REGS, PMEM_PROT_EPS, TCU, UNLIM_CREDITS,
 };
-use base::util;
 
 use crate::pes::KERNEL_ID;
 
@@ -94,7 +94,7 @@ pub fn send_to(
     config_local_ep(KTMP_EP, |regs| {
         // don't calculate the msg order here, because it can take some time and it doesn't really
         // matter what we set here assuming that it's large enough.
-        assert!(size + util::size_of::<Header>() <= 1 << 8);
+        assert!(size + mem::size_of::<Header>() <= 1 << 8);
         config_send(regs, KERNEL_ID, lbl, pe, ep, 8, UNLIM_CREDITS);
     });
     klog!(
@@ -113,7 +113,7 @@ pub fn reply<R>(ep: EpId, reply: &R, msg: &Message) -> Result<(), Error> {
     TCU::reply(
         ep,
         reply as *const _ as *const u8,
-        util::size_of::<R>(),
+        mem::size_of::<R>(),
         msg_off,
     )
 }
@@ -125,12 +125,12 @@ pub fn read_obj<T>(pe: PEId, addr: goff) -> T {
 
 #[cfg(target_os = "none")]
 pub fn try_read_obj<T>(pe: PEId, addr: goff) -> Result<T, Error> {
-    use core::mem::MaybeUninit;
+    use base::mem::MaybeUninit;
 
     #[allow(clippy::uninit_assumed_init)]
     let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
     let obj_addr = &mut obj as *mut T as *mut u8;
-    try_read_mem(pe, addr, obj_addr, util::size_of::<T>())?;
+    try_read_mem(pe, addr, obj_addr, mem::size_of::<T>())?;
     Ok(obj)
 }
 
@@ -145,7 +145,7 @@ pub fn try_read_slice<T>(pe: PEId, addr: goff, data: &mut [T]) -> Result<(), Err
         pe,
         addr,
         data.as_mut_ptr() as *mut _ as *mut u8,
-        data.len() * util::size_of::<T>(),
+        data.len() * mem::size_of::<T>(),
     )
 }
 
@@ -161,13 +161,13 @@ pub fn try_read_mem(pe: PEId, addr: goff, data: *mut u8, size: usize) -> Result<
 #[cfg(target_os = "none")]
 pub fn write_slice<T>(pe: PEId, addr: goff, sl: &[T]) {
     let sl_addr = sl.as_ptr() as *const u8;
-    write_mem(pe, addr, sl_addr, sl.len() * util::size_of::<T>());
+    write_mem(pe, addr, sl_addr, sl.len() * mem::size_of::<T>());
 }
 
 #[cfg(target_os = "none")]
 pub fn try_write_slice<T>(pe: PEId, addr: goff, sl: &[T]) -> Result<(), Error> {
     let sl_addr = sl.as_ptr() as *const u8;
-    try_write_mem(pe, addr, sl_addr, sl.len() * util::size_of::<T>())
+    try_write_mem(pe, addr, sl_addr, sl.len() * mem::size_of::<T>())
 }
 
 #[cfg(target_os = "none")]

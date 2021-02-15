@@ -20,9 +20,8 @@ use base::col::{String, Vec};
 use base::envdata;
 use base::goff;
 use base::kif::{boot, PEDesc, PEType, Perm};
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, size_of};
 use base::tcu::PEId;
-use base::util;
 
 use crate::args;
 use crate::ktcu;
@@ -37,19 +36,19 @@ pub fn init(_args: &[String]) -> platform::KEnv {
     let addr = GlobAddr::new(envdata::get().kenv);
     let mut offset = addr.offset();
     let info: boot::Info = ktcu::read_obj(addr.pe(), offset);
-    offset += util::size_of::<boot::Info>() as goff;
+    offset += size_of::<boot::Info>() as goff;
 
     // read boot modules
     let mut mods: Vec<boot::Mod> = Vec::with_capacity(info.mod_count as usize);
     unsafe { mods.set_len(info.mod_count as usize) };
     ktcu::read_slice(addr.pe(), offset, &mut mods);
-    offset += info.mod_count as goff * util::size_of::<boot::Mod>() as goff;
+    offset += info.mod_count as goff * size_of::<boot::Mod>() as goff;
 
     // read PEs
     let mut pes: Vec<PEDesc> = Vec::with_capacity(info.pe_count as usize);
     unsafe { pes.set_len(info.pe_count as usize) };
     ktcu::read_slice(addr.pe(), offset, &mut pes);
-    offset += info.pe_count as goff * util::size_of::<PEDesc>() as goff;
+    offset += info.pe_count as goff * size_of::<PEDesc>() as goff;
 
     // read memory regions
     let mut mems: Vec<boot::Mem> = Vec::with_capacity(info.mem_count as usize);
@@ -142,12 +141,12 @@ pub fn init(_args: &[String]) -> platform::KEnv {
     uinfo.pe_count = upes.len() as u64;
     uinfo.mem_count = umems.len() as u64;
     ktcu::write_slice(addr.pe(), uoffset, &[uinfo]);
-    uoffset += util::size_of::<boot::Info>() as goff;
-    uoffset += info.mod_count as goff * util::size_of::<boot::Mod>() as goff;
+    uoffset += size_of::<boot::Info>() as goff;
+    uoffset += info.mod_count as goff * size_of::<boot::Mod>() as goff;
 
     // write-back user PEs
     ktcu::write_slice(addr.pe(), uoffset, &upes);
-    uoffset += uinfo.pe_count as goff * util::size_of::<boot::PE>() as goff;
+    uoffset += uinfo.pe_count as goff * size_of::<boot::PE>() as goff;
 
     // write-back user memory regions
     ktcu::write_slice(addr.pe(), uoffset, &umems);

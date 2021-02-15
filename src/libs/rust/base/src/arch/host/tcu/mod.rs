@@ -16,7 +16,6 @@
 
 use bitflags::bitflags;
 use core::intrinsics;
-use core::mem;
 use core::ptr;
 use libc;
 
@@ -26,7 +25,7 @@ use crate::const_assert;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::kif;
-use crate::util;
+use crate::mem;
 
 mod backend;
 mod thread;
@@ -190,7 +189,7 @@ impl Message {
     /// Returns the message data as a reference to `T`.
     pub fn get_data<T>(&self) -> &T {
         assert!(mem::align_of_val(self) >= mem::align_of::<T>());
-        assert!(self.data.len() >= util::size_of::<T>());
+        assert!(self.data.len() >= mem::size_of::<T>());
         // safety: assuming that the size and alignment checks above works, the cast below is safe
         let slice = unsafe { &*(&self.data as *const [u8] as *const [T]) };
         &slice[0]
@@ -407,7 +406,7 @@ impl TCU {
     }
 
     fn ep_addr(ep: EpId, reg: usize) -> &'static mut Reg {
-        let off = (ep as usize * EP_REGS + reg as usize) * util::size_of::<Reg>();
+        let off = (ep as usize * EP_REGS + reg as usize) * mem::size_of::<Reg>();
         unsafe { &mut *((arch::envdata::eps_start() + off) as *mut _) }
     }
 }
@@ -435,7 +434,7 @@ impl TCU {
 }
 
 pub fn init() {
-    const EP_SIZE: usize = (TOTAL_EPS as usize * EP_REGS) * util::size_of::<Reg>();
+    const EP_SIZE: usize = (TOTAL_EPS as usize * EP_REGS) * mem::size_of::<Reg>();
     const_assert!(EP_SIZE <= cfg::EPMEM_SIZE);
 
     thread::init();

@@ -15,8 +15,8 @@
  */
 
 use crate::col::Vec;
+use crate::mem;
 use crate::serialize::{copy_from_str, Source};
-use crate::util;
 
 /// Serializes state into a vector.
 pub struct StateSerializer {
@@ -31,7 +31,7 @@ impl Default for StateSerializer {
 
 impl StateSerializer {
     pub fn size(&self) -> usize {
-        self.vec.len() * util::size_of::<u64>()
+        self.vec.len() * mem::size_of::<u64>()
     }
 
     pub fn words(&self) -> &[u64] {

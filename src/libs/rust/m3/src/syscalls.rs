@@ -17,6 +17,7 @@
 //! Contains the system call wrapper functions
 
 use base::kif::{self, syscalls, CapRngDesc, Perm, INVALID_SEL};
+use base::mem;
 
 use crate::arch;
 use crate::cap::Selector;
@@ -26,7 +27,6 @@ use crate::errors::{Code, Error};
 use crate::goff;
 use crate::serialize::{Sink, Source};
 use crate::tcu::{EpId, Label, Message, SYSC_SEP_OFF};
-use crate::util;
 
 static SGATE: LazyStaticCell<SendGate> = LazyStaticCell::default();
 
@@ -43,7 +43,7 @@ impl<R: 'static> Drop for Reply<R> {
 
 fn send_receive<T, R>(msg: *const T) -> Result<Reply<R>, Error> {
     let reply_raw =
-        SGATE.call_with_bytes(msg as *const u8, util::size_of::<T>(), RecvGate::syscall())?;
+        SGATE.call_with_bytes(msg as *const u8, mem::size_of::<T>(), RecvGate::syscall())?;
 
     let reply = reply_raw.get_data::<kif::DefaultReply>();
     let res = Code::from(reply.error as u32);
@@ -348,7 +348,7 @@ pub fn vpe_ctrl(vpe: Selector, op: syscalls::VPEOp, arg: u64) -> Result<(), Erro
     if vpe == kif::SEL_VPE && op == syscalls::VPEOp::STOP {
         SGATE.send_bytes(
             &req as *const _ as *const u8,
-            util::size_of_val(&req),
+            mem::size_of_val(&req),
             RecvGate::syscall(),
             0,
         )

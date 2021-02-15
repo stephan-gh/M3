@@ -20,10 +20,8 @@ use base::format;
 use base::goff;
 use base::kif::{boot, PEDesc, PEType, PEISA};
 use base::libc;
-use base::mem::GlobAddr;
+use base::mem::{size_of, GlobAddr, MaybeUninit};
 use base::tcu::PEId;
-use base::util;
-use core::mem::MaybeUninit;
 use core::ptr;
 
 use crate::args;
@@ -58,10 +56,10 @@ pub fn init(args: &[String]) -> platform::KEnv {
     info.mod_count = mods.len() as u64;
 
     // build kinfo page
-    let bsize = util::size_of::<boot::Info>()
-        + info.mod_count as usize * util::size_of::<boot::Mod>()
-        + info.pe_count as usize * util::size_of::<boot::PE>()
-        + info.mem_count as usize * util::size_of::<boot::Mem>();
+    let bsize = size_of::<boot::Info>()
+        + info.mod_count as usize * size_of::<boot::Mod>()
+        + info.pe_count as usize * size_of::<boot::PE>()
+        + info.mem_count as usize * size_of::<boot::Mem>();
     let mut binfo_mem = mem::get()
         .allocate(mem::MemType::KERNEL, bsize as goff, 1)
         .expect("Unable to allocate mem for boot info");
@@ -72,31 +70,31 @@ pub fn init(args: &[String]) -> platform::KEnv {
         libc::memcpy(
             dest as *mut u8 as *mut libc::c_void,
             &info as *const boot::Info as *const libc::c_void,
-            util::size_of::<boot::Info>(),
+            size_of::<boot::Info>(),
         );
-        dest += util::size_of::<boot::Info>() as goff;
+        dest += size_of::<boot::Info>() as goff;
 
         // modules
         libc::memcpy(
             dest as *mut u8 as *mut libc::c_void,
             mods.as_ptr() as *const libc::c_void,
-            mods.len() * util::size_of::<boot::Mod>(),
+            mods.len() * size_of::<boot::Mod>(),
         );
-        dest += (mods.len() * util::size_of::<boot::Mod>()) as goff;
+        dest += (mods.len() * size_of::<boot::Mod>()) as goff;
 
         // PEs
         libc::memcpy(
             dest as *mut u8 as *mut libc::c_void,
             upes.as_ptr() as *const libc::c_void,
-            upes.len() * util::size_of::<boot::PE>(),
+            upes.len() * size_of::<boot::PE>(),
         );
-        dest += (upes.len() * util::size_of::<boot::PE>()) as goff;
+        dest += (upes.len() * size_of::<boot::PE>()) as goff;
 
         // memories
         libc::memcpy(
             dest as *mut u8 as *mut libc::c_void,
             mems.as_ptr() as *const libc::c_void,
-            mems.len() * util::size_of::<boot::Mem>(),
+            mems.len() * size_of::<boot::Mem>(),
         );
     }
     binfo_mem.claim();

@@ -18,15 +18,15 @@
 
 use crate::arch::cfg;
 use crate::io;
-use crate::util;
+use crate::mem;
 
-const HEAP_USED_BITS: usize = 0x5 << (8 * util::size_of::<usize>() - 3);
+const HEAP_USED_BITS: usize = 0x5 << (8 * mem::size_of::<usize>() - 3);
 
 #[repr(C, packed)]
 pub struct HeapArea {
     pub next: usize, /* HEAP_USED_BITS set = used */
     pub prev: usize,
-    _pad: [u8; 64 - util::size_of::<usize>() * 2],
+    _pad: [u8; 64 - mem::size_of::<usize>() * 2],
 }
 
 impl HeapArea {
@@ -143,8 +143,8 @@ pub fn print() {
             llog!(
                 DEF,
                 "  Area[addr={:#x}, prev={:#x}, size={:#x}, used={}]",
-                a as usize + util::size_of::<HeapArea>(),
-                (*a).backwards((*a).prev as usize) as usize + util::size_of::<HeapArea>(),
+                a as usize + mem::size_of::<HeapArea>(),
+                (*a).backwards((*a).prev as usize) as usize + mem::size_of::<HeapArea>(),
                 (*a).next & !HEAP_USED_BITS,
                 (*a).is_used()
             );

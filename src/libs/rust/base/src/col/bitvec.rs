@@ -15,7 +15,7 @@
  */
 
 use crate::col::Vec;
-use crate::util;
+use crate::mem;
 use crate::vec;
 
 pub struct BitVec {
@@ -25,7 +25,7 @@ pub struct BitVec {
 }
 
 fn word_bits() -> usize {
-    util::size_of::<usize>() * 8
+    mem::size_of::<usize>() * 8
 }
 
 fn idx(bit: usize) -> usize {

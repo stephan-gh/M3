@@ -20,9 +20,8 @@ use base::envdata;
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{PageFlags, Perm};
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, size_of};
 use base::tcu::*;
-use base::util;
 
 use crate::arch;
 use crate::ktcu;
@@ -71,7 +70,7 @@ pub fn deprivilege_pe(pe: PEId) -> Result<(), Error> {
         pe,
         TCU::ext_reg_addr(ExtReg::FEATURES) as goff,
         &features,
-        util::size_of::<Reg>(),
+        size_of::<Reg>(),
     )
 }
 

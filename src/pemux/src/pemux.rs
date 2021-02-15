@@ -39,8 +39,8 @@ use base::kif;
 use base::libc;
 use base::log;
 use base::machine;
+use base::mem;
 use base::tcu;
-use base::util;
 use cfg_if::cfg_if;
 
 /// Logs errors
@@ -117,7 +117,7 @@ static MSGS: StaticCell<Messages> = StaticCell::new(Messages {
 });
 
 pub fn msgs_mut() -> &'static mut Messages {
-    const_assert!(util::size_of::<Messages>() <= cfg::PAGE_SIZE);
+    const_assert!(mem::size_of::<Messages>() <= cfg::PAGE_SIZE);
     MSGS.get_mut()
 }
 
@@ -239,7 +239,7 @@ pub extern "C" fn init() -> usize {
     vpe::schedule(vpe::ScheduleAction::Yield);
 
     let state = vpe::idle().user_state();
-    let state_top = state as *const _ as usize + util::size_of::<arch::State>();
+    let state_top = state as *const _ as usize + mem::size_of::<arch::State>();
     arch::init(state);
     state_top
 }

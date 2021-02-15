@@ -17,9 +17,9 @@
 use base::col::String;
 use base::errors::{Code, Error};
 use base::kif::{self};
+use base::mem;
 use base::rc::Rc;
 use base::tcu;
-use base::util;
 
 use crate::ktcu;
 use crate::pes::VPEMng;
@@ -120,7 +120,7 @@ fn reply_success(msg: &'static tcu::Message) {
 }
 
 fn get_request<R>(msg: &tcu::Message) -> Result<&R, Error> {
-    if msg.data.len() < util::size_of::<R>() {
+    if msg.data.len() < mem::size_of::<R>() {
         Err(Error::new(Code::InvArgs))
     }
     else {

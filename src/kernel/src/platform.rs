@@ -17,9 +17,8 @@
 use base::cell::StaticCell;
 use base::col::{String, Vec};
 use base::kif::{boot, PEDesc};
-use base::mem::GlobAddr;
+use base::mem::{size_of, GlobAddr};
 use base::tcu::PEId;
-use base::util;
 use core::iter;
 
 use crate::arch;
@@ -93,10 +92,10 @@ pub fn info_addr() -> GlobAddr {
     get().info_addr
 }
 pub fn info_size() -> usize {
-    util::size_of::<boot::Info>()
-        + info().mod_count as usize * util::size_of::<boot::Mod>()
-        + info().pe_count as usize * util::size_of::<boot::PE>()
-        + info().mem_count as usize * util::size_of::<boot::Mem>()
+    size_of::<boot::Info>()
+        + info().mod_count as usize * size_of::<boot::Mod>()
+        + info().pe_count as usize * size_of::<boot::PE>()
+        + info().mem_count as usize * size_of::<boot::Mem>()
 }
 
 pub fn kernel_pe() -> PEId {

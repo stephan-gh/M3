@@ -18,11 +18,11 @@
 
 use core::cmp;
 use core::fmt;
-use core::mem::MaybeUninit;
 use core::ptr;
 
 use crate::col::{String, Vec};
 use crate::errors::{Code, Error};
+use crate::mem::MaybeUninit;
 use crate::util;
 
 // this is inspired from std::io::{Read, Write}
@@ -228,7 +228,7 @@ pub trait Write {
     }
 }
 
-/// Convenience method that reads `util::size_of::<T>()` bytes from the given source and interprets
+/// Convenience method that reads `mem::size_of::<T>()` bytes from the given source and interprets
 /// them as a `T`
 pub fn read_object<T: Sized>(r: &mut dyn Read) -> Result<T, Error> {
     // safety: read_exact will initialize it afterwards

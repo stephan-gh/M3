@@ -20,8 +20,8 @@ use base::cfg;
 use base::cpu;
 use base::int_enum;
 use base::libc;
+use base::mem;
 use base::tcu;
-use base::util;
 use core::fmt;
 
 pub const ISR_COUNT: usize = 66;
@@ -374,17 +374,17 @@ pub fn init(state: &mut State) {
     gdt.udata = Desc::new_flat(Granularity::PAGES, DescType::DATA_RW, DPL::USER);
     gdt.tss = Desc64::new_tss(
         TSS.get() as *const _ as *const u8 as usize,
-        util::size_of::<TSSInner>() - 1,
+        mem::size_of::<TSSInner>() - 1,
         Granularity::BYTES,
         DPL::KERNEL,
     );
 
     // load GDT and TSS
     let gdt_tbl = DescTable {
-        size: (util::size_of::<GDT>() - 1) as u16,
+        size: (mem::size_of::<GDT>() - 1) as u16,
         offset: gdt as *const _ as *const u8 as u64,
     };
-    let tss_off = Segment::TSS.val as usize * util::size_of::<Desc>();
+    let tss_off = Segment::TSS.val as usize * mem::size_of::<Desc>();
     unsafe {
         llvm_asm!("lgdt ($0)" : : "r"(&gdt_tbl) : : "volatile");
         llvm_asm!("ltr $0" : : "m"(tss_off) : : "volatile");
@@ -424,7 +424,7 @@ pub fn init(state: &mut State) {
 
     // now we can use our idt
     let idt_tbl = DescTable {
-        size: (ISR_COUNT * util::size_of::<Desc64>() - 1) as u16,
+        size: (ISR_COUNT * mem::size_of::<Desc64>() - 1) as u16,
         offset: IDT.entries.as_ptr() as *const _ as *const u8 as u64,
     };
     unsafe {

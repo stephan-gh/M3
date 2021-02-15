@@ -21,7 +21,7 @@ use libc;
 use crate::arch::envdata;
 use crate::arch::tcu::{thread, EpId, Header, PEId, TOTAL_EPS, PE_COUNT};
 use crate::col::Vec;
-use crate::util;
+use crate::mem;
 
 pub(crate) struct SocketBackend {
     sock: i32,
@@ -87,7 +87,7 @@ impl SocketBackend {
                         epsock,
                         &eps[Self::ep_idx(pe, ep)] as *const libc::sockaddr_un
                             as *const libc::sockaddr,
-                        util::size_of::<libc::sockaddr_un>() as u32
+                        mem::size_of::<libc::sockaddr_un>() as u32
                     ) == 0
                 );
 
@@ -110,10 +110,10 @@ impl SocketBackend {
             libc::sendto(
                 self.sock,
                 buf as *const thread::Buffer as *const libc::c_void,
-                buf.header.length + util::size_of::<Header>(),
+                buf.header.length + mem::size_of::<Header>(),
                 0,
                 sock as *const libc::sockaddr_un as *const libc::sockaddr,
-                util::size_of::<libc::sockaddr_un>() as u32,
+                mem::size_of::<libc::sockaddr_un>() as u32,
             )
         };
         res != -1
@@ -124,7 +124,7 @@ impl SocketBackend {
             libc::recvfrom(
                 self.localsock[ep as usize],
                 buf as *mut thread::Buffer as *mut libc::c_void,
-                util::size_of::<thread::Buffer>(),
+                mem::size_of::<thread::Buffer>(),
                 libc::MSG_DONTWAIT,
                 ptr::null_mut(),
                 ptr::null_mut(),
@@ -144,10 +144,10 @@ impl SocketBackend {
             let res = libc::sendto(
                 self.knotify_sock,
                 &data as *const KNotifyData as *const libc::c_void,
-                util::size_of::<KNotifyData>(),
+                mem::size_of::<KNotifyData>(),
                 0,
                 &self.knotify_addr as *const libc::sockaddr_un as *const libc::sockaddr,
-                util::size_of::<libc::sockaddr_un>() as u32,
+                mem::size_of::<libc::sockaddr_un>() as u32,
             );
             assert!(res != -1);
         }
@@ -159,7 +159,7 @@ impl SocketBackend {
                 libc::bind(
                     self.knotify_sock,
                     &self.knotify_addr as *const libc::sockaddr_un as *const libc::sockaddr,
-                    util::size_of::<libc::sockaddr_un>() as u32
+                    mem::size_of::<libc::sockaddr_un>() as u32
                 ) != -1
             );
         }
@@ -172,7 +172,7 @@ impl SocketBackend {
             libc::recvfrom(
                 self.knotify_sock,
                 &mut data as *mut KNotifyData as *mut libc::c_void,
-                util::size_of::<KNotifyData>(),
+                mem::size_of::<KNotifyData>(),
                 libc::MSG_DONTWAIT,
                 ptr::null_mut(),
                 ptr::null_mut(),

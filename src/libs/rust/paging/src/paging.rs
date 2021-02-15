@@ -39,9 +39,8 @@ use base::kif::{PageFlags, Perm, PTE};
 use base::libc;
 use base::log;
 use base::math;
-use base::mem::GlobAddr;
+use base::mem::{size_of, GlobAddr};
 use base::tcu::{EpId, PEId, PMEM_PROT_EPS, TCU};
-use base::util;
 use core::fmt;
 
 use arch::{LEVEL_BITS, LEVEL_CNT, LEVEL_MASK};
@@ -164,7 +163,7 @@ impl<A: Allocator> AddrSpace<A> {
         for lvl in (0..LEVEL_CNT).rev() {
             let pt_virt = self.alloc.translate_pt(pte_to_phys(pte));
             let idx = (virt >> (cfg::PAGE_BITS + lvl * LEVEL_BITS)) & LEVEL_MASK;
-            let pte_addr = pt_virt + idx * util::size_of::<MMUPTE>();
+            let pte_addr = pt_virt + idx * size_of::<MMUPTE>();
 
             // safety: as above
             pte = unsafe { *(pte_addr as *const MMUPTE) };
@@ -224,7 +223,7 @@ impl<A: Allocator> AddrSpace<A> {
 
         // start at the corresponding index
         let idx = (*virt >> (cfg::PAGE_BITS + level * LEVEL_BITS)) & LEVEL_MASK;
-        let mut pte_addr = pt_virt + idx * util::size_of::<MMUPTE>();
+        let mut pte_addr = pt_virt + idx * size_of::<MMUPTE>();
 
         while *pages > 0 {
             // reached end of page table?
@@ -291,7 +290,7 @@ impl<A: Allocator> AddrSpace<A> {
                 }
             }
 
-            pte_addr += util::size_of::<MMUPTE>();
+            pte_addr += size_of::<MMUPTE>();
         }
 
         Ok(())
@@ -345,7 +344,7 @@ impl<A: Allocator> AddrSpace<A> {
                 }
             }
 
-            ptes += util::size_of::<MMUPTE>();
+            ptes += size_of::<MMUPTE>();
         }
     }
 
@@ -369,7 +368,7 @@ impl<A: Allocator> AddrSpace<A> {
             }
 
             virt += 1 << (level as usize * LEVEL_BITS + cfg::PAGE_BITS);
-            ptes += util::size_of::<MMUPTE>();
+            ptes += size_of::<MMUPTE>();
         }
         Ok(())
     }

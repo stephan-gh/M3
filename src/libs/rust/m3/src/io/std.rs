@@ -14,10 +14,9 @@
  * General Public License version 2 for more details.
  */
 
-use core::mem;
-
 use crate::cell::{LazyStaticCell, RefCell};
 use crate::io::Serial;
+use crate::mem;
 use crate::pes::VPE;
 use crate::rc::Rc;
 use crate::vfs::{BufReader, BufWriter, Fd, FileRef};

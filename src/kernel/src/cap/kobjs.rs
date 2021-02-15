@@ -18,10 +18,9 @@ use base::cell::{Cell, Ref, RefCell, RefMut, StaticCell};
 use base::errors::{Code, Error};
 use base::goff;
 use base::kif;
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, size_of};
 use base::rc::{Rc, SRc, Weak};
 use base::tcu::{EpId, Label, PEId};
-use base::util;
 use core::fmt;
 use core::ptr;
 
@@ -46,7 +45,7 @@ pub enum KObject {
 }
 
 const fn kobj_size<T>() -> usize {
-    let size = util::size_of::<T>();
+    let size = size_of::<T>();
     if size <= 64 {
         64 + crate::slab::HEADER_SIZE
     }
@@ -54,7 +53,7 @@ const fn kobj_size<T>() -> usize {
         128 + crate::slab::HEADER_SIZE
     }
     else {
-        size + util::size_of::<base::mem::heap::HeapArea>()
+        size + size_of::<base::mem::heap::HeapArea>()
     }
 }
 

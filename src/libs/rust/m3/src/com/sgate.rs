@@ -22,10 +22,10 @@ use crate::com::gate::Gate;
 use crate::com::RecvGate;
 use crate::errors::Error;
 use crate::kif::{INVALID_SEL, UNLIM_CREDITS};
+use crate::mem;
 use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
-use crate::util;
 
 /// A send gate (`SendGate`) can send message via TCU to an associated `RecvGate`.
 pub struct SendGate {
@@ -131,7 +131,7 @@ impl SendGate {
     pub fn send<T>(&self, msg: &[T], reply_gate: &RecvGate) -> Result<(), Error> {
         self.send_bytes(
             msg.as_ptr() as *const u8,
-            msg.len() * util::size_of::<T>(),
+            msg.len() * mem::size_of::<T>(),
             reply_gate,
             0,
         )
@@ -147,7 +147,7 @@ impl SendGate {
     ) -> Result<(), Error> {
         self.send_bytes(
             msg.as_ptr() as *const u8,
-            msg.len() * util::size_of::<T>(),
+            msg.len() * mem::size_of::<T>(),
             reply_gate,
             rlabel,
         )
@@ -176,7 +176,7 @@ impl SendGate {
     ) -> Result<&'static tcu::Message, Error> {
         self.call_with_bytes(
             msg as *const _ as *const u8,
-            msg.len() * util::size_of::<T>(),
+            msg.len() * mem::size_of::<T>(),
             reply_gate,
         )
     }

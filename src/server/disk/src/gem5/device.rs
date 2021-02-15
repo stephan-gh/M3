@@ -23,9 +23,9 @@ use m3::goff;
 use m3::int_enum;
 use m3::kif::Perm;
 use m3::log;
+use m3::mem;
 use m3::pes::VPE;
 use m3::time::Time;
-use m3::util;
 
 use super::chan::Channel;
 use super::ctrl::ControlFlag;
@@ -226,7 +226,7 @@ impl Device {
 
         // read MBR from disk
         let mut buffer = [0u8; 512];
-        let size = util::size_of_val(&buffer) + util::size_of::<PRD>();
+        let size = mem::size_of_val(&buffer) + mem::size_of::<PRD>();
         let mg_buf = MemGate::new(size, Perm::RW)?;
         let dev_buf = mg_buf.derive(0, size, Perm::RW)?;
         chan.set_dma_buffer(&dev_buf)?;

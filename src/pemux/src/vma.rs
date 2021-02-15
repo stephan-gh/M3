@@ -18,8 +18,8 @@ use base::cfg;
 use base::errors::Error;
 use base::kif::{DefaultReply, PageFlags};
 use base::log;
+use base::mem;
 use base::tcu;
-use base::util;
 
 use crate::helper;
 use crate::vpe;
@@ -51,7 +51,7 @@ fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error
     let res = tcu::TCU::send(
         eps_start + tcu::PG_SEP_OFF,
         msg as *const _ as *const u8,
-        util::size_of::<crate::PagefaultMessage>(),
+        mem::size_of::<crate::PagefaultMessage>(),
         0,
         eps_start + tcu::PG_REP_OFF,
     )

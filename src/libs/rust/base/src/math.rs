@@ -18,7 +18,7 @@
 
 use num_traits::PrimInt;
 
-use crate::util;
+use crate::mem;
 
 /// Computes the square root of `val`.
 ///
@@ -54,7 +54,7 @@ const fn _next_log2(size: usize, shift: u32) -> u32 {
 /// assert_eq!(util::next_log2(5), 8);
 /// ```
 pub const fn next_log2(size: usize) -> u32 {
-    _next_log2(size, (util::size_of::<usize>() * 8 - 2) as u32)
+    _next_log2(size, (mem::size_of::<usize>() * 8 - 2) as u32)
 }
 
 /// Rounds the given value up to the given alignment

@@ -23,9 +23,8 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{self, PageFlags};
 use base::math;
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, size_of};
 use base::tcu;
-use base::util;
 
 use crate::cap::{Capability, KObject, MapObject, SelRange};
 use crate::ktcu;
@@ -136,7 +135,7 @@ impl Loader {
     }
 
     fn read_from_mod<T>(bm: &kif::boot::Mod, off: goff) -> Result<T, Error> {
-        if off + util::size_of::<T>() as goff > bm.size {
+        if off + size_of::<T>() as goff > bm.size {
             return Err(Error::new(Code::InvalidElf));
         }
 
@@ -282,8 +281,8 @@ impl Loader {
         let mut argptr: Vec<u64> = Vec::new();
         let mut argbuf: Vec<u8> = Vec::new();
 
-        let off = addr + util::size_of::<envdata::EnvData>() as goff;
-        let mut argoff = ENV_START + util::size_of::<envdata::EnvData>();
+        let off = addr + size_of::<envdata::EnvData>() as goff;
+        let mut argoff = ENV_START + size_of::<envdata::EnvData>();
         for s in args {
             // push argv entry
             argptr.push(argoff as u64);
@@ -299,8 +298,8 @@ impl Loader {
         }
 
         ktcu::write_mem(pe, off as goff, argbuf.as_ptr() as *const u8, argbuf.len());
-        let argv_size = argptr.len() * util::size_of::<u64>();
-        argoff = math::round_up(argoff, util::size_of::<u64>());
+        let argv_size = argptr.len() * size_of::<u64>();
+        argoff = math::round_up(argoff, size_of::<u64>());
         ktcu::write_mem(
             pe,
             addr + (argoff - ENV_START) as goff,

@@ -25,11 +25,10 @@ use crate::goff;
 use crate::io::{read_object, Read};
 use crate::kif;
 use crate::math;
-use crate::mem::heap;
+use crate::mem::{heap, size_of};
 use crate::pes::{Mapper, VPE};
 use crate::pexcalls;
 use crate::session::{MapFlags, Pager};
-use crate::util;
 use crate::vec;
 use crate::vfs::{BufReader, FileRef, Seek, SeekMode};
 
@@ -98,7 +97,7 @@ pub fn copy_vpe(pedesc: kif::PEDesc, sp: usize, mem: MemGate) -> Result<usize, E
         )?;
 
         // copy end-area of heap
-        let heap_area_size = util::size_of::<heap::HeapArea>();
+        let heap_area_size = size_of::<heap::HeapArea>();
         write_bytes_checked(
             &mem,
             heap::end(),
@@ -224,16 +223,16 @@ where
         (*off - cfg::ENV_START) as goff,
     )?;
 
-    argoff = math::round_up(argoff, util::size_of::<u64>());
+    argoff = math::round_up(argoff, size_of::<u64>());
     write_bytes_checked(
         mem,
         argoff,
         argptr.as_ptr() as *const _,
-        argptr.len() * util::size_of::<u64>(),
+        argptr.len() * size_of::<u64>(),
         (argoff - cfg::ENV_START) as goff,
     )?;
 
-    *off = argoff + argptr.len() * util::size_of::<u64>();
+    *off = argoff + argptr.len() * size_of::<u64>();
     Ok(argoff as usize)
 }
 

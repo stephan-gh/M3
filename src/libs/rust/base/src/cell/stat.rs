@@ -17,8 +17,9 @@
 use core::cell::UnsafeCell;
 use core::fmt;
 use core::marker::Sync;
-use core::mem;
 use core::ops::Deref;
+
+use crate::mem;
 
 /// A cell that allows to mutate a static immutable object in single threaded environments
 ///

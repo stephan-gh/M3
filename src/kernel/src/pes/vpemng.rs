@@ -256,7 +256,7 @@ impl VPEMng {
     pub fn remove_vpe_async(&mut self, id: tcu::VPEId) {
         // Replace item at position
         // https://stackoverflow.com/questions/33204273/how-can-i-take-ownership-of-a-vec-element-and-replace-it-with-something-else
-        let vpe: Option<Rc<VPE>> = core::mem::replace(&mut self.vpes[id as usize], None);
+        let vpe: Option<Rc<VPE>> = base::mem::replace(&mut self.vpes[id as usize], None);
 
         match vpe {
             Some(ref v) => {

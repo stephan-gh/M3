@@ -19,9 +19,9 @@ use core::slice;
 
 use crate::com::{RecvGate, SendGate};
 use crate::errors::{Code, Error};
+use crate::mem;
 use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
 use crate::tcu;
-use crate::util;
 
 pub const MAX_MSG_SIZE: usize = 512;
 
@@ -112,7 +112,7 @@ impl<'r> GateIStream<'r> {
     /// Returns the size of the message
     #[inline(always)]
     pub fn size(&self) -> usize {
-        self.source.size() * util::size_of::<u64>()
+        self.source.size() * mem::size_of::<u64>()
     }
 
     /// Returns the message
@@ -165,7 +165,7 @@ impl<'r> ops::Drop for GateIStream<'r> {
 macro_rules! send_vmsg {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
         let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
-            core::mem::MaybeUninit::uninit().assume_init()
+            $crate::mem::MaybeUninit::uninit().assume_init()
         };
         let mut os = $crate::com::GateOStream::new(&mut arr);
         $( os.push(&$args); )*
@@ -179,7 +179,7 @@ macro_rules! send_vmsg {
 macro_rules! reply_vmsg {
     ( $is:expr, $( $args:expr ),* ) => ({
         let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
-            core::mem::MaybeUninit::uninit().assume_init()
+            $crate::mem::MaybeUninit::uninit().assume_init()
         };
         let mut os = $crate::com::GateOStream::new(&mut arr);
         $( os.push(&$args); )*
@@ -234,7 +234,7 @@ pub fn recv_result<'r>(
 macro_rules! send_recv {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
         let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
-            core::mem::MaybeUninit::uninit().assume_init()
+            $crate::mem::MaybeUninit::uninit().assume_init()
         };
         let mut os = $crate::com::GateOStream::new(&mut arr);
         $( os.push(&$args); )*

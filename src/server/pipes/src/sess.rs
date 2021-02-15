@@ -31,7 +31,7 @@ use m3::tcu::{Label, Message};
 macro_rules! reply_vmsg_late {
     ( $msg:expr, $( $args:expr ),* ) => ({
         let mut arr: [u64; m3::com::MAX_MSG_SIZE / 8 ] = unsafe {
-            core::mem::MaybeUninit::uninit().assume_init()
+            m3::mem::MaybeUninit::uninit().assume_init()
         };
         let mut os = m3::com::GateOStream::new(&mut arr);
         $( os.push(&$args); )*

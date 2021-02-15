@@ -16,7 +16,6 @@
 
 #![no_std]
 
-use core::mem::MaybeUninit;
 use m3::cap::Selector;
 use m3::cell::LazyStaticCell;
 use m3::com::{GateIStream, MemGate, Perm, SGateArgs, SendGate, EP};
@@ -25,6 +24,7 @@ use m3::goff;
 use m3::io::{Read, Serial, Write};
 use m3::kif;
 use m3::log;
+use m3::mem::MaybeUninit;
 use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::reply_vmsg;

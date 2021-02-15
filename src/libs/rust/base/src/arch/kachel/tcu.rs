@@ -17,7 +17,6 @@
 use bitflags::bitflags;
 use cfg_if::cfg_if;
 use core::intrinsics;
-use core::mem;
 
 use crate::arch;
 use crate::cfg;
@@ -26,7 +25,7 @@ use crate::goff;
 use crate::io::log::TCU;
 use crate::kif::{PageFlags, Perm, PTE};
 use crate::math;
-use crate::util;
+use crate::mem;
 
 /// A TCU register
 pub type Reg = u64;
@@ -325,7 +324,7 @@ impl Message {
     /// Returns the message data as a reference to `T`.
     pub fn get_data<T>(&self) -> &T {
         assert!(mem::align_of_val(self) >= mem::align_of::<T>());
-        assert!(self.data.len() >= util::size_of::<T>());
+        assert!(self.data.len() >= mem::size_of::<T>());
         // safety: assuming that the size and alignment checks above works, the cast below is safe
         let slice = unsafe { &*(&self.data as *const [u8] as *const [T]) };
         &slice[0]
@@ -737,7 +736,7 @@ impl TCU {
 
     fn write_cfg_reg(reg: ConfigReg, val: Reg) {
         Self::write_reg(
-            ((cfg::PAGE_SIZE * 3) / util::size_of::<Reg>()) + reg.val as usize,
+            ((cfg::PAGE_SIZE * 3) / mem::size_of::<Reg>()) + reg.val as usize,
             val,
         )
     }
@@ -747,12 +746,12 @@ impl TCU {
     }
 
     fn read_priv_reg(reg: PrivReg) -> Reg {
-        Self::read_reg(((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize)
+        Self::read_reg(((cfg::PAGE_SIZE * 2) / mem::size_of::<Reg>()) + reg.val as usize)
     }
 
     fn write_priv_reg(reg: PrivReg, val: Reg) {
         Self::write_reg(
-            ((cfg::PAGE_SIZE * 2) / util::size_of::<Reg>()) + reg.val as usize,
+            ((cfg::PAGE_SIZE * 2) / mem::size_of::<Reg>()) + reg.val as usize,
             val,
         )
     }
@@ -829,7 +828,7 @@ impl TCU {
         let addr = MMIO_ADDR + off * 8;
         for (i, r) in regs.iter().enumerate() {
             unsafe {
-                arch::cpu::write8b(addr + i * util::size_of::<Reg>(), *r);
+                arch::cpu::write8b(addr + i * mem::size_of::<Reg>(), *r);
             }
         }
     }

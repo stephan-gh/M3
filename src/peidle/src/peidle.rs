@@ -30,9 +30,9 @@ use base::kif;
 use base::libc;
 use base::log;
 use base::machine;
+use base::mem;
 use base::pexif;
 use base::tcu;
-use base::util;
 
 const UPC_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 
@@ -66,7 +66,7 @@ fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
     tcu::TCU::reply(
         tcu::PEXUP_REP,
         reply as *const T as *const u8,
-        util::size_of::<T>(),
+        mem::size_of::<T>(),
         msg_off,
     )
     .unwrap();
@@ -226,7 +226,7 @@ fn exit_app(state: &mut isr::State) -> Result<isize, Error> {
     log!(crate::LOG_INFO, "Sending exit for VPE {}", vpe);
 
     let msg_addr = &msg as *const _ as *const u8;
-    let size = util::size_of::<kif::pemux::Exit>();
+    let size = mem::size_of::<kif::pemux::Exit>();
     tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::KPEX_REP).ok();
 
     // sync icache with dcache

@@ -33,8 +33,8 @@ use base::libc;
 use base::log;
 use base::machine;
 use base::math::next_log2;
+use base::mem;
 use base::tcu::{self, EpId, Message, Reg, EP_REGS, TCU};
-use base::util;
 use base::vec;
 use base::{read_csr, write_csr};
 
@@ -148,7 +148,7 @@ fn test_mem(size_in: usize) {
     }
 
     // configure mem EP
-    let data_size = data.len() * util::size_of::<u64>();
+    let data_size = data.len() * mem::size_of::<u64>();
     config_local_ep(1, |regs| {
         TCU::config_mem(regs, OWN_VPE, PE::MEM.id(), 0x1000, data_size, Perm::RW);
     });
@@ -215,7 +215,7 @@ fn test_msgs(size_in: usize) {
     TCU::send(
         4,
         &*msg as *const _ as *const u8,
-        util::size_of::<u64>(),
+        mem::size_of::<u64>(),
         0x1111,
         3,
     )
@@ -234,7 +234,7 @@ fn test_msgs(size_in: usize) {
     TCU::reply(
         1,
         &*reply as *const _ as *const u8,
-        util::size_of::<u64>(),
+        mem::size_of::<u64>(),
         tcu::TCU::msg_to_offset(rbuf1_virt, rmsg),
     )
     .unwrap();

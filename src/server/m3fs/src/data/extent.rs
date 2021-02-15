@@ -22,7 +22,7 @@ use core::fmt;
 use core::u32;
 
 use m3::cell::Cell;
-use m3::util::size_of;
+use m3::mem::size_of;
 
 /// Represents a file position given by extent number and offset within the extent
 #[derive(Copy, Clone)]

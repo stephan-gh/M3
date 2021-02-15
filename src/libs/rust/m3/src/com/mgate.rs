@@ -15,7 +15,6 @@
  */
 
 use core::fmt;
-use core::mem::MaybeUninit;
 
 use crate::cap::{CapFlags, Selector};
 use crate::col::Vec;
@@ -24,10 +23,10 @@ use crate::com::gate::Gate;
 use crate::errors::Error;
 use crate::goff;
 use crate::kif::INVALID_SEL;
+use crate::mem::{self, MaybeUninit};
 use crate::pes::VPE;
 use crate::syscalls;
 use crate::tcu;
-use crate::util;
 
 pub use crate::kif::Perm;
 
@@ -175,18 +174,18 @@ impl MemGate {
     pub fn read<T>(&self, data: &mut [T], off: goff) -> Result<(), Error> {
         self.read_bytes(
             data.as_mut_ptr() as *mut u8,
-            data.len() * util::size_of::<T>(),
+            data.len() * mem::size_of::<T>(),
             off,
         )
     }
 
-    /// Reads `util::size_of::<T>()` bytes via the TCU read command from the memory region at offset
+    /// Reads `mem::size_of::<T>()` bytes via the TCU read command from the memory region at offset
     /// `off` and returns the data as an object of `T`.
     pub fn read_obj<T>(&self, off: goff) -> Result<T, Error> {
         #[allow(clippy::uninit_assumed_init)]
         // safety: will be initialized in read_bytes
         let mut obj: T = unsafe { MaybeUninit::uninit().assume_init() };
-        self.read_bytes(&mut obj as *mut T as *mut u8, util::size_of::<T>(), off)?;
+        self.read_bytes(&mut obj as *mut T as *mut u8, mem::size_of::<T>(), off)?;
         Ok(obj)
     }
 
@@ -201,14 +200,14 @@ impl MemGate {
     pub fn write<T>(&self, data: &[T], off: goff) -> Result<(), Error> {
         self.write_bytes(
             data.as_ptr() as *const u8,
-            data.len() * util::size_of::<T>(),
+            data.len() * mem::size_of::<T>(),
             off,
         )
     }
 
     /// Writes `obj` via the TCU write command to the memory region at offset `off`.
     pub fn write_obj<T>(&self, obj: &T, off: goff) -> Result<(), Error> {
-        self.write_bytes(obj as *const T as *const u8, util::size_of::<T>(), off)
+        self.write_bytes(obj as *const T as *const u8, mem::size_of::<T>(), off)
     }
 
     /// Writes the `size` bytes at `data` via the TCU write command to the memory region at offset

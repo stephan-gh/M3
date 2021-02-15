@@ -17,11 +17,11 @@
 //! Provides access to the program environment
 
 use core::iter;
-use core::mem;
 use core::ops::FnOnce;
 
 use crate::arch;
 use crate::boxed::Box;
+use crate::mem;
 use crate::util;
 
 /// The closure used by `VPE::run`

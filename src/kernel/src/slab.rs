@@ -16,7 +16,7 @@
 
 use base::cell::LazyStaticCell;
 use base::libc;
-use base::util;
+use base::mem;
 use core::ptr::NonNull;
 
 extern "C" {
@@ -45,7 +45,7 @@ struct Slab {
 
 impl Slab {
     fn new(size: Option<usize>) -> Self {
-        base::const_assert!(util::size_of::<Area>() == HEADER_SIZE + 8);
+        base::const_assert!(mem::size_of::<Area>() == HEADER_SIZE + 8);
         Self { free: None, size }
     }
 

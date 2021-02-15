@@ -24,6 +24,7 @@ use crate::arch::tcu::{
 use crate::cell::{LazyStaticCell, StaticCell};
 use crate::errors::{Code, Error};
 use crate::io;
+use crate::mem;
 use crate::util;
 
 pub(crate) struct Buffer {
@@ -44,7 +45,7 @@ impl Buffer {
             #[allow(clippy::cast_ptr_alignment)]
             util::slice_for(
                 self.data.as_ptr() as *const u64,
-                MAX_MSG_SIZE / util::size_of::<u64>(),
+                MAX_MSG_SIZE / mem::size_of::<u64>(),
             )
         }
     }
@@ -54,7 +55,7 @@ impl Buffer {
             #[allow(clippy::cast_ptr_alignment)]
             util::slice_for_mut(
                 self.data.as_mut_ptr() as *mut u64,
-                MAX_MSG_SIZE / util::size_of::<u64>(),
+                MAX_MSG_SIZE / mem::size_of::<u64>(),
             )
         }
     }
@@ -235,7 +236,7 @@ fn prepare_read(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     buf.header.credits = 0;
     buf.header.label = TCU::get_ep(ep, EpReg::LABEL);
-    buf.header.length = 3 * util::size_of::<u64>();
+    buf.header.length = 3 * mem::size_of::<u64>();
 
     let data = buf.as_words_mut();
     data[0] = TCU::get_cmd(CmdReg::OFFSET);
@@ -257,7 +258,7 @@ fn prepare_write(ep: EpId) -> Result<(PEId, EpId), Error> {
 
     buf.header.credits = 0;
     buf.header.label = TCU::get_ep(ep, EpReg::LABEL);
-    buf.header.length = size + 2 * util::size_of::<u64>();
+    buf.header.length = size + 2 * mem::size_of::<u64>();
 
     let data = buf.as_words_mut();
     data[0] = TCU::get_cmd(CmdReg::OFFSET);
@@ -425,7 +426,7 @@ fn handle_write_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Er
             base,
             offset - base
         );
-        assert!(length as usize <= MAX_MSG_SIZE - 2 * util::size_of::<u64>());
+        assert!(length as usize <= MAX_MSG_SIZE - 2 * mem::size_of::<u64>());
 
         unsafe {
             libc::memcpy(
@@ -463,7 +464,7 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
         offset - base,
         dest
     );
-    assert!(length as usize <= MAX_MSG_SIZE - 3 * util::size_of::<u64>());
+    assert!(length as usize <= MAX_MSG_SIZE - 3 * mem::size_of::<u64>());
 
     let dst_pe = buf.header.pe as PEId;
     let dst_ep = buf.header.rpl_ep as EpId;
@@ -471,7 +472,7 @@ fn handle_read_cmd(backend: &backend::SocketBackend, ep: EpId) -> Result<(), Err
     buf.header.opcode = Command::RESP.val as u8;
     buf.header.credits = 0;
     buf.header.label = 0;
-    buf.header.length = length as usize + 3 * util::size_of::<u64>();
+    buf.header.length = length as usize + 3 * mem::size_of::<u64>();
 
     let data = buf.as_words_mut();
     data[0] = dest;
@@ -505,7 +506,7 @@ fn handle_resp_cmd() {
             offset - base,
             resp
         );
-        assert!(length as usize <= MAX_MSG_SIZE - 3 * util::size_of::<usize>());
+        assert!(length as usize <= MAX_MSG_SIZE - 3 * mem::size_of::<usize>());
 
         unsafe {
             libc::memcpy(
@@ -647,7 +648,7 @@ fn handle_receive(backend: &backend::SocketBackend, ep: EpId) -> bool {
 
         log_tcu!(
             "<- {:3}b lbl={:#016x} ep={} (cnt={:#x}, crd={:#x})",
-            size - util::size_of::<Header>(),
+            size - mem::size_of::<Header>(),
             { buf.header.label },
             ep,
             TCU::get_ep(ep, EpReg::BUF_MSG_CNT),

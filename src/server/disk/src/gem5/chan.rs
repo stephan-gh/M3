@@ -19,12 +19,12 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::Perm;
+use m3::mem;
 use m3::log;
 use m3::pes::VPE;
 use m3::rc::Rc;
 use m3::session::DiskOperation;
 use m3::time::Time;
-use m3::util;
 
 use super::ctrl::IDE_CTRL_BAR;
 use super::device::{ATAReg, BMIReg, CommandStatus, DevOp, Device, PRD};
@@ -171,7 +171,7 @@ impl Channel {
             lba,
         );
 
-        let dev_buf = buf.derive(buf_off as goff, bytes + util::size_of::<PRD>(), Perm::RW)?;
+        let dev_buf = buf.derive(buf_off as goff, bytes + mem::size_of::<PRD>(), Perm::RW)?;
         self.set_dma_buffer(&dev_buf)?;
 
         dev.read_write(self, dev_op, buf, buf_off, lba, dev.sector_size(), count)

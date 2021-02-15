@@ -18,8 +18,8 @@ use base::cell::StaticCell;
 use base::errors::Error;
 use base::kif::{pemux, PageFlags};
 use base::libc;
+use base::mem::MaybeUninit;
 use base::{int_enum, log, read_csr, write_csr};
-use core::mem::MaybeUninit;
 
 use crate::vma;
 use crate::vpe;
@@ -142,7 +142,11 @@ pub fn handle_fpu_ex(state: &mut State) {
 
     // if the FPU is enabled and we receive an illegal instruction exception, kill VPE
     if get_fpu_mode(state.status) != FSMode::OFF {
-        log!(crate::LOG_ERR, "Illegal instruction with user state:\n{:?}", state);
+        log!(
+            crate::LOG_ERR,
+            "Illegal instruction with user state:\n{:?}",
+            state
+        );
         vpe::remove_cur(1);
         return;
     }
@@ -167,7 +171,9 @@ pub fn handle_fpu_ex(state: &mut State) {
             restore_fpu(fpu_state);
         }
         else {
-            unsafe { libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33) };
+            unsafe {
+                libc::memset(fpu_state as *mut _ as *mut libc::c_void, 0, 8 * 33)
+            };
             fpu_state.init = true;
         }
 

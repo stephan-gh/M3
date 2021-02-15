@@ -23,11 +23,10 @@ use base::col::{BoxList, Vec};
 use base::impl_boxitem;
 use base::libc;
 use base::log;
+use base::mem;
 use base::tcu;
-use base::util;
 use base::vec;
 use core::intrinsics;
-use core::mem;
 use core::ptr::NonNull;
 
 /// Logs thread switching etc.
@@ -218,7 +217,7 @@ impl Thread {
     }
 
     fn set_msg(&mut self, msg: &'static tcu::Message) {
-        let size = msg.header.length as usize + util::size_of::<tcu::Header>();
+        let size = msg.header.length as usize + mem::size_of::<tcu::Header>();
         self.has_msg = true;
         // safety: we trust the TCU
         unsafe {

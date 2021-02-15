@@ -25,11 +25,10 @@ use m3::goff;
 use m3::kif::{boot, CapRngDesc, CapType, PEDesc, PEType, Perm, FIRST_FREE_SEL};
 use m3::log;
 use m3::math;
-use m3::mem::GlobAddr;
+use m3::mem::{size_of, GlobAddr};
 use m3::pes::{PE, VPE};
 use m3::rc::Rc;
 use m3::tcu::PEId;
-use m3::util;
 
 use crate::childs;
 use crate::config;
@@ -72,16 +71,16 @@ impl Subsystem {
         let mut off: goff = 0;
 
         let info: boot::Info = mgate.read_obj(0)?;
-        off += util::size_of::<boot::Info>() as goff;
+        off += size_of::<boot::Info>() as goff;
 
         let mods = mgate.read_into_vec::<boot::Mod>(info.mod_count as usize, off)?;
-        off += util::size_of::<boot::Mod>() as goff * info.mod_count;
+        off += size_of::<boot::Mod>() as goff * info.mod_count;
 
         let pes = mgate.read_into_vec::<boot::PE>(info.pe_count as usize, off)?;
-        off += util::size_of::<boot::PE>() as goff * info.pe_count;
+        off += size_of::<boot::PE>() as goff * info.pe_count;
 
         let mems = mgate.read_into_vec::<boot::Mem>(info.mem_count as usize, off)?;
-        off += util::size_of::<boot::Mem>() as goff * info.mem_count;
+        off += size_of::<boot::Mem>() as goff * info.mem_count;
 
         let servs = mgate.read_into_vec::<boot::Service>(info.serv_count as usize, off)?;
 
@@ -454,11 +453,11 @@ impl SubsystemBuilder {
     }
 
     pub fn desc_size(&self) -> usize {
-        util::size_of::<boot::Info>()
-            + util::size_of::<boot::Mod>() * 1
-            + util::size_of::<boot::PE>() * self.pes.len()
-            + util::size_of::<boot::Mem>() * self.mems.len()
-            + util::size_of::<boot::Service>() * self.servs.len()
+        size_of::<boot::Info>()
+            + size_of::<boot::Mod>() * 1
+            + size_of::<boot::PE>() * self.pes.len()
+            + size_of::<boot::Mem>() * self.mems.len()
+            + size_of::<boot::Service>() * self.servs.len()
     }
 
     pub fn finalize_async(&mut self, vpe: &mut VPE) -> Result<(), Error> {
@@ -478,14 +477,14 @@ impl SubsystemBuilder {
         };
         mem.write_obj(&info, off)?;
         vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, mem.sel(), 1), sel)?;
-        off += util::size_of::<boot::Info>() as goff;
+        off += size_of::<boot::Info>() as goff;
         sel += 1;
 
         // boot module for config
         let m = boot::Mod::new(self.cfg.1, self.cfg.2 as u64, "boot.xml");
         mem.write_obj(&m, off)?;
         vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, self.cfg.0.sel(), 1), sel)?;
-        off += util::size_of::<boot::Mod>() as goff;
+        off += size_of::<boot::Mod>() as goff;
         sel += 1;
 
         // PEs
@@ -495,7 +494,7 @@ impl SubsystemBuilder {
 
             vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, pe.sel(), 1), sel)?;
 
-            off += util::size_of::<boot::PE>() as goff;
+            off += size_of::<boot::PE>() as goff;
             sel += 1;
         }
 
@@ -506,7 +505,7 @@ impl SubsystemBuilder {
 
             vpe.delegate_to(CapRngDesc::new(CapType::OBJECT, mgate.sel(), 1), sel)?;
 
-            off += util::size_of::<boot::Mem>() as goff;
+            off += size_of::<boot::Mem>() as goff;
             sel += 1;
         }
 
@@ -532,7 +531,7 @@ impl SubsystemBuilder {
                 sel + 1,
             )?;
 
-            off += util::size_of::<boot::Service>() as goff;
+            off += size_of::<boot::Service>() as goff;
             sel += 2;
 
             self.serv_objs.push(subserv);

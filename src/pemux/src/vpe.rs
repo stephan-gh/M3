@@ -24,9 +24,8 @@ use base::impl_boxitem;
 use base::kif;
 use base::log;
 use base::math;
-use base::mem::GlobAddr;
+use base::mem::{size_of, GlobAddr};
 use base::tcu;
-use base::util;
 use core::cmp;
 use core::ptr::NonNull;
 use paging::{Allocator, Phys};
@@ -314,7 +313,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
 
     // set SP for the next entry
     let new_state = next.user_state_addr;
-    isr::set_entry_sp(new_state + util::size_of::<arch::State>());
+    isr::set_entry_sp(new_state + size_of::<arch::State>());
     let next_id = next.id();
     next.state = VPEState::Running;
 
@@ -420,7 +419,7 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
             msg.code = status as u64;
 
             let msg_addr = msg as *const _ as *const u8;
-            let size = util::size_of::<kif::pemux::Exit>();
+            let size = size_of::<kif::pemux::Exit>();
             tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::KPEX_REP).unwrap();
 
             // switch back to old VPE

@@ -21,6 +21,7 @@ use crate::cfg;
 use crate::com::SendGate;
 use crate::env;
 use crate::kif::{self, PEDesc};
+use crate::mem;
 use crate::pes::VPE;
 use crate::serialize::Source;
 use crate::session::{Pager, ResMng};
@@ -200,5 +201,5 @@ pub fn get() -> &'static mut EnvData {
 
 pub fn closure() -> &'static mut env::Closure {
     // safety: we trust our loader
-    unsafe { &mut *((cfg::ENV_START + util::size_of::<EnvData>()) as *mut _) }
+    unsafe { &mut *((cfg::ENV_START + mem::size_of::<EnvData>()) as *mut _) }
 }

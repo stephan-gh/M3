@@ -18,7 +18,7 @@ use base::cell::{LazyStaticCell, StaticCell};
 use base::col::{String, ToString, Vec};
 use base::format;
 use base::libc;
-use base::util;
+use base::mem;
 use core::ptr;
 
 static BUF: StaticCell<[u8; 2048]> = StaticCell::new([0u8; 2048]);
@@ -56,7 +56,7 @@ impl Bridge {
                 libc::bind(
                     src_fd,
                     &src_sock as *const _ as *const libc::sockaddr,
-                    util::size_of::<libc::sockaddr_un>() as u32
+                    mem::size_of::<libc::sockaddr_un>() as u32
                 ) == 0
             );
         }
@@ -91,7 +91,7 @@ impl Bridge {
                     res as usize,
                     0,
                     &self.dst_sock as *const _ as *const libc::sockaddr,
-                    util::size_of::<libc::sockaddr_un>() as u32,
+                    mem::size_of::<libc::sockaddr_un>() as u32,
                 ) != -1
             )
         };

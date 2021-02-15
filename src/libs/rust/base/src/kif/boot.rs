@@ -17,10 +17,9 @@
 //! The boot information that the kernel passes to root
 
 use core::fmt;
-use core::mem::MaybeUninit;
 
 use crate::kif;
-use crate::mem::GlobAddr;
+use crate::mem::{GlobAddr, MaybeUninit};
 use crate::util;
 
 const MAX_MODNAME_LEN: usize = 64;

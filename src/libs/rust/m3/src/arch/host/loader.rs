@@ -14,7 +14,6 @@
  * General Public License version 2 for more details.
  */
 
-use core::mem::MaybeUninit;
 use core::ptr;
 
 use crate::col::{String, Vec};
@@ -22,8 +21,8 @@ use crate::errors::{Code, Error};
 use crate::format;
 use crate::io::Read;
 use crate::libc;
+use crate::mem::{MaybeUninit, size_of};
 use crate::pes::StateSerializer;
-use crate::util;
 use crate::vec;
 use crate::vfs::FileRef;
 
@@ -159,7 +158,7 @@ pub fn write_env_file(pid: i32, suffix: &str, data: &[u64]) {
         libc::write(
             fd,
             data.as_ptr() as *const libc::c_void,
-            data.len() * util::size_of::<u64>(),
+            data.len() * size_of::<u64>(),
         );
         libc::close(fd);
     }

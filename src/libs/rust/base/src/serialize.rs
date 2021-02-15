@@ -19,7 +19,7 @@
 use crate::col::{String, Vec};
 use crate::errors::{Code, Error};
 use crate::libc;
-use crate::util;
+use crate::mem;
 
 /// For types that can be marshalled into a [`Sink`].
 pub trait Marshallable {
@@ -46,7 +46,7 @@ impl<'s> Sink<'s> {
 
     #[inline(always)]
     pub fn size(&self) -> usize {
-        self.pos * util::size_of::<u64>()
+        self.pos * mem::size_of::<u64>()
     }
 
     #[inline(always)]
