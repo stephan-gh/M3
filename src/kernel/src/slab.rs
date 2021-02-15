@@ -85,7 +85,6 @@ impl Slab {
                 res.as_ptr()
             },
 
-            #[cold]
             None => self.heap_to_area(heap_alloc(size + HEADER_SIZE)),
         };
 
@@ -110,7 +109,6 @@ impl Slab {
                 self.free = NonNull::new(area);
             },
 
-            #[cold]
             None => heap_free(area as *mut libc::c_void),
         }
     }
