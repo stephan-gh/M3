@@ -26,7 +26,7 @@ use crate::errors::Error;
 use crate::goff;
 use crate::kif;
 use crate::pes::{StateSerializer, VPE};
-use crate::rc::{Rc, Weak};
+use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::ClientSession;
 use crate::vfs::{
@@ -38,20 +38,16 @@ pub type ExtId = u16;
 
 /// Represents a session at m3fs.
 pub struct M3FS {
-    self_weak: Weak<RefCell<M3FS>>,
     sess: ClientSession,
     sgate: Rc<SendGate>,
 }
 
 impl M3FS {
     fn create(sess: ClientSession, sgate: SendGate) -> FSHandle {
-        let inst = Rc::new(RefCell::new(M3FS {
-            self_weak: Weak::new(),
+        Rc::new(RefCell::new(M3FS {
             sess,
             sgate: Rc::new(sgate),
-        }));
-        inst.borrow_mut().self_weak = Rc::downgrade(&inst);
-        inst
+        }))
     }
 
     /// Creates a new session at the m3fs server with given name.
