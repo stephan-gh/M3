@@ -6,6 +6,8 @@
                 <serv name="disk" />
                 <pes type="ide" />
             </app>
+        </dom>
+        <dom>
             <app args="m3fs -b 2 disk" daemon="1">
                 <sess name="disk" args="0" />
                 <serv name="m3fs" />
