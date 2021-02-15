@@ -28,14 +28,12 @@ class ServiceLog {
 public:
     enum Level {
         KEYB        = 1 << 0,
-        FS          = 1 << 1,
-        PAGER       = 1 << 2,
-        HASH        = 1 << 3,
-        LOADGEN     = 1 << 4,
-        NIC         = 1 << 5,
-        NET         = 1 << 6,
-        NET_ALL     = 1 << 7,
-        TIMER       = 1 << 8,
+        HASH        = 1 << 1,
+        LOADGEN     = 1 << 2,
+        NIC         = 1 << 3,
+        NET         = 1 << 4,
+        NET_ALL     = 1 << 5,
+        TIMER       = 1 << 6,
     };
 
     static const int level = 0;
