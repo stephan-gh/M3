@@ -49,6 +49,7 @@ pub struct VPE {
     pe: Rc<PE>,
     kmem: Rc<KMem>,
     next_sel: Selector,
+    #[allow(dead_code)]
     eps_start: EpId,
     epmng: EpMng,
     pager: Option<Pager>,

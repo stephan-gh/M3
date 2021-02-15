@@ -347,22 +347,22 @@ fn revoke_mem_gate() {
 
     struct Tester {
         mgate: MemGate,
-        derived: Option<MemGate>,
+        _derived: Option<MemGate>,
     }
 
     impl profile::Runner for Tester {
         fn pre(&mut self) {
-            self.derived = Some(wv_assert_ok!(self.mgate.derive(0, 0x1000, Perm::RW)));
+            self._derived = Some(wv_assert_ok!(self.mgate.derive(0, 0x1000, Perm::RW)));
         }
 
         fn run(&mut self) {
-            self.derived = None;
+            self._derived = None;
         }
     }
 
     let mut tester = Tester {
         mgate,
-        derived: None,
+        _derived: None,
     };
     wv_perf!("revoke_mem_gate", prof.runner_with_id(&mut tester, 0x19));
 }

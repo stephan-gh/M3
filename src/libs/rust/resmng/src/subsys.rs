@@ -418,7 +418,7 @@ impl Subsystem {
 }
 
 pub struct SubsystemBuilder {
-    desc: Option<MemGate>,
+    _desc: Option<MemGate>,
     cfg: (MemGate, GlobAddr, usize),
     pes: Vec<(PEId, Rc<PE>)>,
     mems: Vec<(MemGate, GlobAddr, goff, bool)>,
@@ -429,7 +429,7 @@ pub struct SubsystemBuilder {
 impl SubsystemBuilder {
     pub fn new(cfg: (MemGate, GlobAddr, usize)) -> Self {
         Self {
-            desc: None,
+            _desc: None,
             cfg,
             pes: Vec::new(),
             mems: Vec::new(),
@@ -541,7 +541,7 @@ impl SubsystemBuilder {
         self.cfg.0.deactivate();
         mem.deactivate();
 
-        self.desc = Some(mem);
+        self._desc = Some(mem);
         Ok(())
     }
 }

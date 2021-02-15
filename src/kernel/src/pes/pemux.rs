@@ -35,6 +35,7 @@ pub struct PEMux {
     queue: crate::com::SendQueue,
     pmp: Vec<Rc<EPObject>>,
     eps: BitVec,
+    #[allow(dead_code)]
     mem_base: goff,
 }
 
