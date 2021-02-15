@@ -312,7 +312,12 @@ impl MemPool {
     pub fn allocate_slice(&mut self, size: goff) -> Result<MemSlice, Error> {
         let alloc = self.allocate(size)?;
         let slice = &self.slices[alloc.slice_id];
-        Ok(MemSlice::new(slice.mem.clone(), alloc.addr, alloc.size, Perm::RWX))
+        Ok(MemSlice::new(
+            slice.mem.clone(),
+            alloc.addr,
+            alloc.size,
+            Perm::RWX,
+        ))
     }
 
     pub fn allocate(&mut self, size: goff) -> Result<Allocation, Error> {

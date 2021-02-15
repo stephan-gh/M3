@@ -163,12 +163,7 @@ pub fn testcliexit() {
         };
         let msg_ptr = &req as *const kif::syscalls::ExchangeSess as *const u8;
         let msg_size = m3::util::size_of::<kif::syscalls::ExchangeSess>();
-        wv_assert_ok!(syscalls::send_gate().send_bytes(
-            msg_ptr,
-            msg_size,
-            RecvGate::syscall(),
-            0,
-        ));
+        wv_assert_ok!(syscalls::send_gate().send_bytes(msg_ptr, msg_size, RecvGate::syscall(), 0,));
 
         // now we're ready to be killed
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));

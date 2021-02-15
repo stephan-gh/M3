@@ -96,7 +96,10 @@ pub fn init() {
 
     // map PTs
     let pages = mem_size as usize / cfg::PAGE_SIZE;
-    ASPACE.get_mut().map_pages(cfg::PE_MEM_BASE, base, pages, rw).unwrap();
+    ASPACE
+        .get_mut()
+        .map_pages(cfg::PE_MEM_BASE, base, pages, rw)
+        .unwrap();
 
     // map timer
     map_ident(0x0200_4000, 0x1000, PageFlags::RW);

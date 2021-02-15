@@ -331,7 +331,13 @@ impl RegionList {
 
     pub fn populate(&mut self, sel: Selector) {
         assert!(self.regs.is_empty());
-        let mut r = Box::new(Region::new(self.owner, self.child, self.ds_off, 0, self.size));
+        let mut r = Box::new(Region::new(
+            self.owner,
+            self.child,
+            self.ds_off,
+            0,
+            self.size,
+        ));
         r.set_mem(Rc::new(RefCell::new(PhysMem::new_bind(
             (self.owner, self.ds_off),
             sel,
@@ -385,7 +391,13 @@ impl RegionList {
         };
 
         // insert region
-        let r = Box::new(Region::new(self.owner, self.child, self.ds_off, start, end - start));
+        let r = Box::new(Region::new(
+            self.owner,
+            self.child,
+            self.ds_off,
+            start,
+            end - start,
+        ));
         let nidx = match last {
             Some(n) => n + 1,
             None => 0,

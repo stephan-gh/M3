@@ -652,6 +652,7 @@ impl Child for OwnChild {
     fn our_pe(&self) -> Option<Rc<pes::PEUsage>> {
         Some(self.our_pe.clone())
     }
+
     fn child_pe(&self) -> Option<Rc<pes::PEUsage>> {
         Some(self.child_pe.clone())
     }
@@ -743,6 +744,7 @@ impl Child for ForeignChild {
     fn our_pe(&self) -> Option<Rc<pes::PEUsage>> {
         None
     }
+
     fn child_pe(&self) -> Option<Rc<pes::PEUsage>> {
         None
     }
