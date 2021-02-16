@@ -15,7 +15,7 @@
  */
 
 use base::tcu;
-use core::intrinsics;
+use core::sync::atomic;
 
 pub struct TCUCmdState {
     cmd_regs: [tcu::Reg; 3],
@@ -40,9 +40,7 @@ impl TCUCmdState {
         tcu::TCU::write_unpriv_reg(tcu::UnprivReg::DATA, self.cmd_regs[2]);
         // always restore the command register, because the previous VPE might have an error code
         // in the command register or similar.
-        unsafe {
-            intrinsics::atomic_fence()
-        };
+        atomic::fence(atomic::Ordering::SeqCst);
         tcu::TCU::write_unpriv_reg(tcu::UnprivReg::COMMAND, self.cmd_regs[0]);
     }
 }

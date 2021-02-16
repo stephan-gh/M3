@@ -17,6 +17,7 @@
 use bitflags::bitflags;
 use cfg_if::cfg_if;
 use core::intrinsics;
+use core::sync::atomic;
 
 use crate::arch;
 use crate::cfg;
@@ -414,9 +415,7 @@ impl TCU {
         Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
         Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
         let res = Self::get_error();
-        unsafe {
-            intrinsics::atomic_fence()
-        };
+        atomic::fence(atomic::Ordering::Acquire);
         res
     }
 
@@ -505,9 +504,7 @@ impl TCU {
     #[inline(always)]
     pub fn ack_msg(ep: EpId, msg_off: usize) -> Result<(), Error> {
         // ensure that we are really done with the message before acking it
-        unsafe {
-            intrinsics::atomic_fence()
-        };
+        atomic::fence(atomic::Ordering::Release);
         Self::write_unpriv_reg(
             UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::ACK_MSG, msg_off as Reg),
@@ -596,9 +593,7 @@ impl TCU {
         // save the old value before aborting
         let cmd_reg = Self::read_unpriv_reg(UnprivReg::COMMAND);
         // ensure that we read the command register before the abort has been executed
-        unsafe {
-            intrinsics::atomic_fence()
-        };
+        atomic::fence(atomic::Ordering::SeqCst);
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::ABORT_CMD.val);
 
         loop {
@@ -675,9 +670,7 @@ impl TCU {
     /// Switches to the given VPE and returns the old VPE
     pub fn xchg_vpe(nvpe: Reg) -> Reg {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 9));
-        unsafe {
-            intrinsics::atomic_fence()
-        };
+        atomic::fence(atomic::Ordering::SeqCst);
         Self::read_priv_reg(PrivReg::PRIV_CMD_ARG)
     }
 
@@ -695,9 +688,7 @@ impl TCU {
     /// Inserts the given entry into the TCU's TLB
     pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) {
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, phys);
-        unsafe {
-            intrinsics::atomic_fence()
-        };
+        atomic::fence(atomic::Ordering::SeqCst);
         let cmd = ((asid as Reg) << 41)
             | (((virt & !cfg::PAGE_MASK) as Reg) << 9)
             | ((flags.bits() as Reg) << 9)
