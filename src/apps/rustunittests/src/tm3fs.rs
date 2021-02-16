@@ -138,7 +138,7 @@ fn rename() {
     );
     wv_assert_err!(
         VFS::rename("/example/myfile/bar", "/example/myotherfile"),
-        Code::NoSuchFile
+        Code::IsNoDir
     );
 
     // successful rename

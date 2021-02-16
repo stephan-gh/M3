@@ -42,6 +42,10 @@ fn split_path(mut path: &str) -> (&str, &str) {
 }
 
 fn find_entry(inode: &INodeRef, name: &str) -> Result<InodeNo, Error> {
+    if !inode.mode.is_dir() {
+        return Err(Error::new(Code::IsNoDir));
+    }
+
     log!(
         crate::LOG_FIND,
         "dirs::find(inode: {}, name={})",
@@ -94,9 +98,6 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
     let (filename, inode) = loop {
         // get directory inode
         let inode = inodes::get(ino)?;
-        if !inode.mode.is_dir() {
-            return Err(Error::new(Code::IsNoDir));
-        }
 
         // find directory entry
         let next_end = path.find('/').unwrap_or_else(|| path.len());
@@ -109,22 +110,25 @@ fn do_search(mut path: &str, create: bool) -> Result<InodeNo, Error> {
             end = &end[1..];
         }
 
-        if let Ok(nodeno) = next_ino {
-            // if path is now empty, finish searching
-            if end.is_empty() {
-                return Ok(nodeno);
-            }
-            // continue with this directory
-            ino = nodeno;
-        }
-        else {
-            // cannot create new file if it's not the last path component
-            if !end.is_empty() {
-                return Err(Error::new(Code::NoSuchFile));
-            }
+        match next_ino {
+            Ok(nodeno) => {
+                // if path is now empty, finish searching
+                if end.is_empty() {
+                    return Ok(nodeno);
+                }
+                // continue with this directory
+                ino = nodeno;
+            },
+            Err(e) if e.code() == Code::NoSuchFile => {
+                // cannot create new file if it's not the last path component
+                if !end.is_empty() {
+                    return Err(Error::new(Code::NoSuchFile));
+                }
 
-            // not found, maybe we want to create it
-            break (filename, inode);
+                // not found, maybe we want to create it
+                break (filename, inode);
+            },
+            Err(e) => return Err(e),
         }
 
         // to next path component
