@@ -72,6 +72,10 @@ impl PhysMem {
         &self.mgate
     }
 
+    pub fn deactivate(&mut self) {
+        self.mgate.deactivate();
+    }
+
     pub fn replace_gate(&mut self, mem: MemGate) -> MemGate {
         mem::replace(&mut self.mgate, mem)
     }

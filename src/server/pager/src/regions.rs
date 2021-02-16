@@ -152,7 +152,7 @@ impl Region {
 
                 // allocate new memory for our copy
                 let child = childs::get().child_by_id_mut(self.child).unwrap();
-                let ngate = child.alloc_local(self.size, Perm::RWX)?;
+                let mut ngate = child.alloc_local(self.size, Perm::RWX)?;
 
                 log!(
                     crate::LOG_DEF,
@@ -183,6 +183,9 @@ impl Region {
 
                 // are we the owner?
                 if self.owner == osel {
+                    // deactivate the MemGate, because we'll probably not need it again
+                    ngate.deactivate();
+
                     // give the others the new memory gate
                     let old = mem.replace_gate(ngate);
                     let owner_virt = mem.owner_mem().unwrap().1;
@@ -203,6 +206,8 @@ impl Region {
                 }
             };
 
+            // it's not that likely that we'll use this gate again, so deactivate it
+            nmem.borrow_mut().deactivate();
             self.mem = Some(nmem);
         }
 
@@ -219,8 +224,19 @@ impl Region {
         }
     }
 
+    pub fn copy_from(&self, src: &MemGate) {
+        if let Some(ref mem) = self.mem {
+            copy_block(src, mem.borrow().gate(), self.mem_off, self.size());
+            // see above
+            mem.borrow_mut().deactivate();
+        }
+    }
+
     pub fn clear(&self) {
-        self.mem.as_ref().unwrap().borrow().clear(self.size);
+        let mem = self.mem.as_ref().unwrap();
+        mem.borrow().clear(self.size);
+        // see above
+        mem.borrow_mut().deactivate();
     }
 
     pub fn map(&mut self, perm: Perm) -> Result<(), Error> {

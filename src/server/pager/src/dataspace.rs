@@ -27,7 +27,7 @@ use m3::rc::Rc;
 use m3::session::{ClientSession, MapFlags, M3FS};
 use resmng::childs;
 
-use crate::physmem::{copy_block, PhysMem};
+use crate::physmem::PhysMem;
 use crate::regions::RegionList;
 
 const MAX_ANON_PAGES: usize = 4;
@@ -206,7 +206,7 @@ impl DataSpace {
                     let mgate = child.alloc_local(reg.size(), kif::Perm::RWX)?;
                     let mem = Rc::new(RefCell::new(PhysMem::new((self.owner, self.virt), mgate)?));
                     reg.set_mem(mem.clone());
-                    copy_block(&src, mem.borrow().gate(), reg.mem_off(), reg.size());
+                    reg.copy_from(&src);
                     reg.set_mem_off(0);
                 }
                 else {
