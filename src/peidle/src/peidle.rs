@@ -34,9 +34,8 @@ use base::mem;
 use base::pexif;
 use base::tcu;
 
-const UPC_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
+const SIDE_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 
-/// Logs upcalls
 pub const LOG_INFO: bool = true;
 pub const LOG_VERBOSE: bool = false;
 pub const LOG_PEXCALLS: bool = false;
@@ -62,9 +61,9 @@ pub fn app_env() -> &'static mut envdata::EnvData {
 }
 
 fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
-    let msg_off = tcu::TCU::msg_to_offset(UPC_RBUF_ADDR, msg);
+    let msg_off = tcu::TCU::msg_to_offset(SIDE_RBUF_ADDR, msg);
     tcu::TCU::reply(
-        tcu::PEXUP_REP,
+        tcu::PEXSIDE_REP,
         reply as *const T as *const u8,
         mem::size_of::<T>(),
         msg_off,
@@ -81,7 +80,7 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<Option<(usize, usize)>, Error>
 
     log!(
         crate::LOG_INFO,
-        "upcall::vpe_ctrl(vpe={}, op={:?}, eps_start={})",
+        "sidecall::vpe_ctrl(vpe={}, op={:?}, eps_start={})",
         vpe_id,
         op,
         eps_start
@@ -108,19 +107,19 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<Option<(usize, usize)>, Error>
     }
 }
 
-fn handle_upcall(msg: &'static tcu::Message) -> Option<(usize, usize)> {
+fn handle_sidecall(msg: &'static tcu::Message) -> Option<(usize, usize)> {
     let req = msg.get_data::<kif::DefaultRequest>();
-    let opcode = kif::pemux::Upcalls::from(req.opcode);
+    let opcode = kif::pemux::Sidecalls::from(req.opcode);
 
     log!(
         crate::LOG_VERBOSE,
-        "received upcall {:?}: {:?}",
+        "received sidecall {:?}: {:?}",
         opcode,
         msg
     );
 
     let res = match opcode {
-        kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg),
+        kif::pemux::Sidecalls::VPE_CTRL => vpe_ctrl(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 
@@ -244,9 +243,9 @@ fn wait_for_app() {
             tcu::TCU::sleep().ok();
         }
 
-        if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::PEXUP_REP) {
-            let msg = tcu::TCU::offset_to_msg(UPC_RBUF_ADDR, msg_off);
-            if let Some(res) = handle_upcall(msg) {
+        if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::PEXSIDE_REP) {
+            let msg = tcu::TCU::offset_to_msg(SIDE_RBUF_ADDR, msg_off);
+            if let Some(res) = handle_sidecall(msg) {
                 break res;
             }
         }
@@ -276,7 +275,7 @@ pub extern "C" fn env_run() {
     // wait until the kernel configured the EP (only necessary on HW where we can't sleep below)
     if envdata::get().platform == envdata::Platform::HW.val {
         loop {
-            if tcu::TCU::is_valid(tcu::PEXUP_REP)
+            if tcu::TCU::is_valid(tcu::PEXSIDE_REP)
                 && tcu::TCU::is_valid(tcu::KPEX_SEP)
                 && tcu::TCU::is_valid(tcu::KPEX_REP)
             {

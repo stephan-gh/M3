@@ -63,10 +63,10 @@ pub const PMEM_PROT_EPS: usize = 4;
 pub const KPEX_SEP: EpId = PMEM_PROT_EPS as EpId + 0;
 /// The receive EP for kernel calls from PEMux
 pub const KPEX_REP: EpId = PMEM_PROT_EPS as EpId + 1;
-/// The receive EP for upcalls from the kernel for PEMux
-pub const PEXUP_REP: EpId = PMEM_PROT_EPS as EpId + 2;
-/// The reply EP for upcalls from the kernel for PEMux
-pub const PEXUP_RPLEP: EpId = PMEM_PROT_EPS as EpId + 3;
+/// The receive EP for sidecalls from the kernel for PEMux
+pub const PEXSIDE_REP: EpId = PMEM_PROT_EPS as EpId + 2;
+/// The reply EP for sidecalls from the kernel for PEMux
+pub const PEXSIDE_RPLEP: EpId = PMEM_PROT_EPS as EpId + 3;
 
 /// The send EP offset for system calls
 pub const SYSC_SEP_OFF: EpId = 0;

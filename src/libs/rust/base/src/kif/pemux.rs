@@ -22,8 +22,8 @@ pub const VPE_ID: u64 = 0xFFFF;
 pub const IDLE_ID: u64 = 0xFFFE;
 
 int_enum! {
-    /// The upcalls from the kernel to PEMux
-    pub struct Upcalls : u64 {
+    /// The sidecalls from the kernel to PEMux
+    pub struct Sidecalls : u64 {
         const VPE_CTRL       = 0x0;
         const MAP            = 0x1;
         const TRANSLATE      = 0x2;
@@ -33,7 +33,7 @@ int_enum! {
 }
 
 int_enum! {
-    /// The operations for the `vpe_ctrl` upcall
+    /// The operations for the `vpe_ctrl` sidecall
     pub struct VPEOp : u64 {
         const INIT  = 0x0;
         const START = 0x1;
@@ -41,7 +41,7 @@ int_enum! {
     }
 }
 
-/// The VPE control upcall
+/// The VPE control sidecall
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct VPECtrl {
@@ -51,7 +51,7 @@ pub struct VPECtrl {
     pub eps_start: u64,
 }
 
-/// The map upcall
+/// The map sidecall
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Map {
@@ -63,7 +63,7 @@ pub struct Map {
     pub perm: u64,
 }
 
-/// The translate upcall
+/// The translate sidecall
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct Translate {
@@ -73,7 +73,7 @@ pub struct Translate {
     pub perm: u64,
 }
 
-/// The remove messages upcall
+/// The remove messages sidecall
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct RemMsgs {
@@ -82,7 +82,7 @@ pub struct RemMsgs {
     pub unread_mask: u64,
 }
 
-/// The EP invalidation upcall
+/// The EP invalidation sidecall
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct EpInval {
@@ -91,7 +91,7 @@ pub struct EpInval {
     pub ep: u64,
 }
 
-/// The upcall response
+/// The sidecall response
 #[repr(C)]
 pub struct Response {
     pub error: u64,

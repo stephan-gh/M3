@@ -24,12 +24,12 @@ use base::tcu;
 use crate::helper;
 use crate::vpe;
 
-const UPC_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
+const SIDE_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 
 fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
-    let msg_off = tcu::TCU::msg_to_offset(UPC_RBUF_ADDR, msg);
+    let msg_off = tcu::TCU::msg_to_offset(SIDE_RBUF_ADDR, msg);
     tcu::TCU::reply(
-        tcu::PEXUP_REP,
+        tcu::PEXSIDE_REP,
         reply as *const T as *const u8,
         size_of::<T>(),
         msg_off,
@@ -45,8 +45,8 @@ fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
     let eps_start = req.eps_start as tcu::EpId;
 
     log!(
-        crate::LOG_UPCALLS,
-        "upcall::vpe_ctrl(vpe={}, op={:?}, eps_start={})",
+        crate::LOG_SIDECALLS,
+        "sidecall::vpe_ctrl(vpe={}, op={:?}, eps_start={})",
         vpe_id,
         op,
         eps_start
@@ -94,8 +94,8 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
     }
 
     log!(
-        crate::LOG_UPCALLS,
-        "upcall::map(vpe={}, virt={:#x}, global={:?}, pages={}, perm={:?})",
+        crate::LOG_SIDECALLS,
+        "sidecall::map(vpe={}, virt={:#x}, global={:?}, pages={}, perm={:?})",
         vpe_id,
         virt,
         global,
@@ -119,8 +119,8 @@ fn translate(msg: &'static tcu::Message) -> Result<kif::PTE, Error> {
     let perm = kif::PageFlags::from_bits_truncate(req.perm as u64);
 
     log!(
-        crate::LOG_UPCALLS,
-        "upcall::translate(vpe={}, virt={:#x}, perm={:?})",
+        crate::LOG_SIDECALLS,
+        "sidecall::translate(vpe={}, virt={:#x}, perm={:?})",
         vpe_id,
         virt,
         perm
@@ -144,8 +144,8 @@ fn rem_msgs(msg: &'static tcu::Message) -> Result<(), Error> {
     let unread = req.unread_mask as u32;
 
     log!(
-        crate::LOG_UPCALLS,
-        "upcall::rem_msgs(vpe={}, unread={})",
+        crate::LOG_SIDECALLS,
+        "sidecall::rem_msgs(vpe={}, unread={})",
         vpe_id,
         unread
     );
@@ -166,8 +166,8 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     let ep = req.ep as tcu::EpId;
 
     log!(
-        crate::LOG_UPCALLS,
-        "upcall::ep_inval(vpe={}, ep={})",
+        crate::LOG_SIDECALLS,
+        "sidecall::ep_inval(vpe={}, ep={})",
         vpe_id,
         ep
     );
@@ -180,18 +180,18 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn handle_upcall(msg: &'static tcu::Message) {
+fn handle_sidecall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
-    let reply = &mut crate::msgs_mut().upcall_reply;
+    let reply = &mut crate::msgs_mut().sidecall_reply;
     reply.val = 0;
 
-    let res = match kif::pemux::Upcalls::from(req.opcode) {
-        kif::pemux::Upcalls::VPE_CTRL => vpe_ctrl(msg),
-        kif::pemux::Upcalls::MAP => map(msg),
-        kif::pemux::Upcalls::TRANSLATE => translate(msg).map(|pte| reply.val = pte),
-        kif::pemux::Upcalls::REM_MSGS => rem_msgs(msg),
-        kif::pemux::Upcalls::EP_INVAL => ep_inval(msg),
+    let res = match kif::pemux::Sidecalls::from(req.opcode) {
+        kif::pemux::Sidecalls::VPE_CTRL => vpe_ctrl(msg),
+        kif::pemux::Sidecalls::MAP => map(msg),
+        kif::pemux::Sidecalls::TRANSLATE => translate(msg).map(|pte| reply.val = pte),
+        kif::pemux::Sidecalls::REM_MSGS => rem_msgs(msg),
+        kif::pemux::Sidecalls::EP_INVAL => ep_inval(msg),
         _ => Err(Error::new(Code::NotSup)),
     };
 
@@ -203,7 +203,7 @@ fn handle_upcall(msg: &'static tcu::Message) {
 }
 
 #[inline(never)]
-fn handle_upcalls(our: &mut vpe::VPE) {
+fn handle_sidecalls(our: &mut vpe::VPE) {
     let _cmd_saved = helper::TCUGuard::new();
 
     loop {
@@ -213,9 +213,9 @@ fn handle_upcalls(our: &mut vpe::VPE) {
             old.set_vpe_reg(old_vpe);
         }
 
-        if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::PEXUP_REP) {
-            let msg = tcu::TCU::offset_to_msg(UPC_RBUF_ADDR, msg_off);
-            handle_upcall(msg);
+        if let Some(msg_off) = tcu::TCU::fetch_msg(tcu::PEXSIDE_REP) {
+            let msg = tcu::TCU::offset_to_msg(SIDE_RBUF_ADDR, msg_off);
+            handle_sidecall(msg);
         }
 
         // just ACK replies from the kernel; we don't care about them
@@ -240,5 +240,5 @@ pub fn check() {
         return;
     }
 
-    handle_upcalls(our);
+    handle_sidecalls(our);
 }

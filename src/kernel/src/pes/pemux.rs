@@ -121,14 +121,14 @@ impl PEMux {
         rbuf += 1 << cfg::KPEX_RBUF_ORD;
 
         // configure upcall EP
-        ktcu::config_remote_ep(self.pe_id(), tcu::PEXUP_REP, |regs| {
+        ktcu::config_remote_ep(self.pe_id(), tcu::PEXSIDE_REP, |regs| {
             ktcu::config_recv(
                 regs,
                 kif::pemux::VPE_ID as VPEId,
                 rbuf,
                 cfg::PEXUP_RBUF_ORD,
                 cfg::PEXUP_RBUF_ORD,
-                Some(tcu::PEXUP_RPLEP),
+                Some(tcu::PEXSIDE_RPLEP),
             );
         })
         .unwrap();
@@ -308,11 +308,11 @@ impl PEMux {
         let unread = ktcu::invalidate_ep_remote(self.pe_id(), ep, force)?;
         if unread != 0 && notify {
             let req = kif::pemux::RemMsgs {
-                op: kif::pemux::Upcalls::REM_MSGS.val as u64,
+                op: kif::pemux::Sidecalls::REM_MSGS.val as u64,
                 vpe_sel: vpe as u64,
                 unread_mask: unread as u64,
             };
-            self.send_upcall(Some(vpe), &req).map(|_| ())
+            self.send_sidecall(Some(vpe), &req).map(|_| ())
         }
         else {
             Ok(())
@@ -365,12 +365,12 @@ impl PEMux {
         ctrl: base::kif::pemux::VPEOp,
     ) -> Result<(), Error> {
         let req = kif::pemux::VPECtrl {
-            op: kif::pemux::Upcalls::VPE_CTRL.val as u64,
+            op: kif::pemux::Sidecalls::VPE_CTRL.val as u64,
             vpe_sel: vpe as u64,
             vpe_op: ctrl.val as u64,
             eps_start: eps_start as u64,
         };
-        self.send_receive_upcall_async(None, &req).map(|_| ())
+        self.send_receive_sidecall_async(None, &req).map(|_| ())
     }
 
     pub fn map_async(
@@ -382,14 +382,14 @@ impl PEMux {
         perm: kif::PageFlags,
     ) -> Result<(), Error> {
         let req = kif::pemux::Map {
-            op: kif::pemux::Upcalls::MAP.val as u64,
+            op: kif::pemux::Sidecalls::MAP.val as u64,
             vpe_sel: vpe as u64,
             virt: virt as u64,
             global: glob.raw(),
             pages: pages as u64,
             perm: perm.bits() as u64,
         };
-        self.send_receive_upcall_async(Some(vpe), &req).map(|_| ())
+        self.send_receive_sidecall_async(Some(vpe), &req).map(|_| ())
     }
 
     pub fn unmap_async(&mut self, vpe: VPEId, virt: goff, pages: usize) -> Result<(), Error> {
@@ -405,25 +405,25 @@ impl PEMux {
         use base::cfg::PAGE_MASK;
 
         let req = kif::pemux::Translate {
-            op: kif::pemux::Upcalls::TRANSLATE.val as u64,
+            op: kif::pemux::Sidecalls::TRANSLATE.val as u64,
             vpe_sel: vpe as u64,
             virt: virt as u64,
             perm: perm.bits() as u64,
         };
-        self.send_receive_upcall_async(Some(vpe), &req)
+        self.send_receive_sidecall_async(Some(vpe), &req)
             .map(|reply| GlobAddr::new(reply.val & !(PAGE_MASK as goff)))
     }
 
     pub fn notify_invalidate(&mut self, vpe: VPEId, ep: EpId) -> Result<(), Error> {
         let req = kif::pemux::EpInval {
-            op: kif::pemux::Upcalls::EP_INVAL.val as u64,
+            op: kif::pemux::Sidecalls::EP_INVAL.val as u64,
             vpe_sel: vpe as u64,
             ep: ep as u64,
         };
-        self.send_upcall(Some(vpe), &req).map(|_| ())
+        self.send_sidecall(Some(vpe), &req).map(|_| ())
     }
 
-    fn send_upcall<R: core::fmt::Debug>(
+    fn send_sidecall<R: core::fmt::Debug>(
         &mut self,
         vpe: Option<VPEId>,
         req: &R,
@@ -445,17 +445,17 @@ impl PEMux {
         klog!(PEXC, "PEMux[{}] sending {:?}", self.pe_id(), req);
 
         self.queue
-            .send(tcu::PEXUP_REP, 0, util::object_to_bytes(req))
+            .send(tcu::PEXSIDE_REP, 0, util::object_to_bytes(req))
     }
 
-    fn send_receive_upcall_async<R: core::fmt::Debug>(
+    fn send_receive_sidecall_async<R: core::fmt::Debug>(
         &mut self,
         vpe: Option<VPEId>,
         req: &R,
     ) -> Result<&'static kif::pemux::Response, Error> {
         use crate::com::SendQueue;
 
-        let event = self.send_upcall(vpe, req)?;
+        let event = self.send_sidecall(vpe, req)?;
         let reply = SendQueue::receive_async(event)?;
 
         let reply = reply.get_data::<kif::pemux::Response>();
@@ -502,7 +502,7 @@ impl PEMux {
         Ok(())
     }
 
-    fn send_upcall<R>(&mut self, _vpe: Option<VPEId>, _req: &R) -> Result<(), Error> {
+    fn send_sidecall<R>(&mut self, _vpe: Option<VPEId>, _req: &R) -> Result<(), Error> {
         Err(Error::new(Code::NotSup))
     }
 }

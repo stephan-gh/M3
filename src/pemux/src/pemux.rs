@@ -25,8 +25,8 @@ mod arch;
 mod corereq;
 mod helper;
 mod pexcalls;
+mod sidecalls;
 mod timer;
-mod upcalls;
 mod vma;
 mod vpe;
 
@@ -49,8 +49,8 @@ pub const LOG_ERR: bool = true;
 pub const LOG_CALLS: bool = false;
 /// Logs VPE operations
 pub const LOG_VPES: bool = false;
-/// Logs upcalls
-pub const LOG_UPCALLS: bool = false;
+/// Logs sidecalls
+pub const LOG_SIDECALLS: bool = false;
 /// Logs foreign messages
 pub const LOG_FOREIGN_MSG: bool = false;
 /// Logs core requests
@@ -99,7 +99,7 @@ pub struct PagefaultMessage {
 pub struct Messages {
     pub pagefault: PagefaultMessage,
     pub exit_notify: kif::pemux::Exit,
-    pub upcall_reply: kif::pemux::Response,
+    pub sidecall_reply: kif::pemux::Response,
 }
 
 static MSGS: StaticCell<Messages> = StaticCell::new(Messages {
@@ -113,7 +113,7 @@ static MSGS: StaticCell<Messages> = StaticCell::new(Messages {
         op: 0,
         vpe_sel: 0,
     },
-    upcall_reply: kif::pemux::Response { error: 0, val: 0 },
+    sidecall_reply: kif::pemux::Response { error: 0, val: 0 },
 });
 
 pub fn msgs_mut() -> &'static mut Messages {
@@ -135,7 +135,7 @@ static SCHED: StaticCell<Option<vpe::ScheduleAction>> = StaticCell::new(None);
 
 #[inline]
 fn leave(state: &mut arch::State) -> *mut libc::c_void {
-    upcalls::check();
+    sidecalls::check();
 
     if let Some(action) = SCHED.set(None) {
         vpe::schedule(action) as *mut libc::c_void
