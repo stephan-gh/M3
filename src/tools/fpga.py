@@ -110,6 +110,14 @@ def load_prog(pm, i, args, vm):
     print_ep.set_flags(Flags.WRITE)
     print_ep.set_size(256)
     pm.tcu_set_ep(63, print_ep)
+    # install first PMP EP
+    pmp_ep = MemEP()
+    pmp_ep.set_pe(pm.nocid[1])
+    pmp_ep.set_vpe(0xFFFF)
+    pmp_ep.set_flags(Flags.READ | Flags.WRITE)
+    pmp_ep.set_addr(0)
+    pmp_ep.set_size(0x200000)
+    pm.tcu_set_ep(0, pmp_ep)
 
     # load ELF file
     pm.mem.write_elf(args[0])

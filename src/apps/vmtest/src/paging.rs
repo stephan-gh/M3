@@ -67,8 +67,8 @@ pub fn init() {
     let (mem_pe, mem_base, mem_size, _) = tcu::TCU::unpack_mem_ep(0).unwrap();
 
     let base = GlobAddr::new_with(mem_pe, mem_base);
-    let root = base + mem_size / 2;
-    let pts_phys = cfg::MEM_OFFSET as goff + mem_size / 2;
+    let root = base + mem_size / 2 + mem_size / 4;
+    let pts_phys = cfg::MEM_OFFSET as goff + mem_size / 2 + mem_size / 4;
     PT_POS.set(pts_phys + cfg::PAGE_SIZE as goff);
     let aspace = AddrSpace::new(0, root, PTAllocator {});
     aspace.init();
