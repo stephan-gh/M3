@@ -17,15 +17,11 @@
 #![feature(llvm_asm)]
 #![no_std]
 
-extern crate heap;
-
 mod paging;
 mod pes;
 
-use base::boxed::Box;
 use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
-use base::col::Vec;
 use base::envdata;
 use base::io;
 use base::kif::{PageFlags, Perm};
@@ -33,9 +29,8 @@ use base::libc;
 use base::log;
 use base::machine;
 use base::math::next_log2;
-use base::mem;
 use base::tcu::{self, EpId, Message, Reg, EP_REGS, TCU};
-use base::vec;
+use base::util;
 use base::{read_csr, write_csr};
 
 use pes::PE;
@@ -46,10 +41,6 @@ static LOG_TCU_IRQ: bool = false;
 static OWN_VPE: u16 = 0xFFFF;
 static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
 static XLATES: StaticCell<u64> = StaticCell::new(0);
-
-extern "C" {
-    fn heap_init(begin: usize, end: usize);
-}
 
 #[no_mangle]
 pub extern "C" fn abort() {
@@ -134,33 +125,103 @@ where
     TCU::set_ep_regs(ep, &regs);
 }
 
-fn test_mem(size_in: usize) {
-    log!(crate::LOG_DEF, "READ+WRITE with {} 8B words", size_in);
+fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
+    log!(
+        crate::LOG_DEF,
+        "WRITE to {:#x} and READ back into {:#x} with {} bytes",
+        wr_addr,
+        rd_addr,
+        size
+    );
 
-    let _dummy = vec![0u8; size_in * cfg::PAGE_SIZE];
+    TCU::invalidate_tlb();
 
-    let mut buffer = vec![0u64; size_in];
+    let wr_slice = unsafe { util::slice_for_mut(wr_addr as *mut u8, size) };
+    let rd_slice = unsafe { util::slice_for_mut(rd_addr as *mut u8, size) };
 
     // prepare test data
-    let mut data = Vec::with_capacity(size_in);
-    for i in 0..size_in {
-        data.push(i as u64);
+    for i in 0..size {
+        wr_slice[i] = i as u8;
+        rd_slice[i] = 0;
     }
 
     // configure mem EP
-    let data_size = data.len() * mem::size_of::<u64>();
     config_local_ep(1, |regs| {
-        TCU::config_mem(regs, OWN_VPE, PE::MEM.id(), 0x1000, data_size, Perm::RW);
+        TCU::config_mem(regs, OWN_VPE, PE::MEM.id(), 0x1000, size, Perm::RW);
     });
 
     // test write + read
-    TCU::write(1, data.as_ptr() as *const u8, data_size, 0).unwrap();
-    TCU::read(1, buffer.as_mut_ptr() as *mut u8, data_size, 0).unwrap();
+    TCU::write(1, wr_slice.as_ptr(), size, 0).unwrap();
+    TCU::read(1, rd_slice.as_mut_ptr(), size, 0).unwrap();
 
-    assert_eq!(buffer, data);
+    assert_eq!(rd_slice, wr_slice);
 }
 
-fn test_msgs(size_in: usize) {
+fn test_mem(area_begin: usize, area_size: usize) {
+    *XLATES.get_mut() = 0;
+    let mut count = 0;
+
+    let rd_area = area_begin;
+    let wr_area = area_begin + area_size / 2;
+
+    // same page
+    {
+        read_write(wr_area, wr_area + 16, 16);
+        count += 1;
+        assert_eq!(*XLATES, count);
+    }
+
+    // different pages, one page each
+    {
+        read_write(wr_area, rd_area, 16);
+        count += 2;
+        assert_eq!(*XLATES, count);
+    }
+
+    // write w/ page boundary, read w/o page boundary
+    {
+        read_write(wr_area + cfg::PAGE_SIZE - 8, rd_area, 16);
+        count += 3;
+        assert_eq!(*XLATES, count);
+    }
+
+    // write w/o page boundary, read w/ page boundary
+    {
+        read_write(wr_area, rd_area + cfg::PAGE_SIZE - 8, 16);
+        count += 3;
+        assert_eq!(*XLATES, count);
+    }
+
+    // write w/ page boundary, read w/ page boundary
+    {
+        read_write(
+            wr_area + cfg::PAGE_SIZE - 8,
+            rd_area + cfg::PAGE_SIZE - 8,
+            16,
+        );
+        count += 4;
+        assert_eq!(*XLATES, count);
+    }
+
+    // multiple pages
+    {
+        read_write(wr_area, rd_area, cfg::PAGE_SIZE * 4);
+        count += 8;
+        assert_eq!(*XLATES, count);
+    }
+
+    // unaligned
+    {
+        read_write(wr_area + cfg::PAGE_SIZE - 1, rd_area, 3);
+        count += 3;
+        assert_eq!(*XLATES, count);
+    }
+}
+
+static RBUF1: [u64; 8] = [0; 8];
+static RBUF2: [u64; 8] = [0; 8];
+
+fn send_recv(send_addr: usize, size: usize) {
     let virt_to_phys = |virt: usize| -> (usize, ::paging::Phys) {
         let rbuf_pte = paging::translate(virt, PageFlags::R);
         (
@@ -173,15 +234,18 @@ fn test_msgs(size_in: usize) {
         tcu::TCU::fetch_msg(ep).map(|off| tcu::TCU::offset_to_msg(rbuf, off))
     };
 
-    log!(crate::LOG_DEF, "SEND+REPLY with {} 8B words", size_in);
+    log!(
+        crate::LOG_DEF,
+        "SEND+REPLY from {:#x} with {} bytes",
+        send_addr,
+        size
+    );
 
-    let _dummy = vec![0u8; size_in * cfg::PAGE_SIZE];
+    TCU::invalidate_tlb();
 
     // create receive buffers
-    let rbuf1 = vec![0u8; 64];
-    let (rbuf1_virt, rbuf1_phys) = virt_to_phys(rbuf1.as_ptr() as usize);
-    let rbuf2 = vec![0u8; 64];
-    let (rbuf2_virt, rbuf2_phys) = virt_to_phys(rbuf2.as_ptr() as usize);
+    let (rbuf1_virt, rbuf1_phys) = virt_to_phys(RBUF1.as_ptr() as usize);
+    let (rbuf2_virt, rbuf2_phys) = virt_to_phys(RBUF2.as_ptr() as usize);
 
     // create EPs
     config_local_ep(1, |regs| {
@@ -208,48 +272,79 @@ fn test_msgs(size_in: usize) {
         TCU::config_send(regs, OWN_VPE, 0x1234, PE::PE0.id(), 1, next_log2(64), 1);
     });
 
-    let msg = Box::new(0x5678u64);
-    let reply = Box::new(0x9ABCu64);
+    let msg_slice = unsafe { util::slice_for_mut(send_addr as *mut u8, size) };
+
+    // prepare test data
+    for i in 0..size {
+        msg_slice[i] = i as u8;
+    }
 
     // send message
-    TCU::send(
-        4,
-        &*msg as *const _ as *const u8,
-        mem::size_of::<u64>(),
-        0x1111,
-        3,
-    )
-    .unwrap();
+    TCU::send(4, msg_slice.as_ptr(), msg_slice.len(), 0x1111, 3).unwrap();
 
-    // fetch message
-    let rmsg = loop {
-        if let Some(m) = fetch_msg(1, rbuf1_virt) {
-            break m;
-        }
-    };
-    assert_eq!({ rmsg.header.label }, 0x1234);
-    assert_eq!(*rmsg.get_data::<u64>(), *msg);
+    {
+        // fetch message
+        let rmsg = loop {
+            if let Some(m) = fetch_msg(1, rbuf1_virt) {
+                break m;
+            }
+        };
+        assert_eq!({ rmsg.header.label }, 0x1234);
+        let recv_slice =
+            unsafe { util::slice_for(rmsg.data.as_ptr(), rmsg.header.length as usize) };
+        assert_eq!(msg_slice, recv_slice);
 
-    // send reply
-    TCU::reply(
-        1,
-        &*reply as *const _ as *const u8,
-        mem::size_of::<u64>(),
-        tcu::TCU::msg_to_offset(rbuf1_virt, rmsg),
-    )
-    .unwrap();
+        // send reply
+        TCU::reply(
+            1,
+            msg_slice.as_ptr(),
+            msg_slice.len(),
+            tcu::TCU::msg_to_offset(rbuf1_virt, rmsg),
+        )
+        .unwrap();
+    }
 
-    // fetch reply
-    let rmsg = loop {
-        if let Some(m) = fetch_msg(3, rbuf2_virt) {
-            break m;
-        }
-    };
-    assert_eq!({ rmsg.header.label }, 0x1111);
-    assert_eq!(*rmsg.get_data::<u64>(), *reply);
+    {
+        // fetch reply
+        let rmsg = loop {
+            if let Some(m) = fetch_msg(3, rbuf2_virt) {
+                break m;
+            }
+        };
+        assert_eq!({ rmsg.header.label }, 0x1111);
+        let recv_slice =
+            unsafe { util::slice_for(rmsg.data.as_ptr(), rmsg.header.length as usize) };
+        assert_eq!(msg_slice, recv_slice);
 
-    // ack reply
-    tcu::TCU::ack_msg(3, tcu::TCU::msg_to_offset(rbuf2_virt, rmsg)).unwrap();
+        // ack reply
+        tcu::TCU::ack_msg(3, tcu::TCU::msg_to_offset(rbuf2_virt, rmsg)).unwrap();
+    }
+}
+
+fn test_msgs(area_begin: usize, _area_size: usize) {
+    *XLATES.get_mut() = 0;
+    let mut count = 0;
+
+    // same page
+    {
+        send_recv(area_begin, 16);
+        count += 1;
+        assert_eq!(*XLATES, count);
+    }
+
+    // w/ page boundary
+    {
+        send_recv(area_begin + cfg::PAGE_SIZE - 8, 16);
+        count += 2;
+        assert_eq!(*XLATES, count);
+    }
+
+    // unaligned
+    {
+        send_recv(area_begin + cfg::PAGE_SIZE - 1, 3);
+        count += 2;
+        assert_eq!(*XLATES, count);
+    }
 }
 
 #[no_mangle]
@@ -276,14 +371,6 @@ pub extern "C" fn env_run() {
     log!(crate::LOG_DEF, "Triggering software IRQ...");
     write_csr!("sip", 0x2);
 
-    log!(crate::LOG_DEF, "Mapping and initializing heap...");
-    let heap_begin = 0xC000_0000;
-    let heap_size = 0x40000;
-    paging::map_anon(heap_begin, heap_size, PageFlags::RW).expect("Unable to map heap");
-    unsafe {
-        heap_init(heap_begin, heap_begin + heap_size);
-    }
-
     let virt = cfg::ENV_START;
     let pte = paging::translate(virt, PageFlags::R);
     log!(
@@ -293,21 +380,13 @@ pub extern "C" fn env_run() {
         pte
     );
 
-    let mut count = 0;
-    for i in 1..=4 {
-        TCU::invalidate_tlb();
-        test_mem(i * 8);
-        count += 1;
-        assert_eq!(*XLATES, count);
-    }
+    log!(crate::LOG_DEF, "Mapping memory area...");
+    let area_begin = 0xC100_0000;
+    let area_size = cfg::PAGE_SIZE * 8;
+    paging::map_anon(area_begin, area_size, PageFlags::RW).expect("Unable to map memory");
 
-    for i in 1..=4 {
-        TCU::invalidate_tlb();
-        test_msgs(i * 8);
-        count += 1;
-        assert_eq!(*XLATES, count);
-    }
-
+    test_mem(area_begin, area_size);
+    test_msgs(area_begin, area_size);
 
     log!(crate::LOG_DEF, "Shutting down");
     exit(0);
