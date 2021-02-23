@@ -259,7 +259,6 @@ pub struct CoreXlateReq {
     pub asid: u16,
     pub virt: usize,
     pub perm: PageFlags,
-    pub can_pf: bool,
 }
 
 impl CoreXlateReq {
@@ -268,8 +267,7 @@ impl CoreXlateReq {
         Self {
             asid: (req >> 48) as u16,
             virt: ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize,
-            perm: PageFlags::from_bits_truncate((req >> 3) & PageFlags::RW.bits()),
-            can_pf: ((req >> 2) & 0x1) != 0,
+            perm: PageFlags::from_bits_truncate((req >> 2) & PageFlags::RW.bits()),
         }
     }
 }

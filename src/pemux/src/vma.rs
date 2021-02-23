@@ -111,7 +111,7 @@ pub fn handle_xlate(req: tcu::CoreXlateReq) {
         let pte = vpe.translate(req.virt, req.perm);
         // page fault?
         if (!(pte & PageFlags::RW.bits()) & req.perm.bits()) != 0 {
-            if req.can_pf && send_pf(vpe, req.virt, req.perm).is_ok() {
+            if send_pf(vpe, req.virt, req.perm).is_ok() {
                 return;
             }
         }
