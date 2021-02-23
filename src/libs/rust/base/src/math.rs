@@ -50,8 +50,8 @@ const fn _next_log2(size: usize, shift: u32) -> u32 {
 /// # Examples
 ///
 /// ```
-/// assert_eq!(util::next_log2(4), 4);
-/// assert_eq!(util::next_log2(5), 8);
+/// assert_eq!(util::next_log2(4), 2);
+/// assert_eq!(util::next_log2(5), 3);
 /// ```
 pub const fn next_log2(size: usize) -> u32 {
     _next_log2(size, (mem::size_of::<usize>() * 8 - 2) as u32)
