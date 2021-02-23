@@ -55,7 +55,8 @@ public:
     }
 
     static m3::Errors::Code ack_msg(epid_t ep, uintptr_t base, const m3::TCU::Message *msg) {
-        reg_t off = reinterpret_cast<reg_t>(msg) - base;
+        uintptr_t msg_addr = reinterpret_cast<uintptr_t>(msg);
+        reg_t off = static_cast<reg_t>(msg_addr) - base;
         return m3::TCU::get().ack_msg(ep, off);
     }
 
@@ -64,7 +65,8 @@ public:
     }
 
     static m3::Errors::Code reply(epid_t ep, const void *reply, size_t size, uintptr_t base, const m3::TCU::Message *msg) {
-        reg_t off = reinterpret_cast<reg_t>(msg) - base;
+        uintptr_t msg_addr = reinterpret_cast<uintptr_t>(msg);
+        reg_t off = static_cast<reg_t>(msg_addr) - base;
         return m3::TCU::get().reply(ep, reply, size, off);
     }
 

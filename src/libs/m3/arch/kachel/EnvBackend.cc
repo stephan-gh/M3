@@ -53,7 +53,8 @@ public:
 EXTERN_C void init_env(Env *e) {
     m3::Heap::init();
     std::set_terminate(Exception::terminate_handler);
-    e->backend_addr = reinterpret_cast<uint64_t>(new EnvUserBackend());
+    uintptr_t backend_addr = reinterpret_cast<uintptr_t>(new EnvUserBackend());
+    e->backend_addr = static_cast<uint64_t>(backend_addr);
 }
 
 }

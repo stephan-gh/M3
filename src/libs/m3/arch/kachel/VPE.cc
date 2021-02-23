@@ -91,7 +91,8 @@ void VPE::run(void *lambda) {
     senv.fds_addr = 0;
     senv.fds_len = 0;
 
-    senv.vpe_addr = reinterpret_cast<uint64_t>(this);
+    uintptr_t vpe_addr = reinterpret_cast<uintptr_t>(this);
+    senv.vpe_addr = static_cast<uint64_t>(vpe_addr);
     senv.backend_addr = env()->backend_addr;
 
     MemGate env_mem = get_mem(ENV_START, ENV_SIZE, MemGate::W);
