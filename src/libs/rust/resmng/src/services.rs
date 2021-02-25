@@ -21,10 +21,10 @@ use m3::com::SendGate;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::log;
+use m3::mem::MsgBuf;
 use m3::pes::VPE;
 use m3::syscalls;
 use m3::tcu::Label;
-use m3::util;
 
 use core::cmp::Reverse;
 
@@ -116,10 +116,11 @@ impl Service {
             self.name
         );
 
-        let smsg = kif::service::Shutdown {
+        let mut smsg_buf = MsgBuf::new();
+        smsg_buf.set(kif::service::Shutdown {
             opcode: kif::service::Operation::SHUTDOWN.val as u64,
-        };
-        let event = self.queue.send(util::object_to_bytes(&smsg));
+        });
+        let event = self.queue.send(&smsg_buf);
 
         if let Ok(ev) = event {
             thread::ThreadManager::get().wait_for(ev);
@@ -135,8 +136,9 @@ pub struct Session {
 
 impl Session {
     pub fn new_async(sel: Selector, serv: &mut Service, arg: &str) -> Result<Self, Error> {
-        let smsg = kif::service::Open::new(arg);
-        let event = serv.queue.send(util::object_to_bytes(&smsg));
+        let mut smsg_buf = MsgBuf::new();
+        smsg_buf.set(kif::service::Open::new(arg));
+        let event = serv.queue.send(&smsg_buf);
 
         event.and_then(|event| {
             thread::ThreadManager::get().wait_for(event);
@@ -170,11 +172,12 @@ impl Session {
     pub fn close_async(&self) -> Result<(), Error> {
         let serv = get().get_by_id(self.serv)?;
 
-        let smsg = kif::service::Close {
+        let mut smsg_buf = MsgBuf::new();
+        smsg_buf.set(kif::service::Close {
             opcode: kif::service::Operation::CLOSE.val as u64,
             sess: self.ident as u64,
-        };
-        let event = serv.queue.send(util::object_to_bytes(&smsg));
+        });
+        let event = serv.queue.send(&smsg_buf);
 
         event.map(|ev| thread::ThreadManager::get().wait_for(ev))
     }

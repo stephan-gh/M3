@@ -19,7 +19,7 @@ use base::col::ToString;
 use base::errors::Code;
 use base::goff;
 use base::kif::{syscalls, CapRngDesc, CapSel, CapType, PageFlags, Perm, INVALID_SEL};
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, MsgBuf};
 use base::rc::Rc;
 use base::tcu;
 
@@ -84,11 +84,8 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
             sysc_err!(Code::InvArgs, "Invalid length");
         }
 
-        let off = crate::ktcu::glob_to_phys_remote(
-            tgt_vpe.pe_id(),
-            map_obj.global(),
-            map_obj.flags(),
-        )?;
+        let off =
+            crate::ktcu::glob_to_phys_remote(tgt_vpe.pe_id(), map_obj.global(), map_obj.flags())?;
         GlobAddr::new_with(tgt_vpe.pe_id(), off)
     }
     else {
@@ -104,10 +101,11 @@ pub fn create_mgate(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), Sys
 
     if platform::pe_desc(tgt_vpe.pe_id()).has_virtmem() {
         let map_caps = tgt_vpe.map_caps().borrow_mut();
-        try_kmem_quota!(vpe
-            .obj_caps()
-            .borrow_mut()
-            .insert_as_child_from(cap, map_caps, sel));
+        try_kmem_quota!(
+            vpe.obj_caps()
+                .borrow_mut()
+                .insert_as_child_from(cap, map_caps, sel)
+        );
     }
     else {
         try_kmem_quota!(vpe.obj_caps().borrow_mut().insert_as_child(cap, vpe_sel));
@@ -409,10 +407,11 @@ pub fn create_vpe_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         }
     }
 
-    let kreply = syscalls::CreateVPEReply {
+    let mut kreply = MsgBuf::new();
+    kreply.set(syscalls::CreateVPEReply {
         error: 0,
         eps_start: eps as u64,
-    };
+    });
     send_reply(msg, &kreply);
 
     Ok(())

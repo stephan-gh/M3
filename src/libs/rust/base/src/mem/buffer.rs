@@ -1,0 +1,146 @@
+/*
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
+use core::intrinsics;
+use core::ops::{Deref, DerefMut};
+
+use crate::mem;
+use crate::util;
+
+pub const MAX_MSG_SIZE: usize = 512;
+
+// messages cannot contain a page boundary, so make sure that they are max-size-aligned
+#[repr(C, align(512))]
+/// A buffer for messages that takes care of proper alignment to fulfill the alignment requirements
+/// of the TCU.
+pub struct MsgBuf {
+    bytes: [u8; MAX_MSG_SIZE],
+    pos: usize,
+}
+
+impl MsgBuf {
+    /// Creates a new zero'd message buffer containing an empty message
+    pub const fn new_initialized() -> Self {
+        Self {
+            bytes: [0u8; MAX_MSG_SIZE],
+            pos: 0,
+        }
+    }
+
+    /// Creates a new message buffer containing an empty message
+    pub fn new() -> Self {
+        Self {
+            bytes: unsafe { mem::MaybeUninit::uninit().assume_init() },
+            pos: 0,
+        }
+    }
+
+    /// Returns the message bytes
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes[0..self.pos]
+    }
+
+    /// Returns the number of bytes to send
+    pub fn size(&self) -> usize {
+        self.pos
+    }
+
+    /// Returns a mutable u64 slice to the message bytes
+    ///
+    /// # Safety
+    ///
+    /// The caller cannot read the words since they are not necessarily initialized
+    pub unsafe fn words_mut(&mut self) -> &mut [u64] {
+        let slice = [self.bytes.as_ptr() as usize, MAX_MSG_SIZE / 8];
+        intrinsics::transmute(slice)
+    }
+
+    /// Sets the number of bytes that will be sent by the TCU.
+    ///
+    /// # Safety
+    ///
+    /// The caller has to guarantee that the bytes from 0 to `pos` are initialized
+    pub unsafe fn set_size(&mut self, pos: usize) {
+        self.pos = pos;
+    }
+
+    /// Casts the message bytes to the given type and returns a reference to it.
+    pub fn get<T>(&self) -> &T {
+        assert!(mem::align_of::<Self>() >= mem::align_of::<T>());
+        assert!(mem::size_of::<Self>() >= mem::size_of::<T>());
+
+        // safety: the checks above make sure that the size and alignment is sufficient
+        let slice = unsafe { &*(&self.bytes as *const [u8] as *const [T]) };
+        &slice[0]
+    }
+
+    /// Sets the message content to `msg`
+    pub fn set<T>(&mut self, msg: T) -> &mut T {
+        assert!(mem::align_of::<Self>() >= mem::align_of::<T>());
+        assert!(mem::size_of::<Self>() >= mem::size_of::<T>());
+
+        let slice = util::object_to_bytes(&msg);
+        self.bytes[0..slice.len()].copy_from_slice(slice);
+        self.pos = mem::size_of::<T>();
+
+        // safety: we just initialized these bytes and the checks above make sure that the size and
+        // alignment is sufficient
+        let slice = unsafe { &mut *(&mut self.bytes as *mut [u8] as *mut [T]) };
+        &mut slice[0]
+    }
+
+    /// Sets the message to the given slice
+    pub fn set_from_slice(&mut self, bytes: &[u8]) {
+        self.bytes[0..bytes.len()].copy_from_slice(bytes);
+        self.pos = bytes.len();
+    }
+}
+
+impl Clone for MsgBuf {
+    fn clone(&self) -> Self {
+        let mut copy = Self::new();
+        copy.bytes[0..self.pos].copy_from_slice(self.bytes());
+        copy.pos = self.pos;
+        copy
+    }
+}
+
+#[repr(align(4096))]
+/// A buffer that is page aligned in order to maximize performance of TCU transfers.
+pub struct AlignedBuf<const N: usize> {
+    data: [u8; N],
+}
+
+impl<const N: usize> AlignedBuf<N> {
+    /// Creates a new `AlignedBuf` filled with zeros
+    pub const fn new_zeroed() -> Self {
+        Self { data: [0u8; N] }
+    }
+}
+
+impl<const N: usize> Deref for AlignedBuf<N> {
+    type Target = [u8; N];
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<const N: usize> DerefMut for AlignedBuf<N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}

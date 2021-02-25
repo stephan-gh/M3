@@ -32,7 +32,6 @@ mod vpe;
 
 use base::cell::StaticCell;
 use base::cfg;
-use base::const_assert;
 use base::envdata;
 use base::io;
 use base::kif;
@@ -94,31 +93,10 @@ pub struct PagefaultMessage {
     pub access: u64,
 }
 
-// ensure that there is no page-boundary within the messages
-#[repr(align(4096))]
-pub struct Messages {
-    pub pagefault: PagefaultMessage,
-    pub exit_notify: kif::pemux::Exit,
-    pub sidecall_reply: kif::pemux::Response,
-}
+static MSG_BUF: StaticCell<mem::MsgBuf> = StaticCell::new(mem::MsgBuf::new_initialized());
 
-static MSGS: StaticCell<Messages> = StaticCell::new(Messages {
-    pagefault: PagefaultMessage {
-        op: 0,
-        virt: 0,
-        access: 0,
-    },
-    exit_notify: kif::pemux::Exit {
-        code: 0,
-        op: 0,
-        vpe_sel: 0,
-    },
-    sidecall_reply: kif::pemux::Response { error: 0, val: 0 },
-});
-
-pub fn msgs_mut() -> &'static mut Messages {
-    const_assert!(mem::size_of::<Messages>() <= cfg::PAGE_SIZE);
-    MSGS.get_mut()
+pub fn msgbuf() -> &'static mut mem::MsgBuf {
+    MSG_BUF.get_mut()
 }
 
 #[no_mangle]

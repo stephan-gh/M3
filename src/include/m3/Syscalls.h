@@ -95,9 +95,9 @@ public:
 
 private:
     template<class T>
-    static SyscallReply<T> send_receive(const void *msg, size_t size) noexcept;
-    static Errors::Code send_receive_err(const void *msg, size_t size) noexcept;
-    static void send_receive_throw(const void *msg, size_t size);
+    static SyscallReply<T> send_receive(const MsgBuf &msg) noexcept;
+    static Errors::Code send_receive_err(const MsgBuf &msg) noexcept;
+    static void send_receive_throw(const MsgBuf &msg);
     static void exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                               KIF::ExchangeArgs *args, bool obtain);
 

@@ -24,26 +24,15 @@
 namespace m3 {
 
 class SendQueue : public WorkItem {
-public:
-    using del_func = void (*)(void*);
-
-private:
     struct SendItem : public SListItem {
-        explicit SendItem(SendGate &gate, void *data, size_t len, del_func deleter) noexcept
+        explicit SendItem(SendGate &gate, const MsgBuf &msg) noexcept
             : SListItem(),
               gate(gate),
-              data(data),
-              len(len),
-              deleter(deleter) {
-        }
-        ~SendItem() {
-            deleter(data);
+              msg(msg) {
         }
 
         SendGate &gate;
-        void *data;
-        size_t len;
-        del_func deleter;
+        MsgBuf msg;
     };
 
     explicit SendQueue() noexcept : _queue() {
@@ -54,18 +43,8 @@ public:
         return _inst;
     }
 
-    template<class T>
-    static void def_deleter(void *data) {
-        delete reinterpret_cast<T*>(data);
-    }
-    template<class T>
-    static void array_deleter(void *data) {
-        delete[] reinterpret_cast<T*>(data);
-    }
-
-    template<class T>
-    void send(SendGate &gate, T *data, size_t len, del_func deleter = def_deleter<T>) {
-        SendItem *it = new SendItem(gate, data, len, deleter);
+    void send(SendGate &gate, const MsgBuf &msg) {
+        SendItem *it = new SendItem(gate, msg);
         _queue.append(it);
         if(_queue.length() == 1)
             send_async(*it);

@@ -26,7 +26,6 @@ using namespace m3;
 static constexpr size_t MSG_SIZE = 64;
 
 static ALIGNED(8) uint8_t rbuf[64];
-static uint8_t msg[32];
 
 int main() {
     kernel::TCU::config_send(0, 0x1234, pe_id(PE::PE0), 0, nextlog2<MSG_SIZE>::val, 1);
@@ -34,11 +33,14 @@ int main() {
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
     kernel::TCU::config_recv(1, rbuf_addr, size, size, TCU::NO_REPLIES);
 
+    MsgBuf msg;
+    msg.cast<uint64_t>() = 0;
+
     Serial::get() << "Hello World from sender!\n";
 
     // initial send; wait until receiver is ready
     Errors::Code res;
-    while((res = kernel::TCU::send(0, msg, sizeof(msg), 0x2222, 1)) != Errors::NONE) {
+    while((res = kernel::TCU::send(0, msg, 0x2222, 1)) != Errors::NONE) {
         Serial::get() << "send failed: " << res << "\n";
         // get credits back
         kernel::TCU::config_send(0, 0x1234, pe_id(PE::PE0), 0, nextlog2<MSG_SIZE>::val, 1);
@@ -58,8 +60,8 @@ int main() {
         ASSERT_EQ(kernel::TCU::ack_msg(1, rbuf_addr, rmsg), Errors::NONE);
 
         // send message
-        ASSERT_EQ(kernel::TCU::send(0, msg, sizeof(msg), 0x2222, 1), Errors::NONE);
-        msg[0]++;
+        ASSERT_EQ(kernel::TCU::send(0, msg, 0x2222, 1), Errors::NONE);
+        msg.cast<uint64_t>() += 1;
     }
     return 0;
 }

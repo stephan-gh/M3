@@ -31,14 +31,14 @@ void SendQueue::work() {
         delete it;
         if(_queue.length() > 0) {
             SendItem &first = *_queue.begin();
-            first.gate.send(first.data, first.len);
+            first.gate.send(first.msg);
             LLOG(IPC, "Sending " << &first << " from queue");
         }
     }
 }
 
 void SendQueue::send_async(SendItem &it) {
-    it.gate.send(it.data, it.len);
+    it.gate.send(it.msg);
     LLOG(IPC, "Sending " << &it << " from queue");
 }
 

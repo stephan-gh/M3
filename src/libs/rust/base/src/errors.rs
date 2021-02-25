@@ -48,6 +48,7 @@ pub enum Code {
     RecvBusy,
     TimeoutMem,
     TimeoutNoC,
+    PageBoundary,
     // SW Errors
     InvArgs,
     VPEGone,

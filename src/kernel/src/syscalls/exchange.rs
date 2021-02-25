@@ -19,8 +19,8 @@ use base::errors::Code;
 use base::format;
 use base::kif::{service, syscalls, CapRngDesc, CapSel, CapType, SEL_VPE};
 use base::rc::Rc;
+use base::mem::MsgBuf;
 use base::tcu;
-use base::util;
 
 use crate::cap::KObject;
 use crate::com::Service;
@@ -129,14 +129,15 @@ pub fn exchange_over_sess_async(
     let vpecap = get_kobj!(vpe, vpe_sel, VPE).upgrade().unwrap();
     let sess = get_kobj!(vpe, sess_sel, Sess);
 
-    let smsg = service::Exchange {
+    let mut smsg = MsgBuf::new();
+    smsg.set(service::Exchange {
         opcode,
         sess: sess.ident(),
         data: service::ExchangeData {
             caps: crd.raw(),
             args: req.args,
-        },
-    };
+        }
+    });
 
     let serv = sess.service().clone();
     let label = sess.creator() as tcu::Label;
@@ -151,11 +152,10 @@ pub fn exchange_over_sess_async(
         serv.service().name(),
         label,
     );
-    let rmsg =
-        match Service::send_receive_async(serv.service(), label, util::object_to_bytes(&smsg)) {
-            Ok(rmsg) => rmsg,
-            Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
-        };
+    let rmsg = match Service::send_receive_async(serv.service(), label, &smsg) {
+        Ok(rmsg) => rmsg,
+        Err(e) => sysc_err!(e.code(), "Service {} unreachable", serv.service().name()),
+    };
 
     let reply: &service::ExchangeReply = get_request(rmsg)?;
 
@@ -175,10 +175,11 @@ pub fn exchange_over_sess_async(
         do_exchange(&vpecap, &serv.service().vpe(), &crd, &srv_crd, obtain)?;
     }
 
-    let kreply = syscalls::ExchangeSessReply {
+    let mut kreply = MsgBuf::new();
+    kreply.set(syscalls::ExchangeSessReply {
         error: 0,
         args: reply.data.args,
-    };
+    });
     send_reply(msg, &kreply);
 
     Ok(())

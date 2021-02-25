@@ -31,9 +31,12 @@ use base::libc;
 use base::log;
 use base::machine;
 use base::math::next_log2;
+use base::mem::MsgBuf;
 use base::tcu::{self, EpId, Message, Reg, EP_REGS, TCU};
 use base::util;
 use base::{read_csr, write_csr};
+
+use core::intrinsics::transmute;
 
 use pes::PE;
 
@@ -180,42 +183,10 @@ fn test_mem(area_begin: usize, area_size: usize) {
         assert_eq!(*XLATES, count);
     }
 
-    // write w/ page boundary, read w/o page boundary
-    {
-        read_write(wr_area + cfg::PAGE_SIZE - 8, rd_area, 16);
-        count += 3;
-        assert_eq!(*XLATES, count);
-    }
-
-    // write w/o page boundary, read w/ page boundary
-    {
-        read_write(wr_area, rd_area + cfg::PAGE_SIZE - 8, 16);
-        count += 3;
-        assert_eq!(*XLATES, count);
-    }
-
-    // write w/ page boundary, read w/ page boundary
-    {
-        read_write(
-            wr_area + cfg::PAGE_SIZE - 8,
-            rd_area + cfg::PAGE_SIZE - 8,
-            16,
-        );
-        count += 4;
-        assert_eq!(*XLATES, count);
-    }
-
-    // multiple pages
-    {
-        read_write(wr_area, rd_area, cfg::PAGE_SIZE * 4);
-        count += 8;
-        assert_eq!(*XLATES, count);
-    }
-
     // unaligned
     {
-        read_write(wr_area + cfg::PAGE_SIZE - 1, rd_area, 3);
-        count += 3;
+        read_write(wr_area + 1, rd_area, 3);
+        count += 2;
         assert_eq!(*XLATES, count);
     }
 }
@@ -240,7 +211,7 @@ fn send_recv(send_addr: usize, size: usize) {
         crate::LOG_DEF,
         "SEND+REPLY from {:#x} with {} bytes",
         send_addr,
-        size
+        size * 8
     );
 
     TCU::invalidate_tlb();
@@ -274,15 +245,18 @@ fn send_recv(send_addr: usize, size: usize) {
         TCU::config_send(regs, OWN_VPE, 0x1234, PE::PE0.id(), 1, next_log2(64), 1);
     });
 
-    let msg_slice = unsafe { util::slice_for_mut(send_addr as *mut u8, size) };
+    let msg_buf: &mut MsgBuf = unsafe { transmute(send_addr) };
 
     // prepare test data
-    for i in 0..size {
-        msg_slice[i] = i as u8;
-    }
+    unsafe {
+        for i in 0..size {
+            msg_buf.words_mut()[i] = i as u64;
+        }
+        msg_buf.set_size(size * 8)
+    };
 
     // send message
-    TCU::send(4, msg_slice.as_ptr(), msg_slice.len(), 0x1111, 3).unwrap();
+    TCU::send(4, &msg_buf, 0x1111, 3).unwrap();
 
     {
         // fetch message
@@ -294,16 +268,10 @@ fn send_recv(send_addr: usize, size: usize) {
         assert_eq!({ rmsg.header.label }, 0x1234);
         let recv_slice =
             unsafe { util::slice_for(rmsg.data.as_ptr(), rmsg.header.length as usize) };
-        assert_eq!(msg_slice, recv_slice);
+        assert_eq!(msg_buf.bytes(), recv_slice);
 
         // send reply
-        TCU::reply(
-            1,
-            msg_slice.as_ptr(),
-            msg_slice.len(),
-            tcu::TCU::msg_to_offset(rbuf1_virt, rmsg),
-        )
-        .unwrap();
+        TCU::reply(1, &msg_buf, tcu::TCU::msg_to_offset(rbuf1_virt, rmsg)).unwrap();
     }
 
     {
@@ -316,7 +284,7 @@ fn send_recv(send_addr: usize, size: usize) {
         assert_eq!({ rmsg.header.label }, 0x1111);
         let recv_slice =
             unsafe { util::slice_for(rmsg.data.as_ptr(), rmsg.header.length as usize) };
-        assert_eq!(msg_slice, recv_slice);
+        assert_eq!(msg_buf.bytes(), recv_slice);
 
         // ack reply
         tcu::TCU::ack_msg(3, tcu::TCU::msg_to_offset(rbuf2_virt, rmsg)).unwrap();

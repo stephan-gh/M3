@@ -65,7 +65,7 @@ public:
         auto msg = create_vmsg(args...);
         for(auto &h : _sessions) {
             if(h.gate())
-                send_msg(*h.gate(), msg.bytes(), msg.total());
+                send_msg(*h.gate(), msg.finish());
         }
     }
 

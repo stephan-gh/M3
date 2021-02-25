@@ -26,7 +26,7 @@ using namespace m3;
 template<typename... Args>
 static void reply_vmsg_late(RecvGate &rgate, const TCU::Message *msg, const Args &... args) {
     auto reply = create_vmsg(args...);
-    rgate.reply(reply.bytes(), reply.total(), msg);
+    rgate.reply(reply.finish(), msg);
 }
 
 FileSession::FileSession(WorkLoop *wl, size_t crt, capsel_t srv_sel, LwipSocket* socket, int mode,

@@ -23,8 +23,6 @@ use crate::mem;
 use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
 use crate::tcu;
 
-pub const MAX_MSG_SIZE: usize = 512;
-
 /// An output stream for marshalling a TCU message and sending it via a [`SendGate`].
 pub struct GateOStream<'s> {
     sink: Sink<'s>,
@@ -56,18 +54,20 @@ impl<'s> GateOStream<'s> {
 
     /// Sends the marshalled message via `gate`, using `reply_gate` for the reply.
     #[inline(always)]
-    pub fn send(&self, gate: &SendGate, reply_gate: &RecvGate) -> Result<(), Error> {
-        gate.send(self.sink.words(), reply_gate)
+    pub fn send(&self, buf: &mem::MsgBuf, gate: &SendGate, reply_gate: &RecvGate) -> Result<(), Error> {
+        gate.send(buf, reply_gate)
     }
 
     /// Sends the marshalled message via `gate`, using `reply_gate` for the reply.
     #[inline(always)]
     pub fn call<'r>(
         &self,
+        buf: &mem::MsgBuf,
         gate: &SendGate,
         reply_gate: &'r RecvGate,
     ) -> Result<GateIStream<'r>, Error> {
-        gate.call(self.sink.words(), reply_gate).map(|m| GateIStream::new(m, reply_gate))
+        gate.call(buf, reply_gate)
+            .map(|m| GateIStream::new(m, reply_gate))
     }
 }
 
@@ -134,7 +134,7 @@ impl<'r> GateIStream<'r> {
 
     /// Sends `reply` as a reply to the received message.
     #[inline(always)]
-    pub fn reply<T>(&mut self, reply: &[T]) -> Result<(), Error> {
+    pub fn reply(&mut self, reply: &mem::MsgBuf) -> Result<(), Error> {
         match self.rgate.reply(reply, self.msg) {
             Ok(_) => {
                 self.ack = false;
@@ -147,8 +147,8 @@ impl<'r> GateIStream<'r> {
     /// Sends the message marshalled by the given [`GateOStream`] as a reply on the received
     /// message.
     #[inline(always)]
-    pub fn reply_os(&mut self, os: &GateOStream) -> Result<(), Error> {
-        self.reply(os.sink.words())
+    pub fn reply_os(&mut self, buf: &mem::MsgBuf) -> Result<(), Error> {
+        self.reply(buf)
     }
 }
 
@@ -159,17 +159,27 @@ impl<'r> ops::Drop for GateIStream<'r> {
         }
     }
 }
+/// Marshalls a message from `$args` and returns the `MsgBuf`.
+#[macro_export]
+macro_rules! build_vmsg {
+    ( $( $args:expr ),* ) => ({
+        let mut msg = $crate::mem::MsgBuf::new();
+        // safety: we initialize these bytes below
+        let mut os = unsafe { $crate::com::GateOStream::new(msg.words_mut()) };
+        $( os.push(&$args); )*
+        let bytes = os.size();
+        // safety: we just have initialized these bytes
+        unsafe { msg.set_size(bytes) };
+        msg
+    });
+}
 
 /// Marshalls a message from `$args` and sends it via `$sg`, using `$rg` to receive the reply.
 #[macro_export]
 macro_rules! send_vmsg {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
-            $crate::mem::MaybeUninit::uninit().assume_init()
-        };
-        let mut os = $crate::com::GateOStream::new(&mut arr);
-        $( os.push(&$args); )*
-        os.send($sg, $rg)
+        let msg = $crate::build_vmsg!($( $args ),*);
+        $sg.send(&msg, $rg)
     });
 }
 
@@ -178,12 +188,8 @@ macro_rules! send_vmsg {
 #[macro_export]
 macro_rules! reply_vmsg {
     ( $is:expr, $( $args:expr ),* ) => ({
-        let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
-            $crate::mem::MaybeUninit::uninit().assume_init()
-        };
-        let mut os = $crate::com::GateOStream::new(&mut arr);
-        $( os.push(&$args); )*
-        $is.reply_os(&os)
+        let msg = $crate::build_vmsg!($( $args ),*);
+        $is.reply_os(&msg)
     });
 }
 
@@ -233,12 +239,9 @@ pub fn recv_result<'r>(
 #[macro_export]
 macro_rules! send_recv {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let mut arr: [u64; $crate::com::MAX_MSG_SIZE / 8 ] = unsafe {
-            $crate::mem::MaybeUninit::uninit().assume_init()
-        };
-        let mut os = $crate::com::GateOStream::new(&mut arr);
-        $( os.push(&$args); )*
-        os.call($sg, $rg)
+        let msg = $crate::build_vmsg!($( $args ),*);
+        $sg.call(&msg, $rg)
+            .map(|m| $crate::com::GateIStream::new(m, $rg))
     });
 }
 

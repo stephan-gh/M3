@@ -20,9 +20,9 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType, PEDesc};
 use base::rc::{Rc, SRc};
+use base::mem::MsgBuf;
 use base::tcu::Label;
 use base::tcu::{EpId, PEId, VPEId, STD_EPS_COUNT, UPCALL_REP_OFF};
-use base::util;
 use bitflags::bitflags;
 use core::fmt;
 
@@ -355,7 +355,8 @@ impl VPE {
     }
 
     pub fn upcall_vpe_wait(&self, event: u64, vpe_sel: CapSel, exitcode: i32) {
-        let msg = kif::upcalls::VPEWait {
+        let mut msg = MsgBuf::new();
+        msg.set(kif::upcalls::VPEWait {
             def: kif::upcalls::DefaultUpcall {
                 opcode: kif::upcalls::Operation::VPE_WAIT.val,
                 event,
@@ -363,33 +364,35 @@ impl VPE {
             error: Code::None as u64,
             vpe_sel: vpe_sel as u64,
             exitcode: exitcode as u64,
-        };
+        });
 
-        self.send_upcall(&msg);
+        self.send_upcall::<kif::upcalls::VPEWait>(&msg);
     }
 
     pub fn upcall_derive_srv(&self, event: u64, result: Result<(), Error>) {
-        let msg = kif::upcalls::DeriveSrv {
+        let mut msg = MsgBuf::new();
+        msg.set(kif::upcalls::DeriveSrv {
             def: kif::upcalls::DefaultUpcall {
                 opcode: kif::upcalls::Operation::DERIVE_SRV.val,
                 event,
             },
             error: Code::from(result) as u64,
-        };
+        });
 
-        self.send_upcall(&msg);
+        self.send_upcall::<kif::upcalls::DeriveSrv>(&msg);
     }
 
-    fn send_upcall<M: fmt::Debug>(&self, msg: &M) {
-        klog!(UPCALLS, "Sending upcall {:?} to VPE {}", msg, self.id());
+    fn send_upcall<M: fmt::Debug>(&self, msg: &MsgBuf) {
+        klog!(
+            UPCALLS,
+            "Sending upcall {:?} to VPE {}",
+            msg.get::<M>(),
+            self.id()
+        );
 
         self.upcalls
             .borrow_mut()
-            .send(
-                self.eps_start + UPCALL_REP_OFF,
-                0,
-                util::object_to_bytes(msg),
-            )
+            .send(self.eps_start + UPCALL_REP_OFF, 0, msg)
             .unwrap();
     }
 

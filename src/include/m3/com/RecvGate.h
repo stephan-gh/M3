@@ -205,13 +205,12 @@ public:
     const TCU::Message *receive(SendGate *sgate);
 
     /**
-     * Replies the <len> bytes at <reply> to the message <msg>.
+     * Sends <reply> as a reply to the message <msg>.
      *
      * @param reply the reply message to send
-     * @param len the length of the data
      * @param msg the message to reply to
      */
-    void reply(const void *reply, size_t len, const TCU::Message *msg);
+    void reply(const MsgBuf &reply, const TCU::Message *msg);
 
     /**
      * Marks the given message as 'read', allowing the TCU to overwrite it with a new message.

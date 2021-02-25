@@ -26,8 +26,8 @@ use crate::com::{gate::Gate, RecvBuf, SendGate};
 use crate::errors::{Code, Error};
 use crate::kif::INVALID_SEL;
 use crate::math;
-use crate::mem;
 use crate::pes::VPE;
+use crate::mem::MsgBuf;
 use crate::syscalls;
 use crate::tcu;
 
@@ -230,24 +230,13 @@ impl RecvGate {
 
     /// Sends `reply` as a reply to the message `msg`.
     #[inline(always)]
-    pub fn reply<T>(&self, reply: &[T], msg: &'static tcu::Message) -> Result<(), Error> {
-        self.reply_bytes(
-            reply.as_ptr() as *const u8,
-            reply.len() * mem::size_of::<T>(),
-            msg,
-        )
-    }
-
-    /// Sends `reply` with `size` bytes as a reply to the message `msg`.
-    #[inline(always)]
-    pub fn reply_bytes(
+    pub fn reply(
         &self,
-        reply: *const u8,
-        size: usize,
+        reply: &MsgBuf,
         msg: &'static tcu::Message,
     ) -> Result<(), Error> {
         let off = tcu::TCU::msg_to_offset(self.address().unwrap(), msg);
-        tcu::TCU::reply(self.ep().unwrap(), reply, size, off)
+        tcu::TCU::reply(self.ep().unwrap(), reply, off)
     }
 
     /// Marks the given message as 'read', allowing the TCU to overwrite it with a new message.

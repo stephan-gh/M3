@@ -26,6 +26,7 @@ use m3::format;
 use m3::goff;
 use m3::kif::{self, CapRngDesc, CapType, Perm};
 use m3::log;
+use m3::mem::MsgBuf;
 use m3::pes::{Activity, ExecActivity, KMem, Mapper, VPE};
 use m3::println;
 use m3::rc::Rc;
@@ -883,9 +884,10 @@ impl ChildManager {
             _ => panic!("Unexpected upcall {}", upcall.opcode),
         }
 
-        let reply = kif::DefaultReply { error: 0u64 };
+        let mut reply_buf = MsgBuf::new();
+        reply_buf.set(kif::DefaultReply { error: 0 });
         RecvGate::upcall()
-            .reply(&[reply], msg)
+            .reply(&reply_buf, msg)
             .expect("Upcall reply failed");
     }
 

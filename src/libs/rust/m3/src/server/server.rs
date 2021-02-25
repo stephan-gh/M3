@@ -23,6 +23,7 @@ use crate::kif::{service, CapRngDesc};
 use crate::llog;
 use crate::math;
 use crate::pes::VPE;
+use crate::mem::MsgBuf;
 use crate::serialize::{Sink, Source};
 use crate::server::{SessId, SessionContainer};
 use crate::syscalls;
@@ -181,7 +182,7 @@ impl Server {
                 // should the server terminate?
                 Ok(true) => return Err(Error::new(Code::EndOfFile)),
                 // everything okay
-                Ok(_) => (),
+                Ok(_) => {},
                 // error, reply error code
                 Err(e) => {
                     llog!(SERV, "Control channel request failed: {:?}", e);
@@ -227,20 +228,22 @@ impl Server {
 
         match res {
             Ok((sel, ident)) => {
-                let reply = service::OpenReply {
+                let mut buf = MsgBuf::new();
+                buf.set(service::OpenReply {
                     res: 0,
                     sess: sel,
                     ident: ident as u64,
-                };
-                is.reply(&[reply])
+                });
+                is.reply(&buf)
             },
             Err(e) => {
-                let reply = service::OpenReply {
+                let mut buf = MsgBuf::new();
+                buf.set(service::OpenReply {
                     res: e.code() as u64,
                     sess: 0,
                     ident: 0,
-                };
-                is.reply(&[reply])
+                });
+                is.reply(&buf)
             },
         }
     }
@@ -260,12 +263,13 @@ impl Server {
 
         let (nid, sgate) = hdl.sessions().derive_creator(is.rgate(), crt, sessions)?;
 
-        let reply = service::DeriveCreatorReply {
+        let mut buf = MsgBuf::new();
+        buf.set(service::DeriveCreatorReply {
             res: 0,
             creator: nid as u64,
             sgate_sel: sgate as u64,
-        };
-        is.reply(&[reply])
+        });
+        is.reply(&buf)
     }
 
     fn handle_obtain<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
@@ -279,7 +283,8 @@ impl Server {
             return Err(Error::new(Code::NoPerm));
         }
 
-        let mut reply = service::ExchangeReply::default();
+        let mut buf = MsgBuf::new();
+        let reply = buf.set(service::ExchangeReply::default());
 
         let (res, args_size, crd) = {
             let mut xchg = CapExchange::new(&msg.data, &mut reply.data);
@@ -304,7 +309,7 @@ impl Server {
         };
         reply.data.args.bytes = args_size as u64;
         reply.data.caps = crd.raw();
-        is.reply(&[reply])
+        is.reply(&buf)
     }
 
     fn handle_delegate<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {
@@ -318,7 +323,8 @@ impl Server {
             return Err(Error::new(Code::NoPerm));
         }
 
-        let mut reply = service::ExchangeReply::default();
+        let mut buf = MsgBuf::new();
+        let reply = buf.set(service::ExchangeReply::default());
 
         let (res, args_size, crd) = {
             let mut xchg = CapExchange::new(&msg.data, &mut reply.data);
@@ -343,7 +349,7 @@ impl Server {
         };
         reply.data.args.bytes = args_size as u64;
         reply.data.caps = crd.raw();
-        is.reply(&[reply])
+        is.reply(&buf)
     }
 
     fn handle_close<S>(hdl: &mut dyn Handler<S>, is: &mut GateIStream) -> Result<(), Error> {

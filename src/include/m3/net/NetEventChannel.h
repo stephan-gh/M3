@@ -169,7 +169,7 @@ public:
     void wait_for_credit() noexcept;
 
 private:
-    void send_message(const void* msg, size_t size);
+    void send_message(const MsgBuf &msg);
     void fetch_replies();
 
     bool _ret_credits;

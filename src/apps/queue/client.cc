@@ -24,11 +24,8 @@
 using namespace m3;
 
 static void received_data(GateIStream &is) {
-    unsigned sum = 0;
-    const unsigned char *data = is.buffer();
-    for(size_t i = 0; i < is.remaining(); ++i)
-        sum += data[i];
-    cout << env()->pe_id << ": received " << fmt(sum, "x") << "\n";
+    auto data = reinterpret_cast<const uint64_t*>(is.buffer());
+    cout << env()->pe_id << ": received " << fmt(*data, "x") << "\n";
 }
 
 int main() {

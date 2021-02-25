@@ -22,8 +22,8 @@ use crate::com::gate::Gate;
 use crate::com::RecvGate;
 use crate::errors::Error;
 use crate::kif::{INVALID_SEL, UNLIM_CREDITS};
-use crate::mem;
 use crate::pes::VPE;
+use crate::mem::MsgBuf;
 use crate::syscalls;
 use crate::tcu;
 
@@ -126,71 +126,34 @@ impl SendGate {
         self.gate.release(false);
     }
 
-    /// Sends `msg` to the associated [`RecvGate`] and uses `reply_gate` to receive a reply.
+    /// Sends `msg` to the associated [`RecvGate`] and uses `reply_gate` to receive
+    /// a reply.
     #[inline(always)]
-    pub fn send<T>(&self, msg: &[T], reply_gate: &RecvGate) -> Result<(), Error> {
-        self.send_bytes(
-            msg.as_ptr() as *const u8,
-            msg.len() * mem::size_of::<T>(),
-            reply_gate,
-            0,
-        )
+    pub fn send(&self, msg: &MsgBuf, reply_gate: &RecvGate) -> Result<(), Error> {
+        self.send_with_rlabel(msg, reply_gate, 0)
     }
 
-    /// Sends `msg` to the associated [`RecvGate`], uses `reply_gate` to receive the reply, and
-    /// lets the communication partner use the label `rlabel` for the reply.
-    pub fn send_with_rlabel<T>(
+    /// Sends `msg` to the associated [`RecvGate`], uses `reply_gate` to receive the reply, and lets
+    /// the communication partner use the label `rlabel` for the reply.
+    pub fn send_with_rlabel(
         &self,
-        msg: &[T],
-        reply_gate: &RecvGate,
-        rlabel: tcu::Label,
-    ) -> Result<(), Error> {
-        self.send_bytes(
-            msg.as_ptr() as *const u8,
-            msg.len() * mem::size_of::<T>(),
-            reply_gate,
-            rlabel,
-        )
-    }
-
-    /// Sends the given bytes to the associated [`RecvGate`], uses `reply_gate` to receive the
-    /// reply, and lets the communication partner use the label `rlabel` for the reply.
-    #[inline(always)]
-    pub fn send_bytes(
-        &self,
-        msg: *const u8,
-        size: usize,
+        msg: &MsgBuf,
         reply_gate: &RecvGate,
         rlabel: tcu::Label,
     ) -> Result<(), Error> {
         let ep = self.activate()?;
-        tcu::TCU::send(ep.id(), msg, size, rlabel, reply_gate.ep().unwrap())
+        tcu::TCU::send(ep.id(), msg, rlabel, reply_gate.ep().unwrap())
     }
 
-    /// Sends `msg` of length `len` to the associated [`RecvGate`] and receives the reply from the
-    /// set reply gate. Returns the received reply.
-    pub fn call<T>(
+    /// Sends `msg` to the associated [`RecvGate`] and receives the reply from the set reply gate.
+    /// Returns the received reply.
+    pub fn call(
         &self,
-        msg: &[T],
-        reply_gate: &RecvGate,
-    ) -> Result<&'static tcu::Message, Error> {
-        self.call_with_bytes(
-            msg as *const _ as *const u8,
-            msg.len() * mem::size_of::<T>(),
-            reply_gate,
-        )
-    }
-
-    /// Sends `msg` of length `len` to the associated [`RecvGate`] and receives the reply from the
-    /// set reply gate. Returns the received reply.
-    pub fn call_with_bytes(
-        &self,
-        msg: *const u8,
-        size: usize,
+        msg: &MsgBuf,
         reply_gate: &RecvGate,
     ) -> Result<&'static tcu::Message, Error> {
         let ep = self.activate()?;
-        tcu::TCU::send(ep.id(), msg, size, 0, reply_gate.ep().unwrap())?;
+        tcu::TCU::send(ep.id(), msg, 0, reply_gate.ep().unwrap())?;
         reply_gate.receive(Some(self))
     }
 }

@@ -86,36 +86,30 @@ pub fn send_to(
     pe: PEId,
     ep: EpId,
     lbl: Label,
-    msg: *const u8,
-    size: usize,
+    msg: &mem::MsgBuf,
     rpl_lbl: Label,
     rpl_ep: EpId,
 ) -> Result<(), Error> {
     config_local_ep(KTMP_EP, |regs| {
         // don't calculate the msg order here, because it can take some time and it doesn't really
         // matter what we set here assuming that it's large enough.
-        assert!(size + mem::size_of::<Header>() <= 1 << 8);
+        assert!(msg.size() + mem::size_of::<Header>() <= 1 << 8);
         config_send(regs, KERNEL_ID, lbl, pe, ep, 8, UNLIM_CREDITS);
     });
     klog!(
         KTCU,
         "sending {}-bytes from {:#x} to {}:{}",
-        size,
-        msg as usize,
+        msg.size(),
+        msg.bytes().as_ptr() as usize,
         pe,
         ep
     );
-    TCU::send(KTMP_EP, msg, size, rpl_lbl, rpl_ep)
+    TCU::send(KTMP_EP, msg, rpl_lbl, rpl_ep)
 }
 
-pub fn reply<R>(ep: EpId, reply: &R, msg: &Message) -> Result<(), Error> {
+pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg: &Message) -> Result<(), Error> {
     let msg_off = TCU::msg_to_offset(RBUFS[ep as usize], msg);
-    TCU::reply(
-        ep,
-        reply as *const _ as *const u8,
-        mem::size_of::<R>(),
-        msg_off,
-    )
+    TCU::reply(ep, reply, msg_off)
 }
 
 #[cfg(target_os = "none")]

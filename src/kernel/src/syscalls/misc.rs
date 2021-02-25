@@ -19,6 +19,7 @@ use base::errors::{Code, Error};
 use base::goff;
 use base::kif::{self, CapSel};
 use base::rc::Rc;
+use base::mem::MsgBuf;
 use base::tcu;
 
 use crate::arch::loader::Loader;
@@ -101,11 +102,13 @@ pub fn alloc_ep(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     dst_vpe.pe().alloc(ep_count);
     pemux.alloc_eps(epid, ep_count);
 
-    let kreply = kif::syscalls::AllocEPReply {
+    let mut kreply = MsgBuf::new();
+    kreply.set(kif::syscalls::AllocEPReply {
         error: 0,
         ep: epid as u64,
-    };
+    });
     send_reply(msg, &kreply);
+
     Ok(())
 }
 
@@ -177,11 +180,13 @@ pub fn kmem_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscE
     let vpe_caps = vpe.obj_caps().borrow();
     let kmem = get_kobj_ref!(vpe_caps, kmem_sel, KMem);
 
-    let kreply = kif::syscalls::KMemQuotaReply {
+    let mut kreply = MsgBuf::new();
+    kreply.set(kif::syscalls::KMemQuotaReply {
         error: 0,
         amount: kmem.left() as u64,
-    };
+    });
     send_reply(msg, &kreply);
+
     Ok(())
 }
 
@@ -195,11 +200,13 @@ pub fn pe_quota(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), SyscErr
     let vpe_caps = vpe.obj_caps().borrow();
     let pe = get_kobj_ref!(vpe_caps, pe_sel, PE);
 
-    let kreply = kif::syscalls::PEQuotaReply {
+    let mut kreply = MsgBuf::new();
+    kreply.set(kif::syscalls::PEQuotaReply {
         error: 0,
         amount: pe.eps() as u64,
-    };
+    });
     send_reply(msg, &kreply);
+
     Ok(())
 }
 
@@ -502,11 +509,7 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
 
     sysc_log!(vpe, "vpe_wait(vpes={}, event={})", count, event);
 
-    let mut reply = kif::syscalls::VPEWaitReply {
-        error: 0,
-        vpe_sel: kif::INVALID_SEL as u64,
-        exitcode: 0,
-    };
+    let mut reply = MsgBuf::new();
 
     // copy the message to the VPE to ensure that we can still access it after reply
     if !vpe.start_wait(&sels[0..count]) && event == 0 {
@@ -514,6 +517,11 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
     }
 
     if event != 0 {
+        reply.set(kif::syscalls::VPEWaitReply {
+            error: 0,
+            vpe_sel: kif::INVALID_SEL as u64,
+            exitcode: 0,
+        });
         // early-reply to the application; we'll notify it later via upcall
         send_reply(msg, &reply);
     }
@@ -525,8 +533,11 @@ pub fn vpe_wait_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(), S
             vpe.upcall_vpe_wait(event, sel, code);
         }
         else {
-            reply.vpe_sel = sel as u64;
-            reply.exitcode = code as u64;
+            reply.set(kif::syscalls::VPEWaitReply {
+                error: 0,
+                vpe_sel: sel as u64,
+                exitcode: code as u64,
+            });
             send_reply(msg, &reply);
         }
     }

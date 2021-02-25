@@ -16,6 +16,65 @@
 
 #pragma once
 
+#include <base/Common.h>
+#include <assert.h>
+#include <string.h>
+
+namespace m3 {
+
+class MsgBuf {
+public:
+    static constexpr size_t MAX_MSG_SIZE = 512;
+
+    explicit MsgBuf() noexcept : _pos() {
+    }
+
+    MsgBuf(const MsgBuf &os) noexcept : _pos(os._pos) {
+        if(_pos)
+            memcpy(_bytes, os._bytes, _pos);
+    }
+    MsgBuf &operator=(const MsgBuf &os) noexcept {
+        if(&os != this) {
+            _pos = os._pos;
+            if(_pos)
+                memcpy(_bytes, os._bytes, _pos);
+        }
+        return *this;
+    }
+
+    void *bytes() noexcept {
+        return _bytes;
+    }
+    const void *bytes() const noexcept {
+        return _bytes;
+    }
+    size_t size() const noexcept {
+        return _pos;
+    }
+
+    template<typename T>
+    T &cast() noexcept {
+        _pos = sizeof(T);
+        return *reinterpret_cast<T*>(_bytes);
+    }
+
+    template<typename T>
+    const T &get() const noexcept {
+        assert(_pos >= sizeof(T));
+        return *reinterpret_cast<const T*>(_bytes);
+    }
+
+    void set_size(size_t size) noexcept {
+        _pos = size;
+    }
+
+private:
+    uint8_t _bytes[MAX_MSG_SIZE];
+    size_t _pos;
+} PACKED ALIGNED(512);
+
+}
+
 #if defined(__host__)
 #   include <base/arch/host/TCU.h>
 #elif defined(__kachel__)

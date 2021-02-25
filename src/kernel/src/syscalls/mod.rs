@@ -16,7 +16,7 @@
 
 use base::col::String;
 use base::errors::{Code, Error};
-use base::kif::{self};
+use base::kif;
 use base::mem;
 use base::rc::Rc;
 use base::tcu;
@@ -106,13 +106,14 @@ impl From<Error> for SyscError {
     }
 }
 
-fn send_reply<T>(msg: &'static tcu::Message, rep: &T) {
+fn send_reply(msg: &'static tcu::Message, rep: &mem::MsgBuf) {
     ktcu::reply(ktcu::KSYS_EP, rep, msg).ok();
 }
 
 fn reply_result(msg: &'static tcu::Message, code: u64) {
-    let rep = kif::DefaultReply { error: code };
-    send_reply(msg, &rep);
+    let mut rep_buf = mem::MsgBuf::new();
+    rep_buf.set(kif::DefaultReply { error: code });
+    send_reply(msg, &rep_buf);
 }
 
 fn reply_success(msg: &'static tcu::Message) {

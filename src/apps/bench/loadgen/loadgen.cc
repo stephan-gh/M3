@@ -49,7 +49,7 @@ public:
         if(rem_req > 0) {
             mgate->write(http_req, sizeof(http_req), 0);
             auto msg = create_vmsg(sizeof(http_req));
-            sgate->send(msg.bytes(), msg.total(), ptr_to_label(this));
+            sgate->send(msg.finish(), ptr_to_label(this));
             rem_req--;
         }
     }

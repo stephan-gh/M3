@@ -16,6 +16,7 @@
 
 use bitflags::bitflags;
 use cfg_if::cfg_if;
+use core::cmp;
 use core::intrinsics;
 use core::sync::atomic;
 
@@ -334,7 +335,7 @@ impl Message {
 pub struct TCU {}
 
 impl TCU {
-    /// Sends `msg[0..size]` via given endpoint.
+    /// Sends the given message via given endpoint.
     ///
     /// The `reply_ep` specifies the endpoint the reply is sent to. The label of the reply will be
     /// `reply_lbl`.
@@ -346,41 +347,42 @@ impl TCU {
     #[inline(always)]
     pub fn send(
         ep: EpId,
-        msg: *const u8,
-        size: usize,
+        msg: &mem::MsgBuf,
         reply_lbl: Label,
         reply_ep: EpId,
     ) -> Result<(), Error> {
+        let msg_addr = msg.bytes().as_ptr() as usize;
         log!(
             TCU,
             "TCU::send(ep={}, msg={:#x}, size={:#x}, reply_lbl={:#x}, reply_ep={})",
             ep,
-            msg as usize,
-            size,
+            msg_addr,
+            msg.size(),
             reply_lbl,
             reply_ep
         );
 
-        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(msg, size));
+        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(msg_addr, msg.size()));
         if reply_lbl != 0 {
             Self::write_unpriv_reg(UnprivReg::ARG1, reply_lbl as Reg);
         }
         Self::perform_send_reply(Self::build_cmd(ep, CmdOpCode::SEND, reply_ep as Reg))
     }
 
-    /// Sends `reply[0..size]` as reply to `msg`.
+    /// Sends the given message as reply to `msg`.
     #[inline(always)]
-    pub fn reply(ep: EpId, reply: *const u8, size: usize, msg_off: usize) -> Result<(), Error> {
+    pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg_off: usize) -> Result<(), Error> {
+        let reply_addr = reply.bytes().as_ptr() as usize;
         log!(
             TCU,
             "TCU::reply(ep={}, reply={:#x}, size={:#x}, msg_off={:#x})",
             ep,
-            reply as usize,
-            size,
+            reply_addr,
+            reply.size(),
             msg_off
         );
 
-        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(reply, size));
+        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(reply_addr, reply.size()));
 
         Self::perform_send_reply(Self::build_cmd(ep, CmdOpCode::REPLY, msg_off as Reg))
     }
@@ -409,10 +411,7 @@ impl TCU {
             off
         );
 
-        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, size));
-        Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
-        Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
-        let res = Self::get_error();
+        let res = Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::READ);
         atomic::fence(atomic::Ordering::SeqCst);
         res
     }
@@ -430,10 +429,29 @@ impl TCU {
             );
         }
 
-        Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, size));
-        Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
-        Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::WRITE, 0));
-        Self::get_error()
+        Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::WRITE)
+    }
+
+    fn perform_transfer(
+        ep: EpId,
+        mut data: usize,
+        mut size: usize,
+        mut off: goff,
+        cmd: CmdOpCode,
+    ) -> Result<(), Error> {
+        while size > 0 {
+            let amount = cmp::min(size, cfg::PAGE_SIZE - (data & cfg::PAGE_MASK));
+
+            Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, amount));
+            Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
+            Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, cmd, 0));
+            Self::get_error()?;
+
+            size -= amount;
+            data += amount;
+            off += amount as goff;
+        }
+        Ok(())
     }
 
     /// Tries to fetch a new message from the given endpoint.
@@ -757,7 +775,7 @@ impl TCU {
         };
     }
 
-    fn build_data(addr: *const u8, size: usize) -> Reg {
+    fn build_data(addr: usize, size: usize) -> Reg {
         addr as Reg | (size as Reg) << 32
     }
 

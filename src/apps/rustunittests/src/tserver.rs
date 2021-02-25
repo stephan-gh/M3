@@ -23,6 +23,7 @@ use m3::envdata;
 use m3::errors::{Code, Error};
 use m3::kif;
 use m3::math::next_log2;
+use m3::mem::MsgBuf;
 use m3::pes::{Activity, VPEArgs, PE, VPE};
 use m3::println;
 use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
@@ -154,16 +155,15 @@ pub fn testcliexit() {
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));
 
         // perform the obtain syscall
-        let req = kif::syscalls::ExchangeSess {
+        let mut req_buf = MsgBuf::new();
+        req_buf.set(kif::syscalls::ExchangeSess {
             opcode: kif::syscalls::Operation::OBTAIN.val,
             vpe_sel: VPE::cur().sel(),
             sess_sel: sess.sel(),
             caps: [0; 2],
             args: kif::syscalls::ExchangeArgs::default(),
-        };
-        let msg_ptr = &req as *const kif::syscalls::ExchangeSess as *const u8;
-        let msg_size = m3::mem::size_of::<kif::syscalls::ExchangeSess>();
-        wv_assert_ok!(syscalls::send_gate().send_bytes(msg_ptr, msg_size, RecvGate::syscall(), 0,));
+        });
+        wv_assert_ok!(syscalls::send_gate().send(&req_buf, RecvGate::syscall()));
 
         // now we're ready to be killed
         wv_assert_ok!(send_vmsg!(&sg, RecvGate::def(), 1));

@@ -197,12 +197,16 @@ public:
 
     void configure_recv(epid_t ep, uintptr_t buf, uint order, uint msgorder);
 
-    Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t replyep) {
-        setup_command(ep, SEND, msg, size, 0, 0, replylbl, replyep);
+    Errors::Code send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t replyep) {
+        setup_command(ep, SEND, msg.bytes(), msg.size(), 0, 0, replylbl, replyep);
         return exec_command();
     }
-    Errors::Code reply(epid_t ep, const void *reply, size_t size, size_t msg_off) {
-        setup_command(ep, REPLY, reply, size, msg_off, 0, label_t(), 0);
+    Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl, epid_t replyep) {
+        setup_command(ep, SEND, msg, len, 0, 0, replylbl, replyep);
+        return exec_command();
+    }
+    Errors::Code reply(epid_t ep, const MsgBuf &reply, size_t msg_off) {
+        setup_command(ep, REPLY, reply.bytes(), reply.size(), msg_off, 0, label_t(), 0);
         return exec_command();
     }
     Errors::Code read(epid_t ep, void *msg, size_t size, size_t off) {

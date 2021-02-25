@@ -152,9 +152,9 @@ const TCU::Message *RecvGate::fetch() {
     return nullptr;
 }
 
-void RecvGate::reply(const void *reply, size_t len, const TCU::Message *msg) {
+void RecvGate::reply(const MsgBuf &reply, const TCU::Message *msg) {
     size_t msg_off = TCU::msg_to_offset(address(), msg);
-    Errors::Code res = TCU::get().reply(ep()->id(), reply, len, msg_off);
+    Errors::Code res = TCU::get().reply(ep()->id(), reply, msg_off);
     if(EXPECT_FALSE(res != Errors::NONE))
         throw TCUException(res);
 }

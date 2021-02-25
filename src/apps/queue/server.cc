@@ -28,20 +28,14 @@ using namespace m3;
 
 static Server<EventHandler<>> *server;
 
-static constexpr size_t DATA_SIZE   = 256;
-
-static char *gendata() {
-    char *data = new char[DATA_SIZE];
-    for(size_t i = 0; i < DATA_SIZE; ++i)
-        data[i] = Random::get() % 256;
-    return data;
-}
-
 static void timer_irq(GateIStream &) {
     for(auto &h : server->handler()->sessions()) {
         // skip clients that have a session but no gate yet
-        if(h.gate())
-            SendQueue::get().send(*h.gate(), gendata(), DATA_SIZE, SendQueue::array_deleter<char>);
+        if(h.gate()) {
+            MsgBuf msg;
+            msg.cast<uint64_t>() = static_cast<uint64_t>(Random::get());
+            SendQueue::get().send(*h.gate(), msg);
+        }
     }
 }
 

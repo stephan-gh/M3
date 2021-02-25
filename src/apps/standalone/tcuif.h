@@ -60,14 +60,14 @@ public:
         return m3::TCU::get().ack_msg(ep, off);
     }
 
-    static m3::Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep) {
-        return m3::TCU::get().send(ep, msg, size, replylbl, reply_ep);
+    static m3::Errors::Code send(epid_t ep, const m3::MsgBuf &msg, label_t replylbl, epid_t reply_ep) {
+        return m3::TCU::get().send(ep, msg, replylbl, reply_ep);
     }
 
-    static m3::Errors::Code reply(epid_t ep, const void *reply, size_t size, uintptr_t base, const m3::TCU::Message *msg) {
+    static m3::Errors::Code reply(epid_t ep, const m3::MsgBuf &reply, uintptr_t base, const m3::TCU::Message *msg) {
         uintptr_t msg_addr = reinterpret_cast<uintptr_t>(msg);
         reg_t off = static_cast<reg_t>(msg_addr) - base;
-        return m3::TCU::get().reply(ep, reply, size, off);
+        return m3::TCU::get().reply(ep, reply, off);
     }
 
     static m3::Errors::Code read(epid_t ep, void *data, size_t size, goff_t off) {

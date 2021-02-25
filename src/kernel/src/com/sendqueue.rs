@@ -17,6 +17,7 @@
 use base::cell::StaticCell;
 use base::col::{DList, Vec};
 use base::errors::{Code, Error};
+use base::mem::MsgBuf;
 use base::tcu;
 
 use crate::ktcu;
@@ -74,7 +75,7 @@ impl SendQueue {
         &mut self,
         rep: tcu::EpId,
         lbl: tcu::Label,
-        msg: &[u8],
+        msg: &MsgBuf,
     ) -> Result<thread::Event, Error> {
         klog!(SQUEUE, "SendQueue[{}]: trying to send msg", self.id);
 
@@ -83,7 +84,7 @@ impl SendQueue {
         }
 
         if self.state == QState::Idle {
-            return self.do_send(rep, lbl, alloc_qid(), msg, msg.len());
+            return self.do_send(rep, lbl, alloc_qid(), msg);
         }
 
         klog!(SQUEUE, "SendQueue[{}]: queuing msg", self.id);
@@ -91,7 +92,7 @@ impl SendQueue {
         let qid = alloc_qid();
 
         // copy message to heap
-        let vec = msg.to_vec();
+        let vec = msg.bytes().to_vec();
         self.queue.push_back(Entry::new(qid, rep, lbl, vec));
         Ok(get_event(qid))
     }
@@ -134,10 +135,9 @@ impl SendQueue {
                 Some(e) => {
                     klog!(SQUEUE, "SendQueue[{}]: found pending message", self.id);
 
-                    if self
-                        .do_send(e.rep, e.lbl, e.id, &e.msg, e.msg.len())
-                        .is_ok()
-                    {
+                    let mut msg_buf = MsgBuf::new();
+                    msg_buf.set_from_slice(&e.msg);
+                    if self.do_send(e.rep, e.lbl, e.id, &msg_buf).is_ok() {
                         break;
                     }
                 },
@@ -150,8 +150,7 @@ impl SendQueue {
         rep: tcu::EpId,
         lbl: tcu::Label,
         id: u64,
-        msg: &[u8],
-        size: usize,
+        msg: &MsgBuf,
     ) -> Result<thread::Event, Error> {
         klog!(SQUEUE, "SendQueue[{}]: sending msg", self.id);
 
@@ -159,15 +158,7 @@ impl SendQueue {
         self.state = QState::Waiting;
 
         let rpl_lbl = self as *mut Self as tcu::Label;
-        ktcu::send_to(
-            self.pe,
-            rep,
-            lbl,
-            msg.as_ptr(),
-            size,
-            rpl_lbl,
-            ktcu::KSRV_EP,
-        )?;
+        ktcu::send_to(self.pe, rep, lbl, msg, rpl_lbl, ktcu::KSRV_EP)?;
 
         Ok(self.cur_event)
     }

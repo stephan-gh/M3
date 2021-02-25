@@ -206,16 +206,33 @@ pub struct TCU {}
 impl TCU {
     pub fn send(
         ep: EpId,
-        msg: *const u8,
-        size: usize,
+        msg: &mem::MsgBuf,
         reply_lbl: Label,
         reply_ep: EpId,
     ) -> Result<(), Error> {
-        Self::exec_command(ep, Command::SEND, msg, size, 0, 0, reply_lbl, reply_ep)
+        Self::exec_command(
+            ep,
+            Command::SEND,
+            msg.bytes().as_ptr(),
+            msg.size(),
+            0,
+            0,
+            reply_lbl,
+            reply_ep,
+        )
     }
 
-    pub fn reply(ep: EpId, reply: *const u8, size: usize, msg_off: usize) -> Result<(), Error> {
-        Self::exec_command(ep, Command::REPLY, reply, size, msg_off, 0, 0, 0)
+    pub fn reply(ep: EpId, reply: &mem::MsgBuf, msg_off: usize) -> Result<(), Error> {
+        Self::exec_command(
+            ep,
+            Command::REPLY,
+            reply.bytes().as_ptr(),
+            reply.size(),
+            msg_off,
+            0,
+            0,
+            0,
+        )
     }
 
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
@@ -241,12 +258,7 @@ impl TCU {
         }
 
         let msg = Self::get_cmd(CmdReg::OFFSET);
-        if msg != !0 {
-            Some(msg as usize)
-        }
-        else {
-            None
-        }
+        if msg != !0 { Some(msg as usize) } else { None }
     }
 
     pub fn is_valid(ep: EpId) -> bool {

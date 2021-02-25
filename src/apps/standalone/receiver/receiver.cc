@@ -24,12 +24,14 @@
 using namespace m3;
 
 static ALIGNED(8) uint8_t rbuf[8 * 64];
-static uint8_t reply[32];
 
 int main() {
     size_t size = nextlog2<sizeof(rbuf)>::val;
     uintptr_t rbuf_addr = reinterpret_cast<uintptr_t>(rbuf);
     kernel::TCU::config_recv(0, rbuf_addr, size, size - nextlog2<8>::val, 1);
+
+    MsgBuf reply;
+    reply.cast<uint64_t>() = 0;
 
     Serial::get() << "Hello World from receiver!\n";
 
@@ -44,8 +46,8 @@ int main() {
         ASSERT_EQ(rmsg->label, 0x1234);
 
         // send reply
-        ASSERT_EQ(kernel::TCU::reply(0, reply, sizeof(reply), rbuf_addr, rmsg), Errors::NONE);
-        reply[0]++;
+        ASSERT_EQ(kernel::TCU::reply(0, reply, rbuf_addr, rmsg), Errors::NONE);
+        reply.cast<uint64_t>() += 1;
     }
     return 0;
 }

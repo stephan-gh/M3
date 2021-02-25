@@ -32,20 +32,24 @@ SendGate SendGate::create(RecvGate *rgate, const SendGateArgs &args) {
     return SendGate(sel, args._flags, replygate);
 }
 
-void SendGate::send(const void *msg, size_t len, label_t reply_label) {
-    Errors::Code res = try_send(msg, len, reply_label);
+void SendGate::send(const MsgBuf &msg, label_t reply_label) {
+    Errors::Code res = try_send(msg, reply_label);
     if(res != Errors::NONE)
         throw TCUException(res);
 }
 
-Errors::Code SendGate::try_send(const void *msg, size_t len, label_t reply_label) {
-    const EP &sep = activate();
-    epid_t rep = _replygate->ep() ? _replygate->ep()->id() : TCU::NO_REPLIES;
-    return TCU::get().send(sep.id(), msg, len, reply_label, rep);
+Errors::Code SendGate::try_send(const MsgBuf &msg, label_t reply_label) {
+    return try_send_aligned(msg.bytes(), msg.size(), reply_label);
 }
 
-const TCU::Message *SendGate::call(const void *msg, size_t len) {
-    send(msg, len, 0);
+Errors::Code SendGate::try_send_aligned(const void *msg, size_t len, label_t reply_label) {
+    const EP &sep = activate();
+    epid_t rep = _replygate->ep() ? _replygate->ep()->id() : TCU::NO_REPLIES;
+    return TCU::get().send_aligned(sep.id(), msg, len, reply_label, rep);
+}
+
+const TCU::Message *SendGate::call(const MsgBuf &msg) {
+    send(msg, 0);
     return _replygate->receive(this);
 }
 

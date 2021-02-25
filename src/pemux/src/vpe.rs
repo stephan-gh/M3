@@ -413,14 +413,13 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
                 tcu::TCU::xchg_vpe(our().vpe_reg());
             }
 
-            let msg = &mut crate::msgs_mut().exit_notify;
-            msg.op = kif::pemux::Calls::EXIT.val as u64;
-            msg.vpe_sel = old.id();
-            msg.code = status as u64;
+            crate::msgbuf().set(kif::pemux::Exit {
+                op: kif::pemux::Calls::EXIT.val as u64,
+                vpe_sel: old.id(),
+                code: status as u64,
+            });
 
-            let msg_addr = msg as *const _ as *const u8;
-            let size = size_of::<kif::pemux::Exit>();
-            tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::KPEX_REP).unwrap();
+            tcu::TCU::send(tcu::KPEX_SEP, crate::msgbuf(), 0, tcu::KPEX_REP).unwrap();
 
             // switch back to old VPE
             if !pex_is_running {
@@ -729,7 +728,7 @@ impl VPE {
         self.map(0, base, 1, rx).unwrap();
 
         // insert fixed entry for messages into TLB
-        let virt = crate::msgs_mut() as *mut _ as usize;
+        let virt = crate::msgbuf().bytes().as_ptr() as usize;
         let pte = self.translate(virt, kif::PageFlags::R);
         let phys = pte & !(cfg::PAGE_MASK as u64);
         let mut flags = kif::PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);

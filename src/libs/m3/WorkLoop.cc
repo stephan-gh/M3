@@ -42,9 +42,10 @@ void WorkLoop::multithreaded(UNUSED uint count) {
 
         ThreadManager::get().notify(msg.event, &msg, sizeof(msg));
 
-        KIF::DefaultReply reply;
+        MsgBuf reply_buf;
+        auto &reply = reply_buf.cast<KIF::DefaultReply>();
         reply.error = Errors::NONE;
-        reply_msg(is, &reply, sizeof(reply));
+        reply_msg(is, reply_buf);
     });
 
     for(uint i = 0; i < count; ++i)

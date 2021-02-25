@@ -50,6 +50,7 @@ struct Errors {
         RECV_BUSY,
         TIMEOUT_MEM,
         TIMEOUT_NOC,
+        PAGE_BOUNDARY,
         // SW errors
         INV_ARGS,
         VPE_GONE,

@@ -137,7 +137,8 @@ private:
         }
         _creators[crt]->sessions--;
 
-        KIF::Service::OpenReply reply;
+        MsgBuf reply_buf;
+        auto &reply = reply_buf.cast<KIF::Service::OpenReply>();
 
         typename HDL::session_type *sess = nullptr;
         StringRef arg(req->arg, Math::min(static_cast<size_t>(req->arglen - 1), sizeof(req->arg)));
@@ -147,7 +148,7 @@ private:
 
         reply.sess = sess ? sess->sel() : KIF::INV_SEL;
         reply.ident = reinterpret_cast<uintptr_t>(sess);
-        is.reply(&reply, sizeof(reply));
+        is.reply(reply_buf);
     }
 
     void handle_derive_crt(GateIStream &is) {
@@ -159,7 +160,8 @@ private:
 
         LLOG(SERV, "derive_crt(creator=" << crt << ", sessions=" << sessions << ")");
 
-        KIF::Service::DeriveCreatorReply reply;
+        MsgBuf reply_buf;
+        auto &reply = reply_buf.cast<KIF::Service::DeriveCreatorReply>();
         reply.error = 0;
 
         if(!_creators[crt] || sessions > _creators[crt]->sessions)
@@ -171,7 +173,7 @@ private:
             reply.creator = ncrt;
         }
 
-        is.reply(&reply, sizeof(reply));
+        is.reply(reply_buf);
     }
 
     void handle_obtain(GateIStream &is) {
@@ -182,14 +184,15 @@ private:
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": obtain(caps="
             << req->data.caps << ", args=" << req->data.args.bytes << ")");
 
-        KIF::Service::ExchangeReply reply;
+        MsgBuf reply_buf;
+        auto &reply = reply_buf.cast<KIF::Service::ExchangeReply>();
         CapExchange xchg(req->data, reply.data);
 
         typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
         reply.error = _handler->obtain(sess, crt, xchg);
 
         reply.data.args.bytes = xchg.out_args().total();
-        is.reply(&reply, sizeof(reply));
+        is.reply(reply_buf);
     }
 
     void handle_delegate(GateIStream &is) {
@@ -199,14 +202,15 @@ private:
         LLOG(SERV, fmt((word_t)req->sess, "#x") << ": delegate(caps="
             << req->data.caps << ", args=" << req->data.args.bytes << ")");
 
-        KIF::Service::ExchangeReply reply;
+        MsgBuf reply_buf;
+        auto &reply = reply_buf.cast<KIF::Service::ExchangeReply>();
         CapExchange xchg(req->data, reply.data);
 
         typename HDL::session_type *sess = reinterpret_cast<typename HDL::session_type*>(req->sess);
         reply.error = _handler->delegate(sess, crt, xchg);
 
         reply.data.args.bytes = xchg.out_args().total();
-        is.reply(&reply, sizeof(reply));
+        is.reply(reply_buf);
     }
 
     void handle_close(GateIStream &is) {

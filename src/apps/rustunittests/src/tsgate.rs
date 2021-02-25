@@ -18,6 +18,7 @@ use m3::col::String;
 use m3::com::{recv_msg, recv_reply, RecvGate, SGateArgs, SendGate};
 use m3::errors::Code;
 use m3::math;
+use m3::mem::MsgBuf;
 use m3::test;
 use m3::{reply_vmsg, send_vmsg, wv_assert_eq, wv_assert_err, wv_assert_ok, wv_run_test};
 
@@ -72,10 +73,11 @@ fn send_recv() {
     ));
     wv_assert_ok!(rgate.activate());
 
-    let data = [0u8; 16];
-    wv_assert_ok!(sgate.send(&data, RecvGate::def()));
-    wv_assert_ok!(sgate.send(&data, RecvGate::def()));
-    wv_assert_err!(sgate.send(&data, RecvGate::def()), Code::NoCredits);
+    let mut buf = MsgBuf::new();
+    buf.set([0u8; 16]);
+    wv_assert_ok!(sgate.send(&buf, RecvGate::def()));
+    wv_assert_ok!(sgate.send(&buf, RecvGate::def()));
+    wv_assert_err!(sgate.send(&buf, RecvGate::def()), Code::NoCredits);
 
     {
         let is = wv_assert_ok!(recv_msg(&rgate));

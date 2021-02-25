@@ -30,7 +30,7 @@ use base::kif;
 use base::libc;
 use base::log;
 use base::machine;
-use base::mem;
+use base::mem::MsgBuf;
 use base::pexif;
 use base::tcu;
 
@@ -60,15 +60,9 @@ pub fn app_env() -> &'static mut envdata::EnvData {
     unsafe { &mut *(cfg::ENV_START as *mut _) }
 }
 
-fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
+fn reply_msg(msg: &'static tcu::Message, reply: &MsgBuf) {
     let msg_off = tcu::TCU::msg_to_offset(SIDE_RBUF_ADDR, msg);
-    tcu::TCU::reply(
-        tcu::PEXSIDE_REP,
-        reply as *const T as *const u8,
-        mem::size_of::<T>(),
-        msg_off,
-    )
-    .unwrap();
+    tcu::TCU::reply(tcu::PEXSIDE_REP, reply, msg_off).unwrap();
 }
 
 fn vpe_ctrl(msg: &'static tcu::Message) -> Result<Option<(usize, usize)>, Error> {
@@ -123,13 +117,15 @@ fn handle_sidecall(msg: &'static tcu::Message) -> Option<(usize, usize)> {
         _ => Err(Error::new(Code::NotSup)),
     };
 
-    let mut reply = kif::pemux::Response { error: 0, val: 0 };
-    reply.val = 0;
-    reply.error = match res {
-        Ok(_) => 0,
-        Err(ref e) => e.code() as u64,
-    };
-    reply_msg(msg, &reply);
+    let mut reply_buf = MsgBuf::new();
+    reply_buf.set(kif::pemux::Response {
+        error: 0,
+        val: match res {
+            Ok(_) => 0,
+            Err(ref e) => e.code() as u64,
+        },
+    });
+    reply_msg(msg, &reply_buf);
     res.unwrap_or(None)
 }
 
@@ -216,17 +212,16 @@ fn exit_app(state: &mut isr::State) -> Result<isize, Error> {
     let vpe = CUR_VPE.get_mut().take().unwrap();
     let code = state.r[PEXC_ARG1] as i32;
 
-    let msg = kif::pemux::Exit {
+    let mut msg_buf = MsgBuf::new();
+    msg_buf.set(kif::pemux::Exit {
         op: kif::pemux::Calls::EXIT.val as u64,
         vpe_sel: vpe,
         code: code as u64,
-    };
+    });
 
     log!(crate::LOG_INFO, "Sending exit for VPE {}", vpe);
 
-    let msg_addr = &msg as *const _ as *const u8;
-    let size = mem::size_of::<kif::pemux::Exit>();
-    tcu::TCU::send(tcu::KPEX_SEP, msg_addr, size, 0, tcu::KPEX_REP).ok();
+    tcu::TCU::send(tcu::KPEX_SEP, &msg_buf, 0, tcu::KPEX_REP).ok();
 
     // sync icache with dcache
     flush_invalidate().ok();

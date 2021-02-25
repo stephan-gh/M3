@@ -32,14 +32,14 @@ void Syscalls::reinit() {
 }
 
 template<class T>
-Syscalls::SyscallReply<T> Syscalls::send_receive(const void *msg, size_t size) noexcept {
-    const TCU::Message *reply = _sendgate.call(msg, size);
+Syscalls::SyscallReply<T> Syscalls::send_receive(const MsgBuf &msg) noexcept {
+    const TCU::Message *reply = _sendgate.call(msg);
     return SyscallReply<T>(reply);
 }
 
-Errors::Code Syscalls::send_receive_err(const void *msg, size_t size) noexcept {
+Errors::Code Syscalls::send_receive_err(const MsgBuf &msg) noexcept {
     try {
-        auto reply = send_receive<KIF::DefaultReply>(msg, size);
+        auto reply = send_receive<KIF::DefaultReply>(msg);
         return static_cast<Errors::Code>(reply.error());
     }
     catch(const TCUException &e) {
@@ -47,69 +47,75 @@ Errors::Code Syscalls::send_receive_err(const void *msg, size_t size) noexcept {
     }
 }
 
-void Syscalls::send_receive_throw(const void *msg, size_t size) {
-    Errors::Code res = send_receive_err(msg, size);
+void Syscalls::send_receive_throw(const MsgBuf &msg) {
+    Errors::Code res = send_receive_err(msg);
     if(res != Errors::NONE) {
-        auto *syscall = static_cast<const KIF::DefaultRequest*>(msg);
-        throw SyscallException(res, static_cast<KIF::Syscall::Operation>(syscall->opcode));
+        auto syscall = msg.get<KIF::DefaultRequest>();
+        throw SyscallException(res, static_cast<KIF::Syscall::Operation>(syscall.opcode));
     }
 }
 
 void Syscalls::create_srv(capsel_t dst, capsel_t rgate, const String &name, label_t creator) {
-    KIF::Syscall::CreateSrv req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::CreateSrv>();
     req.opcode = KIF::Syscall::CREATE_SRV;
     req.dst_sel = dst;
     req.rgate_sel = rgate;
     req.creator = creator;
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::create_sess(capsel_t dst, capsel_t srv, size_t crt, word_t ident, bool auto_close) {
-    KIF::Syscall::CreateSess req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::CreateSess>();
     req.opcode = KIF::Syscall::CREATE_SESS;
     req.dst_sel = dst;
     req.srv_sel = srv;
     req.creator = crt;
     req.ident = ident;
     req.auto_close = auto_close;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::create_mgate(capsel_t dst, capsel_t vpe, goff_t addr, size_t size, int perms) {
-    KIF::Syscall::CreateMGate req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::CreateMGate>();
     req.opcode = KIF::Syscall::CREATE_MGATE;
     req.dst_sel = dst;
     req.vpe_sel = vpe;
     req.addr = addr;
     req.size = size;
     req.perms = static_cast<xfer_t>(perms);
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::create_rgate(capsel_t dst, uint order, uint msgorder) {
-    KIF::Syscall::CreateRGate req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::CreateRGate>();
     req.opcode = KIF::Syscall::CREATE_RGATE;
     req.dst_sel = dst;
     req.order = static_cast<xfer_t>(order);
     req.msgorder = static_cast<xfer_t>(msgorder);
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::create_sgate(capsel_t dst, capsel_t rgate, label_t label, uint credits) {
-    KIF::Syscall::CreateSGate req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::CreateSGate>();
     req.opcode = KIF::Syscall::CREATE_SGATE;
     req.dst_sel = dst;
     req.rgate_sel = rgate;
     req.label = label;
     req.credits = credits;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t first,
                           capsel_t pages, int perms) {
-    KIF::Syscall::CreateMap req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::CreateMap>();
     req.opcode = KIF::Syscall::CREATE_MAP;
     req.dst_sel = dst;
     req.vpe_sel = vpe;
@@ -117,12 +123,13 @@ void Syscalls::create_map(capsel_t dst, capsel_t vpe, capsel_t mgate, capsel_t f
     req.first = first;
     req.pages = pages;
     req.perms = static_cast<xfer_t>(perms);
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 epid_t Syscalls::create_vpe(capsel_t dst, capsel_t pg_sg, capsel_t pg_rg,
                             const String &name, capsel_t pe, capsel_t kmem) {
-    KIF::Syscall::CreateVPE req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::CreateVPE>();
     req.opcode = KIF::Syscall::CREATE_VPE;
     req.dst_sel = dst;
     req.pg_sg_sel = pg_sg;
@@ -132,7 +139,7 @@ epid_t Syscalls::create_vpe(capsel_t dst, capsel_t pg_sg, capsel_t pg_rg,
     req.namelen = Math::min(name.length(), sizeof(req.name));
     memcpy(req.name, name.c_str(), req.namelen);
 
-    auto reply = send_receive<KIF::Syscall::CreateVPEReply>(&req, sizeof(req));
+    auto reply = send_receive<KIF::Syscall::CreateVPEReply>(req_buf);
 
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
@@ -141,22 +148,24 @@ epid_t Syscalls::create_vpe(capsel_t dst, capsel_t pg_sg, capsel_t pg_rg,
 }
 
 void Syscalls::create_sem(capsel_t dst, uint value) {
-    KIF::Syscall::CreateSem req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::CreateSem>();
     req.opcode = KIF::Syscall::CREATE_SEM;
     req.dst_sel = dst;
     req.value = value;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 epid_t Syscalls::alloc_ep(capsel_t dst, capsel_t vpe, epid_t ep, uint replies) {
-    KIF::Syscall::AllocEP req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::AllocEP>();
     req.opcode = KIF::Syscall::ALLOC_EPS;
     req.dst_sel = dst;
     req.vpe_sel = vpe;
     req.epid = ep;
     req.replies = replies;
 
-    auto reply = send_receive<KIF::Syscall::AllocEPReply>(&req, sizeof(req));
+    auto reply = send_receive<KIF::Syscall::AllocEPReply>(req_buf);
 
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
@@ -165,45 +174,49 @@ epid_t Syscalls::alloc_ep(capsel_t dst, capsel_t vpe, epid_t ep, uint replies) {
 }
 
 void Syscalls::activate(capsel_t ep, capsel_t gate, capsel_t rbuf_mem, goff_t rbuf_off) {
-    KIF::Syscall::Activate req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::Activate>();
     req.opcode = KIF::Syscall::ACTIVATE;
     req.ep_sel = ep;
     req.gate_sel = gate;
     req.rbuf_mem = rbuf_mem;
     req.rbuf_off = rbuf_off;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::set_pmp(capsel_t pe, capsel_t mgate, epid_t epid) {
-    KIF::Syscall::SetPMP req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::SetPMP>();
     req.opcode = KIF::Syscall::SET_PMP;
     req.pe_sel = pe;
     req.mgate_sel = mgate;
     req.epid = epid;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::vpe_ctrl(capsel_t vpe, KIF::Syscall::VPEOp op, xfer_t arg) {
-    KIF::Syscall::VPECtrl req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::VPECtrl>();
     req.opcode = KIF::Syscall::VPE_CTRL;
     req.vpe_sel = vpe;
     req.op = static_cast<xfer_t>(op);
     req.arg = arg;
     if(vpe == KIF::SEL_VPE && op == KIF::Syscall::VCTRL_STOP)
-        _sendgate.send(&req, sizeof(req), 0);
+        _sendgate.send(req_buf, 0);
     else
-        send_receive_throw(&req, sizeof(req));
+        send_receive_throw(req_buf);
 }
 
 int Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel_t *vpe) {
-    KIF::Syscall::VPEWait req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::VPEWait>();
     req.opcode = KIF::Syscall::VPE_WAIT;
     req.vpe_count = count;
     req.event = event;
     for(size_t i = 0; i < count; ++i)
         req.sels[i] = vpes[i];
 
-    auto reply = send_receive<KIF::Syscall::VPEWaitReply>(&req, sizeof(req));
+    auto reply = send_receive<KIF::Syscall::VPEWaitReply>(req_buf);
 
     int exitcode = -1;
     Errors::Code res = static_cast<Errors::Code>(reply.error());
@@ -219,7 +232,8 @@ int Syscalls::vpe_wait(const capsel_t *vpes, size_t count, event_t event, capsel
 
 void Syscalls::derive_mem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offset,
                           size_t size, int perms) {
-    KIF::Syscall::DeriveMem req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::DeriveMem>();
     req.opcode = KIF::Syscall::DERIVE_MEM;
     req.vpe_sel = vpe;
     req.dst_sel = dst;
@@ -227,53 +241,58 @@ void Syscalls::derive_mem(capsel_t vpe, capsel_t dst, capsel_t src, goff_t offse
     req.offset = offset;
     req.size = size;
     req.perms = static_cast<xfer_t>(perms);
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::derive_kmem(capsel_t kmem, capsel_t dst, size_t quota) {
-    KIF::Syscall::DeriveKMem req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::DeriveKMem>();
     req.opcode = KIF::Syscall::DERIVE_KMEM;
     req.kmem_sel = kmem;
     req.dst_sel = dst;
     req.quota = quota;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::derive_pe(capsel_t pe, capsel_t dst, uint eps) {
-    KIF::Syscall::DerivePE req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::DerivePE>();
     req.opcode = KIF::Syscall::DERIVE_PE;
     req.pe_sel = pe;
     req.dst_sel = dst;
     req.eps = eps;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::derive_srv(capsel_t srv, const KIF::CapRngDesc &dst, uint sessions, event_t event) {
-    KIF::Syscall::DeriveSrv req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::DeriveSrv>();
     req.opcode = KIF::Syscall::DERIVE_SRV;
     req.srv_sel = srv;
     req.dst_sel = dst.start();
     req.sessions = sessions;
     req.event = event;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::get_sess(capsel_t srv, capsel_t vpe, capsel_t dst, word_t sid) {
-    KIF::Syscall::GetSession req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::GetSession>();
     req.opcode = KIF::Syscall::GET_SESS;
     req.srv_sel = srv;
     req.vpe_sel = vpe;
     req.dst_sel = dst;
     req.sid = sid;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 size_t Syscalls::kmem_quota(capsel_t kmem) {
-    KIF::Syscall::KMemQuota req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::KMemQuota>();
     req.opcode = KIF::Syscall::KMEM_QUOTA;
     req.kmem_sel = kmem;
 
-    auto reply = send_receive<KIF::Syscall::KMemQuotaReply>(&req, sizeof(req));
+    auto reply = send_receive<KIF::Syscall::KMemQuotaReply>(req_buf);
 
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
@@ -282,11 +301,12 @@ size_t Syscalls::kmem_quota(capsel_t kmem) {
 }
 
 uint Syscalls::pe_quota(capsel_t pe) {
-    KIF::Syscall::PEQuota req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::PEQuota>();
     req.opcode = KIF::Syscall::PE_QUOTA;
     req.pe_sel = pe;
 
-    auto reply = send_receive<KIF::Syscall::PEQuotaReply>(&req, sizeof(req));
+    auto reply = send_receive<KIF::Syscall::PEQuotaReply>(req_buf);
 
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
@@ -295,26 +315,29 @@ uint Syscalls::pe_quota(capsel_t pe) {
 }
 
 void Syscalls::sem_ctrl(capsel_t sel, KIF::Syscall::SemOp op) {
-    KIF::Syscall::SemCtrl req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::SemCtrl>();
     req.opcode = KIF::Syscall::SEM_CTRL;
     req.sem_sel = sel;
     req.op = op;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::exchange(capsel_t vpe, const KIF::CapRngDesc &own, capsel_t other, bool obtain) {
-    KIF::Syscall::Exchange req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::Exchange>();
     req.opcode = KIF::Syscall::EXCHANGE;
     req.vpe_sel = vpe;
     own.to_raw(req.own_caps);
     req.other_sel = other;
     req.obtain = obtain;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
                              KIF::ExchangeArgs *args, bool obtain) {
-    KIF::Syscall::ExchangeSess req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::ExchangeSess>();
     req.opcode = obtain ? KIF::Syscall::OBTAIN : KIF::Syscall::DELEGATE;
     req.vpe_sel = vpe;
     req.sess_sel = sess;
@@ -324,7 +347,7 @@ void Syscalls::exchange_sess(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc 
     else
         req.args.bytes = 0;
 
-    auto reply = send_receive<KIF::Syscall::ExchangeSessReply>(&req, sizeof(req));
+    auto reply = send_receive<KIF::Syscall::ExchangeSessReply>(req_buf);
 
     Errors::Code res = static_cast<Errors::Code>(reply.error());
     if(res != Errors::NONE)
@@ -344,18 +367,20 @@ void Syscalls::obtain(capsel_t vpe, capsel_t sess, const KIF::CapRngDesc &crd,
 }
 
 void Syscalls::revoke(capsel_t vpe, const KIF::CapRngDesc &crd, bool own) {
-    KIF::Syscall::Revoke req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::Revoke>();
     req.opcode = KIF::Syscall::REVOKE;
     req.vpe_sel = vpe;
     crd.to_raw(req.caps);
     req.own = own;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 void Syscalls::noop() {
-    KIF::Syscall::Noop req;
+    MsgBuf req_buf;
+    auto &req = req_buf.cast<KIF::Syscall::Noop>();
     req.opcode = KIF::Syscall::NOOP;
-    send_receive_throw(&req, sizeof(req));
+    send_receive_throw(req_buf);
 }
 
 }

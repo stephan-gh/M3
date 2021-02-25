@@ -22,6 +22,9 @@ static void test_inv_ep() {
     ALIGNED(8) char rbuffer[32];
     uintptr_t buf = reinterpret_cast<uintptr_t>(&rbuffer);
 
+    MsgBuf msg;
+    msg.cast<uint64_t>() = 0xDEADBEEF;
+
     Serial::get() << "force invalidation\n";
     {
         uint64_t data;
@@ -41,7 +44,7 @@ static void test_inv_ep() {
         // now the EPs are invalid
         ASSERT_EQ(kernel::TCU::read(1, &data, sizeof(data), 0), Errors::NO_MEP);
         ASSERT_EQ(kernel::TCU::ack_msg(2, buf, reinterpret_cast<const m3::TCU::Message*>(buf)), Errors::NO_REP);
-        ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
+        ASSERT_EQ(kernel::TCU::send(3, msg, 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
 
         // invalidating again should work as well
         ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 1, true), Errors::NONE);
@@ -55,15 +58,14 @@ static void test_inv_ep() {
         kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 2, 5 /* 32 */, 1);
 
         // if credits are missing, we can't invalidate it (with force=0)
-        uint64_t data;
-        ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), 0x5678, TCU::NO_REPLIES), Errors::NONE);
+        ASSERT_EQ(kernel::TCU::send(3, msg, 0x5678, TCU::NO_REPLIES), Errors::NONE);
         ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 3, false), Errors::NO_CREDITS);
-        ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), 0x5678, TCU::NO_REPLIES), Errors::NO_CREDITS);
+        ASSERT_EQ(kernel::TCU::send(3, msg, 0x5678, TCU::NO_REPLIES), Errors::NO_CREDITS);
 
         // with all credits, we can invalidate
         kernel::TCU::config_send(3, 0x5678, pe_id(PE::PE0), 2, 5 /* 32 */, 1);
         ASSERT_EQ(kernel::TCU::invalidate_ep_remote(pe_id(PE::PE0), 3, false), Errors::NONE);
-        ASSERT_EQ(kernel::TCU::send(3, &data, sizeof(data), 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
+        ASSERT_EQ(kernel::TCU::send(3, msg, 0x5678, TCU::NO_REPLIES), Errors::NO_SEP);
     }
 
     Serial::get() << "non-force receive EP invalidation\n";

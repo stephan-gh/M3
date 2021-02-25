@@ -62,54 +62,29 @@ public:
 };
 
 /**
- * An implementation of GateOStream that hosts the message as a member. E.g. you can put an object
- * of this class on the stack, which would host the message on the stack.
- * In most cases, you don't want to use this class yourself, but the free standing convenience
- * functions below that automatically determine <SIZE>.
- *
- * @param SIZE the max. size of the message
+ * An implementation of GateOStream that uses MsgBuf to store the message.
  */
-template<size_t SIZE>
-class StaticGateOStream : public GateOStream {
+class MsgGateOStream : public GateOStream {
 public:
-    explicit StaticGateOStream() noexcept : GateOStream(_bytes, SIZE) {
+    explicit MsgGateOStream() noexcept : GateOStream(0, MsgBuf::MAX_MSG_SIZE), _msg() {
+        _bytes = reinterpret_cast<unsigned char*>(_msg.bytes());
     }
-    template<size_t SRCSIZE>
-    StaticGateOStream(const StaticGateOStream<SRCSIZE> &os) noexcept : GateOStream(os) {
-        static_assert(SIZE >= SRCSIZE, "Incompatible sizes");
-        memcpy(_bytes, os._bytes, sizeof(os._bytes));
+    MsgGateOStream(const MsgGateOStream &os) noexcept : GateOStream(os), _msg(os._msg) {
     }
-    template<size_t SRCSIZE>
-    StaticGateOStream &operator=(const StaticGateOStream<SRCSIZE> &os) noexcept {
-        static_assert(SIZE >= SRCSIZE, "Incompatible sizes");
+    MsgGateOStream &operator=(const MsgGateOStream &os) noexcept {
         GateOStream::operator=(os);
         if(&os != this)
-            memcpy(_bytes, os._bytes, sizeof(os._bytes));
+            _msg = os._msg;
         return *this;
     }
 
+    MsgBuf &finish() noexcept {
+        _msg.set_size(total());
+        return _msg;
+    }
+
 private:
-    unsigned char _bytes[SIZE];
-};
-
-/**
- * An implementation of GateOStream that hosts the message on the stack by using alloca.
- */
-class AutoGateOStream : public GateOStream {
-public:
-    ALWAYS_INLINE explicit AutoGateOStream(size_t size) noexcept
-        : GateOStream(static_cast<unsigned char*>(alloca(size)), size) {
-    }
-
-    AutoGateOStream(AutoGateOStream &&os) noexcept : GateOStream(os) {
-    }
-
-    /**
-     * Claim the ownership of the data from this class. Thus, it will not free it.
-     */
-    void claim() noexcept {
-        this->_bytes = nullptr;
-    }
+    MsgBuf _msg;
 };
 
 /**
@@ -224,21 +199,12 @@ public:
     }
 
     /**
-     * Replies the message constructed by <os> to this message
-     *
-     * @param os the GateOStream hosting the message to reply
-     */
-    void reply(const GateOStream &os) {
-        reply(os.bytes(), os.total());
-    }
-    /**
      * Replies the given message to this one
      *
-     * @param data the message data
-     * @param len the length of the message
+     * @param reply the message
      */
-    void reply(const void *data, size_t len) {
-        _rgate->reply(data, len, _msg);
+    void reply(const MsgBuf &reply) {
+        _rgate->reply(reply, _msg);
         // it's already acked
         _ack = false;
     }
@@ -275,24 +241,24 @@ inline void GateOStream::put(const GateIStream &is) noexcept {
 }
 
 static inline void reply_error(GateIStream &is, m3::Errors::Code error) {
-    KIF::DefaultReply reply;
-    reply.error = static_cast<xfer_t>(error);
-    is.reply(&reply, sizeof(reply));
+    MsgBuf reply;
+    auto &reply_data = reply.cast<KIF::DefaultReply>();
+    reply_data.error = static_cast<xfer_t>(error);
+    is.reply(reply);
 }
 
 /**
- * All these methods send the given data; either over <gate> or as an reply to the first not
+ * All these methods send the given message; either over <gate> or as an reply to the first not
  * acknowledged message in <gate> or as a reply on a GateIStream.
  *
  * @param gate the gate to send to
- * @param data the message data
- * @param len the message length
+ * @param msg the message
  */
-static inline void send_msg(SendGate &gate, const void *data, size_t len) {
-    gate.send(data, len);
+static inline void send_msg(SendGate &gate, const MsgBuf &msg) {
+    gate.send(msg);
 }
-static inline void reply_msg(GateIStream &is, const void *data, size_t len) {
-    is.reply(data, len);
+static inline void reply_msg(GateIStream &is, const MsgBuf &msg) {
+    is.reply(msg);
 }
 
 /**
@@ -301,8 +267,10 @@ static inline void reply_msg(GateIStream &is, const void *data, size_t len) {
  * @return the stream
  */
 template<typename ... Args>
-static inline auto create_vmsg(const Args& ... args) noexcept -> StaticGateOStream<ostreamsize<Args...>()> {
-    StaticGateOStream<ostreamsize<Args...>()> os;
+static inline MsgGateOStream create_vmsg(const Args& ... args) noexcept {
+    static_assert(ostreamsize<Args...>() <= MsgBuf::MAX_MSG_SIZE,
+                  "Arguments too large for message");
+    MsgGateOStream os;
     os.vput(args...);
     return os;
 }
@@ -318,11 +286,12 @@ static inline auto create_vmsg(const Args& ... args) noexcept -> StaticGateOStre
 template<typename... Args>
 static inline void send_vmsg(SendGate &gate, const Args &... args) {
     auto msg = create_vmsg(args...);
-    gate.send(msg.bytes(), msg.total());
+    gate.send(msg.finish());
 }
 template<typename... Args>
 static inline void reply_vmsg(GateIStream &is, const Args &... args) {
-    is.reply(create_vmsg(args...));
+    auto reply = create_vmsg(args...);
+    is.reply(reply.finish());
 }
 
 /**
@@ -382,14 +351,14 @@ static inline GateIStream receive_reply(SendGate &gate) {
 /**
  * Convenience methods that combine send_msg()/send_vmsg() and receive_msg().
  */
-static inline GateIStream send_receive_msg(SendGate &gate, const void *data, size_t len) {
-    const TCU::Message *reply = gate.call(data, len);
+static inline GateIStream send_receive_msg(SendGate &gate, const MsgBuf &msg) {
+    const TCU::Message *reply = gate.call(msg);
     return GateIStream(*gate.reply_gate(), reply);
 }
 template<typename... Args>
 static inline GateIStream send_receive_vmsg(SendGate &gate, const Args &... args) {
     auto msg = create_vmsg(args...);
-    const TCU::Message *reply = gate.call(msg.bytes(), msg.total());
+    const TCU::Message *reply = gate.call(msg.finish());
     return GateIStream(*gate.reply_gate(), reply);
 }
 

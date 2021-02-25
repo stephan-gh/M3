@@ -18,10 +18,9 @@ use base::col::ToString;
 use base::errors::Code;
 use base::goff;
 use base::kif::{self, CapRngDesc, CapSel, CapType};
-use base::mem::GlobAddr;
+use base::mem::{GlobAddr, MsgBuf};
 use base::rc::Rc;
 use base::tcu;
-use base::util;
 
 use crate::cap::{Capability, KObject};
 use crate::cap::{KMemObject, MGateObject, PEObject, ServObject};
@@ -165,10 +164,11 @@ pub fn derive_srv_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
 
     let srvcap = get_kobj!(vpe, srv_sel, Serv);
 
-    let smsg = kif::service::DeriveCreator {
+    let mut smsg = MsgBuf::new();
+    smsg.set(kif::service::DeriveCreator {
         opcode: kif::service::Operation::DERIVE_CRT.val as u64,
         sessions: sessions as u64,
-    };
+    });
 
     // everything worked, send the reply
     reply_success(msg);
@@ -181,7 +181,7 @@ pub fn derive_srv_async(vpe: &Rc<VPE>, msg: &'static tcu::Message) -> Result<(),
         srvcap.service().name(),
         label,
     );
-    let res = Service::send_receive_async(srvcap.service(), label, util::object_to_bytes(&smsg));
+    let res = Service::send_receive_async(srvcap.service(), label, &smsg);
 
     let res = match res {
         Err(e) => {

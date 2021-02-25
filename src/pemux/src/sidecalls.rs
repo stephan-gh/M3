@@ -18,7 +18,7 @@ use base::cfg;
 use base::errors::{Code, Error};
 use base::kif;
 use base::log;
-use base::mem::{size_of, GlobAddr};
+use base::mem::{GlobAddr, MsgBuf};
 use base::tcu;
 
 use crate::helper;
@@ -26,15 +26,9 @@ use crate::vpe;
 
 const SIDE_RBUF_ADDR: usize = cfg::PEMUX_RBUF_SPACE + cfg::KPEX_RBUF_SIZE;
 
-fn reply_msg<T>(msg: &'static tcu::Message, reply: &T) {
+fn reply_msg(msg: &'static tcu::Message, reply: &MsgBuf) {
     let msg_off = tcu::TCU::msg_to_offset(SIDE_RBUF_ADDR, msg);
-    tcu::TCU::reply(
-        tcu::PEXSIDE_REP,
-        reply as *const T as *const u8,
-        size_of::<T>(),
-        msg_off,
-    )
-    .unwrap();
+    tcu::TCU::reply(tcu::PEXSIDE_REP, reply, msg_off).unwrap();
 }
 
 fn vpe_ctrl(msg: &'static tcu::Message) -> Result<(), Error> {
@@ -183,8 +177,7 @@ fn ep_inval(msg: &'static tcu::Message) -> Result<(), Error> {
 fn handle_sidecall(msg: &'static tcu::Message) {
     let req = msg.get_data::<kif::DefaultRequest>();
 
-    let reply = &mut crate::msgs_mut().sidecall_reply;
-    reply.val = 0;
+    let reply = crate::msgbuf().set(kif::pemux::Response { error: 0, val: 0 });
 
     let res = match kif::pemux::Sidecalls::from(req.opcode) {
         kif::pemux::Sidecalls::VPE_CTRL => vpe_ctrl(msg),
@@ -199,7 +192,7 @@ fn handle_sidecall(msg: &'static tcu::Message) {
         Ok(_) => 0,
         Err(e) => e.code() as u64,
     };
-    reply_msg(msg, reply);
+    reply_msg(msg, crate::msgbuf());
 }
 
 #[inline(never)]

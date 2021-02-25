@@ -20,6 +20,7 @@ use m3::col::{DList, String, Vec};
 use m3::com::{RecvGate, SendGate};
 use m3::errors::Error;
 use m3::log;
+use m3::mem::MsgBuf;
 use m3::server::DEF_MAX_CLIENTS;
 use m3::tcu;
 
@@ -87,7 +88,7 @@ impl SendQueue {
         self.sgate.sel()
     }
 
-    pub fn send(&mut self, msg: &[u8]) -> Result<thread::Event, Error> {
+    pub fn send(&mut self, msg: &MsgBuf) -> Result<thread::Event, Error> {
         log!(
             crate::LOG_SQUEUE,
             "{}:squeue: trying to send msg",
@@ -107,7 +108,7 @@ impl SendQueue {
         let qid = events::alloc_unique_id();
 
         // copy message to heap
-        let vec = msg.to_vec();
+        let vec = msg.bytes().to_vec();
         self.queue.push_back(Entry::new(qid, vec));
         Ok(events::uid_to_event(qid))
     }
@@ -146,7 +147,9 @@ impl SendQueue {
                         self.serv_name()
                     );
 
-                    if self.do_send(e.id, &e.msg).is_ok() {
+                    let mut msg_buf = MsgBuf::new();
+                    msg_buf.set_from_slice(&e.msg);
+                    if self.do_send(e.id, &msg_buf).is_ok() {
                         break;
                     }
                 },
@@ -154,7 +157,7 @@ impl SendQueue {
         }
     }
 
-    fn do_send(&mut self, id: u64, msg: &[u8]) -> Result<thread::Event, Error> {
+    fn do_send(&mut self, id: u64, msg: &MsgBuf) -> Result<thread::Event, Error> {
         log!(
             crate::LOG_SQUEUE,
             "{}:squeue: sending msg",

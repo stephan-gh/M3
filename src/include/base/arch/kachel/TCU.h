@@ -213,12 +213,15 @@ public:
     void print(const char *str, size_t len);
 
 private:
-    Errors::Code send(epid_t ep, const void *msg, size_t size, label_t replylbl, epid_t reply_ep);
-    Errors::Code reply(epid_t ep, const void *reply, size_t size, size_t msg_off);
+    Errors::Code send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t reply_ep);
+    Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl, epid_t reply_ep);
+    Errors::Code reply(epid_t ep, const MsgBuf &reply, size_t msg_off);
     Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off);
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off);
 
     Errors::Code perform_send_reply(reg_t cmd);
+    Errors::Code perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
+                                  goff_t off, CmdOpCode cmd);
 
     size_t fetch_msg(epid_t ep) const {
         write_reg(UnprivRegs::COMMAND, build_command(ep, CmdOpCode::FETCH_MSG));

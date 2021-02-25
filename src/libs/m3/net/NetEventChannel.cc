@@ -46,74 +46,78 @@ NetEventChannel::NetEventChannel(capsel_t caps, bool ret_credits) noexcept
 
 void NetEventChannel::data_transfer(int sd, size_t pos, size_t size) {
     LLOG(NET, "NetEventChannel::data_transfer(sd=" << sd << ", pos=" << pos << ", size=" << size << ")");
-    NetEventChannel::DataTransferMessage msg;
+    MsgBuf msg_buf;
+    auto &msg = msg_buf.cast<NetEventChannel::DataTransferMessage>();
     msg.type = DataTransfer;
     msg.sd = sd;
     msg.pos = pos;
     msg.size = size;
-    send_message(&msg, sizeof(msg));
+    send_message(msg_buf);
 }
 
 void NetEventChannel::ack_data_transfer(int sd, size_t pos, size_t size) {
     LLOG(NET, "NetEventChannel::ack_data_transfer(sd=" << sd << ", pos=" << pos << ", size=" << size << ")");
-    NetEventChannel::AckDataTransferMessage msg;
+    MsgBuf msg_buf;
+    auto &msg = msg_buf.cast<NetEventChannel::AckDataTransferMessage>();
     msg.type = AckDataTransfer;
     msg.sd = sd;
     msg.pos = pos;
     msg.size = size;
-    send_message(&msg, sizeof(msg));
+    send_message(msg_buf);
 }
 
 bool NetEventChannel::inband_data_transfer(int sd, size_t size, std::function<void(uchar *)> cb_data) {
     LLOG(NET, "NetEventChannel::inband_data_transfer(sd=" << sd << ", size=" << size << ")");
-    // TODO: Avoid allocation and copy
-    void * msg_data = malloc(size + sizeof(InbandDataTransferMessage));
-    auto msg = static_cast<InbandDataTransferMessage *>(msg_data);
+
+    // make sure that the message does not contain a page boundary
+    ALIGNED(2048) char msg_buf[2048];
+    auto msg = reinterpret_cast<InbandDataTransferMessage*>(msg_buf);
     msg->type = InbandDataTransfer;
     msg->sd = sd;
     msg->size = size;
+    // TODO: avoid copy
     cb_data(msg->data);
 
     fetch_replies();
 
     // TODO: Send via seperate send/receive gate?
-    Errors::Code res = _sgate.try_send(msg_data, size + sizeof(InbandDataTransferMessage));
-
-    free(msg_data);
-    return res == Errors::NONE;
+    return _sgate.try_send_aligned(msg_buf, size + sizeof(InbandDataTransferMessage)) == Errors::NONE;
 }
 
 void NetEventChannel::socket_accept(int sd, int new_sd, IpAddr remote_addr, uint16_t remote_port) {
     LLOG(NET, "NetEventChannel::socket_accept(sd=" << sd << ", new_sd=" << new_sd << ")");
-    NetEventChannel::SocketAcceptMessage msg;
+    MsgBuf msg_buf;
+    auto &msg = msg_buf.cast<NetEventChannel::SocketAcceptMessage>();
     msg.type = SocketAccept;
     msg.sd = sd;
     msg.new_sd = new_sd;
     msg.remote_addr = remote_addr;
     msg.remote_port = remote_port;
-    send_message(&msg, sizeof(msg));
+    send_message(msg_buf);
 }
 
 
 void NetEventChannel::socket_connected(int sd) {
     LLOG(NET, "NetEventChannel::socket_connected(sd=" << sd << ")");
-    NetEventChannel::SocketConnectedMessage msg;
+    MsgBuf msg_buf;
+    auto &msg = msg_buf.cast<NetEventChannel::SocketConnectedMessage>();
     msg.type = SocketConnected;
     msg.sd = sd;
-    send_message(&msg, sizeof(msg));
+    send_message(msg_buf);
 }
 
 void NetEventChannel::socket_closed(int sd, Errors::Code cause) {
     LLOG(NET, "NetEventChannel::socket_closed(sd=" << sd << ")");
-    NetEventChannel::SocketClosedMessage msg;
+    MsgBuf msg_buf;
+    auto &msg = msg_buf.cast<NetEventChannel::SocketClosedMessage>();
     msg.type = SocketClosed;
     msg.sd = sd;
     msg.cause = cause;
-    send_message(&msg, sizeof(msg));
+    send_message(msg_buf);
 }
 
-void NetEventChannel::send_message(const void* msg, size_t size) {
-    _sgate.send(msg, size);
+void NetEventChannel::send_message(const MsgBuf &msg) {
+    _sgate.send(msg);
 }
 
 void NetEventChannel::start(WorkLoop *wl, evhandler_t evhandler, crdhandler_t crdhandler) {
@@ -216,7 +220,8 @@ void NetEventChannel::Event::finish() {
     if(is_present() && _ack) {
         if(_channel->_ret_credits) {
             // pass credits back to client using an empty message
-            _channel->_rgate.reply(nullptr, 0, _msg);
+            MsgBuf empty_msg;
+            _channel->_rgate.reply(empty_msg, _msg);
         }
         else {
             // Only acknowledge message

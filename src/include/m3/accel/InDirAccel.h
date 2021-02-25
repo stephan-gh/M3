@@ -78,11 +78,12 @@ public:
     }
 
     void start(Operation op, size_t dataSize, cycles_t compTime, label_t reply_label) {
-        InvokeMsg msg;
+        MsgBuf msg_buf;
+        auto &msg = msg_buf.cast<InvokeMsg>();
         msg.op = op;
         msg.dataSize = dataSize;
         msg.compTime = compTime;
-        _sgate.send(&msg, sizeof(msg), reply_label);
+        _sgate.send(msg_buf, reply_label);
     }
 
 private:

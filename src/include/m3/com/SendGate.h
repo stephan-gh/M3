@@ -154,34 +154,40 @@ public:
     }
 
     /**
-     * Sends <msg> of length <len> to the associated RecvGate.
+     * Sends <msg> to the associated RecvGate.
      *
      * @param msg the message to send
-     * @param len the length of the message
      * @param reply_label the reply label to set
      */
-    void send(const void *msg, size_t len, label_t reply_label = 0);
+    void send(const MsgBuf &msg, label_t reply_label = 0);
 
     /**
-     * Tries to send <msg> of length <len> to the associated RecvGate and returns the error code
-     * on failure.
+     * Tries to send <msg> to the associated RecvGate and returns the error code on failure.
+     *
+     * @param msg the message to send
+     * @param reply_label the reply label to set
+     * @return the error code if failed
+     */
+    Errors::Code try_send(const MsgBuf &msg, label_t reply_label = 0);
+
+    /**
+     * Tries to send <msg> with <len> bytes to the associated RecvGate and returns the error code on
+     * failure. Assumes that <msg>:<len> is properly aligned and does not contain a page boundary.
      *
      * @param msg the message to send
      * @param len the length of the message
      * @param reply_label the reply label to set
      * @return the error code if failed
      */
-    Errors::Code try_send(const void *msg, size_t len, label_t reply_label = 0);
+    Errors::Code try_send_aligned(const void *msg, size_t len, label_t reply_label = 0);
 
     /**
-     * Sends <msg> of length <len> to the associated RecvGate and receives the reply from the set
-     * reply gate.
+     * Sends <msg> to the associated RecvGate and receives the reply from the set reply gate.
      *
      * @param msg the message to send
-     * @param len the length of the message
      * @return the received reply
      */
-    const TCU::Message *call(const void *msg, size_t len);
+    const TCU::Message *call(const MsgBuf &msg);
 
 private:
     RecvGate *_replygate;
