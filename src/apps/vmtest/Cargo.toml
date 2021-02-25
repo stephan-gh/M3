@@ -9,5 +9,6 @@ crate-type = ["staticlib"]
 
 [dependencies]
 base = { path = "../../libs/rust/base" }
+heap = { path = "../../libs/rust/heap" }
 isr = { path = "../../libs/rust/isr" }
 paging = { path = "../../libs/rust/paging" }

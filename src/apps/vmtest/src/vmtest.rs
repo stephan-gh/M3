@@ -17,6 +17,8 @@
 #![feature(llvm_asm)]
 #![no_std]
 
+extern crate heap;
+
 mod paging;
 mod pes;
 
