@@ -413,7 +413,7 @@ impl TCU {
         Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
         Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, CmdOpCode::READ, 0));
         let res = Self::get_error();
-        atomic::fence(atomic::Ordering::Acquire);
+        atomic::fence(atomic::Ordering::SeqCst);
         res
     }
 
@@ -502,7 +502,7 @@ impl TCU {
     #[inline(always)]
     pub fn ack_msg(ep: EpId, msg_off: usize) -> Result<(), Error> {
         // ensure that we are really done with the message before acking it
-        atomic::fence(atomic::Ordering::Release);
+        atomic::fence(atomic::Ordering::SeqCst);
         Self::write_unpriv_reg(
             UnprivReg::COMMAND,
             Self::build_cmd(ep, CmdOpCode::ACK_MSG, msg_off as Reg),
