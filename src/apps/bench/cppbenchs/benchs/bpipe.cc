@@ -31,7 +31,7 @@ using namespace m3;
 const size_t DATA_SIZE  = 2 * 1024 * 1024;
 const size_t BUF_SIZE   = 8 * 1024;
 
-alignas(64) static char buf[BUF_SIZE];
+alignas(PAGE_SIZE) static char buf[BUF_SIZE];
 
 NOINLINE void child_to_parent() {
     Profile pr(2, 1);

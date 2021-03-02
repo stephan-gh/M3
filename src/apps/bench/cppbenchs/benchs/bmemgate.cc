@@ -27,7 +27,7 @@ using namespace m3;
 
 static const size_t SIZE = 2 * 1024 * 1024;
 
-alignas(64) static char buf[8192];
+alignas(PAGE_SIZE) static char buf[8192];
 
 NOINLINE static void read() {
     MemGate mgate = MemGate::create_global(8192, MemGate::R);

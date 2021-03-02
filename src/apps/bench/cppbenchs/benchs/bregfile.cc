@@ -25,7 +25,7 @@
 
 using namespace m3;
 
-alignas(64) static char buf[8192];
+alignas(PAGE_SIZE) static char buf[8192];
 
 NOINLINE static void open_close() {
     Profile pr(50, 10);
