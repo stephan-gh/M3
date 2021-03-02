@@ -162,15 +162,13 @@ impl<'r> ops::Drop for GateIStream<'r> {
 /// Marshalls a message from `$args` and returns the `MsgBuf`.
 #[macro_export]
 macro_rules! build_vmsg {
-    ( $( $args:expr ),* ) => ({
-        let mut msg = $crate::mem::MsgBuf::new();
+    ( $msg:expr, $( $args:expr ),* ) => ({
         // safety: we initialize these bytes below
-        let mut os = unsafe { $crate::com::GateOStream::new(msg.words_mut()) };
+        let mut os = unsafe { $crate::com::GateOStream::new($msg.words_mut()) };
         $( os.push(&$args); )*
         let bytes = os.size();
         // safety: we just have initialized these bytes
-        unsafe { msg.set_size(bytes) };
-        msg
+        unsafe { $msg.set_size(bytes) };
     });
 }
 
@@ -178,7 +176,8 @@ macro_rules! build_vmsg {
 #[macro_export]
 macro_rules! send_vmsg {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let msg = $crate::build_vmsg!($( $args ),*);
+        let mut msg = $crate::mem::MsgBuf::new();
+        $crate::build_vmsg!(&mut msg, $( $args ),*);
         $sg.send(&msg, $rg)
     });
 }
@@ -188,7 +187,8 @@ macro_rules! send_vmsg {
 #[macro_export]
 macro_rules! reply_vmsg {
     ( $is:expr, $( $args:expr ),* ) => ({
-        let msg = $crate::build_vmsg!($( $args ),*);
+        let mut msg = $crate::mem::MsgBuf::new();
+        $crate::build_vmsg!(&mut msg, $( $args ),*);
         $is.reply_os(&msg)
     });
 }
@@ -239,7 +239,8 @@ pub fn recv_result<'r>(
 #[macro_export]
 macro_rules! send_recv {
     ( $sg:expr, $rg:expr, $( $args:expr ),* ) => ({
-        let msg = $crate::build_vmsg!($( $args ),*);
+        let mut msg = $crate::mem::MsgBuf::new();
+        $crate::build_vmsg!(&mut msg, $( $args ),*);
         $sg.call(&msg, $rg)
             .map(|m| $crate::com::GateIStream::new(m, $rg))
     });
