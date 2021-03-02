@@ -401,6 +401,7 @@ impl TCU {
     }
 
     /// Reads `size` bytes from offset `off` in the memory region denoted by the endpoint into `data`.
+    #[inline(always)]
     pub fn read(ep: EpId, data: *mut u8, size: usize, off: goff) -> Result<(), Error> {
         log!(
             TCU,
@@ -417,6 +418,7 @@ impl TCU {
     }
 
     /// Writes `size` bytes from `data` to offset `off` in the memory region denoted by the endpoint.
+    #[inline(always)]
     pub fn write(ep: EpId, data: *const u8, size: usize, off: goff) -> Result<(), Error> {
         if ep != PRINT_EP {
             log!(
@@ -432,6 +434,7 @@ impl TCU {
         Self::perform_transfer(ep, data as usize, size, off, CmdOpCode::WRITE)
     }
 
+    #[inline(always)]
     fn perform_transfer(
         ep: EpId,
         mut data: usize,

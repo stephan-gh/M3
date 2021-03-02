@@ -217,6 +217,7 @@ impl MemGate {
         tcu::TCU::write(ep.id(), data, size, off)
     }
 
+    #[inline(always)]
     pub(crate) fn activate(&self) -> Result<&EP, Error> {
         self.gate.activate()
     }
