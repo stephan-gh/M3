@@ -26,5 +26,7 @@ class Buffer {
     size_t maxReadSize;
     size_t maxWriteSize;
     char  *readBuf;
+    char  *readBufAligned;
     char  *writeBuf;
+    char  *writeBufAligned;
 };
