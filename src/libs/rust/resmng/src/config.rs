@@ -578,7 +578,7 @@ impl AppConfig {
             )?;
         }
         for d in &self.domains {
-            writeln!(f, "{:0w$}Domain[", "", w = layer + 2)?;
+            writeln!(f, "{:0w$}Domain [", "", w = layer + 2)?;
             for a in &d.apps {
                 a.print_rec(f, layer + 4)?;
             }
