@@ -20,7 +20,7 @@ use core::fmt;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{MemGate, RecvGate, SendGate};
+use crate::com::{recv_reply, MemGate, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::int_enum;
@@ -31,7 +31,9 @@ use crate::rc::Rc;
 use crate::serialize::Source;
 use crate::session::{ClientSession, MapFlags, Pager};
 use crate::time;
-use crate::vfs::{filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode};
+use crate::vfs::{
+    filetable, Fd, File, FileHandle, FileInfo, Map, OpenFlags, Seek, SeekMode, StatResponse,
+};
 
 int_enum! {
     /// The operations for [`GenericFile`].
@@ -139,8 +141,10 @@ impl File for GenericFile {
     }
 
     fn stat(&self) -> Result<FileInfo, Error> {
-        let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), GenFileOp::STAT)?;
-        reply.pop()
+        send_vmsg!(&self.sgate, RecvGate::def(), GenFileOp::STAT)?;
+        let reply = recv_reply(RecvGate::def(), Some(&self.sgate))?;
+        let resp = reply.msg().get_data::<StatResponse>();
+        FileInfo::from_response(resp)
     }
 
     fn file_type(&self) -> u8 {

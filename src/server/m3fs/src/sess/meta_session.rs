@@ -27,7 +27,7 @@ use m3::{
     server::CapExchange,
     server::SessId,
     session::ServerSession,
-    vfs::{FileInfo, OpenFlags},
+    vfs::OpenFlags,
 };
 
 pub struct MetaSession {
@@ -217,9 +217,11 @@ impl M3FSSession for MetaSession {
         let ino = dirs::search(path, false)?;
         let inode = inodes::get(ino)?;
 
-        let mut info = FileInfo::default();
-        inode.to_file_info(&mut info);
-        reply_vmsg!(stream, 0, info)
+        let info = inode.to_file_info();
+
+        let mut reply = m3::mem::MsgBuf::new();
+        reply.set(info.to_response());
+        stream.reply(&reply)
     }
 
     fn mkdir(&mut self, stream: &mut GateIStream) -> Result<(), Error> {

@@ -30,7 +30,7 @@ use m3::{
     server::{CapExchange, SessId},
     session::ServerSession,
     syscalls, tcu,
-    vfs::{FileInfo, OpenFlags, SeekMode},
+    vfs::{OpenFlags, SeekMode},
 };
 
 struct Entry {
@@ -572,10 +572,11 @@ impl M3FSSession for FileSession {
         );
 
         let inode = inodes::get(self.ino)?;
-        let mut info = FileInfo::default();
-        inode.to_file_info(&mut info);
+        let info = inode.to_file_info();
 
-        reply_vmsg!(stream, 0, info)
+        let mut reply = m3::mem::MsgBuf::new();
+        reply.set(info.to_response());
+        stream.reply(&reply)
     }
 
     fn stat(&mut self, stream: &mut GateIStream) -> Result<(), Error> {

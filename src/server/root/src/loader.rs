@@ -66,10 +66,18 @@ impl vfs::File for BootFile {
     }
 
     fn stat(&self) -> Result<vfs::FileInfo, Error> {
-        let mut info = vfs::FileInfo::default();
-        info.size = self.size;
-        info.extents = 1;
-        Ok(info)
+        Ok(vfs::FileInfo {
+            devno: 0,
+            inode: 0,
+            mode: 0,
+            links: 0,
+            size: self.size as usize,
+            lastaccess: 0,
+            lastmod: 0,
+            extents: 1,
+            blocksize: 0,
+            firstblock: 0,
+        })
     }
 
     fn file_type(&self) -> u8 {

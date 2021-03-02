@@ -92,17 +92,19 @@ impl INode {
         self.dindirect = 0;
     }
 
-    pub fn to_file_info(&self, info: &mut FileInfo) {
-        info.devno = self.devno;
-        info.inode = self.inode;
-        info.mode = self.mode.bits() as u16;
-        info.links = self.links as u32;
-        info.size = self.size as usize;
-        info.lastaccess = self.lastaccess;
-        info.lastmod = self.lastmod;
-        info.extents = self.extents as u32;
-        info.blocksize = crate::hdl().superblock().block_size as u32;
-        info.firstblock = self.direct[0].start;
+    pub fn to_file_info(&self) -> FileInfo {
+        FileInfo {
+            devno: self.devno,
+            inode: self.inode,
+            mode: self.mode.bits() as u16,
+            links: self.links as u32,
+            size: self.size as usize,
+            lastaccess: self.lastaccess,
+            lastmod: self.lastmod,
+            extents: self.extents as u32,
+            blocksize: crate::hdl().superblock().block_size as u32,
+            firstblock: self.direct[0].start,
+        }
     }
 }
 

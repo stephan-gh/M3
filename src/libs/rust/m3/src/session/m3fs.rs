@@ -21,7 +21,7 @@ use core::fmt;
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::com::{RecvGate, SendGate};
+use crate::com::{recv_reply, RecvGate, SendGate};
 use crate::errors::Error;
 use crate::goff;
 use crate::kif;
@@ -31,6 +31,7 @@ use crate::serialize::Source;
 use crate::session::ClientSession;
 use crate::vfs::{
     FSHandle, FSOperation, FileHandle, FileInfo, FileMode, FileSystem, GenericFile, OpenFlags,
+    StatResponse,
 };
 
 /// The type of extent ids.
@@ -111,8 +112,10 @@ impl FileSystem for M3FS {
     }
 
     fn stat(&self, path: &str) -> Result<FileInfo, Error> {
-        let mut reply = send_recv_res!(&self.sgate, RecvGate::def(), FSOperation::STAT, path)?;
-        reply.pop()
+        send_vmsg!(&self.sgate, RecvGate::def(), FSOperation::STAT, path)?;
+        let reply = recv_reply(RecvGate::def(), Some(&self.sgate))?;
+        let resp = reply.msg().get_data::<StatResponse>();
+        FileInfo::from_response(resp)
     }
 
     fn mkdir(&self, path: &str, mode: FileMode) -> Result<(), Error> {

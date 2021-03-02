@@ -26,7 +26,6 @@ use crate::int_enum;
 use crate::io::{Read, Write};
 use crate::kif;
 use crate::pes::StateSerializer;
-use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
 use crate::session::{MapFlags, Pager};
 use crate::vfs::{BlockId, DevId, Fd, FileMode, INodeId};
 
@@ -76,7 +75,7 @@ impl From<OpenFlags> for kif::Perm {
 }
 
 /// The file information that can be retrieved via [`VFS::stat`](::vfs::VFS::stat).
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct FileInfo {
     pub devno: DevId,
     pub inode: INodeId,
@@ -91,34 +90,57 @@ pub struct FileInfo {
     pub firstblock: BlockId,
 }
 
-impl Marshallable for FileInfo {
-    fn marshall(&self, s: &mut Sink) {
-        s.push_word(self.devno as u64);
-        s.push_word(self.inode as u64);
-        s.push_word(self.mode as u64);
-        s.push_word(self.links as u64);
-        s.push_word(self.size as u64);
-        s.push_word(self.lastaccess as u64);
-        s.push_word(self.lastmod as u64);
-        s.push_word(self.blocksize as u64);
-        s.push_word(self.extents as u64);
-        s.push_word(self.firstblock as u64);
-    }
+/// The response for the stat call to m3fs.
+// note that this is hand optimized, because stat is quite performance critical and the compiler
+// seems to be unable to properly optimize everything with true marshalling/unmarshalling.
+#[repr(C)]
+pub struct StatResponse {
+    pub error: u64,
+    pub devno: u64,
+    pub inode: u64,
+    pub mode: u64,
+    pub links: u64,
+    pub size: u64,
+    pub lastaccess: u64,
+    pub lastmod: u64,
+    pub blocksize: u64,
+    pub extents: u64,
+    pub firstblock: u64,
 }
 
-impl Unmarshallable for FileInfo {
-    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
-        Ok(FileInfo {
-            devno: s.pop_word()? as DevId,
-            inode: s.pop_word()? as INodeId,
-            mode: s.pop_word()? as FileMode,
-            links: s.pop_word()? as u32,
-            size: s.pop_word()? as usize,
-            lastaccess: s.pop_word()? as u32,
-            lastmod: s.pop_word()? as u32,
-            blocksize: s.pop_word()? as u32,
-            extents: s.pop_word()? as u32,
-            firstblock: s.pop_word()? as BlockId,
+impl FileInfo {
+    pub fn to_response(&self) -> StatResponse {
+        StatResponse {
+            error: 0,
+            devno: self.devno as u64,
+            inode: self.inode as u64,
+            mode: self.mode as u64,
+            links: self.links as u64,
+            size: self.size as u64,
+            lastaccess: self.lastaccess as u64,
+            lastmod: self.lastmod as u64,
+            blocksize: self.blocksize as u64,
+            extents: self.extents as u64,
+            firstblock: self.firstblock as u64,
+        }
+    }
+
+    pub fn from_response(resp: &StatResponse) -> Result<Self, Error> {
+        if resp.error != 0 {
+            return Err(Error::from(resp.error as u32));
+        }
+
+        Ok(Self {
+            devno: resp.devno as DevId,
+            inode: resp.inode as INodeId,
+            mode: resp.mode as FileMode,
+            links: resp.links as u32,
+            size: resp.size as usize,
+            lastaccess: resp.lastaccess as u32,
+            lastmod: resp.lastmod as u32,
+            blocksize: resp.blocksize as u32,
+            extents: resp.extents as u32,
+            firstblock: resp.firstblock as BlockId,
         })
     }
 }
