@@ -163,7 +163,7 @@ build_params_hw() {
         args="$args --vm"
     fi
 
-    files="run/boot.xml $bindir/peidle"
+    files="$M3_OUT/boot.xml $bindir/peidle"
     IFS=';'
     c=0
     for karg in $kargs; do
