@@ -35,10 +35,7 @@ int main() {
 
     Serial::get() << "Hello World from receiver!\n";
 
-    for(int count = 0; ; ++count) {
-        if(count % 100000 == 0)
-            Serial::get() << "received " << count << " messages\n";
-
+    for(int count = 0; count < 700000; ++count) {
         // wait for message
         const TCU::Message *rmsg;
         while((rmsg = kernel::TCU::fetch_msg(0, rbuf_addr)) == nullptr)
@@ -49,5 +46,12 @@ int main() {
         ASSERT_EQ(kernel::TCU::reply(0, reply, rbuf_addr, rmsg), Errors::NONE);
         reply.cast<uint64_t>() += 1;
     }
+
+    // give the other PEs some time
+    for(volatile int i = 0; i < 1000000; ++i)
+        ;
+
+    // for the test infrastructure
+    Serial::get() << "Shutting down\n";
     return 0;
 }

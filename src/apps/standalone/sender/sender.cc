@@ -46,10 +46,7 @@ int main() {
         kernel::TCU::config_send(0, 0x1234, pe_id(PE::PE0), 0, nextlog2<MSG_SIZE>::val, 1);
     }
 
-    for(int count = 0; ; ++count) {
-        if(count % 100000 == 0)
-            Serial::get() << "sent " << count << " messages\n";
-
+    for(int count = 0; count < 100000; ++count) {
         // wait for reply
         const TCU::Message *rmsg;
         while((rmsg = kernel::TCU::fetch_msg(1, rbuf_addr)) == nullptr)
