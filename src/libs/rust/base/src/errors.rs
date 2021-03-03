@@ -49,6 +49,7 @@ pub enum Code {
     TimeoutMem,
     TimeoutNoC,
     PageBoundary,
+    MsgUnaligned,
     // SW Errors
     InvArgs,
     VPEGone,

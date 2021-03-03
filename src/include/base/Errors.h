@@ -51,6 +51,7 @@ struct Errors {
         TIMEOUT_MEM,
         TIMEOUT_NOC,
         PAGE_BOUNDARY,
+        MSG_UNALIGNED,
         // SW errors
         INV_ARGS,
         VPE_GONE,
