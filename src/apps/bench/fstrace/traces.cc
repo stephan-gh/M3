@@ -18,6 +18,7 @@
 
 #include <string.h>
 
+#if defined(M3_TRACE_STANDALONE)
 extern trace_op_t trace_ops_empty[];
 extern trace_op_t trace_ops_find[];
 extern trace_op_t trace_ops_leveldb[];
@@ -27,6 +28,8 @@ extern trace_op_t trace_ops_sort[];
 extern trace_op_t trace_ops_sqlite[];
 extern trace_op_t trace_ops_tar[];
 extern trace_op_t trace_ops_untar[];
+#endif
+#if defined(M3_TRACE_PIPE)
 extern trace_op_t trace_ops_cat_awk_cat[];
 extern trace_op_t trace_ops_cat_awk_awk[];
 extern trace_op_t trace_ops_cat_wc_cat[];
@@ -35,8 +38,10 @@ extern trace_op_t trace_ops_grep_awk_grep[];
 extern trace_op_t trace_ops_grep_awk_awk[];
 extern trace_op_t trace_ops_grep_wc_grep[];
 extern trace_op_t trace_ops_grep_wc_wc[];
+#endif
 
 Trace Traces::traces[] = {
+#if defined(M3_TRACE_STANDALONE)
     {"empty",           trace_ops_empty},
     {"find",            trace_ops_find},
     {"leveldb",         trace_ops_leveldb},
@@ -46,6 +51,8 @@ Trace Traces::traces[] = {
     {"sqlite",          trace_ops_sqlite},
     {"tar",             trace_ops_tar},
     {"untar",           trace_ops_untar},
+#endif
+#if defined(M3_TRACE_PIPE)
     {"cat_awk_cat",     trace_ops_cat_awk_cat},
     {"cat_awk_awk",     trace_ops_cat_awk_awk},
     {"cat_wc_cat",      trace_ops_cat_wc_cat},
@@ -54,6 +61,7 @@ Trace Traces::traces[] = {
     {"grep_awk_awk",    trace_ops_grep_awk_awk},
     {"grep_wc_grep",    trace_ops_grep_wc_grep},
     {"grep_wc_wc",      trace_ops_grep_wc_wc},
+#endif
 };
 
 Trace *Traces::get(const char *name) {

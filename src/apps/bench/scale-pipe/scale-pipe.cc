@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
         const size_t ARG_COUNT = 9;
         for(size_t i = 0; i < instances * 2; ++i) {
             const char **args = new const char *[ARG_COUNT];
-            args[0] = "/bin/fstrace-m3fs";
+            args[0] = "/bin/fstrace-m3fs-pipe";
 
             apps[i] = new App(ARG_COUNT, args);
         }
