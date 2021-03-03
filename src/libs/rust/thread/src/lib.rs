@@ -165,7 +165,7 @@ impl Thread {
             next: None,
             id: alloc_id(),
             regs: Regs::default(),
-            stack: vec![0usize; STACK_SIZE / 8],
+            stack: vec![0usize; STACK_SIZE / mem::size_of::<usize>()],
             event: 0,
             has_msg: false,
             // safety: will only be safe to access if `has_msg` is true
