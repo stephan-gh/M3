@@ -32,7 +32,6 @@ pub use arch::init::{exit, rust_deinit, rust_init};
 pub mod io;
 #[macro_use]
 pub mod com;
-pub mod pexcalls;
 
 pub mod envdata {
     pub use crate::arch::env::*;
@@ -63,6 +62,7 @@ pub use base::{
     log,
     math,
     mem,
+    pexif,
     profile,
     rc,
     serialize,

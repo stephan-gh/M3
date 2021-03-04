@@ -23,6 +23,10 @@ use core::fmt;
 pub const ISR_COUNT: usize = 8;
 pub const TCU_ISR: usize = Vector::IRQ.val;
 
+pub const PEXC_ARG0: usize = 0; // r0
+pub const PEXC_ARG1: usize = 1; // r1
+pub const PEXC_ARG2: usize = 2; // r2
+
 #[derive(Default)]
 // for some reason, we need to specify the alignment here. actually, this struct needs to be packed,
 // but unfortunately, we cannot specify both packed and align. but without packed seems to be fine,
@@ -105,6 +109,10 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
 
 pub fn init(_state: &mut State) {
     // nothing to do
+}
+
+pub fn init_pexcalls(handler: crate::IsrFunc) {
+    crate::reg(Vector::SWI.val, handler);
 }
 
 pub fn set_entry_sp(_sp: usize) {

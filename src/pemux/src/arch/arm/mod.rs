@@ -22,10 +22,6 @@ use crate::vpe;
 
 pub type State = isr::State;
 
-pub const PEXC_ARG0: usize = 0; // r0
-pub const PEXC_ARG1: usize = 1; // r1
-pub const PEXC_ARG2: usize = 2; // r2
-
 pub fn init_state(state: &mut State, entry: usize, sp: usize) {
     state.r[1] = 0xDEAD_BEEF; // don't set the stackpointer in crt0
     state.pc = entry;

@@ -50,6 +50,7 @@ pub enum Code {
     TimeoutNoC,
     PageBoundary,
     MsgUnaligned,
+    TLBMiss,
     // SW Errors
     InvArgs,
     VPEGone,

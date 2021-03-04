@@ -17,37 +17,40 @@
 use base::cell::LazyStaticCell;
 use base::libc;
 use base::tcu;
+use base::kif::{Perm, PageFlags};
+use base::pexif;
+use base::cfg;
 
 use crate::arch::paging;
+use crate::pes;
 
 static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
 
 pub fn init() {
     STATE.set(isr::State::default());
     isr::init(STATE.get_mut());
-    isr::reg(isr::TCU_ISR, tcu_irq);
+    isr::init_pexcalls(pexcall);
     isr::enable_irqs();
 }
 
-fn handle_xlate(req: tcu::CoreXlateReq) {
-    let pte = paging::translate(req.virt, req.perm);
-    if (!(pte & 0xF) & req.perm.bits()) != 0 {
+pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
+    assert!(state.r[isr::PEXC_ARG0] == pexif::Operation::TLB_MISS.val as usize);
+
+    let virt = state.r[isr::PEXC_ARG1] as usize;
+    let access = Perm::from_bits_truncate(state.r[isr::PEXC_ARG2] as u32);
+    let flags = PageFlags::from(access);
+
+    let pte = paging::translate(virt, flags);
+    if (!(pte & 0xF) & flags.bits()) != 0 {
         panic!(
             "Pagefault during PT walk for {:#x} (PTE={:#x})",
-            req.virt, pte
+            virt, pte
         );
     }
 
-    tcu::TCU::set_xlate_resp(pte);
-}
-
-pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
-
-    match tcu::TCU::get_core_req() {
-        Some(tcu::CoreReq::Xlate(r)) => handle_xlate(r),
-        _ => assert!(false),
-    }
+    let phys = pte & !(cfg::PAGE_MASK as u64);
+    let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
+    tcu::TCU::insert_tlb(pes::KERNEL_ID, virt, phys, flags);
 
     state as *mut _ as *mut libc::c_void
 }

@@ -30,6 +30,10 @@ pub const PEX_ISR: usize = 63;
 pub const TCU_ISR: usize = 64;
 pub const TIMER_ISR: usize = 65;
 
+pub const PEXC_ARG0: usize = 14; // rax
+pub const PEXC_ARG1: usize = 12; // rcx
+pub const PEXC_ARG2: usize = 11; // rdx
+
 int_enum! {
     pub struct DPL : u8 {
         const KERNEL = 0x0;
@@ -430,6 +434,10 @@ pub fn init(state: &mut State) {
     unsafe {
         llvm_asm!("lidt ($0)" : : "r"(&idt_tbl) : : "volatile");
     }
+}
+
+pub fn init_pexcalls(handler: crate::IsrFunc) {
+    crate::reg(PEX_ISR, handler);
 }
 
 pub fn set_entry_sp(sp: usize) {

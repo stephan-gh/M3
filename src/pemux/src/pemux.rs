@@ -174,7 +174,7 @@ pub extern "C" fn tcu_irq(state: &mut arch::State) -> *mut libc::c_void {
     if let Some(r) = tcu::TCU::get_core_req() {
         log!(crate::LOG_CORE_REQS, "Got {:x?}", r);
         match r {
-            tcu::CoreReq::Xlate(r) => vma::handle_xlate(r),
+            tcu::CoreReq::Xlate(_) => panic!("Unexpected translation core request"),
             tcu::CoreReq::Foreign(r) => corereq::handle_recv(r),
         }
     }

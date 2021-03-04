@@ -19,6 +19,7 @@ use crate::com;
 use crate::io;
 use crate::mem;
 use crate::pes;
+use crate::pexif;
 use crate::syscalls;
 use crate::vfs;
 
@@ -32,7 +33,7 @@ pub extern "C" fn exit(_code: i32) -> ! {
     io::deinit();
     vfs::deinit();
 
-    crate::pexcalls::exit(_code);
+    pexif::exit(_code);
 }
 
 extern "C" {

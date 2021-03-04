@@ -103,26 +103,32 @@ fn recv_pf_resp() -> vpe::ContResult {
     }
 }
 
-pub fn handle_xlate(req: tcu::CoreXlateReq) {
+pub fn handle_xlate(virt: usize, perm: PageFlags) {
     // perform page table walk
-    let vpe = vpe::get_mut(req.asid as vpe::Id);
-    if let Some(vpe) = vpe {
-        let pte = vpe.translate(req.virt, req.perm);
-        // page fault?
-        if (!(pte & PageFlags::RW.bits()) & req.perm.bits()) != 0 {
-            if send_pf(vpe, req.virt, req.perm).is_ok() {
-                return;
-            }
-        }
-        // translation worked: let transfer continue
-        else {
-            tcu::TCU::set_xlate_resp(pte);
-            return;
+    let vpe = vpe::cur();
+    let pte = vpe.translate(virt, perm);
+
+    // page fault?
+    if (!(pte & PageFlags::RW.bits()) & perm.bits()) != 0 {
+        // TODO directly insert into TLB when the PF was resolved?
+        if send_pf(vpe, virt, perm).is_err() {
+            log!(crate::LOG_ERR, "Unable to handle page fault for {:#x}", virt);
+            vpe::remove_cur(1);
         }
     }
-
-    // translation failed: set permissions to zero
-    tcu::TCU::set_xlate_resp(0);
+    // translation worked: let transfer continue
+    else {
+        // ensure that we only insert user-accessible pages into the TLB
+        if (pte & PageFlags::U.bits()) == 0 {
+            log!(crate::LOG_ERR, "No permission to access {:#x}", virt);
+            vpe::remove_cur(1);
+        }
+        else {
+            let phys = pte & !(cfg::PAGE_MASK as u64);
+            let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
+            tcu::TCU::insert_tlb(vpe.id() as u16, virt, phys, flags);
+        }
+    }
 }
 
 pub fn handle_pf(

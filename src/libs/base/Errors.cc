@@ -49,11 +49,12 @@ static const char *errmsgs[] = {
     "Timeout while waiting for NoC response",
     "Data contains page boundary",
     "Message is not 16-byte aligned",
+    "TLB miss for data address",
     "Invalid arguments",
     "VPE gone",
     "Out of memory",
-    "No such file or directory",
     /* 30 */
+    "No such file or directory",
     "Not supported",
     "No free/suitable PE",
     "Invalid ELF file",
@@ -63,8 +64,8 @@ static const char *errmsgs[] = {
     "Directory not empty",
     "Is a directory",
     "Is no directory",
-    "Endpoint is invalid",
     /* 40 */
+    "Endpoint is invalid",
     "End of file",
     "Messages are waiting to be handled",
     "Reply will be sent via upcall",

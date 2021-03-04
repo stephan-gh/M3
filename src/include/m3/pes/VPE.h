@@ -24,6 +24,7 @@
 #include <base/Errors.h>
 #include <base/KIF.h>
 #include <base/PEDesc.h>
+#include <base/PEXIF.h>
 
 #include <m3/com/EPMng.h>
 #include <m3/com/MemGate.h>
@@ -32,7 +33,6 @@
 #include <m3/pes/PE.h>
 #include <m3/session/Pager.h>
 #include <m3/ObjCap.h>
-#include <m3/PEXCalls.h>
 
 #include <functional>
 #include <memory>
@@ -111,7 +111,7 @@ public:
      */
     static void sleep_for(uint64_t nanos) noexcept {
         if(env()->shared || nanos != 0)
-            PEXCalls::sleep(nanos, TCU::INVALID_EP);
+            PEXIF::sleep(nanos, TCU::INVALID_EP);
         else
             TCU::get().wait_for_msg(TCU::INVALID_EP);
     }
@@ -121,7 +121,7 @@ public:
      */
     static void wait_for_msg(epid_t ep) noexcept {
         if(env()->shared)
-            PEXCalls::sleep(0, ep);
+            PEXIF::sleep(0, ep);
         else
             TCU::get().wait_for_msg(ep);
     }

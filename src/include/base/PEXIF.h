@@ -24,8 +24,37 @@ enum Operation : word_t {
     SLEEP,
     EXIT,
     YIELD,
+    TLB_MISS,
     FLUSH_INV,
     NOOP,
+};
+
+}
+
+#if defined(__x86_64__)
+#   include "arch/x86_64/PEXABI.h"
+#elif defined(__arm__)
+#   include "arch/arm/PEXABI.h"
+#elif defined(__riscv)
+#   include "arch/riscv/PEXABI.h"
+#else
+#   error "Unsupported ISA"
+#endif
+
+namespace m3 {
+
+struct PEXIF {
+    static void sleep(uint64_t nanos, epid_t ep = TCU::INVALID_EP) {
+        PEXABI::call2(Operation::SLEEP, nanos, ep);
+    }
+
+    static void exit(int code) {
+        PEXABI::call1(Operation::EXIT, static_cast<word_t>(code));
+    }
+
+    static void flush_invalidate() {
+        PEXABI::call2(Operation::FLUSH_INV, 0, 0);
+    }
 };
 
 }

@@ -25,6 +25,10 @@ use core::fmt;
 pub const ISR_COUNT: usize = 32;
 pub const TCU_ISR: usize = Vector::SUPER_EXT_IRQ.val;
 
+pub const PEXC_ARG0: usize = 9; // a0 = x10
+pub const PEXC_ARG1: usize = 10; // a1 = x11
+pub const PEXC_ARG2: usize = 11; // a2 = x12
+
 #[derive(Default)]
 // see comment in ARM code
 #[repr(C, align(8))]
@@ -174,6 +178,11 @@ pub fn init(state: &mut State) {
         let state_top = (state as *mut State).offset(1) as usize;
         isr_setup(state_top)
     };
+}
+
+pub fn init_pexcalls(handler: crate::IsrFunc) {
+    crate::reg(Vector::ENV_UCALL.val, handler);
+    crate::reg(Vector::ENV_SCALL.val, handler);
 }
 
 pub fn set_entry_sp(sp: usize) {

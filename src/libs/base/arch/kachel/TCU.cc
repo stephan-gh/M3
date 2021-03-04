@@ -19,6 +19,7 @@
 #include <base/TCU.h>
 #include <base/Init.h>
 #include <base/KIF.h>
+#include <base/PEXIF.h>
 
 namespace m3 {
 
@@ -47,7 +48,7 @@ Errors::Code TCU::send_aligned(epid_t ep, const void *msg, size_t len, label_t r
     if(replylbl)
         write_reg(UnprivRegs::ARG1, replylbl);
     CPU::compiler_barrier();
-    return perform_send_reply(build_command(ep, CmdOpCode::SEND, reply_ep));
+    return perform_send_reply(msg_addr, build_command(ep, CmdOpCode::SEND, reply_ep));
 }
 
 Errors::Code TCU::reply(epid_t ep, const MsgBuf &reply, size_t msg_off) {
@@ -55,15 +56,19 @@ Errors::Code TCU::reply(epid_t ep, const MsgBuf &reply, size_t msg_off) {
     write_reg(UnprivRegs::DATA, static_cast<reg_t>(reply_addr) |
                                 (static_cast<reg_t>(reply.size()) << 32));
     CPU::compiler_barrier();
-    return perform_send_reply(build_command(ep, CmdOpCode::REPLY, msg_off));
+    return perform_send_reply(reply_addr, build_command(ep, CmdOpCode::REPLY, msg_off));
 }
 
-Errors::Code TCU::perform_send_reply(reg_t cmd) {
+Errors::Code TCU::perform_send_reply(uintptr_t addr, reg_t cmd) {
     while(true) {
         write_reg(UnprivRegs::COMMAND, cmd);
 
         auto res = get_error();
-        if (res != Errors::RECV_BUSY)
+        if(res == Errors::TLB_MISS) {
+            PEXABI::call2(Operation::TLB_MISS, addr, KIF::Perm::R);
+            continue;
+        }
+        if(res != Errors::RECV_BUSY)
             return res;
     }
 }
@@ -88,6 +93,11 @@ Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
         write_reg(UnprivRegs::COMMAND, build_command(ep, cmd));
 
         auto res = get_error();
+        if(res == Errors::TLB_MISS) {
+            auto perm = cmd == CmdOpCode::READ ? KIF::Perm::W : KIF::Perm::R;
+            PEXABI::call2(Operation::TLB_MISS, data_addr, perm);
+            continue;
+        }
         if(res != Errors::NONE)
             return res;
 

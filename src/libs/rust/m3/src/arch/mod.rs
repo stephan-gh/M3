@@ -22,25 +22,4 @@ mod inner;
 #[path = "host/mod.rs"]
 mod inner;
 
-#[cfg(target_arch = "x86_64")]
-#[path = "x86_64/mod.rs"]
-mod isa;
-
-#[cfg(target_arch = "arm")]
-#[path = "arm/mod.rs"]
-mod isa;
-
-#[cfg(target_arch = "riscv64")]
-#[path = "riscv/mod.rs"]
-mod isa;
-
 pub use self::inner::*;
-pub use self::isa::*;
-
-#[cfg(target_os = "none")]
-pub(crate) fn get_result(res: isize) -> Result<usize, base::errors::Error> {
-    match res {
-        e if e < 0 => Err(base::errors::Error::from(-e as u32)),
-        val => Ok(val as usize),
-    }
-}

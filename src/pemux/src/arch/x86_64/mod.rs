@@ -25,10 +25,6 @@ use crate::vpe;
 
 pub type State = isr::State;
 
-pub const PEXC_ARG0: usize = 14; // rax
-pub const PEXC_ARG1: usize = 12; // rcx
-pub const PEXC_ARG2: usize = 11; // rdx
-
 const CR0_TASK_SWITCHED: usize = 1 << 3;
 
 static FPU_OWNER: StaticCell<vpe::Id> = StaticCell::new(pemux::VPE_ID);

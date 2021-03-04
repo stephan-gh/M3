@@ -14,16 +14,42 @@
  * General Public License version 2 for more details.
  */
 
-use base::pexif;
+//! Contains the interface between applications and PEMux
 
 use crate::arch::pexabi;
 use crate::errors::Error;
 use crate::tcu::{EpId, INVALID_EP};
 
+int_enum! {
+    /// The operations PEMux supports
+    pub struct Operation : isize {
+        /// Sleep for a given duration or until an event occurs
+        const SLEEP         = 0x0;
+        /// Exit the application
+        const EXIT          = 0x1;
+        /// Switch to the next ready VPE
+        const YIELD         = 0x2;
+        /// For TCU TLB misses
+        const TLB_MISS      = 0x3;
+        /// Flush and invalidate cache
+        const FLUSH_INV     = 0x4;
+        /// Noop operation for testing purposes
+        const NOOP          = 0x5;
+    }
+}
+
+#[cfg(target_os = "none")]
+pub(crate) fn get_result(res: isize) -> Result<usize, Error> {
+    match res {
+        e if e < 0 => Err(Error::from(-e as u32)),
+        val => Ok(val as usize),
+    }
+}
+
 #[inline(always)]
 pub fn sleep(nanos: u64, ep: Option<EpId>) -> Result<(), Error> {
     pexabi::call2(
-        pexif::Operation::SLEEP,
+        Operation::SLEEP,
         nanos as usize,
         ep.unwrap_or(INVALID_EP) as usize,
     )
@@ -31,20 +57,20 @@ pub fn sleep(nanos: u64, ep: Option<EpId>) -> Result<(), Error> {
 }
 
 pub fn exit(code: i32) -> ! {
-    pexabi::call1(pexif::Operation::EXIT, code as usize).ok();
+    pexabi::call1(Operation::EXIT, code as usize).ok();
     unreachable!();
 }
 
 pub fn flush_invalidate() -> Result<(), Error> {
-    pexabi::call1(pexif::Operation::FLUSH_INV, 0).map(|_| ())
+    pexabi::call1(Operation::FLUSH_INV, 0).map(|_| ())
 }
 
 #[inline(always)]
 pub fn switch_vpe() -> Result<(), Error> {
-    pexabi::call1(pexif::Operation::YIELD, 0).map(|_| ())
+    pexabi::call1(Operation::YIELD, 0).map(|_| ())
 }
 
 #[inline(always)]
 pub fn noop() -> Result<(), Error> {
-    pexabi::call1(pexif::Operation::NOOP, 0).map(|_| ())
+    pexabi::call1(Operation::NOOP, 0).map(|_| ())
 }

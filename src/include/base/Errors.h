@@ -52,6 +52,7 @@ struct Errors {
         TIMEOUT_NOC,
         PAGE_BOUNDARY,
         MSG_UNALIGNED,
+        TLB_MISS,
         // SW errors
         INV_ARGS,
         VPE_GONE,

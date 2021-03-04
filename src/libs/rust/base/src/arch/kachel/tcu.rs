@@ -28,6 +28,7 @@ use crate::io::log::TCU;
 use crate::kif::{PageFlags, Perm, PTE};
 use crate::math;
 use crate::mem;
+use crate::pexif;
 
 /// A TCU register
 pub type Reg = u64;
@@ -366,7 +367,10 @@ impl TCU {
         if reply_lbl != 0 {
             Self::write_unpriv_reg(UnprivReg::ARG1, reply_lbl as Reg);
         }
-        Self::perform_send_reply(Self::build_cmd(ep, CmdOpCode::SEND, reply_ep as Reg))
+        Self::perform_send_reply(
+            msg_addr,
+            Self::build_cmd(ep, CmdOpCode::SEND, reply_ep as Reg),
+        )
     }
 
     /// Sends the given message as reply to `msg`.
@@ -384,16 +388,24 @@ impl TCU {
 
         Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(reply_addr, reply.size()));
 
-        Self::perform_send_reply(Self::build_cmd(ep, CmdOpCode::REPLY, msg_off as Reg))
+        Self::perform_send_reply(
+            reply_addr,
+            Self::build_cmd(ep, CmdOpCode::REPLY, msg_off as Reg),
+        )
     }
 
     #[inline(always)]
-    fn perform_send_reply(cmd: Reg) -> Result<(), Error> {
+    fn perform_send_reply(msg_addr: usize, cmd: Reg) -> Result<(), Error> {
         loop {
             Self::write_unpriv_reg(UnprivReg::COMMAND, cmd);
 
             match Self::get_error() {
                 Ok(_) => break Ok(()),
+                Err(e) if e.code() == Code::TLBMiss => {
+                    Self::handle_tlbmiss(msg_addr, Perm::R);
+                    // retry the access
+                    continue;
+                },
                 Err(e) if e.code() == Code::RecvBusy => continue,
                 Err(e) => break Err(e),
             }
@@ -448,13 +460,38 @@ impl TCU {
             Self::write_unpriv_reg(UnprivReg::DATA, Self::build_data(data, amount));
             Self::write_unpriv_reg(UnprivReg::ARG1, off as Reg);
             Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, cmd, 0));
-            Self::get_error()?;
+
+            if let Err(e) = Self::get_error() {
+                if e.code() == Code::TLBMiss {
+                    Self::handle_tlbmiss(
+                        data,
+                        if cmd == CmdOpCode::READ {
+                            Perm::W
+                        }
+                        else {
+                            Perm::R
+                        },
+                    );
+                    // retry the access
+                    continue;
+                }
+                else {
+                    return Err(e);
+                }
+            }
 
             size -= amount;
             data += amount;
             off += amount as goff;
         }
         Ok(())
+    }
+
+    #[cold]
+    fn handle_tlbmiss(addr: usize, perm: Perm) {
+        // report TLB miss to PEMux or whoever handles the call; ignore errors, we won't
+        // get here if the translation failed.
+        arch::pexabi::call2(pexif::Operation::TLB_MISS, addr, perm.bits() as usize).ok();
     }
 
     /// Tries to fetch a new message from the given endpoint.

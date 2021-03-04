@@ -300,7 +300,7 @@ void VPE::copy_sections() {
             // after cloning the address space we have to make sure that we don't have dirty cache lines
             // anymore. otherwise, if our child takes over a frame from us later and we writeback such
             // a cacheline afterwards, things break.
-            PEXCalls::flush_invalidate();
+            PEXIF::flush_invalidate();
             return;
         }
 

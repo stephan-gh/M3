@@ -15,8 +15,8 @@
  */
 
 use m3::cell::StaticCell;
-use m3::mem::AlignedBuf;
 use m3::io::Read;
+use m3::mem::AlignedBuf;
 use m3::profile;
 use m3::test;
 use m3::vfs::{OpenFlags, VFS};

@@ -14,9 +14,8 @@
  * General Public License version 2 for more details.
  */
 
-use base::pexif::Operation;
-
 use crate::errors::Error;
+use crate::pexif::Operation;
 
 pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
     call2(op, arg1, 0)
@@ -32,5 +31,5 @@ pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
             : "memory"
         );
     }
-    crate::arch::get_result(res)
+    crate::pexif::get_result(res)
 }

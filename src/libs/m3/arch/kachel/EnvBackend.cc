@@ -18,10 +18,10 @@
 #include <base/stream/Serial.h>
 #include <base/Backtrace.h>
 #include <base/Env.h>
+#include <base/PEXIF.h>
 
 #include <m3/com/RecvGate.h>
 #include <m3/stream/Standard.h>
-#include <m3/PEXCalls.h>
 #include <m3/Syscalls.h>
 #include <m3/pes/VPE.h>
 
@@ -45,7 +45,7 @@ public:
     }
 
     NORETURN void exit(UNUSED int code) override {
-        PEXCalls::exit(code);
+        PEXIF::exit(code);
         UNREACHED;
     }
 };

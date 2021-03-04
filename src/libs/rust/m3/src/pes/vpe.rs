@@ -34,7 +34,7 @@ use crate::goff;
 use crate::kif;
 use crate::kif::{CapRngDesc, CapType, PEDesc, INVALID_SEL};
 use crate::pes::{ClosureActivity, DefaultMapper, DeviceActivity, ExecActivity, KMem, Mapper, PE};
-use crate::pexcalls;
+use crate::pexif;
 use crate::rc::Rc;
 use crate::session::{Pager, ResMng};
 use crate::syscalls;
@@ -144,7 +144,7 @@ impl VPE {
     pub fn sleep_for(nanos: u64) -> Result<(), Error> {
         if envdata::get().platform == envdata::Platform::GEM5.val {
             if arch::env::get().shared() || nanos != 0 {
-                pexcalls::sleep(nanos, None)
+                pexif::sleep(nanos, None)
             }
             else {
                 TCU::wait_for_msg(INVALID_EP)
@@ -159,7 +159,7 @@ impl VPE {
     pub fn wait_for_msg(ep: EpId) -> Result<(), Error> {
         if envdata::get().platform == envdata::Platform::GEM5.val {
             if arch::env::get().shared() {
-                pexcalls::sleep(0, Some(ep))
+                pexif::sleep(0, Some(ep))
             }
             else {
                 TCU::wait_for_msg(ep)

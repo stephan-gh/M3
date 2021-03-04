@@ -14,23 +14,28 @@
  * General Public License version 2 for more details.
  */
 
-use base::pexif::Operation;
-
 use crate::errors::Error;
+use crate::pexif::Operation;
 
 pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
     call2(op, arg1, 0)
 }
 
+#[cfg(target_os = "none")]
 pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
     let mut res = op.val;
     unsafe {
         llvm_asm!(
-            "svc 0"
-            : "+{r0}"(res)
-            : "{r1}"(arg1), "{r2}"(arg2)
+            "int $$63"
+            : "+{rax}"(res)
+            : "{rcx}"(arg1), "{rdx}"(arg2)
             : "memory"
         );
     }
-    crate::arch::get_result(res)
+    crate::pexif::get_result(res)
+}
+
+#[cfg(target_os = "linux")]
+pub fn call2(_op: Operation, _arg1: usize, _arg2: usize) -> Result<usize, Error> {
+    Ok(0)
 }

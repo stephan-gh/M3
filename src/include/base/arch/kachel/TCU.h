@@ -219,7 +219,7 @@ private:
     Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off);
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off);
 
-    Errors::Code perform_send_reply(reg_t cmd);
+    Errors::Code perform_send_reply(uintptr_t addr, reg_t cmd);
     Errors::Code perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
                                   goff_t off, CmdOpCode cmd);
 

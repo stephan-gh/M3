@@ -14,20 +14,22 @@
  * General Public License version 2 for more details.
  */
 
-//! Contains the interface between applications and PEMux
+use crate::errors::Error;
+use crate::pexif::Operation;
 
-int_enum! {
-    /// The operations PEMux supports
-    pub struct Operation : isize {
-        /// Sleep for a given duration or until an event occurs
-        const SLEEP         = 0x0;
-        /// Exit the application
-        const EXIT          = 0x1;
-        /// Switch to the next ready VPE
-        const YIELD         = 0x2;
-        /// Flush and invalidate cache
-        const FLUSH_INV     = 0x3;
-        /// Noop operation for testing purposes
-        const NOOP          = 0x4;
+pub fn call1(op: Operation, arg1: usize) -> Result<usize, Error> {
+    call2(op, arg1, 0)
+}
+
+pub fn call2(op: Operation, arg1: usize, arg2: usize) -> Result<usize, Error> {
+    let mut res = op.val;
+    unsafe {
+        llvm_asm!(
+            "svc 0"
+            : "+{r0}"(res)
+            : "{r1}"(arg1), "{r2}"(arg2)
+            : "memory"
+        );
     }
+    crate::pexif::get_result(res)
 }

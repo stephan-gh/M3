@@ -53,10 +53,6 @@ int_enum! {
     }
 }
 
-pub const PEXC_ARG0: usize = 9; // a0 = x10
-pub const PEXC_ARG1: usize = 10; // a1 = x11
-pub const PEXC_ARG2: usize = 11; // a2 = x12
-
 static FPU_OWNER: StaticCell<vpe::Id> = StaticCell::new(pemux::VPE_ID);
 
 macro_rules! ldst_fpu_regs {
