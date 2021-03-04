@@ -100,7 +100,7 @@ pub fn init() {
 
         // map initial heap
         let heap_start = math::round_up(&_bss_end as *const _ as usize, cfg::PAGE_SIZE);
-        map_to_phys(&mut aspace, base, heap_start, 4 * cfg::PAGE_SIZE, rw);
+        map_to_phys(&mut aspace, base, heap_start, 8 * cfg::PAGE_SIZE, rw);
     }
 
     // map env
