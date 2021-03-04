@@ -18,8 +18,8 @@ use base::backtrace;
 use base::envdata;
 use base::int_enum;
 use base::libc;
-use base::{set_csr_bits, write_csr};
 use base::tcu;
+use base::{set_csr_bits, write_csr};
 use core::fmt;
 
 pub const ISR_COUNT: usize = 32;
@@ -169,9 +169,16 @@ pub extern "C" fn isr_handler(state: &mut State) -> *mut libc::c_void {
 
 pub fn init(state: &mut State) {
     if envdata::get().platform == envdata::Platform::HW.val {
+        // configure PLIC
         plic::set_threshold(0);
         plic::enable(plic::TCU_ID);
         plic::set_priority(plic::TCU_ID, 1);
+
+        // disable timer interrupt
+        const CLINT_MSIP: *mut u64 = 0x0200_0000 as *mut u64;
+        unsafe {
+            CLINT_MSIP.write_volatile(0);
+        }
     }
 
     unsafe {
