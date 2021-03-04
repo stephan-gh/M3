@@ -109,15 +109,21 @@ NOINLINE static void create_map() {
     constexpr capsel_t DEST = 0x30000000 >> PAGE_BITS;
 
     struct SyscallMapRunner : public Runner {
-        explicit SyscallMapRunner() : mgate(MemGate::create_global(0x1000, MemGate::RW)) {
+        explicit SyscallMapRunner() : mgate(MemGate::create_global(PAGE_SIZE * 2, MemGate::RW)) {
+        }
+
+        void pre() override {
+            // one warmup run, because the revoke leads to an unmap, which flushes and invalidates
+            // all cache lines
+            Syscalls::create_map(DEST, VPE::self().sel(), mgate.sel(), 0, 1, MemGate::RW);
         }
 
         void run() override {
-            Syscalls::create_map(DEST, VPE::self().sel(), mgate.sel(), 0, 1, MemGate::RW);
+            Syscalls::create_map(DEST + 1, VPE::self().sel(), mgate.sel(), 1, 1, MemGate::RW);
         }
         void post() override {
             Syscalls::revoke(VPE::self().sel(),
-                KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 1), true);
+                KIF::CapRngDesc(KIF::CapRngDesc::MAP, DEST, 2), true);
         }
 
         MemGate mgate;

@@ -189,7 +189,9 @@ fn create_map() {
     struct Tester(MemGate);
 
     impl profile::Runner for Tester {
-        fn run(&mut self) {
+        fn pre(&mut self) {
+            // one warmup run, because the revoke leads to an unmap, which flushes and invalidates
+            // all cache lines
             wv_assert_ok!(syscalls::create_map(
                 DEST,
                 VPE::cur().sel(),
@@ -200,17 +202,28 @@ fn create_map() {
             ));
         }
 
+        fn run(&mut self) {
+            wv_assert_ok!(syscalls::create_map(
+                DEST + 1,
+                VPE::cur().sel(),
+                self.0.sel(),
+                1,
+                1,
+                Perm::RW
+            ));
+        }
+
         fn post(&mut self) {
             wv_assert_ok!(syscalls::revoke(
                 VPE::cur().sel(),
-                kif::CapRngDesc::new(kif::CapType::MAPPING, DEST, 1),
+                kif::CapRngDesc::new(kif::CapType::MAPPING, DEST, 2),
                 true
             ));
         }
     }
 
     let mut tester = Tester {
-        0: MemGate::new(0x1000, Perm::RW).unwrap(),
+        0: MemGate::new(cfg::PAGE_SIZE * 2, Perm::RW).unwrap(),
     };
     wv_perf!("create_map", prof.runner_with_id(&mut tester, 0x14));
 }
