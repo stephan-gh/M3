@@ -22,22 +22,23 @@ use m3::errors::Error;
 use m3::goff;
 use m3::mem;
 
-static ZEROS: [u8; cfg::PAGE_SIZE] = [0u8; cfg::PAGE_SIZE];
-static BUF: StaticCell<[u8; cfg::PAGE_SIZE]> = StaticCell::new([0u8; cfg::PAGE_SIZE]);
+static ZEROS: mem::AlignedBuf<{ cfg::PAGE_SIZE }> = mem::AlignedBuf::new_zeroed();
+static BUF: StaticCell<mem::AlignedBuf<{ cfg::PAGE_SIZE }>> =
+    StaticCell::new(mem::AlignedBuf::new_zeroed());
 
 pub fn copy_block(src: &MemGate, dst: &MemGate, src_off: goff, size: goff) {
     let pages = size / cfg::PAGE_SIZE as goff;
     for i in 0..pages {
-        src.read(BUF.get_mut(), src_off + i * cfg::PAGE_SIZE as goff)
+        src.read(&mut BUF.get_mut()[..], src_off + i * cfg::PAGE_SIZE as goff)
             .unwrap();
-        dst.write(BUF.get(), i * cfg::PAGE_SIZE as goff).unwrap();
+        dst.write(&BUF[..], i * cfg::PAGE_SIZE as goff).unwrap();
     }
 }
 
 fn clear_block(mem: &MemGate, size: goff) {
     let pages = size / cfg::PAGE_SIZE as goff;
     for i in 0..pages {
-        mem.write(&ZEROS, i * cfg::PAGE_SIZE as goff).unwrap();
+        mem.write(&ZEROS[..], i * cfg::PAGE_SIZE as goff).unwrap();
     }
 }
 
