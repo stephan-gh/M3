@@ -101,10 +101,6 @@ pub fn init() {
         .map_pages(cfg::PE_MEM_BASE, base, pages, rw)
         .unwrap();
 
-    // map timer
-    map_ident(0x0200_4000, 0x1000, PageFlags::RW);
-    map_ident(0x0200_b000, 0x1000, PageFlags::RW);
-
     // map PLIC
     map_ident(0x0C00_0000, 0x1000, PageFlags::RW);
     map_ident(0x0C00_2000, 0x1000, PageFlags::RW);

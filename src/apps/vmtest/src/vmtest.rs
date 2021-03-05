@@ -108,20 +108,6 @@ pub extern "C" fn sw_irq(state: &mut isr::State) -> *mut libc::c_void {
     state as *mut _ as *mut libc::c_void
 }
 
-pub extern "C" fn timer_irq(state: &mut isr::State) -> *mut libc::c_void {
-    log!(crate::LOG_DEF, "Got timer IRQ @ {:#x}", state.epc);
-
-    let mtimecmp = 0x0200_4000 as *mut u64;
-    let mtime = 0x0200_bff8 as *const u64;
-    unsafe {
-        // The frequency given by QEMU is 10_000_000 Hz, so this sets
-        // the next interrupt to fire one second from now.
-        mtimecmp.write_volatile(mtime.read_volatile() + 10_000_000);
-    }
-
-    state as *mut _ as *mut libc::c_void
-}
-
 fn config_local_ep<CFG>(ep: EpId, cfg: CFG)
 where
     CFG: FnOnce(&mut [Reg]),
@@ -314,7 +300,6 @@ pub extern "C" fn env_run() {
     isr::reg(isr::Vector::LOAD_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::STORE_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::SUPER_SW_IRQ.val, sw_irq);
-    isr::reg(isr::Vector::MACH_TIMER_IRQ.val, timer_irq);
     isr::enable_irqs();
 
     log!(crate::LOG_DEF, "Triggering software IRQ...");
