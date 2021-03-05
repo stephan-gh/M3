@@ -270,13 +270,6 @@ private:
         return reinterpret_cast<const Message*>(base + msg_off);
     }
 
-    reg_t get_core_req() const {
-        return read_reg(PrivRegs::CORE_REQ);
-    }
-    void set_core_req(reg_t val) {
-        write_reg(PrivRegs::CORE_REQ, val);
-    }
-
     void clear_irq(IRQ irq) {
         write_reg(PrivRegs::CLEAR_IRQ, static_cast<reg_t>(irq));
     }

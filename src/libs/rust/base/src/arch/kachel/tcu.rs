@@ -25,7 +25,7 @@ use crate::cfg;
 use crate::errors::{Code, Error};
 use crate::goff;
 use crate::io::log::TCU;
-use crate::kif::{PageFlags, Perm, PTE};
+use crate::kif::{PageFlags, Perm};
 use crate::math;
 use crate::mem;
 use crate::pexif;
@@ -255,25 +255,6 @@ int_enum! {
     }
 }
 
-/// A translation core request, that is sent by the TCU if a virtual address needs to be translated
-#[derive(Debug)]
-pub struct CoreXlateReq {
-    pub asid: u16,
-    pub virt: usize,
-    pub perm: PageFlags,
-}
-
-impl CoreXlateReq {
-    /// Decodes the given value from `CORE_REQ` into a `CoreXlateReq`
-    pub fn new(req: Reg) -> Self {
-        Self {
-            asid: (req >> 48) as u16,
-            virt: ((req & 0xFFFF_FFFF_FFFF) as usize) & !cfg::PAGE_MASK as usize,
-            perm: PageFlags::from_bits_truncate((req >> 2) & PageFlags::RW.bits()),
-        }
-    }
-}
-
 /// A foreign-msg core request, that is sent by the TCU if a message was received for another VPE
 #[derive(Debug)]
 pub struct CoreForeignReq {
@@ -289,13 +270,6 @@ impl CoreForeignReq {
             ep: ((req >> 2) & 0xFFFF) as EpId,
         }
     }
-}
-
-/// A core request
-#[derive(Debug)]
-pub enum CoreReq {
-    Xlate(CoreXlateReq),
-    Foreign(CoreForeignReq),
 }
 
 /// The TCU header
@@ -697,20 +671,12 @@ impl TCU {
     }
 
     /// Returns the current core request
-    pub fn get_core_req() -> Option<CoreReq> {
+    pub fn get_core_req() -> Option<CoreForeignReq> {
         let req = Self::read_priv_reg(PrivReg::CORE_REQ);
         match req & 0x3 {
-            0x2 => Some(CoreReq::Xlate(CoreXlateReq::new(req))),
-            0x3 => Some(CoreReq::Foreign(CoreForeignReq::new(req))),
+            0x2 => Some(CoreForeignReq::new(req)),
             _ => None,
         }
-    }
-
-    /// Provides the TCU with the response to a translation core request
-    pub fn set_xlate_resp(pte: PTE) {
-        let perm_bits = (PageFlags::RWX | PageFlags::L | PageFlags::FIXED).bits();
-        let resp = (pte & !(cfg::PAGE_MASK as PTE)) | ((pte & perm_bits) << 2);
-        Self::write_priv_reg(PrivReg::CORE_REQ, resp | 0x1)
     }
 
     /// Provides the TCU with the response to a foreign-msg core request
