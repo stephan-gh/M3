@@ -101,6 +101,44 @@ static void test_msg_errors() {
         ASSERT_EQ(kernel::TCU::send(2, large_msg, 0x1111, TCU::NO_REPLIES), Errors::RECV_OUT_OF_BOUNDS);
     }
 
+    Serial::get() << "SEND without 16-byte aligned message\n";
+    {
+        ALIGNED(16) uint64_t words[2] = {0, 0};
+        kernel::TCU::config_recv(1, buf1, 5 /* 32 */, 5 /* 32 */, TCU::NO_REPLIES);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 6 /* 64 */, 1);
+        ASSERT_EQ(kernel::TCU::send_aligned(2, words + 1, sizeof(uint64_t), 0x1111, TCU::NO_REPLIES),
+            Errors::MSG_UNALIGNED);
+    }
+
+    Serial::get() << "SEND with page boundary\n";
+    {
+        ALIGNED(PAGE_SIZE) uint8_t bytes[PAGE_SIZE + 16];
+        kernel::TCU::config_recv(1, buf1, 6 /* 64 */, 6 /* 64 */, TCU::NO_REPLIES);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 6 /* 64 */, 1);
+        ASSERT_EQ(kernel::TCU::send_aligned(2, bytes + PAGE_SIZE - 16, 32, 0x1111, TCU::NO_REPLIES),
+            Errors::PAGE_BOUNDARY);
+    }
+
+    Serial::get() << "REPLY without 16-byte aligned message\n";
+    {
+        ALIGNED(16) uint64_t words[2] = {0, 0};
+        kernel::TCU::config_recv(1, buf1, 5 /* 32 */, 5 /* 32 */, 2, 1, 0);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 5 /* 32 */, 1, true);
+        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        ASSERT_EQ(kernel::TCU::reply_aligned(1, words + 1, sizeof(uint64_t), buf1, rmsg),
+            Errors::MSG_UNALIGNED);
+    }
+
+    Serial::get() << "REPLY with page boundary\n";
+    {
+        ALIGNED(PAGE_SIZE) uint8_t bytes[PAGE_SIZE + 16];
+        kernel::TCU::config_recv(1, buf1, 6 /* 64 */, 6 /* 64 */, 2, 1, 0);
+        kernel::TCU::config_send(2, 0x5678, pe_id(PE::PE0), 1, 6 /* 64 */, 1, true);
+        auto rmsg = reinterpret_cast<const m3::TCU::Message*>(buffer);
+        ASSERT_EQ(kernel::TCU::reply_aligned(1, bytes + PAGE_SIZE - 16, 32, buf1, rmsg),
+            Errors::PAGE_BOUNDARY);
+    }
+
     Serial::get() << "SEND+ACK+REPLY with invalid reply EPs\n";
     {
         kernel::TCU::config_recv(1, buf1, 5 /* 32 */, 5 /* 32 */, TOTAL_EPS);

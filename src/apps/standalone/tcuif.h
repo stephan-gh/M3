@@ -64,10 +64,20 @@ public:
         return m3::TCU::get().send(ep, msg, replylbl, reply_ep);
     }
 
+    static m3::Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl, epid_t reply_ep) {
+        return m3::TCU::get().send_aligned(ep, msg, len, replylbl, reply_ep);
+    }
+
     static m3::Errors::Code reply(epid_t ep, const m3::MsgBuf &reply, uintptr_t base, const m3::TCU::Message *msg) {
         uintptr_t msg_addr = reinterpret_cast<uintptr_t>(msg);
         reg_t off = static_cast<reg_t>(msg_addr) - base;
         return m3::TCU::get().reply(ep, reply, off);
+    }
+
+    static m3::Errors::Code reply_aligned(epid_t ep, const void *reply, size_t len, uintptr_t base, const m3::TCU::Message *msg) {
+        uintptr_t msg_addr = reinterpret_cast<uintptr_t>(msg);
+        reg_t off = static_cast<reg_t>(msg_addr) - base;
+        return m3::TCU::get().reply_aligned(ep, reply, len, off);
     }
 
     static m3::Errors::Code read(epid_t ep, void *data, size_t size, goff_t off) {

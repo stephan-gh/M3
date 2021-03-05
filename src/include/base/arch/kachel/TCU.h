@@ -216,6 +216,7 @@ private:
     Errors::Code send(epid_t ep, const MsgBuf &msg, label_t replylbl, epid_t reply_ep);
     Errors::Code send_aligned(epid_t ep, const void *msg, size_t len, label_t replylbl, epid_t reply_ep);
     Errors::Code reply(epid_t ep, const MsgBuf &reply, size_t msg_off);
+    Errors::Code reply_aligned(epid_t ep, const void *reply, size_t len, size_t msg_off);
     Errors::Code read(epid_t ep, void *msg, size_t size, goff_t off);
     Errors::Code write(epid_t ep, const void *msg, size_t size, goff_t off);
 

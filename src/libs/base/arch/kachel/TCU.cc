@@ -52,9 +52,13 @@ Errors::Code TCU::send_aligned(epid_t ep, const void *msg, size_t len, label_t r
 }
 
 Errors::Code TCU::reply(epid_t ep, const MsgBuf &reply, size_t msg_off) {
-    auto reply_addr = reinterpret_cast<uintptr_t>(reply.bytes());
+    return reply_aligned(ep, reply.bytes(), reply.size(), msg_off);
+}
+
+Errors::Code TCU::reply_aligned(epid_t ep, const void *reply, size_t len, size_t msg_off) {
+    auto reply_addr = reinterpret_cast<uintptr_t>(reply);
     write_reg(UnprivRegs::DATA, static_cast<reg_t>(reply_addr) |
-                                (static_cast<reg_t>(reply.size()) << 32));
+                                (static_cast<reg_t>(len) << 32));
     CPU::compiler_barrier();
     return perform_send_reply(reply_addr, build_command(ep, CmdOpCode::REPLY, msg_off));
 }
