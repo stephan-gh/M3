@@ -24,14 +24,13 @@ mod pes;
 
 use base::cell::{LazyStaticCell, StaticCell};
 use base::cfg;
-use base::envdata;
 use base::io;
 use base::kif::{PageFlags, Perm};
 use base::libc;
 use base::log;
 use base::machine;
 use base::math::next_log2;
-use base::mem::MsgBuf;
+use base::mem::{size_of, MsgBuf};
 use base::tcu::{self, EpId, Message, Reg, EP_REGS, TCU};
 use base::util;
 use base::{read_csr, write_csr};
@@ -41,7 +40,7 @@ use core::intrinsics::transmute;
 use pes::PE;
 
 static LOG_DEF: bool = true;
-static LOG_TCU_IRQ: bool = false;
+static LOG_PEXCALLS: bool = false;
 
 static OWN_VPE: u16 = 0xFFFF;
 static STATE: LazyStaticCell<isr::State> = LazyStaticCell::default();
@@ -73,27 +72,29 @@ pub extern "C" fn mmu_pf(state: &mut isr::State) -> *mut libc::c_void {
     );
 }
 
-pub extern "C" fn tcu_irq(state: &mut isr::State) -> *mut libc::c_void {
-    log!(crate::LOG_TCU_IRQ, "Got TCU IRQ @ {:#x}", state.epc);
+pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
+    let virt = state.r[isr::PEXC_ARG1] as usize;
+    let access = Perm::from_bits_truncate(state.r[isr::PEXC_ARG2] as u32);
+    let flags = PageFlags::from(access) & PageFlags::RW;
 
-    // core request from TCU?
-    if let Some(r) = tcu::TCU::get_core_req() {
-        log!(crate::LOG_TCU_IRQ, "Got {:x?}", r);
-        match r {
-            tcu::CoreReq::Xlate(r) => {
-                XLATES.set(*XLATES + 1);
+    log!(
+        crate::LOG_PEXCALLS,
+        "pexcall::tlb_miss(virt={:#x}, access={:?})",
+        virt,
+        access
+    );
 
-                let pte = paging::translate(r.virt, r.perm);
-                // no page faults supported
-                assert!(!(pte & PageFlags::RW.bits()) & r.perm.bits() == 0);
-                log!(crate::LOG_TCU_IRQ, "TCU can continue with PTE={:#x}", pte);
-                tcu::TCU::set_xlate_resp(pte);
-            },
-            tcu::CoreReq::Foreign(_) => panic!("Unexpected message for foreign VPE"),
-        }
-    }
+    XLATES.set(*XLATES + 1);
 
-    isr::acknowledge_irq(tcu::IRQ::CORE_REQ);
+    let pte = paging::translate(virt, flags);
+    // no page faults supported
+    assert!(!(pte & PageFlags::RW.bits()) & flags.bits() == 0);
+    log!(crate::LOG_PEXCALLS, "TCU can continue with PTE={:#x}", pte);
+
+    // insert TLB entry
+    let phys = pte & !(cfg::PAGE_MASK as u64);
+    let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
+    tcu::TCU::insert_tlb(OWN_VPE, virt, phys, flags);
 
     state as *mut _ as *mut libc::c_void
 }
@@ -191,8 +192,8 @@ fn test_mem(area_begin: usize, area_size: usize) {
     }
 }
 
-static RBUF1: [u64; 8] = [0; 8];
-static RBUF2: [u64; 8] = [0; 8];
+static RBUF1: [u64; 32] = [0; 32];
+static RBUF2: [u64; 32] = [0; 32];
 
 fn send_recv(send_addr: usize, size: usize) {
     let virt_to_phys = |virt: usize| -> (usize, ::paging::Phys) {
@@ -221,28 +222,16 @@ fn send_recv(send_addr: usize, size: usize) {
     let (rbuf2_virt, rbuf2_phys) = virt_to_phys(RBUF2.as_ptr() as usize);
 
     // create EPs
+    let max_msg_ord = next_log2(16 + size * 8);
+    assert!(RBUF1.len() * size_of::<u64>() >= 1 << max_msg_ord);
     config_local_ep(1, |regs| {
-        TCU::config_recv(
-            regs,
-            OWN_VPE,
-            rbuf1_phys,
-            next_log2(64),
-            next_log2(64),
-            Some(2),
-        );
+        TCU::config_recv(regs, OWN_VPE, rbuf1_phys, max_msg_ord, max_msg_ord, Some(2));
     });
     config_local_ep(3, |regs| {
-        TCU::config_recv(
-            regs,
-            OWN_VPE,
-            rbuf2_phys,
-            next_log2(64),
-            next_log2(64),
-            None,
-        );
+        TCU::config_recv(regs, OWN_VPE, rbuf2_phys, max_msg_ord, max_msg_ord, None);
     });
     config_local_ep(4, |regs| {
-        TCU::config_send(regs, OWN_VPE, 0x1234, PE::PE0.id(), 1, next_log2(64), 1);
+        TCU::config_send(regs, OWN_VPE, 0x1234, PE::PE0.id(), 1, max_msg_ord, 1);
     });
 
     let msg_buf: &mut MsgBuf = unsafe { transmute(send_addr) };
@@ -295,24 +284,17 @@ fn test_msgs(area_begin: usize, _area_size: usize) {
     *XLATES.get_mut() = 0;
     let mut count = 0;
 
-    // same page
+    // small
     {
-        send_recv(area_begin, 16);
+        send_recv(area_begin, 1);
         count += 1;
         assert_eq!(*XLATES, count);
     }
 
-    // w/ page boundary
+    // large
     {
-        send_recv(area_begin + cfg::PAGE_SIZE - 8, 16);
-        count += 2;
-        assert_eq!(*XLATES, count);
-    }
-
-    // unaligned
-    {
-        send_recv(area_begin + cfg::PAGE_SIZE - 1, 3);
-        count += 2;
+        send_recv(area_begin, 16);
+        count += 1;
         assert_eq!(*XLATES, count);
     }
 }
@@ -327,10 +309,7 @@ pub extern "C" fn env_run() {
     log!(crate::LOG_DEF, "Setting up interrupts...");
     STATE.set(isr::State::default());
     isr::init(STATE.get_mut());
-    isr::reg(isr::TCU_ISR, tcu_irq);
-    if envdata::get().platform == envdata::Platform::HW.val {
-        isr::reg(isr::Vector::MACH_EXT_IRQ.val, tcu_irq);
-    }
+    isr::init_pexcalls(pexcall);
     isr::reg(isr::Vector::INSTR_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::LOAD_PAGEFAULT.val, mmu_pf);
     isr::reg(isr::Vector::STORE_PAGEFAULT.val, mmu_pf);
