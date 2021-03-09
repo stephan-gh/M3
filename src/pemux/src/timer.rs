@@ -97,7 +97,7 @@ pub fn reprogram() {
     };
 
     log!(crate::LOG_TIMER, "timer: setting timer to {}", timeout);
-    tcu::TCU::set_timer(timeout);
+    tcu::TCU::set_timer(timeout).unwrap();
 }
 
 pub fn trigger() {

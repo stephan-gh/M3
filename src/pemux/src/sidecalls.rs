@@ -101,7 +101,7 @@ fn map(msg: &'static tcu::Message) -> Result<(), Error> {
         // if we unmap these pages, flush+invalidate the cache to ensure that we read this memory
         // fresh from DRAM the next time we use it.
         if (perm & kif::PageFlags::RWX).is_empty() {
-            tcu::TCU::flush_cache();
+            tcu::TCU::flush_cache().unwrap();
         }
 
         vpe.map(virt, global, pages, perm | kif::PageFlags::U)
@@ -207,7 +207,7 @@ fn handle_sidecalls(our: &mut vpe::VPE) {
 
     loop {
         // change to our VPE
-        let old_vpe = tcu::TCU::xchg_vpe(our.vpe_reg());
+        let old_vpe = tcu::TCU::xchg_vpe(our.vpe_reg()).unwrap();
         if let Some(old) = vpe::try_cur() {
             old.set_vpe_reg(old_vpe);
         }
@@ -224,7 +224,7 @@ fn handle_sidecalls(our: &mut vpe::VPE) {
 
         // change back to old VPE
         let new_vpe = vpe::try_cur().map_or(old_vpe, |new| new.vpe_reg());
-        our.set_vpe_reg(tcu::TCU::xchg_vpe(new_vpe));
+        our.set_vpe_reg(tcu::TCU::xchg_vpe(new_vpe).unwrap());
         // if no events arrived in the meantime, we're done
         if !our.has_msgs() {
             break;

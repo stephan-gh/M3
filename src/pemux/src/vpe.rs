@@ -279,13 +279,13 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         old.cmd.save();
 
         // now change VPE
-        let old_id = tcu::TCU::xchg_vpe(next.vpe_reg());
+        let old_id = tcu::TCU::xchg_vpe(next.vpe_reg()).unwrap();
 
         // are there messages left we care about?
         if action == ScheduleAction::Block && !old.can_block((old_id >> 16) as u16) {
             // if the VPE has budget left, continue with it
             if old.budget_left > 0 {
-                let next_id = tcu::TCU::xchg_vpe(old_id);
+                let next_id = tcu::TCU::xchg_vpe(old_id).unwrap();
                 next.set_vpe_reg(next_id);
                 if next.id() != kif::pemux::IDLE_ID {
                     make_ready(next);
@@ -305,7 +305,7 @@ fn do_schedule(mut action: ScheduleAction) -> usize {
         old.set_vpe_reg(old_id);
     }
     else {
-        tcu::TCU::xchg_vpe(next.vpe_reg());
+        tcu::TCU::xchg_vpe(next.vpe_reg()).unwrap();
     }
 
     // change address space
@@ -410,7 +410,7 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
             // change to our VPE (no need to save old vpe_reg; VPE is dead)
             let pex_is_running = (tcu::TCU::get_cur_vpe() & 0xFFFF) == kif::pemux::VPE_ID;
             if !pex_is_running {
-                tcu::TCU::xchg_vpe(our().vpe_reg());
+                tcu::TCU::xchg_vpe(our().vpe_reg()).unwrap();
             }
 
             crate::msgbuf().set(kif::pemux::Exit {
@@ -423,7 +423,7 @@ pub fn remove(id: Id, status: u32, notify: bool, sched: bool) {
 
             // switch back to old VPE
             if !pex_is_running {
-                let our_vpe = tcu::TCU::xchg_vpe(old.vpe_reg());
+                let our_vpe = tcu::TCU::xchg_vpe(old.vpe_reg()).unwrap();
                 our().set_vpe_reg(our_vpe);
             }
         }
@@ -733,7 +733,7 @@ impl VPE {
         let phys = pte & !(cfg::PAGE_MASK as u64);
         let mut flags = kif::PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
         flags |= kif::PageFlags::FIXED;
-        tcu::TCU::insert_tlb(self.id() as u16, virt, phys, flags);
+        tcu::TCU::insert_tlb(self.id() as u16, virt, phys, flags).unwrap();
     }
 
     fn map_new_mem(&mut self, base: GlobAddr, addr: usize, size: usize, perm: kif::PageFlags) {
@@ -780,7 +780,7 @@ impl Drop for VPE {
         // because of the way the pager handles copy-on-write: it reads the current copy from the
         // owner and updates the version in DRAM. for that reason, the cache for new VPEs needs to
         // be clear, so that the cache loads the current version from DRAM.
-        tcu::TCU::flush_cache();
+        tcu::TCU::flush_cache().unwrap();
 
         if let Some(ref mut aspace) = self.aspace {
             // free frames we allocated for env, receive buffers etc.

@@ -40,7 +40,7 @@ struct Errors {
         NO_CREDITS,
         NO_PERM,
         INV_MSG_OFF,
-        PAGEFAULT,
+        TRANSLATION_FAULT,
         ABORT,
         UNKNOWN_CMD,
         RECV_OUT_OF_BOUNDS,
@@ -53,6 +53,7 @@ struct Errors {
         PAGE_BOUNDARY,
         MSG_UNALIGNED,
         TLB_MISS,
+        TLB_FULL,
         // SW errors
         INV_ARGS,
         VPE_GONE,

@@ -191,7 +191,7 @@ pub extern "C" fn timer_irq(state: &mut arch::State) -> *mut libc::c_void {
 #[no_mangle]
 pub extern "C" fn init() -> usize {
     // switch to a different VPE during the init phase to ensure that we don't miss messages for us
-    let old_id = tcu::TCU::xchg_vpe(0);
+    let old_id = tcu::TCU::xchg_vpe(0).unwrap();
     assert!((old_id >> 16) == 0);
 
     // init our own environment; at this point we can still access app_env, because it is mapped by

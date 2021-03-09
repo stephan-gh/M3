@@ -57,14 +57,14 @@ fn pexcall_yield(_state: &mut arch::State) -> Result<(), Error> {
     Ok(())
 }
 
-fn pexcall_tlb_miss(state: &mut arch::State) -> Result<(), Error> {
+fn pexcall_transl_fault(state: &mut arch::State) -> Result<(), Error> {
     let virt = state.r[isr::PEXC_ARG1] as usize;
     let access = kif::Perm::from_bits_truncate(state.r[isr::PEXC_ARG2] as u32);
     let flags = kif::PageFlags::from(access) & kif::PageFlags::RW;
 
     log!(
         crate::LOG_CALLS,
-        "pexcall::tlb_miss(virt={:#x}, access={:?})",
+        "pexcall::transl_fault(virt={:#x}, access={:?})",
         virt,
         access
     );
@@ -77,7 +77,7 @@ fn pexcall_tlb_miss(state: &mut arch::State) -> Result<(), Error> {
 fn pexcall_flush_inv(_state: &mut arch::State) -> Result<(), Error> {
     log!(crate::LOG_CALLS, "pexcall::flush_inv()");
 
-    TCU::flush_cache();
+    TCU::flush_cache().unwrap();
 
     Ok(())
 }
@@ -95,7 +95,7 @@ pub fn handle_call(state: &mut arch::State) {
         pexif::Operation::SLEEP => pexcall_sleep(state).map(|_| 0isize),
         pexif::Operation::EXIT => pexcall_stop(state).map(|_| 0isize),
         pexif::Operation::YIELD => pexcall_yield(state).map(|_| 0isize),
-        pexif::Operation::TLB_MISS => pexcall_tlb_miss(state).map(|_| 0isize),
+        pexif::Operation::TRANSL_FAULT => pexcall_transl_fault(state).map(|_| 0isize),
         pexif::Operation::FLUSH_INV => pexcall_flush_inv(state).map(|_| 0isize),
         pexif::Operation::NOOP => pexcall_noop(state).map(|_| 0isize),
 

@@ -38,7 +38,7 @@ pub enum Code {
     NoCredits,
     NoPerm,
     InvMsgOff,
-    Pagefault,
+    TranslationFault,
     Abort,
     UnknownCmd,
     RecvOutOfBounds,
@@ -51,6 +51,7 @@ pub enum Code {
     PageBoundary,
     MsgUnaligned,
     TLBMiss,
+    TLBFull,
     // SW Errors
     InvArgs,
     VPEGone,

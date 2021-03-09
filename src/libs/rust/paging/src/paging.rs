@@ -255,7 +255,8 @@ impl<A: Allocator> AddrSpace<A> {
                 let new_flags = MMUFlags::from_bits_truncate(new_pte);
                 let invalidate = arch::needs_invalidate(new_flags, old_flags);
                 if invalidate {
-                    TCU::invalidate_page(self.id as u16, *virt);
+                    // it's okay if the page is not in the TLB
+                    TCU::invalidate_page(self.id as u16, *virt).ok();
                     arch::invalidate_page(self.id, *virt);
                 }
 
@@ -381,7 +382,7 @@ impl<A: Allocator> Drop for AddrSpace<A> {
 
             // invalidate entire TLB to allow us to reuse the VPE id
             arch::invalidate_tlb();
-            TCU::invalidate_tlb();
+            TCU::invalidate_tlb().unwrap();
         }
     }
 }

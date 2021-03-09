@@ -34,7 +34,7 @@ pub fn init() {
 }
 
 pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
-    assert!(state.r[isr::PEXC_ARG0] == pexif::Operation::TLB_MISS.val as usize);
+    assert!(state.r[isr::PEXC_ARG0] == pexif::Operation::TRANSL_FAULT.val as usize);
 
     let virt = state.r[isr::PEXC_ARG1] as usize;
     let access = Perm::from_bits_truncate(state.r[isr::PEXC_ARG2] as u32);
@@ -50,7 +50,7 @@ pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
 
     let phys = pte & !(cfg::PAGE_MASK as u64);
     let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
-    tcu::TCU::insert_tlb(pes::KERNEL_ID, virt, phys, flags);
+    tcu::TCU::insert_tlb(pes::KERNEL_ID, virt, phys, flags).unwrap();
 
     state as *mut _ as *mut libc::c_void
 }

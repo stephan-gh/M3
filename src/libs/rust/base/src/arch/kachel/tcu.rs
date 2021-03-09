@@ -375,8 +375,8 @@ impl TCU {
 
             match Self::get_error() {
                 Ok(_) => break Ok(()),
-                Err(e) if e.code() == Code::TLBMiss => {
-                    Self::handle_tlbmiss(msg_addr, Perm::R);
+                Err(e) if e.code() == Code::TranslationFault => {
+                    Self::handle_xlate_fault(msg_addr, Perm::R);
                     // retry the access
                     continue;
                 },
@@ -436,8 +436,8 @@ impl TCU {
             Self::write_unpriv_reg(UnprivReg::COMMAND, Self::build_cmd(ep, cmd, 0));
 
             if let Err(e) = Self::get_error() {
-                if e.code() == Code::TLBMiss {
-                    Self::handle_tlbmiss(
+                if e.code() == Code::TranslationFault {
+                    Self::handle_xlate_fault(
                         data,
                         if cmd == CmdOpCode::READ {
                             Perm::W
@@ -462,10 +462,10 @@ impl TCU {
     }
 
     #[cold]
-    fn handle_tlbmiss(addr: usize, perm: Perm) {
-        // report TLB miss to PEMux or whoever handles the call; ignore errors, we won't
-        // get here if the translation failed.
-        arch::pexabi::call2(pexif::Operation::TLB_MISS, addr, perm.bits() as usize).ok();
+    fn handle_xlate_fault(addr: usize, perm: Perm) {
+        // report translation fault to PEMux or whoever handles the call; ignore errors, we won't
+        // get back here if PEMux cannot resolve the fault.
+        arch::pexabi::call2(pexif::Operation::TRANSL_FAULT, addr, perm.bits() as usize).ok();
     }
 
     /// Tries to fetch a new message from the given endpoint.
@@ -617,31 +617,6 @@ impl TCU {
         Self::write_unpriv_reg(UnprivReg::PRINT, s.len() as u64);
     }
 
-    /// Aborts the current command or VPE, specified in `req`, and returns the command register to
-    /// use for a retry later.
-    pub fn abort_cmd() -> Reg {
-        // save the old value before aborting
-        let cmd_reg = Self::read_unpriv_reg(UnprivReg::COMMAND);
-        // ensure that we read the command register before the abort has been executed
-        atomic::fence(atomic::Ordering::SeqCst);
-        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::ABORT_CMD.val);
-
-        loop {
-            let cmd = Self::read_priv_reg(PrivReg::PRIV_CMD);
-            if (cmd & 0xF) == PrivCmdOpCode::IDLE.val {
-                return if (cmd >> 9) == 0 {
-                    // if the command was finished successfully, use the current command register
-                    // to ensure that we don't forget the error code
-                    Self::read_unpriv_reg(UnprivReg::COMMAND)
-                }
-                else {
-                    // otherwise use the old one to repeat it later
-                    cmd_reg
-                };
-            }
-        }
-    }
-
     /// Translates the offset `off` to the message address, using `base` as the base address of the
     /// message's receive buffer
     pub fn offset_to_msg(base: usize, off: usize) -> &'static Message {
@@ -689,26 +664,57 @@ impl TCU {
         Self::read_priv_reg(PrivReg::CUR_VPE)
     }
 
-    /// Switches to the given VPE and returns the old VPE
-    pub fn xchg_vpe(nvpe: Reg) -> Reg {
-        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 9));
+    /// Aborts the current command or VPE, specified in `req`, and returns the command register to
+    /// use for a retry later.
+    pub fn abort_cmd() -> Result<Reg, Error> {
+        // save the old value before aborting
+        let cmd_reg = Self::read_unpriv_reg(UnprivReg::COMMAND);
+        // ensure that we read the command register before the abort has been executed
         atomic::fence(atomic::Ordering::SeqCst);
-        Self::read_priv_reg(PrivReg::PRIV_CMD_ARG)
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::ABORT_CMD.val);
+
+        loop {
+            let cmd = Self::read_priv_reg(PrivReg::PRIV_CMD);
+            if (cmd & 0xF) == PrivCmdOpCode::IDLE.val {
+                let err = (cmd >> 4) & 0x1F;
+                if err != 0 {
+                    break Err(Error::new(Code::from(err as u32)));
+                }
+                else if (cmd >> 9) == 0 {
+                    // if the command was finished successfully, use the current command register
+                    // to ensure that we don't forget the error code
+                    break Ok(Self::read_unpriv_reg(UnprivReg::COMMAND))
+                }
+                else {
+                    // otherwise use the old one to repeat it later
+                    break Ok(cmd_reg)
+                };
+            }
+        }
+    }
+
+    /// Switches to the given VPE and returns the old VPE
+    pub fn xchg_vpe(nvpe: Reg) -> Result<Reg, Error> {
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::XCHG_VPE.val | (nvpe << 9));
+        Self::get_priv_error()?;
+        Ok(Self::read_priv_reg(PrivReg::PRIV_CMD_ARG))
     }
 
     /// Invalidates the TCU's TLB
-    pub fn invalidate_tlb() {
+    pub fn invalidate_tlb() -> Result<(), Error> {
         Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::INV_TLB.val);
+        Self::get_priv_error()
     }
 
     /// Invalidates the entry with given address space id and virtual address in the TCU's TLB
-    pub fn invalidate_page(asid: u16, virt: usize) {
+    pub fn invalidate_page(asid: u16, virt: usize) -> Result<(), Error> {
         let val = ((asid as Reg) << 41) | ((virt as Reg) << 9) | PrivCmdOpCode::INV_PAGE.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, val);
+        Self::get_priv_error()
     }
 
     /// Inserts the given entry into the TCU's TLB
-    pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) {
+    pub fn insert_tlb(asid: u16, virt: usize, phys: u64, flags: PageFlags) -> Result<(), Error> {
         Self::write_priv_reg(PrivReg::PRIV_CMD_ARG, phys);
         atomic::fence(atomic::Ordering::SeqCst);
         let cmd = ((asid as Reg) << 41)
@@ -716,25 +722,40 @@ impl TCU {
             | ((flags.bits() as Reg) << 9)
             | PrivCmdOpCode::INS_TLB.val;
         Self::write_priv_reg(PrivReg::PRIV_CMD, cmd);
+        Self::get_priv_error()
+    }
+
+    /// Flushes and invalidates the CPU caches
+    pub fn flush_cache() -> Result<(), Error> {
+        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::FLUSH_CACHE.val);
+        Self::get_priv_error()
+    }
+
+    /// Sets the timer to fire in `delay_ns` nanoseconds if `delay_ns` is nonzero. Otherwise, unsets
+    /// the timer.
+    pub fn set_timer(delay_ns: u64) -> Result<(), Error> {
+        Self::write_priv_reg(
+            PrivReg::PRIV_CMD,
+            PrivCmdOpCode::SET_TIMER.val | (delay_ns << 9),
+        );
+        Self::get_priv_error()
+    }
+
+    /// Waits until the current command is completed and returns the error, if any occurred
+    #[inline(always)]
+    fn get_priv_error() -> Result<(), Error> {
+        loop {
+            let cmd = Self::read_priv_reg(PrivReg::PRIV_CMD);
+            if (cmd & 0xF) == PrivCmdOpCode::IDLE.val {
+                let err = (cmd >> 4) & 0x1F;
+                return Result::from(Code::from(err as u32));
+            }
+        }
     }
 
     /// Enables or disables instruction tracing
     pub fn set_trace_instrs(enable: bool) {
         Self::write_cfg_reg(ConfigReg::INSTR_TRACE, enable as Reg);
-    }
-
-    /// Flushes and invalidates the CPU caches
-    pub fn flush_cache() {
-        Self::write_priv_reg(PrivReg::PRIV_CMD, PrivCmdOpCode::FLUSH_CACHE.val);
-    }
-
-    /// Sets the timer to fire in `delay_ns` nanoseconds if `delay_ns` is nonzero. Otherwise, unsets
-    /// the timer.
-    pub fn set_timer(delay_ns: u64) {
-        Self::write_priv_reg(
-            PrivReg::PRIV_CMD,
-            PrivCmdOpCode::SET_TIMER.val | (delay_ns << 9),
-        );
     }
 
     /// Returns the value of the given unprivileged register

@@ -24,7 +24,7 @@ enum Operation : word_t {
     SLEEP,
     EXIT,
     YIELD,
-    TLB_MISS,
+    TRANSL_FAULT,
     FLUSH_INV,
     NOOP,
 };

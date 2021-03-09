@@ -30,7 +30,7 @@ int_enum! {
         /// Switch to the next ready VPE
         const YIELD         = 0x2;
         /// For TCU TLB misses
-        const TLB_MISS      = 0x3;
+        const TRANSL_FAULT  = 0x3;
         /// Flush and invalidate cache
         const FLUSH_INV     = 0x4;
         /// Noop operation for testing purposes

@@ -68,8 +68,8 @@ Errors::Code TCU::perform_send_reply(uintptr_t addr, reg_t cmd) {
         write_reg(UnprivRegs::COMMAND, cmd);
 
         auto res = get_error();
-        if(res == Errors::TLB_MISS) {
-            PEXABI::call2(Operation::TLB_MISS, addr, KIF::Perm::R);
+        if(res == Errors::TRANSLATION_FAULT) {
+            PEXABI::call2(Operation::TRANSL_FAULT, addr, KIF::Perm::R);
             continue;
         }
         if(res != Errors::RECV_BUSY)
@@ -97,9 +97,9 @@ Errors::Code TCU::perform_transfer(epid_t ep, uintptr_t data_addr, size_t size,
         write_reg(UnprivRegs::COMMAND, build_command(ep, cmd));
 
         auto res = get_error();
-        if(res == Errors::TLB_MISS) {
+        if(res == Errors::TRANSLATION_FAULT) {
             auto perm = cmd == CmdOpCode::READ ? KIF::Perm::W : KIF::Perm::R;
-            PEXABI::call2(Operation::TLB_MISS, data_addr, perm);
+            PEXABI::call2(Operation::TRANSL_FAULT, data_addr, perm);
             continue;
         }
         if(res != Errors::NONE)

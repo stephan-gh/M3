@@ -28,7 +28,7 @@ impl TCUCmdState {
 
     pub fn save(&mut self) {
         // abort the current command, if there is any
-        let old_cmd = tcu::TCU::abort_cmd();
+        let old_cmd = tcu::TCU::abort_cmd().unwrap();
 
         self.cmd_regs[0] = old_cmd;
         self.cmd_regs[1] = tcu::TCU::read_unpriv_reg(tcu::UnprivReg::ARG1);

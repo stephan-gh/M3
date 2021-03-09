@@ -79,7 +79,7 @@ pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
 
     log!(
         crate::LOG_PEXCALLS,
-        "pexcall::tlb_miss(virt={:#x}, access={:?})",
+        "pexcall::transl_fault(virt={:#x}, access={:?})",
         virt,
         access
     );
@@ -94,7 +94,7 @@ pub extern "C" fn pexcall(state: &mut isr::State) -> *mut libc::c_void {
     // insert TLB entry
     let phys = pte & !(cfg::PAGE_MASK as u64);
     let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
-    tcu::TCU::insert_tlb(OWN_VPE, virt, phys, flags);
+    tcu::TCU::insert_tlb(OWN_VPE, virt, phys, flags).unwrap();
 
     state as *mut _ as *mut libc::c_void
 }
@@ -126,7 +126,7 @@ fn read_write(wr_addr: usize, rd_addr: usize, size: usize) {
         size
     );
 
-    TCU::invalidate_tlb();
+    TCU::invalidate_tlb().unwrap();
 
     let wr_slice = unsafe { util::slice_for_mut(wr_addr as *mut u8, size) };
     let rd_slice = unsafe { util::slice_for_mut(rd_addr as *mut u8, size) };
@@ -201,7 +201,7 @@ fn send_recv(send_addr: usize, size: usize) {
         size * 8
     );
 
-    TCU::invalidate_tlb();
+    TCU::invalidate_tlb().unwrap();
 
     // create receive buffers
     let (rbuf1_virt, rbuf1_phys) = virt_to_phys(RBUF1.as_ptr() as usize);

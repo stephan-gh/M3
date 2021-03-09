@@ -26,12 +26,12 @@ pub fn handle_recv(req: tcu::CoreForeignReq) {
         // if this VPE is currently running, we have to update the CUR_VPE register
         if (tcu::TCU::get_cur_vpe() & 0xFFFF) == req.vpe as vpe::Id {
             // temporary switch to idle
-            let old_vpe = tcu::TCU::xchg_vpe(vpe::idle().vpe_reg());
+            let old_vpe = tcu::TCU::xchg_vpe(vpe::idle().vpe_reg()).unwrap();
             // set user event
             v.set_vpe_reg(old_vpe);
             v.add_msg();
             // switch back
-            tcu::TCU::xchg_vpe(v.vpe_reg());
+            tcu::TCU::xchg_vpe(v.vpe_reg()).unwrap();
         }
         // otherwise, just add it to our copy of CUR_VPE
         else {

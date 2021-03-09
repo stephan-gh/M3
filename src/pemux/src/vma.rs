@@ -35,7 +35,7 @@ fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error
     // change to the VPE, if required
     let cur = vpe::cur();
     if cur.id() != vpe.id() {
-        let old_vpe = tcu::TCU::xchg_vpe(vpe.vpe_reg());
+        let old_vpe = tcu::TCU::xchg_vpe(vpe.vpe_reg()).unwrap();
         cur.set_vpe_reg(old_vpe);
     }
 
@@ -61,7 +61,7 @@ fn send_pf(vpe: &mut vpe::VPE, virt: usize, perm: PageFlags) -> Result<(), Error
     });
 
     if cur.id() != vpe.id() {
-        vpe.set_vpe_reg(tcu::TCU::xchg_vpe(cur.vpe_reg()));
+        vpe.set_vpe_reg(tcu::TCU::xchg_vpe(cur.vpe_reg()).unwrap());
     }
     res
 }
@@ -126,7 +126,7 @@ pub fn handle_xlate(virt: usize, perm: PageFlags) {
         else {
             let phys = pte & !(cfg::PAGE_MASK as u64);
             let flags = PageFlags::from_bits_truncate(pte & cfg::PAGE_MASK as u64);
-            tcu::TCU::insert_tlb(vpe.id() as u16, virt, phys, flags);
+            tcu::TCU::insert_tlb(vpe.id() as u16, virt, phys, flags).unwrap();
         }
     }
 }
