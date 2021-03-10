@@ -45,24 +45,24 @@ struct EEPROM {
 
 impl EEPROM {
     fn init(&mut self, device: &Device) -> bool {
-        device.write_reg(E1000_REG::EERD.bits(), E1000_EERD::START.bits() as u32);
+        device.write_reg(e1000::REG::EERD.bits(), e1000::EERD::START.bits() as u32);
 
         let mut t = base::tcu::TCU::nanotime();
         let mut tried_once = false;
         while !tried_once && (base::tcu::TCU::nanotime() - t) < MAX_WAIT_NANOS {
             let value: u32 = device
-                .read_reg(E1000_REG::EERD.bits())
+                .read_reg(e1000::REG::EERD.bits())
                 .expect("Failed to read eerd register");
-            if (value & E1000_EERD::DONE_LARGE.bits() as u32) > 0 {
+            if (value & e1000::EERD::DONE_LARGE.bits() as u32) > 0 {
                 log!(crate::LOG_NIC, "Detected large EERD");
-                self.done_bit = E1000_EERD::DONE_LARGE.bits().into();
-                self.shift = E1000_EERD::SHIFT_LARGE.bits().into();
+                self.done_bit = e1000::EERD::DONE_LARGE.bits().into();
+                self.shift = e1000::EERD::SHIFT_LARGE.bits().into();
                 return true;
             }
-            if (value & E1000_EERD::DONE_SMALL.bits() as u32) > 0 {
+            if (value & e1000::EERD::DONE_SMALL.bits() as u32) > 0 {
                 log!(crate::LOG_NIC, "Detected small EERD");
-                self.done_bit = E1000_EERD::DONE_SMALL.bits().into();
-                self.shift = E1000_EERD::SHIFT_SMALL.bits().into();
+                self.done_bit = e1000::EERD::DONE_SMALL.bits().into();
+                self.shift = e1000::EERD::SHIFT_SMALL.bits().into();
                 return true;
             }
             tried_once = true;
@@ -97,15 +97,15 @@ impl EEPROM {
 
         //set address
         dev.write_reg(
-            E1000_REG::EERD,
-            E1000_EERD::START.bits() as u32 | (address << self.shift) as u32,
+            e1000::REG::EERD,
+            e1000::EERD::START.bits() as u32 | (address << self.shift) as u32,
         );
 
         //Wait for read to complete
         let mut t = base::tcu::TCU::nanotime();
         let mut done_once = false;
         while (base::tcu::TCU::nanotime() - t) < MAX_WAIT_NANOS && !done_once {
-            let value = dev.read_reg(E1000_REG::EERD);
+            let value = dev.read_reg(e1000::REG::EERD);
             done_once = true;
             if (!value & self.done_bit) != 0 {
                 //Not read yet, therefore try again
@@ -189,14 +189,14 @@ impl E1000 {
 
         //Enable interrupts
         dev.write_reg(
-            E1000_REG::IMC,
-            (E1000_ICR::LSC | E1000_ICR::RXO | E1000_ICR::RXT0)
+            e1000::REG::IMC,
+            (e1000::ICR::LSC | e1000::ICR::RXO | e1000::ICR::RXT0)
                 .bits()
                 .into(),
         );
         dev.write_reg(
-            E1000_REG::IMS,
-            (E1000_ICR::LSC | E1000_ICR::RXO | E1000_ICR::RXT0)
+            e1000::REG::IMS,
+            (e1000::ICR::LSC | e1000::ICR::RXO | e1000::ICR::RXT0)
                 .bits()
                 .into(),
         );
@@ -212,37 +212,37 @@ impl E1000 {
 
     fn reset(&mut self) {
         //always reset MAC. Required to reset the TX and RX rings.
-        let mut ctrl: u32 = self.read_reg(E1000_REG::CTRL);
-        self.write_reg(E1000_REG::CTRL, (ctrl | E1000_CTL::RESET.bits()));
+        let mut ctrl: u32 = self.read_reg(e1000::REG::CTRL);
+        self.write_reg(e1000::REG::CTRL, (ctrl | e1000::CTL::RESET.bits()));
         self.sleep(RESET_SLEEP_TIME);
 
         //set a sensible default configuration
-        ctrl |= (E1000_CTL::SLU | E1000_CTL::ASDE).bits();
-        ctrl &= (E1000_CTL::LRST | E1000_CTL::FRCSPD | E1000_CTL::FRCDPLX).bits();
-        self.write_reg(E1000_REG::CTRL, ctrl);
+        ctrl |= (e1000::CTL::SLU | e1000::CTL::ASDE).bits();
+        ctrl &= (e1000::CTL::LRST | e1000::CTL::FRCSPD | e1000::CTL::FRCDPLX).bits();
+        self.write_reg(e1000::REG::CTRL, ctrl);
         self.sleep(RESET_SLEEP_TIME);
 
         // if link is already up, do not attempt to reset the PHY.  On
         // some models (notably ICH), performing a PHY reset seems to
         // drop the link speed to 10Mbps.
-        let status: u32 = self.read_reg(E1000_REG::STATUS);
-        if ((!status) & E1000_STATUS::LU.bits() as u32) > 0 {
+        let status: u32 = self.read_reg(e1000::REG::STATUS);
+        if ((!status) & e1000::STATUS::LU.bits() as u32) > 0 {
             // Reset PHY and MAC simultaneously
             self.write_reg(
-                E1000_REG::CTRL,
-                ctrl | (E1000_CTL::RESET | E1000_CTL::PHY_RESET).bits(),
+                e1000::REG::CTRL,
+                ctrl | (e1000::CTL::RESET | e1000::CTL::PHY_RESET).bits(),
             );
             self.sleep(RESET_SLEEP_TIME);
 
             // PHY reset is not self-clearing on all models
-            self.write_reg(E1000_REG::CTRL, ctrl);
+            self.write_reg(e1000::REG::CTRL, ctrl);
             self.sleep(RESET_SLEEP_TIME);
         }
 
         // enable ip/udp/tcp receive checksum offloading
         self.write_reg(
-            E1000_REG::RXCSUM,
-            (E1000_RXCSUM::IPOFLD | E1000_RXCSUM::TUOFLD).bits().into(),
+            e1000::REG::RXCSUM,
+            (e1000::RXCSUM::IPOFLD | e1000::RXCSUM::TUOFLD).bits().into(),
         );
 
         // calculate field offsets. needs to happen in const to not instantiate `Buffers`.
@@ -284,28 +284,28 @@ impl E1000 {
         }
 
         // init receive ring
-        self.write_reg(E1000_REG::RDBAH, 0);
-        self.write_reg(E1000_REG::RDBAL, RX_DESCS_OFF as u32);
+        self.write_reg(e1000::REG::RDBAH, 0);
+        self.write_reg(e1000::REG::RDBAL, RX_DESCS_OFF as u32);
         self.write_reg(
-            E1000_REG::RDLEN,
+            e1000::REG::RDLEN,
             (RX_BUF_COUNT * core::mem::size_of::<RxDesc>()) as u32,
         );
-        self.write_reg(E1000_REG::RDH, 0);
-        self.write_reg(E1000_REG::RDT, (RX_BUF_COUNT - 1) as u32);
-        self.write_reg(E1000_REG::RDTR, 0);
-        self.write_reg(E1000_REG::RADV, 0);
+        self.write_reg(e1000::REG::RDH, 0);
+        self.write_reg(e1000::REG::RDT, (RX_BUF_COUNT - 1) as u32);
+        self.write_reg(e1000::REG::RDTR, 0);
+        self.write_reg(e1000::REG::RADV, 0);
 
         // init transmit ring
-        self.write_reg(E1000_REG::TDBAH, 0);
-        self.write_reg(E1000_REG::TDBAL, TX_DESCS_OFF as u32);
+        self.write_reg(e1000::REG::TDBAH, 0);
+        self.write_reg(e1000::REG::TDBAL, TX_DESCS_OFF as u32);
         self.write_reg(
-            E1000_REG::TDLEN,
+            e1000::REG::TDLEN,
             (TX_BUF_COUNT * core::mem::size_of::<TxDesc>()) as u32,
         );
-        self.write_reg(E1000_REG::TDH, 0);
-        self.write_reg(E1000_REG::TDT, 0);
-        self.write_reg(E1000_REG::TIDV, 0);
-        self.write_reg(E1000_REG::TADV, 0);
+        self.write_reg(e1000::REG::TDH, 0);
+        self.write_reg(e1000::REG::TDT, 0);
+        self.write_reg(e1000::REG::TIDV, 0);
+        self.write_reg(e1000::REG::TADV, 0);
 
         // enable rings
         // Always enabled for this model? legacy stuff?
@@ -315,31 +315,31 @@ impl E1000 {
         // get MAC and setup MAC filter
         self.mac = self.read_mac();
         let macval: u64 = self.mac.value();
-        self.write_reg(E1000_REG::RAL, (macval & 0xFFFFFFFF) as u32);
+        self.write_reg(e1000::REG::RAL, (macval & 0xFFFFFFFF) as u32);
         self.write_reg(
-            E1000_REG::RAH,
-            (((macval >> 32) as u32) & 0xFFFF) | (E1000_RAH::VALID.bits() as u32),
+            e1000::REG::RAH,
+            (((macval >> 32) as u32) & 0xFFFF) | (e1000::RAH::VALID.bits() as u32),
         );
 
         // enable transmitter
-        let mut tctl: u32 = self.read_reg(E1000_REG::TCTL);
-        tctl &= (!((E1000_TCTL::COLT_MASK | E1000_TCTL::COLD_MASK).bits() as u32));
+        let mut tctl: u32 = self.read_reg(e1000::REG::TCTL);
+        tctl &= (!((e1000::TCTL::COLT_MASK | e1000::TCTL::COLD_MASK).bits() as u32));
         tctl |=
-            (E1000_TCTL::ENABLE | E1000_TCTL::PSP | E1000_TCTL::COLL_DIST | E1000_TCTL::COLL_TSH)
+            (e1000::TCTL::ENABLE | e1000::TCTL::PSP | e1000::TCTL::COLL_DIST | e1000::TCTL::COLL_TSH)
                 .bits() as u32;
-        self.write_reg(E1000_REG::TCTL, tctl);
+        self.write_reg(e1000::REG::TCTL, tctl);
 
         // enable receiver
-        let mut rctl: u32 = self.read_reg(E1000_REG::RCTL);
-        rctl &= !((E1000_RCTL::BSIZE_MASK | E1000_RCTL::BSEX_MASK).bits() as u32);
-        rctl |= (E1000_RCTL::ENABLE
-            | E1000_RCTL::UPE
-            | E1000_RCTL::MPE
-            | E1000_RCTL::BAM
-            | E1000_RCTL::BSIZE_2K
-            | E1000_RCTL::SECRC)
+        let mut rctl: u32 = self.read_reg(e1000::REG::RCTL);
+        rctl &= !((e1000::RCTL::BSIZE_MASK | e1000::RCTL::BSEX_MASK).bits() as u32);
+        rctl |= (e1000::RCTL::ENABLE
+            | e1000::RCTL::UPE
+            | e1000::RCTL::MPE
+            | e1000::RCTL::BAM
+            | e1000::RCTL::BSIZE_2K
+            | e1000::RCTL::SECRC)
             .bits() as u32;
-        self.write_reg(E1000_REG::RCTL, rctl);
+        self.write_reg(e1000::REG::RCTL, rctl);
 
         self.link_state_changed = true;
     }
@@ -352,7 +352,7 @@ impl E1000 {
 
         let mut next_tx_desc: u32 = inc_rb(self.cur_tx_desc, TX_BUF_COUNT as u32);
 
-        let head: u32 = self.read_reg(E1000_REG::TDH);
+        let head: u32 = self.read_reg(e1000::REG::TDH);
         // TODO: Is the condition correct or off by one?
         if (next_tx_desc == head) {
             log!(crate::LOG_NIC, "No free descriptors.");
@@ -511,7 +511,7 @@ impl E1000 {
 
         desc.set_length(packet.len() as u32);
         desc.set_dtyp(0x0001);
-        desc.set_dcmd(1 << 5 | (E1000_TX::CMD_EOP | E1000_TX::CMD_IFCS).bits()); // DEXT | TX_CMD_EOP | TX_CMD_IFCS
+        desc.set_dcmd(1 << 5 | (e1000::TX::CMD_EOP | e1000::TX::CMD_IFCS).bits()); // DEXT | TX_CMD_EOP | TX_CMD_IFCS
         desc.set_sta(0);
         desc.set_rsv(0);
 
@@ -528,7 +528,7 @@ impl E1000 {
             (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as u64,
         );
 
-        self.write_reg(E1000_REG::TDT, self.cur_tx_desc);
+        self.write_reg(e1000::REG::TDT, self.cur_tx_desc);
 
         true
     }
@@ -552,7 +552,7 @@ impl E1000 {
         // calculate field offsets. needs to happen in const to not instantiate `Buffers`.
         const RX_DESCS_OFF: usize = offset_of!(Buffers, rx_descs);
 
-        let tail: u32 = inc_rb(self.read_reg(E1000_REG::RDT), RX_BUF_COUNT as u32);
+        let tail: u32 = inc_rb(self.read_reg(e1000::REG::RDT), RX_BUF_COUNT as u32);
 
         //Need to create the slice here, since we want to read the value after `read` took the slice
         let mut desc = [RxDesc::default()];
@@ -564,7 +564,7 @@ impl E1000 {
         // TODO: Ensure that packets that are not processed because the maxReceiveCount has been exceeded,
         // to be processed later, independently of an interrupt.
 
-        if (desc.status & E1000_RXDS::DD.bits()) == 0 {
+        if (desc.status & e1000::RXDS::DD.bits()) == 0 {
             return Err(Error::new(Code::NotSup)); //TODO throw correct error
         }
 
@@ -582,18 +582,18 @@ impl E1000 {
         // time. In rust we init to false, but that might produce a different result.
         let mut valid_checksum = false;
         // Ignore Checksum Indication not set
-        if ((desc.status & E1000_RXDS::IXSM.bits()) == 0) {
-            if ((desc.status & E1000_RXDS::IPCS.bits()) > 0) {
-                valid_checksum = ((desc.error & E1000_RXDE::IPE.bits()) == 0);
+        if ((desc.status & e1000::RXDS::IXSM.bits()) == 0) {
+            if ((desc.status & e1000::RXDS::IPCS.bits()) > 0) {
+                valid_checksum = ((desc.error & e1000::RXDE::IPE.bits()) == 0);
 
                 if !valid_checksum {
                     // TODO: Increase lwIP ip drop/chksum counters
                     log!(crate::LOG_NIC, "Dropped packet with IP checksum error.");
                 }
-                else if ((desc.status & (E1000_RXDS::TCPCS | E1000_RXDS::UDPCS).bits()) > 0) {
+                else if ((desc.status & (e1000::RXDS::TCPCS | e1000::RXDS::UDPCS).bits()) > 0) {
                     log!(crate::LOG_NIC, "E1000: IXMS set, bur TCPS and UDPCS set, therefore trying alternative checksum...");
 
-                    valid_checksum = (desc.error & E1000_RXDE::TCPE.bits()) == 0;
+                    valid_checksum = (desc.error & e1000::RXDE::TCPE.bits()) == 0;
                     if !valid_checksum {
                         // TODO: Increase lwIP tcp/udp drop/chksum counters
                         log!(crate::LOG_NIC, "Dropped packet with TCP/UDP checksum error. (IXMS set, TCPCS | UDPCS set)");
@@ -652,18 +652,18 @@ impl E1000 {
         );
 
         // move to next package by updating the `tail` value on the device.
-        self.write_reg(E1000_REG::RDT, tail);
+        self.write_reg(e1000::REG::RDT, tail);
         //tail = inc_rb(tail, RX_BUF_COUNT as u32);
         //self.bufs.read(&mut [desc], (offset_of!(Buffers, rx_descs) + tail as usize * core::mem::size_of::<RxDesc>()) as u64);
         Ok(read_size)
     }
 
-    fn write_reg(&self, reg: E1000_REG, value: u32) {
+    fn write_reg(&self, reg: e1000::REG, value: u32) {
         log!(crate::LOG_NIC, "REG[{:x}] <- {:x}", reg.bits(), value);
         self.nic.write_reg(reg.bits(), value);
     }
 
-    fn read_reg(&self, reg: E1000_REG) -> u32 {
+    fn read_reg(&self, reg: e1000::REG) -> u32 {
         //TODO: Unwrapping since we would anyways have to panic if reading a register fails
         //Maybe retry if this fails later.
         let val: u32 = self
@@ -688,8 +688,8 @@ impl E1000 {
     }
 
     fn read_mac(&self) -> MAC {
-        let macl: u32 = self.read_reg(E1000_REG::RAL);
-        let mach: u32 = self.read_reg(E1000_REG::RAH);
+        let macl: u32 = self.read_reg(e1000::REG::RAL);
+        let mach: u32 = self.read_reg(e1000::REG::RAH);
 
         let mut mac = MAC::new(
             ((macl >> 0) & 0xff) as u8,
@@ -730,7 +730,7 @@ impl E1000 {
     }
 
     fn link_is_up(&self) -> bool {
-        (self.read_reg(E1000_REG::STATUS) & E1000_STATUS::LU.bits() as u32) > 0
+        (self.read_reg(e1000::REG::STATUS) & e1000::STATUS::LU.bits() as u32) > 0
     }
 
     #[inline]
@@ -740,9 +740,9 @@ impl E1000 {
 
     //checks if a irq occured
     fn check_irq(&mut self) -> bool {
-        let icr = self.read_reg(E1000_REG::ICR);
+        let icr = self.read_reg(e1000::REG::ICR);
         log!(crate::LOG_NIC, "Status: icr={:x}", icr);
-        if (icr & E1000_ICR::LSC.bits() as u32) > 0 {
+        if (icr & e1000::ICR::LSC.bits() as u32) > 0 {
             self.link_state_changed = true;
         }
         self.nic.check_for_irq()

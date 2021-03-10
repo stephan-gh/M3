@@ -16,13 +16,16 @@
  */
 
 use base::const_assert;
-use m3::goff;
+use bitflags::bitflags;
 use m3::mem;
 
+pub mod e1000 {
+
 use bitflags::bitflags;
+use m3::goff;
 
 bitflags! {
-    pub struct E1000_REG: goff {
+    pub struct REG: goff {
         const CTRL            = 0x0;           /* device control register */
         const STATUS          = 0x8;           /* device status register */
         const EECD            = 0x10;          /* EEPROM control/data register */
@@ -67,13 +70,13 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct E1000_STATUS: u8 {
+    pub struct STATUS: u8 {
         const LU              = 1 << 1;        /* link up */
     }
 }
 
 bitflags! {
-    pub struct E1000_CTL: u32 {
+    pub struct CTL: u32 {
         const LRST            = 1 << 3;        /* link reset */
         const ASDE            = 1 << 5;        /* auto speed detection enable */
         const SLU             = 1 << 6;        /* set link up */
@@ -85,13 +88,13 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct E1000_XDCTL: u32 {
+    pub struct XDCTL: u32 {
         const XDCTL_ENABLE    = 1 << 25;       /* queue enable */
     }
 }
 
 bitflags! {
-    pub struct E1000_ICR: u8 {
+    pub struct ICR: u8 {
         const LSC             = 1 << 2;        /* Link Status Change */
         const RXDMT0          = 1 << 4;        /* Receive Descriptor Minimum Threshold Reached */
         const RXO             = 1 << 6;        /* Receiver Overrun */
@@ -100,7 +103,7 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct E1000_RCTL: u32 {
+    pub struct RCTL: u32 {
         const ENABLE          = 1 << 1;
         const UPE             = 1 << 3;        /* unicast promiscuous mode */
         const MPE             = 1 << 4;        /* multicast promiscuous */
@@ -116,7 +119,7 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct E1000_TCTL: u32 {
+    pub struct TCTL: u32 {
         const ENABLE          = 1 << 1;
         const PSP             = 1 << 3;        /* pad short packets */
         const COLL_TSH        = 0x0F << 4;     /* collision threshold; number of transmission attempts */
@@ -127,13 +130,13 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct E1000_RAH: u32 {
+    pub struct RAH: u32 {
         const VALID           = 1 << 31;       /* marks a receive address filter as valid */
     }
 }
 
 bitflags! {
-    pub struct E1000_RXCSUM: u16 {
+    pub struct RXCSUM: u16 {
         const PCSS_MASK       = 0xff;           /* Packet Checksum Start */
         const IPOFLD          = 1 << 8;         /* IP Checksum Off-load Enable */
         const TUOFLD          = 1 << 9;         /* TCP/UDP Checksum Off-load Enable */
@@ -142,13 +145,13 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct E1000_EEPROM: u8 {
+    pub struct EEPROM: u8 {
         const OFS_MAC         = 0x0;           /* offset of the MAC in EEPROM */
     }
 }
 
 bitflags! {
-    pub struct E1000_EERD: u8 {
+    pub struct EERD: u8 {
         const START           = 1 << 0;        /* start command */
         const DONE_SMALL      = 1 << 4;        /* read done (small EERD) */
         const DONE_LARGE      = 1 << 1;        /* read done (large EERD) */
@@ -158,14 +161,14 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct E1000_TX: u8 {
+    pub struct TX: u8 {
         const CMD_EOP         = 0x01;          /* end of packet */
         const CMD_IFCS        = 0x02;          /* insert FCS/CRC */
     }
 }
 
 bitflags! {
-    pub struct E1000_RXDS: u8 {
+    pub struct RXDS: u8 {
         const PIF             = 1 << 7; /* Passed in-exact filter */
         const IPCS            = 1 << 6; /* IP Checksum Calculated on Packet */
         const TCPCS           = 1 << 5; /* TCP Checksum Calculated on Packet */
@@ -180,7 +183,7 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct E1000_RXDE: u8 {
+    pub struct RXDE: u8 {
         const RXE             = 1 << 7; /* RX Data Error */
         const IPE             = 1 << 6; /* IP Checksum Error */
         const TCPE            = 1 << 5; /* TCP/UDP Checksum Error */
@@ -190,47 +193,7 @@ bitflags! {
     }
 }
 
-/*
-bitflags!{
-    pub struct TxoProto: u8{
-    const Unsupported = 1<<1;
-    const IP = 1<<2 | TxoProto::Unsupported.bits();
-    const UDP = 1<<3 | TxoProto::IP.bits();
-    const TCP = 1<<4 | TxoProto::IP.bits();
-    }
 }
-*/
-
-bitflags! {
-    pub struct TxoProto: u8 {
-        const Unsupported     = 1 << 1;
-        const IP              = 1 << 2 | TxoProto::Unsupported.bits();
-        const UDP             = 1 << 3 | TxoProto::IP.bits();
-        const TCP             = 1 << 4 | TxoProto::IP.bits();
-    }
-}
-
-pub const IP_PROTO_UDP: u8 = 17;
-pub const IP_PROTO_TCP: u8 = 6;
-
-pub const TCP_CHECKSUM_OFFSET: u8 = 0x10;
-pub const UDP_CHECKSUM_OFFSET: u8 = 0x06;
-
-pub const ETH_HWADDR_LEN: usize = 6;
-pub const ETHTYPE_IP: u16 = 0x0008;
-
-pub const WORD_LEN_LOG2: usize = 1;
-// TODO: Use a sensible value, the current one is chosen arbitrarily
-pub const MAX_WAIT_NANOS: u64 = 100000;
-
-pub const RESET_SLEEP_TIME: u64 = 20 * 1000;
-
-pub const MAX_RECEIVE_COUNT_PER_INTERRUPT: usize = 5;
-
-pub const RX_BUF_COUNT: usize = 256;
-pub const TX_BUF_COUNT: usize = 256;
-pub const RX_BUF_SIZE: usize = 2048;
-pub const TX_BUF_SIZE: usize = 2048;
 
 #[repr(C, align(4))]
 pub struct TxDesc {
@@ -351,6 +314,37 @@ impl Default for RxDesc {
         }
     }
 }
+
+bitflags! {
+    pub struct TxoProto: u8 {
+        const Unsupported     = 1 << 1;
+        const IP              = 1 << 2 | TxoProto::Unsupported.bits();
+        const UDP             = 1 << 3 | TxoProto::IP.bits();
+        const TCP             = 1 << 4 | TxoProto::IP.bits();
+    }
+}
+
+pub const IP_PROTO_UDP: u8 = 17;
+pub const IP_PROTO_TCP: u8 = 6;
+
+pub const TCP_CHECKSUM_OFFSET: u8 = 0x10;
+pub const UDP_CHECKSUM_OFFSET: u8 = 0x06;
+
+pub const ETH_HWADDR_LEN: usize = 6;
+pub const ETHTYPE_IP: u16 = 0x0008;
+
+pub const WORD_LEN_LOG2: usize = 1;
+// TODO: Use a sensible value, the current one is chosen arbitrarily
+pub const MAX_WAIT_NANOS: u64 = 100000;
+
+pub const RESET_SLEEP_TIME: u64 = 20 * 1000;
+
+pub const MAX_RECEIVE_COUNT_PER_INTERRUPT: usize = 5;
+
+pub const RX_BUF_COUNT: usize = 256;
+pub const TX_BUF_COUNT: usize = 256;
+pub const RX_BUF_SIZE: usize = 2048;
+pub const TX_BUF_SIZE: usize = 2048;
 
 #[repr(C, align(16))]
 pub struct Buffers {
