@@ -78,7 +78,6 @@ fn simple_bandwidth() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
     let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
 
-    socket.set_blocking(true);
     wv_assert_ok!(Semaphore::attach("net").unwrap().down());
 
     wv_assert_ok!(socket.bind(IpAddr::new(192, 168, 112, 2), 1337));
@@ -86,13 +85,15 @@ fn simple_bandwidth() {
     socket.set_blocking(false);
     let mut context = NetContext {
         socket,
-        req_buffer: [0; 1024],
+        req_buffer: [0u8; 1024],
         dest_addr: IpAddr::new(192, 168, 112, 1),
         dest_port: 1337,
         sent_count: 0,
         receive_count: 0,
         received_bytes: 0,
     };
+
+    let mut buf = [0u8; 1024];
 
     wv_perf!(
         "running bandwidth test",
@@ -108,10 +109,10 @@ fn simple_bandwidth() {
                         if context.sent_count > PACKETS_TO_SEND {
                             break;
                         }
-                        wv_assert_ok!(context.socket.send(
+                        wv_assert_ok!(context.socket.send_to(
+                            &context.req_buffer,
                             context.dest_addr,
                             context.dest_port,
-                            &context.req_buffer
                         ));
                         context.sent_count += 1;
                         failures = 0;
@@ -119,8 +120,8 @@ fn simple_bandwidth() {
 
                     let receive_count = BURST_SIZE;
                     for _ in 0..receive_count {
-                        if let Ok(pkg) = context.socket.recv() {
-                            context.received_bytes += pkg.size as usize;
+                        if let Ok(size) = context.socket.recv(&mut buf) {
+                            context.received_bytes += size as usize;
                             context.receive_count += 1;
                         }
                         else {

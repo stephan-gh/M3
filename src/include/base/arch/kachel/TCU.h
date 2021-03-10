@@ -201,6 +201,11 @@ public:
         return cur > 0;
     }
 
+    bool has_msgs(epid_t ep) const {
+        reg_t r2 = read_reg(ep, 2);
+        return (r2 >> 32) != 0;
+    }
+
     bool is_valid(epid_t ep) const {
         reg_t r0 = read_reg(ep, 0);
         return static_cast<EpType>(r0 & 0x7) != EpType::INVALID;

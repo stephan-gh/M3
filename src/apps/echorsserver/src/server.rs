@@ -21,7 +21,7 @@ extern crate m3;
 
 use m3::com::Semaphore;
 use m3::net::IpAddr;
-use m3::net::{TcpSocket, TcpState};
+use m3::net::TcpSocket;
 use m3::session::NetworkManager;
 
 #[no_mangle]
@@ -31,14 +31,8 @@ pub fn main() -> i32 {
     println!("SERVER: Create socket");
     let mut socket = TcpSocket::new(&net).unwrap();
 
-    socket.set_blocking(true);
     println!("SERVER: listen");
     socket.listen(IpAddr::new(127, 0, 0, 2), 1234).unwrap();
-
-    assert!(
-        socket.state().unwrap() == TcpState::Listen,
-        "Socket state did not match"
-    );
 
     // Signal that we are listening
     Semaphore::attach("net")
@@ -46,15 +40,22 @@ pub fn main() -> i32 {
         .up()
         .expect("Failed to up sem");
 
-    let msg: &[u8; 7] = b"HiBack!";
+    println!("SERVER: accept");
+    let (ip, port) = socket.accept().unwrap();
+    println!("SERVER: connected to {}:{}", ip, port);
+
+    println!("SERVER: starting loop");
+
+    let req: &[u8; 7] = b"HiBack!";
+    let mut resp = [0u8; 1024];
     for _ in 0..10 {
-        let package = socket.recv().expect("Failed to receive package!");
+        let (size, ip, port) = socket.recv_from(&mut resp).expect("Failed to receive package!");
         println!(
-            "SERVER: Received {}\nfrom: {}",
-            core::str::from_utf8(&package.raw_data()).unwrap(),
-            package.source_addr
+            "SERVER: Received '{}' from: {}:{}",
+            core::str::from_utf8(&resp[0..size]).unwrap(),
+            ip, port
         );
-        socket.send(msg.as_ref()).expect("Failed to send on server");
+        socket.send(req).expect("Failed to send on server");
     }
 
     socket.close().expect("Failed to close server socket");

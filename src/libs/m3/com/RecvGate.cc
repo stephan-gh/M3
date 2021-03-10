@@ -152,6 +152,10 @@ const TCU::Message *RecvGate::fetch() {
     return nullptr;
 }
 
+bool RecvGate::has_msgs() const {
+    return TCU::get().has_msgs(ep()->id());
+}
+
 void RecvGate::reply(const MsgBuf &reply, const TCU::Message *msg) {
     size_t msg_off = TCU::msg_to_offset(address(), msg);
     Errors::Code res = TCU::get().reply(ep()->id(), reply, msg_off);

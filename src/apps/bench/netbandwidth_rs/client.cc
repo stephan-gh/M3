@@ -30,14 +30,13 @@ using namespace m3;
 int main() {
     NetworkManagerRs net("net0");
 
-    UdpSocketRs socket(net);
+    auto socket = UdpSocketRs::create(net);
 
     // wait for server
     Semaphore::attach("net").down();
 
-    socket.set_blocking(true);
     // Bind this socket to our Ip address. Not needed realy, we could just start sending.
-    socket.bind(IpAddr(192, 168, 112, 2), 1337);
+    socket->bind(IpAddr(192, 168, 112, 2), 1337);
 
     constexpr size_t packet_size = 1024;
     IpAddr dest_addr             = IpAddr(192, 168, 112, 1);
@@ -47,17 +46,20 @@ int main() {
         uint8_t raw[packet_size];
         cycles_t time;
     } request;
-    /*
+
     union {
         uint8_t raw[packet_size];
         cycles_t time;
     } response;
-*/
+
+    IpAddr src_addr;
+    uint16_t src_port;
+
     size_t warmup             = 5;
     size_t packets_to_send    = 105;
     size_t packets_to_receive = 100;
     size_t burst_size         = 2;
-    cycles_t timeout          = 100000000;
+    cycles_t timeout          = 10000000;
 
     size_t packet_sent_count     = 0;
     size_t packet_received_count = 0;
@@ -65,12 +67,13 @@ int main() {
 
     cout << "Warmup...\n";
     while(warmup--) {
-        socket.send(dest_addr, dest_port, (uint8_t *)request.raw, 8);
-        m3::net::NetData _data = socket.recv();
+        socket->sendto(request.raw, 8, dest_addr, dest_port);
+        socket->recvfrom(response.raw, sizeof(response.raw), &src_addr, &src_port);
     }
     cout << "Warmup done.\n";
 
-    socket.set_blocking(false);
+    socket->blocking(false);
+
     cout << "Benchmark...\n";
     cycles_t start         = Time::start(0);
     cycles_t last_received = start;
@@ -84,20 +87,25 @@ int main() {
 
         size_t send_count = burst_size;
         while(send_count-- && packet_sent_count < packets_to_send) {
-            socket.send(dest_addr, dest_port, (uint8_t *)request.raw, packet_size);
-            packet_sent_count++;
-            failures = 0;
+            if(socket->sendto(request.raw, packet_size, dest_addr, dest_port) > 0) {
+                // cout << "sent package\n";
+                packet_sent_count++;
+                failures = 0;
+            } else {
+                failures++;
+                break;
+            }
         }
 
         size_t receive_count = burst_size;
         while(receive_count--) {
-            m3::net::NetData pkg = socket.recv();
+            ssize_t pkt_size = socket->recvfrom(response.raw, sizeof(response.raw), &src_addr, &src_port);
 
-            if(!pkg.is_empty()) {
-                received_bytes += static_cast<size_t>(pkg.get_size());
+            if(pkt_size != -1) {
+                received_bytes += static_cast<size_t>(pkt_size);
                 packet_received_count++;
                 last_received = Time::start(0);
-                failures      = 0;
+                failures = 0;
             }
             else {
                 failures++;

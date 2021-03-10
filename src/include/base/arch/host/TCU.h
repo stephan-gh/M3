@@ -230,6 +230,10 @@ public:
         return get_ep(ep, EP_CREDITS) > 0;
     }
 
+    bool has_msgs(epid_t ep) const {
+        return get_ep(ep, EP_BUF_UNREAD) != 0;
+    }
+
     size_t fetch_msg(epid_t ep) {
         if(get_ep(ep, EP_BUF_MSGCNT) == 0)
             return static_cast<size_t>(-1);

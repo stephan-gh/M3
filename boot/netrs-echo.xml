@@ -14,7 +14,7 @@
             </app>
         </dom>
         <dom>
-            <app args="echorsclient" daemon="1">
+            <app args="echorsclient">
                 <sess name="net0" />
                 <sem name="net" />
             </app>

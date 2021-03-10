@@ -189,6 +189,13 @@ public:
     void stop() noexcept;
 
     /**
+     * Checks whether unread messages are available without fetching them
+     *
+     * @return true if there are unread messages
+     */
+    bool has_msgs() const;
+
+    /**
      * Fetches a message from this receive gate and returns it, if there is any.
      *
      * @return the message or nullptr

@@ -82,10 +82,14 @@ pub enum Code {
     InvChecksum,
     SocketClosed,
     ConnectionFailed,
+    IsConnected,
+    ConnectInProgress,
+    ConnectAlreadyInProgress,
     ListenFailed,
     BindFailed,
     FailedToSend,
     NoSuchSocket,
+    WouldBlock,
 }
 
 // we only use this implementation in debug mode, because it adds a bit of some overhead, errors

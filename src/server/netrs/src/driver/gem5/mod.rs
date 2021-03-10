@@ -20,10 +20,10 @@ use m3::com::MemGate;
 use m3::errors::{Code, Error};
 use m3::goff;
 use m3::kif::{Perm, PEISA};
+use m3::log;
 use m3::net::{MAC, MAC_LEN};
 use m3::rc::Rc;
 use m3::vec::Vec;
-use m3::{log, vec};
 
 use memoffset::offset_of;
 

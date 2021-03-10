@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
  * Copyright (C) 2017, Georg Kotheimer <georg.kotheimer@mailbox.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
@@ -15,15 +16,16 @@
  * General Public License version 2 for more details.
  */
 
+mod dataqueue;
+
+pub mod event;
+pub use self::event::{NetEvent, NetEventChannel, NetEventType};
+
 pub mod socket;
 pub use self::socket::*;
 
-pub mod net_channel;
-pub use self::net_channel::NetChannel;
-
-use crate::errors::{Code, Error};
-use crate::mem;
-use crate::serialize::{Marshallable, Sink, Source, Unmarshallable};
+pub type Sd = usize;
+pub type Port = u16;
 
 pub const MSG_SIZE: usize = 2048;
 pub const MSG_ORDER: u32 = 11;
@@ -80,121 +82,6 @@ impl SocketType {
             2 => SocketType::Raw,
             _ => SocketType::Undefined,
         }
-    }
-}
-
-#[derive(Debug)]
-pub enum SocketState {
-    TcpState(crate::net::socket::TcpState),
-    UdpState(crate::net::socket::UdpState), // TODO implement?
-    RawState, // TODO implement, might not have to since a raw socket has no state?
-}
-
-impl Marshallable for SocketState {
-    fn marshall(&self, sink: &mut Sink) {
-        match self {
-            SocketState::TcpState(tcps) => {
-                // Is tcp state
-                sink.push(&(0 as u64));
-                // Push tcp state info
-                sink.push(&(*tcps as u64));
-            },
-            SocketState::UdpState(udps) => {
-                // is udpstate
-                sink.push(&(1 as u64));
-                sink.push(&(*udps as u64));
-            },
-            SocketState::RawState => {
-                // is rawstate
-                sink.push(&(2 as u64));
-                // No other state info
-            },
-        }
-    }
-}
-
-impl Unmarshallable for SocketState {
-    fn unmarshall(s: &mut Source) -> Result<Self, Error> {
-        let state_type = u64::unmarshall(s)?;
-
-        match state_type {
-            0 => {
-                let tcp_state = TcpState::from_u64(u64::unmarshall(s)?);
-                Ok(SocketState::TcpState(tcp_state))
-            },
-            1 => {
-                let udp_state = UdpState::from_u64(u64::unmarshall(s)?);
-                Ok(SocketState::UdpState(udp_state))
-            },
-            2 => Ok(SocketState::RawState),
-            _ => Err(Error::new(Code::WrongSocketType)),
-        }
-    }
-}
-
-/// Represents network data that is send over some socket or received.
-///
-/// Use the `data()` function to try and format the data as any `T`. Use `raw_data()` to receive the bytes.
-#[derive(Clone)]
-#[repr(C, align(2048))]
-pub struct NetData {
-    pub sd: i32,
-    pub size: u32,
-    pub source_addr: IpAddr,
-    pub source_port: u16,
-    _pad1: u16,
-    pub dest_addr: IpAddr,
-    pub dest_port: u16,
-    _pad2: u16,
-    pub data: [u8; MAX_NETDATA_SIZE],
-}
-
-impl NetData {
-    /// Creates the net data struct from `slice`. Assumes that the slice is not longer than MAX_NETDATA_SIZE.
-    pub fn from_slice(
-        sd: i32,
-        slice: &[u8],
-        src_addr: IpAddr,
-        src_port: u16,
-        dest_addr: IpAddr,
-        dest_port: u16,
-    ) -> Self {
-        let mut data_slice = [0; MAX_NETDATA_SIZE];
-        // Copy data into slice
-        let copy_size = MAX_NETDATA_SIZE.min(slice.len());
-        // Copy the minimum of the slices length and the array length. Therefore, store max `MAX_NETDATA`
-        // or, if the slice is shorter, less.
-        data_slice[0..(copy_size)].copy_from_slice(&slice[0..(copy_size)]);
-
-        NetData {
-            sd,
-            size: copy_size as u32,
-            data: data_slice,
-            source_addr: src_addr,
-            source_port: src_port,
-            dest_addr,
-            dest_port,
-            _pad1: 0,
-            _pad2: 0,
-        }
-    }
-
-    pub fn send_size(&self) -> usize {
-        6 * mem::size_of::<u32>() + self.size as usize
-    }
-
-    pub fn raw_data(&self) -> &[u8] {
-        &self.data[0..self.size as usize]
-    }
-}
-
-impl core::fmt::Display for NetData {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "NetData(sd={}, size={}, srcaddr={:?}:{}, dstaddr={:?}:{}, data=...)",
-            self.sd, self.size, self.source_addr, self.source_port, self.dest_addr, self.dest_port
-        )
     }
 }
 

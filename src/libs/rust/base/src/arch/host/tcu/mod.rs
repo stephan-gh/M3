@@ -275,6 +275,10 @@ impl TCU {
         Self::get_ep(ep, EpReg::VALID) == 1
     }
 
+    pub fn has_msgs(ep: EpId) -> bool {
+        Self::get_ep(ep, EpReg::BUF_UNREAD) != 0
+    }
+
     pub fn ack_msg(ep: EpId, msg_off: usize) -> Result<(), Error> {
         Self::set_cmd(CmdReg::EPID, ep as Reg);
         Self::set_cmd(CmdReg::OFFSET, msg_off as Reg);

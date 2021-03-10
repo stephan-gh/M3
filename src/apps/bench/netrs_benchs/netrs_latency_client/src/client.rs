@@ -24,7 +24,7 @@ use m3::{
     profile::Profiler,
     session::NetworkManager,
     test::{self, WvTester},
-    time, vec, wv_assert, wv_assert_ok, wv_perf, wv_run_suite, wv_run_test,
+    time, vec, wv_assert, wv_assert_eq, wv_assert_ok, wv_perf, wv_run_suite, wv_run_test,
 };
 
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
@@ -61,7 +61,6 @@ fn simple_bandwidth() {
     let nm = wv_assert_ok!(NetworkManager::new("net0"));
     let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
 
-    socket.set_blocking(true);
     wv_assert_ok!(Semaphore::attach("net").unwrap().down());
 
     wv_assert_ok!(socket.bind(IpAddr::new(192, 168, 112, 2), 1337));
@@ -72,17 +71,17 @@ fn simple_bandwidth() {
 
     let mut warmup = 5;
     println!("Warmup...");
-    let warump_bytes = [0; 1024];
+    let mut warmup_bytes = [0u8; 1024];
     while warmup > 0 {
         warmup -= 1;
-        wv_assert_ok!(socket.send(dest_addr, dest_port, &warump_bytes));
-        let _pkg = socket.recv();
+        wv_assert_ok!(socket.send_to(&warmup_bytes, dest_addr, dest_port));
+        let _res = socket.recv(&mut warmup_bytes);
     }
 
     println!("warump done.\nBenchmark...");
 
     let packet_sizes = [8, 16, 32, 64, 128, 256, 512, 1024];
-    let mut package = warump_bytes;
+    let mut package = warmup_bytes;
 
     wv_perf!(
         "running bandwidth test",
@@ -94,23 +93,23 @@ fn simple_bandwidth() {
                         let start = time::start(i);
                         package[0..8].copy_from_slice(&start.to_be_bytes());
 
-                        wv_assert_ok!(socket.send(dest_addr, dest_port, &package[0..*pkt_size]));
+                        wv_assert_ok!(socket.send_to(&package[0..*pkt_size], dest_addr, dest_port));
                         let send_len = pkt_size;
 
-                        let pkg = wv_assert_ok!(socket.recv());
-                        let recv_len = pkg.size;
+                        let size = wv_assert_ok!(socket.recv(&mut warmup_bytes));
+                        let recv_len = size;
                         let stop = time::stop(i);
 
-                        wv_assert!(*send_len == recv_len as usize);
+                        wv_assert_eq!(*send_len, recv_len as usize);
                         let recved_time = u64::from_be_bytes([
-                            pkg.raw_data()[0],
-                            pkg.raw_data()[1],
-                            pkg.raw_data()[2],
-                            pkg.raw_data()[3],
-                            pkg.raw_data()[4],
-                            pkg.raw_data()[5],
-                            pkg.raw_data()[6],
-                            pkg.raw_data()[7],
+                            warmup_bytes[0],
+                            warmup_bytes[1],
+                            warmup_bytes[2],
+                            warmup_bytes[3],
+                            warmup_bytes[4],
+                            warmup_bytes[5],
+                            warmup_bytes[6],
+                            warmup_bytes[7],
                         ]);
 
                         wv_assert!((recv_len as usize) == *pkt_size || start == recved_time);

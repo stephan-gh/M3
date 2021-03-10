@@ -26,7 +26,6 @@ use m3::{
 pub fn main() -> i32 {
     let nm = NetworkManager::new("net1").expect("connecting to net1 failed");
     let mut socket = UdpSocket::new(&nm).expect("creating UDP socket failed");
-    socket.set_blocking(true);
 
     socket
         .bind(IpAddr::new(192, 168, 112, 1), 1337)
@@ -37,10 +36,9 @@ pub fn main() -> i32 {
         .up()
         .expect("notifying net semaphore failed");
 
+    let mut buffer = [0u8; 1024];
     loop {
-        let pkg = socket.recv().unwrap();
-        socket
-            .send(pkg.source_addr, pkg.source_port, pkg.raw_data())
-            .expect("send failed");
+        let (size, ip, port) = socket.recv_from(&mut buffer).unwrap();
+        socket.send_to(&buffer[0..size], ip, port).expect("send failed");
     }
 }

@@ -100,6 +100,12 @@ impl RGateArgs {
         self.sel = sel;
         self
     }
+
+    /// Sets the flags to `flags`.
+    pub fn flags(mut self, flags: CapFlags) -> Self {
+        self.flags = flags;
+        self
+    }
 }
 
 impl RecvGate {
@@ -219,6 +225,11 @@ impl RecvGate {
     /// Deactivates this gate.
     pub fn deactivate(&mut self) {
         self.gate.release(true);
+    }
+
+    /// Returns true if there are messages that can be fetched
+    pub fn has_msgs(&self) -> bool {
+        tcu::TCU::has_msgs(self.ep().unwrap())
     }
 
     /// Tries to fetch a message from the receive gate. If there is an unread message, it returns

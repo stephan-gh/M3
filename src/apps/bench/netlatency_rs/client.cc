@@ -35,28 +35,34 @@ union Package {
 int main() {
     NetworkManagerRs net("net0");
 
-    UdpSocketRs socket(net);
-    socket.set_blocking(true);
+    auto socket = UdpSocketRs::create(net);
 
     // wait for server
     Semaphore::attach("net").down();
 
-    socket.bind(IpAddr(192, 168, 112, 2), 1337);
+    socket->bind(IpAddr(192, 168, 112, 2), 1337);
 
     union {
         uint8_t raw[1024];
         cycles_t time;
     } request;
 
+    union {
+        uint8_t raw[1024];
+        cycles_t time;
+    } response;
+
     const size_t samples = 15;
     IpAddr dest_addr     = IpAddr(192, 168, 112, 1);
     uint16_t dest_port   = 1337;
+    IpAddr src_addr;
+    uint16_t src_port;
 
     size_t warmup = 5;
     cout << "Warmup...\n";
     while(warmup--) {
-        socket.send(dest_addr, dest_port, (uint8_t *)request.raw, 8);
-        m3::net::NetData _data = socket.recv();
+        socket->sendto(request.raw, 8, dest_addr, dest_port);
+        socket->recvfrom(response.raw, 8, &src_addr, &src_port);
     }
     cout << "Warmup done.\n";
 
@@ -68,14 +74,11 @@ int main() {
             cycles_t start = Time::start(0);
 
             request.time = start;
-            socket.send(dest_addr, dest_port, request.raw, pkt_size);
+            socket->sendto(request.raw, pkt_size, dest_addr, dest_port);
             // TODO smoltcp doesn't tell us how much was send...
-            ssize_t send_len     = static_cast<ssize_t>(pkt_size);
-            m3::net::NetData pkg = socket.recv();
-            ssize_t recv_len;
-            if(!pkg.is_empty()) {
-                recv_len = (ssize_t)pkg.get_size();
-            } else {
+            ssize_t send_len = static_cast<ssize_t>(pkt_size);
+            ssize_t recv_len = socket->recvfrom(response.raw, pkt_size, &src_addr, &src_port);
+            if(recv_len == -1) {
                 exitmsg("Got empty package!");
             }
             cycles_t stop = Time::stop(0);
@@ -83,8 +86,8 @@ int main() {
             if(static_cast<size_t>(send_len) != pkt_size)
                 exitmsg("Send failed, expected " << pkt_size << ", got " << send_len);
 
-            if(static_cast<size_t>(recv_len) != pkt_size || start != ((Package *)pkg.get_data())->time) {
-                cout << "Time should be " << start << " but was " << ((Package *)pkg.get_data())->time
+            if(static_cast<size_t>(recv_len) != pkt_size || start != response.time) {
+                cout << "Time should be " << start << " but was " << response.time
                      << "\n";
                 exitmsg("Receive failed, expected " << pkt_size << ", got " << recv_len);
             }

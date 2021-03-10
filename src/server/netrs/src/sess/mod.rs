@@ -91,17 +91,6 @@ impl NetworkSession {
         }
     }
 
-    pub fn close(
-        &mut self,
-        is: &mut GateIStream,
-        socket_set: &mut SocketSet<'static>,
-    ) -> Result<(), Error> {
-        match self {
-            NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.close(is, socket_set),
-        }
-    }
-
     pub fn create(
         &mut self,
         is: &mut GateIStream,
@@ -146,36 +135,14 @@ impl NetworkSession {
         }
     }
 
-    pub fn accept(
-        &mut self,
-        _is: &mut GateIStream,
-        _socket_set: &mut SocketSet<'static>,
-    ) -> Result<(), Error> {
-        match self {
-            NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
-        }
-    }
-
-    pub fn count(
-        &mut self,
-        _is: &mut GateIStream,
-        _socket_set: &mut SocketSet<'static>,
-    ) -> Result<(), Error> {
-        match self {
-            NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(_ss) => Err(Error::new(Code::NotSup)),
-        }
-    }
-
-    pub fn query_state(
+    pub fn abort(
         &mut self,
         is: &mut GateIStream,
         socket_set: &mut SocketSet<'static>,
     ) -> Result<(), Error> {
         match self {
             NetworkSession::FileSession(_fs) => Err(Error::new(Code::NotSup)),
-            NetworkSession::SocketSession(ss) => ss.query_state(is, socket_set),
+            NetworkSession::SocketSession(ss) => ss.abort(is, socket_set),
         }
     }
 }

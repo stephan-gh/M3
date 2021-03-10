@@ -21,13 +21,11 @@ extern crate m3;
 
 use m3::com::Semaphore;
 use m3::net::IpAddr;
-use m3::net::{TcpSocket, TcpState};
+use m3::net::TcpSocket;
 use m3::session::NetworkManager;
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let msg: &[u8; 10] = b"HiServer__";
-
     println!("CLIENT: Create manager");
     let manager = NetworkManager::new("net0").expect("Failed to create Network manager!");
 
@@ -35,40 +33,33 @@ pub fn main() -> i32 {
     let mut socket = TcpSocket::new(&manager).unwrap();
     println!("CLIENT: Socket setup finished");
 
-    socket.set_blocking(true);
-
     Semaphore::attach("net")
         .expect("Failed to get semaphore")
         .down()
         .expect("Failed to down sem");
 
-    // socket.bind(IpAddr::new(127, 0, 0, 1), 1234).unwrap();
-
     // Wait for server to allow connection
     socket
-        .connect(
-            IpAddr::new(127, 0, 0, 2),
-            1234, // remote
-            IpAddr::new(0, 0, 0, 0),
-            65000, // local
-        )
+        .connect(IpAddr::new(127, 0, 0, 2), 1234, 50000)
         .expect("Failed to connect in client");
 
-    assert!(
-        socket.state().unwrap() == TcpState::Established,
-        "Socket state did not match"
-    );
+    println!("CLIENT: connected");
 
+    let msg: &[u8; 10] = b"HiServer__";
+    let mut buffer = [0u8; 1024];
     for _ in 0..10 {
-        if let Err(e) = socket.send(msg.as_ref()) {
+        if let Err(e) = socket.send(msg) {
             println!("Failed to send client data: {}", e);
         }
 
-        let package = socket.recv().expect("Failed to receive package");
+        let (size, ip, port) = socket
+            .recv_from(&mut buffer)
+            .expect("Failed to receive package");
         println!(
-            "Client got answer: {}, from: {}",
-            core::str::from_utf8(package.raw_data()).unwrap(),
-            package.source_addr
+            "Client received '{}' from: {}:{}",
+            core::str::from_utf8(&buffer[0..size]).unwrap(),
+            ip,
+            port
         );
     }
 

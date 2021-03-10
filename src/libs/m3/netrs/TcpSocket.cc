@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2018, Nils Asmussen <nils@os.inf.tu-dresden.de>
  * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
  * Copyright (C) 2018, Georg Kotheimer <georg.kotheimer@mailbox.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
@@ -22,82 +23,122 @@
 
 namespace m3 {
 
-TcpSocketRs::TcpSocketRs(NetworkManagerRs &nm)
-    : _blocking(), _is_closed(1), _socket(SocketType::SOCK_STREAM, nm, 0) {
+TcpSocketRs::TcpSocketRs(int sd, NetworkManagerRs &nm)
+    : SocketRs(sd, nm) {
 }
 
 TcpSocketRs::~TcpSocketRs() {
-    // Try close anyways. Maybe it wasnt closed yet
-    if(!_is_closed) {
-        close();
+    try {
+        abort();
     }
+    catch(...) {
+        // ignore errors here
+    }
+
+    // Clear receive queue before potentially destroying the channel,
+    // because the queue contains events that point to the channel.
+    _recv_queue.clear();
+
+    _nm.remove_socket(this);
 }
 
-void TcpSocketRs::set_blocking(bool should_block) {
-    _blocking = should_block;
-}
-
-void TcpSocketRs::listen(IpAddr addr, uint16_t port) {
-    _socket._nm.listen(_socket._sd, addr, port);
-    if(_blocking) {
-        wait_for_state(TcpState::Listen);
-    }
-    _is_closed = false;
-}
-
-void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port, IpAddr local_addr, uint16_t local_port) {
-    _socket._nm.connect(_socket._sd, remote_addr, remote_port, local_addr, local_port);
-    if(_blocking) {
-        wait_for_state(TcpState::Established);
-    }
-    _is_closed = false;
-}
-
-/// When non blocking always returns a package, but it might be empty.
-/// When blocking, blocks until a non-empty package is received.
-m3::net::NetData TcpSocketRs::recv() {
-    if(_blocking) {
-        while(1) {
-            m3::net::NetData pkg = _socket._nm.recv(_socket._sd);
-            if(!pkg.is_empty()) {
-                return pkg;
-            }
-            // else keep waiting.
-            // TODO should yield?
-        }
-    }
-    else {
-        return _socket._nm.recv(_socket._sd);
-    }
-}
-
-void TcpSocketRs::send(uint8_t *data, uint32_t size) {
-    // Note on tcp the we let the service do ip handling, since the socket must be connected
-    // before use. Therefore all ips are unspecified
-    _socket._nm.send(_socket._sd, IpAddr(), 0, IpAddr(), 0, data, size);
+Reference<TcpSocketRs> TcpSocketRs::create(NetworkManagerRs &nm) {
+    int sd = nm.create(SOCK_STREAM, 0);
+    auto sock = new TcpSocketRs(sd, nm);
+    nm.add_socket(sock);
+    return Reference<TcpSocketRs>(sock);
 }
 
 void TcpSocketRs::close() {
-    _is_closed = true;
-    _socket._nm.close(_socket._sd);
-    /* Do not wait, otherwise an execption could occure if we query state on closed socket.
-	if (_blocking){
-	    wait_for_state(TcpState::Closed);
-	}
-	*/
-}
+    bool sent_req = false;
 
-/// Returns the tcp state, or TcpState::Invalid, if tcp state was queried on a non TCP socket.
-TcpState TcpSocketRs::state() {
-    SocketState state = _socket._nm.get_state(_socket._sd);
-    return state.tcp_state();
-}
+    while(_state != State::Closed) {
+        if(!sent_req) {
+            if(_nm.close(sd()))
+                sent_req = true;
+        }
 
-void TcpSocketRs::wait_for_state(TcpState target_state) {
-    while(state() != target_state) {
-        // TODO check for error
-        // TODO signal yield?
+        if(!_blocking)
+            throw Exception(Errors::IN_PROGRESS);
+
+        _nm.wait_sync();
+
+        process_events();
     }
+}
+
+void TcpSocketRs::listen(IpAddr local_addr, uint16_t local_port) {
+    if(_state != State::Closed)
+        inv_state();
+
+    _nm.listen(sd(), local_addr, local_port);
+    set_local(local_addr, local_port, State::Listening);
+}
+
+void TcpSocketRs::connect(IpAddr remote_addr, uint16_t remote_port, uint16_t local_port) {
+    if(_state == State::Connected) {
+        if(!(_remote_addr == remote_addr && _remote_port == remote_port &&
+             _local_port == local_port)) {
+            throw Exception(Errors::IS_CONNECTED);
+        }
+        return;
+    }
+
+    if(_state == State::Connecting)
+        throw Exception(Errors::ALREADY_IN_PROGRESS);
+
+    _nm.connect(sd(), remote_addr, remote_port, local_port);
+    _state = State::Connecting;
+    _remote_addr = remote_addr;
+    _remote_port = remote_port;
+    _local_port = local_port;
+
+    if(!_blocking)
+        throw Exception(Errors::IN_PROGRESS);
+
+    while(_state == State::Connecting) {
+        wait_for_event();
+        process_events();
+    }
+
+    if(_state != Connected)
+        inv_state();
+}
+
+void TcpSocketRs::accept(IpAddr *remote_addr, uint16_t *remote_port) {
+    if(_state == State::Connected) {
+        *remote_addr = _remote_addr;
+        *remote_port = _remote_port;
+        return;
+    }
+    if(_state == State::Connecting)
+        throw Exception(Errors::ALREADY_IN_PROGRESS);
+    if(_state != State::Listening)
+        inv_state();
+
+    _state = State::Connecting;
+    while(_state == State::Connecting) {
+        wait_for_event();
+        process_events();
+    }
+
+    if(_state != State::Connected)
+        inv_state();
+}
+
+ssize_t TcpSocketRs::recvfrom(void *dst, size_t amount, IpAddr *src_addr, uint16_t *src_port) {
+    // Allow receiving that arrived before the socket/connection was closed.
+    if(_state != Connected && _state != Closed)
+        throw Exception(Errors::NOT_CONNECTED);
+
+    return SocketRs::recvfrom(dst, amount, src_addr, src_port);
+}
+
+ssize_t TcpSocketRs::sendto(const void *src, size_t amount, IpAddr dst_addr, uint16_t dst_port) {
+    if(_state != Connected)
+        throw Exception(Errors::NOT_CONNECTED);
+
+    return SocketRs::sendto(src, amount, dst_addr, dst_port);
 }
 
 }

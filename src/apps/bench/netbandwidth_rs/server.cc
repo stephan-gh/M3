@@ -28,25 +28,32 @@ int main() {
     NetworkManagerRs net("net1");
     String status;
 
-    UdpSocketRs socket(net);
-    socket.set_blocking(true);
+    auto socket = UdpSocketRs::create(net);
 
     // Bind to our address
-    socket.bind(IpAddr(192, 168, 112, 1), 1337);
+    socket->bind(IpAddr(192, 168, 112, 1), 1337);
 
     // notify client
     Semaphore::attach("net").up();
 
-    uint8_t request[1024];
-    IpAddr dst_addr   = IpAddr(192, 168, 112, 2);
-    uint16_t dst_port = 1337;
+    union {
+        uint8_t raw[1024];
+        cycles_t time;
+    } request;
+
+    IpAddr src_addr;
+    uint16_t src_port;
+
     while(true) {
-        m3::net::NetData pkg = socket.recv();
-        if(pkg.is_empty()) {
-            exitmsg("Received invalid data");
-        }
+        ssize_t recv_size = socket->recvfrom(request.raw, sizeof(request.raw), &src_addr, &src_port);
+        if (recv_size == -1)
+            exitmsg("receive failed");
+
+        // cout << "got package, sending response\n";
 
         // Send ack
-        socket.send(dst_addr, dst_port, request, 1024);
+        ssize_t send_size = socket->sendto(request.raw, static_cast<size_t>(recv_size), src_addr, src_port);
+        if(send_size == -1)
+            exitmsg("send failed");
     }
 }

@@ -33,7 +33,7 @@ use m3::math;
 use m3::rc::Rc;
 use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::NetworkOp;
-use m3::{log, println, reply_vmsg};
+use m3::{log, println};
 
 // Smol tcp network stuff
 use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
@@ -81,15 +81,11 @@ impl NetHandler {
                 NetworkOp::NEXT_IN => sess.next_in(is),
                 NetworkOp::NEXT_OUT => sess.next_out(is),
                 NetworkOp::COMMIT => sess.commit(is),
-                NetworkOp::CLOSE => sess.close(is, &mut self.socket_set),
                 NetworkOp::CREATE => sess.create(is, &mut self.socket_set),
                 NetworkOp::BIND => sess.bind(is, &mut self.socket_set),
                 NetworkOp::LISTEN => sess.listen(is, &mut self.socket_set),
                 NetworkOp::CONNECT => sess.connect(is, &mut self.socket_set),
-                NetworkOp::ACCEPT => sess.accept(is, &mut self.socket_set),
-                NetworkOp::COUNT => sess.count(is, &mut self.socket_set),
-                NetworkOp::QUERY_STATE => sess.query_state(is, &mut self.socket_set),
-                NetworkOp::TICK => reply_vmsg!(is, Code::None as i32), // a tick does nothing, but lets the smoltcp stack do its work
+                NetworkOp::ABORT => sess.abort(is, &mut self.socket_set),
                 _ => {
                     log!(LOG_DEF, "Net::handle got invalid NetworkOp: {}", op);
                     Err(Error::new(Code::InvArgs))

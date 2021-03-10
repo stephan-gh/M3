@@ -71,6 +71,12 @@ impl SGateArgs {
         self.sel = sel;
         self
     }
+
+    /// Sets the flags to `flags`.
+    pub fn flags(mut self, flags: CapFlags) -> Self {
+        self.flags = flags;
+        self
+    }
 }
 
 impl SendGate {
