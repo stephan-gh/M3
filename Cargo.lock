@@ -13,7 +13,7 @@ name = "base"
 version = "0.1.0"
 dependencies = [
  "bitflags",
- "cfg-if",
+ "cfg-if 0.1.10",
  "libc",
  "num-traits",
  "static_assertions",
@@ -26,10 +26,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
+name = "byteorder"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae44d1a3d5a19df61dd0c8beb138458ac2a53a7ac09eba97d55592540004306b"
+
+[[package]]
 name = "cfg-if"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4785bdd1c96b2a846b2bd7cc02e86b6b3dbf14e7e53446c4f54c92a361040822"
+
+[[package]]
+name = "cfg-if"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "disk"
@@ -48,6 +60,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "echorsclient"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
+name = "echorsserver"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
 name = "heap"
 version = "0.1.0"
 dependencies = [
@@ -60,7 +86,7 @@ name = "isr"
 version = "0.1.0"
 dependencies = [
  "base",
- "cfg-if",
+ "cfg-if 0.1.10",
 ]
 
 [[package]]
@@ -81,6 +107,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "755456fae044e6fa1ebbbd1b3e902ae19e73097ed4ed87bb79934a867c007bc3"
 
 [[package]]
+name = "log"
+version = "0.4.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
+dependencies = [
+ "cfg-if 1.0.0",
+]
+
+[[package]]
 name = "m3"
 version = "0.1.0"
 dependencies = [
@@ -97,6 +132,63 @@ dependencies = [
  "bitflags",
  "m3",
  "thread",
+]
+
+[[package]]
+name = "managed"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c75de51135344a4f8ed3cfe2720dc27736f7711989703a0b43aadf3753c55577"
+
+[[package]]
+name = "memoffset"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "157b4208e3059a8f9e78d559edc658e13df41410cb3ae03979c83130067fdd87"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
+name = "netrs"
+version = "0.1.0"
+dependencies = [
+ "base",
+ "bitflags",
+ "log",
+ "m3",
+ "memoffset",
+ "pci",
+ "smoltcp",
+ "thread",
+]
+
+[[package]]
+name = "netrs_bandwidth_client"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
+name = "netrs_bandwidth_server"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
+name = "netrs_latency_client"
+version = "0.1.0"
+dependencies = [
+ "m3",
+]
+
+[[package]]
+name = "netrs_latency_server"
+version = "0.1.0"
+dependencies = [
+ "m3",
 ]
 
 [[package]]
@@ -124,7 +216,7 @@ version = "0.1.0"
 dependencies = [
  "base",
  "bitflags",
- "cfg-if",
+ "cfg-if 0.1.10",
 ]
 
 [[package]]
@@ -149,7 +241,7 @@ name = "pemux"
 version = "0.1.0"
 dependencies = [
  "base",
- "cfg-if",
+ "cfg-if 0.1.10",
  "heap",
  "isr",
  "paging",
@@ -208,6 +300,16 @@ name = "rustunittests"
 version = "0.1.0"
 dependencies = [
  "m3",
+]
+
+[[package]]
+name = "smoltcp"
+version = "0.7.0"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "log",
+ "managed",
 ]
 
 [[package]]

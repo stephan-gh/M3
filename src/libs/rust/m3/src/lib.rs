@@ -33,6 +33,9 @@ pub mod io;
 #[macro_use]
 pub mod com;
 
+///Netstack related structures
+pub mod net;
+
 pub mod envdata {
     pub use crate::arch::env::*;
     pub use base::envdata::Platform;

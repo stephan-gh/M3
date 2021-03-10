@@ -1,0 +1,29 @@
+<config>
+    <kernel args="kernel -b net0-net1" />
+    <app args="root sem=net">
+        <dom>
+            <app args="netrs net0 192.168.112.2 255.255.255.0" daemon="1">
+                <serv name="net0" />
+                <pes type="nic" />
+            </app>
+        </dom>
+        <dom>
+            <app args="netrs net1 192.168.112.1 255.255.255.0" daemon="1">
+                <serv name="net1" />
+                <pes type="nic" />
+            </app>
+        </dom>
+        <dom>
+            <app args="netrs_latency_server" daemon="1">
+                <sess name="net1" />
+                <sem name="net" />
+            </app>
+        </dom>
+        <dom>
+            <app args="netrs_latency_client">
+                <sess name="net0" />
+                <sem name="net" />
+            </app>
+        </dom>
+    </app>
+</config>

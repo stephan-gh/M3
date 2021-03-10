@@ -1,0 +1,10 @@
+[package]
+name = "netrs_bandwidth_server"
+version = "0.1.0"
+
+[lib]
+path = "src/server.rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+m3 = { path = "../../../../libs/rust/m3" }

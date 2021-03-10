@@ -140,9 +140,15 @@ class M3Env(ninjagen.Env):
         deps = []
         crates = [
             'src/apps/bench/rustbenchs',
+            'src/apps/bench/netrs_benchs/netrs_latency_client',
+            'src/apps/bench/netrs_benchs/netrs_latency_server',
+            'src/apps/bench/netrs_benchs/netrs_bandwidth_client',
+            'src/apps/bench/netrs_benchs/netrs_bandwidth_server',
             'src/apps/disktest',
             'src/apps/rusthello',
             'src/apps/rustunittests',
+            'src/apps/echorsclient',
+            'src/apps/echorsserver',
             'src/libs/rust/base',
             'src/libs/rust/heap',
             'src/libs/rust/m3',
@@ -153,6 +159,7 @@ class M3Env(ninjagen.Env):
             'src/server/disk',
             'src/server/pager',
             'src/server/m3fs',
+            'src/server/netrs',
             'src/server/pipes',
             'src/server/root',
             'src/server/vterm',
