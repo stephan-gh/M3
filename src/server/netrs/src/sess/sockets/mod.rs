@@ -14,16 +14,17 @@
  * General Public License version 2 for more details.
  */
 
-use smoltcp;
-use smoltcp::socket::SocketSet;
-use smoltcp::socket::{RawSocket, SocketHandle, TcpSocket, UdpSocket};
-use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
-
 use m3::cell::{Ref, RefCell};
 use m3::com::RecvGate;
 use m3::errors::{Code, Error};
 use m3::net::{IpAddr, NetData, SocketState, SocketType, UdpState};
 use m3::rc::Rc;
+use m3::log;
+
+use smoltcp;
+use smoltcp::socket::SocketSet;
+use smoltcp::socket::{RawSocket, SocketHandle, TcpSocket, UdpSocket};
+use smoltcp::wire::{IpAddress, IpEndpoint, Ipv4Address};
 
 use crate::sess::FileSession;
 

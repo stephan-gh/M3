@@ -25,11 +25,6 @@
 
 using namespace m3;
 
-union Request {
-    uint8_t raw[1024];
-    cycles_t time;
-};
-
 int main() {
     NetworkManagerRs net("net1");
     String status;
@@ -42,7 +37,6 @@ int main() {
     // notify client
     Semaphore::attach("net").up();
 
-    char request[1024];
     while(true) {
         m3::net::NetData pkg = socket.recv();
 

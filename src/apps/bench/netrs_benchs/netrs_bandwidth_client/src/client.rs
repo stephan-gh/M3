@@ -16,26 +16,23 @@
 
 #![no_std]
 
-#[macro_use]
-extern crate m3;
-
 use m3::{
     cell::StaticCell,
-    col::{BoxList, BoxRef},
     com::Semaphore,
-    net::{IpAddr, TcpSocket, UdpSocket},
+    net::{IpAddr, UdpSocket},
     pes::VPE,
-    println, profile,
+    println,
     profile::Profiler,
     session::NetworkManager,
     test::{self, WvTester},
-    time::{self, Time},
+    wv_assert_ok, wv_perf, wv_run_suite, wv_run_test,
 };
 
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
 // test case and every single wv_assert_* call, which is quite inconvenient.
 static FAILED: StaticCell<u32> = StaticCell::new(0);
 
+#[allow(dead_code)]
 extern "C" fn wvtest_failed() {
     FAILED.set(*FAILED + 1);
 }
@@ -77,15 +74,14 @@ fn run(t: &mut dyn test::WvTester) {
 fn simple_bandwidth() {
     let mut prof = Profiler::default().repeats(5);
 
-
     //Setup context
-    let nm = NetworkManager::new("net0").unwrap();
-    let mut socket = UdpSocket::new(&nm).unwrap();
+    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
 
     socket.set_blocking(true);
-    Semaphore::attach("net").unwrap().down();
+    wv_assert_ok!(Semaphore::attach("net").unwrap().down());
 
-    socket.bind(IpAddr::new(192, 168, 112, 2), 1337).unwrap();
+    wv_assert_ok!(socket.bind(IpAddr::new(192, 168, 112, 2), 1337));
 
     socket.set_blocking(false);
     let mut context = NetContext {
@@ -106,16 +102,17 @@ fn simple_bandwidth() {
                 loop {
                     if failures > 9 {
                         failures = 0;
-                        VPE::sleep();
+                        wv_assert_ok!(VPE::sleep());
                     }
                     for _i in 0..BURST_SIZE {
                         if context.sent_count > PACKETS_TO_SEND {
                             break;
                         }
-                        context
-                            .socket
-                            .send(context.dest_addr, context.dest_port, &context.req_buffer)
-                            .unwrap();
+                        wv_assert_ok!(context.socket.send(
+                            context.dest_addr,
+                            context.dest_port,
+                            &context.req_buffer
+                        ));
                         context.sent_count += 1;
                         failures = 0;
                     }
@@ -134,7 +131,7 @@ fn simple_bandwidth() {
                     if context.receive_count >= PACKETS_TO_RECEIVE {
                         break;
                     }
-                    if (context.sent_count >= PACKETS_TO_SEND) {
+                    if context.sent_count >= PACKETS_TO_SEND {
                         break;
                     }
                 }
@@ -149,7 +146,6 @@ pub fn main() -> i32 {
     let mut tester = MyTester {};
     wv_run_suite!(tester, run);
 
-    println!("Finished");
     if *FAILED > 0 {
         println!("\x1B[1;31m{} tests failed\x1B[0;m", *FAILED);
     }

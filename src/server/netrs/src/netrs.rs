@@ -21,17 +21,8 @@
 #![feature(const_ptr_offset_from)]
 #![no_std]
 
-extern crate bitflags;
-extern crate memoffset;
-extern crate smoltcp;
-//Smol tcp network stuff
-use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
-use smoltcp::socket::SocketSet;
-use smoltcp::time::Duration;
-use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+use core::str::FromStr;
 
-#[macro_use]
-extern crate m3;
 use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::Vec;
@@ -40,21 +31,28 @@ use m3::env;
 use m3::errors::{Code, Error};
 use m3::math;
 use m3::rc::Rc;
-use m3::server::{server_loop, CapExchange, Handler, Server, SessId, SessionContainer};
+use m3::server::{CapExchange, Handler, Server, SessId, SessionContainer};
 use m3::session::NetworkOp;
+use m3::{log, println, reply_vmsg};
 
-use core::str::FromStr;
+//Smol tcp network stuff
+use smoltcp::iface::{EthernetInterfaceBuilder, NeighborCache};
+use smoltcp::socket::SocketSet;
+use smoltcp::time::Duration;
+use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-pub mod sess;
 use crate::sess::socket_session::MAX_SOCKETS;
 use crate::sess::NetworkSession;
+
 pub mod driver;
+pub mod sess;
 mod smoltcplogger;
 pub mod util;
 
 pub const LOG_DEF: bool = false;
 pub const LOG_NIC: bool = false;
 pub const LOG_SMOLTCP: bool = false;
+
 struct NetHandler {
     sel: Selector,
     sessions: SessionContainer<NetworkSession>,

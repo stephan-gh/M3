@@ -15,7 +15,7 @@
  * General Public License version 2 for more details.
  */
 
-use m3::{cap::Selector, net::NetData};
+use m3::cap::Selector;
 use m3::cell::RefCell;
 use m3::col::Vec;
 use m3::com::{GateIStream, MGateArgs, MemGate, RGateArgs, RecvGate, SGateArgs, SendGate};
@@ -28,9 +28,7 @@ use m3::server::CapExchange;
 use m3::session::ServerSession;
 use m3::tcu;
 use m3::vfs::OpenFlags;
-
-use crate::sess::file_session::FileSession;
-use crate::sess::sockets::Socket;
+use m3::{log, reply_vmsg, vec};
 
 use smoltcp;
 use smoltcp::socket::SocketSet;
@@ -39,6 +37,9 @@ use smoltcp::socket::{
 };
 use smoltcp::storage::PacketMetadata;
 use smoltcp::wire::{IpAddress, IpEndpoint, IpVersion, Ipv4Address};
+
+use crate::sess::file_session::FileSession;
+use crate::sess::sockets::Socket;
 
 use super::sockets::{TCP_HEADER_SIZE, UDP_HEADER_SIZE};
 

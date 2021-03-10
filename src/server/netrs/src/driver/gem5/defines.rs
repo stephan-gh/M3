@@ -17,7 +17,6 @@
 
 use base::const_assert;
 use bitflags::bitflags;
-use m3::mem;
 
 pub mod e1000 {
 
@@ -199,55 +198,54 @@ bitflags! {
 pub struct TxDesc {
     pub buffer: u64,
     pub length: u16,
-    pub checksumOffset: u8,
+    pub checksum_offset: u8,
     pub cmd: u8,
     pub status: u8,
-    pub checksumStart: u8,
+    pub checksum_start: u8,
     pub pad: u16,
 }
 
 // TODO: Allocation details of bit fields are implementation-defined...
 #[repr(C, align(4))]
 pub struct TxContextDesc {
-    pub IPCSS: u8,
-    pub IPCSO: u8,
-    pub IPCSE: u16,
-    pub TUCSS: u8,
-    pub TUCSO: u8,
-    pub TUCSE: u16,
-
+    pub ipcss: u8,
+    pub ipcso: u8,
+    pub ipcse: u16,
+    pub tucss: u8,
+    pub tucso: u8,
+    pub tucse: u16,
     //20bits PAYLEN, then 4bit DTYP then 8bit TUCMD, use getter/setter to get those
-    pub PAYLEN_DTYP_TUCMD: u32,
+    pub paylen_dtyp_tucmd: u32,
     //First 4 are STA, second 4 are RSV, use getter/setter to get those
-    pub STA_RSV: u8,
-    pub HDRLEN: u8,
-    pub MSS: u16,
+    pub sta_rsv: u8,
+    pub hdrlen: u8,
+    pub mss: u16,
 }
 
 impl TxContextDesc {
     pub fn set_paylen(&mut self, paylen: u32) {
         assert!(paylen < (1 << 20));
-        self.PAYLEN_DTYP_TUCMD =
-            (self.PAYLEN_DTYP_TUCMD & 0xff_f0_00_00) | (paylen & 0x00_0f_ff_ff);
+        self.paylen_dtyp_tucmd =
+            (self.paylen_dtyp_tucmd & 0xff_f0_00_00) | (paylen & 0x00_0f_ff_ff);
     }
 
     //sets the 4bits of the dtyp
     pub fn set_dtyp(&mut self, dtyp: u8) {
-        self.PAYLEN_DTYP_TUCMD =
-            (self.PAYLEN_DTYP_TUCMD & 0xff_0f_ff_ff) | (((dtyp as u32) << 20) & 0x00_f0_00_00);
+        self.paylen_dtyp_tucmd =
+            (self.paylen_dtyp_tucmd & 0xff_0f_ff_ff) | (((dtyp as u32) << 20) & 0x00_f0_00_00);
     }
 
     pub fn set_tucmd(&mut self, tucmd: u8) {
-        self.PAYLEN_DTYP_TUCMD =
-            (self.PAYLEN_DTYP_TUCMD & 0x00_ff_ff_ff) | (((tucmd as u32) << 24) & 0xff_00_00_00);
+        self.paylen_dtyp_tucmd =
+            (self.paylen_dtyp_tucmd & 0x00_ff_ff_ff) | (((tucmd as u32) << 24) & 0xff_00_00_00);
     }
 
     pub fn set_sta(&mut self, sta: u8) {
-        self.STA_RSV = (self.STA_RSV & 0xf0) | (sta & 0x0f);
+        self.sta_rsv = (self.sta_rsv & 0xf0) | (sta & 0x0f);
     }
 
     pub fn set_rsv(&mut self, rsv: u8) {
-        self.STA_RSV = (self.STA_RSV & 0x0f) | (rsv & 0xf0);
+        self.sta_rsv = (self.sta_rsv & 0x0f) | (rsv & 0xf0);
     }
 }
 
@@ -255,38 +253,38 @@ impl TxContextDesc {
 pub struct TxDataDesc {
     pub buffer: u64,
     //first 20bits are length, then 4 bits DTYP, then 8bits DCMD, use getter/setter
-    pub length_DTYP_DCMD: u32,
+    pub length_dtyp_dcmd: u32,
     //first 4bits are STA, second 4 bits are RSV
-    pub STA_RSV: u8,
-    pub POPTS: u8,
+    pub sta_rsv: u8,
+    pub popts: u8,
     pub special: u16,
 }
 
 impl TxDataDesc {
     pub fn set_length(&mut self, length: u32) {
-        let new_length = (self.length_DTYP_DCMD & 0xff_f0_00_00) | (length & 0x00_0f_ff_ff);
-        self.length_DTYP_DCMD = new_length;
+        let new_length = (self.length_dtyp_dcmd & 0xff_f0_00_00) | (length & 0x00_0f_ff_ff);
+        self.length_dtyp_dcmd = new_length;
     }
 
     //sets the 4bits of the dtyp
     pub fn set_dtyp(&mut self, dtyp: u8) {
-        //self.length_DTYP_DCMD = (self.length_DTYP_DCMD & 0xff_ff_f0_ff) | (((dtyp as u32) << 20) & 0x00_00_0f_00);
-        self.length_DTYP_DCMD =
-            (self.length_DTYP_DCMD & 0xff_0f_ff_ff) | (((dtyp as u32) << 20) & 0x00_f0_00_00);
+        //self.length_dtyp_dcmd = (self.length_dtyp_dcmd & 0xff_ff_f0_ff) | (((dtyp as u32) << 20) & 0x00_00_0f_00);
+        self.length_dtyp_dcmd =
+            (self.length_dtyp_dcmd & 0xff_0f_ff_ff) | (((dtyp as u32) << 20) & 0x00_f0_00_00);
     }
 
     pub fn set_dcmd(&mut self, dcmd: u8) {
-        self.length_DTYP_DCMD =
-            (self.length_DTYP_DCMD & 0x00_ff_ff_ff) | (((dcmd as u32) << 24) & 0xff_00_00_00);
-        //self.length_DTYP_DCMD = (self.length_DTYP_DCMD & 0xff_ff_ff_00) | (((dcmd as u32) << 24) & 0x00_00_00_ff);
+        self.length_dtyp_dcmd =
+            (self.length_dtyp_dcmd & 0x00_ff_ff_ff) | (((dcmd as u32) << 24) & 0xff_00_00_00);
+        //self.length_dtyp_dcmd = (self.length_dtyp_dcmd & 0xff_ff_ff_00) | (((dcmd as u32) << 24) & 0x00_00_00_ff);
     }
 
     pub fn set_sta(&mut self, sta: u8) {
-        self.STA_RSV = (self.STA_RSV & 0x0f) | (sta & 0xf0);
+        self.sta_rsv = (self.sta_rsv & 0x0f) | (sta & 0xf0);
     }
 
     pub fn set_rsv(&mut self, rsv: u8) {
-        self.STA_RSV = (self.STA_RSV & 0xf0) | (rsv & 0x0f);
+        self.sta_rsv = (self.sta_rsv & 0xf0) | (rsv & 0x0f);
     }
 }
 
@@ -317,8 +315,8 @@ impl Default for RxDesc {
 
 bitflags! {
     pub struct TxoProto: u8 {
-        const Unsupported     = 1 << 1;
-        const IP              = 1 << 2 | TxoProto::Unsupported.bits();
+        const UNSUPPORTED     = 1 << 1;
+        const IP              = 1 << 2 | TxoProto::UNSUPPORTED.bits();
         const UDP             = 1 << 3 | TxoProto::IP.bits();
         const TCP             = 1 << 4 | TxoProto::IP.bits();
     }

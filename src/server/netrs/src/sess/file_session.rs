@@ -25,8 +25,10 @@ use m3::rc::Rc;
 use m3::server::CapExchange;
 use m3::tcu;
 use m3::vfs::OpenFlags;
+use m3::{log, reply_vmsg};
 
 use crate::sess::sockets::*;
+
 /*
 struct FSWorkItem {
     session_ref: Rc<RefCell<FileSession>>,
@@ -52,6 +54,7 @@ impl WorkItem for FSWorkItem {
     }
 }
 */
+
 pub struct FileSession {
     sel: Selector,
     #[allow(dead_code)]

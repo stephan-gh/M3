@@ -15,20 +15,16 @@
  */
 
 #![no_std]
-#[no_std]
-#[macro_use]
-extern crate m3;
 
 use m3::{
     cell::StaticCell,
-    col::{BoxList, BoxRef},
     com::Semaphore,
-    net::{IpAddr, TcpSocket, UdpSocket},
-    println, profile,
+    net::{IpAddr, UdpSocket},
+    println,
     profile::Profiler,
     session::NetworkManager,
     test::{self, WvTester},
-    time::{self, Time},
+    time, vec, wv_assert, wv_assert_ok, wv_perf, wv_run_suite, wv_run_test,
 };
 
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
@@ -40,20 +36,6 @@ extern "C" fn wvtest_failed() {
 }
 
 struct MyTester {}
-
-static PACKETS_TO_SEND: usize = 105;
-static PACKETS_TO_RECEIVE: usize = 100;
-static BURST_SIZE: usize = 2;
-
-struct NetContext<'a> {
-    socket: UdpSocket<'a>,
-    req_buffer: [u8; 1024],
-    dest_addr: IpAddr,
-    dest_port: u16,
-    sent_count: usize,
-    receive_count: usize,
-    received_bytes: usize,
-}
 
 impl WvTester for MyTester {
     fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {
@@ -76,15 +58,13 @@ fn run(t: &mut dyn test::WvTester) {
 fn simple_bandwidth() {
     let mut prof = Profiler::default().repeats(5);
 
-
-    let nm = NetworkManager::new("net0").unwrap();
-    let mut socket = UdpSocket::new(&nm).unwrap();
+    let nm = wv_assert_ok!(NetworkManager::new("net0"));
+    let mut socket = wv_assert_ok!(UdpSocket::new(&nm));
 
     socket.set_blocking(true);
-    Semaphore::attach("net").unwrap().down();
+    wv_assert_ok!(Semaphore::attach("net").unwrap().down());
 
-    socket.bind(IpAddr::new(192, 168, 112, 2), 1337).unwrap();
-
+    wv_assert_ok!(socket.bind(IpAddr::new(192, 168, 112, 2), 1337));
 
     let samples = 5;
     let dest_addr = IpAddr::new(192, 168, 112, 1);
@@ -95,7 +75,7 @@ fn simple_bandwidth() {
     let warump_bytes = [0; 1024];
     while warmup > 0 {
         warmup -= 1;
-        socket.send(dest_addr, dest_port, &warump_bytes);
+        wv_assert_ok!(socket.send(dest_addr, dest_port, &warump_bytes));
         let _pkg = socket.recv();
     }
 
@@ -114,10 +94,10 @@ fn simple_bandwidth() {
                         let start = time::start(i);
                         package[0..8].copy_from_slice(&start.to_be_bytes());
 
-                        socket.send(dest_addr, dest_port, &package[0..*pkt_size]);
+                        wv_assert_ok!(socket.send(dest_addr, dest_port, &package[0..*pkt_size]));
                         let send_len = pkt_size;
 
-                        let pkg = socket.recv().expect("Got empty package");
+                        let pkg = wv_assert_ok!(socket.recv());
                         let recv_len = pkg.size;
                         let stop = time::stop(i);
 
@@ -153,7 +133,6 @@ pub fn main() -> i32 {
     let mut tester = MyTester {};
     wv_run_suite!(tester, run);
 
-    println!("Finished");
     if *FAILED > 0 {
         println!("\x1B[1;31m{} tests failed\x1B[0;m", *FAILED);
     }

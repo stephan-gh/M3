@@ -23,15 +23,16 @@ use m3::kif::{Perm, PEISA};
 use m3::net::{MAC, MAC_LEN};
 use m3::rc::Rc;
 use m3::vec::Vec;
+use m3::{log, vec};
+
+use memoffset::offset_of;
+
 use pci::Device;
 
 use smoltcp::time::Instant;
 
 pub mod defines;
 use defines::*;
-
-
-use memoffset::offset_of;
 
 #[inline]
 fn inc_rb(index: u32, size: u32) -> u32 {
@@ -44,54 +45,54 @@ struct EEPROM {
 }
 
 impl EEPROM {
-    fn init(&mut self, device: &Device) -> bool {
-        device.write_reg(e1000::REG::EERD.bits(), e1000::EERD::START.bits() as u32);
+    fn new(device: &Device) -> Result<Self, Error> {
+        device.write_reg(e1000::REG::EERD.bits(), e1000::EERD::START.bits() as u32)?;
 
-        let mut t = base::tcu::TCU::nanotime();
+        let t = base::tcu::TCU::nanotime();
         let mut tried_once = false;
         while !tried_once && (base::tcu::TCU::nanotime() - t) < MAX_WAIT_NANOS {
-            let value: u32 = device
-                .read_reg(e1000::REG::EERD.bits())
-                .expect("Failed to read eerd register");
+            let value: u32 = device.read_reg(e1000::REG::EERD.bits())?;
+
             if (value & e1000::EERD::DONE_LARGE.bits() as u32) > 0 {
                 log!(crate::LOG_NIC, "Detected large EERD");
-                self.done_bit = e1000::EERD::DONE_LARGE.bits().into();
-                self.shift = e1000::EERD::SHIFT_LARGE.bits().into();
-                return true;
+                return Ok(Self {
+                    shift: e1000::EERD::SHIFT_LARGE.bits().into(),
+                    done_bit: e1000::EERD::DONE_LARGE.bits().into(),
+                });
             }
             if (value & e1000::EERD::DONE_SMALL.bits() as u32) > 0 {
                 log!(crate::LOG_NIC, "Detected small EERD");
-                self.done_bit = e1000::EERD::DONE_SMALL.bits().into();
-                self.shift = e1000::EERD::SHIFT_SMALL.bits().into();
-                return true;
+                return Ok(Self {
+                    shift: e1000::EERD::SHIFT_SMALL.bits().into(),
+                    done_bit: e1000::EERD::DONE_SMALL.bits().into(),
+                });
             }
             tried_once = true;
         }
 
-        false
+        log!(crate::LOG_NIC, "Timeout while trying to create EEPROM");
+        Err(Error::new(Code::Timeout))
     }
 
     //reads `data` of `len` from the device.
     //TOD: Currently doing stuff with the ptr of data. Should probably give sub slices of the length of one
     // word tp the read_word fct. Also `len` is not needed since rust slice know their length.
-    fn read(&self, dev: &E1000, mut address: usize, mut data: &mut [u8]) -> bool {
+    fn read(&self, dev: &E1000, mut address: usize, mut data: &mut [u8]) -> Result<(), Error> {
         assert!((data.len() & ((1 << WORD_LEN_LOG2) - 1)) == 0);
 
         let num_bytes_to_move = 1 << WORD_LEN_LOG2;
         let mut len = data.len();
         while len > 0 {
-            if !self.read_word(dev, address, data) {
-                return false;
-            }
+            self.read_word(dev, address, data)?;
             //move to next word
             data = &mut data[num_bytes_to_move..];
             address += 1;
             len -= num_bytes_to_move;
         }
-        true
+        Ok(())
     }
 
-    fn read_word(&self, dev: &E1000, address: usize, data: &mut [u8]) -> bool {
+    fn read_word(&self, dev: &E1000, address: usize, data: &mut [u8]) -> Result<(), Error> {
         //cast to 16bit array
         let data_word: &mut [u16] = unsafe { core::mem::transmute::<&mut [u8], &mut [u16]>(data) };
 
@@ -102,7 +103,7 @@ impl EEPROM {
         );
 
         //Wait for read to complete
-        let mut t = base::tcu::TCU::nanotime();
+        let t = base::tcu::TCU::nanotime();
         let mut done_once = false;
         while (base::tcu::TCU::nanotime() - t) < MAX_WAIT_NANOS && !done_once {
             let value = dev.read_reg(e1000::REG::EERD);
@@ -113,9 +114,10 @@ impl EEPROM {
             }
             //Move word into slice
             data_word[0] = (value >> 16) as u16;
-            return true;
+            return Ok(());
         }
-        false
+
+        Err(Error::new(Code::Timeout))
     }
 }
 
@@ -124,7 +126,6 @@ struct E1000 {
     eeprom: EEPROM,
     mac: MAC,
 
-    cur_rx_buf: u32,
     cur_tx_desc: u32,
     cur_tx_buf: u32,
 
@@ -141,21 +142,16 @@ impl E1000 {
     pub fn new() -> Result<Self, Error> {
         log!(crate::LOG_NIC, "Creating NIC");
         let nic = Device::new("nic", PEISA::NIC_DEV)?;
-        let eeprom = EEPROM {
-            shift: 0,
-            done_bit: 0,
-        };
 
         //TODO create global memory in rust, should be global...?
         let bufs = MemGate::new(core::mem::size_of::<Buffers>(), Perm::RW)?;
         let devbufs = bufs.derive(0, core::mem::size_of::<Buffers>(), Perm::RW)?;
 
         let mut dev = E1000 {
+            eeprom: EEPROM::new(&nic)?,
             nic,
-            eeprom,
             mac: MAC::broadcast(), //gets initialised at reset
 
-            cur_rx_buf: 0,
             cur_tx_desc: 0,
             cur_tx_buf: 0,
 
@@ -163,23 +159,19 @@ impl E1000 {
             devbufs,
 
             link_state_changed: true,
-            txd_context_proto: TxoProto::Unsupported,
+            txd_context_proto: TxoProto::UNSUPPORTED,
         };
 
-        if !dev.eeprom.init(&dev.nic) {
-            log!(crate::LOG_DEF, "Failed to init EEPROM");
-        }
-
-        dev.nic.set_dma_buffer(&dev.devbufs);
+        dev.nic.set_dma_buffer(&dev.devbufs)?;
 
         //clear descriptors
         let mut i = 0;
         while i < core::mem::size_of::<Buffers>() {
-            dev.bufs.write(
+            dev.write_bufs(
                 &ZEROS,
                 (core::mem::size_of::<Buffers>() - i)
                     .min(core::mem::size_of_val(&ZEROS))
-                    .min(i) as u64,
+                    .min(i) as goff,
             );
             i += core::mem::size_of_val(&ZEROS);
         }
@@ -213,7 +205,7 @@ impl E1000 {
     fn reset(&mut self) {
         //always reset MAC. Required to reset the TX and RX rings.
         let mut ctrl: u32 = self.read_reg(e1000::REG::CTRL);
-        self.write_reg(e1000::REG::CTRL, (ctrl | e1000::CTL::RESET.bits()));
+        self.write_reg(e1000::REG::CTRL, ctrl | e1000::CTL::RESET.bits());
         self.sleep(RESET_SLEEP_TIME);
 
         //set a sensible default configuration
@@ -242,7 +234,9 @@ impl E1000 {
         // enable ip/udp/tcp receive checksum offloading
         self.write_reg(
             e1000::REG::RXCSUM,
-            (e1000::RXCSUM::IPOFLD | e1000::RXCSUM::TUOFLD).bits().into(),
+            (e1000::RXCSUM::IPOFLD | e1000::RXCSUM::TUOFLD)
+                .bits()
+                .into(),
         );
 
         // calculate field offsets. needs to happen in const to not instantiate `Buffers`.
@@ -253,7 +247,7 @@ impl E1000 {
         // setup rx descriptors
         for i in 0..RX_BUF_COUNT {
             //Init rxdesc which is written
-            let mut desc = RxDesc {
+            let desc = RxDesc {
                 buffer: (RX_BUF_OFF + i * RX_BUF_SIZE) as u64,
                 length: RX_BUF_SIZE as u16,
                 checksum: 0,
@@ -262,9 +256,9 @@ impl E1000 {
                 pad: 0,
             };
             log!(crate::LOG_NIC, "{} w {}", i, desc.buffer);
-            self.bufs.write(
+            self.write_bufs(
                 &[desc],
-                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as u64,
+                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
             );
 
             let mut desc2 = [RxDesc {
@@ -276,9 +270,9 @@ impl E1000 {
                 pad: 0,
             }];
 
-            self.bufs.read(
+            self.read_bufs(
                 &mut desc2,
-                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as u64,
+                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
             );
             log!(crate::LOG_NIC, "{} r {}", i, desc2[0].buffer);
         }
@@ -323,10 +317,12 @@ impl E1000 {
 
         // enable transmitter
         let mut tctl: u32 = self.read_reg(e1000::REG::TCTL);
-        tctl &= (!((e1000::TCTL::COLT_MASK | e1000::TCTL::COLD_MASK).bits() as u32));
-        tctl |=
-            (e1000::TCTL::ENABLE | e1000::TCTL::PSP | e1000::TCTL::COLL_DIST | e1000::TCTL::COLL_TSH)
-                .bits() as u32;
+        tctl &= !((e1000::TCTL::COLT_MASK | e1000::TCTL::COLD_MASK).bits() as u32);
+        tctl |= (e1000::TCTL::ENABLE
+            | e1000::TCTL::PSP
+            | e1000::TCTL::COLL_DIST
+            | e1000::TCTL::COLL_TSH)
+            .bits() as u32;
         self.write_reg(e1000::REG::TCTL, tctl);
 
         // enable receiver
@@ -354,43 +350,43 @@ impl E1000 {
 
         let head: u32 = self.read_reg(e1000::REG::TDH);
         // TODO: Is the condition correct or off by one?
-        if (next_tx_desc == head) {
+        if next_tx_desc == head {
             log!(crate::LOG_NIC, "No free descriptors.");
             return false;
         }
 
         //Check which protocol is used, ip, tcp, udp.
         let (is_ip, mut txo_proto) = {
-            unsafe {
-                //println!("ETH frame: {}", *(packet as *const _ as *const EthHdr));
-            }
+            // unsafe {
+            //     println!("ETH frame: {}", *(packet as *const _ as *const EthHdr));
+            // }
 
             let ethf = smoltcp::wire::EthernetFrame::new_unchecked(packet);
             if ethf.ethertype() == smoltcp::wire::EthernetProtocol::Ipv4 {
                 (true, TxoProto::IP)
             }
             else {
-                (false, TxoProto::Unsupported)
+                (false, TxoProto::UNSUPPORTED)
             }
         };
 
         //println!("Found is_ip={}, txo_proto={:x}", is_ip, txo_proto);
-        //let mut txo_proto = if is_ip {TxoProto::IP} else {TxoProto::Unsupported};
-        if ((txo_proto == TxoProto::IP)
-            && ((core::mem::size_of::<EthHdr>() + core::mem::size_of::<IpHdr>()) < packet.len()))
+        //let mut txo_proto = if is_ip {TxoProto::IP} else {TxoProto::UNSUPPORTED};
+        if (txo_proto == TxoProto::IP)
+            && ((core::mem::size_of::<EthHdr>() + core::mem::size_of::<IpHdr>()) < packet.len())
         {
             //println!("Searched for: tcp={}, udp={}", TxoProto::TCP.bits(), TxoProto::UDP.bits());
             let proto: u8 = unsafe {
-                let hdr = ((packet as *const _ as *const u8)
+                let hdr = (packet as *const _ as *const u8)
                     .offset(core::mem::size_of::<EthHdr>() as isize)
-                    as *const IpHdr);
+                    as *const IpHdr;
                 //println!("hdr: {}", *hdr);
                 (*hdr).proto
             };
-            if (proto == IP_PROTO_TCP) {
+            if proto == IP_PROTO_TCP {
                 txo_proto = TxoProto::TCP;
             }
-            else if (proto == IP_PROTO_UDP) {
+            else if proto == IP_PROTO_UDP {
                 txo_proto = TxoProto::UDP;
             }
 
@@ -431,15 +427,15 @@ impl E1000 {
         self.cur_tx_buf = inc_rb(self.cur_tx_buf, TX_BUF_COUNT as u32);
 
         // Update context descriptor if necessary (different protocol)
-        if (txd_context_update_required) {
+        if txd_context_update_required {
             log!(crate::LOG_NIC, "Writing context descriptor.");
 
             let mut desc = TxContextDesc {
-                IPCSS: 0,
-                IPCSO: (core::mem::size_of::<EthHdr>() + offset_of!(IpHdr, chksum)) as u8,
-                IPCSE: 0,
-                TUCSS: 0,
-                TUCSO: (core::mem::size_of::<EthHdr>()
+                ipcss: 0,
+                ipcso: (core::mem::size_of::<EthHdr>() + offset_of!(IpHdr, chksum)) as u8,
+                ipcse: 0,
+                tucss: 0,
+                tucso: (core::mem::size_of::<EthHdr>()
                     + core::mem::size_of::<IpHdr>()
                     + (if is_tcp {
                         TCP_CHECKSUM_OFFSET
@@ -447,13 +443,13 @@ impl E1000 {
                     else {
                         UDP_CHECKSUM_OFFSET
                     }) as usize) as u8,
-                TUCSE: 0,
+                tucse: 0,
                 //set later by setter
-                PAYLEN_DTYP_TUCMD: 0,
+                paylen_dtyp_tucmd: 0,
                 //set later by setter
-                STA_RSV: 0,
-                HDRLEN: 0,
-                MSS: 0,
+                sta_rsv: 0,
+                hdrlen: 0,
+                mss: 0,
             };
 
             desc.set_sta(0);
@@ -464,9 +460,9 @@ impl E1000 {
             desc.set_dtyp(0x0000);
             desc.set_paylen(0);
 
-            self.bufs.write(
+            self.write_bufs(
                 &[desc],
-                (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as u64,
+                (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as goff,
             );
             cur_tx_desc = inc_rb(cur_tx_desc, TX_BUF_COUNT as u32);
 
@@ -475,7 +471,7 @@ impl E1000 {
 
         // Send packet
         let offset = TX_BUF_OFF + cur_tx_buf as usize * TX_BUF_SIZE;
-        self.bufs.write(packet, offset as u64);
+        self.write_bufs(packet, offset as goff);
 
         log!(
             crate::LOG_NIC,
@@ -491,21 +487,16 @@ impl E1000 {
                     "TCP"
                 }
                 else {
-                    if is_ip {
-                        "IP"
-                    }
-                    else {
-                        "Unknown ethertype"
-                    }
+                    if is_ip { "IP" } else { "Unknown ethertype" }
                 }
             }
         );
 
         let mut desc = TxDataDesc {
             buffer: offset as u64,
-            length_DTYP_DCMD: 0, //set later via setter
-            STA_RSV: 0,          //set later as well
-            POPTS: (((is_tcp | is_udp) as u8) << 1 | (is_ip as u8) << 0), // TXSM | IXSM
+            length_dtyp_dcmd: 0, //set later via setter
+            sta_rsv: 0,          //set later as well
+            popts: (((is_tcp | is_udp) as u8) << 1 | (is_ip as u8) << 0), // TXSM | IXSM
             special: 0,
         };
 
@@ -523,9 +514,9 @@ impl E1000 {
         let loc = (offset_of!(Buffers, tx_descs) + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as u64;
         log!(crate::LOG_NIC, "buffer location to write to={}", loc);
         */
-        self.bufs.write(
+        self.write_bufs(
             &[desc],
-            (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as u64,
+            (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as goff,
         );
 
         self.write_reg(e1000::REG::TDT, self.cur_tx_desc);
@@ -556,9 +547,9 @@ impl E1000 {
 
         //Need to create the slice here, since we want to read the value after `read` took the slice
         let mut desc = [RxDesc::default()];
-        self.bufs.read(
+        self.read_bufs(
             &mut desc,
-            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as u64,
+            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as goff,
         );
         let mut desc = &mut desc[0];
         // TODO: Ensure that packets that are not processed because the maxReceiveCount has been exceeded,
@@ -582,21 +573,27 @@ impl E1000 {
         // time. In rust we init to false, but that might produce a different result.
         let mut valid_checksum = false;
         // Ignore Checksum Indication not set
-        if ((desc.status & e1000::RXDS::IXSM.bits()) == 0) {
-            if ((desc.status & e1000::RXDS::IPCS.bits()) > 0) {
-                valid_checksum = ((desc.error & e1000::RXDE::IPE.bits()) == 0);
+        if (desc.status & e1000::RXDS::IXSM.bits()) == 0 {
+            if (desc.status & e1000::RXDS::IPCS.bits()) > 0 {
+                valid_checksum = (desc.error & e1000::RXDE::IPE.bits()) == 0;
 
                 if !valid_checksum {
                     // TODO: Increase lwIP ip drop/chksum counters
                     log!(crate::LOG_NIC, "Dropped packet with IP checksum error.");
                 }
-                else if ((desc.status & (e1000::RXDS::TCPCS | e1000::RXDS::UDPCS).bits()) > 0) {
-                    log!(crate::LOG_NIC, "E1000: IXMS set, bur TCPS and UDPCS set, therefore trying alternative checksum...");
+                else if (desc.status & (e1000::RXDS::TCPCS | e1000::RXDS::UDPCS).bits()) > 0 {
+                    log!(
+                        crate::LOG_NIC,
+                        "E1000: IXMS set, bur TCPS and UDPCS set, therefore trying alternative checksum..."
+                    );
 
                     valid_checksum = (desc.error & e1000::RXDE::TCPE.bits()) == 0;
                     if !valid_checksum {
                         // TODO: Increase lwIP tcp/udp drop/chksum counters
-                        log!(crate::LOG_NIC, "Dropped packet with TCP/UDP checksum error. (IXMS set, TCPCS | UDPCS set)");
+                        log!(
+                            crate::LOG_NIC,
+                            "Dropped packet with TCP/UDP checksum error. (IXMS set, TCPCS | UDPCS set)"
+                        );
                     }
                 }
                 else {
@@ -623,14 +620,14 @@ impl E1000 {
         //TODO this was done in a loop over sub buffer, however,
         // in rust we just allocate e big enough buffer and receive the
         //package into this buffer
-        let mut read_size = 0;
+        let read_size;
         if valid_checksum {
             //Create buffer with enough size, initialized to 0
             assert!(
                 (desc.length as usize) < E1000::mtu(),
                 "desc wanted to store buffer, bigger then mtu"
             );
-            self.bufs.read(&mut buf[0..desc.length.into()], desc.buffer);
+            self.read_bufs(&mut buf[0..desc.length.into()], desc.buffer);
             read_size = desc.length.into();
         }
         else {
@@ -646,7 +643,7 @@ impl E1000 {
         desc.checksum = 0;
         desc.status = 0;
         desc.error = 0;
-        self.bufs.write(
+        self.write_bufs(
             &[desc],
             (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as u64,
         );
@@ -658,32 +655,57 @@ impl E1000 {
         Ok(read_size)
     }
 
-    fn write_reg(&self, reg: e1000::REG, value: u32) {
-        log!(crate::LOG_NIC, "REG[{:x}] <- {:x}", reg.bits(), value);
-        self.nic.write_reg(reg.bits(), value);
-    }
-
     fn read_reg(&self, reg: e1000::REG) -> u32 {
-        //TODO: Unwrapping since we would anyways have to panic if reading a register fails
-        //Maybe retry if this fails later.
+        // same as above
         let val: u32 = self
             .nic
             .read_reg(reg.bits())
-            .expect("Failed to read NIC register");
+            .expect("failed to read NIC register");
         log!(crate::LOG_NIC, "REG[{:x}] -> {:x}", reg.bits(), val);
         val
     }
 
+    fn write_reg(&self, reg: e1000::REG, value: u32) {
+        log!(crate::LOG_NIC, "REG[{:x}] <- {:x}", reg.bits(), value);
+        // there is no reasonable way to continue if that fails -> panic
+        self.nic
+            .write_reg(reg.bits(), value)
+            .expect("failed to write NIC register");
+    }
+
+    fn read_bufs<T>(&self, data: &mut [T], offset: goff) {
+        log!(
+            crate::LOG_NIC,
+            "Reading BUF[{:#x} .. {:#x}]",
+            offset,
+            offset + data.len() as goff - 1
+        );
+        self.bufs
+            .read(data, offset)
+            .expect("read from buffers failed");
+    }
+
+    fn write_bufs<T>(&self, data: &[T], offset: goff) {
+        log!(
+            crate::LOG_NIC,
+            "Writing BUF[{:#x} .. {:#x}]",
+            offset,
+            offset + data.len() as goff - 1
+        );
+        self.bufs
+            .write(data, offset)
+            .expect("write to buffers failed");
+    }
+
     fn read_eeprom(&self, address: usize, dest: &mut [u8]) {
-        if !self.eeprom.read(self, address, dest) {
-            log!(crate::LOG_NIC, "Failed to read from eeprom");
-        }
+        self.eeprom
+            .read(self, address, dest)
+            .expect("failed to read from EEPROM");
     }
 
     fn sleep(&self, usec: u64) {
         log!(crate::LOG_NIC, "NIC sleep: {}usec", usec);
         let nanos = usec * 1000;
-        let t = base::tcu::TCU::nanotime();
         m3::pes::VPE::sleep_for(nanos).expect("Failed to sleep in NIC driver");
     }
 
@@ -784,7 +806,7 @@ impl<'a> smoltcp::phy::Device<'a> for E1000Device {
                 };
                 Some((rx, tx))
             },
-            Err(e) => None,
+            Err(_) => None,
         }
     }
 

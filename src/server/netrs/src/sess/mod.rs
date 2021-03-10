@@ -20,13 +20,14 @@ use m3::com::GateIStream;
 use m3::errors::{Code, Error};
 use m3::server::CapExchange;
 
-pub mod file_session;
-pub mod sockets;
-pub use file_session::FileSession;
-pub mod socket_session;
-pub use socket_session::SocketSession;
-
 use smoltcp::socket::SocketSet;
+
+pub mod file_session;
+pub mod socket_session;
+pub mod sockets;
+
+pub use file_session::FileSession;
+pub use socket_session::SocketSession;
 
 pub const MSG_SIZE: usize = 128;
 
