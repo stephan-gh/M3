@@ -155,7 +155,13 @@ impl Device {
     }
 
     pub fn check_for_irq(&self) -> bool {
-        self.rgate.fetch().is_some()
+        if let Some(msg) = self.rgate.fetch() {
+            self.rgate.ack_msg(msg).unwrap();
+            true
+        }
+        else {
+            false
+        }
     }
 
     pub fn wait_for_irq(&self) -> Result<(), Error> {
