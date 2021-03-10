@@ -29,32 +29,6 @@ use m3::{log, reply_vmsg};
 
 use crate::sess::sockets::*;
 
-/*
-struct FSWorkItem {
-    session_ref: Rc<RefCell<FileSession>>,
-    is_active: RefCell<bool>,
-}
-
-impl WorkItem for FSWorkItem {
-    fn work(&self) {
-        //Ticks the different todo states that can occure.
-        if let Err(e) = self.session_ref.borrow_mut().handle_send_buffer() {
-            log!(crate::LOG_DEF, "Failed to handle send_buffer: {}", e);
-        }
-        if let Err(e) = self.session_ref.borrow_mut().handle_pending_recv() {
-            log!(crate::LOG_DEF, "failed to handle pending_recv: {}", e);
-        }
-        if let Err(e) = self.session_ref.borrow_mut().handle_pending_send() {
-            log!(crate::LOG_DEF, "Failed to handle pending_send: {}", e);
-        }
-    }
-
-    fn is_active(&self) -> bool {
-        *self.is_active.borrow()
-    }
-}
-*/
-
 pub struct FileSession {
     sel: Selector,
     #[allow(dead_code)]

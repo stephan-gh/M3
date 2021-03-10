@@ -13,30 +13,7 @@ m3 = { path = "../../libs/rust/m3" }
 base = { path = "../../libs/rust/base"}
 thread = { path = "../../libs/rust/thread" }
 pci = { path = "../../libs/rust/pci" }
-
 bitflags = "1.2.1"
-memoffset = { version = "0.6.1", features = [ "unstable_const" ] }
-#Using git master since version 0.6 seams to have a bug where receiving an ACK panics within smoltcp/src/socket/tcp.rs @ 1095
-# However, that does not happen on master.
-
-smoltcp = {git = "https://github.com/smoltcp-rs/smoltcp.git", branch = "master", default-features = false, features = [
-"log",
-"alloc",
-"proto-ipv4",
-"socket-tcp",
-"socket-udp",
-"socket-raw",
-"ethernet",
-]}
-
-#smoltcp = {path = "../../../../smoltcp", default-features = false, features = [
-#"log",
-#"alloc",
-#"proto-ipv4",
-#"socket-tcp",
-#"socket-udp",
-#"socket-raw",
-#"ethernet",
-#]}
-
 log = "0.4.11"
+memoffset = { version = "0.6.1", features = [ "unstable_const" ] }
+smoltcp = { git = "https://github.com/smoltcp-rs/smoltcp.git", branch = "master", default-features = false, features = [ "log", "alloc", "proto-ipv4", "socket-tcp", "socket-udp", "socket-raw", "ethernet" ] }

@@ -32,7 +32,6 @@ use crate::sess::FileSession;
 pub const TCP_HEADER_SIZE: usize = 32;
 pub const UDP_HEADER_SIZE: usize = 8;
 
-
 ///Allows us to convert a smol tcp state to a m3 tcp state. Cannot use the From trait since we would implement on a foreign type.
 fn tcp_state_from_smoltcp_state(other: smoltcp::socket::TcpState) -> m3::net::TcpState {
     match other {
@@ -98,6 +97,7 @@ impl Socket {
             log!(crate::LOG_DEF, "Can not bind tcp or raw socket!");
             return Err(Error::new(Code::NoSpace));
         }
+
         //If Udp socket, bind, otherwise do nothing, since in smoltcp, the tcp_bind event is fused with tcp_listen.
         let mut udp_socket = socket_set.get::<UdpSocket>(self.socket);
         log!(crate::LOG_DEF, "Binding Udp socket: {}", endpoint);
@@ -119,12 +119,14 @@ impl Socket {
             log!(crate::LOG_DEF, "Can not listen on udp or raw socket!");
             return Err(Error::new(Code::WrongSocketType));
         }
+
         let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
         log!(
             crate::LOG_DEF,
             "Listening on TCP socket: {}",
             local_endpoint
         );
+
         if let Err(e) = tcp_socket.listen(local_endpoint) {
             log!(crate::LOG_DEF, "Tcp::listen() failed with: {}", e);
             Err(Error::new(Code::ListenFailed))
@@ -144,8 +146,8 @@ impl Socket {
             log!(crate::LOG_DEF, "Udp or raw socket can't be connected!");
             return Err(Error::new(Code::WrongSocketType));
         }
-        let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
 
+        let mut tcp_socket = socket_set.get::<TcpSocket>(self.socket);
         if let Err(e) = tcp_socket.connect(remote_endpoint, local_endpoint) {
             log!(crate::LOG_DEF, "Failed to connect socket: {}", e);
             Err(Error::new(Code::ConnectionFailed))

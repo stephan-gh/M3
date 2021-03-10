@@ -26,7 +26,6 @@ pub struct SimpleLogger;
 impl log::Log for SimpleLogger {
     fn enabled(&self, _metadata: &Metadata) -> bool {
         true
-        //metadata.level() <= Level::Info
     }
 
     fn log(&self, record: &Record) {

@@ -88,7 +88,7 @@ bitflags! {
 
 bitflags! {
     pub struct XDCTL: u32 {
-        const XDCTL_ENABLE    = 1 << 25;       /* queue enable */
+        const ENABLE          = 1 << 25;       /* queue enable */
     }
 }
 
@@ -177,7 +177,7 @@ bitflags! {
         const IXSM            = 1 << 2; /* Ignore Checksum Indication */
         const EOP             = 1 << 1; /* End of Packet */
         const DD              = 1 << 0; /* receive descriptor status; indicates that the HW has
-         * finished the descriptor */
+                                         * finished the descriptor */
     }
 }
 
@@ -268,7 +268,6 @@ impl TxDataDesc {
 
     //sets the 4bits of the dtyp
     pub fn set_dtyp(&mut self, dtyp: u8) {
-        //self.length_dtyp_dcmd = (self.length_dtyp_dcmd & 0xff_ff_f0_ff) | (((dtyp as u32) << 20) & 0x00_00_0f_00);
         self.length_dtyp_dcmd =
             (self.length_dtyp_dcmd & 0xff_0f_ff_ff) | (((dtyp as u32) << 20) & 0x00_f0_00_00);
     }
@@ -276,7 +275,6 @@ impl TxDataDesc {
     pub fn set_dcmd(&mut self, dcmd: u8) {
         self.length_dtyp_dcmd =
             (self.length_dtyp_dcmd & 0x00_ff_ff_ff) | (((dcmd as u32) << 24) & 0xff_00_00_00);
-        //self.length_dtyp_dcmd = (self.length_dtyp_dcmd & 0xff_ff_ff_00) | (((dcmd as u32) << 24) & 0x00_00_00_ff);
     }
 
     pub fn set_sta(&mut self, sta: u8) {
@@ -346,25 +344,26 @@ pub const TX_BUF_SIZE: usize = 2048;
 
 #[repr(C, align(16))]
 pub struct Buffers {
-    pub rx_descs: [RxDesc; RX_BUF_COUNT], //TODO does the align16 work here? ALIGNED(16); // 0
-    pub tx_descs: [TxDesc; TX_BUF_COUNT], // ALIGNED(16); // 128
-    pub rx_buf: [u8; RX_BUF_COUNT * RX_BUF_SIZE], // 16384 + 256
+    pub rx_descs: [RxDesc; RX_BUF_COUNT],
+    pub tx_descs: [TxDesc; TX_BUF_COUNT],
+    pub rx_buf: [u8; RX_BUF_COUNT * RX_BUF_SIZE],
     pub tx_buf: [u8; TX_BUF_COUNT * TX_BUF_SIZE],
 }
 
-//TODO not packed yet
 #[repr(C)]
 pub struct EthAddr(pub [u8; ETH_HWADDR_LEN]);
+
 impl core::fmt::Display for EthAddr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        const_assert!(core::mem::size_of::<EthAddr>() == ETH_HWADDR_LEN);
         write!(
             f,
-            "Addr[{:x}, {:x}, {:x}, {:x}, {:x}, {:x}]",
+            "Eth[{:x}, {:x}, {:x}, {:x}, {:x}, {:x}]",
             self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5]
         )
     }
 }
-//TODO not packed yet
+
 #[repr(C)]
 pub struct EthHdr {
     pub dest: EthAddr,
@@ -377,7 +376,7 @@ impl core::fmt::Display for EthHdr {
         const_assert!(core::mem::size_of::<EthHdr>() == 14);
         write!(
             f,
-            "ETH[dest={}, src={}, ty={:b}, size={}]",
+            "EthHdr[dest={}, src={}, ty={:b}, size={}]",
             self.dest,
             self.src,
             self.ty,
@@ -386,17 +385,17 @@ impl core::fmt::Display for EthHdr {
     }
 }
 
-//TODO not packed yet
 #[repr(C)]
 pub struct Ip4Addr(pub u32);
+
 impl core::fmt::Display for Ip4Addr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        const_assert!(core::mem::size_of::<Ip4Addr>() == 4);
         let [a, b, c, d] = self.0.to_be_bytes();
         write!(f, "Ipv4[{}, {}, {}, {}]", a, b, c, d)
     }
 }
 
-//TODO not packed yet
 #[repr(C)]
 pub struct IpHdr {
     pub v_hl: u8,
@@ -417,7 +416,7 @@ impl core::fmt::Display for IpHdr {
         write!(
             f,
             "
-ETH[
+IpHdr[
 v_hl={},\
 tos={},
 len={},

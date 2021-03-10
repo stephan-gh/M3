@@ -196,12 +196,6 @@ impl E1000 {
         Ok(dev)
     }
 
-    /*TODO not needed for rust pci device?
-    fn stop(&self){
-    self.nic.stop_listening();
-    }
-     */
-
     fn reset(&mut self) {
         //always reset MAC. Required to reset the TX and RX rings.
         let mut ctrl: u32 = self.read_reg(e1000::REG::CTRL);
@@ -255,7 +249,6 @@ impl E1000 {
                 error: 0,
                 pad: 0,
             };
-            log!(crate::LOG_NIC, "{} w {}", i, desc.buffer);
             self.write_bufs(
                 &[desc],
                 (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
@@ -269,12 +262,10 @@ impl E1000 {
                 error: 0,
                 pad: 0,
             }];
-
             self.read_bufs(
                 &mut desc2,
                 (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as goff,
             );
-            log!(crate::LOG_NIC, "{} r {}", i, desc2[0].buffer);
         }
 
         // init receive ring
@@ -303,8 +294,8 @@ impl E1000 {
 
         // enable rings
         // Always enabled for this model? legacy stuff?
-        // writeReg(REG_RDCTL, readReg(REG_RDCTL) | XDCTL_ENABLE);
-        // writeReg(REG_TDCTL, readReg(REG_TDCTL) | XDCTL_ENABLE);
+        // self.write_reg(e1000::REG::RDCTL, self.read_reg(e1000::REG::RDCTL) | e1000::XDCTL::ENABLE);
+        // self.write_reg(e1000::REG::TDCTL, self.read_reg(e1000::REG::TDCTL) | e1000::XDCTL::ENABLE);
 
         // get MAC and setup MAC filter
         self.mac = self.read_mac();
@@ -357,10 +348,6 @@ impl E1000 {
 
         //Check which protocol is used, ip, tcp, udp.
         let (is_ip, mut txo_proto) = {
-            // unsafe {
-            //     println!("ETH frame: {}", *(packet as *const _ as *const EthHdr));
-            // }
-
             let ethf = smoltcp::wire::EthernetFrame::new_unchecked(packet);
             if ethf.ethertype() == smoltcp::wire::EthernetProtocol::Ipv4 {
                 (true, TxoProto::IP)
@@ -370,17 +357,13 @@ impl E1000 {
             }
         };
 
-        //println!("Found is_ip={}, txo_proto={:x}", is_ip, txo_proto);
-        //let mut txo_proto = if is_ip {TxoProto::IP} else {TxoProto::UNSUPPORTED};
         if (txo_proto == TxoProto::IP)
             && ((core::mem::size_of::<EthHdr>() + core::mem::size_of::<IpHdr>()) < packet.len())
         {
-            //println!("Searched for: tcp={}, udp={}", TxoProto::TCP.bits(), TxoProto::UDP.bits());
             let proto: u8 = unsafe {
                 let hdr = (packet as *const _ as *const u8)
                     .offset(core::mem::size_of::<EthHdr>() as isize)
                     as *const IpHdr;
-                //println!("hdr: {}", *hdr);
                 (*hdr).proto
             };
             if proto == IP_PROTO_TCP {
@@ -389,13 +372,6 @@ impl E1000 {
             else if proto == IP_PROTO_UDP {
                 txo_proto = TxoProto::UDP;
             }
-
-            //let v_hl: u8 = unsafe{
-            //    (*((packet as *const _ as *const u8).offset(core::mem::size_of::<EthHdr>() as isize) as *const IpHdr)).v_hl
-            //};
-            // lwIP uses no IP options, unless IGMP is enabled.
-            //TODO not using lwIP, but smoltcp, is assert valid?
-            //assert!((v_hl & 0xf) == 5); // 5 in big endian
         };
 
         let is_tcp = txo_proto == TxoProto::TCP;
@@ -454,8 +430,9 @@ impl E1000 {
 
             desc.set_sta(0);
             desc.set_tucmd(
+                // DEXT | IP | TCP
                 1 << 5 | (if is_ip { 1 << 1 } else { 0 } | if is_tcp { 1 } else { 0 }) as u8,
-            ); // DEXT | IP | TCP
+            );
 
             desc.set_dtyp(0x0000);
             desc.set_paylen(0);
@@ -502,18 +479,11 @@ impl E1000 {
 
         desc.set_length(packet.len() as u32);
         desc.set_dtyp(0x0001);
-        desc.set_dcmd(1 << 5 | (e1000::TX::CMD_EOP | e1000::TX::CMD_IFCS).bits()); // DEXT | TX_CMD_EOP | TX_CMD_IFCS
+        // DEXT | TX_CMD_EOP | TX_CMD_IFCS
+        desc.set_dcmd(1 << 5 | (e1000::TX::CMD_EOP | e1000::TX::CMD_IFCS).bits());
         desc.set_sta(0);
         desc.set_rsv(0);
 
-        /*
-        let cast_desc: &[u64] = unsafe{core::slice::from_raw_parts(&desc as *const _ as *const u64, 2)};
-        log!(crate::LOG_NIC, "TxdataDesc= {} {}", cast_desc[0], cast_desc[1]);
-
-
-        let loc = (offset_of!(Buffers, tx_descs) + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as u64;
-        log!(crate::LOG_NIC, "buffer location to write to={}", loc);
-        */
         self.write_bufs(
             &[desc],
             (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as goff,
@@ -535,10 +505,11 @@ impl E1000 {
             log!(crate::LOG_NIC, "Found irq");
         }
 
-        // TODO: Improve, do it without reading registers, like quoted in the manual and how the linux e1000 driver does it.
-        // " Software can determine if a receive buffer is valid by reading descriptors in memory
-        //   rather than by I/O reads. Any descriptor with a non-zero status byte has been processed by the
-        //   hardware, and is ready to be handled by the software."
+        // TODO: Improve, do it without reading registers, like quoted in the manual and how the
+        // linux e1000 driver does it: "Software can determine if a receive buffer is valid by
+        // reading descriptors in memory rather than by I/O reads. Any descriptor with a non-zero
+        // status byte has been processed by the hardware, and is ready to be handled by the
+        // software."
 
         // calculate field offsets. needs to happen in const to not instantiate `Buffers`.
         const RX_DESCS_OFF: usize = offset_of!(Buffers, rx_descs);
@@ -556,7 +527,7 @@ impl E1000 {
         // to be processed later, independently of an interrupt.
 
         if (desc.status & e1000::RXDS::DD.bits()) == 0 {
-            return Err(Error::new(Code::NotSup)); //TODO throw correct error
+            return Err(Error::new(Code::NotFound));
         }
 
         log!(
@@ -635,7 +606,7 @@ impl E1000 {
                 crate::LOG_NIC,
                 "Failed to validate checksum of RxDesc in E1000"
             );
-            return Err(Error::new(Code::NotSup)); //TODO return correct error
+            return Err(Error::new(Code::InvChecksum));
         }
 
         //Write back the updated rx buffer.
@@ -650,8 +621,7 @@ impl E1000 {
 
         // move to next package by updating the `tail` value on the device.
         self.write_reg(e1000::REG::RDT, tail);
-        //tail = inc_rb(tail, RX_BUF_COUNT as u32);
-        //self.bufs.read(&mut [desc], (offset_of!(Buffers, rx_descs) + tail as usize * core::mem::size_of::<RxDesc>()) as u64);
+
         Ok(read_size)
     }
 

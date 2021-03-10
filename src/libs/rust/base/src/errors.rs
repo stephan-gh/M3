@@ -79,6 +79,7 @@ pub enum Code {
     //Net Errors
     InvState,
     WrongSocketType,
+    InvChecksum,
     SocketClosed,
     ConnectionFailed,
     ListenFailed,
