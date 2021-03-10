@@ -19,7 +19,7 @@ use core::{fmt, mem};
 use crate::cap::Selector;
 use crate::cell::RefCell;
 use crate::col::Vec;
-use crate::errors::{Code, Error};
+use crate::errors::Error;
 use crate::io::Serial;
 use crate::pes::{StateSerializer, VPE};
 use crate::rc::Rc;
@@ -30,7 +30,7 @@ use crate::vfs::{File, FileRef, GenericFile};
 pub type Fd = usize;
 
 /// The maximum number of files per [`FileTable`].
-pub const MAX_FILES: usize = 32;
+pub const INV_FD: usize = !0;
 
 /// A reference to a file.
 pub type FileHandle = Rc<RefCell<dyn File>>;
@@ -38,7 +38,7 @@ pub type FileHandle = Rc<RefCell<dyn File>>;
 /// The table of open files.
 #[derive(Default)]
 pub struct FileTable {
-    files: [Option<FileHandle>; MAX_FILES],
+    files: Vec<Option<FileHandle>>,
 }
 
 impl FileTable {
@@ -49,34 +49,52 @@ impl FileTable {
 
     /// Allocates a new slot in the file table and returns its file descriptor.
     pub fn alloc(&mut self, file: FileHandle) -> Result<Fd, Error> {
-        for fd in 0..MAX_FILES {
-            if self.files[fd].is_none() {
+        for (fd, cur_file) in self.files.iter().enumerate() {
+            if cur_file.is_none() {
                 self.set(fd, file);
                 return Ok(fd);
             }
         }
-        Err(Error::new(Code::NoSpace))
+
+        self.files.push(Some(file));
+        Ok(self.files.len() - 1)
     }
 
     /// Returns a reference to the file with given file descriptor. The file will be closed as soon
     /// as the reference is dropped.
     pub fn get_ref(&self, fd: Fd) -> Option<FileRef> {
-        self.files[fd].as_ref().map(|f| FileRef::new(f.clone(), fd))
+        if fd < self.files.len() {
+            self.files[fd].as_ref().map(|f| FileRef::new(f.clone(), fd))
+        }
+        else {
+            None
+        }
     }
 
     /// Returns the file with given file descriptor.
     pub fn get(&self, fd: Fd) -> Option<FileHandle> {
-        self.files[fd].as_ref().cloned()
+        if fd < self.files.len() {
+            self.files[fd].as_ref().cloned()
+        }
+        else {
+            None
+        }
     }
 
     /// Adds the given file to the table using the file descriptor `fd`, assuming that the file
     /// descriptor is not yet in use.
     pub fn set(&mut self, fd: Fd, file: FileHandle) {
-        assert!(self.files[fd].is_none());
-        if file.borrow().fd() == MAX_FILES {
+        if file.borrow().fd() == INV_FD {
             file.borrow_mut().set_fd(fd);
         }
-        self.files[fd] = Some(file);
+
+        if fd >= self.files.len() {
+            self.files.push(Some(file));
+        }
+        else {
+            assert!(self.files[fd].is_none());
+            self.files[fd] = Some(file);
+        }
     }
 
     /// Removes the file with given file descriptor from the table.
@@ -92,8 +110,8 @@ impl FileTable {
         dels: &mut Vec<Selector>,
         max_sel: &mut Selector,
     ) -> Result<(), Error> {
-        for fd in 0..MAX_FILES {
-            if let Some(ref f) = self.files[fd] {
+        for file in &self.files {
+            if let Some(ref f) = file {
                 f.borrow().exchange_caps(vpe, dels, max_sel)?;
             }
         }
@@ -104,12 +122,12 @@ impl FileTable {
         let count = self.files.iter().filter(|&f| f.is_some()).count();
         s.push_word(count as u64);
 
-        for fd in 0..MAX_FILES {
-            if let Some(ref f) = self.files[fd] {
-                let file = f.borrow();
+        for (fd, file) in self.files.iter().enumerate() {
+            if let Some(ref file_ref) = file {
+                let file_obj = file_ref.borrow();
                 s.push_word(fd as u64);
-                s.push_word(file.file_type() as u64);
-                file.serialize(s);
+                s.push_word(file_obj.file_type() as u64);
+                file_obj.serialize(s);
             }
         }
     }
@@ -135,9 +153,9 @@ impl FileTable {
 impl fmt::Debug for FileTable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "FileTable[")?;
-        for fd in 0..MAX_FILES {
-            if let Some(ref file) = self.files[fd] {
-                writeln!(f, "  {} -> {:?}", fd, file)?;
+        for (fd, file) in self.files.iter().enumerate() {
+            if let Some(ref file_ref) = file {
+                writeln!(f, "  {} -> {:?}", fd, file_ref)?;
             }
         }
         write!(f, "]")
@@ -146,7 +164,7 @@ impl fmt::Debug for FileTable {
 
 pub(crate) fn deinit() {
     let ft = VPE::cur().files();
-    for fd in 0..MAX_FILES {
+    for fd in 0..ft.files.len() {
         ft.remove(fd);
     }
 }

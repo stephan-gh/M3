@@ -68,7 +68,7 @@ pub struct GenericFile {
 impl GenericFile {
     pub(crate) fn new(flags: OpenFlags, sel: Selector) -> Self {
         GenericFile {
-            fd: filetable::MAX_FILES,
+            fd: filetable::INV_FD,
             flags,
             sess: ClientSession::new_bind(sel),
             sgate: SendGate::new_bind(sel + 1),
