@@ -57,7 +57,8 @@ impl Bridge {
                     src_fd,
                     &src_sock as *const _ as *const libc::sockaddr,
                     mem::size_of::<libc::sockaddr_un>() as u32
-                ) == 0
+                ) == 0,
+                "Failed to bind socket: errno={}", (*libc::__errno_location()) as i32
             );
         }
 
