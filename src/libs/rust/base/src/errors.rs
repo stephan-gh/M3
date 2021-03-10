@@ -84,7 +84,7 @@ pub enum Code {
     ListenFailed,
     BindFailed,
     FailedToSend,
-    NoSuchSocket
+    NoSuchSocket,
 }
 
 // we only use this implementation in debug mode, because it adds a bit of some overhead, errors

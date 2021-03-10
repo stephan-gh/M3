@@ -1,174 +1,192 @@
+/*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
+ * Copyright (C) 2017, Georg Kotheimer <georg.kotheimer@mailbox.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
 use base::const_assert;
 use m3::goff;
+use m3::mem;
 
 use bitflags::bitflags;
 
 bitflags! {
-    pub struct E1000_REG: goff{
-    const CTRL          = 0x0;           /* device control register */
-    const STATUS          = 0x8;           /* device status register */
-    const EECD            = 0x10;          /* EEPROM control/data register */
-    const EERD            = 0x14;          /* EEPROM read register */
-    const VET             = 0x38;          /* VLAN ether type */
+    pub struct E1000_REG: goff {
+        const CTRL            = 0x0;           /* device control register */
+        const STATUS          = 0x8;           /* device status register */
+        const EECD            = 0x10;          /* EEPROM control/data register */
+        const EERD            = 0x14;          /* EEPROM read register */
+        const VET             = 0x38;          /* VLAN ether type */
 
-    const ICR             = 0xc0;          /* interrupt cause read register */
-    const IMS             = 0xd0;          /* interrupt mask set/read register */
-    const IMC             = 0xd8;          /* interrupt mask clear register */
+        const ICR             = 0xc0;          /* interrupt cause read register */
+        const IMS             = 0xd0;          /* interrupt mask set/read register */
+        const IMC             = 0xd8;          /* interrupt mask clear register */
 
-    const RCTL            = 0x100;         /* receive control register */
-    const TCTL            = 0x400;         /* transmit control register */
+        const RCTL            = 0x100;         /* receive control register */
+        const TCTL            = 0x400;         /* transmit control register */
 
-    const PBA             = 0x1000;        /* packet buffer allocation */
-    const PBS             = 0x1008;        /* packet buffer size */
+        const PBA             = 0x1000;        /* packet buffer allocation */
+        const PBS             = 0x1008;        /* packet buffer size */
 
-    const RDBAL           = 0x2800;        /* register descriptor base address low */
-    const RDBAH           = 0x2804;        /* register descriptor base address high */
-    const RDLEN           = 0x2808;        /* register descriptor length */
-    const RDH             = 0x2810;        /* register descriptor head */
-    const RDT             = 0x2818;        /* register descriptor tail */
+        const RDBAL           = 0x2800;        /* register descriptor base address low */
+        const RDBAH           = 0x2804;        /* register descriptor base address high */
+        const RDLEN           = 0x2808;        /* register descriptor length */
+        const RDH             = 0x2810;        /* register descriptor head */
+        const RDT             = 0x2818;        /* register descriptor tail */
 
-    const RDTR            = 0x2820;        /* receive delay timer register */
-    const RDCTL           = 0x2828;        /* transmit descriptor control */
-    const RADV            = 0x282c;        /* receive absolute interrupt delay timer */
+        const RDTR            = 0x2820;        /* receive delay timer register */
+        const RDCTL           = 0x2828;        /* transmit descriptor control */
+        const RADV            = 0x282c;        /* receive absolute interrupt delay timer */
 
-    const TDBAL           = 0x3800;        /* transmit descriptor base address low */
-    const TDBAH           = 0x3804;        /* transmit descriptor base address high */
-    const TDLEN           = 0x3808;        /* transmit descriptor length */
-    const TDH             = 0x3810;        /* transmit descriptor head */
-    const TDT             = 0x3818;        /* transmit descriptor tail */
+        const TDBAL           = 0x3800;        /* transmit descriptor base address low */
+        const TDBAH           = 0x3804;        /* transmit descriptor base address high */
+        const TDLEN           = 0x3808;        /* transmit descriptor length */
+        const TDH             = 0x3810;        /* transmit descriptor head */
+        const TDT             = 0x3818;        /* transmit descriptor tail */
 
-    const TIDV            = 0x3820;        /* transmit interrupt delay value */
-    const TDCTL           = 0x3828;        /* transmit descriptor control */
-    const TADV            = 0x382c;        /* transmit absolute interrupt delay timer */
+        const TIDV            = 0x3820;        /* transmit interrupt delay value */
+        const TDCTL           = 0x3828;        /* transmit descriptor control */
+        const TADV            = 0x382c;        /* transmit absolute interrupt delay timer */
 
-    const RAL             = 0x5400;        /* filtering: receive address low */
-    const RAH             = 0x5404;        /* filtering: receive address high */
+        const RAL             = 0x5400;        /* filtering: receive address low */
+        const RAH             = 0x5404;        /* filtering: receive address high */
 
-    const RXCSUM          = 0x5000;        /* receive checksum control */
+        const RXCSUM          = 0x5000;        /* receive checksum control */
     }
 }
 
 bitflags! {
-    pub struct E1000_STATUS: u8{
-    const LU = 1 << 1;        /* link up */
+    pub struct E1000_STATUS: u8 {
+        const LU              = 1 << 1;        /* link up */
     }
 }
 
 bitflags! {
-    pub struct E1000_CTL: u32{
-    const LRST            = 1 << 3;        /* link reset */
-    const ASDE            = 1 << 5;        /* auto speed detection enable */
-    const SLU             = 1 << 6;        /* set link up */
-    const FRCSPD          = 1 << 11;       /* force speed */
-    const FRCDPLX         = 1 << 12;       /* force duplex */
-    const RESET           = 1 << 26;       /* 1 = device reset; self-clearing */
-    const PHY_RESET       = 1 << 31;       /* 1 = PHY reset */
+    pub struct E1000_CTL: u32 {
+        const LRST            = 1 << 3;        /* link reset */
+        const ASDE            = 1 << 5;        /* auto speed detection enable */
+        const SLU             = 1 << 6;        /* set link up */
+        const FRCSPD          = 1 << 11;       /* force speed */
+        const FRCDPLX         = 1 << 12;       /* force duplex */
+        const RESET           = 1 << 26;       /* 1 = device reset; self-clearing */
+        const PHY_RESET       = 1 << 31;       /* 1 = PHY reset */
     }
 }
 
 bitflags! {
-    pub struct E1000_XDCTL: u32{
-    const XDCTL_ENABLE = 1 << 25;       /* queue enable */
+    pub struct E1000_XDCTL: u32 {
+        const XDCTL_ENABLE    = 1 << 25;       /* queue enable */
     }
 }
 
 bitflags! {
-    pub struct E1000_ICR: u8{
-    const LSC             = 1 << 2;        /* Link Status Change */
-    const RXDMT0          = 1 << 4;        /* Receive Descriptor Minimum Threshold Reached */
-    const RXO             = 1 << 6;        /* Receiver Overrun */
-    const RXT0            = 1 << 7;        /* Receiver Timer Interrupt */
+    pub struct E1000_ICR: u8 {
+        const LSC             = 1 << 2;        /* Link Status Change */
+        const RXDMT0          = 1 << 4;        /* Receive Descriptor Minimum Threshold Reached */
+        const RXO             = 1 << 6;        /* Receiver Overrun */
+        const RXT0            = 1 << 7;        /* Receiver Timer Interrupt */
     }
 }
 
 bitflags! {
-    pub struct E1000_RCTL: u32{
-    const ENABLE         = 1 << 1;
-    const UPE            = 1 << 3;        /* unicast promiscuous mode */
-    const MPE            = 1 << 4;        /* multicast promiscuous */
-    const BAM            = 1 << 15;       /* broadcasts accept mode */
-    const BSIZE_256      = 0x11 << 16;    /* receive buffer size = 256 bytes (if RCTL_BSEX = 0) */
-    const BSIZE_512      = 0x10 << 16;    /* receive buffer size = 512 bytes (if RCTL_BSEX = 0) */
-    const BSIZE_1K       = 0x01 << 16;    /* receive buffer size = 1024 bytes (if RCTL_BSEX = 0) */
-    const BSIZE_2K       = 0x00 << 16;    /* receive buffer size = 2048 bytes (if RCTL_BSEX = 0) */
-    const BSIZE_MASK     = 0x11 << 16;    /* mask for buffer size */
-    const BSEX_MASK      = 0x01 << 25;    /* mask for size extension */
-    const SECRC          = 1 << 26;       /* strip CRC */
+    pub struct E1000_RCTL: u32 {
+        const ENABLE          = 1 << 1;
+        const UPE             = 1 << 3;        /* unicast promiscuous mode */
+        const MPE             = 1 << 4;        /* multicast promiscuous */
+        const BAM             = 1 << 15;       /* broadcasts accept mode */
+        const BSIZE_256       = 0x11 << 16;    /* receive buffer size = 256 bytes (if RCTL_BSEX = 0) */
+        const BSIZE_512       = 0x10 << 16;    /* receive buffer size = 512 bytes (if RCTL_BSEX = 0) */
+        const BSIZE_1K        = 0x01 << 16;    /* receive buffer size = 1024 bytes (if RCTL_BSEX = 0) */
+        const BSIZE_2K        = 0x00 << 16;    /* receive buffer size = 2048 bytes (if RCTL_BSEX = 0) */
+        const BSIZE_MASK      = 0x11 << 16;    /* mask for buffer size */
+        const BSEX_MASK       = 0x01 << 25;    /* mask for size extension */
+        const SECRC           = 1 << 26;       /* strip CRC */
     }
 }
 
 bitflags! {
-    pub struct E1000_TCTL: u32{
-    const ENABLE         = 1 << 1;
-    const PSP            = 1 << 3;        /* pad short packets */
-    const COLL_TSH       = 0x0F << 4;     /* collision threshold; number of transmission attempts */
-    const COLL_DIST      = 0x40 << 12;    /* collision distance; pad packets to X bytes; 64 here */
-    const COLT_MASK      = 0xff << 4;
-    const COLD_MASK      = 0x3ff << 12;
+    pub struct E1000_TCTL: u32 {
+        const ENABLE          = 1 << 1;
+        const PSP             = 1 << 3;        /* pad short packets */
+        const COLL_TSH        = 0x0F << 4;     /* collision threshold; number of transmission attempts */
+        const COLL_DIST       = 0x40 << 12;    /* collision distance; pad packets to X bytes; 64 here */
+        const COLT_MASK       = 0xff << 4;
+        const COLD_MASK       = 0x3ff << 12;
     }
 }
 
 bitflags! {
-    pub struct E1000_RAH: u32{
-    const VALID           = 1 << 31;       /* marks a receive address filter as valid */
+    pub struct E1000_RAH: u32 {
+        const VALID           = 1 << 31;       /* marks a receive address filter as valid */
     }
 }
 
 bitflags! {
-    pub struct E1000_RXCSUM: u16{
-    const PCSS_MASK   = 0xff;           /* Packet Checksum Start */
-    const IPOFLD      = 1 << 8;         /* IP Checksum Off-load Enable */
-    const TUOFLD      = 1 << 9;         /* TCP/UDP Checksum Off-load Enable */
-    const IPV6OFL     = 1 << 10;        /* IPv6 Checksum Offload Enable */
+    pub struct E1000_RXCSUM: u16 {
+        const PCSS_MASK       = 0xff;           /* Packet Checksum Start */
+        const IPOFLD          = 1 << 8;         /* IP Checksum Off-load Enable */
+        const TUOFLD          = 1 << 9;         /* TCP/UDP Checksum Off-load Enable */
+        const IPV6OFL         = 1 << 10;        /* IPv6 Checksum Offload Enable */
     }
 }
 
 bitflags! {
-    pub struct E1000_EEPROM: u8{
-    const OFS_MAC      = 0x0;           /* offset of the MAC in EEPROM */
+    pub struct E1000_EEPROM: u8 {
+        const OFS_MAC         = 0x0;           /* offset of the MAC in EEPROM */
     }
 }
 
 bitflags! {
-    pub struct E1000_EERD: u8{
-    const START          = 1 << 0;        /* start command */
-    const DONE_SMALL     = 1 << 4;        /* read done (small EERD) */
-    const DONE_LARGE     = 1 << 1;        /* read done (large EERD) */
-    const SHIFT_SMALL    = 8;             /* address shift (small) */
-    const SHIFT_LARGE    = 2;             /* address shift (large) */
+    pub struct E1000_EERD: u8 {
+        const START           = 1 << 0;        /* start command */
+        const DONE_SMALL      = 1 << 4;        /* read done (small EERD) */
+        const DONE_LARGE      = 1 << 1;        /* read done (large EERD) */
+        const SHIFT_SMALL     = 8;             /* address shift (small) */
+        const SHIFT_LARGE     = 2;             /* address shift (large) */
     }
 }
 
 bitflags! {
-    pub struct E1000_TX: u8{
-    const CMD_EOP          = 0x01;          /* end of packet */
-    const CMD_IFCS         = 0x02;          /* insert FCS/CRC */
+    pub struct E1000_TX: u8 {
+        const CMD_EOP         = 0x01;          /* end of packet */
+        const CMD_IFCS        = 0x02;          /* insert FCS/CRC */
     }
 }
 
 bitflags! {
-    pub struct E1000_RXDS: u8{
-    const PIF   = 1 << 7; /* Passed in-exact filter */
-    const IPCS  = 1 << 6; /* IP Checksum Calculated on Packet */
-    const TCPCS = 1 << 5; /* TCP Checksum Calculated on Packet */
-    // Only in gem5 i8254xGBE?!
-    const UDPCS = 1 << 4; /* TCP Checksum Calculated on Packet */
-    const VP    = 1 << 3; /* Packet is 802.1Q (matched VET) */
-    const IXSM  = 1 << 2; /* Ignore Checksum Indication */
-    const EOP   = 1 << 1; /* End of Packet */
-    const DD    = 1 << 0; /* receive descriptor status; indicates that the HW has
-     * finished the descriptor */
+    pub struct E1000_RXDS: u8 {
+        const PIF             = 1 << 7; /* Passed in-exact filter */
+        const IPCS            = 1 << 6; /* IP Checksum Calculated on Packet */
+        const TCPCS           = 1 << 5; /* TCP Checksum Calculated on Packet */
+        // Only in gem5 i8254xGBE?!
+        const UDPCS           = 1 << 4; /* TCP Checksum Calculated on Packet */
+        const VP              = 1 << 3; /* Packet is 802.1Q (matched VET) */
+        const IXSM            = 1 << 2; /* Ignore Checksum Indication */
+        const EOP             = 1 << 1; /* End of Packet */
+        const DD              = 1 << 0; /* receive descriptor status; indicates that the HW has
+         * finished the descriptor */
     }
 }
 
 bitflags! {
-    pub struct E1000_RXDE: u8{
-    const RXE  = 1 << 7; /* RX Data Error */
-    const IPE  = 1 << 6; /* IP Checksum Error */
-    const TCPE = 1 << 5; /* TCP/UDP Checksum Error */
-    const SEQ  = 1 << 2; /* Sequence Error */
-    const SE   = 1 << 1; /* Symbol Error */
-    const CE   = 1 << 0; /* CRC Error or Alignment Error */
+    pub struct E1000_RXDE: u8 {
+        const RXE             = 1 << 7; /* RX Data Error */
+        const IPE             = 1 << 6; /* IP Checksum Error */
+        const TCPE            = 1 << 5; /* TCP/UDP Checksum Error */
+        const SEQ             = 1 << 2; /* Sequence Error */
+        const SE              = 1 << 1; /* Symbol Error */
+        const CE              = 1 << 0; /* CRC Error or Alignment Error */
     }
 }
 
@@ -182,12 +200,13 @@ bitflags!{
     }
 }
 */
+
 bitflags! {
-    pub struct TxoProto: u8{
-    const Unsupported = 1<<1;
-    const IP = 1<<2 | TxoProto::Unsupported.bits();
-    const UDP = 1<<3 | TxoProto::IP.bits();
-    const TCP = 1<<4 | TxoProto::IP.bits();
+    pub struct TxoProto: u8 {
+        const Unsupported     = 1 << 1;
+        const IP              = 1 << 2 | TxoProto::Unsupported.bits();
+        const UDP             = 1 << 3 | TxoProto::IP.bits();
+        const TCP             = 1 << 4 | TxoProto::IP.bits();
     }
 }
 

@@ -1,16 +1,36 @@
-//! hosts a simple fifo driver that is based on Unix sockets. More or less copies smoltcp's RawSocket. But implemented
-/// in no_std environment.
-use smoltcp::phy::{Device, DeviceCapabilities};
-use smoltcp::time::Instant;
+/*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
+// hosts a simple fifo driver that is based on Unix sockets. More or less copies smoltcp's
+// RawSocket. But implemented in no_std environment.
+
+use core::default::Default;
 
 use libc::{c_char, c_int, sockaddr_un};
-use m3::{cell::RefCell, net::MAX_NETDATA_SIZE};
+
+use log::info;
+
+use m3::cell::RefCell;
 use m3::col::Vec;
 use m3::libc;
 use m3::rc::Rc;
+use m3::{log, vec, format};
 
-use core::default::Default;
-use log::info;
+use smoltcp::phy::{Device, DeviceCapabilities};
+use smoltcp::time::Instant;
 
 use crate::sess::socket_session::TCP_BUFFER_SIZE;
 
@@ -97,8 +117,8 @@ impl RawSocketDesc {
     }
 
     pub fn recv(&mut self, buffer: &mut [u8]) -> Result<usize, ()> {
-	//log!(crate::LOG_NIC, "recv for buffer of size={}", buffer.len());
-	if buffer.len() <= 0 {
+        //log!(crate::LOG_NIC, "recv for buffer of size={}", buffer.len());
+        if buffer.len() <= 0 {
             return Err(());
         }
         unsafe {
@@ -116,11 +136,11 @@ impl RawSocketDesc {
                 let errc = (*libc::__errno_location()) as i32;
                 if errc == 11 {
                     //Would block ignore that error
-		    //log!(crate::LOG_NIC, "Would block");
+                    //log!(crate::LOG_NIC, "Would block");
                 }
                 else {
                     log!(
-			crate::LOG_NIC,
+                        crate::LOG_NIC,
                         "Failed to recv on socket[{}] for buffer of len={} with error={}",
                         self.in_fd,
                         buffer.len(),
@@ -129,7 +149,7 @@ impl RawSocketDesc {
                 }
                 return Err(());
             }
-	    log!(crate::LOG_DEF, "Got package of len {}", len);
+            log!(crate::LOG_DEF, "Got package of len {}", len);
             Ok(len as usize)
         }
     }
@@ -152,7 +172,7 @@ impl RawSocketDesc {
 
                 //TODO handle would block error
                 log!(
-		    crate::LOG_NIC,
+                    crate::LOG_NIC,
                     "Failed to send on socket[{}] buffer of len={} with error={}",
                     self.out_fd,
                     buffer.len(),
@@ -168,9 +188,10 @@ impl RawSocketDesc {
 impl Drop for RawSocketDesc {
     fn drop(&mut self) {
         log!(
-	    crate::LOG_NIC,
+            crate::LOG_NIC,
             "Closing unix socket[{}] & socket[{}]",
-            self.in_fd, self.out_fd
+            self.in_fd,
+            self.out_fd
         );
         unsafe {
             if libc::close(self.in_fd) != 0 {
@@ -190,7 +211,7 @@ impl Drop for RawSocketDesc {
             }
             if libc::remove(&c_char_name as *const _) == -1 {
                 log!(
-		    crate::LOG_NIC,
+                    crate::LOG_NIC,
                     "Failed to delete socket {} with error={}",
                     self.name,
                     (*libc::__errno_location()) as i32
@@ -211,7 +232,7 @@ impl<'a> DevFifo {
         let lower = RawSocketDesc::new(name)?;
         Ok(DevFifo {
             lower: Rc::new(RefCell::new(lower)),
-            mtu: TCP_BUFFER_SIZE
+            mtu: TCP_BUFFER_SIZE,
         })
     }
 }

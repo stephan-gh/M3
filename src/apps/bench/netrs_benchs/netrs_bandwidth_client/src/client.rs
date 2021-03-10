@@ -1,9 +1,36 @@
+/*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
 #![no_std]
 
 #[macro_use]
 extern crate m3;
 
-use m3::{profile, tcu::TCUIf, cell::StaticCell, col::{BoxList, BoxRef}, com::Semaphore, net::{IpAddr, TcpSocket, UdpSocket}, println, profile::Profiler, session::NetworkManager, test::{self, WvTester}, time::{self, Time}};
+use m3::{
+    cell::StaticCell,
+    col::{BoxList, BoxRef},
+    com::Semaphore,
+    net::{IpAddr, TcpSocket, UdpSocket},
+    pes::VPE,
+    println, profile,
+    profile::Profiler,
+    session::NetworkManager,
+    test::{self, WvTester},
+    time::{self, Time},
+};
 
 // TODO that's hacky, but the only alternative I can see is to pass the WvTester to every single
 // test case and every single wv_assert_* call, which is quite inconvenient.
@@ -19,16 +46,15 @@ static PACKETS_TO_SEND: usize = 105;
 static PACKETS_TO_RECEIVE: usize = 100;
 static BURST_SIZE: usize = 2;
 
-struct NetContext<'a>{
+struct NetContext<'a> {
     socket: UdpSocket<'a>,
     req_buffer: [u8; 1024],
     dest_addr: IpAddr,
     dest_port: u16,
     sent_count: usize,
     receive_count: usize,
-    received_bytes: usize
+    received_bytes: usize,
 }
-
 
 impl WvTester for MyTester {
     fn run_suite(&mut self, name: &str, f: &dyn Fn(&mut dyn WvTester)) {
@@ -44,11 +70,11 @@ impl WvTester for MyTester {
     }
 }
 
-fn run(t: &mut dyn test::WvTester){
+fn run(t: &mut dyn test::WvTester) {
     wv_run_test!(t, simple_bandwidth);
 }
 
-fn simple_bandwidth(){
+fn simple_bandwidth() {
     let mut prof = Profiler::default().repeats(5);
 
 
@@ -62,64 +88,65 @@ fn simple_bandwidth(){
     socket.bind(IpAddr::new(192, 168, 112, 2), 1337).unwrap();
 
     socket.set_blocking(false);
-    let mut context = NetContext{
-	socket,
-	req_buffer: [0; 1024],
-	dest_addr: IpAddr::new(192, 168, 112, 1),
-	dest_port: 1337,
-	sent_count: 0,
-	receive_count: 0,
-	received_bytes: 0
+    let mut context = NetContext {
+        socket,
+        req_buffer: [0; 1024],
+        dest_addr: IpAddr::new(192, 168, 112, 1),
+        dest_port: 1337,
+        sent_count: 0,
+        receive_count: 0,
+        received_bytes: 0,
     };
 
-    
-    
     wv_perf!(
         "running bandwidth test",
         prof.run_with_id(
-	    || {
-		let mut failures = 0;
-		loop{
-		    if failures > 9{
-			failures = 0;
-			TCUIf::sleep();
-		    }
-		    for _i in 0..BURST_SIZE{
-			if context.sent_count > PACKETS_TO_SEND{
-			    break;
-			}
-			context.socket.send(context.dest_addr, context.dest_port, &context.req_buffer).unwrap();
-			context.sent_count += 1;
-			failures = 0;
-		    }
+            || {
+                let mut failures = 0;
+                loop {
+                    if failures > 9 {
+                        failures = 0;
+                        VPE::sleep();
+                    }
+                    for _i in 0..BURST_SIZE {
+                        if context.sent_count > PACKETS_TO_SEND {
+                            break;
+                        }
+                        context
+                            .socket
+                            .send(context.dest_addr, context.dest_port, &context.req_buffer)
+                            .unwrap();
+                        context.sent_count += 1;
+                        failures = 0;
+                    }
 
-		    let receive_count = BURST_SIZE;
-		    for _ in 0..receive_count{
-			if let Ok(pkg) = context.socket.recv(){
-			    context.received_bytes += pkg.size as usize;
-			    context.receive_count += 1;
-			}else{
-			    failures += 1;
-			}
-		    }
-		    
-		    if context.receive_count >= PACKETS_TO_RECEIVE{
-			break;
-		    }
-		    if (context.sent_count >= PACKETS_TO_SEND){
-			break;
-		    }
-		}
-	    },
-	    0xa1
-	)
+                    let receive_count = BURST_SIZE;
+                    for _ in 0..receive_count {
+                        if let Ok(pkg) = context.socket.recv() {
+                            context.received_bytes += pkg.size as usize;
+                            context.receive_count += 1;
+                        }
+                        else {
+                            failures += 1;
+                        }
+                    }
+
+                    if context.receive_count >= PACKETS_TO_RECEIVE {
+                        break;
+                    }
+                    if (context.sent_count >= PACKETS_TO_SEND) {
+                        break;
+                    }
+                }
+            },
+            0xa1
+        )
     );
-    
 }
 
 #[no_mangle]
 pub fn main() -> i32 {
-    let mut tester = MyTester{};
+    let mut tester = MyTester {};
     wv_run_suite!(tester, run);
 
     println!("Finished");
@@ -129,6 +156,6 @@ pub fn main() -> i32 {
     else {
         println!("\x1B[1;32mAll tests successful!\x1B[0;m");
     }
-    
+
     0
 }

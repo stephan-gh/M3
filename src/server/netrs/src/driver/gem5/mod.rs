@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
+ * Copyright (C) 2017, Georg Kotheimer <georg.kotheimer@mailbox.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
 use m3::cell::RefCell;
 use m3::com::MemGate;
 use m3::errors::{Code, Error};
@@ -228,11 +245,16 @@ impl E1000 {
             (E1000_RXCSUM::IPOFLD | E1000_RXCSUM::TUOFLD).bits().into(),
         );
 
+        // calculate field offsets. needs to happen in const to not instantiate `Buffers`.
+        const RX_BUF_OFF: usize = offset_of!(Buffers, rx_buf);
+        const TX_DESCS_OFF: usize = offset_of!(Buffers, tx_descs);
+        const RX_DESCS_OFF: usize = offset_of!(Buffers, rx_descs);
+
         // setup rx descriptors
         for i in 0..RX_BUF_COUNT {
             //Init rxdesc which is written
             let mut desc = RxDesc {
-                buffer: (offset_of!(Buffers, rx_buf) + i * RX_BUF_SIZE) as u64,
+                buffer: (RX_BUF_OFF + i * RX_BUF_SIZE) as u64,
                 length: RX_BUF_SIZE as u16,
                 checksum: 0,
                 status: 0,
@@ -242,7 +264,7 @@ impl E1000 {
             log!(crate::LOG_NIC, "{} w {}", i, desc.buffer);
             self.bufs.write(
                 &[desc],
-                (offset_of!(Buffers, rx_descs) + i * core::mem::size_of::<RxDesc>()) as u64,
+                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as u64,
             );
 
             let mut desc2 = [RxDesc {
@@ -256,14 +278,14 @@ impl E1000 {
 
             self.bufs.read(
                 &mut desc2,
-                (offset_of!(Buffers, rx_descs) + i * core::mem::size_of::<RxDesc>()) as u64,
+                (RX_DESCS_OFF + i * core::mem::size_of::<RxDesc>()) as u64,
             );
             log!(crate::LOG_NIC, "{} r {}", i, desc2[0].buffer);
         }
 
         // init receive ring
         self.write_reg(E1000_REG::RDBAH, 0);
-        self.write_reg(E1000_REG::RDBAL, offset_of!(Buffers, rx_descs) as u32);
+        self.write_reg(E1000_REG::RDBAL, RX_DESCS_OFF as u32);
         self.write_reg(
             E1000_REG::RDLEN,
             (RX_BUF_COUNT * core::mem::size_of::<RxDesc>()) as u32,
@@ -275,7 +297,7 @@ impl E1000 {
 
         // init transmit ring
         self.write_reg(E1000_REG::TDBAH, 0);
-        self.write_reg(E1000_REG::TDBAL, offset_of!(Buffers, tx_descs) as u32);
+        self.write_reg(E1000_REG::TDBAL, TX_DESCS_OFF as u32);
         self.write_reg(
             E1000_REG::TDLEN,
             (TX_BUF_COUNT * core::mem::size_of::<TxDesc>()) as u32,
@@ -384,16 +406,22 @@ impl E1000 {
         let is_udp = txo_proto == TxoProto::UDP;
 
         //check if the type of package has changed, in that case update the context
-        let txd_context_update_required: bool = self.txd_context_proto != txo_proto;
-        let incremented_next_tx_desc = inc_rb(next_tx_desc, TX_BUF_COUNT as u32);
+        let txd_context_update_required: bool = (self.txd_context_proto & txo_proto) != txo_proto;
+        if txd_context_update_required {
+            next_tx_desc = inc_rb(next_tx_desc, TX_BUF_COUNT as u32);
+        }
 
-        if txd_context_update_required && (incremented_next_tx_desc == head) {
+        if txd_context_update_required && (next_tx_desc == head) {
             log!(
                 crate::LOG_NIC,
                 "Not enough free descriptors to update context and transmit data."
             );
             return false;
         }
+
+        // calculate field offsets. needs to happen in const to not instantiate `Buffers`.
+        const TX_BUF_OFF: usize = offset_of!(Buffers, tx_buf);
+        const TX_DESCS_OFF: usize = offset_of!(Buffers, tx_descs);
 
         //swap tx desc
         let mut cur_tx_desc: u32 = self.cur_tx_desc;
@@ -438,8 +466,7 @@ impl E1000 {
 
             self.bufs.write(
                 &[desc],
-                (offset_of!(Buffers, tx_descs)
-                    + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as u64,
+                (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as u64,
             );
             cur_tx_desc = inc_rb(cur_tx_desc, TX_BUF_COUNT as u32);
 
@@ -447,7 +474,7 @@ impl E1000 {
         }
 
         // Send packet
-        let offset = offset_of!(Buffers, tx_buf) + cur_tx_buf as usize * TX_BUF_SIZE;
+        let offset = TX_BUF_OFF + cur_tx_buf as usize * TX_BUF_SIZE;
         self.bufs.write(packet, offset as u64);
 
         log!(
@@ -498,8 +525,7 @@ impl E1000 {
         */
         self.bufs.write(
             &[desc],
-            (offset_of!(Buffers, tx_descs) + cur_tx_desc as usize * core::mem::size_of::<TxDesc>())
-                as u64,
+            (TX_DESCS_OFF + cur_tx_desc as usize * core::mem::size_of::<TxDesc>()) as u64,
         );
 
         self.write_reg(E1000_REG::TDT, self.cur_tx_desc);
@@ -523,13 +549,16 @@ impl E1000 {
         //   rather than by I/O reads. Any descriptor with a non-zero status byte has been processed by the
         //   hardware, and is ready to be handled by the software."
 
+        // calculate field offsets. needs to happen in const to not instantiate `Buffers`.
+        const RX_DESCS_OFF: usize = offset_of!(Buffers, rx_descs);
+
         let tail: u32 = inc_rb(self.read_reg(E1000_REG::RDT), RX_BUF_COUNT as u32);
 
         //Need to create the slice here, since we want to read the value after `read` took the slice
         let mut desc = [RxDesc::default()];
         self.bufs.read(
             &mut desc,
-            (offset_of!(Buffers, rx_descs) + tail as usize * core::mem::size_of::<RxDesc>()) as u64,
+            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as u64,
         );
         let mut desc = &mut desc[0];
         // TODO: Ensure that packets that are not processed because the maxReceiveCount has been exceeded,
@@ -619,7 +648,7 @@ impl E1000 {
         desc.error = 0;
         self.bufs.write(
             &[desc],
-            (offset_of!(Buffers, rx_descs) + tail as usize * core::mem::size_of::<RxDesc>()) as u64,
+            (RX_DESCS_OFF + tail as usize * core::mem::size_of::<RxDesc>()) as u64,
         );
 
         // move to next package by updating the `tail` value on the device.
@@ -655,7 +684,7 @@ impl E1000 {
         log!(crate::LOG_NIC, "NIC sleep: {}usec", usec);
         let nanos = usec * 1000;
         let t = base::tcu::TCU::nanotime();
-        m3::tcu::TCUIf::sleep_for(nanos).expect("Failed to sleep in NIC driver");
+        m3::pes::VPE::sleep_for(nanos).expect("Failed to sleep in NIC driver");
     }
 
     fn read_mac(&self) -> MAC {

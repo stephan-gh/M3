@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
  * Copyright (C) 2017, Georg Kotheimer <georg.kotheimer@mailbox.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
@@ -14,15 +15,15 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/TCU.h>
 #include <base/Env.h>
+#include <base/TCU.h>
 #include <base/util/Time.h>
 
-#include <m3/com/Semaphore.h>
-#include <m3/session/NetworkManagerRs.h>
-#include <m3/netrs/UdpSocket.h>
-#include <m3/stream/Standard.h>
 #include <m3/Test.h>
+#include <m3/com/Semaphore.h>
+#include <m3/netrs/UdpSocket.h>
+#include <m3/session/NetworkManagerRs.h>
+#include <m3/stream/Standard.h>
 
 using namespace m3;
 
@@ -39,67 +40,68 @@ int main() {
     socket.bind(IpAddr(192, 168, 112, 2), 1337);
 
     constexpr size_t packet_size = 1024;
-    IpAddr dest_addr = IpAddr(192, 168, 112, 1);
-    uint16_t dest_port = 1337;
-    
+    IpAddr dest_addr             = IpAddr(192, 168, 112, 1);
+    uint16_t dest_port           = 1337;
+
     union {
         uint8_t raw[packet_size];
         cycles_t time;
     } request;
-/*
+    /*
     union {
         uint8_t raw[packet_size];
         cycles_t time;
     } response;
 */
-    size_t warmup = 5;
-    size_t packets_to_send = 105;
+    size_t warmup             = 5;
+    size_t packets_to_send    = 105;
     size_t packets_to_receive = 100;
-    size_t burst_size = 2;
-    cycles_t timeout = 100000000;
+    size_t burst_size         = 2;
+    cycles_t timeout          = 100000000;
 
-    size_t packet_sent_count = 0;
+    size_t packet_sent_count     = 0;
     size_t packet_received_count = 0;
-    size_t received_bytes = 0;
+    size_t received_bytes        = 0;
 
     cout << "Warmup...\n";
     while(warmup--) {
-        socket.send(dest_addr, dest_port, (uint8_t*)request.raw, 8);
-	m3::net::NetData _data = socket.recv();
+        socket.send(dest_addr, dest_port, (uint8_t *)request.raw, 8);
+        m3::net::NetData _data = socket.recv();
     }
     cout << "Warmup done.\n";
 
     socket.set_blocking(false);
     cout << "Benchmark...\n";
-    cycles_t start = Time::start(0);
+    cycles_t start         = Time::start(0);
     cycles_t last_received = start;
-    size_t failures = 0;
+    size_t failures        = 0;
     while(true) {
         // Wait for wakeup (message or credits received)
         if(failures >= 10) {
             failures = 0;
-            TCUIf::sleep();
+            VPE::sleep();
         }
 
         size_t send_count = burst_size;
         while(send_count-- && packet_sent_count < packets_to_send) {
-            socket.send(dest_addr, dest_port, (uint8_t*)request.raw, packet_size);
-	    packet_sent_count++;
-	    failures = 0;
+            socket.send(dest_addr, dest_port, (uint8_t *)request.raw, packet_size);
+            packet_sent_count++;
+            failures = 0;
         }
 
         size_t receive_count = burst_size;
         while(receive_count--) {
-	    m3::net::NetData pkg = socket.recv();
+            m3::net::NetData pkg = socket.recv();
 
-	    if(!pkg.is_empty()) {
+            if(!pkg.is_empty()) {
                 received_bytes += static_cast<size_t>(pkg.get_size());
                 packet_received_count++;
                 last_received = Time::start(0);
-                failures = 0;
-            } else {
-               failures++;
-	       break;
+                failures      = 0;
+            }
+            else {
+                failures++;
+                break;
             }
         }
 

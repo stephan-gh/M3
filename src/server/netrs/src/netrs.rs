@@ -1,3 +1,24 @@
+/*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
+ * Copyright (C) 2017, Georg Kotheimer <georg.kotheimer@mailbox.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
+// for offset_of with unstable_const feature
+#![feature(const_maybe_uninit_as_ptr)]
+#![feature(const_raw_ptr_deref)]
+#![feature(const_ptr_offset_from)]
 #![no_std]
 
 extern crate bitflags;
@@ -40,7 +61,7 @@ struct NetHandler {
     ///Holds all the actual smoltcp sockets. Used for polling events on them.
     socket_set: SocketSet<'static>,
     rgate: Rc<RefCell<RecvGate>>,
-    ///True if shutdown was called. 
+    ///True if shutdown was called.
     shuting_down: bool,
 }
 
@@ -166,14 +187,21 @@ impl Handler<NetworkSession> for NetHandler {
     }
 
     fn shutdown(&mut self) {
-	log!(LOG_DEF, "NetRs: Shutdown");
-	self.shuting_down = true;
-	/*
+        log!(LOG_DEF, "NetRs: Shutdown");
+        self.shuting_down = true;
+        /*
         TODO:
         Drop each session.
         driver stop?
         rgate stop
          */
+    }
+}
+
+/// Executes the server loop, calling `func` in every iteration.
+pub fn my_server_loop<F: FnMut() -> Result<(), Error>>(mut func: F) -> Result<(), Error> {
+    loop {
+        func()?;
     }
 }
 
@@ -234,7 +262,7 @@ pub fn main() -> i32 {
         sessions: SessionContainer::new(m3::server::DEF_MAX_CLIENTS),
         socket_set,
         rgate: Rc::new(RefCell::new(rgate)),
-	shuting_down: false,
+        shuting_down: false,
     };
 
     let serv = Server::new(name, &mut handler).expect("Failed to create server!");
@@ -253,14 +281,19 @@ pub fn main() -> i32 {
     log!(LOG_DEF, "Started net server");
 
     let mut clock = smoltcp::time::Instant::from_millis(0);
-    server_loop(|| {
+
+    my_server_loop(|| {
         //log!(crate::LOG_DEF, "POLL");
         serv.handle_ctrl_chan(&mut handler)?;
-        //Check if we got some messages through our main rgate.
-        if let Some(mut is) = rgatec.borrow().fetch() {
-            let op = is.pop::<NetworkOp>()?;
-            if let Err(e) = handler.handle(op, &mut is) {
-                is.reply_error(e.code()).ok();
+        {
+            let rgate = rgatec.borrow();
+            //Check if we got some messages through our main rgate.
+            if let Some(msg) = rgate.fetch() {
+                let mut is = GateIStream::new(msg, &rgate);
+                let op = is.pop::<NetworkOp>()?;
+                if let Err(e) = handler.handle(op, &mut is) {
+                    is.reply_error(e.code()).ok();
+                }
             }
         }
 
@@ -287,7 +320,7 @@ pub fn main() -> i32 {
             },
             None => clock += Duration::from_millis(1),
         }
-	
+
         Ok(())
     })
     .ok();

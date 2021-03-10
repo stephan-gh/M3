@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
  * Copyright (C) 2017, Georg Kotheimer <georg.kotheimer@mailbox.tu-dresden.de>
  * Economic rights: Technische Universitaet Dresden (Germany)
  *
@@ -14,18 +15,17 @@
  * General Public License version 2 for more details.
  */
 
-#include <base/util/Profile.h>
 #include <base/Env.h>
+#include <base/util/Profile.h>
 
 #include <m3/com/Semaphore.h>
-#include <m3/session/NetworkManagerRs.h>
 #include <m3/netrs/UdpSocket.h>
+#include <m3/session/NetworkManagerRs.h>
 #include <m3/stream/Standard.h>
 
 using namespace m3;
 
-
-union Request{
+union Request {
     uint8_t raw[1024];
     cycles_t time;
 };
@@ -39,16 +39,14 @@ int main() {
 
     socket.bind(IpAddr(192, 168, 112, 1), 1337);
 
-
-    
     // notify client
     Semaphore::attach("net").up();
-    
+
     char request[1024];
     while(true) {
-	m3::net::NetData pkg = socket.recv();
-	
-//Send package back
-	socket.send(pkg.src_addr, pkg.src_port, pkg.get_data(), pkg.get_size());
+        m3::net::NetData pkg = socket.recv();
+
+        //Send package back
+        socket.send(pkg.src_addr, pkg.src_port, pkg.get_data(), pkg.get_size());
     }
 }

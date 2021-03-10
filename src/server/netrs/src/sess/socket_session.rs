@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2021, Tendsin Mende <tendsin.mende@mailbox.tu-dresden.de>
+ * Copyright (C) 2017, Georg Kotheimer <georg.kotheimer@mailbox.tu-dresden.de>
+ * Economic rights: Technische Universitaet Dresden (Germany)
+ *
+ * This file is part of M3 (Microkernel-based SysteM for Heterogeneous Manycores).
+ *
+ * M3 is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * M3 is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License version 2 for more details.
+ */
+
 use m3::{cap::Selector, net::NetData};
 use m3::cell::RefCell;
 use m3::col::Vec;
@@ -29,8 +46,10 @@ pub const MAX_SEND_RECEIVE_BATCH_SIZE: usize = 5;
 pub const MAX_SOCKETS: usize = 16;
 ///Defines how big the socket buffers must be, currently this is the max NetDataSize multiplied by the
 /// Maximum in flight packages
-pub const TCP_BUFFER_SIZE: usize = (MAX_NETDATA_SIZE + TCP_HEADER_SIZE) * MAX_SEND_RECEIVE_BATCH_SIZE;
-pub const UDP_BUFFER_SIZE: usize = (MAX_NETDATA_SIZE + UDP_HEADER_SIZE) * MAX_SEND_RECEIVE_BATCH_SIZE;
+pub const TCP_BUFFER_SIZE: usize =
+    (MAX_NETDATA_SIZE + TCP_HEADER_SIZE) * MAX_SEND_RECEIVE_BATCH_SIZE;
+pub const UDP_BUFFER_SIZE: usize =
+    (MAX_NETDATA_SIZE + UDP_HEADER_SIZE) * MAX_SEND_RECEIVE_BATCH_SIZE;
 pub const RAW_BUFFER_SIZE: usize = MAX_NETDATA_SIZE * MAX_SEND_RECEIVE_BATCH_SIZE;
 
 pub struct SocketSession {
@@ -71,7 +90,7 @@ impl SocketSession {
             rgate,
             server_session,
             sockets: vec![None; MAX_SOCKETS], //TODO allocate correct amount up front?
-            size: TCP_BUFFER_SIZE, //currently going with the max number
+            size: TCP_BUFFER_SIZE,            //currently going with the max number
             channel: None,
             channel_caps: m3::kif::INVALID_SEL,
             client_gates: None,
@@ -267,11 +286,12 @@ impl SocketSession {
     }
 
     fn get_socket(&self, sd: i32) -> Option<Rc<RefCell<Socket>>> {
-        if let Some(s) = self.sockets.get(sd as usize){
-	    s.clone()
-	}else{
-	    None
-	}
+        if let Some(s) = self.sockets.get(sd as usize) {
+            s.clone()
+        }
+        else {
+            None
+        }
     }
 
     fn remove_socket(&mut self, sd: i32) {
@@ -315,28 +335,28 @@ impl SocketSession {
 
         let socket_handle = match ty {
             SocketType::Stream => {
-		self.size = TCP_BUFFER_SIZE;
-		socket_set.add(TcpSocket::new(
+                self.size = TCP_BUFFER_SIZE;
+                socket_set.add(TcpSocket::new(
                     TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
                     TcpSocketBuffer::new(vec![0 as u8; TCP_BUFFER_SIZE]),
-		))
-	    },
+                ))
+            },
             SocketType::Dgram => {
-		self.size = UDP_BUFFER_SIZE;
-		socket_set.add(UdpSocket::new(
-                    UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; MAX_SEND_RECEIVE_BATCH_SIZE], vec![
-			0 as u8;
-			UDP_BUFFER_SIZE
-                    ]),
-                    UdpSocketBuffer::new(vec![PacketMetadata::EMPTY; MAX_SEND_RECEIVE_BATCH_SIZE], vec![
-			0 as u8;
-			UDP_BUFFER_SIZE
-                    ]),
-		))
-	    },
+                self.size = UDP_BUFFER_SIZE;
+                socket_set.add(UdpSocket::new(
+                    UdpSocketBuffer::new(
+                        vec![PacketMetadata::EMPTY; MAX_SEND_RECEIVE_BATCH_SIZE],
+                        vec![0 as u8; UDP_BUFFER_SIZE],
+                    ),
+                    UdpSocketBuffer::new(
+                        vec![PacketMetadata::EMPTY; MAX_SEND_RECEIVE_BATCH_SIZE],
+                        vec![0 as u8; UDP_BUFFER_SIZE],
+                    ),
+                ))
+            },
             SocketType::Raw => {
-		self.size = RAW_BUFFER_SIZE;		
-		socket_set.add(RawSocket::new(
+                self.size = RAW_BUFFER_SIZE;
+                socket_set.add(RawSocket::new(
                     IpVersion::Ipv4,
                     protocol.into(),
                     RawSocketBuffer::new(vec![PacketMetadata::EMPTY; MSG_BUF_SIZE], vec![
@@ -347,8 +367,8 @@ impl SocketSession {
 			0 as u8;
 			RAW_BUFFER_SIZE
                     ]),
-		))
-	    },
+                ))
+            },
             _ => {
                 log!(crate::LOG_DEF, "create failed: invalid socket type");
                 return Err(Error::new(Code::InvArgs));
@@ -503,13 +523,17 @@ impl SocketSession {
 
         let mut num_received = 0;
 
-	//receive everything in the channel
+        //receive everything in the channel
         while let Ok(data) = self.channel.as_ref().unwrap().receive() {
             num_received += 1;
 
-	    if let Some(socket) = self.get_socket(data.sd) {
-		log!(crate::LOG_DEF, "DataAsString={}", core::str::from_utf8(data.raw_data()).unwrap_or("Could not parse"));
-		let _send_data_size = match socket.borrow_mut().send_data_slice(data, socket_set) {
+            if let Some(socket) = self.get_socket(data.sd) {
+                log!(
+                    crate::LOG_DEF,
+                    "DataAsString={}",
+                    core::str::from_utf8(data.raw_data()).unwrap_or("Could not parse")
+                );
+                let _send_data_size = match socket.borrow_mut().send_data_slice(data, socket_set) {
                     Ok(send_size) => send_size,
                     Err(e) => {
                         log!(
@@ -523,7 +547,11 @@ impl SocketSession {
             //TODO return send size if it is blocking?
             }
             else {
-                log!(crate::LOG_DEF, "send failed: invalid socket descriptor [{}]", data.sd);
+                log!(
+                    crate::LOG_DEF,
+                    "send failed: invalid socket descriptor [{}]",
+                    data.sd
+                );
             }
 
             if num_received > MAX_SEND_RECEIVE_BATCH_SIZE {
